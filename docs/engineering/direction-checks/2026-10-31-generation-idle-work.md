@@ -16,3 +16,5 @@ NodeImportingOverlay 为文件级第 3 个 fix，协调按用户同一次拍板�
 
 
 协调裁定（10-31 03:5x）：用户原话“并进这条线修”。新增范围仅 poll 与 materialize 等外部调用后按最新事实提交的共享生命周期；包含已落地幂等、仅completed未落地时保留更新观察、最新Run revision及跨实例落地互斥。productionGenerationSubmission.ts、productionRunRuntimeEnvelope.ts热点按此放行。不新增供应商特例，不动提交/重试/项目写口；其余文件级热点照旧停。
+
+实施收尾：只原样迁移结果/错误/状态分组契约以满足冻结体积边界，原提交API继续重导出；删除旧shader视觉基线与依赖登记，退役旧patch主人并登记当前共享主人。不新增行为分支，体积棘轮仅下调，性能预算保持33ms。

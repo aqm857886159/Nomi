@@ -855,12 +855,47 @@
       "kind": "write",
       "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
       "symbol": "withMaterialization"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationMaterialization.ts",
+      "symbol": "GenerationMaterializationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "deterministicRetrievalFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationMaterialization.ts",
+      "symbol": "classifyProviderStatus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "classifyProviderStatus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "isPendingProviderStatus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "isFailedProviderStatus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "isSuccessfulProviderStatus"
     }
   ],
   "door_reduction": {
-    "before": 163,
-    "after": 163,
-    "why_not": "The seven independent progress producers, three waiting consumers and atomic-write owners retain their domain roles. Two read-only callers of the new shared recovery predicate converge foreground/background policy; no new state writer is introduced. Counts use an identical symbol set and repository file set against baseline and working source. The common atomic writer remains unchanged. Recovery extension: GUI canvas-poll/recovery, Run controls/observers/scheduler and independent stdio MCP keep their user-facing entries but share the envelope lifecycle. Conservative same-name materialize/poll matches are retained and classified in same_class_entry_points; the store exports stay as the only durable observation/completion boundary. The two markMaterialized doors are removed and replaced by two withMaterialization doors: completion is no longer independently callable outside ownership."
+    "before": 168,
+    "after": 170,
+    "why_not": "The seven independent progress producers, three waiting consumers and atomic-write owners retain their domain roles. Two read-only callers of the new shared recovery predicate converge foreground/background policy; no new state writer is introduced. Counts use an identical symbol set and repository file set against baseline and working source. The common atomic writer remains unchanged. Recovery extension: GUI canvas-poll/recovery, Run controls/observers/scheduler and independent stdio MCP keep their user-facing entries but share the envelope lifecycle. Conservative same-name materialize/poll matches are retained and classified in same_class_entry_points; the store exports stay as the only durable observation/completion boundary. The two markMaterialized doors are removed and replaced by two withMaterialization doors: completion is no longer independently callable outside ownership. Error/receipt contract extraction adds only generated module/type readers and a guard call; no state writer or alternate lifecycle is added. Latest before/after use the same expanded helper symbol set on4e9937dac versus extracted source; helper-call and error-type aliases split across two files, not new fact writers."
   },
   "generality_proof": "All seven progress writers converge on createCanvasRunActions; background delivery shares the recovery-fact predicate. Every waiting reader uses the same static surface. Shared upstream status classification handles all providers and persisted pending observations after restart. The shared file-backed observation revision and lifecycle lease span Electron and independent stdio instances. Materialization extraction remains outside the lease; asset writes and finalization share one lease and revalidate durable state.",
   "shared_boundaries": [
@@ -1151,7 +1186,7 @@
   },
   "migration": "Envelope schema remains1 with an optional lastPoll.revision field. Existing taskId and frozen contracts remain readable; only transient redundant work disappears. Older lastPoll observations without revision are version0; the first genuine observation change writes a version. No background migration or pending heartbeat write.",
   "residual_risks": [
-    "Lifecycle matrix46 and original138 plus two reported regressions passed (186 total); production build and all five typecheck projects passed. Final product HEAD dual-locale restart, full gates/prepush and exclusive five-run comparisons remain pending.",
+    "Deletion bookkeeping and contract extraction passed root/concept/boundary/framework checks, original138+two regressions+matrix46 (186), build and five typecheck projects. Extracted error/receipt/status function bodies are unchanged. New final-source dual-locale/full gates/prepush/exclusive measurements remain pending.",
     "Windows true-window validation belongs to coordination; local Electron mocks cost zero and do not establish paid-provider behavior."
   ],
   "detected_by": "user",

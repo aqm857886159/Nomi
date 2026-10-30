@@ -140,3 +140,5 @@
 处理合同：结果回执类型、三种取回错误和确定性错误识别原样移入 `electron/productionRun/productionGenerationMaterialization.ts`，原submission重导出原API；不加分支，不改字面码/文案/判据，不提高文件上限。旧shader基线和依赖登记删除，patch不变量随引擎删除正式退役。静态等待、进度耐久判定、主进程观察生命周期分别登记单一主人；不增加存量债或unverified。
 
 ★9补验：原186项、门岗反例不变；拆分后构建和双语全流程重跑，再完整gates/快检，最后exclusive正式5次对比。旧结果保留，不冒充拆分后最终源码证据。
+
+同模块原有provider状态分组/三种状态谓词也原样迁移到结果契约模块；底层状态词表仍只认shared/taskStatus，不增加词表、分支或供应商例外。
