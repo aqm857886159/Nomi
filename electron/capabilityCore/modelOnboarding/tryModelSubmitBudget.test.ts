@@ -124,7 +124,7 @@ describe("nomi_try_model 提交步骤的预算", () => {
   });
 
   beforeEach(async () => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
+    vi.stubEnv("NOMI_SETTINGS_DIR", fs.mkdtempSync(path.join(root, "case-")));
     const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
     vendorKey = await declare("Example Budget", origin);
     // 一个没人监听的端口：建连被拒 = 请求一个字节都没写出去。

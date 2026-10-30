@@ -16,11 +16,15 @@
   "evidence": [
     "docs/plan/2026-10-30-try-model-intent-lock.md",
     "docs/engineering/direction-check-2026-10-30-try-model-intent-lock.md",
-    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
+    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts",
+    "docs/fixes/2026-10-30-try-model-intent-lock.root-cause.json",
+    "electron/productionRun/submissionIntent.test.ts",
+    "tests/ux/try-model-intent-lock-real.rehearsal.walk.mjs"
   ],
   "completionCommits": [],
   "classCheck": {
     "kind": "matrix",
     "file": "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
-  }
+  },
+  "rootCauseContract": "docs/fixes/2026-10-30-try-model-intent-lock.root-cause.json"
 }

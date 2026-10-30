@@ -87,6 +87,8 @@ describe("验收 · 接一家 Higgsfield 形状的供应商要几跳（基线 14
 
   beforeEach(() => {
     vi.stubEnv("NOMI_SETTINGS_DIR", root);
+    // Approval-policy examples are separate user tasks; retain catalog setup, isolate their trial histories.
+    fs.rmSync(path.join(root, "app-executions"), { recursive: true, force: true });
   });
 
   afterAll(async () => {
