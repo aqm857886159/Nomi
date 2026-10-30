@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { assertWindowsPrivateAcl } from './nativeFilePrivacy.mjs';
 import { test } from 'node:test';
 import { readFile, readdir, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -42,7 +43,8 @@ test('three real pi runs derive three complete rows, remain native-readable and 
   assert.ok(rows[0].tools[0].durationMs !== null);
   assert.match(rows[0].tools[0].resultSummary!, /opening scene/);
   assert.ok(rows[0].approvals.length > 0);
-  assert.equal((await stat(join(directory, 'trace.jsonl'))).mode & 0o777, 0o600);
+  if (process.platform === 'win32') assertWindowsPrivateAcl(join(directory, 'trace.jsonl'));
+  else assert.equal((await stat(join(directory, 'trace.jsonl'))).mode & 0o777, 0o600);
   const root = await openLaneTraceDirectory(fixture.projectDir);
   assert.match(await readFile(join(root, 'index.md'), 'utf8'), /3 turns/);
   assert.equal((await readdir(laneSessionsRoot(fixture.projectDir))).filter(name => name.endsWith('.jsonl')).length, 0);

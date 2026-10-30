@@ -247,7 +247,7 @@ describe('证据摘要', () => {
 
   it('全绿 = passed；带出手填那一行的事实、数字、截图名；只留图的尺寸，不带路径、不带图本身', () => {
     const report = evidence()
-    expect(report).toMatchObject({ result: 'passed', failure: null, failures: [], codeWord: 'NOMI 4817', model: 'apimart/gpt-5-mini', screenshots: ['01-a.png'], walkOutputDir: '.tmp/pi-agent-image-input-real-1' })
+    expect(report).toMatchObject({ result: 'passed', failure: null, failures: [], codeWord: 'NOMI 4817', model: 'apimart/gpt-5-mini', screenshots: ['01-a.png'], walkOutputDir: path.join('.tmp', 'pi-agent-image-input-real-1') })
     expect(report.handTypedModel).toEqual({ modelKey: MODEL_ID, imageInputTier: 'unknown' })
     expect(report.images).toEqual({ code: { bytes: 3235, width: 1180, height: 260 }, real: { bytes: 29_703_774, width: 3840, height: 2160, bitDepth: 16, colorType: 2, attachCapBytes: 31_457_280, source: '登记表' } })
     expect(JSON.stringify(report)).not.toContain('secret-path')

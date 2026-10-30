@@ -540,6 +540,16 @@
         "symbol": "retrievalStageError"
       },
       "reason": "2026-10-28 取回阶段的错误出口 retrievalStageError 从 taskResultQuery.ts 原样搬到 electron/tasks/retrievalStageError.ts：结果落地门 assets/localizeTaskAsset 失败时要经它挂取回阶段码（同步供应商在提交里落地），而 taskResultQuery 从运行时取执行器、运行时又引落地门，搬到不依赖运行时的模块才不成环。函数体一字未改，取回出口仍只有它一个（合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json）。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-11-audio-reference-slot-gate.root-cause.json",
+      "path": "src/config/modelCatalogMeta.ts",
+      "symbol": "parseParameterControl / parseModelParameterControlsAtomic",
+      "anchor": {
+        "path": "electron/shared/modelParameterControls.ts",
+        "symbol": "parseParameterControl / parseModelParameterControlsAtomic"
+      },
+      "reason": "2026-10-30: both parsers moved to the shared model parameter boundary; src/config/modelCatalogMeta retains compatibility re-exports, not ownership."
     }
   ],
   "retirements": [

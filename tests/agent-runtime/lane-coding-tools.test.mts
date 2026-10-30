@@ -8,6 +8,8 @@
 //   ⑤ 沙箱不可用时自动放行整档消失（阳性对照住在 codingCommandPolicy.test.ts）。
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+const { killProcessTree, processTreeSpawnOptions } = await import(pathToFileURL(path.resolve('scripts/lib/processTree.mjs')).href);
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -31,6 +33,7 @@ import { laneSandboxVendorPaths, openLaneSandbox, sandboxPolicyFor,
 import { VERB_EFFECTS } from '../../electron/shared/agentCapabilities/verbDeclaration.js';
 import { laneToolBillable, laneToolMutates } from '../../electron/shared/agentLane/laneToolContract.js';
 
+const shellPath = (file: string): string => "'" + file.split(path.sep).join('/').replaceAll("'", "'\\''") + "'";
 async function projectDir(t: TestContext): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), 'nomi-coding-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
@@ -40,9 +43,9 @@ async function projectDir(t: TestContext): Promise<string> {
 /** 真的跑本地 shell 的 operations（沙箱那一层在别的测试里单独证；这里要证的是超时与 env）。 */
 const localOperations: LaneBashOperations = {
   exec: (command, cwd, { onData, signal, timeout, env }) => new Promise((resolve, reject) => {
-    const child = spawn('bash', ['-c', command], { cwd, detached: true, stdio: ['ignore', 'pipe', 'pipe'], ...(env ? { env } : {}) });
+    const child = spawn('bash', ['-c', command], { cwd, ...processTreeSpawnOptions(), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], ...(env ? { env } : {}) });
     let timedOut = false;
-    const killTree = () => { if (child.pid) { try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); } } };
+    const killTree = () => { killProcessTree(child); };
     const timer = timeout && timeout > 0 ? setTimeout(() => { timedOut = true; killTree(); }, timeout) : undefined;
     child.stdout?.on('data', onData);
     child.stderr?.on('data', onData);
@@ -196,7 +199,7 @@ test('安全断言③ 闸拒 = 命令一次都没跑（**带阳性对照**：同
 
   // 拒收臂：真实策略判定为 ask（`git push` 在硬清单里），闸不放行。
   const deniedMarker = path.join(dir, 'denied.txt');
-  const deniedCommand = `touch ${deniedMarker}`;
+  const deniedCommand = `touch ${shellPath(deniedMarker)}`;
   const denying = gatedBash(bash as never, () => 'block');
   assert.equal(await denying(deniedCommand), 'blocked');
   assert.deepEqual(attempted, [], '闸拒了，operations 却被碰过——工具在闸之前就跑了');
@@ -205,7 +208,7 @@ test('安全断言③ 闸拒 = 命令一次都没跑（**带阳性对照**：同
   // **阳性对照**：一模一样的命令，闸放行 → operations 被调用、文件真的出现。
   // 没有这一臂，上面那个空数组和「execute 根本没接上」长得一模一样。
   const allowedMarker = path.join(dir, 'allowed.txt');
-  const allowedCommand = `touch ${allowedMarker}`;
+  const allowedCommand = `touch ${shellPath(allowedMarker)}`;
   const allowing = gatedBash(bash as never, () => 'allow');
   await allowing(allowedCommand);
   assert.deepEqual(attempted, [allowedCommand], '批了却没跑——那上面那条拒收断言什么也没证明');
@@ -228,7 +231,7 @@ test('安全断言④ 超时把整棵进程树杀掉，不是只杀那一个 bas
   await assert.rejects(
     () => localOperations.exec(
       // 子进程在 1.5s 后写文件。超时 400ms：杀对了它就永远写不出来。
-      `bash -c 'sleep 1.5; echo survived > ${survivor}' & wait`,
+      `bash -c "sleep 1.5; echo survived > ${shellPath(survivor)}" & wait`,
       dir,
       { onData: () => undefined, timeout: 400 },
     ),
@@ -288,7 +291,7 @@ function vendorDeps(input: { platform: string; arch: string; packageJson: string
   return {
     resolvePackageJson: () => input.packageJson,
     // 只认解包副本存在——正是打包后的真实形状：归档里那份对 `execve` 不存在。
-    exists: (candidate: string) => (input.present ?? []).some((suffix) => candidate.endsWith(suffix)),
+    exists: (candidate: string) => (input.present ?? []).some((suffix) => candidate.split(path.sep).join('/').endsWith(suffix)),
     platform: input.platform,
     arch: input.arch,
   };
@@ -301,9 +304,9 @@ test('打包后给出的是 app.asar.unpacked 里那份，不是归档里那份'
     present: ['vendor/seccomp/x64/apply-seccomp', 'vendor/java-proxy-agent/srt-proxy-agent.jar'],
   }));
   assert.equal(linux.seccomp?.applyPath,
-    '/Apps/Nomi.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/x64/apply-seccomp');
+    path.normalize('/Apps/Nomi.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/x64/apply-seccomp'));
   assert.equal(linux.javaAgentJarPath,
-    '/Apps/Nomi.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/sandbox-runtime/vendor/java-proxy-agent/srt-proxy-agent.jar');
+    path.normalize('/Apps/Nomi.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/sandbox-runtime/vendor/java-proxy-agent/srt-proxy-agent.jar'));
   // 改写是**全路径替换**，不是只换第一处；而且不许把已改写的再改一次。
   assert.ok(!linux.seccomp?.applyPath.includes('app.asar/'), '归档路径一个都不许漏过去');
   assert.ok(!linux.seccomp?.applyPath.includes('unpacked.unpacked'), '防重入');
@@ -339,8 +342,8 @@ test('盘上没有就一个字段都不给——让上游按自己的办法找�
 
 test('沙箱策略：allowWrite 只有项目目录与 /tmp；Nomi 设置目录进 denyRead', () => {
   const policy = sandboxPolicyFor({ projectDir: '/proj', settingsRoot: '/Users/x/Library/Application Support/Nomi' });
-  assert.deepEqual([...policy.allowWrite], ['/proj', '/tmp']);
-  assert.ok(policy.denyRead.includes('/Users/x/Library/Application Support/Nomi'));
+  assert.deepEqual([...policy.allowWrite], [path.resolve('/proj'), '/tmp']);
+  assert.ok(policy.denyRead.includes(path.resolve('/Users/x/Library/Application Support/Nomi')));
   assert.ok(policy.denyRead.includes('~/.ssh'));
   assert.deepEqual([...policy.allowedDomains], [], '网络默认全拒');
 });

@@ -82,10 +82,19 @@ function sha256File(filePath: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+/** Bind the ZIP contract to the shipped OS bsdtar, never an ambient GNU tar. */
+export function localSpeechArchiveExtractor(platform: NodeJS.Platform = process.platform, windowsRoot: string | undefined = process.env.SystemRoot || process.env.WINDIR): string {
+  if (platform === 'darwin') return '/usr/bin/tar';
+  if (platform === 'win32' && windowsRoot && path.win32.isAbsolute(windowsRoot)) {
+    return path.win32.join(windowsRoot, 'System32', 'tar.exe');
+  }
+  throw localSpeechFailure('extract-failed', 'Native archive extractor is unavailable for this platform configuration');
+}
+
 /** `tar -xf` 解 zip：系统自带 bsdtar（macOS、Windows 10+）认 zip，不自研解压器。 */
 function extractArchive(archivePath: string, intoDir: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn("tar", ["-xf", archivePath, "-C", intoDir], { windowsHide: true });
+    const child = spawn(localSpeechArchiveExtractor(), ["-xf", archivePath, "-C", intoDir], { windowsHide: true });
     let stderr = "";
     child.stderr?.on("data", (chunk) => {
       stderr += String(chunk);

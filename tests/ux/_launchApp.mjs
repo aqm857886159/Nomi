@@ -884,8 +884,8 @@ export const GRACEFUL_CLOSE_BOUND_MS = 15_000
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** 这个进程此刻的全部子孙 pid（POSIX）。主进程一退，子孙就被过继给 init，再按父子关系就找不到了——所以要在关之前拍。 */
-export function descendantPids(rootPid, list = () => execFileSync('ps', ['-A', '-o', 'pid=,ppid='], { encoding: 'utf8' })) {
-  if (!rootPid || process.platform === 'win32') return []
+export function descendantPids(rootPid, list = () => execFileSync('ps', ['-A', '-o', 'pid=,ppid='], { encoding: 'utf8' }), platform = process.platform) {
+  if (!rootPid || platform === 'win32') return []
   let out
   try { out = list() } catch { return [] }
   const children = new Map()

@@ -8,6 +8,7 @@ const envSnapshot = { ...process.env };
 const tempRoots: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const key of Object.keys(process.env)) vi.stubEnv(key, undefined);
   Object.assign(process.env, envSnapshot);
   for (const root of tempRoots.splice(0)) {
@@ -168,6 +169,7 @@ describe("Codex CLI image bridge", () => {
   it("CODEX_HOME 未设置时沿用 ~/.codex", () => {
     const root = path.join(os.tmpdir(), `nomi-codex-default-home-test-${Date.now()}-${process.pid}`);
     tempRoots.push(root);
+    vi.spyOn(os, "homedir").mockReturnValue(root);
     vi.stubEnv("HOME", root);
     vi.stubEnv("CODEX_HOME", undefined);
     const imageDir = path.join(root, ".codex", "generated_images", "thread-default");
@@ -181,6 +183,7 @@ describe("Codex CLI image bridge", () => {
   it("CODEX_HOME 为空字符串时仍沿用 ~/.codex", () => {
     const root = path.join(os.tmpdir(), `nomi-codex-empty-home-test-${Date.now()}-${process.pid}`);
     tempRoots.push(root);
+    vi.spyOn(os, "homedir").mockReturnValue(root);
     vi.stubEnv("HOME", root);
     vi.stubEnv("CODEX_HOME", "");
     const imageDir = path.join(root, ".codex", "generated_images", "thread-empty");

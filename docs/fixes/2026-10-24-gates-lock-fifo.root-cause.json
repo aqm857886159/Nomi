@@ -4,8 +4,8 @@
   "detected_by": "review",
   "recurrence_check_on": "2026-11-24",
   "problem_type": "Unfair cross-worktree admission to the machine gates lock",
-  "symptom": "A later gates process can acquire the shared lock before an earlier waiter because each waiter polls LOCK_NB and races after release; the earliest waiter can remain blocked for hours.",
-  "direct_cause": "scripts/with-gates-lock.py repeatedly calls non-blocking flock/msvcrt acquisition without a shared arrival order, so the kernel scheduler decides which waiter wins.",
+  "symptom": "A later gates process can acquire the shared lock before an earlier waiter because each waiter polls LOCK_NB and races after release; the earliest waiter can remain blocked for hours. Windows current acceptance found five unlocked ticket files left behind after all FIFO workers completed.",
+  "direct_cause": "scripts/with-gates-lock.py repeatedly calls non-blocking flock/msvcrt acquisition without a shared arrival order, so the kernel scheduler decides which waiter wins. Cleanup unlinks ticket paths before closing its own open file handle; Windows denies that deletion.",
   "class_root": "The shared machine lock had no admission invariant connecting arrival to ownership; its native lock protects mutual exclusion but does not provide FIFO ordering or dead-ticket reclamation.",
   "affected_population": [
     "Every independent local gates, test:e2e, test:unit:shard, and other package.json entrypoint using scripts/with-gates-lock.py",
@@ -56,7 +56,7 @@
   "invariants": [
     "Independent callers allocate a strictly increasing ticket while holding the queue guard; ownership is granted only to the lowest active ticket.",
     "The main lock inode is never unlinked; the kernel owns liveness for the main lock and each ticket lock.",
-    "A ticket file is unlinked only by its owner while holding its ticket lock, or by a guard holder after acquiring an unlocked dead ticket; probing never creates missing ticket files.",
+    "Dead-ticket cleanup acquires and releases the ticket lock under the queue guard, closes the file handle, then unlinks; a successful waiter owns the main lock before closing and removing its own ticket. Live tickets remain protected.",
     "A caller with a matching inherited token and cwd executes immediately without allocating a ticket; a different cwd remains an independent queued caller.",
     "Queue state failures exit nonzero instead of falling back to an unordered lock race."
   ],
@@ -137,7 +137,8 @@
     "same_class_scan": [
       "rg -n 'with-gates-lock.py' package.json .github scripts: all lock-protected package entrypoints route through one Python wrapper; no second production admission path was found.",
       "node scripts/door-map.mjs alive inherited_owner --roots=scripts --include-tests: the tool cannot parse Python and returned only the unrelated JavaScript test symbol; Python doors were verified by direct symbol search in scripts/with-gates-lock.py and recorded above.",
-      "Old implementation mutation: five arrivals at 0.3-second intervals produced actual acquisition order FIFO_3, FIFO_4, FIFO_0, FIFO_1, FIFO_2; the changed class test requires FIFO_0 through FIFO_4 and therefore proves the old polling shape red."
+      "Old implementation mutation: five arrivals at 0.3-second intervals produced actual acquisition order FIFO_3, FIFO_4, FIFO_0, FIFO_1, FIFO_2; the changed class test requires FIFO_0 through FIFO_4 and therefore proves the old polling shape red.",
+      "2026-10-30 Windows named gate red: FIFO completed but five ticket files survived. Inspected cleanup_dead_tickets plus successful waiter and finally cleanup ordering."
     ]
   },
   "prevention": {
@@ -146,7 +147,7 @@
     "invariant": "A live independent waiter owns a kernel-held ticket and only the lowest active ticket may take the main lock; missing or dead ticket files are never recreated by probes.",
     "failure_mode": "Queue directory, counter, or ticket state errors exit nonzero; SIGINT/SIGTERM exits nonzero and releases the ticket; SIGKILL releases the ticket in the kernel and the next guard admission removes its file; no unordered polling fallback remains.",
     "exception_policy": "none",
-    "strategy": "Add a short guard lock around admission and cleanup, allocate monotonic ticket files, use each ticket file's native lock as the liveness source, preserve inherited nested execution before allocation, and delete the old main-lock polling race in the same change.",
+    "strategy": "Add a short guard lock around admission and cleanup, allocate monotonic ticket files, use each ticket file's native lock as the liveness source, preserve inherited nested execution before allocation, and delete the old main-lock polling race in the same change. Close the native file handle before deletion at every dead/owned ticket removal path, preserving queue/main lock exclusion.",
     "artifacts": [
       "scripts/with-gates-lock.py",
       "scripts/with-gates-lock.node-test.mjs"

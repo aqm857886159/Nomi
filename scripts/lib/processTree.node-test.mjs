@@ -101,3 +101,12 @@ test('启动器前台进程组收到 SIGHUP 时子进程和孙进程一起消失
   spawnSync('kill', ['-HUP', `-${processGroupId}`], { stdio: 'ignore' })
   await waitFor(() => !isAlive(childPid) && !isAlive(grandchildPid))
 })
+
+test('Windows unavailable tree terminator cannot report cleanup success', (t) => {
+  if (process.platform !== 'win32') return t.skip('native Windows taskkill lookup');
+  const moduleUrl=pathToFileURL(path.resolve('scripts/lib/processTree.mjs')).href;
+  const run=spawnSync(process.execPath,['--input-type=module','-e',
+    'import assert from "node:assert/strict";import {killProcessTree} from '+JSON.stringify(moduleUrl)+';process.env.PATH="";assert.throws(()=>killProcessTree({pid:process.pid,exitCode:null,signalCode:null}),/process_cleanup_failed/);assert.equal(killProcessTree({pid:process.pid,exitCode:0,signalCode:null}),false);'
+  ],{encoding:'utf8',windowsHide:true});
+  assert.equal(run.status,0,run.stderr);
+});

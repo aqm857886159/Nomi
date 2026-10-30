@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const legacyEntry = path.join(repoRoot, 'scripts', 'nomi-mcp.mjs')
@@ -25,7 +25,7 @@ test('the retired MCP entry point tells the host how to re-connect instead of dy
 })
 
 test('the signpost never pretends to be an MCP server', async () => {
-  const module = await import(legacyEntry)
+  const module = await import(pathToFileURL(legacyEntry).href)
   assert.equal(module.STALE_ENTRY_EXIT_CODE, 2)
   assert.doesNotMatch(module.migrationNotice(), /jsonrpc/i, 'no protocol framing lives in the signpost')
 })

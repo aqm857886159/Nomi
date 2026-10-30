@@ -77,3 +77,15 @@ test('isAlive 认得自己、不认瞎编的 pid', () => {
   assert.equal(isAlive(process.pid), true)
   assert.equal(isAlive(2 ** 22), false)
 })
+
+test('shared worker admission emits one effective option for explicit numeric and percentage limits',()=>{
+ for(const [input,expected] of [[['run','--maxWorkers=1'],1],[['run','--maxWorkers','8'],4],[['run','--maxWorkers=25%'],2],[['run','--max-workers','100%'],4]]) {
+  const invocation=buildVitestInvocation(input,'vitest.mjs',4,8);assert.deepEqual(invocation.args,['vitest.mjs','run','--maxWorkers='+expected]);
+ }
+ assert.deepEqual(buildVitestInvocation(['run','file.test.ts'],'vitest.mjs',4,8).args,['vitest.mjs','run','file.test.ts','--maxWorkers=4']);
+ assert.deepEqual(buildVitestInvocation(['run','--maxWorkers','25%'],'vitest.mjs',null,8).args,['vitest.mjs','run','--maxWorkers','25%']);
+})
+test('shared worker admission rejects duplicate/invalid options without spawning',()=>{
+ assert.throws(()=>buildVitestInvocation(['run','--maxWorkers=1','--maxWorkers=2'],'vitest.mjs',4,8),/maxWorkers/);
+ assert.throws(()=>buildVitestInvocation(['run','--maxWorkers=invalid'],'vitest.mjs',4,8),/maxWorkers/);
+})

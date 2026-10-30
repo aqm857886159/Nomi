@@ -97,20 +97,23 @@ function bypassRecordCount(dir) {
  * 写法清单不是假想用例：block / 漏判那几类全是 2026-09-02 实测漏过的形式，引号那几条是实测误伤过的只读命令。
  */
 function commandMatrix(a, b) {
+  const quote = value => "'" + value.split(path.sep).join('/').replaceAll("'", "'\\''") + "'"
+  const shellA = quote(a)
+  const shellB = quote(b)
   return [
     // —— 普通推送：不管怎么写都放行、都不留痕 ——
     { cmd: 'git push -u origin HEAD', cwd: a, exit: 0, records: [], label: '基线：普通推送（本树从没跑过 gates、没有任何戳）' },
-    { cmd: `git -C ${b} push`, cwd: a, exit: 0, records: [], label: '`git -C <另一棵树> push`' },
+    { cmd: `git -C ${shellB} push`, cwd: a, exit: 0, records: [], label: '`git -C <另一棵树> push`' },
     { cmd: 'git -c core.pager=cat push', cwd: a, exit: 0, records: [], label: '`git -c k=v push`' },
     { cmd: 'git --no-pager push', cwd: a, exit: 0, records: [], label: '`git --no-pager push`' },
-    { cmd: `cd ${a} && cd ${b} && git push`, cwd: a, exit: 0, records: [], label: '多个 cd 之后普通推送' },
-    { cmd: `git --git-dir=${b}/.git push`, cwd: a, exit: 0, records: [], label: '`--git-dir` 普通推送（git 钩子照跑，不用归因）' },
+    { cmd: `cd ${shellA} && cd ${shellB} && git push`, cwd: a, exit: 0, records: [], label: '多个 cd 之后普通推送' },
+    { cmd: `git --git-dir=${shellB}/.git push`, cwd: a, exit: 0, records: [], label: '`--git-dir` 普通推送（git 钩子照跑，不用归因）' },
     { cmd: 'git push "unbalanced', cwd: a, exit: 0, records: [], label: '引号不配对、没有绕口写法' },
 
     // —— 跳过 git 钩子：每种写法都要把绕口记进真正被推的那棵树 ——
     { cmd: 'git push --no-verify', cwd: a, exit: 0, records: [a], label: '基线 `push --no-verify`' },
     { cmd: 'git --no-verify push', cwd: a, exit: 0, records: [a], label: '`git --no-verify push`（选项写在子命令前）' },
-    { cmd: `git -C ${b} push --no-verify`, cwd: a, exit: 0, records: [b], label: '`git -C <另一棵树> push --no-verify`' },
+    { cmd: `git -C ${shellB} push --no-verify`, cwd: a, exit: 0, records: [b], label: '`git -C <另一棵树> push --no-verify`' },
     { cmd: 'git -c core.pager=cat push --no-verify', cwd: a, exit: 0, records: [a], label: '`git -c k=v push --no-verify`' },
     { cmd: 'git -c core.hooksPath=/dev/null push', cwd: a, exit: 0, records: [a], label: '`git -c core.hooksPath=… push`' },
     {
@@ -120,12 +123,12 @@ function commandMatrix(a, b) {
       records: [a],
       label: '环境变量形式的 core.hooksPath',
     },
-    { cmd: `cd ${a} && cd ${b} && git push --no-verify`, cwd: a, exit: 0, records: [b], label: '多个 cd：末个才是推送地' },
-    { cmd: `(cd ${b} && git push --no-verify)`, cwd: a, exit: 0, records: [b], label: '子 shell 里的 cd + 推送' },
+    { cmd: `cd ${shellA} && cd ${shellB} && git push --no-verify`, cwd: a, exit: 0, records: [b], label: '多个 cd：末个才是推送地' },
+    { cmd: `(cd ${shellB} && git push --no-verify)`, cwd: a, exit: 0, records: [b], label: '子 shell 里的 cd + 推送' },
     { cmd: 'sudo git push --no-verify', cwd: a, exit: 0, records: [a], label: 'sudo 等包装命令' },
     { cmd: 'echo start\ngit push --no-verify', cwd: a, exit: 0, records: [a], label: '多行命令的第二行' },
     {
-      cmd: `cd ${a} && git push --no-verify && cd ${b} && git push --no-verify`,
+      cmd: `cd ${shellA} && git push --no-verify && cd ${shellB} && git push --no-verify`,
       cwd: a,
       exit: 0,
       records: [a, b],
@@ -133,7 +136,7 @@ function commandMatrix(a, b) {
     },
 
     // —— 有绕口写法却归因不了 → fail-closed ——
-    { cmd: `git --git-dir=${b}/.git push --no-verify`, cwd: a, exit: 2, records: [], label: '`--git-dir` + 绕口（还原不了是哪棵树）' },
+    { cmd: `git --git-dir=${shellB}/.git push --no-verify`, cwd: a, exit: 2, records: [], label: '`--git-dir` + 绕口（还原不了是哪棵树）' },
     { cmd: 'git push --no-verify "unbalanced', cwd: a, exit: 2, records: [], label: '引号不配对 + 绕口' },
 
     // —— 根本不是推送 ——

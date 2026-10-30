@@ -8,7 +8,9 @@ import { confirmAndRunNode } from '../runner/generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from '../runner/generationQueueStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
-import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
+import { createProjectSessionTestHarness, testProjectBinding, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
+import { readCurrentWorkbenchProjectPayload, setActiveWorkbenchProjectSaveTarget } from '../../project/workbenchProjectSession'
+import { saveLocalProject } from '../../library/localProjectStore'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'
 import { deriveFromNode, isDerivedPromptReady, QUICK_ACTION_META_KEY, readQuickActionMeta, type DeriveHost } from './deriveFromNode'
@@ -25,8 +27,8 @@ const calls = vi.hoisted(() => ({
 }))
 vi.mock('../../library/localProjectStore', () => ({
   readLocalProjectAsync: async (id: string) => structuredClone(calls.disk.get(id) ?? null),
-  saveLocalProject: async (id: string, payload: WorkbenchProjectRecordV1['payload'], name: string) => {
-    const record = { ...(calls.disk.get(id) as object | undefined), id, name, version: 1 as const, payload }
+  saveLocalProject: async (id: string, payload: WorkbenchProjectRecordV1['payload']) => {
+    const record = { ...(calls.disk.get(id) as object | undefined), ...testProjectBinding(id), id, name: 'Project A', version: 1 as const, payload }
     calls.disk.set(id, structuredClone(record))
     return record
   },
@@ -74,8 +76,11 @@ beforeEach(async () => {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
   useGenerationQueueStore.setState({ entries: [], batches: {} })
   await session.open('project-a')
+  setActiveWorkbenchProjectSaveTarget({ projectId: 'project-a', canPersist: () => true,
+    persist: () => saveLocalProject('project-a', readCurrentWorkbenchProjectPayload(), testProjectBinding('project-a')),
+  })
 })
-afterEach(() => { session.dispose(); vi.restoreAllMocks() })
+afterEach(() => { setActiveWorkbenchProjectSaveTarget(null); session.dispose(); vi.restoreAllMocks() })
 
 const store = () => useGenerationCanvasStore.getState()
 const nodeOf = (id: string) => store().nodes.find((node) => node.id === id)!

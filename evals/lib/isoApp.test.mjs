@@ -42,6 +42,8 @@ describe('eval isolation catalog boundary', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-iso-app-'))
     roots.push(real, root)
     fs.writeFileSync(path.join(real, 'model-catalog.json'), JSON.stringify({ version: 1, vendors: [], models: [], apiKeysByVendor: { fixture: { enc: 'safeStorage', value: 'x' } } }))
+    // Fake DPAPI profile is complete on Windows; no real credential files are read.
+    fs.writeFileSync(path.join(real, 'Local State'), JSON.stringify({ os_crypt: { encrypted_key: 'fixture-only' } }))
     const previous = process.env.NOMI_REAL_PROFILE_USER_DATA
     process.env.NOMI_REAL_PROFILE_USER_DATA = real
     try {

@@ -782,11 +782,17 @@ describe("OperationLedger", () => {
 
   it("creates private directories/files and persists no secret, header, URL, body, or local path", () => {
     const { ledger: store, filePath } = ledger();
+    const chmod = vi.spyOn(fs, "chmodSync");
     store.begin(beginInput());
     const persisted = fs.readFileSync(filePath, "utf8");
 
-    expect(fs.statSync(path.dirname(filePath)).mode & 0o777).toBe(0o700);
-    expect(fs.statSync(filePath).mode & 0o777).toBe(0o600);
+    expect(chmod).toHaveBeenCalledWith(path.dirname(filePath), 0o700);
+    expect(chmod).toHaveBeenCalledWith(filePath, 0o600);
+    chmod.mockRestore();
+    if (process.platform !== "win32") {
+      expect(fs.statSync(path.dirname(filePath)).mode & 0o777).toBe(0o700);
+      expect(fs.statSync(filePath).mode & 0o777).toBe(0o600);
+    }
     expect(persisted).not.toMatch(/apiKey|authorization|headers|signedUrl|rawBody|localPath|https?:\/\//i);
   });
 });

@@ -10,7 +10,8 @@ import { DEFAULT_TIMEOUT_MS, expect, screenshotSettled } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'tests', 'ux', 'shots', 'timeline-transition-preview')
+const locale = process.env.NOMI_WALK_LOCALE === 'zh' ? 'zh' : 'en'
+const shotsDir = path.join(repoRoot, 'tests', 'ux', 'shots', 'timeline-transition-preview', locale)
 fs.mkdirSync(shotsDir, { recursive: true })
 
 const tempRoot = makeTempDir('nomi-transition-preview-')
@@ -230,13 +231,13 @@ async function openTransitionProject(projectName, transitionType, expectedOpacit
 
 try {
   await launch('timeline-transition-preview-setup')
-  await win.evaluate(() => {
+  await win.evaluate((language) => {
     localStorage.setItem('nomi-color-scheme', 'light')
-    localStorage.setItem('nomi:locale:v1', 'en')
+    localStorage.setItem('nomi:locale:v1', language)
     for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {
       localStorage.setItem(key, 'seen')
     }
-  })
+  }, locale)
   await close()
 
   await launch('timeline-transition-preview-dissolve')

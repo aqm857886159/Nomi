@@ -71,3 +71,17 @@ test('C0 planner examples reach the native tool with author fields and exact upd
   assert.deepEqual(result.writes, examples);
   assert.equal(result.parts.filter((part) => part.kind === 'tool-result' && part.isError).length, 0);
 });
+
+
+test('C0 explicit references: builtin guidance matches the native slot-binding contract', async (t) => {
+  const planner = await skill();
+  const consistency = await readFile(path.resolve('skills/director-consistency/SKILL.md'), 'utf8');
+  for (const body of [planner, consistency]) {
+    assert.match(body, /referenceBindings/);
+    assert.doesNotMatch(body, /系统据此给视觉锚(?:连参考边|\*\*连参考边)|anchorIds 引用、系统连参考边/);
+  }
+  const bound = { shots: [{ title, prompt: 'One lamp in a quiet room.', taskKind: 'image_edit', storyboard: { anchorIds: ['real-anchor'], referenceBindings: { image_ref: [{ url: 'nomi-local://asset/project-fixture/assets/lamp.png', anchorId: 'real-anchor' }] } } }] };
+  const result = await run(t, [bound], planner);
+  assert.deepEqual(result.writes, [bound]);
+  assert.equal(result.parts.filter(part => part.kind === 'tool-result' && part.isError).length, 0);
+});

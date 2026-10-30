@@ -27,13 +27,13 @@ import { uiText } from './full-walk/invariants.mjs'
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 const require = createRequire(import.meta.url)
-let resolveArchetypeForModel
+let cachedModelArchetypeResolver
 
 function modelArchetypeResolver() {
-  if (!resolveArchetypeForModel) {
-    ({ resolveArchetypeForModel } = require(path.join(repoRoot, 'dist-electron/shared/modelArchetypes/index.js')))
+  if (!cachedModelArchetypeResolver) {
+    ({ resolveArchetypeForModel: cachedModelArchetypeResolver } = require(path.join(repoRoot, 'dist-electron/shared/modelArchetypes/index.js')))
   }
-  return resolveArchetypeForModel
+  return cachedModelArchetypeResolver
 }
 
 const IMAGE_MODEL_CAPABILITIES = Object.freeze({

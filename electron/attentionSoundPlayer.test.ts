@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), read: vi.fn() }))
@@ -24,7 +25,7 @@ it('reserves a single voice before spawn completes and stops preview at two seco
   expect(children[0].kill).not.toHaveBeenCalled()
   vi.advanceTimersByTime(1)
   expect(children[0].kill).toHaveBeenCalledTimes(1)
-  expect(defaultAttentionSoundPath()).toBe('/application/assets/sound/nomi-attention.wav')
+  expect(defaultAttentionSoundPath()).toBe(path.join('/application', 'assets', 'sound', 'nomi-attention.wav'))
 })
 it('cancellation before spawn cannot leave a late player running', async () => {
   const pending = playAttentionSound(true)
@@ -69,6 +70,6 @@ it('Windows SoundPlayer receives the WAV through an environment value', async ()
     expect(command).toBe('powershell.exe')
     expect(args.at(-1)).toContain('$env:NOMI_ATTENTION_FILE')
     expect(args.at(-1)).not.toContain('/application')
-    expect(options.env.NOMI_ATTENTION_FILE).toBe('/application/assets/sound/nomi-attention.wav')
+    expect(options.env.NOMI_ATTENTION_FILE).toBe(path.join('/application', 'assets', 'sound', 'nomi-attention.wav'))
   } finally { Object.defineProperty(process, 'platform', descriptor) }
 })

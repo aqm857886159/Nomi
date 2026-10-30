@@ -8,7 +8,6 @@
 // 共同参数：--cards <id 或 tier 片段>（同 run.ts），--out <目录>（默认 evals/runs/director-agentloop-<时间>-<mode>）。
 // 密钥只从进程环境读，不写进录音、报告或日志。
 import './bootstrapEnv.mts'
-import '../../../electron/shared/featureFlags/director3dbox'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

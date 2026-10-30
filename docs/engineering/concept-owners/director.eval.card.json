@@ -14,14 +14,23 @@
     {
       "path": "evals/director/cardSchema.ts",
       "symbol": "directorCardSchema"
+    },
+    {
+      "path": "evals/director/agentLoop/run.mts",
+      "symbol": "loadCards"
+    },
+    {
+      "path": "evals/director/run.ts",
+      "symbol": "loadCards"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
     "evals/director/run.ts",
     "evals/director/scorer.ts",
-    "evals/director/adapters.ts"
+    "evals/director/adapters.ts",
+    "evals/director/agentLoop/run.mts"
   ],
   "since": "2026-10-03",
-  "notes": "评测标准答案卡 schema 唯一 owner；未约束字段不计分。"
+  "notes": "评测标准答案卡 schema 唯一 owner；未约束字段不计分。 2026-10-30: register the verified existing repair boundary/projection; no alternate owner or guard exception. Both CLI readers load the same card JSON through parseDirectorCard; neither defines a second card schema."
 }

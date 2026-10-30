@@ -1,0 +1,131 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-retired-support-entrypoints",
+  "problem_type": "Support entrypoints retain retired module ownership",
+  "symptom": "Unpaid director evaluation cannot start; converter imports deleted layout/navigation/tables; lab:onboard targets a deleted engine.",
+  "direct_cause": "Duplicated barrel and undeleted consumers outlived removal of their authoritative modules.",
+  "class_root": "Support entrypoints did not converge on current public owners when their implementation was retired.",
+  "affected_population": [
+    "Director synthetic/replay evaluation",
+    "Standalone design converter",
+    "Obsolete onboarding lab invocations"
+  ],
+  "scope_paths": [
+    ".design-sync/support/ds-entry.mjs",
+    "evals/director/agentLoop/run.mts",
+    "evals/director/agentLoop/bootstrapEnv.mts",
+    "package.json",
+    "src/design/previewHost.tsx"
+  ],
+  "entry_points": [
+    "Converter DS entry",
+    "Director agent loop CLI",
+    "Retired lab:onboard script"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Current repository public design exports and MCP onboarding are the authoritative owners; no external API is changed.",
+  "invariants": [
+    "Current support entrypoints import existing canonical modules.",
+    "Removed onboarding engine is not restored as a parallel path.",
+    "Synthetic-oracle is nonempty and never uses real inference."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "evals/director/agentLoop/run.mts",
+      "symbol": "loadCards"
+    },
+    {
+      "kind": "read",
+      "path": "evals/director/run.ts",
+      "symbol": "loadCards"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "Design preview host and director card loading serve independent current support paths; only their stale dependencies are removed."
+  },
+  "generality_proof": "Canonical public design exports replace copied module lists; obsolete flag and deleted onboarding engine cables are removed rather than given fallback implementations.",
+  "shared_boundaries": [
+    {
+      "path": "src/design/previewHost.tsx",
+      "symbol": "NomiPreviewHost",
+      "responsibility": "Existing canonical standalone preview provider; converter entry re-exports this definition instead of copied modules."
+    },
+    {
+      "path": "evals/director/agentLoop/run.mts",
+      "symbol": "loadCards",
+      "responsibility": "Run current director lane without a retired feature flag."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".design-sync/support/ds-entry.mjs",
+      "entry_point": "converter entry",
+      "disposition": "enforced",
+      "evidence": "Real esbuild bundle must resolve the canonical public API."
+    },
+    {
+      "path": "evals/director/agentLoop/run.mts",
+      "entry_point": "synthetic-oracle CLI",
+      "disposition": "enforced",
+      "evidence": "One actual oracle card traverses the current lane and local HTTP tool fixture."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Copied ownership and undeleted callers fail across every subsequent support invocation.",
+    "same_class_scan": [
+      "Whole repository source import census",
+      "rg lab:onboard lab-onboard lab-analyze probe-extract-matrix",
+      "Inspected release-writer fixture injection and private DS converter setup"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "evals/director/agentLoop/run.mts",
+    "invariant": "Support entry modules import current canonical owners; retired native-eval/DS/onboarding dependencies have no callable advertised cable.",
+    "failure_mode": "Bundling/import errors stay visible; no generated fallback or fake engine.",
+    "exception_policy": "none",
+    "strategy": "Remove obsolete startup imports at the existing director entry, re-export the existing public design API/provider at the converter entry, and delete retired onboarding callers. Canonical provider implementation remains unchanged.",
+    "artifacts": [
+      ".design-sync/support/ds-entry.mjs",
+      "evals/director/agentLoop/run.mts",
+      "package.json"
+    ]
+  },
+  "regression_tests": [
+    "scripts/support-entrypoints.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/support-entrypoints.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/lab-analyze.ts",
+      "scripts/lab-onboard.ts",
+      "scripts/probe-extract-matrix.ts",
+      "evals/director/agentLoop/bootstrapEnv.mts"
+    ],
+    "rationale": "Only obsolete consumers of already removed engines/flags are retired."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Reuses installed esbuild and current director lane; private DS setup is a separate documented prerequisite.",
+    "exit_criteria": []
+  },
+  "migration": "No user project, catalog, credential, media or installed app migration.",
+  "residual_risks": [
+    "Private design converter .ds-sync setup remains optional; bundling does not install it or certify external converter publishing."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": ".design-sync/support/ds-entry.mjs",
+    "tests": [
+      "scripts/support-entrypoints.node-test.mjs"
+    ]
+  }
+}

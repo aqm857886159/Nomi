@@ -126,7 +126,7 @@ describe("official CLI model discovery TSV", () => {
   it("closes unused stdin so model discovery can terminate", async () => {
     const found = await probeAntigravity(undefined, {
       invocation: { command: process.execPath, args: [path.resolve("electron/ai/fixtures/antigravity.mjs"), "discovery", "."] },
-      env: process.env,
+      env: process.env, platform: "linux",
     });
     expect(found).toEqual(discovery);
   });

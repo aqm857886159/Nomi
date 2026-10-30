@@ -1,0 +1,32 @@
+{
+  "name": "Verified local speech engine installation and native archive extraction",
+  "subject": "local-speech.asset-install",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/localSpeech/localSpeechInstall.ts",
+    "symbol": "installEngine"
+  },
+  "write_api": [
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "symbol": "installEngine"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "symbol": "extractArchive"
+    },
+    {
+      "path": "electron/localSpeech/localSpeechInstall.ts",
+      "symbol": "localSpeechArchiveExtractor"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/localSpeech/localSpeechInstall.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-30",
+  "notes": "Existing verified cache/member SHA256 and atomic engine publication remain authoritative. Bind the native ZIP extractor without adding another archive implementation."
+}

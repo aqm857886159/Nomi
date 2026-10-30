@@ -1,0 +1,24 @@
+{
+  "name": "Validation worker admission and caller limit projection",
+  "subject": "delivery.test-worker-admission",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/vitest-fair-share.mjs",
+    "symbol": "fairShare"
+  },
+  "write_api": [
+    {
+      "path": "scripts/vitest-fair-share.mjs",
+      "symbol": "fairShare"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/vitest-fair-share.node-test.mjs",
+  "allowed_consumers": [],
+  "since": "2026-10-30",
+  "notes": "Existing fair-share budget remains authoritative. Invocation serialization emits exactly one option, capped by both the caller and shared budget. No new runner or scheduling engine. fairShare owns budget allocation; buildVitestInvocation retains its preexisting delivery.windows-local-gates registration."
+}

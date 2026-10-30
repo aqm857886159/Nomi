@@ -42,6 +42,7 @@ import { describe, expect, it } from 'vitest'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const require = createRequire(import.meta.url)
+const { binaryFormat, readHead } = require('./native-binaries.cjs')
 
 const PACKAGE_NAME = '@anthropic-ai/sandbox-runtime'
 /** 安装后 pnpm 建的那根符号链接（electron-builder 打包时看到的名字）。 */
@@ -117,7 +118,9 @@ describe('沙箱运行时的 vendor 二进制必须解包到 asar 外面', () =>
         const full = path.join(directory, entry.name)
         if (entry.isDirectory()) { walk(full); continue }
         const executableBit = (fs.statSync(full).mode & 0o111) !== 0
-        if (executableBit || /\.(?:exe|jar|dll|node|so|dylib)$/.test(entry.name)) {
+        const head = readHead(full)
+        const executableHeader = binaryFormat(head) !== null || (head.subarray(0, 2).toString() === '#!' && !entry.name.endsWith('.d.ts'))
+        if (executableBit || executableHeader || /\.(?:exe|jar|dll|node|so|dylib)$/.test(entry.name)) {
           found.push(path.relative(root, full).split(path.sep).join('/'))
         }
       }

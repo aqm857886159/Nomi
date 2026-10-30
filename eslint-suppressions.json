@@ -85,11 +85,6 @@
       "count": 1
     }
   },
-  "scripts/attention-cue/attention-cue.node-test.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    }
-  },
   "scripts/audit-package.node-test.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1

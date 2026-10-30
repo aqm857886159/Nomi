@@ -17,7 +17,7 @@ describe("Antigravity process ownership", () => {
   it("spawns only the exact executable identity prepared by discovery", async () => {
     const f = await fixture("success");
     const prepared = await prepareAntigravityInvocation({ invocation: f.invocation, env: process.env });
-    const result = await runAntigravityProcess({ prompt: "bound invocation" }, { preparedInvocation: prepared });
+    const result = await runAntigravityProcess({ prompt: "bound invocation" }, { platform: "linux", preparedInvocation: prepared });
     expect(result.text).toBe("\u4f60\u597d");
     expect(JSON.parse(await readFile(path.join(f.dir, "input"), "utf8")))
       .toEqual({ event: "user", message: { content: "bound invocation" } });
@@ -32,14 +32,14 @@ describe("Antigravity process ownership", () => {
     const prepared = await prepareAntigravityInvocation({ invocation: { command: executable, args: [] }, env: process.env });
     await writeFile(executable, "#!/bin/sh\nexit 0\n");
     await chmod(executable, 0o700);
-    await expect(runAntigravityProcess({ prompt: "must not spawn" }, { preparedInvocation: prepared }))
+    await expect(runAntigravityProcess({ prompt: "must not spawn" }, { platform: "linux", preparedInvocation: prepared }))
       .rejects.toThrow("ANTIGRAVITY_EXECUTABLE_CHANGED");
     await expect(readFile(spawned)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("handles split NDJSON and closes stdin after one prompt; removes its workspace", async () => {
     const f = await fixture("success"); const onDelta = vi.fn();
-    const result = await runAntigravityProcess({ prompt: "write a scene", onDelta }, { invocation: f.invocation });
+    const result = await runAntigravityProcess({ prompt: "write a scene", onDelta }, { platform: "linux", invocation: f.invocation });
     expect(result.text).toBe("你好");
     expect(onDelta.mock.calls.flat().join("")).toBe("你好");
     expect(JSON.parse(await readFile(path.join(f.dir, "input"), "utf8")))
@@ -58,12 +58,12 @@ describe("Antigravity process ownership", () => {
   });
   it.each(["agent-fallback", "missing-log", "oversize-log"])("withholds the prompt without a valid profile diagnostic: %s", async (mode) => {
     const f = await fixture(mode);
-    await expect(runAntigravityProcess({ prompt: "secret task" }, { invocation: f.invocation })).rejects.toThrow("PROFILE");
+    await expect(runAntigravityProcess({ prompt: "secret task" }, { platform: "linux", invocation: f.invocation })).rejects.toThrow("PROFILE");
     await expect(readFile(path.join(f.dir, "input"))).rejects.toMatchObject({ code: "ENOENT" });
   });
   it("still rejects actual tool steps in a text session", async () => {
     const f = await fixture("tool-call");
-    await expect(runAntigravityProcess({ prompt: "test" }, { invocation: f.invocation })).rejects.toThrow("TOOLS_UNSUPPORTED");
+    await expect(runAntigravityProcess({ prompt: "test" }, { platform: "linux", invocation: f.invocation })).rejects.toThrow("TOOLS_UNSUPPORTED");
   });
   it.skipIf(process.platform === "win32").each(["fifo-log", "symlink-log"])("rejects nonregular diagnostics before sending input: %s", async (mode) => {
     const f = await fixture(mode);
@@ -84,33 +84,33 @@ describe("Antigravity process ownership", () => {
         .then((file) => file.close()).catch(() => {});
     }, 16_000);
     try {
-      await expect(runAntigravityProcess({ prompt: "secret task" }, { invocation: f.invocation, initTimeoutMs: 8_000 }))
+      await expect(runAntigravityProcess({ prompt: "secret task" }, { platform: "linux", invocation: f.invocation, initTimeoutMs: 8_000 }))
         .rejects.toThrow("PROFILE_UNVERIFIED");
       await expect(readFile(path.join(f.dir, "input"))).rejects.toMatchObject({ code: "ENOENT" });
     } finally { clearTimeout(rescue); }
   });
   it.each(["malformed", "malformed-tail", "trailing-garbage", "missing", "duplicate", "nonzero"])("rejects partial output: %s", async (mode) => {
     const f = await fixture(mode);
-    await expect(runAntigravityProcess({ prompt: "test" }, { invocation: f.invocation })).rejects.toThrow();
+    await expect(runAntigravityProcess({ prompt: "test" }, { platform: "linux", invocation: f.invocation })).rejects.toThrow();
   });
   it("distinguishes login from protocol errors", async () => {
     const f = await fixture("auth");
-    await expect(runAntigravityProcess({ prompt: "test" }, { invocation: f.invocation })).rejects.toThrow("LOGIN_REQUIRED");
+    await expect(runAntigravityProcess({ prompt: "test" }, { platform: "linux", invocation: f.invocation })).rejects.toThrow("LOGIN_REQUIRED");
   });
   it("times out before init without sending a prompt", async () => {
     const f = await fixture("hang");
-    await expect(runAntigravityProcess({ prompt: "test" }, { invocation: f.invocation, initTimeoutMs: 100 })).rejects.toThrow("INIT_TIMEOUT");
+    await expect(runAntigravityProcess({ prompt: "test" }, { platform: "linux", invocation: f.invocation, initTimeoutMs: 100 })).rejects.toThrow("INIT_TIMEOUT");
     await expect(readFile(path.join(f.dir, "input"))).rejects.toMatchObject({ code: "ENOENT" });
   });
   it("cancels its owned child and rejects with AbortError", async () => {
     const f = await fixture("hang"); const controller = new AbortController();
-    const run = runAntigravityProcess({ prompt: "test", signal: controller.signal }, { invocation: f.invocation });
+    const run = runAntigravityProcess({ prompt: "test", signal: controller.signal }, { platform: "linux", invocation: f.invocation });
     setTimeout(() => controller.abort(), 80);
     await expect(run).rejects.toMatchObject({ name: "AbortError" });
   });
   it("enforces the overall timeout and kills a child that ignores SIGTERM", async () => {
     const f = await fixture("stuck");
-    await expect(runAntigravityProcess({ prompt: "test" }, { invocation: f.invocation, timeoutMs: 2_000 }))
+    await expect(runAntigravityProcess({ prompt: "test" }, { platform: "linux", invocation: f.invocation, timeoutMs: 2_000 }))
       .rejects.toThrow("ANTIGRAVITY_TIMEOUT");
     await expect(stat(await readFile(path.join(f.dir, "cwd"), "utf8"))).rejects.toMatchObject({ code: "ENOENT" });
   });
@@ -120,7 +120,7 @@ describe("Antigravity process ownership", () => {
   });
   it.skipIf(process.platform === "win32")("kills inherited-pipe descendants even after the CLI exits", async () => {
     const f = await fixture("descendant");
-    await expect(runAntigravityProcess({ prompt: "test" }, { invocation: f.invocation, timeoutMs: 2_000 })).rejects.toThrow("TIMEOUT");
+    await expect(runAntigravityProcess({ prompt: "test" }, { platform: "linux", invocation: f.invocation, timeoutMs: 2_000 })).rejects.toThrow("TIMEOUT");
     const pid = Number(await readFile(path.join(f.dir, "child-pid"), "utf8"));
     expect(() => process.kill(pid, 0)).toThrow();
     await expect(stat(await readFile(path.join(f.dir, "cwd"), "utf8"))).rejects.toMatchObject({ code: "ENOENT" });
@@ -128,7 +128,7 @@ describe("Antigravity process ownership", () => {
   it.skipIf(process.platform === "win32").each(["success", "cancel"])("cleans silent SIGTERM-ignoring descendants on %s before returning", async (outcome) => {
     const f = await fixture("silent-descendant-" + outcome);
     const controller = new AbortController();
-    const run = runAntigravityProcess({ prompt: "test", signal: controller.signal }, { invocation: f.invocation });
+    const run = runAntigravityProcess({ prompt: "test", signal: controller.signal }, { platform: "linux", invocation: f.invocation });
     const settled = run.then((value) => ({ value, error: undefined }), (error: Error) => ({ value: undefined, error }));
     let pid = 0;
     try {
@@ -156,7 +156,7 @@ describe("Antigravity process ownership", () => {
       return kill(pid, signal);
     });
     try {
-      const run = runAntigravityProcess({ prompt: "test" }, { invocation: f.invocation });
+      const run = runAntigravityProcess({ prompt: "test" }, { platform: "linux", invocation: f.invocation });
       if (persistent) await expect(run).rejects.toThrow("ANTIGRAVITY_CLEANUP_FAILED");
       else await expect(run).resolves.toMatchObject({ text: "你好" });
     } finally { spy.mockRestore(); }
@@ -169,7 +169,7 @@ describe("Antigravity process ownership", () => {
       return kill(pid, signal);
     });
     try {
-      await expect(runAntigravityProcess({ prompt: "test", signal: controller.signal }, { invocation: f.invocation }))
+      await expect(runAntigravityProcess({ prompt: "test", signal: controller.signal }, { platform: "linux", invocation: f.invocation }))
         .rejects.toMatchObject({ name: "AbortError" });
     } finally { spy.mockRestore(); }
   });
@@ -179,7 +179,7 @@ describe("Antigravity bounded media process", () => {
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5foAAAAASUVORK5CYII=", "base64");
   it.each([undefined, "1.1.20"])("fails closed before spawn for missing or old CLI media version: %s", async (cliVersion) => {
     const f = await fixture("media-image");
-    await expect(runAntigravityProcess({ prompt: "draw", capability: "image", cliVersion }, { invocation: f.invocation }))
+    await expect(runAntigravityProcess({ prompt: "draw", capability: "image", cliVersion }, { platform: "linux", invocation: f.invocation }))
       .rejects.toThrow("VERSION");
     await expect(readFile(path.join(f.dir, "cwd"))).rejects.toMatchObject({ code: "ENOENT" });
   });
@@ -187,7 +187,7 @@ describe("Antigravity bounded media process", () => {
     const f = await fixture("media-" + capability);
     const result = await runAntigravityProcess({ prompt: "task", capability, cliVersion: "1.1.21",
       ...(capability === "image" ? {} : { images: [{ bytes: png, mimeType: "image/png" }] }),
-    }, { invocation: f.invocation, env: { ...buildAntigravityEnv(), HOME: f.dir } });
+    }, { platform: "linux", invocation: f.invocation, env: { ...buildAntigravityEnv(), HOME: f.dir } });
     const profile = await readFile(path.join(f.dir, "profile"), "utf8");
     expect(JSON.parse(await readFile(path.join(f.dir, "preflight-files"), "utf8"))).not.toContain(true);
     expect(profile).toContain(capability === "vision" ? "view_file" : "generate_image");
@@ -199,19 +199,19 @@ describe("Antigravity bounded media process", () => {
   it.each(["missing-hook", "wrong-reference", "double-generate", "artifact-outside", "artifact-symlink", "artifact-fifo", "artifact-corrupt"])("rejects unsafe media: %s", async (mode) => {
     const f = await fixture("media-" + mode);
     await expect(runAntigravityProcess({ prompt: "task", capability: "image", cliVersion: "1.1.21" },
-      { invocation: f.invocation, env: { ...buildAntigravityEnv(), HOME: f.dir } })).rejects.toThrow("ANTIGRAVITY_");
+      { platform: "linux", invocation: f.invocation, env: { ...buildAntigravityEnv(), HOME: f.dir } })).rejects.toThrow("ANTIGRAVITY_");
   });
   it("rejects non-image bytes before launching the CLI", async () => {
     const f = await fixture("media-vision");
     await expect(runAntigravityProcess({ prompt: "task", capability: "vision", cliVersion: "1.1.21",
-      images: [{ bytes: Buffer.from("not an image"), mimeType: "image/png" }] }, { invocation: f.invocation }))
+      images: [{ bytes: Buffer.from("not an image"), mimeType: "image/png" }] }, { platform: "linux", invocation: f.invocation }))
       .rejects.toThrow("IMAGE_INVALID");
     await expect(readFile(path.join(f.dir, "cwd"))).rejects.toMatchObject({ code: "ENOENT" });
   });
   it("does not release the task prompt when the private plugin did not initialize", async () => {
     const f = await fixture("media-missing-hook");
     await expect(runAntigravityProcess({ prompt: "PRIVATE_TASK_CONTENT", capability: "image", cliVersion: "1.1.21" },
-      { invocation: f.invocation, env: { ...buildAntigravityEnv(), HOME: f.dir } })).rejects.toThrow("HOOK_UNVERIFIED");
+      { platform: "linux", invocation: f.invocation, env: { ...buildAntigravityEnv(), HOME: f.dir } })).rejects.toThrow("HOOK_UNVERIFIED");
     expect(await readFile(path.join(f.dir, "input"), "utf8")).not.toContain("PRIVATE_TASK_CONTENT");
   });
 });
