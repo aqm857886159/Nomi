@@ -17,6 +17,6 @@ Module._load = function (id, ...args) {
   return original.call(this, id, ...args)
 }
 const { tryModel } = load('../../electron/capabilityCore/modelOnboarding/tryModel.ts', import.meta.url)
-const { runTask } = load('../../electron/runtime.ts', import.meta.url)
-const result = await tryModel({ runTask, pollTimeoutMs: 2000, approvalPolicy: () => ({ mode: 'direct' }) }, JSON.parse(process.argv[3]))
+const { fetchTaskResult, runTask } = load('../../electron/runtime.ts', import.meta.url)
+const result = await tryModel({ runTask, fetchTaskResult, pollTimeoutMs: 2000, pollIntervalMs: 20, approvalPolicy: () => ({ mode: 'direct' }) }, JSON.parse(process.argv[3]))
 process.stdout.write(JSON.stringify(result))

@@ -7,8 +7,11 @@ import { quoteSpendLine } from "../../spendQuote";
 import path from "node:path";
 import { getSettingsRoot } from "../../settings/settingsRoot";
 import { createSubmissionIntent, type SubmissionIntentReceipt } from "../../productionRun/submissionIntent";
+import { ProductionRunLockBusyError } from "../../productionRun/productionRunLock";
+import { UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT } from "../../shared/contracts/modelTrialSpend";
 import { RendererUnavailableError } from "../rendererBridge";
-import { mintSpendGrant, isSpendAuthorizationError } from "../../spendGrant";
+import { confirmSpendAndMintGrant } from "../../spendConfirmGrant";
+import { mintSpendGrant, isSpendAuthorizationError, SpendNotAuthorizedError } from "../../spendGrant";
 import { sanitizedAdapterJson, redactAdapterSecrets } from "../../providerAdapter/redaction";
 import type { FetchTaskResultFn, RunTaskFn } from "../core";
 import { pollTaskToTerminal } from "../pollTaskToTerminal";
@@ -38,12 +41,44 @@ function raceBudget<T>(promise: Promise<T>, budgetMs: number): Promise<Raced<T>>
   });
 }
 
-function submissionUnknown(why: string): OnboardingFailure {
+/** 另一个调用方正在认领时最多等多久（认领本身是几次本地写）。占用超过这个数就如实回「这次没开成」，不猜。 */
+const CLAIM_WAIT_MS = 3_000;
+const CLAIM_WAIT_STEP_MS = 50;
+
+function submissionUnknown(why: string, attemptId: string): OnboardingFailure {
   return {
     ok: false, code: "submission_unknown",
     message: `Whether the provider accepted this test generation is UNKNOWN: ${why} It may already have been submitted and charged. This is NOT a failure and NOT proof that nothing was sent.`,
-    nextAction: "Do NOT retry the provider submission. Repeating nomi_try_model returns this original order without submitting again. Check the provider's own console, or use nomi_read target=task if a task id appears. Only request newAttemptOf after the user explicitly requests a NEW order; Nomi always asks them to confirm it.",
+    nextAction: `Do NOT retry the provider submission. Repeating nomi_try_model returns this original order without submitting again. Check the provider's own console, or use nomi_read target=task if a task id appears. Only pass newAttemptOf=${attemptId} after the user explicitly requests a NEW order; Nomi always asks them to confirm it.`,
   };
+}
+
+function recordUnreadable(receipt: SubmissionIntentReceipt): OnboardingFailure {
+  const what = receipt.recordDamage === "awaiting_new_order"
+    ? "An earlier record of this trial could not be read and was moved aside, and no new order has been opened since."
+    : `Nomi cannot read its local record of this trial (${receipt.recordDamage}).`;
+  const failure = submissionUnknown(`${what} This call submitted nothing new.`, receipt.attemptId);
+  return { ...failure, nextAction: `${failure.nextAction} The user does not need to delete files or change the connection: a new order keeps the old record by moving it aside.` };
+}
+
+function claimUnavailable(why: string): OnboardingFailure {
+  return {
+    ok: false, code: "claim_unavailable",
+    message: `Nomi could not open this trial order, so this call sent nothing to the provider. Any earlier order is unchanged. Reason: ${why}`,
+    nextAction: "Call nomi_try_model again with the same arguments in a moment. If it keeps failing, tell the user Nomi cannot write its local trial record, for example because the disk is full or a folder is not writable. The provider's own console shows what any earlier order did.",
+  };
+}
+
+/** 认领是同步的短租约，等的只是别人的租约。任何别的错都不重试，原样交给调用方说清楚。 */
+async function claimWhenFree<T>(claim: () => T, waitMs: number): Promise<T> {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    try { return claim(); }
+    catch (error) {
+      if (!(error instanceof ProductionRunLockBusyError) || Date.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, CLAIM_WAIT_STEP_MS));
+    }
+  }
 }
 
 const text = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
@@ -83,10 +118,10 @@ export async function tryModel(
   const vendorKey = text(args.vendorKey);
   const modelKey = text(args.modelKey);
   const intent = createSubmissionIntent({ root: path.join(getSettingsRoot(), "app-executions"), scope: ["model-trial", vendorKey, modelKey], networkTransport: "app-fetch" });
-  const previous = intent.read();
-  if (previous && (!text(args.newAttemptOf) && !previous.allowedActions.includes("retry") || text(args.newAttemptOf) && text(args.newAttemptOf) !== previous.attemptId)) {
-    return observeIntent(deps, intent, previous);
-  }
+  const newAttemptOf = text(args.newAttemptOf);
+  // 原单先于目录和参数校验回答：模型下架、卡改过都不影响核对它。判定只有共享认领那一份。
+  const observed = intent.observation(newAttemptOf || undefined);
+  if (observed) return observeIntent(deps, intent, observed);
   const catalog = readCatalog();
   const vendor = catalog.vendors.find((row) => row.key === vendorKey);
   const model = catalog.models.find((row) => row.vendorKey === vendorKey && row.modelKey === modelKey);
@@ -128,58 +163,75 @@ export async function tryModel(
   const startedAt = Date.now();
   const params = (args.params && typeof args.params === "object" && !Array.isArray(args.params))
     ? (args.params as Record<string, unknown>) : {};
+  const budgetMs = Math.min(deps.pollTimeoutMs ?? TRY_MODEL_WAIT_BUDGET_MS, TRY_MODEL_WAIT_BUDGET_MS);
   let claimed: ReturnType<typeof intent.claim>;
   try {
-    claimed = intent.claim({ vendor: vendorKey, model: modelKey, kind: taskKind,
+    claimed = await claimWhenFree(() => intent.claim({ vendor: vendorKey, model: modelKey, kind: taskKind,
       prompt: text(args.prompt) || NEUTRAL_PROMPT, params,
-      spendDecidedBy: !text(args.newAttemptOf) && spendDecisionByPolicy(deps.approvalPolicy?.(), undefined).decided ? "policy:full_auto" : "user" }, text(args.newAttemptOf) || undefined);
+      spendDecidedBy: !newAttemptOf && spendDecisionByPolicy(deps.approvalPolicy?.(), undefined).decided ? "policy:full_auto" : "user" }, newAttemptOf || undefined), Math.min(budgetMs, CLAIM_WAIT_MS));
   } catch (error) {
+    // 新单开不出来就明说，不拿旧单的未知盖住这次失败；手里有旧单就一起带上，模型不会丢掉原单身份。
+    const failure = claimUnavailable(redactAdapterSecrets(String(error), 300));
     const current = intent.read();
-    if (current) return observeIntent(deps, intent, current);
-    return submissionUnknown(redactAdapterSecrets(String(error), 300));
+    return current ? withSubmission(failure, current) : failure;
   }
   if (!claimed.owned) return observeIntent(deps, intent, claimed.receipt);
-  const policyAnswers = !(claimed.explicitNew && claimed.receipt.newAttemptRequiresUserConfirmation)
-    && claimed.receipt.request?.spendDecidedBy === "policy:full_auto";
-  const nodeId = `${claimed.receipt.intentId}:${claimed.receipt.attemptId}`;
+  const owned = claimed;
+  const policyAnswers = !(owned.explicitNew && owned.receipt.newAttemptRequiresUserConfirmation)
+    && owned.receipt.request?.spendDecidedBy === "policy:full_auto";
+  const nodeId = `${owned.receipt.intentId}:${owned.receipt.attemptId}`;
   const quoted = quoteSpendLine({ vendorKey, modelKey, parameters: params });
   // A new-order request always shows the existing human confirmation, including in full-auto.
   // Both this permission and the Agent receipt derive from the same persisted claim.
-  const grantId = mintSpendGrant({ nodeIds: [nodeId], maxAttemptsPerNode: 1, ttlMs: 30 * 60 * 1000,
-    ...(policyAnswers ? { quote: { lines: [quoted], amount: quoted.amount } } : {}) });
-  const budgetMs = Math.min(deps.pollTimeoutMs ?? TRY_MODEL_WAIT_BUDGET_MS, TRY_MODEL_WAIT_BUDGET_MS);
-  const submitted = await raceBudget(intent.submit(claimed, async () => {
+  const authorize = async (): Promise<string> => {
+    if (!owned.receipt.request?.priorOutcomeUnknown) {
+      return mintSpendGrant({ nodeIds: [nodeId], maxAttemptsPerNode: 1, ttlMs: 30 * 60 * 1000,
+        ...(policyAnswers ? { quote: { lines: [quoted], amount: quoted.amount } } : {}) });
+    }
+    // 上一笔结果不确定：同一张确认卡，但要明说可能多扣一次。问人的结果和预算都由这一条唯一的链铸出，不再经过第二张卡。
+    const grant = await confirmSpendAndMintGrant({ nodeId, intent: UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT, vendor: vendorKey, modelKey,
+      lines: [{ vendorKey, modelKey, parameters: params }], maxAttemptsPerNode: 1 });
+    if (!grant) throw new SpendNotAuthorizedError("The new order was not confirmed; nothing was submitted");
+    return grant;
+  };
+  const submitted = await raceBudget(intent.submit(owned, async () => {
+    const grantId = await authorize();
     const result = await deps.runTask({ vendor: vendorKey, request: { kind: taskKind,
       prompt: text(args.prompt) || NEUTRAL_PROMPT,
       extras: { ...params, modelKey, modelAlias: modelKey, nodeId, grantId } } });
     return JSON.parse(redactAdapterSecrets(JSON.stringify(result), Number.MAX_SAFE_INTEGER)) as typeof result;
-  }).then(() => intent.read(claimed.job.jobId)!), budgetMs);
-  if (submitted.kind === "budget") return withSubmission(submissionUnknown("The submit request is still in flight."), intent.read(claimed.job.jobId)!);
+  }).then(() => intent.current(owned.job.jobId)), Math.max(0, budgetMs - (Date.now() - startedAt)));
+  if (submitted.kind === "budget") {
+    const current = intent.current(owned.job.jobId);
+    return withSubmission(submissionUnknown("The submit request is still in flight.", current.attemptId), current);
+  }
   if (submitted.kind === "failed") {
-    const current = intent.read(claimed.job.jobId)!;
+    const current = intent.current(owned.job.jobId);
     const cause = (submitted.error as { cause?: unknown })?.cause;
     if (isSpendAuthorizationError(cause) || cause instanceof RendererUnavailableError) {
       return withSubmission({ ok: false, code: "needs_input", message: "The user has not confirmed this submission in Nomi.",
-        nextAction: "Open Nomi and confirm the generation card before requesting this trial again." }, current);
+        nextAction: "Open Nomi and confirm the generation card before requesting this trial again. The provider's own console can confirm nothing arrived." }, current);
     }
-    if (current.accepted !== "not_sent") return withSubmission(submissionUnknown(redactAdapterSecrets(String(submitted.error), 300)), current);
+    if (current.accepted !== "not_sent") return withSubmission(submissionUnknown(redactAdapterSecrets(String(submitted.error), 300), current.attemptId), current);
     return withSubmission({ ok: false, code: "provider_failed", message: `Nothing was sent or the provider explicitly rejected the submission: ${redactAdapterSecrets(String(submitted.error), 512)}`,
-      nextAction: current.allowedActions.includes("retry") ? "It is safe to retry once; fix the named problem first." : "The retry budget is exhausted. Ask the user before requesting a new attempt." }, current);
+      nextAction: `${current.allowedActions.includes("retry") ? "It is safe to retry once; fix the named problem first." : `The retry budget is exhausted. Ask the user before passing newAttemptOf=${current.attemptId}.`} The provider's own console can confirm nothing arrived.` }, current);
   }
   return observeIntent(deps, intent, submitted.value, Math.max(0, budgetMs - (Date.now() - startedAt)), true);
 }
 
 function withSubmission<T extends OnboardingResult | OnboardingFailure>(result: T, receipt: SubmissionIntentReceipt): T {
   return { ...result, submission: { protocol: "try-model-intent-lock", intentId: receipt.intentId, attemptId: receipt.attemptId, phase: receipt.phase,
-    accepted: receipt.accepted, allowedActions: receipt.allowedActions, newAttemptRequiresUserConfirmation: receipt.newAttemptRequiresUserConfirmation },
+    accepted: receipt.accepted, allowedActions: receipt.allowedActions, newAttemptRequiresUserConfirmation: receipt.newAttemptRequiresUserConfirmation,
+    ...(receipt.recordDamage ? { recordDamage: receipt.recordDamage } : {}) },
     ...(receipt.taskId ? { taskId: receipt.taskId } : {}) };
 }
 
 async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof createSubmissionIntent>, receipt: SubmissionIntentReceipt, remainingBudget?: number, submittedNow = false): Promise<OnboardingResult | OnboardingFailure> {
+  if (receipt.recordDamage) return withSubmission(recordUnreadable(receipt), receipt);
   if (!receipt.result || !receipt.request) {
     if (receipt.accepted === "not_sent") return withSubmission({ ok: false, code: "provider_failed",
-      message: "The previous submission was not sent or was explicitly rejected.", nextAction: receipt.allowedActions.includes("retry") ? "A bounded retry is available." : "Ask the user to authorize a new attempt." }, receipt);
-    return withSubmission(submissionUnknown("The original submission has no completed receipt yet; repeated calls return this same order."), receipt);
+      message: "The previous submission was not sent or was explicitly rejected.", nextAction: `${receipt.allowedActions.includes("retry") ? "A bounded retry is available." : `Ask the user to authorize a new attempt with newAttemptOf=${receipt.attemptId}.`} The provider's own console can confirm nothing arrived.` }, receipt);
+    return withSubmission(submissionUnknown("The original submission has no completed receipt yet; repeated calls return this same order.", receipt.attemptId), receipt);
   }
   const { vendor: vendorKey, model: modelKey, kind: taskKind, prompt } = receipt.request;
   const policyAnswers = receipt.request.spendDecidedBy === "policy:full_auto";
@@ -211,8 +263,8 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
         message: `The provider accepted this test generation${taskId ? ` (task ${taskId})` : ""} and it is still processing (status=${result.status || "queued"}). The charge for it has already been made. This is NOT a failure.`,
         ...(taskId ? { taskId } : {}),
         evidence: { bodyExcerpt: sanitizedAdapterJson(result.raw).slice(0, 512) },
-        nextAction: `Do NOT retry the provider submission. Repeating nomi_try_model observes this original order. Check nomi_read target=task taskId=${taskId || "(the task id)"} to query without submitting. A new order requires newAttemptOf and explicit confirmation in Nomi.`,
-      }, intent.read(receipt.attemptId)!);
+        nextAction: `Do NOT retry the provider submission. Repeating nomi_try_model observes this original order. Check nomi_read target=task taskId=${taskId || "(the task id)"} to query without submitting. A new order requires newAttemptOf=${receipt.attemptId} and explicit confirmation in Nomi.`,
+      }, intent.current(receipt.attemptId));
     }
   }
 
@@ -228,8 +280,8 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
       ok: false, code: "provider_failed",
       message: `The provider did not produce anything: status=${result.status || "unknown"}${result.error ? `, ${redactAdapterSecrets(result.error, 300)}` : ""}.`,
       evidence: { bodyExcerpt: upstream.slice(0, 512) },
-      nextAction: "The provider's own response is in evidence.bodyExcerpt. Fix the field it points at and submit the whole card again, request a new attempt only after the user confirms.",
-    }, intent.read(receipt.attemptId)!);
+      nextAction: `The provider's own response is in evidence.bodyExcerpt. Fix the field it points at and submit the whole card again, request a new attempt with newAttemptOf=${receipt.attemptId} only after the user confirms.`,
+    }, intent.current(receipt.attemptId));
   }
   return withSubmission({
     ok: true,
@@ -255,5 +307,5 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
       kind: "none",
       userSees: `${model?.labelZh || modelKey} produced an artifact. It is usable in Nomi's model pickers now.`,
     },
-  }, intent.read(receipt.attemptId)!);
+  }, intent.current(receipt.attemptId));
 }

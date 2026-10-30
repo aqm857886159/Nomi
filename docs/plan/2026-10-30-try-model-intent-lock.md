@@ -94,10 +94,10 @@ Mac 隔离环回可跑，Windows / 英文窗口 / 最小窗口 / 真规模 / 干
 12. 显式新单走得通：同一批记录 × 确认、拒绝、全自动档、窗口不在，确认后 create 恰好多 1 笔，拒绝和窗口不在时 create 不变；新单 `spendDecidedBy=user`，拒绝后转全自动也绕不过；坏记录挪到一边且字节不变。
 13. 确认卡明说：上一笔结果未知（记录坏或完好）时开新单，确认卡 message 有那句话，中英都有；不新增组件、不改布局，只用 `SpendConfirmDialog` 现有 message 行。
 14. 给出去的动作走得通：回执里每个 `allowedActions` 在每一种状态下真走一遍，都不能是死路；新单开不出来时回执说清楚，不能拿旧单未知盖住。
-15. 崩溃窗口：显式新单的每一步落盘之后杀进程，重启后普通调用不下单（全自动档也不下），显式新单还能完成，且只多一笔，坏记录字节还在。
+15. 崩溃窗口：首次认领、完好未知单开新单、坏记录开新单，每一步读者看得出差别的落盘之后都真杀一次进程（`process.exit(137)`，不跑 finally），重启后普通调用不下单（全自动档也不下；只有还没有任何单子的首次认领可以继续），显式新单还能完成，且只多一笔，坏记录字节还在。
 16. 并发：两个进程同时对同一条坏记录开新单，只成一个，另一个看到新单；同时做首次认领也只成一个。认领租约不在要挪的目录里。
 17. 挪走的目录不再被 `read` 读到；新 attempt 不和被挪走的撞名；旧 approvals 留存不触发 `Approval id conflict`，也不能变成绕过确认或多发。
-18. 反例（都真跑、都按字节还原）：① 只删 `if (previous && !explicitNew && !retry) return { owned: false as const, receipt: previousReceipt! };`，矩阵防重格红，两个独立意图阳性对照绿；② 把读不出来当成没有单子，矩阵坏记录格红；③ 挪走改成删除，字节格红；④ 显式新单不强制 `user`，全自动格红。
+18. 反例（都真跑、都按字节还原）：① 只删 `if (previous && !explicitNew && !retry) return { owned: false as const, receipt: previousReceipt! };`，矩阵防重格红，两个独立意图阳性对照绿；② 把读不出来当成没有单子，矩阵坏记录格红；③ 挪走改成删除，字节格红；④ 显式新单不强制 `user`（认领和 `tryModel` 两处一起去掉，只去一处另一处还兜着），全自动格红，拒绝后转全自动的安全重试会直接下单。
 19. 真付费路径同样先回未知：共用步骤强制第一笔先回未知，断言不分演练和付费；零费演练走同一段步骤。真 Electron 演练：先弄坏记录 → 普通调用不下单 → 显式新单 → 中文确认卡看得到那句话，确认后 create 1 笔；英文确认卡同样，取消后 create 不变。
 
 回滚：revert 将来的实现提交；当前只有设计，不改变运行行为。独立验收报告待协调安排。本次到热点方向暂停点时不交已解决状态。
@@ -215,17 +215,20 @@ newAttemptOf 必须引用当前 attemptId；重复引用旧 attempt 不再创建
 
 | 决定 | 做法 | 为什么 |
 |---|---|---|
-| 什么算读不出来 | `events.ndjson` 解析不了、形状不认识、比快照或任务目录旧（尾部丢行）或缺失；`run.json` 在但校验不过；最后一笔的 `runtime.json` 坏或缺；`approvals.ndjson`、`budget-ledger.ndjson` 解析不了；`repository.lock` 再也解析不了且已过租约；数据全没了但还有 `quarantine` 或认领痕迹 | 下一次认领和提交要读的东西，一处读不了就走不通。`run.json` 单纯缺失不算：它能从事件重建，崩溃窗口里本来就可能缺 |
+| 什么算读不出来 | `events.ndjson` 解析不了、形状不认识、比快照或任务目录旧（尾部丢行）或缺失；`run.json` 在但校验不过；最后一笔的 `runtime.json` 坏或缺；`approvals.ndjson`、`budget-ledger.ndjson` 解析不了；数据全没了但还有 `quarantine`、开单痕迹或旁账残留 | 下一次认领和提交要读的东西，一处读不了就走不通。`run.json` 单纯缺失不算：它能从事件重建，崩溃窗口里本来就可能缺 |
+| 锁文件坏了算不算 | 不算记录坏。`claim.lock`、`claim.lock.epoch`、`repository.lock` 再也解析不了且已过一个租约，认领时改名留底、换掉，原单照常核对；还在租约内的按占用处理，回「这次没开成」 | 锁不带任何订单事实。把它算成记录坏，一个写到一半的锁文件就会把查得到的原单变成「不知道扣没扣钱」（崩溃扫描第一次跑出来的就是这个）。判据放在 `productionRunLock.ts` 只读，`acquire` 自己仍然封闭，制作 Run 不受影响 |
 | 回执身份 | 事件读得出就用真实 `attempt-N`；读不出来用合成身份 `unreadable-r<n>`，它接受任何非空 `newAttemptOf`（只会多弹一张确认卡，不会多发） | Agent 手里拿的旧 attemptId 不能因为记录坏了就走不通 |
 | 坏记录挪到哪 | 整个记录目录原子改名到 `<root>/.nomi/intent-claims/<runId>/quarantine/r<n>/` | 一次改名没有中间态；不在 `.nomi/runs` 下，任何列举都读不到 |
 | 认领租约放哪 | 从记录目录移到 `<root>/.nomi/intent-claims/<runId>/claim.lock` | 挪目录不会把正持有的锁挪走；锁文件也活过整个记录目录被删 |
-| 「这里有过坏记录」怎么活过崩溃 | `quarantine/r<n>` 存在且当前没有任何 attempt，就只回未知（`awaiting_new_order`）；数据全没了时认领租约的 `fencingEpoch > 1` 同样算有过记录 | 落盘的事实，不靠内存 |
+| 「这里有过坏记录」怎么活过崩溃 | `quarantine/r<n>` 存在且当前没有任何 attempt，就只回未知（`awaiting_new_order`）；数据全没了时，认领目录里的 `issued.json`（开单前落盘，活过记录目录）或旁账残留同样算有过记录 | 落盘的事实，不靠内存。原来想用 `fencingEpoch > 1`，实现时发现只认领过一次再丢目录时围栏号也是 1，全自动档会借机再下一单，所以换成开单前写的痕迹 |
+| 谁来判定能不能开单 | `submissionIntent.ts` 里只有一个判定 `admission`，`tryModel` 先于校验问的 `observation` 和认领本身都问它 | 两份判定会漂移；也只有这样，反例删掉那一行时所有防重格才都会红，不被另一份盖住 |
+| 判定和挪动时别人在写怎么办 | 显式新单持仓库自己的 `repository.lock` 判定和挪动；被活着的写手占着就回「这次没开成」，什么都不动 | 写手写到一半的那行不能被当成坏记录，也不能写到挪走的目录外面。锁跟着目录走，挪完删掉，被挪走的记录逐字节不变 |
 | 新 attempt 命名 | 挪过 n 次后叫 `attempt-r<n>-<k>` | 不和被挪走的撞名；旧 `newAttemptOf` 重放对不上当前单，只回当前单 |
 | 上一笔不确定的事实 | 冻结请求里带 `priorOutcomeUnknown`，安全重试继承 | 确认卡的那句话和 Agent 回执来自同一份持久记录 |
 | 那句话怎么到确认卡 | 这笔走现有的 `confirmSpendAndMintGrant`，带专用 intent；渲染层在 `spendCardByIntent` 表里加一行，卡本身不变 | 表就是为不碰热点文件留的；`taskSpend.ts`、`capabilityApplyHandler.ts` 都是文件级热点 |
 | 旧 approvals 为什么会撞 | `approvals.ndjson` 是按 `approvalId` 记的旁账，事件丢了以后 job 编号从头来，同名 approval 指纹和时间不同，于是 `Approval id conflict`。这是读不出来的一种表现：approval 指向不存在的 job 就算 `journal_behind`，显式新单把它连目录一起挪走；普通调用根本走不到记 approval 那一步 | 不绕过确认、不多发 |
 
-**不改：** `productionRunRuntimeEnvelope.ts`、`productionRunRepository.ts`；防重判断和普通调用不下单的语义；`SpendConfirmDialog` 的结构和布局。
+**不改：** `productionRunRuntimeEnvelope.ts`、`productionRunRepository.ts`；普通调用不下单的语义；`SpendConfirmDialog` 的结构和布局。
 
 **有意不做：** 制作 Run 自己的 `run.lock` 坏了也会永远 busy，这是同一类问题在别的调用者上的表现，但本轮只在意图层处理，已在交付报告里交回。
 

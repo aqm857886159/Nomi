@@ -180,5 +180,690 @@
       "confirmations": 0,
       "sameOrder": false
     }
+  ],
+  "recordActions": {
+    "core": [
+      "plain",
+      "changed-arguments",
+      "restart",
+      "new-confirmed",
+      "new-rejected",
+      "new-full-auto",
+      "new-window-closed"
+    ],
+    "extended": [
+      "plain",
+      "new-confirmed",
+      "new-full-auto"
+    ]
+  },
+  "records": [
+    {
+      "id": "intact",
+      "label": "记录完好、结果未知（对照）",
+      "damage": [],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "core"
+    },
+    {
+      "id": "intact-accepted",
+      "label": "记录完好、结果已知，开新单不加那句话（对照）",
+      "damage": [],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "core",
+      "initial": "queued",
+      "code": "still_processing",
+      "card": "generic"
+    },
+    {
+      "id": "snapshot-missing",
+      "label": "快照缺失：能从事件重建，不算坏",
+      "damage": [
+        {
+          "target": "snapshot",
+          "how": "missing"
+        }
+      ],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "core"
+    },
+    {
+      "id": "snapshot-truncated",
+      "label": "快照截断",
+      "damage": [
+        {
+          "target": "snapshot",
+          "how": "truncated"
+        }
+      ],
+      "recordDamage": "snapshot_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "snapshot-garbled",
+      "label": "快照乱码",
+      "damage": [
+        {
+          "target": "snapshot",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": "snapshot_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "snapshot-old-shape",
+      "label": "快照旧形状（缺 schemaVersion）",
+      "damage": [
+        {
+          "target": "snapshot",
+          "how": "old-shape"
+        }
+      ],
+      "recordDamage": "snapshot_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "snapshot-future-shape",
+      "label": "快照是以后的版本，校验和也对",
+      "damage": [
+        {
+          "target": "snapshot",
+          "how": "future-shape"
+        }
+      ],
+      "recordDamage": "snapshot_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "events-missing",
+      "label": "事件缺失、快照还在",
+      "damage": [
+        {
+          "target": "events",
+          "how": "missing"
+        }
+      ],
+      "recordDamage": "journal_missing",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "events-truncated",
+      "label": "事件尾部写了半行",
+      "damage": [
+        {
+          "target": "events",
+          "how": "truncated"
+        }
+      ],
+      "recordDamage": "journal_unreadable",
+      "attemptId": "unreadable-r0",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "events-garbled",
+      "label": "事件乱码",
+      "damage": [
+        {
+          "target": "events",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": "journal_unreadable",
+      "attemptId": "unreadable-r0",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "events-old-shape",
+      "label": "事件旧形状（缺 schemaVersion）",
+      "damage": [
+        {
+          "target": "events",
+          "how": "old-shape"
+        }
+      ],
+      "recordDamage": "journal_shape",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "events-future-shape",
+      "label": "事件是以后的版本",
+      "damage": [
+        {
+          "target": "events",
+          "how": "future-shape"
+        }
+      ],
+      "recordDamage": "journal_shape",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "events-emptied",
+      "label": "事件文件被清空",
+      "damage": [
+        {
+          "target": "events",
+          "how": "emptied"
+        }
+      ],
+      "recordDamage": "journal_missing",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "events-lost-tail",
+      "label": "事件按行丢了尾部，比快照旧",
+      "damage": [
+        {
+          "target": "events",
+          "how": "lost-tail"
+        }
+      ],
+      "recordDamage": "journal_behind",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "events-draft-only",
+      "label": "事件只剩草稿那一行：看起来没有任务，全自动不许借机下单",
+      "damage": [
+        {
+          "target": "events",
+          "how": "draft-only"
+        }
+      ],
+      "recordDamage": "journal_behind",
+      "attemptId": "unreadable-r0",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "events-and-snapshot-missing",
+      "label": "事件和快照都没了，旁账还在",
+      "damage": [
+        {
+          "target": "events",
+          "how": "missing"
+        },
+        {
+          "target": "snapshot",
+          "how": "missing"
+        }
+      ],
+      "recordDamage": "record_missing",
+      "attemptId": "unreadable-r0",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "approvals-outlive-journal",
+      "label": "事件丢光只剩草稿，approvals 还留着：新单不能撞 Approval id conflict",
+      "damage": [
+        {
+          "target": "events",
+          "how": "draft-only"
+        },
+        {
+          "target": "snapshot",
+          "how": "missing"
+        },
+        {
+          "target": "jobs",
+          "how": "missing"
+        }
+      ],
+      "recordDamage": "journal_behind",
+      "attemptId": "unreadable-r0",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "runtime-missing",
+      "label": "任务回执缺失",
+      "damage": [
+        {
+          "target": "runtime",
+          "how": "missing"
+        }
+      ],
+      "recordDamage": "receipt_missing",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "runtime-truncated",
+      "label": "任务回执截断",
+      "damage": [
+        {
+          "target": "runtime",
+          "how": "truncated"
+        }
+      ],
+      "recordDamage": "receipt_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "runtime-garbled",
+      "label": "任务回执乱码",
+      "damage": [
+        {
+          "target": "runtime",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": "receipt_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "runtime-old-shape",
+      "label": "任务回执旧形状（缺 schemaVersion）",
+      "damage": [
+        {
+          "target": "runtime",
+          "how": "old-shape"
+        }
+      ],
+      "recordDamage": "receipt_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "core"
+    },
+    {
+      "id": "runtime-garbled-accepted",
+      "label": "已受理的任务回执乱码：不再给 query，任务号照给",
+      "damage": [
+        {
+          "target": "runtime",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": "receipt_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended",
+      "initial": "queued"
+    },
+    {
+      "id": "events-garbled-accepted",
+      "label": "已受理的单子事件乱码",
+      "damage": [
+        {
+          "target": "events",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": "journal_unreadable",
+      "attemptId": "unreadable-r0",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended",
+      "initial": "queued"
+    },
+    {
+      "id": "approvals-truncated",
+      "label": "approvals 截断",
+      "damage": [
+        {
+          "target": "approvals",
+          "how": "truncated"
+        }
+      ],
+      "recordDamage": "ledger_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "approvals-garbled",
+      "label": "approvals 乱码",
+      "damage": [
+        {
+          "target": "approvals",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": "ledger_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "approvals-garbled-succeeded",
+      "label": "成功之后 approvals 乱码",
+      "damage": [
+        {
+          "target": "approvals",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": "ledger_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended",
+      "initial": "succeeded"
+    },
+    {
+      "id": "approvals-missing",
+      "label": "approvals 缺失：旧单用不到它，不算坏",
+      "damage": [
+        {
+          "target": "approvals",
+          "how": "missing"
+        }
+      ],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "extended"
+    },
+    {
+      "id": "budget-truncated",
+      "label": "预算账截断",
+      "damage": [
+        {
+          "target": "budget",
+          "how": "truncated"
+        }
+      ],
+      "recordDamage": "ledger_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "budget-garbled",
+      "label": "预算账乱码",
+      "damage": [
+        {
+          "target": "budget",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": "ledger_unreadable",
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "budget-missing",
+      "label": "预算账缺失：从零重放，不算坏",
+      "damage": [
+        {
+          "target": "budget",
+          "how": "missing"
+        }
+      ],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "extended"
+    },
+    {
+      "id": "commands-garbled",
+      "label": "命令账乱码：没人读它，不算坏",
+      "damage": [
+        {
+          "target": "commands",
+          "how": "garbled"
+        }
+      ],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "extended"
+    },
+    {
+      "id": "repository-lock-dead",
+      "label": "仓库锁文件再也解析不了且已过租约：换掉，不动记录，原单照常核对",
+      "damage": [
+        {
+          "target": "repositoryLock",
+          "how": "dead-lock"
+        }
+      ],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "extended"
+    },
+    {
+      "id": "claim-lock-dead",
+      "label": "认领租约文件坏了且已过租约：换掉，不动记录",
+      "damage": [
+        {
+          "target": "claimLock",
+          "how": "dead-lock"
+        }
+      ],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "extended"
+    },
+    {
+      "id": "claim-epoch-dead",
+      "label": "认领围栏文件坏了且已过租约：换掉，不动记录",
+      "damage": [
+        {
+          "target": "claimEpoch",
+          "how": "dead-lock"
+        }
+      ],
+      "recordDamage": null,
+      "attemptId": "attempt-1",
+      "newAttemptId": "attempt-2",
+      "actions": "extended"
+    },
+    {
+      "id": "run-dir-missing",
+      "label": "整个记录目录没了",
+      "damage": [
+        {
+          "target": "runDir",
+          "how": "missing"
+        }
+      ],
+      "recordDamage": "record_missing",
+      "attemptId": "unreadable-r0",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    },
+    {
+      "id": "run-dir-is-file",
+      "label": "记录目录变成了一个文件",
+      "damage": [
+        {
+          "target": "runDir",
+          "how": "file-instead"
+        }
+      ],
+      "recordDamage": "journal_unreadable",
+      "attemptId": "unreadable-r0",
+      "newAttemptId": "attempt-r1-1",
+      "actions": "extended"
+    }
+  ],
+  "sharedClaims": [
+    {
+      "phase": "authorized",
+      "host": "same-instance"
+    },
+    {
+      "phase": "authorized",
+      "host": "new-instance"
+    },
+    {
+      "phase": "authorized",
+      "host": "new-process"
+    },
+    {
+      "phase": "submitting",
+      "host": "same-instance"
+    },
+    {
+      "phase": "submitting",
+      "host": "new-instance"
+    },
+    {
+      "phase": "submitting",
+      "host": "new-process"
+    },
+    {
+      "phase": "unknown",
+      "host": "same-instance"
+    },
+    {
+      "phase": "unknown",
+      "host": "new-instance"
+    },
+    {
+      "phase": "unknown",
+      "host": "new-process"
+    },
+    {
+      "phase": "accepted",
+      "host": "same-instance"
+    },
+    {
+      "phase": "accepted",
+      "host": "new-instance"
+    },
+    {
+      "phase": "accepted",
+      "host": "new-process"
+    },
+    {
+      "phase": "retrieving",
+      "host": "same-instance"
+    },
+    {
+      "phase": "retrieving",
+      "host": "new-instance"
+    },
+    {
+      "phase": "retrieving",
+      "host": "new-process"
+    },
+    {
+      "phase": "materialized",
+      "host": "same-instance"
+    },
+    {
+      "phase": "materialized",
+      "host": "new-instance"
+    },
+    {
+      "phase": "materialized",
+      "host": "new-process"
+    }
+  ],
+  "windows": [
+    {
+      "id": "concurrent-first-trial-in-process",
+      "label": "同进程两个调用同时首次试跑，只下一单"
+    },
+    {
+      "id": "concurrent-first-claim-two-processes",
+      "label": "两个真实进程同时首次认领，只成一个"
+    },
+    {
+      "id": "concurrent-new-order-on-bad-record",
+      "label": "两个真实进程同时对同一条坏记录开新单，只成一个，另一个看到新单"
+    },
+    {
+      "id": "crash-sweep-first-trial",
+      "label": "首次试跑认领到一半：每一步落盘后杀进程，这个连接和模型都不会被锁死，也只会有一笔"
+    },
+    {
+      "id": "crash-sweep-bad-record",
+      "label": "坏记录开新单：每一步落盘后杀进程，普通调用不下单，显式新单能完成，只多一笔"
+    },
+    {
+      "id": "crash-sweep-intact-unknown",
+      "label": "完好未知单开新单：每一步落盘后杀进程，同样的三条"
+    },
+    {
+      "id": "live-claim-lease-reports-unavailable",
+      "label": "认领租约被活着的进程占着：明说没开成，记录不动，过期后能开"
+    },
+    {
+      "id": "live-writer-lock-reports-unavailable",
+      "label": "仓库锁被活着的写手占着：明说没开成，记录不动，过期后能开"
+    },
+    {
+      "id": "claim-storage-blocked-first-trial",
+      "label": "认领目录写不了时首次试跑：明说没开成，不报未知"
+    },
+    {
+      "id": "claim-storage-blocked-on-bad-record",
+      "label": "认领目录写不了时开新单：不拿旧单的未知盖住失败"
+    },
+    {
+      "id": "set-aside-blocked",
+      "label": "挪不走时开新单：明说没开成，坏记录原地不动"
+    },
+    {
+      "id": "moved-record-is-never-read",
+      "label": "挪走的目录再坏也不影响当前单"
+    },
+    {
+      "id": "second-damage-moves-again",
+      "label": "新单的记录又坏了：再挪一次，编号不撞"
+    },
+    {
+      "id": "stale-reference-replay",
+      "label": "旧的 newAttemptOf 重放只回当前单"
+    },
+    {
+      "id": "uncertain-warning-survives-decline-chain",
+      "label": "拒绝新单后安全重试、再显式开新单，那句话都还在"
+    },
+    {
+      "id": "awaiting-new-order-stays-closed",
+      "label": "挪走后、新单认领前：全自动也不发，显式新单能开"
+    },
+    {
+      "id": "whole-root-deleted-is-a-first-trial",
+      "label": "连认领目录一起删掉：没有任何证据留下，按首次试跑走（已知缺口）"
+    }
+  ],
+  "actionWalk": [
+    "unknown",
+    "accepted",
+    "succeeded",
+    "declined",
+    "declined-exhausted",
+    "provider-rejected",
+    "damaged",
+    "awaiting-new-order",
+    "new-order-unavailable"
   ]
 }

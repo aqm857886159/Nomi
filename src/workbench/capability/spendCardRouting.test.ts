@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
+import { enRuntime, zhRuntime } from '../../i18n/locales/runtime'
 import { encodePromptExtractionSubject } from '../../../electron/shared/contracts/browserPromptExtraction'
+import { UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT } from '../../../electron/shared/contracts/modelTrialSpend'
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { handleCapabilityApply } from './capabilityApplyHandler'
 
@@ -76,6 +78,38 @@ describe('付费确认卡按 intent 分流', () => {
       intent: 'prompt-extraction', vendor: 'relay', modelKey: 'mystery-vl', prompt: 'a quiet harbor',
     })).resolves.toEqual({ confirmed: false })
     expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { locale: 'zh-CN', dictionary: zhRuntime },
+    { locale: 'en', dictionary: enRuntime },
+  ])('试跑开新单而上一笔结果不确定（$locale）：同一张卡，message 明说可能多扣一次，不印节点行', async ({ locale, dictionary }) => {
+    await i18n.changeLanguage(locale)
+    try {
+      const confirm = vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockResolvedValue(true)
+      await expect(handleCapabilityApply('spend.confirm', {
+        intent: UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT, vendor: 'relay', modelKey: 'mystery-paint', callCount: 1,
+      })).resolves.toEqual({ confirmed: true })
+      expect(confirm).toHaveBeenCalledTimes(1)
+      const card = confirm.mock.calls[0][0]
+      expect(card).toMatchObject({
+        kind: 'generation',
+        source: 'agent',
+        title: dictionary.capability.spendTitle.replace('{{intent}}', dictionary.capability.intent.fallback),
+        message: dictionary.modelTrial.uncertainPrior,
+        confirmLabel: dictionary.capability.confirmGenerate,
+      })
+      expect(card.details).toEqual([{ label: dictionary.capability.model, value: 'relay · mystery-paint' }])
+    } finally {
+      await i18n.changeLanguage('zh-CN')
+    }
+  })
+
+  it('试跑开新单的卡取消了就是没确认', async () => {
+    vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockResolvedValue(false)
+    await expect(handleCapabilityApply('spend.confirm', {
+      intent: UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT, vendor: 'relay', modelKey: 'mystery-paint',
+    })).resolves.toEqual({ confirmed: false })
   })
 
   it('热点文件不再按 intent 长分支：只剩拆解那一处比较，专用卡只经查表进来', () => {

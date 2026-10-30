@@ -27,44 +27,6 @@ async function anotherHost(prompt = "changed") {
 }
 
 describe("shared durable submission intent", () => {
-  it.each(["authorized", "submitting", "unknown", "accepted", "retrieving", "materialized"])("%s: repeat, changed mode/params, another host and restart all return the original order", async (phase) => {
-    const intent = open();
-    const first = claim();
-    let resolve!: (value: { id: string; status: string; assets: unknown[] }) => void;
-    const dispatch = vi.fn(() => new Promise<{ id: string; status: string; assets: unknown[] }>((done) => { resolve = done; }));
-    let submission: Promise<unknown> | undefined;
-    if (phase !== "authorized") {
-      submission = intent.submit(first, phase === "unknown" ? async () => { throw new Error("response lost"); } : dispatch);
-      if (phase === "unknown") await expect(submission).rejects.toThrow(/unknown/i);
-      else {
-        // submitOnce yields at its admission boundary before dispatch.
-        await Promise.resolve(); await Promise.resolve();
-        if (["accepted", "retrieving", "materialized"].includes(phase)) {
-          resolve({ id: "remote-job", status: "queued", assets: [] });
-          await submission;
-          if (phase === "retrieving") intent.recordResult(first.job.jobId, { id: "remote-job", status: "running", assets: [] });
-          if (phase === "materialized") intent.recordResult(first.job.jobId, { id: "remote-job", status: "succeeded", assets: [{ type: "image", url: "file://fixture" }] });
-        }
-      }
-    }
-    const original = intent.read()!;
-    const repeated = open().claim({ ...request, prompt: "different", kind: "image_to_video", params: { seed: 22 } });
-    const restarted = open().read();
-    const hosts = await Promise.all([anotherHost("codex"), anotherHost("claude"), anotherHost("restart")]);
-    for (const host of hosts) {
-      expect(host.owned).toBe(false);
-      expect(host.receipt.intentId).toBe(original.intentId);
-      expect(host.receipt.attemptId).toBe(original.attemptId);
-      expect(host.receipt.allowedActions).toEqual(original.allowedActions);
-      expect(host.receipt.request).toEqual(request);
-    }
-    expect(repeated.owned).toBe(false);
-    expect(repeated.receipt.request).toEqual(request);
-    expect(restarted?.attemptId).toBe(original.attemptId);
-    expect(dispatch.mock.calls.length).toBeLessThanOrEqual(1);
-    if (phase === "submitting") { resolve({ id: "late-job", status: "queued", assets: [] }); await submission; expect(open().read()?.taskId).toBe("late-job"); }
-  });
-
   it("only a durable bounded safe-failure budget can retry; a third call cannot allocate", async () => {
     const intent = open();
     const first = claim();
@@ -93,11 +55,22 @@ describe("shared durable submission intent", () => {
     expect(open().read(first.job.jobId)?.accepted).toBe("unknown");
   });
 
-  it("missing/corrupt persisted receipt fails closed; no new identity is inferred", () => {
+  it("an unreadable receipt fails closed without a bare error; only an explicit new order moves it aside, untouched", () => {
     const first = claim();
-    const base = path.join(root, ".nomi/runs", first.receipt.intentId, "jobs", first.job.jobId, "runtime.json");
+    const dir = path.join(root, ".nomi/runs", first.receipt.intentId);
+    const base = path.join(dir, "jobs", first.job.jobId, "runtime.json");
     fs.writeFileSync(base, "broken");
-    expect(() => open().claim(request)).toThrow(/corrupt/i);
+    const plain = open().claim(request);
+    expect(plain.owned).toBe(false);
+    expect(plain.receipt).toMatchObject({ attemptId: first.job.jobId, accepted: "unknown", recordDamage: "receipt_unreadable",
+      allowedActions: ["inspect_provider", "request_new_attempt"], newAttemptRequiresUserConfirmation: true });
+    expect(fs.readFileSync(base, "utf8")).toBe("broken");
+    const next = open().claim(request, first.job.jobId);
+    if (!next.owned) throw new Error("the new order did not open");
+    expect(next.job.jobId).toBe("attempt-r1-1");
+    expect(next.receipt.request).toMatchObject({ spendDecidedBy: "user", priorOutcomeUnknown: true });
+    expect(fs.readFileSync(path.join(root, ".nomi/intent-claims", first.receipt.intentId, "quarantine/r1/jobs", first.job.jobId, "runtime.json"), "utf8")).toBe("broken");
+    expect(open().read()?.recordDamage).toBeUndefined();
   });
 
   it.each([
