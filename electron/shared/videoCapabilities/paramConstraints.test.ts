@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { ArchetypeMode, ModelParameterControl } from "./types";
 import { MINIMAX_H3_ARCHETYPE } from "./minimaxH3";
 import {
+  durationControlOf,
+  placeDurationParameters,
+  withoutDurationParameters,
   clampToRange,
   isParamValueAllowed,
   modeDurationRange,
@@ -66,5 +69,26 @@ describe("paramConstraints · 合法性判定是唯一 owner", () => {
     expect(isParamValueAllowed({ key: "audio", label: "音频", type: "boolean", options: [] }, true)).toBe(true);
     expect(isParamValueAllowed({ key: "audio", label: "音频", type: "boolean", options: [] }, "yes")).toBe(false);
     expect(isParamValueAllowed({ key: "note", label: "备注", type: "text", options: [] }, "任意")).toBe(true);
+  });
+});
+
+describe("declared duration projection", () => {
+  const imported = { ...numberControl(1, 20), key: "comfy_duration" };
+  it("retains unrelated values and accepts equal serialized duration values", () => {
+    const input = { duration: 7, comfy_duration: "7", seed: 41 };
+    expect(placeDurationParameters(input, [imported])).toEqual({ comfy_duration: 7, seed: 41 });
+    expect(input).toEqual({ duration: 7, comfy_duration: "7", seed: 41 });
+  });
+  it("does not infer duration from labels, arbitrary keys or absent input", () => {
+    expect(placeDurationParameters({ duration: 7 }, [{ ...imported, key: "seconds" }])).toEqual({ duration: 7 });
+    expect(placeDurationParameters({ comfy_duration: 8, seed: 41 }, [imported])).toEqual({ comfy_duration: 8, seed: 41 });
+    expect(placeDurationParameters({ duration: 7 }, [numberControl(1, 20)])).toEqual({ duration: 7 });
+  });
+  it("rejects contradictory or ambiguous duration ownership", () => {
+    expect(() => placeDurationParameters({ duration: 7, comfy_duration: 5 }, [imported])).toThrow("generation_duration_conflict");
+    expect(() => durationControlOf([imported, numberControl(1, 20)])).toThrow("generation_duration_ambiguous");
+  });
+  it("removes only declared duration keys when a shot is split or merged", () => {
+    expect(withoutDurationParameters({ duration: 7, comfy_duration: 7, seconds: 9, seed: 41 })).toEqual({ seconds: 9, seed: 41 });
   });
 });

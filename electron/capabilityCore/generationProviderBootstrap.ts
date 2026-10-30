@@ -65,6 +65,7 @@ function safeFixtureApiKey(baseUrl: string | undefined): string | undefined {
 }
 
 function credentialIsUsable(state: CatalogState, vendorKey: string): boolean {
+  if (state.vendors.find(vendor => vendor.key === vendorKey)?.authType === "none") return true;
   const credential = state.apiKeysByVendor[vendorKey];
   return Boolean(typeof credential?.apiKey === "string"
     && credential.apiKey.trim()
@@ -135,6 +136,7 @@ export function createGenerationProviderBootstrap(
               || !hasBuiltinCuratedExecution(current, vendorKey))) {
             return null;
           }
+          if (live.authType === "none") return { apiKey: "", baseUrl: live.baseUrlHint || undefined };
           const apiKey = decryptApiKeyRecord(current.apiKeysByVendor[vendorKey]!).trim();
           return apiKey ? { apiKey, baseUrl: (fixtureBaseForVendor ?? live.baseUrlHint) || undefined } : null;
         };

@@ -1,3 +1,5 @@
+export { hasComfyWorkflowDeclaration } from './comfyWorkflow';
+import { comfyWorkflowArchetypeForModel } from './comfyWorkflow';
 import { anchorsConsumedBy } from './anchorPolicy';
 import { modelNameSourceFor, scopeArchetypeModelNames, type ModelNameSource } from "./modelNameSource";
 import type { ModelParameterControl } from "../videoCapabilities/types";
@@ -195,7 +197,7 @@ function readArchetypeIdFromMeta(meta: unknown): string | null {
 export function resolveArchetypeForModel(model: ArchetypeModelLike | null | undefined): ModelArchetype | null {
   if (!model) return null;
   const base = resolveBaseArchetype(model);
-  if (!base) return null;
+  if (!base || base.modes.length === 0) return null;
   // 型号名按供应商作用域解析：这家这一行不接受档案的型号名 → 档案只给参数（modelNameSource.ts，唯一一处）。
   const resolved = scopeArchetypeModelNames(specializeArchetypeForVendor(base, model.vendorKey), modelNameSourceFor(model));
   return { ...resolved, modes: resolved.modes.map((mode) => ({ ...mode, consumesAnchors: anchorsConsumedBy(mode) })) };
@@ -203,9 +205,10 @@ export function resolveArchetypeForModel(model: ArchetypeModelLike | null | unde
 
 /** 解析「基础」档案（供应商无关，未特化）：显式 archetypeId 优先，否则按身份匹配 pattern。 */
 function resolveBaseArchetype(model: ArchetypeModelLike): ModelArchetype | null {
-  // A valid user-authored capability contract is the most explicit source of truth. It is
-  // deliberately parsed before curated identity matching; invalid/unknown versions are inert
-  // and fall through to the existing curated resolution path.
+  // A valid imported graph owns its actual inputs/output; custom contracts own
+  // other rows and historical incomplete import markers, before curated names.
+  const workflow = comfyWorkflowArchetypeForModel(model);
+  if (workflow) return workflow;
   const custom = customCapabilityArchetypeForModel(model);
   if (custom) return custom;
   const explicit = getArchetypeById(readArchetypeIdFromMeta(model.meta));

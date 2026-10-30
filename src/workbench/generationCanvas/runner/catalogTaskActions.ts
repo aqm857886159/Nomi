@@ -1,3 +1,5 @@
+import { placeDurationParameters } from '../../../../electron/shared/videoCapabilities/paramConstraints'
+import { parseModelParameterControls } from '../../../../electron/shared/modelParameterControls'
 import { withAssetLocalizationFeedback } from './assetLocalizationFeedback'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import {
@@ -320,7 +322,10 @@ export function buildCatalogTaskRequest(
 
   const references = options.references || {}
   const kind = resolveTaskKind(node, references)
-  const meta = parameterContractRequestMeta(node.meta || {})
+  const sourceMeta = parameterContractRequestMeta(node.meta || {})
+  const meta = kind === 'text_to_video' || kind === 'image_to_video'
+    ? placeDurationParameters(sourceMeta, parseModelParameterControls(sourceMeta))
+    : sourceMeta
   // @ 内联引用投影(R6 单源 · option 2):把 prompt 里的 @[asset:url] 标记转成 @imageN，
   // N = url 在「连线在前+上传」有序数组里的位置——**与实际发送的 reference_image 数组逐位一致**。此前只读
   // meta.referenceImageUrls，把连线进来的参考图当成「不在数组里」直接把 @ 标记删成空串（连线图 @ 不到/被
@@ -575,6 +580,7 @@ async function runCatalogGenerationTaskWithFeedback(
     }
   }
   const { vendor, request } = buildCatalogTaskRequest(executableNode, currentOptions)
+  await options.onTaskRequest?.(vendor, request)
 
   // 文本任务 → 走流式通道:逐 token 回调 onTextDelta(调用方要显示才给;改写选区不给、完成后一次性替换),
   // 终态直接返回(文本无轮询,流 resolve 即 succeeded),不走下面的 runTask + 轮询。runTask 覆盖项

@@ -96,7 +96,7 @@ export function buildV4ModelRows(data: Pick<AgentPanelV4Data, 'models' | 'vendor
   ] as const) {
     const options = generationOptions.optionsByKind[taskKind]
     const current = data.generationDefaults[taskKind]
-    const selectedValue = current ? generationOptions.encode(current) : ''
+    const selectedValue = current ? generationOptions.encode(current, taskKind) : ''
     const selectedModel = data.generationModels.find(model => model.vendorKey === current?.vendorKey && model.modelKey === current?.modelKey)
     const cost = selectedModel?.pricing?.enabled && selectedModel.pricing.cost > 0
       ? t('agentPanelV4.modelCredits', { cost: selectedModel.pricing.cost }) : undefined
@@ -111,7 +111,7 @@ export function buildV4ModelRows(data: Pick<AgentPanelV4Data, 'models' | 'vendor
         ? {
             options,
             selectedValue: selectedValue ?? '',
-            onChange: (value: string) => data.setGenerationDefault(taskKind, generationOptions.decode(value)),
+            onChange: (value: string) => data.setGenerationDefault(taskKind, generationOptions.decode(value, taskKind)),
           }
         : { empty: t('agentPanelV4.modelNone') }),
     })

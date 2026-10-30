@@ -1,3 +1,5 @@
+import { resolveArchetypeForModel } from '../../electron/shared/modelArchetypes';
+import { resolveRenderedControls } from '../workbench/generationCanvas/nodes/nodeModelArchetype';
 // 同名 modelKey 跨厂商共存（2026-07-31 群反馈根因）：两个中转站各自提供 gpt-image-2 时，
 // 裸 modelKey 去重会把数组靠后那家整条吞掉（store newest-first → 表现为「先接的被最新添加的覆盖」）。
 // 去重键必须带 vendor；跨厂商同模型的合并归 dedupeModelOptions（providers[] 多家可用）。
@@ -124,3 +126,20 @@ describe('toCatalogModelPricing — 价目原样搬运，不做第二次归一',
     expect(option.pricing?.specCosts).toEqual([{ specKey: '4k', cost: 2, enabled: true }])
   })
 })
+
+
+it.each(['parameters','parameterControls'])('preserves the atomic imported %s declaration through renderer options', field => {
+  const meta={comfyWorkflowImport:{binding:{outputKind:'video'}},[field]:[{key:'frame',type:'image-url',mediaKind:'image'},{key:'steps',type:'number',default:8}]};
+  const [option]=toCatalogModelOptions([{...dto('local-graph','comfyui-local'),kind:'video',meta}]);
+  expect(option?.meta).toEqual(meta);
+  const a=resolveArchetypeForModel({modelKey:option!.modelKey,vendorKey:option!.vendor,meta:option!.meta});
+  expect(a?.modes.map(mode=>mode.id)).toEqual(['image_to_video']);
+  expect(()=>resolveRenderedControls(option!,{},false,true)).not.toThrow();
+});
+
+
+it('does not crash renderer controls on invalid workflow declarations or guess a cloud mode', () => {
+  const [option]=toCatalogModelOptions([{...dto('minimax-h3','comfyui-local'),kind:'video',meta:{comfyWorkflowImport:{binding:{}},parameters:[]}}]);
+  expect(resolveArchetypeForModel({modelKey:option!.modelKey,vendorKey:option!.vendor,meta:option!.meta})).toBeNull();
+  expect(()=>resolveRenderedControls(option!,{},false,true)).not.toThrow();
+});

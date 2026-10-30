@@ -1,0 +1,234 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-declared-duration-projection",
+  "problem_type": "Approved duration loses its executable control identity",
+  "symptom": "Approved 6/7/8-second imported shots retain the template default of five seconds.",
+  "direct_cause": "Storyboard emits duration while the declared imported control uses the importer-defined comfy_duration key; planning only recognizes bare duration.",
+  "class_root": "Duration-role projection is not shared between intent, recommendation and executable parameter construction.",
+  "affected_population": [
+    "Imported workflows declaring comfy_duration",
+    "Canonical video duration controls",
+    "Old nodes with contradictory semantic/wire values"
+  ],
+  "scope_paths": [
+    "electron/shared/videoCapabilities/paramConstraints.ts",
+    "electron/shared/videoCapabilities/recommendation.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "electron/shared/videoCapabilities/planResolver.ts",
+    "electron/shared/videoCapabilities/planResolver.test.ts",
+    "electron/shared/videoCapabilities/paramConstraints.test.ts"
+  ],
+  "entry_points": [
+    "Storyboard/Agent materialization",
+    "Canvas request construction",
+    "Video recommendation and range checks"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal declared-control projection defect. Existing parameter-constraint and importer owners define execution keys and legal ranges; no external API or runtime was changed.",
+  "invariants": [
+    "Requested duration reaches its declared execution key before defaults apply.",
+    "Contradictory explicit values are rejected without guessing.",
+    "No model name, vendor name, graph node ID or translated label decides duration."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/shared/videoCapabilities/paramConstraints.ts",
+      "symbol": "isDurationControl"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/imageActions.ts",
+      "symbol": "buildCatalogTaskRequest"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/videoActions.ts",
+      "symbol": "buildCatalogTaskRequest"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/paramConstraints.ts",
+      "symbol": "durationControlOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/paramConstraints.ts",
+      "symbol": "isDurationControl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "symbol": "durationControlOf"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "symbol": "modeDurationRange"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "symbol": "isDurationControl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "symbol": "withoutDurationParameters"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/recommendation.ts",
+      "symbol": "isDurationControl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/videoCapabilities/recommendation.ts",
+      "symbol": "durationControlOf"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/landedShotIntent.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "placeDurationParameters"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "symbol": "buildPlannedNodeMeta"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "placeDurationParameters"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "buildCatalogTaskRequest"
+    }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 19,
+    "why_not": "Existing surfaces remain; the shared duration-role boundary eliminates divergent interpretation without deleting supported callers."
+  },
+  "generality_proof": "The existing paramConstraints owner handles canonical duration and the importer-defined comfy_duration key for all models using those declared roles. Planner, materialization and request construction reuse it.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/videoCapabilities/paramConstraints.ts",
+      "symbol": "placeDurationParameters",
+      "responsibility": "Place semantic duration into the declared canonical/import-namespaced control and reject contradictory explicit values."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "entry_point": "buildPlannedNodeMeta",
+      "disposition": "enforced",
+      "evidence": "Translation precedes default composition and valid overrides."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "entry_point": "buildCatalogTaskRequest",
+      "disposition": "enforced",
+      "evidence": "Conflicting historical metadata is rejected before any provider submission."
+    },
+    {
+      "path": "electron/shared/videoCapabilities/recommendation.ts",
+      "entry_point": "chooseParamValue",
+      "disposition": "enforced",
+      "evidence": "Recommendation recognizes the same declared role instead of only the bare key."
+    },
+    {
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "entry_point": "resolveGenerationPlan",
+      "disposition": "enforced",
+      "evidence": "The existing review-side resolver writes the declared duration key and clears old duration overrides when accepting split/merge proposals."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same semantic/wire mismatch spans providers, imported graphs and multiple authoring/submission paths.",
+    "same_class_scan": [
+      "Read importer scalar paramKey naming, NUMERIC_LABEL and both actual imported bindings",
+      "Read storyboard duration writer, plannedNodeMeta, recommendation, paramConstraints and catalogTaskActions",
+      "Generated pre-change maps for materialization/request/range/option helpers"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/videoCapabilities/paramConstraints.ts",
+    "invariant": "One shared declared-role placement is used for planned intent and runtime request parameters.",
+    "failure_mode": "Ambiguous or conflicting explicit durations throw a code-shaped error before submission. No resubmission or project rewrite.",
+    "exception_policy": "none",
+    "strategy": "Reuse paramConstraints and its existing value-validation owner; replace bare-key-only duration role lookups.",
+    "artifacts": [
+      "electron/shared/videoCapabilities/paramConstraints.ts",
+      "electron/shared/videoCapabilities/recommendation.ts",
+      "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "electron/shared/videoCapabilities/planResolver.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "electron/shared/videoCapabilities/planResolver.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+    "electron/shared/videoCapabilities/planResolver.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/videoCapabilities/paramConstraints.ts",
+      "electron/shared/videoCapabilities/recommendation.ts"
+    ],
+    "rationale": "Bare-key-only role lookup is replaced in the same implementation; no per-model compatibility fallback remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal domain parameter projection using existing constraints; no dependency/runtime upgrade.",
+    "exit_criteria": []
+  },
+  "migration": "Do not rewrite user graphs or old project values. Conflicting explicit legacy fields require correction rather than an inferred winner.",
+  "residual_risks": [
+    "No new inference authorized; real newly generated clip timing remains paid-verification-excluded.",
+    "Only established canonical and importer-defined duration keys are recognized; unnamed graph numeric values are not guessed."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/videoCapabilities/paramConstraints.ts",
+    "tests": [
+      "src/workbench/generationCanvas/agent/plannedNodeMeta.test.ts",
+      "src/workbench/generationCanvas/runner/catalogTaskActions.test.ts",
+      "electron/shared/videoCapabilities/planResolver.test.ts"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "Generation provider readiness bootstrap",
+  "subject": "generation.provider-bootstrap",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+    "symbol": "createGenerationProviderBootstrap"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "createGenerationProviderBootstrap"
+    },
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "createCatalogGenerationProvider"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/generationProviderBootstrap.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-30",
+  "notes": "Registers the current shared owner and its direct projections validated by the 2026-10-30 unpaid repair contracts. This metadata adds no runtime permission, fallback or second implementation."
+}

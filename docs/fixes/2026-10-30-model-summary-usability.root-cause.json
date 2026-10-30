@@ -1,0 +1,126 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-model-summary-usability",
+  "problem_type": "Model-list summary recomputes credential readiness as executable usability",
+  "symptom": "Summary says 21 usable models while only 16 returned rows say usable=true.",
+  "direct_cause": "buildListModelsOutcome counts keyStatus=ok rather than the canonical per-row usable result.",
+  "class_root": "The outward summary re-derives an authoritative catalog fact from a weaker credential field.",
+  "affected_population": [
+    "Keyless local providers",
+    "Credential-ready models blocked by publication/platform/readiness",
+    "Both supported result locales"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpToolResults.ts",
+    "electron/capabilityCore/mcpToolResults.test.ts",
+    "electron/capabilityCore/mcpModelListOutcome.ts"
+  ],
+  "entry_points": [
+    "Native MCP nomi_read target=models",
+    "Structured and textual model-list results"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal projection defect; the existing shared modelPublication.rowServesMode contract already defines the answer.",
+  "invariants": [
+    "Summary usable count equals the count of rows with usable===true.",
+    "Credential readiness alone cannot make an unusable or unevidenced row selectable.",
+    "Structured model rows are preserved unchanged."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "symbol": "acceptsTag"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpResultPayload.ts",
+      "symbol": "buildToolOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpToolResults.ts",
+      "symbol": "buildListModelsOutcome"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 3,
+    "why_not": "Distinct existing UI/result consumers remain; the owner projection and its private helper are included by generated door scans."
+  },
+  "generality_proof": "Both localized text and structured count derive from the same authoritative usable partition, covering every provider and reason without provider branches.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "symbol": "buildListModelsOutcome",
+      "responsibility": "Summarize canonical model row facts without deriving usability from credentials."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpToolResults.ts",
+      "entry_point": "buildListModelsOutcome",
+      "disposition": "enforced",
+      "evidence": "Both text and structured output are created by this projection."
+    },
+    {
+      "path": "electron/capabilityCore/mcpResultPayload.ts",
+      "entry_point": "buildToolOutcome",
+      "disposition": "enforced",
+      "evidence": "Generated door map confirms native result payloads consume the outcome builder."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any credential-ready provider can remain blocked by another authoritative availability reason.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs buildToolOutcome",
+      "Compared createCatalogAvailability and model-list thin-row usable evidence",
+      "Checked mcpResultPayload consumer and both localized text branches",
+      "Refreshed generated door map after whole-owner extraction: buildToolOutcome, buildListModelsOutcome, acceptsTag"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpModelListOutcome.ts",
+    "invariant": "Only authoritative usable===true rows count as usable.",
+    "failure_mode": "Missing usability is not inferred; blocked rows and their reasons stay visible.",
+    "exception_policy": "none",
+    "strategy": "Replace keyStatus partitions and success markers with the returned usable fact.",
+    "artifacts": [
+      "electron/capabilityCore/mcpToolResults.ts",
+      "electron/capabilityCore/mcpModelListOutcome.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpToolResults.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpToolResults.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpToolResults.ts",
+      "electron/capabilityCore/mcpToolResults.ts"
+    ],
+    "rationale": "The weaker key-only summary predicate is removed, not retained as a compatibility fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency upgrade; reuse existing shared publication contract.",
+    "exit_criteria": []
+  },
+  "migration": "No catalog/settings migration and no endpoint probes are introduced.",
+  "residual_risks": [
+    "Catalog usability is not a claim that an inference request or live endpoint probe has succeeded."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/mcpToolResults.ts",
+    "tests": [
+      "electron/capabilityCore/mcpToolResults.test.ts"
+    ]
+  }
+}

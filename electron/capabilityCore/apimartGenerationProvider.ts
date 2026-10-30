@@ -458,7 +458,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
    * 否则 keychain 会被同一次提交问两遍，测试里那条「第一次真网络请求之前不解密」的断言
    * 也就名存实亡了。
    */
-  const requireApiKey = (): string => {
+  const requireApiKey = (vendor: Vendor): string => {
     let connection: { apiKey: string; baseUrl?: string } | null = null;
     try {
       connection = options.resolveConnection();
@@ -467,7 +467,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
       // Keep OS/keychain details private while preserving a structured provider error.
     }
     const apiKey = typeof connection?.apiKey === "string" ? connection.apiKey.trim() : "";
-    if (!apiKey) throw new CatalogGenerationProviderError(`${vendorKey} connection is disabled, missing, or locked`);
+    if (!connection || (vendor.authType !== "none" && !apiKey)) throw new CatalogGenerationProviderError(`${vendorKey} connection is disabled, missing, or locked`);
     return apiKey;
   };
 
@@ -568,7 +568,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     const queryOperation = target.operation;
     const providerMeta: JsonRecord = { task_id: taskId, query_id: taskId, id: taskId };
     const request = { kind: target.mapping.taskKind, prompt: "", extras: { ...providerMeta } } as TaskRequest;
-    const apiKey = requireApiKey();
+    const apiKey = requireApiKey(target.vendor);
     const built = renderOperation(target, queryOperation, request, providerMeta, apiKey);
     const payload = await send(target.vendor, apiKey, built, undefined, "task query");
     const responseMapping = isJsonRecord(queryOperation.response_mapping) ? queryOperation.response_mapping : null;
@@ -597,7 +597,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     assertReferenceParameters(body);
     const rendered = requestByPreparedKey.get(preparedKey(prepared));
     if (!rendered) throw new CatalogGenerationProviderError(`${vendorKey} sealed catalog identity is missing; rebuild the request before submission`);
-    const apiKey = requireApiKey();
+    const apiKey = requireApiKey(selection.vendor);
     const built = renderOperation(selection, selection.mapping.create, rendered, {}, apiKey);
     // **发的是封存过的那份 body**（用户批准的就是它），传输层（method/url/headers/query）
     // 才是这一刻按真 key 现渲染的。两者分开，正是「批准的是 A、发出去的是 B」的反面。

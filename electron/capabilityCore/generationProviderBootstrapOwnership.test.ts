@@ -109,3 +109,13 @@ describe("正式生成就绪与认证 / 声明标记无关（没有代码契约�
     expect(readinessOf(state, "local-52931")?.missingForSubmit).toBeUndefined();
   });
 });
+
+
+it.each(['local-http-one','local-http-two'])('accepts declared keyless HTTP connections without fabricated credentials: %s', vendorKey => {
+  const state=connection(vendorKey,'local-video');
+  state.vendors[0]!.authType='none';
+  state.apiKeysByVendor={};
+  expect(readinessOf(state,vendorKey)?.providerReady).toBe(true);
+  state.vendors[0]!.enabled=false;
+  expect(readinessOf(state,vendorKey)?.providerReady).toBe(false);
+});

@@ -191,3 +191,22 @@ describe("model spec parity across the two model faces", () => {
     expect(String(payload.recoveryActions)).toContain("list_models");
   });
 });
+
+
+it('publishes imported graph modes and exact scalar parameters in the native handbook', () => {
+  const key='comfy-minimax-h3-local';
+  const imported={...state, models:[...state.models,{modelKey:key,vendorKey:'comfyui-local',labelZh:'Local graph',kind:'video' as const,enabled:true,createdAt:'now',updatedAt:'now',meta:{adapter:{state:'verified',activeRevision:'test',modes:[{taskKind:'image_to_video',state:'verified'}]},comfyWorkflowImport:{binding:{outputKind:'video'}},parameters:[{key:'frame',type:'image-url',mediaKind:'image'},{key:'steps',type:'number',default:8}]}}]};
+  imported.mappings=[...imported.mappings,{id:'local-workflow-test',vendorKey:'comfyui-local',modelKey:key,taskKind:'image_to_video',name:'local',enabled:true,createdAt:'now',updatedAt:'now',create:{method:'POST',path:'/prompt',body:{prompt:'{{request.prompt}}'}}}];
+  const row=agentModelEntriesFromCatalog(imported).find(row=>row.entry.modelId===key);
+  expect(row?.entry.defaultModeId).toBe('image_to_video');
+  expect(row?.entry.modes.map(mode=>mode.modeId)).toEqual(['image_to_video']);
+  expect(row?.entry.modes[0]?.params).toEqual([expect.objectContaining({key:'steps',defaultValue:8})]);
+  const malformed=structuredClone(imported);
+  malformed.models.at(-1)!.meta={adapter:{state:'verified',activeRevision:'test',modes:[{taskKind:'image_to_video',state:'verified'}]},comfyWorkflowImport:{binding:{}},parameters:[]};
+  expect(agentModelEntriesFromCatalog(malformed).find(row=>row.entry.modelId===key)).toBeUndefined();
+  malformed.models.at(-1)!.meta={adapter:{state:'verified',activeRevision:'test',modes:[{taskKind:'image_to_video',state:'verified'}]}};
+  const unprofiled=agentModelEntriesFromCatalog(malformed).find(row=>row.entry.modelId===key);
+  expect(unprofiled?.entry.modes).toEqual([]);
+  expect(unprofiled?.entry.defaultModeId).toBe('');
+
+});

@@ -1,3 +1,4 @@
+import type { TaskKind } from '../../api/taskApi'
 import type { ProgressNarrationContext } from '../../observability/narrate'
 import type { GenerationNodeKind } from './generationNodeKinds'
 import type { NodeRenderKind } from '../../project/projectCategories'
@@ -119,7 +120,7 @@ export type GenerationNodeRunStatus = Exclude<GenerationNodeStatus, 'idle'> | 'c
  * （2026-09-29：用户点了提示里的「切到另一家」，旧失败还挂在节点上，提示按新选的那家去点名，说它失败了。）
  * 旧记录没有这一栏：读不出是谁失败的，就不替它点名。
  */
-export type GenerationNodeRunAttempt = { vendorKey: string; modelKey: string }
+export type GenerationNodeRunAttempt = { vendorKey: string; modelKey: string; query?: { taskKind: TaskKind; modeId?: string } }
 
 export type GenerationNodeRunRecord = {
   id: string

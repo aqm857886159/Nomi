@@ -72,6 +72,7 @@ export function createGenerationDefaultModelResolver(
           modelKey: model.modelKey,
           label: model.labelZh,
           archetypeId: videoArchetypeIdFromMeta(model.meta),
+          meta: model.meta,
         }])[0];
         return video
           ? effectiveVideoModes(video).find((mode) => mode.transportTaskKind === taskKind)?.id

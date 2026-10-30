@@ -22,7 +22,7 @@
 import type { ArchetypeMode } from "./types";
 import type { VideoModelCandidate } from "./recommendation";
 import { effectiveVideoModes } from "./recommendation";
-import { clampToRange, isParamValueAllowed, modeDurationRange, numericRangeOf } from "./paramConstraints";
+import { clampToRange, durationControlOf, isDurationControl, isParamValueAllowed, modeDurationRange, numericRangeOf, withoutDurationParameters } from "./paramConstraints";
 
 /**
  * 逻辑镜头输入（调用方 = storyboard planner / GUI；durationSec 建议用演时换算的真实表演秒）。
@@ -187,6 +187,7 @@ function resolveShot(shot: PlanShotInput, candidates: readonly VideoModelCandida
   output.modeId = mode.id;
   output.modeLabel = mode.vendorTerm || mode.id;
 
+  const durationControl = durationControlOf(mode.params);
   const range = modeDurationRange(mode);
   output.durationMin = range?.min ?? null;
   output.durationMax = range?.max ?? null;
@@ -201,7 +202,7 @@ function resolveShot(shot: PlanShotInput, candidates: readonly VideoModelCandida
       continue;
     }
     if (typeof rawValue !== "string" && typeof rawValue !== "number" && typeof rawValue !== "boolean") continue;
-    if (key === "duration") continue; // duration 由下面的模式范围统一裁决，不走通用参数分支
+    if (isDurationControl(control)) continue; // duration 由下面的模式范围统一裁决，不走通用参数分支
     if (isParamValueAllowed(control, rawValue)) {
       params[key] = rawValue;
       continue;
@@ -231,10 +232,14 @@ function resolveShot(shot: PlanShotInput, candidates: readonly VideoModelCandida
 
   // duration：由模式的合法集合裁决（覆盖用户填的任意值）。
   if (!range) {
-    issues.push({ code: "duration.unsupported", shotId: shot.id, params: { modeLabel: output.modeLabel } });
+    if (durationControl && Number.isFinite(shot.durationSec) && shot.durationSec > 0 && isParamValueAllowed(durationControl, shot.durationSec)) {
+      params[durationControl.key] = shot.durationSec;
+    } else {
+      issues.push({ code: "duration.unsupported", shotId: shot.id, params: { modeLabel: output.modeLabel } });
+    }
   } else {
     const clamped = clampToRange(shot.durationSec, range);
-    params.duration = clamped.value;
+    params[durationControl!.key] = clamped.value;
     const roundedDesired = Math.round(shot.durationSec);
     if (clamped.changed) {
       issues.push({
@@ -369,8 +374,7 @@ export function applyMergeProposal(shots: readonly PlanShotInput[], proposal: Me
   const merged = shots.filter((shot) => covered.has(shot.id));
   if (merged.length === 0) return [...shots];
   const first = merged[0]!;
-  const params = { ...(first.params ?? {}) };
-  delete params.duration;
+  const params = withoutDurationParameters(first.params ?? {});
   const head: PlanShotInput = {
     ...first,
     id: proposal.id,
@@ -402,6 +406,7 @@ export function applySplitProposal(shot: PlanShotInput, proposal: SplitProposal)
     ...shot,
     id: pieceIndex === 0 ? shot.id : `${shot.id}-${pieceIndex + 1}`,
     durationSec: piece.durationSec,
+    ...(shot.params ? { params: withoutDurationParameters(shot.params) } : {}),
     ...(pieceIndex === 0 ? {} : { beatNote: `${shot.id}#${pieceIndex + 1}${shot.beatNote ? ` ${shot.beatNote}` : ""}` }),
   }));
 }

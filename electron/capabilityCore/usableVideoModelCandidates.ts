@@ -25,6 +25,7 @@ export function deriveUsableVideoModelCandidates() {
       modelKey: model.modelKey,
       label: model.labelZh,
       archetypeId: videoArchetypeIdFromMeta(model.meta),
+          meta: model.meta,
       parameterControls: model.onboarding?.fields?.map((field) => ({
         key: field.key,
         label: field.displayName,

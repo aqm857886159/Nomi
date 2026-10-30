@@ -8,7 +8,7 @@
 // 与渲染层 `buildAgentModelEntries` 的关系：两边都是「目录行 + 档案 → AgentModelEntry」这**同一个**
 // 投影，只是取目录行的方式不同（渲染层走 catalog IPC 的 ModelOption，这里直接读 CatalogState）。
 // 投影的形状与字段由 `AgentModelEntry` 一处定义，两边都不许各加各的字段。
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { resolveArchetypeForModel, hasComfyWorkflowDeclaration } from "../shared/modelArchetypes";
 import type { AgentModelEntry } from "../shared/agentCapabilities/availableModels";
 import type { ModelAvailabilityFacts } from "../shared/agentCapabilities/modelSpecProjection";
 import { deriveModelListing } from "./modelCatalogListing";
@@ -39,6 +39,7 @@ export function agentModelEntriesFromCatalog(
       vendorKey: row.vendor,
       meta: model?.meta,
     });
+    if (!archetype && hasComfyWorkflowDeclaration(model?.meta)) continue;
     const entry: AgentModelEntry = {
       modelId: row.modelKey,
       modelAlias: model?.modelAlias ?? null,
@@ -46,7 +47,7 @@ export function agentModelEntriesFromCatalog(
       label: row.label,
       kind: (archetype?.kind ?? row.kind) as AgentModelEntry["kind"],
       ...(archetype ? { archetypeId: archetype.id } : {}),
-      defaultModeId: archetype?.defaultModeId ?? "chat",
+      defaultModeId: archetype?.defaultModeId ?? (row.kind === "text" ? "chat" : ""),
       modes: archetype
         ? archetype.modes.map((mode) => ({
             modeId: mode.id,
@@ -62,7 +63,7 @@ export function agentModelEntriesFromCatalog(
               ...(slot.characterIndexed ? { characterIndexed: true as const } : {}),
             })),
           }))
-        : [{ modeId: "chat", vendorTerm: "chat", intent: "generate or rewrite text", hint: "", params: [], slots: [] }],
+        : row.kind === "text" ? [{ modeId: "chat", vendorTerm: "chat", intent: "generate or rewrite text", hint: "", params: [], slots: [] }] : [],
       ...(archetype?.variants?.length
         ? {
             variants: archetype.variants.map((variant) => ({

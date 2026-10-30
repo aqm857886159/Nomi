@@ -20,6 +20,35 @@
  */
 import type { ArchetypeMode, ModelParameterControl } from "./types";
 
+/** The bare semantic role and the scalar namespace defined by the workflow importer. */
+export function isDurationControl(control: Pick<ModelParameterControl, "key">): boolean {
+  return control.key === "duration" || control.key === "comfy_duration";
+}
+
+export function durationControlOf(controls: readonly ModelParameterControl[]): ModelParameterControl | undefined {
+  const matches = controls.filter(isDurationControl);
+  if (matches.length > 1) throw new Error("generation_duration_ambiguous");
+  return matches[0];
+}
+
+/** Preserve unrelated parameters; never choose between contradictory explicit values. */
+export function placeDurationParameters(parameters: Readonly<Record<string, unknown>>, controls: readonly ModelParameterControl[]): Record<string, unknown> {
+  const result = { ...parameters };
+  if (parameters.duration === undefined) return result;
+  const control = durationControlOf(controls);
+  if (!control || control.key === "duration") return result;
+  const explicit = parameters[control.key];
+  if (explicit !== undefined && String(explicit) !== String(parameters.duration)) throw new Error("generation_duration_conflict");
+  result[control.key] = parameters.duration;
+  delete result.duration;
+  return result;
+}
+
+/** A changed shot duration invalidates its old duration override, not its other parameters. */
+export function withoutDurationParameters(parameters: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(parameters).filter(([key]) => !isDurationControl({ key })));
+}
+
 /** 控件枚举里的**数值**档位（非数值/非有限值不算档位）。 */
 export function numericOptionValues(control: ModelParameterControl): number[] {
   return control.options
@@ -46,7 +75,7 @@ export function numericRangeOf(control: ModelParameterControl | undefined): Para
 
 /** 模式的 duration 合法范围（档案数值是唯一真相源；模式没有 duration 参数 = null）。 */
 export function modeDurationRange(mode: ArchetypeMode): ParamRange | null {
-  return numericRangeOf(mode.params.find((item) => item.key === "duration"));
+  return numericRangeOf(durationControlOf(mode.params));
 }
 
 /** 把想要的数值钳进合法集合：枚举取最近档，区间取四舍五入后 clamp。 */

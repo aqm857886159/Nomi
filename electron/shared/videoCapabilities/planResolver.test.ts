@@ -277,3 +277,21 @@ describe("planResolver · 引擎不产文案（R15）", () => {
     expect(issues.some((issue) => issue.code === "param.value")).toBe(false);
   });
 });
+
+describe('declared workflow duration in plan resolution', () => {
+  const imported = (bounded: boolean): VideoModelCandidate => candidateFor({ ...ENUM_CAP_ARCHETYPE,
+    modes: [{ ...ENUM_CAP_ARCHETYPE.modes[0]!, params: [{ key: 'comfy_duration', label: 'Duration', type: 'number', options: [], defaultValue: 5, ...(bounded ? { min: 1, max: 12 } : {}) }] }],
+  })
+  it.each([true, false])('places shot duration in the declared key (bounded=%s)', bounded => {
+    const result = resolveGenerationPlan({ shots: [{ id: 'workflow', durationSec: 7 }], candidates: [imported(bounded)] })
+    expect(result.shots[0]!.params).toMatchObject({ comfy_duration: 7 })
+    expect(result.shots[0]!.params).not.toHaveProperty('duration')
+    expect(result.issues.some(issue => issue.code === 'duration.unsupported')).toBe(false)
+  })
+  it('does not carry a pre-split duration into the smaller pieces', () => {
+    const pieces = applySplitProposal({ id: 'long', durationSec: 12, params: { comfy_duration: 12, cfg: 1 } }, {
+      shotId: 'long', durationSec: 12, pieces: [{ durationSec: 6 }, { durationSec: 6 }], modelLabel: 'Workflow', modeLabel: 'I2V', durationMax: 6, suggestFirstLast: true,
+    })
+    expect(pieces.map(piece => piece.params)).toEqual([{ cfg: 1 }, { cfg: 1 }])
+  })
+})
