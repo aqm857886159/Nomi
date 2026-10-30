@@ -38,12 +38,15 @@ try {
   client = await relayModelClient({ settingsDir: walk.settingsDir, userDataDir: walk.userDataDir, tempRoot: walk.report.tempRoot,
     env: { NOMI_WALK_ALLOW_ORIGINS: '', NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: relay.baseUrl } })
   const card = relayDeclaration(relay.baseUrl, { id: models[0].id })
+  // This mock accepts inline images; declare that fact before submitting local references.
+  card.assetIngestion = { strategy: 'inline-base64', accepts: ['image'], sourceUrl: card.sources[0].url }
   card.models[0].modes.push(relayDeclaration(relay.baseUrl, { frameOnly: true }).models[0].modes[0])
   const frame = relayDeclaration(relay.baseUrl, { id: models[1].id, frameOnly: true }).models[0]
   frame.parameters[0] = { key: 'duration', label: locale === 'en' ? 'Duration' : '时长', type: 'number', min: 3, max: 16, default: 3 }
   frame.parameters[1] = { key: 'resolution', label: locale === 'en' ? 'Resolution' : '清晰度', type: 'select', options: [{ value: '540p', label: '540p' }], default: '540p' }
   for (const model of [card.models[0], frame]) if (locale === 'en') for (const p of model.parameters) p.label = p.key === 'duration' ? 'Duration' : 'Resolution'
   card.models.push(frame)
+  fs.writeFileSync(path.join(evidence, 'declaration-card.json'), JSON.stringify(card, null, 2))
   report.declaration = await client.call('nomi_model_setup', { action: 'submit_declaration', vendorKey: vendor.key, declaration: JSON.stringify(card) })
   report.specifications = []
   for (const model of models) report.specifications.push(await client.call('nomi_read', { target: 'model', modelId: model.id, vendor: vendor.key }))
