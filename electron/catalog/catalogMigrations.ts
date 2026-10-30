@@ -34,11 +34,14 @@ export function migrateDeclaredCapabilities(state: CatalogState, revisions: read
       if (!candidate || !tasks.length) throw new Error("originalRevision");
       if (meta.parameters !== undefined && capabilityFactDigest(meta.parameters) !== capabilityFactDigest(candidate.parameters || [])) throw new Error("parametersOwnership");
       const projection = projectDeclaredModel(candidate, model.vendorKey, tasks);
-      // Old writers omitted delivery/abandon; operations themselves must still match exactly.
-      for (const row of projection.mappings.filter((row) => row.enabled)) {
-        const old = mappings.find((m) => m.vendorKey === model.vendorKey && m.modelKey === model.modelKey && m.taskKind === row.taskKind && !m.modeId && m.enabled);
-        const operations = (m: Pick<typeof row, 'create' | 'query' | 'result' | 'statusMapping'>) => ({ create: m.create, query: m.query, result: m.result, statusMapping: m.statusMapping });
-        if (!old || capabilityFactDigest(operations(old)) !== capabilityFactDigest(operations(candidate.modes.find((m) => m.taskKind === row.taskKind)!))) throw new Error("wireOwnership");
+      // Missing legacy delivery/abandon may be restored; present fields and inactive wires remain owned facts.
+      for (const row of projection.mappings) {
+        const old = mappings.find((m) => m.vendorKey === model.vendorKey && m.modelKey === model.modelKey && m.taskKind === row.taskKind && !m.modeId);
+        if (!old) { if (row.enabled) throw new Error("wireOwnership"); continue; }
+        const original = candidate.modes.find((m) => m.taskKind === row.taskKind)!;
+        const operations = (m: Pick<typeof row, 'create' | 'query' | 'result' | 'statusMapping' | 'delivery' | 'abandon'>) => ({ create: m.create, query: m.query, result: m.result, statusMapping: m.statusMapping, delivery: m.delivery, abandon: m.abandon });
+        const expected = { ...operations(original), delivery: old.delivery === undefined ? undefined : original.delivery, abandon: old.abandon === undefined ? undefined : original.abandon };
+        if (old.enabled !== row.enabled || capabilityFactDigest(operations(old)) !== capabilityFactDigest(expected)) throw new Error("wireOwnership");
       }
       mappings = mappings.map((old) => {
         const replacement = projection.mappings.find((row) => row.vendorKey === old.vendorKey && row.modelKey === old.modelKey && row.taskKind === old.taskKind && !old.modeId);

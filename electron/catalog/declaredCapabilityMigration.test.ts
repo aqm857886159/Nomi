@@ -51,6 +51,20 @@ describe('legacy declaration capability migration matrix', () => {
     expect(deriveModelAvailability({ model: state.models[0], vendor: { enabled: true, authType: 'none' }, credentialStatus: () => 'ok' })).toMatchObject({ usable: false, reason: 'capability_incomplete' });
     expect(state.mappings).toEqual(before.mappings);
   });
+  it.each(['delivery', 'abandon', 'inactive-wire'] as const)('preserves independently edited legacy wire fields: %s', (field) => {
+    const before = legacy();
+    const source = structuredClone(revision);
+    if (field === 'delivery') before.mappings[0].delivery = 'synchronous';
+    if (field === 'abandon') before.mappings[0].abandon = { via: 'poll-to-completion' };
+    if (field === 'inactive-wire') {
+      const extra = (relayDeclaration(source.draft.provider.baseUrl, { frameOnly: true }) as ProviderAdapterDraft).models[0].modes[0];
+      source.draft.models[0].modes.push(extra);
+      before.mappings.push({ ...before.mappings[0], ...extra, id: 'unverified-user-wire', enabled: false, create: { ...extra.create, path: '/user-edited' } });
+    }
+    const state = migrate(before, [source]);
+    expect(state.mappings).toEqual(before.mappings);
+    expect(deriveModelAvailability({ model: state.models[0], vendor: { enabled: true, authType: 'none' }, credentialStatus: () => 'ok' })).toMatchObject({ usable: false, reason: 'capability_incomplete' });
+  });
   it('exposes incomplete declarations to Agent with missing fields and no invented chat or built-in modes', () => {
     const state = migrate(legacy(), []);
     state.models[0].modelKey = 'veo3.1-fast';
