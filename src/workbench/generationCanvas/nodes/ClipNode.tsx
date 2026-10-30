@@ -48,7 +48,7 @@ import { buildClipNodeOutputPatch } from './clipNodeOutput'
 import { formatClipNodeDuration, resolveClipNodeVisualMode } from './clipNodeVisual'
 import { buildClipNodeExportTasks, type ClipNodeExportScope } from './clipNodeExport'
 import { dispatchTimelineShortcut } from '../../timeline/timelineShortcuts'
-import { SHORTCUT_SURFACE_ATTRIBUTE } from '../../shortcutSurface'
+import { canvasWindowInput, SHORTCUT_SURFACE_ATTRIBUTE } from '../../shortcutSurface'
 import { useTimelinePlaybackClock } from '../../timeline/useTimelinePlaybackClock'
 import { readVideoDurationSeconds } from '../../../media/videoDurationProbe'
 
@@ -510,8 +510,8 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
         }
       }, articleRef.current?.closest(`[${SHORTCUT_SURFACE_ATTRIBUTE}]`) ?? null)
     }
-    window.addEventListener('keydown', onKeyDown, true)
-    return () => window.removeEventListener('keydown', onKeyDown, true)
+    canvasWindowInput.addEventListener('keydown', onKeyDown, true)
+    return () => canvasWindowInput.removeEventListener('keydown', onKeyDown, true)
   }, [activeClip, closeEditing, durationFrames, editingOpen, handleDuplicateClip, handleNudgeClip, handleRemoveClip, handleSplitClip, playheadFrame, readOnly, selected])
 
   const floatingLayerStyle = React.useMemo<React.CSSProperties | null>(() => {

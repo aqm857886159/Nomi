@@ -1,0 +1,568 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-view-parity-cut1",
+  "problem_type": "View hosts bypass shared input and deletion preconditions",
+  "symptom": "List Delete and Undo change the invisible canvas; browser tray deletion removes media still used by the canvas and timeline.",
+  "direct_cause": "offsetParent accepts invisible/inert canvas; the tray calls raw file trash without planAssetDeletion.",
+  "class_root": "Object operations have no mandatory shared host authority and deletion command boundary.",
+  "affected_population": [
+    "Generation list and keep-alive workspaces",
+    "Project media referenced by canvas results, whiteboard layers, and timeline clips"
+  ],
+  "scope_paths": [
+    "electron/preload.ts",
+    "electron/workspace/workspaceFileDelete.ts",
+    "src/desktop/bridge.ts",
+    "src/devlab/designLab.tsx",
+    "src/ui/browser/popover/useBrowserAssetActions.ts",
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/assets/assetFileDeletion.ts",
+    "src/workbench/assets/assetResultDeletion.ts",
+    "src/workbench/assets/deleteAssetResult.ts",
+    "src/workbench/assets/pendingAssetDeletions.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/generation/GenerationWorkspace.tsx",
+    "src/workbench/generation/list/GenerationListView.tsx",
+    "src/workbench/generationCanvas/components/CanvasPickModeLayer.tsx",
+    "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
+    "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+    "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
+    "src/workbench/generationCanvas/components/useCanvasFrameTool.ts",
+    "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+    "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+    "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+    "src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx",
+    "src/workbench/generationCanvas/nodes/NodeVideoClipPanel.tsx",
+    "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+    "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx",
+    "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/context/useDismissOnEscape.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+    "src/workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu.tsx",
+    "src/workbench/generationCanvas/nodes/director/timeline/TrackLanes.tsx",
+    "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardBoxSelection.ts",
+    "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSelectionActions.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+    "src/workbench/generationCanvas/store/canvasPickMode.ts",
+    "src/workbench/preview/PreviewWorkspace.tsx",
+    "src/workbench/shortcutSurface.ts",
+    "src/workbench/timeline/TimelinePanel.tsx",
+    "src/workbench/timeline/timelineGesture.ts"
+  ],
+  "entry_points": [
+    "Canvas/timeline window shortcuts and canvas point picking",
+    "Asset library, version card, browser tray, deferred trash"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "These are application-owned host and project reference invariants. Existing DOM events, rendererBridge, and deletion planning remain in use; no dependency API is changed.",
+  "invariants": [
+    "Only a mounted host explicitly declared active by the workspace may receive input.",
+    "Switching a view preserves canvas document and selection.",
+    "Every user asset deletion converges on deleteAssetResult before physical trash.",
+    "Only assetFileDeletion.ts can reference the renderer deleteFiles bridge."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "childWindowProject"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload.ts",
+      "symbol": "ipcRenderer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload/creationBridge.ts",
+      "symbol": "ipcRenderer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload/ipcCall.ts",
+      "symbol": "ipcRenderer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload/mediaBridge.ts",
+      "symbol": "ipcRenderer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload/modelOnboardingBridge.ts",
+      "symbol": "ipcRenderer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload/runtimeBridge.ts",
+      "symbol": "ipcRenderer"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/bridge.ts",
+      "symbol": "DeleteAssetResultOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/generationList/generationListLabKit.tsx",
+      "symbol": "useGenerationViewStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/pointer/revealNodeFromChat.ts",
+      "symbol": "useGenerationViewStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/assetFileDeletion.ts",
+      "symbol": "deleteFiles"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/assetFileDeletion.ts",
+      "symbol": "DeleteAssetResultOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/assetFileDeletion.ts",
+      "symbol": "deleteAssets"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "DeleteAssetResultOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "DeleteAssetResultOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "handleCapabilityApply"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/list/generationListSource.ts",
+      "symbol": "useGenerationViewStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/list/generationViewStore.ts",
+      "symbol": "useGenerationViewStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasPickModeLayer.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasFrameTool.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/context/useDismissOnEscape.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/timeline/TrackLanes.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoClipPanel.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardBoxSelection.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSelectionActions.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasPickMode.ts",
+      "symbol": "useGenerationViewStore"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "handleCapabilityApply"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectInteractionCapture.ts",
+      "symbol": "childWindowProject"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "registerWorkspaceFileDeleteIpc"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceFileDelete.ts",
+      "symbol": "childWindowProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab.tsx",
+      "symbol": "workspaceInputAttributes"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/popover/useBrowserAssetActions.ts",
+      "symbol": "requestProjectAssetDeletion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "enterCanvasPickMode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetLibraryPanel.tsx",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetResultDeletion.ts",
+      "symbol": "fileFate"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "trashProjectFiles"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "planAssetDeletion"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/pendingAssetDeletions.ts",
+      "symbol": "trashProjectFiles"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "useGenerationViewStore"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "cancelCanvasInputGestures"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "workspaceInputAttributes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/list/GenerationListView.tsx",
+      "symbol": "useGenerationViewStore"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/list/GenerationListView.tsx",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/list/GenerationViewSwitcher.tsx",
+      "symbol": "useGenerationViewStore"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "shortcutSurfaceMayHandle"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/nodeSlotReferencePick.ts",
+      "symbol": "enterCanvasPickMode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "deleteAssetResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/nodeInputActions.ts",
+      "symbol": "enterCanvasPickMode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/timelineGesture.ts",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "shortcutSurfaceMayHandle"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/timelineShortcuts.ts",
+      "symbol": "shortcutSurfaceMayHandle"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "workspaceInputAttributes"
+    }
+  ],
+  "door_reduction": {
+    "before": 36,
+    "after": 77,
+    "why_not": "The same 20-symbol census is generated with scripts/door-map.mjs against origin/main source and the repaired source. Extra shared host/intent functions now expose every native input consumer as a counted reader, so total doors grows. Distinct editors, canvas/timeline handlers, preload and IPC transports remain necessary, but all share explicit host authority or deleteAssetResult planning. The original physical deleteFiles census drops from three renderer callers (six read/write doors) to one bridge owner (one read door); no alternate UI trash path survives."
+  },
+  "generality_proof": "Host state is projected explicitly, so all CSS hiding representations have the same input outcome. Browser child windows relay to the main renderer deletion command with the parent project binding; raw physical trash has one renderer owner.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "workspaceInputSurfaceIsActive",
+      "responsibility": "Shared explicit host authority for keyboard and pointer consumers."
+    },
+    {
+      "path": "src/workbench/assets/deleteAssetResult.ts",
+      "symbol": "deleteAssetResult",
+      "responsibility": "Reference planning, result removal, persistence and undo-safe file lifecycle."
+    },
+    {
+      "path": "src/workbench/assets/assetFileDeletion.ts",
+      "symbol": "trashProjectFiles",
+      "responsibility": "Single renderer physical trash bridge owner."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "entry_point": "createCanvasKeydownHandler",
+      "disposition": "enforced",
+      "evidence": "Keyboard and paste both use shared shortcut surface authority."
+    },
+    {
+      "path": "src/workbench/timeline/timelineShortcuts.ts",
+      "entry_point": "dispatchTimelineShortcut",
+      "disposition": "enforced",
+      "evidence": "Both timeline hosts inherit their explicit workspace active marker."
+    },
+    {
+      "path": "src/ui/browser/popover/useBrowserAssetActions.ts",
+      "entry_point": "deleteSelectedAssets",
+      "disposition": "enforced",
+      "evidence": "Browser file deletion relays to main renderer deleteAssetResult instead of using overlay-local stores."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every view toggle and media reference shape can reach the same missing preconditions.",
+    "same_class_scan": [
+      "door-map shortcutSurfaceMayHandle isShown enterCanvasPickMode deleteFiles: 12 doors, 17 mentions, 3063 production files",
+      "rg global keyboard/pointer/paste listeners under generationCanvas and timeline",
+      "planAssetDeletion + pending deletion + tray + version-card call chain checked"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/shortcutSurface.ts",
+    "invariant": "Hidden hosts cannot consume input and asset deletion cannot bypass shared reference protection.",
+    "failure_mode": "Inactive or missing host rejects input; stale parent project rejects deletion; ESLint rejects non-owner deleteFiles access.",
+    "exception_policy": "none",
+    "strategy": "Use actual workspace active state and delete the alternate raw deletion entry.",
+    "artifacts": [
+      "src/workbench/shortcutSurface.ts",
+      "src/workbench/assets/assetFileDeletion.ts",
+      "electron/workspace/workspaceFileDelete.ts",
+      "eslint.config.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/shortcutSurface.matrix.test.ts",
+    "scripts/asset-file-owner.node-test.mjs",
+    "electron/workspace/workspaceFileDelete.test.ts",
+    "src/workbench/assets/assetDeletionMatrix.test.ts",
+    "src/workbench/generationCanvas/store/canvasPickMode.input.test.ts",
+    "src/workbench/pageLayerCensus.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/shortcutSurface.matrix.test.ts",
+    "scripts/asset-file-owner.node-test.mjs",
+    "src/workbench/assets/assetDeletionMatrix.test.ts",
+    "src/workbench/pageLayerCensus.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/shortcutSurface.ts",
+      "src/ui/browser/popover/useBrowserAssetActions.ts",
+      "src/workbench/assets/pendingAssetDeletions.ts"
+    ],
+    "rationale": "Remove CSS layout inference and parallel raw trash bridge access."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No runtime dependency controls the missing Nomi host or project-reference invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No project schema or dependency changes; mounted legacy hosts must declare explicit input authority.",
+  "residual_risks": [
+    "Independent acceptance remains pending. Windows is unverified in this Mac implementation."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/shortcutSurface.ts",
+    "tests": [
+      "src/workbench/shortcutSurface.matrix.test.ts"
+    ],
+    "why": "Workspace hosts explicitly grant input authority here; actual canvas and timeline handlers exercise the shared boundary."
+  }
+}

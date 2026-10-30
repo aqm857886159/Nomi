@@ -1,3 +1,4 @@
+import { workspaceInputSurfaceIsActive } from '../shortcutSurface'
 // 时间轴 / 剪辑节点里「一次按住指针的手势」的生命周期——唯一一份。
 //
 // 为什么收在这里：片段移动、裁剪手柄、拖播放头在 5 个地方各写了一遍「capture + window 监听 + 收尾」，
@@ -55,14 +56,15 @@ export function beginPointerSession(input: PointerSessionInput): PointerSession 
 
   const handleMove = (event: PointerEvent) => {
     if (event.pointerId !== pointerId || finished) return
+    if (!workspaceInputSurfaceIsActive(target)) { finish('interrupted', null); return }
     input.onMove?.(event)
   }
   const handleUp = (event: PointerEvent) => {
     if (event.pointerId !== pointerId) return
-    finish('release', event)
+    finish(workspaceInputSurfaceIsActive(target) ? 'release' : 'interrupted', event)
   }
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape') return
+    if (!workspaceInputSurfaceIsActive(target) || event.key !== 'Escape') return
     event.preventDefault()
     finish('escape', null)
   }
