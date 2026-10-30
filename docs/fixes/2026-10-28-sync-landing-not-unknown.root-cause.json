@@ -1,0 +1,227 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-28-sync-landing-not-unknown",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-27",
+  "problem_type": "A synchronous provider answered with the result, but the submission exit cannot tell 'answered, local landing failed' apart from 'result unknown'",
+  "symptom": "On a synchronous provider (the create response is the result), when the provider answers 200 and Nomi then fails to land the result locally (unreadable bytes, expired signed URL 403, retrieval refused by the outbound policy, wrong media kind, disk write error), the canvas card says Nomi never got the provider's reply, the shot is locked as needs_reconcile and the user is sent to the provider dashboard. 0.23.2 said 'the generated file could not be read' and allowed another click.",
+  "direct_cause": "Synchronous results are landed inside adapter.submit (runTask -> localizeTaskAsset). A landing failure surfaces as a submission failure with no provider task id; submissionOutbox.submitOnce only had three outcomes (never dispatched / explicitly rejected / everything else = unknown), so it fell into the unknown catch-all, marked the job submission_unknown, the reservation unsettled and the runtime envelope submitted_unknown, and the canvas handover wrote back 'unknown'.",
+  "class_root": "The submission outcome had no positive evidence for 'the provider has already answered': the only owner of 'did this paid submission reach the provider and what did it say' (outboundDispatchEvidence) could prove 'never written' and 'explicitly rejected', but nothing at the one place that lands provider answers (localizeTaskAsset) recorded that an answer was in hand, so every post-answer local failure was indistinguishable from a lost reply.",
+  "affected_population": [
+    "Canvas single-node generation (the up-arrow) on synchronous providers: direct Seedream-style image APIs, user-added OpenAI-compatible relays, custom call scripts returning result URLs",
+    "Batch card shots dispatched through the canvas single-shot run",
+    "Agent spend-card shots handed over to the canvas (handover write-back and the direct-mode offer)",
+    "Users behind fake-IP proxies whose synchronous result download is refused by the outbound policy"
+  ],
+  "scope_paths": [
+    "electron/outboundDispatchEvidence.ts",
+    "electron/assets/localizeTaskAsset.ts",
+    "electron/tasks/retrievalStageError.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/productionRun/submissionOutbox.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/shared/productionShotJobs.ts",
+    "electron/capabilityCore/canvasShotHandover.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "src/workbench/observability/narrate.ts",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/i18n/locales/generationCommon.ts"
+  ],
+  "entry_points": [
+    "appIntegrationCanvasShot.dispatch (canvas up-arrow, batch card shot, Agent handover shot) -> productionGenerationSubmission.start -> submissionOutbox.submitOnce -> adapter.submit -> runTask -> localizeTaskAsset",
+    "runtime.buildProfileTaskResult (mapping synchronous create response), runtime no-mapping fallback, customCallDispatch returned assets -> localizeTaskAsset",
+    "taskResultQuery.executeTaskQuery (async retrieval: no-query download and readResult) -> localizeTaskAsset",
+    "NodeErrorReport (canvas error card) reading the landing error"
+  ],
+  "internal_only_reason": "Which outcome a failed paid submission lands in (and therefore whether Nomi locks the shot, releases the reservation or resends) is Nomi's own spend semantics; no external standard decides it. Idempotency keys only answer whether a resend becomes a second order, not how to classify an answer that already arrived, and the providers involved do not accept them.",
+  "invariants": [
+    "A submission failure is classified into exactly one closed outcome (not_dispatched / provider_rejected / result_landing_failed / unknown); every consumer switches exhaustively over it.",
+    "result_landing_failed is reachable only through positive evidence attached by the result landing gate after the provider's answer is in hand, and the evidence counts only on the error object that reaches the submission exit: it is never read down a cause chain, because an outer error that carries a landing failure as its cause describes a different failure (for example a later handoff that was reset after it was written); no error code or message text produces it.",
+    "When any earlier attempt may have reached the provider, the outcome is unknown even if the last attempt carries landing evidence.",
+    "A failure carrying landing evidence is never judged 'never written' and is never resent automatically, whatever the provider's idempotency declaration or the error text.",
+    "result_landing_failed lands as needs_attention + output_retrieval_failed with the reservation left reserved and the runtime envelope not marked submitted_unknown; the shot is not locked and the canvas handover writes back accepted.",
+    "Without a provider task id, the error card offers no retrieve-again action or wording; its next step is regenerate."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "symbol": "withResultLandingEvidence"
+    },
+    {
+      "kind": "read",
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "answeredSubmissionFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "submissionFailureOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "submissionFailureOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/retrievalStageError.ts",
+      "symbol": "retrievalStageError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "retrievalStageError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/productionShotJobs.ts",
+      "symbol": "jobEndedAfterProviderAnswer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotHandover.ts",
+      "symbol": "jobEndedAfterProviderAnswer"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "settleFromRun"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/narrate.ts",
+      "symbol": "narrateGenerationErrorWithoutTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/i18n/locales/generationCommon.ts",
+      "symbol": "hintWithoutTask"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "narrateGenerationErrorWithoutTask"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "NodeErrorReport"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 13,
+    "why_not": "Counted by hand along the same path (author estimate, no tool counts implicit decisions). Before: 10 decision points on 'what does a failed submission mean' with no owner for 'the provider already answered' — the landing gate's failure exit, the outbox catch-all, the envelope mark, retrievalStageError's definition plus the second retrieval-download wrap in taskResultQuery's no-query path, the handover settle, the canvas settle, the card's copy table, the card's action choice and its caller. After: the second wrap is gone (-1); the move gives retrievalStageError its own file so taskResultQuery becomes a reader (+1); three doors are new because the fourth outcome needs an owner on each process boundary it crosses: the evidence reader in outboundDispatchEvidence (main submission), the shot-job predicate read by the handover (shared shot jobs), the no-task copy entries (renderer). Each of them is a single owner with one writer (withResultLandingEvidence has exactly one caller, door-map 1); merging them would put renderer copy or shot-job state into the main-process evidence owner."
+  },
+  "generality_proof": "Every synchronous result Nomi lands goes through localizeTaskAsset (door-map localizeTaskAsset: runtime mapping path, runtime no-mapping fallback, custom call dispatch, async query path), and every paid submission failure is classified only by submissionOutbox.submissionFailureOutcome, so any present or future landing failure shape (new error codes, new producers below the gate) gets the evidence and the closed outcome without the producer knowing the stage. The class test throws every NomiErrorCode through the real landing gate and the real outbox; the counterexamples cover every unknown shape (reset, timeout, 5xx, off-list 4xx, coded text without evidence, earlier attempt may have reached, a landing failure wrapped as the cause of a later handoff's failure).",
+  "shared_boundaries": [
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "answeredSubmissionFailure",
+      "responsibility": "Single reader of the 'provider already answered' positive evidence; only the marker attached by withResultLandingEvidence counts."
+    },
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "withResultLandingEvidence",
+      "responsibility": "Single writer of the evidence; called only by the result landing gate after the provider's answer is in hand."
+    },
+    {
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "submissionFailureOutcome",
+      "responsibility": "Closed outcome of a failed paid submission; every consumer switches over it exhaustively and only it maps evidence to result_landing_failed."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "buildProfileTaskResult",
+      "disposition": "enforced",
+      "evidence": "Synchronous mapping results land through localizeTaskAsset, which attaches the evidence; appIntegrationCanvasShot.test.ts drives the canvas dispatch through the real landing gate."
+    },
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "runCustomCallTask",
+      "disposition": "enforced",
+      "evidence": "Returned asset URLs land through the injected localizeTaskAsset (same gate, same evidence)."
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "fetchTaskResult",
+      "disposition": "not-affected",
+      "evidence": "Async retrieval keeps its retrieval-stage codes: the landing gate tags them with the same retrievalStageError and fetchTaskResult passes them through; retrievalStagePhase.test.ts pins no-query and readResult landing failures."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "materialize",
+      "disposition": "not-affected",
+      "evidence": "Engine B retrieval failures after acceptance keep their provider task id and the retrieve-again path; batchOutputRetrievalFailure.e2e.test.ts is unchanged and green."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every synchronous provider lands its answer inside the submission, so any post-answer local failure (new validation rules, new download policy, disk errors) reaches the same submission exit; without positive evidence the catch-all turns each of them into a locked unknown.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs withResultLandingEvidence -> 1 write door (electron/assets/localizeTaskAsset.ts)",
+      "node scripts/door-map.mjs localizeTaskAsset -> runtime.ts (mapping path, no-mapping fallback, custom call injection), customCallDispatch.ts, taskResultQuery.ts",
+      "rg importLocalFile / saveFile in synchronous TTS and custom call scripts -> landing paths that bypass localizeTaskAsset (residual, see residual_risks)"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/submissionOutbox.ts",
+    "invariant": "A failed paid submission lands in exactly one closed outcome; result_landing_failed needs the landing gate's positive evidence and never resends or locks.",
+    "failure_mode": "Without evidence the failure stays unknown (locked, reservation unsettled); with evidence it is a determinate failure that keeps the reservation and allows a new click.",
+    "exception_policy": "none",
+    "strategy": "Module-private positive evidence written only at the landing gate, read by the single evidence owner, consumed through an exhaustive outcome switch.",
+    "artifacts": [
+      "electron/outboundDispatchEvidence.ts",
+      "electron/assets/localizeTaskAsset.ts",
+      "electron/productionRun/submissionOutbox.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
+    "electron/capabilityCore/agentPanelSpendCardFailures.e2e.test.ts",
+    "electron/productionRun/resultLandingOutcome.test.ts",
+    "electron/outboundDispatchEvidence.test.ts",
+    "electron/assets/localizeTaskAsset.test.ts",
+    "electron/tasks/retrievalStagePhase.test.ts",
+    "electron/shared/productionShotJobs.test.ts",
+    "src/workbench/observability/narrateWithoutTask.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.retrievalSource.test.tsx"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/resultLandingOutcome.test.ts",
+    "src/workbench/observability/narrateWithoutTask.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/tasks/taskResultQuery.ts"
+    ],
+    "rationale": "taskResultQuery.ts no longer defines retrievalStageError (moved verbatim to electron/tasks/retrievalStageError.ts) and no longer wraps localizeTaskAsset failures a second time in the no-query path; the landing gate tags its own failures through the same exit."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency decides submission outcomes.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes. Runs already locked as submission_unknown before this fix are not migrated; they keep the existing 'I checked, generate again' release.",
+  "residual_risks": [
+    "Three synchronous landing paths do not go through localizeTaskAsset and still fall into unknown on a post-answer local failure: synchronous TTS (importLocalFile), custom call scripts writing files (saveFile), CLI processes writing to disk.",
+    "Failures after the asset is imported inside localizeTaskAsset (duration probe, preview derivation) carry no evidence and stay unknown.",
+    "When the async query path fell back to another wire and then the landing failed, the wire-fallback note is no longer prefixed (the gate's code passes through the exit unchanged, as outbound-blocked already did).",
+    "Storyboard frame hover copy and main-process technical-detail sentences for retrieval refusals still mention retrieving again; they are read without a task-id context.",
+    "Acceptance finding 2: if code takes the landing error, hands off another paid request, and then rethrows the original landing error unchanged, the evidence is still on the object that reaches the exit and the outcome is still result_landing_failed (answered), although the later request may have been accepted. No production code does this today. A sturdier follow-up, not done in this change: when the landing gate attaches the evidence it records how many spend-capable handoffs the dispatch ledger holds at that moment, and the exit judges the outcome unknown if more handoffs exist by the time it sees the error.",
+    "The structural split (synchronous generation as accepted -> landed through engine B) is planned separately; this change only adds the missing outcome."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/submissionOutbox.ts",
+    "tests": [
+      "electron/productionRun/resultLandingOutcome.test.ts",
+      "electron/capabilityCore/appIntegrationCanvasShot.test.ts"
+    ]
+  }
+}

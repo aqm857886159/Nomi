@@ -1,0 +1,31 @@
+{
+  "name": "生成页的页内全屏层（导演台 / 全景查看器挂在画布那一格里，这一格此刻看不看得见）",
+  "subject": "ui.generation-page-layer",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generation/pageLayer.tsx",
+    "symbol": "GenerationPageLayer"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generation/pageLayer.tsx",
+      "symbol": "GenerationPageLayer"
+    },
+    {
+      "path": "src/workbench/generation/pageLayerContext.ts",
+      "symbol": "GenerationPageLayerProvider"
+    },
+    {
+      "path": "src/workbench/generation/pageLayerContext.ts",
+      "symbol": "useGenerationPageLayerTenants"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-29",
+  "notes": "合同 docs/fixes/2026-10-29-director-layer-in-page.root-cause.json：页面里的一块（导演台、全景查看器这类铺满「画布那一格」的编辑器 / 查看器）只经 GenerationPageLayer 挂进生成页画布那一格——版面归 GenerationWorkspace 的网格（层只写 absolute inset-0，不读 Agent 形态、不算顶偏移），可见性归 GenerationWorkspace 用外壳槽位的 active 与「画布 | 列表」视图算出的那一份（藏着时层 display:none，层里的键盘监听、3D 渲染循环、暗色锁读 useGenerationPageLayerActive 跟着停）。层级 z-[40]：在画布内浮件（≤30）之上、Agent 小球 / 浮窗层（z-[60]）之下。判据与登记在 src/workbench/pageLayerCensus.test.ts：src/workbench 里每个挂到 document.body 的 portal 都要登记归属（外壳模态 / 锚定浮层）与生命周期，租户目录里的 window / document 键盘监听要么读 useGenerationPageLayerActive 要么登记豁免，按 class 名找画布格的三处存量灯箱（NodeMediaPreviewDialog / NodeShotCutPanel / ScreenshotCropOverlay，行为是盖住 Agent 的模态）只减不增。和 ui.window-chrome-band（真正铺满窗口的全屏层离 40px 顶栏带多远）、ui.overlay-layer-scale（body 上全局层之间谁压谁）不是一回事：这里管的是「页面里的一块」不是全局层。"
+}

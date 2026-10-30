@@ -96,8 +96,11 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/workbench/project/projectActionIssuance.contract.test.ts', roots: ['src', 'electron'] }, // 13 秒
   { file: 'src/assets/vendor-logos/vendorLogos.test.ts', roots: ['src/assets/vendor-logos', 'src/config', 'src/design', 'src/ui', 'src/workbench'] },
   // ── src/workbench 及以下 ──
+  { file: 'src/workbench/sessionCleanupCensus.test.ts', roots: [...WORKBENCH, 'docs/engineering/concept-owners'], exts: [...CODE_EXTS, 'json'] }, // 概念登记驱动 effect cleanup 普查：会话业务写入不随组件卸载（Mac 单跑 1.4 秒）
   { file: 'src/workbench/generationCanvas/components/canvasViewportMovers.structure.test.ts', roots: WORKBENCH }, // 5 秒
+  { file: 'src/workbench/pageLayerCensus.test.ts', roots: WORKBENCH }, // 2026-10-29：src/workbench 里每个挂到 document.body 的 portal（createPortal / <BodyPortal>）都要登记归属与生命周期，页格内的层只经 GenerationPageLayer、藏着时键盘监听要停，按 class 名找画布格只许三处存量；遍历 workbench 生产源码按语法树数（<1 秒）
   { file: 'src/workbench/ai/pointer/pointerDoors.test.ts', roots: ['src/workbench/ai/pointer'] }, // 指向元素目录：不许自己动画布视口（唯一出口 viewNodeInCanvas）、不自带焦点环；只遍历这一个目录，按语法树判（<1 秒）
+  { file: 'src/workbench/promptLibrary/userPromptDoors.guard.test.ts', roots: ['src', 'electron'] }, // 2026-10-28：「我的库」提示词列表只有一条写入路——桥的写方法只有 promptLibraryApi 调、publishUserPrompts 只有一个调用方、存储写函数只有 promptLibraryIpc 引用、存盘文件名只在存储与并排安装拷贝里；遍历 src 与 electron 生产源码按语法树数（<1 秒）
   { file: 'src/workbench/generationCanvas/nodes/fencedCanvas.invariant.test.ts', roots: WORKBENCH },
   { file: 'src/workbench/generationCanvas/store/canvasReadyOwner.test.ts', roots: WORKBENCH }, // 12 秒
   { file: 'src/workbench/generationCanvas/components/canvasControlsStructure.test.ts', roots: ['src/workbench/generationCanvas'] }, // 4 秒
@@ -116,6 +119,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/vitest-lanes.test.ts', match: TEST_STYLE_FILE }, // 全仓每个测试样式文件都必须被某条车道认领；vitest.config.ts 在闭包里
   { file: 'tests/ux/_launchApp.test.mjs', roots: ['tests/ux', 'scripts'], exts: ['mjs'] }, // 每个字面凭据夹具都显式声明隔离合成存储（3 秒）
   { file: 'tests/ux/_paidRun.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 每个 *.paid.mjs 都走 openPaidWalk 或在例外表里
+  { file: 'tests/ux/_paidEnvKey.test.mjs', roots: ['tests/ux'], files: ['electron/catalog/seedBuiltins.ts'], exts: ['mjs'] }, // 2026-10-28：走查脚本不许点名 seedBuiltins.ts 退役名单里的 APIMart 文本模型；退役名单一改也跑（<1 秒）
   { file: 'tests/ux/storyboard-editor-entry.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 走查不许自己点方案行进编辑器，只经 openStoryboardEditor（1 秒）
   { file: 'tests/ux/design-lab/labFailureTriage.test.mjs', roots: ['tests/ux'], exts: ['mjs'] }, // 每份设计实验室走查入口认领角色、不写死端口
   { file: 'tests/ux/full-walk/limitsRegistry.test.mjs', roots: ['tests/ux/full-walk'], exts: ['mjs'] }, // 2026-10-25：全功能走查（监视器 / 动作 / 剧本）读的每一个 limits.<名字> 都在 loadLimits 登记、带出处（<1 秒）

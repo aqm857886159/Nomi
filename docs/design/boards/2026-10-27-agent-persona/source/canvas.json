@@ -1,0 +1,44 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-26T08:40:00Z"
+  },
+  "title": "Nomi Agent 形象（入库公开版：只含拍板的两张画板和第 15 版便签）",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "AgentPersona.dc.html": {
+      "x": 0,
+      "y": 7160,
+      "w": 1200,
+      "h": 1000,
+      "title": "G · 会动的小样（拍板版）",
+      "is_interactive": true
+    },
+    "AgentIdentityRow.dc.html": {
+      "x": 0,
+      "y": 8280,
+      "w": 1200,
+      "h": 560,
+      "title": "G · 聊天里的身份行（静态）"
+    }
+  },
+  "order": [
+    "AgentPersona.dc.html",
+    "AgentIdentityRow.dc.html"
+  ],
+  "notes": {
+    "v15": {
+      "x": 1280,
+      "y": 7160,
+      "w": 460,
+      "text": "第 15 版（10-27）：协调对过设计系统，用户拍板照默认改了 7 处\n① 空闲不动，约 20 秒眨一下眼，不再左右看\n② 空闲时圆角和 logo 一样，都是边长的 25%；干活时再变圆\n③ 形变 0.55 秒是设计系统新增的「形变」一档，只给形象用；其它过渡照旧 140ms\n④ 长任务只报「第几镜」，不报预计时间（没有真实预估）\n⑤ 聊天里的身份行也换成形象，静态（见下面那块）\n⑥ 实际尺寸 44px，和现在的小球一样大\n⑦ 眼睛只在鼠标离小球约 160px 以内时才跟",
+      "fill": "blue",
+      "size": "m"
+    }
+  },
+  "designSystems": []
+}

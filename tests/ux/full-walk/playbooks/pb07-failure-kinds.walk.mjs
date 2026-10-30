@@ -8,7 +8,7 @@
 //   ② 供应商说成功、给的字节读不出来 → 卡上说「生成的文件没能读出来」；运行记录里记着它发给了谁；
 //      屏上不出现「切到另一家」这类劝换供应商的提示（结果已经送达，失败在本机，换一家不是解法）；
 //   ③ 供应商说成功、给的是一张完整的 PNG（IEND 之后带了尾数据）→ 图照常落地成功（这一类以前被判 decode_failed）；
-//   ④ 供应商回一句认不出类别的话（一句英文）→ 标题永远是界面语言：中文界面顶的是「生成失败」、英文原话降到「服务商原话」那一格，
+//   ④ 供应商明确拒了这一笔（404），回一句认不出类别的话（一句英文）→ 标题永远是界面语言：中文界面顶的是「生成失败」、英文原话降到「服务商原话」那一格，
 //      英文界面标题就是那句话（以前中文界面顶着一整句英文）；说明如实说「认不出」——不编「临时故障 / 额度」，供应商给了码就带上码；
 //      屏上的切家提示里，原因自带句号时模板不再叠第二个。
 //
@@ -54,12 +54,22 @@ const node = async () => ((await monitor.readProject())?.payload?.generationCanv
 const card = () => win().locator(`[data-node-id="${CARD}"]`).first()
 const toast = () => win().locator('.mantine-Notification-root')
 const switchNotice = () => toast().filter({ hasText: /切到|Switch to/ })
-// 四笔提交的结局按顺序排好：参数错误 → 读不出来 → 带尾数据的完整 PNG → 一句认不出类别的话（418 不在状态码表里）。
+// 四笔提交的结局按顺序排好：参数错误 → 读不出来 → 带尾数据的完整 PNG → 一句认不出类别的话。
+// ④ 回 404：它在「明确拒绝」名单里（服务商回了话、这一笔没被收下），状态码本身又不带类别（不是参数 / 鉴权 / 额度），
+// 卡上只能照实转述那句话。不用 418：418 不在名单里，按名单是「结果未知」（拿不准收没收下，镜头锁住等核对）——那是另一张卡。
+const UNKNOWN_REPLY = { error: { message: UNKNOWN_SAID, code: UNKNOWN_CODE } }
 fixture.setMediaBehavior(({ index }) => {
   if (index === 0) return { reject: { status: 400, json: { error: { message: PARAM_ERROR, type: 'invalid_request_error', param: 'size', code: null } } } }
   if (index === 1) return { corruptResult: true }
   if (index === 2) return { trailingBytesResult: true }
-  return { reject: { status: 418, json: { error: { message: UNKNOWN_SAID, code: UNKNOWN_CODE } } } }
+  return { reject: { status: 404, json: UNKNOWN_REPLY } }
+})
+// 生图端点回 404 时，宿主会改走同一家的 chat 路由再问一次（electron/catalog/imageRouteFallback.ts）：那一问也回同一句话，
+// 卡上看到的仍是这家服务商的原话（不让夹具把这一问判成计划外请求）。
+fixture.respond({
+  label: 'pb07 ④ chat route asked after the image route 404',
+  match: (body) => body?.model === FIXTURE_IMAGE_MODEL,
+  reply: { type: 'http-error', status: 404, json: UNKNOWN_REPLY },
 })
 /** 打开项目时画布把唯一一张卡放得很大、标题与原因在窗口外：像人一样先缩小、再把整张卡（标题、原因、建议、按钮）拖进舞台再看。 */
 const showWholeCard = async () => {

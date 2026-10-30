@@ -70,7 +70,8 @@ export function PromptLibraryContent({ host, toolbarHost, className }: PromptLib
   const usageVersion = useLibraryUsageVersion()
 
   const { items, loading, error, reload } = usePromptLibrary(true)
-  const user = useUserPrompts(true)
+  // 每次打开（挂载）重读一次「我的库」：渲染层写口写完会当场发布，这一读兜住不经它的写入（比如主进程那边写的）。
+  const user = useUserPrompts(true, { refreshOnOpen: true })
   // 项目库页上没有打开的项目：「放上画布」会把节点建到一张看不见的画布上（真机 J-02），在页上禁用并说原因（C1）。
   const needsProjectReason = page ? t('libraries.layout.needsProject') : undefined
 

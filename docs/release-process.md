@@ -72,6 +72,7 @@ macOS 上密钥的钥匙串条目名随 app 名走，所以密钥要在 Preview 
 1. 从 `origin/main` 创建 `release/0.20.0`。
 2. 只把本次确定发布的 PR 合入 release 分支。
 3. 在 release 分支把 `package.json` 版本改为 `0.20.0`，补齐 CHANGELOG 和 release notes。
+   同一提交里补这一版的 Agent 提案收据样本：`pnpm exec tsx scripts/generate-published-receipt-fixtures.mjs HEAD`，再把生成的 `HEAD.json` 改名为 `v0.20.0.json`（写入器取自当前提交，与标签名无关；标签要到晋级时才打），并在同目录 README 的命令里加上这一版。漏了它，`projectAgentProposalReceiptStore.test.ts` 的「当前版本要进格式矩阵」会红，门岗推不上去。
 4. 未选中的 PR 保持独立，不进入 release 分支。
 
 release 分支仍通过 PR 进入 `main`。为保持 RC commit 可追溯，release PR 使用 merge commit 或 fast-forward，不能 squash。

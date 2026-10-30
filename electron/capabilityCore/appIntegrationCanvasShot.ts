@@ -560,7 +560,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       } catch (error) {
         const after = repository().read(projectId, runId);
         const job = after ? latestJob(after) : undefined;
-        // 交给画布的那一镜：照这个 Run 的作业写回（确定结束在受理之前 = 没发出去，否则结果未知、不说没花钱）。
+        // 交给画布的那一镜：照这个 Run 的作业写回（确定结束在受理之前 = 没发出去；答了、本机没落下 = 交到了；其余结果未知、不说没花钱）。
         settleFromRun({
           projectId,
           link,
@@ -572,7 +572,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
           now,
         });
         wroteBack = true;
-        // 明确拒绝 / 确定没发出去：已在 Run 里记成确定的失败，这一镜收尾；结果未知：标记留着，这个节点在核对前不许再点。
+        // 明确拒绝 / 确定没发出去 / 答了没落下：已在 Run 里记成确定的失败，这一镜收尾；结果未知：标记留着，这个节点在核对前不许再点。
         if (after && !blockingReason(after)) settle(projectId, projectRoot, runId, job);
         throw error;
       }

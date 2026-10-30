@@ -1,0 +1,146 @@
+{
+  "board": "AgentIdentityRow",
+  "approvedOn": "2026-10-27",
+  "stage": "explored",
+  "approval": {
+    "quote": "形象这 7 处照默认改，改完出实现清单，0.25 再建",
+    "date": "2026-10-27",
+    "source": "用户原话（协调转述）",
+    "canvas": "https://claude.ai/artifact/WhWDGBd2cBgFG3wavibVKf",
+    "canvasVersion": "协调 10-27 提出的 7 处里第 5 处「聊天身份行也换」，用户照默认拍板；第 15 版（画布版本 16）新加「聊天里的身份行」画板。"
+  },
+  "visualReview": "协调会话 2026-10-27：产品里「以 Nomi 身份说话」只有一处——NomiIdentityRow（16px 标 + 「Nomi」字标），现在只用在「还没连文本模型」的恢复卡上；v4 聊天的每条消息没有头像。换成形象空闲时的静态脸：不动、不眨眼、不跟鼠标、不带状态；字标、字号、间距不变。身体底色走 --nomi-logo-ground，眼睛恒为白色，和 logo 笔画一致。",
+  "designCard": "docs/plan/2026-10-27-agent-persona.md",
+  "sourceBoundary": "板源 = Claude Design 画布第 15 版（画布版本 16）「G · 聊天里的身份行」画板的原样副本（source/AgentIdentityRow.dc.html；画布里叫 Avatar.dc.html，入库改成板名）+ 与 AgentPersona 共用的画布索引公开版（source/canvas.json）。preview/AgentIdentityRow.html 是去掉画布外壳的静态页：样式与画面原样，只去掉运行时脚本和外网字体链接（字标中间的 m 退回系统衬线字体）。画板上「现在」那一行是现役身份行的样子（NomiLogoMark 16 + NomiWordmark 12），只作对照与旧功能普查的 before。候选由 scripts/board-extract.mjs --dir --board 抽出。",
+  "designIntent": "身份行和右下小球是同一个角色：聊天里以 Nomi 身份说话的那一行，用它的静态脸，让人认得出「这是那个助手」；状态只在小球上表达，这里不带。",
+  "artboards": [
+    "AgentIdentityRow"
+  ],
+  "priorArt": [
+    {
+      "url": "https://qz.com/1666437/mac-icon-designer-susan-kare-explains-the-inspiration-for-her-designs",
+      "takeaway": "小尺寸图标要在极少像素里保持一眼可认，Susan Kare 在 16×16 里画出了可辨认的表情。",
+      "decisionImpact": "改了：身份行 16px 单独画、单独看几何（放大 64px 对照），眼睛按比例取整，不直接缩小 44px 的那一版。"
+    },
+    {
+      "url": "https://www.seattlemet.com/news-and-city-life/2022/08/origin-story-of-clippy-the-microsoft-office-assistant",
+      "takeaway": "助手形象惹人烦的是不请自来的打扰，而不是出现本身。",
+      "decisionImpact": "确认了：身份行里的脸完全静止、不带状态，只是「谁在说话」的标记，不在聊天里制造动静。"
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/WALL-E_(character)",
+      "takeaway": "只靠一对眼睛就能让一个设备成为可辨认的角色。",
+      "decisionImpact": "确认了：静态脸只保留两只眼，和小球同一套几何，不另画一个头像。"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "Q1",
+      "text": "聊天身份行（NomiIdentityRow）的 16px 标换成形象的静态脸；字标、字号、间距不变。",
+      "source": "用户 2026-10-27 照默认拍板（原话「形象这 7 处照默认改，改完出实现清单，0.25 再建」）"
+    },
+    {
+      "id": "Q2",
+      "text": "静态：不眨眼、不跟鼠标、不带任何状态；状态只在右下小球上。",
+      "source": "同 Q1"
+    },
+    {
+      "id": "Q3",
+      "text": "App 图标、营销字标、全仓加载标不换。",
+      "source": "画布上的共用规矩，用户选 G 时同屏（协调转述）"
+    }
+  ],
+  "elements": [
+    {
+      "id": "identity.face",
+      "label": "身份行 16px 的脸：logo 底色、25% 圆角、两只白眼，完全静止",
+      "change": "changed",
+      "states": [
+        "dark"
+      ],
+      "candidates": [
+        "010-svg-Nomi形象",
+        "020-svg-Nomi形象",
+        "026-svg-Nomi形象放大",
+        "027-div-外形和logo同一块底色",
+        "028-div-眼睛宽为边长的15高30",
+        "029-div-底色走logo底色tok"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "新品牌组件 NomiAgentFace 的静态用法（src/design/identity.tsx，与右下小球同一个组件、同一套几何，不另画）；NomiIdentityRow（src/workbench/ai/NomiIdentityRow.tsx）把 NomiLogoMark size=16 换成它"
+    },
+    {
+      "id": "identity.wordmark",
+      "label": "「Nomi」字标：NomiWordmark 12px，No / i 为 ink-60，中间 m 为 accent + Fraunces，照旧",
+      "change": "unchanged",
+      "states": [
+        "dark",
+        "zh-en"
+      ],
+      "candidates": [
+        "007-span-Noi",
+        "008-span-m",
+        "011-span-Noi",
+        "012-span-m",
+        "017-span-Noi",
+        "018-span-m",
+        "021-span-Noi",
+        "022-span-m"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "NomiWordmark（src/design/identity.tsx），不改"
+    },
+    {
+      "id": "identity.old-mark",
+      "label": "现在身份行里的 16px logo 标（N 字）：这一处换成形象的静态脸，不再出现；logo 本身在 App 图标、标题栏等别处照旧",
+      "change": "removed",
+      "states": [
+        "dark"
+      ],
+      "candidates": [
+        "006-svg",
+        "016-svg",
+        "025-svg"
+      ],
+      "status": "dropped",
+      "userDecision": {
+        "quote": "形象这 7 处照默认改，改完出实现清单，0.25 再建",
+        "date": "2026-10-27"
+      },
+      "note": "被 identity.face 取代；只是这一处不用，NomiLogoMark 组件本身保留给别处"
+    }
+  ],
+  "decor": [
+    "001-div-G第15版第5处聊天里的",
+    "002-h1-以Nomi身份说话那一行",
+    "003-p-产品里就一处身份行Nom",
+    "004-span-浅色",
+    "005-span-现在",
+    "009-span-换成",
+    "013-div-恢复卡原来的内容不变",
+    "014-span-暗色",
+    "015-span-现在",
+    "019-span-换成",
+    "023-div-恢复卡原来的内容不变",
+    "024-span-放大看几何64px"
+  ],
+  "functionCensus": [
+    {
+      "censusId": "I-1",
+      "function": "以 Nomi 身份说话的卡片顶上那一行（现在只有「还没连文本模型」恢复卡用）",
+      "before": "NomiIdentityRow：NomiLogoMark 16 + NomiWordmark 12",
+      "after": "identity.face"
+    },
+    {
+      "censusId": "I-2",
+      "function": "data-assistant-identity 属性（走查定位用）",
+      "before": "NomiIdentityRow 外层 div",
+      "after": "identity.wordmark"
+    }
+  ],
+  "unverified": [
+    "16px 在 100% 缩放的普通屏上眼睛是否还清楚没看真机，0.25 走查截图核对（必要时按像素取整眼睛尺寸）"
+  ]
+}

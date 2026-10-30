@@ -1,0 +1,478 @@
+{
+  "board": "AgentPersona",
+  "approvedOn": "2026-10-27",
+  "stage": "explored",
+  "approval": {
+    "quote": "形象这 7 处照默认改，改完出实现清单，0.25 再建",
+    "date": "2026-10-27",
+    "source": "用户原话（协调转述）",
+    "canvas": "https://claude.ai/artifact/WhWDGBd2cBgFG3wavibVKf",
+    "canvasVersion": "用户 10-26 在方向 A–I 里选「去框的 G」，要了会动的小样并补了未读、长任务、不能干活、悬停（第 14 版）；协调 10-27 对过设计系统提出 7 处，用户拍板照默认改，第 15 版（画布版本 16）落地。入库的是这一版的「会动的小样」画板。"
+  },
+  "visualReview": "协调会话 2026-10-27 对过设计系统：颜色全部落在现有 token（身体 = --nomi-logo-ground，环和进度 = --nomi-accent，出错点 = --nomi-danger，胶囊 = --nomi-warning-soft / -edge / -ink，未读点 = 外壳共用的 DotMark），没有新颜色；五个基本状态和 V4DockStatus 的 idle / running / needs-confirm / done / failed 一一对应，「刚做完」停 2.4 秒与 V4_DOCK_DONE_HOLD_MS 一致。提出并按默认改了 7 处：空闲几乎不动、空闲圆角与 logo 同为 25%、形变时长进设计系统、长任务不报预计时间、聊天身份行也换、尺寸保持 44px、跟鼠标只在 160px 内。暗色身体以 token 为准（小样画得比 token 亮一档）。画布私有，只有仓库主人能开。",
+  "designCard": "docs/plan/2026-10-27-agent-persona.md",
+  "sourceBoundary": "板源 = Claude Design 画布第 15 版（画布版本 16）「G · 会动的小样」画板的原样副本（source/AgentPersona.dc.html；画布里叫 Motion.dc.html，入库改成板名，好让板源哈希盖住它）+ 画布索引公开版（source/canvas.json：只留拍板的两张画板和第 15 版便签；方向 A–I 的探索画板、调研画板不入库，看画布）。preview/AgentPersona.html 是静态拼页：样式第一段是小样 helmet 的原样副本，第二段只管排版；八种样子和悬停各占一行，第一格放大 4.5 倍，后三格是实际尺寸 44px，分别压在浅色画布、深色画面、暗色模式上；动画一律停在第一帧，「悬停」两行把小样里 .g:hover 的两条规则原样套上，「眼睛跟着看」套小样左上热区那条；示意文字（第 2 场分镜、第 5/8 镜、2 件事）照小样。小样暗色身体画成 #45413b，比设计系统的 --nomi-logo-ground 暗色值亮一档，实现以 token 为准（见 persona.on-dark）。候选由 scripts/board-extract.mjs --dir --board 在拼页上抽出。",
+  "designIntent": "右下的 Agent 小球换成「logo 同一块底色、同一个圆角比例的形 + 两只白眼」：停着的时候就是 logo，只是 N 换成了眼睛；状态靠轮廓、颜色、动作这些大面积的变化区分，侧栏尺寸下眯眼也分得开。只换脸，不改它会做的事：不自己弹开、点开面板、能拖、右键切形态、⌘J。",
+  "artboards": [
+    "AgentPersona"
+  ],
+  "priorArt": [
+    {
+      "url": "https://www.seattlemet.com/news-and-city-life/2022/08/origin-story-of-clippy-the-microsoft-office-assistant",
+      "takeaway": "Office 助手回形针当年被骂，主要是因为它不请自来地弹出打扰，不是因为长相；在偏好研究里它反而是最讨喜、最可信的一个。",
+      "decisionImpact": "确认了：形象只在原地变化，「小球不会自己弹开」这条现有规则保留，新长相不加任何主动弹出。"
+    },
+    {
+      "url": "https://qz.com/1666437/mac-icon-designer-susan-kare-explains-the-inspiration-for-her-designs",
+      "takeaway": "Susan Kare 在 16×16 的黑白像素里画了开机笑脸，目的是告诉用户「有事在发生」，把等待变得友好；小尺寸是约束，不是不做表情的理由。",
+      "decisionImpact": "改了：形象最用力的是「在跑」「等你」两类状态（变圆转弧、长成胶囊）；44px 实际尺寸和 16px 身份行都单独画、单独看。"
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/WALL-E_(character)",
+      "takeaway": "WALL·E 没有嘴和鼻子，全靠一对「镜头眼」演出情绪，设计顺序是先当电器、再加感情。",
+      "decisionImpact": "确认了：只给眼睛不给嘴；「刚做完」的笑、「出错」的塌都由眼睛的形状和身体的姿态表达。"
+    },
+    {
+      "url": "https://rive.app/blog/duolingo-s-ai-powered-video-call-brings-lily-to-life",
+      "takeaway": "角色动画用状态机实时混合，不逐个手做每种反应。",
+      "decisionImpact": "改了：落地用 CSS 过渡在状态之间连续变形（时长进设计系统一档 token），不自己写动画引擎，也不为这一处引入动画库。"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "Q1",
+      "text": "方向：G 去框——一块形加两只眼，没有外圈。",
+      "source": "用户 2026-10-26（原话「好，就按去框的 G 做会动的小样，带五态之间的过渡」）"
+    },
+    {
+      "id": "Q2",
+      "text": "在五个基本状态之外补：有新消息（未读）、长任务、先连模型（不能干活）三个变体，以及悬停。",
+      "source": "用户 2026-10-26（原话「把未读、长任务、不能干活、悬停这几处补进会动的小样」）"
+    },
+    {
+      "id": "Q3",
+      "text": "空闲几乎不动：约 20 秒眨一下眼，不左右看。",
+      "source": "用户 2026-10-27 照默认拍板（原话「形象这 7 处照默认改，改完出实现清单，0.25 再建」）"
+    },
+    {
+      "id": "Q4",
+      "text": "空闲时圆角与 logo 同一比例（边长的 25%），干活时再变圆。",
+      "source": "同 Q3"
+    },
+    {
+      "id": "Q5",
+      "text": "状态之间形变 550ms、cubic-bezier(.16,1,.3,1)：设计系统 §2.7 新增「形变」一档时长与缓动 token，只给形象用；其它交互过渡照旧 140ms；系统开了减弱动效就直接切。",
+      "source": "同 Q3"
+    },
+    {
+      "id": "Q6",
+      "text": "长任务只报「第几镜 / 共几镜」，不报预计时间（没有真实预估，不做假进度）。",
+      "source": "同 Q3"
+    },
+    {
+      "id": "Q7",
+      "text": "聊天里「以 Nomi 身份说话」的身份行也换成形象的静态脸（见 AgentIdentityRow 板）。",
+      "source": "同 Q3"
+    },
+    {
+      "id": "Q8",
+      "text": "尺寸保持现在的 44px（BALL_SIZE），胶囊 132px（PILL_WIDTH），点击区域不缩。",
+      "source": "同 Q3"
+    },
+    {
+      "id": "Q9",
+      "text": "眼睛只在鼠标离小球约 160px 以内时跟着看，离远了不动；减弱动效时不跟。",
+      "source": "同 Q3"
+    },
+    {
+      "id": "Q10",
+      "text": "边界：App 图标、营销字标、全仓加载标（NomiLoadingMark）不换；只换右下小球和聊天身份行。",
+      "source": "画布上的共用规矩，用户选 G 时同屏（协调转述）"
+    },
+    {
+      "id": "Q11",
+      "text": "0.25 再建：五个基本状态和「有新消息」现在就有数据，先做；「长任务」要等 Run 状态接进小球（收尾 A）；「先连模型」用「没有可用文本模型」的现有判定当状态来源。",
+      "source": "用户 2026-10-27（原话同 Q3）"
+    }
+  ],
+  "elements": [
+    {
+      "id": "persona.body",
+      "label": "身体：logo 底色 token（--nomi-logo-ground）的圆角方形，空闲时圆角 = 边长 25%（与 logo mark 同一比例），干活时变圆，状态之间连续形变",
+      "change": "changed",
+      "states": [
+        "dark",
+        "hover"
+      ],
+      "candidates": [
+        "077-p-外形和logo同一块底色"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "新品牌组件 NomiAgentFace（src/design/identity.tsx，§3.9 第七个品牌组件），AgentBallFace（src/ui/app-shell/shell/AgentBallFace.tsx）用它替换现在的 NomiLogoMark"
+    },
+    {
+      "id": "persona.size",
+      "label": "实际尺寸 44px，和现在的小球一样大（BALL_SIZE）；胶囊最宽 132px（PILL_WIDTH），右缘不动往左长；点击区域不缩",
+      "change": "unchanged",
+      "states": [
+        "narrow",
+        "dark"
+      ],
+      "candidates": [
+        "006-span-实际尺寸44px浅色画布"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "agentFormStore.ts 的 BALL_SIZE 与 ShellAgentHost 的 PILL_WIDTH，原值不动"
+    },
+    {
+      "id": "persona.eyes",
+      "label": "两只白眼：宽 15%、高 30%、上沿距顶 30%，左沿在 28% / 56%；空闲约 20 秒眨一下；鼠标离小球约 160px 内时跟着看；减弱动效时不动",
+      "change": "added",
+      "states": [
+        "hover",
+        "dark"
+      ],
+      "candidates": [
+        "048-section",
+        "049-b-眼睛跟着看",
+        "050-span-鼠标在左上方时眼睛往左上",
+        "078-p-眼睛宽为边长的15高30"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "NomiAgentFace 内部；跟鼠标的监听挂在 AgentBallFace，只在 160px 半径内生效"
+    },
+    {
+      "id": "state.idle",
+      "label": "空闲：logo 形 + 两只眼，几乎不动",
+      "change": "changed",
+      "states": [
+        "hover",
+        "dark"
+      ],
+      "candidates": [
+        "010-section",
+        "011-b-空闲",
+        "012-span-不动约20秒眨一下眼就是"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "AgentBallFace，status = idle（V4DockStatus）"
+    },
+    {
+      "id": "state.running",
+      "label": "在跑：身体变圆，外圈 accent 弧转圈，眼睛低头扫；减弱动效时只留静态环",
+      "change": "changed",
+      "states": [
+        "loading",
+        "dark"
+      ],
+      "candidates": [
+        "013-section",
+        "014-b-在跑",
+        "015-span-变圆蓝弧绕着转眼睛低头扫"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "AgentBallFace running 分支（保留 data-agent-ball-progress）"
+    },
+    {
+      "id": "state.needs-confirm",
+      "label": "等你确认：长成 warning 胶囊，带眼睛和「等你确认 N」；右缘不动往左长",
+      "change": "changed",
+      "states": [
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "016-section",
+        "017-b-等你确认",
+        "018-span-长成带字的琥珀胶囊右缘不",
+        "019-span-等你确认2",
+        "020-span-等你确认2",
+        "021-span-等你确认2",
+        "022-span-等你确认2"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "AgentBallFace pill 分支（agentBallIsPill；ShellAgentHost 的 PILL_WIDTH 与右缘锚点照旧），文案沿用 appShell.agent.ballPending"
+    },
+    {
+      "id": "state.done",
+      "label": "刚做完：轻跳一下、眯眼笑，停 2.4 秒（V4_DOCK_DONE_HOLD_MS）后落回空闲；面板收起期间有新回复则落到「有新消息」",
+      "change": "changed",
+      "states": [
+        "dark"
+      ],
+      "candidates": [
+        "023-section",
+        "024-b-刚做完",
+        "025-span-轻跳一下眯眼笑停24秒"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "AgentBallFace，status = done"
+    },
+    {
+      "id": "state.failed",
+      "label": "出错：身体歪 9°、眼睛塌成两条，右上一颗 danger 点；读屏照旧读出出错",
+      "change": "changed",
+      "states": [
+        "error",
+        "dark"
+      ],
+      "candidates": [
+        "026-section",
+        "027-b-出错",
+        "028-span-歪倒眼神塌下右上一颗红点"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "AgentBallFace failed 分支（danger 点与 aria-label 照旧）"
+    },
+    {
+      "id": "variant.unread",
+      "label": "有新消息（空闲的变体）：右上 accent 点、眼睛往屏幕里看，挂到点开为止",
+      "change": "changed",
+      "states": [
+        "dark"
+      ],
+      "candidates": [
+        "030-section",
+        "031-b-有新消息",
+        "032-span-空闲的变体加一颗蓝点眼睛"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "AgentBallFace 未读分支：DotMark + ShellAgentHost 里 useResidentActivityStore 的 dockUnreadCount（扣掉等你确认的条数，现有算法不变）"
+    },
+    {
+      "id": "variant.long-task",
+      "label": "长任务（在跑的变体）：多一圈底轨，accent 弧按「第几镜 / 共几镜」增长、不转圈，眼睛半眯；悬停说「生成视频 · 第 x/y 镜」，不报预计时间",
+      "change": "added",
+      "states": [
+        "loading",
+        "dark",
+        "zh-en"
+      ],
+      "candidates": [
+        "033-section",
+        "034-b-长任务",
+        "035-span-在跑的变体多一圈底轨蓝弧",
+        "036-svg",
+        "037-svg",
+        "038-svg",
+        "039-svg",
+        "065-svg",
+        "068-svg",
+        "071-svg",
+        "074-svg"
+      ],
+      "status": "missing",
+      "owner": "I-agent-closeout-a",
+      "component": "AgentBallFace 新分支；数据要 Run 状态接进小球（收尾 A），现在 running 只看回合（useAgentPanelV4Data）"
+    },
+    {
+      "id": "variant.setup",
+      "label": "先连模型（等你确认的变体）：同一个 warning 胶囊，字换成「先连一个模型」",
+      "change": "added",
+      "states": [
+        "disabled",
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "candidates": [
+        "040-section",
+        "041-b-先连模型",
+        "042-span-等你确认的变体同一个胶囊",
+        "043-span-先连一个模型",
+        "044-span-先连一个模型",
+        "045-span-先连一个模型",
+        "046-span-先连一个模型"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "AgentBallFace pill 分支的新文案（zh / en 进 i18n）；状态来源是 NomiStudioApp 已有的 useHasTextModel().hasTextModel === false（与「还没连文本模型」恢复卡同一个判定，不另写一份）；点开面板后由现有恢复卡给下一步"
+    },
+    {
+      "id": "persona.tooltip",
+      "label": "悬停一行说明 = 现在的 title（打开说明 · 状态 · 未读条数），长任务时加镜头进度；移到身上抬眼",
+      "change": "changed",
+      "states": [
+        "hover",
+        "zh-en",
+        "long-text"
+      ],
+      "candidates": [
+        "051-section",
+        "052-b-移到身上",
+        "053-span-抬眼冒一行说明就是现在小",
+        "054-div",
+        "055-span-NomiJ打开",
+        "056-div",
+        "057-span-NomiJ打开",
+        "058-div",
+        "059-span-NomiJ打开",
+        "060-div",
+        "061-span-NomiJ打开",
+        "062-section",
+        "063-b-长任务时悬停",
+        "064-span-说明里报到第几镜不报预计",
+        "066-div",
+        "067-span-生成视频第58镜",
+        "069-div",
+        "070-span-生成视频第58镜",
+        "072-div",
+        "073-span-生成视频第58镜",
+        "075-div",
+        "076-span-生成视频第58镜"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "ShellAgentHost 组 title（appShell.agent.ballOpen / ballPending / ballUnread 与 dockStatusLabel），不照抄小样字面"
+    },
+    {
+      "id": "motion.morph-token",
+      "label": "形变 550ms、cubic-bezier(.16,1,.3,1)：设计系统 §2.7 新增一档，只给形象用；减弱动效直接切",
+      "change": "added",
+      "states": [
+        "loading",
+        "error",
+        "dark"
+      ],
+      "candidates": [
+        "079-p-形变任意两个状态之间连续"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "tailwind.config.ts 新增 --nomi-duration-morph / --nomi-ease-morph 与对应类名，docs/design/nomi-design-system.md §2.7 同步"
+    },
+    {
+      "id": "persona.on-dark",
+      "label": "压在深色画面上、暗色模式：身体加 1px 浅色描边（白 14–30%）以免被背景吃掉；暗色身体颜色随 token",
+      "change": "added",
+      "states": [
+        "dark"
+      ],
+      "candidates": [
+        "007-span-压在深色画面上",
+        "008-span-暗色模式",
+        "080-p-暗色和深色画面身体加一圈"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "NomiAgentFace 的描边，走 token，不写死 hex"
+    },
+    {
+      "id": "ball.behaviors",
+      "label": "只换脸不换行为：点击打开面板并聚焦输入框；拖动挪位置并记住；右键菜单切浮窗 / 停靠；⌘J；不自己弹开；走查用的 data-agent-* 属性与 focus-visible 描边照旧",
+      "change": "unchanged",
+      "states": [
+        "hover",
+        "selected"
+      ],
+      "candidates": [
+        "081-p-只换脸不换行为点一下打开"
+      ],
+      "status": "missing",
+      "owner": "I-agent-persona",
+      "component": "ShellAgentHost（Rnd 拖动、onContextMenu → WorkbenchMenu、open → setForm + focusComposerSoon）与 AgentBallFace 的 data 属性，原样保留"
+    }
+  ],
+  "decor": [
+    "001-main",
+    "002-div-G去框第15版静态拼页八",
+    "003-h1-Agent形象五个状态三",
+    "004-p-每种样子一行第一格放大看",
+    "005-span-放大看形",
+    "009-div-五个状态",
+    "029-div-三个变体各挂在一个基本状",
+    "047-div-悬停鼠标离小球约160p"
+  ],
+  "functionCensus": [
+    {
+      "censusId": "A-1",
+      "function": "点击小球打开 Agent 面板并聚焦输入框",
+      "before": "AgentBallFace onClick → ShellAgentHost open()",
+      "after": "ball.behaviors"
+    },
+    {
+      "censusId": "A-2",
+      "function": "拖动小球挪位置，按工作区记住位置（几乎没动算点击）",
+      "before": "ShellAgentHost Rnd onDragStop → setBallPoint",
+      "after": "ball.behaviors"
+    },
+    {
+      "censusId": "A-3",
+      "function": "右键菜单：切成浮窗 / 停靠到右栏",
+      "before": "onContextMenu → WorkbenchMenu（toFloat / toDock）",
+      "after": "ball.behaviors"
+    },
+    {
+      "censusId": "A-4",
+      "function": "⌘J 打开（悬停说明里写着）",
+      "before": "appShell.agent.ballOpen 的 shortcut",
+      "after": "persona.tooltip"
+    },
+    {
+      "censusId": "A-5",
+      "function": "悬停 / 读屏说明：打开说明 · 状态 · 未读条数",
+      "before": "ShellAgentHost 组 title 与 aria-label",
+      "after": "persona.tooltip"
+    },
+    {
+      "censusId": "A-6",
+      "function": "在跑：外圈 accent 环转圈，减弱动效时静态",
+      "before": "AgentBallFace running 分支（data-agent-ball-progress）",
+      "after": "state.running"
+    },
+    {
+      "censusId": "A-7",
+      "function": "等你确认 N：同一位置变成 warning 胶囊，右缘不动往左长",
+      "before": "agentBallIsPill + PILL_WIDTH 132",
+      "after": "state.needs-confirm"
+    },
+    {
+      "censusId": "A-8",
+      "function": "刚做完停 2.4 秒再落回空闲",
+      "before": "V4_DOCK_DONE_HOLD_MS",
+      "after": "state.done"
+    },
+    {
+      "censusId": "A-9",
+      "function": "出错：右上 danger 点，读屏读出",
+      "before": "AgentBallFace failed 分支",
+      "after": "state.failed"
+    },
+    {
+      "censusId": "A-10",
+      "function": "收起期间有新回复：右上 accent 点（DotMark）",
+      "before": "AgentBallFace unreadDot",
+      "after": "variant.unread"
+    },
+    {
+      "censusId": "A-11",
+      "function": "走查用的 data-agent-ball / -dock-status / -dock-count / -dock-unread 属性",
+      "before": "AgentBallFace",
+      "after": "ball.behaviors"
+    },
+    {
+      "censusId": "A-12",
+      "function": "键盘焦点描边（focus-visible）",
+      "before": "AgentBallFace className",
+      "after": "ball.behaviors"
+    }
+  ],
+  "unverified": [
+    "静态拼页只证长相，不证动起来的样子：形变、眨眼、转圈、轻跳看画布小样，0.25 实现后由走查逐态录屏核对",
+    "英文胶囊（「先连一个模型」「等你确认 N」的英文更长）没画，0.25 实现时按 PILL_WIDTH 与 long-text 状态核对",
+    "暗色身体按 token 实现后的对比度没看过真机，0.25 走查暗色截图核对"
+  ],
+  "knownLimitations": [
+    "长任务一档要等 Run 状态接进小球（收尾 A），在那之前小球只有转圈那一种「在跑」"
+  ]
+}
