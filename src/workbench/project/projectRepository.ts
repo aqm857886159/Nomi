@@ -1,3 +1,4 @@
+import { unwrapIpcResult } from '../../../electron/shared/contracts/ipcResult'
 import { sameProjectAgentBinding, type ProjectBinding } from '../../../electron/shared/projectBinding'
 import type { ProjectDeleteIntent } from '../../../electron/shared/projectDeleteIntent'
 import {
@@ -276,7 +277,7 @@ export async function saveProjectRecord(
   assertWorkbenchProjectMediaUrlsPersistable(record)
   if (desktop) {
     const { name: _ownedByRename, ...contentRecord } = record
-    return await desktop.projects.save(id, { ...contentRecord, ...(expectedBinding ? { expectedBinding } : {}) }) as WorkbenchProjectRecordV1
+    return unwrapIpcResult(await desktop.projects.save(id, { ...contentRecord, ...(expectedBinding ? { expectedBinding } : {}) }), 'nomi:projects:save-async') as WorkbenchProjectRecordV1
   }
   if (expectedBinding) {
     const current = workbenchProjectRecordSchema.safeParse(existingRecord)
@@ -318,7 +319,7 @@ export async function renameLocalProject(projectId: string, name: string): Promi
   }
   assertWorkbenchProjectMediaUrlsPersistable(next)
   const desktop = getDesktopBridge()
-  if (desktop) return await desktop.projects.save(id, next) as WorkbenchProjectRecordV1
+  if (desktop) return unwrapIpcResult(await desktop.projects.save(id, next), 'nomi:projects:save-async') as WorkbenchProjectRecordV1
   const existingRecord = readJson(projectRecordKey(id))
   if (existingRecord) rememberProjectBackup(id, existingRecord)
   writeJson(projectRecordKey(id), next)

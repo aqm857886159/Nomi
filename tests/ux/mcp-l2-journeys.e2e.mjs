@@ -11,6 +11,7 @@ import { newProjectEntry } from './_shell.mjs'
 // 断连取消那条诊断的事件名派生自真相源（两条启动路共用的常量），不手抄散文：
 // 手抄的那份在日志收口时静默漂成假红，正是本轨踩到的坑。
 const { MCP_CANCELLED_IN_FLIGHT_EVENT } = tsxRequire('../../electron/capabilityCore/mcpStdioDiagnostics.ts', import.meta.url)
+const { unwrapIpcResult } = tsxRequire('../../electron/shared/contracts/ipcResult.ts', import.meta.url)
 
 const dirs = makeIsolatedDirs('nomi-mcp-l2-')
 const packagedBundle = process.argv.includes('--packaged')
@@ -399,9 +400,10 @@ try {
     if (!projects?.save || !current) throw new Error('C9 save-while-open probe could not read the isolated project')
     const before = Number(current.revision)
     const saved = await projects.save(id, { ...current, name: `${String(current.name || 'C9 project')} saved while confirming` })
-    return { before, after: Number(saved?.revision) }
+    return { before, receipt: saved }
   }, c9ProjectId)
-  check(Number.isInteger(savedWhileOpen.before) && savedWhileOpen.after === savedWhileOpen.before + 1, 'C9 卡开着时项目真实保存一次，revision +1')
+  const savedReceipt = unwrapIpcResult(savedWhileOpen.receipt, 'nomi:projects:save-async')
+  check(Number.isInteger(savedWhileOpen.before) && Number(savedReceipt?.revision) === savedWhileOpen.before + 1, 'C9 卡开着时项目真实保存一次，revision +1')
   await generationCard.locator('[data-production-action="confirm"]').click()
   const gated = await retryGatePromise
   if (gated?.isError) {

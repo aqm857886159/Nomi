@@ -1,0 +1,30 @@
+{
+  "id": "USER-20261029-project-save-draft-veto",
+  "since": "2026-10-30",
+  "source": "用户反馈：连续自动保存失败，顶部误报本地磁盘权限，窗口不能关闭。",
+  "category": "interaction-semantics",
+  "problem": "可编辑的空名卡和默认画幅被模型严格 schema 否决，整份工程拒存；IPC 又丢失真实保存原因。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "人物卡先加后起名仍可存读",
+    "画幅回到默认可保存",
+    "保存失败按结构原因显示"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/plan/2026-10-30-project-save-draft-contract.md",
+    "docs/fixes/2026-10-30-project-save-draft-contract.root-cause.json",
+    "src/workbench/project/editorPersistability.property.test.ts"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-30-project-save-draft-contract.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/project/editorPersistability.property.test.ts"
+  }
+}

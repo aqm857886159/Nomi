@@ -155,6 +155,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     readAsync: (projectId: string) => ipcRenderer.invoke("nomi:projects:read-async", projectId),
     diagnose: (projectId: string) => ipcRenderer.invoke("nomi:projects:diagnose", projectId),
     recover: (projectId: string) => ipcRenderer.invoke("nomi:projects:recover", projectId),
+    // Keep the envelope as ordinary data across contextBridge; renderer unwraps it once.
     save: (projectId: string, record: unknown) =>
       ipcRenderer.invoke("nomi:projects:save-async", projectId, record),
     applyCanvasNodePatch: (input: { projectId: string; nodeId: string; patch: Record<string, unknown>; expectedBinding?: unknown }) =>
