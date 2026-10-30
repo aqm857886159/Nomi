@@ -18,7 +18,7 @@ const redirects = JSON.stringify([{ from: baseUrl, to: relay.baseUrl }])
 const network = { NOMI_TEST_NETWORK_GUARD: '1', NOMI_TEST_NETWORK_REDIRECTS: redirects, NOMI_WALK_ALLOW_ORIGINS: '', NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: relay.baseUrl }
 const paid = await openPaidWalk('relay-video-onboarding-real.rehearsal.walk.mjs', 'relay-video-onboarding-rehearsal', [DEFAULT_PAID_BRAIN], {
   env: { ...process.env, CI: '', NOMI_SPEND_OK: '1', [ENV_KEY_VAR]: FAKE_RELAY_KEY }, vendorNetwork: false,
-  // No repair exists yet: rehearsal characterizes current behavior; the real script additionally requires its repair marker.
+  // The real script additionally enforces its protocol repair marker; rehearsal always uses a fake key.
   createWalk: async (name, options) => {
     const walk = await createRuntimeWalk(name, { ...options, env: { ...options.env, ...network } })
     // The generic fixture seeds only its own connection. Restore public built-in rows, never a key.
@@ -33,7 +33,7 @@ const paid = await openPaidWalk('relay-video-onboarding-real.rehearsal.walk.mjs'
 let failure
 let win
 try {
-  paid.walk.report.launchPermission = await waitForRelayLaunch()
+  paid.walk.report.launchPermission = await waitForRelayLaunch({ limitMs: Math.max(1, Number(process.env.NOMI_RELAY_LAUNCH_DEADLINE_MS || Date.now() + 2 * 60 * 60 * 1000) - Date.now()) })
   ;({ win } = await paid.walk.start({ first: true }))
   await win.evaluate((locale) => localStorage.setItem('nomi:locale:v1', locale), process.env.NOMI_RELAY_LOCALE || 'zh-CN')
   await win.reload()

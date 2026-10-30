@@ -241,14 +241,18 @@
     "electron/catalog/declaredProviderRegistration.test.ts",
     "electron/catalog/declaredCapabilityMigration.test.ts",
     "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts",
-    "tests/ux/relay-capability-projection.walk.mjs"
+    "tests/ux/relay-capability-projection.walk.mjs",
+    "tests/ux/relay-video-onboarding.walk.mjs",
+    "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs"
   ],
   "class_regression_tests": [
     "tests/relay-onboarding/contracts.test.mjs",
     "electron/catalog/declaredProviderRegistration.test.ts",
     "electron/catalog/declaredCapabilityMigration.test.ts",
     "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts",
-    "tests/ux/relay-capability-projection.walk.mjs"
+    "tests/ux/relay-capability-projection.walk.mjs",
+    "tests/ux/relay-video-onboarding.walk.mjs",
+    "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs"
   ],
   "legacy_paths": {
     "status": "removed",

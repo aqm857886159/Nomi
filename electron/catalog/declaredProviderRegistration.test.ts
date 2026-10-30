@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { enModelDisplayText } from '../../src/i18n/locales/modelDisplayText';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { makeTempDir } from '../../scripts/_test-temp.mjs';
 import { relayDeclaration } from '../../tests/ux/_relayVideoFixture.mjs';
@@ -35,6 +36,10 @@ describe('declared capability projection publication matrix', () => {
     expect(promoted).toMatchObject(compiled.meta);
     expect(compiled.contract?.modes[0].params).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'duration', defaultValue: 1 }), expect.objectContaining({ key: 'resolution', defaultValue: '360p' })]));
     expect(compiled.contract?.modes[1].slots).toEqual([{ kind: 'first_frame', label: '首帧', min: 1, max: 1, inputKey: 'image_url', asArray: false }]);
+    for (const mode of compiled.contract!.modes) {
+      expect(enModelDisplayText[mode.vendorTerm]).toBeTruthy();
+      for (const slot of mode.slots) expect(enModelDisplayText[slot.label]).toBeTruthy();
+    }
     expect(state.mappings.filter((m) => m.vendorKey === result.vendorKey)).toHaveLength(2);
     expect(agentModelEntriesFromCatalog(state).find((m) => m.entry.modelId === id)?.entry.modes.map((m) => m.modeId)).toEqual(['t2v', 'i2v']);
   });
@@ -141,6 +146,7 @@ describe('declared capability projection publication matrix', () => {
     const projection = projectDeclaredModel(draft.models[0], 'relay');
     expect(projection.taskKinds).toContain('image_edit');
     expect(projection.contract?.modes.find((m) => m.transportTaskKind === 'image_edit')?.slots[0].min).toBe(1);
+    for (const mode of projection.contract!.modes) for (const slot of mode.slots) expect(enModelDisplayText[slot.label]).toBeTruthy();
   });
   it('rejects a certified publication mask that names a mode absent from the card', () => {
     expect(() => projectDeclaredModel(card().models[0], 'relay', ['text_to_video', 'image_to_video'])).toThrow(/verified taskKind is absent/);

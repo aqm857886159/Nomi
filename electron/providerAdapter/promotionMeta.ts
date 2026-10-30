@@ -29,6 +29,8 @@ export function mappingRowFromDeclaredMode(input: {
     create: mode.create, query: mode.query, result: mode.result, delivery: mode.delivery, abandon: mode.abandon, statusMapping: mode.statusMapping };
 }
 const TASK_LABELS: Partial<Record<ProfileKind, string>> = { text_to_video: '文生视频', image_to_video: '图生视频', text_to_image: '文生图', image_edit: '改图', text_to_audio: '语音', transcribe: '音频转写', text_to_3d: '文生3D', image_to_3d: '图生3D' };
+// Stable model vocabulary already localized by the renderer's model-display boundary.
+const REFERENCE_LABELS = { first_frame: '首帧', image_ref: '参考图' } as const;
 const TASK_MODE_IDS: Partial<Record<ProfileKind, string>> = { text_to_video: 't2v', image_to_video: 'i2v', text_to_image: 'generate', image_edit: 'edit', text_to_audio: 'generate', transcribe: 'transcribe', text_to_3d: 'generate', image_to_3d: 'image' };
 
 function fieldError(candidate: AdapterModelDraft, field: string, reason: string): never {
@@ -83,13 +85,13 @@ export function projectDeclaredModel(candidate: AdapterModelDraft, vendorKey: st
       if (mode.referenceParam.includes('.')) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'nested reference paths cannot be projected as an input slot');
       if (!readsParameter(wire, mode.referenceParam) && ![...DERIVED_REFERENCE_CARRIER_KEYS].some((key) => readsParameter(wire, key))) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'create does not read the declared reference parameter');
       const single = mode.referenceShape === 'single';
-      slots.push({ kind: single && candidate.kind === 'video' ? 'first_frame' : 'image_ref', label: single && candidate.kind === 'video' ? '首帧' : '参考图', min: 1, ...(single ? { max: 1 } : {}), inputKey: mode.referenceParam, asArray: !single });
+      slots.push({ kind: single && candidate.kind === 'video' ? 'first_frame' : 'image_ref', label: REFERENCE_LABELS[single && candidate.kind === 'video' ? 'first_frame' : 'image_ref'], min: 1, ...(single ? { max: 1 } : {}), inputKey: mode.referenceParam, asArray: !single });
     } else if (mode.referenceParam || mode.referenceShape) {
       fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'this task cannot express the declared reference role');
     }
     const additionalReferences = [...wire.matchAll(/{{request\.params\.([A-Za-z0-9_.-]+)}}/g)].map((match) => match[1]).filter((key) => referenceKeyDeclarationFor(key) && key !== mode.referenceParam && !(reference && DERIVED_REFERENCE_CARRIER_KEYS.has(key)));
     if (additionalReferences.length) fieldError(candidate, `modes.${mode.taskKind}.create`, `undeclared reference roles: ${[...new Set(additionalReferences)].join(', ')}`);
-    return { id: TASK_MODE_IDS[mode.taskKind] || mode.taskKind, intent: reference ? 'single' as const : 'text' as const, vendorTerm: TASK_LABELS[mode.taskKind] || mode.taskKind, hint: reference ? 'Required image input / 必须提供图片' : '', promptRequired: mode.taskKind !== 'transcribe', transportTaskKind: mode.taskKind as ArchetypeTransportTaskKind, slots, params: params.filter((p) => modeReadsParameter(mode, p.key)) };
+    return { id: TASK_MODE_IDS[mode.taskKind] || mode.taskKind, intent: reference ? 'single' as const : 'text' as const, vendorTerm: TASK_LABELS[mode.taskKind] || mode.taskKind, hint: '', promptRequired: mode.taskKind !== 'transcribe', transportTaskKind: mode.taskKind as ArchetypeTransportTaskKind, slots, params: params.filter((p) => modeReadsParameter(mode, p.key)) };
   });
   const contract = candidate.kind === 'text' ? null : normalizeCustomCapabilityContract({ version: 1, kind: candidate.kind, defaultModeId: capabilityModes[0].id, transportTaskKind: modes[0].taskKind, modes: capabilityModes });
   if (candidate.kind !== 'text' && !contract) fieldError(candidate, 'parameters/modes/slots', 'capability shape cannot be represented safely');

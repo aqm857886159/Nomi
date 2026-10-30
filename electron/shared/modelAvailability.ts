@@ -116,13 +116,13 @@ export function isCredentialReason(reason: ModelUnusableReason): boolean {
 /** Creation-only guard. Existing accepted-task queries must still resolve their original model/wire. */
 export function assertDeclaredCapabilityForTask(meta: unknown, taskKind: string): void {
   const missingFields = missingDeclaredCapabilityFields(meta);
-  if (missingFields.length) throw Object.assign(new Error(`声明不完整，需要重新读文档交卡 / Incomplete declaration: read the documentation and resubmit. Missing: ${missingFields.join(", ")}`), { code: "capability_incomplete", missingFields });
+  if (missingFields.length) throw Object.assign(new Error(`Incomplete declaration: read the documentation and resubmit. Missing: ${missingFields.join(", ")}`), { code: "capability_incomplete", missingFields });
   // Workflow/manual capability admission has its own lifecycle; this guard owns declared projections.
   const projection = meta && typeof meta === "object" ? (meta as Record<string, unknown>).declarationProjection : undefined;
   if (!projection || typeof projection !== "object" || (projection as Record<string, unknown>).hasMediaContract !== true) return;
   const contract = parseCustomCapabilityContract(meta);
   const mask = adapterPublicationModeMask(meta);
   if (contract && (!contract.modes.some((mode) => (mode.transportTaskKind || contract.transportTaskKind) === taskKind) || (mask.present && !mask.modes.includes(taskKind as never)))) {
-    throw Object.assign(new Error(`声明未发布这个生成模式 / Declaration does not publish taskKind: ${taskKind}`), { code: "capability_mode_unavailable" });
+    throw Object.assign(new Error(`Declaration does not publish taskKind: ${taskKind}`), { code: "capability_mode_unavailable" });
   }
 }

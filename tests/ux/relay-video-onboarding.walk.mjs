@@ -27,7 +27,7 @@ const capture = async (tag) => {
   return text
 }
 try {
-  report.launch = await waitForRelayLaunch()
+  report.launch = await waitForRelayLaunch({ limitMs: Math.max(1, Number(process.env.NOMI_RELAY_LAUNCH_DEADLINE_MS || Date.now() + 2 * 60 * 60 * 1000) - Date.now()) })
   ;({ win } = await walk.start({ first: true }))
   await win.evaluate((l) => localStorage.setItem('nomi:locale:v1', l), locale)
   await win.reload()
@@ -80,12 +80,6 @@ try {
   if (shape === 'plural-url') {
     declaration.models[0].parameters[0] = { key: 'duration', label: '时长', type: 'number', min: target.duration, max: target.maxDuration ?? 15, default: target.duration }
     declaration.models[0].parameters[1] = { key: 'resolution', label: '清晰度', type: 'select', options: (target.resolutions ?? [target.resolution]).map((value) => ({ value, label: value })), default: target.resolution }
-  }
-  // Literal minimums keep the wire deterministic even before parameter projection is repaired.
-  if (shape === 'plural-url') {
-    Object.assign(declaration.models[0].modes[0].create.body, { duration: target.duration, resolution: target.resolution, aspect_ratio: '16:9', audio: false })
-    if (target.alwaysAudio) delete declaration.models[0].modes[0].create.body.audio
-    if (target.frameOnly) delete declaration.models[0].modes[0].create.body.aspect_ratio
   }
   report.declaration = await client.call('nomi_model_setup', { action: 'submit_declaration', vendorKey: vendor.key, declaration: JSON.stringify(declaration) })
   report.modelAfterDeclaration = await win.evaluate(async (wanted) => {
