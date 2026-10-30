@@ -4,7 +4,7 @@ import os from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { expect, screenshotSettled } from './_assert.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
-import { collapseAgentPanel, newProjectEntry, openRailDrawer, canvasFitView } from './_shell.mjs'
+import { collapseAgentPanel, newProjectEntry, openRailDrawer, canvasSetZoomPercent } from './_shell.mjs'
 import { spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
 import { quietElectronSpawn, repoRoot } from './_launchApp.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
@@ -95,7 +95,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
     return row ? { kind: row.kind, enabled: row.enabled, published: row.published, publishedModes: row.publishedModes, availability: row.availability } : null
   }, model)
   console.log('[relay] catalog projection', JSON.stringify(projection))
-  console.log('[relay] picker evidence', JSON.stringify({ node: await fresh(), videoRows: await win.evaluate(() => window.nomiDesktop.modelCatalog.listModels({ kind: 'video', enabled: true })) }))
+  console.log('[relay] picker evidence', JSON.stringify({ node: await fresh(), videoRows: await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listModels({ kind: 'video', enabled: true })).filter((row) => row.availability?.usable).map(({ vendorKey, modelKey, publishedModes, availability }) => ({ vendorKey, modelKey, publishedModes, availability }))) }))
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await capture('model-menu')
   let neededReload = false
@@ -104,7 +104,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
     await win.keyboard.press('Escape')
     await win.reload()
     await node.waitFor({ state: 'visible', timeout: stationTimeout() })
-    await canvasFitView(win, 'Restore the reloaded node to the viewport')
+    await canvasSetZoomPercent(win, 100, 'Keep the reloaded node and composer visible')
     const hit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${id}"]` })
     expect(hit, 'The reloaded node has a real pointer target').toBeTruthy()
     await win.mouse.click(hit.x, hit.y)
