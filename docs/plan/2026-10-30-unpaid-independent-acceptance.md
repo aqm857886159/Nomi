@@ -156,3 +156,28 @@ Protected host/inference exclusions remain
 
 Audit activity
 No source/settings/rules/hooks/ACL changes, inference, CUA, app activation, user-process changes or additional agents. Only independent evidence reports were written; the earlier native ACL API availability probe was read-only. Broad delivery/merge/activation remains owned by the coordinating implementation session.
+
+## Authenticated publication and postmerge acceptance
+
+Draft upstreamPR: https://github.com/aqm857886159/Nomi/pull/1388
+
+Independent postmerge acceptance — 2026-10-30
+
+Scope: read-only source inspection at merge 1693fa45976fd779af656769187553fcc75325c2, parents e2b780241b3fa0e374abb44fff9c63317439d789 and bbd5505750c9187bc72aa2da69120cd99058fecb. No actual introduced merge blocker found in the requested overlap and workflow semantics. This is scoped publication acceptance, not overall runtime certification.
+
+Compared both parent diffs for electron/workspace/workspaceFileDelete.test.ts, package.json and src/workbench/capability/capabilityApplyHandler.ts. Upstream child asset-delete relay, main-window-only physical trash, stale project binding and epoch checks remain. Renderer deletion captures loaded project before awaiting, forwards binding, asserts current authority both before dispatch and at the queued deletion execution boundary. Reference planning and undo remain in deleteAssetResult. Upstream relay/reference-protection tests retained; our test normalization only makes path separators portable. package.json retains upstream asset-owner test registration/installer include, while retaining intentional lab:onboard retirement.
+
+Review assessment adapter still passes canonical dimension and numeric score; only isAssessedShotReview plus no flags passes. Requested IDs remain distinct from assessed IDs. No parent-one merge changes to reviewed shotReviewEvidence, productionRun, generationCanvas/agent or creation/storyboard sources; role/identity repairs therefore preserved byte-for-byte at these paths. capabilityApplyHandler parent-one change is the additive upstream deletion command, separate from the preserved assessment adapter.
+
+Read postmerge-focused-tests.json: success true, 432 passed, 0 failed, 0 pending across 33 files. Read postmerge-delivery-validation-status.json: focused tests, lint/types, and build plus en/zh timeline preview commands all exited 0. These are implementation-run receipts; independent review did not rerun tests, execute previews or inspect new screenshots. git diff --check reports an upstream documentation-only extra EOF blank line, not a runtime merge blocker.
+
+Prior 3 Windows native/host exclusions and 7 Python exclusions remain exclusions; these focused checks do not erase them. Actual model/CLI inference, GPU jobs, paid generation and complete live image-to-final-video acceptance remain unverified by this review. No source, settings, hooks, permissions or project data altered; no app activation, CUA, Git push or additional agent used. Only this evidence report was written.
+
+### Actual native screenshot evidence
+
+- [en 01-dissolve-midpoint.png](../evidence/2026-10-30-unpaid-repair-postmerge/en-01-dissolve-midpoint.png)
+- [en 02-fade-midpoint.png](../evidence/2026-10-30-unpaid-repair-postmerge/en-02-fade-midpoint.png)
+- [zh 01-dissolve-midpoint.png](../evidence/2026-10-30-unpaid-repair-postmerge/zh-01-dissolve-midpoint.png)
+- [zh 02-fade-midpoint.png](../evidence/2026-10-30-unpaid-repair-postmerge/zh-02-fade-midpoint.png)
+
+These are deterministic isolated fixture previews, not generated story frames. Implementation personally viewed all four; the independent line reviewed source/receipts only.
