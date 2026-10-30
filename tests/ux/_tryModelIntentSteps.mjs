@@ -5,7 +5,7 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { parseToolResult } from './_mcpJourney.mjs'
-import { AGENT_PANEL } from './_shell.mjs'
+import { ensureAgentPanelOpen } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 export const TRIAL_MODEL = { vendorKey: 'apimart', modelKey: 'gemini-3.1-flash-image-preview' }
@@ -97,7 +97,7 @@ export async function runTryModelIntentJourney(paid, { rehearsal = false } = {})
     const projectCard = win.locator(`[data-project-card="true"][data-project-id="${projectId}"]`)
     await expect(projectCard).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
     await projectCard.click()
-    await expect(win.locator(AGENT_PANEL)).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+    await ensureAgentPanelOpen(win, 'Reopen the trial confirmation surface', { timeout: stationTimeout({ operations: 2 }) })
     // Asking for a second order only opens confirmation; cancelling it never submits a second job.
     const requested = call({ ...args, newAttemptOf: identity.attemptId })
     requested.catch(() => {})
