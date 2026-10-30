@@ -19,8 +19,10 @@ function launchConditions() {
   if (process.platform !== 'darwin') return
   const front = execFileSync('lsappinfo', ['front'], { encoding: 'utf8' }).trim()
   const info = execFileSync('lsappinfo', ['info', front], { encoding: 'utf8' })
+  const load5 = os.loadavg()[1]
+  fs.appendFileSync(path.join(out, 'launch-conditions.jsonl'), JSON.stringify({ at: new Date().toISOString(), front, app: info.split('\n')[0], load5 }) + '\n')
   assert.ok(!/Claude/i.test(info), 'frontmost app is Claude; do not launch')
-  assert.ok(os.loadavg()[1] < 10, `five-minute load ${os.loadavg()[1]} must be below 10`)
+  assert.ok(load5 < 10, `five-minute load ${load5} must be below 10`)
 }
 const ID = 'draft-save-walk', DOC = 'draft-doc', DESIGN = 'draft-design'
 const observations = []
