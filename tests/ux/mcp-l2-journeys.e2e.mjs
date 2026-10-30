@@ -8,6 +8,7 @@ import { makeIsolatedDirs, packagedMcpRuntime, parseToolResult, spawnMcpStdioCli
 import { startFakeApimartServer, writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { expectAbsent, expectHidden, expectVisible, proveProbe } from './_assert.mjs'
 import { newProjectEntry, switchWorkspace } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 // 断连取消那条诊断的事件名派生自真相源（两条启动路共用的常量），不手抄散文：
 // 手抄的那份在日志收口时静默漂成假红，正是本轨踩到的坑。
 const { MCP_CANCELLED_IN_FLIGHT_EVENT } = tsxRequire('../../electron/capabilityCore/mcpStdioDiagnostics.ts', import.meta.url)
@@ -16,6 +17,7 @@ const { unwrapIpcResult } = tsxRequire('../../electron/shared/contracts/ipcResul
 const localeIndex = process.argv.indexOf('--locale')
 const locale = localeIndex < 0 ? 'zh-CN' : process.argv[localeIndex + 1]
 assert.ok(['zh-CN', 'en'].includes(locale), '--locale must be zh-CN or en')
+const text = (key) => uiText(locale, key)
 const dirs = makeIsolatedDirs('nomi-mcp-l2-')
 const packagedBundle = process.argv.includes('--packaged')
   ? String(process.argv[process.argv.indexOf('--packaged') + 1] || '')
@@ -158,7 +160,7 @@ try {
   await expectVisible(settingsOverlay, 'C7 T14 open_credentials 把设置对话框带到前台')
   const addModelPage = settingsOverlay.locator('[data-model-settings-page="add"]')
   await expectVisible(addModelPage, 'C7 T14 设置停在「添加一个 AI 模型」页')
-  const providerNameInput = settingsOverlay.getByPlaceholder('如：TOAPI 中转')
+  const providerNameInput = settingsOverlay.getByPlaceholder(text('modelSetup.vendorNamePlaceholder'))
   await expectVisible(providerNameInput, 'C7 T14 添加页带供应商名输入框')
   check(await providerNameInput.inputValue() === 'C7 relay proposal', 'C7 T14 供应商名从持久 handoff 预填')
   // 关掉的方式必须是用户手上真有的那两个（Escape / 关闭钮），不是 force click 绕过 aria-modal。
@@ -297,10 +299,10 @@ try {
   const c8LandedSessionData = resultTextJson(c8LandedSession)
   const c8LandedLease = c8LandedSessionData.leaseHandle || resultData(c8LandedSession).leaseHandle
   const addPromise = landedClient.callTool('nomi_canvas_edit', { projectId: landedProjectId, leaseHandle: c8LandedLease, operation: 'create_canvas_nodes', summary: '在画布落下四镜方案', nodes: fourNodes })
-  const planCard = win.locator('div.fixed.inset-0').filter({ hasText: /在画布落一套方案|落到画布/ }).first()
+  const planCard = win.getByRole('dialog', { name: text('runtime.capability.planTitle'), exact: true })
   await planCard.waitFor({ timeout: 20_000 })
   await takeScreenshot(win, 'C8-four-shots-landed')
-  await planCard.locator('button').last().click()
+  await planCard.locator('[data-spend-confirm-action="confirm"]').click()
   const landed = await addPromise
   const landedData = resultTextJson(landed)
   const nodeIds = landedData.affectedNodeIds || landedData.ids || landedData.nodeIds || resultData(landed).affectedNodeIds || []
@@ -369,7 +371,7 @@ try {
   //   · 正常那一份（确定性注入）：卡开着时项目真实保存一次（revision +1），点确认照样开跑。
   // 第二条就是 CI 时红时绿的那一下（#1042 合并提交、#1002 首跑：「receipt projectRevision does not
   // match the current scope」）——以前靠运气躲开 GUI 自己的保存，现在每次都主动保存一次。
-  const generationCard = win.locator('div.fixed.inset-0').filter({ hasText: /允许 Nomi 生成这一批镜头|生成这一批镜头/ }).first()
+  const generationCard = win.getByRole('dialog', { name: text('runtime.capability.generationGateBatchTitle'), exact: true })
   // 卡没浮出来时，gate 往往已经带着原因回来了：等卡的同时盯住它，红的时候报它的原话，而不是一句 waitFor 超时。
   const waitForGenerationCard = async (gatePromise, label) => {
     const gateFirst = gatePromise.then((result) => ({ result }))
@@ -457,16 +459,15 @@ try {
   const c9bBaselineOperationId = c9bBaselinePlannedData.operation?.operationId || resultData(c9bBaselinePlanned).operation?.operationId
   check(typeof c9bBaselineOperationId === 'string' && c9bBaselineOperationId.length > 0, 'C9b Phase A 基线计划已创建')
   await call(mcp, 'nomi_operation_preview', { projectId: c9bProjectId, leaseHandle: c9bLease, operationId: c9bBaselineOperationId })
-  const c9bGenerationCard = win.locator('div.fixed.inset-0').filter({ hasText: /允许 Nomi 生成这一批镜头|生成这一批镜头/ }).first()
+  const c9bGenerationCard = generationCard
   const c9bBaselineGatePromise = mcp.callTool('nomi_operation_gate', { projectId: c9bProjectId, leaseHandle: c9bLease, operationId: c9bBaselineOperationId, phase: 'request' }, { timeoutMs: 30_000 })
   // proveProbe 阻塞至卡出现：若等不到，说明 Phase A 基线失效，后续 expectAbsent 是空话——在这里报红
   const c9bBaselineProof = await proveProbe(c9bGenerationCard, 'Phase A 基线：无 elicitation 客户端触发 gate 时 Nomi 会弹出 GUI 确认卡', 20_000)
   check(true, 'C9b Phase A 基线成立：非 elicitation 客户端 → GUI 生成确认卡浮出（探针活，expectAbsent 有意义）')
   await takeScreenshot(win, 'C9b-phase-a-baseline-gui-card')
   // 关闭基线卡（不确认，避免实际启动生成）
-  await c9bGenerationCard.locator('button').filter({ hasText: /忽略|取消/ }).first().click().catch(() =>
-    c9bGenerationCard.locator('button').last().click().catch(() => {}))
-  await c9bGenerationCard.waitFor({ state: 'detached', timeout: 8_000 }).catch(() => {})
+  await c9bGenerationCard.locator('[data-production-action="ignore"]').click()
+  await expectAbsent(c9bGenerationCard, { provenBy: c9bBaselineProof, message: 'C9b baseline confirmation was ignored without generation' })
   await c9bBaselineGatePromise.catch(() => {})
   // Phase B：c9bClient（声明 elicitation）在自己的项目上创建计划。
   // projectSelectionHandle 是 connection-bound（含 sessionId/connectionNonce），
@@ -656,12 +657,12 @@ try {
   console.log('  C12 task cards=', JSON.stringify(cardTexts))
   // The task center keeps the last opened Run card mounted; select the semantic
   // Run row when another production Run currently owns that card.
-  let productionCard = taskPanel.locator('[data-production-task-card]').filter({ hasText: /导出|成片|export/i }).first()
+  let productionCard = taskPanel.locator('[data-production-task-card]').filter({ hasText: text('generationCommon.production.status.roughCutReady') }).first()
   if (await productionCard.count() === 0) {
     const semanticRunRow = taskPanel.getByText(/generation\.single-shot/).first()
     await semanticRunRow.waitFor({ timeout: 20_000 })
     await semanticRunRow.click()
-    productionCard = taskPanel.locator('[data-production-task-card]').filter({ hasText: /导出|成片|export/i }).first()
+    productionCard = taskPanel.locator('[data-production-task-card]').filter({ hasText: text('generationCommon.production.status.roughCutReady') }).first()
   }
   await productionCard.waitFor({ timeout: 20_000 })
   await productionCard.locator('[data-production-primary-action]').click()
@@ -682,10 +683,10 @@ try {
   const exportPrimary = taskPanel.locator('[data-production-task-card] [data-production-primary-action]').first()
   await exportPrimary.waitFor({ timeout: 20_000 })
   await exportPrimary.click()
-  const exportDialog = win.locator('.fixed.inset-0').filter({ hasText: /审看粗剪并批准导出/ }).last()
+  const exportDialog = win.getByRole('dialog', { name: text('generationCommon.production.gate.exportTitle'), exact: true })
   await exportDialog.waitFor({ timeout: 20_000 })
   await takeScreenshot(win, 'C12-export-gate')
-  await exportDialog.locator('button').last().click()
+  await exportDialog.locator('[data-spend-confirm-action="confirm"]').click()
   await win.waitForTimeout(500)
   check(true, 'C12 export gate 经 Nomi 任务中心确认卡批准')
 

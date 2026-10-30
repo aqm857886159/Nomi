@@ -112,16 +112,23 @@ fs.renameSync = function(from, to) {
     await win.getByRole('option', { name: text('storyboardEditor.bulk.aspectDefault'), exact: true }).click()
     await expect.poll(() => savedPlan().aspectRatio).toBe('')
     await snapshot('02-default-aspect-saved')
-    // The existing batch admission stays blocked and keeps the exact empty-name row red.
+    // Observe batch availability without starting an unrelated shot batch.
     const batch = win.locator('[data-storyboard-batch]')
     observations.push({ locale, batchDisabled: await batch.isDisabled(), singleAnchorPolicy: 'unchanged; outside this repair' })
-    if (!(await batch.isDisabled())) await batch.click()
     await expect(name).toHaveClass(/border-workbench-danger/)
     await win.locator('[data-storyboard-anchor-row]').first().locator('[data-storyboard-generate-state]').first().click()
-    await expect(win.locator('[data-anchor-face="failed"], [data-storyboard-action-feedback]').first()).toBeVisible({ timeout: stationTimeout() })
+    // Single-card admission is outside this repair: cancel an existing spend confirmation, never approve it.
+    const confirmation = win.locator('[data-spend-confirm-dialog]')
+    await expect(win.locator('[data-spend-confirm-dialog], [data-anchor-face="failed"], [data-storyboard-action-feedback]').first()).toBeVisible({ timeout: stationTimeout() })
+    const confirmationOpened = await confirmation.isVisible()
+    if (confirmationOpened) {
+      const proof = await proveProbe(confirmation, 'single-card confirmation opened after the real click')
+      await confirmation.locator('[data-spend-confirm-action="cancel"]').click()
+      await expectAbsent(confirmation, { provenBy: proof, message: 'single-card confirmation was cancelled without generation' })
+    }
     await expect(name).toHaveClass(/border-workbench-danger/)
     await expect(win.locator('[data-storyboard-editor] footer')).toContainText(text('storyboardEditor.issue.anchorNoName'))
-    observations.push({ locale, emptyNameGenerationClick: true, nameHintVisible: true, generationAdmission: 'unverified: no configured model; unchanged policy' })
+    observations.push({ locale, emptyNameGenerationClick: true, nameHintVisible: true, confirmationOpened, generationAdmission: 'unverified: no configured model; unchanged policy' })
     await snapshot('03-generation-name-required')
     // Graceful full application close and reopening the same isolated profile.
     await closeNormally()
