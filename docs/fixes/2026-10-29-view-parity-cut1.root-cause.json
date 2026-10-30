@@ -527,12 +527,16 @@
     "scripts/asset-file-owner.node-test.mjs",
     "electron/workspace/workspaceFileDelete.test.ts",
     "src/workbench/assets/assetDeletionMatrix.test.ts",
-    "src/workbench/generationCanvas/store/canvasPickMode.input.test.ts"
+    "src/workbench/generationCanvas/store/canvasPickMode.input.test.ts",
+    "src/workbench/pageLayerCensus.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/shortcutSurface.matrix.test.ts",
     "scripts/asset-file-owner.node-test.mjs",
-    "src/workbench/assets/assetDeletionMatrix.test.ts"
+    "src/workbench/assets/assetDeletionMatrix.test.ts",
+    "src/workbench/pageLayerCensus.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

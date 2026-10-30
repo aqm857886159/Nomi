@@ -10,9 +10,10 @@
 //   · anchored：锚在触发器上的菜单 / 提示 / 参数面板——不是一层，跟触发它的状态走；
 //   · page-cell：页格内的层——**不是 body portal**，经 GenerationPageLayer 挂进生成页那一格（generation/pageLayer.tsx），登记在 PAGE_CELL_TENANTS。
 // 页格内的层藏着（切页 / 列表视图）时挂在 window / document 上的键盘监听必须停（否则吞掉别的页的 Esc / 快捷键）：
-// 租户目录里每个 window / document 键盘监听所在的文件，要么读 useGenerationPageLayerActive、要么登记豁免并写明理由。
+// 租户目录的全局键盘监听统一经 shortcutSurface 的受控目标；不再保留原始 window / document 监听的局部豁免。
 // 画布格的第二种找法（document.querySelector('.workbench-generation__canvas')）只许三处存量灯箱，只减不增。
 import fs from 'node:fs'
+import path from 'node:path'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import ts from 'typescript'
@@ -69,7 +70,7 @@ const BODY_PORTALS: Readonly<Record<string, BodyPortalEntry>> = {
 type PageCellEntry = {
   tenant: PageLayerTenant
   lifecycle: string
-  /** 租户目录 / 文件：这里面的 window / document 键盘监听要么读 useGenerationPageLayerActive，要么登记豁免。 */
+  /** 租户目录 / 文件：这里面的全局键盘监听只经共享宿主权限边界。 */
   keyboardRoot: string
 }
 
@@ -85,12 +86,6 @@ const PAGE_CELL_TENANTS: Readonly<Record<string, PageCellEntry>> = {
     keyboardRoot: 'src/workbench/generationCanvas/nodes/PanoramaViewer.tsx',
     lifecycle: '打开状态归页格层按节点 id 保存；节点组件裁剪 / 重挂不清。Esc、删节点或释放项目才清；切页 / 列表只隐藏，藏着时 Esc 与 psv 键盘控制都停。',
   },
-}
-
-/** 租户目录里 window / document 键盘监听的豁免：只允许「按需出现的浮层」，且要写明为什么切页时它不会留着吞键。 */
-const KEYBOARD_LISTENER_EXEMPT: Readonly<Record<string, string>> = {
-  'src/workbench/generationCanvas/nodes/director/panels/Popover.tsx': '按需出现的浮层：监听只在浮层开着时挂；切页必须先点顶栏，那一下是浮层的外点（document 捕获期 pointerdown），浮层先收、监听随之摘掉。',
-  'src/workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu.tsx': '按需出现的右键菜单：同上，外点 / Esc 关闭，监听只在菜单开着时挂。',
 }
 
 /** 画布格的第二种找法（按 class 名查 DOM）：三处存量灯箱（行为是盖住 Agent 的模态），只减不增；新层请经 GenerationPageLayer。 */
@@ -164,26 +159,35 @@ function cellQueryFiles(sources: readonly SourceFileEntry[]): string[] {
   return [...files].sort()
 }
 
-/** 挂在 window / document 上的键盘监听（keydown / keyup / keypress）所在的文件。 */
-function keyboardListenerFiles(sources: readonly SourceFileEntry[]): string[] {
-  const files = new Set<string>()
+/** 全局键盘监听的真实 owner：只认可解析回共享 shortcutSurface 的具名导入（含别名）。 */
+function keyboardListenerOwnership(sources: readonly SourceFileEntry[]): Record<string, boolean> {
+  const ownership: Record<string, boolean> = {}
   for (const { rel, source } of sources) {
+    const targets = new Map([['window', false], ['document', false], ['canvasWindowInput', false], ['canvasDocumentInput', false]])
+    for (const statement of source.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+      const bindings = statement.importClause?.namedBindings
+      if (!bindings || !ts.isNamedImports(bindings)) continue
+      const owner = path.posix.normalize(path.posix.join(path.posix.dirname(rel), statement.moduleSpecifier.text.replace(/\.tsx?$/, '')))
+      for (const binding of bindings.elements) {
+        if (['canvasWindowInput', 'canvasDocumentInput'].includes((binding.propertyName ?? binding.name).text)) {
+          targets.set(binding.name.text, owner === 'src/workbench/shortcutSurface')
+        }
+      }
+    }
     visit(source, (node) => {
       if (!ts.isCallExpression(node) || calleeName(node) !== 'addEventListener' || !ts.isPropertyAccessExpression(node.expression)) return
       const target = node.expression.expression.getText(source)
       const type = node.arguments[0]
-      if ((target === 'window' || target === 'document') && type && ts.isStringLiteralLike(type) && /^key(?:down|up|press)$/.test(type.text)) files.add(rel)
+      if (!targets.has(target) || !type || !ts.isStringLiteralLike(type) || !/^key(?:down|up|press)$/.test(type.text)) return
+      ownership[rel] = (ownership[rel] ?? true) && targets.get(target) === true
     })
   }
-  return [...files].sort()
+  return ownership
 }
 
-const readsLayerActive = ({ source }: SourceFileEntry): boolean => {
-  let found = false
-  visit(source, (node) => {
-    if (ts.isIdentifier(node) && node.text === 'useGenerationPageLayerActive') found = true
-  })
-  return found
+function keyboardListenerFiles(sources: readonly SourceFileEntry[]): string[] {
+  return Object.keys(keyboardListenerOwnership(sources)).sort()
 }
 
 describe('页内全屏层普查：body portal 必须登记归属与生命周期', () => {
@@ -220,31 +224,16 @@ describe('页内全屏层普查：页格内的层只经 GenerationPageLayer 挂�
     for (const file of Object.keys(PAGE_CELL_TENANTS)) expect(found[file], `${file} 既是页格内租户又挂 body`).toBeUndefined()
   })
 
-  it('每个租户写了生命周期，租户目录里的 window / document 键盘监听都跟着「这一格看不看得见」', () => {
+  it('每个租户的全局键盘监听都经共享输入权限边界，不保留局部豁免', () => {
     for (const [file, entry] of Object.entries(PAGE_CELL_TENANTS)) {
       expect(entry.lifecycle.length, `${file} 的生命周期说明太短`).toBeGreaterThanOrEqual(20)
       const inRoot = SOURCES.filter(({ rel }) => rel === entry.keyboardRoot || rel.startsWith(`${entry.keyboardRoot}/`))
-      expect(inRoot.length, `${file} 的键盘监听扫描根找不到文件：${entry.keyboardRoot}`).toBeGreaterThan(0)
-      const listeners = keyboardListenerFiles(inRoot)
-      expect(listeners.length, `${entry.keyboardRoot} 里扫不到任何 window / document 键盘监听（判据不能恒真）`).toBeGreaterThan(0)
-      const ungated = listeners.filter((rel) => {
-        const sourceEntry = inRoot.find((candidate) => candidate.rel === rel)
-        return !(sourceEntry && readsLayerActive(sourceEntry)) && !(rel in KEYBOARD_LISTENER_EXEMPT)
-      })
-      expect(
-        ungated,
-        '页格内的层藏着（切页 / 列表视图）时，挂在 window / document 上的键盘监听不能留着（会吞掉别的页的 Esc / 快捷键）：'
-          + '读 useGenerationPageLayerActive 在藏着时摘掉，或在 KEYBOARD_LISTENER_EXEMPT 登记「按需出现的浮层」并写明理由',
+      expect(inRoot.length, `${file} 的键盘扫描根不存在`).toBeGreaterThan(0)
+      const ownership = keyboardListenerOwnership(inRoot)
+      expect(Object.keys(ownership).length, `${entry.keyboardRoot} 没扫到监听，不能空集合报绿`).toBeGreaterThan(0)
+      expect(Object.entries(ownership).filter(([, guarded]) => !guarded).map(([rel]) => rel),
+        '页格内全局键盘监听必须使用 shortcutSurface 导出的受控目标；原始监听或同名伪 owner 都拒绝',
       ).toEqual([])
-    }
-  })
-
-  it('豁免只给扫得到、且确实没读 useGenerationPageLayerActive 的文件（豁免不许过期）', () => {
-    const all = keyboardListenerFiles(SOURCES)
-    for (const file of Object.keys(KEYBOARD_LISTENER_EXEMPT)) {
-      expect(all, `${file} 已经没有 window / document 键盘监听了，豁免该删`).toContain(file)
-      const entry = SOURCES.find(({ rel }) => rel === file)
-      expect(entry && readsLayerActive(entry), `${file} 已经读了 useGenerationPageLayerActive，豁免该删`).toBe(false)
     }
   })
 })
@@ -320,9 +309,22 @@ describe('页内全屏层普查：判据自身不恒真（必红用例）', () =
     expect(keyboardListenerFiles(sample)).toEqual(['f.tsx'])
   })
 
-  it('读 useGenerationPageLayerActive 的文件被认出来，没读的不算', () => {
-    expect(readsLayerActive(parse('g.tsx', 'const active = useGenerationPageLayerActive()'))).toBe(true)
-    expect(readsLayerActive(parse('h.tsx', '// useGenerationPageLayerActive 只出现在注释里\nconst active = true'))).toBe(false)
+  it('共享 owner 的真实导入和别名可识别，原始监听、同名局部对象与假导入都不放行', () => {
+    const root = 'src/workbench/generationCanvas/nodes/director/'
+    const sample = [
+      parse(`${root}raw.tsx`, "window.addEventListener('keydown', f)"),
+      parse(`${root}local.tsx`, "const canvasWindowInput = window; canvasWindowInput.addEventListener('keydown', f)"),
+      parse(`${root}wrong.tsx`, "import { canvasWindowInput as keys } from './shortcutSurface'; keys.addEventListener('keyup', f)"),
+      parse(`${root}guarded.tsx`, "import { canvasWindowInput as keys } from '../../../shortcutSurface'; keys.addEventListener('keydown', f)"),
+      parse(`${root}document.tsx`, "import { canvasDocumentInput } from '../../../shortcutSurface'; canvasDocumentInput.addEventListener('keyup', f)"),
+    ]
+    expect(keyboardListenerOwnership(sample)).toEqual({
+      [`${root}raw.tsx`]: false,
+      [`${root}local.tsx`]: false,
+      [`${root}wrong.tsx`]: false,
+      [`${root}guarded.tsx`]: true,
+      [`${root}document.tsx`]: true,
+    })
   })
 })
 
