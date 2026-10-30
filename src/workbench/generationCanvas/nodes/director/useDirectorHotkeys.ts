@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、./DirectorEditorContext 的 useDirectorStoreApi、./model/hotkeys（DIRECTOR_HOTKEYS / matchesHotkey）
  *          ../../../generation/pageLayerContext 的 useGenerationPageLayerActive（藏着时整条监听摘掉）
@@ -59,8 +60,8 @@ export function useDirectorHotkeys({ scopeRef, handlers }: { scopeRef: React.Mut
         return
       }
     }
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
+    canvasWindowInput.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => canvasWindowInput.removeEventListener('keydown', onKeyDown, { capture: true })
   }, [layerActive, scopeRef, store])
 }
 

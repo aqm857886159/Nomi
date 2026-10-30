@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../shortcutSurface'
 // 版本卡片接进节点（V2）：图片右上角的数字角标入口（10-07） + 原地铺开的宫格 + 悬停条的三个动作 + 预览。
 //
 // 数据只从唯一主人读写：版本列表 / 编号 / 主图 → model/nodeResultLifecycle.ts；铺开状态 → store.setNodeResultStackOpen；
@@ -34,13 +35,13 @@ function useAltHeld(enabled: boolean): boolean {
     if (!enabled) { setHeld(false); return undefined }
     const update = (event: KeyboardEvent): void => setHeld(event.altKey)
     const release = (): void => setHeld(false)
-    window.addEventListener('keydown', update)
-    window.addEventListener('keyup', update)
-    window.addEventListener('blur', release)
+    canvasWindowInput.addEventListener('keydown', update)
+    canvasWindowInput.addEventListener('keyup', update)
+    canvasWindowInput.addEventListener('blur', release)
     return () => {
-      window.removeEventListener('keydown', update)
-      window.removeEventListener('keyup', update)
-      window.removeEventListener('blur', release)
+      canvasWindowInput.removeEventListener('keydown', update)
+      canvasWindowInput.removeEventListener('keyup', update)
+      canvasWindowInput.removeEventListener('blur', release)
     }
   }, [enabled])
   return held
@@ -151,8 +152,8 @@ export function NodeVersionCardsHost({ node, readOnly, nodeSize, onFeedback, ent
       event.preventDefault()
       useGenerationCanvasStore.getState().setNodeResultStackOpen(node.id, false)
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => { window.removeEventListener('keydown', onKeyDown); unregister() }
+    canvasWindowInput.addEventListener('keydown', onKeyDown)
+    return () => { canvasWindowInput.removeEventListener('keydown', onKeyDown); unregister() }
   }, [expanded, node.id])
 
   const setPrimary = React.useCallback(async (entry: VersionCardEntry) => {

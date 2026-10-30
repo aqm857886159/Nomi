@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、../../useDirectorHotkeys 的 isTextTarget、../../../../../generation/pageLayerContext 的 useGenerationPageLayerActive
  * [OUTPUT]: 对外提供 useDismissOnEscape(active, onDismiss)：精修里按需出现的面板（场景设置卡、资产库抽屉）按 Esc 收起
@@ -26,7 +27,7 @@ export function useDismissOnEscape(active: boolean, onDismiss: () => void): void
       event.preventDefault()
       dismissRef.current()
     }
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
+    canvasWindowInput.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => canvasWindowInput.removeEventListener('keydown', onKeyDown, { capture: true })
   }, [active, layerActive])
 }

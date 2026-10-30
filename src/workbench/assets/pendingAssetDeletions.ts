@@ -11,7 +11,7 @@
 // 真删失败（文件被占用、权限）不销账：留在清单里下次到点再试，连续失败 MAX_DELETE_ATTEMPTS 次才放弃并记日志。
 // 列表也问这里（`isAssetFileAwaitingTrash`）：已经删了、只等撤销窗口过去的文件，素材库两个页签都不再列它
 // （2026-10-24 之前列表按盘上文件把它列回来、换成文件名，删了像没删）。
-import { getDesktopBridge } from '../../desktop/bridge'
+import { trashProjectFiles } from './assetFileDeletion'
 import { logRendererError } from '../../desktop/rendererLog'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -127,15 +127,9 @@ async function release(due: readonly PendingAssetDeletion[], requeue: boolean): 
     const unreferenced = due.filter((entry) => !isProjectFileReferenced(entry, scope))
     outcome.keptReferencedCount = due.length - unreferenced.length
     if (unreferenced.length === 0) return outcome
-    const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
-    if (!deleteFiles) {
-      outcome.failedFileCount = unreferenced.length
-      for (const entry of unreferenced) requeueFailed(entry, requeue)
-      return outcome
-    }
     for (const entry of unreferenced) {
       try {
-        const result = await deleteFiles({ projectId: entry.projectId, relativePaths: [entry.relativePath] })
+        const result = await trashProjectFiles(entry.projectId, [entry.relativePath])
         outcome.deletedFileCount += result.deletedCount
         outcome.failedFileCount += result.failedCount
         if (result.failedCount > 0) requeueFailed(entry, requeue)

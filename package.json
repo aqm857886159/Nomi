@@ -269,7 +269,7 @@
     "gates:full": "python3 scripts/with-gates-lock.py --command \"pnpm run check:fresh-base && pnpm run gates:contracts && node ./scripts/run-gates-tests.mjs --tier=full && pnpm run build\"",
     "test:mcp-legacy-entry": "node --test ./scripts/nomi-mcp-entry.node-test.mjs",
     "handoff:report": "node ./scripts/check-handoff.mjs",
-    "test:eng-system": "node --test ./scripts/merge-preflight.node-test.mjs ./scripts/eng-metrics.node-test.mjs ./scripts/archetype-autosync-workflow.node-test.mjs ./scripts/site/released-version.node-test.mjs",
+    "test:eng-system": "node --test ./scripts/asset-file-owner.node-test.mjs ./scripts/merge-preflight.node-test.mjs ./scripts/eng-metrics.node-test.mjs ./scripts/archetype-autosync-workflow.node-test.mjs ./scripts/site/released-version.node-test.mjs",
     "eng:metrics": "node ./scripts/eng-metrics.mjs",
     "merge:preflight": "node ./scripts/merge-preflight.mjs",
     "eval:director": "tsx evals/director/run.ts",
@@ -510,7 +510,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh"
     },
     "publish": {
       "provider": "github",

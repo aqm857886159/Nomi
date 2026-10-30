@@ -1,3 +1,4 @@
+import { canvasDocumentInput } from '../../shortcutSurface'
 import { notify } from '../../../ui/notificationPolicy'
 /**
  * 「按镜头拆」面板：检测 → 预览 → 勾选 → 才落画布。
@@ -103,8 +104,8 @@ export default function NodeShotCutPanel({ onFeedback, node, onClose }: Props): 
 
   React.useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    canvasDocumentInput.addEventListener('keydown', onKey)
+    return () => canvasDocumentInput.removeEventListener('keydown', onKey)
   }, [onClose])
 
   const allCuts = React.useMemo(() => (state.phase === 'ready' ? state.cuts : []), [state])
