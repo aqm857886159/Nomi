@@ -16,6 +16,28 @@
 
 纯文档 / 测试 / 门岗 / 根因明确的小修不要求。
 
+## 主进程与出错路径
+
+改 `electron/jsonFile.ts`、`electron/{workspace,assets,events,logging,productionRun}/` 或 `src/workbench/project/` 的生产文件，路径路由会推出 `perf`，PR 要交 `perf-scenario` 证据。确实没有性能影响时写具体的不适用理由；新增路由不会把这些路径塞进 Linux 画布专用的 CI 性能车道。
+
+`pnpm exec vitest run electron/workspace/saveFaultSweep.test.ts` 真跑 `saveWorkspaceProject`，按项目/隔离 settings 路径前缀和 open/write/fsync/rename/remove/mkdir/read 类别扫描第 N 次失败，覆盖 EBUSY、EPERM、EACCES、ENOSPC、EEXIST 的一次和持续模式。fd 操作在保存窗内全部归因计数，不能拿 fd 当路径过滤。`Atomics.wait` 只累计请求毫秒并推进假时钟；不睡、不拿墙钟判红。物理 fsync 在夹具里替换为可注入桩，不能把它当掉电持久性验证。
+
+测试里的 `SAVE_DEBT_JSON` 记录精确来源路径、请求睡眠上限和大 JSON 次数。2026-10-30 合成工程的初始读数：
+
+| 已知超标 | 测得的精确工作量 | 计量边界 |
+|---|---|---|
+| `electron/jsonFile.ts` 同步重试 | 单次重试 400ms；整条保存扫描最大 5200ms | project/read 持续共享冲突触发多轮 owner 读取；不是一个连续 5200ms 的事件循环停顿 |
+| `electron/workspace/workspaceRegistry.ts` 自旋 | 3010ms | settings/mkdir 持续 EEXIST；每次 10ms，严格大于 3000ms 截止条件 |
+| ≥1MB JSON stringify / parse | 12 / 14 次每保存 | 1MiB 合成文本；只数保存窗，排除造夹具和事后验完整性 |
+
+这些请求毫秒与真实 I/O 墙钟分开：约 420ms 的孤立 rename 墙钟还含文件操作与调度，不应要求桩凑成 420。旧债上限与次数只许降，抬高表但不改工作量会被实测相等断言拦住；后续还与可信 merge-base 的表比较。新睡眠来源直接红。已登记的工作量不单独拦无关 PR，完整性失败仍然红，不能往睡眠豁免里塞清理问题。
+
+当前扫描还检出了**未豁免的完整性失败**：一次 ENOSPC 注入到项目的第 3 次 open（`.nomi` 目录）后，旧 JSON 完整，但 manifest 锁残留。该测试目前为红，须由保存修复线处理，不能把本量具或保存链报为已验收。主进程禁止新增同步等待交给已有 ESLint `no-restricted-syntax`；六处存量在 `eslint-suppressions.json` 按文件 × 规则计数。新增报错，删掉却不收紧会报 unused suppressions；不使用忽略 unused 的参数。
+
+**尚无对应真实 Electron 性能场景的入口**：生成结果完成后下载/落盘/缩略图/自动保存；1/10/25MB 工程编辑触发保存；连续失败 60 秒的自动保存次数与恢复；旧工程迁移写回；保存链以外的资产/上传/配置共享重试；真实 Windows 文件句柄、同步盘、网络盘和低配档。本 Node 扫描不证明这些路径的事件循环停顿、renderer 帧间隔、主线程忙碌或掉电安全。现有“生成中”场景的供应商一直返回生成中，也不等于覆盖了结果落地。
+
+后续实验室场景拟量 `mainLoopMax`、`mainSyncSleepMs`、`autosaveCount`，与已有 `mainRoundTripMax`、`frameGapP95`、`longTasks` 对照；100ms 主进程响应、33ms 帧间隔及 0 长任务的依据沿用既有预算，新增预算、场景和健康基线仍须独立登记与实测。本改动没有新增这些指标或场景，没有现场监测、遥测或 Windows 夜跑。
+
 ## 默认预算（功能有理由偏离就在 ★7 写理由）
 
 | 指标 | 默认预算 |

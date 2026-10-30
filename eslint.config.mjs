@@ -84,6 +84,15 @@ const testFileRestrictedSyntax = [
   },
 ]
 
+// Main-process synchronous waits freeze IPC while waiting. Existing debt uses
+// ESLint bulk suppressions (file x rule counts); new calls fail and deleted calls
+// require --prune-suppressions. The independent core-rule id survives overrides.
+const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const mainSyncWaitSelectors = [{
+  selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
+  message: 'Do not add Atomics.wait in the main process: synchronous sleep blocks IPC and window events. Use an asynchronous retry; existing debt may only decrease.',
+}]
+
 const windowsPathSelectors = [
   {
     selector: 'MemberExpression[property.name="pathname"][object.type="NewExpression"][object.callee.name="URL"]:has(MetaProperty)',
@@ -408,6 +417,14 @@ export default tseslint.config(
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/desktop/rendererLog.ts'],
     rules: { 'no-console': ['error', { allow: ['log', 'info', 'debug'] }] },
+  },
+  {
+    // Alias ESLint's core rule, as above: independent options cannot be overwritten
+    // by quit lifecycle exemptions and do not extend those rules to new file types.
+    files: ['electron/**/*.{ts,tsx,mts,cts,js,mjs,cjs,jsx}'],
+    ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
+    plugins: { 'main-sync-wait': mainSyncWaitPlugin },
+    rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
   },
   {
     files: ['electron/**/*.{ts,tsx}'],
