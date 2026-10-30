@@ -1,0 +1,124 @@
+# 设计卡：画布远看少画——细节只按「看不看得清」给，栅格只按屏上倍率算
+
+改动名：①视口不再常驻合成层（删 `will-change: transform`），远看按屏上倍率栅格；②卡片画多细只看缩放和用户在不在对它做事，删掉「节点 > 80」　线/负责人：I-canvas-render-near（Mac 实现线）　类别：[其他]（性能 / 画布渲染；不花钱、不长跑、不可打断、不加界面元素）
+方向检查：`docs/engineering/direction-checks/2026-10-31-canvas-detail-admission.md`（末尾「裁定」：用户 10-30 定方向「少渲染，只在需要看清的地方给细节」）
+
+### 功能分类
+- [ ] 新界面 / 改交互
+- [ ] 花钱
+- [ ] 长跑 / 可打断
+- [ ] Agent 行为
+- [x] 大数据量 / 画布 / 长列表
+- [ ] 生成效果
+- [ ] 数据格式
+- [x] 新增功能 / 性能（路径推出：改画布节点渲染；新增两个性能场景与缺块量具）
+
+## 用户报的是什么
+
+一位用户转来的反馈视频（10.7 秒，平台未知）：画布缩到 20%，两组分镜一组 30 镜、一组约 20 张图，上方参考组连出几百条线。原话「这个图一多非常卡 没法用 做排期」。
+画面上组里的图轮流显示、轮流消失；组的底色有时整块不画，有时画了但里面的卡全空；平移时画面停住 0.8–2.7 秒。
+另一位用户建议「不一定要渲染画布上所有的，只要渲染光标附近的」。用户定方向：**少渲染，只在需要看清的地方给细节。**
+
+现状判据（`canvasNodeLevelOfDetail.ts`）：轻量卡只在「节点 > 80 且缩放 < 0.55」时才切。反馈现场约 60 个节点，**不到 80，于是 20% 远看照样每张卡画整卡**——
+每张 320×180 的卡在屏幕上只有 64×36 像素，却挂着整卡的 DOM、滚动区和合成层。React Flow 的「只渲染视口内」早就开着，但远看时所有卡都在视口里，裁剪帮不上。
+
+## 九格
+
+| 格 | 结论 | 证据 |
+|---|---|---|
+| ★0 先查别人 | 见下方「先查别人」8 条；改了的决定：判据去掉节点数（tldraw、litegraph 都不看节点数）、缺块按真实合成帧量而不只看帧间隔（Chromium 瓦片预算）；确认了的决定：选中卡始终整卡、远看由我们自己选图源而不是 `srcset`、不换渲染引擎 | 下方各条的链接 / 文件行；`pnpm run check:prior-art` |
+| ★1 用户怎么用 | 当我把画布缩到很远看整个分镜（几十张图、几百条参考线），我想平移、滚轮时每张图都在、组底色都在、画面跟手，以便排期、看整体。步骤：①打开项目 ②缩到 20%（或适应视图）③空格拖平移 ④滚轮来回 ⑤滚轮放大进某组改卡（≥55% 恢复整卡）⑥再缩回远看。**不做**：生成中卡片的等待动画 / 进度存盘 / 主进程轮询（另一条线）、诊断包卡顿记录、重写画布或换引擎、新视觉元素。**已知坑**：①缩放跨过门槛那一刻卡片换档会重挂图片（走媒体队列）；②视口常驻 `will-change` 时，凑近看过再退远，Chromium 仍按近看倍率栅格（缩放 ≥ 25% 不降倍率），压在上面的连线 / 组框 / 卡还各成一层——512MB 装不下就整块不画（本刀主因，见「量到了什么」）；撤掉它平移改靠重画，前一轮在别的场景见过 250ms 帧，本轮实测远看平移 / 滚轮 p95 9ms、单次最大 475ms，由 `canvas-far-dense-pan` 和三条老手势场景守；③9 月那一刀「屏幕尺寸 LOD」因「生成完成那一刻卡片掉档」被撤回（`fae43a80e`）——准入不能随卡片状态变。**真实任务**：(a) 反馈现场那一屏：60 张真实帧（仓库登记的真实镜头抽帧）+ 3 组 + 240 条参考线，20% 平移 / 滚轮；(b) 不到 80 个节点的小画布缩到 30%；(c) 远看里点一张卡改提示词（唯一选中 → 整卡）。**指标**（目标 → 信号 → 指标）：图都在 → 真实合成帧里已解码的图有没有画出来 → **停稳后空卡率 ≤ 1%**（主；判定条件 = 512MB 瓦片预算 + 设备像素比 1.25，即 Windows 1080p、系统缩放 125% 的默认预算；量具 perf 场景 `canvas-far-dense-blank`，像素量具带阳性对照）；跟手 → 远看平移 + 滚轮时的帧间隔 → **frameGapP95 ≤ 33ms**（量具 perf 场景 `canvas-far-dense-pan`）；护栏：近看（≥55%）整卡不变（单测矩阵）、现有手势场景不退化（`canvas-pan-mixed-media`、`canvas-wheel-zoom-mixed-media`、`canvas-drag-20-nodes`）。基线 / 目标见 ★7 | perf 场景、`tests/perf/canvas-scale/farDense.mjs`；单测 `canvasDetailAdmission.matrix.test.ts` |
+| ★1b 连带界面 | 不适用：只改「哪张卡用已有的轻量卡画」，不新增或改动任何文案、回执、通知、错误卡、撤销提示；Agent 回执不涉及。轻量卡本来就带标题行、生成状态条和身份三件套（`data-node-id / kind / status`），走查与读屏照旧认得出 | `LightweightGenerationNode.tsx` |
+| ★2 谁说了算 | 概念一「画布视口要不要常驻合成层」→ 不常驻，跟 React Flow 的默认走（它自己的样式不写 `will-change`）；本刀删掉我们在 `reactFlow/generationCanvasReactFlow.css` 里加的那条，静止时视口不升层由走查 `canvas-drag-pan-gestures` 断言、远看合成层数由 `canvas-far-dense-blank` 的结构硬数守。概念二「这张卡画多细」→ 唯一 owner `src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts`（纯函数），唯一消费者 `GenerationFlowNodeView`（`reactFlow/GenerationCanvasReactFlowNodes.tsx`）。输入四个：缩放（React Flow 的 `transform[2]`，只订一个布尔）、唯一选中、画布外点名闪烁、这一种卡是否自己按缩放分档画远看（节点登记表的 `ownsZoomTiers`，目前只有分镜表）。**节点数不再是输入**；同一份事实只存一份（缩放住在 React Flow）；不靠「东西不见了」猜意图 | `node scripts/door-map.mjs shouldRenderFullNodeContent isZoomedOutForLightweight` |
+| ★3 一致与复用 | 复用现有轻量卡 `LightweightGenerationNode`（标题 + 预览图 + 状态条）与画布预览（`canvasImageSource`），不新增组件、不新增视觉；分镜表的远 / 中 / 近三档（`shotTableDensityForZoom`，拍板稿图 4）原样保留，由登记表声明「远看我自己画」，不在节点外壳里写种类判断。同提交删掉：视口的 `will-change: transform` 那条全局样式（全局 CSS 只减）、`LIGHTWEIGHT_NODE_RENDER_THRESHOLD`、`isLargeCanvas`、`shouldUseLightweightNodeRendering`、`shouldUseLightweightNodeRenderingForSelection`、`retainLargeCanvasLightweightRendering` 与节点外壳里的「节点数订阅 + 保留 ref」 | `git grep -n "isLargeCanvas\|LIGHTWEIGHT_NODE_RENDER_THRESHOLD" -- src tests` 为空 |
+| ★4 全状态 | 远看（<55%）：有结果的图 / 视频卡 = 标题 + 预览图；还没生成 / 生成中 / 失败的卡 = 标题 + 空态图标 + 生成状态条（轻量卡原有）；文本、角色等卡 = 标题 + 图标；分镜表 = 它自己的远看卡（不变）；唯一选中 / 点名闪烁的卡 = 整卡。近看（≥55%）：全部整卡（不变）。生成完成那一刻：同一缩放下卡片**不换档**（准入不看有没有结果，吸取 `fae43a80e`）。能力不可用：不适用（不调模型、不碰外部资源）。文案：无新增 | 单测矩阵；真窗截图远 / 近 × 中 / 英 |
+| 5 中途表 | 细节档位是纯派生（缩放 + 选择），没有任何持久状态：停 / 关窗 / 断网 / 重启 / 连点都不留下半截状态，下一帧按同一规则重算；不花钱、无回执 | 单测矩阵（纯函数，无状态） |
+| 6 外部数据与失败 | 外部来源：①磁盘上的预览图（缺预览走 `canvasImageSource` 原有的被计数缺失分支，本刀不动）；②显卡驱动给的合成内存预算（不可控：本刀让远看占的合成层和栅格面积变小，预算再小也只是图晚到，不再整块不画）。失败时用户看到：轻量卡的占位底色 + 媒体队列原有的「加载失败 / 重试」 | `DeferredNodeMedia.tsx` 原有失败态 |
+| ★7 性能 | ①操作：远看平移、远看滚轮、缩放跨过 55%、远看点选；②最坏规模：反馈现场 60 张真实帧 + 3 组 + 240 条参考线（D60），以及原有 I150 / L 档；③预算：判定条件 512MB 瓦片预算 + 设备像素比 1.25——停稳后空卡率 ≤ 1%（主指标、硬判，带阳性对照）；远看平移 + 滚轮 frameGapP95 ≤ 33ms；结构硬数（不看显卡、超了脚本非 0 退出）：远看每卡 DOM ≤ 20（轻量卡 18，整卡 26）、合成层 ≤ 20（不常驻 8，常驻 99–106）、解码像素 ≤ 屏幕物理像素 × 20（预览档 17.7；换成原图是 62）、画布 `<video>` ≤ 1；瓦片超限行数、移动中空卡、长任务只看；16MiB 只当压力档看，不登记；④场景：`canvas-far-dense-blank`、`canvas-far-dense-pan`（同一量具同一跑法，各管一个主数），基线数见 PR 证据行 | `pnpm run perf:scenarios -- --id <id>`；`pnpm run check:perf-scenarios` |
+| 8 真实条件 | Mac 真窗口（隔离资料目录）中英两轨各截远看 / 近看；16MiB 合成预算模拟弱显卡；真实素材（仓库登记的真实镜头抽帧；复现另用 `NOMI_REAL_MEDIA_DIR` 登记的真片）。**Windows 真显卡 unverified**（等 Windows 测试机）；干净安装 / 打包版 unverified；最小窗口 unverified | 截图路径见 PR 正文（亲眼 Read 过） |
+| 拍板图清单 | 不适用：不画新界面、不改布局与元素，只决定已有的轻量卡什么时候出现（简报：「不新加视觉元素，只复用现有轻量卡和预览图」） | — |
+| ★9 验收与回滚 | 见下方「验收清单与反例」（动手前写全）。回滚：revert 本 PR 的产品提交（只改渲染档位判据，不碰数据、持久化、store 结构） | 清单逐条 |
+
+## 不做的和触发条件
+
+- **远看自己画的位图层**（缩到很远时把组底色、缩略图、连线画进一张屏幕大小的画布，DOM 只留选中 / 悬停 / 编辑中的卡）：先不做。用户原话：「按推荐，先不做」。本刀只做增量，也不换渲染引擎。
+- **什么时候启动**：本刀和后续增量做完后，用 Windows 集显、1080p、系统缩放 125% 的真机（即 512MB 默认瓦片预算），画布 ≥ 200 节点（含 ≥ 50 张图、≥ 20 个视频、≥ 300 条边），在 20% 和 35% 缩放下平移、缩放，出现下面任一情况就启动：
+  - 瓦片超限（`TileManager::AssignGpuMemoryToTiles` 结束时 `had_enough_memory_to_schedule_tiles_needed_now=false`，或日志「tile memory limits exceeded」）；
+  - 帧间隔 p95 > 33ms，或最大 > 100ms；
+  - 单次停顿 > 500ms。
+- **启动后的形状**：位图层当最远一档的唯一 owner，同一提交删掉 DOM 的远看路径，不留并行版；交用户拍板后才开工。
+
+## 先查别人（★0）
+
+源码行号取自各项目 2026-10-30 的主分支。
+
+1. React Flow 性能指南 https://reactflow.dev/learn/advanced-use/performance 与 `onlyRenderVisibleElements` 说明 https://reactflow.dev/api-reference/react-flow#onlyrendervisibleelements · 建议 memo 节点组件、不让组件订整个节点数组、「简化节点和连线样式」（阴影 / 渐变 / 动画）；只渲染可见元素只跳过视口外的元素，且自带开销；没有按缩放降细节的原语 · **确认了**：远看时所有卡都在视口里，裁剪帮不上，杠杆只能是「每张卡画得更轻」（复用已有轻量卡），判据放在我们自己这一层。
+2. tldraw 性能文档 https://tldraw.dev/sdk-features/performance ，源码 `packages/editor/src/lib/editor/Editor.ts:3243`（`getEfficientZoomLevel`：形状数超过阈值时，手势中用防抖后的缩放档）、`packages/editor/src/lib/options.ts:341`（阈值 500）、`Editor.ts:5328`（图片分辨率按 2 的幂阶梯取屏上倍率）、`packages/editor/editor.css:382`（HTML 层只设 `contain`，整份样式不写 `will-change`）· 细节档按缩放和屏上尺寸定，形状数只决定「手势中先不换档」；选中 / 正在编辑的形状永远不剔除 · **改了**：判据去掉节点数；**确认了**：唯一选中的卡始终整卡；按屏上尺寸选图（H2）若要做，按 2 的幂阶梯、停稳后再换。
+3. ComfyUI 前端的节点图 https://github.com/Comfy-Org/ComfyUI_frontend ，`src/lib/litegraph/src/LGraphCanvas.ts:785`（低质量档 = 缩放 < 最小可读字号 8 ÷（正文字号 14 × √设备像素比））、`LGraphCanvas.ts:1246`（缩放变化时重判）、`LGraphCanvas.ts:6469`（低质量档连线不画描边）、`LGraphCanvas.ts:5775`（不画阴影）· 远看门槛由「字还读不读得清」推出来，与节点数无关；远看先简化连线和阴影 · **确认了**：保留 0.55 门槛（≈ 8/14，设备像素比 1 时正文已读不清）；**待量**：远看连线要不要简化，按 A/B 的 H4 数定（见「量到了什么」）。
+4. Excalidraw https://github.com/excalidraw/excalidraw ，`packages/element/src/renderElement.ts:223`（元素缓存画布 = 元素尺寸 × 缩放 × 设备像素比，面积封顶 16,777,216）、`renderElement.ts:740`（缩放变了才重画）、`packages/excalidraw/components/App.tsx:8135` 与 `App.tsx:11366`（手势中忽略缩放、停 300ms 再重画）· 像素成本跟屏上尺寸走；手势中不换档，停稳再换 · **确认了**：成本按「屏上有多少卡、每张多大」算，量具的规模按同屏卡数设计，不按节点总数；手势中换档的代价写进已知坑，按跨门槛那一下的帧间隔决定要不要防抖。
+5. Chromium 合成器 https://source.chromium.org/chromium/chromium/src/+/main:cc/layers/picture_layer_impl.cc ，`cc/layers/picture_layer_impl.cc:69`（`will-change: transform` 层的最低栅格倍率比例 0.25）、`picture_layer_impl.cc:1340`（倍率不低于下限就不重栅格）、`picture_layer_impl.cc:1550`（下限 = 原生倍率，除非理想倍率不到原生的 1/4）；`third_party/blink/renderer/platform/widget/compositing/layer_tree_settings.cc:144`（显存预算：`--force-gpu-mem-available-mb` 可强制，桌面至少 512MB，按屏幕面积放大，封顶内存的 1/4）；`cc/tiles/checker_image_tracker.cc:386`（同一时刻只有一张图在异步解码）· 合成层按 `will-change` 时的倍率留着栅格；瓦片超预算就整块不画（棋盘格） · **改了**：弱显卡用 `--force-gpu-mem-available-mb=16` 模拟，主指标是「真实合成帧里的缺块率」而不只是帧间隔；**确认了**：远看减少整卡的合成面积是对症的。
+6. HTML 标准的图片选择 https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute · `srcset` / `sizes` 按布局宽度（CSS 像素）选图，CSS `transform` 的缩放对它不可见 · **确认了**：按屏上尺寸选图源只能我们自己判（`canvasImageSource`），不靠 `srcset`。
+7. Figma 渲染架构 https://www.figma.com/blog/figma-rendering-powered-by-webgpu/ · 自研 C++ / WASM 渲染器（WebGL → WebGPU），不走 DOM · **确认了**：换渲染引擎不在本刀范围，留在 DOM + React Flow 上改判据。
+8. 本仓库 9 月那一刀 [2026-09-12-canvas-lod-screen-size.md](./2026-09-12-canvas-lod-screen-size.md)（`3a72f0ce7` 实现、`fae43a80e` 撤回）· 准入加了「有结果媒体才进轻量档」，生成完成那一刻卡片换档、DOM 被替换，当时轻量卡还没有 `data-status` · **改了**：准入只看缩放、交互和卡片种类，不看卡片状态。
+
+## 量到了什么（复现 + 单变量 A/B）
+
+**量具**：Mac（Apple Silicon）真 Electron 窗口（隔离资料目录、静默走查模式），反馈现场那一屏（60 张真实帧预览、3 个组、240 条参考线）。
+每个样本：20% 打开 → 滚轮凑进分镜组看到约 100%（用户就是这么来回看的）→ 依次退到 20% / 35% / 55%，每档停稳量一次、平移一圈 + 滚轮来回、移动中抓 8 帧、停下再量。
+空卡率 = 主进程抓到的**真实合成帧**里，已解码却没画出来的卡 ÷ 判得出的卡（逐张缩成 8×8 均色格和源图比；被工具条 / 菜单盖住的格子不计；每个样本先藏一张图做阳性对照）。
+瓦片超限 = Chromium 自己打的「tile memory limits exceeded」日志行数（用 16MiB 预算做过阳性对照：3612 行）。
+
+**判定条件** = `--force-gpu-mem-available-mb=512` + 设备像素比 1.25（窗口 1536×832 CSS = 1920×1040 物理像素），即 Windows 1080p、系统缩放 125% 的默认瓦片预算。
+
+| 变体（只动一个变量） | 35% 停稳 / 动后空卡 | 移动中最差 | 瓦片内存 20/35/55% | 瓦片超限（行） | 合成层（20%） | 远看每卡 DOM | 平移 / 滚轮帧 p95（最大） |
+|---|---|---|---|---|---|---|---|
+| 现状（main） | 2.4% / **71.4%** | 22% | 511 / 512 / 512 MB（钉满） | 1774 | 106 | 26 | 9.0 / 9.1ms（17ms） |
+| H1 细节只看缩放（删节点数门槛） | 19.5% / **88.6%** | 73% | 510 / 510 / 512 MB | 1779 | 75 | 18 | 8.9 / 9.0ms（50ms） |
+| H6 视口不常驻 `will-change`（其余同 main） | **0 / 0** | **0** | 66 / 17 / 21 MB | **0** | **8** | 26 | 9.0 / 9.2ms（单次 475ms，见下） |
+| H1 + H6 | 〔V4〕 | | | | | | |
+| H6 只在手势中升层 | 〔V4〕 | | | | | | |
+
+- **主因是常驻合成层，不是卡片细节**：同一样本里，凑近看过再退回 20%，瓦片内存从打开时的 86MB 涨到 511MB 钉满——Chromium 对 `will-change: transform` 的层在缩放 ≥ 25% 时不降栅格倍率（`picture_layer_impl.cc:1550`），远看按近看的倍率栅格；
+  常驻合成的视口又让压在上面的每条连线 `<svg>`（24 层、1.25 亿层内像素）、3 个组框、30 张卡各成一层（原因全是 Overlap）。512MB 装不下，Chromium 每帧打超限日志、整块不画——就是反馈视频里「图轮流消失、组底整块不画」。
+- **只改细节档（H1）不解决缺块**：每卡 DOM 26 → 18、层 106 → 75，但瓦片照样钉满，35% 动后空卡反而 89%（同一张卡在门槛两侧换档时重挂图片）。H1 仍要做：判据按节点数本身是错的（60 张不切、81 张才切），而且去掉常驻合成层后平移靠重画，卡越轻每帧越省。
+- **光标附近（H3）不采纳**：鼠标平移、滚轮时每条腿 24–90 次换档（卡在整卡 / 轻量卡之间来回挂图），空卡率与 H1 相同；触控板平移（光标不动、内容滑过）〔V4〕。
+- **按屏上尺寸选小图（H2）另起一刀**：解码像素从屏幕的 17.6 倍降到 1.1 倍，但瓦片内存、空卡率不变（瓦片按栅格面积算，不按图源大小），且要改主进程的预览档（新增一档小预览、旧项目回填），不在本刀。
+- **连线（H4）、组框（H5）**：常驻合成层去掉后它们不再各自成层（全画布 8 层），不单做。
+- **跨条件**：Mac 默认预算（约 624MB、设备像素比 1）现状 20% 动后空卡 93%；16MiB 压力档现状与 H1 都是 76–100%（只当压力档看）。设备像素比 1.5（512MB）现状 35% 停稳 13%。〔V4：Mac 设备像素比 2、软件栅格〕
+- **量具自己的坑（已修，进本 PR）**：①启动器的 `setViewportSize`（Playwright 设备尺寸覆盖）把页面钉在设备像素比 1，`--force-device-scale-factor` 进不了页面——仓库里所有画布性能场景都是按设备像素比 1 量的，真 Retina / 125% 缩放的栅格面积被低估 1.6–4 倍；远看场景改用自己的 CDP 覆盖并读回核对。
+  ②远看夹具的组缺 `createdAt / updatedAt`，读盘时被 `safeParse` 静默丢掉，前几轮量的是「没有组」的画布；夹具补字段，场景加自检（组没画出来就停，不交数）。③像素量具把盖在卡上的工具条 / 菜单算成「没画」，改成被盖住的格子不计。
+
+## 验收清单与反例（★9，动手前写全；实现线按它自验，验收线只核它）
+
+### 验收清单
+
+| # | 检查 | 命令 / 页面 | 过的标准 |
+|---|---|---|---|
+| A1 | 判据矩阵：缩放 {0.2, 0.3, 0.45, 0.549, 0.55, 0.8, 1, 3} × 节点数 {1, 20, 60, 80, 81, 150, 600} × 交互 {无、唯一选中、多选中的一员、点名闪烁} × 登记表里的每一种卡 | `pnpm exec vitest run src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts` | 整卡 ⇔ 缩放 ≥ 0.55 或 唯一选中 或 点名闪烁 或 这种卡自带远看分档；同一格换任何节点数结果不变 |
+| A2 | 结构：判据入参里没有节点数、没有卡片状态 | 同上（类型 + 源码检查：节点外壳不订节点总数，owner 不再导出节点数门槛） | `git grep -n "isLargeCanvas\|LIGHTWEIGHT_NODE_RENDER_THRESHOLD\|retainLargeCanvasLightweightRendering" -- src tests` 为空 |
+| A3 | 自带远看分档的卡只在登记表声明一处 | 同上（列举：声明 `ownsZoomTiers` 的种类 = {分镜表}；字段注释写明「自己按缩放分档画远看的卡才声明」） | 声明集合与列举一致；多声明 / 少声明一种 → 红 |
+| A4 | 远看停稳后的缺块率（判定条件：512MB 瓦片预算 + 设备像素比 1.25） | `pnpm run perf:scenarios -- --id canvas-far-dense-blank` | 阳性对照测得出；中位数 ≤ 1% |
+| A5 | 远看结构硬数（同一场景同一次采样，超了脚本非 0 退出 = 场景红） | 同 A4 | 远看每张卡 DOM、解码像素 ÷ 屏幕物理像素、画布 `<video>` 数都不超 ★7 的预算；16MiB 只当压力档看，不判 |
+| A6 | 远看平移 + 滚轮跟手 | `pnpm run perf:scenarios -- --id canvas-far-dense-pan` | frameGapP95 中位数 ≤ 33ms |
+| A7 | 老场景不退化 | `pnpm run perf:scenarios -- --id canvas-pan-mixed-media`、`--id canvas-wheel-zoom-mixed-media`、`--id canvas-drag-20-nodes` | 不比合入前的基线差（数写进 PR） |
+| A8 | 画布真窗口走查（含 9 月撤回那一刀踩到的「生成完成那一刻同一张卡的 DOM 不换」） | `pnpm run test:canvas:acceptance` | 全绿 |
+| A9 | 真窗口截图：远看（20%）/ 近看（≥55%）× 中 / 英，隔离资料目录 | 截图路径写进 PR 正文 | 远看：图都在、组底都在、唯一选中卡整卡、分镜表是它自己的远看卡；近看：整卡与合入前一致 |
+| A10 | 视口静止时不升合成层 | `pnpm run test:canvas:acceptance`（`canvas-drag-pan-gestures` 走查）；同 A4 的结构硬数「合成层 ≤ 20」 | 静止时视口的 `will-change` 不含 `transform`；平移照样跟手（同一走查的平移断言） |
+
+### 反例（这一类会从哪些入口、形状、边界、版本回来）
+
+| # | 反例 | 应该得到 | 守它的检查 |
+|---|---|---|---|
+| X1 | 把判据退回「节点 > 80 且缩放 < 0.55」（本刀删掉的那条） | 512MB + 设备像素比 1.25 下缺块率红（> 1%）或结构硬数红，矩阵红（节点数改变结果） | A1、A4、A5；本线实跑一次，命令与退出码写进 PR |
+| X2 | 换个门槛数（比如「节点 > 40」） | 矩阵红：同一格 20 个节点和 60 个节点结果不同 | A1 |
+| X3 | 准入加上「有没有结果 / 是否生成中」（9 月撤回的那个形状） | 入参里没有状态字段，类型上传不进来；走查「完成那一刻同一张卡 DOM 不换」 | A2、A8 |
+| X4 | 新加一种自己按缩放分档画远看的卡，却没在登记表声明 | 远看时它被换成轻量卡（看得见的退化，走查截图能发现）；列举测试只守「已声明的集合」，不自动扫组件源码——扫源码判「谁读了缩放」会误报（浮层、工具条也读缩放），守不住的部分写进字段注释 | A3、A9 |
+| X5 | 把「大画布多选的卡变轻量」加回来 | 矩阵红：缩放 ≥ 0.55 时多选中的卡必须整卡 | A1 |
+| X6 | 门槛边界：缩放正好 0.55 / 0.549 | 0.55 整卡，0.549 非选中卡轻量 | A1 |
+| X7 | 远看里点一张卡（唯一选中）/ 画布外点名闪烁 | 这张卡整卡，其余不变 | A1、A9 |
+| X8 | 远看多选（框选）一批卡 | 都保持轻量（只有唯一选中才整卡） | A1 |
+| X9 | 量具自己坏了（截不到图、判不出缺块） | 阳性对照测不出 → 这次采样作废、场景红，不交数 | A4、A5（量具内置） |
+| X10 | 版本 / 平台：Windows 真显卡、设备像素比 1 的显示器 | unverified（Windows 等测试机）；设备像素比 1 见「量到了什么」 | 写进 PR「未验证」 |
+| X11 | 把视口的 `will-change: transform` 加回来（本刀删掉的那条，主因） | 512MB + 设备像素比 1.25 下 35% 动后空卡率红、合成层数红（99–106 > 20）；走查「静止时不升层」红 | A4、A5、A10；本线实跑一次，命令与退出码写进 PR |
+
+实现线自验交「反例 → 结果 → 证据」表（PR 正文）。
