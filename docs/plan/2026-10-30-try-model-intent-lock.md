@@ -159,3 +159,28 @@ newAttemptOf 必须引用当前 attemptId；重复引用旧 attempt 不再创建
 ## 实现线已取得的自动证据
 
 修前同参、换参两项均红：expected 1 / received 2。实现后六个文件共 44 项绿；最新删认领反例中原两项全红、共享矩阵 13 红 / 3 绿，两份产品源码按字节恢复后才构建。保留的三个绿色用例检查不依赖认领的独立证据与存储行为，不声称全部用例都必须被该 mutation 杀死。schema-v3 根因合同 checker 退出 0。真实付费、真实模型工具选择率和独立验收均未执行。
+
+
+## ★9 类级清单与首次交付补验
+
+自动化场景真相源：[try-model-intent-matrix.json](../../tests/fixtures/try-model-intent-matrix.json)。模型清单和场景清单由同一份登记文件给出；[tryModelIntent.matrix.test.ts](../../electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts) 从 `registry.cases` 参数化取数，从 `registry.models` 注册模型，每格走真实 tryModel、runtime、钱闸与环回 HTTP，直接数供应商收到的 POST。重启格另起 Node 进程，从同一隔离设置根读取记录，不沿用模块缓存。
+
+| 清单场景 | 原状态 | 后续动作 | 供应商 create 总数 | 身份/权限验收 |
+|---|---|---|---|---|
+| same-arguments | 已受理 | 同参再调 | 1 | 原 intent/attempt |
+| changed-arguments | 已受理 | 换 prompt/params | 1 | 原 intent/attempt |
+| submission-unknown | 结果未知 | 再调 | 1 | 原单，无 retry |
+| restart-unknown | 结果未知 | 新进程再调 | 1 | 原单，无内存继承 |
+| succeeded | 成功 | 换提示词再调 | 1 | 原单、原产物 |
+| restart-succeeded | 成功 | 新进程再调 | 1 | 原单、原产物 |
+| cancelled | 真人取消 | 再调两次，调用者改为全自动 | 0 | 只许一次安全重试，仍问真人；第三次预算耗尽 |
+| changed-mode-same-intent | 结果未知 | 同一模型只换 taskKind | 1 | 仍是原意图，不借换模式解锁 |
+| independent-model | 旧模型结果未知 | 另一模型、同模式试跑 | 2 | 新 intent 正常创建，不把所有模型锁死 |
+| independent-model-and-mode | 旧模型结果未知 | 另一模型、另一模式试跑 | 2 | 新 intent 正常创建 |
+
+「不同模型/模式」的阳性对照按已批准的连接 + 模型身份划分：另一个模型可以独立提交；同一未结意图只换模式仍受原锁约束。取消通过 rendererBridge 同源回复通道返回 confirmed=false，未 mock runTask 或绕过钱闸。去锁反例应杀死防重复场景；两个合法独立意图的阳性对照应继续通过。
+
+协调已将逃逸条目标为 reviewed / manualReview=reviewed 并登记三个产品提交，按首次推送例外交付；本线仅把 classCheck 指向这份清单驱动的矩阵，不改回 candidate、不转 fixed。真实付费与独立验收仍交协调。
+
+
+本轮补验实测：10 格全绿；去掉 tryModel 的旧单观察与共享 claim 的拒绝重复认领后，8 格红、2 个独立意图阳性对照绿。finally 按 bytes 恢复两份产品源码并核 SHA-256，恢复后 10 格再次全绿。没有新增或修改产品代码，三个产品 completionCommits 保持协调登记值。

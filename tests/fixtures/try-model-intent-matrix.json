@@ -1,0 +1,184 @@
+{
+  "models": [
+    {
+      "modelKey": "matrix-paint",
+      "kind": "image",
+      "taskKind": "text_to_image",
+      "mediaField": "image_url",
+      "mediaPath": "image.url"
+    },
+    {
+      "modelKey": "matrix-other-paint",
+      "kind": "image",
+      "taskKind": "text_to_image",
+      "mediaField": "image_url",
+      "mediaPath": "image.url"
+    },
+    {
+      "modelKey": "matrix-video",
+      "kind": "video",
+      "taskKind": "text_to_video",
+      "mediaField": "video_url",
+      "mediaPath": "video.url"
+    }
+  ],
+  "cases": [
+    {
+      "id": "same-arguments",
+      "label": "同参再调已受理原单",
+      "initial": "queued",
+      "repeat": {},
+      "host": "same",
+      "codes": [
+        "still_processing",
+        "still_processing"
+      ],
+      "creates": 1,
+      "confirmations": 0,
+      "sameOrder": true
+    },
+    {
+      "id": "changed-arguments",
+      "label": "换提示词和参数不创建新单",
+      "initial": "queued",
+      "repeat": {
+        "prompt": "different apple",
+        "params": {
+          "seed": 17
+        }
+      },
+      "host": "same",
+      "codes": [
+        "still_processing",
+        "still_processing"
+      ],
+      "creates": 1,
+      "confirmations": 0,
+      "sameOrder": true
+    },
+    {
+      "id": "submission-unknown",
+      "label": "submission_unknown 后再调",
+      "initial": "unknown",
+      "repeat": {},
+      "host": "same",
+      "codes": [
+        "submission_unknown",
+        "submission_unknown"
+      ],
+      "creates": 1,
+      "confirmations": 0,
+      "sameOrder": true
+    },
+    {
+      "id": "restart-unknown",
+      "label": "未知原单跨真实进程重启再调",
+      "initial": "unknown",
+      "repeat": {
+        "prompt": "after restart"
+      },
+      "host": "restart",
+      "codes": [
+        "submission_unknown",
+        "submission_unknown"
+      ],
+      "creates": 1,
+      "confirmations": 0,
+      "sameOrder": true
+    },
+    {
+      "id": "succeeded",
+      "label": "成功后再调返回原产物",
+      "initial": "succeeded",
+      "repeat": {
+        "prompt": "another apple"
+      },
+      "host": "same",
+      "codes": [
+        "succeeded",
+        "succeeded"
+      ],
+      "creates": 1,
+      "confirmations": 0,
+      "sameOrder": true
+    },
+    {
+      "id": "restart-succeeded",
+      "label": "成功原单跨真实进程重启再调",
+      "initial": "succeeded",
+      "repeat": {},
+      "host": "restart",
+      "codes": [
+        "succeeded",
+        "succeeded"
+      ],
+      "creates": 1,
+      "confirmations": 0,
+      "sameOrder": true
+    },
+    {
+      "id": "cancelled",
+      "label": "取消后只给一次仍需真人确认的安全重试",
+      "initial": "cancelled",
+      "repeat": {},
+      "host": "same",
+      "codes": [
+        "needs_input",
+        "needs_input",
+        "provider_failed"
+      ],
+      "creates": 0,
+      "confirmations": 2,
+      "sameOrder": false
+    },
+    {
+      "id": "changed-mode-same-intent",
+      "label": "同一未知意图只换模式不能解锁",
+      "initial": "unknown",
+      "repeat": {
+        "taskKind": "image_to_video"
+      },
+      "host": "same",
+      "codes": [
+        "submission_unknown",
+        "submission_unknown"
+      ],
+      "creates": 1,
+      "confirmations": 0,
+      "sameOrder": true
+    },
+    {
+      "id": "independent-model",
+      "label": "不同模型的独立试跑不被旧单锁住",
+      "initial": "unknown",
+      "repeat": {
+        "modelKey": "matrix-other-paint"
+      },
+      "host": "same",
+      "codes": [
+        "submission_unknown",
+        "still_processing"
+      ],
+      "creates": 2,
+      "confirmations": 0,
+      "sameOrder": false
+    },
+    {
+      "id": "independent-model-and-mode",
+      "label": "另一模型另一模式的独立试跑不被旧单锁住",
+      "initial": "unknown",
+      "repeat": {
+        "modelKey": "matrix-video",
+        "taskKind": "text_to_video"
+      },
+      "host": "same",
+      "codes": [
+        "submission_unknown",
+        "still_processing"
+      ],
+      "creates": 2,
+      "confirmations": 0,
+      "sameOrder": false
+    }
+  ]
+}

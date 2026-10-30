@@ -19,7 +19,10 @@
     "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts",
     "docs/fixes/2026-10-30-try-model-intent-lock.root-cause.json",
     "electron/productionRun/submissionIntent.test.ts",
-    "tests/ux/try-model-intent-lock-real.rehearsal.walk.mjs"
+    "tests/ux/try-model-intent-lock-real.rehearsal.walk.mjs",
+    "electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts",
+    "tests/fixtures/try-model-intent-matrix.json",
+    "tests/fixtures/try-model-intent-restart.mjs"
   ],
   "completionCommits": [
     "5e4761865a1754a91be586ceaa71f40993a46cf8",
@@ -28,7 +31,7 @@
   ],
   "classCheck": {
     "kind": "matrix",
-    "file": "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
+    "file": "electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts"
   },
   "rootCauseContract": "docs/fixes/2026-10-30-try-model-intent-lock.root-cause.json"
 }

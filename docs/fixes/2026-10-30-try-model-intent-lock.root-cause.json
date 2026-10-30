@@ -127,7 +127,7 @@
     "after": 13,
     "why_not": "The trial dispatch is the app entry. Type readers describe the same API. Run-owned and project generation callers keep distinct orchestration responsibilities but share submissionOutbox; submissionActions is the receipt/permission projection."
   },
-  "generality_proof": "Identity depends on the app execution root and connection/model, never caller, prompt, mode or card revision. The short existing Run lease serializes identity allocation. Every existing job is observation-only after restart, including authorized jobs whose owner crashed. Shared repository/outbox states retain unknown and accepted submissions. Safe retries and explicit new requests allocate journaled jobs and cannot reset their retry/confirmation lineage.",
+  "generality_proof": "Identity depends on the app execution root and connection/model, never caller, prompt, mode or card revision. The short existing Run lease serializes identity allocation. Every existing job is observation-only after restart, including authorized jobs whose owner crashed. Shared repository/outbox states retain unknown and accepted submissions. Safe retries and explicit new requests allocate journaled jobs and cannot reset their retry/confirmation lineage. A fixture-registry class census drives the real trial/runtime/money gate and counts loopback POSTs for repeat inputs, unknown and succeeded receipts, fresh processes, declined approvals, and independent model/mode intents.",
   "shared_boundaries": [
     {
       "path": "electron/productionRun/submissionIntent.ts",
@@ -179,11 +179,13 @@
   "regression_tests": [
     "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts",
     "electron/capabilityCore/modelOnboarding/tryModelAsyncQueued.test.ts",
-    "electron/productionRun/submissionIntent.test.ts"
+    "electron/productionRun/submissionIntent.test.ts",
+    "electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts"
   ],
   "class_regression_tests": [
     "electron/productionRun/submissionIntent.test.ts",
-    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
+    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts",
+    "electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
