@@ -1387,7 +1387,9 @@
       "status": "under-review",
       "reviewBy": "2026-11-23",
       "paths": [
-        "electron/shared/contracts/ipcInvokeFailure.ts"
+        "electron/shared/contracts/ipcInvokeFailure.ts",
+        "electron/shared/contracts/ipcResult.ts",
+        "electron/shared/contracts/projectSaveFailure.ts"
       ],
       "alternativesChecked": [
         {
@@ -1407,7 +1409,7 @@
           "source": "https://github.com/sindresorhus/electron-better-ipc"
         }
       ],
-      "whyNotIntegrated": "尚未下结论。现成方案都能把错误对象完整送过来，但都要换掉整条 IPC（6 个 preload 文件里 218 处 ipcRenderer.invoke 与对应的全部 handle）；在那之前 Electron 送回的那句话是渲染层拿到主进程错误类名的唯一来源，读法只能自己写一处。这里收的是原来散在 workspaceBusy / classifyError / storyboardFailureCopy 的三份私有读法（同一提交删掉），不是新长出来的能力。方向检查 docs/audit/2026-10-24-ipc-error-class-name-direction.md。",
+      "whyNotIntegrated": "尚未下结论。现成方案都能把错误对象完整送过来，但都要换掉整条 IPC（6 个 preload 文件里 218 处 ipcRenderer.invoke 与对应的全部 handle）；在那之前 Electron 送回的那句话是渲染层拿到主进程错误类名的唯一来源，读法只能自己写一处。这里收的是原来散在 workspaceBusy / classifyError / storyboardFailureCopy 的三份私有读法（同一提交删掉），不是新长出来的能力。方向检查 docs/audit/2026-10-24-ipc-error-class-name-direction.md。 2026-10-30：保存通道先改用普通对象结果包络，沿用并迁移既有 preload IpcResult / unwrapIpcResult 为唯一拆封 owner；保存原因仅接受项目锁、项目身份和文件系统闭合事实。此通道不再读失败原文，其余通道迁移仍按原 reviewBy 评估。",
       "revisitWhen": "评估 IPC 迁到能传结构化错误的方案（electron-trpc / electron-better-ipc）之后出结论；迁完就删这个文件"
     },
     {

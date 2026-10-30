@@ -12,7 +12,7 @@ import {
   type WorkbenchProjectSummary,
 } from './projectRecordSchema'
 import { normalizeCategories } from './projectCategories'
-import { storyboardPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
+import { storyboardDraftPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
 import { renumberStoryboardShots } from '../../../electron/shared/storyboard/storyboardSubjectIdentity'
 import i18n from '../../i18n'
 
@@ -75,9 +75,22 @@ function normalizeLegacyRecord(input: unknown): WorkbenchProjectRecordLegacy | n
   }
 }
 
+// z.record 的键来自用户数据，不能进入诊断包；只记录 schema 字段和数组序号，不记录值/原文。
+type SchemaIssue = { path: PropertyKey[]; unionErrors?: readonly { issues: readonly SchemaIssue[] }[] }
+function issueFieldPaths(issues: readonly SchemaIssue[]): string {
+  const records = new Set(['storyboardDesignsByDocumentId', 'params', 'referenceBindings', 'continuity'])
+  const leaves = (items: readonly SchemaIssue[]): readonly SchemaIssue[] => items.flatMap(issue =>
+    issue.unionErrors ? issue.unionErrors.flatMap(branch => leaves(branch.issues)) : [issue],
+  )
+  return leaves(issues).slice(0, 8).map(({ path }) => path.map((part, index) =>
+    index > 0 && records.has(String(path[index - 1])) ? '*' : String(part),
+  ).join('.') || '(root)').join('; ')
+}
+
 export function normalizePayload(input: unknown): WorkbenchProjectPayload {
   const parsed = workbenchProjectPayloadSchema.safeParse(input)
   if (!parsed.success) {
+    logRendererWarn('project-payload-rejected', { issues: issueFieldPaths(parsed.error.issues) })
     throw new Error(i18n.t('runtime.project.corruptPayload'))
   }
   const payload = parsed.data
@@ -104,23 +117,22 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
     : (() => {
         const migrated: Record<string, StoryboardDesign[]> = {}
         // 迁移读不动一份旧方案时，用户失去的是整份分镜——那件事不许静默发生。schema 这一侧
-        // 已经回到「剥离未知键」（见 storyboardPlanSchema 头注释），所以走到这里只剩真正残缺的
+        // 已经回到「剥离未知键」（见 storyboardDraftPlanSchema 头注释），所以走到这里只剩真正残缺的
         // 记录；至少把是谁、缺哪个字段留在控制台，别让它变成「打开项目分镜就没了」的谜。
-        const reportUnreadablePlan = (documentId: string, issues: readonly { path: PropertyKey[]; message: string }[]): void => {
-          logRendererWarn('storyboard-plan-migration-skipped',
-            { documentId, issues: issues.slice(0, 8).map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`).join('; ') })
+        const reportUnreadablePlan = (_documentId: string, issues: readonly { path: PropertyKey[] }[]): void => {
+          logRendererWarn('storyboard-plan-migration-skipped', { issues: issueFieldPaths(issues) })
         }
         const legacyEntries = legacyMap
           ? Object.entries(legacyMap).flatMap(([documentId, value]) => {
               if (!value || typeof value !== 'object') return []
               const entry = value as Record<string, unknown>
-              const plan = storyboardPlanSchema.safeParse(entry.plan)
+              const plan = storyboardDraftPlanSchema.safeParse(entry.plan)
               if (!plan.success) { reportUnreadablePlan(documentId, plan.error.issues); return [] }
               return [[documentId, { plan: plan.data, committed: entry.committed === true }] as const]
             })
           : (() => {
               if (raw[legacyPlanKey] === undefined) return []
-              const plan = storyboardPlanSchema.safeParse(raw[legacyPlanKey])
+              const plan = storyboardDraftPlanSchema.safeParse(raw[legacyPlanKey])
               if (!plan.success) { reportUnreadablePlan(activeDocumentId, plan.error.issues); return [] }
               return [[activeDocumentId, { plan: plan.data, committed: raw[legacyCommittedKey] === true }] as const]
             })()
