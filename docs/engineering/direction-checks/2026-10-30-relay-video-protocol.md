@@ -46,3 +46,9 @@
 用户 2026-10-30 原文：「它这个接入方式是我们的那个AI接入的接入方式，不是直接接入接入方式。直接接入接入方式是因为我们那个之前也试过，因为各个中转不一样，直接接入让用户接的话，他其实也接不了嘛。所以我们做的是这个让AI接入的」……「按你的这个思路走去做就好了」。协调明确这段拍板涵盖本刀热点文件，记录复盘和 Direction-Check 后继续。核心取舍：AI 交对的卡就忠实执行；没有协议证据就不替用户试扣钱。
 
 热点：generationOutputMaterializer 4 次、multipartOperation/newapiTransport 各 2 次、runtime 16 次、taskResultQuery 9 次、vendorHttp 4 次历史 fix；另命中 providerAdapter 目录和参考阶段/异步取回概念。不是新增供应商或版本特例。
+
+## 裁定
+
+2026-10-30 20:0x，协调将协议档＋封闭三段骨架的推荐交用户，用户原话：「按你的推荐走」。范围增补为 catalogCommit.draftShapeForKind 的视频默认分支与 relayNativeWireUpgrade 的通用配方；relayNativeWireUpgrade 文件级第3刀及通道概念第7刀由本次裁定覆盖。删除无证据生成默认视频mapping的路径，保留用户/AI显式mapping与已受理任务的查询合同。存量无法可靠区分来源时保留全部已存，不能仅凭报文相同判它是自动生成。
+
+本版采用用户允许的类型化字段退路：仅按档名交卡还需要改严格schema及能力投影线的登记/晋升读面，完整新卡格式留0.25。标准 /videos+/content 的配方继续由代码拥有。状态封闭集应在共享状态解析边界实现，不能另造第二个解析器绕过热点纪律。新命中的本裁定外文件级热点与自写登记仍停报；不触碰 perf-scenarios-lib，性能用现有量具按冷进程、安静窗口测。

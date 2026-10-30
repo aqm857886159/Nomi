@@ -20,7 +20,9 @@
     "electron/runtime.ts",
     "electron/tasks/taskResultQuery.ts",
     "electron/vendor/vendorHttp.ts",
-    "electron/capabilityCore/generationOutputMaterializer.ts"
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "electron/catalog/catalogCommit.ts",
+    "electron/catalog/relayNativeWireUpgrade.ts"
   ],
   "entry_points": [
     "Agent declaration to runtime",
@@ -42,7 +44,7 @@
     }
   ],
   "invariants": [
-    "The corrected builtin factory and no-mapping runtime do not infer a video route; external legacy catalog producers are pending",
+    "New video drafts require explicit protocol evidence; startup and retrieval never rewrite stored video mappings or accepted query snapshots",
     "Binary video results never pass through JSON/text buffering",
     "Task identifier survives retrieval errors; retrieval does not submit"
   ],
@@ -99,19 +101,14 @@
     },
     {
       "kind": "write",
-      "path": "electron/catalog/relayNativeWireUpgrade.ts",
-      "symbol": "newapiTransportFor"
-    },
-    {
-      "kind": "write",
       "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
       "symbol": "newapiTransportFor"
     }
   ],
   "door_reduction": {
     "before": 12,
-    "after": 12,
-    "why_not": "Runtime create and result-query remain separate lifecycle callers; JSON readers remain necessary. The builtin factory has explicit protocol selection, while catalogCommit.draftShapeForKind and relayNativeWireUpgrade still produce legacy defaults outside this task scope and need coordination before this class can be closed."
+    "after": 11,
+    "why_not": "Remove the relay startup automatic transport producer. Remaining catalogCommit transport calls are image/audio; builtin selection requires explicit video protocol. Runtime create and result-query are separate lifecycle callers, and JSON readers remain necessary for declared URL results."
   },
   "generality_proof": "Response role drives streaming at the shared executor for all declared connections; no vendor or model branch.",
   "shared_boundaries": [
@@ -134,6 +131,16 @@
       "path": "electron/capabilityCore/generationOutputMaterializer.ts",
       "symbol": "materializeProfileMediaResult",
       "responsibility": "Stream to private staging and publish only after decode"
+    },
+    {
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "draftShapeForKind",
+      "responsibility": "Preserve video identity without creating a route from model names or endpoint probes"
+    },
+    {
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "scheduleRelayNativeWireUpgrade",
+      "responsibility": "Retire automatic startup mutations when stored mapping authorship cannot be established"
     }
   ],
   "same_class_entry_points": [
@@ -169,38 +176,53 @@
       "electron/runtime.ts",
       "electron/providerAdapter/validator.ts",
       "electron/vendor/vendorHttp.ts",
-      "electron/capabilityCore/generationOutputMaterializer.ts"
+      "electron/capabilityCore/generationOutputMaterializer.ts",
+      "electron/catalog/catalogCommit.ts",
+      "electron/catalog/relayNativeWireUpgrade.ts",
+      "electron/tasks/taskResultQuery.ts"
     ]
   },
   "regression_tests": [
     "tests/relay-onboarding/contracts.test.mjs",
-    "tests/relay-onboarding/protocol.test.mjs"
+    "tests/relay-onboarding/protocol.test.mjs",
+    "electron/catalog/catalogCommit.videoEvidence.test.ts",
+    "electron/catalog/relayNativeWireReconcile.test.ts",
+    "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
+    "electron/tasks/relayQueryFallback.test.ts"
   ],
   "class_regression_tests": [
     "tests/relay-onboarding/contracts.test.mjs",
-    "tests/relay-onboarding/protocol.test.mjs"
+    "tests/relay-onboarding/protocol.test.mjs",
+    "electron/catalog/catalogCommit.videoEvidence.test.ts",
+    "electron/catalog/relayNativeWireReconcile.test.ts",
+    "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
+    "electron/tasks/relayQueryFallback.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
     "removed_paths": [
       "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
-      "electron/runtime.ts"
+      "electron/runtime.ts",
+      "electron/catalog/catalogCommit.ts",
+      "electron/catalog/relayNativeWireUpgrade.ts",
+      "electron/tasks/taskResultQuery.ts"
     ],
-    "rationale": "Remove implicit selection in builtinOpenAiCompatibleDraft and the no-mapping runtime. Explicit mappings remain unchanged. Legacy automatic producers in catalogCommit and relayNativeWireUpgrade are still pending outside this task scope."
+    "rationale": "Delete implicit video selection in builtin drafts, catalog video drafts and the no-mapping runtime. Delete automatic native/generic mapping migration and runtime query-route fallback. The main startup callback remains inert so its independent caller need not change. Preserve all existing mappings because authorship is not reliably distinguishable."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
     "rationale": "Native Fetch/FormData/Node stream and existing decoder; no SDK dependency introduced",
     "exit_criteria": []
   },
-  "migration": "Existing explicit mappings unchanged; generated undocumented video drafts have no modes until evidence is supplied.",
+  "migration": "Existing stored mappings and accepted task query contracts remain unchanged; model/probe-derived video drafts retain identity without mappings until an explicit AI declaration is supplied. Ambiguous legacy defaults remain executable if already stored; do not infer authorship from identical bytes.",
   "residual_risks": [
     "Real provider, paid run, Windows and independent acceptance remain unverified",
     "Legacy public URL materialization still uses the existing buffered path; the new bounded stream applies to authenticated file responses",
     "The retrieval function accepts AbortSignal, but main IPC and production cancellation callers have not been changed or end-to-end verified",
     "File responses require project identity; the independently owned tryModel entry does not currently supply it",
     "Unified perf driver registration requires a shared infrastructure change outside this task scope",
-    "catalogCommit.draftShapeForKind at the video fallback and relayNativeWireUpgrade still call the legacy transport without protocol evidence; routing remediation is incomplete"
+    "Closed unknown-status semantics remain unimplemented: responseParsing.ts is a newly detected file-level hotspot outside the coordinator ruling, so work stopped before editing that shared parser.",
+    "Stored generated defaults are indistinguishable from explicit declarations; preserving all old rows also preserves any old guessed route."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",

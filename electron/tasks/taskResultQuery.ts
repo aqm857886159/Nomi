@@ -26,7 +26,6 @@ import {
 } from "../runtime";
 import { logWarn } from "../logging/logger";
 import { retrievalStageError } from "./retrievalStageError";
-import { noteRelayQueryOutcome } from "../catalog/relayNativeWireUpgrade";
 import { expectedMediaKind, readTaskResponse } from "./taskResultReading";
 
 // ── 未登记状态动词的有界容忍（根因修复，见 docs/plan/2026-08-11-unrecognized-task-status-root-fix.md）──
@@ -201,30 +200,14 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
       stage: "query",
       providerMeta: queryProviderMeta,
     });
-    // 「查」这一步只有一种构造（首次轮询与「重新取回」都走这里，缓存命中与无状态重建只差上下文来源）。
-    // 中转上的原生通道连续按合同认出的非瞬时失败（无可用渠道 / 路由不存在 / 任务号无效）→ 体检 owner
-    // 单向退回通用通道、记日志；这一单免费用通用查询再试一次，不重新提交（#1213 原则 2）。
-    let mapping = cached.mapping;
-    let activeQuery = queryOperation;
-    let fellBackNote = "";
+    // The accepted task owns its query contract. Failures never select another route.
+    const mapping = cached.mapping;
+    const activeQuery = queryOperation;
     let executed: Awaited<ReturnType<typeof executeProfileOperation>>;
     try {
       executed = await runQuery(activeQuery);
-      noteRelayQueryOutcome({ vendorKey: cached.vendor, model, mapping, error: null });
     } catch (error) {
-      const fallback = noteRelayQueryOutcome({ vendorKey: cached.vendor, model, mapping, error });
-      const archetype = cached.request.extras?.archetype;
-      const modeId = archetype && typeof archetype === "object" ? trim((archetype as JsonRecord).modeId) : "";
-      const replacement = fallback ? findTaskMapping(cached.vendor, cached.request.kind, model.modelKey, modeId || undefined) : null;
-      if (!fallback || !replacement?.query) throw retrievalStageError("retrieval-query", error);
-      fellBackNote = desktopT("tasks.wireFellBack", { from: fallback.from, to: fallback.to, count: fallback.count });
-      mapping = replacement;
-      activeQuery = replacement.query;
-      try {
-        executed = await runQuery(activeQuery);
-      } catch (retryError) {
-        throw retrievalStageError("retrieval-query", retryError, fellBackNote);
-      }
+      throw retrievalStageError("retrieval-query", error);
     }
     const readResult = async (response: unknown, operation: NonNullable<typeof queryOperation>) => {
       try {
@@ -242,7 +225,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
         });
       } catch (error) {
         // 读到地址后落盘没成（下载 / 落盘）：带 download 阶段；出站被拦等更具体的码原样放行。
-        throw retrievalStageError("retrieval-download", error, fellBackNote);
+        throw retrievalStageError("retrieval-download", error);
       }
     };
     let normalized = await readResult(executed.response, activeQuery);
@@ -267,7 +250,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
           providerMeta: resultProviderMeta,
         });
       } catch (error) {
-        throw retrievalStageError(mapping.result.mediaResponse ? "retrieval-download" : "retrieval-query", error, fellBackNote);
+        throw retrievalStageError(mapping.result.mediaResponse ? "retrieval-download" : "retrieval-query", error);
       }
       const resultNormalized = await readResult(executed.response, mapping.result);
       normalized = { ...resultNormalized, actualCost: resultNormalized.actualCost ?? normalized.actualCost, providerMeta: { ...resultProviderMeta, ...resultNormalized.providerMeta } };
@@ -294,7 +277,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
         status: streak?.verb || "",
         polls: streak?.polls || 0,
         seconds: Math.round((now - (streak?.firstSeenAt || now)) / 1000),
-      }), fellBackNote);
+      }));
     }
     // 「说成了却没产物」对 query 与 result 两跳统一生效：不判失败，留在缓存里等下一次查 / 重新取回。
     const missingOutput = missingAsyncMediaOutput(normalized.result, cached.wantedKind || model.kind, lastResponse);
