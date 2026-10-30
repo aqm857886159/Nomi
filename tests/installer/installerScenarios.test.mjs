@@ -6,7 +6,7 @@
 //   · 工作流在 windows-latest 上跑全部场景、反例开着、不带 --only，旧版是 v0.24.0；
 //   · 它是发版硬门：desktop-rc.yml 恰好一个作业无条件调用它、finalize 依赖它，desktop-release.yml 只晋级 success 的候选版；
 //   · 执行器种「默认位置」用户数据的地方，还是应用代码里新项目的默认位置（「文档」\Nomi Projects）；
-//   · build/installer.nsh 没有 `RMDir /r`、6 个钩子都在，常量和 scenarios.mjs 逐字一致，引入的清单路径就是生成器写的路径；
+//   · build/installer.nsh 没有 `RMDir /r`、4 个钩子都在，常量和 scenarios.mjs 逐字一致，引入的清单路径就是生成器写的路径；
 //   · package.json 的打包配置还是 installer.nsh 能处理的形状；
 //   · 每个反例要改的那一句在 installer.nsh 里恰好一处；
 //   · electron-builder 的 NSIS 模板逐字节没变（installer.nsh 依赖它的钩子顺序和宏名）。
@@ -20,7 +20,7 @@ import yaml from 'js-yaml'
 import { afterEach, describe, expect, it } from 'vitest'
 import { registerInstallerCompileTests } from '../../scripts/packaging/installer-compile.cases.mjs'
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
-import { COUNTEREXAMPLES, DEFAULT_PROJECTS_FOLDER, KEEP_README, KEEP_SUFFIX, MARKER_VALUE_NAME, PENDING_VALUE_PREFIX, REQUIRED_COVERAGE, SCENARIOS } from './scenarios.mjs'
+import { COUNTEREXAMPLES, DEFAULT_PROJECTS_FOLDER, MARKER_VALUE_NAME, REQUIRED_COVERAGE, SCENARIOS } from './scenarios.mjs'
 import { OLD_VERSION, SCENARIO_RUNNERS, applyMutation } from './windows-installer-scenarios.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -42,9 +42,8 @@ afterEach(() => {
 
 /**
  * electron-builder 26.15.3 的 NSIS 模板指纹。build/installer.nsh 依赖的东西都在这几个文件里：钩子的插入点与顺序
- * （customHeader / customCheckAppRunning / customUnInstallCheck* / customRemoveFiles / customInstall）、
- * 照抄的默认处理（installUtil.nsh 的 handleUninstallResult、uninstaller.nsh 的原子挪走）、原样调用的宏
- * （IS_POWERSHELL_AVAILABLE / _CHECK_APP_RUNNING / GetProcessInfo）。
+ * （customHeader / customInit / customRemoveFiles / customInstall）、
+ * 登记卸载器的定位与执行（installUtil.nsh 的 GetInQuotes / uninstallOldVersion）、清单卸载所保留的原子语义。
  * 这里红了：逐个重读变了的文件，确认上面每一条还成立，必要时改 installer.nsh；再更新这张表——
  * 改 tests/installer/ 下的文件会触发 Windows 安装作业，真装真升真卸再验一遍。
  */
@@ -80,7 +79,7 @@ function fingerprintProblems(dir) {
 }
 
 /** NSIS 源码只留指令：去掉 /* *\/ 块注释、以 ; 或 # 开头的注释（整行或行尾），引号里的内容换成空格。 */
-function nsisCode(source) {
+function nsisCode(source, maskStrings = true) {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((line) => {
     let out = ''
     let quote = null
@@ -88,13 +87,13 @@ function nsisCode(source) {
       const ch = line[i]
       if (quote) {
         if (ch === '$' && line[i + 1] === '\\' && line[i + 2] === quote) {
-          out += '   '
+          out += maskStrings ? '   ' : line.slice(i, i + 3)
           i += 2
         } else if (ch === quote) {
           quote = null
           out += ch
         } else {
-          out += ' '
+          out += maskStrings ? ' ' : ch
         }
         continue
       }
@@ -121,11 +120,54 @@ function recursiveRemovals(source) {
   return hits
 }
 
-const HOOKS = ['customHeader', 'customCheckAppRunning', 'customUnInstallCheck', 'customUnInstallCheckCurrentUser', 'customRemoveFiles', 'customInstall']
+const HOOKS = ['customHeader', 'customInit', 'customRemoveFiles', 'customInstall']
 
 function hookCounts(source) {
   const code = nsisCode(source)
   return Object.fromEntries(HOOKS.map((hook) => [hook, [...code.matchAll(new RegExp(`^\\s*!macro\\s+${hook}\\b`, 'gm'))].length]))
+}
+
+/** Exactly one initialization call, no alternate entry or undocumented custom hooks. */
+function replacementWiringProblems(source) {
+  const code = nsisCode(source)
+  const init = /^\s*!macro customInit\s*\n([\s\S]*?)^\s*!macroend/m.exec(code)?.[1] ?? ''
+  const calls = code.match(/^\s*Call nomiReplaceUntrustedUninstaller\s*$/gm) ?? []
+  const problems = []
+  if (calls.length !== 1 || !/^\s*Call nomiReplaceUntrustedUninstaller\s*$/m.test(init)) problems.push('replacement must be called once, only inside customInit')
+  const actual = [...code.matchAll(/^\s*!macro\s+(custom\w+)\b/gm)].map((m) => m[1]).sort()
+  if (JSON.stringify(actual) !== JSON.stringify([...HOOKS].sort())) problems.push('only the four documented hooks are allowed')
+  return problems
+}
+
+/** All file mutation operands are enumerated; an unowned sidecar cannot be inferred from its name. */
+function mutatorTargetProblems(source) {
+  const allowed = new Set([
+    '$INSTDIR', '$INSTDIR\\${_P}', '$INSTDIR\\$0', '$INSTDIR\\${UNINSTALL_FILENAME}', '$INSTDIR\\uninstallerIcon.ico',
+    '$PLUGINSDIR\\old-install\\$0', '$PLUGINSDIR\\old-install\\${UNINSTALL_FILENAME}', '$PLUGINSDIR\\nomi-safe-uninstaller.exe', '$nomiUninstaller',
+  ])
+  const problems = []
+  const unquote = (s) => /^["'`]/.test(s) ? s.slice(1, -1) : s
+  for (const [index, raw] of nsisCode(source, false).split('\n').entries()) {
+    const line = raw.trim()
+    const tokens = (line.match(/"[^"]*"|'[^']*'|`[^`]*`|\S+/g) ?? []).map(unquote)
+    const op = tokens.shift()?.toLowerCase()
+    let paths = []
+    if (['delete', 'rmdir', 'rename', 'copyfiles'].includes(op)) paths = tokens.filter((x) => !x.startsWith('/'))
+    if (op === 'file') {
+      const output = tokens.find((x) => x.toLowerCase().startsWith('/oname='))
+      if (!output || tokens.at(-1) !== '${UNINSTALLER_OUT_FILE}') problems.push(`line ${index + 1}: File must extract the packaged uninstaller to an explicit target`)
+      paths = output ? [output.slice('/oname='.length)] : []
+    }
+    if (op === 'system::call') {
+      if (!/kernel32::MoveFileExW\(/.test(line) || !/, i 11\)/.test(line)) problems.push(`line ${index + 1}: unexpected filesystem API or flags`)
+      paths = [...line.matchAll(/w\s+"([^"]+)"/g)].map((m) => m[1])
+      if (paths.length !== 2) problems.push(`line ${index + 1}: MoveFileExW must have two explicit paths`)
+    }
+    for (const target of paths) if (!allowed.has(target)) problems.push(`line ${index + 1}: unowned mutation target ${target}`)
+    if (/^(?:StrCpy|StrCat)\s+\$nomiUninstaller\b/i.test(line)) problems.push(`line ${index + 1}: registered path cannot be synthesized`)
+  }
+  if (!/ReadRegStr \$nomiUninstaller[^\n]+UninstallString/.test(source) || !/Call GetInQuotes\s*\n\s*Pop \$nomiUninstaller/.test(source)) problems.push('replacement path must come from template-style registry parsing')
+  return problems
 }
 
 /** 工作流判据：Windows 上跑执行器、全部场景、反例开着、旧版对、参数齐、推送路径罩住安装器相关文件。返回问题清单。 */
@@ -151,7 +193,7 @@ function workflowProblems(text) {
   if (!('workflow_call' in triggers)) problems.push(`workflow_call trigger missing (${RC_WORKFLOW} calls this workflow as a release gate)`)
   const paths = triggers.push?.paths ?? []
   const covered = (file) => paths.some((pattern) => (pattern.endsWith('/**') ? file.startsWith(pattern.slice(0, -2)) : pattern === file))
-  for (const file of [INSTALLER_NSH, 'scripts/packaging/installer-manifest.cjs', 'scripts/after-pack-mac.cjs', 'tests/installer/scenarios.mjs', 'tests/installer/windows-installer-scenarios.mjs', 'tests/installer/dialog-watcher.ps1', 'tests/installer/installerScenarios.test.mjs', WORKFLOW]) {
+  for (const file of [INSTALLER_NSH, 'scripts/packaging/installer-manifest.cjs', 'scripts/after-pack-mac.cjs', 'tests/installer/scenarios.mjs', 'tests/installer/windows-installer-scenarios.mjs', 'tests/installer/dialog-watcher.ps1', 'tests/installer/late-deleter-gate.mjs', 'tests/installer/installerScenarios.test.mjs', WORKFLOW]) {
     if (!covered(file)) problems.push(`push.paths does not cover ${file}`)
   }
   return problems
@@ -246,7 +288,7 @@ describe('the default project location the runner seeds', () => {
 describe('build/installer.nsh', () => {
   const source = read(INSTALLER_NSH)
 
-  it('never removes a directory recursively and defines the six hooks it relies on, once each', () => {
+  it('never removes a directory recursively and defines the four hooks it relies on, once each', () => {
     expect(recursiveRemovals(source)).toEqual([])
     expect(hookCounts(source)).toEqual(Object.fromEntries(HOOKS.map((hook) => [hook, 1])))
   })
@@ -259,14 +301,24 @@ describe('build/installer.nsh', () => {
     expect(hookCounts(source.replace('!macro customRemoveFiles', '!macro customRemoveFilesOff'))).toMatchObject({ customRemoveFiles: 0 })
   })
 
+  it('replacement wiring is exclusive to customInit', () => {
+    expect(replacementWiringProblems(source)).toEqual([])
+    expect(replacementWiringProblems(source.replace('  Call nomiReplaceUntrustedUninstaller\n', ''))).not.toEqual([])
+    expect(replacementWiringProblems(`${source}\nCall nomiReplaceUntrustedUninstaller\n`)).not.toEqual([])
+  })
+
+  it('mutator targets cannot escape the owned files, plugin directory or registered uninstaller', () => {
+    expect(mutatorTargetProblems(source)).toEqual([])
+    expect(mutatorTargetProblems(`${source}\nDelete "$INSTDIR.nomi-keep\\x"\n`)).toContainEqual(expect.stringContaining('unowned mutation target'))
+    expect(mutatorTargetProblems(`${source}\nRename "$INSTDIR\\$0" "$INSTDIR.nomi-keep\\x"\n`)).toContainEqual(expect.stringContaining('unowned mutation target'))
+    expect(mutatorTargetProblems(`${source}\nStrCpy $nomiUninstaller "$INSTDIR.nomi-keep\\x"\n`)).toContainEqual(expect.stringContaining('cannot be synthesized'))
+  })
+
   it('uses the same literals as the scenario runner', () => {
     const lines = source.split('\n')
-    expect(lines).toContain(`!define NOMI_KEEP_SUFFIX "${KEEP_SUFFIX}"`)
-    expect(lines).toContain(`!define NOMI_KEEP_README "${KEEP_README}"`)
     expect(lines).toContain(`!define NOMI_REMOVES_ONLY_OWN_FILES "${MARKER_VALUE_NAME}"`)
-    // 待恢复记录的值名：写和删都按槽位拼，读的时候两个槽位各读一次；执行器按同一个前缀造「上次被打断」的现场。
-    const pendingNames = new Set(source.match(/"Pending[^"]*"/g))
-    expect(pendingNames).toEqual(new Set([`"${PENDING_VALUE_PREFIX}$nomiSlot"`, `"${PENDING_VALUE_PREFIX}1"`, `"${PENDING_VALUE_PREFIX}2"`]))
+    expect(source).not.toMatch(/NOMI_KEEP_|Pending[12$]|nomiKeepAside|nomiRecover|customCheckAppRunning|customUnInstallCheck/)
+
   })
 
   it('includes the manifest at the path the generator writes, and only uses macros the generator renders', () => {
@@ -276,13 +328,24 @@ describe('build/installer.nsh', () => {
     const rendered = renderNsh({ version: '1.0.0', files: ['Nomi.exe'], dirs: ['resources'], topLevelNames: ['Nomi.exe', 'resources'] })
     const used = new Set([...source.matchAll(/\bNOMI_INSTALLER_[A-Z_]+\b/g)].map((match) => match[0]))
     expect([...used].filter((name) => !rendered.includes(`!macro ${name} _M`) && !rendered.includes(`!define ${name} `))).toEqual([])
-    expect(used.size).toBeGreaterThanOrEqual(5)
+    expect(used.size).toBeGreaterThanOrEqual(3)
+  })
+
+  it('both replacement mutations test A1, A14 and A15 in the same built package', () => {
+    for (const id of ['skip-replace', 'trust-every-version']) {
+      const mutation = COUNTEREXAMPLES.find((item) => item.id === id)
+      expect(mutation.alsoExpectRed.find((item) => item.scenario === 'late-deleter-after-killed-installer')).toMatchObject({ legacyImage: true, additionalFailureMatch: 'held image is not the current uninstaller' })
+      expect([mutation.expectRed, ...mutation.alsoExpectRed.map((item) => item.scenario)].sort()).toEqual(['old-to-new-user-folder', 'late-deleter-after-killed-installer', 'unowned-sidecar-untouched'].sort())
+    }
+    const runner = read('tests/installer/windows-installer-scenarios.mjs')
+    expect(runner).toContain('for (const check of checks)')
+    expect(runner).toContain('production installer bytes changed during mutation checks')
   })
 
   it('every counterexample changes exactly one place, and CX1 really reintroduces a recursive removal', () => {
     expect(new Set(COUNTEREXAMPLES.map((counterexample) => counterexample.id)).size).toBe(COUNTEREXAMPLES.length)
     for (const counterexample of COUNTEREXAMPLES) {
-      expect(SCENARIOS.map((scenario) => scenario.id)).toContain(counterexample.expectRed)
+      for (const check of [{ scenario: counterexample.expectRed }, ...(counterexample.alsoExpectRed ?? [])]) expect(SCENARIOS.map((scenario) => scenario.id)).toContain(check.scenario)
       expect(counterexample.failureMatch.length).toBeGreaterThan(0)
       expect(applyMutation(source, counterexample)).not.toBe(source)
     }

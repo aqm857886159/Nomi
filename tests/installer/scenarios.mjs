@@ -4,16 +4,10 @@
 //   · tests/installer/windows-installer-scenarios.mjs：.github/workflows/win-installer.yml 在 windows-latest 上逐个真装真升真卸；
 //   · tests/installer/installerScenarios.test.mjs：普查——每个覆盖面有场景认领、每个场景有执行器、工作流跑全部、
 //     build/installer.nsh 的字面量与这里逐字一致、每个反例的改动在 installer.nsh 里恰好一处；
-//   · build/installer.nsh：下面四个常量是它的 !define / 注册表名，改一边不改另一边普查就红。
+//   · build/installer.nsh：能力标记名与它的 !define 对账，改一边不改另一边普查就红。
 
-/** 与 build/installer.nsh 的 `!define NOMI_KEEP_SUFFIX` 一致：旁边目录 = <安装目录> + 它；待恢复记录键 = Software\<GUID> + 它。 */
-export const KEEP_SUFFIX = '.nomi-keep'
-/** 与 `!define NOMI_KEEP_README` 一致：旁边目录里的说明文件，恢复只认有它的旁边目录。 */
-export const KEEP_README = 'NOMI-INSTALLER-KEEP.txt'
-/** 与 `!define NOMI_REMOVES_ONLY_OWN_FILES` 一致：Software\<GUID> 下的标记，值 = 写入它的版本。 */
+/** 能力标记：只信等于同根 DisplayVersion 的非空值。 */
 export const MARKER_VALUE_NAME = 'RemovesOnlyOwnFiles'
-/** 待恢复记录的值名前缀（Pending1 / Pending2），installer.nsh 写作 "Pending$nomiSlot"。 */
-export const PENDING_VALUE_PREFIX = 'Pending'
 /**
  * 新项目的默认位置 = 「文档」下的这个文件夹（electron/runtimePaths.ts 的 defaultProjectsFolderName，应用名是 Nomi 时）。
  * 执行器把「默认位置」的用户数据种在这里；普查测试核对应用代码里还是这个名字、还是「文档」目录。
@@ -35,6 +29,7 @@ export const REQUIRED_COVERAGE = Object.freeze({
   'app-still-running': '应用还开着时就开始升级',
   'per-machine': '旧版装给了所有用户',
   'stale-marker': '注册表里有别的版本写的标记',
+  'locked-uninstaller': '登记卸载程序不可替换时，在执行前中止',
   'late-deleter': '只终止父安装器后，迟到的卸载进程继续运行',
   'unowned-sidecar': '没有待恢复记录的同名旁边目录属于用户',
   'nested-old-upgrade': '旧版升级那一次的安装器子目录内用户文件',
@@ -59,13 +54,13 @@ export const SCENARIOS = Object.freeze([
     id: 'old-to-new-app-still-running',
     card: 'A3',
     covers: ['app-still-running', 'old-to-new'],
-    title: '旧版 Nomi 以 xiangmu 为工作目录还开着时升级：先等 / 结束应用，再挪开',
+    title: '旧版 Nomi 以 xiangmu 为工作目录还开着时升级：默认模板结束应用，用户文件不动',
   },
   {
     id: 'old-to-new-locked-user-file',
     card: 'A4',
     covers: ['locked-user-file', 'old-to-new'],
-    title: '用户文件被独占打开：静默升级中止、弹框说明、旧版原样；解除占用后重跑成功',
+    title: '用户文件被独占打开：用户文件被占用不挡更新，无对话框、文件原样',
   },
   {
     id: 'old-to-new-changed-dir',
@@ -77,13 +72,13 @@ export const SCENARIOS = Object.freeze([
     id: 'old-to-new-per-machine',
     card: 'A6',
     covers: ['per-machine', 'old-to-new'],
-    title: '0.24.0 装给所有用户（HKLM）：旧卸载程序跑两轮，最后一轮之后挪回',
+    title: '0.24.0 装给所有用户（HKLM）：旧卸载程序跑两轮，每个可执行的登记先换成清单卸载器',
   },
   {
     id: 'old-to-new-stale-marker',
     card: 'A7',
     covers: ['stale-marker', 'old-to-new'],
-    title: '注册表标记是别的版本写的：不信，照样挪开保护',
+    title: '注册表标记是别的版本写的：不信，替换登记的卸载程序',
   },
   {
     id: 'old-to-new-no-foreign-then-uninstall',
@@ -95,13 +90,13 @@ export const SCENARIOS = Object.freeze([
     id: 'interrupted-after-replace',
     card: 'A9',
     covers: ['interrupted-run', 'old-to-new'],
-    title: '上次挪开后、旧卸载程序已跑完时被打断（注册表没了）：按待恢复记录挪回原路径',
+    title: '上次换好安全卸载器后被打断：重跑升级，用户文件不动',
   },
   {
     id: 'interrupted-after-replaced-uninstaller-ran',
     card: 'A10',
     covers: ['interrupted-run', 'old-to-new'],
-    title: '上次挪开了一部分就被打断（旧版还装着）：先挪回，再正常升级',
+    title: '安全卸载器已跑完时被打断：重装原目录，用户文件原地',
   },
   {
     id: 'new-to-new-update',
@@ -131,6 +126,11 @@ export const SCENARIOS = Object.freeze([
     covers: ['unowned-sidecar', 'old-to-new', 'plain-uninstall'],
     title: '用户自己的同名旁边目录和说明文件，在升级与卸载后逐文件原样保留',
   },
+  {
+    id: 'old-to-new-locked-uninstaller', card: 'A16',
+    covers: ['locked-uninstaller', 'old-to-new'],
+    title: '独占登记卸载程序：静默下恰好一个双语框、退出 2、旧版字节与登记不变；释放后重试成功',
+  },
 ])
 
 /**
@@ -140,27 +140,41 @@ export const SCENARIOS = Object.freeze([
  */
 export const COUNTEREXAMPLES = Object.freeze([
   {
-    id: 'remove-all-on-uninstall',
-    card: 'CX1',
-    expectRed: 'new-uninstall-keeps-user-files',
-    failureMatch: 'user file',
+    id: 'remove-all-on-uninstall', card: 'CX1',
+    expectRed: 'new-uninstall-keeps-user-files', failureMatch: 'user file',
     find: '!insertmacro NOMI_INSTALLER_FILES nomiUnDeleteOwnedFile',
     replace: 'RMDir /r "$INSTDIR"',
   },
   {
-    id: 'skip-keep-aside',
-    card: 'CX2',
-    expectRed: 'old-to-new-user-folder',
-    failureMatch: 'user file',
-    find: '; 安装程序的当前目录（.onInit 设成 $INSTDIR）会占住安装目录，先挪开。',
-    replace: 'Return',
+    id: 'skip-replace', card: 'CX2',
+    expectRed: 'old-to-new-user-folder', failureMatch: 'user file',
+    alsoExpectRed: [
+      { scenario: 'late-deleter-after-killed-installer', failureMatch: 'user file', additionalFailureMatch: 'held image is not the current uninstaller', legacyImage: true, card: 'CX9' },
+      { scenario: 'unowned-sidecar-untouched', failureMatch: 'user file', card: 'CX2' },
+    ],
+    find: '    Function nomiReplaceUntrustedUninstaller\n',
+    replace: '    Function nomiReplaceUntrustedUninstaller\n      Return\n',
   },
   {
-    id: 'silent-dialog',
-    card: 'CX3',
-    expectRed: 'old-to-new-locked-user-file',
-    failureMatch: 'dialog',
-    find: 'Close that program and update Nomi again."',
-    replace: 'Close that program and update Nomi again." /SD IDOK',
+    id: 'trust-every-version', card: 'CX11',
+    expectRed: 'old-to-new-user-folder', failureMatch: 'user file',
+    alsoExpectRed: [
+      { scenario: 'late-deleter-after-killed-installer', failureMatch: 'user file', additionalFailureMatch: 'held image is not the current uninstaller', legacyImage: true, card: 'CX11' },
+      { scenario: 'unowned-sidecar-untouched', failureMatch: 'user file', card: 'CX11' },
+    ],
+    find: '    ${If} $nomiMarker == ""\n    ${OrIf} $nomiMarker != $nomiVersion',
+    replace: '    ${If} 0 == 1',
+  },
+  {
+    id: 'silent-dialog', card: 'CX3',
+    expectRed: 'old-to-new-locked-uninstaller', failureMatch: 'dialog',
+    find: 'check write permission, and update Nomi again."',
+    replace: 'check write permission, and update Nomi again." /SD IDOK',
+  },
+  {
+    id: 'touch-unowned-sidecar', card: 'CX10',
+    expectRed: 'unowned-sidecar-untouched', failureMatch: 'NOMI-INSTALLER-KEEP.txt',
+    find: '    Function nomiReplaceUntrustedUninstaller\n',
+    replace: '    Function nomiReplaceUntrustedUninstaller\n      Delete "$INSTDIR.nomi-keep\\NOMI-INSTALLER-KEEP.txt"\n',
   },
 ])

@@ -21,7 +21,7 @@
     },
     {
       "path": "build/installer.nsh",
-      "symbol": "nomiKeepAside"
+      "symbol": "nomiReplaceUntrustedUninstaller"
     },
     {
       "path": "build/installer.nsh",
@@ -49,5 +49,5 @@
     ".github/workflows/desktop-rc.yml"
   ],
   "since": "2026-10-29",
-  "notes": "「安装目录里哪些东西属于安装器、卸载时能删」只有一份判据：afterPack 从剪完平台二进制的打包产物现算的安装器清单（computeInstallerManifest，写到 .tmp/installer-manifest/，不提交），build/installer.nsh 编译时引入并按版本号核对。删除只在 customRemoveFiles 一处（只删清单文件 + 卸载程序，目录非递归、最深在前），不许再出现 RMDir /r 或手抄的第二份文件表；改不了的旧版本卸载程序由 nomiKeepAside 在调用前把顶层外来条目同盘挪开。对拍：tests/installer/installerScenarios.test.mjs（installer.nsh 引入的就是生成器写的路径与宏、没有 RMDir /r、钩子齐、模板指纹）与 scripts/packaging/installer-manifest.test.mjs（清单、NSH、打包产物三方一致）；真装真升真卸在 .github/workflows/win-installer.yml。合同：docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json。 2026-10-30 编译闭环：!include 负责让同一份清单在 Windows/Unix 编译器上都能读取；compileInstallerTemplates 用真实模板验证该清单和安装/卸载宏能编译，不另产生安装文件归属规则。推送前的 installerScenarios 普查包含两轮真实编译。合同：docs/fixes/2026-10-30-installer-nsis-compile.root-cause.json。 2026-10-30 场景执行闭环：Invoke-NomiHarnessScript 只拥有测试子进程的退出和错误原文，powerShellFailure 只解析诊断，不产生安装器文件归属规则。同步片段、监视器和锁助手共用包装；默认 windowsHarness.test.mjs 钉住静态覆盖和 CLIXML 解析。"
+  "notes": "文件归属只由 computeInstallerManifest 从 afterPack 产物生成。customRemoveFiles 只删清单文件/卸载器/可选图标，目录非递归。customInit 唯一调用 nomiReplaceUntrustedUninstaller，按模板登记路径替换不可信卸载器，失败在旧执行前退出；不搬移用户文件、不读取恢复状态。compileInstallerTemplates 只验证真实双轮编译，Invoke-NomiHarnessScript/powerShellFailure 只负责测试退出和诊断，不产生第二份归属判据。installerScenarios.test.mjs 对拍清单路径、四钩子、唯一接线、变更目标白名单、模板指纹；Windows A1–A16 与变异包验证行为。"
 }

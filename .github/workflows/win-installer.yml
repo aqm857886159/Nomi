@@ -1,8 +1,8 @@
-# Windows 安装器真装、真升级、真卸载：设计卡 docs/plan/2026-10-29-installer-keep-user-files.md ★9 的场景 A1–A13 与反例 CX1–CX3。
+# Windows 安装器真装、真升级、真卸载：设计卡 docs/plan/2026-10-29-installer-keep-user-files.md ★9 的场景 A1–A16 与登记的全部反例。
 #
 # 为什么要有它：0.24.0 的卸载程序是 electron-builder 默认的 `RMDir /r $INSTDIR`。一位用户把项目位置设在安装目录下，
 # 一升级 5 个项目全没了，回收站里也没有。修法（build/installer.nsh + 构建时生成的安装器清单）只能在真 Windows 上验：
-# 开发机是 macOS，没有 makensis，也造不出注册表、文件占用、静默安装时的对话框。windows-latest 有真 NTFS、真 NSIS、真注册表。
+# 开发机 macOS 能验编译，但不能运行 Windows 注册表、文件占用、静默安装时的对话框。windows-latest 有真 NTFS、真 NSIS、真注册表。
 #
 # 旧版用 GitHub Release v0.24.0 的安装包（事故那一版），按同一个 Release 的 SHA256SUMS.txt 校验，不用自建的模拟包。
 # 场景登记在 tests/installer/scenarios.mjs，执行器是 tests/installer/windows-installer-scenarios.mjs；

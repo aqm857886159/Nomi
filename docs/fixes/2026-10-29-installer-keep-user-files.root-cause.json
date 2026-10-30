@@ -5,7 +5,7 @@
   "problem_type": "Windows 安装器整目录删除安装目录，用户放进安装目录的文件随升级 / 卸载一起被删",
   "symptom": "一位 Windows 用户把 Nomi 装在 F:\\Nomi_new，把新项目默认位置设成安装目录下的 xiangmu 并建了 5 个项目；0.24.0 提示更新后直接安装，装完 xiangmu 是空的，5 个项目全没了，回收站里也没有。放在 C 盘文档里的第 6 个项目还在。",
   "direct_cause": "package.json 的 build.nsis 没有 include，electron-builder 26.15.3 走默认卸载段（templates/nsis/uninstaller.nsh 的 Section：升级时 un.atomicRMDir 把安装目录里每个文件挪进 $PLUGINSDIR\\old-install、再 RMDir /r $INSTDIR；普通卸载直接 RMDir /r $INSTDIR）。升级时新安装程序先运行注册表里登记的旧版本卸载程序（include/installUtil.nsh 的 uninstallOldVersion），旧卸载程序把安装目录连同用户的项目一起删掉，卸载程序退出时 $PLUGINSDIR 被清空，不进回收站。",
-  "class_root": "安装器没有「安装目录里哪些东西是我的」这份记录，删除只能按目录整体做；而安装目录由用户自选、应用也允许把项目放在任意目录（包括安装目录），所以每一条会运行卸载段的路径——两种自动更新、手动覆盖重装、改目录重装、控制面板卸载、装给所有用户时的两轮旧卸载——都能删掉用户数据。",
+  "class_root": "缺少安装器文件归属不变量，且把旧卸载程序不可修改误当成调用链不可改变；以搬移/恢复用户数据的事务与独立存活的递归删除进程赛跑，并按文件名猜测旁边目录归属。应在模板调用之前替换不可信删除者，让所有删除都受构建清单约束。",
   "affected_population": [
     "Windows 上把项目位置或任何文件放在 Nomi 安装目录里的用户（升级、重装、卸载都会触发）",
     "安装目录选在本来就有用户文件的目录（如 D:\\工作）的用户",
@@ -40,8 +40,8 @@
     {
       "kind": "source-code",
       "url": "https://github.com/electron-userland/electron-builder/tree/master/packages/app-builder-lib/templates/nsis",
-      "checked_at": "2026-10-29",
-      "purpose": "以本仓 node_modules 里 app-builder-lib 26.15.3 的模板原文为准：默认删除段（uninstaller.nsh）、customCheckAppRunning / customUnInstallCheck* / customRemoveFiles / customHeader 的插入点与顺序、handleUninstallResult 的默认处理、uninstallOldVersion 的参数与重试；模板逐字节指纹钉在 tests/installer/installerScenarios.test.mjs。"
+      "checked_at": "2026-10-30",
+      "purpose": "本机真实 26.15.3 模板：customInit 在 installer.nsi:79–81；installSection:52–58 调旧卸载；installUtil:155–167 取路径、209–230 复制/执行；installer:100 写本版卸载器；12 文件指纹钉住调用链。"
     },
     {
       "kind": "official-doc",
@@ -57,9 +57,9 @@
     },
     {
       "kind": "official-doc",
-      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefilew",
-      "checked_at": "2026-10-29",
-      "purpose": "MoveFile 目录只能在同一个卷内移动、文件跨卷退化成复制 + 删除、目标已存在就失败：旁边目录必须和安装目录同一个父目录。"
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw",
+      "checked_at": "2026-10-30",
+      "purpose": "REPLACE_EXISTING|COPY_ALLOWED|WRITE_THROUGH=11；允许 TEMP 与登记安装目录跨卷，失败返回 0 时中止。"
     },
     {
       "kind": "source-code",
@@ -75,12 +75,12 @@
     }
   ],
   "invariants": [
-    "卸载程序只删构建时清单里的文件和 Uninstall <产品名>.exe，目录一律非递归、空了才删；用户放在安装目录里（包括安装器自己的子目录里）的东西留在原处。",
-    "从注册表里没有可信 RemovesOnlyOwnFiles 标记的旧版本升级时，旧卸载程序运行之前，安装目录顶层不属于安装器的条目已同盘挪到 <安装目录>.nomi-keep；旧卸载程序一结束就挪回原路径。",
-    "挪不开就把已挪的挪回、中止更新、什么都不删，并弹出说明；静默安装也弹。",
-    "任何时刻被打断，每个用户文件要么在原处、要么在旁边目录（附说明文件和 HKCU\\Software\\<GUID>.nomi-keep 待恢复记录），下次运行安装程序自动挪回。",
-    "RemovesOnlyOwnFiles 只在等于同一根键下卸载项的 DisplayVersion 时才被信。",
-    "清单只能由 afterPack 从打包产物现算，NSIS 编译时按版本号核对，过期的清单编不进安装包。"
+    "customRemoveFiles 仅处理构建清单内文件、卸载程序和可选图标；所有目录非递归、空了才删。",
+    "customInit 是替换入口，只调用 nomiReplaceUntrustedUninstaller 一次；HKCU 一轮，管理员再处理 HKLM。",
+    "与模板同样读取 UninstallString 及第二键回退，用 GetInQuotes 取登记路径；只有标记非空且等于同根 DisplayVersion 才可信。",
+    "登记文件存在且不可信时，模板执行前必须用本版清单卸载程序替换；任一步失败弹双语框、exit 2/Quit，不执行旧删除者。",
+    "用户文件始终原地不动；不存在旁边目录、待恢复记录、恢复猜测或用户数据搬移协议。迟到的卸载进程也只能删清单内应用文件。",
+    "清单由 afterPack 现算，编译时核版本；真实两轮 NSIS 编译和 Windows 全场景/变异包是交付证据。"
   ],
   "doors": [
     {
@@ -109,7 +109,7 @@
     "after": 4,
     "why_not": "这 4 扇是应用里启动安装程序的入口（重启更新、退出时更新、退出时排空、待安装记录的读取），本单不改应用代码（更新握手归另一条线）；它们全部终于同一个 NSIS 安装程序和同一个卸载段，修复落在那里，所有入口一起生效，不需要合并应用侧的门。"
   },
-  "generality_proof": "所有会删安装目录的路径都经过同一个 NSIS 卸载段：两种自动更新、手动覆盖重装、改目录重装、控制面板卸载、装给所有用户的两轮卸载，运行的都是注册表里登记的 Uninstall Nomi.exe，而它的删除点只有 customRemoveFiles 一处，只删清单。旧版本的卸载程序改不了，所以新安装程序在调用它之前统一挪开（外层实例经 customCheckAppRunning、排在模板的「应用还开着」检查之后；UAC 内层实例经排在安装段之前的隐藏段），旧卸载程序一结束经 customUnInstallCheck / customUnInstallCheckCurrentUser 挪回，失败退出前也先挪回。清单在 afterPack 现算、编译时核对版本号，不存在手抄的第二份。",
+  "generality_proof": "所有升级和手动重装均先经过 NSIS customInit；按模板同一注册表根和路径替换不可信卸载文件，之后模板复制/原地启动都只会运行清单卸载器。普通卸载汇到 customRemoveFiles。用户数据从未移动，因此没有恢复竞态或目录误认领；替换失败直接退出。UAC 内层与非静默界面仍需单独实测，不能从共用入口推断已验证。",
   "shared_boundaries": [
     {
       "path": "build/installer.nsh",
@@ -118,8 +118,8 @@
     },
     {
       "path": "build/installer.nsh",
-      "symbol": "nomiKeepAside",
-      "responsibility": "新安装程序调用旧卸载程序之前：先按待恢复记录挪回上次被打断留下的文件，再对不可信的登记位置把顶层外来条目同盘挪开并记录。"
+      "symbol": "nomiReplaceUntrustedUninstaller",
+      "responsibility": "在 customInit、模板执行登记卸载器之前替换不可信文件；替换失败中止，用户数据不移动。"
     },
     {
       "path": "scripts/packaging/installer-manifest.cjs",
@@ -132,13 +132,13 @@
       "path": "electron/update/installGate.ts",
       "entry_point": "quitAndInstall（重启以更新，--updated --force-run）",
       "disposition": "enforced",
-      "evidence": "和静默更新走同一条安装段：customCheckAppRunning（模板检查 → nomiKeepAside）→ 旧卸载程序 → customUnInstallCheck 挪回；Windows 作业的升级场景用 --updated /S 真跑这条段，--force-run 的非静默界面没跑（见 residual_risks）。"
+      "evidence": "初始化先替换不可信卸载程序；与静默更新汇到同一 NSIS 安装/卸载边界。--force-run 非静默界面 unverified。"
     },
     {
       "path": "electron/update/installGate.ts",
       "entry_point": "install(true, false)（退出时静默更新，--updated /S）",
       "disposition": "enforced",
-      "evidence": "Windows 作业的升级场景（A1–A4、A6–A11）用的就是 --updated /S；A4 证明静默下挪不开时弹框、退出码 2、旧版原样，反例 CX3（弹框带 /SD）证明 A4 量得到静默吞框。"
+      "evidence": "A1/A4/A7/A14/A16 覆盖静默升级、用户文件占用、过期标记、迟到卸载和卸载器占用；本轮 Windows 结果待实际 CI。"
     },
     {
       "path": "electron/update/installOnQuit.ts",
@@ -156,13 +156,13 @@
       "path": "build/installer.nsh",
       "entry_point": "手动重装改目录（/D=，不带 --updated）",
       "disposition": "enforced",
-      "evidence": "挪开看的是注册表登记的旧位置而不是 $INSTDIR；Windows 作业 A5（旧版）/ A12（新版）。"
+      "evidence": "替换使用登记的 UninstallString，而非用户本次选择的 INSTDIR；A5/A12 验证改目录重装。"
     },
     {
       "path": "build/installer.nsh",
       "entry_point": "装给所有用户（HKLM 一轮 + HKCU 一轮旧卸载）",
       "disposition": "enforced",
-      "evidence": "customUnInstallCheck 在 installMode = all 时把挪回推迟到 HKCU 那一轮之后；Windows 作业 A6。"
+      "evidence": "customInit 对 HKCU 和管理员可执行的 HKLM 分别替换；默认模板的两轮结果处理保持，A6 覆盖 HKLM 安装。"
     },
     {
       "path": "electron/update/updateReminderStore.ts",
@@ -184,10 +184,10 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "build/installer.nsh",
-    "invariant": "安装器只删构建时清单里的条目；调用不可信的旧卸载程序之前，安装目录顶层的外来条目已同盘挪开、结束后挪回。",
-    "failure_mode": "挪不开：已挪的挪回、弹框（不带 /SD，静默也弹）、退出码 2、旧版原样。清单过期：NSIS 编译期 !error。安装包形态变成 installer.nsh 处理不了的（单击安装 / 只装所有用户 / 非 x64 / 网络安装包）：编译期 !error。模板变了：普查测试指纹红。installer.nsh 混进 RMDir /r：普查测试红。真装真升真卸红了：推送时作业红；发候选版时 desktop-rc.yml 的 windows-installer 作业红、finalize 不跑、候选版运行不是 success，desktop-release.yml 拒绝晋级。",
+    "invariant": "模板只能启动按清单删除的卸载器；用户文件始终原地；所有文件变更目标受静态白名单约束。",
+    "failure_mode": "提取或 MoveFileExW 失败：双语对话框含登记路径，不带 /SD，exit 2/Quit，早于模板执行；无旧卸载器 fallback。清单过期/不支持形态 !error；模板指纹、目标白名单/唯一接线普查、Windows 场景及反例守门。",
     "exception_policy": "none",
-    "strategy": "用 electron-builder 文档化的 nsis.include 接管卸载段的删除点（customRemoveFiles），清单由 afterPack 生成；旧版本卸载程序改不了，就在新安装程序调用它的前后挪开 / 挪回；Windows 作业真装真升真卸，反例证明场景量得到它声称守住的东西。",
+    "strategy": "删除整个搬移/恢复协议，在最早共享 customInit 边界替换删除者。新卸载仅按构建清单处理；Windows 对两个变异包各跑 A1/A14/A15，必须真的丢文件并变红，正常包全部通过。",
     "artifacts": [
       "build/installer.nsh",
       "scripts/packaging/installer-manifest.cjs",
@@ -211,13 +211,17 @@
     "tests/installer/installerScenarios.test.mjs"
   ],
   "legacy_paths": {
-    "status": "not-applicable",
-    "removed_paths": [],
-    "rationale": "被替换的是 electron-builder 模板里的默认删除段，由 customRemoveFiles 钩子在编译期整体替换；仓库里没有对应的旧实现文件可删。"
+    "status": "removed",
+    "removed_paths": [
+      "build/installer.nsh",
+      "tests/installer/windows-installer-scenarios.mjs",
+      "tests/installer/scenarios.mjs"
+    ],
+    "rationale": "同提交删 nomiKeepAside/Protect/Recover/MoveBack/Restore*/Abort*/RenameAside/WaitAppExit/CountForeign/IsForeign/OwnedName、NOMI_KEEP_*、等待常量、三个恢复对话框、三个未文档化钩子、隐藏提权段，以及测试里预置搬家状态与常量。"
   },
   "dependency_lifecycle": {
     "decision": "retain-with-exit",
-    "rationale": "build/installer.nsh 依赖 electron-builder 26.15.3 NSIS 模板里钩子的插入点与顺序、照抄的默认处理和原样调用的宏；其中 customCheckAppRunning、customUnInstallCheck* 没写进文档。",
+    "rationale": "保留 electron-builder 26.15.3，使用 customHeader/customInit/customRemoveFiles/customInstall 四个文档化钩子及模板 GetInQuotes；不再覆盖未文档化的应用退出/卸载结果钩子。模板调用链指纹必须在升级时重审。",
     "current": "electron-builder 26.15.3（app-builder-lib 26.15.3 templates/nsis，legacy NSIS 3.0.4.1 包）",
     "target": "下一次升级 electron-builder 时复核同一组钩子与默认处理",
     "exit_criteria": [
@@ -225,18 +229,16 @@
       "更新指纹会改 tests/installer/ 下的文件，推送即触发 .github/workflows/win-installer.yml，全部场景与反例重跑全绿后才合入。"
     ]
   },
-  "migration": "无数据迁移，应用代码不改。已装 0.24.0 及更早版本的机器，升级到修复版的那一次由新安装程序挪开 / 挪回保护；之后注册表有 RemovesOnlyOwnFiles 标记，后续升级与卸载都由只删清单的卸载程序执行。",
+  "migration": "不迁移用户数据；旧版登记的卸载程序在新包初始化时原路径替换。已运行第 1–3 轮内部包而遗留 .nomi-keep 的机器，必须手动把用户文件挪回；本版不认领或读取它。未先更新而直接运行旧卸载器仍危险。",
   "residual_risks": [
-    "0.24.0 → 修复版那一次只保护安装目录顶层的外来条目：用户放在安装器自己的子目录（resources\\、locales\\ 等）里的文件，那一次仍会被旧卸载程序删掉；之后的版本不会。",
-    "用户直接用 0.24.0 及更早版本自带的卸载程序（控制面板）卸载，仍然整目录删除：旧卸载程序改不了。",
-    "UAC 内层实例（以普通权限运行安装程序、选「所有用户」时经 UAC 提权出来的那个实例）在 CI 上造不出来（GitHub 的 Windows runner 关着 UAC、直接以管理员运行），未验证；它和外层共用同一个挪开函数，只是入口不同。",
-    "「重启以更新」的非静默界面没有在作业里跑（同一段代码，只差界面与 --force-run）。",
-    "安装目录是盘符根目录、旁边目录已存在或建不了时，不挪、中止更新并弹框（安全，但更新不了，要用户把文件移走或换目录）。",
-    "只在旧版本里有、新版本清单里没有的顶层文件，升级后作为残渣留下（不删用户东西优先）。",
-    "开发机（macOS）上没有 makensis，build/installer.nsh 的编译与运行只由 Windows 作业验证。",
-    "发版硬门测的是候选版同一个提交另打的安装包（版本号带 -installer-test 后缀），不是 windows 作业上传的那个字节相同的候选包；两者同一份源码、同一套打包配置，差别只在版本号和 app.asar 里的反馈接收端出厂配置，不影响安装目录里有哪些文件。",
-    "默认位置的用户数据种在 runner 的「文档」\\Nomi Projects；应用改了默认位置时，普查测试（核 electron/runtimePaths.ts）先红。",
-    "杀毒软件在挪开 / 挪回途中长时间占用文件：重试 10 秒后中止并弹框，未在真用户机器上验证。"
+    "尚未更新就直接用控制面板卸载 0.24.0 及更早版本，旧代码仍整目录删除；必须先移出项目。",
+    "迟到的安全卸载进程会删掉刚装的应用文件和注册表，但用户文件不动；需要按原目录重装。A14 验证此恢复路径。",
+    "旧版独有而本版清单未知的文件保留；Windows report.legacyOnly 必须列出，不能扩大删除范围。",
+    "UAC 提权弹窗/内层、非静默 --force-run 更新、真实断电、早于 0.24.0 的注册表形状 unverified。",
+    "杀毒软件、策略或权限阻止提取/替换时中止；真用户机器上 unverified。",
+    "Mac 可用 electron-builder 自带 makensis 验真实双轮编译；Windows 注册表/进程/文件占用只能由 Windows 作业验证。",
+    "发版硬门测同提交同配置、带测试版本后缀另打的包，非字节相同候选 exe。",
+    "默认项目位置由 Documents/Nomi Projects 与 runtimePaths 普查对账；用户资料只在 runner 隔离测试目录种数。"
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-28",
@@ -247,5 +249,5 @@
       "tests/installer/windows-installer-scenarios.mjs"
     ]
   },
-  "strategy": "删除点收到一处（customRemoveFiles 只删清单），清单由构建现算；对改不了的旧卸载程序，在新安装程序里围住它（挪开 → 运行 → 挪回，打断可续）；Windows 作业按设计卡 ★9 真装真升真卸，反例证明场景有鉴别力。"
+  "strategy": "删除整个搬移/恢复协议，在最早共享 customInit 边界替换删除者。新卸载仅按构建清单处理；Windows 对两个变异包各跑 A1/A14/A15，必须真的丢文件并变红，正常包全部通过。"
 }
