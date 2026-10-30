@@ -42,6 +42,7 @@ it.each(['content', 'plural-url', 'legacy-url'])('%s: AI declaration reaches dec
   expect(accepted.id).toBe('task-1')
   const finished = await fetchTaskResult(poll)
   expect(finished.result.status).toBe('succeeded')
+  expect(finished.result.provenance?.provider).toBe(poll.vendor)
   expect(finished.result.assets).toHaveLength(1)
   const asset = finished.result.assets[0]
   expect(asset.url).toMatch(/^nomi-local:/)

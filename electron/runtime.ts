@@ -254,6 +254,7 @@ export async function buildProfileTaskResult(input: {
     return { providerMeta: { task_id: input.taskIdFallback }, unrecognizedStatus: "", result: {
       id: input.taskIdFallback, kind: input.request.kind, status: "succeeded",
       assets: [input.response.asset as TaskResult["assets"][number]], raw: { status: "completed", mediaResponse: "binary", artifactVersion: RELAY_VIDEO_ARTIFACT_VERSION },
+      ...(input.vendor && input.model ? { provenance: buildTaskProvenance({ vendor: input.vendor, model: input.model, request: input.request, vendorRequestId: input.taskIdFallback }) } : {}),
     } };
   }
   const response = applyResponseTransform(input.operation.response_transform, input.response, {

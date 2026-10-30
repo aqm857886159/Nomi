@@ -270,7 +270,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
         throw retrievalStageError("retrieval-query", error, fellBackNote);
       }
       const resultNormalized = await readResult(executed.response, mapping.result);
-      normalized = { ...resultNormalized, providerMeta: { ...resultProviderMeta, ...resultNormalized.providerMeta } };
+      normalized = { ...resultNormalized, actualCost: resultNormalized.actualCost ?? normalized.actualCost, providerMeta: { ...resultProviderMeta, ...resultNormalized.providerMeta } };
     }
     // 认不出的动词：连击够久也**不判失败**（原则 1），而是交「可找回」并如实报出原始动词。
     const now = Date.now();

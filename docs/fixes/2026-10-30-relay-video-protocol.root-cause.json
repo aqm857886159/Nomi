@@ -175,7 +175,11 @@
   },
   "migration": "Existing explicit mappings unchanged; generated undocumented video drafts have no modes until evidence is supplied.",
   "residual_risks": [
-    "Real provider, paid run, Windows and independent acceptance remain unverified"
+    "Real provider, paid run, Windows and independent acceptance remain unverified",
+    "Legacy public URL materialization still uses the existing buffered path; the new bounded stream applies to authenticated file responses",
+    "The retrieval function accepts AbortSignal, but main IPC and production cancellation callers have not been changed or end-to-end verified",
+    "File responses require project identity; the independently owned tryModel entry does not currently supply it",
+    "Unified perf driver registration requires a shared infrastructure change outside this task scope"
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",
