@@ -152,10 +152,18 @@ if (process.argv.includes('--server')) {
   const sourceRef = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
   const controlRef = execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).trim()
   execFileSync('git', ['diff', '--quiet', controlRef, '--', 'electron/assets/providerMediaFetch.ts', 'electron/hardenedFetch.ts', 'electron/appFetch.ts', 'electron/shared/assets/providerMediaRetrievalBudget.ts', 'electron/providerNetwork.ts', 'electron/systemProxy.ts', 'electron/networkOutboundPolicy.ts'])
-  const load5 = os.loadavg()[1]
+  const quietStarted = performance.now()
+  let load5 = os.loadavg()[1]
+  while (load5 >= 10 && performance.now() - quietStarted < 25 * 60 * 1000) {
+    console.error(`[quiet-window] load5=${load5}; waiting before any client starts`)
+    // Condition-based host admission, bounded by the Mac polling window.
+    await new Promise((resolve) => setTimeout(resolve, 30_000))
+    load5 = os.loadavg()[1]
+  }
+  const quietWaitMs = performance.now() - quietStarted
   if (load5 >= 10) {
     fs.mkdirSync(path.dirname(output), { recursive: true })
-    fs.writeFileSync(output, JSON.stringify({ date: new Date().toISOString(), noisy: true, status: 'quiet-window-unavailable', load5, runs, samples: [] }, null, 2))
+    fs.writeFileSync(output, JSON.stringify({ date: new Date().toISOString(), noisy: true, status: 'quiet-window-unavailable', load5, quietWaitMs, runs, samples: [] }, null, 2))
     console.error(`Quiet window unavailable: load5=${load5}; no performance verdict`)
     process.exit(75)
   }
@@ -189,7 +197,7 @@ if (process.argv.includes('--server')) {
   } catch (error) { failure = error }
   const report = { scope: 'Split first 1KiB fetch and post-1KiB-warmup transfer/write; fresh client and independent producer each sample; no decode/publication',
     date: new Date().toISOString(), sourceRef, machine: `${process.platform} ${process.arch} ${os.cpus()[0]?.model}`, node: process.version,
-    diagnosticTriggered,
+    diagnosticTriggered, quietWaitMs,
     control: { ref: controlRef, function: 'fetchProviderMedia', sourceUnchanged: true, policy: 'original main byte cap retained; a refused transfer is not a successful-download memory baseline' },
     noisy: samples.some((s) => s.loadBefore >= 10 || s.loadAfter >= 10), runs, samples,
     ...(failure ? { failure: failure.message } : {}) }
