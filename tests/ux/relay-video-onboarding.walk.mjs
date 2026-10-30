@@ -46,6 +46,7 @@ try {
   await win.locator('[data-model-connection-saved]').waitFor({ timeout: stationTimeout() })
   await capture('connection-saved')
   report.postsBeforeAgentDeclaration = relay.hits.filter((h) => h.method === 'POST').length
+  expect(report.postsBeforeAgentDeclaration, 'connection discovery never submits generation before the AI declaration').toBe(0)
   // c: a document-reading agent now replaces the incomplete default wire with its explicit contract.
   if (await win.locator('[data-settings-close]').isVisible()) await win.locator('[data-settings-close]').click()
   const vendors = await win.evaluate(() => window.nomiDesktop.modelCatalog.listVendors())
@@ -84,6 +85,9 @@ try {
   const prepared = await prepareRelayVideo({ win, newProject: () => createRelayProject(walk, win), model: { vendorKey: vendor.key, modelKey: target.id }, capture })
   report.canvasSelection = { projection: prepared.projection, neededReload: prepared.neededReload }
   report.landed = await generateRelayVideo({ win, prepared, capture })
+  report.generationCreateCount = relay.hits.filter((hit) => hit.method === 'POST').length
+  expect(report.generationCreateCount, 'one visible generate action submits one provider request').toBe(1)
+  expect(relay.tasks.size, 'the journey owns exactly one provider task').toBe(1)
   fs.copyFileSync(report.landed.media.filePath, path.join(evidence, 'landed.mp4'))
 } catch (error) {
   failure = error
