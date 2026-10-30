@@ -1,6 +1,9 @@
 // CI default Vitest lane: production declaration -> runtime -> loopback HTTP -> verified asset store.
 import fs from 'node:fs'
 import path from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { stationTimeout } from '../ux/_station-budget.mjs'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { relayDeclaration, startRelayVideoFixture, FAKE_RELAY_KEY } from '../ux/_relayVideoFixture.mjs'
@@ -73,6 +76,29 @@ it('completed file response can be retrieved after cache eviction without anothe
   expect((await fetchTaskResult(poll)).result.assets).toHaveLength(1)
   expect(posts()).toHaveLength(1)
 })
+it('a cold process resumes the persisted accepted task and lands a decoded asset without another POST', async () => {
+  const { poll } = await prepare()
+  taskCache.delete(poll.taskId)
+  const inputFile = path.join(root, 'cold-retrieval-input.json')
+  const outputFile = path.join(root, 'cold-retrieval-result.json')
+  fs.writeFileSync(inputFile, JSON.stringify({ poll, outputFile }))
+  // Async child execution leaves the real upstream HTTP server responsive. One thread pool
+  // keeps every test worker inside the timed child process, including on timeout.
+  const child = await promisify(execFile)(process.execPath, [
+    path.resolve('node_modules/vitest/vitest.mjs'), 'run', 'tests/relay-onboarding/restart-child.test.mjs',
+    '--pool=threads', '--maxWorkers=1',
+  ], { cwd: process.cwd(), env: { ...process.env, NOMI_RELAY_RESTART_INPUT: inputFile }, timeout: stationTimeout({ turns: 2 }), maxBuffer: 1024 * 1024 })
+  expect(child.stderr).not.toMatch(/unhandled rejection/i)
+  const recovered = JSON.parse(fs.readFileSync(outputFile, 'utf8'))
+  expect(recovered.pid).not.toBe(process.pid)
+  expect(recovered.initialTaskCacheSize).toBe(0)
+  expect(recovered.result.status).toBe('succeeded')
+  expect(recovered.persistedAssetType).toBe('video')
+  expect(readNomiLocalAsset(recovered.result.assets[0].url).bytes.equals(relay.mp4)).toBe(true)
+  expect(posts()).toHaveLength(1)
+  expect(relay.hits.filter((hit) => hit.path.endsWith('/content'))).toHaveLength(1)
+}, stationTimeout({ turns: 3 }))
+
 it('slow content times out, keeps the receipt, and cancellation stops a subsequent GET', async () => {
   const { poll } = await prepare('content', 'slow')
   vi.stubEnv('NOMI_VENDOR_HTTP_TIMEOUT_MS', '80')

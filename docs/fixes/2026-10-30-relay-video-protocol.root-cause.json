@@ -251,7 +251,8 @@
     "electron/catalog/relayNativeWireReconcile.test.ts",
     "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
     "electron/tasks/relayQueryFallback.test.ts",
-    "scripts/check-perf-scenarios.node-test.mjs"
+    "scripts/check-perf-scenarios.node-test.mjs",
+    "tests/relay-onboarding/restart-child.test.mjs"
   ],
   "class_regression_tests": [
     "tests/relay-onboarding/contracts.test.mjs",
@@ -260,7 +261,8 @@
     "electron/catalog/relayNativeWireReconcile.test.ts",
     "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
     "electron/tasks/relayQueryFallback.test.ts",
-    "scripts/check-perf-scenarios.node-test.mjs"
+    "scripts/check-perf-scenarios.node-test.mjs",
+    "tests/relay-onboarding/restart-child.test.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
