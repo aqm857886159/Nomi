@@ -8,7 +8,7 @@
 
 任务：①真实 JPG 画布点选→列表→Delete→返回，节点与选区保留；②画布复制→列表撤销→返回，副本保留；③同一 JPG 放画布和时间轴→托盘右键删除→现有引用占用提示→重载，媒体仍能显示。全部经隔离 Electron、真实输入与仓库走查设施，双语执行。
 
-指标：隐藏面误写比例由修前 2/2 降到 0/2（量具：view-parity-cut1.walk.mjs 的 Delete/Undo 观察）；三种删除入口在引用占用时文件保留率 100%（量具：现有 assetDeletionMatrix + 新桥回归）；护栏为原选区保留率 100%、非前台启动越界 0（走查截图、quiet-walk 收尾）。不扩展文本正文、音频、主版本、锁和复制能力。
+指标：隐藏面误写比例由修前 2/2 降到 0/2（量具：hidden-surface-input.walk.mjs 的 Delete/Undo 观察；素材保留由 asset-deletion-reference.walk.mjs 重载验证）；三种删除入口在引用占用时文件保留率 100%（量具：现有 assetDeletionMatrix + 新桥回归）；护栏为原选区保留率 100%、非前台启动越界 0（走查截图、quiet-walk 收尾）。不扩展文本正文、音频、主版本、锁和复制能力。
 
 连带界面：托盘确认框与反馈沿用 assetLibrary.confirmDelete*、keptInUse、failedFiles；版本卡与素材库不换语义，不新增 UI。
 
@@ -40,6 +40,15 @@
 
 - [x] 新界面 / 改交互
 - [x] 大数据量 / 画布 / 长列表
-- [ ] 新增功能 / 性能
+- [x] 新增功能 / 性能
+- [x] 生成效果
 
 无新操作或布局；现有输入/回收路径的权限修复。若路径路由要求性能证据，复用现有相关场景，不新增产品能力。
+
+## ★7 现有操作性能复核（续跑证据）
+
+功能分类按改动路径的门岗路由登记；本次没有新增操作，也不改变生成提示或输出。复核已有 `workbench-switch-canvas-list` 场景：192 节点（96 图、96 视频）、384 边，画布→列表→画布，1 次预热、5 次正式采样，response 预算 100ms。
+
+2026-10-30 在代码 HEAD `75a9f8462f6c8f58555ee89f85498aadcbcf3be9`（dirty=false，sourceTree `d3dc665c39d9182251c724606588e7b6ed69f50e`）测得中位数 39.4ms、p95 41ms；longTasks 中位数/p95 均为 0。原始结果：[perf-switch.json](../evidence/2026-10-30-view-parity-cut1/perf-switch.json)。仅测量，未更新基线。
+
+起窗最前 App 为 Grok Bot（com.anysphere.sand），五分钟负载 9.9453125。性能驱动未调用启动器返回的 close()，因此缺“没抢前台”收尾行；这是协调已明确接受的量具限制，本次不改驱动或启动器。四条功能走查仍须逐条核对前台收尾。
