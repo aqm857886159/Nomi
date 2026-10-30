@@ -32,10 +32,13 @@ if (process.argv.includes('--server')) {
   process.once('disconnect', stop)
 } else if (process.argv.includes('--sample')) {
   // Each invocation is a fresh client process, including the first fetch/stream setup cost.
+  const root = makeTempDir('relay-media-bench-')
+  process.env.NOMI_SETTINGS_DIR = path.join(root, 'settings')
+  process.env.NOMI_PROJECTS_DIR = path.join(root, 'projects')
+  process.env.NOMI_ELECTRON_USER_DATA_DIR = path.join(root, 'user-data')
   const { streamProfileMediaToFile } = tsxRequire('../../electron/capabilityCore/generationOutputMaterializer.ts', import.meta.url)
   const bytes = Number(process.argv[process.argv.indexOf('--sample') + 1])
   const run = Number(process.argv[process.argv.indexOf('--sample') + 2])
-  const root = makeTempDir('relay-media-bench-')
   const producer = fork(fileURLToPath(import.meta.url), ['--server'], { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] })
   let sample
   try {
