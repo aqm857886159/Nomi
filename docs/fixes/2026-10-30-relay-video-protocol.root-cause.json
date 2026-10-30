@@ -233,7 +233,8 @@
     "File responses require project identity; the independently owned tryModel entry does not currently supply it",
     "Unified perf driver registration requires a shared infrastructure change outside this task scope",
     "Global closed-state inference is explicitly deferred by coordination: preserve existing hard-evidence inference and bounded unknown tolerance; use sanitized paid-response projections for a separate post-0.24.1 direction review.",
-    "Stored generated defaults are indistinguishable from explicit declarations; preserving all old rows also preserves any old guessed route."
+    "Stored generated defaults are indistinguishable from explicit declarations; preserving all old rows also preserves any old guessed route.",
+    "Quiet cold-client measurements (5x256MiB and 5x2GiB) exceeded the 64MiB additional-RSS budget: worst107.56MiB/140.66MiB at load5 6.13-6.23; allocation source not profiled. Cancellation met 1s. Work stopped at the explicitly authorized performance boundary before GUI/rehearsal/full gates."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",

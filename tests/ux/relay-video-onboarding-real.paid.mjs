@@ -11,6 +11,7 @@ const RELAY_BUILD_MARKER = 'relay-video-artifact-v1'
 
 const plan = JSON.parse(fs.readFileSync(process.env.NOMI_RELAY_PAID_PLAN, 'utf8'))
 if (plan.vendorKey !== DEFAULT_PAID_BRAIN.vendorKey || plan.shape !== 'plural-url' || plan.duration !== 1 || plan.resolution !== '360p') throw new Error('Paid plan is outside the single authorized minimum configuration')
+if (typeof plan.queryPath !== 'string' || !plan.queryPath.startsWith('/')) throw new Error('Paid plan must provide the documented query path before credential preparation')
 const paid = await openPaidWalk('relay-video-onboarding-real.paid.mjs', 'relay-video-onboarding-real', [DEFAULT_PAID_BRAIN], {
   buildMarkers: [RELAY_BUILD_MARKER], env: { ...process.env, APIMART_API_KEY: "" },
   createWalk: (name, options) => createRecordedRelayWalk(name, { ...options, env: { ...options.env, NOMI_RELAY_RECORD_MODEL: plan.modelKey } }, plan.baseUrl),

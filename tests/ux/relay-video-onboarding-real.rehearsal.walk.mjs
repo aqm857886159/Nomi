@@ -38,7 +38,7 @@ try {
   await win.evaluate((locale) => localStorage.setItem('nomi:locale:v1', locale), process.env.NOMI_RELAY_LOCALE || 'zh-CN')
   await win.reload()
   const creates = () => relay.hits.filter((h) => h.method === 'POST' && h.path === '/v1/videos/generations')
-  await runRelayVideoPaidSteps({ paid, win, mcpEnv: network, readCreates: () => creates().length, readCreateBodies: () => creates().map((hit) => hit.body), plan: { vendorKey: DEFAULT_PAID_BRAIN.vendorKey, modelKey, baseUrl, shape: 'plural-url', sourceUrl: 'https://docs.example.test/video', duration: 1, resolution: '360p' } })
+  await runRelayVideoPaidSteps({ paid, win, mcpEnv: network, readCreates: () => creates().length, readCreateBodies: () => creates().map((hit) => hit.body), plan: { vendorKey: DEFAULT_PAID_BRAIN.vendorKey, modelKey, baseUrl, shape: 'plural-url', queryPath: '/v1/videos/generations', sourceUrl: 'https://docs.example.test/video', duration: 1, resolution: '360p' } })
   expect(relay.tasks.size).toBe(1)
   expect(relay.hits.filter((hit) => hit.method === 'POST')).toHaveLength(1)
   paid.walk.report.paidCalls = 0
