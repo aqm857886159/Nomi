@@ -92,6 +92,7 @@ if (hasArg('--help') || hasArg('-h')) {
   --gpu-mem-mb 把合成器的 GPU 瓦片预算钉成 N MiB（--force-gpu-mem-available-mb；512 = 桌面默认下限，16 = 压测档）
   --dpr        强制设备像素比，窗口按 1920×1040 物理像素折算（1.25 / 1.5 = Windows 1080p 125% / 150%）。
                不给时页面是设备像素比 1：启动器的 setViewportSize（Playwright）把页面钉在 1，Retina 也一样
+  --gesture-zoom  适应视图后先滚轮放大到不低于这个缩放再量（0.56 = 刚过整卡线，同屏整卡最多）；默认只有 select-composer 放大到工作缩放
   --runs       每个场景采样次数（默认 3，取中位数）
   --warmup     每个场景先做几次不计的预热（默认 0）
   --extra-projects  库里另放 N 个小项目（默认 0）
@@ -106,6 +107,7 @@ if (hasArg('--help') || hasArg('-h')) {
 const scales = argValue('--scales', 'I60,I150,I300').split(',').map((s) => s.trim()).filter(Boolean)
 const scenarios = argValue('--scenarios', GESTURE_SCENARIOS.join(',')).split(',').map((s) => s.trim()).filter(Boolean)
 const onscreen = hasArg('--onscreen')
+const gestureZoom = Number(argValue('--gesture-zoom', 0)) || null
 for (const scale of scales) if (!ALL_SCALES[scale]) throw new Error(`未知规模「${scale}」，可选：${Object.keys(ALL_SCALES).join(' / ')}`)
 // 弱显卡档：Chromium 合成器的瓦片预算（桌面默认 ≥512MB，按屏幕大小放大）钉成 N MiB，装不下的瓦片不画（缺块）。
 const gpuMemMb = argValue('--gpu-mem-mb', '')
@@ -339,12 +341,12 @@ const WORKBENCH_SAMPLE_KEYS = ['responseMs', 'firstFeedbackMs', 'coldResponseMs'
 /** 场景结果里带进样本的数：工作台场景的 + 远看密集的缺块率（farDense.mjs）。 */
 const SCENARIO_SAMPLE_KEYS = [...WORKBENCH_SAMPLE_KEYS, ...FAR_DENSE_SAMPLE_KEYS]
 
-async function zoomToWorkingScale(page) {
+async function zoomToWorkingScale(page, target = 0.95) {
   const stage = await stageBox(page)
   await page.mouse.move(stage.x + stage.width * 0.45, stage.y + stage.height * 0.4)
   for (let tick = 0; tick < 40; tick += 1) {
     const { zoom } = await readViewport(page)
-    if (zoom !== null && zoom >= 0.95) break
+    if (zoom !== null && zoom >= target) break
     await page.mouse.wheel(0, -120)
     await sleep(page, 60)
   }
@@ -863,8 +865,8 @@ async function main() {
             const fitted = await fitView(page)
             console.log(`    · 前置：zoom=${fitted.zoom} mounted=${fitted.mountedNodes} url=${String(page.url()).slice(-60)}`)
             if (!fitted.zoom || fitted.zoom > 0.9) console.log(`    ⚠️ 适应视图没生效——这一次采样的前置条件不成立`)
-            if (WORKING_ZOOM_SCENARIOS.has(scenario)) {
-              const working = await zoomToWorkingScale(page)
+            if (WORKING_ZOOM_SCENARIOS.has(scenario) || gestureZoom) {
+              const working = await zoomToWorkingScale(page, gestureZoom ?? undefined)
               console.log(`    · 工作缩放：zoom=${working.zoom} mounted=${working.mountedNodes}`)
             }
           }
