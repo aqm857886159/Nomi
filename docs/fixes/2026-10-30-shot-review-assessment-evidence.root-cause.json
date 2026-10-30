@@ -1,0 +1,292 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-shot-review-assessment-evidence",
+  "problem_type": "Absent review evidence becomes a pass and resets correction budget",
+  "symptom": "Vision/extraction/judge/parse failures yield empty deviations, then requested shots are reported passed.",
+  "direct_cause": "Runner/store erase coverage; renderer equates no flags with pass; host accepts unsupported verdicts.",
+  "class_root": "Assessment provenance is not carried across review orchestration, state, IPC and retry admission.",
+  "affected_population": [
+    "Explicit canvas review",
+    "ProductionRun QA",
+    "Partial/unavailable review",
+    "Concurrent and project-switched review"
+  ],
+  "scope_paths": [
+    "electron/shared/shotReviewEvidence.ts",
+    "src/workbench/generationCanvas/agent/shotVerify.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "electron/productionRun/productionQaVerdict.ts",
+    "electron/productionRun/productionRunDriverOps.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyEvidence.characterization.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts",
+    "electron/productionRun/productionQaVerify.test.ts",
+    "electron/shared/shotReviewEvidence.test.ts",
+    "electron/productionRun/productionRunE2eFixture.ts",
+    "src/workbench/generationCanvas/agent/reconcile.ts",
+    "electron/productionRun/productionQaStage.ts"
+  ],
+  "entry_points": [
+    "Explicit canvas review report",
+    "ProductionRun renderer QA",
+    "Host QA summary/retry planning"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal domain provenance defect. Existing review parser, captured project lifecycle and ProductionRun QA remain authoritative; no new external API behavior.",
+  "invariants": [
+    "Only explicit valid nonzero active dimensions establish assessment.",
+    "Every requested shot is assessed or explicitly unreviewed.",
+    "Unknown evidence cannot pass, reset convergence budget or schedule a retry.",
+    "Single-frame evidence never implies whole-video validation.",
+    "A retry flag must carry the canonical dimension and a finite positive low score, and that dimension must be present in the same shot assessment.",
+    "Late review cannot authorize a new result/attempt, mutate a stopped Run, or advance assembly after its execution snapshot changes."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "isAssessedShotReview"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/reconcile.ts",
+      "symbol": "ReconcileDeviation"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/shotVerify.ts",
+      "symbol": "ReconcileDeviation"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "ReconcileDeviation"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "parseShotVerifyVerdict"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "symbol": "ReconcileDeviation"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+      "symbol": "ReconcileDeviation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaStage.ts",
+      "symbol": "qaInputSnapshot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaStage.ts",
+      "symbol": "qaVerdictsForRequestedShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaStage.ts",
+      "symbol": "areRequestedShotsAssessed"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaStage.ts",
+      "symbol": "buildQaStageOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaStage.ts",
+      "symbol": "buildQaRetryPlans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "isAssessedShotReview"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "unreviewedShot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "qaVerdictsForRequestedShots"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunDriverOps.ts",
+      "symbol": "createQaStageRunner"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunE2eFixture.ts",
+      "symbol": "qaAssessmentFixture"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/shotReviewEvidence.ts",
+      "symbol": "isAssessedShotReview"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "verifyShotsAndReport"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "isAssessedShotReview"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerify.ts",
+      "symbol": "clampScore"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "unreviewedShot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "parseShotVerifyVerdict"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "contentDeviationsToReconcile"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "symbol": "areRequestedShotsAssessed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "symbol": "unreviewedShot"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "symbol": "verifyGeneratedShots"
+    }
+  ],
+  "door_reduction": {
+    "before": 6,
+    "after": 27,
+    "why_not": "Existing judge, store, renderer adapter and Run host remain separate ownership layers; all must preserve the same explicit evidence contract."
+  },
+  "generality_proof": "Track requested-shot coverage and real assessed dimensions independent of provider, media, failure stage or caller. Failed/omitted evidence is unreviewed at both renderer and Run host boundaries.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "symbol": "verifyGeneratedShots",
+      "responsibility": "Return explicit per-shot assessment and deviations without blocking generation."
+    },
+    {
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "symbol": "buildQaRetryPlans",
+      "responsibility": "Reject unsupported QA evidence before durable retry/budget decisions."
+    },
+    {
+      "path": "electron/productionRun/productionQaStage.ts",
+      "symbol": "createQaStageRunner",
+      "responsibility": "Own exact-evidence QA request, lifecycle reconciliation and durable per-shot retry sequencing."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "entry_point": "verifyShotsAndReport",
+      "disposition": "enforced",
+      "evidence": "Explicit unavailable/partial/concurrent report tests."
+    },
+    {
+      "path": "electron/productionRun/productionQaVerdict.ts",
+      "entry_point": "buildQaStageOutcome / buildQaRetryPlans",
+      "disposition": "enforced",
+      "evidence": "Missing IDs and unsupported verdicts are unreviewed, never passed/retried."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Equivalent empty deviation shape occurs for unavailable vision, frame failure, judge rejection, invalid parse and zero assessable dimensions in both explicit review and ProductionRun.",
+    "same_class_scan": [
+      "Enumerated runner/store, renderer adapter, Run QA summary/retry and judge parser callers using scripts/door-map.mjs.",
+      "Read gatherShotVerifyInputs, batchPlanPreview no-auto-review decision and ProductionRun semantic QA attention policy.",
+      "Compared unavailable/malformed/partial/zero-dimension outcomes against assessed passes; exercised project lifecycle and concurrent calls.",
+      "Refreshed generated door map after whole-owner extraction: isAssessedShotReview, parseShotVerifyVerdict, unreviewedShot, qaVerdictsForRequestedShots, qaInputSnapshot, areRequestedShotsAssessed, buildQaStageOutcome, buildQaRetryPlans, qaAssessmentFixture, verifyShotsAndReport, clampScore, contentDeviationsToReconcile, verifyGeneratedShots, createQaStageRunner, ReconcileDeviation"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+    "invariant": "Only actual valid scored dimensions establish assessed evidence; all requested shots retain an explicit outcome.",
+    "failure_mode": "Unavailable/invalid/omitted evidence returns unreviewed; generation remains separate; host refuses retry without assessment.",
+    "exception_policy": "none",
+    "strategy": "Replace array-only review result and no-flags pass inference across the existing owner chain.",
+    "artifacts": [
+      "electron/shared/shotReviewEvidence.ts",
+      "src/workbench/generationCanvas/agent/shotVerify.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "electron/productionRun/productionQaVerdict.ts",
+      "electron/productionRun/productionRunDriverOps.ts",
+      "electron/productionRun/productionQaStage.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/shotVerifyEvidence.characterization.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts",
+    "electron/productionRun/productionQaVerify.test.ts",
+    "electron/shared/shotReviewEvidence.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/shotVerifyEvidence.characterization.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts",
+    "electron/productionRun/productionQaVerify.test.ts",
+    "electron/shared/shotReviewEvidence.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts"
+    ],
+    "rationale": "Array-only return and inferred passes are replaced in the same change; no legacy pass fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal review evidence and lifecycle contracts only; no third-party runtime change.",
+    "exit_criteria": []
+  },
+  "migration": "No project data rewrite. Legacy responses lacking explicit assessment are unreviewed. The new unreleased review metadata uses an assessed boolean instead of introducing a second two-word workflow status vocabulary; absent legacy evidence still fails closed.",
+  "residual_risks": [
+    "Real AI judging excluded. Local fixtures verify orchestration only.",
+    "First-frame plus prompt context cannot establish full temporal/face/audio/lip-sync continuity."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/agent/shotVerifyRunner.ts",
+    "tests": [
+      "src/workbench/generationCanvas/agent/shotVerifyEvidence.characterization.test.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyRunner.test.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts",
+      "electron/productionRun/productionQaVerify.test.ts",
+      "electron/shared/shotReviewEvidence.test.ts"
+    ]
+  }
+}

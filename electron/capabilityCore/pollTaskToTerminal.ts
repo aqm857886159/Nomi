@@ -47,6 +47,9 @@ export async function pollTaskToTerminal(input: {
     }
     // 睡眠也不越过预算：最后一次间隔被截短，保证总等待不超过 timeoutMs。
     await sleep(Math.min(input.intervalMs, Math.max(0, input.timeoutMs - (Date.now() - startedAt))))
+    if (Date.now() - startedAt >= input.timeoutMs) {
+      return { result, ended: 'timeout', waitedMs: Date.now() - startedAt }
+    }
     try {
       // 每一次查询自己也有截止时间（剩余预算）：否则一次卡住的查询能把总等待拖过上限。
       // 卡住 = 这次查询不通（同下面的 catch：免费重试 / 到点放弃），绝不当成任务失败。

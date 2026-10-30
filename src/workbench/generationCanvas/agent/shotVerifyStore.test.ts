@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { ReconcileDeviation } from './reconcile'
+import type { ShotVerifyReport } from './shotVerifyRunner'
 import { useShotVerifyStore, buildContentFixMessage, verifyShotsAndReport } from './shotVerifyStore'
 import { DEFAULT_LOOP_MAX_ROUNDS } from './storyboardLoopBudget'
 import { withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 
 const verifyMocks = vi.hoisted(() => ({
-  gather: vi.fn(() => [{ shotNodeId: 'shot-1' }]),
+  gather: vi.fn((ids: readonly string[]) => ids.map(shotNodeId => ({ shotNodeId }))),
   verify: vi.fn(),
+  canvas: { nodes: [] as Array<{ id: string; result: { id: string; url: string } }>, edges: [] },
   makeDeps: vi.fn(() => ({ marker: 'deps' })),
 }))
 
@@ -15,7 +17,7 @@ vi.mock('./gatherShotVerifyInputs', () => ({ gatherShotVerifyInputs: verifyMocks
 vi.mock('./shotVerifyRunner', () => ({ verifyGeneratedShots: verifyMocks.verify }))
 vi.mock('./shotVerifyJudge', () => ({ makeShotVerifyDeps: verifyMocks.makeDeps }))
 vi.mock('../store/generationCanvasStore', () => ({
-  useGenerationCanvasStore: { getState: () => ({ nodes: [], edges: [] }) },
+  useGenerationCanvasStore: { getState: () => verifyMocks.canvas },
 }))
 
 const content = (where: string): ReconcileDeviation => ({
@@ -27,6 +29,9 @@ const content = (where: string): ReconcileDeviation => ({
   kind: 'content',
   shotNodeId: where,
 })
+
+const assessed = (shotNodeId: string) => ({ shotNodeId, assessed: true as const, dimensions: ['identity', 'composition'], unassessedDimensions: [], scope: 'single-frame' as const })
+const report = (deviations: ReconcileDeviation[], id = 'shot-1'): ShotVerifyReport => ({ deviations, assessments: [assessed(id)] })
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -48,6 +53,7 @@ describe('shotVerifyStore 状态机', () => {
     projectSession = createProjectSessionTestHarness()
     await projectSession.open('project-A')
     verifyMocks.gather.mockClear()
+    verifyMocks.canvas.nodes = []
     verifyMocks.verify.mockReset()
     verifyMocks.makeDeps.mockClear()
     useShotVerifyStore.getState().clear()
@@ -76,7 +82,8 @@ describe('shotVerifyStore 状态机', () => {
     st.setDeviations([content('镜5')])
     st.consumeRound()
     expect(useShotVerifyStore.getState().budget.roundsUsed).toBe(1)
-    st.setDeviations([]) // 收敛
+    const request = st.beginVerify('project-A')
+    useShotVerifyStore.getState().completeVerify(request, 'project-A', report([]), ['shot-1']) // actual assessed convergence
     const s = useShotVerifyStore.getState()
     expect(s.deviations).toEqual([])
     expect(s.budget.roundsUsed).toBe(0) // 回满
@@ -154,13 +161,13 @@ describe('shotVerifyStore 状态机', () => {
     expect(verifying.deviations).toEqual([])
     expect(verifying.budget.roundsUsed).toBe(1)
     expect(verifying.isVerifyCurrent(request, 'project-A')).toBe(true)
-    expect(verifying.completeVerify(request, 'project-A', [content('new-result')])).toBe(true)
+    expect(verifying.completeVerify(request, 'project-A', report([content('new-result')]), ['shot-1'])).toBe(true)
     expect(useShotVerifyStore.getState().deviations).toEqual([content('new-result')])
   })
 
   it('同项目并发校验 latest-wins：旧请求晚到不能覆盖新结果', async () => {
-    const older = deferred<ReconcileDeviation[]>()
-    const newer = deferred<ReconcileDeviation[]>()
+    const older = deferred<ShotVerifyReport>()
+    const newer = deferred<ShotVerifyReport>()
     verifyMocks.verify.mockImplementationOnce(() => older.promise).mockImplementationOnce(() => newer.promise)
 
     const olderRun = verifyShotsAndReport(['shot-old'], issued())
@@ -168,18 +175,18 @@ describe('shotVerifyStore 状态机', () => {
     const newerRun = verifyShotsAndReport(['shot-new'], issued())
     await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(2))
 
-    newer.resolve([content('newer')])
-    await expect(newerRun).resolves.toEqual([content('newer')])
-    older.resolve([content('older')])
+    newer.resolve(report([content('newer')]))
+    await expect(newerRun).resolves.toMatchObject({ deviations: [content('newer')] })
+    older.resolve(report([content('older')]))
     // store latest-wins；同时每个调用仍拿到自己那次 judge 的结果，production caller 不再读串全局值。
-    await expect(olderRun).resolves.toEqual([content('older')])
+    await expect(olderRun).resolves.toMatchObject({ deviations: [content('older')] })
 
     expect(useShotVerifyStore.getState().deviations).toEqual([content('newer')])
   })
 
   it('切项目会作废旧项目校验，旧结果晚到不能写进新项目', async () => {
-    const oldProjectRun = deferred<ReconcileDeviation[]>()
-    const newProjectRun = deferred<ReconcileDeviation[]>()
+    const oldProjectRun = deferred<ShotVerifyReport>()
+    const newProjectRun = deferred<ShotVerifyReport>()
     verifyMocks.verify.mockImplementationOnce(() => oldProjectRun.promise).mockImplementationOnce(() => newProjectRun.promise)
 
     const oldRun = verifyShotsAndReport(['shot-A'], issued())
@@ -189,10 +196,10 @@ describe('shotVerifyStore 状态机', () => {
     const newRun = verifyShotsAndReport(['shot-B'], issued())
     await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(2))
 
-    newProjectRun.resolve([content('project-B-result')])
-    await expect(newRun).resolves.toEqual([content('project-B-result')])
-    oldProjectRun.resolve([content('project-A-result')])
-    await expect(oldRun).resolves.toEqual([content('project-A-result')])
+    newProjectRun.resolve(report([content('project-B-result')]))
+    await expect(newRun).resolves.toMatchObject({ deviations: [content('project-B-result')] })
+    oldProjectRun.resolve(report([content('project-A-result')]))
+    await expect(oldRun).resolves.toMatchObject({ deviations: [], assessments: [expect.objectContaining({ assessed: false, reason: 'stale-project' })] })
 
     const state = useShotVerifyStore.getState()
     expect(state.projectId).toBe('project-B')
@@ -202,18 +209,18 @@ describe('shotVerifyStore 状态机', () => {
   })
 
   it('旧请求失败不能把更新请求已经写入的偏差清空', async () => {
-    const older = deferred<ReconcileDeviation[]>()
-    const newer = deferred<ReconcileDeviation[]>()
+    const older = deferred<ShotVerifyReport>()
+    const newer = deferred<ShotVerifyReport>()
     verifyMocks.verify.mockImplementationOnce(() => older.promise).mockImplementationOnce(() => newer.promise)
 
     const olderRun = verifyShotsAndReport(['shot-old'], issued())
     await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(1))
     const newerRun = verifyShotsAndReport(['shot-new'], issued())
     await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledTimes(2))
-    newer.resolve([content('newer')])
+    newer.resolve(report([content('newer')]))
     await newerRun
     older.reject(new Error('late old failure'))
-    await expect(olderRun).resolves.toEqual([])
+    await expect(olderRun).resolves.toMatchObject({ deviations: [], assessments: [expect.objectContaining({ assessed: false })] })
 
     expect(useShotVerifyStore.getState().deviations).toEqual([content('newer')])
   })
@@ -230,3 +237,57 @@ describe('buildContentFixMessage', () => {
     expect(msg).not.toContain('· x（边）') // 结构偏差不进内容修复消息
   })
 })
+
+describe('review coverage owns convergence budget', () => {
+  beforeEach(async () => {
+    projectSession = createProjectSessionTestHarness(); await projectSession.open('project-A');
+    useShotVerifyStore.getState().clear(); useShotVerifyStore.getState().activateProject('project-A');
+    verifyMocks.gather.mockImplementation(ids => ids.map(shotNodeId => ({ shotNodeId })));
+    verifyMocks.canvas.nodes = []
+    verifyMocks.verify.mockReset();
+  });
+  it('a failed optional review remains unreviewed and does not replenish consumed rounds', async () => {
+    useShotVerifyStore.getState().consumeRound();
+    verifyMocks.verify.mockRejectedValueOnce(new Error('judge unavailable'));
+    const result = await verifyShotsAndReport(['a'], issued());
+    expect(result.assessments).toEqual([expect.objectContaining({ shotNodeId: 'a', assessed: false })]);
+    expect(useShotVerifyStore.getState().budget.roundsUsed).toBe(1);
+  });
+  it('missing requested IDs are retained and prevent a false convergence', async () => {
+    useShotVerifyStore.getState().consumeRound();
+    verifyMocks.verify.mockResolvedValueOnce(report([], 'a'));
+    const result = await verifyShotsAndReport(['a', 'missing'], issued());
+    expect(result.assessments).toEqual([assessed('a'), expect.objectContaining({ shotNodeId: 'missing', assessed: false })]);
+    expect(useShotVerifyStore.getState().budget.roundsUsed).toBe(1);
+  });
+  it('partial dimensions do not reset budget, complete assessed convergence does', async () => {
+    useShotVerifyStore.getState().consumeRound();
+    verifyMocks.verify.mockResolvedValueOnce({ deviations: [], assessments: [{ ...assessed('a'), dimensions: ['composition'], unassessedDimensions: ['identity'] }] });
+    await verifyShotsAndReport(['a'], issued());
+    expect(useShotVerifyStore.getState().budget.roundsUsed).toBe(1);
+    verifyMocks.verify.mockResolvedValueOnce(report([], 'a'));
+    await verifyShotsAndReport(['a'], issued());
+    expect(useShotVerifyStore.getState().budget.roundsUsed).toBe(0);
+  });
+  it('an empty deviation write without assessment does not reset budget', () => {
+    useShotVerifyStore.getState().consumeRound();
+    useShotVerifyStore.getState().setDeviations([]);
+    expect(useShotVerifyStore.getState().budget.roundsUsed).toBe(1);
+  });
+});
+
+it('rejects review evidence when the same node changes result without another review request', async () => {
+  projectSession = createProjectSessionTestHarness(); await projectSession.open('project-A');
+  useShotVerifyStore.getState().clear(); useShotVerifyStore.getState().activateProject('project-A');
+  useShotVerifyStore.getState().consumeRound();
+  verifyMocks.canvas.nodes = [{ id: 'a', result: { id: 'version-1', url: 'nomi-local://first.png' } }];
+  const judge = deferred<ShotVerifyReport>();
+  verifyMocks.verify.mockReset().mockReturnValueOnce(judge.promise);
+  const pending = verifyShotsAndReport(['a'], issued());
+  await vi.waitFor(() => expect(verifyMocks.verify).toHaveBeenCalledOnce());
+  verifyMocks.canvas.nodes = [{ id: 'a', result: { id: 'version-2', url: 'nomi-local://second.png' } }];
+  judge.resolve(report([], 'a'));
+  const result = await pending;
+  expect(result.assessments).toEqual([expect.objectContaining({ shotNodeId: 'a', assessed: false, reason: 'review-input-changed' })]);
+  expect(useShotVerifyStore.getState().budget.roundsUsed).toBe(1);
+});

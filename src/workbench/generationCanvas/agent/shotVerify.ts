@@ -161,7 +161,7 @@ export function buildShotVerifyPrompt(ctx: ShotVerifyContext): string {
 }
 
 /** 容错解析模型判决:剥 ```json 围栏、抓首个 {…}、清裸控制字符与尾逗号。解析不出冒泡 error(不静默当通过)。 */
-export function parseShotVerifyVerdict(text: string): { scores: Record<ShotVerifyDimensionKey, number>; reason: string } {
+export function parseShotVerifyVerdict(text: string): { scores: Record<ShotVerifyDimensionKey, number>; reason: string; assessedDimensions: ShotVerifyDimensionKey[] } {
   let s = String(text || '').trim()
   const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fence) s = fence[1].trim()
@@ -182,7 +182,12 @@ export function parseShotVerifyVerdict(text: string): { scores: Record<ShotVerif
   const rawScores = obj.scores && typeof obj.scores === 'object' ? (obj.scores as Record<string, unknown>) : {}
   const scores = {} as Record<ShotVerifyDimensionKey, number>
   for (const d of SHOT_VERIFY_DIMENSIONS) scores[d.key] = clampScore(rawScores[d.key])
-  return { scores, reason: typeof obj.reason === 'string' ? obj.reason : '' }
+  const assessedDimensions = SHOT_VERIFY_DIMENSIONS.filter(d => {
+    const raw = rawScores[d.key]
+    return (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== ''))
+      && Number.isFinite(Number(raw)) && Number(raw) >= 1 && Number(raw) <= 5
+  }).map(d => d.key)
+  return { scores, reason: typeof obj.reason === 'string' ? obj.reason : '', assessedDimensions }
 }
 
 /** 一条「画面偏差」(映射进 ReconcileDeviation 前的中间形,带回指 id 供 Stage 2 决定回灌哪几镜)。 */
@@ -233,6 +238,8 @@ export function contentDeviationsToReconcile(content: readonly ShotContentDeviat
   return content.map((d) => ({
     where: d.shotTitle,
     field: d.dimensionName,
+    dimension: d.dimension,
+    score: d.score,
     expected: '与设定/描述一致',
     actual: `第 ${d.score} 档`,
     reason: d.reason,

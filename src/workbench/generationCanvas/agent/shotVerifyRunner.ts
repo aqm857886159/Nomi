@@ -8,7 +8,9 @@
 
 import { getAppLocale } from '../../../i18n'
 import type { ReconcileDeviation } from './reconcile'
+import { unreviewedShot, type ShotReviewAssessment } from '../../../../electron/shared/shotReviewEvidence'
 import {
+  activeDimensions,
   buildShotVerifyPrompt,
   parseShotVerifyVerdict,
   deviationsFromVerdict,
@@ -52,33 +54,45 @@ function toContext(shot: ShotVerifyInput): ShotVerifyContext {
   }
 }
 
-/**
- * 逐镜校验已生成产物 → 内容偏差(ReconcileDeviation[],kind:'content',喂对账卡)。
- * 顺序串行(逐镜调模型;镜数通常 ≤ 十几,且后镜的连贯轴依赖前镜上下文——并行无收益且更费)。
- */
-export async function verifyGeneratedShots(
-  shots: readonly ShotVerifyInput[],
-  deps: ShotVerifyDeps,
-): Promise<ReconcileDeviation[]> {
-  if (!deps.visionAvailable()) return []
-  const out: ReconcileDeviation[] = []
+/** Coverage and deviations belong to the same request, never inferred from an empty list. */
+export type ShotVerifyReport = { deviations: ReconcileDeviation[]; assessments: ShotReviewAssessment[] }
+
+export async function verifyGeneratedShots(shots: readonly ShotVerifyInput[], deps: ShotVerifyDeps): Promise<ShotVerifyReport> {
+  const report: ShotVerifyReport = { deviations: [], assessments: [] }
   for (const shot of shots) {
+    if (!deps.visionAvailable()) {
+      report.assessments.push(unreviewedShot(shot.shotNodeId, 'vision-unavailable'))
+      continue
+    }
     let frameUrl: string
     try {
       frameUrl = shot.isVideo ? await deps.extractFrame(shot.frameSourceUrl) : shot.frameSourceUrl
     } catch {
-      continue // 取帧失败 → 跳过该镜(不阻断生成完成、不误报)
+      report.assessments.push(unreviewedShot(shot.shotNodeId, 'frame-extraction-failed'))
+      continue
     }
-    if (!frameUrl) continue
+    if (!frameUrl) {
+      report.assessments.push(unreviewedShot(shot.shotNodeId, 'frame-unavailable'))
+      continue
+    }
     const ctx = toContext(shot)
     let verdict: ReturnType<typeof parseShotVerifyVerdict>
     try {
-      const raw = await deps.judge(buildShotVerifyPrompt(ctx), frameUrl)
-      verdict = parseShotVerifyVerdict(raw)
+      verdict = parseShotVerifyVerdict(await deps.judge(buildShotVerifyPrompt(ctx), frameUrl))
     } catch {
-      continue // 判决/解析失败 → 跳过该镜(校验是增益,不该把生成完成拖红)
+      report.assessments.push(unreviewedShot(shot.shotNodeId, 'judge-or-parse-failed'))
+      continue
     }
-    out.push(...contentDeviationsToReconcile(deviationsFromVerdict(ctx, verdict)))
+    const active = activeDimensions(ctx).map(d => d.key)
+    const dimensions = verdict.assessedDimensions.filter(key => active.includes(key))
+    if (dimensions.length === 0) {
+      report.assessments.push(unreviewedShot(shot.shotNodeId, 'no-assessable-dimensions'))
+      continue
+    }
+    report.assessments.push({ shotNodeId: shot.shotNodeId, assessed: true, dimensions,
+      unassessedDimensions: active.filter(key => !dimensions.includes(key)), scope: 'single-frame' })
+    const deviations = deviationsFromVerdict(ctx, verdict).filter(item => dimensions.includes(item.dimension))
+    report.deviations.push(...contentDeviationsToReconcile(deviations))
   }
-  return out
+  return report
 }

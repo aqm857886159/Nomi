@@ -1,3 +1,5 @@
+function qaAssessmentFixture(shotNodeId: string) { return { shotNodeId, assessed: true as const, dimensions: ['identity', 'composition', 'continuity'], unassessedDimensions: [], scope: 'single-frame' as const } }
+
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -33,19 +35,19 @@ function artifact(kind: ProductionArtifact['kind'], pathName: string, extra: Par
 describe('agentic production adversarial contracts', () => {
   it('does not retry an unassessable score, duplicate verdict, or exhausted attempt', () => {
     const duplicate = buildQaRetryPlans(qaRun(), [
-      { shotNodeId: 'node-shot-1', passed: false, flagged: [{ dimension: 'identity', score: 2, reason: '重复行不能追加第二次预算' }] },
-      { shotNodeId: 'node-shot-1', passed: false, flagged: [{ dimension: 'identity', score: 2, reason: '重复行不能追加第二次预算' }] },
+      { shotNodeId: 'node-shot-1', assessment: qaAssessmentFixture('node-shot-1'), passed: false, flagged: [{ dimension: 'identity', score: 2, reason: '重复行不能追加第二次预算' }] },
+      { shotNodeId: 'node-shot-1', assessment: qaAssessmentFixture('node-shot-1'), passed: false, flagged: [{ dimension: 'identity', score: 2, reason: '重复行不能追加第二次预算' }] },
     ])
     expect(duplicate).toHaveLength(1)
     expect(duplicate[0].eligible).toBe(true)
 
     expect(buildQaRetryPlans(qaRun(), [
-      { shotNodeId: 'node-shot-1', passed: false, flagged: [{ dimension: 'identity', score: 0, reason: '无法判断' }] },
+      { shotNodeId: 'node-shot-1', assessment: qaAssessmentFixture('node-shot-1'), passed: false, flagged: [{ dimension: 'identity', score: 0, reason: '无法判断' }] },
     ])).toEqual([])
 
     const exhausted = buildQaRetryPlans(qaRun({ jobs: [{
       ...qaRun().jobs[0], attempt: 1, retryCount: 1,
-    }] }), [{ shotNodeId: 'node-shot-1', passed: false, flagged: [{ dimension: 'identity', score: 2 }] }])
+    }] }), [{ shotNodeId: 'node-shot-1', assessment: qaAssessmentFixture('node-shot-1'), passed: false, flagged: [{ dimension: 'identity', score: 2 }] }])
     expect(exhausted[0]).toMatchObject({ eligible: false, blockedReason: 'attempt_limit' })
   })
 

@@ -29,10 +29,11 @@ function productionFiles(dir: string): string[] {
 }
 
 function parseProgram(contents: Map<string, string>) {
+  contents = new Map([...contents].map(([file, text]) => [file.replace(/\\/g, "/"), text]))
   const options: ts.CompilerOptions = { noResolve: true, noLib: true, jsx: ts.JsxEmit.Preserve }
   const host = ts.createCompilerHost(options)
   host.getSourceFile = (file, languageVersion) => {
-    const source = contents.get(file)
+    const source = contents.get(file.replace(/\\/g, "/"))
     return source === undefined ? undefined : ts.createSourceFile(file, source, languageVersion, true)
   }
   const program = ts.createProgram([...contents.keys()], options, host)

@@ -77,6 +77,8 @@ export type RunProbeProcess = (
 type ProcessTreeChild = {
   pid?: number;
   killed: boolean;
+  exitCode?: number | null;
+  signalCode?: NodeJS.Signals | null;
   kill(signal?: NodeJS.Signals): boolean;
 };
 
@@ -133,6 +135,7 @@ export async function terminateProcessTree(
       await (deps.runTaskkill ?? runWindowsTaskkill)(pid);
       return;
     } catch {
+      if (child.exitCode != null || child.signalCode != null) return;
       const killed = child.killed || child.kill("SIGKILL");
       if (!killed) throw new BoundedProcessError("process_cleanup_failed");
       return;
@@ -184,6 +187,7 @@ export async function runBoundedProcess(
     let closeCode: number | null = null;
     let cleanupPending = 0;
     let cleanupRejected = false;
+    let forceAfterPending = false;
     let forceTimer: ReturnType<typeof setTimeout> | undefined;
     let finalTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -206,14 +210,24 @@ export async function runBoundedProcess(
       }
     };
 
+    const cleanupSettled = (rejected: boolean) => {
+      cleanupRejected ||= rejected;
+      cleanupPending -= 1;
+      if (!settled && forceAfterPending && !closeSeen && cleanupPending === 0) {
+        forceAfterPending = false;
+        terminate(true);
+      }
+      finish();
+    };
+
     const terminate = (force: boolean) => {
       cleanupPending += 1;
       let operation: Promise<void>;
       try { operation = (dependencies.terminateTree || terminateProcessTree)(child, force); }
-      catch { cleanupRejected = true; cleanupPending -= 1; finish(); return; }
+      catch { cleanupSettled(true); return; }
       void operation.then(
-        () => { cleanupPending -= 1; finish(); },
-        () => { cleanupRejected = true; cleanupPending -= 1; finish(); },
+        () => cleanupSettled(false),
+        () => cleanupSettled(true),
       );
     };
 
@@ -222,10 +236,16 @@ export async function runBoundedProcess(
       failure ??= new BoundedProcessError(code);
       child.stdin?.destroy();
       if (cleanupPending === 0 && !forceTimer && !finalTimer) terminate(false);
-      forceTimer ??= setTimeout(() => { if (!closeSeen) terminate(true); }, dependencies.cleanupGraceMs ?? 250);
+      forceTimer ??= setTimeout(() => {
+        if (closeSeen) return;
+        if (cleanupPending > 0) forceAfterPending = true;
+        else terminate(true);
+      }, dependencies.cleanupGraceMs ?? 250);
       finalTimer ??= setTimeout(() => {
         if (settled) return;
         settled = true;
+        forceAfterPending = false;
+        if (forceTimer) clearTimeout(forceTimer);
         clearTimeout(timer);
         options.signal?.removeEventListener("abort", onAbort);
         reject(new BoundedProcessError("process_cleanup_failed"));
@@ -306,8 +326,8 @@ export async function runBoundedProcess(
       if (!settled) stop("spawn_failed");
     });
     child.on("close", (code) => {
-      if (settled) return;
       closeSeen = true;
+      if (settled) return;
       closeCode = code;
       if (forceTimer) clearTimeout(forceTimer);
       finish();

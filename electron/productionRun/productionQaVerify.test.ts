@@ -1,3 +1,5 @@
+function qaAssessmentFixture(shotNodeId: string) { return { shotNodeId, assessed: true as const, dimensions: ['identity', 'composition', 'continuity'], unassessedDimensions: [], scope: 'single-frame' as const } }
+
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -85,8 +87,8 @@ describe('production qa 审片接线（W1.5 · 路径②）', () => {
     const service = makeTwoShotService(root, (ids) => ({
       reviewedShotIds: ids,
       verdicts: ids.map((shotNodeId, index) => index === 1
-        ? { shotNodeId, passed: false, shotTitle: `镜 ${index + 1}`, flagged: [{ dimension: 'identity', dimensionName: '身份', score: 2, reason: '主体换脸了' }] }
-        : { shotNodeId, passed: true, shotTitle: `镜 ${index + 1}` }),
+        ? { shotNodeId, assessment: qaAssessmentFixture(shotNodeId), passed: false, shotTitle: `镜 ${index + 1}`, flagged: [{ dimension: 'identity', dimensionName: '身份', score: 2, reason: '主体换脸了' }] }
+        : { shotNodeId, assessment: qaAssessmentFixture(shotNodeId), passed: true, shotTitle: `镜 ${index + 1}` }),
     }), seen)
     const runId = 'run-qa-1'
     await driveToRoughCut(service, runId)
@@ -147,14 +149,14 @@ describe('buildQaStageOutcome / adoptedGenerationShotNodeIds（纯逻辑）', ()
 
   it('全部过检 / 有红标 → 每镜一条事件 + 总览摘要', () => {
     const allPass = buildQaStageOutcome({ reviewedShotIds: ['a', 'b'], verdicts: [
-      { shotNodeId: 'a', passed: true }, { shotNodeId: 'b', passed: true },
+      { shotNodeId: 'a', assessment: qaAssessmentFixture('a'), passed: true }, { shotNodeId: 'b', assessment: qaAssessmentFixture('b'), passed: true },
     ] })
     expect(allPass.events).toHaveLength(2)
     expect(allPass.stageSummary).toContain('全部过检')
 
     const withFlag = buildQaStageOutcome({ reviewedShotIds: ['a', 'b'], verdicts: [
-      { shotNodeId: 'a', passed: true, shotTitle: '开场' },
-      { shotNodeId: 'b', passed: false, shotTitle: '结尾', flagged: [{ dimensionName: '构图', score: 1, reason: '机位错' }] },
+      { shotNodeId: 'a', assessment: qaAssessmentFixture('a'), passed: true, shotTitle: '开场' },
+      { shotNodeId: 'b', assessment: qaAssessmentFixture('b'), passed: false, shotTitle: '结尾', flagged: [{ dimension: 'composition', dimensionName: '构图', score: 1, reason: '机位错' }] },
     ] })
     expect(withFlag.events.map((e) => e.summary)).toEqual([
       expect.stringContaining('开场：审片通过'),
@@ -183,21 +185,106 @@ describe('buildQaStageOutcome / adoptedGenerationShotNodeIds（纯逻辑）', ()
         { jobId: 'job:b', stageId: 'generate', nodeId: 'b', attempt: 0, updatedAt: '2026-01-01T00:00:00.000Z' }],
     } as unknown as Parameters<typeof buildQaRetryPlans>[0]
     const plans = buildQaRetryPlans(run, [
-      { shotNodeId: 'a', passed: false, flagged: [{ dimensionName: '身份', score: 2, reason: '换脸' }] },
-      { shotNodeId: 'b', passed: false, flagged: [{ dimensionName: '构图', score: 0, reason: '无法判定' }] },
+      { shotNodeId: 'a', assessment: qaAssessmentFixture('a'), passed: false, flagged: [{ dimension: 'identity', dimensionName: '身份', score: 2, reason: '换脸' }] },
+      { shotNodeId: 'b', assessment: qaAssessmentFixture('b'), passed: false, flagged: [{ dimension: 'composition', dimensionName: '构图', score: 0, reason: '无法判定' }] },
     ])
     expect(plans).toHaveLength(1)
     expect(plans[0]).toMatchObject({ shotNodeId: 'a', eligible: true, retryCount: 1, nextAttempt: 1 })
     expect(plans[0].retryDirective).toContain('身份')
 
     const exhausted = buildQaRetryPlans({ ...run, budget: { ...run.budget, reserved: 1 } }, [
-      { shotNodeId: 'a', passed: false, flagged: [{ dimensionName: '身份', score: 2 }] },
+      { shotNodeId: 'a', assessment: qaAssessmentFixture('a'), passed: false, flagged: [{ dimension: 'identity', dimensionName: '身份', score: 2 }] },
     ])
     expect(exhausted[0]).toMatchObject({ eligible: false, blockedReason: 'budget_exhausted' })
 
     const atLimit = buildQaRetryPlans({ ...run, jobs: [{ ...run.jobs[0], attempt: 1 }] }, [
-      { shotNodeId: 'a', passed: false, flagged: [{ dimensionName: '身份', score: 2 }] },
+      { shotNodeId: 'a', assessment: qaAssessmentFixture('a'), passed: false, flagged: [{ dimension: 'identity', dimensionName: '身份', score: 2 }] },
     ])
     expect(atLimit[0]).toMatchObject({ eligible: false, blockedReason: 'attempt_limit' })
   })
 })
+
+
+describe('QA requires explicit assessment evidence', () => {
+  const assessment = (shotNodeId: string) => ({ shotNodeId, assessed: true as const, dimensions: ['identity'], unassessedDimensions: [], scope: 'single-frame' as const });
+  it('does not promote a legacy no-flags response to a pass', () => {
+    const result = buildQaStageOutcome({ reviewedShotIds: ['a'], verdicts: [{ shotNodeId: 'a', passed: true }] });
+    expect(result.stageSummary).not.toContain('全部过检');
+    expect(result.stageSummary).toContain('未审');
+  });
+  it('retains missing requested shots as unreviewed rather than reporting all passed', () => {
+    const result = buildQaStageOutcome({ requestedShotIds: ['a', 'b'], reviewedShotIds: ['a'], verdicts: [{ shotNodeId: 'a', passed: true, assessment: assessment('a') }] });
+    expect(result.stageSummary).not.toContain('全部过检');
+    expect(result.stageSummary).toContain('1/2');
+    expect(result.events.some(event => event.summary.includes('b') && event.summary.includes('未审'))).toBe(true);
+  });
+  it('does not authorize retries for missing evidence or nonfinite/missing scores', () => {
+    const run = { budget: { authorized: 10, reserved: 0, actual: 0, unsettled: 0 }, policy: { maxAttemptsPerJob: 3 }, jobs: [{ stageId: 'generate', nodeId: 'a', jobId: 'job-a', attempt: 1, updatedAt: '2026-10-30T00:00:00Z' }] } as unknown as Parameters<typeof buildQaRetryPlans>[0];
+    expect(buildQaRetryPlans(run, [{ shotNodeId: 'a', passed: false, flagged: [{ dimension: 'identity', score: 1 }] }])).toEqual([]);
+    for (const score of [undefined, Number.NaN, Number.POSITIVE_INFINITY, 0]) {
+      expect(buildQaRetryPlans(run, [{ shotNodeId: 'a', passed: false, assessment: assessment('a'), flagged: [{ dimension: 'identity', score }] }])).toEqual([]);
+    }
+    expect(buildQaRetryPlans(run, [{ shotNodeId: 'a', passed: false, assessment: assessment('a'), flagged: [{ dimension: 'identity', score: 1 }] }])).toMatchObject([{ eligible: true }]);
+  });
+});
+
+
+it('rejects duplicate or mismatched assessment identity before QA summary', () => {
+  const assessment = { shotNodeId: 'foreign', assessed: true as const, dimensions: ['identity'], unassessedDimensions: [], scope: 'single-frame' as const };
+  const wrong = buildQaStageOutcome({ requestedShotIds: ['a'], verdicts: [{ shotNodeId: 'a', passed: true, assessment }] });
+  expect(wrong.stageSummary).toContain('未审');
+  const duplicate = buildQaStageOutcome({ requestedShotIds: ['a'], verdicts: [1,2].map(() => ({ shotNodeId: 'a', passed: true, assessment: { ...assessment, shotNodeId: 'a' } })) });
+  expect(duplicate.stageSummary).not.toContain('全部过检');
+});
+
+it('never retries a dimension that the assessment did not actually assess', () => {
+  const run = { budget: { authorized: 10, reserved: 0, actual: 0, unsettled: 0 }, policy: { maxAttemptsPerJob: 3 }, jobs: [{ stageId: 'generate', nodeId: 'a', jobId: 'job-a', attempt: 1, updatedAt: '2026-10-30T00:00:00Z' }] } as unknown as Parameters<typeof buildQaRetryPlans>[0];
+  const assessment = { shotNodeId: 'a', assessed: true as const, dimensions: ['identity'], unassessedDimensions: ['composition'], scope: 'single-frame' as const };
+  for (const dimension of ['composition', undefined, 'audio']) {
+    expect(buildQaRetryPlans(run, [{ shotNodeId: 'a', passed: false, assessment, flagged: [{ dimension, score: 1 }] }])).toEqual([]);
+  }
+  expect(buildQaRetryPlans(run, [{ shotNodeId: 'a', passed: false, assessment, flagged: [{ dimension: 'identity', score: 1 }] }])).toMatchObject([{ eligible: true }]);
+});
+
+it.each(['pause', 'cancel'] as const)('does not reserve retries or assemble after %s while QA is awaiting a judge', async action => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qa-late-control-'));
+  const seen: string[] = [];
+  let finish!: (value: unknown) => void;
+  let ids: string[] = [];
+  const pending = new Promise(resolve => { finish = resolve });
+  const service = makeTwoShotService(root, shotNodeIds => { ids = shotNodeIds; return pending }, seen);
+  const runId = 'qa-late-' + action;
+  await driveToRoughCut(service, runId);
+  await waitFor(() => seen.includes('production.verify-shots'));
+  const before = service.readFull('project-1', runId)!;
+  await service.command('project-1', runId, { commandId: 'late-' + action, expectedRevision: before.revision, type: 'run.control', payload: { action }, issuedAt: new Date().toISOString() });
+  const stopped = service.readFull('project-1', runId)!;
+  finish({ reviewedShotIds: ids, verdicts: ids.map(shotNodeId => ({ shotNodeId, passed: false, assessment: qaAssessmentFixture(shotNodeId), flagged: [{ dimension: 'identity', score: 1 }] })) });
+  await new Promise(resolve => setImmediate(resolve));
+  const after = service.readFull('project-1', runId)!;
+  expect(after.jobs.filter(job => job.retryCount)).toEqual([]);
+  expect(after.budget.reserved).toBe(stopped.budget.reserved);
+  expect(after.status).toBe(stopped.status);
+  expect(seen).not.toContain('production.arrange');
+});
+
+it('does not apply a late review to a replaced generation artifact version', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qa-new-artifact-'));
+  const seen: string[] = [];
+  let finish!: (value: unknown) => void;
+  let ids: string[] = [];
+  const pending = new Promise(resolve => { finish = resolve });
+  const service = makeTwoShotService(root, shotNodeIds => { ids = shotNodeIds; return pending }, seen);
+  const runId = 'qa-replaced-artifact';
+  await driveToRoughCut(service, runId);
+  await waitFor(() => seen.includes('production.verify-shots'));
+  const before = service.readFull('project-1', runId)!;
+  const original = before.artifacts.find(artifact => artifact.stageId === 'generate')!;
+  service.repository.execute('project-1', runId, { commandId: 'replacement-artifact', expectedRevision: before.revision, type: 'artifact.add', payload: { artifact: { ...original, artifactId: 'new-version-after-review-started', version: 2, createdAt: new Date().toISOString() } }, issuedAt: new Date().toISOString() });
+  finish({ reviewedShotIds: ids, verdicts: ids.map(shotNodeId => ({ shotNodeId, passed: false, assessment: qaAssessmentFixture(shotNodeId), flagged: [{ dimension: 'identity', score: 1 }] })) });
+  await new Promise(resolve => setImmediate(resolve));
+  const after = service.readFull('project-1', runId)!;
+  expect(after.jobs.filter(job => job.retryCount)).toEqual([]);
+  expect(after.stages.find(stage => stage.stageId === 'qa')?.status).toBe('running');
+  expect(seen).not.toContain('production.arrange');
+});
