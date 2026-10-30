@@ -1,3 +1,4 @@
+import { canvasDocumentInput } from '../../shortcutSurface'
 /**
  * [INPUT]: 依赖 @photo-sphere-viewer/core 的 Viewer / EquirectangularAdapter、
  *          ../../generation/pageLayer 的 GenerationPageLayer（全屏态挂进生成页那一格）、../../generation/pageLayerContext 的页格层租户状态与 active、
@@ -540,8 +541,8 @@ export default function PanoramaViewer({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setFullscreen(false)
     }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    canvasDocumentInput.addEventListener('keydown', handleKeyDown)
+    return () => canvasDocumentInput.removeEventListener('keydown', handleKeyDown)
   }, [fullscreen, layerActive, setFullscreen])
 
   if (!imageUrl) {
