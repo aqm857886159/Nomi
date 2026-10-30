@@ -330,7 +330,9 @@
   },
   "migration": "Version 14 reprojects only matching original revision or a vendor-bound, digest-checked durable declaration snapshot with compatible original wire; compiled defaults and canonical parameter bindings feed the same runtime. Both ordinary load and boot seed entry supply originals. Missing, conflicting or unsupported originals get a durable missing-capability marker; Agent lists it and dispatch rejects before execution. Complete user-authored contracts remain unchanged.",
   "residual_risks": [
-    "Live upstream generation, Windows and paid verification are outside this local loopback validation."
+    "Live upstream generation, Windows and paid verification are outside this local loopback validation.",
+    "Full-suite blocker: the standard draft producer builtinOpenAiCompatibleDraft supplies an image_url read in text_to_video without a reference declaration. The parity inventory row currently covers a generic terminal input, not this actual producer result; its boundary is outside the approved production edit scope.",
+    "Full-suite blocker: the existing promotionMappings verified-replacement case has an enabled old mapping on a disabled testing candidate without declaration ownership. Pending a confirmed lifecycle ownership strategy; no blanket bypass is added."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",
