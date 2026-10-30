@@ -68,20 +68,20 @@ describe('relay onboarding reproducible gaps', () => {
     expect(mode.create.path).toBe('/v1/videos')
   })
 
-  it.fails('a valid declaration retains parameters in the catalog capability contract', async () => {
+  it('a valid declaration retains parameters in the catalog capability contract', async () => {
     const { row } = await register()
     const archetype = resolveArchetypeForModel(row)
     expect(archetype?.modes[0].params.map((p) => p.key)).toEqual(expect.arrayContaining(['duration', 'resolution']))
   })
 
-  it.fails('a frame-only declaration retains its required reference slot', async () => {
+  it('a frame-only declaration retains its required reference slot', async () => {
     const { row } = await register({ id: 'opaque-beta', frameOnly: true })
     const mapping = readCatalog().mappings.find((m) => m.modelKey === row.modelKey)
     expect(mapping.taskKind).toBe('image_to_video')
     expect(resolveArchetypeForModel(row)?.modes[0].slots).toEqual(expect.arrayContaining([expect.objectContaining({ min: 1 })]))
   })
 
-  it.fails('replacing a declaration removes an obsolete mode previously owned by that declaration', async () => {
+  it('replacing a declaration removes an obsolete mode previously owned by that declaration', async () => {
     const { row, card } = await register()
     const twoModes = structuredClone(card)
     twoModes.models[0].modes.push(relayDeclaration(relay.baseUrl, { frameOnly: true }).models[0].modes[0])
@@ -93,11 +93,18 @@ describe('relay onboarding reproducible gaps', () => {
     expect(readCatalog().mappings.filter((m) => m.vendorKey === row.vendorKey && m.modelKey === row.modelKey && m.enabled).map((m) => m.taskKind)).toEqual(['text_to_video'])
   })
 
-  it.fails('model specifications never advertise chat for a declared media model', async () => {
+  it('model specifications never advertise chat for a declared media model', async () => {
     const { row } = await register()
     const entry = agentModelEntriesFromCatalog(readCatalog()).find((e) => e.entry.modelId === row.modelKey)?.entry
     expect(entry.kind).toBe('video')
     expect(entry.modes.map((m) => m.modeId)).not.toContain('chat')
+  })
+
+  it('a frame-only declaration refuses missing image before any provider POST', async () => {
+    const { row } = await register({ frameOnly: true })
+    upsertModelCatalogVendorApiKey(row.vendorKey, { apiKey: FAKE_RELAY_KEY, enabled: true })
+    await expect(runTask({ vendor: row.vendorKey, request: { kind: 'image_to_video', prompt: request.prompt, extras: { modelKey: row.modelKey } } })).rejects.toThrow(/参考|图片|reference|image/i)
+    expect(relay.hits.filter((h) => h.method === 'POST')).toHaveLength(0)
   })
 
   it('control: a disabled credential produces an honest declaration next action', async () => {
@@ -183,6 +190,9 @@ describe('relay onboarding reproducible gaps', () => {
     const tried = await tryModel({ runTask, fetchTaskResult, pollIntervalMs: 1, approvalPolicy: () => ({ mode: 'direct' }) }, { vendorKey: row.vendorKey, modelKey: row.modelKey, taskKind: mode.taskKind, prompt: request.prompt })
     expect(tried.ok, JSON.stringify(tried)).toBe(true)
     expect(relay.tasks.size).toBe(1)
-    expect(relay.hits.filter((h) => h.method === 'POST')).toHaveLength(1)
+    const posts = relay.hits.filter((h) => h.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(Number(posts[0].body.duration)).toBe(1)
+    expect(posts[0].body.resolution).toBe('360p')
   })
 })

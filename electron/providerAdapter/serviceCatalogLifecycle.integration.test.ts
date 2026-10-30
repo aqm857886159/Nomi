@@ -566,7 +566,7 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
 
     await service.executeRun(started.id);
 
-    expect(service.getRun(started.id)?.stage).toBe("partial");
+    expect(service.getRun(started.id)?.stage, JSON.stringify(service.getRun(started.id))).toBe("partial");
     expect(listModelCatalogMappings({ vendorKey: started.vendorKey })).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ taskKind: "text_to_image", enabled: true }),

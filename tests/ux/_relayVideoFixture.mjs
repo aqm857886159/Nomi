@@ -17,11 +17,11 @@ export function relayDeclaration(baseUrl, { id = 'opaque-gamma', frameOnly = fal
   const native = shape === 'plural-url'
   const taskPath = native ? 'data.0.task_id' : shape === 'content' ? 'id' : 'task_id'
   const body = native
-    ? { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', duration: '{{request.duration}}', resolution: '{{request.resolution}}', aspect_ratio: '{{request.size}}', audio: false }
+    ? { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', duration: '{{request.params.duration}}', resolution: '{{request.params.resolution}}', aspect_ratio: '{{request.params.size}}', audio: false }
     : shape === 'content'
-      ? { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', seconds: '{{request.duration}}', size: '1280x720' }
-      : { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', duration: '{{request.duration}}', size: '{{request.size}}' }
-  if (frameOnly) body.image_urls = ['{{request.image_url}}']
+      ? { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', seconds: '{{request.params.duration}}', size: '1280x720' }
+      : { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', duration: '{{request.params.duration}}', size: '{{request.params.size}}' }
+  if (frameOnly) body.image_urls = ['{{request.params.image_url}}']
   const mode = {
     taskKind: frameOnly ? 'image_to_video' : 'text_to_video', delivery: 'asynchronous',
     create: { method: 'POST', path: root, headers: AUTH, body, response_mapping: { task_id: taskPath }, provider_meta_mapping: { task_id: taskPath } },

@@ -1,3 +1,4 @@
+import { missingDeclaredCapabilityFields, parseCustomCapabilityContract } from "./customCapabilityContract";
 import { defaultCustomCallTaskKind, resolveCapabilityModeEvidence } from "./capabilityModeManifest";
 import type { BillingModelKind, ProfileKind } from "../catalog/types";
 
@@ -118,7 +119,7 @@ export function derivePublishedExecution(
   model: PublishedExecutionModel | null | undefined,
   evidence: PublishedExecutionEvidence = {},
 ): PublishedExecution {
-  if (!model?.enabled) return { published: false, publishedModes: [] };
+  if (!model?.enabled || missingDeclaredCapabilityFields(model.meta).length) return { published: false, publishedModes: [] };
   const supported = EXECUTABLE_TASKS_BY_KIND[model.kind as BillingModelKind] || [];
   const modes = new Set<ProfileKind>();
   const adapter = record(record(model.meta)?.adapter);
@@ -159,8 +160,10 @@ export function derivePublishedExecution(
   for (const taskKind of customCallModes(model, supported)) modes.add(taskKind);
   if (model.kind === "text") modes.add("chat");
 
+  const contract = parseCustomCapabilityContract(model.meta);
+  const declaredTasks = contract ? new Set(contract.modes.map((mode) => mode.transportTaskKind || contract.transportTaskKind)) : null;
   const allowed = publicationMask.present ? new Set(publicationMask.modes) : null;
-  const publishedModes = supported.filter((taskKind) => modes.has(taskKind) && (!allowed || allowed.has(taskKind)));
+  const publishedModes = supported.filter((taskKind) => modes.has(taskKind) && (!allowed || allowed.has(taskKind)) && (!declaredTasks || declaredTasks.has(taskKind as never)));
   return {
     published: publishedModes.length > 0,
     publishedModes,

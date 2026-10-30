@@ -4,6 +4,7 @@
 //
 // 为什么单独成文件还配测试：duration 这种"数字被 firstString 吞成空串"的坑、omni 参考数组该不该进
 // params 的坑，都只在"真实参数构建"里暴露，埋在 2500 行 runtime 里既测不到也容易回归。
+import { assertDeclaredCapabilityForTask } from "../shared/modelAvailability";
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
 import { referenceInputParams } from "./archetypeInput";
 import { ARCHETYPE_WIRE_DEFAULTS, ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
@@ -143,6 +144,7 @@ export function applyHeadlessParamDefaults(
   /** 这条 mapping 的 create body（给了才做参考键形态投影，W1d）。不给 = 只做①②缺参兜底，行为不变。 */
   createBody?: unknown,
 ): Record<string, unknown> | undefined {
+  assertDeclaredCapabilityForTask(selected.modelMeta, selected.taskKind);
   const { taskKind, vendorKey } = selected;
   const declaredArchetype = isJsonRecord(selected.modelMeta) ? selected.modelMeta.archetypeId : undefined;
   const archetypeId = typeof declaredArchetype === "string" && declaredArchetype ? declaredArchetype : undefined;

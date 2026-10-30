@@ -729,7 +729,7 @@ export function billingKindForTaskKind(kind: ProfileKind): BillingModelKind {
  *  BUILTIN_VENDOR_SEEDS 补回「键整个不存在」的那两项（值不同=用户改过，一律不碰）；自建家没有
  *  代码侧出处补不了，盖一条 meta 提示让界面明着告诉用户去重新导入接入包。写路径的类根因已由
  *  upsertDraft.ts 在编译期闭合，故这是一次性的、不再重跑的修复。见 vendorFieldLossRepair.ts。 */
-export type CatalogVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+export type CatalogVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
 export const CURRENT_CATALOG_VERSION: CatalogVersion = catalogVersion.current as CatalogVersion;
 
 export type CatalogState = {

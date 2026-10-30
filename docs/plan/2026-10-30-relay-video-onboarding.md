@@ -162,4 +162,6 @@
 
 要满足第 5 项，需协调分配一次性迁移与接线（至少 `electron/catalog/catalogMigrations.ts`，以及原始 revision 的只读供给与可见状态的既有出口；具体补充文件须先查清并认领）。若采用目录版本迁移，还涉及第二刀独占的 `electron/catalog/types.ts`。当前不越界改这些文件，不在共享纯读函数里偷读文件、改目录或只导出一个无人调用的迁移函数。实现前先交协调核定这段所有权。
 
-协调已将 catalogMigrations.ts、catalogVersion.json、catalogStore.ts 的迁移接线及 store.ts 的只读 revision 供给归本刀；types.ts 仅目录版本联合那一行归本刀。modelAvailability.ts 增加 capability_incomplete 原因与缺失字段。Agent 模型说明负责引导重交；picker/i18n 留第三刀，故本刀不再以新增 UI 为前置。版本迁移幂等，至少验证原卡可恢复、原卡不可恢复、完整目录不变三类。新增派发原因在现有可执行模型门的拒发接线正等待补充确认，其余实现继续。
+协调已将 catalogMigrations.ts、catalogVersion.json、catalogStore.ts 的迁移接线及 store.ts 的只读 revision 供给归本刀；types.ts 仅目录版本联合那一行归本刀。modelAvailability.ts 增加 capability_incomplete 原因与缺失字段。Agent 模型说明负责引导重交；picker/i18n 留第三刀，故本刀不再以新增 UI 为前置。版本迁移幂等，至少验证原卡可恢复、原卡不可恢复、完整目录不变三类。派发前的拒绝按本次裁定落实；不改变已受理任务查询的模型解析。
+
+第一刀实现接线核对：普通读取与启动种子均调用 migrateStoredCatalog（一次装配原始 revision 的同一入口）；不在纯迁移默认参数里读资料。为落实裁定中的“派发前按它拒发，拒发信息说清缺什么”，在创建任务经过的 taskParams.ts 参数准备门调用共享能力断言；executableModel.ts 保持原样，避免已受理任务查询被误拦，未改 runtime。声明参数与引用的旧平铺模板在投影时编译到现役 request.params 通道；每模式控件默认值同源生成 create.defaultParams，冲突在事务写入前拒绝。paramMap 的 from/fromMany 依赖复用 consumedCanonicalKeys，现有图片 multipart / JSON / chat carrier 继续走原线。

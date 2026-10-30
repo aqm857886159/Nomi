@@ -11,6 +11,9 @@
 import { resolveArchetypeForModel } from "../shared/modelArchetypes";
 import type { AgentModelEntry } from "../shared/agentCapabilities/availableModels";
 import type { ModelAvailabilityFacts } from "../shared/agentCapabilities/modelSpecProjection";
+import { missingDeclaredCapabilityFields } from "../shared/customCapabilityContract";
+import { createCatalogAvailability } from "./catalogModelAvailability";
+import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 import { deriveModelListing } from "./modelCatalogListing";
 import type { CatalogState } from "./types";
 import type { KeyStatusProbe } from "./secrets";
@@ -18,8 +21,7 @@ import type { KeyStatusProbe } from "./secrets";
 export type CatalogAgentModel = { entry: AgentModelEntry; availability: ModelAvailabilityFacts };
 
 /**
- * 目录 → `AgentModelEntry` + 可用性。没有档案的模型**照列**（`modes` 给一个 catalog 定义的
- * 空壳模式），理由与渲染层一致：漏掉它等于让模型以为这个模型不存在，而它在界面里选得到。
+ * 目录 → `AgentModelEntry` + 可用性。没有档案的媒体模型照列但不给虚构模式（文本保持 chat），理由与渲染层一致：漏掉它等于让模型以为这个模型不存在，而它在界面里选得到。
  */
 export function agentModelEntriesFromCatalog(
   state: CatalogState,
@@ -27,13 +29,24 @@ export function agentModelEntriesFromCatalog(
 ): CatalogAgentModel[] {
   const out: CatalogAgentModel[] = [];
   const seen = new Set<string>();
-  for (const row of deriveModelListing(state, deps)) {
+  const rows = deriveModelListing(state, deps);
+  const availability = createCatalogAvailability(state, deps.keyStatusProbe);
+  for (const model of state.models) {
+    const missing = missingDeclaredCapabilityFields(model.meta);
+    if (!missing.length || rows.some((row) => row.vendor === model.vendorKey && row.modelKey === model.modelKey)) continue;
+    rows.push({ vendor: model.vendorKey, vendorName: state.vendors.find((v) => v.key === model.vendorKey)?.name || model.vendorKey,
+      modelKey: model.modelKey, moduleId: SINGLE_SHOT_GENERATION_MODULE_ID, kind: model.kind, label: model.labelZh || model.modelKey,
+      keyStatus: availability.credentialStatusFor(model.vendorKey), usable: false,
+      statusReason: `声明不完整，需要重新读文档交卡 / Incomplete declaration: read the documentation and resubmit. Missing: ${missing.join(", ")}`,
+      references: { image: false, video: false, audio: false, multiImage: false, referenceModes: [] } });
+  }
+  for (const row of rows) {
     // 身份唯一键含 vendor：同名模型来自两家是**两个模型**（与 buildAgentModelEntries 同一条规则）。
     const identity = `${row.vendor}::${row.modelKey}`;
     if (seen.has(identity)) continue;
     seen.add(identity);
     const model = state.models.find((item) => item.vendorKey === row.vendor && item.modelKey === row.modelKey);
-    const archetype = resolveArchetypeForModel({
+    const archetype = missingDeclaredCapabilityFields(model?.meta).length ? null : resolveArchetypeForModel({
       modelKey: row.modelKey,
       modelAlias: model?.modelAlias ?? null,
       vendorKey: row.vendor,
@@ -46,7 +59,7 @@ export function agentModelEntriesFromCatalog(
       label: row.label,
       kind: (archetype?.kind ?? row.kind) as AgentModelEntry["kind"],
       ...(archetype ? { archetypeId: archetype.id } : {}),
-      defaultModeId: archetype?.defaultModeId ?? "chat",
+      defaultModeId: archetype?.defaultModeId ?? (row.kind === "text" ? "chat" : ""),
       modes: archetype
         ? archetype.modes.map((mode) => ({
             modeId: mode.id,
@@ -62,7 +75,7 @@ export function agentModelEntriesFromCatalog(
               ...(slot.characterIndexed ? { characterIndexed: true as const } : {}),
             })),
           }))
-        : [{ modeId: "chat", vendorTerm: "chat", intent: "generate or rewrite text", hint: "", params: [], slots: [] }],
+        : row.kind === "text" ? [{ modeId: "chat", vendorTerm: "chat", intent: "generate or rewrite text", hint: "", params: [], slots: [] }] : [],
       ...(archetype?.variants?.length
         ? {
             variants: archetype.variants.map((variant) => ({

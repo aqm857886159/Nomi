@@ -23,7 +23,7 @@ import { resolveConnectionVendorKey } from "./connectionVendorKey";
 import { mutateCatalog, readCatalog } from "./catalogStore";
 import { readCredentialBinding } from "./credentialBinding";
 import type { ProviderAdapterDraft } from "../providerAdapter/types";
-import type { Mapping, Vendor } from "./types";
+import type { Vendor } from "./types";
 
 export type DeclaredRegistrationInput = {
   card: ProviderAdapterDraft;
@@ -58,32 +58,10 @@ export class DeclaredOriginRewriteError extends Error {
   }
 }
 
-const originOf = (url: string): string => new URL(url).origin;
+import { projectDeclaredModel, assertDeclaredReplacementOwnership } from "../providerAdapter/promotionMeta";
+export { mappingRowFromDeclaredMode } from "../providerAdapter/promotionMeta";
 
-/** 一条 mode → 一行 mapping。**登记与认证晋升共用这一份投影**，两边各写一遍必然漂。 */
-export function mappingRowFromDeclaredMode(input: {
-  vendorKey: string;
-  modelKey: string;
-  label: string;
-  mode: ProviderAdapterDraft["models"][number]["modes"][number];
-  enabled: boolean;
-  existing?: Partial<Mapping>;
-}): Record<string, unknown> {
-  const { mode } = input;
-  return {
-    ...(input.existing || {}),
-    vendorKey: input.vendorKey,
-    modelKey: input.modelKey,
-    taskKind: mode.taskKind,
-    name: `${input.label} · ${mode.taskKind}`,
-    enabled: input.enabled,
-    create: mode.create,
-    ...(mode.delivery ? { delivery: mode.delivery } : {}),
-    ...(mode.query ? { query: mode.query } : {}),
-    ...(mode.result ? { result: mode.result } : {}),
-    ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}),
-  };
-}
+const originOf = (url: string): string => new URL(url).origin;
 
 /**
  * 整份覆盖：这张卡列出的模型与模式就是这次登记的全部。**不做增量合并**——AI 最擅长的是重写
@@ -104,6 +82,8 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
   if (!vendorKey) throw new Error("Unable to derive a connection id from the declared base URL");
   const now = input.now || (() => new Date().toISOString());
 
+  // Compile every model before entering the write transaction (all-or-nothing).
+  const projections = card.models.map((model) => projectDeclaredModel(model, vendorKey));
   return mutateCatalog((tx, state) => {
     const existing = state.vendors.find((vendor) => vendor.key === vendorKey);
     const binding = readCredentialBinding(existing as Vendor | undefined);
@@ -126,40 +106,32 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
 
     const models: DeclaredRegistrationResult["models"] = [];
     let mappings = 0;
-    for (const model of card.models) {
+    for (const [index, model] of card.models.entries()) {
+      const projection = projections[index];
       const existingModel = state.models.find(
         (row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey,
       );
+      const exactMappings = state.mappings.filter((row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey);
+      assertDeclaredReplacementOwnership({ oldMeta: existingModel?.meta, mappings: exactMappings, projection });
+      const meta = { ...(existingModel?.meta && typeof existingModel.meta === "object" ? existingModel.meta : {}), ...projection.meta };
+      delete meta.declarationCapabilityIssue;
       tx.upsertModel({
         ...(existingModel || {}),
         vendorKey,
         modelKey: model.modelKey,
         labelZh: model.labelZh,
-        kind: model.kind,
+        kind: projection.kind,
         enabled: true,
         meta: {
-          ...(existingModel?.meta && typeof existingModel.meta === "object" ? existingModel.meta : {}),
+          ...meta,
           // 「登记了」与「跑通了」是两件事，盘上分得开：`declared` = 卡收下了、静态校验过了；
           // 只有一次真实试跑（try_model）能把它推到 verified。不写 verified = 不替模型说话。
-          adapter: { state: "declared", source: "declaration-card", updatedAt: now() },
+          adapter: { state: "declared", source: "declaration-card", publicationModes: projection.taskKinds, updatedAt: now() },
         },
       });
-      for (const mode of model.modes) {
-        const existingMapping = state.mappings.find(
-          (row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey && row.taskKind === mode.taskKind,
-        );
-        tx.upsertMapping(
-          mappingRowFromDeclaredMode({
-            vendorKey,
-            modelKey: model.modelKey,
-            label: model.labelZh,
-            mode,
-            enabled: true,
-            ...(existingMapping ? { existing: existingMapping } : {}),
-          }),
-        );
-        mappings += 1;
-      }
+      // Remove owned old routes and removed operations before upsert can inherit them.
+      tx.deleteModelMappings(vendorKey, model.modelKey);
+      for (const row of projection.mappings) { tx.upsertMapping(row); mappings += 1; }
       models.push({
         modelKey: model.modelKey,
         kind: model.kind,

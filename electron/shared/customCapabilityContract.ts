@@ -232,13 +232,14 @@ function parseSlot(value: unknown): ArchetypeReferenceSlot | null {
     !kind ||
     !label ||
     !Number.isInteger(min) ||
-    !Number.isInteger(max) ||
+    (max !== undefined && !Number.isInteger(max)) ||
     typeof min !== "number" ||
-    typeof max !== "number" ||
+    (max !== undefined && typeof max !== "number") ||
     min < 0 ||
-    max < 1 ||
-    min > max ||
-    max > MAX_REFERENCES_PER_SLOT ||
+    min > MAX_REFERENCES_PER_SLOT ||
+    (max !== undefined && max < 1) ||
+    (max !== undefined && min > max) ||
+    (max !== undefined && max > MAX_REFERENCES_PER_SLOT) ||
     (SINGLE_REFERENCE_KINDS.has(kind) && max !== 1)
   ) return null;
 
@@ -254,7 +255,7 @@ function parseSlot(value: unknown): ArchetypeReferenceSlot | null {
     kind,
     label,
     min,
-    max,
+    ...(max !== undefined ? { max } : {}),
     ...(inputKey ? { inputKey } : {}),
     ...(typeof value.asArray === "boolean" ? { asArray: value.asArray } : {}),
     ...(typeof value.characterIndexed === "boolean" ? { characterIndexed: value.characterIndexed } : {}),
@@ -401,4 +402,15 @@ export function parseCustomCapabilityContract(meta: unknown): CustomCapabilityCo
   } catch {
     return null;
   }
+}
+
+/** Durable migration diagnosis. Its absence never guesses capability from model names. */
+export function missingDeclaredCapabilityFields(meta: unknown): string[] {
+  if (!isRecord(meta)) return [];
+  if (!isRecord(meta.declarationCapabilityIssue)) {
+    return isRecord(meta.declarationProjection) && meta.declarationProjection.hasMediaContract === true && !parseCustomCapabilityContract(meta) ? ["customCapabilityContract"] : [];
+  }
+  const fields = meta.declarationCapabilityIssue.missingFields;
+  const missing = Array.isArray(fields) ? fields.filter((field): field is string => typeof field === "string" && Boolean(field.trim())) : [];
+  return missing.length ? [...new Set(missing)] : ["customCapabilityContract"];
 }

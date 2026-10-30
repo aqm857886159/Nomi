@@ -23,7 +23,7 @@ import {
   type CandidateModelPredecessors,
 } from "../catalog/stagedVendorIdentity";
 import { resolveConnectionVendorKey, siblingConnectionLineageMeta } from "../catalog/connectionVendorKey";
-import { adapterModelMetadataForPromotion } from "./promotionMeta";
+import { adapterModelMetadataForPromotion, projectDeclaredModel, assertDeclaredReplacementOwnership } from "./promotionMeta";
 import type {
   ProviderAdapterConnectionInput,
   ProviderAdapterDraft,
@@ -320,7 +320,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
     if (committedModes.length === 0 || committedModes.length !== input.verifiedModes.length) {
       return { status: "no-lease" };
     }
-    const verified = new Set(committedModes.map((item) => `${item.modelKey}\0${item.taskKind}`));
+
     const vendorEnabled = before.models.some((model) => {
       if (model.vendorKey !== input.run.vendorKey) return false;
       if (hasPublishedExecution(before, model)) return true;
@@ -392,7 +392,11 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         const modeResults = input.run.models.find((model) => model.modelKey === candidate.modelKey)?.modes || [];
         const oldMeta = asRecord(existing.meta);
         const hasVerifiedMode = committedModes.some((mode) => mode.modelKey === candidate.modelKey);
+        const publicationModes = committedModes.filter((mode) => mode.modelKey === candidate.modelKey).map((mode) => mode.taskKind);
+        const projection = hasVerifiedMode ? projectDeclaredModel(candidate, input.run.vendorKey, publicationModes) : undefined;
+        if (projection) assertDeclaredReplacementOwnership({ oldMeta, mappings: before.mappings.filter((row) => row.vendorKey === input.run.vendorKey && row.modelKey === candidate.modelKey && (row.enabled || hasPublishedExecution(before, existing))), projection });
         const promotedMeta = adapterModelMetadataForPromotion({
+          projection,
           oldMeta,
           candidate,
           modeResults,
@@ -401,12 +405,10 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
           updatedAt: input.run.updatedAt,
         });
         const oldPublicationMask = adapterPublicationModeMask(oldMeta);
-        const publicationModes = committedModes
-          .filter((mode) => mode.modelKey === candidate.modelKey)
-          .map((mode) => mode.taskKind);
+
         tx.upsertModel({
           ...existing,
-          ...(hasVerifiedMode ? { labelZh: candidate.labelZh, kind: candidate.kind } : {}),
+          ...(projection ? { labelZh: candidate.labelZh, kind: projection.kind } : {}),
           enabled: hasVerifiedMode || hasPublishedExecution(before, existing),
           meta: hasVerifiedMode
             ? withAdapterPublicationModeMask(promotedMeta, publicationModes)
@@ -414,28 +416,9 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
               ? withAdapterPublicationModeMask(promotedMeta, oldPublicationMask.modes)
               : promotedMeta,
         });
-        for (const mode of candidate.modes) {
-          if (candidate.kind === "text") continue;
-          const passed = verified.has(`${candidate.modelKey}\0${mode.taskKind}`);
-          const existingExact = before.mappings.find(
-            (mapping) =>
-              mapping.vendorKey === input.run.vendorKey &&
-              mapping.modelKey === candidate.modelKey &&
-              mapping.taskKind === mode.taskKind,
-          );
-          if (!passed && existingExact && hasPublishedExecution(before, existing)) continue;
-          tx.upsertMapping({
-            ...(existingExact || {}),
-            vendorKey: input.run.vendorKey,
-            modelKey: candidate.modelKey,
-            taskKind: mode.taskKind,
-            name: `${candidate.labelZh} · ${mode.taskKind}`,
-            enabled: passed,
-            create: mode.create,
-            ...(mode.query ? { query: mode.query } : {}),
-            ...(mode.result ? { result: mode.result } : {}),
-            ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}),
-          });
+        if (projection) {
+          tx.deleteModelMappings(input.run.vendorKey, candidate.modelKey);
+          for (const row of projection.mappings) tx.upsertMapping(row);
         }
       }
       const compiledModels = new Set(input.draft.models.map((model) => model.modelKey));
