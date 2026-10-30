@@ -540,11 +540,13 @@
   },
   "regression_tests": [
     "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
-    "evals/director/previzRuler.test.ts"
+    "evals/director/previzRuler.test.ts",
+    "tests/experience-laws/previzRulerOrientation.matrix.test.mjs"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
-    "evals/director/previzRuler.test.ts"
+    "evals/director/previzRuler.test.ts",
+    "tests/experience-laws/previzRulerOrientation.matrix.test.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -570,7 +572,8 @@
     "layer": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
     "tests": [
       "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
-      "evals/director/previzRuler.test.ts"
+      "evals/director/previzRuler.test.ts",
+      "tests/experience-laws/previzRulerOrientation.matrix.test.mjs"
     ]
   }
 }
