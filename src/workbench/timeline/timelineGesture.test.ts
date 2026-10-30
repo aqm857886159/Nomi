@@ -5,7 +5,13 @@ import { createDefaultTimeline } from './timelineMath'
 
 class FakeElement extends EventTarget {
   captured = new Set<number>()
-  closest() { return null }
+  inputActive = true
+  isConnected = true
+  closest(selector: string): FakeElement | null {
+    if (selector === '[data-workspace-input-active="true"]') return this.inputActive ? this : null
+    if (selector === '[data-workspace-input-active="false"]') return this.inputActive ? null : this
+    return null
+  }
   setPointerCapture(id: number) { this.captured.add(id) }
   hasPointerCapture(id: number) { return this.captured.has(id) }
   releasePointerCapture(id: number) {
@@ -50,6 +56,14 @@ describe('pointer session lifecycle', () => {
     expect(calls).toEqual(['move', 'commit', 'end'])
     expect(session.active).toBe(false)
     expect(target.captured.size).toBe(0)
+  })
+
+  it.each(['pointermove', 'pointerup'])('a hidden owner cancels rather than mutating or committing on %s', (type) => {
+    const { target, calls, session } = start()
+    target.inputActive = false
+    win.dispatchEvent(pointerEvent(type))
+    expect(calls).toEqual(['cancel:interrupted', 'end'])
+    expect(session.active).toBe(false)
   })
 
   it('ignores other pointers', () => {

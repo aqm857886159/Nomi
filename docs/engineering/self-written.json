@@ -1557,7 +1557,7 @@
       ],
       "alternativesChecked": [
         {
-          "name": "@mantine/hooks 的 useHotkeys（只给「按了 Esc 就回调」，不懂导演台「浮层 → 按需面板 → 选中 → 机位视角 → 退出」这条让路链；也未声明为直接依赖）",
+          "name": "@mantine/hooks 的 useHotkeys（只给「按了 Esc 就回调」，不懂导演台「浮层 → 按需面板 → 选中 → 机位视角 → 退出」这条让路链；监听挂在 document.documentElement，绕过画布的隐藏面输入边界）",
           "source": "https://mantine.dev/hooks/use-hotkeys/"
         },
         {

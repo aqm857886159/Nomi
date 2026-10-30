@@ -84,6 +84,15 @@ const testFileRestrictedSyntax = [
   },
 ]
 
+// Main-process synchronous waits freeze IPC while waiting. Existing debt uses
+// ESLint bulk suppressions (file x rule counts); new calls fail and deleted calls
+// require --prune-suppressions. The independent core-rule id survives overrides.
+const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const mainSyncWaitSelectors = [{
+  selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
+  message: 'Do not add Atomics.wait in the main process: synchronous sleep blocks IPC and window events. Use an asynchronous retry; existing debt may only decrease.',
+}]
+
 const windowsPathSelectors = [
   {
     selector: 'MemberExpression[property.name="pathname"][object.type="NewExpression"][object.callee.name="URL"]:has(MetaProperty)',
@@ -410,6 +419,14 @@ export default tseslint.config(
     rules: { 'no-console': ['error', { allow: ['log', 'info', 'debug'] }] },
   },
   {
+    // Alias ESLint's core rule, as above: independent options cannot be overwritten
+    // by quit lifecycle exemptions and do not extend those rules to new file types.
+    files: ['electron/**/*.{ts,tsx,mts,cts,js,mjs,cjs,jsx}'],
+    ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
+    plugins: { 'main-sync-wait': mainSyncWaitPlugin },
+    rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
+  },
+  {
     files: ['electron/**/*.{ts,tsx}'],
     ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts', ...directQuitExemptionFiles],
     rules: { 'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors) },
@@ -457,6 +474,21 @@ export default tseslint.config(
     ignores: TASK_RUN_BRIDGE_IGNORES,
     plugins: { 'task-run-bridge': taskRunBridgePlugin },
     rules: { 'task-run-bridge/no-restricted-syntax': ['error', ...TASK_RUN_BRIDGE_SELECTORS] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/workbench/assets/assetFileDeletion.ts'],
+    plugins: { 'asset-file-owner': { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } } },
+    rules: { 'asset-file-owner/no-restricted-syntax': ['error',
+      { selector: "MemberExpression:matches([property.name='deleteFiles'], [property.value='deleteFiles'])", message: 'Physical file trash belongs to assets/assetFileDeletion.ts; UI must use the shared asset deletion command.' },
+      { selector: "Property:matches([key.name='deleteFiles'], [key.value='deleteFiles'])", message: 'Do not alias the physical file deletion bridge outside assets/assetFileDeletion.ts.' },
+    ] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/deleteAssetResult.ts', 'src/workbench/assets/pendingAssetDeletions.ts'],
+    plugins: { 'asset-command-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
+    rules: { 'asset-command-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/assetFileDeletion'], importNames: ['trashProjectFiles'], message: 'UI must request the asset deletion command; physical trash is private to the deletion domain.' }] }] },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。

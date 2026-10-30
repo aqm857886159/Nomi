@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../shortcutSurface'
 /* eslint-disable react-hooks/exhaustive-deps -- Migrated Leafer canvas keeps imperative renderer state in refs (stable identities), intentionally omitted from dep arrays. */
 import { useCallback, useEffect } from 'react'
 import { getCanvasPointFromClient } from './lib/pointer'
@@ -587,16 +588,16 @@ export function useWhiteboardBoxSelection(refs: WhiteboardBoxSelectionRefs, prop
       clearBoxSelectionInteraction()
     }
 
-    window.addEventListener('pointermove', handleWindowPointerMove)
-    window.addEventListener('pointerup', handleWindowPointerDone)
-    window.addEventListener('pointercancel', handleWindowPointerDone)
-    window.addEventListener('blur', handleWindowBlur)
+    canvasWindowInput.addEventListener('pointermove', handleWindowPointerMove)
+    canvasWindowInput.addEventListener('pointerup', handleWindowPointerDone)
+    canvasWindowInput.addEventListener('pointercancel', handleWindowPointerDone)
+    canvasWindowInput.addEventListener('blur', handleWindowBlur)
 
     return () => {
-      window.removeEventListener('pointermove', handleWindowPointerMove)
-      window.removeEventListener('pointerup', handleWindowPointerDone)
-      window.removeEventListener('pointercancel', handleWindowPointerDone)
-      window.removeEventListener('blur', handleWindowBlur)
+      canvasWindowInput.removeEventListener('pointermove', handleWindowPointerMove)
+      canvasWindowInput.removeEventListener('pointerup', handleWindowPointerDone)
+      canvasWindowInput.removeEventListener('pointercancel', handleWindowPointerDone)
+      canvasWindowInput.removeEventListener('blur', handleWindowBlur)
     }
   }, [
     clearBoxSelectionInteraction,
