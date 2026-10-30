@@ -1,0 +1,185 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-31-canvas-detail-admission",
+  "problem_type": "远看渲染成本不按屏上实际像素给（视口常驻合成层 + 细节档按节点总数）",
+  "symptom": "画布缩到 20–55% 看几十张图的分镜（用户反馈视频：两组约 50 张图、几百条参考线），图轮流消失、组底整块不画、平移停顿；512MB 瓦片预算 + 设备像素比 1.25 下凑近看过再退到 35%，71% 的卡空着",
+  "direct_cause": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css 原第 72–74 行 `.generation-canvas-react-flow .react-flow__viewport { will-change: transform; }`：视口常驻合成层，Chromium 对 will-change 层在缩放 ≥ 25% 时不降栅格倍率（cc/layers/picture_layer_impl.cc:1550），凑近看过再退远仍按近看倍率栅格；常驻合成的视口又让压在上面的 24 条连线 <svg>、3 个组框、30 张卡各成一层（原因 Overlap），瓦片内存 511MB 钉满、超限日志 1774 行。另：src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts 原 isLargeCanvas（节点 > 80 才切轻量卡）让 60 张的画布远看照样画整卡",
+  "class_root": "远看要画多少像素由「屏上多少卡 × 每张按什么倍率栅格 × 拆成多少合成层」决定，而决定它的两个开关都和这件事无关：合成层是常驻的（为平移零重绘加的），细节档按节点总数；没有量具在真实设备像素比和真实瓦片预算下量过远看的缺块（性能场景全按设备像素比 1 跑、只量帧间隔）",
+  "migration": "删掉视口 will-change（回到 React Flow 默认，静止时不升层）；细节准入改为只看缩放 / 唯一选中 / 点名闪烁 / 登记表 ownsZoomTiers，同提交删除 LIGHTWEIGHT_NODE_RENDER_THRESHOLD、isLargeCanvas、shouldUseLightweightNodeRendering、shouldUseLightweightNodeRenderingForSelection、retainLargeCanvasLightweightRendering 与节点外壳的节点数订阅、保留 ref；走查 canvas-drag-pan-gestures 的「视口已升合成层」断言反过来；性能量具改用 CDP 设备像素比覆盖、远看夹具的组补必填字段",
+  "affected_population": [
+    "所有缩到 55% 以下看画布的用户，凑近看过再退远时最重（缩放 25–55% 一段）",
+    "Windows 1080p 系统缩放 125% / 150% 与集显（默认瓦片预算 512MB 起）",
+    "Mac 默认预算（本机约 624MB）在设备像素比 1 下同样复现：现状 20% 动后空卡 93%",
+    "60–80 个节点的中等画布：旧判据不切轻量卡，远看画整卡"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/",
+    "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
+    "src/workbench/generationCanvas/nodes/registry.ts",
+    "src/workbench/generationCanvas/model/generationNodeKinds.ts",
+    "tests/perf/canvas-scale/"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css（视口合成提示 .react-flow__viewport，本刀删掉）",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx:194 shouldRenderFullNodeContent（节点外壳的细节准入）",
+    "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts shotTableDensityForZoom（分镜表自带远 / 中 / 近三档）",
+    "src/workbench/generationCanvas/nodes/canvasImageSource.ts canvasImageSourceOf（远看图源：画布预览档）"
+  ],
+  "invariants": [
+    "视口静止时不升合成层（.react-flow__viewport 的 will-change 不含 transform）",
+    "缩到细节线（0.55）以下，没选中、不闪烁、不自带分档的卡一律画轻量卡，与画布节点总数、卡片状态无关",
+    "512MB 瓦片预算 + 设备像素比 1.25 下，反馈现场那一屏远看停稳空卡率 ≤ 1%、合成层 ≤ 20、每卡 DOM ≤ 20"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
+    "tests": [
+      "src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts",
+      "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.test.ts"
+    ]
+  },
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "shouldRenderFullNodeContent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
+      "symbol": "shouldRenderFullNodeContent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/generationNodeKinds.ts",
+      "symbol": "generationNodeKindOwnsZoomTiers"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/registry.ts",
+      "symbol": "ownsZoomTiers"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+      "symbol": ".react-flow__viewport"
+    }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 5,
+    "why_not": "五扇门各管一件不同的事，不是同一写入口的复制：判据定义（canvasNodeLevelOfDetail）、它唯一的消费者（节点外壳）、种类声明的登记（registry 的 ownsZoomTiers）与读取（generationNodeKinds 的 helper）、视口合成提示（样式）。本刀把判据的入参从「节点数 + 多选 + 保留标记」收成四个，视口合成提示从常驻改成不写"
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts",
+    "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.test.ts",
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs"
+  ],
+  "residual_risks": [
+    "弱显卡上平移改靠重画的每帧成本没在 Windows 真机量过（unverified；本机软件栅格代理数见设计卡「量到了什么」）",
+    "远看图源仍是 1024 长边预览，解码像素是屏幕物理像素的 17.7 倍；按屏上尺寸选小图要改主进程预览档，另起一刀",
+    "组底色缺块在深色主题下像素量具判不出（组底与画布底色差不到 5 级），组这一半只有走查截图兜"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://source.chromium.org/chromium/chromium/src/+/main:cc/layers/picture_layer_impl.cc",
+      "checked_at": "2026-10-30",
+      "purpose": "will-change: transform 层的栅格倍率在理想倍率不低于原生 1/4 时不降（:69 :1340 :1550），解释凑近再退远后瓦片钉满"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/widget/compositing/layer_tree_settings.cc",
+      "checked_at": "2026-10-30",
+      "purpose": "桌面瓦片预算下限 512MB、--force-gpu-mem-available-mb 可强制（:144），据此定判定条件"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/learn/advanced-use/performance",
+      "checked_at": "2026-10-30",
+      "purpose": "React Flow 不提供按缩放降细节的原语、只裁剪视口外元素；它自己的样式不给视口写 will-change"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一概念 9 月撤回过一次（3a72f0ce7 → fae43a80e），10-12～10-15 三条候选反馈同类；合成提示和细节判据都不看屏上实际成本，任何新加进远看画面的东西（连线、组框、新卡种、新的合成提示）都会再撞上同一个瓦片预算",
+    "same_class_scan": [
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css:72 .react-flow__viewport will-change（已删；git grep -n will-change -- src/workbench/generationCanvas 删后为空）",
+      "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts isLargeCanvas / retainLargeCanvasLightweightRendering（已删）",
+      "tests/ux/overlay-z-order.walk.mjs:216 只把 will-change 当层级原因读出来，不写",
+      "tests/ux/canvas-performance-benchmark.e2e.mjs:1620 低缩放断言原先只对 > 80 节点的夹具生效（镜像旧判据，已改为每个夹具）"
+    ]
+  },
+  "generality_proof": "缺块按真实合成帧量（主进程 capturePage 逐张比对 + 阳性对照），不管是谁让远看栅格超了预算——连线、组框、新卡种、新的合成提示——canvas-far-dense-blank 都会红；合成层数是结构硬数（≤ 20，常驻合成提示回来是 99–106），每卡 DOM 是结构硬数（≤ 20，按节点数切回来是 26）；细节准入的入参结构上只有四个，节点数和卡片状态传不进来，矩阵测试把门槛两侧的节点数都铺满",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
+      "symbol": "shouldRenderFullNodeContent",
+      "responsibility": "远看细节档的唯一判据：只收缩放、唯一选中、点名闪烁、种类自带分档四个输入"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+      "symbol": ".react-flow__viewport",
+      "responsibility": "视口不写合成提示：静止时不升层，远看按屏上倍率栅格"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowNodeView",
+      "disposition": "enforced",
+      "evidence": "矩阵测试的源码检查：节点外壳只把四个输入交给 shouldRenderFullNodeContent，不订节点总数、不留保留标记"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+      "entry_point": ".react-flow__viewport",
+      "disposition": "enforced",
+      "evidence": "规则已删；走查 canvas-drag-pan-gestures 断言静止时不升层；canvas-far-dense-blank 的合成层结构硬数 ≤ 20"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasViewportScale.ts",
+      "entry_point": "shotTableDensityForZoom",
+      "disposition": "not-affected",
+      "evidence": "分镜表远看由它自己的三档画（拍板稿图 4），登记表声明 ownsZoomTiers，准入对它恒为整卡；矩阵测试列举声明集合 = {shot_table}"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/canvasImageSource.ts",
+      "entry_point": "canvasImageSourceOf",
+      "disposition": "not-affected",
+      "evidence": "远看图源只取画布预览（1024 长边），本刀未动；解码像素由结构硬数 decodedOverScreen ≤ 20 守（换成原图是 62）"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
+    "invariant": "细节准入只收四个输入；512MB + 设备像素比 1.25 下远看停稳空卡率 ≤ 1%、合成层 ≤ 20、每卡 DOM ≤ 20",
+    "failure_mode": "矩阵测试红（任何按节点数 / 卡片状态切的判据都会在某一列翻）；canvas-far-dense-blank 场景红（缺块率超预算，或合成层 / 每卡 DOM / 解码像素超结构硬数时量具非 0 退出）；走查 canvas-drag-pan-gestures 红（视口静止时升了层）",
+    "exception_policy": "none",
+    "strategy": "判据收成一个只看「看不看得清」的纯函数，视口合成提示回到框架默认，二者都由真实合成帧上的缺块率和不看显卡的结构硬数守",
+    "artifacts": [
+      "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+      "src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts",
+      "tests/perf/canvas-scale/farDense.mjs",
+      "tests/perf/scenarios/canvas-far-dense-blank.json"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts",
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+      "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts"
+    ],
+    "rationale": "新判据与删掉旧判据在同一个提交（P1）：样式里视口的常驻 will-change、判据文件里的节点数门槛 isLargeCanvas / LIGHTWEIGHT_NODE_RENDER_THRESHOLD、大画布多选变轻量 shouldUseLightweightNodeRenderingForSelection、保留标记 retainLargeCanvasLightweightRendering 全部删除，不留并行版"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不升级、不新增依赖；React Flow 12.11.5 的默认样式本来就不给视口写 will-change",
+    "exit_criteria": []
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-14"
+}
