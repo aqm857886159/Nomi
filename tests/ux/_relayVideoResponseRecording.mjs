@@ -3,8 +3,9 @@ import fs from 'node:fs'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { repoRoot } from './_launchApp.mjs'
 
-export async function createRecordedRelayWalk(name, options, origin) {
-  const env = { ...options.env, NOMI_RELAY_RECORD_ORIGIN: new URL(origin).origin }
+// The fetch observer runs after network redirection: use the actual transport destination.
+export async function createRecordedRelayWalk(name, options, observedOrigin) {
+  const env = { ...options.env, NOMI_RELAY_RECORD_ORIGIN: new URL(observedOrigin).origin }
   const walk = await createRuntimeWalk(name, { ...options, env, mainRequire: [...(options.mainRequire ?? []), path.join(repoRoot, 'tests/ux/_relayVideoResponseRecording.cjs')] })
   // createRuntimeWalk reads this same env at start(), after the isolated output directory exists.
   env.NOMI_RELAY_RECORD_FILE = path.join(walk.outputDir, 'relay-responses.sanitized.jsonl')

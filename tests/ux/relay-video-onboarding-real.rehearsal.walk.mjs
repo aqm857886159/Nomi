@@ -20,7 +20,7 @@ const paid = await openPaidWalk('relay-video-onboarding-real.rehearsal.walk.mjs'
   env: { ...process.env, CI: '', NOMI_SPEND_OK: '1', [ENV_KEY_VAR]: FAKE_RELAY_KEY }, vendorNetwork: false,
   // Same response recorder and generation steps as the coordinator-only paid run.
   createWalk: async (name, options) => {
-    const walk = await createRecordedRelayWalk(name, { ...options, env: { ...options.env, ...network, NOMI_RELAY_RECORD_MODEL: modelKey } }, baseUrl)
+    const walk = await createRecordedRelayWalk(name, { ...options, env: { ...options.env, ...network, NOMI_RELAY_RECORD_MODEL: modelKey } }, relay.baseUrl)
     // The generic fixture seeds only its own connection. Restore public built-in rows, never a key.
     // Otherwise the existing visible helper tests an artificial missing-direct-key-contract state.
     const file = path.join(walk.settingsDir, 'model-catalog.json')
