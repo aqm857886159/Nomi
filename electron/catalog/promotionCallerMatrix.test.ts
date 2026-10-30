@@ -170,7 +170,7 @@ describe.each(callers.filter(c => c.input === 'standard-draft'))('$id standard d
       for (const mode of contract.modes) {
         const mapping = state.mappings.find(m => m.vendorKey === vendorKey && m.modelKey === row.modelKey && m.taskKind === mode.transportTaskKind)!;
         const read = wireKeys(mapping.create);
-        if (REFERENCE_TASKS.has(mode.transportTaskKind)) {
+        if (REFERENCE_TASKS.has(String(mode.transportTaskKind))) {
           expect(mode.slots[0], mode.transportTaskKind).toMatchObject({ min: 1 });
           if (row.kind === 'video') {
             expect(mode.slots[0]).toMatchObject({ min: 1, max: 1, inputKey: 'image_url' });
