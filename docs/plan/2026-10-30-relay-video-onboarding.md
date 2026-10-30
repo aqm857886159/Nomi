@@ -128,3 +128,38 @@
 防重复线独占 `electron/capabilityCore/modelOnboarding/dispatch.ts` 与 `electron/productionRun/`，本卡只约定共享状态，不分派修改。`tryModel.ts` 的错误阶段调整交防重复线，避免两线同改。
 
 最低发版条件：能力投影完整 + 两种用户所需结果形状走通 + 已有防重复线通过同意图反例 + 一次新模型真付费产物验证。新增型号不靠写三个永久档案来过关；标准面不足以表达的参考/扩展先明确不支持。UI 简化可下一刀，但接不上时原因必须说对。
+
+## 第二刀：协议与物化（实现合同，2026-10-30）
+
+协调已授权按 AI 接入主路径实施，无新布局。Agent 读文档交声明卡，执行器忠实执行，缺证据停止发送。
+
+### 标准对齐（R5.5）
+
+| 规范链接 | 我们的偏差 | 理由 / 决定 |
+|---|---|---|
+| https://developers.openai.com/api/reference/resources/videos/methods/create | 旧默认单数 video/generations，multipart 强制文件 | 无领域理由，删除未知连接的视频默认推断；显式连接声明 openai-videos-v1 才产出标准 /v1/videos，t2v 允许纯文本 multipart |
+| https://github.com/openai/openai-node/blob/master/src/resources/videos.ts | 标准 SDK create 用 multipart，downloadContent 返回 Response；现役结果执行器却只读 JSON | 无领域理由；保留原生 Fetch/FormData，新增媒体文件响应声明，GET 流式落临时文件后交现役解码发布边界；不新增 SDK 依赖 |
+| https://developers.openai.com/api/reference/resources/videos/methods/retrieve | 完成元数据无 URL 时当作无成品 | query 与 result 分离；先保留任务号，再 GET content |
+| https://developers.openai.com/api/reference/resources/videos/methods/download_content | 鉴权 MP4 当作文本 | 无领域理由；限制 MIME/大小/期限，解码成功才发布 |
+| https://doc.newapi.pro/api/openai-video/ | 同一网关有多协议，旧默认不能证明本站的协议 | 保留用户显式 mapping，声明给哪个路径就执行哪个，不尝试第二条 POST |
+
+上述 OpenAI 页面已标明服务停用，是协议参考而非真服务可用性证明。官方 SDK 源码和公开文档本轮重新抓取；私有取证保留全文。文档给出的其他三段式 URL 路由按声明执行，不按站点名字分支。
+
+### 和能力投影线的共享类型约定
+
+仅在 HttpOperation 增加可选 mediaResponse: { kind: 'binary'; contentType: 'video/mp4' }；不改变 AdapterModeDraft 的 create/query/result、parameters、referenceParam，第一刀继续原样复制 HttpOperation。mediaResponse 只允许 video 模型的 GET result，不能用于 create/query；不借 audioResponse。连接可显式声明 mediaProtocols: ['openai-videos-v1']，未知连接不自动选择视频协议。catalog 版本联合类型那一行不改。生产 Run/dispatch/tryModel 文件不动。
+
+### ★9 本刀清单（实现前）
+
+- [ ] 标准三段 + 复数 generations URL + 旧用户单数 URL，生产函数、真 loopback HTTP、可解码落库；每条 POST=1。
+- [ ] 文本 multipart 不上传文件；文件字段半对、空 multipart、媒体声明放错 stage/kind 一律拒绝。
+- [ ] HTML/JSON 错误、错误 MIME、坏 MP4、超大文件、慢流、鉴权重定向、落盘失败、取消：不得发布资产，任务号保留。
+- [ ] 重启清缓存重建后只 GET 重新取回；未知协议在任何 POST 前停止，原有显式 mapping 不改写；POST 失败不换路由。
+- [ ] 把本刀四条 it.fails 改普通 it；红灯保存；删字节分支矩阵必须红，再原样还原。
+- [ ] 长视频 256MiB/2GiB 流：额外 RSS ≤64MiB，取消 ≤1s，落盘时间记录；高负载 noisy。
+- [ ] 中英文隔离窗口，AI 交声明卡→画布→资产可播；共步骤零费用演练先过，付费脚本仅供协调执行。
+- [ ] gates / 推送前快检退出 0；独立验收由协调负责，未合入不写已解决。
+
+反例必须保留失败计数：缺 taskId 不伪造服务商编号；thumbnail 不是 video；Bearer 不随 redirect；过期地址只 GET 原单；显式旧 URL mapping 不静默迁移；未知连接不以模型名/品牌选择路由。create 不走媒体响应下载，不能下载前丢掉受理收据。
+
+依赖生命周期：保留现役 Fetch/FormData/Node 流与项目资产解码边界，不安装 SDK。协议实现没有 SDK 版本依赖；后续只有该协议无法由通用执行器表达时再评估依赖替换。
