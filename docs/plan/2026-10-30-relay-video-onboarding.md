@@ -8,19 +8,19 @@
 
 ## ★0 先查别人
 
-2026-10-30 实抓官方原文，全文与抓取收据留在私有报告的证据目录。
+2026-10-30 实抓官方原文，全文、正式出处链接与抓取收据留在私有报告§5及其证据目录；按本机纪律，公开稿只保留可追溯位置，不写供应商/竞品名与商务信息。
 
 | 出处 | 它怎么做 | 影响哪个决定 |
 |---|---|---|
-| [模型目录的模态与过滤](https://openrouter.ai/docs/guides/overview/models) | architecture 输入/输出模态与 supported_parameters 分开列；默认列表可能只含文本，需要显式过滤发现其他输出 | 确认：列表不是全量能力或协议证明；空列表不等于没有视频；身份、类别和协议分别存证据 |
-| [网关健康检查](https://docs.litellm.ai/docs/proxy/health) | 进程 liveness/readiness 不调用模型；模型 health 默认会发真实测试请求，并记录最近检查、成功时间 | 改变：不能把“检测连接”当作免费试生成；分连接、合同、真实产物三层验收，自动检查只读层 |
-| [现役 provider registry](https://ai-sdk.dev/docs/ai-sdk-core/provider-management) | registry 集中注册 provider，custom provider 为不同模型类型明确提供模型实例与别名 | 确认：连接能力决定协议，模型名只做身份；不按域名猜端点，不另造一套运行时 |
+| 私有报告§5-1：模型目录的模态与过滤（07:43:28Z） | architecture 输入/输出模态与 supported_parameters 分开列；默认列表可能只含文本，需要显式过滤发现其他输出 | 确认：列表不是全量能力或协议证明；空列表不等于没有视频；身份、类别和协议分别存证据 |
+| 私有报告§5-2：网关健康检查（07:43:29Z） | 进程 liveness/readiness 不调用模型；模型 health 默认会发真实测试请求，并记录最近检查、成功时间 | 改变：不能把“检测连接”当作免费试生成；分连接、合同、真实产物三层验收，自动检查只读层 |
+| 私有报告§5-3：现役 provider registry（07:43:32Z） | registry 集中注册 provider，custom provider 为不同模型类型明确提供模型实例与别名 | 确认：连接能力决定协议，模型名只做身份；不按域名猜端点，不另造一套运行时 |
 
 ## ★1 用户怎么用
 
 当创作者拿到一个中转地址和 Key、想让刚上的模型出一镜时，我想直接接入并知道失败在哪里，以便继续创作，不用理解网关实现。
 
-目标三步：①填地址与 Key，保存并只读检测；②选/手填模型，核对证据支持的能力与协议；③在画布确认可见参数并生成一次。没有可靠类别/协议证据时，第二步只问一个问题：“按文档配置为视频生成，可以吗？默认：采用文档明确支持的模式”；无文档则默认“暂不启用生成”，请求文档链接，不让用户猜接口路径。
+目标三步：①填地址与 Key，保存并只读检测；②选/手填模型，核对证据支持的能力与协议；③在画布确认可见参数并生成一次。没有可靠类别/协议证据时，第二步只问一个问题：“有这个模型的接口文档链接吗？默认：先保存连接，暂不启用生成；补上文档后继续。”已有可靠文档就直接采用明确模式，不让创作者猜接口路径。带图模型需要的首帧放回画布既有输入位，不另弹一轮问题。
 
 真实任务：新文本生视频模型；只有首帧输入的模型；标准视频接口只返回鉴权文件字节的中转。当前仅做同形状本地演练，三项真服务均 unverified。模型商务、具体型号与预算在私有报告。
 
@@ -38,7 +38,7 @@
 
 ## ★3 一致与复用
 
-复用标准 Fetch/FormData/stream、vendorHttp 绑定鉴权/重定向、现有 capability contract/archetype、结果落盘与 Run 收据。保留已有明确声明的 URL 返回合同。注册与认证晋升收敛一份能力投影；删除媒体 chat 空壳与代码生成的隐式默认协议。存量用户声明不静默重写。标准视频 profile 与 JSON URL profile 按协议形状选择，不加新网关和依赖。
+复用标准 Fetch/FormData/stream、vendorHttp 绑定鉴权/重定向、现有 capability contract/archetype、结果落盘与 Run 收据。保留已有明确声明的 URL 返回合同。注册与认证晋升收敛一份能力投影；同一声明缩减模式时，撤掉它先前发布的旧模式，不把“整份覆盖”做成只增不减；其他模型和用户另行编辑的合同先比对归属，冲突可见，不静默抹除。删除媒体 chat 空壳与代码生成的隐式默认协议。存量用户声明不静默重写。标准视频 profile 与 JSON URL profile 按连接明确声明的协议形状选择（草案元数据`mediaProtocols`），不加新网关和依赖；未知连接不因品牌或“兼容”二字自动采用标准面。
 
 ## ★4 全状态
 
@@ -73,7 +73,7 @@
 
 模型列表只有身份：不能推端点；architecture 是扩展类别证据，model_spec 必须版本校验，不认识就标未知，不能静默当已验证。文档可能把页面 slug 和实际 model ID 写成不同拼法；存真实 wire ID，不拿 slug 代替。
 
-本轮三种异步形状必须分别登记：`POST /v1/videos`→`GET /v1/videos/{id}`→鉴权 `/content` 字节；`POST /v1/video/generations`→同路径查询→JSON URL；`POST /v1/videos/generations`→文档明确的查询→JSON URL。后二者是扩展合同，不能因“OpenAI 兼容”自动猜。创建、查询、结果三个角色必须完整。
+本轮三种异步形状必须分别登记：`POST /v1/videos`→`GET /v1/videos/{id}`→鉴权 `/content` 字节；`POST /v1/video/generations`→同路径查询→JSON URL；`POST /v1/videos/generations`→文档明确的查询→JSON URL。后二者是扩展合同，不能因“OpenAI 兼容”自动猜。创建、查询、结果三个角色必须完整。标准 t2v 的 multipart 可仅含文本字段；现役 schema 强制文件字段，必须在共享编码合同修正，不能假造参考文件凑格式。
 
 依据：前轮报告的现行规范核对（不在本轮重复）；本轮私有文档原文与 mock 记录。标准外扩展走已有声明卡，无证据不发布。视频结果类型必须从 audioResponse 中独立出来，URL/鉴权字节都进同一物化边界；先持久化任务号再下载。HTML、JSON 错误页、错误 MIME、损坏视频、超大文件、慢流、重定向都不能成为成功资产。
 
@@ -83,17 +83,19 @@
 
 预算：用户操作可见反馈 p95≤150ms，1000 模型不阻塞主线程>50ms；列表网络之外的归一+投影 p95≤100ms，初次可操作≤1s。下载峰值额外 RSS≤64MiB，不能随全片大小线性增加；取消到读写停止 p95≤1s，临时文件在停止后清理。
 
-量具：实现线给现役 `tests/perf/scenarios/` 登记 `relay-discovery-scale`（10/100/1000）和 `relay-media-materialization`（两档流、取消）；用 `pnpm run perf:scenarios -- --id <id>` 跑基线。本批没有产品性能改动，场景尚未实现；未验证：缺量具，不给假中位数/p95，不凭本卡放行实现 PR。
+补充只读微基线：现役`runModelDiscovery`在Node进程内、无网络/IPC/React、20次预热+100次采样，10/100/1000条p95分别约0.0047/0.0269/0.2726ms（2026-10-30，本机并行负载下；私有报告证据`discovery-bench.json`）。只证明身份归一的局部成本，当前错误分类依然存在，不算界面、正确性或正式性能场景过门。
+
+量具：实现线给现役 `tests/perf/scenarios/` 登记 `relay-discovery-scale`（10/100/1000）和 `relay-media-materialization`（两档流、取消）；用 `pnpm run perf:scenarios -- --id <id>` 跑基线。本批没有产品性能改动，场景尚未实现；未验证：缺量具，不给假中位数/p95，不凭本卡放行实现 PR。当前 `vendorHttp.ts:36-46,256` 将媒体响应按约34.33MiB上限整段读入再解释，这只是现役 JSON 边界，不能拿它当长视频流式下载的成功基线。
 
 ## 8 真实条件
 
-本轮 macOS + 隔离资料 + loopback，中文/英文截图由走查产出并人眼读取才计通过。Windows、真付费、真实站点协议与质量、最小窗口、键盘全程均 unverified。不得拿 schema/单测绿灯代替。付费脚本依赖修复构建标记 `relay-video-artifact-v1`，当前没有该标记时应在接触凭据前拒跑。
+本轮 macOS + 隔离资料 + loopback，中文/英文截图由走查产出并人眼读取才计通过。Windows、真付费、真实站点协议与质量、最小窗口、键盘全程均 unverified。不得拿 schema/单测绿灯代替。本线付费共步骤草稿尚未通过mock整程：首跑停在接入helper，修正测试夹具后的补跑排锁25分钟超时；不可直接拿真钥匙运行。先补齐中英演练及真实修复。付费脚本依赖修复构建标记 `relay-video-artifact-v1`，当前没有该标记时应在接触凭据前拒跑。
 
 ## ★9 验收清单与反例（实现前合同）
 
 1. 三种视频协议、ID 清单/architecture/合法或未知 model_spec、无视频词别名、跨连接同名、清单缺模型手填：身份不丢，不误发 chat，未证明协议不标已生成验证。
-2. 新卡/认证晋升/重交卡/旧目录：相同能力事实；参数与引用槽不丢；只有带图能力的新模型不虚构 t2v；未知媒体不得 chat fallback。
-3. 创建/查询/结果完整：合法三段结果、仅字节结果与 JSON URL 均进资产库并真解码；内容回 HTML/JSON 错误、错误 MIME、损坏/超大/慢流/跨源 redirect、落盘失败/重启重取均保留原单，只 GET。
+2. 新卡/认证晋升/重交卡/旧目录：相同能力事实；参数与引用槽不丢；只有带图能力的新模型不虚构 t2v；未知媒体不得 chat fallback。同一声明从两模式减为一模式时，原声明的旧模式不再可派发；其他模型与独立手写合同不受影响。
+3. 创建/查询/结果完整：合法三段结果、仅字节结果与 JSON URL 均进资产库并真解码；纯文本字段 multipart 无参考文件也合法；内容回 HTML/JSON 错误、错误 MIME、损坏/超大/慢流/跨源 redirect、落盘失败/重启重取均保留原单，只 GET。控件最低参数与实发一致：1秒不能显示成默认5秒；分辨率必须可见。
 4. create 回包晚、断网、丢任务号；同意图重复调用、微改参数/卡、重启、多宿主并发：POST=1；明确新 attempt 才另算，不用 prompt hash 合并用户有意的第二次生成。此项由已有防重复线实现，本线不碰其文件。
 5. 旧显式 URL 合同、图/音频/文本/3D/工作流原行为保持；无能力证据则可见拒绝，不能向另一协议发第二次付费试探。
 6. 接入失败去敏事件包含 phase/errorClass/protocolShape/acceptedState/build，不含 Key、地址、模型自由文本或提示词。反馈 intake 能按阶段聚合，开销不得阻塞创作。
@@ -119,9 +121,9 @@
 
 | 刀 | 独占文件面 | 依赖 / 是否等界面拍板 |
 |---|---|---|
-| 能力投影 | `electron/catalog/declaredProviderRegistration.ts`、`electron/providerAdapter/serviceCatalog.ts`、`promotionMeta.ts`、`electron/catalog/agentModelEntriesFromCatalog.ts`、`electron/shared/customCapabilityContract.ts` | 卡与晋升共用能力事实、去 chat 空壳；无布局变化可立即开工；不碰 runtime/validator |
-| 协议与物化 | `electron/providerAdapter/{types,validator,builtinOpenAiCompatibleDraft}.ts`、`electron/catalog/{types,newapiTransport}.ts`、`electron/runtime.ts`、`electron/tasks/taskResultQuery.ts`、`electron/vendor/vendorHttp.ts`、`electron/capabilityCore/generationOutputMaterializer.ts` | 标准视频与鉴权字节、URL 合同；与第一刀约定类型后并行；无新布局可立即开工 |
-| 发现与反馈 | `electron/ai/onboarding/{modelListResponse,onboardingIpc}.ts`、`electron/integrationCertification/httpConnector.ts`、`src/ui/onboarding/{modelDiscovery,OnboardingWizard,ModelPickerScreen}.tsx/ts`、i18n onboarding 文案、`electron/feedback/` | 先逻辑归一与事件 schema；布局/一个问题的呈现等协调样张，不抢前两刀的写门 |
+| 能力投影 | `electron/catalog/declaredProviderRegistration.ts`、`electron/providerAdapter/serviceCatalog.ts`、`electron/providerAdapter/promotionMeta.ts`、`electron/catalog/agentModelEntriesFromCatalog.ts`、`electron/shared/customCapabilityContract.ts`、`electron/shared/modelPublication.ts` | 卡与晋升共用能力事实、去 chat 空壳；无布局变化可立即开工；不碰 runtime/validator |
+| 协议与物化 | `electron/providerAdapter/{types,validator,builtinOpenAiCompatibleDraft}.ts`、`electron/catalog/{types,newapiTransport,multipartOperation}.ts`、`electron/runtime.ts`、`electron/tasks/taskResultQuery.ts`、`electron/vendor/vendorHttp.ts`、`electron/capabilityCore/generationOutputMaterializer.ts` | 标准视频与鉴权字节、URL 合同；与第一刀约定类型后并行；无新布局可立即开工 |
+| 发现与反馈 | `electron/ai/onboarding/{modelListResponse,modelListProbe,onboardingIpc}.ts`、`electron/integrationCertification/httpConnector.ts`、`electron/providerAdapter/existingConnection.ts`、`electron/catalog/modelKindHeuristic.ts`、`src/desktop/onboardingBridgeTypes.ts`、`src/ui/onboarding/modelDiscovery.ts`、`src/ui/onboarding/useModelDiscovery.ts`、`src/ui/onboarding/OnboardingWizard.tsx`、`src/ui/onboarding/ModelPickerScreen.tsx`、i18n onboarding 文案、`electron/feedback/` | 先逻辑归一与事件 schema；布局/一个问题的呈现等协调样张，不抢前两刀的写门 |
 
 防重复线独占 `electron/capabilityCore/modelOnboarding/dispatch.ts` 与 `electron/productionRun/`，本卡只约定共享状态，不分派修改。`tryModel.ts` 的错误阶段调整交防重复线，避免两线同改。
 
