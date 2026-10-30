@@ -90,11 +90,11 @@ describe('declared capability projection publication matrix', () => {
     registerDeclaredProvider({ card: draft, vendorKey: 'relay' });
     await expect(runTask({ vendor: 'relay', request: { kind: 'text_to_video', prompt: 'A blue marble', extras: { modelKey: draft.models[0].modelKey } } })).rejects.toThrow(/does not publish taskKind/);
   });
-  it('text declarations remain chat and do not require a media capability contract', () => {
+  it.each(['chat', 'prompt_refine', 'image_to_prompt'] as const)('text declarations retain native chat without a media contract: %s', (taskKind) => {
     const draft = card('opaque-chat');
     draft.models[0].kind = 'text';
     draft.models[0].parameters = [];
-    draft.models[0].modes = [{ taskKind: 'chat', create: { method: 'POST', path: '/v1/chat/completions', body: { messages: [{ role: 'user', content: '{{request.prompt}}' }] } }, sourceUrls: [] }];
+    draft.models[0].modes = [{ taskKind, create: { method: 'POST', path: '/v1/chat/completions', body: { messages: [{ role: 'user', content: '{{request.prompt}}' }] } }, sourceUrls: [] }];
     registerDeclaredProvider({ card: draft, vendorKey: 'relay' });
     const state = readCatalog();
     const model = state.models.find((m) => m.modelKey === 'opaque-chat')!;

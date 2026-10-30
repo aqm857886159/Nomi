@@ -65,7 +65,7 @@ export type DeclaredModelProjection = { kind: AdapterModelDraft["kind"]; meta: R
 export function projectDeclaredModel(candidate: AdapterModelDraft, vendorKey: string, published?: readonly ProfileKind[]): DeclaredModelProjection {
   if (published?.some((taskKind) => !candidate.modes.some((mode) => mode.taskKind === taskKind))) fieldError(candidate, "modes", "verified taskKind is absent from the declaration");
   const parameterKeys = (candidate.parameters || []).map((p) => p.key);
-  for (const key of parameterKeys) if (key.includes('.')) fieldError(candidate, `parameters.${key}`, 'nested parameter paths cannot be projected as a flat control');
+  for (const key of parameterKeys) if (candidate.kind !== 'text' && key.includes('.')) fieldError(candidate, `parameters.${key}`, 'nested parameter paths cannot be projected as a flat control');
   const normalizedModes = candidate.modes.map((mode) => ({ ...mode, create: projectDeclaredBindings(mode.create, new Set([...parameterKeys, ...(mode.referenceParam ? [mode.referenceParam] : [])])) }));
   const modes = normalizedModes.filter((mode) => !published || published.includes(mode.taskKind));
   if (!modes.length) fieldError(candidate, 'modes', 'no published mode');
@@ -74,8 +74,9 @@ export function projectDeclaredModel(candidate: AdapterModelDraft, vendorKey: st
   for (const p of params) {
     if (candidate.kind !== 'text' && !normalizedModes.some((m) => modeReadsParameter(m, p.key))) fieldError(candidate, `parameters.${p.key}`, 'parameter has no request binding in create');
   }
-  const capabilityModes = modes.map((mode) => {
-    if (candidate.kind === 'text' ? !['chat', 'prompt_refine'].includes(mode.taskKind) : modelKindForTaskKind(mode.taskKind) !== candidate.kind) fieldError(candidate, `modes.${mode.taskKind}.taskKind`, 'Nomi cannot project this taskKind for the declared kind');
+  if (candidate.kind === 'text' && modes.some((mode) => modelKindForTaskKind(mode.taskKind))) fieldError(candidate, 'modes.taskKind', 'media taskKind cannot use the native text channel');
+  const capabilityModes = candidate.kind === 'text' ? [] : modes.map((mode) => {
+    if (modelKindForTaskKind(mode.taskKind) !== candidate.kind) fieldError(candidate, `modes.${mode.taskKind}.taskKind`, 'Nomi cannot project this taskKind for the declared kind');
     const wire = JSON.stringify(mode.create);
     const reference = ['image_to_video', 'image_edit', 'image_to_3d'].includes(mode.taskKind);
     const slots: ArchetypeReferenceSlot[] = [];
@@ -104,7 +105,7 @@ export function projectDeclaredModel(candidate: AdapterModelDraft, vendorKey: st
     return mappingRowFromDeclaredMode({ vendorKey, modelKey: candidate.modelKey, label: candidate.labelZh, mode: { ...mode, create }, enabled: !published || published.includes(mode.taskKind) });
   });
   const ownership = { version: 1, hasMediaContract: Boolean(contract), capabilityDigest: capabilityFactDigest(contract), wireDigests: Object.fromEntries(mappings.map((row) => [row.taskKind, capabilityFactDigest(declaredWireFact(row))])) };
-  return { kind: candidate.kind, contract, mappings, taskKinds: modes.map((m) => m.taskKind), meta: { customCapabilityContract: contract || undefined, parameters: candidate.parameters || [], declarationProjection: ownership } };
+  return { kind: candidate.kind, contract, mappings, taskKinds: candidate.kind === 'text' && !published ? [...new Set<ProfileKind>(['chat', ...modes.map((m) => m.taskKind)])] : modes.map((m) => m.taskKind), meta: { customCapabilityContract: contract || undefined, parameters: candidate.parameters || [], declarationProjection: ownership } };
 }
 
 /** Reject independent edits before an atomic replacement; unchanged owned routes may be removed. */
