@@ -1,3 +1,4 @@
+import { URL } from 'node:url'
 // Only profile vocabulary is asserted; the shared hard-evidence inference is unchanged.
 import { expect, it } from 'vitest'
 import fs from 'node:fs'

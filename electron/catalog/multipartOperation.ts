@@ -58,8 +58,7 @@ export async function executeMultipartOperation(input: {
   const fileSource = spec.fileSource || spec.imageSource;
   const fileKind = spec.fileKind || "image";
   const resolveFile = input.resolveFile || input.resolveImage;
-  if (Boolean(fileField) !== Boolean(fileSource) || (fileField && !resolveFile)) throw new Error("multipart 文件声明不完整");
-  if (!fileField && !Object.keys(spec.fields || {}).length) throw new Error("multipart 声明为空");
+  if (Boolean(fileField) !== Boolean(fileSource) || (fileField && !resolveFile) || (!fileField && !Object.keys(spec.fields || {}).length)) throw new Error("multipart 声明不完整");
 
   // 1. 文本字段（与 body 同一套 renderTemplateValue；丢 undefined/null/空串——严格端点收到空字段会 400）。
   const rendered = renderTemplateValue(spec.fields || {}, input.context);

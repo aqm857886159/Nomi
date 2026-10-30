@@ -30,6 +30,10 @@
     {
       "path": "electron/shared/assets/providerMediaRetrievalBudget.ts",
       "symbol": "PROVIDER_MEDIA_RETRIEVAL_MAX_MS"
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "materializeProfileMediaResult"
     }
   ],
   "forbidden_derivations": [],
@@ -41,5 +45,5 @@
     "src/workbench/generationCanvas/runner/generationPhaseDeadline.ts"
   ],
   "since": "2026-09-25",
-  "notes": "同一段供应商产物，普通生成本地化、另存到磁盘、Agent 付费卡物化三处取回共用一组超时 / 字节上限 / 供应商自己的线路。2026-09-25 之前付费卡那一处只给了 maxBytes，超时落回 hardenedFetch 的通用 20 秒且不走供应商线路：大视频普通生成落得下来、付费卡那条路每一轮都下载超时。 2026-09-29 #924 追加（合同 docs/fixes/2026-09-29-stuck-saving-retrieval-liveness.root-cause.json）：取回改成「空闲超时（没有进度就断）+ 按声明大小放大的总时限 + 字节上限」，全部数字只住 electron/shared/assets/providerMediaRetrievalBudget.ts，主进程取回与渲染层的阶段截止表读同一份，不许在调用处另写超时。"
+  "notes": "同一段供应商产物，普通生成本地化、另存到磁盘、Agent 付费卡物化三处取回共用一组超时 / 字节上限 / 供应商自己的线路。2026-09-25 之前付费卡那一处只给了 maxBytes，超时落回 hardenedFetch 的通用 20 秒且不走供应商线路：大视频普通生成落得下来、付费卡那条路每一轮都下载超时。 2026-09-29 #924 追加（合同 docs/fixes/2026-09-29-stuck-saving-retrieval-liveness.root-cause.json）：取回改成「空闲超时（没有进度就断）+ 按声明大小放大的总时限 + 字节上限」，全部数字只住 electron/shared/assets/providerMediaRetrievalBudget.ts，主进程取回与渲染层的阶段截止表读同一份，不许在调用处另写超时。 已声明的鉴权视频文件响应由materializeProfileMediaResult持有流式取回/项目资产发布接线，复用vendorHttp鉴权与期限；MAX_PROFILE_MEDIA_BYTES限定该响应角色为2GiB。上述共享budget约束原URL缓冲路径；两种角色和预算不混称，本次未统一旧URL下载。"
 }

@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 // Executable known gaps. it.fails asserts the intended invariant; remove .fails only after repair.
 // Fixtures own only the upstream HTTP response. Catalog, declaration, discovery and runtime are real.
 import fs from 'node:fs'
@@ -48,7 +49,7 @@ async function register(options = {}) {
 describe('relay onboarding reproducible gaps', () => {
   it.fails('discovery preserves explicit video output evidence through the picker', async () => {
     relay = await startRelayVideoFixture({ descriptors: true })
-    const page = parseModelListPage(await (await fetch(`${relay.baseUrl}/v1/models`, { headers: { Authorization: `Bearer ${FAKE_RELAY_KEY}` } })).text())
+    const page = parseModelListPage(await (await globalThis.fetch(`${relay.baseUrl}/v1/models`, { headers: { Authorization: `Bearer ${FAKE_RELAY_KEY}` } })).text())
     expect(page.ok).toBe(true)
     expect(page.descriptors[0].architecture.outputModalities).toEqual(['video'])
     const next = await runModelDiscovery({ load: async () => page, guessKinds: async ({ ids }) => ({ kinds: Object.fromEntries(ids.map((id) => [id, guessModelKind(id)])) }), existing: [], previous: [], isCurrent: () => true })
@@ -84,7 +85,7 @@ describe('relay onboarding reproducible gaps', () => {
 
   it.fails('replacing a declaration removes an obsolete mode previously owned by that declaration', async () => {
     const { row, card } = await register()
-    const twoModes = structuredClone(card)
+    const twoModes = globalThis.structuredClone(card)
     twoModes.models[0].modes.push(relayDeclaration(relay.baseUrl, { frameOnly: true }).models[0].modes[0])
     const expanded = await submitDeclaration({ vendorKey: row.vendorKey, declaration: JSON.stringify(twoModes) })
     expect(expanded.ok, JSON.stringify(expanded)).toBe(true)
@@ -151,9 +152,9 @@ describe('relay onboarding reproducible gaps', () => {
     const request = { kind: 'text_to_video', prompt: 'A blue marble rolls slowly', extras: { projectId: project.id } }
     relay = await startRelayVideoFixture({ shape: 'content' })
     const headers = { Authorization: `Bearer ${FAKE_RELAY_KEY}` }
-    const body = new FormData()
+    const body = new globalThis.FormData()
     body.set('model', 'opaque-gamma'); body.set('prompt', request.prompt); body.set('seconds', '4'); body.set('size', '1280x720')
-    const accepted = await (await fetch(`${relay.baseUrl}/v1/videos`, { method: 'POST', headers, body })).json()
+    const accepted = await (await globalThis.fetch(`${relay.baseUrl}/v1/videos`, { method: 'POST', headers, body })).json()
     const mode = relayDeclaration(relay.baseUrl, { shape: 'content' }).models[0].modes[0]
     const queried = await executeProfileOperation({ vendor: vendor(), model: model(), apiKey: FAKE_RELAY_KEY, request, operation: mode.query, providerMeta: { task_id: accepted.id }, stage: 'query' })
     const completed = await buildProfileTaskResult({ response: queried.response, mapping: mode, operation: mode.query, request, taskIdFallback: accepted.id, wantedKind: 'video' })

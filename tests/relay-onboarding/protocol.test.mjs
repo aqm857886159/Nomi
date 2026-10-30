@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+import process from 'node:process'
 // CI default Vitest lane: production declaration -> runtime -> loopback HTTP -> verified asset store.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -105,11 +107,11 @@ it('slow content times out, keeps the receipt, and cancellation stops a subseque
   await expect(fetchTaskResult(poll)).rejects.toThrow()
   expect(taskCache.get('task-1')).toBeTruthy()
   vi.stubEnv('NOMI_VENDOR_HTTP_TIMEOUT_MS', '10000')
-  const controller = new AbortController()
+  const controller = new globalThis.AbortController()
   const request = fetchTaskResult(poll, controller.signal)
   // Observe actual HTTP arrival rather than sleeping to infer work has started.
   await vi.waitFor(() => expect(relay.hits.filter((h) => h.path.endsWith('/content'))).toHaveLength(2))
-  controller.abort(new DOMException('Cancelled by creator', 'AbortError'))
+  controller.abort(new globalThis.DOMException('Cancelled by creator', 'AbortError'))
   await expect(request).rejects.toThrow()
   expect(controller.signal.aborted).toBe(true)
   expect(posts()).toHaveLength(1)
@@ -140,8 +142,8 @@ it('multipart rejects half a file pair and media bytes cannot be declared on cre
   }
 })
 it('chunked bodies are bounded by received bytes, not only Content-Length', async () => {
-  const stream = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(65)); controller.close() } })
-  await expect(streamProfileMediaToFile(new Response(stream, { headers: { 'Content-Type': 'video/mp4' } }), path.join(root, 'bounded.mp4'), new AbortController().signal, 64)).rejects.toThrow(/size limit/)
+  const stream = new globalThis.ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(65)); controller.close() } })
+  await expect(streamProfileMediaToFile(new globalThis.Response(stream, { headers: { 'Content-Type': 'video/mp4' } }), path.join(root, 'bounded.mp4'), new globalThis.AbortController().signal, 64)).rejects.toThrow(/size limit/)
 })
 
 it('a rejected create is never retried on another route', async () => {

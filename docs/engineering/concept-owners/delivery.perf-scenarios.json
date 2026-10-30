@@ -14,6 +14,10 @@
     {
       "path": "scripts/perf-scenarios-lib.mjs",
       "symbol": "validateScenarios"
+    },
+    {
+      "path": "scripts/perf-scenarios-lib.mjs",
+      "symbol": "readNodeMetricRuns"
     }
   ],
   "parity_test": "scripts/check-perf-scenarios.node-test.mjs",
@@ -24,5 +28,5 @@
     "scripts/pr-judgement-lib.mjs"
   ],
   "since": "2026-10-11",
-  "notes": "登记表在 tests/perf/scenarios/（一条一个文件），只经 perf-scenarios-lib 读写：统一跑法、结构门岗、PR 正文 perf-scenario 证据三处共用同一份读取与判据，不许另起第二份场景清单。量具只用现有的（DRIVERS 里列的），不自写剖析器。"
+  "notes": "登记表在 tests/perf/scenarios/（一条一个文件），只经 perf-scenarios-lib 读写：统一跑法、结构门岗、PR 正文 perf-scenario 证据三处共用同一份读取与判据，不许另起第二份场景清单。量具只用现有的（DRIVERS 里列的），不自写剖析器。 通用Node JSON驱动仍只经DRIVERS登记；readNodeMetricRuns统一核对轮数、全部指标和noisy，子进程失败或旧结果不得当作基线。"
 }

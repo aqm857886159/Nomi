@@ -1,4 +1,4 @@
-import { materializeProfileMediaResult, RELAY_VIDEO_ARTIFACT_VERSION } from "./capabilityCore/generationOutputMaterializer";
+import { profileMediaResponseHandler, profileMediaTaskResult, profileResponseReceipt } from "./capabilityCore/generationOutputMaterializer";
 import { revalidatePendingCredential } from './catalog/validateCandidateCredential';
 import crypto from "node:crypto";
 import { assertLocalAssetTransportReady, localizeAssetsForVendor } from "./catalog/assetLocalization";
@@ -21,9 +21,8 @@ import { authHeaders as buildAuthHeaders, extractTaskId as extractTaskIdShared }
 import { assertCanonicalAntigravityOperation, executeProcessOperation, prepareAntigravityCreateOperation } from "./catalog/processOperation"; import type { AntigravityProcessStage } from "./catalog/antigravityCatalog";
 import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
-import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
-import { firstMappedString, providerMetaFromResponse, taskFailureMessageFromResponse } from "./tasks/responseParsing"; import { expectedMediaKind, readTaskResponse, requestEchoUrls } from "./tasks/taskResultReading";
-import { applyResponseTransform } from "./tasks/responseTransforms";
+import { firstString, trim, type JsonRecord } from "./jsonUtils";
+import { taskFailureMessageFromResponse } from "./tasks/responseParsing"; import { expectedMediaKind, readTaskResponse, requestEchoUrls } from "./tasks/taskResultReading";
 import { applyRequestTransform } from "./tasks/requestTransforms";
 import { taskCache } from "./tasks/taskCache";
 export { taskCache, hasInFlightTasks } from "./tasks/taskCache";
@@ -191,14 +190,7 @@ export async function executeProfileOperation(input: {
   providerMeta?: JsonRecord;
   localAssetReader?: import("./catalog/assetLocalization").LocalAssetReader; signal?: AbortSignal; stage: ProfileOperationStage; antigravityPreflight?: import("./ai/antigravityTask").PreparedAntigravityTask;
 }): Promise<{ response: unknown; request: unknown }> {
-  if (input.operation.mediaResponse) {
-    if (input.stage !== "result" || input.operation.method.toUpperCase() !== "GET" || input.operation.mediaResponse.kind !== "binary" || input.operation.multipart || input.operation.process || input.operation.audioResponse || (input.model.kind !== "video" || input.operation.mediaResponse.contentType !== "video/mp4")) throw new Error("mediaResponse requires a video GET result");
-    const built = assertNoReferencesOutsideSubmit(input.stage, buildProfileHttpRequest(input));
-    const response = await materializeProfileMediaResult({ vendor: input.vendor, apiKey: input.apiKey, url: built.url,
-      headers: built.headers, query: built.query, signal: input.signal, projectId: trim(input.request.extras?.projectId),
-      nodeId: trim(input.request.extras?.nodeId), providerTaskId: firstString(input.providerMeta?.task_id, input.providerMeta?.query_id) });
-    return { response, request: built.preview };
-  }
+  const mediaResponseHandler = profileMediaResponseHandler(input);
   // Process and multipart declarations are handled by their shared executors.
   if (input.operation.process) {
     if (input.stage === "result") throw new Error("ANTIGRAVITY_INVALID_CONFIG");
@@ -231,6 +223,7 @@ export async function executeProfileOperation(input: {
   ) : { value: input.request.extras, uploaded: 0 };
   const effectiveInput = localized.uploaded > 0 ? { ...input, request: { ...input.request, extras: localized.value as TaskRequest["extras"] } } : input;
   const built = assertNoReferencesOutsideSubmit(input.stage, buildProfileHttpRequest(effectiveInput));
+  if (mediaResponseHandler) return mediaResponseHandler(built);
   const body = await applyRequestTransform(input.operation.request_transform, built.body, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId), request: input.request });
   const { vendor, apiKey } = effectiveInput;
   const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) });
@@ -250,38 +243,9 @@ export async function buildProfileTaskResult(input: {
   vendor?: Vendor;
   model?: Model;
 }): Promise<{ result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string; actualCost?: ProviderCostActual }> {
-  if (input.operation.mediaResponse && isJsonRecord(input.response) && input.response.kind === "materialized-media") {
-    return { providerMeta: { task_id: input.taskIdFallback }, unrecognizedStatus: "", result: {
-      id: input.taskIdFallback, kind: input.request.kind, status: "succeeded",
-      assets: [input.response.asset as TaskResult["assets"][number]], raw: { status: "completed", mediaResponse: "binary", artifactVersion: RELAY_VIDEO_ARTIFACT_VERSION },
-      ...(input.vendor && input.model ? { provenance: buildTaskProvenance({ vendor: input.vendor, model: input.model, request: input.request, vendorRequestId: input.taskIdFallback }) } : {}),
-    } };
-  }
-  const response = applyResponseTransform(input.operation.response_transform, input.response, {
-    baseUrl: String(input.vendor?.baseUrlHint || ""),
-  });
-  const { response_mapping: rawResponseMapping, provider_meta_mapping: rawMetaMapping } = input.operation;
-  const responseMapping = isJsonRecord(rawResponseMapping) ? rawResponseMapping : null;
-  const providerMetaMapping = isJsonRecord(rawMetaMapping) ? rawMetaMapping : null;
-  const providerMeta = providerMetaFromResponse(response, providerMetaMapping);
-  // 「上游到底给没给任务编号」只能有一个答案。providerMeta 只看 provider_meta_mapping 与
-  // extractTaskId 认得的那几个键（id / taskId / task_id / jobId…），**看不见 response_mapping**；
-  // 而像本机 ComfyUI 这样把编号叫 `prompt_id` 的供应商，编号只走 response_mapping 这一条路。
-  // 于是 result.id 明明已经拿到了 prompt_id，runTask 里那道「没返回任务编号就按失败处理」的闸
-  // 却问的是 providerMeta，答案是「没有」——整条 ComfyUI 认证必失败（2026-09-11 真机实锤）。
-  // 所以在这里就把「来自上游的编号」统一回填：本地兜底 id（taskIdFallback）刻意不回填，
-  // 那道闸要拦的正是「拿伪造编号去轮询」。
-  const providerTaskId = firstString(
-    firstMappedString(response, responseMapping, "task_id"),
-    providerMeta.task_id,
-    providerMeta.query_id,
-    extractTaskIdShared(response),
-  );
-  if (providerTaskId) {
-    providerMeta.task_id = providerMeta.task_id || providerTaskId;
-    providerMeta.query_id = providerMeta.query_id || providerTaskId;
-  }
-  const taskId = firstString(providerTaskId, input.taskIdFallback);
+  const materialized = profileMediaTaskResult(input);
+  if (materialized) return materialized;
+  const { response, taskId, providerMeta, responseMapping } = profileResponseReceipt(input);
   const type: "image" | "video" | "audio" | "model3d" =
     input.wantedKind === "video" ? "video" : input.wantedKind === "audio" ? "audio" : input.wantedKind === "model3d" ? "model3d" : "image";
   // 「成没成、结果在哪」只有一种读法（tasks/taskResultReading，两台引擎共用）：先合同、再通用规则。

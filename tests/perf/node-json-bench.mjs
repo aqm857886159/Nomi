@@ -20,7 +20,7 @@ try {
   if (child.status !== 0) throw new Error(`Node instrument exited ${child.status}${child.signal ? ` (${child.signal})` : ''}`)
   let payload
   try { payload = JSON.parse(fs.readFileSync(output, 'utf8')) }
-  catch (error) { throw new Error(`Invalid instrument JSON: ${error.message}`) }
+  catch (error) { throw new Error(`Invalid instrument JSON: ${error.message}`, { cause: error }) }
   readNodeMetricRuns(payload, Object.keys(payload.metrics ?? {}), runs)
 } catch (error) {
   console.error(error.message)

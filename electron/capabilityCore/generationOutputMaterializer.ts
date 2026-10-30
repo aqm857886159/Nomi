@@ -7,7 +7,13 @@ import { captureAssetWriteContext } from "../assets/assetWriteContext";
 import { createUploadStagingDir, removeScratchAfterUse } from "../assets/scratchCleanup";
 import { requestMediaFile } from "../vendor/vendorHttp";
 import { canvasPreviewFieldsFromReceipt } from "../shared/canvas/canvasMediaPreview";
-import type { TaskResult } from "../runtime";
+import type { TaskResult, TaskRequest, ProfileOperationStage } from "../runtime";
+import type { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
+import { buildTaskProvenance } from "../vendor/provenance";
+import { extractTaskId as extractProviderTaskId } from "../ai/requestPipeline";
+import { firstMappedString, providerMetaFromResponse } from "../tasks/responseParsing";
+import { applyResponseTransform } from "../tasks/responseTransforms";
+import { firstString, isJsonRecord, trim, type JsonRecord } from "../jsonUtils";
 import path from "node:path";
 
 import { hardenedFetchDiagnostics, type HardenedFetchResult } from "../hardenedFetch";
@@ -18,7 +24,7 @@ import { GeneratedMediaValidationError } from "../assets/generatedMediaDecode";
 import { stripNomiErrorCode } from "../shared/nomiErrorCodes";
 import { writeGeneratedDeterministicAsset } from "../assets/projectAssetStore";
 import { exceedsProviderMediaCap, fetchProviderMedia, type ProviderMediaFetchOptions } from "../assets/providerMediaFetch";
-import type { Vendor } from "../catalog/types";
+import type { Vendor, Model, HttpOperation } from "../catalog/types";
 import { readCatalog } from "../catalog/catalogStore";
 import { trustedRetrievalOrigin } from "../vendor/vendorOutboundGuard";
 import { parseDataUrl } from "../assets/assetBytes";
@@ -302,4 +308,59 @@ export async function materializeProfileMediaResult(input: {
   } finally {
     await removeScratchAfterUse(temporary);
   }
+}
+
+/** Select the file consumer before any upload; runtime supplies its one shared built request. */
+export function profileMediaResponseHandler(input: Parameters<typeof buildProfileHttpRequest>[0] & {
+  stage: ProfileOperationStage; signal?: AbortSignal;
+}): ((built: ReturnType<typeof buildProfileHttpRequest>) => Promise<{ response: unknown; request: unknown }>) | undefined {
+  if (!input.operation.mediaResponse) return undefined;
+  if (input.stage !== "result" || input.operation.method.toUpperCase() !== "GET" || input.operation.mediaResponse.kind !== "binary" || input.operation.multipart || input.operation.process || input.operation.audioResponse || (input.model.kind !== "video" || input.operation.mediaResponse.contentType !== "video/mp4")) throw new Error("mediaResponse requires a video GET result");
+  return async (built) => {
+    const response = await materializeProfileMediaResult({ vendor: input.vendor, apiKey: input.apiKey, url: built.url,
+      headers: built.headers, query: built.query, signal: input.signal, projectId: trim(input.request.extras?.projectId),
+      nodeId: trim(input.request.extras?.nodeId), providerTaskId: firstString(input.providerMeta?.task_id, input.providerMeta?.query_id) });
+    return { response, request: built.preview };
+  };
+}
+
+/** Only the verified local receipt takes this branch; upstream JSON keeps its normal reader. */
+export function profileMediaTaskResult(input: {
+  response: unknown; operation: HttpOperation; request: TaskRequest; taskIdFallback: string; vendor?: Vendor; model?: Model;
+}): { result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string } | null {
+  if (!input.operation.mediaResponse || !isJsonRecord(input.response) || input.response.kind !== "materialized-media") return null;
+  return { providerMeta: { task_id: input.taskIdFallback }, unrecognizedStatus: "", result: {
+      id: input.taskIdFallback, kind: input.request.kind, status: "succeeded",
+      assets: [input.response.asset as TaskResult["assets"][number]], raw: { status: "completed", mediaResponse: "binary", artifactVersion: RELAY_VIDEO_ARTIFACT_VERSION },
+      ...(input.vendor && input.model ? { provenance: buildTaskProvenance({ vendor: input.vendor, model: input.model, request: input.request, vendorRequestId: input.taskIdFallback }) } : {}),
+    } };
+}
+
+/** Normalize the accepted provider identity; the local fallback is never written into provider metadata. */
+export function profileResponseReceipt(input: { response: unknown; operation: HttpOperation; taskIdFallback: string; vendor?: Vendor }): { response: unknown; taskId: string; providerMeta: JsonRecord; responseMapping: JsonRecord | null } {
+  const { operation, taskIdFallback: fallback } = input;
+  const response = applyResponseTransform(operation.response_transform, input.response, { baseUrl: String(input.vendor?.baseUrlHint || "") });
+  const { response_mapping: rawResponseMapping, provider_meta_mapping: rawMetaMapping } = operation;
+  const responseMapping = isJsonRecord(rawResponseMapping) ? rawResponseMapping : null;
+  const providerMetaMapping = isJsonRecord(rawMetaMapping) ? rawMetaMapping : null;
+  const providerMeta = providerMetaFromResponse(response, providerMetaMapping);
+
+  // 「上游到底给没给任务编号」只能有一个答案。providerMeta 只看 provider_meta_mapping 与
+  // extractTaskId 认得的那几个键（id / taskId / task_id / jobId…），**看不见 response_mapping**；
+  // 而像本机 ComfyUI 这样把编号叫 `prompt_id` 的供应商，编号只走 response_mapping 这一条路。
+  // 于是 result.id 明明已经拿到了 prompt_id，runTask 里那道「没返回任务编号就按失败处理」的闸
+  // 却问的是 providerMeta，答案是「没有」——整条 ComfyUI 认证必失败（2026-09-11 真机实锤）。
+  // 所以在这里就把「来自上游的编号」统一回填：本地兜底 id（taskIdFallback）刻意不回填，
+  // 那道闸要拦的正是「拿伪造编号去轮询」。
+  const providerTaskId = firstString(
+    firstMappedString(response, responseMapping, "task_id"),
+    providerMeta.task_id,
+    providerMeta.query_id,
+    extractProviderTaskId(response),
+  );
+  if (providerTaskId) {
+    providerMeta.task_id = providerMeta.task_id || providerTaskId;
+    providerMeta.query_id = providerMeta.query_id || providerTaskId;
+  }
+  return { response, taskId: firstString(providerTaskId, fallback), providerMeta, responseMapping };
 }

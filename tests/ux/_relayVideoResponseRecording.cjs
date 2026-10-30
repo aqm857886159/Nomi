@@ -1,5 +1,5 @@
 // Test-only mainRequire hook. It observes responses after the existing network guard.
-const fs = require('node:fs')
+const fs = process.getBuiltinModule('node:fs')
 const LIMIT = 64 * 1024
 const STATE = Symbol.for('nomi.relay.response-recording')
 function redactUrl(value) {

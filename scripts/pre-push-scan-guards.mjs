@@ -34,6 +34,8 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
+  // Reviewed response JSON is data, but changes must still run the status contract in the normal batch.
+  { file: 'tests/relay-onboarding/profile-statuses.test.mjs', roots: ['tests/relay-onboarding/fixtures/relay-profile-responses'], exts: '*' },
   // ── electron/ 全树（遍历 electron 找违规文件）──
   { file: 'scripts/lib/buildInputRefScan.test.mjs', roots: ['src', 'electron'], files: ['vite.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'scripts/build-tailwind.mjs', 'scripts/build-electron.mjs', 'scripts/write-intake-config.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/package-build-stamp.mjs'] }, // 构建源码不许引用构建戳排除的路径（NON_INPUTS）；遍历 src + electron（<1 秒）
   { file: 'tests/system/async-signature-migration.test.mjs', roots: ['tests', 'electron', 'src', 'scripts'] }, // V-plibrary F3：同步改异步的函数，调用方（含 tests / 脚本）都要 await；遍历四个目录的源码（<1 秒）

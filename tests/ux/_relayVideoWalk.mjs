@@ -10,6 +10,7 @@ import { quietElectronSpawn, repoRoot } from './_launchApp.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 import { findNodeHitPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 /** Mac launch rule is checked immediately before starting any GUI, including rehearsal. */
 export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) {
@@ -87,7 +88,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
   await expect.poll(async () => Boolean(await fresh()), { timeout: stationTimeout() }).toBe(true)
   const id = (await fresh()).id
   const node = win.locator(`[data-node-id="${id}"]`)
-  const textMode = node.getByText(/^(文字生视频|From text)$/i)
+  const textMode = node.getByText(uiText('zh-CN', 'generationCommon.nodeTry.video.text'), { exact: true }).or(node.getByText(uiText('en', 'generationCommon.nodeTry.video.text'), { exact: true }))
   if (await textMode.isVisible().catch(() => false)) await textMode.click()
   const projection = await win.evaluate(async (want) => {
     const rows = await window.nomiDesktop.modelCatalog.listModels({})

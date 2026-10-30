@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+import process from 'node:process'
 // Invoked by protocol.test.mjs in a fresh process. Its parent is the mandatory CI test;
 // standalone discovery has no persisted receipt and must never manufacture a new task.
 import fs from 'node:fs'

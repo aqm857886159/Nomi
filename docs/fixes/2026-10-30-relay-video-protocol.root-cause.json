@@ -23,7 +23,8 @@
     "electron/capabilityCore/generationOutputMaterializer.ts",
     "electron/catalog/catalogCommit.ts",
     "electron/catalog/relayNativeWireUpgrade.ts",
-    "scripts/perf-scenarios-lib.mjs"
+    "scripts/perf-scenarios-lib.mjs",
+    "scripts/pre-push-scan-guards.mjs"
   ],
   "entry_points": [
     "Agent declaration to runtime",
@@ -289,7 +290,8 @@
     "Global closed-state inference is explicitly deferred by coordination: preserve existing hard-evidence inference and bounded unknown tolerance; use sanitized paid-response projections for a separate post-0.24.1 direction review.",
     "Stored generated defaults are indistinguishable from explicit declarations; preserving all old rows also preserves any old guessed route.",
     "Unified Node scenarios passed at clean head ddddcc680 with 25 fresh clients, five target repetitions per case and ten same-batch references, load5 4.77-7.89. Single256MiB RSS p95 107.7MiB, single2GiB 130.4MiB (difference22.7<=32), four concurrent256MiB 151.7MiB versus113.5MiB same-batch reference (ratio1.337<=2). These meet the revised coordination budget, not the superseded64MiB threshold. Scope is loopback transfer/write and function cancellation, not TLS, decode/publication or UI cancellation. Windows weak machine remains unverified: no Windows test machine. Four isolated protocol GUI walkthroughs and two shared-step free rehearsals exited zero, with every PNG inspected. Full gates remain pending.",
-    "GUI declaration requires renderer reload to refresh model selection. Neutral parameter and reference projection remains independently owned; free rehearsals use the existing visible capability editor for minimum controls. No real LLM documentation-reading journey was executed."
+    "GUI declaration requires renderer reload to refresh model selection. Neutral parameter and reference projection remains independently owned; free rehearsals use the existing visible capability editor for minimum controls. No real LLM documentation-reading journey was executed.",
+    "The first complete gates run exposed missing ownership/test registrations and runtime shell growth; these are repaired through the existing registries and a single shared request-construction path, without changing gate decisions or baselines. Local visual reference differences remain subject to macOS CI."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",
