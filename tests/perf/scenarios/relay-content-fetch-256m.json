@@ -20,10 +20,14 @@
   ],
   "budget": 160,
   "budgetStatistic": "p95",
-  "budgetStatus": "proposed",
+  "budgetStatus": "approved",
   "budgetBasis": "协调10-31依据安静实测裁定：单路额外RSS p95≤160MiB、跨文件规模p95差≤32MiB、四路并发p95≤同批实测单路p95×2。量具自动校验相对条件，不使用固定历史参考，不强制GC；不含解码发布。",
-  "measurement": {
-    "state": "pending",
-    "reason": "量具已接通，待安静窗口完成首次五轮统一实测"
+  "baseline": {
+    "median": 106,
+    "p95": 107.7,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-30",
+    "commit": "ddddcc680"
   }
 }
