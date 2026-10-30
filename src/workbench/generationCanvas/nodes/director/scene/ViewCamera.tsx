@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、three、@react-three/fiber 的 useThree/useFrame、@react-three/drei 的 OrbitControls、
  *          ../model/vec3、../model/directorTypes、../model/cameraLens（exportAspectRatio / povVerticalFov）、./cameraMath（cameraQuaternion / THREE_CAMERA_FLIP）、
@@ -88,13 +89,13 @@ export function ViewCamera({ settings, hoveredRef }: { settings: ViewSettings; h
       if (['Meta', 'Control', 'Alt'].includes(event.key)) keys.current.clear()
     }
     const onBlur = () => keys.current.clear()
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    window.addEventListener('keyup', onKeyUp, { capture: true })
-    window.addEventListener('blur', onBlur)
+    canvasWindowInput.addEventListener('keydown', onKeyDown, { capture: true })
+    canvasWindowInput.addEventListener('keyup', onKeyUp, { capture: true })
+    canvasWindowInput.addEventListener('blur', onBlur)
     return () => {
-      window.removeEventListener('keydown', onKeyDown, { capture: true })
-      window.removeEventListener('keyup', onKeyUp, { capture: true })
-      window.removeEventListener('blur', onBlur)
+      canvasWindowInput.removeEventListener('keydown', onKeyDown, { capture: true })
+      canvasWindowInput.removeEventListener('keyup', onKeyUp, { capture: true })
+      canvasWindowInput.removeEventListener('blur', onBlur)
     }
   }, [layerActive, store, hoveredRef])
 

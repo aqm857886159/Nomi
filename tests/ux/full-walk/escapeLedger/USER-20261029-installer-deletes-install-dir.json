@@ -1,0 +1,47 @@
+{
+  "id": "USER-20261029-installer-deletes-install-dir",
+  "since": "2026-10-29",
+  "source": "用户 2026-10-29 在微信群反馈：Windows 上 Nomi 装在 F:\\Nomi_new，新项目默认位置设在安装目录下的 xiangmu，0.24.0 提示更新后直接安装，装完 xiangmu 是空的，5 个项目全没了，回收站里也没有；放在 C 盘「文档」里的第 6 个项目还在。",
+  "category": "deletion-integrity",
+  "problem": "Windows 安装器沿用 electron-builder 默认卸载段，升级与卸载都对安装目录整目录删除（RMDir /r $INSTDIR）；升级时新安装程序先运行旧版本的卸载程序，用户放进安装目录的项目和文件随之被删，不进回收站。结账挂「安装器只删清单内条目 + Windows 安装作业」。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "0.24.0 升级到修复版前先替换不可信卸载器：安装目录里的用户文件夹、散文件和 resources/locales 子目录文件原地保留",
+    "后续升级、改目录重装和普通卸载只处理构建清单，目录非递归；没有用户文件搬移/恢复协议",
+    "登记卸载程序被占用或写入失败：模板调用前中止、exit 2、静默也弹双语框，旧安装和登记字节不变，释放后可重试",
+    "只杀父安装器、迟到卸载器继续：被拉起映像必须是本版清单卸载器，三处用户文件保持，原目录重装恢复应用",
+    "无恢复记录的用户同名旁边目录，升级和卸载后路径与每文件 SHA-256 不变"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "tests/installer/installerScenarios.test.mjs：普查——installer.nsh 无 RMDir /r、钩子齐、常量与场景登记一致、模板指纹、工作流跑全部场景与反例",
+    "scripts/packaging/installer-manifest.test.mjs：清单与打包产物、生成的 NSH 三方一致，空目录与怪文件名都在清单里",
+    "tests/installer/windows-installer-scenarios.mjs + .github/workflows/win-installer.yml：windows-latest 上用 v0.24.0 Release 安装包真装真升真卸（A1–A16 + 登记的全部变异包；A1、A11 的用户数据放默认位置、安装目录外的自选位置、安装目录里三处，升级后、卸载后各验一遍）",
+    ".github/workflows/desktop-rc.yml：发版硬门，windows-installer 作业调用上面的工作流，finalize 依赖它，红了候选版不能晋级",
+    "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
+    "Windows 作业：PR #1381 推送后首跑（Win Installer Scenarios），运行号与结果写在 PR 正文「验证」一节",
+    "tests/installer/windowsHarness.test.mjs：默认车道检查统一包装、禁止脚本级静音、真实 CLIXML progress 与错误解析；Mac 不执行 PowerShell。",
+    "docs/fixes/2026-10-30-installer-windows-harness.root-cause.json：同步片段、-File 监视器、文件锁助手共用退出及错误原文边界；Windows 结果仍待本轮验证。",
+    "2026-10-30 第四轮：customInit 提前替换登记卸载器，删除全部搬家协议；Mac 真实双轮 NSIS 编译及 43 例定向测试通过。两个临时变异包分别去掉替换、永远可信，各跑 A1/A14/A15 必须红；实际 Windows 收据待本次 CI，不将本机绿当目标平台通过。"
+  ],
+  "completionCommits": [
+    "57b0f6e42b86488deec3503dacee8451a256dc3c",
+    "0d854b0b7b89a94b2bf3286bf7be28db6b33b676",
+    "7565502ed829176dcdade74f280bb1c910cd5df0",
+    "9ff61d8020fe7db900ff30c305f7feb441b7eb86",
+    "088a22643af4146e55a6b3075e1a214af40d6606",
+    "8f2ef03c383d0ea424573c9f1ca87ed7c0501f01",
+    "9752bca435f25a8bdef125be23e6f42fe4ce3963",
+    "1d8fd42cc19cd404fa06a29556454aa0428d4f44",
+    "4f0f2cd8a3575a4e7766e90f38d2b2e1ad61f149"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-29-installer-keep-user-files.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/installer/installerScenarios.test.mjs"
+  },
+  "fixedInPr": 1381
+}

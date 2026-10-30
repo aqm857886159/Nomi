@@ -37,7 +37,8 @@ import { useTimelinePlayback } from './useTimelinePlayback'
 let handlers: Map<string, Set<(event: KeyboardEvent) => void>>
 let cleanups: (() => void)[]
 let overlay = false
-let documentState: { activeElement: { tagName: string; type?: string } | null; querySelector: () => object | null }
+let workspaceActive = true
+let documentState: { activeElement: { tagName: string; type?: string } | null; querySelector: (selector: string) => object | null }
 
 // 生产键位里的 meta 在 macOS 是 ⌘、其它平台是 Ctrl，所以按 meta 的快捷键必须随平台派生修饰键；
 // 写死 ctrlKey 会在 macOS 上恒不命中（Linux CI 照样绿，本机开发者却看到两条红）
@@ -64,7 +65,14 @@ function setup() {
 beforeEach(() => {
   runtime.store = createDirectorStore({ defaultSceneName: 'Scene' })
   runtime.effects = []; runtime.frames = []; handlers = new Map(); cleanups = []; overlay = false; runtime.layerActive = true
-  documentState = { activeElement: null, querySelector: () => overlay ? {} : null }
+  workspaceActive = true
+  const host = {}
+  const canvasSurface = { isConnected: true, closest: (selector: string) => {
+    if (selector === '[data-workspace-input-active="true"]') return workspaceActive ? host : null
+    if (selector === '[data-workspace-input-active="false"]') return workspaceActive ? null : host
+    return null
+  } }
+  documentState = { activeElement: null, querySelector: (selector) => selector === '[data-shortcut-surface="canvas"]' ? canvasSurface : overlay ? {} : null }
   vi.stubGlobal('document', documentState)
   vi.stubGlobal('window', { addEventListener: (name: string, fn: (event: KeyboardEvent) => void) => { if (!handlers.has(name)) handlers.set(name, new Set()); handlers.get(name)!.add(fn) }, removeEventListener: (name: string, fn: (event: KeyboardEvent) => void) => handlers.get(name)?.delete(fn) })
 })
@@ -95,6 +103,16 @@ describe('director keyboard navigation boundary', () => {
     key('KeyW'); frame()
     expect(camera.position.y).toBe(y)
     expect(camera.position.z).toBeLessThan(8)
+  })
+  it('a mounted layer cannot navigate until its workspace host becomes active', () => {
+    const { camera, frame } = setup(); const start = camera.position.clone()
+    expect(handlers.get('keydown')?.size).toBeGreaterThan(0)
+    workspaceActive = false
+    key('KeyW'); frame()
+    expect(camera.position.distanceTo(start)).toBe(0)
+    workspaceActive = true
+    key('KeyW'); frame()
+    expect(camera.position.z).toBeLessThan(start.z)
   })
   it('orbits arrow keys around the current target without moving that target', () => {
     const { camera, orbit, frame } = setup(); const target = orbit.target.clone(); const start = camera.position.clone(); const radius = camera.position.distanceTo(target)

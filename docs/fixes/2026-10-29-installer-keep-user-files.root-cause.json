@@ -1,0 +1,253 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-installer-keep-user-files",
+  "change_kind": "corrective",
+  "problem_type": "Windows 安装器整目录删除安装目录，用户放进安装目录的文件随升级 / 卸载一起被删",
+  "symptom": "一位 Windows 用户把 Nomi 装在 F:\\Nomi_new，把新项目默认位置设成安装目录下的 xiangmu 并建了 5 个项目；0.24.0 提示更新后直接安装，装完 xiangmu 是空的，5 个项目全没了，回收站里也没有。放在 C 盘文档里的第 6 个项目还在。",
+  "direct_cause": "package.json 的 build.nsis 没有 include，electron-builder 26.15.3 走默认卸载段（templates/nsis/uninstaller.nsh 的 Section：升级时 un.atomicRMDir 把安装目录里每个文件挪进 $PLUGINSDIR\\old-install、再 RMDir /r $INSTDIR；普通卸载直接 RMDir /r $INSTDIR）。升级时新安装程序先运行注册表里登记的旧版本卸载程序（include/installUtil.nsh 的 uninstallOldVersion），旧卸载程序把安装目录连同用户的项目一起删掉，卸载程序退出时 $PLUGINSDIR 被清空，不进回收站。",
+  "class_root": "缺少安装器文件归属不变量，且把旧卸载程序不可修改误当成调用链不可改变；以搬移/恢复用户数据的事务与独立存活的递归删除进程赛跑，并按文件名猜测旁边目录归属。应在模板调用之前替换不可信删除者，让所有删除都受构建清单约束。",
+  "affected_population": [
+    "Windows 上把项目位置或任何文件放在 Nomi 安装目录里的用户（升级、重装、卸载都会触发）",
+    "安装目录选在本来就有用户文件的目录（如 D:\\工作）的用户",
+    "0.24.0 及更早版本升级到修复版的那一次：旧版本卸载程序仍是整目录删除",
+    "只给当前用户（HKCU）和装给所有用户（HKLM）两种安装"
+  ],
+  "scope_paths": [
+    "build/installer.nsh",
+    "scripts/packaging/installer-manifest.cjs",
+    "scripts/packaging/installer-manifest.test.mjs",
+    "scripts/after-pack-mac.cjs",
+    "package.json",
+    "tests/installer/**",
+    ".github/workflows/win-installer.yml",
+    ".github/workflows/desktop-rc.yml",
+    "docs/plan/2026-10-29-installer-keep-user-files.md"
+  ],
+  "entry_points": [
+    "electron-updater「重启以更新」：installGate.ts 调 quitAndInstall → 安装程序 --updated --force-run（非静默）",
+    "electron-updater「退出时安装」：installGate.ts / installOnQuit.ts 调 install(true, false) → 安装程序 --updated /S",
+    "用户手动运行新安装程序覆盖安装（可带 /D= 改安装目录）",
+    "控制面板 / 开始菜单卸载：Uninstall Nomi.exe（不带 --updated）",
+    "装给所有用户时，安装程序对 HKLM、HKCU 各运行一轮旧卸载程序"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electron.build/nsis#custom-nsis-script",
+      "checked_at": "2026-10-29",
+      "purpose": "nsis.include 钩子是 electron-builder 文档化的定制方式；文档列出 customInit / customInstall 等钩子。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/electron-userland/electron-builder/tree/master/packages/app-builder-lib/templates/nsis",
+      "checked_at": "2026-10-30",
+      "purpose": "本机真实 26.15.3 模板：customInit 在 installer.nsi:79–81；installSection:52–58 调旧卸载；installUtil:155–167 取路径、209–230 复制/执行；installer:100 写本版卸载器；12 文件指纹钉住调用链。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nsis.sourceforge.io/Docs/Chapter4.html#rmdir",
+      "checked_at": "2026-10-29",
+      "purpose": "NSIS 手册明说卸载程序里 RMDir /r $INSTDIR 不安全（用户可能装进已有目录）；非递归 RMDir 只删空目录。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://nsis.sourceforge.io/Uninstall_only_installed_files",
+      "checked_at": "2026-10-29",
+      "purpose": "只卸载装过的文件：按记录逐个 Delete、非递归 RMDir、最后 RMDir $INSTDIR。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw",
+      "checked_at": "2026-10-30",
+      "purpose": "REPLACE_EXISTING|COPY_ALLOWED|WRITE_THROUGH=11；允许 TEMP 与登记安装目录跨卷，失败返回 0 时中止。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/kichik/nsis/blob/v304/Source/exehead/util.c",
+      "checked_at": "2026-10-29",
+      "purpose": "NSIS 3.04 my_MessageBox：静默模式下只有带 /SD 的框被跳过，不带 /SD 的照样弹出——中止原因在 /S 下也看得见。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/kichik/nsis/blob/v304/Source/exehead/exec.c",
+      "checked_at": "2026-10-29",
+      "purpose": "NSIS 3.04 EW_RENAME 调 MoveFile：Rename 的跨卷 / 同卷行为。"
+    }
+  ],
+  "invariants": [
+    "customRemoveFiles 仅处理构建清单内文件、卸载程序和可选图标；所有目录非递归、空了才删。",
+    "customInit 是替换入口，只调用 nomiReplaceUntrustedUninstaller 一次；HKCU 一轮，管理员再处理 HKLM。",
+    "与模板同样读取 UninstallString 及第二键回退，用 GetInQuotes 取登记路径；只有标记非空且等于同根 DisplayVersion 才可信。",
+    "登记文件存在且不可信时，模板执行前必须用本版清单卸载程序替换；任一步失败弹双语框、exit 2/Quit，不执行旧删除者。",
+    "用户文件始终原地不动；不存在旁边目录、待恢复记录、恢复猜测或用户数据搬移协议。迟到的卸载进程也只能删清单内应用文件。",
+    "清单由 afterPack 现算，编译时核版本；真实两轮 NSIS 编译和 Windows 全场景/变异包是交付证据。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/update/updateReminderStore.ts",
+      "symbol": "install"
+    },
+    {
+      "kind": "write",
+      "path": "electron/update/installGate.ts",
+      "symbol": "quitAndInstall"
+    },
+    {
+      "kind": "write",
+      "path": "electron/update/installGate.ts",
+      "symbol": "install"
+    },
+    {
+      "kind": "write",
+      "path": "electron/update/installOnQuit.ts",
+      "symbol": "install"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "这 4 扇是应用里启动安装程序的入口（重启更新、退出时更新、退出时排空、待安装记录的读取），本单不改应用代码（更新握手归另一条线）；它们全部终于同一个 NSIS 安装程序和同一个卸载段，修复落在那里，所有入口一起生效，不需要合并应用侧的门。"
+  },
+  "generality_proof": "所有升级和手动重装均先经过 NSIS customInit；按模板同一注册表根和路径替换不可信卸载文件，之后模板复制/原地启动都只会运行清单卸载器。普通卸载汇到 customRemoveFiles。用户数据从未移动，因此没有恢复竞态或目录误认领；替换失败直接退出。UAC 内层与非静默界面仍需单独实测，不能从共用入口推断已验证。",
+  "shared_boundaries": [
+    {
+      "path": "build/installer.nsh",
+      "symbol": "customRemoveFiles",
+      "responsibility": "卸载段唯一的删除点：升级时只把清单文件原子挪进 $PLUGINSDIR\\old-install（失败全部还原并 Abort），普通卸载只 Delete 清单文件，目录最深在前非递归删。"
+    },
+    {
+      "path": "build/installer.nsh",
+      "symbol": "nomiReplaceUntrustedUninstaller",
+      "responsibility": "在 customInit、模板执行登记卸载器之前替换不可信文件；替换失败中止，用户数据不移动。"
+    },
+    {
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "symbol": "computeInstallerManifest",
+      "responsibility": "「安装目录里哪些属于安装器」的唯一来源，afterPack 从剪完平台二进制的打包产物现算。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/update/installGate.ts",
+      "entry_point": "quitAndInstall（重启以更新，--updated --force-run）",
+      "disposition": "enforced",
+      "evidence": "初始化先替换不可信卸载程序；与静默更新汇到同一 NSIS 安装/卸载边界。--force-run 非静默界面 unverified。"
+    },
+    {
+      "path": "electron/update/installGate.ts",
+      "entry_point": "install(true, false)（退出时静默更新，--updated /S）",
+      "disposition": "enforced",
+      "evidence": "A1/A4/A7/A14/A16 覆盖静默升级、用户文件占用、过期标记、迟到卸载和卸载器占用；本轮 Windows 结果待实际 CI。"
+    },
+    {
+      "path": "electron/update/installOnQuit.ts",
+      "entry_point": "退出排空时调 install",
+      "disposition": "enforced",
+      "evidence": "走 installGate 的同一个 install，启动同一个安装程序。"
+    },
+    {
+      "path": "build/installer.nsh",
+      "entry_point": "控制面板卸载 Uninstall Nomi.exe（不带 --updated）",
+      "disposition": "enforced",
+      "evidence": "customRemoveFiles 的非升级分支逐个 Delete 清单文件；Windows 作业 A2 / A6 / A8 / A13，反例 CX1（卸载段加回 RMDir /r）证明 A13 量得到整目录删除。"
+    },
+    {
+      "path": "build/installer.nsh",
+      "entry_point": "手动重装改目录（/D=，不带 --updated）",
+      "disposition": "enforced",
+      "evidence": "替换使用登记的 UninstallString，而非用户本次选择的 INSTDIR；A5/A12 验证改目录重装。"
+    },
+    {
+      "path": "build/installer.nsh",
+      "entry_point": "装给所有用户（HKLM 一轮 + HKCU 一轮旧卸载）",
+      "disposition": "enforced",
+      "evidence": "customInit 对 HKCU 和管理员可执行的 HKLM 分别替换；默认模板的两轮结果处理保持，A6 覆盖 HKLM 安装。"
+    },
+    {
+      "path": "electron/update/updateReminderStore.ts",
+      "entry_point": "rememberDownloaded / pendingInstall（只记待安装）",
+      "disposition": "not-affected",
+      "evidence": "只存取状态，不启动安装程序。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个整目录删除机制挂在每一条会运行卸载段的路径上（升级、重装、改目录、卸载、两轮所有用户卸载），只修其中一条，其余照删；而且旧版本卸载程序会在下一次升级时再跑一次。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs quitAndInstall install --roots=electron：4 扇（installGate.ts 两扇写、installOnQuit.ts 一扇写、updateReminderStore.ts 一扇读），全部终于同一个 NSIS 安装程序。",
+      "app-builder-lib 26.15.3 templates/nsis 全文扫 RMDir /r：只在 uninstaller.nsh 默认删除段（未定义 customRemoveFiles 时）。",
+      "build/installer.nsh：tests/installer/installerScenarios.test.mjs 判 RMDir /r（去掉注释和字符串后）为零，反例 CX5 证明判得出。",
+      "package.json build：没有 fileAssociations、win 只有 nsis x64、nsis 不是 oneClick / perMachine——这些形状会让安装器往安装目录放清单之外的东西，由普查测试和生成器报错拦住。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "build/installer.nsh",
+    "invariant": "模板只能启动按清单删除的卸载器；用户文件始终原地；所有文件变更目标受静态白名单约束。",
+    "failure_mode": "提取或 MoveFileExW 失败：双语对话框含登记路径，不带 /SD，exit 2/Quit，早于模板执行；无旧卸载器 fallback。清单过期/不支持形态 !error；模板指纹、目标白名单/唯一接线普查、Windows 场景及反例守门。",
+    "exception_policy": "none",
+    "strategy": "删除整个搬移/恢复协议，在最早共享 customInit 边界替换删除者。新卸载仅按构建清单处理；Windows 对两个变异包各跑 A1/A14/A15，必须真的丢文件并变红，正常包全部通过。",
+    "artifacts": [
+      "build/installer.nsh",
+      "scripts/packaging/installer-manifest.cjs",
+      "scripts/after-pack-mac.cjs",
+      "package.json",
+      ".github/workflows/win-installer.yml",
+      ".github/workflows/desktop-rc.yml",
+      "tests/installer/scenarios.mjs",
+      "tests/installer/windows-installer-scenarios.mjs",
+      "tests/installer/dialog-watcher.ps1",
+      "tests/installer/installerScenarios.test.mjs",
+      "scripts/packaging/installer-manifest.test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/installer/installerScenarios.test.mjs",
+    "scripts/packaging/installer-manifest.test.mjs",
+    "tests/installer/windows-installer-scenarios.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/installer/installerScenarios.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "build/installer.nsh",
+      "tests/installer/windows-installer-scenarios.mjs",
+      "tests/installer/scenarios.mjs"
+    ],
+    "rationale": "同提交删 nomiKeepAside/Protect/Recover/MoveBack/Restore*/Abort*/RenameAside/WaitAppExit/CountForeign/IsForeign/OwnedName、NOMI_KEEP_*、等待常量、三个恢复对话框、三个未文档化钩子、隐藏提权段，以及测试里预置搬家状态与常量。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "保留 electron-builder 26.15.3，使用 customHeader/customInit/customRemoveFiles/customInstall 四个文档化钩子及模板 GetInQuotes；不再覆盖未文档化的应用退出/卸载结果钩子。模板调用链指纹必须在升级时重审。",
+    "current": "electron-builder 26.15.3（app-builder-lib 26.15.3 templates/nsis，legacy NSIS 3.0.4.1 包）",
+    "target": "下一次升级 electron-builder 时复核同一组钩子与默认处理",
+    "exit_criteria": [
+      "tests/installer/installerScenarios.test.mjs 的 12 个模板指纹红了：逐个重读变了的文件，确认钩子插入点、顺序、照抄的默认处理和原样调用的宏都还成立，必要时改 build/installer.nsh。",
+      "更新指纹会改 tests/installer/ 下的文件，推送即触发 .github/workflows/win-installer.yml，全部场景与反例重跑全绿后才合入。"
+    ]
+  },
+  "migration": "不迁移用户数据；旧版登记的卸载程序在新包初始化时原路径替换。已运行第 1–3 轮内部包而遗留 .nomi-keep 的机器，必须手动把用户文件挪回；本版不认领或读取它。未先更新而直接运行旧卸载器仍危险。",
+  "residual_risks": [
+    "尚未更新就直接用控制面板卸载 0.24.0 及更早版本，旧代码仍整目录删除；必须先移出项目。",
+    "迟到的安全卸载进程会删掉刚装的应用文件和注册表，但用户文件不动；需要按原目录重装。A14 验证此恢复路径。",
+    "旧版独有而本版清单未知的文件保留；Windows report.legacyOnly 必须列出，不能扩大删除范围。",
+    "UAC 提权弹窗/内层、非静默 --force-run 更新、真实断电、早于 0.24.0 的注册表形状 unverified。",
+    "杀毒软件、策略或权限阻止提取/替换时中止；真用户机器上 unverified。",
+    "Mac 可用 electron-builder 自带 makensis 验真实双轮编译；Windows 注册表/进程/文件占用只能由 Windows 作业验证。",
+    "发版硬门测同提交同配置、带测试版本后缀另打的包，非字节相同候选 exe。",
+    "默认项目位置由 Documents/Nomi Projects 与 runtimePaths 普查对账；用户资料只在 runner 隔离测试目录种数。"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-28",
+  "invariant_owner_layer": {
+    "layer": "build/installer.nsh",
+    "tests": [
+      "tests/installer/installerScenarios.test.mjs",
+      "tests/installer/windows-installer-scenarios.mjs"
+    ]
+  },
+  "strategy": "删除整个搬移/恢复协议，在最早共享 customInit 边界替换删除者。新卸载仅按构建清单处理；Windows 对两个变异包各跑 A1/A14/A15，必须真的丢文件并变红，正常包全部通过。"
+}

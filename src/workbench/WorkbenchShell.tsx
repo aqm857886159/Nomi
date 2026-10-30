@@ -1,3 +1,4 @@
+import { workspaceInputAttributes } from './shortcutSurface'
 import React, { type JSX } from "react";
 import { WorkspacePanelFrameContext } from "./WorkspacePanelFrame";
 import { useTranslation } from "react-i18next";
@@ -116,6 +117,7 @@ function WorkspaceSlot({
     return (
         <div
             ref={slot}
+            {...workspaceInputAttributes(active)}
             className={cn(
                 "workbench-shell__workspace",
                 "w-full h-full min-w-0 min-h-0",

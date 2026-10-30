@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、../../../../../utils/cn、../DirectorEditorContext 的 useDirectorStore / useDirectorStoreApi、
  *          ../model/timelineTracks（TimelineClipView / TimelineMarkerView / TrackFamily）、../model/timelineSnap（collectSnapCandidates / snapTime / snapToleranceSeconds）、
@@ -162,13 +163,13 @@ export function TrackLanes({ rows, viewport, totalDuration, onContextMenu, onRej
       if (!ok) onReject('director.timeline.toast.markerOutsideClip')
     }
     const onCancel = () => { dragRef.current = null; setDrag(null) }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onCancel)
+    canvasWindowInput.addEventListener('pointermove', onMove)
+    canvasWindowInput.addEventListener('pointerup', onUp)
+    canvasWindowInput.addEventListener('pointercancel', onCancel)
     return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onCancel)
+      canvasWindowInput.removeEventListener('pointermove', onMove)
+      canvasWindowInput.removeEventListener('pointerup', onUp)
+      canvasWindowInput.removeEventListener('pointercancel', onCancel)
     }
   }, [applySnap, drag, onReject, pxPerSecond, store, totalDuration])
 

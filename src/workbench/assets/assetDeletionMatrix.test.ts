@@ -326,4 +326,30 @@ describe('素材库删除：每种素材 × 每扇门 × 项目开着 / 关着',
       }
     }
   })
+  it.each([FILES.onTimeline, FILES.layer, FILES.poster])('browser origin-only request preserves referenced file %s without invented display metadata', async (relativePath) => {
+    const before = useGenerationCanvasStore.getState().nodes
+    const outcome = await deleteAssetResult({ origin: { source: 'project', projectId: PROJECT, relativePath } }, loadedContext())
+    expect(outcome.keptInUseCount).toBe(1)
+    expect(outcome.removedResultCount).toBe(0)
+    expect(useGenerationCanvasStore.getState().nodes).toBe(before)
+    expect(mocks.deleteFiles).not.toHaveBeenCalled()
+  })
+
+  it('a bound child request queued behind another deletion is revoked when its parent epoch changes', async () => {
+    let finishTrash!: (value: { deletedCount: number; failedCount: number }) => void
+    mocks.deleteFiles.mockImplementationOnce(() => new Promise(resolve => { finishTrash = resolve }))
+    const first = deleteAssetResult({ origin: { source: 'project', projectId: PROJECT, relativePath: FILES.spare } }, loadedContext())
+    await vi.waitFor(() => expect(mocks.deleteFiles).toHaveBeenCalledOnce())
+    let current = true
+    const queued = deleteAssetResult({ origin: { source: 'project', projectId: PROJECT, relativePath: FILES.clip } }, loadedContext(), () => {
+      if (!current) throw new Error('project_binding_stale')
+    })
+    const rejected = expect(queued).rejects.toThrow('project_binding_stale')
+    current = false
+    finishTrash({ deletedCount: 1, failedCount: 0 })
+    await first
+    await rejected
+    expect(mocks.deleteFiles).toHaveBeenCalledOnce()
+  })
+
 })
