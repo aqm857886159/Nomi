@@ -1,0 +1,18 @@
+{
+  "id": "RELAY-CAPABILITY-20261030",
+  "since": "2026-10-30",
+  "source": "用户反馈：中转视频接不上；AI 交声明卡后应能在画布生成",
+  "category": "parameter-contract",
+  "problem": "声明登记和认证晋升没有完整且一致的能力投影，参数和必需引用槽丢失，重交缩减卡留下旧模式，媒体模型说明出现 chat 空壳；旧目录缺失能力没有恢复入口。",
+  "existingInvariants": [],
+  "ironLaws": ["⑩", "⑪", "⑫"],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "completionCommits": [],
+  "evidence": [
+    "tests/relay-onboarding/contracts.test.mjs",
+    "docs/plan/2026-10-30-relay-video-onboarding.md"
+  ]
+}
