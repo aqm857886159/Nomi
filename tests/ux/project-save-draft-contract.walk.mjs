@@ -53,9 +53,14 @@ fs.renameSync = function(from, to) {
   const open = async () => {
     const win = current.win
     await leaveProjectIfOpen(win)
-    await win.getByText('Draft save contract', { exact: true }).first().click()
+    const card = win.locator(`[data-project-card][data-project-id="${ID}"]`)
+    await card.getByRole('button', { name: text('library.continueCreating'), exact: true }).click()
+    await expect.poll(() => win.evaluate(id => new URLSearchParams(location.hash.split('?')[1] || '').get('projectId') === id, ID)).toBe(true)
     await openStoryboardEditor(win, DESIGN, 'editable draft persistence')
     await expect(win.locator('[data-storyboard-editor="true"]')).toBeVisible()
+    const anchors = win.locator('[data-storyboard-anchors-toggle]')
+    if (await anchors.getAttribute('aria-expanded') === 'false') await anchors.click()
+    await expect(anchors).toHaveAttribute('aria-expanded', 'true')
     return win
   }
   const snapshot = async name => { await current.win.screenshot({ path: path.join(root, `${name}.png`) }) }
@@ -91,7 +96,6 @@ fs.renameSync = function(from, to) {
     await snapshot('00-existing-editor')
     await win.getByRole('button', { name: text('storyboardEditor.addAnchor'), exact: true }).click()
     await expect.poll(() => savedPlan().anchors.length, { timeout: stationTimeout() }).toBe(1)
-    await win.locator('[data-storyboard-anchors-toggle]').click()
     const name = win.getByRole('textbox', { name: text('storyboardEditor.anchor.nameAria'), exact: true })
     await expect(name).toHaveValue('')
     await expect(name).toHaveClass(/border-workbench-danger/)
@@ -122,7 +126,6 @@ fs.renameSync = function(from, to) {
     // Graceful full application close and reopening the same isolated profile.
     await closeNormally()
     win = await start(); await open()
-    await win.locator('[data-storyboard-anchors-toggle]').click()
     await expect(win.getByRole('textbox', { name: text('storyboardEditor.anchor.nameAria'), exact: true })).toHaveValue('')
     await expect(win.locator('[data-storyboard-aspect-default]')).toHaveAttribute('data-storyboard-aspect-default', 'model-default')
     await snapshot('04-graceful-reopen')
@@ -136,7 +139,6 @@ fs.renameSync = function(from, to) {
     await pause
     await current.close(); current = null
     win = await start(); await open()
-    await win.locator('[data-storyboard-anchors-toggle]').click()
     await expect(win.getByRole('textbox', { name: text('storyboardEditor.anchor.descriptionAria'), exact: true })).toHaveValue('Draft survives restart')
     await snapshot('05-forced-restart')
     fs.writeFileSync(busyMarker, '6')
@@ -151,6 +153,9 @@ fs.renameSync = function(from, to) {
     await snapshot('07-no-save-warning')
     await closeNormally()
     observations.push({ locale, savedUnnamed: true, defaultAspect: true, gracefulReopen: true, forcedReopen: true, busyMessage: text('studio.projectSaveInUse') })
+  } catch (error) {
+    if (current) await snapshot('failure').catch(() => undefined)
+    throw error
   } finally {
     if (fs.existsSync(busyMarker)) fs.unlinkSync(busyMarker)
     if (current) await current.close()
