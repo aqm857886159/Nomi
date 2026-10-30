@@ -226,9 +226,10 @@ try {
   await centerClick('whiteboard')
   await expect(node('whiteboard')).toHaveAttribute('data-selected', 'true')
   const whiteboardSurfaceProbe = await proveProbe(node('whiteboard').locator('[data-testid="whiteboard-empty-action"]'), 'whiteboard action is present on the canvas before opening its dialog')
-  await expectAbsent(win.locator('[role="dialog"][aria-modal="true"]'), { provenBy: whiteboardSurfaceProbe })
+  // 画板 10-22 起就地在卡上画，不再弹对话框；打开的证据是画板舞台。
+  await expectAbsent(win.locator('[data-whiteboard-stage="true"]'), { provenBy: whiteboardSurfaceProbe })
   await node('whiteboard').locator('[data-testid="whiteboard-empty-action"]').click()
-  await expect(win.locator('[role="dialog"][aria-modal="true"]')).toBeVisible()
+  await expect(win.locator('[data-whiteboard-stage="true"]')).toBeVisible()
   check('guidance.whiteboard.activation', 'first click selects; explicit second action opens the existing whiteboard editor')
   }
   report.status = 'passed'

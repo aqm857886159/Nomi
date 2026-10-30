@@ -12,6 +12,7 @@ import { useNodeMediaMeasurement } from '../nodes/useNodeMediaMeasurement'
 import { readNodeCardInfoHeight } from '../nodes/nodeSizing'
 import { DeferredNodeImage, DeferredNodeVideo } from '../nodes/DeferredNodeMedia'
 import { getGenerationNodeIcon } from '../nodes/renderRegistry'
+import { NodeHoverTimelineHandle } from '../nodes/NodeFloatingToolbar'
 import { NodeEmptyState } from '../nodes/render/NodeEmptyState'
 import { NodeEmptyStateProvider } from '../nodes/render/NodeEmptyStateProvider'
 import { EMPTY_STATE_COMPACT_MIN_HEIGHT } from '../nodes/render/nodeEmptyStateLayout'
@@ -41,15 +42,22 @@ export function LightweightGenerationNode({
   const preview = resolveLightweightNodePreview(node)
   const mediaMeasurement = useNodeMediaMeasurement(node)
   const Icon = getGenerationNodeIcon(node.kind)
+  // 「悬停也能拖」（用户 2026-10-12 拍板）远看时也算数：缩小画布往剪辑卡里拖素材就靠它。但几十张远看卡每张都挂一份
+  // 就白加 DOM，所以光标进来才挂。用 mouse 事件、不用 pointer 事件：原生拖放一起手浏览器就发 pointercancel /
+  // pointerleave，这时摘掉把手拖放就断了；拖放期间不发 mouse 事件，拖完才收。
+  const [hovered, setHovered] = React.useState(false)
+  const offersTimelineHandle = !readOnly && !loading
   return (
     <article
       className={cn(
-        'generation-canvas-v2-node',
+        'generation-canvas-v2-node group/node',
         'absolute p-0 border-0 rounded-none bg-transparent shadow-none',
         readOnly ? 'cursor-default' : 'cursor-pointer',
         'select-none touch-none overflow-visible',
         'block',
       )}
+      onMouseEnter={offersTimelineHandle ? () => setHovered(true) : undefined}
+      onMouseLeave={offersTimelineHandle ? () => setHovered(false) : undefined}
       data-node-id={node.id}
       data-kind={node.kind}
       data-selected={selected ? 'true' : 'false'}
@@ -78,6 +86,7 @@ export function LightweightGenerationNode({
       <div data-node-inline-status className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+40px)] z-[4] flex h-7 items-center [&_[data-generation-message]]:truncate [&_[data-generation-status]]:bg-nomi-paper/90">
         <NodeGenerationStatus node={node} />
       </div>
+      {hovered && offersTimelineHandle ? <NodeHoverTimelineHandle nodeId={node.id} /> : null}
       <div
         className={cn(
           'w-full h-full overflow-hidden rounded-nomi ring-1 ring-inset',

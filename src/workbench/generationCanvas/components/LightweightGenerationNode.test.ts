@@ -39,6 +39,14 @@ describe('两档共用同一份身份契约', () => {
   })
 })
 
+// 用户 10-12 拍板「悬停也能拖」：远看也算数，但只挂在光标所在的那张卡上。真挂上、真拖得动由
+// clip-drop-zoom 走查的 50% 档（画布验收套件 far-zoom-clip-drop）守；这里守「光标不在时不白加 DOM」。
+describe('远看卡的拖入把手', () => {
+  it('光标不在卡上时不挂把手', () => {
+    expect(render({ result: { id: 'r', type: 'image', url: 'file:///a.png', createdAt: 1 } })).not.toContain('data-node-timeline-hover-handle')
+  })
+})
+
 // Suspense 兜底（种类渲染器 chunk 没到）和真正的轻量档长得一样，但它马上会被整棵换掉；
 // 只有兜底带 data-node-loading，走查按它等「卡已经是正式的」再点，免得点击落在即将被摘掉的元素上而丢掉。
 describe('Suspense 兜底带 loading 标记', () => {

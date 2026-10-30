@@ -5,7 +5,8 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 用法：pnpm run build && node tests/ux/clip-drop-zoom.walk.mjs
 //   环境：CLIP_DROP_ZOOMS=50,100,150（默认）  NOMI_WALK_LOCALE=zh-CN|en  NOMI_WALK_SCHEME=light|dark
 //         CLIP_DROP_SHOTS=<截图目录>  CLIP_DROP_ONLY=<步骤编号，逗号分隔：P4,P5,P6A,P6B,D1,G1,O1,V>
-// 步骤对应任务书卡点：P4 素材拖进剪辑节点、P5 拖放把手不靠悬停、P6A 窄片段点击下限、P6B 边缘自动滚动；G1 / O1 是第一片留下的同类入口。
+// 步骤对应任务书卡点：P4 素材拖进剪辑节点、P5 悬停即用的拖放把手（把手 10-12 起在节点上边缘外、悬停才接指针）、P6A 窄片段点击下限、P6B 边缘自动滚动；G1 / O1 是第一片留下的同类入口。
+// 50% 低于细节线：素材卡是轻量卡，把手只在光标进卡时才挂（所以每一步都先把光标移进卡，这也是人拖的路径）。
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -101,7 +102,8 @@ async function runZoom(zoomPercent) {
     if (Math.abs(viewport.zoom - z / 100) > 0.02) throw new Error(`缩放没到 ${z}%：${JSON.stringify(viewport)}`)
     const bring = async (...targets) => {
       for (const target of targets) {
-        const pan = await panCanvasUntilInside(win, target, { margin: { left: 40, right: 16, top: 16, bottom: 90 } })
+        // 上边距留出把手的高度：把手整个在节点上边缘外（32 设计像素 × 缩放），贴着舞台顶会被顶栏盖住、真鼠标按不到。
+        const pan = await panCanvasUntilInside(win, target, { margin: { left: 40, right: 16, top: 16 + Math.ceil(32 * z / 100) + 8, bottom: 90 } })
         if (!pan.ok) throw new Error(`节点拖不进舞台：${JSON.stringify(pan)}`)
         await waitForCanvasViewportSettled(win)
       }
@@ -111,6 +113,12 @@ async function runZoom(zoomPercent) {
       await win.mouse.click(blank.x, blank.y)
       await wait(150)
       await win.keyboard.press('Escape')
+    }
+    // 光标移进素材卡：把手显出来（轻量卡这时才挂）。
+    const revealHandle = async () => {
+      const at = center(await box(source))
+      await win.mouse.move(at.x, at.y)
+      await wait(300)
     }
     const clips = (host) => host.locator('[data-testid="clip-node-clip"]')
     const clipRows = async (host) => host.evaluate((el) => Array.from(el.querySelectorAll('[data-testid="clip-node-clip"]'))
@@ -145,8 +153,7 @@ async function runZoom(zoomPercent) {
         window.__dragStartTarget = null
         window.addEventListener('dragstart', (event) => { window.__dragStartTarget = event.target?.getAttribute?.('draggable') === 'true' ? 'draggable' : 'other' }, true)
       })
-      await win.mouse.move(center(await box(source)).x, center(await box(source)).y)
-      await wait(300)
+      await revealHandle()
       const nb = await box(notch)
       await win.mouse.move(center(nb).x, center(nb).y)
       await win.mouse.down()
@@ -156,6 +163,7 @@ async function runZoom(zoomPercent) {
       const startedOnNotch = (await win.evaluate(() => window.__dragStartTarget)) === 'draggable'
       await win.mouse.up()
       await wait(200)
+      await revealHandle() // 拖完光标留在卡外，轻量卡的把手已经收了
       const grab = await notch.evaluate((el) => {
         const dt = new DataTransfer()
         el.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
@@ -188,6 +196,7 @@ async function runZoom(zoomPercent) {
     if (wanted('D1')) {
       await bring(source, node)
       await blankClick()
+      await revealHandle()
       const notch = source.locator('[draggable="true"]').first()
       // 载荷：对同一个把手派发一次 dragstart 取出（处理函数写的真载荷），再派发 dragend 把这次演示性的拖放收掉。
       const grab = await notch.evaluate((el) => {
@@ -240,13 +249,11 @@ async function runZoom(zoomPercent) {
       await blankClick()
     }
 
-    // ───────── P5 拖放把手不靠悬停：鼠标还在别处时，把手那一点上最顶层就是把手（不是下面的预览层）；真拖能发出载荷 ─────────
+    // ───────── P5 悬停即用的拖放把手：光标进卡后，把手那一点上最顶层就是把手（不是下面的预览层）；真拖能发出载荷 ─────────
     if (wanted('P5')) {
       await bring(source, node)
       await blankClick()
-      const blank = await findCanvasBlankPoint(win, { inset: 60 })
-      await win.mouse.move(blank.x, blank.y)
-      await wait(300)
+      await revealHandle()
       const notch = source.locator('[draggable="true"]').first()
       const nb = await box(notch)
       const top = nb ? await win.evaluate(({ x, y }) => {
@@ -254,7 +261,7 @@ async function runZoom(zoomPercent) {
         return { isNotch: Boolean(hit?.closest('[draggable="true"]')), tag: hit?.tagName ?? null }
       }, center(nb)) : null
       const grab = await grabRealPayload(notch)
-      record('P5', z, '没悬停时，拖放把手那一点最顶层是把手本身；真鼠标拖它能发出画布节点载荷', Boolean(nb) && top?.isNotch === true && Boolean(grab && Object.keys(grab).some((mime) => mime.includes('generation-node'))), { box: nb ? { w: Math.round(nb.width), h: Math.round(nb.height) } : null, top, mimes: grab ? Object.keys(grab) : null })
+      record('P5', z, '光标进卡后，拖放把手那一点最顶层是把手本身；真鼠标拖它能发出画布节点载荷', Boolean(nb) && top?.isNotch === true && Boolean(grab && Object.keys(grab).some((mime) => mime.includes('generation-node'))), { box: nb ? { w: Math.round(nb.width), h: Math.round(nb.height) } : null, top, mimes: grab ? Object.keys(grab) : null })
     }
 
     // ───────── P4 素材拖进剪辑节点：落点显示插入指示，松手在落点追加 / 插入 ─────────
