@@ -14,14 +14,16 @@
     "保存失败按结构原因显示"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "reviewed",
+  "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-30-project-save-draft-contract.md",
     "docs/fixes/2026-10-30-project-save-draft-contract.root-cause.json",
     "src/workbench/project/editorPersistability.property.test.ts"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "281b22cddaf2ce52288b3fb52a60cd39af0d7c08"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-30-project-save-draft-contract.root-cause.json",
   "classCheck": {
     "kind": "matrix",
