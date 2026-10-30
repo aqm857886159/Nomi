@@ -57,6 +57,21 @@ fs.renameSync = function(from, to) {
     return win
   }
   const snapshot = async name => { await current.win.screenshot({ path: path.join(root, `${name}.png`) }) }
+  const closeNormally = async () => {
+    const child = current.app.process()
+    // Drive the actual quit → renderer confirmation → save receipt → process exit path.
+    await Promise.all([
+      current.app.waitForEvent('close', { timeout: stationTimeout() }),
+      (async () => {
+        await current.app.evaluate(({ app }) => { setImmediate(() => app.quit()) })
+        await current.win.locator('[data-confirm-dialog-confirm]').click({ timeout: stationTimeout() })
+      })(),
+    ])
+    assert.equal(child.signalCode, null, 'normal close must not use the launcher kill fallback')
+    assert.equal(child.exitCode, 0)
+    await current.close(); current = null
+  }
+
   try {
     let win = await start()
     const record = await win.evaluate(({ ID, DOC, DESIGN }) => window.nomiDesktop.projects.create({
@@ -103,7 +118,7 @@ fs.renameSync = function(from, to) {
     observations.push({ locale, emptyNameGenerationClick: true, nameHintVisible: true, generationAdmission: 'unverified: no configured model; unchanged policy' })
     await snapshot('03-generation-name-required')
     // Graceful full application close and reopening the same isolated profile.
-    await current.close(); current = null
+    await closeNormally()
     win = await start(); await open()
     await win.locator('[data-storyboard-anchors-toggle]').click()
     await expect(win.getByRole('textbox', { name: text('storyboardEditor.anchor.nameAria'), exact: true })).toHaveValue('')
@@ -128,10 +143,11 @@ fs.renameSync = function(from, to) {
     await snapshot('06-ebusy-reason')
     const alertProof = await proveProbe(win.getByRole('alert'), 'typed EBUSY save failure is visible')
     if (fs.existsSync(busyMarker)) fs.unlinkSync(busyMarker)
-    await current.close(); current = null
+    await closeNormally()
     win = await start(); await open()
     await expectAbsent(win.getByRole('alert'), { provenBy: alertProof, message: 'draft saves and reopens without a save warning' })
     await snapshot('07-no-save-warning')
+    await closeNormally()
     observations.push({ locale, savedUnnamed: true, defaultAspect: true, gracefulReopen: true, forcedReopen: true, busyMessage: text('studio.projectSaveInUse') })
   } finally {
     if (fs.existsSync(busyMarker)) fs.unlinkSync(busyMarker)
