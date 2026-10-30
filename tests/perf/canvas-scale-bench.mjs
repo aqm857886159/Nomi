@@ -14,6 +14,12 @@ import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
  *   node tests/perf/canvas-scale-bench.mjs --scales I60,I150,I300 --runs 3
  *   node tests/perf/canvas-scale-bench.mjs --scales I300 --scenarios drag-group-frame-60 --profile
  *   node tests/perf/canvas-scale-bench.mjs --scales E10,E100,E200 --scenarios select-composer --runs 5
+ *   node tests/perf/canvas-scale-bench.mjs --scales D60 --scenarios far-dense-pan --gpu-mem-mb 512 --dpr 1.25 --runs 5
+ *
+ * 2026-10-31 远看密集（tests/perf/canvas-scale/farDense.mjs）：反馈现场那一屏（60 张真实帧、3 个组、240 条参考线），
+ * 在 20% / 35% / 55% 三档平移、滚轮；除了帧间隔还量缺块率（主进程抓真实合成帧逐张比对，带阳性对照）、
+ * Chromium 自己报的瓦片超限次数、结构读数（屏上每张卡的 DOM、解码像素、<video> 数、合成层数，结构超预算脚本非 0 退出）。
+ * 「Windows 1080p 用户」的替身 = --gpu-mem-mb 512（桌面默认瓦片预算下限）+ --dpr 1.25（窗口按 1920×1040 物理像素折算）。
  *
  * 2026-10-15 卡顿场景表：「点一下到界面到位」「长文打字」「时间轴」「后台在忙时操作画布」这几类工作台场景
  * 也住在这里（tests/perf/canvas-scale/workbenchScenarios.mjs），共用夹具、启动器和帧探针；它们多出一个
@@ -32,6 +38,7 @@ import { findCanvasBlankPoint } from '../ux/_canvasHit.mjs'
 import { AUTO_PAN_SAFE_MARGIN_PX } from '../ux/canvas-perf/gestureGeometry.mjs'
 import { canvasFitViewButton } from '../ux/_shell.mjs'
 import { WORKBENCH_SCENARIOS, prepareWorkbenchLaunch, runWorkbenchScenario } from './canvas-scale/workbenchScenarios.mjs'
+import { FAR_DENSE_LAUNCH_ARGS, FAR_DENSE_LAUNCH_ENV, FAR_DENSE_SAMPLE_KEYS, FAR_DENSE_SCALES, FAR_DENSE_SCENARIOS, createFarDenseFixture, farDenseStructureViolations, runFarDensePan } from './canvas-scale/farDense.mjs'
 import { IPC_PROBE_MODULE, startDiagnostics } from './canvas-scale/diagnostics.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -69,15 +76,22 @@ const SCENARIO_NAMES = [
   'pan',
   'zoom-slider-drag',
   ...WORKBENCH_SCENARIOS,
+  ...FAR_DENSE_SCENARIOS,
 ]
-// 工作台场景默认不跑（它们要的规模 / 后台负载各不相同，按场景表点名跑）；不带 --scenarios 时仍是原来那一组手势。
-const GESTURE_SCENARIOS = SCENARIO_NAMES.filter((name) => !WORKBENCH_SCENARIOS.includes(name))
+// 工作台场景、远看密集场景默认不跑（它们要的规模 / 后台负载各不相同，按场景表点名跑）；不带 --scenarios 时仍是原来那一组手势。
+const GESTURE_SCENARIOS = SCENARIO_NAMES.filter((name) => !WORKBENCH_SCENARIOS.includes(name) && !FAR_DENSE_SCENARIOS.includes(name))
+/** 远看密集规模（farDense.mjs）和通用夹具规模共用 --scales。 */
+const ALL_SCALES = { ...CANVAS_PERF_SCALES, ...FAR_DENSE_SCALES }
 
 if (hasArg('--help') || hasArg('-h')) {
   console.log(`用法：node tests/perf/canvas-scale-bench.mjs [选项]
-  --scales     逗号分隔，默认 I60,I150,I300（可选：${Object.keys(CANVAS_PERF_SCALES).join(' / ')}）
+  --scales     逗号分隔，默认 I60,I150,I300（可选：${Object.keys(ALL_SCALES).join(' / ')}）
   --scenarios  逗号分隔，默认全部手势：${GESTURE_SCENARIOS.join(' / ')}
                工作台场景（点名才跑）：${WORKBENCH_SCENARIOS.join(' / ')}
+               远看密集（点名才跑，配 --scales D60）：${FAR_DENSE_SCENARIOS.join(' / ')}
+  --gpu-mem-mb 把合成器的 GPU 瓦片预算钉成 N MiB（--force-gpu-mem-available-mb；512 = 桌面默认下限，16 = 压测档）
+  --dpr        强制设备像素比，窗口按 1920×1040 物理像素折算（1.25 / 1.5 = Windows 1080p 125% / 150%）。
+               不给时页面是设备像素比 1：启动器的 setViewportSize（Playwright）把页面钉在 1，Retina 也一样
   --runs       每个场景采样次数（默认 3，取中位数）
   --warmup     每个场景先做几次不计的预热（默认 0）
   --extra-projects  库里另放 N 个小项目（默认 0）
@@ -92,7 +106,13 @@ if (hasArg('--help') || hasArg('-h')) {
 const scales = argValue('--scales', 'I60,I150,I300').split(',').map((s) => s.trim()).filter(Boolean)
 const scenarios = argValue('--scenarios', GESTURE_SCENARIOS.join(',')).split(',').map((s) => s.trim()).filter(Boolean)
 const onscreen = hasArg('--onscreen')
-for (const scale of scales) if (!CANVAS_PERF_SCALES[scale]) throw new Error(`未知规模「${scale}」，可选：${Object.keys(CANVAS_PERF_SCALES).join(' / ')}`)
+for (const scale of scales) if (!ALL_SCALES[scale]) throw new Error(`未知规模「${scale}」，可选：${Object.keys(ALL_SCALES).join(' / ')}`)
+// 弱显卡档：Chromium 合成器的瓦片预算（桌面默认 ≥512MB，按屏幕大小放大）钉成 N MiB，装不下的瓦片不画（缺块）。
+const gpuMemMb = argValue('--gpu-mem-mb', '')
+if (gpuMemMb && !/^[1-9]\d*$/.test(gpuMemMb)) throw new Error(`--gpu-mem-mb 要正整数（MiB），收到「${gpuMemMb}」`)
+// 设备像素比：瓦片内存跟物理像素走，所以窗口按「1920×1040 物理像素」折算 CSS 尺寸（Windows 1080p 去掉任务栏的工作区）。
+const forcedDpr = argValue('--dpr', '')
+if (forcedDpr && !/^[1-4](\.\d{1,2})?$/.test(forcedDpr)) throw new Error(`--dpr 要 1–4 之间的数（例如 1.25），收到「${forcedDpr}」`)
 for (const scenario of scenarios) if (!SCENARIO_NAMES.includes(scenario)) throw new Error(`未知场景「${scenario}」，可选：${SCENARIO_NAMES.join(' / ')}`)
 const runs = Math.max(1, Number(argValue('--runs', '3')))
 // 预热：同一个 App 里先做几次不计的手势（JIT、图片解码缓存、懒加载块），再采 runs 次。
@@ -316,6 +336,8 @@ const OFF_CANVAS_SCENARIOS = new Set(['document-typing', 'creation-ai-rewrite-re
 const WORKING_ZOOM_SCENARIOS = new Set(['select-composer'])
 /** 工作台场景带进样本的数（主数 responseMs / mainRoundTripMaxMs，其余只看）。 */
 const WORKBENCH_SAMPLE_KEYS = ['responseMs', 'firstFeedbackMs', 'coldResponseMs', 'storeWrites', 'mainRoundTripMaxMs', 'mainRoundTripP95Ms', 'keyMaxMs', 'toCreation', 'toPreview', 'toGeneration', 'toList', 'toCanvas', 'generating', 'streamedCharsDuringPan', 'keys', 'paragraphs', 'created', 'playheadTravelPx', 'panMovedPx', 'openMs', 'drawMs', 'selectedChars', 'mediaRequests', 'remoteMediaRequests', 'mountedMedia', 'mountedCards', 'visibleCards', 'matchedCards', 'scrolledPx', 'hoverResponseMs', 'clickResponseMs', 'focusSettledMs']
+/** 场景结果里带进样本的数：工作台场景的 + 远看密集的缺块率（farDense.mjs）。 */
+const SCENARIO_SAMPLE_KEYS = [...WORKBENCH_SAMPLE_KEYS, ...FAR_DENSE_SAMPLE_KEYS]
 
 async function zoomToWorkingScale(page) {
   const stage = await stageBox(page)
@@ -579,9 +601,9 @@ async function readViewport(page) {
     return {
       zoom: matrix ? Math.round(matrix.a * 1000) / 1000 : null,
       mountedNodes: document.querySelectorAll('.react-flow__node').length,
-      // 轻量 LOD 的触发条件是 nodeCount>80 && zoom<0.55（canvasNodeLevelOfDetail.ts:29）——
-      // 它会换掉卡片内部渲染，所以每一行都得记下来，否则两档之间比的不是同一个东西。
-      lightweightNodes: document.querySelectorAll('[data-lightweight="true"], .generation-canvas-v2-node--lightweight').length,
+      // 轻量档（canvasNodeLevelOfDetail.ts）会换掉卡片内部渲染，所以每一行都得记下来，否则两档之间比的不是同一个东西。
+      // 轻量卡的标记是 data-render-mode="lightweight"（LightweightGenerationNode）；以前这里数的两个选择器早没人写了，恒为 0。
+      lightweightNodes: document.querySelectorAll('[data-render-mode="lightweight"]').length,
     }
   })
 }
@@ -624,6 +646,7 @@ function diffCdpMetrics(before, after) {
 
 async function runScenario(page, scenario, fixture, workbench = null) {
   if (WORKBENCH_SCENARIOS.includes(scenario)) return runWorkbenchScenario(page, scenario, { ...workbench, fixture, startWindow, stopWindow, stageBox })
+  if (FAR_DENSE_SCENARIOS.includes(scenario)) return runFarDensePan(page, { app: workbench?.app, fixture, startWindow, stopWindow, stageBox, readViewport, tileLog: true })
   const nodeTotal = fixture.summary.nodes
   if (scenario === 'drag-nodes-1') {
     await page.keyboard.press('Escape')
@@ -759,7 +782,9 @@ async function main() {
     memoryGb: Math.round(os.totalmem() / 1024 ** 3),
     node: process.version,
     build: 'dist (pnpm build) + dev Electron binary',
-    viewport: { width: 1600, height: 1000 },
+    viewport: forcedDpr ? { width: Math.round(1920 / Number(forcedDpr)), height: Math.round(1040 / Number(forcedDpr)) } : { width: 1600, height: 1000 },
+    gpuMemMb: gpuMemMb ? Number(gpuMemMb) : null,
+    dpr: forcedDpr ? Number(forcedDpr) : null,
   }
   const results = []
   for (const scale of scales) {
@@ -771,7 +796,9 @@ async function main() {
     const extraFixtures = Array.from({ length: extraProjects }, (_, index) => createCanvasPerformanceFixture({
       projectsDir, scale: 'REALIMG', projectId: `project-extra-${index + 1}`, projectName: `ZZ 陪衬项目 ${index + 1}`, projectDirName: `ZZ-extra-${index + 1}`, withProjectIdentity: true,
     }))
-    const fixture = createCanvasPerformanceFixture({ projectsDir, scale, withProjectIdentity: true })
+    const fixture = FAR_DENSE_SCALES[scale]
+      ? createFarDenseFixture({ projectsDir, scale })
+      : createCanvasPerformanceFixture({ projectsDir, scale, withProjectIdentity: true })
     if (extraFixtures.length) {
       const now = Date.now()
       fs.writeFileSync(path.join(projectsDir, 'recent-workspaces.json'), JSON.stringify([fixture, ...extraFixtures].map((project, index) => ({
@@ -806,15 +833,29 @@ async function main() {
           ...(extra.settingsDir ? { settingsDir: extra.settingsDir } : {}),
           // 夹具要按这一份 userData 加密供应商钥匙（safeStorage）时，App 必须用同一份（付费卡那两条）。
           ...(extra.userDataDir ? { userDataDir: extra.userDataDir } : {}),
-          args: ['--no-proxy-server', ...(onscreen ? [] : OFFSCREEN_CHROMIUM_ARGS)],
+          args: [
+            '--no-proxy-server', ...(onscreen ? [] : OFFSCREEN_CHROMIUM_ARGS),
+            ...(gpuMemMb ? [`--force-gpu-mem-available-mb=${gpuMemMb}`] : []),
+            ...(forcedDpr ? [`--force-device-scale-factor=${forcedDpr}`] : []),
+            // 远看密集要数 Chromium 自己的瓦片超限日志：只给这一类场景开日志，别的场景不多一路 stderr。
+            ...(FAR_DENSE_SCENARIOS.includes(scenario) ? FAR_DENSE_LAUNCH_ARGS : []),
+          ],
           mainRequire: [...(extra.mainRequire ?? []), ...(onscreen ? [] : [OFFSCREEN_MODULE]), ...(diagOut ? [IPC_PROBE_MODULE] : [])],
           initialLocalStorage: { ...FIRST_RUN_SEEN, ...(extra.initialLocalStorage ?? {}) },
-          env: { NOMI_DISABLE_AUTO_UPDATE: '1', ...(extra.env ?? {}) },
+          env: { NOMI_DISABLE_AUTO_UPDATE: '1', ...(FAR_DENSE_SCENARIOS.includes(scenario) ? FAR_DENSE_LAUNCH_ENV : {}), ...(extra.env ?? {}) },
           foreground: onscreen ? '画布性能量具需要在屏幕上显示窗口' : undefined,
         })
         app = launched.app
         const page = launched.win
         page.on('pageerror', (error) => console.log(`    [pageerror] ${String(error?.message || error).slice(0, 160)}`))
+        if (forcedDpr) {
+          // 启动器的 setViewportSize（Playwright 的设备尺寸覆盖）把页面钉在设备像素比 1，--force-device-scale-factor 进不了页面；
+          // 用一路自己的 CDP 会话把要的倍率盖回去，整个 App 生命周期不断开（会话一断覆盖就没了），再读回来核对。
+          const dprSession = await app.context().newCDPSession(page)
+          await dprSession.send('Emulation.setDeviceMetricsOverride', { width: machine.viewport.width, height: machine.viewport.height, deviceScaleFactor: Number(forcedDpr), mobile: false })
+          const applied = await page.evaluate(() => devicePixelRatio)
+          if (Math.abs(applied - Number(forcedDpr)) > 0.01) throw new Error(`--dpr ${forcedDpr} 没进页面：devicePixelRatio=${applied}`)
+        }
         await openFixtureProject(app, page, fixture)
         for (let runIndex = 0; runIndex < warmup + runs; runIndex += 1) {
           await page.keyboard.press('Escape').catch(() => {})
@@ -851,13 +892,13 @@ async function main() {
           Object.assign(summary, { loadAvg1: Math.round(os.loadavg()[0] * 10) / 10 })
           if (!wantProfile) Object.assign(summary, { cdpScriptMs: cdpDelta?.scriptMs ?? null, cdpStyleMs: cdpDelta?.styleMs ?? null, cdpLayoutMs: cdpDelta?.layoutMs ?? null, cdpTaskMs: cdpDelta?.taskMs ?? null, cdpLayoutCount: cdpDelta?.layoutCount ?? null, cdpStyleCount: cdpDelta?.styleCount ?? null, jsHeapMb: cdpDelta?.jsHeapMb ?? null })
           // 工作台场景多出来的数：响应（操作 → 界面到位）与主进程往返；只看的诊断数原样带进样本。
-          for (const key of WORKBENCH_SAMPLE_KEYS) if (scenarioResult[key] !== undefined) summary[key] = scenarioResult[key]
+          for (const key of SCENARIO_SAMPLE_KEYS) if (scenarioResult[key] !== undefined) summary[key] = scenarioResult[key]
           const counted = runIndex >= warmup
           if (counted) samples.push(summary)
           if (counted) meta = { selected: scenarioResult.selected ?? null, path: scenarioResult.path, viewport: scenarioResult.viewport ?? null }
           if (counted && outcome.top) profileTop = outcome.top
           console.log(
-            `  [${scenario}] run${runIndex}${counted ? "" : "（预热，不计）"} sel=${scenarioResult.selected ?? '-'} zoom=${scenarioResult.viewport?.zoom ?? '-'} mounted=${scenarioResult.viewport?.mountedNodes ?? '-'} fps=${summary.fps} p50=${summary.frameP50Ms} p95=${summary.frameP95Ms} max=${summary.frameMaxMs} load=${summary.loadAvg1} script/style/layout=${cdpDelta?.scriptMs}/${cdpDelta?.styleMs}/${cdpDelta?.layoutMs}ms layouts=${cdpDelta?.layoutCount} 触碰/刷=${summary.medianTouchedPerFlush}/${summary.maxTouchedPerFlush} 长任务=${summary.longTasks}/${summary.longTaskMaxMs}ms${summary.responseMs !== undefined ? ` 响应=${summary.responseMs}ms` : ''}${summary.hoverResponseMs !== undefined ? `（悬停=${summary.hoverResponseMs}ms 点=${summary.clickResponseMs}ms 滑完=${summary.focusSettledMs ?? '-'}ms）` : ''}${summary.mainRoundTripMaxMs !== undefined ? ` 主进程往返峰值=${summary.mainRoundTripMaxMs}ms` : ''}`,
+            `  [${scenario}] run${runIndex}${counted ? "" : "（预热，不计）"} sel=${scenarioResult.selected ?? '-'} zoom=${scenarioResult.viewport?.zoom ?? '-'} mounted=${scenarioResult.viewport?.mountedNodes ?? '-'} fps=${summary.fps} p50=${summary.frameP50Ms} p95=${summary.frameP95Ms} max=${summary.frameMaxMs} load=${summary.loadAvg1} script/style/layout=${cdpDelta?.scriptMs}/${cdpDelta?.styleMs}/${cdpDelta?.layoutMs}ms layouts=${cdpDelta?.layoutCount} 触碰/刷=${summary.medianTouchedPerFlush}/${summary.maxTouchedPerFlush} 长任务=${summary.longTasks}/${summary.longTaskMaxMs}ms${summary.responseMs !== undefined ? ` 响应=${summary.responseMs}ms` : ''}${summary.hoverResponseMs !== undefined ? `（悬停=${summary.hoverResponseMs}ms 点=${summary.clickResponseMs}ms 滑完=${summary.focusSettledMs ?? '-'}ms）` : ''}${summary.mainRoundTripMaxMs !== undefined ? ` 主进程往返峰值=${summary.mainRoundTripMaxMs}ms` : ''}${scenarioResult.oracleControl !== undefined ? ` 缺块=${summary.blankCardPct ?? '量具没过阳性对照'}%（移动中 ${summary.blankCardPctMoving ?? '-'}%，组底缺 ${summary.groupMissingPct ?? '-'}%，判了 ${summary.scoredCards} 张，轻量 ${summary.lightweightCards}；20/35/55% = ${summary.blankPct20 ?? '-'}/${summary.blankPct35 ?? '-'}/${summary.blankPct55 ?? '-'}%）瓦片超限=${summary.tileOomLines ?? '-'} 每卡DOM 远/55%=${summary.farCardDom ?? '-'}/${summary.cardDom55 ?? '-'} 解码÷屏=${summary.decodedOverScreen ?? '-'} video=${summary.canvasVideos ?? '-'} 层 远/55%=${summary.layers ?? '-'}/${summary.layers55 ?? '-'} 帧p95 20/35/55%=${summary.frameP95At20 ?? '-'}/${summary.frameP95At35 ?? '-'}/${summary.frameP95At55 ?? '-'}${scenarioResult.blankNodeIds?.length ? ` 空卡=${scenarioResult.blankNodeIds.slice(0, 6).join(',')}` : ''}` : ''}`,
           )
           // 组框场景建了组：撤销掉，下一次采样回到同一起点。
           if (scenario === 'drag-group-frame-60') {
@@ -907,7 +948,7 @@ async function main() {
           loadAvg1: pick('loadAvg1'),
           frameP50MsMin: Math.min(...samples.map((sample) => sample.frameP50Ms)),
           frameP95MsMin: Math.min(...samples.map((sample) => sample.frameP95Ms)),
-          ...Object.fromEntries(WORKBENCH_SAMPLE_KEYS.filter((key) => samples.some((sample) => typeof sample[key] === 'number')).map((key) => [key, pick(key)])),
+          ...Object.fromEntries(SCENARIO_SAMPLE_KEYS.filter((key) => samples.some((sample) => typeof sample[key] === 'number')).map((key) => [key, pick(key)])),
           samples,
           profileTop,
         })
@@ -924,6 +965,16 @@ async function main() {
   for (const row of results) {
     if (row.skipped) { console.log(`| ${row.scale} | ${row.nodes} | ${row.scenario} | - | - | - | 跳过 | | | | | | | | | |`); continue }
     console.log(`| ${row.scale} | ${row.nodes} | ${row.scenario} | ${row.selected ?? '-'} | ${row.viewport?.zoom ?? '-'} | ${row.viewport?.mountedNodes ?? '-'} | ${row.fps} | ${row.frameP50Ms} | ${row.frameP95Ms} | ${row.frameMaxMs} | ${row.cdpScriptMs}/${row.cdpStyleMs}/${row.cdpLayoutMs} | ${row.cdpLayoutCount} | ${row.longTasks}/${row.longTaskMaxMs} | ${row.medianTouchedPerFlush}/${row.maxTouchedPerFlush} | ${row.responseMs ?? '-'} | ${row.mainRoundTripMaxMs ?? '-'} |`)
+  }
+  // 远看密集的结构预算是硬断言（不看显卡也判得稳）：任一计数样本超了就非 0 退出，统一跑法判 no-data（红），不交「看起来还行」的帧数。
+  const structureFailures = results
+    .filter((row) => FAR_DENSE_SCENARIOS.includes(row.scenario) && !row.skipped)
+    .flatMap((row) => row.samples.map((sample, index) => ({ row, index, over: farDenseStructureViolations(sample) })))
+    .filter((entry) => entry.over.length)
+  if (structureFailures.length) {
+    console.error('\n✖ 远看密集结构预算没过（farDense.mjs FAR_DENSE_STRUCTURE_BUDGETS）：')
+    for (const { row, index, over } of structureFailures) console.error(`  - ${row.scale} ${row.scenario} 样本 ${index + 1}：${over.join('；')}`)
+    process.exitCode = 1
   }
 }
 
