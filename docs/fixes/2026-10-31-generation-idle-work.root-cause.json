@@ -842,24 +842,24 @@
     },
     {
       "kind": "write",
-      "path": "electron/productionRun/productionGenerationSubmission.ts",
-      "symbol": "markMaterialized"
-    },
-    {
-      "kind": "write",
-      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
-      "symbol": "markMaterialized"
-    },
-    {
-      "kind": "write",
       "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
       "symbol": "markPolled"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "withMaterialization"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "withMaterialization"
     }
   ],
   "door_reduction": {
     "before": 163,
     "after": 163,
-    "why_not": "The seven independent progress producers, three waiting consumers and atomic-write owners retain their domain roles. Two read-only callers of the new shared recovery predicate converge foreground/background policy; no new state writer is introduced. Counts use an identical symbol set and repository file set against baseline and working source. The common atomic writer remains unchanged. Recovery extension: GUI canvas-poll/recovery, Run controls/observers/scheduler and independent stdio MCP keep their user-facing entries but share the envelope lifecycle. Conservative same-name materialize/poll matches are retained and classified in same_class_entry_points; the store exports stay as the only durable observation/completion boundary."
+    "why_not": "The seven independent progress producers, three waiting consumers and atomic-write owners retain their domain roles. Two read-only callers of the new shared recovery predicate converge foreground/background policy; no new state writer is introduced. Counts use an identical symbol set and repository file set against baseline and working source. The common atomic writer remains unchanged. Recovery extension: GUI canvas-poll/recovery, Run controls/observers/scheduler and independent stdio MCP keep their user-facing entries but share the envelope lifecycle. Conservative same-name materialize/poll matches are retained and classified in same_class_entry_points; the store exports stay as the only durable observation/completion boundary. The two markMaterialized doors are removed and replaced by two withMaterialization doors: completion is no longer independently callable outside ownership."
   },
   "generality_proof": "All seven progress writers converge on createCanvasRunActions; background delivery shares the recovery-fact predicate. Every waiting reader uses the same static surface. Shared upstream status classification handles all providers and persisted pending observations after restart. The shared file-backed observation revision and lifecycle lease span Electron and independent stdio instances. Materialization extraction remains outside the lease; asset writes and finalization share one lease and revalidate durable state.",
   "shared_boundaries": [
@@ -1077,22 +1077,22 @@
       "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
     },
     {
-      "path": "electron/productionRun/productionGenerationSubmission.ts",
-      "entry_point": "markMaterialized",
-      "disposition": "enforced",
-      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
-    },
-    {
-      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
-      "entry_point": "markMaterialized",
-      "disposition": "enforced",
-      "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
-    },
-    {
       "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
       "entry_point": "markPolled",
       "disposition": "enforced",
       "evidence": "Generated door-map same-name census. Electron main / host caller: shared Run envelope lifecycle."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "withMaterialization",
+      "disposition": "enforced",
+      "evidence": "Shared persistent lease and observation revision recheck before outputs/error processing; completion callback exists only within this ownership scope."
+    },
+    {
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "entry_point": "withMaterialization",
+      "disposition": "enforced",
+      "evidence": "Shared persistent lease and observation revision recheck before outputs/error processing; completion callback exists only within this ownership scope."
     }
   ],
   "recurrence": {
@@ -1146,17 +1146,17 @@
       "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
       "patches/img-fx@0.5.1.patch"
     ],
-    "rationale": "Remove animated waiting branch, shader patch, preset API and dependency in same product commit; no feature flag or fallback."
+    "rationale": "Remove animated waiting branch, shader patch, preset API and dependency in same product commit; no feature flag or fallback. The public unguarded markMaterialized mutator is removed; completion is available only in the shared lifecycle ownership callback."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
     "rationale": "img-fx runtime and patched dependency are removed; static existing surface uses React and CSS tokens. No third-party shader lifecycle remains.",
     "exit_criteria": []
   },
-  "migration": "No stored schema changes. Existing taskId and frozen contracts remain readable; only transient redundant work disappears. Older lastPoll observations without revision are version0; the first genuine observation change writes a version. No background migration or pending heartbeat write.",
+  "migration": "Envelope schema remains1 with an optional lastPoll.revision field. Existing taskId and frozen contracts remain readable; only transient redundant work disappears. Older lastPoll observations without revision are version0; the first genuine observation change writes a version. No background migration or pending heartbeat write.",
   "residual_risks": [
-    "New lifecycle extension is designed but not yet implemented or validated. Original smoke results predate this extension.",
-    "Cross-platform true-window and final-HEAD dual-locale restart, full gates/prepush and exclusive five-run comparisons remain pending."
+    "Lifecycle matrix46 and original138 plus two reported regressions passed (186 total); production build and all five typecheck projects passed. Final product HEAD dual-locale restart, full gates/prepush and exclusive five-run comparisons remain pending.",
+    "Windows true-window validation belongs to coordination; local Electron mocks cost zero and do not establish paid-provider behavior."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-30",

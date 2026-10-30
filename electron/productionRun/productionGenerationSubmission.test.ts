@@ -606,3 +606,52 @@ describe("historical batch observation", () => {
     expect(submit).toHaveBeenCalledTimes(1);
   });
 });
+
+it.each(["processing", "completed"])("late poll %s cannot fail or overwrite an already materialized receipt", async (lateStatus) => {
+  const { root, repository } = setup();
+  type Reply = { status: string; raw: { source: string } };
+  let release!: (reply: Reply) => void;
+  let entered!: () => void;
+  const queryEntered = new Promise<void>((resolve) => { entered = resolve; });
+  let queries = 0;
+  const query = vi.fn((): Promise<Reply> => {
+    if (++queries === 1) {
+      const pending = new Promise<Reply>((resolve) => { release = resolve; });
+      entered();
+      return pending;
+    }
+    return Promise.resolve({ status: "completed", raw: { source: "completed-first" } });
+  });
+  const submit = vi.fn(async () => ({ providerTaskId: "provider-task-race" }));
+  const materializeOutput = vi.fn(async () => ({ artifactId: "race-artifact", kind: "image" as const,
+    contentHash: "c".repeat(64), projectRelativePath: "assets/generated/race.png", width: 1600, height: 900 }));
+  const runner = createProductionGenerationSubmission({ repository, projectRoot: root,
+    immutableProjectUuid: "project-uuid-1", projectGeneration: 1, intentMacKey: "non-secret-fixture",
+    beforeDispatch: () => undefined, now: () => "2026-08-23T00:03:00.000Z",
+    provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
+      buildRequest: (input) => input, submit, query,
+      materialize: async () => ({ outputs: [{ kind: "image" as const, url: "https://cdn.example/race.png" }] }) },
+    materializeOutput,
+  });
+  const input = { projectId: "project-1", operationId: "op-1" };
+  const started = await runner.start({ ...input, admission: await landedAdmission(repository, input.projectId, input.operationId) });
+  const late = runner.poll(input).then((value) => ({ value }), (error: unknown) => ({ error: String(error) }));
+  await queryEntered;
+  await runner.poll(input);
+  await runner.materialize(input);
+  const file = path.join(root, ".nomi/runs/op-1/jobs", started.jobId, "runtime-envelope.json");
+  const before = fs.readFileSync(file, "utf8");
+  expect(JSON.parse(before)).toMatchObject({ state: "materialized", lastPoll: { status: "completed" } });
+  const revision = repository.read(input.projectId, input.operationId)!.revision;
+  const writes = vi.spyOn(fs, "renameSync");
+  try {
+    release({ status: lateStatus, raw: { source: "late-in-flight-query" } });
+    const observed = await late;
+    expect.soft(observed).toMatchObject({ value: { nextAction: "materialize", providerStatus: "completed" } });
+    expect(fs.readFileSync(file, "utf8")).toBe(before);
+    expect(repository.read(input.projectId, input.operationId)!.revision).toBe(revision);
+    expect(writes).not.toHaveBeenCalled();
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(materializeOutput).toHaveBeenCalledTimes(1);
+  } finally { writes.mockRestore(); }
+});

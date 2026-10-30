@@ -125,3 +125,10 @@
 9. 验证顺序：矩阵+原138 → B构建 → 最终产品HEAD双语12/12（12→12、落卡落盘、每图Read）→ gates及快检 → 最后exclusive每档改前后各≥5。超预算停。旧三删门图/反例/账本不重做。
 
 入口清单来自 recovery-doors-poll-materialize.json（23项）及 recovery-doors-envelope.json（4项），不是手造门；同名但非Run生命周期的素材/预览/供应商底层方法保留在合同并标not-affected。Electron入口与独立stdio入口均须使用同一文件级门。
+
+### 恢复竞态的确定性验收记录
+
+- 清单 `tests/fixtures/generation-lifecycle-cases.json` 当前46格，单个驱动逐行取数；临时多加一行实跑47格全绿，已按字节还原。
+- 只将共享 `superseded` 判据改为 false：23格红、23格绿；9格未完成阳性对照全绿；恢复文件 SHA256 相同。原版46格全绿。
+- 同 pending 实测改前/改后完全相同：Run journal + snapshot 各读1次，信封读2次，无 open/write/rename。新增同步读写为0；真实变化才获取文件租约并重读信封、最新 Run。
+- 确定取回失败已落入 needs_attention 时，另一条仍在等待的提取按最新失败事实停下，禁止写出资产后再触发非法 ready 转移。矩阵两格同时断言输出写入0、状态保持；不把真失败吞成成功。
