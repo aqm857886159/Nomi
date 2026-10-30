@@ -20,9 +20,9 @@ export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) 
     const load5 = os.loadavg()[1]
     console.log(`[launch] ${new Date().toISOString()} front=${name} load5=${load5}`)
     if (!/claude/i.test(name) && load5 < 10) return { front: name, load5, waitedMs: Date.now() - started }
-    await new Promise((resolve) => setTimeout(resolve, 60_000))
+    await new Promise((resolve) => setTimeout(resolve, Math.min(60_000, Math.max(0, limitMs - (Date.now() - started)))))
   }
-  throw new Error('Launch deferred for two hours: foreground app or five-minute load did not permit a quiet walk')
+  throw new Error(`Launch deferred: foreground app or five-minute load did not permit a quiet walk within ${Math.ceil(limitMs / 1000)} seconds`)
 }
 
 /** An isolated MCP transport calls the exact production declaration handler, without an LLM. */
@@ -69,6 +69,11 @@ export async function createRelayProject(walk, win) {
   return { projectId, projectRoot: project.rootPath, name: project.name }
 }
 
+/** Scope selection to the open combobox; closed dropdowns retain hidden option labels. */
+export function relayModelOption(win, modelKey) {
+  return win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: win.getByText(modelKey, { exact: true }) })
+}
+
 /** Shared free/paid segment: select the declared model, prepare one video, stop before generate. */
 export async function prepareRelayVideo({ win, newProject, model, capture }) {
   const { projectId, projectRoot } = await newProject()
@@ -81,7 +86,18 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
   const id = (await fresh()).id
   const node = win.locator(`[data-node-id="${id}"]`)
   const textMode = node.getByText(/^(文字生视频|From text)$/i)
-  if (await textMode.isVisible().catch(() => false)) await textMode.click()
+  const exposeComposer = async () => {
+    const zoom = win.locator('[data-canvas-zoom-percent]')
+    for (let step = 0; step < 20 && Number.parseInt(await zoom.innerText(), 10) > 100; step += 1) {
+      const beforeZoom = await zoom.innerText()
+      await win.getByRole('button', { name: /^(缩小|Zoom out)$/i }).click()
+      await expect.poll(() => zoom.innerText(), { timeout: stationTimeout() }).not.toBe(beforeZoom)
+    }
+    expect(Number.parseInt(await zoom.innerText(), 10)).toBeLessThanOrEqual(100)
+    await node.locator('[data-node-empty-state]').click()
+    if (await textMode.isVisible().catch(() => false)) await textMode.click()
+  }
+  await exposeComposer()
   const projection = await win.evaluate(async (want) => {
     const rows = await window.nomiDesktop.modelCatalog.listModels({})
     const row = rows.find((r) => r.vendorKey === want.vendorKey && r.modelKey === want.modelKey)
@@ -91,18 +107,18 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await capture('model-menu')
   let neededReload = false
-  if (!(await win.getByText(model.modelKey, { exact: true }).count())) {
+  if (!(await relayModelOption(win, model.modelKey).count())) {
     await capture('model-missing-before-reload')
     await win.keyboard.press('Escape')
     await win.reload()
     await node.waitFor({ state: 'visible', timeout: stationTimeout() })
-    await node.locator('[data-node-empty-state]').click()
+    await exposeComposer()
     await node.locator('[data-bar-segment="model-params"] button').first().click()
     await capture('model-menu-after-reload')
     neededReload = true
   }
   // This is the visible model menu, never a catalog/meta write that skips model selection.
-  await win.getByText(model.modelKey, { exact: true }).last().click()
+  await relayModelOption(win, model.modelKey).click()
   const prompt = 'A blue glass marble rolls across a white table in morning light'
   await node.locator('[contenteditable="true"]').last().fill(prompt)
   await expect.poll(async () => {

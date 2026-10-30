@@ -8,7 +8,7 @@ import { openCustomApiWizard, openModelSettings } from './_shell.mjs'
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { startRelayVideoFixture, relayDeclaration, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
-import { waitForRelayLaunch, relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject } from './_relayVideoWalk.mjs'
+import { waitForRelayLaunch, relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject, relayModelOption } from './_relayVideoWalk.mjs'
 
 const locale = process.env.NOMI_RELAY_LOCALE || 'zh-CN'
 const evidence = process.env.NOMI_RELAY_EVIDENCE_DIR
@@ -80,7 +80,7 @@ try {
   await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: /图生视频|Image-to-video/ }).click()
   await win.keyboard.press('Escape')
   await node.locator('[data-bar-segment="model-params"] button').first().click()
-  await win.getByText(models[1].id, { exact: true }).last().click()
+  await relayModelOption(win, models[1].id).click()
   await node.locator('[contenteditable="true"]').last().fill('A glass marble rolls slowly')
   const runButton = node.locator('[data-bar-segment="generate"]')
   await expect(runButton).toBeDisabled()
