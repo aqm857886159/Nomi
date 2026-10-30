@@ -110,11 +110,21 @@
       "kind": "read",
       "path": "electron/shared/agentCapabilities/verbs/onboardingVerbs.ts",
       "symbol": "modelTryInputSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "observeSubmissionHandoffs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "observeSubmissionHandoffs"
     }
   ],
   "door_reduction": {
-    "before": 11,
-    "after": 11,
+    "before": 7,
+    "after": 13,
     "why_not": "The trial dispatch is the app entry. Type readers describe the same API. Run-owned and project generation callers keep distinct orchestration responsibilities but share submissionOutbox; submissionActions is the receipt/permission projection."
   },
   "generality_proof": "Identity depends on the app execution root and connection/model, never caller, prompt, mode or card revision. The short existing Run lease serializes identity allocation. Every existing job is observation-only after restart, including authorized jobs whose owner crashed. Shared repository/outbox states retain unknown and accepted submissions. Safe retries and explicit new requests allocate journaled jobs and cannot reset their retry/confirmation lineage.",

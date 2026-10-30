@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSubmissionIntent } from "./submissionIntent";
 import { SubmissionNotDispatchedError } from "./submissionOutbox";
-import { withResultLandingEvidence } from "../outboundDispatchEvidence";
+import { handOffToNetwork, withResultLandingEvidence } from "../outboundDispatchEvidence";
 
 vi.mock("electron", () => ({ app: { getPath: () => os.tmpdir(), getName: () => "Nomi" }, ipcMain: { on() {}, handle() {} } }));
 const exec = promisify(execFile);
@@ -56,8 +56,10 @@ describe("shared durable submission intent", () => {
       expect(host.receipt.intentId).toBe(original.intentId);
       expect(host.receipt.attemptId).toBe(original.attemptId);
       expect(host.receipt.allowedActions).toEqual(original.allowedActions);
+      expect(host.receipt.request).toEqual(request);
     }
     expect(repeated.owned).toBe(false);
+    expect(repeated.receipt.request).toEqual(request);
     expect(restarted?.attemptId).toBe(original.attemptId);
     expect(dispatch.mock.calls.length).toBeLessThanOrEqual(1);
     if (phase === "submitting") { resolve({ id: "late-job", status: "queued", assets: [] }); await submission; expect(open().read()?.taskId).toBe("late-job"); }
@@ -116,9 +118,21 @@ describe("shared durable submission intent", () => {
   it("answered but landing failed is accepted evidence, never permission to resubmit", async () => {
     const intent = open();
     const first = claim();
-    await expect(intent.submit(first, async () => { throw withResultLandingEvidence(new Error("disk write failed")); })).rejects.toThrow();
+    await expect(intent.submit(first, async () => { throw withResultLandingEvidence(new Error("disk write failed", { cause: Object.assign(new Error("download connection failed"), { code: "ECONNREFUSED" }) })); })).rejects.toThrow();
     expect(intent.read()?.accepted).toBe("accepted");
     expect(intent.read()?.allowedActions).not.toContain("retry");
     expect(open().claim(request).owned).toBe(false);
   });
+  it("an accepted POST followed by a renderer-like message cannot prove that nothing was sent", async () => {
+    const intent = createSubmissionIntent({ root, scope, networkTransport: "app-fetch" });
+    const first = claim();
+    await expect(intent.submit(first, async () => {
+      await handOffToNetwork("https://example.invalid/create", { method: "POST" }, async () => undefined);
+      throw new Error("RendererUnavailableError: Nomi 窗口");
+    })).rejects.toThrow();
+    expect(intent.read()?.accepted).toBe("unknown");
+    expect(intent.read()?.allowedActions).not.toContain("retry");
+    expect(open().claim(request).owned).toBe(false);
+  });
+
 });

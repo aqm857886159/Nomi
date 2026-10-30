@@ -7,6 +7,7 @@ import { quoteSpendLine } from "../../spendQuote";
 import path from "node:path";
 import { getSettingsRoot } from "../../settings/settingsRoot";
 import { createSubmissionIntent, type SubmissionIntentReceipt } from "../../productionRun/submissionIntent";
+import { RendererUnavailableError } from "../rendererBridge";
 import { mintSpendGrant, isSpendAuthorizationError } from "../../spendGrant";
 import { sanitizedAdapterJson, redactAdapterSecrets } from "../../providerAdapter/redaction";
 import type { FetchTaskResultFn, RunTaskFn } from "../core";
@@ -81,7 +82,7 @@ export async function tryModel(
 ): Promise<OnboardingResult | OnboardingFailure> {
   const vendorKey = text(args.vendorKey);
   const modelKey = text(args.modelKey);
-  const intent = createSubmissionIntent({ root: path.join(getSettingsRoot(), "app-executions"), scope: ["model-trial", vendorKey, modelKey] });
+  const intent = createSubmissionIntent({ root: path.join(getSettingsRoot(), "app-executions"), scope: ["model-trial", vendorKey, modelKey], networkTransport: "app-fetch" });
   const previous = intent.read();
   if (previous && (!text(args.newAttemptOf) && !previous.allowedActions.includes("retry") || text(args.newAttemptOf) && text(args.newAttemptOf) !== previous.attemptId)) {
     return observeIntent(deps, intent, previous);
@@ -157,7 +158,7 @@ export async function tryModel(
   if (submitted.kind === "failed") {
     const current = intent.read(claimed.job.jobId)!;
     const cause = (submitted.error as { cause?: unknown })?.cause;
-    if (isSpendAuthorizationError(cause) || /RendererUnavailable|Nomi 窗口/.test(current.errorMessage ?? "")) {
+    if (isSpendAuthorizationError(cause) || cause instanceof RendererUnavailableError) {
       return withSubmission({ ok: false, code: "needs_input", message: "The user has not confirmed this submission in Nomi.",
         nextAction: "Open Nomi and confirm the generation card before requesting this trial again." }, current);
     }

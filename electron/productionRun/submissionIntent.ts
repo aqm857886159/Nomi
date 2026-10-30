@@ -7,8 +7,7 @@ import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunRuntimeEnvelope } from "./productionRunRuntimeEnvelope";
 import { createRunOwnedGenerationSubmission } from "./generationSubmission";
 import { SubmissionNotDispatchedError } from "./submissionOutbox";
-import { outboundRequestWasNeverWritten } from "../outboundDispatchEvidence";
-import { isSpendAuthorizationError } from "../spendGrant";
+import { observeSubmissionHandoffs } from "../outboundDispatchEvidence";
 import { submissionActions, type SubmissionActionProjection } from "../shared/productionSubmissionActions";
 import type { ProductionJob, RunCommand } from "./productionRunTypes";
 
@@ -20,7 +19,7 @@ const digest = (value: unknown) => crypto.createHash("sha256").update(JSON.strin
  * The short Run lease owns only identity allocation. Network waits never hold it; an existing job is
  * observation-only even if the owner died before dispatch. No timeout or request change reallocates it.
  */
-export function createSubmissionIntent(input: { root: string; scope: readonly string[] }) {
+export function createSubmissionIntent(input: { root: string; scope: readonly string[]; networkTransport?: "app-fetch" }) {
   const projectId = "app-executions";
   const runId = `intent-${digest(input.scope)}`;
   const repository = createProductionRunRepository({ projectDirResolver: (id) => id === projectId ? input.root : null });
@@ -94,16 +93,16 @@ export function createSubmissionIntent(input: { root: string; scope: readonly st
     const submission = createRunOwnedGenerationSubmission({
       repository, envelopeFor: ({ jobId }) => envelopeFor(jobId), safeRetryLimit: 0,
       dispatch: async () => {
-        try {
-          const result = await dispatch();
-          if (!result.id) throw new Error("Provider result has no durable task identity");
-          return { providerTaskId: result.id, result };
-        } catch (error) {
-          if (outboundRequestWasNeverWritten(error) || isSpendAuthorizationError(error) || /RendererUnavailable|Nomi 窗口/.test(String(error))) {
-            throw Object.assign(new SubmissionNotDispatchedError(String(error), "never_reached_network"), { cause: error });
+        const observed = await observeSubmissionHandoffs(input.networkTransport, dispatch);
+        if (!observed.ok) {
+          if (observed.notDispatched && !(observed.error instanceof SubmissionNotDispatchedError)) {
+            throw Object.assign(new SubmissionNotDispatchedError(String(observed.error), observed.notDispatched), { cause: observed.error });
           }
-          throw error;
+          throw observed.error;
         }
+        const result = observed.value;
+        if (!result.id) throw new Error("Provider result has no durable task identity");
+        return { providerTaskId: result.id, result };
       },
     });
     return submission.submit({

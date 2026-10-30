@@ -17,7 +17,7 @@ export async function runTryModelIntentJourney(paid, { rehearsal = false } = {})
   let started = await walk.start({ first: true })
   let { win } = started
   await paid.lockToAuthorizedModels(win)
-  await walk.newProject()
+  const { projectId } = await walk.newProject()
   const clients = []
   async function host(name) {
     const endpointPath = path.join(started.capabilityDir, 'mcp-http.json')
@@ -65,13 +65,22 @@ export async function runTryModelIntentJourney(paid, { rehearsal = false } = {})
     let completed
     await expect.poll(async () => { completed = await call(); return completed.ok }, { timeout: stationTimeout({ operations: 12 }) }).toBe(true)
     expect(completed.state.assets.length).toBeGreaterThan(0)
+    // Use the product's existing asset import boundary; raw loopback HTTP is deliberately
+    // not an allowed renderer image source. This is retrieval, never another generation.
+    const imported = await win.evaluate(async ({ projectId, url }) => {
+      const record = await window.nomiDesktop.projects.readAsync(projectId)
+      return window.nomiDesktop.assets.importRemoteUrl({ projectId, url, kind: 'generated', expectedKind: 'image',
+        projectBinding: { projectId, immutableProjectUuid: record.immutableProjectUuid, projectGeneration: record.projectGeneration } })
+    }, { projectId, url: completed.state.assets[0].url })
+    expect(imported.ok, JSON.stringify(imported)).toBe(true)
+    const localUrl = imported.asset.data.url
     const imageWidth = await win.evaluate((url) => new Promise((resolve) => {
       const image = new Image()
       image.onload = () => resolve(image.naturalWidth)
       image.onerror = () => resolve(0)
       image.src = url
-    }), completed.state.assets[0].url)
-    expect(imageWidth, 'the original order produced a decodable image').toBeGreaterThan(0)
+    }), localUrl)
+    expect(imageWidth, 'the original order produced a decodable local image').toBeGreaterThan(0)
     await closeHosts()
     await win.evaluate(() => localStorage.setItem('nomi:locale:v1', 'en'))
     await walk.stopApp()
@@ -81,12 +90,13 @@ export async function runTryModelIntentJourney(paid, { rehearsal = false } = {})
     const recovered = await call()
     expect(recovered.ok).toBe(true)
     expect(recovered.submission.attemptId).toBe(identity.attemptId)
-    await walk.snap('trial-original-after-restart-en')
     // Asking for a second order only opens confirmation; cancelling it never submits a second job.
     const requested = call({ ...args, newAttemptOf: identity.attemptId })
     requested.catch(() => {})
     const newOrder = win.locator('[data-spend-confirm-dialog]')
     await expect(newOrder).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+    await expect(newOrder.locator('[data-spend-confirm-action="confirm"]')).toHaveText('Confirm generation')
+    await walk.snap('trial-new-confirm-after-restart-en')
     await newOrder.locator('[data-spend-confirm-action="cancel"]').click()
     expect((await requested).ok).toBe(false)
     if (rehearsal) expect(walk.fixture.images.length).toBe(1)
@@ -94,7 +104,7 @@ export async function runTryModelIntentJourney(paid, { rehearsal = false } = {})
       entry.kind === 'allowed-request' && entry.method === 'POST' && /\/images\/generations$/.test(new URL(entry.url).pathname)).length
     expect(creates, 'wire evidence: exactly one provider create request').toBe(1)
     walk.report.trial = { first: first.code ?? 'succeeded', submission: identity, recovered: recovered.submission,
-      assets: completed.state.assets.map(({ type, url }) => ({ type, url })), imageWidth, providerCreates: creates, paidCalls: rehearsal ? 0 : creates,
+      assets: completed.state.assets.map(({ type, url }) => ({ type, url })), imageWidth, localUrl, providerCreates: creates, paidCalls: rehearsal ? 0 : creates,
       limitation: 'Scripted MCP caller; no claim of real-model tool-selection accuracy.' }
   } finally { await closeHosts() }
 }
