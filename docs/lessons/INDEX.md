@@ -231,6 +231,8 @@
 - [变异校验后别用 git checkout 目录还原](mutation-check-restore-one-file-not-the-directory.md) — 做“改回旧行为必红”变异校验时
 - [“以前能用、现在坏了”的热修：最小恢复，别重新设计](hotfix-restore-old-behavior-do-not-redesign.md) — 热修丢失的能力、开始想加新通道 / 新规则时
 
+- [说「旧版改不了」前先查调用者](legacy-behavior-needs-callsite-proof.md) — 附定位路径、执行顺序、被调用行为原文；删除搬移事务的安装器案例
+
 ## 🤖 自动收录（待人工归位）
 
 > 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，
