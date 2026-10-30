@@ -215,3 +215,14 @@ Mac 侧（vitest，本线自跑）：
 ★4：编译成功必须有非空 exe；任何语法错误、版本不匹配、缺失工具/下载失败都硬红，不 skip、不放宽 -WX、不移除 !error。
 
 ★9 验收清单（先写后改）：本机重现现有完整编译错误；修正所有实际编译暴露的问题后，两轮模板与生成清单编译通过，完整安装包产出；默认车道测试真实编译；推送前对 installer.nsh、生成器、package.json（包括 nsis 配置）、锁文件和 afterPack 的修改选中此测试；反例在 include 副本插入非法 NSIS 指令，真实编译必须失败。另以 Windows 路径拆分断言拒绝 `/` include（Mac 不能代跑 Windows 查找路径）；现有普查和场景不删不弱化。回滚本轮提交即可。
+
+
+## 2026-10-30 Windows harness 闭环补充（动手前合同）
+
+- ★1：CI A1–A13 在 resetMachine 就退 1，CLIXML 只有 progress；量具为真实失败日志、默认车道 windowsHarness.test.mjs（静态及解析）及 Windows 作业。Mac 无 PowerShell，片段执行明确未验证。
+- ★2：文件删除归 Node fs.rmSync(force)；PowerShell 退出与诊断归同一 wrapper（powershell-boundary.ps1），同步片段、WATCHER -File、锁助手均使用它；XML 解析复用已装的 @xmldom/xmldom。
+- ★3：注册表 / 进程 / KnownFolder 继续使用系统 Windows PowerShell 5.1；删除旧的文件系统 Remove-Item 和隐式退出路径，不增替代安装器。
+- ★4：缺失清理目标成功；其它 PowerShell 错误 Stop + catch，在 stdout 输出固定标记、Exception.Message 和 PositionMessage，再 exit 1；成功 exit 0。异步启动失败 / 提前退出 / 非零退出均留原文。锁的有意终止单独认领；监视器失败不能被场景绿灯覆盖。
+- ★9 验收：默认车道静态核全部片段归 wrapper、无脚本级 SilentlyContinue、无 PowerShell 文件删除；真实 progress fixture 退 1 必须报「没有错误原文、退出 1」，含 error 的 CLIXML 必须提取错误、换行、XML 实体并忽略 progress；ErrorRecord 对象也可读。attributesOf 缺失文件必须中止，setRegistryValue 写失败必须中止。Windows A1–A13 全过且 CX1–CX3 各红在登记场景才全绿。反例：绕开 wrapper、恢复脚本级静音、吞 stdout 或把 progress 当错误应使测试红。最多 3 次推送，安装器行为红即停。
+- 沿用原设计卡其余格；不改界面、不花钱、不新增应用操作或性能场景。
+- 依据：[PowerShell 5.1 退出语义](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe?view=powershell-5.1)、[MS-PSRP ErrorRecord](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/c527797a-d017-4755-8a81-9f58280a7135)、[PowerShell ConsoleHost 序列化源码](https://github.com/PowerShell/PowerShell/blob/master/src/Microsoft.PowerShell.ConsoleHost/host/msh/Serialization.cs)。

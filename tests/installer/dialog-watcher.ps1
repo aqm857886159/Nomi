@@ -9,7 +9,8 @@ param(
   [Parameter(Mandatory = $true)][string]$ReadyFile,
   [Parameter(Mandatory = $true)][string]$StopFile
 )
-$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'powershell-boundary.ps1')
+Invoke-NomiHarnessScript {
 
 Add-Type -TypeDefinition @'
 using System;
@@ -85,4 +86,6 @@ while (-not (Test-Path -LiteralPath $StopFile)) {
     [NomiDialogs]::Close($hwnd)
   }
   Start-Sleep -Milliseconds 200
+}
+
 }

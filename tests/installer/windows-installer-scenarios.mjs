@@ -28,6 +28,7 @@ import { performance } from 'node:perf_hooks'
 import process from 'node:process'
 import { clearTimeout, setTimeout } from 'node:timers'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { encodedPowerShell, powershell, powerShellFailure, spawnPowerShell } from './powershell.mjs'
 import { COUNTEREXAMPLES, DEFAULT_PROJECTS_FOLDER, KEEP_README, KEEP_SUFFIX, MARKER_VALUE_NAME, PENDING_VALUE_PREFIX, SCENARIOS } from './scenarios.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -35,7 +36,6 @@ const WATCHER = path.join(repoRoot, 'tests', 'installer', 'dialog-watcher.ps1')
 /** 旧版：GitHub Release v0.24.0（事故发生的那一版，卸载程序还是 RMDir /r）。 */
 export const OLD_VERSION = '0.24.0'
 const INSTALLER_TIMEOUT_MS = 20 * 60_000
-const POWERSHELL = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass']
 /** 我们自己起的安装 / 卸载进程名；只有它们的对话框算数（runner 桌面上别的系统弹窗只记录、不判）。 */
 const INSTALLER_PROCESS = /^(?:nomi-|old-uninstaller$|Au_$|Un_A$|Uninstall )/i
 
@@ -85,13 +85,6 @@ export function applyMutation(source, counterexample) {
   return mutated
 }
 
-function powershell(script) {
-  const encoded = Buffer.from(`[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)\n${script}`, 'utf16le').toString('base64')
-  const result = spawnSync('powershell.exe', [...POWERSHELL, '-EncodedCommand', encoded], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  if (result.status !== 0) throw new Error(`powershell exited ${result.status}: ${result.stderr || result.stdout}`)
-  return result.stdout.trim()
-}
-
 function killTree(pid) {
   if (pid) spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
 }
@@ -122,11 +115,14 @@ function registryEntries() {
   const json = powershell(`
 $out = @()
 foreach ($hive in @('HKCU:', 'HKLM:')) {
-  foreach ($key in @(Get-ChildItem -Path ($hive + '\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall') -ErrorAction SilentlyContinue)) {
+  $uninstallRoot = $hive + '\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'
+  if (-not (Test-Path -LiteralPath $uninstallRoot)) { continue }
+  foreach ($key in @(Get-ChildItem -LiteralPath $uninstallRoot)) {
     $p = Get-ItemProperty -Path $key.PSPath
     if ($p.DisplayName -like 'Nomi*') {
       $guid = $key.PSChildName
-      $install = Get-ItemProperty -Path ($hive + '\\Software\\' + $guid) -ErrorAction SilentlyContinue
+      $installKey = $hive + '\\Software\\' + $guid
+      $install = if (Test-Path -LiteralPath $installKey) { Get-ItemProperty -LiteralPath $installKey } else { $null }
       $out += [pscustomobject]@{ hive = $hive.TrimEnd(':'); guid = $guid; displayName = [string]$p.DisplayName; displayVersion = [string]$p.DisplayVersion; installLocation = [string]$install.InstallLocation; marker = [string]$install.${MARKER_VALUE_NAME} }
     }
   }
@@ -138,7 +134,7 @@ ConvertTo-Json -InputObject @($out) -Compress
 
 function pendingRecordExists() {
   return powershell(`
-$found = @(Get-ChildItem -Path 'HKCU:\\Software' -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like ('*' + ${psq(KEEP_SUFFIX)}) })
+$found = @(Get-ChildItem -Path 'HKCU:\\Software' | Where-Object { $_.PSChildName -like ('*' + ${psq(KEEP_SUFFIX)}) })
 if ($found.Count -gt 0) { 'yes' } else { 'no' }
 `) === 'yes'
 }
@@ -186,24 +182,28 @@ ConvertTo-Json -InputObject @($out) -Compress
 function resetMachine(state) {
   for (const dir of state.outsideSeeds.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
   powershell(`
-$ErrorActionPreference = 'SilentlyContinue'
 $roots = @(${psq(state.work)}, (Join-Path $env:LOCALAPPDATA 'Programs\\${state.manifest.productFilename}'))
 Get-CimInstance Win32_Process | Where-Object { $p = $_.ExecutablePath; $p -and @($roots | Where-Object { $p.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase) }).Count -gt 0 } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 foreach ($hive in @('HKCU:', 'HKLM:')) {
-  foreach ($key in @(Get-ChildItem -Path ($hive + '\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'))) {
+  $uninstallRoot = $hive + '\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall'
+  $keys = if (Test-Path -LiteralPath $uninstallRoot) { @(Get-ChildItem -LiteralPath $uninstallRoot) } else { @() }
+  foreach ($key in $keys) {
     $p = Get-ItemProperty -Path $key.PSPath
     if ($p.DisplayName -like 'Nomi*') {
-      Remove-Item -Path ($hive + '\\Software\\' + $key.PSChildName) -Recurse -Force
+      $installKey = $hive + '\\Software\\' + $key.PSChildName
+      if (Test-Path -LiteralPath $installKey) { Remove-Item -LiteralPath $installKey -Recurse -Force }
       Remove-Item -Path $key.PSPath -Recurse -Force
     }
   }
   foreach ($key in @(Get-ChildItem -Path ($hive + '\\Software') | Where-Object { $_.PSChildName -like ('*' + ${psq(KEEP_SUFFIX)}) })) { Remove-Item -Path $key.PSPath -Recurse -Force }
 }
-${state.guid ? `foreach ($hive in @('HKCU:', 'HKLM:')) { Remove-Item -Path ($hive + '\\Software\\' + ${psq(state.guid)}) -Recurse -Force }` : ''}
-foreach ($folder in @('Desktop', 'Programs', 'CommonDesktopDirectory', 'CommonPrograms')) { Remove-Item -LiteralPath (Join-Path ([Environment]::GetFolderPath($folder)) ${psq(`${state.manifest.productFilename}.lnk`)}) -Force }
-Remove-Item -LiteralPath (Join-Path $env:LOCALAPPDATA 'Programs\\${state.manifest.productFilename}') -Recurse -Force
-Remove-Item -LiteralPath ${psq(path.join(state.work, 's'))} -Recurse -Force
+${state.guid ? `foreach ($hive in @('HKCU:', 'HKLM:')) { $key = $hive + '\\Software\\' + ${psq(state.guid)}
+if (Test-Path -LiteralPath $key) { Remove-Item -LiteralPath $key -Recurse -Force } }` : ''}
+
 `)
+  for (const shortcut of shortcutPaths(state.manifest.productFilename)) fs.rmSync(shortcut, { recursive: true, force: true })
+  fs.rmSync(path.join(process.env.LOCALAPPDATA, 'Programs', state.manifest.productFilename), { recursive: true, force: true })
+  fs.rmSync(path.join(state.work, 's'), { recursive: true, force: true })
 }
 
 /** 跑一次安装 / 卸载程序，同时记录它弹出的对话框。 */
@@ -216,12 +216,14 @@ async function runInstaller(state, exe, args, label) {
   const outFile = path.join(dialogDir, `${tag}.jsonl`)
   const readyFile = path.join(dialogDir, `${tag}.ready`)
   const stopFile = path.join(dialogDir, `${tag}.stop`)
-  const watcher = spawn('powershell.exe', [...POWERSHELL, '-File', WATCHER, '-OutFile', outFile, '-ReadyFile', readyFile, '-StopFile', stopFile], { stdio: 'ignore' })
+  const watcherProcess = spawnPowerShell(['-File', WATCHER, '-OutFile', outFile, '-ReadyFile', readyFile, '-StopFile', stopFile])
+  const watcher = watcherProcess.child
   const watcherExit = exitOf(watcher, INSTALLER_TIMEOUT_MS + 5 * 60_000)
-  for (let i = 0; i < 600 && !fs.existsSync(readyFile); i += 1) await sleep(100)
+  for (let i = 0; i < 600 && !fs.existsSync(readyFile) && !watcherProcess.result.closed; i += 1) await sleep(100)
   if (!fs.existsSync(readyFile)) {
     killTree(watcher.pid)
-    throw new Error('dialog watcher did not start')
+    await watcherProcess.done
+    throw new Error(`setup: dialog watcher did not start: ${powerShellFailure(watcherProcess.result, 'dialog watcher')}`)
   }
   const started = performance.now()
   const child = spawn(exe, args, { windowsVerbatimArguments: true, stdio: 'ignore', cwd: state.work })
@@ -231,6 +233,10 @@ async function runInstaller(state, exe, args, label) {
   fs.writeFileSync(stopFile, 'stop')
   const stopped = await Promise.race([watcherExit, sleep(30_000).then(() => null)])
   if (!stopped) killTree(watcher.pid)
+  const watcherResult = await watcherProcess.done
+  if (!stopped || stopped.timedOut || watcherResult.status !== 0 || watcherResult.error) {
+    throw new Error(`harness: ${!stopped || stopped.timedOut ? 'dialog watcher timed out; ' : ''}${powerShellFailure(watcherResult, 'dialog watcher')}`)
+  }
   const dialogs = fs.existsSync(outFile)
     ? fs.readFileSync(outFile, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line))
     : []
@@ -418,31 +424,35 @@ function scenarioContext(state, root, newExe) {
       if (left.length > 0) throw new Error(`shortcuts left behind: ${left.join(', ')}`)
     },
     async lockFile(file) {
-      const script = `[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)\n$handle = [System.IO.File]::Open(${psq(file)}, 'Open', 'ReadWrite', 'None')\n[Console]::Out.WriteLine('locked')\n[Console]::Out.Flush()\nwhile ($true) { Start-Sleep -Seconds 1 }`
-      const child = spawn('powershell.exe', [...POWERSHELL, '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { stdio: ['ignore', 'pipe', 'pipe'] })
-      await new Promise((resolve, reject) => {
-        let output = ''
-        const timer = setTimeout(() => reject(new Error('setup: the lock helper did not report')), 60_000)
-        child.stdout.on('data', (chunk) => {
-          output += chunk
-          if (output.includes('locked')) {
-            clearTimeout(timer)
-            resolve()
-          }
-        })
-        child.once('exit', (code) => {
-          clearTimeout(timer)
-          reject(new Error(`setup: the lock helper exited ${code}`))
-        })
-      })
+      const script = `$handle = [System.IO.File]::Open(${psq(file)}, 'Open', 'ReadWrite', 'None')
+[Console]::Out.WriteLine('locked')
+[Console]::Out.Flush()
+try { while ($true) { Start-Sleep -Seconds 1 } } finally { $handle.Dispose() }`
+      const helper = spawnPowerShell(['-EncodedCommand', encodedPowerShell(script)])
+      const child = helper.child
       let released = false
       const release = async () => {
         if (released) return
         released = true
-        if (child.exitCode === null && child.signalCode === null) killTree(child.pid)
-        await exitOf(child, 60_000)
+        const premature = helper.result.closed || child.exitCode !== null || child.signalCode !== null || helper.result.error
+        if (!premature) killTree(child.pid)
+        await helper.done
+        if (premature) throw new Error(`setup: ${powerShellFailure(helper.result, 'lock helper ended before release')}`)
       }
       state.cleanups.push(release)
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`setup: lock helper did not report: ${powerShellFailure(helper.result, 'lock helper')}`)), 60_000)
+        child.stdout.on('data', () => {
+          if (helper.result.stdout.split(/\r?\n/).includes('locked')) {
+            clearTimeout(timer)
+            resolve()
+          }
+        })
+        helper.done.then((result) => {
+          clearTimeout(timer)
+          reject(new Error(`setup: ${powerShellFailure(result, 'lock helper')}`))
+        })
+      })
       return release
     },
     /** 场景结束时 resetMachine 会结束工作目录里起的所有进程，这里不另记清理（按进程号补杀可能误杀复用了号的进程）。 */
@@ -731,17 +741,19 @@ async function runScenario(state, scenario, newExe) {
       try {
         await cleanup()
       } catch (error) {
+        record.ok = false
         record.cleanupError = String(error)
       }
     }
     try {
       resetMachine(state)
     } catch (error) {
+      record.ok = false
       record.cleanupError = String(error)
     }
     record.durationMs = Math.round(performance.now() - started)
   }
-  console.log(`${record.ok ? 'PASS' : 'FAIL'} ${scenario.card} ${scenario.id} (${record.durationMs}ms)${record.ok ? '' : `\n    ${record.error}`}`)
+  console.log(`${record.ok ? 'PASS' : 'FAIL'} ${scenario.card} ${scenario.id} (${record.durationMs}ms)${record.ok ? '' : `\n    ${record.error ?? record.cleanupError}`}`)
   return record
 }
 
@@ -769,7 +781,7 @@ async function runCounterexamples(state) {
     fs.copyFileSync(built, exe)
     const scenario = SCENARIOS.find((item) => item.id === counterexample.expectRed)
     const outcome = await runScenario(state, scenario, exe)
-    const wentRed = !outcome.ok && String(outcome.error).includes(counterexample.failureMatch)
+    const wentRed = !outcome.ok && !outcome.cleanupError && String(outcome.error).includes(counterexample.failureMatch)
     console.log(`${wentRed ? 'RED as expected' : 'NOT RED'} ${counterexample.card} ${counterexample.id} → ${counterexample.expectRed}`)
     results.push({ id: counterexample.id, card: counterexample.card, expectRed: counterexample.expectRed, wentRed, error: outcome.error ?? null, runs: outcome.runs })
   }
