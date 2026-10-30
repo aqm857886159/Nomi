@@ -525,7 +525,7 @@ describe('absence-without-baseline B：被比较的是界面匹配数，照旧�
     assert.deepEqual(hitLines(code), [10])
   })
 
-  it('B3 来源的各种写法：重新赋值、+=、数组解构、解构默认值、一批匹配的 length、对字段的写入（按字段）', () => {
+  it('B3 来源的各种写法：重新赋值、+=、数组解构、解构默认值、for-of 的来源、一批匹配的 length、对字段的写入（按字段）', () => {
     const code = sourceLines(
       'let reassigned = 0',
       "reassigned = await win.locator('[data-a]').count()",
@@ -544,8 +544,11 @@ describe('absence-without-baseline B：被比较的是界面匹配数，照旧�
       'facts.other = 5',
       "check('f', facts.cards === 0)",
       "check('g', facts.other === 0)",
+      "for (const each of [await win.locator('[data-h]').count()]) {",
+      "  check('h', each === 0)",
+      '}',
     )
-    assert.deepEqual(hitLines(code), [3, 6, 8, 10, 12, 16])
+    assert.deepEqual(hitLines(code), [3, 6, 8, 10, 12, 16, 19])
   })
 
   it('B4 .count().catch(() => 0) 的尾巴不让观测断掉', () => {
