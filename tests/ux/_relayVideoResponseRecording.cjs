@@ -2,6 +2,14 @@
 const fs = require('node:fs')
 const LIMIT = 64 * 1024
 const STATE = Symbol.for('nomi.relay.response-recording')
+function redactUrl(value) {
+  if (Array.isArray(value)) return value.slice(0, 4).map(redactUrl)
+  if (!value) return value
+  if (typeof value !== 'string') return typeof value === 'object' ? {} : typeof value === 'number' ? 1 : true
+  if (!/^https?:\/\//i.test(value)) return '[redacted-non-http-url]'
+  const extension = new URL(value).pathname.match(/\.(mp4|webm|png|jpe?g|gif|webp|mp3|wav)$/i)?.[1].toLowerCase()
+  return `https://media.example.test/recorded${extension ? `.${extension}` : ''}`
+}
 function projectResponse(value, ids = new Map(), depth = 0) {
   if (!value || typeof value !== 'object' || depth > 6) return undefined
   if (Array.isArray(value)) return value.slice(0, 4).map((item) => projectResponse(item, ids, depth + 1))
@@ -12,12 +20,10 @@ function projectResponse(value, ids = new Map(), depth = 0) {
       out[key] = ids.get(String(field))
     } else if (key === 'status' && typeof field === 'string') {
       // A status is a protocol token; arbitrary text, credentials and paths are never persisted.
-      out.status = /^[a-z_]{1,32}$/i.test(field) && !/^(?:sk|key|token|secret|bearer)/i.test(field) ? field : '[redacted-status]'
+      out.status = /^[a-z_]{1,32}$/i.test(field) && !/^(?:sk|key|token|secret|bearer)_/i.test(field) ? field : '[redacted-status]'
     } else if (['code', 'progress'].includes(key) && typeof field === 'number' && Number.isFinite(field)) out[key] = field
-    else if (['url', 'video_url', 'output_url'].includes(key)) {
-      const placeholder = 'https://media.example.test/recorded.mp4'
-      out[key] = Array.isArray(field) ? field.slice(0, 4).map(() => placeholder) : placeholder
-    } else if (key === 'error') out.error = field == null ? null : { present: true }
+    else if (['url', 'video_url', 'output_url', 'thumbnail_url', 'preview_url', 'download_url'].includes(key)) out[key] = redactUrl(field)
+    else if (key === 'error') out.error = !field ? field : { present: true, ...(typeof field === 'object' && !Array.isArray(field) ? projectResponse(field, ids, depth + 1) : {}) }
     else if (['data', 'result', 'output', 'videos'].includes(key)) out[key] = projectResponse(field, ids, depth + 1)
   }
   return out

@@ -63,3 +63,12 @@ it('caps JSON recording and never writes HTML or malformed JSON response text', 
     expect(fs.readFileSync(file, 'utf8')).toBe(before)
   } finally { await new Promise((resolve) => server.close(resolve)); fs.rmSync(root, { recursive: true, force: true }) }
 })
+
+it('redaction preserves absent output/error evidence and numeric error codes', () => {
+  expect(projectResponse({ status: 'future_state', url: null, error: false })).toEqual({ status: 'future_state', url: null, error: false })
+  expect(projectResponse({ url: '', error: '' })).toEqual({ url: '', error: '' })
+  expect(projectResponse({ thumbnail_url: 'https://signed.example/thumbnail.jpg?private=yes', status: 'skipped' })).toEqual({ thumbnail_url: 'https://media.example.test/recorded.jpg', status: 'skipped' })
+  expect(projectResponse({ url: [null, '', 'https://signed.example/file?token=private'], error: { code: 0, message: 'private' } })).toEqual({
+    url: [null, '', 'https://media.example.test/recorded'], error: { present: true, code: 0 },
+  })
+})
