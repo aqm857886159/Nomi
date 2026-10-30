@@ -224,3 +224,33 @@ RSS预算64MiB未通过，取消预算1s通过。量具退出0表示采样完成
 拆分首批收据：30样本正常结束，但末段load5从9.85升到10.22，整批noisy，不给整批预算结论。首1KiB额外RSS中位/p95 1.12/2.66MiB；预热256MiB为102.19/105.69MiB，预热2GiB为119.22/134.86MiB。256MiB的5轮均load5<10，2GiB末2轮跨阈值，不能借整体noisy掩盖已有下载增量，也不能将其解释为首fetch初始化。main保留200MiB上限，10次大请求均策略拒绝。
 
 量具反例补充：初始load5<10不保证整批安静。下一批在<8时才入场，样本noisy判据仍为>=10，RSS预算仍64MiB；25分钟等待上限不变。任何下载超64均继续阶段诊断，哪怕后续样本noisy也保留定位数据、不给硬预算结论，避免被噪声分支跳过定位。
+
+
+### ★7 拆分与阶段诊断最终收据（10-31）
+
+同一量具60个独立客户端、各组5轮；每客户端独立生产者，1KiB预热后量下载，无强制GC。Node v24.13.1 / bundled Undici 7.18.2，Apple M5 darwin arm64。load5全程7.67–8.03，noisy=false。采样源码ee1ec0274；main对照固定为收据中的56c3c1542（不依赖后续移动的远端引用），取回函数及依赖共7个文件相对该SHA逐项无diff。main保留200MiB限制，大请求全部拒绝，不能以其小内存作为成功下载基线；main无鉴权/content对应路径。
+
+以下均为导入相同生产宿主模块后的阶段峰值增量，5ms采样加结束采样；每格为中位/p95，5轮的p95等于本组最坏值。arrayBuffers包含于external，不相加。
+
+| 实现/阶段/规模 | RSS 中位/p95 MiB | heapUsed 中位/p95 MiB | external 中位/p95 MiB | arrayBuffers 中位/p95 MiB | 结果 |
+|---|---|---|---|---|---|
+| relay-stream/cold-init/1KiB | 1.06/1.19 | 0.54/0.55 | 0.18/0.18 | 0.05/0.05 | initialized |
+| relay-stream/warm-download/256MiB | 103.50/111.98 | 2.24/3.06 | 79.20/88.57 | 76.61/79.54 | downloaded |
+| relay-stream/warm-download/2048MiB | 123.11/131.34 | 1.94/2.98 | 86.44/92.30 | 84.97/86.35 | downloaded |
+| main-url-buffer/cold-init/1KiB | 1.31/1.36 | 0.81/0.81 | 0.00/0.00 | 0.00/0.00 | initialized |
+| main-url-buffer/warm-download/256MiB | 0.50/0.52 | 1.01/1.22 | 0.13/0.13 | 0.06/0.06 | policy-refused |
+| main-url-buffer/warm-download/2048MiB | 0.50/0.52 | 1.15/1.26 | 0.13/0.13 | 0.06/0.06 | policy-refused |
+| receive-drain/warm-download/256MiB | 119.84/126.81 | 3.40/3.69 | 94.90/104.78 | 91.95/97.28 | drained |
+| receive-drain/warm-download/2048MiB | 123.42/129.67 | 3.40/3.69 | 93.44/103.30 | 93.35/97.23 | drained |
+| bridge-drain/warm-download/256MiB | 108.67/123.42 | 3.30/5.40 | 85.39/100.14 | 80.92/89.80 | drained |
+| bridge-drain/warm-download/2048MiB | 124.09/136.23 | 4.94/5.33 | 96.38/100.13 | 95.03/100.05 | drained |
+| byob-drain/warm-download/256MiB | 115.89/118.45 | 4.99/5.32 | 92.55/98.28 | 86.47/92.49 | drained |
+| byob-drain/warm-download/2048MiB | 125.67/134.62 | 5.03/6.15 | 97.28/105.28 | 97.22/105.22 | drained |
+
+生产写盘：256MiB传输/落盘中位/p95 227.40/280.79ms，取消3.51/5.40ms；2GiB为1656.36/4138.25ms，取消3.52/11.44ms。取消≤1s通过，RSS≤64MiB失败。响应头到达时RSS增量最大0.41MiB，主要增量出现在正文消费阶段；首1KiB仅约1MiB，不能采用“首fetch初始化解释了超标”的结论，也没有满足裁定中更新预算口径的前提。预算不放宽，尚不可进入后续窗口/演练步骤。
+
+原生运行时源码核对：Node bundled Undici 7.18.2在Fetch正文接收时为每块构造`new Uint8Array(bytes)`再enqueue，并在desiredSize<=0时返回（有背压）。[Node BYOB文档](https://nodejs.org/docs/latest-v24.x/api/webstreams.html#class-readablestreambyobreader)说明缓冲转移语义；诊断使用独立ArrayBuffer、消费后复用，没有池Buffer。受控对照能将超额出现阶段缩到原生Fetch正文接收/消费，不能据此把全部RSS精确归因到某一分配点；没有拍脑袋加GC、节流或供应商分支。
+
+接收/消费阶段在没有Node桥接、没有写盘时已超64MiB；BYOB复用64KiB缓冲也超。未将诊断方案接入生产，未改vendorHttp/appFetch。下一步建议在共享HTTP出口做原生Fetch分配剖析及通用流式接收方案评估，涉及本次禁止的共享层，按22:1x第3项停在第4步带数交回。不能宣称已证明Fetch无背压或内存泄漏。
+
+原始量具命令不变；原始数据/统计/四指标表由执行者证据目录保存。统一perf-scenario仍为“未验证：缺量具（统一场景没有文件流 / 内存驱动）”，没有改共享driver。先前noisy批次单独封存，不与这60个安静样本合算。

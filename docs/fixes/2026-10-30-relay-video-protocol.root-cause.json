@@ -234,7 +234,7 @@
     "Unified perf driver registration requires a shared infrastructure change outside this task scope",
     "Global closed-state inference is explicitly deferred by coordination: preserve existing hard-evidence inference and bounded unknown tolerance; use sanitized paid-response projections for a separate post-0.24.1 direction review.",
     "Stored generated defaults are indistinguishable from explicit declarations; preserving all old rows also preserves any old guessed route.",
-    "Quiet cold-client measurements (5x256MiB and 5x2GiB) exceeded the 64MiB additional-RSS budget: worst107.56MiB/140.66MiB at load5 6.13-6.23; allocation source not profiled. Cancellation met 1s. Work stopped at the explicitly authorized performance boundary before GUI/rehearsal/full gates."
+    "Quiet split instrument completed 60 fresh-client samples, five per group, load5 7.67-8.03. First 1KiB fetch RSS median/p95 1.06/1.19MiB; post-warmup file download 103.50/111.98MiB for 256MiB and 123.11/131.34MiB for 2GiB. RSS remains over 64MiB; cancellation meets 1s. Direct Web body discard, Node bridge discard and reusable 64KiB BYOB discard also exceed the RSS budget, so excess already occurs without bridging or disk. Native Fetch body allocation is the next shared-HTTP investigation; no claim of missing backpressure or a leak. Coordination requires stopping before vendorHttp/appFetch changes. GUI/rehearsal/full gates remain unverified."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",
