@@ -39,7 +39,7 @@ describe('PowerShell failure diagnostics', () => {
     expect(powerShellFailure({ status: 1, stdout: '', stderr })).toBe('powershell exited 1: 没有错误原文、退出 1')
   })
   it('extracts the error stream, XML entities and UTF-16 escapes without progress noise', () => {
-    const stderr = xml('<Obj S="progress"><MS><S N="Activity">Preparing modules</S></MS></Obj><S S="error">Get-Item : missing &lt;项目&gt; &amp; file_x000D__x000A_At line:1_x000D__x000A_literal _x005F_x0041_</S>')
+    const stderr = xml('<Obj S="progress"><MS><S N="Activity">Preparing modules</S></MS></Obj><S S="Error">Get-Item : missing &lt;项目&gt; &amp; file_x000D__x000A_At line:1_x000D__x000A_literal _x005F_x0041_</S>')
     expect(powerShellErrorText(stderr)).toBe('Get-Item : missing <项目> & file\r\nAt line:1\r\nliteral _x0041_')
   })
   it('reads an ErrorRecord object and its invocation position', () => {

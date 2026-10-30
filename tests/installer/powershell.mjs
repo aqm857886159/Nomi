@@ -17,7 +17,7 @@ const decodeString = (value) => value.replace(/_x([0-9a-f]{4})_/gi, (_, hex) => 
 export function powerShellErrorText(stderr = '') {
   return String(stderr).replace(/#< CLIXML\s*([\s\S]*?<\/Objs>)/g, (_, xml) => {
     const doc = new DOMParser().parseFromString(xml, 'text/xml')
-    return Array.from(doc.documentElement.childNodes).filter((node) => node.nodeType === 1 && node.getAttribute('S') === 'error').map((node) => {
+    return Array.from(doc.documentElement.childNodes).filter((node) => node.nodeType === 1 && node.getAttribute('S').toLowerCase() === 'error').map((node) => {
       if (node.localName === 'S') return decodeString(node.textContent)
       const strings = Array.from(node.getElementsByTagName('S'))
       const message = strings.find((item) => item.getAttribute('N') === 'Message')
