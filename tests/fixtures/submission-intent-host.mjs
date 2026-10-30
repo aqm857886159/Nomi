@@ -1,12 +1,13 @@
+import process from 'node:process'
 // An independent host process, with no Electron profile or credentials.
-const Module = require('node:module')
+import Module from 'node:module'
+import { require as load } from 'tsx/cjs/api'
 const original = Module._load
 Module._load = function (id, ...args) {
   if (id === 'electron') return { app: { getPath: () => process.argv[2], getName: () => 'Nomi' }, ipcMain: { on() {}, handle() {} } }
   return original.call(this, id, ...args)
 }
-const { require: load } = require('tsx/cjs/api')
-const { createSubmissionIntent } = load('../../electron/productionRun/submissionIntent.ts', __filename)
+const { createSubmissionIntent } = load('../../electron/productionRun/submissionIntent.ts', import.meta.url)
 const intent = createSubmissionIntent({ root: process.argv[2], scope: ['model-trial', 'example', 'model'] })
 const request = { vendor: 'example', model: 'model', kind: 'text_to_video', prompt: process.argv[3] || 'changed', params: { seed: 19 } }
 try {

@@ -20,7 +20,7 @@
     "electron/capabilityCore/modelOnboarding/tryModel.ts",
     "electron/productionRun/submissionIntent.ts",
     "electron/productionRun/submissionOutbox.ts",
-    "electron/shared/submissionActions.ts",
+    "electron/shared/productionSubmissionActions.ts",
     "electron/shared/agentCapabilities/modelOnboarding.ts",
     "electron/shared/agentCapabilities/verbs/onboardingVerbs.ts"
   ],
@@ -93,7 +93,7 @@
     },
     {
       "kind": "read",
-      "path": "electron/shared/submissionActions.ts",
+      "path": "electron/shared/productionSubmissionActions.ts",
       "symbol": "submissionActions"
     },
     {
@@ -125,7 +125,7 @@
       "responsibility": "Own durable identity allocation and route all app trial submissions through the existing Run outbox."
     },
     {
-      "path": "electron/shared/submissionActions.ts",
+      "path": "electron/shared/productionSubmissionActions.ts",
       "symbol": "submissionActions",
       "responsibility": "Project allowed actions for tool receipts and confirmation decisions."
     }
@@ -163,7 +163,7 @@
     "artifacts": [
       "electron/productionRun/submissionIntent.ts",
       "electron/capabilityCore/modelOnboarding/tryModel.ts",
-      "electron/shared/submissionActions.ts"
+      "electron/shared/productionSubmissionActions.ts"
     ]
   },
   "regression_tests": [

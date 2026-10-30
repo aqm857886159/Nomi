@@ -9,7 +9,7 @@ import { createRunOwnedGenerationSubmission } from "./generationSubmission";
 import { SubmissionNotDispatchedError } from "./submissionOutbox";
 import { outboundRequestWasNeverWritten } from "../outboundDispatchEvidence";
 import { isSpendAuthorizationError } from "../spendGrant";
-import { submissionActions, type SubmissionActionProjection } from "../shared/submissionActions";
+import { submissionActions, type SubmissionActionProjection } from "../shared/productionSubmissionActions";
 import type { ProductionJob, RunCommand } from "./productionRunTypes";
 
 type Request = { vendor: string; model: string; kind: string; prompt: string; params: Record<string, unknown>; spendDecidedBy?: string };

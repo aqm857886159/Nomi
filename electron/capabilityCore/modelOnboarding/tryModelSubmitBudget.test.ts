@@ -59,7 +59,7 @@ describe("nomi_try_model 提交步骤的预算", () => {
   let submits = 0;
   const held: http.ServerResponse[] = [];
 
-  async function declare(name: string, baseUrl: string): Promise<string> {
+  async function declare(name: string, baseUrl: string, promptTemplate = "{{request.prompt}}"): Promise<string> {
     const docs = "https://docs.example-budget.com/api";
     const ctx = { origin: { host: "claude" } } as never;
     const submitted = await dispatch("model.onboarding.setup", {
@@ -74,7 +74,7 @@ describe("nomi_try_model 提交步骤的预算", () => {
           modes: [{
             taskKind: "text_to_image", delivery: "asynchronous",
             create: {
-              method: "POST", path: "/v1/jobs", body: { prompt: "{{request.prompt}}" },
+              method: "POST", path: "/v1/jobs", body: { prompt: promptTemplate },
               response_mapping: { task_id: "id", status: "status" }, provider_meta_mapping: { task_id: "id" },
             },
             query: {
@@ -228,5 +228,18 @@ describe("nomi_try_model 提交步骤的预算", () => {
     expect(out.message).toMatch(/nothing was sent/i);
     expect(out.nextAction).toMatch(/safe to retry/i);
     expect(out.nextAction).not.toMatch(/do not retry/i);
+  });
+
+  it("改卡和改模式也只能核对未知原单，不能重新授权提交", async () => {
+    const first = await (await start(vendorKey, "reset apple")).promise;
+    expect(first.code).toBe("submission_unknown");
+    const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+    expect(await declare("Example Budget", origin, "revised card: {{request.prompt}}")).toBe(vendorKey);
+    const repeated = await tryModel({ runTask, approvalPolicy: () => ({ mode: "direct" }) }, {
+      vendorKey, modelKey: "budget-paint", taskKind: "image_to_video", prompt: "changed mode",
+    }) as Tried;
+    expect(repeated.code).toBe("submission_unknown");
+    expect(repeated.submission).toEqual(first.submission);
+    expect(submits).toBe(1);
   });
 });

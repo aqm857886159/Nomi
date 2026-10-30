@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSubmissionIntent } from "./submissionIntent";
 import { SubmissionNotDispatchedError } from "./submissionOutbox";
+import { withResultLandingEvidence } from "../outboundDispatchEvidence";
 
 vi.mock("electron", () => ({ app: { getPath: () => os.tmpdir(), getName: () => "Nomi" }, ipcMain: { on() {}, handle() {} } }));
 const exec = promisify(execFile);
@@ -21,7 +22,7 @@ const claim = () => {
   return claimed;
 };
 async function anotherHost(prompt = "changed") {
-  const { stdout } = await exec(process.execPath, [path.resolve("tests/fixtures/submission-intent-host.cjs"), root, prompt]);
+  const { stdout } = await exec(process.execPath, [path.resolve("tests/fixtures/submission-intent-host.mjs"), root, prompt]);
   return JSON.parse(stdout);
 }
 
@@ -47,8 +48,8 @@ describe("shared durable submission intent", () => {
       }
     }
     const original = intent.read()!;
-    expect(open().claim({ ...request, prompt: "different", kind: "image_to_video", params: { seed: 22 } }).owned).toBe(false);
-    expect(open().read()?.attemptId).toBe(original.attemptId);
+    const repeated = open().claim({ ...request, prompt: "different", kind: "image_to_video", params: { seed: 22 } });
+    const restarted = open().read();
     const hosts = await Promise.all([anotherHost("codex"), anotherHost("claude"), anotherHost("restart")]);
     for (const host of hosts) {
       expect(host.owned).toBe(false);
@@ -56,6 +57,8 @@ describe("shared durable submission intent", () => {
       expect(host.receipt.attemptId).toBe(original.attemptId);
       expect(host.receipt.allowedActions).toEqual(original.allowedActions);
     }
+    expect(repeated.owned).toBe(false);
+    expect(restarted?.attemptId).toBe(original.attemptId);
     expect(dispatch.mock.calls.length).toBeLessThanOrEqual(1);
     if (phase === "submitting") { resolve({ id: "late-job", status: "queued", assets: [] }); await submission; expect(open().read()?.taskId).toBe("late-job"); }
   });
@@ -93,5 +96,29 @@ describe("shared durable submission intent", () => {
     const base = path.join(root, ".nomi/runs", first.receipt.intentId, "jobs", first.job.jobId, "runtime.json");
     fs.writeFileSync(base, "broken");
     expect(() => open().claim(request)).toThrow(/corrupt/i);
+  });
+
+  it.each([
+    { httpStatus: 400, taskIdReturned: false, envelopeFailure: false, retry: true },
+    { httpStatus: 503, taskIdReturned: false, envelopeFailure: false, retry: false },
+    { httpStatus: 409, taskIdReturned: false, envelopeFailure: false, retry: false },
+    { httpStatus: 400, taskIdReturned: true, envelopeFailure: false, retry: false },
+    { httpStatus: 200, taskIdReturned: false, envelopeFailure: true, retry: true },
+  ])("only evidence of explicit rejection unlocks retry: $httpStatus / task=$taskIdReturned", async ({ retry, ...providerAnswer }) => {
+    const intent = open();
+    const first = claim();
+    const error = Object.assign(new Error("provider response"), { providerAnswer });
+    await expect(intent.submit(first, async () => { throw error; })).rejects.toThrow();
+    expect(intent.read()?.allowedActions.includes("retry")).toBe(retry);
+    expect(open().claim(request).owned).toBe(retry);
+  });
+
+  it("answered but landing failed is accepted evidence, never permission to resubmit", async () => {
+    const intent = open();
+    const first = claim();
+    await expect(intent.submit(first, async () => { throw withResultLandingEvidence(new Error("disk write failed")); })).rejects.toThrow();
+    expect(intent.read()?.accepted).toBe("accepted");
+    expect(intent.read()?.allowedActions).not.toContain("retry");
+    expect(open().claim(request).owned).toBe(false);
   });
 });

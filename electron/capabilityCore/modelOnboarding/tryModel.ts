@@ -41,7 +41,7 @@ function submissionUnknown(why: string): OnboardingFailure {
   return {
     ok: false, code: "submission_unknown",
     message: `Whether the provider accepted this test generation is UNKNOWN: ${why} It may already have been submitted and charged. This is NOT a failure and NOT proof that nothing was sent.`,
-    nextAction: "Do NOT retry and do NOT call nomi_try_model again for this model now: that could submit and charge a second job. Tell the user the test may already be running; they can look for it in the provider's own console. If a task id turns up, nomi_read target=task shows its state. Repeated calls return the original order; a new attempt requires explicit user confirmation.",
+    nextAction: "Do NOT retry the provider submission. Repeating nomi_try_model returns this original order without submitting again. Check the provider's own console, or use nomi_read target=task if a task id appears. Only request newAttemptOf after the user explicitly requests a NEW order; Nomi always asks them to confirm it.",
   };
 }
 
@@ -165,7 +165,7 @@ export async function tryModel(
     return withSubmission({ ok: false, code: "provider_failed", message: `Nothing was sent or the provider explicitly rejected the submission: ${redactAdapterSecrets(String(submitted.error), 512)}`,
       nextAction: current.allowedActions.includes("retry") ? "It is safe to retry once; fix the named problem first." : "The retry budget is exhausted. Ask the user before requesting a new attempt." }, current);
   }
-  return observeIntent(deps, intent, submitted.value, Math.max(0, budgetMs - (Date.now() - startedAt)));
+  return observeIntent(deps, intent, submitted.value, Math.max(0, budgetMs - (Date.now() - startedAt)), true);
 }
 
 function withSubmission<T extends OnboardingResult | OnboardingFailure>(result: T, receipt: SubmissionIntentReceipt): T {
@@ -174,7 +174,7 @@ function withSubmission<T extends OnboardingResult | OnboardingFailure>(result: 
     ...(receipt.taskId ? { taskId: receipt.taskId } : {}) };
 }
 
-async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof createSubmissionIntent>, receipt: SubmissionIntentReceipt, remainingBudget?: number): Promise<OnboardingResult | OnboardingFailure> {
+async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof createSubmissionIntent>, receipt: SubmissionIntentReceipt, remainingBudget?: number, submittedNow = false): Promise<OnboardingResult | OnboardingFailure> {
   if (!receipt.result || !receipt.request) {
     if (receipt.accepted === "not_sent") return withSubmission({ ok: false, code: "provider_failed",
       message: "The previous submission was not sent or was explicitly rejected.", nextAction: receipt.allowedActions.includes("retry") ? "A bounded retry is available." : "Ask the user to authorize a new attempt." }, receipt);
@@ -187,12 +187,13 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
   let result = receipt.result as Awaited<ReturnType<RunTaskFn>>;
   // 异步供应商：提交即收费，首次返回只有 queued 没有产物。**这不是失败**——
   // 等到终态（同一条查询链路），等不到就如实说「仍在处理」，绝不报 provider_failed（否则 AI 会重试再花一次钱）。
+  let queries = 0;
   const taskId = typeof result.id === "string" ? result.id : "";
   if (result.status && !isTerminalTaskStatus(result.status)) {
     const polled = deps.fetchTaskResult
       ? await pollTaskToTerminal({
           initial: result,
-          fetch: deps.fetchTaskResult,
+          fetch: (payload) => { queries += 1; return deps.fetchTaskResult!(payload); },
           vendor: vendorKey,
           taskKind,
           prompt,
@@ -209,7 +210,7 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
         message: `The provider accepted this test generation${taskId ? ` (task ${taskId})` : ""} and it is still processing (status=${result.status || "queued"}). The charge for it has already been made. This is NOT a failure.`,
         ...(taskId ? { taskId } : {}),
         evidence: { bodyExcerpt: sanitizedAdapterJson(result.raw).slice(0, 512) },
-        nextAction: `Do NOT retry and do NOT call nomi_try_model again for this model now: that would submit and charge a second job. Tell the user the test is submitted and still running${taskId ? `, with task id ${taskId}` : ""}, then check it with nomi_read target=task taskId=${taskId || "(the task id)"}: that only looks, it never submits or charges. Request a new attempt only after asking the user.`,
+        nextAction: `Do NOT retry the provider submission. Repeating nomi_try_model observes this original order. Check nomi_read target=task taskId=${taskId || "(the task id)"} to query without submitting. A new order requires newAttemptOf and explicit confirmation in Nomi.`,
       }, intent.read(receipt.attemptId)!);
     }
   }
@@ -246,7 +247,8 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
     // 跑出产物了 → `model_produces_output` 这一格消掉；上传通道仍然没被证明过。
     unverified: unverified("asset_upload_works"),
     changes: [{ state: "S11.5", summary: `${modelKey} produced one artifact on ${taskKind}.` }],
-    blastRadius: { ...noBlast(), outboundRequests: billableRequests(origin) },
+    blastRadius: { ...noBlast(), outboundRequests: [...(submittedNow ? billableRequests(origin) : []),
+      ...(queries ? [{ origin, count: queries, billable: false }] : [])] },
     // 账本上分得清这笔是谁点的头：策略代答，还是用户在窗口里按的。
     nextAction: {
       kind: "none",

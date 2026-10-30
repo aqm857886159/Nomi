@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import path from 'node:path'
 // Zero-cost rehearsal, using the same journey with held loopback submissions and an empty network allowlist.
 import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
@@ -7,6 +8,7 @@ import { runTryModelIntentJourney, TRIAL_MODEL } from './_tryModelIntentSteps.mj
 
 const paid = await openPaidWalk('try-model-intent-lock-real.rehearsal.walk.mjs', 'try-model-intent-lock-rehearsal', [DEFAULT_PAID_BRAIN, TRIAL_MODEL], {
   env: { ...process.env, CI: '', NOMI_SPEND_OK: '1', [ENV_KEY_VAR]: 'rehearsal-fake-key-0123456789abcdef' },
+  receiptRoot: (walk) => path.join(walk.settingsDir, 'app-executions'),
   buildMarkers: ['try-model-intent-lock'],
   createWalk: (name, options) => createRuntimeWalk(name, { ...options, generationProvider: 'apimart', seedApimartKey: false,
     trustFixtureOrigin: true, env: { ...options.env, NOMI_WALK_ALLOW_ORIGINS: '', NOMI_MCP_HTTP_PORT: '0' } }),

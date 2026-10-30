@@ -189,6 +189,11 @@ describe("验收 · 接一家 Higgsfield 形状的供应商要几跳（基线 14
     // 供应商原文脱敏后原样回传——AI 自己收敛靠的就是这一段。
     expect(tried.state!.providerResponse).toContain("job-1");
     expect(tried.state!.providerResponse).not.toContain("relay-test-key");
+    const repeated = await call("nomi_try_model", { vendorKey, modelKey: "relay-paint", prompt: "a different apple" }) as {
+      ok: boolean; blastRadius: { outboundRequests: Array<{ billable: boolean }> };
+    };
+    expect(repeated.ok).toBe(true);
+    expect(repeated.blastRadius.outboundRequests.some((entry) => entry.billable)).toBe(false);
     // 钱闸真的问过人：那张卡发到了窗口上。
     expect(sent.length).toBeGreaterThan(0);
 
