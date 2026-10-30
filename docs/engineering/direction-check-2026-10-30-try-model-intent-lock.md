@@ -67,6 +67,20 @@
 
 工具描述同批只替换旧的“每调一次生成”说法，说明重复调用返回原单及 newAttemptOf 的真人确认。onboardingVerbs.ts 仅目录命中、文件未命中；纯文案替换、不增分支，按已授权的窄例外执行。
 
+2026-10-31：第 1 次独立验收不通过（记录坏了或缺了之后，显式新单也到不了真人确认，连接和模型被锁死）。协调问「#1387 这个锁死问题，修完再合吗？」，用户原话：「修完再合」。
+
+这一轮的类根因：安全封闭只想到挡自动重发，没给人工留出口。试跑身份是「连接 + 模型」算出的固定路径，记录一坏，这条路径就永远读不了。代码上是 `tryModel` 和共享认领都在任何异常处理之前先读旧单，事件缺失时又给了 `request_new_attempt`，调用却只回旧 unknown，catch 把失败盖住。
+
+预测（不修的话）：
+
+| 预测 | 怎么验证 |
+|---|---|
+| 写到一半崩溃（事件尾部截断、认领后没写完）之后，这个连接和模型再也试不了，新单也开不出来 | 清单矩阵的坏记录格和崩溃窗口格；修前显式新单抛错或只回旧单 |
+| 以后改记录格式，旧记录全部读不出来，所有接过模型的用户一起被锁死 | 矩阵的「旧形状」格（缺 `schemaVersion`）；修前抛 `invalid runtime envelope` |
+| 事件丢了但 approvals 还在，新单撞 `Approval id conflict` | 矩阵的 approvals 留存格；验收探针已碰到过 |
+
+这一轮的范围：判定放在意图层，`productionRunRuntimeEnvelope.ts`、`productionRunRepository.ts` 不改；`tryModel.ts`、`submissionIntent.ts` 和对应概念的命中按协调裁定放行，其它文件级热点（`taskSpend.ts`、`capabilityApplyHandler.ts`）不碰，确认卡那句话走 `spendCardByIntent` 表和现有的 `confirmSpendAndMintGrant`。结账挂的类检查仍是 `electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts`（清单 `tests/fixtures/try-model-intent-matrix.json`）。
+
 
 ## 裁定后的落地
 

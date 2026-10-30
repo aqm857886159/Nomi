@@ -10,11 +10,12 @@
   },
   "id": "2026-10-30-try-model-intent-lock",
   "problem_type": "Paid intent identity recreated by repeated tool calls",
-  "symptom": "A model trial reports submission_unknown, then another tool call submits a second provider order.",
-  "direct_cause": "Every call minted a new node and spend grant; the single-grant attempt limit did not span calls.",
-  "class_root": "App-scoped paid callers lacked a durable intent claim before approval or dispatch.",
+  "symptom": "A model trial reports submission_unknown, then another tool call submits a second provider order. After the first fix, a damaged or missing trial record locked the connection and model: even an explicit new order could not reach human confirmation.",
+  "direct_cause": "Every call minted a new node and spend grant; the single-grant attempt limit did not span calls. The fix then read the old record before any error handling, so a record that could not be read threw before the confirmation card, or offered request_new_attempt that only returned the old receipt.",
+  "class_root": "App-scoped paid callers lacked a durable intent claim before approval or dispatch. Fail-closed handling then only considered blocking automatic resends and left no human exit: the trial identity is a fixed path derived from connection and model, so one broken record made that path unreadable forever.",
   "affected_population": [
-    "Model trials across callers, changed prompts/parameters/modes, provider-card revisions and host restarts"
+    "Model trials across callers, changed prompts/parameters/modes, provider-card revisions and host restarts",
+    "Trial records that are damaged, truncated, of an unrecognized shape, partly missing or left behind by a crash, including future record-format changes"
   ],
   "scope_paths": [
     "electron/capabilityCore/modelOnboarding/tryModel.ts",
@@ -53,7 +54,12 @@
     "An unresolved intent is claimed before any await or spend-grant creation.",
     "Same model trial intent always observes the original attempt until an explicit new attempt request passes human confirmation.",
     "Only shared never-sent or explicit-rejection evidence permits one durable retry; changing parameters does not unlock unknown submissions.",
-    "The tool receipt and permission to present a new-order confirmation derive from the same persisted record."
+    "The tool receipt and permission to present a new-order confirmation derive from the same persisted record.",
+    "An unreadable record is neither proof that no order exists nor permission to send. A plain call never dispatches and returns unknown with a new-order action that requires human confirmation.",
+    "An explicit new order moves the unreadable record aside without deleting it, starts from a clean record, forces spendDecidedBy=user and passes the existing confirmation card, including in full-auto. Users never have to delete files or change connection.",
+    "The fact that a record was moved aside survives a crash before the new claim. New attempt names never collide with a moved attempt. The claim lease lives outside the directory being moved.",
+    "Every allowed action in every state can actually be taken. When a new order cannot be opened the receipt says so; the old receipt never stands in for the failure.",
+    "A new order after an uncertain prior result, with the record readable or not, shows the same warning in both languages through the confirmation dialog message line, derived from the frozen request and inherited by safe retries."
   ],
   "doors": [
     {
@@ -127,7 +133,7 @@
     "after": 13,
     "why_not": "The trial dispatch is the app entry. Type readers describe the same API. Run-owned and project generation callers keep distinct orchestration responsibilities but share submissionOutbox; submissionActions is the receipt/permission projection."
   },
-  "generality_proof": "Identity depends on the app execution root and connection/model, never caller, prompt, mode or card revision. The short existing Run lease serializes identity allocation. Every existing job is observation-only after restart, including authorized jobs whose owner crashed. Shared repository/outbox states retain unknown and accepted submissions. Safe retries and explicit new requests allocate journaled jobs and cannot reset their retry/confirmation lineage. A fixture-registry class census drives the real trial/runtime/money gate and counts loopback POSTs for repeat inputs, unknown and succeeded receipts, fresh processes, declined approvals, and independent model/mode intents.",
+  "generality_proof": "Identity depends on the app execution root and connection/model, never caller, prompt, mode or card revision. The short existing Run lease serializes identity allocation. Every existing job is observation-only after restart, including authorized jobs whose owner crashed. Shared repository/outbox states retain unknown and accepted submissions. Safe retries and explicit new requests allocate journaled jobs and cannot reset their retry/confirmation lineage. A fixture-registry class census drives the real trial/runtime/money gate and counts loopback POSTs for repeat inputs, unknown and succeeded receipts, fresh processes, declined approvals, and independent model/mode intents. The record inspection sits at the shared claim boundary, so every shape of unreadable record (damaged, truncated, unrecognized, missing, journal behind snapshot or job directories, side ledgers, dead repository lock) lands on one outcome regardless of provider, caller or record-format version. The fixture registry drives records x actions, shared-claim cells, a crash sweep over every durable step of the new-order claim, two-process races and every allowed action.",
   "shared_boundaries": [
     {
       "path": "electron/productionRun/submissionIntent.ts",
@@ -166,8 +172,8 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/productionRun/submissionIntent.ts",
-    "invariant": "No app trial dispatch occurs without owning a durable claim; existing unresolved attempts are only observed.",
-    "failure_mode": "Unknown, stale request and inaccessible/corrupt persistence never allocate a new provider order.",
+    "invariant": "No app trial dispatch occurs without owning a durable claim; existing unresolved attempts are only observed; an unreadable record blocks automatic dispatch but always leaves a human-confirmed new order.",
+    "failure_mode": "A plain call on unknown, stale, inaccessible or corrupt persistence never allocates a provider order. The only way forward is an explicit new order that moves the unreadable record aside and passes human confirmation; failing to open it is reported, not hidden behind the old receipt.",
     "exception_policy": "none",
     "strategy": "Replace per-call minted identities with shared Run identity/receipt, retaining bounded safe retry and mandatory human confirmation lineage for explicit new attempts.",
     "artifacts": [
@@ -199,10 +205,14 @@
     "rationale": "Reuse existing Run repository, lease and outbox; no new durable-execution dependency or custom outbox.",
     "exit_criteria": []
   },
-  "migration": "Old per-call trials did not persist an intent identity and cannot be reconstructed without provider evidence. New persisted identities fail closed on missing/corrupt receipts; existing Run records and provider contracts are unchanged.",
+  "migration": "Old per-call trials did not persist an intent identity and cannot be reconstructed without provider evidence. A record the running version cannot recognize, including a future format change, is treated as unreadable: plain calls stay closed and an explicit new order moves it aside untouched. Existing project Run records and provider contracts are unchanged.",
   "residual_risks": [
     "Real paid verification is reserved for coordination; this line prepares the runner only.",
     "No provider exactly-once guarantee is inferred. Pre-upgrade unknown calls without a durable identity cannot be reconstructed automatically.",
-    "Independent acceptance and Windows execution remain unverified by this implementation line."
+    "Independent acceptance and Windows execution remain unverified by this implementation line.",
+    "If the whole app-executions root including its claim directory is deleted, no evidence of a prior order survives and the next trial behaves as a first trial.",
+    "Project production Runs keep their own run.lock inside the run directory; a lock file that can never be parsed still blocks those Runs. This round only handles the trial intent layer and reports that gap.",
+    "Directory rename on Windows can be refused by another process holding a file open; the receipt then reports the new order could not be opened and the next call retries. Not run on Windows.",
+    "A late provider answer for an attempt whose record was moved aside while the request was still in flight cannot be attached to the moved record."
   ]
 }
