@@ -151,9 +151,9 @@ describe('declared capability projection publication matrix', () => {
   it('rejects a certified publication mask that names a mode absent from the card', () => {
     expect(() => projectDeclaredModel(card().models[0], 'relay', ['text_to_video', 'image_to_video'])).toThrow(/verified taskKind is absent/);
   });
-  it('rejects an undeclared tail frame instead of inventing another input role', () => {
+  it.each(['params.', 'extras.', ''])('rejects an undeclared tail frame without inventing an input role: %s', (namespace) => {
     const draft = dual();
-    draft.models[0].modes[1].create.body = { image: '{{request.params.image_url}}', tail: '{{request.params.last_frame_url}}' };
+    draft.models[0].modes[1].create.body = { image: '{{request.params.image_url}}', tail: `{{ request.${namespace}last_frame_url }}` };
     expect(() => projectDeclaredModel(draft.models[0], 'relay')).toThrow(/undeclared reference roles/);
   });
   it('rejects undeclared image references in a text-only video mode before writing', () => {

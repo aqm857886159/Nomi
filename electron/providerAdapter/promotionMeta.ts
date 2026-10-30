@@ -90,7 +90,7 @@ export function projectDeclaredModel(candidate: AdapterModelDraft, vendorKey: st
     } else if (mode.referenceParam || mode.referenceShape) {
       fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'this task cannot express the declared reference role');
     }
-    const additionalReferences = [...wire.matchAll(/{{request\.params\.([A-Za-z0-9_.-]+)}}/g)].map((match) => match[1]).filter((key) => referenceKeyDeclarationFor(key) && key !== mode.referenceParam && !(reference && DERIVED_REFERENCE_CARRIER_KEYS.has(key)));
+    const additionalReferences = [...wire.matchAll(/{{\s*request\.(?:(?:params|extras)\.)?([A-Za-z0-9_.-]+)\s*}}/g)].map((match) => match[1]).filter((key) => referenceKeyDeclarationFor(key) && key !== mode.referenceParam && !(reference && DERIVED_REFERENCE_CARRIER_KEYS.has(key)));
     if (additionalReferences.length) fieldError(candidate, `modes.${mode.taskKind}.create`, `undeclared reference roles: ${[...new Set(additionalReferences)].join(', ')}`);
     return { id: TASK_MODE_IDS[mode.taskKind] || mode.taskKind, intent: reference ? 'single' as const : 'text' as const, vendorTerm: TASK_LABELS[mode.taskKind] || mode.taskKind, hint: '', promptRequired: mode.taskKind !== 'transcribe', transportTaskKind: mode.taskKind as ArchetypeTransportTaskKind, slots, params: params.filter((p) => modeReadsParameter(mode, p.key)) };
   });
