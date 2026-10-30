@@ -165,3 +165,27 @@
 协调已将 catalogMigrations.ts、catalogVersion.json、catalogStore.ts 的迁移接线及 store.ts 的只读 revision 供给归本刀；types.ts 仅目录版本联合那一行归本刀。modelAvailability.ts 增加 capability_incomplete 原因与缺失字段。Agent 模型说明负责引导重交；picker/i18n 留第三刀，故本刀不再以新增 UI 为前置。版本迁移幂等，至少验证原卡可恢复、原卡不可恢复、完整目录不变三类。派发前的拒绝按本次裁定落实；不改变已受理任务查询的模型解析。
 
 第一刀实现接线核对：普通读取与启动种子均调用 migrateStoredCatalog（一次装配原始 revision 的同一入口）；不在纯迁移默认参数里读资料。为落实裁定中的“派发前按它拒发，拒发信息说清缺什么”，在创建任务经过的 taskParams.ts 参数准备门调用共享能力断言；executableModel.ts 保持原样，避免已受理任务查询被误拦，未改 runtime。声明参数与引用的旧平铺模板在投影时编译到现役 request.params 通道；每模式控件默认值同源生成 create.defaultParams，冲突在事务写入前拒绝。paramMap 的 from/fromMany 依赖复用 consumedCanonicalKeys，现有图片 multipart / JSON / chat carrier 继续走原线。
+
+
+### 第一刀第 3 轮：实现前 ★9 扩围合同（协调 23:5x）
+
+现有工作流能力生成边界为 `electron/catalog/comfyuiWorkflowImport.ts::buildImportedWorkflow/buildComfyImportModelMapping`；本轮认领该文件和 `comfyuiCandidateLifecycle.ts`，不改 runtime、validator 或第二刀类型。工作流控制项（含媒体输入）从该边界产生完整 draft，候选晋升只转交，不另拼简化草稿；共享 projectDeclaredModel 接受每模式明确控制项并使用同一参数覆盖不变量。引用参数缺失仍拒绝，不按连接名、模型名或供应商分支。
+
+| 产出/调用链 | 能力来源 | 晋升入口 |
+|---|---|---|
+| 声明卡登记 | 完整卡 | registerDeclaredProvider → projectDeclaredModel |
+| 认证协调器及重放 | revision.draft | providerAdapterCoordinator.replayPromotions → catalog.promote |
+| 工作流认证/素材化 | buildImportedWorkflow/buildComfyImportModelMapping | materializeCertifiedComfyAssets → promoteCertifiedComfyCandidate → defaultCatalog.promote |
+| 集成认证会话 | 同一工作流候选 | integrationSession 的 promote 回调 → promoteCertifiedComfyCandidate |
+| 生产 parity 量具 | 受控完整 draft | generationParityTestUtils → defaultCatalog.promote |
+
+门图对 promote 属性名跑，限定到 ProviderAdapterCatalogPort 实例逐一核对；带点的名字脚本计零不当没有调用者。类级矩阵清单登记上述调用者，枚举已导入、新导入、编辑、编辑失败保留旧版、i2v 控制项和必需槽。原 ComfyUI 生命周期测试原样转绿。故意从工作流生成的模式删 referenceParam，矩阵必须红，按字节还原。
+
+补三件的验收及反例：
+
+1. 原卡：登记同一目录事务保存本模型原始 modes/parameters、sources、omitted、openapi 等完整输入；输入对象之后被修改不影响耐久原文。原 revision 缺失仍能从保存卡恢复；无任何原文仍标能力缺失。整卡任一模型拒绝时，原卡与目录同回滚。反例：去掉原卡保存，恢复矩阵红；串模型或被独立修改的 wire 不覆盖。
+2. 中性参数：显式中性键经现役 paramMap 翻译为 wire；共用 consumedCanonicalKeys/wireReferencedParamKeys 的 paramConsistency 不变量覆盖声明与工作流，不只测固定三个维度。线缆别名不成为用户控件；已显示的控件没有消费路径必须在写入前拒绝。反例：duration 控件、wire 只读 seconds 且无翻译表，提交红且事务无写；合法翻译后请求中 1 秒/360p 与控件一致。工作流已登记的自有参数原键保真。
+3. 就绪：声明成功写现役 adapter.evidence=self-check，表示静态合同收下但未生成验证；现有未试跑读者能显示，Agent 模型说明同时明示未试跑。不伪造 media evidence，不改 try_model。反例：删 evidence 或冒写生成验证，矩阵红；失败声明没有就绪记录。
+4. 完整操作复制：已有 HttpOperation 整对象传递，不列字段白名单；用额外合法 mediaResponse 字段的投影保真测试核对第二刀兼容约定。
+
+真窗构建与走查走槽 B；load5<10 且（非 Claude 前台或 HIDIdleTime≥600 秒），不设前台豁免，不改启动 helper。每步队列最多 120 分钟。主路径中英各三任务及每张截图人工读；真实大脑与付费仍未验证。已知第二刀 build marker 守卫红不修，不拿它掩盖任何其他红。账本首次推送按协调例外改 reviewed，列全部真实产品提交与类级检查，保持未 fixed。
