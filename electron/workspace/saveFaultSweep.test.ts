@@ -57,6 +57,14 @@ function leftovers(root: string): string[] {
   return out.sort();
 }
 
+function workspaceScope(file: string, prefixes: Record<Scope, string>): Scope | undefined {
+  for (const scope of ["project", "settings"] as const) {
+    const prefix = prefixes[scope];
+    if (file === prefix || file.startsWith(prefix + path.sep)) return scope;
+  }
+  return undefined;
+}
+
 async function save(fault?: Fault, large = false) {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
@@ -77,18 +85,13 @@ async function save(fault?: Fault, large = false) {
   let matched = 0;
   const injectedAt: string[] = [];
   let active = true;
-  const scopeOf = (file: string): Scope | undefined => {
-    if (file.startsWith(projectRoot + path.sep)) return "project";
-    if (file.startsWith(deps.settingsRoot + path.sep)) return "settings";
-    return undefined;
-  };
   const hit = (operation: Operation, input: unknown): void => {
     if (!active) return;
     // fd calls are ALL counted in the save window; their owning open supplies the
     // path prefix. Never test a numeric fd against a string prefix and skip it.
     const file = typeof input === "number" ? descriptors.get(input) : String(input);
     if (typeof input === "number" && !file) throw new Error(`Unattributed ${operation} fd`);
-    const scope = file ? scopeOf(file) : undefined;
+    const scope = file ? workspaceScope(file, { project: projectRoot, settings: deps.settingsRoot }) : undefined;
     if (!scope) return;
     const key = `${scope}:${operation}`;
     counts[key] = (counts[key] ?? 0) + 1;
@@ -165,6 +168,17 @@ const cases = OPERATIONS.flatMap((operation) => (["project", "settings"] as cons
   ERRNOS.flatMap((code) => [false, true].map((persistent) => ({ operation, scope, code, persistent })))));
 
 describe("saveWorkspaceProject deterministic I/O fault sweep", () => {
+  it("scope prefixes include the root itself and children, excluding sibling lookalikes", () => {
+    const base = path.resolve(os.tmpdir(), "save-scope-proof");
+    const prefixes = { project: path.join(base, "project"), settings: path.join(base, "settings") };
+    for (const scope of ["project", "settings"] as const) {
+      expect(workspaceScope(prefixes[scope], prefixes)).toBe(scope);
+      expect(workspaceScope(path.join(prefixes[scope], "data.json"), prefixes)).toBe(scope);
+      expect(workspaceScope(path.join(prefixes[scope] + "-outside", "data.json"), prefixes)).toBeUndefined();
+    }
+    expect(workspaceScope(base, prefixes)).toBeUndefined();
+  });
+
   it("no-fault control exercises every operation and keeps synchronous sleep at zero", async () => {
     const result = await save();
     expect(result.error).toBeUndefined();

@@ -20,7 +20,7 @@
 
 改 `electron/jsonFile.ts`、`electron/{workspace,assets,events,logging,productionRun}/` 或 `src/workbench/project/` 的生产文件，路径路由会推出 `perf`，PR 要交 `perf-scenario` 证据。确实没有性能影响时写具体的不适用理由；新增路由不会把这些路径塞进 Linux 画布专用的 CI 性能车道。
 
-`pnpm exec vitest run electron/workspace/saveFaultSweep.test.ts` 真跑 `saveWorkspaceProject`，按项目/隔离 settings 路径前缀和 open/write/fsync/rename/remove/mkdir/read 类别扫描第 N 次失败，覆盖 EBUSY、EPERM、EACCES、ENOSPC、EEXIST 的一次和持续模式。fd 操作在保存窗内全部归因计数，不能拿 fd 当路径过滤。`Atomics.wait` 只累计请求毫秒并推进假时钟；不睡、不拿墙钟判红。物理 fsync 在夹具里替换为可注入桩，不能把它当掉电持久性验证。
+`pnpm exec vitest run electron/workspace/saveFaultSweep.test.ts` 真跑 `saveWorkspaceProject`，按项目/隔离 settings 路径前缀（包含目录本身及子路径，排除同名前缀兄弟目录）和 open/write/fsync/rename/remove/mkdir/read 类别扫描第 N 次失败，覆盖 EBUSY、EPERM、EACCES、ENOSPC、EEXIST 的一次和持续模式。fd 操作在保存窗内全部归因计数，不能拿 fd 当路径过滤。`Atomics.wait` 只累计请求毫秒并推进假时钟；不睡、不拿墙钟判红。物理 fsync 在夹具里替换为可注入桩，不能把它当掉电持久性验证。
 
 测试里的 `SAVE_DEBT_JSON` 记录精确来源路径、请求睡眠上限和大 JSON 次数。2026-10-30 合成工程的初始读数：
 
