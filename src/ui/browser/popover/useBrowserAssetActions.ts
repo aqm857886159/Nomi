@@ -1,6 +1,5 @@
-// 托盘动作（素材面收敛 2026-07-22 切片D）：文件夹/提示词动作已随各自切片退役；
-// 删除从「localStorage 软删」改为真删——落盘文件经 workspace.deleteFiles 进系统回收站，
-// 素材库同步消失（与 AssetLibraryPanel 同一口径），不再有「托盘删了库里还在」的分裂。
+import { requestProjectAssetDeletion } from '../../../workbench/assets/assetFileDeletion'
+// Tray deletion uses the same domain command and feedback as the asset library.
 import React from 'react'
 import { unwrapAssetImportResult } from '../../../../electron/shared/contracts/assetImportResult'
 import { useTranslation } from 'react-i18next'
@@ -188,25 +187,36 @@ export function useBrowserAssetActions({
         // 确认弹窗溢出整卡片：开合期间通知承载方扩热区（原生 overlay 下否则点不到）。
         setDeleteConfirmOpen(true)
         const confirmed = await confirmDialog({
-          title: t('browserAssets.confirmDeleteCount', { count: assetsToDelete.length }),
-          message: t('browserAssets.deleteToTrashHint'),
-          confirmLabel: t('browserAssets.delete'),
+          title: t('assetLibrary.confirmDeleteTitle', { count: assetsToDelete.length }),
+          message: t('assetLibrary.confirmDeleteMessage'),
+          confirmLabel: t('assetLibrary.delete'),
           danger: true,
         }).finally(() => setDeleteConfirmOpen(false))
         if (!confirmed) return
         const selectedIdSet = new Set(assetsToDelete.map((asset) => asset.id))
         const relativePaths = assetsToDelete.flatMap((asset) => (asset.relativePath ? [asset.relativePath] : []))
         if (relativePaths.length > 0) {
-          const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
-          if (!projectId || !deleteFiles) {
-            report(t('browserAssets.deleteUnsupported'))
+          if (!projectId) {
+            report(t('assetLibrary.deleteNoProject'))
             return
           }
-          const result = await deleteFiles({ projectId, relativePaths })
-          if (result.failedCount > 0) report(t('browserAssets.deleteCountFailed', { count: result.failedCount }))
+          const outcomes = await requestProjectAssetDeletion(projectId, relativePaths)
+          const kept = outcomes.reduce((count, outcome) => count + outcome.keptInUseCount, 0)
+          const failed = outcomes.reduce((count, outcome) => count + outcome.failedFileCount, 0)
+          const messages = [
+            ...(kept ? [t('assetLibrary.keptInUse', { count: kept })] : []),
+            ...(failed ? [t('assetLibrary.failedFiles', { count: failed })] : []),
+          ]
+          if (messages.length) report(messages.join(' '))
+          // Kept or failed files stay selected/visible; a successful deletion is reflected by refresh.
+          for (let index = 0; index < outcomes.length; index += 1) {
+            if (outcomes[index].keptInUseCount || outcomes[index].failedFileCount) {
+              for (const asset of assetsToDelete) if (asset.relativePath === relativePaths[index]) selectedIdSet.delete(asset.id)
+            }
+          }
         }
         // 会话内临时卡（无落盘文件）直接从本地状态移除；落盘桶重拉对账真实盘面
-        // （deleteFiles 会广播 nomi:assets:updated，但托盘没订阅它，删完自己重拉）。
+        // （真正回收会广播 nomi:assets:updated，托盘在命令结束后重拉）。
         setLocalAssets((current) => current.filter((asset) => !selectedIdSet.has(asset.id)))
         setPersistedAssets((current) => current.filter((asset) => !selectedIdSet.has(asset.id)))
         setSelectedIds(new Set())

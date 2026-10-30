@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 /**
  * 全局截图落地面板：热键抓完整屏 → 在这里拖一个区域 → 落成画布节点。
  *
@@ -41,8 +42,8 @@ export function ScreenshotCropOverlay({ capture, project, basePosition, category
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.stopPropagation(); onClose() }
     }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    canvasWindowInput.addEventListener('keydown', onKey, true)
+    return () => canvasWindowInput.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
   const pointFromEvent = (event: React.PointerEvent): { x: number; y: number } => {
