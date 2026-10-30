@@ -11,7 +11,7 @@ import { approvalCommand, sha256Of } from './lib/coordApprovals.mjs'
 
 export const SCENARIO_DIR = 'tests/perf/scenarios'
 /** 可选的指标。登记表的 budget / baseline 对应 metrics[0]（主指标），其余指标只打印、不判。 */
-export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests'])
+export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests', 'rssMiB', 'referenceRssMiB', 'heapUsedMiB', 'externalMiB', 'arrayBuffersMiB', 'transferMs', 'cancelMs', 'memoryGrowthRatio'])
 export const MIN_RUNS = 5
 /** 预算状态：proposed = 实现线提议、等安静窗口量完基线由协调定；approved = 已定。不写 = 已定（老条目）。 */
 export const BUDGET_STATUSES = Object.freeze(['proposed', 'approved'])
@@ -47,7 +47,33 @@ function firstRow(payload) {
   return (payload.results ?? []).find((row) => !row.skipped && Array.isArray(row.samples) && row.samples.length) ?? null
 }
 
+/** Node instruments emit complete numeric arrays, never filtered good subsets. */
+export function readNodeMetricRuns(payload, selection, expectedRuns = null) {
+  if (payload?.noisy !== false) throw new Error('Node instrument is noisy or has no explicit noise result')
+  if (payload.failure !== undefined) throw new Error('Node instrument reported failure')
+  if (!Number.isInteger(payload.runs) || payload.runs < 1 || (expectedRuns !== null && payload.runs !== expectedRuns)) throw new Error('Node instrument runs count does not match the request')
+  if (!payload.metrics || typeof payload.metrics !== 'object' || Array.isArray(payload.metrics) || !Object.keys(payload.metrics).length) throw new Error('Node instrument metrics are missing')
+  for (const [metric, values] of Object.entries(payload.metrics)) {
+    if (!Array.isArray(values) || values.length !== payload.runs) throw new Error(`Node instrument ${metric} sample count differs from runs`)
+    if (values.some((value) => !isNumber(value) || value < 0)) throw new Error(`Node instrument ${metric} requires finite nonnegative numeric samples`)
+  }
+  const names = Array.isArray(selection) ? selection : selection.metrics
+  return Object.fromEntries(names.map((metric) => {
+    if (!Object.hasOwn(payload.metrics, metric)) throw new Error(`Node instrument is missing metric ${metric}`)
+    return [metric, payload.metrics[metric]]
+  }))
+}
+
+const nodeResultFile = (label) => path.relative(process.cwd(), path.resolve(process.env.NOMI_PERF_OUTPUT_DIR || 'tests/perf/results', `node-json-${label}.json`))
+
 export const DRIVERS = Object.freeze({
+  // Any non-UI Node instrument: --runs N --out file -> { runs, noisy, metrics: { name: number[] } }.
+  'tests/perf/node-json-bench.mjs': {
+    supports: METRICS,
+    buildArgs: (script, args, { runs, label }) => [script, '--runs', String(runs), '--out', nodeResultFile(label), ...args],
+    resultFile: nodeResultFile,
+    readRuns: readNodeMetricRuns,
+  },
   // 帧间隔 + 长任务：画布规模基准（tests/perf/canvas-scale-bench.mjs，自带 CDP 指标与 rAF 探针）；
   // 工作台场景（tests/perf/canvas-scale/workbenchScenarios.mjs）另有 responseMs（操作 → 界面到位）与主进程往返峰值；
   // 库场景（library-*）另有 mediaRequests：打开那一下浏览器发出的图片 / 视频请求数（设计卡 2026-10-23-skill-prompt-library-layout ★7）。

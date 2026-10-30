@@ -1,0 +1,29 @@
+{
+  "id": "relay-content-fetch-256m",
+  "feature": "单路256MiB文件响应流式取回与临时写盘",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/relay-media-materialization-bench.mjs",
+    "--",
+    "--case",
+    "single-256"
+  ],
+  "scale": "一个冷客户端，1KiB预热后下载256MiB",
+  "metrics": [
+    "rssMiB",
+    "heapUsedMiB",
+    "externalMiB",
+    "arrayBuffersMiB",
+    "transferMs",
+    "cancelMs"
+  ],
+  "budget": 160,
+  "budgetStatistic": "p95",
+  "budgetStatus": "proposed",
+  "budgetBasis": "协调10-31依据安静实测裁定：单路额外RSS p95≤160MiB、跨文件规模p95差≤32MiB、四路并发p95≤同批实测单路p95×2。量具自动校验相对条件，不使用固定历史参考，不强制GC；不含解码发布。",
+  "measurement": {
+    "state": "pending",
+    "reason": "量具已接通，待安静窗口完成首次五轮统一实测"
+  }
+}

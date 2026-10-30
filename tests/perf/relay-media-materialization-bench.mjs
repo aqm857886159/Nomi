@@ -13,6 +13,7 @@ import { pipeline } from 'node:stream/promises'
 import { performance } from 'node:perf_hooks'
 import { require as tsxRequire } from 'tsx/cjs/api'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { summarizeRuns } from '../../scripts/perf-scenarios-lib.mjs'
 
 if (process.argv.includes('--server')) {
   const chunk = Buffer.alloc(64 * 1024)
@@ -189,7 +190,7 @@ if (process.argv.includes('--server')) {
   }
   const samples = []
   let failure, diagnosticTriggered = false
-  const runSample = async (implementation, phase, bytes, run) => {
+  const runSample = async (implementation, phase, bytes, run, role = 'measurement') => {
     const child = fork(fileURLToPath(import.meta.url), ['--sample', implementation, phase, String(bytes), String(run)], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] })
     const sample = await new Promise((resolve, reject) => {
       let received
@@ -197,11 +198,16 @@ if (process.argv.includes('--server')) {
       child.once('error', reject)
       child.once('exit', (code) => code === 0 && received ? resolve(received) : reject(new Error(`Client exited ${code} without a sample`)))
     })
+    sample.role = role
     samples.push(sample); console.log(JSON.stringify(sample))
+    return sample
   }
   try {
     if (cases[caseName]) {
       const { implementation, bytes } = cases[caseName]
+      if (caseName !== 'single-256') {
+        for (let run = 0; run < runs; run++) await runSample('relay-stream', 'warm-download', 256 * 1024 ** 2, run, 'reference')
+      }
       for (let run = 0; run < runs; run++) await runSample(implementation, 'warm-download', bytes, run)
     } else for (const implementation of ['relay-stream', 'main-url-buffer']) {
       for (const { phase, bytes } of [{ phase: 'cold-init', bytes: 1024 }, { phase: 'warm-download', bytes: 256 * 1024 ** 2 }, { phase: 'warm-download', bytes: 2 * 1024 ** 3 }]) {
@@ -219,15 +225,30 @@ if (process.argv.includes('--server')) {
       }
     }
   } catch (error) { failure = error }
+  const measured = samples.filter((s) => s.role === 'measurement')
+  const references = samples.filter((s) => s.role === 'reference')
+  const noisy = samples.some((s) => s.loadBefore >= 10 || s.loadAfter >= 10)
+  const referenceRssP95 = summarizeRuns(references.map((s) => s.memoryMiB.rss.increase)).p95
+  const measuredRssP95 = summarizeRuns(measured.map((s) => s.memoryMiB.rss.increase)).p95
+  let relationships = null
+  if (!failure && references.length) {
+    const referenceTenths = Math.round(referenceRssP95 * 10), measuredTenths = Math.round(measuredRssP95 * 10)
+    relationships = { referenceRssP95, measuredRssP95, sizeDifferenceMiB: Math.abs(measuredTenths - referenceTenths) / 10,
+      parallelRatio: measuredRssP95 / referenceRssP95, referenceWithinBudget: referenceTenths > 0 && referenceTenths <= 1600,
+      relationWithinBudget: caseName === 'parallel-256' ? measuredTenths <= referenceTenths * 2 : Math.abs(measuredTenths - referenceTenths) <= 320 }
+    if (!noisy && runs >= 5 && (!relationships.referenceWithinBudget || !relationships.relationWithinBudget)) failure = new Error(`Media memory relationship budget exceeded: ${JSON.stringify(relationships)}`)
+  }
   const report = { scope: 'Split first 1KiB fetch and post-1KiB-warmup transfer/write; fresh client and independent producer each sample; no decode/publication',
     date: new Date().toISOString(), sourceRef, machine: `${process.platform} ${process.arch} ${os.cpus()[0]?.model}`, node: process.version,
     case: caseName, diagnosticTriggered, admissionLoad5, quietWaitMs,
     control: controlRef ? { ref: controlRef, function: 'fetchProviderMedia', sourceUnchanged: true, policy: 'original main byte cap retained; a refused transfer is not a successful-download memory baseline' } : null,
-    noisy: samples.some((s) => s.loadBefore >= 10 || s.loadAfter >= 10), runs, samples,
+    noisy, runs, samples, relationships,
     ...(caseName !== 'full' ? { metrics: {
-      rssMiB: samples.map((s) => s.memoryMiB.rss.increase), heapUsedMiB: samples.map((s) => s.memoryMiB.heapUsed.increase),
-      externalMiB: samples.map((s) => s.memoryMiB.external.increase), arrayBuffersMiB: samples.map((s) => s.memoryMiB.arrayBuffers.increase),
-      transferMs: samples.map((s) => s.transferMs), ...(samples.every((s) => s.cancelMs !== null) ? { cancelMs: samples.map((s) => s.cancelMs) } : {}),
+      rssMiB: measured.map((s) => s.memoryMiB.rss.increase), heapUsedMiB: measured.map((s) => s.memoryMiB.heapUsed.increase),
+      externalMiB: measured.map((s) => s.memoryMiB.external.increase), arrayBuffersMiB: measured.map((s) => s.memoryMiB.arrayBuffers.increase),
+      transferMs: measured.map((s) => s.transferMs), ...(measured.every((s) => s.cancelMs !== null) ? { cancelMs: measured.map((s) => s.cancelMs) } : {}),
+      ...(references.length ? { referenceRssMiB: references.map((s) => s.memoryMiB.rss.increase) } : {}),
+      ...(caseName === 'parallel-256' && referenceRssP95 > 0 ? { memoryGrowthRatio: measured.map((s) => s.memoryMiB.rss.increase / referenceRssP95) } : {}),
     } } : {}),
     ...(failure ? { failure: failure.message } : {}) }
   fs.mkdirSync(path.dirname(output), { recursive: true })

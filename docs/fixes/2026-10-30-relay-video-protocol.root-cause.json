@@ -22,7 +22,8 @@
     "electron/vendor/vendorHttp.ts",
     "electron/capabilityCore/generationOutputMaterializer.ts",
     "electron/catalog/catalogCommit.ts",
-    "electron/catalog/relayNativeWireUpgrade.ts"
+    "electron/catalog/relayNativeWireUpgrade.ts",
+    "scripts/perf-scenarios-lib.mjs"
   ],
   "entry_points": [
     "Agent declaration to runtime",
@@ -46,7 +47,8 @@
   "invariants": [
     "New video drafts require explicit protocol evidence; startup and retrieval never rewrite stored video mappings or accepted query snapshots",
     "Binary video results never pass through JSON/text buffering",
-    "Task identifier survives retrieval errors; retrieval does not submit"
+    "Task identifier survives retrieval errors; retrieval does not submit",
+    "Non-UI metrics must be explicit quiet, complete finite sample arrays matching requested runs; failed subprocesses and partial data never become baselines; the wrapper clears its requested result file before starting the child so a stale prior JSON cannot satisfy a new run"
   ],
   "doors": [
     {
@@ -108,12 +110,37 @@
       "kind": "write",
       "path": "electron/catalog/modelRetype.ts",
       "symbol": "draftShapeForKind"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/perf-scenarios-lib.mjs",
+      "symbol": "readNodeMetricRuns"
+    },
+    {
+      "kind": "read",
+      "path": "tests/perf/node-json-bench.mjs",
+      "symbol": "readNodeMetricRuns"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-perf-scenarios.node-test.mjs",
+      "symbol": "DRIVERS"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/perf-scenarios-lib.mjs",
+      "symbol": "DRIVERS"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/perf-scenarios.mjs",
+      "symbol": "DRIVERS"
     }
   ],
   "door_reduction": {
-    "before": 13,
-    "after": 12,
-    "why_not": "Remove the relay startup automatic transport producer. Remaining catalogCommit transport calls are image/audio; builtin selection requires explicit video protocol. Runtime create and result-query are separate lifecycle callers, and JSON readers remain necessary for declared URL results. The modelRetype wrapper must retain a distinct reclassification entry, but calls the same draftShapeForKind boundary and cannot manufacture video operations."
+    "before": 16,
+    "after": 17,
+    "why_not": "Remove the relay startup automatic transport producer. Remaining catalogCommit transport calls are image/audio; builtin selection requires explicit video protocol. Runtime create and result-query are separate lifecycle callers, and JSON readers remain necessary for declared URL results. The modelRetype wrapper must retain a distinct reclassification entry, but calls the same draftShapeForKind boundary and cannot manufacture video operations. Generic perf registration adds two validation readers: the subprocess wrapper rejects failed/partial instruments before accepting a result, and the registry driver independently validates requested metrics. Existing registry readers in structural tests, validation and the unified runner retain their distinct lifecycle roles; UI drivers are unchanged. Script doors were generated separately with --roots=scripts,tests/perf --include-tests; the root checker default scan covers application roots only."
   },
   "generality_proof": "Response role drives streaming at the shared executor for all declared connections; no vendor or model branch.",
   "shared_boundaries": [
@@ -146,6 +173,11 @@
       "path": "electron/catalog/relayNativeWireUpgrade.ts",
       "symbol": "scheduleRelayNativeWireUpgrade",
       "responsibility": "Retire automatic startup mutations when stored mapping authorship cannot be established"
+    },
+    {
+      "path": "scripts/perf-scenarios-lib.mjs",
+      "symbol": "readNodeMetricRuns",
+      "responsibility": "One generic numeric-array result contract shared by subprocess execution and the scenario registry"
     }
   ],
   "same_class_entry_points": [
@@ -166,6 +198,18 @@
       "entry_point": "retypeModelCatalogModel",
       "disposition": "enforced",
       "evidence": "The wrapper calls draftShapeForKind, whose video branch now returns identity fields without wire operations."
+    },
+    {
+      "path": "tests/perf/node-json-bench.mjs",
+      "entry_point": "readNodeMetricRuns",
+      "disposition": "enforced",
+      "evidence": "The real child must exit successfully and emit complete quiet metrics matching requested repetitions."
+    },
+    {
+      "path": "scripts/perf-scenarios.mjs",
+      "entry_point": "driver.readRuns",
+      "disposition": "enforced",
+      "evidence": "The explicit Node JSON adapter reads the same contract; existing UI adapters are unchanged."
     }
   ],
   "recurrence": {
@@ -173,7 +217,8 @@
     "reason": "Any future gateway can return binary content or require multipart without a file",
     "same_class_scan": [
       "door-map executeProfileOperation / readTaskResponse",
-      "rg audioResponse multipart result in catalog/providerAdapter/runtime/tasks"
+      "rg audioResponse multipart result in catalog/providerAdapter/runtime/tasks",
+      "door-map readNodeMetricRuns / DRIVERS --roots=scripts,tests/perf --include-tests; follow registry readers to structural gate and PR evidence"
     ]
   },
   "prevention": {
@@ -190,7 +235,10 @@
       "electron/capabilityCore/generationOutputMaterializer.ts",
       "electron/catalog/catalogCommit.ts",
       "electron/catalog/relayNativeWireUpgrade.ts",
-      "electron/tasks/taskResultQuery.ts"
+      "electron/tasks/taskResultQuery.ts",
+      "scripts/perf-scenarios-lib.mjs",
+      "tests/perf/node-json-bench.mjs",
+      "tests/perf/relay-media-materialization-bench.mjs"
     ]
   },
   "regression_tests": [
@@ -199,7 +247,8 @@
     "electron/catalog/catalogCommit.videoEvidence.test.ts",
     "electron/catalog/relayNativeWireReconcile.test.ts",
     "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
-    "electron/tasks/relayQueryFallback.test.ts"
+    "electron/tasks/relayQueryFallback.test.ts",
+    "scripts/check-perf-scenarios.node-test.mjs"
   ],
   "class_regression_tests": [
     "tests/relay-onboarding/contracts.test.mjs",
@@ -207,7 +256,8 @@
     "electron/catalog/catalogCommit.videoEvidence.test.ts",
     "electron/catalog/relayNativeWireReconcile.test.ts",
     "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
-    "electron/tasks/relayQueryFallback.test.ts"
+    "electron/tasks/relayQueryFallback.test.ts",
+    "scripts/check-perf-scenarios.node-test.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -231,10 +281,9 @@
     "Legacy public URL materialization still uses the existing buffered path; the new bounded stream applies to authenticated file responses",
     "The retrieval function accepts AbortSignal, but main IPC and production cancellation callers have not been changed or end-to-end verified",
     "File responses require project identity; the independently owned tryModel entry does not currently supply it",
-    "Unified perf driver registration requires a shared infrastructure change outside this task scope",
     "Global closed-state inference is explicitly deferred by coordination: preserve existing hard-evidence inference and bounded unknown tolerance; use sanitized paid-response projections for a separate post-0.24.1 direction review.",
     "Stored generated defaults are indistinguishable from explicit declarations; preserving all old rows also preserves any old guessed route.",
-    "Quiet split instrument completed 60 fresh-client samples, five per group, load5 7.67-8.03. First 1KiB fetch RSS median/p95 1.06/1.19MiB; post-warmup file download 103.50/111.98MiB for 256MiB and 123.11/131.34MiB for 2GiB. RSS remains over 64MiB; cancellation meets 1s. Direct Web body discard, Node bridge discard and reusable 64KiB BYOB discard also exceed the RSS budget, so excess already occurs without bridging or disk. Native Fetch body allocation is the next shared-HTTP investigation; no claim of missing backpressure or a leak. Coordination requires stopping before vendorHttp/appFetch changes. GUI/rehearsal/full gates remain unverified."
+    "Coordination revised the memory budget after quiet split data: single-stream RSS p95 <=160MiB, 256MiB/2GiB p95 difference <=32MiB, four concurrent 256MiB streams <=2 times measured single-stream p95. The preliminary quiet four-stream sample p95 is139.3MiB versus110.3MiB reference, within220.6MiB. Generic driver registration is implemented but unified baselines and GUI/full gates still await actual execution. Windows low-resource machine is unverified; no Windows test machine available."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",
