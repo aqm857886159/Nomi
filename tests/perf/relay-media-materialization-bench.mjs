@@ -168,8 +168,8 @@ if (process.argv.includes('--server')) {
   if (caseName !== 'full' && !cases[caseName]) throw new Error('Unknown media measurement case')
   if (!output || !Number.isInteger(runs) || runs < (caseName === 'full' ? 5 : 1)) throw new Error('Use --out <receipt> and a positive --runs (full split requires >=5)')
   const sourceRef = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-  const controlRef = execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).trim()
-  execFileSync('git', ['diff', '--quiet', controlRef, '--', 'electron/assets/providerMediaFetch.ts', 'electron/hardenedFetch.ts', 'electron/appFetch.ts', 'electron/shared/assets/providerMediaRetrievalBudget.ts', 'electron/providerNetwork.ts', 'electron/systemProxy.ts', 'electron/networkOutboundPolicy.ts'])
+  const controlRef = caseName === 'full' ? execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).trim() : null
+  if (controlRef) execFileSync('git', ['diff', '--quiet', controlRef, '--', 'electron/assets/providerMediaFetch.ts', 'electron/hardenedFetch.ts', 'electron/appFetch.ts', 'electron/shared/assets/providerMediaRetrievalBudget.ts', 'electron/providerNetwork.ts', 'electron/systemProxy.ts', 'electron/networkOutboundPolicy.ts'])
   // Leave admission headroom for the complete batch; every sample still uses 10 as its noisy threshold.
   const admissionLoad5 = 8
   const quietStarted = performance.now()
@@ -222,7 +222,7 @@ if (process.argv.includes('--server')) {
   const report = { scope: 'Split first 1KiB fetch and post-1KiB-warmup transfer/write; fresh client and independent producer each sample; no decode/publication',
     date: new Date().toISOString(), sourceRef, machine: `${process.platform} ${process.arch} ${os.cpus()[0]?.model}`, node: process.version,
     case: caseName, diagnosticTriggered, admissionLoad5, quietWaitMs,
-    control: { ref: controlRef, function: 'fetchProviderMedia', sourceUnchanged: true, policy: 'original main byte cap retained; a refused transfer is not a successful-download memory baseline' },
+    control: controlRef ? { ref: controlRef, function: 'fetchProviderMedia', sourceUnchanged: true, policy: 'original main byte cap retained; a refused transfer is not a successful-download memory baseline' } : null,
     noisy: samples.some((s) => s.loadBefore >= 10 || s.loadAfter >= 10), runs, samples,
     ...(caseName !== 'full' ? { metrics: {
       rssMiB: samples.map((s) => s.memoryMiB.rss.increase), heapUsedMiB: samples.map((s) => s.memoryMiB.heapUsed.increase),
