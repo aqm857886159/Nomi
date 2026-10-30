@@ -3,8 +3,8 @@
   "id": "2026-10-30-previz-ruler",
   "problem_type": "Preview measurement loses subject identity and duplicates camera-space semantics",
   "symptom": "Agent and director labels measure scenery and invert lateral movement while evaluation stays green",
-  "direct_cause": "Summary chooses the largest non-auxiliary projection; template scenery is solid. Motion and scorer use world X.",
-  "class_root": "No persisted shot subject and no shared product/evaluation measurement invariant",
+  "direct_cause": "Summary chooses the largest non-auxiliary projection; template scenery is solid. Motion and scorer use world X. Invalid persisted anchor fields were silently discarded, replacing an explicit part with its whole object; invalid binding records became manual cameras.",
+  "class_root": "No persisted shot subject and no shared product/evaluation measurement invariant; normalization conflated absent measurement intent with present-but-invalid intent.",
   "affected_population": [
     "compiled director projects",
     "manual stages",
@@ -34,7 +34,8 @@
     "Compiled cameras retain their subject through normalization and persistence.",
     "Scenery framing role is independent of physical solidity.",
     "Product and evaluation import the same subject sampler and motion direction predicate.",
-    "Screen right is the start-camera right basis, also used by compiler sideways."
+    "Screen right is the start-camera right basis, also used by compiler sideways.",
+    "Normalization preserves invalid explicit measurement intent across JSON persistence; invalid subjects or anchors never fall back to a whole object or manual selection."
   ],
   "doors": [
     {
@@ -456,12 +457,62 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/director/model/waypointAim.ts",
       "symbol": "sub"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/applyDirectorWrite.ts",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/CameraMoveCaptureHost.tsx",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/directorPreviewCapture.ts",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/previewAttachReconciler.ts",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/StagingCaptureHost.tsx",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorPreviewState.ts",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+      "symbol": "normalizeDirectorProject"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "symbol": "normalizeCamera"
     }
   ],
   "door_reduction": {
     "before": 22,
-    "after": 84,
-    "why_not": "8 summary consumers serve distinct lab, Agent receipt, capture, production, prompt attachment, focus, shell and toolbar paths. Original physical auxiliary readers remain for collision/sight/audit, render/capture and editing. Overview and shared manual-subject selection keep only a physical output-visibility guard for old helper objects, while framingRole separately owns subject/background identity. Additional doors enumerate compiler/normalizer and shared-subject/basis consumers, not parallel implementations; scope was expanded from the original 22 doors to audit the new owners."
+    "after": 94,
+    "why_not": "8 summary consumers serve distinct lab, Agent receipt, capture, production, prompt attachment, focus, shell and toolbar paths. Original physical auxiliary readers remain for collision/sight/audit, render/capture and editing. Overview and shared manual-subject selection keep only a physical output-visibility guard for old helper objects, while framingRole separately owns subject/background identity. Additional doors enumerate compiler/normalizer and shared-subject/basis consumers, not parallel implementations; scope was expanded from the original 22 doors to audit the new owners. The nine project normalization callers (editor/store, overrides, Agent and capture/attachment hosts) have different lifecycle jobs; all converge on normalizeCamera and the shared subjectAt. They must preserve explicit invalid intent instead of independently repairing it."
   },
   "generality_proof": "Persist subject identity at compile/normalize boundary, select it without ranking scenery, and import the product sampler and direction predicate in the evaluator. Camera rotation, object ordering, solid scenery and anchored subjects use the same invariant.",
   "shared_boundaries": [
@@ -489,6 +540,11 @@
       "path": "src/workbench/generationCanvas/nodes/director/model/vec3.ts",
       "symbol": "rightFromYaw",
       "responsibility": "One camera-right definition for compiler sideways, measurement basis and offline oracle."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "symbol": "normalizeDirectorProject",
+      "responsibility": "Preserve absent versus invalid subject/anchor intent at all persistence and mutation entrances; repeated normalization must keep the distinction."
     }
   ],
   "same_class_entry_points": [
@@ -509,6 +565,30 @@
       "entry_point": "scoreCard",
       "disposition": "enforced",
       "evidence": "Imports product subject sampler and motion direction predicate."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "entry_point": "normalizeCamera",
+      "disposition": "enforced",
+      "evidence": "Invalid anchor name/offset/size remains an explicit null anchor; invalid whole binding remains null instead of becoming manual."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+      "entry_point": "normalizeDirectorProject",
+      "disposition": "enforced",
+      "evidence": "Store ingress and history replacement use the same normalization boundary; the regression covers repeat JSON round trips."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "entry_point": "normalizeCamera lookAt/rig/closeup fields",
+      "disposition": "not-affected",
+      "evidence": "Camera control defaults are independent from explicit measurementSubject intent; no invalid binding is converted into a manual camera by retaining these control defaults."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "entry_point": "normalizeObject measuredBounds and framingRole",
+      "disposition": "not-affected",
+      "evidence": "Bounds use an existing measured-versus-nominal source marker; framingRole is an optional eligibility label rather than an explicit object/part binding. Neither owns the anchor-intent contract."
     }
   ],
   "recurrence": {
@@ -520,7 +600,11 @@
       "rg sampleForSubject cameraDelta evals/director/scorer.ts",
       "rg summarizeDirectorShots --roots src/electron and tests/ux callers",
       "node scripts/door-map.mjs summarizeDirectorShots isAuxiliary subjectAt sampleForSubject rightFromYaw framingRole measurementSubject motionDirectionMatches --roots=src,electron,evals",
-      "node scripts/door-map.mjs part MotionRecognition Vec3 sub --roots=src/workbench/generationCanvas/nodes/director/model (owner definitions and internal writes)"
+      "node scripts/door-map.mjs part MotionRecognition Vec3 sub --roots=src/workbench/generationCanvas/nodes/director/model (owner definitions and internal writes)",
+      "node scripts/door-map.mjs normalizeCamera normalizeDirectorProject measurementSubject",
+      "node scripts/door-map.mjs measurementSubject lookAtType lookAtObjectId lookAtCoords rigType closeupClips customAnchor customAzimuthDeg motionTrajectory trajectoryClips inTimeline clipId progress fov measuredBounds --roots=src,electron,evals; all optional normalization omissions classified in implementation report",
+      "node scripts/door-map.mjs framingRole parentId color roughness metalness opacity modelScale wireframe flatShading isAuxiliary isSystemModel actionTrackEnabled lookAtTrackEnabled modelPath posePreset bodyType rig boneRotations hipsOffset actionClips keyframes actionPose lookAtClips spotAngle spotPenumbra timelineTrackOrder timelineTrackPins timelineTrackFolds --roots=src/workbench/generationCanvas/nodes/director => 242 file/symbol doors",
+      "node scripts/door-map.mjs normalizeObject normalizeLight normalizeScene normalizeProjectRecord coverUrl sizeBytes folderId screenshots videos folders items --roots=src/workbench/generationCanvas/nodes/director => 35 file/symbol doors; unrelated optional/container normalization listed without code changes"
     ]
   },
   "prevention": {
@@ -529,24 +613,28 @@
     "invariant": "One subject sampler and camera-space direction definition serve production and evaluation.",
     "failure_mode": "An explicit missing subject or anchor remains unmeasurable and never silently selects scenery.",
     "exception_policy": "none",
-    "strategy": "Persist subject; separate framing from solidity; delete evaluator copies.",
+    "strategy": "Persist subject; separate framing from solidity; delete evaluator copies. Normalization retains null sentinels for invalid explicit subjects and anchors; subjectAt fails closed before any object lookup.",
     "artifacts": [
       "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
       "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts",
       "evals/director/scorer.ts",
       "src/workbench/generationCanvas/nodes/director/model/directorShotSubject.ts",
-      "src/workbench/generationCanvas/nodes/director/model/directorMotionDirection.ts"
+      "src/workbench/generationCanvas/nodes/director/model/directorMotionDirection.ts",
+      "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "src/workbench/generationCanvas/nodes/director/model/directorTypes.ts"
     ]
   },
   "regression_tests": [
     "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
     "evals/director/previzRuler.test.ts",
-    "tests/experience-laws/previzRulerOrientation.matrix.test.mjs"
+    "tests/experience-laws/previzRulerOrientation.matrix.test.mjs",
+    "evals/director/previzRulerInvalidSubject.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
     "evals/director/previzRuler.test.ts",
-    "tests/experience-laws/previzRulerOrientation.matrix.test.mjs"
+    "tests/experience-laws/previzRulerOrientation.matrix.test.mjs",
+    "evals/director/previzRulerInvalidSubject.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -561,10 +649,11 @@
     "rationale": "Internal pure TypeScript data and geometry contract; installed dependencies do not own this invariant.",
     "exit_criteria": []
   },
-  "migration": "New camera subject and object framingRole are optional. Existing hand-built projects choose people before props. No inferred rewrite of old user data; normalized newly compiled projects retain explicit metadata.",
+  "migration": "New camera subject and object framingRole are optional. Existing hand-built projects choose people before props. No inferred rewrite of old user data; normalized newly compiled projects retain explicit metadata. Absent legacy metadata remains manual; existing invalid metadata is retained as JSON-safe null instead of silently widening measurement. No real user files are read or migrated.",
   "residual_risks": [
     "Real model reproduction and paid video output are delegated to coordination.",
-    "True original plan unavailable; synthetic fixtures verify the failure class."
+    "True original plan unavailable; synthetic fixtures verify the failure class.",
+    "Yaw direction regression does not prove roll-invariant direction; motion type priority and visual judge crossCheck selection remain separate existing boundaries."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",

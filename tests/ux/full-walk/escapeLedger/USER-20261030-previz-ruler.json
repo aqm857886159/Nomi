@@ -11,7 +11,8 @@
   "useCases": [
     "三人街头首镜量人物而非楼",
     "旋转机位后的左右横移",
-    "手搭台人物优先与模板总览"
+    "手搭台人物优先与模板总览",
+    "损坏锚点及主体记录经正规化后不可测，不替换成整个人或手搭猜测"
   ],
   "fullWalkJourneys": [],
   "status": "fixed",
@@ -21,7 +22,8 @@
     "evals/director/previzRuler.test.ts",
     "tests/ux/director-previz-ruler.walk.mjs",
     "tests/experience-laws/previzRulerOrientation.matrix.test.mjs",
-    "修复：镜头量具读编译器记下的主体，横移按机位右向量判；评测 import 产品同一个函数（#1385）。"
+    "修复：镜头量具读编译器记下的主体，横移按机位右向量判；评测 import 产品同一个函数（#1385）。",
+    "evals/director/previzRulerInvalidSubject.test.ts"
   ],
   "completionCommits": [
     "c90eb0504e6e3b6b9b22f6dcaa36052d259984ca",

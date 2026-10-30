@@ -189,7 +189,8 @@ export type DirectorCamera = TimelineEntityFields & {
   lookAtCoords?: Vec3
   rigType?: CameraRigType
   /** Compiled shot intent, retained independently from camera rig or look-at overrides. */
-  measurementSubject?: { objectId: string; anchor?: { name: string; offset: Vec3; size: Vec3 } }
+  /** undefined = manual/unbound; null = invalid explicit intent, never a fallback to manual/body. */
+  measurementSubject?: { objectId: string; anchor?: { name: string; offset: Vec3; size: Vec3 } | null } | null
   showRayHelper?: boolean
   closeupClips?: CloseupClip[]
 }

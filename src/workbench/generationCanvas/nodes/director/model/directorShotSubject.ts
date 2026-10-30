@@ -1,7 +1,7 @@
 /**
  * [INPUT]: persisted DirectorProject camera subject, FrameSample projections.
  * [OUTPUT]: subjectAt and sampleForSubject, shared by product summaries and offline scorer.
- * [POS]: One owner for shot identity; never infer an actor from physical auxiliary flags.
+ * [POS]: One owner for shot identity; invalid explicit intent stays unmeasurable, never manual/body fallback.
  */
 import type { DirectorProject } from './directorTypes'
 import type { FrameSample } from './directorEvalMeasurement'
@@ -19,6 +19,7 @@ export function subjectAt(project: DirectorProject, frame: FrameSample | undefin
   if (!frame) return null
   const scene = project.scenes.find((item) => item.id === project.activeSceneId) ?? project.scenes[0]
   const recorded = scene?.cameras.find((camera) => camera.id === frame.cameraId)?.measurementSubject
+  if (recorded === null || recorded?.anchor === null) return null
   if (recorded) return recorded.anchor ? `${recorded.objectId}.${recorded.anchor.name}` : recorded.objectId
   // Auxiliary helpers are physically excluded from output; this guard does not infer actor identity.
   const objects = (scene?.objects ?? []).filter((object) => object.visible && !object.isAuxiliary && object.framingRole !== 'background' && object.type !== 'group' && object.type !== 'plane')

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 ./directorTypes（全部 schema）、./directorIds 的 createSceneId、./cameraLens 的 syncFocalLength
  * [OUTPUT]: 对外提供 DEFAULT_SCENE_CONFIG / DEFAULT_PANORAMA_CONFIG、createDefaultScene、createDefaultProject、
- *           normalizeDirectorProject（容错归一，任何 unknown → 合法工程；角色 → UAL 读时迁移在 normalizeObject，唯一入口）、
+ *           normalizeDirectorProject（容错归一，显式量测意图失效保留 null、不得变成缺省；角色 → UAL 读时迁移在 normalizeObject，唯一入口）、
  *           ualMigrationNoteOf（这份工程读档时迁过人偶的说明，只在内存）、cloneDirectorProject、projectStats
  * [POS]: director/model 的工程生命周期：节点 meta 里读出来的东西先过 normalize 再进 store（对齐 V1 serializer 的
  *        「逐字段容错、不做版本迁移链」做法）；V1→V2 迁移在切换门时加在这里。
@@ -76,7 +76,7 @@ export function createDefaultProject(sceneName: string): DirectorProject {
   }
 }
 
-// ── 容错归一（unknown → 合法工程；坏字段丢弃、缺字段补默认；不抛错）──
+// ── 容错归一（unknown → 合法工程；显式测量主体/锚点损坏保留 null，其余缺字段补默认；不抛错）──
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -262,13 +262,20 @@ function normalizeCamera(raw: unknown): DirectorCamera | null {
     showRayHelper: bool(raw.showRayHelper, true),
     ...normalizeTimelineFields(raw),
   })
-  if (isRecord(raw.measurementSubject) && typeof raw.measurementSubject.objectId === 'string') {
-    camera.measurementSubject = { objectId: raw.measurementSubject.objectId }
-    const anchor = raw.measurementSubject.anchor
-    if (isRecord(anchor) && typeof anchor.name === 'string') {
-      const offset = optionalVec3(anchor.offset), size = optionalVec3(anchor.size)
-      if (offset && size && [size.x, size.y, size.z].every((n) => n > 0))
-        camera.measurementSubject.anchor = { name: anchor.name, offset, size }
+  if (raw.measurementSubject !== undefined) {
+    camera.measurementSubject = null
+    if (isRecord(raw.measurementSubject) && typeof raw.measurementSubject.objectId === 'string' && raw.measurementSubject.objectId.length > 0) {
+      camera.measurementSubject = { objectId: raw.measurementSubject.objectId }
+      const anchor = raw.measurementSubject.anchor
+      if (anchor !== undefined) {
+        camera.measurementSubject.anchor = null
+        if (isRecord(anchor) && typeof anchor.name === 'string' && anchor.name.length > 0) {
+          const offset = vec3(anchor.offset, { x: NaN, y: NaN, z: NaN })
+          const size = vec3(anchor.size, { x: NaN, y: NaN, z: NaN })
+          if ([offset.x, offset.y, offset.z, size.x, size.y, size.z].every(Number.isFinite) && [size.x, size.y, size.z].every((n) => n > 0))
+            camera.measurementSubject.anchor = { name: anchor.name, offset, size }
+        }
+      }
     }
   }
   if (raw.lookAtType === 'none' || raw.lookAtType === 'object' || raw.lookAtType === 'coordinates') camera.lookAtType = raw.lookAtType
