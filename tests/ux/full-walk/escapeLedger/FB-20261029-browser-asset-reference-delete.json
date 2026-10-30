@@ -13,14 +13,21 @@
     "共享文件引用不能因入口不同而悬空"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "修前真实窗口复现；两次收尾均没抢前台。",
-    "src/workbench/assets/assetDeletionMatrix.test.ts"
+    "src/workbench/assets/assetDeletionMatrix.test.ts",
+    "修复：删除素材前查引用，正被作品使用的文件不能从浏览器托盘直接删掉（#1384）。"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "e57081ef0",
+    "5cce90275",
+    "cfb73b136",
+    "75a9f8462"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-29-view-parity-cut1.root-cause.json",
+  "fixedInPr": 1384,
   "classCheck": {
     "kind": "matrix",
     "file": "src/workbench/assets/assetDeletionMatrix.test.ts"

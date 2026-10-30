@@ -13,14 +13,21 @@
     "共享文件引用不能因入口不同而悬空"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "修前真实窗口复现；两次收尾均没抢前台。",
-    "src/workbench/shortcutSurface.matrix.test.ts"
+    "src/workbench/shortcutSurface.matrix.test.ts",
+    "修复：键盘与撤销只送给当前可见的交互面，keep-alive 的全局输入按宿主权限声明（#1384）。"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "e57081ef0",
+    "5cce90275",
+    "cfb73b136",
+    "75a9f8462"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-29-view-parity-cut1.root-cause.json",
+  "fixedInPr": 1384,
   "classCheck": {
     "kind": "matrix",
     "file": "src/workbench/shortcutSurface.matrix.test.ts"
