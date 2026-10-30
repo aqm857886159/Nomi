@@ -537,11 +537,20 @@ test('browser feel fixtures run in the Chromium-equipped desktop lane, never Uni
 
 // 没设 timeout-minutes 的 job 卡住时 GitHub 要跑满 6 小时才杀，合并队列堵半天还不报红。
 // 数字按各 job 近 30 次成功运行的最长耗时 ×2~3 给（见引入它的 PR 表）；这里只钉「每个 job 都有」。
+// 调可复用工作流的 job（写了 uses:）GitHub 不许写 timeout-minutes，超时只能写在被调那份工作流自己的 job 上
+// （https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations 「Supported keywords for jobs that call a reusable workflow」）。
+// 所以只放行调本目录工作流的 job：那份文件同一个循环会查到；调别的仓库的，它的超时这里查不到，照红。
 test('every job in every workflow declares a job-level timeout-minutes', () => {
   const dir = path.join(repoRoot, '.github/workflows')
-  for (const file of fs.readdirSync(dir).filter((name) => /\.ya?ml$/.test(name))) {
+  const files = fs.readdirSync(dir).filter((name) => /\.ya?ml$/.test(name))
+  for (const file of files) {
     const doc = load(fs.readFileSync(path.join(dir, file), 'utf8'))
     for (const [id, job] of Object.entries(doc.jobs ?? {})) {
+      if (job.uses !== undefined) {
+        const callee = /^\.\/\.github\/workflows\/([^/]+\.ya?ml)$/.exec(job.uses)?.[1]
+        assert.ok(callee && files.includes(callee), `${file} job "${id}" calls ${job.uses}: only workflows in .github/workflows can be called, so their own jobs carry timeout-minutes`)
+        continue
+      }
       assert.ok(Number.isFinite(job['timeout-minutes']) && job['timeout-minutes'] > 0, `${file} job "${id}" needs timeout-minutes`)
     }
   }
