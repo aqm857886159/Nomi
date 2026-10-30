@@ -7,18 +7,22 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, packagedMcpRuntime, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { startFakeApimartServer, writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { expectAbsent, expectHidden, expectVisible, proveProbe } from './_assert.mjs'
-import { newProjectEntry } from './_shell.mjs'
+import { newProjectEntry, switchWorkspace } from './_shell.mjs'
 // 断连取消那条诊断的事件名派生自真相源（两条启动路共用的常量），不手抄散文：
 // 手抄的那份在日志收口时静默漂成假红，正是本轨踩到的坑。
 const { MCP_CANCELLED_IN_FLIGHT_EVENT } = tsxRequire('../../electron/capabilityCore/mcpStdioDiagnostics.ts', import.meta.url)
 const { unwrapIpcResult } = tsxRequire('../../electron/shared/contracts/ipcResult.ts', import.meta.url)
 
+const localeIndex = process.argv.indexOf('--locale')
+const locale = localeIndex < 0 ? 'zh-CN' : process.argv[localeIndex + 1]
+assert.ok(['zh-CN', 'en'].includes(locale), '--locale must be zh-CN or en')
 const dirs = makeIsolatedDirs('nomi-mcp-l2-')
 const packagedBundle = process.argv.includes('--packaged')
   ? String(process.argv[process.argv.indexOf('--packaged') + 1] || '')
   : ''
 const mcpRuntime = packagedBundle ? packagedMcpRuntime(packagedBundle, dirs.tempRoot) : null
-const artifactDir = path.join(dirs.tempRoot, 'tests', 'ux', 'mcp-l2')
+const artifactDir = process.env.NOMI_MCP_L2_OUT ?? path.join(dirs.tempRoot, 'tests', 'ux', 'mcp-l2')
+assert.ok(path.isAbsolute(artifactDir), 'NOMI_MCP_L2_OUT must be absolute')
 fs.mkdirSync(artifactDir, { recursive: true })
 const trace = (name) => path.join(artifactDir, `${name}.jsonl`)
 const screenshotSize = (filePath) => {
@@ -64,6 +68,7 @@ try {
   writeFakeApimartCatalog(dirs.settingsDir, dirs.userDataDir, provider.origin, { withKey: false })
   gui = await launchNomiApp({
     name: 'mcp-l2-journeys', userDataDir: dirs.userDataDir, settingsDir: dirs.settingsDir, projectsDir: dirs.projectsDir, capabilityDir: dirs.capabilityDir,
+    initialLocalStorage: { 'nomi:locale:v1': locale },
     env: {
       NOMI_APP_NAME: 'nomi',
       NOMI_CAPABILITY_DIR: dirs.capabilityDir,
@@ -637,7 +642,7 @@ try {
   const arrangedClips = timelineFile.timelineContract?.clips || timelineFile.arrangement?.timelineContract?.clips || []
   console.log('  C12 persisted timeline=', JSON.stringify({ kind: timelineFile.kind, clips: arrangedClips.length, durationFrames: timelineFile.timelineContract?.durationFrames || timelineFile.arrangement?.timelineContract?.durationFrames }))
   check(Array.isArray(arrangedClips) && arrangedClips.length >= 4, 'C12 持久时间轴编排包含四个生成镜头')
-  await win.getByText('预览', { exact: true }).click()
+  await switchWorkspace(win, 'preview', 'C12 preview before export')
   await takeScreenshot(win, 'C12-timeline-before-export')
 
   const c9ReadyForExport = await call(mcp, 'nomi_read', { target: 'run', projectId: c9ProjectId, runId: operationId })
@@ -707,7 +712,7 @@ try {
   check(typeof execution.buildSha === 'string' && execution.buildSha.length > 0, 'C12 export-execution.json 落盘 buildSha')
   await mcp.terminate()
   mcp = null
-  console.log(`MCP-L2 PASS: ${passed} assertions; mode=${mcpRuntime ? 'packaged' : 'development'}; artifacts=${artifactDir}`)
+  console.log(`MCP-L2 PASS: ${passed} assertions; locale=${locale}; mode=${mcpRuntime ? 'packaged' : 'development'}; artifacts=${artifactDir}`)
 } catch (error) {
   console.error(error?.stack || error)
   // 断言红了就得看见服务端自己的诊断：主连接的 stderr 一直在 `captureStderr` 里攒着，
