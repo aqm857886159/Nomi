@@ -1,0 +1,29 @@
+{
+  "id": "USER-20261030-previz-ruler",
+  "since": "2026-10-30",
+  "source": "用户实测反馈：Agent 对预演景别与横移反复改动，实测量到了楼并按世界 X 判方向。",
+  "category": "claims-and-outcomes",
+  "problem": "产品和评测未共用主体身份与机位坐标尺，实测标签与演员不一致。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "三人街头首镜量人物而非楼",
+    "旋转机位后的左右横移",
+    "手搭台人物优先与模板总览"
+  ],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
+    "evals/director/previzRuler.test.ts"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-30-previz-ruler.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts"
+  }
+}

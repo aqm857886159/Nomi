@@ -167,6 +167,7 @@ function normalizeObject(raw: unknown, note: UalMigrationNote): DirectorObject |
     locked: bool(raw.locked, false),
     ...normalizeTimelineFields(raw),
   }
+  if (raw.framingRole === 'subject' || raw.framingRole === 'background') object.framingRole = raw.framingRole
   if (typeof raw.parentId === 'string') object.parentId = raw.parentId
   if (typeof raw.color === 'string') object.color = raw.color
   for (const key of ['roughness', 'metalness', 'opacity', 'modelScale'] as const) {
@@ -261,6 +262,15 @@ function normalizeCamera(raw: unknown): DirectorCamera | null {
     showRayHelper: bool(raw.showRayHelper, true),
     ...normalizeTimelineFields(raw),
   })
+  if (isRecord(raw.measurementSubject) && typeof raw.measurementSubject.objectId === 'string') {
+    camera.measurementSubject = { objectId: raw.measurementSubject.objectId }
+    const anchor = raw.measurementSubject.anchor
+    if (isRecord(anchor) && typeof anchor.name === 'string') {
+      const offset = optionalVec3(anchor.offset), size = optionalVec3(anchor.size)
+      if (offset && size && [size.x, size.y, size.z].every((n) => n > 0))
+        camera.measurementSubject.anchor = { name: anchor.name, offset, size }
+    }
+  }
   if (raw.lookAtType === 'none' || raw.lookAtType === 'object' || raw.lookAtType === 'coordinates') camera.lookAtType = raw.lookAtType
   if (typeof raw.lookAtObjectId === 'string') camera.lookAtObjectId = raw.lookAtObjectId
   const lookAt = optionalVec3(raw.lookAtCoords)

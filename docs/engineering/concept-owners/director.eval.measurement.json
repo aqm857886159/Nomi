@@ -18,13 +18,41 @@
     {
       "path": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
       "symbol": "measureContinuity"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
+      "symbol": "recognizeCameraMotion"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.ts",
+      "symbol": "summarizeDirectorShots"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/compiler/s1SceneTemplates.ts",
+      "symbol": "buildS1Template"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorShotSubject.ts",
+      "symbol": "subjectAt"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorShotSubject.ts",
+      "symbol": "sampleForSubject"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/vec3.ts",
+      "symbol": "rightFromYaw"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorMotionDirection.ts",
+      "symbol": "motionDirectionMatches"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
     "evals/director",
-    "src/workbench/generationCanvas/nodes/director/agent"
+    "src/workbench/generationCanvas/nodes/director"
   ],
   "since": "2026-10-03",
-  "notes": "离线确定性预演测量唯一 owner；复用 trajectoryEval/programCamera/evaluatedSceneObject，零 three。"
+  "notes": "确定性预演测量唯一 owner；subjectAt/sampleForSubject 唯一主体选择与取样，模板工厂唯一声明背景取景角色，rightFromYaw 统一机位右向量，摘要与评测复用同一判据。复用现有轨迹、节目机位与 directorSpace 几何真值，零 React。"
 }

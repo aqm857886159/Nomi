@@ -152,7 +152,10 @@ export type DirectorObject = TimelineEntityFields & {
   flatShading?: boolean
   visible: boolean
   locked: boolean
+  /** Physical/editor helper: excluded from capture, shadows and collision. Not a framing role. */
   isAuxiliary?: boolean
+  /** Background scenery never becomes the inferred subject or expands the overview. */
+  framingRole?: 'subject' | 'background'
   modelPath?: string
   modelScale?: number
   measuredBounds?: DirectorMeasuredBounds
@@ -185,6 +188,8 @@ export type DirectorCamera = TimelineEntityFields & {
   lookAtObjectId?: string
   lookAtCoords?: Vec3
   rigType?: CameraRigType
+  /** Compiled shot intent, retained independently from camera rig or look-at overrides. */
+  measurementSubject?: { objectId: string; anchor?: { name: string; offset: Vec3; size: Vec3 } }
   showRayHelper?: boolean
   closeupClips?: CloseupClip[]
 }
