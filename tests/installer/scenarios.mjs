@@ -35,6 +35,9 @@ export const REQUIRED_COVERAGE = Object.freeze({
   'app-still-running': '应用还开着时就开始升级',
   'per-machine': '旧版装给了所有用户',
   'stale-marker': '注册表里有别的版本写的标记',
+  'late-deleter': '只终止父安装器后，迟到的卸载进程继续运行',
+  'unowned-sidecar': '没有待恢复记录的同名旁边目录属于用户',
+  'nested-old-upgrade': '旧版升级那一次的安装器子目录内用户文件',
   'user-data-three-places': '用户数据放三处（默认位置、安装目录外的自选位置、安装目录里），升级后、卸载后各验一遍',
 })
 
@@ -43,7 +46,7 @@ export const SCENARIOS = Object.freeze([
   {
     id: 'old-to-new-user-folder',
     card: 'A1',
-    covers: ['user-folder-with-project', 'loose-user-file', 'old-to-new', 'user-data-three-places', 'plain-uninstall'],
+    covers: ['user-folder-with-project', 'loose-user-file', 'old-to-new', 'user-data-three-places', 'nested-old-upgrade', 'plain-uninstall'],
     title: '事故原样：0.24.0 装在 Nomi_new，项目在 xiangmu、顶层有散文件，另有默认位置和安装目录外自选位置的项目；新包 --updated /S 升级，再用新卸载程序卸载',
   },
   {
@@ -89,13 +92,13 @@ export const SCENARIOS = Object.freeze([
     title: '没有外来文件：升级后顶层恰好是清单 + 卸载程序，卸载后目录不存在',
   },
   {
-    id: 'interrupted-after-old-uninstall',
+    id: 'interrupted-after-replace',
     card: 'A9',
     covers: ['interrupted-run', 'old-to-new'],
     title: '上次挪开后、旧卸载程序已跑完时被打断（注册表没了）：按待恢复记录挪回原路径',
   },
   {
-    id: 'interrupted-before-old-uninstall',
+    id: 'interrupted-after-replaced-uninstaller-ran',
     card: 'A10',
     covers: ['interrupted-run', 'old-to-new'],
     title: '上次挪开了一部分就被打断（旧版还装着）：先挪回，再正常升级',
@@ -117,6 +120,16 @@ export const SCENARIOS = Object.freeze([
     card: 'A13',
     covers: ['plain-uninstall'],
     title: '普通卸载：清单文件全删、用户文件全留、含用户文件的目录留着、注册表与快捷方式清掉',
+  },
+  {
+    id: 'late-deleter-after-killed-installer', card: 'A14',
+    covers: ['late-deleter', 'interrupted-run', 'old-to-new'],
+    title: 'IFEO 卡住旧卸载进程，只杀父安装器，重跑更新后放行迟到删除者，用户文件仍须原样',
+  },
+  {
+    id: 'unowned-sidecar-untouched', card: 'A15',
+    covers: ['unowned-sidecar', 'old-to-new', 'plain-uninstall'],
+    title: '用户自己的同名旁边目录和说明文件，在升级与卸载后逐文件原样保留',
   },
 ])
 

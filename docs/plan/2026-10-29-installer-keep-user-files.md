@@ -96,7 +96,7 @@ Windows Actions 真装真升真卸；Mac 只验证静态合同与真实 NSIS 编
 | A13 | `new-uninstall-keeps-user-files` | 顶层和 resources 用户文件，普通卸载 | 清单删光、用户原样、登记/快捷方式清空 |
 | A14 | `late-deleter-after-killed-installer` | IFEO 两视图卡 old-uninstaller.exe；记录路径/参数/哈希；去 IFEO，只杀父安装器不带 /T；重跑更新；放行卸载器；最后 /S /D=L | 迟到卸载后每个用户字节不变；被卡映像等于本版卸载器（旧特征阶段等于旧版）；重装后完整 / 新登记 |
 | A15 | `unowned-sidecar-untouched` | 无待恢复记录；预建 L.nomi-keep 含用户说明文件/私人.txt/子目录；旧升新再卸载 | 旁边目录路径与 SHA 全等，没有额外东西；L 无私人.txt；两步无框 |
-| A16 | `old-to-new-locked-uninstaller` | 独占登记卸载程序，升级；释放再试 | 恰好一个框含路径，exit 2，旧应用 / 登记 / 用户文件保持；重试成功 |
+| A16（实施阶段） | `old-to-new-locked-uninstaller` | 独占登记卸载程序，升级；释放再试 | 恰好一个框含路径，exit 2，旧应用 / 登记 / 用户文件保持；重试成功 |
 
 M1：清单生成器特殊名字、空目录、链接防环、elevate/perMachine、架构/文件关联/非法名拒绝、重复生成字节一致；NSH/JSON/独立树三方对账。M2：afterPack win32 写、linux 不写。M3：四钩子、标记、清单路径、12 模板指纹、场景/卡逐行对应、默认项目位置、Windows 工作流全场景与反例、发版硬门；新增调用唯一性与写目标白名单普查，每条必红自检。真实两轮 NSIS 编译与非法指令必红；PowerShell wrapper/CLIXML 默认测试保留。
 

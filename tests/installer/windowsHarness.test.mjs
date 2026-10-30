@@ -68,7 +68,7 @@ describe('PowerShell failure diagnostics', () => {
     expect(runner).toContain('New-ItemProperty -LiteralPath $key')
     expect(runner).not.toContain('-ErrorAction SilentlyContinue')
     expect(runner).not.toMatch(/function powershell\(/)
-    expect(runner.match(/\bpowershell\(/g)).toHaveLength(10)
+    expect(runner.match(/\bpowershell\(/g)).toHaveLength(12)
     expect(runner).toContain('await watcherProcess.done')
     expect(runner).toContain('watcherResult.status !== 0')
     expect(runner).toContain('lock helper ended before release')

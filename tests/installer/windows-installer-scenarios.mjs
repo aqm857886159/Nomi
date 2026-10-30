@@ -46,6 +46,10 @@ const INCIDENT_FILES = [
   { rel: 'xiangmu\\proj2\\.nomi\\project.json', text: '{"name":"proj2"}' },
   { rel: 'notes.txt', text: '用户随手放在安装目录里的笔记' },
 ]
+const NESTED_FILES = [
+  { rel: 'resources\\user-notes\\a.txt', text: 'kept during the very first upgrade' },
+  { rel: 'locales\\my.txt', text: 'kept inside another installer folder' },
+]
 const INCIDENT_TOP_LEVEL = ['xiangmu', 'notes.txt']
 
 /** 安装目录外的两处（默认位置、自选位置）各放一个项目：事故里放在「文档」里、幸存下来的第 6 个项目就是这种。 */
@@ -179,7 +183,26 @@ ConvertTo-Json -InputObject @($out) -Compress
 }
 
 /** 把机器恢复到「从没装过 Nomi」：只动 Nomi 的注册表项、待恢复记录、快捷方式、默认安装目录、本次工作目录，和本次种在「文档」里的测试项目文件夹。 */
+const IFEO_KEYS = [
+  'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\old-uninstaller.exe',
+  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\old-uninstaller.exe',
+]
+function clearIfeo() {
+  powershell(`foreach ($key in @(${IFEO_KEYS.map(psq).join(', ')})) { if (Test-Path -LiteralPath $key) { Remove-Item -LiteralPath $key -Recurse -Force } }`)
+}
+
+async function waitForFile(file, check, label) {
+  const deadline = performance.now() + 120_000
+  while (!fs.existsSync(file)) {
+    check?.()
+    if (performance.now() >= deadline) throw new Error(`setup: timed out waiting for ${label}: ${file}`)
+    await sleep(100)
+  }
+  return JSON.parse(fs.readFileSync(file, 'utf8'))
+}
+
 function resetMachine(state) {
+  clearIfeo()
   for (const dir of state.outsideSeeds.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
   powershell(`
 $roots = @(${psq(state.work)}, (Join-Path $env:LOCALAPPDATA 'Programs\\${state.manifest.productFilename}'))
@@ -207,7 +230,7 @@ if (Test-Path -LiteralPath $key) { Remove-Item -LiteralPath $key -Recurse -Force
 }
 
 /** 跑一次安装 / 卸载程序，同时记录它弹出的对话框。 */
-async function runInstaller(state, exe, args, label) {
+async function runInstaller(state, exe, args, label, onSpawn) {
   if (/\s/.test(exe)) throw new Error(`installer path must not contain spaces (the NSIS command line is passed verbatim): ${exe}`)
   state.runCounter += 1
   const tag = `${String(state.runCounter).padStart(3, '0')}`
@@ -227,7 +250,9 @@ async function runInstaller(state, exe, args, label) {
   }
   const started = performance.now()
   const child = spawn(exe, args, { windowsVerbatimArguments: true, stdio: 'ignore', cwd: state.work })
-  const result = await exitOf(child, INSTALLER_TIMEOUT_MS)
+  const pendingExit = exitOf(child, INSTALLER_TIMEOUT_MS)
+  if (onSpawn) onSpawn(child)
+  const result = await pendingExit
   const durationMs = Math.round(performance.now() - started)
   await sleep(1500)
   fs.writeFileSync(stopFile, 'stop')
@@ -474,6 +499,50 @@ try { while ($true) { Start-Sleep -Seconds 1 } } finally { $handle.Dispose() }`
       if (!isElevated()) throw new Error('setup: the per-machine scenario needs an elevated runner (GitHub-hosted Windows runners are)')
     },
     /** 模拟修好的安装程序挪开了一部分条目后被杀：旁边目录 + 说明文件 + 待恢复记录。 */
+    async lateDeleter(dir) {
+      t.requireElevation()
+      const gateDir = path.join(root, 'gate')
+      fs.mkdirSync(gateDir, { recursive: true })
+      const debuggerCommand = `"${process.execPath}" "${path.join(repoRoot, 'tests', 'installer', 'late-deleter-gate.mjs')}" --state "${gateDir}" --`
+      powershell(`foreach ($key in @(${IFEO_KEYS.map(psq).join(', ')})) { if (-not (Test-Path -LiteralPath $key)) { New-Item -Path $key -Force | Out-Null }; New-ItemProperty -LiteralPath $key -Name Debugger -Value ${psq(debuggerCommand)} -PropertyType String -Force | Out-Null }`)
+      let parent
+      const first = runInstaller(state, newExe, ['--updated', '/S'], 'update interrupted while its uninstaller is held', (child) => { parent = child })
+      // Observe the promise immediately, including preparation failures before spawn.
+      let firstResult, firstError
+      const firstDone = first.then((v) => { firstResult = v }, (e) => { firstError = e })
+      let captured
+      state.cleanups.push(async () => {
+        clearIfeo()
+        fs.writeFileSync(path.join(gateDir, 'release'), 'release')
+        await firstDone
+        if (captured) await waitForFile(path.join(gateDir, 'finished.json'), null, 'gate cleanup')
+      })
+      captured = await waitForFile(path.join(gateDir, 'held.json'), () => {
+        if (firstError) throw firstError
+        if (firstResult) throw new Error(`setup: installer ended before IFEO held the uninstaller: ${JSON.stringify(firstResult)}`)
+      }, 'IFEO held signal')
+      state.current.gate = captured
+      clearIfeo()
+      if (!parent?.pid) throw new Error('setup: installer parent PID missing')
+      const killed = spawnSync('taskkill', ['/PID', String(parent.pid), '/F'], { encoding: 'utf8' })
+      if (killed.status !== 0) throw new Error(`setup: parent-only taskkill failed: ${killed.stdout} ${killed.stderr}`)
+      await firstDone
+      if (firstError) throw firstError
+      if (firstResult.timedOut || firstResult.spawnError) throw new Error(`setup: failed interrupted installer: ${JSON.stringify(firstResult)}`)
+      t.expectNoDialogs(firstResult)
+      const rerun = await t.upgrade('second update while the first uninstaller remains held')
+      t.expectExit(rerun, 0)
+      t.expectNoDialogs(rerun)
+      fs.writeFileSync(path.join(gateDir, 'release'), 'release')
+      const finished = await waitForFile(path.join(gateDir, 'finished.json'), null, 'late uninstaller exit')
+      state.current.lateExit = finished
+      if (finished.error || finished.exitCode !== 0) throw new Error(`late uninstaller failed: ${JSON.stringify(finished)}`)
+      return captured
+    },
+    expectGateImage(captured) {
+      const expected = sha256File(state.safeUninstaller)
+      if (captured.sha256 !== expected) throw new Error(`held image is not the current uninstaller: ${captured.sha256}, expected ${expected}`)
+    },
     simulateMovedAside(dir, names) {
       const holding = `${dir}${KEEP_SUFFIX}`
       fs.mkdirSync(holding, { recursive: true })
@@ -490,7 +559,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
   async 'old-to-new-user-folder'(t) {
     const dir = path.join(t.root, 'Nomi_new')
     await t.installOld(dir)
-    const places = t.seedPlaces(dir, INCIDENT_FILES)
+    const places = t.seedPlaces(dir, [...INCIDENT_FILES, ...NESTED_FILES])
     const run = await t.upgrade()
     t.expectExit(run, 0)
     t.expectNoDialogs(run)
@@ -504,7 +573,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
     t.expectNoDialogs(removal)
     t.expectPlaces(places, 'after uninstalling')
     t.expectAppGone(dir)
-    t.expectTopLevel(dir, INCIDENT_TOP_LEVEL, { app: false })
+    t.expectTopLevel(dir, [...INCIDENT_TOP_LEVEL, 'resources', 'locales'], { app: false })
     t.expectNoRegistration()
   },
 
@@ -634,7 +703,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
     t.expectNoShortcuts()
   },
 
-  async 'interrupted-after-old-uninstall'(t) {
+  async 'interrupted-after-replace'(t) {
     const dir = path.join(t.root, 'Nomi_int1')
     await t.installOld(dir)
     const seeded = t.seed(dir, INCIDENT_FILES)
@@ -652,7 +721,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
     t.expectAppInstalled(entry.installLocation)
   },
 
-  async 'interrupted-before-old-uninstall'(t) {
+  async 'interrupted-after-replaced-uninstaller-ran'(t) {
     const dir = path.join(t.root, 'Nomi_int2')
     await t.installOld(dir)
     const seeded = t.seed(dir, INCIDENT_FILES)
@@ -665,6 +734,53 @@ export const SCENARIO_RUNNERS = Object.freeze({
     t.expectNoHoldingFolder(dir)
     t.expectAppInstalled(dir)
     t.expectRegistration('HKCU', dir)
+  },
+
+  async 'late-deleter-after-killed-installer'(t) {
+    const dir = path.join(t.root, 'Late')
+    await t.installOld(dir)
+    const oldHash = sha256File(path.join(dir, t.manifest.uninstallerFileName))
+    const places = t.seedPlaces(dir, [...INCIDENT_FILES, ...NESTED_FILES])
+    const captured = await t.lateDeleter(dir)
+    // The characterization records which real image was intercepted even when data loss is the first failure.
+    captured.wasLegacy = captured.sha256 === oldHash
+    t.expectPlaces(places, 'after the late deleter finished')
+    t.expectGateImage(captured)
+    const final = await t.reinstallTo(dir, 'reinstall after the late uninstaller removed registration')
+    t.expectExit(final, 0)
+    t.expectNoDialogs(final)
+    t.expectPlaces(places, 'after reinstalling')
+    t.expectAppInstalled(dir)
+    t.expectRegistration('HKCU', dir)
+    t.expectNoHoldingFolder(dir)
+  },
+
+  async 'unowned-sidecar-untouched'(t) {
+    const dir = path.join(t.root, 'Sidecar')
+    await t.installOld(dir)
+    const seeded = t.seed(dir, INCIDENT_FILES)
+    const sidecar = `${dir}.nomi-keep`
+    const sideFiles = t.seed(sidecar, [
+      { rel: 'NOMI-INSTALLER-KEEP.txt', text: '用户自己的说明文件，不属于安装器' },
+      { rel: '私人.txt', text: 'private user content' },
+      { rel: '子目录\\b.txt', text: 'nested user content' },
+    ])
+    const snapshot = () => fs.readdirSync(sidecar, { recursive: true }).sort()
+    const before = snapshot()
+    const check = () => {
+      t.expectUserFiles(sidecar, sideFiles, 'unowned sidecar')
+      if (JSON.stringify(snapshot()) !== JSON.stringify(before)) throw new Error('unowned sidecar entries changed')
+      if (fs.existsSync(path.join(dir, '私人.txt'))) throw new Error('unowned sidecar was moved into the install folder')
+      t.expectUserFiles(dir, seeded)
+    }
+    const run = await t.upgrade()
+    t.expectExit(run, 0)
+    t.expectNoDialogs(run)
+    check()
+    const removal = await t.uninstall(dir)
+    t.expectExit(removal, 0)
+    t.expectNoDialogs(removal)
+    check()
   },
 
   async 'new-to-new-update'(t) {
@@ -851,6 +967,13 @@ async function main() {
   const state = { work, manifest, unpacked: path.resolve(args.unpacked), installerName: path.basename(args.new), oldExe, newExe, documents, outsideSeeds: [], runCounter: 0, uninstallCounter: 0, guid: null, current: null, cleanups: [] }
   const selected = args.only ? SCENARIOS.filter((scenario) => scenario.id === args.only) : SCENARIOS
   if (selected.length === 0) throw new Error(`no scenario matches --only ${args.only}`)
+  state.current = { runs: [] }
+  resetMachine(state)
+  const probe = path.join(state.work, 's', 'probe')
+  await scenarioContext(state, probe, newExe).installNew(probe)
+  state.safeUninstaller = path.join(state.work, 'bin', 'nomi-current-uninstaller.exe')
+  fs.copyFileSync(path.join(probe, manifest.uninstallerFileName), state.safeUninstaller)
+  resetMachine(state)
   const scenarios = []
   for (const scenario of selected) {
     console.log(`▶ ${scenario.card} ${scenario.id}: ${scenario.title}`)
