@@ -18,9 +18,12 @@
   "manualReview": "reviewed",
   "evidence": [
     "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
-    "evals/director/previzRuler.test.ts"
+    "evals/director/previzRuler.test.ts",
+    "tests/ux/director-previz-ruler.walk.mjs"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "c90eb0504e6e3b6b9b22f6dcaa36052d259984ca"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-30-previz-ruler.root-cause.json",
   "classCheck": {
     "kind": "matrix",
