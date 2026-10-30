@@ -29,7 +29,8 @@
     "submitDeclaration -> registerDeclaredProvider -> projectDeclaredModel",
     "defaultCatalog.promote -> projectDeclaredModel + adapterModelMetadataForPromotion",
     "readCatalogShared / ensureBuiltinModelSeeds -> migrateStoredCatalog -> migrateCatalogForward",
-    "runtime / apimartGenerationProvider -> applyHeadlessParamDefaults -> assertDeclaredCapabilityForTask"
+    "runtime / apimartGenerationProvider -> applyHeadlessParamDefaults -> assertDeclaredCapabilityForTask",
+    "workflow import -> capabilityDraftForImportedWorkflow -> lifecycleArtifacts -> promoteCertifiedComfyCandidate -> defaultCatalog.promote"
   ],
   "external_sources": [],
   "internal_only_reason": "This is an internal projection invariant; wire protocols are passed through unchanged and external protocol implementation belongs to a separate change.",
@@ -37,8 +38,10 @@
     "Registration and promotion compile the same capability and wire fact.",
     "Only declared modes publish; required reference slots remain required.",
     "Unsupported or conflicting shapes reject atomically before persistence.",
-    "Legacy recovery uses only original revisions and never calls a provider.",
-    "Declared UI defaults feed mapping defaultParams; canonical request.params bindings prevent controls and headless requests diverging."
+    "Legacy recovery uses only matching original revisions or a vendor-bound, digest-checked durable declaration snapshot and never calls a provider.",
+    "Declared UI defaults feed mapping defaultParams; canonical request.params bindings prevent controls and headless requests diverging.",
+    "Original per-model declaration source and static untried evidence persist in the catalog transaction.",
+    "Declaration parameter names come from the code-owned canonical registry and share the existing parameter-to-wire coverage invariant."
   ],
   "doors": [
     {
@@ -227,7 +230,7 @@
     {
       "path": "electron/catalog/catalogMigrations.ts",
       "symbol": "migrateDeclaredCapabilities",
-      "responsibility": "Recover only original revision facts or mark missing capability."
+      "responsibility": "Recover matching original revision or durable declaration snapshot facts, otherwise mark missing capability."
     },
     {
       "path": "electron/shared/modelAvailability.ts",
@@ -247,6 +250,18 @@
       "entry_point": "promote",
       "disposition": "enforced",
       "evidence": "Uses the same compiler and replacement ownership."
+    },
+    {
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "entry_point": "promoteCertifiedComfyCandidate",
+      "disposition": "enforced",
+      "evidence": "Materialization and integration session terminal callbacks supply complete workflow facts to the same promotion compiler; the inventory matrix covers each input lifecycle."
+    },
+    {
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "entry_point": "capabilityDraftForImportedWorkflow",
+      "disposition": "enforced",
+      "evidence": "Preserves controls and explicit reference shape/parameter; deleting referenceParam makes the caller matrix fail."
     }
   ],
   "recurrence": {
@@ -254,7 +269,8 @@
     "reason": "Every new model, declaration replacement and prior installed catalog can reach this missing invariant.",
     "same_class_scan": [
       "door-map of registerDeclaredProvider, mappingRowFromDeclaredMode, adapterModelMetadataForPromotion, agentModelEntriesFromCatalog, buildAgentModelEntries",
-      "Inspected both catalog writers, renderer archetype consumer, modelPublication and original revision store."
+      "Inspected both catalog writers, renderer archetype consumer, modelPublication and original revision store.",
+      "Generated promote property census plus promoteCertifiedComfyCandidate wrapper hops; inventory-driven 6 caller by 5 lifecycle matrix."
     ]
   },
   "prevention": {
@@ -312,7 +328,7 @@
     "rationale": "The defect is internal metadata ownership; no new runtime dependency or protocol is needed.",
     "exit_criteria": []
   },
-  "migration": "Version 14 reprojects only matching original revision with compatible original wire; compiled defaults and canonical parameter bindings feed the same runtime. Both ordinary load and boot seed entry supply originals. Missing, conflicting or unsupported originals get a durable missing-capability marker; Agent lists it and dispatch rejects before execution. Complete user-authored contracts remain unchanged.",
+  "migration": "Version 14 reprojects only matching original revision or a vendor-bound, digest-checked durable declaration snapshot with compatible original wire; compiled defaults and canonical parameter bindings feed the same runtime. Both ordinary load and boot seed entry supply originals. Missing, conflicting or unsupported originals get a durable missing-capability marker; Agent lists it and dispatch rejects before execution. Complete user-authored contracts remain unchanged.",
   "residual_risks": [
     "Live upstream generation, Windows and paid verification are outside this local loopback validation."
   ],
