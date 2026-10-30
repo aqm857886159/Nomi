@@ -5,6 +5,8 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { parseToolResult } from './_mcpJourney.mjs'
+import { AGENT_PANEL } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 export const TRIAL_MODEL = { vendorKey: 'apimart', modelKey: 'gemini-3.1-flash-image-preview' }
 const args = { ...TRIAL_MODEL, prompt: 'A single red apple on a plain white table, soft daylight', taskKind: 'text_to_image', params: { size: '1:1', resolution: '1K' } }
@@ -90,12 +92,18 @@ export async function runTryModelIntentJourney(paid, { rehearsal = false } = {})
     const recovered = await call()
     expect(recovered.ok).toBe(true)
     expect(recovered.submission.attemptId).toBe(identity.attemptId)
+    // Restart opens the project library. Reopen the isolated project through its real card
+    // before asking the renderer to display a new-order confirmation.
+    const projectCard = win.locator(`[data-project-card="true"][data-project-id="${projectId}"]`)
+    await expect(projectCard).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+    await projectCard.click()
+    await expect(win.locator(AGENT_PANEL)).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
     // Asking for a second order only opens confirmation; cancelling it never submits a second job.
     const requested = call({ ...args, newAttemptOf: identity.attemptId })
     requested.catch(() => {})
     const newOrder = win.locator('[data-spend-confirm-dialog]')
     await expect(newOrder).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
-    await expect(newOrder.locator('[data-spend-confirm-action="confirm"]')).toHaveText('Confirm generation')
+    await expect(newOrder.locator('[data-spend-confirm-action="confirm"]')).toHaveText(uiText('en', 'runtime.capability.confirmGenerate'))
     await walk.snap('trial-new-confirm-after-restart-en')
     await newOrder.locator('[data-spend-confirm-action="cancel"]').click()
     expect((await requested).ok).toBe(false)
