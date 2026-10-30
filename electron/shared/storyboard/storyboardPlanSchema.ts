@@ -7,17 +7,12 @@ const referenceBindingsSchema = z.record(z.array(z.object({
   anchorId: z.string().min(1).optional(), ignore: z.string().optional(),
 })))
 
-// **这份 schema 是持久化 / 迁移 / 规划模型输出的读口，所以它永远剥离未知键、绝不因为多一个键
-// 判整份无效。** 加过一轮 `.strict()`，代价是：项目记录里任何一份带历史字段的方案会让
-// `workbenchProjectPayloadSchema` 整个 safeParse 失败 → `normalizePayload` 抛 corruptPayload →
-// **整个项目打不开**；旧键迁移那条路则直接 `return []`，分镜方案静默消失。要严的是「模型入参」
-// 那一面（`agentCapabilities/generationPlanSchemas.ts` 的作者 schema 自带 `.strict()`，
-// 并且拒收时逐字段说明理由），不是这一面。
-// schema 与手写类型分层，避免方案转换器继续膨胀；编译期守卫仍固定在同一份 schema owner。
-export const planAnchorSchema = z.object({
+// 草稿面只约束编辑器可往返的结构；模型/Agent 的必填内容仅在下方严格扩展中加入。
+// 两面都剥离历史未知键，绝不因新增键否决整个旧项目。
+export const draftPlanAnchorSchema = z.object({
   id: z.string().min(1),
   kind: z.enum(['character', 'scene', 'prop', 'style']),
-  name: z.string().min(1),
+  name: z.string(),
   description: z.string(),
   staticFeatures: z.string().optional().describe('Identity features that must remain consistent across shots, such as face shape, hair, bone structure and distinguishing marks.'),
   dynamicFeatures: z.string().optional().describe('Clothing, accessories and temporary state; may vary between shots and do not define identity.'),
@@ -53,7 +48,7 @@ export const planShotSchema = z.object({
   shotId: z.string().min(1).optional().describe('Stable shot id; the host assigns one when omitted.'),
   sceneId: z.string().min(1).optional().describe('Scene id; omit when the story has no scene grouping.'),
   shotKind: z.enum(['image', 'video']).optional().describe(`Shot media kind: image or video; omitted means ${LEGACY_OMITTED_SHOT_KIND} (legacy drafts); state it explicitly.`),
-  durationSec: z.number(),
+  durationSec: z.number().finite(),
   anchorIds: z.array(z.string()),
   /** 按槽的参考绑定：键 = 槽 kind（未知键原样保留，前向兼容），值 = 有序素材。 */
   referenceBindings: referenceBindingsSchema.optional(),
@@ -70,7 +65,7 @@ export const planShotSchema = z.object({
   ffDesc: z.string().optional(),
   lfDesc: z.string().optional(),
   motionDesc: z.string().optional(),
-  continuity: z.union([z.string(), z.number(), z.record(z.unknown())]).optional(),
+  continuity: z.union([z.string(), z.number().finite(), z.record(z.unknown())]).optional(),
   keyframe: z.object({
     enabled: z.boolean().optional(),
     prompt: z.string().optional(),
@@ -81,17 +76,17 @@ export const planShotSchema = z.object({
   }).optional(),
 })
 
-export const storyboardPlanSchema = z.object({
+export const storyboardDraftPlanSchema = z.object({
   title: z.string(),
   // 容错的 owner 在 `electron/shared/agentCapabilities/jsonArgTolerance.ts`。
   // 这里以前有一份逐字重复的 `parseJsonArrayString`，而且只包了 `shots`——
   // 两份实现意味着两次要记得同时改，一次漏掉就是「主进程收得下、渲染层解不开」。
-  anchors: jsonTolerantArray(z.array(planAnchorSchema)),
+  anchors: jsonTolerantArray(z.array(draftPlanAnchorSchema)),
   shots: jsonTolerantArray(z.array(planShotSchema)),
   scenes: z.array(z.object({ id: z.string().min(1), title: z.string() })).optional(),
   // 整片默认画幅。**必须在 schema 里**：zod 默认静默丢未知键，少这一行就等于规划师在方案顶层
   // 写的整片画幅在 parseStoryboardPlan 那一刻消失（2026-09-12 根因合同）。
-  aspectRatio: z.string().min(1).optional(),
+  aspectRatio: z.string().optional(),
   profileKey: z.string().min(1).optional(),
   storyboardProfile: storyboardProfileSchema.optional(),
   sourceScriptArtifactId: z.string().min(1).optional(),
@@ -99,9 +94,16 @@ export const storyboardPlanSchema = z.object({
   sourceScriptHash: z.string().min(1).optional(),
 })
 
-// 编译期漂移守卫：schema 和手写类型必须互相赋值，防止运行时契约静默漂移。
-const _schemaToType = (plan: z.infer<typeof storyboardPlanSchema>): StoryboardPlan => plan
-const _typeToSchema = (plan: StoryboardPlan): z.infer<typeof storyboardPlanSchema> => plan
+// 规划模型、Agent 作者入参、落画布仍使用严格面。内容规则只在这一侧增加。
+export const planAnchorSchema = draftPlanAnchorSchema.extend({ name: z.string().min(1) })
+export const storyboardPlanSchema = storyboardDraftPlanSchema.extend({
+  anchors: jsonTolerantArray(z.array(planAnchorSchema)),
+  aspectRatio: z.string().min(1).optional(),
+})
+
+// 编译期漂移守卫钉草稿面：每个可编辑字段必须先能持久化，严格扩展不能独占新字段。
+const _schemaToType = (plan: z.infer<typeof storyboardDraftPlanSchema>): StoryboardPlan => plan
+const _typeToSchema = (plan: StoryboardPlan): z.infer<typeof storyboardDraftPlanSchema> => plan
 void _schemaToType
 void _typeToSchema
 
@@ -110,10 +112,10 @@ void _typeToSchema
 // 这里按键逐个对账：手写类型里的每个键，schema 必须都有。（main #833 带来，搬家后仍钉在同一份 owner 上。）
 type MissingSchemaKeys<TType, TSchema> = Exclude<keyof TType, keyof TSchema>
 type AssertNoMissingKeys<T extends never> = T
-type _AnchorKeys = AssertNoMissingKeys<MissingSchemaKeys<StoryboardPlan['anchors'][number], z.infer<typeof planAnchorSchema>>>
+type _AnchorKeys = AssertNoMissingKeys<MissingSchemaKeys<StoryboardPlan['anchors'][number], z.infer<typeof draftPlanAnchorSchema>>>
 type _ShotKeys = AssertNoMissingKeys<MissingSchemaKeys<StoryboardPlan['shots'][number], z.infer<typeof planShotSchema>>>
 type _KeyframeKeys = AssertNoMissingKeys<MissingSchemaKeys<NonNullable<StoryboardPlan['shots'][number]['keyframe']>, NonNullable<z.infer<typeof planShotSchema>['keyframe']>>>
-type _PlanKeys = AssertNoMissingKeys<MissingSchemaKeys<StoryboardPlan, z.infer<typeof storyboardPlanSchema>>>
+type _PlanKeys = AssertNoMissingKeys<MissingSchemaKeys<StoryboardPlan, z.infer<typeof storyboardDraftPlanSchema>>>
 
 export function parseStoryboardPlan(raw: unknown): StoryboardPlan {
   return storyboardPlanSchema.parse(raw)

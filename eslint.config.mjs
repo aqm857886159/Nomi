@@ -530,5 +530,27 @@ export default tseslint.config(
     plugins: { 'playwright-wait': playwrightAliasPlugin },
     rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors] },
   },
+  {
+    // 项目存读只认草稿；严格面属于模型/Agent 作者入参。测试可验证两面的区别。
+    files: ['src/workbench/project/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{
+        group: ['**/storyboardPlanSchema', '**/storyboardPlanSchema.ts'],
+        allowImportNames: ['storyboardDraftPlanSchema'],
+        allowTypeImports: true,
+        message: 'Project persistence must use storyboardDraftPlanSchema; strict content validation belongs to authoring/generation.',
+      }] }],
+    },
+  },
+  {
+    files: ['electron/shared/storyboard/storyboardPlanSchema.ts'],
+    rules: {
+      'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors, {
+        selector: "VariableDeclarator[id.name=/^(draftPlanAnchorSchema|storyboardDraftPlanSchema)$/] Property[key.name=/^(name|aspectRatio)$/] CallExpression[callee.property.name=/^(min|max|nonempty|length|regex|refine|superRefine|transform|trim)$/]",
+        message: 'Draft content fields must remain editable strings; add content constraints only in the strict schema extension.',
+      }),
+    },
+  },
   prettier,
 )

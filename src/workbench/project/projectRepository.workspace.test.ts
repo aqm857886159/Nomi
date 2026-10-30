@@ -236,7 +236,7 @@ it('passes the original background binding through the existing desktop save cal
   mockedGetDesktopBridge.mockReturnValue(null)
   const fixture = createLocalProject('Original')
   const record = { ...fixture, id: expectedBinding.projectId, immutableProjectUuid: expectedBinding.immutableProjectUuid, projectGeneration: expectedBinding.projectGeneration }
-  const save = vi.fn(async (_id: string, value: unknown) => value)
+  const save = vi.fn(async (_id: string, value: unknown) => ({ ok: true as const, value }))
   mockedGetDesktopBridge.mockReturnValue(stubBridge({ read: () => record, save }))
   await saveProjectRecord(record.id, record.payload, expectedBinding)
   expect(save).toHaveBeenCalledExactlyOnceWith(record.id, expect.objectContaining({ expectedBinding, payload: record.payload }))
