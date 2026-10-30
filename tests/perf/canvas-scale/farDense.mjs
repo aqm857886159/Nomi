@@ -326,6 +326,9 @@ async function captureAndScore(app, targets, grids) {
       }
     }
     for (const color of targets.placeholderColors) blankColors.push(over(color, paneColor))
+    // 阳性对照当场量到的「图没画时卡上真实的颜色」：算出来的占位色只是近似，真片偏暗时差这一点就判不出来。
+    for (const color of targets.measuredBlank ?? []) blankColors.push(color)
+    let controlObserved = null
     const cards = []
     for (const roi of targets.images) {
       const expected = grids[roi.file]
@@ -347,17 +350,21 @@ async function captureAndScore(app, targets, grids) {
       let missing = 0
       let determinate = 0
       const covered = new Set(roi.covered)
+      const inner = []
       for (let index = 0; index < 64; index += 1) {
         const sum = sums[index]
         // 最外一圈格子不计：卡片描边、圆角落在那里。
         if (!sum[3] || index % 8 === 0 || index % 8 === 7 || index < 8 || index >= 56 || covered.has(index)) continue
         const observed = [sum[0] / sum[3], sum[1] / sum[3], sum[2] / sum[3]]
+        inner.push(observed)
         const want = [expected[index * 3], expected[index * 3 + 1], expected[index * 3 + 2]]
-        if (Math.min(...blankColors.map((color) => dist(want, color))) < 28) continue
+        // 判得出的门槛比「算缺」的误差门槛（30）高一点：真空着的格子一定算得上缺，中间没有死区。
+        if (Math.min(...blankColors.map((color) => dist(want, color))) < 32) continue
         determinate += 1
         const error = dist(observed, want)
         if (error > 30 && Math.min(...blankColors.map((color) => dist(observed, color))) < error) missing += 1
       }
+      if (roi.control && inner.length) controlObserved = median3(inner)
       cards.push({ nodeId: roi.nodeId, control: roi.control, determinate, missing })
     }
     const scored = cards.filter((card) => card.determinate >= 6)
@@ -366,6 +373,8 @@ async function captureAndScore(app, targets, grids) {
       scoredCards: scored.length,
       blankCards: blank.length,
       blankNodeIds: blank.map((card) => card.nodeId),
+      controlObserved,
+      controlScored: scored.some((card) => card.control),
       controlBlank: scored.some((card) => card.control && card.missing / card.determinate >= 0.5),
       // 一个组点都没量到 = 不知道（null），不是「没缺」。
       groupMissingRate: groupDeterminate ? groupMissing / groupDeterminate : null,
@@ -373,8 +382,8 @@ async function captureAndScore(app, targets, grids) {
   }, { targets, grids })
 }
 
-async function scoreNow(app, page, grids) {
-  const targets = await collectTargets(page)
+async function scoreNow(app, page, grids, measuredBlank = []) {
+  const targets = { ...await collectTargets(page), measuredBlank }
   const score = await captureAndScore(app, targets, grids)
   return { ...score, lightweight: targets.lightweight }
 }
@@ -386,23 +395,35 @@ const pct = (part, whole) => (whole ? Math.round((part / whole) * 1000) / 10 : n
  * 其余卡不该因此变化。报不出来 = 量具这一刻是瞎的，这个样本的缺块率不交。
  */
 async function positiveControl(app, page, grids) {
-  const marked = await page.evaluate(() => {
-    const img = [...document.querySelectorAll('.react-flow__node img')].find((candidate) => candidate.complete && candidate.naturalWidth && candidate.getBoundingClientRect().width > 20)
-    if (!img) return false
-    img.setAttribute('data-far-dense-control', '1')
-    img.style.setProperty('opacity', '0', 'important')
-    return true
-  })
-  if (!marked) return false
-  await page.waitForTimeout(250)
-  const score = await scoreNow(app, page, grids)
-  await page.evaluate(() => {
-    const img = document.querySelector('img[data-far-dense-control]')
-    img?.style.removeProperty('opacity')
-    img?.removeAttribute('data-far-dense-control')
-  })
-  await page.waitForTimeout(250)
-  return Boolean(score.controlBlank)
+  // 依次试屏上的图：片头那几帧接近黑，颜色和空白分不开，判不出来（这种图既不算过也不算没过）。
+  for (let candidate = 0; candidate < 12; candidate += 1) {
+    const marked = await page.evaluate((index) => {
+      const onScreen = [...document.querySelectorAll('.react-flow__node img')].filter((img) => {
+        if (!img.complete || !img.naturalWidth) return false
+        const box = img.getBoundingClientRect()
+        return box.width > 20 && box.left >= 0 && box.top >= 0 && box.right <= innerWidth && box.bottom <= innerHeight
+      })
+      const img = onScreen[Math.floor((index * onScreen.length) / 12)]
+      if (!img) return false
+      img.setAttribute('data-far-dense-control', '1')
+      img.style.setProperty('opacity', '0', 'important')
+      return true
+    }, candidate)
+    if (!marked) return { ok: false, measuredBlank: [] }
+    await page.waitForTimeout(250)
+    // 先量这张卡现在真实的颜色（图藏了，露出来的就是「没画」的样子），再带上它打分。
+    // 截图要是过时的（图其实还在），量到的是图自己的颜色，打分照样报不出「空了」，对照不会自己骗自己。
+    const measuredBlank = (await scoreNow(app, page, grids)).controlObserved
+    const score = await scoreNow(app, page, grids, measuredBlank ? [measuredBlank] : [])
+    await page.evaluate(() => {
+      const img = document.querySelector('img[data-far-dense-control]')
+      img?.style.removeProperty('opacity')
+      img?.removeAttribute('data-far-dense-control')
+    })
+    await page.waitForTimeout(250)
+    if (score.controlScored) return { ok: Boolean(score.controlBlank), measuredBlank: measuredBlank ? [measuredBlank] : [] }
+  }
+  return { ok: false, measuredBlank: [] }
 }
 
 async function waitImagesSettled(page, maxMs = 30_000) {
@@ -440,6 +461,7 @@ async function readStructure(page) {
     const decoded = [...document.querySelectorAll('.react-flow img')].filter((img) => img.complete && img.naturalWidth)
     const decodedPx = decoded.reduce((sum, img) => sum + img.naturalWidth * img.naturalHeight, 0)
     return {
+      dpr: devicePixelRatio,
       onScreen: onScreen.length,
       cardDom: perCard.length ? perCard[Math.floor(perCard.length / 2)] : null,
       decodedOverScreen: Math.round((decodedPx / (vw * vh * devicePixelRatio * devicePixelRatio)) * 100) / 100,
@@ -456,7 +478,18 @@ async function countLayers(page) {
     let layers = null
     cdp.on('LayerTree.layerTreeDidChange', (event) => { if (event.layers) layers = event.layers })
     await cdp.send('LayerTree.enable')
-    for (let attempt = 0; attempt < 30 && !layers; attempt += 1) await page.waitForTimeout(100)
+    // 画面静止时没有新提交，这个事件不来：翻一个 1px 小元素的透明度逼出提交（透明度不成层，不影响数）。
+    await page.evaluate(() => {
+      const nudge = document.createElement('div')
+      nudge.setAttribute('data-far-dense-nudge', '')
+      nudge.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;background:#000;opacity:.99;pointer-events:none'
+      document.body.appendChild(nudge)
+    })
+    for (let attempt = 0; attempt < 30 && !layers; attempt += 1) {
+      await page.evaluate((flip) => { document.querySelector('[data-far-dense-nudge]')?.style.setProperty('opacity', flip ? '.98' : '.99') }, attempt % 2 === 0)
+      await page.waitForTimeout(100)
+    }
+    await page.evaluate(() => document.querySelector('[data-far-dense-nudge]')?.remove())
     await cdp.send('LayerTree.disable').catch(() => {})
     return layers ? layers.length : null
   } finally {
@@ -495,7 +528,7 @@ function gapP95(raw) {
  * 计帧窗口里平移一圈 + 滚轮来回（停在这一档附近）→ 移动中抓 8 帧（只看）→ 停下 0.4s / 0.8s 各抓一帧（取较差的）。
  * 主数 blankCardPct 取各档里最差的一档；帧数据各档的窗口拼成一段（中间调缩放、等出图的那几秒不算）。
  */
-export async function runFarDensePan(page, { app, fixture, startWindow, stopWindow, stageBox, readViewport, tileLog = false }) {
+export async function runFarDensePan(page, { app, fixture, startWindow, stopWindow, stageBox, readViewport, tileLog = false, expectedDpr = null }) {
   const grids = fixture.grids
   if (!grids) throw new Error('far-dense-pan 要 D60 夹具（带预期格）：--scales D60')
   const tiles = tileLog ? tileOomCounter(app) : null
@@ -522,14 +555,21 @@ export async function runFarDensePan(page, { app, fixture, startWindow, stopWind
   const raws = []
   const levels = []
   let oracleControl = null
+  let measuredBlank = []
   let movingWorst = 0
   for (const percent of FAR_DENSE_ZOOMS) {
     await canvasSetZoomPercent(page, percent, `far-dense: 退到 ${percent}%`)
     await page.waitForTimeout(1200)
     await waitImagesSettled(page, 15_000)
     const structure = await readStructure(page)
+    // 量具前提：真在指定的设备像素比上（判定条件就是它）。不是就停，不交别的屏幕的数。
+    if (expectedDpr && Math.abs(structure.dpr - Number(expectedDpr)) > 0.01) throw new Error(`far-dense: ${percent}% 时设备像素比 ${structure.dpr}，要的是 ${expectedDpr}`)
     const layers = await countLayers(page)
-    if (oracleControl === null) oracleControl = await positiveControl(app, page, grids)
+    if (oracleControl === null) {
+      const control = await positiveControl(app, page, grids)
+      oracleControl = control.ok
+      measuredBlank = control.measuredBlank
+    }
 
     const stage = await stageBox(page)
     const origin = { x: stage.x + stage.width * 0.5, y: stage.y + stage.height * 0.45 }
@@ -564,7 +604,7 @@ export async function runFarDensePan(page, { app, fixture, startWindow, stopWind
     for (let step = 1; step <= 8; step += 1) {
       await page.mouse.move(origin.x + (step % 2 ? 60 : -20) * Math.ceil(step / 2), origin.y + 25 * (step % 3), { steps: 1 })
       await page.waitForTimeout(34)
-      const score = await scoreNow(app, page, grids)
+      const score = await scoreNow(app, page, grids, measuredBlank)
       movingWorst = Math.max(movingWorst, pct(score.blankCards, score.scoredCards) ?? 0)
     }
     await page.mouse.up()
@@ -572,7 +612,7 @@ export async function runFarDensePan(page, { app, fixture, startWindow, stopWind
     const settled = []
     for (const waitMs of [400, 800]) {
       await page.waitForTimeout(waitMs)
-      settled.push(await scoreNow(app, page, grids))
+      settled.push(await scoreNow(app, page, grids, measuredBlank))
     }
     const worst = settled.reduce((acc, score) => ((pct(score.blankCards, score.scoredCards) ?? 0) >= (pct(acc.blankCards, acc.scoredCards) ?? 0) ? score : acc), settled[0])
     levels.push({

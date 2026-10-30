@@ -648,7 +648,7 @@ function diffCdpMetrics(before, after) {
 
 async function runScenario(page, scenario, fixture, workbench = null) {
   if (WORKBENCH_SCENARIOS.includes(scenario)) return runWorkbenchScenario(page, scenario, { ...workbench, fixture, startWindow, stopWindow, stageBox })
-  if (FAR_DENSE_SCENARIOS.includes(scenario)) return runFarDensePan(page, { app: workbench?.app, fixture, startWindow, stopWindow, stageBox, readViewport, tileLog: true })
+  if (FAR_DENSE_SCENARIOS.includes(scenario)) return runFarDensePan(page, { expectedDpr: forcedDpr || null, app: workbench?.app, fixture, startWindow, stopWindow, stageBox, readViewport, tileLog: true })
   const nodeTotal = fixture.summary.nodes
   if (scenario === 'drag-nodes-1') {
     await page.keyboard.press('Escape')
@@ -850,16 +850,28 @@ async function main() {
         app = launched.app
         const page = launched.win
         page.on('pageerror', (error) => console.log(`    [pageerror] ${String(error?.message || error).slice(0, 160)}`))
-        if (forcedDpr) {
+        let dprSession = null
+        const ensureDpr = async () => {
+          if (!forcedDpr) return
+          if (Math.abs((await page.evaluate(() => devicePixelRatio)) - Number(forcedDpr)) <= 0.01) return
           // 启动器的 setViewportSize（Playwright 的设备尺寸覆盖）把页面钉在设备像素比 1，--force-device-scale-factor 进不了页面；
           // 用一路自己的 CDP 会话把要的倍率盖回去，整个 App 生命周期不断开（会话一断覆盖就没了），再读回来核对。
-          const dprSession = await app.context().newCDPSession(page)
+          dprSession ??= await app.context().newCDPSession(page)
+          // 走查仪表在 waitForFunction 后截一张图，Page.captureScreenshot 收尾时把 Playwright 那路的覆盖（比例 1）又盖回来；
+          // 同一路再发一遍同样的参数 Chromium 当没变，所以先清再盖。
+          await dprSession.send('Emulation.clearDeviceMetricsOverride')
           await dprSession.send('Emulation.setDeviceMetricsOverride', { width: machine.viewport.width, height: machine.viewport.height, deviceScaleFactor: Number(forcedDpr), mobile: false })
+          await sleep(page, 300)
           const applied = await page.evaluate(() => devicePixelRatio)
           if (Math.abs(applied - Number(forcedDpr)) > 0.01) throw new Error(`--dpr ${forcedDpr} 没进页面：devicePixelRatio=${applied}`)
+          console.log(`    · 设备像素比盖成 ${applied}`)
         }
+        await ensureDpr()
         await openFixtureProject(app, page, fixture)
+        // 开完项目再核对一次，每个样本前也核对（场景里每档缩放还要核对，不对就停）。
+        await ensureDpr()
         for (let runIndex = 0; runIndex < warmup + runs; runIndex += 1) {
+          await ensureDpr()
           await page.keyboard.press('Escape').catch(() => {})
           if (!OFF_CANVAS_SCENARIOS.has(scenario)) {
             const fitted = await fitView(page)
