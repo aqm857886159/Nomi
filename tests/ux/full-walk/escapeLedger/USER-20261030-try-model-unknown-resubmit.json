@@ -1,0 +1,26 @@
+{
+  "id": "USER-20261030-try-model-unknown-resubmit",
+  "since": "2026-10-30",
+  "source": "用户报告：模型试跑结果未知后，AI 再次调用仍会提交新单。未读取用户真实资料或账单。",
+  "category": "interaction-semantics",
+  "problem": "try_model 每次工具调用新建 node 和 spend grant，单次授权的一次机会不能阻止跨调用同意图重复提交；文字禁止重试没有持久锁。隔离环回已复现同参及换参重复 POST。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "提交结果未知后再次询问原单",
+    "修改参数后核对同一未结试跑意图"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/plan/2026-10-30-try-model-intent-lock.md",
+    "docs/engineering/direction-check-2026-10-30-try-model-intent-lock.md",
+    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
+  ],
+  "completionCommits": [],
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
+  }
+}
