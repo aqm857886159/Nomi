@@ -1,3 +1,4 @@
+import { canvasDocumentInput } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
@@ -111,13 +112,13 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
     const scheduleUpdate = (): void => {
       window.setTimeout(updateFromSelection, 0)
     }
-    document.addEventListener('pointerup', scheduleUpdate, true)
-    document.addEventListener('keyup', scheduleUpdate, true)
-    document.addEventListener('selectionchange', scheduleUpdate)
+    canvasDocumentInput.addEventListener('pointerup', scheduleUpdate, true)
+    canvasDocumentInput.addEventListener('keyup', scheduleUpdate, true)
+    canvasDocumentInput.addEventListener('selectionchange', scheduleUpdate)
     return () => {
-      document.removeEventListener('pointerup', scheduleUpdate, true)
-      document.removeEventListener('keyup', scheduleUpdate, true)
-      document.removeEventListener('selectionchange', scheduleUpdate)
+      canvasDocumentInput.removeEventListener('pointerup', scheduleUpdate, true)
+      canvasDocumentInput.removeEventListener('keyup', scheduleUpdate, true)
+      canvasDocumentInput.removeEventListener('selectionchange', scheduleUpdate)
     }
   }, [disabled, draft, nodeById])
 

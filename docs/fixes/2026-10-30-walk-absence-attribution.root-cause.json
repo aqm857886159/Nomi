@@ -1,0 +1,155 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-walk-absence-attribution",
+  "problem_type": "门岗用邻近代替归属：把「附近有界面观测词」当成「被比较的东西是界面观测」",
+  "symptom": "0.24.1 必带的中转视频线被 `node scripts/check-walkthroughs.mjs` 挡住（退出 1，「基线 61 → 现在 62」）：`tests/ux/_relayVideoPaidSteps.mjs:49` 的 `expect(readCreates(), 'free preparation has not submitted a generation').toBe(0)` 比较的是 HTTP POST 次数，却被判成界面上的「不存在断言没有基线」；能过门岗的只有改写成别的形状、加白名单或删掉安全断言。",
+  "direct_cause": "`scripts/check-walkthroughs.mjs` 的 `absence-without-baseline` 规则（eec02cd65，2026-08-18 起没改过）看到归零比较的正则（`=== 0` / `toBe(0)` / `toHaveCount(0)`）后，往上取 5 行滑动窗口，窗口里出现 `count()` / `locator(` / `getByText` 等任一观测词就判命中；`readCreates()` 上面 4 行的 `prepared.node.locator(…)` 就这样把它冤枉成了界面断言。",
+  "class_root": "归属靠邻近（行文本上的 5 行窗口）判，不靠被比较的那个表达式判：规则的输入是行文本，「被比较的是谁」没处放。结果两头都不准——近的无辜计数（HTTP、进程、几何、控制台、模型目录、取模、循环下标）被冤枉，远的真断言（隔着 evaluate 回调、本地函数、几十行前的变量）被放过，棘轮里的 61 是冤案和真债混在一起的数。",
+  "migration": "旧的 5 行窗口（`OBSERVES` 正则 + `lines.slice(Math.max(0, i - 5), i + 1)`）在同一个提交里从 `scripts/check-walkthroughs.mjs` 删除，换成 `scripts/lib/absenceWithoutBaseline.mjs` 的语法树判据；没有并行版、没有 fallback。规则的 `scan` 多收一个原文参数（`stripComments` 会被 `// …/*.png …` 这类行注释吃掉后面的代码）。基线 `scripts/walkthrough-baseline.json` 本提交不动：新判据在 main 上是 62 条（去掉 11 条冤案、多出 12 条窗口漏掉的真命中），比基线 61 多 1，差额不由本提交吸收，交协调定。",
+  "affected_population": [
+    "往 tests/ux 走查里写「数 HTTP / 进程 / 文件 / 几何 / 控制台」类归零断言、而且上面 5 行内碰巧有 locator / count() 的任何一条线（本次是 0.24.1 的中转视频线）",
+    "把真界面不存在断言写在离观测 5 行以外的走查（旧窗口看不见，账面债被低估；main 上 12 条）",
+    "main 上已经被误中的 11 条存量命中（棘轮 61 里混着冤案）"
+  ],
+  "scope_paths": [
+    "scripts/lib/absenceWithoutBaseline.mjs",
+    "scripts/check-walkthroughs.mjs"
+  ],
+  "entry_points": [
+    "scripts/check-walkthroughs.mjs 的 absence-without-baseline 规则 scan（唯一消费者，原 5 行窗口所在）",
+    "scripts/lib/absenceWithoutBaseline.mjs 的 findAbsenceWithoutBaseline（判据唯一住处）",
+    "scripts/check-walkthroughs.mjs 主循环里的 rule.scan(code, file, raw)（决定规则吃剥注释后的文本还是原文）"
+  ],
+  "invariants": [
+    "归零比较只在被比较的表达式（沿同一个文件里的来源追到）是界面观测的结果时才算「不存在断言」；附近出现观测词不构成归属。",
+    "归零比较的形状清单与旧规则一致：`== 0` / `=== 0` / `!== 0`、`.toBe(0)`、`.toHaveCount(0)`，不增不减；`.not.` 的是「至少一个」，不算。",
+    "规则吃原文：注释和字符串里的代码不是代码；一行只记一次命中；追不到来源的（形参 / import / 全局）不命中。",
+    "判据在 scripts/lib/ 只有一份；check-walkthroughs.mjs 里不再有第二份归属逻辑。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/check-walkthroughs.mjs",
+      "symbol": "findAbsenceWithoutBaseline"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-walkthroughs.node-test.mjs",
+      "symbol": "findAbsenceWithoutBaseline"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 2,
+    "why_not": "修之前判据是 check-walkthroughs.mjs 里的内联匿名函数，只有规则这一扇门（门表数不到内联代码）；现在判据有了名字，多出的一扇是单测：判据住 scripts/lib/ 才能被单测，规则文件一 import 就会跑整道门岗，没法就地测。两扇各自必须存在，没有第三个消费者。"
+  },
+  "regression_tests": [
+    "scripts/check-walkthroughs.node-test.mjs"
+  ],
+  "residual_risks": [
+    "追不到来源的（函数形参、import 进来的、全局）一律不命中：expectAbsent( 整份豁免之外的 348 个归零比较里有 94 个在这里断头（进程退出码、循环下标、传进判据函数的 facts、页内回调里读元素几何、fixture 期望值），按类抽读源码没有发现界面匹配数当形参传进来；将来若有人把界面计数经 import 的辅助函数传进来再比较零，门岗看不见",
+    "页内代码写成字符串（win.evaluate('…')）、x.then((n) => n === 0) 的回调形参、evaluateAll((els) => …) 的形参、对数组 push 进去的值，都不追",
+    "窗口以前漏掉的 12 条真命中让 main 上 absence-without-baseline 从 61 变成 62，基线本提交未动，gates 里 check:walkthroughs 因此是红的，等协调定怎么处理（给那几份走查补 expectAbsent、或明批）",
+    "归零形状清单的缺口（toBe(false)、< 1、0 === x、!= 0、toHaveCount(0, {…})、expectCount(l, 0)）原样保留，补不补是另一个决定",
+    "为零则失败的存在性守卫（if (n === 0) throw …）和断言为零同一个形状，仍被当成不存在断言（存量里有，语法层判不了意图）",
+    "其它吃 stripComments 输出的规则仍读到被剥坏的文本（tests/ux/walkthrough.mjs 少 23 行、dangling-tailwind-tokens.walk.mjs 报 9 个语法错误），本刀只让本规则吃原文"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://playwright.dev/docs/api/class-locatorassertions#locator-assertions-to-have-count",
+      "checked_at": "2026-10-30",
+      "purpose": "toHaveCount 是 LocatorAssertions 的方法（Ensures the Locator resolves to an exact number of DOM nodes），被它比较的东西按 API 就是 locator，不必追来源；toBe 住在 GenericAssertions（本机 playwright@1.60.0 的 types/test.d.ts:7995），什么都能比，才要追被比较的表达式"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://eslint.org/docs/latest/extend/selectors",
+      "checked_at": "2026-10-30",
+      "purpose": "ESLint 选择器只表达结构关系（节点类型、属性、父子 / 祖先 / 兄弟），页面没有变量引用与作用域的语法，写不出 const n = await loc.count() 隔几行 if (n === 0)，所以这条规则搬不进 no-restricted-syntax"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/playwright-community/eslint-plugin-playwright",
+      "checked_at": "2026-10-30",
+      "purpose": "规则表 67 条里没有「不存在断言要先证明探针有效」的规则（最近的 no-unnecessary-assertions 管永远不会失败的断言，是反方向），没有现成规则可接，也不加 npm 包"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一机制已经出过三次：eec02cd65（2026-08-18）立规则时窗口就只是近似；#1101（v0.24.0）误中三元 index === 0 ? 1500 : 900 和取模 n % 4 !== 0，当时只改写了两处写法；本次中转线的 readCreates()。任何新走查只要把非界面计数的归零断言写在 locator / count() 附近 5 行内就会再中，反过来真界面断言离观测 5 行以外就被放过。",
+    "same_class_scan": [
+      "git log -S countsToZero 与 -S 'Math.max(0, i - 5)' -- scripts/check-walkthroughs.mjs 都只有 eec02cd65：窗口自立规则起没人改过它，只被绕开（docs/release-notes/v0.24.0-rule-health.md:294）",
+      "node scripts/door-map.mjs findAbsenceWithoutBaseline --roots=scripts,tests,evals --include-tests：判据只有 check-walkthroughs.mjs 一个消费者（另一扇是单测）",
+      "main 全量对账（tests/ux 682 份，旧窗口复刻 61 条与基线一致）：去掉 11 条冤案（console / fixture / 几何 / 回调形参 / 模型目录 / .not.toHaveCount），多出 12 条窗口漏掉的真命中，逐条列在 docs/engineering/direction-checks/2026-10-30-walk-absence-attribution.md §3 与对账报告里",
+      "scripts/check-walkthroughs.mjs 里别的邻近窗口：sleep-as-done-signal 的「sleep 之后 3 行内有断言」，语义本来就是邻近，见 same_class_entry_points"
+    ]
+  },
+  "generality_proof": "归属不再是行文本邻近，而是被比较的那个表达式沿同一个文件里的来源（声明初始值、每一次赋值、解构、for-of 来源、对字段的写入、本地函数返回、evaluate 回调返回）追到的界面观测；邻近词不再进入判据。所以 HTTP、进程、几何、控制台、下标、取模、读元素值这一整类非界面计数，不论离观测多近都不会被冤枉；隔着回调、函数、几十行的真界面计数，也不会因为远而漏掉。判据只有 scripts/lib/absenceWithoutBaseline.mjs 一个住处、check-walkthroughs.mjs 一个消费者，没有第二条入口。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/lib/absenceWithoutBaseline.mjs",
+      "symbol": "findAbsenceWithoutBaseline",
+      "responsibility": "归零比较的唯一归属判据：只在被比较的表达式沿同文件来源追到界面观测时才命中，邻近词不进判据；规则接线（scripts/check-walkthroughs.mjs，喂原文、整份 expectAbsent( 豁免与棘轮比较保持原样）是它的唯一消费者，不是第二个边界"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-walkthroughs.mjs",
+      "entry_point": "findAbsenceWithoutBaseline",
+      "disposition": "enforced",
+      "evidence": "absence-without-baseline 规则是判据唯一的消费者，原 5 行窗口就住在它的 scan 里；本提交把它改成调用 findAbsenceWithoutBaseline(raw, …)，窗口同提交删除（git grep OBSERVES -- scripts 为空）"
+    },
+    {
+      "path": "scripts/check-walkthroughs.mjs",
+      "entry_point": "sleep-as-done-signal",
+      "disposition": "not-affected",
+      "evidence": "同文件里另一条邻近窗口规则（waitForTimeout(≥1500) 之后 3 行内有断言）。它要判的就是「sleep 紧跟着读」这层邻近关系，邻近就是语义本身，不是归属的近似；没有被比较的表达式可归属，基线 65 不动"
+    },
+    {
+      "path": "scripts/lib/composerInputReads.mjs",
+      "entry_point": "findComposerInputReads",
+      "disposition": "not-affected",
+      "evidence": "同族的行级判据，但它把变量名绑定到 COMPOSER_INPUT（BIND 正则追 const x = …COMPOSER_INPUT）再按名字找读法，没有按行距离的窗口；全仓命中 0"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/lib/absenceWithoutBaseline.mjs",
+    "invariant": "归零比较只在被比较的表达式沿同一个文件里的来源追到界面观测时才命中；附近出现观测词不构成归属",
+    "failure_mode": "命中数超过棘轮基线时 check:walkthroughs 退出 1 并列前 8 处；判据一旦退回邻近判据，scripts/check-walkthroughs.node-test.mjs 的 A1 / A2 / A3 / A5 组必红（已把归属改回「附近 5 行有观测词就算」真跑过，按字节还原）",
+    "exception_policy": "none",
+    "strategy": "把「被比较的是谁」做成判据的输入（语法树 + 同文件来源追踪），不再靠邻近词去猜；判据落在 scripts/lib/ 唯一一处并带类级单测（A 组误归属 / B 组不许丢 / C 组形状边界），规则文件里不再留任何邻近逻辑",
+    "artifacts": [
+      "scripts/lib/absenceWithoutBaseline.mjs",
+      "scripts/check-walkthroughs.mjs",
+      "scripts/check-walkthroughs.node-test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-walkthroughs.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-walkthroughs.mjs"
+    ],
+    "rationale": "旧的 5 行窗口（OBSERVES 正则 + lines.slice(Math.max(0, i - 5), i + 1)）在同一个提交里从 scripts/check-walkthroughs.mjs 删除，没有保留 fallback 或并行版"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有第三方运行时控制这条不变量：判据用仓库既有的 devDependency typescript（40 多个脚本在用），只用 createSourceFile 与稳定的节点判断函数，不依赖某个版本的特性；不新增依赖，也不动 eslint-plugin-playwright（没装）。",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "scripts/lib/absenceWithoutBaseline.mjs",
+    "tests": [
+      "scripts/check-walkthroughs.node-test.mjs"
+    ]
+  },
+  "rewrite_decision": {
+    "decision": "rewrite",
+    "characterization_test": "scripts/check-walkthroughs.node-test.mjs"
+  },
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-29"
+}
