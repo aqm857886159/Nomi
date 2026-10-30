@@ -1,3 +1,4 @@
+import { canvasDocumentInput } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
@@ -60,9 +61,9 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose,
         stepRef.current(event.key === 'ArrowLeft' ? -1 : 1)
       }
     }
-    document.addEventListener('keydown', handleKeyDown)
+    canvasDocumentInput.addEventListener('keydown', handleKeyDown)
     return () => {
-      document.removeEventListener('keydown', handleKeyDown)
+      canvasDocumentInput.removeEventListener('keydown', handleKeyDown)
       observer.disconnect()
       for (const [child, inert] of previousInert) child.inert = inert
       if (canvasViewport) {

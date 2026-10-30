@@ -1,3 +1,4 @@
+import { workspaceInputSurfaceIsActive } from '../shortcutSurface'
 import { AssistantPane } from '../AssistantPane'
 import { assistantPaneWidth } from '../assistantWidthBounds'
 import React, { type JSX } from 'react'
@@ -134,6 +135,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const toggleEditingPanel = useWorkbenchStore((state) => state.toggleEditingPanel)
   const setEditingPanelLayout = useWorkbenchStore((state) => state.setEditingPanelLayout)
   const undoEditingPanelLayout = useWorkbenchStore((state) => state.undoEditingPanelLayout)
+  const inputHostRef = React.useRef<HTMLElement | null>(null)
   const sourcePanelRef = usePanelRef()
   const inspectorPanelRef = usePanelRef()
   const sourceElementRef = React.useRef<HTMLDivElement | null>(null)
@@ -164,6 +166,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!workspaceInputSurfaceIsActive(inputHostRef.current)) return
       // ⌘\ 收 Agent 搬到外壳（ShellAgentHost）：四个面统一「停靠 ↔ 小球」，这里只留面板布局撤销。
       if (event.metaKey && event.key.toLowerCase() === 'z' && undoEditingPanelLayout()) event.preventDefault()
     }
@@ -178,6 +181,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
 
   return (
     <section
+      ref={inputHostRef}
       className="workbench-preview relative h-full w-full min-w-0 min-h-0 overflow-hidden bg-nomi-chrome"
       aria-label={t('workspace.preview')}
     >

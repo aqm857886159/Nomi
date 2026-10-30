@@ -1,0 +1,48 @@
+{
+  "name": "工作区当前交互面的输入权限",
+  "subject": "workspace.input-surface",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/shortcutSurface.ts",
+    "symbol": "workspaceInputSurfaceIsActive"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "workspaceInputAttributes"
+    },
+    {
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "shortcutSurfaceMayHandle"
+    },
+    {
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "canvasSurfaceMayHandleInput"
+    },
+    {
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "cancelCanvasInputGestures"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/shortcutSurface.matrix.test.ts",
+  "allowed_consumers": [
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/generation/GenerationWorkspace.tsx",
+    "src/workbench/generationCanvas/",
+    "src/workbench/generation/list/GenerationListView.tsx",
+    "src/workbench/preview/PreviewWorkspace.tsx",
+    "src/workbench/timeline/",
+    "src/devlab/designLab.tsx"
+  ],
+  "since": "2026-10-29",
+  "notes": "登记既有共享输入边界，不新增产品实现。宿主实际 active/view 状态授予输入权限，隐藏或无声明的面拒绝键盘和指针；切面保留文档与选区，取消未完成手势。"
+}
