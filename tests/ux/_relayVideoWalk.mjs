@@ -92,12 +92,12 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
   const textMode = node.getByText(uiText(locale, 'generationCommon.nodeTry.video.text'), { exact: true })
   const exposeComposer = async () => {
     const zoom = win.locator('[data-canvas-zoom-percent]')
-    for (let step = 0; step < 20 && Number.parseInt(await zoom.innerText(), 10) > 100; step += 1) {
+    for (let step = 0; step < 20 && Number.parseInt(await zoom.innerText(), 10) > 60; step += 1) {
       const beforeZoom = await zoom.innerText()
       await win.getByRole('button', { name: /^(缩小|Zoom out)$/i }).click()
       await expect.poll(() => zoom.innerText(), { timeout: stationTimeout() }).not.toBe(beforeZoom)
     }
-    expect(Number.parseInt(await zoom.innerText(), 10)).toBeLessThanOrEqual(100)
+    expect(Number.parseInt(await zoom.innerText(), 10)).toBeLessThanOrEqual(60)
     await node.locator('[data-node-empty-state]').click()
     if (await textMode.isVisible().catch(() => false)) await textMode.click()
   }

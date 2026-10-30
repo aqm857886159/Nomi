@@ -1,11 +1,9 @@
 #!/usr/bin/env node
-// AI declaration -> existing model explanation/controls -> one text and one required-image task.
+// AI declaration -> existing explanation/controls -> one text and two image tasks.
 // Isolated profile, strict loopback, fake credential; no model brain or paid generation.
 import fs from 'node:fs'
-import { require as tsxRequire } from 'tsx/cjs/api'
-import { uiText } from './full-walk/invariants.mjs'
 import path from 'node:path'
-import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
+import { createRuntimeWalk, readProject } from './agent-runtime-walk-support.mjs'
 import { openCustomApiWizard, openModelSettings } from './_shell.mjs'
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -13,9 +11,6 @@ import { startRelayVideoFixture, relayDeclaration, FAKE_RELAY_KEY } from './_rel
 import { waitForRelayLaunch, relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject, relayModelOption } from './_relayVideoWalk.mjs'
 
 const locale = process.env.NOMI_RELAY_LOCALE || 'zh-CN'
-const { enModelDisplayText } = tsxRequire('../../src/i18n/locales/modelDisplayText.ts', import.meta.url)
-const imageModeSource = uiText('zh-CN', 'settings.ai.defaultModels.imageToVideo')
-const imageModeLabel = locale === 'en' ? enModelDisplayText[imageModeSource] : imageModeSource
 const evidence = process.env.NOMI_RELAY_EVIDENCE_DIR
 if (!evidence || !path.isAbsolute(evidence)) throw new Error('NOMI_RELAY_EVIDENCE_DIR must name an isolated evidence directory')
 fs.mkdirSync(evidence, { recursive: true })
@@ -53,6 +48,7 @@ try {
   report.specifications = []
   for (const model of models) report.specifications.push(await client.call('nomi_read', { target: 'model', modelId: model.id, vendor: vendor.key }))
   fs.writeFileSync(path.join(evidence, 'model-specifications.json'), JSON.stringify(report.specifications, null, 2))
+  expect(report.specifications[1].modes.map((mode) => mode.modeId)).toEqual(['i2v'])
   // The existing capability form displays the projection; it is never edited to prepare the test.
   for (const model of models) {
     await openModelSettings(win)
@@ -79,13 +75,11 @@ try {
   const textBody = relay.hits.find((h) => h.method === 'POST').body
   expect(Number(textBody.duration)).toBe(1)
   expect(textBody.resolution).toBe('360p')
-  // Change through the existing mode control, then select the image-only model.
-  await win.keyboard.press('Escape')
-  await node.locator('[data-parameter-summary]').click()
-  await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: imageModeLabel }).click()
+  // The existing design selects video modes from inputs; a single image mode has no radio.
   await win.keyboard.press('Escape')
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await relayModelOption(win, models[1].id).click()
+  await expect.poll(async () => (await readProject(win, prepared.projectId)).payload.generationCanvas.nodes.find((n) => n.id === prepared.nodeId)?.meta?.archetype?.modeId, { timeout: stationTimeout() }).toBe('i2v')
   await node.locator('[contenteditable="true"]').last().fill('A glass marble rolls slowly')
   const runButton = node.locator('[data-bar-segment="generate"]')
   await expect(runButton).toBeDisabled()
@@ -99,7 +93,6 @@ try {
   await win.keyboard.press('Escape')
   await expect(runButton).toBeEnabled()
   await node.locator('[data-parameter-summary]').click()
-  expect(await panel.locator('[data-agent-generation-mode] [role="radio"]').allTextContents()).toEqual([imageModeLabel])
   expect(await panel.locator('[data-agent-parameter-control="resolution"]').innerText()).toContain('540p')
   await capture('frame-parameters')
   await win.keyboard.press('Escape')
@@ -115,8 +108,8 @@ try {
   await win.keyboard.press('Escape')
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await relayModelOption(win, models[0].id).click()
+  await expect.poll(async () => (await readProject(win, prepared.projectId)).payload.generationCanvas.nodes.find((n) => n.id === prepared.nodeId)?.meta?.archetype?.modeId, { timeout: stationTimeout() }).toBe('i2v')
   await node.locator('[data-parameter-summary]').click()
-  await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: imageModeLabel }).click()
   const dualDuration = panel.locator('[data-agent-parameter-control="duration"]')
   const slider = dualDuration.getByRole('slider')
   if (await slider.count()) await slider.press('Home')
