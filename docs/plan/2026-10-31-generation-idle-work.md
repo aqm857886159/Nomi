@@ -1,0 +1,82 @@
+# 生成等待期间删除无进展的工作
+
+负责人：本实现线。类别：长跑、可打断、画布、性能修复。范围：等待视觉、前台进度 dirty 边界、主进程 pending 快照；不改变提交、取消和恢复协议。
+
+## ★0 先查已有实现
+
+纯 bug 修复，使用仓库现状作为决策依据：
+
+- `src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx` · reduced 分支已有灰格及进度 · 确认直接保留这套视觉、删 shader，不新设计。
+- `src/workbench/generationCanvas/runner/generationRunController.ts` · 后台仅首次新 taskId 落盘 · 确认前台也区分恢复事实与百分比。
+- `electron/productionRun/productionGenerationSubmission.ts` · materialized 直接读既有回执 · 确认重复 pending 不改快照，而终态 raw 仍须保留供 materialize 使用。
+
+## ★1 用户任务、指标和连带界面
+
+当创作者同时生成多张卡时，希望等待期间仍能操作画布，并在重启后继续原单。步骤：打开项目 → 提交 → 显示灰格与真实进度 → 操作画布 → 关闭重启 → 找回原单 → 结果落卡。没有新操作、供应商分支或配置开关。
+
+任务形态：多镜视频同时生成；有真实字节回执的大媒体导入；聊天指向同一生成节点。此次资源使用本地模拟供应商及仓库素材，真实账号/Windows 用户现场仍 unverified，不把模拟供应商当成真实付费验收。
+
+目标 → 信号 → 指标：等待无需持续绘制 → canvas draw 计数 → 纯 pending draw/s=0；没有恢复事实变化 → 保存 IPC 计数 → 30 秒为 0；轮询不重复落盘 → 快照写入和文件字节 → 同状态 pending 写完整快照=0；交互跟手 → 现有 canvas-scale 帧探针 → frameGapP95≤33ms。量具：`GenerationWaitingSurface.test.ts`、`canvasRunActions.idle.test.ts`、production submission/envelope 测试及 `generation-idle-60`/`generation-idle-100` 性能场景。基线待测，未验证不记为 0。
+
+★1b：画布卡、聊天 NodePointer、任务列表继续显示原阶段/百分比/失败与取消状态；导入仍读字节比例和已有中英文标签；不新增文案或预览编辑器。
+
+## ★2 状态归属
+
+主进程 Run 与 runtime envelope 是提交/恢复事实 owner；画布 run record 保存节点身份和 taskId，瞬态百分比仅更新内存。`setNodeProgress` 7 个写门必须共享 dirty 判定；WaitingSurface 3 个读门共用静态视觉；poll 与 markPolled 在各自边界拒绝重复 pending 快照。门图来自 `node scripts/door-map.mjs`，不手写猜测入口。
+
+## ★3 一致与复用
+
+复用现有静态灰格、ProgressRevealCanvas 的字节事件绘制、nodeRunOutcomePatch、现有 provider 状态分类、既有 canvas-scale 量具。不加包。删除 img-fx、patch、preset 类型与传参；BaseGenerationNode 仅删协调放行的四处。
+
+## ★4 全状态
+
+空：原空卡；排队/生成：静态灰格、原进度与状态；成功：等待层立即退出、原结果；失败：原失败卡和原因；部分成功：已完成卡照常落地、其他卡仍等待；取消中：沿用原取消语义；过期：原 recoverable/找回；能力不可用：沿用原模型启用或重新选择入口。本修复不改中英文状态文案。
+
+## 5 打断矩阵
+
+| 状态 | 停止 | 关窗 | 断网 | 重启 | 连点 |
+|---|---|---|---|---|---|
+| 排队 | 原取消入口及回执 | 保存运行身份 | 原错误/恢复回执 | 读既有任务 | 原幂等协议 |
+| 已获 taskId / pending | 原取消入口，终态照写 | 保留 taskId | 原 recoverable / 重查 | 接回原单不重发 | 不改变提交去重 |
+| 成功 | 保留结果 | 保存结果 | 已有结果可见 | 结果重载 | 不重复落地 |
+| 失败 / 取消 | 保留原因/终态 | 保存终态 | 不伪造成功 | 重载终态 | 原重试入口 |
+
+所有格沿用既有费用与退款责任，本修复不发起新提交、不改变计费；回执仍在节点、运行记录、任务列表和主进程 Run 中。模拟供应商验证零真实费用。
+
+## 6 外部数据与失败
+
+供应商状态由现有 providerStatus 分类；未知状态仍 needs_attention，不因节流被隐藏。pending raw 的进度/时间不决定恢复；状态改变及终态 raw 仍写。首次 taskId/换 taskId、taskKind、runId 接管及 queued→running 继续 dirty。旧数据无需迁移。未改变外部 API，不引入新的供应商假设。
+
+## ★7 性能
+
+无新增交互。规模 N=60/100、其中 k=12 在生成，等待至少 60 秒。本地模拟供应商；固定 pure pending 窗口 30 秒数保存 IPC、整个窗口数 draw 和快照写入；共用 canvas-scale 帧探针，p95≤33ms。登记 `generation-idle-60`、`generation-idle-100`，`pnpm run perf:scenarios -- --id <id> --measure-only`。每条至少 5 次；实现线只交数字，不自行批准/刷新正式基线。改前/后值待实测。
+
+## 8 真实条件
+
+隔离 Mac App、中英两轨、静止等待/重启接单/成功落卡、导入及聊天读门，截图逐张查看。Windows、用户真实工程和真实供应商 unverified。起窗前检查前台非 Claude、5 分钟负载<10；重活用门岗锁，不改启动器。
+
+拍板图：不适用。用户批准删除动画，复用现有 reduced 灰格，不画新视觉。
+
+## ★9 验收清单、反例与回滚（实现前确定）
+
+1. 7 个写门从清单生成事件矩阵：百分比/时间/阶段叙述不 dirty；首次及变更 taskId、taskKind、runId、queued 接管 dirty；清进度不吞终态。状态、结果、取消仍 dirty。保存订阅响应等同实际 autosave 的 persistRevision 信号；真窗另数 IPC。
+2. 首次 taskId 随 dirty 进入现有保存链；序列化重载后可读 taskId；生成中重启 App 接原单、供应商 submit 数不增加。
+3. 成功、失败、取消照样持久化；materialize 保终态 raw；未知状态仍显式注意；重新实例化 runner/envelope 后仍按冻结合同查询。
+4. 后台首次 taskId 照存；后台纯进度不新增整工程写；节点不在时不累积瞬态进度，运行开始/终态/结果暂存仍可重放。
+5. WaitingSurface 的画布/聊天/导入三读门：灰格静止；预览帧/状态仍可见；导入真实字节标签及比例仍更新；终态等待层卸载。
+6. 同状态 pending 重复 poll 不写 envelope/Run 快照，首次观察和状态变化照写；相同 terminal 再观察仍保新 raw；幂等和恢复测试继续通过。
+7. 反例 A：仅还原等待动画路径，draw>0，等待特征测试红；反例 B：仅还原无条件 bump，保存特征测试红；反例 C：仅还原 poll/envelope 重复写，快照特征测试红。每次保存产品文件原始字节/哈希、串行实验、finally 还原并校验哈希，不提交反例。
+8. 性能 N=60/100、k=12、≥60 秒；draw/s=0、30 秒 saveIPC=0、重复 pending 快照写=0、frameGapP95≤33ms，改前改后均交实测。
+9. gates、根因 checker、性能登记 checker、推送前快检退出 0；逃逸账本 reviewed，completionCommits 指真实产品提交；另一条线合并前独立验收（本线不冒充独立线）。
+
+反例 → 结果 → 证据在实现后填写。回滚使用产品提交的 revert PR，不加动画开关，不直接改主分支。独立验收待协调安排，本线交本地实现与证据，不自行推送/合并。
+
+### 功能分类
+- [x] 新界面 / 改交互
+- [ ] 花钱
+- [x] 长跑 / 可打断
+- [ ] Agent 行为
+- [x] 大数据量 / 画布 / 长列表
+- [ ] 生成效果
+- [ ] 数据格式
+- [x] 新增功能 / 性能
