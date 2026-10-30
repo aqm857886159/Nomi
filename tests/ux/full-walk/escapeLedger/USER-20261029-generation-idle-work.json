@@ -1,0 +1,27 @@
+{
+  "id": "USER-20261029-generation-idle-work",
+  "since": "2026-10-29",
+  "source": "用户反馈生成时卡顿；公开条目仅记录现象，不存聊天或私人资料",
+  "category": "performance-coverage",
+  "problem": "多张卡生成等待期间，持续等待绘制、纯进度整工程保存与重复 pending 快照写入叠加，影响画布操作。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-31-generation-idle-work.md",
+    "docs/fixes/2026-10-31-generation-idle-work.root-cause.json",
+    "tests/fixtures/generation-idle-progress.json",
+    "docs/evidence/2026-10-31-generation-idle-work/local-boundaries.json"
+  ],
+  "completionCommits": [
+    "879d8cd5c4af11495b91cca2da1095951fade802"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-31-generation-idle-work.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts"
+  }
+}

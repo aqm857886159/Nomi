@@ -1,0 +1,169 @@
+{
+  "kind": "unit-and-mutation-evidence",
+  "sourceCommit": "879d8cd5c4af11495b91cca2da1095951fade802",
+  "unitTests": [
+    {
+      "file": "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts",
+      "tests": 57,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
+      "tests": 14,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.test.ts",
+      "tests": 1,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "electron/productionRun/productionGenerationSubmission.test.ts",
+      "tests": 15,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
+      "tests": 4,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/ai/pointer/NodePointer.test.tsx",
+      "tests": 38,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts",
+      "tests": 8,
+      "exit": 0,
+      "status": "passed"
+    }
+  ],
+  "totalPassed": 137,
+  "mutations": [
+    {
+      "case": "draw",
+      "exit_codes": [
+        1
+      ],
+      "valid_behavioral_red": true,
+      "files": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+          "before": "8c49d165a2910177ae522655d0499a9c66c65a631ab48f2c72a7c12c3eeec05b",
+          "after": "8c49d165a2910177ae522655d0499a9c66c65a631ab48f2c72a7c12c3eeec05b",
+          "restored": true,
+          "final_matches": true
+        }
+      ]
+    },
+    {
+      "case": "progress",
+      "exit_codes": [
+        1
+      ],
+      "valid_behavioral_red": true,
+      "files": [
+        {
+          "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+          "before": "a8266146e5a2a102bbfe610bc2764b53ce2043f28117625deb602d94d08dfc5d",
+          "after": "a8266146e5a2a102bbfe610bc2764b53ce2043f28117625deb602d94d08dfc5d",
+          "restored": true,
+          "final_matches": true
+        }
+      ]
+    },
+    {
+      "case": "poll",
+      "exit_codes": [
+        1,
+        1
+      ],
+      "valid_behavioral_red": true,
+      "files": [
+        {
+          "path": "electron/productionRun/productionGenerationSubmission.ts",
+          "before": "48bc3f5582c3a069a5e147e2a3ccead93864c67d7bf9042c614f24af5c49f643",
+          "after": "48bc3f5582c3a069a5e147e2a3ccead93864c67d7bf9042c614f24af5c49f643",
+          "restored": true,
+          "final_matches": true
+        },
+        {
+          "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+          "before": "206f2fd60c05043867d251ac1a69f1300c18cb5bd75b54151d7df3adb8677e0e",
+          "after": "206f2fd60c05043867d251ac1a69f1300c18cb5bd75b54151d7df3adb8677e0e",
+          "restored": true,
+          "final_matches": true
+        }
+      ]
+    },
+    {
+      "case": "background",
+      "exit_codes": [
+        1
+      ],
+      "valid_behavioral_red": true,
+      "files": [
+        {
+          "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+          "before": "b4d2a5d8f7f621d3f480aa84e7bea0eafe474a8923287b6a4889e3a91f2f94a0",
+          "after": "b4d2a5d8f7f621d3f480aa84e7bea0eafe474a8923287b6a4889e3a91f2f94a0",
+          "restored": true,
+          "final_matches": true
+        }
+      ]
+    }
+  ],
+  "legacyIdentityMutation": {
+    "exit": 1,
+    "before": "541d41d518db41498554c784c8c8bb6d155336019bae2feed0055bc2bc41d87a",
+    "after": "541d41d518db41498554c784c8c8bb6d155336019bae2feed0055bc2bc41d87a",
+    "restored": true
+  },
+  "checks": {
+    "rootCauseContracts": {
+      "exit": 0,
+      "warnings": 1,
+      "warning": "ProgressRevealCanvas comment-only change is not a state caller in the door map"
+    },
+    "testWaits": {
+      "exit": 0
+    },
+    "walkthroughStructure": {
+      "exit": 0
+    },
+    "perfRegistryStructure": {
+      "exit": 0
+    }
+  },
+  "runtime": {
+    "status": "unverified",
+    "reason": "Shared build gate was not admitted within the prescribed 25-minute queue limit. Foreground window remained Claude. No Electron walkthrough or performance window was started."
+  },
+  "formalPerformance": {
+    "status": "unverified",
+    "scenarios": [
+      "generation-idle-60",
+      "generation-idle-100"
+    ],
+    "baseline": null
+  },
+  "gates": {
+    "status": "not-run"
+  },
+  "prePush": {
+    "status": "not-run"
+  },
+  "firstDrawProbeTimeout": {
+    "status": "retained",
+    "timeoutMs": 30000,
+    "subsequentDiagnosticAndFinalRuns": "passed",
+    "timeoutWasNotRaised": true
+  }
+}
