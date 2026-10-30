@@ -11,7 +11,7 @@
     "修改参数后核对同一未结试跑意图"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-30-try-model-intent-lock.md",
@@ -33,5 +33,6 @@
     "kind": "matrix",
     "file": "electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts"
   },
-  "rootCauseContract": "docs/fixes/2026-10-30-try-model-intent-lock.root-cause.json"
+  "rootCauseContract": "docs/fixes/2026-10-30-try-model-intent-lock.root-cause.json",
+  "fixedInPr": 1387
 }
