@@ -43,9 +43,16 @@
       "tests": 8,
       "exit": 0,
       "status": "passed"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/useReducedProcessMotion.browser.test.ts",
+      "tests": 1,
+      "exit": 0,
+      "status": "passed",
+      "purpose": "Preserve the live preference/StrictMode lifecycle check formerly housed in the deleted shader walkthrough; hook still serves status bars."
     }
   ],
-  "totalPassed": 137,
+  "totalPassed": 138,
   "mutations": [
     {
       "case": "draw",
