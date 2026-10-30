@@ -19,8 +19,10 @@ export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) 
     const front = execFileSync('lsappinfo', ['front'], { encoding: 'utf8' }).trim()
     const name = execFileSync('lsappinfo', ['info', '-only', 'name', front], { encoding: 'utf8' }).trim()
     const load5 = os.loadavg()[1]
-    console.log(`[launch] ${new Date().toISOString()} front=${name} load5=${load5}`)
-    if (!/claude/i.test(name) && load5 < 10) return { front: name, load5, waitedMs: Date.now() - started }
+    const idleMatch = execFileSync('ioreg', ['-c', 'IOHIDSystem'], { encoding: 'utf8' }).match(/"HIDIdleTime"\s*=\s*(\d+)/)
+    const idleSeconds = idleMatch ? Math.floor(Number(idleMatch[1]) / 1e9) : 0
+    console.log(`[launch] ${new Date().toISOString()} front=${name} load5=${load5} idleSeconds=${idleSeconds}`)
+    if ((!/claude/i.test(name) || idleSeconds >= 600) && load5 < 10) return { front: name, load5, idleSeconds, waitedMs: Date.now() - started }
     await new Promise((resolve) => setTimeout(resolve, Math.min(60_000, Math.max(0, limitMs - (Date.now() - started)))))
   }
   throw new Error(`Launch deferred: foreground app or five-minute load did not permit a quiet walk within ${Math.ceil(limitMs / 1000)} seconds`)
@@ -30,7 +32,7 @@ export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) 
 export async function relayModelClient({ settingsDir, userDataDir, tempRoot, env = {} }) {
   const capabilityDir = path.join(tempRoot, 'capability')
   fs.mkdirSync(capabilityDir, { recursive: true })
-  const childEnv = { ...env, [ENV_KEY_VAR]: '', NOMI_TEST_NETWORK_GUARD: '1', NOMI_WALK_FOREGROUND_OK: '' }
+  const childEnv = { ...env, [ENV_KEY_VAR]: '', NOMI_TEST_NETWORK_GUARD: '1' }
   const quiet = quietElectronSpawn(['-r', path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs'), repoRoot, '--disable-gpu'], { env: childEnv })
   const client = spawnMcpStdioClient({ settingsDir, userDataDir, projectsDir: path.join(tempRoot, 'projects'), capabilityDir,
     captureStderr: true,

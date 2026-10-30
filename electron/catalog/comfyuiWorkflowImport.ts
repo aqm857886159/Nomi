@@ -9,7 +9,9 @@
 // API 格式（实查 docs.comfy.org/development/api-development/workflow-api-format 2026-07）：节点 ID 为键，
 // 每节点 { inputs:{…}, class_type, _meta:{title} }；inputs 值要么是直接 widget 值（可参数化），
 // 要么是连线 [源节点ID, 输出槽] （不可参数化，保持不动）。
-import { COMFYUI_VENDOR_KEY, type HttpOperation } from "./types";
+import { COMFYUI_VENDOR_KEY, type HttpOperation, type Model, type Mapping } from "./types";
+import type { CapabilityModelDraft } from "../providerAdapter/promotionMeta";
+import type { ModelParameterControl } from "../shared/videoCapabilities/types";
 import { desktopT } from "../i18n";
 import type { ComfyComboValue, ComfyObjectInfoIndex } from "../comfyuiObjectInfo";
 import { normalizeWorkflowBinding } from "./comfyuiWorkflowBindingNormalize";
@@ -706,4 +708,22 @@ export function importComfyWorkflow(
   upsertModel(model);
   upsertMapping(mapping);
   return { modelKey: payload.modelKey, kind: built.kind, taskKind: built.taskKind };
+}
+
+
+/** Carry the importer's existing complete controls and reference binding into certification. */
+export function capabilityDraftForImportedWorkflow(model: Model, mapping: Mapping): CapabilityModelDraft {
+  const meta = model.meta as { parameters?: ParamControl[] } | undefined;
+  const parameters = meta?.parameters || [];
+  const controls: ModelParameterControl[] = parameters.map(({ default: value, options, ...p }) => ({
+    ...p, defaultValue: value, options: (options || []).map((value) => ({ value, label: String(value) })),
+  }));
+  const reference = parameters.find((p) => p.type === "image-url" && (p.mediaKind || "image") === "image");
+  return { modelKey: model.modelKey, labelZh: model.labelZh, kind: model.kind, modes: [{
+    taskKind: mapping.taskKind, create: mapping.create!, controls,
+    ...(mapping.query ? { query: mapping.query } : {}), ...(mapping.result ? { result: mapping.result } : {}),
+    ...(mapping.delivery ? { delivery: mapping.delivery } : {}), ...(mapping.abandon ? { abandon: mapping.abandon } : {}),
+    ...(mapping.statusMapping ? { statusMapping: mapping.statusMapping } : {}),
+    ...(reference ? { referenceParam: reference.key, referenceShape: "single" as const } : {}), sourceUrls: [],
+  }] };
 }

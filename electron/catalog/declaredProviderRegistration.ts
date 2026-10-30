@@ -58,7 +58,7 @@ export class DeclaredOriginRewriteError extends Error {
   }
 }
 
-import { projectDeclaredModel, assertDeclaredReplacementOwnership } from "../providerAdapter/promotionMeta";
+import { projectDeclaredModel, assertDeclaredReplacementOwnership, assertNeutralDeclarationParameters, capabilityFactDigest } from "../providerAdapter/promotionMeta";
 export { mappingRowFromDeclaredMode } from "../providerAdapter/promotionMeta";
 
 const originOf = (url: string): string => new URL(url).origin;
@@ -83,7 +83,7 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
   const now = input.now || (() => new Date().toISOString());
 
   // Compile every model before entering the write transaction (all-or-nothing).
-  const projections = card.models.map((model) => projectDeclaredModel(model, vendorKey));
+  const projections = card.models.map((model) => { assertNeutralDeclarationParameters(model); return projectDeclaredModel(model, vendorKey); });
   return mutateCatalog((tx, state) => {
     const existing = state.vendors.find((vendor) => vendor.key === vendorKey);
     const binding = readCredentialBinding(existing as Vendor | undefined);
@@ -113,6 +113,7 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
       );
       const exactMappings = state.mappings.filter((row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey);
       assertDeclaredReplacementOwnership({ oldMeta: existingModel?.meta, mappings: exactMappings, projection });
+      const sourceCard = JSON.parse(JSON.stringify({ ...card, models: [model] }));
       const meta = { ...(existingModel?.meta && typeof existingModel.meta === "object" ? existingModel.meta : {}), ...projection.meta };
       delete meta.declarationCapabilityIssue;
       tx.upsertModel({
@@ -124,9 +125,10 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
         enabled: true,
         meta: {
           ...meta,
+          declarationSource: { version: 1, vendorKey, digest: capabilityFactDigest(sourceCard), card: sourceCard },
           // 「登记了」与「跑通了」是两件事，盘上分得开：`declared` = 卡收下了、静态校验过了；
           // 只有一次真实试跑（try_model）能把它推到 verified。不写 verified = 不替模型说话。
-          adapter: { state: "declared", source: "declaration-card", publicationModes: projection.taskKinds, updatedAt: now() },
+          adapter: { state: "declared", evidence: "self-check", source: "declaration-card", publicationModes: projection.taskKinds, updatedAt: now() },
         },
       });
       // Remove owned old routes and removed operations before upsert can inherit them.

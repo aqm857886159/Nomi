@@ -1,0 +1,8 @@
+[
+  {"id":"declaration","path":"electron/catalog/declaredProviderRegistration.ts","symbol":"registerDeclaredProvider","input":"declaration"},
+  {"id":"adapter-coordinator","path":"electron/integrationCertification/providerAdapterCoordinator.ts","symbol":"promote","input":"certification"},
+  {"id":"workflow-materialization","path":"electron/catalog/comfyuiCandidateLifecycle.ts","symbol":"promote","input":"workflow"},
+  {"id":"workflow-connector","path":"electron/integrationCertification/comfyuiConnector.ts","symbol":"promote","input":"workflow"},
+  {"id":"integration-session","path":"electron/integrationCertification/integrationSession.ts","symbol":"promoteCertifiedComfyCandidate","input":"workflow"},
+  {"id":"parity-probe","path":"electron/parity/generationParityTestUtils.ts","symbol":"promote","input":"certification"}
+]

@@ -8,6 +8,8 @@
 //
 // 另测通用 relay（new-api）op 覆盖**中性 canonical 维度**——这是用户自建中转（xcode-hk）那条路，
 // 不在内置 mapping 里枚举，单独守。
+import { projectDeclaredModel } from '../providerAdapter/promotionMeta';
+import { relayDeclaration } from '../../tests/ux/_relayVideoFixture.mjs';
 import { describe, expect, it } from "vitest";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { selectTaskMapping } from "./types";
@@ -116,5 +118,23 @@ describe("端到端：自建中转 gpt-image-2 比例+清晰度 → 真实请求
   it("比例 auto → 不发 size（让中转默认），不再发空字符串报错", () => {
     const body = renderBody({ aspect_ratio: "auto", resolution: "1K" });
     expect(body.size).toBeUndefined();
+  });
+});
+
+describe('declared capability controls use the same canonical-to-wire invariant', () => {
+  it('neutral duration is translated to seconds without becoming a wire-named control', () => {
+    const draft = relayDeclaration('http://127.0.0.1:9000') as import('../providerAdapter/types').ProviderAdapterDraft;
+    const create = draft.models[0].modes[0].create;
+    create.body = { seconds: '{{request.params.seconds}}', resolution: '{{request.params.resolution}}' };
+    create.paramMap = { rules: [{ wire: 'seconds', from: 'duration' }] };
+    const projected = projectDeclaredModel(draft.models[0], 'relay');
+    const op = projected.mappings[0].create!;
+    expect(projected.contract!.modes[0].params.map(p => p.key).filter(k => !coveredWireKeys(op).has(k))).toEqual([]);
+    const params = applyParamMap(op.paramMap, { duration: 1, resolution: '360p' });
+    const context = buildTemplateContext({ request: { prompt: 'Marble' }, params, model: {}, modelKey: 'opaque', apiKey: 'fixture' });
+    const request = buildHttpRequest({ baseUrl: 'https://fixture.invalid', authType: 'none', apiKey: '', context, operation: op });
+    expect(request.body).toEqual({ seconds: 1, resolution: '360p' });
+    delete create.paramMap;
+    expect(() => projectDeclaredModel(draft.models[0], 'relay')).toThrow(/parameters.duration/);
   });
 });

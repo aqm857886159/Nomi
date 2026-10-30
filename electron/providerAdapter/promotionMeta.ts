@@ -5,7 +5,8 @@ import type { AdapterModelDraft, AdapterModeDraft, AdapterModeResult } from './t
 import type { Mapping, ProfileKind } from '../catalog/types';
 import { normalizeCustomCapabilityContract, parseCustomCapabilityContract, type CustomCapabilityContractV1 } from '../shared/customCapabilityContract';
 import { modelKindForTaskKind } from '../shared/capabilityModeManifest';
-import { consumedCanonicalKeys } from '../catalog/paramTranslate';
+import { consumedCanonicalKeys, wireReferencedParamKeys } from '../catalog/paramTranslate';
+import { MODEL_ARCHETYPES } from '../shared/modelArchetypes';
 import { DERIVED_REFERENCE_CARRIER_KEYS, referenceKeyDeclarationFor } from '../shared/modelArchetypes/referenceKeys';
 import type { ArchetypeReferenceSlot, ArchetypeTransportTaskKind, ModelParameterControl } from '../shared/videoCapabilities/types';
 
@@ -37,18 +38,19 @@ function fieldError(candidate: AdapterModelDraft, field: string, reason: string)
   throw new Error(`models.${candidate.modelKey}.${field}: ${reason}`);
 }
 function readsParameter(wire: string, key: string): boolean {
-  return wire.includes(`request.${key}}}`) || wire.includes(`request.params.${key}}}`) || wire.includes(`request.extras.${key}}}`);
+  return [...wire.matchAll(/{{\s*request\.(?:(?:params|extras)\.)?([^{}]+?)\s*}}/g)].some((m) => m[1].trim() === key || (m[1].trim().startsWith(`${key}.`) && /^\.\d+$/.test(m[1].trim().slice(key.length))));
 }
 
 function modeReadsParameter(mode: AdapterModeDraft, key: string): boolean {
   if (mode.create.paramMap?.drops?.includes(key)) return false;
   const wire = JSON.stringify(mode.create);
+  const direct = new Set(wireReferencedParamKeys({ ...mode.create, body: mode.create.multipart?.fields ?? mode.create.body }));
   const rules = mode.create.paramMap?.rules || [];
   const bound = new Set(rules.filter((rule) => readsParameter(wire, rule.wire)).map((rule) => rule.wire));
   for (let pass = 0; pass < rules.length; pass += 1) {
     for (const source of consumedCanonicalKeys({ rules: rules.filter((rule) => bound.has(rule.wire)) })) bound.add(source);
   }
-  return bound.has(key) || readsParameter(wire, key);
+  return bound.has(key) || direct.has(key) || readsParameter(wire, key);
 }
 
 /** Declared controls/references live in the existing request.params channel, including legacy aliases. */
@@ -59,18 +61,67 @@ function projectDeclaredBindings<T>(value: T, keys: ReadonlySet<string>): T {
   return value;
 }
 
+/** Per-mode controls are produced by a native importer, not inferred by promotion. */
+export type CapabilityModelDraft = Omit<AdapterModelDraft, 'modes'> & { modes: Array<AdapterModeDraft & { controls?: ModelParameterControl[]; referenceSlots?: ArchetypeReferenceSlot[] }> };
+/** Normalize explicitly declared media controls through the existing slot families. */
+function normalizeControlReferences(mode: CapabilityModelDraft['modes'][number], candidate: AdapterModelDraft): CapabilityModelDraft['modes'][number] {
+  const media = (mode.controls || []).filter((p) => p.type === 'image-url');
+  if (!media.length) return mode;
+  const referenceTask = ['image_to_video', 'image_edit', 'image_to_3d'].includes(mode.taskKind);
+  if (referenceTask && (!mode.referenceParam || !mode.referenceShape)) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'required image input must be named with its shape');
+  if (referenceTask && !media.some((p) => p.key === mode.referenceParam && (p.mediaKind || 'image') === 'image')) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'required image binding is absent from controls');
+  const slots: ArchetypeReferenceSlot[] = [];
+  const replacements = new Map<string, string>();
+  const groups = [
+    { media: 'image', kind: 'image_ref', key: 'referenceImages', label: '参考图' },
+    { media: 'video', kind: 'video_ref', key: 'referenceVideoUrls', label: '参考视频' },
+    { media: 'audio', kind: 'audio_ref', key: 'referenceAudioUrls', label: '参考音频' },
+  ] as const;
+  for (const group of groups) {
+    const inputs = media.filter((p) => (p.mediaKind || 'image') === group.media);
+    if (!inputs.length) continue;
+    if (group.media === 'image' && inputs.length === 1) slots.push({ kind: candidate.kind === 'video' ? 'first_frame' : 'image_ref', label: inputs[0].label, min: 1, max: 1, inputKey: inputs[0].key, asArray: false });
+    else {
+      slots.push({ kind: group.kind, label: group.label, min: inputs.length, max: inputs.length, inputKey: group.key, asArray: true });
+      inputs.forEach((input, index) => replacements.set(input.key, `${group.key}.${index}`));
+    }
+  }
+  const remap = (value: unknown): unknown => {
+    if (typeof value === 'string') return value.replace(/{{\s*request\.params\.([^{}]+?)\s*}}/g, (token, key: string) => replacements.has(key.trim()) ? `{{request.params.${replacements.get(key.trim())}}}` : token);
+    if (Array.isArray(value)) return value.map(remap);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, remap(item)]));
+    return value;
+  };
+  const mediaKeys = new Set(media.map((p) => p.key));
+  const create = { ...mode.create, body: remap(mode.create.body), defaultParams: Object.fromEntries(Object.entries(mode.create.defaultParams || {}).filter(([key]) => !mediaKeys.has(key))) };
+  const reference = slots.find((slot) => slot.kind === 'first_frame' || slot.kind === 'image_ref');
+  return { ...mode, create, controls: mode.controls!.filter((p) => p.type !== 'image-url'), referenceSlots: slots,
+    ...(reference ? { referenceParam: reference.inputKey, referenceShape: reference.asArray ? 'array' : 'single' } : {}) };
+}
+
+export function assertNeutralDeclarationParameters(candidate: AdapterModelDraft): void {
+  const aliases: Record<string, string> = { seconds: 'duration', duration_seconds: 'duration', video_resolution: 'resolution', image_size: 'aspect_ratio/resolution', size: 'aspect_ratio/resolution' };
+  if (candidate.kind === 'text') return;
+  const registered = new Set(MODEL_ARCHETYPES.filter((a) => a.kind === candidate.kind).flatMap((a) => a.modes.flatMap((m) => m.params.map((p) => p.key))));
+  for (const p of candidate.parameters || []) {
+    if (aliases[p.key]) fieldError(candidate, `parameters.${p.key}`, `use neutral ${aliases[p.key]} and translate with create.paramMap`);
+    if (!registered.has(p.key)) fieldError(candidate, `parameters.${p.key}`, 'unregistered neutral control; use a code-owned canonical parameter and create.paramMap');
+  }
+}
+
 export type DeclaredModelProjection = { kind: AdapterModelDraft["kind"]; meta: Record<string, unknown>; mappings: DeclaredMapping[]; contract: CustomCapabilityContractV1 | null; taskKinds: ProfileKind[] };
 
 /** Kind, product modes, controls, required slots and wire are compiled together for every writer. */
-export function projectDeclaredModel(candidate: AdapterModelDraft, vendorKey: string, published?: readonly ProfileKind[]): DeclaredModelProjection {
+export function projectDeclaredModel(candidate: CapabilityModelDraft, vendorKey: string, published?: readonly ProfileKind[]): DeclaredModelProjection {
   if (published?.some((taskKind) => !candidate.modes.some((mode) => mode.taskKind === taskKind))) fieldError(candidate, "modes", "verified taskKind is absent from the declaration");
-  const parameterKeys = (candidate.parameters || []).map((p) => p.key);
+  const parameterKeys = [...new Set([...(candidate.parameters || []).map((p) => p.key), ...candidate.modes.flatMap((m) => (m.controls || []).map((p) => p.key))])];
   for (const key of parameterKeys) if (candidate.kind !== 'text' && key.includes('.')) fieldError(candidate, `parameters.${key}`, 'nested parameter paths cannot be projected as a flat control');
-  const normalizedModes = candidate.modes.map((mode) => ({ ...mode, create: projectDeclaredBindings(mode.create, new Set([...parameterKeys, ...(mode.referenceParam ? [mode.referenceParam] : [])])) }));
+  const normalizedModes = candidate.modes.map((mode) => normalizeControlReferences(mode, candidate)).map((mode) => ({ ...mode, create: projectDeclaredBindings(mode.create, new Set([...parameterKeys, ...(mode.referenceParam ? [mode.referenceParam] : [])])) }));
   const modes = normalizedModes.filter((mode) => !published || published.includes(mode.taskKind));
   if (!modes.length) fieldError(candidate, 'modes', 'no published mode');
   if (new Set(modes.map((m) => m.taskKind)).size !== modes.length) fieldError(candidate, 'modes', 'duplicate taskKind');
-  const params: ModelParameterControl[] = (candidate.parameters || []).map((p) => ({ key: p.key, label: p.label, type: p.type, options: p.options || [], ...(p.default !== undefined ? { defaultValue: p.default } : {}), ...(p.min !== undefined ? { min: p.min } : {}), ...(p.max !== undefined ? { max: p.max } : {}) }));
+  const declaredParams: ModelParameterControl[] = (candidate.parameters || []).map((p) => ({ key: p.key, label: p.label, type: p.type, options: p.options || [], ...(p.default !== undefined ? { defaultValue: p.default } : {}), ...(p.min !== undefined ? { min: p.min } : {}), ...(p.max !== undefined ? { max: p.max } : {}) }));
+  const params = [...new Map([...declaredParams, ...modes.flatMap((m) => m.controls || [])].map((p) => [p.key, p])).values()];
   for (const p of params) {
     if (candidate.kind !== 'text' && !normalizedModes.some((m) => modeReadsParameter(m, p.key))) fieldError(candidate, `parameters.${p.key}`, 'parameter has no request binding in create');
   }
@@ -79,25 +130,27 @@ export function projectDeclaredModel(candidate: AdapterModelDraft, vendorKey: st
     if (modelKindForTaskKind(mode.taskKind) !== candidate.kind) fieldError(candidate, `modes.${mode.taskKind}.taskKind`, 'Nomi cannot project this taskKind for the declared kind');
     const wire = JSON.stringify(mode.create);
     const reference = ['image_to_video', 'image_edit', 'image_to_3d'].includes(mode.taskKind);
-    const slots: ArchetypeReferenceSlot[] = [];
+    const slots: ArchetypeReferenceSlot[] = mode.referenceSlots ? structuredClone(mode.referenceSlots) : [];
     if (reference) {
       if (!mode.referenceParam) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'required image input must be named');
       if (!mode.referenceShape) fieldError(candidate, `modes.${mode.taskKind}.referenceShape`, 'required image input shape must be explicit');
       if (mode.referenceParam.includes('.')) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'nested reference paths cannot be projected as an input slot');
       if (!readsParameter(wire, mode.referenceParam) && ![...DERIVED_REFERENCE_CARRIER_KEYS].some((key) => readsParameter(wire, key))) fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'create does not read the declared reference parameter');
       const single = mode.referenceShape === 'single';
-      slots.push({ kind: single && candidate.kind === 'video' ? 'first_frame' : 'image_ref', label: REFERENCE_LABELS[single && candidate.kind === 'video' ? 'first_frame' : 'image_ref'], min: 1, ...(single ? { max: 1 } : {}), inputKey: mode.referenceParam, asArray: !single });
+      if (mode.referenceSlots && !slots.some((slot) => slot.inputKey === mode.referenceParam && slot.min >= 1 && slot.asArray === !single)) fieldError(candidate, `modes.${mode.taskKind}.referenceSlots`, 'required reference metadata disagrees with slots');
+      if (!mode.referenceSlots) slots.push({ kind: single && candidate.kind === 'video' ? 'first_frame' : 'image_ref', label: REFERENCE_LABELS[single && candidate.kind === 'video' ? 'first_frame' : 'image_ref'], min: 1, ...(single ? { max: 1 } : {}), inputKey: mode.referenceParam, asArray: !single });
     } else if (mode.referenceParam || mode.referenceShape) {
       fieldError(candidate, `modes.${mode.taskKind}.referenceParam`, 'this task cannot express the declared reference role');
     }
-    const additionalReferences = [...wire.matchAll(/{{\s*request\.(?:(?:params|extras)\.)?([A-Za-z0-9_.-]+)\s*}}/g)].map((match) => match[1]).filter((key) => referenceKeyDeclarationFor(key) && key !== mode.referenceParam && !(reference && DERIVED_REFERENCE_CARRIER_KEYS.has(key)));
+    for (const slot of slots) if (!slot.inputKey || (!readsParameter(wire, slot.inputKey) && !(slot.inputKey === mode.referenceParam && [...DERIVED_REFERENCE_CARRIER_KEYS].some((key) => readsParameter(wire, key))))) fieldError(candidate, `modes.${mode.taskKind}.referenceSlots`, 'every reference slot must have a create binding');
+    const additionalReferences = [...wire.matchAll(/{{\s*request\.(?:(?:params|extras)\.)?([A-Za-z0-9_.-]+)\s*}}/g)].map((match) => match[1]).filter((key) => referenceKeyDeclarationFor(key) && key !== mode.referenceParam && !slots.some((slot) => key === slot.inputKey || key.startsWith(`${slot.inputKey}.`)) && !mode.controls?.some((p) => p.key === key && p.type === 'image-url') && !(reference && DERIVED_REFERENCE_CARRIER_KEYS.has(key)));
     if (additionalReferences.length) fieldError(candidate, `modes.${mode.taskKind}.create`, `undeclared reference roles: ${[...new Set(additionalReferences)].join(', ')}`);
-    return { id: TASK_MODE_IDS[mode.taskKind] || mode.taskKind, intent: reference ? 'single' as const : 'text' as const, vendorTerm: TASK_LABELS[mode.taskKind] || mode.taskKind, hint: '', promptRequired: mode.taskKind !== 'transcribe', transportTaskKind: mode.taskKind as ArchetypeTransportTaskKind, slots, params: params.filter((p) => modeReadsParameter(mode, p.key)) };
+    return { id: TASK_MODE_IDS[mode.taskKind] || mode.taskKind, intent: reference ? 'single' as const : 'text' as const, vendorTerm: TASK_LABELS[mode.taskKind] || mode.taskKind, hint: '', promptRequired: mode.taskKind !== 'transcribe', transportTaskKind: mode.taskKind as ArchetypeTransportTaskKind, slots, params: (mode.controls || params).filter((p) => p.key !== mode.referenceParam && modeReadsParameter(mode, p.key)) };
   });
   const contract = candidate.kind === 'text' ? null : normalizeCustomCapabilityContract({ version: 1, kind: candidate.kind, defaultModeId: capabilityModes[0].id, transportTaskKind: modes[0].taskKind, modes: capabilityModes });
   if (candidate.kind !== 'text' && !contract) fieldError(candidate, 'parameters/modes/slots', 'capability shape cannot be represented safely');
   const mappings = candidate.kind === 'text' ? [] : normalizedModes.map((mode) => {
-    const controls = params.filter((p) => modeReadsParameter(mode, p.key));
+    const controls = (mode.controls || params).filter((p) => modeReadsParameter(mode, p.key));
     const defaults = Object.fromEntries(controls.filter((p) => p.defaultValue !== undefined).map((p) => [p.key, p.defaultValue]));
     const wireDefaults = mode.create.defaultParams || {};
     for (const [key, value] of Object.entries(defaults)) if (key in wireDefaults && wireDefaults[key] !== value) fieldError(candidate, `modes.${mode.taskKind}.create.defaultParams.${key}`, 'wire default conflicts with the visible capability default');
@@ -105,7 +158,7 @@ export function projectDeclaredModel(candidate: AdapterModelDraft, vendorKey: st
     return mappingRowFromDeclaredMode({ vendorKey, modelKey: candidate.modelKey, label: candidate.labelZh, mode: { ...mode, create }, enabled: !published || published.includes(mode.taskKind) });
   });
   const ownership = { version: 1, hasMediaContract: Boolean(contract), capabilityDigest: capabilityFactDigest(contract), wireDigests: Object.fromEntries(mappings.map((row) => [row.taskKind, capabilityFactDigest(declaredWireFact(row))])) };
-  return { kind: candidate.kind, contract, mappings, taskKinds: candidate.kind === 'text' && !published ? [...new Set<ProfileKind>(['chat', ...modes.map((m) => m.taskKind)])] : modes.map((m) => m.taskKind), meta: { customCapabilityContract: contract || undefined, parameters: candidate.parameters || [], declarationProjection: ownership } };
+  return { kind: candidate.kind, contract, mappings, taskKinds: candidate.kind === 'text' && !published ? [...new Set<ProfileKind>(['chat', ...modes.map((m) => m.taskKind)])] : modes.map((m) => m.taskKind), meta: { customCapabilityContract: contract || undefined, parameters: candidate.parameters || params.map(({ defaultValue, options, ...p }) => ({ ...p, default: defaultValue, ...(options.length ? { options: options.map((o) => o.value) } : {}) })), declarationProjection: ownership } };
 }
 
 /** Reject independent edits before an atomic replacement; unchanged owned routes may be removed. */

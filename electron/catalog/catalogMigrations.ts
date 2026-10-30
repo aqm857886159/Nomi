@@ -25,10 +25,15 @@ export function migrateDeclaredCapabilities(state: CatalogState, revisions: read
     const meta = isJsonRecord(model.meta) ? model.meta : {};
     const adapter = isJsonRecord(meta.adapter) ? meta.adapter : {};
     if (model.kind === "text" || (!adapter.activeRevision && adapter.source !== "declaration-card")) return model;
+    // Native workflow imports already own their complete graph/bindings; this declaration migration must not reclassify that source as a missing HTTP revision.
+    if (meta.comfyWorkflowImport && Array.isArray(meta.parameters) && adapter.source !== "declaration-card") return model;
     const contract = parseCustomCapabilityContract(meta);
     if (contract?.kind === model.kind || meta.declarationCapabilityIssue) return model;
     try {
-      const revision = revisions.find((r) => r?.id === adapter.activeRevision && r.vendorKey === model.vendorKey);
+      const original = isJsonRecord(meta.declarationSource) ? meta.declarationSource : undefined;
+      if (original && (original.vendorKey !== model.vendorKey || original.digest !== capabilityFactDigest(original.card))) throw new Error("originalSourceOwnership");
+      const source = isJsonRecord(meta.declarationSource) && meta.declarationSource.version === 1 ? meta.declarationSource.card as ProviderAdapterRevision["draft"] | undefined : undefined;
+      const revision = source ? { draft: source, verifiedModes: source.models?.flatMap((m) => m.modes.map((mode) => ({ modelKey: m.modelKey, taskKind: mode.taskKind }))) } : revisions.find((r) => r?.id === adapter.activeRevision && r.vendorKey === model.vendorKey);
       const candidate = Array.isArray(revision?.draft?.models) ? revision.draft.models.find((m) => m?.modelKey === model.modelKey && m.kind === model.kind) : undefined;
       const tasks = Array.isArray(revision?.verifiedModes) ? revision.verifiedModes.filter((m) => m?.modelKey === model.modelKey).map((m) => m.taskKind) : [];
       if (!candidate || !tasks.length) throw new Error("originalRevision");
@@ -39,9 +44,9 @@ export function migrateDeclaredCapabilities(state: CatalogState, revisions: read
       for (const row of projection.mappings) {
         const old = mappings.find((m) => m.vendorKey === model.vendorKey && m.modelKey === model.modelKey && m.taskKind === row.taskKind && !m.modeId);
         if (!old) { if (row.enabled) throw new Error("wireOwnership"); continue; }
-        const original = candidate.modes.find((m) => m.taskKind === row.taskKind)!;
+        const originalMode = candidate.modes.find((m) => m.taskKind === row.taskKind)!;
         const operations = (m: Pick<typeof row, 'create' | 'query' | 'result' | 'statusMapping' | 'delivery' | 'abandon'>) => ({ create: m.create, query: m.query, result: m.result, statusMapping: m.statusMapping, delivery: m.delivery, abandon: m.abandon });
-        const expected = { ...operations(original), delivery: old.delivery === undefined ? undefined : original.delivery, abandon: old.abandon === undefined ? undefined : original.abandon };
+        const expected = source ? operations(row) : { ...operations(originalMode), delivery: old.delivery === undefined ? undefined : originalMode.delivery, abandon: old.abandon === undefined ? undefined : originalMode.abandon };
         if (old.enabled !== row.enabled || capabilityFactDigest(operations(old)) !== capabilityFactDigest(expected)) throw new Error("wireOwnership");
       }
       mappings = mappings.map((old) => {

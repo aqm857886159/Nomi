@@ -21,7 +21,9 @@
     "electron/providerAdapter/store.ts",
     "electron/catalog/types.ts",
     "electron/shared/modelAvailability.ts",
-    "electron/catalog/taskParams.ts"
+    "electron/catalog/taskParams.ts",
+    "electron/catalog/comfyuiCandidateLifecycle.ts",
+    "electron/catalog/comfyuiWorkflowImport.ts"
   ],
   "entry_points": [
     "submitDeclaration -> registerDeclaredProvider -> projectDeclaredModel",
@@ -173,12 +175,42 @@
       "kind": "write",
       "path": "electron/runtime.ts",
       "symbol": "applyHeadlessParamDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "symbol": "capabilityDraftForImportedWorkflow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "promote"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/providerAdapterCoordinator.ts",
+      "symbol": "promote"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "promote"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "promoteCertifiedComfyCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "promoteCertifiedComfyCandidate"
     }
   ],
   "door_reduction": {
-    "before": 27,
-    "after": 27,
-    "why_not": "Declaration, leased certification and one-time migration remain separate lifecycle entry points and call the same compiler. Main-process model specification and renderer storyboard/canvas readers consume its persisted contract. Availability/publication readers independently answer eligibility using the same missing-capability diagnosis."
+    "before": 33,
+    "after": 33,
+    "why_not": "Declaration, leased certification and one-time migration remain separate lifecycle entry points and call the same compiler. Main-process model specification and renderer storyboard/canvas readers consume its persisted contract. Availability/publication readers independently answer eligibility using the same missing-capability diagnosis. Workflow generation, materialization and integration certification retain their lifecycle responsibilities but supply complete facts to the same compiler. Promotion property census and one-hop wrappers are both audited."
   },
   "generality_proof": "The compiler operates on declared kind/task/reference/parameter structure, independent of identity or provider; both writes and legacy recovery converge on it.",
   "shared_boundaries": [
@@ -226,14 +258,16 @@
     "invariant": "Capability and mappings compile together and replace only owned facts.",
     "failure_mode": "Field-specific exception before writes; unavailable legacy rows are preserved and blocked.",
     "exception_policy": "none",
-    "strategy": "Both publication writers compile one complete fact and reject unowned replacement. Creation passes the shared guard before spend/HTTP; read-only resolution for accepted task queries remains unchanged.",
+    "strategy": "Both publication writers compile one complete fact and reject unowned replacement. Creation passes the shared guard before spend/HTTP; read-only resolution for accepted task queries remains unchanged. Native import controls and all media references enter this compiler intact; it derives existing array slots and indexed node bindings. Declaration source snapshots and untried evidence commit atomically; new card controls use the code-owned canonical registry and existing param-map coverage invariant.",
     "artifacts": [
       "electron/providerAdapter/promotionMeta.ts",
       "electron/catalog/declaredProviderRegistration.ts",
       "electron/providerAdapter/serviceCatalog.ts",
       "electron/catalog/catalogMigrations.ts",
       "electron/shared/modelAvailability.ts",
-      "electron/catalog/taskParams.ts"
+      "electron/catalog/taskParams.ts",
+      "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "electron/catalog/comfyuiWorkflowImport.ts"
     ]
   },
   "regression_tests": [
@@ -243,7 +277,10 @@
     "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts",
     "tests/ux/relay-capability-projection.walk.mjs",
     "tests/ux/relay-video-onboarding.walk.mjs",
-    "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs"
+    "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs",
+    "electron/catalog/declarationDurability.test.ts",
+    "electron/catalog/promotionCallerMatrix.test.ts",
+    "electron/catalog/workflowCompleteReferences.test.ts"
   ],
   "class_regression_tests": [
     "tests/relay-onboarding/contracts.test.mjs",
@@ -252,7 +289,10 @@
     "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts",
     "tests/ux/relay-capability-projection.walk.mjs",
     "tests/ux/relay-video-onboarding.walk.mjs",
-    "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs"
+    "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs",
+    "electron/catalog/declarationDurability.test.ts",
+    "electron/catalog/promotionCallerMatrix.test.ts",
+    "electron/catalog/workflowCompleteReferences.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
