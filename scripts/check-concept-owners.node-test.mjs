@@ -510,6 +510,7 @@ const REANCHOR_FILES = {
 const reanchoredTo = (symbol) => ledger({
   reanchored: [{ ...MOVED, anchor: { path: 'electron/shared/landing.ts', symbol }, reason: '挪进 landing.ts（测试）' }],
 })
+const retiredInLedger = () => ledger({ retirements: [{ ...MOVED, reason: '那条不变量不再适用（测试）' }] })
 
 test('改锚：合同边界在台账里改锚到某个概念的写接口 → 概念门不报，合同归到新锚的概念', () => {
   const repo = makeRepo({ files: { ...REANCHOR_FILES, [LEDGER]: reanchoredTo('compareLanding') } })
@@ -547,15 +548,24 @@ test('改锚：台账里没有这一条 → 照旧拿合同里的锚报', () => 
   }
 })
 
-test('改锚：两道门对同一份台账认同一个锚（同一组夹具，两道门的入口都跑）', () => {
+test('台账每个桶：两道门对同一份台账各怎么认（同一组夹具，两道门的入口都跑）', () => {
   const repo = makeRepo({ files: REANCHOR_FILES })
-  // 每一行：台账怎么写 → 边界主人门 [退出码, 输出] → 概念门 [退出码, 输出]。两道门要么都核新锚，要么都核旧锚。
+  // 每一行：台账怎么写 → 边界主人门 [退出码, 输出] → 概念门 [退出码, 输出]。改锚：两道门要么都核新锚，要么都核旧锚。
   const cases = [
     ['改锚到写接口', reanchoredTo('compareLanding'), [0, /改锚 1 ｜/], [0, /✅ 概念 owner 门岗/]],
     ['改锚到在位、但不是写接口的符号', reanchoredTo('landingDefault'), [0, /改锚 1 ｜/], [1, /台账里的新锚 electron\/shared\/landing\.ts#landingDefault/]],
     ['改锚到已经不在的符号', reanchoredTo('ghostRegistry'), [1, /登记的新锚 electron\/shared\/landing\.ts :: ghostRegistry/], [1, /台账里的新锚 electron\/shared\/landing\.ts#ghostRegistry/]],
+    ['退役：主人没了、不变量不再适用', retiredInLedger(), [0, /退役 1 ｜/], [0, /✅ 概念 owner 门岗/]],
+    // 待查是欠账：边界主人门记着它，概念门不许新合同靠它躲开登记（存量走冻结账）
+    ['待查：主人状态没核过', ledger({ unverified: [{ ...MOVED, reason: '还没核（测试）' }] }), [0, /待查 1 ｜/], [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/]],
+    ['普查表说读不了，其实读得了', ledger({ unreadable_symbols: [{ ...MOVED, reason: '（测试）' }] }), [1, /普查表条目已经可读了/], [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/]],
     ['台账没有这一条', ledger(), [1, /合同声明过的主人不在了：docs\/fixes\/2026-10-16-moved\.root-cause\.json::electron\/old\/registry\.ts::createOldRegistry/], [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/]],
   ]
+  // 台账每个桶都要在上面有一行：再加一个桶、不写清两道门各怎么认，这里就红
+  const realLedger = JSON.parse(fs.readFileSync(fileURLToPath(new URL('./boundary-owners-ledger.json', import.meta.url)), 'utf8'))
+  const realBuckets = Object.keys(realLedger).filter((key) => Array.isArray(realLedger[key])).sort()
+  const coveredBuckets = [...new Set(cases.flatMap(([, ledgerFile]) => Object.keys(ledgerFile).filter((key) => Array.isArray(ledgerFile[key]) && ledgerFile[key].length > 0)))].sort()
+  assert.deepEqual(coveredBuckets, realBuckets)
   try {
     for (const [name, ledgerFile, [boundaryStatus, boundaryOutput], [conceptStatus, conceptOutput]] of cases) {
       write(repo.root, { [LEDGER]: ledgerFile })
@@ -566,6 +576,45 @@ test('改锚：两道门对同一份台账认同一个锚（同一组夹具，�
       assert.equal(owners.status, conceptStatus, `${name}｜概念门：${owners.output}`)
       assert.match(owners.output, conceptOutput, `${name}｜概念门`)
     }
+  } finally {
+    cleanup(repo)
+  }
+})
+
+test('退役不是放行口：主人其实还在 → 边界主人门红；另一份合同的同名边界没退役 → 概念门照报', () => {
+  const OTHER_CONTRACT = 'docs/fixes/2026-10-17-other.root-cause.json'
+  const repo = makeRepo({
+    files: {
+      ...REANCHOR_FILES,
+      [LEDGER]: retiredInLedger(),
+      [MOVED.path]: 'export function createOldRegistry(): void {}\n',
+      [OTHER_CONTRACT]: { schema_version: 3, shared_boundaries: [{ path: MOVED.path, symbol: MOVED.symbol, responsibility: 'test' }] },
+    },
+  })
+  try {
+    const boundary = runBoundary(repo)
+    assert.equal(boundary.status, 1, boundary.output)
+    assert.match(boundary.output, /台账条目已经自己好了/)
+    const owners = run(repo)
+    assert.equal(owners.status, 1, owners.output)
+    assert.match(owners.output, /2026-10-17-other\.root-cause\.json 声明的共享边界 electron\/old\/registry\.ts#createOldRegistry/)
+    assert.doesNotMatch(owners.output, /2026-10-16-moved\.root-cause\.json 声明的共享边界/)
+  } finally {
+    cleanup(repo)
+  }
+})
+
+test('退役：冻结账里还留着这一条 → 陈旧要删（棘轮只减不增）', () => {
+  const frozen = { contract: MOVED_CONTRACT, path: MOVED.path, symbol: MOVED.symbol }
+  const repo = makeRepo({
+    files: { ...REANCHOR_FILES, [LEDGER]: retiredInLedger() },
+    base: baseline({ unregistered_boundaries: [frozen] }),
+  })
+  try {
+    const stale = run(repo)
+    assert.equal(stale.status, 1, stale.output)
+    assert.match(stale.output, /baseline-stale/)
+    assert.match(stale.output, /已经登记、退役或合同已删/)
   } finally {
     cleanup(repo)
   }

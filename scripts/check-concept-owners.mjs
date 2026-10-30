@@ -70,7 +70,7 @@ const RULE_TEXT = {
   'forbidden-reference': ['碰了列为禁止引用的旧形状', '改走主人；确需引用，写进这个概念的 allowed_consumers 并说明理由。'],
   'identity-comparator': ['登记表之外又长出一份身份比对（原 check:identity-compare）', '改成 import 主人那一份比对函数；确实是另一种身份，就登记一个身份概念并写明 identity_fields。'],
   'identity-drift': ['身份维度漂了', '维度变了就是身份变了：改回去，或者更新登记的 identity_fields 并说明为什么。'],
-  'unregistered-boundary': ['合同里冒出了没登记的主人', 'R33.4：改动碰到还没登记的概念，同一个 commit 当场登记——把这个边界写进一个概念的 write_api（新概念就新建一条）；边界在边界主人台账改过锚的，登记的是台账里的新锚。'],
+  'unregistered-boundary': ['合同里冒出了没登记的主人', 'R33.4：改动碰到还没登记的概念，同一个 commit 当场登记——把这个边界写进一个概念的 write_api（新概念就新建一条）；边界在边界主人台账改过锚的，登记的是台账里的新锚；主人确实没了、那条不变量不再适用的，记进边界主人台账 retirements 并写清理由。'],
   'baseline-invalid': ['基线结构不对', '修正 scripts/concept-owners-baseline.json；结构坏了不能当放行。'],
   'baseline-stale': ['基线里有已经不存在的口子', '删掉那一条：棘轮只减不增，基线必须等于现状。'],
   'baseline-grew': ['基线比参照提交长了', '已登记概念的第二写口 / 冻结写门只许变少。修代码，别抬基线挤过门岗（R17.0 第 4 条）。'],

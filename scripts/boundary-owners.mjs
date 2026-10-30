@@ -158,6 +158,14 @@ export function reanchorResolver(ledger) {
   };
 }
 
+/**
+ * 台账 retirements：主人确实没了、那条不变量不再适用。两道门读同一份：
+ * check:boundary-owners 核主人真的不在（还在就报「台账条目已经自己好了」），check:concept-owners 不再要求它是写接口。
+ */
+export function retiredBoundaries(ledger) {
+  return new Map((ledger?.retirements || []).map((row) => [boundaryIdentity(row), row]));
+}
+
 export function readContracts(repoRoot) {
   const dir = path.join(repoRoot, "docs", "fixes");
   if (!fs.existsSync(dir)) return [];
@@ -220,7 +228,7 @@ export function ownerDefinedAt(repoRoot, entry) {
  */
 export function evaluate({ results, ledger }) {
   const reanchor = reanchorResolver(ledger);
-  const retirements = new Map((ledger?.retirements || []).map((row) => [boundaryIdentity(row), row]));
+  const retirements = retiredBoundaries(ledger);
   const unverified = new Map((ledger?.unverified || []).map((row) => [boundaryIdentity(row), row]));
   const unreadable = new Map((ledger?.unreadable_symbols || []).map((row) => [boundaryIdentity(row), row]));
 
