@@ -632,6 +632,8 @@ describe('absence-without-baseline B：被比较的是界面匹配数，照旧�
     assert.deepEqual(hitLines(code), [4])
     assert.deepEqual(hitLines(code.split('\n').join('\r\n')), [4])
     assert.doesNotThrow(() => findAbsenceWithoutBaseline('const = ; ((( )) === 0 .toBe(0'))
+    // 合法但少见的写法也不许把门岗弄崩：filter() 不带参数、expect() 不带参数。
+    assert.doesNotThrow(() => findAbsenceWithoutBaseline('x.filter() === 0\n(await loc.all()).filter().length === 0\nexpect().toBe(0)'))
     assert.deepEqual(findAbsenceWithoutBaseline(''), [])
   })
 })

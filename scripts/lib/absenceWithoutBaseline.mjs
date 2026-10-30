@@ -329,7 +329,10 @@ export function findAbsenceWithoutBaseline(source, fileName = 'walk.mjs') {
         }
         if (isMethod && SAME_MATCHES.has(name)) return observes(callee.expression, path)
         // Locator.filter({ hasText })（参数是对象）仍是选择器；Array.filter(函数) 过滤出「违规清单」，零取决于谓词。
-        if (isMethod && name === 'filter') return ts.isObjectLiteralExpression(unwrap(node.arguments[0])) && observes(callee.expression, path)
+        if (isMethod && name === 'filter') {
+          const options = node.arguments[0] && unwrap(node.arguments[0])
+          return Boolean(options) && ts.isObjectLiteralExpression(options) && observes(callee.expression, path)
+        }
         const local = ts.isIdentifier(callee) ? functionsOf(callee) : isFunctionLike(callee) ? [callee] : []
         if (local.some((fn) => returnsOf(fn).some((returned) => observes(returned, path)))) return true
         // 其余调用：结果可能由实参算出来（Number(x)、Math.max(0, x)、本文件追不到的函数）。接收者不算——读元素值的方法都在这一类。
