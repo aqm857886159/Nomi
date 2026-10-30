@@ -8,6 +8,7 @@ import { collapseAgentPanel, newProjectEntry, openRailDrawer } from './_shell.mj
 import { spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
 import { quietElectronSpawn, repoRoot } from './_launchApp.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 /** Mac launch rule is checked immediately before starting any GUI, including rehearsal. */
@@ -85,7 +86,8 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
   await expect.poll(async () => Boolean(await fresh()), { timeout: stationTimeout() }).toBe(true)
   const id = (await fresh()).id
   const node = win.locator(`[data-node-id="${id}"]`)
-  const textMode = node.getByText(/^(文字生视频|From text)$/i)
+  const locale = await win.evaluate(() => localStorage.getItem('nomi:locale:v1') || 'zh-CN')
+  const textMode = node.getByText(uiText(locale, 'generationCommon.nodeTry.video.text'), { exact: true })
   const exposeComposer = async () => {
     const zoom = win.locator('[data-canvas-zoom-percent]')
     for (let step = 0; step < 20 && Number.parseInt(await zoom.innerText(), 10) > 100; step += 1) {

@@ -2,6 +2,8 @@
 // AI declaration -> existing model explanation/controls -> one text and one required-image task.
 // Isolated profile, strict loopback, fake credential; no model brain or paid generation.
 import fs from 'node:fs'
+import { require as tsxRequire } from 'tsx/cjs/api'
+import { uiText } from './full-walk/invariants.mjs'
 import path from 'node:path'
 import { createRuntimeWalk } from './agent-runtime-walk-support.mjs'
 import { openCustomApiWizard, openModelSettings } from './_shell.mjs'
@@ -11,6 +13,9 @@ import { startRelayVideoFixture, relayDeclaration, FAKE_RELAY_KEY } from './_rel
 import { waitForRelayLaunch, relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject, relayModelOption } from './_relayVideoWalk.mjs'
 
 const locale = process.env.NOMI_RELAY_LOCALE || 'zh-CN'
+const { enModelDisplayText } = tsxRequire('../../src/i18n/locales/modelDisplayText.ts', import.meta.url)
+const imageModeSource = uiText('zh-CN', 'settings.ai.defaultModels.imageToVideo')
+const imageModeLabel = locale === 'en' ? enModelDisplayText[imageModeSource] : imageModeSource
 const evidence = process.env.NOMI_RELAY_EVIDENCE_DIR
 if (!evidence || !path.isAbsolute(evidence)) throw new Error('NOMI_RELAY_EVIDENCE_DIR must name an isolated evidence directory')
 fs.mkdirSync(evidence, { recursive: true })
@@ -77,7 +82,7 @@ try {
   // Change through the existing mode control, then select the image-only model.
   await win.keyboard.press('Escape')
   await node.locator('[data-parameter-summary]').click()
-  await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: /图生视频|Image-to-video/ }).click()
+  await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: imageModeLabel }).click()
   await win.keyboard.press('Escape')
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await relayModelOption(win, models[1].id).click()
@@ -94,7 +99,7 @@ try {
   await win.keyboard.press('Escape')
   await expect(runButton).toBeEnabled()
   await node.locator('[data-parameter-summary]').click()
-  expect(await panel.locator('[data-agent-generation-mode] [role="radio"]').allTextContents()).toEqual([locale === 'en' ? 'Image-to-video' : '图生视频'])
+  expect(await panel.locator('[data-agent-generation-mode] [role="radio"]').allTextContents()).toEqual([imageModeLabel])
   expect(await panel.locator('[data-agent-parameter-control="resolution"]').innerText()).toContain('540p')
   await capture('frame-parameters')
   await win.keyboard.press('Escape')
@@ -111,7 +116,7 @@ try {
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await relayModelOption(win, models[0].id).click()
   await node.locator('[data-parameter-summary]').click()
-  await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: /图生视频|Image-to-video/ }).click()
+  await panel.locator('[data-agent-generation-mode] [role="radio"]', { hasText: imageModeLabel }).click()
   const dualDuration = panel.locator('[data-agent-parameter-control="duration"]')
   const slider = dualDuration.getByRole('slider')
   if (await slider.count()) await slider.press('Home')
