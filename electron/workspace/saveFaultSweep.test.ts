@@ -1,8 +1,8 @@
 import fs from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import { getDurabilityMode, setDurabilityMode } from "../durability";
 import { createWorkspaceProject, saveWorkspaceProject } from "./workspaceRepository";
 import { workspaceProjectRecordSchema } from "./workspaceTypes";
@@ -37,11 +37,15 @@ const KNOWN_DEBT = JSON.parse(SAVE_DEBT_JSON) as {
   largeJson: { stringify: number; parse: number };
 };
 
+const cleanRoots = () => {
+  for (const root of roots.splice(0)) native.rmSync(root, { recursive: true, force: true });
+};
+afterAll(cleanRoots);
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
   setDurabilityMode(previousDurability);
-  for (const root of roots.splice(0)) native.rmSync(root, { recursive: true, force: true });
+  cleanRoots();
 });
 
 function leftovers(root: string): string[] {
@@ -65,7 +69,20 @@ function workspaceScope(file: string, prefixes: Record<Scope, string>): Scope | 
   return undefined;
 }
 
-async function save(fault?: Fault, large = false) {
+function restartSave(root: string, id: string, mode: string, nowMs: number) {
+  const fixture = path.resolve(import.meta.dirname, "../../tests/fixtures/save-fault-restart.mjs");
+  const child = spawnSync(process.execPath, ["--import", "tsx", fixture, JSON.stringify({ root, id, mode, nowMs })], {
+    encoding: "utf8", timeout: 30_000,
+    env: { ...process.env, VITEST: undefined, VITEST_WORKER_ID: undefined },
+  });
+  let response: { pid?: number; error?: { name: string; code?: string; message: string }; saved?: unknown; persisted?: unknown; ownerLeft?: boolean };
+  try { response = JSON.parse(child.stdout.trim()); }
+  catch { throw new Error(`Cold-process fixture protocol failed: ${child.error ?? child.stderr}`); }
+  if (!Number.isInteger(response.pid) || response.pid !== child.pid || response.pid === process.pid) throw new Error("Restart must use a real new pid");
+  return { ...response, exit: child.status, residual: leftovers(root) };
+}
+
+async function save(fault?: Fault, large = false, coldOwnerControl = false) {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-save-fault-")));
@@ -75,6 +92,7 @@ async function save(fault?: Fault, large = false) {
   const projectRoot = path.join(deps.defaultProjectsRoot, "project");
   const payload = { text: large ? "x".repeat(1024 * 1024) : "before" };
   const created = createWorkspaceProject({ rootPath: projectRoot, record: { name: "Save sweep", payload } }, deps);
+  fs.writeFileSync(path.join(root, ".save-fault-fixture.json"), JSON.stringify({ id: created.id }));
   const manifest = workspaceProjectFile(projectRoot);
   const before = JSON.parse(fs.readFileSync(manifest, "utf8"));
   const counts: Record<string, number> = {};
@@ -85,6 +103,7 @@ async function save(fault?: Fault, large = false) {
   let matched = 0;
   const injectedAt: string[] = [];
   let active = true;
+  let injecting = true;
   const hit = (operation: Operation, input: unknown): void => {
     if (!active) return;
     // fd calls are ALL counted in the save window; their owning open supplies the
@@ -95,7 +114,7 @@ async function save(fault?: Fault, large = false) {
     if (!scope) return;
     const key = `${scope}:${operation}`;
     counts[key] = (counts[key] ?? 0) + 1;
-    if (fault?.operation !== operation || fault.scope !== scope) return;
+    if (!injecting || fault?.operation !== operation || fault.scope !== scope) return;
     matched += 1;
     if (matched === fault.nth || (fault.persistent && matched > fault.nth)) {
       injected += 1;
@@ -107,7 +126,7 @@ async function save(fault?: Fault, large = false) {
     const ms = Number(timeout);
     if (!Number.isFinite(ms) || ms <= 0) throw new Error("Unbounded synchronous sleep");
     const source = [...(new Error().stack ?? "").matchAll(/\/(electron\/[^:\n)]+):\d+/g)].map((match) => match[1]).find((file) => !file.endsWith(".test.ts")) ?? "unknown";
-    sleeps[source] = (sleeps[source] ?? 0) + ms;
+    if (active) sleeps[source] = (sleeps[source] ?? 0) + ms;
     vi.setSystemTime(Date.now() + ms);
     return "timed-out";
   });
@@ -138,13 +157,34 @@ async function save(fault?: Fault, large = false) {
     return parse(...args);
   });
   setDurabilityMode("durable");
-  let error: unknown;
-  let saved: Awaited<ReturnType<typeof saveWorkspaceProject>> | undefined;
-  try {
-    const pending = saveWorkspaceProject(created.id, { payload: { text: large ? payload.text + "after" : "after" } }, deps)
-      .then((value) => { saved = value; }, (reason: unknown) => { error = reason; });
+  const attempt = async (text: string) => {
+    let error: unknown;
+    let saved: Awaited<ReturnType<typeof saveWorkspaceProject>> | undefined;
+    const pending = saveWorkspaceProject(created.id, { payload: { text } }, deps)
+      .then(value => { saved = value; }, (reason: unknown) => { error = reason; });
     await vi.runAllTimersAsync();
     await pending;
+    return { error, saved };
+  };
+  let result;
+  try {
+    const first = await attempt(large ? payload.text + "after" : "after");
+    active = false;
+    injecting = false;
+    const after = JSON.parse(fs.readFileSync(manifest, "utf8"));
+    const immediateResidual = leftovers(root);
+    const nextExpected = { ...before, lastKnownRootPath: projectRoot, revision: before.revision + 1, updatedAt: after.updatedAt, savedAt: after.savedAt, payload: { text: large ? payload.text + "after" : "after" } };
+    delete nextExpected.draft;
+    const manifestIntact = workspaceProjectRecordSchema.safeParse(after).success &&
+      (isDeepStrictEqual(before, after) || isDeepStrictEqual(nextExpected, after));
+    const truthful = !first.saved || (isDeepStrictEqual(after, nextExpected) && isDeepStrictEqual(after, JSON.parse(JSON.stringify(first.saved))));
+    let recovery;
+    if (fault && injected > 0) {
+      const outcome = await attempt("recovered");
+      const persisted = JSON.parse(fs.readFileSync(manifest, "utf8"));
+      recovery = { ...outcome, residual: leftovers(root), truthful: Boolean(outcome.saved) && persisted.revision === after.revision + 1 && persisted.payload?.text === "recovered" && isDeepStrictEqual(persisted, JSON.parse(JSON.stringify(outcome.saved))) };
+    }
+    result = { clockMs: Date.now(), counts, sleeps, json, injected, matched, ...first, before, after, immediateResidual, residual: leftovers(root), injectedAt, manifestIntact, truthful, recovery };
   } finally {
     active = false;
     vi.restoreAllMocks();
@@ -152,22 +192,31 @@ async function save(fault?: Fault, large = false) {
     setDurabilityMode(previousDurability);
     for (const fd of descriptors.keys()) native.closeSync(fd);
   }
-  const after = JSON.parse(fs.readFileSync(manifest, "utf8"));
-  const residual = leftovers(root);
-  const nextExpected = { ...before, lastKnownRootPath: projectRoot, revision: before.revision + 1, updatedAt: after.updatedAt, savedAt: after.savedAt, payload: { text: large ? payload.text + "after" : "after" } };
-  delete nextExpected.draft;
-  const manifestIntact = workspaceProjectRecordSchema.safeParse(after).success &&
-    (isDeepStrictEqual(before, after) || isDeepStrictEqual(nextExpected, after));
-  const result = { counts, sleeps, json, injected, matched, error, saved, before, after, residual, injectedAt, manifestIntact };
-  native.rmSync(root, { recursive: true, force: true });
-  roots.splice(roots.indexOf(root), 1);
-  return result;
+  try {
+    let deadOwner;
+    if (coldOwnerControl) deadOwner = restartSave(root, created.id, "leave-owner", result.clockMs);
+    const restart = (fault && injected > 0) || coldOwnerControl ? restartSave(root, created.id, fault ? "after-fault" : "save", result.clockMs) : undefined;
+    return { ...result, restart, deadOwner };
+  } finally {
+    native.rmSync(root, { recursive: true, force: true });
+    roots.splice(roots.indexOf(root), 1);
+  }
 }
 
 const cases = OPERATIONS.flatMap((operation) => (["project", "settings"] as const).flatMap((scope) =>
   ERRNOS.flatMap((code) => [false, true].map((persistent) => ({ operation, scope, code, persistent })))));
 
 describe("saveWorkspaceProject deterministic I/O fault sweep", () => {
+  beforeAll(async () => {
+    const control = await save(undefined, false, true);
+    expect(control.deadOwner?.exit, JSON.stringify(control.deadOwner)).toBe(0);
+    expect(control.deadOwner?.ownerLeft).toBe(true);
+    expect(control.deadOwner?.residual).toContain("projects/project/.nomi/manifest-transaction.lock");
+    expect(control.restart?.exit, JSON.stringify(control.restart)).toBe(0);
+    expect(control.restart?.residual).toEqual([]);
+    expect(control.restart?.pid).not.toBe(control.deadOwner?.pid);
+    process.stdout.write("RESTART_PIDS " + JSON.stringify({ parent: process.pid, deadOwner: control.deadOwner?.pid, freshSaver: control.restart?.pid }) + "\n");
+  });
   it("scope prefixes include the root itself and children, excluding sibling lookalikes", () => {
     const base = path.resolve(os.tmpdir(), "save-scope-proof");
     const prefixes = { project: path.join(base, "project"), settings: path.join(base, "settings") };
@@ -193,6 +242,8 @@ describe("saveWorkspaceProject deterministic I/O fault sweep", () => {
     const failures: string[] = [];
     const maxima: Record<string, number> = {};
     let injectedRounds = 0;
+    let sameProcessRecoveries = 0;
+    let freshProcessSaves = 0;
     let terminal = false;
     // Hard count safety net, never an elapsed-time budget.
     for (let nth = 1; nth <= 256; nth += 1) {
@@ -211,14 +262,21 @@ describe("saveWorkspaceProject deterministic I/O fault sweep", () => {
         const debt = KNOWN_DEBT.sleep[source];
         if (!debt || ms > debt.maxMs) failures.push(`N=${nth} sleep ${source}=${ms}`);
       }
-      if (result.residual.length) failures.push(`N=${nth} leftovers=${result.residual.join(",")}`);
+      if (!result.truthful) failures.push(`N=${nth} false-success`);
+      if (result.recovery?.saved && result.recovery.truthful && !result.recovery.error && result.recovery.residual.length === 0) sameProcessRecoveries += 1;
+      if (result.restart?.exit === 0 && result.restart.saved && result.restart.residual.length === 0) freshProcessSaves += 1;
+      if (result.recovery?.error || !result.recovery?.saved || !result.recovery.truthful) failures.push(`N=${nth} same-process-save=${String(result.recovery?.error ?? "false-success")}`);
+      if (result.recovery?.residual.length) failures.push(`N=${nth} same-process-leftovers=${result.recovery.residual.join(",")}`);
+      if (result.restart?.exit !== 0 || result.restart?.error || !result.restart?.saved) failures.push(`N=${nth} fresh-process-save=${JSON.stringify(result.restart?.error)}`);
+      if (result.restart?.saved && !isDeepStrictEqual(result.restart.saved, result.restart.persisted)) failures.push(`N=${nth} fresh-process-false-success`);
+      if (result.restart?.residual.length) failures.push(`N=${nth} fresh-process-leftovers=${result.restart.residual.join(",")}`);
       if (result.error && !(result.error instanceof Error && ("code" in result.error || result.error.name !== "Error"))) failures.push(`N=${nth} unclassified=${String(result.error)}`);
       if (!result.error && !result.saved) failures.push(`N=${nth} missing outcome`);
       if (!result.manifestIntact) failures.push(`N=${nth} incomplete manifest`);
     }
     expect(terminal, "sweep must reach an uninjected successful terminal save").toBe(true);
     expect(injectedRounds, "in-window injected rounds >0").toBeGreaterThan(0);
-    process.stdout.write("SAVE_SWEEP " + JSON.stringify({ ...spec, injectedRounds, maxima, failures: failures.slice(0, 8) }) + "\n");
+    process.stdout.write("SAVE_SWEEP " + JSON.stringify({ ...spec, injectedRounds, sameProcessRecoveries, freshProcessSaves, maxima, failures: failures.slice(0, 8) }) + "\n");
     expect(failures).toEqual([]);
   });
 
@@ -249,10 +307,14 @@ describe("saveWorkspaceProject deterministic I/O fault sweep", () => {
     expect(KNOWN_DEBT.largeJson.parse).toBeLessThanOrEqual(frozen.largeJson.parse);
   });
 
-  it("single ENOSPC at the third project open leaves no manifest lock", async () => {
+  it("single ENOSPC at the third project open recovers in the same and a fresh process", async () => {
     const result = await save({ operation: "open", scope: "project", nth: 3, code: "ENOSPC", persistent: false });
-    process.stdout.write("SAVE_MINIMAL_REPRO " + JSON.stringify({ injectedAt: result.injectedAt, error: String(result.error), residual: result.residual, oldJsonIntact: JSON.stringify(result.before) === JSON.stringify(result.after) }) + "\n");
-    expect(result.residual).toEqual([]);
+    process.stdout.write("SAVE_MINIMAL_REPRO " + JSON.stringify({ injectedAt: result.injectedAt, error: String(result.error), immediateResidual: result.immediateResidual, recoveryResidual: result.recovery?.residual, freshResidual: result.restart?.residual, freshPidIsNew: result.restart?.pid !== process.pid, freshError: result.restart?.error, oldJsonIntact: JSON.stringify(result.before) === JSON.stringify(result.after) }) + "\n");
+    expect(result.error).toMatchObject({ code: "ENOSPC" });
+    expect(result.recovery?.error).toBeUndefined();
+    expect(result.recovery?.residual).toEqual([]);
+    expect(result.restart?.exit).toBe(0);
+    expect(result.restart?.residual).toEqual([]);
   });
 
   it("counts >=1MiB JSON work only inside a real save", async () => {
