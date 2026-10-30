@@ -31,7 +31,7 @@ export function mappingRowFromDeclaredMode(input: {
 }
 const TASK_LABELS: Partial<Record<ProfileKind, string>> = { text_to_video: '文生视频', image_to_video: '图生视频', text_to_image: '文生图', image_edit: '改图', text_to_audio: '语音', transcribe: '音频转写', text_to_3d: '文生3D', image_to_3d: '图生3D' };
 // Stable model vocabulary already localized by the renderer's model-display boundary.
-const REFERENCE_LABELS = { first_frame: '首帧', image_ref: '参考图' } as const;
+const REFERENCE_LABELS = { first_frame: '首帧', image_ref: '参考图', video_ref: '参考视频', audio_ref: '参考音频' } as const;
 const TASK_MODE_IDS: Partial<Record<ProfileKind, string>> = { text_to_video: 't2v', image_to_video: 'i2v', text_to_image: 'generate', image_edit: 'edit', text_to_audio: 'generate', transcribe: 'transcribe', text_to_3d: 'generate', image_to_3d: 'image' };
 
 function fieldError(candidate: AdapterModelDraft, field: string, reason: string): never {
@@ -73,16 +73,16 @@ function normalizeControlReferences(mode: CapabilityModelDraft['modes'][number],
   const slots: ArchetypeReferenceSlot[] = [];
   const replacements = new Map<string, string>();
   const groups = [
-    { media: 'image', kind: 'image_ref', key: 'referenceImages', label: '参考图' },
-    { media: 'video', kind: 'video_ref', key: 'referenceVideoUrls', label: '参考视频' },
-    { media: 'audio', kind: 'audio_ref', key: 'referenceAudioUrls', label: '参考音频' },
+    { media: 'image', kind: 'image_ref', key: 'referenceImages' },
+    { media: 'video', kind: 'video_ref', key: 'referenceVideoUrls' },
+    { media: 'audio', kind: 'audio_ref', key: 'referenceAudioUrls' },
   ] as const;
   for (const group of groups) {
     const inputs = media.filter((p) => (p.mediaKind || 'image') === group.media);
     if (!inputs.length) continue;
     if (group.media === 'image' && inputs.length === 1) slots.push({ kind: candidate.kind === 'video' ? 'first_frame' : 'image_ref', label: inputs[0].label, min: 1, max: 1, inputKey: inputs[0].key, asArray: false });
     else {
-      slots.push({ kind: group.kind, label: group.label, min: inputs.length, max: inputs.length, inputKey: group.key, asArray: true });
+      slots.push({ kind: group.kind, label: REFERENCE_LABELS[group.kind], min: inputs.length, max: inputs.length, inputKey: group.key, asArray: true });
       inputs.forEach((input, index) => replacements.set(input.key, `${group.key}.${index}`));
     }
   }

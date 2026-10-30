@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createRuntimeWalk, readProject } from './agent-runtime-walk-support.mjs'
 import { openCustomApiWizard, openModelSettings } from './_shell.mjs'
-import { expect } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { startRelayVideoFixture, relayDeclaration, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
 import { waitForRelayLaunch, relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject, relayModelOption } from './_relayVideoWalk.mjs'
@@ -88,8 +88,9 @@ try {
   await node.locator('[contenteditable="true"]').last().fill('A glass marble rolls slowly')
   const runButton = node.locator('[data-bar-segment="generate"]')
   await expect(node.locator('[data-asset-slot] img').first()).toBeVisible()
+  const referenceProof = await proveProbe(node.locator('[data-asset-slot] img'), 'the required reference image is present before removal')
   await node.locator('[data-asset-slot] [data-asset-tile-remove]').click()
-  await expect(node.locator('[data-asset-slot] img')).toHaveCount(0)
+  await expectAbsent(node.locator('[data-asset-slot] img'), { provenBy: referenceProof, message: 'removing the required reference leaves an empty input' })
   await expect(runButton).toBeDisabled()
   expect(await node.locator('[data-asset-slot]').count()).toBe(1)
   await capture('frame-required')

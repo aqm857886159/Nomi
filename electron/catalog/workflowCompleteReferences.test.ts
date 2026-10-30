@@ -4,6 +4,7 @@ import { projectDeclaredModel } from '../providerAdapter/promotionMeta';
 import { buildHttpRequest, buildTemplateContext } from '../ai/requestPipeline';
 import type { Mapping, Model } from './types';
 import { archetypeModeArraySlots } from '../../src/workbench/generationCanvas/nodes/controls/archetypeMeta';
+import { enModelDisplayText } from '../../src/i18n/locales/modelDisplayText';
 
 it('projects every image, video and audio binding through existing array slots and indexed node inputs', () => {
   const graph = {
@@ -23,6 +24,7 @@ it('projects every image, video and audio binding through existing array slots a
   const mode = projected.contract!.modes[0];
   expect(mode.slots.map(s => [s.kind, s.min, s.max])).toEqual([['image_ref', 2, 2], ['video_ref', 1, 1], ['audio_ref', 1, 1]]);
   expect(archetypeModeArraySlots(mode)).toHaveLength(3);
+  for (const slot of mode.slots) expect(enModelDisplayText[slot.label], slot.kind).toBeTruthy();
   const context = buildTemplateContext({ request: { prompt: '' }, params: { referenceImages: ['a.png', 'b.png'], referenceVideoUrls: ['v.mp4'], referenceAudioUrls: ['s.wav'] }, model: {}, modelKey: 'opaque', apiKey: '' });
   const request = buildHttpRequest({ baseUrl: 'http://127.0.0.1:8188', authType: 'none', apiKey: '', context, operation: projected.mappings[0].create! });
   expect((request.body as { prompt: unknown }).prompt).toMatchObject({ a: { inputs: { image: 'a.png' } }, b: { inputs: { image: 'b.png' } }, v: { inputs: { file: 'v.mp4' } }, s: { inputs: { audio: 's.wav' } } });
