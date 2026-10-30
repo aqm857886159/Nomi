@@ -18,8 +18,14 @@ export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) 
     const front = execFileSync('lsappinfo', ['front'], { encoding: 'utf8' }).trim()
     const name = execFileSync('lsappinfo', ['info', '-only', 'name', front], { encoding: 'utf8' }).trim()
     const load5 = os.loadavg()[1]
-    console.log(`[launch] ${new Date().toISOString()} front=${name} load5=${load5}`)
-    if (!/claude/i.test(name) && load5 < 10) return { front: name, load5, waitedMs: Date.now() - started }
+    let idleSeconds = null
+    try {
+      const idle = execFileSync('ioreg', ['-c', 'IOHIDSystem'], { encoding: 'utf8' }).match(/"HIDIdleTime"\s*=\s*(\d+)/)
+      if (idle) idleSeconds = Math.floor(Number(idle[1]) / 1e9)
+    } catch (error) { console.warn(`[launch] HID idle check unavailable: ${error.message}`) }
+    const foregroundPermitted = !/claude/i.test(name)
+    console.log(`[launch] ${new Date().toISOString()} front=${name} load5=${load5} idleSeconds=${idleSeconds}`)
+    if (load5 < 10 && (foregroundPermitted || (idleSeconds !== null && idleSeconds >= 600))) return { front: name, load5, idleSeconds, permittedBy: foregroundPermitted ? 'foreground' : 'idle', waitedMs: Date.now() - started }
     await new Promise((resolve) => setTimeout(resolve, 60_000))
   }
   throw new Error('Launch deferred for two hours: foreground app or five-minute load did not permit a quiet walk')
