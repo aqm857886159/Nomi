@@ -216,3 +216,5 @@ RSS预算64MiB未通过，取消预算1s通过。量具退出0表示采样完成
 按协调裁定先拆分，不把旧冷峰值归因为初始化。每档5个新客户端：①只1KiB首fetch（消费正文、不写盘）；②同一新客户端先1KiB预热，再量256MiB/2GiB下载。分别记录rss、heapUsed、external、arrayBuffers的基线/峰值增量、前后load5；无强制GC，无大文件预热。预热后下载RSS≤64MiB时，引用裁定原话更新预算：“预热后单次下载额外 RSS ≤64MiB；首个 fetch 的一次性初始化单列，只记数、不设预算”。超过则定位接收/桥接/写盘，只在本线取回边界修；共享vendorHttp或新包需停报。
 
 反例：只有1KiB预热不能漏计进程内第一次大文件的内存；不能拿拒绝超限的main路径当成成功下载低内存对照；不同指标不能相加重复算（arrayBuffers包含于external）。main以协调工作树同SHA的origin/main d13bba332为基准；其URL取回fetchProviderMedia/hardenedFetch缓冲正文，字节上限200MiB。保留上限，以相同请求规模记录拒绝；main没有对应鉴权/content文件执行路径。本线与main传输函数及其未改的依赖校验blob一致后，在同宿主隔离进程测阶段差异，不修改main源码或共享大小政策。
+
+若预热下载仍超64MiB，同批次以新客户端/同1KiB预热对照：直接Web reader丢弃、Node桥接后丢弃、现有生产写盘，并记录响应头到达时增量。可另探标准BYOB reader；不支持或未读完都不能当低内存成功。诊断只区分阶段和消费方式，不改生产、共享HTTP或GC参数。

@@ -8,7 +8,8 @@ import http from 'node:http'
 import { fork, execFileSync } from 'node:child_process'
 import { once } from 'node:events'
 import { fileURLToPath } from 'node:url'
-import { Readable } from 'node:stream'
+import { Readable, Transform, Writable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { performance } from 'node:perf_hooks'
 import { require as tsxRequire } from 'tsx/cjs/api'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
@@ -66,7 +67,7 @@ if (process.argv.includes('--server')) {
     const tick = () => { const now = process.memoryUsage(); for (const key of metrics) peak[key] = Math.max(peak[key], now[key]) }
     const timer = setInterval(tick, 5)
     const start = performance.now()
-    let outcome = 'downloaded'
+    let outcome = 'downloaded', afterHeaders = null, received = null
     try {
       if (phase === 'cold-init') { await smallFetch(); outcome = 'initialized' }
       else if (implementation === 'main-url-buffer') {
@@ -80,7 +81,35 @@ if (process.argv.includes('--server')) {
         }
       } else {
         const response = await fetch(`${baseUrl}/?bytes=${bytes}`, { signal: controller.signal })
-        await streamProfileMediaToFile(response, file, controller.signal)
+        afterHeaders = process.memoryUsage()
+        if (implementation === 'receive-drain' || implementation === 'byob-drain') {
+          received = 0
+          let reader
+          try { reader = implementation === 'byob-drain' ? response.body.getReader({ mode: 'byob' }) : response.body.getReader() }
+          catch (error) {
+            if (implementation !== 'byob-drain' || !(error instanceof TypeError)) throw error
+            outcome = 'unsupported-byte-reader'; await response.body.cancel()
+          }
+          if (reader) {
+            let buffer = new ArrayBuffer(64 * 1024)
+            try {
+              while (received < bytes) {
+                const { value, done } = await (implementation === 'byob-drain' ? reader.read(new Uint8Array(buffer)) : reader.read())
+                if (done) break
+                received += value.byteLength
+                if (implementation === 'byob-drain') buffer = value.buffer
+              }
+              await reader.cancel()
+              outcome = 'drained'
+            } finally { reader.releaseLock() }
+          }
+        } else if (implementation === 'bridge-drain') {
+          received = 0
+          const count = new Transform({ transform(chunk, _encoding, callback) { received += chunk.length; callback(null, chunk) } })
+          await pipeline(Readable.fromWeb(response.body), count, new Writable({ write(_chunk, _encoding, callback) { callback() } }), { signal: controller.signal })
+          outcome = 'drained'
+        } else await streamProfileMediaToFile(response, file, controller.signal)
+        if (outcome === 'drained' && received !== bytes) throw new Error('Diagnostic drain has wrong size')
       }
       tick()
     } finally { clearInterval(timer) }
@@ -103,7 +132,7 @@ if (process.argv.includes('--server')) {
     }
     sample = { implementation, phase, bytes, run, clientPid: process.pid, freshClient: true,
       warmupBytes: phase === 'warm-download' ? 1024 : 0, outcome,
-      memoryMiB: Object.fromEntries(metrics.map((key) => [key, { initial: initial[key] / 1024 ** 2, peak: peak[key] / 1024 ** 2, increase: (peak[key] - initial[key]) / 1024 ** 2 }])),
+      memoryMiB: Object.fromEntries(metrics.map((key) => [key, { initial: initial[key] / 1024 ** 2, peak: peak[key] / 1024 ** 2, increase: (peak[key] - initial[key]) / 1024 ** 2, afterHeadersIncrease: afterHeaders ? (afterHeaders[key] - initial[key]) / 1024 ** 2 : null }])),
       transferMs, cancelMs, mainByteCap: implementation === 'main-url-buffer' ? PROVIDER_MEDIA_BYTE_CAP : null,
       loadBefore, loadAfter: os.loadavg()[1] }
   } finally {
@@ -131,25 +160,36 @@ if (process.argv.includes('--server')) {
     process.exit(75)
   }
   const samples = []
-  let failure
+  let failure, diagnosticTriggered = false
+  const runSample = async (implementation, phase, bytes, run) => {
+    const child = fork(fileURLToPath(import.meta.url), ['--sample', implementation, phase, String(bytes), String(run)], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] })
+    const sample = await new Promise((resolve, reject) => {
+      let received
+      child.once('message', (value) => { received = value })
+      child.once('error', reject)
+      child.once('exit', (code) => code === 0 && received ? resolve(received) : reject(new Error(`Client exited ${code} without a sample`)))
+    })
+    samples.push(sample); console.log(JSON.stringify(sample))
+  }
   try {
     for (const implementation of ['relay-stream', 'main-url-buffer']) {
       for (const { phase, bytes } of [{ phase: 'cold-init', bytes: 1024 }, { phase: 'warm-download', bytes: 256 * 1024 ** 2 }, { phase: 'warm-download', bytes: 2 * 1024 ** 3 }]) {
-        for (let run = 0; run < runs; run++) {
-          const child = fork(fileURLToPath(import.meta.url), ['--sample', implementation, phase, String(bytes), String(run)], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] })
-          const sample = await new Promise((resolve, reject) => {
-            let received
-            child.once('message', (value) => { received = value })
-            child.once('error', reject)
-            child.once('exit', (code) => code === 0 && received ? resolve(received) : reject(new Error(`Client exited ${code} without a sample`)))
-          })
-          samples.push(sample); console.log(JSON.stringify(sample))
+        for (let run = 0; run < runs; run++) await runSample(implementation, phase, bytes, run)
+      }
+    }
+    const downloads = samples.filter((s) => s.implementation === 'relay-stream' && s.phase === 'warm-download')
+    diagnosticTriggered = downloads.every((s) => s.loadBefore < 10 && s.loadAfter < 10) && downloads.some((s) => s.memoryMiB.rss.increase > 64)
+    if (diagnosticTriggered) {
+      for (const implementation of ['receive-drain', 'bridge-drain', 'byob-drain']) {
+        for (const bytes of [256 * 1024 ** 2, 2 * 1024 ** 3]) {
+          for (let run = 0; run < runs; run++) await runSample(implementation, 'warm-download', bytes, run)
         }
       }
     }
   } catch (error) { failure = error }
   const report = { scope: 'Split first 1KiB fetch and post-1KiB-warmup transfer/write; fresh client and independent producer each sample; no decode/publication',
     date: new Date().toISOString(), sourceRef, machine: `${process.platform} ${process.arch} ${os.cpus()[0]?.model}`, node: process.version,
+    diagnosticTriggered,
     control: { ref: controlRef, function: 'fetchProviderMedia', sourceUnchanged: true, policy: 'original main byte cap retained; a refused transfer is not a successful-download memory baseline' },
     noisy: samples.some((s) => s.loadBefore >= 10 || s.loadAfter >= 10), runs, samples,
     ...(failure ? { failure: failure.message } : {}) }
