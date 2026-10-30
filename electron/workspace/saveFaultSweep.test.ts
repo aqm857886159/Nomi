@@ -58,6 +58,8 @@ function leftovers(root: string): string[] {
 }
 
 async function save(fault?: Fault, large = false) {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-save-fault-")));
   roots.push(root);
   const deps = { settingsRoot: path.join(root, "settings"), defaultProjectsRoot: path.join(root, "projects") };
@@ -98,8 +100,6 @@ async function save(fault?: Fault, large = false) {
       throw Object.assign(new Error(`injected ${fault.code} ${key} #${matched}`), { code: fault.code });
     }
   };
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date("2026-10-30T00:00:00Z"));
   vi.spyOn(Atomics, "wait").mockImplementation((_array, _index, _value, timeout) => {
     const ms = Number(timeout);
     if (!Number.isFinite(ms) || ms <= 0) throw new Error("Unbounded synchronous sleep");
