@@ -1,5 +1,5 @@
 // Editable drafts through real UI → autosave → disk → app restart. No model/key/provider is used.
-// Run under the gates lock. NOMI_SAVE_DRAFT_OUT must be this run's isolated artifact directory.
+// Run under the gates lock; local handoffs set NOMI_SAVE_DRAFT_OUT to their own artifact directory.
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -12,7 +12,7 @@ import { uiText } from './full-walk/invariants.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
-const out = process.env.NOMI_SAVE_DRAFT_OUT
+const out = process.env.NOMI_SAVE_DRAFT_OUT ?? path.join(repoRoot, 'tests/ux/shots/project-save-draft-contract', String(Date.now()))
 assert.ok(out && path.isAbsolute(out), 'NOMI_SAVE_DRAFT_OUT must be an absolute isolated artifact directory')
 fs.mkdirSync(out, { recursive: true })
 function launchConditions() {
