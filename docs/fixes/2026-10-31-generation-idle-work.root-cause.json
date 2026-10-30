@@ -21,7 +21,8 @@
     "electron/productionRun/productionGenerationSubmission.ts",
     "electron/productionRun/productionRunRuntimeEnvelope.ts",
     "src/devlab/designLab/processFeedback/",
-    "src/workbench/generationCanvas/nodes/ProgressRevealCanvas.tsx"
+    "src/workbench/generationCanvas/nodes/ProgressRevealCanvas.tsx",
+    "electron/productionRun/productionGenerationMaterialization.ts"
   ],
   "entry_points": [
     "Seven setNodeProgress producers from the generated matrix",
@@ -879,14 +880,9 @@
       "responsibility": "Compare effective task and run identity plus lifecycle takeover"
     },
     {
-      "path": "electron/productionRun/productionGenerationSubmission.ts",
-      "symbol": "poll",
-      "responsibility": "Skip redundant pending Run command"
-    },
-    {
       "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
       "symbol": "createProductionRunRuntimeEnvelope",
-      "responsibility": "Persistent observation version, late-result rejection, idempotent completion and file-backed exclusive materialization; no-write pending fast path."
+      "responsibility": "Persistent observation version, late-result rejection, idempotent completion and file-backed exclusive materialization; no-write pending fast path. Run updates are onChanged callbacks invoked only under this ownership and only for a genuine observation change; poll is a caller, not a second persistence policy."
     }
   ],
   "same_class_entry_points": [
@@ -1146,7 +1142,7 @@
       "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
       "patches/img-fx@0.5.1.patch"
     ],
-    "rationale": "Remove animated waiting branch, shader patch, preset API and dependency in same product commit; no feature flag or fallback. The public unguarded markMaterialized mutator is removed; completion is available only in the shared lifecycle ownership callback."
+    "rationale": "Remove animated waiting branch, shader patch, preset API and dependency in same product commit; no feature flag or fallback. The public unguarded markMaterialized mutator is removed; completion is available only in the shared lifecycle ownership callback. Remove the orphan shader visual baseline and live dependency capability registration; retire the deleted patch owner in the owner ledger."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
