@@ -138,10 +138,29 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
 /** Shared paid/rehearsal segment: exactly one click, local asset, decoder and browser playback. */
 export async function generateRelayVideo({ win, prepared, capture }) {
   const { node, projectId, nodeId } = prepared
+  const readNode = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.find((n) => n.id === nodeId)
+  const previousRunIds = new Set(((await readNode()).runs || []).map((run) => run.id))
   await node.locator('[data-bar-segment="generate"]').click()
-  await expect.poll(() => node.getAttribute('data-status'), { timeout: stationTimeout({ turns: 2 }) }).toMatch(/^(success|error|failed|recoverable)$/)
-  expect(await node.getAttribute('data-status'), 'generation finishes successfully; failures are reported immediately').toBe('success')
-  const landed = (await readProject(win, projectId)).payload.generationCanvas.nodes.find((n) => n.id === nodeId)
+  let phase
+  await expect.poll(async () => {
+    if (((await readNode()).runs || []).some((run) => !previousRunIds.has(run.id))) phase = 'submitted'
+    else if (await win.locator('[data-spend-confirm-dialog]').isVisible()) phase = 'confirmation'
+    else phase = 'waiting'
+    return phase
+  }, { timeout: stationTimeout() }).not.toBe('waiting')
+  if (phase === 'confirmation') {
+    await capture('confirmation')
+    await win.locator('[data-spend-confirm-dialog] [data-spend-confirm-action="confirm"]').click()
+  }
+  let landed, freshRuns
+  await expect.poll(async () => {
+    landed = await readNode()
+    freshRuns = (landed.runs || []).filter((run) => !previousRunIds.has(run.id))
+    return freshRuns[0]?.status || 'unsubmitted'
+  }, { timeout: stationTimeout({ turns: 2 }) }).toMatch(/^(success|error|failed|recoverable|cancelled)$/)
+  expect(freshRuns, 'one generation intent creates exactly one new run').toHaveLength(1)
+  expect(freshRuns[0].status, 'the new run succeeds; an old success cannot satisfy this check').toBe('success')
+  await expect(node).toHaveAttribute('data-status', 'success')
   expect(landed.result?.url).toMatch(/^nomi-local:\/\/asset\//)
   const { probeLandedMedia } = await import('./_agentVideoPaid.mjs')
   const media = await probeLandedMedia(prepared.projectRoot, projectId, landed.result.url)
@@ -160,5 +179,5 @@ export async function generateRelayVideo({ win, prepared, capture }) {
   const library = await openRailDrawer(win, 'assets', 'Open the project asset library')
   await expect(library.getByText(stored.name, { exact: true }).first()).toBeVisible()
   await capture('asset-library')
-  return { nodeId, url: landed.result.url, media, playable, library: { id: stored.id, name: stored.name, mediaType: stored.data.mediaType } }
+  return { nodeId, runId: freshRuns[0].id, taskId: freshRuns[0].taskId, url: landed.result.url, media, playable, library: { id: stored.id, name: stored.name, mediaType: stored.data.mediaType } }
 }

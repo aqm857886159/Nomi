@@ -69,7 +69,7 @@ try {
   expect(await panel.locator('[data-agent-parameter-control="resolution"]').innerText()).toContain('360p')
   await capture('dual-parameters')
   await win.keyboard.press('Escape')
-  report.textResult = await generateRelayVideo({ win, prepared, capture })
+  report.textResult = await generateRelayVideo({ win, prepared, capture: (name) => capture(`text-${name}`) })
   fs.copyFileSync(report.textResult.media.filePath, path.join(evidence, "text-result.mp4"))
   expect(relay.tasks.size).toBe(1)
   const textBody = relay.hits.find((h) => h.method === 'POST').body
@@ -105,7 +105,7 @@ try {
   expect(await panel.locator('[data-agent-parameter-control="resolution"]').innerText()).toContain('540p')
   await capture('frame-parameters')
   await win.keyboard.press('Escape')
-  report.imageResult = await generateRelayVideo({ win, prepared, capture })
+  report.imageResult = await generateRelayVideo({ win, prepared, capture: (name) => capture(`frame-${name}`) })
   fs.copyFileSync(report.imageResult.media.filePath, path.join(evidence, "image-result.mp4"))
   expect(relay.tasks.size).toBe(2)
   const posts = relay.hits.filter((h) => h.method === 'POST')
@@ -133,7 +133,7 @@ try {
     await expect(node.locator('[data-asset-slot] img').first()).toBeVisible()
     await win.keyboard.press('Escape')
   }
-  report.dualImageResult = await generateRelayVideo({ win, prepared, capture })
+  report.dualImageResult = await generateRelayVideo({ win, prepared, capture: (name) => capture(`dual-image-${name}`) })
   fs.copyFileSync(report.dualImageResult.media.filePath, path.join(evidence, 'dual-image-result.mp4'))
   expect(relay.tasks.size).toBe(3)
   const allPosts = relay.hits.filter((h) => h.method === 'POST')
