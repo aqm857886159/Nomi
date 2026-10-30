@@ -1,6 +1,6 @@
 // Current visible workaround for a declaration whose input controls were not projected.
 // This edits the existing capability form, never injects a contract into the catalog.
-import { proveProbe, expectAbsent } from './_assert.mjs'
+import { expect, proveProbe, expectAbsent } from './_assert.mjs'
 import { openModelSettings } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -33,7 +33,6 @@ export async function configureRelayMinimumThroughVisibleUi(win, plan, capture) 
   const useDefault = numberGrid.getByRole('switch')
   await useDefault.focus()
   await useDefault.press('Space')
-  const { expect } = await import('./_assert.mjs')
   await expect(useDefault).toBeChecked()
   await field('modes.0.parameters.0.defaultValue').fill(String(plan.duration))
   await page.getByRole('button', { name: tr('editor.addParameter'), exact: true }).click()
@@ -48,6 +47,10 @@ export async function configureRelayMinimumThroughVisibleUi(win, plan, capture) 
   const capabilityProof = await proveProbe(page, 'Capability editor is present before saving')
   await page.getByRole('button', { name: tr('editor.save'), exact: true }).click()
   await expectAbsent(page, { provenBy: capabilityProof, message: 'Saving closes the capability editor' })
+  const detail = win.locator('[data-model-settings-dialog]')
+  const detailProof = await proveProbe(detail, 'Model detail remains above Settings after saving capability')
+  await detail.getByRole('button', { name: /^(关闭|Close)$/ }).click()
+  await expectAbsent(detail, { provenBy: detailProof, message: 'Close the model detail before closing Settings' })
   await win.locator('[data-settings-close]').click()
   return { manualInputSetup: true, reason: 'declaration did not project visible duration and resolution controls' }
 }
