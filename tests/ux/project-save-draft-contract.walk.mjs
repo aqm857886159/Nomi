@@ -15,14 +15,15 @@ import { stationTimeout } from './_station-budget.mjs'
 const out = process.env.NOMI_SAVE_DRAFT_OUT ?? path.join(repoRoot, 'tests/ux/shots/project-save-draft-contract', String(Date.now()))
 assert.ok(out && path.isAbsolute(out), 'NOMI_SAVE_DRAFT_OUT must be an absolute isolated artifact directory')
 fs.mkdirSync(out, { recursive: true })
-function launchConditions() {
+async function launchConditions() {
   if (process.platform !== 'darwin') return
-  const front = execFileSync('lsappinfo', ['front'], { encoding: 'utf8' }).trim()
-  const info = execFileSync('lsappinfo', ['info', front], { encoding: 'utf8' })
-  const load5 = os.loadavg()[1]
-  fs.appendFileSync(path.join(out, 'launch-conditions.jsonl'), JSON.stringify({ at: new Date().toISOString(), front, app: info.split('\n')[0], load5 }) + '\n')
-  assert.ok(!/Claude/i.test(info), 'frontmost app is Claude; do not launch')
-  assert.ok(load5 < 10, `five-minute load ${load5} must be below 10`)
+  await expect.poll(() => {
+    const front = execFileSync('lsappinfo', ['front'], { encoding: 'utf8' }).trim()
+    const info = execFileSync('lsappinfo', ['info', front], { encoding: 'utf8' })
+    const load5 = os.loadavg()[1]
+    fs.appendFileSync(path.join(out, 'launch-conditions.jsonl'), JSON.stringify({ at: new Date().toISOString(), front, app: info.split('\n')[0], load5 }) + '\n')
+    return !/Claude/i.test(info) && load5 < 10
+  }, { message: 'App start requires a non-Claude frontmost app and five-minute load below 10', timeout: stationTimeout({ operations: 4 }) }).toBe(true)
 }
 const ID = 'draft-save-walk', DOC = 'draft-doc', DESIGN = 'draft-design'
 const observations = []
@@ -38,7 +39,12 @@ fs.renameSync = function(from, to) {
     if (left > 0) { fs.writeFileSync(marker, String(left - 1)); throw Object.assign(new Error('isolated busy fixture'), { code: 'EBUSY', errno: -16, syscall: 'rename' }); }
   }
   return original.apply(this, arguments);
-};\n`)
+};
+// mainWindowInteractions skips this production owner in E2E mode. Restore the real owner for this close/save journey.
+if (process.env.NOMI_E2E !== '1') throw new Error('isolated E2E close fixture required');
+const { app } = require('electron');
+const { installWindowCloseConfirmation } = require(${JSON.stringify(path.join(repoRoot, 'dist-electron/windowCloseConfirmation.js'))});
+app.once('browser-window-created', (_event, window) => installWindowCloseConfirmation(window));\n`)
   const options = { name: `project-save-draft-${locale}`, userDataDir: path.join(root, 'user-data'), settingsDir: path.join(root, 'settings'), projectsDir: path.join(root, 'projects'), mainRequire: [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs'), hook],
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' },
     env: { NOMI_TEST_NETWORK_GUARD: '1', NOMI_WALK_NET_LOG: path.join(root, 'network.jsonl') },
@@ -49,7 +55,7 @@ fs.renameSync = function(from, to) {
   const read = () => JSON.parse(fs.readFileSync(manifest, 'utf8'))
   const savedPlan = () => read().payload.storyboardDesignsByDocumentId[DOC][0].plan
   let launchNumber = 0
-  const start = async () => { launchConditions(); current = await launchNomiApp({ ...options, tempRoot: path.join(root, `launcher-${++launchNumber}`) }); return current.win }
+  const start = async () => { await launchConditions(); current = await launchNomiApp({ ...options, tempRoot: path.join(root, `launcher-${++launchNumber}`) }); return current.win }
   const open = async () => {
     const win = current.win
     await leaveProjectIfOpen(win)
