@@ -1,4 +1,13 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { copyAssetFile } from "../assets/projectAssetStore";
+import { captureAssetWriteContext } from "../assets/assetWriteContext";
+import { createUploadStagingDir, removeScratchAfterUse } from "../assets/scratchCleanup";
+import { requestMediaFile } from "../vendor/vendorHttp";
+import { canvasPreviewFieldsFromReceipt } from "../shared/canvas/canvasMediaPreview";
+import type { TaskResult } from "../runtime";
 import path from "node:path";
 
 import { hardenedFetchDiagnostics, type HardenedFetchResult } from "../hardenedFetch";
@@ -63,7 +72,8 @@ export class GenerationOutputRetrievalError extends Error {
   readonly deterministic: boolean;
 
   constructor(message: string, deterministic: boolean, options?: { cause?: unknown }) {
-    super(message, options);
+    super(message);
+    if (options && "cause" in options) Object.defineProperty(this, "cause", { value: options.cause, configurable: true, writable: true });
     this.name = "GenerationOutputRetrievalError";
     this.deterministic = deterministic;
   }
@@ -245,3 +255,51 @@ export function createGenerationOutputMaterializer(deps: GenerationOutputMateria
 }
 
 export type GenerationOutputMaterializer = ReturnType<typeof createGenerationOutputMaterializer>;
+
+export const RELAY_VIDEO_ARTIFACT_VERSION = "relay-video-artifact-v1";
+export const MAX_PROFILE_MEDIA_BYTES = 2 * 1024 * 1024 * 1024;
+
+/** Backpressure and abort are owned by Node streams; no whole-file JS buffer. */
+export async function streamProfileMediaToFile(response: Response, filePath: string, signal: AbortSignal,
+  maxBytes = MAX_PROFILE_MEDIA_BYTES): Promise<number> {
+  const contentType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (contentType !== "video/mp4") throw new GenerationOutputRetrievalError("Video content response must have MIME video/mp4", true);
+  const length = Number(response.headers.get("content-length"));
+  if (Number.isFinite(length) && length > maxBytes) throw new GenerationOutputRetrievalError("Video content exceeds size limit", true);
+  if (!response.body) throw new Error("Video content response has no body");
+  let received = 0;
+  const bound = new Transform({ transform(chunk: Buffer, _encoding, callback) {
+    received += chunk.length;
+    callback(received > maxBytes ? new GenerationOutputRetrievalError("Video content exceeds size limit", true) : null, chunk);
+  } });
+  await pipeline(Readable.fromWeb(response.body as import("node:stream/web").ReadableStream), bound,
+    fs.createWriteStream(filePath, { flags: "wx", mode: 0o600 }), { signal });
+  if (!received) throw new Error("Video content response is empty");
+  return received;
+}
+
+/** The authenticated response is consumed before transport resources close, then decoded and published. */
+export async function materializeProfileMediaResult(input: {
+  projectId: string; providerTaskId: string; vendor: Vendor; apiKey: string; url: string;
+  headers: Record<string, string>; query: Record<string, unknown>; signal?: AbortSignal; nodeId?: string;
+}): Promise<{ kind: "materialized-media"; asset: TaskResult["assets"][number] }> {
+  if (!input.projectId || !input.providerTaskId) throw new Error("Video content retrieval requires project and accepted task identifiers");
+  const context = await captureAssetWriteContext(input.projectId);
+  const temporary = await createUploadStagingDir(context.root);
+  const filePath = path.join(temporary, "output.mp4");
+  try {
+    await requestMediaFile({ ...input, consume: (response, signal) => streamProfileMediaToFile(response, filePath, signal) });
+    input.signal?.throwIfAborted();
+    const stored = await copyAssetFile(input.projectId, filePath, "generation-output.mp4", "video/mp4", {
+      kind: "generated", source: "provider", providerTaskId: input.providerTaskId, ownerNodeId: input.nodeId || null,
+    }, "video", context) as { id: string; name: string; data: { url: string; thumbnailUrl?: string; previewState?: string; width?: number; height?: number } };
+    const preview = canvasPreviewFieldsFromReceipt("video", stored.data, stored.data.url);
+    return { kind: "materialized-media", asset: { type: "video", url: stored.data.url, assetId: stored.id,
+      assetName: stored.name, thumbnailUrl: preview.thumbnailUrl ?? null,
+      ...(preview.previewState ? { previewState: preview.previewState } : {}),
+      ...(stored.data.width && stored.data.height ? { width: stored.data.width, height: stored.data.height } : {}),
+    } };
+  } finally {
+    await removeScratchAfterUse(temporary);
+  }
+}

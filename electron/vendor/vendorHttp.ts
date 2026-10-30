@@ -83,8 +83,9 @@ async function requestVendor(
   bodyInit: BodyInit | undefined,
   signal?: AbortSignal,
   maxResponseBytes = DEFAULT_VENDOR_RESPONSE_MAX_BYTES,
-  responseKind: "json" | "binary" = "json",
+  responseKind: "json" | "binary" | "file" = "json",
   options: {
+    consumeResponse?: (response: Response, signal: AbortSignal) => Promise<unknown>;
     fetchImpl?: typeof fetch;
     retryOnNotWritten?: boolean;
     idempotencyKey?: string;
@@ -253,10 +254,15 @@ async function requestVendor(
   // 超时同样覆盖响应体读取（vendor 可能接了连接却 hang 在 body 上）；读完才清 timer。
   let bytes: Buffer;
   try {
+    if (responseKind === "file" && response.ok) {
+      try { return await options.consumeResponse!(response, controller.signal); }
+      catch (error) { await response.body?.cancel().catch(() => undefined); throw error; }
+    }
     bytes = await readBoundedResponseBytes(response, { maxBytes: maxResponseBytes, signal: controller.signal });
   } catch (error: unknown) {
     const cancellation = callerCancellation(signal);
     if (cancellation) throw cancellation;
+    if (responseKind === "file" && response.ok) throw error;
     if (error instanceof BoundedResponseError && error.code === "response_timeout") {
       const upstreamMsg = `读取响应超时（${Math.round(timeoutMs / 1000)}s）`;
       throw new VendorRequestError(`Provider request failed (timeout) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
@@ -434,4 +440,13 @@ export async function requestMultipart(
     Object.entries(headers).filter(([key]) => key.toLowerCase() !== "content-type"),
   );
   return requestVendor(vendor, apiKey, "POST", url, cleanHeaders, query, form, signal, options.maxResponseBytes, "json", options);
+}
+
+/** File responses reuse the same authentication, redirect refusal and bounded request lifetime. */
+export async function requestMediaFile<T>(input: {
+  vendor: Vendor; apiKey: string; url: string; headers: Record<string, string>; query: Record<string, unknown>;
+  signal?: AbortSignal; consume: (response: Response, signal: AbortSignal) => Promise<T>;
+}): Promise<T> {
+  return requestVendor(input.vendor, input.apiKey, "GET", input.url, input.headers, input.query, undefined,
+    input.signal, DEFAULT_VENDOR_RESPONSE_MAX_BYTES, "file", { consumeResponse: input.consume }) as Promise<T>;
 }

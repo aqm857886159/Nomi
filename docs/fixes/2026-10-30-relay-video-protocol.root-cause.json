@@ -1,0 +1,188 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-relay-video-protocol",
+  "problem_type": "Media protocol declarations cannot preserve binary result semantics",
+  "symptom": "Accepted video completes but content bytes produce assets=[]",
+  "direct_cause": "Result executor reads every HTTP body as JSON/text; multipart requires a reference file",
+  "class_root": "HTTP operation has no media response role and unknown video connections inherit a route without evidence",
+  "affected_population": [
+    "All declared asynchronous video results with authenticated content bytes",
+    "Text-only multipart video creation",
+    "Undocumented connections without an explicit video protocol"
+  ],
+  "scope_paths": [
+    "electron/catalog/types.ts",
+    "electron/catalog/multipartOperation.ts",
+    "electron/catalog/newapiTransport.ts",
+    "electron/providerAdapter/types.ts",
+    "electron/providerAdapter/validator.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+    "electron/runtime.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/vendor/vendorHttp.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts"
+  ],
+  "entry_points": [
+    "Agent declaration to runtime",
+    "Canvas create/query/result",
+    "Restart rebuild to query/result"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/reference/resources/videos/methods/download_content",
+      "checked_at": "2026-10-30",
+      "purpose": "Authenticated binary content is separate from metadata"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/openai/openai-node/blob/master/src/resources/videos.ts",
+      "checked_at": "2026-10-30",
+      "purpose": "Multipart creation and Response content contract"
+    }
+  ],
+  "invariants": [
+    "Only explicit declarations select a video route",
+    "Binary video results never pass through JSON/text buffering",
+    "Task identifier survives retrieval errors; retrieval does not submit"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationOutputs.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultReading.ts",
+      "symbol": "readTaskResponse"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 8,
+    "why_not": "catalogCommit self-check, runtime create, taskResultQuery query/result remain separate lifecycle callers of one executor; taskResultReading, apimartGenerationOutputs and runtime preserve JSON readers and receive no file bytes."
+  },
+  "generality_proof": "Response role drives streaming at the shared executor for all declared connections; no vendor or model branch.",
+  "shared_boundaries": [
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "requestVendor",
+      "responsibility": "Shared bound authentication, timeout and streaming response consumption"
+    },
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "assertAdapterModeInvariants",
+      "responsibility": "Media response stage/kind and multipart declaration validation"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "symbol": "executeProfileOperation",
+      "responsibility": "Dispatch typed file results before JSON parsing"
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "materializeProfileMediaResult",
+      "responsibility": "Stream to private staging and publish only after decode"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "executeProfileOperation",
+      "disposition": "enforced",
+      "evidence": "All declared result operations use the same executor"
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "fetchTaskResult",
+      "disposition": "enforced",
+      "evidence": "Cache hits and restart rebuild converge on executeTaskQuery"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future gateway can return binary content or require multipart without a file",
+    "same_class_scan": [
+      "door-map executeProfileOperation / readTaskResponse",
+      "rg audioResponse multipart result in catalog/providerAdapter/runtime/tasks"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/runtime.ts",
+    "invariant": "Declared video file responses flow through bounded stream and verified asset storage",
+    "failure_mode": "Reject invalid declarations before POST; retain accepted task on retrieval failure",
+    "exception_policy": "none",
+    "strategy": "Type the response at the HTTP operation boundary; never sniff routes or retry another POST",
+    "artifacts": [
+      "electron/runtime.ts",
+      "electron/providerAdapter/validator.ts",
+      "electron/vendor/vendorHttp.ts",
+      "electron/capabilityCore/generationOutputMaterializer.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/relay-onboarding/contracts.test.mjs",
+    "tests/relay-onboarding/protocol.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/relay-onboarding/contracts.test.mjs",
+    "tests/relay-onboarding/protocol.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "electron/runtime.ts"
+    ],
+    "rationale": "Remove unknown-connection video route inference; preserve explicit user mappings and documented transport library"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Native Fetch/FormData/Node stream and existing decoder; no SDK dependency introduced",
+    "exit_criteria": []
+  },
+  "migration": "Existing explicit mappings unchanged; generated undocumented video drafts have no modes until evidence is supplied.",
+  "residual_risks": [
+    "Real provider, paid run, Windows and independent acceptance remain unverified"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "electron/runtime.ts",
+    "tests": [
+      "tests/relay-onboarding/protocol.test.mjs"
+    ]
+  }
+}

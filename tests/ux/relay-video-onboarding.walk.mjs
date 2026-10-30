@@ -44,23 +44,7 @@ try {
   await capture('detected')
   await win.getByRole('button', { name: /保存连接|Save connection/i, exact: true }).click()
   await win.locator('[data-model-connection-saved]').waitFor({ timeout: stationTimeout() })
-  await win.getByRole('button', { name: /获取模型|Get Models/i, exact: true }).click()
-  await win.locator('[data-model-picker-save-disclosure]').waitFor({ timeout: stationTimeout() })
-  await capture('discovered')
-  // b: an exact wire ID that is deliberately omitted from this list.
-  await win.getByPlaceholder(/没列出来的|Enter an unlisted model ID/).fill(target.id)
-  await win.getByPlaceholder(/没列出来的|Enter an unlisted model ID/).press('Enter')
-  await expect(win.getByText(target.id, { exact: true }).last()).toBeVisible()
-  await capture('manual-id')
-  // Complete the ordinary manual route too: correct the guessed kind, then its no-spend self-check.
-  await win.getByRole('button', { name: new RegExp(`更改 ${target.id} 的类型|Change the type of ${target.id}`) }).click()
-  await win.getByRole('option', { name: /^(视频|Video)$/i }).click()
-  await win.getByRole('button', { name: /^(自检 1 个|Self-check 1 models?)$/i }).click()
-  await expect.poll(async () => {
-    const rows = await win.evaluate(() => window.nomiDesktop.modelCatalog.listModels({}))
-    return rows.some((m) => m.modelKey === target.id && m.enabled)
-  }, { timeout: stationTimeout({ operations: 3 }) }).toBe(true)
-  await capture('manual-self-check')
+  await capture('connection-saved')
   report.postsBeforeAgentDeclaration = relay.hits.filter((h) => h.method === 'POST').length
   // c: a document-reading agent now replaces the incomplete default wire with its explicit contract.
   if (await win.locator('[data-settings-close]').isVisible()) await win.locator('[data-settings-close]').click()

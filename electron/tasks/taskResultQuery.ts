@@ -168,7 +168,7 @@ function rebuildCachedTaskFromPayload(taskId: string, raw: JsonRecord): CachedTa
  * 跑一次续查（缓存命中 / 无状态重建 共用单一真相）：有 query op 走 query；无则尝试 raw 里已带的
  * 资产；两条都不成立 → **诚实报失败**（这个任务根本查不了，不是「还没好」，见函数末尾）。
  */
-async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ vendor: string; result: TaskResult }> {
+async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: AbortSignal): Promise<{ vendor: string; result: TaskResult }> {
   const queryOperation = cached.mapping?.query;
   if (cached.mapping && queryOperation && cached.model) {
     // 不再用缓存的明文 key，轮询时按 vendor 重新派生（并重新校验 key 仍可用）。
@@ -190,11 +190,13 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
       query_id: cached.providerMeta?.query_id || taskId,
       task_id: cached.providerMeta?.task_id || taskId,
     };
+    const executionRequest = { ...cached.request, extras: { ...cached.request.extras, projectId: cached.projectId, nodeId: cached.nodeId } };
     const runQuery = (operation: NonNullable<typeof queryOperation>) => executeProfileOperation({
       vendor,
       model,
       apiKey,
-      request: cached.request,
+      request: executionRequest,
+      signal,
       operation,
       stage: "query",
       providerMeta: queryProviderMeta,
@@ -245,6 +247,8 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
     };
     let normalized = await readResult(executed.response, activeQuery);
     if (normalized.result.status === "succeeded" && mapping.result) {
+      // Preserve the accepted receipt before any result download; failure only retries this GET.
+      admitTask(taskId, { ...cached, mapping, providerMeta: { ...queryProviderMeta, ...normalized.providerMeta } });
       const resultProviderMeta = {
         ...(cached.providerMeta || {}),
         ...normalized.providerMeta,
@@ -256,7 +260,8 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
           vendor,
           model,
           apiKey,
-          request: cached.request,
+          request: executionRequest,
+          signal,
           operation: mapping.result,
           stage: "result",
           providerMeta: resultProviderMeta,
@@ -379,12 +384,12 @@ function assertPollProjectMatchesTask(cached: CachedTask, pollProjectId: string)
   return cached;
 }
 
-export async function fetchTaskResult(payload: unknown): Promise<{ vendor: string; result: TaskResult }> {
+export async function fetchTaskResult(payload: unknown, signal?: AbortSignal): Promise<{ vendor: string; result: TaskResult }> {
   const raw = payload as JsonRecord;
   const taskId = trim(raw.taskId);
   // 唯一出口：从这里抛出去的错误一律带「提交之后」那一族的码（retrievalStageError 按阶段表放行 / 改挂），
   // 20 个调用者（画布、重新取回、MCP、制作 Run 对账、试模型……）读到的都不会是「没发出去、重新生成」。
-  const query = (task: CachedTask) => executeTaskQuery(taskId, task).catch((error: unknown) => { throw retrievalStageError("retrieval-query", error); });
+  const query = (task: CachedTask) => executeTaskQuery(taskId, task, signal).catch((error: unknown) => { throw retrievalStageError("retrieval-query", error); });
   const cached = taskCache.get(taskId);
   if (cached) return query(assertPollProjectMatchesTask(cached, trim(raw.projectId)));
 

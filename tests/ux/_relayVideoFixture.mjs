@@ -27,7 +27,7 @@ export function relayDeclaration(baseUrl, { id = 'opaque-gamma', frameOnly = fal
     create: { method: 'POST', path: root, headers: AUTH, body, response_mapping: { task_id: taskPath }, provider_meta_mapping: { task_id: taskPath } },
     query: { method: 'GET', path: `${queryPath ?? root}/{{providerMeta.task_id}}`, headers: AUTH,
       response_mapping: { status: native ? 'data.status' : 'status', ...(shape === 'content' ? {} : { video_url: native ? 'data.result.videos.0.url.0' : 'video_url' }) } },
-    ...(shape === 'content' ? { result: { method: 'GET', path: `${root}/{{providerMeta.task_id}}/content`, headers: AUTH } } : {}),
+    ...(shape === 'content' ? { result: { method: 'GET', path: `${root}/{{providerMeta.task_id}}/content`, headers: AUTH, mediaResponse: { kind: 'binary', contentType: 'video/mp4' } } } : {}),
     statusMapping: { queued: ['queued', 'submitted'], running: ['processing', 'in_progress'], succeeded: ['completed', 'succeeded'], failed: ['failed'] },
     ...(frameOnly ? { referenceParam: 'image_url', referenceShape: 'single' } : {}),
     sourceUrls: ['https://docs.example.test/video'],
@@ -72,6 +72,7 @@ export async function startRelayVideoFixture({ shape = 'plural-url', models = RE
     if (pathname === '/v1/balance') return json(200, { remain_balance: 100 })
     if (pathname === '/models' || pathname === '/v1/models') return json(200, { data: models.filter((m) => !listedIds || listedIds.includes(m.id)).map((m) => ({ id: m.id, ...(descriptors ? { architecture: { input_modalities: m.frameOnly ? ['image'] : ['text'], output_modalities: ['video'] } } : {}) })) })
     if (req.method === 'POST' && pathname === root) {
+      if (fault === 'create-rejected') return json(404, { error: { message: 'documented route unavailable' } })
       if (shape === 'content' && !String(req.headers['content-type']).startsWith('multipart/form-data')) return json(415, { error: { message: 'multipart/form-data required' } })
       const model = models.find((m) => m.id === body.model)
       if (!model) return json(400, { error: { message: 'unknown wire model id' } })
@@ -93,6 +94,15 @@ export async function startRelayVideoFixture({ shape = 'plural-url', models = RE
     }
     if (shape === 'content' && pathname.endsWith('/content') && tasks.has(pathname.split('/').at(-2))) {
       if (fault === 'html') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html>upstream unavailable</html>') }
+      if (fault === 'json-error') return json(200, { error: { message: 'content unavailable' } })
+      if (fault === 'wrong-mime') { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(MP4) }
+      if (fault === 'redirect') { res.writeHead(302, { Location: `${baseUrl.replace('127.0.0.1', 'localhost')}/asset.mp4` }); return res.end() }
+      if (fault === 'oversize') { res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': String(2 * 1024 ** 3 + 1) }); return res.end(MP4) }
+      if (fault === 'bad-bytes') { res.writeHead(200, { 'Content-Type': 'video/mp4' }); return res.end(Buffer.from('ftyp this is not a movie')) }
+      if (fault === 'slow') {
+        res.writeHead(200, { 'Content-Type': 'video/mp4' }); res.write(MP4.subarray(0, 16))
+        return // Intentionally never finish; request timeout / cancellation owns termination.
+      }
       res.writeHead(200, { 'Content-Type': 'video/mp4' }); return res.end(MP4)
     }
     return json(404, { error: { message: `unsupported protocol route ${pathname}` } })

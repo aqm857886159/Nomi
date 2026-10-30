@@ -216,6 +216,7 @@ function model(kind: "video" | "audio"): Model {
 function modeOf(kind: "video" | "audio", taskKind: string): AdapterModeDraft {
   const modelKey = kind === "video" ? VIDEO_MODEL_KEY : AUDIO_MODEL_KEY;
   const draft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
     baseUrl,
     authType: "bearer",
     providerKind: "openai-compatible",

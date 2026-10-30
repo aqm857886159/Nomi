@@ -147,7 +147,7 @@
 
 ### 和能力投影线的共享类型约定
 
-仅在 HttpOperation 增加可选 mediaResponse: { kind: 'binary'; contentType: 'video/mp4' }；不改变 AdapterModeDraft 的 create/query/result、parameters、referenceParam，第一刀继续原样复制 HttpOperation。mediaResponse 只允许 video 模型的 GET result，不能用于 create/query；不借 audioResponse。连接可显式声明 mediaProtocols: ['openai-videos-v1']，未知连接不自动选择视频协议。catalog 版本联合类型那一行不改。生产 Run/dispatch/tryModel 文件不动。
+仅在 HttpOperation 增加可选 mediaResponse: { kind: 'binary'; contentType: 'video/mp4' }；不改变 AdapterModeDraft 的 create/query/result、parameters、referenceParam，第一刀继续原样复制 HttpOperation。mediaResponse 只允许 video 模型的 GET result，不能用于 create/query；不借 audioResponse。连接可显式声明 mediaProtocols: ['openai-videos-v1']；已确认的旧 JSON 单数协议用 video-generations-json-v1 显式选择；未知连接不自动选择视频协议。catalog 版本联合类型那一行不改。生产 Run/dispatch/tryModel 文件不动。
 
 ### ★9 本刀清单（实现前）
 
@@ -163,3 +163,9 @@
 反例必须保留失败计数：缺 taskId 不伪造服务商编号；thumbnail 不是 video；Bearer 不随 redirect；过期地址只 GET 原单；显式旧 URL mapping 不静默迁移；未知连接不以模型名/品牌选择路由。create 不走媒体响应下载，不能下载前丢掉受理收据。
 
 依赖生命周期：保留现役 Fetch/FormData/Node 流与项目资产解码边界，不安装 SDK。协议实现没有 SDK 版本依赖；后续只有该协议无法由通用执行器表达时再评估依赖替换。
+
+### 第二刀当前验收记录
+
+四项既有复现已从 it.fails 转普通 it：修复前 4 failed / 5 passed / 6 expected fail；修复后 9 passed / 6 expected fail。剩余 expected fail 属于发现/能力投影线。新增独立协议矩阵 17 passed，走声明处理函数、真 loopback HTTP、现役解码与项目落库，包括工作区暂不可用后的恢复。测试文件落在现役 Vitest tests/**/*.test.mjs 默认车道，CI quality-gate 的 test:unit:shard 必跑；不另建无人调用的 JSON 矩阵。
+
+限制：字节结果必须有项目身份，无项目的调用在花钱前拒绝；试模型入口的项目身份由其独占线处理。性能脚本 tests/perf/relay-media-materialization-bench.mjs 已准备，统一登记需要现役 scripts/perf-scenarios-lib.mjs 新量具适配（不在本刀文件范围），未越界修改。中英真窗、付费共步骤演练、字节分支变异、性能基线和最终 gates 仍须取得实际收据才能勾选。

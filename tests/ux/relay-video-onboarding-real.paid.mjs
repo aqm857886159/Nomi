@@ -3,16 +3,12 @@
 // Every paid guard, credential access, build check and receipt is owned by openPaidWalk.
 import fs from 'node:fs'
 import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
-import { paidCredentialSource } from './_paidEnvKey.mjs'
 import { runRelayVideoPaidSteps } from './_relayVideoPaidSteps.mjs'
 import { waitForRelayLaunch } from './_relayVideoWalk.mjs'
 
 const RELAY_BUILD_MARKER = 'relay-video-artifact-v1'
 
-// Read only the helper's source enum, never a key. This journey must use its visible connection route.
-if (paidCredentialSource(process.env) !== 'env-key') throw new Error('This journey requires the existing visible environment-key connection route; no profile fallback')
-
-const paid = await openPaidWalk('relay-video-onboarding-real.paid.mjs', 'relay-video-onboarding-real', [DEFAULT_PAID_BRAIN], { buildMarkers: [RELAY_BUILD_MARKER], recordAllowedBodies: true })
+const paid = await openPaidWalk('relay-video-onboarding-real.paid.mjs', 'relay-video-onboarding-real', [DEFAULT_PAID_BRAIN], { buildMarkers: [RELAY_BUILD_MARKER], recordAllowedBodies: true, env: { ...process.env, APIMART_API_KEY: "" } })
 let failure
 let win
 try {

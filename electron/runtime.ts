@@ -1,3 +1,4 @@
+import { materializeProfileMediaResult, RELAY_VIDEO_ARTIFACT_VERSION } from "./capabilityCore/generationOutputMaterializer";
 import { revalidatePendingCredential } from './catalog/validateCandidateCredential';
 import crypto from "node:crypto";
 import { assertLocalAssetTransportReady, localizeAssetsForVendor } from "./catalog/assetLocalization";
@@ -190,6 +191,14 @@ export async function executeProfileOperation(input: {
   providerMeta?: JsonRecord;
   localAssetReader?: import("./catalog/assetLocalization").LocalAssetReader; signal?: AbortSignal; stage: ProfileOperationStage; antigravityPreflight?: import("./ai/antigravityTask").PreparedAntigravityTask;
 }): Promise<{ response: unknown; request: unknown }> {
+  if (input.operation.mediaResponse) {
+    if (input.stage !== "result" || input.operation.method.toUpperCase() !== "GET" || (input.model.kind !== "video" || input.operation.mediaResponse.contentType !== "video/mp4")) throw new Error("mediaResponse requires a video GET result");
+    const built = buildProfileHttpRequest(input);
+    const response = await materializeProfileMediaResult({ vendor: input.vendor, apiKey: input.apiKey, url: built.url,
+      headers: built.headers, query: built.query, signal: input.signal, projectId: trim(input.request.extras?.projectId),
+      nodeId: trim(input.request.extras?.nodeId), providerTaskId: firstString(input.providerMeta?.task_id, input.providerMeta?.query_id) });
+    return { response, request: built.preview };
+  }
   // Process and multipart declarations are handled by their shared executors.
   if (input.operation.process) {
     if (input.stage === "result") throw new Error("ANTIGRAVITY_INVALID_CONFIG");
@@ -241,6 +250,12 @@ export async function buildProfileTaskResult(input: {
   vendor?: Vendor;
   model?: Model;
 }): Promise<{ result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string; actualCost?: ProviderCostActual }> {
+  if (input.operation.mediaResponse && isJsonRecord(input.response) && input.response.kind === "materialized-media") {
+    return { providerMeta: { task_id: input.taskIdFallback }, unrecognizedStatus: "", result: {
+      id: input.taskIdFallback, kind: input.request.kind, status: "succeeded",
+      assets: [input.response.asset as TaskResult["assets"][number]], raw: { status: "completed", mediaResponse: "binary", artifactVersion: RELAY_VIDEO_ARTIFACT_VERSION },
+    } };
+  }
   const response = applyResponseTransform(input.operation.response_transform, input.response, {
     baseUrl: String(input.vendor?.baseUrlHint || ""),
   });
@@ -327,6 +342,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
   }
   if (mapping) {
+    if (mapping.result?.mediaResponse && !projectId) throw new Error("Video file results require a project before generation can be submitted.");
     await validateProfileRequestBeforeSpend({ vendor, model, apiKey, request, operation: mapping.create });
     const uploadCatalog = readCatalog();
     if (!mapping.create.multipart && !mapping.create.process) {
@@ -369,7 +385,9 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
       vendor,
       model,
     });
-    if (normalized.result.status === "queued" && mapping.query && !normalized.providerMeta.task_id && !normalized.providerMeta.query_id) {
+    // Completed metadata still requires the separate result GET; return the receipt before downloading.
+    if (normalized.result.status === "succeeded" && !normalized.result.assets.length && mapping.result && mapping.query) normalized.result.status = "queued";
+    if (["queued", "running"].includes(normalized.result.status) && mapping.query && !normalized.providerMeta.task_id && !normalized.providerMeta.query_id) {
       const missingTaskIdResult: TaskResult = { ...normalized.result, status: "failed", error: desktopT("tasks.missingTaskId") };
       traceVendorRequested(projectId, { runId: missingTaskIdResult.id, nodeId, recipe });
       traceVendorCompleted(projectId, {
@@ -408,7 +426,8 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return executeTextTask({ vendor, model, apiKey, kind, request, taskId });
   }
 
-  const suffix = wantedKind === "video" ? "/v1/videos/generations" : "/v1/images/generations";
+  if (wantedKind === "video") throw new Error("Video protocol is not configured. Provide a documented create/query/result declaration before generating.");
+  const suffix = "/v1/images/generations";
   const fallbackRecipe = buildNormalizedRecipe({ vendor, model, request });
   const fallbackFingerprint = recipeFingerprint(fallbackRecipe);
   const fallbackHit = readCachedTaskResult({
@@ -453,7 +472,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return { id: upstreamTaskId, kind, status: "queued", assets: [], raw: providerResponse };
   }
   const type: "image" | "video" | "audio" | "model3d" =
-    wantedKind === "video" ? "video" : wantedKind === "audio" ? "audio" : wantedKind === "model3d" ? "model3d" : "image";
+    wantedKind === "audio" ? "audio" : wantedKind === "model3d" ? "model3d" : "image";
   const asset: TaskResult["assets"][number] = projectId
     ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl);
   const actualCost = extractProviderCostActual(vendor.key, providerResponse);

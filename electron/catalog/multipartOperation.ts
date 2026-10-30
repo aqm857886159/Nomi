@@ -58,7 +58,8 @@ export async function executeMultipartOperation(input: {
   const fileSource = spec.fileSource || spec.imageSource;
   const fileKind = spec.fileKind || "image";
   const resolveFile = input.resolveFile || input.resolveImage;
-  if (!fileField || !fileSource || !resolveFile) throw new Error("multipart 文件声明不完整");
+  if (Boolean(fileField) !== Boolean(fileSource) || (fileField && !resolveFile)) throw new Error("multipart 文件声明不完整");
+  if (!fileField && !Object.keys(spec.fields || {}).length) throw new Error("multipart 声明为空");
 
   // 1. 文本字段（与 body 同一套 renderTemplateValue；丢 undefined/null/空串——严格端点收到空字段会 400）。
   const rendered = renderTemplateValue(spec.fields || {}, input.context);
@@ -75,15 +76,15 @@ export async function executeMultipartOperation(input: {
   const urls = (Array.isArray(source) ? source : [source]).filter(
     (u): u is string => typeof u === "string" && REF_URL_RE.test(u.trim()),
   );
-  const picked = spec.multiple ? urls : urls.slice(0, 1);
-  if (picked.length === 0) {
+  const picked = fileField ? (spec.multiple ? urls : urls.slice(0, 1)) : [];
+  if (fileField && picked.length === 0) {
     throw new Error(`${fileKind === "image" ? "图生图缺参考图" : "缺少待上传媒体"}：multipart 端点需要至少一个文件`);
   }
 
   // 3. 逐个取字节（顺序取，量小；失败即抛人话，不静默丢图发半套）。
   const files: Array<{ bytes: Buffer; contentType: string; fileName: string }> = [];
   for (const url of picked) {
-    const asset = await resolveFile(url);
+    const asset = await resolveFile!(url);
     if (!asset || !asset.bytes || asset.bytes.byteLength === 0) {
       throw new Error(`${fileKind === "image" ? "图生图参考图" : "参考媒体"}取字节失败：${url.slice(0, 96)}`);
     }
@@ -99,7 +100,7 @@ export async function executeMultipartOperation(input: {
     const defaultExtension = fileKind === "audio" ? "mp3" : fileKind === "video" ? "mp4" : "png";
     const defaultContentType = fileKind === "audio" ? "audio/mpeg" : fileKind === "video" ? "video/mp4" : "image/png";
     const fileName = file.fileName || `${prefix}-${i}.${defaultExtension}`;
-    form.append(fileField, new Blob([ab], { type: file.contentType || defaultContentType }), fileName);
+    form.append(fileField!, new Blob([ab], { type: file.contentType || defaultContentType }), fileName);
   });
 
   const response = await input.send(form);
