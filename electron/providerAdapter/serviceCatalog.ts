@@ -23,7 +23,7 @@ import {
   type CandidateModelPredecessors,
 } from "../catalog/stagedVendorIdentity";
 import { resolveConnectionVendorKey, siblingConnectionLineageMeta } from "../catalog/connectionVendorKey";
-import { adapterModelMetadataForPromotion, projectDeclaredModel, assertDeclaredReplacementOwnership } from "./promotionMeta";
+import { adapterModelMetadataForPromotion, projectDeclaredModel, assertDeclaredReplacementOwnership, type SettledDeclaredReplacement } from "./promotionMeta";
 import type {
   ProviderAdapterConnectionInput,
   ProviderAdapterDraft,
@@ -77,6 +77,37 @@ function asRecord(value: unknown): Record<string, unknown> {
 function modelOwnedByRun(model: Model, runId: string): boolean {
   const adapter = asRecord(asRecord(model.meta).adapter);
   return adapter.runId === runId;
+}
+
+/**
+ * A failed run has given up its publication lease. The recovery journal replays a promotion that
+ * threw before it runs any later one; no-lease is what lets that replay end instead of refusing again.
+ */
+function modelLeasedToRun(model: Model, runId: string): boolean {
+  return modelOwnedByRun(model, runId) && asRecord(asRecord(model.meta).adapter).state !== "failed";
+}
+
+/** Compile and judge every model this run publishes before any write, so a refusal names all of it. */
+function settleVerifiedReplacements(
+  before: ReturnType<typeof readCatalog>,
+  input: { run: ProviderAdapterRun; draft: ProviderAdapterDraft },
+  leasedModelKeys: ReadonlySet<string>,
+  committedModes: ReadonlyArray<{ modelKey: string; taskKind: ProfileKind }>,
+): Map<string, SettledDeclaredReplacement> {
+  const vendorKey = input.run.vendorKey;
+  const replacements = input.draft.models.flatMap((candidate) => {
+    const existing = before.models.find((model) => model.vendorKey === vendorKey && model.modelKey === candidate.modelKey);
+    const verifiedTaskKinds = committedModes.filter((mode) => mode.modelKey === candidate.modelKey).map((mode) => mode.taskKind);
+    if (!existing || !leasedModelKeys.has(candidate.modelKey) || !verifiedTaskKinds.length) return [];
+    return [{
+      modelKey: candidate.modelKey,
+      oldMeta: existing.meta,
+      mappings: before.mappings.filter((row) => row.vendorKey === vendorKey && row.modelKey === candidate.modelKey),
+      projection: projectDeclaredModel(candidate, vendorKey, verifiedTaskKinds),
+      verifiedTaskKinds,
+    }];
+  });
+  return new Map(assertDeclaredReplacementOwnership(vendorKey, replacements).map((settled) => [settled.modelKey, settled]));
 }
 
 /** Existing published execution survives registration/repair; staged adapter rows do not become active by enabled alone. */
@@ -310,7 +341,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
     const before = readCatalog();
     const ownedModelKeys = new Set(
       before.models
-        .filter((model) => model.vendorKey === input.run.vendorKey && modelOwnedByRun(model, input.run.id))
+        .filter((model) => model.vendorKey === input.run.vendorKey && modelLeasedToRun(model, input.run.id))
         .map((model) => model.modelKey),
     );
     // A newer run owns every selected model. The old run is stale even if its
@@ -328,6 +359,15 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
     });
     const candidateVendor = before.vendors.find((vendor) => vendor.key === input.run.vendorKey);
     if (!candidateVendor) return { status: "no-lease" };
+    let replacements: Map<string, SettledDeclaredReplacement>;
+    try {
+      replacements = settleVerifiedReplacements(before, input, ownedModelKeys, committedModes);
+    } catch (error) {
+      // Refused for good: the same inputs refuse again. Give the lease up in this same call, or a
+      // crash before the terminal write leaves a journal entry that blocks every later promotion.
+      defaultCatalog.fail(input.run);
+      throw error;
+    }
     const predecessors = candidateModelPredecessors(candidateVendor.meta);
     const switchedModelKeys = new Set(
       committedModes
@@ -393,8 +433,8 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         const oldMeta = asRecord(existing.meta);
         const hasVerifiedMode = committedModes.some((mode) => mode.modelKey === candidate.modelKey);
         const publicationModes = committedModes.filter((mode) => mode.modelKey === candidate.modelKey).map((mode) => mode.taskKind);
-        const projection = hasVerifiedMode ? projectDeclaredModel(candidate, input.run.vendorKey, publicationModes) : undefined;
-        if (projection) assertDeclaredReplacementOwnership({ oldMeta, mappings: before.mappings.filter((row) => row.vendorKey === input.run.vendorKey && row.modelKey === candidate.modelKey && (row.enabled || hasPublishedExecution(before, existing))), projection });
+        const settled = replacements.get(candidate.modelKey);
+        const projection = settled?.projection;
         const promotedMeta = adapterModelMetadataForPromotion({
           projection,
           oldMeta,
@@ -416,9 +456,9 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
               ? withAdapterPublicationModeMask(promotedMeta, oldPublicationMask.modes)
               : promotedMeta,
         });
-        if (projection) {
+        if (settled) {
           tx.deleteModelMappings(input.run.vendorKey, candidate.modelKey);
-          for (const row of projection.mappings) tx.upsertMapping(row);
+          for (const row of [...settled.keptRoutes, ...settled.projection.mappings]) tx.upsertMapping(row);
         }
       }
       const compiledModels = new Set(input.draft.models.map((model) => model.modelKey));

@@ -12,6 +12,7 @@
 // 后半段不打折：仍然拿真实请求验过才启用，不假设它能用。
 import { newapiImageEditProfileForModel, newapiTransportFor } from "../catalog/newapiTransport";
 import { canHostPublicDocs } from "./docsDiscovery";
+import { referenceKeyDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { assertAdapterModeInvariants } from "./validator";
 import type { BillingModelKind, HttpOperation, Model, Vendor } from "../catalog/types";
 import type { AdapterAuthType, AdapterModeDraft, AdapterModelDraft, ProviderAdapterDraft } from "./types";
@@ -69,6 +70,22 @@ function toDraftParameters(params: readonly ParamControl[]): DraftParameters {
   return supported;
 }
 
+const WHOLE_PARAM_TOKEN = /^{{\s*request\.params\.([^{}\s]+)\s*}}$/;
+
+/**
+ * 文生模式没有声明参考角色，它的报文就不读参考键（判据是现役参考键表，不看键名、不看供应商）。
+ * 模板本身不动：图生模式共用它，`catalogCommit` 的对账也按它补缺键。
+ * 纯文生的真实报文不变：这个键本来就没有值，模板整键丢弃。带着首帧走文生的请求改由第三道闸在花钱前拒发。
+ */
+function textModeOperation(operation: HttpOperation): HttpOperation {
+  if (!operation.body || typeof operation.body !== "object" || Array.isArray(operation.body)) return operation;
+  const body = Object.entries(operation.body as Record<string, unknown>).filter(([, value]) => {
+    const key = typeof value === "string" ? WHOLE_PARAM_TOKEN.exec(value)?.[1] : undefined;
+    return !(key && referenceKeyDeclarationFor(key));
+  });
+  return { ...operation, body: Object.fromEntries(body) };
+}
+
 // 按鉴权方式重写鉴权头。newapiTransport 的模板是给「中转站」写的，那边永远有 key，所以把
 // `Authorization: Bearer {{user_api_key}}` 写死了。自建端点常常**根本不需要 key**（ComfyUI、
 // Ollama、LM Studio 默认无鉴权）——照抄就会发出一个空的 `Authorization: Bearer `，有的服务直接拒。
@@ -115,7 +132,7 @@ function modesForKind(
     ...(mode.query ? { query: auth(mode.query) } : {}),
     ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}),
   });
-  const modes: AdapterModeDraft[] = [{ taskKind: transport.taskKind, create: auth(transport.create), ...shape(transport), ...noSources }];
+  const modes: AdapterModeDraft[] = [{ taskKind: transport.taskKind, create: auth(textModeOperation(transport.create)), ...shape(transport), ...noSources }];
   // 图生图 / 图生视频各自注册一条：runtime 按 taskKind 选投递通道，缺了它连参考图的节点会被直接拒发。
   // 改图协议必须**按模型族 derive**，与接入落库路径（catalogCommit → newapiImageEditProfileForModel）同源：
   // newapiTransportFor("image").edit 恒是 chat/completions 多模态，但 gpt-image 系 / dall-e-2 的改图端点是

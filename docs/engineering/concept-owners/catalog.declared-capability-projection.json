@@ -9,6 +9,7 @@
   "owner": { "path": "electron/providerAdapter/promotionMeta.ts", "symbol": "projectDeclaredModel" },
   "write_api": [
     { "path": "electron/providerAdapter/promotionMeta.ts", "symbol": "projectDeclaredModel" },
+    { "path": "electron/providerAdapter/promotionMeta.ts", "symbol": "assertDeclaredReplacementOwnership" },
     { "path": "electron/catalog/catalogMigrations.ts", "symbol": "migrateDeclaredCapabilities" },
     { "path": "electron/shared/modelAvailability.ts", "symbol": "assertDeclaredCapabilityForTask" }
   ],
@@ -21,5 +22,5 @@
     "electron/catalog/taskParams.ts"
   ],
   "since": "2026-10-30",
-  "notes": "一个编译器产生 kind、modes、params、required slots 和完整 mappings。登记、认证晋升与原始 revision 迁移都复用该事实。迁移入口仅恢复或标缺失；创建门仅读该合同和发布 mask 拒绝不完整/已撤销模式，不接管已受理任务的查询，不另推导供应商能力。"
+  "notes": "一个编译器产生 kind、modes、params、required slots 和完整 mappings。登记、认证晋升与原始 revision 迁移都复用该事实。迁移入口仅恢复或标缺失；创建门仅读该合同和发布 mask 拒绝不完整/已撤销模式，不接管已受理任务的查询，不另推导供应商能力。替换既有路由和能力的判定只有 assertDeclaredReplacementOwnership 一张表，认证和声明共用；拒绝一次列全，出口由调用方给。"
 }

@@ -59,7 +59,7 @@ export class DeclaredOriginRewriteError extends Error {
 }
 
 import { projectDeclaredModel, assertDeclaredReplacementOwnership, assertNeutralDeclarationParameters, capabilityFactDigest } from "../providerAdapter/promotionMeta";
-export { mappingRowFromDeclaredMode } from "../providerAdapter/promotionMeta";
+export { mappingRowFromDeclaredMode, DeclaredRouteConflictError, type DeclaredRouteConflict } from "../providerAdapter/promotionMeta";
 
 const originOf = (url: string): string => new URL(url).origin;
 
@@ -90,6 +90,13 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
     if (binding?.origin && binding.origin !== declaredOrigin) {
       throw new DeclaredOriginRewriteError(binding.origin, declaredOrigin);
     }
+    // One verdict for the whole card before the first write, so a refusal names every conflict.
+    const settled = assertDeclaredReplacementOwnership(vendorKey, card.models.map((model, index) => ({
+      modelKey: model.modelKey,
+      oldMeta: state.models.find((row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey)?.meta,
+      mappings: state.mappings.filter((row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey),
+      projection: projections[index],
+    })));
     tx.upsertVendor({
       ...(existing || {}),
       key: vendorKey,
@@ -107,12 +114,10 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
     const models: DeclaredRegistrationResult["models"] = [];
     let mappings = 0;
     for (const [index, model] of card.models.entries()) {
-      const projection = projections[index];
+      const { projection, keptRoutes } = settled[index];
       const existingModel = state.models.find(
         (row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey,
       );
-      const exactMappings = state.mappings.filter((row) => row.vendorKey === vendorKey && row.modelKey === model.modelKey);
-      assertDeclaredReplacementOwnership({ oldMeta: existingModel?.meta, mappings: exactMappings, projection });
       const sourceCard = JSON.parse(JSON.stringify({ ...card, models: [model] }));
       const meta = { ...(existingModel?.meta && typeof existingModel.meta === "object" ? existingModel.meta : {}), ...projection.meta };
       delete meta.declarationCapabilityIssue;
@@ -133,6 +138,7 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
       });
       // Remove owned old routes and removed operations before upsert can inherit them.
       tx.deleteModelMappings(vendorKey, model.modelKey);
+      for (const row of keptRoutes) tx.upsertMapping(row);
       for (const row of projection.mappings) { tx.upsertMapping(row); mappings += 1; }
       models.push({
         modelKey: model.modelKey,

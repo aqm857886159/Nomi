@@ -161,24 +161,96 @@ export function projectDeclaredModel(candidate: CapabilityModelDraft, vendorKey:
   return { kind: candidate.kind, contract, mappings, taskKinds: candidate.kind === 'text' && !published ? [...new Set<ProfileKind>(['chat', ...modes.map((m) => m.taskKind)])] : modes.map((m) => m.taskKind), meta: { customCapabilityContract: contract || undefined, parameters: candidate.parameters || params.map(({ defaultValue, options, ...p }) => ({ ...p, default: defaultValue, ...(options.length ? { options: options.map((o) => o.value) } : {}) })), declarationProjection: ownership } };
 }
 
-/** Reject independent edits before an atomic replacement; unchanged owned routes may be removed. */
-export function assertDeclaredReplacementOwnership(input: { oldMeta: unknown; mappings: readonly Mapping[]; projection: DeclaredModelProjection }): void {
-  const old = asRecord(input.oldMeta);
-  const ownership = asRecord(old.declarationProjection);
-  const oldDigests = asRecord(ownership.wireDigests);
-  const contract = parseCustomCapabilityContract(old);
-  if (ownership.version === 1 && capabilityFactDigest(contract) !== ownership.capabilityDigest) throw new Error('customCapabilityContract: independently edited capability conflicts with declaration replacement');
-  if (contract && ownership.version !== 1 && capabilityFactDigest(contract) !== capabilityFactDigest(input.projection.contract)) throw new Error('customCapabilityContract: user-authored capability conflicts with declaration replacement');
-  for (const row of input.mappings) {
-    const ownedDigest = !row.modeId ? oldDigests[row.taskKind] : undefined;
-    if (ownedDigest) {
-      if (capabilityFactDigest(declaredWireFact(row)) !== ownedDigest) throw new Error(`mappings.${row.taskKind}: independently edited wire conflicts with declaration replacement`);
-      continue;
-    }
-    const next = !row.modeId ? input.projection.mappings.find((item) => item.taskKind === row.taskKind) : undefined;
-    if (next && capabilityFactDigest(declaredWireFact(row)) === capabilityFactDigest(declaredWireFact(next))) continue;
-    throw new Error(`mappings.${row.taskKind}: unowned wire conflicts with declaration replacement; independent mappings are preserved`);
+export type DeclaredRouteConflictReason = 'unowned' | 'edited' | 'independent_mode' | 'capability_edited' | 'capability_authored';
+type RouteEndpoint = { method: string; path: string };
+export type DeclaredRouteConflict = { modelKey: string; reason: DeclaredRouteConflictReason; taskKind?: ProfileKind; modeId?: string; current?: RouteEndpoint; declared?: RouteEndpoint };
+
+function conflictMessage(conflict: DeclaredRouteConflict): string {
+  const at = conflict.taskKind ? `mappings.${conflict.taskKind}` : 'customCapabilityContract';
+  const why = {
+    unowned: 'unowned wire conflicts with declaration replacement; independent mappings are preserved',
+    independent_mode: 'unowned wire conflicts with declaration replacement; independent mappings are preserved',
+    edited: 'independently edited wire conflicts with declaration replacement',
+    capability_edited: 'independently edited capability conflicts with declaration replacement',
+    capability_authored: 'user-authored capability conflicts with declaration replacement',
+  }[conflict.reason];
+  return `models.${conflict.modelKey}.${at}: ${why}`;
+}
+
+/** A refused replacement names every conflict at once, so a caller can say what is in the way and offer an exit. */
+export class DeclaredRouteConflictError extends Error {
+  readonly vendorKey: string;
+  readonly conflicts: readonly DeclaredRouteConflict[];
+  constructor(vendorKey: string, conflicts: readonly DeclaredRouteConflict[]) {
+    super(conflicts.map(conflictMessage).join('; '));
+    this.name = 'DeclaredRouteConflictError';
+    this.vendorKey = vendorKey;
+    this.conflicts = conflicts;
   }
+}
+
+/** What goes on the wire. The enabled switch is not wire: promotion itself toggles it when it switches sources. */
+const wireDigest = (row: Partial<Mapping>) => capabilityFactDigest({ ...declaredWireFact(row), enabled: undefined });
+const ownedByDigest = (row: Mapping, digest: unknown) => [true, false].some((enabled) => capabilityFactDigest(declaredWireFact({ ...row, enabled })) === digest);
+const endpointOf = (row: Partial<Mapping> | undefined): RouteEndpoint | undefined => row?.create ? { method: row.create.method, path: row.create.path } : undefined;
+
+/** The ownership table. Facts only: never a vendor or model name, and no state of its own. */
+function routeVerdict(row: Mapping, ownedDigest: unknown, next: DeclaredMapping | undefined, verifiedTaskKinds: readonly ProfileKind[] | undefined): 'replace' | 'keep' | DeclaredRouteConflictReason {
+  if (row.modeId) return 'independent_mode';
+  if (next && wireDigest(row) === wireDigest(next)) return 'replace';
+  if (ownedDigest) return ownedByDigest(row, ownedDigest) ? 'replace' : 'edited';
+  // A card is not evidence a route works, so only a certification run may adopt a route nobody owns.
+  if (!verifiedTaskKinds) return 'unowned';
+  return verifiedTaskKinds.includes(row.taskKind) ? 'replace' : 'keep';
+}
+
+function capabilityVerdict(oldMeta: Record<string, unknown>, projection: DeclaredModelProjection): DeclaredRouteConflictReason | null {
+  const ownership = asRecord(oldMeta.declarationProjection);
+  const contract = parseCustomCapabilityContract(oldMeta);
+  if (ownership.version === 1) return capabilityFactDigest(contract) === ownership.capabilityDigest ? null : 'capability_edited';
+  return contract && capabilityFactDigest(contract) !== capabilityFactDigest(projection.contract) ? 'capability_authored' : null;
+}
+
+/** A kept route is neither written over nor claimed: its digest would later read as an independent edit. */
+function withoutKeptRoutes(projection: DeclaredModelProjection, kept: readonly Mapping[]): DeclaredModelProjection {
+  const keptKinds = new Set<string>(kept.map((row) => row.taskKind));
+  const ownership = asRecord(projection.meta.declarationProjection);
+  const wireDigests = Object.fromEntries(Object.entries(asRecord(ownership.wireDigests)).filter(([taskKind]) => !keptKinds.has(taskKind)));
+  return { ...projection, mappings: projection.mappings.filter((row) => !keptKinds.has(row.taskKind)), meta: { ...projection.meta, declarationProjection: { ...ownership, wireDigests } } };
+}
+
+export type DeclaredReplacementInput = {
+  modelKey: string; oldMeta: unknown; mappings: readonly Mapping[]; projection: DeclaredModelProjection;
+  /** Certification only: the modes this run proved. Absent = a declaration, which proves nothing about a route. */
+  verifiedTaskKinds?: readonly ProfileKind[];
+};
+export type SettledDeclaredReplacement = { modelKey: string; projection: DeclaredModelProjection; keptRoutes: Mapping[] };
+
+/**
+ * One table for replacing a model's routes and capability, for every model of a write at once.
+ * Refuses with every conflict, before any write; otherwise says what to write and which existing routes stay.
+ */
+export function assertDeclaredReplacementOwnership(vendorKey: string, inputs: readonly DeclaredReplacementInput[]): SettledDeclaredReplacement[] {
+  const conflicts: DeclaredRouteConflict[] = [];
+  const settled = inputs.map((input): SettledDeclaredReplacement => {
+    const { modelKey, projection } = input;
+    const old = asRecord(input.oldMeta);
+    const capability = capabilityVerdict(old, projection);
+    if (capability) conflicts.push({ modelKey, reason: capability });
+    // A text model has no media route to replace; whatever rows it carries are not this write's business.
+    if (projection.kind === 'text') return { modelKey, projection, keptRoutes: [...input.mappings] };
+    const owned = asRecord(asRecord(old.declarationProjection).wireDigests);
+    const keptRoutes: Mapping[] = [];
+    for (const row of input.mappings) {
+      const next = projection.mappings.find((item) => item.taskKind === row.taskKind);
+      const verdict = routeVerdict(row, owned[row.taskKind], next, input.verifiedTaskKinds);
+      if (verdict === 'keep') keptRoutes.push(row);
+      else if (verdict !== 'replace') conflicts.push({ modelKey, reason: verdict, taskKind: row.taskKind, ...(row.modeId ? { modeId: row.modeId } : {}), current: endpointOf(row), ...(next ? { declared: endpointOf(next) } : {}) });
+    }
+    return { modelKey, projection: keptRoutes.length ? withoutKeptRoutes(projection, keptRoutes) : projection, keptRoutes };
+  });
+  if (conflicts.length) throw new DeclaredRouteConflictError(vendorKey, conflicts);
+  return settled;
 }
 
 export function adapterModelMetadataForPromotion(input: {
