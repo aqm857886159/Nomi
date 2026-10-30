@@ -498,7 +498,7 @@
         "unknown"
       ],
       "reason": "供应商轮询状态的归一化「四类」（pending 在途 / succeeded 成功 / failed 失败 / unknown 无法归类）：classifyProviderStatus 把各家供应商五花八门的原始状态串映射到这四类以驱动提交后的下一步决策。它必须显式保留 unknown（无法归类时不得臆断成终态），与 TERMINAL_STATUSES（只区分终/非终）取值与粒度都不同，复用会丢掉 pending/unknown 的区分，故独立。",
-      "site": "electron/productionRun/productionGenerationSubmission.ts::type:ProviderPollStatusClass/type-union"
+      "site": "electron/productionRun/productionGenerationMaterialization.ts::type:ProviderPollStatusClass/type-union"
     },
     {
       "members": [

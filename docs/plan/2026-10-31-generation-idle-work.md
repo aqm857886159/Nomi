@@ -142,3 +142,5 @@
 ★9补验：原186项、门岗反例不变；拆分后构建和双语全流程重跑，再完整gates/快检，最后exclusive正式5次对比。旧结果保留，不冒充拆分后最终源码证据。
 
 同模块原有provider状态分组/三种状态谓词也原样迁移到结果契约模块；底层状态词表仍只认shared/taskStatus，不增加词表、分支或供应商例外。
+
+词表迁移收尾：完整门岗第二轮106/107通过，仅 `ProviderPollStatusClass` 的 registered.site 仍指向抽取前文件。只把该锚迁至 productionGenerationMaterialization.ts，members/reason/debtCap/债清单原样保留；不改检查算法。该元数据被构建身份保守计入，因此补一次槽B构建和最终HEAD双语12/12，再重跑完整门岗与快检，最后正式性能量数。
