@@ -89,12 +89,7 @@
     {
       "path": "scripts/lib/absenceWithoutBaseline.mjs",
       "symbol": "findAbsenceWithoutBaseline",
-      "responsibility": "归零比较的唯一归属判据：只在被比较的表达式沿同文件来源追到界面观测时才命中，邻近词不进判据"
-    },
-    {
-      "path": "scripts/check-walkthroughs.mjs",
-      "symbol": "findAbsenceWithoutBaseline",
-      "responsibility": "规则接线：把原文（不是剥注释后的文本）交给判据；整份 expectAbsent( 豁免与棘轮比较保持原样"
+      "responsibility": "归零比较的唯一归属判据：只在被比较的表达式沿同文件来源追到界面观测时才命中，邻近词不进判据；规则接线（scripts/check-walkthroughs.mjs，喂原文、整份 expectAbsent( 豁免与棘轮比较保持原样）是它的唯一消费者，不是第二个边界"
     }
   ],
   "same_class_entry_points": [
