@@ -3,10 +3,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { dispatchTimelineShortcut } from './timeline/timelineShortcuts'
 import { installShortcutSurfaceTracker, resetShortcutSurfaceForTest, shortcutSurfaceMayHandle } from './shortcutSurface'
 
-type FakeSurface = { name: string; offsetParent: object | null; isConnected: boolean }
+type FakeSurface = { name: string; offsetParent: object | null; isConnected: boolean; active: boolean; closest(selector: string): FakeSurface | null }
 
 function surface(name: string, shown = true): FakeSurface {
-  return { name, offsetParent: shown ? {} : null, isConnected: true }
+  const value: FakeSurface = { name, offsetParent: shown ? {} : null, isConnected: true, active: shown,
+    closest: (selector) => selector.includes('="false"') ? (value.active ? null : value) : value,
+  }
+  return value
 }
 
 /** 一次真的 pointerdown（捕获期），目标落在某一面里（或哪一面都不是）。 */
@@ -78,6 +81,16 @@ describe('shortcut surface ownership', () => {
     const onAction = vi.fn()
     expect(dispatchTimelineShortcut(modZ(), CONTEXT, onAction, hiddenTimeline as unknown as Element)).toBe(false)
     expect(onAction).not.toHaveBeenCalled()
+  })
+
+  it('a click in the generation list makes the still-visible timeline yield', () => {
+    const eventWindow = new EventTarget()
+    installShortcutSurfaceTracker(eventWindow as Window)
+    const list = surface('generation-list')
+    const timeline = surface('timeline')
+    pointerDownIn(eventWindow, list)
+    expect(shortcutSurfaceMayHandle(timeline as unknown as Element)).toBe(false)
+    expect(shortcutSurfaceMayHandle(list as unknown as Element)).toBe(true)
   })
 
   it('before any pointer lands in a surface, each visible surface keeps its previous behaviour', () => {

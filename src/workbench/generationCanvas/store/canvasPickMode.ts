@@ -1,3 +1,5 @@
+import { useWorkbenchStore } from '../../workbenchStore'
+import { useGenerationViewStore } from '../../generation/list/generationViewStore'
 import { create } from 'zustand'
 import { declareStoreLifetime } from '../../project/storeLifetime'
 
@@ -36,6 +38,8 @@ export const canvasPickModeStoreLifetime = declareStoreLifetime({
 
 /** 进入点选。返回的函数只退出**这一次**点选（被后来者顶掉之后再调是空操作）。 */
 export function enterCanvasPickMode(request: CanvasPickRequest): () => void {
+  useWorkbenchStore.getState().setWorkspaceMode('generation')
+  useGenerationViewStore.getState().setView('canvas')
   const previous = useCanvasPickModeStore.getState().request
   useCanvasPickModeStore.setState({ request })
   previous?.onCancel?.()
