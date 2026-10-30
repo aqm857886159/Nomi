@@ -33,6 +33,7 @@ export function migrateDeclaredCapabilities(state: CatalogState, revisions: read
       const tasks = Array.isArray(revision?.verifiedModes) ? revision.verifiedModes.filter((m) => m?.modelKey === model.modelKey).map((m) => m.taskKind) : [];
       if (!candidate || !tasks.length) throw new Error("originalRevision");
       if (meta.parameters !== undefined && capabilityFactDigest(meta.parameters) !== capabilityFactDigest(candidate.parameters || [])) throw new Error("parametersOwnership");
+      if (mappings.some((row) => row.vendorKey === model.vendorKey && row.modelKey === model.modelKey && row.modeId)) throw new Error("wireOwnership");
       const projection = projectDeclaredModel(candidate, model.vendorKey, tasks);
       // Missing legacy delivery/abandon may be restored; present fields and inactive wires remain owned facts.
       for (const row of projection.mappings) {

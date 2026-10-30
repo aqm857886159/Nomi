@@ -51,11 +51,12 @@ describe('legacy declaration capability migration matrix', () => {
     expect(deriveModelAvailability({ model: state.models[0], vendor: { enabled: true, authType: 'none' }, credentialStatus: () => 'ok' })).toMatchObject({ usable: false, reason: 'capability_incomplete' });
     expect(state.mappings).toEqual(before.mappings);
   });
-  it.each(['delivery', 'abandon', 'inactive-wire'] as const)('preserves independently edited legacy wire fields: %s', (field) => {
+  it.each(['delivery', 'abandon', 'inactive-wire', 'mode-variant'] as const)('preserves independently edited legacy wire fields: %s', (field) => {
     const before = legacy();
     const source = structuredClone(revision);
     if (field === 'delivery') before.mappings[0].delivery = 'synchronous';
     if (field === 'abandon') before.mappings[0].abandon = { via: 'poll-to-completion' };
+    if (field === 'mode-variant') before.mappings.push({ ...before.mappings[0], id: 'user-variant', modeId: 'user-choice', create: { method: 'POST', path: '/user-choice' } });
     if (field === 'inactive-wire') {
       const extra = (relayDeclaration(source.draft.provider.baseUrl, { frameOnly: true }) as ProviderAdapterDraft).models[0].modes[0];
       source.draft.models[0].modes.push(extra);
