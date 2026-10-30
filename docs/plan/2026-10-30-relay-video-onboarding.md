@@ -191,3 +191,91 @@
 真窗构建与走查走槽 B；load5<10 且（非 Claude 前台或 HIDIdleTime≥600 秒），不设前台豁免，不改启动 helper。每步队列最多 120 分钟。主路径中英各三任务及每张截图人工读；真实大脑与付费仍未验证。已知第二刀 build marker 守卫红不修，不拿它掩盖任何其他红。账本首次推送按协调例外改 reviewed，列全部真实产品提交与类级检查，保持未 fixed。
 
 多素材工作流的补充实现前反例：现役画布一旦识别显式合同，就只按合同槽出输入，不能仅保存旧 image-url 参数却只投第一张图。生成边界将同类多输入编成现有数组槽，逐节点模板使用该数组的明确序号；单图仍走首帧，视频/音频使用既有数组参考槽。共享编译器校验所有槽的字段、数量与 wire，必需图片声明仍需 referenceParam/referenceShape。反例用两图加视频/音频的工作流，检查每个模板输入与现役画布槽链；去掉一个引用事实必须拒绝。此处不改 renderer，也不引入供应商判断。
+
+### 第一刀第 4 轮：实现前合同（协调 10-31 裁定）
+
+上一轮全量测试留下两个停点。这一轮再加一条：旧路由不能成死路。下面先写合同和反例，再写失败测试，最后才改产品代码。
+
+#### 停点 1：标准草稿的文生视频读了没声明的首帧
+
+已核事实：
+
+- `NEWAPI_VIDEO_CREATE_OP.body.image` 读 `request.params.image_url`，文生和图生共用这一个 op。
+- 这个值只由 `taskTemplateParams` 填（`firstReferenceImage`）。请求不带参考时它是 undefined，模板整键丢弃。所以纯文生视频本来就发不出 `image`。
+- 画布文生模式的合同没有槽，渲染层按合同清掉参考。只有绕过画布、自己带首帧又走 `text_to_video` 的调用才会用到这个键。
+
+修法修在生产者：`buildOpenAiCompatibleDraft` 的文生模式去掉顶层参考读取，判据是现役参考键表，不是键名、供应商或模型名。图生模式不变。`promotionMeta.ts` 的校验不放松。
+
+不改 `newapiTransportFor("video")`：`catalogCommit` 的 reconcile 按 `params` 补缺键，文生 op 没了 `image`，它会往 body 补一个 `image_url` 字段，真实请求反而变形。
+
+为什么不影响已有中转：
+
+- 目录里已经存着的路由不改写，只有重新验证通过的才换成新形状。
+- 纯文生请求，新旧报文逐字节相同。
+- 带着首帧走文生的无界面调用，以前把 `image` 发给文生路由；现在由现役第三道闸在花钱前拒发，并指向图生模式。
+- 图生视频的 `image` 不变，`relayConformanceVideoAudio` 继续钉住。
+
+#### 停点 2：归属判定表
+
+判定只收在 `assertDeclaredReplacementOwnership`。按事实判，不看供应商、模型名。不新增生命周期状态。
+
+| 现有路由 | 认证晋升 | 声明重交 |
+|---|---|---|
+| 带 `modeId` | 拒绝，路由不动 | 拒绝，走出口 |
+| wire 和这次要写的一样（不算启用开关） | 可替换 | 可替换 |
+| 有归属记录，digest 对得上（不算启用开关） | 可替换 | 可替换 |
+| 有归属记录，digest 对不上 | 拒绝：独立编辑 | 拒绝：独立编辑，走出口 |
+| 没有归属记录，本轮认证验过这个 taskKind | 可替换 | 不适用 |
+| 没有归属记录，本轮认证没验过这个 taskKind | 保留原样，不进这次的归属记录，也不发布 | 不适用 |
+| 没有归属记录，声明重交 | 不适用 | 拒绝，走出口 |
+| 其他模型、其他连接 | 不进判定，不动 | 不进判定，不动 |
+
+能力合同：有归属记录且 digest 对不上，或没有归属记录且和这次不同，两种写入都拒绝。文本模型不走媒体路由，现有行没有判定，也不动。
+
+没验过的那一格是本轮补的：改了 Key 的连接会被撤下发布，下一次认证落在原连接上。常见情形是文生图通过、改图没通过。这时整次拒绝，等于验过的路由也发布不了；主线的做法也是留着失败模式的旧路由。
+
+#### 第 3 条：旧路由不能成死路
+
+场景：用户在旧版本接过中转，留下旧版猜的路由，没有归属记录。Agent 读文档交了一张正确的卡，wire 不同。这是接不上的主要人群。
+
+拒绝保留。回给 Agent 的结果改成结构化：
+
+- `code: "route_conflict"`，不再是「改字段再交一次」。改卡改不好这件事。
+- `conflicts`：一次列全每个模型的每条冲突（模型、taskKind、modeId、原因、现有和新的 method + path）。
+- `consequence`：不改会怎样。这张卡没生效，模型继续发到现有路由。
+- `exits`：下一步能做什么，每步是可以直接调的工具和参数。
+
+两个出口都是现有动作，不加参数、不加流程：
+
+1. `replace_model`（要用户确认）：`nomi_read target=models` 取指纹 → `nomi_remove_provider` 只删冲突的模型 → 同一张卡重交。连接、Key、其他模型不动。
+2. `separate_connection`：同一张卡换一个新的连接名重交，不传 `vendorKey`。旧模型和手改路由全保留，新连接要再存一次 Key。
+
+矩阵用真实工具入口把这两个出口都走一遍（schema 校验 + dispatch），覆盖没有归属记录、独立编辑、带 `modeId`、能力合同被改、声明不完整重交五种。
+
+#### 跑测试时查出来的第四件：拒绝不能留在恢复日志里
+
+`promote` 现在会拒绝，而恢复日志把抛错当成「可能已提交」，条目停在提交中。之后任何模型的认证都要先重放它，再抛一次，于是**别的模型也发布不了**，一直停在验证中。这是本线前几轮引入的。复现已有：`promotionRejection.integration.test.ts`。
+
+修法只动 `serviceCatalog.ts`：运行失败后 `catalog.fail` 已把模型写成 `state: failed`，失败的运行不再持有发布租约，重放得到 `no-lease`，条目转 aborted。第一次拒绝仍然抛，用户看到真实原因，运行转 failed。
+
+#### ★9 子清单（第 4 轮）
+
+1. 真实标准草稿三扇门（`genericCompilation`、`builtinDraftForUndocumentedEndpoint`、`buildOpenAiCompatibleDraft`）接进 `promotionCallerMatrix`，门从 door-map 普查取数。文生模式不读参考键，图生必需首帧 min=max=1。
+2. `electron/parity/vendorScopedModelId.matrix.test.ts` 原样转绿，文件不改。
+3. `promotionMappings.test.ts > replaces an existing exact mapping when the new candidate verifies` 原样转绿，文件不改。
+4. 判定表每格一条矩阵，认证和声明两种写入都走真实目录事务。
+5. 第 3 条先红：现状是 `provider_failed` + 「改字段再交」。修后两个出口真走通；其他模型、其他连接逐字节不变；已存 Key 不丢。
+6. 拒绝后再认证别的模型能完成，恢复日志不再卡住；被拒模型的路由不变。
+7. 手填对照走查：同一条走查在 `origin/main` 的构建上对照一次，判明是本线引入还是既有。
+8. 改到的走查中英真跑，截图逐张读；`pnpm run gates`、推送前快检尾行进报告。
+
+#### 反例（第 4 轮，按字节还原）
+
+- 把文生模式的参考读取放回去：标准草稿矩阵红。
+- 声明重交按验证通过处理（放行没有归属记录的路由）：判定表、出口矩阵红。
+- 认证晋升不放行本轮验过的路由：`promotionMappings` 原测试和判定表红。
+- 带 `modeId` 的路由放行：判定表红。
+- 出口少给模型列表：出口矩阵红。
+- 失败的运行继续持有租约：恢复日志矩阵红。
+
+不做：按供应商或模型名分支；放松 `promotionMeta.ts` 校验；新增「确认后替换」参数或流程；改 `service.ts`、`providerAdapterCoordinator.ts`、`promotionJournal.ts`；改既有测试。能力页英文轨的自定义模式标题仍是中文、外进程交卡后 picker 要 reload，两件写进报告留后续。
