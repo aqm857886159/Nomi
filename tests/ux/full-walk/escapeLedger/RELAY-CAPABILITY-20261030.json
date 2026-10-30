@@ -5,14 +5,33 @@
   "category": "parameter-contract",
   "problem": "声明登记和认证晋升没有完整且一致的能力投影，参数和必需引用槽丢失，重交缩减卡留下旧模式，媒体模型说明出现 chat 空壳；旧目录缺失能力没有恢复入口。",
   "existingInvariants": [],
-  "ironLaws": ["⑩", "⑪", "⑫"],
+  "ironLaws": [
+    "⑩",
+    "⑪",
+    "⑫"
+  ],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
-  "completionCommits": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "completionCommits": [
+    "0976437618f581dffa0b447ac430fc40d7b62730",
+    "f12abdcae1b3fa019ef4f8b51d7b63d06c07007e",
+    "bbc178734a572e8b6cb74a8b728294127f391ae8",
+    "47b6c72c8b112594acc34dbbcc077945ca475e7e",
+    "efa14d42d8d65df5d8e9c3768402835f0ff06248",
+    "8b79097902573cf1efd6fe5502d0474afba6b6a5",
+    "9366a2a652f33427b2a77fd3630e0cd05e3fcebd"
+  ],
   "evidence": [
     "tests/relay-onboarding/contracts.test.mjs",
-    "docs/plan/2026-10-30-relay-video-onboarding.md"
-  ]
+    "docs/plan/2026-10-30-relay-video-onboarding.md",
+    "electron/catalog/declarationDurability.test.ts",
+    "electron/catalog/workflowCompleteReferences.test.ts"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-30-relay-capability-projection.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/promotionCallerMatrix.test.ts"
+  }
 }
