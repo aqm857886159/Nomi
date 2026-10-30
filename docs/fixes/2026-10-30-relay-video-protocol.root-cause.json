@@ -232,7 +232,7 @@
     "The retrieval function accepts AbortSignal, but main IPC and production cancellation callers have not been changed or end-to-end verified",
     "File responses require project identity; the independently owned tryModel entry does not currently supply it",
     "Unified perf driver registration requires a shared infrastructure change outside this task scope",
-    "Closed unknown-status semantics remain unimplemented: responseParsing.ts is a newly detected file-level hotspot outside the coordinator ruling, so work stopped before editing that shared parser.",
+    "Global closed-state inference is explicitly deferred by coordination: preserve existing hard-evidence inference and bounded unknown tolerance; use sanitized paid-response projections for a separate post-0.24.1 direction review.",
     "Stored generated defaults are indistinguishable from explicit declarations; preserving all old rows also preserves any old guessed route."
   ],
   "detected_by": "user",

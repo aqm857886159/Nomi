@@ -1,6 +1,6 @@
 // Current visible workaround for a declaration whose input controls were not projected.
 // This edits the existing capability form, never injects a contract into the catalog.
-import { expect } from './_assert.mjs'
+import { proveProbe, expectAbsent } from './_assert.mjs'
 import { openModelSettings } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -41,8 +41,9 @@ export async function configureRelayMinimumThroughVisibleUi(win, plan, capture) 
   await field('modes.0.parameters.1.options.0.label').fill(plan.resolution)
   await select('modes.0.parameters.1.defaultValue', plan.resolution)
   await capture('manual-input-controls')
+  const capabilityProof = await proveProbe(page, 'Capability editor is present before saving')
   await page.getByRole('button', { name: tr('editor.save'), exact: true }).click()
-  await expect(page).toHaveCount(0)
+  await expectAbsent(page, { provenBy: capabilityProof, message: 'Saving closes the capability editor' })
   await win.locator('[data-settings-close]').click()
   return { manualInputSetup: true, reason: 'declaration did not project visible duration and resolution controls' }
 }
