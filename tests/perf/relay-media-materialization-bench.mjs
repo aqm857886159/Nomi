@@ -152,18 +152,20 @@ if (process.argv.includes('--server')) {
   const sourceRef = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
   const controlRef = execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).trim()
   execFileSync('git', ['diff', '--quiet', controlRef, '--', 'electron/assets/providerMediaFetch.ts', 'electron/hardenedFetch.ts', 'electron/appFetch.ts', 'electron/shared/assets/providerMediaRetrievalBudget.ts', 'electron/providerNetwork.ts', 'electron/systemProxy.ts', 'electron/networkOutboundPolicy.ts'])
+  // Leave admission headroom for the complete batch; every sample still uses 10 as its noisy threshold.
+  const admissionLoad5 = 8
   const quietStarted = performance.now()
   let load5 = os.loadavg()[1]
-  while (load5 >= 10 && performance.now() - quietStarted < 25 * 60 * 1000) {
+  while (load5 >= admissionLoad5 && performance.now() - quietStarted < 25 * 60 * 1000) {
     console.error(`[quiet-window] load5=${load5}; waiting before any client starts`)
     // Condition-based host admission, bounded by the Mac polling window.
     await new Promise((resolve) => setTimeout(resolve, 30_000))
     load5 = os.loadavg()[1]
   }
   const quietWaitMs = performance.now() - quietStarted
-  if (load5 >= 10) {
+  if (load5 >= admissionLoad5) {
     fs.mkdirSync(path.dirname(output), { recursive: true })
-    fs.writeFileSync(output, JSON.stringify({ date: new Date().toISOString(), noisy: true, status: 'quiet-window-unavailable', load5, quietWaitMs, runs, samples: [] }, null, 2))
+    fs.writeFileSync(output, JSON.stringify({ date: new Date().toISOString(), noisy: true, status: 'quiet-window-unavailable', load5, admissionLoad5, quietWaitMs, runs, samples: [] }, null, 2))
     console.error(`Quiet window unavailable: load5=${load5}; no performance verdict`)
     process.exit(75)
   }
@@ -186,7 +188,8 @@ if (process.argv.includes('--server')) {
       }
     }
     const downloads = samples.filter((s) => s.implementation === 'relay-stream' && s.phase === 'warm-download')
-    diagnosticTriggered = downloads.every((s) => s.loadBefore < 10 && s.loadAfter < 10) && downloads.some((s) => s.memoryMiB.rss.increase > 64)
+    // Diagnose an observed excess even if a later sample is noisy; never infer a budget pass from that diagnostic.
+    diagnosticTriggered = downloads.some((s) => s.memoryMiB.rss.increase > 64)
     if (diagnosticTriggered) {
       for (const implementation of ['receive-drain', 'bridge-drain', 'byob-drain']) {
         for (const bytes of [256 * 1024 ** 2, 2 * 1024 ** 3]) {
@@ -197,7 +200,7 @@ if (process.argv.includes('--server')) {
   } catch (error) { failure = error }
   const report = { scope: 'Split first 1KiB fetch and post-1KiB-warmup transfer/write; fresh client and independent producer each sample; no decode/publication',
     date: new Date().toISOString(), sourceRef, machine: `${process.platform} ${process.arch} ${os.cpus()[0]?.model}`, node: process.version,
-    diagnosticTriggered, quietWaitMs,
+    diagnosticTriggered, admissionLoad5, quietWaitMs,
     control: { ref: controlRef, function: 'fetchProviderMedia', sourceUnchanged: true, policy: 'original main byte cap retained; a refused transfer is not a successful-download memory baseline' },
     noisy: samples.some((s) => s.loadBefore >= 10 || s.loadAfter >= 10), runs, samples,
     ...(failure ? { failure: failure.message } : {}) }
