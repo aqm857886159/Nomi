@@ -46,6 +46,10 @@
     {
       "path": "src/workbench/generationCanvas/nodes/director/model/directorMotionDirection.ts",
       "symbol": "motionDirectionMatches"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "symbol": "normalizeDirectorProject"
     }
   ],
   "forbidden_derivations": [],
@@ -54,5 +58,5 @@
     "src/workbench/generationCanvas/nodes/director"
   ],
   "since": "2026-10-03",
-  "notes": "确定性预演测量唯一 owner；subjectAt/sampleForSubject 唯一主体选择与取样，模板工厂唯一声明背景取景角色，rightFromYaw 统一机位右向量，摘要与评测复用同一判据。复用现有轨迹、节目机位与 directorSpace 几何真值，零 React。"
+  "notes": "确定性预演测量唯一 owner；subjectAt/sampleForSubject 唯一主体选择与取样，模板工厂唯一声明背景取景角色，rightFromYaw 统一机位右向量，摘要与评测复用同一判据。复用现有轨迹、节目机位与 directorSpace 几何真值，零 React。 normalizeDirectorProject 在持久化入口保留量测意图的缺省/显式失效区别；失效事实不降格为整个人或手搭选择。"
 }
