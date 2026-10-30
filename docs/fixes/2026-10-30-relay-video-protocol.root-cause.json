@@ -103,12 +103,17 @@
       "kind": "write",
       "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
       "symbol": "newapiTransportFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/modelRetype.ts",
+      "symbol": "draftShapeForKind"
     }
   ],
   "door_reduction": {
-    "before": 12,
-    "after": 11,
-    "why_not": "Remove the relay startup automatic transport producer. Remaining catalogCommit transport calls are image/audio; builtin selection requires explicit video protocol. Runtime create and result-query are separate lifecycle callers, and JSON readers remain necessary for declared URL results."
+    "before": 13,
+    "after": 12,
+    "why_not": "Remove the relay startup automatic transport producer. Remaining catalogCommit transport calls are image/audio; builtin selection requires explicit video protocol. Runtime create and result-query are separate lifecycle callers, and JSON readers remain necessary for declared URL results. The modelRetype wrapper must retain a distinct reclassification entry, but calls the same draftShapeForKind boundary and cannot manufacture video operations."
   },
   "generality_proof": "Response role drives streaming at the shared executor for all declared connections; no vendor or model branch.",
   "shared_boundaries": [
@@ -155,6 +160,12 @@
       "entry_point": "fetchTaskResult",
       "disposition": "enforced",
       "evidence": "Cache hits and restart rebuild converge on executeTaskQuery"
+    },
+    {
+      "path": "electron/catalog/modelRetype.ts",
+      "entry_point": "retypeModelCatalogModel",
+      "disposition": "enforced",
+      "evidence": "The wrapper calls draftShapeForKind, whose video branch now returns identity fields without wire operations."
     }
   ],
   "recurrence": {
