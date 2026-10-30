@@ -11,8 +11,8 @@
     "修改参数后核对同一未结试跑意图"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "reviewed",
+  "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-30-try-model-intent-lock.md",
     "docs/engineering/direction-check-2026-10-30-try-model-intent-lock.md",
@@ -21,7 +21,11 @@
     "electron/productionRun/submissionIntent.test.ts",
     "tests/ux/try-model-intent-lock-real.rehearsal.walk.mjs"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "5e4761865a1754a91be586ceaa71f40993a46cf8",
+    "c797ee2fd8c60be146039ed72000b5f4a6b1dda8",
+    "9b18109518cf53d61343825740ebec5f663e7d98"
+  ],
   "classCheck": {
     "kind": "matrix",
     "file": "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts"
