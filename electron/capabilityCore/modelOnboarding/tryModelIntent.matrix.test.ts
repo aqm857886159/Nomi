@@ -32,6 +32,17 @@ const registry = JSON.parse(fs.readFileSync(path.resolve("tests/fixtures/try-mod
 const exec = promisify(execFile);
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 const code = (result: Result) => result.ok ? "succeeded" : result.code;
+function assertTrialResult(value: unknown): asserts value is Result {
+  expect(value).toMatchObject({ ok: expect.any(Boolean), submission: {
+    protocol: "try-model-intent-lock", intentId: expect.any(String), attemptId: expect.any(String),
+    accepted: expect.stringMatching(/^(unknown|accepted|not_sent)$/), allowedActions: expect.any(Array),
+    newAttemptRequiresUserConfirmation: true,
+  } });
+  if (value && typeof value === "object" && "ok" in value && value.ok === true) {
+    expect(value).toMatchObject({ state: { assets: expect.any(Array) } });
+    expect(value).toHaveProperty("state.assets.0");
+  }
+}
 
 describe("model trial intent class matrix", () => {
   let server: http.Server;
@@ -102,14 +113,16 @@ describe("model trial intent class matrix", () => {
           { sender: { id: 42 }, senderFrame: { routingId: 1, url: "http://127.0.0.1:5273/index.html" } },
           { id: payload.id, ok: true, result: { confirmed: false } }));
       } } as never);
-    const first = await tryModel({ runTask, pollTimeoutMs: 2000, approvalPolicy: () => ({ mode: initial === "cancelled" ? "request" : "direct" }) }, args) as Result;
+    const first = await tryModel({ runTask, pollTimeoutMs: 2000, approvalPolicy: () => ({ mode: initial === "cancelled" ? "request" : "direct" }) }, args);
+    assertTrialResult(first);
     expect(code(first), JSON.stringify(first)).toBe(scenario.codes[0]);
     const repeated: Result[] = [];
     for (const expected of scenario.codes.slice(1)) {
       const input = { ...args, ...scenario.repeat };
-      const result = scenario.host === "restart"
-        ? JSON.parse((await exec(process.execPath, [path.resolve("tests/fixtures/try-model-intent-restart.mjs"), settings, JSON.stringify(input)])).stdout) as Result
-        : await tryModel({ runTask, pollTimeoutMs: 2000, approvalPolicy: () => ({ mode: "direct" }) }, input) as Result;
+      const result: unknown = scenario.host === "restart"
+        ? JSON.parse((await exec(process.execPath, [path.resolve("tests/fixtures/try-model-intent-restart.mjs"), settings, JSON.stringify(input)])).stdout)
+        : await tryModel({ runTask, pollTimeoutMs: 2000, approvalPolicy: () => ({ mode: "direct" }) }, input);
+      assertTrialResult(result);
       repeated.push(result);
       expect(code(result), JSON.stringify(result)).toBe(expected);
     }
