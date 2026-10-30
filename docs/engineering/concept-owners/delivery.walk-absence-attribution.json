@@ -1,0 +1,23 @@
+{
+  "name": "走查门岗「不存在断言没有基线」的归属判据（被比较的表达式追到界面观测才命中，不看附近有没有观测词）",
+  "subject": "delivery.walk-absence-attribution",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/lib/absenceWithoutBaseline.mjs",
+    "symbol": "findAbsenceWithoutBaseline"
+  },
+  "write_api": [
+    {
+      "path": "scripts/lib/absenceWithoutBaseline.mjs",
+      "symbol": "findAbsenceWithoutBaseline"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-30",
+  "notes": "合同 docs/fixes/2026-10-30-walk-absence-attribution.root-cause.json：归零比较（== / === / !== 0、toBe(0)、toHaveCount(0)）的左边沿同一个文件里的来源追到「数一数界面上有几个」才算命中；旧的「往上 5 行有观测词就算」窗口已删，check-walkthroughs.mjs 的 absence-without-baseline 规则是它唯一的消费者，不许再长第二份归属逻辑。"
+}
