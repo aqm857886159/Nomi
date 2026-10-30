@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import http from 'node:http'
-import { fork } from 'node:child_process'
+import { fork, execFileSync } from 'node:child_process'
 import { once } from 'node:events'
 import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
@@ -31,47 +31,80 @@ if (process.argv.includes('--server')) {
   process.once('SIGTERM', stop)
   process.once('disconnect', stop)
 } else if (process.argv.includes('--sample')) {
-  // Each invocation is a fresh client process, including the first fetch/stream setup cost.
   const root = makeTempDir('relay-media-bench-')
   process.env.NOMI_SETTINGS_DIR = path.join(root, 'settings')
   process.env.NOMI_PROJECTS_DIR = path.join(root, 'projects')
   process.env.NOMI_ELECTRON_USER_DATA_DIR = path.join(root, 'user-data')
+  // Identical host imports for both implementations. The control transfer function and
+  // dependencies are verified against main by the parent before any samples run.
   const { streamProfileMediaToFile } = tsxRequire('../../electron/capabilityCore/generationOutputMaterializer.ts', import.meta.url)
-  const bytes = Number(process.argv[process.argv.indexOf('--sample') + 1])
-  const run = Number(process.argv[process.argv.indexOf('--sample') + 2])
+  const { fetchProviderMedia } = tsxRequire('../../electron/assets/providerMediaFetch.ts', import.meta.url)
+  const { PROVIDER_MEDIA_BYTE_CAP } = tsxRequire('../../electron/shared/assets/providerMediaRetrievalBudget.ts', import.meta.url)
+  const index = process.argv.indexOf('--sample')
+  const [implementation, phase, byteArg, runArg] = process.argv.slice(index + 1)
+  const bytes = Number(byteArg), run = Number(runArg)
   const producer = fork(fileURLToPath(import.meta.url), ['--server'], { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] })
+  const metrics = ['rss', 'heapUsed', 'external', 'arrayBuffers']
   let sample
   try {
     const [{ port }] = await once(producer, 'message')
     const baseUrl = `http://127.0.0.1:${port}`
+    const smallFetch = async () => {
+      if (implementation === 'main-url-buffer') {
+        const response = await fetchProviderMedia(`${baseUrl}/?bytes=1024`, { trustedPrivateOrigin: baseUrl, allowContentTypes: ['video/mp4'] })
+        if (response.bytes.length !== 1024) throw new Error('Warmup has wrong size')
+      } else {
+        const response = await fetch(`${baseUrl}/?bytes=1024`)
+        if ((await response.arrayBuffer()).byteLength !== 1024) throw new Error('Warmup has wrong size')
+      }
+    }
+    if (phase === 'warm-download') await smallFetch()
     const file = path.join(root, 'download.mp4')
     const controller = new AbortController()
-    const initialRss = process.memoryUsage().rss
-    let peak = initialRss
+    const initial = process.memoryUsage(), peak = { ...initial }
     const loadBefore = os.loadavg()[1]
-    const timer = setInterval(() => { peak = Math.max(peak, process.memoryUsage().rss) }, 5)
+    const tick = () => { const now = process.memoryUsage(); for (const key of metrics) peak[key] = Math.max(peak[key], now[key]) }
+    const timer = setInterval(tick, 5)
     const start = performance.now()
+    let outcome = 'downloaded'
     try {
-      const response = await fetch(`${baseUrl}/?bytes=${bytes}`, { signal: controller.signal })
-      await streamProfileMediaToFile(response, file, controller.signal)
-      peak = Math.max(peak, process.memoryUsage().rss)
+      if (phase === 'cold-init') { await smallFetch(); outcome = 'initialized' }
+      else if (implementation === 'main-url-buffer') {
+        try {
+          const response = await fetchProviderMedia(`${baseUrl}/?bytes=${bytes}`, { trustedPrivateOrigin: baseUrl, allowContentTypes: ['video/mp4'] })
+          tick() // Includes the returned whole-file Buffer before writing.
+          await fs.promises.writeFile(file, response.bytes, { flag: 'wx', mode: 0o600 })
+        } catch (error) {
+          if (bytes <= PROVIDER_MEDIA_BYTE_CAP || !/too large|exceeded/i.test(String(error.message))) throw error
+          outcome = 'policy-refused'
+        }
+      } else {
+        const response = await fetch(`${baseUrl}/?bytes=${bytes}`, { signal: controller.signal })
+        await streamProfileMediaToFile(response, file, controller.signal)
+      }
+      tick()
     } finally { clearInterval(timer) }
-    const diskMs = performance.now() - start
-    if (fs.statSync(file).size !== bytes) throw new Error('streamed file has wrong size')
-    fs.rmSync(file)
-    const cancelFile = path.join(root, 'cancel.mp4')
-    const cancel = new AbortController()
-    const response = await fetch(`${baseUrl}/?bytes=${bytes}`, { signal: cancel.signal })
-    let abortAt
-    // Deliberate cancellation workload, not a wait for a UI/network condition.
-    const deadline = setTimeout(() => { abortAt = performance.now(); cancel.abort(new DOMException('Benchmark cancellation', 'AbortError')) }, 25)
-    let failed = false
-    try { await streamProfileMediaToFile(response, cancelFile, cancel.signal) }
-    catch (error) { if (!cancel.signal.aborted) throw error; failed = true }
-    finally { clearTimeout(deadline); fs.rmSync(cancelFile, { force: true }) }
-    if (!failed || !abortAt) throw new Error('cancellation workload completed before it was cancelled')
-    sample = { bytes, run, clientPid: process.pid, coldClient: true, initialRssMiB: initialRss / 1024 ** 2,
-      peakAdditionalRssMiB: (peak - initialRss) / 1024 ** 2, diskMs, cancelMs: performance.now() - abortAt,
+    const transferMs = performance.now() - start
+    if (outcome === 'downloaded' && fs.statSync(file).size !== bytes) throw new Error('streamed file has wrong size')
+    fs.rmSync(file, { force: true })
+    let cancelMs = null
+    if (implementation === 'relay-stream' && phase === 'warm-download') {
+      const cancelFile = path.join(root, 'cancel.mp4'), cancel = new AbortController()
+      const response = await fetch(`${baseUrl}/?bytes=${bytes}`, { signal: cancel.signal })
+      let abortAt
+      // Deliberate cancellation workload, not a UI/network wait.
+      const deadline = setTimeout(() => { abortAt = performance.now(); cancel.abort(new DOMException('Benchmark cancellation', 'AbortError')) }, 25)
+      let failed = false
+      try { await streamProfileMediaToFile(response, cancelFile, cancel.signal) }
+      catch (error) { if (!cancel.signal.aborted) throw error; failed = true }
+      finally { clearTimeout(deadline); fs.rmSync(cancelFile, { force: true }) }
+      if (!failed || !abortAt) throw new Error('cancellation workload completed before cancellation')
+      cancelMs = performance.now() - abortAt
+    }
+    sample = { implementation, phase, bytes, run, clientPid: process.pid, freshClient: true,
+      warmupBytes: phase === 'warm-download' ? 1024 : 0, outcome,
+      memoryMiB: Object.fromEntries(metrics.map((key) => [key, { initial: initial[key] / 1024 ** 2, peak: peak[key] / 1024 ** 2, increase: (peak[key] - initial[key]) / 1024 ** 2 }])),
+      transferMs, cancelMs, mainByteCap: implementation === 'main-url-buffer' ? PROVIDER_MEDIA_BYTE_CAP : null,
       loadBefore, loadAfter: os.loadavg()[1] }
   } finally {
     if (producer.exitCode === null) {
@@ -85,9 +118,11 @@ if (process.argv.includes('--server')) {
   process.disconnect()
 } else {
   const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i < 0 ? fallback : process.argv[i + 1] }
-  const runs = Number(arg('--runs', 5))
-  const output = arg('--out', '')
+  const runs = Number(arg('--runs', 5)), output = arg('--out', '')
   if (!output || !Number.isInteger(runs) || runs < 5) throw new Error('Use --out <receipt> --runs >=5')
+  const sourceRef = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+  const controlRef = execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).trim()
+  execFileSync('git', ['diff', '--quiet', controlRef, '--', 'electron/assets/providerMediaFetch.ts', 'electron/hardenedFetch.ts', 'electron/appFetch.ts', 'electron/shared/assets/providerMediaRetrievalBudget.ts', 'electron/providerNetwork.ts', 'electron/systemProxy.ts', 'electron/networkOutboundPolicy.ts'])
   const load5 = os.loadavg()[1]
   if (load5 >= 10) {
     fs.mkdirSync(path.dirname(output), { recursive: true })
@@ -96,22 +131,29 @@ if (process.argv.includes('--server')) {
     process.exit(75)
   }
   const samples = []
-  for (const bytes of [256 * 1024 ** 2, 2 * 1024 ** 3]) {
-    for (let run = 0; run < runs; run++) {
-      const child = fork(fileURLToPath(import.meta.url), ['--sample', String(bytes), String(run)], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] })
-      const sample = await new Promise((resolve, reject) => {
-        let received
-        child.once('message', (value) => { received = value })
-        child.once('error', reject)
-        child.once('exit', (code) => code === 0 && received ? resolve(received) : reject(new Error(`Cold client exited ${code} without a sample`)))
-      })
-      samples.push(sample)
-      console.log(JSON.stringify(sample))
+  let failure
+  try {
+    for (const implementation of ['relay-stream', 'main-url-buffer']) {
+      for (const { phase, bytes } of [{ phase: 'cold-init', bytes: 1024 }, { phase: 'warm-download', bytes: 256 * 1024 ** 2 }, { phase: 'warm-download', bytes: 2 * 1024 ** 3 }]) {
+        for (let run = 0; run < runs; run++) {
+          const child = fork(fileURLToPath(import.meta.url), ['--sample', implementation, phase, String(bytes), String(run)], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] })
+          const sample = await new Promise((resolve, reject) => {
+            let received
+            child.once('message', (value) => { received = value })
+            child.once('error', reject)
+            child.once('exit', (code) => code === 0 && received ? resolve(received) : reject(new Error(`Client exited ${code} without a sample`)))
+          })
+          samples.push(sample); console.log(JSON.stringify(sample))
+        }
+      }
     }
-  }
-  const report = { scope: 'HTTP transfer to file, production sink; each sample has a fresh client and separate producer; no decode/publication timing',
-    date: new Date().toISOString(), machine: `${process.platform} ${process.arch} ${os.cpus()[0]?.model}`,
-    noisy: samples.some((s) => s.loadBefore >= 10 || s.loadAfter >= 10), runs, samples }
+  } catch (error) { failure = error }
+  const report = { scope: 'Split first 1KiB fetch and post-1KiB-warmup transfer/write; fresh client and independent producer each sample; no decode/publication',
+    date: new Date().toISOString(), sourceRef, machine: `${process.platform} ${process.arch} ${os.cpus()[0]?.model}`, node: process.version,
+    control: { ref: controlRef, function: 'fetchProviderMedia', sourceUnchanged: true, policy: 'original main byte cap retained; a refused transfer is not a successful-download memory baseline' },
+    noisy: samples.some((s) => s.loadBefore >= 10 || s.loadAfter >= 10), runs, samples,
+    ...(failure ? { failure: failure.message } : {}) }
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, JSON.stringify(report, null, 2))
+  if (failure) throw failure
 }

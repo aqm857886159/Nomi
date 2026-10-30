@@ -209,3 +209,10 @@
 RSS预算64MiB未通过，取消预算1s通过。量具退出0表示采样完成，预算结论为over-budget。此前暖2GiB诊断不能抵扣冷进程峰值。按协调20:0x裁定“安静窗口里还超，就修（流式、背压），或者停下报告”停在第4步；尚未定位RSS分配来源，未变更生产下载实现。没有运行后续中英真窗/共步骤演练，也没有完整gates/快检收据。本线仍不可合入。
 
 正式perf-scenario：未验证：缺量具（统一场景没有文件流 / 内存驱动）。原始命令：`node tests/perf/relay-media-materialization-bench.mjs --runs 5 --out "$EVIDENCE_DIR/relay-media-cold.json"`，按本机门岗锁执行；原始数据与预算摘要在执行者证据目录。独立冷进程量具不替代统一场景登记。
+
+
+### ★7 22:1x拆分量具合同（采样前）
+
+按协调裁定先拆分，不把旧冷峰值归因为初始化。每档5个新客户端：①只1KiB首fetch（消费正文、不写盘）；②同一新客户端先1KiB预热，再量256MiB/2GiB下载。分别记录rss、heapUsed、external、arrayBuffers的基线/峰值增量、前后load5；无强制GC，无大文件预热。预热后下载RSS≤64MiB时，引用裁定原话更新预算：“预热后单次下载额外 RSS ≤64MiB；首个 fetch 的一次性初始化单列，只记数、不设预算”。超过则定位接收/桥接/写盘，只在本线取回边界修；共享vendorHttp或新包需停报。
+
+反例：只有1KiB预热不能漏计进程内第一次大文件的内存；不能拿拒绝超限的main路径当成成功下载低内存对照；不同指标不能相加重复算（arrayBuffers包含于external）。main以协调工作树同SHA的origin/main d13bba332为基准；其URL取回fetchProviderMedia/hardenedFetch缓冲正文，字节上限200MiB。保留上限，以相同请求规模记录拒绝；main没有对应鉴权/content文件执行路径。本线与main传输函数及其未改的依赖校验blob一致后，在同宿主隔离进程测阶段差异，不修改main源码或共享大小政策。
