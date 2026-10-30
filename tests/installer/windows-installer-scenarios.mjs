@@ -499,7 +499,7 @@ try { while ($true) { Start-Sleep -Seconds 1 } } finally { $handle.Dispose() }`
       if (!isElevated()) throw new Error('setup: the per-machine scenario needs an elevated runner (GitHub-hosted Windows runners are)')
     },
     /** 模拟修好的安装程序挪开了一部分条目后被杀：旁边目录 + 说明文件 + 待恢复记录。 */
-    async lateDeleter(dir) {
+    async lateDeleter() {
       t.requireElevation()
       const gateDir = path.join(root, 'gate')
       fs.mkdirSync(gateDir, { recursive: true })
@@ -741,7 +741,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
     await t.installOld(dir)
     const oldHash = sha256File(path.join(dir, t.manifest.uninstallerFileName))
     const places = t.seedPlaces(dir, [...INCIDENT_FILES, ...NESTED_FILES])
-    const captured = await t.lateDeleter(dir)
+    const captured = await t.lateDeleter()
     // The characterization records which real image was intercepted even when data loss is the first failure.
     captured.wasLegacy = captured.sha256 === oldHash
     t.expectPlaces(places, 'after the late deleter finished')
