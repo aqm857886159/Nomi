@@ -80,3 +80,27 @@
 - [ ] 生成效果
 - [ ] 数据格式
 - [x] 新增功能 / 性能
+
+
+## 实现期间补充
+
+协调明确静态等待现状不增加转圈或文字；有百分比/无百分比、中/英四张真窗截图供后续样张另行拍板。性能量具 `pendingMotionCensus` 预留等待卡内小转圈和动画计数，本轮不会挂载小转圈。
+
+7 写门核查：designLab 只改阶段；ComfyUI 可能首次带 promptId，之后为叙述/百分比；trimVideoToNode 先 updateNode 建运行态、后续纯本地字节/百分比；generationRunController 先 appendRun、前台 setProgress / 后台仅新 taskId；recoverTaskActions 先显式 setStatus 接管，随后原 taskId 纯轮询；runProjectDelivery 前后台共享恢复判定、缺节点不暂存 progress；videoDepth 先 setStatus、后续本地处理状态与字节比例。终态都走既有 status/result 入口，没有用进度代替终态。
+
+主进程性能夹具单独创建 1 个零费用 Run，调用真实 submission.poll 与 envelope 写边界；12 张卡的 UI 本地供应商任务由既有 process fixture 创建。指标分别保留来源，不把两条提交路径说成一条。
+
+
+## 本地自验记录（尚未完成真实闭环）
+
+| 反例 / 检查 | 结果 | 证据 |
+|---|---|---|
+| 还原等待动画 | 12 张等待面在 1.1s 内绘制 198 次，测试红；恢复静态后 0 次 | GenerationWaitingSurface.test.ts；计数同时包含 GL draw 和 2D drawImage，不与单独 GL 口径混用 |
+| 还原无条件 dirty | 30 次进度产生 30 个 dirty 信号，重复 taskId 后 1→11，测试红；修后纯进度为 0 | canvasRunActions.idle.test.ts；此数是 dirty 信号，不冒充真实 IPC |
+| 还原 poll/envelope | 5 次重复 pending Run revision 11→16，envelope 字节变化，两文件分别红；恢复后稳定 | productionGenerationSubmission.test.ts、productionRunRuntimeEnvelope.test.ts |
+| 还原后台投递 | 后台纯进度改了项目快照，测试红；恢复后身份/终态照存、瞬态不存 | runProjectDelivery.background.test.ts |
+| 旧数据 taskId/taskKind 不一致 | 去掉运行记录身份比较时两项均红，恢复后通过 | canvasRunActions.idle.test.ts 的 legacy 参数化检查 |
+| 导入 / 聊天 | 导入 8 项、指向元素 38 项通过；不替代真窗 | NodeImportingOverlay.test.ts、NodePointer.test.tsx |
+| 正式性能 / 真窗 / gates | unverified：构建门岗锁排队 25 分钟未获锁；前台为 Claude；未起 Electron | 本地实现不等于完整验收；不得合并前据此标已解决 |
+
+全部反例由脚本 finally 还原原始字节，SHA256 前后相同；等待面一轮单文件测试曾在资源拥塞期超时，后续定位运行及最终运行通过，未调高超时。真实 N=60/100、60 秒等待、30 秒保存 IPC、双语重启与截图以及完整 gates/推送前快检尚未执行。性能场景保持 proposed/pending，不写虚构基线，不由实现线批准预算。

@@ -1,0 +1,874 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-31-generation-idle-work",
+  "problem_type": "Idle observations incorrectly schedule continuous rendering and durable snapshot work",
+  "symptom": "Canvas interaction stalls while multiple cards wait for generation",
+  "direct_cause": "Waiting shaders draw continuously; every progress tick bumps persistence revision; every pending poll writes envelope and Run snapshots",
+  "class_root": "Display observations and durable execution facts lack separate scheduling/persistence boundaries",
+  "affected_population": [
+    "Every image/video waiting node and chat pointer",
+    "Every setNodeProgress producer",
+    "Every provider pending query across restart"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/productionRunRuntimeEnvelope.ts",
+    "src/devlab/designLab/processFeedback/",
+    "src/workbench/generationCanvas/nodes/ProgressRevealCanvas.tsx"
+  ],
+  "entry_points": [
+    "Seven setNodeProgress producers from the generated matrix",
+    "Three GenerationWaitingSurface consumers",
+    "Run poll and runtime envelope writes"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal scheduling and persistence invariants are established by repository source and controlled local measurements; no external API changes.",
+  "invariants": [
+    "Waiting for unchanged generation never schedules canvas drawing",
+    "Only recovery identity or lifecycle changes mark the project dirty",
+    "Same-status pending never rewrites complete envelope or Run snapshots",
+    "First task identity, state transitions, terminal raw and idempotency remain durable"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "ProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationSingleShot.ts",
+      "symbol": "SubmissionReceiptUnknownError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/generationSubmission.ts",
+      "symbol": "RuntimeEnvelopeSealInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/generationSubmission.ts",
+      "symbol": "ProductionRunRuntimeEnvelopeStore"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/generationSubmission.ts",
+      "symbol": "SubmissionReceiptUnknownError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "symbol": "ProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "symbol": "GenerationMaterializationUnsupportedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "symbol": "GenerationOutputRetrievalFailedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationSubmissionStartInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationMaterializationError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "ProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "ProductionGenerationSubmissionDependencies"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationSubmissionResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationSubmissionDispatchInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "SubmissionReconciliationRequiredError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationSubmissionPollResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationSubmissionMaterializeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationOutputRetrievalFailedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "GenerationMaterializationUnsupportedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "RUNTIME_ENVELOPE_SCHEMA_VERSION"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "RuntimeEnvelopeState"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "ProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "RuntimeEnvelopeConflictError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "RuntimeEnvelopeSealInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "markPolled"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "symbol": "ProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "symbol": "GenerationSubmissionStartInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "symbol": "GenerationSubmissionMaterializeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "symbol": "GenerationSubmissionPollResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/singleShotProductionStart.ts",
+      "symbol": "ProductionGenerationSubmission"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/singleShotProductionStart.ts",
+      "symbol": "GenerationSubmissionResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "SubmissionReconciliationRequiredError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "SubmissionReceiptUnknownError"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/labScreens.ts",
+      "symbol": "PROCESS_FEEDBACK_STATES"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "ProcessFixture"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "PF_NODE_ID"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "ProcessFeedbackStage"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/states/01-process-feedback.tsx",
+      "symbol": "ProcessFeedbackFxStage"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/states/01-process-feedback.tsx",
+      "symbol": "ProcessFeedbackImportStage"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/states/01-process-feedback.tsx",
+      "symbol": "ProcessFeedbackStage"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/pointer/NodePointer.tsx",
+      "symbol": "GenerationWaitingSurface"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "HeldNodeOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/productionHandOverShotsOp.ts",
+      "symbol": "captureApprovedGenerationInputs"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "readRunProjectRecord"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "RunGraph"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "RunProjectTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "BaseGenerationNodeProps"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "NodeGeneratingOverlay"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "symbol": "ProgressRevealCanvas"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "symbol": "NodeImportingOverlay"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+      "symbol": "GenerationWaitingSurface"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx",
+      "symbol": "GenerationWaitingSurface"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "RunProjectTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "RunGraph"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "RunProjectTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "readRunGraph"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+      "symbol": "readRunGraph"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "RunProjectTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "RunProjectTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "NodeRunOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "RunGraph"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "readRunProjectRecord"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeProgressChangesRecovery"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "HeldNodeOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "LandedNodeOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeProgressChangesRecovery"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+      "symbol": "HeldNodeOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "NodeRunOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "LandedNodeOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "HeldNodeOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "RunProjectTarget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneLegacyFiles.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneWorkspaceSelection.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/antigravityEvidenceStore.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/settings/browserPromptExtractionSettings.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/approvalReceipt.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotTestUtils.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "createProductionGenerationSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/configFileStore.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "addressedGenerationAttempt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "markPolled"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunLock.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/repository.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryStore.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/liveHarness.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/store.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/telemetryOutbox.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/telemetrySettings.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifestLock.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceManifestTransaction.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceSync.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceSyncBaseline.ts",
+      "symbol": "writeJsonFileAtomic"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "advanceProcessFeedback"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/productionHandOverShotsOp.ts",
+      "symbol": "captureApprovedGenerationInputs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "isRunTargetLoaded"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/comfyuiProgressBridge.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "captureApprovedGenerationInputs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "whenRunTargetLoaded"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "whenRunTargetLoaded"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "isRunTargetLoaded"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "captureApprovedGenerationInputs"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "isRunTargetLoaded"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "whenRunTargetLoaded"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "reapplyLandedOutcomes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/generationCanvasStore.ts",
+      "symbol": "createCanvasRunActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "whenRunTargetLoaded"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "deliverRunOutcome"
+    }
+  ],
+  "door_reduction": {
+    "before": 135,
+    "after": 137,
+    "why_not": "The seven independent progress producers, three waiting consumers and atomic-write owners retain their domain roles. Two read-only callers of the new shared recovery predicate converge foreground/background policy; no new state writer is introduced. Counts use an identical symbol set and repository file set against baseline and working source. The common atomic writer remains unchanged."
+  },
+  "generality_proof": "All seven progress writers converge on createCanvasRunActions; background delivery shares the recovery-fact predicate. Every waiting reader uses the same static surface. Shared upstream status classification handles all providers and persisted pending observations after restart.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "symbol": "GenerationWaitingSurface",
+      "responsibility": "Render existing static grey grid and event-driven byte progress without shader scheduling"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "createCanvasRunActions",
+      "responsibility": "Mark dirty only for recovery facts when applying progress"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeProgressChangesRecovery",
+      "responsibility": "Compare effective task and run identity plus lifecycle takeover"
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "poll",
+      "responsibility": "Skip redundant pending Run command"
+    },
+    {
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "markPolled",
+      "responsibility": "Skip unchanged pending envelope writes but retain terminal receipts"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "entry_point": "setNodeProgress",
+      "disposition": "enforced",
+      "evidence": "Listed in generated door map; event matrix verifies identity/lifecycle dirty versus transient observation for this door."
+    },
+    {
+      "path": "src/workbench/generationCanvas/comfyuiProgressBridge.ts",
+      "entry_point": "setNodeProgress",
+      "disposition": "enforced",
+      "evidence": "Listed in generated door map; event matrix verifies identity/lifecycle dirty versus transient observation for this door."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "entry_point": "setNodeProgress",
+      "disposition": "enforced",
+      "evidence": "Listed in generated door map; event matrix verifies identity/lifecycle dirty versus transient observation for this door."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "setNodeProgress",
+      "disposition": "enforced",
+      "evidence": "Listed in generated door map; event matrix verifies identity/lifecycle dirty versus transient observation for this door."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "setNodeProgress",
+      "disposition": "enforced",
+      "evidence": "Listed in generated door map; event matrix verifies identity/lifecycle dirty versus transient observation for this door."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "entry_point": "setNodeProgress",
+      "disposition": "enforced",
+      "evidence": "Listed in generated door map; event matrix verifies identity/lifecycle dirty versus transient observation for this door."
+    },
+    {
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "entry_point": "setNodeProgress",
+      "disposition": "enforced",
+      "evidence": "Listed in generated door map; event matrix verifies identity/lifecycle dirty versus transient observation for this door."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every waiting task can repeat progress and poll indefinitely across callers and restarts.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs setNodeProgress: 7 direct producer files",
+      "node scripts/door-map.mjs GenerationWaitingSurface: 3 consumer files",
+      "node scripts/door-map.mjs markPolled and writeJsonFileAtomic: envelope and Run snapshot paths",
+      "rg img-fx src electron: only WaitingSurface imports runtime; all other imports are preset types"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "invariant": "Transient observations cannot dirty project or rewrite unchanged pending snapshots; waiting feedback has no animation engine.",
+    "failure_mode": "Unknown provider status remains needs_attention; identity and terminal facts always persist; empty status still rejects.",
+    "exception_policy": "none",
+    "strategy": "Delete shader dependency and enforce durability comparison at shared progress and poll boundaries, including background delivery.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "electron/productionRun/productionRunRuntimeEnvelope.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts",
+    "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.test.ts",
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts",
+    "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.test.ts",
+    "electron/productionRun/productionGenerationSubmission.test.ts",
+    "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "patches/img-fx@0.5.1.patch"
+    ],
+    "rationale": "Remove animated waiting branch, shader patch, preset API and dependency in same product commit; no feature flag or fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "img-fx runtime and patched dependency are removed; static existing surface uses React and CSS tokens. No third-party shader lifecycle remains.",
+    "exit_criteria": []
+  },
+  "migration": "No stored schema changes. Existing taskId and frozen contracts remain readable; only transient redundant work disappears.",
+  "residual_risks": [
+    "Real Windows GPU and original user project are unverified.",
+    "N=60/100 60-second performance and both-language Electron restart/screenshots remain unverified: the shared build gate never admitted this worktree within the prescribed 25-minute queue limit, and the foreground application remained Claude.",
+    "Full gates and pre-push validation were not run; independent acceptance and merge verification belong to the coordinating session."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-30",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "tests": [
+      "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts",
+      "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.test.ts",
+      "electron/productionRun/productionGenerationSubmission.test.ts",
+      "electron/productionRun/productionRunRuntimeEnvelope.test.ts"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "generation-idle-100",
+  "feature": "12 张卡生成等待 60 秒，真实主进程轮询与保存硬断言",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "I100",
+    "--scenarios",
+    "generation-idle",
+    "--warmup",
+    "0"
+  ],
+  "scale": "100 图片节点 + 12 个本地供应商 pending 视频任务，另 1 个主进程 Run 轮询夹具",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "budgetStatistic": "p95",
+  "budgetStatus": "proposed",
+  "budgetBasis": "60Hz 连续操作 p95 不超过两帧；同场景另硬断言 draw=0、30s saveIPC=0、重复 pending 完整快照写=0。",
+  "measurement": {
+    "state": "pending",
+    "reason": "实现线接续实测，登记预算待协调确认"
+  }
+}

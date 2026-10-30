@@ -55,3 +55,13 @@ describe('导入卡的「转换格式」阶段词', () => {
       .toBe(i18n.t('generationCommon.observability.import.checking', { size: '1.0 MB' }))
   })
 })
+
+it.each(['zh-CN', 'en'])('byte progress still drives the shared static grid (%s)', async locale => {
+  await i18n.changeLanguage(locale)
+  fed.progress = { copiedBytes: 420, totalBytes: 1000, phase: 'copying' }
+  const markup = renderToStaticMarkup(React.createElement(NodeImportingOverlay, { node }))
+  expect(markup).toContain('data-process-static-grid')
+  expect(markup).toContain('data-reveal-ratio="0.420"')
+  expect(markup).not.toContain('data-process-fx')
+  expect(labelFor(fed.progress)).toContain('42%')
+})

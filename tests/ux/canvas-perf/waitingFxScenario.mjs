@@ -1,20 +1,8 @@
 import { expect, expectAbsent, proveProbe } from '../_assert.mjs'
-import { tsImport } from 'tsx/esm/api'
 import { canvasFitViewButton } from '../_shell.mjs'
-
-const { readProcessMotionCapability, shouldReduceProcessMotion } = await tsImport(
-  '../../../src/workbench/generationCanvas/nodes/processMotionCapability.ts', import.meta.url,
-)
 
 const WAITING_NODE_COUNT = Number(process.env.NOMI_WAITING_EFFECTS_NODES || 8)
 if (![8, 16, 32].includes(WAITING_NODE_COUNT)) throw new Error('NOMI_WAITING_EFFECTS_NODES must be 8, 16 or 32')
-
-async function expectedEffects(page, visibleCount) {
-  const capability = await page.evaluate(readProcessMotionCapability)
-  const effectCount = shouldReduceProcessMotion(capability) ? 0 : visibleCount
-  console.log('WAITING_FX_CAPABILITY', JSON.stringify({ ...capability, effectCount }))
-  return effectCount
-}
 
 export async function prepareWaitingFx(page) {
   await expect.poll(() => page.evaluate(() => Boolean(window.__nomiCanvasStore))).toBe(true)
@@ -47,7 +35,7 @@ export async function prepareWaitingFx(page) {
   await expect.poll(() => page.locator('[data-generation-waiting]').evaluateAll(surfaces =>
     surfaces.every(surface => Number(surface.dataset.processZoom) >= 0.4)),
   { message: 'The waiting workload must retain effect-eligible zoom' }).toBe(true)
-  const effectCount = await expectedEffects(page, WAITING_NODE_COUNT)
+  const effectCount = 0
   await expect(page.locator('[data-process-fx]')).toHaveCount(effectCount)
   await expect(page.locator('[data-process-static-grid]')).toHaveCount(WAITING_NODE_COUNT - effectCount)
   console.log('WAITING_FX_READY', JSON.stringify(await page.evaluate(() => ({
@@ -76,7 +64,7 @@ export async function sampleWaitingFx(page) {
 
 export async function cleanupWaitingFx(page) {
   const waitingProof = await proveProbe(page.locator('[data-generation-waiting]'), '性能窗口有真实等待层')
-  const effectCount = await expectedEffects(page, WAITING_NODE_COUNT - 4)
+  const effectCount = 0
   const owners = await page.locator(effectCount
     ? 'article[data-node-id]:has([data-process-fx])'
     : 'article[data-node-id]:has([data-generation-waiting])').evaluateAll(nodes => nodes.slice(0, 4).map(n => n.dataset.nodeId))

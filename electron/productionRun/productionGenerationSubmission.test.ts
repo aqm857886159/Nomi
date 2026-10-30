@@ -261,6 +261,39 @@ describe("Run-owned semantic generation submission", () => {
     expect(JSON.parse(fs.readFileSync(envelopePath, "utf8"))).toMatchObject({ lastPoll: { status: "processing", raw: { progress: 42 } } });
   });
 
+  it("unchanged pending polls preserve Run and envelope snapshots across restart", async () => {
+    const { root, repository } = setup();
+    let status = "processing";
+    let progress = 1;
+    const submit = vi.fn(async () => ({ providerTaskId: "idle-task" }));
+    const deps = { repository, beforeDispatch: () => undefined, projectRoot: root,
+      immutableProjectUuid: "project-uuid-1", projectGeneration: 1, intentMacKey: "test-intent-key", now: () => "2026-08-23T00:03:00.000Z",
+      provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false },
+        buildRequest: (input: unknown) => input, submit,
+        query: async () => ({ status, raw: { progress: progress++ } }) } };
+    const input = { projectId: "project-1", operationId: "op-1" };
+    const runner = createProductionGenerationSubmission(deps);
+    await runner.start({ ...input, admission: await landedAdmission(repository, "project-1", "op-1") });
+    await runner.poll(input);
+    const before = repository.read("project-1", "op-1")!;
+    const envelopePath = path.join(root, ".nomi", "runs", "op-1", "jobs", before.jobs[0].jobId, "runtime-envelope.json");
+    const bytes = fs.readFileSync(envelopePath, "utf8");
+    const writes = vi.spyOn(fs, "renameSync");
+    try {
+      for (let i = 0; i < 5; i++) await createProductionGenerationSubmission(deps).poll(input);
+      expect(repository.read("project-1", "op-1")?.revision).toBe(before.revision);
+      expect(fs.readFileSync(envelopePath, "utf8")).toBe(bytes);
+      expect(writes).not.toHaveBeenCalled();
+      status = "queued";
+      await runner.poll(input);
+      expect(repository.read("project-1", "op-1")!.revision).toBeGreaterThan(before.revision);
+      status = "succeeded";
+      await runner.poll(input);
+      expect(JSON.parse(fs.readFileSync(envelopePath, "utf8")).lastPoll).toMatchObject({ status: "succeeded", raw: { progress: 8 } });
+      expect(submit).toHaveBeenCalledTimes(1);
+    } finally { writes.mockRestore(); }
+  });
+
   it("a fresh submission (re-kick / reopen / restart) polls with the durable model identity, never re-submits", async () => {
     const { root, repository } = setup();
     const deps = {

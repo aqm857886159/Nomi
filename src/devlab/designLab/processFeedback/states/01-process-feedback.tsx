@@ -7,13 +7,6 @@ const FX_SOURCE = 'docs/plan/2026-09-09-process-feedback-imgfx.md · §5'
 const IMPORT_SOURCE = 'docs/plan/2026-09-14-import-progress-reveal.md · 验收门'
 export const PROCESS_FEEDBACK_STATES: readonly LabState[] = [
   {
-    id: 'pf-fx-organic',
-    name: '生成动效 · 有机像素对照',
-    source: FX_SOURCE,
-    coverage: 'shell',
-    render: () => <ProcessFeedbackFxStage preset="pixels-organic" />,
-  },
-  {
     id: 'pf-fx-generating',
     name: '生成动效 · 等待',
     source: FX_SOURCE,

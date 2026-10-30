@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 import { writeJsonFileAtomic } from "../jsonFile";
+import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 
 export const RUNTIME_ENVELOPE_SCHEMA_VERSION = 1 as const;
 export type RuntimeEnvelopeState = "sealed" | "provider_accepted" | "submitted_unknown" | "materialized";
@@ -124,6 +125,8 @@ export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now
     }
     const status = input.status.trim();
     if (!status) throw new RuntimeEnvelopeConflictError("Provider poll status is required");
+    const statusClass = classifyUpstreamTaskStatus(status);
+    if ((statusClass === "queued" || statusClass === "running") && current.lastPoll?.status === status) return current;
     const observedAt = now();
     const next: ProductionRunRuntimeEnvelope = {
       ...current,

@@ -611,11 +611,6 @@
     "b3de8b17ac0e5036d7aae43e4ee0a46f8e3519457a920c88d49cbe4493fb92cd": 1,
     "8012f7af3e9b7d6ad138573f1c05197b1a6b3a384adc650f6594c32eb47816c4": 1
   },
-  "tests/ux/process-feedback-imgfx-real.e2e.mjs": {
-    "f35c1000d0e890583fa78ed750e02f5c7aa186ebd6ec4375544405e253b2c5ef": 1,
-    "5d96c2a8c551bb570ad9c258e35b3d7d46e9240a7fe529705e7898b9d3ae3630": 1,
-    "2ada06aeafa4b37ccc6dc663a1b3d592f4e2a057ae2e4d49fbb13060182ced64": 1
-  },
   "tests/ux/production-mcp-journey.e2e.mjs": {
     "6808659eb8d39742a4b7d009195385b22e1cd39b04491432715c36a882816b6f": 1,
     "4bf6da8efd8b3d7c4bf0431ca19bf2f32dd287c72c79b4442b42d5651b44f3ee": 1,

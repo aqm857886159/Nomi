@@ -1,6 +1,5 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ImageGenerationPreset } from 'img-fx'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { GenerationWaitingSurface } from './GenerationWaitingSurface'
 import { useDeferredNodeMediaVisibility } from './deferredNodeMediaQueue'
@@ -22,10 +21,9 @@ function formatImportBytes(bytes: number): string {
  * 导入知道自己搬了多少字节（马赛克长多少由字节说了算）。两者共用同一个等待层组件，
  * 不为导入另写一套视觉。
  */
-export function NodeImportingOverlay({ node, motion, preset }: {
+export function NodeImportingOverlay({ node, motion }: {
   node: GenerationCanvasNode
   motion?: 'reduced'
-  preset?: ImageGenerationPreset
 }): JSX.Element | null {
   const { t } = useTranslation()
   const progress = useAssetImportProgressStore((state) => state.byNode[node.id])
@@ -55,7 +53,7 @@ export function NodeImportingOverlay({ node, motion, preset }: {
       ? (size ? t('generationCommon.observability.import.checking', { size }) : t('generationCommon.observability.import.checkingUnknownSize'))
       : (size ? t('generationCommon.observability.import.progress', { percent, size }) : t('generationCommon.observability.import.progressUnknownSize', { percent }))
   return <div ref={viewport.ref} className="absolute inset-0 z-[3] pointer-events-none" data-generating-placement="import">
-    <GenerationWaitingSurface previewLabel="" zoom={zoom} inViewport={viewport.visible} motion={motion} preset={preset}
+    <GenerationWaitingSurface previewLabel="" zoom={zoom} inViewport={viewport.visible} motion={motion}
       progressReveal={{ ratio, imageUrl: progress?.previewUrl }} label={label} />
   </div>
 }

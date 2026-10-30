@@ -369,7 +369,6 @@
     "framer-motion": "^12.39.0",
     "globals": "^17.6.0",
     "i18next": "26.3.6",
-    "img-fx": "0.5.1",
     "immer": "^11.1.8",
     "leafer-ui": "^2.1.0",
     "marked": "18.0.5",
@@ -545,7 +544,6 @@
       "@ffprobe-installer/darwin-arm64"
     ],
     "patchedDependencies": {
-      "img-fx@0.5.1": "patches/img-fx@0.5.1.patch",
       "playwright-core@1.60.0": "patches/playwright-core@1.60.0.patch"
     }
   }

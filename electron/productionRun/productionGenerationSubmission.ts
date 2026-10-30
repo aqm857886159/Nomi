@@ -636,7 +636,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           ? { errorCode: "provider_status_unknown", errorMessage: "供应商返回了未识别的任务状态，需要人工核对" }
           : {}),
     };
-    command(run, nextStatus === job.status ? "job.patch" : "job.status", {
+    if (statusClass !== "pending" || statusChanged || nextStatus !== job.status) command(run, nextStatus === job.status ? "job.patch" : "job.status", {
       jobId: job.jobId,
       ...(nextStatus === job.status ? { patch } : { status: nextStatus, patch }),
     }, `poll:${run.revision}:${providerStatus}`);

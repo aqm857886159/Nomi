@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   RuntimeEnvelopeConflictError,
@@ -74,4 +74,24 @@ describe("ProductionRunRuntimeEnvelope", () => {
     const restarted = createProductionRunRuntimeEnvelope({ filePath: path.join(dir, "envelope.json") });
     expect(restarted.read()).toEqual(observed);
   });
+});
+
+it("does not rewrite an unchanged pending observation but preserves terminal raw", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-idle-envelope-")); tempDirs.push(dir);
+  let tick = 0;
+  const filePath = path.join(dir, "envelope.json");
+  const envelope = createProductionRunRuntimeEnvelope({ filePath, now: () => String(++tick) });
+  envelope.seal({ runId: "run", jobId: "job", runtimeTaskId: "task", contractHash: "a", providerIdempotencyKey: "key", requestFingerprint: "b", request: {} });
+  envelope.markProviderAccepted({ providerTaskId: "task" });
+  envelope.markPolled({ status: "processing", raw: { percent: 1 } });
+  const before = fs.readFileSync(filePath, "utf8");
+  const writes = vi.spyOn(fs, "renameSync");
+  try {
+    for (let i = 0; i < 5; i++) envelope.markPolled({ status: "processing", raw: { percent: i } });
+    expect(fs.readFileSync(filePath, "utf8")).toBe(before);
+    expect(writes).not.toHaveBeenCalled();
+    envelope.markPolled({ status: "succeeded", raw: { result: "first" } });
+    envelope.markPolled({ status: "succeeded", raw: { result: "final" } });
+    expect(envelope.read()?.lastPoll?.raw).toEqual({ result: "final" });
+  } finally { writes.mockRestore(); }
 });

@@ -11,3 +11,5 @@
 协调询问：「生成时卡顿按三处删减来修吗？等待动画会变成静止灰格。」用户原话：「按推荐」。批准范围：等待卡不再跑 WebGL 动画、纯进度不使整个工程变脏保存、状态没变的 pending 不写完整快照。
 
 追加协调裁定：BaseGenerationNode 只删 preset import、prop、解构、透传四处；本线同提交删 img-fx 依赖、patch、锁条目及全部 preset 类型，不留本地类型替身或空参数。该文件热点和 productionGenerationSubmission 等任务书列出的热点在本次裁定范围内。其他禁碰文件不修改。
+
+NodeImportingOverlay 为文件级第 3 个 fix，协调按用户同一次拍板放行：仅删 preset import、解构、参数类型与透传。静态路径不增转圈或文字；后续样张另议。
