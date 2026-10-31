@@ -78,6 +78,12 @@ export const CI_ONLY = Object.freeze([
     ],
   },
   {
+    reason: '纯 node、亚秒级，本该在推送前跑；暂留 CI 的原因：推送前选择器 pre-push-contracts.mjs 属于「测试与走查的临时目录归属」这个热点概念（近 14 天已有 10 个 fix，方向检查未做完），不往里面加登记。方向检查落地后接进推送前（PRE_PUSH_GATES + GATE_INPUTS，输入范围：workers/nomi-asset-relay/wrangler.toml 与该测试入口的 import 闭包）',
+    gates: [
+      'check:asset-relay', // 2026-10-31：中转站清理 / 统计 / 假 R2 桶；此前 *.node-test.mjs 不被任何车道认领，从来没人跑
+    ],
+  },
+  {
     reason: '要网络 / 浏览器 / 构建产物 / python 锁 / electron 二进制，或随机器环境而变',
     gates: [
       'check:design-lab',

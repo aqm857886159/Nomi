@@ -1,0 +1,117 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-31-asset-relay-expiry-cleanup",
+  "problem_type": "A scheduled sweep that cannot see the field it filters on, and a storage cap that counts less than the bill does",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-30",
+  "symptom": "The asset relay promises that uploaded reference files expire after 24 hours, but nomi-assets held 6,728 objects / 13.7 GB on 2026-10-31 (the 8 GB cap and R2's 10 GB free tier both exceeded). Files the user was told would disappear were still stored.",
+  "direct_cause": "cleanup() listed the bucket without include: [\"customMetadata\"]. R2 returns customMetadata from list() only when it is requested (compatibility_date >= 2022-08-04), so object.customMetadata?.expiresAt was always undefined and the hourly cron never deleted anything. usageSnapshot() additionally left expired-but-undeleted objects out of storageBytes, so the hard cap could not see the bytes R2 was billing.",
+  "class_root": "No single boundary owned how the relay reads its bucket or what counts as stored bytes: two scans each hand-wrote their own list() options and their own expiry test, and the only test double returned customMetadata from list() unconditionally, so the suite could not tell a sweep that works from one that sees nothing. The test file was also named *.node-test.mjs, which no runner claimed, so it never ran.",
+  "affected_population": [
+    "Every file uploaded through the public relay since the 2026-08-30 deploy (privacy: retained past the promised 24 hours)",
+    "The relay's storage cap and monthly-budget guard, which compared a number smaller than the real stored bytes",
+    "Any future Worker in this repo that lists an R2 bucket and filters on metadata"
+  ],
+  "scope_paths": [
+    "workers/nomi-asset-relay/src/index.mjs",
+    "tests/asset-relay/worker.node-test.mjs",
+    "tests/asset-relay/fakeR2.mjs"
+  ],
+  "entry_points": [
+    "Relay scheduled() hourly cron -> cleanup()",
+    "Relay POST /v1/assets -> enforceStorageBudget() -> usageSnapshot()",
+    "Relay GET /v1/usage -> usageSnapshot()",
+    "Relay GET/HEAD /v1/assets/:key -> readAsset() lazy delete of an expired key"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.cloudflare.com/r2/api/workers/workers-api-reference/",
+      "checked_at": "2026-10-31",
+      "purpose": "list() returns httpMetadata/customMetadata only when named in include (compatibility date 2022-08-04 or later); list pages and delete([keys]) are capped at 1000."
+    }
+  ],
+  "invariants": [
+    "Every bucket listing the relay performs asks for customMetadata and goes through the single assetPages() generator.",
+    "storageBytes and objectCount cover every object still in the bucket, expired or not; expired and metadata-less objects are reported separately.",
+    "cleanup deletes exactly the objects whose expiresAt has passed, one batched delete (<= 1000 keys) per listed page, and never deletes an object without a usable expiresAt.",
+    "The relay's tests run against a bucket double that withholds list() metadata unless it is requested, and the suite is run by a gate (check:asset-relay, CI Contracts)."
+  ],
+  "doors": [
+    { "kind": "read", "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "assetPages" },
+    { "kind": "write", "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "cleanup" },
+    { "kind": "write", "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "readAsset" }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 3,
+    "why_not": "The two list() calls (usageSnapshot, cleanup) merged into assetPages. The two delete paths stay: cleanup is the batched hourly sweep and readAsset removes the single expired key it was just asked for so a stale URL never serves; both use the same assetExpiryMs() test, and merging them would make a read request pay for a bucket scan."
+  },
+  "generality_proof": "All relay listings go through assetPages(), which fixes prefix, page size and include in one place; expiry is decided by one assetExpiryMs() used by usageSnapshot, cleanup and readAsset. The class-level matrix runs object populations (all expired, all live, mixed, missing or garbled expiresAt, empty) across R2 page sizes of 1, 2, 3 and 1000 against a bucket double that behaves like R2, and a source census fails any worker file that lists an R2 bucket without include or that adds a second listing site to the relay.",
+  "shared_boundaries": [
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "assetPages", "responsibility": "Own how the relay bucket is listed: prefix, page size and the include that makes expiresAt visible." },
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "assetExpiryMs", "responsibility": "Own the single definition of an object's expiry, returning null when no usable expiresAt exists so such objects are never deleted." },
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "usageSnapshot", "responsibility": "Own the stored-bytes figure the hard cap and budget guard compare against: every byte still in the bucket." }
+  ],
+  "same_class_entry_points": [
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "entry_point": "usageSnapshot", "disposition": "enforced", "evidence": "Already passed include; now shares assetPages and counts expired objects in storageBytes." },
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "entry_point": "readAsset", "disposition": "enforced", "evidence": "get() always returns customMetadata; its expiry test now uses assetExpiryMs() so all three sites agree on what expired means." },
+    { "path": "infra/feedback-worker/src/worker.mjs", "entry_point": "feedback intake R2 writes", "disposition": "not-affected", "evidence": "rg -n '\\.list\\(' workers infra worker finds no bucket listing there; it only puts objects and has no expiry sweep." },
+    { "path": "tests/asset-relay/worker.node-test.mjs", "entry_point": "source census over workers/ and infra/", "disposition": "enforced", "evidence": "Fails any worker source that lists an R2 binding without include: [\"customMetadata\"], and any second listing site in the relay." }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any Worker that sweeps or accounts by R2 object metadata can repeat this: the list option is easy to forget, a permissive test double hides it, and a test file no runner claims never reports it.",
+    "same_class_scan": [
+      "rg -n '\\.list\\(|\\.delete\\(' workers infra worker -> only the relay's two list() sites and two delete() sites; feedback-worker has none.",
+      "node scripts/door-map.mjs cleanup / usageSnapshot -> the scan roots are src and electron, so the Worker was enumerated by hand with rg; no desktop caller reaches these symbols.",
+      "rg -n 'node-test' vitest.config.ts package.json -> *.node-test.mjs under tests/ is claimed by no lane; tests/asset-relay was the only such file, now run by check:asset-relay in CI."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "workers/nomi-asset-relay/src/index.mjs",
+    "invariant": "The relay lists its bucket only through assetPages() with include customMetadata, and counts every stored byte.",
+    "failure_mode": "A listing without metadata fails the census and the faithful bucket double (cleanup would delete nothing and the tests assert it deletes); an unreadable usage scan makes uploads fail closed with usage_unavailable.",
+    "exception_policy": "none",
+    "strategy": "One listing generator and one expiry function replace the two hand-written scans; the bucket double withholds metadata like R2; check:asset-relay runs the suite in CI Contracts (gates:contracts); the pre-push selector is deferred because pre-push-contracts.mjs sits in a hot concept.",
+    "artifacts": [
+      "workers/nomi-asset-relay/src/index.mjs",
+      "tests/asset-relay/fakeR2.mjs",
+      "tests/asset-relay/worker.node-test.mjs",
+      "scripts/pre-push-gate-table.mjs",
+      "package.json"
+    ]
+  },
+  "regression_tests": [
+    "tests/asset-relay/worker.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/asset-relay/worker.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "workers/nomi-asset-relay/src/index.mjs",
+      "tests/asset-relay/worker.node-test.mjs"
+    ],
+    "rationale": "The two hand-written list() scans and the inline always-metadata bucket mock are deleted in the same change; nothing keeps the old per-object delete or the unfiltered list callable."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Cloudflare's R2 binding behaves as documented; the defect was the relay not requesting the metadata it filters on.",
+    "exit_criteria": []
+  },
+  "migration": "The deployed Worker was updated on 2026-10-31. The first hourly run after deploy deletes the backlog of objects whose expiresAt has passed. Objects without expiresAt (uploaded before the TTL feature, if any) are intentionally kept and counted as untrackedObjectCount in /v1/usage and in the cron log line.",
+  "residual_risks": [
+    "Until an hourly run finishes, uploads are refused with storage_limit_reached while the bucket is above the cap, because expired bytes now count; the desktop falls back to other upload channels. At the normal 24 h TTL the pending backlog is at most about an hour of uploads.",
+    "check:asset-relay is CI-only for now (declared in pre-push-gate-table.mjs); wiring it into the pre-push selector waits for the direction check on the temp-roots concept.",
+    "A backlog larger than the Worker's per-invocation subrequest budget (2 operations per 1000 objects) would finish over several hourly runs rather than one.",
+    "Objects without an expiresAt are never deleted by this change; whether to age them out by upload time is a product decision left to the coordinator."
+  ],
+  "invariant_owner_layer": {
+    "layer": "workers/nomi-asset-relay/src/index.mjs",
+    "tests": ["tests/asset-relay/worker.node-test.mjs"],
+    "why": "assetPages and assetExpiryMs own listing and expiry for every relay path; the matrix and census in the test file exercise them against a bucket double that mirrors R2."
+  }
+}
