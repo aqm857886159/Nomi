@@ -11,7 +11,7 @@
     "桶体积逼近上限时拒绝新上传"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-31-asset-relay-expiry-cleanup.md",
@@ -19,10 +19,13 @@
     "tests/asset-relay/worker.node-test.mjs",
     "tests/asset-relay/fakeR2.mjs"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "99e46142ef25bef077728052efc1014e24cf074e"
+  ],
   "classCheck": {
     "kind": "matrix",
     "file": "tests/asset-relay/worker.node-test.mjs"
   },
-  "rootCauseContract": "docs/fixes/2026-10-31-asset-relay-expiry-cleanup.root-cause.json"
+  "rootCauseContract": "docs/fixes/2026-10-31-asset-relay-expiry-cleanup.root-cause.json",
+  "fixedInPr": 1398
 }
