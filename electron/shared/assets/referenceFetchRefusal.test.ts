@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { desktopT } from "../../desktopStrings";
 import { isReferenceFetchRefusal } from "./referenceFetchRefusal";
 
 type Case = [label: string, input: { upstreamCode?: string; text?: string }];
@@ -55,8 +56,8 @@ const NOT_REFUSALS: Case[] = [
   ["连不上接口地址", { text: "Failed to access the API URL" }],
   ["连不上 base URL", { text: "Could not reach the base URL" }],
   ["中转站连不上它的上游", { text: "Failed to fetch upstream URL" }],
-  ["我们自己的转写报错（中文）", { text: "转写失败：音频地址无法访问" }],
-  ["我们自己的转写报错（英文）", { text: "Transcription failed: the audio URL is unreachable" }],
+  ["我们自己的转写报错（中文）", { text: desktopT("transcribe.unreachable", {}, "zh-CN") }],
+  ["我们自己的转写报错（英文）", { text: desktopT("transcribe.unreachable", {}, "en") }],
   ["中文：接口地址无法访问", { text: "接口地址无法访问，请检查连接" }],
   ["空", { text: "" }],
 ];
