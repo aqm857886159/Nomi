@@ -80,5 +80,5 @@ it('preserves an already imported native workflow instead of requiring an HTTP a
 it('refuses unknown wire-shaped keys instead of expanding a provider alias blacklist', () => {
   const draft = card(); draft.models[0].parameters![0].key = 'provider_seconds';
   draft.models[0].modes[0].create.body = { provider_seconds: '{{request.params.provider_seconds}}', resolution: '{{request.params.resolution}}' };
-  expect(() => registerDeclaredProvider({ card: draft, vendorKey: 'relay' })).toThrow(/parameters.provider_seconds.*canonical/);
+  expect(() => registerDeclaredProvider({ card: draft, vendorKey: 'relay' })).toThrow(/parameters\.provider_seconds: "provider_seconds" is not a Nomi parameter key/);
 });

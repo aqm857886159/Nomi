@@ -22,6 +22,7 @@ import { adapterPublicationModeMask, derivePublishedExecution, type PublishedExe
 // 钥匙健康度不在这里另立词表：它的单一 owner 是中立契约 `contracts/apiKeyStatus.ts`（R14.1）。
 import { missingDeclaredCapabilityFields, parseCustomCapabilityContract } from "./customCapabilityContract";
 import type { ApiKeyDecryptStatus } from "./contracts/apiKeyStatus";
+import { tagNomiError } from "./nomiErrorCodes";
 
 /**
  * 不可用的**原因**，一个封闭枚举。
@@ -113,16 +114,22 @@ export function isCredentialReason(reason: ModelUnusableReason): boolean {
     || reason === "credential_locked";
 }
 
-/** Creation-only guard. Existing accepted-task queries must still resolve their original model/wire. */
+/**
+ * Creation-only guard. Existing accepted-task queries must still resolve their original model/wire.
+ *
+ * Both refusals carry the `model-config` machine code. The canvas wraps every failure that happens before a request leaves the machine
+ * as `submission_not_sent`, and the card classifier reads that code before it reads any wording, so a sentence alone (even one that
+ * starts with "Model is not configured") ends on the generic "not sent, retry" card there. The code is what points both paths at model access.
+ */
 export function assertDeclaredCapabilityForTask(meta: unknown, taskKind: string): void {
   const missingFields = missingDeclaredCapabilityFields(meta);
-  if (missingFields.length) throw Object.assign(new Error(`Incomplete declaration: read the documentation and resubmit. Missing: ${missingFields.join(", ")}`), { code: "capability_incomplete", missingFields });
+  if (missingFields.length) throw Object.assign(new Error(tagNomiError("model-config", `Incomplete declaration: read the documentation and resubmit. Missing: ${missingFields.join(", ")}`)), { code: "capability_incomplete", missingFields });
   // Workflow/manual capability admission has its own lifecycle; this guard owns declared projections.
   const projection = meta && typeof meta === "object" ? (meta as Record<string, unknown>).declarationProjection : undefined;
   if (!projection || typeof projection !== "object" || (projection as Record<string, unknown>).hasMediaContract !== true) return;
   const contract = parseCustomCapabilityContract(meta);
   const mask = adapterPublicationModeMask(meta);
   if (contract && (!contract.modes.some((mode) => (mode.transportTaskKind || contract.transportTaskKind) === taskKind) || (mask.present && !mask.modes.includes(taskKind as never)))) {
-    throw Object.assign(new Error(`Declaration does not publish taskKind: ${taskKind}`), { code: "capability_mode_unavailable" });
+    throw Object.assign(new Error(tagNomiError("model-config", `Declaration does not publish taskKind: ${taskKind}`)), { code: "capability_mode_unavailable" });
   }
 }

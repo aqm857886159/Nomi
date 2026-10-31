@@ -99,13 +99,49 @@ function normalizeControlReferences(mode: CapabilityModelDraft['modes'][number],
     ...(reference ? { referenceParam: reference.inputKey, referenceShape: reference.asArray ? 'array' : 'single' } : {}) };
 }
 
+/**
+ * Wire names -> the Nomi parameter keys that stand for them (the first one is the key the hint shows).
+ * A parameter is declared under Nomi's neutral key and the vendor's own field name stays in the wire, reading it:
+ * `"seconds": "{{request.params.duration}}"`. The card schema has no `paramMap`, so this is the only way a card can pass;
+ * the rejection text, the kit's worked examples and the "follow the hint verbatim" test all read this table.
+ */
+export const NEUTRAL_PARAMETER_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  seconds: ['duration'], duration_seconds: ['duration'], video_resolution: ['resolution'], image_size: ['resolution', 'aspect_ratio'], size: ['resolution', 'aspect_ratio'],
+};
+
+/** The AI door shows the first 600 characters of a rejection (`rejectionsFromError`); the key list is the part allowed to be cut, and says so. */
+const REJECTION_TEXT_BUDGET = 600;
+
+/** As many keys as fit in `room` characters, with an ellipsis when some were left out. */
+function fitKeyList(keys: readonly string[], room: number): string {
+  const all = keys.join(', ');
+  if (all.length <= room) return all;
+  const shown: string[] = [];
+  let used = 0;
+  for (const key of keys) {
+    const next = used + key.length + (shown.length ? 2 : 0);
+    if (next > room - 3) break;
+    shown.push(key);
+    used = next;
+  }
+  return shown.length ? `${shown.join(', ')}, …` : '…';
+}
+
+const isWireName = (key: string): boolean => Object.prototype.hasOwnProperty.call(NEUTRAL_PARAMETER_ALIASES, key);
+
 export function assertNeutralDeclarationParameters(candidate: AdapterModelDraft): void {
-  const aliases: Record<string, string> = { seconds: 'duration', duration_seconds: 'duration', video_resolution: 'resolution', image_size: 'aspect_ratio/resolution', size: 'aspect_ratio/resolution' };
   if (candidate.kind === 'text') return;
   const registered = new Set(MODEL_ARCHETYPES.filter((a) => a.kind === candidate.kind).flatMap((a) => a.modes.flatMap((m) => m.params.map((p) => p.key))));
+  // A wire name is refused below even when some model registers it, so it is not offered as a key.
+  const offered = [...registered].filter((key) => !isWireName(key)).sort();
   for (const p of candidate.parameters || []) {
-    if (aliases[p.key]) fieldError(candidate, `parameters.${p.key}`, `use neutral ${aliases[p.key]} and translate with create.paramMap`);
-    if (!registered.has(p.key)) fieldError(candidate, `parameters.${p.key}`, 'unregistered neutral control; use a code-owned canonical parameter and create.paramMap');
+    const alias = isWireName(p.key);
+    const neutral = alias ? NEUTRAL_PARAMETER_ALIASES[p.key].filter((key) => registered.has(key)) : [];
+    if (neutral.length) fieldError(candidate, `parameters.${p.key}`, `"${p.key}" is the wire name, not a Nomi parameter key: use ${neutral.map((key) => `"${key}"`).join(' or ')} as the parameter key and let the wire field read it, e.g. "${p.key}": "{{request.params.${neutral[0]}}}"`);
+    if (alias || !registered.has(p.key)) {
+      const head = `"${p.key}" is not a Nomi parameter key. Use a Nomi key and let the wire field read it ("${p.key}": "{{request.params.<nomi key>}}"), or drop it and write a fixed value in the wire. ${candidate.kind} keys: `;
+      fieldError(candidate, `parameters.${p.key}`, head + fitKeyList(offered, REJECTION_TEXT_BUDGET - `models.${candidate.modelKey}.parameters.${p.key}: `.length - head.length));
+    }
   }
 }
 
