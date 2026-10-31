@@ -201,16 +201,6 @@
       "path": "scripts/lib/gitPaths.mjs",
       "symbol": "gitNameStatus",
       "responsibility": "Applies the same limit to name-status listings."
-    },
-    {
-      "path": "scripts/check-no-secrets.mjs",
-      "symbol": "listOrFail",
-      "responsibility": "Turns a failed listing into a red gate instead of an empty scan."
-    },
-    {
-      "path": "scripts/check-git-path-quoting.mjs",
-      "symbol": "scanDirectListing",
-      "responsibility": "Rejects JavaScript that starts git ls-files without the shared entry."
     }
   ],
   "same_class_entry_points": [
