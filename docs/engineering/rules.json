@@ -34,13 +34,14 @@
         "R10",
         "R23"
       ],
-      "rule": "新实现同 commit 删旧实现，不留并行版 / fallback；CSS 只写组件 className；生成画布只许 React Flow 一个内核。",
+      "rule": "新实现同 commit 删旧实现，不留并行版 / fallback；删旧前先答老用户怎么过（设计卡 ★1c）；CSS 只写组件 className；生成画布只许 React Flow 一个内核。",
       "disease": "旧路径没删仍能写（最大一类逃逸）",
       "enforcement": [
         "gate:check:orphan-cables",
-        "gate:check:tokens"
+        "gate:check:tokens",
+        "gate:check:pr-judgement(老用户这半句：碰存量路径的 PR 交 upgrade-path 证据，判据同 DC)"
       ],
-      "evidence": "复盘里 legacy-canvas-write-doors、legacy-storyboard-placement 两条：旧路径没删仍能写",
+      "evidence": "复盘里 legacy-canvas-write-doors、legacy-storyboard-placement 两条：旧路径没删仍能写；老用户这半句：用户 2026-11-01 同意写进常驻 P1，起因见 DC 的证据",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "出现能自动判「并行实现」的门岗",
