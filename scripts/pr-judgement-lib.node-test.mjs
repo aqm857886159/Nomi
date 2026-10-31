@@ -17,6 +17,7 @@ import {
   checkRoutingEvidence,
   evaluatePrJudgement,
   evidenceLineVerdict,
+  upgradePathVerdict,
   inferRoutes,
   isMissingTool,
   loadRoutingTable,
@@ -595,4 +596,29 @@ test('性能场景：PR 头文件取不到 / JSON 解析不了 → 判红并说�
   assert.match(checkRoutingEvidence(perfLine('base-one'), ['perf'], table, '2026-10-12T00:00:00Z', broken).lines.join('\n'), /JSON 读不了/)
   const removed = knownScenarios({ baseEntries: base, prFiles: [], removedFiles: ['tests/perf/scenarios/base-one.json'] })
   assert.equal(checkRoutingEvidence(perfLine('base-one'), ['perf'], table, '2026-10-12T00:00:00Z', removed).ok, false, '本 PR 删掉的基线场景不再认得')
+})
+
+test('老用户升级路径证据：只认跑过旧数据的凭据或「不适用：理由」，未验证和裸 PR 号都红', () => {
+  assert.equal(upgradePathVerdict('- upgrade-path：electron/catalog/upgradeKeepsWorkingModels.test.ts 五份真实旧目录全绿').ok, true)
+  assert.equal(upgradePathVerdict('- upgrade-path：tests/fixtures/old-user-data/catalogs 跑过').ok, true)
+  assert.equal(upgradePathVerdict('- upgrade-path：运行号 19283746').ok, true)
+  assert.equal(upgradePathVerdict('- upgrade-path：不适用：只改错误文案，不碰存量').notApplicable, true)
+  assert.equal(upgradePathVerdict('- upgrade-path：未验证：缺旧项目').ok, false, '未验证不算：这就是放过老模型下架的那一行')
+  assert.equal(upgradePathVerdict('- upgrade-path：electron/x.test.ts 未验证').ok, false, '带了路径也不能写未验证')
+  assert.equal(upgradePathVerdict('- upgrade-path：#1402').ok, false, '裸 PR 号证明不了跑过旧数据')
+  assert.equal(upgradePathVerdict('- upgrade-path：跑过了').ok, false)
+  assert.equal(upgradePathVerdict('- upgrade-path：不适用：无').ok, false, '理由太短')
+})
+
+test('碰决定老模型能不能用的文件 → 数据格式类，要交升级路径证据', () => {
+  const ids = (files) => inferRoutes(files).categories.map((category) => category.id)
+  for (const file of ['electron/catalog/catalogStore.ts', 'electron/providerAdapter/promotionMeta.ts', 'electron/shared/modelPublication.ts', 'electron/shared/modelAvailability.ts', 'electron/shared/customCapabilityContract.ts']) {
+    assert.ok(ids([M(file)]).includes('data-format'), file)
+  }
+  assert.ok(!ids([M('electron/catalog/catalogStore.test.ts')]).includes('data-format'), '测试文件不算')
+  assert.ok(!ids([M('electron/shared/modelPublicationView.ts')]).includes('data-format'), '名字只是相近的不算')
+  const body = CARD('- [x] 数据格式') + '\n## 验收证据\n- upgrade-path：未验证：缺旧数据\n'
+  const result = checkRoutingEvidence(body, ['data-format'])
+  assert.equal(result.ok, false)
+  assert.ok(result.lines.some((line) => line.includes('不接受「未验证」')), result.lines.join('\n'))
 })
