@@ -14,13 +14,22 @@
     "只盖画布那一格的灯箱不挡旁边的时间轴"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "fixed",
+  "manualReview": "reviewed",
   "evidence": [
     "tests/ux/modal-input-priority.walk.mjs",
     "src/workbench/shortcutSurface.modalLayer.matrix.test.ts",
     "src/workbench/modalInputLayerCensus.test.ts",
-    "docs/fixes/2026-10-31-modal-input-priority.root-cause.json"
+    "docs/fixes/2026-10-31-modal-input-priority.root-cause.json",
+    "修复：模态开着时被盖住的工作区面不算活动，键盘、粘贴、指针手势都不接；确认框开着按 Delete 节点数不变（#1395）。"
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "8854368e7"
+  ],
+  "fixedInPr": 1395,
+  "rootCauseContract": "docs/fixes/2026-10-31-modal-input-priority.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/shortcutSurface.modalLayer.matrix.test.ts"
+  }
 }
