@@ -143,6 +143,8 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     buildMarkers = [], argv = process.argv.slice(2), assertBuild = assertPaidBuildReady,
     // 带本地参考素材的生成要先经应用的托管上传中转：按需把**当前配置的那一个**中转源加进放行名单（缺省关，别的付费走查行为不变）。
     hostedUploads = false,
+    // App-scoped trials use the same Run layout outside a creator project. Receipt selection only; all spend guards stay unchanged.
+    receiptRoot = (walk) => walk.report.projectRoot,
     // false = 供应商的源不进放行名单（零花费探测：就算误提交，网络闸也当场挡下，结构上花不了钱）。缺省 true，别的付费走查不变。
     vendorNetwork = true,
     // true = 闸把放行名单上公网请求的请求体（先脱敏：不记请求头、签名查询串与 key 形状的串打码）记进账本，`readAllowedRequests()` 读回。
@@ -248,7 +250,7 @@ export async function openPaidWalk(script, name, models, deps = {}) {
         // App 已经关了：项目与截图是证据，先把收据取出来；凭据副本（目录里的 key 密文 + 钥匙）当场删掉。
         // env-key 路：收据读不出来（转录坏了等）也不许挡住收尾——副本里还躺着凭据密文，必须删。
         let spend
-        try { spend = spendReceipt(walk.report.projectRoot) }
+        try { spend = spendReceipt(receiptRoot(walk)) }
         catch (error) { if (!envKey) throw error; spend = { media: [], text: null, readError: redact(String(error?.message ?? error), secrets).slice(0, 300) } }
         if (envKey) {
           envKeyTeardown()

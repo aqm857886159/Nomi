@@ -1,0 +1,61 @@
+{
+  "kind": "blocked-restart-acceptance",
+  "status": "blocked",
+  "productCommit": "879d8cd5c4af11495b91cca2da1095951fade802",
+  "walks": [
+    {
+      "locale": "zh-CN",
+      "exit": 0,
+      "beforeLatestHarnessChanges": true,
+      "submissionsBeforeRestart": 12,
+      "submissionsAfterResults": 12,
+      "successfulResultsPersisted": 12,
+      "legacyWaitingSample": {
+        "effectCount": 0,
+        "staticCount": 8
+      }
+    },
+    {
+      "locale": "en",
+      "attempts": 2,
+      "exits": [
+        1,
+        1
+      ],
+      "successfulResults": 11,
+      "originalTaskIdsRetained": 12,
+      "allRetrievalControlsAcknowledgedOnSecondAttempt": true,
+      "mockJobCount": 12
+    }
+  ],
+  "observedError": "Error invoking remote method 'nomi:tasks:canvas-poll': RuntimeEnvelopeConflictError: Provider acceptance is required before recording a poll",
+  "failedNode": {
+    "title": "Waiting 4",
+    "status": "recoverable",
+    "providerTaskId": "pf-3"
+  },
+  "deterministicProbe": {
+    "exit": 1,
+    "cases": [
+      "late processing observation after another poll materializes",
+      "late completed observation after another poll materializes"
+    ],
+    "failed": 2,
+    "skippedExistingTests": 15,
+    "productionFilesModified": false,
+    "testRestore": {
+      "testFile": "electron/productionRun/productionGenerationSubmission.test.ts",
+      "exit": 1,
+      "before": "9766156858607d3b86d130927f2c1c0c1af44e5c4a390835da6e50a7824e4151",
+      "after": "9766156858607d3b86d130927f2c1c0c1af44e5c4a390835da6e50a7824e4151",
+      "restored": true,
+      "productionFilesModified": false
+    }
+  },
+  "inference": "The deterministic poll/materialize interleaving reproduces the same error. The actual failing walkthrough envelope was not preserved, so the exact real-window interleaving is not proven.",
+  "decisionRequired": "A post-query completion/revision check adds a lifecycle branch; implementation stopped under the task brief hotspot rule. No product code was changed for this blocker.",
+  "screenshotsRead": 25,
+  "formalPerformance": "not-run: restart acceptance blocked",
+  "fullGates": "not-run: stopped at required new-branch ruling",
+  "prePush": "not-run: branch is not ready for push"
+}

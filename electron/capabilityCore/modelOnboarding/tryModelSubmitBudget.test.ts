@@ -59,7 +59,7 @@ describe("nomi_try_model 提交步骤的预算", () => {
   let submits = 0;
   const held: http.ServerResponse[] = [];
 
-  async function declare(name: string, baseUrl: string): Promise<string> {
+  async function declare(name: string, baseUrl: string, promptTemplate = "{{request.prompt}}"): Promise<string> {
     const docs = "https://docs.example-budget.com/api";
     const ctx = { origin: { host: "claude" } } as never;
     const submitted = await dispatch("model.onboarding.setup", {
@@ -74,7 +74,7 @@ describe("nomi_try_model 提交步骤的预算", () => {
           modes: [{
             taskKind: "text_to_image", delivery: "asynchronous",
             create: {
-              method: "POST", path: "/v1/jobs", body: { prompt: "{{request.prompt}}" },
+              method: "POST", path: "/v1/jobs", body: { prompt: promptTemplate },
               response_mapping: { task_id: "id", status: "status" }, provider_meta_mapping: { task_id: "id" },
             },
             query: {
@@ -124,7 +124,7 @@ describe("nomi_try_model 提交步骤的预算", () => {
   });
 
   beforeEach(async () => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
+    vi.stubEnv("NOMI_SETTINGS_DIR", fs.mkdtempSync(path.join(root, "case-")));
     const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
     vendorKey = await declare("Example Budget", origin);
     // 一个没人监听的端口：建连被拒 = 请求一个字节都没写出去。
@@ -201,6 +201,25 @@ describe("nomi_try_model 提交步骤的预算", () => {
     expect(submits).toBe(1);
   });
 
+  it.each([
+    { label: "同参跨调用", prompt: "reset apple", params: {} },
+    { label: "换参仍不能释放未知原单", prompt: "reset a different apple", params: { seed: 17 } },
+  ])("结果未知后 $label：再次调用必须返回原单，不能创建第二单", async ({ prompt, params }) => {
+    const { promise } = await start(vendorKey, "reset apple");
+    expect((await promise).code).toBe("submission_unknown");
+    expect(submits).toBe(1);
+
+    // 新的依赖对象模拟另一个工具调用者；走真实 runTask、钱闸和 loopback HTTP。
+    // 当前缺锁时会再发 POST，最后一条断言红；未来删掉持久认领也必须重新变红。
+    const repeated = await tryModel({
+      runTask,
+      fetchTaskResult,
+      approvalPolicy: () => ({ mode: "direct" }),
+    }, { vendorKey, modelKey: "budget-paint", prompt, params }) as Tried;
+    expect(repeated.code).toBe("submission_unknown");
+    expect(submits, "same unresolved intent must never create a second provider order").toBe(1);
+  });
+
   it("证明请求没写出去（建连被拒）：如实说「没提交，可以重试」", async () => {
     const { promise } = await start(refusedVendorKey, "plain apple");
     const out = await promise;
@@ -209,5 +228,18 @@ describe("nomi_try_model 提交步骤的预算", () => {
     expect(out.message).toMatch(/nothing was sent/i);
     expect(out.nextAction).toMatch(/safe to retry/i);
     expect(out.nextAction).not.toMatch(/do not retry/i);
+  });
+
+  it("改卡和改模式也只能核对未知原单，不能重新授权提交", async () => {
+    const first = await (await start(vendorKey, "reset apple")).promise;
+    expect(first.code).toBe("submission_unknown");
+    const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+    expect(await declare("Example Budget", origin, "revised card: {{request.prompt}}")).toBe(vendorKey);
+    const repeated = await tryModel({ runTask, approvalPolicy: () => ({ mode: "direct" }) }, {
+      vendorKey, modelKey: "budget-paint", taskKind: "image_to_video", prompt: "changed mode",
+    }) as Tried;
+    expect(repeated.code).toBe("submission_unknown");
+    expect(repeated.submission).toEqual(first.submission);
+    expect(submits).toBe(1);
   });
 });
