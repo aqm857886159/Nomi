@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 ./verifier 的 AdapterVerificationResult，./serviceFallback 的 primaryTaskKind
+ * [OUTPUT]: 对外提供 initialVerificationState、modeResultFromVerification、persistedModeResult
+ * [POS]: service.verifyDraft 的纯函数助手：把自检结果转成要落盘的模式结果；⚠ persistedModeResult 是白名单，新字段必须在这里登记
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import type { LoadedConnection } from "./serviceCatalog";
 import { primaryTaskKind } from "./serviceFallback";
 import type { ModeResultWithModel } from "./serviceRunLifecycle";
@@ -67,6 +73,7 @@ export function modeResultFromVerification(input: {
         state: "verified",
         attempts: input.attempt,
         verifiedAt: input.verifiedAt,
+        ...(result.wireProtocol ? { wireProtocol: result.wireProtocol } : {}),
       }
     : {
         modelKey: input.modelKey,
@@ -97,5 +104,6 @@ export function persistedModeResult(result: ModeResultWithModel): AdapterModeRes
     ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
     ...(result.errorParams ? { errorParams: result.errorParams } : {}),
     ...(result.submissionState ? { submissionState: result.submissionState } : {}),
+    ...(result.wireProtocol ? { wireProtocol: result.wireProtocol } : {}),
   };
 }

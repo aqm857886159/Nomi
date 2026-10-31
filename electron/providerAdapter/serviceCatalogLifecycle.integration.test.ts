@@ -29,6 +29,7 @@ import {
 import { CURRENT_CATALOG_VERSION, type CatalogState } from "../catalog/types";
 import { ProviderAdapterService, type ProviderAdapterServiceDependencies } from "./service";
 import { defaultCatalog } from "./serviceCatalog";
+import { nomiModelConfigFor } from "../ai/vendorModelConnection";
 import { ProviderAdapterStore } from "./store";
 import type { ProviderAdapterDraft } from "./types";
 import { resolveExecutableNodeFromCatalog } from "../../src/workbench/generationCanvas/runner/catalogTaskResolve";
@@ -193,6 +194,8 @@ function serviceDependencies(
       selfCheckReason: "credential_rejected" as const,
       error: "provider rejected candidate",
     }),
+    // 默认不出网（真探测由 textProtocolProbe.test.ts 对本机假上游验）。
+    probeTextProtocol: async () => "openai-compatible",
     now: () => now,
     id: () => "run-real-failure",
     ...overrides,
@@ -254,6 +257,7 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
       serviceDependencies({
         id: () => "run-real-text",
         verify: async ({ mode }) => ({ ok: true, taskKind: mode.taskKind }),
+        probeTextProtocol: async () => "openai-responses",
       }),
     );
 
@@ -287,6 +291,11 @@ describe("ProviderAdapterService real catalog candidate lifecycle", () => {
       },
     });
     expect(readCatalog().vendors.find((vendor) => vendor.key === rootVendorKey)).toMatchObject({ enabled: true });
+    // 2026-10-27：认证探出的协议经真目录发布落进模型 meta，运行时的唯一连接规则读得回来。
+    const published = readCatalog();
+    const textModel = published.models.find((model) => model.modelKey === textModelKey)!;
+    const textVendor = published.vendors.find((vendor) => vendor.key === rootVendorKey)!;
+    expect(nomiModelConfigFor(textVendor, textModel, "apimart-key").kind).toBe("openai-responses");
     expect(listModelCatalogModels({ vendorKey: rootVendorKey })).toEqual([
       expect.objectContaining({
         modelKey: textModelKey,

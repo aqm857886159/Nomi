@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 catalog 的 mutateCatalog / normalizeProviderKind，./promotionMeta 的发布元数据
+ * [OUTPUT]: 对外提供 defaultCatalog、ProviderAdapterCatalogPort、LoadedConnection
+ * [POS]: service 与模型目录之间的端口：登记、暂存、加载、发布；vendor.meta.providerKindPinned 只在这里写
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { revalidatePendingCredential } from '../catalog/validateCandidateCredential';
 import {
   extractVendorExtraHeaders,
@@ -103,6 +109,16 @@ function connectionIdentity(input: ProviderAdapterConnectionInput): Record<strin
   };
 }
 
+/**
+ * 「用户亲手选了协议」这一位（types.ts 的 providerKindPinned）。⚠ undefined = 保留已存的选择：
+ * 驱动 Agent 重新登记、已有连接重认证都不带这一位，不许因此把用户的选择抹掉。
+ */
+function providerKindPinMeta(existingMeta: Record<string, unknown>, pinned: boolean | undefined): Record<string, unknown> {
+  if (pinned === undefined) return existingMeta;
+  const { providerKindPinned: _previous, ...rest } = existingMeta;
+  return pinned ? { ...rest, providerKindPinned: true } : rest;
+}
+
 export const defaultCatalog: ProviderAdapterCatalogPort = {
   register(input) {
     const before = readCatalog();
@@ -156,7 +172,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         providerKind: normalizeProviderKind(input.providerKind),
         ...(input.proxyUrl ? { network: { proxyUrl: input.proxyUrl } } : { network: undefined }),
         meta: {
-          ...asRecord(existingVendor?.meta),
+          ...providerKindPinMeta(asRecord(existingVendor?.meta), input.providerKindPinned),
           ...(Object.keys(cleanHeaders).length ? { extraHeaders: cleanHeaders } : {}),
           // 兄弟连接（`apimart--mini`）登记 root，这样「这是不是 apimart」解析得回去（#831）。
           ...siblingConnectionLineageMeta(targetVendorKey),
@@ -235,7 +251,7 @@ export const defaultCatalog: ProviderAdapterCatalogPort = {
         providerKind: normalizeProviderKind(input.providerKind),
         ...(input.proxyUrl ? { network: { proxyUrl: input.proxyUrl } } : { network: undefined }),
         meta: {
-          ...asRecord(existingVendor?.meta),
+          ...providerKindPinMeta(asRecord(existingVendor?.meta), input.providerKindPinned),
           ...(Object.keys(cleanHeaders).length ? { extraHeaders: cleanHeaders } : {}),
           ...siblingConnectionLineageMeta(targetVendorKey),
           ...candidateLineageMeta(identity),

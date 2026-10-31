@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 catalog/types 的 ProviderKind / ProfileKind，integrationCertification 的认证契约类型
+ * [OUTPUT]: 对外提供 接入认证的全部数据形状：连接输入（含 providerKindPinned）、说明卡草稿、运行与模式结果（含 wireProtocol）
+ * [POS]: providerAdapter 的类型根；service / store / serviceCatalog / ipc 与渲染层桥类型都从这里取形状
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import type {
   AiSdkProviderKind,
   BillingModelKind,
@@ -21,6 +27,9 @@ import type { DeclaredAssetIngestion, DeclaredSelfCheck } from "./declarationCar
 
 export type AdapterAuthType = "none" | "bearer" | "x-api-key" | "query";
 
+/** OpenAI 家文本模型实际走的线协议。认证时由 textProtocolProbe 按模型判定，见 AdapterModeResult.wireProtocol。 */
+export type TextWireProtocol = Exclude<AiSdkProviderKind, "anthropic">;
+
 export type ProviderAdapterModelSelection = {
   modelKey: string;
   labelZh?: string;
@@ -35,6 +44,11 @@ export type ProviderAdapterConnectionInput = {
   apiKey: string;
   authType: AdapterAuthType;
   providerKind?: AiSdkProviderKind;
+  /**
+   * 用户在「高级 → 接口协议」里亲手选了协议。⚠ 只有亲手选才置 true：预设带的协议不算。
+   * 置 true 的连接认证时不探 /responses，运行时也不读模型上的 wireProtocol，用户选什么就走什么。
+   */
+  providerKindPinned?: boolean;
   authHeader?: string;
   authQueryParam?: string;
   headers?: Record<string, string>;
@@ -201,6 +215,13 @@ export type AdapterModeResult = {
   reasonCode?: CertificationMediaReasonCode;
   errorParams?: CertificationMediaErrorParams;
   submissionState?: Extract<CertificationSubmissionState, "unknown">;
+  /**
+   * 这个文本模型在这条地址上走哪种协议（2026-10-27，默认 Responses、不支持才回 Chat）。
+   * 认证时对 OpenAI 家文本模型发一次最小 `/responses`：pi 的 Responses 解析器认得回包 → openai-responses，
+   * 其余任何结果 → openai-compatible。⚠ 判据只认协议本身，不认任何平台的错误文案。
+   * 缺席 = 没探过（老数据、亲手选过协议的连接）→ 运行时照连接上的 providerKind 走。
+   */
+  wireProtocol?: TextWireProtocol;
 };
 
 export type AdapterModelResult = {

@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 ./serviceCatalog 的目录端口、./verifier 的自检、./textProtocolProbe 的文本协议探测、integrationCertification 的操作账本
+ * [OUTPUT]: 对外提供 ProviderAdapterService、ProviderAdapterServiceDependencies 与服务单例
+ * [POS]: providerAdapter 的认证编排者：登记 → 编译 → 自检（文本另探协议）→ 发布；结果写进 store，发布经 serviceCatalog
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import crypto from "node:crypto";
 import type { CompilerLanguageModel } from "./compiler";
 import type { OperationLedger } from "../integrationCertification/operationLedger";
@@ -33,6 +39,7 @@ import type {
 } from "./types";
 import { probeAdapterCredential, verifyAdapterMode, type AdapterCredentialProbe, type AdapterVerificationResult } from "./verifier";
 import { redactAdapterSecrets } from "./redaction";
+import { probeTextProtocol, TEXT_PROTOCOL_PROBE_STEP_MS, textProtocolProbeEligible, textProtocolProbeFits } from "./textProtocolProbe";
 import { defaultCatalog, type LoadedConnection, type ProviderAdapterCatalogPort } from "./serviceCatalog";
 import {
   AdapterWaitError,
@@ -108,6 +115,11 @@ export type ProviderAdapterServiceDependencies = {
     credential: AdapterCredentialProbe;
     signal?: AbortSignal;
   }) => Promise<AdapterVerificationResult>;
+  /**
+   * 文本模型走 Responses 还是 Chat（textProtocolProbe.ts）。⚠ 这是 2026-09-11「认证不花钱」唯一的例外：
+   * 每个 OpenAI 家文本模型每次认证一次最小请求（用户 2026-10-27 拍板）。永不抛，判不出就是 Chat。
+   */
+  probeTextProtocol: typeof probeTextProtocol;
   operationLedger?: OperationLedger;
   promotionJournal?: PromotionJournal;
   now: () => string;
@@ -131,6 +143,7 @@ const defaultDependencies: ProviderAdapterServiceDependencies = {
   compile: (input) => compileProviderAdapter(input),
   probeCredential: (input) => probeAdapterCredential(input),
   verify: (input) => verifyAdapterMode(input),
+  probeTextProtocol: (input) => probeTextProtocol(input),
   now: () => new Date().toISOString(),
   id: () => `adapter-run-${crypto.randomUUID()}`,
   batchTimeoutMs: PROVIDER_ADAPTER_BATCH_TIMEOUT_MS,
@@ -520,9 +533,17 @@ export class ProviderAdapterService {
                 );
               }
             },
-            execute: () => this.awaitStep(id, "Model self-check", this.dependencies.verifyTimeoutMs ?? 30_000, (signal) =>
-              this.dependencies.verify({ vendor: connection.vendor, model, apiKey: connection.apiKey, mode, credential, signal }),
-            ),
+            execute: async () => {
+              const result = await this.awaitStep(id, "Model self-check", this.dependencies.verifyTimeoutMs ?? 30_000, (signal) =>
+                this.dependencies.verify({ vendor: connection.vendor, model, apiKey: connection.apiKey, mode, credential, signal }),
+              );
+              if (!result.ok || !textProtocolProbeEligible(connection.vendor, model, mode)
+                || !textProtocolProbeFits(this.store.getRun(id)?.deadlineAt, this.dependencies.now())) return result;
+              const wireProtocol = await this.awaitStep(id, "Text protocol probe", TEXT_PROTOCOL_PROBE_STEP_MS, (signal) =>
+                this.dependencies.probeTextProtocol({ vendor: connection.vendor, model, apiKey: connection.apiKey, signal }),
+              );
+              return { ...result, wireProtocol };
+            },
             reuse: (operation) => {
               const persisted = this.store.getRun(id)?.models
                 .find((item) => item.modelKey === candidateModel.modelKey)?.modes
