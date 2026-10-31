@@ -520,7 +520,7 @@ node scripts/research/tikhub-search.mjs \
 | CI | `quality-gate.yml` contracts 里只警告：列出热点 fix 却没带 trailer 的提交（兜 `--no-verify`） |
 | Claude 编辑 | `edit-time-reminder` 调同一个计数器，提醒不拦 |
 
-**省 token 七条**（正本是 `rules.json` 的 R27）：
+**省 token 八条**（正本是 `rules.json` 的 R27）：
 
 1. 派活前先数轮次，同一处第 3 轮就停，改派复盘。这条本身最省。
 2. 协调会话不读大文件全文：先看大小和标题，再按段读；读子 agent 的结论，不读它的过程。
@@ -531,6 +531,21 @@ node scripts/research/tikhub-search.mjs \
 5. 确定性的活（雷达、扫描、收据、统计）用脚本跑，不交给模型。
 6. 长输出落文件，只看摘要；同一文件不反复读。
 7. 卡住 3 次就停下报告，不硬磨。
+8. 设计派线、等待、上下文、线型之前，先读官方的缓存、计费、上下文文档，写出对这次设计的影响；用真实轨迹算账再定取舍，做完再用 usage 验证。换工具、换模型、版本大改都重读一遍。
+
+**第 8 条目前的结论**（2026-10-31 对着官方文档和两天的真实轨迹核过，官方改了以官方为准；价格不写在这里，看官方价格页）：
+
+| 官方规则 | 对派线的影响 |
+|---|---|
+| 子线缓存默认 5 分钟，订阅也一样；主会话在套餐用量内是 1 小时。计时从上一个请求算起，命中就重置 | 子线的单次等待和前台命令压在 4 分钟以内，长任务放后台、分段等。隔够 5 分钟，整段上下文要重写，重写比读贵一个数量级以上。这种步只占子线步数的 3.6%，花掉子线超过三分之一的开销 |
+| 子线可以改成 1 小时（`subagentPromptCacheTtl`、线型的 `experimental.cacheTtl`），但每次写入都更贵 | 现在不改。重放真实轨迹：1 小时比 5 分钟加 4 分钟轮询贵 7%，等待再长的线也没翻过来。轮询的读很便宜，贵的是每次写入都加价。等待占比或价格变了要重算 |
+| 每一步都读全部上下文，上下文越大每步越贵。原生 1M 窗口的模型不设上限时要到约 96.7 万才压缩 | 线型的 frontmatter 写 `autoCompactWindow`（只认整数，如 `250000`）封顶。重放里 25 万最划算，比不封顶再省约 13%，这个数偏乐观，没算压缩后重读文件。实现线提交就结束，构建、走查、看截图交给小上下文的验证线；验证红了开新线带失败日志，不接着旧上下文 |
+| 子线起步带系统提示、工具、CLAUDE.md、git status。`tools` 白名单决定带哪些工具 | 用只带必要工具的自定义线型，别默认全工具。用户级 `agents` 目录是新建的，要重启会话才认；目录已存在时改文件几秒生效 |
+| 官方没写：缓存读、缓存写、输出在订阅额度里各算多少 | API 单价只能当参考，不能换算成额度。要比额度，用前后的用量占比量 |
+
+**怎么量**：子线转录里每条 assistant 消息的 `usage`：`cache_read_input_tokens`、`cache_creation.ephemeral_5m_input_tokens`、`ephemeral_1h_input_tokens`；压缩看 `compact_boundary` 的 `preTokens`。**必须按 API 消息 id 去重**，同一条消息会记多行，不去重虚高一倍多。
+
+官方文档：[Claude Code 缓存](https://code.claude.com/docs/en/prompt-caching)、[子 agent](https://code.claude.com/docs/en/sub-agents)、[模型与压缩窗口](https://code.claude.com/docs/en/model-config)、[价格](https://platform.claude.com/docs/en/about-claude/pricing)。
 
 **提交前缀如实写**：修 bug 就是 `fix`，不许为了绕方向检查或其他门岗改前缀（把 fix 写成 feat 之类），评审发现就退回。原因：前缀是自报的，门岗按前缀数次数，改前缀等于关掉门岗（2026-10-09 一条实现线为绕开「第 3 个 fix 要先做方向检查」这么写过）。
 

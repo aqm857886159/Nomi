@@ -214,6 +214,7 @@
 - [查不查不能靠记性：先看别人做了没必须机器逼](prior-art-check-cannot-rely-on-memory.md) — 派实施前先派反方出 prior-art 报告；系统只奖励「做出来」，提醒在高负载下必漏（`check:prior-art` 已接管）
 - [子 agent 起不来时的探针法](subagent-startup-400-probe-method.md) — 一次 harness 侧 400 故障的定位法与两次误诊，别照抄已过期的结论
 - [长等待交给 shell 哨兵，别交给子 agent](long-waits-belong-to-shell-sentinels-not-agents.md) — 同一天三种死法（Monitor 交卷 / 零 commit 等到超时 / `--watch` 挂死）；附哨兵模板与「CI 不替你跑新入库走查」
+- [设计派线和等待之前先读官方的缓存规则](read-official-cache-rules-before-designing-lines.md) — 写等待脚本、定上下文或线型、想改缓存时长时；子线缓存默认 5 分钟，单次等待压在 4 分钟内；取舍用真实轨迹算账，别凭印象
 
 > 另见 playbook [§14 门岗验「没变坏」，不验「做到了」](../engineering/agent-orchestration-playbook.md#14-门岗验没变坏不验做到了把-p3-机器化进派工合同)——派下去的活「36 门全绿」不等于规格达成；派工要绑验收物、收货先验规格再看门岗。
 - [两个各自绿的 PR 合到一起会红](two-green-prs-merge-red.md) — 连合同一区域 PR 前先 update-branch 等 CI；分类器 skip 的门不算绿
