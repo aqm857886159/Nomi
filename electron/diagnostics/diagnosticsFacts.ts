@@ -53,7 +53,6 @@ export async function collectHardwareFacts(mainWindow: BrowserWindow | null): Pr
   }
 
   let displays: DiagnosticsHardware["displays"] = [];
-  let devicePixelRatio = 1;
   let window: DiagnosticsHardware["window"] = null;
   try {
     const primaryId = screen.getPrimaryDisplay().id;
@@ -65,7 +64,7 @@ export async function collectHardwareFacts(mainWindow: BrowserWindow | null): Pr
       primary: display.id === primaryId,
     }));
     if (mainWindow && !mainWindow.isDestroyed()) {
-      devicePixelRatio = screen.getDisplayMatching(mainWindow.getBounds()).scaleFactor;
+      const devicePixelRatio = screen.getDisplayMatching(mainWindow.getBounds()).scaleFactor;
       const [width, height] = mainWindow.getContentSize();
       window = { width, height, maximized: mainWindow.isMaximized(), fullscreen: mainWindow.isFullScreen(), devicePixelRatio };
     }

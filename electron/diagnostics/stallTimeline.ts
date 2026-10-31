@@ -16,6 +16,8 @@ export const STALL_TIMELINE_FILE = "nomi-stall-timeline.log";
 export const STALL_TIMELINE_MAX_BYTES = 192 * 1024;
 /** 同一种行两次写盘之间至少隔这么久；中间来的只计数，进每分钟的汇总。 */
 export const STALL_KIND_MIN_GAP_MS = 10_000;
+/** 监视器正好每 10 秒读一次：相邻两次读数的间隔可能是 9 999ms（定时器与 Date.now 各自取整），不能被当成「不到 10 秒」而吞掉连续两个窗口的停顿。 */
+const GAP_TOLERANCE_MS = 500;
 export const STALL_SUMMARY_WINDOW_MS = 60_000;
 /** 一分钟里看到至少这么多行才算「风暴」，才写汇总；零星的停顿只写自己那一行。 */
 export const STALL_STORM_MIN_ROWS = 4;
@@ -77,7 +79,7 @@ export function createStallTimeline(options: { append: (line: string) => void; n
       windowRows += 1;
       windowMaxMs = Math.max(windowMaxMs, row.ms ?? 0);
       const previous = lastWrittenAt.get(row.kind);
-      if (previous !== undefined && nowMs - previous < STALL_KIND_MIN_GAP_MS) {
+      if (previous !== undefined && nowMs - previous < STALL_KIND_MIN_GAP_MS - GAP_TOLERANCE_MS) {
         suppressed += 1;
         return false;
       }
@@ -159,6 +161,8 @@ export function readStallTimeline(dir: string, maxRows: number = STALL_READ_MAX_
       else droppedLines += 1;
     }
   }
+  // 界面长帧是渲染层攒一批再报的，写盘顺序不等于事件顺序：读回时按事件时刻排好，再取最新的 maxRows 行。
+  rows.sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
   return { rows: rows.slice(-maxRows), droppedLines, file: present ? "present" : unreadable ? "unreadable" : "absent" };
 }
 

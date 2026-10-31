@@ -116,6 +116,15 @@ describe("限频与上限", () => {
     expect(jsonLines(fileText()).map((row) => row.kind)).toEqual(["main-stall", "window-unresponsive", "main-stall"]);
   });
 
+  it("监视器每 10 秒读一次：相邻两次读数差 9.8 秒（定时器取整）不能被吞掉，差 9 秒才算「太近」", () => {
+    const timeline = realTimeline();
+    expect(timeline.record(SAMPLES["main-stall"])).toBe(true);
+    clock += 9_000;
+    expect(timeline.record(SAMPLES["main-stall"])).toBe(false);
+    clock += 800; // 距上一行写下 9.8 秒
+    expect(timeline.record(SAMPLES["main-stall"])).toBe(true);
+  });
+
   it("零星的停顿不写汇总；风暴那一分钟写一行汇总（行数 = 写下的 + 被略掉的）", () => {
     const timeline = realTimeline();
     timeline.record(SAMPLES["main-stall"]);
@@ -209,6 +218,14 @@ describe("读回：坏数据不崩、照实计数；活过重启", () => {
     expect(readStallTimeline(path.join(dir, "no-such-dir"))).toEqual({ rows: [], droppedLines: 0, file: "absent" });
     fs.mkdirSync(path.join(dir, STALL_TIMELINE_FILE));
     expect(readStallTimeline(dir).file).toBe("unreadable");
+  });
+
+  it("读回按事件时刻排序（界面长帧晚报，写盘顺序不等于事件顺序）；超过上限只留最新的", () => {
+    const at = (second: number): string => new Date(Date.parse(T) + second * 1000).toISOString();
+    const rows = [at(30), at(10), at(20)].map((t) => JSON.stringify({ ...SAMPLES["main-stall"], t }));
+    fs.writeFileSync(path.join(dir, STALL_TIMELINE_FILE), rows.map((row) => `[${T}] ${row}`).join("\n") + "\n");
+    expect(readStallTimeline(dir).rows.map((row) => row.t)).toEqual([at(10), at(20), at(30)]);
+    expect(readStallTimeline(dir, 2).rows.map((row) => row.t)).toEqual([at(20), at(30)]);
   });
 
   it("记录后「重启」（新实例、新写手）：上一次的行还在，本次启动写盘数是 0", () => {

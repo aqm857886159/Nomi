@@ -153,6 +153,7 @@ describe("渲染层报文", () => {
   it("≥200ms 的长帧进时间线，带页面和场景；最长的一条先写，其余被限频略掉；低于 200ms 的丢弃", () => {
     const h = harness();
     h.monitor.start();
+    clock += STALL_STARTUP_GRACE_MS + 5_000;
     h.monitor.ingestReport({
       scene: SCENE,
       longFrames: [
@@ -165,9 +166,21 @@ describe("渲染层报文", () => {
     expect(h.lines[0]).toMatchObject({ kind: "renderer-long-frame", ms: 900, page: "preview", nodes: "1-20", generating: false });
   });
 
+  it("启动期（前 20 秒）结束之前的长帧不记，和主进程一样；之后的照记", () => {
+    const h = harness();
+    h.monitor.start();
+    clock += 8_000;
+    h.monitor.ingestReport({ longFrames: [{ endedAtMs: clock - 500, ms: 900, scene: SCENE }] });
+    expect(h.lines).toHaveLength(0);
+    clock += STALL_STARTUP_GRACE_MS;
+    h.monitor.ingestReport({ longFrames: [{ endedAtMs: clock - 500, ms: 900, scene: SCENE }] });
+    expect(h.lines).toHaveLength(1);
+  });
+
   it("时刻被夹在合理范围内（渲染层的钟不可信）", () => {
     const h = harness();
     h.monitor.start();
+    clock += 11 * 60_000;
     h.monitor.ingestReport({ longFrames: [{ endedAtMs: 0, ms: 300, scene: SCENE }] });
     expect(Date.parse(h.lines[0]!.t as string)).toBe(clock - 10 * 60_000);
   });

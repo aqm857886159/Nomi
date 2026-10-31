@@ -4,10 +4,10 @@
 // 领域归因——把停顿挂到 Nomi 的「所在页 / 有没有生成在跑 / 节点数档位」上，并管三件事：
 // 睡眠唤醒不算卡顿、启动期不算、窗口无响应 / 恢复各记一行。
 //
-// 采样间隔取 64ms，不是 20ms：真 Electron 主进程里每次采样要唤醒两个线程（libuv 轮询线程 + 主线程），
-// 20ms 实测空闲 60 秒多吃约 0.43 个百分点 CPU、每秒多 94 次空闲唤醒，超了预算（0.2 / 50）；64ms 约 0.15 / 31
-// （设计卡 ★7）。直方图记录的是「相邻两次采样的间隔」，含采样间隔本身，所以时长取「最大间隔 − 半个间隔」
-// （无偏估计，误差约 ±32ms）：≥132ms 的停顿必记，100ms 左右约一半，文案一律写「约 100ms 以上」。
+// 采样间隔取 80ms，不是 20ms：真 Electron 主进程里每次采样要唤醒两个线程（libuv 轮询线程 + 主线程），
+// 20ms 实测空闲 60 秒多吃约 0.43 个百分点 CPU、每秒多 94 次空闲唤醒，超了预算（0.2 / 50）；64ms 十次实测中位 0.16、
+// 最大 0.205，贴着预算；80ms 留出余量（设计卡 ★7）。直方图记录的是「相邻两次采样的间隔」，含采样间隔本身，所以时长取
+// 「最大间隔 − 半个间隔」（无偏估计，误差约 ±40ms）：≥140ms 的停顿必记，100ms 左右约一半，文案一律写「约 100ms 以上」。
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { app, powerMonitor } from "electron";
 import { z } from "zod";
@@ -17,13 +17,14 @@ import {
   STALL_MAX_MS,
   STALL_RENDERER_FRAME_MIN_MS,
   STALL_REPORT_CHANNEL,
+  STALL_SAMPLE_INTERVAL_MS,
   STALL_REPORT_MAX_FRAMES,
   type StallReport,
   type StallScene,
 } from "../shared/contracts/stallTimeline";
 import { createStallTimeline, createStallTimelineAppend, type StallTimeline } from "./stallTimeline";
 
-export const STALL_SAMPLE_INTERVAL_MS = 64;
+export { STALL_SAMPLE_INTERVAL_MS };
 export const STALL_READ_INTERVAL_MS = 10_000;
 /** 估计时长到这个数才记一行；到下一个数标冻结。 */
 export const STALL_RECORD_MIN_MS = 100;
@@ -94,6 +95,8 @@ export function createStallMonitor(options: StallMonitorOptions): StallMonitor {
   let running = false;
   let failed = false;
   let discardUntil = 0;
+  /** 启动宽限期的结束时刻（只在 start 时定一次）；界面长帧按它判，唤醒宽限不管界面长帧。 */
+  let startupEndsAt = 0;
   let suspended = false;
   let lastScene: StallScene | null = null;
   const unresponsiveSince = new Map<EventSourceLike, number>();
@@ -120,7 +123,8 @@ export function createStallMonitor(options: StallMonitorOptions): StallMonitor {
       try {
         histogram = createHistogram(STALL_SAMPLE_INTERVAL_MS);
         histogram.enable();
-        discardUntil = now() + STALL_STARTUP_GRACE_MS;
+        startupEndsAt = now() + STALL_STARTUP_GRACE_MS;
+        discardUntil = startupEndsAt;
         timer = startTimer(tick, STALL_READ_INTERVAL_MS);
         (timer as { unref?: () => void } | null)?.unref?.();
         running = true;
@@ -171,6 +175,7 @@ export function createStallMonitor(options: StallMonitorOptions): StallMonitor {
       for (const frame of frames) {
         if (frame.ms < STALL_RENDERER_FRAME_MIN_MS) continue;
         const endedAt = Math.min(Math.max(frame.endedAtMs, nowMs - REPORT_CLOCK_SKEW_PAST_MS), nowMs + REPORT_CLOCK_SKEW_FUTURE_MS);
+        if (endedAt < startupEndsAt) continue; // 启动期（界面首次渲染、装载）的长帧同主进程一样不算「用着卡」
         timeline.record({ t: iso(endedAt), kind: "renderer-long-frame", ms: Math.round(frame.ms), page: frame.scene.page, nodes: frame.scene.nodes, generating: frame.scene.generating });
       }
     },

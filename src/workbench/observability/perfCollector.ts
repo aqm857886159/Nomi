@@ -4,6 +4,9 @@
 // 观察者回调里只做 O(1) 的记录；分位、分桶、发出去全在空闲时 / 会话边界做。
 // 采集永远在跑、数据只在内存里：发不发由主进程按「用户同意的告知范围」决定
 // （electron/telemetry/telemetryEvents.ts 的 TELEMETRY_EVENT_MIN_SCOPE），反馈面板则是用户点了才带。
+// 另有一条**不经遥测**的本机通道：≥200ms 的长帧（连同当时的页面 / 生成中 / 节点数档位）批量单向报给主进程，
+// 写进只留本机的卡顿时间线，用户自己「导出诊断包」才会给到我们（electron/diagnostics/stallTimeline.ts）。
+// 它复用上面这个现成的 LoAF 观察者，不加观察者、不加 rAF；与汇总的告知范围、`generating` 口径互不相干。
 // 观察者全进程只注册一次（`started` 守卫），页面 / 路由切换不会重复注册。
 import { getDesktopBridge } from '../../desktop/bridge'
 import {

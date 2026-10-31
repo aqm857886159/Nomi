@@ -11,7 +11,7 @@ import { approvalCommand, sha256Of } from './lib/coordApprovals.mjs'
 
 export const SCENARIO_DIR = 'tests/perf/scenarios'
 /** 可选的指标。登记表的 budget / baseline 对应 metrics[0]（主指标），其余指标只打印、不判。 */
-export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests'])
+export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests', 'stallMonitorCpuMsPerSec', 'stallMonitorWakeupsPerSec', 'stallMonitorQuietWrites'])
 export const MIN_RUNS = 5
 /** 预算状态：proposed = 实现线提议、等安静窗口量完基线由协调定；approved = 已定。不写 = 已定（老条目）。 */
 export const BUDGET_STATUSES = Object.freeze(['proposed', 'approved'])
@@ -118,6 +118,18 @@ export const DRIVERS = Object.freeze({
         longTasks: cold.map((sample) => sample.longTaskCount),
         response: cold.map((sample) => sample.backToLibraryMs).filter(isNumber),
       }
+    },
+  },
+  // 主进程卡顿监视器的空闲开销（tests/perf/canvas-scale/stallOverheadBench.mjs：真 Electron 里同一进程监视器关 / 开各 60 秒取差；
+  // 末尾注入一次停顿证明写盘计数器活着——计数器没活的那一轮作废）。设计卡 docs/plan/2026-10-31-diagnostics-jank-timeline.md ★7。
+  'tests/perf/canvas-scale/stallOverheadBench.mjs': {
+    supports: ['stallMonitorCpuMsPerSec', 'stallMonitorWakeupsPerSec', 'stallMonitorQuietWrites'],
+    buildArgs: (script, args, { runs, label }) => [script, ...args, '--runs', String(runs), '--label', label],
+    resultFile: (label) => `tests/perf/results/stall-overhead-${label}.json`,
+    readRuns(payload) {
+      const alive = (payload.samples ?? []).filter((sample) => sample.counterAlive === true)
+      const pick = (key) => alive.map((sample) => sample[key]).filter(isNumber)
+      return { stallMonitorCpuMsPerSec: pick('cpuDeltaMsPerSec'), stallMonitorWakeupsPerSec: pick('wakeupsDelta'), stallMonitorQuietWrites: pick('quietWrites') }
     },
   },
   // 大文稿项目切文稿 / 打开分镜方案的响应（tests/perf/document-switch-bench.mjs：点击到目标界面到位再过两帧）

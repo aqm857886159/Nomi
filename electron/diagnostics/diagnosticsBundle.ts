@@ -12,6 +12,7 @@ import path from "node:path";
 import { zipSync, strToU8 } from "fflate";
 import { listLogFilesForBundle } from "../logging/logFiles";
 import { redactModelCatalog } from "./catalogRedaction";
+import { STALL_SAMPLE_INTERVAL_MS } from "../shared/contracts/stallTimeline";
 import { stallRowsToJsonl, type StallTimelineRead } from "./stallTimeline";
 import type {
   DiagnosticsBundleEntry,
@@ -111,7 +112,7 @@ export function describeStallTimeline(input: DiagnosticsBundleInput["stallTimeli
   return {
     ...base,
     state: "recorded",
-    note: `共 ${read.rows.length} 行，其中本次启动 ${monitor.rowsThisSession} 行（重启前的记录也在）。主进程那一行的时间精确到 10 秒窗口末尾，时长误差约 ±32ms。${scope}。`,
+    note: `共 ${read.rows.length} 行，其中本次启动 ${monitor.rowsThisSession} 行（重启前的记录也在）。主进程那一行的时间精确到 10 秒窗口末尾，时长误差约 ±${STALL_SAMPLE_INTERVAL_MS / 2}ms。${scope}。`,
   };
 }
 
