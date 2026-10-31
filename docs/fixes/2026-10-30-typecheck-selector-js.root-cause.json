@@ -1,0 +1,126 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-typecheck-selector-js",
+  "problem_type": "Typecheck selection prefilters real program roots with an independent extension list",
+  "symptom": "An allowJs CJS root is compiled by tsc but changing it alone does not select typecheck; the real-root probe fails.",
+  "direct_cause": "touchesTypecheck discards JS, JSX, MJS and CJS before querying typecheckCoveredFiles.",
+  "class_root": "The selector duplicates compiler coverage with a handwritten candidate list instead of using the actual program-root set as the only source-file authority.",
+  "affected_population": [
+    "Every allowJs program in TYPECHECK_PROJECTS, including future JS roots",
+    "Every pre-push caller through touchesGateInputs"
+  ],
+  "scope_paths": [
+    "scripts/lib/typecheckCoverage.mjs"
+  ],
+  "entry_points": [
+    "touchesGateInputs typecheck branch -> touchesTypecheck -> typecheckCoveredFiles",
+    "Pre-push selectGates and SCAN_TESTS typecheck condition share touchesGateInputs"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal selector invariant; installed TypeScript parseJsonConfigFileContent is exercised directly, with no external API or dependency change.",
+  "invariants": [
+    "Every actual program root selects typecheck regardless of suffix",
+    "Uncovered scripts do not select typecheck unless they are existing explicit config, side-input or implementation dependencies"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/lib/typecheckCoverage.mjs",
+      "symbol": "typecheckCoveredFiles"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/pre-push-gate-inputs.mjs",
+      "symbol": "touchesTypecheck"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/pre-push-structure.node-test.mjs",
+      "symbol": "touchesTypecheck"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 3,
+    "why_not": "The dispatcher and compiler-derived membership query remain separate read responsibilities. The additional regression-test door exercises the shared boundary directly with isolated tsconfigs; it is not a second production selector. The duplicated extension authority is deleted."
+  },
+  "generality_proof": "Removing the extension prefilter lets every root returned by TypeScript reach set membership, across all configured programs and supported source shapes. Nonmembers remain unselected. Existing config and side-input triggers are preserved; the wrapper continues handling implementation dependencies.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/lib/typecheckCoverage.mjs",
+      "symbol": "touchesTypecheck",
+      "responsibility": "Select actual roots by compiler-derived membership without a second source-extension authority."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/pre-push-gate-inputs.mjs",
+      "entry_point": "touchesGateInputs typecheck branch",
+      "disposition": "enforced",
+      "evidence": "The sole production caller delegates normalized files to touchesTypecheck, including allowJs roots."
+    },
+    {
+      "path": "scripts/pre-push-contracts.mjs",
+      "entry_point": "SCAN_TESTS typecheck when",
+      "disposition": "enforced",
+      "evidence": "The typecheck gate calls touchesGateInputs; selectGates uses the same shared boundary."
+    },
+    {
+      "path": "scripts/pre-push-gate-inputs.mjs",
+      "entry_point": "SOURCE_EXTS for scanning guards",
+      "disposition": "not-affected",
+      "evidence": "These extensions declare source scans for other guards; the derived typecheck branch returns before this scanner logic."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any current or future allowJs program can add a root omitted by the handwritten candidate regex. CJS exposed a class that also includes JS, JSX and MJS.",
+    "same_class_scan": [
+      "door-map --read=touchesTypecheck --roots=src,electron,scripts,tests --include-tests: one production caller before regression additions",
+      "door-map --read=typecheckCoveredFiles --roots=src,electron,scripts,tests --include-tests: one caller",
+      "door-map --read=touchesGateInputs --roots=src,electron,scripts,tests --include-tests: three files, one production and two tests",
+      "rg touchesTypecheck/typecheckCoveredFiles/typecheck across scripts/pre-push*: no second typecheck source selector; SOURCE_EXTS belongs to unrelated scans"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/lib/typecheckCoverage.mjs",
+    "invariant": "Only actual compiler coverage decides source membership; there is no extension prefilter.",
+    "failure_mode": "Uncovered inputs return false; configuration-read errors still throw and block instead of silently claiming no coverage.",
+    "exception_policy": "none",
+    "strategy": "Delete the parallel candidate list and test actual TypeScript roots plus uncovered counterexamples.",
+    "artifacts": [
+      "scripts/lib/typecheckCoverage.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/lib/typecheckCoverage.mjs"
+    ],
+    "rationale": "The handwritten extension prefilter is removed in place; no fallback or second selector survives."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency defect or upgrade: use the already installed TypeScript parser as the coverage authority.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data or caller signature changes; existing callers gain complete real-root selection.",
+  "residual_risks": [
+    "Coverage continues to mean tsconfig root files, with the existing per-root process cache; imported non-root dependency tracking is outside this repair."
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-06",
+  "invariant_owner_layer": {
+    "layer": "scripts/lib/typecheckCoverage.mjs",
+    "tests": [
+      "scripts/pre-push-structure.node-test.mjs"
+    ]
+  }
+}
