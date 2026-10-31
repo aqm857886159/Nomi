@@ -68,13 +68,13 @@ import {
   ORIGINAL_URL_TRUST_MS,
   assertLocalAssetTransportReady,
   localizeAssetsForVendor,
+  type HttpPostJson,
   type IngestionCandidate,
   type LocalAsset,
   type ReferenceLinkPolicy,
 } from "./assetLocalization";
 import { assetLocalizationOptions } from "./assetTransportRuntime";
 import { noteConnectionRefused, referenceLinkRefusalsPath } from "./referenceLinkRefusals";
-import { ANON_UPLOAD_CHAIN } from "./assetIngestionRegistry";
 import type { AssetIngestion, Model, Vendor } from "./types";
 
 // ── 假服务：链接状态 + 假 API（生成 / 上传）──────────────────────────────────────────────────────────────
@@ -220,8 +220,8 @@ const policyWith = (deps = pinnedDeps(), refused = false): ReferenceLinkPolicy =
 const noMultipart = vi.fn();
 const extrasOf = (out: { value: unknown }) => (out.value as { input_urls: string[] }).input_urls;
 
-async function sendOne(linkRoute: string, options: { kind?: "image" | "video" | "audio"; ageMs?: number | undefined; channels?: IngestionCandidate[]; post?: ReturnType<typeof vi.fn>; refused?: boolean } = {}) {
-  const post = options.post ?? vi.fn(async () => ({ url: "https://uploaded.example/new.png" }));
+async function sendOne(linkRoute: string, options: { kind?: "image" | "video" | "audio"; ageMs?: number | undefined; channels?: IngestionCandidate[]; post?: HttpPostJson; refused?: boolean } = {}) {
+  const post = options.post ?? vi.fn<HttpPostJson>(async () => ({ url: "https://uploaded.example/new.png" }));
   const link = cdn(linkRoute);
   const out = await localizeAssetsForVendor(
     { input_urls: [localUrl("a.png")] },
@@ -334,7 +334,6 @@ describe("上传（失效后走现有通道链，不新增通道）", () => {
     expect((failure as Error).message).toMatch(/没有可用的图片上传通道/);
   });
 
-  const anonymous: AssetIngestion = { ...ANON_UPLOAD_CHAIN, chain: [] };
   it.each([
     ["allow", null],
     ["ask", AnonymousAssetConsentRequiredError],
@@ -343,7 +342,7 @@ describe("上传（失效后走现有通道链，不新增通道）", () => {
     const link = cdn("/gen/status-404");
     const post = vi.fn(async () => ({ url: "https://anon.example/new.png" }));
     const run = () => localizeAssetsForVendor(
-      { input_urls: [localUrl("a.png")] }, () => [{ vendorKey: null as never, ingestion: { ...anonymous, chain: [{ ...uploadUrl, endpoint: "https://anon.example/x" }] }, uploadApiKey: "" }],
+      { input_urls: [localUrl("a.png")] }, () => [{ vendorKey: null as never, ingestion: { strategy: "anon-chain", accepts: ["image", "video", "audio"], visibility: "public-anonymous", requiresConsent: true, chain: [{ ...uploadUrl, endpoint: "https://anon.example/x" }] }, uploadApiKey: "" }],
       () => asset("a.png", link), post, noMultipart, { linkPolicy: policyWith(), anonymousConsent: consent },
     );
     if (error) await expect(run()).rejects.toBeInstanceOf(error);

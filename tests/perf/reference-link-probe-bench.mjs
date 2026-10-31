@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // 参考素材临时链接「发之前先试一下」的等待量具（设计卡 docs/plan/2026-11-01-reference-link-delivery.md ★7）。
-// 真函数（electron/assets/providerMediaFetch.ts#probeProviderLink，走 hardenedFetch 的 GET + Range）+ 本机假服务，
-// 假服务对每个试探固定延迟 200ms（一次往返），回 206 和 1024 字节。零花费、零外网：只连 127.0.0.1。
+// 真函数：唯一决定点 electron/catalog/assetLocalization.ts#localizeAssetsForVendor + 真试探
+// electron/assets/providerMediaFetch.ts#probeProviderLink（走 hardenedFetch 的 GET + Range）+ 本机假服务。
+// 量的是**用户等的那一段**（决定点一次处理一个请求的全部参考），不是试探函数自己的并发——逐张串行的改法只有从决定点量才看得出来。
+// 假服务对每个试探固定延迟 200ms（一次往返），回 206 和 1024 字节。零花费、零外网：只连 127.0.0.1，没有任何上传发生（链接都活着）。
 //
 // 量什么：
 //   · probeOverheadMs（主指标）：一个请求带 14 张新参考图（最坏规模），试探一起发，总耗时**超出一次往返**多少毫秒。
@@ -52,11 +54,24 @@ process.env.NOMI_ELECTRON_USER_DATA_DIR = path.join(root, 'user-data')
 
 const { setLabTrustedPrivateOrigins } = tsxRequire('../../electron/networkOutboundPolicy.ts', import.meta.url)
 const { probeProviderLink, resetProviderLinkProbes } = tsxRequire('../../electron/assets/providerMediaFetch.ts', import.meta.url)
+const { localizeAssetsForVendor } = tsxRequire('../../electron/catalog/assetLocalization.ts', import.meta.url)
 // 出站策略默认拒绝回环（那正是它该做的）：夹具用实验室例外开这一个精确 origin，主进程只在未打包构建上调这个口。
 setLabTrustedPrivateOrigins([origin])
 
 const link = (label) => `${origin}/probe/${label}.png`
 const load = () => os.loadavg()[1]
+
+// 一个请求的全部参考交给决定点：每张图是一个本机素材，带着服务商的临时链接（窗内）。活着，所以不应有任何上传。
+const linkPolicy = { refused: false, probe: (url) => probeProviderLink(url) }
+const uploadChannel = [{ vendorKey: 'bench', uploadApiKey: '', ingestion: { strategy: 'upload-url', endpoint: 'https://upload.invalid/x', base64Field: 'b', urlPath: 'url', accepts: ['image'] } }]
+const neverUpload = async () => { throw new Error('A live link must never be uploaded') }
+async function sendRequest(links) {
+  const sources = new Map(links.map((url, index) => [`nomi-local://asset/p/ref-${index}-${url.slice(-12)}`, url]))
+  const read = (local) => ({ bytes: RANGE_BODY, contentType: 'image/png', fileName: 'ref.png', originalUrl: sources.get(local), ageMs: 60_000 })
+  const out = await localizeAssetsForVendor({ input_urls: [...sources.keys()] }, () => uploadChannel, read, neverUpload, neverUpload, { linkPolicy })
+  const sent = out.value.input_urls
+  if (sent.length !== links.length || sent.some((url, index) => url !== links[index])) throw new Error('The decision point did not send the live links as they were')
+}
 const metrics = { probeOverheadMs: [], batchOverheadMs: [], probeBytesPerLink: [] }
 let noisy = load() >= 10
 let failure
@@ -64,7 +79,7 @@ let failure
 try {
   // 预热：第一次连接 / 模块初始化不算进数字里。
   resetProviderLinkProbes()
-  await probeProviderLink(link('warmup'))
+  await sendRequest([link('warmup')])
 
   for (let run = 0; run < runs; run += 1) {
     // 一个请求 14 张新图：一起发。
@@ -72,9 +87,8 @@ try {
     Object.assign(served, { gets: 0, bytes: 0, maxInFlight: 0 })
     const links = Array.from({ length: LINKS_PER_REQUEST }, (_unused, index) => link(`request-${run}-${index}`))
     let startedAt = performance.now()
-    const verdicts = await Promise.all(links.map((url) => probeProviderLink(url)))
+    await sendRequest(links)
     const requestMs = performance.now() - startedAt
-    if (verdicts.some((verdict) => verdict !== 'alive')) throw new Error(`Probe did not see the fake server alive: ${verdicts.join(',')}`)
     if (served.gets !== LINKS_PER_REQUEST) throw new Error(`Expected ${LINKS_PER_REQUEST} GETs, the fake server saw ${served.gets}`)
     if (served.maxInFlight !== LINKS_PER_REQUEST) throw new Error(`Probes were not concurrent: at most ${served.maxInFlight} in flight`)
     metrics.probeOverheadMs.push(Math.max(0, requestMs - ROUND_TRIP_MS))
@@ -86,7 +100,7 @@ try {
     const images = Array.from({ length: BATCH_DISTINCT_IMAGES }, (_unused, index) => link(`batch-${run}-${index}`))
     startedAt = performance.now()
     await Promise.all(Array.from({ length: BATCH_REQUESTS }, (_unused, request) =>
-      Promise.all(Array.from({ length: LINKS_PER_REQUEST }, (_inner, slot) => probeProviderLink(images[(request * 7 + slot * 3) % BATCH_DISTINCT_IMAGES])))))
+      sendRequest(Array.from({ length: LINKS_PER_REQUEST }, (_inner, slot) => images[(request * 7 + slot * 3) % BATCH_DISTINCT_IMAGES]))))
     const batchMs = performance.now() - startedAt
     if (served.gets !== BATCH_DISTINCT_IMAGES) throw new Error(`Expected ${BATCH_DISTINCT_IMAGES} GETs for the shared images, the fake server saw ${served.gets}`)
     metrics.batchOverheadMs.push(Math.max(0, batchMs - ROUND_TRIP_MS))
