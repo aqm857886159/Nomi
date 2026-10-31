@@ -1,8 +1,8 @@
 # Windows 真机检查任务书（不合入）
 
-1. 这是什么：发版前有 4 项检查 Mac 做不了，要在真 Windows 上做。你是 Windows 上的 AI 会话，照本文件一条条做，不需要别的上下文。
+1. 这是什么：发版前有 5 项检查 Mac 做不了，要在真 Windows 上做。你是 Windows 上的 AI 会话，照本文件一条条做，不需要别的上下文。
 2. 别合入：本 PR 永远不合入，不改产品代码。分支基于 main 的 `24a9c15da`。
-3. 怎么做：先读「安全红线」和「准备」，再按任务 1 到 4 做。每条独立，一条红了接着做下一条。
+3. 怎么做：先读「安全红线」和「准备」，再按任务 1 到 5 做。每条独立，一条红了接着做下一条。
 4. 怎么交回：写 `docs/evidence/2026-10-31-windows-release-check/report.md`，截图放同目录，提交并推送到本分支（见「交回」），然后告诉用户「做完了」。
 5. 拿不准会不会碰到真实资料，或遇到本文件没写的情况，停下问用户，不要自己决定。
 
@@ -12,7 +12,7 @@
 - 每次起应用都用隔离目录。下面叫它「四件套」，全指到 `C:\nomi-win-check\iso-<名字>\` 下新建的空目录，并且和起应用在同一个 PowerShell 里设：
   `NOMI_ELECTRON_USER_DATA_DIR`、`NOMI_SETTINGS_DIR`、`NOMI_PROJECTS_DIR`、`NOMI_CAPABILITY_DIR`。
   手工起打包后的应用时，再把 `HOME` 和 `USERPROFILE` 指到空目录，并清掉环境里指向真实目录的其他 AI 编码工具的配置变量（完整变量名未核实，先 `Get-ChildItem Env: | ? Name -match 'CLAUDE|CODEX|MCP'` 看一眼），防止应用读写真实配置。
-  走查脚本（任务 2、3、4）经 `tests/ux/_launchApp.mjs` 自己设好这些，不用手设。
+  走查脚本（任务 2、3、4、5）经 `tests/ux/_launchApp.mjs` 自己设好这些，不用手设。
 - 不花钱：`NOMI_SPEND_OK` 一律不设，不读任何 Key，不调真实供应商。走查用的是本机环回假供应商。
 - 不改系统和安全设置（含开启 Windows Sandbox、开发者模式、提权），不永久删除不是自己创建的东西，不用 `--no-verify`、不 force-push、不 stash、不 reset、不 rebase。
 - 不改产品代码。发现问题只记录复现步骤，不修。
@@ -37,10 +37,10 @@ pnpm install --frozen-lockfile
 
 ## 走查的前台与负载（Windows 上的实际行为）
 
-- `NOMI_WALK_FOREGROUND_OK` 不许设。声明了必须前台的走查（如 `tests/ux/windows-freeze-sweep.walk.mjs`）没有它就不起应用，退出码 125（跳过）。报告里记「未跑：按红线不设放行变量」，不算红。
-- 本任务书里的走查都没声明前台，走「安静模式」：`tests/ux/_quietWalk.cjs` 把应用窗口变成全透明、鼠标穿透、不可聚焦，停在屏外 (-32000,-32000)。屏幕上不该看到应用窗口；任务栏里闪一下 Nomi 或 Electron 图标是正常的，别点、别关。只有任务 1 里安装器的界面和装好后的 Nomi 窗口会真的弹出来，也是正常的。
+- `NOMI_WALK_FOREGROUND_OK` 只给任务 4 的那两条命令用，而且先问过用户（见任务 4），跑完就清。别的走查一律不设。没有它，声明了必须前台的走查不起应用，退出码 125（跳过），不算红。
+- 其余走查都没声明前台，走「安静模式」：`tests/ux/_quietWalk.cjs` 把应用窗口变成全透明、鼠标穿透、不可聚焦，停在屏外 (-32000,-32000)。屏幕上不该看到应用窗口；任务栏里闪一下 Nomi 或 Electron 图标是正常的，别点、别关。只有任务 1 里安装器的界面和装好后的 Nomi 窗口、任务 4 的窗口会真的弹出来，也是正常的。
 - 前台守卫（`lsappinfo`）只在 macOS 起作用。`project-save-draft-contract.walk.mjs` 的 `launchConditions` 和 `tests/perf/canvas-scale/generationIdleScenario.mjs` 的起跑核对，在非 macOS 上直接放行；`os.loadavg()` 在 Windows 永远是 0。所以没有自动的负载准入，你自己做：起跑前关掉其他 Nomi、Electron 和大浏览器页面（`Get-Process Nomi,electron -ErrorAction SilentlyContinue` 应为空），再 `Get-Counter '\Processor(_Total)\% Processor Time' -SampleInterval 2 -MaxSamples 5`，平均应低于 30%，把这个数写进报告。
-- 未核实：窗口全透明、在屏外时，Chromium 在 Windows 上会不会因「被遮挡」降低绘制、让帧间隔偏好。任务 3 的数字好得可疑就把疑虑写进报告，不要为此去设放行变量。
+- 未核实：窗口全透明、在屏外时，Chromium 在 Windows 上会不会因「被遮挡」降低绘制、让帧间隔偏好。任务 3 的数字好得可疑就把疑虑写进报告，不要为此在任务 3 里设放行变量。
 - 走查起的是开发构建，起跑前要 `pnpm run build`（`assertFreshBuild` 会拒绝比源码旧的产物）。
 
 ## 任务 1（必做）安装器真升级
@@ -143,7 +143,7 @@ pnpm exec vitest run electron/workspace/saveFaultSweep.test.ts; "exit=$LASTEXITC
 - 走查一次跑中英两轨，真窗口里新增未命名人物卡、清空名字、切回默认画幅都要能存；还含正常关闭重开、强制结束重启、EBUSY 占用提示（脚本补丁模拟）。证据在 `NOMI_SAVE_DRAFT_OUT` 下的 `observations.json` 和截图。
 - 故障扫描是 Node 里模拟 I/O 故障（7 类 I/O、5 种错误码），含真新进程重启；它在默认 vitest 车道里，没找到文件就如实报。
 - 重点看：Windows 文件锁、杀毒占用、rename 失败。走查里的 EBUSY 是脚本补丁抛的，不是真锁。可选加做（只对隔离目录，要能操作界面才做）：应用开着隔离项目，在隔离项目目录里找到 `project.json`，用 `$h=[IO.File]::Open($f,'Open','Read','None')` 独占占住，在界面里改名触发保存，看提示是不是「被占用」类原因，不是笼统失败；`$h.Dispose()` 放开后再保存应成功。
-- 杀毒占用没有安全的模拟办法；`windows-freeze-sweep.walk.mjs --held` 要放行变量，按红线不跑。报告里这两项写 unverified 和原因。
+- 同步盘和杀毒占用由任务 4 的 `--held` 模拟。真杀毒软件的占用没有安全的模拟办法，报告里写 unverified 和原因。
 
 ## 任务 3 生成等待在 Windows 上
 
@@ -158,7 +158,23 @@ node scripts/perf-scenarios.mjs --measure-only --id generation-idle-100 --out C:
 - 要记：显卡型号、devicePixelRatio、帧间隔 p95 和中位数；落卡数（12 个结果落进工程文件，应 12/12）；下单数（假供应商收到的提交次数，重启后必须仍是 12，多了就是重下）；还有性能输出里 `GENERATION_IDLE {...}` 那行的 `idleDraws`、`idleSaveIPC30`、`idleSnapshotWrites`。Mac 上改后这三个都是 0，帧间隔 p95 约 10ms。
 - `load1AtStart` 在 Windows 永远是 0，别引用，用上面自己量的 CPU 数。
 
-## 任务 4 画布远看缺块（占位，暂不做）
+## 任务 4 卡顿巡检（发版流程必做）
+
+`docs/release-process.md` 规定发版前要在 Windows 上跑这条：过去有三个 Windows 专属问题（等待动效着色器编译卡死、同步盘占用让存盘锁卡住、导入被清理错误改写成失败），Mac 和 Linux 全测不出来。
+
+这条要真焦点，窗口会到前台、会抢键盘。**跑之前先问用户一句：「接下来这台机器的前台能让我占用一会儿吗？」用户同意才跑；不同意，报告写「未跑：用户当时在用」，不算红。**
+```
+pnpm run build
+$env:NOMI_WALK_FOREGROUND_OK='1'
+node tests\ux\windows-freeze-sweep.walk.mjs --label check; "exit=$LASTEXITCODE"
+node tests\ux\windows-freeze-sweep.walk.mjs --label check --held; "exit=$LASTEXITCODE"
+Remove-Item Env:NOMI_WALK_FOREGROUND_OK
+```
+- 判据：`tests\ux\shots\windows-freeze-sweep\check\report.json` 和 `check-held\report.json` 都 0 红、0 残留锁（`leftoverLocks`），截图自己看过。
+- 这一遍是演练。协调贴出候选版的提交号后，切到那个提交重新构建，用 `--label rc-<版本>` 再跑两条才算数。
+- 用时未核实。退出码 125 表示放行变量没设上，检查后重跑。
+
+## 任务 5 画布远看缺块（占位，暂不做）
 
 #1394（画布远看缺块）还没合入。协调会在 PR 上贴出提交号，贴了才跑。到时：
 ```
@@ -172,6 +188,10 @@ node tests/perf/canvas-scale-bench.mjs --scales D60 --scenarios far-dense-pan --
 - 场景在分支 `fix/canvas-detail-admission` 上（`tests/perf/scenarios/canvas-far-dense-*.json`），当前 main 里没有。登记的跑法带 `--gpu-mem-mb 512 --dpr 1.25`（模拟 Windows 1080p 缩放 125%）。要两种都量：登记的和不强制的。Windows 集显正是这条修复没测过的环境。
 - 看 `blankCardPct`（预算 1，应为 0）和 `frameGapP95`（预算 33）。
 - 素材：`tests/ux/real-media-fixtures.json` 登记了真实素材（素材不进仓库），位置由 `NOMI_REAL_MEDIA_DIR` 指定。这台机器上没有登记素材、脚本报缺素材，就写 unverified 和脚本原话；不许用合成素材顶替。
+
+## 不归你的一条
+
+发版流程还要求「Windows 上 Agent 真能说话」：同一台机器、同一个候选版，配一个真实文本模型，在生成面的 Agent 面板连发三句。这要真 Key、会花钱，你不做也不要代做。候选版出来后，协调会请用户亲手做。
 
 ## 交回
 
