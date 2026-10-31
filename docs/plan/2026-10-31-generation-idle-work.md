@@ -49,7 +49,7 @@
 
 ## ★7 性能
 
-无新增交互。规模 N=60/100、其中 k=12 在生成，等待至少 60 秒。本地模拟供应商；固定 pure pending 窗口 30 秒数保存 IPC、整个窗口数 draw 和快照写入；共用 canvas-scale 帧探针，p95≤33ms。登记 `generation-idle-60`、`generation-idle-100`，`pnpm run perf:scenarios -- --id <id> --measure-only`。每条至少 5 次；实现线只交数字，不自行批准/刷新正式基线。改前/后值待实测。
+无新增交互。规模 N=60/100、其中 k=12 在生成，等待至少 60 秒。本地模拟供应商；固定 pure pending 窗口 30 秒数保存 IPC、整个窗口数 draw 和快照写入；共用 canvas-scale 帧探针，p95≤33ms。登记 `generation-idle-60`、`generation-idle-100`，`pnpm run perf:scenarios -- --id <id> --measure-only`。每条至少 5 次；实现线只交数字，不自行批准/刷新正式基线。改前/后值见文末「正式量数」。
 
 ## 8 真实条件
 
@@ -144,3 +144,16 @@
 同模块原有provider状态分组/三种状态谓词也原样迁移到结果契约模块；底层状态词表仍只认shared/taskStatus，不增加词表、分支或供应商例外。
 
 词表迁移收尾：完整门岗第二轮106/107通过，仅 `ProviderPollStatusClass` 的 registered.site 仍指向抽取前文件。只把该锚迁至 productionGenerationMaterialization.ts，members/reason/debtCap/债清单原样保留；不改检查算法。该元数据被构建身份保守计入，因此补一次槽B构建和最终HEAD双语12/12，再重跑完整门岗与快检，最后正式性能量数。
+
+### 正式量数（10-31，HEAD 0041f4b15）
+
+每档改前、改后各 5 次，12 张卡等待 60 秒。改前只还原四个基线文件并重新构建，其余源码相同，事后按 SHA256 还原。屏幕锁定、应用不在前台，每组开始时 5 分钟负载 <10，双槽独占。下表是 5 次中位数。
+
+| 指标 | 预算 | 60 节点 改前 → 改后 | 100 节点 改前 → 改后 |
+|---|---|---|---|
+| 等待绘制（次/60 秒） | 0 | 14568 → 0 | 14568 → 0 |
+| 纯进度保存 IPC（次/30 秒） | 0 | 9 → 0 | 9 → 0 |
+| 重复 pending 快照写（次/60 秒） | 0 | 598 → 0 | 598 → 0 |
+| 帧间隔 p95（ms） | 33 | 10.1 → 10.2 | 9.3 → 10.1 |
+
+四项预算都达标。帧间隔在这台 Apple M5 上改前改后都约 10ms，这项分不出差别：量到的是等待成本降到 0，不是这台机器变跟手。弱机和 Windows 没量。原始结果：`docs/evidence/2026-10-31-generation-idle-work/formal-*.json`。

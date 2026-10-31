@@ -16,7 +16,8 @@
     "tests/fixtures/generation-idle-progress.json",
     "docs/evidence/2026-10-31-generation-idle-work/local-boundaries.json",
     "tests/fixtures/generation-lifecycle-cases.json",
-    "docs/evidence/2026-10-31-generation-idle-work/recovery-lifecycle.json"
+    "docs/evidence/2026-10-31-generation-idle-work/recovery-lifecycle.json",
+    "docs/evidence/2026-10-31-generation-idle-work/formal-counters.json"
   ],
   "completionCommits": [
     "879d8cd5c4af11495b91cca2da1095951fade802",

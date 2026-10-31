@@ -1186,7 +1186,7 @@
   },
   "migration": "Envelope schema remains1 with an optional lastPoll.revision field. Existing taskId and frozen contracts remain readable; only transient redundant work disappears. Older lastPoll observations without revision are version0; the first genuine observation change writes a version. No background migration or pending heartbeat write.",
   "residual_risks": [
-    "Deletion bookkeeping and contract extraction passed root/concept/boundary/framework checks, original138+two regressions+matrix46 (186), build and five typecheck projects. Extracted error/receipt/status function bodies are unchanged. New final-source dual-locale/full gates/prepush/exclusive measurements remain pending.",
+    "Deletion bookkeeping and contract extraction passed root/concept/boundary/framework checks, original138+two regressions+matrix46 (186), build and five typecheck projects. Extracted error/receipt/status function bodies are unchanged. Final source: dual-locale 12/12, contracts 107/107, risk tests pass; 5-run exclusive before/after at N60/N100: draws 14568/14568 to 0, 30s save IPC 9/9 to 0, duplicate pending snapshot writes 598/598 to 0. Frame gap is about 10 ms on both sides on this Apple M5, so smoothness on weak machines remains unmeasured.",
     "Windows true-window validation belongs to coordination; local Electron mocks cost zero and do not establish paid-provider behavior."
   ],
   "detected_by": "user",
