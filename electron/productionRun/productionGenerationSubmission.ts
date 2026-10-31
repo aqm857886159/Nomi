@@ -1,4 +1,4 @@
-import { GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
+import { catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
 import crypto from "node:crypto";
 import { readGenerationExecution } from "./productionGenerationHistory";
 import path from "node:path";
@@ -590,11 +590,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
        * 所以产物一旦在账上，来的人就负责把 job 和信封补齐，再回话：不管崩在哪，下一次查都能收尾。
        */
       const settleWithArtifact = (artifact: ProductionArtifact, complete: () => void): GenerationSubmissionMaterializeResult => {
-        let current = requiredRun(deps.repository, input.projectId, input.operationId);
-        const behind = current.jobs.find((candidate) => candidate.jobId === jobId)!;
-        // 停成「需要处理」的不能直达 ready，先回轮询（同一条可重放的边）。已取消 / 脱离的没有这条边，不补。
-        if (behind.status === "needs_attention") current = command(current, "job.status", { jobId, status: "polling", patch: { errorCode: "", errorMessage: "" } }, `materialize-job-resume:${jobId}:${current.revision}`);
-        if (behind.status === "needs_attention" || behind.status === "provider_accepted" || behind.status === "polling") command(current, "job.status", { jobId, status: "ready", patch: { lastPollAt: behind.lastPollAt } }, `materialize-job:${jobId}`);
+        catchUpJobToArtifact(requiredRun(deps.repository, input.projectId, input.operationId), jobId, command);
         complete();
         return resultFor(artifact);
       };

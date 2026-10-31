@@ -33,7 +33,10 @@
     "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
     "src/workbench/observability/classifyError.ts",
     "src/workbench/production/productionRunView.ts",
-    "src/workbench/generationCanvas/runner/runProjectDelivery.ts"
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "electron/capabilityCore/canvasShotResult.ts",
+    "electron/productionRun/productionRetrievalRetry.ts",
+    "electron/productionRun/productionGenerationMaterialization.ts"
   ],
   "entry_points": [
     "Main-process observer after the window closes or the Run host restarts",
@@ -75,7 +78,7 @@
     },
     {
       "kind": "write",
-      "path": "electron/productionRun/productionRunService.ts",
+      "path": "electron/productionRun/productionRetrievalRetry.ts",
       "symbol": "reopenSingleShotRetrieval"
     },
     {
@@ -105,7 +108,7 @@
     },
     {
       "kind": "read",
-      "path": "electron/productionRun/productionRunService.ts",
+      "path": "electron/productionRun/productionRetrievalRetry.ts",
       "symbol": "jobAwaitsRetrieval"
     },
     {
@@ -187,12 +190,27 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
       "symbol": "handRunToObserver"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "retryJobRetrieval"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationMaterialization.ts",
+      "symbol": "catchUpJobToArtifact"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "symbol": "resultFromArtifact"
     }
   ],
   "door_reduction": {
     "before": 30,
-    "after": 27,
-    "why_not": "The four ready-artifact exits in materialize became one function, settleWithArtifact, so three doors are gone. The four writers of markSingleShotAttention stay because each is a different observer lifetime; they now share one write and one predicate. The rest are readers of the one predicate and one copy table."
+    "after": 30,
+    "why_not": "The four ready-artifact exits in materialize became one function, settleWithArtifact, so three doors are gone. The file size gate then moved existing code out of three files, which adds three names for the same paths and no new write: retryJobRetrieval, catchUpJobToArtifact and resultFromArtifact. The four writers of markSingleShotAttention stay because each is a different observer lifetime; they now share one write and one predicate. The rest are readers of the one predicate and one copy table."
   },
   "generality_proof": "Every stop path writes through markSingleShotAttention or poll, every reader asks jobAwaitsRetrieval, every retrieve path reopens through reopenSingleShotRetrieval, and every landing exit goes through settleWithArtifact, so another caller, provider, or stored project reaches the same decision. The matrix walks failure timing, task id presence, and window state against POST count, GET count, and the real error card. A query that cannot be asked is told apart in one predicate, isLocalQueryBlockedRaw, and carried to the interface by one code, so every model, vendor, and key fault reaches the same card.",
   "shared_boundaries": [

@@ -188,3 +188,13 @@
 
 用户原话「并进本 PR」批了做法，批了两次：第一次是本机查不了，第二次是节点落待取回时告诉后台接手。`classifyError.ts`、`nomiErrorCodes.ts`、`appIntegrationCanvasShot.ts` 三个文件本身命中，协调判定是这个决定直接带出来的，算进这次批准，事后告诉用户改动面变大了。`runProjectDelivery.ts` 只是目录口径命中。批准只到这几个文件。
 
+## 文件体积门岗：纯移动
+
+这条线加的代码让三个文件超了体积上限。不抬基线，只把已有的代码原样搬走，行为不变，同提交删旧位置，算「换」：
+
+| 文件 | 上限 | 搬走什么 | 搬到哪 |
+|---|---|---|---|
+| `electron/capabilityCore/appIntegrationCanvasShot.ts` | 800 | 从账本读结果的四个小函数 | `electron/capabilityCore/canvasShotResult.ts` |
+| `electron/productionRun/productionGenerationSubmission.ts` | 冻结 842，下调到 838 | 把 job 补到产物的那两步（出口还是 `settleWithArtifact`） | `electron/productionRun/productionGenerationMaterialization.ts` |
+| `electron/productionRun/productionRunService.ts` | 冻结 973，下调到 965 | `job.retry_retrieval` 这一支的判断和写入（叫醒调度器留在原处） | `electron/productionRun/productionRetrievalRetry.ts` |
+

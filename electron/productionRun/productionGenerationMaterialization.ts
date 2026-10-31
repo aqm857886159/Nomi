@@ -1,5 +1,5 @@
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
-import { OUTPUT_RETRIEVAL_FAILED } from "./productionRunTypes";
+import { OUTPUT_RETRIEVAL_FAILED, type ProductionRun } from "./productionRunTypes";
 
 export type GenerationSubmissionMaterializeResult = {
   operationId: string;
@@ -79,3 +79,17 @@ export function isFailedProviderStatus(status: string): boolean {
   return classifyProviderStatus(status) === "failed";
 }
 
+/**
+ * 产物已经在账上，job 落在后面（崩在记产物和改 job 之间，或这一笔先被停成「需要处理」）：把 job 补到 ready。
+ * 停成「需要处理」的不能直达 ready，先回轮询（同一条可重放的边）。已取消 / 脱离的没有这条边，不补。
+ */
+export function catchUpJobToArtifact(
+  run: ProductionRun,
+  jobId: string,
+  command: (run: ProductionRun, type: string, payload: Record<string, unknown>, suffix: string) => ProductionRun,
+): void {
+  let current = run;
+  const behind = current.jobs.find((candidate) => candidate.jobId === jobId)!;
+  if (behind.status === "needs_attention") current = command(current, "job.status", { jobId, status: "polling", patch: { errorCode: "", errorMessage: "" } }, `materialize-job-resume:${jobId}:${current.revision}`);
+  if (behind.status === "needs_attention" || behind.status === "provider_accepted" || behind.status === "polling") command(current, "job.status", { jobId, status: "ready", patch: { lastPollAt: behind.lastPollAt } }, `materialize-job:${jobId}`);
+}

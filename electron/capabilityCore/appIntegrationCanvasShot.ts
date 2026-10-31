@@ -34,10 +34,10 @@ import {
   canvasLastResult,
   type CanvasTaskResult,
 } from "./canvasTransportProvider";
+import { failedResult, latestJob, readyArtifact, resultFromArtifact } from "./canvasShotResult";
 import { freezeCanvasExecutionContract, type PlanCandidate } from "./executionContract";
 import type { GenerationProvider, GenerationProviderOutput } from "./generationRuntimeAdapter";
 import { mainProcessGateApproval } from "./runOwnedGenerationGateAuthority";
-import { localAssetUrl } from "../assets/assetPaths";
 import {
   canvasRunIdFor,
   markCanvasRunOpen,
@@ -176,51 +176,6 @@ function withdrawnDraft(run: ProductionRun | null): boolean {
   return Boolean(
     run && plan && run.jobs.length === 0 && (plan.presentations?.length ?? 0) > 0 && !presentationIsOpen(plan),
   );
-}
-
-function latestJob(run: ProductionRun): ProductionJob | undefined {
-  return [...run.jobs].sort((left, right) => right.attempt - left.attempt)[0];
-}
-
-function readyArtifact(run: ProductionRun, job: ProductionJob): ProductionArtifact | undefined {
-  return run.artifacts.find(
-    (artifact) => artifact.jobId === job.jobId && ["ready", "adopted"].includes(artifact.status),
-  );
-}
-
-/** 从 Run 账本复原「出片了」那一份结果（重开项目、观察者已经收完时用；与画布那台落地的是同一个本地文件）。 */
-function resultFromArtifact(
-  run: ProductionRun,
-  job: ProductionJob,
-  artifact: ProductionArtifact,
-  kind: string,
-): CanvasTaskResult {
-  const assetType =
-    artifact.kind === "video" || artifact.kind === "audio" || artifact.kind === "model3d" ? artifact.kind : "image";
-  return {
-    id: job.providerTaskId ?? job.jobId,
-    kind,
-    status: "succeeded",
-    assets: [
-      {
-        type: assetType,
-        url: localAssetUrl(run.projectId, artifact.projectRelativePath ?? ""),
-        ...(artifact.width && artifact.height ? { width: artifact.width, height: artifact.height } : {}),
-      },
-    ],
-    raw: {},
-  };
-}
-
-function failedResult(job: ProductionJob, kind: string): CanvasTaskResult {
-  return {
-    id: job.providerTaskId ?? job.jobId,
-    kind,
-    status: "failed",
-    assets: [],
-    raw: {},
-    error: job.errorMessage || job.errorCode || "generation failed",
-  };
 }
 
 /**
