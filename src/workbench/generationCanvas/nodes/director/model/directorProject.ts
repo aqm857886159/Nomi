@@ -443,8 +443,9 @@ function normalizeProjectRecord(raw: Record<string, unknown>, defaultSceneName: 
   }
 }
 
-// 换掉一个图层里所有实体 id（对象 / 机位 / 灯 + 父子、看向、特写目标、视线目标引用），图层复制与导入场景共用；
-// 不动路标 / 片段 / 关键帧 id（它们只在实体内部被引用）
+// 换掉一个图层里所有实体 id（对象 / 机位 / 灯 + 父子、看向、特写目标、视线目标、量测主体引用），图层复制、跨层复制与导入场景共用；
+// 不动路标 / 片段 / 关键帧 id（它们只在实体内部被引用）。
+// 这是换 id 的唯一入口：场景里新增任何「引用实体 id」的字段，都必须在下面过 idMap。忘了改写由类级检查拦（evals/director/previzRulerSubjectDoors.test.ts）。
 export function remapSceneIds(source: DirectorScene, tag: string): DirectorScene {
   const scene = cloneDirectorProject({ version: DIRECTOR_PROJECT_VERSION, activeSceneId: source.id, scenes: [source], exportRatio: '16:9', exportResolution: '1080', outputs: { screenshots: [], videos: [] }, assets: { folders: [], items: [] } }).scenes[0]
   const suffix = () => `-${tag}-${Math.random().toString(36).slice(2, 7)}`
@@ -469,6 +470,7 @@ export function remapSceneIds(source: DirectorScene, tag: string): DirectorScene
   }
   for (const camera of scene.cameras) {
     camera.lookAtObjectId = remap(camera.lookAtObjectId)
+    if (camera.measurementSubject) camera.measurementSubject.objectId = remap(camera.measurementSubject.objectId) ?? camera.measurementSubject.objectId
     for (const point of camera.motionTrajectory ?? []) point.lookAtObjectId = remap(point.lookAtObjectId)
     for (const clip of camera.closeupClips ?? []) {
       clip.entityId = camera.id

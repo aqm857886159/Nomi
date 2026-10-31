@@ -2,14 +2,16 @@
   "schema_version": 3,
   "id": "2026-10-30-previz-ruler",
   "problem_type": "Preview measurement loses subject identity and duplicates camera-space semantics",
-  "symptom": "Agent and director labels measure scenery and invert lateral movement while evaluation stays green",
-  "direct_cause": "Summary chooses the largest non-auxiliary projection; template scenery is solid. Motion and scorer use world X. Invalid persisted anchor fields were silently discarded, replacing an explicit part with its whole object; invalid binding records became manual cameras.",
-  "class_root": "No persisted shot subject and no shared product/evaluation measurement invariant; normalization conflated absent measurement intent with present-but-invalid intent.",
+  "symptom": "Agent and director labels measure scenery and invert lateral movement while evaluation stays green A copied, cross-layer-copied or imported layer then lost every shot size and misread camera moves while the header still said measured; a damaged record could not be repaired by recompiling.",
+  "direct_cause": "Summary chooses the largest non-auxiliary projection; template scenery is solid. Motion and scorer use world X. Invalid persisted anchor fields were silently discarded, replacing an explicit part with its whole object; invalid binding records became manual cameras. The id rewrite behind copy layer, cross-layer copy and import scene (remapSceneIds) did not rewrite the camera's recorded subject id, so copies pointed at objects only the source layer had; hand-override derivation treated a damaged record as a hand adjustment and replayed it over the compiler value.",
+  "class_root": "No persisted shot subject and no shared product/evaluation measurement invariant; normalization conflated absent measurement intent with present-but-invalid intent. Reference-to-entity-id fields have no single list: every id-rewrite and replay gate names fields one by one, each new field must be remembered by hand, and name-based door counting cannot see a rewrite that is missing.",
   "affected_population": [
     "compiled director projects",
     "manual stages",
     "director labels and Agent cuts",
-    "preview attachment prompts"
+    "preview attachment prompts",
+    "copied, cross-layer-copied and imported director layers",
+    "recompiled projects holding a damaged subject record"
   ],
   "scope_paths": [
     "src/workbench/generationCanvas/nodes/director/model/directorTypes.ts",
@@ -23,10 +25,11 @@
     "evals/director/scorer.ts",
     "evals/director/adapters.ts",
     "src/workbench/generationCanvas/nodes/director/model/directorShotSubject.ts",
-    "src/workbench/generationCanvas/nodes/director/model/directorMotionDirection.ts"
+    "src/workbench/generationCanvas/nodes/director/model/directorMotionDirection.ts",
+    "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts"
   ],
   "entry_points": [
-    "8 summary consumers; 14 auxiliary readers; offline scoreCard"
+    "8 summary consumers; 14 auxiliary readers; offline scoreCard; 3 id-rewrite callers (duplicateSceneLayer, copyEntitiesToScene, importScene); 1 recompile overlay path"
   ],
   "external_sources": [],
   "internal_only_reason": "Internal persisted subject identity, pinhole projection and existing camera coordinate conventions; no external dependency changes.",
@@ -35,7 +38,9 @@
     "Scenery framing role is independent of physical solidity.",
     "Product and evaluation import the same subject sampler and motion direction predicate.",
     "Screen right is the start-camera right basis, also used by compiler sideways.",
-    "Normalization preserves invalid explicit measurement intent across JSON persistence; invalid subjects or anchors never fall back to a whole object or manual selection."
+    "Normalization preserves invalid explicit measurement intent across JSON persistence; invalid subjects or anchors never fall back to a whole object or manual selection.",
+    "A copied, cross-layer-copied or imported layer names none of the source layer's entity ids: every reference field, including a camera's recorded subject, is rewritten through the one id map in remapSceneIds; the guard walks the whole copied JSON and names no field.",
+    "The recorded measurement subject is owned by the compiler: hand-override derivation neither fingerprints nor replays it, so a recompile rewrites it."
   ],
   "doors": [
     {
@@ -507,12 +512,57 @@
       "kind": "read",
       "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
       "symbol": "normalizeCamera"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "symbol": "remapSceneIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+      "symbol": "remapSceneIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeEntityActions.ts",
+      "symbol": "remapSceneIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+      "symbol": "remapSceneIds"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+      "symbol": "deriveDirectorOverrides"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+      "symbol": "fingerprintDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+      "symbol": "overlayDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/applyDirectorWrite.ts",
+      "symbol": "fingerprintDirectorProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/agent/applyDirectorWrite.ts",
+      "symbol": "overlayDirectorProject"
     }
   ],
   "door_reduction": {
     "before": 22,
-    "after": 94,
-    "why_not": "8 summary consumers serve distinct lab, Agent receipt, capture, production, prompt attachment, focus, shell and toolbar paths. Original physical auxiliary readers remain for collision/sight/audit, render/capture and editing. Overview and shared manual-subject selection keep only a physical output-visibility guard for old helper objects, while framingRole separately owns subject/background identity. Additional doors enumerate compiler/normalizer and shared-subject/basis consumers, not parallel implementations; scope was expanded from the original 22 doors to audit the new owners. The nine project normalization callers (editor/store, overrides, Agent and capture/attachment hosts) have different lifecycle jobs; all converge on normalizeCamera and the shared subjectAt. They must preserve explicit invalid intent instead of independently repairing it."
+    "after": 103,
+    "why_not": "8 summary consumers serve distinct lab, Agent receipt, capture, production, prompt attachment, focus, shell and toolbar paths. Original physical auxiliary readers remain for collision/sight/audit, render/capture and editing. Overview and shared manual-subject selection keep only a physical output-visibility guard for old helper objects, while framingRole separately owns subject/background identity. Additional doors enumerate compiler/normalizer and shared-subject/basis consumers, not parallel implementations; scope was expanded from the original 22 doors to audit the new owners. The nine project normalization callers (editor/store, overrides, Agent and capture/attachment hosts) have different lifecycle jobs; all converge on normalizeCamera and the shared subjectAt. They must preserve explicit invalid intent instead of independently repairing it. Round 3 adds nine doors that name-based counting cannot see: the single id-rewrite gate remapSceneIds and its three callers (duplicateSceneLayer, copyEntitiesToScene, importScene), and the hand-override path planOverrides.ts (fingerprint, derive, overlay) with its Agent write caller. door-map counts doors by the name measurementSubject; remapSceneIds lists reference fields one by one and planOverrides.ts iterates properties generically, so neither mentions the name and a missing rewrite or a replayed damaged record has no occurrence to count; searching door-map for remapSceneIds or the overlay symbols returns the callers only, never the missing rewrite. These stay separate doors: copying a layer, copying entities across layers, importing a scene file and recompiling over hand edits are different user actions that share the id map and the overlay, so the shared gates carry the guard (class walk, not field names) instead of merging the actions."
   },
   "generality_proof": "Persist subject identity at compile/normalize boundary, select it without ranking scenery, and import the product sampler and direction predicate in the evaluator. Camera rotation, object ordering, solid scenery and anchored subjects use the same invariant.",
   "shared_boundaries": [
@@ -545,6 +595,16 @@
       "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
       "symbol": "normalizeDirectorProject",
       "responsibility": "Preserve absent versus invalid subject/anchor intent at all persistence and mutation entrances; repeated normalization must keep the distinction."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "symbol": "remapSceneIds",
+      "responsibility": "The only id-rewrite gate for copy layer, cross-layer copy and import scene: every field that references an entity id, including the recorded measurement subject, goes through its id map."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+      "symbol": "deriveDirectorOverrides",
+      "responsibility": "Hand adjustments are derived property by property; the recorded measurement subject is compiler-owned and never derived, fingerprinted or replayed."
     }
   ],
   "same_class_entry_points": [
@@ -589,11 +649,41 @@
       "entry_point": "normalizeObject measuredBounds and framingRole",
       "disposition": "not-affected",
       "evidence": "Bounds use an existing measured-versus-nominal source marker; framingRole is an optional eligibility label rather than an explicit object/part binding. Neither owns the anchor-intent contract."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+      "entry_point": "remapSceneIds",
+      "disposition": "enforced",
+      "evidence": "The camera record objectId goes through the same id map as lookAt and closeup targets; the class walk in previzRulerSubjectDoors.test.ts reports any string still equal to a source entity id."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+      "entry_point": "duplicateSceneLayer",
+      "disposition": "enforced",
+      "evidence": "The real action is run on the three-person street (labels equal the source) and on every compiled plan (no leftover source id)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeEntityActions.ts",
+      "entry_point": "copyEntitiesToScene",
+      "disposition": "enforced",
+      "evidence": "Copy mode (objects and cameras) goes through remapSceneIds and is exercised the same way; move mode keeps ids, so records stay as they were."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+      "entry_point": "importScene",
+      "disposition": "enforced",
+      "evidence": "A scene file is imported with the real action and exercised the same way."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
+      "entry_point": "deriveDirectorOverrides",
+      "disposition": "enforced",
+      "evidence": "measurementSubject is excluded from the fingerprint and from derived overrides; a recompile over a damaged record restores the compiler value while a real hand edit on the same camera still replays."
     }
   ],
   "recurrence": {
     "classification": "recurring",
-    "reason": "Every compiled street project or rotated manual camera can enter through any summary consumer.",
+    "reason": "Every compiled street project or rotated manual camera can enter through any summary consumer. A new reference-to-id field can enter through any of the three id-rewrite callers or through the recompile overlay.",
     "same_class_scan": [
       "node scripts/door-map.mjs summarizeDirectorShots => 8",
       "node scripts/door-map.mjs isAuxiliary => 14",
@@ -604,7 +694,10 @@
       "node scripts/door-map.mjs normalizeCamera normalizeDirectorProject measurementSubject",
       "node scripts/door-map.mjs measurementSubject lookAtType lookAtObjectId lookAtCoords rigType closeupClips customAnchor customAzimuthDeg motionTrajectory trajectoryClips inTimeline clipId progress fov measuredBounds --roots=src,electron,evals; all optional normalization omissions classified in implementation report",
       "node scripts/door-map.mjs framingRole parentId color roughness metalness opacity modelScale wireframe flatShading isAuxiliary isSystemModel actionTrackEnabled lookAtTrackEnabled modelPath posePreset bodyType rig boneRotations hipsOffset actionClips keyframes actionPose lookAtClips spotAngle spotPenumbra timelineTrackOrder timelineTrackPins timelineTrackFolds --roots=src/workbench/generationCanvas/nodes/director => 242 file/symbol doors",
-      "node scripts/door-map.mjs normalizeObject normalizeLight normalizeScene normalizeProjectRecord coverUrl sizeBytes folderId screenshots videos folders items --roots=src/workbench/generationCanvas/nodes/director => 35 file/symbol doors; unrelated optional/container normalization listed without code changes"
+      "node scripts/door-map.mjs normalizeObject normalizeLight normalizeScene normalizeProjectRecord coverUrl sizeBytes folderId screenshots videos folders items --roots=src/workbench/generationCanvas/nodes/director => 35 file/symbol doors; unrelated optional/container normalization listed without code changes",
+      "node scripts/door-map.mjs remapSceneIds --roots=src,electron,evals => 3 callers (duplicateSceneLayer, copyEntitiesToScene, importScene)",
+      "node scripts/door-map.mjs deriveDirectorOverrides overlayDirectorProject fingerprintDirectorProject --roots=src,electron,evals => 4 doors (planOverrides.ts and applyDirectorWrite.ts)",
+      "class walk (no field names) over the copy of every compiled plan: evals/director/previzRulerSubjectDoors.test.ts"
     ]
   },
   "prevention": {
@@ -613,7 +706,7 @@
     "invariant": "One subject sampler and camera-space direction definition serve production and evaluation.",
     "failure_mode": "An explicit missing subject or anchor remains unmeasurable and never silently selects scenery.",
     "exception_policy": "none",
-    "strategy": "Persist subject; separate framing from solidity; delete evaluator copies. Normalization retains null sentinels for invalid explicit subjects and anchors; subjectAt fails closed before any object lookup.",
+    "strategy": "Persist subject; separate framing from solidity; delete evaluator copies. Normalization retains null sentinels for invalid explicit subjects and anchors; subjectAt fails closed before any object lookup. Id rewrite is a write of the subject record: remapSceneIds rewrites it, and a class check walks the whole copied JSON of the three real store actions for any string equal to a source entity id, so a reference field added later fails without anyone remembering it. The overlay never derives or replays the record, so recompiling restores it.",
     "artifacts": [
       "src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement.ts",
       "src/workbench/generationCanvas/nodes/director/model/compiler/directorPlanCompiler.ts",
@@ -621,20 +714,23 @@
       "src/workbench/generationCanvas/nodes/director/model/directorShotSubject.ts",
       "src/workbench/generationCanvas/nodes/director/model/directorMotionDirection.ts",
       "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
-      "src/workbench/generationCanvas/nodes/director/model/directorTypes.ts"
+      "src/workbench/generationCanvas/nodes/director/model/directorTypes.ts",
+      "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts"
     ]
   },
   "regression_tests": [
     "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
     "evals/director/previzRuler.test.ts",
     "tests/experience-laws/previzRulerOrientation.matrix.test.mjs",
-    "evals/director/previzRulerInvalidSubject.test.ts"
+    "evals/director/previzRulerInvalidSubject.test.ts",
+    "evals/director/previzRulerSubjectDoors.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
     "evals/director/previzRuler.test.ts",
     "tests/experience-laws/previzRulerOrientation.matrix.test.mjs",
-    "evals/director/previzRulerInvalidSubject.test.ts"
+    "evals/director/previzRulerInvalidSubject.test.ts",
+    "evals/director/previzRulerSubjectDoors.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -649,11 +745,12 @@
     "rationale": "Internal pure TypeScript data and geometry contract; installed dependencies do not own this invariant.",
     "exit_criteria": []
   },
-  "migration": "New camera subject and object framingRole are optional. Existing hand-built projects choose people before props. No inferred rewrite of old user data; normalized newly compiled projects retain explicit metadata. Absent legacy metadata remains manual; existing invalid metadata is retained as JSON-safe null instead of silently widening measurement. No real user files are read or migrated.",
+  "migration": "New camera subject and object framingRole are optional. Existing hand-built projects choose people before props. No inferred rewrite of old user data; normalized newly compiled projects retain explicit metadata. Absent legacy metadata remains manual; existing invalid metadata is retained as JSON-safe null instead of silently widening measurement. No real user files are read or migrated. The field is new in this PR, so no released project file holds a stale record and no stored data is rewritten.",
   "residual_risks": [
     "Real model reproduction and paid video output are delegated to coordination.",
     "True original plan unavailable; synthetic fixtures verify the failure class.",
-    "Yaw direction regression does not prove roll-invariant direction; motion type priority and visual judge crossCheck selection remain separate existing boundaries."
+    "Yaw direction regression does not prove roll-invariant direction; motion type priority and visual judge crossCheck selection remain separate existing boundaries.",
+    "Not fixed here, by the scope of this round: deleteObject leaves a camera record pointing at the deleted object (the move is then measured from the world origin); copying or moving a camera without its subject leaves its record pointing outside the layer; when nothing is measurable the camera move still falls back to static."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",
@@ -662,7 +759,8 @@
     "tests": [
       "src/workbench/generationCanvas/nodes/director/model/directorShotSummaries.test.ts",
       "evals/director/previzRuler.test.ts",
-      "tests/experience-laws/previzRulerOrientation.matrix.test.mjs"
+      "tests/experience-laws/previzRulerOrientation.matrix.test.mjs",
+      "evals/director/previzRulerSubjectDoors.test.ts"
     ]
   }
 }
