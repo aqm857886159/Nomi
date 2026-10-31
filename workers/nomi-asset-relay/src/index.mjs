@@ -1,6 +1,9 @@
 const DEFAULT_TTL_SECONDS = 24 * 60 * 60;
-/* global Headers, Response, URL, File, crypto */
+/* global Headers, Response, URL, File, crypto, console */
 
+const ASSET_PREFIX = "assets/";
+// R2 caps both a list() page and a delete([keys]) call at 1000.
+const R2_BATCH_LIMIT = 1000;
 const DEFAULT_MAX_BYTES = 200 * 1024 * 1024;
 const DEFAULT_MAX_STORAGE_BYTES = 8_000_000_000;
 const DEFAULT_MAX_MONTHLY_BUDGET_USD = 0;
@@ -84,28 +87,52 @@ function assetPath(request) {
   return key.startsWith("assets/") ? key : null;
 }
 
-async function usageSnapshot(env) {
+// The only place that lists the bucket. R2 returns customMetadata from list() only when it is asked for
+// with `include` (compatibility_date >= 2022-08-04); without it every object looks like it never expires,
+// which is how cleanup silently deleted nothing. Every scan goes through here so the option cannot be forgotten.
+async function* assetPages(env) {
   let cursor;
+  do {
+    const page = await env.ASSETS.list({ prefix: ASSET_PREFIX, cursor, limit: R2_BATCH_LIMIT, include: ["customMetadata"] });
+    yield page.objects || [];
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+}
+
+// Epoch ms the object expires at, or null when it carries no usable expiresAt (never delete those).
+function expiryMs(object) {
+  const parsed = Date.parse(object.customMetadata?.expiresAt || "");
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+// storageBytes is everything still in the bucket, expired or not: R2 bills what is stored, so the hard cap
+// has to see the same bytes the bill does.
+async function usageSnapshot(env) {
+  const now = Date.now();
   let storageBytes = 0;
   let objectCount = 0;
   let expiredObjectCount = 0;
-  do {
-    const page = await env.ASSETS.list({ prefix: "assets/", cursor, include: ["customMetadata"] });
-    for (const object of page.objects || []) {
-      const expiresAt = object.customMetadata?.expiresAt;
-      if (expiresAt && Date.parse(expiresAt) <= Date.now()) {
-        expiredObjectCount += 1;
-        continue;
-      }
+  let expiredStorageBytes = 0;
+  let untrackedObjectCount = 0;
+  for await (const objects of assetPages(env)) {
+    for (const object of objects) {
+      const size = Number(object.size || 0);
+      const expiresAtMs = expiryMs(object);
       objectCount += 1;
-      storageBytes += Number(object.size || 0);
+      storageBytes += size;
+      if (expiresAtMs === null) untrackedObjectCount += 1;
+      else if (expiresAtMs <= now) {
+        expiredObjectCount += 1;
+        expiredStorageBytes += size;
+      }
     }
-    cursor = page.truncated ? page.cursor : undefined;
-  } while (cursor);
+  }
   return {
     objectCount,
     storageBytes,
     expiredObjectCount,
+    expiredStorageBytes,
+    untrackedObjectCount,
     estimatedMonthlyStorageUsd: storageEstimateUsd(storageBytes),
   };
 }
@@ -187,34 +214,42 @@ async function readAsset(request, env) {
   if (!key) return json({ error: "not_found" }, 404);
   const object = await env.ASSETS.get(key);
   if (!object) return json({ error: "not_found" }, 404);
-  const expiresAt = object.customMetadata?.expiresAt;
-  if (expiresAt && Date.parse(expiresAt) <= Date.now()) {
+  const expiresAtMs = expiryMs(object);
+  if (expiresAtMs !== null && expiresAtMs <= Date.now()) {
     await env.ASSETS.delete(key);
     return json({ error: "expired" }, 404);
   }
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("Cache-Control", "private, max-age=300");
-  headers.set("X-Nomi-Asset-Expires-At", expiresAt || "");
+  headers.set("X-Nomi-Asset-Expires-At", object.customMetadata?.expiresAt || "");
   if (Number.isFinite(object.size)) headers.set("Content-Length", String(object.size));
   return new Response(request.method === "HEAD" ? null : object.body, { headers });
 }
 
+// Deletes objects whose expiresAt has passed, one batched delete per listed page (a per-object delete would
+// spend one subrequest each and hit the per-invocation limit on a large backlog). Objects without a usable
+// expiresAt are left alone and only counted.
 export async function cleanup(env) {
-  let cursor;
+  const now = Date.now();
   let deleted = 0;
-  do {
-    const page = await env.ASSETS.list({ prefix: "assets/", cursor });
-    for (const object of page.objects || []) {
-      const expiresAt = object.customMetadata?.expiresAt;
-      if (expiresAt && Date.parse(expiresAt) <= Date.now()) {
-        await env.ASSETS.delete(object.key);
-        deleted += 1;
-      }
+  let deletedBytes = 0;
+  let untrackedObjectCount = 0;
+  for await (const objects of assetPages(env)) {
+    const expired = [];
+    for (const object of objects) {
+      const expiresAtMs = expiryMs(object);
+      if (expiresAtMs === null) untrackedObjectCount += 1;
+      else if (expiresAtMs <= now) expired.push(object);
     }
-    cursor = page.truncated ? page.cursor : undefined;
-  } while (cursor);
-  return deleted;
+    for (let start = 0; start < expired.length; start += R2_BATCH_LIMIT) {
+      const batch = expired.slice(start, start + R2_BATCH_LIMIT);
+      await env.ASSETS.delete(batch.map((object) => object.key));
+      deleted += batch.length;
+      deletedBytes += batch.reduce((sum, object) => sum + Number(object.size || 0), 0);
+    }
+  }
+  return { deleted, deletedBytes, untrackedObjectCount };
 }
 
 export default {
@@ -233,6 +268,6 @@ export default {
     return json({ error: "not_found" }, 404);
   },
   async scheduled(_event, env) {
-    await cleanup(env);
+    console.log(JSON.stringify({ event: "asset_cleanup", ...(await cleanup(env)) }));
   },
 };

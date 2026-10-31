@@ -1,0 +1,28 @@
+{
+  "id": "USER-20261031-asset-relay-expiry-not-enforced",
+  "since": "2026-10-31",
+  "source": "用户报告：素材中转站承诺 24 小时过期，R2 桶 nomi-assets 实测 6,728 个对象 / 13.7 GB，超过 8 GB 上限和 10 GB 免费额度。",
+  "category": "claims-and-outcomes",
+  "problem": "中转站每小时清理读不到 expiresAt（list 没带 include），一个对象都不删；容量统计又把已过期未删的字节排除在外，8 GB 硬上限看不见真实占用。用户被告知 24 小时过期的文件一直留存。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "上传参考素材后 24 小时内被清理",
+    "桶体积逼近上限时拒绝新上传"
+  ],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-31-asset-relay-expiry-cleanup.md",
+    "docs/fixes/2026-10-31-asset-relay-expiry-cleanup.root-cause.json",
+    "tests/asset-relay/worker.node-test.mjs",
+    "tests/asset-relay/fakeR2.mjs"
+  ],
+  "completionCommits": [],
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/asset-relay/worker.node-test.mjs"
+  },
+  "rootCauseContract": "docs/fixes/2026-10-31-asset-relay-expiry-cleanup.root-cause.json"
+}
