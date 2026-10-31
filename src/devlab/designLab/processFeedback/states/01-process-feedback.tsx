@@ -3,43 +3,36 @@ import type { LabState } from '../../labScreen'
 import { ProcessFeedbackStage, ProcessFeedbackFxStage, ProcessFeedbackImportStage } from '../processFeedbackLabKit'
 
 const SOURCE = 'docs/plan/2026-09-08-process-feedback-c1.md · C0/C1/C2'
-const FX_SOURCE = 'docs/plan/2026-09-09-process-feedback-imgfx.md · §5'
+const FX_SOURCE = 'docs/plan/2026-10-31-generation-idle-work.md · ★9'
 const IMPORT_SOURCE = 'docs/plan/2026-09-14-import-progress-reveal.md · 验收门'
 export const PROCESS_FEEDBACK_STATES: readonly LabState[] = [
   {
     id: 'pf-fx-generating',
-    name: '生成动效 · 等待',
+    name: '生成等待 · 静止灰格',
     source: FX_SOURCE,
     coverage: 'shell',
     render: () => <ProcessFeedbackFxStage />,
   },
   {
     id: 'pf-fx-preview-reveal',
-    name: '生成动效 · 真帧揭示',
+    name: '生成等待 · 预览帧',
     source: FX_SOURCE,
     coverage: 'shell',
     render: () => <ProcessFeedbackFxStage transition="preview" />,
   },
   {
     id: 'pf-fx-final-reveal',
-    name: '生成动效 · 最终揭示',
+    name: '生成等待 · 最终结果',
     source: FX_SOURCE,
     coverage: 'shell',
     render: () => <ProcessFeedbackFxStage transition="saved" />,
   },
   {
     id: 'pf-fx-done-clean',
-    name: '生成动效 · 完成零遮挡',
+    name: '生成等待 · 完成零遮挡',
     source: FX_SOURCE,
     coverage: 'shell',
     render: () => <ProcessFeedbackFxStage transition="saved" />,
-  },
-  {
-    id: 'pf-fx-reduced',
-    name: '生成动效 · 减弱动态',
-    source: FX_SOURCE,
-    coverage: 'shell',
-    render: () => <ProcessFeedbackFxStage reduced />,
   },
   {
     id: 'pf-import-progress',
@@ -47,13 +40,6 @@ export const PROCESS_FEEDBACK_STATES: readonly LabState[] = [
     source: IMPORT_SOURCE,
     coverage: 'shell',
     render: () => <ProcessFeedbackImportStage ratio={0.42} />,
-  },
-  {
-    id: 'pf-import-reduced',
-    name: '导入中 · 减弱动态（静态格子，无进度线）',
-    source: IMPORT_SOURCE,
-    coverage: 'shell',
-    render: () => <ProcessFeedbackImportStage ratio={0.42} reduced />,
   },
   {
     id: 'pf-image-queued',

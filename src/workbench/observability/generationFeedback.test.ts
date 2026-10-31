@@ -55,9 +55,9 @@ it('completed nodes do not create a redundant inline receipt', () => {
   expect(generationFeedback({ ...saved, id: 'legacy', runs: [] }, 19000)).toBeNull()
 })
 
-it('motion-reduced generation and import keep a static grid without a blue band or fabricated image', async () => {
+it('generation and import keep a static grid without a blue band or fabricated image', async () => {
   const { GenerationWaitingSurface } = await import('../generationCanvas/nodes/GenerationWaitingSurface')
-  for (const props of [{ motion: 'reduced' as const }, { zoom: 0.39 }, { inViewport: false }, { motion: 'reduced' as const, progressReveal: { ratio: 0.42 } }]) {
+  for (const props of [{}, { zoom: 0.39 }, { inViewport: false }, { progressReveal: { ratio: 0.42 } }]) {
     const markup = renderToStaticMarkup(React.createElement(GenerationWaitingSurface, { previewLabel: '', ...props }))
     expect(markup).toContain('data-process-static-grid')
     expect(markup).not.toContain('data-process-static-band')

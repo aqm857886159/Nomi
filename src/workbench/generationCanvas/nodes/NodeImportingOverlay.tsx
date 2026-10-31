@@ -17,13 +17,12 @@ function formatImportBytes(bytes: number): string {
 /**
  * 导入中的节点：进度驱动的渐显。
  *
- * 和生成的区别就是「有没有真进度」——生成是不确定的等待（按时间跑动画），
+ * 和生成的区别就是「有没有真进度」——生成是不确定的等待（静止灰格），
  * 导入知道自己搬了多少字节（马赛克长多少由字节说了算）。两者共用同一个等待层组件，
  * 不为导入另写一套视觉。
  */
-export function NodeImportingOverlay({ node, motion }: {
+export function NodeImportingOverlay({ node }: {
   node: GenerationCanvasNode
-  motion?: 'reduced'
 }): JSX.Element | null {
   const { t } = useTranslation()
   const progress = useAssetImportProgressStore((state) => state.byNode[node.id])
@@ -53,7 +52,7 @@ export function NodeImportingOverlay({ node, motion }: {
       ? (size ? t('generationCommon.observability.import.checking', { size }) : t('generationCommon.observability.import.checkingUnknownSize'))
       : (size ? t('generationCommon.observability.import.progress', { percent, size }) : t('generationCommon.observability.import.progressUnknownSize', { percent }))
   return <div ref={viewport.ref} className="absolute inset-0 z-[3] pointer-events-none" data-generating-placement="import">
-    <GenerationWaitingSurface previewLabel="" zoom={zoom} inViewport={viewport.visible} motion={motion}
+    <GenerationWaitingSurface previewLabel="" zoom={zoom} inViewport={viewport.visible}
       progressReveal={{ ratio, imageUrl: progress?.previewUrl }} label={label} />
   </div>
 }

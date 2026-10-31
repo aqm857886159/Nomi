@@ -4,7 +4,6 @@ import { ProgressRevealCanvas } from './ProgressRevealCanvas'
 export function GenerationWaitingSurface({ audio = false, previewUrl, finalUrl, completed = false, onComplete,
   previewLabel, percent, zoom = 1, inViewport = true, progressReveal, label }: {
   audio?: boolean
-  motion?: 'reduced'
   previewUrl?: string
   finalUrl?: string
   completed?: boolean
@@ -24,7 +23,7 @@ export function GenerationWaitingSurface({ audio = false, previewUrl, finalUrl, 
     if (completed) onComplete?.()
   }, [completed, onComplete])
   const source = progressReveal ? undefined : completed ? finalUrl : previewUrl
-  return <div data-generation-waiting data-process-zoom={zoom} data-process-motion="reduced" data-process-in-viewport={inViewport}
+  return <div data-generation-waiting data-process-zoom={zoom} data-process-in-viewport={inViewport}
     className="absolute inset-0 overflow-hidden rounded-nomi bg-nomi-ink-05 pointer-events-none">
     {!audio ? <div data-process-static-grid aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,var(--nomi-ink-20),var(--nomi-ink-05)_70%)] [mask-image:repeating-linear-gradient(90deg,var(--nomi-ink)_0_14px,transparent_14px_16px),repeating-linear-gradient(0deg,var(--nomi-ink)_0_14px,transparent_14px_16px)] [mask-composite:intersect]" /> : null}
     {progressReveal ? <ProgressRevealCanvas imageUrl={progressReveal.imageUrl} ratio={progressReveal.ratio} /> : null}
