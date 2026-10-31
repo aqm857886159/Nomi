@@ -1,0 +1,36 @@
+{
+  "id": "canvas-far-dense-blank",
+  "feature": "远看密集画布：先凑近看到约 100% 再退到 20% / 35% / 55%，每档平移一圈 + 滚轮来回后停稳，真实合成帧里已解码却没画出来的卡占比（带阳性对照）",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "D60",
+    "--scenarios",
+    "far-dense-pan",
+    "--gpu-mem-mb",
+    "512",
+    "--dpr",
+    "1.25",
+    "--warmup",
+    "1"
+  ],
+  "scale": "反馈现场那一屏：60 张真实帧（参考 10 + 分镜 30 + 图片 20）、3 个组、240 条参考线；512MB 瓦片预算 + 设备像素比 1.25（Windows 1080p 125%）",
+  "metrics": [
+    "blankCardPct",
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 1,
+  "group": "③ 平移和缩放",
+  "budgetStatus": "proposed",
+  "budgetBasis": "用户反馈「图轮流消失、组底整块不画」：远看停稳后每张已解码的图都该画出来；60 张里一张都不许空（1% < 1/60），只为量具噪声留余量。改前同一跑法 35% 动后 71% 的卡空着（设计卡 docs/plan/2026-10-31-canvas-detail-admission.md ★7）",
+  "baseline": {
+    "median": 0,
+    "p95": 0,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-31",
+    "commit": "84c313c42",
+    "noisy": true
+  }
+}

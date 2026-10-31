@@ -17,7 +17,8 @@
     "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
     "src/workbench/generationCanvas/nodes/registry.ts",
     "src/workbench/generationCanvas/model/generationNodeKinds.ts",
-    "tests/perf/canvas-scale/"
+    "tests/perf/canvas-scale/",
+    "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx"
   ],
   "entry_points": [
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css（视口合成提示 .react-flow__viewport，本刀删掉）",
@@ -62,22 +63,31 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
       "symbol": ".react-flow__viewport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx",
+      "symbol": "NodeHoverTimelineHandle"
     }
   ],
   "door_reduction": {
-    "before": 5,
-    "after": 5,
-    "why_not": "五扇门各管一件不同的事，不是同一写入口的复制：判据定义（canvasNodeLevelOfDetail）、它唯一的消费者（节点外壳）、种类声明的登记（registry 的 ownsZoomTiers）与读取（generationNodeKinds 的 helper）、视口合成提示（样式）。本刀把判据的入参从「节点数 + 多选 + 保留标记」收成四个，视口合成提示从常驻改成不写"
+    "before": 6,
+    "after": 6,
+    "why_not": "六扇门各管一件不同的事，不是同一写入口的复制：判据定义（canvasNodeLevelOfDetail）、它唯一的消费者（节点外壳）、种类声明的登记（registry 的 ownsZoomTiers）与读取（generationNodeKinds 的 helper）、视口合成提示（样式）、远看卡的悬停把手（轻量卡，复用整卡同一个控件）。本刀把判据的入参从「节点数 + 多选 + 保留标记」收成四个，视口合成提示从常驻改成不写"
   },
   "regression_tests": [
     "src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts",
     "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.test.ts",
-    "tests/ux/canvas-drag-pan-gestures.walk.mjs"
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs",
+    "src/workbench/generationCanvas/components/LightweightGenerationNode.test.ts",
+    "tests/ux/clip-drop-zoom.walk.mjs"
   ],
   "residual_risks": [
     "弱显卡上平移改靠重画的每帧成本没在 Windows 真机量过（unverified；本机软件栅格代理数见设计卡「量到了什么」）",
     "远看图源仍是 1024 长边预览，解码像素是屏幕物理像素的 17.7 倍；按屏上尺寸选小图要改主进程预览档，另起一刀",
-    "组底色缺块在深色主题下像素量具判不出（组底与画布底色差不到 5 级），组这一半只有走查截图兜"
+    "组底色缺块在深色主题下像素量具判不出（组底与画布底色差不到 5 级），组这一半只有走查截图兜",
+    "小画布缩到 55% 以下时，文本卡正文、视频悬停试播、导演台「打开」等卡面按钮要点一下才有（超过 80 个节点本来就这样）；看得见的变化，写进设计卡 ★4 和 PR 正文",
+    "验收套件新加的两条 50% 档只在 Mac 真窗口跑过，Linux CI 的第一次运行在合入时"
   ],
   "external_sources": [
     {
@@ -146,6 +156,12 @@
       "entry_point": "canvasImageSourceOf",
       "disposition": "not-affected",
       "evidence": "远看图源只取画布预览（1024 长边），本刀未动；解码像素由结构硬数 decodedOverScreen ≤ 20 守（换成原图是 62）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx",
+      "entry_point": "LightweightGenerationNode",
+      "disposition": "enforced",
+      "evidence": "远看卡不带整卡上的悬停能力：用户拍板的拖入把手在光标进卡时才挂（只多一个控件、不换档），验收套件 far-zoom-clip-drop 走 50% 档真拖；其余悬停能力（视频试播、场景信息条）和卡面按钮要点中才有，写进设计卡 ★4"
     }
   ],
   "prevention": {
@@ -165,7 +181,8 @@
   },
   "class_regression_tests": [
     "src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts",
-    "tests/ux/canvas-drag-pan-gestures.walk.mjs"
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs",
+    "tests/ux/clip-drop-zoom.walk.mjs"
   ],
   "legacy_paths": {
     "status": "removed",

@@ -22,7 +22,9 @@
     "tests/perf/scenarios/canvas-far-dense-pan.json"
   ],
   "completionCommits": [
-    "525feeacb"
+    "525feeacb",
+    "5115d8bbd",
+    "84c313c42"
   ],
   "rootCauseContract": "docs/fixes/2026-10-31-canvas-detail-admission.root-cause.json",
   "classCheck": {

@@ -57,7 +57,7 @@ const DETAIL_LINE_PERCENT = 55
  * 打印是哪一条。数怎么来的见设计卡 docs/plan/2026-10-31-canvas-detail-admission.md「量到了什么」（512MB + 设备像素比 1.25）。
  *   · farCardDom：缩远（< 细节线）时，屏上每张卡的 DOM 元素数（屏上各卡的中位数，各远看档里最差的一档）。轻量卡 18、整卡 26——
  *     判据退回「按节点数切」时 60 张的画布远看画整卡，这一条红；
- *   · layers：缩远时的合成层数（CDP LayerTree）。视口不常驻合成层时 8；`will-change: transform` 加回来时 99–106
+ *   · layers：缩远时的合成层数（CDP LayerTree）。视口不常驻合成层时 8；`will-change: transform` 加回来时 75–106
  *     （连线 / 组框 / 卡各成一层，瓦片预算装不下就整块不画）——这一条红；
  *   · decodedOverScreen：挂着的图解码后的像素总和 ÷ 屏幕物理像素（各档最差）。画布预览档 17.7；换成原图是 62；
  *   · canvasVideos：画布里同时挂着的 <video> 数。

@@ -1,0 +1,36 @@
+{
+  "id": "canvas-far-dense-pan",
+  "feature": "远看密集画布在 20% / 35% / 55% 三档平移一圈 + 滚轮来回（每档一段计帧窗口拼起来），帧间隔",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "D60",
+    "--scenarios",
+    "far-dense-pan",
+    "--gpu-mem-mb",
+    "512",
+    "--dpr",
+    "1.25",
+    "--warmup",
+    "1"
+  ],
+  "scale": "反馈现场那一屏：60 张真实帧（参考 10 + 分镜 30 + 图片 20）、3 个组、240 条参考线；512MB 瓦片预算 + 设备像素比 1.25（Windows 1080p 125%）",
+  "metrics": [
+    "frameGapP95",
+    "longTasks",
+    "blankCardPct"
+  ],
+  "budget": 33,
+  "group": "③ 平移和缩放",
+  "budgetStatus": "proposed",
+  "budgetBasis": "连续手势要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；视口不再常驻合成层后平移靠重画，这一条守它不变卡（设计卡 docs/plan/2026-10-31-canvas-detail-admission.md ★7）",
+  "baseline": {
+    "median": 10.6,
+    "p95": 10.8,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-31",
+    "commit": "84c313c42",
+    "noisy": true
+  }
+}

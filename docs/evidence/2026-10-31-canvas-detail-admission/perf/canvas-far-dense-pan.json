@@ -1,0 +1,62 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "84c313c42",
+  "head": "84c313c4278ea074fe66e1388f29e302b11c01f1",
+  "dirty": true,
+  "sourceTree": "a0df1faae185587e1def235a82cacb2c4e6fc799",
+  "date": "2026-10-31",
+  "runs": 5,
+  "results": [
+    {
+      "id": "canvas-far-dense-pan",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 10.6,
+          "p95": 10.8
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "blankCardPct": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          10.8,
+          10.5,
+          10.6,
+          10.5,
+          10.6
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "budget": 33,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

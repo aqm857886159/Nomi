@@ -108,6 +108,19 @@ async function runZoom(zoomPercent) {
         await waitForCanvasViewportSettled(win)
       }
     }
+    // 画布只挂视口内的卡：150% 下稀疏节点在视口下方、还没挂上，panCanvasUntilInside 量不到它。先往下带到它挂上。
+    const mountSparse = async () => {
+      for (let step = 0; step < 6 && !(await sparse.count()); step += 1) {
+        const stage = await box(win.locator('.generation-canvas-v2__stage').first())
+        const from = center(stage)
+        await win.mouse.move(from.x, from.y)
+        await win.mouse.down({ button: 'middle' })
+        await win.mouse.move(from.x + 2, from.y + 1)
+        await win.mouse.move(from.x, from.y - 250, { steps: 8 })
+        await win.mouse.up({ button: 'middle' })
+        await waitForCanvasViewportSettled(win)
+      }
+    }
     const blankClick = async () => {
       const blank = await findCanvasBlankPoint(win, { inset: 60 })
       await win.mouse.click(blank.x, blank.y)
@@ -306,6 +319,7 @@ async function runZoom(zoomPercent) {
 
     // ───────── P6A 窄片段点击下限：片段外侧 1 屏幕像素也算点中它（不是拖播放头）─────────
     if (wanted('P6A')) {
+      await mountSparse()
       await bring(sparse)
       await blankClick()
       const target = clips(sparse).nth(3)
@@ -327,6 +341,7 @@ async function runZoom(zoomPercent) {
 
     // ───────── P6B 拖到时间轴边缘自动滚动 ─────────
     if (wanted('P6B')) {
+      await mountSparse()
       await bring(sparse)
       await blankClick()
       const axis = sparse.getByTestId('clip-node-axis-content').locator('..')
