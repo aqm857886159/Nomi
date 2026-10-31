@@ -100,7 +100,7 @@ async function* assetPages(env) {
 }
 
 // Epoch ms the object expires at, or null when it carries no usable expiresAt (never delete those).
-function expiryMs(object) {
+function assetExpiryMs(object) {
   const parsed = Date.parse(object.customMetadata?.expiresAt || "");
   return Number.isNaN(parsed) ? null : parsed;
 }
@@ -117,7 +117,7 @@ async function usageSnapshot(env) {
   for await (const objects of assetPages(env)) {
     for (const object of objects) {
       const size = Number(object.size || 0);
-      const expiresAtMs = expiryMs(object);
+      const expiresAtMs = assetExpiryMs(object);
       objectCount += 1;
       storageBytes += size;
       if (expiresAtMs === null) untrackedObjectCount += 1;
@@ -214,7 +214,7 @@ async function readAsset(request, env) {
   if (!key) return json({ error: "not_found" }, 404);
   const object = await env.ASSETS.get(key);
   if (!object) return json({ error: "not_found" }, 404);
-  const expiresAtMs = expiryMs(object);
+  const expiresAtMs = assetExpiryMs(object);
   if (expiresAtMs !== null && expiresAtMs <= Date.now()) {
     await env.ASSETS.delete(key);
     return json({ error: "expired" }, 404);
@@ -238,7 +238,7 @@ export async function cleanup(env) {
   for await (const objects of assetPages(env)) {
     const expired = [];
     for (const object of objects) {
-      const expiresAtMs = expiryMs(object);
+      const expiresAtMs = assetExpiryMs(object);
       if (expiresAtMs === null) untrackedObjectCount += 1;
       else if (expiresAtMs <= now) expired.push(object);
     }

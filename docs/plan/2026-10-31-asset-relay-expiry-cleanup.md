@@ -24,7 +24,7 @@
 
 ## ★2 谁说了算
 
-桶里什么算「已过期」：只有 `expiryMs(object)` 一处，`usageSnapshot`、`cleanup`、`readAsset` 共用；怎么列桶：只有 `assetPages()` 一处（固定前缀、页大小、`include: ["customMetadata"]`）。同一份事实存一份。门图：`node scripts/door-map.mjs` 的扫描根是 `src`、`electron`，Worker 不在其内（0 扇）；用 `rg -n '\.list\(|\.delete\(' workers infra worker` 手数：改前 list 两处 + delete 两处，改后 list 一处（`assetPages`）+ delete 两处（`cleanup` 批量、`readAsset` 单个）。没有靠「东西不见了」猜意图：删除只看 `expiresAt`。
+桶里什么算「已过期」：只有 `assetExpiryMs(object)` 一处，`usageSnapshot`、`cleanup`、`readAsset` 共用；怎么列桶：只有 `assetPages()` 一处（固定前缀、页大小、`include: ["customMetadata"]`）。同一份事实存一份。门图：`node scripts/door-map.mjs` 的扫描根是 `src`、`electron`，Worker 不在其内（0 扇）；用 `rg -n '\.list\(|\.delete\(' workers infra worker` 手数：改前 list 两处 + delete 两处，改后 list 一处（`assetPages`）+ delete 两处（`cleanup` 批量、`readAsset` 单个）。没有靠「东西不见了」猜意图：删除只看 `expiresAt`。
 
 ## ★3 一致与复用
 

@@ -45,17 +45,17 @@
   "door_reduction": {
     "before": 4,
     "after": 3,
-    "why_not": "The two list() calls (usageSnapshot, cleanup) merged into assetPages. The two delete paths stay: cleanup is the batched hourly sweep and readAsset removes the single expired key it was just asked for so a stale URL never serves; both use the same expiryMs() test, and merging them would make a read request pay for a bucket scan."
+    "why_not": "The two list() calls (usageSnapshot, cleanup) merged into assetPages. The two delete paths stay: cleanup is the batched hourly sweep and readAsset removes the single expired key it was just asked for so a stale URL never serves; both use the same assetExpiryMs() test, and merging them would make a read request pay for a bucket scan."
   },
-  "generality_proof": "All relay listings go through assetPages(), which fixes prefix, page size and include in one place; expiry is decided by one expiryMs() used by usageSnapshot, cleanup and readAsset. The class-level matrix runs object populations (all expired, all live, mixed, missing or garbled expiresAt, empty) across R2 page sizes of 1, 2, 3 and 1000 against a bucket double that behaves like R2, and a source census fails any worker file that lists an R2 bucket without include or that adds a second listing site to the relay.",
+  "generality_proof": "All relay listings go through assetPages(), which fixes prefix, page size and include in one place; expiry is decided by one assetExpiryMs() used by usageSnapshot, cleanup and readAsset. The class-level matrix runs object populations (all expired, all live, mixed, missing or garbled expiresAt, empty) across R2 page sizes of 1, 2, 3 and 1000 against a bucket double that behaves like R2, and a source census fails any worker file that lists an R2 bucket without include or that adds a second listing site to the relay.",
   "shared_boundaries": [
     { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "assetPages", "responsibility": "Own how the relay bucket is listed: prefix, page size and the include that makes expiresAt visible." },
-    { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "expiryMs", "responsibility": "Own the single definition of an object's expiry, returning null when no usable expiresAt exists so such objects are never deleted." },
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "assetExpiryMs", "responsibility": "Own the single definition of an object's expiry, returning null when no usable expiresAt exists so such objects are never deleted." },
     { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "usageSnapshot", "responsibility": "Own the stored-bytes figure the hard cap and budget guard compare against: every byte still in the bucket." }
   ],
   "same_class_entry_points": [
     { "path": "workers/nomi-asset-relay/src/index.mjs", "entry_point": "usageSnapshot", "disposition": "enforced", "evidence": "Already passed include; now shares assetPages and counts expired objects in storageBytes." },
-    { "path": "workers/nomi-asset-relay/src/index.mjs", "entry_point": "readAsset", "disposition": "enforced", "evidence": "get() always returns customMetadata; its expiry test now uses expiryMs() so all three sites agree on what expired means." },
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "entry_point": "readAsset", "disposition": "enforced", "evidence": "get() always returns customMetadata; its expiry test now uses assetExpiryMs() so all three sites agree on what expired means." },
     { "path": "infra/feedback-worker/src/worker.mjs", "entry_point": "feedback intake R2 writes", "disposition": "not-affected", "evidence": "rg -n '\\.list\\(' workers infra worker finds no bucket listing there; it only puts objects and has no expiry sweep." },
     { "path": "tests/asset-relay/worker.node-test.mjs", "entry_point": "source census over workers/ and infra/", "disposition": "enforced", "evidence": "Fails any worker source that lists an R2 binding without include: [\"customMetadata\"], and any second listing site in the relay." }
   ],
@@ -112,6 +112,6 @@
   "invariant_owner_layer": {
     "layer": "workers/nomi-asset-relay/src/index.mjs",
     "tests": ["tests/asset-relay/worker.node-test.mjs"],
-    "why": "assetPages and expiryMs own listing and expiry for every relay path; the matrix and census in the test file exercise them against a bucket double that mirrors R2."
+    "why": "assetPages and assetExpiryMs own listing and expiry for every relay path; the matrix and census in the test file exercise them against a bucket double that mirrors R2."
   }
 }
