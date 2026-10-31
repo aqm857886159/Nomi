@@ -37,7 +37,7 @@ export function scanGuardCensusInputs(root, trackedFiles, packageJson) {
 
 /** 真仓库上的核对结果（问题列表，空 = 通过）。 */
 export function scanGuardCensusProblems(root = repoRoot) {
-  const tracked = gitPaths(['ls-files'], { cwd: root, maxBuffer: 256 * 1024 * 1024 })
+  const tracked = gitPaths(['ls-files'], { cwd: root })
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
   return scanGuardProblems(scanGuardCensusInputs(root, tracked, packageJson))
 }
