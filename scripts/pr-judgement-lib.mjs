@@ -101,7 +101,7 @@ const NO_UI_DIFF = /无(?:界面|UI)差异|no\s+ui\s+diff/i
  * 三档判定的唯一实现。
  *   · 严：现行四类（花钱 / 长跑 / 可打断 / 新界面）。直接读 inferRoutes 的 fourClass，不另写第二套判据，也没有别的升严来源；声明降不了档。
  *   · 短：四类之外，且 ① 没写 `## 变更意图`、文件清单自证全是纯文档 / 测试 / 配置；或 ② 声明了单一意图的纯修复（或纯文档 / 测试 / 配置）、
- *     写明「界面核实：无界面差异」，base/head 界面清单也核实无差异。让逃逸账本条目转 fixed 的 PR 永远不进短档。
+ *     写明「界面核实：无界面差异」，base/head 界面清单也核实无差异。让逃逸账本条目转 fixed 或碰了存量数据路径的 PR 永远不进短档。
  *   · 标准：其余，也就是今天四类之外的全部要求。声明了短档但核实有差异、核实不了，一律落在这里，不升严。
  * uiVerification 可以是值，也可以是函数：只有声明短档的 PR 才调用，别的 PR 不为它去读拍板图清单；取数抛错按核实不了算。
  * shortAllowed=false：规则生效前开的 PR 不适用短档。
@@ -120,6 +120,8 @@ export function evaluateProcessTier({ body, files = [], inferred, ledgerTransiti
   const failures = []
   if (!shortAllowed) failures.push('规则生效前开的 PR，不适用短档')
   if (ledgerTransitions.length) failures.push(`让逃逸账本条目转 fixed（${ledgerTransitions.join('、')}），不进短档`)
+  // 短档免验收证据；碰存量的路径要交老用户升级路径证据（upgrade-path），所以落标准档。不升严：严档仍只由四类判定。
+  if ((inferred?.categories ?? []).some((category) => category.id === 'data-format')) failures.push('碰了存量数据的路径（数据格式类），要交老用户升级路径证据，不进短档')
   let ui = null
   if (declaredShort) {
     if (!declaration.singleIntent) failures.push(declaration.reason || '不是单一意图')
@@ -317,6 +319,25 @@ export function paidSampleVerdict(line) {
 }
 
 /**
+ * 老用户升级路径证据的判据（2026-10-31，用户：「替换的过程中要考虑老用户的迁移」）。
+ *
+ * 为什么单拎：通用判据接受「未验证：原因」。一次中转能力改动写的就是未验证，矩阵又只测手写形状，
+ * 一整类在用的模型升级后从列表消失，到最后一关才发现。
+ * 这里只认跑过真实旧数据的凭据（路径 / 链接 / 运行号），或「不适用：理由」（这次改动碰不到老用户手上的东西）。
+ * 「未验证」不接受，裸 PR 号不接受：PR 号证明不了谁跑过旧数据。
+ */
+export const UPGRADE_PATH_EVIDENCE_ID = 'upgrade-path'
+const UPGRADE_PATH_NOT_APPLICABLE = /不适用\s*[:：]\s*(\S.{3,})/
+const UPGRADE_PATH_PROOF = EVIDENCE_TOKEN.filter((pattern) => pattern.source !== '#\\d{2,}').concat(/(?:electron|src|scripts)\/[\w@./+-]+/)
+export function upgradePathVerdict(line) {
+  if (/未验证/.test(line)) return { ok: false, reason: '老用户升级路径不接受「未验证」：用真实旧版本的数据跑一遍（tests/fixtures/old-user-data/）交凭据，或写「不适用：理由」' }
+  const notApplicable = UPGRADE_PATH_NOT_APPLICABLE.exec(line)
+  if (notApplicable) return { ok: true, notApplicable: true, reason: notApplicable[1].trim() }
+  if (UPGRADE_PATH_PROOF.some((pattern) => pattern.test(line))) return { ok: true }
+  return { ok: false, reason: '没有跑过旧数据的凭据（路径 / 链接 / 运行号，裸 PR 号不算），也不是「不适用：理由」（理由至少 4 个字）' }
+}
+
+/**
  * 必交证据 = 各类别要求的并集，只含 when = "pr" 的（每个 PR 按功能分类跑；paid 的在 PR 上只要求正文交证据、不在 CI 自动跑）。
  * when = "manual-full" 的只在用户手动触发的全量跑里跑，PR 正文不要求（用 manualFullEvidence 列出来）。
  */
@@ -357,6 +378,7 @@ export function checkRoutingEvidence(body, categoryIds, table = loadRoutingTable
   const gaps = []
   const perfReasons = []
   const paidReasons = []
+  const upgradeReasons = []
   const paidNotes = []
   let provided = 0
   let unverifiedCount = 0
@@ -371,12 +393,13 @@ export function checkRoutingEvidence(body, categoryIds, table = loadRoutingTable
       if (strictPaid) paidReasons.push('合并前扫描要求花钱类 PR 有一行 `spend-paid-sample：<运行号 / 报告链接>` 或 `spend-paid-sample：协调豁免：<理由>`（别名不算，未验证不算）')
       continue
     }
-    const verdicts = mine.map(strictPaid ? paidSampleVerdict : item.id === PERF_EVIDENCE_ID ? perfVerdictFor(known, perfOptions) : evidenceLineVerdict)
+    const verdicts = mine.map(strictPaid ? paidSampleVerdict : item.id === PERF_EVIDENCE_ID ? perfVerdictFor(known, perfOptions) : item.id === UPGRADE_PATH_EVIDENCE_ID ? upgradePathVerdict : evidenceLineVerdict)
     const good = verdicts.find((verdict) => verdict.ok)
     if (!good) {
       bad.push(item)
       if (item.id === PERF_EVIDENCE_ID) perfReasons.push(...verdicts.map((verdict) => verdict.reason).filter(Boolean))
       if (strictPaid) paidReasons.push(...verdicts.map((verdict) => verdict.reason).filter(Boolean))
+      if (item.id === UPGRADE_PATH_EVIDENCE_ID) upgradeReasons.push(...verdicts.map((verdict) => verdict.reason).filter(Boolean))
       continue
     }
     if (strictPaid && good.waived) paidNotes.push(`⚠ ${PAID_SAMPLE_EVIDENCE_ID}：协调豁免——${good.reason}（没有真付费抽检；豁免理由请协调会话合并前再看一眼）`)
@@ -399,6 +422,7 @@ export function checkRoutingEvidence(body, categoryIds, table = loadRoutingTable
     if (bad.length) lines.push(`✖ 这些证据条目没有报告链接 / 运行号 / 截图路径，也没写「未验证：原因」：${bad.map((item) => item.id).join('、')}`)
     for (const reason of new Set(perfReasons)) lines.push(`  → ${PERF_EVIDENCE_ID}：${reason}`)
     for (const reason of new Set(paidReasons)) lines.push(`  → ${PAID_SAMPLE_EVIDENCE_ID}：${reason}`)
+    for (const reason of new Set(upgradeReasons)) lines.push(`  → ${UPGRADE_PATH_EVIDENCE_ID}：${reason}`)
     lines.push(`  → 每项一行：\`- <证据 id>：<链接 / 运行号 / 截图路径>\` 或 \`- <证据 id>：未验证：原因\`；工具还没建的证据写「未验证：工具未建」`)
   } else {
     lines.push(`✅ 验收证据：${required.length} 项都有条目（实证 ${provided - unverifiedCount}，未验证 ${unverifiedCount}）`)
