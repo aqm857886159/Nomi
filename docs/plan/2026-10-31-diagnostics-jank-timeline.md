@@ -8,7 +8,7 @@
 
 用户说「卡」时我们只能猜：主进程堵了还是渲染层堵了、哪一刻、工程多大、什么显卡，诊断包里都没有。用户通常卡完、重启了才想起导出，所以记录必须活过重启。这条线让下一位用户导出的诊断包直接写明这些。数据只留本机，用户自己导出才给我们；不往 `perf.session.summary` 加字段，不改它的 `generating` 口径。
 
-## ★0 先查别人
+## 先查别人（★0）
 
 1. Electron 性能指南 <https://www.electronjs.org/docs/latest/tutorial/performance> · 别堵主进程，核心模块优先异步版，测量靠 DevTools / Tracing · **确认**主进程停顿是要量的一类；**改了**：只留本机时间线，不开 tracing、不做 CPU profile（范围外）。
 2. Node `perf_hooks` <https://nodejs.org/api/perf_hooks.html> · `monitorEventLoopDelay` 返回纳秒直方图，`resolution` 是采样间隔；`samplePerIteration` 到 v26.5.0 才有，本仓 Electron 43.4.1 内置 Node 24.18.1 没有 · **改了**：用标准直方图 + 间隔采样，不自写剖析器；实测（见 ★7）记录值含采样间隔本身，且 20ms 间隔的开销超预算，采样间隔改 80ms。
