@@ -1,3 +1,4 @@
+import { storyboardBulkAspectOptions } from './storyboardBulkAspectOptions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconStack2 } from '@tabler/icons-react'
@@ -94,10 +95,9 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
   // 整片默认画幅的候选 = 各镜模型各自声明的画幅取交集（不再是一份写死的固定表）∪ 当前值（Agent 可能写了候选外的档，别让触发器显错）。
   // '' = 还没定，按模型默认走。没有任何一镜带画幅控件时退回只留「按模型默认」。
   const derivedAspects = projectAspectOptions({ plan, shots: plan.shots, imageModelOptions, videoModelOptions, aspectOf: (shot) => effectiveShotAspect(plan, shot) })
-  const aspectOptions = [
-    { value: '', label: t('storyboardEditor.bulk.aspectDefault') },
-    ...[...new Set([...(derivedAspects ?? []), ...(planAspect ? [planAspect] : [])])].map((aspect) => ({ value: aspect, label: aspect })),
-  ]
+  const aspectOptions = storyboardBulkAspectOptions(derivedAspects, planAspect).map(option =>
+    option.value === '' ? { ...option, label: t('storyboardEditor.bulk.aspectDefault') } : option,
+  )
 
   // 选「混合」这个临时项不做事（它只是「当前不一致」的显示态，不是可应用的值）。
   const applyIfReal = (value: string, apply: (value: string) => void): void => {
