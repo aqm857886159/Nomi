@@ -30,7 +30,7 @@
     "runs": 5,
     "machine": "darwin arm64 Apple M5 x10 / 24GB",
     "date": "2026-10-31",
-    "commit": "84c313c42",
+    "commit": "9b49d3a40",
     "noisy": true
   }
 }

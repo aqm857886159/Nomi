@@ -40,7 +40,7 @@ describe('两档共用同一份身份契约', () => {
 })
 
 // 用户 10-12 拍板「悬停也能拖」：远看也算数，但只挂在光标所在的那张卡上。真挂上、真拖得动由
-// clip-drop-zoom 走查的 50% 档（画布验收套件 far-zoom-clip-drop）守；这里守「光标不在时不白加 DOM」。
+// clip-drop-zoom 走查的 35% 档（画布验收套件 far-zoom-clip-drop）守；这里守「光标不在时不白加 DOM」。
 describe('远看卡的拖入把手', () => {
   it('光标不在卡上时不挂把手', () => {
     expect(render({ result: { id: 'r', type: 'image', url: 'file:///a.png', createdAt: 1 } })).not.toContain('data-node-timeline-hover-handle')
