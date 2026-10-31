@@ -27,7 +27,7 @@ cd C:\nomi-win-check\repo
 node -v        # 要 >= 22.19.0（package.json engines；CI 用 24）
 pnpm -v        # 要 10.8.1（packageManager）；没有或不同，记下来告诉用户，不要提权安装
 gh auth status # 要已登录；没登录就停下告诉用户，不要自己输密码或令牌
-gh pr checkout __PR__
+gh pr checkout 1396
 git branch --show-current   # 应是 test/windows-release-check
 pnpm install --frozen-lockfile
 ```
