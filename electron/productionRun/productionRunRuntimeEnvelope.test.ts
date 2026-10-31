@@ -8,6 +8,7 @@ import {
   RuntimeEnvelopeConflictError,
   createProductionRunRuntimeEnvelope,
 } from "./productionRunRuntimeEnvelope";
+import { ProductionRunLockBusyError } from "./productionRunLock";
 
 const tempDirs: string[] = [];
 
@@ -74,6 +75,21 @@ describe("ProductionRunRuntimeEnvelope", () => {
     const restarted = createProductionRunRuntimeEnvelope({ filePath: path.join(dir, "envelope.json") });
     expect(restarted.read()).toEqual(observed);
   });
+});
+
+it("gives up waiting for the lifecycle lock at its deadline, with the busy error upper layers recognize", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-runtime-envelope-"));
+  tempDirs.push(dir);
+  const filePath = path.join(dir, "runtime-envelope.json");
+  const store = createProductionRunRuntimeEnvelope({ filePath, lifecycleWaitMs: 60 });
+  const request = { runId: "run-1", jobId: "job-1", runtimeTaskId: "t", contractHash: "h", providerIdempotencyKey: "k", requestFingerprint: "f", request: {} };
+  store.seal(request);
+  const observed = store.markProviderAccepted({ providerTaskId: "task-1" });
+  // 一直有效的租约：别的进程活着。等到期限就交上层，不无限等、不抢。
+  fs.writeFileSync(`${filePath}.lifecycle-lock`, JSON.stringify({ schemaVersion: 1, ownerId: "alive", pid: 1, acquiredAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(), fencingEpoch: 1, nonce: "n" }));
+
+  await expect(store.markPolled({ observed, status: "completed" })).rejects.toBeInstanceOf(ProductionRunLockBusyError);
+  expect(fs.existsSync(`${filePath}.lifecycle-lock`)).toBe(true);
 });
 
 it("does not rewrite an unchanged pending observation but preserves terminal raw", async () => {

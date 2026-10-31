@@ -1,10 +1,10 @@
-// 端到端接线回归：轮询进行中模型被下架/凭证失效（findExecutableModel 抛错）必须落
-// 诚实失败终态——裸抛会被渲染层当可恢复轮询错误空转 45s 后落「可找回」，错误既不
-// 指向根因也不会自愈（模型不可执行是永久条件）。与 unrecognizedTaskStatusQuery.test.ts
-// 同源同风格：只桩 HTTP 边界与模型解析，归一/缓存/受理全用真的。
+// 端到端接线回归：轮询进行中模型被关 / 凭证没了（findExecutableModel 抛错）：这一次根本没问过供应商，开回来就能查。
+// 结果带判别码，有 Run 的查询方和 AI 读任务据此不把它当结论；没有 Run 的旧路径照旧读 failed 和指向根因的那句话。
+// 与 unrecognizedTaskStatusQuery.test.ts 同源同风格：只桩 HTTP 边界与模型解析，归一/缓存/受理全用真的。
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { admitTask, taskCache } from "../runtime";
+import { isLocalQueryBlockedRaw } from "./taskAdmission";
 import { fetchTaskResult } from "./taskResultQuery";
 
 const executeProfileOperation = vi.fn();
@@ -45,7 +45,7 @@ async function seedPendingTask(taskId: string) {
   });
 }
 
-describe("轮询中模型不可执行 → 诚实失败", () => {
+describe("轮询中模型不可执行 → 本机查不了", () => {
   beforeEach(() => {
     executeProfileOperation.mockReset();
     findExecutableModel.mockReset();
@@ -56,7 +56,7 @@ describe("轮询中模型不可执行 → 诚实失败", () => {
     }));
   });
 
-  it("findExecutableModel 抛错 → failed 终态 + 指向根因的文案，不裸抛成可恢复轮询", async () => {
+  it("findExecutableModel 抛错 → 带判别码 + 指向根因的文案，没问供应商，不裸抛", async () => {
     await seedPendingTask("task-model-gone");
     findExecutableModel.mockImplementation(() => {
       throw new Error("model acme-video is not executable");
@@ -64,9 +64,10 @@ describe("轮询中模型不可执行 → 诚实失败", () => {
 
     const polled = await fetchTaskResult({ taskId: "task-model-gone" });
 
-    // 修复前：这里 reject（裸 Error 冒泡），渲染层当可恢复错误空转 45s 后落「可找回」。
     expect(polled.result.status).toBe("failed");
     expect(polled.result.error).toContain("模型当前不可执行");
+    expect(polled.result.raw).toEqual({ code: "model_unresolvable", taskId: "task-model-gone" });
+    expect(isLocalQueryBlockedRaw(polled.result.raw)).toBe(true);
     expect(executeProfileOperation).not.toHaveBeenCalled();
   });
 });

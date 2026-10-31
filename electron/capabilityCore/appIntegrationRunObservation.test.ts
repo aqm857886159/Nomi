@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createRunObservationDrivers } from './appIntegrationRunObservation'
+import { ProductionRunLockBusyError } from '../productionRun/productionRunLock'
 import type { ProductionRun } from '../productionRun/productionRunTypes'
 
 // 2026-09-25 用户报「Agent 付费卡生成的视频早就出好了，节点一直转圈」。复现到的机制之一：
@@ -52,6 +53,25 @@ describe('single-shot observation outlives the provider', () => {
     })
     return { submission, drivers, finishAtProvider: () => { providerDone = true }, settleElsewhere: () => { current = pollingRun('ready') } }
   }
+
+  it('撞上别的观察者（锁忙）不判这一笔失败：什么都不写，歇一会儿接着问', async () => {
+    const { submission, drivers, finishAtProvider } = setup()
+    const execute = vi.fn()
+    const contended = createRunObservationDrivers({
+      repository: { read: () => pollingRun(), execute } as never,
+      buildSchedulerForRun: () => null,
+    })
+    submission.poll.mockRejectedValueOnce(new ProductionRunLockBusyError())
+    finishAtProvider()
+    contended.observeSingleShotRun(submission as never, 'proj-1', 'run-1')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(execute).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(submission.materialize).toHaveBeenCalledTimes(1)
+    expect(submission.start).not.toHaveBeenCalled()
+    contended.stop()
+    drivers.stop()
+  })
 
   it('观察窗到了供应商还没给结论 → 歇一会儿接着问；供应商一出片就物化（只查不交，绝不再 start）', async () => {
     const { submission, drivers, finishAtProvider } = setup()

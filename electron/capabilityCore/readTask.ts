@@ -10,7 +10,7 @@
  */
 import type { FetchTaskResultFn } from "./core";
 import { TtlLruCache } from "../tasks/taskCache";
-import { isTaskCacheMissRaw } from "../tasks/taskAdmission";
+import { isLocalQueryBlockedRaw } from "../tasks/taskAdmission";
 import { isTerminalTaskStatus } from "../shared/taskStatus";
 import { redactAdapterSecrets, sanitizedAdapterJson } from "../providerAdapter/redaction";
 
@@ -70,7 +70,14 @@ export async function readTask(
       nextAction: "Wait a little and read this task again. Do not submit the generation again: that would charge a second job.",
     };
   }
-  if (isTaskCacheMissRaw(result.raw)) {
+  if (isLocalQueryBlockedRaw(result.raw)) {
+    if (result.raw.code === "model_unresolvable") {
+      return {
+        taskId, state: "query_failed",
+        message: "Nomi cannot ask the provider about this task right now: its model or API key is not available in Nomi, so no request went out. That says nothing about the job itself, and this read submitted nothing.",
+        nextAction: "Ask the user to turn the model back on or restore its API key, then read this task again. Do NOT submit the generation again: that would charge a second job.",
+      };
+    }
     const tracked = result.raw.code === "task_tracking_lost";
     return tracked
       ? {

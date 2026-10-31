@@ -35,6 +35,19 @@ describe('「已提交、没取回」错误卡的主按钮按任务来源分', (
     })
   }
 
+  // 0.24.0 及更早存在节点上的两句旧话：钱已经花了、任务号还在，主按钮不能是重试（= 再扣一次）。
+  for (const lang of ['zh-CN', 'en'] as const) {
+    for (const sentence of ['生成结果未能安全落入项目，请查看任务并处理', '供应商返回了未识别的任务状态，需要人工核对']) {
+      it(`${lang} · 老项目的错误卡「${sentence}」：主按钮是去重新取回`, async () => {
+        await i18n.changeLanguage(lang)
+        const nodeId = canvasNode('task-paid-old')
+        const markup = renderToStaticMarkup(<NodeErrorReport message={sentence} nodeId={nodeId} run={{ id: 'run-1', taskId: 'task-paid-old' }} meta={{}} onRetry={() => {}} />)
+        expect(markup).toContain(i18n.t('generationCommon.observability.action.openRecoverable.main'))
+        expect(markup).not.toContain(`>${i18n.t('generationCommon.observability.action.retry.main')}<`)
+      })
+    }
+  }
+
   it('制作 Run 的镜：保留「查看制作任务」', () => {
     const nodeId = canvasNode('task-paid-2')
     const markup = renderToStaticMarkup(<NodeErrorReport message={RETRIEVAL_FAILURE} nodeId={nodeId} run={{ id: 'run-2', taskId: 'task-paid-2' }} meta={{ productionRunId: 'run-x', productionShotId: 's1' }} onRetry={() => {}} />)

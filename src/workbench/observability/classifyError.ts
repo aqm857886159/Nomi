@@ -13,7 +13,7 @@ import {
 import { parseVendorErrorFromMessage, stripVendorErrorMarker, type VendorErrorStructuredLite } from '../generationCanvas/runner/vendorErrorIpc'
 import { parseTaskFailureMessage } from '../generationCanvas/runner/taskFailureMessage'
 import { shotClaimCopy } from './shotClaimCopy'
-import { matchNomiErrorCode, stripNomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
+import { isRetrievalStageCode, matchNomiErrorCode, stripNomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
 import { withoutIpcInvokeWrapper } from '../../../electron/shared/contracts/ipcInvokeFailure'
 import i18n from '../../i18n'
 
@@ -600,7 +600,8 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // 已提交、这次没取回（⑬）：任务已经交给服务商，是查 / 读 / 下载 / 等这一次没成——主动作只有「重新取回」，
   // 绝不落进 unknown 被配上「可以重试一次」（= 再生成、再扣一次）。服务商真说过的话（503「无可用渠道」）照旧给；
   // 没有就给 ''，不从正文里抠一句冒充（取回出口写的「Nomi 本机拦下」那句不是服务商说的）。
-  if (outboundCode === 'retrieval-query' || outboundCode === 'retrieval-parse' || outboundCode === 'retrieval-download' || outboundCode === 'retrieval-timeout') {
+  // 按族判，不抄码表：新增的 retrieval-* 自动归这里，不会漏到下面被猜文案判成别的（族里的 outbound-blocked 上面已经先判了）。
+  if (isRetrievalStageCode(outboundCode)) {
     return reportFor('retrieval-incomplete', cleanRaw, upstream || '')
   }
   // 本机处理失败：没有服务商参与，upstream 给 ''（不印「服务商原话」）；原因就是码后面那句人话，已经在 raw / 标题里。

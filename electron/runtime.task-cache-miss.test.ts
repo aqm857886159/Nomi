@@ -12,7 +12,21 @@
  * 分类逻辑抽成纯函数 classifyTaskCacheMiss 便于单测。
  */
 import { describe, it, expect } from "vitest";
-import { classifyTaskCacheMiss } from "./tasks/taskAdmission";
+import { classifyTaskCacheMiss, isLocalQueryBlockedRaw } from "./tasks/taskAdmission";
+
+describe("isLocalQueryBlockedRaw：本机查不了的判别，供应商的响应不能冒充", () => {
+  it("三种码都是本机查不了", () => {
+    expect(isLocalQueryBlockedRaw(classifyTaskCacheMiss("t", false).raw)).toBe(true);
+    expect(isLocalQueryBlockedRaw(classifyTaskCacheMiss("t", true).raw)).toBe(true);
+    expect(isLocalQueryBlockedRaw({ code: "model_unresolvable", taskId: "t" })).toBe(true);
+  });
+
+  it("供应商响应里碰巧有个 code 字段不算；别的码、空值也不算", () => {
+    for (const raw of [{ code: "task_unknown" }, { code: "model_unresolvable", id: "t" }, { code: "failed", taskId: "t" }, {}, null, undefined, "task_unknown"]) {
+      expect(isLocalQueryBlockedRaw(raw), JSON.stringify(raw)).toBe(false);
+    }
+  });
+});
 
 describe("classifyTaskCacheMiss — 两种 miss 给可诊断的不同错误", () => {
   it("从未受理过的 taskId → failed，错误明确指向「未知/不存在」", () => {
@@ -28,6 +42,7 @@ describe("classifyTaskCacheMiss — 两种 miss 给可诊断的不同错误", ()
     expect(out.status).toBe("failed");
     // 关键：code 与「未知」不同，渲染层/用户能区分两种 miss。
     expect((out.raw as { code?: string }).code).toBe("task_tracking_lost");
+    expect(isLocalQueryBlockedRaw(out.raw)).toBe(true);
     // 提示「可能已在供应商侧完成」，引导去查/重试，而不是当作彻底失败。
     expect(out.error).toMatch(/追踪|供应商|completed|tracking|重试|retry/i);
   });

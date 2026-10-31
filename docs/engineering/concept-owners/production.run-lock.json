@@ -1,0 +1,40 @@
+{
+  "name": "制作 Run 的文件租约锁（谁持有、坏记录和过期记录怎么回收）",
+  "subject": "production.run-lock",
+  "lifecycle": "execution",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionRunLock.ts",
+    "symbol": "createProductionRunLock"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionRunLock.ts",
+      "symbol": "createProductionRunLock"
+    },
+    {
+      "path": "electron/productionRun/productionRunLock.ts",
+      "symbol": "reclaimCorruptRecord"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/approvalReceipt.ts",
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/integrationCertification/operationLedger.ts",
+    "electron/integrationCertification/promotionJournal.ts",
+    "electron/productionRun/multiShotBatchScheduler.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/productionRunRepository.ts",
+    "electron/productionRun/productionRunRuntimeEnvelope.ts",
+    "electron/productionRun/singleShotRunLifecycle.ts",
+    "electron/productionRun/submissionIntent.ts",
+    "electron/productionRun/submissionOutbox.ts",
+    "electron/providerAdapter/store.ts"
+  ],
+  "since": "2026-10-31",
+  "notes": "合同 docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json。Run 锁、生命周期锁、仓库短互斥锁和账本类文件锁都经 createProductionRunLock。过期记录按到期时间回收；坏记录没有到期时间，只有 reclaimCorruptRecord 按文件多久没动过回收，超过一个租期才算没有活人。已知限制：回收共用 quarantine，rename 不核对象，多进程同一瞬间撞同一把死锁时能挪走别人刚写的新租约；这条竞态改前就有，这次扩到了坏记录。"
+}
