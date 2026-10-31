@@ -1,0 +1,28 @@
+{
+  "name": "从 git 读路径列表：转义和缓冲上限只在一处",
+  "subject": "delivery.git-path-listing",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "forbidden_derivations": [],
+  "since": "2026-10-31",
+  "owner": {
+    "path": "scripts/lib/gitPaths.mjs",
+    "symbol": "gitPaths"
+  },
+  "write_api": [
+    {
+      "path": "scripts/lib/gitPaths.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "path": "scripts/lib/gitPaths.mjs",
+      "symbol": "gitNameStatus"
+    }
+  ],
+  "parity_test": "scripts/lib/gitPaths.node-test.mjs",
+  "allowed_consumers": [],
+  "notes": "门岗和脚本列文件都走这里：-z 关掉路径转义，缓冲上限是这里的一个常量，调用方传不了。check:git-path-quoting 拦绕开它的 ls-files。"
+}

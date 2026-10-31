@@ -351,7 +351,7 @@ test('结构：本文件里只有 isolatedRun 一处直接起子进程（runNode
 })
 
 test('结构：scripts/ 里 spawn 出来的子进程统一走 processTree；直接 kill 只能是具名生命周期例外', () => {
-  const files = gitPaths(['ls-files', 'scripts'], { cwd: repoRoot, maxBuffer: 256 * 1024 * 1024 })
+  const files = gitPaths(['ls-files', 'scripts'], { cwd: repoRoot })
     .filter((file) => /\.(?:mjs|cjs|js)$/.test(file) && file !== 'scripts/lib/processTree.mjs')
   const directKillFiles = files.filter((file) => /\.kill\s*\(/.test(read(file).replace(/\bprocess\.kill\s*\(/g, '')))
   assert.deepEqual(directKillFiles.sort(), Object.keys(DIRECT_KILL_EXCEPTIONS).sort(), `未登记的直接 kill：${directKillFiles.join('、')}`)
@@ -537,7 +537,7 @@ test('必红：typecheck 超时 → 推送不被拦（状态 0）、输出写明
 const scanGuardInputs = scanGuardCensusInputs
 
 test('扫描型守卫：仓库里每个「遍历源码并对全集断言」的测试都有去处——推送前登记 / CI_ONLY（附理由）/ 已被推送前门岗覆盖 / 识别器误判（附理由）', () => {
-  const tracked = gitPaths(['ls-files'], { cwd: repoRoot, maxBuffer: 256 * 1024 * 1024 })
+  const tracked = gitPaths(['ls-files'], { cwd: repoRoot })
   const problems = scanGuardProblems(scanGuardInputs(repoRoot, tracked, pkg))
   assert.deepEqual(problems, [], `\n${problems.join('\n')}\n`)
   assert.ok(SCAN_GUARDS.length >= 40, `登记的扫描型守卫太少：${SCAN_GUARDS.length}`)
