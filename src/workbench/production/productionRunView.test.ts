@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ProductionRun, ProductionRunStatus } from '../../../electron/productionRun/productionRunTypes'
+import { RETRIEVAL_UNAVAILABLE_MESSAGE } from '../../../electron/shared/nomiErrorCodes'
 import type { TaskCenterGroup } from '../taskCenter/taskCenterProjection'
 import { buildProductionRunView, isProductionRunTask, productionRunStatusGroup, type ProductionRunTone } from './productionRunView'
 import { transitionRun } from '../../../electron/productionRun/productionRunState'
@@ -307,6 +308,20 @@ describe('production run view', () => {
       expect(VIEW_TONES_BY_GROUP[view.group as Exclude<TaskCenterGroup, 'queued'>], `${value.status} → ${view.titleKey}`).toContain(view.tone)
     }
     for (const status of statuses) expect(productionRunStatusGroup(status)).not.toBe('queued')
+  })
+
+  it('只差取回：问不了时说真实原因，其余照旧；主动作都是重新取回', () => {
+    const job = { ...run().jobs[0], status: 'needs_attention' as const, providerTaskId: 'task-1', errorCode: 'output_retrieval_failed' }
+    expect(buildProductionRunView(run({ jobs: [{ ...job, errorMessage: RETRIEVAL_UNAVAILABLE_MESSAGE }] }), now)).toMatchObject({
+      titleKey: 'generationCommon.recoverable.unavailableTitle',
+      descriptionKey: 'generationCommon.recoverable.unavailableDescription',
+      primaryAction: 'retry-retrieval',
+    })
+    expect(buildProductionRunView(run({ jobs: [{ ...job, errorMessage: 'NOMI_ERR::retrieval-query:: x' }] }), now)).toMatchObject({
+      titleKey: 'generationCommon.production.status.outputRetrievalFailed',
+      descriptionKey: 'generationCommon.production.description.outputRetrievalFailed',
+      primaryAction: 'retry-retrieval',
+    })
   })
 
   it('已取消的 Run 不再报「Nomi 正在继续制作」', () => {

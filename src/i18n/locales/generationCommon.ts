@@ -1724,11 +1724,14 @@ export const zhGenerationCommon = {
     description: '等待已超上限，但上游可能仍出了片。点下面的「重新取回」直接拉回，不用去服务商后台下载。',
     recovering: '正在拉取…',
     dismiss: '标记失败',
+    markedFailed: '已标记为失败：没有找回结果。可以重新生成。',
     missingTask: '无法找回：缺少任务标识（taskId）或模型信息，请重新生成。',
     otherProjectTask: '无法在这里找回：这条任务属于另一个项目，请回到发起它的项目里重新拉取。',
     retrievingResult: '正在重新拉取结果…',
     stillUpstream: '任务仍在上游进行，请稍后再次拉取。',
     timedOut: '取回卡在「等待结果」这一步：等到上限还没有结果（任务号 {{taskId}}）。',
+    unavailableTitle: '查不到这一单的结果',
+    unavailableDescription: '多半是模型或 Key 现在用不了，Nomi 没法去服务商那边查。恢复后点「重新取回」，不会重新生成。这单不要了就点「标记失败」。',
   },
   // 生成的某一步等不到回音、到点收场时的说法（runner/generationPhaseDeadline）。每句都说清钱在哪、下一步是什么。
   phaseDeadline: {
@@ -3439,11 +3442,15 @@ export const enGenerationCommon = {
       'The wait timed out, but the provider may still have produced the result. Click “Retrieve again” to get it back without downloading it from the provider dashboard.',
     recovering: 'Retrieving…',
     dismiss: 'Mark Failed',
+    markedFailed: 'Marked as failed: the result was not retrieved. You can generate it again.',
     missingTask: 'Cannot retrieve this result because its task ID or model information is missing. Generate it again.',
     otherProjectTask: 'This task belongs to another project. Open the project that started it to retrieve the result.',
     retrievingResult: 'Retrieving the result again…',
     stillUpstream: 'The task is still running upstream. Try retrieving it again later.',
     timedOut: 'Retrieval stopped while waiting for the result: the wait limit was reached (task {{taskId}}).',
+    unavailableTitle: 'Can’t check this task right now',
+    unavailableDescription:
+      'The model or API key most likely isn’t available right now, so Nomi can’t ask the provider about this task. Once it’s back, click “Retrieve again”; nothing is generated again. If you don’t want this task anymore, click “Mark Failed”.',
   },
   phaseDeadline: {
     resultSilent:

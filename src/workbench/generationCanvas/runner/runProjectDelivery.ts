@@ -18,6 +18,7 @@ import { sameProjectAgentBinding, type ProjectBinding } from '../../../../electr
 import { isProjectBindingOpen } from '../../project/projectCanvasReadSurface'
 import { readLocalProjectAsync } from '../../library/localProjectStore'
 import { getDesktopBridge } from '../../../desktop/bridge'
+import { releaseCanvasShotRun } from '../../api/taskApi'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { nodeProgressChangesRecovery, nodeRunOutcomePatch, type NodeRunOutcome } from '../store/nodeRunOutcome'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -96,10 +97,33 @@ function serializeDiskDelivery<T>(projectId: string, operation: () => Promise<T>
 }
 
 /**
+ * 节点落可找回 = 渲染层不再等这一笔了，交给主进程观察者接着查。不交的话 Run 一直算在生成，
+ * 「标记失败」之后也重试不了；窗口关了或项目重开时主进程自己会接手，这里管的是窗口一直开着的那段。
+ * 查到的结果先落进项目，节点上点一下「重新取回」即现，不联网不花钱。
+ * 所有经投递落可找回的路（轮询到期、取回族错误、点重新取回等满时限或查询抛错）都走这里，所以只写这一处。
+ * 放手失败不影响落可找回：重开项目还会接手。没有 Run 的旧记录，主进程什么也不做。
+ */
+async function handRunToObserver(target: RunProjectTarget, nodeId: string): Promise<void> {
+  try {
+    const runRecordId = (await readRunGraph(target))?.nodes.find((node) => node.id === nodeId)?.runs?.[0]?.id
+    if (runRecordId) await releaseCanvasShotRun({ projectId: target.projectId, runRecordId })
+  } catch {
+    // 见上：放手失败不影响落可找回，这一笔已经落了。
+  }
+}
+
+/**
  * 把一次运行的结局投递到它的原项目。返回 true = 落进了正打开的原项目画布（调用方据此做只属于前台的收尾：
  * 模型健康记账、立即保存）；false = 写进了原项目的盘上副本，或节点已不存在。
  */
 export async function deliverRunOutcome(target: RunProjectTarget, nodeId: string, outcome: NodeRunOutcome): Promise<boolean> {
+  const landed = await deliverToOriginalProject(target, nodeId, outcome)
+  // 落完再放手：观察者要是先落了结果，不能再被这一笔可找回盖掉。
+  if (outcome.kind === 'status' && outcome.status === 'recoverable') await handRunToObserver(target, nodeId)
+  return landed
+}
+
+async function deliverToOriginalProject(target: RunProjectTarget, nodeId: string, outcome: NodeRunOutcome): Promise<boolean> {
   if (isRunTargetLoaded(target)) return applyToStore(nodeId, outcome)
   return serializeDiskDelivery(target.projectId, async () => {
     if (isRunTargetLoaded(target)) return applyToStore(nodeId, outcome)

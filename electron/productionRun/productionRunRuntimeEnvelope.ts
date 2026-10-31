@@ -67,7 +67,13 @@ function sameSemanticInput(left: RuntimeEnvelopeSealInput, right: ProductionRunR
     && canonicalJson(left.request) === canonicalJson(right.request);
 }
 
-export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now?: () => string }) {
+/**
+ * 等生命周期锁的总期限。残留的有效租约要等到它过期（上限是租期 30 秒），坏记录要等它超过一个租期才能回收，再留一段给正常交接；
+ * 到了就把「忙」抛给上层，由上层过一会儿再来。这里不能无限等：等不到就没人能收这一笔的结果。
+ */
+const LIFECYCLE_WAIT_MS = 45_000;
+
+export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now?: () => string; lifecycleWaitMs?: number }) {
   const now = deps.now ?? (() => new Date().toISOString());
 
   function read(): ProductionRunRuntimeEnvelope | null {
@@ -136,10 +142,11 @@ export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now
   // Same-pending observations return before entering here: no lock writes or heartbeat at idle.
   async function withLifecycle<T>(work: (assertOwned: () => void) => T | Promise<T>): Promise<T> {
     let lease: ProductionRunLockLease;
+    const deadline = performance.now() + (deps.lifecycleWaitMs ?? LIFECYCLE_WAIT_MS);
     for (;;) {
       try { lease = lifecycle.acquire(); break; }
       catch (error) {
-        if (!(error instanceof ProductionRunLockBusyError)) throw error;
+        if (!(error instanceof ProductionRunLockBusyError) || performance.now() >= deadline) throw error;
         await new Promise<void>((resolve) => setTimeout(resolve, 10));
       }
     }
