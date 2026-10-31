@@ -26,5 +26,5 @@
     "electron/capabilityCore/modelOnboarding/dispatch.ts"
   ],
   "since": "2026-10-04",
-  "notes": "异步供应商提交即收费：非终态不是失败。tryModel 的提交与等待共用 40 秒预算（外部宿主工具超时约 60 秒）：提交到点未回返回 submission_unknown（不中止那次请求），已提交等不到终态返回 still_processing（带任务号、明说不要重试），出站证据只问 outboundDispatchEvidence，只有供应商自己报终态失败才是 provider_failed。设计卡 docs/plan/2026-10-04-try-model-async-queued.md，合同 docs/fixes/2026-10-04-try-model-async-queued.root-cause.json、docs/fixes/2026-10-05-try-model-submit-budget.root-cause.json。"
+  "notes": "异步供应商提交即收费：非终态不是失败。tryModel 的提交与等待共用 40 秒预算（外部宿主工具超时约 60 秒）：提交到点未回返回 submission_unknown（不中止那次请求），已提交等不到终态返回 still_processing（带任务号、明说不要重试），出站证据只问 outboundDispatchEvidence，只有供应商自己报终态失败才是 provider_failed。设计卡 docs/plan/2026-10-04-try-model-async-queued.md，合同 docs/fixes/2026-10-04-try-model-async-queued.root-cause.json、docs/fixes/2026-10-05-try-model-submit-budget.root-cause.json。 2026-10-30：重复调用与改参数/卡不再 mint 新订单；受理事实与 allowedActions 从 production.submission-admission 的持久意图投影读取，tryModel 仅呈现和查询原单。newAttemptOf 是请求，必须另经 Nomi 真人确认；候选逃逸记录保持待独立验收。 2026-10-31：新增两种说法。记录读不出来：submission_unknown + submission.recordDamage，回执给出能用的 newAttemptOf；新单没开成：claim_unavailable，明说这次什么都没发，不拿旧单的未知盖住。上一笔结果不确定时开新单走 confirmSpendAndMintGrant，确认卡按 intent 查表（spendCardByIntent.ts）说清可能多扣一次。"
 }

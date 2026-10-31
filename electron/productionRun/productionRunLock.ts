@@ -6,6 +6,7 @@ import { fsyncDirectoryIfDurable, fsyncIfDurable } from "../durability";
 import { writeJsonFileAtomic } from "../jsonFile";
 
 export const PRODUCTION_RUN_LOCK_SCHEMA_VERSION = 1;
+export const PRODUCTION_RUN_LOCK_DEFAULT_LEASE_MS = 30_000;
 
 export type ProductionRunLockLease = {
   schemaVersion: typeof PRODUCTION_RUN_LOCK_SCHEMA_VERSION;
@@ -98,10 +99,37 @@ function sameLease(left: ProductionRunLockLease | null, right: ProductionRunLock
   return Boolean(left && left.ownerId === right.ownerId && left.nonce === right.nonce && left.fencingEpoch === right.fencingEpoch);
 }
 
+/**
+ * What a lock file says, without taking it. `dead` means it cannot be parsed and nobody has touched
+ * it for a whole lease, so no writer is mid-write and `acquire` would stay busy on it forever.
+ * `acquire` itself stays closed on purpose: only a caller that knows what the lock guards may act on this.
+ */
+export function inspectProductionRunLockFile(
+  filePath: string,
+  kind: "lease" | "epoch",
+  leaseMs = PRODUCTION_RUN_LOCK_DEFAULT_LEASE_MS,
+  nowMs = Date.now(),
+): "free" | "held" | "dead" {
+  try {
+    if (kind === "epoch") {
+      parseEpoch(filePath);
+      return "free";
+    }
+    const lease = parseLease(filePath);
+    return lease && nowMs < Date.parse(lease.expiresAt) ? "held" : "free";
+  } catch {
+    try {
+      return nowMs - fs.statSync(filePath).mtimeMs >= leaseMs ? "dead" : "held";
+    } catch {
+      return "free";
+    }
+  }
+}
+
 export function createProductionRunLock(deps: ProductionRunLockDeps) {
   const ownerId = deps.ownerId?.trim() || `worker-${process.pid}-${crypto.randomUUID()}`;
   const pid = deps.pid ?? process.pid;
-  const leaseMs = deps.leaseMs ?? 30_000;
+  const leaseMs = deps.leaseMs ?? PRODUCTION_RUN_LOCK_DEFAULT_LEASE_MS;
   const now = deps.now ?? (() => new Date().toISOString());
   const randomId = deps.randomId ?? (() => crypto.randomUUID());
   const durable = deps.durability !== "ephemeral";

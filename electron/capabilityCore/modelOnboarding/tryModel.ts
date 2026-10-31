@@ -1,31 +1,17 @@
-/**
- * 试跑一次（F3）。**这是这条路上唯一花钱的动作**，也是唯一能把
- * `unverified: model_produces_output` 消掉的证据。
- *
- * ── 为什么非有它不可 ─────────────────────────────────────────────────────────────
- * 写代码的人每次都能接进来，第四件本事是「跑一下，看供应商吐的真话，再改」。今天 MCP 这条路
- * 上没有这一步，于是 AI 只能盲改：它拿到的永远是我们归一化后的分类码，看不到上游原文。
- * 先查别人也指向同一处：Coze 的插件导入把「Debug 页真跑一次、跑通才能 Done」做成了必经步骤。
- *
- * ── 它走哪条执行器、钱谁把关 ─────────────────────────────────────────────────────
- * 执行器 = `runtime.runTask`，**和用户在画布上点一下生成是同一条**（vendor 无关，按
- * `selectTaskMapping` 派发）。刻意不走 Run 路径：那条今天只认 APIMart 一家。
- * 钱闸也是那一条：`spendGrant` → 渲染层报价确认卡。这里铸的令牌**不带报价**，所以
- * `assertAndConsumeQuotedSpend` 一定会走到 `confirm()`——也就是一定会去问用户。
- * 模型调得动这个工具，但结不了这笔账：确认按钮在用户自己的 Nomi 窗口里。
- * Nomi 窗口不在（纯 headless 宿主）时，这一跳**诚实失败**，不偷偷放行。
- *
- * ── 回传什么 ────────────────────────────────────────────────────────────────────
- * 供应商的原始响应**脱敏后原样**回传（`sanitizedAdapterJson`）。不改写、不翻译、不只给分类码：
- * 那正是 AI 自己收敛所需要的东西。脱敏是硬的——`redactAdapterSecrets` 是全仓同一份。
- */
+/** Model trials claim the shared durable Run submission before minting any spend authorization. */
 import { readCatalog } from "../../catalog/catalogStore";
 import { selectTaskMapping, type ProfileKind } from "../../catalog/types";
 import type { ProjectAgentApprovalPolicy } from "../../shared/agentCapabilities/capabilityApprovalPolicy";
 import { spendDecisionByPolicy } from "../../shared/agentCapabilities/directGenerationBrakes";
 import { quoteSpendLine } from "../../spendQuote";
-import { isTransportLevelFailure, outboundRequestWasNeverWritten } from "../../outboundDispatchEvidence";
-import { mintSpendGrant, isSpendAuthorizationError } from "../../spendGrant";
+import path from "node:path";
+import { getSettingsRoot } from "../../settings/settingsRoot";
+import { createSubmissionIntent, type SubmissionIntentReceipt } from "../../productionRun/submissionIntent";
+import { ProductionRunLockBusyError } from "../../productionRun/productionRunLock";
+import { UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT } from "../../shared/contracts/modelTrialSpend";
+import { RendererUnavailableError } from "../rendererBridge";
+import { confirmSpendAndMintGrant } from "../../spendConfirmGrant";
+import { mintSpendGrant, isSpendAuthorizationError, SpendNotAuthorizedError } from "../../spendGrant";
 import { sanitizedAdapterJson, redactAdapterSecrets } from "../../providerAdapter/redaction";
 import type { FetchTaskResultFn, RunTaskFn } from "../core";
 import { pollTaskToTerminal } from "../pollTaskToTerminal";
@@ -55,24 +41,44 @@ function raceBudget<T>(promise: Promise<T>, budgetMs: number): Promise<Raced<T>>
   });
 }
 
-/**
- * 提交失败但**不是供应商给的 HTTP 回复**：连接层断了 / 超时（供应商是否已收下不知道）。
- * 供应商明确回了状态码或逻辑错误码（`structured.httpStatus` / `logicalCode`）就是它的答复，不在此列。
- * 「没写出去」的证据只认 `outboundRequestWasNeverWritten`，调用方先问它，这里不再另写判据。
- */
-function connectionLevelFailure(error: unknown): boolean {
-  if (isTransportLevelFailure(error)) return true;
-  const structured = (error as { structured?: { category?: unknown; httpStatus?: unknown; logicalCode?: unknown } } | null)?.structured;
-  if (!structured || structured.httpStatus != null || structured.logicalCode != null) return false;
-  return structured.category === "network" || structured.category === "timeout";
-}
+/** 另一个调用方正在认领时最多等多久（认领本身是几次本地写）。占用超过这个数就如实回「这次没开成」，不猜。 */
+const CLAIM_WAIT_MS = 3_000;
+const CLAIM_WAIT_STEP_MS = 50;
 
-function submissionUnknown(why: string): OnboardingFailure {
+function submissionUnknown(why: string, attemptId: string): OnboardingFailure {
   return {
     ok: false, code: "submission_unknown",
     message: `Whether the provider accepted this test generation is UNKNOWN: ${why} It may already have been submitted and charged. This is NOT a failure and NOT proof that nothing was sent.`,
-    nextAction: "Do NOT retry and do NOT call nomi_try_model again for this model now: that could submit and charge a second job. Tell the user the test may already be running; they can look for it in the provider's own console. If a task id turns up, nomi_read target=task shows its state. Only try again later if the user asks.",
+    nextAction: `Do NOT retry the provider submission. Repeating nomi_try_model returns this original order without submitting again. Check the provider's own console, or use nomi_read target=task if a task id appears. Only pass newAttemptOf=${attemptId} after the user explicitly requests a NEW order; Nomi always asks them to confirm it.`,
   };
+}
+
+function recordUnreadable(receipt: SubmissionIntentReceipt): OnboardingFailure {
+  const what = receipt.recordDamage === "awaiting_new_order"
+    ? "An earlier record of this trial could not be read and was moved aside, and no new order has been opened since."
+    : `Nomi cannot read its local record of this trial (${receipt.recordDamage}).`;
+  const failure = submissionUnknown(`${what} This call submitted nothing new.`, receipt.attemptId);
+  return { ...failure, nextAction: `${failure.nextAction} The user does not need to delete files or change the connection: a new order keeps the old record by moving it aside.` };
+}
+
+function claimUnavailable(why: string): OnboardingFailure {
+  return {
+    ok: false, code: "claim_unavailable",
+    message: `Nomi could not open this trial order, so this call sent nothing to the provider. Any earlier order is unchanged. Reason: ${why}`,
+    nextAction: "Call nomi_try_model again with the same arguments in a moment. If it keeps failing, tell the user Nomi cannot write its local trial record, for example because the disk is full or a folder is not writable. The provider's own console shows what any earlier order did.",
+  };
+}
+
+/** 认领是同步的短租约，等的只是别人的租约。任何别的错都不重试，原样交给调用方说清楚。 */
+async function claimWhenFree<T>(claim: () => T, waitMs: number): Promise<T> {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    try { return claim(); }
+    catch (error) {
+      if (!(error instanceof ProductionRunLockBusyError) || Date.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, CLAIM_WAIT_STEP_MS));
+    }
+  }
 }
 
 const text = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
@@ -95,7 +101,7 @@ export type TryModelDeps = {
    *
    * **这一跳不自己回答「该不该问人」**：替用户代答付费全仓只有一个入口 `spendDecisionByPolicy`
    * （`shared/agentCapabilities/directGenerationBrakes.ts`，2026-10-16 协调拍板：试跑也走它，不另开旁路）。
-   * 试跑没有 Run：没有计划、没有重试谱系，刹车无从判，入口只剩档位那一问；Agent 调 `nomi_try_model` 不是
+   * 首次试跑按档位请求授权；显式新单总是问人。Agent 调 `nomi_try_model` 不是
    * 用户的一次点击，所以这里**不**伪造一份「用户同意过」的输入——请求批准档照旧弹卡问人。
    * 是否弹卡由**档位**决定，不由入口决定——同一个用户在「全自动」下从画布点一下生成不弹卡，
    * 那么他让自己的 AI 试跑一个刚接进来的模型也不该弹卡。
@@ -111,6 +117,11 @@ export async function tryModel(
 ): Promise<OnboardingResult | OnboardingFailure> {
   const vendorKey = text(args.vendorKey);
   const modelKey = text(args.modelKey);
+  const intent = createSubmissionIntent({ root: path.join(getSettingsRoot(), "app-executions"), scope: ["model-trial", vendorKey, modelKey], networkTransport: "app-fetch" });
+  const newAttemptOf = text(args.newAttemptOf);
+  // 原单先于目录和参数校验回答：模型下架、卡改过都不影响核对它。判定只有共享认领那一份。
+  const observed = intent.observation(newAttemptOf || undefined);
+  if (observed) return observeIntent(deps, intent, observed);
   const catalog = readCatalog();
   const vendor = catalog.vendors.find((row) => row.key === vendorKey);
   const model = catalog.models.find((row) => row.vendorKey === vendorKey && row.modelKey === modelKey);
@@ -150,83 +161,95 @@ export async function tryModel(
   }
 
   const startedAt = Date.now();
-  const budgetMs = Math.min(deps.pollTimeoutMs ?? TRY_MODEL_WAIT_BUDGET_MS, TRY_MODEL_WAIT_BUDGET_MS);
-  // 一个节点、一次机会：试跑不给重试预算。想再试一次就再调一次。
-  const nodeId = `try-${vendorKey}-${Date.now()}`;
-  // 档位代答（「全自动」）与逐次问人（其余档）的**区别只有一处**：令牌上带不带这次的报价。
-  //   · 带 → `assertAndConsumeQuotedSpend` 认得出这笔就是已授权的那一笔，直接扣、直接发；
-  //   · 不带 → 它一定会走到 `confirm()`，也就是一定会去问用户（报价卡在用户自己的 Nomi 窗口里，
-  //     报价卡怎么说由渲染层负责，见 `src/workbench/ai/v4/agentPanelSpendCard.ts`：报不出价时卡上不说任何价格的话）。
-  // 两条路都经同一个钱闸，这里没有第二套判据，也没有任何「跳过闸」的分支。
-  const policyAnswers = spendDecisionByPolicy(deps.approvalPolicy?.(), undefined).decided;
-  const quoted = quoteSpendLine({ vendorKey, modelKey, parameters: {} });
-  const grantId = mintSpendGrant({
-    nodeIds: [nodeId],
-    maxAttemptsPerNode: 1,
-    ttlMs: 30 * 60 * 1000,
-    ...(policyAnswers ? { quote: { lines: [quoted], amount: quoted.amount } } : {}),
-  });
   const params = (args.params && typeof args.params === "object" && !Array.isArray(args.params))
-    ? (args.params as Record<string, unknown>)
-    : {};
-  // 提交与「剩余预算」赛跑：到点就回话，但**不中止**这次提交（见 TRY_MODEL_WAIT_BUDGET_MS）。
-  const submitted = await raceBudget(
-    (async () => deps.runTask({
-      vendor: vendorKey,
-      request: {
-        kind: taskKind,
-        prompt: text(args.prompt) || NEUTRAL_PROMPT,
-        extras: { ...params, modelKey, modelAlias: modelKey, nodeId, grantId },
-      },
-    }))(),
-    budgetMs,
-  );
+    ? (args.params as Record<string, unknown>) : {};
+  const budgetMs = Math.min(deps.pollTimeoutMs ?? TRY_MODEL_WAIT_BUDGET_MS, TRY_MODEL_WAIT_BUDGET_MS);
+  let claimed: ReturnType<typeof intent.claim>;
+  try {
+    claimed = await claimWhenFree(() => intent.claim({ vendor: vendorKey, model: modelKey, kind: taskKind,
+      prompt: text(args.prompt) || NEUTRAL_PROMPT, params,
+      spendDecidedBy: !newAttemptOf && spendDecisionByPolicy(deps.approvalPolicy?.(), undefined).decided ? "policy:full_auto" : "user" }, newAttemptOf || undefined), Math.min(budgetMs, CLAIM_WAIT_MS));
+  } catch (error) {
+    // 新单开不出来就明说，不拿旧单的未知盖住这次失败；手里有旧单就一起带上，模型不会丢掉原单身份。
+    const failure = claimUnavailable(redactAdapterSecrets(String(error), 300));
+    const current = intent.read();
+    return current ? withSubmission(failure, current) : failure;
+  }
+  if (!claimed.owned) return observeIntent(deps, intent, claimed.receipt);
+  const owned = claimed;
+  const policyAnswers = !(owned.explicitNew && owned.receipt.newAttemptRequiresUserConfirmation)
+    && owned.receipt.request?.spendDecidedBy === "policy:full_auto";
+  const nodeId = `${owned.receipt.intentId}:${owned.receipt.attemptId}`;
+  const quoted = quoteSpendLine({ vendorKey, modelKey, parameters: params });
+  // A new-order request always shows the existing human confirmation, including in full-auto.
+  // Both this permission and the Agent receipt derive from the same persisted claim.
+  const authorize = async (): Promise<string> => {
+    if (!owned.receipt.request?.priorOutcomeUnknown) {
+      return mintSpendGrant({ nodeIds: [nodeId], maxAttemptsPerNode: 1, ttlMs: 30 * 60 * 1000,
+        ...(policyAnswers ? { quote: { lines: [quoted], amount: quoted.amount } } : {}) });
+    }
+    // 上一笔结果不确定：同一张确认卡，但要明说可能多扣一次。问人的结果和预算都由这一条唯一的链铸出，不再经过第二张卡。
+    const grant = await confirmSpendAndMintGrant({ nodeId, intent: UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT, vendor: vendorKey, modelKey,
+      lines: [{ vendorKey, modelKey, parameters: params }], maxAttemptsPerNode: 1 });
+    if (!grant) throw new SpendNotAuthorizedError("The new order was not confirmed; nothing was submitted");
+    return grant;
+  };
+  const submitted = await raceBudget(intent.submit(owned, async () => {
+    const grantId = await authorize();
+    const result = await deps.runTask({ vendor: vendorKey, request: { kind: taskKind,
+      prompt: text(args.prompt) || NEUTRAL_PROMPT,
+      extras: { ...params, modelKey, modelAlias: modelKey, nodeId, grantId } } });
+    return JSON.parse(redactAdapterSecrets(JSON.stringify(result), Number.MAX_SAFE_INTEGER)) as typeof result;
+  }).then(() => intent.current(owned.job.jobId)), Math.max(0, budgetMs - (Date.now() - startedAt)));
   if (submitted.kind === "budget") {
-    // 提交还在路上：没有失败对象，拿不出「请求没写出去」的证据，只能说结果未知。
-    return submissionUnknown("The provider has not answered the submit request within the time Nomi can wait inside one tool call.");
+    const current = intent.current(owned.job.jobId);
+    return withSubmission(submissionUnknown("The submit request is still in flight.", current.attemptId), current);
   }
-  let result: Awaited<ReturnType<RunTaskFn>>;
-  if (submitted.kind === "done") {
-    result = submitted.value;
-  } else {
-    const error = submitted.error;
-    const message = error instanceof Error ? error.message : String(error);
-    if (isSpendAuthorizationError(error) || /RendererUnavailable|Nomi 窗口/.test(message)) {
-      return {
-        ok: false, code: "needs_input",
-        message: "The user did not confirm this charge in Nomi, so nothing was sent.",
-        needs: ["the user to confirm the cost in Nomi's own window"],
-        nextAction: "Ask the user to open Nomi and confirm the generation card, then call nomi_try_model again. Nomi never spends the user's credit on a tool call alone.",
-      };
+  if (submitted.kind === "failed") {
+    const current = intent.current(owned.job.jobId);
+    const cause = (submitted.error as { cause?: unknown })?.cause;
+    if (isSpendAuthorizationError(cause) || cause instanceof RendererUnavailableError) {
+      return withSubmission({ ok: false, code: "needs_input", message: "The user has not confirmed this submission in Nomi.",
+        nextAction: "Open Nomi and confirm the generation card before requesting this trial again. The provider's own console can confirm nothing arrived." }, current);
     }
-    if (outboundRequestWasNeverWritten(error)) {
-      return {
-        ok: false, code: "provider_failed",
-        message: `The test generation was not submitted. Nothing was sent to the provider (the connection never opened), so no charge was made: ${redactAdapterSecrets(message, 600)}`,
-        evidence: { bodyExcerpt: redactAdapterSecrets(message, 512) },
-        nextAction: "It is safe to retry once the provider's address and network are reachable. If the address in the card is wrong, fix it and submit the card again first.",
-      };
-    }
-    if (connectionLevelFailure(error)) return submissionUnknown(redactAdapterSecrets(message, 300));
-    return {
-      ok: false, code: "provider_failed",
-      message: `The test generation failed before it produced anything: ${redactAdapterSecrets(message, 600)}`,
-      evidence: { bodyExcerpt: redactAdapterSecrets(message, 512) },
-      nextAction: "Read the message against the documentation URL the card declared for that mode, fix the field it names, and submit the card again.",
-    };
+    if (current.accepted !== "not_sent") return withSubmission(submissionUnknown(redactAdapterSecrets(String(submitted.error), 300), current.attemptId), current);
+    return withSubmission({ ok: false, code: "provider_failed", message: `Nothing was sent or the provider explicitly rejected the submission: ${redactAdapterSecrets(String(submitted.error), 512)}`,
+      nextAction: `${current.allowedActions.includes("retry") ? "It is safe to retry once; fix the named problem first." : `The retry budget is exhausted. Ask the user before passing newAttemptOf=${current.attemptId}.`} The provider's own console can confirm nothing arrived.` }, current);
   }
+  return observeIntent(deps, intent, submitted.value, Math.max(0, budgetMs - (Date.now() - startedAt)), true);
+}
 
+function withSubmission<T extends OnboardingResult | OnboardingFailure>(result: T, receipt: SubmissionIntentReceipt): T {
+  return { ...result, submission: { protocol: "try-model-intent-lock", intentId: receipt.intentId, attemptId: receipt.attemptId, phase: receipt.phase,
+    accepted: receipt.accepted, allowedActions: receipt.allowedActions, newAttemptRequiresUserConfirmation: receipt.newAttemptRequiresUserConfirmation,
+    ...(receipt.recordDamage ? { recordDamage: receipt.recordDamage } : {}) },
+    ...(receipt.taskId ? { taskId: receipt.taskId } : {}) };
+}
+
+async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof createSubmissionIntent>, receipt: SubmissionIntentReceipt, remainingBudget?: number, submittedNow = false): Promise<OnboardingResult | OnboardingFailure> {
+  if (receipt.recordDamage) return withSubmission(recordUnreadable(receipt), receipt);
+  if (!receipt.result || !receipt.request) {
+    if (receipt.accepted === "not_sent") return withSubmission({ ok: false, code: "provider_failed",
+      message: "The previous submission was not sent or was explicitly rejected.", nextAction: `${receipt.allowedActions.includes("retry") ? "A bounded retry is available." : `Ask the user to authorize a new attempt with newAttemptOf=${receipt.attemptId}.`} The provider's own console can confirm nothing arrived.` }, receipt);
+    return withSubmission(submissionUnknown("The original submission has no completed receipt yet; repeated calls return this same order.", receipt.attemptId), receipt);
+  }
+  const { vendor: vendorKey, model: modelKey, kind: taskKind, prompt } = receipt.request;
+  const policyAnswers = receipt.request.spendDecidedBy === "policy:full_auto";
+  const startedAt = Date.now();
+  const budgetMs = remainingBudget ?? Math.min(deps.pollTimeoutMs ?? TRY_MODEL_WAIT_BUDGET_MS, TRY_MODEL_WAIT_BUDGET_MS);
+  let result = receipt.result as Awaited<ReturnType<RunTaskFn>>;
   // 异步供应商：提交即收费，首次返回只有 queued 没有产物。**这不是失败**——
   // 等到终态（同一条查询链路），等不到就如实说「仍在处理」，绝不报 provider_failed（否则 AI 会重试再花一次钱）。
+  let queries = 0;
   const taskId = typeof result.id === "string" ? result.id : "";
   if (result.status && !isTerminalTaskStatus(result.status)) {
     const polled = deps.fetchTaskResult
       ? await pollTaskToTerminal({
           initial: result,
-          fetch: deps.fetchTaskResult,
+          fetch: (payload) => { queries += 1; return deps.fetchTaskResult!(payload); },
           vendor: vendorKey,
           taskKind,
-          prompt: text(args.prompt) || NEUTRAL_PROMPT,
+          prompt,
           modelKey,
           timeoutMs: Math.max(0, budgetMs - (Date.now() - startedAt)),
           intervalMs: deps.pollIntervalMs ?? (taskKind === "text_to_video" || taskKind === "image_to_video" ? 3000 : 1500),
@@ -234,29 +257,33 @@ export async function tryModel(
       : { result, ended: "timeout" as const, waitedMs: 0 };
     result = polled.result;
     if (polled.ended !== "terminal") {
-      return {
+      intent.recordResult(receipt.attemptId, JSON.parse(redactAdapterSecrets(JSON.stringify(result), Number.MAX_SAFE_INTEGER)));
+      return withSubmission({
         ok: false, code: "still_processing",
         message: `The provider accepted this test generation${taskId ? ` (task ${taskId})` : ""} and it is still processing (status=${result.status || "queued"}). The charge for it has already been made. This is NOT a failure.`,
         ...(taskId ? { taskId } : {}),
         evidence: { bodyExcerpt: sanitizedAdapterJson(result.raw).slice(0, 512) },
-        nextAction: `Do NOT retry and do NOT call nomi_try_model again for this model now: that would submit and charge a second job. Tell the user the test is submitted and still running${taskId ? `, with task id ${taskId}` : ""}, then check it with nomi_read target=task taskId=${taskId || "(the task id)"}: that only looks, it never submits or charges. Only try again later if the user asks.`,
-      };
+        nextAction: `Do NOT retry the provider submission. Repeating nomi_try_model observes this original order. Check nomi_read target=task taskId=${taskId || "(the task id)"} to query without submitting. A new order requires newAttemptOf=${receipt.attemptId} and explicit confirmation in Nomi.`,
+      }, intent.current(receipt.attemptId));
     }
   }
 
+  if (receipt.phase !== "succeeded") intent.recordResult(receipt.attemptId, JSON.parse(redactAdapterSecrets(JSON.stringify(result), Number.MAX_SAFE_INTEGER)));
+  const vendor = readCatalog().vendors.find((row) => row.key === vendorKey);
+  const model = readCatalog().models.find((row) => row.vendorKey === vendorKey && row.modelKey === modelKey);
   const assets = Array.isArray(result.assets) ? result.assets : [];
   const succeeded = result.status === "succeeded" && assets.length > 0;
-  const origin = new URL(String(vendor.baseUrlHint || "https://invalid.invalid")).origin;
+  const origin = new URL(String(vendor?.baseUrlHint || "https://invalid.invalid")).origin;
   const upstream = sanitizedAdapterJson(result.raw).slice(0, 20_000);
   if (!succeeded) {
-    return {
+    return withSubmission({
       ok: false, code: "provider_failed",
       message: `The provider did not produce anything: status=${result.status || "unknown"}${result.error ? `, ${redactAdapterSecrets(result.error, 300)}` : ""}.`,
       evidence: { bodyExcerpt: upstream.slice(0, 512) },
-      nextAction: "The provider's own response is in evidence.bodyExcerpt. Fix the field it points at and submit the whole card again, then try once more.",
-    };
+      nextAction: `The provider's own response is in evidence.bodyExcerpt. Fix the field it points at and submit the whole card again, request a new attempt with newAttemptOf=${receipt.attemptId} only after the user confirms.`,
+    }, intent.current(receipt.attemptId));
   }
-  return {
+  return withSubmission({
     ok: true,
     vendorKey,
     state: {
@@ -273,11 +300,12 @@ export async function tryModel(
     // 跑出产物了 → `model_produces_output` 这一格消掉；上传通道仍然没被证明过。
     unverified: unverified("asset_upload_works"),
     changes: [{ state: "S11.5", summary: `${modelKey} produced one artifact on ${taskKind}.` }],
-    blastRadius: { ...noBlast(), outboundRequests: billableRequests(origin) },
+    blastRadius: { ...noBlast(), outboundRequests: [...(submittedNow ? billableRequests(origin) : []),
+      ...(queries ? [{ origin, count: queries, billable: false }] : [])] },
     // 账本上分得清这笔是谁点的头：策略代答，还是用户在窗口里按的。
     nextAction: {
       kind: "none",
-      userSees: `${model.labelZh || modelKey} produced an artifact. It is usable in Nomi's model pickers now.`,
+      userSees: `${model?.labelZh || modelKey} produced an artifact. It is usable in Nomi's model pickers now.`,
     },
-  };
+  }, intent.current(receipt.attemptId));
 }

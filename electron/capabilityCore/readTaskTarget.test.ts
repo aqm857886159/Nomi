@@ -89,7 +89,7 @@ describe("nomi_read target=task", () => {
   });
 
   beforeEach(async () => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
+    vi.stubEnv("NOMI_SETTINGS_DIR", fs.mkdtempSync(path.join(root, "case-")));
     const docs = "https://docs.example-readtask.com/api";
     const submitted = await dispatch("model.onboarding.setup", {
       action: "submit_declaration",
