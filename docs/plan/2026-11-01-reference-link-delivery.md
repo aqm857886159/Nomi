@@ -55,6 +55,8 @@
 
 退回旧版本：多出来的 `reference-link-refusals.json` 没人读，行为回到今天，不影响打开。
 
+Preview / RC 首次启动：这份记录和连接一起带过去（`electron/settings/sideBySideInstallSeed.ts`），不带的话要再被模型拒一次才知道。
+
 证据：`upgrade-path` 用 `tests/fixtures/old-user-data/` 里由 0.24.0 真实函数落盘的素材和 `.meta`（`assets/v0.24.0-generated`）跑矩阵。
 
 ## ★2 谁说了算
