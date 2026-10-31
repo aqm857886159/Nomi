@@ -142,13 +142,11 @@ export function NodeVersionCardsHost({ node, readOnly, nodeSize, onFeedback, ent
 
   // Esc 收起：宫格开着时，焦点在画布空白处、角标、宫格里都算；输入框 / 提示词框里打字、预览等弹层里按的不归这里。
   // 一次 Esc 收最后铺开的那一组，和点一次角标一样（「+N」展开全部之后也是直接收起）。
-  const previewOpenRef = React.useRef(false)
-  previewOpenRef.current = Boolean(preview)
   React.useEffect(() => {
     if (!expanded) return undefined
     const unregister = registerOpenVersionGrid(node.id)
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (previewOpenRef.current || !escapeBelongsToVersionGrid(event) || lastOpenedVersionGrid() !== node.id) return
+      if (!escapeBelongsToVersionGrid(event) || lastOpenedVersionGrid() !== node.id) return
       event.preventDefault()
       useGenerationCanvasStore.getState().setNodeResultStackOpen(node.id, false)
     }

@@ -70,7 +70,7 @@ export function MobileConnectDialog(): JSX.Element {
       size="md"
       centered
     >
-      <div className="flex flex-col gap-3" data-nomi-escape-layer="director-mobile-dialog" data-testid="director-mobile-dialog">
+      <div className="flex flex-col gap-3" data-testid="director-mobile-dialog">
         {!mobile.available ? (
           <p className="text-caption text-nomi-ink-60">{t('director.camera.mobileNeedDesktop')}</p>
         ) : consentRequired ? (

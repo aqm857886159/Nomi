@@ -2,8 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   PROVIDER_MEDIA_BASE_TIMEOUT_MS,
   PROVIDER_MEDIA_BYTE_CAP,
+  PROVIDER_MEDIA_FILE_BYTE_CAP,
+  PROVIDER_MEDIA_FLOOR_BYTES_PER_SECOND,
   PROVIDER_MEDIA_IDLE_TIMEOUT_MS,
   PROVIDER_MEDIA_RETRIEVAL_MAX_MS,
+  providerMediaFileRetrievalTotalMs,
   providerMediaRetrievalTotalMs,
 } from '../shared/assets/providerMediaRetrievalBudget'
 
@@ -80,5 +83,30 @@ describe('取回预算：小文件照旧，大文件按最慢可接受的速度�
 
   it('空闲时限比总上限的底短：线路断了先由它拦住，而不是陪到总上限', () => {
     expect(PROVIDER_MEDIA_IDLE_TIMEOUT_MS).toBeLessThan(PROVIDER_MEDIA_BASE_TIMEOUT_MS)
+  })
+})
+
+// 鉴权视频文件响应（流式写盘）是同一份预算的 2GiB 那一档：同一个公式，只换字节上限，不另写常量。
+describe('取回预算的文件响应档：2GiB，同一个公式', () => {
+  it('不超过 200MiB 的声明，两档给出同样的时间——文件响应档没有另起一套速度', () => {
+    for (const bytes of [0, 1024, 30 * 1024 * 1024, PROVIDER_MEDIA_BYTE_CAP]) {
+      expect(providerMediaFileRetrievalTotalMs(bytes)).toBe(providerMediaRetrievalTotalMs(bytes))
+    }
+  })
+
+  it('大于 200MiB 的声明继续按最慢可接受的速度放宽，最大是 2GiB 那一档（没声明按它给）', () => {
+    const max = PROVIDER_MEDIA_BASE_TIMEOUT_MS + Math.ceil((PROVIDER_MEDIA_FILE_BYTE_CAP / PROVIDER_MEDIA_FLOOR_BYTES_PER_SECOND) * 1000)
+    expect(providerMediaFileRetrievalTotalMs(null)).toBe(max)
+    expect(providerMediaFileRetrievalTotalMs(PROVIDER_MEDIA_FILE_BYTE_CAP)).toBe(max)
+    expect(providerMediaFileRetrievalTotalMs(PROVIDER_MEDIA_FILE_BYTE_CAP * 3)).toBe(max)
+    expect(providerMediaFileRetrievalTotalMs(1024 * 1024 * 1024)).toBeGreaterThan(providerMediaFileRetrievalTotalMs(PROVIDER_MEDIA_BYTE_CAP))
+    expect(providerMediaFileRetrievalTotalMs(1024 * 1024 * 1024)).toBeLessThan(max)
+    // 数字：60s + 2GiB ÷ 256KiB/s = 8252s（注释里引用的就是它）
+    expect(max).toBe(8_252_000)
+  })
+
+  it('旧档不被带动：URL 缓冲路的上限仍是 200MiB / 860 秒', () => {
+    expect(PROVIDER_MEDIA_BYTE_CAP).toBe(200 * 1024 * 1024)
+    expect(PROVIDER_MEDIA_RETRIEVAL_MAX_MS).toBe(860_000)
   })
 })
