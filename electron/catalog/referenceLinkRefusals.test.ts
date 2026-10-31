@@ -1,0 +1,69 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { isConnectionRefused, noteConnectionRefused, referenceLinkRefusalsPath } from "./referenceLinkRefusals";
+
+let root = "";
+
+beforeEach(() => {
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-reference-link-refusals-"));
+  vi.stubEnv("NOMI_SETTINGS_DIR", root);
+});
+
+afterEach(() => {
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+describe("referenceLinkRefusals：记在连接上的「模型拉不到临时链接」", () => {
+  it("没有文件 = 没有记录", () => {
+    expect(isConnectionRefused("apimart")).toBe(false);
+    expect(fs.existsSync(referenceLinkRefusalsPath())).toBe(false);
+  });
+
+  it("记下一条连接：只有这条连接生效，兄弟连接和别的连接不受影响", () => {
+    noteConnectionRefused("relay-a");
+    expect(isConnectionRefused("relay-a")).toBe(true);
+    expect(isConnectionRefused("relay-a--b2c3")).toBe(false);
+    expect(isConnectionRefused("relay-b")).toBe(false);
+    expect(isConnectionRefused("")).toBe(false);
+    expect(isConnectionRefused(undefined)).toBe(false);
+  });
+
+  it("落在设置目录的文件里，换一个全新的读取（清内存）仍然生效；重复记不改文件", async () => {
+    noteConnectionRefused("relay-a", new Date("2026-11-01T00:00:00.000Z"));
+    const before = fs.readFileSync(referenceLinkRefusalsPath(), "utf8");
+    vi.resetModules();
+    // eslint-disable-next-line no-restricted-syntax -- 重启模拟：全新模块实例证明没有任何进程内记忆，结论只来自设置目录里的文件
+    const fresh = await import("./referenceLinkRefusals");
+    expect(fresh.isConnectionRefused("relay-a")).toBe(true);
+    fresh.noteConnectionRefused("relay-a", new Date("2027-01-01T00:00:00.000Z"));
+    expect(fs.readFileSync(referenceLinkRefusalsPath(), "utf8")).toBe(before);
+    expect(JSON.parse(before)).toEqual({ version: 1, connections: { "relay-a": { refusedAt: "2026-11-01T00:00:00.000Z" } } });
+  });
+
+  it("文件损坏当作没有记录，原字节留底，之后照常记得上", () => {
+    fs.writeFileSync(referenceLinkRefusalsPath(), "{broken", "utf8");
+    expect(isConnectionRefused("relay-a")).toBe(false);
+    expect(fs.readdirSync(root).some((name) => name.startsWith("reference-link-refusals.broken-"))).toBe(true);
+    noteConnectionRefused("relay-a");
+    expect(isConnectionRefused("relay-a")).toBe(true);
+  });
+
+  it("形状不对（数组、没有 connections）也当作没有记录", () => {
+    fs.writeFileSync(referenceLinkRefusalsPath(), "[]", "utf8");
+    expect(isConnectionRefused("relay-a")).toBe(false);
+  });
+
+  it("写不成只记日志、不抛：目标路径被目录占着也不影响调用方", () => {
+    fs.mkdirSync(referenceLinkRefusalsPath());
+    expect(() => noteConnectionRefused("relay-a")).not.toThrow();
+    expect(isConnectionRefused("relay-a")).toBe(false);
+  });
+
+  it("原型上的名字不会被当成已记录的连接", () => {
+    expect(isConnectionRefused("constructor")).toBe(false);
+    expect(isConnectionRefused("__proto__")).toBe(false);
+  });
+});

@@ -20,6 +20,8 @@ import { retryLiftsStop } from '../productionRun/productionRunLifecycle'
 import { runStopReason } from '../shared/productionRunStop'
 import { NothingToResumeError, resumeOutlook } from '../productionRun/resumeOutlook'
 import { logError, logWarn } from '../logging/logger'
+import { authorizedReferenceUrls } from '../shared/productionSpendAuthority'
+import { reworkReferenceUrls } from './productionReferenceUrls'
 
 /** 这个 Run 现在驱动得起来吗；起不来是缺什么（与调度器构造同一份判断：appIntegration.submissionReadinessForRun）。 */
 export type ProductionDriverReadiness = 'ready' | 'provider_missing' | 'project_missing'
@@ -153,6 +155,20 @@ export function createProductionActionHooks(deps: ActionDeps): {
     if (!record || !identity) return failed('project_unavailable')
     let authorization
     try {
+      // 沿用冻住的参考链接，还是重新换：只问同一条规则（拒绝过 / 冻住的链接明确失效才换），见 reworkReferenceUrls。
+      const reworkContract = (run.generationPlan?.shots ?? []).find((candidate) => candidate.shotId === shotId)?.contract
+      const referenceUrls = reworkContract
+        ? await reworkReferenceUrls({
+          projectId,
+          providerId: reworkContract.providerId,
+          references: reworkContract.references,
+          frozen: authorizedReferenceUrls(run, reworkContract.contractHash),
+          assertCurrent: () => {
+            const latest = deps.isProjectOpen(projectId) ? deps.generationService.repository.read(projectId, runId) : null
+            if (!latest || latest.revision !== read.revision) throw new Error('generation_reference_scope_changed')
+          },
+        })
+        : undefined
       authorization = prepareProductionGenerationReauthorization({
         lease: identity,
         projectRevision: record.revision,
@@ -161,6 +177,7 @@ export function createProductionActionHooks(deps: ActionDeps): {
         providers: deps.readProviderBootstrap().providers,
         resolveShotPrice: deps.resolveShotPrice,
         now: new Date().toISOString(),
+        ...(referenceUrls ? { referenceUrls } : {}),
       })
       run = (await deps.generationService.command(projectId, runId, {
         commandId: `production-rework-authorize:${authorization.envelope.gateId}`,

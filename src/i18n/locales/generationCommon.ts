@@ -416,6 +416,10 @@ export const zhGenerationCommon = {
         reason: '这次生成没发出去：所选画幅比例超出了这条连接出图尺寸支持的范围',
         hint: '这条连接用 OpenAI 兼容的尺寸字段传出图尺寸，长边最多是短边的 3 倍（最宽 3:1、最窄 1:3），你选的比例超出了——哪怕模型本身支持这个比例，这条连接也表达不了。Nomi 没有悄悄换成别的画幅，而是在发出之前就拦下了：这次生成请求没有发出去，服务商没被请求到。请在下方换一个比例（比如 16:9、1:1 或 9:16）再点重试；这个比例确实要用的话，换一个能直接选这个比例的模型或连接。具体选了哪个比例，见下方技术详情。',
       },
+      referenceUnfetchable: {
+        reason: '模型取不到参考图',
+        hint: '参考图走的是服务商的临时链接，模型那边取不到了，可能已过期或被拦。点「重试」会改用你电脑上的原图重新上传再发，不用换图。如果这张图本机没有原文件，重试不会有用，请换一张或重新生成。',
+      },
       assetInvalid: {
         reason: '参考素材本身有问题',
         hint: '这张参考素材没通过发送前的本机检查：文件读不到、认不出类型，或者内容不是真正的图片/视频（比如把网页存成了 .png）。请求还没发出去。同一个文件重试结果不会变——请在画布上换一张参考素材，或重新导入原文件，再点重试。具体是哪个文件，见下方技术详情。',
@@ -2164,6 +2168,10 @@ export const enGenerationCommon = {
       aspectRatioUnsupported: {
         reason: 'This generation was not sent: the aspect ratio you picked is outside the image sizes this connection supports',
         hint: 'This connection sends the image size as an OpenAI-compatible size field, which keeps the long edge within 3 times the short edge (at most 3:1 wide or 1:3 tall). The ratio you picked is outside that, even if the model itself supports it. Rather than silently generating a different shape, Nomi stopped before sending - the generation request was never sent and the provider was never called. Pick another ratio below (for example 16:9, 1:1 or 9:16) and retry; if you really need this ratio, use a model or connection that offers it directly. The technical details below show which ratio was selected.',
+      },
+      referenceUnfetchable: {
+        reason: 'The model could not fetch a reference image',
+        hint: "This reference went out as the provider's temporary link, and the model could not fetch it. It may have expired or been blocked. Retry uploads the original file from your computer and sends it again, so you don't need to change the image. If the image has no local file, retrying won't help: replace it or generate it again.",
       },
       assetInvalid: {
         reason: 'The reference asset itself is invalid',

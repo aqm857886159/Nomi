@@ -63,7 +63,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
   // 参考素材本地 URL → vendor 可达（与 mapping 路径同一套 localize，脚本拿到的 references 即成品 URL）。
   const uploadCatalog = readCatalog();
   const automationSettings = readAutomationPolicySettings();
-  const localizationOptions = assetLocalizationOptions(request.extras, automationSettings);
+  const localizationOptions = assetLocalizationOptions(vendor, request.extras, automationSettings);
   assertLocalAssetTransportReady(
     request.extras,
     (mediaKind) => resolveAssetIngestionWithFallback(

@@ -1,5 +1,4 @@
 import { catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
-import crypto from "node:crypto";
 import { readGenerationExecution } from "./productionGenerationHistory";
 import path from "node:path";
 
@@ -18,7 +17,7 @@ import {
 import { nextGenerationAttempt } from "./prepareProductionGenerationAuthorization";
 import { authorizationGateForJob } from "../shared/productionSpendAuthority";
 import { DispatchConsentLapsedError, dispatchConsentOpen } from "../shared/productionDispatchConsent";
-import { createProductionRunRuntimeEnvelope, type ProductionRunRuntimeEnvelope } from "./productionRunRuntimeEnvelope";
+import { createProductionRunRuntimeEnvelope } from "./productionRunRuntimeEnvelope";
 import { createProductionRunIntentLog } from "./productionRunIntentLog";
 import { productionRunPaths } from "./productionRunPaths";
 import { createProductionRunLock } from "./productionRunLock";
@@ -31,9 +30,14 @@ import {
   createSubmissionOutbox,
   submissionFailureOutcome,
 } from "./submissionOutbox";
-import { createProductionExecutionBinding, validateProductionExecutionBinding, type ProductionExecutionBinding } from "./productionExecutionBinding";
+import { ensureBinding, envelopeRefFor, sealedBindingFor } from "./productionGenerationBinding";
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, type ProductionRun, type RunCommand } from "./productionRunTypes";
 import { tagNomiError } from "../shared/nomiErrorCodes";
+import { isReferenceFetchRefusal } from "../shared/referenceFetchRefusal";
+import { upstreamFailureOf } from "../shared/vendorFailure";
+import { vendorKeyOfProviderId } from "../capabilityCore/canvasTransportProvider";
+import { noteConnectionRefused } from "../catalog/referenceLinkRefusals";
+import { taskFailureMessageFromResponse } from "../tasks/responseParsing";
 import { singleShotRunningCommand } from "./singleShotRunLifecycle";
 import { assertShotAdmission, type LandedShotAdmission } from "./shotLandingAdmission";
 import { createProductionShotDispatchGuard } from "./productionShotDispatchGuard";
@@ -110,27 +114,6 @@ export type ProductionGenerationSubmissionDependencies = {
   }) => Promise<Pick<ProductionArtifact, "artifactId" | "kind" | "contentHash" | "projectRelativePath" | "thumbnailRelativePath" | "previewState" | "width" | "height">>;
 };
 
-function stableJson(value: unknown): string {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error("Generation request must contain finite numbers");
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  if (typeof value === "object") {
-    return `{${Object.entries(value as Record<string, unknown>)
-      .filter(([, child]) => child !== undefined)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
-      .join(",")}}`;
-  }
-  throw new Error("Generation request must be JSON serializable");
-}
-
-function sha256(value: unknown): string {
-  return crypto.createHash("sha256").update(stableJson(value)).digest("hex");
-}
-
 function requiredRun(repository: ProductionRunRepository, projectId: string, runId: string): ProductionRun {
   const run = repository.read(projectId, runId);
   if (!run) throw new Error(`Production run not found: ${runId}`);
@@ -174,57 +157,15 @@ export function addressedGenerationAttempt(run: ProductionRun, shotId?: string):
   return Math.max(1, nextGenerationAttempt(run, shotId) - 1);
 }
 
-function envelopeRefFor(runId: string, jobId: string): string {
-  return `.nomi/runs/${runId}/jobs/${jobId}/runtime-envelope.json`;
-}
-
 /**
- * The binding's `shotId` is the addressed shot (default shot → its jobId, keeping single-shot bindings
- * byte-identical). The providerIdempotencyKey MUST include the shotId so two shots that hash identically
- * derive different keys (#5): a two-shot batch with equal parameters must not collapse to one provider task.
+ * 模型拉不到参考链接：判一次、记一次——**全仓只有这一处**（提交被拒、任务失败两个出口各调一次）。
+ * 只记账，不重发：这一单已经发出去、钱可能已经扣了；这条连接之后的参考素材改走上传，由用户点「重试」时生效。
+ * 返回判为拒绝时的上游原话：任务失败那条路用它替换固定的「供应商任务已返回失败状态」，错误卡才认得出是这一类。
  */
-function sealedBindingFor(sealed: ProductionRunRuntimeEnvelope | null, contract: ExecutionContractV1): ProductionExecutionBinding | undefined {
-  const candidate = (sealed?.request as { executionBinding?: unknown } | undefined)?.executionBinding;
-  if (!sealed || candidate === undefined || sealed.contractHash !== contract.contractHash) return undefined;
-  const binding = validateProductionExecutionBinding(candidate);
-  return binding.providerNamespace === contract.providerId ? binding : undefined;
-}
-
-function ensureBinding(deps: ProductionGenerationSubmissionDependencies, run: ProductionRun, contract: ExecutionContractV1, jobId: string, attempt: number, fencingEpoch: number, shotId?: string): ProductionExecutionBinding {
-  const existing = run.jobs.find((job) => job.jobId === jobId)?.executionBinding;
-  if (existing) {
-    if (existing.contractHash !== contract.contractHash || existing.providerNamespace !== contract.providerId) {
-      throw new Error("Sealed generation job binding does not match the current contract");
-    }
-    return existing;
-  }
-  // The default shot keeps the jobId as its shot identity (single-shot binding unchanged); a named shot
-  // uses its stable shotId. Both feed the idempotency key so identical-parameter shots stay distinct.
-  const bindingShotId = shotId ?? jobId;
-  const runtimeTaskId = deps.runtimeTaskId?.({ runId: run.runId, contractHash: contract.contractHash, attempt })
-    || `runtime-${run.runId}-${contract.contractHash.slice(0, 16)}-attempt-${attempt}`;
-  const requestFingerprint = sha256({
-    contractHash: contract.contractHash,
-    providerId: contract.providerId,
-    modelId: contract.modelId,
-    mode: contract.mode,
-    prompt: contract.prompt,
-    parameters: contract.parameters,
-    references: contract.references,
-  });
-  return createProductionExecutionBinding({
-    immutableProjectUuid: deps.immutableProjectUuid,
-    projectGeneration: deps.projectGeneration,
-    runId: run.runId,
-    shotId: bindingShotId,
-    contractHash: contract.contractHash,
-    runtimeTaskId,
-    providerNamespace: contract.providerId,
-    providerIdempotencyKey: `generation:${run.runId}:${bindingShotId}:${contract.contractHash}:attempt-${attempt}`,
-    requestFingerprint,
-    runtimeEnvelopeRef: envelopeRefFor(run.runId, jobId),
-    fencingEpoch,
-  });
+function noteReferenceRefusal(providerId: string, failure: { code?: string; text: string }): string | undefined {
+  if (!isReferenceFetchRefusal({ upstreamCode: failure.code, text: failure.text })) return undefined;
+  noteConnectionRefused(vendorKeyOfProviderId(providerId));
+  return failure.text;
 }
 
 export function createProductionGenerationSubmission(deps: ProductionGenerationSubmissionDependencies) {
@@ -484,6 +425,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           if (observed.notDispatched) {
             throw new SubmissionNotDispatchedError(error instanceof Error ? error.message : String(error), observed.notDispatched);
           }
+          noteReferenceRefusal(lockedContract.providerId, upstreamFailureOf(error));
           // 只有「结果未知」才记进信封。确定的答复——供应商当场明确拒绝（收到了 4xx / 失败信封、没有任务号），或答了、结果在
           // 回答里但本机落地失败（落地门的正证据）——信封留在封好的状态（它没有「答了但没有任务号」这一态，耐久的结局记在
           // Run 的 job 上），由出口按同一个封闭结局落盘。
@@ -554,9 +496,10 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       const observedAt = next.lastPoll!.observedAt;
       const statusChanged = currentJob.providerStatus !== providerStatus;
       const nextStatus = statusClass === "pending" ? "polling" : statusClass === "failed" || statusClass === "unknown" ? "needs_attention" : currentJob.status;
+      const refusal = statusClass === "failed" ? noteReferenceRefusal(job.provider, { text: taskFailureMessageFromResponse(next.lastPoll!.raw, null) }) : undefined;
       const patch = { providerStatus, lastPollAt: observedAt,
         ...(statusChanged ? { lastVendorStateChangeAt: observedAt } : {}),
-        ...(statusClass === "failed" ? { errorCode: "provider_task_failed", errorMessage: "供应商任务已返回失败状态" }
+        ...(statusClass === "failed" ? { errorCode: "provider_task_failed", errorMessage: refusal ?? "供应商任务已返回失败状态" }
           : statusClass === "unknown" ? { errorCode: "provider_status_unknown", errorMessage: "供应商返回了未识别的任务状态，需要人工核对" } : {}),
       };
       if (statusClass !== "pending" || statusChanged || nextStatus !== currentJob.status) command(current, nextStatus === currentJob.status ? "job.patch" : "job.status", {

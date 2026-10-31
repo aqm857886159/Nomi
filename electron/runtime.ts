@@ -219,7 +219,7 @@ export async function executeProfileOperation(input: {
     input.localAssetReader || readNomiLocalAsset,
     postJsonForAssetUpload,
     postMultipartForAssetUpload,
-    assetLocalizationOptions(input.request.extras),
+    assetLocalizationOptions(input.vendor, input.request.extras),
     putBinaryForAssetUpload,
   ) : { value: input.request.extras, uploaded: 0 };
   const effectiveInput = localized.uploaded > 0 ? { ...input, request: { ...input.request, extras: localized.value as TaskRequest["extras"] } } : input;
@@ -316,7 +316,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
         request.extras,
         assetIngestionResolver(vendor, uploadCatalog, mapping.create.assetIngestion),
         readNomiLocalAsset,
-        assetLocalizationOptions(request.extras),
+        assetLocalizationOptions(vendor, request.extras),
       );
     }
     const recipe = buildNormalizedRecipe({

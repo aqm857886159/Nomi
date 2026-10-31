@@ -13,15 +13,22 @@
 // 时间与大小预算（2026-09-28）：以前是一个 60 秒墙钟，慢线路上的大视频注定超时、每次重来都一样；
 // 现在是「空闲时限 + 随声明大小放宽的总上限」，数字只在 `shared/assets/providerMediaRetrievalBudget.ts`
 // 一处（依据写在那里）——渲染层算「正在存到你电脑上」最长能停多久，读的是同一份。
-import type { HardenedFetchResult } from "../hardenedFetch";
-import { hardenedFetch } from "../hardenedFetch";
+import type { HardenedFetchDependencies, HardenedFetchDiagnostics, HardenedFetchResult } from "../hardenedFetch";
+import { hardenedFetch, hardenedFetchDiagnostics } from "../hardenedFetch";
+import { logInfo } from "../logging/logger";
 import { providerDispatcher, type ProviderNetworkConfig } from "../providerNetwork";
 import {
   PROVIDER_MEDIA_BYTE_CAP,
   PROVIDER_MEDIA_IDLE_TIMEOUT_MS,
   PROVIDER_MEDIA_RETRIEVAL_MAX_MS,
+  REFERENCE_LINK_ALIVE_MEMO_MS,
+  REFERENCE_LINK_MEMO_LIMIT,
+  REFERENCE_LINK_PROBE_MAX_BYTES,
+  REFERENCE_LINK_PROBE_RANGE_BYTES,
+  REFERENCE_LINK_PROBE_TIMEOUT_MS,
   providerMediaRetrievalTotalMs,
 } from "../shared/assets/providerMediaRetrievalBudget";
+import { mediaKindFromContentType } from "./mediaTypes";
 
 /**
  * 单个产物是否超过字节上限。取回与「已经在内存里的 data: 产物」都问这里，不各带一个数字。
@@ -65,4 +72,146 @@ export async function fetchProviderMedia(url: string, options: ProviderMediaFetc
   } finally {
     if (providerRoute) void providerRoute.close().catch(() => undefined);
   }
+}
+
+// ── 参考素材的临时链接：发给模型之前先试一下 ───────────────────────────────────────────────────────────────
+//
+// 为什么在这里：试探也是「从供应商那边取东西」，要走同一条线路（这家供应商单配的代理）、同一套出站策略
+// （hardenedFetch：私网 / 跳转逐跳检查，不带 Key），所以住在取回线路策略的 owner 里，不另起一条出口。
+// 它只回答一个问题：这条临时链接现在还能不能取到**媒体**。三个答案，只有明确失效才改走上传：
+//   · alive    取到了媒体字节的头（或类型就是图片 / 视频 / 音频）→ 发原链接；
+//   · dead     服务商明确说不行（4xx），或 2xx 回来的是网页 / XML / JSON / 文字 → 改用本机文件上传；
+//   · unknown  超时、断网、5xx、跳转失败、出站策略拒绝……→ 照发原链接，和没有这个功能时一模一样。
+// 判不了不能当失效：本机网络不通时，模型那边多半仍然拉得到。
+// 用 GET + Range，不用 HEAD：对象存储的预签名链接只对签名时的方法有效，HEAD 会得到 403（把活链接判死）。
+
+export type ProviderLinkVerdict = "alive" | "dead" | "unknown";
+
+export type ProviderLinkProbeOptions = {
+  /** 产出这条链接的那家供应商自己的线路（同 fetchProviderMedia）。 */
+  providerNetwork?: ProviderNetworkConfig;
+  /** 测试注入：记忆的时钟。 */
+  now?: () => number;
+};
+
+/** 4xx 里**不**算失效的：请求超时 / 太早 / 限流 / Range 不可满足——都说明不了链接本身死了。 */
+const NOT_A_DEAD_LINK_STATUSES: ReadonlySet<number> = new Set([408, 425, 429, 416]);
+/** 2xx 里这些类型不是媒体：JSON / XML / 网页 / 脚本（文本类由 mediaKindFromContentType 判）。 */
+const TEXTUAL_APPLICATION_TYPE = /^application\/(?:json|xml|xhtml\+xml|javascript)$|\+(?:json|xml)$/;
+
+/** 没声明类型（或声明得不可信）的 2xx：开头是 `<` 或 `{` 就是网页 / XML / JSON 错误体，不是媒体。 */
+function startsLikeMarkupOrJson(head: Uint8Array): boolean {
+  const first = new TextDecoder("utf-8").decode(head.subarray(0, 64)).trimStart()[0];
+  return first === "<" || first === "{";
+}
+
+function judgeProbeResponse(status: number, contentType: string, head: Uint8Array | null): ProviderLinkVerdict {
+  if (status >= 400 && status < 500) return NOT_A_DEAD_LINK_STATUSES.has(status) ? "unknown" : "dead";
+  if (status < 200 || status >= 300) return "unknown";
+  // 2xx 却一个字节都没有：说不清是链接坏了还是服务器怪，当判断不了。
+  if (head !== null && head.length === 0) return "unknown";
+  const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  const kind = mediaKindFromContentType(type);
+  if (kind === "image" || kind === "video" || kind === "audio") return "alive";
+  if (kind === "text" || TEXTUAL_APPLICATION_TYPE.test(type)) return "dead";
+  if (head === null) return "alive";
+  return startsLikeMarkupOrJson(head) ? "dead" : "alive";
+}
+
+/** 响应头到了、但整份 body 超过了读取上限（服务器忽略 Range，或 4xx 页面很大）：诊断里的状态码与类型就是答案。 */
+function exceededProbeBudget(diagnostics: HardenedFetchDiagnostics): boolean {
+  return (diagnostics.declaredBytes ?? 0) > REFERENCE_LINK_PROBE_MAX_BYTES || diagnostics.receivedBytes > REFERENCE_LINK_PROBE_MAX_BYTES;
+}
+
+async function readProbeVerdict(
+  url: string,
+  signal: AbortSignal,
+  dispatcher: ReturnType<typeof providerDispatcher>,
+  dependencies: HardenedFetchDependencies,
+): Promise<ProviderLinkVerdict> {
+  try {
+    const response = await hardenedFetch(url, {
+      method: "GET",
+      headers: { Range: `bytes=0-${REFERENCE_LINK_PROBE_RANGE_BYTES - 1}` },
+      throwOnNon2xx: false,
+      maxBytes: REFERENCE_LINK_PROBE_MAX_BYTES,
+      timeoutMs: REFERENCE_LINK_PROBE_TIMEOUT_MS,
+      signal,
+      ...(dispatcher ? { dispatcher } : {}),
+    }, dependencies);
+    return judgeProbeResponse(response.status, response.contentType, response.bytes);
+  } catch (error) {
+    const diagnostics = hardenedFetchDiagnostics(error);
+    if (diagnostics?.status != null && exceededProbeBudget(diagnostics)) {
+      return judgeProbeResponse(diagnostics.status, diagnostics.contentType ?? "", null);
+    }
+    return "unknown";
+  }
+}
+
+/** 做一次试探：4 秒是硬上限。DNS 不看 abort（hardenedFetch 的计时器停不下它），所以另用 race 兜底。 */
+async function probeOnce(url: string, options: ProviderLinkProbeOptions, dependencies: HardenedFetchDependencies): Promise<ProviderLinkVerdict> {
+  const controller = new AbortController();
+  const route = options.providerNetwork ? providerDispatcher({ network: options.providerNetwork }) : undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<ProviderLinkVerdict>((resolve) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      resolve("unknown");
+    }, REFERENCE_LINK_PROBE_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([readProbeVerdict(url, controller.signal, route, dependencies), expired]);
+  } finally {
+    clearTimeout(timer);
+    if (route) void route.close().catch(() => undefined);
+  }
+}
+
+type Memo = { verdict: ProviderLinkVerdict; expiresAt: number };
+const memo = new Map<string, Memo>();
+const inflight = new Map<string, Promise<ProviderLinkVerdict>>();
+
+function remember(url: string, verdict: ProviderLinkVerdict, now: number): void {
+  memo.delete(url);
+  memo.set(url, { verdict, expiresAt: verdict === "dead" ? Number.POSITIVE_INFINITY : now + REFERENCE_LINK_ALIVE_MEMO_MS });
+  while (memo.size > REFERENCE_LINK_MEMO_LIMIT) {
+    const oldest = memo.keys().next().value;
+    if (oldest === undefined) break;
+    memo.delete(oldest);
+  }
+}
+
+/** 测试用：清空记忆与在途表。 */
+export function resetProviderLinkProbes(): void {
+  memo.clear();
+  inflight.clear();
+}
+
+/**
+ * 试一下这条临时链接。同一条链接并发只发一个 GET；活着或判断不了的结论记 5 分钟，明确失效的记到进程结束。
+ * 日志只写主机——链接的查询串里常带签名，拿到就能下载。
+ */
+export function probeProviderLink(
+  url: string,
+  options: ProviderLinkProbeOptions = {},
+  dependencies: HardenedFetchDependencies = {},
+): Promise<ProviderLinkVerdict> {
+  const now = options.now ?? Date.now;
+  const known = memo.get(url);
+  if (known && known.expiresAt > now()) return Promise.resolve(known.verdict);
+  const pending = inflight.get(url);
+  if (pending) return pending;
+  const startedAt = Date.now();
+  const run = probeOnce(url, options, dependencies)
+    .then((verdict) => {
+      remember(url, verdict, now());
+      let host = "";
+      try { host = new URL(url).hostname; } catch { /* 链接不合法：下一步 hardenedFetch 已经判了 unknown */ }
+      logInfo("assets", "reference-link-probe", { host, verdict, ms: Date.now() - startedAt });
+      return verdict;
+    })
+    .finally(() => { inflight.delete(url); });
+  inflight.set(url, run);
+  return run;
 }

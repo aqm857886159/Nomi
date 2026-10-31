@@ -378,15 +378,18 @@ describe("resolveLocalAsset (per strategy)", () => {
     expect(postMultipart).toHaveBeenCalledTimes(2);
   });
 
-  it("sidecar originalUrl short-circuits: returns public URL, never uploads", async () => {
-    const readWithSidecar = (): LocalAsset => ({ ...fakeAsset("a.png"), originalUrl: "https://cdn.origin/a.png" });
+  // 以前这里钉的是「有 originalUrl 就直接返回、不上传」——那是 resolveLocalAsset 里的第二处捷径：
+  // localizeAssetsForVendor 已经判过一次，它把窗内被判死（或模型拒绝过）的链接交到这里来换新链，
+  // 结果这里又把同一条死链接原样还回去。发链接还是传文件现在只在 localizeAssetsForVendor 决定一次，
+  // 这一层只管「按策略真上传」，所以：即使 sidecar 的链接还在新鲜窗内，也照常上传并返回上传后的地址。
+  it("resolveLocalAsset 不再因为有 originalUrl 而短路：真的上传，返回上传后的地址", async () => {
+    const readWithSidecar = (): LocalAsset => ({ ...fakeAsset("a.png"), originalUrl: "https://cdn.origin/a.png", ageMs: 0 });
     const postJson = vi.fn();
-    const postMultipart = vi.fn();
-    // 即便策略是 upload-multipart，有 originalUrl 也直接返回，不调任何上传
-    const out = await resolveLocalAsset(localUrl("a.png"), { strategy: "upload-multipart", endpoint: "x", urlPath: "url" }, "k", readWithSidecar, postJson, postMultipart);
-    expect(out).toBe("https://cdn.origin/a.png");
+    const postMultipart = vi.fn().mockResolvedValue({ url: "https://uploaded.example/a.png" });
+    const out = await resolveLocalAsset(localUrl("a.png"), { strategy: "upload-multipart", endpoint: "https://up/x", urlPath: "url" }, "k", readWithSidecar, postJson, postMultipart);
+    expect(out).toBe("https://uploaded.example/a.png");
+    expect(postMultipart).toHaveBeenCalledTimes(1);
     expect(postJson).not.toHaveBeenCalled();
-    expect(postMultipart).not.toHaveBeenCalled();
   });
 });
 
@@ -810,6 +813,109 @@ describe("sidecar originalUrl 新鲜度门（L2：参考图永不过期）", () 
     const readStale = () => withSidecar(STALE);
     const out = await resolveLocalAsset(localUrl("a.png"), { strategy: "inline-base64" }, "k", readStale, vi.fn(), noMultipart);
     expect(out.startsWith("data:image/png;base64,")).toBe(true);
+  });
+});
+
+describe("localizeAssetsForVendor —— 窗内临时链接发之前先试一下（linkPolicy：唯一决定点）", () => {
+  const upload: AssetIngestion = { strategy: "upload-url", endpoint: "https://up/x", base64Field: "b", urlPath: "u" };
+  const resolver = () => [{ vendorKey: "kie", ingestion: upload, uploadApiKey: "k" }];
+  const fresh = (name: string, ageMs = 60_000): LocalAsset => ({ ...fakeAsset(name), originalUrl: `https://cdn.example.com/${name}`, ageMs });
+  const readFresh = (url: string) => fresh(url.split("/").pop() || "x");
+  const urlsOf = (out: { value: unknown }) => (out.value as { input_urls: string[] }).input_urls;
+  const policy = (verdict: "alive" | "dead" | "unknown", refused = false) => ({ refused, probe: vi.fn(async () => verdict) });
+
+  it("活着 → 发原链接，零上传", async () => {
+    const post = vi.fn();
+    const linkPolicy = policy("alive");
+    const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, resolver, readFresh, post, noMultipart, { linkPolicy });
+    expect(urlsOf(out)).toEqual(["https://cdn.example.com/a.png"]);
+    expect(post).not.toHaveBeenCalled();
+    expect(linkPolicy.probe).toHaveBeenCalledWith("https://cdn.example.com/a.png");
+  });
+
+  it("判断不了 → 同样发原链接（和没有这个功能时一样）", async () => {
+    const post = vi.fn();
+    const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, resolver, readFresh, post, noMultipart, { linkPolicy: policy("unknown") });
+    expect(urlsOf(out)).toEqual(["https://cdn.example.com/a.png"]);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("明确失效 → 用本机文件走上传通道换新链；死链接不会在上传这一步被原样再发出去", async () => {
+    const post = vi.fn().mockResolvedValue({ u: "https://fresh.example.com/new-a.png" });
+    const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, resolver, readFresh, post, noMultipart, { linkPolicy: policy("dead") });
+    expect(urlsOf(out)).toEqual(["https://fresh.example.com/new-a.png"]);
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it("这条连接被模型拒绝过 → 不试探，一律上传", async () => {
+    const post = vi.fn().mockResolvedValue({ u: "https://fresh.example.com/new-a.png" });
+    const linkPolicy = policy("alive", true);
+    const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, resolver, readFresh, post, noMultipart, { linkPolicy });
+    expect(urlsOf(out)).toEqual(["https://fresh.example.com/new-a.png"]);
+    expect(linkPolicy.probe).not.toHaveBeenCalled();
+  });
+
+  it("没有 linkPolicy（老调用方）→ 和以前一样直接发窗内链接", async () => {
+    const post = vi.fn();
+    const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, resolver, readFresh, post, noMultipart);
+    expect(urlsOf(out)).toEqual(["https://cdn.example.com/a.png"]);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("试探本身抛错 → 当判断不了，发原链接", async () => {
+    const linkPolicy = { refused: false, probe: vi.fn(async () => { throw new Error("probe exploded"); }) };
+    const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, resolver, readFresh, vi.fn(), noMultipart, { linkPolicy });
+    expect(urlsOf(out)).toEqual(["https://cdn.example.com/a.png"]);
+  });
+
+  it("一个请求里的多张图一起试，不逐张等：全部试探发出之后才有第一个结论", async () => {
+    let started = 0;
+    let startedWhenFirstSettled = -1;
+    const linkPolicy = {
+      refused: false,
+      probe: vi.fn(async () => {
+        started += 1;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        if (startedWhenFirstSettled < 0) startedWhenFirstSettled = started;
+        return "alive" as const;
+      }),
+    };
+    const names = ["a.png", "b.png", "c.png", "d.png", "e.png"];
+    await localizeAssetsForVendor({ input_urls: names.map(localUrl) }, resolver, readFresh, vi.fn(), noMultipart, { linkPolicy });
+    expect(linkPolicy.probe).toHaveBeenCalledTimes(5);
+    expect(startedWhenFirstSettled).toBe(5);
+  });
+
+  it("同一条链接在一个请求里只试一次", async () => {
+    const sameLink = (): LocalAsset => ({ ...fakeAsset("same.png"), originalUrl: "https://cdn.example.com/same.png", ageMs: 1 });
+    const linkPolicy = policy("alive");
+    await localizeAssetsForVendor({ input_urls: [localUrl("one.png"), localUrl("two.png")] }, resolver, sameLink, vi.fn(), noMultipart, { linkPolicy });
+    expect(linkPolicy.probe).toHaveBeenCalledTimes(1);
+  });
+
+  it("不试探的情况：超过窗口 / 没有 originalUrl / 内联字节 / 本地 ComfyUI", async () => {
+    const linkPolicy = policy("alive");
+    const post = vi.fn().mockResolvedValue({ u: "https://fresh.example.com/x.png" });
+    await localizeAssetsForVendor({ input_urls: [localUrl("old.png")] }, resolver, () => fresh("old.png", ORIGINAL_URL_TRUST_MS + 1), post, noMultipart, { linkPolicy });
+    await localizeAssetsForVendor({ input_urls: [localUrl("bare.png")] }, resolver, (url) => fakeAsset(url.split("/").pop() || "x"), post, noMultipart, { linkPolicy });
+    await localizeAssetsForVendor({ input_urls: [inlineImageUrl()] }, resolver, vi.fn(() => null), post, noMultipart, { linkPolicy });
+    const comfy: AssetIngestion = { strategy: "comfyui-upload", endpoint: "http://127.0.0.1:8188/upload/image", accepts: ["image"] };
+    await localizeAssetsForVendor({ input_urls: [localUrl("c.png")] }, () => [{ vendorKey: "comfyui-local", ingestion: comfy, uploadApiKey: "" }], readFresh, vi.fn().mockResolvedValue({ name: "c.png" }), vi.fn().mockResolvedValue({ name: "c.png" }), { linkPolicy });
+    expect(linkPolicy.probe).not.toHaveBeenCalled();
+  });
+
+  it("ageMs 未知也要试探（按在窗内处理）", async () => {
+    const linkPolicy = policy("alive");
+    const unknownAge = (): LocalAsset => ({ ...fakeAsset("a.png"), originalUrl: "https://cdn.example.com/a.png" });
+    await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, resolver, unknownAge, vi.fn(), noMultipart, { linkPolicy });
+    expect(linkPolicy.probe).toHaveBeenCalledTimes(1);
+  });
+
+  it("assertLocalAssetTransportReady：这条连接拒绝过时，窗内链接不再让通道检查被跳过", () => {
+    const noChannel = () => [];
+    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, readFresh)).not.toThrow();
+    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, readFresh, { linkPolicy: policy("alive") })).not.toThrow();
+    expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, readFresh, { linkPolicy: policy("alive", true) })).toThrow(/没有可用的图片上传通道/);
   });
 });
 

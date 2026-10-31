@@ -70,3 +70,21 @@ export function providerMediaFileRetrievalTotalMs(declaredBytes: number | null):
 
 /** 任何一次取回最长能走多久（字节上限那一档）：60s + 200MiB ÷ 256KiB/s = 860s。 */
 export const PROVIDER_MEDIA_RETRIEVAL_MAX_MS = providerMediaRetrievalTotalMs(null)
+
+/**
+ * 参考素材的临时链接「发给模型之前先试一下」（`electron/assets/providerMediaFetch.ts#probeProviderLink`）的预算——数字也只在这里一份。
+ *
+ * 为什么是这几个数（设计卡 docs/plan/2026-11-01-reference-link-delivery.md ★7）：
+ * - 4 秒：一次真实链接实测约 1.2 秒（其中加密握手约 0.8 秒），4 秒是它的 3 倍多。超时按「判断不了」发原链接，
+ *   所以宁短勿长——试探是为了省一次失败，不是为了让用户多等；
+ * - Range 1024 字节：只问「活不活」，不下载整份。服务器忽略 Range 时整份文件会发过来，所以另有一个读取上限，
+ *   到了就断开（状态码和类型在响应头里，已经够判）；
+ * - 活着或判断不了的结论记 5 分钟：同一批生成里同一张图只试一次，又不把「刚才活着」当成永远活着；
+ *   明确失效的记到进程结束（失效的链接不会自己复活，复活了也只是多传一次）；
+ * - 记 500 条：一个请求最多约 14 张新图，批量 26 镜共几十张，500 条够一整个工作日，又不让表无界增长。
+ */
+export const REFERENCE_LINK_PROBE_TIMEOUT_MS = 4_000
+export const REFERENCE_LINK_PROBE_RANGE_BYTES = 1024
+export const REFERENCE_LINK_PROBE_MAX_BYTES = 4096
+export const REFERENCE_LINK_ALIVE_MEMO_MS = 5 * 60_000
+export const REFERENCE_LINK_MEMO_LIMIT = 500
