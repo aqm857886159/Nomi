@@ -114,8 +114,8 @@ async function openConfirm(tag = 'A') {
   await win.evaluate(({ title, message }) => {
     void window.__nomiConfirmDialogE2E({ title, message, danger: true })
   }, locale === 'en'
-    ? { title: `Delete project assets ${tag}?`, message: 'Cancel this check to retain all assets.' }
-    : { title: `删除项目素材 ${tag}？`, message: '取消本次检查以保留所有素材。' })
+    ? { title: `Walk confirm ${tag}?`, message: 'Cancel this check to retain all assets.' }
+    : { title: `走查确认框 ${tag}？`, message: '取消本次检查以保留所有素材。' })
   await expect(win.locator(CONFIRM)).toBeVisible()
 }
 
