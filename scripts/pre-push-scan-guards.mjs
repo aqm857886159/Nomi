@@ -34,6 +34,8 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
+  // Reviewed response JSON is data, but changes must still run the status contract in the normal batch.
+  { file: 'tests/relay-onboarding/profile-statuses.test.mjs', roots: ['tests/relay-onboarding/fixtures/relay-profile-responses'], exts: '*' },
   // ── electron/ 全树（遍历 electron 找违规文件）──
   { file: 'scripts/lib/buildInputRefScan.test.mjs', roots: ['src', 'electron'], files: ['vite.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'scripts/build-tailwind.mjs', 'scripts/build-electron.mjs', 'scripts/write-intake-config.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/package-build-stamp.mjs'] }, // 构建源码不许引用构建戳排除的路径（NON_INPUTS）；遍历 src + electron（<1 秒）
   { file: 'tests/system/async-signature-migration.test.mjs', roots: ['tests', 'electron', 'src', 'scripts'] }, // V-plibrary F3：同步改异步的函数，调用方（含 tests / 脚本）都要 await；遍历四个目录的源码（<1 秒）
@@ -46,6 +48,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/shared/agentCapabilities/canvasReadShotTable.test.ts', roots: ['electron/shared/agentCapabilities', 'electron/agentLane', 'electron/capabilityCore'] }, // 2026-10-19：Agent 面只有 canvasReadShotTable.ts 读分镜表文档（遍历三目录，<1 秒）
   { file: 'scripts/check-network-entry.test.mjs', roots: ELECTRON }, // #1142：Node 网络调用必须走共用传输；扫描器 scripts/check-network-entry.mjs 在闭包里（6 秒）
   { file: 'src/vendor/tablerIcons.test.ts', roots: ['src'] }, // 2026-10-18：源码用到的 tabler 图标必须在 src/vendor/tablerIcons.ts 登记（否则只有 build 会炸；遍历 src，<1 秒）
+  { file: 'src/workbench/modalInputLayerCensus.test.ts', roots: ['src'] }, // 2026-10-31：模态宿主都登记输入层，全局键盘、粘贴、指针监听都有归属；新增的不进表就红（遍历 src 的语法树，2 秒）
   { file: 'src/ui/app-shell/windowChrome.test.ts', roots: ['src'] }, // 2026-10-28：src 里每个铺满整窗的 fixed inset-0 根都得分类（让开顶栏 / 盖住顶栏但控件在带外 / 独立文档），没分类就红；遍历 src 的 .tsx（<1 秒）
   { file: 'electron/shared/mcpClientRegistry.test.ts', roots: ['src', 'electron'] }, // #1142：不许手抄客户端清单（4 秒）
   { file: 'electron/shared/contracts/ipcInvokeFailure.test.ts', roots: ['electron', 'src'] }, // 2026-10-24：全仓代码里写下的错误类名都要过 isCodeClassName（遍历 electron + src，<1 秒）

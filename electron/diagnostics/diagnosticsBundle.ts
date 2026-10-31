@@ -12,10 +12,15 @@ import path from "node:path";
 import { zipSync, strToU8 } from "fflate";
 import { listLogFilesForBundle } from "../logging/logFiles";
 import { redactModelCatalog } from "./catalogRedaction";
+import { STALL_SAMPLE_INTERVAL_MS } from "../shared/contracts/stallTimeline";
+import { stallRowsToJsonl, type StallTimelineRead } from "./stallTimeline";
 import type {
   DiagnosticsBundleEntry,
   DiagnosticsBundleExclusion,
-  DiagnosticsBundleManifest,
+  DiagnosticsExportManifest,
+  DiagnosticsHardware,
+  DiagnosticsProjectSize,
+  DiagnosticsStallTimeline,
 } from "../shared/contracts/diagnostics";
 
 /** zip 总量上限。超了先丢最旧的日志——它们是包里最大也最可替代的部分。 */
@@ -35,6 +40,15 @@ export type DiagnosticsBundleInput = {
   agentLedgerPath: string | null;
   /** 拿不到项目身份时的原因，写进清单的 excluded。 */
   agentLedgerUnavailableReason?: string;
+  /** 卡顿时间线：监视器此刻的状态 + 从盘上读回的行（读回是纯 fs，不在这里做）。 */
+  stallTimeline: {
+    monitor: { running: boolean; reason?: "not-installed" | "install-failed"; rowsThisSession: number };
+    read: StallTimelineRead;
+  };
+  /** 显卡 / 屏幕 / 窗口（要问 Electron，由 IPC 层收集）。 */
+  hardware: DiagnosticsHardware;
+  /** 工程体量数字（要解析工程文件，由 IPC 层收集）。 */
+  projectSize: DiagnosticsProjectSize;
   now: Date;
   app: { version: string; electron: string; node: string; chrome: string };
   system: { platform: string; arch: string; osRelease: string; locale: string; timeZone: string };
@@ -42,7 +56,7 @@ export type DiagnosticsBundleInput = {
 
 export type DiagnosticsBundle = {
   zip: Uint8Array;
-  manifest: DiagnosticsBundleManifest;
+  manifest: DiagnosticsExportManifest;
 };
 
 function readFileOrNull(file: string): Uint8Array | null {
@@ -73,6 +87,33 @@ function collectRunReceipts(projectDir: string): { runId: string; file: string }
   return runIds
     .map((runId) => ({ runId, file: path.join(runsRoot, runId, "run.json") }))
     .filter((item) => fs.existsSync(item.file));
+}
+
+/** 时间线三态的判定 + 给收包的人读的一句话。监视器没运行时，盘上的旧行（上次启动记下的）照常带上。 */
+export function describeStallTimeline(input: DiagnosticsBundleInput["stallTimeline"]): DiagnosticsStallTimeline {
+  const { monitor, read } = input;
+  const base = { file: read.file, rows: read.rows.length, rowsThisSession: monitor.rowsThisSession, droppedLines: read.droppedLines };
+  const scope = "只含时间、类型、时长、所在页、是否在生成、节点数档位；不含内容与路径";
+  if (!monitor.running) {
+    return {
+      ...base,
+      state: "monitor-not-running",
+      reason: monitor.reason ?? "not-installed",
+      note: `停顿监视器未运行（${monitor.reason ?? "not-installed"}），本次启动没有新记录；${read.rows.length ? `盘上有以前启动留下的 ${read.rows.length} 行，已带上。` : "盘上也没有以前的记录。"}${scope}。`,
+    };
+  }
+  if (read.rows.length === 0) {
+    return {
+      ...base,
+      state: "none-this-session",
+      note: `监视器在运行，本次没记到约 100ms 以上的主进程停顿、200ms 以上的界面长帧或窗口无响应${read.file === "present" ? "（时间线文件在，里面没有可用的行）" : "（还没有时间线文件）"}。${scope}。`,
+    };
+  }
+  return {
+    ...base,
+    state: "recorded",
+    note: `共 ${read.rows.length} 行，其中本次启动 ${monitor.rowsThisSession} 行（重启前的记录也在）。主进程那一行的时间精确到 10 秒窗口末尾，时长误差约 ±${STALL_SAMPLE_INTERVAL_MS / 2}ms。${scope}。`,
+  };
 }
 
 export function buildDiagnosticsBundle(input: DiagnosticsBundleInput): DiagnosticsBundle {
@@ -146,13 +187,26 @@ export function buildDiagnosticsBundle(input: DiagnosticsBundleInput): Diagnosti
     }
     if (!receipts.length) excluded.push({ what: "project/runs/*/run.json", why: "no-production-runs" });
   }
+  // ⑤ 卡顿时间线。只收通过白名单校验的行，并重新序列化——盘上的原文件不原样进包，
+  //    所以别的版本写的、被改过的、写坏的行到这里就出不去了。
+  const stallTimeline = describeStallTimeline(input.stallTimeline);
+  if (input.stallTimeline.read.rows.length) {
+    const added = add(
+      "stall-timeline.jsonl",
+      strToU8(stallRowsToJsonl(input.stallTimeline.read.rows)),
+      "卡顿时间线（本机记录，约 100ms 以上的主进程停顿 / 200ms 以上的界面长帧 / 窗口无响应与恢复；只含时间、类型、时长、所在页、是否在生成、节点数档位）",
+    );
+    if (!added) excluded.push({ what: "stall-timeline.jsonl", why: "bundle-size-limit" });
+  } else {
+    excluded.push({ what: "stall-timeline.jsonl", why: stallTimeline.state });
+  }
   excluded.push({
     what: "project/runs/*/{brief,script,storyboard,direction}-v*.json",
     why: "creative-content-by-design",
   });
   excluded.push({ what: "api-keys / prompts / asset paths", why: "never-collected-by-design" });
 
-  const manifest: DiagnosticsBundleManifest = {
+  const manifest: DiagnosticsExportManifest = {
     schemaVersion: 1,
     createdAt: input.now.toISOString(),
     app: input.app,
@@ -161,6 +215,9 @@ export function buildDiagnosticsBundle(input: DiagnosticsBundleInput): Diagnosti
     entries,
     excluded,
     totalBytes,
+    stallTimeline,
+    hardware: input.hardware,
+    projectSize: input.projectSize,
   };
 
   // 清单最后加：它要如实描述已经进包的那些条目，所以必须在其余条目定稿之后。

@@ -1064,6 +1064,12 @@
       "path": "patches/img-fx@0.5.1.patch",
       "symbol": "IMG_FX_EFFECT",
       "reason": "用户批准删除等待shader、img-fx依赖及patch；静止灰格路径不再编译或调度该shader，旧编译冻结不变量随引擎整体退役，没有替代shader或回退。静态等待及零绘制由2026-10-31-generation-idle-work根因合同与GenerationWaitingSurface.test.ts、generation-idle性能场景守。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-16-relay-video-result-retrieval.root-cause.json",
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "noteRelayQueryOutcome",
+      "reason": "获批方向已反转旧不变量：连续查询失败不得自动换通道，也不得修改已受理任务的查询合同。旧noteRelayQueryOutcome与调用方重查分支同提交删除；现役executeTaskQuery只沿原mapping查询，阶段错误保留收据。旧“连续三次失败单向退回”不再适用，故退役而非改锚；新不变量由协议根因合同及relayQueryFallback回归持有。"
     }
   ],
   "unverified": [

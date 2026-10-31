@@ -52,6 +52,7 @@ const REGISTRY: Record<string, Entry> = {
   "electron/comfyuiProgressSocket.ts#websocket": { disposition: "outside-paid-dispatch", reason: "本机 ComfyUI 的进度推送（只听不交）；本机 ComfyUI 不进制作 Run（登记的例外），提交走 HTTP" },
   "electron/director/mobileBridgeServer.ts#websocket": { disposition: "outside-paid-dispatch", reason: "手机遥控的本机 WebSocket 服务端，只收不发付费请求" },
   "electron/browser/media/browserViewMedia.ts#chromium-net": { disposition: "outside-paid-dispatch", reason: "内置浏览器里下载网页媒体（用户在浏览器里点的），不是生成提交" },
+  "electron/diagnostics/diagnosticsFacts.ts#isolated-runtime": { disposition: "outside-paid-dispatch", reason: "导出诊断包时在 worker 线程里数工程节点数：只读本机工程文件、回传一个数字，不联网、不碰供应商，也不在任何付费派发的调用链上（用户点「导出诊断」才跑）" },
 };
 
 const CHILD_MODULES = new Set(["child_process", "node:child_process"]);

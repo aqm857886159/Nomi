@@ -2193,6 +2193,34 @@
       "revisitWhen": "AnchoredPopover 换到 @floating-ui/react（useFloating + useDismiss）时删除本文件，其余消费者随之迁移"
     },
     {
+      "id": "modal-input-layer",
+      "capability": "模态输入层：宿主登记「我开着、盖住哪一块」，工作区输入边界读它决定让路；一个带范围的小栈（打开、关闭、谁在最上面、某元素有没有被盖住）",
+      "status": "justified",
+      "paths": [
+        "src/design/modalInputLayer.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "HTML inert / <dialog>.showModal()：只管命中测试、选择和焦点，Electron 43 实测 window 级键盘、paste、指针监听照样收到，拦不住工作区快捷键",
+          "source": "https://html.spec.whatwg.org/multipage/interaction.html"
+        },
+        {
+          "name": "Radix DismissableLayer / FocusScope：内部用一个栈记录最高层，只取这个形状；它们是传递依赖、不是公开原语，Mantine Modal 不往里登记，也不管全局按键",
+          "source": "https://github.com/radix-ui/primitives/tree/main/packages/react/dismissable-layer"
+        },
+        {
+          "name": "Mantine Modal：每个开着的 Modal 只在 window 捕获期管自己的 Esc，没有「现在有没有 Modal 开着」的读接口，手写模态也不经过它",
+          "source": "https://mantine.dev/core/modal/"
+        },
+        {
+          "name": "tldraw 的 editor.menus（hasAnyOpenMenus / addOpenMenu）：同样是宿主登记、快捷键读状态，但它是编辑器内部状态，不能单独拿来用",
+          "source": "https://raw.githubusercontent.com/tldraw/tldraw/main/packages/tldraw/src/lib/ui/hooks/useKeyboardShortcuts.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：工作区面（画布、时间轴、列表、预览）的全局快捷键要按「谁盖住了谁」让路，灯箱只盖画布那一格、旁边时间轴还能用，现成的浮层库只有整窗和焦点两种概念；约 30 行，不加依赖。",
+      "revisitWhen": "浮层统一换到一个公开了「当前开着的层」读接口、且能表达局部覆盖的库时，删除本文件"
+    },
+    {
       "id": "rich-text-action-button",
       "capability": "富文本格式钮的画法：设计系统 Tooltip 名字、aria-pressed + 设计系统 §5.5 Pressed 底色、mousedown 不抢编辑器焦点；创作区顶栏、选区浮条、画布文本节点格式条三个壳共用",
       "status": "justified",
@@ -2245,6 +2273,37 @@
       ],
       "whyNotIntegrated": "没有现成库提供「目录名带创建者进程号 + 按进程存活回收 + 杀进程的一方等整棵树没了再收」这一整套：上面四条要么只在进程退出时清理，要么按次数 / 年龄猜，而杀这些进程的正是我们自己的门岗 runner（SIGKILL 整组）。为什么是两份而不是一份：scripts/_test-temp.mjs 是纯 node 直接跑的零依赖 .mjs（被构建链用到——scripts/package-build-stamp.mjs，并被 scripts/electron-build.test.mjs 单文件拷进夹具），没有 TS 加载器，不能 import TypeScript 产品代码；产品代码也不许 import scripts/；两边共同的只有一个存活判断（process.kill(pid, 0)）加一个目录名形状，十来行。共用要么动 electron/ 的结构（本单不碰，也是任务书的停点），要么新造一个需要构建步骤的跨运行时模块，代价远大于重复。各管一边：scratchCleanup.ts 管用户项目根下的 .nomi-upload-p<pid>-xxxxxx（别的活进程的按年龄兜底、有 liveStaging 保护本进程在用的）；_test-temp.mjs 管系统临时目录里的 <前缀>-p<pid>-xxxxxx（共享目录，所以多一道 uid 校验、lstat 不跟符号链接，且不按年龄——活进程的永远不动）。脚本侧另有三份存活判断（scripts/vitest-fair-share.mjs:44、scripts/lib/nomiClient.mjs:44、scripts/git-delivery.mjs:480），同样因为零依赖不合并，合并是另一刀。",
       "revisitWhen": "脚本侧能直接 import 一份编译后的产品模块、或两边有了共用的零依赖跨运行时模块时，合并成一份并删掉重复的存活判断；或 vitest 运行根 / evals / 视频原生导入暂存也接进同一套归属后复查两份是否还都需要"
+    },
+    {
+      "id": "stall-timeline-monitor",
+      "capability": "卡顿时间线：把主进程停顿、窗口无响应、渲染层长帧归因到 Nomi 的「所在页 / 有没有生成在跑 / 节点数档位」，写进本机一份活过重启的文件，供诊断包导出",
+      "status": "justified",
+      "paths": [
+        "electron/diagnostics/stallMonitor.ts",
+        "electron/diagnostics/stallTimeline.ts",
+        "electron/diagnostics/diagnosticsFacts.ts",
+        "electron/shared/contracts/stallTimeline.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "Node perf_hooks.monitorEventLoopDelay（直方图本身用它，不自写）",
+          "source": "https://nodejs.org/api/perf_hooks.html"
+        },
+        {
+          "name": "Electron BrowserWindow 的 unresponsive / responsive 事件与 app.getAppMetrics（现成事件，直接用）",
+          "source": "https://www.electronjs.org/docs/latest/api/browser-window"
+        },
+        {
+          "name": "VS Code 扩展宿主无响应排查：发现无响应就留一份证据让用户随报告带上",
+          "source": "https://github.com/microsoft/vscode/wiki/Explain-extension-causes-high-cpu-load"
+        },
+        {
+          "name": "本仓 logging/logFiles.ts 的 createLogFileSink（滚动落盘直接复用，不另写）",
+          "source": "electron/logging/logFiles.ts"
+        }
+      ],
+      "whyNotIntegrated": "自写的只有领域归因，不是通用能力：停顿要挂到 Nomi 的页面、生成状态和节点数档位上，这些只有 Nomi 的渲染层知道；行形状是封闭枚举（路径 / 提示词没有位置可进），用来守住「不含内容」的承诺。直方图用 Node 标准接口、滚动用仓内唯一的日志写手，都不自写。",
+      "revisitWhen": "出现可直接接入的、带产品场景归因且只落本机的主进程卡顿记录方案时重新评估"
     }
   ]
 }

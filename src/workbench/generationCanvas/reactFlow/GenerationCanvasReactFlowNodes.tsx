@@ -23,13 +23,8 @@ import { canvasPluginRegistry } from '../plugins/defaultCanvasPluginRegistry'
 import { CARD_FIXED_WIDTH, getNodeResizeBounds, readNodeMediaAspectRatio, resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { LightweightGenerationNode } from '../components/LightweightGenerationNode'
-import {
-  isLargeCanvas,
-  isZoomedOutForLightweight,
-  retainLargeCanvasLightweightRendering,
-  shouldRenderFullNodeContent,
-  shouldUseLightweightNodeRenderingForSelection,
-} from '../components/canvasNodeLevelOfDetail'
+import { isZoomedOutForLightweight, shouldRenderFullNodeContent } from '../components/canvasNodeLevelOfDetail'
+import { generationNodeKindOwnsZoomTiers } from '../model/generationNodeKinds'
 import { externalHighlightShellClass, type GenerationFlowEdge, type GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { selectFlowZoom } from './canvasViewportScale'
 import { GenerationFlowNodeScope, useGenerationFlowHandleMenu } from './generationFlowNodeContext'
@@ -190,23 +185,17 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
-  const largeCanvas = useGenerationCanvasStore((state) => isLargeCanvas(state.nodes.length))
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
   const multiSelectionActive = useStore((state) => state.multiSelectionActive && data.primarySelection)
+  // 细节准入（components/canvasNodeLevelOfDetail.ts）：只看看不看得清（缩放，只订一个布尔）和用户在不在对它做事；
+  // 画布上一共几个节点不是输入——缩远了 60 张图和 600 张图一样都只画轻量卡。
   const zoomedOut = useStore((state) => isZoomedOutForLightweight(selectFlowZoom(state)))
   const primarySelection = data.primarySelection && !multiSelectionActive
-  const retainedLightweightRef = React.useRef(false)
-  retainedLightweightRef.current = retainLargeCanvasLightweightRendering({
-    retained: retainedLightweightRef.current,
-    largeCanvas,
-    selected,
-    primarySelection,
-  })
-  const lightweightMode = retainedLightweightRef.current || shouldUseLightweightNodeRenderingForSelection({
-    largeCanvas,
+  const fullContent = shouldRenderFullNodeContent({
     zoomedOut,
-    selected,
+    ownsZoomTiers: generationNodeKindOwnsZoomTiers(node.kind),
     primarySelection,
+    focusFlash: data.externalHighlight === 'flash',
   })
   const leftAffordance = resolveGenerationFlowConnectionAffordance(node, 'left', primarySelection, pendingConnectionSourceId)
   const rightAffordance = resolveGenerationFlowConnectionAffordance(node, 'right', primarySelection, pendingConnectionSourceId)
@@ -302,7 +291,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       {!groupPort ? (
         <GenerationFlowNodeScope>
           <NodeEmptyStateProvider engaged={primarySelection} readOnly={data.readOnly}>
-          {shouldRenderFullNodeContent({ lightweightMode, selected: primarySelection, focusFlash: data.externalHighlight === 'flash' }) ? (
+          {fullContent ? (
             // 节点渲染器按种类懒加载（renderRegistry 的 React.lazy）。第一次建某种节点时 chunk 还没到，
             // 若没有就近的 Suspense 边界，React 会把最近那层（NomiStudioApp 包住整个画布的那个）
             // 已提交的内容整体 display:none 直到 chunk 到达：画布闪黑一帧，而且 React Flow 缓存的

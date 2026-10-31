@@ -1,3 +1,6 @@
+import { buildVersionHealth } from './health.mjs'
+import pkg from '../../../package.json' with { type: 'json' }
+
 // Intake Radar —— 汇总算法层。纯函数，不摸网络、不摸文件系统、不调 LLM。
 //
 // 分工边界（与 feedback-radar.mjs / model-radar.ts 同一条线）：这里只做「数得清楚的事」——
@@ -342,6 +345,7 @@ export function buildIntakeReport({
   newEventKeys,
   corruptFiles = [],
   generatedAt = new Date().toISOString(),
+  healthOptions = {},
 }) {
   const feedbackItems = buildFeedbackItems(feedbackRecords)
   const allEvents = flattenEvents(eventRecords)
@@ -353,6 +357,7 @@ export function buildIntakeReport({
 
   return {
     generatedAt,
+    versionHealth: buildVersionHealth(events, { newVersion: pkg.version, ...healthOptions, generatedAt, corruptFileCount: corruptFiles.length }),
     window: { latestDate, previousDate },
     totals: {
       feedbackCount: feedbackItems.length,

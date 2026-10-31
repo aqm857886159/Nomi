@@ -184,6 +184,10 @@ export type DesktopBridge = DesktopMediaBridge &
   log?: {
     report: (entry: import('../../electron/shared/contracts/rendererLog').RendererLogEntry) => void
   }
+  /** 卡顿时间线：渲染层 → 主进程的单向报文（长帧 + 场景）。只写本机文件，不进遥测。老 preload 可能无此口。 */
+  diagnostics?: {
+    reportStall: (report: import('../../electron/shared/contracts/stallTimeline').StallReport) => void
+  }
   /**
    * 一键反馈。**不受「帮 Nomi 变好」开关管**（用户主动点的那一条）。
    * `preview` 只算清单不发东西；`send` 立刻返回，失败已在主进程入队重试。

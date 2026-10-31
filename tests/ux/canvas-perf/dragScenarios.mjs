@@ -10,7 +10,8 @@ import { canvasFitViewButton, canvasResetView } from '../_shell.mjs'
 //   • multi-node-drag (N=8 selected) to expose the per-N amplification of the
 //     off-canvas re-render + store-write cost (suspect #1/#7 scale with N)
 //   • drag-at-low-zoom to measure the drag path under lightweight LOD, whose
-//     trigger is nodeCount>80 AND zoom<0.55 (canvasNodeLevelOfDetail.ts:29-31)
+//     trigger is zoom<0.55 for any non-selected card, whatever the node count
+//     (canvasNodeLevelOfDetail.ts, 2026-10-31: the node-count gate was removed)
 //   • drag-over-dense-edges to drag a node through a high-edge-density band so
 //     the per-move edge-path recompute is in the hot path
 //
@@ -27,7 +28,7 @@ export const MULTI_DRAG_NODE_COUNT = 8
 
 /** LOD trigger constants mirrored from canvasNodeLevelOfDetail.ts (kept in sync
  * by the guard test dragScenarios.test.mjs, which imports the source values). */
-export const LIGHTWEIGHT_ZOOM_CEILING = 0.55
+export const LIGHTWEIGHT_ZOOM_CEILING = 0.40
 
 function sleep(page, ms) {
   return page.waitForTimeout(ms)
@@ -187,9 +188,8 @@ export async function runMultiNodeDrag(page) {
 
 /**
  * drag-at-low-zoom: assumes the caller has already zoomed the canvas below the
- * lightweight ceiling AND the fixture has >80 nodes (only then does LOD engage;
- * S=48 will NOT — see note in the harness wiring, which pairs this scenario with
- * a scale that crosses the threshold). We drag a lightweight (non-selected)
+ * lightweight ceiling (LOD engages there at any node count since 2026-10-31).
+ * We drag a lightweight (non-selected)
  * node and record whether lightweight rendering was actually in effect so the
  * result is self-describing rather than silently measuring full-content drag.
  * @param {import('playwright').Page} page

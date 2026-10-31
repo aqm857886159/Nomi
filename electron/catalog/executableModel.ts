@@ -38,9 +38,10 @@ export function findExecutableModel(
   }
   // 「能不能用」的判据只有一处（catalogModelAvailability → shared/modelAvailability）。这里不再
   // 自己拼 published / key 两条——本函数额外要做的只是**把明文 key 解出来**并按三态给人话。
+  // 没发布也归 model-config（去模型接入）：重试一万次都一样。措辞要带「Model is not configured」，错误卡靠它分类。
   const availability = catalogModelAvailability(state, model);
   if (!availability.usable && availability.reason === "model_unpublished") {
-    throw new Error(`Model is not published: ${modelKey}`);
+    throw new Error(`Model is not configured: ${modelKey} (not published: no verified route yet)`);
   }
   const keyRecord = state.apiKeysByVendor[vendorKey];
   const apiKey = decryptApiKeyRecord(keyRecord);

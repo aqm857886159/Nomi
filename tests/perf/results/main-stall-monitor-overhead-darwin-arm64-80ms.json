@@ -1,0 +1,59 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "0a20ada61",
+  "head": "0a20ada619faba5b541b569a054492044f2aabdf",
+  "dirty": false,
+  "sourceTree": "9fc0194a9366862c66df8de370a705adb6f08797",
+  "date": "2026-10-31",
+  "runs": 5,
+  "results": [
+    {
+      "id": "main-stall-monitor-overhead",
+      "metrics": {
+        "stallMonitorCpuMsPerSec": {
+          "runs": 5,
+          "median": 1.2,
+          "p95": 1.4
+        },
+        "stallMonitorWakeupsPerSec": {
+          "runs": 5,
+          "median": 24.5,
+          "p95": 25
+        },
+        "stallMonitorQuietWrites": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0.8
+        }
+      },
+      "samples": {
+        "stallMonitorCpuMsPerSec": [
+          1.11,
+          1.39,
+          0.91,
+          1.17,
+          1.36
+        ],
+        "stallMonitorWakeupsPerSec": [
+          24,
+          25,
+          24.5,
+          25,
+          24.5
+        ],
+        "stallMonitorQuietWrites": [
+          0,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      "budget": 2,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}
