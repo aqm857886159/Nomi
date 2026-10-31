@@ -1,0 +1,91 @@
+# 方向检查：materialize 崩在 artifact.add 和 job.status 之间（T10）
+
+> 触发：`node scripts/fix-churn.mjs electron/productionRun/productionGenerationSubmission.ts` 命中，文件 14 天已有 4 个 fix，这一刀是第 5 个。文件本身命中，不在协调代批例外内，结构性结论交用户拍板。
+> 设计卡：`docs/plan/2026-10-31-run-retrieval-recovery.md`。
+
+## 0. 一句话根因
+
+一次落地要写好几份记录（产物文件、`artifact.add`、`job.status`、信封、Run 收尾），它们本来就做不到一次写完；缺的不是更原子的写法，而是「产物已经在账上，下一个来查的人负责把后面几步补齐」这条不变量。#1393 重写 materialize 时把这条补齐删了。
+
+## 1. 归类表：前 4 个 fix → 直接原因 → 类
+
+| 提交 | 这个文件改了什么 | 直接原因 | 类 |
+|---|---|---|---|
+| e24f32d62（10-17） | 1 行：`materialize` 带上冻结合同的上下文 | 重启后取产物不知道这笔任务的模型 / 模式，把回显的参考图当成产物 | 取产物读什么 |
+| e849e7609（10-28） | 9 行：只有「结果未知」才记进信封 | 同步供应商答了、本机落地失败，被记成结果未知 | 提交失败的结局分类 |
+| 879d8cd5c（10-30） | 2 行：同样的 pending 不写快照 | 轮询时的整份落盘造成卡顿 | 等待期间的空转成本 |
+| 1fcc7ed01（10-31） | 重写 `poll` / `materialize`，约 200 行 | 两个观察者交错时旧观察盖新观察、并发落地 | 观察与落地的并发围栏 |
+
+**是不是同一类：不是。** 前 3 个各是一类，这个文件只是「提交出口」的唯一家，所有修复都得经过它。只有第 4 个和 T10 同类：T10 就是第 4 个的回归，它的前一版有这一句（`if (job.status !== "ready") command(... materialize-job ...)`），重写时没有带过来。
+
+#### 三条体验铁律
+
+不适用：这是崩溃恢复的状态机，不涉及说的 / 摆的、能选到、点了等于以为的。结账挂矩阵测试（`tests/fixtures/run-retrieval-recovery-cases.json`）。
+
+## 2. 为什么这一类会一直出现
+
+这条路的写入跨三种存储：项目文件（产物字节）、Run 的事件日志、信封文件。任何两步之间都可能崩或抛错。只要代码里「已经落地了」的判断点不负责把后面几步补齐，每重写一次就可能丢一处。今天「已有 ready 产物」有 4 个出口（锁外早返回、锁内 `if (ready)`、`materializeOutput` 抛错后复查、写之前复查），各写各的。
+
+## 3. 不改结构的话，接下来会冒出什么
+
+| 预测 | 怎么验证 |
+|---|---|
+| 成品在、Run 永远不收尾，节点这一镜一直锁着 | `electron/productionRun/productionGenerationLifecycle.test.ts` 里的崩溃点用例 |
+| 下一次重写 materialize 再丢一个出口 | 矩阵测试遍历「已有产物」的每个崩溃点，丢一个就红 |
+
+## 4. 靶子独立性检查
+
+矩阵和复现由另一条验收线先写（`V-gen-idle-work` 的 T10），本线按它的步骤收进仓库；反例「拿掉修复要红」按字节还原核过。
+
+## 5. 现成方案
+
+这是领域内的 Run 账本，没有可接入的库。文件型事务（比如换 SQLite）能把事件写进一个事务，但产物字节和信封仍在事务外，补齐一样躲不掉，而且要迁全部 Run 数据：不值。
+
+## 甲的卖点核实：`executeBatch` 是不是全写或全不写
+
+**结论：不是。** 被杀进程时没观察到半写；磁盘写到一半时明确会半写。「崩溃窗口从结构上消失」这个说法不成立。
+
+看代码（`productionRunRepository.ts` 的 `appendDurableJsonLines` / `executeBatchUnlocked`）：所有事件拼成一个字符串，一次 `fs.writeSync` 写进事件日志，再 fsync，然后写命令记录、写快照。没有事务，也不检查短写。代码自己承认这一点：重放同一批时有 `Production command batch was only partly recorded`。
+
+实测（真仓库、真 fsync，脚本在本线临时目录，不进仓库）：
+
+| 场景 | 两条 `execute`（现状） | 一次 `executeBatch` |
+|---|---|---|
+| SIGKILL，单行约 30KB，各 50 次 | 半写 20 次 | 半写 0 次 |
+| SIGKILL，单行约 2MB，各 30 次 | 半写 15 次 | 半写 0 次 |
+
+事件日志切到不同位置（模拟断电或磁盘满的短写）后读回：
+
+| 切在哪 | 读回结果 |
+|---|---|
+| 第一行中间 | `ProductionRunParseError`，整个 Run 读不出（单条 `execute` 也一样） |
+| 正好第一行之后 | **只有第一条命令生效，就是 T10 的半状态**；重放同一批抛 `only partly recorded` |
+| 第二行中间 | `ProductionRunParseError`，整个 Run 读不出 |
+
+没核的：SIGKILL 的 0 次只是这台 Mac（APFS）上的 160 次采样，不是操作系统保证；Windows 未测；真断电没有做，上面是切文件模拟。
+
+## 6. 对比表 + 推荐
+
+| 选项 | 做什么 | 代价 | 风险 | 推荐 |
+|---|---|---|---|---|
+| 乙：补齐 | 已有 ready 产物的出口统一走一个函数：job 不是 ready / adopted 就补 `materialize-job:<jobId>`，再 `complete()` | 一个函数，换掉重复的出口 | 半状态还会出现，但下一次观察一定收尾 | **推荐** |
+| 甲：批量写 + 补齐 | 乙的全部，再把两条命令换成 `executeBatch` | 多一处改动 | 断电或短写时半状态还在，补齐一样不能省 | 不推荐现在做 |
+| 重写 | 落地换成真事务 | 迁全部 Run 数据 | 字节和信封仍在事务外 | 否 |
+| 删 | 去掉 `artifact.add` 和 `job.status` 其中一份 | 改 Run 账本格式，读者全要改 | 动面太大 | 否 |
+
+**我撤回之前对甲的推荐，改推乙。** 能结束这一类的是补齐，不是批量写：旧数据（已经崩过的 Run）和断电半状态只有补齐救得了；补齐做了，批量写只是让半状态少出现几次，而半状态本来就会被下一次观察收尾。
+
+不做甲的代价：`artifact.add` 和 `job.status` 之间仍有几毫秒窗口，进程被杀或被并发写撞上（revision conflict）时还会进半状态。用户看到的是这一镜多等一轮观察才收尾，不多花钱、不丢产物。实测的 35/80 是紧循环里故意杀出来的比例，真实使用里每次生成只过这个窗口一次。以后想再缩窗口，可以单独加批量写，不影响这次的修法。
+
+## 7. 用户要权衡的核心
+
+是花一次改动把这几毫秒的窗口再缩小（但断电时还在），还是只保证「不管崩在哪，下一次查都能收尾」。我推荐后者，改动更小，保证也更强。
+
+## 特征测试清单（动结构前先锁住）
+
+- `electron/productionRun/productionGenerationLifecycle.test.ts`、`tests/fixtures/generation-lifecycle-cases.json`：#1393 的观察与落地矩阵，现状已钉。
+- `electron/productionRun/productionRunRepository.test.ts`：`surfaces a torn final event…`、`only partly recorded`，事件日志的撕裂语义已钉。
+
+## 裁定
+
+待用户拍板。拍板前本线不改 `productionGenerationSubmission.ts`，T10 及其反例标 `unverified`。
