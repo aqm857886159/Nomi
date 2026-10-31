@@ -1,0 +1,67 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "02486e355",
+  "head": "02486e3551edb3c64d61fa9151d7ec3f858cc3e1",
+  "dirty": true,
+  "sourceTree": "2920746bbd08c462606d61bc70e95ca6c78ef4d2",
+  "date": "2026-10-31",
+  "runs": 5,
+  "results": [
+    {
+      "id": "reference-link-probe",
+      "metrics": {
+        "probeOverheadMs": {
+          "runs": 5,
+          "median": 7,
+          "p95": 14
+        },
+        "batchOverheadMs": {
+          "runs": 5,
+          "median": 13.5,
+          "p95": 22.4
+        },
+        "probeBytesPerLink": {
+          "runs": 5,
+          "median": 1024,
+          "p95": 1024
+        }
+      },
+      "samples": {
+        "probeOverheadMs": [
+          15.716208000000051,
+          7.003624999999829,
+          7.060083000000077,
+          6.5670410000000174,
+          6.578584000000319
+        ],
+        "batchOverheadMs": [
+          23.935625000000073,
+          16.059417000000167,
+          13.05641700000001,
+          13.504374999999982,
+          11.985666000000037
+        ],
+        "probeBytesPerLink": [
+          1024,
+          1024,
+          1024,
+          1024,
+          1024
+        ]
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 7.2,
+        "p95": 15,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-10-31",
+        "commit": "f6250344d"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}
