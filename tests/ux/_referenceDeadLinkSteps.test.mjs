@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 import { judgeDeadLinkSend, judgeRefusalRetry, observeFixture, observeLedger, writeProviderLink } from './_referenceDeadLinkSteps.mjs'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
+import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 
 const DEAD = 'https://cdn.example.test/fixture/dead-reference.png'
 const ALIVE = 'https://cdn.example.test/fixture/image.jpg'
@@ -80,7 +80,7 @@ describe('把夹具 / 网络闸账本读成统一观察', () => {
 
 describe('writeProviderLink：把参考图的 .meta 写成服务商的临时链接', () => {
   it('保留原有字段，写 kind 和 originalUrl；没有 .meta 就新写一份', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-dead-link-steps-'))
+    const root = makeTempDir('nomi-dead-link-steps-')
     try {
       const file = path.join(root, 'a.png')
       expect(writeProviderLink(file, DEAD)).toBe(DEAD)
@@ -89,7 +89,7 @@ describe('writeProviderLink：把参考图的 .meta 写成服务商的临时链�
       writeProviderLink(file, ALIVE)
       expect(JSON.parse(fs.readFileSync(`${file}.meta`, 'utf8'))).toEqual({ width: 2, height: 2, kind: 'generated', originalUrl: ALIVE })
     } finally {
-      fs.rmSync(root, { recursive: true, force: true })
+      cleanupTestTemp(root)
     }
   })
 })

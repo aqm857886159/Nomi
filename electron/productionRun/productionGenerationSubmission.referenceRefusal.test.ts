@@ -115,7 +115,7 @@ describe.each([canvasEngine, catalogEngine])("$name", (engine) => {
 
   it("提交被拒但不是这一类（余额不足）：不记", async () => {
     const h = harness(engine);
-    h.submit.mockRejectedValue(engine.rejection("Insufficient balance"));
+    h.submit.mockRejectedValue(engine.rejection("The account has run out of credit for this request"));
     await expect(h.start()).rejects.toThrow();
     expect(isConnectionRefused(engine.connection)).toBe(false);
   });

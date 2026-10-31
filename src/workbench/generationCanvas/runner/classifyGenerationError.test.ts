@@ -1262,8 +1262,9 @@ describe('模型取不到参考图（reference-unfetchable）', () => {
   ])('%s → 归新种类', (_label, message) => {
     const report = classifyGenerationError(message)
     expect(report.kind).toBe('reference-unfetchable')
-    expect(report.reason).toBe('模型取不到参考图')
-    expect(report.hint).toBe('参考图走的是服务商的临时链接，模型那边取不到了，可能已过期或被拦。点「重试」会改用你电脑上的原图重新上传再发，不用换图。如果这张图本机没有原文件，重试不会有用，请换一张或重新生成。')
+    expect(report.reason).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.reason'))
+    expect(report.reason).not.toContain('generationCommon.')
+    expect(report.hint).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.hint'))
     // 主按钮重试，没有换模型：重试会改用本机原图上传；换一家照样拉不到同一条临时链接。
     expect(report.primary).toBe('retry')
     expect(report.secondary).toBeNull()
@@ -1278,8 +1279,8 @@ describe('模型取不到参考图（reference-unfetchable）', () => {
     try {
       const report = classifyGenerationError(structured400(REPORTED, `Provider request failed (HTTP 400): ${REPORTED}`))
       expect(report.kind).toBe('reference-unfetchable')
-      expect(report.reason).toBe('The model could not fetch a reference image')
-      expect(report.hint).toBe("This reference went out as the provider's temporary link, and the model could not fetch it. It may have expired or been blocked. Retry uploads the original file from your computer and sends it again, so you don't need to change the image. If the image has no local file, retrying won't help: replace it or generate it again.")
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.reason'))
+      expect(report.hint).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.hint'))
       expect(`${report.reason}${report.hint}`).not.toMatch(/[㐀-鿿]/)
     } finally {
       await i18n.changeLanguage('zh-CN')

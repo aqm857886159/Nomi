@@ -18,6 +18,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { require as tsxRequire } from 'tsx/cjs/api'
+import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(name); return i < 0 ? fallback : process.argv[i + 1] }
 const runs = Number(arg('--runs', 5))
@@ -48,7 +49,7 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const origin = `http://127.0.0.1:${server.address().port}`
 
 // 隔离：试探和主进程日志都不碰真实资料。
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-reference-link-probe-bench-'))
+const root = makeTempDir('nomi-reference-link-probe-bench-')
 process.env.NOMI_SETTINGS_DIR = path.join(root, 'settings')
 process.env.NOMI_ELECTRON_USER_DATA_DIR = path.join(root, 'user-data')
 
@@ -112,7 +113,7 @@ try {
   setLabTrustedPrivateOrigins([])
   server.closeAllConnections?.()
   await new Promise((resolve) => server.close(() => resolve()))
-  fs.rmSync(root, { recursive: true, force: true })
+  cleanupTestTemp(root)
 }
 
 const report = {

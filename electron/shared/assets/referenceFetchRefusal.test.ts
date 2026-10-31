@@ -46,7 +46,7 @@ const NOT_REFUSALS: Case[] = [
   ["素材上传失败", { text: "素材上传失败：a.png（1.2MB）的所有上传通道都没成功，所以还没请求这次选的服务商。" }],
   ["中文：参考素材读不到（我们本机检查）", { text: "参考素材的本地文件读取失败（可能已被删除或随项目迁移）。" }],
   ["网络层 fetch failed", { text: "Provider request failed (network) at relay GET https://relay.example.com/v1/tasks/abc: fetch failed" }],
-  ["余额不足", { text: "Insufficient balance" }],
+  ["账户额度用完", { text: "The account has run out of credit for this request" }],
   ["不相关的错误码", { upstreamCode: "model_not_found", text: "" }],
   ["空", { text: "" }],
 ];
