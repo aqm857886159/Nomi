@@ -8,7 +8,8 @@ import { app, dialog, ipcMain } from "electron";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { assertTrustedSender } from "../ipcSenderGuard";
+import { getMainWindow } from "../appWindowRegistry";
+import { assertTrustedSender, assertTrustedUiSender } from "../ipcSenderGuard";
 import { logsDir } from "../logging/logFiles";
 import { logError, logInfo } from "../logging/logger";
 import { getSettingsRoot, getWorkspaceRepositoryDeps } from "../runtimePaths";
@@ -17,6 +18,9 @@ import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
 import { ensureWorkspaceProjectIdentity } from "../workspace/workspaceProjectIdentity";
 import { canvasReadSurfaceRuntime } from "../capabilityCore/canvasReadSurfaceRuntime";
 import { buildDiagnosticsBundle, diagnosticsBundleFileName } from "./diagnosticsBundle";
+import { collectHardwareFacts, collectProjectSize } from "./diagnosticsFacts";
+import { getStallMonitorStatus, registerStallReportIpc } from "./stallMonitor";
+import { readStallTimeline } from "./stallTimeline";
 import type { DiagnosticsExportResult } from "../shared/contracts/diagnostics";
 
 export type { DiagnosticsExportResult } from "../shared/contracts/diagnostics";
@@ -56,8 +60,12 @@ export async function exportDiagnosticsBundle(): Promise<DiagnosticsExportResult
       ? await resolveAgentLedgerPath(projectId, projectDir)
       : { ledgerPath: null, reason: "no-active-project" };
 
+  const logsRoot = logsDir();
   const { zip, manifest } = buildDiagnosticsBundle({
-    logsDir: logsDir(),
+    stallTimeline: { monitor: getStallMonitorStatus(), read: readStallTimeline(logsRoot) },
+    hardware: await collectHardwareFacts(getMainWindow()),
+    projectSize: await collectProjectSize(projectDir, projectId ? "project-dir-unresolved" : "no-active-project"),
+    logsDir: logsRoot,
     settingsRoot: getSettingsRoot(),
     projectId,
     projectDir,
@@ -106,6 +114,8 @@ export async function exportDiagnosticsBundle(): Promise<DiagnosticsExportResult
 }
 
 export function registerDiagnosticsIpc(): void {
+  // 渲染层 → 主进程的卡顿报文（长帧 + 场景），单向、不等回话；形状校验与限频在主进程。
+  registerStallReportIpc({ onMessage: ipcMain.on.bind(ipcMain), assertTrusted: assertTrustedUiSender });
   ipcMain.handle("nomi:diagnostics:export", async (event) => {
     assertTrustedSender(event);
     try {

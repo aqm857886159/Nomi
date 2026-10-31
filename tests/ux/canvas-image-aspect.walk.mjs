@@ -81,8 +81,9 @@ try {
     const zoom = await canvasZoomSlider(page)
     await zoom.focus()
     await zoom.press('Home')
-    for (let step = 0; step < 20; step++) await zoom.press('ArrowRight')
-    await expect.poll(async () => Number(await zoom.inputValue())).toBeLessThan(55)
+    // 细节线 40%：从最小缩放（20%）往右 19 格（39%，和以前的 40% 起手几何几乎一样），低于它才是轻量卡。
+    for (let step = 0; step < 19; step++) await zoom.press('ArrowRight')
+    await expect.poll(async () => Number(await zoom.inputValue())).toBeLessThan(40)
   }
   for (const id of (related ? ['character', 'prop', 'scene', 'video'] : ['landscape', 'portrait'])) {
     if (!before && lod) {

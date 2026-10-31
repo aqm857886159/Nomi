@@ -38,6 +38,10 @@
 
 后续实验室场景拟量 `mainLoopMax`、`mainSyncSleepMs`、`autosaveCount`，与已有 `mainRoundTripMax`、`frameGapP95`、`longTasks` 对照；100ms 主进程响应、33ms 帧间隔及 0 长任务的依据沿用既有预算，新增预算、场景和健康基线仍须独立登记与实测。本改动没有新增这些指标或场景，没有现场监测、遥测或 Windows 夜跑。
 
+## 主进程卡顿监视器的开销（2026-10-31）
+
+`main-stall-monitor-overhead`（量具 `tests/perf/canvas-scale/stallOverheadBench.mjs`，设计卡 `docs/plan/2026-10-31-diagnostics-jank-timeline.md` ★7）：真 Electron、隔离资料、屏幕外窗口，同一个进程里把监视器关、开各量 60 秒取差；为了抵消启动尾巴这类随时间漂移的东西，每种状态拆成两段 30 秒，按「关-开-开-关 / 开-关-关-开」轮流排（ABBA），主进程跑到 45 秒才开始量。主指标 `stallMonitorCpuMsPerSec`（主进程 CPU 增量，每秒毫秒，1 个百分点 = 每秒 10ms，预算 ≤2.0 即 ≤0.2 个百分点；用毫秒是因为统计函数只留一位小数）；`stallMonitorWakeupsPerSec`（每秒空闲唤醒增量，预算 ≤50，Windows 上 `app.getAppMetrics` 的这个读数恒为 0，记 null）；`stallMonitorQuietWrites`（无停顿的窗口里时间线文件写盘次数，预算 0，硬断言）。每轮末尾注入一次 300ms 停顿，写盘计数必须涨，否则这一轮作废（防空断言）。开 / 关靠 `stallInject.cjs` 经 `mainRequire` 拿到产品创建的直方图后 `disable()` / `enable()`，产品代码里没有开关。预算是 `proposed`，登记为待测，基线与批准由协调在安静窗口做。
+
 ## 默认预算（功能有理由偏离就在 ★7 写理由）
 
 | 指标 | 默认预算 |

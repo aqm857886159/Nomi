@@ -498,7 +498,7 @@ async function documentTyping(page, ctx) {
 async function textNodeTyping(page, ctx) {
   const selector = `[data-node-id="${TEXT_NODE_ID}"] .ProseMirror`
   const editor = page.locator(selector).first()
-  // 适应视图下 96 个节点走轻量渲染（canvasNodeLevelOfDetail：>80 个且缩放 <0.55），没有编辑器。
+  // 适应视图下没选中的卡走轻量渲染（canvasNodeLevelOfDetail：缩放 <0.40，与节点数无关），没有编辑器。
   // 像人一样：指着这张文本节点滚轮放大到 ~1 倍，再写字。
   const zoomOf = () => page.evaluate(() => {
     const viewport = document.querySelector('.react-flow__viewport')
