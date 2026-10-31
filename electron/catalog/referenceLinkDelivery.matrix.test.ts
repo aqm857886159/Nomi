@@ -17,6 +17,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const customCall = vi.hoisted(() => ({ runScript: vi.fn(), catalog: { current: null as unknown } }));
@@ -38,10 +39,11 @@ vi.mock("./customCallRunner", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./customCallRunner")>()),
   runCustomCallScript: (...args: unknown[]) => customCall.runScript(...args),
 }));
-vi.mock("../assets/localAssetFile", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../assets/localAssetFile")>()),
-  readNomiLocalAsset: (url: string) => localAssets.read.get(url) ?? null,
-}));
+vi.mock("../assets/localAssetFile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../assets/localAssetFile")>();
+  // 表里有就用表里的（入口几组塞进来的素材）；没有就读真盘（老用户那一组：0.24.0 真实落盘的素材 + .meta）。
+  return { ...actual, readNomiLocalAsset: (url: string) => (localAssets.read.get(url) as ReturnType<typeof actual.readNomiLocalAsset> | undefined) ?? actual.readNomiLocalAsset(url) };
+});
 vi.mock("../capabilityCore/pendingSpendReferences", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../capabilityCore/pendingSpendReferences")>()),
   projectSpendReferenceAssets: {
@@ -54,7 +56,9 @@ import { createPinnedDispatcher, type HardenedFetchDependencies, type ResolvedHo
 import type { OutboundEnvironment } from "../networkOutboundPolicy";
 import { setLabTrustedPrivateOrigins } from "../networkOutboundPolicy";
 import { probeProviderLink, resetProviderLinkProbes } from "../assets/providerMediaFetch";
-import { executeProfileOperation } from "../runtime";
+import { createProject, executeProfileOperation } from "../runtime";
+import { readNomiLocalAsset } from "../assets/localAssetFile";
+import { resolveProjectRelativePath } from "../projects/repository";
 import { runCustomCallTask } from "./customCallDispatch";
 import { resolveProductionReferenceUrls } from "../capabilityCore/productionReferenceUrls";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
@@ -119,6 +123,8 @@ function route(req: http.IncomingMessage, res: http.ServerResponse): void {
       case "/gen/video": return void res.writeHead(206, { "Content-Type": "video/mp4", "Content-Length": MP4.length }).end(MP4);
       case "/gen/audio": return void res.writeHead(206, { "Content-Type": "audio/mpeg", "Content-Length": MP3.length }).end(MP3);
       case "/gen/video-dead": return send("text/html", Buffer.from("<html>gone</html>"), 404);
+      case "/generated/gen-ref.png": return void res.writeHead(206, { "Content-Type": "image/png", "Content-Length": PNG.length }).end(PNG);
+      case "/generated/gone.png": return send("application/xml", Buffer.from("<Error><Code>ExpiredToken</Code></Error>"), 410);
       case "/gen/hang": hangingSockets.push(() => req.socket.destroy()); return;
       case "/v1/uploads/images": {
         uploads.push(pathname);
@@ -616,5 +622,66 @@ describe("模型拒绝之后", () => {
     const read = () => asset("a.png", link());
     expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, read, assetLocalizationOptions({ key: "relay-y" }, undefined))).not.toThrow();
     expect(() => assertLocalAssetTransportReady({ input_urls: [localUrl("a.png")] }, noChannel, read, assetLocalizationOptions({ key: "relay-x" }, undefined))).toThrow(/没有可用的图片上传通道/);
+  });
+});
+
+// ── 老用户：旧版本用它自己的真函数落盘的生成图（tests/fixtures/old-user-data/assets/<版本>-<名字>）──────────────────
+// 素材文件和 .meta 不是手写的形状：是那个版本自己的 importRemoteAsset 落下的（generators/zzRefLinkGen.ts.txt）。
+// 升级那一刻什么都不迁移，所以这里只验：升级后的决定点读这份老 .meta，活着的照发、失效的转上传，和升级前超过 48 小时的图走同一条路。
+// 目录是**遍历**出来的：以后每个版本补一份，新目录自动进这几行，不用回来改这个文件（推送前扫描型守卫登记的也是这个根）。
+const OLD_USER_ASSETS = fileURLToPath(new URL("../../tests/fixtures/old-user-data/assets", import.meta.url));
+const OLD_USER_DIRECTORIES = fs.readdirSync(OLD_USER_ASSETS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+
+describe.each(OLD_USER_DIRECTORIES)("老用户升级后：%s", (directory) => {
+  const FIXTURE = path.join(OLD_USER_ASSETS, directory);
+  const manifest = JSON.parse(fs.readFileSync(path.join(FIXTURE, "manifest.json"), "utf8")) as { relativePath: string; savedOrigin: string };
+
+  /** 把老素材拷进一个真项目；.meta 里存的地址换成本机假服务（和 catalogs 那几份同一个办法：仓库里的文件从不被改动）。 */
+  function oldUserAsset(savedPath: string, mtime?: Date): string {
+    const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-old-user-asset-"));
+    const project = createProject({ rootPath, name: "Old User", payload: {} });
+    const projectDir = resolveProjectRelativePath(project.id, "");
+    const target = path.join(projectDir, manifest.relativePath);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(path.join(FIXTURE, manifest.relativePath), target);
+    const meta = fs.readFileSync(path.join(FIXTURE, `${manifest.relativePath}.meta`), "utf8").replaceAll(`${manifest.savedOrigin}/generated/gen-ref.png`, `${origin}${savedPath}`);
+    fs.writeFileSync(`${target}.meta`, meta);
+    if (mtime) fs.utimesSync(target, mtime, mtime);
+    return `nomi-local://asset/${project.id}/${manifest.relativePath}`;
+  }
+  /** 夹具的链接在回环上：用出站策略的实验室例外放行这一个精确 origin（入口那几组同款）。 */
+  const sendOldAsset = async (url: string) => {
+    setLabTrustedPrivateOrigins([origin]);
+    const post = vi.fn(async () => ({ url: "https://uploaded.example/new.png" }));
+    const out = await localizeAssetsForVendor({ input_urls: [url] }, () => [own()], readNomiLocalAsset, post, noMultipart, { linkPolicy: policyWith({}) });
+    return { wire: extrasOf(out)[0], post };
+  };
+
+  it("真 .meta 里存着服务商的临时链接，读出来的素材带着它", () => {
+    const url = oldUserAsset("/generated/gen-ref.png");
+    const read = readNomiLocalAsset(url);
+    expect(read?.originalUrl).toBe(`${origin}/generated/gen-ref.png`);
+    expect(read?.contentType).toBe("image/png");
+    expect(typeof read?.ageMs).toBe("number");
+  });
+
+  it("链接还活着 → 发原链接，零上传（请求和升级前一字不差）", async () => {
+    const { wire, post } = await sendOldAsset(oldUserAsset("/generated/gen-ref.png"));
+    expect(wire).toBe(`${origin}/generated/gen-ref.png`);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("链接已失效 → 用本机文件上传换新链，不再发那条死链接", async () => {
+    const { wire, post } = await sendOldAsset(oldUserAsset("/generated/gone.png"));
+    expect(wire).toBe("https://uploaded.example/new.png");
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it("升级前就超过 48 小时的图：不试探，直接上传（和以前一样）", async () => {
+    const longAgo = new Date(Date.now() - ORIGINAL_URL_TRUST_MS - 3_600_000);
+    const { wire, post } = await sendOldAsset(oldUserAsset("/generated/gen-ref.png", longAgo));
+    expect(wire).toBe("https://uploaded.example/new.png");
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(hits.get("/generated/gen-ref.png") ?? 0).toBe(0);
   });
 });

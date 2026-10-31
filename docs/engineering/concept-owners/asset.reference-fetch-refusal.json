@@ -1,0 +1,23 @@
+{
+  "name": "这句失败是不是「模型那一侧拉不到我们给的输入链接」",
+  "subject": "asset.reference-fetch-refusal",
+  "lifecycle": "provider-observation",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/referenceFetchRefusal.ts",
+    "symbol": "isReferenceFetchRefusal"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/referenceFetchRefusal.ts",
+      "symbol": "isReferenceFetchRefusal"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-01",
+  "notes": "合同 docs/fixes/2026-11-01-reference-link-delivery.root-cause.json：先认上游错误码，再认英文 / 中文的通用说法，不按服务商写分支；取结果、下载产物、任务、上传这几类长得像的失败不算。主进程记账和渲染层错误卡共用这一份，不再各写一份文字判据。"
+}

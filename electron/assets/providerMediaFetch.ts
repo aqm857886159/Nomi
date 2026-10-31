@@ -206,9 +206,8 @@ export function probeProviderLink(
   const run = probeOnce(url, options, dependencies)
     .then((verdict) => {
       remember(url, verdict, now());
-      let host = "";
-      try { host = new URL(url).hostname; } catch { /* 链接不合法：下一步 hardenedFetch 已经判了 unknown */ }
-      logInfo("assets", "reference-link-probe", { host, verdict, ms: Date.now() - startedAt });
+      // 日志只是留证据：写不了（目录不可写、没有 electron）不能把一个已经得出的结论变成失败。
+      try { logInfo("assets", "reference-link-probe", { host: new URL(url).hostname, verdict, ms: Date.now() - startedAt }); } catch { /* 见上 */ }
       return verdict;
     })
     .finally(() => { inflight.delete(url); });
