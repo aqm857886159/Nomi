@@ -19,6 +19,8 @@ import { tagNomiError } from "../shared/nomiErrorCodes";
 import { extractTaskId } from "../ai/requestPipeline";
 import { BoundedResponseError, readBoundedResponseBytes } from "./boundedResponse";
 import { providerDispatcher } from "../providerNetwork";
+import { declaredContentLength } from "../hardenedFetch";
+import { PROVIDER_MEDIA_IDLE_TIMEOUT_MS, providerMediaFileRetrievalTotalMs } from "../shared/assets/providerMediaRetrievalBudget";
 import { createFreshConnectionDispatcher } from "../systemProxy";
 import type { Dispatcher } from "undici";
 import { authorizeSubmitDestination } from "./vendorOutboundGuard";
@@ -68,6 +70,53 @@ export function vendorAuthQueryParams(vendor: Vendor, apiKey: string): Record<st
   return buildAuthQueryParams(vendorAuthSpec(vendor), apiKey);
 }
 
+type MediaTransferGuard = {
+  /** 收到了一块字节：空闲计时重新起算。 */
+  progress: () => void;
+  /** 我们自己的哪个时限到点了（到点时已经 abort）；没到点 = null。 */
+  expired: () => "idle" | "total" | null;
+  idleMs: number;
+  totalMs: number;
+  stop: () => void;
+};
+
+/**
+ * 文件响应拿到响应头之后的传输时限。整次请求的总定时器（NOMI_VENDOR_HTTP_TIMEOUT_MS，缺省 120s）只盖到响应头：
+ * 它对所有请求一视同仁，一段一直在走的大下载也会被它半路掐断，重试又从零开始，于是文件大于「带宽 × 120s」就永远取不回
+ * ——2026-09-28 取回预算修的是同一个病，URL 路读 shared/assets/providerMediaRetrievalBudget，这一支读同一份数字：
+ *  · 空闲时限：连续这么久一块字节都没来 = 线路断了（受 vendor 超时封顶：调用方把超时设得更短，断线判得也更快）；
+ *  · 总上限：按响应头声明的大小放宽（没声明按 2GiB 那一档），管「线路活着但太慢」。
+ * 到点只 abort 并记下是哪一个，错误由调用处按同一套 timeout 类别抛出。
+ */
+function guardMediaTransfer(controller: AbortController, declaredBytes: number | null, vendorTimeoutMs: number): MediaTransferGuard {
+  const idleMs = Math.min(PROVIDER_MEDIA_IDLE_TIMEOUT_MS, vendorTimeoutMs);
+  const totalMs = providerMediaFileRetrievalTotalMs(declaredBytes);
+  let expired: "idle" | "total" | null = null;
+  let stopped = false;
+  const expire = (which: "idle" | "total") => {
+    if (stopped || controller.signal.aborted) return;
+    expired = which;
+    controller.abort(new DOMException("Provider media transfer timeout", "TimeoutError"));
+  };
+  const totalTimer = setTimeout(() => expire("total"), totalMs);
+  let idleTimer = setTimeout(() => expire("idle"), idleMs);
+  return {
+    progress: () => {
+      if (stopped) return;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => expire("idle"), idleMs);
+    },
+    expired: () => expired,
+    idleMs,
+    totalMs,
+    stop: () => {
+      stopped = true;
+      clearTimeout(totalTimer);
+      clearTimeout(idleTimer);
+    },
+  };
+}
+
 /**
  * 付费生成提交的共享传输核（JSON 与 multipart 两条 wire 同源，P1 不建并行版）：请求头守卫 → 超时 fetch →
  * 读体 → 逻辑错误信封识别 → 分诊抛 VendorRequestError。`bodyInit` 已是 fetch 可直发的形态
@@ -85,7 +134,7 @@ async function requestVendor(
   maxResponseBytes = DEFAULT_VENDOR_RESPONSE_MAX_BYTES,
   responseKind: "json" | "binary" | "file" = "json",
   options: {
-    consumeResponse?: (response: Response, signal: AbortSignal) => Promise<unknown>;
+    consumeResponse?: (response: Response, signal: AbortSignal, progress: () => void) => Promise<unknown>;
     fetchImpl?: typeof fetch;
     retryOnNotWritten?: boolean;
     idempotencyKey?: string;
@@ -252,17 +301,36 @@ async function requestVendor(
     }
   }
   // 超时同样覆盖响应体读取（vendor 可能接了连接却 hang 在 body 上）；读完才清 timer。
+  // 文件响应是唯一的例外：它拿到响应头后，整次请求的总定时器让位给传输时限（guardMediaTransfer）；JSON / 二进制照旧。
   let bytes: Buffer;
+  let transfer: MediaTransferGuard | undefined;
   try {
     if (responseKind === "file" && response.ok) {
-      try { return await options.consumeResponse!(response, controller.signal); }
+      clearTimeout(timer);
+      transfer = guardMediaTransfer(controller, declaredContentLength(response), timeoutMs);
+      try { return await options.consumeResponse!(response, controller.signal, transfer.progress); }
       catch (error) { await response.body?.cancel().catch(() => undefined); throw error; }
     }
     bytes = await readBoundedResponseBytes(response, { maxBytes: maxResponseBytes, signal: controller.signal });
   } catch (error: unknown) {
     const cancellation = callerCancellation(signal);
     if (cancellation) throw cancellation;
-    if (responseKind === "file" && response.ok) throw error;
+    if (responseKind === "file" && response.ok) {
+      const stalled = transfer?.expired();
+      if (!stalled) throw error;
+      const upstreamMsg = stalled === "idle"
+        ? `下载停滞（${Math.round(transfer!.idleMs / 1000)}s 没有收到数据）`
+        : `下载超过时限（${Math.round(transfer!.totalMs / 1000)}s）`;
+      throw new VendorRequestError(`Provider request failed (timeout) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
+        vendorKey: vendor.key,
+        method: upperMethod,
+        url: diagnosticUrl,
+        upstreamMsg,
+        category: "timeout",
+        retryable: true,
+        reasonCode: "response_timeout",
+      });
+    }
     if (error instanceof BoundedResponseError && error.code === "response_timeout") {
       const upstreamMsg = `读取响应超时（${Math.round(timeoutMs / 1000)}s）`;
       throw new VendorRequestError(`Provider request failed (timeout) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${upstreamMsg}`, {
@@ -300,6 +368,7 @@ async function requestVendor(
     });
   } finally {
     clearTimeout(timer);
+    transfer?.stop();
     signal?.removeEventListener("abort", relayAbort);
     // per-connection dispatcher 的连接池只属于本次请求；body 已缓冲读完，可安全退休。
     if (dispatcher) void dispatcher.close().catch(() => undefined);
@@ -442,10 +511,14 @@ export async function requestMultipart(
   return requestVendor(vendor, apiKey, "POST", url, cleanHeaders, query, form, signal, options.maxResponseBytes, "json", options);
 }
 
-/** File responses reuse the same authentication, redirect refusal and bounded request lifetime. */
+/**
+ * File responses reuse the same authentication and redirect refusal; waiting for the response headers keeps the vendor
+ * timeout, and the transfer after them is bounded by guardMediaTransfer. `consume` must call `progress` for every chunk it
+ * receives — a download that stops calling it is, to the transport, a download that went silent.
+ */
 export async function requestMediaFile<T>(input: {
   vendor: Vendor; apiKey: string; url: string; headers: Record<string, string>; query: Record<string, unknown>;
-  signal?: AbortSignal; consume: (response: Response, signal: AbortSignal) => Promise<T>;
+  signal?: AbortSignal; consume: (response: Response, signal: AbortSignal, progress: () => void) => Promise<T>;
 }): Promise<T> {
   return requestVendor(input.vendor, input.apiKey, "GET", input.url, input.headers, input.query, undefined,
     input.signal, DEFAULT_VENDOR_RESPONSE_MAX_BYTES, "file", { consumeResponse: input.consume }) as Promise<T>;

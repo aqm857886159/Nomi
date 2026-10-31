@@ -555,7 +555,9 @@ test('台账每个桶：两道门对同一份台账各怎么认（同一组夹�
     ['改锚到写接口', reanchoredTo('compareLanding'), [0, /改锚 1 ｜/], [0, /✅ 概念 owner 门岗/]],
     ['改锚到在位、但不是写接口的符号', reanchoredTo('landingDefault'), [0, /改锚 1 ｜/], [1, /台账里的新锚 electron\/shared\/landing\.ts#landingDefault/]],
     ['改锚到已经不在的符号', reanchoredTo('ghostRegistry'), [1, /登记的新锚 electron\/shared\/landing\.ts :: ghostRegistry/], [1, /台账里的新锚 electron\/shared\/landing\.ts#ghostRegistry/]],
-    ['退役：主人没了、不变量不再适用', retiredInLedger(), [0, /退役 1 ｜/], [0, /✅ 概念 owner 门岗/]],
+    // 退役要有凭据：这一行是今天才冒出来的，而参照提交上这条边界的主人根本不在那个文件里 → 边界主人门照认（它只核「今天不在」），概念门不认。
+    // 有凭据的退役（参照提交上主人确实在位，这次改动把它删了）与历史退役在下面的「退役凭据」表里。
+    ['退役：今天才记的，参照提交上主人从没在位过', retiredInLedger(), [0, /退役 1 ｜/], [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/]],
     // 待查是欠账：边界主人门记着它，概念门不许新合同靠它躲开登记（存量走冻结账）
     ['待查：主人状态没核过', ledger({ unverified: [{ ...MOVED, reason: '还没核（测试）' }] }), [0, /待查 1 ｜/], [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/]],
     ['普查表说读不了，其实读得了', ledger({ unreadable_symbols: [{ ...MOVED, reason: '（测试）' }] }), [1, /普查表条目已经可读了/], [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/]],
@@ -576,6 +578,97 @@ test('台账每个桶：两道门对同一份台账各怎么认（同一组夹�
       assert.equal(owners.status, conceptStatus, `${name}｜概念门：${owners.output}`)
       assert.match(owners.output, conceptOutput, `${name}｜概念门`)
     }
+  } finally {
+    cleanup(repo)
+  }
+})
+
+// ─── 退役凭据（验收 V-relay-protocol 的 B1）：退役只认参照提交上已经声明过、主人当时在位的边界 ───
+// 一行台账曾经能让「新合同声明一个不存在的符号」同时通过两道门（边界主人门只核「今天不在」）。每一行：参照提交（base）和这次改动（work）
+// 各写了什么 → 边界主人门 [退出码, 输出] → 概念门 [退出码, 输出]。台账行用的是 retirements 的合法写法，只有「凭据」不同。
+test('退役凭据：只认参照提交上声明过、主人当时在位的边界；今天才冒出来的边界、写错文件的真符号、没写理由的行都不认', () => {
+  const landing = BASE_FILES['electron/shared/landing.ts']
+  const owner = 'export function createOldRegistry(): void {}\n'
+  const retire = (row) => ledger({ retirements: [{ reason: '那条不变量不再适用（测试）', ...row }] })
+  const GHOST_CONTRACT = 'docs/fixes/2026-10-31-ghost.root-cause.json'
+  const declares = (path, symbol) => ({ schema_version: 3, shared_boundaries: [{ path, symbol, responsibility: 'test' }] })
+  const ghostRow = { contract: GHOST_CONTRACT, path: 'electron/shared/landing.ts', symbol: 'ghostOwnerThatNeverExisted' }
+  const cases = [
+    {
+      name: '有凭据：参照提交上合同声明过、主人在位，这次改动删了主人并记退役',
+      base: { ...REANCHOR_FILES, [MOVED.path]: owner },
+      work: { [MOVED.path]: null, [LEDGER]: retire(MOVED) },
+      boundary: [0, /退役 1 ｜/], concept: [0, /✅ 概念 owner 门岗/],
+    },
+    {
+      name: '历史：参照提交的台账已经记着这一行（主人早就没了）',
+      base: { ...REANCHOR_FILES, [LEDGER]: retire(MOVED) },
+      work: {},
+      boundary: [0, /退役 1 ｜/], concept: [0, /✅ 概念 owner 门岗/],
+    },
+    {
+      name: '对照：新合同声明一个不存在的符号，不记退役 → 两道门都红',
+      base: {},
+      work: { [GHOST_CONTRACT]: declares(ghostRow.path, ghostRow.symbol) },
+      boundary: [1, /合同声明过的主人不在了/], concept: [1, /ghostOwnerThatNeverExisted 不是任何登记概念的写接口/],
+    },
+    {
+      name: '绕过一：新合同声明一个不存在的符号 + 记一行退役 → 边界主人门放行，概念门不放',
+      base: {},
+      work: { [GHOST_CONTRACT]: declares(ghostRow.path, ghostRow.symbol), [LEDGER]: retire(ghostRow) },
+      boundary: [0, /退役 1 ｜/], concept: [1, /ghostOwnerThatNeverExisted 不是任何登记概念的写接口[\s\S]*新增：不在冻结的存量债里/],
+    },
+    {
+      name: '绕过二：真符号写到它不在的文件（新合同）+ 记一行退役 → 概念门不放',
+      base: { 'electron/shared/landing.ts': `${landing}\n${owner}` },
+      work: { [GHOST_CONTRACT]: declares('electron/old/registry.ts', 'createOldRegistry'), [LEDGER]: retire({ contract: GHOST_CONTRACT, path: 'electron/old/registry.ts', symbol: 'createOldRegistry' }) },
+      boundary: [0, /退役 1 ｜/], concept: [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/],
+    },
+    {
+      name: '绕过三：合同参照提交上就有，但符号当时不在声明的文件里（真符号在别处）→ 概念门不放',
+      base: { ...REANCHOR_FILES, 'electron/shared/landing.ts': `${REANCHOR_FILES['electron/shared/landing.ts']}\n${owner}`, [MOVED.path]: 'export function somethingElse(): void {}\n' },
+      work: { [MOVED.path]: null, [LEDGER]: retire(MOVED) },
+      boundary: [0, /退役 1 ｜/], concept: [1, /electron\/old\/registry\.ts#createOldRegistry 不是任何登记概念的写接口/],
+    },
+    {
+      name: '退役没写理由 → 读台账的时候就红，两道门都开不了工',
+      base: { ...REANCHOR_FILES, [MOVED.path]: owner },
+      work: { [MOVED.path]: null, [LEDGER]: ledger({ retirements: [{ ...MOVED }] }) },
+      boundary: [1, /retirements 条目要写理由/], concept: [1, /概念 owner 门岗无法开始[\s\S]*retirements 条目要写理由/],
+    },
+    {
+      name: '理由是空白也不行',
+      base: { ...REANCHOR_FILES, [MOVED.path]: owner },
+      work: { [MOVED.path]: null, [LEDGER]: ledger({ retirements: [{ ...MOVED, reason: '   ' }] }) },
+      boundary: [1, /retirements 条目要写理由/], concept: [1, /概念 owner 门岗无法开始[\s\S]*retirements 条目要写理由/],
+    },
+  ]
+  for (const { name, base, work, boundary: [boundaryStatus, boundaryOutput], concept: [conceptStatus, conceptOutput] } of cases) {
+    const repo = makeRepo({ files: base })
+    try {
+      write(repo.root, work)
+      const boundary = runBoundary(repo)
+      assert.equal(boundary.status, boundaryStatus, `${name}｜边界主人门：${boundary.output}`)
+      assert.match(boundary.output, boundaryOutput, `${name}｜边界主人门`)
+      const owners = run(repo)
+      assert.equal(owners.status, conceptStatus, `${name}｜概念门：${owners.output}`)
+      assert.match(owners.output, conceptOutput, `${name}｜概念门`)
+    } finally {
+      cleanup(repo)
+    }
+  }
+})
+
+test('退役凭据：复验模式（--source-ref）没有参照可对，退役照旧全认——它判的是那份旧代码，不是这次改动', () => {
+  const GHOST_CONTRACT = 'docs/fixes/2026-10-31-ghost.root-cause.json'
+  const row = { contract: GHOST_CONTRACT, path: 'electron/shared/landing.ts', symbol: 'ghostOwnerThatNeverExisted', reason: '（测试）' }
+  const repo = makeRepo({ files: {
+    [GHOST_CONTRACT]: { schema_version: 3, shared_boundaries: [{ path: row.path, symbol: row.symbol, responsibility: 'test' }] },
+    [LEDGER]: ledger({ retirements: [row] }),
+  } })
+  try {
+    const replay = run(repo, ['--source-ref', repo.baseRef])
+    assert.equal(replay.status, 0, replay.output)
   } finally {
     cleanup(repo)
   }

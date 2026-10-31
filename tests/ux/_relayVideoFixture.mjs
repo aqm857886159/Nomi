@@ -100,9 +100,27 @@ export async function startRelayVideoFixture({ shape = 'plural-url', models = RE
       if (fault === 'html') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html>upstream unavailable</html>') }
       if (fault === 'json-error') return json(200, { error: { message: 'content unavailable' } })
       if (fault === 'wrong-mime') { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(MP4) }
+      // "Said nothing about the type" is not a wrong type: real relays that stream the file out of object storage leave it unset.
+      if (fault === 'octet-stream') { res.writeHead(200, { 'Content-Type': 'application/octet-stream' }); return res.end(MP4) }
+      if (fault === 'no-content-type') { res.writeHead(200); return res.end(MP4) }
+      // ...and an unstated type must not let non-video bytes through: publication verifies the bytes.
+      if (fault === 'octet-html') { res.writeHead(200, { 'Content-Type': 'application/octet-stream' }); return res.end('<html>upstream unavailable</html>') }
+      if (fault === 'unlabelled-json') { res.writeHead(200); return res.end(JSON.stringify({ error: { message: 'content unavailable' } })) }
       if (fault === 'redirect') { res.writeHead(302, { Location: `${baseUrl.replace('127.0.0.1', 'localhost')}/asset.mp4` }); return res.end() }
       if (fault === 'oversize') { res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': String(2 * 1024 ** 3 + 1) }); return res.end(MP4) }
       if (fault === 'bad-bytes') { res.writeHead(200, { 'Content-Type': 'video/mp4' }); return res.end(MP4.subarray(0, 48)) }
+      if (fault === 'trickle') {
+        // Bytes keep arriving the whole time, just slower than the shortened vendor timeout the test sets.
+        res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': String(MP4.length) })
+        let sent = 0
+        const step = Math.max(1, Math.ceil(MP4.length / 25))
+        const timer = setInterval(() => {
+          if (sent >= MP4.length) { clearInterval(timer); return res.end() }
+          res.write(MP4.subarray(sent, sent + step)); sent += step
+        }, 40)
+        res.once('close', () => clearInterval(timer))
+        return
+      }
       if (fault === 'slow') {
         res.writeHead(200, { 'Content-Type': 'video/mp4' }); res.write(MP4.subarray(0, 16))
         return // Intentionally never finish; request timeout / cancellation owns termination.

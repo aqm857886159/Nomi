@@ -62,7 +62,7 @@ it.each(['content', 'plural-url', 'legacy-url'])('%s: AI declaration reaches dec
     expect(relay.hits.filter((hit) => hit.path.endsWith('/content'))[0].authorized).toBe(true)
   }
 })
-it.each(['html', 'json-error', 'wrong-mime', 'bad-bytes', 'oversize', 'redirect'])('%s result never becomes an asset and retry/restart only GET the accepted task', async (fault) => {
+it.each(['html', 'json-error', 'wrong-mime', 'bad-bytes', 'oversize', 'redirect', 'octet-html', 'unlabelled-json'])('%s result never becomes an asset and retry/restart only GET the accepted task', async (fault) => {
   const { poll } = await prepare('content', fault)
   await expect(fetchTaskResult(poll)).rejects.toThrow(['html', 'json-error', 'wrong-mime', 'oversize'].includes(fault) ? /retrieval-download/ : undefined)
   expect(taskCache.get('task-1')).toBeTruthy()
@@ -72,6 +72,15 @@ it.each(['html', 'json-error', 'wrong-mime', 'bad-bytes', 'oversize', 'redirect'
   expect(relay.hits.filter((h) => h.path === '/asset.mp4')).toHaveLength(0)
   const generated = path.join(root, 'project', 'assets', 'generated')
   expect(fs.existsSync(generated) ? fs.readdirSync(generated, { recursive: true }).filter((name) => name.endsWith('.mp4')) : []).toHaveLength(0)
+})
+// A paid result is never refused on a label. The content type is a claim; publication decides on the bytes
+// (the same rule the URL path has: any of video/*, application/octet-stream, binary/octet-stream or no type goes to the byte check).
+it.each(['octet-stream', 'no-content-type'])('%s on valid MP4 bytes still lands one decoded asset with exactly one POST', async (fault) => {
+  const { poll } = await prepare('content', fault)
+  const finished = await fetchTaskResult(poll)
+  expect(finished.result.assets).toHaveLength(1)
+  expect(readNomiLocalAsset(finished.result.assets[0].url).bytes.equals(relay.mp4)).toBe(true)
+  expect(posts()).toHaveLength(1)
 })
 it('completed file response can be retrieved after cache eviction without another create', async () => {
   const { poll } = await prepare()
@@ -117,6 +126,13 @@ it('slow content times out, keeps the receipt, and cancellation stops a subseque
   expect(controller.signal.aborted).toBe(true)
   expect(posts()).toHaveLength(1)
 })
+it('a download that keeps making progress is not cut by the vendor total timeout', async () => {
+  const { poll } = await prepare('content', 'trickle')
+  vi.stubEnv('NOMI_VENDOR_HTTP_TIMEOUT_MS', '300') // the fixture sends for about a second; bytes arrive every 40ms
+  const finished = await fetchTaskResult(poll)
+  expect(finished.result.assets).toHaveLength(1)
+  expect(posts()).toHaveLength(1)
+})
 it('missing provider task ID never becomes a fabricated polling identity', async () => {
   const { accepted } = await prepare('content', 'missing-task-id')
   expect(accepted.status).toBe('failed')
@@ -160,6 +176,18 @@ it('multipart rejects half a file pair and media bytes cannot be declared on cre
 it('chunked bodies are bounded by received bytes, not only Content-Length', async () => {
   const stream = new globalThis.ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(65)); controller.close() } })
   await expect(streamProfileMediaToFile(new globalThis.Response(stream, { headers: { 'Content-Type': 'video/mp4' } }), path.join(root, 'bounded.mp4'), new globalThis.AbortController().signal, 64)).rejects.toThrow(/size limit/)
+})
+
+// The byte path asks the URL path's own predicate (hardenedFetch.isAllowedContentType) with the URL path's own video allow-list:
+// only a type that says "not a video" is refused here; "no statement" goes on to the byte check at publication.
+it.each([
+  ['video/mp4', true], ['video/webm; codecs=vp9', true], ['application/octet-stream', true], ['binary/octet-stream', true], [undefined, true],
+  ['text/html', false], ['text/plain; charset=utf-8', false], ['application/json', false], ['image/png', false], ['audio/mpeg', false],
+])('byte path content type %s is accepted=%s', async (contentType, accepted) => {
+  const response = new globalThis.Response(new Uint8Array([0, 0, 0, 24]), contentType ? { headers: { 'Content-Type': contentType } } : {})
+  const run = streamProfileMediaToFile(response, path.join(root, 'typed.mp4'), new globalThis.AbortController().signal)
+  if (accepted) await expect(run).resolves.toBe(4)
+  else await expect(run).rejects.toThrow(/non-video content type/)
 })
 
 it('a rejected create is never retried on another route', async () => {

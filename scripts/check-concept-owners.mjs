@@ -12,6 +12,8 @@
 //   · 身份比对：每个「长得像身份比对」的函数都要登记、维度要对得上（原 check:identity-compare，2026-09-29 并入）；
 //   · 合同：09-27 起的根因合同，声明的每个共享边界都必须是某个登记概念的写接口（没登记的新概念 = 红）；
 //     边界挪走了（边界主人台账记了 reanchored）就核台账里的新锚——和 check:boundary-owners 经同一个改锚解析读台账；
+//     边界退役了（台账记了 retirements）只认有凭据的：参照提交上这份合同已经声明过它、主人当时确实在那个文件，或参照提交的台账已经记着这一行；
+//     否则按未登记报——否则「新合同声明一个不存在的符号 + 记一行退役」就能绕过这道闸；
 //   · 棘轮：基线存身份不存裸数字、只减不增；和参照提交比，已有概念的口子只许变少。
 //
 // 用法：
@@ -23,7 +25,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readLedger } from './boundary-owners.mjs'
+import { LEDGER_PATH, boundaryIdentity, readLedger, retirementHasProof } from './boundary-owners.mjs'
 import {
   CONCEPT_OWNERS_SINCE,
   definitionSymbols,
@@ -70,7 +72,7 @@ const RULE_TEXT = {
   'forbidden-reference': ['碰了列为禁止引用的旧形状', '改走主人；确需引用，写进这个概念的 allowed_consumers 并说明理由。'],
   'identity-comparator': ['登记表之外又长出一份身份比对（原 check:identity-compare）', '改成 import 主人那一份比对函数；确实是另一种身份，就登记一个身份概念并写明 identity_fields。'],
   'identity-drift': ['身份维度漂了', '维度变了就是身份变了：改回去，或者更新登记的 identity_fields 并说明为什么。'],
-  'unregistered-boundary': ['合同里冒出了没登记的主人', 'R33.4：改动碰到还没登记的概念，同一个 commit 当场登记——把这个边界写进一个概念的 write_api（新概念就新建一条）；边界在边界主人台账改过锚的，登记的是台账里的新锚；主人确实没了、那条不变量不再适用的，记进边界主人台账 retirements 并写清理由。'],
+  'unregistered-boundary': ['合同里冒出了没登记的主人', 'R33.4：改动碰到还没登记的概念，同一个 commit 当场登记——把这个边界写进一个概念的 write_api（新概念就新建一条）；边界在边界主人台账改过锚的，登记的是台账里的新锚；主人确实没了、那条不变量不再适用的，记进边界主人台账 retirements 并写清理由——退役只认参照提交上已经声明过、主人当时在位的边界，今天才冒出来的边界（新合同、合同里新加的一条）没有「退役」这回事，要登记。'],
   'baseline-invalid': ['基线结构不对', '修正 scripts/concept-owners-baseline.json；结构坏了不能当放行。'],
   'baseline-stale': ['基线里有已经不存在的口子', '删掉那一条：棘轮只减不增，基线必须等于现状。'],
   'baseline-grew': ['基线比参照提交长了', '已登记概念的第二写口 / 冻结写门只许变少。修代码，别抬基线挤过门岗（R17.0 第 4 条）。'],
@@ -146,16 +148,26 @@ export function loadReference(repoRoot, environment) {
   }
   const baseline = show(BASELINE_PATH)
   if (baseline.invalid) return { error: `参照提交上的基线不是合法 JSON：${baseline.invalid}` }
+  // 参照提交上的边界主人台账：只用来认「这一行退役那时就在」（退役凭据，boundary-owners.mjs 的 retirementHasProof）。
+  const ledgerAtRef = show(LEDGER_PATH)
+  if (ledgerAtRef.invalid) return { error: `参照提交上的边界主人台账不是合法 JSON：${ledgerAtRef.invalid}` }
   let registry
   try {
     registry = loadConceptRegistry(repoRoot, { ref })
   } catch (error) {
     return { error: `参照提交上的登记表读不了：${error instanceof Error ? error.message : String(error)}` }
   }
+  const rowsAtRef = ledgerAtRef.value?.retirements
+  let treeAtRef = null
   return {
     ref,
     baseline: baseline.missing ? null : baseline.value,
     concepts: sanitizeConcepts(registry?.concepts),
+    retirementEvidence: {
+      retiredAtRef: new Set((Array.isArray(rowsAtRef) ? rowsAtRef : []).map(boundaryIdentity)),
+      // 参照提交的整棵树只在有新退役行要核的时候才建
+      source: () => (treeAtRef ??= gitRefSource(repoRoot, ref)),
+    },
   }
 }
 
@@ -277,7 +289,12 @@ export function run({ repoRoot, sourceRef = null, conceptFilter = [], printMap =
     const { contracts, errors } = listContracts(source, repoRoot, sourceRef)
     for (const message of errors) findings.push({ rule: 'registry-invalid', message })
     governedCount = governedContracts(contracts).length
-    const result = evaluateContracts({ concepts, contracts, ledger })
+    // 退役要有凭据（参照提交上确实声明过、主人当时确实在位）；没有参照可对的复验模式（--source-ref）判的是那份旧代码、不是这次改动，退役照旧全认；
+    // 参照拿不到本身已经是红（reference-unavailable），这里什么都不认。
+    const retirementStands = !reference
+      ? () => true
+      : reference.error ? () => false : (row) => retirementHasProof(row, reference.retirementEvidence)
+    const result = evaluateContracts({ concepts, contracts, ledger, retirementStands })
     unregisteredBoundaries.push(...result.findings.filter((item) => item.rule === 'unregistered-boundary'))
     findings.push(...result.findings.filter((item) => item.rule !== 'unregistered-boundary'))
     mapping = result.mapping

@@ -114,7 +114,8 @@ const isText = (value) => typeof value === "string" && value.trim().length > 0;
 
 /**
  * 台账的唯一读口：两道门（check:boundary-owners、check:concept-owners）都经它拿台账，别处不另读这个文件。
- * 读不到、根不是对象、改锚条目没写全新锚，都在这里抛错、由入口报红——新锚写空了，哪道门都不能悄悄算它在位。
+ * 读不到、根不是对象、改锚条目没写全新锚、退役条目没写理由，都在这里抛错、由入口报红——新锚写空了，哪道门都不能悄悄算它在位；
+ * 退役是「这条不变量不再适用」的声明，没有理由的声明等于没有人为它负责。
  */
 export function readLedger(repoRoot) {
   let ledger;
@@ -123,12 +124,16 @@ export function readLedger(repoRoot) {
   } catch (error) {
     throw new Error(`边界主人台账 ${LEDGER_PATH} 读不了：${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
-  if (!ledger || typeof ledger !== "object" || Array.isArray(ledger) || !Array.isArray(ledger.reanchored ?? [])) {
-    throw new Error(`边界主人台账 ${LEDGER_PATH} 的根必须是对象，reanchored 必须是数组`);
+  if (!ledger || typeof ledger !== "object" || Array.isArray(ledger) || !Array.isArray(ledger.reanchored ?? []) || !Array.isArray(ledger.retirements ?? [])) {
+    throw new Error(`边界主人台账 ${LEDGER_PATH} 的根必须是对象，reanchored 与 retirements 必须是数组`);
   }
   const halfAnchored = (ledger.reanchored ?? []).filter((row) => !isText(row?.anchor?.path) || !isText(row?.anchor?.symbol));
   if (halfAnchored.length) {
     throw new Error(`边界主人台账 ${LEDGER_PATH} 的 reanchored 条目要写全新锚 anchor: { path, symbol }：${halfAnchored.map((row) => boundaryIdentity(row || {})).join("、")}`);
+  }
+  const unexplained = (ledger.retirements ?? []).filter((row) => !isText(row?.reason));
+  if (unexplained.length) {
+    throw new Error(`边界主人台账 ${LEDGER_PATH} 的 retirements 条目要写理由 reason（那条不变量为什么不再适用）：${unexplained.map((row) => boundaryIdentity(row || {})).join("、")}`);
   }
   return ledger;
 }
@@ -160,10 +165,35 @@ export function reanchorResolver(ledger) {
 
 /**
  * 台账 retirements：主人确实没了、那条不变量不再适用。两道门读同一份：
- * check:boundary-owners 核主人真的不在（还在就报「台账条目已经自己好了」），check:concept-owners 不再要求它是写接口。
+ * check:boundary-owners 核主人真的不在（还在就报「台账条目已经自己好了」），check:concept-owners 在退役有凭据时
+ * （retirementHasProof）不再要求它是写接口。
  */
 export function retiredBoundaries(ledger) {
   return new Map((ledger?.retirements || []).map((row) => [boundaryIdentity(row), row]));
+}
+
+/**
+ * 退役凭据（2026-10-31，验收 V-relay-protocol 的 B1）。退役说的是「这条边界的主人没了」——前提是它**曾经在**。
+ * check:boundary-owners 只核「主人今天不在」，而一个从来没存在过的符号天然「不在」：于是「新合同声明一个不存在的符号 +
+ * 台账记一行退役」让两道门同时放行，「新合同的共享边界必须登记」那道闸就只剩一行台账的厚度（真符号写到它不在的文件，同理）。
+ * 凭据只看棘轮参照提交（check:concept-owners 的 loadReference 那一个），不看今天这棵树自己怎么说：
+ *  · 参照提交的台账已经记着这一行 → 是历史，照旧认；
+ *  · 今天才冒出来的行 → 参照提交上那份合同已经声明过这条边界，且符号当时确实在那个文件里（resolveSymbol，同一套词匹配）。
+ * 缺一条，概念门就当它没退役，按未登记报。`source` 是参照提交的只读视图（concept-owners-scan 的 gitRefSource：read / listAll），
+ * 用到才建——台账里没有新行时一次多余的读取都没有。
+ */
+export function retirementHasProof(row, { retiredAtRef, source }) {
+  if (retiredAtRef.has(boundaryIdentity(row))) return true;
+  const atRef = source();
+  let contract = null;
+  try { contract = JSON.parse(atRef.read(row.contract) ?? "null"); } catch { return false; }
+  const declared = (Array.isArray(contract?.shared_boundaries) ? contract.shared_boundaries : [])
+    .some((boundary) => boundary?.path === row.path && boundary?.symbol === row.symbol);
+  if (!declared) return false;
+  const cleaned = cleanBoundaryPath(row.path);
+  const files = atRef.read(cleaned) !== null ? [cleaned] : atRef.listAll().filter((file) => file.startsWith(`${cleaned}/`));
+  if (files.length === 0) return false;
+  return resolveSymbol(row.symbol, files.map((file) => atRef.read(file) ?? "").join("\n")).verdict === VERDICT.OK;
 }
 
 export function readContracts(repoRoot) {

@@ -16,7 +16,7 @@ import { applyResponseTransform } from "../tasks/responseTransforms";
 import { firstString, isJsonRecord, trim, type JsonRecord } from "../jsonUtils";
 import path from "node:path";
 
-import { hardenedFetchDiagnostics, type HardenedFetchResult } from "../hardenedFetch";
+import { hardenedFetchDiagnostics, isAllowedContentType, type HardenedFetchResult } from "../hardenedFetch";
 import { isOutboundDestinationRefusedError } from "../networkOutboundPolicy";
 import { logWarn } from "../logging/logger";
 import { OUTPUT_RETRIEVAL_FAILED } from "../productionRun/productionRunTypes";
@@ -24,6 +24,7 @@ import { GeneratedMediaValidationError } from "../assets/generatedMediaDecode";
 import { stripNomiErrorCode } from "../shared/nomiErrorCodes";
 import { writeGeneratedDeterministicAsset } from "../assets/projectAssetStore";
 import { exceedsProviderMediaCap, fetchProviderMedia, type ProviderMediaFetchOptions } from "../assets/providerMediaFetch";
+import { PROVIDER_MEDIA_FILE_BYTE_CAP } from "../shared/assets/providerMediaRetrievalBudget";
 import type { Vendor, Model, HttpOperation } from "../catalog/types";
 import { readCatalog } from "../catalog/catalogStore";
 import { trustedRetrievalOrigin } from "../vendor/vendorOutboundGuard";
@@ -263,18 +264,24 @@ export function createGenerationOutputMaterializer(deps: GenerationOutputMateria
 export type GenerationOutputMaterializer = ReturnType<typeof createGenerationOutputMaterializer>;
 
 export const RELAY_VIDEO_ARTIFACT_VERSION = "relay-video-artifact-v1";
-export const MAX_PROFILE_MEDIA_BYTES = 2 * 1024 * 1024 * 1024;
 
-/** Backpressure and abort are owned by Node streams; no whole-file JS buffer. */
+/**
+ * Backpressure and abort are owned by Node streams; no whole-file JS buffer. `progress` is called once per received
+ * chunk so the transport can tell a download that is still moving from one that went silent (vendorHttp.requestMediaFile).
+ * The content type is a claim, not proof: it goes through the same predicate and the same per-kind allow-list as the
+ * URL path (isAllowedContentType, allowedContentTypesFor), so an unstated type (octet-stream / none) is not a refusal;
+ * whether the bytes really are a video is decided at the publication boundary.
+ */
 export async function streamProfileMediaToFile(response: Response, filePath: string, signal: AbortSignal,
-  maxBytes = MAX_PROFILE_MEDIA_BYTES): Promise<number> {
-  const contentType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-  if (contentType !== "video/mp4") throw new GenerationOutputRetrievalError("Video content response must have MIME video/mp4", true);
+  maxBytes = PROVIDER_MEDIA_FILE_BYTE_CAP, progress?: () => void): Promise<number> {
+  const contentType = response.headers.get("content-type") || "";
+  if (!isAllowedContentType(contentType, allowedContentTypesFor("video"))) throw new GenerationOutputRetrievalError(`Video content response has a non-video content type: ${contentType || "<empty>"}`, true);
   const length = Number(response.headers.get("content-length"));
   if (Number.isFinite(length) && length > maxBytes) throw new GenerationOutputRetrievalError("Video content exceeds size limit", true);
   if (!response.body) throw new Error("Video content response has no body");
   let received = 0;
   const bound = new Transform({ transform(chunk: Buffer, _encoding, callback) {
+    progress?.();
     received += chunk.length;
     callback(received > maxBytes ? new GenerationOutputRetrievalError("Video content exceeds size limit", true) : null, chunk);
   } });
@@ -294,7 +301,7 @@ export async function materializeProfileMediaResult(input: {
   const temporary = await createUploadStagingDir(context.root);
   const filePath = path.join(temporary, "output.mp4");
   try {
-    await requestMediaFile({ ...input, consume: (response, signal) => streamProfileMediaToFile(response, filePath, signal) });
+    await requestMediaFile({ ...input, consume: (response, signal, progress) => streamProfileMediaToFile(response, filePath, signal, undefined, progress) });
     input.signal?.throwIfAborted();
     const stored = await copyAssetFile(input.projectId, filePath, "generation-output.mp4", "video/mp4", {
       kind: "generated", source: "provider", providerTaskId: input.providerTaskId, ownerNodeId: input.nodeId || null,
