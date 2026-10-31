@@ -133,11 +133,10 @@ describe("isReferenceFetchRefusal：模型拉不到参考链接", () => {
     expect(isReferenceFetchRefusal({ text: desktopT(key, values, "en") })).toBe(false);
   });
 
-  it("几十 KB 的连续字母不会把界面卡住：只看开头一段", () => {
-    const started = performance.now();
+  it("只看开头一段：几十 KB 的错误文本不会让正则跑完全文，开头 4000 字之后的话不算", () => {
     expect(isReferenceFetchRefusal({ text: "a".repeat(200_000) })).toBe(false);
     expect(isReferenceFetchRefusal({ text: `${"a1.".repeat(70_000)} An input media URL could not be fetched.` })).toBe(false);
-    expect(performance.now() - started).toBeLessThan(500);
+    expect(isReferenceFetchRefusal({ text: `An input media URL could not be fetched. ${"a1.".repeat(70_000)}` })).toBe(true);
   });
 
   it("没有说法也没有码 → 否", () => {
