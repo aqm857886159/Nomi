@@ -50,6 +50,10 @@
     {
       "path": "electron/outboundDispatchEvidence.ts",
       "symbol": "answeredSubmissionFailure"
+    },
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "outsidePaidDispatch"
     }
   ],
   "forbidden_derivations": [],
@@ -61,8 +65,9 @@
     "electron/productionRun/submissionOutbox.ts",
     "electron/capabilityCore/mcpHttpBridge.ts",
     "electron/assets/localizeTaskAsset.ts",
-    "electron/productionRun/submissionIntent.ts"
+    "electron/productionRun/submissionIntent.ts",
+    "electron/catalog/assetTransportRuntime.ts"
   ],
   "since": "2026-10-02",
-  "notes": "根因合同 docs/fixes/2026-10-02-paid-submit-no-blind-resend.root-cause.json：只有连上之前的失败才算确定没写出去（DNS / 建连 / TLS 握手前），UND_ERR_SOCKET 与连接被重置一律是结果未知；付费 POST 每次用 createFreshConnectionDispatcher 新建的连接，从构造上消掉「复用的旧连接」这一种歧义。重发规则住在 submissionOutbox.submitOnce（属 production.submission-admission 的写口），不在这里。2026-10-05 加第三档 providerExplicitlyRejected（用户拍板 F3，合同 docs/fixes/2026-10-05-provider-explicit-rejection.root-cause.json）：只认收到了响应、4xx 或 2xx + 失败信封、没有任务号；执行器只挂证据（providerAnswer），判在这里，落盘在 submissionOutbox.markProviderRejected。 2026-10-06 L-claim：判据从「最后那个错误」扩到「这一次派发」——提交出口用 observeSubmissionHandoffs 开一本账，appFetch 经 handOffToNetwork 记下交给网络的每个可能花钱的请求；执行器声明 networkTransport=app-fetch 时，一笔可能写出去的都没有才算确定没发出（在本机被拦 / 全在连上之前失败），否则结果未知。矩阵 electron/productionRun/unsentAttemptClaim.matrix.test.ts，合同 docs/fixes/2026-10-06-claim-release-unsent-attempt.root-cause.json。 V-1047：appFetch 是这本账的 HTTP 写口；子进程由 outboundDispatchEvidence 订阅 child_process 诊断通道记账，其余不经 appFetch 的出网口由 electron/offLedgerEgress.structure.test.ts 逐个登记。 2026-10-28 第四档「供应商答了、结果在回答里，Nomi 本机落地失败」（同步供应商）：正证据是模块私有的标记，只由结果落地门 assets/localizeTaskAsset 经 withResultLandingEvidence 挂上（door-map 1 扇），读口 answeredSubmissionFailure 只认它、不从错误码或正文推；observeSubmissionHandoffs 见证据不判「没写出去」。封闭结局 submissionOutbox.submissionFailureOutcome 按它落 markResultLandingFailed（needs_attention + output_retrieval_failed、预留不动、不重发）。合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json，类测试 electron/productionRun/resultLandingOutcome.test.ts。 2026-10-30：应用级试跑与制作一样由 observeSubmissionHandoffs 看整次 runTask，而不是凭最后一个错误文字或下载连接失败释放原单；提交后的落地失败与 RendererUnavailable 字样反例由 electron/productionRun/submissionIntent.test.ts 覆盖。"
+  "notes": "根因合同 docs/fixes/2026-10-02-paid-submit-no-blind-resend.root-cause.json：只有连上之前的失败才算确定没写出去（DNS / 建连 / TLS 握手前），UND_ERR_SOCKET 与连接被重置一律是结果未知；付费 POST 每次用 createFreshConnectionDispatcher 新建的连接，从构造上消掉「复用的旧连接」这一种歧义。重发规则住在 submissionOutbox.submitOnce（属 production.submission-admission 的写口），不在这里。2026-10-05 加第三档 providerExplicitlyRejected（用户拍板 F3，合同 docs/fixes/2026-10-05-provider-explicit-rejection.root-cause.json）：只认收到了响应、4xx 或 2xx + 失败信封、没有任务号；执行器只挂证据（providerAnswer），判在这里，落盘在 submissionOutbox.markProviderRejected。 2026-10-06 L-claim：判据从「最后那个错误」扩到「这一次派发」——提交出口用 observeSubmissionHandoffs 开一本账，appFetch 经 handOffToNetwork 记下交给网络的每个可能花钱的请求；执行器声明 networkTransport=app-fetch 时，一笔可能写出去的都没有才算确定没发出（在本机被拦 / 全在连上之前失败），否则结果未知。矩阵 electron/productionRun/unsentAttemptClaim.matrix.test.ts，合同 docs/fixes/2026-10-06-claim-release-unsent-attempt.root-cause.json。 V-1047：appFetch 是这本账的 HTTP 写口；子进程由 outboundDispatchEvidence 订阅 child_process 诊断通道记账，其余不经 appFetch 的出网口由 electron/offLedgerEgress.structure.test.ts 逐个登记。 2026-10-28 第四档「供应商答了、结果在回答里，Nomi 本机落地失败」（同步供应商）：正证据是模块私有的标记，只由结果落地门 assets/localizeTaskAsset 经 withResultLandingEvidence 挂上（door-map 1 扇），读口 answeredSubmissionFailure 只认它、不从错误码或正文推；observeSubmissionHandoffs 见证据不判「没写出去」。封闭结局 submissionOutbox.submissionFailureOutcome 按它落 markResultLandingFailed（needs_attention + output_retrieval_failed、预留不动、不重发）。合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json，类测试 electron/productionRun/resultLandingOutcome.test.ts。 2026-10-30：应用级试跑与制作一样由 observeSubmissionHandoffs 看整次 runTask，而不是凭最后一个错误文字或下载连接失败释放原单；提交后的落地失败与 RendererUnavailable 字样反例由 electron/productionRun/submissionIntent.test.ts 覆盖。 2026-11-01：发送入口的素材落地（试探临时链接、上传本机文件）不是付费派发，经 outsidePaidDispatch 放到账本外（door-map 1 扇：catalog/assetTransportRuntime.localizeForSend）；账上只剩交给模型的那些请求。类测试 electron/productionRun/referenceLinkDispatchLedger.test.ts，合同 docs/fixes/2026-11-01-reference-link-delivery.root-cause.json。"
 }

@@ -21,13 +21,15 @@
     "electron/catalog/assetTransportRuntime.ts",
     "electron/catalog/customCallDispatch.ts",
     "electron/catalog/referenceLinkRefusals.ts",
+    "electron/outboundDispatchEvidence.ts",
     "electron/productionRun/prepareProductionGenerationAuthorization.ts",
     "electron/productionRun/productionGenerationBinding.ts",
     "electron/productionRun/productionGenerationSubmission.ts",
     "electron/runtime.ts",
+    "electron/settings/sideBySideInstallSeed.ts",
     "electron/shared/assets/providerMediaRetrievalBudget.ts",
-    "electron/shared/productionSpendAuthority.ts",
     "electron/shared/assets/referenceFetchRefusal.ts",
+    "electron/shared/productionSpendAuthority.ts",
     "electron/shared/vendorFailure.ts",
     "src/workbench/observability/classifyError.ts",
     "src/workbench/observability/narrate.ts"
@@ -53,27 +55,14 @@
     "Only a 4xx (not 408, 425, 429 or 416) or a 2xx answering a web page, XML, JSON or text counts as dead; timeouts, network errors, 5xx, redirect failures and outbound-policy refusals are undecided and send the link exactly as before.",
     "One request probes all its window links concurrently, one GET per distinct link, and the probe never calls the model and never carries a key.",
     "A model refusal is recorded on the connection by exactly one function and never causes an automatic resend.",
-    "The sentence test for \"the model could not fetch the input link\" is one shared function used by the recording and the error card."
+    "The sentence test for \"the model could not fetch the input link\" is one shared function used by the recording and the error card.",
+    "Probing and uploading references are not paid dispatch: they run outside the handoff ledger through one door, so a submission whose request never reached the model is never reported as possibly accepted, while the request handed to the model stays on the ledger.",
+    "The sentence test prefers missing a refusal over naming the wrong cause: it needs an explicit input link, or an input asset with a fetch verb, and a sentence naming moderation, auth, quota or size is never a refusal. A recorded refusal expires after 30 days."
   ],
   "doors": [
     {
       "kind": "write",
       "path": "electron/catalog/assetLocalization.ts",
-      "symbol": "localizeAssetsForVendor"
-    },
-    {
-      "kind": "write",
-      "path": "electron/runtime.ts",
-      "symbol": "localizeAssetsForVendor"
-    },
-    {
-      "kind": "write",
-      "path": "electron/catalog/customCallDispatch.ts",
-      "symbol": "localizeAssetsForVendor"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/productionReferenceUrls.ts",
       "symbol": "localizeAssetsForVendor"
     },
     {
@@ -155,14 +144,44 @@
       "kind": "write",
       "path": "electron/productionRun/productionGenerationBinding.ts",
       "symbol": "ensureBinding"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetTransportRuntime.ts",
+      "symbol": "localizeAssetsForVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "localizeForSend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "localizeForSend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "localizeForSend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "outsidePaidDispatch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/settings/sideBySideInstallSeed.ts",
+      "symbol": "SEEDED_CONFIG_FILES"
     }
   ],
   "door_reduction": {
     "before": 8,
-    "after": 20,
+    "after": 23,
     "why_not": "The three places that each read the time window (the decision in localizeAssetsForVendor, the shortcut in resolveLocalAsset, the skip in assertLocalAssetTransportReady) collapsed into one decision plus one option read; the frozen-link reuse of rework is now asked through the same rule. The remaining doors are not duplicates of one another: the four callers must exist because each is a different send path with its own request shape, and the new probe, the refusal store, the single recording function, the shared sentence test and the new error kind each have exactly one owner registered in docs/engineering/concept-owners. Two moved helpers (activeAssetPruning, productionGenerationBinding) are listed because the frozen file-size gate required room; their bodies are unchanged."
   },
-  "generality_proof": "Every send path asks localizeAssetsForVendor through assetLocalizationOptions, which requires the target connection (a caller that forgets it does not compile), and rework asks the same rule through reworkReferenceUrls before reusing the frozen table. The decision uses the link's own liveness and this connection's recorded refusal, not a vendor, model or lifetime, so another provider, relay, anti-hotlinking rule or region limit reaches the same outcome. The matrix walks link state, upload outcome, media kind, entrance, refusal memory, concurrency and an old 0.24.0 asset against the requests the fake server really received.",
+  "generality_proof": "Every send path asks localizeAssetsForVendor through localizeForSend and assetLocalizationOptions, which requires the target connection (a caller that forgets it does not compile), and rework asks the same rule through reworkReferenceUrls before reusing the frozen table. The decision uses the link's own liveness and this connection's recorded refusal, not a vendor, model or lifetime, so another provider, relay, anti-hotlinking rule or region limit reaches the same outcome. The matrix walks link state, upload outcome, media kind, entrance, refusal memory, concurrency and an old 0.24.0 asset against the requests the fake server really received.",
   "shared_boundaries": [
     {
       "path": "electron/catalog/assetLocalization.ts",
@@ -183,6 +202,11 @@
       "path": "electron/shared/assets/referenceFetchRefusal.ts",
       "symbol": "isReferenceFetchRefusal",
       "responsibility": "The one sentence and code test for the model failing to fetch an input link, shared by the main process and the error card."
+    },
+    {
+      "path": "electron/outboundDispatchEvidence.ts",
+      "symbol": "outsidePaidDispatch",
+      "responsibility": "Runs reference localization outside the paid handoff ledger; only the send door in assetTransportRuntime calls it."
     }
   ],
   "same_class_entry_points": [
@@ -190,19 +214,19 @@
       "path": "electron/runtime.ts",
       "entry_point": "executeProfileOperation",
       "disposition": "enforced",
-      "evidence": "Calls localizeAssetsForVendor with assetLocalizationOptions(vendor, ...); matrix entrance rows send a dead link and a live link and read the body the fake provider received."
+      "evidence": "Calls localizeForSend with assetLocalizationOptions(vendor, ...); matrix entrance rows send a dead link and a live link and read the body the fake provider received, and referenceLinkDispatchLedger.test.ts drives it through the real submission exit."
     },
     {
       "path": "electron/catalog/customCallDispatch.ts",
       "entry_point": "runCustomCallTask",
       "disposition": "enforced",
-      "evidence": "Same options function and the same decision point; the matrix row reads the params the script received."
+      "evidence": "Same door and the same options function; the matrix row reads the params the script received."
     },
     {
       "path": "electron/capabilityCore/productionReferenceUrls.ts",
       "entry_point": "resolveProductionReferenceUrls",
       "disposition": "enforced",
-      "evidence": "Its private localize asks the same decision point; the matrix row reads the sealed link and the Run-invalid row proves nothing is sealed or posted."
+      "evidence": "Its private localize asks the same door; the matrix row reads the sealed link and the Run-invalid row proves nothing is sealed or posted."
     },
     {
       "path": "electron/capabilityCore/appIntegrationProductionActions.ts",
@@ -227,7 +251,7 @@
     "classification": "recurring",
     "reason": "Any connection whose provider links die early, block hotlinking or block regions reproduces it on every send that references a young generated asset, and a rework replays the frozen link.",
     "same_class_scan": [
-      "node scripts/door-map.mjs localizeAssetsForVendor: three send entrances, all through assetLocalizationOptions",
+      "node scripts/door-map.mjs localizeForSend: three send entrances, one door to localizeAssetsForVendor",
       "rg trustedOriginalUrl: the decision point, the pre-spend channel check and nothing else reads the window after the shortcut was deleted",
       "node scripts/door-map.mjs authorizedReferenceUrls: rework and its authorization are the only readers of the frozen table",
       "rg runTask callers: nomi:tasks:run text, local ComfyUI and auxiliary paid doors do not go through a Run, so a refusal there is not recorded (kept as a residual risk) while the probe still protects them"
@@ -260,12 +284,15 @@
     "electron/capabilityCore/appIntegrationProductionActions.test.ts",
     "electron/productionRun/reworkReferenceLinks.test.ts",
     "electron/capabilityCore/productionReferenceUrls.test.ts",
-    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+    "electron/productionRun/referenceLinkDispatchLedger.test.ts",
+    "electron/outboundDispatchEvidence.test.ts"
   ],
   "class_regression_tests": [
     "electron/catalog/referenceLinkDelivery.matrix.test.ts",
     "electron/shared/assets/referenceFetchRefusal.test.ts",
-    "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts"
+    "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts",
+    "electron/productionRun/referenceLinkDispatchLedger.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -286,7 +313,9 @@
     "The production engine's failure text is read by response shape, not by the model-declared error_message mapping, so a declared path outside the common shapes is not recognized.",
     "A rework whose upload fails reports an internal error code rather than the dedicated asset-upload message, because the rework action maps only its own failure kinds.",
     "Stopping while probing or uploading cannot prevent the submission; this is unchanged from today's stop during Submitting and is not part of this change.",
-    "Windows was not exercised; there is no Windows-specific code in the change."
+    "Windows was not exercised; there is no Windows-specific code in the change.",
+    "The card and the record read the sentence, so a refusal worded outside the known phrases keeps the old card and is not recorded; the probe still protects those sends.",
+    "A retry from a path that does not record a refusal (prompt extraction, model try-out) sends the same link unless the probe finds it dead, which is why the card says Nomi tries to upload rather than promising it."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-12-01",

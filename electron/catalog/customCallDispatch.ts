@@ -7,7 +7,7 @@ import { buildNormalizedRecipe, buildTaskProvenance } from "../vendor/provenance
 import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "../vendor/fingerprintCache";
 import type { consumeTaskSpend } from "../tasks/taskSpend";
 import { traceVendorCompleted, traceVendorRequested } from "../events/vendorCallTrace";
-import { assertLocalAssetTransportReady, localizeAssetsForVendor, resolveAssetIngestionWithFallback } from "./assetLocalization";
+import { assertLocalAssetTransportReady, resolveAssetIngestionWithFallback } from "./assetLocalization";
 import { decryptApiKeyRecord } from "./secrets";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "../assets/localAssetFile";
 import { unlocalizedTaskAsset } from "../tasks/unlocalizedTaskAsset";
@@ -15,7 +15,7 @@ import { taskTemplateParams } from "./taskParams";
 import { CustomCallScriptError, runCustomCallScript } from "./customCallRunner";
 import { readCatalog } from "./catalogStore";
 import { readAutomationPolicySettings } from "../settings/automationPolicySettings";
-import { assetLocalizationOptions } from "./assetTransportRuntime";
+import { assetLocalizationOptions, localizeForSend } from "./assetTransportRuntime";
 import { trim } from "../jsonUtils";
 import type { BillingModelKind, HttpOperation, Model, Vendor } from "./types";
 import type { TaskRequest, TaskResult } from "../runtime";
@@ -77,7 +77,7 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
   );
   await spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras }); // 付费守卫：本地资产/上传策略预检通过后才消费
   traceVendorRequested(projectId, { runId: taskId, nodeId, recipe });
-  const localized = await localizeAssetsForVendor(
+  const localized = await localizeForSend(
     request.extras,
     (mediaKind) =>
       resolveAssetIngestionWithFallback(

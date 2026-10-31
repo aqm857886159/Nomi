@@ -31,16 +31,34 @@ describe("referenceLinkRefusals：记在连接上的「模型拉不到临时链�
     expect(isConnectionRefused(undefined)).toBe(false);
   });
 
+  it("30 天后失效：判据说错一次，这条连接不会从此不再用链接；到期后再被拒就重新记", () => {
+    const refusedAt = new Date("2026-11-01T00:00:00.000Z");
+    const daysLater = (days: number) => new Date(refusedAt.getTime() + days * 24 * 60 * 60 * 1000);
+    noteConnectionRefused("relay-a", refusedAt);
+    expect(isConnectionRefused("relay-a", daysLater(29))).toBe(true);
+    expect(isConnectionRefused("relay-a", daysLater(31))).toBe(false);
+    noteConnectionRefused("relay-a", daysLater(31));
+    expect(isConnectionRefused("relay-a", daysLater(60))).toBe(true);
+    expect(isConnectionRefused("relay-a", daysLater(62))).toBe(false);
+  });
+
+  it("时间读不出来当作没有记录", () => {
+    fs.writeFileSync(referenceLinkRefusalsPath(), JSON.stringify({ version: 1, connections: { "relay-a": { refusedAt: "yesterday" }, "relay-b": {} } }));
+    expect(isConnectionRefused("relay-a")).toBe(false);
+    expect(isConnectionRefused("relay-b")).toBe(false);
+  });
+
   it("落在设置目录的文件里，换一个全新的读取（清内存）仍然生效；重复记不改文件", async () => {
-    noteConnectionRefused("relay-a", new Date("2026-11-01T00:00:00.000Z"));
+    const refusedAt = new Date();
+    noteConnectionRefused("relay-a", refusedAt);
     const before = fs.readFileSync(referenceLinkRefusalsPath(), "utf8");
     vi.resetModules();
     // eslint-disable-next-line no-restricted-syntax -- 重启模拟：全新模块实例证明没有任何进程内记忆，结论只来自设置目录里的文件
     const fresh = await import("./referenceLinkRefusals");
     expect(fresh.isConnectionRefused("relay-a")).toBe(true);
-    fresh.noteConnectionRefused("relay-a", new Date("2027-01-01T00:00:00.000Z"));
+    fresh.noteConnectionRefused("relay-a", new Date(refusedAt.getTime() + 1000));
     expect(fs.readFileSync(referenceLinkRefusalsPath(), "utf8")).toBe(before);
-    expect(JSON.parse(before)).toEqual({ version: 1, connections: { "relay-a": { refusedAt: "2026-11-01T00:00:00.000Z" } } });
+    expect(JSON.parse(before)).toEqual({ version: 1, connections: { "relay-a": { refusedAt: refusedAt.toISOString() } } });
   });
 
   it("文件损坏当作没有记录，原字节留底，之后照常记得上", () => {

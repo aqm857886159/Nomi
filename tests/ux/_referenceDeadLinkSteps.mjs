@@ -258,9 +258,8 @@ export async function runReferenceDeadLinkJourney({ paid, evidence, locales = ['
     await canvasFitView(win, `[${locale}] 缩放到整张卡可见`)
     await walk.snap(`${locale}-b-card`)
     const retryName = new RegExp(`^\\s*${escapeRegExp(uiText(locale, 'generationCommon.observability.action.retry.main'))}\\s*$`)
-    // 主按钮重试、没有换模型：同一张卡里不出现"换个模型"（探针证活：同一张卡上的「重试」就在）。
-    const retryProof = await proveProbe(alive.node.getByRole('button', { name: retryName }), `[${locale}] 同一张卡上的主按钮「重试」`)
-    await expectAbsent(alive.node.getByRole('button', { name: new RegExp(escapeRegExp(uiText(locale, 'generationCommon.observability.action.switchModel.main'))) }), { provenBy: retryProof, message: `[${locale}] 这张卡不给换模型` })
+    // 主按钮重试，次动作换模型：上传过模型还拒绝时，这是唯一的出口。
+    await expectVisible(alive.node.getByRole('button', { name: new RegExp(escapeRegExp(uiText(locale, 'generationCommon.observability.action.switchModel.main'))) }), `[${locale}] 这张卡的次动作是换模型`, stationTimeout({ operations: 1 }))
     const previous = new Set(((await alive.readNode()).runs ?? []).map((run) => run.id))
     await clickOrFail(alive.node.getByRole('button', { name: retryName }), `[${locale}] 卡上的主按钮「重试」`, { noWaitAfter: true })
     let retried = null

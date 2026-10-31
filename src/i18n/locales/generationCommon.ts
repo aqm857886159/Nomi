@@ -418,7 +418,7 @@ export const zhGenerationCommon = {
       },
       referenceUnfetchable: {
         reason: '模型取不到参考图',
-        hint: '参考图走的是服务商的临时链接，模型那边取不到了，可能已过期或被拦。点「重试」会改用你电脑上的原图重新上传再发，不用换图。如果这张图本机没有原文件，重试不会有用，请换一张或重新生成。',
+        hint: '模型那边取不到这张参考图的链接，可能已过期或被拦。点「重试」时，Nomi 会尽量改用你电脑上的原图上传后再发。还是不行就换个模型；这张图本机没有原文件的话，换一张或重新生成。',
       },
       assetInvalid: {
         reason: '参考素材本身有问题',
@@ -2171,7 +2171,7 @@ export const enGenerationCommon = {
       },
       referenceUnfetchable: {
         reason: 'The model could not fetch a reference image',
-        hint: "This reference went out as the provider's temporary link, and the model could not fetch it. It may have expired or been blocked. Retry uploads the original file from your computer and sends it again, so you don't need to change the image. If the image has no local file, retrying won't help: replace it or generate it again.",
+        hint: "The model could not fetch this reference image's link. It may have expired or been blocked. When you retry, Nomi tries to upload the original file from your computer and send that instead. If it still fails, switch models. If the image has no local file, replace it or generate it again.",
       },
       assetInvalid: {
         reason: 'The reference asset itself is invalid',

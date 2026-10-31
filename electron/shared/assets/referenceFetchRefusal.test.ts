@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { enBrowserAssets, zhBrowserAssets } from "../../../src/i18n/locales/browserAssets";
 import { desktopT } from "../../desktopStrings";
 import { isReferenceFetchRefusal } from "./referenceFetchRefusal";
 
@@ -20,6 +21,9 @@ const REFUSALS: Case[] = [
   ["输入图片下载失败", { text: "Failed to download input image from URL" }],
   ["拉不到提供的链接", { text: "Cannot fetch content from the provided URL." }],
   ["只说文件（无链接词）", { text: "Unable to download the file. Please verify the URL and try again." }],
+  ["只说文件，下一句才提链接（另一种说法）", { text: "Failed to download the file. Please check if the URL is accessible and try again." }],
+  ["参数名就是图片链接", { text: "The parameter `image_url` specified in the request is not valid: failed to download" }],
+  ["图片取不到（建议改用上传）", { text: "Image fetch failed. Check access settings or use our File Upload API instead." }],
   ["下载超时（带链接，链接被抠掉）", { text: "Timeout while downloading https://cdn.example.com/a.png." }],
   ["下载出错", { text: "Error while downloading https://cdn.example.com/a.png." }],
   ["参考图链接不可访问", { text: "The reference image URL is not accessible." }],
@@ -59,6 +63,54 @@ const NOT_REFUSALS: Case[] = [
   ["我们自己的转写报错（中文）", { text: desktopT("transcribe.unreachable", {}, "zh-CN") }],
   ["我们自己的转写报错（英文）", { text: desktopT("transcribe.unreachable", {}, "en") }],
   ["中文：接口地址无法访问", { text: "接口地址无法访问，请检查连接" }],
+  ["中文：接口 URL 无法访问", { text: "接口 URL 无法访问" }],
+  // 审核：下一步是换图，重试不会有用
+  ["审核：输入图片未通过", { text: "输入图片未能通过审核" }],
+  ["审核：参考图无法通过", { text: "参考图片无法通过内容审核，请更换" }],
+  ["审核：不能包含敏感内容", { text: "输入图片不能包含敏感内容" }],
+  ["审核：不能包含真人", { text: "参考图不能包含真人" }],
+  ["审核：链接因内容政策被拒", { text: "The input image URL is forbidden due to content policy" }],
+  ["审核：链接里是违禁内容", { text: "The reference image URL contains forbidden content" }],
+  ["审核：法律原因", { text: "Input image URL returned 451 unavailable for legal reasons" }],
+  ["审核：动词在前也不算", { text: "Failed to load input image: content policy violation" }],
+  ["审核：拿到了但判敏感", { text: "Failed to access input image: sensitive content detected" }],
+  ["审核：因为可能含敏感内容", { text: "Could not load the reference image because it may contain sensitive content" }],
+  // 鉴权、配额：下一步是换 Key、等一等
+  ["鉴权：Key 不对", { text: "Could not fetch input image: invalid api key" }],
+  ["鉴权：401", { text: "Failed to fetch input image: 401 Unauthorized" }],
+  ["配额：限流", { text: "Cannot load input: rate limit exceeded" }],
+  ["配额：余额不足", { text: "Failed to access source: insufficient balance" }],
+  // 模型、参数：说的不是参考素材
+  ["模型：访问不了", { text: "Unable to access model, please check your input" }],
+  ["模型：带着链接也不算", { text: "Unable to access this model with the provided link" }],
+  ["模型：从源加载", { text: "Failed to load model from source" }],
+  ["模型：列表", { text: "Failed to retrieve model list, see link" }],
+  ["模型：权重", { text: "Error while downloading model weights" }],
+  ["参数：输入参数", { text: "Failed to load input parameters" }],
+  ["参数：输入结构", { text: "Cannot load input schema" }],
+  ["参数：输入字段", { text: "Unable to access input field 'seed'" }],
+  ["参数：格式", { text: "Could not load input: unsupported format" }],
+  // 大小、为空、数量：我们自己的校验或服务商的限制，重试还是同一个错
+  ["校验：参考图为空", { text: "参考图片不能为空" }],
+  ["校验：大小", { text: "输入图片不能超过 10MB" }],
+  ["校验：时长", { text: "参考视频不能超过 15 秒" }],
+  ["校验：格式", { text: "输入图片格式不能为 webp" }],
+  ["校验：图片本身过期（素材库的话，没说链接）", { text: "参考图片已过期" }],
+  ["校验：解析不出源地址", { text: "参考素材 X 解析不出源地址，提示词里的 @ 引用无法投影" }],
+  ["校验：别的连接器的下载地址", { text: "这条参考的下载地址已过期（平台给的是短时链接）。" }],
+  // 没说是输入、也没有链接：可能是产物或界面，不猜
+  ["没说是什么：下载图片", { text: "Failed to download image" }],
+  ["没说是什么：下载视频", { text: "Failed to download video" }],
+  ["没说是什么：下载文件", { text: "Unable to download the file" }],
+  ["没说是什么：取图片", { text: "Failed to fetch image" }],
+  ["没说是什么：取图片（缓存）", { text: "Failed to fetch the image from cache" }],
+  ["没说是什么：视频状态", { text: "Could not fetch video status" }],
+  ["没说是什么：下载超时", { text: "Timeout while downloading" }],
+  ["没说是什么：取超时", { text: "Timed out while fetching" }],
+  ["产物：后面跟着链接也不算", { text: "Failed to download video from https://cdn.example.com/out.mp4" }],
+  ["内置浏览器：素材链接过期", { text: enBrowserAssets.capture.error.notFound }],
+  ["内置浏览器：素材链接过期（中文）", { text: zhBrowserAssets.capture.error.notFound }],
+  ["我们自己的本机检查：源文件缺失", { text: "This reference image is unavailable because its source file is missing or its link expired: https://cdn.example.com/a.png." }],
   ["空", { text: "" }],
 ];
 
@@ -69,6 +121,23 @@ describe("isReferenceFetchRefusal：模型拉不到参考链接", () => {
 
   it.each(NOT_REFUSALS)("%s → 否", (_label, input) => {
     expect(isReferenceFetchRefusal(input)).toBe(false);
+  });
+
+  it.each([
+    ["minimaxH3.mixedReferences", {}],
+    ["minimaxH3.audioOnly", {}],
+    ["runway.seedanceEmptyImage", {}],
+    ["outbound.referenceUrlInvalid", { field: "image", detail: "bad" }],
+  ] as const)("我们自己的发送前校验 %s（中英）→ 否，重试还是同一个错", (key, values) => {
+    expect(isReferenceFetchRefusal({ text: desktopT(key, values, "zh-CN") })).toBe(false);
+    expect(isReferenceFetchRefusal({ text: desktopT(key, values, "en") })).toBe(false);
+  });
+
+  it("几十 KB 的连续字母不会把界面卡住：只看开头一段", () => {
+    const started = performance.now();
+    expect(isReferenceFetchRefusal({ text: "a".repeat(200_000) })).toBe(false);
+    expect(isReferenceFetchRefusal({ text: `${"a1.".repeat(70_000)} An input media URL could not be fetched.` })).toBe(false);
+    expect(performance.now() - started).toBeLessThan(500);
   });
 
   it("没有说法也没有码 → 否", () => {

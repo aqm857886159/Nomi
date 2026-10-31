@@ -113,7 +113,7 @@ export type GenerationErrorKind =
   | 'asset-invalid'
   // 参考图走的是服务商的临时链接，**模型那一侧**去拉时拉不到（过期 / 防盗链 / 地区限制）。请求已经发出去了；
   // 与 asset-upload-failed 分开（那条是我们这侧上传没成、服务商没被请求到），也与 input 分开（400 不是「参数不对」）。
-  // 下一步只有「重试」：重试会改用本机原图上传后再发（这条连接已被记下）。判据与记账共用 electron/shared/assets/referenceFetchRefusal。
+  // 下一步先「重试」：重试会尽量改用本机原图上传后再发（这条连接已被记下）；上传过模型还拒绝，就换个模型。判据与记账共用 electron/shared/assets/referenceFetchRefusal。
   | 'reference-unfetchable'
   // 主进程发送前的参考守在花钱之前拒了：请求里带着参考区没在用的图（有入口绕过了唯一推导）。
   // 请求没离开本机；下一步是重新点生成，会按参考区重新组一次请求。不是服务商的事。
@@ -287,8 +287,9 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   // 参考素材本身不行：换素材的地方就在画布上（连着的那个节点，不需要按钮），换好后点重试。
   // 同「改提示词后重试」那两类的理由——按钮只给 retry，改的动作在画布上。
   'asset-invalid': RETRY_FIRST,
-  // 只有重试：重试会改用本机原图上传，不用换图；换模型帮不上忙（换一家照样拉不到同一条临时链接）。
-  'reference-unfetchable': { primary: 'retry', secondary: null },
+  // 先重试：重试会尽量改用本机原图上传，不用换图。上传过模型还拒绝（比如这家拉不到上传通道的地址）时，再点重试只会再失败一次，
+  // 换模型是唯一的出口，所以留在次动作。
+  'reference-unfetchable': RETRY_FIRST,
   // 请求没离开本机：重新点生成会按参考区重新组请求，主动作就是重试。
   'reference-not-in-use': RETRY_FIRST,
   // 比例超界：换比例的地方就在下方生成框（按钮只给 retry，改的动作在 composer）；该比例确实要用，就换一个支持它的模型。

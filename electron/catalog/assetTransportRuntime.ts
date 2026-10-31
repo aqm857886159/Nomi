@@ -3,11 +3,12 @@ import {
   type LocalizeAssetsOptions,
   type ReferenceLinkPolicy,
 } from './assetLocalization'
-import { resolveAssetIngestionWithFallback } from './assetLocalization'
+import { localizeAssetsForVendor, resolveAssetIngestionWithFallback } from './assetLocalization'
 import { anonymousConsentFromUnknown } from './assetTransportPolicy'
 import { decryptApiKeyRecord, type ApiKeyRecord } from './secrets'
 import { readAutomationPolicySettings, type AutomationPolicySettings } from '../settings/automationPolicySettings'
 import { probeProviderLink } from '../assets/providerMediaFetch'
+import { outsidePaidDispatch } from '../outboundDispatchEvidence'
 import { isConnectionRefused } from './referenceLinkRefusals'
 import type { Vendor } from './types'
 import type { AssetIngestion } from './types'
@@ -43,6 +44,14 @@ export function assetLocalizationOptions(
       : undefined,
     linkPolicy: referenceLinkPolicy(target),
   }
+}
+
+/**
+ * 发送入口落地参考素材的唯一口。试探链接和上传文件都不是付费派发，放到付费账本外跑：否则带查询串的试探和上传会在账上留一笔，
+ * 模型接口这时连不上，一笔没发也会被说成「结果未知」，用户要去任务中心放行才能重试。
+ */
+export function localizeForSend(...args: Parameters<typeof localizeAssetsForVendor>): ReturnType<typeof localizeAssetsForVendor> {
+  return outsidePaidDispatch(() => localizeAssetsForVendor(...args))
 }
 
 export function assetIngestionResolver(vendor: Vendor, catalog: AssetCatalog, operationIngestion?: AssetIngestion): IngestionResolver {

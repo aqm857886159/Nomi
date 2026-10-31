@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { answeredSubmissionFailure, describeOutboundFailure, handOffToNetwork, isTransportLevelFailure, observeSubmissionHandoffs, outboundRequestWasNeverWritten, withResultLandingEvidence } from "./outboundDispatchEvidence";
+import { answeredSubmissionFailure, describeOutboundFailure, handOffToNetwork, isTransportLevelFailure, observeSubmissionHandoffs, outsidePaidDispatch, outboundRequestWasNeverWritten, withResultLandingEvidence } from "./outboundDispatchEvidence";
 import { tagNomiError } from "./shared/nomiErrorCodes";
 
 /**
@@ -115,6 +115,32 @@ describe("observeSubmissionHandoffs", () => {
     const result = await observeSubmissionHandoffs("app-fetch", async () => {
       await handOff({ method: "POST", body: "{}" }, async () => "response");
       throw new Error("second step refused locally");
+    });
+    expect(result).toMatchObject({ ok: false, notDispatched: null });
+  });
+
+  it("素材落地（带查询串的试探、上传）在账外：之后模型接口连不上 ⇒ 确定没发出，可以直接重试", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", async () => {
+      await outsidePaidDispatch(async () => {
+        await handOff({ method: "GET" }, async () => "probe answered", "https://cdn.vendor.test/a.png?X-Amz-Signature=abc");
+        await handOff({ method: "POST", body: "bytes" }, async () => "uploaded", "https://relay.test/upload");
+      });
+      await handOff({ method: "POST", body: "{}" }, async () => { throw connectRefused(); });
+    });
+    expect(result).toMatchObject({ ok: false, notDispatched: "connect_failed" });
+  });
+
+  it("上传回了错误、模型一次都没请求 ⇒ never_reached_network（一笔没发，不说「可能已被收下」）", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", async () => {
+      await outsidePaidDispatch(() => handOff({ method: "POST", body: "bytes" }, async () => { throw new Error("upload answered 500"); }, "https://relay.test/upload"));
+    });
+    expect(result).toMatchObject({ ok: false, notDispatched: "never_reached_network" });
+  });
+
+  it("只有素材落地在账外：交给模型的那一笔写出去之后才断 ⇒ 仍是结果未知（防双扣最要紧的一格）", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", async () => {
+      await outsidePaidDispatch(() => handOff({ method: "POST", body: "bytes" }, async () => "uploaded", "https://relay.test/upload"));
+      await handOff({ method: "POST", body: "{}" }, async () => { throw fetchFailed(socketError("other side closed")); });
     });
     expect(result).toMatchObject({ ok: false, notDispatched: null });
   });

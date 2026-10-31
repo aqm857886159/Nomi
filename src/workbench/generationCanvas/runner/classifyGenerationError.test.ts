@@ -629,8 +629,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
       // 结果未知：不给重试（可能重复提交），只指路去核对。
       // 已生成、取回失败 / 已提交、这次没取回：只指路「重新取回」，不给第二个动作（重试 = 再生成一份）。
       // 本机处理失败：没有模型参与，只留重试。
-      // 模型取不到参考图：重试会改用本机原图上传，换模型帮不上忙（换一家照样拉不到同一条临时链接），只留重试。
-      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' || kind === 'reference-unfetchable' ? null : kind === 'submission-unknown' ? 'release-regenerate' : before })
+      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' ? null : kind === 'submission-unknown' ? 'release-regenerate' : before })
     }
   })
 })
@@ -1265,9 +1264,9 @@ describe('模型取不到参考图（reference-unfetchable）', () => {
     expect(report.reason).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.reason'))
     expect(report.reason).not.toContain('generationCommon.')
     expect(report.hint).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.hint'))
-    // 主按钮重试，没有换模型：重试会改用本机原图上传；换一家照样拉不到同一条临时链接。
+    // 主按钮重试：重试会尽量改用本机原图上传。上传过模型还拒绝时换模型是唯一的出口，留在次动作。
     expect(report.primary).toBe('retry')
-    expect(report.secondary).toBeNull()
+    expect(report.secondary).toBe('switch-model')
     // 修法在我们这一侧，不点名服务商「失败了」，也不触发切家提示。
     expect(report.vendorSide).toBe(false)
     // 不提扣费（narrate 现有规矩）。
@@ -1292,6 +1291,20 @@ describe('模型取不到参考图（reference-unfetchable）', () => {
     expect(report.providerMessage).toBe(REPORTED)
     expect(report.reason).not.toContain('could not be fetched')
     expect(report.raw).toContain('Provider request failed')
+  })
+
+  it.each([
+    ['输入图片未能通过审核', 'input-image-blocked'],
+    ['Failed to access input image: sensitive content detected', 'input-image-blocked'],
+    ['The input image URL is forbidden due to content policy', 'content-policy'],
+    ['Failed to load input image: content policy violation', 'content-policy'],
+    ['Could not fetch input image: invalid api key', 'auth'],
+    ['Failed to fetch input image: 401 Unauthorized', 'auth'],
+    ['Cannot load input: rate limit exceeded', 'quota'],
+    ['Failed to fetch image', 'network'],
+    ['Timeout while downloading', 'network'],
+  ])('别的失败不被说成取不到参考图（重试要花钱）：%s', (message, kind) => {
+    expect(classifyGenerationError(message).kind).toBe(kind)
   })
 
   it('别的 400 不被吞：比例不对仍是 input，取结果 / 下载产物 / 上传失败仍是各自的类', () => {

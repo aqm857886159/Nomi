@@ -1,6 +1,6 @@
 import { readCatalog } from '../catalog/catalogStore';
-import { localizeAssetsForVendor, type ReferenceLinkPolicy } from '../catalog/assetLocalization';
-import { assetIngestionResolver, assetLocalizationOptions, referenceLinkPolicy } from '../catalog/assetTransportRuntime';
+import type { ReferenceLinkPolicy } from '../catalog/assetLocalization';
+import { assetIngestionResolver, assetLocalizationOptions, localizeForSend, referenceLinkPolicy } from '../catalog/assetTransportRuntime';
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from '../assets/localAssetFile';
 import { projectSpendReferenceAssets, type SpendReferenceAssets } from './pendingSpendReferences';
 import { spendReferenceKey } from '../shared/contracts/pendingSpendConfirm';
@@ -11,7 +11,7 @@ async function localize(providerId: string, urls: readonly string[]): Promise<re
   const catalog = readCatalog();
   const vendor = catalog.vendors.find(vendor => vendor.key === providerId);
   if (!vendor) throw new Error('generation_reference_provider_unavailable');
-  const result = await localizeAssetsForVendor({ urls }, assetIngestionResolver(vendor, catalog),
+  const result = await localizeForSend({ urls }, assetIngestionResolver(vendor, catalog),
     readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload,
     assetLocalizationOptions(vendor, undefined), putBinaryForAssetUpload);
   const values = (result.value as { urls?: unknown }).urls;

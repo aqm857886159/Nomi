@@ -638,7 +638,8 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // 主进程的出站证据说「这次付费提交确定没离开本机」（结构化码 submission_not_sent，不认文案）。上面那几条更具体的
   // 本机拒绝（出网策略 / 凭据绑定 / 目录没配好）已经先判了；剩下的：连不上 → network（请求没发到服务商，查网络和代理），
   // 在本机就被拦下 → submission-not-sent。都排在一切「猜文案」的检测之前：这一类没有服务商参与，不许被说成服务商的失败。
-  if (structured?.code === 'submission_not_sent' && outboundCode !== 'asset-invalid') {
+  // 参考素材没送出去（读不到、传不上、太大）有自己更具体的卡，说得清下一步。
+  if (structured?.code === 'submission_not_sent' && outboundCode !== 'asset-invalid' && outboundCode !== 'asset-upload-failed' && outboundCode !== 'asset-too-large') {
     return reportFor(structured.reason === 'connect_failed' ? 'network' : 'submission-not-sent', cleanRaw, '')
   }
   // 缺可用文本大脑同样是**我们自己**的内部签名（服务商没被请求到）——归 model-config 报人话，

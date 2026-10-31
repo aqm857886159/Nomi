@@ -94,10 +94,10 @@ Preview / RC 首次启动：这份记录和连接一起带过去（`electron/set
 新错误卡文案：
 
 - 中文标题：模型取不到参考图
-- 中文说明：参考图走的是服务商的临时链接，模型那边取不到了，可能已过期或被拦。点「重试」会改用你电脑上的原图重新上传再发，不用换图。如果这张图本机没有原文件，重试不会有用，请换一张或重新生成。
+- 中文说明：模型那边取不到这张参考图的链接，可能已过期或被拦。点「重试」时，Nomi 会尽量改用你电脑上的原图上传后再发。还是不行就换个模型；这张图本机没有原文件的话，换一张或重新生成。
 - 英文标题：The model could not fetch a reference image
-- 英文说明：This reference went out as the provider's temporary link, and the model could not fetch it. It may have expired or been blocked. Retry uploads the original file from your computer and sends it again, so you don't need to change the image. If the image has no local file, retrying won't help: replace it or generate it again.
-- 动作：主按钮重试，不给换模型。不提扣费（`narrate.ts` 现有规矩）。
+- 英文说明：The model could not fetch this reference image's link. It may have expired or been blocked. When you retry, Nomi tries to upload the original file from your computer and send that instead. If it still fails, switch models. If the image has no local file, replace it or generate it again.
+- 动作：主按钮重试，次动作换模型（上传过模型还拒绝时，这是唯一的出口）。不提扣费（`narrate.ts` 现有规矩）。
 
 能力不可用：本机没有文件的公网链接，下一步是换图或重新生成，卡片说明里已写。
 
@@ -154,9 +154,13 @@ Preview / RC 首次启动：这份记录和连接一起带过去（`electron/set
 - 并发和去重：一个请求 5 张图，耗时约等于一次试探；26 个请求共用一张图，GET 1 次；5 分钟后再试；试探中点停止和今天「提交中」一样（POST 1 次，结果落账）；做片入口 Run 失效，POST 0 次。
 - 老用户：0.24.0 真实落盘的素材走活着、失效两行；`upgradeKeepsWorkingModels` 断言不改且全过。
 
+账本（`electron/productionRun/referenceLinkDispatchLedger.test.ts`，真提交出口、真账本、本机回环）：试探和上传不算付费派发。带查询串的活链接、上传成功或失败，只要模型一笔没收到，就是「没发出去」，可以直接重试；上传失败给「参考图没能送到服务商」那张卡。模型收下后连接断了，仍是结果未知，重试被拒。
+
+拒绝记录（`electron/catalog/referenceLinkRefusals.test.ts`）：30 天后失效，到期后再被拒就重新记；时间读不出来当作没有记录。
+
 判据（`electron/shared/assets/referenceFetchRefusal.test.ts`）：真实说法至少 12 条为真（含 `An input media URL could not be fetched (403/404/410).` 的三种报错形式、上游错误码、中文）；至少 8 条为假（取结果失败、下载产物失败、模型不存在、任务超时、内容拦截、上传失败等）。
 
-分类（`classifyError` 的测试）：纯文字、带前缀、结构化 400 三种都归新种类，中英标题和说明逐字；主按钮重试，没有换模型。
+分类（`classifyError` 的测试）：纯文字、带前缀、结构化 400 三种都归新种类，中英标题和说明逐字；主按钮重试，次动作换模型。审核、鉴权、配额的说法归各自的类，不进这张卡。
 
 反例（改坏看红再按字节还原，报告逐条写）：
 1. 恢复 `resolveLocalAsset` 的捷径 → 失效行红。
@@ -170,5 +174,14 @@ Preview / RC 首次启动：这份记录和连接一起带过去（`electron/set
 走查（中英）：假服务第一次返回拒绝文字 → 看到新卡 → 点重试 → 第二次 POST 带上传后的链接并出结果；失效链接直接出结果且界面无新元素。截图由协调亲眼看。
 
 真付费：协调跑一次最便宜的图片模型：引用真实生成图，把测试项目里那张图 `.meta` 的链接改成同主机的 404 地址，确认发出的是新链接且生成成功。`spend-paid-sample` 交运行号。
+
+第 3 轮（独立验收查出这个 PR 自己带来的问题，并进来修）：
+
+8. 去掉素材落地的账外，或发送入口绕过唯一口 → 账本 6 行红。
+9. 账本什么都不记 → 「模型收下后连接断了」和账本单测红。
+10. 去掉同句的别的原因 → 审核、鉴权、配额假例 13 行红。
+11. 只说文件也算 → 假例 7 行红。去掉文本长度上限 → 长文本那行红。
+12. 拒绝记录永不过期 → 有效期 2 行红。
+13. 卡上不留换模型 → 分类 5 行红。上传失败不给自己的卡 → 账本 3 行红。
 
 回滚：revert 合并提交。没有数据迁移；留下的配置文件没人读。

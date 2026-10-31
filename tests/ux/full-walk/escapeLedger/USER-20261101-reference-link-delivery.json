@@ -24,6 +24,7 @@
     "electron/catalog/referenceLinkDelivery.matrix.test.ts：链接状态 × 上传 × 媒体 × 入口 × 模型拒绝 × 并发去重 × 老用户（0.24.0 真实落盘的素材）",
     "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts：提交被拒与任务失败各一行，两个引擎，POST 仍只有 1 次",
     "electron/productionRun/reworkReferenceLinks.test.ts：做片返工换链接，封存校验不拒发",
+    "electron/productionRun/referenceLinkDispatchLedger.test.ts：穿过真提交出口，试探和上传不算付费派发，交给模型的那一笔还在账上",
     "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts：纯文字、带前缀、结构化 400 都归「模型取不到参考图」",
     "docs/fixes/2026-11-01-reference-link-delivery.root-cause.json",
     "docs/lessons/inconclusive-probe-is-not-a-failure-and-a-second-shortcut-undoes-the-decision.md"
