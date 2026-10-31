@@ -21,7 +21,7 @@ import { referenceKeyDeclarationFor } from '../shared/modelArchetypes/referenceK
 import { resolveArchetypeForModel } from '../shared/modelArchetypes';
 import { NEWAPI_VIDEO_CREATE_OP } from './newapiTransport';
 import { deriveModelNameSource } from './modelNameSource';
-import { imageEditGuardError } from './taskParams';
+import { imageEditGuardError, reachableModeSuggestion } from './taskParams';
 import type { Model, Vendor } from './types';
 
 let dir = '';
@@ -198,9 +198,14 @@ describe('a first frame on a standard text route', () => {
   it('is refused before spending and pointed at the image-to-video mode', () => {
     const all = modes();
     const t2v = all.find(mode => mode.taskKind === 'text_to_video')!;
-    const refusal = imageEditGuardError('text_to_video', request, true, row.labelZh, t2v.create.body, all.map(mode => ({ taskKind: mode.taskKind, body: mode.create.body })));
+    const bodies = all.map(mode => ({ taskKind: mode.taskKind, body: mode.create.body }));
+    const refusal = imageEditGuardError('text_to_video', request, true, row.labelZh, t2v.create.body, bodies);
     expect(refusal).toMatch(/首帧/);
-    expect(refusal).toMatch(/图生视频/);
+    // The pointer comes from the image-to-video mode: take that mode away and the same call has nowhere to point.
+    const pointer = reachableModeSuggestion(request, t2v.create.body, bodies);
+    const nowhere = reachableModeSuggestion(request, t2v.create.body, bodies.filter(body => body.taskKind !== 'image_to_video'));
+    expect(refusal).toContain(pointer);
+    expect(pointer).not.toBe(nowhere);
     expect(imageEditGuardError('image_to_video', request, true, row.labelZh, all.find(mode => mode.taskKind === 'image_to_video')!.create.body)).toBeNull();
   });
 });
