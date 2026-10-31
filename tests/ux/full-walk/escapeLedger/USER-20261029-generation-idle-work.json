@@ -8,7 +8,7 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-31-generation-idle-work.md",
@@ -17,7 +17,8 @@
     "docs/evidence/2026-10-31-generation-idle-work/local-boundaries.json",
     "tests/fixtures/generation-lifecycle-cases.json",
     "docs/evidence/2026-10-31-generation-idle-work/recovery-lifecycle.json",
-    "docs/evidence/2026-10-31-generation-idle-work/formal-counters.json"
+    "docs/evidence/2026-10-31-generation-idle-work/formal-counters.json",
+    "修复：等待卡不再持续绘制，纯进度不再保存整个工程，同状态 pending 不再重写快照；恢复时外部调用回来后按最新持久事实裁定，原单不丢不重下（#1393）。"
   ],
   "completionCommits": [
     "879d8cd5c4af11495b91cca2da1095951fade802",
@@ -28,5 +29,6 @@
   "classCheck": {
     "kind": "matrix",
     "file": "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts"
-  }
+  },
+  "fixedInPr": 1393
 }
