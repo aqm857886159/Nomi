@@ -7,7 +7,7 @@ import { openCustomApiWizard, openModelSettings } from './_shell.mjs'
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { startRelayVideoFixture, relayDeclaration, RELAY_CASES, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
-import { waitForRelayLaunch, relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject } from './_relayVideoWalk.mjs'
+import { relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject } from './_relayVideoWalk.mjs'
 
 const cases = process.env.NOMI_RELAY_CASES_FILE ? JSON.parse(fs.readFileSync(process.env.NOMI_RELAY_CASES_FILE, 'utf8')) : RELAY_CASES
 const shape = process.env.NOMI_RELAY_SHAPE || 'plural-url'
@@ -27,7 +27,6 @@ const capture = async (tag) => {
   return text
 }
 try {
-  report.launch = await waitForRelayLaunch({ limitMs: Math.max(1, Number(process.env.NOMI_RELAY_LAUNCH_DEADLINE_MS || Date.now() + 2 * 60 * 60 * 1000) - Date.now()) })
   ;({ win } = await walk.start({ first: true }))
   await win.evaluate((l) => localStorage.setItem('nomi:locale:v1', l), locale)
   await win.reload()

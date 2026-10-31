@@ -5,7 +5,6 @@ import { ENV_KEY_VAR, ENV_KEY_ALLOW_CATALOG } from './_paidEnvKey.mjs'
 import { createRecordedRelayWalk, flushRelayRecording } from './_relayVideoResponseRecording.mjs'
 import { startRelayVideoFixture, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
 import { runRelayVideoPaidSteps } from './_relayVideoPaidSteps.mjs'
-import { waitForRelayLaunch } from './_relayVideoWalk.mjs'
 import { expect } from './_assert.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -34,7 +33,6 @@ const paid = await openPaidWalk('relay-video-onboarding-real.rehearsal.walk.mjs'
 let failure
 let win, app
 try {
-  paid.walk.report.launchPermission = await waitForRelayLaunch({ limitMs: Math.max(1, Number(process.env.NOMI_RELAY_LAUNCH_DEADLINE_MS || Date.now() + 2 * 60 * 60 * 1000) - Date.now()) })
   ;({ win, app } = await paid.walk.start({ first: true }))
   await win.evaluate((locale) => localStorage.setItem('nomi:locale:v1', locale), process.env.NOMI_RELAY_LOCALE || 'zh-CN')
   await win.reload()

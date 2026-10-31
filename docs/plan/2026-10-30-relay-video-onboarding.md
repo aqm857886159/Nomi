@@ -519,7 +519,7 @@ RSS预算64MiB未通过，取消预算1s通过。量具退出0表示采样完成
 - `tests/relay-onboarding/contracts.test.mjs` 14 条 `path is not defined`：合并把主线的 `import path` 那行换成了这边的 `import { Buffer }`，`path` 没了，`Buffer` 重复。恢复主线文件头。
 - `tests/relay-onboarding/protocol.test.mjs`：夹具卡撞编译规则。改夹具，编译规则没动。`content` 形状的尺寸控件改中性键 `resolution`，multipart 的 `seconds` 读 `duration`、`size` 读 `resolution`；`legacy-url` 的 `size` 读 `resolution`。原断言 `{ seconds: '4', size: '1280x720' }` 一个字没改，只是这两个值现在来自可见控件的默认值，不再是卡里的字面量，比原来严。纯文本字段的字面量 multipart 仍由 `contracts.test.mjs` 那条直接校验，没有丢。
 
-**合并露出、没修、交协调的两件。** 都是花钱之前就停住，不多扣钱，不丢数据。
+**合并露出的两件（用户 2026-10-31 批了一轮窄修，已修，见 `docs/engineering/direction-checks/2026-10-31-relay-capability-narrow-fix.md`）。** 都是花钱之前就停住，不多扣钱，不丢数据。下面是当时的现象：创建门两句和运行入口那句现在带机器码，画布上指去模型接入；中性键的提示改成线缆字段读中性键，同步样例改用中性键。
 
 1. 声明撤掉的模式被创建门先拦下：`assertDeclaredCapabilityForTask` 抛 `Declaration does not publish taskKind: …`，主线 `483057c9a` 为同一种情形加的测试在合并后红（`protocol.test.mjs > a model that only declared image-to-video…`）。声明不完整那一句同类。真窗实测：窗口开着时 AI 把文生撤掉，再点生成，0 次 POST、没有确认窗，卡上是「这次生成没有发出去，停在了这台电脑上」，列的原因是网络、密钥、素材，主按钮重试，重试还是这张卡；运行几秒内落成错误，不会卡死，刷新后目录是对的。画布这条路上提交箱会把这句包成 `submission_not_sent`，分类器看这个码在看文案之前，所以只改文案（比如前缀 `Model is not configured`）只修无界面路径，画布上还是这张卡；主线那句走画布按同一条包装链也是这张卡。带机器码 `model-config` 才两条路都指去模型接入。
 2. 中性键规则的提示走不通：拒绝信息让卡改用 `create.paramMap`，而交卡 schema 是严格的，不收这个键；接入套件自己的同步样例卡（参数键 `size`）照抄也被拒。直接让线缆字段读中性键可以过，但没有地方告诉 AI。

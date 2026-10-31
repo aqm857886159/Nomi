@@ -8,7 +8,7 @@ import { openCustomApiWizard, openModelSettings } from './_shell.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { startRelayVideoFixture, relayDeclaration, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
-import { waitForRelayLaunch, relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject, relayModelOption } from './_relayVideoWalk.mjs'
+import { relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject, relayModelOption } from './_relayVideoWalk.mjs'
 
 const locale = process.env.NOMI_RELAY_LOCALE || 'zh-CN'
 const evidence = process.env.NOMI_RELAY_EVIDENCE_DIR
@@ -21,7 +21,6 @@ const walk = await createRuntimeWalk('relay-capability-projection', { env: { NOM
 let win, client, failure
 const capture = async (name) => captureRelayScreen(win, evidence, `${locale}-${name}`)
 try {
-  report.launch = await waitForRelayLaunch({ limitMs: Math.max(1, Number(process.env.NOMI_RELAY_LAUNCH_DEADLINE_MS || Date.now() + 2 * 60 * 60 * 1000) - Date.now()) })
   ;({ win } = await walk.start({ first: true }))
   await win.evaluate((l) => localStorage.setItem('nomi:locale:v1', l), locale)
   await win.reload()

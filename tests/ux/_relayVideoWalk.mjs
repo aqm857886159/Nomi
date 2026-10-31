@@ -1,7 +1,5 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import os from 'node:os'
-import { execFileSync } from 'node:child_process'
 import { expect, screenshotSettled } from './_assert.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
 import { collapseAgentPanel, newProjectEntry, openRailDrawer, canvasSetZoomPercent } from './_shell.mjs'
@@ -11,27 +9,6 @@ import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 import { findNodeHitPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
-
-/** Mac launch rule is checked immediately before starting any GUI, including rehearsal. */
-export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) {
-  if (process.platform !== 'darwin') return { platform: process.platform }
-  const started = Date.now()
-  while (Date.now() - started < limitMs) {
-    const front = execFileSync('lsappinfo', ['front'], { encoding: 'utf8' }).trim()
-    const name = execFileSync('lsappinfo', ['info', '-only', 'name', front], { encoding: 'utf8' }).trim()
-    const load5 = os.loadavg()[1]
-    let idleSeconds = null
-    try {
-      const idle = execFileSync('ioreg', ['-c', 'IOHIDSystem'], { encoding: 'utf8' }).match(/"HIDIdleTime"\s*=\s*(\d+)/)
-      if (idle) idleSeconds = Math.floor(Number(idle[1]) / 1e9)
-    } catch (error) { console.warn(`[launch] HID idle check unavailable: ${error.message}`) }
-    const foregroundPermitted = !/claude/i.test(name)
-    console.log(`[launch] ${new Date().toISOString()} front=${name} load5=${load5} idleSeconds=${idleSeconds}`)
-    if (load5 < 10 && (foregroundPermitted || (idleSeconds !== null && idleSeconds >= 600))) return { front: name, load5, idleSeconds, permittedBy: foregroundPermitted ? 'foreground' : 'idle', waitedMs: Date.now() - started }
-    await new Promise((resolve) => setTimeout(resolve, Math.min(60_000, Math.max(0, limitMs - (Date.now() - started)))))
-  }
-  throw new Error(`Launch deferred: foreground app or five-minute load did not permit a quiet walk within ${Math.ceil(limitMs / 1000)} seconds`)
-}
 
 /** An isolated MCP transport calls the exact production declaration handler, without an LLM. */
 export async function relayModelClient({ settingsDir, userDataDir, tempRoot, env = {} }) {
