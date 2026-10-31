@@ -1420,7 +1420,8 @@
       "id": "gate-family",
       "capability": "仓库门岗族：一百多个 check:* 脚本（棘轮、登记表、合同、文档记账）",
       "status": "under-review",
-      "reviewBy": "2026-10-31",
+      "reviewBy": "2026-11-30",
+      "renewed": [{ "on": "2026-10-31", "from": "2026-10-31", "reason": "门岗账本已出（docs/audit/2026-10-01-gate-ledger.md），保留 / 合并 / 降级 / 删除清单还没交用户逐项拍板，排在当前发版之后；拍板前下不了结论。只能续这一次，到期前必须出结论。" }],
       "paths": [
         "scripts/check-*.mjs",
         "scripts/run-gates-contracts.mjs"
