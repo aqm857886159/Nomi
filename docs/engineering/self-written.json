@@ -2193,6 +2193,34 @@
       "revisitWhen": "AnchoredPopover 换到 @floating-ui/react（useFloating + useDismiss）时删除本文件，其余消费者随之迁移"
     },
     {
+      "id": "modal-input-layer",
+      "capability": "模态输入层：宿主登记「我开着、盖住哪一块」，工作区输入边界读它决定让路；一个带范围的小栈（打开、关闭、谁在最上面、某元素有没有被盖住）",
+      "status": "justified",
+      "paths": [
+        "src/design/modalInputLayer.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "HTML inert / <dialog>.showModal()：只管命中测试、选择和焦点，Electron 43 实测 window 级键盘、paste、指针监听照样收到，拦不住工作区快捷键",
+          "source": "https://html.spec.whatwg.org/multipage/interaction.html"
+        },
+        {
+          "name": "Radix DismissableLayer / FocusScope：内部用一个栈记录最高层，只取这个形状；它们是传递依赖、不是公开原语，Mantine Modal 不往里登记，也不管全局按键",
+          "source": "https://github.com/radix-ui/primitives/tree/main/packages/react/dismissable-layer"
+        },
+        {
+          "name": "Mantine Modal：每个开着的 Modal 只在 window 捕获期管自己的 Esc，没有「现在有没有 Modal 开着」的读接口，手写模态也不经过它",
+          "source": "https://mantine.dev/core/modal/"
+        },
+        {
+          "name": "tldraw 的 editor.menus（hasAnyOpenMenus / addOpenMenu）：同样是宿主登记、快捷键读状态，但它是编辑器内部状态，不能单独拿来用",
+          "source": "https://raw.githubusercontent.com/tldraw/tldraw/main/packages/tldraw/src/lib/ui/hooks/useKeyboardShortcuts.ts"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：工作区面（画布、时间轴、列表、预览）的全局快捷键要按「谁盖住了谁」让路，灯箱只盖画布那一格、旁边时间轴还能用，现成的浮层库只有整窗和焦点两种概念；约 30 行，不加依赖。",
+      "revisitWhen": "浮层统一换到一个公开了「当前开着的层」读接口、且能表达局部覆盖的库时，删除本文件"
+    },
+    {
       "id": "rich-text-action-button",
       "capability": "富文本格式钮的画法：设计系统 Tooltip 名字、aria-pressed + 设计系统 §5.5 Pressed 底色、mousedown 不抢编辑器焦点；创作区顶栏、选区浮条、画布文本节点格式条三个壳共用",
       "status": "justified",

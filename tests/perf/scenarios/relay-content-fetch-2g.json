@@ -1,0 +1,34 @@
+{
+  "id": "relay-content-fetch-2g",
+  "feature": "单路2GiB文件响应流式取回与临时写盘",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/relay-media-materialization-bench.mjs",
+    "--",
+    "--case",
+    "single-2048"
+  ],
+  "scale": "同批5个256MiB参考客户端与5个2GiB客户端",
+  "metrics": [
+    "rssMiB",
+    "referenceRssMiB",
+    "heapUsedMiB",
+    "externalMiB",
+    "arrayBuffersMiB",
+    "transferMs",
+    "cancelMs"
+  ],
+  "budget": 160,
+  "budgetStatistic": "p95",
+  "budgetStatus": "approved",
+  "budgetBasis": "协调10-31依据安静实测裁定：单路额外RSS p95≤160MiB、跨文件规模p95差≤32MiB、四路并发p95≤同批实测单路p95×2。量具自动校验相对条件，不使用固定历史参考，不强制GC；不含解码发布。",
+  "baseline": {
+    "median": 119,
+    "p95": 130.4,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-30",
+    "commit": "ddddcc680"
+  }
+}

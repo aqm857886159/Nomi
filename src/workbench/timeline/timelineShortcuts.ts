@@ -67,6 +67,11 @@ export function resolveTimelineShortcut(
   return null
 }
 
+/** 打开、关上快捷键帮助框的键：`?`（有的键盘布局报成 Shift+/）。 */
+export function isTimelineShortcutsHelpKey(input: { key: string; shiftKey?: boolean }): boolean {
+  return input.key === '?' || (input.key === '/' && Boolean(input.shiftKey))
+}
+
 export function isTimelineShortcutEditingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
 }

@@ -16,6 +16,9 @@
  *
  * 通道形状复用 draftShapeForKind（与接入落库同一个真相源），不在这里另写一份 wire 模板（P1 无并行版）。
  *
+ * 视频例外：协议要文档声明，不猜（用户 2026-10-30 拍板），所以改成视频只改对 kind 和身份，通道是 0 条。
+ * 下一次运行在发请求前停下（findExecutableModel：还没发布），错误卡的主按钮是「去模型接入」，由 AI 接入补上声明。
+ *
  * 谁能改（derived，不是 allowlist）：`model.onboarding.addedVia === "manual"`。
  * 推导链——guessModelKind 只在手动/中转拉取路被调用（onboardingIpc / catalogCommit），而这条路
  * committed 的模型正是 addedVia:"manual"，其通道也正是 draftShapeForKind 生成的。所以「会猜错的
@@ -33,7 +36,7 @@ const RETYPEABLE_KINDS: BillingModelKind[] = ["text", "image", "video", "audio",
 
 export type RetypeModelResult = {
   model: Model;
-  /** 本次按新 kind 建了几条通道（3D/文本为 0——它们本就没有通道，见 draftShapeForKind）。 */
+  /** 本次按新 kind 建了几条通道（3D/文本为 0——它们本就没有通道；视频为 0——协议要声明，不猜，见 draftShapeForKind）。 */
   rebuiltMappings: number;
 };
 
@@ -60,8 +63,8 @@ export function retypeModelCatalogModel(payload: unknown): RetypeModelResult {
   if (existing.kind === kind) return { model: existing, rebuiltMappings: 0 };
 
   // 原生报文档案随模型走：接入时探测到这家提供某档案的原生端点就记在 meta.archetypeId 上。
-  // 换 kind 后该档案未必有对应端点（如档案只有图片 op、却要改成视频），draftShapeForKind 内部
-  // 逐个 `if (create)` 判，取不到就退回通用 new-api 模板——所以这里原样传过去是安全的。
+  // 换 kind 后该档案未必有对应端点，draftShapeForKind 内部逐个 `if (create)` 判，取不到就退回
+  // 这个 kind 的默认形状（视频没有默认通道）——所以这里原样传过去是安全的。
   const meta = isJsonRecord(existing.meta) ? existing.meta : undefined;
   const archetypeId = typeof meta?.archetypeId === "string" ? meta.archetypeId : undefined;
   const imageEditProtocol = isJsonRecord(meta?.imageOptions)
@@ -109,8 +112,8 @@ export function retypeModelCatalogModel(payload: unknown): RetypeModelResult {
       });
       rebuiltMappings += 1;
     }
-    // 图生视频与文生视频是同一条 wire，但 runtime 按 taskKind 选通道，必须各注册一条——
-    // 少这条的话，视频节点一连参考图/首帧就被拒发（「没有配置图生视频通道」）。
+    // 形状里带了图生视频才注册（runtime 按 taskKind 选通道，少这条视频节点一连首帧就被拒发）。
+    // 现在 draftShapeForKind 对视频不给通道，这一支留给以后明确声明过协议的形状。
     if (shape.mappingImageToVideo && kind === "video") {
       tx.upsertMapping({
         vendorKey,

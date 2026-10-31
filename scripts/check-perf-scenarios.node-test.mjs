@@ -237,3 +237,65 @@ test('内联画板量具的读结果：失败 / 带渲染异常的样本整份�
   assert.deepEqual(values.panelFramesOff, [12])
   assert.deepEqual(driver.readRuns({}), { openToInteractive: [], response: [], frameGapP95: [], longTasks: [], idleRectReadsPerSec: [], idleBusyPct: [], idleLayoutsPerSec: [], panelFramesOff: [] })
 })
+
+const NODE_JSON_SCRIPT = 'tests/perf/node-json-bench.mjs'
+test('Node JSON driver reads non-UI metrics without a script-specific adapter', () => {
+  const driver = DRIVERS[NODE_JSON_SCRIPT]
+  assert.ok(driver, 'generic Node JSON driver is registered')
+  const payload = { runs: 5, noisy: false, metrics: { rssMiB: [11, 12, 13, 14, 15], response: [1, 2, 3, 4, 5] } }
+  assert.deepEqual(driver.readRuns(payload, { metrics: ['rssMiB', 'response'] }), payload.metrics)
+  const args = driver.buildArgs(NODE_JSON_SCRIPT, ['--instrument', 'tests/perf/any-probe.mjs', '--', '--size', 'large'], { runs: 5, label: 'probe' })
+  assert.equal(args[0], NODE_JSON_SCRIPT)
+  assert.equal(args[args.indexOf('--runs') + 1], '5')
+  assert.equal(args[args.indexOf('--out') + 1], driver.resultFile('probe'))
+  const scenario = goodScenario({ script: NODE_JSON_SCRIPT, metrics: ['rssMiB'], budget: 160 })
+  assert.deepEqual(validateScenarios([{ file: 'tests/perf/scenarios/sample-drag.json', data: scenario }], { exists: () => true }), [])
+})
+
+test('Node JSON driver rejects noisy, dropped, invalid and missing measurements instead of filtering', () => {
+  const driver = DRIVERS[NODE_JSON_SCRIPT]
+  const good = { runs: 5, noisy: false, metrics: { rssMiB: [11, 12, 13, 14, 15] } }
+  for (const [payload, message] of [
+    [{ ...good, noisy: true }, /noisy/i],
+    [{ ...good, metrics: { rssMiB: [11, 12, 13, 14] } }, /sample|count|runs/i],
+    [{ ...good, metrics: { rssMiB: [11, 12, null, 14, 15] } }, /finite|numeric/i],
+    [{ ...good, metrics: { rssMiB: [11, 12, Infinity, 14, 15] } }, /finite|numeric/i],
+    [{ ...good, metrics: { response: [1, 2, 3, 4, 5] } }, /missing/i],
+  ]) assert.throws(() => driver.readRuns(payload, { metrics: ['rssMiB'] }), message)
+})
+
+function nodeJsonProbe(source, { stale = false } = {}) {
+  const root = makeTempDir('node-json-driver-')
+  const script = path.join(root, 'probe.mjs'), out = path.join(root, 'result.json')
+  fs.writeFileSync(script, `import fs from 'node:fs'\nconst args=process.argv.slice(2);const get=(name)=>args[args.indexOf(name)+1];const out=get('--out');const runs=Number(get('--runs'));\n${source}\n`)
+  if (stale) fs.writeFileSync(out, JSON.stringify({ runs: 5, noisy: false, metrics: { rssMiB: [1, 2, 3, 4, 5] } }))
+  const run = spawnSync(process.execPath, [path.join(repoRoot, NODE_JSON_SCRIPT), '--instrument', script, '--runs', '5', '--out', out, '--', '--size', 'large'], { cwd: repoRoot, encoding: 'utf8' })
+  return { ...run, out }
+}
+
+test('Node JSON wrapper runs a real child and preserves its complete numeric measurements', () => {
+  const run = nodeJsonProbe(`if(get('--size')!=='large')throw new Error('lost instrument args');fs.writeFileSync(out,JSON.stringify({runs,noisy:false,metrics:{rssMiB:Array.from({length:runs},(_,i)=>i+10),response:[1,2,3,4,5]}}))`)
+  assert.equal(run.status, 0, run.stderr)
+  const payload = JSON.parse(fs.readFileSync(run.out, 'utf8'))
+  assert.equal(payload.runs, 5)
+  assert.deepEqual(DRIVERS[NODE_JSON_SCRIPT].readRuns(payload, { metrics: ['rssMiB'] }), { rssMiB: [10, 11, 12, 13, 14] })
+})
+
+test('Node JSON wrapper rejects good files from failed children and bad JSON or incomplete samples', () => {
+  for (const [source, message] of [
+    [`fs.writeFileSync(out,JSON.stringify({runs,noisy:false,metrics:{rssMiB:[1,2,3,4,5]}}));process.exit(9)`, /instrument exited 9/i],
+    [`fs.writeFileSync(out,'<html>upstream error</html>')`, /JSON/i],
+    [`fs.writeFileSync(out,JSON.stringify({runs,noisy:true,metrics:{rssMiB:[1,2,3,4,5]}}))`, /noisy/i],
+    [`fs.writeFileSync(out,JSON.stringify({runs,noisy:false,metrics:{rssMiB:[1,2,3,4]}}))`, /sample|count|runs/i],
+  ]) {
+    const run = nodeJsonProbe(source)
+    assert.notEqual(run.status, 0)
+    assert.match(run.stderr, message)
+  }
+})
+
+test('Node JSON wrapper never accepts stale results when a successful child writes nothing', () => {
+  const run = nodeJsonProbe('// No output from this run.', { stale: true })
+  assert.notEqual(run.status, 0)
+  assert.match(run.stderr, /JSON|result|output/i)
+})

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 ./directorTypes（全部 schema）、./directorIds 的 createSceneId、./cameraLens 的 syncFocalLength
  * [OUTPUT]: 对外提供 DEFAULT_SCENE_CONFIG / DEFAULT_PANORAMA_CONFIG、createDefaultScene、createDefaultProject、
- *           normalizeDirectorProject（容错归一，任何 unknown → 合法工程；角色 → UAL 读时迁移在 normalizeObject，唯一入口）、
+ *           normalizeDirectorProject（容错归一，显式量测意图失效保留 null、不得变成缺省；角色 → UAL 读时迁移在 normalizeObject，唯一入口）、
  *           ualMigrationNoteOf（这份工程读档时迁过人偶的说明，只在内存）、cloneDirectorProject、projectStats
  * [POS]: director/model 的工程生命周期：节点 meta 里读出来的东西先过 normalize 再进 store（对齐 V1 serializer 的
  *        「逐字段容错、不做版本迁移链」做法）；V1→V2 迁移在切换门时加在这里。
@@ -76,7 +76,7 @@ export function createDefaultProject(sceneName: string): DirectorProject {
   }
 }
 
-// ── 容错归一（unknown → 合法工程；坏字段丢弃、缺字段补默认；不抛错）──
+// ── 容错归一（unknown → 合法工程；显式测量主体/锚点损坏保留 null，其余缺字段补默认；不抛错）──
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -167,6 +167,7 @@ function normalizeObject(raw: unknown, note: UalMigrationNote): DirectorObject |
     locked: bool(raw.locked, false),
     ...normalizeTimelineFields(raw),
   }
+  if (raw.framingRole === 'subject' || raw.framingRole === 'background') object.framingRole = raw.framingRole
   if (typeof raw.parentId === 'string') object.parentId = raw.parentId
   if (typeof raw.color === 'string') object.color = raw.color
   for (const key of ['roughness', 'metalness', 'opacity', 'modelScale'] as const) {
@@ -261,6 +262,22 @@ function normalizeCamera(raw: unknown): DirectorCamera | null {
     showRayHelper: bool(raw.showRayHelper, true),
     ...normalizeTimelineFields(raw),
   })
+  if (raw.measurementSubject !== undefined) {
+    camera.measurementSubject = null
+    if (isRecord(raw.measurementSubject) && typeof raw.measurementSubject.objectId === 'string' && raw.measurementSubject.objectId.length > 0) {
+      camera.measurementSubject = { objectId: raw.measurementSubject.objectId }
+      const anchor = raw.measurementSubject.anchor
+      if (anchor !== undefined) {
+        camera.measurementSubject.anchor = null
+        if (isRecord(anchor) && typeof anchor.name === 'string' && anchor.name.length > 0) {
+          const offset = vec3(anchor.offset, { x: NaN, y: NaN, z: NaN })
+          const size = vec3(anchor.size, { x: NaN, y: NaN, z: NaN })
+          if ([offset.x, offset.y, offset.z, size.x, size.y, size.z].every(Number.isFinite) && [size.x, size.y, size.z].every((n) => n > 0))
+            camera.measurementSubject.anchor = { name: anchor.name, offset, size }
+        }
+      }
+    }
+  }
   if (raw.lookAtType === 'none' || raw.lookAtType === 'object' || raw.lookAtType === 'coordinates') camera.lookAtType = raw.lookAtType
   if (typeof raw.lookAtObjectId === 'string') camera.lookAtObjectId = raw.lookAtObjectId
   const lookAt = optionalVec3(raw.lookAtCoords)
@@ -426,8 +443,9 @@ function normalizeProjectRecord(raw: Record<string, unknown>, defaultSceneName: 
   }
 }
 
-// 换掉一个图层里所有实体 id（对象 / 机位 / 灯 + 父子、看向、特写目标、视线目标引用），图层复制与导入场景共用；
-// 不动路标 / 片段 / 关键帧 id（它们只在实体内部被引用）
+// 换掉一个图层里所有实体 id（对象 / 机位 / 灯 + 父子、看向、特写目标、视线目标、量测主体引用），图层复制、跨层复制与导入场景共用；
+// 不动路标 / 片段 / 关键帧 id（它们只在实体内部被引用）。
+// 这是换 id 的唯一入口：场景里新增任何「引用实体 id」的字段，都必须在下面过 idMap。忘了改写由类级检查拦（evals/director/previzRulerSubjectDoors.test.ts）。
 export function remapSceneIds(source: DirectorScene, tag: string): DirectorScene {
   const scene = cloneDirectorProject({ version: DIRECTOR_PROJECT_VERSION, activeSceneId: source.id, scenes: [source], exportRatio: '16:9', exportResolution: '1080', outputs: { screenshots: [], videos: [] }, assets: { folders: [], items: [] } }).scenes[0]
   const suffix = () => `-${tag}-${Math.random().toString(36).slice(2, 7)}`
@@ -452,6 +470,7 @@ export function remapSceneIds(source: DirectorScene, tag: string): DirectorScene
   }
   for (const camera of scene.cameras) {
     camera.lookAtObjectId = remap(camera.lookAtObjectId)
+    if (camera.measurementSubject) camera.measurementSubject.objectId = remap(camera.measurementSubject.objectId) ?? camera.measurementSubject.objectId
     for (const point of camera.motionTrajectory ?? []) point.lookAtObjectId = remap(point.lookAtObjectId)
     for (const clip of camera.closeupClips ?? []) {
       clip.entityId = camera.id
