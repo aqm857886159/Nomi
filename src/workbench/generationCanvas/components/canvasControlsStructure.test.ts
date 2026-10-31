@@ -11,6 +11,17 @@ function source(relativePath: string): string {
   return readSource(new URL(relativePath, import.meta.url))
 }
 
+/**
+ * 样式里把 `.react-flow__viewport` 写成 `will-change: …transform…` 的规则（视口常驻合成层，2026-10-31 删掉的那条）。
+ * 先剥注释再扫：注释里写「为什么删」不算规则，也不能让断言靠注释里的字样变绿。
+ */
+function viewportWillChangeRules(css: string): string[] {
+  const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+  return rules
+    .filter(([, selector, body]) => /\.react-flow__viewport(?![\w-])/.test(selector) && /will-change\s*:[^;}]*\btransform\b/.test(body))
+    .map(([rule]) => rule.trim())
+}
+
 function productionSources(directory: string): Array<[path: string, contents: string]> {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name)
@@ -263,8 +274,23 @@ describe('generation canvas control structure', () => {
   it('keeps panning off the React store hot path', () => {
     const generationCanvas = source('../reactFlow/GenerationCanvasReactFlowViewport.tsx')
 
+    // 视口不常驻合成层（设计卡 docs/plan/2026-10-31-canvas-detail-admission.md 的 X11）：平移靠重画，不靠 `will-change: transform`
+    // ——常驻时 Chromium 按近看倍率栅格远看画面，512MB 瓦片预算装不下就整块不画。原来这里断「样式里含 will-change」，
+    // 那条规则删掉后只剩说明它为什么删的注释撑着，清理注释这条就红、逼人把它加回来。
     const flowStyles = source('../reactFlow/generationCanvasReactFlow.css')
-    expect(flowStyles).toContain('will-change')
+    expect(viewportWillChangeRules(flowStyles)).toEqual([])
+    // 阳性对照：同一个探针要认得出被删掉的那条规则（各种写法），也不能把注释、别的属性、别的选择器误报成它。
+    for (const rule of [
+      '.generation-canvas-react-flow .react-flow__viewport {\n  will-change: transform;\n}',
+      '.react-flow__viewport{will-change:transform}',
+      '.a, .generation-canvas-react-flow .react-flow__viewport { will-change: transform, opacity; }',
+    ]) expect(viewportWillChangeRules(rule), rule).toHaveLength(1)
+    for (const rule of [
+      '/* .react-flow__viewport { will-change: transform; } */',
+      '.react-flow__viewport { will-change: opacity; }',
+      '.react-flow__viewport-portal { will-change: transform; }',
+      '.react-flow__node { will-change: transform; }',
+    ]) expect(viewportWillChangeRules(rule), rule).toEqual([])
     expect(generationCanvas).toContain('onMoveEnd')
     expect(generationCanvas).toContain('rememberCategoryViewport')
     expect(generationCanvas).not.toContain('setCanvasTransform(zoom, offset)')
