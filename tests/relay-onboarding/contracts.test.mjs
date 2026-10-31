@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 // Executable known gaps. it.fails asserts the intended invariant; remove .fails only after repair.
 // Fixtures own only the upstream HTTP response. Catalog, declaration, discovery and runtime are real.
 import fs from 'node:fs'
@@ -14,7 +15,7 @@ import { readCatalog, upsertModelCatalogVendorApiKey } from '../../electron/cata
 import { submitDeclaration } from '../../electron/capabilityCore/modelOnboarding/submitDeclaration.ts'
 import { resolveArchetypeForModel } from '../../electron/shared/modelArchetypes/index.ts'
 import { agentModelEntriesFromCatalog } from '../../electron/catalog/agentModelEntriesFromCatalog.ts'
-import { executeProfileOperation, buildProfileTaskResult, runTask, fetchTaskResult } from '../../electron/runtime.ts'
+import { createProject, executeProfileOperation, buildProfileTaskResult, runTask, fetchTaskResult } from '../../electron/runtime.ts'
 import { tryModel } from '../../electron/capabilityCore/modelOnboarding/tryModel.ts'
 import { upsertRendererCatalogVendorApiKey } from '../../electron/catalog/rendererCatalogMutation.ts'
 import { catalogModelAvailability } from '../../electron/catalog/catalogModelAvailability.ts'
@@ -29,6 +30,7 @@ let relay
 beforeEach(() => {
   root = makeTempDir('relay-onboarding-')
   vi.stubEnv('NOMI_SETTINGS_DIR', root)
+  vi.stubEnv('NOMI_PROJECTS_DIR', path.join(root, 'projects'))
 })
 afterEach(async () => { await relay?.close(); relay = undefined; fs.rmSync(root, { recursive: true, force: true }); vi.unstubAllEnvs() })
 const model = (id = 'opaque-gamma') => ({ vendorKey: 'loopback-relay', modelKey: id, labelZh: id, kind: 'video', enabled: true, meta: {} })
@@ -59,10 +61,10 @@ describe('relay onboarding reproducible gaps', () => {
     expect(next.candidates[0].kind).not.toBe('text')
   })
 
-  it.fails('an OpenAI-compatible video draft can use the standard videos contract', async () => {
+  it('an OpenAI-compatible video draft can use the standard videos contract', async () => {
     relay = await startRelayVideoFixture({ shape: 'content' })
     // Proposed connection capability in the design draft; no brand/name selects this protocol.
-    const draft = buildOpenAiCompatibleDraft({ vendor: { ...vendor(), meta: { mediaProtocols: ['openai-videos-v1'] } }, models: [model()] })
+    const draft = buildOpenAiCompatibleDraft({ baseUrl: relay.baseUrl, authType: 'bearer', mediaProtocols: ['openai-videos-v1'], models: [model()] })
     const mode = draft.models[0].modes.find((m) => m.taskKind === 'text_to_video')
     // Generic protocol support, not a provider-name exception. Existing explicit legacy mappings stay valid.
     expect(mode.create.path).toBe('/v1/videos')
@@ -134,7 +136,7 @@ describe('relay onboarding reproducible gaps', () => {
     expect(catalogModelAvailability(state, row)).toEqual({ usable: true })
   })
 
-  it.fails('a video declaration can express an authenticated binary result', async () => {
+  it('a video declaration can express an authenticated binary result', async () => {
     relay = await startRelayVideoFixture({ shape: 'content' })
     const card = relayDeclaration(relay.baseUrl, { shape: 'legacy-url' })
     // Proposed shared output shape in the design draft. Do not coerce video into audioResponse.
@@ -142,7 +144,7 @@ describe('relay onboarding reproducible gaps', () => {
     expect(() => validateProviderAdapterDraft(card, { providerBaseUrl: relay.baseUrl, selectedModelKeys: ['opaque-gamma'] })).not.toThrow()
   })
 
-  it.fails('text-to-video can declare a multipart request with text fields and no reference file', async () => {
+  it('text-to-video can declare a multipart request with text fields and no reference file', async () => {
     relay = await startRelayVideoFixture({ shape: 'legacy-url' })
     const card = relayDeclaration(relay.baseUrl, { shape: 'legacy-url' })
     const create = card.models[0].modes[0].create
@@ -152,7 +154,9 @@ describe('relay onboarding reproducible gaps', () => {
     expect(() => validateProviderAdapterDraft(card, { providerBaseUrl: relay.baseUrl, selectedModelKeys: ['opaque-gamma'] })).not.toThrow()
   })
 
-  it.fails('the real result executor materializes content bytes as a video artifact', async () => {
+  it('the real result executor materializes content bytes as a video artifact', async () => {
+    const project = createProject({ name: 'Content contract', rootPath: path.join(root, 'content-project') })
+    const request = { kind: 'text_to_video', prompt: 'A blue marble rolls slowly', extras: { projectId: project.id } }
     relay = await startRelayVideoFixture({ shape: 'content' })
     const headers = { Authorization: `Bearer ${FAKE_RELAY_KEY}` }
     const body = new globalThis.FormData()

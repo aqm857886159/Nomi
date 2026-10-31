@@ -1,3 +1,5 @@
+import { sampleForSubject, subjectAt } from '../../src/workbench/generationCanvas/nodes/director/model/directorShotSubject'
+import { motionDirectionMatches } from '../../src/workbench/generationCanvas/nodes/director/model/directorMotionDirection'
 import { auditDirectorSpace, SPATIAL_CRITERIA, type SpatialAuditContext } from '../../src/workbench/generationCanvas/nodes/director/model/directorSpatialAudit'
 import type {
   DirectorObject,
@@ -9,9 +11,8 @@ import {
   recognizeCameraMotion,
   sampleDirectorProject,
   type DirectorMeasurements,
-  type MotionRecognition,
 } from '../../src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement'
-import type { Direction, DirectorCard } from './cardSchema'
+import type { DirectorCard } from './cardSchema'
 import { bindCardEntities } from './binding'
 import type { AnchorSpec } from '../../src/workbench/generationCanvas/nodes/director/model/directorEvalMeasurement'
 import { ACTION_LIBRARY, resolveActionAlias } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
@@ -159,17 +160,6 @@ function actionEvidence(
   if (actionId) return { ok: actionClipCovers(scene, objectId, window, actionId), missingAsset: actionId }
   return { ok: true }
 }
-function sampleForSubject(
-  frame: DirectorMeasurements['frames'][number],
-  subject: string | undefined,
-  actorMap: Record<string, string | undefined>,
-) {
-  if (!subject) return undefined
-  const [root, part] = subject.split('.')
-  const sample = frame.objects[actorMap[root] ?? root]
-  return part ? sample?.anchors?.[part] : sample
-}
-
 export function scoreBlocking(
   card: DirectorCard,
   measurements: DirectorMeasurements,
@@ -276,19 +266,18 @@ function intervalIoU(a: [number, number], b: [number, number]) {
 
 function scoreCoverage(
   card: DirectorCard,
+  project: DirectorProject,
   measurements: DirectorMeasurements,
-  actorMap: Record<string, string | undefined>,
   reasons: string[],
 ): number | null {
   if (!card.coverageRequired.length) return null
   const required = new Set(card.coverageRequired.map((size) => shotAliases[size] ?? size))
   const observed = new Set<string>()
-  const subjectIds = Object.values(actorMap).filter((id): id is string => !!id)
-  for (const frame of measurements.frames)
-    for (const id of subjectIds) {
-      const size = frame.objects[id]?.shotSize
-      if (size) observed.add(size)
-    }
+  for (const frame of measurements.frames) {
+    const subject = subjectAt(project, frame)
+    const size = sampleForSubject(frame, subject ?? undefined)?.shotSize
+    if (size) observed.add(size)
+  }
   const hit = [...required].filter((size) => observed.has(size)).length / required.size
   if (hit < 1) reasons.push(`景别覆盖缺少 ${[...required].filter((size) => !observed.has(size)).join(', ')}`)
   return hit
@@ -296,11 +285,11 @@ function scoreCoverage(
 
 function scoreStructure(
   card: DirectorCard,
+  project: DirectorProject,
   measurements: DirectorMeasurements,
-  actorMap: Record<string, string | undefined>,
   reasons: string[],
 ): number | null {
-  if (!card.shots.length) return scoreCoverage(card, measurements, actorMap, reasons)
+  if (!card.shots.length) return scoreCoverage(card, project, measurements, reasons)
   const expected = alignedShotWindows(card, measurements, reasons)
   const actual = actualShotWindows(measurements)
   const count = Math.min(1, actual.length / Math.max(1, card.minCount ?? card.shots.length))
@@ -323,34 +312,22 @@ function moveMatches(expected: string, actual: string): boolean {
   return actual === normalized
 }
 
-function directionMatches(direction: Direction | undefined, motion: MotionRecognition): boolean {
-  if (!direction) return true
-  if (direction === 'left') return motion.signedOrbitDeg < -1 || motion.yawDelta < -1 || motion.cameraDelta.x < -0.05
-  if (direction === 'right') return motion.signedOrbitDeg > 1 || motion.yawDelta > 1 || motion.cameraDelta.x > 0.05
-  if (direction === 'up') return motion.pitchDelta < -1 || motion.cameraDelta.y > 0.05
-  if (direction === 'down') return motion.pitchDelta > 1 || motion.cameraDelta.y < -0.05
-  if (direction === 'in') return motion.distanceDelta < -0.05 || motion.fovDelta < -0.5
-  return motion.distanceDelta > 0.05 || motion.fovDelta > 0.5
-}
-
 function scoreMotionAndFraming(
   card: DirectorCard,
+  project: DirectorProject,
   measurements: DirectorMeasurements,
   actorMap: Record<string, string | undefined>,
   reasons: string[],
 ): number | null {
   if (!card.shots.length) {
     if (!card.moveAnyOf?.length) return null
-    const subjectId = Object.values(actorMap).find((id): id is string => !!id)
-    if (!subjectId) {
-      reasons.push('覆盖型运动约束缺少演员')
-      return 0
-    }
-    const matched = actualShotWindows(measurements).some((window) =>
-      card.moveAnyOf!.some((move) =>
-        moveMatches(move, recognizeCameraMotion(measurements, subjectId, { start: window[0], end: window[1] }).move),
-      ),
-    )
+    const matched = actualShotWindows(measurements).some((window) => {
+      const frame = measurements.frames.find((candidate) => candidate.time >= (window[0] + window[1]) / 2)
+      const subject = subjectAt(project, frame)
+      return subject && card.moveAnyOf!.some((move) =>
+        moveMatches(move, recognizeCameraMotion(measurements, subject.split('.')[0], { start: window[0], end: window[1] }).move),
+      )
+    })
     if (!matched) reasons.push(`运动覆盖未命中 ${card.moveAnyOf.join('/')}`)
     return matched ? 1 : 0
   }
@@ -359,9 +336,10 @@ function scoreMotionAndFraming(
   let count = 0
   for (const [index, shot] of card.shots.entries()) {
     const [start, end] = windows[index] ?? [0, measurements.duration]
-    const subjectRef = shot.subject ?? shot.subjects?.[0] ?? shot.endSubject
+    const middleFrame = measurements.frames.find((frame) => frame.time >= (start + end) / 2)
+    const subjectRef = subjectAt(project, middleFrame) ?? undefined
     const subject = subjectRef?.split('.')[0]
-    const objectId = subject ? actorMap[subject] : Object.values(actorMap).find((id): id is string => !!id)
+    const objectId = subject
     const motion = objectId ? recognizeCameraMotion(measurements, objectId, { start, end }) : null
     if (shot.move && motion) {
       const expectedZoom =
@@ -370,7 +348,7 @@ function scoreMotionAndFraming(
         shot.move === 'zoom'
       const ok =
         moveMatches(shot.move, motion.move) &&
-        directionMatches(shot.direction, motion) &&
+        motionDirectionMatches(shot.direction, motion) &&
         (expectedZoom || motion.issues.length === 0)
       total += ok ? 1 : 0
       count++
@@ -466,8 +444,8 @@ export function scoreCard(
     : { actorMap: {}, sceneMap: {}, correspondenceRate: 0, missing: [] as string[] }
   reasons.push(...binding.missing)
   const actors = binding.actorMap
-  const l1 = scene ? scoreStructure(card, measurements, actors, reasons) : 0
-  const l2 = scoreMotionAndFraming(card, measurements, actors, reasons)
+  const l1 = scene ? scoreStructure(card, project, measurements, reasons) : 0
+  const l2 = scoreMotionAndFraming(card, project, measurements, actors, reasons)
   const l3 = scene ? scoreBlocking(card, measurements, scene, actors, reasons) : 0
   const l4 = scene ? scoreScene(card, binding.sceneMap, reasons) : 0
   const violations = spatial ? auditDirectorSpace(project, spatial) : []

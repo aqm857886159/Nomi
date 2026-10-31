@@ -1,6 +1,8 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOverlayEscape } from '../../design'
+import { useModalInputLayer } from '../../design/modalInputLayer'
+import { isTimelineShortcutsHelpKey } from './timelineShortcuts'
 
 /**
  * 快捷键面板。原来是 `TimelinePanel.tsx` 里 `shortcutsOpen ? … : null` 的一段内联 JSX；
@@ -16,6 +18,17 @@ export function TimelineShortcutsDialog({ onClose }: { onClose: () => void }): J
   // 快捷键说明框自己不支持 Esc 曾经格外反讽：它就是那张教键盘的卡。
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useOverlayEscape(dialogRef, true, onClose)
+  // 它是模态：开着时时间轴的面收不到键，所以「再按一下 ? 关掉」也归它自己。
+  const isTopLayer = useModalInputLayer(true)
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (!isTopLayer() || event.defaultPrevented || !isTimelineShortcutsHelpKey(event)) return
+      event.preventDefault()
+      onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isTopLayer, onClose])
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-[color-mix(in_oklch,var(--nomi-ink)_18%,transparent)]" onClick={onClose}>
       <div className="w-80 rounded-[var(--nomi-radius-lg)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] p-4 shadow-[var(--nomi-shadow-lg)]" ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('timelineEditor.shortcuts.title')} onClick={(event) => event.stopPropagation()}>

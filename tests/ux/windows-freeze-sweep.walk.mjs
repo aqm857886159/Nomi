@@ -288,7 +288,7 @@ try {
     const deadline = Date.now() + 30_000
     while (Date.now() < deadline && fixture.jobs.length < jobsBefore + 1) await new Promise((resolve) => setTimeout(resolve, 200))
     if (fixture.jobs.length !== jobsBefore + 1) throw new Error(`点「生成素材」后假供应商应收到 1 单，实际 ${fixture.jobs.length - jobsBefore} 单`)
-    await win.locator(`article[data-node-id="${generatedId}"] [data-process-fx]`).waitFor({ timeout: stationTimeout({ operations: 2 }) })
+    await win.locator(`article[data-node-id="${generatedId}"] [data-generation-waiting]`).waitFor({ timeout: stationTimeout({ operations: 2 }) })
   }, 6000)
   await step('生成完成 → 结果揭示', async () => {
     fixture.jobs[0].done = true

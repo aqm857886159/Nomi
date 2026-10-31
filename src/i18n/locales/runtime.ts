@@ -164,6 +164,9 @@ export const zhRuntime = {
     unknownOperation: '未知 capability 操作：{{operation}}',
     storyboardPlanMissing: '分镜规划没有返回可审阅的方案',
   },
+  modelTrial: {
+    uncertainPrior: '上一笔结果不确定，不知道扣没扣钱，再试可能多扣一次。确认后将生成。',
+  },
   export: {
     jobRequiresDesktop: '导出任务需要 Electron 桌面运行时',
     mp4RequiresDesktop: '导出 MP4 需要 Electron 桌面运行时',
@@ -354,6 +357,9 @@ export const enRuntime = {
     noProjectOpen: '(no project open)',
     unknownOperation: 'Unknown capability operation: {{operation}}',
     storyboardPlanMissing: 'The storyboard planner did not return a reviewable plan.',
+  },
+  modelTrial: {
+    uncertainPrior: "The previous attempt's result is uncertain, and we don't know whether it was charged. Trying again may cost you twice. Confirm to start generation.",
   },
   export: {
     jobRequiresDesktop: 'Export jobs require the Electron desktop runtime',

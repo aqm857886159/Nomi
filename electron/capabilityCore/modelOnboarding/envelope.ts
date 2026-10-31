@@ -99,7 +99,9 @@ export type OnboardingFailure = {
     /** 已提交、钱已花、供应商还在处理：**不是失败**，不许重试（重试 = 再花一次）。 */
     | "still_processing"
     /** 提交那一步到点还没回、或写出后连接断了：**可能已提交、已扣费**，不许重试；与 `still_processing` 的区别是连任务号都不一定有。 */
-    | "submission_unknown";
+    | "submission_unknown"
+    /** 这次新单没开成（磁盘、锁、改名失败）：**这次什么都没发**，原单不变，可以再调。不许拿原单的 `submission_unknown` 盖住它。 */
+    | "claim_unavailable";
   message: string;
   useInstead?: string;
   /** 缺什么**一次列全**（09-10 实测 22 次失败里 9 次死在逐个抛）。 */

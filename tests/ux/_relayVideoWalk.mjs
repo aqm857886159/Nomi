@@ -4,12 +4,13 @@ import os from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { expect, screenshotSettled } from './_assert.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
-import { collapseAgentPanel, newProjectEntry, openRailDrawer } from './_shell.mjs'
+import { collapseAgentPanel, newProjectEntry, openRailDrawer, canvasSetZoomPercent } from './_shell.mjs'
 import { spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
 import { quietElectronSpawn, repoRoot } from './_launchApp.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
-import { uiText } from './full-walk/invariants.mjs'
+import { findNodeHitPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 /** Mac launch rule is checked immediately before starting any GUI, including rehearsal. */
 export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) {
@@ -19,10 +20,14 @@ export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) 
     const front = execFileSync('lsappinfo', ['front'], { encoding: 'utf8' }).trim()
     const name = execFileSync('lsappinfo', ['info', '-only', 'name', front], { encoding: 'utf8' }).trim()
     const load5 = os.loadavg()[1]
-    const idleMatch = execFileSync('ioreg', ['-c', 'IOHIDSystem'], { encoding: 'utf8' }).match(/"HIDIdleTime"\s*=\s*(\d+)/)
-    const idleSeconds = idleMatch ? Math.floor(Number(idleMatch[1]) / 1e9) : 0
+    let idleSeconds = null
+    try {
+      const idle = execFileSync('ioreg', ['-c', 'IOHIDSystem'], { encoding: 'utf8' }).match(/"HIDIdleTime"\s*=\s*(\d+)/)
+      if (idle) idleSeconds = Math.floor(Number(idle[1]) / 1e9)
+    } catch (error) { console.warn(`[launch] HID idle check unavailable: ${error.message}`) }
+    const foregroundPermitted = !/claude/i.test(name)
     console.log(`[launch] ${new Date().toISOString()} front=${name} load5=${load5} idleSeconds=${idleSeconds}`)
-    if ((!/claude/i.test(name) || idleSeconds >= 600) && load5 < 10) return { front: name, load5, idleSeconds, waitedMs: Date.now() - started }
+    if (load5 < 10 && (foregroundPermitted || (idleSeconds !== null && idleSeconds >= 600))) return { front: name, load5, idleSeconds, permittedBy: foregroundPermitted ? 'foreground' : 'idle', waitedMs: Date.now() - started }
     await new Promise((resolve) => setTimeout(resolve, Math.min(60_000, Math.max(0, limitMs - (Date.now() - started)))))
   }
   throw new Error(`Launch deferred: foreground app or five-minute load did not permit a quiet walk within ${Math.ceil(limitMs / 1000)} seconds`)
@@ -90,15 +95,13 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
   const node = win.locator(`[data-node-id="${id}"]`)
   const locale = await win.evaluate(() => localStorage.getItem('nomi:locale:v1') || 'zh-CN')
   const textMode = node.getByText(uiText(locale, 'generationCommon.nodeTry.video.text'), { exact: true })
+  // A reload drops the selection and fit-view overshoots: use the zoom UI and a real pointer target.
+  // At 100% an input-driven mode's composer and option list leave the viewport, so stay at 60%.
   const exposeComposer = async () => {
-    const zoom = win.locator('[data-canvas-zoom-percent]')
-    for (let step = 0; step < 20 && Number.parseInt(await zoom.innerText(), 10) > 60; step += 1) {
-      const beforeZoom = await zoom.innerText()
-      await win.getByRole('button', { name: /^(缩小|Zoom out)$/i }).click()
-      await expect.poll(() => zoom.innerText(), { timeout: stationTimeout() }).not.toBe(beforeZoom)
-    }
-    expect(Number.parseInt(await zoom.innerText(), 10)).toBeLessThanOrEqual(60)
-    await node.locator('[data-node-empty-state]').click()
+    await canvasSetZoomPercent(win, 60, 'Keep the node, its composer and the model options visible')
+    const hit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${id}"]` })
+    expect(hit, 'The node has a real pointer target').toBeTruthy()
+    await win.mouse.click(hit.x, hit.y)
     if (await textMode.isVisible().catch(() => false)) await textMode.click()
   }
   await exposeComposer()
@@ -108,6 +111,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
     return row ? { kind: row.kind, enabled: row.enabled, published: row.published, publishedModes: row.publishedModes, availability: row.availability } : null
   }, model)
   console.log('[relay] catalog projection', JSON.stringify(projection))
+  console.log('[relay] picker evidence', JSON.stringify({ node: await fresh(), videoRows: await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listModels({ kind: 'video', enabled: true })).filter((row) => row.availability?.usable).map(({ vendorKey, modelKey, publishedModes, availability }) => ({ vendorKey, modelKey, publishedModes, availability }))) }))
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await capture('model-menu')
   let neededReload = false

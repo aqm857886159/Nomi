@@ -10,6 +10,11 @@ on:
         description: Stable tag, for example v0.20.0
         required: true
 
+      staging_percentage:
+        description: 首批比例（1–100 整数，100 为全量）
+        required: true
+        default: "20"
+
 permissions:
   actions: read
   contents: write
@@ -22,6 +27,7 @@ jobs:
     env:
       RC_RUN_ID: ${{ inputs.rc_run_id }}
       RELEASE_TAG: ${{ inputs.tag }}
+      STAGING_PERCENTAGE: ${{ inputs.staging_percentage }}
       REPOSITORY: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
@@ -80,6 +86,8 @@ jobs:
           node scripts/release-contract.mjs validate-version --root . --version "${RELEASE_TAG#v}"
       - name: Prepare and checksum public assets
         run: node scripts/release-contract.mjs prepare-assets --input artifacts --output publish --version "${RELEASE_TAG#v}"
+      - name: Apply rollout policy to both updater manifests
+        run: node scripts/release-rollout.mjs prepare --dir publish --tag "$RELEASE_TAG" --percentage "$STAGING_PERCENTAGE" --yes
       - name: Create immutable tag
         env:
           RC_SHA: ${{ steps.manifest.outputs.sha }}

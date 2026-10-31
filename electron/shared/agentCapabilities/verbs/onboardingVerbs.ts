@@ -137,10 +137,10 @@ export function onboardingVerbs(): VerbDeclaration[] {
     effect: "spend",
     nextAction: "user_sees_spend_card",
     describe: {
-      does: "Run one real generation with a model that was just connected, and hand back the provider's own response.",
+      does: "Run or observe the original model trial, returning its durable submission identity and the provider's own response.",
       useWhen: "A card is registered and a key is saved, and you need to know whether this model actually produces something.",
       notWhen: "This spends the user's provider credit: Nomi asks the user to confirm the charge in its own window, and nothing is sent until they do. It is not a way to generate content for a project, and it is not how you register a model — that is submit_model_declaration. Do not tell the user a model is connected until this call has returned an artifact.",
-      params: "vendorKey and modelKey identify the model. prompt, taskKind and params are optional; the first mode the card declared and a short neutral prompt are used when omitted.",
+      params: "vendorKey and modelKey identify the trial. Repeated calls observe the original order, even if prompt, taskKind or params change. Only set newAttemptOf to the current attemptId after the user requests a NEW order; Nomi always asks them to confirm that new order.",
     },
     schema: modelTryInputSchema,
     examples: [

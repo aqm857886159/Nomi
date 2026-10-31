@@ -411,7 +411,11 @@ export type Model = {
  * `response_mapping` / `provider_meta_mapping` describe how to read the
  * upstream response (used by `buildProfileTaskResult`).
  */
+/** JSON URL results use response_mapping; file results are an explicit response role. */
+export type MediaResponse = { kind: "binary"; contentType: "video/mp4" };
+
 export type HttpOperation = {
+  mediaResponse?: MediaResponse;
   method: string;
   path: string;
   /**

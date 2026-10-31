@@ -27,7 +27,7 @@ export function relayDeclaration(baseUrl, { id = 'opaque-gamma', frameOnly = fal
     create: { method: 'POST', path: root, headers: AUTH, body, response_mapping: { task_id: taskPath }, provider_meta_mapping: { task_id: taskPath } },
     query: { method: 'GET', path: `${queryPath ?? root}/{{providerMeta.task_id}}`, headers: AUTH,
       response_mapping: { status: native ? 'data.status' : 'status', ...(shape === 'content' ? {} : { video_url: native ? 'data.result.videos.0.url.0' : 'video_url' }) } },
-    ...(shape === 'content' ? { result: { method: 'GET', path: `${root}/{{providerMeta.task_id}}/content`, headers: AUTH } } : {}),
+    ...(shape === 'content' ? { result: { method: 'GET', path: `${root}/{{providerMeta.task_id}}/content`, headers: AUTH, mediaResponse: { kind: 'binary', contentType: 'video/mp4' } } } : {}),
     statusMapping: { queued: ['queued', 'submitted'], running: ['processing', 'in_progress'], succeeded: ['completed', 'succeeded'], failed: ['failed'] },
     ...(frameOnly ? { referenceParam: 'image_url', referenceShape: 'single' } : {}),
     sourceUrls: ['https://docs.example.test/video'],
@@ -40,7 +40,10 @@ export function relayDeclaration(baseUrl, { id = 'opaque-gamma', frameOnly = fal
     provider: { baseUrl, authType: 'bearer', providerKind: 'openai-compatible' },
     sources: [{ url: 'https://docs.example.test/video', evidence: `${root}; explicit task query and result contract` }],
     assetIngestion: { strategy: 'none', sourceUrl: 'https://docs.example.test/video' },
-    models: [{ modelKey: id, labelZh: id, kind: 'video', parameters: [
+    models: [{ modelKey: id, labelZh: id, kind: 'video', parameters: shape === 'content' ? [
+      { key: 'duration', label: '时长', type: 'select', options: [{ value: '4', label: '4s' }], default: '4' },
+      { key: 'size', label: '尺寸', type: 'select', options: [{ value: '1280x720', label: '1280x720' }], default: '1280x720' },
+    ] : [
       { key: 'duration', label: '时长', type: 'number', min: 1, max: 15, default: 1 },
       { key: 'resolution', label: '清晰度', type: 'select', options: [{ value: '360p', label: '360p' }], default: '360p' },
     ], modes: [mode] }],
@@ -72,7 +75,9 @@ export async function startRelayVideoFixture({ shape = 'plural-url', models = RE
     if (pathname === '/v1/balance') return json(200, { remain_balance: 100 })
     if (pathname === '/models' || pathname === '/v1/models') return json(200, { data: models.filter((m) => !listedIds || listedIds.includes(m.id)).map((m) => ({ id: m.id, ...(descriptors ? { architecture: { input_modalities: m.frameOnly ? ['image'] : ['text'], output_modalities: ['video'] } } : {}) })) })
     if (req.method === 'POST' && pathname === root) {
+      if (fault === 'create-rejected') return json(404, { error: { message: 'documented route unavailable' } })
       if (shape === 'content' && !String(req.headers['content-type']).startsWith('multipart/form-data')) return json(415, { error: { message: 'multipart/form-data required' } })
+      if (shape === 'content' && (!['4', '8', '12'].includes(String(body.seconds)) || !['720x1280', '1280x720', '1024x1792', '1792x1024'].includes(String(body.size)))) return json(400, { error: { message: 'documented seconds and pixel size are required' } })
       const model = models.find((m) => m.id === body.model)
       if (!model) return json(400, { error: { message: 'unknown wire model id' } })
       if (model.frameOnly && (!Array.isArray(body.image_urls) || body.image_urls.length !== 1 || !/^(https?:\/\/|data:image\/)/.test(String(body.image_urls[0])))) return json(400, { error: { message: 'exactly one first frame is required' } })
@@ -93,6 +98,33 @@ export async function startRelayVideoFixture({ shape = 'plural-url', models = RE
     }
     if (shape === 'content' && pathname.endsWith('/content') && tasks.has(pathname.split('/').at(-2))) {
       if (fault === 'html') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html>upstream unavailable</html>') }
+      if (fault === 'json-error') return json(200, { error: { message: 'content unavailable' } })
+      if (fault === 'wrong-mime') { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(MP4) }
+      // "Said nothing about the type" is not a wrong type: real relays that stream the file out of object storage leave it unset.
+      if (fault === 'octet-stream') { res.writeHead(200, { 'Content-Type': 'application/octet-stream' }); return res.end(MP4) }
+      if (fault === 'no-content-type') { res.writeHead(200); return res.end(MP4) }
+      // ...and an unstated type must not let non-video bytes through: publication verifies the bytes.
+      if (fault === 'octet-html') { res.writeHead(200, { 'Content-Type': 'application/octet-stream' }); return res.end('<html>upstream unavailable</html>') }
+      if (fault === 'unlabelled-json') { res.writeHead(200); return res.end(JSON.stringify({ error: { message: 'content unavailable' } })) }
+      if (fault === 'redirect') { res.writeHead(302, { Location: `${baseUrl.replace('127.0.0.1', 'localhost')}/asset.mp4` }); return res.end() }
+      if (fault === 'oversize') { res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': String(2 * 1024 ** 3 + 1) }); return res.end(MP4) }
+      if (fault === 'bad-bytes') { res.writeHead(200, { 'Content-Type': 'video/mp4' }); return res.end(MP4.subarray(0, 48)) }
+      if (fault === 'trickle') {
+        // Bytes keep arriving the whole time, just slower than the shortened vendor timeout the test sets.
+        res.writeHead(200, { 'Content-Type': 'video/mp4', 'Content-Length': String(MP4.length) })
+        let sent = 0
+        const step = Math.max(1, Math.ceil(MP4.length / 25))
+        const timer = setInterval(() => {
+          if (sent >= MP4.length) { clearInterval(timer); return res.end() }
+          res.write(MP4.subarray(sent, sent + step)); sent += step
+        }, 40)
+        res.once('close', () => clearInterval(timer))
+        return
+      }
+      if (fault === 'slow') {
+        res.writeHead(200, { 'Content-Type': 'video/mp4' }); res.write(MP4.subarray(0, 16))
+        return // Intentionally never finish; request timeout / cancellation owns termination.
+      }
       res.writeHead(200, { 'Content-Type': 'video/mp4' }); return res.end(MP4)
     }
     return json(404, { error: { message: `unsupported protocol route ${pathname}` } })

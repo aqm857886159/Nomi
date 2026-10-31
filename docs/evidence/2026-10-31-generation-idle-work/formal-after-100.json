@@ -1,0 +1,50 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "0041f4b15",
+  "head": "0041f4b15205a48be9d8149952dc581274162379",
+  "dirty": true,
+  "sourceTree": "0db9a0615d0df94779e2cd41d0410277fdffd12a",
+  "date": "2026-10-31",
+  "runs": 5,
+  "results": [
+    {
+      "id": "generation-idle-100",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 10.1,
+          "p95": 10.1
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          10.1,
+          10.1,
+          10.1,
+          10.1,
+          10.1
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": []
+      },
+      "budget": 33,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}
