@@ -33,7 +33,7 @@ import {
 import { ensureBinding, envelopeRefFor, sealedBindingFor } from "./productionGenerationBinding";
 import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionJob, type ProductionRun, type RunCommand } from "./productionRunTypes";
 import { tagNomiError } from "../shared/nomiErrorCodes";
-import { isReferenceFetchRefusal } from "../shared/referenceFetchRefusal";
+import { isReferenceFetchRefusal } from "../shared/assets/referenceFetchRefusal";
 import { upstreamFailureOf } from "../shared/vendorFailure";
 import { vendorKeyOfProviderId } from "../capabilityCore/canvasTransportProvider";
 import { noteConnectionRefused } from "../catalog/referenceLinkRefusals";

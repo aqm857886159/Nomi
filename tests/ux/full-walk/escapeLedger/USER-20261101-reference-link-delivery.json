@@ -27,7 +27,11 @@
     "docs/fixes/2026-11-01-reference-link-delivery.root-cause.json",
     "docs/lessons/inconclusive-probe-is-not-a-failure-and-a-second-shortcut-undoes-the-decision.md"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "2b8d87975",
+    "e1f2ff3ac",
+    "78a665046"
+  ],
   "classCheck": {
     "kind": "matrix",
     "file": "electron/catalog/referenceLinkDelivery.matrix.test.ts"

@@ -1248,7 +1248,7 @@ describe('认不出的失败如实说认不出：不编原因、不提额度，�
 
 // 模型那一侧拉不到我们给的参考临时链接（过期 / 防盗链 / 地区限制）。用户反馈原句：
 // `An input media URL could not be fetched (403/404/410).`——以前纯文字报错落「认不出原因」，结构化 400 落
-// 「参数不被接受，请检查比例/尺寸」，点重试还是同一条链接。判据住 electron/shared/referenceFetchRefusal（主进程记账读同一份）。
+// 「参数不被接受，请检查比例/尺寸」，点重试还是同一条链接。判据住 electron/shared/assets/referenceFetchRefusal（主进程记账读同一份）。
 describe('模型取不到参考图（reference-unfetchable）', () => {
   const REPORTED = 'An input media URL could not be fetched (403/404/410).'
   const structured400 = (upstreamMsg: string, tail: string) =>

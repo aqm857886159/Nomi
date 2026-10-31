@@ -27,7 +27,7 @@
     "electron/runtime.ts",
     "electron/shared/assets/providerMediaRetrievalBudget.ts",
     "electron/shared/productionSpendAuthority.ts",
-    "electron/shared/referenceFetchRefusal.ts",
+    "electron/shared/assets/referenceFetchRefusal.ts",
     "electron/shared/vendorFailure.ts",
     "src/workbench/observability/classifyError.ts",
     "src/workbench/observability/narrate.ts"
@@ -128,7 +128,7 @@
     },
     {
       "kind": "write",
-      "path": "electron/shared/referenceFetchRefusal.ts",
+      "path": "electron/shared/assets/referenceFetchRefusal.ts",
       "symbol": "isReferenceFetchRefusal"
     },
     {
@@ -180,7 +180,7 @@
       "responsibility": "Records on the connection that its model refused a temporary link; a failed write is logged and never hides the failure."
     },
     {
-      "path": "electron/shared/referenceFetchRefusal.ts",
+      "path": "electron/shared/assets/referenceFetchRefusal.ts",
       "symbol": "isReferenceFetchRefusal",
       "responsibility": "The one sentence and code test for the model failing to fetch an input link, shared by the main process and the error card."
     }
@@ -245,7 +245,7 @@
       "electron/catalog/assetTransportRuntime.ts",
       "electron/catalog/referenceLinkRefusals.ts",
       "electron/assets/providerMediaFetch.ts",
-      "electron/shared/referenceFetchRefusal.ts",
+      "electron/shared/assets/referenceFetchRefusal.ts",
       "electron/productionRun/productionGenerationSubmission.ts",
       "electron/capabilityCore/productionReferenceUrls.ts"
     ]
@@ -255,7 +255,7 @@
     "electron/catalog/assetLocalization.test.ts",
     "electron/catalog/referenceLinkRefusals.test.ts",
     "electron/assets/providerMediaFetch.probe.test.ts",
-    "electron/shared/referenceFetchRefusal.test.ts",
+    "electron/shared/assets/referenceFetchRefusal.test.ts",
     "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts",
     "electron/productionRun/reworkReferenceLinks.test.ts",
     "electron/capabilityCore/productionReferenceUrls.test.ts",
@@ -263,7 +263,7 @@
   ],
   "class_regression_tests": [
     "electron/catalog/referenceLinkDelivery.matrix.test.ts",
-    "electron/shared/referenceFetchRefusal.test.ts",
+    "electron/shared/assets/referenceFetchRefusal.test.ts",
     "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts"
   ],
   "legacy_paths": {

@@ -14,7 +14,7 @@ import { parseVendorErrorFromMessage, stripVendorErrorMarker, type VendorErrorSt
 import { parseTaskFailureMessage } from '../generationCanvas/runner/taskFailureMessage'
 import { shotClaimCopy } from './shotClaimCopy'
 import { isRetrievalStageCode, matchNomiErrorCode, stripNomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
-import { isReferenceFetchRefusal } from '../../../electron/shared/referenceFetchRefusal'
+import { isReferenceFetchRefusal } from '../../../electron/shared/assets/referenceFetchRefusal'
 import { withoutIpcInvokeWrapper } from '../../../electron/shared/contracts/ipcInvokeFailure'
 import i18n from '../../i18n'
 
@@ -677,7 +677,7 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (detectAssetUploadFailed(cleanRaw)) return reportFor('asset-upload-failed', cleanRaw, undefined)
   // 模型那一侧去拉参考图的临时链接、拉不到（过期 / 防盗链 / 地区限制）：失败在**链接**这一跳。必须先于 category 判——
   // 这类报错常走 HTTP 400 / 422，会被派生成「参数不被接受·检查比例/尺寸」，把人带去改一个并没有错的参数。
-  // 判据与主进程记账共用一份（electron/shared/referenceFetchRefusal）。服务商原话照给（上游真说过才有），完整报文在技术详情。
+  // 判据与主进程记账共用一份（electron/shared/assets/referenceFetchRefusal）。服务商原话照给（上游真说过才有），完整报文在技术详情。
   if (isReferenceFetchRefusal({ upstreamCode: structured?.upstreamCode, text: `${upstream ?? ''}\n${cleanRaw}` })) {
     return reportFor('reference-unfetchable', cleanRaw, upstream)
   }

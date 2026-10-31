@@ -9,7 +9,7 @@
  * 不在这里的行（各有自己的文件，同一份设计卡）：
  *   · 做片返工换链接的封存校验 / 哈希：productionRun/reworkReferenceLinks.test.ts；返工要不要换：capabilityCore/productionReferenceUrls.test.ts
  *   · 提交被拒 / 任务失败的记账（两个引擎各一行）：productionRun/productionGenerationSubmission.referenceRefusal.test.ts
- *   · 判据：shared/referenceFetchRefusal.test.ts；错误卡：generationCanvas/runner/classifyGenerationError.test.ts
+ *   · 判据：shared/assets/referenceFetchRefusal.test.ts；错误卡：generationCanvas/runner/classifyGenerationError.test.ts
  *   · 「试探或上传时点停止」今天就拦不住提交（设计卡 ★5 已改：和今天「提交中」点停止一样），这条线没有新增取消行为，所以没有对应的新断言。
  */
 import fs from "node:fs";

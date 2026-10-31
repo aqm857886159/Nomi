@@ -62,7 +62,7 @@
 - 「这次发链接还是传文件」：唯一决定点 `electron/catalog/assetLocalization.ts#localizeAssetsForVendor`（新概念 `asset.reference-link-trust`）。删掉 `resolveLocalAsset` 里的捷径。
 - 试探：`electron/assets/providerMediaFetch.ts#probeProviderLink`，这个文件本来就是「从供应商取东西」线路和超时的 owner。
 - 「这条连接的模型拉不到临时链接」：`electron/catalog/referenceLinkRefusals.ts`，一份小配置文件，只有 Run 写入，只有 `assetLocalizationOptions` 读。
-- 「这句失败是不是模型拉不到参考」：`electron/shared/referenceFetchRefusal.ts`，不依赖 electron，主进程和渲染层共用这一份，不再各写一份。
+- 「这句失败是不是模型拉不到参考」：`electron/shared/assets/referenceFetchRefusal.ts`，不依赖 electron，主进程和渲染层共用这一份，不再各写一份。
 - 做片返工：沿用上一次批准冻住的链接表（`authorizedReferenceUrls`）之前，先问同一条规则。这条连接拒绝过，或冻住的链接明确失效，就重新走 `resolveProductionReferenceUrls`；否则沿用，不重传。
 
 同一份事实只存一份。没有靠「东西不见了」猜意图。
@@ -152,7 +152,7 @@
 - 并发和去重：一个请求 5 张图，耗时约等于一次试探；26 个请求共用一张图，GET 1 次；5 分钟后再试；试探中点停止和今天「提交中」一样（POST 1 次，结果落账）；做片入口 Run 失效，POST 0 次。
 - 老用户：0.24.0 真实落盘的素材走活着、失效两行；`upgradeKeepsWorkingModels` 断言不改且全过。
 
-判据（`electron/shared/referenceFetchRefusal.test.ts`）：真实说法至少 12 条为真（含 `An input media URL could not be fetched (403/404/410).` 的三种报错形式、上游错误码、中文）；至少 8 条为假（取结果失败、下载产物失败、模型不存在、任务超时、内容拦截、上传失败等）。
+判据（`electron/shared/assets/referenceFetchRefusal.test.ts`）：真实说法至少 12 条为真（含 `An input media URL could not be fetched (403/404/410).` 的三种报错形式、上游错误码、中文）；至少 8 条为假（取结果失败、下载产物失败、模型不存在、任务超时、内容拦截、上传失败等）。
 
 分类（`classifyError` 的测试）：纯文字、带前缀、结构化 400 三种都归新种类，中英标题和说明逐字；主按钮重试，没有换模型。
 

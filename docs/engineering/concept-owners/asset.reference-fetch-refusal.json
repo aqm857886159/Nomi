@@ -7,12 +7,12 @@
   "fact_kind": "rule",
   "migration_status": "converged",
   "owner": {
-    "path": "electron/shared/referenceFetchRefusal.ts",
+    "path": "electron/shared/assets/referenceFetchRefusal.ts",
     "symbol": "isReferenceFetchRefusal"
   },
   "write_api": [
     {
-      "path": "electron/shared/referenceFetchRefusal.ts",
+      "path": "electron/shared/assets/referenceFetchRefusal.ts",
       "symbol": "isReferenceFetchRefusal"
     }
   ],
