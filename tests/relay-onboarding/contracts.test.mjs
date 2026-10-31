@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 // Executable known gaps. it.fails asserts the intended invariant; remove .fails only after repair.
 // Fixtures own only the upstream HTTP response. Catalog, declaration, discovery and runtime are real.
 import fs from 'node:fs'
-import { Buffer } from 'node:buffer'
+import path from 'node:path'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { startRelayVideoFixture, relayDeclaration, FAKE_RELAY_KEY } from '../ux/_relayVideoFixture.mjs'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'

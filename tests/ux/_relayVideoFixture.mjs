@@ -20,7 +20,7 @@ export function relayDeclaration(baseUrl, { id = 'opaque-gamma', frameOnly = fal
     ? { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', duration: '{{request.params.duration}}', resolution: '{{request.params.resolution}}', aspect_ratio: '{{request.params.size}}', audio: false }
     : shape === 'content'
       ? { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', seconds: '{{request.params.duration}}', size: '1280x720' }
-      : { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', duration: '{{request.params.duration}}', size: '{{request.params.size}}' }
+      : { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', duration: '{{request.params.duration}}', size: '{{request.params.resolution}}' }
   if (frameOnly) body.image_urls = ['{{request.params.image_url}}']
   const mode = {
     taskKind: frameOnly ? 'image_to_video' : 'text_to_video', delivery: 'asynchronous',
@@ -34,7 +34,8 @@ export function relayDeclaration(baseUrl, { id = 'opaque-gamma', frameOnly = fal
   }
   if (shape === 'content') {
     delete mode.create.body
-    mode.create.multipart = { fields: { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', seconds: '4', size: '1280x720' } }
+    // Wire fields read the neutral controls, so the visible defaults are what goes out.
+    mode.create.multipart = { fields: { model: '{{model.modelKey}}', prompt: '{{request.prompt}}', seconds: '{{request.params.duration}}', size: '{{request.params.resolution}}' } }
   }
   return {
     provider: { baseUrl, authType: 'bearer', providerKind: 'openai-compatible' },
@@ -42,7 +43,7 @@ export function relayDeclaration(baseUrl, { id = 'opaque-gamma', frameOnly = fal
     assetIngestion: { strategy: 'none', sourceUrl: 'https://docs.example.test/video' },
     models: [{ modelKey: id, labelZh: id, kind: 'video', parameters: shape === 'content' ? [
       { key: 'duration', label: '时长', type: 'select', options: [{ value: '4', label: '4s' }], default: '4' },
-      { key: 'size', label: '尺寸', type: 'select', options: [{ value: '1280x720', label: '1280x720' }], default: '1280x720' },
+      { key: 'resolution', label: '清晰度', type: 'select', options: [{ value: '1280x720', label: '1280x720' }], default: '1280x720' },
     ] : [
       { key: 'duration', label: '时长', type: 'number', min: 1, max: 15, default: 1 },
       { key: 'resolution', label: '清晰度', type: 'select', options: [{ value: '360p', label: '360p' }], default: '360p' },
