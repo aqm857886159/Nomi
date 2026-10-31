@@ -1,0 +1,374 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-project-save-draft-contract",
+  "problem_type": "Editable draft persistence and typed cross-process save failure",
+  "symptom": "An unfinished anchor or default aspect vetoes the entire project save; all unknown failures incorrectly blame disk permissions.",
+  "direct_cause": "The persistence and legacy migration boundaries reuse the required-content model schema; async IPC throws away structured save failure facts.",
+  "class_root": "Persistence must admit every structurally valid editable draft and round-trip it; the save channel must preserve a closed, non-sensitive failure identity independently of Error serialization.",
+  "affected_population": [
+    "All unfinished anchor kinds and cleared names",
+    "All default-aspect edits and legacy stored drafts",
+    "Save failures on all platforms including EBUSY, EACCES, EPERM, ENOSPC, lock contention and stale binding"
+  ],
+  "scope_paths": [
+    "electron/shared/storyboard/storyboardPlanSchema.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
+    "src/workbench/project/projectRecordSchema.ts",
+    "src/workbench/project/projectNormalize.ts",
+    "src/i18n/resources.ts",
+    "electron/projects/projectsIpc.ts",
+    "electron/preload.ts",
+    "electron/preload/ipcCall.ts",
+    "src/workbench/project/projectOperationFailureText.ts",
+    "electron/shared/contracts/ipcResult.ts",
+    "electron/shared/contracts/projectSaveFailure.ts",
+    "src/workbench/creation/storyboard/storyboardBulkAspectOptions.ts",
+    "src/workbench/creation/storyboard/StoryboardBulkBar.tsx",
+    "src/desktop/bridge.ts",
+    "src/workbench/project/projectRepository.ts",
+    "docs/engineering/self-written.json"
+  ],
+  "entry_points": [
+    "Editor mutations through setStoryboardPlan and readCurrentWorkbenchProjectPayload",
+    "normalizePayload write/read and retired map/single-plan migration",
+    "nomi:projects:save-async through preload unwrapIpcResult"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal persistence/authoring contract repair approved after direction review; installed zod composition and the existing IpcResult owner are reused without introducing or upgrading a dependency.",
+  "invariants": [
+    "Structurally valid editable drafts persist and JSON round-trip without content changes.",
+    "Only authoring/generation input faces require nonempty content; persistence imports only the draft face.",
+    "Failure envelopes contain closed reasons and bounded code/errno/syscall/stage facts, no paths or raw messages."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePayload"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectRepository.ts",
+      "symbol": "normalizePayload"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/library/localProjectStore.ts",
+      "symbol": "saveProjectRecord"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "storyboardPlanSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "symbol": "storyboardPlanSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts",
+      "symbol": "storyboardPlanSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "storyboardPlanSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectRecordSchema.ts",
+      "symbol": "storyboardPlanSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "saveProject"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+      "symbol": "planAnchorSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "planAnchorSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "symbol": "planAnchorSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/agentStoryboardDesign.ts",
+      "symbol": "planAnchorSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectBackup.ts",
+      "symbol": "workbenchProjectRecordSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "workbenchProjectPayloadSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "workbenchProjectRecordSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectRecordSchema.ts",
+      "symbol": "workbenchProjectPayloadSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectRepository.ts",
+      "symbol": "workbenchProjectRecordSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "saveProject"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/documentSurface.ts",
+      "symbol": "saveProject"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "saveProject"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectCanvasWrite.ts",
+      "symbol": "saveProject"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "saveProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "parseStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "parseStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts",
+      "symbol": "parseStoryboardPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "saveProject"
+    },
+    {
+      "kind": "read",
+      "path": "electron/preload/ipcCall.ts",
+      "symbol": "IpcResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "IpcResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/ipcResult.ts",
+      "symbol": "IpcResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "storyboardDraftPlanSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/bridge.ts",
+      "symbol": "IpcResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "readCurrentWorkbenchProjectPayload"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "storyboardDraftPlanSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectRecordSchema.ts",
+      "symbol": "storyboardDraftPlanSchema"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "readCurrentWorkbenchProjectPayload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/preload/ipcCall.ts",
+      "symbol": "unwrapIpcResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/preload/modelOnboardingBridge.ts",
+      "symbol": "unwrapIpcResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "projectSaveFailure"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardBulkBar.tsx",
+      "symbol": "storyboardBulkAspectOptions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectOperationFailureText.ts",
+      "symbol": "projectSaveReason"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/project/projectRepository.ts",
+      "symbol": "unwrapIpcResult"
+    }
+  ],
+  "door_reduction": {
+    "before": 42,
+    "after": 42,
+    "why_not": "Read, save, migration, backup, model and Agent inputs are distinct required operations. They retain entry identity while sharing the appropriate draft or strict schema owner; main save consumers retain transactional ownership and only the renderer IPC changes transport."
+  },
+  "generality_proof": "Every project payload and retired plan converges on the shared draft schema. Strict constraints extend the draft and cannot accidentally leak into project persistence imports. Random real editor sequences, an export coverage ratchet, canvas replay and JSON loopback cover equivalent editing inputs; the single shared IPC unwrapping owner and exhaustive reason map preserve cross-platform failure facts.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "storyboardDraftPlanSchema",
+      "responsibility": "Define the editable JSON shape; strict authoring extends it."
+    },
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePayload",
+      "responsibility": "Use draft parsing for writes, reads and legacy migrations; log only redacted field paths."
+    },
+    {
+      "path": "electron/shared/contracts/ipcResult.ts",
+      "symbol": "unwrapIpcResult",
+      "responsibility": "Single envelope-unwrapping owner; reason-bearing failures cross the bridge as ordinary data."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "entry_point": "addAnchor / updateAnchor",
+      "disposition": "enforced",
+      "evidence": "Real store reproductions and random edit sequences persist all blank names."
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardShotScope.ts",
+      "entry_point": "setPlanDefaultAspect",
+      "disposition": "enforced",
+      "evidence": "The same UI aspect options feed the property test, including empty default."
+    },
+    {
+      "path": "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "entry_point": "patchStoryboardSubject",
+      "disposition": "not-affected",
+      "evidence": "Agent whole-card edit admission is explicitly deferred; strict authoring behavior is preserved."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Different ordinary editor actions and environment errors reach the same mismatched contract repeatedly.",
+    "same_class_scan": [
+      "door-map normalizePayload saveProjectRecord storyboardPlanSchema planAnchorSchema parseStoryboardPlan saveProject",
+      "rg imports and editor transformations: addAnchor, updateAnchor, setPlanDefaultAspect; retired map and single-plan migration",
+      "projectsIpc save handler and preload save invoke; projectOperationFailureText existing three error classifiers"
+    ]
+  },
+  "prevention": {
+    "kind": "schema-validation",
+    "enforcement_path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+    "invariant": "Draft parsing owns persistence structure; required content is added only in the strict extension.",
+    "failure_mode": "Malformed structural values reject with sanitized issue paths; save transport returns an explicit typed reason.",
+    "exception_policy": "none",
+    "strategy": "Separate the earliest shared schema faces; statically prohibit strict imports by persistence; enumerate edit mutations and reason mappings.",
+    "artifacts": [
+      "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
+      "src/workbench/project/projectRecordSchema.ts",
+      "src/workbench/project/projectNormalize.ts",
+      "electron/shared/contracts/projectSaveFailure.ts",
+      "electron/shared/contracts/ipcResult.ts",
+      "electron/preload/ipcCall.ts",
+      "eslint.config.mjs"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/project/projectSaveDraftContract.test.ts",
+    "src/workbench/project/editorPersistability.property.test.ts",
+    "electron/projects/projectsIpc.test.ts",
+    "src/workbench/library/projectErrorSurface.test.ts",
+    "src/workbench/project/useProjectWindowLifecycle.test.ts",
+    "src/workbench/generationCanvas/events/canvasEventReplay.property.test.ts",
+    "src/workbench/project/projectNormalize.test.ts",
+    "src/workbench/project/projectRepository.rename.test.ts",
+    "src/workbench/project/projectPersistenceService.autosaveRename.test.ts",
+    "src/workbench/project/projectRepository.workspace.test.ts",
+    "electron/shared/contracts/ipcResult.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/project/projectSaveDraftContract.test.ts",
+    "src/workbench/project/editorPersistability.property.test.ts",
+    "electron/projects/projectsIpc.test.ts",
+    "src/workbench/generationCanvas/events/canvasEventReplay.property.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/project/projectRecordSchema.ts",
+      "src/workbench/project/projectNormalize.ts",
+      "electron/preload.ts",
+      "src/workbench/project/projectOperationFailureText.ts"
+    ],
+    "rationale": "Remove persistence strict-schema imports and bare save invoke; replace parallel UI special-case exits with a single exhaustive reason map."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No new runtime or version migration; the domain chooses when required content is checked. Reuse installed zod, fast-check and existing IPC envelope.",
+    "exit_criteria": []
+  },
+  "migration": "Existing records and both retired plan keys parse through the draft face. 0.24.0 cannot read projects saved with empty anchor names; never roll back relaxed reads. Rollback may restore strict validation only before saveProjectRecord.",
+  "residual_risks": [
+    "Component-local object edits are protected by TypeScript, while numeric finiteness requires the JSON roundtrip test.",
+    "Single-anchor generation admission and close-without-save are explicitly separate work.",
+    "Windows visual validation is not implied by Mac or unit evidence.",
+    "Real Mac walkthroughs require non-Claude foreground and five-minute load below 10; UI evidence is pending until those conditions hold."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-30",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/storyboard/storyboardPlanSchema.ts",
+    "tests": [
+      "src/workbench/project/editorPersistability.property.test.ts"
+    ]
+  }
+}
