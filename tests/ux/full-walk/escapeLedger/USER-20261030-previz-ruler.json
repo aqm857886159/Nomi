@@ -12,7 +12,8 @@
     "三人街头首镜量人物而非楼",
     "旋转机位后的左右横移",
     "手搭台人物优先与模板总览",
-    "损坏锚点及主体记录经正规化后不可测，不替换成整个人或手搭猜测"
+    "损坏锚点及主体记录经正规化后不可测，不替换成整个人或手搭猜测",
+    "复制场景层、跨层复制、导入场景后，副本的景别与运镜和原层一致；失效记录经重编译回到有效主体"
   ],
   "fullWalkJourneys": [],
   "status": "fixed",
@@ -23,13 +24,15 @@
     "tests/ux/director-previz-ruler.walk.mjs",
     "tests/experience-laws/previzRulerOrientation.matrix.test.mjs",
     "修复：镜头量具读编译器记下的主体，横移按机位右向量判；评测 import 产品同一个函数（#1385）。",
-    "evals/director/previzRulerInvalidSubject.test.ts"
+    "evals/director/previzRulerInvalidSubject.test.ts",
+    "evals/director/previzRulerSubjectDoors.test.ts"
   ],
   "completionCommits": [
     "c90eb0504e6e3b6b9b22f6dcaa36052d259984ca",
     "c90eb0504",
     "21fda54d5",
-    "419a0e0c12a53258557afff451f5c1b76b97a07d"
+    "419a0e0c12a53258557afff451f5c1b76b97a07d",
+    "4efd7e53b78f8e2c0485c918830011f2151668ec"
   ],
   "rootCauseContract": "docs/fixes/2026-10-30-previz-ruler.root-cause.json",
   "fixedInPr": 1385,
