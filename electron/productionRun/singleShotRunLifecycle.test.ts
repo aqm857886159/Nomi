@@ -11,7 +11,7 @@ import {
 } from "./singleShotRunLifecycle";
 import { ProductionRunLockBusyError, ProductionRunLockLostError } from "./productionRunLock";
 import { jobAwaitsRetrieval } from "../shared/productionShotPhase";
-import { matchNomiErrorCode } from "../shared/nomiErrorCodes";
+import { matchNomiErrorCode, RETRIEVAL_UNAVAILABLE_MESSAGE } from "../shared/nomiErrorCodes";
 
 function fixture(status: ProductionRun["status"] = "draft"): ProductionRun {
   const timestamp = "2026-08-31T00:00:00.000Z";
@@ -145,6 +145,26 @@ describe("single-shot durable run lifecycle", () => {
     const finished = harness({ ...finishedRun, jobs: finishedRun.jobs.map((job) => ({ ...job, providerStatus: "completed" })) });
     markSingleShotAttention(finished.repository, "project-1", "run-single", "job-1");
     expect(matchNomiErrorCode(finished.read().jobs[0]!.errorMessage ?? "")).toBe("output-retrieval-failed");
+  });
+
+  it("这一次问不了（模型 / Key 用不了）：账本记这个原因，还是待取回；原因只取机器码，不存原文", () => {
+    const unavailable = new Error(`Error invoking remote method 'x': Error: ${RETRIEVAL_UNAVAILABLE_MESSAGE} key=secret`);
+    const fresh = harness(fixture("running"));
+    markSingleShotAttention(fresh.repository, "project-1", "run-single", "job-1", { cause: unavailable });
+    expect(fresh.read().jobs[0]).toMatchObject({ status: "needs_attention", errorCode: "output_retrieval_failed", errorMessage: RETRIEVAL_UNAVAILABLE_MESSAGE });
+    expect(jobAwaitsRetrieval(fresh.read().jobs[0])).toBe(true);
+
+    // 供应商早就说过做完了，这一次问不了：眼下的事实是问不了，不说「已经生成」。
+    const finishedRun = fixture("running");
+    const finished = harness({ ...finishedRun, jobs: finishedRun.jobs.map((job) => ({ ...job, providerStatus: "completed" })) });
+    markSingleShotAttention(finished.repository, "project-1", "run-single", "job-1", { cause: unavailable });
+    expect(matchNomiErrorCode(finished.read().jobs[0]!.errorMessage ?? "")).toBe("retrieval-unavailable");
+
+    // 别的失败不沾这个说法，原文也不进账本。
+    const other = harness(fixture("running"));
+    markSingleShotAttention(other.repository, "project-1", "run-single", "job-1", { cause: new Error("socket hang up key=secret") });
+    expect(matchNomiErrorCode(other.read().jobs[0]!.errorMessage ?? "")).toBe("retrieval-query");
+    expect(other.read().jobs[0]!.errorMessage).not.toContain("secret");
   });
 
   it("没有任务号：没有东西可取，照旧记成观察失败，不算待取回", () => {

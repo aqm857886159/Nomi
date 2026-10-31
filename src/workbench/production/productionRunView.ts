@@ -9,6 +9,7 @@ import type {
 import { jobAwaitsRetrieval } from '../../../electron/shared/productionShotPhase'
 import { isBuiltinMcpClient } from '../../../electron/shared/mcpClientRegistry'
 import type { TaskCenterGroup } from '../taskCenter/taskCenterProjection'
+import { unretrievedCopyKeys } from '../generationCanvas/model/recoverableCopy'
 import { productionPlaybookLabelKey } from './productionRunLabels'
 
 export type ProductionRunTone = 'working' | 'attention' | 'danger' | 'success' | 'neutral'
@@ -204,12 +205,13 @@ export function buildProductionRunView(
     }
   }
   if (unretrieved) {
+    const copy = unretrievedCopyKeys(unretrieved.errorMessage)
     return {
       ...base,
       group: 'attention',
       tone: 'attention',
-      titleKey: 'generationCommon.production.status.outputRetrievalFailed',
-      descriptionKey: 'generationCommon.production.description.outputRetrievalFailed',
+      titleKey: copy.title,
+      descriptionKey: copy.description,
       primaryAction: 'retry-retrieval',
       targetId: unretrieved.jobId,
     }

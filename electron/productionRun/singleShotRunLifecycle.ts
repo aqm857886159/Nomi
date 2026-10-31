@@ -1,4 +1,4 @@
-import { tagNomiError } from "../shared/nomiErrorCodes";
+import { matchNomiErrorCode, RETRIEVAL_UNAVAILABLE_MESSAGE, tagNomiError } from "../shared/nomiErrorCodes";
 import { jobAwaitsRetrieval } from "../shared/productionShotPhase";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { ProductionRunLockBusyError, ProductionRunLockLostError } from "./productionRunLock";
@@ -56,13 +56,15 @@ export function isObservationContention(error: unknown): boolean {
 
 /**
  * 观察这一笔失败了（查不到 / 取不回 / 落不下），任务号还在：它只差取回，不是失败。**不写人话**：界面按机器码说话（zh / en 都走词表）。
- * 供应商说过做完了才说「已经生成」；否则只知道这次没查成（`narrate` 的 `retrieval-incomplete`，用户 10-22 拍板不说「已经生成」）。
+ * 这一次连问都问不了（模型 / Key 用不了）就说这个，它是眼下最新的事实；供应商说过做完了才说「已经生成」；否则只知道这次没查成
+ * （`narrate` 的 `retrieval-incomplete`，用户 10-22 拍板不说「已经生成」）。原因只取机器码，不存原文。
  */
-function retrievalAttentionPatch(job: Pick<ProductionJob, "providerStatus">): { errorCode: string; errorMessage: string } {
+function retrievalAttentionPatch(job: Pick<ProductionJob, "providerStatus">, cause: unknown): { errorCode: string; errorMessage: string } {
   const finished = classifyUpstreamTaskStatus(job.providerStatus ?? "") === "succeeded";
+  const unavailable = matchNomiErrorCode(cause instanceof Error ? cause.message : "") === "retrieval-unavailable";
   return {
     errorCode: OUTPUT_RETRIEVAL_FAILED,
-    errorMessage: finished
+    errorMessage: unavailable ? RETRIEVAL_UNAVAILABLE_MESSAGE : finished
       ? tagNomiError("output-retrieval-failed", "The provider finished this task, but Nomi could not retrieve the result")
       : tagNomiError("retrieval-query", "Nomi could not check this accepted task this time"),
   };
@@ -210,8 +212,9 @@ export function markSingleShotAttention(
   projectId: string,
   runId: string,
   jobId?: string,
-  now: () => string = defaultNow,
+  options: { cause?: unknown; now?: () => string } = {},
 ): ProductionRun | null {
+  const now = options.now ?? defaultNow;
   let run = repository.read(projectId, runId);
   if (!run || !isSemanticSingleShot(run) || ["completed", "cancelled"].includes(run.status)) return run;
   if (jobId) {
@@ -225,7 +228,7 @@ export function markSingleShotAttention(
           payload: {
             jobId,
             status: "needs_attention",
-            patch: currentJob.providerTaskId ? retrievalAttentionPatch(currentJob) : {
+            patch: currentJob.providerTaskId ? retrievalAttentionPatch(currentJob, options.cause) : {
               errorCode: "single_shot_observation_failed",
               errorMessage: "生成结果未能安全落入项目，请查看任务并处理",
             },

@@ -8,11 +8,11 @@ import { ENV_KEY_VENDOR } from './_paidEnvKey.mjs'
 import { openPaidWalk, spendReceipt } from './_paidRun.mjs'
 import { collapseAgentPanel } from './_shell.mjs'
 import { openCanvas } from './agent-runtime-walk-support.mjs'
-import { RECOVERY_BUILD_MARKER, blockVendorOrigins, recoveryJourney, unblockVendorOrigins } from './_runRetrievalRecoverySteps.mjs'
+import { RECOVERY_BUILD_MARKERS, blockVendorOrigins, recoveryJourney, unblockVendorOrigins } from './_runRetrievalRecoverySteps.mjs'
 
 const SCRIPT = 'run-retrieval-recovery-real.paid.mjs'
 const MODEL = { vendorKey: ENV_KEY_VENDOR, modelKey: process.env.NOMI_RETRIEVAL_RECOVERY_MODEL || 'gpt-image-2' }
-const paid = await openPaidWalk(SCRIPT, 'run-retrieval-recovery-real', [MODEL], { buildMarkers: [RECOVERY_BUILD_MARKER] })
+const paid = await openPaidWalk(SCRIPT, 'run-retrieval-recovery-real', [MODEL], { buildMarkers: RECOVERY_BUILD_MARKERS })
 const { walk } = paid
 let failure
 try {

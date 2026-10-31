@@ -66,11 +66,14 @@ export type NomiErrorCode =
   //   retrieval-parse    上游有回答，但读不出结果（说成了却没地址 / 状态词认不出）
   //   retrieval-download 有地址，下载到本机没成（出站被拦另有 outbound-blocked）
   //   retrieval-timeout  等到上限还没终态
+  //   retrieval-unavailable  这一次 Nomi 连问都问不了（模型 / 供应商被关或删了、Key 没了，或本机重建不出这次查询）：供应商什么都没说，
+  //                      不是它判的失败，开回来再点就能取回。界面要说这个原因（recoverableCopy 的第三种说法），所以单独一个码，不从人话里猜
   // 提交阶段（还没拿到任务号）的失败不在这一族：那时没有可找回的任务，见 submission-* / outbound-blocked-submit。
   | 'retrieval-query'
   | 'retrieval-parse'
   | 'retrieval-download'
   | 'retrieval-timeout'
+  | 'retrieval-unavailable'
 
 /**
  * 每个码的话是不是**只在提交之前才成立**（穷举：新增一个码不回答这一问，typecheck 就红）。
@@ -101,6 +104,7 @@ export const NOMI_ERROR_ONLY_BEFORE_SUBMIT: Readonly<Record<NomiErrorCode, boole
   'retrieval-parse': false,
   'retrieval-download': false,
   'retrieval-timeout': false,
+  'retrieval-unavailable': false,
 }
 
 const MARKER_PREFIX = 'NOMI_ERR::'
@@ -112,6 +116,9 @@ const MARKER_RE = /NOMI_ERR::([a-z-]+)::/
 export function tagNomiError(code: NomiErrorCode, humanMessage: string): string {
   return `${MARKER_PREFIX}${code}${MARKER_SUFFIX} ${humanMessage}`
 }
+
+/** 「这一次问不了」那一句（查询方抛、账本存都用它）：固定英文，不带任何外部原文。给人看的话在词表里，按码选。 */
+export const RETRIEVAL_UNAVAILABLE_MESSAGE = tagNomiError('retrieval-unavailable', 'Nomi cannot ask the provider about this accepted task right now')
 
 /** classify 端：从 message 里解出 Nomi 错误码；没有标记 → null（走 legacy 兜底）。 */
 export function matchNomiErrorCode(message: string): NomiErrorCode | null {

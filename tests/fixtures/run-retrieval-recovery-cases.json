@@ -474,5 +474,338 @@
       "landed": true
     },
     "failsAgain": true
+  },
+  {
+    "id": "open/local-vendor-off",
+    "failure": "local-vendor-off",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "open/local-vendor-off/again",
+    "failure": "local-vendor-off",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "closed/local-vendor-off",
+    "failure": "local-vendor-off",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/local-vendor-off/again",
+    "failure": "local-vendor-off",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "restart/local-vendor-off",
+    "failure": "local-vendor-off",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "restart/local-vendor-off/again",
+    "failure": "local-vendor-off",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "open/local-model-off",
+    "failure": "local-model-off",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "open/local-model-off/again",
+    "failure": "local-model-off",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "closed/local-model-off",
+    "failure": "local-model-off",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/local-model-off/again",
+    "failure": "local-model-off",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "restart/local-model-off",
+    "failure": "local-model-off",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "restart/local-model-off/again",
+    "failure": "local-model-off",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "open/local-key-gone",
+    "failure": "local-key-gone",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "open/local-key-gone/again",
+    "failure": "local-key-gone",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "closed/local-key-gone",
+    "failure": "local-key-gone",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/local-key-gone/again",
+    "failure": "local-key-gone",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "restart/local-key-gone",
+    "failure": "local-key-gone",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "restart/local-key-gone/again",
+    "failure": "local-key-gone",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    },
+    "failsAgain": true
   }
 ]

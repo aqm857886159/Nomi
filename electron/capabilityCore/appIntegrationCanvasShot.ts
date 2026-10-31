@@ -390,11 +390,12 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     runId: string,
     job?: ProductionJob,
     artifactId?: string,
+    cause?: unknown,
   ): void {
     try {
       if (artifactId)
         markSingleShotCompleted(repository(), projectId, runId, { ...(job ? { jobId: job.jobId } : {}), artifactId });
-      else markSingleShotAttention(repository(), projectId, runId, job?.jobId);
+      else markSingleShotAttention(repository(), projectId, runId, job?.jobId, { cause });
     } catch (error) {
       logWarn("production-run", "canvas-shot-settle-failed", { runId }, error);
     }
@@ -669,7 +670,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       // 撞上别的观察者只是忙：这一次当还在跑，渲染层过一会儿再来。
       if (isObservationContention(error)) return { id: job.providerTaskId ?? job.jobId, kind, status: "running", assets: [], raw: {} };
       // 这次重新取回又没成：回到「待取回」，节点照旧给「重新取回」。
-      if (reopened) settle(projectId, projectRoot, runId, latestJob(repository().read(projectId, runId) ?? run));
+      if (reopened) settle(projectId, projectRoot, runId, latestJob(repository().read(projectId, runId) ?? run), undefined, error);
       throw error;
     }
     const last = job.providerTaskId ? canvasLastResult(job.providerTaskId) : undefined;

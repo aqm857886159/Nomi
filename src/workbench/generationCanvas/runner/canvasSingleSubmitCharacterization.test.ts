@@ -8,11 +8,14 @@
 // 「写出去之后断了」那一条按 2026-10-05 拍板（F3）翻成「结果没法确认、核对前不许再点」；「当场拒绝」本来就是失败可再点。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { confirmAndRunNode, regenerateNodeInPlace } from './generationRunController'
+import { recoverNodeResult } from './recoverTaskActions'
+import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { requestTaskCancel } from './localTaskControl'
 import { classifyGenerationError } from '../../observability/classifyError'
+import { matchNomiErrorCode, RETRIEVAL_UNAVAILABLE_MESSAGE } from '../../../../electron/shared/nomiErrorCodes'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'
@@ -219,6 +222,44 @@ describe('画布单节点 ↑ —— 用户看得见的样子', () => {
     expect(queueOf(id).map((entry) => entry.state)).toEqual(['cancelled'])
     // 收敛后：渲染层不等了，那一笔交给主进程观察者收完（钱花了的结果照样进项目，节点不落）。
     expect(calls.release).toHaveBeenCalledWith({ projectId: 'project-a', runRecordId: submitted(0).extras?.runRecordId })
+  })
+
+  it('查询连着失败、等够宽限：节点可找回，说这次失败的原因，交给主进程观察者接着查；不重发', async () => {
+    vi.useFakeTimers()
+    try {
+      const id = addImageNode()
+      calls.runTask.mockImplementation(async (_vendor: string, request: TaskRequestDto) => ({ id: 'task-async', kind: request.kind, status: 'queued', assets: [], raw: {} }))
+      calls.fetchResult.mockRejectedValue(new Error(`Error invoking remote method 'x': Error: ${RETRIEVAL_UNAVAILABLE_MESSAGE}`))
+      const running = confirmAndRunNode(id, { initiator: 'user' }).catch(() => undefined)
+      await vi.advanceTimersByTimeAsync(120_000)
+      await running
+      expect(calls.runTask).toHaveBeenCalledOnce()
+      expect(nodeOf(id).status).toBe('recoverable')
+      expect(matchNomiErrorCode(nodeOf(id).error ?? '')).toBe('retrieval-unavailable')
+      expect(calls.release).toHaveBeenCalledWith({ projectId: 'project-a', runRecordId: submitted(0).extras?.runRecordId })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('点重新取回等满时限、单还没出来：退回可找回，交给主进程观察者接着查；不重发', async () => {
+    vi.useFakeTimers()
+    try {
+      const id = addImageNode()
+      const store = useGenerationCanvasStore.getState()
+      store.appendNodeRun(id, { id: 'run-wait', status: 'running', startedAt: 1, updatedAt: 1, taskId: 'task-wait', projectId: 'project-a' })
+      store.setNodeStatus(id, 'recoverable', 'timed out')
+      calls.fetchResult.mockResolvedValue({ vendor: 'acme', result: { id: 'task-wait', kind: 'text_to_image', status: 'running', assets: [], raw: {} } })
+      const recovering = withProjectAction((project) => recoverNodeResult(id, project))
+      await vi.advanceTimersByTimeAsync(600_000 + 3_000)
+      await recovering
+      expect(calls.runTask).not.toHaveBeenCalled()
+      expect(nodeOf(id).status).toBe('recoverable')
+      expect(matchNomiErrorCode(nodeOf(id).error ?? '')).toBe('retrieval-timeout')
+      expect(calls.release.mock.calls).toEqual([[{ projectId: 'project-a', runRecordId: 'run-wait' }]])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('提交还在路上时用户点停：节点回空闲，不进轮询，任务队列记取消', async () => {

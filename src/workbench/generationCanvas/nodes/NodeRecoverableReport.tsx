@@ -58,7 +58,7 @@ export function NodeRecoverableReport({
   return (
     <div
       role="status"
-      aria-label={t('generationCommon.recoverable.aria')}
+      aria-label={t(copy.aria)}
       className={cn(
         'absolute inset-0 z-[5] flex flex-col rounded-nomi p-4',
         // 不透明纸底盖住棋盘格占位；细描边用中性 line（非 danger）——一眼是「等待中/可找回」不是「失败」。

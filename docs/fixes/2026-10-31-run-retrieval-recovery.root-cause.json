@@ -2,13 +2,14 @@
   "schema_version": 3,
   "id": "2026-10-31-run-retrieval-recovery",
   "problem_type": "A paid provider task whose id is still known was treated as dead, stuck, or eligible for a new order",
-  "symptom": "After closing the window or restarting, one failed query made Retrieve again do zero queries and fail, the error card offered Retry, and clicking it paid a second time. A crash while landing left the node locked; a damaged lock file made the query wait forever.",
-  "direct_cause": "markSingleShotAttention recorded an observation failure with a code the retrieval predicate did not accept, pollRun answered a stopped job from the ledger without querying, and the old sentences decoded to no action class. materialize repaired only the envelope when an artifact already existed. withLifecycle retried a busy lock with no limit and a damaged record counted as busy forever.",
-  "class_root": "Nothing guaranteed that an accepted task can only move toward retrieval: stopping, landing, and lock waiting each had an exit that left the task unretrievable, unfinished, or re-orderable.",
+  "symptom": "After closing the window or restarting, one failed query made Retrieve again do zero queries and fail, the error card offered Retry, and clicking it paid a second time. A crash while landing left the node locked; a damaged lock file made the query wait forever. With the model, its vendor, or its API key unavailable, a task with a known id was recorded as failed by the provider although no query had gone out, and the main button was Retry.",
+  "direct_cause": "markSingleShotAttention recorded an observation failure with a code the retrieval predicate did not accept, pollRun answered a stopped job from the ledger without querying, and the old sentences decoded to no action class. materialize repaired only the envelope when an artifact already existed. withLifecycle retried a busy lock with no limit and a damaged record counted as busy forever. A query that could not be asked returned status failed with nothing to tell it apart from the provider saying so.",
+  "class_root": "Nothing guaranteed that an accepted task can only move toward retrieval: stopping, landing, and lock waiting each had an exit that left the task unretrievable, unfinished, or re-orderable. A result that never asked the provider also passed as the provider's verdict.",
   "affected_population": [
     "Every canvas generation and semantic single-shot Run on a provider that accepts first and answers later",
     "Projects saved by 0.24.0 or earlier that already hold a stopped job or a stored error sentence",
-    "Batch shots whose provider returned a status Nomi does not recognize"
+    "Batch shots whose provider returned a status Nomi does not recognize",
+    "Anyone who turns a model or vendor off, or removes an API key, while a paid task of that model is still in progress"
   ],
   "scope_paths": [
     "electron/productionRun/singleShotRunLifecycle.ts",
@@ -23,21 +24,33 @@
     "electron/productionRun/productionRunLock.ts",
     "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
     "src/i18n/locales/generationCommon.ts",
-    "electron/productionRun/productionRunState.ts"
+    "electron/productionRun/productionRunState.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/tasks/taskAdmission.ts",
+    "electron/capabilityCore/canvasTransportProvider.ts",
+    "electron/capabilityCore/readTask.ts",
+    "src/workbench/generationCanvas/model/recoverableCopy.ts",
+    "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/production/productionRunView.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts"
   ],
   "entry_points": [
     "Main-process observer after the window closes or the Run host restarts",
     "Renderer query through pollCanvasShotRun, including the Retrieve again button",
     "Task panel job.retry_retrieval",
     "MCP single-shot poll in mcpStdioServer",
-    "Project reopen in appIntegration"
+    "Project reopen in appIntegration",
+    "nomi_read target=task through readTask",
+    "Renderer giving up on a query: the polling loop after the failure grace or the hard limit, and Retrieve again after its own time limit"
   ],
   "external_sources": [],
   "invariants": [
     "A job with a provider task id that stopped without the provider saying it failed satisfies jobAwaitsRetrieval.",
     "Retrieving again only reads the existing provider task; it never reserves, charges, or submits.",
     "Once a ready artifact is on the ledger, every materialize exit brings the job and the envelope up to date before answering.",
-    "Waiting for the lifecycle lock ends: a damaged record untouched for a lease is reclaimed, and anything else becomes a busy error at the deadline."
+    "Waiting for the lifecycle lock ends: a damaged record untouched for a lease is reclaimed, and anything else becomes a busy error at the deadline.",
+    "When Nomi could not ask the provider, the result is not the provider's answer: the job waits for retrieval, the card says why, and only Mark Failed leads to Retry."
   ],
   "doors": [
     {
@@ -94,14 +107,94 @@
       "kind": "read",
       "path": "electron/productionRun/productionRunService.ts",
       "symbol": "jobAwaitsRetrieval"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "isLocalQueryBlockedRaw"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/readTask.ts",
+      "symbol": "isLocalQueryBlockedRaw"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "symbol": "recoverableCopyKeys"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/productionRunView.ts",
+      "symbol": "unretrievedCopyKeys"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "buildSubmissionForRun"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunLock.ts",
+      "symbol": "reclaimCorruptRecord"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "withLifecycle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunState.ts",
+      "symbol": "JOB_TRANSITIONS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "matchNomiErrorCode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskAdmission.ts",
+      "symbol": "isLocalQueryBlockedRaw"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeTaskQuery"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/generationCommon.ts",
+      "symbol": "recoverable"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/recoverableCopy.ts",
+      "symbol": "recoverableCopyKeys"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "recoverNodeResult"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "handRunToObserver"
     }
   ],
   "door_reduction": {
-    "before": 4,
-    "after": 1,
-    "why_not": "The four writers of markSingleShotAttention stay because each is a different observer lifetime; they now share one write and one predicate. The four ready-artifact exits in materialize became one function, settleWithArtifact."
+    "before": 30,
+    "after": 27,
+    "why_not": "The four ready-artifact exits in materialize became one function, settleWithArtifact, so three doors are gone. The four writers of markSingleShotAttention stay because each is a different observer lifetime; they now share one write and one predicate. The rest are readers of the one predicate and one copy table."
   },
-  "generality_proof": "Every stop path writes through markSingleShotAttention or poll, every reader asks jobAwaitsRetrieval, every retrieve path reopens through reopenSingleShotRetrieval, and every landing exit goes through settleWithArtifact, so another caller, provider, or stored project reaches the same decision. The matrix walks failure timing, task id presence, and window state against POST count, GET count, and the real error card.",
+  "generality_proof": "Every stop path writes through markSingleShotAttention or poll, every reader asks jobAwaitsRetrieval, every retrieve path reopens through reopenSingleShotRetrieval, and every landing exit goes through settleWithArtifact, so another caller, provider, or stored project reaches the same decision. The matrix walks failure timing, task id presence, and window state against POST count, GET count, and the real error card. A query that cannot be asked is told apart in one predicate, isLocalQueryBlockedRaw, and carried to the interface by one code, so every model, vendor, and key fault reaches the same card.",
   "shared_boundaries": [
     {
       "path": "electron/shared/productionShotPhase.ts",
@@ -137,6 +230,21 @@
       "path": "electron/shared/nomiErrorCodes.ts",
       "symbol": "matchNomiErrorCode",
       "responsibility": "Decodes the two old whole sentences stored on existing nodes into the retrieval family."
+    },
+    {
+      "path": "electron/tasks/taskAdmission.ts",
+      "symbol": "isLocalQueryBlockedRaw",
+      "responsibility": "The single answer to whether a query result means Nomi could not ask the provider."
+    },
+    {
+      "path": "src/workbench/generationCanvas/model/recoverableCopy.ts",
+      "symbol": "recoverableCopyKeys",
+      "responsibility": "One set of copy keys for the node panel, the shot table, and the task panel, chosen by the code from the main process."
+    },
+    {
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "classifyGenerationError",
+      "responsibility": "Classifies the whole retrieval family through isRetrievalStageCode instead of a hand-written list."
     }
   ],
   "same_class_entry_points": [
@@ -181,6 +289,42 @@
       "entry_point": "recordResult",
       "disposition": "enforced",
       "evidence": "Holds the claim lock while awaiting the lifecycle lock since #1397; the deadline bounds that wait and its catch keeps the trial call returning. Cells in submissionIntent.test.ts."
+    },
+    {
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "entry_point": "query",
+      "disposition": "enforced",
+      "evidence": "Throws the tagged error when the result says Nomi could not ask, before anything is remembered. Matrix cells local-* and canvasTransportProvider.test.ts."
+    },
+    {
+      "path": "electron/capabilityCore/readTask.ts",
+      "entry_point": "readTask",
+      "disposition": "enforced",
+      "evidence": "Answers query_failed with do-not-submit instead of quoting the provider. Case in readTaskTarget.test.ts."
+    },
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "entry_point": "driveReconciliation",
+      "disposition": "not-affected",
+      "evidence": "Only reached by submission_unknown jobs that have a task id, which only retired playbook Runs write on restart. Measured and left alone by decision; recorded in residual_risks."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "recoverNodeResult without a Run",
+      "disposition": "not-affected",
+      "evidence": "Old node records with no Run read the failed status and its sentence, as before. Left alone by decision; recorded in residual_risks."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "pollTaskToTerminal",
+      "disposition": "not-affected",
+      "evidence": "A trial reads the failed status as before and never re-submits on its own. Its wording is recorded in residual_risks."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "entry_point": "deliverRunOutcome landing a node as recoverable",
+      "disposition": "enforced",
+      "evidence": "Every renderer path that lands recoverable through delivery tells the main process it stopped waiting, so the observer takes over and the node is not locked. Cases in runProjectDelivery.background.test.ts, canvasSingleSubmitCharacterization.test.ts and the window-open cells of the matrix."
     }
   ],
   "recurrence": {
@@ -191,23 +335,26 @@
       "node scripts/door-map.mjs jobAwaitsRetrieval",
       "node scripts/door-map.mjs createProductionRunLock (9 callers benefit from the damaged-record rule)",
       "git log -S for both old sentences: each has one writer in history",
-      "git grep readyArtifact and artifactFor for ready-artifact exits"
+      "git grep readyArtifact and artifactFor for ready-artifact exits",
+      "node scripts/door-map.mjs isLocalQueryBlockedRaw",
+      "git grep fetchTaskResult: 20 callers read status and error, only readTask and the canvas transport read the raw code"
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/shared/productionShotPhase.ts",
-    "invariant": "A stopped job with a task id whose provider did not report failure is answered by retrieval, and retrieval never submits.",
-    "failure_mode": "A repeated query failure returns to waiting for retrieval with the same main button; a provider failure and a missing task id keep Retry.",
+    "invariant": "A stopped job with a task id whose provider did not report failure is answered by retrieval, and retrieval never submits. A query Nomi could not ask is never recorded as the provider failing.",
+    "failure_mode": "A repeated query failure returns to waiting for retrieval with the same main button; a provider failure and a missing task id keep Retry. A query that cannot be asked keeps the card, sends nothing, and says why.",
     "exception_policy": "none",
-    "strategy": "Keep one predicate, one reopen, one landing exit, and a bounded lock wait, then walk the class with a matrix built from a case list.",
+    "strategy": "Keep one predicate, one reopen, one landing exit, and a bounded lock wait, then walk the class with a matrix built from a case list. Tell a query that was never asked apart at the one place that knows, and classify the retrieval family by its predicate.",
     "artifacts": [
       "electron/shared/productionShotPhase.ts",
       "electron/productionRun/singleShotRunLifecycle.ts",
       "electron/productionRun/productionGenerationSubmission.ts",
       "electron/productionRun/productionRunRuntimeEnvelope.ts",
       "electron/productionRun/productionRunLock.ts",
-      "tests/fixtures/run-retrieval-recovery-cases.json"
+      "tests/fixtures/run-retrieval-recovery-cases.json",
+      "electron/tasks/taskAdmission.ts"
     ]
   },
   "regression_tests": [
@@ -217,18 +364,28 @@
     "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
     "electron/capabilityCore/appIntegrationRunObservation.test.ts",
     "tests/run-retrieval-recovery/matrix.test.mjs",
-    "electron/productionRun/submissionIntent.test.ts"
+    "electron/productionRun/submissionIntent.test.ts",
+    "electron/capabilityCore/canvasTransportProvider.test.ts",
+    "electron/tasks/modelUnresolvableQuery.test.ts",
+    "electron/capabilityCore/readTaskTarget.test.ts",
+    "src/workbench/observability/retrievalStageClassification.test.ts",
+    "src/workbench/generationCanvas/model/recoverableCopy.test.ts",
+    "src/workbench/production/productionRunView.test.ts",
+    "src/workbench/generationCanvas/runner/canvasSingleSubmitCharacterization.test.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts"
   ],
   "class_regression_tests": [
-    "tests/run-retrieval-recovery/matrix.test.mjs"
+    "tests/run-retrieval-recovery/matrix.test.mjs",
+    "src/workbench/observability/retrievalStageClassification.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
     "removed_paths": [
       "electron/productionRun/productionGenerationSubmission.ts",
-      "electron/capabilityCore/appIntegrationRunObservation.ts"
+      "electron/capabilityCore/appIntegrationRunObservation.ts",
+      "electron/tasks/taskAdmission.ts"
     ],
-    "rationale": "The separate ready-artifact exits and job write in materialize were replaced by settleWithArtifact, and the observer's inline re-ask became one helper."
+    "rationale": "The separate ready-artifact exits and job write in materialize were replaced by settleWithArtifact, and the observer's inline re-ask became one helper. isTaskCacheMissRaw was renamed to isLocalQueryBlockedRaw in the same change, and the classifier's hand-written list of retrieval codes became the family predicate."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -240,9 +397,25 @@
     "Windows and a real power cut were not exercised; the short-write case was simulated by cutting the event log.",
     "A production Run title can still say the result was generated when only an unknown status was seen; the card and the task panel action are correct.",
     "A no-task-id node carrying the first old sentence shows Retry correctly with an imprecise explanation.",
-    "The up arrow on a retrievable node can still place a new order after confirmation; that is an explicit user action."
+    "The up arrow on a retrievable node can still place a new order after confirmation; that is an explicit user action.",
+    "After closing the window or restarting, the node has no stored error yet, so the first look is the timeout sentence; one free click turns it into the real reason.",
+    "A synchronous model that crashed between acceptance and landing also lands on this card, where the reason is not the model or key; the sentence says most likely for that reason, and Mark Failed is the way out.",
+    "Jobs that 0.24.0 or earlier already recorded as provider_task_failed cannot be told apart from a real failure and keep Retry.",
+    "driveReconciliation with the model off settles to reconcile_failed with Retry; only retired playbook Runs reach it.",
+    "recoverNodeResult for old records with no Run still reads the failed status with the model off.",
+    "A trial in nomi_try_model whose model is turned off mid-poll is reported as the provider not producing anything.",
+    "A result the observer fetches lands in the project first; the node stays recoverable until Retrieve again is clicked, which is free and uses no network. A channel from the main process to the node was declined.",
+    "If Retrieve again overlaps an observer query as the provider finishes, each downloads once and the asset library may show one extra identical file. No extra charge; the matrix pins at most two files with the same bytes.",
+    "A node deleted before it lands as recoverable has no run record to hand over; the observer takes over when the window closes or the project reopens."
   ],
   "internal_only_reason": "The Run ledger, its lock, and the retrieval predicate are repository-owned state machines, established by repository source and tests. The outside references that shaped the design are listed in the design card.",
   "detected_by": "review",
-  "recurrence_check_on": "2026-11-30"
+  "recurrence_check_on": "2026-11-30",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/productionShotPhase.ts",
+    "tests": [
+      "tests/run-retrieval-recovery/matrix.test.mjs",
+      "electron/productionRun/singleShotRunLifecycle.test.ts"
+    ]
+  }
 }

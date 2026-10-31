@@ -29,7 +29,7 @@ const REKICK_DELAY_MS = 15_000
 
 export type RunObservationDrivers = {
   settleSingleShotCompleted: (projectId: string, runId: string, options?: { jobId?: string; artifactId?: string }) => void;
-  settleSingleShotAttention: (projectId: string, runId: string, jobId?: string) => void;
+  settleSingleShotAttention: (projectId: string, runId: string, jobId?: string, cause?: unknown) => void;
   driveScheduler: (projectId: string, runId: string, scheduler: Pick<MultiShotBatchScheduler, 'runToQuiescence'>, label: string) => void;
   kickSchedulerForRun: (projectId: string, runId: string) => void;
   observeSingleShotRun: (
@@ -71,9 +71,9 @@ export function createRunObservationDrivers(deps: {
       logWarn('production-run', 'single-shot-completion-status-failed', undefined, error)
     }
   }
-  const settleSingleShotAttention = (projectId: string, runId: string, jobId?: string): void => {
+  const settleSingleShotAttention = (projectId: string, runId: string, jobId?: string, cause?: unknown): void => {
     try {
-      markSingleShotAttention(repository, projectId, runId, jobId)
+      markSingleShotAttention(repository, projectId, runId, jobId, { cause })
     } catch (error) {
       logWarn('production-run', 'single-shot-attention-status-failed', undefined, error)
     }
@@ -198,7 +198,7 @@ export function createRunObservationDrivers(deps: {
         // Poll/materialization failures are durable attention, not a silent
         // promise rejection that causes the same provider task to be retried
         // forever on the next project reopen. Never submit from this path.
-        if (isCurrent()) settleSingleShotAttention(projectId, runId, activeSingleShotJobId(projectId, runId))
+        if (isCurrent()) settleSingleShotAttention(projectId, runId, activeSingleShotJobId(projectId, runId), error)
         logWarn('production-run', 'single-shot-observation-failed', undefined, error)
       }
     }).catch((error) => {
