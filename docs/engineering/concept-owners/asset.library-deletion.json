@@ -18,14 +18,22 @@
     {
       "path": "src/workbench/assets/deleteAssetResult.ts",
       "symbol": "deleteAssetResult"
+    },
+    {
+      "path": "src/workbench/assets/assetFileDeletion.ts",
+      "symbol": "trashProjectFiles"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
     "src/workbench/assets/deleteAssetResult.ts",
     "src/workbench/assets/AssetLibraryPanel.tsx",
-    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx"
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+    "src/workbench/assets/assetFileDeletion.ts",
+    "src/workbench/assets/pendingAssetDeletions.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/ui/browser/popover/useBrowserAssetActions.ts"
   ],
   "since": "2026-10-24",
-  "notes": "项目素材多选删除、全部素材单张删除、版本卡片删一版三扇门都只经 deleteAssetResult，判定只在 planAssetDeletion：画布结果只摘这一张；落盘文件把「地址就是它」的结果一起摘，只是拿它当封面 / 白板图层 / 时间轴片段的算「被用着」，这时一张不摘、留着并计入 keptInUseCount；文件只认本项目的。没有撤销步可挂的（关闭项目、画布上本来没有结果）文件当场进回收站。2026-10-24 之前判定是隐式的 { matches, fileTarget }，已加载项目里只有文件的素材被直接放过（夜跑 asset-library-interactions ⑤）。类测试 src/workbench/assets/assetDeletionMatrix.test.ts（每格还核「删完以后这扇门的列表里还在不在」）。列表与删除口同一口径：派生预览（.preview.）两个列表都不列；延后真删的文件由 pendingAssetDeletions 藏起来；文件进回收站由主进程广播刷新列表。"
+  "notes": "项目素材多选删除、全部素材单张删除、版本卡片删一版三扇门都只经 deleteAssetResult，判定只在 planAssetDeletion：画布结果只摘这一张；落盘文件把「地址就是它」的结果一起摘，只是拿它当封面 / 白板图层 / 时间轴片段的算「被用着」，这时一张不摘、留着并计入 keptInUseCount；文件只认本项目的。没有撤销步可挂的（关闭项目、画布上本来没有结果）文件当场进回收站。2026-10-24 之前判定是隐式的 { matches, fileTarget }，已加载项目里只有文件的素材被直接放过（夜跑 asset-library-interactions ⑤）。类测试 src/workbench/assets/assetDeletionMatrix.test.ts（每格还核「删完以后这扇门的列表里还在不在」）。列表与删除口同一口径：派生预览（.preview.）两个列表都不列；延后真删的文件由 pendingAssetDeletions 藏起来；文件进回收站由主进程广播刷新列表。 浏览器素材盒也经父项目绑定转交同一领域命令；物理回收统一由 assetFileDeletion.trashProjectFiles 执行。"
 }

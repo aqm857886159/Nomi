@@ -125,6 +125,7 @@
     ]
   },
   "pathRules": [
+    { "category": "perf", "pattern": "^(?:electron/(?:jsonFile\\.ts$|workspace/|assets/|events/|logging/|productionRun/)|src/workbench/project/)" },
     { "category": "spend", "legacy": "花钱", "pattern": "(?:^|/)(?:[^/]*spend[^/]*|[^/]*pricing[^/]*|[^/]*variant[^/]*|[^/]*credits[^/]*|[^/]*charge[^/]*|generationScheduler[^/]*)$", "scope": "^(?:src|electron)/" },
     { "category": ["long-run", "perf"], "legacy": "长跑", "pattern": "(?:^|/)[^/]*(?:task|queue|production|retriev|export|import)[^/]*$", "scope": "^(?:src|electron)/" },
     { "category": ["long-run", "perf"], "legacy": "可打断", "pattern": "(?:^|/)[^/]*(?:cancel|resume|stop|abort)[^/]*$", "scope": "^(?:src|electron)/" },

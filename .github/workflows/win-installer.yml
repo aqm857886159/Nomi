@@ -1,0 +1,115 @@
+# Windows 安装器真装、真升级、真卸载：设计卡 docs/plan/2026-10-29-installer-keep-user-files.md ★9 的场景 A1–A16 与登记的全部反例。
+#
+# 为什么要有它：0.24.0 的卸载程序是 electron-builder 默认的 `RMDir /r $INSTDIR`。一位用户把项目位置设在安装目录下，
+# 一升级 5 个项目全没了，回收站里也没有。修法（build/installer.nsh + 构建时生成的安装器清单）只能在真 Windows 上验：
+# 开发机 macOS 能验编译，但不能运行 Windows 注册表、文件占用、静默安装时的对话框。windows-latest 有真 NTFS、真 NSIS、真注册表。
+#
+# 旧版用 GitHub Release v0.24.0 的安装包（事故那一版），按同一个 Release 的 SHA256SUMS.txt 校验，不用自建的模拟包。
+# 场景登记在 tests/installer/scenarios.mjs，执行器是 tests/installer/windows-installer-scenarios.mjs；
+# tests/installer/installerScenarios.test.mjs（默认 vitest 车道）核对本文件跑全部场景、不带 --only、反例开着。
+#
+# 触发：
+#   · 动到安装器相关文件的推送（任何分支，推上去就跑）；合入默认分支后也能在 Actions 里手动跑（workflow_dispatch）；
+#   · 发版硬门：desktop-rc.yml 的 windows-installer 作业调用本工作流（workflow_call），它红了候选版的 finalize 不跑、
+#     整次候选版运行不是 success，desktop-release.yml 就拒绝晋级。被调用时 github.sha 就是候选版的提交
+#     （desktop-rc 的 validate 第一步核过 inputs.ref 解析出来等于 github.sha），这里的 checkout 默认就取它。
+# Windows runner 计费 2 倍、单跑一个多小时，所以推送只认这几条路径，不挂每次推送。
+# electron-builder 升级会先让普查测试的模板指纹红，更新指纹要改 tests/installer/ 下的文件，于是推送时本作业一定会跑。
+name: Win Installer Scenarios
+
+on:
+  push:
+    paths:
+      - build/installer.nsh
+      - scripts/packaging/installer-manifest.cjs
+      - scripts/after-pack-mac.cjs
+      - tests/installer/**
+      - .github/workflows/win-installer.yml
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# 同一分支连推只留最新一次；候选版调用（github.workflow 是调用方的名字）自成一组、从不被取消。
+concurrency:
+  group: win-installer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  scenarios:
+    name: Windows installer scenarios
+    runs-on: windows-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 被测包要和旧版不同号：A7 要的是「注册表标记是别的版本写的」，同号时这个场景量不到东西（执行器遇到同号直接报错）。
+      # 只改这台 runner 上的 package.json，不提交。
+      - name: Give the build under test its own version
+        shell: pwsh
+        run: |
+          $base = node -p "require('./package.json').version"
+          $version = "$base-installer-test"
+          npm pkg set "version=$version"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "build under test: $version"
+
+      - name: Build
+        run: pnpm run build
+
+      # afterPack 在这一步写出安装器清单 .tmp/installer-manifest/Nomi-x64.{nsh,json}，build/installer.nsh 编译时引入它。
+      - name: Package the Windows installer
+        run: pnpm exec electron-builder --win nsis --x64 --publish never
+
+      - name: Download the v0.24.0 installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'nomi-old'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          foreach ($attempt in 1..5) {
+            gh release download v0.24.0 --repo $env:GITHUB_REPOSITORY --pattern Nomi-win-x64.exe --pattern SHA256SUMS.txt --dir $dir --clobber
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "download attempt $attempt failed, retrying"
+            Start-Sleep -Seconds (15 * $attempt)
+          }
+          exit 1
+
+      # 全部场景 + 反例（反例：临时改一份 installer.nsh、--prepackaged 重打安装包，预期该红的场景必须红在登记的那一项）。
+      - name: Run the installer scenarios and counterexamples
+        shell: pwsh
+        run: >-
+          node tests/installer/windows-installer-scenarios.mjs
+          --old "$env:RUNNER_TEMP\nomi-old\Nomi-win-x64.exe"
+          --old-sums "$env:RUNNER_TEMP\nomi-old\SHA256SUMS.txt"
+          --new release\Nomi-win-x64.exe
+          --manifest .tmp\installer-manifest\Nomi-x64.json
+          --unpacked release\win-unpacked
+          --work "$env:RUNNER_TEMP\nomi-installer"
+          --report "$env:RUNNER_TEMP\installer-scenarios\report.json"
+          --counterexamples
+
+      - name: Upload the scenario report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-scenarios
+          path: |
+            ${{ runner.temp }}/installer-scenarios
+            ${{ runner.temp }}/nomi-installer/dialogs
+            .tmp/installer-manifest
+          if-no-files-found: warn
+          retention-days: 30

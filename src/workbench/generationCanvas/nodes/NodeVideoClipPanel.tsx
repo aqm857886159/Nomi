@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useViewport } from '@xyflow/react'
@@ -37,8 +38,8 @@ export default function NodeVideoClipPanel({ node, onClose }: { node: Generation
       onClose()
       document.querySelector<HTMLButtonElement>(`[data-node-id="${CSS.escape(node.id)}"] [data-toolbar-action="trim"]`)?.focus()
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    canvasWindowInput.addEventListener('keydown', onKey)
+    return () => canvasWindowInput.removeEventListener('keydown', onKey)
   }, [node.id, onClose])
   React.useEffect(() => {
     if (!player || !clock.playing) return

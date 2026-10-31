@@ -1,3 +1,4 @@
+import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
 // 生成页「列表」视图（样张板 List / ListDetail，2026-10-08 22:40Z 拍板）。
 //   - 不套框：卡片定宽 256，按可用宽度排列数，留白优先；分区标题一行；
 //   - 只显示已落画布的节点，和画布一一对应；没有批量条、卡上没有勾选，批量只有分区头的「生成全部」；
@@ -64,6 +65,7 @@ export function GenerationListView(): JSX.Element {
   React.useEffect(() => {
     if (!inspectorKey) return undefined
     const onKey = (event: KeyboardEvent) => {
+      if (!workspaceInputSurfaceIsActive(rootRef.current)) return
       const target = event.target
       if (event.key !== 'Escape' || (target instanceof HTMLElement && target.closest('input, textarea, [contenteditable="true"], [role="dialog"], [role="menu"]'))) return
       setInspectorKey(null)
