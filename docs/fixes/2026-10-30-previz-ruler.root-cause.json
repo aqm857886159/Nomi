@@ -597,14 +597,9 @@
       "responsibility": "Preserve absent versus invalid subject/anchor intent at all persistence and mutation entrances; repeated normalization must keep the distinction."
     },
     {
-      "path": "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
-      "symbol": "remapSceneIds",
-      "responsibility": "The only id-rewrite gate for copy layer, cross-layer copy and import scene: every field that references an entity id, including the recorded measurement subject, goes through its id map."
-    },
-    {
       "path": "src/workbench/generationCanvas/nodes/director/model/planOverrides.ts",
-      "symbol": "deriveDirectorOverrides",
-      "responsibility": "Hand adjustments are derived property by property; the recorded measurement subject is compiler-owned and never derived, fingerprinted or replayed."
+      "symbol": "overlayDirectorProject",
+      "responsibility": "Hand adjustments are derived property by property over the compiled fingerprint; the recorded measurement subject is compiler-owned and never fingerprinted, derived or replayed, so a recompile rewrites it."
     }
   ],
   "same_class_entry_points": [
