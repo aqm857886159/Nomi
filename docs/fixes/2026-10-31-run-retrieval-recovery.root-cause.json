@@ -175,6 +175,12 @@
       "entry_point": "markProviderRejected",
       "disposition": "not-affected",
       "evidence": "No task id and an explicit rejection: nothing to retrieve. Matrix cells */submit-rejected keep Retry."
+    },
+    {
+      "path": "electron/productionRun/submissionIntent.ts",
+      "entry_point": "recordResult",
+      "disposition": "enforced",
+      "evidence": "Holds the claim lock while awaiting the lifecycle lock since #1397; the deadline bounds that wait and its catch keeps the trial call returning. Cells in submissionIntent.test.ts."
     }
   ],
   "recurrence": {
@@ -210,7 +216,8 @@
     "electron/productionRun/productionRunLock.test.ts",
     "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
     "electron/capabilityCore/appIntegrationRunObservation.test.ts",
-    "tests/run-retrieval-recovery/matrix.test.mjs"
+    "tests/run-retrieval-recovery/matrix.test.mjs",
+    "electron/productionRun/submissionIntent.test.ts"
   ],
   "class_regression_tests": [
     "tests/run-retrieval-recovery/matrix.test.mjs"
@@ -233,8 +240,7 @@
     "Windows and a real power cut were not exercised; the short-write case was simulated by cutting the event log.",
     "A production Run title can still say the result was generated when only an unknown status was seen; the card and the task panel action are correct.",
     "A no-task-id node carrying the first old sentence shows Retry correctly with an imprecise explanation.",
-    "The up arrow on a retrievable node can still place a new order after confirmation; that is an explicit user action.",
-    "try_model recordResult holding the lock is covered only after #1397 merges; that cell is unverified."
+    "The up arrow on a retrievable node can still place a new order after confirmation; that is an explicit user action."
   ],
   "internal_only_reason": "The Run ledger, its lock, and the retrieval predicate are repository-owned state machines, established by repository source and tests. The outside references that shaped the design are listed in the design card.",
   "detected_by": "review",
