@@ -22,7 +22,7 @@
   ],
   "budget": 1,
   "group": "③ 平移和缩放",
-  "budgetStatus": "proposed",
+  "budgetStatus": "approved",
   "budgetBasis": "用户反馈「图轮流消失、组底整块不画」：远看停稳后每张已解码的图都该画出来；60 张里一张都不许空（1% < 1/60），只为量具噪声留余量。改前同一跑法 35% 动后 71% 的卡空着（设计卡 docs/plan/2026-10-31-canvas-detail-admission.md ★7）",
   "baseline": {
     "median": 0,

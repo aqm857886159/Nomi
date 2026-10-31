@@ -22,7 +22,7 @@
   ],
   "budget": 33,
   "group": "③ 平移和缩放",
-  "budgetStatus": "proposed",
+  "budgetStatus": "approved",
   "budgetBasis": "连续手势要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；视口不再常驻合成层后平移靠重画，这一条守它不变卡（设计卡 docs/plan/2026-10-31-canvas-detail-admission.md ★7）",
   "baseline": {
     "median": 10.6,
