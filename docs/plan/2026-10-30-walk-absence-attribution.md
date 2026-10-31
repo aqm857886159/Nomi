@@ -1,5 +1,7 @@
 # 走查门岗「不存在断言没有基线」：按被比较的表达式归属，不按附近有没有界面观测词
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：absence-without-baseline 的归属判据换成语法树　线：I-walk-absence-attribution　类别：其他（只动门岗与测试工具；不花钱、不长跑、不可打断、无界面）
 
 触发：0.24.1 必带的中转视频线被 `node scripts/check-walkthroughs.mjs`（退出 1）挡住——`tests/ux/_relayVideoPaidSteps.mjs:49` 的 `expect(readCreates(), 'free preparation has not submitted a generation').toBe(0)` 比较的是 HTTP POST 次数，被判成「界面上的不存在断言」，只因往上 5 行内有 `locator(`。协调已定方向（P1 例外代批）：用语法树追到被比较的表达式，同提交删掉 5 行窗口，不新增分支或特例。方向说明：`docs/engineering/direction-checks/2026-10-30-walk-absence-attribution.md`。

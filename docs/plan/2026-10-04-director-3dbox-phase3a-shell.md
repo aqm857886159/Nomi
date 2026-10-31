@@ -1,5 +1,7 @@
 # 3D-BOX 段 3a：开关与导演视图外壳设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：Director 3D-BOX shell · 线/负责人：feat/director-3dbox-shell · 类别：[新界面]
 
 | 格 | 结论 | 证据 |

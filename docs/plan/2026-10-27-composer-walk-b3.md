@@ -1,5 +1,7 @@
 # 设计卡：生成框走查按 B3 重做——界面上选模型 + 本机回环供应商
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：`tests/ux/composer-overlap-and-fast-typing.walk.mjs` 按 B3 生成框重写；夜跑排除清单里它那一行的理由照实改
 线/负责人：I-composer-walk-b3（Mac，Claude）/ `test/composer-walk-b3`
 类别：[其他]（只改测试：一条走查 + 排除清单一行；不碰 `src/`、`electron/`）

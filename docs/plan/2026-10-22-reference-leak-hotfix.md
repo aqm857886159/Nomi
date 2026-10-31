@@ -1,5 +1,7 @@
 # 设计卡：参考图错发热修（只改发出去的东西）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 线：F-refleak-hotfix · 分支 `fix/reference-leak-hotfix`（基于 origin/main `97eab7bec`）· 花钱类，9 格全填。
 > 复盘与原型：`D:/Nomi-b1a/docs/audit/2026-10-22-composer-reference-slots-direction.md` 末节「main 上是否已存在」（#1269 工作区，未进主仓）。
 > 根因合同：[docs/fixes/2026-10-22-reference-leak-hotfix.root-cause.json](../fixes/2026-10-22-reference-leak-hotfix.root-cause.json) · 证据：[docs/evidence/2026-10-22-reference-leak-hotfix/](../evidence/2026-10-22-reference-leak-hotfix/README.md)

@@ -1,5 +1,7 @@
 # 方向检查：节点「几版」生命周期（2026-10-06，L-vcard）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 触发：`node scripts/fix-churn.mjs` 命中 `nodes/useNodeImageEditing.ts`（14 天第 3 刀）、`nodes/whiteboard/WhiteboardModal.tsx`（第 3 刀，目录同概念）、`store/canvasStoreTypes.ts`（第 3 刀）。V1 草稿还碰了 `store/canvasSnapshotNormalizer.ts`（第 4 刀），本次已撤回那一处改动，改在打开项目的迁移口补号。
 
 ### 0. 一句话根因

@@ -3,6 +3,8 @@
 
 # 方向检查：画板一打开就被自己关掉（RW，10-29 协调写，待用户拍板）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 **触发**：`node scripts/fix-churn.mjs` 报 `src/workbench/generationCanvas/nodes/whiteboard/InlineWhiteboard.tsx` 本文件 14 天已有 2 个 fix，这一刀是第 3 个；画板目录 14 天 7 个 fix。文件本身命中，不适用协调代批。
 
 **来源**：用户 10-29 逃逸「用的开发板创建好节点 一直点击画板 一直打不开」。证据见 `coord-handoff/reports/R-whiteboard-devmode.md`（Codex，84 步截图）和 `R-blockers-repro.md` 第 2 节。实现线把本页落到 `docs/plan/2026-10-29-whiteboard-session-lifecycle.direction-check.md`。

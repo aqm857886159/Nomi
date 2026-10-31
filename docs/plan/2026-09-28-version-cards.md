@@ -1,5 +1,7 @@
 # 节点版本卡片（原地铺开）· 实现方案
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：🔨 V1 数据层已实现未推送（2026-10-06，线 L-vcard，分支 `feat/version-cards`）；V2 渲染等对账页里的一处拍板（见 [2026-10-06 对账与设计卡](2026-10-06-version-cards-reconcile.md)）。样张已获批：[docs/design/mockups/2026-09-28-version-cards/](../design/mockups/2026-09-28-version-cards/README.md)（在线 https://claude.ai/artifact/56CiBTTYaRwANu6PTSo3ry ）。
 > 实现前先把本分支并上最新 `origin/main`；下文行号以 2026-09-28 的 `origin/main` 为准。
 
