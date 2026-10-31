@@ -219,7 +219,7 @@ export function LabCanvasNode({ nodeId, width, flash = false }: { nodeId: string
     <div className="relative" style={{ width: size.width, height: size.height + 72, paddingTop: 72 }} data-lab-canvas-node={nodeId}>
       <LabCanvasNodeHost width={size.width} height={size.height}>
         <div className={cn('generation-canvas-react-flow__node-shell size-full', externalHighlightShellClass(highlight))} data-external-highlight={highlight ?? undefined}>
-          <BaseGenerationNode node={{ ...target, size: { width: size.width, height: size.height } }} selected={false} readOnly waitingMotion="reduced" />
+          <BaseGenerationNode node={{ ...target, size: { width: size.width, height: size.height } }} selected={false} readOnly />
         </div>
       </LabCanvasNodeHost>
     </div>

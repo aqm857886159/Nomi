@@ -1,15 +1,6 @@
 import React, { type JSX } from 'react'
 
-/**
- * 进度驱动的马赛克渐显。
- *
- * img-fx 提供的是「按时间跑」的揭示动画；导入没有不确定的等待，它有真进度——
- * 已拷贝多少字节就该显出多少画面。所以格子的**数量**由比例决定，动画感由下面那层
- * img-fx shader 继续提供（我们不自己写 shader，也不改它的揭示）。
- *
- * 画到 ratio=1 时，画面就是这份素材将来挂上去的那张预览（同一个文件、同样 object-contain），
- * 所以覆盖层卸载时没有「换一张图」的闪烁。
- */
+/** Paint only newly transferred cells when the actual import byte ratio changes. */
 const CELL_PX = 16
 
 /** 同一张图每次都碎成同一副样子：稳定的伪随机序，重渲染/重挂载不会让已显出的格子跳位。 */
