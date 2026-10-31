@@ -15,7 +15,8 @@
     "多镜制作里失败的那一镜点重试（做片返工）"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1406,
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-11-01-reference-link-delivery.md",
