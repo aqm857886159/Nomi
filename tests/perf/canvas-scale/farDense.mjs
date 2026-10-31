@@ -46,11 +46,12 @@ export const FAR_DENSE_SAMPLE_KEYS = Object.freeze([
 
 /**
  * 量哪几档缩放：20%（反馈视频那一屏）、35%（Chromium 在 25% 以上把 will-change 层的栅格倍率钉在设备像素比，
- * 而我们的细节线在 55%——这一段屏上卡最多、栅格最贵）、55%（细节线本身：整卡最多的一档）。
+ * 而我们的细节线在 40%——35% 是轻量卡这一侧屏上卡最多、栅格最贵的一档）、55%（细节线之上：整卡的一档）。
+ * 细节线刚过去的 41%（同屏整卡最多）不在这里，由 canvas-scale-bench 的 L 档 --gesture-zoom 0.41 量。
  */
 export const FAR_DENSE_ZOOMS = Object.freeze([20, 35, 55])
 /** 细节线（同 src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts 的 LIGHTWEIGHT_NODE_ZOOM_THRESHOLD）。 */
-const DETAIL_LINE_PERCENT = 55
+const DETAIL_LINE_PERCENT = 40
 
 /**
  * 结构预算：不依赖显卡、在没有 GPU 的 CI 上也判得稳的硬数。任一样本超了，canvas-scale-bench 非 0 退出（统一跑法判 no-data，红），
@@ -78,7 +79,7 @@ export function farDenseStructureViolations(sample) {
 /** Chromium 的瓦片超限日志（cc/tiles/tile_manager.cc：需要现在画的瓦片放不下时每次都打一行；要 --enable-logging=stderr）。 */
 const TILE_OOM_LINE = /tile memory limits exceeded/
 const tileLogs = new WeakMap()
-function tileOomCounter(app) {
+export function tileOomCounter(app) {
   let counter = tileLogs.get(app)
   if (counter) return counter
   counter = { at: [] }
@@ -472,7 +473,7 @@ async function readStructure(page) {
 }
 
 /** 合成层数（CDP LayerTree；层由 DOM 和样式决定，不看显卡）。 */
-async function countLayers(page) {
+export async function countLayers(page) {
   const cdp = await page.context().newCDPSession(page)
   try {
     let layers = null

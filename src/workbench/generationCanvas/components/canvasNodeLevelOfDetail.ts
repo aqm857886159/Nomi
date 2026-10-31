@@ -9,7 +9,7 @@ import { canvasImageSourceOf, canvasVideoPosterOf, type CanvasImageSource } from
  * **和画布上一共有几个节点无关。** 旧判据「节点 > 80 且缩放 < 0.55」答不出反馈现场那一屏：60 张图（不到 80）缩到 20%，
  * 每张卡只有 64 × 36 屏幕像素，却照样画整卡、挂整卡的合成层，弱显卡上瓦片装不下就整块不画。
  */
-export const LIGHTWEIGHT_NODE_ZOOM_THRESHOLD = 0.55
+export const LIGHTWEIGHT_NODE_ZOOM_THRESHOLD = 0.40
 
 export type LightweightNodePreview =
   | { kind: 'image'; src: CanvasImageSource }
@@ -36,7 +36,11 @@ export function resolveLightweightNodePreview(input: {
 
 /**
  * 订阅原语（2026-09-25 画布跟手）：节点外壳只订这一个布尔，缩放跨过门槛才重渲。
- * 卡面正文 14px 的字在 0.55 倍下约 7.7px，读不出来了（同口径：ComfyUI 的 litegraph 用「最小可读字号 8px ÷ 14px」定远看低质量门槛）。
+ *
+ * 为什么是 0.40（2026-10-31 协调裁定，原 0.55）：A/B 显示缺块归零靠的是删 `will-change`；卡片变轻只在 20% 档省了瓦片（66→49MB）和每卡 DOM，
+ * 35%、55% 档没差别——0.55 把小画布在 40–55% 丢掉视频悬停试播、导演台「打开」、场景信息条，什么也没换来，而这一带正是创作者看全局的常用缩放。
+ * 40% 时 420 宽的卡屏上约 170px，试播和按钮还用得上；设备像素比 2 时 14px 的字约 11 物理像素，
+ * 同口径 litegraph（最小可读字号 8px ÷ 14px，按设备像素比 √2 算）8 ÷ (14×√2) ≈ 0.404，门槛落在它的下面一点。
  */
 export function isZoomedOutForLightweight(zoom: number): boolean {
   return zoom < LIGHTWEIGHT_NODE_ZOOM_THRESHOLD

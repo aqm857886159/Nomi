@@ -6,6 +6,7 @@ import { NodeShotLabel } from '../../generation/list/CanvasListLinks'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { docToPlainText } from '../../../../electron/shared/canvas/textNodeBody'
 import { getCanvasNodeVisualSize } from './generationCanvasGeometry'
 import { resolveLightweightNodePreview } from './canvasNodeLevelOfDetail'
 import { useNodeMediaMeasurement } from '../nodes/useNodeMediaMeasurement'
@@ -40,6 +41,9 @@ export function LightweightGenerationNode({
   const size = getCanvasNodeVisualSize(node)
   const bodyHeight = size.height - readNodeCardInfoHeight(node)
   const preview = resolveLightweightNodePreview(node)
+  // 文本卡的字：读整卡正文读的那个来源（contentJson 经 docToPlainText，整卡的字数、下游提示词也是它），不另写一份。
+  // 只有空白字符算没内容、走空态：整卡里那时也看不到字。写了字的卡缩远后不能和空卡一个样，否则创作者以为字没了。
+  const text = React.useMemo(() => (node.kind === 'text' ? docToPlainText(node.contentJson) : ''), [node.kind, node.contentJson])
   const mediaMeasurement = useNodeMediaMeasurement(node)
   const Icon = getGenerationNodeIcon(node.kind)
   // 「悬停也能拖」（用户 2026-10-12 拍板）远看时也算数：缩小画布往剪辑卡里拖素材就靠它。但几十张远看卡每张都挂一份
@@ -114,6 +118,9 @@ export function LightweightGenerationNode({
               controls={false}
               onLoadedMetadata={mediaMeasurement.onVideoMetadata}
             />
+          ) : text ? (
+            // 只读、不挂编辑器；字号 / 字色 / 内边距同整卡正文（TextDocumentNode 的 .ProseMirror），超出裁掉，不摘要、不加省略号。
+            <p data-node-text-preview className="pointer-events-none size-full overflow-hidden whitespace-pre-wrap break-words p-3 text-body-sm leading-5 text-nomi-ink-80">{text}</p>
           ) : (
             <NodeEmptyStateProvider engaged={false} readOnly>
               <NodeEmptyState icon={<Icon size={18} stroke={1.5} />} height={bodyHeight} strip={bodyHeight < EMPTY_STATE_COMPACT_MIN_HEIGHT} />

@@ -62,7 +62,7 @@ export type GenerationNodePluginDefinition<TKind extends string = string> = {
    */
   connects: { input: 'models' | readonly ReferenceAssetKind[] | false; output: boolean }
   /**
-   * 这一种卡自己管远看：缩到细节线（55%）以下也不换成通用轻量卡
+   * 这一种卡自己管远看：缩到细节线（40%）以下也不换成通用轻量卡
    * （2026-10-31 设计卡 docs/plan/2026-10-31-canvas-detail-admission.md ★2；读它的只有节点外壳的细节准入）。
    * 只有自己读画布缩放的卡才声明，目前两种：分镜表按缩放换画法（拍板稿图 4 的远 / 中 / 近三档，`shotTableDensityForZoom`）；
    * 剪辑卡的时间轴就是给缩小的画布用的（窄片段保点击下限，没选中也能在 50% 下接素材、拖片段，`clip-drop-zoom` 走查）。

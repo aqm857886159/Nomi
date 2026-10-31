@@ -20,7 +20,7 @@ import { shotTableDensityForZoom } from '../reactFlow/canvasViewportScale'
  */
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-const ZOOM_CELLS = [0.2, 0.3, 0.45, 0.549, LIGHTWEIGHT_NODE_ZOOM_THRESHOLD, 0.8, 1, 3] as const
+const ZOOM_CELLS = [0.2, 0.3, 0.399, LIGHTWEIGHT_NODE_ZOOM_THRESHOLD, 0.45, 0.55, 0.8, 1, 3] as const
 /** 旧判据的门槛两侧（80 / 81）和反馈现场（60）都在里面：任何「按节点数切」的判据都会在某一列翻。 */
 const NODE_COUNT_CELLS = [1, 20, 60, 80, 81, 150, 600] as const
 const INTERACTION_CELLS = [
@@ -63,7 +63,9 @@ describe('canvas detail admission matrix (zoom × node count × interaction × k
     }
   }
 
-  it('the zoom boundary: 0.55 is readable (full), just below it is not', () => {
+  it('the zoom boundary: 0.40 is readable (full), just below it is not; the old 0.55 line no longer lightens cards', () => {
+    expect(LIGHTWEIGHT_NODE_ZOOM_THRESHOLD).toBe(0.4)
+    expect(isZoomedOutForLightweight(0.549)).toBe(false)
     expect(isZoomedOutForLightweight(LIGHTWEIGHT_NODE_ZOOM_THRESHOLD)).toBe(false)
     expect(isZoomedOutForLightweight(LIGHTWEIGHT_NODE_ZOOM_THRESHOLD - 0.001)).toBe(true)
   })

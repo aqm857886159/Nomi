@@ -31,10 +31,10 @@ export const FULL_CANVAS_SCENARIOS = [
   { id: 'open-fit', script: 'tests/ux/canvas-open-fit.walk.mjs' },
   // 修饰键松开丢了（截图快捷键 / 输入法 / 拦 keyup 的编辑区）画布不许以为它还按着：点第二张不变多选、卡拖得动（2026-10-10）。
   { id: 'stuck-modifier', script: 'tests/ux/canvas-stuck-modifier.walk.mjs' },
-  // 细节线（55%）以下的剪辑流程：素材卡是轻量卡、把手悬停才挂；剪辑卡自己管远看，时间轴照样接素材、拖片段（2026-10-31）。
+  // 细节线（40%）以下的剪辑流程：素材卡是轻量卡、把手悬停才挂；剪辑卡自己管远看，时间轴照样接素材、拖片段（2026-10-31）。
   // 这两条走查以前不在套件里，「低缩放下能不能接着剪」差点被细节准入改动带坏。
-  { id: 'far-zoom-clip-drop', script: 'tests/ux/clip-drop-zoom.walk.mjs', env: { CLIP_DROP_ZOOMS: '50', CLIP_DROP_ONLY: 'D1' } },
-  { id: 'far-zoom-clip-gestures', script: 'tests/ux/clip-gesture-ownership.walk.mjs', env: { CLIP_GESTURE_ZOOMS: '50' } },
+  { id: 'far-zoom-clip-drop', script: 'tests/ux/clip-drop-zoom.walk.mjs', env: { CLIP_DROP_ZOOMS: '35', CLIP_DROP_ONLY: 'D1' } },
+  { id: 'far-zoom-clip-gestures', script: 'tests/ux/clip-gesture-ownership.walk.mjs', env: { CLIP_GESTURE_ZOOMS: '35' } },
 ]
 
 const VERSION_GRID_PERF_SCENARIOS = Object.freeze(['blank-pan', 'node-drag-image', 'wheel-zoom'])

@@ -724,7 +724,8 @@ async function prepareScenario(page, scenario) {
   const stage = await page.locator('.generation-canvas-v2__stage').boundingBox()
   if (!stage) throw new Error('画布 stage 不存在')
   await page.mouse.move(stage.x + stage.width * 0.5, stage.y + stage.height * 0.5)
-  const targetZoom = scenario === 'low-zoom-preview' || scenario === 'drag-at-low-zoom' ? 0.45 : 0.72
+  // 低缩放场景要落在细节线（0.40）以下才是轻量卡：滚轮缩到 0.35 及以下。
+  const targetZoom = scenario === 'low-zoom-preview' || scenario === 'drag-at-low-zoom' ? 0.35 : 0.72
   for (let index = 0; index < 20; index += 1) {
     const zoom = await page.evaluate(
       () =>
@@ -1622,10 +1623,10 @@ function sampleHardFailures(sample) {
     const zoom = sample.actionDetails?.zoom
     const lightweightNodeCount = sample.actionDetails?.settled?.lightweightCanvasNodes
     const lightweightPreviewCount = sample.actionDetails?.settled?.lightweightPreviewNodes
-    // 0.45 is the zoom this scenario drives to (prepareScenario); 0.55 is that
-    // target plus slack. It is NOT the LOD trigger — LOD judges on-screen card
-    // width — it only asserts the scenario actually reached low zoom.
-    if (!Number.isFinite(zoom) || zoom >= 0.55) {
+    // 0.35 is the zoom this scenario drives to (prepareScenario); 0.40 is the detail
+    // line (LIGHTWEIGHT_NODE_ZOOM_THRESHOLD). It asserts the scenario really reached
+    // the lightweight side of the line.
+    if (!Number.isFinite(zoom) || zoom >= 0.4) {
       failures.push(`low-zoom scenario did not settle at the low-zoom target: ${zoom ?? 'unknown'}`)
     } else if (!Number.isFinite(lightweightNodeCount) || lightweightNodeCount < 1) {
       failures.push('low-zoom scenario did not mount any lightweight nodes')

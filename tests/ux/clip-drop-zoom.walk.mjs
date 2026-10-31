@@ -1,12 +1,12 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 真实用户任务（第二片）：把素材从画布节点 / 素材库拖进剪辑节点的时间轴，窄片段在缩小的画布里也点得中，拖到轴边缘自动滚动；
-// 并且全局时间轴的裁剪手柄悬停即用、预览区取景拖动被打断后回到拖之前。画布缩放 50 / 100 / 150% 各一遍。
+// 并且全局时间轴的裁剪手柄悬停即用、预览区取景拖动被打断后回到拖之前。画布缩放 35 / 100 / 150% 各一遍。
 // 零模型额度：隔离项目 + 仓库里的测试图片；屏外窗口、真鼠标（CDP 输入，原生拖放也由它驱动）；不碰真实 Nomi 资料。
 // 用法：pnpm run build && node tests/ux/clip-drop-zoom.walk.mjs
-//   环境：CLIP_DROP_ZOOMS=50,100,150（默认）  NOMI_WALK_LOCALE=zh-CN|en  NOMI_WALK_SCHEME=light|dark
+//   环境：CLIP_DROP_ZOOMS=35,100,150（默认）  NOMI_WALK_LOCALE=zh-CN|en  NOMI_WALK_SCHEME=light|dark
 //         CLIP_DROP_SHOTS=<截图目录>  CLIP_DROP_ONLY=<步骤编号，逗号分隔：P4,P5,P6A,P6B,D1,G1,O1,V>
 // 步骤对应任务书卡点：P4 素材拖进剪辑节点、P5 悬停即用的拖放把手（把手 10-12 起在节点上边缘外、悬停才接指针）、P6A 窄片段点击下限、P6B 边缘自动滚动；G1 / O1 是第一片留下的同类入口。
-// 50% 低于细节线：素材卡是轻量卡，把手只在光标进卡时才挂（所以每一步都先把光标移进卡，这也是人拖的路径）。
+// 35% 低于细节线（40%）：素材卡是轻量卡，把手只在光标进卡时才挂（所以每一步都先把光标移进卡，这也是人拖的路径）。
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -16,7 +16,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { canvasSetZoomPercent } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const ZOOMS = (process.env.CLIP_DROP_ZOOMS ?? '50,100,150').split(',').map(Number)
+const ZOOMS = (process.env.CLIP_DROP_ZOOMS ?? '35,100,150').split(',').map(Number)
 const LOCALE = process.env.NOMI_WALK_LOCALE ?? 'zh-CN'
 const SCHEME = process.env.NOMI_WALK_SCHEME ?? 'light'
 const SHOT_DIR = process.env.CLIP_DROP_SHOTS ?? path.join(repoRoot, '.tmp', 'clip-drop-shots')

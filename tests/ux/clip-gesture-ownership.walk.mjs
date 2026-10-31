@@ -1,9 +1,9 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-// 真实用户任务：在画布剪辑节点里拖片段、拖播放头、拉裁剪手柄，在全局时间轴里拖片段——在画布缩放 50% / 100% / 150% 下各走一遍，
+// 真实用户任务：在画布剪辑节点里拖片段、拖播放头、拉裁剪手柄，在全局时间轴里拖片段——在画布缩放 35% / 100% / 150% 下各走一遍，
 // 并在拖动中被系统打断（pointercancel / 窗口失焦 / 丢失 pointer capture）。
 // 零模型额度：隔离项目 + 仓库里的测试图片；屏外窗口、真鼠标（CDP 输入）；不碰真实 Nomi 资料。
 // 用法：pnpm run build && node tests/ux/clip-gesture-ownership.walk.mjs
-//   环境：CLIP_GESTURE_ZOOMS=50,100,150（默认）  NOMI_WALK_LOCALE=zh-CN|en  NOMI_WALK_SCHEME=light|dark
+//   环境：CLIP_GESTURE_ZOOMS=35,100,150（默认）  NOMI_WALK_LOCALE=zh-CN|en  NOMI_WALK_SCHEME=light|dark
 //         CLIP_GESTURE_SHOTS=<截图目录>  CLIP_GESTURE_ONLY=<卡点编号,逗号分隔，默认全部>
 // 对应任务书 docs/plan/2026-10-09-clip-gesture-ownership.md 的 8 个卡点（P1..P8）；每个卡点一步，每个缩放档各跑一遍。
 import { launchNomiApp } from './_launchApp.mjs'
@@ -15,7 +15,7 @@ import { stationTimeout } from './_station-budget.mjs'
 import { canvasSetZoomPercent } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const ZOOMS = (process.env.CLIP_GESTURE_ZOOMS ?? '50,100,150').split(',').map(Number)
+const ZOOMS = (process.env.CLIP_GESTURE_ZOOMS ?? '35,100,150').split(',').map(Number)
 const LOCALE = process.env.NOMI_WALK_LOCALE ?? 'zh-CN'
 const SCHEME = process.env.NOMI_WALK_SCHEME ?? 'light'
 const SHOT_DIR = process.env.CLIP_GESTURE_SHOTS ?? path.join(repoRoot, '.tmp', 'clip-gesture-shots')

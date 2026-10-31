@@ -5,7 +5,7 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 import { expect } from '@playwright/test'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { addCanvasNode, canvasResetView } from './_shell.mjs'
+import { addCanvasNode, canvasResetView, canvasZoomPercent } from './_shell.mjs'
 import { screenshotSettled, waitForVisualQuiescence, proveProbe, expectAbsent } from './_assert.mjs'
 import { findCanvasBlankPoint, waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -142,10 +142,12 @@ try {
     const farCardKinds = kinds.filter((kind) => !farOwners.includes(kind))
     const dense = Array.from({ length: 81 }, (_, i) => fixture(kinds[i % kinds.length], `dense-${i}`, { x: 120 + (i % 7) * 370, y: 120 + Math.floor(i / 7) * 280 }))
     await put(dense)
-    for (let i = 0; i < 3; i += 1) {
+    // 细节线 40%：从 100% 每点一下缩小 ×0.8，要点 5 下（33%）才低于它（点 3 下是 51%，已经是整卡）。
+    for (let i = 0; i < 5; i += 1) {
       await win.getByRole('button', { name: locale === 'en' ? 'Zoom out' : '缩小', exact: true }).click()
       await waitForCanvasViewportSettled(win)
     }
+    expect(await canvasZoomPercent(win), 'far section runs below the 40% detail line').toBeLessThan(40)
     await expect.poll(() => win.locator('article[data-render-mode="lightweight"]').count()).toBeGreaterThanOrEqual(farCardKinds.length)
     await expectAbsent(win.locator(`article[data-node-id]:not([data-render-mode="lightweight"])${farOwners.map((kind) => `:not([data-kind="${kind}"])`).join('')}`), { provenBy: fullNodeProbe })
     for (let i = 0; i < kinds.length; i += 1) {
@@ -158,7 +160,7 @@ try {
       expect(badge.y + badge.height, `${kinds[i]} LOD mark fits the body bottom`).toBeLessThanOrEqual(bounds.y + bounds.height + 0.5)
     }
     await shot('03-dense-zoomed-out')
-    check('guidance.lod.type-marks', `81-node canvas at 51% via original zoom controls retains canonical type marks across the ${farCardKinds.length} kinds on the generic far card`)
+    check('guidance.lod.type-marks', `81-node canvas below the 40% detail line (5 zoom-out clicks) via original zoom controls retains canonical type marks across the ${farCardKinds.length} kinds on the generic far card`)
     await put([fixture('audio', 'audio-idle')])
     await proveProbe(node('audio-idle').locator('[data-node-inline-title]'), 'idle audio has its external name')
     for (const status of ['queued', 'running', 'error']) {

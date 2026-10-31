@@ -28,7 +28,7 @@ export const MULTI_DRAG_NODE_COUNT = 8
 
 /** LOD trigger constants mirrored from canvasNodeLevelOfDetail.ts (kept in sync
  * by the guard test dragScenarios.test.mjs, which imports the source values). */
-export const LIGHTWEIGHT_ZOOM_CEILING = 0.55
+export const LIGHTWEIGHT_ZOOM_CEILING = 0.40
 
 function sleep(page, ms) {
   return page.waitForTimeout(ms)

@@ -431,7 +431,7 @@ try {
   await expectVisible(restoredImage, '冷启动后导演截图没有在画布显示')
   await expect.poll(() => restoredImage.evaluate((element) => element.complete && element.naturalWidth > 0)).toBe(true)
   await screenshotSettled(reopened, { path: path.join(shotsDir, '13-saved-reopened.png') })
-  // 适应视图常落在细节线（55%）以下：远看的卡是轻量卡，「打开」在整卡上，先点一下选中（人也是这么做）。
+  // 适应视图可能落在细节线（40%）以下：远看的卡是轻量卡，「打开」在整卡上，先点一下选中（人也是这么做）。
   const reopenedDirector = reopened.locator(`[data-node-id="${DIRECTOR_ID}"]`)
   if (await reopenedDirector.getAttribute('data-render-mode') === 'lightweight') await clickOrFail(reopenedDirector, '冷启动选中导演卡')
   await clickOrFail(reopenedDirector.getByTestId('director-node-open'), '冷启动重开原导演场景')

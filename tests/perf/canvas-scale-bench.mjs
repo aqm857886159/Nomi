@@ -38,7 +38,7 @@ import { findCanvasBlankPoint } from '../ux/_canvasHit.mjs'
 import { AUTO_PAN_SAFE_MARGIN_PX } from '../ux/canvas-perf/gestureGeometry.mjs'
 import { canvasFitViewButton } from '../ux/_shell.mjs'
 import { WORKBENCH_SCENARIOS, prepareWorkbenchLaunch, runWorkbenchScenario } from './canvas-scale/workbenchScenarios.mjs'
-import { FAR_DENSE_LAUNCH_ARGS, FAR_DENSE_LAUNCH_ENV, FAR_DENSE_SAMPLE_KEYS, FAR_DENSE_SCALES, FAR_DENSE_SCENARIOS, createFarDenseFixture, farDenseStructureViolations, runFarDensePan } from './canvas-scale/farDense.mjs'
+import { FAR_DENSE_LAUNCH_ARGS, FAR_DENSE_LAUNCH_ENV, FAR_DENSE_SAMPLE_KEYS, FAR_DENSE_SCALES, FAR_DENSE_SCENARIOS, countLayers, createFarDenseFixture, farDenseStructureViolations, runFarDensePan, tileOomCounter } from './canvas-scale/farDense.mjs'
 import { IPC_PROBE_MODULE, startDiagnostics } from './canvas-scale/diagnostics.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -92,7 +92,7 @@ if (hasArg('--help') || hasArg('-h')) {
   --gpu-mem-mb 把合成器的 GPU 瓦片预算钉成 N MiB（--force-gpu-mem-available-mb；512 = 桌面默认下限，16 = 压测档）
   --dpr        强制设备像素比，窗口按 1920×1040 物理像素折算（1.25 / 1.5 = Windows 1080p 125% / 150%）。
                不给时页面是设备像素比 1：启动器的 setViewportSize（Playwright）把页面钉在 1，Retina 也一样
-  --gesture-zoom  适应视图后先滚轮放大到不低于这个缩放再量（0.56 = 刚过整卡线，同屏整卡最多）；默认只有 select-composer 放大到工作缩放
+  --gesture-zoom  适应视图后先滚轮放大到不低于这个缩放再量（0.41 = 刚过整卡线 0.40，同屏整卡最多）；默认只有 select-composer 放大到工作缩放
   --runs       每个场景采样次数（默认 3，取中位数）
   --warmup     每个场景先做几次不计的预热（默认 0）
   --extra-projects  库里另放 N 个小项目（默认 0）
@@ -840,14 +840,16 @@ async function main() {
             ...(gpuMemMb ? [`--force-gpu-mem-available-mb=${gpuMemMb}`] : []),
             ...(forcedDpr ? [`--force-device-scale-factor=${forcedDpr}`] : []),
             // 远看密集要数 Chromium 自己的瓦片超限日志：只给这一类场景开日志，别的场景不多一路 stderr。
-            ...(FAR_DENSE_SCENARIOS.includes(scenario) ? FAR_DENSE_LAUNCH_ARGS : []),
+            ...(FAR_DENSE_SCENARIOS.includes(scenario) || gestureZoom ? FAR_DENSE_LAUNCH_ARGS : []),
           ],
           mainRequire: [...(extra.mainRequire ?? []), ...(onscreen ? [] : [OFFSCREEN_MODULE]), ...(diagOut ? [IPC_PROBE_MODULE] : [])],
           initialLocalStorage: { ...FIRST_RUN_SEEN, ...(extra.initialLocalStorage ?? {}) },
-          env: { NOMI_DISABLE_AUTO_UPDATE: '1', ...(FAR_DENSE_SCENARIOS.includes(scenario) ? FAR_DENSE_LAUNCH_ENV : {}), ...(extra.env ?? {}) },
+          env: { NOMI_DISABLE_AUTO_UPDATE: '1', ...(FAR_DENSE_SCENARIOS.includes(scenario) || gestureZoom ? FAR_DENSE_LAUNCH_ENV : {}), ...(extra.env ?? {}) },
           foreground: onscreen ? '画布性能量具需要在屏幕上显示窗口' : undefined,
         })
         app = launched.app
+        // 给了 --gesture-zoom（量「刚过整卡线」的最坏一档）时一并数 Chromium 的瓦片超限日志和合成层数：这一档的主要风险就是整卡太多、瓦片装不下。
+        const tileCounter = gestureZoom ? tileOomCounter(app) : null
         const page = launched.win
         page.on('pageerror', (error) => console.log(`    [pageerror] ${String(error?.message || error).slice(0, 160)}`))
         let dprSession = null
@@ -889,6 +891,7 @@ async function main() {
           activeCdp = cdp
           const workbench = { app, runIndex, state: workbenchState, extras }
           if (diagOut && runIndex === warmup) diagPending = { app, outDir: path.resolve(diagOut), label: `${scale}-${scenario}` }
+          const tileBefore = tileCounter ? tileCounter.at.length : 0
           const outcome = wantProfile
             ? await collectProfile(cdp, () => runScenario(page, scenario, fixture, workbench))
             : { result: await runScenario(page, scenario, fixture, workbench), top: null }
@@ -902,6 +905,7 @@ async function main() {
           }
           const summary = summarize(scenarioResult.raw)
           if (!summary) { console.log(`  [${scenario}] run${runIndex} 没有采到帧`); continue }
+          if (tileCounter) Object.assign(summary, { tileOomLines: tileCounter.at.length - tileBefore, layers: await countLayers(page).catch(() => null) })
           // profile 腿自己会抬高 script 时间（采样器开销），所以它的 CDP 差值不进中位数样本。
           Object.assign(summary, { loadAvg1: Math.round(os.loadavg()[0] * 10) / 10 })
           if (!wantProfile) Object.assign(summary, { cdpScriptMs: cdpDelta?.scriptMs ?? null, cdpStyleMs: cdpDelta?.styleMs ?? null, cdpLayoutMs: cdpDelta?.layoutMs ?? null, cdpTaskMs: cdpDelta?.taskMs ?? null, cdpLayoutCount: cdpDelta?.layoutCount ?? null, cdpStyleCount: cdpDelta?.styleCount ?? null, jsHeapMb: cdpDelta?.jsHeapMb ?? null })
