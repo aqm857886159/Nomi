@@ -616,6 +616,7 @@ describe('窗口一直开着：渲染层等够宽限、不再等这一笔之后'
       await i18n.changeLanguage(language)
       const markup = renderToStaticMarkup(createElement(NodeErrorReport, { message, nodeId: NODE_ID, run: { id: 'rec-2' }, meta: {}, onRetry: () => {} }))
       expect(markup, `card in ${language}`).toContain(i18n.t('generationCommon.observability.error.nodeInFlight.reason'))
+      expect(markup, `card in ${language}`).toContain(i18n.t('generationCommon.observability.error.nodeInFlight.hint'))
       expect(markup, `card in ${language}`).not.toContain('node_generation_in_flight')
     }
     await i18n.changeLanguage('zh-CN')

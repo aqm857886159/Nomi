@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "change": {
+    "title": "钱花了、任务号还在的单子只取回",
+    "headSha": "107435978622157beea3daa8b7c31f9d02bd5684",
+    "headNote": "产品源码停在这个提交，走查用这份源码的构建跑。之后的提交只有走查步骤、矩阵断言和证据。",
+    "userCan": "关窗、重启、模型或 Key 暂时用不了、窗口一直开着等很久，花了钱的这一单都能取回，不会再扣一次；这单不要了，标记失败才给重新生成。"
+  },
+  "scenarioId": "browse-away-during-long-task",
+  "verifier": {
+    "line": "implementation",
+    "kind": "实施自验，非独立验收"
+  },
+  "date": "2026-10-31",
+  "machine": {
+    "source": "walk-log",
+    "env": {
+      "device": "macOS arm64，真实隔离 Electron",
+      "window": "1280×860，浅色；关窗、重启、断网、模型被关、窗口一直开着",
+      "language": "zh-CN / en",
+      "boundary": "零花费环回假供应商，不是真实供应商延迟。真付费由协调跑，这一页不代签。"
+    },
+    "attempts": [
+      {
+        "label": "修复前矩阵：取回恢复",
+        "result": "fail",
+        "note": "77 格红 29 格：取回失败后主按钮是重试，点了 POST=2；落地崩在中途后节点一直锁着。"
+      },
+      {
+        "label": "修复前矩阵：本机查不了",
+        "result": "fail",
+        "note": "窗口开着、关窗、重启 × 供应商关、模型关、Key 没了，9 格都是 GET 0、POST 1，记成供应商失败，主按钮重试。"
+      },
+      {
+        "label": "走查第 1 轮中文",
+        "result": "fail",
+        "note": "拒跑：探针放在 src/，构建戳对不上。一分钱没花。探针挪到 tests/。"
+      },
+      {
+        "label": "走查第 2 轮中文",
+        "result": "fail",
+        "note": "窗口重开后第二个节点在屏幕外，点不到生成按钮，超时。步骤改成像人一样先看全。"
+      },
+      {
+        "label": "走查第 3 轮中文、英文",
+        "result": "pass",
+        "note": "前三段通过。主按钮截图是悬停样子，步骤改成先挪开鼠标，重拍。"
+      },
+      {
+        "label": "走查第 4 轮中文、英文",
+        "result": "pass",
+        "note": "前三段通过。这时还没有本机查不了和窗口开着放手。"
+      },
+      {
+        "label": "走查第 5 轮中文",
+        "result": "pass",
+        "note": "八段通过。还查得到那段的截图太小、断言读的是卡上不显示的那一句，改步骤后重跑，见下面两行。"
+      },
+      {
+        "label": "最终步骤英文",
+        "result": "pass",
+        "note": "八段通过：POST 1、1、1、1、1、1、2、5（最后一段三单加两次用户明确的重试）；点一下即现 79ms，这一下 GET 0。",
+        "evidence": "docs/evidence/2026-10-31-run-retrieval-recovery/en-window-open-3-landed.png"
+      },
+      {
+        "label": "最终步骤中文",
+        "result": "pass",
+        "note": "八段通过：POST 同上；点一下即现 62ms，这一下 GET 0。",
+        "evidence": "docs/evidence/2026-10-31-run-retrieval-recovery/zh-CN-window-open-3-landed.png"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "取回失败后按主按钮走，这一单的 POST 数",
+        "unit": "次",
+        "baseline": 2,
+        "current": 1,
+        "n": 2,
+        "basis": "script-count",
+        "note": "环回假供应商数的真请求。baseline 是修复前矩阵，current 是两轨走查的关窗和重启段。"
+      },
+      {
+        "name": "本机查不了时点重新取回发出去的查询",
+        "unit": "次",
+        "baseline": 0,
+        "current": 0,
+        "n": 6,
+        "basis": "script-count",
+        "note": "这一项没变也不该变：一个请求都发不出去。变的是卡上的话和主按钮。"
+      },
+      {
+        "name": "后台已查到结果时，点重新取回到节点显示",
+        "unit": "ms",
+        "baseline": null,
+        "current": 79,
+        "n": 2,
+        "basis": "script-count",
+        "note": "两轨 62 和 79，取较大的。这一下 GET 0、POST 0。环回本机，不代表真实素材大小。"
+      }
+    ]
+  },
+  "human": {
+    "seq": null,
+    "events": {
+      "misclicks": null,
+      "backtracks": null,
+      "helpRequests": null,
+      "firstAttemptSuccess": null
+    },
+    "note": "没有真人评分和人工事件观察。"
+  },
+  "guardrails": [
+    {
+      "name": "任务号还在时，主按钮不是重试",
+      "result": "pass",
+      "evidence": "矩阵每格读真错误卡的主按钮；两轨走查的错误卡截图"
+    },
+    {
+      "name": "没问过供应商，不说供应商失败",
+      "result": "pass",
+      "evidence": "矩阵本机查不了各格；分类器测试遍历族里每个码，换判据前后 18 个旧码逐项不变"
+    },
+    {
+      "name": "窗口开着不锁死：标记失败再重试走得通，单还在跑时挡住并说清",
+      "result": "pass",
+      "evidence": "矩阵窗口开着那组；走查 window-open 段。反例拿掉放手，矩阵红 9 项，全部红 13 项"
+    },
+    {
+      "name": "Run 已完成时标记失败，产物不丢",
+      "result": "pass",
+      "evidence": "矩阵那一格走和素材面板同一条列文件的路；走查 window-open-5-in-assets 截图"
+    },
+    {
+      "name": "走查启动不抢前台",
+      "result": "pass",
+      "evidence": "最终两轨退出码 0，没有启动守卫红"
+    }
+  ],
+  "friction": {
+    "moment": "后台已经查到结果，节点上还是可找回那张卡，要点一下才显示。",
+    "decision": "协调定：不加从后台到节点的新通道。这一下点的是卡上本来就让点的按钮，立刻出，不联网不花钱。"
+  },
+  "coordinatorDecision": "后台在查时点重新取回，素材库可能多一份相同文件，不多扣钱，记为已知限制，矩阵钉住不超过两份且字节相同。",
+  "unverified": [
+    {
+      "item": "真付费一次",
+      "owner": "协调",
+      "recheck": "脚本 tests/ux/run-retrieval-recovery-real.paid.mjs 已备好，演练用同一个断网已过；本线没跑。"
+    },
+    {
+      "item": "独立验收",
+      "owner": "协调",
+      "recheck": "四类改动，合并前另一条线核。"
+    },
+    {
+      "item": "Windows、真断电、窄窗、暗色",
+      "owner": "协调",
+      "recheck": "有对应环境时跑；短写只用切日志模拟过。"
+    },
+    {
+      "item": "批次路在本机查不了时的表现",
+      "owner": "协调",
+      "recheck": "这个 PR 只改单镜 Run；批次路读代码看对抛错是继续等，没实跑。"
+    },
+    {
+      "item": "真人 SEQ 和人工事件",
+      "owner": "协调",
+      "recheck": "有参与者时测，当前为 null。"
+    }
+  ],
+  "evidence": [
+    "tests/run-retrieval-recovery/matrix.test.mjs",
+    "tests/fixtures/run-retrieval-recovery-cases.json",
+    "tests/ux/run-retrieval-recovery-real.rehearsal.walk.mjs",
+    "docs/evidence/2026-10-31-run-retrieval-recovery/",
+    "docs/plan/2026-10-31-run-retrieval-recovery.md"
+  ]
+}

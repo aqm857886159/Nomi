@@ -23,7 +23,7 @@ function labelsFor(locale) {
     markFailed: text('generationCommon.recoverable.dismiss'),
     timedOut: text('generationCommon.recoverable.title'),
     unavailable: text('generationCommon.recoverable.unavailableTitle'),
-    stillRunning: text('generationCommon.observability.error.nodeInFlight.reason'),
+    stillRunning: text('generationCommon.observability.error.nodeInFlight.hint'),
     projectAssets: text('assetLibrary.projectAssets'),
   }
 }
@@ -217,6 +217,12 @@ export async function windowOpenJourney(ctx) {
   const status = async node => (await nodeFact(page, node.id)).status
   const card = node => page.locator(`.react-flow__node[data-id="${node.id}"]`)
   const button = (node, name) => card(node).getByRole('button', { name, exact: true })
+  // 产品自己的对焦（只跳不选）：三个节点一起看太小，要点哪一个、拍哪一个，先把它拉到跟前。
+  const focus = async (node) => {
+    await page.evaluate(nodeId => window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId, select: false } })), node.id)
+    await page.mouse.move(2, 2)
+    await waitForVisualQuiescence(page)
+  }
   const settledShot = async (name, locator) => { await page.mouse.move(2, 2); await waitForVisualQuiescence(page); await shot(name, locator) }
 
   for (const node of [a, b, c]) await expect.poll(() => status(node), { timeout: 180_000 }).toBe('recoverable')
@@ -225,6 +231,7 @@ export async function windowOpenJourney(ctx) {
   const getsWhenRendererStopped = gets()
   await expect.poll(gets, { timeout: 60_000 }).toBeGreaterThan(getsWhenRendererStopped)
 
+  await focus(a)
   await button(a, labels.markFailed).click()
   await expect(button(a, labels.retry)).toBeVisible({ timeout: 10_000 })
   await button(a, labels.retry).click()
@@ -240,6 +247,7 @@ export async function windowOpenJourney(ctx) {
   expect(posts()).toBe(postsAtStart + 3)
 
   // b：结果已经在项目里，节点没变；点一下即现，这一下不联网。
+  await focus(b)
   await expect(button(b, labels.retrieve)).toBeVisible()
   expect(await status(b)).toBe('recoverable')
   await settledShot(`${scenario}-2-finished-still-recoverable`, card(b))
@@ -255,6 +263,7 @@ export async function windowOpenJourney(ctx) {
   await settledShot(`${scenario}-3-landed`, card(b))
 
   // c：跑完了，用户选了标记失败：产物不丢，素材里找得到。
+  await focus(c)
   await button(c, labels.markFailed).click()
   await expect(button(c, labels.retry)).toBeVisible({ timeout: 10_000 })
   await settledShot(`${scenario}-4-finished-marked-failed`, card(c))
@@ -268,7 +277,7 @@ export async function windowOpenJourney(ctx) {
   // 重试才算第二单，这是用户明确选的。
   const retryLands = async (node) => {
     const before = posts()
-    await canvasFitView(page)
+    await focus(node)
     await button(node, labels.retry).click()
     await expect.poll(posts, { timeout: 30_000 }).toBe(before + 1)
     finishJobs()
