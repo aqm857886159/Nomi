@@ -60,7 +60,7 @@ export class AnonymousAssetConsentRequiredError extends Error {
   }
 }
 
-/** sidecar originalUrl 的**候选窗**：kie ~3 天 / apimart 72h 的安全下界。窗内的临时直链才有资格被发出去，
+/** sidecar originalUrl 的**候选窗**：已接入的两家服务商的临时链接寿命（约 3 天 / 72 小时）的安全下界。窗内的临时直链才有资格被发出去，
  *  **但发不发由 `localizeAssetsForVendor` 发之前试一下再定**（这个数是对别家寿命的猜测，接入别的服务后不成立）；
  *  过窗直接走上传链用本地字节换新链，不试探。ageMs 未知（老调用方/stat 失败）按在窗内处理。 */
 export const ORIGINAL_URL_TRUST_MS = 48 * 60 * 60 * 1000;
