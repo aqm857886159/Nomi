@@ -495,14 +495,14 @@
         "PB19",
         "PB19.3a"
       ],
-      "rule": "多智能体编排：任务书带开工三行头与概念占用；收货三查；一个概念一个 PR、按阶段攒（提交不压缩）；协调会话运作见编排手册。省 token：①派活前先数轮次（同一处第 3 轮就停，改派复盘）；②协调会话不读大文件全文，先看大小和标题再按段读，读子 agent 结论不读过程；③子 agent 同时最多 3 个（含续跑）、默认 Sonnet，只有根因未定 / 碰花钱边界 / 结构改动才用 Opus，不再派子 agent；④任务书写清范围、不碰清单和停点，交货报告要短；⑤确定性的活用脚本不交给模型；⑥长输出落文件只看摘要，同一文件不反复读；⑦卡住 3 次就停下报告。",
+      "rule": "多智能体编排：任务书带开工三行头与概念占用；收货三查；一个概念一个 PR、按阶段攒（提交不压缩）；协调会话运作见编排手册。省 token：①派活前先数轮次（同一处第 3 轮就停，改派复盘）；②协调会话不读大文件全文，先看大小和标题再按段读，读子 agent 结论不读过程；③子 agent 同时最多 3 个（含续跑）、默认 Sonnet，只有根因未定 / 碰花钱边界 / 结构改动才用 Opus，不再派子 agent；④任务书写清范围、不碰清单和停点，交货报告要短；⑤确定性的活用脚本不交给模型；⑥长输出落文件只看摘要，同一文件不反复读；⑦卡住 3 次就停下报告；⑧设计派线、等待、上下文、线型之前先读官方的缓存 / 计费 / 上下文文档，写出对这次设计的影响，用真实 usage 算账再定取舍，做完再用 usage 验证。",
       "disease": "派工混乱、合并失控",
       "enforcement": [
         "coordinator-tool:scripts/merge-preflight.mjs",
         "coordinator-tool:scripts/check-dispatch-brief.mjs",
         "hook:self-check(省 token 块)"
       ],
-      "evidence": "docs/engineering/agent-orchestration-playbook.md（§19 运作、§20 省 token）；2026-10-04 导演编译器第五轮修补是派工层没数轮次、协调层读全文又派工的典型",
+      "evidence": "docs/engineering/agent-orchestration-playbook.md（§19 运作、§20 省 token）；2026-10-04 导演编译器第五轮修补是派工层没数轮次、协调层读全文又派工的典型；`docs/lessons/read-official-cache-rules-before-designing-lines.md`（2026-10-31 等待脚本超过子线缓存寿命）",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "不适用",
