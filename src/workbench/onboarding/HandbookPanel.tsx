@@ -6,6 +6,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
+import { useModalInputLayer } from '../../design/modalInputLayer'
 import {
   IconAlertCircle,
   IconAlertTriangle,
@@ -76,6 +77,7 @@ function SectionTitle({ children }: { children: React.ReactNode }): JSX.Element 
 }
 
 export function HandbookPanel({ opened, onClose }: Props): JSX.Element | null {
+  useModalInputLayer(opened)
   const { t, i18n } = useTranslation()
   const content = handbookContentForLocale(i18n.resolvedLanguage || i18n.language)
   React.useEffect(() => {

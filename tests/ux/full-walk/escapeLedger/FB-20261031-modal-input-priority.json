@@ -1,0 +1,26 @@
+{
+  "id": "FB-20261031-modal-input-priority",
+  "since": "2026-10-31",
+  "source": "独立验收线在隐藏面输入统一的验收中发现的既有缺口，真实隔离 Electron 中英两轨复现；detected_by: review。不是用户直接报告。",
+  "category": "interaction-semantics",
+  "problem": "真实确认框开着时按 Delete，画布上选中的节点被删（节点 1→0）。整类缺口：模态开着时工作区面的键盘、粘贴、指针手势都没有共享的让路规则。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "弹层开着时按键只作用于弹层，工作区不动",
+    "弹层关掉后快捷键第一下就恢复",
+    "只盖画布那一格的灯箱不挡旁边的时间轴"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "tests/ux/modal-input-priority.walk.mjs",
+    "src/workbench/shortcutSurface.modalLayer.matrix.test.ts",
+    "src/workbench/modalInputLayerCensus.test.ts",
+    "docs/fixes/2026-10-31-modal-input-priority.root-cause.json"
+  ],
+  "completionCommits": []
+}
