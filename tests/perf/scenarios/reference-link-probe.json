@@ -16,8 +16,12 @@
   "budget": 100,
   "budgetStatus": "proposed",
   "budgetBasis": "主指标 probeOverheadMs = 一个请求带 14 张新图时，试探总耗时超出一次往返的毫秒数。一起发的话应只多出调度开销，预算取操作到可见反馈的默认 ≤100ms（docs/engineering/perf-scenarios.md 默认预算）；逐张串行会多出约 13 × 200ms = 2600ms，所以这个预算同时是对「试探必须并发」的硬约束。batchOverheadMs 与 probeBytesPerLink 只打印：前者是批量下的同类数字，后者是每条约 1KB 的下载量。去重（同一张图只发一个 GET）在量具里是硬断言，不是指标。",
-  "measurement": {
-    "state": "pending",
-    "reason": "量具已写并本地冒烟过，基线与批准由协调在安静窗口量（实现线不写基线）"
+  "baseline": {
+    "median": 7.2,
+    "p95": 15,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-31",
+    "commit": "f6250344d"
   }
 }
