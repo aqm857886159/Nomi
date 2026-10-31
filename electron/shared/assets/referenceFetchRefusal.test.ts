@@ -30,6 +30,7 @@ const REFUSALS: Case[] = [
   ["中文：下载输入图片失败", { text: "下载输入图片失败（HTTP 403）" }],
   ["中文：参考图链接已过期", { text: "参考图链接已过期或无法访问" }],
   ["中文：输入媒体 URL 无法获取", { text: "输入媒体 URL 无法获取（403/404/410）" }],
+  ["中文：图片地址无法访问", { text: "图片地址无法访问，请检查后重试" }],
 ];
 
 // 说法长得像、但说的是别的失败：取结果 / 下载产物 / 任务 / 上传 / 模型 / 拦截。它们的下一步各不相同，不能进这张卡。
@@ -48,6 +49,15 @@ const NOT_REFUSALS: Case[] = [
   ["网络层 fetch failed", { text: "Provider request failed (network) at relay GET https://relay.example.com/v1/tasks/abc: fetch failed" }],
   ["账户额度用完", { text: "The account has run out of credit for this request" }],
   ["不相关的错误码", { upstreamCode: "model_not_found", text: "" }],
+  // 这个判据全 App 的错误都会问（画布节点、Agent 面板、分镜、浏览器提取），下面这些都不是「模型拉不到参考」
+  ["本机读文件失败", { text: "Failed to read the file: ENOENT: no such file or directory" }],
+  ["界面加载图片失败", { text: "Could not load the image preview" }],
+  ["连不上接口地址", { text: "Failed to access the API URL" }],
+  ["连不上 base URL", { text: "Could not reach the base URL" }],
+  ["中转站连不上它的上游", { text: "Failed to fetch upstream URL" }],
+  ["我们自己的转写报错（中文）", { text: "转写失败：音频地址无法访问" }],
+  ["我们自己的转写报错（英文）", { text: "Transcription failed: the audio URL is unreachable" }],
+  ["中文：接口地址无法访问", { text: "接口地址无法访问，请检查连接" }],
   ["空", { text: "" }],
 ];
 

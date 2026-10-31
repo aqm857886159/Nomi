@@ -257,6 +257,7 @@
     "electron/assets/providerMediaFetch.probe.test.ts",
     "electron/shared/assets/referenceFetchRefusal.test.ts",
     "electron/productionRun/productionGenerationSubmission.referenceRefusal.test.ts",
+    "electron/capabilityCore/appIntegrationProductionActions.test.ts",
     "electron/productionRun/reworkReferenceLinks.test.ts",
     "electron/capabilityCore/productionReferenceUrls.test.ts",
     "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"

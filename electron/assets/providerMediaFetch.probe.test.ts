@@ -203,6 +203,12 @@ describe("probeProviderLink：链接状态 → alive / dead / unknown", () => {
   });
 });
 
+describe("probeProviderLink：线路造不出来", () => {
+  it("这条连接的代理地址写坏了：判断不了，不抛（返工那条路不接异常，抛了就成了内部错误）", async () => {
+    await expect(probeProviderLink("https://tmp.example.com/broken-proxy.png", { providerNetwork: { proxyUrl: "::not a url::" } })).resolves.toBe("unknown");
+  });
+});
+
 describe("probeProviderLink：去重与记忆", () => {
   it("同一条链接并发只发一个 GET", async () => {
     const results = await Promise.all(Array.from({ length: 12 }, () => probe("/range-206")));

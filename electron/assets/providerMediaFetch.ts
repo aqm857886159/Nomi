@@ -204,6 +204,8 @@ export function probeProviderLink(
   if (pending) return pending;
   const startedAt = Date.now();
   const run = probeOnce(url, options, dependencies)
+    // 线路都造不出来（这条连接的代理地址写坏了）：说不清链接死活，当判断不了。调用方不用各自防这个函数抛。
+    .catch((): ProviderLinkVerdict => "unknown")
     .then((verdict) => {
       remember(url, verdict, now());
       // 日志只是留证据：写不了（目录不可写、没有 electron）不能把一个已经得出的结论变成失败。

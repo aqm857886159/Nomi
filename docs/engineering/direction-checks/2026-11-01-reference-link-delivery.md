@@ -8,6 +8,7 @@
 - 目录 `src/workbench/observability/`：近 14 天 8 个 fix。
 - 概念「生成错误怎么说成人话（错误 → 人话与动作）」：近 14 天 8 个 fix。
 - `src/i18n/locales/generationCommon.ts#observability`：近 14 天 7 个 fix。
+- `electron/capabilityCore/appIntegrationProductionActions.ts`：文件近 14 天 4 个 fix。概念「画布返工 / 续拍没做成怎么跟用户说（失败码 → 人话）」：近 14 天 5 个 fix。这里只多一步：返工前按同一条规则问要不要换链接。那几个 fix 修的是失败码的说法，和这一步不是同一件事。
 
 来源是逃逸账本的修复。结账挂的类检查是矩阵测试 `electron/catalog/referenceLinkDelivery.matrix.test.ts`。
 

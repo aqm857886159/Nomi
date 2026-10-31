@@ -25,7 +25,12 @@ function normalizeCode(code: string | undefined): string {
 const CODE_IN_TEXT = new RegExp(`\\b(?:${[...REFUSAL_UPSTREAM_CODES].join("|")})\\b`, "i");
 
 const NEG = String.raw`(?:could\s*not|couldn'?t|cannot|can'?t|can\s+not|unable\s+to|failed\s+to|fails?\s+to|not\s+able\s+to)`;
+/** 句子里明说了「输入 / 参考的链接」：证据够硬，动词可以宽。 */
 const FETCH = String.raw`(?:fetch|download|retriev|access|load|read|reach|resolve|get|pull)\w*`;
+/** 只有「链接 / 输入」这种词跟在后面：去掉 read / get / reach / resolve——「连不上接口地址」「读不了文件」不是这一类。 */
+const FETCH_LINK = String.raw`(?:fetch|download|retriev|access|load|pull)\w*`;
+/** 连「链接」都没有、只说文件或图片：只认下载类动词。这个判据全 App 的错误都会问，「Failed to read the file」不能算。 */
+const DOWNLOAD = String.raw`(?:fetch|download|retriev|pull)\w*`;
 const INPUT = String.raw`(?:input|reference|source)`;
 /** 名词短语里"输入"和"链接"之间最多隔一两个词：input media URL / reference image link / input_image url。 */
 const INPUT_LINK = String.raw`\b${INPUT}[\w\s_-]{0,24}?\b(?:url|link|uri)s?\b`;
@@ -41,9 +46,9 @@ const REFUSAL_PHRASES: readonly Phrase[] = [
   // The reference image URL is not accessible / returned 403 / has expired  ——链接本身的状态
   phrase(String.raw`${INPUT_LINK}[^.\n]{0,40}?\b(?:not\s+(?:accessible|reachable|available|downloadable)|inaccessible|unreachable|expired|forbidden|returned\s+(?:an?\s+)?(?:http\s*)?(?:status\s*)?[45]\d\d)`),
   // Failed to download input image from URL / Cannot fetch content from the provided URL  ——动词在前，后面落在链接 / 输入上
-  phrase(String.raw`\b${NEG}\s+${FETCH}\b[^.\n]{0,80}?\b(?:url|link|uri|${INPUT})\b`),
+  phrase(String.raw`\b${NEG}\s+${FETCH_LINK}\b[^.\n]{0,80}?\b(?:url|link|uri|${INPUT})\b`),
   // Unable to download the file. / Could not download the image.  ——只有「文件 / 图片」，没有链接词
-  phrase(String.raw`\b${NEG}\s+${FETCH}\s+(?:the\s+)?(?:input\s+)?(?:file|image|media|video|audio)\b`),
+  phrase(String.raw`\b${NEG}\s+${DOWNLOAD}\s+(?:the\s+)?(?:input\s+)?(?:file|image|media|video|audio)\b`),
   // Timeout while downloading <url>. / Error while downloading <url>.  ——后面什么都不说，只能看同一句里有没有「别的失败」的词
   phrase(String.raw`\b(?:error|timeout|timed\s+out)\s+while\s+(?:downloading|fetching|retrieving)\b`, "i", 40),
   // 中文：参考图片无法访问 / 输入媒体 URL 无法获取 / 参考图链接已过期
@@ -52,12 +57,12 @@ const REFUSAL_PHRASES: readonly Phrase[] = [
   phrase("(?:无法|不能|未能|没能)[^。\\n]{0,6}?(?:获取|下载|访问|拉取|读取|打开)[^。\\n]{0,16}?(?:参考|输入)[^。\\n]{0,8}?(?:图|图片|图像|视频|音频|媒体|素材|文件|链接|地址)", ""),
   // 中文：下载输入图片失败 / 拉取参考图超时
   phrase("(?:下载|获取|拉取|读取)(?:参考|输入)(?:图|图片|图像|视频|音频|媒体|素材|文件)[^。\\n]{0,6}?(?:失败|出错|超时)", ""),
-  // 中文：图片链接无法访问 / URL 无法获取
-  phrase("(?:链接|URL|url|地址)[^。\\n]{0,16}?(?:无法|不能|未能|没能)(?:访问|获取|下载|读取|拉取|打开)", ""),
+  // 中文：图片链接无法访问 / URL 无法获取 / 图片地址无法访问。光说「地址」不算：「接口地址无法访问」说的是连接，「音频地址无法访问」是我们自己的转写报错。
+  phrase("(?:链接|URL|url|(?:图片|图像|视频|媒体|素材|文件)地址)[^。\\n]{0,16}?(?:无法|不能|未能|没能)(?:访问|获取|下载|读取|拉取|打开)", ""),
 ];
 
-/** 这些词出现在命中的那一段里，说明它说的是别的失败：取结果 / 下载产物 / 任务 / 上传 / 回调。 */
-const NOT_ABOUT_INPUT = /\b(?:results?|outputs?|generated|tasks?|uploads?|uploading|uploaded|webhooks?|callbacks?)\b|结果|产物|输出|任务|上传|生成的|回调/i;
+/** 这些词出现在命中的那一段里，说明它说的是别的失败：取结果 / 下载产物 / 任务 / 上传 / 回调 / 连不上这条连接本身。 */
+const NOT_ABOUT_INPUT = /\b(?:results?|outputs?|generated|tasks?|uploads?|uploading|uploaded|webhooks?|callbacks?|base\s*url|api\s*(?:url|endpoint)|endpoints?|servers?|hosts?|proxy|gateway|upstream)\b|结果|产物|输出|任务|上传|生成的|回调|接口|服务商|服务器|代理|网关/i;
 /** 往后看的范围到句末为止：「Timeout while downloading X. The task was cancelled」里的 task 是下一句的话。 */
 const SENTENCE_END = /[.\n。!?！？]/;
 
