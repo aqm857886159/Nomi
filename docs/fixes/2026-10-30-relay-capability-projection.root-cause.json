@@ -438,6 +438,8 @@
   },
   "migration": "Version 14 reprojects only matching original revision or a vendor-bound, digest-checked durable declaration snapshot with compatible original wire; compiled defaults and canonical parameter bindings feed the same runtime. Both ordinary load and boot seed entry supply originals. Missing, conflicting or unsupported originals get a durable missing-capability marker; Agent lists it and dispatch rejects before execution. Complete user-authored contracts remain unchanged.",
   "residual_risks": [
+    "When another process submits a declaration while the app window is open, the renderer keeps the model list and contract it already read: a new model needs a reload to appear, and a model already listed keeps its old controls and sends its old default parameters on the next generation, with no notice. The catalog itself is correct and a reload fixes it.",
+    "The spend confirmation warns about public temporary hosting for any local reference without reading the connection's declared asset ingestion, so a connection that declared inline images still shows the notice.",
     "Live upstream generation, Windows and paid verification are outside this local loopback validation.",
     "A kept route of an unverified mode is written back after the model's routes are cleared, so its timestamps change while its wire and enabled flag do not.",
     "Certification has no structured exit: a refusal fails the run with the reason in the existing untranslated banner. The AI declaration path carries the exits.",
