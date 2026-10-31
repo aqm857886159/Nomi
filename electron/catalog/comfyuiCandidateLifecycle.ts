@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 
+import { capabilityDraftForImportedWorkflow } from "./comfyuiWorkflowImport";
 import { readCatalog } from "./catalogStore";
 import { candidateRevisionId } from "./stagedVendorIdentity";
 import type { Mapping, Model, ProfileKind, Vendor } from "./types";
@@ -78,18 +79,7 @@ function lifecycleArtifacts(candidate: ComfyStagedCandidate, mode: AdapterModeRe
   const draft: ProviderAdapterDraft = {
     provider: { baseUrl: String(candidate.vendor.baseUrlHint || ""), authType: "none" },
     sources: [],
-    models: [{
-      modelKey: candidate.model.modelKey,
-      labelZh: candidate.model.labelZh,
-      kind: candidate.model.kind,
-      modes: [{
-        taskKind: candidate.mapping.taskKind,
-        create: candidate.mapping.create,
-        ...(candidate.mapping.query ? { query: candidate.mapping.query } : {}),
-        ...(candidate.mapping.result ? { result: candidate.mapping.result } : {}),
-        sourceUrls: [],
-      }],
-    }],
+    models: [capabilityDraftForImportedWorkflow(candidate.model, candidate.mapping)],
   };
   const run: ProviderAdapterRun = {
     id: candidate.revisionId,

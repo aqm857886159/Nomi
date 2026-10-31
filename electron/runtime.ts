@@ -25,6 +25,7 @@ import { firstString, trim, type JsonRecord } from "./jsonUtils";
 import { taskFailureMessageFromResponse } from "./tasks/responseParsing"; import { expectedMediaKind, readTaskResponse, requestEchoUrls } from "./tasks/taskResultReading";
 import { applyRequestTransform } from "./tasks/requestTransforms";
 import { taskCache } from "./tasks/taskCache";
+import { tagNomiError } from "./shared/nomiErrorCodes";
 export { taskCache, hasInFlightTasks } from "./tasks/taskCache";
 import { markTaskAdmitted } from "./tasks/taskAdmission";
 import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "./vendor/fingerprintCache";
@@ -391,7 +392,8 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return executeTextTask({ vendor, model, apiKey, kind, request, taskId });
   }
 
-  if (wantedKind === "video") throw new Error("Model is not configured: no declared video route for this mode. Provide a documented create/query/result declaration before generating.");
+  // Machine code, not only the wording: the canvas wraps pre-network failures as submission_not_sent and the card classifier reads that first.
+  if (wantedKind === "video") throw new Error(tagNomiError("model-config", "Model is not configured: no declared video route for this mode. Provide a documented create/query/result declaration before generating."));
   const suffix = "/v1/images/generations";
   const fallbackRecipe = buildNormalizedRecipe({ vendor, model, request });
   const fallbackFingerprint = recipeFingerprint(fallbackRecipe);

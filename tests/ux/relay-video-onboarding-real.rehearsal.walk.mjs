@@ -5,7 +5,6 @@ import { ENV_KEY_VAR, ENV_KEY_ALLOW_CATALOG } from './_paidEnvKey.mjs'
 import { createRecordedRelayWalk, flushRelayRecording } from './_relayVideoResponseRecording.mjs'
 import { startRelayVideoFixture, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
 import { runRelayVideoPaidSteps } from './_relayVideoPaidSteps.mjs'
-import { waitForRelayLaunch } from './_relayVideoWalk.mjs'
 import { expect } from './_assert.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -19,6 +18,7 @@ const network = { NOMI_TEST_NETWORK_GUARD: '1', NOMI_TEST_NETWORK_REDIRECTS: red
 const paid = await openPaidWalk('relay-video-onboarding-real.rehearsal.walk.mjs', 'relay-video-onboarding-rehearsal', [DEFAULT_PAID_BRAIN], {
   env: { ...process.env, CI: '', NOMI_SPEND_OK: '1', [ENV_KEY_VAR]: FAKE_RELAY_KEY }, vendorNetwork: false,
   // Same response recorder and generation steps as the coordinator-only paid run.
+  // The real script additionally enforces its protocol repair marker; rehearsal always uses a fake key.
   createWalk: async (name, options) => {
     const walk = await createRecordedRelayWalk(name, { ...options, env: { ...options.env, ...network, NOMI_RELAY_RECORD_MODEL: modelKey } }, relay.baseUrl)
     // The generic fixture seeds only its own connection. Restore public built-in rows, never a key.
@@ -33,7 +33,6 @@ const paid = await openPaidWalk('relay-video-onboarding-real.rehearsal.walk.mjs'
 let failure
 let win, app
 try {
-  paid.walk.report.launchPermission = await waitForRelayLaunch()
   ;({ win, app } = await paid.walk.start({ first: true }))
   await win.evaluate((locale) => localStorage.setItem('nomi:locale:v1', locale), process.env.NOMI_RELAY_LOCALE || 'zh-CN')
   await win.reload()

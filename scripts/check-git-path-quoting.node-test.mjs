@@ -11,7 +11,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { scanSource } from './check-git-path-quoting.mjs'
+import { scanDirectListing, scanSource } from './check-git-path-quoting.mjs'
 
 test('默认 quotePath 的调用点必须被抓到（JS / shell 两侧）', () => {
   assert.equal(scanSource(`const out = execSync("git diff --name-only HEAD~1")`, 'a.mjs').length, 1)
@@ -36,6 +36,23 @@ test('注释与报错文案不算调用点（会误报的门岗三次之后就�
   assert.deepEqual(scanSource(`// 默认 quotePath 会把 git diff --name-only 的非 ASCII 路径转义`, 'a.mjs'), [])
   assert.deepEqual(scanSource(`# 说明：git ls-files 会连已删除的文件一起列出`, 'h.sh'), [])
   assert.deepEqual(scanSource("problems.push(`多半是按行读了 \\`git diff --name-only\\`（quotePath）`)", 'a.mjs'), [])
+})
+
+test('绕开 gitPaths 直接起 ls-files 必须被抓到，带了 -z 也一样（缓冲上限只在 gitPaths）', () => {
+  assert.equal(scanDirectListing(`execFileSync('git', ['ls-files', '-z'], { cwd })`, 'a.mjs').length, 1)
+  assert.equal(scanDirectListing(`execSync("git ls-files -z")`, 'a.mjs').length, 1)
+  assert.equal(scanDirectListing(`const out = gitLines(root, ['ls-files', '--', '*.ts'])`, 'a.mjs').length, 1)
+  assert.equal(scanDirectListing(`execFileSync('git', [\n  'ls-files', '-z',\n], { cwd })`, 'a.mjs').length, 1)
+})
+
+test('走 gitPaths、测试文件、shell、注释、不起进程的字符串，都不算', () => {
+  assert.deepEqual(scanDirectListing(`const files = gitPaths(['ls-files', 'src'], { cwd })`, 'a.mjs'), [])
+  assert.deepEqual(scanDirectListing(`return gitPaths(\n  ['ls-files', '--cached'],\n  { cwd },\n)`, 'a.mjs'), [])
+  assert.deepEqual(scanDirectListing(`execFileSync('git', ['ls-files', '-z'], { cwd: temp })`, 'a.node-test.mjs'), [])
+  assert.deepEqual(scanDirectListing(`execFileSync('git', ['ls-files', '-z'], { cwd: temp })`, 'a.test.ts'), [])
+  assert.deepEqual(scanDirectListing(`git ls-files -z`, 'h.sh'), [])
+  assert.deepEqual(scanDirectListing(`// execFileSync('git', ['ls-files'])`, 'a.mjs'), [])
+  assert.deepEqual(scanDirectListing(`sites.push({ kind: 'git ls-files|grep' })`, 'a.mjs'), [])
 })
 
 test('真仓库当下是干净的；任意一处退回默认写法 → 门岗必须报红', (t) => {
