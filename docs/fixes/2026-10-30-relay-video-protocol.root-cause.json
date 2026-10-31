@@ -198,7 +198,7 @@
       "path": "electron/catalog/modelRetype.ts",
       "entry_point": "retypeModelCatalogModel",
       "disposition": "enforced",
-      "evidence": "The wrapper calls draftShapeForKind, whose video branch now returns identity fields without wire operations."
+      "evidence": "The wrapper calls draftShapeForKind, whose video branch now returns identity fields without wire operations. The next run stops before any POST with a model-config error whose card points at model access (electron/catalog/modelRetype.test.ts)."
     },
     {
       "path": "tests/perf/node-json-bench.mjs",

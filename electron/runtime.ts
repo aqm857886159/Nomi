@@ -391,7 +391,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return executeTextTask({ vendor, model, apiKey, kind, request, taskId });
   }
 
-  if (wantedKind === "video") throw new Error("Video protocol is not configured. Provide a documented create/query/result declaration before generating.");
+  if (wantedKind === "video") throw new Error("Model is not configured: no declared video route for this mode. Provide a documented create/query/result declaration before generating.");
   const suffix = "/v1/images/generations";
   const fallbackRecipe = buildNormalizedRecipe({ vendor, model, request });
   const fallbackFingerprint = recipeFingerprint(fallbackRecipe);

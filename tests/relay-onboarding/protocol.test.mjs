@@ -17,6 +17,7 @@ import { listProjectAssets } from '../../electron/assets/projectAssetStore.ts'
 import { buildOpenAiCompatibleDraft } from '../../electron/providerAdapter/builtinOpenAiCompatibleDraft.ts'
 import { validateProviderAdapterDraft } from '../../electron/providerAdapter/validator.ts'
 import { streamProfileMediaToFile } from '../../electron/capabilityCore/generationOutputMaterializer.ts'
+import { classifyGenerationError } from '../../src/workbench/observability/classifyError.ts'
 
 vi.mock('electron', async (original) => ({ ...await original(), safeStorage: {
   isEncryptionAvailable: () => true, encryptString: (s) => Buffer.from(`test:${s}`), decryptString: (s) => s.toString().replace(/^test:/, ''),
@@ -128,6 +129,21 @@ it('unknown connection has no guessed video route, explicit standard capability 
   expect(buildOpenAiCompatibleDraft(base).models[0].modes).toEqual([])
   expect(() => buildOpenAiCompatibleDraft({ ...base, mediaProtocols: ['openai-videos-v1', 'video-generations-json-v1'] })).toThrow(/explicit model declaration/)
   expect(buildOpenAiCompatibleDraft({ ...base, mediaProtocols: ['openai-videos-v1'] }).models[0].modes[0].create.path).toBe('/v1/videos')
+})
+it('a model that only declared image-to-video, run as text-to-video, stops before any POST and its card points at model access', async () => {
+  relay = await startRelayVideoFixture({ shape: 'plural-url' })
+  const card = relayDeclaration(relay.baseUrl, { shape: 'plural-url', frameOnly: true })
+  const reply = await submitDeclaration({ name: 'Frame only', declaration: JSON.stringify(card) })
+  expect(reply.ok, JSON.stringify(reply)).toBe(true)
+  const row = readCatalog().models.find((m) => m.modelKey === 'opaque-gamma')
+  upsertModelCatalogVendorApiKey(row.vendorKey, { apiKey: FAKE_RELAY_KEY, enabled: true })
+  const project = createProject({ name: 'Frame only', rootPath: path.join(root, 'project') })
+  const spendGate = vi.fn(async () => {})
+  const failure = await runTask({ vendor: row.vendorKey, request: { kind: 'text_to_video', prompt: 'A blue marble', duration: 1, extras: { projectId: project.id, modelKey: row.modelKey } } }, { spendGate }).then(() => null, (error) => error)
+  expect(failure?.message).toMatch(/no declared video route/)
+  expect(spendGate).not.toHaveBeenCalled()
+  expect(posts()).toHaveLength(0)
+  expect(classifyGenerationError(failure.message)).toMatchObject({ kind: 'model-config', primary: 'open-model-access' })
 })
 it('multipart rejects half a file pair and media bytes cannot be declared on create/query or a text model', () => {
   for (const mutate of [
