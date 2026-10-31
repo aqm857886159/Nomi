@@ -1,9 +1,9 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
-import { expect } from './_assert.mjs'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { parseToolResult } from './_mcpJourney.mjs'
 import { ensureAgentPanelOpen } from './_shell.mjs'
@@ -16,7 +16,7 @@ const CREATE_PATH = '/images/generations'
 /** The provider's answer to the first create waits in the network guard, so the first order really comes back
  * unknown on the paid run too, not only where a fixture can sit on it. */
 export function holdFirstProviderAnswer() {
-  const releaseFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-trial-hold-')), 'release')
+  const releaseFile = path.join(makeTempDir('nomi-trial-hold-'), 'release')
   return {
     env: { NOMI_WALK_HOLD_RESPONSE: JSON.stringify({ method: 'POST', pathSuffix: CREATE_PATH, releaseFile }) },
     release: () => fs.writeFileSync(releaseFile, ''),
@@ -127,6 +127,7 @@ export async function runTryModelIntentJourney(paid, { hold, providerCreates, af
     const newOrder = win.locator('[data-spend-confirm-dialog]')
     await expect(newOrder).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
     await expect(newOrder.locator('[data-spend-confirm-action="confirm"]')).toHaveText(uiText('en', 'runtime.capability.confirmGenerate'))
+    const cardProbe = await proveProbe(newOrder, 'a real new order shows the spend card to this selector')
     await walk.snap('trial-new-confirm-after-restart-en')
     await newOrder.locator('[data-spend-confirm-action="cancel"]').click()
     expect((await requested).ok).toBe(false)
@@ -135,13 +136,13 @@ export async function runTryModelIntentJourney(paid, { hold, providerCreates, af
     walk.report.trial = { first: first.code ?? 'succeeded', submission: identity, recovered: recovered.submission,
       assets: completed.state.assets.map(({ type, url }) => ({ type, url })), imageWidth, localUrl, providerCreates: creates,
       limitation: 'Scripted MCP caller; no claim of real-model tool-selection accuracy.' }
-    if (afterJourney) await afterJourney({ restartIn, win: () => win, identity, providerCreates })
+    if (afterJourney) await afterJourney({ restartIn, win: () => win, identity, providerCreates, cardProbe })
   } finally { await closeHosts() }
 }
 
 /** Zero-cost only, in the real window: a record that cannot be read must not lock the model, must not place an
  * order by itself, and the card must say out loud that this order may cost twice, in both languages. */
-export async function runUnreadableRecordJourney(paid, { restartIn, win, identity, providerCreates }) {
+export async function runUnreadableRecordJourney(paid, { restartIn, win, identity, providerCreates, cardProbe }) {
   const { walk } = paid
   const claims = path.join(walk.settingsDir, 'app-executions', '.nomi', 'intent-claims', identity.intentId, 'quarantine')
   const events = path.join(walk.settingsDir, 'app-executions', '.nomi', 'runs', identity.intentId, 'events.ndjson')
@@ -154,7 +155,7 @@ export async function runUnreadableRecordJourney(paid, { restartIn, win, identit
     expect(plain.code).toBe('submission_unknown')
     expect(plain.submission.recordDamage).toBe('journal_unreadable')
     expect(plain.submission.allowedActions).toEqual(['inspect_provider', 'request_new_attempt'])
-    await expect(dialog(), 'a plain call asks nobody').toHaveCount(0)
+    await expectAbsent(dialog(), { provenBy: cardProbe, message: 'a plain call asks nobody' })
     expect(providerCreates(), 'a plain call places no order').toBe(before)
     const requested = call({ ...args, newAttemptOf: plain.submission.attemptId })
     requested.catch(() => {})
