@@ -1,3 +1,5 @@
+import { renderVersionHealth } from './health.mjs'
+
 // Intake Radar —— 渲染层。把 aggregate.mjs 吐出的报告数据变成 Markdown 全文和终端短摘要。
 // 纯字符串拼接，不做任何判断——这里只管「数字怎么排版」，不管「这个数字要不要紧」。
 
@@ -127,6 +129,10 @@ ${perfMarkdown(report.perf)}
 ## 数据质量
 
 ${dataQualityMarkdown(report.dataQuality)}
+
+## 版本健康
+
+${renderVersionHealth(report.versionHealth)}
 `
 }
 
@@ -153,5 +159,6 @@ export function renderTerminalSummary(report, { mdPath, jsonPath } = {}) {
   if (report.dataQuality.corruptFileCount) lines.push(`  ⚠️ ${report.dataQuality.corruptFileCount} 个本地缓存文件解析失败`)
   if (mdPath) lines.push(`  报告 → ${mdPath}`)
   if (jsonPath) lines.push(`  报告 → ${jsonPath}`)
+  lines.push(renderVersionHealth(report.versionHealth))
   return lines.join('\n')
 }
