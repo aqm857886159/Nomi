@@ -2,7 +2,7 @@
   "version": 1,
   "change": {
     "title": "钱花了、任务号还在的单子只取回",
-    "headSha": "a016e27c9d883c0022e56ccef3e7a75bc15d4e87",
+    "headSha": "5a34345b8254449018c3a781c648ad0a87ee0bf5",
     "headNote": "产品源码停在这个提交，走查用这份源码的构建跑。之后的提交只有证据。",
     "userCan": "关窗、重启、模型或 Key 暂时用不了、窗口一直开着等很久，花了钱的这一单都能取回，不会再扣一次；这单不要了，标记失败才给重新生成。"
   },
@@ -72,15 +72,30 @@
         "note": "四项没过：三个文件超体积上限、走查写死等待时长、自己建临时目录、几处 lint。代码原样搬走，等待和临时目录换成共用的，一分钱没花。"
       },
       {
+        "label": "走查第 7 轮英文",
+        "result": "pass",
+        "note": "搬完重新构建后八段通过：POST 1、1、1、1、1、1、2、5（最后一段三单加两次用户明确的重试）；点一下即现 115ms，这一下 GET 0。"
+      },
+      {
+        "label": "走查第 7 轮中文",
+        "result": "pass",
+        "note": "搬完重新构建后八段通过：POST 同上；点一下即现 72ms，这一下 GET 0。"
+      },
+      {
+        "label": "推送前快检第二次",
+        "result": "fail",
+        "note": "新文件名里带 Retry，落进自写登记表的通用机制区。这个文件不是重试机制，是把花了钱的单放回去再读一次，改名，内容没动。"
+      },
+      {
         "label": "最终步骤英文",
         "result": "pass",
-        "note": "搬完重新构建后八段通过：POST 1、1、1、1、1、1、2、5（最后一段三单加两次用户明确的重试）；点一下即现 115ms，这一下 GET 0。",
+        "note": "改名后重新构建，八段通过：POST 1、1、1、1、1、1、2、5（最后一段三单加两次用户明确的重试）；点一下即现 111ms，这一下 GET 0。",
         "evidence": "docs/evidence/2026-10-31-run-retrieval-recovery/en-window-open-3-landed.png"
       },
       {
         "label": "最终步骤中文",
         "result": "pass",
-        "note": "搬完重新构建后八段通过：POST 同上；点一下即现 72ms，这一下 GET 0。",
+        "note": "改名后重新构建，八段通过：POST 同上；点一下即现 67ms，这一下 GET 0。",
         "evidence": "docs/evidence/2026-10-31-run-retrieval-recovery/zh-CN-window-open-3-landed.png"
       }
     ],
@@ -107,10 +122,10 @@
         "name": "后台已查到结果时，点重新取回到节点显示",
         "unit": "ms",
         "baseline": null,
-        "current": 115,
+        "current": 111,
         "n": 2,
         "basis": "script-count",
-        "note": "两轨 72 和 115，取较大的。这一下 GET 0、POST 0。环回本机，不代表真实素材大小。"
+        "note": "两轨 67 和 111，取较大的。这一下 GET 0、POST 0。环回本机，不代表真实素材大小。"
       }
     ]
   },
