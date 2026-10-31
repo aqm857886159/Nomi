@@ -8,7 +8,7 @@
 // 一段红了不停，整张红绿表一次看全；画布的改动从 store 还原，所以后面的段不受牵连。
 import fs from 'node:fs'
 import path from 'node:path'
-import { expect } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import {
   canvasFrameToolPressed, canvasZoomStep, closeCanvasViewOptions, closeSettings, collapseAgentPanel, ensureAgentPanelOpen,
@@ -121,8 +121,16 @@ async function openConfirm(tag = 'A') {
 
 async function closeConfirm() {
   const { win } = fixture
+  const provenBy = await proveProbe(win.locator(CONFIRM), '确认框开着')
   await win.locator(CONFIRM_CANCEL).click()
-  await expect(win.locator(CONFIRM)).toHaveCount(0)
+  await expectAbsent(win.locator(CONFIRM), { provenBy })
+}
+
+/** 先证它真开着，按下这一键，再证它关了、之后也没回来。没有前一步，「没看到」和「探针没生效」分不清。 */
+async function pressCloses(locator, key, label, message) {
+  const provenBy = await proveProbe(locator, label)
+  await fixture.win.keyboard.press(key)
+  await expectAbsent(locator, { provenBy, message })
 }
 
 /**
@@ -358,8 +366,7 @@ try {
     await openConfirm('S')
     await shot('05-settings-with-confirm')
     await canvasIgnoresKeys('设置 + 确认框 × 画布')
-    await win.keyboard.press('Escape')
-    await expect(win.locator(CONFIRM)).toHaveCount(0)
+    await pressCloses(win.locator(CONFIRM), 'Escape', '确认框开着')
     await expect(settingsDialog(win), 'Esc 只该关最上面的确认框').toBeVisible()
     await canvasIgnoresKeys('确认框关了、设置还开着 × 画布')
     await closeSettings(win)
@@ -376,8 +383,7 @@ try {
     await win.keyboard.press('f')
     expect(await canvasFrameToolPressed(win), '走查前提：按 F 画框工具就绪').toBe(true)
     await openConfirm('E')
-    await win.keyboard.press('Escape')
-    await expect(win.locator(CONFIRM)).toHaveCount(0)
+    await pressCloses(win.locator(CONFIRM), 'Escape', '确认框开着')
     await modalOverlayGone()
     expect(await canvasFrameToolPressed(win), 'Esc 只该关确认框，不该同时取消画框工具').toBe(true)
     await win.keyboard.press('Escape')
@@ -385,11 +391,9 @@ try {
     await pointerSelectNode()
     await openLightbox()
     await openConfirm('F')
-    await win.keyboard.press('Escape')
-    await expect(win.locator(CONFIRM)).toHaveCount(0)
+    await pressCloses(win.locator(CONFIRM), 'Escape', '确认框开着')
     await expect(win.locator(LIGHTBOX), 'Esc 只该关最上面的确认框，灯箱还开着').toBeVisible()
-    await win.keyboard.press('Escape')
-    await expect(win.locator(LIGHTBOX)).toHaveCount(0)
+    await pressCloses(win.locator(LIGHTBOX), 'Escape', '灯箱开着')
   })
 
   await step('A7', '模态里的输入框打字不受影响，画布不动', async () => {
@@ -427,8 +431,7 @@ try {
     await expect(win.locator(SPEND)).toBeVisible()
     await shot('07-spend-card')
     const detail = await canvasIgnoresKeys('付费确认卡 × 画布')
-    await win.keyboard.press('Escape')
-    await expect(win.locator(SPEND)).toHaveCount(0)
+    await pressCloses(win.locator(SPEND), 'Escape', '付费确认卡开着')
     return detail
   })
 
@@ -458,12 +461,10 @@ try {
     await expect(dialog).toBeVisible()
     await shot('09-timeline-help')
     const detail = await timelineIgnoresKeys(GENERATION_TIMELINE, '帮助框 × 生成页时间轴')
-    await win.keyboard.press('?')
-    await expect(dialog).toHaveCount(0)
+    await pressCloses(dialog, '?', '帮助框开着')
     await win.keyboard.press('?')
     await expect(dialog).toBeVisible()
-    await win.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0)
+    await pressCloses(dialog, 'Escape', '帮助框开着')
     return detail
   })
 
@@ -481,8 +482,7 @@ try {
     await win.keyboard.press('Meta+z')
     await expect.poll(async () => (await clipFacts(GENERATION_TIMELINE)).length).toBe(clipsBefore.length)
     await expect(win.locator(LIGHTBOX)).toBeVisible()
-    await win.keyboard.press('Escape')
-    await expect(win.locator(LIGHTBOX)).toHaveCount(0)
+    await pressCloses(win.locator(LIGHTBOX), 'Escape', '灯箱开着')
     await pointerSelectNode()
   })
 
@@ -506,11 +506,9 @@ try {
     await expect.poll(() => lightbox.getAttribute('aria-label'), { message: '方向键应当翻到另一版' }).not.toBe(firstLabel)
     await shot('11-version-lightbox')
     await canvasIgnoresKeys('版本灯箱 × 画布', ['Delete', 'Meta+a'])
-    await win.keyboard.press('Escape')
-    await expect(lightbox).toHaveCount(0)
+    await pressCloses(lightbox, 'Escape', '版本灯箱开着')
     await expect(grid, 'Esc 只该关灯箱，版本宫格还开着').toBeVisible()
-    await win.keyboard.press('Escape')
-    await expect(grid, '灯箱关了之后 Esc 才归宫格').toHaveCount(0)
+    await pressCloses(grid, 'Escape', '版本宫格开着', '灯箱关了之后 Esc 才归宫格')
   })
 
   await step('A12', '灯箱开着切到预览页：别的页快捷键活着，切回来灯箱还在', async () => {
@@ -527,8 +525,7 @@ try {
     await shot('12-preview-while-lightbox')
     await switchWorkspace(win, 'generation')
     await expect(win.locator(LIGHTBOX), '切回来灯箱还在').toBeVisible()
-    await win.keyboard.press('Escape')
-    await expect(win.locator(LIGHTBOX)).toHaveCount(0)
+    await pressCloses(win.locator(LIGHTBOX), 'Escape', '灯箱开着')
   })
 
   await step('A3', '确认框开着，预览页时间轴六键不动，关掉后恢复', async () => {
@@ -564,8 +561,7 @@ try {
     await expect.poll(() => agentForm(), { message: '灯箱只盖画布，Mod+J 照常' }).not.toBe('ball')
     await shot('14-agent-over-lightbox')
     await win.evaluate(() => window.__nomiAgentFormStore.getState().setForm('generation', 'ball'))
-    await win.keyboard.press('Escape')
-    await expect(win.locator(LIGHTBOX)).toHaveCount(0)
+    await pressCloses(win.locator(LIGHTBOX), 'Escape', '灯箱开着')
   })
 
   await step('A11', '非模态不误挡：任务中心、菜单、Agent 面板开着时画布快捷键照常', async () => {
@@ -597,13 +593,11 @@ try {
     await expect(detail).toBeVisible()
     await openConfirm('L')
     await shot('17-list-detail-with-confirm')
-    await win.keyboard.press('Escape')
-    await expect(win.locator(CONFIRM)).toHaveCount(0)
+    await pressCloses(win.locator(CONFIRM), 'Escape', '确认框开着')
     await expect(detail, 'Esc 只该关确认框').toBeVisible()
     // 焦点落回详情之后，同一个 Esc 才归列表。
     await win.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur() })
-    await win.keyboard.press('Escape')
-    await expect(detail).toHaveCount(0)
+    await pressCloses(detail, 'Escape', '列表详情开着')
     await switchGenerationView(win, 'canvas')
   })
 
