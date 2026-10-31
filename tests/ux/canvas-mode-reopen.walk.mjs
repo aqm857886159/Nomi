@@ -3,7 +3,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { launchNomiApp } from './_launchApp.mjs'
+import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitViewButton, canvasZoomPercent, canvasZoomStep, newProjectEntry, switchWorkspace } from './_shell.mjs'
@@ -23,7 +23,7 @@ for (const dir of [settingsDir, projectsDir, shotsDir]) fs.mkdirSync(dir, { recu
 
 const catalogNow = '2026-10-25T00:00:00.000Z'
 fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
-  version: 8,
+  version: currentCatalogVersion(),
   vendors: [{ key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: catalogNow, updatedAt: catalogNow }],
   models: [{
     vendorKey: 'ux-local', modelKey: 'kling-3.0', labelZh: 'Kling 3.0', kind: 'video', enabled: true, createdAt: catalogNow, updatedAt: catalogNow,

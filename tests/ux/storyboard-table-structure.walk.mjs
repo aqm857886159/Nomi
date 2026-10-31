@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launchNomiApp } from './_launchApp.mjs'
+import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expectOverlayReachable, expectVisible, screenshotSettled } from './_assert.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -32,7 +32,7 @@ const LAST = 5
 
 const stamp = '2026-10-05T00:00:00.000Z'
 const catalogJson = JSON.stringify({
-  version: 12,
+  version: currentCatalogVersion(),
   vendors: [{ key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: stamp, updatedAt: stamp }],
   models: [{
     vendorKey: 'ux-local', modelKey: 'seedance-2-5', labelZh: 'Seedance 2.5', kind: 'video', enabled: true,

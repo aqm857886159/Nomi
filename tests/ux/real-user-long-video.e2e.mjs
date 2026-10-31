@@ -10,7 +10,7 @@ import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { launchNomiApp, repoRoot } from './_launchApp.mjs'
+import { launchNomiApp, repoRoot, currentCatalogVersion } from './_launchApp.mjs'
 import {
   ASSISTANT_MESSAGE, COMPOSER, COMPOSER_INPUT, COMPOSER_MODEL,
   COMPOSER_SEND, COMPOSER_SKILL, ERROR_BAR, MODEL_POPOVER, SKILL_POPOVER, SKILL_SEARCH,
@@ -95,7 +95,7 @@ async function startLoopbackProvider() {
 
 function writeLoopbackCatalog(settingsDir, baseUrl) {
   fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify({
-    version: 12,
+    version: currentCatalogVersion(),
     vendors: [{
       key: FIXTURE_VENDOR, name: 'Local long-video loopback', enabled: true,
       baseUrlHint: baseUrl, authType: 'none', providerKind: 'openai-compatible',

@@ -14,7 +14,7 @@ import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launchNomiApp } from './_launchApp.mjs'
+import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -70,7 +70,7 @@ await new Promise((resolve) => vendorServer.listen(0, '127.0.0.1', resolve))
 const port = vendorServer.address().port
 
 fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
-  version: 8,
+  version: currentCatalogVersion(),
   vendors: [{
     key: VENDOR, name: 'Switch Loopback', enabled: true, baseUrlHint: `http://127.0.0.1:${port}`,
     assetIngestion: { strategy: 'inline-base64', accepts: ['image'] },
