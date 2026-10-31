@@ -7,7 +7,7 @@ import { openCustomApiWizard, openModelSettings } from './_shell.mjs'
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { startRelayVideoFixture, relayDeclaration, RELAY_CASES, FAKE_RELAY_KEY } from './_relayVideoFixture.mjs'
-import { waitForRelayLaunch, relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject } from './_relayVideoWalk.mjs'
+import { relayModelClient, captureRelayScreen, prepareRelayVideo, generateRelayVideo, createRelayProject } from './_relayVideoWalk.mjs'
 
 const cases = process.env.NOMI_RELAY_CASES_FILE ? JSON.parse(fs.readFileSync(process.env.NOMI_RELAY_CASES_FILE, 'utf8')) : RELAY_CASES
 const shape = process.env.NOMI_RELAY_SHAPE || 'plural-url'
@@ -27,7 +27,6 @@ const capture = async (tag) => {
   return text
 }
 try {
-  report.launch = await waitForRelayLaunch()
   ;({ win } = await walk.start({ first: true }))
   await win.evaluate((l) => localStorage.setItem('nomi:locale:v1', l), locale)
   await win.reload()
@@ -65,12 +64,6 @@ try {
   if (shape === 'plural-url') {
     declaration.models[0].parameters[0] = { key: 'duration', label: '时长', type: 'number', min: target.duration, max: target.maxDuration ?? 15, default: target.duration }
     declaration.models[0].parameters[1] = { key: 'resolution', label: '清晰度', type: 'select', options: (target.resolutions ?? [target.resolution]).map((value) => ({ value, label: value })), default: target.resolution }
-  }
-  // Literal minimums keep the wire deterministic even before parameter projection is repaired.
-  if (shape === 'plural-url') {
-    Object.assign(declaration.models[0].modes[0].create.body, { duration: target.duration, resolution: target.resolution, aspect_ratio: '16:9', audio: false })
-    if (target.alwaysAudio) delete declaration.models[0].modes[0].create.body.audio
-    if (target.frameOnly) delete declaration.models[0].modes[0].create.body.aspect_ratio
   }
   report.declaration = await client.call('nomi_model_setup', { action: 'submit_declaration', vendorKey: vendor.key, declaration: JSON.stringify(declaration) })
   report.modelAfterDeclaration = await win.evaluate(async (wanted) => {

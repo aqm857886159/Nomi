@@ -1,7 +1,5 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import os from 'node:os'
-import { execFileSync } from 'node:child_process'
 import { expect, screenshotSettled } from './_assert.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
 import { collapseAgentPanel, newProjectEntry, openRailDrawer, canvasSetZoomPercent } from './_shell.mjs'
@@ -12,32 +10,11 @@ import { findNodeHitPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-/** Mac launch rule is checked immediately before starting any GUI, including rehearsal. */
-export async function waitForRelayLaunch({ limitMs = 2 * 60 * 60 * 1000 } = {}) {
-  if (process.platform !== 'darwin') return { platform: process.platform }
-  const started = Date.now()
-  while (Date.now() - started < limitMs) {
-    const front = execFileSync('lsappinfo', ['front'], { encoding: 'utf8' }).trim()
-    const name = execFileSync('lsappinfo', ['info', '-only', 'name', front], { encoding: 'utf8' }).trim()
-    const load5 = os.loadavg()[1]
-    let idleSeconds = null
-    try {
-      const idle = execFileSync('ioreg', ['-c', 'IOHIDSystem'], { encoding: 'utf8' }).match(/"HIDIdleTime"\s*=\s*(\d+)/)
-      if (idle) idleSeconds = Math.floor(Number(idle[1]) / 1e9)
-    } catch (error) { console.warn(`[launch] HID idle check unavailable: ${error.message}`) }
-    const foregroundPermitted = !/claude/i.test(name)
-    console.log(`[launch] ${new Date().toISOString()} front=${name} load5=${load5} idleSeconds=${idleSeconds}`)
-    if (load5 < 10 && (foregroundPermitted || (idleSeconds !== null && idleSeconds >= 600))) return { front: name, load5, idleSeconds, permittedBy: foregroundPermitted ? 'foreground' : 'idle', waitedMs: Date.now() - started }
-    await new Promise((resolve) => setTimeout(resolve, 60_000))
-  }
-  throw new Error('Launch deferred for two hours: foreground app or five-minute load did not permit a quiet walk')
-}
-
 /** An isolated MCP transport calls the exact production declaration handler, without an LLM. */
 export async function relayModelClient({ settingsDir, userDataDir, tempRoot, env = {} }) {
   const capabilityDir = path.join(tempRoot, 'capability')
   fs.mkdirSync(capabilityDir, { recursive: true })
-  const childEnv = { ...env, [ENV_KEY_VAR]: '', NOMI_TEST_NETWORK_GUARD: '1', NOMI_WALK_FOREGROUND_OK: '' }
+  const childEnv = { ...env, [ENV_KEY_VAR]: '', NOMI_TEST_NETWORK_GUARD: '1' }
   const quiet = quietElectronSpawn(['-r', path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs'), repoRoot, '--disable-gpu'], { env: childEnv })
   const client = spawnMcpStdioClient({ settingsDir, userDataDir, projectsDir: path.join(tempRoot, 'projects'), capabilityDir,
     captureStderr: true,
@@ -77,6 +54,11 @@ export async function createRelayProject(walk, win) {
   return { projectId, projectRoot: project.rootPath, name: project.name }
 }
 
+/** Scope selection to the open combobox; closed dropdowns retain hidden option labels. */
+export function relayModelOption(win, modelKey) {
+  return win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: win.getByText(modelKey, { exact: true }) })
+}
+
 /** Shared free/paid segment: select the declared model, prepare one video, stop before generate. */
 export async function prepareRelayVideo({ win, newProject, model, capture }) {
   const { projectId, projectRoot } = await newProject()
@@ -88,8 +70,18 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
   await expect.poll(async () => Boolean(await fresh()), { timeout: stationTimeout() }).toBe(true)
   const id = (await fresh()).id
   const node = win.locator(`[data-node-id="${id}"]`)
-  const textMode = node.getByText(uiText('zh-CN', 'generationCommon.nodeTry.video.text'), { exact: true }).or(node.getByText(uiText('en', 'generationCommon.nodeTry.video.text'), { exact: true }))
-  if (await textMode.isVisible().catch(() => false)) await textMode.click()
+  const locale = await win.evaluate(() => localStorage.getItem('nomi:locale:v1') || 'zh-CN')
+  const textMode = node.getByText(uiText(locale, 'generationCommon.nodeTry.video.text'), { exact: true })
+  // A reload drops the selection and fit-view overshoots: use the zoom UI and a real pointer target.
+  // At 100% an input-driven mode's composer and option list leave the viewport, so stay at 60%.
+  const exposeComposer = async () => {
+    await canvasSetZoomPercent(win, 60, 'Keep the node, its composer and the model options visible')
+    const hit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${id}"]` })
+    expect(hit, 'The node has a real pointer target').toBeTruthy()
+    await win.mouse.click(hit.x, hit.y)
+    if (await textMode.isVisible().catch(() => false)) await textMode.click()
+  }
+  await exposeComposer()
   const projection = await win.evaluate(async (want) => {
     const rows = await window.nomiDesktop.modelCatalog.listModels({})
     const row = rows.find((r) => r.vendorKey === want.vendorKey && r.modelKey === want.modelKey)
@@ -100,21 +92,18 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await capture('model-menu')
   let neededReload = false
-  if (!(await win.getByText(model.modelKey, { exact: true }).count())) {
+  if (!(await relayModelOption(win, model.modelKey).count())) {
     await capture('model-missing-before-reload')
     await win.keyboard.press('Escape')
     await win.reload()
     await node.waitFor({ state: 'visible', timeout: stationTimeout() })
-    await canvasSetZoomPercent(win, 100, 'Keep the reloaded node and composer visible')
-    const hit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${id}"]` })
-    expect(hit, 'The reloaded node has a real pointer target').toBeTruthy()
-    await win.mouse.click(hit.x, hit.y)
+    await exposeComposer()
     await node.locator('[data-bar-segment="model-params"] button').first().click()
     await capture('model-menu-after-reload')
     neededReload = true
   }
   // This is the visible model menu, never a catalog/meta write that skips model selection.
-  await win.getByText(model.modelKey, { exact: true }).last().click()
+  await relayModelOption(win, model.modelKey).click()
   const prompt = 'A blue glass marble rolls across a white table in morning light'
   await node.locator('[contenteditable="true"]').last().fill(prompt)
   await expect.poll(async () => {
@@ -130,10 +119,29 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
 /** Shared paid/rehearsal segment: exactly one click, local asset, decoder and browser playback. */
 export async function generateRelayVideo({ win, prepared, capture }) {
   const { node, projectId, nodeId } = prepared
+  const readNode = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.find((n) => n.id === nodeId)
+  const previousRunIds = new Set(((await readNode()).runs || []).map((run) => run.id))
   await node.locator('[data-bar-segment="generate"]').click()
-  await expect.poll(() => node.getAttribute('data-status'), { timeout: stationTimeout({ turns: 2 }) }).toMatch(/^(success|error|failed|recoverable)$/)
-  expect(await node.getAttribute('data-status'), 'generation finishes successfully; failures are reported immediately').toBe('success')
-  const landed = (await readProject(win, projectId)).payload.generationCanvas.nodes.find((n) => n.id === nodeId)
+  let phase
+  await expect.poll(async () => {
+    if (((await readNode()).runs || []).some((run) => !previousRunIds.has(run.id))) phase = 'submitted'
+    else if (await win.locator('[data-spend-confirm-dialog]').isVisible()) phase = 'confirmation'
+    else phase = 'waiting'
+    return phase
+  }, { timeout: stationTimeout() }).not.toBe('waiting')
+  if (phase === 'confirmation') {
+    await capture('confirmation')
+    await win.locator('[data-spend-confirm-dialog] [data-spend-confirm-action="confirm"]').click()
+  }
+  let landed, freshRuns
+  await expect.poll(async () => {
+    landed = await readNode()
+    freshRuns = (landed.runs || []).filter((run) => !previousRunIds.has(run.id))
+    return freshRuns[0]?.status || 'unsubmitted'
+  }, { timeout: stationTimeout({ turns: 2 }) }).toMatch(/^(success|error|failed|recoverable|cancelled)$/)
+  expect(freshRuns, 'one generation intent creates exactly one new run').toHaveLength(1)
+  expect(freshRuns[0].status, 'the new run succeeds; an old success cannot satisfy this check').toBe('success')
+  await expect(node).toHaveAttribute('data-status', 'success')
   expect(landed.result?.url).toMatch(/^nomi-local:\/\/asset\//)
   const { probeLandedMedia } = await import('./_agentVideoPaid.mjs')
   const media = await probeLandedMedia(prepared.projectRoot, projectId, landed.result.url)
@@ -152,5 +160,5 @@ export async function generateRelayVideo({ win, prepared, capture }) {
   const library = await openRailDrawer(win, 'assets', 'Open the project asset library')
   await expect(library.getByText(stored.name, { exact: true }).first()).toBeVisible()
   await capture('asset-library')
-  return { nodeId, url: landed.result.url, media, playable, library: { id: stored.id, name: stored.name, mediaType: stored.data.mediaType } }
+  return { nodeId, runId: freshRuns[0].id, taskId: freshRuns[0].taskId, url: landed.result.url, media, playable, library: { id: stored.id, name: stored.name, mediaType: stored.data.mediaType } }
 }

@@ -1,0 +1,135 @@
+{
+  "version": 3,
+  "operations": [
+    {
+      "version": 3,
+      "revision": 13,
+      "runId": "run-rel-1",
+      "contractDigest": "1f4ec4a7352b7de6a4c61e9f22f8d69972c41a6033f773a3e901eed24213cfef",
+      "idempotencyHash": "a3a552b40fa45db8909ffe47cddf0e3d34b0f48b20e63d0ced3cdbf21514d26c",
+      "lineageRootVendorKey": "local-39017",
+      "lease": {
+        "ownerId": "run-rel-1",
+        "token": "047b5953-7e8a-423f-be1e-f4f3ae8e83f6"
+      },
+      "attempt": 1,
+      "checkpoint": "finalized",
+      "providerIdempotency": "unknown",
+      "submissionState": "settled",
+      "artifactEvidence": [],
+      "modeOperationKeys": {
+        "63690a66c29f42d9a083fdeca044c8db7a2ef5a036e5220cb6cb036d29087c6d": {
+          "version": 1,
+          "modelKey": "deepseek-chat",
+          "taskKind": "chat",
+          "latestAttempt": 1,
+          "operationKey": "48c5f7173d3ad755dd4bf9ae190daa5722d66cf984ec4d829cb05bf472d55082"
+        },
+        "78841a07520aa131a2854090584f736c56fdfb291390afe68dd775ee39646fbf": {
+          "version": 1,
+          "modelKey": "opaque-tts",
+          "taskKind": "text_to_audio",
+          "latestAttempt": 1,
+          "operationKey": "cab052497378db89fddb0beab9f7ef553038432dbdae2cda694d7cd553f25956"
+        },
+        "46b9a7f11551a84b45a40099bc84c66c10c9c7b9e465b78a9dc54eb0c7d5280d": {
+          "version": 1,
+          "modelKey": "tts-1",
+          "taskKind": "text_to_audio",
+          "latestAttempt": 1,
+          "operationKey": "e613dcf8a6e4103274bed620a37dc925dfef5636edaffd421111c6dceece3d33"
+        }
+      },
+      "modeOperations": {
+        "48c5f7173d3ad755dd4bf9ae190daa5722d66cf984ec4d829cb05bf472d55082": {
+          "operationKey": "48c5f7173d3ad755dd4bf9ae190daa5722d66cf984ec4d829cb05bf472d55082",
+          "modelKey": "deepseek-chat",
+          "taskKind": "chat",
+          "attempt": 1,
+          "checkpoint": "settled",
+          "providerIdempotency": "unknown",
+          "submissionState": "settled",
+          "artifactEvidence": [],
+          "createdAt": "2026-10-20T00:00:00.000Z",
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "chat"
+          }
+        },
+        "cab052497378db89fddb0beab9f7ef553038432dbdae2cda694d7cd553f25956": {
+          "operationKey": "cab052497378db89fddb0beab9f7ef553038432dbdae2cda694d7cd553f25956",
+          "modelKey": "opaque-tts",
+          "taskKind": "text_to_audio",
+          "attempt": 1,
+          "checkpoint": "settled",
+          "providerIdempotency": "unknown",
+          "submissionState": "settled",
+          "artifactEvidence": [],
+          "createdAt": "2026-10-20T00:00:00.000Z",
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "text_to_audio"
+          }
+        },
+        "e613dcf8a6e4103274bed620a37dc925dfef5636edaffd421111c6dceece3d33": {
+          "operationKey": "e613dcf8a6e4103274bed620a37dc925dfef5636edaffd421111c6dceece3d33",
+          "modelKey": "tts-1",
+          "taskKind": "text_to_audio",
+          "attempt": 1,
+          "checkpoint": "settled",
+          "providerIdempotency": "unknown",
+          "submissionState": "settled",
+          "artifactEvidence": [],
+          "createdAt": "2026-10-20T00:00:00.000Z",
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "text_to_audio"
+          }
+        }
+      },
+      "startTransaction": {
+        "state": "committed",
+        "sourceVendorKey": "local-39017",
+        "selectedModels": [
+          {
+            "modelKey": "tts-1",
+            "labelZh": "TTS",
+            "kind": "audio"
+          },
+          {
+            "modelKey": "opaque-tts",
+            "labelZh": "Opaque TTS",
+            "kind": "audio"
+          },
+          {
+            "modelKey": "deepseek-chat",
+            "labelZh": "Chat",
+            "kind": "text"
+          }
+        ],
+        "createdAt": "2026-10-20T00:00:00.000Z",
+        "updatedAt": "2026-10-20T00:00:00.000Z",
+        "stagedVendorKey": "local-39017"
+      },
+      "childRunRef": {
+        "runId": "run-rel-1",
+        "revisionDigest": "1f4ec4a7352b7de6a4c61e9f22f8d69972c41a6033f773a3e901eed24213cfef"
+      },
+      "createdAt": "2026-10-20T00:00:00.000Z",
+      "updatedAt": "2026-10-20T00:00:00.000Z",
+      "operationKey": "e613dcf8a6e4103274bed620a37dc925dfef5636edaffd421111c6dceece3d33",
+      "settledResult": {
+        "ok": true,
+        "taskKind": "text_to_audio"
+      },
+      "credentialFingerprint": "f276fedb69edc97035ef8e5af874d132be6cb9efe3edbceed494c30b46cb2140",
+      "catalogIdentityFingerprint": "f666366300c9f880d463fa02dfe32651fe8ea993a680076fae74a74287d0f8d0",
+      "customHeaderIdentityFingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "tombstones": [],
+  "archives": []
+}

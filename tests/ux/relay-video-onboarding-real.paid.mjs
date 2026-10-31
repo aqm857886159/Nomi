@@ -4,7 +4,6 @@
 import fs from 'node:fs'
 import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { runRelayVideoPaidSteps } from './_relayVideoPaidSteps.mjs'
-import { waitForRelayLaunch } from './_relayVideoWalk.mjs'
 import { createRecordedRelayWalk, flushRelayRecording, readRelayRecordedRequests } from './_relayVideoResponseRecording.mjs'
 
 const RELAY_BUILD_MARKER = 'relay-video-artifact-v1'
@@ -19,7 +18,6 @@ const paid = await openPaidWalk('relay-video-onboarding-real.paid.mjs', 'relay-v
 let failure
 let win, app
 try {
-  paid.walk.report.launchPermission = await waitForRelayLaunch()
   ;({ win, app } = await paid.walk.start({ first: true }))
   const creates = () => readRelayRecordedRequests(paid.walk).filter((entry) => entry.stage === 'create' && entry.method === 'POST')
   await runRelayVideoPaidSteps({ paid, win, plan, freeOnly: process.env.NOMI_RELAY_FREE_ONLY === '1', readCreates: () => creates().length,

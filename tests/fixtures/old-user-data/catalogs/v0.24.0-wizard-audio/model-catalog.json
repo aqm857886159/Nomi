@@ -1,0 +1,220 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-39017",
+      "name": "Relay One",
+      "enabled": true,
+      "hasApiKey": true,
+      "baseUrlHint": "http://127.0.0.1:39017/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-compatible",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:39017",
+        "authType": "bearer",
+        "confirmedAt": "2026-10-31T12:40:09.410Z"
+      },
+      "meta": {
+        "adapterCandidatePromotionPredecessors": {}
+      },
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.441Z"
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "tts-1",
+      "vendorKey": "local-39017",
+      "modelAlias": "tts-1",
+      "labelZh": "TTS",
+      "kind": "audio",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-1bb5f3676bdc2f5c5a6f",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_audio",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "publicationModes": [
+            "text_to_audio"
+          ]
+        },
+        "parameters": [
+          {
+            "key": "voice",
+            "label": "音色 ID",
+            "type": "text"
+          },
+          {
+            "key": "speed",
+            "label": "语速",
+            "type": "number",
+            "default": 1,
+            "min": 0.25,
+            "max": 4
+          }
+        ]
+      },
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.441Z"
+    },
+    {
+      "modelKey": "opaque-tts",
+      "vendorKey": "local-39017",
+      "modelAlias": "opaque-tts",
+      "labelZh": "Opaque TTS",
+      "kind": "audio",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-1bb5f3676bdc2f5c5a6f",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_audio",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "publicationModes": [
+            "text_to_audio"
+          ]
+        },
+        "parameters": [
+          {
+            "key": "voice",
+            "label": "音色 ID",
+            "type": "text"
+          },
+          {
+            "key": "speed",
+            "label": "语速",
+            "type": "number",
+            "default": 1,
+            "min": 0.25,
+            "max": 4
+          }
+        ]
+      },
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.441Z"
+    },
+    {
+      "modelKey": "deepseek-chat",
+      "vendorKey": "local-39017",
+      "modelAlias": "deepseek-chat",
+      "labelZh": "Chat",
+      "kind": "text",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-1bb5f3676bdc2f5c5a6f",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "publicationModes": [
+            "chat"
+          ]
+        }
+      },
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.441Z"
+    }
+  ],
+  "mappings": [
+    {
+      "id": "mapping-4dfb70ce-d35e-4e7b-89db-c172fad977c7",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_audio",
+      "modelKey": "tts-1",
+      "name": "TTS · text_to_audio",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/audio/speech",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "input": "{{request.prompt}}",
+          "voice": "{{request.params.voice}}",
+          "speed": "{{request.params.speed}}",
+          "response_format": "mp3"
+        },
+        "audioResponse": {
+          "type": "binary",
+          "contentType": "audio/mpeg",
+          "extension": "mp3"
+        }
+      },
+      "createdAt": "2026-10-31T12:40:09.441Z",
+      "updatedAt": "2026-10-31T12:40:09.441Z"
+    },
+    {
+      "id": "mapping-0a16c436-a836-403e-96b1-5c0d77338ed8",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_audio",
+      "modelKey": "opaque-tts",
+      "name": "Opaque TTS · text_to_audio",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/audio/speech",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "input": "{{request.prompt}}",
+          "voice": "{{request.params.voice}}",
+          "speed": "{{request.params.speed}}",
+          "response_format": "mp3"
+        },
+        "audioResponse": {
+          "type": "binary",
+          "contentType": "audio/mpeg",
+          "extension": "mp3"
+        }
+      },
+      "createdAt": "2026-10-31T12:40:09.441Z",
+      "updatedAt": "2026-10-31T12:40:09.441Z"
+    }
+  ],
+  "apiKeysByVendor": {
+    "local-39017": {
+      "vendorKey": "local-39017",
+      "apiKey": "c2stdi1yZWxheS1mYWtl",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.410Z"
+    }
+  }
+}

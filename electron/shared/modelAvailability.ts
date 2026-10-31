@@ -18,9 +18,11 @@
 //
 // 放在 `electron/shared/` 而不是 `electron/catalog/`：渲染层要按同一个枚举读同一份结论
 // （DTO 带 `availability` 过 IPC），共享层是两侧都 import 得到的那一层。
-import { derivePublishedExecution, type PublishedExecutionEvidence, type PublishedExecutionModel } from "./modelPublication";
+import { adapterPublicationModeMask, derivePublishedExecution, type PublishedExecutionEvidence, type PublishedExecutionModel } from "./modelPublication";
 // 钥匙健康度不在这里另立词表：它的单一 owner 是中立契约 `contracts/apiKeyStatus.ts`（R14.1）。
+import { missingDeclaredCapabilityFields, parseCustomCapabilityContract } from "./customCapabilityContract";
 import type { ApiKeyDecryptStatus } from "./contracts/apiKeyStatus";
+import { tagNomiError } from "./nomiErrorCodes";
 
 /**
  * 不可用的**原因**，一个封闭枚举。
@@ -38,6 +40,7 @@ export const MODEL_UNUSABLE_REASONS = [
    * 这是 MCP 接入走到一半停下时**最常见**的一档——模型行在、启用着、钥匙也在，就是没发布。
    */
   "model_unpublished",
+  "capability_incomplete",
   /** 这家还没配钥匙。 */
   "credential_missing",
   /** 钥匙来自旧版明文存储，不能用于认证——要在 Nomi 里重存一次。 */
@@ -51,7 +54,7 @@ export type ModelUnusableReason = (typeof MODEL_UNUSABLE_REASONS)[number];
 /** 逐模型的可用性结论。`usable: true` 时没有 `reason`——「可用还带个原因」只会让读者再猜一次。 */
 export type ModelAvailability =
   | { usable: true }
-  | { usable: false; reason: ModelUnusableReason };
+  | { usable: false; reason: ModelUnusableReason; missingFields?: string[] };
 
 const USABLE: ModelAvailability = Object.freeze({ usable: true });
 
@@ -85,6 +88,8 @@ export function deriveModelAvailability(input: ModelAvailabilityInput): ModelAva
   const { model, vendor, credentialStatus, evidence } = input;
   if (!vendor) return { usable: false, reason: "vendor_missing" };
   if (!vendor.enabled) return { usable: false, reason: "vendor_disabled" };
+  const missingFields = missingDeclaredCapabilityFields(model?.meta);
+  if (missingFields.length) return { usable: false, reason: "capability_incomplete", missingFields };
   if (!model?.enabled) return { usable: false, reason: "model_disabled" };
   if (!derivePublishedExecution(model, evidence).published) {
     return { usable: false, reason: "model_unpublished" };
@@ -107,4 +112,24 @@ export function isCredentialReason(reason: ModelUnusableReason): boolean {
   return reason === "credential_missing"
     || reason === "credential_needs_resave"
     || reason === "credential_locked";
+}
+
+/**
+ * Creation-only guard. Existing accepted-task queries must still resolve their original model/wire.
+ *
+ * Both refusals carry the `model-config` machine code. The canvas wraps every failure that happens before a request leaves the machine
+ * as `submission_not_sent`, and the card classifier reads that code before it reads any wording, so a sentence alone (even one that
+ * starts with "Model is not configured") ends on the generic "not sent, retry" card there. The code is what points both paths at model access.
+ */
+export function assertDeclaredCapabilityForTask(meta: unknown, taskKind: string): void {
+  const missingFields = missingDeclaredCapabilityFields(meta);
+  if (missingFields.length) throw Object.assign(new Error(tagNomiError("model-config", `Incomplete declaration: read the documentation and resubmit. Missing: ${missingFields.join(", ")}`)), { code: "capability_incomplete", missingFields });
+  // Workflow/manual capability admission has its own lifecycle; this guard owns declared projections.
+  const projection = meta && typeof meta === "object" ? (meta as Record<string, unknown>).declarationProjection : undefined;
+  if (!projection || typeof projection !== "object" || (projection as Record<string, unknown>).hasMediaContract !== true) return;
+  const contract = parseCustomCapabilityContract(meta);
+  const mask = adapterPublicationModeMask(meta);
+  if (contract && (!contract.modes.some((mode) => (mode.transportTaskKind || contract.transportTaskKind) === taskKind) || (mask.present && !mask.modes.includes(taskKind as never)))) {
+    throw Object.assign(new Error(tagNomiError("model-config", `Declaration does not publish taskKind: ${taskKind}`)), { code: "capability_mode_unavailable" });
+  }
 }

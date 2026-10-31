@@ -60,6 +60,9 @@ export function customCapabilityArchetypeForModel(model: {
     modes: contract.modes,
     defaultModeId: contract.defaultModeId,
     transportTaskKind: contract.transportTaskKind,
+    // The catalog row this archetype was built from, the only model name a contract can state.
+    // Without it a certified row drops out of the model-name matrix and that matrix goes blind on it.
+    catalogModelKey: identifier,
     identifierPatterns: [identifier],
   }
 }
