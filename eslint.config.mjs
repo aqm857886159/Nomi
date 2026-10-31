@@ -84,6 +84,15 @@ const testFileRestrictedSyntax = [
   },
 ]
 
+// Main-process synchronous waits freeze IPC while waiting. Existing debt uses
+// ESLint bulk suppressions (file x rule counts); new calls fail and deleted calls
+// require --prune-suppressions. The independent core-rule id survives overrides.
+const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const mainSyncWaitSelectors = [{
+  selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
+  message: 'Do not add Atomics.wait in the main process: synchronous sleep blocks IPC and window events. Use an asynchronous retry; existing debt may only decrease.',
+}]
+
 const windowsPathSelectors = [
   {
     selector: 'MemberExpression[property.name="pathname"][object.type="NewExpression"][object.callee.name="URL"]:has(MetaProperty)',
@@ -410,6 +419,14 @@ export default tseslint.config(
     rules: { 'no-console': ['error', { allow: ['log', 'info', 'debug'] }] },
   },
   {
+    // Alias ESLint's core rule, as above: independent options cannot be overwritten
+    // by quit lifecycle exemptions and do not extend those rules to new file types.
+    files: ['electron/**/*.{ts,tsx,mts,cts,js,mjs,cjs,jsx}'],
+    ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
+    plugins: { 'main-sync-wait': mainSyncWaitPlugin },
+    rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
+  },
+  {
     files: ['electron/**/*.{ts,tsx}'],
     ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts', ...directQuitExemptionFiles],
     rules: { 'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors) },
@@ -512,6 +529,28 @@ export default tseslint.config(
     files: PLAYWRIGHT_ALIAS_FILES,
     plugins: { 'playwright-wait': playwrightAliasPlugin },
     rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors] },
+  },
+  {
+    // 项目存读只认草稿；严格面属于模型/Agent 作者入参。测试可验证两面的区别。
+    files: ['src/workbench/project/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{
+        group: ['**/storyboardPlanSchema', '**/storyboardPlanSchema.ts'],
+        allowImportNames: ['storyboardDraftPlanSchema'],
+        allowTypeImports: true,
+        message: 'Project persistence must use storyboardDraftPlanSchema; strict content validation belongs to authoring/generation.',
+      }] }],
+    },
+  },
+  {
+    files: ['electron/shared/storyboard/storyboardPlanSchema.ts'],
+    rules: {
+      'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors, {
+        selector: "VariableDeclarator[id.name=/^(draftPlanAnchorSchema|storyboardDraftPlanSchema)$/] Property[key.name=/^(name|aspectRatio)$/] CallExpression[callee.property.name=/^(min|max|nonempty|length|regex|refine|superRefine|transform|trim)$/]",
+        message: 'Draft content fields must remain editable strings; add content constraints only in the strict schema extension.',
+      }),
+    },
   },
   prettier,
 )
