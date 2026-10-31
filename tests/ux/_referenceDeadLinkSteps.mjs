@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { canonicalEvidenceUrl } from '../../scripts/walkthrough-url-shape.cjs'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe } from './_assert.mjs'
-import { collapseAgentPanel } from './_shell.mjs'
+import { canvasFitView, collapseAgentPanel } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
 import { UI_LOCALES, uiText } from './full-walk/invariants.mjs'
@@ -139,16 +139,24 @@ async function addReferenceNode({ win, projectId, projectRoot, prompt }) {
   await expect.poll(async () => Boolean(await fresh()), { message: '新图片节点落盘', timeout: stationTimeout() }).toBe(true)
   const nodeId = (await fresh()).id
   const node = win.locator(`[data-node-id="${nodeId}"]`)
+  // 画布不渲染视口外的节点，节点一多新节点就可能落在外面：先缩放到全部可见。
+  await canvasFitView(win, '缩放到新节点可见')
   await node.click({ position: { x: 8, y: 8 } })
   await node.locator('[contenteditable="true"]').last().fill(prompt)
   await node.locator('[data-asset-add-tile]').first().click()
   await win.locator('[data-testid="asset-picker"]').first().locator('input[type="file"]').setInputFiles(REFERENCE_IMAGE)
-  await expect.poll(async () => assetUrlIn(await fresh()), { message: '参考图被产品放进项目并挂在节点上', timeout: stationTimeout() }).toMatch(/^nomi-local:\/\/asset\//)
+  // 上传的图是一个新的上游节点，连线指到这个节点上（参考走连线，目标节点自己不存图片地址）。
+  const referenceUrl = async () => {
+    const canvas = (await readProject(win, projectId)).payload.generationCanvas
+    const sourceIds = new Set((canvas.edges ?? []).filter((edge) => edge.target === nodeId).map((edge) => edge.source))
+    return (canvas.nodes ?? []).filter((candidate) => sourceIds.has(candidate.id)).map(assetUrlIn).find(Boolean) ?? ''
+  }
+  await expect.poll(referenceUrl, { message: '参考图被产品放进项目并连到节点上', timeout: stationTimeout() }).toMatch(/^nomi-local:\/\/asset\//)
   await win.keyboard.press('Escape')
-  const assetFile = assetFileOf(assetUrlIn(await fresh()), projectRoot)
+  const assetFile = assetFileOf(await referenceUrl(), projectRoot)
   expect(fs.existsSync(assetFile), '参考图真的在项目目录里').toBe(true)
   // 花钱之前核：节点落在被授权的那一个模型上，且就是图生图（带着参考）。
-  const meta = (await fresh()).meta ?? {}
+  const meta = (await nodesOnDisk()).find((candidate) => candidate.id === nodeId)?.meta ?? {}
   expect({ vendor: meta.modelVendor, model: meta.modelKey }, '花钱之前：节点的模型就是被授权的那一个').toEqual({ vendor: IMAGE.vendorKey, model: IMAGE.modelKey })
   return { nodeId, node, assetFile, readNode: async () => (await nodesOnDisk()).find((candidate) => candidate.id === nodeId) }
 }
@@ -174,10 +182,12 @@ async function generateOnce({ win, reference }) {
 async function setLocale(win, locale) {
   await win.evaluate((value) => localStorage.setItem('nomi:locale:v1', value), locale)
   await win.reload({ waitUntil: 'domcontentloaded' })
+  // openCanvas 按 document 的语言找导航钮：等 i18n 把这一轮的语言同步到 document 再往下走。
+  await win.waitForFunction((value) => document.documentElement.lang.startsWith(value.slice(0, 2)), locale, { timeout: stationTimeout({ operations: 2 }) })
 }
 
 /**
- * 整条旅程。每个语言一个新项目：
+ * 整条旅程。同一个项目里，每个语言加新节点走一遍：
  *   A. 失效链接直接出结果（界面无新元素）；
  *   B. （refusal = true，只有夹具）活着的链接 → 被拒 → 新卡 → 重试 → 上传后的新链接出结果。
  * @param {{
@@ -195,12 +205,17 @@ export async function runReferenceDeadLinkJourney({ paid, evidence, locales = ['
   const { win } = await walk.start({ first: true })
   await win.evaluate(() => window.localStorage.setItem('__nomiE2E', '1'))
   evidence.locales = {}
+  // 先收窄模型再重新载入：渲染层的模型列表开窗时就读好了，不重新载入的话新节点还会落在收窄前的默认模型上。
+  // 项目在中文界面下建一次（walk.newProject 认的是中文的文档区），每个语言在同一个项目里加新节点。
+  await paid.lockToAuthorizedModels(win)
+  await setLocale(win, 'zh-CN')
+  const { projectId, projectRoot } = await walk.newProject()
   for (const locale of locales) {
     if (!UI_LOCALES.includes(locale)) throw new Error(`不认识的界面语言 ${locale}`)
     const report = (evidence.locales[locale] = {})
-    await setLocale(win, locale)
-    await paid.lockToAuthorizedModels(win)
-    const { projectId, projectRoot } = await walk.newProject()
+    // 每个语言从「这条连接没被拒绝过」开始：记录在设置目录里，上一轮 B 段记下的那一笔会让这一轮第一次就走上传。
+    fs.rmSync(path.join(walk.settingsDir, 'reference-link-refusals.json'), { force: true })
+    if (locale !== 'zh-CN') await setLocale(win, locale)
     await openCanvas(win)
     await collapseAgentPanel(win)
 
@@ -239,6 +254,8 @@ export async function runReferenceDeadLinkJourney({ paid, evidence, locales = ['
     const hint = uiText(locale, 'generationCommon.observability.error.referenceUnfetchable.hint')
     await expectVisible(alive.node.getByText(reason, { exact: true }), `[${locale}] 看到"${reason}"那张卡`, stationTimeout({ operations: 2 }))
     await expectVisible(alive.node.getByText(hint, { exact: true }), `[${locale}] 卡上的说明就是登记的那一句`, stationTimeout({ operations: 1 }))
+    // 第二个节点在窗口右边缘外：缩放到全部可见，整张卡才拍得全。
+    await canvasFitView(win, `[${locale}] 缩放到整张卡可见`)
     await walk.snap(`${locale}-b-card`)
     const retryName = new RegExp(`^\\s*${escapeRegExp(uiText(locale, 'generationCommon.observability.action.retry.main'))}\\s*$`)
     // 主按钮重试、没有换模型：同一张卡里不出现"换个模型"（探针证活：同一张卡上的「重试」就在）。
