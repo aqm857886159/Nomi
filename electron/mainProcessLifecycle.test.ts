@@ -32,6 +32,24 @@ describe("installMainProcessLifecycle", () => {
     expect(owner.quit).not.toHaveBeenCalled();
   });
 
+  it("卡顿监视器装在进程死亡处理旁边，并带着 env（MCP stdio 子进程靠它跳过）", () => {
+    const { app } = createApp(true);
+    const order: string[] = [];
+    const env = { NOMI_MCP_STDIO: "1" };
+    const installStallMonitor = vi.fn(() => { order.push("stall"); return null; });
+    installMainProcessLifecycle(app, {
+      env,
+      installCrashHandlers: vi.fn(),
+      installProcessStdioErrorGuards: vi.fn(),
+      installProcessGoneHandlers: vi.fn(() => { order.push("gone"); }),
+      installStallMonitor,
+      installParentProcessWatchdog: vi.fn(() => vi.fn()),
+      markStderrAsDiagnosticSurface: vi.fn(),
+    });
+    expect(installStallMonitor).toHaveBeenCalledWith({ env });
+    expect(order).toEqual(["gone", "stall"]);
+  });
+
   it("使用启动器显式传入的 PID，覆盖安装前已经被重新托管的竞态", async () => {
     const { app, installOwner, willQuit } = createApp(false);
     const stop = vi.fn();

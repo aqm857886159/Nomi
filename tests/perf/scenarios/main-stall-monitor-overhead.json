@@ -1,0 +1,24 @@
+{
+  "id": "main-stall-monitor-overhead",
+  "feature": "主进程卡顿监视器空闲 60 秒的开销：同一进程里监视器关 / 开各 60 秒取差（ABBA 两段各 30 秒；CPU 单位「每秒毫秒」，1 个百分点 = 每秒 10ms；每秒空闲唤醒），并断言无停顿时 0 次写盘",
+  "script": "tests/perf/canvas-scale/stallOverheadBench.mjs",
+  "args": [],
+  "scale": "项目库空闲（无项目、无生成），隐藏窗口，真 Electron 主进程",
+  "metrics": [
+    "stallMonitorCpuMsPerSec",
+    "stallMonitorWakeupsPerSec",
+    "stallMonitorQuietWrites"
+  ],
+  "budget": 2,
+  "group": "诊断：卡顿时间线（主进程）",
+  "budgetStatus": "approved",
+  "budgetBasis": "常驻定时器是用户看不见的持续成本：空闲 60 秒主进程 CPU 增量 ≤2.0ms/s（= 0.2 个百分点，单核）、每秒唤醒增量 ≤50（第二列）、无停顿时写盘 0 次（第三列，硬断言）。CPU 用「每秒毫秒」是因为登记表的统计函数只留一位小数，用百分点表示 0.2 以下分不出档。采样间隔 80ms 是量出来的（macOS M5、Electron 43.4.1、同一进程里关 / 开对照，设计卡 ★7）：20ms 实测 +4.3ms/s、每秒 +94 次唤醒，超预算；50ms +1.9 / +39；64ms 十次中位 1.7、最大 2.05 / +31，贴着预算；100ms +0.8 / +19。",
+  "baseline": {
+    "median": 1.2,
+    "p95": 1.4,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-31",
+    "commit": "0a20ada61"
+  }
+}

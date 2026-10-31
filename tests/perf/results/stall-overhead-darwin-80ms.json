@@ -1,0 +1,107 @@
+{
+  "label": "darwin-80ms",
+  "platform": "darwin",
+  "arch": "arm64",
+  "note": "逐轮读数，由 stallOverheadBench.mjs 打印；汇总见同目录 main-stall-monitor-overhead-darwin-arm64-80ms.json（perf:scenarios --measure-only --out）",
+  "samples": [
+    {
+      "run": 0,
+      "order": "off-first",
+      "resolutionMs": 80,
+      "windowSec": 60,
+      "cpuOffPct": 0.058,
+      "cpuOnPct": 0.17,
+      "cpuDeltaPct": 0.111,
+      "cpuDeltaMsPerSec": 1.11,
+      "wakeOff": 4,
+      "wakeOn": 28,
+      "wakeupsDelta": 24,
+      "quietWrites": 0,
+      "quietRows": [],
+      "counterAlive": true
+    },
+    {
+      "run": 1,
+      "order": "on-first",
+      "resolutionMs": 80,
+      "windowSec": 60,
+      "cpuOffPct": 0.078,
+      "cpuOnPct": 0.216,
+      "cpuDeltaPct": 0.139,
+      "cpuDeltaMsPerSec": 1.39,
+      "wakeOff": 5,
+      "wakeOn": 30,
+      "wakeupsDelta": 25,
+      "quietWrites": 0,
+      "quietRows": [],
+      "counterAlive": true
+    },
+    {
+      "run": 2,
+      "order": "off-first",
+      "resolutionMs": 80,
+      "windowSec": 60,
+      "cpuOffPct": 0.081,
+      "cpuOnPct": 0.172,
+      "cpuDeltaPct": 0.091,
+      "cpuDeltaMsPerSec": 0.91,
+      "wakeOff": 3.5,
+      "wakeOn": 28,
+      "wakeupsDelta": 24.5,
+      "quietWrites": 0,
+      "quietRows": [],
+      "counterAlive": true
+    },
+    {
+      "run": 3,
+      "order": "on-first",
+      "resolutionMs": 80,
+      "windowSec": 60,
+      "cpuOffPct": 0.055,
+      "cpuOnPct": 0.172,
+      "cpuDeltaPct": 0.117,
+      "cpuDeltaMsPerSec": 1.17,
+      "wakeOff": 3,
+      "wakeOn": 28,
+      "wakeupsDelta": 25,
+      "quietWrites": 1,
+      "quietRows": [
+        {
+          "t": "2026-10-31T08:34:16.253Z",
+          "kind": "main-stall",
+          "ms": 145,
+          "frozen": false,
+          "page": "library",
+          "nodes": "0",
+          "generating": false
+        },
+        {
+          "t": "2026-10-31T08:34:36.257Z",
+          "kind": "main-stall",
+          "ms": 135,
+          "frozen": false,
+          "page": "library",
+          "nodes": "0",
+          "generating": false
+        }
+      ],
+      "counterAlive": true
+    },
+    {
+      "run": 4,
+      "order": "off-first",
+      "resolutionMs": 80,
+      "windowSec": 60,
+      "cpuOffPct": 0.075,
+      "cpuOnPct": 0.211,
+      "cpuDeltaPct": 0.136,
+      "cpuDeltaMsPerSec": 1.36,
+      "wakeOff": 5.5,
+      "wakeOn": 30,
+      "wakeupsDelta": 24.5,
+      "quietWrites": 0,
+      "quietRows": [],
+      "counterAlive": true
+    }
+  ]
+}
