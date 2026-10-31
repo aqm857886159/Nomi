@@ -17,6 +17,13 @@ import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 
+/**
+ * 路径列表有多长取决于仓库有多大，不取决于调用方。Node 默认缓冲只有 1 MiB，它悄悄成了一条仓库大小上限：
+ * 2026-09-17 全仓清单第一次越过它，只修了撞上的那一道门；2026-10-31 再越过一次，没传 maxBuffer 的门岗一起 ENOBUFS，
+ * check:secrets 还把错吞成「扫了 0 个文件，通过」。所以上限只在这里定一次，调用方传不了。
+ */
+const PATH_LISTING_MAX_BUFFER = 256 * 1024 * 1024
+
 /** 把 `-z` 插在子命令后面（不能追加到末尾——`--` 之后会被当成 pathspec）。 */
 function withNulTermination(args) {
   if (args.includes('-z')) return args
@@ -31,11 +38,11 @@ export function splitNulPaths(stdout) {
  * 跑一条列路径的 git 命令，返回未转义的路径数组。
  * 用法与原来一致，只是别自己写 `-z`：`gitPaths(['diff', '--name-only', base, head])`。
  */
-export function gitPaths(args, { cwd = process.cwd(), maxBuffer } = {}) {
+export function gitPaths(args, { cwd = process.cwd() } = {}) {
   const stdout = execFileSync('git', withNulTermination(args), {
     cwd,
     encoding: 'utf8',
-    ...(maxBuffer ? { maxBuffer } : {}),
+    maxBuffer: PATH_LISTING_MAX_BUFFER,
   })
   return splitNulPaths(stdout)
 }
@@ -44,10 +51,10 @@ export function gitPaths(args, { cwd = process.cwd(), maxBuffer } = {}) {
  * 返回工作树中会进入提交的文件：已跟踪文件 + 未跟踪且未被标准规则忽略的文件。
  * 这是所有扫描型门岗的唯一文件清单来源；不在 git 仓库中直接抛错，禁止退回磁盘遍历。
  */
-export function trackedFiles({ cwd = process.cwd(), roots = [], maxBuffer = 256 * 1024 * 1024 } = {}) {
+export function trackedFiles({ cwd = process.cwd(), roots = [] } = {}) {
   return gitPaths(
     ['ls-files', '--cached', '--others', '--exclude-standard', ...(roots.length ? ['--', ...roots] : [])],
-    { cwd, maxBuffer },
+    { cwd },
   ).filter((file) => existsSync(path.resolve(cwd, file)))
 }
 
@@ -60,6 +67,7 @@ export function gitNameStatus(args, options = {}) {
   const records = splitNulPaths(execFileSync('git', withNulTermination(args), {
     cwd: options.cwd ?? process.cwd(),
     encoding: 'utf8',
+    maxBuffer: PATH_LISTING_MAX_BUFFER,
   }))
   const entries = []
   for (let i = 0; i < records.length; i += 1) {
