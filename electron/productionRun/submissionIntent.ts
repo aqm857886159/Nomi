@@ -282,14 +282,15 @@ export function createSubmissionIntent(input: { root: string; scope: readonly st
     });
   }
   /** Best effort by design: losing this write only means the next observation asks the provider again. */
-  function recordResult(attemptId: string, result: Result) {
+  async function recordResult(attemptId: string, result: Result) {
     try {
       const { lock, lease } = acquireClaim();
       try {
         const envelope = envelopeFor(attemptId);
-        if (envelope.read()?.state === "materialized") return;
-        envelope.markPolled({ status: result.status || "unknown", raw: result });
-        if (result.status === "succeeded" && result.assets?.length) envelope.markMaterialized();
+        const observed = envelope.read();
+        if (!observed || observed.state === "materialized") return;
+        const polled = await envelope.markPolled({ observed, status: result.status || "unknown", raw: result });
+        if (result.status === "succeeded" && result.assets?.length) await envelope.withMaterialization(polled, async (_current, complete) => complete());
       } finally { lock.release(lease); }
     } catch { /* see above */ }
   }

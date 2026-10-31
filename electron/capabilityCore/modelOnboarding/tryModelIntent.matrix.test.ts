@@ -410,12 +410,15 @@ describe("model trial intent class matrix", () => {
           if (["accepted", "retrieving", "materialized"].includes(phase)) {
             answer({ id: "remote-job", status: "queued", assets: [] });
             await submission;
-            if (phase === "retrieving") intent.recordResult(first.job.jobId, { id: "remote-job", status: "running", assets: [] });
-            if (phase === "materialized") intent.recordResult(first.job.jobId, { id: "remote-job", status: "succeeded", assets: [{ type: "image", url: "file://fixture" }] });
+            if (phase === "retrieving") await intent.recordResult(first.job.jobId, { id: "remote-job", status: "running", assets: [] });
+            if (phase === "materialized") await intent.recordResult(first.job.jobId, { id: "remote-job", status: "succeeded", assets: [{ type: "image", url: "file://fixture" }] });
           }
         }
       }
       const original = intent.read()!;
+      // recordResult swallows its own failures, so only the record itself can show the write happened.
+      if (phase === "retrieving") expect(original.result?.status).toBe("running");
+      if (phase === "materialized") expect(original.phase).toBe("succeeded");
       const repeated = host === "same-instance" ? intent.claim(changed)
         : host === "new-instance" ? open().claim(changed)
         : (await hostProcess(settings, { scope: hostScope }).done).out!;
