@@ -226,6 +226,7 @@ newAttemptOf 必须引用当前 attemptId；重复引用旧 attempt 不再创建
 | 新 attempt 命名 | 挪过 n 次后叫 `attempt-r<n>-<k>` | 不和被挪走的撞名；旧 `newAttemptOf` 重放对不上当前单，只回当前单 |
 | 上一笔不确定的事实 | 冻结请求里带 `priorOutcomeUnknown`，安全重试继承 | 确认卡的那句话和 Agent 回执来自同一份持久记录 |
 | 那句话怎么到确认卡 | 这笔走现有的 `confirmSpendAndMintGrant`，带专用 intent；渲染层在 `spendCardByIntent` 表里加一行，卡本身不变 | 表就是为不碰热点文件留的；`taskSpend.ts`、`capabilityApplyHandler.ts` 都是文件级热点 |
+| 那个 intent 常量放哪 | `electron/shared/contracts/modelTrialSpend.ts`，进自写登记的领域目录 | 和 `browserPromptExtraction` 同形：主进程和渲染层共读，只能住中立契约层 |
 | 旧 approvals 为什么会撞 | `approvals.ndjson` 是按 `approvalId` 记的旁账，事件丢了以后 job 编号从头来，同名 approval 指纹和时间不同，于是 `Approval id conflict`。这是读不出来的一种表现：approval 指向不存在的 job 就算 `journal_behind`，显式新单把它连目录一起挪走；普通调用根本走不到记 approval 那一步 | 不绕过确认、不多发 |
 
 **不改：** `productionRunRuntimeEnvelope.ts`、`productionRunRepository.ts`；普通调用不下单的语义；`SpendConfirmDialog` 的结构和布局。

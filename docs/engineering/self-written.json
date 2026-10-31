@@ -171,6 +171,10 @@
       "reason": "浏览器提取提示词的跨进程契约：主进程那扇门的请求与回话形状、付费卡上「读哪个页面的哪张图」两行的编码——按次花钱卡上的领域事实"
     },
     {
+      "path": "electron/shared/contracts/modelTrialSpend*",
+      "reason": "模型试跑的跨进程契约：上一笔结果不确定时开新单，主进程和付费卡共读的那个 intent——这一笔可能多扣一次，是按次花钱卡上的领域事实，和上一行同形（通用幂等的查证见 docs/plan/2026-10-30-try-model-intent-lock.md ★0）"
+    },
+    {
       "path": "electron/shared/contracts/canvasHandOver*",
       "reason": "交给画布的跨进程契约（D2 一台发动机）：付费卡上按「生成」的那几镜从制作流程交给画布单节点提交，主进程与渲染层那一问的 op 名与回话形状——按镜头花钱的领域语义"
     },
