@@ -156,7 +156,9 @@ it('a model that only declared image-to-video, run as text-to-video, stops befor
   const project = createProject({ name: 'Frame only', rootPath: path.join(root, 'project') })
   const spendGate = vi.fn(async () => {})
   const failure = await runTask({ vendor: row.vendorKey, request: { kind: 'text_to_video', prompt: 'A blue marble', duration: 1, extras: { projectId: project.id, modelKey: row.modelKey } } }, { spendGate }).then(() => null, (error) => error)
-  expect(failure?.message).toMatch(/no declared video route/)
+  // The creation gate refuses a mode the declaration withdrew before the runtime reaches its own "no declared video route" line,
+  // so the sentence here is the gate's. Both sentences carry the model-config code, and the canvas path is pinned in canvasRefusalCard.test.ts.
+  expect(failure?.message).toMatch(/does not publish taskKind/)
   expect(spendGate).not.toHaveBeenCalled()
   expect(posts()).toHaveLength(0)
   expect(classifyGenerationError(failure.message)).toMatchObject({ kind: 'model-config', primary: 'open-model-access' })

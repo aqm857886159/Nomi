@@ -1,0 +1,27 @@
+{
+  "recordedFrom": "03c4c8fb3957b7033c2d3caf00a741c747a21913",
+  "diskVersionAfterRead": 13,
+  "backupFiles": [],
+  "models": {
+    "opaque-gamma": {
+      "kind": "video",
+      "listed": true,
+      "published": [
+        "text_to_video"
+      ],
+      "modes": {
+        "text_to_video": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/video/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"opaque-gamma\",\"prompt\":\"a blue marble\",\"duration\":\"\"}"
+          }
+        }
+      }
+    }
+  }
+}

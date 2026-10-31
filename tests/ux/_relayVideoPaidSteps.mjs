@@ -3,17 +3,17 @@ import fs from 'node:fs'
 import { expect } from './_assert.mjs'
 import { relayDeclaration } from './_relayVideoFixture.mjs'
 import { relayModelClient, prepareRelayVideo, generateRelayVideo, createRelayProject } from './_relayVideoWalk.mjs'
-import { configureRelayMinimumThroughVisibleUi } from './_relayVideoCapabilityUi.mjs'
 import { lockSpendToModels } from './_paidRun.mjs'
 import { readAuthorizedRows } from './_paidEnvKey.mjs'
 
 export async function runRelayVideoPaidSteps({ paid, win, plan, mcpEnv = {}, readCreates, readCreateBodies, freeOnly = false }) {
   const { walk } = paid
+  const initialCreateCount = readCreates()
+  expect(initialCreateCount, 'the walk starts before any generation').toBe(0)
   await paid.lockToAuthorizedModels(win) // includes the visible credential page owned by _paidEnvKey
   const card = relayDeclaration(plan.baseUrl, { id: plan.modelKey, shape: plan.shape, queryPath: plan.queryPath })
   card.sources = [{ url: plan.sourceUrl, evidence: 'Explicit creation, query, output URL and documented minimum settings' }]
   card.models[0].modes[0].sourceUrls = [plan.sourceUrl]
-  Object.assign(card.models[0].modes[0].create.body, { duration: plan.duration, resolution: plan.resolution, aspect_ratio: '16:9', audio: false })
   card.models[0].parameters[0].min = plan.duration
   card.models[0].parameters[0].default = plan.duration
   card.models[0].parameters[1].options = [{ value: plan.resolution, label: plan.resolution }]
@@ -27,26 +27,20 @@ export async function runRelayVideoPaidSteps({ paid, win, plan, mcpEnv = {}, rea
   // The new row did not exist at the initial credential lock. Reuse its owner after declaring it.
   walk.report.disabledAfterDeclaration = await lockSpendToModels(win, await readAuthorizedRows(win, [model]))
   const capture = (tag) => walk.snap(`relay-${tag}`)
-  walk.report.inputPreparation = await configureRelayMinimumThroughVisibleUi(win, plan, capture)
   const prepared = await prepareRelayVideo({ win, newProject: () => createRelayProject(walk, win), model, capture })
-  // A newly selected model may retain the node's previous values. Set the minimum visibly.
+  // Raw declaration defaults must already be visible; no manual capability or parameter repair.
   await prepared.node.locator('[data-parameter-summary]').click()
-  const duration = win.locator('[data-agent-parameter-panel] [data-agent-parameter-control="duration"]')
-  const slider = duration.getByRole('slider')
-  if (await slider.count()) await slider.press('Home')
-  else await duration.getByRole('spinbutton').fill(String(plan.duration))
-  const resolution = win.locator('[data-agent-parameter-panel] [data-agent-parameter-control="resolution"]')
-  if (await resolution.count()) await resolution.getByRole('radio', { name: plan.resolution, exact: true }).click()
+  await expect(win.locator('[data-agent-parameter-panel] [data-agent-parameter-control="duration"]')).toBeVisible()
+  await expect(win.locator('[data-agent-parameter-panel] [data-agent-parameter-control="resolution"]')).toBeVisible()
   await win.keyboard.press('Escape')
   await capture('minimum-settings')
   walk.report.freeSegment = { prepared: true, settings: { duration: plan.duration, resolution: plan.resolution, audio: false }, nodeId: prepared.nodeId }
-  // Exact minimums are sealed in this one declaration: no paid try_model, no alternative-route POST.
-  expect(card.models[0].modes[0].create.body.duration).toBe(plan.duration)
-  expect(card.models[0].modes[0].create.body.resolution).toBe(plan.resolution)
+  // Visible defaults and the actual create body below independently verify the projection.
   const visibleSettings = await prepared.node.locator('[data-node-composer-footer]').innerText()
   expect(visibleSettings, 'the visible minimum resolution agrees with the sealed request').toContain(plan.resolution)
-  expect(visibleSettings, 'the visible minimum duration agrees with the sealed request').toMatch(new RegExp(`(^|\\D)${plan.duration}(?:s|秒|\\s*sec)`))
-  expect(readCreates(), 'free preparation has not submitted a generation').toBe(0)
+  expect(visibleSettings, 'the visible minimum duration agrees with the sealed request').toMatch(new RegExp(String.raw`(^|\D)${plan.duration}(?:s|秒|\s*sec)`))
+  expect(readCreates(), 'free preparation preserves the initial generation count').toBe(initialCreateCount)
+  walk.report.inputPreparation = { manualInputSetup: false, source: 'declaration' }
   if (freeOnly) { walk.report.stoppedBeforeGeneration = true; return { projectRoot: prepared.projectRoot, nodeId: prepared.nodeId } }
   walk.report.landed = await generateRelayVideo({ win, prepared, capture })
   expect(readCreates(), 'the whole script submits exactly one generation').toBe(1)

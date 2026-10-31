@@ -1,0 +1,35 @@
+// 验收线探针（v0.24.0 副本）：在 0.24.0 上由 AI 交卡接的模型（真 registerDeclaredProvider）。
+import fs from "node:fs";
+import path from "node:path";
+import { describe, it, vi } from "vitest";
+const out = process.env.V_OUT as string;
+fs.rmSync(out, { recursive: true, force: true });
+fs.mkdirSync(out, { recursive: true });
+vi.mock("electron", () => ({
+  app: { getPath: () => out, getAppPath: () => process.cwd(), isPackaged: false },
+  safeStorage: { isEncryptionAvailable: () => true, encryptString: (v: string) => Buffer.from(v), decryptString: (v: Buffer) => v.toString() },
+}));
+import { readCatalog, upsertModelCatalogVendorApiKey } from "./catalogStore";
+import { registerDeclaredProvider } from "./declaredProviderRegistration";
+const AUTH = { Authorization: "Bearer {{user_api_key}}" };
+const card = {
+  provider: { baseUrl: "http://127.0.0.1:39017", authType: "bearer", providerKind: "openai-compatible" },
+  sources: [{ url: "https://docs.example.test/video", evidence: "/v1/video/generations" }],
+  assetIngestion: { strategy: "none", sourceUrl: "https://docs.example.test/video" },
+  models: [{ modelKey: "opaque-gamma", labelZh: "opaque-gamma", kind: "video",
+    parameters: [{ key: "duration", label: "时长", type: "number", min: 1, max: 15, default: 1 }, { key: "resolution", label: "清晰度", type: "select", options: [{ value: "360p", label: "360p" }], default: "360p" }],
+    modes: [{ taskKind: "text_to_video", delivery: "asynchronous",
+      create: { method: "POST", path: "/v1/video/generations", headers: AUTH, body: { model: "{{model.modelKey}}", prompt: "{{request.prompt}}", duration: "{{request.params.duration}}", size: "{{request.params.resolution}}" }, response_mapping: { task_id: "task_id" }, provider_meta_mapping: { task_id: "task_id" } },
+      query: { method: "GET", path: "/v1/video/generations/{{providerMeta.task_id}}", headers: AUTH, response_mapping: { status: "status", video_url: "video_url" } },
+      statusMapping: { queued: ["queued"], running: ["processing"], succeeded: ["succeeded"], failed: ["failed"] }, sourceUrls: ["https://docs.example.test/video"] }] }],
+};
+describe("declared", () => {
+  it("registers", () => {
+    const reg = registerDeclaredProvider({ card: card as never, vendorName: "Declared Relay" });
+    upsertModelCatalogVendorApiKey(reg.vendorKey, { apiKey: "sk-v-relay-fake", enabled: true });
+    const state = readCatalog();
+    const m = state.models.find((x) => x.modelKey === "opaque-gamma")!;
+    console.log("DECLARED version", state.version, "vendor", reg.vendorKey, "meta keys", Object.keys(m.meta as object).join(","), "adapter", JSON.stringify((m.meta as Record<string, unknown>).adapter));
+    fs.writeFileSync(path.join(out, "card.json"), JSON.stringify(card));
+  });
+});
