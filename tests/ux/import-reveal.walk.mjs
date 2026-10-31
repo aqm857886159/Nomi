@@ -140,7 +140,7 @@ try {
   const verdict = {
     neverWoreGenerationOverlay: timeline.every((f) => f.generating === 0),
     noBlueBand: timeline.every((f) => f.blueBand === 0),
-    staticGridWithoutMotion: reduced ? timeline.some((f) => f.grid > 0 && /repeating-linear-gradient/.test(f.gridMask || '') && f.gridAnimations === 0) : 'n/a',
+    staticGridWithoutMotion: timeline.some((f) => f.grid > 0 && /repeating-linear-gradient/.test(f.gridMask || '') && f.gridAnimations === 0),
     noProgressLineEver: timeline.every((f) => f.progressLine === 0),
     revealRatioMonotonic: [...perCard.values()].every((series) => series.every((r, i) => i === 0 || r >= series[i - 1])),
     revealCellsTrackRatio: withReveal.every((f) => f.reveal.every((r) => !r.total || Math.abs(r.cells - Math.round(r.ratio * r.total)) <= 1)),
@@ -162,8 +162,7 @@ try {
   check(verdict.revealRatioMonotonic, '同一张卡的渐显比例回退过——马赛克必须只增不减')
   check(verdict.revealCellsTrackRatio, '画出来的格子数对不上进度比例——渐显不是由「已拷贝字节 / 总字节」驱动的')
   check(verdict.settledHasNoOverlay, '导入完成后覆盖层还挂着（媒体被遮住）')
-  if (reduced) check(verdict.fallbackBandIsGradient === true, '无 GPU 兜底画的不是柔和扫光渐变（实心蓝条又回来了）')
-  else check(verdict.noSolidBandWithGpu === true, '有 GPU 的这一趟出现了兜底色块——img-fx 没被准入')
+  check(verdict.staticGridWithoutMotion === true, '导入中没看到静止灰格，或者灰格在动')
   // 探针活性：导入结束后那张卡上不该再有「导入中」标签。基线取自过程中——
   // timeline 里确实出现过带文本的标签，证明这个选择器测得到东西，不是空洞的「没看到」。
   check(timeline.some((f) => f.labels.length > 0), '整趟没出现过「导入中」标签——下面那条「已经消失」的断言因此不作数')

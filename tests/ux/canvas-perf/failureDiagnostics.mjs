@@ -19,7 +19,6 @@ export async function captureScenarioFailure(page, { directory, id, error }) {
         nodes: count('article[data-node-id]'),
         surfaces: [...document.querySelectorAll('[data-generation-waiting]')].map(surface => ({
           nodeId: surface.closest('[data-node-id]')?.getAttribute('data-node-id'),
-          motion: surface.getAttribute('data-process-motion'),
           zoom: surface.getAttribute('data-process-zoom'),
           fx: surface.querySelectorAll('[data-process-fx]').length,
           staticShells: surface.querySelectorAll('[data-process-static-grid]').length,

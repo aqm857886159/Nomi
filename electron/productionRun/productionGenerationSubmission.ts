@@ -1,5 +1,5 @@
+import { GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
 import crypto from "node:crypto";
-import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { readGenerationExecution } from "./productionGenerationHistory";
 import path from "node:path";
 
@@ -78,52 +78,8 @@ export type GenerationSubmissionPollResult = {
   nextAction: "poll" | "materialize" | "attention";
 };
 
-export type GenerationSubmissionMaterializeResult = {
-  operationId: string;
-  runId: string;
-  jobId: string;
-  providerTaskId: string;
-  artifactId: string;
-  contentHash: string;
-  nextAction: "completed";
-};
-
-export class GenerationMaterializationUnsupportedError extends Error {
-  readonly code = "provider_materialization_unsupported" as const;
-
-  constructor(message = "This provider has no verified output materialization path") {
-    super(message);
-    this.name = "GenerationMaterializationUnsupportedError";
-  }
-}
-
-export class GenerationMaterializationError extends Error {
-  readonly code = "materialization_failed" as const;
-
-  constructor(message: string) {
-    super(message);
-    this.name = "GenerationMaterializationError";
-  }
-}
-
-/**
- * 供应商说成了、产物取不回来，而且再取一次也不会不一样（#975 A2）。抛出前这一镜已经**耐久地**进了
- * needs_attention（errorCode = output_retrieval_failed）：调用方据此把它当成「已结清」而不是「还在处理」，
- * 不许下一轮再查再下。仍是 GenerationMaterializationError（code materialization_failed），既有的单镜对账照旧认得。
- */
-export class GenerationOutputRetrievalFailedError extends GenerationMaterializationError {
-  constructor(message: string) {
-    super(message);
-    this.name = "GenerationOutputRetrievalFailedError";
-  }
-}
-
-type RetrievalFailure = { code?: unknown; deterministic?: unknown; message?: unknown };
-
-function deterministicRetrievalFailure(error: unknown): error is RetrievalFailure & { message: string } {
-  const value = error as RetrievalFailure | null;
-  return Boolean(value && typeof value === "object" && value.code === OUTPUT_RETRIEVAL_FAILED && value.deterministic === true);
-}
+export { GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError } from "./productionGenerationMaterialization";
+export type { GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
 
 export type ProductionGenerationSubmissionDependencies = {
   repository: ProductionRunRepository;
@@ -220,36 +176,6 @@ export function addressedGenerationAttempt(run: ProductionRun, shotId?: string):
 
 function envelopeRefFor(runId: string, jobId: string): string {
   return `.nomi/runs/${runId}/jobs/${jobId}/runtime-envelope.json`;
-}
-
-type ProviderPollStatusClass = "pending" | "succeeded" | "failed" | "unknown";
-
-/**
- * Provider adapters expose their native status verbatim.  The submission seam
- * must only advance a job for a status that is explicitly known to be pending,
- * successful, or failed.  Treating an unrecognised verb as success is unsafe
- * (it can materialize an incomplete output); treating it as pending is worse
- * (the observer can spin forever).  The vocabulary itself lives in exactly one
- * place (shared/taskStatus, #1213) — engine A asks the same table.
- */
-function classifyProviderStatus(status: string): ProviderPollStatusClass {
-  const cls = classifyUpstreamTaskStatus(status);
-  if (cls === "queued" || cls === "running") return "pending";
-  if (cls === "succeeded") return "succeeded";
-  if (cls === "failed" || cls === "cancelled") return "failed";
-  return "unknown";
-}
-
-function isPendingProviderStatus(status: string): boolean {
-  return classifyProviderStatus(status) === "pending";
-}
-
-function isSuccessfulProviderStatus(status: string): boolean {
-  return classifyProviderStatus(status) === "succeeded";
-}
-
-function isFailedProviderStatus(status: string): boolean {
-  return classifyProviderStatus(status) === "failed";
 }
 
 /**
@@ -613,33 +539,32 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
     };
     // 这笔任务的模型 / 模式从冻结合同里读、随查询递下去：供应商实例是每次新建的，
     // 它自己内存里记的「这笔任务用的哪个模型」活不过观察窗重踢 / 重开项目 / 重启（见 GenerationProviderTaskContext）。
-    const result = await adapter.query({ providerId: job.provider, providerTaskId: job.providerTaskId, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } });
-    const providerStatus = result.providerStatus.trim();
-    if (!providerStatus) throw new Error("Provider returned an empty poll status");
-    const statusClass = classifyProviderStatus(providerStatus);
     const envelopeStore = envelope(run.runId, job.jobId);
-    envelopeStore.markPolled({ status: providerStatus, raw: result.raw });
-    const observedAt = now();
-    const statusChanged = job.providerStatus !== providerStatus;
-    const nextStatus = statusClass === "pending"
-      ? "polling"
-      : statusClass === "failed" || statusClass === "unknown"
-        ? "needs_attention"
-        : job.status;
-    const patch = {
-      providerStatus,
-      lastPollAt: observedAt,
-      ...(statusChanged ? { lastVendorStateChangeAt: observedAt } : {}),
-      ...(statusClass === "failed"
-        ? { errorCode: "provider_task_failed", errorMessage: "供应商任务已返回失败状态" }
-        : statusClass === "unknown"
-          ? { errorCode: "provider_status_unknown", errorMessage: "供应商返回了未识别的任务状态，需要人工核对" }
-          : {}),
-    };
-    command(run, nextStatus === job.status ? "job.patch" : "job.status", {
-      jobId: job.jobId,
-      ...(nextStatus === job.status ? { patch } : { status: nextStatus, patch }),
-    }, `poll:${run.revision}:${providerStatus}`);
+    let observation: { status: string; raw?: unknown } | { error: unknown };
+    try {
+      const result = await adapter.query({ providerId: job.provider, providerTaskId: job.providerTaskId, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } });
+      observation = { status: result.providerStatus, raw: result.raw };
+    } catch (error) { observation = { error }; }
+    if (!stored) throw new SubmissionReconciliationRequiredError("A runtime envelope is required before polling");
+    const settled = await envelopeStore.markPolled({ observed: stored, ...observation }, (next) => {
+      const current = requiredRun(deps.repository, input.projectId, input.operationId);
+      const currentJob = current.jobs.find((candidate) => candidate.jobId === job.jobId)!;
+      const providerStatus = next.lastPoll!.status;
+      const statusClass = classifyProviderStatus(providerStatus);
+      const observedAt = next.lastPoll!.observedAt;
+      const statusChanged = currentJob.providerStatus !== providerStatus;
+      const nextStatus = statusClass === "pending" ? "polling" : statusClass === "failed" || statusClass === "unknown" ? "needs_attention" : currentJob.status;
+      const patch = { providerStatus, lastPollAt: observedAt,
+        ...(statusChanged ? { lastVendorStateChangeAt: observedAt } : {}),
+        ...(statusClass === "failed" ? { errorCode: "provider_task_failed", errorMessage: "供应商任务已返回失败状态" }
+          : statusClass === "unknown" ? { errorCode: "provider_status_unknown", errorMessage: "供应商返回了未识别的任务状态，需要人工核对" } : {}),
+      };
+      if (statusClass !== "pending" || statusChanged || nextStatus !== currentJob.status) command(current, nextStatus === currentJob.status ? "job.patch" : "job.status", {
+        jobId: currentJob.jobId, ...(nextStatus === currentJob.status ? { patch } : { status: nextStatus, patch }),
+      }, `poll:${current.revision}:${providerStatus}`);
+    });
+    const providerStatus = settled.lastPoll?.status ?? "succeeded";
+    const statusClass = classifyProviderStatus(providerStatus);
     return {
       operationId: run.runId,
       runId: run.runId,
@@ -651,87 +576,78 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
   }
 
   async function materialize(input: GenerationSubmissionStartInput): Promise<GenerationSubmissionMaterializeResult> {
-    let run = requiredRun(deps.repository, input.projectId, input.operationId);
-    const execution = readGenerationExecution(deps.repository, run, input);
-    const { contract } = execution;
-    let job = execution.job;
-    const jobId = job.jobId;
-    if (!job?.providerTaskId) throw new GenerationMaterializationError("A provider task id is required before materialization");
-    const providerTaskId = job.providerTaskId;
-    const existing = run.artifacts.find((artifact) => artifact.jobId === jobId && ["image", "video", "audio"].includes(artifact.kind) && artifact.status === "ready");
-    if (existing?.contentHash) {
-      if (job.status !== "ready") run = command(run, "job.status", { jobId, status: "ready", patch: {} }, `materialize-job:${jobId}`);
-      const currentEnvelope = envelope(run.runId, jobId).read();
-      if (currentEnvelope?.state === "provider_accepted") envelope(run.runId, jobId).markMaterialized();
-      return { operationId: run.runId, runId: run.runId, jobId, providerTaskId: job.providerTaskId, artifactId: existing.artifactId, contentHash: existing.contentHash, nextAction: "completed" };
-    }
-    const currentEnvelope = envelope(run.runId, jobId).read();
-    if (!currentEnvelope?.providerTaskId || currentEnvelope.state !== "provider_accepted") throw new GenerationMaterializationError("Provider acceptance is required before materialization");
-    const polled = currentEnvelope.lastPoll;
-    if (!polled || isPendingProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task is still processing");
-    if (isFailedProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task did not complete successfully");
-    if (!isSuccessfulProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider returned an unknown status; reconcile before materialization");
-    // 供应商已报成功之后，这一步里「再来一次也不会不一样」的失败只有一种结局：耐久地记成「已生成但取回失败」、
-    // 停下来交给人（重新取回免费、不重新生成），而不是抛给观察循环当「还在处理」一轮轮重查重下（#975 A2 / V-975）。
-    // 包括：取回器判定的确定性失败（策略拒 / 4xx / 类型 / 超上限 / 落盘校验）、供应商没给出唯一一份产物、
-    // 这家没有物化通道。人话带稳定码，渲染层按码说话（去任务面板点「重新取回」）。
-    const park = (patch: { errorCode: string; errorMessage: string }, failure: Error): never => {
-      const current = requiredRun(deps.repository, input.projectId, input.operationId);
-      const currentJob = current.jobs.find((candidate) => candidate.jobId === jobId);
-      if (currentJob && currentJob.status !== "needs_attention") {
-        command(current, "job.status", { jobId, status: "needs_attention", patch }, `retrieval-failed:${jobId}:${current.revision}`);
+    for (;;) {
+      const run = requiredRun(deps.repository, input.projectId, input.operationId);
+      const { job, contract } = readGenerationExecution(deps.repository, run, input);
+      const jobId = job.jobId, providerTaskId = job.providerTaskId;
+      if (!providerTaskId) throw new GenerationMaterializationError("A provider task id is required before materialization");
+      const store = envelope(run.runId, jobId);
+      const observed = store.read();
+      const artifactFor = (current: ProductionRun) => current.artifacts.find((artifact) => artifact.jobId === jobId && ["image", "video", "audio"].includes(artifact.kind) && artifact.status === "ready" && artifact.contentHash);
+      const resultFor = (artifact: ProductionArtifact): GenerationSubmissionMaterializeResult => ({ operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifact.artifactId, contentHash: artifact.contentHash!, nextAction: "completed" });
+      const existing = artifactFor(run);
+      if (observed?.state === "materialized" && existing) return resultFor(existing);
+      if (!observed?.providerTaskId || observed.state !== "provider_accepted") throw new GenerationMaterializationError("Provider acceptance is required before materialization");
+      const polled = observed.lastPoll;
+      if (!polled || isPendingProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task is still processing");
+      if (isFailedProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task did not complete successfully");
+      if (!isSuccessfulProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider returned an unknown status; reconcile before materialization");
+      let extraction: { outputs: readonly GenerationProviderOutput[] } | undefined;
+      let extractionError: unknown;
+      if (!existing) {
+        try { extraction = await adapter.materialize({ providerId: job.provider, providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } }); }
+        catch (error) { extractionError = error; }
       }
-      throw failure;
-    };
-    const parkRetrievalFailure = (detail: string): never => park({
-      errorCode: OUTPUT_RETRIEVAL_FAILED,
-      errorMessage: tagNomiError("output-retrieval-failed", `The provider finished this shot, but Nomi could not retrieve the result: ${detail}`),
-    }, new GenerationOutputRetrievalFailedError(detail));
-    // 这家根本没有物化通道：重新取回也没用，所以不记成「取回失败」（不给「重新取回」），只如实停下。
-    const parkUnsupported = (): never => park({
-      errorCode: "provider_materialization_unsupported",
-      errorMessage: "This provider has no verified output materialization path",
-    }, new GenerationMaterializationUnsupportedError());
-    let extracted: { outputs: readonly GenerationProviderOutput[] };
-    try {
-      extracted = await adapter.materialize({ providerId: job.provider, providerTaskId: job.providerTaskId, raw: polled.raw, context: { modelId: contract.modelId, mode: contract.mode, parameters: contract.parameters } });
-    } catch (error) {
-      if (error instanceof GenerationProviderObservationError) return parkUnsupported();
-      throw error;
+      const settled = await store.withMaterialization(observed, async (currentEnvelope, complete, assertOwned) => {
+        let current = requiredRun(deps.repository, input.projectId, input.operationId);
+        const ready = artifactFor(current);
+        if (ready) { complete(); return resultFor(ready); }
+        if (currentEnvelope.state === "materialized") throw new GenerationMaterializationError("Materialized runtime has no ready artifact receipt");
+        const latestJob = current.jobs.find((candidate) => candidate.jobId === jobId)!;
+        if (latestJob.status === "needs_attention") throw new GenerationMaterializationError(latestJob.errorMessage ?? "Output retrieval requires attention before continuing");
+        const park = (patch: { errorCode: string; errorMessage: string }, failure: Error): never => {
+          assertOwned();
+          current = requiredRun(deps.repository, input.projectId, input.operationId);
+          const currentJob = current.jobs.find((candidate) => candidate.jobId === jobId);
+          if (currentJob && currentJob.status !== "needs_attention") command(current, "job.status", { jobId, status: "needs_attention", patch }, `retrieval-failed:${jobId}:${current.revision}`);
+          throw failure;
+        };
+        const unsupported = (): never => park({ errorCode: "provider_materialization_unsupported", errorMessage: "This provider has no verified output materialization path" }, new GenerationMaterializationUnsupportedError());
+        const failed = (detail: string): never => park({ errorCode: OUTPUT_RETRIEVAL_FAILED, errorMessage: tagNomiError("output-retrieval-failed", `The provider finished this shot, but Nomi could not retrieve the result: ${detail}`) }, new GenerationOutputRetrievalFailedError(detail));
+        if (extractionError instanceof GenerationProviderObservationError) return unsupported();
+        if (extractionError !== undefined) throw extractionError;
+        if (!extraction || extraction.outputs.length !== 1) return failed(extraction?.outputs.length === 0 ? "Provider did not expose a materializable output" : "Single-shot generation returned more than one output");
+        if (!deps.materializeOutput) return unsupported();
+        let receipt: Awaited<ReturnType<NonNullable<typeof deps.materializeOutput>>>;
+        try {
+          assertOwned();
+          receipt = await deps.materializeOutput({ projectId: input.projectId, operationId: run.runId, run: current, job: current.jobs.find((candidate) => candidate.jobId === jobId)!, contract, providerTaskId, output: extraction.outputs[0]! });
+        } catch (error) {
+          const readyAfterWait = artifactFor(requiredRun(deps.repository, input.projectId, input.operationId));
+          if (readyAfterWait) { complete(); return resultFor(readyAfterWait); }
+          if (!deterministicRetrievalFailure(error)) throw error;
+          return failed(error.message);
+        }
+        assertOwned();
+        current = requiredRun(deps.repository, input.projectId, input.operationId);
+        const readyAfterWait = artifactFor(current);
+        if (readyAfterWait) { complete(); return resultFor(readyAfterWait); }
+        const artifactId = typeof receipt.artifactId === "string" ? receipt.artifactId.trim() : "";
+        const contentHash = typeof receipt.contentHash === "string" ? receipt.contentHash.trim() : "";
+        const projectRelativePath = typeof receipt.projectRelativePath === "string" ? receipt.projectRelativePath.trim() : "";
+        if (!artifactId || !contentHash || !projectRelativePath) throw new GenerationMaterializationError("Asset store returned an incomplete materialization receipt");
+        const currentJob = current.jobs.find((candidate) => candidate.jobId === jobId)!;
+        const artifact: ProductionArtifact = { artifactId, stageId: "generate", jobId, kind: receipt.kind, status: "ready", source: "external-mcp", contentHash, projectRelativePath,
+          ...(receipt.thumbnailRelativePath ? { thumbnailRelativePath: receipt.thumbnailRelativePath } : {}), ...(receipt.previewState ? { previewState: receipt.previewState } : {}),
+          ...(receipt.width && receipt.height ? { width: receipt.width, height: receipt.height } : {}), createdAt: now() };
+        current = command(current, "artifact.add", { artifact }, `materialize-artifact:${artifact.artifactId}`);
+        command(current, "job.status", { jobId, status: "ready", patch: { lastPollAt: currentJob.lastPollAt } }, `materialize-job:${jobId}`);
+        complete();
+        return resultFor(artifact);
+      });
+      if (settled.kind === "result") return settled.value;
+      // Observation changed while extracting: read the existing task's newest raw, never submit again.
     }
-    if (extracted.outputs.length !== 1) return parkRetrievalFailure(extracted.outputs.length === 0 ? "Provider did not expose a materializable output" : "Single-shot generation returned more than one output");
-    if (!deps.materializeOutput) return parkUnsupported();
-    let receipt: Awaited<ReturnType<NonNullable<typeof deps.materializeOutput>>>;
-    try {
-      receipt = await deps.materializeOutput!({ projectId: input.projectId, operationId: run.runId, run, job, contract, providerTaskId: job.providerTaskId, output: extracted.outputs[0]! });
-    } catch (error) {
-      if (!deterministicRetrievalFailure(error)) throw error;
-      return parkRetrievalFailure(error.message);
-    }
-    const artifactId = typeof receipt.artifactId === "string" ? receipt.artifactId.trim() : "";
-    const contentHash = typeof receipt.contentHash === "string" ? receipt.contentHash.trim() : "";
-    const projectRelativePath = typeof receipt.projectRelativePath === "string" ? receipt.projectRelativePath.trim() : "";
-    if (!artifactId || !contentHash || !projectRelativePath) throw new GenerationMaterializationError("Asset store returned an incomplete materialization receipt");
-    run = requiredRun(deps.repository, input.projectId, input.operationId);
-    job = run.jobs.find((candidate) => candidate.jobId === jobId) || job;
-    const artifact: ProductionArtifact = {
-      artifactId,
-      stageId: "generate",
-      jobId,
-      kind: receipt.kind,
-      status: "ready",
-      source: "external-mcp",
-      contentHash,
-      projectRelativePath,
-      ...(receipt.thumbnailRelativePath ? { thumbnailRelativePath: receipt.thumbnailRelativePath } : {}),
-      ...(receipt.previewState ? { previewState: receipt.previewState } : {}),
-      ...(receipt.width && receipt.height ? { width: receipt.width, height: receipt.height } : {}),
-      createdAt: now(),
-    };
-    run = command(run, "artifact.add", { artifact }, `materialize-artifact:${artifact.artifactId}`);
-    run = command(run, "job.status", { jobId, status: "ready", patch: { lastPollAt: job.lastPollAt } }, `materialize-job:${jobId}`);
-    envelope(run.runId, jobId).markMaterialized();
-    return { operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifact.artifactId, contentHash, nextAction: "completed" };
   }
 
   return { start, observeAccepted, poll, materialize };

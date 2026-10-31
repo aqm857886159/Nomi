@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   RuntimeEnvelopeConflictError,
@@ -54,7 +54,7 @@ describe("ProductionRunRuntimeEnvelope", () => {
     expect(envelope.read()).toEqual(accepted);
   });
 
-  it("persists the latest provider observation without changing the sealed request", () => {
+  it("persists the latest provider observation without changing the sealed request", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-runtime-envelope-"));
     tempDirs.push(dir);
     const envelope = createProductionRunRuntimeEnvelope({ filePath: path.join(dir, "envelope.json"), now: () => "2026-08-23T00:02:00.000Z" });
@@ -64,7 +64,7 @@ describe("ProductionRunRuntimeEnvelope", () => {
     });
     envelope.markProviderAccepted({ providerTaskId: "provider-task-1" });
 
-    const observed = envelope.markPolled({ status: "processing", raw: { status: "processing", progress: 42 } });
+    const observed = await envelope.markPolled({ observed: envelope.read()!, status: "processing", raw: { status: "processing", progress: 42 } });
     expect(observed).toMatchObject({
       state: "provider_accepted",
       providerTaskId: "provider-task-1",
@@ -74,4 +74,24 @@ describe("ProductionRunRuntimeEnvelope", () => {
     const restarted = createProductionRunRuntimeEnvelope({ filePath: path.join(dir, "envelope.json") });
     expect(restarted.read()).toEqual(observed);
   });
+});
+
+it("does not rewrite an unchanged pending observation but preserves terminal raw", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-idle-envelope-")); tempDirs.push(dir);
+  let tick = 0;
+  const filePath = path.join(dir, "envelope.json");
+  const envelope = createProductionRunRuntimeEnvelope({ filePath, now: () => String(++tick) });
+  envelope.seal({ runId: "run", jobId: "job", runtimeTaskId: "task", contractHash: "a", providerIdempotencyKey: "key", requestFingerprint: "b", request: {} });
+  envelope.markProviderAccepted({ providerTaskId: "task" });
+  await envelope.markPolled({ observed: envelope.read()!, status: "processing", raw: { percent: 1 } });
+  const before = fs.readFileSync(filePath, "utf8");
+  const writes = vi.spyOn(fs, "renameSync");
+  try {
+    for (let i = 0; i < 5; i++) await envelope.markPolled({ observed: envelope.read()!, status: "processing", raw: { percent: i } });
+    expect(fs.readFileSync(filePath, "utf8")).toBe(before);
+    expect(writes).not.toHaveBeenCalled();
+    await envelope.markPolled({ observed: envelope.read()!, status: "succeeded", raw: { result: "first" } });
+    await envelope.markPolled({ observed: envelope.read()!, status: "succeeded", raw: { result: "final" } });
+    expect(envelope.read()?.lastPoll?.raw).toEqual({ result: "final" });
+  } finally { writes.mockRestore(); }
 });

@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-release-health-two-cohort",
+  "problem_type": "Small-cohort release health false stops and unreachable full rollout",
+  "symptom": "Equivalent versions frequently stop, while missing secondary telemetry permanently prevents full rollout.",
+  "direct_cause": "One historical point threshold ignores new-cohort uncertainty; every metric and pending policy blocks full.",
+  "class_root": "Decision boundary does not distinguish credible regression, primary evidence, and secondary coverage.",
+  "affected_population": [
+    "Windows and macOS stable installations",
+    "Future stable release promotions and daily health runs"
+  ],
+  "scope_paths": [
+    "scripts/lib/intake-radar/health.mjs",
+    "scripts/lib/intake-radar/health-policy.json"
+  ],
+  "entry_points": [
+    "Cached intake report via buildIntakeReport",
+    "Synthetic version health events"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.researchgate.net/publication/13687790_Interval_estimation_for_the_difference_between_independent_proportions_Comparison_of_eleven_methods",
+      "checked_at": "2026-10-30",
+      "purpose": "Original Newcombe 1998 pp.876–877 method 10 and Table II(a) [0.0524,0.3339]"
+    }
+  ],
+  "invariants": [
+    "All metric differences use both cohorts Wilson intervals via Newcombe method 10.",
+    "Stop requires n>=10, positive lower bound, at least 5 points and two identified failure sessions.",
+    "Full depends only on new observation dates, launches, primary image sample and primary unknown results, with no stop. Secondary gaps are disclosed."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/lib/intake-radar/aggregate.mjs",
+      "symbol": "buildVersionHealth"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/lib/intake-radar/health.node-test.mjs",
+      "symbol": "buildVersionHealth"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "aggregate.mjs is the production cached-report caller; health.node-test.mjs is its independent synthetic regression caller. Both must retain access to the same pure decision boundary."
+  },
+  "generality_proof": "All generation, local-rejection, update and Agent rows share compare; all consumers receive the same confidence interval, session guard and primary-only approval decision.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/lib/intake-radar/health.mjs",
+      "symbol": "buildVersionHealth",
+      "responsibility": "Separate credible stops, primary evidence deficits and secondary coverage for all callers."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/lib/intake-radar/aggregate.mjs",
+      "entry_point": "buildIntakeReport",
+      "disposition": "enforced",
+      "evidence": "Uses flattened real cached events and passes corrupt file count to the single decision boundary."
+    },
+    {
+      "path": "scripts/intake-radar.mjs",
+      "entry_point": "run",
+      "disposition": "enforced",
+      "evidence": "Reads report.versionHealth.stop for nonzero exit; terminal and Markdown render the same conclusion."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every sparse version cohort and metric can trigger this decision error.",
+    "same_class_scan": [
+      "door-map buildVersionHealth --roots=scripts --include-tests: 2 doors",
+      "rg buildVersionHealth healthOptions thresholds sessionId scripts/lib/intake-radar scripts/intake-radar*.mjs",
+      "flattenEvents retains sessionId through object spread; no fetch pipeline change required"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/lib/intake-radar/health.mjs",
+    "invariant": "Both cohort uncertainties and session spread are mandatory for stops; secondary absence cannot veto full.",
+    "failure_mode": "Invalid counts/config rejected; primary unknown or corrupt cache yields insufficient evidence; stop remains nonzero at CLI.",
+    "exception_policy": "none",
+    "strategy": "Replace historical noise bands and global pending gates with a single interval and primary-evidence decision.",
+    "artifacts": [
+      "scripts/lib/intake-radar/health.mjs",
+      "scripts/lib/intake-radar/health-policy.json"
+    ]
+  },
+  "regression_tests": [
+    "scripts/lib/intake-radar/health.node-test.mjs",
+    "scripts/intake-radar.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/lib/intake-radar/health.node-test.mjs",
+    "scripts/intake-radar.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/lib/intake-radar/health.mjs",
+      "scripts/lib/intake-radar/health-policy.json"
+    ],
+    "rationale": "Remove maxIncrease history bands, approvalPending and secondary/old-cohort full-rollout sample gates in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Closed-form statistics over existing cache; no third-party runtime or new dependency.",
+    "exit_criteria": []
+  },
+  "migration": "Existing cached envelopes retain sessionId; no cache schema or pipeline migration. Missing session IDs cannot prove two failure sessions.",
+  "residual_risks": [
+    "Counts are events, not independent users; Wilson/Newcombe assumes binomial observations.",
+    "Multiple metric checks are not a familywise 5% guarantee; the requested 1000-trial check is per simulated metric.",
+    "Telemetry lacks patch versions, Agent turns and true post-install completion.",
+    "Same first-round cache was deleted; offline real-data verification requires the coordinator retained copy."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": {
+    "layer": "scripts",
+    "tests": [
+      "scripts/lib/intake-radar/health.node-test.mjs",
+      "scripts/intake-radar.node-test.mjs"
+    ]
+  }
+}

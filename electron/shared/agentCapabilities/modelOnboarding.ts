@@ -108,6 +108,7 @@ export const modelSetupInputSchema = z.discriminatedUnion("action", [
  * 用户自己的 Nomi 窗口里。这与付费边界那句「宿主看得见、永远批不动」是同一个意思。
  */
 export const modelTryInputSchema = z.object({
+  newAttemptOf: z.string().trim().min(1).max(160).optional().describe("Only after the user explicitly requests a NEW order: current attemptId from the original submission receipt. Always requires confirmation in Nomi, even in full-auto. Omit to observe or safely retry the original intent; changing parameters never opens a new order."),
   vendorKey: vendorKeyField,
   modelKey: z.string().trim().min(1).max(256).describe("Exact model id, as nomi_read target=models or your own submitted card spells it."),
   prompt: z.string().trim().min(1).max(4_000).optional().describe("Prompt for the one test generation; a short neutral prompt is used when omitted."),
