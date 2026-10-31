@@ -1,19 +1,13 @@
 /**
  * preload 侧的三个 IPC 小工具：同步调用、信封拆封、读写成对的设置项。
  *
- * 从 electron/preload.ts 抽出来（R9：preload.ts 顶着 800 行硬上限）。行为逐字不变，
- * preload.ts 与 electron/preload/*.ts 共用这一份，不允许再出现第二份拆信封的写法。
+ * 从 electron/preload.ts 抽出来（R9：preload.ts 顶着 800 行硬上限）。
+ * 拆封实现在 shared/contracts/ipcResult，preload 与渲染层共读，不保留第二份实现。
  */
 import { ipcRenderer } from "electron";
 
-export type IpcResult<T> = { ok: true; value: T } | { ok: false; error: string };
-
-export function unwrapIpcResult<T>(result: IpcResult<T>, channel: string): T {
-  if (!result || result.ok !== true) {
-    throw new Error(result?.error || `Desktop IPC failed: ${channel}`);
-  }
-  return result.value;
-}
+import { unwrapIpcResult, type IpcResult } from '../shared/contracts/ipcResult'
+export { unwrapIpcResult, type IpcResult } from '../shared/contracts/ipcResult'
 
 export function invokeSync<T>(channel: string, ...args: unknown[]): T {
   return unwrapIpcResult(ipcRenderer.sendSync(channel, ...args) as IpcResult<T>, channel);

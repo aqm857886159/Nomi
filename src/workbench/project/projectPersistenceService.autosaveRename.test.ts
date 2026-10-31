@@ -43,7 +43,7 @@ vi.mock('../../desktop/bridge', () => {
     const name = typeof record.name === 'string' && record.name.trim() ? record.name.trim() : existing.name
     const next = { ...existing, name, payload: record.payload, revision: (existing.revision as number) + 1 }
     deps.disk.set(id, next)
-    return next
+    return { ok: true, value: next }
   }
   const read = (id: string) => deps.disk.get(id) ?? null
   return { getDesktopBridge: () => ({ projects: { read, readAsync: async (id: string) => read(id), save, listAsync: async () => [...deps.disk.values()] } }) }

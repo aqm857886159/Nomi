@@ -23,6 +23,7 @@ import {
   paidSampleVerdict,
   requiredEvidence,
   routingEnforced,
+  processTieringEnforced,
   toolGaps,
 } from './pr-judgement-lib.mjs'
 
@@ -207,6 +208,12 @@ test('整体：路径推出的类别没勾 → 红；勾全且证据齐 → 绿�
   assert.match(before.routing.lines.join('\n'), /⚠/)
   assert.doesNotMatch(before.routing.lines.join('\n'), /✖/)
   assert.equal(routingEnforced(null, table), true, '创建时间未知按已生效处理（fail-closed）')
+})
+
+test('流程档位生效日按带时区 ISO 瞬时点核实：跨日边界按 +08:00 比较', () => {
+  assert.equal(processTieringEnforced('2026-10-27T15:59:59Z'), false, '台北 10-27 23:59:59 仍是旧规')
+  assert.equal(processTieringEnforced('2026-10-27T16:00:00Z'), true, '台北 10-28 00:00:00 进入新规')
+  assert.equal(processTieringEnforced('2026-10-27T21:26:05Z'), true)
 })
 
 test('规则与门岗改动范围：移到判据库后行为不变；旧 PR 也不吃路由宽限（#1032 型回退）', () => {

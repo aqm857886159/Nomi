@@ -26,7 +26,7 @@ import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping
 import { notify } from '../../ui/notificationPolicy'
 import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
 import { dispatchTimelineShortcut } from './timelineShortcuts'
-import { installShortcutSurfaceTracker } from '../shortcutSurface'
+import { installShortcutSurfaceTracker, shortcutSurfaceMayHandle } from '../shortcutSurface'
 import { groupTimelineTransitionFeedbackByTrack } from './timelineVisualFeedback'
 import { TimelineContextMenu, type TimelineContextTarget } from './TimelineContextMenu'
 import { TimelineShortcutsDialog } from './TimelineShortcutsDialog'
@@ -297,6 +297,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
 
   React.useEffect(() => {
     const onHelp = (event: KeyboardEvent) => {
+      if (!shortcutSurfaceMayHandle(panelRef.current)) return
       // 与上面的 dispatchTimelineShortcut 同款去重：预览/生成两个 TimelinePanel 因
       // keep-alive 同时挂载、各注册一个 window keydown。`?` 是 toggle——不去重会在
       // 两个面板各翻转一次（开了又关，快捷键表按了像没反应）；Escape 幂等（各关各的

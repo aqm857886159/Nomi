@@ -50,7 +50,7 @@ export const SPEND_TOKEN_DOORS = [
   { door: BROWSER_EXTRACTION, role: 'mints', test: 'electron/browser/prompt/browserPromptExtraction.ipc.integration.test.ts',
     why: '浏览器「提取提示词」：每次弹卡问人（confirmSpendAndMintGrant），铸一颗只覆盖这一次读图的令牌再发（例外 ③）。' },
   { door: TRY_MODEL, role: 'mints', test: 'electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts',
-    why: 'MCP 试跑：同文件 mintSpendGrant 铸完紧接着发，没带报价的令牌在闸上一定问人（例外 ①）。' },
+    why: 'MCP 试跑：同文件铸完紧接着发。mintSpendGrant 没带报价的令牌在闸上一定问人；上一笔结果不确定时先经 confirmSpendAndMintGrant 问人（例外 ①）。' },
   { door: CERTIFICATION, role: 'mints', test: 'electron/integrationCertification/integrationSession.test.ts',
     why: '接入认证：注入的 mintSpendGrant 铸完紧接着发（例外 ②）。' },
   { door: 'write|electron/video/deconstructVideo.ts|runTask', role: 'mints', mintIn: 'electron/video/deconstructSpend.ts',

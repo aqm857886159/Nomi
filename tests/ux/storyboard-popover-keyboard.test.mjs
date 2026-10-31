@@ -7,6 +7,7 @@ import { expect } from '@playwright/test'
 import { chromium } from 'playwright'
 import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
 import { useBrowserFixture } from './_browserFixture.mjs'
+import { expectAbsent, proveProbe } from './_assert.mjs'
 
 // 现编一次 Tailwind（收集阶段做完，不占用例自己的超时），后面各用例复用。
 freshTailwindCss()
@@ -75,6 +76,7 @@ for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.nam
     await item.activate(page)
     const menu = page.locator(item.menu)
     await expect(menu, `${item.name} 没打开`).toBeVisible()
+    const menuProof = await proveProbe(menu, `${item.name}：打开后的浮层`)
     const insideMenu = () => page.evaluate((selector) => Boolean(document.querySelector(selector)?.contains(document.activeElement)), item.menu)
     expect(await insideMenu(), `${item.name}：打开后焦点没有进浮层`).toBe(true)
 
@@ -89,7 +91,7 @@ for (const item of POPOVERS) test(`分镜 Portal 弹层键盘合同：${item.nam
     }
 
     await page.keyboard.press('Escape')
-    await expect(menu, `${item.name}：Esc 没有关掉浮层`).toHaveCount(0)
+    await expectAbsent(menu, { provenBy: menuProof, message: `${item.name}：Esc 没有关掉浮层` })
     // Radix FocusScope 在卸载后的下一个任务里还焦点，所以要等，不能立刻读。
     await expect.poll(() => page.evaluate(() => document.activeElement === window.__opener), { message: `${item.name}：关闭后焦点没有回到打开前的那个元素`, timeout: 3000 }).toBe(true)
   } finally {

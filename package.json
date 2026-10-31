@@ -269,7 +269,7 @@
     "gates:full": "python3 scripts/with-gates-lock.py --command \"pnpm run check:fresh-base && pnpm run gates:contracts && node ./scripts/run-gates-tests.mjs --tier=full && pnpm run build\"",
     "test:mcp-legacy-entry": "node --test ./scripts/nomi-mcp-entry.node-test.mjs",
     "handoff:report": "node ./scripts/check-handoff.mjs",
-    "test:eng-system": "node --test ./scripts/merge-preflight.node-test.mjs ./scripts/eng-metrics.node-test.mjs ./scripts/archetype-autosync-workflow.node-test.mjs ./scripts/site/released-version.node-test.mjs",
+    "test:eng-system": "node --test ./scripts/asset-file-owner.node-test.mjs ./scripts/merge-preflight.node-test.mjs ./scripts/eng-metrics.node-test.mjs ./scripts/archetype-autosync-workflow.node-test.mjs ./scripts/site/released-version.node-test.mjs",
     "eng:metrics": "node ./scripts/eng-metrics.mjs",
     "merge:preflight": "node ./scripts/merge-preflight.mjs",
     "eval:director": "tsx evals/director/run.ts",
@@ -369,7 +369,6 @@
     "framer-motion": "^12.39.0",
     "globals": "^17.6.0",
     "i18next": "26.3.6",
-    "img-fx": "0.5.1",
     "immer": "^11.1.8",
     "leafer-ui": "^2.1.0",
     "marked": "18.0.5",
@@ -511,7 +510,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh"
     },
     "publish": {
       "provider": "github",
@@ -545,7 +545,6 @@
       "@ffprobe-installer/darwin-arm64"
     ],
     "patchedDependencies": {
-      "img-fx@0.5.1": "patches/img-fx@0.5.1.patch",
       "playwright-core@1.60.0": "patches/playwright-core@1.60.0.patch"
     }
   }

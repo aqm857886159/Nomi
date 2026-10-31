@@ -8,6 +8,7 @@ import {
   ProductionRunLockBusyError,
   ProductionRunLockLostError,
   createProductionRunLock,
+  inspectProductionRunLockFile,
 } from "./productionRunLock";
 
 const tempDirs: string[] = [];
@@ -39,6 +40,48 @@ function makeLocks() {
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+});
+
+describe("inspectProductionRunLockFile", () => {
+  const LEASE_MS = 10_000;
+  function aged(content: string, ageMs: number) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-run-lock-"));
+    tempDirs.push(dir);
+    const file = path.join(dir, "file.lock");
+    fs.writeFileSync(file, content);
+    const stamp = new Date(Date.now() - ageMs);
+    fs.utimesSync(file, stamp, stamp);
+    return file;
+  }
+
+  it("a live lease is held, an expired lease and no file are free: acquire can take those", () => {
+    const { dir, first } = makeLocks();
+    const lockFile = path.join(dir, "run.lock");
+    expect(inspectProductionRunLockFile(lockFile, "lease")).toBe("free");
+    const lease = first.acquire();
+    const inside = Date.parse(lease.expiresAt) - 1;
+    expect(inspectProductionRunLockFile(lockFile, "lease", 10_000, inside)).toBe("held");
+    expect(inspectProductionRunLockFile(lockFile, "lease", 10_000, Date.parse(lease.expiresAt))).toBe("free");
+    expect(inspectProductionRunLockFile(path.join(dir, "run.lock.epoch"), "epoch")).toBe("free");
+  });
+
+  it.each([["", "zero bytes, the state a crash between open and write leaves"], ["garbled", "not a lease"], ["{\"schemaVersion\":1}", "not a whole lease"]])(
+    "an unparseable lease stays held while someone could still be writing it, and is dead after a whole lease: %s (%s)", (content) => {
+      expect(inspectProductionRunLockFile(aged(content, 0), "lease", LEASE_MS)).toBe("held");
+      expect(inspectProductionRunLockFile(aged(content, LEASE_MS + 1000), "lease", LEASE_MS)).toBe("dead");
+    });
+
+  it("an unparseable epoch follows the same rule", () => {
+    expect(inspectProductionRunLockFile(aged("garbled", 0), "epoch", LEASE_MS)).toBe("held");
+    expect(inspectProductionRunLockFile(aged("garbled", LEASE_MS + 1000), "epoch", LEASE_MS)).toBe("dead");
+  });
+
+  it("acquire itself stays closed on a dead file: only a caller that knows what the lock guards may replace it", () => {
+    const file = aged("garbled", LEASE_MS + 1000);
+    const lock = createProductionRunLock({ filePath: file, epochPath: `${file}.epoch` });
+    expect(() => lock.acquire()).toThrow(ProductionRunLockBusyError);
+    expect(fs.readFileSync(file, "utf8")).toBe("garbled");
+  });
 });
 
 describe("ProductionRunLock", () => {

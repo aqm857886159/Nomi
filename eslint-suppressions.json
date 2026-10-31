@@ -1,4 +1,34 @@
 {
+  "electron/capabilityCore/hostConfigWrite.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/integrationCertification/operationLedger.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/integrationCertification/promotionJournal.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/jsonFile.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/providerAdapter/store.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/workspace/workspaceRegistry.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "evals/director/judge/preregister.ts": {
     "@typescript-eslint/no-unused-expressions": {
       "count": 1

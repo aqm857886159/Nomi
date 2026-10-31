@@ -1,3 +1,5 @@
+import { cancelCanvasInputGestures, workspaceInputAttributes } from '../shortcutSurface'
+import { cancelCanvasDraggingWithin } from '../generationCanvas/components/canvasDraggingFlag'
 import { AssistantPane } from '../AssistantPane'
 import { assistantPaneWidth } from '../assistantWidthBounds'
 import React, { type JSX } from 'react'
@@ -80,6 +82,12 @@ export default function GenerationWorkspace({
     () => ({ host: pageLayerHost, active: active && !listOpen }),
     [active, listOpen, pageLayerHost],
   )
+  React.useEffect(() => {
+    if (!active || listOpen) {
+      cancelCanvasDraggingWithin(pageLayerHost)
+      cancelCanvasInputGestures()
+    }
+  }, [active, listOpen, pageLayerHost])
   React.useEffect(() => observeGenerationPageLayerNodes(useGenerationCanvasStore), [])
   // 列表块在生成页挂好后趁空闲先拉一下：第一次点「列表」不再等块下载 + 解析（200 节点实测的一部分）。
   React.useEffect(() => {
@@ -129,11 +137,11 @@ export default function GenerationWorkspace({
       >
         <div ref={setPageLayerHost} className={cn('workbench-generation__canvas', 'relative min-h-0 min-w-0 flex-1 overflow-hidden')}>
           {/* 「画布 | 列表」：画布始终挂着（落地宿主跟着它常驻、视口不重算），列表开着时画布只是不可见、不可交互。 */}
-          <div className={cn('absolute inset-0', listOpen && 'invisible [content-visibility:hidden]')} inert={listOpen} data-generation-canvas-surface>
+          <div {...workspaceInputAttributes(active && !listOpen)} className={cn('absolute inset-0', listOpen && 'invisible [content-visibility:hidden]')} inert={listOpen} data-generation-canvas-surface>
             {canvas}
           </div>
           {listOpen ? (
-            <div className="absolute inset-0 z-[8]">
+            <div className="absolute inset-0 z-[8]" data-shortcut-surface="generation-list">
               <React.Suspense fallback={null}>
                 <GenerationListView />
               </React.Suspense>

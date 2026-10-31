@@ -84,6 +84,15 @@ const testFileRestrictedSyntax = [
   },
 ]
 
+// Main-process synchronous waits freeze IPC while waiting. Existing debt uses
+// ESLint bulk suppressions (file x rule counts); new calls fail and deleted calls
+// require --prune-suppressions. The independent core-rule id survives overrides.
+const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const mainSyncWaitSelectors = [{
+  selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
+  message: 'Do not add Atomics.wait in the main process: synchronous sleep blocks IPC and window events. Use an asynchronous retry; existing debt may only decrease.',
+}]
+
 const windowsPathSelectors = [
   {
     selector: 'MemberExpression[property.name="pathname"][object.type="NewExpression"][object.callee.name="URL"]:has(MetaProperty)',
@@ -410,6 +419,14 @@ export default tseslint.config(
     rules: { 'no-console': ['error', { allow: ['log', 'info', 'debug'] }] },
   },
   {
+    // Alias ESLint's core rule, as above: independent options cannot be overwritten
+    // by quit lifecycle exemptions and do not extend those rules to new file types.
+    files: ['electron/**/*.{ts,tsx,mts,cts,js,mjs,cjs,jsx}'],
+    ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
+    plugins: { 'main-sync-wait': mainSyncWaitPlugin },
+    rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
+  },
+  {
     files: ['electron/**/*.{ts,tsx}'],
     ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts', ...directQuitExemptionFiles],
     rules: { 'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors) },
@@ -430,6 +447,7 @@ export default tseslint.config(
     // 而且没有任何东西会红。下面这几处是允许的调用者——它们只**展示主进程已经做出的决定**，自己不判问不问：
     //   capabilityApplyHandler.ts + generationGateConfirm.ts（MCP 生成闸 / 计划门）、credentialProbeSpendCard.ts（接入页凭据试跑）、
     //   promptExtractionSpendCard.ts（浏览器提取提示词：主进程每次经 confirmSpendAndMintGrant 问人，卡只展示）、
+    //   uncertainPriorTrialSpendCard.ts（试跑开新单而上一笔结果不确定：同样由主进程经 confirmSpendAndMintGrant 问人，卡只展示）、
     //   useProductionStatus.ts（制作流程门）；SpendConfirmDialog.tsx / NomiStudioApp.tsx 是 E2E 驱动桥。
     // 新增调用者 = 又一处自己决定弹不弹付费框 → 红；要么经 owner，要么先让主进程做决定、再登记进这张表。
     files: ['src/**/*.{ts,tsx}'],
@@ -442,6 +460,7 @@ export default tseslint.config(
       'src/workbench/capability/generationGateConfirm.ts', // 从 capabilityApplyHandler.ts 拆出的 MCP 生成确认卡：只展示主进程决定的挑战
       'src/workbench/capability/credentialProbeSpendCard.ts',
       'src/workbench/capability/promptExtractionSpendCard.ts',
+      'src/workbench/capability/uncertainPriorTrialSpendCard.ts',
       'src/workbench/production/useProductionStatus.ts',
     ],
     rules: {
@@ -457,6 +476,21 @@ export default tseslint.config(
     ignores: TASK_RUN_BRIDGE_IGNORES,
     plugins: { 'task-run-bridge': taskRunBridgePlugin },
     rules: { 'task-run-bridge/no-restricted-syntax': ['error', ...TASK_RUN_BRIDGE_SELECTORS] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/workbench/assets/assetFileDeletion.ts'],
+    plugins: { 'asset-file-owner': { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } } },
+    rules: { 'asset-file-owner/no-restricted-syntax': ['error',
+      { selector: "MemberExpression:matches([property.name='deleteFiles'], [property.value='deleteFiles'])", message: 'Physical file trash belongs to assets/assetFileDeletion.ts; UI must use the shared asset deletion command.' },
+      { selector: "Property:matches([key.name='deleteFiles'], [key.value='deleteFiles'])", message: 'Do not alias the physical file deletion bridge outside assets/assetFileDeletion.ts.' },
+    ] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/deleteAssetResult.ts', 'src/workbench/assets/pendingAssetDeletions.ts'],
+    plugins: { 'asset-command-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
+    rules: { 'asset-command-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/assetFileDeletion'], importNames: ['trashProjectFiles'], message: 'UI must request the asset deletion command; physical trash is private to the deletion domain.' }] }] },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。
@@ -497,6 +531,28 @@ export default tseslint.config(
     files: PLAYWRIGHT_ALIAS_FILES,
     plugins: { 'playwright-wait': playwrightAliasPlugin },
     rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors] },
+  },
+  {
+    // 项目存读只认草稿；严格面属于模型/Agent 作者入参。测试可验证两面的区别。
+    files: ['src/workbench/project/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{
+        group: ['**/storyboardPlanSchema', '**/storyboardPlanSchema.ts'],
+        allowImportNames: ['storyboardDraftPlanSchema'],
+        allowTypeImports: true,
+        message: 'Project persistence must use storyboardDraftPlanSchema; strict content validation belongs to authoring/generation.',
+      }] }],
+    },
+  },
+  {
+    files: ['electron/shared/storyboard/storyboardPlanSchema.ts'],
+    rules: {
+      'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors, {
+        selector: "VariableDeclarator[id.name=/^(draftPlanAnchorSchema|storyboardDraftPlanSchema)$/] Property[key.name=/^(name|aspectRatio)$/] CallExpression[callee.property.name=/^(min|max|nonempty|length|regex|refine|superRefine|transform|trim)$/]",
+        message: 'Draft content fields must remain editable strings; add content constraints only in the strict schema extension.',
+      }),
+    },
   },
   prettier,
 )

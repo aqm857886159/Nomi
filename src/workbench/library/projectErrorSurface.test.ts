@@ -1,3 +1,5 @@
+import { PROJECT_SAVE_REASONS, projectSaveFailure } from '../../../electron/shared/contracts/projectSaveFailure'
+import { unwrapIpcResult } from '../../../electron/shared/contracts/ipcResult'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { TFunction } from 'i18next'
@@ -70,7 +72,20 @@ describe('项目库报错：原文只进日志，界面只给一句人话', () =
   it.each(OPERATION_MATRIX)('单一出口：%s 取自己的那句，原文不进返回值；锁忙先认', (operation, expected) => {
     expect(projectOperationFailureText(operation, new Error(RAW), t)).toBe(expected)
     const busy = Object.assign(new Error('locked'), { name: WORKSPACE_MANIFEST_BUSY_ERROR_NAME })
-    expect(projectOperationFailureText(operation, busy, t)).toBe('«studio.projectInUseElsewhere»')
+    const failure = operation === 'save' ? { reason: projectSaveFailure(busy, 'save-project') } : busy
+    expect(projectOperationFailureText(operation, failure, t)).toBe('«studio.projectInUseElsewhere»')
+  })
+
+  it('保存不再猜旧 invoke 文本，只有结果包络能携带身份', () => {
+    const legacy = new Error("Error invoking remote method 'nomi:projects:save-async': WorkspaceManifestLockBusyError: private path")
+    expect(projectOperationFailureText('save', legacy, t)).toBe('«studio.projectSaveFailed»')
+  })
+
+  it.each(PROJECT_SAVE_REASONS)('保存结果包络 %s 按原因说话，中性句只用于未知', reason => {
+    const key = { 'workspace-busy': 'studio.projectInUseElsewhere', 'binding-stale': 'studio.projectSaveBindingStale', 'write-denied': 'studio.projectSaveWriteDenied', 'in-use': 'studio.projectSaveInUse', 'disk-full': 'studio.projectSaveDiskFull', 'not-found': 'studio.projectSaveNotFound', unknown: 'studio.projectSaveFailed' }[reason]
+    let error: unknown
+    try { unwrapIpcResult({ ok: false, error: 'project-save-failed', reason: { ...projectSaveFailure(null, 'save-project'), kind: reason } }, 'nomi:projects:save-async') } catch (caught) { error = caught }
+    expect(projectOperationFailureText('save', error, t)).toBe(`«${key}»`)
   })
 
   it('删除时状态和确认那一刻对不上（经同步 IPC 只剩信息文本）：说「没删、已刷新、请重新确认」，不说删除失败', () => {
