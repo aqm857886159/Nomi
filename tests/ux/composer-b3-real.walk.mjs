@@ -16,7 +16,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
+import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasFitView, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -44,7 +44,7 @@ function seedProfile(root) {
     meta: { archetypeId, ...(kind === 'video' ? { adapter: adapter() } : {}) },
   })
   fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
-    version: currentCatalogVersion(),
+    version: 12,
     vendors: [{ key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: STAMP, updatedAt: STAMP }],
     models: [
       model('seedance-2-5', 'Seedance 2.5', 'video', 'seedance-2.5'),

@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
+import { launchNomiApp } from './_launchApp.mjs'
 import { switchWorkspace, collapseAgentPanel } from './_shell.mjs'
 import { expectCount, expectVisible, screenshotSettled } from './_assert.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -22,7 +22,7 @@ fs.mkdirSync(path.join(projectRoot, 'assets'), { recursive: true })
 fs.mkdirSync(outDir, { recursive: true })
 fs.mkdirSync(settingsDir, { recursive: true })
 fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
-  version: currentCatalogVersion(),
+  version: 12,
   vendors: [{ key: 'apimart', name: 'APIMart', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' }],
   models: [{ vendorKey: 'apimart', modelKey: 'MiniMax-H3', labelZh: 'MiniMax H3', kind: 'video', enabled: true,
     meta: { archetypeId: 'minimax-h3-apimart', adapter: { state: 'verified', activeRevision: 'anchor-real', publicationModes: ['text_to_video', 'image_to_video'], modes: [{ taskKind: 'text_to_video', state: 'verified' }, { taskKind: 'image_to_video', state: 'verified' }] } },

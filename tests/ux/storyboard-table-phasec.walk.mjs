@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
+import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, expectCount, expectText, expectVisible, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
@@ -23,7 +23,7 @@ fs.mkdirSync(path.join(projectRoot, 'assets'), { recursive: true })
 fs.mkdirSync(outDir, { recursive: true })
 fs.mkdirSync(settingsDir, { recursive: true })
 fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
-  version: currentCatalogVersion(),
+  version: 12,
   vendors: [{ key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible', createdAt: '2026-09-03T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z' }],
   models: [{
     vendorKey: 'ux-local', modelKey: 'nano-banana', labelZh: 'Nano Banana', kind: 'image', enabled: true,

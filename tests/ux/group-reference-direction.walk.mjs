@@ -1,6 +1,6 @@
 // R13 走查：从目标节点左输入端拖到两图编组，编组成员应成为目标参考，而不是反向连边。
 // 用法：node tests/ux/group-reference-direction.walk.mjs
-import { launchNomiApp, currentCatalogVersion } from './_launchApp.mjs'
+import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { createServer } from 'vite'
 import fs from 'node:fs'
@@ -19,7 +19,7 @@ for (const dir of [tempRoot, settingsDir, shotsDir]) {
 }
 const catalogNow = '2026-08-29T00:00:00.000Z'
 fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
-  version: currentCatalogVersion(),
+  version: 8,
   vendors: [{
     key: 'ux-local', name: 'UX Local', enabled: true, authType: 'none', providerKind: 'openai-compatible',
     createdAt: catalogNow, updatedAt: catalogNow,

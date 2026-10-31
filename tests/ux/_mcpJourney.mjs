@@ -28,7 +28,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage, currentCatalogVersion } from './_launchApp.mjs'
+import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from './_launchApp.mjs'
 import { assertFreshBuild } from '../../scripts/package-build-stamp.mjs'
 export { packagedMcpRuntime } from './_packagedMcpRuntime.mjs'
 
@@ -192,7 +192,7 @@ function crc32(buf) {
 export function writeIsolatedCatalog(settingsDir, mockOrigin) {
   const now = new Date().toISOString()
   const catalog = {
-    version: currentCatalogVersion(),
+    version: 3,
     vendors: [
       {
         key: 'nomi-mock', name: 'Nomi Mock Vendor', enabled: true,
