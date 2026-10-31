@@ -14,7 +14,7 @@
 | 格 | 结论 | 证据 |
 |---|---|---|
 | ★0 先查别人 | ① [proper-lockfile](https://github.com/moxystudio/node-proper-lockfile) · 持有者定期刷 mtime，超过 `stale` 判过期 · **T1 坏记录按 mtime 回收**。② [Temporal 活动失败检测](https://docs.temporal.io/encyclopedia/detecting-activity-failures) · 服务端发现不了 Worker 崩溃，靠超时到期加重试 · **T1 用总期限，到期交上层，不无限等**。③ [Stripe 幂等请求](https://docs.stripe.com/api/idempotent_requests) · 连接错误后同一幂等键重发不建第二个对象，GET 天然幂等 · **B4：连接失败不是再下单的理由；画布传输 `submitIdempotency: false`，唯一安全的重试是 GET**。④ 仓内 `electron/productionRun/multiShotBatchScheduler.ts` 的 `observeUnitOnce` · 瞬时错 pending、确定性错 settled，`job.retry_retrieval` 只查不交 · **单镜收到同一判据 `jobAwaitsRetrieval`，不另立一套** | 链接 + `文件` |
-| ★1 用户怎么用 | 当我生成视频时关了窗或重启了，回来想拿到花了钱的那一镜，不想再扣一次。步骤：提交 → 关窗 → 供应商或网络出故障 → 重开 → 节点是「可找回」 → 点「重新取回」→ 落地。不做什么：不加主进程闸（见「两处偏离」）；不改批次路；不做批量写。已知坑：第一次查询失败就停成待取回，重开项目不自动再查，要点一下。真实任务：①关窗后断网再重开；②重启后供应商查询 5xx；③老项目里已经落下错误卡的节点。量具：矩阵的 POST 数、GET 数、主按钮 | `electron/capabilityCore/runRetrievalRecovery.e2e.test.ts` |
+| ★1 用户怎么用 | 当我生成视频时关了窗或重启了，回来想拿到花了钱的那一镜，不想再扣一次。步骤：提交 → 关窗 → 供应商或网络出故障 → 重开 → 节点是「可找回」 → 点「重新取回」→ 落地。不做什么：不加主进程闸（见「两处偏离」）；不改批次路；不做批量写。已知坑：第一次查询失败就停成待取回，重开项目不自动再查，要点一下。真实任务：①关窗后断网再重开；②重启后供应商查询 5xx；③老项目里已经落下错误卡的节点。量具：矩阵的 POST 数、GET 数、主按钮 | `tests/run-retrieval-recovery/matrix.test.mjs` |
 | ★1b 连带界面 | 节点错误卡：主按钮「去重新取回 / Retrieve again」。可找回面板：「重新取回」。任务面板（制作 Run）：`retry-retrieval` 现在单镜也能用。Agent 回执：不改。分镜表悬停提示：读同一份键 | `NodeErrorReport.retrievalSource.test.tsx`、矩阵 |
 | ★2 谁说了算 | 「这笔是不是只差取回」只归 `electron/shared/productionShotPhase.ts` 的 `jobAwaitsRetrieval`。写「待取回」只归 `singleShotRunLifecycle.ts`（`markSingleShotAttention`、`reopenSingleShotRetrieval`）。产物到 job 的收尾只归 `productionGenerationSubmission.ts` 的 `settleWithArtifact`。消费者：`pollRun`、服务 `job.retry_retrieval`、任务面板、节点投影。同一份事实一份 | `node scripts/door-map.mjs jobAwaitsRetrieval` |
 | ★3 一致与复用 | 判据复用 `jobAwaitsRetrieval`；重开沿用批次路同一条 `needs_attention → polling` 边；错误卡复用 `canvasRetrievable`、`retrieval-incomplete`，不加新码、新按钮；旧数据解码复用 `matchNomiErrorCode` 已有的整句解码位。不自写通用能力 | `git grep jobAwaitsRetrieval` |
@@ -50,7 +50,7 @@
 6. 错误卡中英两轨真窗亲眼看，截图进 `docs/evidence/2026-10-31-run-retrieval-recovery/`，不带真实素材。
 7. 类检查：矩阵测试，从 `tests/fixtures/run-retrieval-recovery-cases.json` 遍历「失败时机 × 有无任务号 × 窗口开关 / 重启」，每格判 POST 数、GET 数、主按钮。账本 `classCheck` 指它。
 8. 反例：放回判死 → 矩阵红；拿掉 T10、T1 的修复 → 对应测试红。按字节还原，写清红了几格。
-9. 零费用走查（环回假供应商）：关窗 → 取回失败 → 重开 → 重新取回落地。
+9. 零费用走查（环回假供应商）：真关窗（进程不退、窗口回来）、重启 App 各一段，取回失败 → 重开 → 重新取回落地；第三段用真付费脚本同一个断网，证明它停成待取回。
 10. 试跑写记录时撞上损坏或被占着的租约：调用能返回，不挂死（`recordResult` 自 #1397 起持锁等 `withLifecycle`）。
 
 **反例（做到了算错）**：错误卡主按钮给「重试」而任务号还在；点重新取回 GET 仍是 0；为变绿改断言或预算；把 T1 的残留有效租约上限改掉。

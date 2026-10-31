@@ -44,5 +44,5 @@ export async function createProcessFixture(root, settingsDir) {
     query: { method: 'GET', path: '/jobs/{{providerMeta.task_id}}', response_mapping: { task_id: 'id', status: 'status', [taskKind === 'text_to_video' ? 'video_url' : 'image_url']: 'url' } },
   }))
   await fs.writeFile(file, JSON.stringify(catalog))
-  return { jobs, setQueryFault(on) { queryFault = on }, async close() { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) } }
+  return { jobs, origin: catalog.vendors[0].baseUrlHint, setQueryFault(on) { queryFault = on }, async close() { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) } }
 }
