@@ -30,6 +30,6 @@
   "rootCauseContract": "docs/fixes/2026-10-31-modal-input-priority.root-cause.json",
   "classCheck": {
     "kind": "matrix",
-    "file": "src/workbench/shortcutSurface.modalLayer.matrix.test.ts"
+    "file": "src/workbench/modalInputLayerCensus.test.ts"
   }
 }
