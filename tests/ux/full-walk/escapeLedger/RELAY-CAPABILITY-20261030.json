@@ -12,7 +12,7 @@
   ],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "completionCommits": [
     "0976437618f581dffa0b447ac430fc40d7b62730",
@@ -23,7 +23,8 @@
     "8b79097902573cf1efd6fe5502d0474afba6b6a5",
     "9366a2a652f33427b2a77fd3630e0cd05e3fcebd",
     "de9ca150230b4964d80da45e1e3c1132caf4c114",
-    "4960e95d713431fc4ade12b33488f1ebfd6c2f81"
+    "4960e95d713431fc4ade12b33488f1ebfd6c2f81",
+    "0df4b046c8aebfba4e5efa14ccd01f8260ac0184"
   ],
   "evidence": [
     "tests/relay-onboarding/contracts.test.mjs",
@@ -38,5 +39,6 @@
   "classCheck": {
     "kind": "matrix",
     "file": "electron/catalog/promotionCallerMatrix.test.ts"
-  }
+  },
+  "fixedInPr": 1402
 }
