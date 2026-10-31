@@ -22,6 +22,7 @@ import { classifyGenerationError } from "../../src/workbench/observability/class
 import { mutateCatalog, readCatalog, upsertModelCatalogMapping, upsertModelCatalogModel, upsertModelCatalogVendor } from "../catalog/catalogStore";
 import { registerDeclaredProvider } from "../catalog/declaredProviderRegistration";
 import type { ProviderAdapterDraft } from "../providerAdapter/types";
+import { replaceCustomCapabilityContractMeta } from "../shared/modelArchetypes";
 import { matchNomiErrorCode, type NomiErrorCode } from "../shared/nomiErrorCodes";
 import { runTaskIpcGuard } from "../tasks/taskIpcGuard";
 import { CANVAS_TEST_PROJECT, setupCanvasShots } from "./canvasShotTestUtils";
@@ -80,14 +81,15 @@ const REFUSALS: Refusal[] = [
     label: "声明不完整：创建门拒（Incomplete declaration）",
     seed: () => {
       const modelKey = seedFrameOnlyDeclaration();
+      // 新交卡的模型在设置里点了「恢复默认」（同一个写法）：合同没了，登记时写下的归属记录还在。
       mutateCatalog((tx, state) => {
         const model = state.models.find((row) => row.vendorKey === VENDOR && row.modelKey === modelKey)!;
-        tx.upsertModel({ ...model, meta: { ...(model.meta as Record<string, unknown>), declarationCapabilityIssue: { missingFields: ["modes"] } } });
+        tx.upsertModel({ ...model, meta: replaceCustomCapabilityContractMeta(model.meta, {}) });
       });
       return modelKey;
     },
     taskKind: "image_to_video",
-    says: /Incomplete declaration: .*Missing: modes/,
+    says: /Incomplete declaration: .*Missing: customCapabilityContract/,
     code: "model-config",
     card: { kind: "model-config", primary: "open-model-access" },
   },

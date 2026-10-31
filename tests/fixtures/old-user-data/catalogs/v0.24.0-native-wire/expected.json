@@ -1,0 +1,227 @@
+{
+  "recordedFrom": "03c4c8fb3957b7033c2d3caf00a741c747a21913",
+  "diskVersionAfterRead": 13,
+  "backupFiles": [],
+  "models": {
+    "doubao-seedance-2-0-260128": {
+      "kind": "video",
+      "listed": true,
+      "published": [
+        "image_to_video",
+        "text_to_video"
+      ],
+      "modes": {
+        "text_to_video": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/api/v3/contents/generations/tasks",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"doubao-seedance-2-0-260128\",\"content\":[{\"type\":\"text\",\"text\":\"a blue marble\"}],\"resolution\":\"720p\",\"ratio\":\"16:9\",\"duration\":5,\"generate_audio\":true,\"watermark\":false}"
+          }
+        },
+        "image_to_video": {
+          "posts": 1,
+          "via": "canvas",
+          "request": {
+            "method": "POST",
+            "path": "/api/v3/contents/generations/tasks",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"doubao-seedance-2-0-260128\",\"content\":[{\"type\":\"text\",\"text\":\"a blue marble\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"{{origin}}/reference.png\"},\"role\":\"first_frame\"}],\"resolution\":\"720p\",\"ratio\":\"16:9\",\"duration\":5,\"generate_audio\":true,\"watermark\":false}"
+          }
+        }
+      }
+    },
+    "gpt-image-2": {
+      "kind": "image",
+      "listed": true,
+      "published": [
+        "image_edit",
+        "text_to_image"
+      ],
+      "modes": {
+        "text_to_image": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/images/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"gpt-image-2\",\"prompt\":\"a blue marble\",\"n\":1,\"response_format\":\"url\"}"
+          }
+        },
+        "image_edit": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/images/edits",
+            "contentType": "multipart/form-data",
+            "authScheme": "Bearer",
+            "multipart": {
+              "fields": [
+                [
+                  "model",
+                  "gpt-image-2"
+                ],
+                [
+                  "prompt",
+                  "a blue marble"
+                ],
+                [
+                  "n",
+                  "1"
+                ],
+                [
+                  "response_format",
+                  "url"
+                ]
+              ],
+              "files": [
+                {
+                  "name": "image[]",
+                  "fileName": "reference.png",
+                  "type": "image/png",
+                  "bytes": 70,
+                  "sha256": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "opaque-image-x": {
+      "kind": "image",
+      "listed": true,
+      "published": [
+        "image_edit",
+        "text_to_image"
+      ],
+      "modes": {
+        "text_to_image": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/images/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"opaque-image-x\",\"prompt\":\"a blue marble\",\"n\":1,\"response_format\":\"url\"}"
+          }
+        },
+        "image_edit": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/chat/completions",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"opaque-image-x\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"a blue marble\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"{{origin}}/reference.png\"}}]}],\"stream\":false}"
+          }
+        }
+      }
+    },
+    "veo3.1-fast": {
+      "kind": "video",
+      "listed": true,
+      "published": [
+        "image_to_video",
+        "text_to_video"
+      ],
+      "modes": {
+        "text_to_video": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/video/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"veo3.1-fast\",\"prompt\":\"a blue marble\",\"duration\":\"\"}"
+          }
+        },
+        "image_to_video": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/video/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"veo3.1-fast\",\"prompt\":\"a blue marble\",\"duration\":\"\",\"image\":\"{{origin}}/reference.png\"}"
+          }
+        }
+      }
+    },
+    "seedance-2": {
+      "kind": "video",
+      "listed": true,
+      "published": [
+        "image_to_video",
+        "text_to_video"
+      ],
+      "modes": {
+        "text_to_video": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/video/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"seedance-2\",\"prompt\":\"a blue marble\",\"duration\":\"\"}"
+          }
+        },
+        "image_to_video": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/video/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"seedance-2\",\"prompt\":\"a blue marble\",\"duration\":\"\",\"image\":\"{{origin}}/reference.png\"}"
+          }
+        }
+      }
+    },
+    "opaque-video-x": {
+      "kind": "video",
+      "listed": true,
+      "published": [
+        "image_to_video",
+        "text_to_video"
+      ],
+      "modes": {
+        "text_to_video": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/video/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"opaque-video-x\",\"prompt\":\"a blue marble\",\"duration\":\"\"}"
+          }
+        },
+        "image_to_video": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/video/generations",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"opaque-video-x\",\"prompt\":\"a blue marble\",\"duration\":\"\",\"image\":\"{{origin}}/reference.png\"}"
+          }
+        }
+      }
+    }
+  }
+}

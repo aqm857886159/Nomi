@@ -145,14 +145,6 @@ export function providerAdapterStorePath(settingsRoot = getSettingsRoot()): stri
   return path.join(settingsRoot, "provider-adapters.json");
 }
 
-/** Original drafts only: migration never instantiates a store/lease or touches credentials. */
-export function readProviderAdapterRevisions(settingsRoot = getSettingsRoot()): ProviderAdapterRevision[] {
-  try {
-    const raw = JSON.parse(fs.readFileSync(providerAdapterStorePath(settingsRoot), "utf8"));
-    return raw?.version === 1 && Array.isArray(raw.revisions) ? raw.revisions : [];
-  } catch { return []; }
-}
-
 export class ProviderAdapterStore {
   private state: ProviderAdapterStoreState;
   private readonly lock: ProductionRunLock;

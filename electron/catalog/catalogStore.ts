@@ -14,7 +14,7 @@ export { modelCatalogReadOnlyStatus, type ModelCatalogReadOnlyStatus } from "./c
 import { apiKeyDecryptStatus, credentialMaterialSaved, decryptApiKeyRecord, makeApiKeyRecordFromPlain } from "./secrets";
 import { humanizeModelKey } from "./modelLabel";
 import { applyBuiltinSeeds } from "./seedBuiltins";
-import { migrateStoredCatalog } from "./catalogMigrations";
+import { migrateCatalogForward } from "./catalogMigrations";
 import type { AiSdkProviderKind, BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./types";
 import { CURRENT_CATALOG_VERSION } from "./types";
 import { normalizeCustomCall } from "./customCallMode";
@@ -106,7 +106,7 @@ function readCatalogShared(): Readonly<CatalogState> {
 
   // Migrate forward. v1 → v2 tags pre-existing keys as plaintext-encoded;
   // reads preserve those records so catalog access never opens the OS keychain.
-  const migrated = migrateStoredCatalog(snapshotBeforeMigration(parsed), defaultCatalog, writeCatalog);
+  const migrated = migrateCatalogForward(snapshotBeforeMigration(parsed), defaultCatalog, writeCatalog);
 
   const apiKeysByVendor = migrated.apiKeysByVendor || {};
   let everyKeyReadable = true;
@@ -151,7 +151,7 @@ export function ensureBuiltinModelSeeds(): void {
   if (outcome.status === "failed") return;
   if (outcome.status === "ok" && typeof outcome.value?.version === "number" && outcome.value.version > CURRENT_CATALOG_VERSION) return;
   const current = outcome.status === "ok" ? outcome.value : null;
-  const base = current ? migrateStoredCatalog(snapshotBeforeMigration(current), defaultCatalog, writeCatalog) : defaultCatalog();
+  const base = current ? migrateCatalogForward(snapshotBeforeMigration(current), defaultCatalog, writeCatalog) : defaultCatalog();
   const { state, changed } = applyBuiltinSeeds(base, new Date().toISOString());
   if (!current || changed) writeCatalog(state);
 }

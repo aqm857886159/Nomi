@@ -3,10 +3,11 @@
   "id": "2026-10-30-relay-capability-projection",
   "problem_type": "Declaration capability and executable wire diverge at publication",
   "symptom": "Declared media models lose parameters and required references, advertise chat and retain removed routes.",
-  "direct_cause": "Registration drops capability fields; promotion separately builds metadata and mappings; old rows have no recovery.",
-  "class_root": "No complete atomic projection owns the declared capability, wire and replacement lifecycle, and a refused replacement has no exit that a person or Agent can actually walk.",
+  "direct_cause": "Registration drops capability fields; promotion separately builds metadata and mappings; the first fix tried to judge rows older releases wrote with the new compiler and withheld the ones it could not prove.",
+  "class_root": "No complete atomic projection owns the declared capability, wire and replacement lifecycle, and a refused replacement has no exit that a person or Agent can actually walk. A second face of the same class, found when the first fix reached real users: treating \"the new compiler cannot prove this old row\" as \"the person may not use it\", and testing that only against hand-written shapes instead of directories older releases really wrote.",
   "affected_population": [
-    "New and legacy declared media models across connections and both publication paths"
+    "New declared media models across connections and both publication paths",
+    "Models saved by older releases (wizard, native wire, an earlier release's card): they must keep working exactly as before the upgrade"
   ],
   "scope_paths": [
     "electron/catalog/declaredProviderRegistration.ts",
@@ -15,11 +16,6 @@
     "electron/catalog/agentModelEntriesFromCatalog.ts",
     "electron/shared/customCapabilityContract.ts",
     "electron/shared/modelPublication.ts",
-    "electron/catalog/catalogMigrations.ts",
-    "electron/catalog/catalogVersion.json",
-    "electron/catalog/catalogStore.ts",
-    "electron/providerAdapter/store.ts",
-    "electron/catalog/types.ts",
     "electron/shared/modelAvailability.ts",
     "electron/catalog/taskParams.ts",
     "electron/catalog/comfyuiCandidateLifecycle.ts",
@@ -32,7 +28,6 @@
   "entry_points": [
     "submitDeclaration -> registerDeclaredProvider -> projectDeclaredModel",
     "defaultCatalog.promote -> projectDeclaredModel + adapterModelMetadataForPromotion",
-    "readCatalogShared / ensureBuiltinModelSeeds -> migrateStoredCatalog -> migrateCatalogForward",
     "runtime / apimartGenerationProvider -> applyHeadlessParamDefaults -> assertDeclaredCapabilityForTask",
     "workflow import -> capabilityDraftForImportedWorkflow -> lifecycleArtifacts -> promoteCertifiedComfyCandidate -> defaultCatalog.promote",
     "service -> builtinDraftForUndocumentedEndpoint / genericCompilation -> buildOpenAiCompatibleDraft -> defaultCatalog.promote",
@@ -45,9 +40,9 @@
     "Registration and promotion compile the same capability and wire fact.",
     "Only declared modes publish; required reference slots remain required.",
     "Unsupported or conflicting shapes reject atomically before persistence.",
-    "Legacy recovery uses only matching original revisions or a vendor-bound, digest-checked durable declaration snapshot and never calls a provider.",
+    "An upgrade never rewrites, marks or withholds a model an older release saved: a row without the card's ownership record keeps the behaviour of the release that wrote it, and the catalog version does not move. Only a person (or an Agent they sent) resubmitting a card changes it.",
     "Declared UI defaults feed mapping defaultParams; canonical request.params bindings prevent controls and headless requests diverging.",
-    "Original per-model declaration source and static untried evidence persist in the catalog transaction.",
+    "Original per-model declaration source and static untried evidence persist in the catalog transaction; the source has no reader today and is kept for resubmission and explanation.",
     "Declaration parameter names come from the code-owned canonical registry and share the existing parameter-to-wire coverage invariant.",
     "Every standard draft mode's wire agrees with its declaration: a mode with no declared reference role reads no reference key.",
     "Replacement ownership is one fact table: certification may replace only what this run verified; declaration resubmission never replaces an unproved route silently.",
@@ -97,11 +92,6 @@
     },
     {
       "kind": "write",
-      "path": "electron/catalog/catalogMigrations.ts",
-      "symbol": "projectDeclaredModel"
-    },
-    {
-      "kind": "write",
       "path": "electron/catalog/declaredProviderRegistration.ts",
       "symbol": "projectDeclaredModel"
     },
@@ -117,16 +107,6 @@
     },
     {
       "kind": "write",
-      "path": "electron/catalog/catalogMigrations.ts",
-      "symbol": "migrateDeclaredCapabilities"
-    },
-    {
-      "kind": "read",
-      "path": "electron/catalog/catalogMigrations.ts",
-      "symbol": "readProviderAdapterRevisions"
-    },
-    {
-      "kind": "write",
       "path": "electron/catalog/agentModelEntriesFromCatalog.ts",
       "symbol": "missingDeclaredCapabilityFields"
     },
@@ -139,11 +119,6 @@
       "kind": "write",
       "path": "electron/shared/modelPublication.ts",
       "symbol": "missingDeclaredCapabilityFields"
-    },
-    {
-      "kind": "write",
-      "path": "electron/catalog/catalogStore.ts",
-      "symbol": "migrateStoredCatalog"
     },
     {
       "kind": "read",
@@ -283,20 +258,15 @@
   ],
   "door_reduction": {
     "before": 34,
-    "after": 45,
-    "why_not": "Declaration, leased certification and one-time migration remain separate lifecycle entries and call the same compiler. Specification and canvas/storyboard readers consume its persisted contract. Availability and publication independently answer eligibility using the same diagnosis. Workflow import, materialization, connector, integration session, adapter coordinator and parity probe retain their lifecycle roles. The complete promotion property census and one-hop wrappers are generated by door-map; the added door is an internal call from the existing lifecycle to the extracted workflow capability constructor, not a new external writer. Round 4 only counts doors that already existed and were missing from the census: the replacement gate, the three standard draft producers and the removal verb the exit reuses. It adds no new writer; certification and declaration keep separate lifecycles and call one gate, and the producers feed one compiler."
+    "after": 41,
+    "why_not": "Declaration and leased certification remain separate lifecycle entries and call the same compiler. Specification and canvas/storyboard readers consume its persisted contract. Availability and publication independently answer eligibility using the same diagnosis. Workflow import, materialization, connector, integration session, adapter coordinator and parity probe retain their lifecycle roles. The complete promotion property census and one-hop wrappers are generated by door-map; the added door is an internal call from the existing lifecycle to the extracted workflow capability constructor, not a new external writer. Round 4 only counts doors that already existed and were missing from the census: the replacement gate, the three standard draft producers and the removal verb the exit reuses. It adds no new writer; certification and declaration keep separate lifecycles and call one gate, and the producers feed one compiler. Round 6 removes the one-time migration and the four doors it added (its compiler call, its revision reader and its two catalog entries); it adds none."
   },
-  "generality_proof": "The compiler operates on declared kind/task/reference/parameter structure, independent of identity or provider; both writes and legacy recovery converge on it.",
+  "generality_proof": "The compiler operates on declared kind/task/reference/parameter structure, independent of identity or provider; both writes converge on it, and rows older releases saved are not reprojected by it.",
   "shared_boundaries": [
     {
       "path": "electron/providerAdapter/promotionMeta.ts",
       "symbol": "projectDeclaredModel",
       "responsibility": "Compile complete capabilities and exact wire with field errors."
-    },
-    {
-      "path": "electron/catalog/catalogMigrations.ts",
-      "symbol": "migrateDeclaredCapabilities",
-      "responsibility": "Recover matching original revision or durable declaration snapshot facts, otherwise mark missing capability."
     },
     {
       "path": "electron/shared/modelAvailability.ts",
@@ -357,6 +327,12 @@
       "entry_point": "customCapabilityArchetypeForModel",
       "disposition": "enforced",
       "evidence": "A contract states its own catalog row as its only model name, so certified rows stay in the model-name matrix instead of leaving it blind."
+    },
+    {
+      "path": "electron/shared/modelPublication.ts",
+      "entry_point": "derivePublishedExecution",
+      "disposition": "enforced",
+      "evidence": "Only a row carrying the card's ownership record is held to the card's modes. Every directory an older release saved, plus a hand-written half contract, is replayed against the mainline recording: still listed, publishes at least the same modes, one POST per mode with the same path and body."
     }
   ],
   "recurrence": {
@@ -369,21 +345,21 @@
       "door-map of assertDeclaredReplacementOwnership, buildOpenAiCompatibleDraft, builtinDraftForUndocumentedEndpoint, genericCompilation and removeProvider.",
       "Read the promotion journal replay: any throw from promote stays in catalog_committing and is replayed before later promotions.",
       "electron/parity/vendorScopedModelId.matrix.test.ts and electron/providerAdapter/promotionMappings.test.ts stay byte-identical and must pass as written.",
-      "After the compile error cleared, the model-name matrix showed certified relay rows had left its cells because a contract outranks the shared archetype; door-map of customCapabilityArchetypeForModel has one writer."
+      "After the compile error cleared, the model-name matrix showed certified relay rows had left its cells because a contract outranks the shared archetype; door-map of customCapabilityArchetypeForModel has one writer.",
+      "Round 6: every release-written directory (wizard connections, native wire, an earlier release's card, audio and text, and rows saved by 0.20) replayed against the mainline recording; the catalog version and the backup files it leaves are part of the recording."
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/providerAdapter/promotionMeta.ts",
     "invariant": "Capability and mappings compile together and replace only owned facts.",
-    "failure_mode": "Field-specific exception before writes; unavailable legacy rows are preserved and blocked.",
+    "failure_mode": "Field-specific exception before writes; rows an older release saved are never touched on upgrade, so there is nothing to preserve and block.",
     "exception_policy": "none",
-    "strategy": "Both publication writers compile one complete fact and reject unowned replacement. Creation passes the shared guard before spend/HTTP; read-only resolution for accepted task queries remains unchanged. Native import controls and all media references enter this compiler intact; it derives existing array slots and indexed node bindings. Declaration source snapshots and untried evidence commit atomically; new card controls use the code-owned canonical registry and existing param-map coverage invariant. Standard draft producers run through the same compiler in the caller matrix. Replacement is one fact table with no provider or model-name branch; a refused declaration names every conflict and exits that existing tools complete; a failed run gives up its promotion lease.",
+    "strategy": "Both publication writers compile one complete fact and reject unowned replacement. Creation passes the shared guard before spend/HTTP; read-only resolution for accepted task queries remains unchanged. Native import controls and all media references enter this compiler intact; it derives existing array slots and indexed node bindings. Declaration source snapshots and untried evidence commit atomically; new card controls use the code-owned canonical registry and existing param-map coverage invariant. Standard draft producers run through the same compiler in the caller matrix. Replacement is one fact table with no provider or model-name branch; a refused declaration names every conflict and exits that existing tools complete; a failed run gives up its promotion lease. An upgrade does not judge old rows with the new compiler: a row without the card's ownership record is neither migrated nor marked, and the creation gate, the publication filter and availability apply only to rows that carry it.",
     "artifacts": [
       "electron/providerAdapter/promotionMeta.ts",
       "electron/catalog/declaredProviderRegistration.ts",
       "electron/providerAdapter/serviceCatalog.ts",
-      "electron/catalog/catalogMigrations.ts",
       "electron/shared/modelAvailability.ts",
       "electron/catalog/taskParams.ts",
       "electron/catalog/comfyuiCandidateLifecycle.ts",
@@ -396,8 +372,7 @@
   "regression_tests": [
     "tests/relay-onboarding/contracts.test.mjs",
     "electron/catalog/declaredProviderRegistration.test.ts",
-    "electron/catalog/declaredCapabilityMigration.test.ts",
-    "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts",
+    "electron/catalog/upgradeKeepsWorkingModels.test.ts",
     "tests/ux/relay-capability-projection.walk.mjs",
     "tests/ux/relay-video-onboarding.walk.mjs",
     "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs",
@@ -411,8 +386,7 @@
   "class_regression_tests": [
     "tests/relay-onboarding/contracts.test.mjs",
     "electron/catalog/declaredProviderRegistration.test.ts",
-    "electron/catalog/declaredCapabilityMigration.test.ts",
-    "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts",
+    "electron/catalog/upgradeKeepsWorkingModels.test.ts",
     "tests/ux/relay-capability-projection.walk.mjs",
     "tests/ux/relay-video-onboarding.walk.mjs",
     "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs",
@@ -436,14 +410,15 @@
     "rationale": "The defect is internal metadata ownership; no new runtime dependency or protocol is needed.",
     "exit_criteria": []
   },
-  "migration": "Version 14 reprojects only matching original revision or a vendor-bound, digest-checked durable declaration snapshot with compatible original wire; compiled defaults and canonical parameter bindings feed the same runtime. Both ordinary load and boot seed entry supply originals. Missing, conflicting or unsupported originals get a durable missing-capability marker; Agent lists it and dispatch rejects before execution. Complete user-authored contracts remain unchanged.",
+  "migration": "None. The catalog version stays 13 and a directory saved by an older release is read exactly as before: no row is reprojected, marked or withheld. Models saved by older releases keep the behaviour of the release that wrote them and do not become more accurate by themselves; to get accurate controls an Agent resubmits a card, which on an existing route is refused first (nothing written, the old model keeps sending) and then rebuilt through the replace exit. Only rows that carry the card's ownership record are checked against it.",
   "residual_risks": [
     "When another process submits a declaration while the app window is open, the renderer keeps the model list and contract it already read: a new model needs a reload to appear, and a model already listed keeps its old controls and sends its old default parameters on the next generation, with no notice. The catalog itself is correct and a reload fixes it.",
     "The spend confirmation warns about public temporary hosting for any local reference without reading the connection's declared asset ingestion, so a connection that declared inline images still shows the notice.",
     "Live upstream generation, Windows and paid verification are outside this local loopback validation.",
     "A kept route of an unverified mode is written back after the model's routes are cleared, so its timestamps change while its wire and enabled flag do not.",
     "Certification has no structured exit: a refusal fails the run with the reason in the existing untranslated banner. The AI declaration path carries the exits.",
-    "A hand-authored capability contract refuses re-verification until the model is removed or the contract matches; main kept the contract and republished routes."
+    "A hand-authored capability contract refuses re-verification until the model is removed or the contract matches; main kept the contract and republished routes.",
+    "Models saved by older releases do not gain accurate parameter controls on their own; resubmitting a card through an Agent is the way, and on an existing route it needs the person's confirmation to replace the model."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-29",
@@ -451,8 +426,8 @@
     "layer": "electron/providerAdapter/promotionMeta.ts",
     "tests": [
       "electron/catalog/declaredProviderRegistration.test.ts",
-      "electron/catalog/declaredCapabilityMigration.test.ts"
+      "electron/catalog/upgradeKeepsWorkingModels.test.ts"
     ],
-    "why": "The pure projection owns capability and wire completeness; matrix and migration tests exercise real catalog writes and original revision recovery."
+    "why": "The pure projection owns capability and wire completeness; the matrix tests exercise real catalog writes, and the upgrade test replays directories older releases really wrote."
   }
 }

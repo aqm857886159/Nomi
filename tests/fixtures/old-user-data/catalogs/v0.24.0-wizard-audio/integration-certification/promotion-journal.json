@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "entries": [
+    {
+      "version": 2,
+      "revision": 5,
+      "journalId": "promotion-run-rel-1",
+      "runId": "run-rel-1",
+      "lineageRootVendorKey": "local-39017",
+      "leaseToken": "047b5953-7e8a-423f-be1e-f4f3ae8e83f6",
+      "proposedRevisionId": "adapter-revision-1bb5f3676bdc2f5c5a6f",
+      "contractDigest": "1f4ec4a7352b7de6a4c61e9f22f8d69972c41a6033f773a3e901eed24213cfef",
+      "verifiedModes": [
+        {
+          "modelKey": "deepseek-chat",
+          "taskKind": "chat"
+        },
+        {
+          "modelKey": "opaque-tts",
+          "taskKind": "text_to_audio"
+        },
+        {
+          "modelKey": "tts-1",
+          "taskKind": "text_to_audio"
+        }
+      ],
+      "childRunRef": {
+        "runId": "run-rel-1",
+        "revisionDigest": "1bb5f3676bdc2f5c5a6fb994c1023704f572a91fea5aedc570551d5787feada6"
+      },
+      "state": "committed",
+      "createdAt": "2026-10-20T00:00:00.000Z",
+      "updatedAt": "2026-10-20T00:00:00.000Z",
+      "terminalStage": "completed",
+      "runFinalizedAt": "2026-10-20T00:00:00.000Z"
+    }
+  ],
+  "tombstones": [],
+  "archives": []
+}

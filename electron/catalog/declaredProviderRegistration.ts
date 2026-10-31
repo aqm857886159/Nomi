@@ -120,7 +120,6 @@ export function registerDeclaredProvider(input: DeclaredRegistrationInput): Decl
       );
       const sourceCard = JSON.parse(JSON.stringify({ ...card, models: [model] }));
       const meta = { ...(existingModel?.meta && typeof existingModel.meta === "object" ? existingModel.meta : {}), ...projection.meta };
-      delete meta.declarationCapabilityIssue;
       tx.upsertModel({
         ...(existingModel || {}),
         vendorKey,

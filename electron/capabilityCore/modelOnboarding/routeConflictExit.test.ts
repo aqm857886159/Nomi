@@ -175,12 +175,12 @@ const SCENARIOS: Array<{ name: string; reason: string; arrange: () => Promise<vo
     },
   },
   {
-    name: "an incomplete old declaration told to resubmit, with a different wire",
+    name: "a card an Agent submitted on the earlier release, saved with no ownership record and a different wire",
     reason: "unowned",
     conflictTask: "text_to_video",
     currentPath: NEWAPI_VIDEO_CREATE_OP.path,
     arrange: () => seedConnection({
-      meta: { adapter: { state: "declared", source: "declaration-card", publicationModes: ["text_to_video"] }, declarationCapabilityIssue: { missingFields: ["customCapabilityContract"] } },
+      meta: { adapter: { state: "declared", source: "declaration-card", publicationModes: ["text_to_video"] } },
       rows: [LEGACY_ROW],
     }),
   },
@@ -221,7 +221,6 @@ describe.each(SCENARIOS)("$name", ({ reason, conflictTask, currentPath, arrange 
     const state = readCatalog();
     const model = state.models.find((row) => row.vendorKey === VENDOR && row.modelKey === MODEL)!;
     expect(parseCustomCapabilityContract(model.meta)).toBeTruthy();
-    expect((model.meta as Json).declarationCapabilityIssue).toBeUndefined();
     expect(deriveModelAvailability({ model, vendor: { enabled: true, authType: "bearer" }, credentialStatus: () => "ok", evidence: { mappings: state.mappings } })).toMatchObject({ usable: true });
     expect(untouched()).toEqual(keep);
     expect(bindingOf(VENDOR)).toEqual(binding);

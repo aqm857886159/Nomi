@@ -404,13 +404,12 @@ export function parseCustomCapabilityContract(meta: unknown): CustomCapabilityCo
   }
 }
 
-/** Durable migration diagnosis. Its absence never guesses capability from model names. */
+/**
+ * What a newly submitted card still lacks. Only a row that carries the card's own ownership record (`declarationProjection`) can be
+ * incomplete: its record says a media contract was written, so a contract that no longer parses is a real gap. A row without that record
+ * was never projected from a card, so nothing here may call it incomplete, and nothing guesses a capability from a model name.
+ */
 export function missingDeclaredCapabilityFields(meta: unknown): string[] {
   if (!isRecord(meta)) return [];
-  if (!isRecord(meta.declarationCapabilityIssue)) {
-    return isRecord(meta.declarationProjection) && meta.declarationProjection.hasMediaContract === true && !parseCustomCapabilityContract(meta) ? ["customCapabilityContract"] : [];
-  }
-  const fields = meta.declarationCapabilityIssue.missingFields;
-  const missing = Array.isArray(fields) ? fields.filter((field): field is string => typeof field === "string" && Boolean(field.trim())) : [];
-  return missing.length ? [...new Set(missing)] : ["customCapabilityContract"];
+  return isRecord(meta.declarationProjection) && meta.declarationProjection.hasMediaContract === true && !parseCustomCapabilityContract(meta) ? ["customCapabilityContract"] : [];
 }

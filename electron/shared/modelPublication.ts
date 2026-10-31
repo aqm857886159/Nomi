@@ -160,7 +160,10 @@ export function derivePublishedExecution(
   for (const taskKind of customCallModes(model, supported)) modes.add(taskKind);
   if (model.kind === "text") modes.add("chat");
 
-  const contract = parseCustomCapabilityContract(model.meta);
+  // Only a row projected from a submitted card (it carries that card's ownership record) is held to the card's own modes.
+  // A hand-written contract on any other row can be partial (say, text only while its routes also serve image input);
+  // it describes the controls, not which routes to withhold, so such a row publishes what its routes and evidence prove, as before.
+  const contract = record(record(model.meta)?.declarationProjection) ? parseCustomCapabilityContract(model.meta) : null;
   const declaredTasks = contract ? new Set(contract.modes.map((mode) => mode.transportTaskKind || contract.transportTaskKind)) : null;
   const allowed = publicationMask.present ? new Set(publicationMask.modes) : null;
   const publishedModes = supported.filter((taskKind) => modes.has(taskKind) && (!allowed || allowed.has(taskKind)) && (!declaredTasks || declaredTasks.has(taskKind as never)));

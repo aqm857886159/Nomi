@@ -10,7 +10,6 @@
   "write_api": [
     { "path": "electron/providerAdapter/promotionMeta.ts", "symbol": "projectDeclaredModel" },
     { "path": "electron/providerAdapter/promotionMeta.ts", "symbol": "assertDeclaredReplacementOwnership" },
-    { "path": "electron/catalog/catalogMigrations.ts", "symbol": "migrateDeclaredCapabilities" },
     { "path": "electron/shared/modelAvailability.ts", "symbol": "assertDeclaredCapabilityForTask" }
   ],
   "forbidden_derivations": [],
@@ -18,9 +17,8 @@
   "allowed_consumers": [
     "electron/catalog/declaredProviderRegistration.ts",
     "electron/providerAdapter/serviceCatalog.ts",
-    "electron/catalog/catalogMigrations.ts",
     "electron/catalog/taskParams.ts"
   ],
   "since": "2026-10-30",
-  "notes": "一个编译器产生 kind、modes、params、required slots 和完整 mappings。登记、认证晋升与原始 revision 迁移都复用该事实。迁移入口仅恢复或标缺失；创建门仅读该合同和发布 mask 拒绝不完整/已撤销模式，不接管已受理任务的查询，不另推导供应商能力。替换既有路由和能力的判定只有 assertDeclaredReplacementOwnership 一张表，认证和声明共用；拒绝一次列全，出口由调用方给。"
+  "notes": "一个编译器产生 kind、modes、params、required slots 和完整 mappings。登记与认证晋升都复用该事实。升级时不迁移旧目录，也不盖任何「能力缺失」印记：没有归属记录（declarationProjection）的行不是从卡投影出来的，创建门、发布过滤、可用性都不把它当声明行，照上一版的行为用，不自动变准；要准确的参数条，走 AI 重新交卡。创建门和发布过滤只对带归属记录的行，读该合同和发布 mask 拒绝不完整 / 已撤销模式，不接管已受理任务的查询，不另推导供应商能力。替换既有路由和能力的判定只有 assertDeclaredReplacementOwnership 一张表，认证和声明共用；拒绝一次列全，出口由调用方给。每个模型登记时存下的原卡（meta.declarationSource）现在只写不读，没有读者；它是留给以后重交卡和向人解释「这个模型是按哪张卡接的」用的，原卡以后补不回来，所以继续写。"
 }

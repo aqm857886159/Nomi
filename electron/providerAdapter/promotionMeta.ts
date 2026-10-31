@@ -299,7 +299,6 @@ export function adapterModelMetadataForPromotion(input: {
   if (!verifiedModes.length) return { ...input.oldMeta, adapter: { ...oldAdapter, state: 'failed', runId: input.runId, modes: input.modeResults, updatedAt: input.updatedAt } };
   const projection = input.projection || projectDeclaredModel(input.candidate, '', verifiedModes.map((m) => m.taskKind));
   const next = { ...input.oldMeta, ...projection.meta };
-  delete next.declarationCapabilityIssue;
   return { ...next,
     adapter: { state: failedModes.length ? 'partial' : 'verified', runId: input.runId, activeRevision: input.revisionId,
       // A free self-check proves shape/credential only; generation remains untried.
