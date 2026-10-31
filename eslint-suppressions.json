@@ -2006,11 +2006,6 @@
       "count": 1
     }
   },
-  "tests/ux/process-feedback-imgfx-real.e2e.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/production-flow-fixes.walk.mjs": {
     "no-control-regex": {
       "count": 1

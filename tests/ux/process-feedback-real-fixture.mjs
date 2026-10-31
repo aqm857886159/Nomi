@@ -10,6 +10,8 @@ export async function createProcessFixture(root, settingsDir) {
   const media = await fs.readFile(path.join(root, 'resources/onboarding-demo/shot-4.jpg'))
   const video = await fs.readFile(path.join(root, 'electron/providerAdapter/__fixtures__/certification-media/valid.mp4'))
   const jobs = []
+  // 走查造「查询断连」用：查询连接直接断开，提交不受影响。
+  let queryFault = false
   const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json')
     if (req.method === 'POST') {
@@ -23,6 +25,7 @@ export async function createProcessFixture(root, settingsDir) {
       const job = jobs.find(j => req.url.endsWith(j.id))
       if (!job) { res.writeHead(404).end('{}'); return }
       job.queries++
+      if (queryFault) { res.destroy(); return }
       res.end(JSON.stringify({ id: job.id, status: job.done ? 'succeeded' : 'running',
         ...(job.done ? { url: job.body.model === 'pf-video' ? `data:video/mp4;base64,${video.toString('base64')}` : `data:image/jpeg;base64,${media.toString('base64')}` } : {}) }))
     }
@@ -41,5 +44,5 @@ export async function createProcessFixture(root, settingsDir) {
     query: { method: 'GET', path: '/jobs/{{providerMeta.task_id}}', response_mapping: { task_id: 'id', status: 'status', [taskKind === 'text_to_video' ? 'video_url' : 'image_url']: 'url' } },
   }))
   await fs.writeFile(file, JSON.stringify(catalog))
-  return { jobs, async close() { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) } }
+  return { jobs, setQueryFault(on) { queryFault = on }, async close() { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) } }
 }
