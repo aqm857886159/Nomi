@@ -198,14 +198,14 @@ describe("等生命周期锁不能无限等（T1）", () => {
     await expect(submission.poll(input)).resolves.toMatchObject({ nextAction: "materialize" });
     expect(fs.existsSync(lockFile)).toBe(false);
     expect(test.shared.submit).toHaveBeenCalledTimes(1);
-  }, 10_000);
+  });
 
   it("写了一半的锁记录，还差一点到一个租期：等它到了就回收，查询能完成", async () => {
     const { submission } = await withLock('{"schemaVersion":1,"owner', 29_500);
     const startedAt = performance.now();
     await expect(submission.poll(input)).resolves.toMatchObject({ nextAction: "materialize" });
     expect(performance.now() - startedAt).toBeGreaterThan(300);
-  }, 10_000);
+  });
 
   it("死掉的持有者留下有效租约：等到它过期（行为不变）", async () => {
     const expiresAt = new Date(Date.now() + 800).toISOString();
@@ -213,5 +213,5 @@ describe("等生命周期锁不能无限等（T1）", () => {
     const startedAt = performance.now();
     await expect(submission.poll(input)).resolves.toMatchObject({ nextAction: "materialize" });
     expect(performance.now() - startedAt).toBeGreaterThan(500);
-  }, 10_000);
+  });
 });

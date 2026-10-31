@@ -5,7 +5,8 @@ import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { setTimeout } from 'node:timers'
+import { fileURLToPath, URL } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -23,6 +24,7 @@ import { runHasBeenOnCanvas } from '../../electron/productionRun/multiShotCanvas
 import { createProductionGenerationSubmission } from '../../electron/productionRun/productionGenerationSubmission.ts'
 import { createProductionRunRepository } from '../../electron/productionRun/productionRunRepository.ts'
 import { createProductionRunService } from '../../electron/productionRun/productionRunService.ts'
+import { waitForProduction } from '../../electron/productionRun/productionRunTestHelpers.ts'
 import { createProject, fetchTaskResult, runTask, taskCache } from '../../electron/runtime.ts'
 import { jobAwaitsRetrieval } from '../../electron/shared/productionShotPhase.ts'
 import { runTaskIpcGuard } from '../../electron/tasks/taskIpcGuard.ts'
@@ -95,7 +97,7 @@ async function startVendor() {
   const sockets = new Set()
   const state = { fault: null, pending: false, getDelayMs: 0, posts: 0, gets: 0, downloads: 0 }
   const server = http.createServer(async (req, res) => {
-    for await (const _ of req) { /* drain */ }
+    for await (const chunk of req) void chunk
     const pathname = new URL(req.url, 'http://fixture').pathname
     const json = (status, value) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(value)) }
     if (pathname === '/art.png') {
@@ -216,15 +218,6 @@ function createHost({ project, projectRoot, row }, crash, { forgetSubmitResult =
   }
   rigs.push(host)
   return host
-}
-
-async function waitFor(condition, label) {
-  const deadline = Date.now() + 20_000
-  while (Date.now() < deadline) {
-    if (condition()) return
-    await new Promise((resolve) => setTimeout(resolve, 20))
-  }
-  throw new Error(`timed out waiting for ${label}`)
 }
 
 /** 和真的 IPC 一样：错误经 runTaskIpcGuard 编码，到渲染层前面多一段 Electron 的前缀。 */
@@ -348,7 +341,7 @@ describe('任务号还在就只取回：矩阵', () => {
     const settled = (job) => job?.status === cell.after.jobStatus
       // 本机故障这一格：已经停下来了就别等到超时，下面的断言会说清楚停成了什么。
       || (isLocalFault && job?.status === 'needs_attention')
-    await waitFor(() => settled(host.job(record)) || (cell.after.jobStatus === 'provider_accepted' && (failed.threw || failed.result)), `job ${cell.after.jobStatus}`)
+    await waitForProduction(() => settled(host.job(record)) || (cell.after.jobStatus === 'provider_accepted' && (failed.threw || failed.result)))
     const job = host.job(record)
     expect(vendor.state.posts, 'the failure itself never posts again').toBe(1)
     if (cell.after.jobStatus !== 'provider_accepted') {
@@ -361,14 +354,14 @@ describe('任务号还在就只取回：矩阵', () => {
     if (crash && cell.window === 'open') {
       // 渲染层已经拿到结果，不会再来：观察者把没收尾的这一笔补齐。
       expect(failed.result?.status).toBe('succeeded')
-      await waitFor(() => host.run(record)?.status === 'completed', 'run completed by the observer')
+      await waitForProduction(() => host.run(record)?.status === 'completed')
     } else if (cell.button === 'none') {
       // 还在跑：没有主按钮，节点照旧转圈。状态好了就落地，窗口开着由渲染层查，关着由观察者查。
       expect(failed.threw).toBeNull()
       vendor.state.fault = null
       const getsBefore = vendor.state.gets
       if (cell.window === 'open') await host.poll(record)
-      await waitFor(() => host.run(record)?.status === 'completed', 'run completed')
+      await waitForProduction(() => host.run(record)?.status === 'completed')
       expect(vendor.state.posts).toBe(cell.click.posts)
       expect(vendor.state.gets - getsBefore).toBeGreaterThanOrEqual(cell.click.minGets)
     } else {
@@ -412,7 +405,7 @@ describe('任务号还在就只取回：矩阵', () => {
     }
 
     if (cell.click.landed) {
-      await waitFor(() => host.run(record)?.status === 'completed', 'run completed')
+      await waitForProduction(() => host.run(record)?.status === 'completed')
       const run = host.run(record)
       expect(host.job(record).status).toBe('ready')
       const artifact = run.artifacts.find((value) => value.status === 'ready')
@@ -443,7 +436,7 @@ describe('旧数据：0.24.0 及更早已经落下的这一笔', () => {
     await host.submit('rec-old')
     vendor.state.fault = 'query-disconnect'
     host.runs.releaseSender(SENDER)
-    await waitFor(() => host.job('rec-old')?.status === 'needs_attention', 'attention')
+    await waitForProduction(() => host.job('rec-old')?.status === 'needs_attention')
     vendor.state.fault = null
     return host
   }
@@ -460,7 +453,7 @@ describe('旧数据：0.24.0 及更早已经落下的这一笔', () => {
     expect(vendor.state.gets).toBeGreaterThan(getsBefore)
     expect(result.status).toBe('succeeded')
     expect(vendor.state.posts).toBe(1)
-    await waitFor(() => host.run('rec-old')?.status === 'completed', 'run completed')
+    await waitForProduction(() => host.run('rec-old')?.status === 'completed')
   }, 60_000)
 
   it('供应商回过认不出的状态（provider_status_unknown）：供应商没说失败，点重新取回真去查，落地，POST 仍 1', async () => {
@@ -505,7 +498,7 @@ describe('窗口一直开着：渲染层等够宽限、不再等这一笔之后'
     await expect(host.submit('rec-blocked')).rejects.toThrow(/node_generation_in_flight/)
     await view.giveUpWaiting(describeOpaqueFailure(polled))
     expect(view.node().status).toBe('recoverable')
-    await waitFor(() => host.job('rec-1')?.status === 'needs_attention', 'attention')
+    await waitForProduction(() => host.job('rec-1')?.status === 'needs_attention')
     expect(jobAwaitsRetrieval(host.job('rec-1'))).toBe(true)
     expect(matchNomiErrorCode(host.job('rec-1').errorMessage ?? '')).toBe(expectedCode)
     expect(vendor.state.posts).toBe(1)
@@ -516,9 +509,9 @@ describe('窗口一直开着：渲染层等够宽限、不再等这一笔之后'
     const getsAtGiveUp = vendor.state.gets
     vendor.state.pending = true
     await view.giveUpWaiting()
-    await waitFor(() => vendor.state.gets > getsAtGiveUp, 'the observer asks the provider')
+    await waitForProduction(() => vendor.state.gets > getsAtGiveUp)
     vendor.state.pending = false
-    await waitFor(() => host.run('rec-1')?.status === 'completed', 'the observer completes the run')
+    await waitForProduction(() => host.run('rec-1')?.status === 'completed')
     expect(view.polls).toBe(0)
     const [artifact, ...others] = readyArtifacts(host.run('rec-1'))
     expect(others).toEqual([])
@@ -553,12 +546,12 @@ describe('窗口一直开着：渲染层等够宽限、不再等这一笔之后'
     vendor.state.pending = true
     vendor.state.getDelayMs = 300
     await view.giveUpWaiting()
-    await waitFor(() => vendor.state.gets > 0, 'the observer asks the provider')
+    await waitForProduction(() => vendor.state.gets > 0)
     const clicked = view.clickRetrieve()
-    await waitFor(() => view.polls > 0, 'the click polls too')
+    await waitForProduction(() => view.polls > 0)
     vendor.state.pending = false
     await clicked
-    await waitFor(() => host.run('rec-1')?.status === 'completed', 'run completed')
+    await waitForProduction(() => host.run('rec-1')?.status === 'completed')
     expect(view.node().status).toBe('success')
     expect(view.node().history).toHaveLength(1)
     expect(readyArtifacts(host.run('rec-1'))).toHaveLength(1)
@@ -597,7 +590,7 @@ describe('窗口一直开着：渲染层等够宽限、不再等这一笔之后'
     vendor.state.fault = null
     await view.clickRetrieve()
     expect(view.node().status).toBe('success')
-    await waitFor(() => host.run('rec-1')?.status === 'completed', 'run completed')
+    await waitForProduction(() => host.run('rec-1')?.status === 'completed')
     expect(vendor.state.posts).toBe(1)
   }, 60_000)
 
@@ -621,7 +614,7 @@ describe('窗口一直开着：渲染层等够宽限、不再等这一笔之后'
     }
     await i18n.changeLanguage('zh-CN')
     vendor.state.pending = false
-    await waitFor(() => host.run('rec-1')?.status === 'completed', 'the observer completes the run')
+    await waitForProduction(() => host.run('rec-1')?.status === 'completed')
     await view.retry('rec-3')
     expect(vendor.state.posts).toBe(2)
   }, 60_000)
@@ -648,13 +641,13 @@ describe('窗口一直开着：渲染层等够宽限、不再等这一笔之后'
     expect(view.node().status).toBe('recoverable')
     expect(matchNomiErrorCode(view.node().error ?? '')).toBe('retrieval-timeout')
     const getsAfterClick = vendor.state.gets
-    await waitFor(() => vendor.state.gets > getsAfterClick, 'the observer took over')
+    await waitForProduction(() => vendor.state.gets > getsAfterClick)
     expect(view.polls).toBe(1)
     view.clickMarkFailed()
     await expect(view.retry('rec-2')).rejects.toThrow(/node_generation_in_flight/)
     expect(vendor.state.posts).toBe(1)
     vendor.state.pending = false
-    await waitFor(() => host.run('rec-1')?.status === 'completed', 'the observer completes the run')
+    await waitForProduction(() => host.run('rec-1')?.status === 'completed')
     await view.retry('rec-3')
     expect(vendor.state.posts).toBe(2)
   }, 60_000)
@@ -674,7 +667,7 @@ describe('窗口一直开着：渲染层等够宽限、不再等这一笔之后'
     await view.retry('rec-2')
     expect(vendor.state.posts).toBe(2)
     expect((await host.poll('rec-2')).status).toBe('succeeded')
-    await waitFor(() => host.run('rec-2')?.status === 'completed', 'second run completed')
+    await waitForProduction(() => host.run('rec-2')?.status === 'completed')
     const second = readyArtifacts(host.run('rec-2'))[0]
     expect(libraryPaths(prepared)).toEqual(expect.arrayContaining([artifact.projectRelativePath, second.projectRelativePath]))
     expect(fs.readFileSync(path.join(prepared.projectRoot, artifact.projectRelativePath)).equals(bytes)).toBe(true)
@@ -693,7 +686,7 @@ describe('同步模型崩在受理和落地之间', () => {
     taskCache.delete(taskId)
     host = createHost(prepared, null, { forgetSubmitResult: true })
     host.runs.recoverOrphans(prepared.project.id)
-    await waitFor(() => host.job('rec-sync')?.status === 'needs_attention', 'attention')
+    await waitForProduction(() => host.job('rec-sync')?.status === 'needs_attention')
     expect(jobAwaitsRetrieval(host.job('rec-sync'))).toBe(true)
 
     await expect(clickMainButton(host, 'rec-sync', 'panel-retrieve')).resolves.toMatchObject({ kept: true })
@@ -713,13 +706,13 @@ describe('另一扇门：任务面板的「重新取回」（job.retry_retrieval
     await host.submit('rec-panel')
     vendor.state.fault = 'query-5xx'
     host.runs.releaseSender(SENDER)
-    await waitFor(() => host.job('rec-panel')?.status === 'needs_attention', 'attention')
+    await waitForProduction(() => host.job('rec-panel')?.status === 'needs_attention')
     vendor.state.fault = null
     const getsBefore = vendor.state.gets
     const job = host.job('rec-panel')
     const run = host.run('rec-panel')
     await host.service.command(prepared.project.id, run.runId, { commandId: 'panel-retry', expectedRevision: run.revision, type: 'job.retry_retrieval', issuedAt: new Date().toISOString(), payload: { jobId: job.jobId } })
-    await waitFor(() => host.job('rec-panel')?.status === 'ready', 'job ready')
+    await waitForProduction(() => host.job('rec-panel')?.status === 'ready')
     expect(vendor.state.gets).toBeGreaterThan(getsBefore)
     expect(vendor.state.posts).toBe(1)
   }, 60_000)

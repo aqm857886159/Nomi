@@ -8,6 +8,7 @@ import path from 'node:path'
 import { expect, expectAbsent, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
 import { readProductionRuns } from './_paidRun.mjs'
 import { canvasFitView, closeRailDrawer, openRailDrawer } from './_shell.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 /** 修复后才会原样进产物的字面量（electron/productionRun/singleShotRunLifecycle.ts、electron/shared/nomiErrorCodes.ts）。 */
@@ -58,7 +59,7 @@ export function unblockVendorOrigins() {
 
 /** 等观察者第一次查询失败、把这一笔停成待取回（读盘上的 Run）。关窗路径要在窗口回来之前等到它。 */
 export async function waitStoppedForRetrieval(projectRoot, runRecordId) {
-  await expect.poll(() => runOf(projectRoot, runRecordId)?.jobs.at(-1)?.status, { timeout: 90_000 }).toBe('needs_attention')
+  await expect.poll(() => runOf(projectRoot, runRecordId)?.jobs.at(-1)?.status, { timeout: stationTimeout({ operations: 6 }) }).toBe('needs_attention')
   expect(runOf(projectRoot, runRecordId).jobs.at(-1).errorCode).toBe('output_retrieval_failed')
 }
 
@@ -75,11 +76,11 @@ async function submitShot({ page, posts, projectRoot, node: spec, position }) {
   // 窗口重开时画布已经缩放适配了上一个节点，新节点可能在屏幕外、根本没渲染：像人一样先看全。
   await canvasFitView(page)
   await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click()
-  await expect.poll(async () => (await nodeFact(page, id)).taskId, { timeout: 60_000 }).toBeTruthy()
-  await expect.poll(posts, { timeout: 30_000 }).toBe(postsBefore + 1)
+  await expect.poll(async () => (await nodeFact(page, id)).taskId, { timeout: stationTimeout({ operations: 4 }) }).toBeTruthy()
+  await expect.poll(posts, { timeout: stationTimeout({ operations: 2 }) }).toBe(postsBefore + 1)
   const { runRecordId } = await nodeFact(page, id)
   await page.evaluate(() => window.__nomiCanvasStore.getState().clearSelection())
-  await expect.poll(() => storedTaskId(projectRoot, id), { timeout: 30_000 }).toBeTruthy()
+  await expect.poll(() => storedTaskId(projectRoot, id), { timeout: stationTimeout({ operations: 2 }) }).toBeTruthy()
   return { id, runRecordId, postsBefore }
 }
 
@@ -91,7 +92,7 @@ async function retrieveAndWait(page, id, retrieve) {
   }), id)
   await retrieve().click()
   await left
-  await expect(retrieve()).toBeVisible({ timeout: 60_000 })
+  await expect(retrieve()).toBeVisible({ timeout: stationTimeout({ operations: 4 }) })
 }
 
 export async function recoveryJourney(ctx) {
@@ -108,15 +109,15 @@ export async function recoveryJourney(ctx) {
   const retrieve = () => card().getByRole('button', { name: labels.retrieve, exact: true })
   // 鼠标挪开：刚点完的位置正好压在错误卡主按钮上，截到的是悬停样子。
   const settledShot = async (name) => { await page.mouse.move(2, 2); await waitForVisualQuiescence(page); await shot(name, card()) }
-  await expect(retrieve()).toBeVisible({ timeout: 30_000 })
+  await expect(retrieve()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
   await settledShot(`${scenario}-1-panel`)
 
   // 故障还在时点一下：真去查了，没成，回到可找回，不下新单。
   const getsAtFirstClick = gets?.()
   await retrieve().click()
-  if (gets) await expect.poll(gets, { timeout: 30_000 }).toBeGreaterThan(getsAtFirstClick)
-  await expect(retrieve()).toBeVisible({ timeout: 60_000 })
-  await expect.poll(() => runOf(projectRoot, runRecordId)?.jobs.at(-1)?.status, { timeout: 30_000 }).toBe('needs_attention')
+  if (gets) await expect.poll(gets, { timeout: stationTimeout({ operations: 2 }) }).toBeGreaterThan(getsAtFirstClick)
+  await expect(retrieve()).toBeVisible({ timeout: stationTimeout({ operations: 4 }) })
+  await expect.poll(() => runOf(projectRoot, runRecordId)?.jobs.at(-1)?.status, { timeout: stationTimeout({ operations: 2 }) }).toBe('needs_attention')
   expect(posts()).toBe(postsBefore + 1)
   if (gets) report.getsWhileBroken = gets() - getsAtFirstClick
 
@@ -127,18 +128,18 @@ export async function recoveryJourney(ctx) {
   await expectAbsent(card().getByRole('button', { name: labels.retry, exact: true }), { provenBy: proof, message: 'an error card for a paid task never offers Retry as its button' })
   await settledShot(`${scenario}-2-error-card`)
   await goRetrieve.click()
-  await expect(retrieve()).toBeVisible({ timeout: 10_000 })
+  await expect(retrieve()).toBeVisible({ timeout: stationTimeout() })
 
   // 故障好了：再点一次，真查、落地，还是只下过一单。
   page = (await faultOff()) ?? page
-  await expect(retrieve()).toBeVisible({ timeout: 30_000 })
+  await expect(retrieve()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
   const getsAtLastClick = gets?.()
   await retrieve().click()
-  await expect.poll(async () => (await nodeFact(page, id)).status, { timeout: 120_000 }).toBe('success')
+  await expect.poll(async () => (await nodeFact(page, id)).status, { timeout: stationTimeout({ operations: 8 }) }).toBe('success')
   if (gets) expect(gets()).toBeGreaterThan(getsAtLastClick)
   expect(posts()).toBe(postsBefore + 1)
-  await expect.poll(() => runOf(projectRoot, runRecordId)?.jobs.at(-1)?.status, { timeout: 30_000 }).toBe('ready')
-  await expect.poll(() => runOf(projectRoot, runRecordId)?.status, { timeout: 30_000 }).toBe('completed')
+  await expect.poll(() => runOf(projectRoot, runRecordId)?.jobs.at(-1)?.status, { timeout: stationTimeout({ operations: 2 }) }).toBe('ready')
+  await expect.poll(() => runOf(projectRoot, runRecordId)?.status, { timeout: stationTimeout({ operations: 2 }) }).toBe('completed')
   await settledShot(`${scenario}-3-landed`)
   report.posts = posts() - postsBefore
   if (gets) report.gets = gets()
@@ -164,7 +165,7 @@ export async function unavailableJourney(ctx) {
   if (interrupt) {
     page = await interrupt(page, runRecordId)
     await waitStoppedForRetrieval(projectRoot, runRecordId)
-    await expect(retrieve()).toBeVisible({ timeout: 30_000 })
+    await expect(retrieve()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
     await expect(card()).toContainText(labels.timedOut)
     await settledShot(`${scenario}-1-first-look`)
     const getsBefore = gets()
@@ -172,7 +173,7 @@ export async function unavailableJourney(ctx) {
     expect(gets()).toBe(getsBefore)
   }
   // 窗口一直开着：查询连着失败，等够宽限落可找回。
-  await expect(reason()).toBeVisible({ timeout: 120_000 })
+  await expect(reason()).toBeVisible({ timeout: stationTimeout({ operations: 8 }) })
   await expect(retrieve()).toBeVisible()
   await expect(card().getByRole('button', { name: labels.markFailed, exact: true })).toBeVisible()
   const proof = await proveProbe(reason(), 'the real reason is on the card')
@@ -190,10 +191,10 @@ export async function unavailableJourney(ctx) {
   // 开回来再点：真查、落地，还是只下过一单。
   await modelOn(page)
   await retrieve().click()
-  await expect.poll(async () => (await nodeFact(page, id)).status, { timeout: 120_000 }).toBe('success')
+  await expect.poll(async () => (await nodeFact(page, id)).status, { timeout: stationTimeout({ operations: 8 }) }).toBe('success')
   expect(gets()).toBeGreaterThan(getsWhileOff)
   expect(posts()).toBe(postsBefore + 1)
-  await expect.poll(() => runOf(projectRoot, runRecordId)?.status, { timeout: 30_000 }).toBe('completed')
+  await expect.poll(() => runOf(projectRoot, runRecordId)?.status, { timeout: stationTimeout({ operations: 2 }) }).toBe('completed')
   await settledShot(`${scenario}-3-landed`)
   report.posts = posts() - postsBefore
   return { report, page }
@@ -225,25 +226,25 @@ export async function windowOpenJourney(ctx) {
   }
   const settledShot = async (name, locator) => { await page.mouse.move(2, 2); await waitForVisualQuiescence(page); await shot(name, locator) }
 
-  for (const node of [a, b, c]) await expect.poll(() => status(node), { timeout: 180_000 }).toBe('recoverable')
+  for (const node of [a, b, c]) await expect.poll(() => status(node), { timeout: stationTimeout({ operations: 12 }) }).toBe('recoverable')
   expect(posts()).toBe(postsAtStart + 3)
   // 三个节点都不轮询了，查询还在长：是观察者接手了。
   const getsWhenRendererStopped = gets()
-  await expect.poll(gets, { timeout: 60_000 }).toBeGreaterThan(getsWhenRendererStopped)
+  await expect.poll(gets, { timeout: stationTimeout({ operations: 4 }) }).toBeGreaterThan(getsWhenRendererStopped)
 
   await focus(a)
   await button(a, labels.markFailed).click()
-  await expect(button(a, labels.retry)).toBeVisible({ timeout: 10_000 })
+  await expect(button(a, labels.retry)).toBeVisible({ timeout: stationTimeout() })
   await button(a, labels.retry).click()
   const stillRunning = card(a).getByText(labels.stillRunning)
-  await expect(stillRunning).toBeVisible({ timeout: 30_000 })
+  await expect(stillRunning).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
   const proof = await proveProbe(stillRunning, 'the card says this task is still running')
   await expectAbsent(card(a).getByText('node_generation_in_flight'), { provenBy: proof, message: 'the raw error code never reaches the card' })
   expect(posts()).toBe(postsAtStart + 3)
   await settledShot(`${scenario}-1-still-running`, card(a))
 
   finishJobs()
-  for (const node of [a, b, c]) await expect.poll(() => runOf(projectRoot, node.runRecordId)?.status, { timeout: 120_000 }).toBe('completed')
+  for (const node of [a, b, c]) await expect.poll(() => runOf(projectRoot, node.runRecordId)?.status, { timeout: stationTimeout({ operations: 8 }) }).toBe('completed')
   expect(posts()).toBe(postsAtStart + 3)
 
   // b：结果已经在项目里，节点没变；点一下即现，这一下不联网。
@@ -254,7 +255,7 @@ export async function windowOpenJourney(ctx) {
   const getsAtClick = gets()
   const clickedAt = Date.now()
   await button(b, labels.retrieve).click()
-  await expect.poll(() => status(b), { timeout: 30_000 }).toBe('success')
+  await expect.poll(() => status(b), { timeout: stationTimeout({ operations: 2 }) }).toBe('success')
   report.clickToLandedMs = Date.now() - clickedAt
   report.getsOnClick = gets() - getsAtClick
   expect(gets()).toBe(getsAtClick)
@@ -265,12 +266,12 @@ export async function windowOpenJourney(ctx) {
   // c：跑完了，用户选了标记失败：产物不丢，素材里找得到。
   await focus(c)
   await button(c, labels.markFailed).click()
-  await expect(button(c, labels.retry)).toBeVisible({ timeout: 10_000 })
+  await expect(button(c, labels.retry)).toBeVisible({ timeout: stationTimeout() })
   await settledShot(`${scenario}-4-finished-marked-failed`, card(c))
   const artifact = runOf(projectRoot, c.runRecordId).artifacts.find(item => item.status === 'ready')
   const assets = await openRailDrawer(page, 'assets', 'open the assets drawer after marking failed')
   await page.locator('[role="tab"]', { hasText: labels.projectAssets }).first().click()
-  await expect(page.locator(`[role="button"][aria-label="${path.basename(artifact.projectRelativePath)}"]`).first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator(`[role="button"][aria-label="${path.basename(artifact.projectRelativePath)}"]`).first()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
   await settledShot(`${scenario}-5-in-assets`, assets)
   await closeRailDrawer(page, 'assets', 'close the assets drawer')
 
@@ -279,9 +280,9 @@ export async function windowOpenJourney(ctx) {
     const before = posts()
     await focus(node)
     await button(node, labels.retry).click()
-    await expect.poll(posts, { timeout: 30_000 }).toBe(before + 1)
+    await expect.poll(posts, { timeout: stationTimeout({ operations: 2 }) }).toBe(before + 1)
     finishJobs()
-    await expect.poll(() => status(node), { timeout: 120_000 }).toBe('success')
+    await expect.poll(() => status(node), { timeout: stationTimeout({ operations: 8 }) }).toBe('success')
   }
   await retryLands(c)
   await retryLands(a)
@@ -297,19 +298,19 @@ export async function giveUpJourney(ctx) {
   const { id, postsBefore } = await submitShot(ctx)
   await modelOff(page)
   const card = page.locator(`.react-flow__node[data-id="${id}"]`)
-  await expect(card.getByText(labels.unavailable, { exact: true })).toBeVisible({ timeout: 120_000 })
+  await expect(card.getByText(labels.unavailable, { exact: true })).toBeVisible({ timeout: stationTimeout({ operations: 8 }) })
   expect(posts()).toBe(postsBefore + 1)
   await card.getByRole('button', { name: labels.markFailed, exact: true }).click()
   const retry = card.getByRole('button', { name: labels.retry, exact: true })
-  await expect(retry).toBeVisible({ timeout: 10_000 })
+  await expect(retry).toBeVisible({ timeout: stationTimeout() })
   await page.mouse.move(2, 2)
   await waitForVisualQuiescence(page)
   await shot(`${scenario}-1-marked-failed`, card)
   expect(posts()).toBe(postsBefore + 1)
   await modelOn(page)
   await retry.click()
-  await expect.poll(posts, { timeout: 30_000 }).toBe(postsBefore + 2)
+  await expect.poll(posts, { timeout: stationTimeout({ operations: 2 }) }).toBe(postsBefore + 2)
   finishJobs()
-  await expect.poll(async () => (await nodeFact(page, id)).status, { timeout: 120_000 }).toBe('success')
+  await expect.poll(async () => (await nodeFact(page, id)).status, { timeout: stationTimeout({ operations: 8 }) }).toBe('success')
   return { report: { scenario, posts: posts() - postsBefore }, page }
 }

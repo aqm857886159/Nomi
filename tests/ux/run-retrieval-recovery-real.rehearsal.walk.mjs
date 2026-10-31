@@ -7,6 +7,7 @@
 // 证据目录用 RUN_RETRIEVAL_RECOVERY_OUT 指定，缺省 docs/evidence/2026-10-31-run-retrieval-recovery。
 import fs from 'node:fs'
 import path from 'node:path'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { assertPaidBuildReady } from './_paidRun.mjs'
 import { closeNomiApp, launchNomiApp } from './_launchApp.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
@@ -21,7 +22,7 @@ assertPaidBuildReady(repoRoot, { markers: RECOVERY_BUILD_MARKERS })
 const locale = process.argv.includes('--en') ? 'en' : 'zh-CN'
 const evidence = process.env.RUN_RETRIEVAL_RECOVERY_OUT || path.join(repoRoot, 'docs/evidence/2026-10-31-run-retrieval-recovery')
 fs.mkdirSync(evidence, { recursive: true })
-const tempRoot = fs.mkdtempSync(path.join(fs.realpathSync(process.env.TMPDIR || '/tmp'), `retrieval-recovery-${locale}-`))
+const tempRoot = makeTempDir(`nomi-retrieval-recovery-${locale}-`)
 const projectsDir = path.join(tempRoot, 'projects')
 const settingsDir = path.join(tempRoot, 'settings')
 const fixture = createCanvasPerformanceFixture({ projectsDir, scale: 'empty', withProjectIdentity: true })
