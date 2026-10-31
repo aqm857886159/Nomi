@@ -1060,6 +1060,12 @@
       "reason": "doc-only 判据只用来判「这次推送要不要本机门岗戳」，2026-10-24 推送改由 CI 把关后随戳一起删除（设计卡 docs/plan/2026-10-24-push-gate-ci.md），push 闸不再列任何路径。「shell 侧读 git 路径列表必须关掉引号转义」这一族仍由同一份合同的 scanSource 锚（scripts/check-git-path-quoting.mjs）守住，scripts/check-git-path-quoting.node-test.mjs 的阳性对照改用 fixture 里那行原样写法（带 -z 放行、去掉 -z 报红）。"
     },
     {
+      "contract": "docs/fixes/2026-09-24-waiting-effect-shader-compile-freeze.root-cause.json",
+      "path": "patches/img-fx@0.5.1.patch",
+      "symbol": "IMG_FX_EFFECT",
+      "reason": "用户批准删除等待shader、img-fx依赖及patch；静止灰格路径不再编译或调度该shader，旧编译冻结不变量随引擎整体退役，没有替代shader或回退。静态等待及零绘制由2026-10-31-generation-idle-work根因合同与GenerationWaitingSurface.test.ts、generation-idle性能场景守。"
+    },
+    {
       "contract": "docs/fixes/2026-10-16-relay-video-result-retrieval.root-cause.json",
       "path": "electron/catalog/relayNativeWireUpgrade.ts",
       "symbol": "noteRelayQueryOutcome",

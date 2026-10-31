@@ -1,0 +1,226 @@
+{
+  "kind": "unit-and-mutation-evidence",
+  "sourceCommit": "879d8cd5c4af11495b91cca2da1095951fade802",
+  "unitTests": [
+    {
+      "file": "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts",
+      "tests": 57,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
+      "tests": 14,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.test.ts",
+      "tests": 1,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "electron/productionRun/productionGenerationSubmission.test.ts",
+      "tests": 15,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "electron/productionRun/productionRunRuntimeEnvelope.test.ts",
+      "tests": 4,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/ai/pointer/NodePointer.test.tsx",
+      "tests": 38,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/NodeImportingOverlay.test.ts",
+      "tests": 8,
+      "exit": 0,
+      "status": "passed"
+    },
+    {
+      "file": "src/workbench/generationCanvas/nodes/useReducedProcessMotion.browser.test.ts",
+      "tests": 1,
+      "exit": 0,
+      "status": "passed",
+      "purpose": "Preserve the live preference/StrictMode lifecycle check formerly housed in the deleted shader walkthrough; hook still serves status bars."
+    }
+  ],
+  "totalPassed": 138,
+  "mutations": [
+    {
+      "case": "draw",
+      "exit_codes": [
+        1
+      ],
+      "valid_behavioral_red": true,
+      "files": [
+        {
+          "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+          "before": "8c49d165a2910177ae522655d0499a9c66c65a631ab48f2c72a7c12c3eeec05b",
+          "after": "8c49d165a2910177ae522655d0499a9c66c65a631ab48f2c72a7c12c3eeec05b",
+          "restored": true,
+          "final_matches": true
+        }
+      ]
+    },
+    {
+      "case": "progress",
+      "exit_codes": [
+        1
+      ],
+      "valid_behavioral_red": true,
+      "files": [
+        {
+          "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+          "before": "a8266146e5a2a102bbfe610bc2764b53ce2043f28117625deb602d94d08dfc5d",
+          "after": "a8266146e5a2a102bbfe610bc2764b53ce2043f28117625deb602d94d08dfc5d",
+          "restored": true,
+          "final_matches": true
+        }
+      ]
+    },
+    {
+      "case": "poll",
+      "exit_codes": [
+        1,
+        1
+      ],
+      "valid_behavioral_red": true,
+      "files": [
+        {
+          "path": "electron/productionRun/productionGenerationSubmission.ts",
+          "before": "48bc3f5582c3a069a5e147e2a3ccead93864c67d7bf9042c614f24af5c49f643",
+          "after": "48bc3f5582c3a069a5e147e2a3ccead93864c67d7bf9042c614f24af5c49f643",
+          "restored": true,
+          "final_matches": true
+        },
+        {
+          "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+          "before": "206f2fd60c05043867d251ac1a69f1300c18cb5bd75b54151d7df3adb8677e0e",
+          "after": "206f2fd60c05043867d251ac1a69f1300c18cb5bd75b54151d7df3adb8677e0e",
+          "restored": true,
+          "final_matches": true
+        }
+      ]
+    },
+    {
+      "case": "background",
+      "exit_codes": [
+        1
+      ],
+      "valid_behavioral_red": true,
+      "files": [
+        {
+          "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+          "before": "b4d2a5d8f7f621d3f480aa84e7bea0eafe474a8923287b6a4889e3a91f2f94a0",
+          "after": "b4d2a5d8f7f621d3f480aa84e7bea0eafe474a8923287b6a4889e3a91f2f94a0",
+          "restored": true,
+          "final_matches": true
+        }
+      ]
+    }
+  ],
+  "legacyIdentityMutation": {
+    "exit": 1,
+    "before": "541d41d518db41498554c784c8c8bb6d155336019bae2feed0055bc2bc41d87a",
+    "after": "541d41d518db41498554c784c8c8bb6d155336019bae2feed0055bc2bc41d87a",
+    "restored": true
+  },
+  "checks": {
+    "rootCauseContracts": {
+      "exit": 0,
+      "warnings": 1,
+      "warning": "ProgressRevealCanvas comment-only change is not a state caller in the door map",
+      "finalCommand": "node scripts/check-root-cause-contracts.mjs"
+    },
+    "testWaits": {
+      "exit": 0,
+      "finalCommand": "node scripts/check-test-waits.mjs"
+    },
+    "walkthroughStructure": {
+      "exit": 0,
+      "finalCommand": "node scripts/check-walkthroughs.mjs",
+      "absenceWithoutBaseline": 61
+    },
+    "perfRegistryStructure": {
+      "exit": 0
+    }
+  },
+  "runtime": {
+    "status": "partial",
+    "build": {
+      "exit": 0,
+      "slot": "B"
+    },
+    "smoke": {
+      "status": "passed",
+      "runsPerScene": 1,
+      "artifacts": [
+        "docs/evidence/2026-10-31-generation-idle-work/smoke-60.json",
+        "docs/evidence/2026-10-31-generation-idle-work/smoke-100.json",
+        "docs/evidence/2026-10-31-generation-idle-work/smoke-counters.json"
+      ],
+      "counts": "Both scenes: draw0, saveIPC30=0, unchanged-pending snapshots0; p95 I60=9.1ms/I100=9.2ms. I100 has12 wholly visible waiting cards at zoom0.6."
+    },
+    "walkthrough": {
+      "status": "partial",
+      "zhPriorHarness": {
+        "exit": 0,
+        "submissions": 12,
+        "successfulPersistedResults": 12,
+        "legacySampleSeconds": 30
+      },
+      "en": {
+        "exits": [
+          1,
+          1
+        ],
+        "successfulResults": 11,
+        "total": 12,
+        "error": "Error invoking remote method 'nomi:tasks:canvas-poll': RuntimeEnvelopeConflictError: Provider acceptance is required before recording a poll"
+      },
+      "latestZhHarness": "unverified after additional retrieval ACK and diagnostic capture",
+      "evidence": "docs/evidence/2026-10-31-generation-idle-work/restart-blocker.json",
+      "screenshotsPersonallyRead": 25
+    },
+    "retainedFailedProbes": [
+      "I60 initial main-evaluate argument error: saveIPC NaN, initial pending transitions mixed into window. Corrected argument position and await initial queries; hard zero assertions unchanged.",
+      "I100 two setup failures:12 running task identities retained but fit transition overrode requested0.6 zoom with0.33; reused existing viewport-settled helper before changing zoom.",
+      "Nested temporary runner initially failed to propagate inner exit1; recorded outer0 is invalid. Corrected runner exit propagation; successful R4 inner/outer exits are0."
+    ]
+  },
+  "formalPerformance": {
+    "status": "unverified",
+    "scenarios": [
+      "generation-idle-60",
+      "generation-idle-100"
+    ],
+    "baseline": null,
+    "reason": "Stopped at restart acceptance: English recovery failed twice and a deterministic late-poll/materialization race requires a new branch ruling."
+  },
+  "gates": {
+    "status": "not-run",
+    "reason": "Stopped at step7 under explicit hotspot/new-branch rule; not ready for push."
+  },
+  "prePush": {
+    "status": "not-run",
+    "reason": "Stopped at step7 under explicit hotspot/new-branch rule; not ready for push."
+  },
+  "firstDrawProbeTimeout": {
+    "status": "retained",
+    "timeoutMs": 30000,
+    "subsequentDiagnosticAndFinalRuns": "passed",
+    "timeoutWasNotRaised": true
+  },
+  "lightweightFreshBase": {
+    "exit": 1,
+    "note": "Coordinator explicitly deferred main integration; this is only the lightweight prerequisite, not a pnpm gates run."
+  }
+}

@@ -44,6 +44,7 @@
 | `node scripts/merge-preflight.mjs <PR 号>`（`pnpm run merge:preflight -- <PR 号>`）| 协调会话合并前扫描：四类判定、设计卡格、独立验收、逃逸合同、规则与门岗改动范围（正文 `## 碰到的规则与门岗` 逐个点名，账本条目不许消失）；只打印结论 |
 | `pnpm run eng:metrics` | 工程三个数一行（逃逸率 · 30 天复发 · 门岗误报 · 到期合同）；SessionStart 也会打印；不作为任何通过条件 |
 | `node scripts/gen-rules-view.mjs` | 由 `docs/engineering/rules.json` 重新生成可读视图 `rules.md` |
+| `node scripts/generate-process-tiering-replay.mjs` | 重新生成流程分档的历史回放夹具 `scripts/fixtures/process-tiering-replay.json`（需要完整 git 历史；夹具只存输入，护栏的期望由 `scripts/process-tier.node-test.mjs` 现算；改了写理由） |
 | `pnpm run handoff:report -- <branch>` | 交接体检报告（原 `check:handoff`，不是门岗） |
 | `pnpm run check:escape-ledger` | 逃逸账本结账门岗（P2：账本格式不合法 → 红；条目改成 `fixed` 必须同时有根因合同、类级检查（铁律 ⑩ ⑪ ⑫ / inv:N 或矩阵 / 普查测试）、合入 PR 号；`candidate` 超 14 天警告。细则见 `docs/engineering/experience-system.md`） |
 | `pnpm run perf:scenarios` | 性能场景统一跑法（需先 `pnpm run build`）：按 `tests/perf/scenarios/` 登记表逐个跑，每个 ≥5 次取中位数和 p95，对照预算和基线出表；`--id` / `--runs` / `--list` / `--smoke` / `--update-baseline [--noisy]` / `--out`。规矩与登记流程 `docs/engineering/perf-scenarios.md` |

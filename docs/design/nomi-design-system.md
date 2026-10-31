@@ -1026,7 +1026,7 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | 状态 | 画法 |
 |---|---|
 | 等你确认 / 排队 · 第 k/N | 空卡 + 左上制作小标（`ProductionShotCornerLabel`，和节点上同一枚，贴得更近：左 4 上 4）|
-| 生成中 | 等待面（`GenerationWaitingSurface`，聊天里一律 `motion="reduced"` 静态方格、不起 WebGL）+ 状态条（`GenerationStatusBar overlay`，`text-micro`，原话「生成中」）|
+| 生成中 | 等待面（`GenerationWaitingSurface`，静止灰格，不起 WebGL）+ 状态条（`GenerationStatusBar overlay`，`text-micro`，原话「生成中」）|
 | 完成 | 结果缩略图（画布轻量档同一个取图函数）|
 | 失败 | ⚠ 圆托 + 状态条（红点 + 节点自己的失败原因，窄格截断）+ 摘要行写**宿主给的结局**（例如「没有发出去」），用 `text-nomi-danger-ink` 保持红 |
 | 可找回 / 制作已停 / 导入中 / 其余 | 节点同一句：可找回小标、已停原因、等待面、种类图标圆托（28px `bg-nomi-ink-05` + `ring-nomi-line`）|

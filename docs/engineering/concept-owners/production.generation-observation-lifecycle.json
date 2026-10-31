@@ -1,0 +1,27 @@
+{
+  "name": "生成观察与结果落地的耐久生命周期",
+  "subject": "production.generation-observation-lifecycle",
+  "lifecycle": "provider-observation",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+    "symbol": "createProductionRunRuntimeEnvelope"
+  },
+  "write_api": [
+    {
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "symbol": "createProductionRunRuntimeEnvelope"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/productionRun/productionGenerationLifecycle.test.ts",
+  "allowed_consumers": [
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/generationSubmission.ts"
+  ],
+  "since": "2026-10-31",
+  "notes": "信封版本与文件租约是poll/materialize等待外部调用后的统一判据。已落地只读回执，旧观察不盖新观察，真变化回调按最新Run revision写；同pending不新增读写。Electron及独立stdio实例共用同一文件边界；输出落地只在租约内。"
+}

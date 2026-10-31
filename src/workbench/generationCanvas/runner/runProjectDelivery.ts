@@ -19,7 +19,7 @@ import { isProjectBindingOpen } from '../../project/projectCanvasReadSurface'
 import { readLocalProjectAsync } from '../../library/localProjectStore'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { nodeRunOutcomePatch, type NodeRunOutcome } from '../store/nodeRunOutcome'
+import { nodeProgressChangesRecovery, nodeRunOutcomePatch, type NodeRunOutcome } from '../store/nodeRunOutcome'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 export type RunProjectTarget = ProjectBinding
@@ -109,10 +109,11 @@ export async function deliverRunOutcome(target: RunProjectTarget, nodeId: string
     const canvas = record?.payload.generationCanvas
     const node = canvas?.nodes.find((candidate) => candidate.id === nodeId)
     if (!record || !canvas || !node) return false
-    const patch = nodeRunOutcomePatch(node, outcome) as Record<string, unknown>
+    const patch = nodeRunOutcomePatch(node, outcome)
+    if (outcome.kind === 'progress' && !nodeProgressChangesRecovery(node, patch)) return false
     const applyPatch = getDesktopBridge()?.projects.applyCanvasNodePatch
     if (!applyPatch) throw new Error('project_canvas_write_port_unavailable')
-    await applyPatch({ projectId: target.projectId, nodeId, patch, expectedBinding: target })
+    await applyPatch({ projectId: target.projectId, nodeId, patch: patch as Record<string, unknown>, expectedBinding: target })
     return false
   })
 }
