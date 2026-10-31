@@ -80,7 +80,7 @@ export function parseStallRow(raw: unknown): StallRow | null {
 export const STALL_REPORT_CHANNEL = 'nomi:diagnostics:stall-report'
 /**
  * 主进程事件循环直方图的采样间隔。取 80ms 是按空闲开销预算量出来的（设计卡 ★7）：真 Electron 主进程里每次采样要唤醒
- * 两个线程，20ms 实测空闲多吃约 0.43 个百分点 CPU、每秒多 94 次唤醒，超预算；64ms 十次实测中位 0.16、最大 0.205，边缘；
+ * 两个线程，20ms 实测空闲多吃约 0.43 个百分点 CPU、每秒多 94 次唤醒，超预算；64ms 十次实测中位 0.17、最大 0.205，边缘；
  * 80ms 留出余量。时长读数的误差就是 ±半个间隔（见 stallMonitor.ts），诊断包清单的说明也按它算。
  */
 export const STALL_SAMPLE_INTERVAL_MS = 80
