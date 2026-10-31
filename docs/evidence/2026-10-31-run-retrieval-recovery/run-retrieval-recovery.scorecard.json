@@ -2,8 +2,8 @@
   "version": 1,
   "change": {
     "title": "钱花了、任务号还在的单子只取回",
-    "headSha": "107435978622157beea3daa8b7c31f9d02bd5684",
-    "headNote": "产品源码停在这个提交，走查用这份源码的构建跑。之后的提交只有走查步骤、矩阵断言和证据。",
+    "headSha": "a016e27c9d883c0022e56ccef3e7a75bc15d4e87",
+    "headNote": "产品源码停在这个提交，走查用这份源码的构建跑。之后的提交只有证据。",
     "userCan": "关窗、重启、模型或 Key 暂时用不了、窗口一直开着等很久，花了钱的这一单都能取回，不会再扣一次；这单不要了，标记失败才给重新生成。"
   },
   "scenarioId": "browse-away-during-long-task",
@@ -57,15 +57,30 @@
         "note": "八段通过。还查得到那段的截图太小、断言读的是卡上不显示的那一句，改步骤后重跑，见下面两行。"
       },
       {
+        "label": "走查第 6 轮英文",
+        "result": "pass",
+        "note": "八段通过：POST 1、1、1、1、1、1、2、5（最后一段三单加两次用户明确的重试）；点一下即现 79ms，这一下 GET 0。 之后推送前检查挡在文件体积上，代码搬了位置，重新构建重拍，见下面两行。"
+      },
+      {
+        "label": "走查第 6 轮中文",
+        "result": "pass",
+        "note": "八段通过：POST 同上；点一下即现 62ms，这一下 GET 0。 之后推送前检查挡在文件体积上，代码搬了位置，重新构建重拍，见下面两行。"
+      },
+      {
+        "label": "推送前快检",
+        "result": "fail",
+        "note": "四项没过：三个文件超体积上限、走查写死等待时长、自己建临时目录、几处 lint。代码原样搬走，等待和临时目录换成共用的，一分钱没花。"
+      },
+      {
         "label": "最终步骤英文",
         "result": "pass",
-        "note": "八段通过：POST 1、1、1、1、1、1、2、5（最后一段三单加两次用户明确的重试）；点一下即现 79ms，这一下 GET 0。",
+        "note": "搬完重新构建后八段通过：POST 1、1、1、1、1、1、2、5（最后一段三单加两次用户明确的重试）；点一下即现 115ms，这一下 GET 0。",
         "evidence": "docs/evidence/2026-10-31-run-retrieval-recovery/en-window-open-3-landed.png"
       },
       {
         "label": "最终步骤中文",
         "result": "pass",
-        "note": "八段通过：POST 同上；点一下即现 62ms，这一下 GET 0。",
+        "note": "搬完重新构建后八段通过：POST 同上；点一下即现 72ms，这一下 GET 0。",
         "evidence": "docs/evidence/2026-10-31-run-retrieval-recovery/zh-CN-window-open-3-landed.png"
       }
     ],
@@ -92,10 +107,10 @@
         "name": "后台已查到结果时，点重新取回到节点显示",
         "unit": "ms",
         "baseline": null,
-        "current": 79,
+        "current": 115,
         "n": 2,
         "basis": "script-count",
-        "note": "两轨 62 和 79，取较大的。这一下 GET 0、POST 0。环回本机，不代表真实素材大小。"
+        "note": "两轨 72 和 115，取较大的。这一下 GET 0、POST 0。环回本机，不代表真实素材大小。"
       }
     ]
   },
