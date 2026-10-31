@@ -35,12 +35,13 @@ type Scenario = { id: string; label: string; initial: ProviderMode;
   repeat: Partial<Arguments>; host: "same" | "restart"; codes: string[]; creates: number; confirmations: number; sameOrder: boolean };
 type RecordRow = { id: string; label: string; damage: Array<{ target: string; how: string }>; recordDamage: string | null; attemptId: string; newAttemptId: string;
   actions: "core" | "extended"; initial?: ProviderMode; code?: string; card?: "generic" };
+type PolicyFlip = { id: string; label: string; first: "direct" | "request"; second: "direct" | "request"; windowOpen: boolean; cards: number; creates: number; code: string; decidedBy: string };
 type HostOut = { owned: boolean; receipt: Submission & { request?: unknown }; jobId?: string; busy?: boolean; durableSteps?: number };
 const registry = JSON.parse(fs.readFileSync(path.resolve("tests/fixtures/try-model-intent-matrix.json"), "utf8")) as {
   models: Array<{ modelKey: string; kind: string; taskKind: string; mediaField: string; mediaPath: string }>; cases: Scenario[];
   recordActions: Record<RecordRow["actions"], string[]>; records: RecordRow[];
   sharedClaims: Array<{ phase: string; host: "same-instance" | "new-instance" | "new-process" }>;
-  windows: Array<{ id: string; label: string }>; actionWalk: string[];
+  windows: Array<{ id: string; label: string }>; actionWalk: string[]; policyFlips: PolicyFlip[];
 };
 const exec = promisify(execFile);
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
@@ -803,6 +804,23 @@ describe("model trial intent class matrix", () => {
     });
     it.each(registry.windows)("$id: $label", async ({ id }) => { await CELLS[id](); }, 300_000);
   });
+
+  // The mode is read at every attempt, so it can change between an order the provider refused and its safe retry.
+  it.each(registry.policyFlips)("policy flip $id: $label", async (row) => {
+    initial = "rejected";
+    if (row.first === "request") answerCards(true);
+    const refused = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.first }) });
+    expect(code(refused), JSON.stringify(refused)).toBe("provider_failed");
+    expect(creates, "the provider refused the one order").toBe(1);
+    initial = "queued";
+    setRendererTarget(null);
+    if (row.windowOpen) answerCards(false);
+    confirmations = 0;
+    const retried = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.second }), pollTimeoutMs: 100 });
+    expect(code(retried), JSON.stringify(retried)).toBe(row.code);
+    expect({ cards: confirmations, creates }).toEqual({ cards: row.cards, creates: row.creates });
+    expect(frozenRequest(retried.submission.intentId, "attempt-2").spendDecidedBy).toBe(row.decidedBy);
+  }, 30_000);
 
   it("the shared layer's own refusal needs no provider: a safe-failure budget is durable across processes", async () => {
     const hostScope = ["model-trial", "example", "model"];

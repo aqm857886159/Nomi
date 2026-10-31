@@ -64,7 +64,8 @@
     "Every allowed action in every state can actually be taken. When a new order cannot be opened the receipt says so; the old receipt never stands in for the failure.",
     "A new order after an uncertain prior result, with the record readable or not, shows the same warning in both languages through the confirmation dialog message line, derived from the frozen request and inherited by safe retries.",
     "Whether a call may allocate an order is decided in one place. The early observation and the claim both ask it, so no second copy can cover for or drift from it.",
-    "A lock file carries no order facts. One that can never be parsed again is replaced, not counted as a damaged record, so a half-written lock cannot turn a queryable order into an unknown one."
+    "A lock file carries no order facts. One that can never be parsed again is replaced, not counted as a damaged record, so a half-written lock cannot turn a queryable order into an unknown one.",
+    "A safe retry skips the person only when full-auto held at both the refused attempt and this one; the mode is read at every attempt."
   ],
   "doors": [
     {
@@ -266,6 +267,7 @@
     "If the whole app-executions root including its claim directory is deleted, no evidence of a prior order survives and the next trial behaves as a first trial.",
     "Project production Runs keep their own run.lock inside the run directory; a lock file that can never be parsed still blocks those Runs. The read-only judgement now exists in productionRunLock.ts, but this round only acts on it in the trial intent layer and reports that gap.",
     "Directory rename on Windows can be refused by another process holding a file open; the receipt then reports the new order could not be opened and the next call retries. Not run on Windows.",
-    "A late provider answer for an attempt whose record was moved aside while the request was still in flight cannot be attached to the moved record."
+    "A late provider answer for an attempt whose record was moved aside while the request was still in flight cannot be attached to the moved record.",
+    "Hand-edited records can still leave an explicit new order unavailable (valid JSON that is not an event, a hand-edited budget or command ledger). No order is placed; real writers cannot produce these shapes. Tracked as a post-merge item."
   ]
 }

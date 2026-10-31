@@ -865,5 +865,62 @@
     "damaged",
     "awaiting-new-order",
     "new-order-unavailable"
+  ],
+  "policyFlips": [
+    {
+      "id": "auto-then-auto",
+      "label": "两头都是全自动：安全重试不用问人",
+      "first": "direct",
+      "second": "direct",
+      "windowOpen": true,
+      "cards": 0,
+      "creates": 2,
+      "code": "still_processing",
+      "decidedBy": "policy:full_auto"
+    },
+    {
+      "id": "auto-then-ask",
+      "label": "切回请求批准：问人，人拒绝就不下单",
+      "first": "direct",
+      "second": "request",
+      "windowOpen": true,
+      "cards": 1,
+      "creates": 1,
+      "code": "needs_input",
+      "decidedBy": "user"
+    },
+    {
+      "id": "auto-then-ask-window-closed",
+      "label": "切回请求批准且窗口没开：诚实失败，不下单",
+      "first": "direct",
+      "second": "request",
+      "windowOpen": false,
+      "cards": 0,
+      "creates": 1,
+      "code": "needs_input",
+      "decidedBy": "user"
+    },
+    {
+      "id": "ask-then-auto",
+      "label": "上一笔是真人确认的：转全自动也先问人",
+      "first": "request",
+      "second": "direct",
+      "windowOpen": true,
+      "cards": 1,
+      "creates": 1,
+      "code": "needs_input",
+      "decidedBy": "user"
+    },
+    {
+      "id": "ask-then-ask",
+      "label": "两头都问人：每一笔都问",
+      "first": "request",
+      "second": "request",
+      "windowOpen": true,
+      "cards": 1,
+      "creates": 1,
+      "code": "needs_input",
+      "decidedBy": "user"
+    }
   ]
 }

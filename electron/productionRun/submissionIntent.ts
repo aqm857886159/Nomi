@@ -222,7 +222,9 @@ export function createSubmissionIntent(input: { root: string; scope: readonly st
       const priorOutcomeUnknown = retry ? !!priorRequest?.priorOutcomeUnknown
         : explicitNew && (!previousReceipt || !!damage || previousReceipt.accepted === "unknown" || (previousReceipt.accepted === "not_sent" && !!priorRequest?.priorOutcomeUnknown));
       if (explicitNew) request = { ...request, spendDecidedBy: "user" };
-      if (retry) request = { ...request, spendDecidedBy: priorRequest?.spendDecidedBy ?? "user" };
+      // The mode is read at every attempt. A retry skips the person only when full-auto held at both ends,
+      // so neither turning full-auto off nor turning it on after a human decision slips past the card.
+      if (retry) request = { ...request, spendDecidedBy: request.spendDecidedBy === "policy:full_auto" && priorRequest?.spendDecidedBy === "policy:full_auto" ? "policy:full_auto" : "user" };
       if (priorOutcomeUnknown) request = { ...request, priorOutcomeUnknown: true };
       let run = readRun();
       if (!run) {
