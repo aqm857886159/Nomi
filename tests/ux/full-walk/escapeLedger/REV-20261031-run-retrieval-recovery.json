@@ -20,8 +20,8 @@
     "Run 已经完成时标记失败：产物还在素材里，重试才算第二单"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "fixed",
+  "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-31-run-retrieval-recovery.md",
     "docs/engineering/direction-checks/2026-10-31-run-recovery-materialize.md",
@@ -29,10 +29,16 @@
     "tests/run-retrieval-recovery/matrix.test.mjs",
     "src/workbench/observability/retrievalStageClassification.test.ts"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "962e31728",
+    "107435978",
+    "a016e27c9",
+    "5a34345b8"
+  ],
   "rootCauseContract": "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
   "classCheck": {
     "kind": "matrix",
     "file": "tests/run-retrieval-recovery/matrix.test.mjs"
-  }
+  },
+  "fixedInPr": 1401
 }
