@@ -8,7 +8,7 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/fixes/2026-10-16-canvas-image-preview-contract.root-cause.json",
@@ -19,7 +19,8 @@
     "docs/plan/2026-10-31-canvas-detail-admission.md",
     "src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts",
     "tests/perf/scenarios/canvas-far-dense-blank.json",
-    "tests/perf/scenarios/canvas-far-dense-pan.json"
+    "tests/perf/scenarios/canvas-far-dense-pan.json",
+    "修复：视口不再常驻合成层，细节只看缩放不看节点数；512MB + 设备像素比 1.25 下 35% 动后空卡 71.4%→0、瓦片超限 1774 行→0（#1394）。"
   ],
   "completionCommits": [
     "525feeacb",
@@ -31,5 +32,5 @@
     "kind": "matrix",
     "file": "src/workbench/generationCanvas/components/canvasDetailAdmission.matrix.test.ts"
   },
-  "fixedInPr": 1209
+  "fixedInPr": 1394
 }
