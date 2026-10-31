@@ -79,6 +79,8 @@
 | 以后改记录格式，旧记录全部读不出来，所有接过模型的用户一起被锁死 | 矩阵的「旧形状」格（缺 `schemaVersion`）；修前抛 `invalid runtime envelope` |
 | 事件丢了但 approvals 还在，新单撞 `Approval id conflict` | 矩阵的 approvals 留存格；验收探针已碰到过 |
 
+预测核对（2026-10-31，把这一轮改之前的产品代码放回去跑同一份矩阵）：230 格里 163 红。事件尾部写了半行时普通调用直接抛 `migration_parse_error`；旧形状和 approvals 留存这两组也红。放回修复后 230 格全绿，修复前后用的是同一份清单和同一个 oracle（环回服务器收到的 POST 数）。
+
 这一轮的范围：判定放在意图层，`productionRunRuntimeEnvelope.ts`、`productionRunRepository.ts` 不改；`tryModel.ts`、`submissionIntent.ts` 和对应概念的命中按协调裁定放行，其它文件级热点（`taskSpend.ts`、`capabilityApplyHandler.ts`）不碰，确认卡那句话走 `spendCardByIntent` 表和现有的 `confirmSpendAndMintGrant`。结账挂的类检查仍是 `electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts`（清单 `tests/fixtures/try-model-intent-matrix.json`）。
 
 

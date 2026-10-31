@@ -18,16 +18,13 @@
     "Trial records that are damaged, truncated, of an unrecognized shape, partly missing or left behind by a crash, including future record-format changes"
   ],
   "scope_paths": [
-    "electron/capabilityCore/modelOnboarding/envelope.ts",
     "electron/capabilityCore/modelOnboarding/tryModel.ts",
     "electron/productionRun/productionRunLock.ts",
     "electron/productionRun/submissionIntent.ts",
     "electron/productionRun/submissionOutbox.ts",
     "electron/shared/agentCapabilities/modelOnboarding.ts",
     "electron/shared/agentCapabilities/verbs/onboardingVerbs.ts",
-    "electron/shared/contracts/modelTrialSpend.ts",
     "electron/shared/productionSubmissionActions.ts",
-    "src/i18n/locales/runtime.ts",
     "src/workbench/capability/spendCardByIntent.ts",
     "src/workbench/capability/uncertainPriorTrialSpendCard.ts"
   ],
@@ -144,12 +141,42 @@
       "kind": "write",
       "path": "electron/productionRun/submissionIntent.ts",
       "symbol": "inspectProductionRunLockFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunLock.ts",
+      "symbol": "inspectProductionRunLockFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/spendCardByIntent.ts",
+      "symbol": "UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/spendCardByIntent.ts",
+      "symbol": "confirmUncertainPriorTrialSpend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "dedicatedSpendCardFor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/uncertainPriorTrialSpendCard.ts",
+      "symbol": "requestConfirm"
     }
   ],
   "door_reduction": {
     "before": 7,
-    "after": 15,
-    "why_not": "The trial dispatch is the app entry. Type readers describe the same API. Run-owned and project generation callers keep distinct orchestration responsibilities but share submissionOutbox; submissionActions is the receipt/permission projection. The new-order confirmation adds no door of its own: it joins the one existing chain, confirmSpendAndMintGrant, and the card is one row in the existing intent table."
+    "after": 21,
+    "why_not": "The trial dispatch is the app entry. Type readers describe the same API. Run-owned and project generation callers keep distinct orchestration responsibilities but share submissionOutbox; submissionActions is the receipt/permission projection. The new-order confirmation adds no way to reach the provider: it joins the one existing chain, confirmSpendAndMintGrant, and the card is one row in the existing intent table. The last six doors are that chain counted out (the intent constant both ends read, the table and its caller, the one confirm store) plus the lock reader. They only decide what the human is asked, and a dead lock file is replaced, never counted as damage."
   },
   "generality_proof": "Identity depends on the app execution root and connection/model, never caller, prompt, mode or card revision. The short existing Run lease serializes identity allocation. Every existing job is observation-only after restart, including authorized jobs whose owner crashed. Shared repository/outbox states retain unknown and accepted submissions. Safe retries and explicit new requests allocate journaled jobs and cannot reset their retry/confirmation lineage. A fixture-registry class census drives the real trial/runtime/money gate and counts loopback POSTs for repeat inputs, unknown and succeeded receipts, fresh processes, declined approvals, and independent model/mode intents. The record inspection sits at the shared claim boundary, so every shape of unreadable record (damaged, truncated, unrecognized, missing, journal behind snapshot or job directories, side ledgers) lands on one outcome regardless of provider, caller or record-format version. The fixture registry drives records x actions, shared-claim cells, a crash sweep over every durable step of the new-order claim, two-process races and every allowed action.",
   "shared_boundaries": [
