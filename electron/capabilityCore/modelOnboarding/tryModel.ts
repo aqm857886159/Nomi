@@ -257,7 +257,7 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
       : { result, ended: "timeout" as const, waitedMs: 0 };
     result = polled.result;
     if (polled.ended !== "terminal") {
-      intent.recordResult(receipt.attemptId, JSON.parse(redactAdapterSecrets(JSON.stringify(result), Number.MAX_SAFE_INTEGER)));
+      await intent.recordResult(receipt.attemptId, JSON.parse(redactAdapterSecrets(JSON.stringify(result), Number.MAX_SAFE_INTEGER)));
       return withSubmission({
         ok: false, code: "still_processing",
         message: `The provider accepted this test generation${taskId ? ` (task ${taskId})` : ""} and it is still processing (status=${result.status || "queued"}). The charge for it has already been made. This is NOT a failure.`,
@@ -268,7 +268,7 @@ async function observeIntent(deps: TryModelDeps, intent: ReturnType<typeof creat
     }
   }
 
-  if (receipt.phase !== "succeeded") intent.recordResult(receipt.attemptId, JSON.parse(redactAdapterSecrets(JSON.stringify(result), Number.MAX_SAFE_INTEGER)));
+  if (receipt.phase !== "succeeded") await intent.recordResult(receipt.attemptId, JSON.parse(redactAdapterSecrets(JSON.stringify(result), Number.MAX_SAFE_INTEGER)));
   const vendor = readCatalog().vendors.find((row) => row.key === vendorKey);
   const model = readCatalog().models.find((row) => row.vendorKey === vendorKey && row.modelKey === modelKey);
   const assets = Array.isArray(result.assets) ? result.assets : [];
