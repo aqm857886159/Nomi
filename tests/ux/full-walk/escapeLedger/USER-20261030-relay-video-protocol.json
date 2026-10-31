@@ -15,16 +15,24 @@
     "旧显式 URL 路由不改写；无协议证据不发送"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "reviewed",
+  "manualReview": "reviewed",
   "evidence": [
     "tests/relay-onboarding/contracts.test.mjs：本刀四项修复前普通 it 红，修复后绿。",
-    "tests/relay-onboarding/protocol.test.mjs：生产函数、真实本地 HTTP、解码落库与反例矩阵。"
+    "tests/relay-onboarding/protocol.test.mjs：生产函数、真实本地 HTTP、解码落库与反例矩阵。",
+    "tests/ux/relay-video-onboarding.walk.mjs 与 relay-video-onboarding-real.rehearsal.walk.mjs：最终构建上中英两协议真窗和零费用演练均退出 0，每次生成 POST=1、任务=1，成品落库可播放，截图已亲读。"
   ],
   "rootCauseContract": "docs/fixes/2026-10-30-relay-video-protocol.root-cause.json",
   "classCheck": {
     "kind": "matrix",
     "file": "tests/relay-onboarding/protocol.test.mjs"
   },
-  "completionCommits": []
+  "completionCommits": [
+    "d1d7ab8ad",
+    "c07844ba8",
+    "98b633f43",
+    "9c70b1ff8",
+    "28254c3af",
+    "6a02bcc2c"
+  ]
 }
