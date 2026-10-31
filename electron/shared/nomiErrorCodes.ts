@@ -121,7 +121,9 @@ export function matchNomiErrorCode(message: string): NomiErrorCode | null {
   // whole historical records here; new producers must tag their translated prose.
   // This is a bounded old-data migration, not substring classification.
   const legacyCatalogRecord = /^(?:当前没有已连接的供应商提供「[^」]+」模型。请重新连接原供应商，或在该节点上改选一个已连接供应商的模型。|供应商「[^」]+」已断开，且该节点未记录模型。请重新连接，或在该节点上改选已连接供应商的模型。)$/
-  return legacyCatalogRecord.test(message) ? 'model-config' : null
+  if (legacyCatalogRecord.test(message)) return 'model-config'
+  // 单镜 Run 落盘的两句旧话（没带码）：任务号还在、只差再查一次。节点上已经存着它们的旧项目也要按「取回」说话，不给重试。
+  return /^(?:生成结果未能安全落入项目，请查看任务并处理|供应商返回了未识别的任务状态，需要人工核对)$/u.test(String(message || '')) ? 'retrieval-query' : null
 }
 
 /** 展示端：剥掉码标记，只留人话（技术详情里的 raw 若要保留原样则不调它）。 */

@@ -57,11 +57,11 @@ import type {
   ProductionRun,
   RunCommand,
 } from "../productionRun/productionRunTypes";
-import { markSingleShotAttention, markSingleShotCompleted } from "../productionRun/singleShotRunLifecycle";
+import { isObservationContention, markSingleShotAttention, markSingleShotCompleted, reopenSingleShotRetrieval } from "../productionRun/singleShotRunLifecycle";
 import type { ShotPrice } from "../shared/contracts/shotPricingRule";
 import { admitShotsForDispatch } from "../productionRun/shotLandingAdmission";
 import { presentationIsOpen, undecidedShotIds } from "../shared/productionGenerationPresentation";
-import { productionJobPhase } from "../shared/productionShotPhase";
+import { jobAwaitsRetrieval, productionJobPhase } from "../shared/productionShotPhase";
 import { isTerminalTaskStatus } from "../shared/taskStatus";
 import type { WorkspaceProjectRecordV2 } from "../workspace/workspaceTypes";
 
@@ -635,8 +635,25 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     const kind = kindHint ?? contractRequest?.kind ?? "text_to_image";
     let job = latestJob(run);
     if (!job) throw new Error(`Canvas generation run has no job: ${runId}`);
+    // 只差取回的那一笔（判据 `jobAwaitsRetrieval`）：放回轮询，下面真去查一次。这里永远不提交。
+    const reopened = jobAwaitsRetrieval(job);
+    if (reopened) {
+      run = reopenSingleShotRetrieval(repository(), projectId, runId, job.jobId, { now })?.run ?? run;
+      job = latestJob(run) ?? job;
+      if (run.origin.nodeId) markCanvasRunOpen(projectRoot, runId, run.origin.nodeId);
+    }
     const existing = readyArtifact(run, job);
     if (existing) {
+      // 产物已在账上，job 没跟上（崩在落地中途）：交给提交出口补齐，下面才收得了尾。
+      if (!["ready", "adopted"].includes(job.status)) {
+        try {
+          await submissionFor(projectId).materialize({ projectId, operationId: runId });
+          run = repository().read(projectId, runId) ?? run;
+          job = latestJob(run) ?? job;
+        } catch (error) {
+          logWarn("production-run", "canvas-shot-finish-landing-failed", { runId }, error);
+        }
+      }
       settle(projectId, projectRoot, runId, job, existing.artifactId);
       return resultFromArtifact(run, job, existing, kind);
     }
@@ -645,7 +662,16 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       return failedResult(job, kind);
     }
     const submission = submissionFor(projectId);
-    const polled = await submission.poll({ projectId, operationId: runId });
+    let polled: Awaited<ReturnType<ProductionGenerationSubmission["poll"]>>;
+    try {
+      polled = await submission.poll({ projectId, operationId: runId });
+    } catch (error) {
+      // 撞上别的观察者只是忙：这一次当还在跑，渲染层过一会儿再来。
+      if (isObservationContention(error)) return { id: job.providerTaskId ?? job.jobId, kind, status: "running", assets: [], raw: {} };
+      // 这次重新取回又没成：回到「待取回」，节点照旧给「重新取回」。
+      if (reopened) settle(projectId, projectRoot, runId, latestJob(repository().read(projectId, runId) ?? run));
+      throw error;
+    }
     const last = job.providerTaskId ? canvasLastResult(job.providerTaskId) : undefined;
     if (polled.nextAction === "poll")
       return last ?? { id: polled.providerTaskId, kind, status: "running", assets: [], raw: {} };
@@ -663,6 +689,11 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       logWarn("production-run", "canvas-shot-materialize-failed", { runId }, error);
       const after = repository().read(projectId, runId);
       if (after && !blockingReason(after)) settle(projectId, projectRoot, runId, latestJob(after));
+      // 这一笔还没收尾（崩在落地中途）：渲染层拿到结果就不会再来，交给观察者下一次查时补齐，节点才不会一直被锁着。
+      else {
+        leases.delete(runId);
+        deps.observe(submission, projectId, runId);
+      }
     }
     run = repository().read(projectId, runId) ?? run;
     job = latestJob(run) ?? job;

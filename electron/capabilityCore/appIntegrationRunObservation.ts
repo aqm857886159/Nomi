@@ -10,7 +10,7 @@
  * 为什么是工厂而不是模块级单例：这些状态归**某一次** capability-core 实例所有。核重启/替换时
  * 旧实例的 epoch 必须作废，不能让上一代的 worker 把过期状态写进新运行时（stop()）。
  */
-import { logWarn } from '../logging/logger'
+import { logInfo, logWarn } from '../logging/logger'
 import { hasWorkToWatch, runWantsDriver } from '../productionRun/productionRunLifecycle'
 import type { MultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import type { ProductionRun } from '../productionRun/productionRunTypes'
@@ -19,6 +19,7 @@ import type { ProductionRunRepository } from '../productionRun/productionRunRepo
 import { observeSingleShotGeneration } from '../productionRun/singleShotGenerationObserver'
 import { createSingleShotObservationLifecycle } from '../productionRun/singleShotObservationLifecycle'
 import {
+  isObservationContention,
   markSingleShotAttention,
   markSingleShotCompleted,
 } from '../productionRun/singleShotRunLifecycle'
@@ -43,8 +44,10 @@ export type RunObservationDrivers = {
 export function createRunObservationDrivers(deps: {
   repository: ProductionRunRepository;
   buildSchedulerForRun: (projectId: string, runId: string, run: ProductionRun) => Pick<MultiShotBatchScheduler, 'runToQuiescence'> | null;
+  /** 单镜 Run 被「重新取回」放回轮询之后，由它造观察者要用的提交门面。不给 = 这个驱动只管多镜。 */
+  buildSubmissionForRun?: (run: ProductionRun) => ReturnType<typeof createProductionGenerationSubmission> | null;
 }): RunObservationDrivers {
-  const { repository, buildSchedulerForRun } = deps
+  const { repository, buildSchedulerForRun, buildSubmissionForRun } = deps
   // 单镜与多镜共用的「过一会儿再来问一次」定时器。**两半必须是同一条规则**：
   // 供应商在观察窗（默认 300s）内没给结论，就歇一歇再接着问，直到它给出终态。
   // 2026-09-25 之前只有多镜这一半——单镜观察窗一过就静静退出、没有人再问，
@@ -130,7 +133,15 @@ export function createRunObservationDrivers(deps: {
     } catch {
       return
     }
-    if (!run || !run.generationPlan?.shots || run.generationPlan.shots.length === 0) return
+    if (!run) return
+    if (!run.generationPlan?.shots || run.generationPlan.shots.length === 0) {
+      // 单镜没有调度器：「重新取回」把它放回轮询之后，交给单镜观察者（只查不交）。
+      if (hasWorkToWatch(run)) {
+        const submission = buildSubmissionForRun?.(run)
+        if (submission) observeSingleShotRun(submission, projectId, runId)
+      }
+      return
+    }
     if (run.generationPlan.state !== 'submitted') return // 还没确认过的草稿不驱动
     // 要不要驱动只问生命周期 owner：停稳了（已暂停 / 已取消 / 已完成）而手上没有交给供应商的活就不驱动；
     // 还有就只盯不派（派生对停着的 Run 不派新活）。以前按状态挑：先是连 pausing 也跳过（2026-09-29「暂停后还一直在转」），
@@ -146,6 +157,11 @@ export function createRunObservationDrivers(deps: {
     runId: string,
   ): void => {
     const key = `${projectId}:${runId}`
+    // 观察窗到了 / 撞上别的观察者：歇一歇再接着问（与多镜 quiescent:false 同一条规则）。
+    // 只查不交——这条路永远不调 start，不会多扣一次钱。
+    const askAgainLater = (): void => scheduleRekick(`single:${key}`, () => {
+      if (singleShotStillInFlight(projectId, runId)) observeSingleShotRun(submission, projectId, runId)
+    })
     void singleShotObservationLifecycle.run(key, async ({ signal, isCurrent }) => {
       try {
         const result = await observeSingleShotGeneration({
@@ -161,11 +177,7 @@ export function createRunObservationDrivers(deps: {
         // leave the durable Run untouched for the next restart/open recovery.
         if (result.aborted) return
         if (result.nextAction === 'observe') {
-          // 观察窗到了、供应商还没给结论：歇一歇再接着问（与多镜 quiescent:false 同一条规则）。
-          // 只查不交——这条路永远不调 start，不会多扣一次钱。
-          scheduleRekick(`single:${key}`, () => {
-            if (singleShotStillInFlight(projectId, runId)) observeSingleShotRun(submission, projectId, runId)
-          })
+          askAgainLater()
           return
         }
         if (result.nextAction === 'completed') {
@@ -177,6 +189,12 @@ export function createRunObservationDrivers(deps: {
           settleSingleShotAttention(projectId, runId, result.lastPoll?.jobId ?? activeSingleShotJobId(projectId, runId))
         }
       } catch (error) {
+        // 撞上别的观察者或写者不是这笔任务的失败，记成「待取回」反而会打断正在写的那一方。
+        if (isObservationContention(error)) {
+          if (isCurrent()) askAgainLater()
+          logInfo('production-run', 'single-shot-observation-contended')
+          return
+        }
         // Poll/materialization failures are durable attention, not a silent
         // promise rejection that causes the same provider task to be retried
         // forever on the next project reopen. Never submit from this path.

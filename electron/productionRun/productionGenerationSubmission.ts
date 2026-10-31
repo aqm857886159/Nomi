@@ -585,8 +585,21 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       const observed = store.read();
       const artifactFor = (current: ProductionRun) => current.artifacts.find((artifact) => artifact.jobId === jobId && ["image", "video", "audio"].includes(artifact.kind) && artifact.status === "ready" && artifact.contentHash);
       const resultFor = (artifact: ProductionArtifact): GenerationSubmissionMaterializeResult => ({ operationId: run.runId, runId: run.runId, jobId, providerTaskId, artifactId: artifact.artifactId, contentHash: artifact.contentHash!, nextAction: "completed" });
+      /**
+       * 已有 ready 产物的唯一出口。一次落地要写好几份记录（产物、job、信封），崩在任何两步之间都会留下半状态，
+       * 所以产物一旦在账上，来的人就负责把 job 和信封补齐，再回话：不管崩在哪，下一次查都能收尾。
+       */
+      const settleWithArtifact = (artifact: ProductionArtifact, complete: () => void): GenerationSubmissionMaterializeResult => {
+        let current = requiredRun(deps.repository, input.projectId, input.operationId);
+        const behind = current.jobs.find((candidate) => candidate.jobId === jobId)!;
+        // 停成「需要处理」的不能直达 ready，先回轮询（同一条可重放的边）。已取消 / 脱离的没有这条边，不补。
+        if (behind.status === "needs_attention") current = command(current, "job.status", { jobId, status: "polling", patch: { errorCode: "", errorMessage: "" } }, `materialize-job-resume:${jobId}:${current.revision}`);
+        if (behind.status === "needs_attention" || behind.status === "provider_accepted" || behind.status === "polling") command(current, "job.status", { jobId, status: "ready", patch: { lastPollAt: behind.lastPollAt } }, `materialize-job:${jobId}`);
+        complete();
+        return resultFor(artifact);
+      };
       const existing = artifactFor(run);
-      if (observed?.state === "materialized" && existing) return resultFor(existing);
+      if (observed?.state === "materialized" && existing) return settleWithArtifact(existing, () => undefined);
       if (!observed?.providerTaskId || observed.state !== "provider_accepted") throw new GenerationMaterializationError("Provider acceptance is required before materialization");
       const polled = observed.lastPoll;
       if (!polled || isPendingProviderStatus(polled.status)) throw new GenerationMaterializationError("The provider task is still processing");
@@ -601,7 +614,7 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
       const settled = await store.withMaterialization(observed, async (currentEnvelope, complete, assertOwned) => {
         let current = requiredRun(deps.repository, input.projectId, input.operationId);
         const ready = artifactFor(current);
-        if (ready) { complete(); return resultFor(ready); }
+        if (ready) return settleWithArtifact(ready, complete);
         if (currentEnvelope.state === "materialized") throw new GenerationMaterializationError("Materialized runtime has no ready artifact receipt");
         const latestJob = current.jobs.find((candidate) => candidate.jobId === jobId)!;
         if (latestJob.status === "needs_attention") throw new GenerationMaterializationError(latestJob.errorMessage ?? "Output retrieval requires attention before continuing");
@@ -624,26 +637,23 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           receipt = await deps.materializeOutput({ projectId: input.projectId, operationId: run.runId, run: current, job: current.jobs.find((candidate) => candidate.jobId === jobId)!, contract, providerTaskId, output: extraction.outputs[0]! });
         } catch (error) {
           const readyAfterWait = artifactFor(requiredRun(deps.repository, input.projectId, input.operationId));
-          if (readyAfterWait) { complete(); return resultFor(readyAfterWait); }
+          if (readyAfterWait) return settleWithArtifact(readyAfterWait, complete);
           if (!deterministicRetrievalFailure(error)) throw error;
           return failed(error.message);
         }
         assertOwned();
         current = requiredRun(deps.repository, input.projectId, input.operationId);
         const readyAfterWait = artifactFor(current);
-        if (readyAfterWait) { complete(); return resultFor(readyAfterWait); }
+        if (readyAfterWait) return settleWithArtifact(readyAfterWait, complete);
         const artifactId = typeof receipt.artifactId === "string" ? receipt.artifactId.trim() : "";
         const contentHash = typeof receipt.contentHash === "string" ? receipt.contentHash.trim() : "";
         const projectRelativePath = typeof receipt.projectRelativePath === "string" ? receipt.projectRelativePath.trim() : "";
         if (!artifactId || !contentHash || !projectRelativePath) throw new GenerationMaterializationError("Asset store returned an incomplete materialization receipt");
-        const currentJob = current.jobs.find((candidate) => candidate.jobId === jobId)!;
         const artifact: ProductionArtifact = { artifactId, stageId: "generate", jobId, kind: receipt.kind, status: "ready", source: "external-mcp", contentHash, projectRelativePath,
           ...(receipt.thumbnailRelativePath ? { thumbnailRelativePath: receipt.thumbnailRelativePath } : {}), ...(receipt.previewState ? { previewState: receipt.previewState } : {}),
           ...(receipt.width && receipt.height ? { width: receipt.width, height: receipt.height } : {}), createdAt: now() };
-        current = command(current, "artifact.add", { artifact }, `materialize-artifact:${artifact.artifactId}`);
-        command(current, "job.status", { jobId, status: "ready", patch: { lastPollAt: currentJob.lastPollAt } }, `materialize-job:${jobId}`);
-        complete();
-        return resultFor(artifact);
+        command(current, "artifact.add", { artifact }, `materialize-artifact:${artifact.artifactId}`);
+        return settleWithArtifact(artifact, complete);
       });
       if (settled.kind === "result") return settled.value;
       // Observation changed while extracting: read the existing task's newest raw, never submit again.

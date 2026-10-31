@@ -66,6 +66,32 @@ describe("ProductionRunLock", () => {
     second.release(secondLease);
   });
 
+  it("reclaims a corrupt record only after it has not been touched for a whole lease", () => {
+    const { dir, first } = makeLocks();
+    const lockFile = path.join(dir, "run.lock");
+    for (const corrupt of ["", '{"schemaVersion":1,"owner']) {
+      fs.writeFileSync(lockFile, corrupt);
+      const written = new Date("2026-08-23T00:00:00.000Z");
+      fs.utimesSync(lockFile, written, written);
+      // 刚写的：可能正是别的进程刚开了文件、还没写完，仍算占用。
+      expect(() => first.acquire()).toThrow(ProductionRunLockBusyError);
+    }
+  });
+
+  it("takes over a corrupt record older than the lease and keeps the epoch moving", () => {
+    const { dir, first, advance } = makeLocks();
+    const lockFile = path.join(dir, "run.lock");
+    fs.writeFileSync(lockFile, "");
+    const written = new Date("2026-08-23T00:00:00.000Z");
+    fs.utimesSync(lockFile, written, written);
+    advance(9);
+    expect(() => first.acquire()).toThrow(ProductionRunLockBusyError);
+    advance(2);
+    const lease = first.acquire();
+    expect(lease.ownerId).toBe("owner-a");
+    first.release(lease);
+  });
+
   it("renews only the current owner and keeps a live lock from being stolen", () => {
     const { first, second, advance } = makeLocks();
     const firstLease = first.acquire();

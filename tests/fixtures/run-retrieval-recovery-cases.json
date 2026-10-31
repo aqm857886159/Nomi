@@ -1,0 +1,478 @@
+[
+  {
+    "id": "open/query-disconnect",
+    "failure": "query-disconnect",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/query-disconnect",
+    "failure": "query-disconnect",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "restart/query-disconnect",
+    "failure": "query-disconnect",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "open/query-5xx",
+    "failure": "query-5xx",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/query-5xx",
+    "failure": "query-5xx",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "restart/query-5xx",
+    "failure": "query-5xx",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "open/download-disconnect",
+    "failure": "download-disconnect",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/download-disconnect",
+    "failure": "download-disconnect",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "restart/download-disconnect",
+    "failure": "download-disconnect",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "open/query-unknown-status",
+    "failure": "query-unknown-status",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "polling",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "none",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/query-unknown-status",
+    "failure": "query-unknown-status",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "polling",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "none",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "restart/query-unknown-status",
+    "failure": "query-unknown-status",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "polling",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "none",
+    "click": {
+      "polls": 1,
+      "posts": 1,
+      "minGets": 1,
+      "landed": true
+    }
+  },
+  {
+    "id": "open/provider-failed",
+    "failure": "provider-failed",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "provider_task_failed",
+      "awaitsRetrieval": false
+    },
+    "button": "retry",
+    "click": {
+      "posts": 2,
+      "minGets": 0,
+      "landed": false
+    }
+  },
+  {
+    "id": "closed/provider-failed",
+    "failure": "provider-failed",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "provider_task_failed",
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "posts": 2,
+      "minGets": 0,
+      "landed": false,
+      "thenButton": "retry"
+    }
+  },
+  {
+    "id": "restart/provider-failed",
+    "failure": "provider-failed",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "provider_task_failed",
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "posts": 2,
+      "minGets": 0,
+      "landed": false,
+      "thenButton": "retry"
+    }
+  },
+  {
+    "id": "open/submit-rejected",
+    "failure": "submit-rejected",
+    "window": "open",
+    "taskId": false,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "provider_rejected",
+      "awaitsRetrieval": false
+    },
+    "button": "retry",
+    "click": {
+      "posts": 2,
+      "minGets": 0,
+      "landed": false
+    }
+  },
+  {
+    "id": "open/submit-disconnect",
+    "failure": "submit-disconnect",
+    "window": "open",
+    "taskId": false,
+    "after": {
+      "jobStatus": "submission_unknown",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "SUBMIT_UNKNOWN",
+    "click": {
+      "posts": 1,
+      "minGets": 0,
+      "landed": false
+    }
+  },
+  {
+    "id": "closed/submit-rejected",
+    "failure": "submit-rejected",
+    "window": "closed",
+    "taskId": false,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "provider_rejected",
+      "awaitsRetrieval": false
+    },
+    "button": "retry",
+    "click": {
+      "posts": 2,
+      "minGets": 0,
+      "landed": false
+    }
+  },
+  {
+    "id": "closed/submit-disconnect",
+    "failure": "submit-disconnect",
+    "window": "closed",
+    "taskId": false,
+    "after": {
+      "jobStatus": "submission_unknown",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "SUBMIT_UNKNOWN",
+    "click": {
+      "posts": 1,
+      "minGets": 0,
+      "landed": false
+    }
+  },
+  {
+    "id": "restart/submit-rejected",
+    "failure": "submit-rejected",
+    "window": "restart",
+    "taskId": false,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "provider_rejected",
+      "awaitsRetrieval": false
+    },
+    "button": "retry",
+    "click": {
+      "posts": 2,
+      "minGets": 0,
+      "landed": false
+    }
+  },
+  {
+    "id": "restart/submit-disconnect",
+    "failure": "submit-disconnect",
+    "window": "restart",
+    "taskId": false,
+    "after": {
+      "jobStatus": "submission_unknown",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "SUBMIT_UNKNOWN",
+    "click": {
+      "posts": 1,
+      "minGets": 0,
+      "landed": false
+    }
+  },
+  {
+    "id": "open/crash-after-artifact-add",
+    "failure": "crash-after-artifact-add",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "ready",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "none",
+    "click": {
+      "posts": 1,
+      "minGets": 0,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/crash-after-artifact-add",
+    "failure": "crash-after-artifact-add",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "posts": 1,
+      "minGets": 0,
+      "landed": true
+    }
+  },
+  {
+    "id": "restart/crash-after-artifact-add",
+    "failure": "crash-after-artifact-add",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "posts": 1,
+      "minGets": 0,
+      "landed": true
+    }
+  },
+  {
+    "id": "closed/query-disconnect/again",
+    "failure": "query-disconnect",
+    "window": "closed",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "posts": 1,
+      "minGets": 2,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "restart/query-disconnect/again",
+    "failure": "query-disconnect",
+    "window": "restart",
+    "taskId": true,
+    "after": {
+      "jobStatus": "needs_attention",
+      "errorCode": "output_retrieval_failed",
+      "awaitsRetrieval": true
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "posts": 1,
+      "minGets": 2,
+      "landed": true
+    },
+    "failsAgain": true
+  },
+  {
+    "id": "open/query-5xx/again",
+    "failure": "query-5xx",
+    "window": "open",
+    "taskId": true,
+    "after": {
+      "jobStatus": "provider_accepted",
+      "errorCode": null,
+      "awaitsRetrieval": false
+    },
+    "button": "panel-retrieve",
+    "click": {
+      "posts": 1,
+      "minGets": 2,
+      "landed": true
+    },
+    "failsAgain": true
+  }
+]

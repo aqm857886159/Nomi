@@ -39,13 +39,21 @@ function canvasOwnsCurrentAttempt(run: ProductionRun, shotId: string): boolean {
 export type ProductionShotPhase = "awaiting_confirmation" | "removed" | "not_generated" | "queued" | "generating" | "stopped" | "failed" | "unretrieved" | "done";
 
 /**
+ * 有任务号时这几种停下都只差再查一次：供应商没说失败，钱已经花了。
+ *   · `output_retrieval_failed`：取回失败（物化的确定性失败、观察者查不到）；
+ *   · `provider_status_unknown`：供应商回了认不出的状态，它没说失败，再查可能就认得了；
+ *   · `single_shot_observation_failed`：0.24.0 及更早的观察者写下的旧数据。现在有任务号的不再写它。
+ */
+const RETRIEVABLE_ATTENTION_CODES: ReadonlySet<string> = new Set([OUTPUT_RETRIEVAL_FAILED, "provider_status_unknown", "single_shot_observation_failed"]);
+
+/**
  * 「这次任务已经生成、只差把结果取回来」——全仓唯一一处判据（#975 A2 / V-975）。
  * 写下它的是 productionGenerationSubmission.materialize（确定性取回失败）；读它的：镜头阶段投影（下面）、
  * 「重新取回」命令（productionRunService）、任务面板（productionRunView）。任何地方要问「这一镜能不能重新取回 /
  * 该不该进批量重生成」都只问这里，不许再拿 errorCode 自己比。
  */
 export function jobAwaitsRetrieval(job: Pick<ProductionJob, "status" | "errorCode" | "providerTaskId"> | null | undefined): boolean {
-  return Boolean(job && job.status === "needs_attention" && job.errorCode === OUTPUT_RETRIEVAL_FAILED && job.providerTaskId);
+  return Boolean(job && job.status === "needs_attention" && job.providerTaskId && RETRIEVABLE_ATTENTION_CODES.has(job.errorCode ?? ""));
 }
 
 type ProductionShotStateFields = {

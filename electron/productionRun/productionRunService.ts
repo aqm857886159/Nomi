@@ -30,6 +30,7 @@ import { assertCallerDeclaredTrustLevel, trustLevelFromApprovalPolicy } from './
 import { createGateApprovalOwner } from './productionRunApprovalReceipt'
 import { isAnchorCheckpointGate } from './anchorCheckpoint'
 import { kickBatchSchedulerForRun } from './batchSchedulerKick'
+import { reopenSingleShotRetrieval } from './singleShotRunLifecycle'
 import { renewDispatchConsent } from './productionDispatchConsentEdits'
 import { recoverStoryboardContentHashes } from './productionRunStoryboardHashRecovery'
 import type { ApprovalReceiptAuthority } from '../capabilityCore/approvalReceipt'
@@ -309,7 +310,12 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       if (!job || !jobAwaitsRetrieval(job)) {
         throw new Error('Production job is not waiting for its result to be retrieved')
       }
-      if (!isSemanticMultiShotRun(current)) throw new Error('Retrieving a result again is only available for batch shots')
+      if (!isSemanticMultiShotRun(current)) {
+        const reopened = reopenSingleShotRetrieval(repository, safeProjectId, safeRunId, jobId, { commandId: runCommand.commandId, now: () => runCommand.issuedAt })
+        if (!reopened) throw new Error('Retrieving a result again is only available for generation shots')
+        kickBatchSchedulerForRun(safeProjectId, safeRunId)
+        return reopened
+      }
       const result = repository.execute(safeProjectId, safeRunId, {
         ...runCommand,
         type: 'job.status',

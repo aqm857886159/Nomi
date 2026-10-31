@@ -1,0 +1,32 @@
+{
+  "id": "REV-20261031-run-retrieval-recovery",
+  "since": "2026-10-31",
+  "source": "评审发现：关窗或重启后取回失败一次，主按钮变成重试，点了再扣一次钱；落地中途崩溃后节点一直被锁；锁文件损坏后查询永远不返回。",
+  "category": "claims-and-outcomes",
+  "problem": "供应商已经收下、钱已经花了的单，任务号还在，却被判死、卡死，或者允许再下单。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "关窗后取回失败一次，故障好了点重新取回，落地，只下过一单",
+    "重启后取回失败一次，同上",
+    "老项目里已经落下的错误卡，主按钮是重新取回",
+    "落地崩在任何两步之间，下一次查都能收尾"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/plan/2026-10-31-run-retrieval-recovery.md",
+    "docs/engineering/direction-checks/2026-10-31-run-recovery-materialize.md",
+    "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
+    "tests/run-retrieval-recovery/matrix.test.mjs"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/run-retrieval-recovery/matrix.test.mjs"
+  }
+}

@@ -47,6 +47,14 @@ export class ProductionRunLockLostError extends Error {
   }
 }
 
+/** 锁文件在，但记录读不出来（空文件、写了一半）。对外仍是「忙」，只有 acquire 按文件多久没动过决定能不能回收。 */
+class ProductionRunLockCorruptRecordError extends ProductionRunLockBusyError {
+  constructor() {
+    super("Production run lock record is corrupt");
+    this.name = "ProductionRunLockCorruptRecordError";
+  }
+}
+
 // 注：`deps.durability` 决定「这把锁要不要durable 围栏语义」；下面两个 helper 里的
 // `fsyncIfDurable`/`isDurable` 是另一回事——全局落盘屏障开关（测试里整体关掉，见
 // `electron/durability.ts`）。两者独立，别合并。
@@ -90,7 +98,7 @@ function parseLease(filePath: string): ProductionRunLockLease | null {
     if (!Number.isFinite(Date.parse(value.expiresAt))) throw new Error("invalid lock expiry");
     return value;
   } catch {
-    throw new ProductionRunLockBusyError("Production run lock record is corrupt");
+    throw new ProductionRunLockCorruptRecordError();
   }
 }
 
@@ -111,6 +119,26 @@ export function createProductionRunLock(deps: ProductionRunLockDeps) {
 
   function reclaimExpired(existing: ProductionRunLockLease): void {
     if (Date.parse(now()) < Date.parse(existing.expiresAt)) throw new ProductionRunLockBusyError();
+    quarantine();
+  }
+
+  /**
+   * 坏记录没有到期时间（崩在 open(wx) 和 write 之间、断电都会留下它），只能看文件多久没动过。活着的持有者每次续约都整份重写，
+   * 所以超过一个租期没动过 = 没有活人，回收；没超过的仍算占用：那可能正是别的进程刚开了文件、还没写完。
+   */
+  function reclaimCorruptRecord(busy: ProductionRunLockCorruptRecordError): void {
+    let modifiedAt: number;
+    try {
+      modifiedAt = fs.statSync(deps.filePath).mtimeMs;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return;
+      throw busy;
+    }
+    if (Math.abs(Date.parse(now()) - modifiedAt) < leaseMs) throw busy;
+    quarantine();
+  }
+
+  function quarantine(): void {
     const quarantinePath = `${deps.filePath}.stale.${randomId()}`;
     try {
       // rename is atomic: only one racing worker can quarantine this expired owner.
@@ -126,7 +154,13 @@ export function createProductionRunLock(deps: ProductionRunLockDeps) {
 
   function acquire(): ProductionRunLockLease {
     fs.mkdirSync(path.dirname(deps.filePath), { recursive: true });
-    const existing = parseLease(deps.filePath);
+    let existing: ProductionRunLockLease | null = null;
+    try {
+      existing = parseLease(deps.filePath);
+    } catch (error) {
+      if (!(error instanceof ProductionRunLockCorruptRecordError)) throw error;
+      reclaimCorruptRecord(error);
+    }
     if (existing) reclaimExpired(existing);
     const fencingEpoch = durable ? parseEpoch(epochPath) + 1 : 1;
     const lease: ProductionRunLockLease = {

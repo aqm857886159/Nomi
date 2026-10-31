@@ -1,6 +1,7 @@
 # 方向检查：materialize 崩在 artifact.add 和 job.status 之间（T10）
 
 > 触发：`node scripts/fix-churn.mjs electron/productionRun/productionGenerationSubmission.ts` 命中，文件 14 天已有 4 个 fix，这一刀是第 5 个。文件本身命中，不在协调代批例外内，结构性结论交用户拍板。
+> 同一页还覆盖这条线另外几处命中，见文末「同一决定里的其余命中」。
 > 设计卡：`docs/plan/2026-10-31-run-retrieval-recovery.md`。
 
 ## 0. 一句话根因
@@ -86,6 +87,37 @@
 - `electron/productionRun/productionGenerationLifecycle.test.ts`、`tests/fixtures/generation-lifecycle-cases.json`：#1393 的观察与落地矩阵，现状已钉。
 - `electron/productionRun/productionRunRepository.test.ts`：`surfaces a torn final event…`、`only partly recorded`，事件日志的撕裂语义已钉。
 
+## 同一决定里的其余命中
+
+这几处和 T10 为的是同一件事：任务号还在的单子只取回、不重下。
+
+| 文件 | 口径 | 14 天的 fix | 这一刀 | 为什么不能挪到别处 |
+|---|---|---|---|---|
+| `electron/productionRun/productionRunRuntimeEnvelope.ts` | 文件本身，第 3 个 | 1fcc7ed01 写出了等锁循环（T1 的来源），879d8cd5c 与此无关 | 无限重试换成 45 秒总期限：一个常量、一个条件、一个可选参数 | bug 就在这个循环里 |
+| `electron/shared/nomiErrorCodes.ts` | 文件本身，第 5 个 | 4 个都是错误码阶段表和新码，不同类 | 在已有的旧数据解码处加一条整句正则，把两句旧话解成 `retrieval-query` | 这是最早的共享边界；挪到 `classifyError.ts` 一样命中（4 个 fix） |
+| `electron/capabilityCore/appIntegrationCanvasShot.ts` | 概念口径（付费卡停下 3、画布付费生成 6、结果取回 8） | 见概念页 | `pollRun` 加一段「只差取回就放回轮询再查一次」，新增分支，不算纯换或删 | 画布「查」的唯一入口 |
+| `src/workbench/generationCanvas/runner/recoverTaskActions.ts` | 目录口径（13 个 fix） | 同目录其他文件 | 一行硬编码中文换 i18n，是换 | 协调代批 |
+
+### 那两句旧中文会不会出现在真失败上
+
+**结论：不会把真失败变成重新取回，不需要在解码处再加条件。「节点上有任务号」这个条件已经在错误卡上。**
+
+| 旧话 | 全部写入点（`git log -S` 只有一次引入、从未搬家） | 什么时候写 | 没有任务号时 |
+|---|---|---|---|
+| 生成结果未能安全落入项目，请查看任务并处理 | `markSingleShotAttention` | job 还在进行中（`needs_attention` 不覆盖）。观察者、查询路径都要求有任务号 | 可能：`dispatch` 里 `start` 在写意向之前就抛错时 job 是 `authorized`，这时写的就是它。什么都没发出去 |
+| 供应商返回了未识别的任务状态，需要人工核对 | `poll` 的 `onChanged`，`statusClass === "unknown"` | `poll` 开头要求有任务号，否则直接抛 | 不可能 |
+
+- **供应商明确说失败不写这两句**：当场拒绝写 `provider_rejected`（`submissionOutbox`），任务失败写 `provider_task_failed` + 「供应商任务已返回失败状态」。这两种 job 已经是 `needs_attention`，`markSingleShotAttention` 不覆盖。
+- **有任务号，但其实供应商已经判了失败**（`onChanged` 那次写撞了版本，旧版本才落下第一句）：点「重新取回」免费查一次，供应商回失败，卡片变成失败 + 重试。最多多一次 GET，不多 POST。
+- **没有任务号**：`NodeErrorReport` 读节点的 `taskId`，没有就走 `narrateGenerationErrorWithoutTask`，主按钮是重试。`outboundBlockedRecoverableMessage` 同样要求节点有 `taskId` 才落可找回。矩阵的旧数据格钉住这一点。
+- **一个小缺口**：没有任务号走到第一句时，说明文字是「结果放在了回答里」那一版，和实情不符；主按钮对。范围太窄，记进报告，不在这里修。
+
 ## 裁定
 
-待用户拍板。拍板前本线不改 `productionGenerationSubmission.ts`，T10 及其反例标 `unverified`。
+用户 2026-10-31 回复：「都按推荐」。协调转达，批准范围如下，再有新的文件本身命中要重新请示：
+
+- T10 走乙：已有 ready 产物的出口收成一个函数，job 没跟上就补 `materialize-job:<jobId>`，再 `complete()`。不做批量写。
+- T1：`productionRunRuntimeEnvelope.ts` 无限重试换成 45 秒总期限；损坏记录按 mtime 过期回收。
+- 老项目错误卡：`nomiErrorCodes.ts` 旧数据解码加那两句。
+- B4：`appIntegrationCanvasShot.ts` 的 `pollRun` 放回轮询再查一次。
+- `recoverTaskActions.ts` 一行换 i18n：协调代批，事后报用户。

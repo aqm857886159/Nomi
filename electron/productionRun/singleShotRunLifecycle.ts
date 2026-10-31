@@ -1,4 +1,8 @@
-import type { ProductionRun, RunCommand, RunCommandResult } from "./productionRunTypes";
+import { tagNomiError } from "../shared/nomiErrorCodes";
+import { jobAwaitsRetrieval } from "../shared/productionShotPhase";
+import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
+import { ProductionRunLockBusyError, ProductionRunLockLostError } from "./productionRunLock";
+import { OUTPUT_RETRIEVAL_FAILED, type ProductionJob, type ProductionRun, type RunCommand, type RunCommandResult } from "./productionRunTypes";
 
 /**
  * Durable lifecycle bridge for the semantic one-shot generation path.
@@ -40,6 +44,28 @@ function isSemanticSingleShot(run: ProductionRun): boolean {
 
 function isRevisionConflict(error: unknown): boolean {
   return error instanceof Error && /revision conflict/i.test(error.message);
+}
+
+/**
+ * 撞上了别的观察者或写者，不是这笔任务的失败：过一会儿再来，不记成取回失败。观察者和画布的查询共用这一个判据。
+ * 忙（等生命周期锁到了期限）、锁被接手、账本版本被别人推进，都属于这一种。
+ */
+export function isObservationContention(error: unknown): boolean {
+  return error instanceof ProductionRunLockBusyError || error instanceof ProductionRunLockLostError || isRevisionConflict(error);
+}
+
+/**
+ * 观察这一笔失败了（查不到 / 取不回 / 落不下），任务号还在：它只差取回，不是失败。**不写人话**：界面按机器码说话（zh / en 都走词表）。
+ * 供应商说过做完了才说「已经生成」；否则只知道这次没查成（`narrate` 的 `retrieval-incomplete`，用户 10-22 拍板不说「已经生成」）。
+ */
+function retrievalAttentionPatch(job: Pick<ProductionJob, "providerStatus">): { errorCode: string; errorMessage: string } {
+  const finished = classifyUpstreamTaskStatus(job.providerStatus ?? "") === "succeeded";
+  return {
+    errorCode: OUTPUT_RETRIEVAL_FAILED,
+    errorMessage: finished
+      ? tagNomiError("output-retrieval-failed", "The provider finished this task, but Nomi could not retrieve the result")
+      : tagNomiError("retrieval-query", "Nomi could not check this accepted task this time"),
+  };
 }
 
 function commandFor(
@@ -175,8 +201,9 @@ export function markSingleShotCompleted(
 /**
  * Persist an observation/materialization failure.  The fixed message avoids
  * leaking provider response text (which can contain credentials or payloads)
- * into the durable project log; the user can open the provider task to
- * reconcile it.  No provider submission is attempted here.
+ * into the durable project log.  A job that still has its provider task id is
+ * only waiting to be retrieved (`jobAwaitsRetrieval`), never dead; one without
+ * a task id has nothing to retrieve.  No provider submission is attempted here.
  */
 export function markSingleShotAttention(
   repository: SingleShotRunLifecycleRepository,
@@ -198,7 +225,7 @@ export function markSingleShotAttention(
           payload: {
             jobId,
             status: "needs_attention",
-            patch: {
+            patch: currentJob.providerTaskId ? retrievalAttentionPatch(currentJob) : {
               errorCode: "single_shot_observation_failed",
               errorMessage: "生成结果未能安全落入项目，请查看任务并处理",
             },
@@ -233,4 +260,36 @@ export function markSingleShotAttention(
       : null, now) ?? run;
   }
   return run;
+}
+
+/**
+ * 「重新取回」：把只差取回的那一笔放回轮询，Run 和生成阶段跟着回到进行中（三条一次落盘），然后由调用方真去查一次。
+ * 全程不碰提交：只用已有的任务号，不预留、不扣费、不新建作业。这一笔不是在等取回（或不是单镜语义 Run）= null，什么都不写。
+ */
+export function reopenSingleShotRetrieval(
+  repository: SingleShotRunLifecycleRepository & { executeBatch: (projectId: string, runId: string, expectedRevision: number, commands: ReadonlyArray<Omit<RunCommand, "expectedRevision">>) => RunCommandResult[] },
+  projectId: string,
+  runId: string,
+  jobId: string,
+  options: { commandId?: string; now?: () => string } = {},
+): RunCommandResult | null {
+  const now = options.now ?? defaultNow;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const run = repository.read(projectId, runId);
+    if (!run || !isSemanticSingleShot(run) || !jobAwaitsRetrieval(run.jobs.find((job) => job.jobId === jobId))) return null;
+    const issuedAt = now();
+    const base = options.commandId ?? `single-shot:${runId}:reopen-retrieval:${run.revision}`;
+    const stage = run.stages.find((candidate) => candidate.stageId === "generate");
+    const commands: Array<Omit<RunCommand, "expectedRevision">> = [
+      { commandId: base, type: "job.status", payload: { jobId, status: "polling", patch: { errorCode: "", errorMessage: "" } }, issuedAt },
+      ...(stage?.status === "needs_attention" ? [{ commandId: `${base}:stage`, type: "stage.upsert", payload: { stage: { ...stage, status: "running" } }, issuedAt }] : []),
+      ...(run.status === "needs_attention" ? [{ commandId: `${base}:run`, type: "run.status", payload: { status: "running" }, issuedAt }] : []),
+    ];
+    try {
+      return repository.executeBatch(projectId, runId, run.revision, commands).at(-1)!;
+    } catch (error) {
+      if (attempt === 1 || !isRevisionConflict(error)) throw error;
+    }
+  }
+  return null;
 }
