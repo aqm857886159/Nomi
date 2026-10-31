@@ -1,5 +1,7 @@
 # 2026-10-07 导演台人偶换成 UAL（3D-BOX 方案第 10 节「3R」施工计划）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：施工计划 v1（只做核查与设计，不含实现）。基准 `origin/main @ d6e0c8140`。
 > 用户 10-07 拍板：**直接把导演台替换掉，不一点一点切换**（所以没有开关、没有并行版、无 fallback；旧工程靠读时迁移）。
 > 来源：`docs/plan/2026-10-04-director-3dbox-phase3.md` §10 的 3R + §1 第 7 条（默认角色 = Quaternius UAL CC0 + 原生 45 动作）；资产事实 `docs/plan/2026-10-04-director-3dbox-assets-a.md`、`docs/fixes/2026-10-04-director-assets-native-ual.root-cause.json`。

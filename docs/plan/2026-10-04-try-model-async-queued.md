@@ -1,5 +1,7 @@
 # 试跑碰上异步供应商：queued 不是失败（0.23.1 热修）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 设计卡（花钱类，9 格全填）。根因合同：`docs/fixes/2026-10-04-try-model-async-queued.root-cause.json`。
 
 ## 1. 用户怎么用

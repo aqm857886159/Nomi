@@ -1,5 +1,7 @@
 # Pending spend presentation epoch 设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：待决付费卡绑定 durable presentation identity。负责人：Nomi production-run 线。类别：花钱、长跑、可打断。
 
 ### 功能分类

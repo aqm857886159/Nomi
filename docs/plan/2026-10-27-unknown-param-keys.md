@@ -1,5 +1,7 @@
 # 模型写进 parameters 的未知键 · 设计卡 + 方向检查
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：模型写进 parameters 的「这个模型不认识的键」——每一扇写入门当场拒，不再有静默丢的路
 线/负责人：I-unknown-param-keys（Claude Sonnet）        类别：[花钱][Agent 行为]（不新增界面）

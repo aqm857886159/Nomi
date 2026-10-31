@@ -1,5 +1,7 @@
 # 付费卡只摆这一次还没定的镜头（不点名的范围）· 设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 日期：2026-10-27。线：I-shot-scope-undecided（实现）。基线：`origin/main` @ `6c05eebae`。
 类别：花钱（9 格全填，含 ★0）。来源：0.24 发版阻断项里的花钱错；协调调研「付费阻断项」第 2 节的门表与修法。
 **状态：已拍板，第 2 轮实现开工。** 用户 2026-10-27「五件都按推荐办」：选「换」，D1–D7 全取推荐项（§四）；热点文件放行，实现提交带 `Direction-Check: docs/plan/2026-10-27-shot-scope-undecided-direction-check.md`；D3 那两条 e2e 照新行为改，PR 正文写清改前 / 改后。本次 docs 提交按拍板补了 §三 合同细节、★2 门表、★9 清单（第 1 轮停在设计卡：要改的 `electron/capabilityCore/mcpGenerationTools.ts` 本身是热点，14 天内第 3 个 fix）。

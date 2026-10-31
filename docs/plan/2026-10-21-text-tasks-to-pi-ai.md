@@ -1,5 +1,7 @@
 # 文本任务整体迁到 pi-ai 单次调用，删掉 ai@4 文本栈
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 线 I-textmigrate · 2026-10-21 · 第一段（只出方案，未改产品代码）。用户 10-21 拍板：不打补丁，直接迁移。
 > 自写登记：`ai-sdk-text-stack`（`docs/engineering/self-written.json`，status `to-replace`）。
 > 复盘草稿约定放在 `D:/Nomi-coord-state/handoff/textstream-liveness/`，本线开工时该目录尚不存在，第二段提交的 `Direction-Check:` trailer 等它落地后指过去。
