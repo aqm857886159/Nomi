@@ -20,6 +20,7 @@ import { NEWAPI_VIDEO_CREATE_OP, NEWAPI_VIDEO_QUERY_OP } from "../../catalog/new
 import { deriveModelAvailability } from "../../shared/modelAvailability";
 import { parseCustomCapabilityContract, type CustomCapabilityContractV1 } from "../../shared/customCapabilityContract";
 import { relayDeclaration } from "../../../tests/ux/_relayVideoFixture.mjs";
+import type { OnboardingExit } from "./envelope";
 
 vi.mock("electron", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -34,9 +35,11 @@ vi.mock("electron", async (importOriginal) => {
   };
 });
 
-type Json = Record<string, any>;
-type ExitStep = { tool: string; arguments: Json };
-type Exit = { id: string; needsUserConfirmation: boolean; summary: string; steps: ExitStep[] };
+type Json = Record<string, unknown>;
+type Exit = OnboardingExit;
+type ExitStep = Exit["steps"][number];
+/** A tool reply read field by field: the assertions name what they need, and an absent field fails them. */
+type Reply = { ok: boolean; code: string; vendorKey: string; fingerprint: string; consequence: string; nextAction: string; conflicts: Array<{ modelKey: string }>; exits: Exit[]; state: { hasApiKey: boolean } };
 
 const MODEL = "opaque-gamma";
 const SIBLING = "sibling-video";
@@ -58,7 +61,7 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllEnvs(); fs.rmSync(root, { recursive: true, force: true }); });
 
-async function mcp(name: string, args: Json): Promise<Json> {
+async function mcp(name: string, args: Json): Promise<Reply> {
   const tool = MCP_TOOL_RESOLVER.resolve(name)!;
   expect(tool, `${name} is not on the tool surface`).toBeDefined();
   const invalid = validateToolArguments(tool.name, tool.inputSchema, args);
@@ -66,11 +69,11 @@ async function mcp(name: string, args: Json): Promise<Json> {
   const method = typeof (tool as { resolveMethod?: unknown }).resolveMethod === "function"
     ? (tool as { resolveMethod: (a: Json) => string }).resolveMethod(args)
     : tool.method;
-  return await dispatch(method, tool.build(args) as Json, { origin: { host: "codex" } } as never) as Json;
+  return await dispatch(method, tool.build(args) as never, { origin: { host: "codex" } } as never) as Reply;
 }
 
 const correctCard = (modelKeys: string[] = [MODEL]) => {
-  const card = relayDeclaration(origin) as Json;
+  const card = relayDeclaration(origin) as Json & { models: Json[] };
   card.models = modelKeys.map((modelKey) => ({ ...structuredClone(card.models[0]), modelKey, labelZh: modelKey }));
   return card;
 };
@@ -89,7 +92,7 @@ function seedConnection(input: { meta?: Json; rows?: Json[] } = {}) {
     tx.upsertMapping({ vendorKey: OTHER, modelKey: MODEL, taskKind: "text_to_video", name: "other", enabled: true, create: { method: "POST", path: "/other-connection" } });
     if (input.rows) {
       tx.upsertModel({ vendorKey: VENDOR, modelKey: MODEL, labelZh: MODEL, kind: "video", enabled: true, meta: input.meta ?? {} });
-      for (const row of input.rows) tx.upsertMapping({ vendorKey: VENDOR, modelKey: MODEL, name: "existing", enabled: true, ...row });
+      for (const row of input.rows) tx.upsertMapping({ vendorKey: VENDOR, modelKey: MODEL, name: "existing", enabled: true, ...row } as never);
     }
   });
 }
@@ -112,8 +115,8 @@ const bindingOf = (vendorKey: string) => (readCatalog().vendors.find((row) => ro
 const rowsOf = (vendorKey: string, modelKey = MODEL) => readCatalog().mappings.filter((row) => row.vendorKey === vendorKey && row.modelKey === modelKey);
 
 /** Run the steps exactly as returned; only the placeholders the reply says are placeholders get filled in. */
-async function walk(exit: Exit, card: Json, name = "Second connection"): Promise<Json[]> {
-  const results: Json[] = [];
+async function walk(exit: Exit, card: Json, name = "Second connection"): Promise<Reply[]> {
+  const results: Reply[] = [];
   let fingerprint = "";
   for (const step of exit.steps) {
     const args = structuredClone(step.arguments);
@@ -258,9 +261,9 @@ describe("a card naming several models", () => {
     const card = correctCard([MODEL, "second", "brand-new"]);
     const reply = await submit(card);
     expect(reply).toMatchObject({ ok: false, code: "route_conflict" });
-    expect(reply.conflicts.map((conflict: Json) => conflict.modelKey).sort()).toEqual([MODEL, "second"].sort());
+    expect(reply.conflicts.map((conflict) => conflict.modelKey).sort()).toEqual([MODEL, "second"].sort());
     const removal = reply.exits[0].steps.find((step: ExitStep) => step.tool === "nomi_remove_provider");
-    expect(removal.arguments.modelKeys.sort()).toEqual([MODEL, "second"].sort());
+    expect([...(removal!.arguments.modelKeys as string[])].sort()).toEqual([MODEL, "second"].sort());
     expect(readCatalog().models.some((row) => row.modelKey === "brand-new")).toBe(false);
     const keep = untouched();
     const results = await walk(reply.exits[0], card);
