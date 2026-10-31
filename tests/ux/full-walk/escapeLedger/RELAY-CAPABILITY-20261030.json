@@ -22,13 +22,17 @@
     "efa14d42d8d65df5d8e9c3768402835f0ff06248",
     "8b79097902573cf1efd6fe5502d0474afba6b6a5",
     "9366a2a652f33427b2a77fd3630e0cd05e3fcebd",
-    "de9ca150230b4964d80da45e1e3c1132caf4c114"
+    "de9ca150230b4964d80da45e1e3c1132caf4c114",
+    "4960e95d713431fc4ade12b33488f1ebfd6c2f81"
   ],
   "evidence": [
     "tests/relay-onboarding/contracts.test.mjs",
     "docs/plan/2026-10-30-relay-video-onboarding.md",
     "electron/catalog/declarationDurability.test.ts",
-    "electron/catalog/workflowCompleteReferences.test.ts"
+    "electron/catalog/workflowCompleteReferences.test.ts",
+    "electron/catalog/routeOwnershipMatrix.test.ts",
+    "electron/capabilityCore/modelOnboarding/routeConflictExit.test.ts",
+    "electron/providerAdapter/promotionRejection.integration.test.ts"
   ],
   "rootCauseContract": "docs/fixes/2026-10-30-relay-capability-projection.root-cause.json",
   "classCheck": {
