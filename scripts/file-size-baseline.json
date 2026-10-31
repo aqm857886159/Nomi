@@ -224,7 +224,7 @@
     "electron/productionRun/productionRunService.ts": {
       "kind": "frozen",
       "max": 965,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 965（2026-10-31：重新取回这条命令原样收进productionRetrievalRetry，行为不变）",
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 965（2026-10-31：重新取回这条命令原样收进productionRetrievalReopen，行为不变）",
       "topDeclarations": [
         {
           "name": "createProductionRunService",

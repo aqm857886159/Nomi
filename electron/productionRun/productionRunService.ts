@@ -29,7 +29,7 @@ import { assertCallerDeclaredTrustLevel, trustLevelFromApprovalPolicy } from './
 import { createGateApprovalOwner } from './productionRunApprovalReceipt'
 import { isAnchorCheckpointGate } from './anchorCheckpoint'
 import { kickBatchSchedulerForRun } from './batchSchedulerKick'
-import { retryJobRetrieval } from './productionRetrievalRetry'
+import { retryJobRetrieval } from './productionRetrievalReopen'
 import { renewDispatchConsent } from './productionDispatchConsentEdits'
 import { recoverStoryboardContentHashes } from './productionRunStoryboardHashRecovery'
 import type { ApprovalReceiptAuthority } from '../capabilityCore/approvalReceipt'

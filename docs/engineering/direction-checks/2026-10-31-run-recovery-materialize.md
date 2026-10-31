@@ -196,5 +196,5 @@
 |---|---|---|---|
 | `electron/capabilityCore/appIntegrationCanvasShot.ts` | 800 | 从账本读结果的四个小函数 | `electron/capabilityCore/canvasShotResult.ts` |
 | `electron/productionRun/productionGenerationSubmission.ts` | 冻结 842，下调到 838 | 把 job 补到产物的那两步（出口还是 `settleWithArtifact`） | `electron/productionRun/productionGenerationMaterialization.ts` |
-| `electron/productionRun/productionRunService.ts` | 冻结 973，下调到 965 | `job.retry_retrieval` 这一支的判断和写入（叫醒调度器留在原处） | `electron/productionRun/productionRetrievalRetry.ts` |
+| `electron/productionRun/productionRunService.ts` | 冻结 973，下调到 965 | `job.retry_retrieval` 这一支的判断和写入（叫醒调度器留在原处） | `electron/productionRun/productionRetrievalReopen.ts` |
 

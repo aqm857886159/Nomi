@@ -35,7 +35,7 @@
     "src/workbench/production/productionRunView.ts",
     "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
     "electron/capabilityCore/canvasShotResult.ts",
-    "electron/productionRun/productionRetrievalRetry.ts",
+    "electron/productionRun/productionRetrievalReopen.ts",
     "electron/productionRun/productionGenerationMaterialization.ts"
   ],
   "entry_points": [
@@ -78,7 +78,7 @@
     },
     {
       "kind": "write",
-      "path": "electron/productionRun/productionRetrievalRetry.ts",
+      "path": "electron/productionRun/productionRetrievalReopen.ts",
       "symbol": "reopenSingleShotRetrieval"
     },
     {
@@ -108,7 +108,7 @@
     },
     {
       "kind": "read",
-      "path": "electron/productionRun/productionRetrievalRetry.ts",
+      "path": "electron/productionRun/productionRetrievalReopen.ts",
       "symbol": "jobAwaitsRetrieval"
     },
     {
