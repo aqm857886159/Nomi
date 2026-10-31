@@ -185,7 +185,7 @@ export function retiredBoundaries(ledger) {
 export function retirementHasProof(row, { retiredAtRef, source }) {
   if (retiredAtRef.has(boundaryIdentity(row))) return true;
   const atRef = source();
-  let contract = null;
+  let contract;
   try { contract = JSON.parse(atRef.read(row.contract) ?? "null"); } catch { return false; }
   const declared = (Array.isArray(contract?.shared_boundaries) ? contract.shared_boundaries : [])
     .some((boundary) => boundary?.path === row.path && boundary?.symbol === row.symbol);
