@@ -94,7 +94,7 @@
 ## ★9 验收清单与反例（实现前合同）
 
 1. 三种视频协议、ID 清单/architecture/合法或未知 model_spec、无视频词别名、跨连接同名、清单缺模型手填：身份不丢，不误发 chat，未证明协议不标已生成验证。
-2. 新卡/认证晋升/重交卡/旧目录：相同能力事实；参数与引用槽不丢；只有带图能力的新模型不虚构 t2v；未知媒体不得 chat fallback。同一声明从两模式减为一模式时，原声明的旧模式不再可派发；其他模型与独立手写合同不受影响。
+2. 新卡/认证晋升/重交卡：相同能力事实；参数与引用槽不丢；只有带图能力的新模型不虚构 t2v；未知媒体不得 chat fallback。同一声明从两模式减为一模式时，原声明的旧模式不再可派发；其他模型与独立手写合同不受影响。（原文这一项还把“旧目录”列进来要求相同能力事实：**第 6 轮撤销**，升级时不动老模型，旧目录不被改投影，见本文末尾“第 6 轮”。）
 3. 创建/查询/结果完整：合法三段结果、仅字节结果与 JSON URL 均进资产库并真解码；纯文本字段 multipart 无参考文件也合法；内容回 HTML/JSON 错误、错误 MIME、损坏/超大/慢流/跨源 redirect、落盘失败/重启重取均保留原单，只 GET。控件最低参数与实发一致：1秒不能显示成默认5秒；分辨率必须可见。
 4. create 回包晚、断网、丢任务号；同意图重复调用、微改参数/卡、重启、多宿主并发：POST=1；明确新 attempt 才另算，不用 prompt hash 合并用户有意的第二次生成。此项由已有防重复线实现，本线不碰其文件。
 5. 旧显式 URL 合同、图/音频/文本/3D/工作流原行为保持；无能力证据则可见拒绝，不能向另一协议发第二次付费试探。
@@ -139,7 +139,7 @@
 2. **参数保真**：声明的 duration、resolution、比例及其他合法参数，其类型、选项、范围、默认值进入合同，Agent、画布控件及实发一致。1 秒不得显示为 5 秒；分辨率必须可见。不能表达的字段组合在目录事务写入前给出字段原因，事务失败不留半张卡。
 3. **声明整份替换**：两模式缩减为任一单模式，旧声明拥有的模式立即撤销，不再通过旧 mapping 或泛用路由派发。反向扩充与再次缩减均覆盖；别的模型、跨连接同名模型及独立手写合同保持。归属无法证明或用户已编辑的冲突明确拒绝，不能静默覆盖。
 4. **必需引用**：仅带图模式只有 i2v，单图必需槽 `min=1/max=1`，首帧进入已有输入位；未带图在 POST 前拒绝，带图恰好到声明的参数。不得虚构 t2v、尾帧、多图、音频或全能参考。
-5. **旧数据**：按原 active revision 恢复完整投影，限定 vendor/model/revision 归属、核对当前 wire 与用户编辑；幂等、重启可用，不再认证、不发 POST。找不到原卡、revision 损坏或形状表达不了时保留原记录并标“需要补充能力说明”，中英可见，不按名称借用档案。
+5. **旧数据**（**第 6 轮撤销**）：~~按原 active revision 恢复完整投影，限定 vendor/model/revision 归属、核对当前 wire 与用户编辑；幂等、重启可用，不再认证、不发 POST。找不到原卡、revision 损坏或形状表达不了时保留原记录并标“需要补充能力说明”，中英可见，不按名称借用档案。~~ 现役说法：升级时不动老模型，不恢复、不标缺失、不迁移；老行照常能用，不自动变准，要准确的参数条走 AI 重新交卡。对应验收见“第 6 轮”。
 6. **AI 路径验收**：Agent 交卡的真实处理函数为入口；两模式与仅带图两类 loopback 模型，从声明到既有画布。隔离资料、假凭据、不出网、不付费；中英分别截图参数、必需输入位和模型说明，截图逐张人工读取。真实大脑、线上服务、付费结果仍独立标 unverified。
 7. **旧行为与门岗**：显式 URL 合同、图/音频/文本/3D/工作流不改协议、不追加探测。四条本刀 `it.fails` 先改普通测试观察目标断言失败，修复后保留普通测试转绿。跑 schema-v3 checker、gates 和推送前快检，记录退出码与尾行；独立验收由协调安排。
 
@@ -149,22 +149,24 @@
 - 不透明 ID、撞内置档案名、跨 vendor 同名、切换语言：合同以声明为准，身份不变，不出现 chat。
 - i2v 缺 referenceParam、引用形状与 wire 不一致、参数默认值超界或不存在于选项：提交前带字段原因拒绝且无目录写入；不能靠默认参数或假参考图过关。
 - 先登记双模式、再独立改其中一条 wire 或能力合同、再重交卡：不能以“归属于旧声明”为由吞掉独立编辑。
-- 旧 revision 存在/缺失/损坏/属于别的连接或模型/未包含当前模式；重复启动；用户原有显式合同：只恢复可证明的缺失，不制造新能力，网络 POST=0。
+- （**第 6 轮撤销**，没有迁移了）~~旧 revision 存在/缺失/损坏/属于别的连接或模型/未包含当前模式；重复启动；用户原有显式合同：只恢复可证明的缺失，不制造新能力，网络 POST=0。~~ 对应反例改为：旧版本真实落的目录升级后，逐模型逐模式 POST=1，路径和请求体与主线一字不差，见“第 6 轮”。
 - 新卡提交包含一个有效模型和一个不可表达模型：整次事务拒绝，不能留下第一个模型或 vendor 的部分修改。
 
 ### 共享类型边界（协调 10-30 17:5x 裁定）
 
 第一刀使用现有 `AdapterModelDraft`、`AdapterModeDraft`、`CustomCapabilityContractV1`、`Mapping`，不修改 `HttpOperation`、multipart、结果响应类型。第二刀独占 wire 编码与结果类型，投影按完整操作对象传递，不能再另列白名单丢掉它新增的合法字段。单图引用先以现有 `referenceParam/referenceShape` 表达；超出既有表达力的形状明确拒绝，不加供应商分支。
 
-### 范围核对：旧目录迁移入口已归本刀
+### 范围核对：旧目录迁移入口已归本刀（第 6 轮撤销）
 
-静态追踪确认：目录加载经 `catalogStore.readCatalogShared → catalogMigrations.migrateCatalogForward`；原始 revision 保存在 `ProviderAdapterStore`，不在 `Model.meta`。现有六个独占文件没有覆盖这条加载与一次性迁移接线。只在登记/晋升里补投影不能修复从未再次交卡的旧模型；只在 Agent 说明里补也不会回到画布与派发。
+> **第 6 轮撤销**（用户 2026-10-31 裁定“升级时不动老模型”）：本节关于目录迁移的记录全部作废，代码已删——没有 `migrateDeclaredCapabilities`、`migrateStoredCatalog`、`readProviderAdapterRevisions`，没有“能力缺失”印记，目录版本不升（仍是 13）。现役说法见本文末尾“第 6 轮”。下面保留当时的记录，作废的句子加了删除线；仍然现役的只有：创建任务经过的 `taskParams.ts` 参数准备门调用共享能力断言，`executableModel.ts` 保持原样、已受理任务的查询不被拦，声明参数与引用的编译方式。
 
-要满足第 5 项，需协调分配一次性迁移与接线（至少 `electron/catalog/catalogMigrations.ts`，以及原始 revision 的只读供给与可见状态的既有出口；具体补充文件须先查清并认领）。若采用目录版本迁移，还涉及第二刀独占的 `electron/catalog/types.ts`。当前不越界改这些文件，不在共享纯读函数里偷读文件、改目录或只导出一个无人调用的迁移函数。实现前先交协调核定这段所有权。
+~~静态追踪确认：目录加载经 `catalogStore.readCatalogShared → catalogMigrations.migrateCatalogForward`；原始 revision 保存在 `ProviderAdapterStore`，不在 `Model.meta`。现有六个独占文件没有覆盖这条加载与一次性迁移接线。只在登记/晋升里补投影不能修复从未再次交卡的旧模型；只在 Agent 说明里补也不会回到画布与派发。~~
 
-协调已将 catalogMigrations.ts、catalogVersion.json、catalogStore.ts 的迁移接线及 store.ts 的只读 revision 供给归本刀；types.ts 仅目录版本联合那一行归本刀。modelAvailability.ts 增加 capability_incomplete 原因与缺失字段。Agent 模型说明负责引导重交；picker/i18n 留第三刀，故本刀不再以新增 UI 为前置。版本迁移幂等，至少验证原卡可恢复、原卡不可恢复、完整目录不变三类。派发前的拒绝按本次裁定落实；不改变已受理任务查询的模型解析。
+~~要满足第 5 项，需协调分配一次性迁移与接线（至少 `electron/catalog/catalogMigrations.ts`，以及原始 revision 的只读供给与可见状态的既有出口；具体补充文件须先查清并认领）。若采用目录版本迁移，还涉及第二刀独占的 `electron/catalog/types.ts`。当前不越界改这些文件，不在共享纯读函数里偷读文件、改目录或只导出一个无人调用的迁移函数。实现前先交协调核定这段所有权。~~
 
-第一刀实现接线核对：普通读取与启动种子均调用 migrateStoredCatalog（一次装配原始 revision 的同一入口）；不在纯迁移默认参数里读资料。为落实裁定中的“派发前按它拒发，拒发信息说清缺什么”，在创建任务经过的 taskParams.ts 参数准备门调用共享能力断言；executableModel.ts 保持原样，避免已受理任务查询被误拦，未改 runtime。声明参数与引用的旧平铺模板在投影时编译到现役 request.params 通道；每模式控件默认值同源生成 create.defaultParams，冲突在事务写入前拒绝。paramMap 的 from/fromMany 依赖复用 consumedCanonicalKeys，现有图片 multipart / JSON / chat carrier 继续走原线。
+~~协调已将 catalogMigrations.ts、catalogVersion.json、catalogStore.ts 的迁移接线及 store.ts 的只读 revision 供给归本刀；types.ts 仅目录版本联合那一行归本刀。~~ modelAvailability.ts 增加 capability_incomplete 原因与缺失字段（现在只对带归属记录、合同却解析不出的新交卡行出现）。Agent 模型说明负责引导重交；picker/i18n 留第三刀，故本刀不再以新增 UI 为前置。~~版本迁移幂等，至少验证原卡可恢复、原卡不可恢复、完整目录不变三类。~~ 派发前的拒绝按本次裁定落实；不改变已受理任务查询的模型解析。
+
+第一刀实现接线核对：~~普通读取与启动种子均调用 migrateStoredCatalog（一次装配原始 revision 的同一入口）；不在纯迁移默认参数里读资料。~~ 为落实裁定中的“派发前按它拒发，拒发信息说清缺什么”，在创建任务经过的 taskParams.ts 参数准备门调用共享能力断言；executableModel.ts 保持原样，避免已受理任务查询被误拦，未改 runtime。声明参数与引用的旧平铺模板在投影时编译到现役 request.params 通道；每模式控件默认值同源生成 create.defaultParams，冲突在事务写入前拒绝。paramMap 的 from/fromMany 依赖复用 consumedCanonicalKeys，现有图片 multipart / JSON / chat carrier 继续走原线。
 
 
 ### 第一刀第 3 轮：实现前 ★9 扩围合同（协调 23:5x）
@@ -183,7 +185,7 @@
 
 补三件的验收及反例：
 
-1. 原卡：登记同一目录事务保存本模型原始 modes/parameters、sources、omitted、openapi 等完整输入；输入对象之后被修改不影响耐久原文。原 revision 缺失仍能从保存卡恢复；无任何原文仍标能力缺失。整卡任一模型拒绝时，原卡与目录同回滚。反例：去掉原卡保存，恢复矩阵红；串模型或被独立修改的 wire 不覆盖。
+1. 原卡：登记同一目录事务保存本模型原始 modes/parameters、sources、omitted、openapi 等完整输入；输入对象之后被修改不影响耐久原文。~~原 revision 缺失仍能从保存卡恢复；无任何原文仍标能力缺失。~~（**第 6 轮撤销**这两句：原卡继续写，现在没有读者，用途是以后重交卡和向人解释。）整卡任一模型拒绝时，原卡与目录同回滚。~~反例：去掉原卡保存，恢复矩阵红；串模型或被独立修改的 wire 不覆盖。~~（恢复矩阵随迁移删除；独立修改的 wire 不被覆盖由归属判定表的测试守。）
 2. 中性参数：显式中性键经现役 paramMap 翻译为 wire；共用 consumedCanonicalKeys/wireReferencedParamKeys 的 paramConsistency 不变量覆盖声明与工作流，不只测固定三个维度。线缆别名不成为用户控件；已显示的控件没有消费路径必须在写入前拒绝。反例：duration 控件、wire 只读 seconds 且无翻译表，提交红且事务无写；合法翻译后请求中 1 秒/360p 与控件一致。工作流已登记的自有参数原键保真。
 3. 就绪：声明成功写现役 adapter.evidence=self-check，表示静态合同收下但未生成验证；现有未试跑读者能显示，Agent 模型说明同时明示未试跑。不伪造 media evidence，不改 try_model。反例：删 evidence 或冒写生成验证，矩阵红；失败声明没有就绪记录。
 4. 完整操作复制：已有 HttpOperation 整对象传递，不列字段白名单；用额外合法 mediaResponse 字段的投影保真测试核对第二刀兼容约定。
@@ -523,3 +525,51 @@ RSS预算64MiB未通过，取消预算1s通过。量具退出0表示采样完成
 
 1. 声明撤掉的模式被创建门先拦下：`assertDeclaredCapabilityForTask` 抛 `Declaration does not publish taskKind: …`，主线 `483057c9a` 为同一种情形加的测试在合并后红（`protocol.test.mjs > a model that only declared image-to-video…`）。声明不完整那一句同类。真窗实测：窗口开着时 AI 把文生撤掉，再点生成，0 次 POST、没有确认窗，卡上是「这次生成没有发出去，停在了这台电脑上」，列的原因是网络、密钥、素材，主按钮重试，重试还是这张卡；运行几秒内落成错误，不会卡死，刷新后目录是对的。画布这条路上提交箱会把这句包成 `submission_not_sent`，分类器看这个码在看文案之前，所以只改文案（比如前缀 `Model is not configured`）只修无界面路径，画布上还是这张卡；主线那句走画布按同一条包装链也是这张卡。带机器码 `model-config` 才两条路都指去模型接入。
 2. 中性键规则的提示走不通：拒绝信息让卡改用 `create.paramMap`，而交卡 schema 是严格的，不收这个键；接入套件自己的同步样例卡（参数键 `size`）照抄也被拒。直接让线缆字段读中性键可以过，但没有地方告诉 AI。
+
+## 第 6 轮：升级时不动老模型（用户 2026-10-31 裁定）
+
+补还是换：这是第一刀能力投影的第 6 轮，方向由用户亲自裁定。**这一轮是删，不是补。**
+
+### 裁定
+
+- **升级时不动老模型。** 老模型和 0.24.0 一模一样照常能用，不自动变准；想要准确的参数条，走 AI 重新交卡。目录版本不升（仍是 13），退回 0.24.0 时目录还能写。
+- **替换的过程中要考虑老用户的迁移。** 这是长期要遵守的一条：以后任何替换旧实现的改动，验收标准都包括老用户视角，用旧版本真实落下的数据，不用手写的形状。
+
+### 为什么
+
+第一刀带了一个目录迁移：升到 14 时用新的严格编译器去编旧 revision，编不过就盖“能力缺失”印记，盖了就不发布、不让发。最后一关验收用旧版本真实落的目录复现：
+
+| 旧目录 | 主线（`03c4c8fb3`） | 带迁移的分支头（`bd40dc0b5`） |
+|---|---|---|
+| 0.24.0 向导接的：图片 2 + 视频 3 | 5 行都在，都发请求 | 视频 3 行消失、被拒 |
+| 0.20.0 向导接的：图片 2 + 视频 3 | 5 行都在 | 5 行全消失 |
+| 0.24.0 开机体检切过原生报文：6 行 | 6 行都在 | 视频 4 行消失 |
+| 0.24.0 AI 交卡：1 行 | 在 | 消失 |
+| 0.24.0 向导接的音频：2 行 | 在 | 在 |
+
+向导重新验证也变差：主线上老视频行重新验证失败，老行照常能用；分支头上老行先被下架，验证失败后变成停用。根因复盘见 `docs/engineering/direction-checks/2026-10-31-relay-capability-old-models.md`。
+
+### 做了什么
+
+- 撤掉把 13 个走查夹具改成“写当前目录版本”的提交：它摘掉了唯一的报警。
+- 删迁移：`catalogMigrations.ts`、`catalogStore.ts`、`catalogVersion.json`、`types.ts`、`providerAdapter/store.ts` 与主线逐字一致；没有 `migrateDeclaredCapabilities`、`migrateStoredCatalog`、`readProviderAdapterRevisions`，没有“能力缺失”印记，登记和晋升也不再清它（没有发布过的版本写过它，不留清理代码）。
+- `missingDeclaredCapabilityFields` 只剩“有归属记录、写过媒体合同、但合同解析不出”那一支（新交卡的模型在设置里点了“恢复默认”的已知情况，没改）。
+- `derivePublishedExecution` 的合同过滤只管带归属记录的行（新交卡）。手写了半份合同（只写文生、路由还有图生）的老行按主线发布，不再丢图生。第一刀 ★9 第 3 项“声明整份替换”的现有测试不放宽。
+- `declarationSource`（登记时存下的原卡）继续写：原卡以后补不回来。现在只写不读，没有读者；它是以后重交卡和向人解释时用的原卡。
+- 真实旧目录进 CI：`tests/fixtures/old-user-data/`（五份旧版本真实函数落的目录和三个生成脚本，全是假 Key）和 `electron/catalog/upgradeKeepsWorkingModels.test.ts`；期望值从主线录，`expected.json` 里写着录自哪个提交。
+- 删掉迁移测试：`declaredCapabilityMigration.test.ts`，以及 `declarationDurability.test.ts` 里断言迁移的三条；`canvasRefusalCard.test.ts`、`routeConflictExit.test.ts` 去掉对印记的引用，断言不放松。
+
+### ★9 验收清单（第 6 轮）
+
+1. 五份旧目录加“手写半份合同”一格：每个模型在列表，已发布模式不少于主线，每个模式 POST=1，路径和请求体和主线录的一字不差。
+2. 上面五个文件和主线无差异；目录版本仍是 13，读旧目录不产生 `model-catalog.v13.bak.json`。
+3. 代码、概念登记、根因合同里没有 `declarationCapabilityIssue`、`migrateDeclaredCapabilities`、`migrateStoredCatalog`、`readProviderAdapterRevisions`（本文和方向检查页的历史说明除外）。
+4. 新交卡的路不变：新交卡相关的测试整组全绿，只删了上面点名的迁移测试。
+5. 三条老用户的路都有测试：什么都不做；向导重新验证老视频行失败（老行还在、还能发）；AI 重新交卡（第一次 `route_conflict` 且什么都没写，确认前老行照常 POST=1，走替换出口后新卡生效、别的模型不动、Key 还在）。
+6. 撤掉夹具改动的提交在历史里，走查夹具回到原样。
+
+反例（改坏 → 看红 → 按字节还原）：让 `missingDeclaredCapabilityFields` 对没有归属记录的老行也返回缺失字段；把发布过滤放回对所有带合同的行；`expected.json` 里改一个字；在 `catalogMigrations.ts` 里加回一步“给老行盖字段让它不发布”。
+
+### 已知限制
+
+老模型不会自动变准：参数条保持上一版的样子。要准确的参数条，让 AI 重新交一张卡；路由已经存在时它会先被拒、什么都不写，老模型继续发，确认替换后只重建这个模型，连接、Key、别的模型不动。其他遗留（新交卡的模型点“恢复默认”之后的状态、画布旧参数超出新卡范围、手写合同未发布行的提示文案）不在这一轮。
