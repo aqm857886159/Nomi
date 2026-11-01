@@ -11,7 +11,7 @@ import { approvalCommand, sha256Of } from './lib/coordApprovals.mjs'
 
 export const SCENARIO_DIR = 'tests/perf/scenarios'
 /** 可选的指标。登记表的 budget / baseline 对应 metrics[0]（主指标），其余指标只打印、不判。 */
-export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests', 'rssMiB', 'referenceRssMiB', 'heapUsedMiB', 'externalMiB', 'arrayBuffersMiB', 'transferMs', 'cancelMs', 'memoryGrowthRatio', 'blankCardPct', 'stallMonitorCpuMsPerSec', 'stallMonitorWakeupsPerSec', 'stallMonitorQuietWrites'])
+export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests', 'rssMiB', 'referenceRssMiB', 'heapUsedMiB', 'externalMiB', 'arrayBuffersMiB', 'transferMs', 'cancelMs', 'memoryGrowthRatio', 'blankCardPct', 'stallMonitorCpuMsPerSec', 'stallMonitorWakeupsPerSec', 'stallMonitorQuietWrites', 'probeOverheadMs', 'batchOverheadMs', 'probeBytesPerLink'])
 export const MIN_RUNS = 5
 /** 预算状态：proposed = 实现线提议、等安静窗口量完基线由协调定；approved = 已定。不写 = 已定（老条目）。 */
 export const BUDGET_STATUSES = Object.freeze(['proposed', 'approved'])

@@ -375,8 +375,8 @@
     },
     "electron/productionRun/productionGenerationSubmission.ts": {
       "kind": "frozen",
-      "max": 838,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-10-31：结果回执、取回错误、provider状态分组和把job补到产物原样收进productionGenerationMaterialization，行为不变）",
+      "max": 772,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-10-31：结果回执、取回错误、provider状态分组和把job补到产物原样收进productionGenerationMaterialization，行为不变）→ 772（2026-11-01：执行绑定的构造原样收进productionGenerationBinding，腾出位置给模型拒绝参考链接的记账，行为不变）",
       "topDeclarations": [
         {
           "name": "createProductionGenerationSubmission",
@@ -394,8 +394,8 @@
     },
     "electron/catalog/assetLocalization.ts": {
       "kind": "frozen",
-      "max": 853,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 850,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 850（2026-11-01：剪枝与去传输提示原样收进activeAssetPruning，腾出位置给「发链接还是传文件」的唯一决定点，行为不变）",
       "topDeclarations": [
         {
           "name": "resolveLocalAsset",

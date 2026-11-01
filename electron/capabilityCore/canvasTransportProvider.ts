@@ -24,6 +24,11 @@ export function isCanvasProviderId(providerId: string | undefined): boolean {
   return typeof providerId === "string" && providerId.startsWith(CANVAS_PROVIDER_PREFIX);
 }
 
+/** 这个 providerId 背后的**连接 key**：画布那台是 `canvas:<key>`，去掉前缀；目录引擎的 providerId 本来就是连接 key。 */
+export function vendorKeyOfProviderId(providerId: string): string {
+  return isCanvasProviderId(providerId) ? providerId.slice(CANVAS_PROVIDER_PREFIX.length) : providerId;
+}
+
 type CanvasTaskRequest = {
   kind: string;
   prompt: string;

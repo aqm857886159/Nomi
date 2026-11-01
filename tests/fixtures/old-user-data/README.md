@@ -18,6 +18,16 @@
 
 `via` 是这个请求怎么发的：`task` 是直接交一个任务；`canvas` 是图只能经档案的槽进请求的路由，用画布节点造的请求。写了 `unverified` 的模式不比对（要写明原因，并在 PR 里单列）；现在没有这样的模式。
 
+## 素材（`assets/`）
+
+升级前落在项目里的**生成素材**（文件 + 它的 `.meta`）同样用旧版本自己的真实函数落盘，不是手写的形状。`.meta` 里的 `originalUrl` 是服务商的临时链接，升级后「发链接还是传文件」的决定点读的就是它。
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `assets/v0.24.0-generated` | 0.24.0 | 在 0.24.0 的导出里跑 `generators/zzRefLinkGen.ts.txt`：真实的 `importRemoteAsset` 落一张生成图和它的 `.meta` | `manifest.json`（落盘后的相对路径与存下来的地址）、一张 PNG、它的 `.meta`（`originalUrl` 指向本机回环 `127.0.0.1:39017`，测试把它换成随机端口的假服务） |
+
+用法：`electron/catalog/referenceLinkDelivery.matrix.test.ts` 的「老用户升级后」一组把它拷进一个真项目，走活着、失效、超过 48 小时三种链接状态。升级本身不迁移任何东西（目录版本不变），所以这份夹具只证明：升级后的决定点读得懂旧 `.meta`，且请求和升级前一字不差。
+
 ## 怎么跑
 
 ```
@@ -27,7 +37,7 @@ pnpm exec vitest run electron/catalog/upgradeKeepsWorkingModels.test.ts
 ## 怎么给一个新版本补一份目录
 
 1. 把那个版本的源码导出到一个空目录：`git archive <tag> | tar -x -C <空目录>`，装好依赖（或链接现成的 `node_modules`）。
-2. 把 `generators/` 里要用的脚本复制进去，去掉 `.txt`，放到脚本里 import 的位置：`zzRelGen` 放 `electron/providerAdapter/zzRelGen.test.ts`；`zzRelNative`、`zzRelDeclared` 放 `electron/catalog/` 下。（这里存成 `.ts.txt`，是为了不被本仓的测试和类型检查收进去。）
+2. 把 `generators/` 里要用的脚本复制进去，去掉 `.txt`，放到脚本里 import 的位置：`zzRelGen` 放 `electron/providerAdapter/zzRelGen.test.ts`；`zzRelNative`、`zzRelDeclared` 放 `electron/catalog/` 下；`zzRefLinkGen`（素材，输出目录由 `V_OUT` 给）放 `electron/assets/zzRefLinkGen.test.ts`。（这里存成 `.ts.txt`，是为了不被本仓的测试和类型检查收进去。）
 3. 用 vitest 跑那一个文件，输出目录由环境变量给：`zzRelGen` 用 `V_REL_ROOT`（可选 `V_MODELS`：JSON 数组，每项 `{modelKey, labelZh, kind}`），`zzRelNative` 用 `V_REL_ROOT`（读）和 `V_OUT`（写），`zzRelDeclared` 用 `V_OUT`。地址必须是 `http://127.0.0.1:39017`，Key 必须是假的。
 4. 把输出目录整个放进 `catalogs/<版本>-<名字>/`。先跑 `pnpm run check:secrets`，被拦就停下，不要绕过。
 5. 在**干净的主线检出**（不是改动分支）上录 `expected.json`：设 `NOMI_RECORD_OLD_USER_DATA=<本目录的绝对路径>` 和 `NOMI_RECORD_COMMIT=<主线提交的完整 40 位>`，把测试文件放进那个检出的 `electron/catalog/`，只跑 `-t "saved by an older release"` 那一组。录不出「每个已发布模式只发一次 POST」，说明夹具或脚本错了，先查，不要放过。录完把放进去的测试文件删掉。

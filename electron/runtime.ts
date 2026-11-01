@@ -1,9 +1,9 @@
 import { profileMediaResponseHandler, profileMediaTaskResult, profileResponseReceipt } from "./capabilityCore/generationOutputMaterializer";
 import { revalidatePendingCredential } from './catalog/validateCandidateCredential';
 import crypto from "node:crypto";
-import { assertLocalAssetTransportReady, localizeAssetsForVendor } from "./catalog/assetLocalization";
+import { assertLocalAssetTransportReady } from "./catalog/assetLocalization";
 import { assertNoReferencesOutsideSubmit, stageSubmitsReferences } from "./catalog/referenceStage";
-import { assetIngestionResolver, assetLocalizationOptions } from "./catalog/assetTransportRuntime";
+import { assetIngestionResolver, assetLocalizationOptions, localizeForSend } from "./catalog/assetTransportRuntime";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "./assets/localAssetFile";
 import { writeAsset, writeGeneratedAsset, writeGeneratedDeterministicAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
@@ -213,13 +213,13 @@ export async function executeProfileOperation(input: {
   }
   if (input.operation.multipart) return runMultipartProfileOperation(input, (u, h, q, f) => requestMultipart(input.vendor, input.apiKey, u, h, q, f, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) }));
   const uploadCatalog = readCatalog();
-  const localized = stageSubmitsReferences(input.stage) ? await localizeAssetsForVendor(
+  const localized = stageSubmitsReferences(input.stage) ? await localizeForSend(
     input.request.extras,
     assetIngestionResolver(input.vendor, uploadCatalog, input.operation.assetIngestion),
     input.localAssetReader || readNomiLocalAsset,
     postJsonForAssetUpload,
     postMultipartForAssetUpload,
-    assetLocalizationOptions(input.request.extras),
+    assetLocalizationOptions(input.vendor, input.request.extras),
     putBinaryForAssetUpload,
   ) : { value: input.request.extras, uploaded: 0 };
   const effectiveInput = localized.uploaded > 0 ? { ...input, request: { ...input.request, extras: localized.value as TaskRequest["extras"] } } : input;
@@ -316,7 +316,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
         request.extras,
         assetIngestionResolver(vendor, uploadCatalog, mapping.create.assetIngestion),
         readNomiLocalAsset,
-        assetLocalizationOptions(request.extras),
+        assetLocalizationOptions(vendor, request.extras),
       );
     }
     const recipe = buildNormalizedRecipe({

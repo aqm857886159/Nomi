@@ -14,6 +14,7 @@ import { parseVendorErrorFromMessage, stripVendorErrorMarker, type VendorErrorSt
 import { parseTaskFailureMessage } from '../generationCanvas/runner/taskFailureMessage'
 import { shotClaimCopy } from './shotClaimCopy'
 import { isRetrievalStageCode, matchNomiErrorCode, stripNomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
+import { isReferenceFetchRefusal } from '../../../electron/shared/assets/referenceFetchRefusal'
 import { withoutIpcInvokeWrapper } from '../../../electron/shared/contracts/ipcInvokeFailure'
 import i18n from '../../i18n'
 
@@ -637,7 +638,8 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // 主进程的出站证据说「这次付费提交确定没离开本机」（结构化码 submission_not_sent，不认文案）。上面那几条更具体的
   // 本机拒绝（出网策略 / 凭据绑定 / 目录没配好）已经先判了；剩下的：连不上 → network（请求没发到服务商，查网络和代理），
   // 在本机就被拦下 → submission-not-sent。都排在一切「猜文案」的检测之前：这一类没有服务商参与，不许被说成服务商的失败。
-  if (structured?.code === 'submission_not_sent' && outboundCode !== 'asset-invalid') {
+  // 参考素材没送出去（读不到、传不上、太大）有自己更具体的卡，说得清下一步。
+  if (structured?.code === 'submission_not_sent' && outboundCode !== 'asset-invalid' && outboundCode !== 'asset-upload-failed' && outboundCode !== 'asset-too-large') {
     return reportFor(structured.reason === 'connect_failed' ? 'network' : 'submission-not-sent', cleanRaw, '')
   }
   // 缺可用文本大脑同样是**我们自己**的内部签名（服务商没被请求到）——归 model-config 报人话，
@@ -674,6 +676,12 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (outboundCode === 'asset-invalid') return reportFor('asset-invalid', cleanRaw, undefined)
   if (detectAssetTooLarge(cleanRaw)) return reportFor('asset-too-large', cleanRaw, undefined)
   if (detectAssetUploadFailed(cleanRaw)) return reportFor('asset-upload-failed', cleanRaw, undefined)
+  // 模型那一侧去拉参考图的临时链接、拉不到（过期 / 防盗链 / 地区限制）：失败在**链接**这一跳。必须先于 category 判——
+  // 这类报错常走 HTTP 400 / 422，会被派生成「参数不被接受·检查比例/尺寸」，把人带去改一个并没有错的参数。
+  // 判据与主进程记账共用一份（electron/shared/assets/referenceFetchRefusal）。服务商原话照给（上游真说过才有），完整报文在技术详情。
+  if (isReferenceFetchRefusal({ upstreamCode: structured?.upstreamCode, text: `${upstream ?? ''}\n${cleanRaw}` })) {
+    return reportFor('reference-unfetchable', cleanRaw, upstream)
+  }
   // 内容安全拦截先于 category 判——审核拒绝走 HTTP 400，会被派生成「参数不被接受·检查比例/尺寸」
   // 并配一个必然再撞的「重试」（理由见 detectContentModerationTarget）。
   const moderated = detectContentModerationTarget(upstream, cleanRaw)

@@ -20,6 +20,8 @@ import { retryLiftsStop } from '../productionRun/productionRunLifecycle'
 import { runStopReason } from '../shared/productionRunStop'
 import { NothingToResumeError, resumeOutlook } from '../productionRun/resumeOutlook'
 import { logError, logWarn } from '../logging/logger'
+import { authorizedReferenceUrls } from '../shared/productionSpendAuthority'
+import { reworkReferenceUrls } from './productionReferenceUrls'
 
 /** 这个 Run 现在驱动得起来吗；起不来是缺什么（与调度器构造同一份判断：appIntegration.submissionReadinessForRun）。 */
 export type ProductionDriverReadiness = 'ready' | 'provider_missing' | 'project_missing'
@@ -40,6 +42,8 @@ type ActionDeps = {
   landBeforeResume?: (projectId: string, runId: string) => Promise<{ allNotPlaced: boolean } | null>
   receiptAuthority?: ApprovalReceiptAuthority
   confirmGenerationInNomi?: (input: { challengeToken: string }) => Promise<unknown>
+  /** 返工前问「要不要换参考链接」（会等网络）。测试注入；缺省就是 reworkReferenceUrls。 */
+  reworkLinks?: typeof reworkReferenceUrls
 }
 
 /** 写项目记录时撞上的系统错误（磁盘满 / 只读 / 没有权限 / 被占用）：Node 给的是结构化的 errno 码，不是一句话。 */
@@ -140,14 +144,41 @@ export function createProductionActionHooks(deps: ActionDeps): {
   const reworkProductionShot = async (input: { projectId: string; runId: string; shotId?: string }): Promise<ProductionShotActionResult> => {
     const { projectId, runId, shotId } = input
     if (!deps.isProjectOpen(projectId)) return failed('run_not_open')
-    const read = readRun(deps, projectId, runId)
-    if ('code' in read) return read
-    let run = read
+    const before = readRun(deps, projectId, runId)
+    if ('code' in before) return before
     // 多镜批次里重做的是「这一镜」：没带镜头编号就不知道重做谁。
     if (!shotId) return failed('request_invalid')
     const receiptAuthority = deps.receiptAuthority
     const confirm = deps.confirmGenerationInNomi
     if (!receiptAuthority || !confirm) return failed('confirmation_unavailable')
+    if (!projectIdentity(projectId, deps.readProject(projectId))) return failed('project_unavailable')
+    let referenceUrls: Awaited<ReturnType<typeof reworkReferenceUrls>>
+    try {
+      // 沿用冻住的参考链接，还是重新换：只问同一条规则（拒绝过 / 冻住的链接明确失效才换），见 reworkReferenceUrls。
+      const contract = (before.generationPlan?.shots ?? []).find((candidate) => candidate.shotId === shotId)?.contract
+      referenceUrls = contract
+        ? await (deps.reworkLinks ?? reworkReferenceUrls)({
+          projectId,
+          providerId: contract.providerId,
+          references: contract.references,
+          frozen: authorizedReferenceUrls(before, contract.contractHash),
+          // 只认「这一镜的合同还是这一份」，不比版本号：批次里别的镜在跑，版本号随时会走（同 createGenerationReferenceScopeGuard）。
+          assertCurrent: () => {
+            const latest = deps.isProjectOpen(projectId) ? deps.generationService.repository.read(projectId, runId) : null
+            const current = latest?.generationPlan?.shots?.find((candidate) => candidate.shotId === shotId)?.contract
+            if (current?.contractHash !== contract.contractHash) throw new Error('generation_reference_scope_changed')
+          },
+        })
+        : undefined
+    } catch (error) {
+      return failedWith(error)
+    }
+    // 上面可能等了网络（试探最多 4 秒，换链接还要上传）：批次里别的镜、项目都可能往前走了。授权按等完之后的状态算，
+    // 不然一个跟这一镜无关的版本号变化就让重做白白失败。
+    if (!deps.isProjectOpen(projectId)) return failed('run_not_open')
+    const read = readRun(deps, projectId, runId)
+    if ('code' in read) return read
+    let run = read
     const record = deps.readProject(projectId)
     const identity = projectIdentity(projectId, record)
     if (!record || !identity) return failed('project_unavailable')
@@ -161,6 +192,7 @@ export function createProductionActionHooks(deps: ActionDeps): {
         providers: deps.readProviderBootstrap().providers,
         resolveShotPrice: deps.resolveShotPrice,
         now: new Date().toISOString(),
+        ...(referenceUrls ? { referenceUrls } : {}),
       })
       run = (await deps.generationService.command(projectId, runId, {
         commandId: `production-rework-authorize:${authorization.envelope.gateId}`,
