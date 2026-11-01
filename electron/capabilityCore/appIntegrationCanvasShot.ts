@@ -34,7 +34,7 @@ import {
   canvasLastResult,
   type CanvasTaskResult,
 } from "./canvasTransportProvider";
-import { failedResult, latestJob, readyArtifact, resultFromArtifact } from "./canvasShotResult";
+import { blockingReason, failedResult, latestJob, readyArtifact, resultFromArtifact } from "./canvasShotResult";
 import { freezeCanvasExecutionContract, type PlanCandidate } from "./executionContract";
 import type { GenerationProvider, GenerationProviderOutput } from "./generationRuntimeAdapter";
 import { mainProcessGateApproval } from "./runOwnedGenerationGateAuthority";
@@ -146,16 +146,6 @@ function coded(message: string, code: string, reason: string): Error {
 }
 
 /** 这个画布单镜 Run 是替哪个制作 Run 的哪一镜交的（建同意时记在来历里）。 */
-
-/** 同节点还有一笔没收尾：在路上的说「还在生成」，可能已扣钱、结果不明的说「先去核对」。 */
-function blockingReason(run: ProductionRun | null): "in_flight" | "needs_reconcile" | null {
-  if (!run) return null;
-  for (const job of run.jobs) {
-    if (job.status === "submission_unknown" || job.status === "reconciling") return "needs_reconcile";
-    if (job.status === "submit_intent_persisted" || productionJobPhase(job.status) === "generating") return "in_flight";
-  }
-  return null;
-}
 
 /** 批量卡上同意了、还没轮到交的那一镜：草稿、出价开着、这一镜还没决定、一笔作业都没有。 */
 function consentedDraft(run: ProductionRun | null): run is ProductionRun {

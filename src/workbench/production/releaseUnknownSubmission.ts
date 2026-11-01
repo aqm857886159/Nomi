@@ -1,3 +1,8 @@
+import React from 'react'
+import { withProjectAction } from '../project/projectCanvasReadSurface'
+import { productionRunApi } from './productionRunApi'
+import { productionMetaOf } from '../generationCanvas/model/productionMeta'
+import { confirmAndRunNode } from '../generationCanvas/runner/generationRunController'
 import { canvasUnknownRuns } from '../api/taskApi'
 import type { DesktopProductionRunBridge } from '../../desktop/productionRunBridgeTypes'
 import { deriveProductionShotState, productionShotIdForNode } from '../../../electron/shared/productionShotPhase'
@@ -65,4 +70,33 @@ export function nodeIdOfJob(
 /** Query at the moment of release; a failed newer click must not hide the original occupancy. */
 export async function releaseUnknownCanvasSubmissionsForNode(projectId: string, nodeId: string, api: ReleaseUnknownApi): Promise<void> {
   for (const entry of await canvasUnknownRuns({ projectId, nodeId })) await releaseUnknownSubmission(projectId, entry.runId, entry.jobId, api)
+}
+
+export function useUnknownSubmissionRelease(nodeId: string | undefined, meta?: Record<string, unknown>) {
+  const [confirming, setConfirming] = React.useState(false)
+  const [busy, setBusy] = React.useState(false)
+  const [failed, setFailed] = React.useState(false)
+  const inFlight = React.useRef(false)
+  const continueRelease = async () => {
+    if (!nodeId || inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    setFailed(false)
+    try {
+      await withProjectAction(async (project) => {
+        const runId = productionMetaOf({ meta })?.runId
+        const released = runId
+          ? await releaseUnknownSubmissionForNode(project.binding.projectId, runId, nodeId, productionRunApi)
+          : await releaseUnknownCanvasSubmissionsForNode(project.binding.projectId, nodeId, productionRunApi).then(() => true)
+        setConfirming(false)
+        if (released) await confirmAndRunNode(nodeId, { initiator: 'user' })
+      })
+    } catch {
+      setFailed(true)
+    } finally {
+      inFlight.current = false
+      setBusy(false)
+    }
+  }
+  return { confirming, busy, failed, open: () => setConfirming(true), cancel: () => { if (!inFlight.current) { setConfirming(false); setFailed(false) } }, continueRelease }
 }

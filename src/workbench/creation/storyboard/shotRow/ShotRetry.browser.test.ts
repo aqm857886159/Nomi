@@ -7,7 +7,8 @@ it('E3: retry can be clicked again after rejection/failure, while the same row r
   const { build } = createRequire(require.resolve('vite/package.json'))('esbuild')
   // These ports are unused by retry. Keep real FrameActions/FailureActions and their decision owner.
   const ports = [
-    { pattern: /NodeErrorReport$/, source: 'export const useUnknownSubmissionRelease=()=>({confirming:false,busy:false,failed:false}); export const UnknownSubmissionConfirmation=()=>null;' },
+    { pattern: /NodeErrorReport$/, source: 'export const UnknownSubmissionConfirmation=()=>null;' },
+    { pattern: /releaseUnknownSubmission$/, source: 'export const useUnknownSubmissionRelease=()=>({confirming:false,busy:false,failed:false});' },
     { pattern: /projectCanvasReadSurface$/, source: 'export const withProjectAction=()=>{};' },
     { pattern: /notificationPolicy$/, source: 'export const revealNotificationTarget=()=>{};' },
     { pattern: /recoverTaskActions$/, source: 'export const reopenRecoverableNode=()=>{};' },
@@ -23,7 +24,7 @@ it('E3: retry can be clicked again after rejection/failure, while the same row r
     window.retryStats=()=>calls; window.finishRetry=()=>finish(new Error('refused or failed again'));
     i18n.changeLanguage('en').then(()=>createRoot(document.getElementById('root')).render(<App/>));
   `, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, platform: 'browser', format: 'iife', define: { 'process.env.NODE_ENV': '"development"' },
-    plugins: [{ name: 'unused-recovery-ports', setup(build: { onResolve: Function; onLoad: Function }) {
+    plugins: [{ name: 'unused-recovery-ports', setup(build: { onResolve: (options: { filter: RegExp }, resolve: () => { path: string; namespace: string }) => void; onLoad: (options: { filter: RegExp; namespace: string }, load: (args: { path: string }) => { contents: string; loader: 'js' }) => void }) {
       for (const [index, port] of ports.entries()) build.onResolve({ filter: port.pattern }, () => ({ path: String(index), namespace: 'retry-port' }))
       build.onLoad({ filter: /.*/, namespace: 'retry-port' }, (args: { path: string }) => ({ contents: ports[Number(args.path)].source, loader: 'js' }))
     } }],

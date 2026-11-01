@@ -7,7 +7,7 @@ import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { ENV_KEY_VENDOR } from './_paidEnvKey.mjs'
 import { createRuntimeWalk, openCanvas } from './agent-runtime-walk-support.mjs'
 import { createGenerationLockExitProxy } from './_generationLockExitProxy.mjs'
-import { generationLockExitJourney } from './_generationLockExitSteps.mjs'
+import { generationLockExitJourney, LOCK_EXIT_BUILD_MARKERS } from './_generationLockExitSteps.mjs'
 
 // A partial rehearsal is not authorization to spend on an unfinished four-stage journey.
 const receiptPath = process.env.NOMI_LOCK_EXIT_REHEARSAL_RECEIPT
@@ -18,7 +18,7 @@ assert.deepEqual(rehearsal.report?.stages, ['storyboard', 'canvas', 'list', 'res
 const model = { vendorKey: ENV_KEY_VENDOR, modelKey: 'gpt-image-2' }
 let launchEnv
 const paid = await openPaidWalk('generation-lock-exit-real.paid.mjs', 'generation-lock-exit-real', [DEFAULT_PAID_BRAIN, model], {
-  buildMarkers: ['nomi:tasks:canvas-unknown-runs', 'This shot changed, so it was not submitted'],
+  buildMarkers: LOCK_EXIT_BUILD_MARKERS,
   hostedUploads: true,
   createWalk: (name, options) => { launchEnv = options.env; return createRuntimeWalk(name, { env: launchEnv }) },
 })

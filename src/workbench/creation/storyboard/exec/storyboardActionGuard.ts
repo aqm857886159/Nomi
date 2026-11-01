@@ -1,3 +1,7 @@
+import { withProjectAction } from '../../../project/projectCanvasReadSurface'
+import { isRunTargetLoaded, readRunProjectRecord } from '../../../generationCanvas/runner/runProjectDelivery'
+import { useWorkbenchStore } from '../../../workbenchStore'
+import type { RowActionContext } from './storyboardRowActions'
 import { stableProjectAgentJson } from '../../../../../electron/shared/legacyAgentJson'
 import { stableShotId, type StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import type { RunGraph } from '../../../generationCanvas/runner/runProjectDelivery'
@@ -50,3 +54,54 @@ export function createStoryboardActionGuard(input: {
   }
 }
 export type StoryboardActionGuard = ReturnType<typeof createStoryboardActionGuard>
+
+/** Construct a fresh project-bound action; the editor owns only table/row pending state. */
+export async function runStoryboardAction({ projectId, documentId, designId, plan, shotIds, action, unavailable, actionKey, activeKeys, onPendingChange, onStart, onFailure }: {
+  projectId?: string | null
+  documentId: string
+  designId: string
+  plan: StoryboardPlan
+  shotIds: readonly string[]
+  action: (context: RowActionContext) => Promise<unknown>
+  unavailable: () => never
+  actionKey: string
+  activeKeys: Set<string>
+  onPendingChange: (keys: ReadonlySet<string>) => void
+  onStart: () => void
+  onFailure: (error: unknown) => void
+}): Promise<unknown> {
+  if (activeKeys.has(actionKey)) return
+  activeKeys.add(actionKey)
+  onPendingChange(new Set(activeKeys))
+  onStart()
+  try {
+    return await withProjectAction(async project => {
+    project.assertCurrent()
+    if (projectId && project.binding.projectId !== projectId) throw new Error('Storyboard project changed')
+    project.assertCurrent()
+    const gesture = { source: 'user' as const, txnId: crypto.randomUUID(), canWrite: () => { project.assertCurrent(); return !project.signal.aborted } }
+    const actionGuard = createStoryboardActionGuard({ plan, designId, shotIds,
+      readPlan: async () => {
+        const designs = isRunTargetLoaded(project.binding)
+          ? useWorkbenchStore.getState().storyboardDesignsByDocumentId
+          : (await readRunProjectRecord(project.binding))?.payload.storyboardDesignsByDocumentId
+        return designs?.[documentId]?.find(value => value.id === designId)?.plan
+      },
+      writePlan: next => { project.assertCurrent(); useWorkbenchStore.getState().setStoryboardPlan(next, documentId, designId) },
+    })
+    const assertAuthorCurrent = actionGuard.assertAuthorCurrent
+    const assertCurrent = async () => {
+      project.assertCurrent()
+      await actionGuard.assertCurrent()
+      project.assertCurrent()
+    }
+    await assertCurrent()
+    return action({ documentId, designId, plan, gesture, assertCurrent, assertAuthorCurrent, actionGuard })
+    }, unavailable)
+  } catch (error) {
+    onFailure(error)
+  } finally {
+    activeKeys.delete(actionKey)
+    onPendingChange(new Set(activeKeys))
+  }
+}

@@ -12,9 +12,7 @@ import { setPendingCustomCallIntent } from '../../../ui/onboarding/customCallInt
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { generationFailureActions } from '../../observability/generationFailureActions'
-import { productionRunApi } from '../../production/productionRunApi'
-import { releaseUnknownSubmissionForNode, releaseUnknownCanvasSubmissionsForNode } from '../../production/releaseUnknownSubmission'
-import { confirmAndRunNode } from '../runner/generationRunController'
+import { useUnknownSubmissionRelease } from '../../production/releaseUnknownSubmission'
 import { narrateErrorActionLabel, narrateModelKind, type GenerationErrorAction } from '../../observability/narrate'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { CopyDetailsButton, ProviderMessageNote, TechnicalDetailsBlock, TechnicalDetailsToggle } from './NodeFailureDetails'
@@ -363,35 +361,6 @@ export function NodeErrorReport({
       </div>
     </div>
   )
-}
-
-export function useUnknownSubmissionRelease(nodeId: string | undefined, meta?: Record<string, unknown>) {
-  const [confirming, setConfirming] = React.useState(false)
-  const [busy, setBusy] = React.useState(false)
-  const [failed, setFailed] = React.useState(false)
-  const inFlight = React.useRef(false)
-  const continueRelease = async () => {
-    if (!nodeId || inFlight.current) return
-    inFlight.current = true
-    setBusy(true)
-    setFailed(false)
-    try {
-      await withProjectAction(async (project) => {
-        const runId = productionMetaOf({ meta })?.runId
-        const released = runId
-          ? await releaseUnknownSubmissionForNode(project.binding.projectId, runId, nodeId, productionRunApi)
-          : await releaseUnknownCanvasSubmissionsForNode(project.binding.projectId, nodeId, productionRunApi).then(() => true)
-        setConfirming(false)
-        if (released) await confirmAndRunNode(nodeId, { initiator: 'user' })
-      })
-    } catch {
-      setFailed(true)
-    } finally {
-      inFlight.current = false
-      setBusy(false)
-    }
-  }
-  return { confirming, busy, failed, open: () => setConfirming(true), cancel: () => { if (!inFlight.current) { setConfirming(false); setFailed(false) } }, continueRelease }
 }
 
 export function UnknownSubmissionConfirmation({ release }: { release: ReturnType<typeof useUnknownSubmissionRelease> }) {

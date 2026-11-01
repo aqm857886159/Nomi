@@ -1,3 +1,5 @@
+import { useGenerationQueueStore } from '../../../generationCanvas/runner/generationQueueStore'
+import { createStoryboardActionGuard } from './storyboardActionGuard'
 vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [] }))
 import { beforeEach, expect, it, vi } from 'vitest'
 import { runStoryboardBatch, regenerateShotRow, generateShotRow, generateAnchorCard } from './storyboardRowActions'
@@ -319,7 +321,6 @@ it('参考卡换成「只靠目录元数据认档案」的模型（自建中转 
 })
 
 it('A4 phase boundary writes refreshed references, rebases and derives current shot IDs without an editor effect', async () => {
-  const { createStoryboardActionGuard } = await import('./storyboardActionGuard')
   let current = { title: 'Phase', anchors: [{ id: 'actor', name: 'Actor', description: 'Actor', kind: 'character' as const, carrier: 'visual' as const }],
     shots: [1, 2].map(index => ({ index, shotId: `phase-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: 'Actor walks', modelVendor: 'kie', modelKey: 'seedance-2-5', modeId: 't2v' })) }
   const writePlan = vi.fn(next => { current = next })
@@ -343,7 +344,6 @@ it('A4 phase boundary writes refreshed references, rebases and derives current s
 })
 
 it.each(['shot', 'keyframe'] as const)('E4: an actual queued %s is excluded from the storyboard quote without relying on node.status', async step => {
-  const { useGenerationQueueStore } = await import('../../../generationCanvas/runner/generationQueueStore')
   const queue = useGenerationQueueStore
   queue.setState({ entries: [], batches: {} })
   const shot: PlanShot = { index: 1, shotId: 'queued-quote', shotKind: step === 'shot' ? 'image' : 'video', durationSec: 2, anchorIds: [], prompt: 'Door', ...(step === 'keyframe' ? { keyframe: { enabled: true } } : {}) }

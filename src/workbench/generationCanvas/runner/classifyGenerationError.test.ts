@@ -1330,7 +1330,7 @@ describe('generation lock exit D1/D2: local refusal is not a provider failure', 
       const report = classifyGenerationError(message)
       expect(report.kind).toBe('local-refusal')
       expect(report.primary).toBe('retry')
-      expect(report.reason).toBe(lang === 'en' ? 'This shot changed, so it was not submitted' : '这一镜的内容改过了，这次没发')
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.storyboardContentChanged'))
     }
     await i18n.changeLanguage('zh-CN')
   })

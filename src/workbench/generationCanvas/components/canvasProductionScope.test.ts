@@ -1,3 +1,5 @@
+import { isGenerationNodeBusy } from './canvasProductionScope'
+import { useGenerationQueueStore } from '../runner/generationQueueStore'
 import { describe, expect, it } from 'vitest'
 import { createGenerationNode } from '../model/graphOps'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -89,8 +91,6 @@ describe('canvas batch concurrency', () => {
 })
 
 it('E4: a queued idle node is busy and excluded from both group/list quotes', async () => {
-  const { useGenerationQueueStore } = await import('../runner/generationQueueStore')
-  const { isGenerationNodeBusy } = await import('./canvasProductionScope')
   useGenerationQueueStore.setState({ entries: [], batches: {} })
   const queued = node('queue-actual', 'image', 'idle')
   const batchId = useGenerationQueueStore.getState().enqueueBatch([[queued.id]], 'test-project')

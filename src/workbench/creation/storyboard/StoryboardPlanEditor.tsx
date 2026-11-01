@@ -44,9 +44,8 @@ import {
 } from './exec/storyboardRowActions'
 import { recoverNodeResult } from '../../generationCanvas/runner/recoverTaskActions'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
-import { createStoryboardActionGuard } from './exec/storyboardActionGuard'
+import { runStoryboardAction } from './exec/storyboardActionGuard'
 import { useGenerationQueueStore } from '../../generationCanvas/runner/generationQueueStore'
-import { isRunTargetLoaded, readRunProjectRecord } from '../../generationCanvas/runner/runProjectDelivery'
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
 import type { AssetRef } from '../../assets/assetTypes'
@@ -150,9 +149,9 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const videoModelOptions = useModelOptionsState('video', 'any-published').options
   const imageModelOptions = useModelOptionsState('image', 'any-published').options
   // 行内/批量生成的重入闸（生成本身异步、确认卡在别处；按钮点两下不重复 materialize）。
-  const [busy, setBusy] = React.useState(false)
   const actionKeys = React.useRef(new Set<string>())
   const [pendingActions, setPendingActions] = React.useState<ReadonlySet<string>>(new Set())
+  const busy = pendingActions.has('table')
   // 表上报的「勾选 = 选中」镜（表是唯一 owner，这里只是页脚入口读的镜像，不另存一份选择）。
   const [selectedRuntimes, setSelectedRuntimes] = React.useState<StoryboardRowRuntime[]>([])
   const [actionFeedback, setActionFeedback] = React.useState<{ designId: string | null; message: string } | null>(null)
@@ -349,48 +348,14 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const emptyPromptShots = new Set(visibleIssues.filter((i) => i.kind === 'empty-shot-prompt').map((i) => i.shotIndex))
   const noNameAnchorIds = new Set(visibleIssues.filter((i) => i.kind === 'anchor-no-name').map((i) => i.anchorId))
 
-  // 动作统一包一层：失败原因回当前方案（生成失败本身落在节点卡片，这里只兜 materialize/确认前异常）。
-  // 回调的返回值放宽成 `unknown`：这些执行口 2026-09-22 起会**回报结局**（用户同意 / 取消 /
-  // 没得跑，见 `generationRunOutcome.ts`），而编辑器这一侧是用户自己在点按钮——他自己知道点了什么，
-  // 不需要读那一格。要读它的是 Agent 那条路（`storyboardPresent.ts`）。
+  // 批量与单行分别去重；输入和项目核对交给共享动作守卫。
   const runAction = async (action: (context: RowActionContext) => Promise<unknown>, shotIds = rows.map(row => stableShotId(row.shot)), rowKey?: string): Promise<void> => {
-    const key = rowKey ?? 'table'
-    if (actionKeys.current.has(key)) return
-    actionKeys.current.add(key)
-    setPendingActions(new Set(actionKeys.current))
-    if (!rowKey) setBusy(true)
-    setActionFeedback(null)
-    try {
-      await withProjectAction(async project => {
-        project.assertCurrent()
-        if (projectId && project.binding.projectId !== projectId) throw new Error('Storyboard project changed')
-        project.assertCurrent()
-        const gesture = { source: 'user' as const, txnId: crypto.randomUUID(), canWrite: () => { project.assertCurrent(); return !project.signal.aborted } }
-        const actionGuard = createStoryboardActionGuard({ plan, designId, shotIds,
-          readPlan: async () => {
-            const designs = isRunTargetLoaded(project.binding)
-              ? useWorkbenchStore.getState().storyboardDesignsByDocumentId
-              : (await readRunProjectRecord(project.binding))?.payload.storyboardDesignsByDocumentId
-            return designs?.[activeDocumentId]?.find(value => value.id === designId)?.plan
-          },
-          writePlan: next => { project.assertCurrent(); useWorkbenchStore.getState().setStoryboardPlan(next, activeDocumentId, designId) },
-        })
-        const assertAuthorCurrent = actionGuard.assertAuthorCurrent
-        const assertCurrent = async () => {
-          project.assertCurrent()
-          await actionGuard.assertCurrent()
-          project.assertCurrent()
-        }
-        await assertCurrent()
-        await action({ ...execCtx, gesture, assertCurrent, assertAuthorCurrent, actionGuard })
-      }, () => { throw new Error(t('storyboardEditor.exec.actionFailed')) })
-    } catch (error: unknown) {
-      reportFailure(error instanceof Error && error.message ? generationFailureActions(error.message).reason : t('storyboardEditor.exec.actionFailed'))
-    } finally {
-      actionKeys.current.delete(key)
-      setPendingActions(new Set(actionKeys.current))
-      if (!rowKey) setBusy(false)
-    }
+    await runStoryboardAction({ ...execCtx, projectId, shotIds, action,
+      actionKey: rowKey ?? 'table', activeKeys: actionKeys.current, onPendingChange: setPendingActions,
+      onStart: () => setActionFeedback(null),
+      onFailure: error => reportFailure(error instanceof Error && error.message ? generationFailureActions(error.message).reason : t('storyboardEditor.exec.actionFailed')),
+      unavailable: () => { throw new Error(t('storyboardEditor.exec.actionFailed')) },
+    })
   }
 
   /**

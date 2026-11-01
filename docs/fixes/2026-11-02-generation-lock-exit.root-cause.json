@@ -52,7 +52,9 @@
     "src/workbench/observability/narrate.ts",
     "src/workbench/production/productionRunView.ts",
     "src/workbench/production/releaseUnknownSubmission.ts",
-    "src/workbench/production/useProductionStatus.ts"
+    "src/workbench/production/useProductionStatus.ts",
+    "electron/capabilityCore/canvasShotResult.ts",
+    "src/workbench/creation/storyboard/storyboardShotTableTypes.ts"
   ],
   "entry_points": [
     "StoryboardPlanEditor 的单卡、整批与放置",
@@ -81,11 +83,6 @@
     {
       "kind": "read",
       "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "assertAuthorCurrent"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
       "symbol": "assertAuthorCurrent"
     },
     {
@@ -705,7 +702,7 @@
     },
     {
       "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
       "symbol": "useUnknownSubmissionRelease"
     },
     {
@@ -1081,11 +1078,6 @@
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "createStoryboardActionGuard"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
       "symbol": "runStoryboardBatch"
     },
     {
@@ -1200,7 +1192,7 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
       "symbol": "useUnknownSubmissionRelease"
     },
     {
@@ -1216,21 +1208,6 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/NodeFailureReport.tsx",
-      "symbol": "confirmAndRunNode"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "releaseUnknownSubmissionForNode"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "releaseUnknownCanvasSubmissionsForNode"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
       "symbol": "confirmAndRunNode"
     },
     {
@@ -1362,11 +1339,66 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
       "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpModelDiscovery.ts",
+      "symbol": "blockingReason"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "blockingReason"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+      "symbol": "blockingReason"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/integrationSelfCheckOutcome.ts",
+      "symbol": "blockingReason"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/modelDiscovery.ts",
+      "symbol": "blockingReason"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "useUnknownSubmissionRelease"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "blockingReason"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "runStoryboardAction"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "useUnknownSubmissionRelease"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "releaseUnknownCanvasSubmissionsForNode"
     }
   ],
   "door_reduction": {
     "before": 13,
-    "after": 258,
+    "after": 264,
     "why_not": "三页和 Agent 的入口保留；重复方案快照、重复失败动作判断及列表原文显示已替换为共享 owner。门的文件数不等于判据份数。"
   },
   "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。",
@@ -1390,6 +1422,11 @@
       "path": "src/workbench/observability/generationFailureActions.ts",
       "symbol": "generationFailureActions",
       "responsibility": "三页共用任务来源、说明和安全重试决策。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "runStoryboardAction",
+      "responsibility": "现有分镜项目/批准守卫接收单行或整表 key，动作结束或拒绝都清 pending；整表 busy 从同一集合推导。"
     }
   ],
   "same_class_entry_points": [
@@ -1410,10 +1447,8 @@
     "classification": "recurring",
     "reason": "供应商、节点和入口都可能不同，但整方案快照与队列状态混用的机制相同。",
     "same_class_scan": [
-      "door-map assertAuthorCurrent: 8 doors",
-      "door-map nodeIdOfJob: 1 door",
-      "door-map releaseUnknownSubmission: 2 doors",
-      "door-map autoReferencePlan: 2 doors"
+      "node scripts/door-map.mjs assertAuthorCurrent nodeIdOfJob releaseUnknownSubmission autoReferencePlan NodeErrorReport storyboardFailureCopy: 14 doors",
+      "node scripts/door-map.mjs isGenerationNodeBusy canvasUnknownRuns releaseUnknownCanvasSubmissionsForNode generationFailureActions NodeFailureReport StoryboardFailureActions useUnknownSubmissionRelease runStoryboardAction blockingReason: 27 doors"
     ]
   },
   "prevention": {
@@ -1427,7 +1462,9 @@
       "src/workbench/generationCanvas/runner/generationRunController.ts",
       "src/workbench/observability/generationFailureActions.ts",
       "src/workbench/generationCanvas/nodes/NodeFailureReport.tsx",
-      "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx"
+      "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "src/workbench/production/releaseUnknownSubmission.ts",
+      "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts"
     ]
   },
   "regression_tests": [
@@ -1439,11 +1476,13 @@
     "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
     "src/workbench/observability/generationFailureActions.test.ts",
     "src/workbench/observability/generationFailureSurfaces.test.tsx",
-    "src/workbench/generationCanvas/components/canvasProductionScope.test.ts"
+    "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardActionPending.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
-    "src/workbench/observability/generationFailureSurfaces.test.tsx"
+    "src/workbench/observability/generationFailureSurfaces.test.tsx",
+    "src/workbench/creation/storyboard/exec/storyboardActionPending.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

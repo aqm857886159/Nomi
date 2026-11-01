@@ -138,3 +138,16 @@
 ### 收尾判据与合同的差异
 
 PR 判据把抽取复用的两个 tsx 文件当作新增界面，拒绝 pure-bugfix，另要求性能场景数字；合同却指定不新画卡、复用现有卡并以 pure-bugfix 交付。这里只停相应验收，不伪造拍板清单、性能数字或独立验收线编号，不修改门岗。列表恢复卡按 node.id 定义组件身份，避免切到另一节点继承上一节点的核对展开态；这是恢复状态的节点所有权，不新画界面。
+
+### 快检检出的职责与体积收口
+
+未放宽冻结体积上限。把编辑器的项目动作与按行 pending 收回已有 storyboardActionGuard；表 busy 从 pending 集合推导，删掉第二份 busy 状态。把表的类型契约从渲染器抽到领域类型文件。原样的 blockingReason 移到既有只读 canvasShotResult，准入和查询仍共用；不改 Run 规则。共享放行状态最终留在已有 releaseUnknownSubmission 动作 owner，NodeErrorReport 只导出确认界面，既无新 hook 文件，也无混合导出 lint 警告。
+
+新增触达 owner 的热点：
+
+```text
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · src/workbench/production/releaseUnknownSubmission.ts：目录 src/workbench/production/ 近 14 天已有 3 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 4 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
+```

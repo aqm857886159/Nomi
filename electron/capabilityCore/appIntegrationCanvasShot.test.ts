@@ -1,3 +1,4 @@
+import { createProductionRunService } from '../productionRun/productionRunService'
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -585,7 +586,6 @@ it('C2: the host identifies the original unknown Run after another click is refu
 })
 
 it('C7: v0.24.0 persisted unknown Run is found, survives a refused click, releases and submits once after upgrade', async () => {
-  const { createProductionRunService } = await import('../productionRun/productionRunService')
   const snapshot = path.resolve('tests/fixtures/old-user-data/runs/v0.24.0-canvas-unknown')
   const manifest = JSON.parse(fs.readFileSync(path.join(snapshot, 'manifest.json'), 'utf8'))
   expect(manifest.recordedFrom).toBe('9f3bb3c575058156690c0663a6c88a0b28dfa2a2')

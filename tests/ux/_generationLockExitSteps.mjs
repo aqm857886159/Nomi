@@ -8,7 +8,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-unknown-runs', 'This shot changed, so it was not submitted']
+export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-unknown-runs', uiText('en', 'generationCommon.observability.error.storyboardContentChanged')]
 export const LOCK_EXIT_SCRIPT = '清晨，林薇在旧书店找到一封信。她走到窗边，最后把信放在桌上。'
 const dialog = '[data-spend-confirm-dialog]'
 const timeout = stationTimeout({ turns: 1 })
