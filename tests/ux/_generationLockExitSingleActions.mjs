@@ -7,7 +7,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { switchGenerationView, collapseAgentPanel } from './_shell.mjs'
 import { prepareLockExitStoryboard } from './_generationLockExitSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
-import { waitForVisualQuiescence } from './_assert.mjs'
+import { expectAbsent, proveProbe, waitForVisualQuiescence } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
 /** Real clicks on all three single-card surfaces; the shared submitter alone owns deduplication. */
@@ -55,6 +55,11 @@ export async function singleActionsLockExitJourney(input) {
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(4)
     proxy.setLimit(5)
     const surfaces = ['storyboard', 'canvas', 'list']
+    const errorProbes = {}
+    for (const face of ['canvas', 'list']) {
+      const failed = await navigate(face, shots[0])
+      errorProbes[face] = await proveProbe(failed.locator('[role="alert"]'), `${face}: this shot has a real error card before retry`)
+    }
     for (let i = 0; i < surfaces.length; i++) {
       const surface = surfaces[i], target = shots[i], scope = await navigate(surface, target), before = proxy.records.length
       const label = surface === 'storyboard' ? t('storyboardEditor.frame.retryHint') : t('generationCommon.observability.action.retry.main')
@@ -67,7 +72,7 @@ export async function singleActionsLockExitJourney(input) {
         for (const face of surfaces) {
           const updated = await navigate(face, target)
           if (face === 'storyboard') { await page.locator('[data-storyboard-scroll]').evaluate(e => { e.scrollTop = 0 }); await expect(updated.locator('[data-storyboard-frame="done"]')).toBeVisible() }
-          else { await expect(updated.locator('[role="alert"]')).toHaveCount(0); await expect(updated.locator('img').first()).toBeVisible() }
+          else { await expectAbsent(updated.locator('[role="alert"]'), { provenBy: errorProbes[face] }); await expect(updated.locator('img').first()).toBeVisible() }
           await shot(`E9-${face}-same-result`)
         }
         assert.equal(proxy.records.length, before + 1, 'Switching surfaces after retry never resubmits')

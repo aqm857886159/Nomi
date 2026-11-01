@@ -27,7 +27,7 @@ const render = (element: React.ReactNode) => renderToStaticMarkup(<MantineProvid
 beforeEach(async () => { await i18n.changeLanguage('en'); useGenerationQueueStore.setState({ entries: [], batches: {} }) })
 afterEach(() => vi.restoreAllMocks())
 
-describe('every kind × all five failure surfaces', () => {
+describe('published generation error-kind matrix × all five failure surfaces', () => {
   it.each(GENERATION_ERROR_KINDS)('%s has one reason/retry answer and no dead end', (kind) => {
     const report = { kind, ...narrateGenerationError(kind), ...narrateGenerationErrorActions(kind), raw: 'Error invoking remote method: fixture', vendorSide: false }
     vi.spyOn(classifier, 'classifyGenerationError').mockReturnValue(report)

@@ -25,6 +25,6 @@
   "rootCauseContract": "docs/fixes/2026-11-02-generation-lock-exit.root-cause.json",
   "classCheck": {
     "kind": "matrix",
-    "file": "src/workbench/generationCanvas/runner/generationLockExit.test.ts"
+    "file": "src/workbench/observability/generationFailureSurfaces.test.tsx"
   }
 }
