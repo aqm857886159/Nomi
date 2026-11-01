@@ -1,0 +1,57 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "90bef5bb0",
+  "head": "90bef5bb0890b6659c8c348e3bd62de7a98a29f7",
+  "dirty": false,
+  "sourceTree": "7ac19d6b9337cde66fab509eb2d039c986068e3a",
+  "date": "2026-11-01",
+  "runs": 5,
+  "results": [
+    {
+      "id": "project-library-list",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 115.4,
+          "p95": 117
+        }
+      },
+      "samples": {
+        "openToInteractive": [
+          572,
+          575,
+          575,
+          582,
+          556
+        ],
+        "longTasks": [
+          1,
+          1,
+          1,
+          1,
+          0
+        ],
+        "response": [
+          104,
+          112.2,
+          116.3,
+          117.2,
+          115.4
+        ]
+      },
+      "budget": 300,
+      "baseline": {
+        "median": 799.8,
+        "p95": 837.1,
+        "runs": 5,
+        "machine": "win32 x64 13th Gen Intel(R) Core(TM) i9-13900H x20 / 64GB",
+        "date": "2026-10-16",
+        "commit": "94724f860"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

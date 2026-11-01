@@ -297,7 +297,6 @@
   "tests/ux/process-feedback.e2e.mjs": 2,
   "tests/ux/production-shot-claim.paid.mjs": 1,
   "tests/ux/production-stalled-draft.walk.mjs": 2,
-  "tests/ux/project-location-settings.walk.mjs": 2,
   "tests/ux/project-switch-background-run.walk.mjs": 2,
   "tests/ux/prompt-picker.walk.mjs": 1,
   "tests/ux/prompt-translate.walk.mjs": 6,

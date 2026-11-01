@@ -1,0 +1,39 @@
+{
+  "id": "USER-20261029-reopen-renamed-folder",
+  "since": "2026-10-29",
+  "source": "0.24.0 Windows 用户反馈（2026-10-29 转来）",
+  "category": "project-location",
+  "problem": "在资源管理器里给项目文件夹改名后项目从库里消失；用「打开已有文件夹」选改名后的文件夹，提示项目文件夹不存在。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "改名或挪走项目文件夹后，用「打开已有文件夹」选它，接上原来的项目"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1408,
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-29-project-location-owner.md",
+    "docs/plan/2026-10-29-project-location-owner.direction-check.md",
+    "docs/fixes/2026-10-29-project-location-owner.root-cause.json",
+    "docs/engineering/concept-owners/project.location.json",
+    "electron/projects/projectLocation.characterization.test.ts",
+    "electron/projects/projectLocation.matrix.test.ts",
+    "electron/projects/projectLocation.oldUser.test.ts",
+    "tests/ux/project-location-owner.walk.mjs",
+    "没实测：Windows 资源管理器里改名后重开，盘符和大小写由 path.win32 推导测试覆盖。"
+  ],
+  "completionCommits": [
+    "5628a820cbcb8ceae602e86c005940b9817693c9",
+    "bedd2833beb559379632c19959bfa0468f03c1ac"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-29-project-location-owner.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/projects/projectLocation.matrix.test.ts"
+  },
+  "prevention": "登记写入只剩 bindWorkspaceLocation(s)，入参不收项目记录，写不出抄清单旧路径；打开新目录时同一个项目 id 接上。"
+}

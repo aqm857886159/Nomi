@@ -40,6 +40,8 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/catalog/upgradeKeepsWorkingModels.test.ts', roots: ['tests/fixtures/old-user-data/catalogs'], exts: '*' },
   // The matrix reads the real old generated asset (+ its .meta) a past release wrote; a new directory must run the old-user rows before the push (under 10 s).
   { file: 'electron/catalog/referenceLinkDelivery.matrix.test.ts', roots: ['tests/fixtures/old-user-data/assets'], exts: '*' },
+  // 和 catalogs、assets 两行同形：每个版本新增一份真老用户数据（旧版本落盘的项目库），新目录推送前就跑老用户这组，不是到 CI 才红（<2 秒）。
+  { file: 'electron/projects/projectLocation.oldUser.test.ts', roots: ['tests/fixtures/old-user-data/projects'], exts: '*' },
   // ── electron/ 全树（遍历 electron 找违规文件）──
   { file: 'scripts/lib/buildInputRefScan.test.mjs', roots: ['src', 'electron'], files: ['vite.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'scripts/build-tailwind.mjs', 'scripts/build-electron.mjs', 'scripts/write-intake-config.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/package-build-stamp.mjs'] }, // 构建源码不许引用构建戳排除的路径（NON_INPUTS）；遍历 src + electron（<1 秒）
   { file: 'tests/system/async-signature-migration.test.mjs', roots: ['tests', 'electron', 'src', 'scripts'] }, // V-plibrary F3：同步改异步的函数，调用方（含 tests / 脚本）都要 await；遍历四个目录的源码（<1 秒）
