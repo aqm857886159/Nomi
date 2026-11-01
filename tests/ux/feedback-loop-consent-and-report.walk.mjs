@@ -4,7 +4,7 @@
 //      → **冷启动重开** App → 卡不再出现（用户拍板②：只问一次）。
 //   ② 规范入口（设置 → 关于 → 反馈）→ 卡 → 「查看」清单 → 发送 → 拿到编号。
 //   ③ **真失败面**：往素材库的真文件选择器丢一个策略拒收的文件（`.txt`，必被拒、不花钱）
-//      → 内联行出现「已跳过 1 个不支持的文件」→ 点那颗「反馈」→ 摘要行就是**那一句**
+//      → 内联行说这个文件认不得 → 点那颗「反馈」→ 摘要行就是**那一句**
 //      （不是兜底话）→ 发送 → 编号。这一条同时证明失败面那条路**没有设置外壳**。
 //
 // 两条纪律，都是踩过的坑：
@@ -16,18 +16,21 @@
 //     它跑在 127.0.0.1，所以 intakeEndpoint 的回环口子就是为这一刻留的。
 //
 // 用法: node tests/ux/feedback-loop-consent-and-report.walk.mjs
-// 产出: docs/evidence/2026-09-15-feedback-loop/*.png（人眼逐张看）
+// 产出: docs/evidence/2026-11-01-feedback-delivery/consent-and-report/*.png（人眼逐张看）
 import { createServer } from 'node:http'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { require as tsxRequire } from 'tsx/cjs/api'
 import { launchNomiApp } from './_launchApp.mjs'
 import { prepareIsolation, dismissSplashIfPresent } from '../../evals/lib/isoApp.mjs'
-import { screenshotSettled, expectVisible, expectHidden, clickOrFail } from './_assert.mjs'
+import { screenshotSettled, expectAbsent, expectVisible, expectHidden, clickOrFail, proveProbe } from './_assert.mjs'
+import { ensureAgentPanelOpen, newProjectEntry, openRailDrawer, openSettings, switchWorkspace } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const shotsDir = path.join(repoRoot, 'docs/evidence/2026-09-15-feedback-loop')
+const shotsDir = path.join(repoRoot, 'docs/evidence/2026-11-01-feedback-delivery/consent-and-report')
+const { zhAssetLibrary } = tsxRequire('../../src/i18n/locales/assetLibrary.ts', import.meta.url)
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
 
@@ -66,6 +69,11 @@ console.log(`  · local intake on http://127.0.0.1:${port}`)
 
 // 同一个隔离资料库跑两次启动 —— 「只问一次」只有跨启动才证明得了。
 const iso = prepareIsolation(path.join(os.tmpdir(), 'nomi-feedback-loop-walk'), { requireCatalog: false })
+const logsDir = path.join(os.tmpdir(), 'nomi-feedback-loop-walk', 'logs')
+fs.mkdirSync(logsDir, { recursive: true })
+const started = new Date()
+const today = [started.getFullYear(), String(started.getMonth() + 1).padStart(2, '0'), String(started.getDate()).padStart(2, '0')].join('-')
+fs.writeFileSync(path.join(logsDir, `nomi-${today}.log`), `[${started.toISOString()}] INFO  main           session-start version=walk\n`)
 async function launch(name) {
   const instance = await launchNomiApp({
     name,
@@ -74,6 +82,8 @@ async function launch(name) {
     projectsDir: iso.projectsDir,
     env: { ...intakeEnv, NODE_ENV: 'production' },
   })
+  // 日志路径不随 userData 走，不换就读到这台机器的真实日志。
+  await instance.app.evaluate(({ app }, dir) => app.setAppLogsPath(dir), logsDir)
   // 两次启动的收尾逐字相同，所以住在这里：抄两份的代价不是多几行，是其中一份悄悄漂掉。
   await dismissSplashIfPresent(instance.win)
   await instance.app.evaluate(({ BrowserWindow }) => {
@@ -94,33 +104,11 @@ async function seedLocale(win) {
   })
 }
 
-/** 打开一个项目并让右侧 Agent 面板的空态出现。 */
+/** 新建一个项目并让右侧 Agent 面板的空态出现（空库是动作卡、有项目时是右上角的钮，都经 newProjectEntry 找）。 */
 async function openAgentPanel(win) {
-  // 库页的那张卡写着「新建空白项目」——按真实文案找，别按脑补的「新建项目」找
-  // （`dead-selector` 那条教训：失效锚点会同时造出假红和假绿）。
-  const create = win.locator('button, [role="button"], [class*="cursor-pointer"]')
-    .filter({ hasText: /新建空白项目|Create a blank project|New blank project/i }).first()
-  if (await create.count()) await clickOrFail(create, '新建空白项目')
-  else failures.push('库页没有「新建空白项目」入口')
-
-  // **等的是「工作台起来了」这件事本身**，不是等一个固定秒数（check:test-waits 的判据）。
-  await win.locator('[data-v4-block], [data-agent-dock]').first().waitFor({ state: 'attached' }).catch(() => {})
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (await win.locator('[data-v4-block="empty"]').first().count()) break
-    // 面板可能是收起态：右侧那个 Nomi 入口点一下，然后等空态自己出现。
-    const toggle = win.locator('button, [role="button"]').filter({ hasText: /^\s*Nomi\s*$/ }).first()
-    if (await toggle.count()) await toggle.click().catch(() => {})
-    await win.locator('[data-v4-block="empty"]').first().waitFor({ state: 'attached' }).catch(() => {})
-  }
-  if (!(await win.locator('[data-v4-block="empty"]').first().count())) {
-    // 找不到就把现场量出来再报，别只说「没找到」（`assert-you-are-in-the-situation-you-claim`）。
-    const probe = await win.evaluate(() => ({
-      v4Blocks: [...document.querySelectorAll('[data-v4-block]')].map((node) => node.getAttribute('data-v4-block')),
-      agentDock: Boolean(document.querySelector('[data-agent-dock], [data-assistant-pane]')),
-      headings: [...document.querySelectorAll('h1,h2,button')].slice(0, 25).map((node) => (node.textContent || '').trim()).filter(Boolean),
-    }))
-    console.log(`  · probe ${JSON.stringify(probe)}`)
-  }
+  await clickOrFail(newProjectEntry(win), '新建项目')
+  await ensureAgentPanelOpen(win)
+  await expectVisible(win.locator('[data-v4-block="empty"]').first(), 'Agent 面板的空态应当出现')
 }
 
 let first
@@ -176,11 +164,7 @@ try {
     // 接一个假 key 的供应商。四者各是一条独立走查的量，硬塞进这一条只会让它变成
     // 「哪一步挂了都说不清」的长链。四处接线本身由类型（FeedbackSurface 联合）、
     // 单测与设计实验室那两格盯着；这一条走查盯的是**发送这条链真的通**。
-    const settingsButton = second.win.getByRole('button', { name: '设置', exact: true }).first()
-    await clickOrFail(settingsButton, '打开设置')
-    await second.win.waitForTimeout(1500)
-    await clickOrFail(second.win.getByRole('button', { name: '关于', exact: true }).first(), '切到「关于」')
-    await second.win.waitForTimeout(1200)
+    await openSettings(second.win, { tab: 'about', label: '打开设置 → 关于' })
     await shot(second.win, 'settings-about')
 
     // 关于页那一行写的是「反馈」（不是「反馈与分享」——那是它点进去之后的标题）。
@@ -206,19 +190,22 @@ try {
     if (!summary) failures.push('反馈卡应当自带一行摘要（用户零输入）')
     // 摘要是机器凑的：至少带上时间那一格。
     if (!/\d{2}:\d{2}/.test(summary)) failures.push(`摘要行应当含时间：${JSON.stringify(summary)}`)
-    // 内容默认不勾（用户拍板⑤）。
-    const contentChecked = await card.locator('input[type="checkbox"]').first().isChecked().catch(() => null)
-    if (contentChecked !== false) failures.push('「也附带提示词和文稿」默认不该勾上')
+    // 这个入口不在对话里，没有内容可带，所以没有那个勾（勾选框和默认不勾在 feedback-delivery.walk.mjs）。
+    await expectAbsent(card.locator('input[type="checkbox"]'), {
+      provenBy: await proveProbe(card.locator('[data-feedback-send]'), '这张卡渲染出来了'),
+      message: '不在对话里的入口不该有内容勾选框',
+    })
     await shot(second.win, 'feedback-card-idle')
 
     await clickOrFail(card.locator('[data-feedback-view]').first(), '点「查看」')
     await second.win.waitForTimeout(2000)
     const manifest = second.win.locator('[data-feedback-manifest]').first()
     await expectVisible(manifest, '「查看」应当展开清单')
-    const manifestText = await manifest.innerText().catch(() => '')
-    // 清单必须把「没带什么、为什么」也写出来（D4 诚实交付）。
-    if (!/never-collected-by-design/.test(manifestText)) failures.push('清单里应当写明永远不收的那几类及原因')
-    if (!/content-checkbox-not-ticked/.test(manifestText)) failures.push('没勾内容时清单里应当写明原因')
+    // 清单必须把「没带什么、为什么」也写出来（D4 诚实交付）。机器码在属性上，界面上是译文。
+    await manifest.locator('[data-feedback-why]').first().waitFor({ state: 'visible' }).catch(() => {})
+    const reasons = await manifest.locator('[data-feedback-why]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-feedback-why')))
+    if (!reasons.includes('never-collected-by-design')) failures.push('清单里应当写明永远不收的那几类及原因')
+    if (!reasons.includes('no-conversation-in-context')) failures.push('不在对话里时清单里应当写明内容为什么没带')
     await shot(second.win, 'feedback-manifest')
 
     await clickOrFail(second.win.locator('[data-feedback-send]').first(), '点「发送」')
@@ -240,6 +227,8 @@ try {
       // （密钥已抹，但供应商名与自建中转地址还在），而 docs/evidence/ 是要进 git 的。
       // 证据要能复核，但不该顺手把一份本机配置公开出去。
       const envelope = JSON.parse(posted.body)
+      const logTail = envelope.attachments?.['logs/tail.txt']
+      if (!Array.isArray(logTail) || logTail.length === 0) failures.push('接收端收到的包里应当有日志尾巴（线上 29 份全是空的）')
       fs.writeFileSync(path.join(shotsDir, 'posted-feedback.summary.json'), JSON.stringify({
         route: posted.url,
         authorizationScheme: String(posted.authorization || '').split(' ')[0],
@@ -262,17 +251,16 @@ try {
     await expectHidden(second.win.locator('[data-settings-tab-id]').first(), '设置弹窗应当关掉了')
 
     // 素材库住在**生成**面的左栏，不是创作面。先切过去。
-    await clickOrFail(second.win.getByRole('button', { name: '生成', exact: true }).first(), '切到生成面')
-    const assetRail = second.win.locator('button, [role="button"], [role="tab"]').filter({ hasText: /^\s*素材库\s*$/ }).first()
-    if (!(await assetRail.count())) failures.push('生成面左栏应当有「素材库」入口')
-    else await assetRail.click().catch(() => {})
+    await switchWorkspace(second.win, 'generation', '切到生成面')
+    await openRailDrawer(second.win, 'assets', '打开素材库')
 
     // **按 aria-label 精确拿素材库自己那个 <input type=file>**。页面上还有 composer 的附件
     // 输入框——按 `input[type=file]` 取 first 会喂到它那里去（`两个 file input` 那条教训，
     // 第一次跑就真撞了：txt 变成了 Agent 的附件，素材库毫无反应）。
-    const fileInput = second.win.getByLabel('素材文件选择器').first()
+    const fileInput = second.win.getByLabel(zhAssetLibrary.filePicker).first()
     await fileInput.waitFor({ state: 'attached' }).catch(() => {})
     const rejectedFile = path.join(os.tmpdir(), 'nomi-feedback-loop-rejected.txt')
+    const rejectionLine = zhAssetLibrary.rejectedUnsupportedUnknown.replace('{{name}}', path.basename(rejectedFile))
     fs.writeFileSync(rejectedFile, '这不是图片也不是视频，导入策略必须拒收它。\n')
     if (!(await fileInput.count())) failures.push('素材库里应当有真实的文件选择器')
     else await fileInput.setInputFiles(rejectedFile).catch((error) => failures.push(`喂文件失败：${error?.message}`))
@@ -292,7 +280,7 @@ try {
     }
     await expectVisible(rejectionRow, '导入被拒应当在常驻内联行上说出来')
     const rejectionText = (await rejectionRow.innerText().catch(() => '')).trim()
-    if (!/不支持/.test(rejectionText)) failures.push(`内联行应当说清是被拒了：${JSON.stringify(rejectionText)}`)
+    if (!rejectionText.includes(rejectionLine)) failures.push(`内联行应当说清是被拒了：${JSON.stringify(rejectionText)}`)
     // 码也露在 DOM 上（给走查和分诊用，不是给用户读的）。
     const rejectionCode = await second.win.locator('[data-asset-library-rejection]').first()
       .getAttribute('data-asset-library-rejection').catch(() => null)
@@ -305,7 +293,7 @@ try {
 
     // ① 摘要行必须是**那一句真话**，不是兜底的「这一步没成功」。
     const failureSummary = (await card.locator('[data-feedback-summary]').first().innerText().catch(() => '')).trim()
-    if (!/不支持/.test(failureSummary)) failures.push(`摘要应当派生自导入被拒那句人话，实际：${JSON.stringify(failureSummary)}`)
+    if (failureSummary !== rejectionLine) failures.push(`摘要应当派生自导入被拒那句人话，实际：${JSON.stringify(failureSummary)}`)
     if (/这一步没成功/.test(failureSummary)) failures.push('摘要落到了兜底话——说明调用处没把 summary 传进来')
 
     // ② 从失败面进来时**不许套设置外壳**（用户 09-15 看截图时点出来的那条）。
@@ -332,7 +320,7 @@ try {
       const envelope = JSON.parse(postedFailure.body)
       if (envelope.context.surface !== 'import') failures.push(`surface 应当是 import，实际 ${envelope.context.surface}`)
       if (envelope.context.errorCode !== 'asset-import-unsupported') failures.push(`errorCode 应当是 asset-import-unsupported，实际 ${envelope.context.errorCode}`)
-      if (!/不支持/.test(String(envelope.context.summary))) failures.push(`报文里的摘要应当是那句真话，实际 ${envelope.context.summary}`)
+      if (envelope.context.summary !== rejectionLine) failures.push(`报文里的摘要应当是那句真话，实际 ${envelope.context.summary}`)
       fs.writeFileSync(path.join(shotsDir, 'posted-feedback-import.summary.json'), JSON.stringify({
         route: postedFailure.url,
         context: envelope.context,
@@ -341,8 +329,8 @@ try {
     }
     fs.rmSync(rejectedFile, { force: true })
 
-    console.log(`PASS: feedback loop walk; ${shotNumber} shots → ${path.relative(repoRoot, shotsDir)}`)
     if (failures.length) throw new Error(failures.join('; '))
+    console.log(`PASS: feedback loop walk; ${shotNumber} shots → ${path.relative(repoRoot, shotsDir)}`)
   } finally {
     await second.app.close().catch(() => undefined)
   }
