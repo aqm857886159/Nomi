@@ -1314,3 +1314,24 @@ describe('模型取不到参考图（reference-unfetchable）', () => {
     expect(classifyGenerationError('素材上传失败：a.png（1MB）的所有上传通道都没成功，所以还没请求这次选的服务商。').kind).toBe('asset-upload-failed')
   })
 })
+
+
+describe('generation lock exit D1/D2: local refusal is not a provider failure', () => {
+  it.each(['node_generation_in_flight', 'canvas_consent_predates_upgrade', 'director_preview_blocked', 'production_shot_claimed', 'generation_input_changed', 'storyboard_content_conflict'])('%s has one local kind and truthful actions', code => {
+    const report = classifyGenerationError(encodeStructuredErrorMessage({ code, ...(code === 'production_shot_claimed' ? { reason: 'needs_reconcile' } : {}) }, code))
+    expect(report.kind).toBe('local-refusal')
+    expect(report.vendorSide).toBe(false)
+    expect(report.primary).toBe(code === 'production_shot_claimed' ? 'reconcile' : ['canvas_consent_predates_upgrade', 'generation_input_changed', 'storyboard_content_conflict'].includes(code) ? 'retry' : 'view-task')
+    if (code === 'production_shot_claimed') expect(report.secondary).toBe('release-regenerate')
+  })
+  it.each(['generation_input_changed', 'storyboard_content_conflict', 'Storyboard target changed'])('legacy string %s retains the content-change protection in both languages', async message => {
+    for (const lang of ['zh-CN', 'en']) {
+      await i18n.changeLanguage(lang)
+      const report = classifyGenerationError(message)
+      expect(report.kind).toBe('local-refusal')
+      expect(report.primary).toBe('retry')
+      expect(report.reason).toBe(lang === 'en' ? 'This shot changed, so it was not submitted' : '这一镜的内容改过了，这次没发')
+    }
+    await i18n.changeLanguage('zh-CN')
+  })
+})

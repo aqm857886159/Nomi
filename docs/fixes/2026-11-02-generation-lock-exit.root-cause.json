@@ -41,10 +41,76 @@
     "quota 和 local-refusal 不计刹车，本机拒绝不损害模型健康。",
     "结果不明只在真人核对放行之后走原有付费入口。"
   ],
-  "doors": [],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "nodeIdOfJob"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "releaseUnknownSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "releaseUnknownSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/storyboardReuse/storyboardReuseFixtures.ts",
+      "symbol": "autoReferencePlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "autoReferencePlan"
+    }
+  ],
   "door_reduction": {
-    "before": 0,
-    "after": 0,
+    "before": 13,
+    "after": 13,
     "why_not": "不同界面入口仍需存在，但编辑器和 Agent 将共用动作守卫；runner、通知重试和人工释放各有职责，不复制提交逻辑。"
   },
   "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。",
@@ -126,8 +192,15 @@
   },
   "migration": "不改变 Run、节点、方案或队列的数据格式。旧字符串错误重新分类；真实旧版 Run 需要升级出口证据。",
   "residual_risks": [
-    "未实现与未验收部分按设计卡逐项记录；Windows 与真付费由协调后续验证。"
+    "Blocked at D3/C1→C2: a refused new click replaces node.runs[0].id before host admission, but the host retains only the original unknown Run. The release target ownership requires a contract decision.",
+    "D1–D4 implementation, real-window walks, old-version replay and counterexamples are not complete. Windows and paid verification remain outside this line."
   ],
   "detected_by": "user",
-  "recurrence_check_on": "2026-11-09"
+  "recurrence_check_on": "2026-11-09",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "tests": [
+      "src/workbench/generationCanvas/runner/generationLockExit.test.ts"
+    ]
+  }
 }

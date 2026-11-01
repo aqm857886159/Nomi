@@ -1,0 +1,24 @@
+{
+  "id": "USER-20261102-generation-lock-exit",
+  "since": "2026-11-02",
+  "source": "用户反馈批量生成错误后卡住且重启仍卡；公开条目仅记录现象。",
+  "category": "interaction-semantics",
+  "problem": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/plan/2026-11-02-generation-lock-exit.md",
+    "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
+    "现有主进程测试确认结果不明后再次点击不会建立第二个画布 Run；renderer 的 runs[0] 却已换号。修复合同需先明确释放目标的权威来源。"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-11-02-generation-lock-exit.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/runner/generationLockExit.test.ts"
+  }
+}

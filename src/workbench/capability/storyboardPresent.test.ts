@@ -143,3 +143,31 @@ it('passes a persistent source check separately from the foreground materializat
   editPlan(next => { next.shots[0].prompt = 'changed source after approval' })
   await expect(guards.assertAuthorCurrent()).rejects.toThrow('storyboard_content_conflict')
 })
+
+
+it('A10: another shot changing during preload does not invalidate this shot approval', async () => {
+  calls.preload.mockImplementationOnce(async () => { editPlan(next => { next.shots[1].prompt = 'Another shot changed' }); return [] })
+  await expect(presentStoryboard(input(['shot-1']))).resolves.toMatchObject({ decision: 'started' })
+})
+it('A9: runtime author validation targets only the executing node, including first frames', async () => {
+  await presentStoryboard(input(['shot-1', 'shot-2']))
+  const guards = calls.confirm.mock.calls[0][1]
+  const nodes = shotNodes()
+  editPlan(next => { next.shots[1].prompt = 'Changed while queued' })
+  await expect(guards.assertAuthorCurrent({ nodes, edges: [] }, nodes.find(n => n.meta?.shotId === 'shot-1')!.id)).resolves.toBeUndefined()
+  await expect(guards.assertAuthorCurrent({ nodes, edges: [] }, nodes.find(n => n.meta?.shotId === 'shot-2')!.id)).rejects.toThrow('storyboard_content_conflict')
+})
+it('A5: Agent explicitly refreshes reference images and modes between anchor and shot phases without an editor', async () => {
+  editPlan(next => {
+    next.anchors = [{ id: 'actor', kind: 'character', carrier: 'visual', name: 'Actor', description: 'Actor' }]
+    next.shots = next.shots.map(s => ({ ...s, anchorIds: ['actor'], prompt: 'Actor walks', modelKey: 'seedance-2-5', modeId: 't2v' }))
+  })
+  calls.single.mockImplementation(async (_id, guards) => {
+    const id = await guards.deferredMaterialization.materialize()
+    useGenerationCanvasStore.getState().addNodeResult(id, { id: 'ready-actor', type: 'image', url: 'https://fixture.invalid/actor.png', createdAt: 1 })
+    return 'started'
+  })
+  await presentStoryboard({ projectId: 'p', designId: 'run', sourceDocumentId: 'doc' })
+  expect(design().plan.shots.every(s => s.prompt.includes('https://fixture.invalid/actor.png'))).toBe(true)
+  expect(design().plan.shots.every(s => s.modeId === 'omni')).toBe(true)
+})

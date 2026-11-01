@@ -26,3 +26,10 @@ describe('releaseUnknownSubmission', () => {
     expect(nodeIdOfJob({ generationPlan: { nodeId: 'single' } }, {})).toBe('single')
   })
 })
+
+
+it('C4: canvas runs find their node through origin, retaining production and legacy mappings', () => {
+  expect(nodeIdOfJob({ origin: { nodeId: 'canvas-node' } } as never, {})).toBe('canvas-node')
+  expect(nodeIdOfJob({ generationPlan: { nodeId: 'production-node' } }, {})).toBe('production-node')
+  expect(nodeIdOfJob({}, { nodeId: 'legacy-node' })).toBe('legacy-node')
+})
