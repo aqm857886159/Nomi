@@ -12,6 +12,9 @@
 //   pnpm run intake:radar            增量拉 + 算 + 写报告 + 打摘要
 //   NOMI_CF_ACCOUNT_ID=... pnpm run intake:radar   跳过 `wrangler whoami` 那一步
 //   NOMI_INTAKE_CACHE=<dir> pnpm run intake:radar  换缓存目录（默认见 store.mjs）
+//   pnpm run intake:radar -- --triaged NF-1101-0001 NF-1101-0002 --todo <待办号或说明>   这几条记进待办了，出账
+//   pnpm run intake:radar -- --triaged-through 2026-10-31 --todo <待办号或说明>          这天及更早的全部出账
+//   （出账只改本机的账，不联网、不要凭据。）
 //
 // 凭据：本机 wrangler 登录态里的 oauth_token，**只在内存里过一遍，从不打印、不落盘**
 //      （见 lib/intake-radar/cloudflare.mjs）。账号 id 与 token 都不写进仓库、不进报告。
@@ -22,7 +25,8 @@
 import { fileURLToPath } from 'node:url'
 import { INTAKE_PREFIXES, resolveCredentials, listAllKeys, getObjectBuffer } from './lib/intake-radar/cloudflare.mjs'
 import { resolveCacheDir, readState, writeState, rawFileExists, writeRawFile, listRawRecords, writeReport } from './lib/intake-radar/store.mjs'
-import { buildIntakeReport } from './lib/intake-radar/aggregate.mjs'
+import { buildFeedbackItems, buildIntakeReport } from './lib/intake-radar/aggregate.mjs'
+import { readInbox, reconcileInbox, triageInbox, untriagedItems, writeInbox } from './lib/intake-radar/inbox.mjs'
 import { renderMarkdown, renderTerminalSummary } from './lib/intake-radar/render.mjs'
 
 /**
@@ -77,11 +81,20 @@ export async function run({
   }
   state.lastRunAt = nowIso
   state.lastRunOk = true
-  writeState(cacheDir, state)
 
   const feedback = listRawRecords(cacheDir, 'feedback/')
   const events = listRawRecords(cacheDir, 'events/')
   const trajectories = listRawRecords(cacheDir, 'trajectories/')
+
+  // 先记账再写 state、再写报告：哪一步之后被杀掉，下一轮都还能从缓存把账补齐，新反馈漏不掉。
+  const inbox = reconcileInbox(readInbox(cacheDir), {
+    feedbackItems: buildFeedbackItems(feedback.records),
+    corruptKeys: feedback.corrupt.map((file) => file.key),
+    seenKeys: state.seenKeys,
+    nowIso,
+  })
+  writeInbox(cacheDir, inbox)
+  writeState(cacheDir, state)
 
   const report = buildIntakeReport({
     feedbackRecords: feedback.records,
@@ -91,6 +104,7 @@ export async function run({
     newEventKeys: newKeysByPrefix['events/'],
     corruptFiles: [...feedback.corrupt, ...events.corrupt, ...trajectories.corrupt],
     generatedAt: nowIso,
+    inbox,
     healthOptions: {
       ...(env.NOMI_HEALTH_NEW_VERSION ? { newVersion: env.NOMI_HEALTH_NEW_VERSION } : {}),
       ...(env.NOMI_HEALTH_OLD_VERSION ? { oldVersion: env.NOMI_HEALTH_OLD_VERSION } : {}),
@@ -98,13 +112,75 @@ export async function run({
     },
   })
 
-  const { mdPath, jsonPath } = writeReport(cacheDir, report.generatedAt.slice(0, 10), { markdown: renderMarkdown(report), json: report })
+  const { mdPath, jsonPath } = writeReport(cacheDir, report.generatedAt, { markdown: renderMarkdown(report), json: report })
   log(renderTerminalSummary(report, { mdPath, jsonPath }))
   return report.versionHealth.stop ? 1 : 0
 }
 
+/** 命令行参数。pnpm 可能把 `--` 原样传下来，认不出的不猜，交给调用方报错。 */
+export function parseTriageArgs(argv) {
+  const args = argv.filter((arg) => arg !== '--')
+  const options = { ids: [], through: null, todo: null, unknown: [] }
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]
+    if (arg === '--triaged') {
+      while (args[index + 1] && !args[index + 1].startsWith('--')) options.ids.push(args[(index += 1)])
+    } else if (arg === '--triaged-through') {
+      options.through = args[(index += 1)] ?? ''
+    } else if (arg === '--todo') {
+      options.todo = args[(index += 1)] ?? ''
+    } else {
+      options.unknown.push(arg)
+    }
+  }
+  return options
+}
+
+/**
+ * 出账：这几条已经记进待办了。只改本机的账，不联网、不要凭据。
+ * 必须说清记到了哪个待办：出账是「有人管了」，不是「我看过了」。
+ */
+export function runTriage({ argv, env = process.env, now = () => new Date(), cacheDirOverride, log = console.log, errorLog = console.error }) {
+  const { ids, through, todo, unknown } = parseTriageArgs(argv)
+  const usage = '用法：pnpm run intake:radar -- --triaged <编号…> --todo <待办号或说明>，或 --triaged-through <YYYY-MM-DD> --todo <待办号或说明>'
+  if (unknown.length) {
+    errorLog(`认不出这些参数：${unknown.join(' ')}。${usage}`)
+    return 1
+  }
+  if (!todo || !todo.trim()) {
+    errorLog(`出账要写清记到了哪个待办（--todo）。${usage}`)
+    return 1
+  }
+  if (ids.length === 0 && through === null) {
+    errorLog(`没说要出账哪几条。${usage}`)
+    return 1
+  }
+  if (through !== null && !/^\d{4}-\d{2}-\d{2}$/.test(through)) {
+    errorLog(`--triaged-through 要一个 YYYY-MM-DD 的日期，收到的是：${through || '（空）'}。`)
+    return 1
+  }
+  const cacheDir = cacheDirOverride ?? resolveCacheDir(env)
+  const current = readInbox(cacheDir)
+  if (!current.exists || current.rebuilt) {
+    errorLog(current.rebuilt ? '待分诊账读不出来，先跑一轮 pnpm run intake:radar 把它重建。' : '还没有待分诊账，先跑一轮 pnpm run intake:radar。')
+    return 1
+  }
+  let result
+  try {
+    result = triageInbox(current, { ids, through, todo: todo.trim(), nowIso: now().toISOString() })
+  } catch (err) {
+    errorLog(`账没动：${err instanceof Error ? err.message : String(err)}`)
+    return 1
+  }
+  writeInbox(cacheDir, result.inbox)
+  const remaining = untriagedItems(result.inbox)
+  log(`已出账 ${result.newlyTriaged.length} 条${result.newlyTriaged.length ? `：${result.newlyTriaged.join(' ')}` : ''}。还剩 ${remaining.length} 条待分诊${remaining.length ? `：${remaining.slice(0, 5).map((item) => item.id).join(' ')}${remaining.length > 5 ? ' …' : ''}` : ''}。`)
+  return 0
+}
+
 async function main() {
-  const code = await run()
+  const argv = process.argv.slice(2)
+  const code = argv.length ? runTriage({ argv }) : await run()
   process.exit(code)
 }
 

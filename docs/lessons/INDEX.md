@@ -149,6 +149,7 @@
 ## D. 排查与平台故障
 
 - [探针判不了的不能当失败，同一个决定写在两处时第二处会把第一处撤销](inconclusive-probe-is-not-a-failure-and-a-second-shortcut-undoes-the-decision.md) — 给「发之前先试一下」类的决定加探测、缓存或回退时；一个二选一的判断散在好几个函数里都读同一个标志时；测试里的探针要出网时
+- [附件只用假读取函数测过等于没测，「看过」不等于「有人管」](attachment-proved-with-fake-reader-and-seen-is-not-handled.md) — 给发出机器的包加附件时；清单或同意页写了「带上 X」时；写看一次就清零的「新增 N 条」时；摘要只留最后几行时；用户点过发送的东西要排队时
 - [安全封闭要同时设计人工出口，否则一处坏记录就是永久锁死](fail-closed-needs-a-human-exit.md) — 给花钱或不可逆动作加「读不出来就拒绝」、身份是固定路径、回执里写 `allowedActions` 时
 - [程序自己的簿记不许冒充「用户留下的事实」](program-bookkeeping-must-not-pose-as-user-facts.md) — 一个判断「有时生效、有时不生效」、换条路径复现结果就变时读；先数它读的每个事实的全部写口，挡掉同步回声 / 挂载 / 默认值兜底
 - [只在 Mac 上测，就是让 82% 的用户替我们测](mac-only-testing-ships-windows-blind.md) — 发版前；Windows 用户报卡死/点了没反应/保存或导入失败而 Mac 复现不了；「只在 Windows 红」的测试想当噪音跳过时。附同日五个 Windows 专属问题的机制对照表与「用 Electron 自带 Node 判红绿」

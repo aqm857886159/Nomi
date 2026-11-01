@@ -36,7 +36,7 @@ export type FeedbackReportRequest = {
   errorCode?: string
   /** 用户可空的一行留言。空串与 undefined 等价。 */
   note?: string
-  /** 「也附带提示词和文稿」那个勾。默认 false。 */
+  /** 「也附带最近几轮的提示词和回复」那个勾。默认 false。只有带轨迹的请求才有东西可带。 */
   includeContent?: boolean
   /** 已经过渲染层脱敏的供应商身份（`buildFeedbackDiagnostics` 的产物形状）。 */
   provider?: string
@@ -58,13 +58,46 @@ export type FeedbackReportRequest = {
   perf?: PerfSummaryProps
 }
 
+/**
+ * 清单条目的名字。主进程照这张表写，渲染层照这张表翻译：清单是给用户看的同意书，
+ * 界面是什么语言它就得是什么语言（`src/i18n/locales/feedbackReport.ts` 按它穷尽，缺一项编译就红）。
+ */
+export const FEEDBACK_MANIFEST_ITEMS = {
+  logTail: 'logs/tail.txt',
+  modelCatalog: 'model-catalog.json',
+  trajectory: 'trajectory/turns.json',
+  perf: 'perf/summary.json',
+  secrets: 'API keys / tokens / proxy credentials',
+  paths: 'file paths / project paths / asset paths',
+  content: 'prompts / manuscripts / tool results',
+  fullLogs: 'full logs / Agent command ledger / project artifacts',
+} as const
+export type FeedbackManifestItem = keyof typeof FEEDBACK_MANIFEST_ITEMS
+
+/** 某一项没带上的原因。同样穷尽翻译，也是雷达聚类的键。 */
+export const FEEDBACK_EXCLUSION_REASONS = [
+  'logs-unavailable',
+  'logs-empty',
+  'catalog-unavailable',
+  'no-conversation-in-context',
+  'trajectory-unavailable',
+  'trajectory-timeout',
+  'perf-unavailable',
+  'report-size-limit',
+  'never-collected-by-design',
+  'content-checkbox-not-ticked',
+  'available-only-via-settings-diagnostics-export',
+] as const
+export type FeedbackExclusionReason = (typeof FEEDBACK_EXCLUSION_REASONS)[number]
+
 /** 「查看」看到的东西：清单本身。每项一行 what，排除项一行 why。 */
 export type FeedbackReportPreview = {
   manifest: DiagnosticsBundleManifest
 }
 
 export type FeedbackSendResult =
-  | { ok: true; id: string | null; queued: boolean }
+  /** `queued` = 已存在本机、之后自动重发；`trimmed` = 有附件超过大小上限没带上，界面要明说。 */
+  | { ok: true; id: string | null; queued: boolean; trimmed: boolean }
   /**
    * `endpoint-unconfigured` 是**明着标的缺口**（D4），不是假装排队。
    * 这个构建没配接收端就是真的发不出去，跟用户说「已排队」等于骗他。

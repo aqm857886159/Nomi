@@ -8,6 +8,7 @@ function pct(n) {
 }
 
 function feedbackItemMarkdown(item) {
+  if (item.unreadable) return `- **${item.date} · ${item.key}** 这份文件读不出来（内容见「数据质量」）`
   const providerModel = [item.provider, item.model].filter(Boolean).join('/') || '（未记录）'
   const note = item.note ? `\n  留言：${item.note}` : ''
   return (
@@ -86,6 +87,31 @@ function dataQualityMarkdown(dq) {
   return `本地缓存里有 ${dq.corruptFileCount} 个文件解析失败（不影响其余记录的统计）：\n${lines}`
 }
 
+const TRIAGE_COMMAND = 'pnpm run intake:radar -- --triaged <编号…> --todo <待办号或说明>'
+
+function triageMarkdown(triage) {
+  const rebuilt = triage.rebuilt ? '⚠️ 账文件坏了，已从缓存重建：已经出过账的也回到了这里，要再出一次。\n\n' : ''
+  if (triage.count === 0) return `${rebuilt}（账上没有未分诊的反馈）`
+  return `${rebuilt}这些反馈还没有人记进待办，雷达再跑多少轮都还在这里。分诊完用 \`${TRIAGE_COMMAND}\` 出账。\n\n${triage.items.map(feedbackItemMarkdown).join('\n\n')}`
+}
+
+function deliveryMarkdown(delivery) {
+  if (delivery.byVersion.length === 0) return '（本轮缓存里没有反馈）'
+  const rows = delivery.byVersion
+    .map((row) => `| ${row.version} | ${row.total} | ${row.direct} | ${row.late} | ${row.unknown} | ${row.directShare === null ? '—' : pct(row.directShare)} | ${row.slowestSeconds ? `${Math.round(row.slowestSeconds / 60)} 分钟` : '—'} |`)
+    .join('\n')
+  return `点发送后 ${delivery.directSeconds} 秒内到的算直达，更晚到的是第一次没发成、排队重发的。重复送达 ${delivery.duplicateDeliveries} 次（客户端没等到回答又发了一遍，已折叠，不进任何统计）。\n\n| 版本 | 反馈 | 直达 | 晚到 | 没有时间 | 直达率 | 最晚 |\n|---|---|---|---|---|---|---|\n${rows}`
+}
+
+function logTailMarkdown(logTail) {
+  if (logTail.byVersion.length === 0) return '（本轮缓存里没有反馈）'
+  const rows = logTail.byVersion
+    .map((row) => `| ${row.version} | ${row.total} | ${row.attached} | ${Object.entries(row.missing).map(([why, count]) => `${why}×${count}`).join(' · ') || '—'} |`)
+    .join('\n')
+  const alarms = logTail.alarms.map((row) => `- ⚠️ ${row.version}：${row.total - row.attached}/${row.total} 份没带日志尾巴。这个版本应当带得上，先查这个`).join('\n')
+  return `${alarms ? `${alarms}\n\n` : ''}| 版本 | 反馈 | 带上日志 | 没带的原因 |\n|---|---|---|---|\n${rows}`
+}
+
 export function renderMarkdown(report) {
   const newFeedbackSection = report.newFeedback.length
     ? report.newFeedback.map(feedbackItemMarkdown).join('\n\n')
@@ -94,9 +120,21 @@ export function renderMarkdown(report) {
 
 生成于 ${report.generatedAt}。累计缓存：反馈 ${report.totals.feedbackCount} 条 / 事件 ${report.totals.eventsCount} 条 / 轨迹 ${report.totals.trajectoriesCount} 条。
 
+## 待分诊（${report.triage.count} 条）
+
+${triageMarkdown(report.triage)}
+
 ## 本次新增反馈（${report.totals.newFeedbackCount} 条）
 
 ${newFeedbackSection}
+
+## 送达
+
+${deliveryMarkdown(report.delivery)}
+
+## 日志尾巴
+
+${logTailMarkdown(report.logTail)}
 
 ## 生成结果（成功 / 失败 / 取消）
 
@@ -136,11 +174,19 @@ ${renderVersionHealth(report.versionHealth)}
 `
 }
 
-/** 终端打印的短摘要——给人在命令行里扫一眼用，细节看同名 .md。 */
+/** 终端里最多列几个待分诊编号，其余去报告里看：这一段要留在摘要的尾部，不能长。 */
+const TERMINAL_TRIAGE_IDS = 5
+
+/**
+ * 终端打印的短摘要——给人在命令行里扫一眼用，细节看同名 .md。
+ *
+ * **顺序有意义**：每日雷达 hook 只留输出的最后几行（`daily-radar-session.mjs` 的 `tail`），
+ * 所以「新增」「待分诊」和报告路径必须排在尾部、版本健康的判定最后。它们排在开头时，
+ * 版本健康块一长就把它们挤没了，会话里再也看不到新反馈的数（线上这样过了几天没人发现）。
+ */
 export function renderTerminalSummary(report, { mdPath, jsonPath } = {}) {
   const lines = []
   lines.push(`Intake Radar · ${report.generatedAt}`)
-  lines.push(`  新增反馈 ${report.totals.newFeedbackCount} 条 · 累计反馈 ${report.totals.feedbackCount} / 事件 ${report.totals.eventsCount} / 轨迹 ${report.totals.trajectoriesCount}`)
   const gr = report.generationResults.overall
   lines.push(`  生成结果：总计 ${gr.total}，成功 ${gr.success}（${pct(gr.successRate)}）、失败 ${gr.failure}（${pct(gr.failureRate)}）、取消 ${gr.cancel}（${pct(gr.cancelRate)}）`)
   if (report.excludedAutomated.count) lines.push(`  已排除自动化事件 ${report.excludedAutomated.count} 条（测试 / 走查），不计入上面的数`)
@@ -157,8 +203,19 @@ export function renderTerminalSummary(report, { mdPath, jsonPath } = {}) {
   }
   if (report.perf.total) lines.push(`  卡不卡：${report.perf.total} 份会话汇总，偏慢 ${report.perf.slow}（${pct(report.perf.slowShare)}）`)
   if (report.dataQuality.corruptFileCount) lines.push(`  ⚠️ ${report.dataQuality.corruptFileCount} 个本地缓存文件解析失败`)
+  const healthLines = renderVersionHealth(report.versionHealth).split('\n')
+  const decision = healthLines.pop()
+  lines.push(...healthLines)
+  lines.push(`  新增反馈 ${report.totals.newFeedbackCount} 条 · 累计反馈 ${report.totals.feedbackCount} / 事件 ${report.totals.eventsCount} / 轨迹 ${report.totals.trajectoriesCount}`)
+  const shownIds = report.triage.items.slice(0, TERMINAL_TRIAGE_IDS).map((item) => item.id)
+  lines.push(report.triage.count
+    ? `  待分诊 ${report.triage.count} 条：${shownIds.join(' ')}${report.triage.count > shownIds.length ? ' …' : ''}`
+    : '  待分诊 0 条')
+  if (report.triage.rebuilt) lines.push('  ⚠️ 待分诊账坏了，已从缓存重建：已经出过账的要再出一次')
+  for (const row of report.logTail.alarms) lines.push(`  ⚠️ ${row.version} 有 ${row.total - row.attached}/${row.total} 份反馈没带日志尾巴`)
+  if (report.totals.duplicateDeliveries) lines.push(`  重复送达 ${report.totals.duplicateDeliveries} 次（已折叠）`)
   if (mdPath) lines.push(`  报告 → ${mdPath}`)
   if (jsonPath) lines.push(`  报告 → ${jsonPath}`)
-  lines.push(renderVersionHealth(report.versionHealth))
+  lines.push(decision)
   return lines.join('\n')
 }

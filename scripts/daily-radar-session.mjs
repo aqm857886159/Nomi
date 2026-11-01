@@ -6,7 +6,7 @@
 // hook 是 deterministic）。原先靠 agent 在第一条消息里自觉去跑，跑没跑、跑败了有没有说成「没有新东西」都没人管。
 //
 // 三条不变量：
-//  1. **脚本跑败 = 明说「今天没查成」，绝不能说成「没有新反馈 / 没有新模型」**。
+//  1. **脚本跑败 = 明说「今天没查成」，绝不能说成「没有新反馈 / 没有新模型」**。还有几条反馈没人管由待分诊账回答，每次开会话现读。
 //  2. **一台机器一天只跑一次，摘要放仓库外，后开的会话直接拿缓存摘要。** 用户反馈雷达的增量状态（seenKeys）是整台机器共享的：
 //     若标记放在各自的 worktree 里，一天里第一个开起来的会话（常常是某个实施会话）会把「新反馈」吃掉，之后协调会话再跑就是
 //     「新增 0 条」——从后门把「没看到」变成「没有新反馈」。所以标记和当天摘要都在 intake 的缓存目录（NOMI_INTAKE_CACHE 可改）。
@@ -19,16 +19,20 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readInbox, untriagedItems } from './lib/intake-radar/inbox.mjs'
 import { resolveCacheDir } from './lib/intake-radar/store.mjs'
 import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
 
 const TRIAGE = '分诊只由协调会话做；其他会话看到不动手、不写待办。'
 const MODEL_TRIAGE_PLAN = 'docs/plan/2026-08-27-vendor-model-radar.md'
+const lastLine = (text) => String(text || '').split('\n').map((line) => line.trim()).filter(Boolean).at(-1) ?? ''
 export const RADARS = [
   { key: 'intake', label: '用户反馈雷达', script: 'intake:radar', argv: ['scripts/intake-radar.mjs'], skill: 'nomi-intake-radar',
+    // 版本健康判停也退出 1（发布流程靠它拦放量），但雷达是跑完了的：报告最后一行固定是结论（docs/release-process.md）。
+    ranWithAlarm: (result) => result.status === 1 && lastLine(result.stdout).startsWith('停止放量：'),
     next: (hasSkill) => (hasSkill
-      ? `有新反馈或有突增时，由协调会话起 nomi-intake-radar 技能分诊。${TRIAGE}`
-      : `技能 nomi-intake-radar 在这台机器上没有，今天没法按技能分诊（不是没有新反馈）；把「新增 N 条」告诉协调会话。${TRIAGE}`) },
+      ? `待分诊不为 0 或有突增时，由协调会话起 nomi-intake-radar 技能分诊，记进待办后出账。${TRIAGE}`
+      : `技能 nomi-intake-radar 在这台机器上没有，今天没法按技能分诊（不是没有新反馈）；把「待分诊 N 条」告诉协调会话。${TRIAGE}`) },
   // --no-liveness：每周一次的存活探测会发付费请求，hook 路径里不许有任何扣费请求。
   { key: 'models', label: '供应商模型雷达', script: 'radar:models', argv: ['node_modules/tsx/dist/cli.mjs', 'scripts/model-radar.ts', '--no-liveness'],
     // 不恢复模型雷达的分诊技能（2026-10-01 用户拍板）：分诊一律按方案文档的规则，由协调会话手做。
@@ -39,6 +43,9 @@ const TAIL_CHARS = 1200
 const TIMEOUT_MS = 60_000
 const LOCK_STALE_MS = 150_000
 const LOCK_WAIT_MS = 100_000
+
+/** 待分诊行里最多列几个编号：开会话时扫一眼，全部的在报告里。 */
+const TRIAGE_LINE_IDS = 5
 
 const pad = (n) => String(n).padStart(2, '0')
 export const localDate = (now) => `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
@@ -92,6 +99,20 @@ export function readState(file) {
 }
 
 /**
+ * 「还有几条反馈没人管」。**每次开会话都现读账本**，不走缓存摘要：摘要是当时的数，
+ * 这一行要回答的是现在。脚本跑败、拿缓存、退出码 1 都照样报，新反馈才不会从这些分支溜走。
+ */
+export function triageLine(cacheDir) {
+  const inbox = readInbox(cacheDir)
+  if (!inbox.exists) return '【待分诊】账还没建（今天还没有新版雷达成功跑过）；不是没有待分诊。手动跑 pnpm run intake:radar 就有了。'
+  if (inbox.rebuilt) return '【待分诊】账文件读不出来；不是没有待分诊。下一轮 pnpm run intake:radar 会从缓存重建。'
+  const pending = untriagedItems(inbox)
+  if (pending.length === 0) return '【待分诊】0 条。'
+  const ids = pending.slice(0, TRIAGE_LINE_IDS).map((item) => item.id).join(' ')
+  return `【待分诊】${pending.length} 条还没记进待办（最新：${ids}${pending.length > TRIAGE_LINE_IDS ? ' …' : ''}）。协调会话分诊后出账：pnpm run intake:radar -- --triaged <编号…> --todo <待办号或说明>。`
+}
+
+/**
  * 三日竞品雷达的提醒句。产出只落私有仓（用户 2026-10-15 拍板）：本机位置读 NOMI_PRIVATE_REPO，
  * 没设 / 目录不对 = 明说「今天没查成」，绝不落回公开仓——公开仓这边没有任何可写的输出位置。
  */
@@ -107,7 +128,7 @@ export function competitiveRadarLine({ hasSkill, privateRepo, dirExists = fs.exi
  * 纯逻辑（可测）：返回 { text, state }。run(root, radar) 注入；两个雷达**并行**。
  * state = 机器级的当天标记 + 摘要：今天已成功的直接给缓存摘要（带跑的时间），失败的重跑。
  */
-export async function runDailyRadar({ root, now = new Date(), run = defaultRun, state = {}, hasSkill = (name) => skillExists(name, { root }), privateRepo = process.env.NOMI_PRIVATE_REPO, dirExists = fs.existsSync }) {
+export async function runDailyRadar({ root, now = new Date(), run = defaultRun, state = {}, hasSkill = (name) => skillExists(name, { root }), privateRepo = process.env.NOMI_PRIVATE_REPO, dirExists = fs.existsSync, readTriageLine = () => triageLine(resolveCacheDir(process.env)) }) {
   const today = localDate(now)
   const next = state.date === today ? { ...state } : { date: today }
 
@@ -124,10 +145,11 @@ export async function runDailyRadar({ root, now = new Date(), run = defaultRun, 
       lines.push(`→ ${radar.next(radar.skill ? hasSkill(radar.skill) : true)}`)
       continue
     }
-    if (result.status === 0) {
+    const alarmed = radar.ranWithAlarm?.(result) === true
+    if (result.status === 0 || alarmed) {
       const text = tail(result.stdout) || '（脚本没有输出）'
       next[radar.key] = { ok: true, at, text }
-      lines.push(`【${radar.label}】已跑（${at}，pnpm run ${radar.script}）：`)
+      lines.push(`【${radar.label}】已跑（${at}，pnpm run ${radar.script}）${alarmed ? '，版本健康判停（退出码 1 是这个结论，不是脚本报错）' : ''}：`)
       lines.push(text)
       lines.push(`→ ${radar.next(radar.skill ? hasSkill(radar.skill) : true)}`)
     } else {
@@ -140,6 +162,8 @@ export async function runDailyRadar({ root, now = new Date(), run = defaultRun, 
       if (detail) lines.push(detail)
     }
   }
+  // 放在雷达跑完之后读：这一轮新到的也要算进去。
+  lines.splice(lines.findIndex((line) => line.startsWith(`【${RADARS[1].label}】`)), 0, readTriageLine())
 
   lines.push(competitiveRadarLine({ hasSkill: hasSkill('nomi-competitive-radar'), privateRepo, dirExists }))
   return { text: lines.join('\n'), state: next }
@@ -167,7 +191,7 @@ export async function runSession({ root, env = process.env, now = () => new Date
     waited += 2000
   }
   try {
-    const { text, state } = await runDailyRadar({ root, now: now(), run, state: readState(stateFile), ...(hasSkill ? { hasSkill } : {}) })
+    const { text, state } = await runDailyRadar({ root, now: now(), run, state: readState(stateFile), readTriageLine: () => triageLine(resolveCacheDir(env)), ...(hasSkill ? { hasSkill } : {}) })
     try { fs.mkdirSync(path.dirname(stateFile), { recursive: true }); fs.writeFileSync(stateFile, JSON.stringify(state)) } catch { /* 写不进去只会让下次再跑一遍 */ }
     return text
   } finally {
