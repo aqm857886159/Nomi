@@ -1736,8 +1736,38 @@
       "kind": "write",
       "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
       "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "buildTaskCenterView"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "buildTaskCenterView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "hasSpendChanges"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "buildTaskCenterView"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "buildTaskCenterView"
     }
   ],
-  "ownerCount": 324,
+  "ownerCount": 330,
   "coverage": "Eight user entries converge on the declared shared boundaries; class/host/renderer tests plus typed IPC callers cover them. Expanded owner scans include read faces and their walkthrough callers."
 }

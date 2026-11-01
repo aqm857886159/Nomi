@@ -41,6 +41,8 @@ export async function singleActionsLockExitJourney(input) {
       await page.locator(`[data-list-card="${target.node.id}"]`).click()
       return page.locator('[data-list-detail-preview]')
     }
+    const surfaces = ['storyboard', 'canvas', 'list']
+    if (!input.queuedOnly) {
     await canvas(); await page.evaluate(() => window.__nomiSetBatchConcurrency(null)); proxy.setLimit(1)
     const blank = await findCanvasBlankPoint(page); assert.ok(blank); await page.mouse.click(blank.x, blank.y)
     await canvasFitView(page)
@@ -75,7 +77,6 @@ export async function singleActionsLockExitJourney(input) {
     await confirm()
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(4)
     proxy.setLimit(5)
-    const surfaces = ['storyboard', 'canvas', 'list']
     const errorProbes = {}
     for (const face of ['canvas', 'list']) {
       const failed = await navigate(face, shots[0])
@@ -100,11 +101,18 @@ export async function singleActionsLockExitJourney(input) {
         report.checks.E9 = true
       }
     }
-    await canvas(); await page.evaluate(() => window.__nomiSetBatchConcurrency(1)); fixture.holdTasks(true)
+    }
+    await canvas(); const queueBlank = await findCanvasBlankPoint(page); assert.ok(queueBlank); await page.mouse.click(queueBlank.x, queueBlank.y); await canvasFitView(page); await waitForVisualQuiescence(page)
+    await page.evaluate(() => window.__nomiSetBatchConcurrency(1)); fixture.holdTasks(true)
     await page.locator('[data-frame-generate-all]').first().click()
     for (const checkbox of await dialog.locator('input[type="checkbox"]').all()) if (!(await checkbox.isDisabled())) await checkbox.check()
     const queuedStart = proxy.records.length
     await confirm(); await expect.poll(() => proxy.records.length).toBe(queuedStart + 1)
+    const beforeQueuedGroupClick = proxy.records.length
+    await page.locator('[data-frame-generate-all]').first().click()
+    await expect(dialog).not.toBeVisible()
+    assert.equal(proxy.records.length, beforeQueuedGroupClick, 'All queued members are excluded from a second group submission')
+    report.checks.queuedGroupExcluded = true
     for (let i = 0; i < surfaces.length; i++) {
       const surface = surfaces[i], target = shots[i]
       assert.ok(await page.evaluate(id => window.__nomiQueueStore.getState().entries.some(e => e.nodeId === id && e.state === 'queued'), target.node.id), `${surface} target is still queued`)
@@ -119,7 +127,8 @@ export async function singleActionsLockExitJourney(input) {
     fixture.holdTasks(false)
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'success').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(5)
     assert.equal(proxy.records.length, queuedStart + 5, 'Each queued or singled node reaches HTTP exactly once')
-    assert.equal(proxy.records.filter(r => r.forwarded).length, 14)
+    assert.equal(new Set(proxy.records.slice(queuedStart).map(r => r.prompt)).size, 5, 'All five distinct nodes are submitted once in this wave')
+    assert.equal(proxy.records.filter(r => r.forwarded).length, input.queuedOnly ? 10 : 14)
     assert.ok(await page.evaluate(() => Object.values(window.__nomiQueueStore.getState().batches).every(b => b.finishedAt)), 'Every batch Promise settled')
     report.http = structuredClone(proxy.records)
     return report
@@ -175,3 +184,5 @@ export async function spendChangeLockExitJourney(input) {
     return report
   } catch (error) { error.report = report; throw error } finally { fixture.holdTasks(false) }
 }
+
+export const queueActionsLockExitJourney = input => singleActionsLockExitJourney({ ...input, queuedOnly: true })

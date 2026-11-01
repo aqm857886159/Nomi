@@ -2,13 +2,15 @@
   "version": 1,
   "change": {
     "title": "批量生成恢复：实现与分项验收",
-    "headSha": "6badba7157b76323c0a08bd54082ea63ea4b21ef",
-    "headNote": "Source owners are implemented; complete four-stage rehearsal remains stopped, not passed.",
+    "headSha": "6f7d2bb30",
+    "headNote": "A11 and task-center owners implemented; four-stage free rehearsal passed. E1 actual drag remains stopped; paid/platform validation absent.",
     "userCan": "三页查看队列与失败、人工放行未知结果；完整真实付费闭环未验证。",
     "changed": [
       "按执行节点保护输入",
       "三页共享失败动作和恢复面",
-      "本机拒绝单独分类与队列去重"
+      "本机拒绝单独分类与队列去重",
+      "选中镜花钱口径变化重新确认",
+      "任务中心共享失败重试判据"
     ],
     "removed": [
       "两份整方案作者守卫",
@@ -35,171 +37,197 @@
       {
         "label": "en-a4LockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-a4LockExitJourney.json"
-      },
-      {
-        "label": "zh-CN-a4LockExitJourney.json",
-        "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-a4LockExitJourney.json"
       },
       {
         "label": "en-agentMountedLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-agentMountedLockExitJourney.json"
       },
       {
         "label": "en-agentUnmountedLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-agentUnmountedLockExitJourney.json"
-      },
-      {
-        "label": "zh-CN-agentMountedLockExitJourney.json",
-        "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentMountedLockExitJourney.json"
-      },
-      {
-        "label": "zh-CN-agentUnmountedLockExitJourney.json",
-        "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentUnmountedLockExitJourney.json"
       },
       {
         "label": "en-editedCanvasLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedCanvasLockExitJourney.json"
       },
       {
         "label": "en-editedListLockExitJourney.json",
-        "result": "fail",
-        "note": "locator.fill: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-composer-host=\"canvas\"]:visible [contenteditable=\"true\"]').first()\u001b[22m\n",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedListLockExitJourney.json"
       },
       {
         "label": "en-editedStoryboardLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedStoryboardLockExitJourney.json"
+      },
+      {
+        "label": "en-httpEightLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-httpEightLockExitJourney.json"
+      },
+      {
+        "label": "en-listEntryLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-listEntryLockExitJourney.json"
+      },
+      {
+        "label": "en-matrixLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-matrixLockExitJourney.json"
+      },
+      {
+        "label": "en-queueActionsLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-queueActionsLockExitJourney.json"
+      },
+      {
+        "label": "en-singleActionsLockExitJourney.json",
+        "result": "fail",
+        "note": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">Generate all</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-singleActionsLockExitJourney.json"
+      },
+      {
+        "label": "en-spendChangeLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-spendChangeLockExitJourney.json"
+      },
+      {
+        "label": "en-threePageLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-threePageLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-a4LockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-a4LockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-agentMountedLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentMountedLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-agentUnmountedLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentUnmountedLockExitJourney.json"
       },
       {
         "label": "zh-CN-editedCanvasLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedCanvasLockExitJourney.json"
       },
       {
         "label": "zh-CN-editedListLockExitJourney.json",
-        "result": "fail",
-        "note": "locator.fill: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-composer-host=\"canvas\"]:visible [contenteditable=\"true\"]').first()\u001b[22m\n",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedListLockExitJourney.json"
       },
       {
         "label": "zh-CN-editedStoryboardLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedStoryboardLockExitJourney.json"
-      },
-      {
-        "label": "en-httpEightLockExitJourney.json",
-        "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-httpEightLockExitJourney.json"
       },
       {
         "label": "zh-CN-httpEightLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-httpEightLockExitJourney.json"
-      },
-      {
-        "label": "en-matrixLockExitJourney.json",
-        "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-matrixLockExitJourney.json"
-      },
-      {
-        "label": "zh-CN-matrixLockExitJourney.json",
-        "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-matrixLockExitJourney.json"
-      },
-      {
-        "label": "en-listEntryLockExitJourney.json",
-        "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-listEntryLockExitJourney.json"
-      },
-      {
-        "label": "en-threePageLockExitJourney.json",
-        "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-threePageLockExitJourney.json"
       },
       {
         "label": "zh-CN-listEntryLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
+        "note": "Real UI assertions passed; see receipt",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-listEntryLockExitJourney.json"
       },
       {
-        "label": "zh-CN-threePageLockExitJourney.json",
+        "label": "zh-CN-matrixLockExitJourney.json",
         "result": "pass",
-        "note": "Functional assertions passed; see raw receipt",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-threePageLockExitJourney.json"
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-matrixLockExitJourney.json"
       },
       {
-        "label": "en-singleActionsLockExitJourney.json",
-        "result": "fail",
-        "note": "expect(locator).toBeVisible() failed\n\nLocator:  locator('.generation-canvas-v2__stage')\nExpected: visible\nReceived: hidden\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('.generation-canvas-v2__stage')\n    14 × locator resolved to <section data-ready=\"true\" data-shortcut-surface=\"canvas\" aria-label=\"AI visual creation canvas\" data-nomi-generation-canvas-import-target=\"true\" class=\"generation-canvas-react-flow generation-canvas-v2__stage group/canvas [&[data-drop-active=true]_:is(.generation-canvas-v2-node\\_\\_composer,[data-node-floating-toolbar],[data-version-card-bar],[data-version-card],.generation-canvas-react-flow\\_\\_handle-hit,.generation-canvas-v2\\_\\_selection-toolbar,.generation-canvas-v2\\_\\_group-toolbar)]:!pointer-event…>…</section>\n       - unexpected value \"hidden\"\n",
-        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-singleActionsLockExitJourney.json"
+        "label": "zh-CN-queueActionsLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-queueActionsLockExitJourney.json"
       },
       {
         "label": "zh-CN-singleActionsLockExitJourney.json",
         "result": "fail",
-        "note": "expect(locator).toBeVisible() failed\n\nLocator:  locator('.generation-canvas-v2__stage')\nExpected: visible\nReceived: hidden\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('.generation-canvas-v2__stage')\n    14 × locator resolved to <section data-ready=\"true\" aria-label=\"AI 影像创作画布\" data-shortcut-surface=\"canvas\" data-nomi-generation-canvas-import-target=\"true\" class=\"generation-canvas-react-flow generation-canvas-v2__stage group/canvas [&[data-drop-active=true]_:is(.generation-canvas-v2-node\\_\\_composer,[data-node-floating-toolbar],[data-version-card-bar],[data-version-card],.generation-canvas-react-flow\\_\\_handle-hit,.generation-canvas-v2\\_\\_selection-toolbar,.generation-canvas-v2\\_\\_group-toolbar)]:!pointer-events-none [&[data-d…>…</section>\n       - unexpected value \"hidden\"\n",
+        "note": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">生成全部</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-singleActionsLockExitJourney.json"
       },
       {
-        "label": "complete repaired four-stage rehearsal",
-        "result": "fail",
-        "note": "expect(locator).toBeEnabled() failed\n\nLocator:  locator('[data-storyboard-batch]')\nExpected: enabled\nReceived: disabled\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.enabled\" with timeout 5000ms\n  - waiting for locator('[data-storyboard-batch]')\n    14 × locator resolved to <button disabled type=\"button\" data-storyboard-batch=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-8 px-3 text-body-sm border-0 bg-nomi-ink text-nomi-paper hover:enabled:bg-nomi-accent disabled:hover:bg-nomi-ink\">…</button>\n       - unexpected value \"disabled\"\n"
+        "label": "zh-CN-spendChangeLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-spendChangeLockExitJourney.json"
       },
       {
-        "label": "final merge-base rehearsal",
+        "label": "zh-CN-threePageLockExitJourney.json",
+        "result": "pass",
+        "note": "Real UI assertions passed; see receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-threePageLockExitJourney.json"
+      },
+      {
+        "label": "complete repaired free four-stage rehearsal",
+        "result": "pass",
+        "note": "302s stable idle; four stages passed; actual drag is a separate stopped E1 item",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-rehearsal.json"
+      },
+      {
+        "label": "final same-script merge-base rehearsal",
         "result": "fail",
-        "note": "A4: batch ended before dispatching all three shots\n\n2 !== 5\n"
+        "note": "A4: batch ended before dispatching all three shots\n\n2 !== 5\n",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/baseline-rehearsal.json"
       }
     ],
     "metrics": [
       {
-        "name": "修前完整批量 HTTP",
+        "name": "同脚本HTTP（修前在分镜阶段阻断）",
         "unit": "requests",
         "baseline": 2,
-        "current": null,
-        "n": 1,
-        "basis": "script-count",
-        "note": "Baseline reproduction only; no repaired four-stage success receipt."
-      },
-      {
-        "name": "修后分镜阶段静置",
-        "unit": "ms",
-        "baseline": null,
-        "current": 301911,
-        "n": 1,
-        "basis": "script-count",
-        "note": "Stable for over the 300s Run observer horizon; later script oracle failed."
-      },
-      {
-        "name": "修后静置演练最长窗口响应",
-        "unit": "ms",
-        "baseline": 25,
         "current": 15,
-        "n": 331,
+        "n": 1,
+        "basis": "script-count",
+        "note": "Current count covers all four stages; before was blocked after two assets."
+      },
+      {
+        "name": "静置观察",
+        "unit": "ms",
+        "baseline": 302187,
+        "current": 302160,
+        "n": 1,
+        "basis": "script-count",
+        "note": "Both stable after the active 300s timer horizon."
+      },
+      {
+        "name": "最长窗口响应",
+        "unit": "ms",
+        "baseline": 36,
+        "current": 70,
+        "n": 363,
         "basis": "script-count",
         "note": "A whole-window freeze was not reproduced."
       }
@@ -222,54 +250,54 @@
     },
     {
       "name": "完整四段免费演练",
-      "result": "fail",
-      "evidence": "Stopped after three attempts; paid receipt guard stays closed"
+      "result": "pass",
+      "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-rehearsal.json"
     },
     {
       "name": "整窗冻结复现",
       "result": "unverified",
       "evidence": "No measured greater-than-two-second response"
+    },
+    {
+      "name": "A11改价重新确认",
+      "result": "pass",
+      "evidence": "spendChange receipts and four class cases; mutation17 red and restored"
+    },
+    {
+      "name": "E1真实拖框",
+      "result": "unverified",
+      "evidence": "Stopped after three helper navigation attempts"
     }
   ],
   "friction": {
-    "moment": "结果不明要由人核对；三页已有同一出口，完整四段演练仍缺绿灯。",
-    "decision": "保留失败与停点，未调用付费入口。"
+    "moment": "未知结果由人核对；免费四段和三页恢复已走通。",
+    "decision": "保留实际拖框、付费和平台缺口，不用假收据顶替。"
   },
   "unverified": [
     {
-      "item": "The complete repaired four-stage rehearsal is not green; the coordinator must authorize another attempt before spending.",
+      "item": "E1 actual drag selection remains unverified after three authorized attempts; group generation and Meta+A are not counted as drag selection.",
       "owner": "coordinator / independent acceptance",
-      "recheck": "See verification.json and local handoff report"
+      "recheck": "verification.json and handoff report"
     },
     {
-      "item": "List queued-edit real-window check stopped after its third locator/setup failure; underlying per-node input class tests pass.",
+      "item": "Editing an existing canvas node model during asset generation does not update the storyboard plan; this pre-existing main window is report-only by coordinator ruling.",
       "owner": "coordinator / independent acceptance",
-      "recheck": "See verification.json and local handoff report"
+      "recheck": "verification.json and handoff report"
     },
     {
-      "item": "Changing to a more expensive model during asset generation can exceed the original confirmation; this item is stopped without changing spend policy.",
+      "item": "New queue performance scenario has numeric measurements but still needs coordinator approval of the scenario and baseline; no baseline or gate changed.",
       "owner": "coordinator / independent acceptance",
-      "recheck": "See verification.json and local handoff report"
+      "recheck": "verification.json and handoff report"
     },
     {
-      "item": "New performance scenario has numeric measurements but no approved baseline; no baseline or gate was changed.",
+      "item": "Escape entry is fixed as directed; a genuine fixedInPr cannot be supplied before a PR exists.",
       "owner": "coordinator / independent acceptance",
-      "recheck": "See verification.json and local handoff report"
+      "recheck": "verification.json and handoff report"
     },
     {
-      "item": "Escape entry is fixed as directed; a genuine fixedInPr cannot be filled before a PR exists.",
+      "item": "Windows, real model/billing, human SEQ and independent acceptance remain unverified; whole-window freeze was not reproduced.",
       "owner": "coordinator / independent acceptance",
-      "recheck": "See verification.json and local handoff report"
-    },
-    {
-      "item": "Single-actions walk stopped after three setup/oracle failures: canvas/list retries and queued preemption lack a real-window receipt; storyboard retry and three-page result synchronization passed.",
-      "owner": "coordinator / independent acceptance",
-      "recheck": "See verification.json and local handoff report"
-    },
-    {
-      "item": "Windows, real billing, human SEQ and independent acceptance are unverified.",
-      "owner": "coordinator / independent acceptance",
-      "recheck": "See verification.json and local handoff report"
+      "recheck": "verification.json and handoff report"
     }
   ],
   "evidence": [

@@ -1,7 +1,7 @@
 {
-  "status": "partial",
+  "status": "implemented-not-pushed; free four-stage rehearsal passed; explicit E1/paid/platform limits remain",
   "network": "fake providers only; guarded isolated Electron; no paid execution",
-  "sourceCommit": "6badba7157b76323c0a08bd54082ea63ea4b21ef",
+  "sourceCommit": "6f7d2bb30",
   "walks": [
     {
       "journey": "en-a4LockExitJourney.json",
@@ -15,19 +15,6 @@
       "imagePosts": 5,
       "forwarded": 5,
       "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-a4LockExitJourney.json"
-    },
-    {
-      "journey": "zh-CN-a4LockExitJourney.json",
-      "status": "passed",
-      "error": null,
-      "checks": {
-        "mountedEditor": true,
-        "assetsBeforeShots": true,
-        "allFiveHttp": true
-      },
-      "imagePosts": 5,
-      "forwarded": 5,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-a4LockExitJourney.json"
     },
     {
       "journey": "en-agentMountedLockExitJourney.json",
@@ -58,6 +45,163 @@
       "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-agentUnmountedLockExitJourney.json"
     },
     {
+      "journey": "en-editedCanvasLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "onlyEditedShotWithheld": true,
+        "otherFourSubmitted": true,
+        "allThreeSurfaces": true
+      },
+      "imagePosts": 4,
+      "forwarded": 4,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedCanvasLockExitJourney.json"
+    },
+    {
+      "journey": "en-editedListLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "onlyEditedShotWithheld": true,
+        "otherFourSubmitted": true,
+        "allThreeSurfaces": true
+      },
+      "imagePosts": 4,
+      "forwarded": 4,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedListLockExitJourney.json"
+    },
+    {
+      "journey": "en-editedStoryboardLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "onlyEditedShotWithheld": true,
+        "otherFourSubmitted": true,
+        "allThreeSurfaces": true
+      },
+      "imagePosts": 4,
+      "forwarded": 4,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedStoryboardLockExitJourney.json"
+    },
+    {
+      "journey": "en-httpEightLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "A1": true,
+        "B1": true,
+        "B4": true,
+        "B5": true
+      },
+      "imagePosts": 9,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-httpEightLockExitJourney.json"
+    },
+    {
+      "journey": "en-listEntryLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "listHeaderOncePerNode": true,
+        "classifiedSmallCard": true,
+        "actualQueue": true
+      },
+      "imagePosts": 6,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-listEntryLockExitJourney.json"
+    },
+    {
+      "journey": "en-matrixLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "E5": true,
+        "E7": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-matrixLockExitJourney.json"
+    },
+    {
+      "journey": "en-queueActionsLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "queuedGroupExcluded": true,
+        "E4/storyboard": true,
+        "E4/canvas": true,
+        "E4/list": true
+      },
+      "imagePosts": 10,
+      "forwarded": 10,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-queueActionsLockExitJourney.json"
+    },
+    {
+      "journey": "en-singleActionsLockExitJourney.json",
+      "status": "failed",
+      "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">Generate all</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n",
+      "checks": {
+        "batchCancel": true,
+        "E3/storyboard": true,
+        "E9": true,
+        "E3/canvas": true,
+        "E3/list": true
+      },
+      "imagePosts": 13,
+      "forwarded": 9,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-singleActionsLockExitJourney.json",
+      "blocked": [
+        "E1 selection: expect(received).toBe(expected) // Object.is equality\n\nExpected: 30\nReceived: 42\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+      ]
+    },
+    {
+      "journey": "en-spendChangeLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "secondConfirmationCancelKeepsAssets": true,
+        "confirmSendsCurrentResolution": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-spendChangeLockExitJourney.json"
+    },
+    {
+      "journey": "en-threePageLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "queue": true,
+        "listModelChip": true,
+        "quota": true,
+        "refusedClickAndSameExit": true,
+        "anchorHasExit": true,
+        "restart": true,
+        "releaseTargetsOriginalRun": true,
+        "singleReleaseWithoutExtraDialog": true,
+        "anchorRelease": true,
+        "canvasRelease": true,
+        "taskCenterNoDeadRetry": true,
+        "taskCenterRelease": true
+      },
+      "imagePosts": 18,
+      "forwarded": 14,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-threePageLockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-a4LockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "mountedEditor": true,
+        "assetsBeforeShots": true,
+        "allFiveHttp": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-a4LockExitJourney.json"
+    },
+    {
       "journey": "zh-CN-agentMountedLockExitJourney.json",
       "status": "passed",
       "error": null,
@@ -86,41 +230,6 @@
       "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentUnmountedLockExitJourney.json"
     },
     {
-      "journey": "en-editedCanvasLockExitJourney.json",
-      "status": "passed",
-      "error": null,
-      "checks": {
-        "onlyEditedShotWithheld": true,
-        "otherFourSubmitted": true,
-        "allThreeSurfaces": true
-      },
-      "imagePosts": 4,
-      "forwarded": 4,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedCanvasLockExitJourney.json"
-    },
-    {
-      "journey": "en-editedListLockExitJourney.json",
-      "status": "failed",
-      "error": "locator.fill: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-composer-host=\"canvas\"]:visible [contenteditable=\"true\"]').first()\u001b[22m\n",
-      "checks": {},
-      "imagePosts": 3,
-      "forwarded": 3,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedListLockExitJourney.json"
-    },
-    {
-      "journey": "en-editedStoryboardLockExitJourney.json",
-      "status": "passed",
-      "error": null,
-      "checks": {
-        "onlyEditedShotWithheld": true,
-        "otherFourSubmitted": true,
-        "allThreeSurfaces": true
-      },
-      "imagePosts": 4,
-      "forwarded": 4,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedStoryboardLockExitJourney.json"
-    },
-    {
       "journey": "zh-CN-editedCanvasLockExitJourney.json",
       "status": "passed",
       "error": null,
@@ -135,11 +244,15 @@
     },
     {
       "journey": "zh-CN-editedListLockExitJourney.json",
-      "status": "failed",
-      "error": "locator.fill: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-composer-host=\"canvas\"]:visible [contenteditable=\"true\"]').first()\u001b[22m\n",
-      "checks": {},
-      "imagePosts": 3,
-      "forwarded": 3,
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "onlyEditedShotWithheld": true,
+        "otherFourSubmitted": true,
+        "allThreeSurfaces": true
+      },
+      "imagePosts": 4,
+      "forwarded": 4,
       "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedListLockExitJourney.json"
     },
     {
@@ -156,20 +269,6 @@
       "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedStoryboardLockExitJourney.json"
     },
     {
-      "journey": "en-httpEightLockExitJourney.json",
-      "status": "passed",
-      "error": null,
-      "checks": {
-        "A1": true,
-        "B1": true,
-        "B4": true,
-        "B5": true
-      },
-      "imagePosts": 9,
-      "forwarded": 5,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-httpEightLockExitJourney.json"
-    },
-    {
       "journey": "zh-CN-httpEightLockExitJourney.json",
       "status": "passed",
       "error": null,
@@ -184,16 +283,17 @@
       "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-httpEightLockExitJourney.json"
     },
     {
-      "journey": "en-matrixLockExitJourney.json",
+      "journey": "zh-CN-listEntryLockExitJourney.json",
       "status": "passed",
       "error": null,
       "checks": {
-        "E5": true,
-        "E7": true
+        "listHeaderOncePerNode": true,
+        "classifiedSmallCard": true,
+        "actualQueue": true
       },
-      "imagePosts": 5,
+      "imagePosts": 6,
       "forwarded": 5,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-matrixLockExitJourney.json"
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-listEntryLockExitJourney.json"
     },
     {
       "journey": "zh-CN-matrixLockExitJourney.json",
@@ -208,51 +308,48 @@
       "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-matrixLockExitJourney.json"
     },
     {
-      "journey": "en-listEntryLockExitJourney.json",
+      "journey": "zh-CN-queueActionsLockExitJourney.json",
       "status": "passed",
       "error": null,
       "checks": {
-        "listHeaderOncePerNode": true,
-        "classifiedSmallCard": true,
-        "actualQueue": true
+        "queuedGroupExcluded": true,
+        "E4/storyboard": true,
+        "E4/canvas": true,
+        "E4/list": true
       },
-      "imagePosts": 6,
-      "forwarded": 5,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-listEntryLockExitJourney.json"
+      "imagePosts": 10,
+      "forwarded": 10,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-queueActionsLockExitJourney.json"
     },
     {
-      "journey": "en-threePageLockExitJourney.json",
-      "status": "passed",
-      "error": null,
+      "journey": "zh-CN-singleActionsLockExitJourney.json",
+      "status": "failed",
+      "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">生成全部</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n",
       "checks": {
-        "queue": true,
-        "listModelChip": true,
-        "quota": true,
-        "refusedClickAndSameExit": true,
-        "anchorHasExit": true,
-        "restart": true,
-        "releaseTargetsOriginalRun": true,
-        "singleReleaseWithoutExtraDialog": true,
-        "anchorRelease": true,
-        "canvasRelease": true,
-        "taskCenterRelease": true
+        "batchCancel": true,
+        "E3/storyboard": true,
+        "E9": true,
+        "E3/canvas": true,
+        "E3/list": true
       },
-      "imagePosts": 18,
-      "forwarded": 14,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-threePageLockExitJourney.json"
+      "imagePosts": 13,
+      "forwarded": 9,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-singleActionsLockExitJourney.json",
+      "blocked": [
+        "E1 selection: expect(received).toBe(expected) // Object.is equality\n\nExpected: 30\nReceived: 42\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+      ]
     },
     {
-      "journey": "zh-CN-listEntryLockExitJourney.json",
+      "journey": "zh-CN-spendChangeLockExitJourney.json",
       "status": "passed",
       "error": null,
       "checks": {
-        "listHeaderOncePerNode": true,
-        "classifiedSmallCard": true,
-        "actualQueue": true
+        "secondConfirmationCancelKeepsAssets": true,
+        "confirmSendsCurrentResolution": true
       },
-      "imagePosts": 6,
+      "imagePosts": 5,
       "forwarded": 5,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-listEntryLockExitJourney.json"
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-spendChangeLockExitJourney.json"
     },
     {
       "journey": "zh-CN-threePageLockExitJourney.json",
@@ -269,37 +366,12 @@
         "singleReleaseWithoutExtraDialog": true,
         "anchorRelease": true,
         "canvasRelease": true,
+        "taskCenterNoDeadRetry": true,
         "taskCenterRelease": true
       },
       "imagePosts": 18,
       "forwarded": 14,
       "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-threePageLockExitJourney.json"
-    },
-    {
-      "journey": "en-singleActionsLockExitJourney.json",
-      "status": "failed",
-      "error": "expect(locator).toBeVisible() failed\n\nLocator:  locator('.generation-canvas-v2__stage')\nExpected: visible\nReceived: hidden\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('.generation-canvas-v2__stage')\n    14 × locator resolved to <section data-ready=\"true\" data-shortcut-surface=\"canvas\" aria-label=\"AI visual creation canvas\" data-nomi-generation-canvas-import-target=\"true\" class=\"generation-canvas-react-flow generation-canvas-v2__stage group/canvas [&[data-drop-active=true]_:is(.generation-canvas-v2-node\\_\\_composer,[data-node-floating-toolbar],[data-version-card-bar],[data-version-card],.generation-canvas-react-flow\\_\\_handle-hit,.generation-canvas-v2\\_\\_selection-toolbar,.generation-canvas-v2\\_\\_group-toolbar)]:!pointer-event…>…</section>\n       - unexpected value \"hidden\"\n",
-      "checks": {
-        "batchCancel": true,
-        "E3/storyboard": true,
-        "E9": true
-      },
-      "imagePosts": 11,
-      "forwarded": 7,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-singleActionsLockExitJourney.json"
-    },
-    {
-      "journey": "zh-CN-singleActionsLockExitJourney.json",
-      "status": "failed",
-      "error": "expect(locator).toBeVisible() failed\n\nLocator:  locator('.generation-canvas-v2__stage')\nExpected: visible\nReceived: hidden\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('.generation-canvas-v2__stage')\n    14 × locator resolved to <section data-ready=\"true\" aria-label=\"AI 影像创作画布\" data-shortcut-surface=\"canvas\" data-nomi-generation-canvas-import-target=\"true\" class=\"generation-canvas-react-flow generation-canvas-v2__stage group/canvas [&[data-drop-active=true]_:is(.generation-canvas-v2-node\\_\\_composer,[data-node-floating-toolbar],[data-version-card-bar],[data-version-card],.generation-canvas-react-flow\\_\\_handle-hit,.generation-canvas-v2\\_\\_selection-toolbar,.generation-canvas-v2\\_\\_group-toolbar)]:!pointer-events-none [&[data-d…>…</section>\n       - unexpected value \"hidden\"\n",
-      "checks": {
-        "batchCancel": true,
-        "E3/storyboard": true,
-        "E9": true
-      },
-      "imagePosts": 11,
-      "forwarded": 7,
-      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-singleActionsLockExitJourney.json"
     }
   ],
   "mutations": [
@@ -466,16 +538,29 @@
       "first": "E3: retry can be clicked again after rejection/failure, while the same row rejects a double click",
       "shaBefore": "dfeeabe76df2309bb47f2ee305f1210ba3837254a786b2ecb860a7f9b5e5b3ee",
       "shaRestored": "dfeeabe76df2309bb47f2ee305f1210ba3837254a786b2ecb860a7f9b5e5b3ee"
+    },
+    {
+      "id": "17-no-phase-spend-comparison",
+      "exit": 1,
+      "shaBefore": "b81bb858a7dd8fe3c3feab611a2fc89a780fc94378f7b1b6bc23641238577c75",
+      "shaRestored": "b81bb858a7dd8fe3c3feab611a2fc89a780fc94378f7b1b6bc23641238577c75",
+      "red": true,
+      "assertionFailures": 4,
+      "passedTests": 5,
+      "skippedTests": 26,
+      "file": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "log": "a11-counterexample.log"
     }
   ],
   "baseline": {
-    "sha": "31e80bbd362bd15af441e2e4b5c8e1c6a8c5a11f",
+    "sha": "29313b236d1d587a88dc9092bfcc1f97b80fb0f8",
     "status": "failed",
     "error": "A4: batch ended before dispatching all three shots\n\n2 !== 5\n",
     "requests": [
       {
         "sequence": 1,
         "model": "gpt-image-2",
+        "resolution": "1k",
         "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
         "referenceCount": 0,
         "forwarded": true,
@@ -487,6 +572,7 @@
       {
         "sequence": 2,
         "model": "gpt-image-2",
+        "resolution": "1k",
         "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
         "referenceCount": 0,
         "forwarded": true,
@@ -497,31 +583,42 @@
       }
     ],
     "idle": {
-      "elapsedMs": 302063,
+      "elapsedMs": 302187,
       "longestRelevantTimerMs": 300000,
       "stable": true
     },
-    "windowResponseMaxMs": 25,
+    "windowResponseMaxMs": 36,
+    "heartbeatSamples": 311,
     "restoredByteForByte": true,
     "commands": {
-      "baseline-final-2-build": 0,
-      "baseline-final-2-walk": 1,
-      "baseline-final-2-restored-build": 0
-    }
+      "continue-baseline-build": 0,
+      "continue-baseline-walk": 1,
+      "continue-baseline-restored-build": 0
+    },
+    "log": "docs/evidence/2026-11-02-generation-lock-exit/rehearsal-before.log",
+    "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/baseline-rehearsal.json"
   },
   "freeFourStage": {
-    "status": "failed; stopped after three authorized attempts",
-    "latestError": "expect(locator).toBeEnabled() failed\n\nLocator:  locator('[data-storyboard-batch]')\nExpected: enabled\nReceived: disabled\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.enabled\" with timeout 5000ms\n  - waiting for locator('[data-storyboard-batch]')\n    14 × locator resolved to <button disabled type=\"button\" data-storyboard-batch=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-8 px-3 text-body-sm border-0 bg-nomi-ink text-nomi-paper hover:enabled:bg-nomi-accent disabled:hover:bg-nomi-ink\">…</button>\n       - unexpected value \"disabled\"\n",
+    "status": "passed",
+    "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-rehearsal.json",
+    "log": "docs/evidence/2026-11-02-generation-lock-exit/rehearsal-after.log",
     "stages": [
-      "storyboard"
+      "storyboard",
+      "canvas",
+      "list",
+      "restart"
     ],
     "idle": {
-      "elapsedMs": 301911,
+      "elapsedMs": 302160,
       "longestRelevantTimerMs": 300000,
       "stable": true
     },
-    "windowResponseMaxMs": 15,
-    "paidGuard": "rejects incomplete genuine rehearsal; never invoked paid entry"
+    "windowResponseMaxMs": 70,
+    "heartbeatSamples": 363,
+    "imagePosts": 15,
+    "imagesForwarded": 12,
+    "paidGuard": "Actual receipt-validation prefix accepts this genuine passed receipt and rejects a genuine failed rehearsal; no key helper imported, no paid entry executed.",
+    "remainingGap": "Canvas batch uses actual Meta+A→group→group Generate All; the separate E1 actual drag selection check stopped after three attempts and is not passed."
   },
   "unitChecks": {
     "postmerge-related": {
@@ -2303,9 +2400,39 @@
         "kind": "write",
         "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
         "symbol": "confirmAndRunNode"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+        "symbol": "buildTaskCenterView"
+      },
+      {
+        "kind": "write",
+        "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+        "symbol": "buildTaskCenterView"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "hasSpendChanges"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+        "symbol": "buildTaskCenterView"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+        "symbol": "buildTaskCenterView"
       }
     ],
-    "ownerCount": 324,
+    "ownerCount": 330,
     "coverage": "Eight user entries converge on the declared shared boundaries; class/host/renderer tests plus typed IPC callers cover them. Expanded owner scans include read faces and their walkthrough callers."
   },
   "followUp": {
@@ -2327,13 +2454,11 @@
     }
   },
   "limits": [
-    "The complete repaired four-stage rehearsal is not green; the coordinator must authorize another attempt before spending.",
-    "List queued-edit real-window check stopped after its third locator/setup failure; underlying per-node input class tests pass.",
-    "Changing to a more expensive model during asset generation can exceed the original confirmation; this item is stopped without changing spend policy.",
-    "New performance scenario has numeric measurements but no approved baseline; no baseline or gate was changed.",
-    "Escape entry is fixed as directed; a genuine fixedInPr cannot be filled before a PR exists.",
-    "Single-actions walk stopped after three setup/oracle failures: canvas/list retries and queued preemption lack a real-window receipt; storyboard retry and three-page result synchronization passed.",
-    "Windows, real billing, human SEQ and independent acceptance are unverified."
+    "E1 actual drag selection remains unverified after three authorized attempts; group generation and Meta+A are not counted as drag selection.",
+    "Editing an existing canvas node model during asset generation does not update the storyboard plan; this pre-existing main window is report-only by coordinator ruling.",
+    "New queue performance scenario has numeric measurements but still needs coordinator approval of the scenario and baseline; no baseline or gate changed.",
+    "Escape entry is fixed as directed; a genuine fixedInPr cannot be supplied before a PR exists.",
+    "Windows, real model/billing, human SEQ and independent acceptance remain unverified; whole-window freeze was not reproduced."
   ],
   "screenshots": [
     "tests/ux/shots/generation-lock-exit/en-429-canvas.png",
@@ -2341,6 +2466,9 @@
     "tests/ux/shots/generation-lock-exit/en-429-list-small.png",
     "tests/ux/shots/generation-lock-exit/en-429-storyboard-asset.png",
     "tests/ux/shots/generation-lock-exit/en-429-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/en-a11-current-result.png",
+    "tests/ux/shots/generation-lock-exit/en-a11-retry-current-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-a11-second-confirm-current.png",
     "tests/ux/shots/generation-lock-exit/en-a4-all-results.png",
     "tests/ux/shots/generation-lock-exit/en-a4-assets.png",
     "tests/ux/shots/generation-lock-exit/en-a4-confirm.png",
@@ -2359,6 +2487,8 @@
     "tests/ux/shots/generation-lock-exit/en-edit-canvas-changed-while-queued.png",
     "tests/ux/shots/generation-lock-exit/en-edit-canvas-list-refusal.png",
     "tests/ux/shots/generation-lock-exit/en-edit-canvas-storyboard-refusal.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-list-changed-while-queued.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-list-list-refusal.png",
     "tests/ux/shots/generation-lock-exit/en-edit-storyboard-canvas-refusal.png",
     "tests/ux/shots/generation-lock-exit/en-edit-storyboard-changed-while-queued.png",
     "tests/ux/shots/generation-lock-exit/en-edit-storyboard-list-refusal.png",
@@ -2401,6 +2531,11 @@
     "tests/ux/shots/generation-lock-exit/en-single-E9-list-same-result.png",
     "tests/ux/shots/generation-lock-exit/en-single-E9-storyboard-same-result.png",
     "tests/ux/shots/generation-lock-exit/en-single-canvas-batch-cancel.png",
+    "tests/ux/shots/generation-lock-exit/en-single-canvas-queued.png",
+    "tests/ux/shots/generation-lock-exit/en-single-canvas-retried.png",
+    "tests/ux/shots/generation-lock-exit/en-single-list-queued.png",
+    "tests/ux/shots/generation-lock-exit/en-single-list-retried.png",
+    "tests/ux/shots/generation-lock-exit/en-single-storyboard-queued.png",
     "tests/ux/shots/generation-lock-exit/en-single-storyboard-retried.png",
     "tests/ux/shots/generation-lock-exit/en-storyboard-anchor-released-result.png",
     "tests/ux/shots/generation-lock-exit/en-task-center-release-confirm.png",
@@ -2416,6 +2551,9 @@
     "tests/ux/shots/generation-lock-exit/zh-CN-429-list-small.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard-asset.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-a11-current-result.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-a11-retry-current-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-a11-second-confirm-current.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-a4-all-results.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-a4-assets.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-a4-confirm.png",
@@ -2434,6 +2572,8 @@
     "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-changed-while-queued.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-list-refusal.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-storyboard-refusal.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-list-changed-while-queued.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-list-list-refusal.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-canvas-refusal.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-changed-while-queued.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-list-refusal.png",
@@ -2472,10 +2612,24 @@
     "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-0.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-1.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-2.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-canvas-cancel-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-canvas-released.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-idle-return.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-list-unknown.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-canvas.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-list.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-released.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-scene-storyboard-confirm.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-canvas-same-result.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-list-same-result.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-storyboard-same-result.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-batch-cancel.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-queued.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-retried.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-list-queued.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-list-retried.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-storyboard-queued.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-single-storyboard-retried.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-storyboard-anchor-released-result.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-task-center-release-confirm.png",
@@ -2549,38 +2703,348 @@
       "note": "非用户生产入口；流程实验室只把原始错误作为队列数据，不直显原文"
     }
   ],
-  "attemptHistory": [
-    {
-      "entry": "four-stage rehearsal 1",
+  "attemptHistory": {
+    "prior": [
+      {
+        "entry": "four-stage rehearsal 1",
+        "status": "failed",
+        "reason": "Expected @asset in HTTP; actual compiler emits @imageN."
+      },
+      {
+        "entry": "four-stage rehearsal 2",
+        "status": "failed",
+        "reason": "Fixture omitted the existing first hosting disclosure."
+      },
+      {
+        "entry": "four-stage rehearsal 3",
+        "status": "failed",
+        "reason": "After successful storyboard and 301s idle, script incorrectly required the completed remaining-only button to be enabled."
+      },
+      {
+        "entry": "final baseline attempt 1",
+        "status": "setup-failed",
+        "reason": "New translated build marker was unavailable on the old source; no product reproduction receipt."
+      },
+      {
+        "entry": "single-actions attempt 1",
+        "status": "setup-failed",
+        "reason": "Storyboard generation did not create the explicit canvas group used by the next action."
+      },
+      {
+        "entry": "single-actions attempt 2",
+        "status": "oracle-failed",
+        "reason": "Counted the hosting disclosure checkbox as a sixth image; final script counts the existing PlanRows only."
+      }
+    ],
+    "continue-three-1": [
+      {
+        "journey": "en-threePageLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "queue": true,
+          "listModelChip": true,
+          "quota": true,
+          "refusedClickAndSameExit": true,
+          "anchorHasExit": true,
+          "restart": true,
+          "releaseTargetsOriginalRun": true,
+          "singleReleaseWithoutExtraDialog": true,
+          "anchorRelease": true,
+          "canvasRelease": true,
+          "taskCenterNoDeadRetry": true,
+          "taskCenterRelease": true
+        },
+        "imagePosts": 18,
+        "forwarded": 14,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-threePageLockExitJourney.json"
+      },
+      {
+        "journey": "zh-CN-threePageLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "queue": true,
+          "listModelChip": true,
+          "quota": true,
+          "refusedClickAndSameExit": true,
+          "anchorHasExit": true,
+          "restart": true,
+          "releaseTargetsOriginalRun": true,
+          "singleReleaseWithoutExtraDialog": true,
+          "anchorRelease": true,
+          "canvasRelease": true,
+          "taskCenterNoDeadRetry": true,
+          "taskCenterRelease": true
+        },
+        "imagePosts": 18,
+        "forwarded": 14,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-threePageLockExitJourney.json"
+      }
+    ],
+    "continue-a11-2": [
+      {
+        "journey": "en-spendChangeLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "secondConfirmationCancelKeepsAssets": true,
+          "confirmSendsCurrentResolution": true
+        },
+        "imagePosts": 5,
+        "forwarded": 5,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-spendChangeLockExitJourney.json"
+      },
+      {
+        "journey": "zh-CN-spendChangeLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "secondConfirmationCancelKeepsAssets": true,
+          "confirmSendsCurrentResolution": true
+        },
+        "imagePosts": 5,
+        "forwarded": 5,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-spendChangeLockExitJourney.json"
+      }
+    ],
+    "continue-edit-2": [
+      {
+        "journey": "en-editedCanvasLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "onlyEditedShotWithheld": true,
+          "otherFourSubmitted": true,
+          "allThreeSurfaces": true
+        },
+        "imagePosts": 4,
+        "forwarded": 4,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedCanvasLockExitJourney.json"
+      },
+      {
+        "journey": "en-editedListLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "onlyEditedShotWithheld": true,
+          "otherFourSubmitted": true,
+          "allThreeSurfaces": true
+        },
+        "imagePosts": 4,
+        "forwarded": 4,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedListLockExitJourney.json"
+      },
+      {
+        "journey": "en-editedStoryboardLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "onlyEditedShotWithheld": true,
+          "otherFourSubmitted": true,
+          "allThreeSurfaces": true
+        },
+        "imagePosts": 4,
+        "forwarded": 4,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedStoryboardLockExitJourney.json"
+      },
+      {
+        "journey": "zh-CN-editedCanvasLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "onlyEditedShotWithheld": true,
+          "otherFourSubmitted": true,
+          "allThreeSurfaces": true
+        },
+        "imagePosts": 4,
+        "forwarded": 4,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedCanvasLockExitJourney.json"
+      },
+      {
+        "journey": "zh-CN-editedListLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "onlyEditedShotWithheld": true,
+          "otherFourSubmitted": true,
+          "allThreeSurfaces": true
+        },
+        "imagePosts": 4,
+        "forwarded": 4,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedListLockExitJourney.json"
+      },
+      {
+        "journey": "zh-CN-editedStoryboardLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "onlyEditedShotWithheld": true,
+          "otherFourSubmitted": true,
+          "allThreeSurfaces": true
+        },
+        "imagePosts": 4,
+        "forwarded": 4,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedStoryboardLockExitJourney.json"
+      }
+    ],
+    "continue-single-3": [
+      {
+        "journey": "en-singleActionsLockExitJourney.json",
+        "status": "failed",
+        "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">Generate all</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n",
+        "checks": {
+          "batchCancel": true,
+          "E3/storyboard": true,
+          "E9": true,
+          "E3/canvas": true,
+          "E3/list": true
+        },
+        "imagePosts": 13,
+        "forwarded": 9,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-singleActionsLockExitJourney.json",
+        "blocked": [
+          "E1 selection: expect(received).toBe(expected) // Object.is equality\n\nExpected: 30\nReceived: 42\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+        ]
+      },
+      {
+        "journey": "zh-CN-singleActionsLockExitJourney.json",
+        "status": "failed",
+        "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">生成全部</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n",
+        "checks": {
+          "batchCancel": true,
+          "E3/storyboard": true,
+          "E9": true,
+          "E3/canvas": true,
+          "E3/list": true
+        },
+        "imagePosts": 13,
+        "forwarded": 9,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-singleActionsLockExitJourney.json",
+        "blocked": [
+          "E1 selection: expect(received).toBe(expected) // Object.is equality\n\nExpected: 30\nReceived: 42\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+        ]
+      }
+    ],
+    "continue-free-1": {
       "status": "failed",
-      "reason": "Expected @asset in HTTP; actual compiler emits @imageN."
+      "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">生成全部</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div role=\"toolbar\" aria-label=\"组「组 1」工具条\" data-group-toolbar=\"true\" data-group-toolbar-side=\"inside\" class=\"generation-canvas-v2__group-toolbar absolute left-1/2 -translate-x-1/2 inline-flex w-max flex-wrap items-center justify-center gap-1 min-h-9 px-1.5 py-1 rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md\">…</div> from <div class=\"pointer-events-none absolute\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div role=\"toolbar\" aria-label=\"组「组 1」工具条\" data-group-toolbar=\"true\" data-group-toolbar-side=\"inside\" class=\"generation-canvas-v2__group-toolbar absolute left-1/2 -translate-x-1/2 inline-flex w-max flex-wrap items-center justify-center gap-1 min-h-9 px-1.5 py-1 rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md\">…</div> from <div class=\"pointer-events-none absolute\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div role=\"toolbar\" aria-label=\"组「组 1」工具条\" data-group-toolbar=\"true\" data-group-toolbar-side=\"inside\" class=\"generation-canvas-v2__group-toolbar absolute left-1/2 -translate-x-1/2 inline-flex w-max flex-wrap items-center justify-center gap-1 min-h-9 px-1.5 py-1 rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md\">…</div> from <div class=\"pointer-events-none absolute\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n",
+      "stages": [
+        "storyboard"
+      ],
+      "idle": {
+        "elapsedMs": 302099,
+        "longestRelevantTimerMs": 300000,
+        "stable": true
+      },
+      "httpPosts": 7,
+      "log": "continue-free-1.log",
+      "exit": 1
     },
-    {
-      "entry": "four-stage rehearsal 2",
+    "continue-free-2": {
       "status": "failed",
-      "reason": "Fixture omitted the existing first hosting disclosure."
+      "error": "Cannot read properties of undefined (reading 'nodeIds')",
+      "stages": [
+        "storyboard"
+      ],
+      "idle": {
+        "elapsedMs": 302027,
+        "longestRelevantTimerMs": 300000,
+        "stable": true
+      },
+      "httpPosts": 7,
+      "log": "continue-free-2.log",
+      "exit": 1
     },
-    {
-      "entry": "four-stage rehearsal 3",
-      "status": "failed",
-      "reason": "After successful storyboard and 301s idle, script incorrectly required the completed remaining-only button to be enabled."
+    "continue-free-3": {
+      "status": "passed",
+      "error": null,
+      "stages": [
+        "storyboard",
+        "canvas",
+        "list",
+        "restart"
+      ],
+      "idle": {
+        "elapsedMs": 302160,
+        "longestRelevantTimerMs": 300000,
+        "stable": true
+      },
+      "httpPosts": 15,
+      "log": "continue-free-3.log",
+      "exit": 0
     },
-    {
-      "entry": "final baseline attempt 1",
-      "status": "setup-failed",
-      "reason": "New translated build marker was unavailable on the old source; no product reproduction receipt."
-    },
-    {
-      "entry": "single-actions attempt 1",
-      "status": "setup-failed",
-      "reason": "Storyboard generation did not create the explicit canvas group used by the next action."
-    },
-    {
-      "entry": "single-actions attempt 2",
-      "status": "oracle-failed",
-      "reason": "Counted the hosting disclosure checkbox as a sixth image; final script counts the existing PlanRows only."
-    }
-  ],
+    "continue-queue-3": [
+      {
+        "journey": "en-queueActionsLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "queuedGroupExcluded": true,
+          "E4/storyboard": true,
+          "E4/canvas": true,
+          "E4/list": true
+        },
+        "imagePosts": 10,
+        "forwarded": 10,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-queueActionsLockExitJourney.json"
+      },
+      {
+        "journey": "zh-CN-queueActionsLockExitJourney.json",
+        "status": "passed",
+        "error": null,
+        "checks": {
+          "queuedGroupExcluded": true,
+          "E4/storyboard": true,
+          "E4/canvas": true,
+          "E4/list": true
+        },
+        "imagePosts": 10,
+        "forwarded": 10,
+        "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-queueActionsLockExitJourney.json"
+      }
+    ],
+    "continue-queue-1": [
+      {
+        "file": "zh-CN-singleActionsLockExitJourney.json",
+        "status": "failed",
+        "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">生成全部</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n",
+        "checks": {
+          "batchCancel": true,
+          "E3/storyboard": true,
+          "E9": true,
+          "E3/canvas": true,
+          "E3/list": true
+        }
+      },
+      {
+        "file": "en-singleActionsLockExitJourney.json",
+        "status": "failed",
+        "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator('[data-frame-generate-all]').first()\n    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">Generate all</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - element is outside of the viewport\n    - retrying click action\n      - waiting 100ms\n    87 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - element is outside of the viewport\n     - retrying click action\n       - waiting 500ms\n",
+        "checks": {
+          "batchCancel": true,
+          "E3/storyboard": true,
+          "E9": true,
+          "E3/canvas": true,
+          "E3/list": true
+        }
+      }
+    ],
+    "continue-queue-2": [
+      {
+        "file": "zh-CN-queueActionsLockExitJourney.json",
+        "status": "failed",
+        "error": "expect(locator).toBeDisabled() failed\n\nLocator:  locator('[data-frame-generate-all]').first()\nExpected: disabled\nReceived: enabled\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.disabled\" with timeout 5000ms\n  - waiting for locator('[data-frame-generate-all]').first()\n    14 × locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">生成全部</button>\n       - unexpected value \"enabled\"\n",
+        "checks": {}
+      },
+      {
+        "file": "en-queueActionsLockExitJourney.json",
+        "status": "failed",
+        "error": "expect(locator).toBeDisabled() failed\n\nLocator:  locator('[data-frame-generate-all]').first()\nExpected: disabled\nReceived: enabled\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.disabled\" with timeout 5000ms\n  - waiting for locator('[data-frame-generate-all]').first()\n    14 × locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">Generate all</button>\n       - unexpected value \"enabled\"\n",
+        "checks": {}
+      }
+    ]
+  },
   "acceptance": [
     {
       "id": "A1",
@@ -2625,12 +3089,17 @@
     {
       "id": "A9",
       "result": "过",
-      "evidence": "last-edited-queue 中英分镜与画布：仅改稿镜3不发，4 POST；共享作者边界反例03红。"
+      "evidence": "continue-edit-2 中英×分镜/画布/列表六份passed，各4 POST：仅改稿镜3不发，其余继续；共享作者边界反例03红。"
     },
     {
       "id": "A10",
       "result": "过（类测）",
       "evidence": "generationLockExit A9/A10＋confirmedProjectContinuation：别的镜变化允许，自身变化拒绝，再次新动作可发。"
+    },
+    {
+      "id": "A11",
+      "result": "过",
+      "evidence": "四类类测及最终重读竞态通过；中英 spendChange：资产运行时真下拉改镜2为2K，第二卡取消不增POST且资产保留，再批量确认后请求resolution=2k，每例5 POST；反例17去掉比较4断言红并按字节还原。"
     },
     {
       "id": "B1",
@@ -2644,8 +3113,8 @@
     },
     {
       "id": "B3",
-      "result": "未验证（真窗）",
-      "evidence": "共享 runner 对暂停/未暂停队列均有行为测试；三次 single-actions 准备失败停点，分镜/画布排队单发真窗未走到。"
+      "result": "过",
+      "evidence": "continue-queue-3 中英三页真实排队单发：原批次条目取消，每次单卡恰+1 POST且无普通确认卡；每份两轮合计10 POST/10转发，第二轮五种提示词各一次，所有批次Promise结束。全部排队时再点组头不弹卡、不增POST。"
     },
     {
       "id": "B4",
@@ -2675,7 +3144,7 @@
     {
       "id": "C4",
       "result": "过",
-      "evidence": "threePage 任务中心自己的确认后选中节点并+1 POST；origin节点映射反例06红。"
+      "evidence": "continue-three-1 中英passed：任务中心unknown普通重试及批量重试不再包含死按钮，专用确认后放行原Run恰+1 POST，被拒历史与出口保留。"
     },
     {
       "id": "C5",
@@ -2709,8 +3178,8 @@
     },
     {
       "id": "E1",
-      "result": "未验证（部分）",
-      "evidence": "分镜整批、画布分组、列表分区均有中英确认/逐节点HTTP；框选的完整连续真窗停在四段演练第一段，不能拿分组替代框选收据。"
+      "result": "未验证（部分，停点）",
+      "evidence": "分镜/分组/列表批量均有真窗收据；补测三次分别卡实际框选空白角、缩放定位、30%缩放未生效（实为42%）。该项停止，未以Meta+A分组替代框选。"
     },
     {
       "id": "E2",
@@ -2719,13 +3188,13 @@
     },
     {
       "id": "E3",
-      "result": "未验证（部分）",
-      "evidence": "分镜真窗重试及拒绝复位浏览器测试通过；画布/列表错误卡重试真窗在single-actions三次准备失败后停止。"
+      "result": "过（分项真窗）",
+      "evidence": "continue-single-3 中英检查E3/storyboard、E3/canvas、E3/list均true：真实失败卡双击各只+1 POST、无普通确认卡、生成成功；整体脚本后来在E4准备失败，未改记全绿。"
     },
     {
       "id": "E4",
-      "result": "未验证（部分）",
-      "evidence": "三页排队显示/列表小卡窄列/排队报价排除均过；排队单发恰1 POST只有共享类测，缺真窗。"
+      "result": "过",
+      "evidence": "continue-queue-3 中英三页真实排队单发：原批次条目取消，每次单卡恰+1 POST且无普通确认卡；每份两轮合计10 POST/10转发，第二轮五种提示词各一次，所有批次Promise结束。全部排队时再点组头不弹卡、不增POST。"
     },
     {
       "id": "E5",
@@ -2744,13 +3213,13 @@
     },
     {
       "id": "E8",
-      "result": "未验证（部分）",
-      "evidence": "分镜/画布排队改稿均中英通过且三页展示同一拒绝；列表编辑三次卡canvas/inline定位，未验证该真窗。"
+      "result": "过",
+      "evidence": "continue-edit-2 中英×分镜/画布/列表六份全部passed；各4 POST，仅排队改过的镜不发，其余继续，三页同一拒绝。"
     },
     {
       "id": "E9",
       "result": "过",
-      "evidence": "single-actions-3 的部分checks为true：分镜完成后画布、列表同节点同状态；该脚本整体仍失败。threePage另有跨页恢复。"
+      "evidence": "continue-single-3 中英部分checks E9=true，分镜完成后画布/列表同节点同状态；整体失败另列，未据此宣称全脚本通过。"
     },
     {
       "id": "E10",
@@ -2758,7 +3227,7 @@
       "evidence": "threePage 中英以真实Run文件重启，三页同状态、出口有效；C7另验旧数据。"
     }
   ],
-  "productionSourceCommit": "b74242b47",
+  "productionSourceCommit": "6f7d2bb30",
   "mergedMain": "29313b236",
   "matrixScreenshotBuild": {
     "commit": "6badba715",
@@ -2785,7 +3254,25 @@
     "final-pr-judgement": 0,
     "final-pre-push": 1,
     "final-perf-switch": 0,
-    "final-perf-queue": 0
+    "final-perf-queue": 0,
+    "continue-build-2": 0,
+    "continue-typecheck": 0,
+    "continue-related": 0,
+    "continue-root": 0,
+    "continue-walk-quality": 0,
+    "continue-boundaries": 0,
+    "continue-perf-registry": 0,
+    "continue-three-1": 0,
+    "continue-a11-2": 0,
+    "continue-edit-2": 0,
+    "continue-single-3": 1,
+    "continue-free-3": 0,
+    "continue-free-3-build": 0,
+    "continue-queue-3": 0,
+    "continue-queue-3-build": 0,
+    "continue-baseline-build": 0,
+    "continue-baseline-walk": 1,
+    "continue-baseline-restored-build": 0
   },
   "relatedTestCaveat": "722 files, 9765 passed / 1 failed / 7 skipped; only pre-existing outbound A5 with NOMI_TEST_NETWORK_GUARD. Coordinator ruled out-of-scope. Prepush unsets the guard.",
   "idleTimerInventory": [
@@ -2835,7 +3322,7 @@
       "relevance": "本场景只有图片，未启用视频期限"
     }
   ],
-  "idleConclusion": "Longest active timer 300000ms; before302063ms/current301911ms stable. No whole-window freeze reproduced. Manual retrieval600s and video1200s were not active.",
+  "idleConclusion": "Longest active timer 300000ms; before302187ms/current302160ms stable. No whole-window freeze reproduced. Manual retrieval600s and video1200s were not active.",
   "visualReview": "docs/evidence/2026-11-02-generation-lock-exit/visual-review.json",
   "deliveryChecks": {
     "testedHead": "a28899b73574a37f0eb56a4cd030941df7dbb2f0",
@@ -2845,5 +3332,24 @@
     "testNetworkGuardForPrePush": "unset",
     "finalFetchMerge": "Already up to date; origin/main29313b236",
     "workingTreeAfterTests": "clean"
+  },
+  "continuationClassChecks": {
+    "a11AndTaskCenter": {
+      "testsPassed": 53,
+      "exit": 0
+    },
+    "related": {
+      "numTotalTests": 436,
+      "numPassedTests": 436,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 48
+    },
+    "relatedExit": 0
+  },
+  "continuationFacts": {
+    "taskCenterBefore": "Both retry row and bulk retry produced zero extra POST; the old probe later failed because it incorrectly expected an ordinary single-item dialog. The pre-probe is partial, not passed.",
+    "taskCenterAfter": "Shared failure predicate removes dead retry items and excludes them from the bulk cohort. Both locales passed the dedicated release UI with +1 POST.",
+    "existingCanvasModelOverride": "Main already preserves overriddenFields on existing canvas nodes; changing the canvas node does not change the storyboard plan, so the plan spend comparison cannot see it. Report only, as directed."
   }
 }

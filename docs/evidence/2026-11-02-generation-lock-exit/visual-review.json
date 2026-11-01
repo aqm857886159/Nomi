@@ -34,11 +34,37 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-429-storyboard.png",
-      "sha256": "d6a9be9e3f5477199d483678dccd9526f69e0729b5127c369e81d47569abffd2",
+      "sha256": "7c6e380ddc0a264be41f83c44f8c922e2e3680517dc2c63b2e4bd290deb5b182",
       "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-three-1",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-a11-current-result.png",
+      "sha256": "bb2e63da6c6d420bc4b4f0a0a2471a9e7abb226144a38b4431c8dda26e3b4697",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-a11-2",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-a11-retry-current-confirm.png",
+      "sha256": "bf6798dcf85ebaca56aa4dd3d0aa406800827ec02a55717a038491f93dcaf119",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-a11-2",
       "limitations": [
-        "Retained-image error overlay has low contrast / some frames captured during drawer transition."
+        "Existing confirmation labels expose asset mention syntax; no layout or copy change in this task."
       ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-a11-second-confirm-current.png",
+      "sha256": "c9f89ddfefbd53d9e487445bfa2eaa9ecd35d2f2c6260bb73f4f9b44ab7cc1e5",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-a11-2",
+      "limitations": []
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-a4-all-results.png",
@@ -155,6 +181,26 @@
       "limitations": []
     },
     {
+      "path": "tests/ux/shots/generation-lock-exit/en-edit-list-changed-while-queued.png",
+      "sha256": "70a27f1b3e3574d6dc5734e3908ccbcba93f5d7fe4c045dd504ba558dda39825",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-edit-2",
+      "limitations": [
+        "Agent overlay partly covers composer; queued label, edited text and local refusal remain readable."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-edit-list-list-refusal.png",
+      "sha256": "039beefd843ce9bf7a6915fb0792d904c96d319aa0b20d449bc966f58cbe4193",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-edit-2",
+      "limitations": [
+        "Agent overlay partly covers composer; queued label, edited text and local refusal remain readable."
+      ]
+    },
+    {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-storyboard-canvas-refusal.png",
       "sha256": "63b2d92df9610147ef973398512c65ce52e682c8b5af617d521497fcfc380f49",
       "openedByImplementationAgent": true,
@@ -174,11 +220,11 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-storyboard-storyboard-refusal.png",
-      "sha256": "4921c2d71f3f5ea429b89c30ddc446135aa9e63c06ee59a423355b3730ba2098",
+      "sha256": "0f9f5bd0f0bc9968bde395ee0d74d3fb62989ae26b4a6e8116598af97209e2ca",
       "openedByImplementationAgent": true,
-      "limitations": [
-        "Document drawer covers the left preview; not full-result visual evidence."
-      ]
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-edit-2",
+      "limitations": []
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-eight-confirm.png",
@@ -427,6 +473,54 @@
       "limitations": []
     },
     {
+      "path": "tests/ux/shots/generation-lock-exit/en-single-canvas-queued.png",
+      "sha256": "7c84644f031503dfd5f019bda118fd8091758177a2561d62b1be1a006d7f3cf6",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-queue-3",
+      "limitations": [
+        "Canvas queue pill is above the viewport; this frame proves the focused composer only. The actual queued entry is positively asserted in the receipt; readable queue UI is in storyboard/list frames."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-single-canvas-retried.png",
+      "sha256": "43bcbda785d567b16aede0a09c24a8e627e9669139c5b867b52c3181033e1733",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-single-3",
+      "limitations": [
+        "Focused result is visible; a neighbouring failed card is also in frame. HTTP receipt identifies the retried node."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-single-list-queued.png",
+      "sha256": "da827f57c597c903bdee9eb31452e791d11e8bb400ff868f2cac016cbd592161",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-queue-3",
+      "limitations": [
+        "Queue status before the single click; exact one-POST and final settlement are proved by the HTTP receipt."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-single-list-retried.png",
+      "sha256": "4b8c2b2664575ced53dbc22e15a770ee4019a4889ac81f8960299d6226781239",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-single-3",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-single-storyboard-queued.png",
+      "sha256": "5c0be223189e47a83048f624fced3dee90ed3193c5cc3ae7db73a27077f57265",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-queue-3",
+      "limitations": [
+        "Queue status before the single click; exact one-POST and final settlement are proved by the HTTP receipt."
+      ]
+    },
+    {
       "path": "tests/ux/shots/generation-lock-exit/en-single-storyboard-retried.png",
       "sha256": "6738f9401303676d820861c76a8e2a319f2eb440aa3360880fc34a1be832d406",
       "openedByImplementationAgent": true,
@@ -440,11 +534,11 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-task-center-release-confirm.png",
-      "sha256": "ebec4dc0d58ad759d7445b300ca4088117f6e8b06d87c52e0c7e8907e9de464e",
+      "sha256": "995e1d6785b469e31a458d4034c4bb37996bb973c72b9429784650a9fa3a7dc7",
       "openedByImplementationAgent": true,
-      "limitations": [
-        "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-three-1",
+      "limitations": []
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-task-center-released.png",
@@ -488,11 +582,11 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-shot.png",
-      "sha256": "a0592474e43875716195588a443ae39cb9ec8b9e0a5261d3cd89b23cf49ac823",
+      "sha256": "7ad99cab31734bed48d7b946da587a6a9c5defb6c665cebb52b00316b2236ec5",
       "openedByImplementationAgent": true,
-      "limitations": [
-        "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-three-1",
+      "limitations": []
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-429-canvas.png",
@@ -526,11 +620,37 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard.png",
-      "sha256": "6cef7822a5d1d5a764f702088a9a4bd79936ada57d47a9acae36ba65e25949e9",
+      "sha256": "e311015cb472f6f9b861641252c2a53f4c60b5b22044188fa22cfab101546286",
       "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-three-1",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-a11-current-result.png",
+      "sha256": "a985c0a43ef77e4afbeb823537a87367250d38c143225ccd84bcd65da16a2503",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-a11-2",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-a11-retry-current-confirm.png",
+      "sha256": "6722c6caeea6357b6bee922bbeff43db0d0b4be5dda927841aa9ac9493e97baf",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-a11-2",
       "limitations": [
-        "Retained-image error overlay has low contrast / some frames captured during drawer transition."
+        "Existing confirmation labels expose asset mention syntax; no layout or copy change in this task."
       ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-a11-second-confirm-current.png",
+      "sha256": "39f2657f7b1a29a0820ea65e188c725c3478f948c81fea87daf7fa55d347dc47",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-a11-2",
+      "limitations": []
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-a4-all-results.png",
@@ -647,6 +767,26 @@
       "limitations": []
     },
     {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-list-changed-while-queued.png",
+      "sha256": "0bcd22edf578aac3e0c9db45d3cd03678889db754d749f3e94ab34d5ee4c8955",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-edit-2",
+      "limitations": [
+        "Agent overlay partly covers composer; queued label, edited text and local refusal remain readable."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-list-list-refusal.png",
+      "sha256": "a0a3b384f1d2c3b253e5ab2afdc78641ba21debd9162b08a945148a2160f655c",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-edit-2",
+      "limitations": [
+        "Agent overlay partly covers composer; queued label, edited text and local refusal remain readable."
+      ]
+    },
+    {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-canvas-refusal.png",
       "sha256": "e63db8e031a45aa24bc12a2c385fb8c61cdc92faa76d11fae5f1da2577a309ab",
       "openedByImplementationAgent": true,
@@ -666,11 +806,11 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-storyboard-refusal.png",
-      "sha256": "619cb7e40095a26fae61ff72871c92cd95e5766392a8843d3e32b84a45ad14d2",
+      "sha256": "4cea98649634b358bf999695bdebc952510d3e26d14e0a224e3af61dfadc95c3",
       "openedByImplementationAgent": true,
-      "limitations": [
-        "Document drawer covers the left preview; not full-result visual evidence."
-      ]
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-edit-2",
+      "limitations": []
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-eight-confirm.png",
@@ -893,6 +1033,84 @@
       "limitations": []
     },
     {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-canvas-cancel-confirm.png",
+      "sha256": "75314bf339257a9621f17de3da8f4cbb8273a84773fe48861b3d27389a7dd37c",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": [
+        "All five cards are listed and initially unchecked. This cancellation proves no dispatch; later two-shot selection and dispatch are asserted separately."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-canvas-released.png",
+      "sha256": "4ba0a40e57c684f7845ee1c7fa4b677190c5fe9892e9eb399d08cbe0b2c0e269",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-idle-return.png",
+      "sha256": "7bd1bff82d28908c25b5dc4d2456a83073d36e4aa88285b9579fc30b2d96b9e5",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-list-unknown.png",
+      "sha256": "d860cf7f93b710f2d10067b7a0aa698b25ec36b2fde7919d227b402b27b91cab",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-canvas.png",
+      "sha256": "59a767718d3caa1f8b54d44e593a1796b70488d96e333bb7f42bf8ab9643d8c8",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": [
+        "Canvas error heading partly above viewport; release actions readable. Use list/storyboard frames for the full reason."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-list.png",
+      "sha256": "c7c4042181a1083117856c65124055fa532489fcc3afaf97e1dd16ab812f9eba",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-released.png",
+      "sha256": "1fd5c6a91c27328ddd1f07e03acfae2b9282b282fe1cf181441d8513d0ae87fb",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-storyboard.png",
+      "sha256": "622549677d00a97bc94dc920dc491a10327bc9bbf932c4d303a40f5b09b35631",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": [
+        "Existing narrow shot card repeats the reason and wraps it; this change does not redesign that card."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-storyboard-confirm.png",
+      "sha256": "d643a29c8cfca87866650a8d64c9022e5032059303912acaf562b242279b686e",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-free-3",
+      "limitations": []
+    },
+    {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-canvas-same-result.png",
       "sha256": "d732f53d376522ff0759f61d229c25c6f1a9f256aea27f9cc9de97a3a6957025",
       "openedByImplementationAgent": true,
@@ -919,6 +1137,54 @@
       "limitations": []
     },
     {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-queued.png",
+      "sha256": "f73611cfd9a30c90023b2a22c363daea84e404c6ad606e4cab1d9cc7c941bcf7",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-queue-3",
+      "limitations": [
+        "Canvas queue pill is above the viewport; this frame proves the focused composer only. The actual queued entry is positively asserted in the receipt; readable queue UI is in storyboard/list frames."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-retried.png",
+      "sha256": "119ab23d23943bfab9df4e5ffd03059884f0c8370d78a96d70606ad0604b7931",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-single-3",
+      "limitations": [
+        "Focused result is visible; a neighbouring failed card is also in frame. HTTP receipt identifies the retried node."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-list-queued.png",
+      "sha256": "b6994870b45f637344a702eca3ecd71a9fce8d8d3b003f9b4448f908ede69155",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-queue-3",
+      "limitations": [
+        "Queue status before the single click; exact one-POST and final settlement are proved by the HTTP receipt."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-list-retried.png",
+      "sha256": "84034796cf4a7409d24afa1d1db26194a62c4fa13f6161fd1a002aa107cd453d",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-single-3",
+      "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-storyboard-queued.png",
+      "sha256": "3a79e28cc733b8ac1ba365494bc906ad472f66fad93f36dc7b4d2aaebd73cde0",
+      "openedByImplementationAgent": true,
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-queue-3",
+      "limitations": [
+        "Queue status before the single click; exact one-POST and final settlement are proved by the HTTP receipt."
+      ]
+    },
+    {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-storyboard-retried.png",
       "sha256": "9da836d5d1326672ded7b11cdbfe9c0fd3cdd6709f194089bcaecf3e9c995114",
       "openedByImplementationAgent": true,
@@ -932,11 +1198,11 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-task-center-release-confirm.png",
-      "sha256": "834859622a4e27b4915b6441203c61661e3a575e4b3b46fb8c832edd75f41701",
+      "sha256": "5d9f9ac73f8063267167182f9bb8e2d929591f6a935b0b38213eb9931bd3c839",
       "openedByImplementationAgent": true,
-      "limitations": [
-        "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-three-1",
+      "limitations": []
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-task-center-released.png",
@@ -980,11 +1246,11 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-shot.png",
-      "sha256": "8eb5d1fe15008a292e6e792abde5ddca537eed3601a556462603ebe368c7547c",
+      "sha256": "7d7bf9059afdcd004d291b7825988c8bb0ccb2aac79e20329cf3c6cba9335ab1",
       "openedByImplementationAgent": true,
-      "limitations": [
-        "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      "reviewedInContinuation": true,
+      "sourceRun": "continue-three-1",
+      "limitations": []
     }
   ]
 }

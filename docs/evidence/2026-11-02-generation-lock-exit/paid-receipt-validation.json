@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "checks": [
+    "genuine passed four-stage receipt accepted",
+    "genuine failed rehearsal rejected"
+  ],
+  "paidEntryExecuted": false,
+  "keysLoaded": false,
+  "paidCalls": 0
+}

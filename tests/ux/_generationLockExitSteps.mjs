@@ -8,7 +8,7 @@ import { canvasFitView, collapseAgentPanel, switchGenerationView, switchWorkspac
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
-import { uiText } from './full-walk/invariants.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 
 export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-unknown-runs']
 export const LOCK_EXIT_SCRIPT = '清晨，林薇在旧书店找到一封信。她走到窗边，最后把信放在桌上。'
@@ -140,13 +140,19 @@ export async function generationLockExitJourney(input) {
     await page.locator('[data-frame-generate-all]').first().click(); await expect(page.locator(dialog)).toBeVisible()
     const checks = page.locator(`${dialog} [data-v4-block="plan-rows"] input[type="checkbox"]`)
     assert.equal(await checks.count(), 5, 'All five cards from the storyboard appear in the group confirmation')
-    const members = (await readProject(page, projectId)).payload.generationCanvas.groups.find(g => bound.every(n => g.nodeIds.includes(n.id))).nodeIds
-    const twoShots = shotNodes.slice(0, 2).map(n => n.id)
+    const twoShotLabels = shotNodes.slice(0, 2).map(n => uiTextWith(locale, 'generationList.shot', { index: String(design.plan.shots.find(s => s.shotId === n.meta.shotId).index).padStart(2, '0') }))
+    const selectTwoShots = async () => {
+      for (const checkbox of await checks.all()) {
+        const label = await checkbox.getAttribute('aria-label')
+        await checkbox.setChecked(twoShotLabels.some(shotLabel => label?.endsWith(shotLabel)))
+      }
+      assert.equal(await checks.evaluateAll(inputs => inputs.filter(input => input.checked).length), 2)
+    }
     await shot('canvas-cancel-confirm'); const beforeCancel = proxy.records.length
     await page.locator(`${dialog} [data-spend-confirm-action="cancel"]`).click(); assert.equal(proxy.records.length, beforeCancel)
     proxy.setLimit(1); proxy.dropNextReply()
     await page.locator('[data-frame-generate-all]').first().click()
-    for (const [index, checkbox] of (await checks.all()).entries()) await checkbox.setChecked(twoShots.includes(members[index]))
+    await selectTwoShots()
     await confirm(); await expect.poll(async () => (await state()).filter(n => shotNodes.slice(0, 2).some(s => s.id === n.id) && n.status === 'error').length, { timeout }).toBe(2); await settled(shotNodes.slice(0, 2).map(n => n.id))
     let current = await state()
     const quota2 = shotNodes.find(n => /429|concurrency/.test(current.find(c => c.id === n.id)?.error ?? ''))
@@ -167,7 +173,7 @@ export async function generationLockExitJourney(input) {
     await list(); await expect(page.locator('[data-list-card]')).toHaveCount(3)
     proxy.setLimit(1); proxy.dropNextReply()
     await page.locator('[data-section-generate]').first().click(); await expect(page.locator(dialog)).toBeVisible()
-    for (const [index, checkbox] of (await checks.all()).entries()) await checkbox.setChecked(twoShots.includes(members[index]))
+    await selectTwoShots()
     await shot('list-confirm'); await confirm(); await expect.poll(async () => (await state()).filter(n => shotNodes.slice(0, 2).some(s => s.id === n.id) && n.status === 'error').length, { timeout }).toBe(2); await settled(shotNodes.slice(0, 2).map(n => n.id))
     current = await state()
     const quota3 = shotNodes.find(n => /429|concurrency/.test(current.find(c => c.id === n.id)?.error ?? ''))
