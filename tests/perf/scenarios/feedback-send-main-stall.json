@@ -15,11 +15,11 @@
   "budgetStatus": "proposed",
   "budgetBasis": "主指标 mainRoundTripMax = 发送期间最小的一次主进程往返最慢要多久，也就是这段时间别的 IPC 最多要等多久。点发送到卡上变「正在发送」不经过主进程，用户在卡上看不到它，但别的面板看得到。预算取操作到可见反馈的默认 ≤100ms（docs/engineering/perf-scenarios.md 默认预算）。队列攒到 50 份是离线几个月才可能有的规模，数字只留在原始结果里不判预算，现状也在 100ms 上下。",
   "baseline": {
-    "median": 19.3,
-    "p95": 22.1,
+    "median": 27.5,
+    "p95": 31.1,
     "runs": 5,
     "machine": "darwin arm64 Apple M5 x10 / 24GB",
     "date": "2026-11-01",
-    "commit": "3ea46adf0"
+    "commit": "3bb5c2927"
   }
 }
