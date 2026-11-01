@@ -12,8 +12,9 @@
   "manualReview": "pending",
   "evidence": [
     "docs/plan/2026-11-02-generation-lock-exit.md",
+    "docs/evidence/2026-11-02-generation-lock-exit/verification.json",
     "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
-    "现有主进程测试确认结果不明后再次点击不会建立第二个画布 Run；renderer 的 runs[0] 却已换号。修复合同需先明确释放目标的权威来源。"
+    "主进程查询已接通：再次被拒后仍按原占用 Run 放行；三页真窗已验证放行并出图。单卡付费确认与整批输入隔离尚不符合合同，完整修后免费演练未通过，保持 candidate。"
   ],
   "completionCommits": [],
   "rootCauseContract": "docs/fixes/2026-11-02-generation-lock-exit.root-cause.json",

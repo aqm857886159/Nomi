@@ -204,3 +204,16 @@ describe("canvas batch consent and withdrawal", () => {
     ]);
   });
 });
+
+
+it('unknown canvas Run lookup validates payload and trusted sender before reading occupancy', async () => {
+  vi.resetAllMocks(); mocks.handlers.clear()
+  const canvasUnknownRuns = vi.fn(() => [{ runId: 'original', jobId: 'job' }])
+  registerTaskIpcHandlers(async () => ({}) as unknown as Runtime, async () => ({ canvasUnknownRuns }) as never)
+  await expect(call('canvas-unknown-runs', sender(54), { projectId: 'p', nodeId: 'n' })).resolves.toEqual([{ runId: 'original', jobId: 'job' }])
+  expect(canvasUnknownRuns).toHaveBeenCalledWith({ projectId: 'p', nodeId: 'n' })
+  await expect(call('canvas-unknown-runs', sender(54), { projectId: 'p' })).rejects.toThrow('invalid')
+  mocks.guard.mockImplementation(() => { throw new Error('untrusted') })
+  await expect(call('canvas-unknown-runs', sender(54), { projectId: 'p', nodeId: 'n' })).rejects.toThrow('untrusted')
+  expect(canvasUnknownRuns).toHaveBeenCalledOnce()
+})

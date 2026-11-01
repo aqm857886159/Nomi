@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "change": {
+    "title": "批量生成锁退出：部分验收",
+    "headSha": "925bfdadadff60f89542e42b742252e064038e3b",
+    "headNote": "implementation was still uncommitted during these observations; this is not a release receipt",
+    "userCan": "列表批量入口可派发，三页可显示并释放未知结果；合同要求的完整付费确认闭环未完成。",
+    "changed": [
+      "三页共享失败判据和恢复面",
+      "本机拒绝单独分类",
+      "排队状态读队列"
+    ],
+    "removed": [
+      "重复的整方案作者守卫",
+      "单行永久 retrying"
+    ]
+  },
+  "scenarioId": "browse-away-during-long-task",
+  "verifier": {
+    "line": "Codex implementation",
+    "kind": "self-check; not independent acceptance"
+  },
+  "date": "2026-11-02",
+  "machine": {
+    "source": "walk-log",
+    "env": {
+      "device": "macOS arm64",
+      "window": "1280×860 offscreen isolated Electron",
+      "language": "zh-CN / en",
+      "theme": "light",
+      "boundary": "fake providers and a local two-request proxy; no billing"
+    },
+    "attempts": [
+      {
+        "label": "baseline free rehearsal",
+        "result": "fail",
+        "note": "Expected five dispatched items; only two asset requests were made."
+      },
+      {
+        "label": "fixed free rehearsal 1",
+        "result": "fail",
+        "note": "creation page had no canvas test bridge; not a product-regression receipt"
+      },
+      {
+        "label": "fixed free rehearsal 2",
+        "result": "fail",
+        "note": "fixture omitted authored anchor bindings; not a product-regression receipt"
+      },
+      {
+        "label": "fixed free rehearsal 3",
+        "result": "fail",
+        "note": "build freshness rejected changed source tests; not a product-regression receipt"
+      },
+      {
+        "label": "three pages 1 zh-CN",
+        "result": "fail",
+        "note": "navigation helper expected canvas while list was persisted"
+      },
+      {
+        "label": "three pages 1 en",
+        "result": "fail",
+        "note": "navigation helper expected canvas while list was persisted"
+      },
+      {
+        "label": "three pages 2 zh-CN",
+        "result": "fail",
+        "note": "single-user generation skipped the required confirmation"
+      },
+      {
+        "label": "three pages 2 en",
+        "result": "fail",
+        "note": "single-user generation skipped the required confirmation"
+      },
+      {
+        "label": "three pages 3 zh-CN",
+        "result": "fail",
+        "note": "nine functional checks passed but confirmation remained missing"
+      },
+      {
+        "label": "three pages 3 en",
+        "result": "fail",
+        "note": "nine functional checks passed but confirmation remained missing"
+      },
+      {
+        "label": "independent list entry zh-CN",
+        "result": "pass",
+        "note": "Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task."
+      },
+      {
+        "label": "independent list entry en",
+        "result": "pass",
+        "note": "Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task."
+      }
+    ],
+    "metrics": [
+      {
+        "name": "完整分镜资产与镜头 POST",
+        "unit": "requests",
+        "baseline": 2,
+        "current": null,
+        "n": 1,
+        "basis": "script-count",
+        "note": "baseline expected five; fixed full rehearsal stopped after three setup failures"
+      },
+      {
+        "name": "独立列表入口每语言 POST",
+        "unit": "requests",
+        "baseline": null,
+        "current": 6,
+        "n": 2,
+        "basis": "script-count",
+        "note": "three initial requests (one rejected), then three serial requests; five forwarded"
+      },
+      {
+        "name": "列表中文窗口响应最长等待",
+        "unit": "ms",
+        "baseline": null,
+        "current": 49,
+        "n": 31,
+        "basis": "script-count",
+        "note": "one-second probes; only this independent list journey"
+      },
+      {
+        "name": "列表英文窗口响应最长等待",
+        "unit": "ms",
+        "baseline": null,
+        "current": 53,
+        "n": 32,
+        "basis": "script-count",
+        "note": "one-second probes; only this independent list journey"
+      },
+      {
+        "name": "合同要求的单卡付费确认",
+        "unit": "dialogs",
+        "baseline": null,
+        "current": 0,
+        "n": 2,
+        "basis": "script-count",
+        "note": "both languages follow the existing skip-confirmation policy"
+      }
+    ]
+  },
+  "human": {
+    "seq": null,
+    "events": null
+  },
+  "guardrails": [
+    {
+      "name": "不自动重发结果不明的请求",
+      "result": "pass",
+      "evidence": "host tests and three-page refused-click counts"
+    },
+    {
+      "name": "改一镜只拒这一镜",
+      "result": "fail",
+      "evidence": "confirmedProjectContinuation changed-node case executes once instead of twice"
+    },
+    {
+      "name": "失败重试与放行先弹付费确认",
+      "result": "fail",
+      "evidence": "three-page checks spendConfirmation=false in both languages"
+    },
+    {
+      "name": "整窗冻结复现",
+      "result": "unverified",
+      "evidence": "no greater-than-two-second probe in the independent list journey; complete four stages not measured"
+    }
+  ],
+  "friction": {
+    "moment": "用户已核对，现有单卡策略直接重发；完整分镜修后演练未拿到成功收据。",
+    "decision": "保留失败，不以独立列表绿灯替代整轮验收；付费入口禁止运行，待合同差异处理。"
+  },
+  "unverified": [
+    {
+      "item": "完整四段真实场景和修后免费演练",
+      "owner": "implementation and coordinator",
+      "recheck": "resolve contract differences and the stopped rehearsal item"
+    },
+    {
+      "item": "Windows and real billing",
+      "owner": "independent acceptance",
+      "recheck": "a green shared four-stage rehearsal and explicit paid execution by coordinator"
+    },
+    {
+      "item": "真人 SEQ / 操作观察",
+      "owner": "human review",
+      "recheck": "real participant session"
+    }
+  ],
+  "evidence": [
+    "docs/evidence/2026-11-02-generation-lock-exit/verification.json",
+    "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-unknown-list-detail-light.png",
+    "tests/fixtures/old-user-data/runs/v0.24.0-canvas-unknown/manifest.json"
+  ]
+}

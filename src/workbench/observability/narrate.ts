@@ -161,6 +161,7 @@ export type GenerationErrorKind =
   | 'retrieval-incomplete'
   // 本机处理失败（机器码 NOMI_ERR::local-processing::）：截帧 / 提取深度 / 本地素材复制——没有服务商参与，所以动作只有「重试」。
   | 'local-processing'
+  | 'local-refusal'
   | 'unknown'
 
 /** 目录（generationCommon.observability.error）里每一类失败的词条 key——单源；noChargeClaims.test 也读它。 */
@@ -198,6 +199,7 @@ export const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'output-retrieval-failed': 'outputRetrievalFailed',
   'retrieval-incomplete': 'retrievalIncomplete',
   'local-processing': 'localProcessing',
+  'local-refusal': 'localRefusal',
   unknown: 'unknown',
 }
 
@@ -326,6 +328,7 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   'retrieval-incomplete': { primary: 'view-task', secondary: null },
   // 本机处理失败：换模型帮不上忙（没有模型参与），只留重试。
   'local-processing': { primary: 'retry', secondary: null },
+  'local-refusal': { primary: 'view-task', secondary: null },
   unknown: RETRY_FIRST,
 }
 
@@ -376,6 +379,7 @@ const VENDOR_SIDE_BY_KIND: Record<GenerationErrorKind, boolean> = {
   'retrieval-incomplete': false,
   // 全程在本机，没有服务商。
   'local-processing': false,
+  'local-refusal': false,
   unknown: false,
 }
 

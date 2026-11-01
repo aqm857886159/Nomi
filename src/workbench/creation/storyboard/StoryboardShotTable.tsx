@@ -98,6 +98,7 @@ type TableItem =
   | { kind: 'shot'; key: string; shot: PlanShot; pos: number }
 
 type Props = {
+  pendingActions?: ReadonlySet<string>
   plan: StoryboardPlan
   projectId?: string | null
   /** 行执行 runtime（与 plan.shots 同序；exec/storyboardRowStatus 单源 derive）。 */
@@ -212,7 +213,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
+export default function StoryboardShotTable({ pendingActions, plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -561,6 +562,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
     const shotKey = stableShotId(shot)
     const commonRowProps = {
       shot,
+      actionBusy: pendingActions?.has(`shot:${shotKey}`),
       anchors: plan.anchors,
       modelOptions: shot.shotKind === 'image' ? imageModelOptions : videoModelOptions,
       promptInvalid: emptyPromptShots.has(shot.index),

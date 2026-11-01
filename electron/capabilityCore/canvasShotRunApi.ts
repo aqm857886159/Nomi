@@ -67,3 +67,7 @@ export function withdrawQueuedHandOversImpl(run: ProductionRun): void {
 export function releaseCanvasShotSender(senderId: number): void {
   active?.releaseSender(senderId);
 }
+
+export function canvasUnknownRuns(input: { projectId: string; nodeId: string }): ReturnType<CanvasShotRuns["unknownRuns"]> {
+  return activeRuns().unknownRuns(input);
+}

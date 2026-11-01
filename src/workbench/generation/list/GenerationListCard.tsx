@@ -1,3 +1,4 @@
+import { selectIsNodeQueued, useGenerationQueueStore } from '../../generationCanvas/runner/generationQueueStore'
 // 生成页列表的一张卡（样张板 List，2026-10-08 22:40Z 拍板）：
 //   - 定宽 256；画面铺满、不套框，下面一行「镜号 · 时长 ··· 模型」，再下面是提示词（最多两行）；
 //   - 还没生成的镜头是「草稿卡」：画面区放提示词文字，不画空图框；生成中 / 失败由画面区自己说话；
@@ -133,8 +134,8 @@ function ToolCard({ card, node, onOpenInCanvas }: { card: GenerationListCard; no
 }
 
 /** 这张卡是不是「还没生成」的草稿：空闲、没有结果的图 / 视频镜头——画面区放文字。 */
-function isDraftNode(node: GenerationCanvasNode | undefined): boolean {
-  if (!node || node.result?.url || (node.status && node.status !== 'idle')) return false
+function isDraftNode(node: GenerationCanvasNode | undefined, queued: boolean): boolean {
+  if (queued || !node || node.result?.url || (node.status && node.status !== 'idle')) return false
   const execution = getGenerationNodeExecutionKind(node.kind)
   return execution === 'image' || execution === 'video'
 }
@@ -155,14 +156,15 @@ export function GenerationListCardView({
 }): JSX.Element {
   const { t } = useTranslation()
   const node = useGenerationCanvasStore((state) => state.nodes.find((candidate) => candidate.id === card.nodeId))
+  const queued = useGenerationQueueStore((state) => selectIsNodeQueued(state, card.nodeId))
   if (card.variant === 'tool') return <ToolCard card={card} node={node} onOpenInCanvas={onOpenInCanvas} />
   const kind = node?.kind ?? 'video'
   const aspect = readAspect(node)
   const odd = aspect && defaultAspect && aspect !== defaultAspect ? aspect : null
-  const draft = isDraftNode(node)
+  const draft = isDraftNode(node, queued)
   const model = modelLabel(node)
   const duration = node && (getGenerationNodeExecutionKind(node.kind) === 'video' || getGenerationNodeExecutionKind(node.kind) === 'audio') ? readDurationSeconds(node) : null
-  const showStatus = card.status && !draft && card.status !== 'done' && card.status !== 'locked'
+  const showStatus = queued || card.status && !draft && card.status !== 'done' && card.status !== 'locked'
   const textual = kind === 'text'
   return (
     <article
@@ -195,7 +197,7 @@ export function GenerationListCardView({
       <div className="mt-2.5 flex min-w-0 items-baseline gap-2">
         <span className="min-w-0 truncate text-body-sm font-semibold tabular-nums text-nomi-ink">{shotLabel(t, card)}</span>
         {duration ? <span className="shrink-0 text-caption tabular-nums text-nomi-ink-40" data-list-duration>{formatSeconds(duration)}</span> : null}
-        {showStatus ? <span className="shrink-0 self-center"><ListStatusTag status={card.status!} /></span> : null}
+        {showStatus ? <span className="shrink-0 self-center"><ListStatusTag status={card.status!} queued={queued} /></span> : null}
         <span className="min-w-0 flex-1" aria-hidden />
         {model ? <span className="min-w-0 truncate text-caption text-nomi-ink-40" data-list-card-model>{model}</span> : null}
       </div>

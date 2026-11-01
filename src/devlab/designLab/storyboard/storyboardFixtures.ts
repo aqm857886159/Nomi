@@ -108,7 +108,7 @@ export function labExec(over?: Partial<ShotRowExec>): ShotRowExec {
     status: 'ready',
     node: null,
     keyframeNode: null,
-    recoverableNode: null,
+    recoverableNode: null, failedNode: null,
     ignoredAnchors: [],
     missingSlots: [],
     plannedFirstFrame: null,

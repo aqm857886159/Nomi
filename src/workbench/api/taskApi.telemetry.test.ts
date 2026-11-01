@@ -1,3 +1,4 @@
+import { encodeStructuredErrorMessage } from '../../../electron/vendor/vendorHttp'
 // 生成结果上报：失败带类别码（不带原文），异步任务在终态才报一次，不再把「还在跑」记成取消。
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GENERATION_ERROR_KINDS } from '../observability/narrate'
@@ -72,4 +73,13 @@ describe('generation.completed 上报', () => {
   it('分类表里每一个 kind 都装得进 errorType 的形状', () => {
     for (const kind of GENERATION_ERROR_KINDS) expect(TELEMETRY_ERROR_TYPE_PATTERN.test(kind), kind).toBe(true)
   })
+})
+
+
+it.each(['node_generation_in_flight', 'canvas_consent_predates_upgrade', 'director_preview_blocked', 'production_shot_claimed', 'generation_input_changed', 'storyboard_content_conflict'])('local refusal telemetry keeps the exact kind for %s', async code => {
+  installDesktop()
+  run.mockRejectedValue(new Error(encodeStructuredErrorMessage({ code, reason: 'needs_reconcile' }, code)))
+  await expect(runWorkbenchTaskByVendor('v', { kind: 'text_to_image', prompt: 'private fixture' }, null)).rejects.toThrow()
+  expect(sent()[0].props.errorType).toBe('local-refusal')
+  expect(JSON.stringify(sent())).not.toContain('private fixture')
 })

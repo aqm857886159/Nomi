@@ -14,6 +14,7 @@ import { releaseCanvasShotRun } from '../../api/taskApi'
 import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
+import { classifyGenerationError } from '../../observability/classifyError'
 import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
@@ -58,6 +59,10 @@ import type { HostingDisclosure } from '../spend/spendConfirm'
 import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 
+function countsTowardGenerationBrake(kind: ReturnType<typeof classifyGenerationError>['kind']): boolean {
+  return kind !== 'quota' && kind !== 'local-refusal'
+}
+
 /** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
 export function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
   const exec = getGenerationNodeExecutionKind(kind)
@@ -96,7 +101,7 @@ export type AssetUploadConsentDecision = 'allow' | 'not-needed'
 /** Interactive validation is only for approval; author validation survives project switches. */
 export type GenerationApprovalGuards =
   | { assertCurrent?: never; assertAuthorCurrent?: never }
-  | { assertCurrent: () => Promise<void>; assertAuthorCurrent: () => Promise<void> }
+  | { assertCurrent: () => Promise<void>; assertAuthorCurrent: (graph: RunGraph, executingNodeId: string) => Promise<void> }
 
 export type GenerationConfirmationGuards = GenerationApprovalGuards & {
   /**
@@ -112,7 +117,7 @@ export type DeferredNodeMaterialization = {
 }
 
 export type RunGenerationNodeOptions = {
-  assertAuthorCurrent?: () => Promise<void>
+  assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>
   assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void
   executor?: GenerationNodeExecutor
   retry?: {
@@ -281,7 +286,12 @@ export async function runGenerationNode(
   // markRunning 只把 queued 翻成 running（幂等），所以两条路都能安全调。
   const ownsBatch = !options.batchId
   const batchId = options.batchId ?? beginSingletonBatch(id, target.projectId)
-  useGenerationQueueStore.getState().markRunning(batchId, id)
+  const queue = useGenerationQueueStore.getState()
+  for (const entry of queue.entries) {
+    if (entry.nodeId === id && entry.batchId !== batchId && entry.state === 'queued'
+      && queue.batches[entry.batchId]?.projectId === target.projectId) queue.cancelEntry(entry.batchId, id)
+  }
+  queue.markRunning(batchId, id)
 
   const now = Date.now()
   // 运行记录随原项目持久化（含 projectId）：找回/重启都只认它，不认「当时打开的是哪个」。
@@ -314,10 +324,14 @@ export async function runGenerationNode(
   let result: GenerationNodeResult | null = null
   let mediaDimensions: MediaDimensions | undefined
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      await options.assertAuthorCurrent?.()
       const savedGraph = await readRunGraph(target)
       // Validation and disk reads may outlive deletion. Never resurrect the initial snapshot.
-      const state = isRunTargetLoaded(target) ? useGenerationCanvasStore.getState() : savedGraph
+      let state = isRunTargetLoaded(target) ? useGenerationCanvasStore.getState() : savedGraph
+      if (!state) throw new Error('node not found')
+      if (options.assertAuthorCurrent) {
+        await options.assertAuthorCurrent(state, id)
+        state = await readRunGraph(target)
+      }
       const node = state?.nodes.find((candidate) => candidate.id === id)
       if (!state || !node) throw new Error('node not found')
       options.assertApprovedInputs?.(state, id)
@@ -419,13 +433,14 @@ export async function runGenerationNode(
       useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: blocked })
       throw error
     }
-    if (isRunTargetLoaded(target)) recordNodeModelFailure(run.attempt)
+    const kind = classifyGenerationError(describeOpaqueFailure(error)).kind
+    if (kind !== 'local-refusal' && isRunTargetLoaded(target)) recordNodeModelFailure(run.attempt)
     // Store the RAW message (describeOpaqueFailure only fills in when there is none): NodeErrorReport
     // runs classifyGenerationError over it, and a plain string needs no persisted-shape migration.
     const rawMessage = describeOpaqueFailure(error)
     await deliverRunOutcome(target, id, { kind: 'status', status: 'error', error: rawMessage })
     // 真执行失败 → 计入刹车（连续 3 个即暂停队列，防上游整体挂掉时把剩下的额度一路烧完）。
-    useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: rawMessage })
+    useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: rawMessage, countsTowardBrake: countsTowardGenerationBrake(kind) })
     throw error
   } finally {
     // A rejected disk write/read must not strand the original queue entry as running.

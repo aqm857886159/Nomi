@@ -1,3 +1,4 @@
+import { useGenerationQueueStore } from '../runner/generationQueueStore'
 import { insertAutoMentions } from '../../assets/promptMentions'
 import { resultUrl } from '../runner/referenceUrl'
 import { referenceAssetKindForNode, validateReferenceEdge, archetypeForNode } from '../agent/referenceEdgeCapability'
@@ -61,11 +62,12 @@ export function planCanvasAutoReference(
     .filter((node) => node.categoryId === source.categoryId)
     .map((node) => userNodeName(node, defaults))
     .filter(Boolean)
+  const unsettled = new Set(useGenerationQueueStore.getState().entries.filter(entry => entry.state === 'queued' || entry.state === 'running').map(entry => entry.nodeId))
   const plans: CanvasAutoReferencePlan[] = []
   for (const target of nodes) {
     if (target.id === source.id) continue
     if (target.kind !== 'image' && target.kind !== 'video') continue
-    if (target.result || target.status === 'running' || target.status === 'queued' || target.status === 'recoverable') continue
+    if (target.result || target.status === 'running' || unsettled.has(target.id) || target.status === 'recoverable') continue
     const meta = (target.meta || {}) as Record<string, unknown>
     if (meta.storyboardDesignId) continue
     if (target.categoryId !== source.categoryId) continue

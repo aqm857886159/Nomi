@@ -1,3 +1,4 @@
+import { generationFailureActions } from '../../observability/generationFailureActions'
 import React, { type JSX } from 'react'
 import { deleteStoryboardRows, restoreStoryboardDeletion, type StoryboardDeletion } from './storyboardDeleteUndo'
 import { isCanvasTextEditingContext } from '../../generationCanvas/components/useCanvasShortcuts'
@@ -43,7 +44,8 @@ import {
 } from './exec/storyboardRowActions'
 import { recoverNodeResult } from '../../generationCanvas/runner/recoverTaskActions'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
-import { stableProjectAgentJson } from '../../../../electron/shared/legacyAgentJson'
+import { createStoryboardActionGuard } from './exec/storyboardActionGuard'
+import { useGenerationQueueStore } from '../../generationCanvas/runner/generationQueueStore'
 import { isRunTargetLoaded, readRunProjectRecord } from '../../generationCanvas/runner/runProjectDelivery'
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
@@ -57,7 +59,7 @@ import { describeBlocker, describeIssue } from './strategyText'
 import { storyboardShotId } from '../../generationCanvas/agent/storyboardStrategy'
 import { FOCUS_GENERATION_NODE_EVENT } from '../../generationCanvas/nodes/nodeSizing'
 import { getDesktopBridge } from '../../../desktop/bridge'
-import { autoReferencePlan } from './exec/storyboardAutoReference'
+import { autoReferenceFromCanvas } from './exec/storyboardAutoReference'
 
 /**
  * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
@@ -149,6 +151,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const imageModelOptions = useModelOptionsState('image', 'any-published').options
   // 行内/批量生成的重入闸（生成本身异步、确认卡在别处；按钮点两下不重复 materialize）。
   const [busy, setBusy] = React.useState(false)
+  const actionKeys = React.useRef(new Set<string>())
+  const [pendingActions, setPendingActions] = React.useState<ReadonlySet<string>>(new Set())
   // 表上报的「勾选 = 选中」镜（表是唯一 owner，这里只是页脚入口读的镜像，不另存一份选择）。
   const [selectedRuntimes, setSelectedRuntimes] = React.useState<StoryboardRowRuntime[]>([])
   const [actionFeedback, setActionFeedback] = React.useState<{ designId: string | null; message: string } | null>(null)
@@ -246,12 +250,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   React.useEffect(() => {
     const current = currentTargetRef.current.plan
     if (!current || !readyAnchorSignature) return
-    const ready = anchorCards
-      .filter((card) => card.visual && card.resultUrl && !card.generating)
-      .map((card) => ({ anchorId: card.anchor.id, name: card.anchor.name, url: card.resultUrl! }))
-    // 已经出过结果、正在跑或可找回的镜整镜不动（与画布侧只改未出图节点同一条线）：改了提示词，图和词就对不上了。
-    const settled = new Set(rows.filter((row) => row.exec.resultUrl || row.exec.status === 'generating' || row.exec.status === 'recoverable').map((row) => stableShotId(row.shot)))
-    const next = autoReferencePlan(current, ready, settled)
+    const next = autoReferenceFromCanvas(current, designId, useGenerationCanvasStore.getState().nodes, useGenerationQueueStore.getState().entries)
     if (next !== current) setStoryboardPlan(next)
     // 只认出图签名与方案身份；plan / rows 走 ref 与当帧值，避免每次编辑都重跑。
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,11 +353,12 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   // 回调的返回值放宽成 `unknown`：这些执行口 2026-09-22 起会**回报结局**（用户同意 / 取消 /
   // 没得跑，见 `generationRunOutcome.ts`），而编辑器这一侧是用户自己在点按钮——他自己知道点了什么，
   // 不需要读那一格。要读它的是 Agent 那条路（`storyboardPresent.ts`）。
-  const runAction = async (action: (context: RowActionContext) => Promise<unknown>): Promise<void> => {
-    if (busy) {
-      return
-    }
-    setBusy(true)
+  const runAction = async (action: (context: RowActionContext) => Promise<unknown>, shotIds = rows.map(row => stableShotId(row.shot)), rowKey?: string): Promise<void> => {
+    const key = rowKey ?? 'table'
+    if (actionKeys.current.has(key)) return
+    actionKeys.current.add(key)
+    setPendingActions(new Set(actionKeys.current))
+    if (!rowKey) setBusy(true)
     setActionFeedback(null)
     try {
       await withProjectAction(async project => {
@@ -366,28 +366,30 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         if (projectId && project.binding.projectId !== projectId) throw new Error('Storyboard project changed')
         project.assertCurrent()
         const gesture = { source: 'user' as const, txnId: crypto.randomUUID(), canWrite: () => { project.assertCurrent(); return !project.signal.aborted } }
-        const capturedContent = stableProjectAgentJson(JSON.parse(JSON.stringify(plan)))
-        const assertAuthorCurrent = async () => {
-          const designs = isRunTargetLoaded(project.binding)
-            ? useWorkbenchStore.getState().storyboardDesignsByDocumentId
-            : (await readRunProjectRecord(project.binding))?.payload.storyboardDesignsByDocumentId
-          const current = designs?.[activeDocumentId]?.find(value => value.id === designId)
-          if (!current || stableProjectAgentJson(JSON.parse(JSON.stringify(current.plan))) !== capturedContent) {
-            throw new Error('Storyboard target changed')
-          }
-        }
+        const actionGuard = createStoryboardActionGuard({ plan, designId, shotIds,
+          readPlan: async () => {
+            const designs = isRunTargetLoaded(project.binding)
+              ? useWorkbenchStore.getState().storyboardDesignsByDocumentId
+              : (await readRunProjectRecord(project.binding))?.payload.storyboardDesignsByDocumentId
+            return designs?.[activeDocumentId]?.find(value => value.id === designId)?.plan
+          },
+          writePlan: next => { project.assertCurrent(); useWorkbenchStore.getState().setStoryboardPlan(next, activeDocumentId, designId) },
+        })
+        const assertAuthorCurrent = actionGuard.assertAuthorCurrent
         const assertCurrent = async () => {
           project.assertCurrent()
-          await assertAuthorCurrent()
+          await actionGuard.assertCurrent()
           project.assertCurrent()
         }
         await assertCurrent()
-        await action({ ...execCtx, gesture, assertCurrent, assertAuthorCurrent })
+        await action({ ...execCtx, gesture, assertCurrent, assertAuthorCurrent, actionGuard })
       }, () => { throw new Error(t('storyboardEditor.exec.actionFailed')) })
     } catch (error: unknown) {
-      reportFailure(error instanceof Error && error.message ? error.message : t('storyboardEditor.exec.actionFailed'))
+      reportFailure(error instanceof Error && error.message ? generationFailureActions(error.message).reason : t('storyboardEditor.exec.actionFailed'))
     } finally {
-      setBusy(false)
+      actionKeys.current.delete(key)
+      setPendingActions(new Set(actionKeys.current))
+      if (!rowKey) setBusy(false)
     }
   }
 
@@ -407,6 +409,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const guardMaterialize = async (
     scope: readonly StoryboardRowRuntime[],
     action: (context: RowActionContext) => Promise<unknown>,
+    rowKey?: string,
   ): Promise<void> => {
     await runAction(async context => {
       const shotIds = scope.map((runtime) => storyboardShotId(runtime.shot))
@@ -416,7 +419,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         return
       }
       await action(context)
-    })
+    }, scope.map(row => stableShotId(row.shot)), rowKey)
   }
 
   const execCtx = { documentId: activeDocumentId, designId, plan }
@@ -447,7 +450,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     if (nodeId) window.dispatchEvent(new CustomEvent(FOCUS_GENERATION_NODE_EVENT, { detail: { nodeId, select: false } }))
   }
   const onGenerateRow = (runtime: StoryboardRowRuntime): void => {
-    void guardMaterialize([runtime], context => generateShotRow(context, runtime.shot, runtime.mode))
+    void guardMaterialize([runtime], context => generateShotRow(context, runtime.shot, runtime.mode), `shot:${stableShotId(runtime.shot)}`)
   }
   const onRunBatch = (): void => {
     const running = batch.runnable
@@ -488,7 +491,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
   const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
-    if (node) void runAction(context => regenerateShotRow(context, runtime.shot, node, runtime.mode))
+    if (node) void runAction(context => regenerateShotRow(context, runtime.shot, node, runtime.mode), [stableShotId(runtime.shot)], `shot:${stableShotId(runtime.shot)}`)
   }
   /**
    * 可找回行的**免费**续查：走画布同一条 `recoverNodeResult`（query IPC，不铸付费令牌、不弹花费确认）。
@@ -505,16 +508,16 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
   // 参考已变「用新图重跑」：一键补跑（花钱确认照过；首帧行按波次连跑），绝不自动跑。
   const onRerunFreshRefsRow = (runtime: StoryboardRowRuntime): void => {
-    void runAction(context => rerunShotRowWithFreshRefs(context, runtime.shot, runtime.exec, runtime.mode))
+    void runAction(context => rerunShotRowWithFreshRefs(context, runtime.shot, runtime.exec, runtime.mode), [stableShotId(runtime.shot)], `shot:${stableShotId(runtime.shot)}`)
   }
   // 参考卡就地生成/重生成/锁定（B3）：同一执行通路；重生成后引用镜经「参考已变」提示补跑。
   const onGenerateAnchor = (runtime: AnchorCardRuntime): void => {
-    void runAction(context => generateAnchorCard(context, runtime.anchor))
+    void runAction(context => generateAnchorCard(context, runtime.anchor), [], `anchor:${runtime.anchor.id}`)
   }
   const onRegenerateAnchor = (runtime: AnchorCardRuntime): void => {
     const node = runtime.node
-    if (node) void runAction(context => regenerateAnchorCard(context, runtime.anchor, node))
-    else void runAction(context => generateAnchorCard(context, runtime.anchor))
+    if (node) void runAction(context => regenerateAnchorCard(context, runtime.anchor, node), [], `anchor:${runtime.anchor.id}`)
+    else void runAction(context => generateAnchorCard(context, runtime.anchor), [], `anchor:${runtime.anchor.id}`)
   }
   const onRecoverAnchor = (runtime: AnchorCardRuntime): void => {
     const node = runtime.node
@@ -607,6 +610,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         <StoryboardPlanStrategyPanel plan={plan} state={strategyState} onChange={setStoryboardPlan} />
         <StoryboardAnchorZone
           cards={anchorCards}
+          pendingActions={pendingActions}
           aspect={planDefaultAspect(plan)}
           imageModelOptions={imageModelOptions}
           noNameAnchorIds={noNameAnchorIds}
@@ -659,6 +663,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               plan={plan}
               projectId={projectId}
               rows={rows}
+              pendingActions={pendingActions}
               anchorCards={anchorCards}
               imageModelOptions={imageModelOptions}
               videoModelOptions={videoModelOptions}

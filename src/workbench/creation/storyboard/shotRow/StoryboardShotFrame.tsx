@@ -165,7 +165,7 @@ export default function StoryboardShotFrame({
   }
 
   if (exec.status === 'failed') {
-    const failure = storyboardFailureCopy(exec.errorMessage)
+    const failure = storyboardFailureCopy(exec.errorMessage, { ...exec.failedNode?.runs?.[0], productionRunId: exec.failedNode?.meta?.productionRunId as string | undefined })
     return column(
       'failed',
       <div

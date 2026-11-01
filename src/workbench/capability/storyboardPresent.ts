@@ -1,5 +1,6 @@
 import { NO_CURRENT_OFFER, resolveUndecidedGenerationShotScope } from '../../../electron/shared/agentCapabilities/generationShotScope'
-import { stableProjectAgentJson } from '../../../electron/shared/legacyAgentJson'
+import { createStoryboardActionGuard } from '../creation/storyboard/exec/storyboardActionGuard'
+import { isRunTargetLoaded, readRunProjectRecord } from '../generationCanvas/runner/runProjectDelivery'
 import { preloadModelOptions } from '../../config/useModelOptions'
 import { withProjectAction } from '../project/projectCanvasReadSurface'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -31,10 +32,6 @@ function readDesign(documentId: string, designId: string) {
   return design
 }
 
-function contentOf(documentId: string, designId: string): string {
-  return stableProjectAgentJson(JSON.parse(JSON.stringify(readDesign(documentId, designId).plan)))
-}
-
 /** The existing renderer bridge supplies identity; original actions still own all paid behavior. */
 export async function presentStoryboard(data: Record<string, unknown>): Promise<StoryboardPresentResult> {
   const { projectId, designId, sourceDocumentId } = data
@@ -44,20 +41,24 @@ export async function presentStoryboard(data: Record<string, unknown>): Promise<
   return withProjectAction(async project => {
     project.assertCurrent()
     if (project.binding.projectId !== projectId) throw new Error('storyboard_project_changed')
-    const plan = readDesign(sourceDocumentId, designId).plan
-    const captured = contentOf(sourceDocumentId, designId)
+    let plan = readDesign(sourceDocumentId, designId).plan
     const ids = [...plan.anchors.map(anchor => anchor.id), ...plan.shots.map(shot => shot.shotId!)]
     // 文稿方案没有出价账：不点名 = 这一轮的全部（锚卡 + 镜头），点名只认方案里的；规则与 Agent 的 generate 是同一条。
     const scope = resolveUndecidedGenerationShotScope({ door: 'present', planShotIds: ids, requested: data.shotIds, currentOffer: NO_CURRENT_OFFER, offerable: ids })
     const [imageModelOptions, videoModelOptions] = await Promise.all([preloadModelOptions('image', 'any-published'), preloadModelOptions('video', 'any-published')])
     project.assertCurrent()
-    const assertAuthorCurrent = async () => {
-      if (contentOf(sourceDocumentId, designId) !== captured) throw new Error('storyboard_content_conflict')
-    }
-    const assertCurrent = async () => { project.assertCurrent(); await assertAuthorCurrent(); project.assertCurrent() }
+    const actionGuard = createStoryboardActionGuard({ plan, designId, shotIds: scope,
+      readPlan: async () => {
+        const designs = isRunTargetLoaded(project.binding) ? useWorkbenchStore.getState().storyboardDesignsByDocumentId : (await readRunProjectRecord(project.binding))?.payload.storyboardDesignsByDocumentId
+        return designs?.[sourceDocumentId]?.find(value => value.id === designId)?.plan
+      },
+      writePlan: next => { project.assertCurrent(); useWorkbenchStore.getState().setStoryboardPlan(next, sourceDocumentId, designId) },
+    })
+    const assertAuthorCurrent = actionGuard.assertAuthorCurrent
+    const assertCurrent = async () => { project.assertCurrent(); await actionGuard.assertCurrent(); project.assertCurrent() }
     await assertCurrent()
     const canvas = useGenerationCanvasStore.getState()
-    const context = { documentId: sourceDocumentId, designId, plan, assertCurrent, assertAuthorCurrent,
+    const context = { documentId: sourceDocumentId, designId, plan, assertCurrent, assertAuthorCurrent, actionGuard,
       gesture: { source: 'agent' as const, txnId: crypto.randomUUID(), canWrite: () => { project.assertCurrent(); return !project.signal.aborted } } }
     const runtimes = () => deriveStoryboardRowRuntimes({ plan, designId,
       nodes: useGenerationCanvasStore.getState().nodes, imageModelOptions, videoModelOptions })
@@ -71,6 +72,8 @@ export async function presentStoryboard(data: Record<string, unknown>): Promise<
       // 他对锚卡说了「不」，就别再拿下一张卡追问他——这一次 present 到此为止。
       if (outcomes[outcomes.length - 1] === 'declined') return declined(designId, scope, outcomes)
     }
+    plan = await actionGuard.refreshReferences()
+    context.plan = plan
     const rows = deriveStoryboardBatch(runtimes().filter(row => scope.includes(row.shot.shotId!))).runnable
     const blocker = await resolveGeneratableGate(plan, projectId, getDesktopBridge()?.generationStrategy,
       rows.map(row => row.shot.shotId!))

@@ -412,3 +412,10 @@ export async function runWorkbenchTextTaskStream(
     }
   })
 }
+
+/** Occupancy belongs to the host, including after a new renderer record was refused. */
+export async function canvasUnknownRuns(input: { projectId: string; nodeId: string }): Promise<Array<{ runId: string; jobId: string }>> {
+  const query = requireDesktopRuntime('canvas reconciliation').tasks.canvasUnknownRuns
+  if (!query) throw new Error('Canvas reconciliation is unavailable')
+  return query(input)
+}

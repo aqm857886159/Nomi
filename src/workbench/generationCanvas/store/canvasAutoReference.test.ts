@@ -1,3 +1,4 @@
+import { useGenerationQueueStore } from '../runner/generationQueueStore'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { encodeMention } from '../../assets/promptMentions'
 import { applyCanvasAutoReference, planCanvasAutoReference } from './canvasAutoReference'
@@ -126,4 +127,15 @@ describe('applyCanvasAutoReference', () => {
     applyCanvasAutoReference('src')
     expect(useGenerationCanvasStore.getState().edges).toHaveLength(1)
   })
+})
+
+
+it('A7: real queue entries, rather than node.status, prevent automatic reference changes', () => {
+  useGenerationQueueStore.setState({ entries: [], batches: {} })
+  const batchId = useGenerationQueueStore.getState().enqueueBatch([['tgt']], 'p')
+  expect(target().status).toBe('idle')
+  expect(planCanvasAutoReference([source(), target()], [], 'src')).toEqual([])
+  useGenerationQueueStore.getState().markSettled(batchId, 'tgt', 'cancelled')
+  expect(planCanvasAutoReference([source(), target()], [], 'src')).toHaveLength(1)
+  useGenerationQueueStore.setState({ entries: [], batches: {} })
 })

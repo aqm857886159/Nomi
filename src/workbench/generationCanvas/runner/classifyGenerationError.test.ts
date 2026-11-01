@@ -613,7 +613,7 @@ describe('每类错误都说得出「该干嘛」（2026-07-30 拍板：主按�
 describe('动作表：每类主 / 次动作都写在表里，改一类不许带动别的类', () => {
   // 穷举：漏写一类 → check:test-types 红（Record 要求每个 kind 都在）。
   const EVERY_KIND: Record<GenerationErrorKind, true> = {
-    auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
+    'local-refusal': true, auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
     'model-kind-mismatch': true, 'model-not-open': true, 'model-unavailable-upstream': true, 'model-retired': true,
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
     'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-unfetchable': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
@@ -629,7 +629,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
       // 结果未知：不给重试（可能重复提交），只指路去核对。
       // 已生成、取回失败 / 已提交、这次没取回：只指路「重新取回」，不给第二个动作（重试 = 再生成一份）。
       // 本机处理失败：没有模型参与，只留重试。
-      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' ? null : kind === 'submission-unknown' ? 'release-regenerate' : before })
+      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' || kind === 'local-refusal' ? null : kind === 'submission-unknown' ? 'release-regenerate' : before })
     }
   })
 })

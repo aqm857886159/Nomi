@@ -1,0 +1,48 @@
+{
+  "runId": "canvas-old-click",
+  "jobId": "generation-canvas-old-click-7bdb41b3fb53b710",
+  "runtimeTaskId": "runtime-canvas-old-click-7bdb41b3fb53b710-attempt-1",
+  "contractHash": "7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8",
+  "providerIdempotencyKey": "generation:canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8:attempt-1",
+  "requestFingerprint": "20e28e097f9ef84ba2b6cf82a3ad71f6719059eaba6df1b2dea48162d3d89fd3",
+  "request": {
+    "moduleId": "generation.canvas",
+    "providerId": "canvas:acme",
+    "modelId": "img-model",
+    "mode": "text_to_image",
+    "prompt": "a red cube",
+    "parameters": {
+      "vendor": "acme",
+      "request": {
+        "kind": "text_to_image",
+        "prompt": "a red cube",
+        "extras": {
+          "nodeId": "old-node",
+          "projectId": "project-1",
+          "modelKey": "img-model",
+          "idempotencyKey": "k"
+        }
+      }
+    },
+    "references": [],
+    "contractHash": "7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8",
+    "idempotencyKey": "generation:canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8:attempt-1",
+    "requestFingerprint": "20e28e097f9ef84ba2b6cf82a3ad71f6719059eaba6df1b2dea48162d3d89fd3",
+    "executionBinding": {
+      "immutableProjectUuid": "uuid-1",
+      "projectGeneration": 1,
+      "runId": "canvas-old-click",
+      "shotId": "generation-canvas-old-click-7bdb41b3fb53b710",
+      "contractHash": "7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8",
+      "runtimeTaskId": "runtime-canvas-old-click-7bdb41b3fb53b710-attempt-1",
+      "providerNamespace": "canvas:acme",
+      "providerIdempotencyKey": "generation:canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8:attempt-1",
+      "requestFingerprint": "20e28e097f9ef84ba2b6cf82a3ad71f6719059eaba6df1b2dea48162d3d89fd3",
+      "runtimeEnvelopeRef": ".nomi/runs/canvas-old-click/jobs/generation-canvas-old-click-7bdb41b3fb53b710/runtime-envelope.json",
+      "fencingEpoch": 1
+    }
+  },
+  "schemaVersion": 1,
+  "state": "submitted_unknown",
+  "updatedAt": "2026-11-01T18:26:47.419Z"
+}

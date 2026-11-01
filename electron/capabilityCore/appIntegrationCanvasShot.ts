@@ -300,16 +300,20 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
    * 同一节点：进程内有一笔正在交 → 拒；盘上有没收尾的 Run → 拒（收尾了的标记顺手删掉）。
    * 批量卡上同意了、还没轮到的那一镜不算在途（它什么都还没交）；`ownRunId` 是这一次自己要交的那个 Run。
    */
+  function nodeBlockingRuns(projectId: string, projectRoot: string, nodeId: string) {
+    return openCanvasRuns(projectRoot, nodeId).map(open => {
+      const run = repository().read(projectId, open.runId);
+      return { ...open, run, reason: consentedDraft(run) ? null : blockingReason(run) };
+    });
+  }
+
   function assertNodeIdle(projectId: string, projectRoot: string, nodeId: string, ownRunId: string): void {
     if (nodesInFlight.has(`${projectId}\u0000${nodeId}`))
       throw coded(`node_generation_in_flight: ${nodeId}`, "node_generation_in_flight", "in_flight");
-    for (const open of openCanvasRuns(projectRoot, nodeId)) {
-      if (open.runId === ownRunId) continue;
-      const run = repository().read(projectId, open.runId);
-      if (consentedDraft(run)) continue;
-      const reason = blockingReason(run);
+    for (const { runId, run, reason } of nodeBlockingRuns(projectId, projectRoot, nodeId)) {
+      if (runId === ownRunId || consentedDraft(run)) continue;
       if (!reason) {
-        markCanvasRunSettled(projectRoot, open.runId);
+        markCanvasRunSettled(projectRoot, runId);
         continue;
       }
       if (reason === "needs_reconcile")
@@ -833,6 +837,15 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       }
     },
     /** 打开项目：只看还挂着「没收尾」标记的画布 Run；没人在等的交给观察者，没人会再交的同意收回，收尾了的删标记。 */
+    /** Read the same occupancy as admission; rejected renderer records are not Run identities. */
+    unknownRuns(input: { projectId: string; nodeId: string }): Array<{ runId: string; jobId: string }> {
+      const { projectRoot } = identity(input.projectId);
+      return nodeBlockingRuns(input.projectId, projectRoot, input.nodeId).flatMap(({ runId, run, reason }) => {
+        if (reason !== "needs_reconcile") return [];
+        const job = run?.jobs.find(value => value.status === "submission_unknown" || value.status === "reconciling");
+        return job ? [{ runId, jobId: job.jobId }] : [];
+      });
+    },
     recoverOrphans(projectId: string): void {
       const projectRoot = deps.resolveProjectRoot(projectId);
       if (!projectRoot) return;
@@ -849,6 +862,7 @@ export type CanvasShotRuns = ReturnType<typeof createCanvasShotRuns>;
 
 export {
   consentCanvasShots,
+  canvasUnknownRuns,
   installCanvasShotRuns,
   pollCanvasShot,
   releaseCanvasShot,

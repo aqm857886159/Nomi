@@ -569,3 +569,40 @@ describe("反例：答过了就不重发、不判「没发出去」（X8、X9）
     expectAnsweredButNotLanded(harness, "run-node-a-1", thrown, "retrieval-download");
   });
 });
+
+
+it('C2: the host identifies the original unknown Run after another click is refused and after restart', async () => {
+  const h = setup()
+  h.vendor.answer = async () => { throw new Error('acme create failed: socket hang up') }
+  await expect(h.submit('node-a', 'original')).rejects.toBeInstanceOf(SubmissionReceiptUnknownError)
+  await expect(h.submit('node-a', 'refused')).rejects.toMatchObject({ code: 'production_shot_claimed' })
+  const original = runOf(h.repository, 'original')!
+  expect(h.runs.unknownRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([{ runId: original.runId, jobId: original.jobs[0].jobId }])
+  expect(h.runs.unknownRuns({ projectId: PROJECT, nodeId: 'other' })).toEqual([])
+  const restarted = setup({ root: h.root })
+  expect(restarted.runs.unknownRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([{ runId: original.runId, jobId: original.jobs[0].jobId }])
+  expect(h.vendor.executes).toHaveLength(1)
+})
+
+it('C7: v0.24.0 persisted unknown Run is found, survives a refused click, releases and submits once after upgrade', async () => {
+  const { createProductionRunService } = await import('../productionRun/productionRunService')
+  const snapshot = path.resolve('tests/fixtures/old-user-data/runs/v0.24.0-canvas-unknown')
+  const manifest = JSON.parse(fs.readFileSync(path.join(snapshot, 'manifest.json'), 'utf8'))
+  expect(manifest.recordedFrom).toBe('9f3bb3c575058156690c0663a6c88a0b28dfa2a2')
+  const fx = setup()
+  fs.cpSync(path.join(snapshot, '.nomi'), path.join(fx.root, '.nomi'), { recursive: true })
+  const query = () => fx.runs.unknownRuns({ projectId: PROJECT, nodeId: manifest.nodeId })
+  const before = fx.repository.read(PROJECT, manifest.runId)!
+  expect(before.jobs[0].status).toBe('submission_unknown')
+  expect(query()).toEqual([{ runId: manifest.runId, jobId: before.jobs[0].jobId }])
+  await expect(fx.submit(manifest.nodeId, 'upgrade-refused')).rejects.toMatchObject({ reason: 'needs_reconcile' })
+  expect(fx.vendor.executes).toHaveLength(0)
+  expect(query()).toEqual([{ runId: manifest.runId, jobId: before.jobs[0].jobId }])
+  const service = createProductionRunService({ repository: fx.repository, projectRootResolver: () => fx.root })
+  await service.command(PROJECT, manifest.runId, { commandId: 'upgrade-release', expectedRevision: before.revision,
+    type: 'job.reconcile', payload: { jobId: before.jobs[0].jobId, outcome: 'user_checked_abandon' }, humanGesture: true, issuedAt: '2026-11-02T00:00:00.000Z' })
+  expect(query()).toEqual([])
+  expect(fx.vendor.executes).toHaveLength(0)
+  await expect(fx.submit(manifest.nodeId, 'upgrade-new-intent')).resolves.toMatchObject({ status: 'succeeded' })
+  expect(fx.vendor.executes).toHaveLength(1)
+})

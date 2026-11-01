@@ -1,3 +1,5 @@
+import { mentionUrlsInOrder } from '../assets/promptMentions'
+vi.mock('../generationCanvas/runner/runProjectDelivery', async original => ({ ...await original<typeof import('../generationCanvas/runner/runProjectDelivery')>(), isRunTargetLoaded: () => true }))
 import { beforeEach, expect, it, vi } from 'vitest'
 import { presentStoryboard } from './storyboardPresent'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -139,9 +141,9 @@ it('passes a persistent source check separately from the foreground materializat
   const guards = calls.confirm.mock.calls[0][1]
   calls.current = false
   await expect(guards.assertCurrent()).rejects.toThrow('changed project')
-  await expect(guards.assertAuthorCurrent()).resolves.toBeUndefined()
+  await expect(guards.assertAuthorCurrent({ nodes: shotNodes(), edges: [] }, shotNodes()[0].id)).resolves.toBeUndefined()
   editPlan(next => { next.shots[0].prompt = 'changed source after approval' })
-  await expect(guards.assertAuthorCurrent()).rejects.toThrow('storyboard_content_conflict')
+  await expect(guards.assertAuthorCurrent({ nodes: shotNodes(), edges: [] }, shotNodes()[0].id)).rejects.toThrow('storyboard_content_conflict')
 })
 
 
@@ -160,7 +162,7 @@ it('A9: runtime author validation targets only the executing node', async () => 
 it('A5: Agent explicitly refreshes reference images and modes between anchor and shot phases without an editor', async () => {
   editPlan(next => {
     next.anchors = [{ id: 'actor', kind: 'character', carrier: 'visual', name: 'Actor', description: 'Actor' }]
-    next.shots = next.shots.map(s => ({ ...s, anchorIds: ['actor'], prompt: 'Actor walks', modelKey: 'seedance-2-5', modeId: 't2v' }))
+    next.shots = next.shots.map(s => ({ ...s, anchorIds: ['actor'], prompt: 'Actor walks', modelKey: 'seedance-2-5', modelVendor: 'kie', modeId: 't2v' }))
   })
   calls.single.mockImplementation(async (_id, guards) => {
     const id = await guards.deferredMaterialization.materialize()
@@ -168,6 +170,6 @@ it('A5: Agent explicitly refreshes reference images and modes between anchor and
     return 'started'
   })
   await presentStoryboard({ projectId: 'p', designId: 'run', sourceDocumentId: 'doc' })
-  expect(design().plan.shots.every(s => s.prompt.includes('https://fixture.invalid/actor.png'))).toBe(true)
+  expect(design().plan.shots.every(s => mentionUrlsInOrder(s.prompt).includes('https://fixture.invalid/actor.png'))).toBe(true)
   expect(design().plan.shots.every(s => s.modeId === 'omni')).toBe(true)
 })

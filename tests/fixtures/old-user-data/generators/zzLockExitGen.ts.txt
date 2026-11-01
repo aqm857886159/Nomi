@@ -1,0 +1,20 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { it, expect } from 'vitest'
+import { CANVAS_TEST_PROJECT, setupCanvasShots } from './canvasShotTestUtils'
+import { canvasRunIdFor, openCanvasRuns } from '../productionRun/canvasShotRunIndex'
+
+it('v0.24.0 real canvas submit persists an unknown Run and occupancy index', async () => {
+  const fx = setupCanvasShots()
+  try {
+    fx.vendor.answer = async () => { throw new Error('acme create failed: socket hang up') }
+    await expect(fx.submit('old-node', 'old-click')).rejects.toThrow()
+    const run = fx.repository.read(CANVAS_TEST_PROJECT, canvasRunIdFor('old-click'))!
+    expect(run.jobs[0].status).toBe('submission_unknown')
+    expect(openCanvasRuns(fx.root, 'old-node')).toHaveLength(1)
+    const out = process.env.NOMI_OLD_RUN_OUT!
+    fs.mkdirSync(out, { recursive: true })
+    fs.cpSync(path.join(fx.root, '.nomi'), path.join(out, '.nomi'), { recursive: true })
+    fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ release: 'v0.24.0', recordedFrom: process.env.NOMI_OLD_RUN_COMMIT, projectId: CANVAS_TEST_PROJECT, nodeId: 'old-node', runRecordId: 'old-click', runId: run.runId }, null, 2))
+  } finally { fs.rmSync(fx.root, { recursive: true, force: true }) }
+})

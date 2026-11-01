@@ -57,3 +57,9 @@ pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 5. （目录类才有这一步；项目库和素材没有 `expected.json`，断言写在各自的测试里。）在**干净的主线检出**（不是改动分支）上录 `expected.json`：设 `NOMI_RECORD_OLD_USER_DATA=<本目录的绝对路径>` 和 `NOMI_RECORD_COMMIT=<主线提交的完整 40 位>`，把测试文件放进那个检出的 `electron/catalog/`，只跑 `-t "saved by an older release"` 那一组。录不出「每个已发布模式只发一次 POST」，说明夹具或脚本错了，先查，不要放过。录完把放进去的测试文件删掉。
 
 主线以后有意改了目录版本或发出的请求，同样用这个办法重录，并在提交里写明为什么。
+
+## 结果不明的画布 Run（`runs/`）
+
+`runs/v0.24.0-canvas-unknown` 由 `v0.24.0`（`9f3bb3c575058156690c0663a6c88a0b28dfa2a2`）源码的 `setupCanvasShots`、`createCanvasShotRuns.submit`、真实 Run 仓库与提交出口落盘。只有供应商传输是假服务，在读取创建请求后丢掉回复；没有手写 Run 或占用索引。`manifest.json` 记录生成版本及身份。重放测试在 `electron/capabilityCore/appIntegrationCanvasShot.test.ts` 的 C7：拒绝新点击仍找得到原 Run，真人核对放行不发请求，下一次新意图只提交一次。
+
+生成器是 `generators/zzLockExitGen.ts.txt`，复制到旧版导出的 `electron/capabilityCore/zzLockExitGen.test.ts`，设 `NOMI_OLD_RUN_OUT` 为输出目录、`NOMI_OLD_RUN_COMMIT` 为导出提交的完整 SHA，使用该导出的 vitest 运行。源码导出包含根目录 tsconfig、electron、src、scripts、tests/setup、tests/stubs，依赖可链接已有目录。只拷实际落盘的 `.nomi`；不包含活锁和任何用户资料，凭据机构仅使用测试假值。

@@ -87,3 +87,16 @@ describe('canvas batch concurrency', () => {
     expect(normalizeCanvasBatchConcurrency(input)).toBe(expected)
   })
 })
+
+it('E4: a queued idle node is busy and excluded from both group/list quotes', async () => {
+  const { useGenerationQueueStore } = await import('../runner/generationQueueStore')
+  const { isGenerationNodeBusy } = await import('./canvasProductionScope')
+  useGenerationQueueStore.setState({ entries: [], batches: {} })
+  const queued = node('queue-actual', 'image', 'idle')
+  const batchId = useGenerationQueueStore.getState().enqueueBatch([[queued.id]], 'test-project')
+  expect(isGenerationNodeBusy(queued)).toBe(true)
+  expect(eligibleGenerationNodeIds([queued])).toEqual([])
+  useGenerationQueueStore.getState().cancelEntry(batchId, queued.id)
+  expect(isGenerationNodeBusy(queued)).toBe(false)
+  useGenerationQueueStore.setState({ entries: [], batches: {} })
+})

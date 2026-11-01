@@ -1,3 +1,6 @@
+import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
+import type { GenerationQueueEntry } from '../../../generationCanvas/runner/generationQueueStore'
+import { deriveAnchorCardRuntimes, deriveStoryboardRowRuntimes } from './storyboardRowStatus'
 import { insertAutoMentions, removeMention, type AutoMentionCandidate } from '../../../assets/promptMentions'
 import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
 import type { ArchetypeMode, ModelArchetype } from '../../../../../electron/shared/modelArchetypes/types'
@@ -114,4 +117,17 @@ export function autoReferencePlan(
     return next
   })
   return changed ? { ...plan, shots } : plan
+}
+
+
+/** Editor effects and the reference-to-shot phase boundary share the same ready/settled census. */
+export function autoReferenceFromCanvas(plan: StoryboardPlan, designId: string, nodes: GenerationCanvasNode[], entries: readonly GenerationQueueEntry[]): StoryboardPlan {
+  const ready = deriveAnchorCardRuntimes({ plan, designId, nodes })
+    .filter(card => card.visual && card.resultUrl && !card.generating)
+    .map(card => ({ anchorId: card.anchor.id, name: card.anchor.name, url: card.resultUrl! }))
+  const active = new Set(entries.filter(entry => entry.state === 'queued' || entry.state === 'running').map(entry => entry.nodeId))
+  const rows = deriveStoryboardRowRuntimes({ plan, designId, nodes, imageModelOptions: [], videoModelOptions: [] })
+  const settled = new Set(rows.filter(row => row.exec.resultUrl || row.exec.status === 'generating' || row.exec.status === 'recoverable'
+    || (row.exec.node && active.has(row.exec.node.id)) || (row.exec.keyframeNode && active.has(row.exec.keyframeNode.id))).map(row => stableShotId(row.shot)))
+  return autoReferencePlan(plan, ready, settled)
 }

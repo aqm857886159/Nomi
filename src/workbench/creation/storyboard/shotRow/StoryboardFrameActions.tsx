@@ -1,3 +1,4 @@
+import { StoryboardFailureActions } from '../exec/StoryboardFailureActions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -21,6 +22,7 @@ import type { ShotVariant } from './shotVariants'
  */
 
 type Props = {
+  actionBusy?: boolean
   exec: ShotRowExec
   variants: readonly ShotVariant[]
   /**
@@ -44,9 +46,11 @@ function ActButton({
   label,
   onClick,
   tone = 'quiet',
+  disabled,
   children,
 }: {
   label: string
+  disabled?: boolean
   onClick?: (() => void) | undefined
   tone?: 'quiet' | 'danger'
   children: React.ReactNode
@@ -55,6 +59,7 @@ function ActButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={label}
       aria-label={label}
       className={cn(
@@ -71,6 +76,7 @@ function ActButton({
 
 export default function StoryboardFrameActions({
   exec,
+  actionBusy = false,
   variants,
   outputTag,
   onRegenerate,
@@ -83,7 +89,6 @@ export default function StoryboardFrameActions({
   // 「重试」按下去要重新扣一次费，所以它比别的钮更不该让人点第二下：
   // 2026-09-11 用户实测——点了之后这颗钮没有任何变化，和没点着长得一样。
   // 忙态既是回执也是闸（`disabled`），和旁边那颗免费的「重新拉取结果」同一副长相。
-  const [retrying, setRetrying] = React.useState(false)
   const hasResult = Boolean(exec.resultUrl) && (exec.status === 'done' || exec.status === 'locked')
   const failed = exec.status === 'failed'
   const recoverable = exec.status === 'recoverable'
@@ -95,23 +100,7 @@ export default function StoryboardFrameActions({
     {/* 五件动作要在 136px 的列宽里排成一行（4 枚 24px 图标钮 + 一枚带计数的变体钮 ≈ 132px）。
         给了 gap 就会挤到第二行——第二行会让"这镜做完没有"的竖向节奏错开，正是 v6 要修的那种噪音。 */}
     <div className="flex items-center">
-      {failed && onGenerate ? (
-        // 真失败的重试 = 重新生成 = 重新扣费。按钮小得只放得下两个字，所以代价写在 title/aria 上——
-        // 让"这一下要花钱"在点之前就说得出口（P3/D4：缺口明着标）。
-        <button
-          type="button"
-          onClick={() => { if (retrying) return; setRetrying(true); onGenerate() }}
-          disabled={retrying}
-          aria-busy={retrying}
-          data-storyboard-retry-state={retrying ? 'busy' : 'idle'}
-          title={t('storyboardEditor.frame.retryHint')}
-          aria-label={t('storyboardEditor.frame.retryHint')}
-          className="h-6 px-2 rounded-nomi-sm border border-workbench-danger text-micro text-workbench-danger inline-flex items-center gap-1 hover:bg-workbench-danger-soft disabled:opacity-50 disabled:hover:bg-transparent"
-        >
-          <IconRefresh size={12} stroke={1.8} className={cn(retrying && 'animate-spin')} />
-          {retrying ? t('storyboardEditor.frame.generating') : t('storyboardEditor.frame.retry')}
-        </button>
-      ) : null}
+      {failed ? <StoryboardFailureActions message={exec.errorMessage} node={exec.failedNode} busy={actionBusy} onRetry={onGenerate} /> : null}
       {recoverable && onRecover ? (
         // 免费续查（`recoverNodeResult` → query IPC）。中性描边、不写「重试」——写「重试」就等于
         // 把一次免费的找回说成一次要重新付费的重跑。
@@ -129,7 +118,7 @@ export default function StoryboardFrameActions({
         </button>
       ) : null}
       {hasResult && !locked ? (
-        <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate}>
+        <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate} disabled={actionBusy}>
           <IconRefresh size={14} stroke={1.8} />
         </ActButton>
       ) : null}

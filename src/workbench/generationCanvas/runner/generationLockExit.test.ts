@@ -7,7 +7,7 @@ import { useSpendConfirmStore } from '../spend/spendConfirm'
 import type { GenerationNodeResult } from '../model/generationCanvasTypes'
 import { type WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 
-const calls = vi.hoisted(() => ({ execute: vi.fn(), disk: new Map<string, WorkbenchProjectRecordV1>(), confirm: vi.fn(), mint: vi.fn(), consent: vi.fn() }))
+const calls = vi.hoisted(() => ({ execute: vi.fn(), disk: new Map<string, WorkbenchProjectRecordV1>(), confirm: vi.fn(), mint: vi.fn(), consent: vi.fn(), unknown: vi.fn() }))
 const applyCanvasNodePatch = vi.hoisted(() => vi.fn())
 vi.mock('../../../desktop/bridge', () => ({
   getDesktopBridge: () => ({ projects: { applyCanvasNodePatch } }),
@@ -20,7 +20,7 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   },
 }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../api/taskApi', () => ({ canvasUnknownRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 
@@ -95,7 +95,9 @@ it.each([false, true])('B3: a single generation takes the node out of another qu
 })
 
 
-it('C1 → C2 contract: a refused second click retains the unconfirmed run identity used by the release button', async () => {
+import { releaseUnknownCanvasSubmissionsForNode } from '../../production/releaseUnknownSubmission'
+
+it('C2: a refused second click stays in history while the host-selected original Run is released and regenerated', async () => {
   await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'unconfirmed shot' })
   calls.execute.mockRejectedValueOnce(new Error('NOMI_ERR::submission-unknown::The provider did not confirm this submission'))
@@ -103,6 +105,19 @@ it('C1 → C2 contract: a refused second click retains the unconfirmed run ident
   const original = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs![0].id
   calls.execute.mockRejectedValueOnce(new Error(encodeStructuredErrorMessage({ code: 'production_shot_claimed', reason: 'needs_reconcile' }, 'production_shot_claimed: needs_reconcile')))
   await confirmAndRunNode(node.id, { initiator: 'user' })
-  const afterRefusal = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
-  expect(afterRefusal.runs![0].id, 'D3 maps runs[0].id to the release Run, which must still be the original unconfirmed Run').toBe(original)
+  const history = structuredClone(useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs!)
+  expect(history[0].id).not.toBe(original)
+  calls.unknown.mockResolvedValue([{ runId: 'canvas-' + original, jobId: 'original-job' }])
+  const command = vi.fn(async () => ({ run: { runId: 'canvas-' + original, projectId: 'project-a', revision: 2, jobs: [] }, events: [] }))
+  await releaseUnknownCanvasSubmissionsForNode('project-a', node.id, {
+    read: async (_project: string, runId: string) => runId === 'canvas-' + original ? { runId, projectId: 'project-a', revision: 1, jobs: [] } : null,
+    command,
+  } as never)
+  expect(command.mock.calls[0]).toMatchObject(['project-a', 'canvas-' + original, { payload: { jobId: 'original-job', outcome: 'user_checked_abandon' } }])
+  expect(useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs).toEqual(history)
+  calls.execute.mockImplementation(async n => imageResult(n.id))
+  await confirmAndRunNode(node.id, { initiator: 'user' })
+  const done = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
+  expect(done.status).toBe('success')
+  expect(done.runs!.some(run => run.id === history[0].id)).toBe(true)
 })

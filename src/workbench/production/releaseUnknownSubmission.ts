@@ -1,3 +1,4 @@
+import { canvasUnknownRuns } from '../api/taskApi'
 import type { DesktopProductionRunBridge } from '../../desktop/productionRunBridgeTypes'
 import { deriveProductionShotState, productionShotIdForNode } from '../../../electron/shared/productionShotPhase'
 import { executeProductionRunCommand } from './productionRunCommands'
@@ -51,12 +52,17 @@ export async function releaseUnknownSubmissionForNode(
 
 /** 这个任务对应的画布节点：批次镜看 `shots[].nodeId`，单镜看计划的 `nodeId`，老数据才有 `job.nodeId`。 */
 export function nodeIdOfJob(
-  run: { generationPlan?: { nodeId?: string; shots?: ReadonlyArray<{ shotId: string; nodeId?: string }> } },
+  run: { origin?: { nodeId?: string }; generationPlan?: { nodeId?: string; shots?: ReadonlyArray<{ shotId: string; nodeId?: string }> } },
   job: { nodeId?: string; metadata?: Record<string, unknown> },
 ): string | undefined {
   if (job.nodeId) return job.nodeId
   const shotId = job.metadata?.shotId
   const plan = run.generationPlan
   if (typeof shotId === 'string' && plan?.shots?.length) return plan.shots.find((shot) => shot.shotId === shotId)?.nodeId
-  return plan?.nodeId
+  return plan?.nodeId ?? run.origin?.nodeId
+}
+
+/** Query at the moment of release; a failed newer click must not hide the original occupancy. */
+export async function releaseUnknownCanvasSubmissionsForNode(projectId: string, nodeId: string, api: ReleaseUnknownApi): Promise<void> {
+  for (const entry of await canvasUnknownRuns({ projectId, nodeId })) await releaseUnknownSubmission(projectId, entry.runId, entry.jobId, api)
 }

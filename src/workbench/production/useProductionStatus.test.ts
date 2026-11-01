@@ -4,18 +4,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useProductionStatus } from './useProductionStatus'
 
 const mocks = vi.hoisted(() => ({
-  command: vi.fn(), notify: vi.fn(), confirm: vi.fn(), loadRun: vi.fn(),
+  command: vi.fn(), notify: vi.fn(), confirm: vi.fn(), loadRun: vi.fn(), read: vi.fn(), selectNode: vi.fn(), workspace: vi.fn(), runNode: vi.fn(),
   run: { projectId: 'project-1', runId: 'run-1', revision: 1, jobs: [], gates: [] },
 }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('react-i18next', async original => ({ ...await original<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('../../design', () => ({ confirmDialog: mocks.confirm, alertDialog: vi.fn() }))
 vi.mock('../../ui/notificationPolicy', () => ({ notify: mocks.notify }))
-vi.mock('../generationCanvas/store/generationCanvasStore', () => ({ useGenerationCanvasStore: {} }))
+vi.mock('../generationCanvas/store/generationCanvasStore', () => ({ useGenerationCanvasStore: { getState: () => ({ selectNode: mocks.selectNode }) } }))
 vi.mock('../generationCanvas/spend/spendConfirm', () => ({ useSpendConfirmStore: {} }))
 vi.mock('../generationCanvas/spend/productionContractView', () => ({ buildProductionContractView: vi.fn() }))
 vi.mock('../generationCanvas/spend/anchorCheckpointView', () => ({ buildAnchorCheckpointCard: vi.fn() }))
-vi.mock('../workbenchStore', () => ({ useWorkbenchStore: {} }))
-vi.mock('./productionRunApi', () => ({ productionRunApi: { read: vi.fn(), command: vi.fn() } }))
+vi.mock('../workbenchStore', () => ({ useWorkbenchStore: { getState: () => ({ setWorkspaceMode: mocks.workspace }) } }))
+vi.mock('./productionRunApi', () => ({ productionRunApi: { read: mocks.read, command: vi.fn() } }))
 vi.mock('./productionRunCommands', async (importOriginal) => ({ ...(await importOriginal<typeof import('./productionRunCommands')>()), executeProductionRunCommand: mocks.command }))
 vi.mock('./productionRunStore', () => ({ useProductionRunStore: { getState: () => ({ loadRun: mocks.loadRun }) } }))
 vi.mock('./productionRunView', () => ({ buildProductionRunView: () => ({ targetId: null }), gateKindOf: vi.fn() }))
@@ -60,4 +60,21 @@ describe('production command feedback', () => {
     expect(mocks.command).not.toHaveBeenCalled()
     expect(mocks.notify).not.toHaveBeenCalled()
   })
+})
+
+vi.mock('../generationCanvas/runner/generationRunController', () => ({ confirmAndRunNode: mocks.runNode }))
+
+it('C4: task-center release of a canvas-origin Run selects its node and enters the ordinary user confirmation route', async () => {
+  Object.assign(mocks.run, { origin: { host: 'canvas', nodeId: 'canvas-origin-node' }, jobs: [{ jobId: 'unknown-job', status: 'submission_unknown', updatedAt: '2026-11-02T00:00:00.000Z' }] })
+  mocks.read.mockResolvedValue(mocks.run)
+  mocks.command.mockResolvedValue({ run: mocks.run })
+  mocks.confirm.mockResolvedValue(true)
+  mocks.loadRun.mockResolvedValue(mocks.run)
+  mocks.runNode.mockResolvedValue('started')
+  const status = mount()
+  await status.onPrimaryAction('release-unknown')
+  await vi.waitFor(() => expect(mocks.runNode).toHaveBeenCalledWith('canvas-origin-node', { initiator: 'user' }))
+  expect(mocks.selectNode).toHaveBeenCalledWith('canvas-origin-node')
+  expect(mocks.workspace).toHaveBeenCalledWith('generation')
+  expect(mocks.command).toHaveBeenCalledWith('project-1', 'run-1', expect.objectContaining({ type: 'job.reconcile', payload: { jobId: 'unknown-job', outcome: 'user_checked_abandon' } }), expect.any(Object))
 })
