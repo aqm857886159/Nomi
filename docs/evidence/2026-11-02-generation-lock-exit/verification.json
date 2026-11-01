@@ -1,7 +1,7 @@
 {
   "status": "partial",
   "network": "fake providers only; NOMI_TEST_NETWORK_GUARD=1; isolated offscreen Electron",
-  "build": "owner-build.exit=0; typecheck owner-types.exit=0; final validation is listed in the private report",
+  "build": "repair-build.exit=0; final whitespace-only source cleanup is rebuilt before handoff",
   "baseline": {
     "sha": "31e80bbd362bd15af441e2e4b5c8e1c6a8c5a11f",
     "freeRehearsal": "failed",
@@ -199,6 +199,52 @@
         "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
         "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png"
       ]
+    },
+    {
+      "journey": "list-entry-after-final-owner-repair",
+      "language": "zh-CN",
+      "status": "passed",
+      "processExit": 1,
+      "exitReason": "only quiet-walk foreground detection; functionality passed",
+      "checks": {
+        "listHeaderOncePerNode": true,
+        "classifiedSmallCard": true,
+        "actualQueue": true
+      },
+      "imagePosts": 6,
+      "forwarded": 5,
+      "maxWindowResponseMs": 127,
+      "heartbeatSamples": 32,
+      "screenshots": [
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png"
+      ]
+    },
+    {
+      "journey": "list-entry-after-final-owner-repair",
+      "language": "en",
+      "status": "passed",
+      "processExit": 1,
+      "exitReason": "only quiet-walk foreground detection; functionality passed",
+      "checks": {
+        "listHeaderOncePerNode": true,
+        "classifiedSmallCard": true,
+        "actualQueue": true
+      },
+      "imagePosts": 6,
+      "forwarded": 5,
+      "maxWindowResponseMs": 238,
+      "heartbeatSamples": 32,
+      "screenshots": [
+        "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
+        "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
+        "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
+        "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
+        "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png"
+      ]
     }
   ],
   "mutations": [
@@ -211,7 +257,7 @@
       "first": "A9/A10: approval scopes global fields and references plus selected shots; runtime scopes only its own row, including keyframes",
       "shaBefore": "4bd39b9f3ac1bef136ee28ccb7b76ca54496882c207831da095ab730ff61f847",
       "byteRestored": true,
-      "acceptanceLimit": "class-level only; the required mounted-editor A4 mutation is not verified"
+      "acceptanceLimit": "class-level only; required mounted-editor A4 mutation not verified"
     },
     {
       "id": "02-no-phase-refresh",
@@ -222,7 +268,7 @@
       "first": "A4 phase boundary writes refreshed references, rebases and derives current shot IDs without an editor effect",
       "shaBefore": "55e980629c1ad66c10c0f7c018a9a58019c52842927fa00298de9829e5cbee16",
       "byteRestored": true,
-      "acceptanceLimit": "class-level only; the required mounted-editor A4 mutation is not verified"
+      "acceptanceLimit": "class-level only; required mounted-editor A4 mutation not verified"
     },
     {
       "id": "03-no-author-protection",
@@ -233,7 +279,7 @@
       "first": "A9/A10: approval scopes global fields and references plus selected shots; runtime scopes only its own row, including keyframes",
       "shaBefore": "4bd39b9f3ac1bef136ee28ccb7b76ca54496882c207831da095ab730ff61f847",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "04-quota-brakes",
@@ -244,7 +290,7 @@
       "first": "A1/A2/A3: quota uses the correct brake and model-health policy at the shared runner",
       "shaBefore": "43531c969dcdfe7dcc530c2e2824672224c652ab5b4057a8d6d373d984815f81",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "05-no-queue-cancel",
@@ -255,7 +301,7 @@
       "first": "B3: a single generation takes the node out of another queued batch (paused=false)",
       "shaBefore": "43531c969dcdfe7dcc530c2e2824672224c652ab5b4057a8d6d373d984815f81",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "06-no-origin",
@@ -266,7 +312,7 @@
       "first": "C4: canvas runs find their node through origin, retaining production and legacy mappings",
       "shaBefore": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "07-production-only-release",
@@ -277,7 +323,7 @@
       "first": "C1: zh-CN canvas submission unknown exposes the existing release confirmation",
       "shaBefore": "613862c419c99cffcbd71546b6106c2871502bcc0137b581d18e90293d96ad7b",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "08-release-newer-refused-record",
@@ -288,7 +334,7 @@
       "first": "C2: a refused second click stays in history while the host-selected original Run is released and regenerated",
       "shaBefore": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "09-local-refusal-retry",
@@ -299,7 +345,7 @@
       "first": "three production pages share failure decisions in-flight refusal never offers retry: node_generation_in_flight: active",
       "shaBefore": "1db3cb5db7a3be1b11f7ed7cc084a6f86bd3385200fbd564e242cd135701b11a",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "10-no-list-error-card",
@@ -308,9 +354,21 @@
       "assertionFailures": 1,
       "red": true,
       "first": "every kind × all five failure surfaces submission-unknown has one reason/retry answer and no dead end",
-      "shaBefore": "708899132c71f23a37785d03d31f36d60331b0c938fea0de97da74c02087464b",
+      "shaBefore": "82c1715339df9e70b9f9f7cbed59161a2856418a8c25669c3577a89fb6db0c1d",
+      "testedHead": "1b4dd68b2e5fa220da57b189b3959db0cedcb382",
+      "variant": "release card removed with current node key",
+      "priorVariant": {
+        "id": "10-no-list-error-card",
+        "file": "src/workbench/generation/list/GenerationListDetail.tsx",
+        "exit": 1,
+        "assertionFailures": 1,
+        "red": true,
+        "first": "every kind × all five failure surfaces submission-unknown has one reason/retry answer and no dead end",
+        "shaBefore": "708899132c71f23a37785d03d31f36d60331b0c938fea0de97da74c02087464b",
+        "shaRestored": "708899132c71f23a37785d03d31f36d60331b0c938fea0de97da74c02087464b"
+      },
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "11-list-raw-error",
@@ -321,7 +379,7 @@
       "first": "every kind × all five failure surfaces quota has one reason/retry answer and no dead end",
       "shaBefore": "04db70ee10d0ee5cf20632165c926be80c55dc92740888880b3206a620a543ad",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "12-list-ignores-queue",
@@ -332,7 +390,7 @@
       "first": "E4: list card and narrow rail show queued from the real queue, never draft/not generated",
       "shaBefore": "2e7122e2b6d2832132f49039ec5cc15b0cef0d6896f2b2944a996203b5094a5b",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "13-batch-ignores-queue",
@@ -343,7 +401,7 @@
       "first": "E4: a queued idle node is busy and excluded from both group/list quotes",
       "shaBefore": "acaa8d32ba8dc2b47cb90e5a387fd1ef88de181f46d76472eb1b21400942d50d",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "14-shot-ignores-decision",
@@ -354,7 +412,7 @@
       "first": "E5: a real in-flight refusal in the shot action bar offers task viewing and never retry",
       "shaBefore": "48f71955859237630c2bfa8013bc1876d2653d64e11507db2b59c7b41f02faa4",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "15-anchor-dead-end",
@@ -365,7 +423,7 @@
       "first": "every kind × all five failure surfaces submission-unknown has one reason/retry answer and no dead end",
       "shaBefore": "dbec9942afe6037c512503adb7b2ac509cfc881b6ed6c1bda664de1dc635d0f2",
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     },
     {
       "id": "16-retry-never-resets",
@@ -375,8 +433,20 @@
       "red": true,
       "first": "E3: retry can be clicked again after rejection/failure, while the same row rejects a double click",
       "shaBefore": "48f71955859237630c2bfa8013bc1876d2653d64e11507db2b59c7b41f02faa4",
+      "testedHead": "1b4dd68b2e5fa220da57b189b3959db0cedcb382",
+      "variant": "first click sets local retrying true; never resets after rejected attempt",
+      "priorVariant": {
+        "id": "16-retry-never-resets",
+        "file": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+        "exit": 1,
+        "assertionFailures": 1,
+        "red": true,
+        "first": "E3: retry can be clicked again after rejection/failure, while the same row rejects a double click",
+        "shaBefore": "48f71955859237630c2bfa8013bc1876d2653d64e11507db2b59c7b41f02faa4",
+        "shaRestored": "48f71955859237630c2bfa8013bc1876d2653d64e11507db2b59c7b41f02faa4"
+      },
       "byteRestored": true,
-      "acceptanceLimit": "behavioral regression, not a full paid-confirmation journey"
+      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
     }
   ],
   "screenshots": [
@@ -536,35 +606,35 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
-      "sha256": "1e31fb707eef217c545317307211ff193b8fc1966fe91c41f7e236206f662ef3",
+      "sha256": "2f82966deb70b6a83e27e21b3625d93ac867c51edc893eb0a8ea285ddd9bc17c",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
-      "sha256": "66f84dbc82cf87b30a1a851e9b7388f6ea7ac8e4d042e4eef04927744827a6c3",
+      "sha256": "ba4da5948ce79a04446b5c08c3b244942cb41a667d344077afd0a6bab65aa5c6",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
-      "sha256": "a3c3c696edf8d7f4628948cc6e767d2f02234b570d770a87397e37dc1759533b",
+      "sha256": "021b1f27f12f13ec0f67e3da3a40a92646b0ecbdd1db60cc92bfc6ce3ffc822f",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
-      "sha256": "b253dd3c76c8b5403c4c2d85e2d040d04df0e44e6cd8a82b37f84f91fbe0c030",
+      "sha256": "ae440d269c9aa9a7c6415c9cc62a8362c8053bf396e66a39b286a947bd0b3bbd",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png",
-      "sha256": "efa47138d7bb94f3ce68e637beab0169bb4003cfca4adb28f69a9b1905c8cf09",
+      "sha256": "34e3f1aad1263c8c62c211dc3a449cd3bd50ae419e9017328dc5ae86e21e00ff",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
@@ -725,35 +795,35 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
-      "sha256": "8f56e4c0c80dc8cb0a208e4a139caeaa601cf0194a27dcc3384dcdbe1f961cac",
+      "sha256": "741015386aa60f2f0360ea717cb3998aa24768f846bad8fbe62bb3c3a5aaf09a",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
-      "sha256": "2e52aac4bb9ec361ce4f9b78b695e9191c811ffd8b02d83900c94f872cf088ae",
+      "sha256": "23a4fdff884dde88dac94672053d65be8bfc857f49ceb321c6dc6879c184308a",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
-      "sha256": "c6ac5e9d43eeb0a2847e373c36f7dfe60fe4651e7b904650efdec09c93aef1d8",
+      "sha256": "81d95d76467d5d8a7480e17737c8a0dc962b77f9ac0b39ddf77931a65094caf9",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
-      "sha256": "f3b33630bb6bc809aec74113924653c00c02e15ec9e631823253ec2dcbd97841",
+      "sha256": "ffffca19253909d16e29bd0986ab28ea47697c8f2b84f6495eaf1c55875ceadf",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png",
-      "sha256": "7c49e4443309e754ddb5b5ac9f57442be68f0ad78f9c3419498bf3493c4c30a0",
+      "sha256": "e5ff6512bfdb92a588f458d3920712b8eee49bc50b8a92abcd65f5a4208176d4",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
@@ -768,7 +838,7 @@
     "The escape entry remains candidate; independent acceptance, Windows and real billing are unverified."
   ],
   "followUp": {
-    "releaseStateOwner": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "releaseStateOwner": "src/workbench/production/releaseUnknownSubmission.ts",
     "deletedStandaloneHook": true,
     "waitSafetyCeiling": "existing stationTimeout; completion remains DOM/persisted state/HTTP counts",
     "browserRetryFixture": "unused release port moved to the new owner path; retry logic and decision remain real",
@@ -777,6 +847,247 @@
       "shaBefore": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
       "shaRestored": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
       "restoredByteForByte": true
+    },
+    "pendingOwner": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+    "blockingPredicateMove": {
+      "unchangedBody": true,
+      "shaBefore": "5bf1bf94a658b938862fb54875420b1341a8ab18587cd6569bc608197f4862f2",
+      "shaAfter": "5bf1bf94a658b938862fb54875420b1341a8ab18587cd6569bc608197f4862f2"
     }
+  },
+  "doors": {
+    "contractualSymbols": [
+      {
+        "kind": "read",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/NodeFailureReport.tsx",
+        "symbol": "NodeErrorReport"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "write",
+        "path": "src/devlab/designLab/storyboardReuse/storyboardReuseFixtures.ts",
+        "symbol": "autoReferencePlan"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+        "symbol": "storyboardFailureCopy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "symbol": "autoReferencePlan"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+        "symbol": "storyboardFailureCopy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "releaseUnknownSubmission"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/useProductionStatus.ts",
+        "symbol": "releaseUnknownSubmission"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/useProductionStatus.ts",
+        "symbol": "nodeIdOfJob"
+      }
+    ],
+    "additionalOwners": [
+      {
+        "kind": "read",
+        "path": "electron/integrationCertification/httpModelDiscovery.ts",
+        "symbol": "blockingReason"
+      },
+      {
+        "kind": "read",
+        "path": "electron/integrationCertification/integrationSession.ts",
+        "symbol": "blockingReason"
+      },
+      {
+        "kind": "read",
+        "path": "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
+        "symbol": "blockingReason"
+      },
+      {
+        "kind": "read",
+        "path": "src/ui/onboarding/integrationSelfCheckOutcome.ts",
+        "symbol": "blockingReason"
+      },
+      {
+        "kind": "read",
+        "path": "src/ui/onboarding/modelDiscovery.ts",
+        "symbol": "blockingReason"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "canvasUnknownRuns"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+        "symbol": "StoryboardFailureActions"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+        "symbol": "StoryboardFailureActions"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generation/list/GenerationListDetail.tsx",
+        "symbol": "NodeFailureReport"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+        "symbol": "NodeFailureReport"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "useUnknownSubmissionRelease"
+      },
+      {
+        "kind": "write",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "blockingReason"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "canvasUnknownRuns"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/StoryboardFailureActions.tsx",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/StoryboardFailureActions.tsx",
+        "symbol": "useUnknownSubmissionRelease"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "isGenerationNodeBusy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "runStoryboardAction"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generation/list/GenerationListParts.tsx",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "isGenerationNodeBusy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "symbol": "isGenerationNodeBusy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+        "symbol": "isGenerationNodeBusy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "useUnknownSubmissionRelease"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "canvasUnknownRuns"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "releaseUnknownCanvasSubmissionsForNode"
+      }
+    ]
+  },
+  "sourceCommit": "81d4dfda376ad60b7b26e77bd87db30eb0be82eb",
+  "unitChecks": {
+    "repair-selected": {
+      "files": 19,
+      "passed": 413,
+      "exit": 0
+    },
+    "hostC2C7": {
+      "passed": 2,
+      "exit": 0
+    },
+    "pendingOwner": {
+      "redExit": 1,
+      "greenExit": 0
+    },
+    "typecheck": {
+      "targets": 5,
+      "exit": 0
+    },
+    "build": {
+      "exit": 0
+    },
+    "knownRelatedFailures": 2
   }
 }

@@ -1,7 +1,7 @@
 # 体验成绩单：批量生成锁退出：部分验收
 
 - 改动：批量生成锁退出：部分验收
-- 验收 head：`54bcef6de`（main implementation commit; final owner consolidation and evidence follow in the same round）
+- 验收 head：`81d4dfda376ad60b7b26e77bd87db30eb0be82eb`（source owners validated by 413 selected tests, five typechecks and a build; acceptance remains partial）
 - 场景 id：`browse-away-during-long-task`
 - 谁验：Codex implementation（self-check; not independent acceptance）
 - 日期：2026-11-02
@@ -12,7 +12,7 @@
 
 ## 结果
 
-- 机器：完成 **4 / 14**（失败 10 条，原样列在下表，不丢）
+- 机器：完成 **6 / 16**（失败 10 条，原样列在下表，不丢）
 - 首次尝试成功：null（未采集：需要真人首次操作，AI 不代填）
 
 | 尝试 | 结果 | 说明 | 证据 |
@@ -31,6 +31,8 @@
 | independent list entry en | 通过 | Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task. |  |
 | list entry after owner reuse zh-CN | 通过 | all three functional checks; process exit zero |  |
 | list entry after owner reuse en | 通过 | all three functional checks; process exit zero |  |
+| list entry after final owner repair zh-CN | 通过 | all three functional checks; exit 1 solely quiet-walk foreground detection, allowed by task |  |
+| list entry after final owner repair en | 通过 | all three functional checks; exit 1 solely quiet-walk foreground detection, allowed by task |  |
 
 ## 机器测的
 
@@ -41,8 +43,8 @@
 | --- | --- | --- | --- | --- | --- |
 | 完整分镜资产与镜头 POST | 2 → null | requests | 1 | 未采 | baseline expected five; fixed full rehearsal stopped after three setup failures |
 | 独立列表入口每语言 POST | null → 6 | requests | 2 | 脚本计数（真事件，非采集器） | three initial requests (one rejected), then three serial requests; five forwarded |
-| 列表中文窗口响应最长等待 | null → 146 | ms | 23 | 脚本计数（真事件，非采集器） | latest independent list replay, one-second probes; first observation was 49ms/31 samples |
-| 列表英文窗口响应最长等待 | null → 324 | ms | 32 | 脚本计数（真事件，非采集器） | latest independent list replay, one-second probes; first observation was 53ms/32 samples |
+| 列表中文窗口响应最长等待 | null → 127 | ms | 32 | 脚本计数（真事件，非采集器） | latest independent list replay; earlier observations 49ms/31 and 146ms/23 |
+| 列表英文窗口响应最长等待 | null → 238 | ms | 32 | 脚本计数（真事件，非采集器） | latest independent list replay; earlier observations 53ms/32 and 324ms/32 |
 | 合同要求的单卡付费确认 | null → 0 | dialogs | 2 | 脚本计数（真事件，非采集器） | both languages follow the existing skip-confirmation policy |
 
 ## 真人给的（和上面分开记）

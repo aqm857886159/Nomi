@@ -68,4 +68,3 @@ export type StoryboardShotTableProps = {
    */
   scrollRef?: React.RefObject<HTMLElement | null>
 }
-

@@ -2,8 +2,8 @@
   "version": 1,
   "change": {
     "title": "批量生成锁退出：部分验收",
-    "headSha": "54bcef6de",
-    "headNote": "main implementation commit; final owner consolidation and evidence follow in the same round",
+    "headSha": "81d4dfda376ad60b7b26e77bd87db30eb0be82eb",
+    "headNote": "source owners validated by 413 selected tests, five typechecks and a build; acceptance remains partial",
     "userCan": "列表批量入口可派发，三页可显示并释放未知结果；合同要求的完整付费确认闭环未完成。",
     "changed": [
       "三页共享失败判据和恢复面",
@@ -100,6 +100,16 @@
         "label": "list entry after owner reuse en",
         "result": "pass",
         "note": "all three functional checks; process exit zero"
+      },
+      {
+        "label": "list entry after final owner repair zh-CN",
+        "result": "pass",
+        "note": "all three functional checks; exit 1 solely quiet-walk foreground detection, allowed by task"
+      },
+      {
+        "label": "list entry after final owner repair en",
+        "result": "pass",
+        "note": "all three functional checks; exit 1 solely quiet-walk foreground detection, allowed by task"
       }
     ],
     "metrics": [
@@ -125,19 +135,19 @@
         "name": "列表中文窗口响应最长等待",
         "unit": "ms",
         "baseline": null,
-        "current": 146,
-        "n": 23,
+        "current": 127,
+        "n": 32,
         "basis": "script-count",
-        "note": "latest independent list replay, one-second probes; first observation was 49ms/31 samples"
+        "note": "latest independent list replay; earlier observations 49ms/31 and 146ms/23"
       },
       {
         "name": "列表英文窗口响应最长等待",
         "unit": "ms",
         "baseline": null,
-        "current": 324,
+        "current": 238,
         "n": 32,
         "basis": "script-count",
-        "note": "latest independent list replay, one-second probes; first observation was 53ms/32 samples"
+        "note": "latest independent list replay; earlier observations 53ms/32 and 324ms/32"
       },
       {
         "name": "合同要求的单卡付费确认",
