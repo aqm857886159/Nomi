@@ -338,6 +338,40 @@ export function upgradePathVerdict(line) {
 }
 
 /**
+ * 真实场景复现这一节的判据（2026-11-02，用户：「这是我们最核心的逻辑」「不能死板」）。
+ *
+ * 为什么单拎：规则早就有（P3、根因流程的「报的那个场景修前红、修后绿了吗」），但只是文字，
+ * 一次批量出图的修复写设计卡时就只写了假服务商走查加一次最小付费。让逃逸账本转 fixed 的 PR 修的都是用户发现的问题，门岗挂在那里（pr-body-criteria.mjs）。
+ * 该走哪些地方每个问题自己从用户流程推，这里不列清单。门岗只查五行答没答、修前修后有没有凭据（路径 / 链接 / 运行号，裸 PR 号不算）；
+ * 走得全不全、准不准、修前真复现出来没有，由另一条线对照用户原话判（docs/engineering-rules.md R13）。
+ * 缺真实资源写「未验证：原因」（P3：没有真实资源记 unverified），放行，但要打出来。
+ */
+export const REAL_SCENE_SECTION = '真实场景复现'
+const REAL_SCENE_FIELD = /^\s*(?:[-*]\s*)?(?:\*\*)?(用户的流程|我走的|差别|修前|修后)(?:\*\*)?\s*[:：]\s*(.*)$/
+const REAL_SCENE_RESULTS = ['修前', '修后']
+const REAL_SCENE_FIELDS = ['用户的流程', '我走的', '差别', ...REAL_SCENE_RESULTS]
+const REAL_SCENE_PROOF = EVIDENCE_TOKEN.filter((pattern) => pattern.source !== '#\\d{2,}').concat(/(?:^|[\s/])reports?\/[\w@./+-]+\.md\b/)
+export function realSceneVerdict(section) {
+  const answers = new Map()
+  for (const raw of String(section || '').split(/\r?\n/)) {
+    const field = REAL_SCENE_FIELD.exec(raw)
+    if (field && !answers.has(field[1])) answers.set(field[1], field[2].trim())
+  }
+  const missing = REAL_SCENE_FIELDS.filter((name) => !answers.get(name))
+  if (missing.length) return { ok: false, reason: `缺：${missing.join('、')}` }
+  const unverified = []
+  const unproven = []
+  for (const name of REAL_SCENE_RESULTS) {
+    const text = answers.get(name)
+    const skipped = UNVERIFIED.exec(text)
+    if (skipped && skipped[1].trim().length >= 4) unverified.push(`${name}：${skipped[1].trim()}`)
+    else if (!REAL_SCENE_PROOF.some((pattern) => pattern.test(text))) unproven.push(name)
+  }
+  if (unproven.length) return { ok: false, reason: `${unproven.join('、')}没有凭据（路径 / 链接 / 运行号，裸 PR 号不算），也没写「未验证：原因」（原因至少 4 个字）` }
+  return unverified.length ? { ok: true, unverified } : { ok: true }
+}
+
+/**
  * 必交证据 = 各类别要求的并集，只含 when = "pr" 的（每个 PR 按功能分类跑；paid 的在 PR 上只要求正文交证据、不在 CI 自动跑）。
  * when = "manual-full" 的只在用户手动触发的全量跑里跑，PR 正文不要求（用 manualFullEvidence 列出来）。
  */

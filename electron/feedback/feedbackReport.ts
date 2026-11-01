@@ -29,7 +29,7 @@ import {
   type FeedbackReportRequest,
   type FeedbackSurface,
 } from '../shared/contracts/feedback'
-import { projectCatalogForReport } from './feedbackCatalog'
+import { maskForeignUrls, projectCatalogForReport } from './feedbackCatalog'
 import { projectLogLines } from './feedbackLogTail'
 
 /** 摘要那句人话的上限。它是**已经派生好的**一句话，长到这个数说明调用处传错了东西。 */
@@ -79,10 +79,11 @@ export type FeedbackReportPayload = {
   attachments: Record<string, unknown>
 }
 
-function text(value: unknown, max: number): string {
+function text(value: unknown, max: number, maskAddress: boolean): string {
   if (typeof value !== 'string') return ''
   // 第二道网：摘要与留言都可能带着一段服务商原话里的签名 URL，或用户顺手粘的路径。
-  return redactLogValue(value).trim().slice(0, max)
+  const clean = redactLogValue(value)
+  return (maskAddress ? maskForeignUrls(clean) : clean).trim().slice(0, max)
 }
 
 /**
@@ -224,7 +225,7 @@ export async function buildFeedbackReport(
     const catalog = deps.readModelCatalog()
     const projected = catalog === null ? null : projectCatalogForReport(redactModelCatalog(catalog), provider)
     if (projected === null) exclude(ITEMS.modelCatalog, 'catalog-unavailable')
-    else add(ITEMS.modelCatalog, projected, '模型目录（接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；本机连接的模型只留个数；密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）')
+    else add(ITEMS.modelCatalog, projected, '模型目录（接了哪几家、官方地址和模型配置；自建连接不带地址、连接名和密钥；模型名会带，用来查模型配置；本机连接的模型只留个数；密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）')
   })
 
   // 永远排除的三类，逐条写清原因（D4：包里没有什么，比包里有什么更容易引起误解）。
@@ -252,16 +253,41 @@ export async function buildFeedbackReport(
     manifest,
     context: {
       surface: request.surface,
-      summary: text(request.summary, MAX_SUMMARY_CHARS),
+      summary: text(request.summary, MAX_SUMMARY_CHARS, true),
       errorCode: typeof request.errorCode === 'string' && /^[a-z0-9][a-z0-9._-]{0,63}$/i.test(request.errorCode.trim())
         ? request.errorCode.trim()
         : null,
-      note: text(request.note, MAX_NOTE_CHARS) || null,
+      note: text(request.note, MAX_NOTE_CHARS, false) || null,
       contentIncluded,
       provider,
       model: outbound?.modelsLeave ? identity(request.model) : null,
     },
     attachments,
+  }
+}
+
+/** 旧版原目录没有两项投影计数；只剥目录，保留反馈原话与其他附件。 */
+export function prepareFeedbackReport(payload: unknown): unknown {
+  if (!isRecord(payload) || !isRecord(payload.attachments) || !(ITEMS.modelCatalog in payload.attachments)) return payload
+  const catalog = payload.attachments[ITEMS.modelCatalog]
+  // shortcut: 手改旧目录加上这两项数字会按原样发送；有正式投影版本字段时改用它。
+  if (isRecord(catalog) && typeof catalog.modelsOmitted === 'number' && typeof catalog.mappingsOmitted === 'number') return payload
+  if (!isRecord(payload.manifest) || !Array.isArray(payload.manifest.entries) || !Array.isArray(payload.manifest.excluded)) {
+    throw new Error('Invalid feedback manifest')
+  }
+  const report = payload as unknown as FeedbackReportPayload
+  const entries = report.manifest.entries.filter((entry) => entry.path !== ITEMS.modelCatalog)
+  const excluded = report.manifest.excluded.filter((entry) => entry.what !== ITEMS.modelCatalog)
+  logWarn('diagnostics', 'feedback-legacy-catalog-dropped')
+  return {
+    ...report,
+    attachments: Object.fromEntries(Object.entries(report.attachments).filter(([key]) => key !== ITEMS.modelCatalog)),
+    manifest: {
+      ...report.manifest,
+      entries,
+      excluded: [...excluded, { what: ITEMS.modelCatalog, why: 'legacy-catalog-dropped' }],
+      totalBytes: entries.reduce((sum, entry) => sum + entry.bytes, 0),
+    },
   }
 }
 

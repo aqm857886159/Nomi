@@ -296,11 +296,11 @@ describe('反馈包里的模型目录', () => {
   })
 
   it('清单中英都说自建连接不带地址、本机连接只留个数，也不再说带「各家的接口地址」', () => {
-    expect(zhFeedbackReport.manifestItem.modelCatalog).toContain('自建连接只留「是自建」，不带地址')
+    expect(zhFeedbackReport.manifestItem.modelCatalog).toContain('自建连接不带地址、连接名和密钥；模型名会带，用来查模型配置')
     expect(zhFeedbackReport.manifestItem.modelCatalog).toContain('本机连接的模型只留个数')
     expect(zhFeedbackReport.manifestItem.modelCatalog).not.toContain('各家的接口地址')
-    expect(enFeedbackReport.manifestItem.modelCatalog).toContain('Self-hosted connections show no address')
-    expect(enFeedbackReport.manifestItem.modelCatalog).toContain('local ones only model counts')
+    expect(enFeedbackReport.manifestItem.modelCatalog).toContain('Self-hosted connections omit addresses, connection names and keys; model names are included to diagnose model settings')
+    expect(enFeedbackReport.manifestItem.modelCatalog).toContain('Local connections only include model counts')
     expect(enFeedbackReport.manifestItem.modelCatalog).not.toContain('endpoint addresses')
   })
 })

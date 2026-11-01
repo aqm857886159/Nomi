@@ -26,7 +26,7 @@ export const zhFeedbackReport = {
   manifestUnavailable: '清单这次没算出来（日志或轨迹暂时读不到）。仍然可以发送。',
   manifestItem: {
     logTail: '最近的运行日志：只留时间、模块、事件名和状态码这类数字，其余字段不带',
-    modelCatalog: '模型目录：接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；本机连接的模型只留个数；密钥、代理地址、自定义头全部抹掉',
+    modelCatalog: '模型目录：接了哪几家、官方地址和模型配置；自建连接不带地址、连接名和密钥；模型名会带，用来查模型配置；本机连接的模型只留个数；密钥、代理地址、自定义头全部抹掉',
     trajectory: '最近 3 个回合用了哪些工具、成没成功、多久、多少 token；提示词、回复、工具结果都不带',
     perf: '界面流畅度的分档数字：没有原始毫秒，没有内容',
     secrets: '密钥、令牌、代理凭据',
@@ -44,6 +44,7 @@ export const zhFeedbackReport = {
     'trajectory-timeout': '读得太久，这次不等了',
     'perf-unavailable': '这次还没攒够数据',
     'report-size-limit': '超过大小上限',
+    'legacy-catalog-dropped': '旧版目录未按当前规则清洗，未附带',
     'never-collected-by-design': '从不收集',
     'content-checkbox-not-ticked': '没勾选',
     'available-only-via-settings-diagnostics-export': '只能自己从「导出诊断包」导出',
@@ -77,7 +78,7 @@ export const enFeedbackReport = {
   manifestUnavailable: 'The manifest could not be built this time (logs or trace are unreadable right now). You can still send.',
   manifestItem: {
     logTail: 'Recent app logs: only the time, module, event name and figures such as status codes. Other fields stay out',
-    modelCatalog: 'Model catalog: providers, official addresses and model settings. Self-hosted connections show no address, local ones only model counts. Keys, proxies and custom headers are wiped',
+    modelCatalog: 'Model catalog: providers, official addresses and model settings. Self-hosted connections omit addresses, connection names and keys; model names are included to diagnose model settings. Local connections only include model counts. Keys, proxies and custom headers are wiped',
     trajectory: 'The last 3 turns: which tools ran, whether they worked, how long, how many tokens. No prompts, replies or tool results',
     perf: 'Banded interface smoothness figures: no raw timings, no content',
     secrets: 'API keys, tokens, proxy credentials',
@@ -95,6 +96,7 @@ export const enFeedbackReport = {
     'trajectory-timeout': 'Took too long to read, so it was skipped this time',
     'perf-unavailable': 'Not enough data yet',
     'report-size-limit': 'Over the size limit',
+    'legacy-catalog-dropped': 'The older catalog was left out because it was not cleaned under the current rules',
     'never-collected-by-design': 'Never collected',
     'content-checkbox-not-ticked': 'Not ticked',
     'available-only-via-settings-diagnostics-export': 'Only through your own diagnostics export',

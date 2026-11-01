@@ -84,6 +84,7 @@ export const FEEDBACK_EXCLUSION_REASONS = [
   'trajectory-timeout',
   'perf-unavailable',
   'report-size-limit',
+  'legacy-catalog-dropped',
   'never-collected-by-design',
   'content-checkbox-not-ticked',
   'available-only-via-settings-diagnostics-export',

@@ -83,7 +83,7 @@ function mapStrings(node: unknown, change: (text: string) => string): unknown {
   return Object.fromEntries(Object.entries(node).map(([key, value]) => [change(key), mapStrings(value, change)]))
 }
 
-function maskForeignUrls(text: string): string {
+export function maskForeignUrls(text: string): string {
   return text.replace(URL_IN_TEXT, (url) => (isPublishedAddress(url) ? url : CUSTOM_ADDRESS))
 }
 
