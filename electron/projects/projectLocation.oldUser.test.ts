@@ -12,7 +12,7 @@
  * 五条，每条都从刚拷出来的真数据开始（只把 electron 的目录接口换成指向临时目录的桩）：
  *   1. 什么都不做：三个项目都在、读得出、存得了——包括在应用数据目录里的那个（位置判定只管新选的位置，不管已有的项目）；
  *   2. 文件夹找不到了（默认位置整个删了、外部文件夹改名）：卡片一直留着，重启几次登记不减、默认位置不被建回；
- *      打开改名后的文件夹接回同一个项目；
+ *      打开改名后的文件夹接回同一个项目；不要的卡能自己移除，重启不回来（2b）；
  *   3. 默认位置设在应用数据目录里：设置值原样不动；新建项目被拒，界面那句指到设置；换成正常文件夹后新建成功；
  *   4. 把老项目挪出应用目录：挪走再打开 = 接回同一个项目；复制一份再打开（原件还在）= 拒绝、两边一个字节不变；
  *      原件挪走 / 改名后再打开副本 = 接上；
@@ -58,6 +58,7 @@ vi.mock("electron", () => ({
 }));
 
 import { resources } from "../../src/i18n/resources";
+import { projectDeleteChoice } from "../../src/workbench/library/projectDeleteChoice";
 import { projectOperationFailureText } from "../../src/workbench/project/projectOperationFailureText";
 import { listProjectAssets } from "../assets/projectAssetStore";
 import { getProjectLocationState } from "../runtimePaths";
@@ -278,6 +279,34 @@ describe.each(RELEASES)("老用户的项目库（%s 落的）", (release) => {
     expect(cards.filter((card) => card.missing).map((card) => card.id).sort()).toEqual(sortedIds(old.projects.filter((item) => item.key !== "external")));
     expect(fs.existsSync(documentsRoot)).toBe(false);
     expect(fs.existsSync(appRoot)).toBe(false);
+  });
+
+  it("2b 文件夹找不到的卡不要了：确认框只说移除，摘掉这几张，重启不回来；还在的卡不动，默认位置不被建回", async () => {
+    await startApp();
+    const documentsRoot = path.dirname(project("docs").folder);
+    const appRoot = old.defaultLocation;
+    fs.rmSync(documentsRoot, { recursive: true });
+    fs.rmSync(appRoot, { recursive: true });
+    const external = project("external");
+    const kept = registered().filter((entry) => entry.id === external.id);
+
+    const cards = await startApp();
+    for (const key of ["docs", "appData"] as const) {
+      const card = cards.find((item) => item.id === project(key).id);
+      expect(card, key).toMatchObject({ missing: true });
+      const choice = projectDeleteChoice(card as NonNullable<typeof card>);
+      expect(choice.intent, key).toBe("unbind");
+      await expect(deleteProject(project(key).id, choice.intent), key).resolves.toEqual({ id: project(key).id, deleted: false });
+    }
+
+    for (let round = 0; round < 2; round += 1) {
+      const after = await startApp();
+      expect(sortedIds(after), `第 ${round + 1} 次启动`).toEqual([external.id]);
+      expect(registered(), `第 ${round + 1} 次启动`).toEqual(kept);
+      expect(fs.existsSync(documentsRoot)).toBe(false);
+      expect(fs.existsSync(appRoot)).toBe(false);
+    }
+    expect(readProject(external.id)).toMatchObject({ id: external.id, payload: { marker: external.marker } });
   });
 
   it("3 默认位置设在应用数据目录里：设置值原样不动；新建项目被拒，界面那句指到设置；换成正常文件夹后新建成功", async () => {
