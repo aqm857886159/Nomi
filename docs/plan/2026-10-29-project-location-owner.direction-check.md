@@ -128,6 +128,14 @@
 
 没钉住的：Windows 真机（本线在 macOS；盘符与大小写只用 `path.win32` 推导）；渲染层拿到 2c 那份假记录之后的界面表现（渲染层没起，主进程事实已钉）。
 
+## 第一刀验收之后的一刀：找不到文件夹的卡片删不掉（2026-11-01）
+
+- **触发**：`electron/projects/repository.ts` 14 天第 7 个 fix，`src/workbench/library/projectDeleteFlow.ts` 第 4 个，目录 `electron/projects/` 第 12 个、`src/workbench/library/` 第 13 个。
+- **算哪一类**：不是新类。第 7 节用户批准的是「一直留在库里，直到你自己移除或重新打开」，第一刀删了读路径自动摘登记，「自己移除」在本地卡上却是空操作，旧的自动摘登记曾把它遮住。归到第 1 节「删除这扇门自己的表达」。
+- **补还是换**：换。`deleteProject` 里两个只回 false 的分支并进 `unbindProject`，`unbindProject` 自己的两个分支合成一个；确认框判断多认一个状态，复用现有文案。没有新特例。
+- **系统哪里没拦住**：卡片状态、确认框判断、主进程三层各测各的，没有一条把它们接起来再重启。这次加跨层矩阵（`projectLocation.matrix.test.ts`「删除：卡片状态 × 确认框 × 主进程 × 重启」）。
+- **往后**：第二刀第 5 条重写 unbind / delete 的 legacy 分支时，这组矩阵当合同，不改断言。
+
 ## 自写登记 `gate-family`：这一刀为什么还改自写门岗
 
 第一刀给 `scripts/check-read-path-writes.mjs`（自写登记 `gate-family`，状态 under-review）加门、加反例测试，不新增门岗脚本。
