@@ -176,7 +176,7 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
         }
         if (action === 'release-unknown') {
           // 结果未知且没有任务号：Nomi 没法核对，只能请用户去服务商后台看。用户确认「没有」后放行这一镜，
-          // 再走这一镜正常的付费确认卡（confirmAndRunNode）——放行本身不开拍。
+          // 核对框已确认后再走 confirmAndRunNode：用户单张直接发，首次托管告知照旧；放行本身不开拍。
           if (!targetJob) return
           const confirmed = await confirmDialog({
             title: t('generationCommon.production.reconcile.releaseTitle'),

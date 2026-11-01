@@ -7,6 +7,7 @@ export async function createGenerationLockExitProxy({ target, imageModel, fakeDe
   const records = []
   let active = 0
   let dropNext = false
+  let dropMatch = null
   let limit = 2
   const server = http.createServer(async (req, res) => {
     const parts = []
@@ -24,8 +25,8 @@ export async function createGenerationLockExitProxy({ target, imageModel, fakeDe
       if (record.rejected) { res.writeHead(429, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'concurrency limit exceeded; too many simultaneous requests' } })); return }
       active++
       record.forwarded = true
-      record.dropped = dropNext
-      dropNext = false
+      record.dropped = dropNext || (dropMatch !== null && String(parsed.prompt).includes(dropMatch))
+      if (record.dropped) { dropNext = false; dropMatch = null }
     }
     const origin = new URL(target)
     const upstream = (origin.protocol === 'https:' ? https : http).request(new URL(req.url, origin), { method: req.method, headers: { ...req.headers, host: origin.host } }, async response => {
@@ -42,7 +43,7 @@ export async function createGenerationLockExitProxy({ target, imageModel, fakeDe
   })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
   return { origin: `http://127.0.0.1:${server.address().port}`, records,
-    setLimit(value) { limit = value }, dropNextReply() { dropNext = true },
+    setLimit(value) { limit = value }, dropNextReply() { dropNext = true }, dropNextReplyMatching(value) { dropMatch = value },
     async close() { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) },
   }
 }

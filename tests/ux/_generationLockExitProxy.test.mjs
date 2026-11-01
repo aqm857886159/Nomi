@@ -39,3 +39,17 @@ it('the paid entry requires a green four-stage rehearsal before opening any paid
   expect(source).toContain("['storyboard', 'canvas', 'list', 'restart']")
   expect(source).toContain('maxImages: 14')
 })
+
+it('changes the cap per stage and targets a shot reply without discarding its preceding asset reply', async () => {
+  const server = http.createServer(async (req, res) => { for await (const part of req) void part; res.writeHead(200).end('{}') })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const proxy = await createGenerationLockExitProxy({ target: `http://127.0.0.1:${server.address().port}`, imageModel: 'fake-image' })
+  const post = prompt => fetch(`${proxy.origin}/v1/images/generations`, { method: 'POST', body: JSON.stringify({ model: 'fake-image', prompt }) })
+  try {
+    proxy.setLimit(1); proxy.dropNextReplyMatching('shot')
+    expect((await post('asset')).status).toBe(200)
+    expect(await post('shot').then(() => false, () => true)).toBe(true)
+    expect(proxy.records.map(r => r.dropped)).toEqual([false, true])
+    expect((await post('shot after release')).status).toBe(200)
+  } finally { await proxy.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }
+})

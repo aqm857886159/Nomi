@@ -1,3 +1,10 @@
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { confirmAndRunNode } from '../runner/generationRunController'
+import { dismissRecoverableNode, recoverNodeResult } from '../runner/recoverTaskActions'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { localStepRedoOf } from './localStepRedo'
+import { useProductionNodeRetry } from './useProductionNodeRetry'
+import { NodeRecoverableReport } from './NodeRecoverableReport'
 import React, { type JSX } from 'react'
 import { GenerationStatusBar } from './GenerationStatusBar'
 import { MODEL_ACCESS_ENTRY } from '../../../../electron/shared/contracts/modelAccessCapabilities'
@@ -372,4 +379,23 @@ export function UnknownSubmissionConfirmation({ release }: { release: ReturnType
       primaryLabel={t('generationCommon.observability.releaseConfirm.continue')} onPrimary={() => { void release.continueRelease() }} primaryDisabled={release.busy}
       tone="danger" dangerClassName="bg-workbench-danger text-nomi-paper hover:bg-workbench-danger" />
   </div>
+}
+
+/** The canvas and list inspector host the same recovery surface and retry route. */
+export function NodeFailureReport({ node, onFeedback, summaryVisible = true }: {
+  node: GenerationCanvasNode
+  onFeedback: (message: string) => void
+  summaryVisible?: boolean
+}) {
+  const productionRetry = useProductionNodeRetry(node, onFeedback)
+  if (node.status === 'error' && node.error) return <NodeErrorReport
+    summaryVisible={summaryVisible} message={node.error} meta={node.meta} nodeId={node.id} run={node.runs?.[0]}
+    onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
+    onRetry={node.kind === 'asset' && node.meta?.source === 'clipboard-url' ? undefined
+      : productionRetry ?? localStepRedoOf(node, onFeedback) ?? (() => { void confirmAndRunNode(node.id, { initiator: 'user' }) })}
+  />
+  if (node.status === 'recoverable') return <NodeRecoverableReport node={node}
+    onRecover={() => { withProjectAction((project) => { void recoverNodeResult(node.id, project) }) }}
+    onDismiss={() => dismissRecoverableNode(node.id)} />
+  return null
 }

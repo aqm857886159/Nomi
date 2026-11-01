@@ -153,10 +153,10 @@ export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (gr
   const initialOutputs = new Map(initial.nodes.filter(node => ids.has(node.id)).map(node => [node.id, { result: node.result, history: node.history, contentJson: node.contentJson }]))
   const approvedRuns = new Map<string, string>()
   const initialTextNodes = new Map(initial.nodes.filter(node => ids.has(node.id) && node.kind === 'text').map(node => [node.id, node]))
-  const token = (graph: RunGraph): string => {
+  const token = (graph: RunGraph, executingNodeId: string): string => {
     const nodes = graph.nodes.map(node => ids.has(node.id) ? { ...node, ...initialOutputs.get(node.id) } : node)
     const edges = graph.edges.filter(edge => ids.has(edge.target))
-    return stableProjectAgentJson(JSON.parse(JSON.stringify(nodeIds.map(id => {
+    return stableProjectAgentJson(JSON.parse(JSON.stringify([executingNodeId].map(id => {
       const found = nodes.find(node => node.id === id)
       if (!found) throw new Error('node not found')
       const archetype = archetypeForNode(found)
@@ -180,9 +180,9 @@ export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (gr
       }
     }))))
   }
-  const expected = token({ nodes: initial.nodes, edges: initial.edges })
+  const expected = new Map(nodeIds.map(id => [id, token({ nodes: initial.nodes, edges: initial.edges }, id)]))
   return (graph, executingNodeId) => {
-    if (token(graph) !== expected) throw new Error('generation_input_changed')
+    if (token(graph, executingNodeId) !== expected.get(executingNodeId)) throw new Error('generation_input_changed')
     const originalText = initialTextNodes.get(executingNodeId)
     const executing = graph.nodes.find(node => node.id === executingNodeId)!
     const executingRun = executing.runs?.[0]

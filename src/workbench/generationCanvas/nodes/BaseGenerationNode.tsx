@@ -1,4 +1,4 @@
-import { NodeFailureReport } from './NodeFailureReport'
+import { NodeFailureReport } from './NodeErrorReport'
 import NodeGenerationComposer from './LazyNodeGenerationComposer'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'

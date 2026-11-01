@@ -9,7 +9,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { prepareLockExitStoryboard } from './_generationLockExitSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-/** Independent queue/refusal/recovery walk; it does not rerun the blocked batch rehearsal. */
+/** Independent queue/refusal/recovery walk; it does not rerun the four-stage rehearsal. */
 export async function threePageLockExitJourney(input) {
   let { page } = input
   const { projectId, proxy, locale, screenshotDir, restart } = input
@@ -21,8 +21,13 @@ export async function threePageLockExitJourney(input) {
   const canvas = async id => {
     await switchWorkspace(page, 'generation')
     await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page)
+    await page.waitForFunction(() => Boolean(window.__nomiCanvasStore))
     if (id) await page.evaluate(id => window.__nomiCanvasStore.getState().selectNode(id), id)
     await canvasFitView(page)
+    if (id) {
+      await page.evaluate(id => window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId: id } })), id)
+      await expect(page.locator(`[data-node-id="${id}"]`).first()).toBeVisible()
+    }
   }
   const list = async (id, detail = true) => {
     await switchGenerationView(page, 'list')
@@ -51,12 +56,13 @@ export async function threePageLockExitJourney(input) {
     report.checks.queue = true
     assert.equal(proxy.records.filter(r => r.forwarded).length, 5)
 
-    await canvas(); await page.evaluate(() => window.__nomiSetBatchConcurrency(null))
+    await canvas(); await page.evaluate(() => window.__nomiSetBatchConcurrency(null)); proxy.setLimit(1)
     await page.locator('[data-frame-generate-all]').first().click()
     const checks = page.locator(`${dialog} input[type="checkbox"]`)
     for (const checkbox of await checks.all()) if (!(await checkbox.isDisabled())) await checkbox.check()
     await confirm()
-    await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(3)
+    await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(4)
+    proxy.setLimit(2)
     const failed = (await nodes()).find(n => n.status === 'error' && n.meta?.shotId)
     assert.ok(failed)
     await canvas(failed.id); await shot('429-canvas')
@@ -70,6 +76,11 @@ export async function threePageLockExitJourney(input) {
     await page.keyboard.press('Escape')
     report.checks.listModelChip = true
     await openStoryboardEditor(page, design.id); await shot('429-storyboard')
+    const failedAsset = (await nodes()).find(n => n.status === 'error' && n.meta?.anchorId)
+    assert.ok(failedAsset, 'E2 includes an asset refusal as well as a shot refusal')
+    if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
+    await expect(page.locator(`[data-storyboard-anchor-row="${failedAsset.meta.anchorId}"]`)).toContainText(t('generationCommon.observability.error.quota.reason'))
+    await shot('429-storyboard-asset')
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'running').length).toBe(0)
     report.checks.quota = true
 
@@ -99,7 +110,13 @@ export async function threePageLockExitJourney(input) {
     await shot('unknown-storyboard-anchor')
     await assetRow.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('unknown-storyboard-anchor-confirm')
+    const cancelledAt = proxy.records.length
     await page.locator('[data-release-confirm]').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
+    assert.equal(proxy.records.length, cancelledAt)
+    await canvas(asset.id)
+    const assetRuns = (await nodes()).find(n => n.id === asset.id).runs.length
+    await submit(); await expect.poll(async () => (await nodes()).find(n => n.id === asset.id).runs.length).toBe(assetRuns + 1)
+    assert.equal(proxy.records.length, cancelledAt, 'C3: cancelling did not release the original occupancy')
     report.checks.anchorHasExit = true
 
     page = await restart()
@@ -115,8 +132,8 @@ export async function threePageLockExitJourney(input) {
     assert.equal(proxy.records.length, count + 2)
     report.checks.releaseTargetsOriginalRun = true
     await shot('list-released-result')
-    report.checks.spendConfirmation = await page.locator(dialog).isVisible()
-    report.blocked = report.checks.spendConfirmation ? [] : ['spend-confirmation-policy']
+    await expect(page.locator(dialog)).not.toBeVisible()
+    report.checks.singleReleaseWithoutExtraDialog = true
     await openStoryboardEditor(page, design.id)
     if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
     await page.locator(`[data-storyboard-anchor-row="${asset.meta.anchorId}"]`).getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
@@ -133,6 +150,25 @@ export async function threePageLockExitJourney(input) {
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.canvasRelease = true
     await shot('canvas-released-result')
+    proxy.dropNextReply(); await submit()
+    await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
+    const occupied = await page.evaluate(({ projectId, nodeId }) => window.nomiDesktop.tasks.canvasUnknownRuns({ projectId, nodeId }), { projectId, nodeId: canvasNode.id })
+    assert.ok(occupied.length)
+    const beforeTaskCenter = proxy.records.length
+    await page.locator('[data-task-center-trigger]').click()
+    await page.locator(`[data-task-id="production-run:${occupied[0].runId}"]`).click()
+    await page.locator('[data-task-center-trigger]').click()
+    await expect(page.locator('[data-production-task-card]')).toBeVisible()
+    await shot('task-center-unknown')
+    await page.locator('[data-production-task-card] [data-production-primary-action]').click()
+    await expect(page.getByRole('button', { name: t('generationCommon.production.reconcile.releaseContinue'), exact: true })).toBeVisible()
+    await shot('task-center-release-confirm')
+    await page.getByRole('button', { name: t('generationCommon.production.reconcile.releaseContinue'), exact: true }).click()
+    await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
+    assert.equal(proxy.records.length, beforeTaskCenter + 1)
+    assert.ok(await page.evaluate(id => window.__nomiCanvasStore.getState().selectedNodeIds.includes(id), canvasNode.id))
+    report.checks.taskCenterRelease = true
+    await shot('task-center-released')
     return report
   } catch (error) { error.report = report; throw error }
 }

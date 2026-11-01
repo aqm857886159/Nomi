@@ -15,7 +15,7 @@ export type ReleaseUnknownApi = Pick<DesktopProductionRunBridge, 'read' | 'comma
 /**
  * 「我去服务商后台核对过了，没有这一笔」——把那次结果未知的尝试记成「用户核对后放弃」，释放这一镜的占用。
  *
- * 只是释放：不重发、不开拍。接下来的重新生成走这一镜正常的付费确认卡（调用方负责弹），钱照常要用户在卡上点。
+ * 只是释放：不重发、不开拍。接下来的重新生成走 confirmAndRunNode：用户单张直接发，首次托管告知仍由既有判据决定。
  * 命令由主进程盖「真人手势章」后才生效（Agent / MCP 路径发不了）。失败照实抛给调用方，不吞。
  */
 export async function releaseUnknownSubmission(

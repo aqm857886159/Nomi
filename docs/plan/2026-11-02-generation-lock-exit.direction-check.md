@@ -155,3 +155,67 @@ PR 判据把抽取复用的两个 tsx 文件当作新增界面，拒绝 pure-bug
 ### 同轮裁决：按节点批准、既有单张政策、完整复现
 
 协调确认此前五个停点来自合同错误：批准输入只比 executingNodeId；单张仍不弹卡，未知结果的核对条就是确认；代理分段上限 2/1/1；三次前置失败不计业务停点，再给三次免费演练；出网 A5 在网络保护环境才红，推送快检不带该变量，测试不改。两个复用组件并入原 owner，删独立 tsx 文件；补现有及队列结算性能实测、四段加静置、中英最终截图，账本带类级检查转 fixed。方向沿用，补齐既有机制，不增加单张确认判据，不改门岗或基线。资产阶段改更贵模型只审计金额一致性，发现可能多花即单项停下报告。
+
+### 最新同轮裁决后的全范围复核
+
+协调授权沿用既有方向继续补齐：按执行节点保留全部输入保护；单用户生成沿用既定不弹卡策略；三页组件共置于原文件并删掉两个新文件。新性能场景只量数字，不改既有基线；资产阶段换贵模型的确认差异单列停止。以下是当前所有改动文件的 fix-churn 原始命中（包含原实施与本轮补齐），热点已由用户授权。
+
+```text
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · electron/capabilityCore/appIntegration.ts：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · electron/capabilityCore/appIntegrationCanvasShot.ts：文件近 14 天已有 4 个 fix，这一刀是第 5 个
+  · electron/feedback/feedbackCatalog.ts：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · electron/feedback/feedbackCatalog.ts：目录 electron/feedback/ 近 14 天已有 5 个 fix（只涉及 5 个文件，算同一概念），这一刀是第 6 个
+  · electron/feedback/feedbackIpc.ts：目录 electron/feedback/ 近 14 天已有 5 个 fix（只涉及 5 个文件，算同一概念），这一刀是第 6 个
+  · electron/feedback/feedbackReport.ts：文件近 14 天已有 4 个 fix，这一刀是第 5 个
+  · electron/feedback/feedbackReport.ts：目录 electron/feedback/ 近 14 天已有 5 个 fix（只涉及 5 个文件，算同一概念），这一刀是第 6 个
+  · electron/preload/runtimeBridge.ts：目录 electron/preload/ 近 14 天已有 4 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 5 个
+  · electron/tasks/taskIpcHandlers.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · electron/telemetry/intakeQueue.ts：目录 electron/telemetry/ 近 14 天已有 3 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 4 个
+  · src/desktop/bridge.ts：文件近 14 天已有 9 个 fix，这一刀是第 10 个
+  · src/desktop/bridge.ts：目录 src/desktop/ 近 14 天已有 14 个 fix（只涉及 6 个文件，算同一概念），这一刀是第 15 个
+  · src/i18n/locales/feedbackReport.ts：feedbackReport.ts#manifestItem 近 14 天已有 4 个 fix，这一刀是第 5 个（词典按功能键计数）
+  · src/i18n/locales/feedbackReport.ts：feedbackReport.ts#(根) 近 14 天已有 2 个 fix，这一刀是第 3 个（词典按功能键计数）
+  · src/i18n/locales/generationCommon.ts：generationCommon.ts#observability 近 14 天已有 10 个 fix，这一刀是第 11 个（词典按功能键计数）
+  · src/i18n/locales/generationCommon.ts：generationCommon.ts#production 近 14 天已有 2 个 fix，这一刀是第 3 个（词典按功能键计数）
+  · src/i18n/locales/generationCommon.ts：generationCommon.ts#recoverable 近 14 天已有 2 个 fix，这一刀是第 3 个（词典按功能键计数）
+  · src/i18n/locales/generationCommon.ts：generationCommon.ts#whiteboard 近 14 天已有 2 个 fix，这一刀是第 3 个（词典按功能键计数）
+  · src/ui/community/FeedbackReportCard.tsx：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/ui/community/FeedbackReportCard.tsx：目录 src/ui/community/ 近 14 天已有 2 个 fix（只涉及 2 个文件，算同一概念），这一刀是第 3 个
+  · src/ui/community/FeedbackShareHost.tsx：目录 src/ui/community/ 近 14 天已有 2 个 fix（只涉及 2 个文件，算同一概念），这一刀是第 3 个
+  · src/workbench/api/taskApi.ts：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · src/workbench/api/taskApi.ts：目录 src/workbench/api/ 近 14 天已有 9 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 10 个
+  · src/workbench/capability/storyboardPresent.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/capability/storyboardPresent.ts：目录 src/workbench/capability/ 近 14 天已有 8 个 fix（只涉及 6 个文件，算同一概念），这一刀是第 9 个
+  · src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx：目录 src/workbench/creation/storyboard/shotRow/ 近 14 天已有 2 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 3 个
+  · src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx：目录 src/workbench/creation/storyboard/shotRow/ 近 14 天已有 2 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 3 个
+  · src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx：目录 src/workbench/creation/storyboard/shotRow/ 近 14 天已有 2 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 3 个
+  · src/workbench/generation/list/GenerationListCard.tsx：目录 src/workbench/generation/list/ 近 14 天已有 3 个 fix（只涉及 4 个文件，算同一概念），这一刀是第 4 个
+  · src/workbench/generation/list/GenerationListDetail.tsx：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/generation/list/GenerationListDetail.tsx：目录 src/workbench/generation/list/ 近 14 天已有 3 个 fix（只涉及 4 个文件，算同一概念），这一刀是第 4 个
+  · src/workbench/generation/list/GenerationListParts.tsx：目录 src/workbench/generation/list/ 近 14 天已有 3 个 fix（只涉及 4 个文件，算同一概念），这一刀是第 4 个
+  · src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx：文件近 14 天已有 7 个 fix，这一刀是第 8 个
+  · src/workbench/generationCanvas/nodes/NodeErrorReport.tsx：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · src/workbench/generationCanvas/runner/generationRunController.ts：目录 src/workbench/generationCanvas/runner/ 近 14 天已有 19 个 fix（只涉及 6 个文件，算同一概念），这一刀是第 20 个
+  · src/workbench/generationCanvas/runner/runProjectDelivery.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/generationCanvas/runner/runProjectDelivery.ts：目录 src/workbench/generationCanvas/runner/ 近 14 天已有 19 个 fix（只涉及 6 个文件，算同一概念），这一刀是第 20 个
+  · src/workbench/observability/classifyError.ts：文件近 14 天已有 10 个 fix，这一刀是第 11 个
+  · src/workbench/observability/classifyError.ts：目录 src/workbench/observability/ 近 14 天已有 12 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 13 个
+  · src/workbench/observability/generationFailureActions.ts：目录 src/workbench/observability/ 近 14 天已有 12 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 13 个
+  · src/workbench/observability/narrate.ts：文件近 14 天已有 8 个 fix，这一刀是第 9 个
+  · src/workbench/observability/narrate.ts：目录 src/workbench/observability/ 近 14 天已有 12 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 13 个
+  · src/workbench/production/ProductionCanvasLandingHost.tsx：目录 src/workbench/production/ 近 14 天已有 3 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 4 个
+  · src/workbench/production/productionRunView.ts：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · src/workbench/production/productionRunView.ts：目录 src/workbench/production/ 近 14 天已有 3 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 4 个
+  · src/workbench/production/releaseUnknownSubmission.ts：目录 src/workbench/production/ 近 14 天已有 3 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 4 个
+  · src/workbench/production/useProductionStatus.ts：目录 src/workbench/production/ 近 14 天已有 3 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 4 个
+  · 概念「付费卡交给画布之后的停下（「取消」不排队；还没轮到的同意当场收回、在交的照常交完；停下后照实说交出去几镜、几镜没发）」：含 2 个文件，近 14 天已有 4 个 fix，这一刀是第 5 个
+  · 概念「生成结局投递到运行所属项目（节点不在时暂存）」：含 2 个文件，近 14 天已有 2 个 fix，这一刀是第 3 个
+  · 概念「画布付费生成（一镜一个单镜 Run）」：含 6 个文件，近 14 天已有 7 个 fix，这一刀是第 8 个
+  · 概念「生成错误怎么说成人话（错误 → 人话与动作）」：含 4 个文件，近 14 天已有 12 个 fix，这一刀是第 13 个
+  · 概念「一键反馈带出机器的日志尾巴长什么样」：含 3 个文件，近 14 天已有 4 个 fix，这一刀是第 5 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
+```

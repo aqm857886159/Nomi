@@ -1,4 +1,4 @@
-import { StoryboardFailureActions } from '../exec/StoryboardFailureActions'
+import { StoryboardFailureActions } from '../shotRow/StoryboardFrameActions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {

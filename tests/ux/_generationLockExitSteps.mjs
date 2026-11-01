@@ -3,7 +3,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import assert from 'node:assert/strict'
 import { expect } from '@playwright/test'
-import { canvasFitView, collapseAgentPanel, switchGenerationView } from './_shell.mjs'
+import { canvasFitView, collapseAgentPanel, switchGenerationView, switchWorkspace } from './_shell.mjs'
+import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -21,113 +22,201 @@ export function lockExitDraft(candidate) {
   ]
 }
 
-/** Shared by rehearsal and paid entry. Only the supplier and text response differ. */
-export async function generationLockExitJourney({ page, projectId, proxy, model, textLabel, locale = 'zh-CN', screenshotDir, restart, fixture }) {
+/** Shared real UI sequence; the supplier alone differs between rehearsal and paid mode. */
+export async function generationLockExitJourney(input) {
+  let { page } = input
+  const { projectId, proxy, locale = 'zh-CN', screenshotDir, restart } = input
   const text = key => uiText(locale, key)
-  const report = { locale, heartbeat: [], screenshots: [], simulated: 'Only concurrency refusal and discarded response at a local proxy; supplier is fake in rehearsal and real in paid mode' }
-  let pending = false
+  const report = { locale, stages: [], heartbeat: [], screenshots: [], simulated: ['concurrency refusal', 'discarding an accepted reply'] }
+  let pending = false, observedIdle = false
   const timer = setInterval(async () => {
     if (pending) return
     pending = true
-    const started = Date.now()
-    try { await page.evaluate(() => document.readyState); report.heartbeat.push(Date.now() - started) } catch { /* Restart closes the previous window. */ }
-    finally { pending = false }
+    const began = Date.now()
+    try { await page.evaluate(() => document.readyState); report.heartbeat.push(Date.now() - began) }
+    catch { /* Restart closes the previous page. */ } finally { pending = false }
   }, 1000)
-  const shot = async (name, locator = page) => {
+  const shot = async name => {
     fs.mkdirSync(screenshotDir, { recursive: true })
-    const file = path.join(screenshotDir, `${locale}-${name}.png`)
-    await locator.screenshot({ path: file })
-    report.screenshots.push(file)
+    const file = path.join(screenshotDir, `${locale}-scene-${name}.png`)
+    await page.screenshot({ path: file }); report.screenshots.push(file)
   }
-  const state = async () => { const record = await readProject(page, projectId); return record?.payload?.generationCanvas?.nodes ?? [] }
-  const confirm = async () => { await page.locator(dialog).waitFor({ timeout }); await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click() }
-  const select = async id => {
-    await page.evaluate(id => window.__nomiCanvasStore.getState().selectNode(id), id)
+  const state = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
+  const confirm = async () => { await expect(page.locator(dialog)).toBeVisible(); await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click() }
+  const canvas = async id => {
+    await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page)
+    // Selection is preparation; every spending/recovery action below is a real UI click.
+    await page.waitForFunction(() => Boolean(window.__nomiCanvasStore))
+    if (id) await page.evaluate(id => window.__nomiCanvasStore.getState().selectNode(id), id)
     await canvasFitView(page)
+    if (id) {
+      await page.evaluate(id => window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId: id } })), id)
+      await expect(page.locator(`[data-node-id="${id}"]`).first()).toBeVisible()
+    }
   }
-  const submit = async () => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click() }
+  const list = async id => {
+    await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'list'); await collapseAgentPanel(page)
+    if (await page.locator('[data-list-detail-back]').isVisible()) await page.locator('[data-list-detail-back]').click()
+    if (id) await page.locator(`[data-list-card="${id}"]`).click()
+  }
+  const submit = async () => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); await expect(page.locator(dialog)).not.toBeVisible() }
+  const settled = async ids => expect.poll(async () => (await state()).filter(n => ids.includes(n.id) && ['success', 'error', 'recoverable'].includes(n.status)).length, { timeout }).toBe(ids.length)
+  const success = async id => expect.poll(async () => {
+    if (await page.locator(dialog).isVisible()) {
+      await expect(page.locator(`${dialog} [data-hosting-disclosure]`)).toBeVisible()
+      await page.locator(`${dialog} [data-hosting-remember] input`).check()
+      report.hostingDisclosure = (report.hostingDisclosure ?? 0) + 1
+      await shot('first-hosting-disclosure'); await confirm()
+    }
+    return (await state()).find(n => n.id === id)?.status
+  }, { timeout }).toBe('success')
+  const release = async () => {
+    await page.getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
+    await shot(`release-${report.stages.length}`)
+    await page.locator('[data-release-confirm]').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await expect(page.locator(dialog)).not.toBeVisible()
+  }
+  const idle = async () => {
+    observedIdle = true
+    const before = (await state()).map(n => ({ id: n.id, status: n.status, error: n.error, result: n.result, runs: n.runs }))
+    const began = Date.now()
+    // User-requested idle observation: pass the 300s Run-observer horizon, without UI actions.
+    for (let second = 0; second < 301; second++) await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 1000)))
+    const after = (await state()).map(n => ({ id: n.id, status: n.status, error: n.error, result: n.result, runs: n.runs }))
+    report.idle = { elapsedMs: Date.now() - began, longestRelevantTimerMs: 300000, stable: JSON.stringify(before) === JSON.stringify(after) }
+    assert.deepEqual(after, before, 'Idle must not invent errors or a running state')
+    await shot('idle-return')
+  }
   try {
-    const design = await prepareLockExitStoryboard({ page, projectId, model, textLabel, fixture })
-    await openStoryboardEditor(page, design.id)
-    await collapseAgentPanel(page)
-    await shot('batch-confirm-before')
-    await page.locator('[data-storyboard-batch]').click()
-    await shot('batch-confirm', page.locator(dialog))
-    await confirm()
+    const design = await prepareLockExitStoryboard(input)
+    await openStoryboardEditor(page, design.id); await collapseAgentPanel(page)
+    proxy.setLimit(2)
+    // Assets are forwarded normally; discard the first shot reply, including in the paid run.
+    proxy.dropNextReplyMatching('@image')
+    await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible(); await shot('storyboard-confirm'); await confirm()
     await expect.poll(async () => {
       const nodes = (await state()).filter(n => n.meta?.storyboardDesignId === design.id)
-      if (nodes.some(n => /Storyboard target changed|storyboard_content_conflict|generation_input_changed/.test(n.error ?? ''))) throw new Error('A4: automatic reference invalidated the admitted storyboard')
+      assert.ok(!nodes.some(n => /Storyboard target changed|storyboard_content_conflict|generation_input_changed/.test(n.error ?? '')), 'A4: automatic references must not invalidate the admitted storyboard')
+      if (nodes.length && nodes.every(n => n.result || n.status === 'error') && await page.locator('[data-storyboard-batch]').isEnabled()) assert.equal(nodes.length, 5, 'A4: batch ended before dispatching all three shots')
       return nodes.filter(n => n.result || n.status === 'error').length
     }, { timeout }).toBe(5)
-    await shot('assets-and-shots')
-    const sentShots = proxy.records.filter(r => r.forwarded && /找到|窗边|放在/.test(r.prompt ?? ''))
-    assert.equal(sentShots.length, 2, 'Two shot requests pass; the third is refused by the local concurrency cap')
-    assert.ok(sentShots.every(r => /@\[asset:/.test(r.prompt)), 'A4: dispatched shots include visible asset mentions')
-    assert.ok(sentShots.every(r => r.referenceCount > 0), 'A4: dispatched shots carry generated asset references')
+    const bound = (await state()).filter(n => n.meta?.storyboardDesignId === design.id)
+    const shotNodes = bound.filter(n => n.meta?.shotId)
+    assert.ok(shotNodes.every(n => /@\[asset:/.test(n.prompt)), 'The editor plan and canvas nodes retain visible asset mentions')
+    const row = node => page.locator(`[data-storyboard-row="${design.plan.shots.find(s => s.shotId === node.meta.shotId).index}"]`)
+    const quota = bound.find(n => n.status === 'error' && /429|concurrency/.test(n.error ?? ''))
+    const unknown = bound.find(n => n.status === 'error' && n.id !== quota?.id)
+    assert.ok(quota && unknown, 'First batch must contain both refusal and discarded reply')
     report.firstBatch = structuredClone(proxy.records)
-    const failed = (await state()).find(n => n.meta?.storyboardDesignId === design.id && n.status === 'error')
-    assert.ok(failed, 'The concurrency refusal is visible on its shot')
-    await shot('quota-storyboard')
-    await openCanvas(page); await collapseAgentPanel(page); await select(failed.id)
-    await shot('quota-canvas')
-    await switchGenerationView(page, 'list')
-    await shot('quota-list-small')
-    await page.locator(`[data-list-card="${failed.id}"]`).click()
-    await expect(page.locator('[data-list-detail-preview] [role="alert"]')).toBeVisible()
-    await shot('quota-list-detail')
-    assert.ok(!(await page.locator('[data-list-detail]').innerText()).includes('Error invoking remote method'), 'E2: list shows the classified reason')
-    await openStoryboardEditor(page, design.id)
-    const rowId = failed.meta.shotId
-    const rowIndex = design.plan.shots.find(s => s.shotId === rowId)?.index
-    const row = page.locator(`[data-storyboard-editor] [data-storyboard-row="${rowIndex}"]`)
-    await row.getByRole('button', { name: text('storyboardEditor.frame.retryHint'), exact: true }).first().click()
-    // A user retry must have its ordinary approval opportunity.
-    if (await page.locator(dialog).isVisible()) await confirm()
-    await expect.poll(async () => (await state()).filter(n => n.meta?.storyboardDesignId === design.id && n.result).length, { timeout }).toBe(5)
-    await shot('all-five-images')
-    const record = await readProject(page, projectId)
-    const latest = Object.values(record.payload.storyboardDesignsByDocumentId).flat().find(d => d.id === design.id)
-    assert.ok(latest.plan.shots.every(s => /@\[asset:/.test(s.prompt)), 'Every shot uses the refreshed author plan')
+    const sent = proxy.records.filter(r => r.forwarded && r.referenceCount > 0)
+    assert.equal(sent.length, 2); assert.ok(sent.every(r => /@image\d/.test(r.prompt) && r.referenceCount > 0), 'A4: @ and generated references reach HTTP')
+    await shot('storyboard-errors')
+    const firstRetry = proxy.records.length
+    await page.locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = element.scrollHeight })
+    await row(quota).getByRole('button', { name: text('storyboardEditor.frame.retryHint'), exact: true }).first().click()
+    await expect(page.locator(dialog)).not.toBeVisible(); await success(quota.id)
+    assert.equal(proxy.records.length, firstRetry + 1)
+    await page.locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = 0 })
+    await row(unknown).getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
+    await shot('storyboard-release')
+    await page.locator('[data-release-confirm]').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await expect(page.locator(dialog)).not.toBeVisible(); await success(unknown.id)
+    await shot('storyboard-all-results'); report.stages.push('storyboard')
+    await idle()
+    for (const node of bound) assert.equal((await state()).find(n => n.id === node.id)?.status, 'success')
+    await expect(page.locator('[data-storyboard-batch]')).toBeEnabled()
 
-    // The accepted-but-lost response is a separate intent; image spend remains bounded.
-    await openCanvas(page)
-    await collapseAgentPanel(page)
-    const id = await page.evaluate(model => {
-      const store = window.__nomiCanvasStore.getState()
-      const node = store.addNode({ kind: 'image', title: '核对后重发', prompt: 'A small blue letter on a wooden desk', position: { x: 40, y: 40 }, exactPosition: true, size: { width: 480, height: 320 }, meta: { modelVendor: model.vendorKey, modelKey: model.modelKey } })
-      store.selectNode(node.id)
-      return node.id
-    }, model)
-    proxy.dropNextReply()
-    await select(id); await submit()
-    if (await page.locator(dialog).isVisible()) await confirm()
-    await expect.poll(async () => (await state()).find(n => n.id === id)?.status, { timeout }).toBe('error')
-    await shot('unknown-card', page.locator(`[data-node-id="${id}"]`))
-    const original = (await state()).find(n => n.id === id).runs[0].id
-    const before = proxy.records.length
-    await submit()
-    if (await page.locator(dialog).isVisible()) await confirm()
-    await expect.poll(async () => (await state()).find(n => n.id === id)?.runs?.length, { timeout }).toBe(2)
-    assert.equal(proxy.records.length, before, 'C1: refused click never reaches the proxy')
-    await page.getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
-    await shot('release-confirm')
-    await page.getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
-    await page.locator(dialog).waitFor({ timeout })
-    await shot('spend-confirm', page.locator(dialog))
-    await confirm()
-    await expect.poll(async () => (await state()).find(n => n.id === id)?.status, { timeout }).toBe('success')
-    const completed = (await state()).find(n => n.id === id)
-    assert.ok(completed.runs.some(r => r.id === original), 'The original unknown record remains')
-    assert.equal(completed.runs.length, 3, 'The refused record also remains')
-    assert.equal(proxy.records.length, before + 1)
-    await shot('released-result', page.locator(`[data-node-id="${id}"]`))
-    if (restart) { page = await restart(); await expect.poll(async () => (await state()).find(n => n.id === id)?.status, { timeout }).toBe('success'); await shot('restarted-result') }
-    report.maxUnresponsiveMs = Math.max(0, ...report.heartbeat)
-    report.overTwoSeconds = report.heartbeat.filter(ms => ms > 2000)
+    await canvas()
+    const blank = await findCanvasBlankPoint(page); assert.ok(blank)
+    await page.mouse.click(blank.x, blank.y); await page.keyboard.press('Meta+a'); await page.keyboard.press('Meta+g')
+    await expect(page.locator('[data-frame-generate-all]').first()).toBeVisible()
+    await page.locator('[data-frame-generate-all]').first().click(); await expect(page.locator(dialog)).toBeVisible()
+    const checks = page.locator(`${dialog} input[type="checkbox"]`)
+    assert.equal(await checks.count(), 5, 'All five cards from the storyboard appear in the group confirmation')
+    const members = (await readProject(page, projectId)).payload.generationCanvas.groups.find(g => bound.every(n => g.nodeIds.includes(n.id))).nodeIds
+    const twoShots = shotNodes.slice(0, 2).map(n => n.id)
+    await shot('canvas-cancel-confirm'); const beforeCancel = proxy.records.length
+    await page.locator(`${dialog} [data-spend-confirm-action="cancel"]`).click(); assert.equal(proxy.records.length, beforeCancel)
+    proxy.setLimit(1); proxy.dropNextReply()
+    await page.locator('[data-frame-generate-all]').first().click()
+    for (const [index, checkbox] of (await checks.all()).entries()) await checkbox.setChecked(twoShots.includes(members[index]))
+    await confirm(); await expect.poll(async () => (await state()).filter(n => shotNodes.slice(0, 2).some(s => s.id === n.id) && n.status === 'error').length, { timeout }).toBe(2); await settled(shotNodes.slice(0, 2).map(n => n.id))
+    let current = await state()
+    const quota2 = shotNodes.find(n => /429|concurrency/.test(current.find(c => c.id === n.id)?.error ?? ''))
+    const unknown2 = shotNodes.find(n => n.id !== quota2?.id && current.find(c => c.id === n.id)?.status === 'error')
+    assert.ok(quota2 && unknown2)
+    await canvas(quota2.id); await shot('canvas-quota')
+    await page.getByRole('button', { name: text('generationCommon.observability.action.retry.main'), exact: true }).first().click(); await success(quota2.id)
+    await canvas(unknown2.id); const beforeRefused = proxy.records.length
+    const runsBefore = (await state()).find(n => n.id === unknown2.id).runs.length
+    await submit(); await expect.poll(async () => (await state()).find(n => n.id === unknown2.id).runs.length).toBe(runsBefore + 1)
+    assert.equal(proxy.records.length, beforeRefused); await shot('canvas-refused')
+    const refusedId = (await state()).find(n => n.id === unknown2.id).runs[0].id
+    await release(); await success(unknown2.id)
+    assert.equal(proxy.records.length, beforeRefused + 1)
+    assert.ok((await state()).find(n => n.id === unknown2.id).runs.some(r => r.id === refusedId), 'C2: refused history remains after releasing the original occupancy')
+    await shot('canvas-released'); report.stages.push('canvas')
+
+    await list(); await expect(page.locator('[data-list-card]')).toHaveCount(3)
+    proxy.setLimit(1); proxy.dropNextReply()
+    await page.locator('[data-section-generate]').first().click(); await expect(page.locator(dialog)).toBeVisible()
+    for (const [index, checkbox] of (await checks.all()).entries()) await checkbox.setChecked(twoShots.includes(members[index]))
+    await shot('list-confirm'); await confirm(); await expect.poll(async () => (await state()).filter(n => shotNodes.slice(0, 2).some(s => s.id === n.id) && n.status === 'error').length, { timeout }).toBe(2); await settled(shotNodes.slice(0, 2).map(n => n.id))
+    current = await state()
+    const quota3 = shotNodes.find(n => /429|concurrency/.test(current.find(c => c.id === n.id)?.error ?? ''))
+    const unknown3 = shotNodes.find(n => n.id !== quota3?.id && current.find(c => c.id === n.id)?.status === 'error')
+    assert.ok(quota3 && unknown3)
+    await list(quota3.id); await shot('list-quota')
+    assert.ok(!(await page.locator('[data-list-detail]').innerText()).includes('Error invoking remote method'))
+    await page.locator('[data-list-detail-preview]').getByRole('button', { name: text('generationCommon.observability.action.retry.main'), exact: true }).click(); await success(quota3.id)
+    await list(unknown3.id); await shot('list-unknown'); report.stages.push('list')
+    assert.equal((await state()).find(n => n.id === unknown3.id).status, 'error')
+
+    page = await restart()
+    for (const surface of ['canvas', 'list', 'storyboard']) {
+      if (surface === 'canvas') await canvas(unknown3.id)
+      else if (surface === 'list') await list(unknown3.id)
+      else await openStoryboardEditor(page, design.id)
+      assert.equal((await state()).find(n => n.id === unknown3.id).status, 'error')
+      await expect(page.getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).first()).toBeVisible()
+      await shot(`restart-${surface}`)
+    }
+    await list(unknown3.id); const beforeRelease = proxy.records.length
+    await release(); await success(unknown3.id); assert.equal(proxy.records.length, beforeRelease + 1)
+    await shot('restart-released'); report.stages.push('restart')
     report.imagesForwarded = proxy.records.filter(r => r.forwarded).length
     assert.ok(report.imagesForwarded <= 14)
+    report.maxUnresponsiveMs = Math.max(0, ...report.heartbeat)
+    report.overTwoSeconds = report.heartbeat.filter(ms => ms > 2000)
     return report
+  } catch (error) {
+    console.error('LOCK_EXIT_STAGE_FAILURE', error.message)
+    if (!observedIdle) await idle().catch(idleError => { report.idleError = idleError.message })
+    error.report = report; throw error
   } finally { clearInterval(timer); console.log('LOCK_EXIT_HEARTBEAT', JSON.stringify({ maxMs: Math.max(0, ...report.heartbeat), samples: report.heartbeat.length })) }
+}
+
+/** Mounted-editor A4 slice: serial assets expose whole-plan comparison regressions. */
+export async function a4LockExitJourney(input) {
+  const { page, projectId, proxy } = input
+  const design = await prepareLockExitStoryboard(input)
+  await openCanvas(page)
+  await page.waitForFunction(() => typeof window.__nomiSetBatchConcurrency === 'function')
+  await openStoryboardEditor(page, design.id); await collapseAgentPanel(page)
+  await page.evaluate(() => window.__nomiSetBatchConcurrency(1))
+  proxy.setLimit(5)
+  await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible()
+  assert.equal(await page.locator(dialog).count(), 1)
+  await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click()
+  await expect.poll(async () => {
+    const nodes = (await readProject(page, projectId)).payload.generationCanvas.nodes
+    assert.ok(!nodes.some(n => /Storyboard target changed|storyboard_content_conflict|generation_input_changed/.test(n.error ?? '')), 'A4: system references must not invalidate the editor batch')
+    if (nodes.length && nodes.every(n => n.result || n.status === 'error') && await page.locator('[data-storyboard-batch]').isEnabled()) assert.equal(nodes.filter(n => n.result).length, 5, 'A4: mounted-editor batch ended before five images')
+    return nodes.filter(n => n.result).length
+  }, { timeout }).toBe(5)
+  assert.equal(proxy.records.length, 5)
+  assert.ok(proxy.records.slice(2).every(r => /@image\d/.test(r.prompt) && r.referenceCount > 0), 'A4: shot HTTP requests contain mentions and generated references')
+  return { checks: { mountedEditor: true, assetsBeforeShots: true, allFiveHttp: true }, requests: structuredClone(proxy.records) }
 }
 
 export async function prepareLockExitStoryboard({ page, projectId, model, textLabel, fixture }) {

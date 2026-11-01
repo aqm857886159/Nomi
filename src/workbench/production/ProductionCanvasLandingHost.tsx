@@ -1,3 +1,5 @@
+import { useGenerationQueueStore } from '../generationCanvas/runner/generationQueueStore'
+import { confirmAndRunNode } from '../generationCanvas/runner/generationRunController'
 // P4 S5 — 画布落地 host（全程挂在工作区，跟着画布）。三件事：
 //   ① 画布上有制作节点时，把这些节点所属的每一份 Run 放进 landing store（「排队中 / 已停」小标、续拍入口、失败卡的返工判断，
 //      以及对话流里付费卡的收据「✓ 已发出 / 已生成 N 段」）；只重读还会变的那几份（`landingRunsToRefresh`，算法在 store 模块）；
@@ -63,9 +65,13 @@ export function ProductionCanvasLandingHost({ projectId }: { projectId: string |
           __nomiBuildDependencyWaves?: unknown
           __nomiConfirmAndRunPlan?: unknown
           __nomiSetBatchConcurrency?: unknown
+          __nomiGenerationQueueStore?: unknown
+          __nomiConfirmAndRunNode?: unknown
         }
         w.__nomiProductionLandingStore = useProductionCanvasLandingStore
         w.__nomiCanvasStore = useGenerationCanvasStore
+        w.__nomiGenerationQueueStore = useGenerationQueueStore
+        w.__nomiConfirmAndRunNode = confirmAndRunNode
         // F15 走查读依赖门（显示的≡执行的）：生产构建里源码路径不可 import，故把纯函数挂出来供零额度走查读。
         w.__nomiBuildDependencyWaves = buildDependencyWaves
         // F16b 走查驱动**真实确认漏斗**：批量生成的生产入口本尊（confirmAndRunPlan → 解析托管策略/KIE
