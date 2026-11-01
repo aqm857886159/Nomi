@@ -1,0 +1,140 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-01-feedback-log-tail",
+  "problem_type": "A promised attachment was silently empty in every report",
+  "symptom": "All 29 stored in-app reports list logs/tail.txt as logs-unavailable, on Windows and Mac, and the consent page and manifest still listed logs as attached.",
+  "direct_cause": "readLogTail passed a bare file name from listLogFilesForBundle to readFileSync, so it resolved against the working directory and always failed with ENOENT, which a catch-all turned into null. The list also sorted the crash log first.",
+  "class_root": "Nothing checked that a real report really carries its log tail: unit tests and the walk injected a fake reader, and no alarm counted the missing tails. Fixing the read alone would also have sent free text, because the only filter was a list of known bad field names while fields such as firstLine, detail, message and lane carry free text under harmless names.",
+  "affected_population": [
+    "Every report from every version that has the one-click report",
+    "Anyone debugging those reports, who had no logs at all"
+  ],
+  "scope_paths": [
+    "electron/feedback/feedbackLogTail.ts",
+    "electron/feedback/feedbackReport.ts",
+    "electron/shared/contracts/feedback.ts",
+    "src/i18n/locales/feedbackReport.ts"
+  ],
+  "entry_points": [
+    "buildFeedbackReport from nomi:feedback:preview",
+    "buildFeedbackReport from nomi:feedback:send",
+    "shrinkFeedbackReport for a report queued before the receiver answered 413"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html",
+      "checked_at": "2026-11-01",
+      "purpose": "Logs must not carry tokens, secrets, sensitive personal data or file paths without care. It does not settle allowlist against blocklist; choosing an allowlist here is an engineering call based on the free text fields found in this repository."
+    }
+  ],
+  "invariants": [
+    "What leaves the machine in logs/tail.txt has passed the allowlist projection: an unknown line shape is dropped whole, an unknown field keeps its name only if listed, and every kept token passes the second net.",
+    "A new log field stays on the machine unless someone adds it to the list.",
+    "The tail is read by absolute path from the daily logs and never from the crash log.",
+    "The manifest says logs-empty or logs-unavailable when there is no tail, and the radar counts missing tails per version.",
+    "Keys, paths and prompts are not collected. The consent copy lists what is really sent, in the language of the interface."
+  ],
+  "doors": [
+    { "kind": "read", "path": "electron/feedback/feedbackIpc.ts", "symbol": "readRecentLogLines" },
+    { "kind": "write", "path": "electron/feedback/feedbackLogTail.ts", "symbol": "projectLogLine" },
+    { "kind": "write", "path": "electron/feedback/feedbackReport.ts", "symbol": "projectLogLines" },
+    { "kind": "read", "path": "electron/shared/contracts/feedback.ts", "symbol": "FEEDBACK_MANIFEST_ITEMS" },
+    { "kind": "read", "path": "src/i18n/locales/feedbackReport.ts", "symbol": "manifestItem" }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 5,
+    "why_not": "Reading and projecting moved into one new file with one read caller and one projection caller, inside the report builder, so no path gets a tail around it. The two remaining doors are the contract table of manifest items and its translated copy, which the compiler ties together."
+  },
+  "generality_proof": "The builder projects inside itself, so preview, send and any later caller cannot attach raw lines: readLogTail only supplies input. The projection is an allowlist, so new fields and new free text shapes fall out by default without anyone remembering them. The needle list covers each shape of secret, path and prompt found in the writer and in older logs, and a test runs real logger output through it so a writer format change turns it red.",
+  "shared_boundaries": [
+    {
+      "path": "electron/feedback/feedbackLogTail.ts",
+      "symbol": "projectLogLine",
+      "responsibility": "Decides what of a log line may leave the machine, default deny, with the shared redaction as a second net on every token."
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "buildFeedbackReport",
+      "responsibility": "The only place that attaches the tail; records why it is missing."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/feedback/feedbackIpc.ts",
+      "entry_point": "reportDeps",
+      "disposition": "enforced",
+      "evidence": "Preview and send share one deps function and one builder, and the walk reads the report the local receiver really got."
+    },
+    {
+      "path": "electron/diagnostics/diagnosticsBundle.ts",
+      "entry_point": "buildDiagnosticsBundle",
+      "disposition": "not-affected",
+      "evidence": "A zip the user saves and reviews before sending anything. It keeps full logs by design and the manifest points to it; it was not the path with the bare file name."
+    },
+    {
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "entry_point": "projectLaneTrajectory",
+      "disposition": "not-affected",
+      "evidence": "The trajectory has its own field allowlist and a second net already. The log projection follows the same pattern instead of adding a second kind of rule."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every report hit it. The class comes back as soon as anyone attaches a file through a fake reader, or adds a free text field to a log line.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs readRecentLogLines projectLogLines projectLogLine: one read and one projection caller",
+      "rg \"firstLine|detail|lane=|host=\" electron: the free text fields that drove the allowlist",
+      "Manifests of the 29 stored reports: all marked logs-unavailable"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/feedback/feedbackLogTail.ts",
+    "invariant": "Only allowlisted fields and shapes of a log line leave the machine, and the receiver can see when a tail is missing.",
+    "failure_mode": "Anything not recognized is dropped or replaced by an ellipsis. A missing tail is named in the manifest and raises a radar alarm for versions newer than the fix.",
+    "exception_policy": "none",
+    "strategy": "Projection inside the builder plus a real-app walk that scans the body the receiver got, plus the radar counting missing tails per version, so an empty attachment cannot stay unnoticed again.",
+    "artifacts": [
+      "electron/feedback/feedbackLogTail.ts",
+      "electron/feedback/feedbackLogTail.test.ts",
+      "tests/ux/feedback-delivery.walk.mjs",
+      "scripts/lib/intake-radar/aggregate.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/feedback/feedbackLogTail.test.ts",
+    "electron/feedback/feedbackReport.test.ts",
+    "src/ui/community/FeedbackReportCard.test.tsx"
+  ],
+  "class_regression_tests": [
+    "electron/feedback/feedbackLogTail.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/feedback/feedbackIpc.ts"
+    ],
+    "rationale": "The readLogTail that read a bare file name is gone, along with the raw tail attached by the builder. There is no second reader."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The projection is specific to this repository's log line format and reuses the shared redaction; no package controls it.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Logs written by older versions are read through the same projection, and lines it cannot recognize are dropped. Reports queued by older versions are sent without a tail, as they were built.",
+  "residual_risks": [
+    "firstLine and similar free text stay in the local log file; they only stop at the one-click report. The diagnostics bundle still carries them, and the user sees that file before sending it.",
+    "The catalog attachment still holds endpoint addresses of custom connections, so the manifest copy says so plainly. Dropping them is a separate decision.",
+    "Crash log breadcrumbs are not attached."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-01",
+  "invariant_owner_layer": {
+    "layer": "electron/feedback/feedbackLogTail.ts",
+    "tests": [
+      "electron/feedback/feedbackLogTail.test.ts"
+    ]
+  }
+}

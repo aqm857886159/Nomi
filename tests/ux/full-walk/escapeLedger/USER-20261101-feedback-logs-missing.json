@@ -1,0 +1,34 @@
+{
+  "id": "USER-20261101-feedback-logs-missing",
+  "since": "2026-11-01",
+  "source": "协调会话查接收端发现：已有的 29 份一键反馈，日志尾巴全部标记读不到。未读取用户真实资料，只看了清单。",
+  "category": "claims-and-outcomes",
+  "problem": "同意页和清单都写「附带日志」，实际 29 份全空：读取函数按当前工作目录找文件必然找不到，错误又被吞掉；崩溃日志还排在最前面。单测和走查都注入了假的读取函数，所以一直是绿的。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "用户点反馈，开发者靠日志尾巴查原因",
+    "日志里有密钥、路径、提示词、对话名、私有域名",
+    "今天的日志只有几行，或者刚滚动",
+    "没有日志文件，或读不了"
+  ],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-01-feedback-delivery.md",
+    "electron/feedback/feedbackLogTail.test.ts：每种不许出门的东西一行，加排查要用的字段必须还在，加日志写手写出来的真实行",
+    "tests/ux/feedback-delivery.walk.mjs：真 App 从隔离的日志目录读，接收端收到的每一份都扫一遍，零命中且行数不为零",
+    "scripts/lib/intake-radar/aggregate.node-test.mjs：新版本的反馈缺日志尾巴时报警",
+    "docs/fixes/2026-11-01-feedback-log-tail.root-cause.json",
+    "docs/lessons/attachment-proved-with-fake-reader-and-seen-is-not-handled.md"
+  ],
+  "completionCommits": [
+    "35fd999bb"
+  ],
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/feedback/feedbackLogTail.test.ts"
+  },
+  "rootCauseContract": "docs/fixes/2026-11-01-feedback-log-tail.root-cause.json"
+}

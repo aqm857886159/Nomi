@@ -1,0 +1,35 @@
+{
+  "id": "USER-20261101-feedback-radar-missed",
+  "since": "2026-11-01",
+  "source": "协调会话核对雷达时发现：有反馈到了，雷达没有记；同一天第二次运行的报告显示新增 0。未读取用户真实资料，只看了报告的时间戳和计数。",
+  "category": "claims-and-outcomes",
+  "problem": "雷达只回答「这一轮多了什么」，没有东西记着「这条还没人处理」。同一天第二次运行覆盖第一次的报告；开会话的 hook 只留最后 14 行，版本健康块加进去之后正好占满，「新增」这一行从此进不了会话。新反馈可以被任何一次运行吃掉而没人知道。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "同一天跑两次雷达",
+    "另一台机器或另一个会话先跑了",
+    "hook 用缓存摘要、脚本跑败、版本健康退出 1",
+    "老缓存第一次跑，没有账",
+    "同一份反馈送达多次"
+  ],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-01-feedback-delivery.md",
+    "scripts/daily-radar-session.node-test.mjs：hook 的每个分支都报当前待分诊数，真实摘要过一遍截断后决定性的几行还在",
+    "scripts/intake-radar.node-test.mjs：同一天两次、退出 1、出账命令",
+    "scripts/lib/intake-radar/inbox.node-test.mjs：进账不看 seenKeys，只有明确命令才出账",
+    "docs/fixes/2026-11-01-feedback-radar-triage.root-cause.json",
+    "docs/lessons/attachment-proved-with-fake-reader-and-seen-is-not-handled.md"
+  ],
+  "completionCommits": [
+    "d6726a347"
+  ],
+  "classCheck": {
+    "kind": "matrix",
+    "file": "scripts/daily-radar-session.node-test.mjs"
+  },
+  "rootCauseContract": "docs/fixes/2026-11-01-feedback-radar-triage.root-cause.json"
+}
