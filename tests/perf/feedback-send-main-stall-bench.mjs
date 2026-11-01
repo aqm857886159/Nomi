@@ -54,7 +54,8 @@ function seedLogs(logsDir) {
 function seedCatalog(settingsDir) {
   const vendors = Array.from({ length: 40 }, (_unused, index) => ({ key: `apimart--bench-${index}`, name: `Bench ${index}`, enabled: true, baseUrlHint: 'https://api.apimart.ai' }))
   const mappings = []
-  const filler = 'x'.repeat(200)
+  // 带空格：一长串字母长得像密钥，脱敏会把它整段换成 `<redacted>`，包就只剩四成。
+  const filler = 'x '.repeat(100)
   while (JSON.stringify({ vendors, mappings }).length < CATALOG_BYTES) {
     mappings.push({ vendorKey: `apimart--bench-${mappings.length % 40}`, modelKey: `model-${mappings.length}`, stage: 'submit', note: filler })
   }
