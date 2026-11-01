@@ -21,7 +21,7 @@ import {
   removeWorkspaceReference,
 } from "../workspace/workspaceRegistry";
 import { assertUserOwnedLocation } from "../workspace/workspaceLocationPolicy";
-import { resolveWorkspaceRelativePath } from "../workspace/workspacePaths";
+import { resolveWorkspaceRelativePath, workspaceNomiDir } from "../workspace/workspacePaths";
 import { WorkspaceManifestLockBusyError } from "../workspace/workspaceManifestLock";
 import { moveProjectFolderToTrash } from "./projectTrash";
 import {
@@ -243,9 +243,15 @@ export async function saveProject(projectId: string, input: unknown): Promise<Pr
   return record;
 }
 
-function readableWorkspaceDir(id: string, deps: ReturnType<typeof getWorkspaceRepositoryDeps>): string | null {
+/**
+ * 移除时要打「不再发现」标记的目录。登记的目录在就是它；登记的目录不在了（改名了）才按 id 在默认根里找。
+ * 目录在但读不出来（损坏）、或 `.nomi` 指到根外（越界）= null：不往里面写东西，下次启动的发现也只坏它自己。
+ */
+function folderToSuppress(id: string, deps: ReturnType<typeof getWorkspaceRepositoryDeps>): string | null {
   try {
-    return resolveWorkspaceProjectDir(id, deps);
+    const dir = resolveWorkspaceProjectDir(id, deps) ?? legacyProjectDirById(id);
+    if (dir) workspaceNomiDir(dir);
+    return dir;
   } catch {
     return null;
   }
@@ -253,13 +259,12 @@ function readableWorkspaceDir(id: string, deps: ReturnType<typeof getWorkspaceRe
 
 /**
  * 只从项目库解除登记，不碰项目内容（「从项目库移除」）。
- * 读得出来的目录要抑制下次启动的 legacy 重发现，否则它会自己回到库里：默认根内的项目（启动发现会扫默认根），
- * 以及根目录还有旧版 project.json 的外部文件夹。按登记路径读不出来（改名了）就按 id 在默认根里找：不抑制的话，重启后对账会把刚移除的它接回来。
- * 两边都读不出来（越界 / 损坏 / 不在了）= null：不往任何目录里写东西。
+ * 要抑制下次启动的 legacy 重发现，否则它会自己回到库里：默认根内的项目（启动发现会扫默认根，改名了不抑制的话对账会把它接回来），
+ * 以及根目录还有旧版 project.json 的外部文件夹。
  */
 function unbindProject(id: string): { id: string; deleted: false } {
   const deps = getWorkspaceRepositoryDeps();
-  const workspaceDir = readableWorkspaceDir(id, deps) ?? legacyProjectDirById(id);
+  const workspaceDir = folderToSuppress(id, deps);
   if (findRecentWorkspace(deps.settingsRoot, id)) removeWorkspaceReference(deps.settingsRoot, id);
   const insideDefaultRoot = workspaceDir !== null && path.resolve(workspaceDir).startsWith(`${path.resolve(deps.defaultProjectsRoot)}${path.sep}`);
   if (workspaceDir && (insideDefaultRoot || fs.existsSync(path.join(workspaceDir, PROJECT_FILE)))) suppressLegacyProjectRediscovery(workspaceDir);
