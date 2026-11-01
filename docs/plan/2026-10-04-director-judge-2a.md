@@ -1,5 +1,7 @@
 # Director 3D-BOX 盲测终审第二轮 2a 设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：盲测揭盲与渲染可信度修复 2a　线/负责人：director-3dbox-judge　类别：[长跑][其他]
 
 | 格 | 结论 | 证据 |

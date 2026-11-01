@@ -1,5 +1,7 @@
 # 设计卡：CI「合同检查」别再撞 30 分钟上限——`check:claude-hooks` 里真入口测试的重门岗只跑 4 次
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：contracts-speed   线/负责人：I-contracts-speed（Mac，Claude Sonnet，实现 · 测试基础设施）   类别：[其他]（测试 / 门岗基础设施；只改 scripts/ 与 docs/，不碰 electron/、src/）
 ```

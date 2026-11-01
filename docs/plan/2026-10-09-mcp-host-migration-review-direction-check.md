@@ -1,5 +1,7 @@
 # 方向检查：MCP 宿主配置写入面的类根因复盘（#1142 评审 4 条阻断）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 触发：`fix-churn` 对 `electron/capabilityCore/mcpConfig.ts` 报「真实 MCP 客户端的隔离环境与能力证明」概念 14 天内已有 3 个 fix；本轮评审又判了 4 条阻断，都落在同一片地（宿主配置怎么写）。本文按 `docs/engineering/direction-check-template.md` 写，提交带 `Direction-Check:` 指向它。
 
 ## 0. 一句话根因

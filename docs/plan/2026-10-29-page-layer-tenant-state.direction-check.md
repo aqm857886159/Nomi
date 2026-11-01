@@ -1,5 +1,7 @@
 # 方向检查：页格层租户的打开状态归页格层（2026-10-29）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`node scripts/fix-churn.mjs src/workbench/generation/pageLayerContext.ts src/workbench/generation/GenerationWorkspace.tsx` 命中 `src/workbench/generation/` 目录近 14 天第 3 个 fix；独立验收第 9 条不通过。用户本轮已明确给出类根因、两个租户一并迁移和验收方式，方向已拍板。
 
 ### 0. 一句话根因
