@@ -3,35 +3,25 @@
 // 两件事在这里定死，别挪进渲染层：
 //   ① **不受「帮 Nomi 变好」开关管**（2026-09-15 用户拍板④：反馈是他主动点的）。
 //      所以这里一个字都不读 `readTelemetrySettings()`。
-//   ② **永不阻塞 UI**：发送失败就入队静默重试，IPC 立刻返回，界面不等网络。
+//   ② **永不阻塞 UI，也不丢**：报告先落盘再发，界面最多等几秒，发不出去后台接着重试。
 import { app, ipcMain } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { assertTrustedSender } from '../ipcSenderGuard'
 import { getSettingsRoot } from '../settings/settingsRoot'
-import { logsDir, listLogFilesForBundle } from '../logging/logFiles'
+import { logsDir } from '../logging/logFiles'
+import { logError } from '../logging/logger'
 import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getDesktopLocale } from '../desktopLocale'
-import { intakeConfigured, postIntake } from '../telemetry/intakeClient'
-import { enqueueIntake, flushIntakeQueue } from '../telemetry/intakeQueue'
+import { intakeConfigured } from '../telemetry/intakeClient'
+import { flushIntakeQueue, setIntakeTooLargeHandler } from '../telemetry/intakeQueue'
 import type { TrajectoryTurnInput } from '../shared/agentLane/laneTrajectory'
 import type { FeedbackReportPreview, FeedbackSendResult } from '../shared/contracts/feedback'
-import { buildFeedbackReport, isFeedbackReportRequest, type FeedbackReportDeps } from './feedbackReport'
-
-function readLogTail(maxLines: number): string[] | null {
-  try {
-    const [newest] = listLogFilesForBundle(logsDir())
-    if (!newest) return null
-    // 整文件读进来再取尾部：日志按天切且单文件上限 4MB（`logFiles.ts` 的 DAILY_LOG_MAX_BYTES），
-    // 而这条路一次用户点击只走一遍。手写 openSync/readSync 的字节窗口省下的是这点内存，
-    // 换来的是「从中间开始读会切掉半行」那一族边界情况。
-    return fs.readFileSync(newest, 'utf8').split('\n').filter((line) => line.trim()).slice(-maxLines)
-  } catch {
-    return null
-  }
-}
+import { readRecentLogLines } from './feedbackLogTail'
+import { buildFeedbackReport, isFeedbackReportRequest, shrinkFeedbackReport, type FeedbackReportDeps } from './feedbackReport'
+import { sendFeedbackReport } from './feedbackSend'
 
 function readModelCatalog(): unknown | null {
   try {
@@ -88,7 +78,7 @@ function reportDeps(projectId: string | null): FeedbackReportDeps {
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? '',
     },
     projectId,
-    readLogTail,
+    readLogTail: (maxLines) => readRecentLogLines(logsDir(), maxLines),
     readModelCatalog,
     readTrajectory: (laneName) => readTrajectory(laneName, projectId),
   }
@@ -109,21 +99,15 @@ export function registerFeedbackIpc(): void {
     // 这个构建没配接收端就是真的发不出去。跟用户说「已排队」等于骗他（D4：缺口明着标）。
     if (!intakeConfigured()) return { ok: false, reason: 'endpoint-unconfigured' }
 
-    const report = await buildFeedbackReport(payload, reportDeps(payload.projectId ?? null)).catch(() => null)
+    const report = await buildFeedbackReport(payload, reportDeps(payload.projectId ?? null)).catch((error: unknown) => {
+      logError('diagnostics', 'feedback-build-failed', error)
+      return null
+    })
     if (!report) return { ok: false, reason: 'failed' }
-
-    try {
-      const result = await postIntake('/v1/feedback', report)
-      // 顺手把上次没发出去的也带走——用户这次联网了。
-      void flushIntakeQueue('feedback')
-      return { ok: true, id: result.id ?? null, queued: false }
-    } catch {
-      // 发不出去不许把这份报告丢了：他已经点过「发送」。入队 + 静默重试。
-      enqueueIntake('feedback', report)
-      return { ok: true, id: null, queued: true }
-    }
+    return sendFeedbackReport(report)
   })
 
+  setIntakeTooLargeHandler('feedback', shrinkFeedbackReport)
   // 上次没发出去的在这里补发掉（App 起来时注册一次就够）。失败无声——用户已经拿到过回执。
   void flushIntakeQueue('feedback')
 }

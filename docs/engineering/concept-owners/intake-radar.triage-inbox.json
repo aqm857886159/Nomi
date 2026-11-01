@@ -1,0 +1,36 @@
+{
+  "name": "这条反馈记没记（待分诊账）",
+  "subject": "intake-radar.triage-inbox",
+  "lifecycle": "delivery",
+  "authority_kind": "writer",
+  "trust_domain": "tooling",
+  "fact_kind": "durable",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/lib/intake-radar/inbox.mjs",
+    "symbol": "reconcileInbox"
+  },
+  "write_api": [
+    {
+      "path": "scripts/lib/intake-radar/inbox.mjs",
+      "symbol": "reconcileInbox"
+    },
+    {
+      "path": "scripts/lib/intake-radar/inbox.mjs",
+      "symbol": "triageInbox"
+    },
+    {
+      "path": "scripts/daily-radar-session.mjs",
+      "symbol": "triageLine"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/lib/intake-radar/inbox.node-test.mjs",
+  "allowed_consumers": [
+    "scripts/intake-radar.mjs",
+    "scripts/daily-radar-session.mjs",
+    "scripts/lib/intake-radar/aggregate.mjs"
+  ],
+  "since": "2026-11-01",
+  "notes": "合同 docs/fixes/2026-11-01-feedback-radar-triage.root-cause.json：账在仓库外缓存目录，一次运行只进账不出账，只有带说明的显式命令才出账。triageLine 是开会话那一行的唯一来源，每次现读，不抄进缓存摘要；脚本跑败、拿缓存、退出码 1 都走它。"
+}

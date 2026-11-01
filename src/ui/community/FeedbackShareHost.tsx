@@ -22,9 +22,12 @@ import type { FeedbackOpenRequest } from './feedbackTypes'
 export function FeedbackShareHost(): JSX.Element {
   const { t } = useTranslation()
   const [request, setRequest] = React.useState<FeedbackOpenRequest | null>(null)
+  // 上一张卡「留一会儿再收」的定时器，不许把这会儿新打开的卡关掉。
+  const closeTimer = React.useRef<number | undefined>(undefined)
 
   React.useEffect(() => {
     const handleOpen = (event: Event): void => {
+      window.clearTimeout(closeTimer.current)
       const detail = (event as CustomEvent<FeedbackOpenRequest>).detail
       setRequest(detail && typeof detail === 'object' ? detail : {})
     }
@@ -46,11 +49,11 @@ export function FeedbackShareHost(): JSX.Element {
       closeOnClickOutside
     >
       {/* 发完（拿到编号或入队）就关窗 —— 他已经拿到回执，这张卡没有别的用途。
-          留 2.2 秒让他看见那行编号再收。 */}
+          留一会儿让他看见那行回执再收，多久由卡决定（一句话比一个编号要读得久）。 */}
       <FeedbackReportCard
         request={request}
         showHeading={false}
-        onDone={() => window.setTimeout(() => setRequest(null), 2200)}
+        onDone={(lingerMs) => { closeTimer.current = window.setTimeout(() => setRequest(null), lingerMs) }}
       />
     </DesignModal>
   )

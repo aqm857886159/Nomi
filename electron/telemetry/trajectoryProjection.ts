@@ -14,6 +14,7 @@
 // 自己写了这条——靠内容检测去拦提示词只会给出一种「已经防住了」的错觉。真正防住它的是 ①。
 // 为什么不能只做 ①：白名单管得住**字段**，管不住**字段里的值**；工具名是 Agent 侧拼出来的串。
 import crypto from 'node:crypto'
+import { outboundVendor } from '../catalog/outboundVendor'
 import { redactLogValue } from '../logging/redact'
 import { isLaneApprovalNote } from '../shared/agentLane/laneContracts'
 import type {
@@ -116,11 +117,13 @@ function errorKinds(errors: readonly string[]): string[] {
  * 没勾时那两个键**不存在**（不是空串）：接收端看不到键，就不会有人误以为「这条没写提示词」。
  */
 export function projectTrajectoryTurn(turn: TrajectoryTurnInput, includeContent = false): LaneTrajectoryTurn {
+  // 自建的 key 是从用户的地址铸出来的，模型名可能是用户起的别名。判据只有一份（`outboundVendor`）。
+  const models = turn.models.map((model) => ({ ...outboundVendor(String(model.provider)), model: model.model }))
   const projected: LaneTrajectoryTurn = {
     'gen_ai.operation.name': 'invoke_agent',
     'gen_ai.conversation.id': trajectoryConversationId(turn.sessionId),
-    'gen_ai.provider.name': [...new Set(turn.models.map((model) => label(model.provider)))],
-    'gen_ai.request.model': [...new Set(turn.models.map((model) => label(model.model)))],
+    'gen_ai.provider.name': [...new Set(models.map(({ vendor }) => vendor))],
+    'gen_ai.request.model': [...new Set(models.filter(({ modelsLeave }) => modelsLeave).map(({ model }) => label(model)))],
     'gen_ai.usage.input_tokens': count(turn.tokens?.input),
     'gen_ai.usage.output_tokens': count(turn.tokens?.output),
     'gen_ai.usage.cache_read.input_tokens': count(turn.tokens?.cacheRead),

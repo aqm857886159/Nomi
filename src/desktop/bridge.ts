@@ -190,7 +190,7 @@ export type DesktopBridge = DesktopMediaBridge &
   }
   /**
    * 一键反馈。**不受「帮 Nomi 变好」开关管**（用户主动点的那一条）。
-   * `preview` 只算清单不发东西；`send` 立刻返回，失败已在主进程入队重试。
+   * `preview` 只算清单不发东西；`send` 先落盘再发，最多等几秒就回答，发不出去的主进程接着重试。
    */
   feedback?: {
     preview: (payload: import('../../electron/shared/contracts/feedback').FeedbackReportRequest)
