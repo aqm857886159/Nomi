@@ -67,7 +67,7 @@ function validItem(value: unknown): value is IntakeQueueItem {
   return typeof item.id === 'string' && typeof item.queuedAt === 'string' && 'payload' in item
 }
 
-function readStore(kind: IntakeQueueKind): QueueStore {
+function readQueueStore(kind: IntakeQueueKind): QueueStore {
   try {
     const raw = readJsonFile(queuePath(kind)) as Partial<QueueStore>
     const pending = Array.isArray(raw.pending) ? raw.pending.filter(validItem) : []
@@ -100,7 +100,7 @@ function newItem(payload: unknown): IntakeQueueItem {
 
 export function enqueueIntake(kind: IntakeQueueKind, payload: unknown): IntakeQueueItem {
   const item = newItem(payload)
-  const store = readStore(kind)
+  const store = readQueueStore(kind)
   store.pending.push(item)
   const dropped = prune(store)
   writeJsonFileAtomic(queuePath(kind), store)
@@ -109,14 +109,14 @@ export function enqueueIntake(kind: IntakeQueueKind, payload: unknown): IntakeQu
 }
 
 export function readIntakeQueue(kind: IntakeQueueKind): IntakeQueueItem[] {
-  const store = readStore(kind)
+  const store = readQueueStore(kind)
   prune(store)
   return store.pending
 }
 
 /** 关掉「帮 Nomi 变好」时清轨迹队列。**不清反馈队列**——见 `feedbackReport.ts` 的说明。 */
 export function clearIntakeQueue(kind: IntakeQueueKind): { deletedCount: number } {
-  const deletedCount = readStore(kind).pending.length
+  const deletedCount = readQueueStore(kind).pending.length
   try {
     fs.rmSync(queuePath(kind), { force: true })
   } catch {
@@ -128,7 +128,7 @@ export function clearIntakeQueue(kind: IntakeQueueKind): { deletedCount: number 
 /** 改队列文件失败只记一笔：货已经送到或已被拒收，这时候抛出去没有人接得住。 */
 function updateStore(kind: IntakeQueueKind, change: (store: QueueStore) => void): void {
   try {
-    const store = readStore(kind)
+    const store = readQueueStore(kind)
     change(store)
     writeJsonFileAtomic(queuePath(kind), store)
   } catch (error) {
@@ -279,7 +279,7 @@ export function flushIntakeQueue(kind: IntakeQueueKind): Promise<void> {
   if (inflight) return inflight
   const run = (async () => {
     if (!intakeConfigured()) return
-    const store = readStore(kind)
+    const store = readQueueStore(kind)
     const dropped = prune(store)
     if (dropped > 0) {
       logWarn('diagnostics', 'intake-queue-pruned', { kind, dropped })
@@ -289,7 +289,7 @@ export function flushIntakeQueue(kind: IntakeQueueKind): Promise<void> {
       // 一条发不出去，后面的多半也发不出去（同一个端点）。留着，下一轮再来。
       if ((await deliver(kind, item)).status === 'failed') break
     }
-    if (readStore(kind).pending.length > 0) {
+    if (readQueueStore(kind).pending.length > 0) {
       scheduleRetry(kind)
     } else {
       // clearTimeout(undefined) 是 no-op，所以不用先取再判。

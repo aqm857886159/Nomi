@@ -3,7 +3,7 @@
   "id": "2026-11-02-feedback-followups",
   "problem_type": "反馈持久化与出站边界缺失不变量",
   "symptom": "队列读不了时旧件被覆盖；机器摘要能带出私有 host；清单未说明模型名；宿主卸载遗留关闭定时器",
-  "direct_cause": "readStore 捕获所有异常后返回空；text 只做路径凭据脱敏；宿主 effect 只移除监听；清单省略模型名取舍",
+  "direct_cause": "队列读取（改名前叫 readStore）捕获所有异常后返回空；text 只做路径凭据脱敏；宿主 effect 只移除监听；清单省略模型名取舍",
   "class_root": "失败状态被当成有效空状态；机器派生字段未共用地址判据；关闭任务未绑定宿主生命周期；告知未覆盖实际连接形状",
   "migration": "队列格式不变；坏 JSON 改名留底；不可读原样保留。发送前按两个数字省略计数识别新投影；旧包只去目录附件，同步清单与字节数。新发与补发共用注册处理口；413 仍沿用原缩包。",
   "affected_population": [
@@ -21,7 +21,7 @@
     "electron/shared/contracts/feedback.ts"
   ],
   "entry_points": [
-    "feedbackSend.sendFeedbackReport → submitIntake → enqueueIntake/readStore",
+    "feedbackSend.sendFeedbackReport → submitIntake → enqueueIntake/readQueueStore",
     "feedbackIpc.registerFeedbackIpc → buildFeedbackReport / flushIntakeQueue",
     "NomiStudioApp → FeedbackShareHost"
   ],
@@ -128,7 +128,7 @@
   "door_reduction": {
     "before": 15,
     "after": 18,
-    "why_not": "NomiStudioApp 保留全局宿主入口；feedbackIpc 的预览与发送共用组包并在启动补发；feedbackSend 保留提交适配；队列内部的重试/成功补发和入队入口保证离线投递，全部收敛到同一个 readStore，不移除产品入口。 反馈 IPC 必须拥有专属准备器的注册；sendItem 是所有发件唯一共同发送口；排除原因类型由包、翻译和现有卡片共享，保留这些消费者避免第二套词表。"
+    "why_not": "NomiStudioApp 保留全局宿主入口；feedbackIpc 的预览与发送共用组包并在启动补发；feedbackSend 保留提交适配；队列内部的重试/成功补发和入队入口保证离线投递，全部收敛到同一个 readQueueStore，不移除产品入口。 反馈 IPC 必须拥有专属准备器的注册；sendItem 是所有发件唯一共同发送口；排除原因类型由包、翻译和现有卡片共享，保留这些消费者避免第二套词表。"
   },
   "regression_tests": [
     "electron/feedback/feedbackOutbound.test.ts",
@@ -149,33 +149,28 @@
     "same_class_scan": [
       "git grep readIntakeQueue|clearIntakeQueue|flushIntakeQueue|enqueueIntake|submitIntake：生产提交与启动补发收敛 intakeQueue",
       "node scripts/door-map.mjs 对提交/补发/组包/宿主/判据/准备器/排除原因重新扫描：当前 18 扇，以相同 AST 对 origin/main 重算 15 扇",
-      "readStore 同名扫描还命中 referenceLinkRefusals、telemetryOutbox、workspaceSyncBaseline，逐个确认是本地独立函数，不是该队列调用者",
+      "改名前 readStore 同名扫描还命中 referenceLinkRefusals、telemetryOutbox、workspaceSyncBaseline，逐个确认是本地独立函数，不是该队列调用者；概念门岗按名字认人，所以队列这份改名 readQueueStore",
       "git grep text / maskForeignUrls：摘要与留言共用原 text，目录私有 host 判据只在 feedbackCatalog，摘要接入、留言保持原义",
       "CatalogState（electron/catalog/types.ts）无两项投影计数；五份真实落盘目录也无这两格，逐份经 git show v0.24.0 源码旧 builder 组包的附件均无这两格",
       "旧 builder 与内部依赖共 10 份 tagged source；provenance.json 记录源码、输入和产物哈希，O1/O2 全部读取真实对应产物"
     ]
   },
-  "generality_proof": "所有队列读改写先过 readStore，非缺失非语法错误一律抛出，不可能从空状态覆盖旧件；flush 在公共入口捕获并沿用重试。摘要调用同一个 maskForeignUrls，目录无第二套定义；宿主 effect 清除同一个 timer ref，重开与卸载均受保护。 新发、启动补发、成功后补发及定时重试都收敛 sendItem，发送前执行注册准备器，准备失败不发旧内容。五份真实旧目录均缺两项计数；新投影函数必写两个数字；不依赖外层 schemaVersion 或 app.version。",
+  "generality_proof": "所有队列读改写先过 readQueueStore，非缺失非语法错误一律抛出，不可能从空状态覆盖旧件；flush 在公共入口捕获并沿用重试。摘要调用同一个 maskForeignUrls，目录无第二套定义；宿主 effect 清除同一个 timer ref，重开与卸载均受保护。 新发、启动补发、成功后补发及定时重试都收敛 sendItem，发送前执行注册准备器，准备失败不发旧内容。五份真实旧目录均缺两项计数；新投影函数必写两个数字；不依赖外层 schemaVersion 或 app.version。",
   "shared_boundaries": [
     {
       "path": "electron/telemetry/intakeQueue.ts",
-      "symbol": "readStore",
+      "symbol": "readQueueStore",
       "responsibility": "分类文件不存在、语法损坏、读取失败，读不了禁止读改写"
     },
     {
       "path": "electron/feedback/feedbackReport.ts",
-      "symbol": "text",
+      "symbol": "buildFeedbackReport",
       "responsibility": "机器派生摘要清洗共用目录的 host 判据；留言维持原处理"
     },
     {
       "path": "electron/feedback/feedbackCatalog.ts",
       "symbol": "maskForeignUrls",
       "responsibility": "维护唯一的内置 host 留用/未知 URL 清洗判据"
-    },
-    {
-      "path": "src/ui/community/FeedbackShareHost.tsx",
-      "symbol": "FeedbackShareHost",
-      "responsibility": "把延迟关闭定时器绑定宿主生命周期"
     },
     {
       "path": "electron/feedback/feedbackReport.ts",
@@ -193,13 +188,13 @@
       "path": "electron/telemetry/intakeQueue.ts",
       "entry_point": "enqueueIntake",
       "disposition": "enforced",
-      "evidence": "读失败经 readStore 抛出；Q1 断言旧队列按字节不变且现有失败结果返回"
+      "evidence": "读失败经 readQueueStore 抛出；Q1 断言旧队列按字节不变且现有失败结果返回"
     },
     {
       "path": "electron/telemetry/intakeQueue.ts",
       "entry_point": "updateStore",
       "disposition": "enforced",
-      "evidence": "出账和缩包都先 readStore；Q2 验证读失败不写空"
+      "evidence": "出账和缩包都先 readQueueStore；Q2 验证读失败不写空"
     },
     {
       "path": "electron/telemetry/intakeQueue.ts",

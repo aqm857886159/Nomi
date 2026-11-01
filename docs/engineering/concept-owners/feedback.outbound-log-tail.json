@@ -20,6 +20,10 @@
       "symbol": "projectCatalogForReport"
     },
     {
+      "path": "electron/feedback/feedbackCatalog.ts",
+      "symbol": "maskForeignUrls"
+    },
+    {
       "path": "electron/feedback/feedbackReport.ts",
       "symbol": "buildFeedbackReport"
     }

@@ -18,6 +18,14 @@
     {
       "path": "electron/telemetry/intakeQueue.ts",
       "symbol": "sendItem"
+    },
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "readQueueStore"
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "prepareFeedbackReport"
     }
   ],
   "forbidden_derivations": [],
@@ -26,5 +34,5 @@
     "electron/feedback/feedbackSend.ts"
   ],
   "since": "2026-11-01",
-  "notes": "合同 docs/fixes/2026-11-01-feedback-send-delivery.root-cause.json：先落盘再发，界面等待有上限，一条货同一时刻只有一个请求在飞。400 和 413 离开队列（413 先去附件再发一次），其余留着按翻倍退避重试；用户那次发送和后台补发都走这一个口。"
+  "notes": "合同 docs/fixes/2026-11-01-feedback-send-delivery.root-cause.json：先落盘再发，界面等待有上限，一条货同一时刻只有一个请求在飞。400 和 413 离开队列（413 先去附件再发一次），其余留着按翻倍退避重试；用户那次发送和后台补发都走这一个口。 合同 docs/fixes/2026-11-02-feedback-followups.root-cause.json：队列读不了不等于空（readQueueStore），旧版排队的报告发出前去掉没按当前规则清洗的目录（prepareFeedbackReport，由 sendItem 调）。"
 }

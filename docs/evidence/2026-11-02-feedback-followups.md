@@ -23,7 +23,7 @@
 
 | 反例 | 退出码 | 原始末行 |
 |---|---|---|
-| readStore 改回所有读错误当空 | 1 | Tests 4 failed / 16 skipped (20) |
+| readQueueStore 改回所有读错误当空 | 1 | Tests 4 failed / 16 skipped (20) |
 | 摘要不走 host 判定 | 1 | Tests 1 failed / 19 skipped (20) |
 | 宿主重开不 clearTimeout | 1 | Tests 1 failed / 2 skipped (3) |
 | 宿主卸载不 clearTimeout | 1 | Tests 1 failed / 2 skipped (3) |
@@ -39,7 +39,7 @@
 - 结构守卫扫描：新调用的 `maskForeignUrls`、`renameSyncWithRetry`、`zhFeedbackReport`、`FeedbackShareHost` 没有命中额外的 `.structure.test.ts` / `.guard.test.ts`。
 - 根因合同为新增 schema v3，不改历史合同。门表由 door-map 生成：扩展统计提交、准备器与排除原因消费者后，基线 15 扇、当前 18 扇；新增入口仍收敛在原发送口。
 
-Windows 真占用、真实外部投递、中英真窗口截图与独立验收均未验证。自动测试证明主进程结果与现有失败分支的连接，不替代桌面真实任务收据。
+Windows 真占用、真实外部投递与独立验收均未验证。自动测试证明主进程结果与现有失败分支的连接，不替代桌面真实任务收据。
 
 ## 旧包夹具与判错方向
 
@@ -47,4 +47,16 @@ Windows 真占用、真实外部投递、中英真窗口截图与独立验收均
 
 `modelsOmitted` 与 `mappingsOmitted` 都是数字才保留目录，否则只剥目录。手改旧目录加上这两格时会保留目录，和此前一样，不更差；新投影必写两格，不会误剥新包。新发、启动/定时补发共用 sendItem；仅反馈 IPC 注册准备器，通用队列不含反馈字段。
 
-与同一轮前次交回版本对比：readStore、text、buildFeedbackReport、shrinkFeedbackReport、宿主文件及双语模型清单句子原样保持，只增补旧包准备器、注册与排除原因。
+与同一轮前次交回版本对比：readQueueStore、text、buildFeedbackReport、shrinkFeedbackReport、宿主文件及双语模型清单句子原样保持，只增补旧包准备器、注册与排除原因。
+
+## 协调复核：真窗口走查查出两件
+
+实现线没有跑真窗口。协调在交回的代码上跑了中英走查（`tests/ux/feedback-delivery.walk.mjs`），查出两件，都修了：
+
+1. **英文最小窗口下「Send」点不到。** 第 5 条把英文清单句子从 3 行写成 5 行。这张卡在 App 最小窗口（1100×720）下本来就贴着上限，多两行就把按钮挤出窗口，单测看不出来。句子不动：清单最高到放得下卡上其余部分为止，多的在清单里滚（`src/ui/community/FeedbackReportCard.tsx`）。以后清单再变长也挤不掉按钮，走查查留言框和「发送」点得到、没被切掉。
+2. **概念门岗红。** 合同声明的共享边界没有登记进概念，推送前快检不跑这道门，所以没人看见。现在登记进 `feedback.report-delivery` 和 `feedback.outbound-log-tail`。队列的读取函数和三个无关模块同名，门岗按名字认人，所以改名 `readQueueStore`，只改名，不改行为。
+
+修后走查通过（中英各一遍，退出码 1 只来自「走查抢了前台」这一项，按约定算通过）。截图协调亲眼看过：
+
+- 最小窗口，清单在里面滚，「发送」在：[英文](2026-11-02-feedback-followups/en-06-manifest-min-window.png) · [中文](2026-11-02-feedback-followups/zh-CN-06-manifest-min-window.png)
+- 走查窗口，勾了内容，清单整段放得下：[英文](2026-11-02-feedback-followups/en-05-manifest-content-ticked.png) · [中文](2026-11-02-feedback-followups/zh-CN-05-manifest-content-ticked.png)
