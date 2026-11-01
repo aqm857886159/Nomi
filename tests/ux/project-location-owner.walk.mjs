@@ -8,8 +8,10 @@
 //   4. 「打开已有文件夹」选改名后的目录：接上原项目（同一个 id），画布上的图片照常加载；
 //   5. 打开一份还在的项目文件夹的副本：被拒，说原文件夹在哪，两个文件夹都不写；
 //   6. 「打开已有文件夹」选进 Nomi 自己的应用数据目录：被拒，文案说清是哪类目录；
-//   7. 设置把新项目默认位置改到应用数据目录：被拒，原设置不变；
+//   7. 设置把新项目默认位置改到应用数据目录：被拒，原设置不变，那一行是危险色；
+//   7b. 设置把新项目默认位置换成一个正常文件夹：写进设置，之后新建的项目落在那里；
 //   8. 老用户（0.24.0 已经把默认位置设在应用目录里）点新建项目：被拒，指向「设置 → 文件与保存」，什么都不建。
+// 第 2、3 步的「找不到」卡（第二轮起）：名字下面一直写着「找不到文件夹」（不用悬停），不挂同步角标，右下角没有打开文件夹的钮。
 //
 // 隔离：资料、设置、项目库、「外部盘」都在仓库 .tmp/ 下——不放系统临时目录，因为系统临时目录本身就是 Nomi 拒绝放项目的地方；
 // 「文稿」也指进 .tmp（第 7 步要去掉环境变量托管的默认位置，不能让默认位置落到真实的 ~/Documents）。原生选文件夹对话框一次性替身。
@@ -18,9 +20,9 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, readComputedColorChannels, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { backToLibrary, canvasFitView, closeSettings, newProjectEntry, openSettings, switchWorkspace } from './_shell.mjs'
-import { uiText, uiTextWith } from './full-walk/invariants.mjs'
+import { uiText, uiTextPattern, uiTextWith } from './full-walk/invariants.mjs'
 import { seedFinishedJourneyProject } from './fixtures/journey-project-fixture.mjs'
 
 const repoRoot = process.cwd()
@@ -46,9 +48,12 @@ const shotIds = JSON.parse(fs.readFileSync(path.join(external.projectRoot, '.nom
 const renamedExternal = `${external.projectRoot}-${tag === 'en' ? 'renamed' : '改名'}`
 const copyOfExternal = path.join(diskDir, tag === 'en' ? 'Backup' : '备份', `${path.basename(external.projectRoot)}-${tag === 'en' ? 'copy' : '副本'}`)
 const missingLabel = uiText(locale, 'library.folderUnavailable')
+const missingBadge = uiText(locale, 'library.folderMissingBadge')
 const missingHint = uiText(locale, 'library.folderMissingHint')
 const appDataPlace = uiText(locale, 'studio.appOwnedPlaceAppData')
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+// 卡片右下角「打开项目文件夹 {{name}}」那颗钮的可访问名；按词条拼，不依赖是哪个项目。
+const revealButtonName = new RegExp(uiTextPattern(uiText(locale, 'library.openProjectFolder'), { anchored: true }))
 const initialLocalStorage = {
   'nomi:locale:v1': locale,
   'nomi-color-scheme': 'light',
@@ -127,11 +132,23 @@ async function snap(win, name) {
   console.log(`  · shot ${file}`)
 }
 
-async function expectMissingCard(win, id, label) {
+async function expectMissingCard(win, id, label, proofs) {
   const target = card(win, id)
   await expectVisible(target, `${label}：卡片还在项目库里`)
   await expect(target, `${label}：悬停提示说下一步`).toHaveAttribute('title', missingHint)
   await expectVisible(target.getByText(missingLabel, { exact: true }), `${label}：卡片写「${missingLabel}」`)
+  // 第二轮：名字下面一直写着那句事实（不用悬停才看见），不挂同步角标（它对不存在的文件夹只会说「文件异常」），右下角没有打开文件夹的钮。
+  const persistent = target.locator('[data-project-folder-missing]')
+  await expectVisible(persistent, `${label}：名字下面一直写着「${missingBadge}」`)
+  await expect(persistent, `${label}：那句话是「${missingBadge}」`).toHaveText(missingBadge)
+  await expect(persistent, `${label}：那句话悬停说下一步`).toHaveAttribute('title', missingHint)
+  check(`${label}：那句话整句落在卡片里，没被裁掉`, await persistent.evaluate((element) => {
+    const frame = element.closest('[data-project-card]').getBoundingClientRect()
+    const box = element.getBoundingClientRect()
+    return box.left >= frame.left - 0.5 && box.right <= frame.right + 0.5
+  }))
+  await expectAbsent(target.locator('[data-sync-status]'), { provenBy: proofs.syncBadge, message: `${label}：不挂同步角标` })
+  await expectAbsent(target.getByRole('button', { name: revealButtonName }), { provenBy: proofs.revealButton, message: `${label}：没有「打开项目文件夹」的钮` })
 }
 
 async function expectLibraryAlert(win, text, label) {
@@ -170,6 +187,13 @@ try {
   await backToLibrary(win, { label: '新建项目后，从顶栏项目菜单回到项目库' })
   await expectVisible(card(win, external.projectId), '外部项目的卡片在库里')
   await expectVisible(card(win, nativeId), '新建项目的卡片在库里')
+  // 「没有」的断言要有基线：先在还正常的卡上证明这两个探针找得到东西（同步角标、右下角打开文件夹的钮），
+  // 后面「找不到」的卡才谈得上"没有"，而不是探针本来就找不到。
+  const healthyCard = card(win, external.projectId)
+  const proofs = {
+    syncBadge: await proveProbe(healthyCard.locator('[data-sync-status]'), '正常的卡名字下面挂着同步角标'),
+    revealButton: await proveProbe(healthyCard.getByRole('button', { name: revealButtonName }), '正常的卡右下角有「打开项目文件夹」的钮'),
+  }
   await snap(win, '01-library-two-projects')
 
   // ── 在访达里改名，同一次运行里刷新项目库 ─────────────────────────────
@@ -179,12 +203,14 @@ try {
   fs.renameSync(nativeRoot, renamedNative)
   await win.reload({ waitUntil: 'domcontentloaded' })
   await newProjectEntry(win).waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
-  await expectMissingCard(win, external.projectId, '改名后同一次运行：外部项目')
-  await expectMissingCard(win, nativeId, '改名后同一次运行：默认位置里的项目')
+  await expectMissingCard(win, external.projectId, '改名后同一次运行：外部项目', proofs)
+  await expectMissingCard(win, nativeId, '改名后同一次运行：默认位置里的项目', proofs)
   check('列表没摘登记（外部）', entryOf(external.projectId)?.rootPath === external.projectRoot, entryOf(external.projectId)?.rootPath)
   check('列表没摘登记（默认位置）', entryOf(nativeId)?.rootPath === nativeRoot, entryOf(nativeId)?.rootPath)
   check('读列表没把原文件夹建回来（外部）', !fs.existsSync(external.projectRoot))
   check('读列表没把原文件夹建回来（默认位置）', !fs.existsSync(nativeRoot))
+  await win.mouse.move(2, 2) // 鼠标挪开：先拍不用悬停也一直写着的那句，再拍悬停
+  await snap(card(win, external.projectId), '02a-renamed-card-persistent-line')
   await card(win, external.projectId).hover()
   await snap(win, '02-renamed-same-session-not-found')
 
@@ -194,7 +220,7 @@ try {
   session = await launch(2)
   app = session.app
   win = session.win
-  await expectMissingCard(win, external.projectId, '重启后：外部项目')
+  await expectMissingCard(win, external.projectId, '重启后：外部项目', proofs)
   check('重启后外部项目的登记还在、仍指原文件夹', entryOf(external.projectId)?.rootPath === external.projectRoot, entryOf(external.projectId)?.rootPath)
   check('重启后原文件夹没被建回来', !fs.existsSync(external.projectRoot))
   await expectVisible(card(win, nativeId), '重启后：默认位置里改名的项目被启动对账接回')
@@ -268,14 +294,40 @@ try {
   await expect(shownPath, '默认位置是（隔离的）文稿里的项目文件夹').toHaveText(new RegExp(`^${escapeRegExp(documentsDir + path.sep)}`))
   const defaultLocation = await shownPath.textContent()
   const pickInsideApp = path.join(userDataDir, 'projects')
+  const feedback = section.locator('[data-project-location-check-feedback]')
   await answerNextFolderPicker(app, pickInsideApp)
   await clickOrFail(section.getByRole('button', { name: uiText(locale, 'settings.file.projectLocationChange') }), '设置：更改新项目默认位置（应用数据目录里）')
-  await expect(section.locator('[data-project-location-check-feedback]'), '设置：被拒，文案说清为什么').toHaveText(uiText(locale, 'settings.file.projectLocationErrorInsideApp'))
+  await expect(feedback, '设置：被拒，文案说清为什么').toHaveText(uiText(locale, 'settings.file.projectLocationErrorInsideApp'))
+  // 被拒的这一行读起来要是"出事了"：危险色，和旁边普通灰字不是同一个颜色。
+  await expect(feedback, '设置：被拒的那一行用危险色').toHaveClass(/\btext-workbench-danger\b/)
+  await waitForVisualQuiescence(win)
+  const rejectedColor = await readComputedColorChannels(feedback)
+  const neutralColor = await readComputedColorChannels(shownPath)
+  check('设置：被拒的那一行和普通灰字不是同一个颜色', rejectedColor.raw !== neutralColor.raw, `${rejectedColor.raw} ≠ ${neutralColor.raw}`)
   await expect(shownPath, '设置：原位置不变').toHaveText(defaultLocation)
   check('设置：没写设置文件', !fs.existsSync(path.join(settingsDir, 'project-location.json')))
   check('设置：没在应用数据目录里建文件夹', !fs.existsSync(pickInsideApp))
   await snap(win, '07-settings-pick-inside-app-rejected')
+
+  // ── 设置：换成一个正常文件夹，之后新建的项目落在那里 ─────────────────────
+  const normalDefault = path.join(diskDir, tag === 'en' ? 'New default' : '新的默认位置')
+  fs.mkdirSync(normalDefault, { recursive: true })
+  await answerNextFolderPicker(app, normalDefault)
+  await clickOrFail(section.getByRole('button', { name: uiText(locale, 'settings.file.projectLocationChange') }), '设置：更改新项目默认位置（一个正常文件夹）')
+  await expect(shownPath, '设置：默认位置换成了所选文件夹').toHaveText(normalDefault)
+  await expect(feedback, '设置：换成功后，上一次被拒的那行字清掉了').toBeEmpty()
+  check('设置：新位置写进了设置文件', JSON.parse(fs.readFileSync(path.join(settingsDir, 'project-location.json'), 'utf8')).projectsRoot === normalDefault)
+  await snap(win, '07b-settings-default-location-changed')
   await closeSettings(win, '关设置')
+  const idsBeforeNormalCreate = new Set(registry().map((entry) => entry.id))
+  await clickOrFail(newProjectEntry(win), '项目库：新建项目（落在换过的默认位置）')
+  await win.waitForFunction(() => /[?&]projectId=/.test(location.href), undefined, { timeout: stationTimeout({ operations: 2 }) })
+  const landedId = await projectIdInUrl(win)
+  check('新建出来的是一个新项目', Boolean(landedId) && !idsBeforeNormalCreate.has(landedId), landedId)
+  check('新项目落在换过的默认位置里', path.dirname(entryOf(landedId)?.rootPath ?? '') === normalDefault, entryOf(landedId)?.rootPath)
+  await backToLibrary(win, { label: '新建项目后，从顶栏项目菜单回到项目库' })
+  await expectVisible(card(win, landedId), '换过的默认位置里新建的项目，卡片在库里')
+  await snap(win, '07c-new-project-in-changed-default-location')
 
   // ── 老用户：0.24.0 已经把默认位置设在应用数据目录里，点新建项目 ─────────
   const oldUserRoot = path.join(userDataDir, 'xiangmu')

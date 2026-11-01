@@ -2029,11 +2029,6 @@
       "count": 1
     }
   },
-  "tests/ux/project-location-settings.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/project-switch-background-run.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
