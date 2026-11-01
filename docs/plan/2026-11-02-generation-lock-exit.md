@@ -54,6 +54,7 @@ Run、节点、队列、方案的格式都不变。0.24.0 留在盘上的 `submi
 ## ★2 谁说了算
 
 - 这张卡这一刻能不能发：主进程 `assertNodeIdle`（`electron/capabilityCore/appIntegrationCanvasShot.ts`）和 Run 账本。
+- 这个节点被哪一笔结果不明的 Run 占着：同一个主进程、同一份读法（`openCanvasRuns` + `blockingReason`）。锁和出口读同一份，锁得住就放得开。渲染层不从 `run.id` 推。
 - 同一节点只发一次：`runGenerationNode`（唯一提交咽喉）开跑时把它从别的批次的排队里拿掉。
 - 已批准的节点输入变没变：`assertApprovedInputs`。
 - 方案这一镜变没变：新的分镜动作守卫（D1），编辑器和 Agent 共用，取代现在的两份比对。
@@ -65,7 +66,7 @@ Run、节点、队列、方案的格式都不变。0.24.0 留在盘上的 `submi
 
 - 「我核对过了」的确认条和按钮：`NodeErrorReport.tsx` 现成的，制作 Run 的镜已在用，不新画。
 - 释放：`releaseUnknownSubmission` / `job.reconcile`（`user_checked_abandon`，主进程盖真人手势章），不新开命令。
-- Run id：`canvasRunIdFor` 是纯字符串函数，但所在文件 `electron/productionRun/canvasShotRunIndex.ts` 引了 fs。把它和 `CANVAS_RUN_PREFIX`、`isCanvasRunId` 挪进 `electron/shared/`，主进程和渲染层都从那里 import，不在渲染层再拼一份。
+- 新查询走现有层次：`appIntegrationCanvasShot.ts` → `canvasShotRunApi.ts` → `appIntegration.ts` → `taskIpcHandlers.ts`（`assertTrustedSender`，同 `canvas-release`）→ `preload/runtimeBridge.ts` → `desktop/bridge.ts` → `api/taskApi.ts`。`canvasRunIdFor` 不动，渲染层不碰它。
 - 补引用：`autoReferencePlan` 是唯一 owner，编辑器 effect 和批量阶段切换调同一个函数。
 - 取消排队：`cancelEntry` 现成（收回出价、批次 worker 闸二 `isEntryCancelled` 会跳过）。
 - 文案：`shotClaimed.needsReconcile`、`submissionUnknown`、`nodeInFlight`、`releaseRegenerate` 复用；新 kind 补一条缺省词条，内容变了补一条（zh/en）。
@@ -109,7 +110,7 @@ Run、节点、队列、方案的格式都不变。0.24.0 留在盘上的 `submi
 - Mac 中英真窗走查（假服务商）：要过。
 - Windows：随 0.24.0 → 0.24.1 真机升级一起跑，PR 里写「未验证」。
 - 亮色主题：拍一张。
-- 真付费：不改发出去的请求，协调跑一次最小真生成确认没带坏（单张 + 两张批量），实现线不跑。
+- 真实场景复现（用户 11-02：「修好之后 要用真实场景复现一次」）：见 ★9 的「真实场景复现」。协调跑一次，实现线不跑付费。
 
 ## 拍板图
 
@@ -139,7 +140,10 @@ Run、节点、队列、方案的格式都不变。0.24.0 留在盘上的 `submi
 
 **D3 出口。**
 - `nodeIdOfJob` 读 `run.origin?.nodeId`（任务中心放行后真的走 `confirmAndRunNode`）。
-- 节点错误卡：画布 Run 也能放行。`releaseRunId`（`NodeErrorReport.tsx:170,256`）不再只看 `productionMetaOf`，用 `canvasRunIdFor(run.id)`（`run` 在 `:83`）。`releaseUnknownSubmissionForNode` 和 `productionShotIdForNode` 要认画布 Run，真窗走到。
+- 事实（实现线第一次开工时查出，已有红灯）：`run-started` 在主进程准入之前就把新运行记录写进节点（`generationRunController.ts:292,309`），再点 ↑ 被拒后 `runs[0].id` 指向一个不存在的 Run。所以不能从 `run.id` 推出要放行哪一笔。运行历史不改，那条被拒的记录留着。
+- 主进程加一个只读查询：`canvasUnknownRuns({ projectId, nodeId })` 返回 `[{ runId, jobId }]`，读法和 `assertNodeIdle` 一样：`openCanvasRuns(projectRoot, nodeId)` 逐个读 Run，`blockingReason` 是 `needs_reconcile` 的算（job 取 `submission_unknown` 或 `reconciling` 的那个）。0.24.0 留下的也在这个索引里，否则它当初也锁不住。
+- 节点错误卡：制作 Run 的镜照旧（`productionMetaOf` 给 runId）。画布节点不用预先知道 Run：`release-regenerate`（`NodeErrorReport.tsx:256`）有 nodeId 就可用；点「继续」时问主进程，把列表里每一笔走 `releaseUnknownSubmission`，然后 `confirmAndRunNode`。主进程说这个节点没有占用（已经放开了），也照样走付费确认，不留死路。放行失败走现有 `releaseFailed`。
+- 不改 `productionShotIdForNode`：画布路径不再经过它。
 - `classifyError` 的 `needs_reconcile`（`:745-757`）：`primary: 'reconcile', secondary: 'release-regenerate'`，和 `submission-unknown` 同一组。
 - 放行后错误卡换成生成中；付费确认取消后回原错误，↑ 能发。
 - 任务中心把画布 Run 的来源写对。
@@ -172,7 +176,7 @@ Run、节点、队列、方案的格式都不变。0.24.0 留在盘上的 `submi
 | B4 | 同一张卡连点两次单卡动作 | 只一张确认卡，只发一次 |
 | B5 | 整批跑着再点整批 / 放到画布 | 还是挡（整表动作互斥不变） |
 | C1 | 503 无拒单证据 → 结果不明 | 卡片两个按钮；↑ 被拒不增加 POST |
-| C2 | 卡片点「我核对过了」→ 继续 → 付费确认 → 确认 | POST 恰好 +1，出图，错误卡消失 |
+| C2 | 卡片点「我核对过了」→ 继续 → 付费确认 → 确认；分别走没再点 ↑ 和再点 ↑ 被拒之后两条路 | POST 恰好 +1，出图，错误卡消失；被拒那条运行记录还在历史里 |
 | C3 | 同上，付费确认点取消 | POST 不变；回原错误；再点 ↑ 能发 |
 | C4 | 任务中心走同一条路 | 回到生成页、选中节点、付费确认；POST +1 |
 | C5 | 制作 Run 的镜 | 行为不变（回归） |
@@ -191,6 +195,7 @@ Run、节点、队列、方案的格式都不变。0.24.0 留在盘上的 `submi
 - `runGenerationNode` 不取消别的批次的排队条目 → B3 红。
 - `nodeIdOfJob` 不读 `origin` → C4 红。
 - `release-regenerate` 只看 `productionMetaOf` → C2 红。
+- 放行目标改回从 `run.id` 推 → C2 第二条路红。
 - `local-refusal` 动作改回重试 → D2 红。
 
 ### 真窗走查
@@ -200,6 +205,22 @@ Run、节点、队列、方案的格式都不变。0.24.0 留在盘上的 `submi
 - A1 + B1（截：撞限的卡、其它卡在跑、点重试后的付费确认）。
 - A4（真编辑器挂着；截：确认卡、资产出图、镜头行带 @、全部出图）。
 - 亮色各拍一张结果不明的卡。
+
+### 真实场景复现
+
+走的是用户报的那条路：把剧本给 Agent 生成分镜 → 点生成资产图 → 中转报并发上限 → 卡住 → 回来还卡 → 重启。走查过了不算这一条过。
+
+新增 `tests/ux/generation-lock-exit-real.paid.mjs`（按 `tests/ux/_paidRun.mjs` 的写法，`buildMarkers` 带修复里的字面量）和同一脚本的免费演练 `tests/ux/generation-lock-exit-real.rehearsal.walk.mjs`（假服务商，写法参照 `tests/ux/run-retrieval-recovery-real.rehearsal.walk.mjs`）：
+
+1. 真应用，隔离副本。一段短剧本交给 Agent，用真文本模型出分镜方案，2 张资产卡 + 3 个镜头，镜头也用图片模型，不用视频。
+2. 分镜表点「整批生成」，确认一次。
+3. 中转的上限：真实 Key 所在的中转不一定撞得到，所以在 Nomi 和中转之间放一个本机限流代理：同时只放 2 个，超出的回和用户报错同样的 429 `concurrency limit exceeded; too many simultaneous requests`，其余原样转发到真实图片模型。**只有「上限」这一处是模拟的**，报告里明写。把真实连接指到本机代理这一步怎么做，实现线定（隔离副本里改目录地址或测试专用入口都行，不许进生产路径）；做不到就写清卡在哪，这一条停下，其余继续。
+4. 撞限的卡点重试 → 付费确认 → 真出图。其它卡不受影响。资产出完镜头接着发，提示词带 @。
+5. 代理对其中一张：真转发、真扣费，把回复掐掉，让它变成结果不明。卡片两个按钮 → 再点 ↑ 被拒（代理数到的请求不增加）→ 「我核对过了」→ 付费确认 → 真发 → 出图。
+6. 关掉重开：状态对、能继续。
+7. 全程每秒探一次窗口响应（`webContents.executeJavaScript` 或页面心跳），记下最长无响应时长。用户说的「卡」可能是整个窗口冻结，这一项至今没复现，这里专门量；超过 2 秒写进报告，附当时在做什么。
+
+要交的证据：免费演练**在修复前的代码上跑红**（`git worktree` 取 PR 的 merge-base，或把生产文件按字节还原后跑，红的是用户报的那几条），修复后跑绿，两份日志都留。真付费入口协调跑一次，产物和收据（供应商任务号）协调贴进 PR，图片 12 张以内。
 
 ### 回滚
 

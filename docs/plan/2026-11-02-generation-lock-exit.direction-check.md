@@ -64,3 +64,6 @@
 动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
 提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
 ```
+
+## D3 合同补正
+协调确认：再次被拒的记录留在历史；主进程以 openCanvasRuns + blockingReason 的同一读法查询节点的结果不明 Run，出口在继续时读取原占用。渲染层不拼 Run id，不移动 canvasRunIdFor。停点只停止有事实冲突的那条，其余继续。本轮仍是第 1 轮。
