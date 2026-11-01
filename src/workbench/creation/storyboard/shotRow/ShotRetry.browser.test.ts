@@ -7,7 +7,7 @@ it('E3: retry can be clicked again after rejection/failure, while the same row r
   const { build } = createRequire(require.resolve('vite/package.json'))('esbuild')
   // These ports are unused by retry. Keep real FrameActions/FailureActions and their decision owner.
   const ports = [
-    { pattern: /useUnknownSubmissionRelease$/, source: 'export const useUnknownSubmissionRelease=()=>({confirming:false,busy:false,failed:false}); export const UnknownSubmissionConfirmation=()=>null;' },
+    { pattern: /NodeErrorReport$/, source: 'export const useUnknownSubmissionRelease=()=>({confirming:false,busy:false,failed:false}); export const UnknownSubmissionConfirmation=()=>null;' },
     { pattern: /projectCanvasReadSurface$/, source: 'export const withProjectAction=()=>{};' },
     { pattern: /notificationPolicy$/, source: 'export const revealNotificationTarget=()=>{};' },
     { pattern: /recoverTaskActions$/, source: 'export const reopenRecoverableNode=()=>{};' },

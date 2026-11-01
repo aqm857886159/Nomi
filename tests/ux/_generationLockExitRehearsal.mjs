@@ -1,3 +1,4 @@
+import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect } from '@playwright/test'
@@ -29,7 +30,7 @@ export async function runLockExitRehearsal(locale = 'zh-CN', journey = generatio
         NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: proxy.origin }, { from: fixture.baseURL, to: proxy.origin }]) },
       initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' }, args: ['--no-proxy-server'] })
     app = started.app; page = started.win
-    page.setDefaultTimeout(45_000)
+    page.setDefaultTimeout(stationTimeout({ operations: 3 }))
     return page
   }
   let failure, report

@@ -45,7 +45,6 @@
     "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
     "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
     "src/workbench/generationCanvas/nodes/NodeFailureReport.tsx",
-    "src/workbench/generationCanvas/nodes/useUnknownSubmissionRelease.tsx",
     "src/workbench/generationCanvas/runner/generationRunController.ts",
     "src/workbench/generationCanvas/store/canvasAutoReference.ts",
     "src/workbench/observability/classifyError.ts",
@@ -706,7 +705,7 @@
     },
     {
       "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/useUnknownSubmissionRelease.tsx",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
       "symbol": "useUnknownSubmissionRelease"
     },
     {
@@ -1221,17 +1220,17 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/useUnknownSubmissionRelease.tsx",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
       "symbol": "releaseUnknownSubmissionForNode"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/useUnknownSubmissionRelease.tsx",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
       "symbol": "releaseUnknownCanvasSubmissionsForNode"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/useUnknownSubmissionRelease.tsx",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
       "symbol": "confirmAndRunNode"
     },
     {
@@ -1348,11 +1347,26 @@
       "kind": "read",
       "path": "electron/preload/runtimeBridge.ts",
       "symbol": "canvasUnknownRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "isGenerationNodeBusy"
     }
   ],
   "door_reduction": {
     "before": 13,
-    "after": 255,
+    "after": 258,
     "why_not": "三页和 Agent 的入口保留；重复方案快照、重复失败动作判断及列表原文显示已替换为共享 owner。门的文件数不等于判据份数。"
   },
   "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。",
@@ -1413,7 +1427,7 @@
       "src/workbench/generationCanvas/runner/generationRunController.ts",
       "src/workbench/observability/generationFailureActions.ts",
       "src/workbench/generationCanvas/nodes/NodeFailureReport.tsx",
-      "src/workbench/generationCanvas/nodes/useUnknownSubmissionRelease.tsx"
+      "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx"
     ]
   },
   "regression_tests": [

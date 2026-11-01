@@ -1,3 +1,4 @@
+import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import assert from 'node:assert/strict'
@@ -10,7 +11,7 @@ import { uiText } from './full-walk/invariants.mjs'
 export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-unknown-runs', 'This shot changed, so it was not submitted']
 export const LOCK_EXIT_SCRIPT = '清晨，林薇在旧书店找到一封信。她走到窗边，最后把信放在桌上。'
 const dialog = '[data-spend-confirm-dialog]'
-const timeout = 90_000
+const timeout = stationTimeout({ turns: 1 })
 
 export function lockExitDraft(candidate) {
   return [

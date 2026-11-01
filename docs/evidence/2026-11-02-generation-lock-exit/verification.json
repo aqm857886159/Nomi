@@ -1,7 +1,7 @@
 {
   "status": "partial",
   "network": "fake providers only; NOMI_TEST_NETWORK_GUARD=1; isolated offscreen Electron",
-  "build": "build-delivery.exit (private execution receipt); rerun after final merge",
+  "build": "owner-build.exit=0; typecheck owner-types.exit=0; final validation is listed in the private report",
   "baseline": {
     "sha": "31e80bbd362bd15af441e2e4b5c8e1c6a8c5a11f",
     "freeRehearsal": "failed",
@@ -58,7 +58,8 @@
         "tests/ux/shots/generation-lock-exit/zh-CN-storyboard-anchor-released-result.png",
         "tests/ux/shots/generation-lock-exit/zh-CN-canvas-release-confirm.png",
         "tests/ux/shots/generation-lock-exit/zh-CN-canvas-released-result.png"
-      ]
+      ],
+      "screenshotRevision": "54bcef6de"
     },
     {
       "journey": "list-entry",
@@ -80,7 +81,8 @@
         "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
         "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
         "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png"
-      ]
+      ],
+      "screenshotRevision": "54bcef6de"
     },
     {
       "journey": "three-pages",
@@ -128,7 +130,8 @@
         "tests/ux/shots/generation-lock-exit/en-storyboard-anchor-released-result.png",
         "tests/ux/shots/generation-lock-exit/en-canvas-release-confirm.png",
         "tests/ux/shots/generation-lock-exit/en-canvas-released-result.png"
-      ]
+      ],
+      "screenshotRevision": "54bcef6de"
     },
     {
       "journey": "list-entry",
@@ -144,6 +147,51 @@
       "maxWindowResponseMs": 53,
       "heartbeatSamples": 32,
       "blocked": [],
+      "screenshots": [
+        "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
+        "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
+        "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
+        "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
+        "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png"
+      ],
+      "screenshotRevision": "54bcef6de"
+    },
+    {
+      "journey": "list-entry-after-owner-reuse",
+      "language": "zh-CN",
+      "status": "passed",
+      "processExit": 0,
+      "checks": {
+        "listHeaderOncePerNode": true,
+        "classifiedSmallCard": true,
+        "actualQueue": true
+      },
+      "imagePosts": 6,
+      "forwarded": 5,
+      "maxWindowResponseMs": 146,
+      "heartbeatSamples": 23,
+      "screenshots": [
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
+        "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png"
+      ]
+    },
+    {
+      "journey": "list-entry-after-owner-reuse",
+      "language": "en",
+      "status": "passed",
+      "processExit": 0,
+      "checks": {
+        "listHeaderOncePerNode": true,
+        "classifiedSmallCard": true,
+        "actualQueue": true
+      },
+      "imagePosts": 6,
+      "forwarded": 5,
+      "maxWindowResponseMs": 324,
+      "heartbeatSamples": 32,
       "screenshots": [
         "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
         "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
@@ -488,35 +536,35 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
-      "sha256": "9877759cc818c99b8ca914d87f1d5dbe013eb6f8cb08d210d0743affb5390813",
+      "sha256": "1e31fb707eef217c545317307211ff193b8fc1966fe91c41f7e236206f662ef3",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
-      "sha256": "0f92ecc7a9836bd329c54d23dd1430dc9c3ebf5207d83339f0ebbaed5e0c2a0a",
+      "sha256": "66f84dbc82cf87b30a1a851e9b7388f6ea7ac8e4d042e4eef04927744827a6c3",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
-      "sha256": "4dc3178f063dacb4d2ea41416cc5db33b65376573c2595967c2687b23315e825",
+      "sha256": "a3c3c696edf8d7f4628948cc6e767d2f02234b570d770a87397e37dc1759533b",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
-      "sha256": "4762cf8e3197c7ad456d13f74f3907a62d6fbdcedccecf02bbc8cbf04aefa2ab",
+      "sha256": "b253dd3c76c8b5403c4c2d85e2d040d04df0e44e6cd8a82b37f84f91fbe0c030",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png",
-      "sha256": "493136b4f9ac0d0195a09a8cb5bbeb500891abca0cce6a2ec23789a57cbba09a",
+      "sha256": "efa47138d7bb94f3ce68e637beab0169bb4003cfca4adb28f69a9b1905c8cf09",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
@@ -677,35 +725,35 @@
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
-      "sha256": "ae37eba2576fc28cf1d0287b3b29b8e8c8e11cd98e1a6a0b04a04823d757debb",
+      "sha256": "8f56e4c0c80dc8cb0a208e4a139caeaa601cf0194a27dcc3384dcdbe1f961cac",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
-      "sha256": "3f151820f144db979f1a466c9b07801640f7ec3875c66dbeb737342e8fa530f0",
+      "sha256": "2e52aac4bb9ec361ce4f9b78b695e9191c811ffd8b02d83900c94f872cf088ae",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
-      "sha256": "34a9d332ccd63c9dc9d2aebcb12349ca30bbdd73b5ec8c9cb7560f8fa4c2e55f",
+      "sha256": "c6ac5e9d43eeb0a2847e373c36f7dfe60fe4651e7b904650efdec09c93aef1d8",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
-      "sha256": "d4f04608edd9def2daa06bbaa58a79c8434c36c8c6bab3675089000ea0e89f96",
+      "sha256": "f3b33630bb6bc809aec74113924653c00c02e15ec9e631823253ec2dcbd97841",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png",
-      "sha256": "9289386966fafee3a701cdd2ccac368d43021a43509cba2520fbe54e5c32236f",
+      "sha256": "7c49e4443309e754ddb5b5ac9f57442be68f0ad78f9c3419498bf3493c4c30a0",
       "reviewed": true,
       "supportsClaim": true,
       "limit": "independent list entry, quota and queue only"
@@ -718,5 +766,17 @@
     "Three fixed free-rehearsal attempts failed in setup and have been stopped under the agreed rule.",
     "The four-stage paid entry is fail-closed and must not be used for billing.",
     "The escape entry remains candidate; independent acceptance, Windows and real billing are unverified."
-  ]
+  ],
+  "followUp": {
+    "releaseStateOwner": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "deletedStandaloneHook": true,
+    "waitSafetyCeiling": "existing stationTimeout; completion remains DOM/persisted state/HTTP counts",
+    "browserRetryFixture": "unused release port moved to the new owner path; retry logic and decision remain real",
+    "c4Mutation": {
+      "exit": 1,
+      "shaBefore": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
+      "shaRestored": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
+      "restoredByteForByte": true
+    }
+  }
 }

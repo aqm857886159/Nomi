@@ -1,3 +1,4 @@
+import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import assert from 'node:assert/strict'
@@ -61,7 +62,7 @@ export async function listEntryLockExitJourney(input) {
     await queued.click()
     await expect(page.locator(`[data-list-detail-row="${queuedId}"]`)).toContainText(t('generationCommon.observability.progress.queued'))
     await shot('list-rail-queued-readable')
-    await expect.poll(async () => (await nodes()).filter(n => n.meta?.shotId && n.status === 'success').length, { timeout: 90000 }).toBe(3)
+    await expect.poll(async () => (await nodes()).filter(n => n.meta?.shotId && n.status === 'success').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(3)
     assert.equal(proxy.records.length, 6)
     report.checks.actualQueue = true
     report.imagesForwarded = proxy.records.filter(r => r.forwarded).length

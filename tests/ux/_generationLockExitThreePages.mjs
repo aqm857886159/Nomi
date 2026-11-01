@@ -1,3 +1,4 @@
+import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import assert from 'node:assert/strict'
@@ -46,7 +47,7 @@ export async function threePageLockExitJourney(input) {
     const railText = await page.locator(`[data-list-detail-row="${last.id}"]`).innerText()
     assert.ok(railText.includes(t('generationCommon.observability.progress.queued')), 'E4: the narrow rail reads the actual queue')
     await openStoryboardEditor(page, design.id); await shot('queue-storyboard')
-    await expect.poll(async () => (await nodes()).filter(n => bound.some(b => b.id === n.id) && n.status === 'success').length, { timeout: 90000 }).toBe(5)
+    await expect.poll(async () => (await nodes()).filter(n => bound.some(b => b.id === n.id) && n.status === 'success').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(5)
     report.checks.queue = true
     assert.equal(proxy.records.filter(r => r.forwarded).length, 5)
 
@@ -55,7 +56,7 @@ export async function threePageLockExitJourney(input) {
     const checks = page.locator(`${dialog} input[type="checkbox"]`)
     for (const checkbox of await checks.all()) if (!(await checkbox.isDisabled())) await checkbox.check()
     await confirm()
-    await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length, { timeout: 90000 }).toBe(3)
+    await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(3)
     const failed = (await nodes()).find(n => n.status === 'error' && n.meta?.shotId)
     assert.ok(failed)
     await canvas(failed.id); await shot('429-canvas')
@@ -74,7 +75,7 @@ export async function threePageLockExitJourney(input) {
 
     await canvas(failed.id)
     proxy.dropNextReply(); await submit()
-    await expect.poll(async () => (await nodes()).find(n => n.id === failed.id)?.status, { timeout: 90000 }).toBe('error')
+    await expect.poll(async () => (await nodes()).find(n => n.id === failed.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
     await expect(page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true })).toBeVisible()
     const count = proxy.records.length
     await submit()
@@ -89,7 +90,7 @@ export async function threePageLockExitJourney(input) {
 
     const asset = bound.find(n => n.meta?.anchorId)
     await canvas(asset.id); proxy.dropNextReply(); await submit()
-    await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: 90000 }).toBe('error')
+    await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
     await openStoryboardEditor(page, design.id)
     const toggle = page.locator('[data-storyboard-anchors-toggle]')
     if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await toggle.click()
@@ -110,7 +111,7 @@ export async function threePageLockExitJourney(input) {
     await page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('list-release-confirm')
     await page.getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
-    await expect.poll(async () => (await nodes()).find(n => n.id === failed.id)?.status, { timeout: 90000 }).toBe('success')
+    await expect.poll(async () => (await nodes()).find(n => n.id === failed.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     assert.equal(proxy.records.length, count + 2)
     report.checks.releaseTargetsOriginalRun = true
     await shot('list-released-result')
@@ -120,16 +121,16 @@ export async function threePageLockExitJourney(input) {
     if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
     await page.locator(`[data-storyboard-anchor-row="${asset.meta.anchorId}"]`).getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await page.locator('[data-release-confirm]').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
-    await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: 90000 }).toBe('success')
+    await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.anchorRelease = true
     await shot('storyboard-anchor-released-result')
     const canvasNode = bound.find(n => n.meta?.shotId && n.id !== failed.id)
     await canvas(canvasNode.id); proxy.dropNextReply(); await submit()
-    await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: 90000 }).toBe('error')
+    await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
     await page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('canvas-release-confirm')
     await page.locator('[data-release-confirm]').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
-    await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: 90000 }).toBe('success')
+    await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.canvasRelease = true
     await shot('canvas-released-result')
     return report

@@ -1,7 +1,7 @@
 # 体验成绩单：批量生成锁退出：部分验收
 
 - 改动：批量生成锁退出：部分验收
-- 验收 head：`925bfdadadff60f89542e42b742252e064038e3b`（implementation was still uncommitted during these observations; this is not a release receipt）
+- 验收 head：`54bcef6de`（main implementation commit; final owner consolidation and evidence follow in the same round）
 - 场景 id：`browse-away-during-long-task`
 - 谁验：Codex implementation（self-check; not independent acceptance）
 - 日期：2026-11-02
@@ -12,7 +12,7 @@
 
 ## 结果
 
-- 机器：完成 **2 / 12**（失败 10 条，原样列在下表，不丢）
+- 机器：完成 **4 / 14**（失败 10 条，原样列在下表，不丢）
 - 首次尝试成功：null（未采集：需要真人首次操作，AI 不代填）
 
 | 尝试 | 结果 | 说明 | 证据 |
@@ -29,6 +29,8 @@
 | three pages 3 en | **失败** | nine functional checks passed but confirmation remained missing |  |
 | independent list entry zh-CN | 通过 | Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task. |  |
 | independent list entry en | 通过 | Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task. |  |
+| list entry after owner reuse zh-CN | 通过 | all three functional checks; process exit zero |  |
+| list entry after owner reuse en | 通过 | all three functional checks; process exit zero |  |
 
 ## 机器测的
 
@@ -39,8 +41,8 @@
 | --- | --- | --- | --- | --- | --- |
 | 完整分镜资产与镜头 POST | 2 → null | requests | 1 | 未采 | baseline expected five; fixed full rehearsal stopped after three setup failures |
 | 独立列表入口每语言 POST | null → 6 | requests | 2 | 脚本计数（真事件，非采集器） | three initial requests (one rejected), then three serial requests; five forwarded |
-| 列表中文窗口响应最长等待 | null → 49 | ms | 31 | 脚本计数（真事件，非采集器） | one-second probes; only this independent list journey |
-| 列表英文窗口响应最长等待 | null → 53 | ms | 32 | 脚本计数（真事件，非采集器） | one-second probes; only this independent list journey |
+| 列表中文窗口响应最长等待 | null → 146 | ms | 23 | 脚本计数（真事件，非采集器） | latest independent list replay, one-second probes; first observation was 49ms/31 samples |
+| 列表英文窗口响应最长等待 | null → 324 | ms | 32 | 脚本计数（真事件，非采集器） | latest independent list replay, one-second probes; first observation was 53ms/32 samples |
 | 合同要求的单卡付费确认 | null → 0 | dialogs | 2 | 脚本计数（真事件，非采集器） | both languages follow the existing skip-confirmation policy |
 
 ## 真人给的（和上面分开记）

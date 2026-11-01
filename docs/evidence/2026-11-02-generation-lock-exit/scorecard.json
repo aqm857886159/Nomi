@@ -2,8 +2,8 @@
   "version": 1,
   "change": {
     "title": "批量生成锁退出：部分验收",
-    "headSha": "925bfdadadff60f89542e42b742252e064038e3b",
-    "headNote": "implementation was still uncommitted during these observations; this is not a release receipt",
+    "headSha": "54bcef6de",
+    "headNote": "main implementation commit; final owner consolidation and evidence follow in the same round",
     "userCan": "列表批量入口可派发，三页可显示并释放未知结果；合同要求的完整付费确认闭环未完成。",
     "changed": [
       "三页共享失败判据和恢复面",
@@ -90,6 +90,16 @@
         "label": "independent list entry en",
         "result": "pass",
         "note": "Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task."
+      },
+      {
+        "label": "list entry after owner reuse zh-CN",
+        "result": "pass",
+        "note": "all three functional checks; process exit zero"
+      },
+      {
+        "label": "list entry after owner reuse en",
+        "result": "pass",
+        "note": "all three functional checks; process exit zero"
       }
     ],
     "metrics": [
@@ -115,19 +125,19 @@
         "name": "列表中文窗口响应最长等待",
         "unit": "ms",
         "baseline": null,
-        "current": 49,
-        "n": 31,
+        "current": 146,
+        "n": 23,
         "basis": "script-count",
-        "note": "one-second probes; only this independent list journey"
+        "note": "latest independent list replay, one-second probes; first observation was 49ms/31 samples"
       },
       {
         "name": "列表英文窗口响应最长等待",
         "unit": "ms",
         "baseline": null,
-        "current": 53,
+        "current": 324,
         "n": 32,
         "basis": "script-count",
-        "note": "one-second probes; only this independent list journey"
+        "note": "latest independent list replay, one-second probes; first observation was 53ms/32 samples"
       },
       {
         "name": "合同要求的单卡付费确认",

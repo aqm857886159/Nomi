@@ -130,3 +130,7 @@
 动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
 提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
 ```
+
+### 收尾的删除
+
+抽出的 useUnknownSubmissionRelease 文件触发通用 hook 登记。放行状态原本就在 NodeErrorReport 内，最终回到这个已有 owner，并导出同一动作和确认条供分镜共用；删除新 hook 文件，不新登记一项通用能力。没有改自写表、门岗或白名单。私有走查超时换为现有 stationTimeout 的安全上限，完成条件仍是 DOM、落盘状态或请求计数。
