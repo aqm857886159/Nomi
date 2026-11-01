@@ -29,7 +29,7 @@ let root
 let relay
 beforeEach(() => {
   root = makeTempDir('relay-onboarding-')
-  vi.stubEnv('NOMI_SETTINGS_DIR', root)
+  vi.stubEnv('NOMI_SETTINGS_DIR', path.join(root, 'settings'))
   vi.stubEnv('NOMI_PROJECTS_DIR', path.join(root, 'projects'))
 })
 afterEach(async () => { await relay?.close(); relay = undefined; fs.rmSync(root, { recursive: true, force: true }); vi.unstubAllEnvs() })
