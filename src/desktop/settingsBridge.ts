@@ -8,6 +8,8 @@ export type DesktopProjectLocationError =
   | 'not-writable'
   | 'open-failed'
   | 'managed-by-environment'
+  | 'inside-app'
+  | 'missing'
 
 export type DesktopProjectLocationResult =
   | { ok: true; location: DesktopProjectLocation; canceled?: boolean }

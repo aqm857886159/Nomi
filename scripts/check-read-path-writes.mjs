@@ -17,6 +17,7 @@
  * （`setX` / `commitX`），让调用方看得见自己在改盘。
  *
  * 用法：node scripts/check-read-path-writes.mjs
+ *       node scripts/check-read-path-writes.mjs --root=<目录> --baseline=<文件>   （反例测试用：对一份夹具树跑同一套判据）
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -24,14 +25,21 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const BASELINE = path.join(repoRoot, 'scripts', 'read-path-writes-baseline.json')
+const argValue = (name) => process.argv.slice(2).find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3)
+const repoRoot = path.resolve(argValue('root') ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '..'))
+const BASELINE = path.resolve(argValue('baseline') ?? path.join(repoRoot, 'scripts', 'read-path-writes-baseline.json'))
 const rel = (file) => path.relative(repoRoot, file).split(path.sep).join('/')
 
 /**
- * 写盘门 —— **刻意只有这三个**（审计 §3 的分类）：
+ * 写盘门 —— **刻意只有这几个**（审计 §3 的分类）：
  *   · `atomicWrite`：宿主配置（`~/.claude.json` 这类**别人的**文件）的唯一门；
  *   · `writeConnectorPrefs`：connector 偏好（用户在高级设置里调的那些）的唯一门；
+ *   · 「项目在哪」的登记写（2026-10-29 收敛单，docs/plan/2026-10-29-project-location-owner.md）：
+ *     `removeWorkspaceReference`（摘登记 = 项目从库里消失）、`bindWorkspaceLocation` / `bindWorkspaceLocations`（写登记）、
+ *     `backfillWorkspaceOrigins`（冻结来源）。06-14 起 `listProjects` 凭「文件夹不在」推断「用户删了」就摘登记，
+ *     升级清掉安装目录后整库项目没了——当时这里只认三个门，那条摘登记在门岗上是绿的；
+ *   · `ensureDir`：读路径建目录（同一收敛单）。`legacyProjectDirById` / 设置「检查」「打开」先把默认根建出来，
+ *     列表随后把整库灰卡当成「用户删了」。建目录只许发生在用户选位置、新建项目这类显式动作里；
  *   · `deleteWorkspaceProject`：删项目目录的销毁门（2026-10-22 V-plibrary N1）。空白草稿回收曾挂在
  *     `listProjects` 上，列举是异步的，期间排队等锁的保存被它删掉。删项目只许由用户的删除动作触发，
  *     任何 list / read / resolve / get 能走到它即红——这是**门岗自动拦**，不是结构上做不出来：
@@ -47,9 +55,15 @@ const rel = (file) => path.relative(repoRoot, file).split(path.sep).join('/')
  * 这条门岗管的是一件很窄但很具体的事：**名字说「我只算答案」的函数，不许改用户的设置**。
  * 范围窄不是妥协——一条拦得住、没人想关掉的规则，比一条报 200 行然后被加进豁免名单的规则有用。
  */
-const READ_PATH_WRITE_DOORS = new Set(['atomicWrite', 'writeConnectorPrefs', 'deleteWorkspaceProject'])
-/** 名字承诺「我不改东西」的前缀。 */
-const READ_PREFIX = /^(read|resolve|list|get)[A-Z]/
+const READ_PATH_WRITE_DOORS = new Set([
+  'atomicWrite', 'writeConnectorPrefs', 'deleteWorkspaceProject',
+  'removeWorkspaceReference', 'bindWorkspaceLocation', 'bindWorkspaceLocations', 'backfillWorkspaceOrigins', 'ensureDir',
+])
+/**
+ * 名字承诺「我不改东西」的前缀。`check` / `reveal` / `locate` 是「项目在哪」收敛单加的：设置「检查目录」「打开位置」、
+ * 「项目在哪」的读函数都只许看，不许建、不许摘。
+ */
+const READ_PREFIX = /^(read|resolve|list|get|check|reveal|locate)[A-Z]/
 
 function walk(root, out = []) {
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
@@ -113,43 +127,55 @@ function targetsFor(callee, fromSite) {
 }
 
 /** 这个 site 能不能走到某个写盘门；返回那条路径。 */
-function reachesWriteDoor(site, seen = new Set()) {
+/** 这个 site 能不能走到 doors 里的某个门；返回那条路径。 */
+function reachesWriteDoor(site, doors, seen = new Set()) {
   if (seen.has(site)) return null
   seen.add(site)
   const entry = callsOf.get(site)
   if (!entry) return null
   for (const callee of entry.callees) {
-    if (READ_PATH_WRITE_DOORS.has(callee)) return [site, callee]
+    if (doors.has(callee)) return [site, callee]
   }
   for (const callee of entry.callees) {
     for (const next of targetsFor(callee, site)) {
-      const deeper = reachesWriteDoor(next, seen)
+      const deeper = reachesWriteDoor(next, doors, seen)
       if (deeper) return [site, ...deeper]
     }
   }
   return null
 }
 
+/**
+ * 按「site × 门」逐对记：登记是对一对说的，不是对一个 site 说的。登记过「listProjects 经启动发现写登记」不等于
+ * 也允许它摘登记——往一个已登记的 site 里加一扇新门照样红（收敛单反例测试）。
+ */
 const found = []
 for (const [site, entry] of callsOf) {
   if (!READ_PREFIX.test(entry.fn)) continue
-  const chain = reachesWriteDoor(site)
-  if (chain) found.push({ site, chain: chain.join(' → ') })
+  for (const door of READ_PATH_WRITE_DOORS) {
+    const chain = reachesWriteDoor(site, new Set([door]))
+    if (chain) found.push({ site, door, chain: chain.join(' → ') })
+  }
 }
-found.sort((left, right) => left.site.localeCompare(right.site))
+found.sort((left, right) => left.site.localeCompare(right.site) || left.door.localeCompare(right.door))
 
+const pairKey = (entry) => `${entry.site} ⇢ ${entry.door}`
 const baseline = fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')) : { registered: [] }
-const registered = new Map(baseline.registered.map((entry) => [entry.site, entry]))
+const registered = new Map(baseline.registered.map((entry) => [pairKey(entry), entry]))
 const failures = []
+for (const entry of baseline.registered) {
+  if (typeof entry.why !== 'string' || entry.why.trim().length < 8) failures.push(`${pairKey(entry)}: 登记要写明它凭什么是读路径的一部分（why）`)
+}
 for (const entry of found) {
-  if (!registered.has(entry.site)) {
-    failures.push(`${entry.site}: 名字承诺「只是算出答案」，实际能走到写盘门（${entry.chain}）。`
+  if (!registered.has(pairKey(entry))) {
+    failures.push(`${entry.site}: 名字承诺「只是算出答案」，实际能走到写盘门 ${entry.door}（${entry.chain}）。`
       + `把写的那一半挪进用户显式动作（setX / commitX），或登记并写明它凭什么是读路径的一部分。`)
   }
 }
-for (const site of registered.keys()) {
-  if (!found.some((entry) => entry.site === site)) {
-    failures.push(`${site}: 登记在案但已经不可达写盘门（收敛掉了就把这条删掉——棘轮只减不增）`)
+const foundKeys = new Set(found.map(pairKey))
+for (const key of registered.keys()) {
+  if (!foundKeys.has(key)) {
+    failures.push(`${key}: 登记在案但已经不可达这扇写盘门（收敛掉了就把这条删掉——棘轮只减不增）`)
   }
 }
 

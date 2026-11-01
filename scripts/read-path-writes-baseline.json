@@ -1,1 +1,49 @@
-{"registered": []}
+{
+  "registered": [
+    {
+      "site": "electron/projects/repository.ts::listProjects",
+      "door": "bindWorkspaceLocations",
+      "why": "启动对账（discoverLegacyProjectsOnce，每进程每个默认根一次）登记默认根里新出现的项目文件夹，登记路径是扫到的目录本身，副本跳过。「项目在哪」收敛单第二刀（删除清单第 8 条，0.24.2）把它挪进 app ready 时的显式对账后删掉这条。"
+    },
+    {
+      "site": "electron/projects/repository.ts::listProjects",
+      "door": "backfillWorkspaceOrigins",
+      "why": "经 listWorkspaceProjects 给没有来源字段的老登记冻结一次来源（只补不改）。收敛单第二刀（删除清单第 8 条）挪进启动对账后删掉。"
+    },
+    {
+      "site": "electron/capabilityCore/core.ts::listAllProjects",
+      "door": "bindWorkspaceLocations",
+      "why": "MCP 项目列表经 listProjects 走到同一次启动对账，理由同 listProjects 那条；第二刀一起删。"
+    },
+    {
+      "site": "electron/capabilityCore/core.ts::listAllProjects",
+      "door": "backfillWorkspaceOrigins",
+      "why": "MCP 项目列表经 listProjects 走到同一次来源冻结，理由同上；第二刀一起删。"
+    },
+    {
+      "site": "electron/workspace/workspaceRepository.ts::listWorkspaceProjects",
+      "door": "backfillWorkspaceOrigins",
+      "why": "列表读面给老登记冻结来源（只补没有来源字段的条目，冻结后永不重算）。收敛单第二刀（删除清单第 8 条）挪进启动对账后删掉。"
+    },
+    {
+      "site": "electron/capabilityCore/approvalReceiptRuntime.ts::getApprovalReceiptAuthority",
+      "door": "ensureDir",
+      "why": "取签名钥匙时在能力目录（应用自己的数据区）里按需建目录、生成一次钥匙，幂等；不是用户的项目或设置，不涉及项目位置。"
+    },
+    {
+      "site": "electron/productionRun/productionRunRuntime.ts::getProductionRunService",
+      "door": "ensureDir",
+      "why": "经 getApprovalReceiptAuthority 按需生成能力签名钥匙，理由同上。"
+    },
+    {
+      "site": "electron/capabilityCore/readTask.ts::readTask",
+      "door": "ensureDir",
+      "why": "取任务结果时把产物落进已登记项目文件夹里的素材子目录（项目内容落盘，按 id 先解析出存在的项目文件夹再建子目录），不建项目根、不碰登记；归项目内容落盘的门表管，不是「项目在哪」。"
+    },
+    {
+      "site": "electron/tasks/taskResultQuery.ts::readResult",
+      "door": "ensureDir",
+      "why": "把远端结果本地化进已登记项目文件夹的素材子目录，理由同 readTask 那条。"
+    }
+  ]
+}

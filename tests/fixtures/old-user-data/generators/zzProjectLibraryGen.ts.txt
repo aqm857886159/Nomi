@@ -1,0 +1,103 @@
+// 在 0.24.0 / 0.20.0 的源码导出里跑（README 里"怎么给一个新版本补一份目录"）：用那个版本**自己的真实函数**——
+// 项目 createProject（含它当时的登记写入 rememberWorkspace）和设置 writeProjectsRoot——落一份"老用户的项目库"：
+//   设置目录 userData/（recent-workspaces.json、project-location.json）+ 三个项目文件夹。输出目录由 V_OUT 给。
+// 放到导出里的 electron/projects/zzProjectLibraryGen.test.ts，去掉 .txt。这里存成 .ts.txt，是为了不被本仓的测试和类型检查收进去。
+//
+// 假的只有 electron 的目录接口（userData / documents 指到一个临时根）。落盘、登记、清单、项目文件夹都是那个版本的真函数。
+// 老用户的故事（0.24.0 允许默认位置设在应用数据目录里）：
+//   1. 默认位置还是「文稿/Nomi Projects」时建了「文稿项目」（native）；
+//   2. 另打开了一个别处的文件夹「外部项目」（folder，在默认位置外）；
+//   3. 然后把「新项目默认位置」设到应用数据目录下面（userData/Nomi Projects），又建了「应用目录项目」（native）。
+// 最终设置就停在第 3 步：默认位置在应用数据目录里。绝对路径落盘后统一换成占位符 __OLD_USER_ROOT__（测试拷出去时换回来）。
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { createProject } from "./repository";
+import { writeProjectsRoot } from "../settings/projectLocationSettings";
+
+const ROOT = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-library-gen-")));
+const userData = path.join(ROOT, "userData");
+const documents = path.join(ROOT, "home", "Documents");
+vi.mock("electron", () => ({
+  app: {
+    isPackaged: false,
+    getPath: (name: string) => (name === "documents" ? documents : userData),
+    getAppPath: () => process.cwd(),
+    getName: () => "Nomi",
+    getVersion: () => "0.0.0",
+    on: () => undefined,
+  },
+}));
+
+afterAll(() => {
+  fs.rmSync(ROOT, { recursive: true, force: true });
+});
+
+const OUT = String(process.env.V_OUT || "").trim();
+const RELEASE = String(process.env.V_RELEASE || "").trim();
+const PLACEHOLDER = "__OLD_USER_ROOT__";
+
+function copyWithPlaceholder(from: string, to: string): void {
+  fs.mkdirSync(to, { recursive: true });
+  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+    const source = path.join(from, entry.name);
+    const target = path.join(to, entry.name);
+    if (entry.isDirectory()) {
+      copyWithPlaceholder(source, target);
+      continue;
+    }
+    // 清单、登记、设置全是文本。不带两样：锁文件（临时物）；同步基线 workspace-sync-baseline.json（它存的是清单内容的哈希，
+    // 而清单里写着这台机器的绝对路径——换了根目录它就对不上，只会在项目库里凭空报"另一台电脑改过"。基线只是缓存，缺了是正常状态）。
+    if (entry.name.endsWith(".lock") || entry.name === "workspace-sync-baseline.json") continue;
+    fs.writeFileSync(target, fs.readFileSync(source, "utf8").split(ROOT).join(PLACEHOLDER));
+  }
+}
+
+describe("zzProjectLibraryGen", () => {
+  it("lands an old user's project library with the release's real createProject and settings writer", () => {
+    expect(OUT, "V_OUT must name the output directory").not.toBe("");
+    expect(RELEASE, "V_RELEASE must name the release the sources were exported from").not.toBe("");
+    delete process.env.NOMI_SETTINGS_DIR; // 设置根 = userData，和打包后的真实情形一样
+    delete process.env.NOMI_PROJECTS_DIR;
+    fs.mkdirSync(userData, { recursive: true });
+
+    // 1. 默认位置是出厂的「文稿/Nomi Projects」。
+    const docs = createProject({ name: "Docs Project", payload: { marker: "old-user-docs-project" } });
+    // 2. 默认位置外的一个文件夹。
+    const externalRoot = path.join(ROOT, "home", "Elsewhere", "External Project");
+    const external = createProject({ rootPath: externalRoot, name: "External Project", payload: { marker: "old-user-external-project" } });
+    // 3. 把默认位置设到应用数据目录里（0.24.0 没有任何拦截），再建一个。
+    const appDataRoot = path.join(userData, "Nomi Projects");
+    writeProjectsRoot(appDataRoot);
+    const inApp = createProject({ name: "App Data Project", payload: { marker: "old-user-app-data-project" } });
+
+    expect(fs.existsSync(path.join(userData, "recent-workspaces.json"))).toBe(true);
+    expect(fs.existsSync(path.join(userData, "project-location.json"))).toBe(true);
+
+    copyWithPlaceholder(ROOT, OUT);
+    const rel = (target: string): string => path.relative(ROOT, target).split(path.sep).join("/");
+    const rootOf = (project: { id: string }): string => {
+      const registry = JSON.parse(fs.readFileSync(path.join(userData, "recent-workspaces.json"), "utf8")) as Array<{ id: string; rootPath: string }>;
+      return rel(registry.find((entry) => entry.id === project.id)!.rootPath);
+    };
+    fs.writeFileSync(
+      path.join(OUT, "manifest.json"),
+      `${JSON.stringify(
+        {
+          release: RELEASE,
+          placeholder: PLACEHOLDER,
+          settingsDir: "userData",
+          defaultLocation: rel(appDataRoot),
+          projects: {
+            docs: { id: docs.id, name: docs.name, folder: rootOf(docs), marker: "old-user-docs-project", role: "native，建在当时的默认位置「文稿/Nomi Projects」里（现在已不是默认位置）" },
+            external: { id: external.id, name: external.name, folder: rootOf(external), marker: "old-user-external-project", role: "folder，默认位置外的别处文件夹" },
+            appData: { id: inApp.id, name: inApp.name, folder: rootOf(inApp), marker: "old-user-app-data-project", role: "native，在应用数据目录下面，也是现在的默认位置里" },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+  });
+});

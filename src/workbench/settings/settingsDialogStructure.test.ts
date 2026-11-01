@@ -56,7 +56,13 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 const APPROVED_NON_MODEL_SECTION_SHA256 = {
   // 2026-09-04：检查反馈 tone 改为从公共 toast 函数参数推导，避免重复词表 owner。
   // 2026-09-09：目录操作错误回现有status；保留共享tone类型，正向回归见下方local feedback。
-  'ProjectLocationSection.tsx': '8859c5bd425d82b8880c26d89218e36c274b1a7d6003b00a3e64de39bb535689',
+  // 2026-10-29（「项目在哪」收敛单，用户批准的不变量 ④：每个入口拒绝 Nomi 自己的目录）：错误映射表加
+  //             inside-app / missing 两类，仍走原有的状态行；布局与其它文案一个字没动。
+  //             正向断言见下方 maps the app-owned and missing location errors to their own copy。
+  // 2026-11-01（「项目在哪」收敛单第二轮，协调会话批准）：底部那行反馈在出错时改用危险色（被拒的位置原来和"检查通过"
+  //             同一档灰字，读起来像没事）；其余状态仍是原来的灰。只改这一行的类名并引入 `cn`，布局与文案一个字没动。
+  //             正向断言见下方 paints a rejected location line in the danger colour。
+  'ProjectLocationSection.tsx': 'a30e3767fcecb5fdbad9fe166f7b66c092327df82dc4dc94da139fdbe3d03dcc',
   // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
   // B4: user explicitly removed the global budget setting; the positive absence assertion is below.
   // 2026-09-14：删「默认模型策略」整栏（说明文字 + 161 个白名单复选框 + 深链聚焦）；已接入即放行。
@@ -144,6 +150,22 @@ describe('settings dialog structure', () => {
     expect(projectLocationSource).toContain('https://www.verysync.com/')
     expect(projectLocationSource).toContain('https://www.jianguoyun.com/s/downloads')
     expect(settingsSource).not.toContain('settings.file.autoSave')
+  })
+
+  // 2026-10-29：位置落在 Nomi 自己的目录里（升级 / 卸载会清掉）、位置不存在（检查与「打开位置」不再替用户建）
+  // 各有一句说清为什么、去哪改的话；退回通用的「未知错误」不会让任何快照变红。
+  it('maps the app-owned and missing location errors to their own copy', () => {
+    expect(projectLocationSource).toContain("'inside-app': 'settings.file.projectLocationErrorInsideApp'")
+    expect(projectLocationSource).toContain("missing: 'settings.file.projectLocationErrorMissing'")
+  })
+
+  // 2026-11-01：被拒的位置那一行要读起来是"出事了"——危险色只给 tone === 'error'，其余（空闲 / 检查中 / 通过）仍是原来的灰。
+  // 退回成一种固定的灰不会让任何快照变红，所以锁住这条表达式本身。
+  it('paints a rejected location line in the danger colour', () => {
+    expect(projectLocationSource).toContain("import { cn } from '../../utils/cn'")
+    expect(projectLocationSource).toContain(
+      "className={cn('mt-2 text-caption', checkFeedback?.tone === 'error' ? 'text-workbench-danger' : 'text-nomi-ink-60')}",
+    )
   })
 
   it('keeps directory failures in the visible status beside retry controls', () => {

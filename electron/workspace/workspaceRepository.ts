@@ -15,11 +15,13 @@ import {
   withWorkspaceManifestStagedMutation,
 } from "./workspaceManifest";
 import {
+  assertWorkspaceFolderBindable,
   backfillWorkspaceOrigins,
+  bindWorkspaceLocation,
   findRecentWorkspace,
   listRecentWorkspaces,
   listRecentWorkspacesAsync,
-  rememberWorkspace,
+  readWorkspaceFolderProjectId,
   removeWorkspaceReference,
 } from "./workspaceRegistry";
 import {
@@ -100,8 +102,8 @@ export function recoverWorkspaceProject(projectId: string, deps: WorkspaceReposi
     throw new Error(`Workspace project is not recoverable: ${projectId}`);
   }
   const recovered = recoverWorkspaceManifest(diagnostic.rootPath, projectId, Date.now());
-  rememberWorkspace(deps.settingsRoot, recovered);
-  return recovered;
+  bindWorkspaceLocation(deps.settingsRoot, { id: recovered.id, name: recovered.name, rootPath: diagnostic.rootPath });
+  return normalizeWorkspaceProjectRecord({ ...recovered, lastKnownRootPath: diagnostic.rootPath });
 }
 
 export type { WorkspaceProjectSource } from "./workspaceTypes";
@@ -249,6 +251,10 @@ export function createWorkspaceProject(
   deps: WorkspaceRepositoryDeps,
 ): WorkspaceProjectRecordV2 {
   const rootPath = path.resolve(input.rootPath);
+  // 已经是项目的文件夹（改名 / 挪走后重开、或复制出来的副本）：往里写任何东西之前先核，撞上还在的原件就拒绝，
+  // 两个文件夹都不碰（收敛单不变量 ⑤）。
+  const existingId = readWorkspaceFolderProjectId(rootPath);
+  if (existingId) assertWorkspaceFolderBindable(deps.settingsRoot, { id: existingId, name: "", rootPath });
   const raw = asRecordInput(input.record);
   const initialized = initializeWorkspace(rootPath, {
     ...(typeof raw.id === "string" && raw.id.trim() ? { id: raw.id.trim() } : {}),
@@ -263,13 +269,14 @@ export function createWorkspaceProject(
     rootPath !== defaultRoot && rootPath.startsWith(`${defaultRoot}${path.sep}`)
       ? { source: "native", nativeRootPath: defaultRoot }
       : { source: "folder" };
-  rememberWorkspace(deps.settingsRoot, record, input.origin ?? fallbackOrigin);
+  // 登记的是用户这次打开 / 新建的目录，不是清单里创建时写下的 lastKnownRootPath（改名 / 挪走后它就是旧路径）。
+  bindWorkspaceLocation(deps.settingsRoot, { id: record.id, name: record.name, rootPath, origin: input.origin ?? fallbackOrigin });
   const manifestPath = workspaceProjectFile(rootPath);
   if (fs.existsSync(manifestPath)) {
     const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
     writeWorkspaceSyncBaseline(deps.settingsRoot, record.id, { rootPath, revision: record.revision, contentHash });
   }
-  return record;
+  return normalizeWorkspaceProjectRecord({ ...record, lastKnownRootPath: rootPath });
 }
 
 /** 项目库一次列举里，同时在飞的盘读个数上限（线程池默认 4 个线程，再多只是排队、还会和别的读盘抢）。 */
@@ -397,7 +404,7 @@ export async function saveWorkspaceProject(
     context.replaceBackup(backupCandidate);
     return context.replace(next);
   });
-  rememberWorkspace(deps.settingsRoot, written);
+  bindWorkspaceLocation(deps.settingsRoot, { id: written.id, name: written.name, rootPath: entry.rootPath });
   const manifestPath = workspaceProjectFile(entry.rootPath);
   const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
   writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash });

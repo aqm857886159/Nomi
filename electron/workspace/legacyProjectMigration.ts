@@ -146,16 +146,20 @@ function readDiscoveredManifestSummary(projectRoot: string): Omit<WorkspaceProje
   return readWorkspaceManifestSummary(projectRoot);
 }
 
+/** 启动对账扫到的一个项目文件夹。登记用扫到的目录本身，不用清单里的 lastKnownRootPath 提示（「项目在哪」收敛单）。 */
+export type DiscoveredWorkspace = { id: string; name: string; rootPath: string };
+
 /**
  * 发现 = 对 registry 缺失项的增量对账（性能根因边界一）。
  *
  * 不变量：**发现阶段只触碰 registry 里还没有的项目**。已注册目录在任何 manifest 读之前
  * 就被跳过 → 读次数 0、注册次数 0。成本正比于「新增项目数」而不是「磁盘项目数」。
+ * 扫到的 id 已经绑在另一个还在的文件夹上（副本）由登记那一步拒绝：原登记不动、副本不登记。
  */
 export function discoverLegacyProjects(
   defaultProjectsRoot: string,
   options: LegacyDiscoveryOptions = {},
-): WorkspaceProjectRecordV2[] {
+): DiscoveredWorkspace[] {
   const root = path.resolve(defaultProjectsRoot);
   if (!fs.existsSync(root)) {
     return [];
@@ -164,7 +168,7 @@ export function discoverLegacyProjects(
   // 先拿已知集合（一次 registry 读），再扫目录：任何 manifest 读之前就完成对账。
   const known = options.settingsRoot ? listRegisteredRootPaths(options.settingsRoot) : new Set<string>();
 
-  const projects: WorkspaceProjectRecordV2[] = [];
+  const projects: DiscoveredWorkspace[] = [];
   for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     if (!entry.isDirectory()) continue;
     const projectRoot = path.join(root, entry.name);
@@ -177,13 +181,13 @@ export function discoverLegacyProjects(
       if (hasWorkspaceManifest(projectRoot)) {
         const manifest = readDiscoveredManifestSummary(projectRoot);
         if (manifest) {
-          projects.push({ ...manifest, lastKnownRootPath: path.resolve(projectRoot) });
+          projects.push({ id: manifest.id, name: manifest.name, rootPath: path.resolve(projectRoot) });
         }
         continue;
       }
       const summary = readLegacyProjectSummary(projectRoot);
       if (summary) {
-        projects.push(summary);
+        projects.push({ id: summary.id, name: summary.name, rootPath: path.resolve(projectRoot) });
       }
     } catch (error) {
       logWarn("workspace", "legacy-discovery-item-unreadable", { name: entry.name }, error);
@@ -223,7 +227,7 @@ const discoveredRoots = new Set<string>();
 export function discoverLegacyProjectsOnce(
   defaultProjectsRoot: string,
   options: LegacyDiscoveryOptions = {},
-): WorkspaceProjectRecordV2[] {
+): DiscoveredWorkspace[] {
   const root = path.resolve(defaultProjectsRoot);
   if (discoveredRoots.has(root)) {
     return [];

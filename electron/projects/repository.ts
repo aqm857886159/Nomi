@@ -8,17 +8,19 @@ import path from "node:path";
 import { ensureExportDirs } from "../export/exportPaths";
 import { writeJsonFileAtomic } from "../jsonFile";
 import type { JsonRecord } from "../jsonUtils";
-import { PROJECT_FILE, ensureDir, getProjectsRoot, getWorkspaceRepositoryDeps, readJson } from "../runtimePaths";
+import { PROJECT_FILE, ensureDir, getProjectLocationState, getProjectsRoot, getWorkspaceRepositoryDeps, readJson } from "../runtimePaths";
+import { logWarn } from "../logging/logger";
 import {
   discoverLegacyProjectsOnce,
   isLegacyProjectSuppressed,
   suppressLegacyProjectRediscovery,
 } from "../workspace/legacyProjectMigration";
 import {
+  bindWorkspaceLocations,
   findRecentWorkspace,
-  rememberWorkspaces,
   removeWorkspaceReference,
 } from "../workspace/workspaceRegistry";
+import { assertUserOwnedLocation } from "../workspace/workspaceLocationPolicy";
 import { resolveWorkspaceRelativePath } from "../workspace/workspacePaths";
 import { WorkspaceManifestLockBusyError } from "../workspace/workspaceManifestLock";
 import { moveProjectFolderToTrash } from "./projectTrash";
@@ -96,8 +98,15 @@ export function normalizeProjectRecord(input: unknown): ProjectRecord {
 
 export function legacyProjectDirById(projectId: string): string | null {
   const root = getProjectsRoot();
-  ensureDir(root);
-  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+  // 只找、不建：默认根不在就是找不到（「项目在哪」收敛单第 3 条）。以前这里先 ensureDir(默认根)，升级清掉安装目录后
+  // 素材库、媒体解析、readProject 任何一次查找都把空的默认根建回来，列表随后把整库灰卡当成「用户删了」摘掉。
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const projectDir = path.join(root, entry.name);
     if (isLegacyProjectSuppressed(projectDir)) continue;
@@ -144,34 +153,21 @@ export async function listProjects(): Promise<Array<Omit<ProjectRecord, "payload
   // 「发现」legacy 项目是对 registry **缺失项**的增量对账，不是每次启动把全库重读重注册：
   // discoverLegacyProjectsOnce 拿 settingsRoot 先跳过所有已注册目录（0 次 manifest 读），
   // 只对真正的新项目走无锁快照读；随后一次批量写 registry（而不是 N 次全量重写）。
+  // 登记的是扫到的目录本身；扫到的 id 已经绑在另一个还在的文件夹上（复制出来的副本）就跳过，原登记不动。
   const discovered = discoverLegacyProjectsOnce(deps.defaultProjectsRoot, { settingsRoot: deps.settingsRoot });
-  rememberWorkspaces(
+  const { conflicts } = bindWorkspaceLocations(
     deps.settingsRoot,
-    discovered.map((record) => ({
-      record,
-      origin: { source: "native", nativeRootPath: deps.defaultProjectsRoot } as const,
-    })),
+    discovered.map((found) => ({ ...found, origin: { source: "native", nativeRootPath: deps.defaultProjectsRoot } as const })),
   );
+  for (const conflict of conflicts) logWarn("workspace", "discovery-copy-skipped", { projectId: conflict.binding.id });
   // 列举只读项目、不删项目（N1，2026-10-22）：空白草稿回收曾挂在首次列举上，列举是异步的，
   // 期间排队等锁的保存会被它删掉。列表返回所有登记过的项目，不藏也不删（读面不做展示上的取舍）；
   // 删项目只有用户点删除这一扇门（check:read-path-writes 把 deleteWorkspaceProject 列为销毁门，读路径可达即红）。
+  // 列表不摘登记（「项目在哪」收敛单第 1 条，用户 2026-10-29 批准）：文件夹找不到的项目照出 missing 卡、一直留在库里，
+  // 直到用户自己移除或重新打开那个文件夹。「文件夹不在 = 用户删了」是错的前提——改名、挪走、升级清掉安装目录、
+  // 同步盘晚挂载都是文件夹不在；06-14 起按这个前提在这里摘登记，升级后关掉再开整库项目就没了。
   const projects = await listWorkspaceProjects(deps);
-  // 自愈对齐磁盘 ↔ registry:native 项目(Nomi 自管目录,~/Documents/Nomi Projects 内)
-  // 若文件夹已不存在 = 真删(本地盘不会临时消失),从 registry 摘除引用,不再当幽灵卡片展示。
-  // 防雪崩:仅当默认根本身仍存在时才清;根整体不可访问(被移走/同步中)则全部保留,等其回归。
-  // external「打开文件夹」绑定的 missing 一律保留——外部盘/目录可能临时卸载,回来即恢复。
-  const alive = projects.filter((project) => {
-    const entry = project.missing ? findRecentWorkspace(deps.settingsRoot, project.id) : null;
-    const nativeRootExists = Boolean(
-      entry?.source === "native" && entry.nativeRootPath && fs.existsSync(entry.nativeRootPath),
-    );
-    if (project.missing && project.source === "native" && nativeRootExists) {
-      removeWorkspaceReference(deps.settingsRoot, project.id);
-      return false;
-    }
-    return true;
-  });
-  return alive.sort((a, b) => b.updatedAt - a.updatedAt);
+  return projects.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 // 「新建项目」走这里：不让渲染层指定路径，由主进程在默认根（getProjectsRoot，
@@ -179,7 +175,11 @@ export async function listProjects(): Promise<Array<Omit<ProjectRecord, "payload
 // 初始化/注册/资源落盘逻辑。这样用户「新建项目」无需每次选文件夹也能立刻开工，
 // 而「打开文件夹」仍是显式选目录（见 NomiStudioApp 的两个入口）。
 export function createDefaultProject(input: unknown): ProjectRecord {
-  const root = getProjectsRoot();
+  const location = getProjectLocationState();
+  // 默认位置在 Nomi 自己的目录里（0.24.0 允许这样设）就拒绝新建，不静默改设置、不换目录：渲染层说清为什么、去设置换。
+  // 环境变量托管的位置不判（见 workspaceLocationPolicy 文件头）。
+  if (location.source !== "environment") assertUserOwnedLocation(location.path);
+  const root = location.path;
   ensureDir(root);
   const rawName =
     input && typeof input === "object" && !Array.isArray(input) ? (input as JsonRecord).name : undefined;
@@ -199,6 +199,7 @@ export function createDefaultProject(input: unknown): ProjectRecord {
 export function createProject(input: unknown): ProjectRecord {
   const rootPath = getInputRootPath(input);
   if (rootPath) {
+    assertUserOwnedLocation(rootPath);
     return createWorkspaceProject(
       { rootPath, record: input, origin: { source: "folder" } },
       getWorkspaceRepositoryDeps(),

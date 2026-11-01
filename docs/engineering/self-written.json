@@ -179,6 +179,10 @@
       "reason": "交给画布的跨进程契约（D2 一台发动机）：付费卡上按「生成」的那几镜从制作流程交给画布单节点提交，主进程与渲染层那一问的 op 名与回话形状——按镜头花钱的领域语义"
     },
     {
+      "path": "electron/shared/contracts/projectLocation*",
+      "reason": "项目位置被拒的跨进程身份：位置在 Nomi 自己的目录里（安装目录 / 应用数据与设置根 / 系统临时目录）、打开的是另一个还在的项目文件夹的副本（带原项目名与原文件夹）——主进程各入口拒绝、渲染层项目库报错文案共读，项目目录生命周期的领域语义（「项目在哪」收敛单，2026-10-29）；放中立契约层与 projectDeleteIntent 同理：IPC 只带回错误信息文本，两边要认同一个名字；通用的 invoke 失败读法仍只有 contracts/ipcInvokeFailure 一份"
+    },
+    {
       "path": "electron/shared/decideShotClaim*",
       "reason": "镜头认领：一镜在生成的唯一判决"
     },

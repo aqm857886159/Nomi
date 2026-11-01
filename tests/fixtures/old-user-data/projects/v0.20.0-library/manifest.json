@@ -1,0 +1,29 @@
+{
+  "release": "v0.20.0",
+  "placeholder": "__OLD_USER_ROOT__",
+  "settingsDir": "userData",
+  "defaultLocation": "userData/Nomi Projects",
+  "projects": {
+    "docs": {
+      "id": "workspace-733a6b0c-76a8-4190-99db-e5038ec56c03",
+      "name": "Docs Project",
+      "folder": "home/Documents/Nomi Projects/Docs Project-mvxnu79u-d3c2c5f9",
+      "marker": "old-user-docs-project",
+      "role": "native，建在当时的默认位置「文稿/Nomi Projects」里（现在已不是默认位置）"
+    },
+    "external": {
+      "id": "workspace-71ddd13c-34c8-4f47-834b-25564ce50dd7",
+      "name": "External Project",
+      "folder": "home/Elsewhere/External Project",
+      "marker": "old-user-external-project",
+      "role": "folder，默认位置外的别处文件夹"
+    },
+    "appData": {
+      "id": "workspace-07213602-f8ce-47e2-9bec-9f37547a13cf",
+      "name": "App Data Project",
+      "folder": "userData/Nomi Projects/App Data Project-mvxnu7b3-dc703051",
+      "marker": "old-user-app-data-project",
+      "role": "native，在应用数据目录下面，也是现在的默认位置里"
+    }
+  }
+}
