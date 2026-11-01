@@ -16,7 +16,6 @@
   "electron/catalog/multipartOperation.ts": 3,
   "electron/catalog/nativeEndpointProbe.ts": 4,
   "electron/catalog/processOperation.ts": 1,
-  "electron/catalog/relayNativeWireUpgrade.ts": 2,
   "electron/catalog/secrets.ts": 1,
   "electron/productionRun/productionPlaybooks.ts": 3,
   "electron/productionRun/productionRunRepository.ts": 1,

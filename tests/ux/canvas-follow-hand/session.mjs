@@ -8,14 +8,19 @@ import { pathToFileURL } from 'node:url'
 import { PAGE_PROBE } from './probe.mjs'
 import { buildProject } from './fixture.mjs'
 import { stationTimeout } from '../_station-budget.mjs'
-import { panCanvasUntilInside } from '../_canvasHit.mjs'
+import { findCanvasBlankPoint, panCanvasUntilInside, readCanvasViewport, waitForCanvasViewportSettled } from '../_canvasHit.mjs'
 import { readLiveWalkInstances } from '../_walkInstances.mjs'
-import { canvasFitViewButton } from '../_shell.mjs'
+import { canvasFitViewButton, canvasZoomStep } from '../_shell.mjs'
 
 export const EDITOR = '[data-composer-host] .ProseMirror[contenteditable="true"]'
 export const STAGE = '.generation-canvas-v2__stage'
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const VIEWPORT = { width: 1280, height: 933 }
+/**
+ * 细节线（同 src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts 的 LIGHTWEIGHT_NODE_ZOOM_THRESHOLD）：
+ * 缩放低于它，没选中的卡画轻量卡（预览图，没有 <video>，悬停不试播）——用户 2026-10-31 定的，不是这份量具要改的行为。
+ */
+export const DETAIL_LINE_ZOOM = 0.4
 
 /** 同机别的 Electron / Nomi 进程会抢 GPU 与 CPU，帧数就不可比了。 */
 export function otherElectronProcesses(worktree = process.cwd(), options = {}) {
@@ -153,6 +158,78 @@ export async function fitAll(s) {
     last = t
   }
   return last
+}
+
+/** 中键拖画布（舞台在捕获阶段接管，按在卡片上也是平移）：从真空白处按，没有空白就从舞台中心按。 */
+async function middleDrag(s, dx, dy) {
+  const stage = await s.win.locator(STAGE).first().boundingBox()
+  const start = (await findCanvasBlankPoint(s.win, { inset: 80 })) ?? { x: Math.round(stage.x + stage.width / 2), y: Math.round(stage.y + stage.height / 2) }
+  await s.win.mouse.move(start.x, start.y)
+  await s.win.mouse.down({ button: 'middle' })
+  await s.win.mouse.move(start.x + 2, start.y + 1)
+  await s.win.mouse.move(start.x + dx, start.y + dy, { steps: 8 })
+  await s.win.mouse.up({ button: 'middle' })
+  await waitForCanvasViewportSettled(s.win)
+}
+
+/** 把 ids 这几张卡的外接盒摆到舞台正中（容差 8px，最多拖 6 次，一次最多 250px）。目标卡不在 DOM 里（被视口裁掉了）就报错。 */
+async function centerCards(s, ids) {
+  const clamp = (value) => Math.max(-250, Math.min(250, Math.round(value)))
+  for (let step = 0; step < 6; step++) {
+    const err = await s.win.evaluate(({ ids, stageSelector }) => {
+      const stage = document.querySelector(stageSelector)?.getBoundingClientRect()
+      const rects = ids.map((id) => document.querySelector(`.react-flow__node[data-id="${id}"]`)?.getBoundingClientRect()).filter(Boolean)
+      if (!stage) return { missing: ids.length }
+      if (rects.length !== ids.length) return { missing: ids.length - rects.length }
+      const left = Math.min(...rects.map((r) => r.left)); const right = Math.max(...rects.map((r) => r.right))
+      const top = Math.min(...rects.map((r) => r.top)); const bottom = Math.max(...rects.map((r) => r.bottom))
+      return { dx: (stage.left + stage.right) / 2 - (left + right) / 2, dy: (stage.top + stage.bottom) / 2 - (top + bottom) / 2 }
+    }, { ids, stageSelector: STAGE })
+    if (err.missing) throw new Error(`摆卡：${err.missing} 张目标卡不在 DOM 里（被视口裁掉了？）：${ids.join(', ')}`)
+    if (Math.abs(err.dx) <= 8 && Math.abs(err.dy) <= 8) return err
+    await middleDrag(s, clamp(err.dx), clamp(err.dy))
+  }
+  throw new Error(`摆卡：拖了 6 次这几张卡还没落在舞台正中：${ids.join(', ')}`)
+}
+
+/**
+ * 放大到细节线之上、再把 ids 这几张卡摆到舞台正中。
+ * 视频悬停起播、「空闲时没有 <video>」这些只有整卡才有：缩放低于 40% 没选中的卡是轻量卡，在那儿量它们等于什么都没量。
+ * 不拿滚轮凑倍数：同一条 mouse.wheel 放大的倍数 Mac 是 Linux 的两倍，落点随平台跨在线两侧（2026-10-31 同一窗口 Mac 48%、CI 34%）。
+ * 改点缩放簇里的「+」（每点一次固定倍数，绕舞台中心），每点一次读回真实缩放，过了「细节线 + 余量」就停；
+ * 先摆正再放大，放大后卡仍在中间；读回的缩放、每张卡能不能点到都核对，不满足就报错，不悄悄往下量。
+ */
+export async function zoomIntoCards(s, ids, { minZoom = DETAIL_LINE_ZOOM + 0.05 } = {}) {
+  const { win } = s
+  await centerCards(s, ids)
+  const clicks = []
+  let zoom = (await readCanvasViewport(win))?.zoom ?? 0
+  for (let i = 0; i < 12 && zoom < minZoom; i++) {
+    await canvasZoomStep(win, 'in')
+    await waitForCanvasViewportSettled(win)
+    zoom = (await readCanvasViewport(win))?.zoom ?? 0
+    clicks.push(Math.round(zoom * 1000) / 1000)
+  }
+  if (!(zoom >= minZoom)) throw new Error(`放大没到细节线之上：缩放 ${zoom}（要 ≥ ${minZoom}），点了 ${clicks.length} 次「+」：${clicks.join(' → ')}`)
+  await centerCards(s, ids)
+  // 每张目标卡的中心在舞台里、最顶层就是这张卡：鼠标悬停才打得到它（被浮层 / 邻居盖住就报错）。
+  const reach = await win.evaluate(({ ids, stageSelector }) => {
+    const stage = document.querySelector(stageSelector).getBoundingClientRect()
+    return ids.map((id) => {
+      const r = document.querySelector(`.react-flow__node[data-id="${id}"]`)?.getBoundingClientRect()
+      if (!r) return { id, reachable: false, why: 'not-rendered' }
+      const x = r.left + r.width / 2; const y = r.top + r.height / 2
+      const inside = x >= stage.left + 24 && x <= stage.right - 24 && y >= stage.top + 24 && y <= stage.bottom - 24
+      const top = document.elementFromPoint(x, y)?.closest('.react-flow__node')?.getAttribute('data-id') ?? null
+      return { id, reachable: inside && top === id, inside, top, w: Math.round(r.width) }
+    })
+  }, { ids, stageSelector: STAGE })
+  const blocked = reach.filter((r) => !r.reachable)
+  if (blocked.length) throw new Error(`放大后这些卡的中心点不到：${JSON.stringify(blocked)}`)
+  // 鼠标移出画布，等过播放器的离开宽限（800ms）：摆卡时鼠标停在哪张卡上留下的播放器，别算进后面的「空闲」。
+  await win.mouse.move(5, 5)
+  await sleep(1500)
+  return { zoom: Math.round(zoom * 1000) / 1000, clicks, reach }
 }
 
 export function census(s) {

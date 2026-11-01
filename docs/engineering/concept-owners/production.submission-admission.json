@@ -30,14 +30,24 @@
     {
       "path": "electron/productionRun/submissionOutbox.ts",
       "symbol": "markResultLandingFailed"
+    },
+    {
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "createSubmissionIntent"
+    },
+    {
+      "path": "electron/shared/productionSubmissionActions.ts",
+      "symbol": "submissionActions"
     }
   ],
   "forbidden_derivations": [],
   "parity_test": "electron/productionRun/productionShotDispatchGate.e2e.test.ts",
   "allowed_consumers": [
     "electron/productionRun/productionGenerationSubmission.ts",
-    "electron/productionRun/productionShotDispatchGuard.ts"
+    "electron/productionRun/productionShotDispatchGuard.ts",
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/productionRun/submissionIntent.ts"
   ],
   "since": "2026-09-28",
-  "notes": "PR #921（同上合同）：每条制作提交路径都经 submitOnce，它在预留预算、落提交意向（这次尝试的第一笔耐久写）之前先调派发闸 beforeDispatch；闸排在提交意向之后时看到的永远是 in_flight，一次都没拒过（真额度验收：急停后同一轮的镜照样扣费）。beforeDispatch 是 SubmissionOutboxDependencies 里声明的钩子槽位，生产侧由 productionGenerationSubmission 接到 productionShotDispatchGuard；槽位在依赖里是可选成员，漏接不会有编译期信号（R17 那一类），装配点目前靠派发闸的 e2e 测试守。 2026-10-09（#1139）：上面那个「漏接没有编译期信号」的洞补上了——productionGenerationSubmission 自己接上 productionShotDispatchGuard（不再是装配方注入的依赖），它的 beforeDispatch 只剩测试观察用的可选钩子（先跑它、再跑认领闸）；生产三处装配不再传闸。 2026-10-28：提交失败的结局收成封闭的四档 submissionFailureOutcome（not_dispatched / provider_rejected / result_landing_failed / unknown），submitOnce 按档逐个落盘（穷举 switch），信封（productionGenerationSubmission）读同一个函数决定记不记「结果未知」；第四档 markResultLandingFailed：同步供应商答了、本机落地失败（落地门的正证据），needs_attention + output_retrieval_failed、预留不动、不重发（合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json）。"
+  "notes": "PR #921（同上合同）：每条制作提交路径都经 submitOnce，它在预留预算、落提交意向（这次尝试的第一笔耐久写）之前先调派发闸 beforeDispatch；闸排在提交意向之后时看到的永远是 in_flight，一次都没拒过（真额度验收：急停后同一轮的镜照样扣费）。beforeDispatch 是 SubmissionOutboxDependencies 里声明的钩子槽位，生产侧由 productionGenerationSubmission 接到 productionShotDispatchGuard；槽位在依赖里是可选成员，漏接不会有编译期信号（R17 那一类），装配点目前靠派发闸的 e2e 测试守。 2026-10-09（#1139）：上面那个「漏接没有编译期信号」的洞补上了——productionGenerationSubmission 自己接上 productionShotDispatchGuard（不再是装配方注入的依赖），它的 beforeDispatch 只剩测试观察用的可选钩子（先跑它、再跑认领闸）；生产三处装配不再传闸。 2026-10-28：提交失败的结局收成封闭的四档 submissionFailureOutcome（not_dispatched / provider_rejected / result_landing_failed / unknown），submitOnce 按档逐个落盘（穷举 switch），信封（productionGenerationSubmission）读同一个函数决定记不记「结果未知」；第四档 markResultLandingFailed：同步供应商答了、本机落地失败（落地门的正证据），needs_attention + output_retrieval_failed、预留不动、不重发（合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json）。 2026-10-30：应用级试跑先经 createSubmissionIntent 认领同一 Run/job，再复用 submissionOutbox；submissionActions 只投影同一份持久受理事实与允许动作，工具回执与是否提供新单确认均消费它。谱系预算和新单真人确认标记跨宿主/重启持久保留，矩阵 electron/productionRun/submissionIntent.test.ts；根因合同 docs/fixes/2026-10-30-try-model-intent-lock.root-cause.json。 2026-10-31：读不出来的试跑记录不再锁死连接和模型。判定只有 createSubmissionIntent 里那一份（observation 和 claim 都问它）；记录读不了时普通调用只回 recordDamage、不下单，显式新单把整个记录目录原子挪到 .nomi/intent-claims/<runId>/quarantine/r<n>/ 再走真人确认；认领租约和开单痕迹放在记录目录外，活过挪动和删除。矩阵 electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts，清单 tests/fixtures/try-model-intent-matrix.json。"
 }

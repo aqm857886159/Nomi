@@ -150,7 +150,7 @@ export function PointerFaceArt({
     if (face.kind === 'result' && face.preview.kind === 'image')
       return <img src={face.preview.src} alt="" draggable={false} className="absolute inset-0 size-full object-cover" />
     if (face.kind === 'generating' || face.kind === 'processing')
-      return <GenerationWaitingSurface motion="reduced" previewLabel="" audio={model.node?.kind === 'audio'} />
+      return <GenerationWaitingSurface previewLabel="" audio={model.node?.kind === 'audio'} />
     return null
   }
   const KindIcon = model.node ? getGenerationNodeIcon(model.node.kind) : null
@@ -206,7 +206,7 @@ export function PointerFaceArt({
       break
     case 'generating':
     case 'processing':
-      art = <GenerationWaitingSurface motion="reduced" previewLabel="" audio={model.node?.kind === 'audio'} />
+      art = <GenerationWaitingSurface previewLabel="" audio={model.node?.kind === 'audio'} />
       break
     case 'recoverable':
       icon = circle(<IconClockSearch size={14} stroke={1.6} />, 'text-nomi-ink-60')

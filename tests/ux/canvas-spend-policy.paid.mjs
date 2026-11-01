@@ -20,7 +20,7 @@ import { groupGenerateButton, groupSelectedNodes } from './_groupGenerate.mjs'
 import { PRICE_LINE, SPEND_DIALOG, openPaidWalk, watchSpendDialogs } from './_paidRun.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { openCanvas, readProject } from './agent-runtime-walk-support.mjs'
-import { canvasFitViewButton } from './_shell.mjs'
+import { canvasFitViewButton, collapseAgentPanel } from './_shell.mjs'
 
 const IMAGE = { vendorKey: 'apimart', modelKey: 'z-image-turbo' }
 const NODE_GENERATE = '[data-composer-host="canvas"] [data-bar-segment="generate"]'
@@ -38,6 +38,9 @@ try {
   await openCanvas(win)
   const consent = win.getByRole('button', { name: '不分享', exact: true }).first()
   if (await consent.isVisible().catch(() => false)) await consent.click()
+  // 新外壳里 Agent 默认是右下角的浮窗，1280 宽下正好盖住节点底栏的 ↑（底栏不躲任何东西，2026-09-25 拍板）。
+  // 像人一样先把它收成小球、把画布还回来——免费走查同一个入口（_shell.mjs）。
+  await collapseAgentPanel(win)
 
   const nodesOnDisk = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes ?? []
   const nodeOnDisk = async (id) => (await nodesOnDisk()).find((node) => node.id === id)
@@ -99,8 +102,9 @@ try {
   await clickOrFail(generateAll, '组工具条「生成整组」')
   const dialog = win.locator(SPEND_DIALOG)
   const dialogProof = await proveProbe(dialog, 'T2：一下跑两份，弹确认框')
-  const zhText = await expectNoPriceLine(dialog, 'T2（中文）')
-  expect(zhText, 'T2：确认框说清一下要跑几份').toMatch(/2\s*(张|个|份)/)
+  await expectNoPriceLine(dialog, 'T2（中文）')
+  // 确认框逐条列出这一下要跑的每一份（共享 PlanRows，一行一个勾选框），份数就是勾着的行数。
+  await expect(dialog.locator('[data-v4-block="plan-rows"]').getByRole('checkbox', { checked: true }), 'T2：确认框逐条列出要跑的两份').toHaveCount(2)
   await walk.snap('t2-zh-generate-all-dialog-no-price')
   const tasksBeforeCancel = await nodesOnDisk()
   await clickOrFail(dialog.locator('[data-spend-confirm-action="cancel"]'), '确认框「取消」')

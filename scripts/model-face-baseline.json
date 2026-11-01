@@ -3251,7 +3251,7 @@
       "aliasBoundInput": null,
       "alsoCovers": null,
       "contractId": "model.onboarding.try",
-      "description": "Run one real generation with a model that was just connected, and hand back the provider's own response. A card is registered and a key is saved, and you need to know whether this model actually produces something. This spends the user's provider credit: Nomi asks the user to confirm the charge in its own window, and nothing is sent until they do. It is not a way to generate content for a project, and it is not how you register a model — that is submit_model_declaration. Do not tell the user a model is connected until this call has returned an artifact. vendorKey and modelKey identify the model. prompt, taskKind and params are optional; the first mode the card declared and a short neutral prompt are used when omitted. The user's provider credit is spent only after the user approves the card in the host; the call itself never spends.",
+      "description": "Run or observe the original model trial, returning its durable submission identity and the provider's own response. A card is registered and a key is saved, and you need to know whether this model actually produces something. This spends the user's provider credit: Nomi asks the user to confirm the charge in its own window, and nothing is sent until they do. It is not a way to generate content for a project, and it is not how you register a model — that is submit_model_declaration. Do not tell the user a model is connected until this call has returned an artifact. vendorKey and modelKey identify the trial. Repeated calls observe the original order, even if prompt, taskKind or params change. Only set newAttemptOf to the current attemptId after the user requests a NEW order; Nomi always asks them to confirm that new order. The user's provider credit is spent only after the user approves the card in the host; the call itself never spends.",
       "effect": "spend",
       "effectGroups": null,
       "examples": [
@@ -3278,12 +3278,18 @@
       "promptGuidelines": [
         "The reply carries the provider's own response with secrets removed. When it fails, read that response rather than guessing: it is the same text a developer would see, and it is what tells you which field of the card is wrong."
       ],
-      "promptSnippet": "Run one real generation with a model that was just connected, and hand back the provider's own response.",
+      "promptSnippet": "Run or observe the original model trial, returning its durable submission identity and the provider's own response.",
       "publishedJsonSchema": {
         "additionalProperties": false,
         "properties": {
           "modelKey": {
             "description": "Exact model id, as nomi_read target=models or your own submitted card spells it.\nminLength=1.\nmaxLength=256.",
+            "type": "string"
+          },
+          "newAttemptOf": {
+            "description": "Only after the user explicitly requests a NEW order: current attemptId from the original submission receipt. Always requires confirmation in Nomi, even in full-auto. Omit to observe or safely retry the original intent; changing parameters never opens a new order.",
+            "maxLength": 160,
+            "minLength": 1,
             "type": "string"
           },
           "params": {

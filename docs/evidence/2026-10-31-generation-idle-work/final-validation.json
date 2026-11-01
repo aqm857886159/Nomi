@@ -1,0 +1,612 @@
+{
+  "kind": "final-product-validation-receipt",
+  "head": "0041f4b15205a48be9d8149952dc581274162379",
+  "sourceTree": "0db9a0615d0df94779e2cd41d0410277fdffd12a",
+  "productCommits": [
+    "879d8cd5c4af11495b91cca2da1095951fade802",
+    "1fcc7ed01",
+    "7a2f8590e"
+  ],
+  "unitBatch": {
+    "numTotalTests": 186,
+    "numPassedTests": 186,
+    "numFailedTests": 0
+  },
+  "typecheck": {
+    "exit": 0,
+    "projects": 5
+  },
+  "build": {
+    "exit": 0
+  },
+  "walks": [
+    {
+      "locale": "zh-CN",
+      "exit": 0,
+      "submissions": {
+        "beforeRestart": 12,
+        "afterResults": 12
+      },
+      "retrievalClicks": 12,
+      "persistedVideoResults": 12,
+      "checks": [
+        "12 real loopback tasks, static grey grid, visible progress with and without percent",
+        "all 12 successful results persisted in the real isolated project file",
+        "restart retained all original taskIds, retrieved original tasks, zero resubmissions, all results landed",
+        "legacy waiting performance: eight static cards, 30s sample, terminal handover and unmount"
+      ],
+      "pageErrors": [],
+      "percentProbe": {
+        "width": 240,
+        "color": "oklab(0.7 -0.0444626 -0.12216)",
+        "style": "width: 75%;"
+      },
+      "legacyWaitingSample": {
+        "effectCount": 0,
+        "staticCount": 8
+      },
+      "conditions": {
+        "idleSeconds": 7229,
+        "load1": 5.71826171875,
+        "load5": 8.65087890625
+      }
+    },
+    {
+      "locale": "en",
+      "exit": 0,
+      "submissions": {
+        "beforeRestart": 12,
+        "afterResults": 12
+      },
+      "retrievalClicks": 12,
+      "persistedVideoResults": 12,
+      "checks": [
+        "12 real loopback tasks, static grey grid, visible progress with and without percent",
+        "all 12 successful results persisted in the real isolated project file",
+        "restart retained all original taskIds, retrieved original tasks, zero resubmissions, all results landed",
+        "legacy waiting performance: eight static cards, 30s sample, terminal handover and unmount"
+      ],
+      "pageErrors": [],
+      "percentProbe": {
+        "width": 240,
+        "color": "oklab(0.7 -0.0444626 -0.12216)",
+        "style": "width: 75%;"
+      },
+      "legacyWaitingSample": {
+        "effectCount": 0,
+        "staticCount": 8
+      },
+      "conditions": {
+        "idleSeconds": 7611,
+        "load1": 3.31396484375,
+        "load5": 5.05859375
+      }
+    }
+  ],
+  "screenshotsReviewed": [
+    {
+      "file": "zh-CN-percent.png",
+      "sha256": "27b534c03a494f7c954a77319529fbd18b9350f7eae3b3d5d6ba966b3dc47876",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 1
+    },
+    {
+      "file": "zh-CN-no-percent.png",
+      "sha256": "f5a6af309aa47c7b64962527cae438048b4245d819ef4f9a1825b507d83c2bfa",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 1
+    },
+    {
+      "file": "zh-CN-legacy-waiting.png",
+      "sha256": "d35eba19a5926e825ab8496c1804aafca16f284f61572c4c22f94d79f0c0ea32",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 1
+    },
+    {
+      "file": "zh-CN-restarted-results.png",
+      "sha256": "e92e8a87d5c3d2710a289e16cb85149f067fd3a9962db9c6a249020a293866bc",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 1
+    },
+    {
+      "file": "1.png",
+      "sha256": "b2d2d782477e6c1a8e0eb8d45c64756d9d99db48a8e0213ef58bfce49678dffb",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 1
+    },
+    {
+      "file": "1.png",
+      "sha256": "eadb19c8fd9bd527375090a92cbae2f96af1a376fc0242d1aa4e331573c6fc21",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 1
+    },
+    {
+      "file": "zh-CN-percent.png",
+      "sha256": "2c44346e6206ae4e246c5fa43908f803063004eaa771276bdf830fe107cd00f1",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "zh-CN-no-percent.png",
+      "sha256": "9ab4d47cf5f69dabf75eb0f7dbd2da694e81aa46473c1c56b1a8af90b1fbda7d",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "zh-CN-legacy-waiting.png",
+      "sha256": "3b3f03ab3b973d8ca3cf76405ed3a301ddcb4ad5e8074ad8bf4c47931888e0d0",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "zh-CN-restarted-results.png",
+      "sha256": "dfcd6b0585f52bc4ca967de16d4238e39fc1fbd9f4210da1259e54f2575dd8c6",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "1.png",
+      "sha256": "b2d2d782477e6c1a8e0eb8d45c64756d9d99db48a8e0213ef58bfce49678dffb",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "1.png",
+      "sha256": "eadb19c8fd9bd527375090a92cbae2f96af1a376fc0242d1aa4e331573c6fc21",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "en-percent.png",
+      "sha256": "79fdfcfebadb01579f847a956d1062b553ab0b89bd8fbf00d363163eba71a73b",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "en-legacy-waiting.png",
+      "sha256": "457632e680aeb1eab458914fa81b95d3df6860ca78ef205e0eab1e595f45be6a",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "en-no-percent.png",
+      "sha256": "9d1ce79d920fd882a7ef0f7116a74ecd2b4dec179891417cab29c87ab313807b",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "en-restarted-results.png",
+      "sha256": "721cbafdcad8b031fd4533672ad55c4752a10b0ef1a496b8bb877fee110d0ce1",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "1.png",
+      "sha256": "8a510c9cd091bb9e99e11cbac712ab0605dfb8f958ec44411a1fbe3478877615",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "1.png",
+      "sha256": "7bb03f7266fcaa2e9aea3146d6e24193d91e5fcc5372b1592fc8015fc1650e7e",
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "exit": 0
+    },
+    {
+      "file": "zh-CN-no-percent.png",
+      "sha256": "fa5cb573a5dd6cc5e5e4514e1eb1ded4571cae87b0585a38a5df5cb8a6d2e221",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 1
+    },
+    {
+      "file": "zh-CN-percent.png",
+      "sha256": "76d75479d28ea25a2f1dd7406bc7f57b71427354fb3f0844f9b5eb297e06f415",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 1
+    },
+    {
+      "file": "1.png",
+      "sha256": "df9471cd292559721e1af63acf02838761d354afc0af568f536a4a5af4df3934",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 1
+    },
+    {
+      "file": "zh-CN-percent.png",
+      "sha256": "60d91d6c287fd24a810469b928c77ad722b5eb8b14dacff35767f00dfffb201d",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "zh-CN-no-percent.png",
+      "sha256": "01b9fc5529b5a3e34dfeb7fc85878406c6eaafeae46d44cd825bf1096850621f",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "zh-CN-legacy-waiting.png",
+      "sha256": "8c91338178a62044ed8b5b08a552d57c41b01f37b5ea68b076ada4721eeaeebe",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "zh-CN-restarted-results.png",
+      "sha256": "34ac14107ab91db4f8f6da57f6747c8cc8b274430d835fe5a43dcb987b4f8ad3",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "1.png",
+      "sha256": "b2d2d782477e6c1a8e0eb8d45c64756d9d99db48a8e0213ef58bfce49678dffb",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "1.png",
+      "sha256": "eadb19c8fd9bd527375090a92cbae2f96af1a376fc0242d1aa4e331573c6fc21",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "en-percent.png",
+      "sha256": "20cd2941694b2243f6f43659eb7f1c19930e0a27dfdc7acbe57872c7220e1881",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "en-legacy-waiting.png",
+      "sha256": "0bb330126f0866d66b12d28dc174f62ad4405eb0c68ecb6042b2fc80956043ff",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "en-no-percent.png",
+      "sha256": "a96a7645a3d5b6007c632c6c8f178623768c3ab8a011fff4554ace71c09091ac",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "en-restarted-results.png",
+      "sha256": "cc4f6b2a2e693520bae8022d881d2323998337065d58bf3ca2d6d1e40c9e4783",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "1.png",
+      "sha256": "1b556f8c8ee73c504f8a3efd0602723a73e0682ea81670fff47fda4541e0481b",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    },
+    {
+      "file": "1.png",
+      "sha256": "7bb03f7266fcaa2e9aea3146d6e24193d91e5fcc5372b1592fc8015fc1650e7e",
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "exit": 0
+    }
+  ],
+  "synchronousIOCalls": {
+    "changed-io-before": {
+      "counts": {
+        "readFileSync": 6,
+        "writeFileSync": 2,
+        "openSync": 5,
+        "writeSync": 3,
+        "appendFileSync": 0,
+        "renameSync": 2,
+        "rmSync": 1,
+        "existsSync": 4,
+        "mkdirSync": 5
+      }
+    },
+    "changed-io-after": {
+      "counts": {
+        "readFileSync": 11,
+        "writeFileSync": 2,
+        "openSync": 6,
+        "writeSync": 4,
+        "appendFileSync": 0,
+        "renameSync": 2,
+        "rmSync": 2,
+        "existsSync": 8,
+        "mkdirSync": 6
+      }
+    },
+    "pending-extra-io-before": {
+      "counts": {
+        "readFileSync": 4,
+        "writeFileSync": 0,
+        "openSync": 0,
+        "writeSync": 0,
+        "appendFileSync": 0,
+        "renameSync": 0,
+        "rmSync": 0,
+        "existsSync": 2,
+        "mkdirSync": 0
+      }
+    },
+    "pending-extra-io-after": {
+      "counts": {
+        "readFileSync": 4,
+        "writeFileSync": 0,
+        "openSync": 0,
+        "writeSync": 0,
+        "appendFileSync": 0,
+        "renameSync": 0,
+        "rmSync": 0,
+        "existsSync": 2,
+        "mkdirSync": 0
+      }
+    }
+  },
+  "extractionProof": {
+    "receiptAndErrorsUnchanged": true,
+    "statusGroupingUnchanged": true,
+    "onlyNewExportsAndImportBridge": true
+  },
+  "gates": {
+    "firstRunExit": 1,
+    "failedChecks": [
+      "filesize",
+      "design-lab orphan baseline",
+      "framework-surface retired dependency",
+      "boundary-owners retired patch",
+      "concept-owners registration",
+      "claude-hooks cascaded boundary failure"
+    ],
+    "finalRun": {
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "contracts": {
+        "total": 107,
+        "passed": 107,
+        "failed": 0
+      },
+      "riskTests": "2163 files passed, 2 skipped; 26011 tests passed, 4 expected fail, 22 skipped",
+      "build": "log stops inside build:electron and left no exit file, so this run is not counted as a complete exit 0; the same HEAD built with exit 0 for the formal measurements",
+      "afterMergingMain": "judged by CI on the pull request"
+    },
+    "secondRun": {
+      "exit": 1,
+      "contracts": 107,
+      "passed": 106,
+      "failed": [
+        "check:vocabularies owner moved"
+      ]
+    },
+    "vocabularyRelocation": {
+      "exit": 0,
+      "owners": 244,
+      "commit": "0041f4b15205a48be9d8149952dc581274162379"
+    }
+  },
+  "prePush": {
+    "state": "judged-by-push-hook",
+    "note": "Runs when the branch is pushed with the final body, after merging main."
+  },
+  "formalPerformance": {
+    "state": "measured",
+    "head": "0041f4b15205a48be9d8149952dc581274162379",
+    "conditions": "Screen locked, app not in front, 5-minute load below 10 at the start of each group, both gates locks held. Before = only the four baseline files restored at the same HEAD and rebuilt; restored by SHA256 afterwards.",
+    "runsPerScale": 5,
+    "cards": "12 local loopback pending video tasks, 60 seconds",
+    "rows": [
+      {
+        "scale": 60,
+        "runs": 5,
+        "draws60s": {
+          "before": 14568,
+          "after": 0,
+          "beforeRange": [
+            14424,
+            14616
+          ],
+          "afterRange": [
+            0,
+            0
+          ]
+        },
+        "saveIpc30s": {
+          "before": 9,
+          "after": 0,
+          "beforeRange": [
+            7,
+            14
+          ],
+          "afterRange": [
+            0,
+            0
+          ]
+        },
+        "duplicatePendingSnapshotWrites": {
+          "before": 598,
+          "after": 0,
+          "beforeRange": [
+            578,
+            600
+          ],
+          "afterRange": [
+            0,
+            0
+          ]
+        },
+        "frameGapP95Ms": {
+          "before": {
+            "runs": 5,
+            "median": 10.1,
+            "p95": 10.2
+          },
+          "after": {
+            "runs": 5,
+            "median": 10.2,
+            "p95": 10.2
+          }
+        }
+      },
+      {
+        "scale": 100,
+        "runs": 5,
+        "draws60s": {
+          "before": 14568,
+          "after": 0,
+          "beforeRange": [
+            14424,
+            14664
+          ],
+          "afterRange": [
+            0,
+            0
+          ]
+        },
+        "saveIpc30s": {
+          "before": 9,
+          "after": 0,
+          "beforeRange": [
+            8,
+            16
+          ],
+          "afterRange": [
+            0,
+            0
+          ]
+        },
+        "duplicatePendingSnapshotWrites": {
+          "before": 598,
+          "after": 0,
+          "beforeRange": [
+            580,
+            608
+          ],
+          "afterRange": [
+            0,
+            0
+          ]
+        },
+        "frameGapP95Ms": {
+          "before": {
+            "runs": 5,
+            "median": 9.3,
+            "p95": 10.2
+          },
+          "after": {
+            "runs": 5,
+            "median": 10.1,
+            "p95": 10.1
+          }
+        }
+      }
+    ],
+    "budget": {
+      "frameGapP95Ms": 33,
+      "draws60s": 0,
+      "saveIpc30s": 0,
+      "duplicatePendingSnapshotWrites": 0
+    },
+    "verdict": "All four budgets met at both scales.",
+    "limit": "Frame gap is about 10 ms on both sides on this Apple M5 Mac: the proven change is the idle cost, not a measured smoothness gain on this machine. Weak machines and Windows are not measured.",
+    "raw": [
+      "docs/evidence/2026-10-31-generation-idle-work/formal-before-60.json",
+      "docs/evidence/2026-10-31-generation-idle-work/formal-before-100.json",
+      "docs/evidence/2026-10-31-generation-idle-work/formal-after-60.json",
+      "docs/evidence/2026-10-31-generation-idle-work/formal-after-100.json",
+      "docs/evidence/2026-10-31-generation-idle-work/formal-counters.json"
+    ]
+  },
+  "humanData": {
+    "seq": null,
+    "misclicks": null,
+    "backtracks": null,
+    "helpRequests": null
+  },
+  "historicalWalks": [
+    {
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "locale": "zh-CN",
+      "exit": 0,
+      "submissions": {
+        "beforeRestart": 12,
+        "afterResults": 12
+      },
+      "retrievalClicks": 12,
+      "persistedVideoResults": 12,
+      "checks": [
+        "12 real loopback tasks, static grey grid, visible progress with and without percent",
+        "all 12 successful results persisted in the real isolated project file",
+        "restart retained all original taskIds, retrieved original tasks, zero resubmissions, all results landed",
+        "legacy waiting performance: eight static cards, 30s sample, terminal handover and unmount"
+      ],
+      "pageErrors": [],
+      "percentProbe": {
+        "width": 240,
+        "color": "oklab(0.7 -0.0444626 -0.12216)",
+        "style": "width: 75%;"
+      },
+      "legacyWaitingSample": {
+        "effectCount": 0,
+        "staticCount": 8
+      },
+      "conditions": {
+        "idleSeconds": 1238,
+        "load1": 6.77490234375,
+        "load5": 7.216796875
+      }
+    },
+    {
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "locale": "en",
+      "exit": 0,
+      "submissions": {
+        "beforeRestart": 12,
+        "afterResults": 12
+      },
+      "retrievalClicks": 12,
+      "persistedVideoResults": 12,
+      "checks": [
+        "12 real loopback tasks, static grey grid, visible progress with and without percent",
+        "all 12 successful results persisted in the real isolated project file",
+        "restart retained all original taskIds, retrieved original tasks, zero resubmissions, all results landed",
+        "legacy waiting performance: eight static cards, 30s sample, terminal handover and unmount"
+      ],
+      "pageErrors": [],
+      "percentProbe": {
+        "width": 240,
+        "color": "oklab(0.7 -0.0444626 -0.12216)",
+        "style": "width: 75%;"
+      },
+      "legacyWaitingSample": {
+        "effectCount": 0,
+        "staticCount": 8
+      },
+      "conditions": {
+        "idleSeconds": 1369,
+        "load1": 6.2978515625,
+        "load5": 7.0634765625
+      }
+    },
+    {
+      "head": "e76371b7e8c18c4c7cc0494bf317410ceeace843",
+      "locale": "zh-CN",
+      "exit": 1,
+      "functionalResults": 12,
+      "submissionsBeforeAfter": [
+        12,
+        12
+      ],
+      "reason": "Restart startup stole foreground; retained as failure. Full unmodified rerun is separate."
+    },
+    {
+      "head": "0041f4b15205a48be9d8149952dc581274162379",
+      "locale": "zh-CN",
+      "exit": 1,
+      "result": "partial",
+      "reason": "First waiting phase passed; restart refused because load5=10.09. Whole-track rerun is separate."
+    }
+  ],
+  "metadataOnlyChangeSincePriorWalks": [
+    "scripts/vocabularies-baseline.json"
+  ],
+  "visualBaselines": {
+    "state": "requires-ci-acceptance",
+    "example": "process-feedback/pf-fx-generating",
+    "old": "animated shader grid",
+    "current": "existing static CSS grid",
+    "note": "Both images personally inspected. Intentional visual change, not solely runner noise. No local baseline written; coordinator must inspect CI output and accept there."
+  }
+}

@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、react-i18next、../../scene/DirectorCanvas、../../scene/viewSettings 的 DEFAULT_VIEW_SETTINGS / ViewSettings、
  *          ../../scene/sceneTheme、../../scene/creation/usePathDraw、../../scene/LabelProjector 类型、./ViewportOverlays、./AspectGuide、./CameraPovHud、./PipViewport、
@@ -102,8 +103,8 @@ export function DirectorViewport({ theme, viewSettings = DEFAULT_VIEW_SETTINGS, 
       event.stopImmediatePropagation()
       cancelCreation()
     }
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
+    canvasWindowInput.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => canvasWindowInput.removeEventListener('keydown', onKeyDown, { capture: true })
   }, [cancelCreation, layerActive, modeActive])
 
   return (

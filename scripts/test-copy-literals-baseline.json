@@ -294,7 +294,6 @@
   "tests/ux/pr720-ux-geometry.walk.mjs": 1,
   "tests/ux/preview-export-busy.walk.mjs": 6,
   "tests/ux/process-feedback-electron.e2e.mjs": 13,
-  "tests/ux/process-feedback-imgfx-real.e2e.mjs": 1,
   "tests/ux/process-feedback.e2e.mjs": 2,
   "tests/ux/production-shot-claim.paid.mjs": 1,
   "tests/ux/production-stalled-draft.walk.mjs": 2,

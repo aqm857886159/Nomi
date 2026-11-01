@@ -1,4 +1,6 @@
+import { RETRIEVAL_UNAVAILABLE_MESSAGE } from "../shared/nomiErrorCodes";
 import { isTerminalTaskStatus, type TaskStatus } from "../shared/taskStatus";
+import { isLocalQueryBlockedRaw } from "../tasks/taskAdmission";
 import type { GenerationProvider, GenerationProviderOutput, GenerationProviderRequestInputV1, GenerationProviderTaskContext } from "./generationRuntimeAdapter";
 
 /**
@@ -20,6 +22,11 @@ export function canvasProviderId(vendorKey: string): string {
 
 export function isCanvasProviderId(providerId: string | undefined): boolean {
   return typeof providerId === "string" && providerId.startsWith(CANVAS_PROVIDER_PREFIX);
+}
+
+/** 这个 providerId 背后的**连接 key**：画布那台是 `canvas:<key>`，去掉前缀；目录引擎的 providerId 本来就是连接 key。 */
+export function vendorKeyOfProviderId(providerId: string): string {
+  return isCanvasProviderId(providerId) ? providerId.slice(CANVAS_PROVIDER_PREFIX.length) : providerId;
 }
 
 type CanvasTaskRequest = {
@@ -138,6 +145,9 @@ export function createCanvasTransportProvider(vendorKey: string, transport: Canv
         ...(typeof extras.modelKey === "string" ? { modelKey: extras.modelKey } : {}),
         ...(typeof extras.projectId === "string" ? { projectId: extras.projectId } : {}),
       });
+      // Nomi 这一次没法去问（模型 / Key 用不了）：供应商什么都没说，不能当成这一单的结论，也不进备忘（否则开回来还是查不到新的）。
+      // 抛错走「这次没查成」那条路：窗口开着渲染层接着等，窗口不在观察者停成待取回。都不判死，也不会再下单。
+      if (isLocalQueryBlockedRaw(response.result.raw)) throw new Error(RETRIEVAL_UNAVAILABLE_MESSAGE);
       rememberSettled(response.result);
       remember(lastResults, response.result);
       return { status: response.result.status, raw: response.result };

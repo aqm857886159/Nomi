@@ -14,7 +14,7 @@ import type { EvalShotSize } from '../../../../../../../electron/shared/director
 import { evaluateEntityTransform } from '../trajectoryEval'
 import { evaluateSceneObjectPose } from '../evaluatedSceneObject'
 import { resolveActionAlias } from '../actionLibrary'
-import { lookAtAngles } from '../vec3'
+import { lookAtAngles, rightFromYaw } from '../vec3'
 import {
   directorPlanSchema,
   type DirectorPlan,
@@ -316,7 +316,7 @@ function solveCamera(
   const target = aimAt(objects, subject, start, aimOffset)
   const subjectEndTarget = aimAt(objects, subject, end, aimOffset)
   // 画面右方（横移 / 摇镜的方向跟着机位转）
-  const right = v(Math.cos((azimuth * Math.PI) / 180), 0, -Math.sin((azimuth * Math.PI) / 180))
+  const right = rightFromYaw(azimuth + 180)
   const sideways = (amount: number) => v(right.x * amount, 0, right.z * amount)
   const endAngle =
     shot.move.kind === 'orbit_left' || shot.move.kind === 'arc_left'
@@ -510,6 +510,7 @@ export function compileDirectorPlan(input: unknown): DirectorCompileResult {
       `shot:${shot.id}/camera`,
       anchor,
     )
+    camera.measurementSubject = { objectId: subject.id, ...(anchor && part ? { anchor: { name: part, ...anchor } } : {}) }
     // 机位视线：被墙 / 布景 / 别的人挡住主体，就对整条路径找一个看得见的候选（接续上一镜的连续镜头不挪起点）
     const characters = scene.objects.filter((object) => object.type === 'character').slice(0, 2)
     const sight: SightContext = {

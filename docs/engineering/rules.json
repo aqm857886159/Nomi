@@ -34,13 +34,14 @@
         "R10",
         "R23"
       ],
-      "rule": "新实现同 commit 删旧实现，不留并行版 / fallback；CSS 只写组件 className；生成画布只许 React Flow 一个内核。",
+      "rule": "新实现同 commit 删旧实现，不留并行版 / fallback；删旧前先答老用户怎么过（设计卡 ★1c）；CSS 只写组件 className；生成画布只许 React Flow 一个内核。",
       "disease": "旧路径没删仍能写（最大一类逃逸）",
       "enforcement": [
         "gate:check:orphan-cables",
-        "gate:check:tokens"
+        "gate:check:tokens",
+        "gate:check:pr-judgement(老用户这半句：碰存量路径的 PR 交 upgrade-path 证据，判据同 DC)"
       ],
-      "evidence": "复盘里 legacy-canvas-write-doors、legacy-storyboard-placement 两条：旧路径没删仍能写",
+      "evidence": "复盘里 legacy-canvas-write-doors、legacy-storyboard-placement 两条：旧路径没删仍能写；老用户这半句：用户 2026-11-01 同意写进常驻 P1，起因见 DC 的证据",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "出现能自动判「并行实现」的门岗",
@@ -117,12 +118,12 @@
     {
       "id": "P5",
       "aliases": [],
-      "rule": "想清楚再动手：碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；新增或改动用户可见界面分两步：①先在 Claude Design（Artifact「Design」画布）按设计系统（Design.md、docs/design/nomi-design-system.md 的 token 与组件规格）出高保真视觉稿，协调会话逐张对过设计系统再给用户拍板；②拍板后在设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）照视觉稿复刻成屏、逐张截图对照，生产代码就是它。跳过①直接拼组件出的屏不进拍板；其它手写 HTML / 交互 widget 只准标 exploration；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。 新增功能（feat，或路径推出「新增功能 / 性能」类）另填设计卡 ★7 性能并自带可重跑的性能脚本：新增的用户操作、最坏规模、每个操作的预算（默认操作到反馈 ≤100ms、拖动帧间隔 p95 ≤33ms、交互期间 >50ms 长任务 0、打开到能操作 ≤1s @100 节点）、覆盖它的场景 id 与基线；每个新增操作登记成 tests/perf/scenarios/<id>.json（复用现有量具，不自写剖析器），用 pnpm run perf:scenarios 跑（≥5 次取中位数和 p95）；PR 正文交 perf-scenario 行，「未验证」不算通过，超预算不合并（docs/engineering/perf-scenarios.md）。",
+      "rule": "想清楚再动手：碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；四类之外的纯文档 / 测试 / 配置，或声明单一意图的纯修复且 base/head 拍板图清单核实无界面差异，走短档：交短版设计卡（★1/2/3/4/9 各一行）、免功能分类与验收证据，核实不了或有差异、让逃逸账本转 fixed 的落标准档（要求同今天），见 design-card.md；新增或改动用户可见界面分两步：①先在 Claude Design（Artifact「Design」画布）按设计系统（Design.md、docs/design/nomi-design-system.md 的 token 与组件规格）出高保真视觉稿，协调会话逐张对过设计系统再给用户拍板；②拍板后在设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）照视觉稿复刻成屏、逐张截图对照，生产代码就是它。跳过①直接拼组件出的屏不进拍板；其它手写 HTML / 交互 widget 只准标 exploration；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。 新增功能（feat，或路径推出「新增功能 / 性能」类）另填设计卡 ★7 性能并自带可重跑的性能脚本：新增的用户操作、最坏规模、每个操作的预算（默认操作到反馈 ≤100ms、拖动帧间隔 p95 ≤33ms、交互期间 >50ms 长任务 0、打开到能操作 ≤1s @100 节点）、覆盖它的场景 id 与基线；每个新增操作登记成 tests/perf/scenarios/<id>.json（复用现有量具，不自写剖析器），用 pnpm run perf:scenarios 跑（≥5 次取中位数和 p95）；PR 正文交 perf-scenario 行，「未验证」不算通过，超预算不合并（docs/engineering/perf-scenarios.md）。",
       "disease": "没想清楚就写，返工与连带面漏掉；新功能不量性能，卡顿到用户手里才发现（2026-10-10 用户反馈 F3：选中节点卡、拖组卡）",
       "enforcement": [
         "template:docs/engineering/design-card.md",
         "template:docs/engineering/design-card.md(★1/★9 指标与分档)",
-        "gate:check:pr-judgement(设计卡「功能分类」按路径推出的类别下限勾选 + `## 验收证据` 逐项对账，路由表 docs/engineering/test-routing.json；CI Contracts + push 前)",
+        "gate:check:pr-judgement(设计卡「功能分类」按路径推出的类别下限勾选 + `## 验收证据` 逐项对账，路由表 docs/engineering/test-routing.json；短档另核 `## 变更意图` 声明与 base/head 拍板图清单；CI Contracts + push 前)",
         "gate:check:perf-scenarios(性能场景登记表结构：id 唯一、script 存在且是现有量具、budget / baseline 齐全且是数字)",
         "gate:check:pr-judgement(「新增功能 / 性能」类必交 perf-scenario 证据：格式、id 在登记表、未验证红)",
         "gate:check:renderer-sync-ipc(渲染进程同步 IPC 冻结清单只减不增，新增 sendSync 通道即红；2026-10-16 卡顿波)",
@@ -149,14 +150,14 @@
         "R16",
         "PB13"
       ],
-      "rule": "设计卡（暂停点①）：碰花钱 / 长跑 / 可打断 / 新界面任一类，动手前写一页卡（9 格全填，其余改动只填 ★ 格 1、2、3、4、9），写进任务书或 docs/plan，PR 正文 `## 设计卡` 放链接或全文。验收清单前移（★9）：派活时把验收线会用的全部检查项与反例写进任务书 / 设计卡 ★9，实现线按同一份清单自验、附「反例 → 结果 → 证据」表才算交付；验收线只核这份清单，不临时扩范围，新发现记后续，除非属于「本 PR 引入 + 丢数据 / 花错钱 / 崩溃 / 安全」。",
+      "rule": "设计卡（暂停点①）：碰花钱 / 长跑 / 可打断 / 新界面任一类，动手前写一页卡（9 格全填，其余改动只填 ★ 格 1、2、3、4、9），写进任务书或 docs/plan，PR 正文 `## 设计卡` 放链接或全文。★1 含老用户一问（★1c）：升级那一刻他手上的项目、模型、设置、入口怎么办，迁不动就让旧的照常用，用真实旧版本的数据验。验收清单前移（★9）：派活时把验收线会用的全部检查项与反例写进任务书 / 设计卡 ★9，实现线按同一份清单自验、附「反例 → 结果 → 证据」表才算交付；验收线只核这份清单，不临时扩范围，新发现记后续，除非属于「本 PR 引入 + 丢数据 / 花错钱 / 崩溃 / 安全」。",
       "disease": "没想清楚就动手；概念占用、中途状态、真实任务、回滚没人在动手前回答",
       "enforcement": [
         "template:docs/engineering/design-card.md",
         "coordinator-tool:scripts/merge-preflight.mjs",
-        "hook:self-check(设计卡块)"
+        "hook:self-check(设计卡块)", "gate:check:pr-judgement(碰存量路径的 PR 交 upgrade-path 证据：真实旧数据的凭据或「不适用：理由」，未验证红，不进短档)"
       ],
-      "evidence": "复盘：逃逸 bug 多出在中途状态和概念占用；卡取代原来分散的 plan 模板、6 角色评审、概念占用表",
+      "evidence": "复盘：逃逸 bug 多出在中途状态和概念占用；卡取代原来分散的 plan 模板、6 角色评审、概念占用表；用户 2026-10-31：「替换的过程中要考虑老用户的迁移」，起因是一次目录迁移让一整类在用的模型升级后下架，矩阵只测手写形状，升级路径证据写的是未验证",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "合并前扫描连续 2 个周期无空格 PR，且逃逸率低于 10%",
@@ -495,14 +496,14 @@
         "PB19",
         "PB19.3a"
       ],
-      "rule": "多智能体编排：任务书带开工三行头与概念占用；收货三查；一个概念一个 PR、按阶段攒（提交不压缩）；协调会话运作见编排手册。省 token：①派活前先数轮次（同一处第 3 轮就停，改派复盘）；②协调会话不读大文件全文，先看大小和标题再按段读，读子 agent 结论不读过程；③子 agent 同时最多 3 个（含续跑）、默认 Sonnet，只有根因未定 / 碰花钱边界 / 结构改动才用 Opus，不再派子 agent；④任务书写清范围、不碰清单和停点，交货报告要短；⑤确定性的活用脚本不交给模型；⑥长输出落文件只看摘要，同一文件不反复读；⑦卡住 3 次就停下报告。",
+      "rule": "多智能体编排：任务书带开工三行头与概念占用；收货三查；一个概念一个 PR、按阶段攒（提交不压缩）；协调会话运作见编排手册。省 token：①派活前先数轮次（同一处第 3 轮就停，改派复盘）；②协调会话不读大文件全文，先看大小和标题再按段读，读子 agent 结论不读过程；③子 agent 同时最多 3 个（含续跑）、默认 Sonnet，只有根因未定 / 碰花钱边界 / 结构改动才用 Opus，不再派子 agent；④任务书写清范围、不碰清单和停点，交货报告要短；⑤确定性的活用脚本不交给模型；⑥长输出落文件只看摘要，同一文件不反复读；⑦卡住 3 次就停下报告；⑧设计派线、等待、上下文、线型之前先读官方的缓存 / 计费 / 上下文文档，写出对这次设计的影响，用真实 usage 算账再定取舍，做完再用 usage 验证。",
       "disease": "派工混乱、合并失控",
       "enforcement": [
         "coordinator-tool:scripts/merge-preflight.mjs",
         "coordinator-tool:scripts/check-dispatch-brief.mjs",
         "hook:self-check(省 token 块)"
       ],
-      "evidence": "docs/engineering/agent-orchestration-playbook.md（§19 运作、§20 省 token）；2026-10-04 导演编译器第五轮修补是派工层没数轮次、协调层读全文又派工的典型",
+      "evidence": "docs/engineering/agent-orchestration-playbook.md（§19 运作、§20 省 token）；2026-10-04 导演编译器第五轮修补是派工层没数轮次、协调层读全文又派工的典型；`docs/lessons/read-official-cache-rules-before-designing-lines.md`（2026-10-31 等待脚本超过子线缓存寿命）",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "不适用",

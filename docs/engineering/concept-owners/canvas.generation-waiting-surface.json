@@ -1,0 +1,28 @@
+{
+  "name": "生成等待的静态灰格与真实进度外观",
+  "subject": "canvas.generation-waiting-surface",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+    "symbol": "GenerationWaitingSurface"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "symbol": "GenerationWaitingSurface"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/pointer/NodePointer.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/NodeImportingOverlay.tsx"
+  ],
+  "since": "2026-10-31",
+  "notes": "用户批准沿用原减少动态效果的静态路径；统一节点、聊天指向元素、导入反馈。无shader、动画开关或回退，导入字节揭示只按真实事件绘制。"
+}

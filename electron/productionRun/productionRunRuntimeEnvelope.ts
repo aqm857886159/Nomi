@@ -1,6 +1,8 @@
 import fs from "node:fs";
 
 import { writeJsonFileAtomic } from "../jsonFile";
+import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
+import { createProductionRunLock, ProductionRunLockBusyError, type ProductionRunLockLease } from "./productionRunLock";
 
 export const RUNTIME_ENVELOPE_SCHEMA_VERSION = 1 as const;
 export type RuntimeEnvelopeState = "sealed" | "provider_accepted" | "submitted_unknown" | "materialized";
@@ -19,6 +21,8 @@ export type ProductionRunRuntimeEnvelope = {
   rawReceipt?: unknown;
   lastPoll?: {
     status: string;
+    /** Durable observation order; legacy observations are revision zero. */
+    revision?: number;
     raw?: unknown;
     observedAt: string;
   };
@@ -63,7 +67,13 @@ function sameSemanticInput(left: RuntimeEnvelopeSealInput, right: ProductionRunR
     && canonicalJson(left.request) === canonicalJson(right.request);
 }
 
-export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now?: () => string }) {
+/**
+ * 等生命周期锁的总期限。残留的有效租约要等到它过期（上限是租期 30 秒），坏记录要等它超过一个租期才能回收，再留一段给正常交接；
+ * 到了就把「忙」抛给上层，由上层过一会儿再来。这里不能无限等：等不到就没人能收这一笔的结果。
+ */
+const LIFECYCLE_WAIT_MS = 45_000;
+
+export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now?: () => string; lifecycleWaitMs?: number }) {
   const now = deps.now ?? (() => new Date().toISOString());
 
   function read(): ProductionRunRuntimeEnvelope | null {
@@ -117,36 +127,84 @@ export function createProductionRunRuntimeEnvelope(deps: { filePath: string; now
     return next;
   }
 
-  function markPolled(input: { status: string; raw?: unknown }): ProductionRunRuntimeEnvelope {
-    const current = read();
-    if (!current || !current.providerTaskId || current.state !== "provider_accepted") {
+  const lifecycle = createProductionRunLock({ filePath: `${deps.filePath}.lifecycle-lock`, durability: "ephemeral" });
+  const observationRevision = (value: ProductionRunRuntimeEnvelope) => value.lastPoll?.revision ?? 0;
+  function superseded(current: ProductionRunRuntimeEnvelope, observed: ProductionRunRuntimeEnvelope): boolean {
+    return current.state === "materialized" || observationRevision(current) !== observationRevision(observed);
+  }
+  function accepted(current: ProductionRunRuntimeEnvelope | null): ProductionRunRuntimeEnvelope {
+    if (!current?.providerTaskId || !["provider_accepted", "materialized"].includes(current.state)) {
       throw new RuntimeEnvelopeConflictError("Provider acceptance is required before recording a poll");
     }
-    const status = input.status.trim();
-    if (!status) throw new RuntimeEnvelopeConflictError("Provider poll status is required");
-    const observedAt = now();
-    const next: ProductionRunRuntimeEnvelope = {
-      ...current,
-      lastPoll: {
-        status,
-        ...(input.raw === undefined ? {} : { raw: structuredClone(input.raw) }),
-        observedAt,
-      },
-      updatedAt: observedAt,
-    };
-    writeJsonFileAtomic(deps.filePath, next);
-    return next;
+    return current;
+  }
+  // The existing filesystem lease is shared by independently-created Electron/stdio stores.
+  // Same-pending observations return before entering here: no lock writes or heartbeat at idle.
+  async function withLifecycle<T>(work: (assertOwned: () => void) => T | Promise<T>): Promise<T> {
+    let lease: ProductionRunLockLease;
+    const deadline = performance.now() + (deps.lifecycleWaitMs ?? LIFECYCLE_WAIT_MS);
+    for (;;) {
+      try { lease = lifecycle.acquire(); break; }
+      catch (error) {
+        if (!(error instanceof ProductionRunLockBusyError) || performance.now() >= deadline) throw error;
+        await new Promise<void>((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    let lost: unknown;
+    const assertOwned = () => { if (lost) throw lost; lifecycle.assertOwned(lease); };
+    const heartbeat = setInterval(() => { try { lease = lifecycle.renew(lease); } catch (error) { lost = error; } }, 10_000);
+    heartbeat.unref();
+    try { return await work(assertOwned); }
+    finally { clearInterval(heartbeat); lifecycle.release(lease); }
   }
 
-  function markMaterialized(): ProductionRunRuntimeEnvelope {
-    const current = read();
-    if (!current || current.state !== "provider_accepted" || !current.providerTaskId) throw new RuntimeEnvelopeConflictError("Provider acceptance is required before materialization");
-    const next = { ...current, state: "materialized" as const, updatedAt: now() };
-    writeJsonFileAtomic(deps.filePath, next);
-    return next;
+  async function markPolled(input: { observed: ProductionRunRuntimeEnvelope } & ({ status: string; raw?: unknown } | { error: unknown }), onChanged?: (next: ProductionRunRuntimeEnvelope) => void): Promise<ProductionRunRuntimeEnvelope> {
+    function unchanged(current: ProductionRunRuntimeEnvelope): boolean {
+      if (superseded(current, input.observed)) return true;
+      if ("error" in input) throw input.error;
+      const status = input.status.trim();
+      if (!status) throw new RuntimeEnvelopeConflictError("Provider poll status is required");
+      const cls = classifyUpstreamTaskStatus(status);
+      return (cls === "queued" || cls === "running") && current.lastPoll?.status === status;
+    }
+    const current = accepted(read());
+    if (unchanged(current)) return current;
+    return withLifecycle((assertOwned) => {
+      const latest = accepted(read());
+      if (unchanged(latest)) return latest;
+      if ("error" in input) throw input.error;
+      const observedAt = now();
+      const next: ProductionRunRuntimeEnvelope = { ...latest, lastPoll: { status: input.status.trim(),
+        revision: observationRevision(latest) + 1,
+        ...(input.raw === undefined ? {} : { raw: structuredClone(input.raw) }), observedAt }, updatedAt: observedAt };
+      assertOwned();
+      onChanged?.(next);
+      writeJsonFileAtomic(deps.filePath, next);
+      return next;
+    });
   }
 
-  return { read, seal, markProviderAccepted, markPolled, markSubmittedUnknown, markMaterialized };
+  async function withMaterialization<T>(observed: ProductionRunRuntimeEnvelope, work: (current: ProductionRunRuntimeEnvelope, complete: () => void, assertOwned: () => void) => Promise<T>): Promise<{ kind: "refresh" } | { kind: "result"; value: T }> {
+    const latest = accepted(read());
+    // Finished work is immutable: even the ephemeral ownership file is unnecessary.
+    if (latest.state === "materialized") return { kind: "result", value: await work(latest, () => undefined, () => { throw new RuntimeEnvelopeConflictError("Materialized execution is immutable"); }) };
+    if (superseded(latest, observed)) return { kind: "refresh" };
+    return withLifecycle(async (assertOwned) => {
+      const current = accepted(read());
+      // Shared revalidation after the external extraction, before asset I/O or error handling.
+      if (current.state !== "materialized" && superseded(current, observed)) return { kind: "refresh" };
+      const complete = () => {
+        assertOwned();
+        const latest = accepted(read());
+        if (latest.state === "materialized") return;
+        if (classifyUpstreamTaskStatus(latest.lastPoll?.status ?? "") !== "succeeded") throw new RuntimeEnvelopeConflictError("Successful provider observation is required before materialization");
+        writeJsonFileAtomic(deps.filePath, { ...latest, state: "materialized", updatedAt: now() });
+      };
+      return { kind: "result", value: await work(current, complete, assertOwned) };
+    });
+  }
+
+  return { read, seal, markProviderAccepted, markPolled, markSubmittedUnknown, withMaterialization };
 }
 
 export type ProductionRunRuntimeEnvelopeStore = ReturnType<typeof createProductionRunRuntimeEnvelope>;

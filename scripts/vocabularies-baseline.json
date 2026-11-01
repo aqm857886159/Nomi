@@ -498,7 +498,7 @@
         "unknown"
       ],
       "reason": "供应商轮询状态的归一化「四类」（pending 在途 / succeeded 成功 / failed 失败 / unknown 无法归类）：classifyProviderStatus 把各家供应商五花八门的原始状态串映射到这四类以驱动提交后的下一步决策。它必须显式保留 unknown（无法归类时不得臆断成终态），与 TERMINAL_STATUSES（只区分终/非终）取值与粒度都不同，复用会丢掉 pending/unknown 的区分，故独立。",
-      "site": "electron/productionRun/productionGenerationSubmission.ts::type:ProviderPollStatusClass/type-union"
+      "site": "electron/productionRun/productionGenerationMaterialization.ts::type:ProviderPollStatusClass/type-union"
     },
     {
       "members": [
@@ -2112,6 +2112,23 @@
       ],
       "reason": "SubmissionFailureOutcome 是一次付费提交失败的封闭结局（not_dispatched 确定没发出去 / provider_rejected 供应商当场明确拒绝 / result_landing_failed 供应商答了、本机把结果落地失败 / unknown 拿不出证据的结果未知）：submissionOutbox 按它穷举落盘，信封按它决定记不记 submitted_unknown（2026-10-28）。它回答「这次提交失败在钱上意味着什么」，和 ProductionJobStatus（job 持久化状态机）、GENERATION_HAND_OVER_OUTCOMES（交接写回）、ProviderPollStatusClass（轮询状态归一）都不是同一件事；复用任何一个都会丢掉「答了没落下」与「结果未知」的区分，故独立。",
       "site": "electron/productionRun/submissionOutbox.ts::type:SubmissionFailureOutcome/type-union"
+    },
+    {
+      "members": [
+        "authorize",
+        "save-project"
+      ],
+      "reason": "保存结果包络记录的主进程阶段：authorize 只包含发送者校验，save-project 包含项目事务；两个阶段只由保存 handler 写入，并由 ProjectSaveFailure.stage 作为唯一词表供记录和读取使用。",
+      "site": "electron/shared/contracts/projectSaveFailure.ts::type:ProjectSaveFailure/property:stage/type-union"
+    },
+    {
+      "members": [
+        "monitor-not-running",
+        "none-this-session",
+        "recorded"
+      ],
+      "reason": "诊断包清单里卡顿时间线的三态：recorded 有记录、none-this-session 监视器在跑但本次没记到、monitor-not-running 监视器没运行。只由诊断包组包函数按监视器状态和盘上读回的行数推出，写进清单给收包的人读；没有别的状态机用这三个词，无处可复用，也不会有第二个写入方。",
+      "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsStallTimeline/property:state/type-union"
     }
   ],
   "debt": [

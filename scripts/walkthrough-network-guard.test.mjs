@@ -47,6 +47,36 @@ describe('walkthrough network guard', () => {
     expect(blocked.map((entry) => entry.host)).toEqual(['other.invalid'])
   })
 
+  it('NOMI_WALK_HOLD_RESPONSE lets the request reach the provider and holds only its answer until released', () => {
+    const dir = makeTempDir('nomi-net-guard-hold-')
+    temps.push(dir)
+    const releaseFile = path.join(dir, 'release')
+    const { stdout, status, stderr, entries } = runGuarded(`
+      const http = require('node:http')
+      const fs = require('node:fs')
+      const seen = []
+      const server = http.createServer((request, response) => { seen.push(request.method + ' ' + request.url); response.end('{}') })
+      server.listen(0, '127.0.0.1', async () => {
+        const origin = 'http://127.0.0.1:' + server.address().port
+        const free = await fetch(origin + '/v1/tasks/1', { method: 'GET' })
+        const quick = await fetch(origin + '/v1/other', { method: 'POST' })
+        let answered = false
+        const held = fetch(origin + '/v1/images/generations', { method: 'POST', body: '{}' }).then((response) => { answered = true; return response.status })
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        const receivedWhileHeld = seen.includes('POST /v1/images/generations')
+        const answeredWhileHeld = answered
+        fs.writeFileSync(${JSON.stringify(releaseFile)}, '')
+        const status = await held
+        const after = await fetch(origin + '/v1/images/generations', { method: 'POST', body: '{}' })
+        server.close()
+        console.log(JSON.stringify({ free: free.status, quick: quick.status, receivedWhileHeld, answeredWhileHeld, status, after: after.status, creates: seen.filter((line) => line.endsWith('/generations')).length }))
+      })
+    `, { NOMI_WALK_HOLD_RESPONSE: JSON.stringify({ method: 'POST', pathSuffix: '/images/generations', releaseFile }), CI: '' })
+    expect(status, stderr).toBe(0)
+    expect(JSON.parse(stdout)).toEqual({ free: 200, quick: 200, receivedWhileHeld: true, answeredWhileHeld: false, status: 200, after: 200, creates: 2 })
+    expect(entries.filter((entry) => entry.kind === 'response-held').map((entry) => new URL(entry.url).pathname)).toEqual(['/v1/images/generations'])
+  })
+
   it('NOMI_WALK_NET_BODIES=1 records the body of allowed public requests, scrubbed (no headers, no signed query, no key-shaped strings)', () => {
     const { entries } = runGuarded(`
       const form = new FormData()

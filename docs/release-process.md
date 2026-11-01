@@ -73,6 +73,7 @@ macOS 上密钥的钥匙串条目名随 app 名走，所以密钥要在 Preview 
 2. 只把本次确定发布的 PR 合入 release 分支。
 3. 在 release 分支把 `package.json` 版本改为 `0.20.0`，补齐 CHANGELOG 和 release notes。
    同一提交里补这一版的 Agent 提案收据样本：`pnpm exec tsx scripts/generate-published-receipt-fixtures.mjs HEAD`，再把生成的 `HEAD.json` 改名为 `v0.20.0.json`（写入器取自当前提交，与标签名无关；标签要到晋级时才打），并在同目录 README 的命令里加上这一版。漏了它，`projectAgentProposalReceiptStore.test.ts` 的「当前版本要进格式矩阵」会红，门岗推不上去。
+   同一提交里再补这一版的老用户目录样本：按 `tests/fixtures/old-user-data/README.md` 用这一版的真实函数落一份，升级矩阵自动把它算进去。
 4. 未选中的 PR 保持独立，不进入 release 分支。
 
 release 分支仍通过 PR 进入 `main`。为保持 RC commit 可追溯，release PR 使用 merge commit 或 fast-forward，不能 squash。
@@ -101,6 +102,13 @@ RC 工作流会：
 5. 生成绑定 commit SHA 与 workflow run ID 的 `release-manifest.json`。
 
 验收以下真实场景：
+
+**新增两道发版硬门（当前待接线）**：
+
+- Windows 真装、升级、卸载矩阵：用户数据分别位于默认位置、自选位置、安装目录。由安装器修复线建设 Windows 作业；未进 main 前标「待接线」，协调必须在 Windows 的隔离测试目录逐格留证，缺任一格不发。不能用 macOS 门岗代替。
+- 核心任务真模型评测：起草分镜、批量出图，使用相同输入、模型和参数对比上一正式版，变差不发。分别由起草失败修复线与批量生成卡死修复线留下可重复评测。未接线前由协调在候选包和上一版隔离资料上逐项实测，缺对比证据不发；现有单版本付费通过不能代替回归比较。
+
+其余验收场景：
 
 - 从上一正式版升级，项目和设置不丢；
 - 创建、保存、关闭并重开项目；
@@ -138,7 +146,8 @@ RC 验收通过后：
 2. 记下成功 RC 工作流页面中的 run ID；
 3. 手动运行 `Desktop Release`：
    - `rc_run_id`: 成功 RC 的 run ID；
-   - `tag`: `v0.20.0`。
+   - `tag`: `v0.20.0`；
+   - `staging_percentage`: 首批比例，默认 `20`，必须为 1–100 整数，`100` 为全量。
 
 正式发布工作流会验证 RC commit 已包含在 `origin/main`，然后：
 
@@ -185,3 +194,48 @@ https://nomiaqm.com/?download=1&source=app-update&platform=darwin&arch=arm64
 `arch` 来自桌面主进程真实的 `process.arch`，Intel Mac 会传 `x64`。官网删除一次性参数后立即下载对应 DMG；如果参数无效，则停留在官网并保留普通下载按钮，不把用户丢到 GitHub Release 资产列表。
 
 - RC 前必须运行 `pnpm run feel:nightly`，并确认接触表无未分诊体感发现。
+
+
+## 9. 分批放和全量
+
+**首批默认 20%**。`Desktop Release` 在原始 RC 产物通过校验之后、上传之前，经唯一入口 `scripts/release-rollout.mjs prepare` 写 `latest.yml` 和 `latest-mac.yml` 的 `stagingPercentage`，并同步两份元数据的 SHA256SUMS；不重建或修改安装包。每台安装由 electron-updater 持久 ID 固定分组，重复检查不会重新抽签。[机制与换版规则](https://www.electron.build/docs/features/auto-update)。
+
+比例只约束应用内 updater 的更新发现。官网、新用户和 tag 手动下载仍可获取新包；未签名 Mac 走官网直接下载也受这个限制。比例不代表实际升级人数。安装目录不能作为项目数据位置的安全保证，仍须通过上面的 Windows 矩阵。
+
+每次发版由发布协调负责：首批后每日运行一次现有 `pnpm run intake:radar`，看报告末尾的「版本健康」。观察窗口为三个 UTC 日历日（日精度，不代表完整72小时，也不会自动按天扩量）。同窗比较新版与上一版，失败率分母为成功+失败，取消和未知另列；每项都写样本数。
+
+用户少，统计上只能排除大的变差，不能证明新版完全没变差。每项先分别给新旧失败率算 Wilson 区间，再合成「新版 − 旧版」的95%区间（Newcombe 1998方法10，无连续性校正）。这样新旧样本少带来的波动都算进去。阈值和每个数的依据统一在 `scripts/lib/intake-radar/health-policy.json`，由协调2026-10-30确定。
+
+- **停止放量**：任一指标新版样本≥10、差值区间下界>0、点估计增加≥5个百分点，并且新版失败来自至少两个不同会话。只集中在一个会话就单列提示，不据此判停；缺sessionId也不能冒充跨会话证据。停止时雷达退出非0。
+- **可以全量**：新版窗口内至少三个UTC日期有事件、启动≥10次、唯一主指标image失败率样本≥20、该主指标没有未知结果，且没有任何一项判停。10次启动的依据是旧版每天约47次、20%首批三天约28次，取保守下限10。旧版和次指标不足不额外挡全量。
+- **样本不够**：只列以上四项主证据还差多少：观察日期、启动数、image样本、image未知结果。坏缓存代表主指标缺失量未知，也不能全量。此时退出0只表示雷达完成，不能扩量；拉取或输入错误非0，不能称今天健康。
+
+全量结论同时写「image 失败率最多变差 +X 点（95% 上界，n=新/旧）；未覆盖：…」。例如上界+18点，只能说数据尚不能排除18点以内的变差，不能读成“质量正常”或“只会变差一点”。如果旧版完全没有分母，上界保守写+100点并明确无信息，不能排除任何变差。区间针对单项，多个指标一起看不具有总体95%保证；事件也不等于独立用户。
+
+image-edit、video、各能力的疑似本地拒绝占失败比例、更新下载/安装动作、Agent回合都可以触发停止；新版样本不到10时只进「未覆盖」，不挡全量。未覆盖表示这项还没有足够证据，不能当通过；未知结果、缺旧版分母和缺会话身份也另行披露。Agent明确写「Agent 回合（遥测没有这一项）」；安装完成同样没有遥测，动作受理不能替代安装成功证据。
+
+```bash
+# 日常雷达（沿用自己的增量缓存）；需要固定比较版本时显式指定
+NOMI_HEALTH_NEW_VERSION=0.24.0 NOMI_HEALTH_OLD_VERSION=0.23.2 pnpm run intake:radar
+# 调研使用副本，不改变日常雷达的 seenKeys
+NOMI_INTAKE_CACHE=/absolute/copied-cache NOMI_HEALTH_NEW_VERSION=0.24.0 NOMI_HEALTH_OLD_VERSION=0.23.2 pnpm run intake:radar
+```
+
+遥测只带 major.minor，因此以上参数实际比较 **0.24 / 0.23**，无法区分0.23.2和同系列其他补丁。`<1s + unknown` 是疑似本地拒绝，不能断言原因。更新事件版本是发起动作的当前版本，`install success` 只代表安装动作受理，不能证明升级后启动成功。缺Agent事件必须写「Agent 回合（遥测没有这一项）」。事件数不等于独立用户数；同窗也未控制模型/用户构成，报告是告警信号，不是因果证明。
+
+报告最后一行固定为上述三种结论之一，协调据此决定是否执行全量。两道新硬门证据不全仍保持首批不扩量。已知丢数据、用不了等**严重反馈由协调立即暂停**，不必等待统计显著，也不靠这条判定替代用户反馈。
+
+以下命令默认只读并打印计划。只有明确添加 `--yes` 才改公开资产或发布状态；先核目标再执行。脚本拒绝非 latest、未知/不可变资产状态或无上一稳定版的暂停，不改仓库设置。
+
+```bash
+# 全量：两份元数据改为100，同时更新校验和；先打印，再人工执行带--yes的同一命令
+node scripts/release-rollout.mjs full --tag v0.24.0
+node scripts/release-rollout.mjs full --tag v0.24.0 --yes
+# 暂停：标记为pre-release，稳定版的 /releases/latest 回到上一稳定版
+node scripts/release-rollout.mjs pause --tag v0.24.0
+node scripts/release-rollout.mjs pause --tag v0.24.0 --yes
+```
+
+暂停不改yml比例、不建抢先体验通道。已升级的不降级、在途/已缓存下载无法撤回，tag直链仍可下载；官网latest入口也回到上一稳定版。公开资产替换不是原子事务：脚本失败立即停止后续放量，由协调读回两份元数据与SHA256SUMS处理，不把部分成功当完成。仓库以后若开启不可变发布，资产重写会拒绝；协调另定独立可变feed或发更高版本，不能临时改设置绕过。
+
+**放坏了用更高版本换版**：暂停当前版 → 修复并验证 → 版本号高于坏版（如0.24.0坏了发0.24.1）→ 按RC和两道硬门完整走 → 新版本首批20%。不能复用坏版版本号或覆盖安装包，让已升级用户滞留。重新发布已暂停版本或自动恢复不在本批范围。

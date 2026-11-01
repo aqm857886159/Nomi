@@ -21,10 +21,10 @@
 // 别的裸控制字符（如 electron/assets/mediaTypes.test.ts:129 的 PNG magic `\x89PNG\r\n<0x1a>\n`）
 // 是正当的二进制签名夹具，不造成工具失明——把它们一起禁掉就得当天先开豁免名单，
 // 而一条上线就带豁免的规则，远不如一条精确的硬零规则站得住。
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gitPaths } from './lib/gitPaths.mjs'
 
 // 默认扫本脚本所在仓库；`--root <dir>` 让自测指向临时夹具仓库，探针不必写进真仓库
 // （2026-10-11：探针落在 scripts/ 下，与并发的其它门岗撞车，误报 / ENOENT 拦了无关分支的推送）。
@@ -41,15 +41,7 @@ const BINARY_ASSET_EXT = /\.(png|jpe?g|gif|ico|icns|webp|avif|woff2?|ttf|otf|eot
 // 大摇大摆走过门岗——写这条门岗时我自己就踩了：脚本自身当时含裸 NUL，它却报「全仓通过」，
 // 因为它没把自己算进去。门岗漏掉「新文件」这一类，等于对最常见的引入路径失明。
 function filesToScan() {
-  // -z：文件名用 NUL 分隔，这样带空格/换行的路径也不会被切错。
-  return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
-    cwd: repoRoot,
-    encoding: 'buffer',
-    maxBuffer: 64 * 1024 * 1024,
-  })
-    .toString('utf8')
-    .split('\0')
-    .filter(Boolean)
+  return gitPaths(['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: repoRoot })
 }
 
 const offenders = []

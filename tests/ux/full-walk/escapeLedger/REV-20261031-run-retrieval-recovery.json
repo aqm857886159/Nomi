@@ -1,0 +1,44 @@
+{
+  "id": "REV-20261031-run-retrieval-recovery",
+  "since": "2026-10-31",
+  "source": "评审发现：关窗或重启后取回失败一次，主按钮变成重试，点了再扣一次钱；落地中途崩溃后节点一直被锁；锁文件损坏后查询永远不返回。模型或 Key 暂时用不了时，没问过供应商就记成供应商说失败，主按钮是重试。 窗口一直开着时，渲染层等满时限之后没有人接着查，标记失败再重试一直被挡。",
+  "category": "claims-and-outcomes",
+  "problem": "供应商已经收下、钱已经花了的单，任务号还在，却被判死、卡死，或者允许再下单。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "关窗后取回失败一次，故障好了点重新取回，落地，只下过一单",
+    "重启后取回失败一次，同上",
+    "老项目里已经落下的错误卡，主按钮是重新取回",
+    "落地崩在任何两步之间，下一次查都能收尾",
+    "模型或 Key 暂时用不了：卡上写真实原因，不给重试；恢复后点重新取回落地，只下过一单",
+    "这单不要了：标记失败之后才给重试",
+    "窗口一直开着：等满时限之后观察者接着查，查到的结果先落进项目，点一下重新取回即现，只下过一单",
+    "单还在跑时标记失败再重试被挡，卡上说这个节点还在生成；跑完才放行",
+    "Run 已经完成时标记失败：产物还在素材里，重试才算第二单"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-31-run-retrieval-recovery.md",
+    "docs/engineering/direction-checks/2026-10-31-run-recovery-materialize.md",
+    "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
+    "tests/run-retrieval-recovery/matrix.test.mjs",
+    "src/workbench/observability/retrievalStageClassification.test.ts"
+  ],
+  "completionCommits": [
+    "962e31728",
+    "107435978",
+    "a016e27c9",
+    "5a34345b8"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/run-retrieval-recovery/matrix.test.mjs"
+  },
+  "fixedInPr": 1401
+}

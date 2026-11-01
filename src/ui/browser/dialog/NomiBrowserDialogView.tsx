@@ -19,6 +19,7 @@ import {
   IconX,
 } from '../../../vendor/tablerIcons'
 import { BodyPortal, NomiLogoMark } from '../../../design'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { cn } from '../../../utils/cn'
 import { NomiBrowserAssetPopover } from '../popover/NomiBrowserAssetPopover'
 import { useOpenProjectId } from '../../../workbench/project/useOpenProjectId'
@@ -102,6 +103,7 @@ export function NomiBrowserDialogView({
   webContainerRef,
   webContentBounds,
 }: NomiBrowserDialogViewProps): JSX.Element {
+  useModalInputLayer(true)
   const openProjectId = useOpenProjectId()
   const { t } = useTranslation()
   const browserAssetPopoverBounds = React.useMemo(() => {

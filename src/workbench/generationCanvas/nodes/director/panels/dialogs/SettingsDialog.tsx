@@ -46,7 +46,7 @@ export function SettingsDialog({ open, preferences, onChange, onClose, onOpenHel
 
   return (
     <DesignModal opened={open} onClose={onClose} title={t('director.settings.title')} size="md" centered>
-      <div className="flex flex-col gap-3" data-nomi-escape-layer="director-settings" data-testid="director-settings-dialog">
+      <div className="flex flex-col gap-3" data-testid="director-settings-dialog">
         <section>
           <SectionHeader title={t('director.settings.roamTitle')} onReset={() => onChange({ ...preferences, view: DEFAULT_VIEW_SETTINGS })} />
           {VIEW_FIELDS.map((field) => {

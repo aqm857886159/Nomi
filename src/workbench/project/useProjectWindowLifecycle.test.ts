@@ -1,3 +1,6 @@
+import { WORKSPACE_MANIFEST_BUSY_ERROR_NAME } from '../../../electron/shared/contracts/workspaceBusy'
+import { IpcResultError } from '../../../electron/shared/contracts/ipcResult'
+import { projectSaveFailure } from '../../../electron/shared/contracts/projectSaveFailure'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const deps = vi.hoisted(() => ({
   closeRequest: null as null | ((payload: { requestId: string }) => void),
@@ -63,12 +66,22 @@ describe('project window save receipts', () => {
     }))
   })
   it('says the project is in use elsewhere when the manifest lock is held, not "check disk permissions"', async () => {
-    // Electron invoke 带回来的真实形状：只剩「名字: 信息」。
-    deps.save.mockRejectedValueOnce(new Error("Error invoking remote method 'nomi:projects:save-async': WorkspaceManifestLockBusyError: Workspace manifest is owned on another host"))
+    // 保存身份以普通数据跨桥，渲染层统一拆封；不再从 invoke 文本猜。
+    deps.save.mockRejectedValueOnce(new IpcResultError('project-save-failed', projectSaveFailure({ name: WORKSPACE_MANIFEST_BUSY_ERROR_NAME }, 'save-project')))
     useProjectWindowLifecycle()
     deps.closeRequest?.({ requestId: 'close-busy' })
     await vi.waitFor(() => expect(deps.cancelled).toHaveBeenCalledWith('close-busy'))
     expect(deps.toast).toHaveBeenCalledExactlyOnceWith('studio.projectInUseElsewhere', 'error')
+  })
+  it.each([
+    ['EBUSY', 'studio.projectSaveInUse'], ['EPERM', 'studio.projectSaveWriteDenied'], ['ENOSPC', 'studio.projectSaveDiskFull'],
+  ])('keeps the window open and presents the actual %s save reason', async (code, key) => {
+    deps.save.mockRejectedValueOnce(new IpcResultError('project-save-failed', projectSaveFailure({ code }, 'save-project')))
+    useProjectWindowLifecycle()
+    deps.closeRequest?.({ requestId: 'close-reason' })
+    await vi.waitFor(() => expect(deps.cancelled).toHaveBeenCalledWith('close-reason'))
+    expect(deps.toast).toHaveBeenCalledWith(key, 'error')
+    expect(deps.closed).not.toHaveBeenCalled()
   })
   it('keeps a failed reload in place and permits a later successful retry', async () => {
     deps.save.mockRejectedValueOnce(new Error('disk denied')).mockResolvedValueOnce(null)

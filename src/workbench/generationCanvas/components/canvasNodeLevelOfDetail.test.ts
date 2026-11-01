@@ -1,48 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import {
-  LIGHTWEIGHT_NODE_RENDER_THRESHOLD,
-  LIGHTWEIGHT_NODE_ZOOM_THRESHOLD,
-  isLargeCanvas,
-  isZoomedOutForLightweight,
-  retainLargeCanvasLightweightRendering,
-  resolveLightweightNodePreview,
-  shouldRenderFullNodeContent,
-  shouldUseLightweightNodeRendering,
-  shouldUseLightweightNodeRenderingForSelection,
-} from './canvasNodeLevelOfDetail'
+import { resolveLightweightNodePreview } from './canvasNodeLevelOfDetail'
 
-describe('canvas node level of detail', () => {
-  it('uses lightweight rendering only for large zoomed-out canvases', () => {
-    expect(isLargeCanvas(LIGHTWEIGHT_NODE_RENDER_THRESHOLD)).toBe(false)
-    expect(isLargeCanvas(LIGHTWEIGHT_NODE_RENDER_THRESHOLD + 1)).toBe(true)
-    expect(isZoomedOutForLightweight(LIGHTWEIGHT_NODE_ZOOM_THRESHOLD)).toBe(false)
-    expect(isZoomedOutForLightweight(0.3)).toBe(true)
-    expect(shouldUseLightweightNodeRendering(false, true)).toBe(false)
-    expect(shouldUseLightweightNodeRendering(true, true)).toBe(true)
-    expect(shouldUseLightweightNodeRendering(true, false)).toBe(false)
-  })
-
-  it('keeps selected and focused nodes fully interactive in lightweight mode', () => {
-    expect(shouldRenderFullNodeContent({ lightweightMode: true, selected: false, focusFlash: false })).toBe(false)
-    expect(shouldRenderFullNodeContent({ lightweightMode: true, selected: true, focusFlash: false })).toBe(true)
-    expect(shouldRenderFullNodeContent({ lightweightMode: true, selected: false, focusFlash: true })).toBe(true)
-    expect(shouldRenderFullNodeContent({ lightweightMode: false, selected: false, focusFlash: false })).toBe(true)
-  })
-
-  it('keeps large-canvas multi-selection lightweight without degrading single selection', () => {
-    expect(shouldUseLightweightNodeRenderingForSelection({ largeCanvas: true, zoomedOut: false, selected: true, primarySelection: false })).toBe(true)
-    expect(shouldUseLightweightNodeRenderingForSelection({ largeCanvas: true, zoomedOut: false, selected: true, primarySelection: true })).toBe(false)
-    expect(shouldUseLightweightNodeRenderingForSelection({ largeCanvas: false, zoomedOut: false, selected: true, primarySelection: false })).toBe(false)
-  })
-
-  it('retains lightweight nodes after clearing a large multi-selection until single selection', () => {
-    expect(retainLargeCanvasLightweightRendering({ retained: false, largeCanvas: true, selected: true, primarySelection: false })).toBe(true)
-    expect(retainLargeCanvasLightweightRendering({ retained: true, largeCanvas: true, selected: false, primarySelection: false })).toBe(true)
-    expect(retainLargeCanvasLightweightRendering({ retained: true, largeCanvas: true, selected: true, primarySelection: true })).toBe(false)
-    expect(retainLargeCanvasLightweightRendering({ retained: true, largeCanvas: false, selected: false, primarySelection: false })).toBe(false)
-  })
-})
-
+// 「画整卡还是轻量卡」的判据由 canvasDetailAdmission.matrix.test.ts 按矩阵钉住；这里只管轻量卡挂什么图。
 describe('resolveLightweightNodePreview', () => {
   it('uses an image thumbnail before the full image URL', () => {
     expect(

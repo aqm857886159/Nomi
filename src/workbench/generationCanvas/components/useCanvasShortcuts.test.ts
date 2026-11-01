@@ -145,7 +145,7 @@ describe('画布快捷键的文本编辑边界', () => {
     const undo = vi.fn(store.undo)
 
     const handler = createCanvasKeydownHandler({
-      stageRef: { current: { offsetParent: {} } } as RefObject<HTMLDivElement>,
+      stageRef: { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>,
       selectedNodeCount: 0,
       selectedGroupCount: 0,
       activeCategoryId: 'shots',
@@ -185,7 +185,7 @@ describe('画布快捷键的文本编辑边界', () => {
     store.updateNode(node.id, { meta: { modelKey: 'new-model' } })
     const undo = vi.fn(store.undo)
     const handler = createCanvasKeydownHandler({
-      stageRef: { current: { offsetParent: {} } } as RefObject<HTMLDivElement>,
+      stageRef: { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>,
       selectedNodeCount: 0,
       selectedGroupCount: 0,
       activeCategoryId: 'shots',
@@ -215,8 +215,8 @@ describe('画布快捷键的文本编辑边界', () => {
     eventWindow.getSelection = () => ({ isCollapsed: true })
     globalThis.window = eventWindow as Window & typeof globalThis
     globalThis.document = { activeElement: null, querySelector: () => null } as unknown as Document
-    const stage = { offsetParent: {} } as unknown as HTMLDivElement
-    const timeline = { offsetParent: {} }
+    const stage = { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } as unknown as HTMLDivElement
+    const timeline = { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} }
     installShortcutSurfaceTracker(eventWindow as Window)
     const pointer = new Event('pointerdown')
     Object.defineProperty(pointer, 'target', { value: { closest: () => timeline } })
@@ -290,7 +290,7 @@ describe('Delete 键与选中的连线（用户 10-08「删掉连线中间的标
     const deleteActiveEdge = vi.fn()
     const deleteSelectedNodes = vi.fn()
     const handler = createCanvasKeydownHandler({
-      stageRef: { current: { offsetParent: {} } } as RefObject<HTMLDivElement>,
+      stageRef: { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>,
       selectedNodeCount, selectedGroupCount: 0, activeCategoryId: 'shots',
       setActiveEdge: () => {}, cancelConnection: () => {}, deleteActiveEdge, deleteSelectedNodes,
       groupSelectedNodes: () => {}, ungroupSelectedNodes: () => {}, copySelectedNodes: () => {}, cutSelectedNodes: () => {},
@@ -328,7 +328,7 @@ describe('nested whiteboard command ownership', () => {
     globalThis.document = { activeElement: null, querySelector: () => null } as unknown as Document
     const mutate = vi.fn()
     const handler = createCanvasKeydownHandler({
-      stageRef: { current: { offsetParent: {} } } as RefObject<HTMLDivElement>, selectedNodeCount: 1, selectedGroupCount: 0,
+      stageRef: { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>, selectedNodeCount: 1, selectedGroupCount: 0,
       activeCategoryId: 'shots', setActiveEdge: mutate, cancelConnection: mutate, deleteSelectedNodes: mutate,
       groupSelectedNodes: mutate, ungroupSelectedNodes: mutate, copySelectedNodes: mutate, cutSelectedNodes: mutate,
       pasteNodes: mutate, zoomByStep: mutate, undo: mutate, redo: mutate, duplicateSelectedNodes: mutate,

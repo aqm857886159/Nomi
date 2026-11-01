@@ -8,6 +8,7 @@ import {
   ProductionRunLockBusyError,
   ProductionRunLockLostError,
   createProductionRunLock,
+  inspectProductionRunLockFile,
 } from "./productionRunLock";
 
 const tempDirs: string[] = [];
@@ -41,6 +42,48 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 
+describe("inspectProductionRunLockFile", () => {
+  const LEASE_MS = 10_000;
+  function aged(content: string, ageMs: number) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-run-lock-"));
+    tempDirs.push(dir);
+    const file = path.join(dir, "file.lock");
+    fs.writeFileSync(file, content);
+    const stamp = new Date(Date.now() - ageMs);
+    fs.utimesSync(file, stamp, stamp);
+    return file;
+  }
+
+  it("a live lease is held, an expired lease and no file are free: acquire can take those", () => {
+    const { dir, first } = makeLocks();
+    const lockFile = path.join(dir, "run.lock");
+    expect(inspectProductionRunLockFile(lockFile, "lease")).toBe("free");
+    const lease = first.acquire();
+    const inside = Date.parse(lease.expiresAt) - 1;
+    expect(inspectProductionRunLockFile(lockFile, "lease", 10_000, inside)).toBe("held");
+    expect(inspectProductionRunLockFile(lockFile, "lease", 10_000, Date.parse(lease.expiresAt))).toBe("free");
+    expect(inspectProductionRunLockFile(path.join(dir, "run.lock.epoch"), "epoch")).toBe("free");
+  });
+
+  it.each([["", "zero bytes, the state a crash between open and write leaves"], ["garbled", "not a lease"], ["{\"schemaVersion\":1}", "not a whole lease"]])(
+    "an unparseable lease stays held while someone could still be writing it, and is dead after a whole lease: %s (%s)", (content) => {
+      expect(inspectProductionRunLockFile(aged(content, 0), "lease", LEASE_MS)).toBe("held");
+      expect(inspectProductionRunLockFile(aged(content, LEASE_MS + 1000), "lease", LEASE_MS)).toBe("dead");
+    });
+
+  it("an unparseable epoch follows the same rule", () => {
+    expect(inspectProductionRunLockFile(aged("garbled", 0), "epoch", LEASE_MS)).toBe("held");
+    expect(inspectProductionRunLockFile(aged("garbled", LEASE_MS + 1000), "epoch", LEASE_MS)).toBe("dead");
+  });
+
+  it("acquire itself stays closed on a dead file: only a caller that knows what the lock guards may replace it", () => {
+    const file = aged("garbled", LEASE_MS + 1000);
+    const lock = createProductionRunLock({ filePath: file, epochPath: `${file}.epoch` });
+    expect(() => lock.acquire()).toThrow(ProductionRunLockBusyError);
+    expect(fs.readFileSync(file, "utf8")).toBe("garbled");
+  });
+});
+
 describe("ProductionRunLock", () => {
   it("serializes owners and advances the fencing epoch after release", () => {
     const { first, second } = makeLocks();
@@ -64,6 +107,32 @@ describe("ProductionRunLock", () => {
     expect(secondLease.fencingEpoch).toBe(2);
     expect(() => first.renew(firstLease)).toThrow(ProductionRunLockLostError);
     second.release(secondLease);
+  });
+
+  it("reclaims a corrupt record only after it has not been touched for a whole lease", () => {
+    const { dir, first } = makeLocks();
+    const lockFile = path.join(dir, "run.lock");
+    for (const corrupt of ["", '{"schemaVersion":1,"owner']) {
+      fs.writeFileSync(lockFile, corrupt);
+      const written = new Date("2026-08-23T00:00:00.000Z");
+      fs.utimesSync(lockFile, written, written);
+      // 刚写的：可能正是别的进程刚开了文件、还没写完，仍算占用。
+      expect(() => first.acquire()).toThrow(ProductionRunLockBusyError);
+    }
+  });
+
+  it("takes over a corrupt record older than the lease and keeps the epoch moving", () => {
+    const { dir, first, advance } = makeLocks();
+    const lockFile = path.join(dir, "run.lock");
+    fs.writeFileSync(lockFile, "");
+    const written = new Date("2026-08-23T00:00:00.000Z");
+    fs.utimesSync(lockFile, written, written);
+    advance(9);
+    expect(() => first.acquire()).toThrow(ProductionRunLockBusyError);
+    advance(2);
+    const lease = first.acquire();
+    expect(lease.ownerId).toBe("owner-a");
+    first.release(lease);
   });
 
   it("renews only the current owner and keeps a live lock from being stolen", () => {

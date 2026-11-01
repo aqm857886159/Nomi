@@ -6,8 +6,10 @@
 // （P1「第三个特例分支」）。新的一种只在这里加一行，热点文件不动。
 // 拆解的措辞还内嵌在通用分支里（三处三元），要改它的措辞时先搬进这张表。
 import { PROMPT_EXTRACTION_SPEND_INTENT } from '../../../electron/shared/contracts/browserPromptExtraction'
+import { UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT } from '../../../electron/shared/contracts/modelTrialSpend'
 import { confirmCredentialProbeSpend, type CredentialProbeSpendPayload } from './credentialProbeSpendCard'
 import { confirmPromptExtractionSpend, type PromptExtractionSpendPayload } from './promptExtractionSpendCard'
+import { confirmUncertainPriorTrialSpend } from './uncertainPriorTrialSpendCard'
 
 type DedicatedSpendCard = (info: CredentialProbeSpendPayload & PromptExtractionSpendPayload) => Promise<{ confirmed: boolean }>
 
@@ -16,6 +18,8 @@ const SPEND_CARD_BY_INTENT: Readonly<Record<string, DedicatedSpendCard>> = {
   'credential-probe': confirmCredentialProbeSpend,
   // 浏览器「提取提示词」：卡上写清来源页、哪张图、哪个读图模型。
   [PROMPT_EXTRACTION_SPEND_INTENT]: confirmPromptExtractionSpend,
+  // 试跑开新单而上一笔结果不确定：明说可能多扣一次。
+  [UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT]: confirmUncertainPriorTrialSpend,
 }
 
 /** 这个 intent 有专用卡就给它，没有 = undefined（落进通用卡）。只认表里自己的键，不认原型链上的。 */

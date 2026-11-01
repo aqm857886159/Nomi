@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { IconDownload, IconLoader2, IconX } from '@tabler/icons-react'
 import { NomiImage } from '../../design/media'
+import { useModalInputLayer } from '../../design/modalInputLayer'
 import { cn } from '../../utils/cn'
 import { useVideoPlaybackHeal } from '../../media/useVideoPlaybackHeal'
 import { VideoPlaybackStatusOverlay } from '../../media/VideoPlaybackStatusOverlay'
@@ -36,6 +37,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
   sequence?: readonly AssetPreviewSequenceItem[]
   initialIndex?: number
 }): JSX.Element {
+  useModalInputLayer(true)
   const { t } = useTranslation()
   const [sequenceIndex, setSequenceIndex] = React.useState(() => Math.max(0, Math.min(initialIndex, (sequence?.length ?? 1) - 1)))
   const currentItem = sequence?.[sequenceIndex]

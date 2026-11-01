@@ -20,7 +20,7 @@ import { readCatalog } from "../../catalog/catalogStore";
 import { readCredentialBinding } from "../../catalog/credentialBinding";
 import { decryptApiKeyRecord } from "../../catalog/secrets";
 import { resolveConnectionVendorKey } from "../../catalog/connectionVendorKey";
-import { DeclaredOriginRewriteError, registerDeclaredProvider } from "../../catalog/declaredProviderRegistration";
+import { DeclaredOriginRewriteError, DeclaredRouteConflictError, registerDeclaredProvider } from "../../catalog/declaredProviderRegistration";
 import type { Model } from "../../catalog/types";
 import { isJsonRecord } from "../../jsonUtils";
 import { changeIdFor } from "./fingerprint";
@@ -68,6 +68,44 @@ export function rejectionsFromError(error: unknown, card: unknown): OnboardingRe
     message: message.slice(0, 600),
     ...(cardSourceUrl(card) ? { sourceUrl: cardSourceUrl(card) as string } : {}),
   }];
+}
+
+/**
+ * 这张卡会盖掉不属于它的路由：拒绝是对的，「改字段再交」是错的——卡没写错，改一万次也过不了。
+ * 主要人群是旧版接过中转、留着旧版猜的路由的用户。两个出口都只用现有工具，真走一遍的矩阵在
+ * `routeConflictExit.test.ts`，给出去的步骤走不通它就红。
+ */
+function routeConflictFailure(error: DeclaredRouteConflictError): OnboardingFailure {
+  const { vendorKey, conflicts } = error;
+  const modelKeys = [...new Set(conflicts.map((conflict) => conflict.modelKey))];
+  const declaration = "<this same card>";
+  return {
+    ok: false, code: "route_conflict",
+    message: `${modelKeys.join(", ")} on ${vendorKey} already has routes or a capability this card would overwrite, and Nomi cannot prove they are safe to replace.`,
+    conflicts,
+    consequence: `Nothing was written. ${modelKeys.join(", ")} keeps sending to its current routes, and this card has no effect until one of the exits is taken.`,
+    exits: [
+      {
+        id: "replace_model",
+        needsUserConfirmation: true,
+        summary: `Delete ${modelKeys.join(", ")} from ${vendorKey}, then submit this same card. The connection, its saved key and its other models stay. Every route and capability listed in conflicts is deleted for good, including anything the user edited by hand, so show them and get a yes first.`,
+        steps: [
+          { tool: "nomi_read", arguments: { target: "models" } },
+          { tool: "nomi_remove_provider", arguments: { vendorKey, modelKeys, ifUnchanged: "<the fingerprint that read returned>" } },
+          { tool: "nomi_model_setup", arguments: { action: "submit_declaration", vendorKey, declaration } },
+        ],
+      },
+      {
+        id: "separate_connection",
+        needsUserConfirmation: false,
+        summary: `Submit this same card under a new connection name. Everything on ${vendorKey} stays as it is, including its routes, and the new connection needs its own key saved.`,
+        steps: [
+          { tool: "nomi_model_setup", arguments: { action: "submit_declaration", name: "<a new connection name>", declaration } },
+        ],
+      },
+    ],
+    nextAction: "Do not edit the card: the card is not what is wrong and no change to it can pass. Tell the user what conflicts and take one of the exits, in the order its steps are listed. replace_model deletes things for good, so it needs their yes first.",
+  };
 }
 
 export async function submitDeclaration(
@@ -164,6 +202,7 @@ export async function submitDeclaration(
         nextAction: `Declare provider.baseUrl on ${error.boundOrigin}, or call connect_provider with vendorKey=${vendorKey} and reissueKey=true so the user can rebind the key on Nomi's own page.`,
       };
     }
+    if (error instanceof DeclaredRouteConflictError) return routeConflictFailure(error);
     return {
       ok: false, code: "provider_failed",
       message: "Nomi could not write this declaration into the model catalog.",

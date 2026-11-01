@@ -1,5 +1,5 @@
 import type { GenerationNodeRunRecord } from '../model/generationCanvasTypes'
-import { nodeRunOutcomePatch, type LandedNodeOutcome } from './nodeRunOutcome'
+import { nodeProgressChangesRecovery, nodeRunOutcomePatch, type LandedNodeOutcome } from './nodeRunOutcome'
 import { createRunId } from './canvasIds'
 import { bumpPersistRevision } from './canvasGuards'
 import { getRunDurationSeconds, mergeRunRecord } from './runRecordHelpers'
@@ -44,8 +44,10 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return
-      Object.assign(node, nodeRunOutcomePatch(node, { kind: 'progress', progress }))
-      bumpPersistRevision(state)
+      const patch = nodeRunOutcomePatch(node, { kind: 'progress', progress })
+      const durable = nodeProgressChangesRecovery(node, patch)
+      Object.assign(node, patch)
+      if (durable) bumpPersistRevision(state)
     })
   },
   appendNodeRun: (nodeId, run) => {
