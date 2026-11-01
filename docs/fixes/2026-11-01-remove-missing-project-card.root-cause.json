@@ -92,8 +92,8 @@
   "shared_boundaries": [
     {
       "path": "electron/projects/repository.ts",
-      "symbol": "deleteProject",
-      "responsibility": "Answers false only after the registration is removed, through unbindProject."
+      "symbol": "unbindProject",
+      "responsibility": "The only place that removes a registration; every deleted:false answer from deleteProject comes through it."
     },
     {
       "path": "src/workbench/library/projectDeleteChoice.ts",

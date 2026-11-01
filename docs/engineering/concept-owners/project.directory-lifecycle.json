@@ -22,10 +22,18 @@
     {
       "path": "electron/workspace/workspaceManifestLock.ts",
       "symbol": "tryAcquireCanonicalWorkspaceManifestLock"
+    },
+    {
+      "path": "electron/projects/repository.ts",
+      "symbol": "unbindProject"
+    },
+    {
+      "path": "src/workbench/library/projectDeleteChoice.ts",
+      "symbol": "projectDeleteChoice"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-22",
-  "notes": "合同 docs/fixes/2026-10-22-project-library-gc-race.root-cause.json（V-plibrary N1 / N2 / V-plibrary2 条件）。删项目目录只有用户删除一扇门：electron/projects/repository.ts 的删除入口照渲染层确认框传来的意图（electron/shared/projectDeleteIntent.ts）执行，unbind 绝不删盘，delete-files 此刻读不出就拒绝；项目根只在用户确认 delete-files 之后离开原位，而且只进系统回收站（electron/projects/projectTrash.ts 的 moveProjectFolderToTrash，shell.trashItem，⑭）、可以还原，进不了回收站就报错、什么都不删，绝不永久删除：workspace 项目走 deleteWorkspaceProject（回收站由调用方注入，成功并核过原路径不在了才解绑），老格式（根目录 project.json、未登记）项目走 electron/projects/repository.ts 删除入口的 legacy 分支。listWorkspaceProjects 只读：返回所有登记过的项目，不藏、不删（读面不做展示上的取舍，V-plibrary2 r3 / 用户拍板 B），每项读取错误只落在这一张卡；启动发现（legacyProjectMigration.discoverLegacyProjects）同样逐项隔离，读不出的目录跳过、不拖垮整页。tryAcquireCanonicalWorkspaceManifestLock 是所有写者共用的取锁函数，只在根已在时建 .nomi，根没了抛 WorkspaceRootMissingError，不造孤儿根。读路径不可达删除由门岗 delivery.read-path-destruction-gate 守。2026-10-29 起列表也不摘登记：06-14 起 listProjects 凭「native + 文件夹不在 + 默认根在」把登记摘掉（升级清掉安装目录后关掉再开整库项目就没了），已删；文件夹找不到的卡片标 missing 一直留着，直到用户自己移除或重新打开那个文件夹（project.location）。"
+  "notes": "合同 docs/fixes/2026-10-22-project-library-gc-race.root-cause.json（V-plibrary N1 / N2 / V-plibrary2 条件）。删项目目录只有用户删除一扇门：electron/projects/repository.ts 的删除入口照渲染层确认框传来的意图（electron/shared/projectDeleteIntent.ts）执行，unbind 绝不删盘，delete-files 此刻读不出就拒绝；项目根只在用户确认 delete-files 之后离开原位，而且只进系统回收站（electron/projects/projectTrash.ts 的 moveProjectFolderToTrash，shell.trashItem，⑭）、可以还原，进不了回收站就报错、什么都不删，绝不永久删除：workspace 项目走 deleteWorkspaceProject（回收站由调用方注入，成功并核过原路径不在了才解绑），老格式（根目录 project.json、未登记）项目走 electron/projects/repository.ts 删除入口的 legacy 分支。listWorkspaceProjects 只读：返回所有登记过的项目，不藏、不删（读面不做展示上的取舍，V-plibrary2 r3 / 用户拍板 B），每项读取错误只落在这一张卡；启动发现（legacyProjectMigration.discoverLegacyProjects）同样逐项隔离，读不出的目录跳过、不拖垮整页。tryAcquireCanonicalWorkspaceManifestLock 是所有写者共用的取锁函数，只在根已在时建 .nomi，根没了抛 WorkspaceRootMissingError，不造孤儿根。读路径不可达删除由门岗 delivery.read-path-destruction-gate 守。2026-10-29 起列表也不摘登记：06-14 起 listProjects 凭「native + 文件夹不在 + 默认根在」把登记摘掉（升级清掉安装目录后关掉再开整库项目就没了），已删；文件夹找不到的卡片标 missing 一直留着，直到用户自己移除或重新打开那个文件夹（project.location）。2026-11-01 起（合同 docs/fixes/2026-11-01-remove-missing-project-card.root-cause.json）：projectDeleteChoice 是卡片状态到确认框选项的唯一映射，文件夹找不到的卡只给「移除」；unbindProject 是摘登记的唯一一处，删除入口回 deleted:false 都经过它，不再有什么都没做还回 false 的分支。"
 }
