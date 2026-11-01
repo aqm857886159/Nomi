@@ -2,10 +2,11 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect } from '@playwright/test'
+import { waitForVisualQuiescence, proveProbe, expectAbsent } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { readProject } from './agent-runtime-walk-support.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
-import { canvasFitView, collapseAgentPanel, switchWorkspace, switchGenerationView } from './_shell.mjs'
+import { canvasFitView, closeRailDrawer, collapseAgentPanel, switchWorkspace, switchGenerationView } from './_shell.mjs'
 import { prepareLockExitStoryboard } from './_generationLockExitSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -15,16 +16,19 @@ export async function matrixLockExitJourney(input) {
   const t = key => uiText(locale, key)
   const report = { checks: {}, screenshots: [], setup: 'E5 calls the real single-node runner after the renderer reaches recoverable while the accepted fake task is still held by the host observer; no fabricated node errors or Run records.' }
   const nodes = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
-  const shot = async name => { fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
+  const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
   const canvas = async id => { await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page); await page.waitForFunction(() => Boolean(window.__nomiCanvasStore)); await page.evaluate(id => window.__nomiCanvasStore.getState().selectNode(id), id); await canvasFitView(page); await page.evaluate(id => window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId: id } })), id); await expect(page.locator(`[data-node-id="${id}"]`).first()).toBeVisible() }
   const list = async id => { await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'list'); if (await page.locator('[data-list-detail-back]').isVisible()) await page.locator('[data-list-detail-back]').click(); const node = (await nodes()).find(n => n.id === id); await page.locator(node.meta.anchorId ? `[data-list-anchor="${design.id}:${node.meta.anchorId}"], [data-list-unreferenced-asset="${id}"]` : `[data-list-card="${id}"]`).first().click() }
   const storyboard = async node => {
     await openStoryboardEditor(page, design.id)
+    await closeRailDrawer(page, 'docs'); await collapseAgentPanel(page)
     if (node.meta.anchorId) {
       if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
-      return page.locator(`[data-storyboard-anchor-row="${node.meta.anchorId}"]`)
+      const row = page.locator(`[data-storyboard-anchor-row="${node.meta.anchorId}"]`)
+      await row.scrollIntoViewIfNeeded(); return row
     }
-    return page.locator(`[data-storyboard-row="${design.plan.shots.find(s => s.shotId === node.meta.shotId).index}"]`)
+    const row = page.locator(`[data-storyboard-row="${design.plan.shots.find(s => s.shotId === node.meta.shotId).index}"]`)
+    await row.scrollIntoViewIfNeeded(); return row
   }
   let design
   try {
@@ -47,8 +51,8 @@ export async function matrixLockExitJourney(input) {
       await expect.poll(async () => (await nodes()).find(n => n.id === node.id)?.status).toBe('error')
       assert.equal(proxy.records.length, 5)
       const row = await storyboard(node)
-      await expect(row.getByRole('button', { name: t('generationCommon.observability.action.viewTask.main'), exact: true })).toBeVisible()
-      await expect(row.getByRole('button', { name: t('storyboardEditor.frame.retryHint'), exact: true })).toHaveCount(0)
+      const taskProbe = await proveProbe(row.getByRole('button', { name: t('generationCommon.observability.action.viewTask.main'), exact: true }), 'The in-flight row exposes its task action')
+      await expectAbsent(row.getByRole('button', { name: t('storyboardEditor.frame.retryHint'), exact: true }), { provenBy: taskProbe })
       await shot(`in-flight-storyboard-${node.meta.anchorId ? 'asset' : 'shot'}`)
       await canvas(node.id); await expect(page.getByRole('button', { name: t('generationCommon.observability.action.viewTask.main'), exact: true }).first()).toBeVisible(); await shot(`in-flight-canvas-${node.meta.anchorId ? 'asset' : 'shot'}`)
       await list(node.id); await expect(page.locator('[data-list-detail-preview]').getByRole('button', { name: t('generationCommon.observability.action.viewTask.main'), exact: true })).toBeVisible(); await shot(`in-flight-list-${node.meta.anchorId ? 'asset' : 'shot'}`)
