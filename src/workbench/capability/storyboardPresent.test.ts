@@ -149,7 +149,7 @@ it('A10: another shot changing during preload does not invalidate this shot appr
   calls.preload.mockImplementationOnce(async () => { editPlan(next => { next.shots[1].prompt = 'Another shot changed' }); return [] })
   await expect(presentStoryboard(input(['shot-1']))).resolves.toMatchObject({ decision: 'started' })
 })
-it('A9: runtime author validation targets only the executing node, including first frames', async () => {
+it('A9: runtime author validation targets only the executing node', async () => {
   await presentStoryboard(input(['shot-1', 'shot-2']))
   const guards = calls.confirm.mock.calls[0][1]
   const nodes = shotNodes()
