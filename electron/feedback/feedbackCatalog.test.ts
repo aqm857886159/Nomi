@@ -171,7 +171,7 @@ describe('反馈包里的模型目录', () => {
   it('清单中英都说自建连接不带地址，也不再说带「各家的接口地址」', () => {
     expect(zhFeedbackReport.manifestItem.modelCatalog).toContain('自建连接只留「是自建」，不带地址')
     expect(zhFeedbackReport.manifestItem.modelCatalog).not.toContain('各家的接口地址')
-    expect(enFeedbackReport.manifestItem.modelCatalog).toContain('self-hosted connection is only marked as self-hosted, with no address')
+    expect(enFeedbackReport.manifestItem.modelCatalog).toContain('Self-hosted connections show no address')
     expect(enFeedbackReport.manifestItem.modelCatalog).not.toContain('endpoint addresses')
   })
 })

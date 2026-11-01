@@ -77,7 +77,7 @@ export const enFeedbackReport = {
   manifestUnavailable: 'The manifest could not be built this time (logs or trace are unreadable right now). You can still send.',
   manifestItem: {
     logTail: 'Recent app logs: only the time, module, event name and figures such as status codes. Other fields stay out',
-    modelCatalog: 'Model catalog: which providers are connected, their official addresses and model settings. A self-hosted connection is only marked as self-hosted, with no address. Keys, proxy addresses and custom headers are wiped',
+    modelCatalog: 'Model catalog: providers, official addresses and model settings. Self-hosted connections show no address. Keys, proxy addresses and custom headers are wiped',
     trajectory: 'The last 3 turns: which tools ran, whether they worked, how long, how many tokens. No prompts, replies or tool results',
     perf: 'Banded interface smoothness figures: no raw timings, no content',
     secrets: 'API keys, tokens, proxy credentials',

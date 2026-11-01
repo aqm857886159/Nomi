@@ -335,6 +335,15 @@ async function journey(locale) {
     measure.minWindow = { width: minWidth, height: minHeight, cardHeight: await card.evaluate((node) => Math.round(node.getBoundingClientRect().height)) }
     await expectHittable(note, `${locale}：最小窗口下留言框应当点得到`)
     await expectHittable(send, `${locale}：最小窗口下「发送」应当点得到`)
+    // 点得到只看中心点：清单多一行字，按钮可能只剩上半截。
+    const clipped = await send.evaluate((node) => {
+      const { bottom } = node.getBoundingClientRect()
+      for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        if (getComputedStyle(parent).overflowY !== 'visible' && parent.getBoundingClientRect().bottom < bottom) return true
+      }
+      return false
+    })
+    check(!clipped, `${locale}：最小窗口下「发送」不该被切掉`)
     await shot('manifest-min-window')
     await resizeContent(ACCEPTANCE_VIEWPORT)
 
