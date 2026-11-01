@@ -293,7 +293,8 @@ try {
 
     // ① 摘要行必须是**那一句真话**，不是兜底的「这一步没成功」。
     const failureSummary = (await card.locator('[data-feedback-summary]').first().innerText().catch(() => '')).trim()
-    if (failureSummary !== rejectionLine) failures.push(`摘要应当派生自导入被拒那句人话，实际：${JSON.stringify(failureSummary)}`)
+    // 卡上那一行是「那句人话 · 时间 · 版本」。
+    if (!failureSummary.startsWith(`${rejectionLine} · `)) failures.push(`摘要应当派生自导入被拒那句人话，实际：${JSON.stringify(failureSummary)}`)
     if (/这一步没成功/.test(failureSummary)) failures.push('摘要落到了兜底话——说明调用处没把 summary 传进来')
 
     // ② 从失败面进来时**不许套设置外壳**（用户 09-15 看截图时点出来的那条）。

@@ -197,6 +197,11 @@ async function journey(locale) {
   // 重试第一次在一分钟后，挂住的请求还要先等它自己超时：两分半够了，不重启 App。
   const arrived = (text) => expect.poll(() => intake.state.accepted.some((body) => body.includes(text)), { message: `不重启的情况下接收端应当收到「${text}」`, timeout: stationTimeout({ operations: 10 }), intervals: [500] }).toBe(true)
   const queueDrained = (text) => expect.poll(() => queueText().includes(text), { message: `「${text}」送达后应当离开队列`, timeout: stationTimeout(), intervals: [200] }).toBe(false)
+  // 回执折行也要留在图标右边：英文那句长，图标曾经独占一行。
+  const checkReceiptRow = async (label) => {
+    const [icon, text] = await Promise.all([card.locator('svg').first().boundingBox(), receipt.boundingBox()])
+    check(icon && text && icon.x + icon.width <= text.x && text.y <= icon.y + icon.height, `${locale}：${label}：图标不该独占一行`)
+  }
 
   try {
     // 必须在第一次发送之前：之后主进程写日志、读日志都到这里。
@@ -312,6 +317,7 @@ async function journey(locale) {
     await expectVisible(win.locator('[data-feedback-trimmed]').first(), '界面应当说明有东西没带上')
     check(await textOf(win.locator('[data-feedback-trimmed]').first()) === t.trimmedNote, `${locale}：超限提示文案不对`)
     check(/NF-\d{4}-\d{4}/.test(await textOf(receipt)), `${locale}：413 之后也要给编号`)
+    await checkReceiptRow('超限的回执')
     await shot('sent-trimmed')
     const sentTrimmed = intake.state.attempts.filter((attempt) => attempt.body.includes(trimmedNote))
     check(sentTrimmed.length === 2 && sentTrimmed[0].mode === '413-once', `${locale}：应当正好发两次（第一次 413），实际 ${sentTrimmed.length} 次`)
@@ -334,6 +340,7 @@ async function journey(locale) {
     check(measure.queuedAfterResetMs < 8_000, `${locale}：断线不该等满 8 秒，实际 ${measure.queuedAfterResetMs}ms`)
     check(await textOf(receipt) === t.queued, `${locale}：排队文案不对：${await textOf(receipt)}`)
     check(queueText().includes(resetNote), `${locale}：断线时这份必须已经在本机队列里`)
+    await checkReceiptRow('排队的回执')
     await shot('queued-disconnected')
     await expectHidden(card, '排队的提示留一会儿之后窗口自己收起')
     intake.state.mode = 'ok'

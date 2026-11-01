@@ -158,16 +158,19 @@ export function FeedbackReportCard({
   // 发完就收成一行。用户拿到编号之后这张卡没有任何别的用途（⑥：只给编号，不做回复闭环）。
   if (phase === 'sent' || phase === 'queued') {
     return (
-      <div data-feedback-card data-feedback-phase={phase} className="flex flex-wrap items-center gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2 text-caption text-nomi-ink-60">
+      <div data-feedback-card data-feedback-phase={phase} className="flex items-start gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2 text-caption text-nomi-ink-60">
         {phase === 'sent'
-          ? <IconCheck size={15} stroke={1.8} className="shrink-0 text-nomi-accent" aria-hidden="true" />
-          : <IconClock size={15} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />}
-        <span data-feedback-receipt>
-          {phase === 'sent' && receipt
-            ? t('feedbackReport.sentWithId', { id: receipt })
-            : phase === 'sent' ? t('feedbackReport.sent') : t('feedbackReport.queued')}
-        </span>
-        {trimmed ? <span data-feedback-trimmed>{t('feedbackReport.trimmedNote')}</span> : null}
+          ? <IconCheck size={15} stroke={1.8} className="mt-px shrink-0 text-nomi-accent" aria-hidden="true" />
+          : <IconClock size={15} stroke={1.8} className="mt-px shrink-0 text-nomi-ink-40" aria-hidden="true" />}
+        {/* 文字折行也留在图标右边：图标不独占一行。 */}
+        <div className="flex min-w-0 flex-wrap gap-x-2">
+          <span data-feedback-receipt>
+            {phase === 'sent' && receipt
+              ? t('feedbackReport.sentWithId', { id: receipt })
+              : phase === 'sent' ? t('feedbackReport.sent') : t('feedbackReport.queued')}
+          </span>
+          {trimmed ? <span data-feedback-trimmed>{t('feedbackReport.trimmedNote')}</span> : null}
+        </div>
       </div>
     )
   }
@@ -221,7 +224,8 @@ export function FeedbackReportCard({
               {manifest.excluded.map((item) => (
                 <p key={`${item.what}-${item.why}`} data-feedback-excluded={item.what} data-feedback-why={item.why} className="flex items-baseline gap-1.5 text-micro text-nomi-ink-40">
                   <span aria-hidden="true" className="shrink-0">✗</span>
-                  <span>
+                  {/* 短名在「附带」那一行是句中小写，这里在行首。 */}
+                  <span className="first-letter:uppercase">
                     {t(EXCLUDED_ITEM_LABELS.get(item.what) ?? `feedbackReport.manifestItem.${MANIFEST_ITEM_KEYS.get(item.what)}`)}
                     {' · '}
                     {t(`feedbackReport.manifestWhy.${item.why}`)}
