@@ -1,5 +1,7 @@
 # Agent 说的画幅进不了请求 · 设计卡 + 方向检查
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：draft_shots 加语义字段 aspectRatio，宿主按所选模式的比例控件翻成真实键
 线/负责人：L-aspect（Opus）        类别：[花钱]（不新增界面）

@@ -1,5 +1,7 @@
 # 设计卡：付费走查 URL 对号与记账脱敏
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：paid-judge-url-compare　线/负责人：fix/paid-judge-url-compare　类别：[其他]
 
 ## ★1 用户怎么用

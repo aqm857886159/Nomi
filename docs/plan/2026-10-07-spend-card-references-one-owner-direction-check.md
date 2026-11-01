@@ -1,5 +1,7 @@
 # 方向检查：付费卡参考图一个主人（RW）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`fix-churn` 命中付费卡（`spendCardDraft.ts` / `spendCardReferences.ts`）、`NodeGenerationComposer.tsx`、`PromptEditor.tsx` 都在 14 天第 3 刀以上；概念「付费卡上这一镜摆着的那张框」第 6 刀。
 > 结构方向由协调会话的任务书定（「这次生成带哪些参考图只能有一个主人」）；本页记录这一刀为什么是收口而不是再补一处。设计卡：`docs/plan/2026-10-07-spend-card-references-one-owner.md`。
 
