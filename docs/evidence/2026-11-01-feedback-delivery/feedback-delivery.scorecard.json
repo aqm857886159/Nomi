@@ -3,7 +3,7 @@
   "change": {
     "title": "应用内反馈：发得出去、带得上日志、收到了有人记",
     "headSha": "26e4fc6ef93ff8f3895a2f62cae853057e58f33b",
-    "headNote": "产品源码停在这个提交，走查和 15 个浏览器测试文件用这份源码跑。性能在之后的 3bb5c2927 上量：之间只有走查证据，不是构建输入，运行行为不变。之后只有证据提交。",
+    "headNote": "产品源码停在这个提交，走查和 15 个浏览器测试文件用这份源码跑。性能在之后的 3bb5c2927 上量：之间只有走查证据，不是构建输入，运行行为不变。之后只有证据和 tests/ 下的测试，都不是构建输入。",
     "userCan": "点一下发送就能走开：十来秒内看到编号，或看到已存在本机、之后自动重发；关窗、断网、重启都不丢。开发者收到的包里有脱敏后的日志尾巴。开发侧每次开会话都看得到还有几条反馈没人管。",
     "added": [
       "日志尾巴出门前的字段白名单投影",
@@ -202,6 +202,16 @@
         "label": "性能和基线（最终代码）",
         "result": "pass",
         "note": "5 轮，跑之前 5 分钟负载 6.4，没抢前台，工作树干净，预算内，基线写入。量具退出 1 是因为和旧基线比判 regression，不是超预算。"
+      },
+      {
+        "label": "正文预检",
+        "result": "fail",
+        "note": "路径推出「数据格式」：这条线碰了 electron/catalog/，要交老用户升级证据，卡上没勾。仓库里有旧版本真实落的目录，补了一条测试读它们组包，没有写「不适用」。"
+      },
+      {
+        "label": "老用户目录的测试",
+        "result": "pass",
+        "note": "五份旧版本真实落的目录全过；撤掉判据或投影都变红。"
       }
     ],
     "metrics": [
@@ -334,6 +344,11 @@
       "evidence": "整个包的回归，定期上报的投影也断言一次；走查里没有真实对话，这扇门靠它"
     },
     {
+      "name": "老用户的目录照常进包",
+      "result": "pass",
+      "evidence": "五份旧版本真实落的目录原样读进组包：目录附件都在，连接只留是自建和个数，名字、地址、key、模型名零命中"
+    },
+    {
       "name": "用户点过发送的报告不丢",
       "result": "pass",
       "evidence": "矩阵：接收端每种回答 × 队列写得了、写不了；走查：断开、不回答、关 App 重开"
@@ -410,6 +425,7 @@
     "electron/feedback/feedbackCatalog.test.ts",
     "electron/feedback/feedbackOutbound.test.ts",
     "electron/catalog/outboundVendor.test.ts",
+    "tests/old-user-data/feedback-catalog.test.mjs",
     "scripts/daily-radar-session.node-test.mjs",
     "docs/plan/2026-11-01-feedback-delivery.md",
     "docs/evidence/2026-11-01-feedback-delivery/perf-feedback-send-main-stall.json",

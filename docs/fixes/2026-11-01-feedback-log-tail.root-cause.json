@@ -156,7 +156,8 @@
     "src/ui/community/FeedbackReportCard.test.tsx",
     "electron/feedback/feedbackOutbound.test.ts",
     "electron/catalog/outboundVendor.test.ts",
-    "electron/telemetry/trajectoryProjection.test.ts"
+    "electron/telemetry/trajectoryProjection.test.ts",
+    "tests/old-user-data/feedback-catalog.test.mjs"
   ],
   "class_regression_tests": [
     "electron/feedback/feedbackOutbound.test.ts",
