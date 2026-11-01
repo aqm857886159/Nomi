@@ -1,0 +1,30 @@
+{
+  "name": "一键反馈带出机器的日志尾巴长什么样",
+  "subject": "feedback.outbound-log-tail",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/feedback/feedbackLogTail.ts",
+    "symbol": "projectLogLine"
+  },
+  "write_api": [
+    {
+      "path": "electron/feedback/feedbackLogTail.ts",
+      "symbol": "projectLogLine"
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "buildFeedbackReport"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/feedback/feedbackLogTail.test.ts",
+  "allowed_consumers": [
+    "electron/feedback/feedbackReport.ts"
+  ],
+  "since": "2026-11-01",
+  "notes": "合同 docs/fixes/2026-11-01-feedback-log-tail.root-cause.json：默认拒绝的字段白名单投影，认不出形状的行整行不要，脱敏只是第二道网；新日志字段默认不出门。buildFeedbackReport 是唯一把尾巴放进报告并记下缺失原因的地方。本机日志和用户自己保存的诊断包不走这里。"
+}

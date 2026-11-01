@@ -1,0 +1,91 @@
+{
+  "failures": [],
+  "measures": [
+    {
+      "locale": "zh-CN",
+      "firstReport": {
+        "bodyBytes": 53549,
+        "entries": [
+          {
+            "path": "perf/summary.json",
+            "bytes": 225
+          },
+          {
+            "path": "logs/tail.txt",
+            "bytes": 1618
+          },
+          {
+            "path": "model-catalog.json",
+            "bytes": 50107
+          }
+        ],
+        "logTailLines": 23,
+        "logTailBytes": 1618,
+        "plantedLines": 20,
+        "keptLines": 3
+      },
+      "minWindow": {
+        "width": 1100,
+        "height": 720,
+        "cardHeight": 537
+      },
+      "queuedAfterResetMs": 54,
+      "resetDeliveredAfterMs": 60244,
+      "queuedAfterHangMs": 8169,
+      "hangDeliveredAfterMs": 71869,
+      "reopenDeliveredAfterMs": 7242,
+      "accepted": 7,
+      "attempts": 12,
+      "scan": {
+        "bodies": 12,
+        "bytes": 593484,
+        "needleHits": 0,
+        "pathHits": 0
+      },
+      "realLoggerLines": 5
+    },
+    {
+      "locale": "en",
+      "firstReport": {
+        "bodyBytes": 53541,
+        "entries": [
+          {
+            "path": "perf/summary.json",
+            "bytes": 225
+          },
+          {
+            "path": "logs/tail.txt",
+            "bytes": 1618
+          },
+          {
+            "path": "model-catalog.json",
+            "bytes": 50107
+          }
+        ],
+        "logTailLines": 23,
+        "logTailBytes": 1618,
+        "plantedLines": 20,
+        "keptLines": 3
+      },
+      "minWindow": {
+        "width": 1100,
+        "height": 720,
+        "cardHeight": 586
+      },
+      "queuedAfterResetMs": 27,
+      "resetDeliveredAfterMs": 60153,
+      "queuedAfterHangMs": 8179,
+      "hangDeliveredAfterMs": 71881,
+      "reopenDeliveredAfterMs": 6944,
+      "accepted": 7,
+      "attempts": 12,
+      "scan": {
+        "bodies": 12,
+        "bytes": 593393,
+        "needleHits": 0,
+        "pathHits": 0
+      },
+      "realLoggerLines": 5
+    }
+  ]
+}

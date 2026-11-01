@@ -1,0 +1,269 @@
+{
+  "version": 1,
+  "change": {
+    "title": "应用内反馈：发得出去、带得上日志、收到了有人记",
+    "headSha": "3ea46adf0e54e162bb4c10e853cbc6c5f74e652c",
+    "headNote": "产品源码停在这个提交，走查用这份源码的构建跑。之后的提交只有证据、概念和自写登记、走查里假路径的写法（拼出来的内容逐字不变）。",
+    "userCan": "点一下发送就能走开：十来秒内看到编号，或看到已存在本机、之后自动重发；关窗、断网、重启都不丢。开发者收到的包里有脱敏后的日志尾巴。开发侧每次开会话都看得到还有几条反馈没人管。",
+    "added": [
+      "日志尾巴出门前的字段白名单投影",
+      "开发侧的待分诊账和出账命令，雷达报告的「送达」一节"
+    ],
+    "changed": [
+      "报告先落盘再发，界面最多等 8 秒，失败当场排重试，不用重启",
+      "卡上的结局只有四种，排队和失败说实情，留言不丢",
+      "勾选框只在对话里的问题出现，「附带」那一行写这次真会带什么，清单跟随界面语言"
+    ],
+    "removed": [
+      "「发不出去才入队」的写法，只剩一个发送入口",
+      "按日期命名的雷达报告，同一天第二次运行不再覆盖第一次"
+    ]
+  },
+  "scenarioId": "report-a-problem-and-walk-away",
+  "scenarioNote": "场景目录（tests/ux/journeys/catalog.json）里没有这个场景，目录有 12 条上限，这里只作标签用，没有加进目录。",
+  "verifier": {
+    "line": "implementation",
+    "kind": "实施自验，非独立验收"
+  },
+  "date": "2026-11-01",
+  "compiledBy": "实现线，读走查的 measure.json、接收端夹具收到的包和截图",
+  "machine": {
+    "source": "walk-log",
+    "env": {
+      "device": "macOS arm64，真实隔离 Electron，打包前的本地构建",
+      "window": "1280×933；最小窗口那段 1100×720；深色",
+      "language": "zh-CN / en",
+      "boundary": "本机假接收端，走真 HTTP，按走查脚本拒绝、断线、不回答、回 413。不是线上的 Cloudflare 接收端，也不是 Windows。没有花费。"
+    },
+    "attempts": [
+      {
+        "label": "旧反馈回路走查（修之前）",
+        "result": "fail",
+        "note": "红在「切到生成面」：入口从 10 月起就过期了，早就是红的。入口换成现在的，顺手把输出目录挪走，不再盖旧证据。"
+      },
+      {
+        "label": "旧反馈回路走查（入口修好后）",
+        "result": "fail",
+        "note": "摘要断言按整行比较，卡上那一行是「那句人话 · 时间 · 版本」。断言改成开头相等，并加一条：接收端拿到的摘要不带时间和版本。"
+      },
+      {
+        "label": "发送走查第 1 轮",
+        "result": "fail",
+        "note": "构建戳对不上就拒跑：改过源码没重新构建。重新构建后再跑，一分钱没花。"
+      },
+      {
+        "label": "发送走查：看截图",
+        "result": "fail",
+        "note": "机器全过，亲眼看图看出两处：英文排队提示较长时图标单独占一行；清单「没带」那一行的短名在行首还是小写。两处都改了，第一处加了走查断言。"
+      },
+      {
+        "label": "门岗第 1 轮：测试类型和 lint",
+        "result": "fail",
+        "note": "矩阵里一处 mock 类型不对，afterEach 里用了动态 import，测试夹具的假 key 被密钥扫描拦下。都改了。"
+      },
+      {
+        "label": "门岗第 2 轮：概念、自写登记、走查里的路径字面量",
+        "result": "fail",
+        "note": "7 个共享边界没登记、2 个新文件没认领、走查 4 行假路径是主目录形状的字面量。补了 3 条概念、并进现有的出站管线条目、假路径改成拼出来的。"
+      },
+      {
+        "label": "性能基线第 1 次",
+        "result": "fail",
+        "note": "机器 5 分钟负载到 10 以上，这一轮作废。等负载降下来重跑。"
+      },
+      {
+        "label": "性能基线第 2 次",
+        "result": "pass",
+        "note": "等到 5 分钟负载低于 8 才跑，5 轮，机器判定不嘈杂。"
+      },
+      {
+        "label": "最终发送走查（中文）",
+        "result": "pass",
+        "note": "7 段全过：12 张截图，接收端收到 12 次请求里接受 7 份，敏感词零命中。"
+      },
+      {
+        "label": "最终发送走查（英文）",
+        "result": "pass",
+        "note": "同上。"
+      },
+      {
+        "label": "最终反馈回路走查（同意卡、设置入口、真失败面）",
+        "result": "pass",
+        "note": "11 张截图。"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "接收端断开时，点发送到卡上说已存本机",
+        "unit": "ms",
+        "baseline": null,
+        "current": 54,
+        "n": 2,
+        "basis": "script-count",
+        "note": "中文 54、英文 27，这里写慢的那个。修之前的同一情形没有量过。"
+      },
+      {
+        "name": "接收端不回答时，点发送到卡上说已存本机",
+        "unit": "ms",
+        "baseline": null,
+        "current": 8179,
+        "n": 2,
+        "basis": "script-count",
+        "note": "中文 8169、英文 8179，上限是 8 秒界面等待。修之前可能永远停在发送中。"
+      },
+      {
+        "name": "断开后恢复，不重启自动送达",
+        "unit": "ms",
+        "baseline": null,
+        "current": 60244,
+        "n": 2,
+        "basis": "script-count",
+        "note": "中文 60244、英文 60153，第一次重试在 1 分钟。线上旧版本要等下次启动：去重后 10/26 份晚到半小时到 7 天。"
+      },
+      {
+        "name": "排着队关掉 App，重开后送达",
+        "unit": "ms",
+        "baseline": null,
+        "current": 7242,
+        "n": 2,
+        "basis": "script-count",
+        "note": "中文 7242、英文 6944；只送达一份，队列清空。"
+      },
+      {
+        "name": "接收端收到的日志尾巴行数",
+        "unit": "行",
+        "baseline": 0,
+        "current": 23,
+        "n": 2,
+        "basis": "script-count",
+        "note": "基线是线上 29 份全空。走查里埋了 20 行不许出门的东西，再加 3 行要保留的。"
+      },
+      {
+        "name": "全部请求里敏感词和路径的命中",
+        "unit": "处",
+        "baseline": null,
+        "current": 0,
+        "n": 24,
+        "basis": "script-count",
+        "note": "两轨各扫 12 份真请求体，约 59 万字节。"
+      },
+      {
+        "name": "点发送时主进程往返的最长一次",
+        "unit": "ms",
+        "baseline": null,
+        "current": 19.3,
+        "n": 5,
+        "basis": "measured",
+        "note": "中位数，p95 22.1，预算 100。同一轮什么都不做时的最慢往返 6–27，这个数和底噪差不多。"
+      },
+      {
+        "name": "队列里已有 50 份时再发一份，主进程往返的最长一次",
+        "unit": "ms",
+        "baseline": null,
+        "current": 82.2,
+        "n": 5,
+        "basis": "measured",
+        "note": "中位数，最慢 93.8。离线很久才有的规模，不判预算。"
+      },
+      {
+        "name": "这 50 份一起补发，主进程往返的最长一次",
+        "unit": "ms",
+        "baseline": null,
+        "current": 104.6,
+        "n": 5,
+        "basis": "measured",
+        "note": "中位数，最慢 109.6。不判预算，没有单独优化。"
+      }
+    ]
+  },
+  "human": {
+    "seq": null,
+    "events": {
+      "misclicks": null,
+      "backtracks": null,
+      "helpRequests": null,
+      "firstAttemptSuccess": null
+    },
+    "note": "没有真人评分和人工事件观察。"
+  },
+  "guardrails": [
+    {
+      "name": "密钥、路径、提示词不出门",
+      "result": "pass",
+      "evidence": "夹具矩阵每种东西一行，加真实日志写手写出来的行；走查扫接收端真收到的请求体"
+    },
+    {
+      "name": "用户点过发送的报告不丢",
+      "result": "pass",
+      "evidence": "矩阵：接收端每种回答 × 队列写得了、写不了；走查：断开、不回答、关 App 重开"
+    },
+    {
+      "name": "同一份报告同一时刻只有一个请求在飞",
+      "result": "pass",
+      "evidence": "矩阵 A11"
+    },
+    {
+      "name": "用量事件发件箱行为不变",
+      "result": "pass",
+      "evidence": "现有发件箱测试没改；只放宽了上传超时，小报文仍是 8 秒多"
+    },
+    {
+      "name": "最小窗口里留言框和发送都点得到",
+      "result": "pass",
+      "evidence": "走查 ②，en-06、zh-CN-06 截图"
+    },
+    {
+      "name": "新反馈漏不掉",
+      "result": "pass",
+      "evidence": "hook 每个分支的测试；真实缓存副本演练：26 份全部进账，3 份重复折叠，同一天第二轮两份报告都在"
+    },
+    {
+      "name": "走查不抢前台",
+      "result": "pass",
+      "evidence": "两条走查的前台抽样日志"
+    }
+  ],
+  "friction": {
+    "moment": "用户勾了带内容、卡上说要带工具轨迹，清单里却写这次没读到。卡是发送前算的，读没读到要到组包才知道。",
+    "decision": "「附带」那一行是预告，清单写实情；真带上才算带上，读不到时清单写原因。这个 PR 不再改，发给协调定要不要把那一行改成不预告。"
+  },
+  "unverified": [
+    {
+      "item": "线上那次到底卡在哪一步",
+      "owner": "协调",
+      "recheck": "证明不了：那份报告没到，也没有日志。这里修的是所有能卡住的地方；真实效果看新版发布后雷达的首发直达率。"
+    },
+    {
+      "item": "Windows 真机",
+      "owner": "协调",
+      "recheck": "这条路径没有平台分支，路径脱敏的 Windows 形状在夹具里，没在 Windows 上跑过。"
+    },
+    {
+      "item": "真实接收端",
+      "owner": "协调",
+      "recheck": "走查用本机接收端，没有发到线上。发布后看雷达的日志尾巴带上率。"
+    },
+    {
+      "item": "独立验收",
+      "owner": "协调",
+      "recheck": "四类改动，合并前另一条线按设计卡 ★9 核。"
+    },
+    {
+      "item": "真人 SEQ 和人工事件",
+      "owner": "协调",
+      "recheck": "有参与者时测，当前为 null。"
+    }
+  ],
+  "evidence": [
+    "tests/ux/feedback-delivery.walk.mjs",
+    "tests/ux/feedback-loop-consent-and-report.walk.mjs",
+    "docs/evidence/2026-11-01-feedback-delivery/walk/",
+    "docs/evidence/2026-11-01-feedback-delivery/consent-and-report/",
+    "electron/feedback/feedbackDelivery.matrix.test.ts",
+    "electron/feedback/feedbackLogTail.test.ts",
+    "scripts/daily-radar-session.node-test.mjs",
+    "docs/plan/2026-11-01-feedback-delivery.md",
+    "docs/evidence/2026-11-01-feedback-delivery/perf-feedback-send-main-stall.json",
+    "docs/evidence/2026-11-01-feedback-delivery/perf-all-samples.json"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "3ea46adf0",
+  "head": "3ea46adf0e54e162bb4c10e853cbc6c5f74e652c",
+  "dirty": true,
+  "sourceTree": "9527cdf434e508d4e709f6aa8f16a810023d8f18",
+  "date": "2026-11-01",
+  "runs": 5,
+  "results": [
+    {
+      "id": "feedback-send-main-stall",
+      "metrics": {
+        "mainRoundTripMax": {
+          "runs": 5,
+          "median": 19.3,
+          "p95": 22.1
+        }
+      },
+      "samples": {
+        "mainRoundTripMax": [
+          21.27033300000039,
+          12.215958000000683,
+          22.286250000004657,
+          17.56508400000166,
+          19.25608399999328
+        ]
+      },
+      "budget": 100,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

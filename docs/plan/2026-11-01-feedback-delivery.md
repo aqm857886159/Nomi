@@ -13,7 +13,7 @@
 - **卡在「正在发送…」**：等网络有 8 秒上限，但前面的 `readTrajectory` 没有上限，而且跑在同一个 `await` 上（对话还在跑时要排在派生视图写入之后）。它不返回，界面就永远停在发送中，报告也还没落盘，用户关窗就真丢了。从线上数据证明不了当时卡在哪一步（那份报告没到，也没有日志），这里修的是所有能卡住的地方。
 - **雷达**：`reports/<UTC 日期>.md` 同一天第二次运行就覆盖第一次。10-31 那条反馈 19:45Z 被记为新增，22:45Z 的运行把报告盖成「新增 0」；10-29 也一样。更根本的是：每日 hook 只留输出最后 14 行，10-29 加进去的版本健康块正好占满这 14 行，**「新增反馈 N 条」这一行从那之后就没进过会话**（`daily-radar.json` 里实测没有这几个字）。新增数一被看过就清零，没有任何东西记着「这条还没人处理」。
 
-## ★0 先查别人
+## 先查别人（★0）
 
 1. [Sentry JS 离线传输源码](https://github.com/getsentry/sentry-javascript/blob/develop/packages/core/src/transports/offline.ts) · 发送抛错才入队，重试从 5 秒开始翻倍、封顶 1 小时，一次只取一条；Replay 这类丢不起的数据是先入队再发 · **改了**「失败后要等下次启动才补发」和「固定 60 秒重试」：改成失败当场排重试、翻倍退避；**确认了**「先落盘再发」只用在丢不起的货物上，用量事件的发件箱不动。
 2. [Sentry SDK 传输规范（develop docs）](https://github.com/getsentry/sentry-docs/pull/15571.patch) · 网络错误可以重试；服务端明确回 4xx / 5xx 就丢弃并记原因，不当网络错误处理 · **改了**「所有失败一律留在队列头」：400 / 413 这种重发同一份字节也不会变的回答不再堵队列。**有意不同**：401 / 403 / 404 / 5xx 我们留着重试，因为令牌随版本轮换（README 第 1 条），更新 App 后还能送达；用户点过发送，不能丢。
@@ -73,7 +73,8 @@
 - 复用 `listLogFilesForBundle`、`redactLogValue`（第二道网）、`writeJsonFileAtomic`、`redactModelCatalog`、`DiagnosticsBundleEntry/Exclusion`。
 - 不碰 `electron/logging/`（`node scripts/fix-churn.mjs` 判它是热点）：读日志和投影放在 `electron/feedback/`。
 - 不引库：退避是一行翻倍；Sentry 的离线传输绑在它自己的信封格式上，接不进来。
-- `check:self-written`：`electron/feedback/` 属于已登记的反馈回路，不新增通用能力。
+- 自写登记：`electron/feedback/` 之前没有登记，这次的两个新文件被 `check:self-written` 拦下。它和用量事件是同一条出站管线、同一句承诺（数据只去我们的端点），所以并进现有的 `telemetry-pipeline` 条目，不另开一条。
+- 概念登记：送达（`feedback.report-delivery`）、出门的日志尾巴（`feedback.outbound-log-tail`）、待分诊账（`intake-radar.triage-inbox`）各一条，同一个提交登记。
 
 ## ★4 全状态
 
@@ -112,16 +113,27 @@
 
 ## ★7 性能
 
-不是新功能，但路径推出了性能类。新增操作：无（还是点发送）。最坏规模：两份 4 MB 日志、450 KB 目录、队列里 50 份报告。预算：主进程同步段 ≤100ms（点发送到卡上变「正在发送」不等主进程，这段只影响其他 IPC）。量具和实测数见 PR 正文 `perf-scenario`。
+不是新功能，但路径推出了性能类。新增操作：无（还是点发送）。登记场景：`tests/perf/scenarios/feedback-send-main-stall.json`，跑法 `pnpm run perf:scenarios`。
+
+指标是发送期间主进程往返最慢的一次（`mainRoundTripMax`），也就是这段时间别的 IPC 最多要等多久。点发送到卡上变「正在发送」不经过主进程，这个数卡上看不到，别的面板看得到。
+
+| 规模 | 中位数 | 最慢 | 预算 |
+|---|---|---|---|
+| 今天的日志 299 行，再读一份 4 MB 滚动日志；目录约 450 KB，映射全算相关；队列是空的 | 19.3 ms | p95 22.1 ms | 100 ms（默认的操作到反馈预算，`budgetStatus: proposed`，由协调定） |
+| 队列里已有 50 份约 450 KB，再发一份（只留在原始结果，不判预算） | 82.2 ms | 93.8 ms | — |
+| 这 50 份一起补发（同上） | 104.6 ms | 109.6 ms | — |
+
+5 轮，Apple M5，跑之前机器 5 分钟负载低于 8。同一轮里什么都不做时的最慢往返也有 6–27 ms，所以第一行和这台机器的底噪差不多。队列攒到 50 份是离线很久才会有的规模，补发时主进程被占 100 ms 上下，没有单独优化。弱设备和 Windows 没有量（`unverified`）。原始结果：`docs/evidence/2026-11-01-feedback-delivery/perf-feedback-send-main-stall.json`（第一行）、`docs/evidence/2026-11-01-feedback-delivery/perf-all-samples.json`（全部样本）。
 
 ## 8 真实条件
 
-- Mac 中英真窗口走查：`tests/ux/feedback-delivery.walk.mjs`。
+- Mac 中英真窗口走查：`tests/ux/feedback-delivery.walk.mjs`（发送的每种结局）、`tests/ux/feedback-loop-consent-and-report.walk.mjs`（同意卡、设置入口、真失败面，这条从 10 月起就红在过期入口上，这次修好）。
 - Windows：`unverified`，这里没有平台分支；路径脱敏的 Windows 形状由夹具矩阵覆盖。
-- 最小窗口：卡在 modal 里，文案长度变化由走查截图核对。
+- 最小窗口：走查把这张卡最高的样子（对话里的问题、勾了内容、清单展开）放到 App 允许的最小窗口 1100×720，留言框和「发送」都点得到；英文那张弹窗底边顶到窗口，卡内可滚动。
+- 键盘：这张卡没有新的键盘路径，沿用弹窗的焦点和 Esc。
 - 真付费：不涉及。
 
-拍板图清单：不适用（修行为，按「修 bug 不走这套」）。看得见的变化只有三处，都在现有元素上：几句话改成实情（排队、失败、没配接收端、「附带」行）、清单改成界面语言、勾选框只在对话里的问题出现；清单「没带」那一行的 ✗ 不再单独占一行。布局和元素没有增减。
+拍板图清单：不适用（修行为，按「修 bug 不走这套」）。看得见的变化只有三处，都在现有元素上：几句话改成实情（排队、失败、没配接收端、「附带」行）、清单改成界面语言、勾选框只在对话里的问题出现；清单「没带」那一行的 ✗ 不再单独占一行。回执那一行折行时文字留在图标右边。布局和元素没有增减。
 
 ## 按钮普查
 

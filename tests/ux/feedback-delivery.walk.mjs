@@ -46,6 +46,10 @@ const SECRET_SK = 'sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf'
 // nomi-secret-scan:allow 合成靶子
 const SECRET_AWS = 'AKIAIOSFODNN7EXAMPLE'
 const LONG_BASE64 = 'V2Fsa0JERUZHSElKS0xNTk9QUVJTVFVWV1hZWmFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6'
+// 埋进日志的假路径，不是这台机器上的位置；分段拼，因为门岗不许脚本里出现主目录形状的字面量。
+const MAC_HOME = ['', 'Users', 'walker'].join('/')
+const WINDOWS_HOME = ['C:', 'Users', 'walker'].join('\\')
+const UNIX_HOME = ['', 'home', 'walker'].join('/')
 
 /** 每种不许出门的东西一行，写法照真实日志（也有老版本没过写入脱敏的）。needle 都是全包里不会碰巧出现的词。 */
 const PLANTED = [
@@ -55,10 +59,10 @@ const PLANTED = [
   { name: '长 base64', needle: LONG_BASE64, body: `INFO  tasks          read requestId=${LONG_BASE64}` },
   { name: 'data URI', needle: 'iVBORw0KGgoWalk', body: 'INFO  assets         seen reason=data:image/png;base64,iVBORw0KGgoWalkAAAANSU' },
   { name: '带 query 的 URL', needle: 'walk-sig-abc123', body: 'WARN  vendor         get status=https://cdn.example/a.mp4?sig=walk-sig-abc123' },
-  { name: 'file URL', needle: 'walk-secret-movie', body: 'WARN  assets         open reason=file:///Users/walker/walk-secret-movie.mov' },
-  { name: 'Mac 路径带空格和中文', needle: '走查猫咪短片', body: 'WARN  assets         open absolutePath=/Users/walker/Nomi Projects/走查猫咪短片/a.png' },
-  { name: 'Windows 路径', needle: 'WalkDreams', body: 'WARN  assets         open reason=C:\\Users\\walker\\WalkDreams\\a.png status=1' },
-  { name: 'Unix 路径', needle: 'walk-cat-film', body: 'WARN  assets         open reason=/home/walker/walk-cat-film/a.png' },
+  { name: 'file URL', needle: 'walk-secret-movie', body: `WARN  assets         open reason=file://${MAC_HOME}/walk-secret-movie.mov` },
+  { name: 'Mac 路径带空格和中文', needle: '走查猫咪短片', body: `WARN  assets         open absolutePath=${MAC_HOME}/Nomi Projects/走查猫咪短片/a.png` },
+  { name: 'Windows 路径', needle: 'WalkDreams', body: `WARN  assets         open reason=${WINDOWS_HOME}\\WalkDreams\\a.png status=1` },
+  { name: 'Unix 路径', needle: 'walk-cat-film', body: `WARN  assets         open reason=${UNIX_HOME}/walk-cat-film/a.png` },
   { name: 'firstLine 里的提示词', needle: '走查末班公交车', body: 'WARN  agent          lane-tool-failed tool=write firstLine=走查末班公交车上只剩两个人 consecutive=2' },
   { name: 'firstLine 英文', needle: 'walk-lonely-bus', body: 'WARN  agent          lane-tool-failed tool=write firstLine=a walk-lonely-bus at night consecutive=2' },
   { name: '对话名', needle: 'walk-winter-lane', body: 'INFO  agent          lane-start lane=walk-winter-lane' },

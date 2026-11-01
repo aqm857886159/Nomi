@@ -1161,12 +1161,13 @@
     },
     {
       "id": "telemetry-pipeline",
-      "capability": "用量事件与 Agent 轨迹的出站管线：白名单事件、同意合同、发件箱、自建接收端",
+      "capability": "用量事件、Agent 轨迹与一键反馈报告的出站管线：白名单事件、同意合同、发件箱、自建接收端",
       "status": "justified",
       "paths": [
         "electron/telemetry/",
         "electron/shared/contracts/perfTelemetry.ts",
         "electron/settings/telemetryIpc.ts",
+        "electron/feedback/",
         "infra/feedback-worker/"
       ],
       "alternativesChecked": [
@@ -1181,6 +1182,10 @@
         {
           "name": "浏览器标准 Event Timing（INP 同口径）与 Long Animation Frames：采集直接用，没有自写剖析器；分档表与告知范围版本是我们的领域约束",
           "source": "src/workbench/observability/perfCollector.ts:1"
+        },
+        {
+          "name": "Sentry JS 离线传输：失败入队、翻倍退避、封顶 1 小时；一键反馈的退避照它的做法，传输绑在它自己的信封格式上，没有引入（docs/plan/2026-11-01-feedback-delivery.md「先查别人」）",
+          "source": "https://github.com/getsentry/sentry-javascript/blob/develop/packages/core/src/transports/offline.ts"
         }
       ],
       "whyNotIntegrated": "领域约束：对用户的承诺是「数据只去我们的端点」。第三方 SDK 的代价不是钱，是这句承诺无法自证——只要它在进程里，「不收别的」就只能靠对方文档。传输自建，白名单 / 同意合同 / 脱敏沿用仓库里已有的一套。",
