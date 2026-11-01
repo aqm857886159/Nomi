@@ -282,3 +282,16 @@ PR 判据把抽取复用的两个 tsx 文件当作新增界面，拒绝 pure-bug
 动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
 提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
 ```
+
+### 同一轮协调续做：A11 与任务中心
+
+协调已拍板：这是本刀放宽整方案守卫后产生的价格风险，补在既有 storyboardActionGuard / runStoryboardBatch；只在已选镜或全局花钱字段变化时撤销第二阶段跳过确认，系统自动引用先两边归一。普通单张判据和 Agent 分段确认不动。任务中心如摆必拒重试，改用现有 generationFailureActions 判据去掉，无新组件/文件。测试 helper 修好后各再给3次，不开下一轮。
+
+本次热点原始输出：
+
+```text
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · src/workbench/creation/storyboard/exec/storyboardActionGuard.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
+```
