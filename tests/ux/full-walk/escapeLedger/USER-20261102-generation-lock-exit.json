@@ -20,11 +20,13 @@
   "completionCommits": [
     "54bcef6dea403593e0538f7e337823b55ecc845d",
     "530e052cef776d7dc7d04dba5d73211f8dea6007",
-    "b74242b4775b16af7383268fabc7a1986ea3d60e"
+    "b74242b4775b16af7383268fabc7a1986ea3d60e",
+    "6f7d2bb30140dd5a56dae1e5d4f62257edb2e256"
   ],
   "rootCauseContract": "docs/fixes/2026-11-02-generation-lock-exit.root-cause.json",
   "classCheck": {
     "kind": "matrix",
     "file": "src/workbench/observability/generationFailureSurfaces.test.tsx"
-  }
+  },
+  "fixedInPr": 1413
 }

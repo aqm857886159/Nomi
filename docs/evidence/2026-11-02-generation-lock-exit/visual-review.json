@@ -22,7 +22,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Retained-image error overlay has low contrast / some frames captured during drawer transition."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-429-storyboard-asset.png",
@@ -30,7 +31,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Retained-image error overlay has low contrast / some frames captured during drawer transition."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-429-storyboard.png",
@@ -46,7 +48,8 @@
       "openedByImplementationAgent": true,
       "reviewedInContinuation": true,
       "sourceRun": "continue-a11-2",
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-a11-retry-current-confirm.png",
@@ -56,7 +59,8 @@
       "sourceRun": "continue-a11-2",
       "limitations": [
         "Existing confirmation labels expose asset mention syntax; no layout or copy change in this task."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-a11-second-confirm-current.png",
@@ -70,25 +74,29 @@
       "path": "tests/ux/shots/generation-lock-exit/en-a4-all-results.png",
       "sha256": "515eb8b705e26c16c0aaf6de4d8b71cf8e85b43dfcd8694159a004c50eccf9ad",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-a4-assets.png",
       "sha256": "2b7ed8a8dd9b18aad2fbcbbb762559862fb319695216bda6c04683b20007357f",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-a4-confirm.png",
       "sha256": "3966e88b76703fd267970798523ba67b54095749249487e9d2581bb159998764",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-a4-shot-references.png",
       "sha256": "dfdfad65f8577d4cfe6f8c8ca2960ad3461aec5acfd8c18a735e4478e62e0442",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-agent-mounted-all-results.png",
@@ -96,19 +104,22 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Document drawer covers the left preview; not full-result visual evidence."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-agent-mounted-confirm-0.png",
       "sha256": "d8a05184298085be311298daa765ba1a72c202537b1c5d154b1b979d9d77e3e2",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-agent-mounted-confirm-1.png",
       "sha256": "fffc862407ab4c030186c5ecc74ccff2ca22d553c146d19e0706058bdfc7ce6d",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-agent-mounted-confirm-2.png",
@@ -116,25 +127,29 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Existing Agent confirmation exposes internal reference syntax; out-of-scope confirmation UI limitation."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-agent-unmounted-all-results.png",
       "sha256": "9af907af1f9f719c878e6789c9ac84dcbb0a8fd2c1fdb8a5ff0088723777b27b",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-agent-unmounted-confirm-0.png",
       "sha256": "52bc8525502cd4a98d79dc4b3591f563bf599dd3d16a87eafc4d055d53c3f2d4",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-agent-unmounted-confirm-1.png",
       "sha256": "005a075662d8dfd3921f48f3f1fd622a6a15f7e736cb58fb18ac4e46e773181a",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-agent-unmounted-confirm-2.png",
@@ -142,19 +157,22 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Existing Agent confirmation exposes internal reference syntax; out-of-scope confirmation UI limitation."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-canvas-release-confirm.png",
       "sha256": "7f059800bbb5eea1ba4fe98e52ead80802524be61b341a7d6e5f0e322afdc430",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-canvas-released-result.png",
       "sha256": "3242353da71d71cccece1c0e08c5880ea19f4540285d0ef0a144d90680b36b26",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-canvas-canvas-refusal.png",
@@ -166,19 +184,22 @@
       "path": "tests/ux/shots/generation-lock-exit/en-edit-canvas-changed-while-queued.png",
       "sha256": "0e5d880cae97518100a3f69faaed79092274c4d6fa8a02fd53248af83ccb42a4",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-canvas-list-refusal.png",
       "sha256": "b6ec530419edafd0aa9644d5a89d283be055ba3cbc725b0d73aa41308a95e454",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-canvas-storyboard-refusal.png",
       "sha256": "82c890352da2dee233151b9390dd07a40ebb505f334c96bf23bf1afd4bf897c8",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-list-changed-while-queued.png",
@@ -188,7 +209,8 @@
       "sourceRun": "continue-edit-2",
       "limitations": [
         "Agent overlay partly covers composer; queued label, edited text and local refusal remain readable."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-list-list-refusal.png",
@@ -204,19 +226,22 @@
       "path": "tests/ux/shots/generation-lock-exit/en-edit-storyboard-canvas-refusal.png",
       "sha256": "63b2d92df9610147ef973398512c65ce52e682c8b5af617d521497fcfc380f49",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-storyboard-changed-while-queued.png",
       "sha256": "23769ae6185d897a5463f5189266a6cf9bf33ad8c01f1a68eaa72aa89a50ea07",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-storyboard-list-refusal.png",
       "sha256": "ed50e67265eab49469d1cfd325a87afa0e9a8c5fa5d3525c936b9a9c87f7df38",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-edit-storyboard-storyboard-refusal.png",
@@ -230,25 +255,29 @@
       "path": "tests/ux/shots/generation-lock-exit/en-eight-confirm.png",
       "sha256": "5148431f36b912b9b7a002adaeb9a25dc4a43625afeba1da4a18b0d836449510",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-eight-refusals-others-running.png",
       "sha256": "332814cf1b3a547850a991ccb972cc30105c595602bbb364b245ea2f41947ce9",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-eight-settled-no-brake.png",
       "sha256": "61dd6d88d27bfb01548bdee396ddfd087fb91f52d101b6ca086c747503f6e320",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-eight-single-retry-running.png",
       "sha256": "8e0e08f9494bbe8f663f91f36008f167fd052253cd5c22409587a0d896408d94",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-in-flight-canvas-asset.png",
@@ -256,31 +285,36 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Small existing canvas asset card clips part of description/footer; action is visible, use list detail for complete text."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-in-flight-canvas-shot.png",
       "sha256": "708bcb5bc5b28f7525e7afddb4a48391949669a08ca474e02831c90ead8f1d94",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-in-flight-list-asset.png",
       "sha256": "4130ba6ce088b13c69a918c6a0279b0d943156ef86855d2f7c9d5e12d8cce0f9",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-in-flight-list-shot.png",
       "sha256": "a726986d60a09ddc07ab0906ac094679a5c0d650301b3f201dd7223394ca4100",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-in-flight-storyboard-asset.png",
       "sha256": "5bd828f1ac89d6c146391728338857747fe6dbedc4734463d491a34bb6bf5cd4",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-in-flight-storyboard-shot.png",
@@ -292,7 +326,8 @@
       "path": "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
       "sha256": "2b40c1876045a92eba68607f5da955b63454a3215d83ce65a0048815e08df343",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
@@ -300,25 +335,29 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png",
       "sha256": "4c681747d9181012f57d9a52370d3a697520f568a98e549867945fce5253812e",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-release-confirm.png",
       "sha256": "0f3320795250a8b7d84e0cfbaa1f006da983841e6bc2106168c9f60179990205",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-released-result.png",
       "sha256": "68bbcf2fd0e1e5331a297caf19422753e20189aad984a7f5237a57c0a0cccc0d",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
@@ -330,7 +369,8 @@
       "path": "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
       "sha256": "8fb6307e9e7a4039c938acf41c89203787755a320eec9bf395d85a8599191c1b",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-queue-canvas.png",
@@ -338,7 +378,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Canvas zoom too small for a full text judgement; rely on readable detail/other screenshots."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-queue-confirm.png",
@@ -346,13 +387,15 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-queue-list-rail.png",
       "sha256": "f2b778bf639a36faab624be07666835f524c319704d07320276d3c6a8428f75c",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-queue-list-small.png",
@@ -360,13 +403,15 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-queue-storyboard.png",
       "sha256": "1bc27bb51a9dc7b66a631ecf12293508d719ef3a15e6fb9ccc868aaa7a16b2ed",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-restart-unknown-canvas.png",
@@ -374,19 +419,22 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Canvas zoom too small for a full text judgement; rely on readable detail/other screenshots."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-restart-unknown-list.png",
       "sha256": "d4d79cfce4df2d57147de245a7e886665accd9dc02e8ebde9c20ceafa4067591",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-restart-unknown-storyboard.png",
       "sha256": "564adac437a348f45fab12110206baa1bcb6fac57a830ff139e90da252cdd8d5",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieve-canvas-asset.png",
@@ -394,7 +442,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Small existing canvas asset card clips part of description/footer; action is visible, use list detail for complete text."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieve-canvas-shot.png",
@@ -402,61 +451,71 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Floating canvas toolbar overlaps part of the title; retrieval action and body remain visible."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieve-list-asset.png",
       "sha256": "56104c46e22e79a8a38eea692b6b349c4e0968f84e5b185e42292642e4affc58",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieve-list-shot.png",
       "sha256": "4fdf5d83d75be6c4c8b3777afc6554e6d301632afedb2d286df9e080493372e0",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieve-storyboard-asset.png",
       "sha256": "e5293be5057d9f98942f6f224ab8540f0971c7d9925cfa3d0325ffedeeef0ac4",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieve-storyboard-shot.png",
       "sha256": "c7bc9765dac573c58cc3eb022689a0a8aef6a335395236f06f1f1589db526ff1",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieved-0.png",
       "sha256": "ed787dc8420dac3571737302d27e219d6a12768813f4401177b6a425b10d65ab",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieved-1.png",
       "sha256": "0ed7f29ddbd4f1ef9c1b03d2af19bdd30c04d7df145c0bb9bc5c68a7576fa7a8",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-retrieved-2.png",
       "sha256": "462515a0596e9a366a06ec042a1d7dc4b14c2d8a6bae54f8fe464accb39915cf",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-single-E9-canvas-same-result.png",
       "sha256": "98ad415560689c7cfa26e5baba40c4bf9e9e81218930eec0033517ae1eb3eca5",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-single-E9-list-same-result.png",
       "sha256": "7bdf35411d9ef1d38fc272b1b7e87e125c4c280b75108915d3475a372341ef04",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-single-E9-storyboard-same-result.png",
@@ -464,13 +523,15 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Document drawer covers the left preview; not full-result visual evidence."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-single-canvas-batch-cancel.png",
       "sha256": "e8d18ed2d46460380ad5dc1b9f3cbb6cdf95b924c39734553f4a40431c052949",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-single-canvas-queued.png",
@@ -480,7 +541,8 @@
       "sourceRun": "continue-queue-3",
       "limitations": [
         "Canvas queue pill is above the viewport; this frame proves the focused composer only. The actual queued entry is positively asserted in the receipt; readable queue UI is in storyboard/list frames."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-single-canvas-retried.png",
@@ -500,7 +562,8 @@
       "sourceRun": "continue-queue-3",
       "limitations": [
         "Queue status before the single click; exact one-POST and final settlement are proved by the HTTP receipt."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-single-list-retried.png",
@@ -518,19 +581,22 @@
       "sourceRun": "continue-queue-3",
       "limitations": [
         "Queue status before the single click; exact one-POST and final settlement are proved by the HTTP receipt."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-single-storyboard-retried.png",
       "sha256": "6738f9401303676d820861c76a8e2a319f2eb440aa3360880fc34a1be832d406",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-storyboard-anchor-released-result.png",
       "sha256": "8faf5d1201762f83eded394fbb5046fbf2837a89992dd1fd7261ccc6a5068c69",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-task-center-release-confirm.png",
@@ -544,7 +610,8 @@
       "path": "tests/ux/shots/generation-lock-exit/en-task-center-released.png",
       "sha256": "7c07dc53f8387e20e168d07d780acfcb46d75418c15e634d3f03a76c71b6551e",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-task-center-unknown.png",
@@ -552,7 +619,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Captured in transition; rely on stable confirmation/detail images for text."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-unknown-canvas-light.png",
@@ -578,7 +646,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Captured in transition; rely on stable confirmation/detail images for text."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-shot.png",
@@ -608,7 +677,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Retained-image error overlay has low contrast / some frames captured during drawer transition."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard-asset.png",
@@ -616,7 +686,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Retained-image error overlay has low contrast / some frames captured during drawer transition."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard.png",
@@ -632,7 +703,8 @@
       "openedByImplementationAgent": true,
       "reviewedInContinuation": true,
       "sourceRun": "continue-a11-2",
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-a11-retry-current-confirm.png",
@@ -642,7 +714,8 @@
       "sourceRun": "continue-a11-2",
       "limitations": [
         "Existing confirmation labels expose asset mention syntax; no layout or copy change in this task."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-a11-second-confirm-current.png",
@@ -656,25 +729,29 @@
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-a4-all-results.png",
       "sha256": "d8b97052e22e568f957bdb649a7150f99acdeb31166149d5a6c383daea2b428c",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-a4-assets.png",
       "sha256": "3ecca215a45f609cb132467269504f5e19c92dd746481ecf5ec343a48be5429a",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-a4-confirm.png",
       "sha256": "ae247ad88b5011d3349f318a7e3b36895d50397b627ec5e1b98a5ca0a14478dd",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-a4-shot-references.png",
       "sha256": "e34c45d5ef1e312a6d0cb1a63ceb1f224e0ede6f0e0c619b837487eba62291d0",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-agent-mounted-all-results.png",
@@ -682,19 +759,22 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Document drawer covers the left preview; not full-result visual evidence."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-agent-mounted-confirm-0.png",
       "sha256": "8353fb0a23c58019417189af897bc40133b6f7d57c1c7709b4df73b30bb3817a",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-agent-mounted-confirm-1.png",
       "sha256": "dc5f51fcfe9592611c7ffcad4c201323e55ca276d6066fe25ca2c324480613c2",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-agent-mounted-confirm-2.png",
@@ -702,25 +782,29 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Existing Agent confirmation exposes internal reference syntax; out-of-scope confirmation UI limitation."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-agent-unmounted-all-results.png",
       "sha256": "86ff4a288b7aa679d692892e83ea99d0d80421d6beee5787e170728c3bb8db83",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-agent-unmounted-confirm-0.png",
       "sha256": "8be7d9b3a4bf04c1a8eb198d747ea14cdc4a27ecbf78333d4aa2369679ee136a",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-agent-unmounted-confirm-1.png",
       "sha256": "6491c20c394d1407187bf496dcfbc224eeb7a2a634d4a0685aa023d6d4a99dca",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-agent-unmounted-confirm-2.png",
@@ -728,19 +812,22 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Existing Agent confirmation exposes internal reference syntax; out-of-scope confirmation UI limitation."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-canvas-release-confirm.png",
       "sha256": "37fc1f83f8c3564d35fb9b89d8faa079fc21f5038e9f50cd3d5323686a536f74",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-canvas-released-result.png",
       "sha256": "eab756254ed43b583e701cdca86dabd124310fb1e9df9146ae2a14252af190ef",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-canvas-refusal.png",
@@ -752,19 +839,22 @@
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-changed-while-queued.png",
       "sha256": "b4403eece32c9dbb82ae98c4022fc63a08f3b21dd63410ae8bd77701c587c4c7",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-list-refusal.png",
       "sha256": "938df9dea806bae5fd7861907270eb7237bc1dfe7facb470ad05524e507b87f6",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-storyboard-refusal.png",
       "sha256": "199449943a58b8785847f947c043e70fdb18d153add2db91a59933769bc20aa6",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-list-changed-while-queued.png",
@@ -774,7 +864,8 @@
       "sourceRun": "continue-edit-2",
       "limitations": [
         "Agent overlay partly covers composer; queued label, edited text and local refusal remain readable."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-list-list-refusal.png",
@@ -790,19 +881,22 @@
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-canvas-refusal.png",
       "sha256": "e63db8e031a45aa24bc12a2c385fb8c61cdc92faa76d11fae5f1da2577a309ab",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-changed-while-queued.png",
       "sha256": "f80e3c03d72bad522be650956f30a117011f0da164833e9c514067d7d7ff29f0",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-list-refusal.png",
       "sha256": "a52d9a1ffccfba29dd7f87945687dd5ff40bb994bed27e80b0e0676708604587",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-storyboard-refusal.png",
@@ -816,25 +910,29 @@
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-eight-confirm.png",
       "sha256": "dcdaa94d570c944584d70421e4907d605625460683be57a4f1c00b45f720d36e",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-eight-refusals-others-running.png",
       "sha256": "a5d9109a280f3ca10a56b2de61e547b693200672edda803a3c00aaf678d37de9",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-eight-settled-no-brake.png",
       "sha256": "8847a89d101afa3ccb5aa06d1e04b511cd4f25f60b984167910a049e2d1ec684",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-eight-single-retry-running.png",
       "sha256": "70b626c1ca58e9e50c14aadbcd2f98a484d869d916e2c27c33acab8872b9cd28",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-canvas-asset.png",
@@ -842,31 +940,36 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Small existing canvas asset card clips part of description/footer; action is visible, use list detail for complete text."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-canvas-shot.png",
       "sha256": "f96aed191e1fa02075c51a158b0e8e1d99f9bfc1d853746a48e162614817cbb2",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-list-asset.png",
       "sha256": "ccef2114c1aafcb28db4dd0768833007819da4845fe504001b4a88aacad5d907",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-list-shot.png",
       "sha256": "704e789798be60769695239c8a064407aa0a9b085aae8994b20bf400161e40fb",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-storyboard-asset.png",
       "sha256": "488f4b40852b3317593556dee06e8c870221425c4a306b9df0170727496ad425",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-storyboard-shot.png",
@@ -878,7 +981,8 @@
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
       "sha256": "5371012e1878a43ef59b29049f34d1da1e4ea3c98129f586d37aaa9a846c6e3f",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
@@ -886,25 +990,29 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png",
       "sha256": "e10149a0aae499d4ba11f11c857ed99bc4654c36335c7617c67e4b81dbdeac1d",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-release-confirm.png",
       "sha256": "6a70d3ac93b8dc413da16775b4c4a15f8234cdbdded7b7b3afe8255c21bf3af8",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-released-result.png",
       "sha256": "65afb21ba39d6044f8774e455fa3d23cf71b08739d9dfcb52e7114227c68bcfc",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
@@ -916,7 +1024,8 @@
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
       "sha256": "375caf685312d7241ca211faa33e635c2c26fed288466ce3b11c645f5f0fc1f2",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-canvas.png",
@@ -924,7 +1033,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Canvas zoom too small for a full text judgement; rely on readable detail/other screenshots."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-confirm.png",
@@ -932,13 +1042,15 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-list-rail.png",
       "sha256": "809ceafbe23ed57da85ce7e11d2e0b034be93a9475092f9a7590699874fcd251",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-list-small.png",
@@ -946,13 +1058,15 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Transition/misframed sample; not a complete visual receipt for its filename."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-storyboard.png",
       "sha256": "8ae99d5a06713fa86507eef13165c671881fb9c27714452e5b3ab7b4c9b53fa0",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-canvas.png",
@@ -960,19 +1074,22 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Canvas zoom too small for a full text judgement; rely on readable detail/other screenshots."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-list.png",
       "sha256": "57bd31667a5be365b07c3e8fe0aad2b4e677fee403b9e284753cb255d75b2cdd",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-storyboard.png",
       "sha256": "368f3c4106f7f1a443a43dac8dc3bfcf4b505f431971112e1062caebe1eb442c",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-canvas-asset.png",
@@ -980,7 +1097,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Small existing canvas asset card clips part of description/footer; action is visible, use list detail for complete text."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-canvas-shot.png",
@@ -988,49 +1106,57 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Floating canvas toolbar overlaps part of the title; retrieval action and body remain visible."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-list-asset.png",
       "sha256": "acb76414c3d502cf21df73cd310a2e32714740c5c7538d5887161527abc2237a",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-list-shot.png",
       "sha256": "90159172b580c749fcf44e81f213c13ec20b95d346a8ac142e6b252922abea05",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-storyboard-asset.png",
       "sha256": "472994ade8dcceea3f660bd0285a74e0f4688c86350ccfb2538f70c89daedfb0",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-storyboard-shot.png",
       "sha256": "38d43ea9d64bb2c2300a3363b85e0f32371dacf16cbcd434fe8dedb9764351df",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-0.png",
       "sha256": "fb5b083aa4566c8cbbf148d437870f48f3e090fb84f80946e4a61d2df1f8624c",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-1.png",
       "sha256": "e85424a6ce1ffa77644dd6ac03490867bc006b7a01de340d5eaec6594b109877",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-2.png",
       "sha256": "60b1c95e12cd2da0cc026f0c8d36ffb00d35a9df9e279c79531c71015fc63f45",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-canvas-cancel-confirm.png",
@@ -1040,7 +1166,8 @@
       "sourceRun": "continue-free-3",
       "limitations": [
         "All five cards are listed and initially unchecked. This cancellation proves no dispatch; later two-shot selection and dispatch are asserted separately."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-canvas-released.png",
@@ -1048,7 +1175,8 @@
       "openedByImplementationAgent": true,
       "reviewedInContinuation": true,
       "sourceRun": "continue-free-3",
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-idle-return.png",
@@ -1056,7 +1184,8 @@
       "openedByImplementationAgent": true,
       "reviewedInContinuation": true,
       "sourceRun": "continue-free-3",
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-list-unknown.png",
@@ -1064,7 +1193,8 @@
       "openedByImplementationAgent": true,
       "reviewedInContinuation": true,
       "sourceRun": "continue-free-3",
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-canvas.png",
@@ -1074,7 +1204,8 @@
       "sourceRun": "continue-free-3",
       "limitations": [
         "Canvas error heading partly above viewport; release actions readable. Use list/storyboard frames for the full reason."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-list.png",
@@ -1082,7 +1213,8 @@
       "openedByImplementationAgent": true,
       "reviewedInContinuation": true,
       "sourceRun": "continue-free-3",
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-released.png",
@@ -1090,7 +1222,8 @@
       "openedByImplementationAgent": true,
       "reviewedInContinuation": true,
       "sourceRun": "continue-free-3",
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-restart-storyboard.png",
@@ -1100,7 +1233,8 @@
       "sourceRun": "continue-free-3",
       "limitations": [
         "Existing narrow shot card repeats the reason and wraps it; this change does not redesign that card."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-scene-storyboard-confirm.png",
@@ -1108,19 +1242,22 @@
       "openedByImplementationAgent": true,
       "reviewedInContinuation": true,
       "sourceRun": "continue-free-3",
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-canvas-same-result.png",
       "sha256": "d732f53d376522ff0759f61d229c25c6f1a9f256aea27f9cc9de97a3a6957025",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-list-same-result.png",
       "sha256": "d782cba1543cf2c36253903994e3b640f15606f1f6475aae9fae0c7ed6217c7e",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-storyboard-same-result.png",
@@ -1128,13 +1265,15 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Document drawer covers the left preview; not full-result visual evidence."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-batch-cancel.png",
       "sha256": "69880cfced2cd29537aa8b714f5a0a113efe87f6828651e9b89225791e199d6a",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-queued.png",
@@ -1144,7 +1283,8 @@
       "sourceRun": "continue-queue-3",
       "limitations": [
         "Canvas queue pill is above the viewport; this frame proves the focused composer only. The actual queued entry is positively asserted in the receipt; readable queue UI is in storyboard/list frames."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-retried.png",
@@ -1164,7 +1304,8 @@
       "sourceRun": "continue-queue-3",
       "limitations": [
         "Queue status before the single click; exact one-POST and final settlement are proved by the HTTP receipt."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-list-retried.png",
@@ -1182,19 +1323,22 @@
       "sourceRun": "continue-queue-3",
       "limitations": [
         "Queue status before the single click; exact one-POST and final settlement are proved by the HTTP receipt."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-single-storyboard-retried.png",
       "sha256": "9da836d5d1326672ded7b11cdbfe9c0fd3cdd6709f194089bcaecf3e9c995114",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-storyboard-anchor-released-result.png",
       "sha256": "28e61f9867609d6264d436e7b1d486d3c9e273e908e54f63ecab8316d6d99748",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-task-center-release-confirm.png",
@@ -1208,7 +1352,8 @@
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-task-center-released.png",
       "sha256": "eab756254ed43b583e701cdca86dabd124310fb1e9df9146ae2a14252af190ef",
       "openedByImplementationAgent": true,
-      "limitations": []
+      "limitations": [],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-task-center-unknown.png",
@@ -1216,7 +1361,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Captured in transition; rely on stable confirmation/detail images for text."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-unknown-canvas-light.png",
@@ -1242,7 +1388,8 @@
       "openedByImplementationAgent": true,
       "limitations": [
         "Captured in transition; rely on stable confirmation/detail images for text."
-      ]
+      ],
+      "inRepository": false
     },
     {
       "path": "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-shot.png",
@@ -1252,5 +1399,6 @@
       "sourceRun": "continue-three-1",
       "limitations": []
     }
-  ]
+  ],
+  "inRepository": "仓库只留 32 张中英代表图控制体积；其余 147 张留在本地，这份清单的 sha256 可以逐张核对。"
 }
