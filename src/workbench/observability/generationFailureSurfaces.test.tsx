@@ -113,3 +113,21 @@ it('E7: an anchor with retained media still exposes free retrieval when the late
   expect(html).toContain('data-anchor-face="recoverable"')
   expect(html).toContain(i18n.t('generationCommon.production.runAction.retry-retrieval'))
 })
+
+
+it.each([['running', 'generating'], ['error', 'failed'], ['recoverable', 'recoverable']] as const)(
+  'E9: the narrow rail keeps the current %s state even when an earlier result exists', (status, label) => {
+    const node = { ...createGenerationNode({ id: 'current-rail-state', kind: 'image' }), status,
+      error: status === 'error' ? '429 rate limit' : undefined,
+      result: { id: 'previous-result', type: 'image' as const, url: 'https://fixture.invalid/previous.png', createdAt: 1 } }
+    useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [node], edges: [], groups: [], selectedNodeIds: [] })
+    const model = deriveGenerationList({ nodes: [node], edges: [], groups: [], designsByDocumentId: {}, imageModelOptions: [], videoModelOptions: [] })
+    const server = useGenerationCanvasStore.getInitialState(), saved = server.nodes
+    server.nodes = [node]
+    try {
+      const rail = render(<DetailRail sections={model.sections} activeKey={node.id} onSelect={noop} />)
+      expect(rail).toContain(i18n.t(`shotTable.status.${label}`))
+      expect(rail).not.toContain(i18n.t('generationList.notGenerated'))
+    } finally { server.nodes = saved }
+  },
+)

@@ -1,3 +1,4 @@
+import { autoReferenceFromCanvas } from '../creation/storyboard/exec/storyboardAutoReference'
 import { mentionUrlsInOrder } from '../assets/promptMentions'
 vi.mock('../generationCanvas/runner/runProjectDelivery', async original => ({ ...await original<typeof import('../generationCanvas/runner/runProjectDelivery')>(), isRunTargetLoaded: () => true }))
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -172,4 +173,25 @@ it('A5: Agent explicitly refreshes reference images and modes between anchor and
   await presentStoryboard({ projectId: 'p', designId: 'run', sourceDocumentId: 'doc' })
   expect(design().plan.shots.every(s => mentionUrlsInOrder(s.prompt).includes('https://fixture.invalid/actor.png'))).toBe(true)
   expect(design().plan.shots.every(s => s.modeId === 'omni')).toBe(true)
+})
+
+
+it('A5: two asset approvals survive the mounted editor refreshing other shot references after the first asset', async () => {
+  editPlan(next => {
+    next.anchors = [
+      { id: 'actor', kind: 'character', carrier: 'visual', name: 'Actor', description: 'Actor' },
+      { id: 'shop', kind: 'scene', carrier: 'visual', name: 'Shop', description: 'Shop' },
+    ]
+    next.shots = next.shots.map(s => ({ ...s, anchorIds: ['actor', 'shop'], prompt: 'Actor walks in Shop', modelKey: 'seedance-2-5', modelVendor: 'kie', modeId: 't2v' }))
+  })
+  calls.single.mockImplementation(async (_id, guards) => {
+    const id = await guards.deferredMaterialization.materialize()
+    const nodes = useGenerationCanvasStore.getState()
+    nodes.addNodeResult(id, { id: 'image-' + id, type: 'image', url: 'https://fixture.invalid/' + id + '.png', createdAt: 1 })
+    editPlan(next => Object.assign(next, autoReferenceFromCanvas(next, 'run', useGenerationCanvasStore.getState().nodes, [])))
+    return 'started'
+  })
+  await expect(presentStoryboard({ projectId: 'p', designId: 'run', sourceDocumentId: 'doc' })).resolves.toMatchObject({ decision: 'started' })
+  expect(calls.single).toHaveBeenCalledTimes(2)
+  expect(design().plan.shots.every(s => mentionUrlsInOrder(s.prompt).length === 2)).toBe(true)
 })

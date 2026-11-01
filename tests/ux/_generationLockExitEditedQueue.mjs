@@ -20,7 +20,7 @@ async function editQueuedShot(input, surface) {
     await page.evaluate(() => window.__nomiSetBatchConcurrency(1)); proxy.setLimit(5)
     await openStoryboardEditor(page, design.id); await collapseAgentPanel(page)
     await page.locator('[data-storyboard-batch]').click(); await page.locator('[data-spend-confirm-dialog] [data-spend-confirm-action="confirm"]').click()
-    await expect.poll(() => proxy.records.length).toBe(3)
+    await expect.poll(() => proxy.records.length, { timeout: stationTimeout({ operations: 5 }) }).toBe(3)
     fixture.holdTasks(true)
     const node = (await nodes()).find(n => n.meta?.shotId === design.plan.shots[2].shotId)
     assert.ok(node)
@@ -32,7 +32,7 @@ async function editQueuedShot(input, surface) {
       await openCanvas(page)
       if (surface === 'canvas') await page.evaluate(id => window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId: id } })), node.id)
       else { await switchGenerationView(page, 'list'); await page.locator(`[data-list-card="${node.id}"]`).click() }
-      await page.locator('[data-composer-host="canvas"] [contenteditable="true"]').first().fill('用户把第三镜改成另一张画面')
+      await page.locator('[data-composer-host="canvas"]:visible [contenteditable="true"]').first().fill('用户把第三镜改成另一张画面')
     }
     await shot('changed-while-queued'); fixture.holdTasks(false)
     await expect.poll(async () => (await nodes()).find(n => n.id === node.id)?.status, { timeout: stationTimeout({ turns: 1 }) }).toBe('error')

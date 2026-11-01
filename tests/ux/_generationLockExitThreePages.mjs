@@ -155,9 +155,13 @@ export async function threePageLockExitJourney(input) {
     const occupied = await page.evaluate(({ projectId, nodeId }) => window.nomiDesktop.tasks.canvasUnknownRuns({ projectId, nodeId }), { projectId, nodeId: canvasNode.id })
     assert.ok(occupied.length)
     const beforeTaskCenter = proxy.records.length
+    await page.keyboard.press('Escape')
+    await expect.poll(() => page.evaluate(() => window.__nomiCanvasStore.getState().selectedNodeIds.length)).toBe(0)
     await page.locator('[data-task-center-trigger]').click()
-    await page.locator(`[data-task-id="production-run:${occupied[0].runId}"]`).click()
-    await page.locator('[data-task-center-trigger]').click()
+    if (!(await page.locator('[data-production-task-card]').isVisible())) {
+      await page.locator(`[data-task-id="production-run:${occupied[0].runId}"]`).click()
+      await page.locator('[data-task-center-trigger]').click()
+    }
     await expect(page.locator('[data-production-task-card]')).toBeVisible()
     await shot('task-center-unknown')
     await page.locator('[data-production-task-card] [data-production-primary-action]').click()

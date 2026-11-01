@@ -55,7 +55,7 @@ export async function presentStoryboard(data: Record<string, unknown>): Promise<
       writePlan: next => { project.assertCurrent(); useWorkbenchStore.getState().setStoryboardPlan(next, sourceDocumentId, designId) },
     })
     const assertAuthorCurrent = actionGuard.assertAuthorCurrent
-    const assertCurrent = async () => { project.assertCurrent(); await actionGuard.assertCurrent(); project.assertCurrent() }
+    const assertCurrent = async (targets = scope) => { project.assertCurrent(); await actionGuard.assertCurrent(targets); project.assertCurrent() }
     await assertCurrent()
     const canvas = useGenerationCanvasStore.getState()
     const context = { documentId: sourceDocumentId, designId, plan, assertCurrent, assertAuthorCurrent, actionGuard,
@@ -67,8 +67,9 @@ export async function presentStoryboard(data: Record<string, unknown>): Promise<
     const outcomes: GenerationRunOutcome[] = []
     for (const entry of anchors.filter(value => scope.includes(value.anchor.id))) {
       if (!entry.visual || entry.locked || entry.resultUrl || entry.generating || entry.recoverable) continue
-      await assertCurrent()
-      outcomes.push(await generateAnchorCard(context, entry.anchor))
+      const anchorContext = { ...context, assertCurrent: () => assertCurrent([entry.anchor.id]) }
+      await anchorContext.assertCurrent()
+      outcomes.push(await generateAnchorCard(anchorContext, entry.anchor))
       // 他对锚卡说了「不」，就别再拿下一张卡追问他——这一次 present 到此为止。
       if (outcomes[outcomes.length - 1] === 'declined') return declined(designId, scope, outcomes)
     }

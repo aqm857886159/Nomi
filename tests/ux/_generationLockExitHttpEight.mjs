@@ -23,13 +23,14 @@ export async function httpEightLockExitJourney({ page, projectId, proxy, fixture
     let design
     await expect.poll(async () => { design = Object.values((await readProject(page, projectId)).payload.storyboardDesignsByDocumentId).flat().at(-1); return design?.plan.shots.length }).toBe(8)
     await openCanvas(page); await page.waitForFunction(() => typeof window.__nomiSetBatchConcurrency === 'function'); await openStoryboardEditor(page, design.id); await collapseAgentPanel(page)
-    proxy.setLimit(4)
+    proxy.setLimit(4); fixture.holdTasks(true)
     await page.evaluate(() => window.__nomiSetBatchConcurrency(6))
     await page.locator('[data-storyboard-batch]').click(); await expect(dialog).toBeVisible(); await shot('eight-confirm')
     await dialog.locator('[data-spend-confirm-action="confirm"]').click()
     await expect.poll(() => proxy.records.length).toBe(8)
     assert.equal(proxy.records.filter(r => r.rejected).length, 4)
     report.eightHttpReceipts = structuredClone(proxy.records)
+    await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length).toBe(4)
     const failed = (await nodes()).find(n => n.status === 'error')
     assert.ok(failed)
     assert.ok((await nodes()).some(n => n.status === 'running'), 'B1: the other four requests are still running')
@@ -42,14 +43,15 @@ export async function httpEightLockExitJourney({ page, projectId, proxy, fixture
     await page.locator(`[data-storyboard-row="${rowIndex}"]`).getByRole('button', { name: t('storyboardEditor.frame.retryHint'), exact: true }).dblclick()
     await expect(dialog).not.toBeVisible()
     await expect.poll(() => proxy.records.length).toBe(9)
-    await shot('eight-single-retry-running')
+    await shot('eight-single-retry-running'); fixture.holdTasks(false)
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'running').length, { timeout: stationTimeout({ operations: 8 }) }).toBe(0)
     assert.equal(proxy.records.length, 9)
     assert.equal((await nodes()).filter(n => n.status === 'success').length, 5)
     await expect(page.locator('[data-storyboard-batch]')).toBeEnabled()
-    assert.ok(!(await page.locator('body').innerText()).includes(t('taskCenter.brake.toast')))
+    assert.ok(!(await page.locator('body').innerText()).includes(t('taskCenter.brake.title')))
+    assert.ok(await page.evaluate(() => Object.values(window.__nomiQueueStore.getState().batches).every(batch => !batch.paused && Boolean(batch.finishedAt))), 'A1: all batch Promises settled without a paused queue')
     report.checks = { A1: true, B1: true, B4: true, B5: true }
     await shot('eight-settled-no-brake')
     return report
-  } catch (error) { error.report = report; throw error }
+  } catch (error) { error.report = report; throw error } finally { fixture.holdTasks(false) }
 }

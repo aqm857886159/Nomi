@@ -20,9 +20,9 @@ export function createStoryboardActionGuard(input: {
 }) {
   let baseline = structuredClone(input.plan)
   const scope = new Set(input.shotIds)
-  const approvalContent = (plan: StoryboardPlan) => {
+  const approvalContent = (plan: StoryboardPlan, targets: ReadonlySet<string>) => {
     const { shots, ...global } = plan
-    return stableProjectAgentJson({ ...global, shots: shots.filter(shot => scope.has(stableShotId(shot))) })
+    return stableProjectAgentJson({ ...global, shots: shots.filter(shot => targets.has(stableShotId(shot))) })
   }
   const currentPlan = async () => {
     const plan = await input.readPlan()
@@ -30,8 +30,9 @@ export function createStoryboardActionGuard(input: {
     return plan
   }
   return {
-    async assertCurrent() {
-      if (approvalContent(await currentPlan()) !== approvalContent(baseline)) throw new Error('storyboard_content_conflict')
+    async assertCurrent(targetIds?: readonly string[]) {
+      const targets = targetIds ? new Set(targetIds) : scope
+      if (approvalContent(await currentPlan(), targets) !== approvalContent(baseline, targets)) throw new Error('storyboard_content_conflict')
     },
     async assertAuthorCurrent(graph: RunGraph, executingNodeId: string) {
       const node = graph.nodes.find(value => value.id === executingNodeId)

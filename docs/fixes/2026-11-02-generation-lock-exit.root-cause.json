@@ -3,7 +3,7 @@
   "id": "2026-11-02-generation-lock-exit",
   "problem_type": "Approved storyboard generation scope, queue ownership and local refusal recovery",
   "symptom": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。",
-  "direct_cause": "整方案快照被自动引用触发；quota 与本机拒绝参与刹车；单卡依赖整表 busy；画布出口猜错 Run；三页重复判断失败动作、列表漏读队列。",
+  "direct_cause": "整方案快照被自动引用触发；quota 与本机拒绝参与刹车；单卡依赖整表 busy；画布出口猜错 Run；三页重复判断失败动作、列表漏读队列。；Agent 每张资产单独确认却沿用整批目标的准入快照；列表窄列优先显示旧产物，盖住本次失败或可找回状态。",
   "class_root": "动作输入的所有权、排队所有权和错误类别没有在共享边界统一，多个入口读了不对应的状态。",
   "affected_population": [
     "分镜编辑器与 Agent",
@@ -53,8 +53,7 @@
     "src/workbench/production/useProductionStatus.ts",
     "electron/capabilityCore/canvasShotResult.ts",
     "src/workbench/creation/storyboard/storyboardShotTableTypes.ts",
-    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
-    "src/workbench/production/ProductionCanvasLandingHost.tsx"
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts"
   ],
   "entry_points": [
     "StoryboardPlanEditor 的单卡、整批与放置",
@@ -1627,16 +1626,6 @@
     },
     {
       "kind": "read",
-      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
-      "symbol": "confirmAndRunNode"
-    },
-    {
-      "kind": "read",
       "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
       "symbol": "useGenerationQueueStore"
     },
@@ -1708,7 +1697,7 @@
   ],
   "door_reduction": {
     "before": 13,
-    "after": 326,
+    "after": 324,
     "why_not": "保留三页与 Agent 的必要用户入口，各自的执行、展示、重试都由声明的共享边界约束。before 是开工首次数门的直接入口；after 包含本轮展开的所有导出符号调用与读面，统计范围更全，不冒充入口数量减少。重复判断和旧文件已删除。"
   },
   "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。",
@@ -1716,7 +1705,7 @@
     {
       "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
       "symbol": "createStoryboardActionGuard",
-      "responsibility": "确认只比批准范围，执行只比对应作者行；阶段切换显式补引用重读。"
+      "responsibility": "批准范围保留全局、全部参考卡和当前动作目标；每张 Agent 资产确认只检查该资产目标，执行只检查本节点作者行；阶段切换显式补引用重读。"
     },
     {
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",

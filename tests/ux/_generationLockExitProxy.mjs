@@ -1,6 +1,7 @@
 import { redact } from './_paidEnvKey.mjs'
 import http from 'node:http'
 import https from 'node:https'
+import { gunzipSync, inflateSync, brotliDecompressSync } from 'node:zlib'
 
 /** Test-only fault boundary: forward bytes unchanged, reject concurrency, or discard one accepted reply. */
 export async function createGenerationLockExitProxy({ target, imageModel, fakeDelayMs = 0, maxImages = 14 }) {
@@ -34,9 +35,22 @@ export async function createGenerationLockExitProxy({ target, imageModel, fakeDe
       for await (const chunk of response) chunks.push(chunk)
       if (media && fakeDelayMs) await new Promise(resolve => setTimeout(resolve, fakeDelayMs))
       if (media) active--
+      const reply = Buffer.concat(chunks)
+      if (record) {
+        record.upstreamStatus = response.statusCode
+        try {
+          const decode = { gzip: gunzipSync, deflate: inflateSync, br: brotliDecompressSync }[response.headers['content-encoding']]
+          const payload = JSON.parse((decode ? decode(reply) : reply).toString('utf8'))
+          const data = Array.isArray(payload.data) ? payload.data[0] : payload.data
+          const id = data?.task_id ?? data?.id
+          if (typeof id === 'string' && id.trim()) record.providerTaskId = id
+        } catch { /* Observation never changes forwarded response bytes. */ }
+        // Refusals must reach Nomi unchanged; simulate loss only after an accepted task receipt.
+        record.dropped = record.dropped && response.statusCode >= 200 && response.statusCode < 300 && Boolean(record.providerTaskId)
+      }
       if (record?.dropped) { res.destroy(); return }
       res.writeHead(response.statusCode, response.headers)
-      res.end(Buffer.concat(chunks))
+      res.end(reply)
     })
     upstream.on('error', () => { if (media) active--; res.destroy() })
     upstream.end(body)

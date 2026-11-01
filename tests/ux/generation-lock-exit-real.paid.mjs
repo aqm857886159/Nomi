@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Coordinator-only paid entry. Rehearse first; the forwarding proxy enforces a fourteen-image ceiling.
+// Coordinator-only paid entry. Rehearse first; the forwarding proxy enforces a thirteen-image ceiling, reserving one of fourteen for the coordinator price probe.
 import path from 'node:path'
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
@@ -27,7 +27,7 @@ let proxy, failure
 try {
   const target = walk.report.networkAllowlist[0]
   if (!target || !/^https:\/\//.test(target)) throw new Error('The authorized upstream API origin is missing')
-  proxy = await createGenerationLockExitProxy({ target, imageModel: model.modelKey, maxImages: 14 })
+  proxy = await createGenerationLockExitProxy({ target, imageModel: model.modelKey, maxImages: 13 })
   Object.assign(launchEnv, { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: target, to: proxy.origin }]), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: proxy.origin })
   const { win } = await walk.start({ first: true })
   await paid.lockToAuthorizedModels(win)
@@ -45,6 +45,6 @@ try {
     },
   })
   walk.report.generationLockExit = report
-  walk.report.proxy = { simulated: ['concurrency refusal', 'discarding one accepted reply'], maxImages: 14, requests: proxy.records }
+  walk.report.proxy = { simulated: ['concurrency refusal', 'discarding one accepted reply'], maxImages: 13, reservedPriceProbe: 1, requests: proxy.records }
 } catch (error) { failure = error; process.exitCode = 1 }
 finally { if (proxy) await proxy.close(); await paid.finish(failure) }

@@ -65,7 +65,9 @@ function RailRow({ card, active, onSelect }: { card: GenerationListCard; active:
         <span className="flex items-baseline gap-1.5">
           <span className="truncate text-caption font-semibold tabular-nums text-nomi-ink">{shotLabel(t, card)}</span>
           <span className="shrink-0 text-micro tabular-nums text-nomi-ink-40">
-            {queued ? t('generationCommon.observability.progress.queued') : generated ? (duration ? formatSeconds(duration) : '') : card.status === 'generating' ? t('shotTable.status.generating') : card.status === 'failed' ? t('shotTable.status.failed') : t('generationList.notGenerated')}
+            {queued ? t('generationCommon.observability.progress.queued')
+              : card.status && !['ready', 'done', 'locked'].includes(card.status) ? t(`shotTable.status.${card.status}`)
+                : generated ? (duration ? formatSeconds(duration) : '') : t('generationList.notGenerated')}
           </span>
         </span>
         <span className={cn('mt-0.5 block truncate text-caption', active ? 'text-nomi-ink-80' : 'text-nomi-ink-60')}>{plainPrompt(node?.prompt) || t('generationList.promptEmpty')}</span>

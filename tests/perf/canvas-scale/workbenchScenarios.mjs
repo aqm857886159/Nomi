@@ -1148,11 +1148,12 @@ async function listQueueSettle(page, ctx) {
   await clearSelection(page)
   await page.locator('[data-generation-view-switcher]').first().click()
   await page.locator('[data-list-card]').first().waitFor()
-  const count = await page.locator('[data-list-card]').count()
+  const count = await page.evaluate(() => window.__nomiCanvasStore.getState().nodes.filter(node => node.kind === 'image' || node.kind === 'video').length)
   if (count < 180) throw new Error(`Expected roughly 190 list cards, received ${count}`)
+  await page.waitForFunction(() => document.querySelectorAll('[data-list-card]').length >= 20)
   const ids = await page.locator('[data-list-card]').evaluateAll(cards => cards.slice(0, 20).map(card => card.dataset.listCard))
   const batchId = await page.evaluate(ids => {
-    const queue = window.__nomiGenerationQueueStore
+    const queue = window.__nomiQueueStore
     queue.setState({ entries: [], batches: {} })
     return queue.getState().enqueueBatch([ids], 'perf-list-queue')
   }, ids)
@@ -1163,7 +1164,7 @@ async function listQueueSettle(page, ctx) {
     await armResponse(page, { trigger: 'nomi-perf-queue-settle', predicate: 'listQueueSettled', arg: id })
     await page.evaluate(({ id, batchId }) => {
       document.dispatchEvent(new Event('nomi-perf-queue-settle'))
-      window.__nomiGenerationQueueStore.getState().markSettled(batchId, id, 'success')
+      window.__nomiQueueStore.getState().markSettled(batchId, id, 'success')
     }, { id, batchId })
     times.push((await takeResponse(page)).ms)
   }

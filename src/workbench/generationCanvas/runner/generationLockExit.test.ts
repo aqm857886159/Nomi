@@ -121,3 +121,33 @@ it('C2: a refused second click stays in history while the host-selected original
   expect(done.status).toBe('success')
   expect(done.runs!.some(run => run.id === history[0].id)).toBe(true)
 })
+
+
+it('B2: retrying a failed card while its batch is paused does not resubmit it when the batch resumes', async () => {
+  const target = await session.open('project-a')
+  const nodes = Array.from({ length: 4 }, (_, index) => useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'paused ' + index }))
+  calls.execute.mockRejectedValue(new Error('500 Internal Server Error'))
+  let paused!: (id: string) => void
+  const pause = new Promise<string>(resolve => { paused = resolve })
+  const unsubscribe = useGenerationQueueStore.subscribe(state => {
+    const batch = Object.values(state.batches).find(value => value.paused)
+    if (batch) paused(batch.id)
+  })
+  const running = runGenerationNodesByPlan({ waves: [nodes.map(node => node.id)], edgesUsed: [], blocked: [] },
+    { target, concurrency: 1, retry: { maxAttempts: 1 }, assetUploadConsent: 'not-needed' })
+  const batchId = await pause
+  try {
+    calls.execute.mockImplementation(async node => imageResult(node.id))
+    await confirmAndRunNode(nodes[0].id, { initiator: 'user' })
+    expect(useGenerationQueueStore.getState().batches[batchId].paused).toBe(true)
+    useGenerationQueueStore.getState().resumeBatch(batchId)
+    await running
+    expect(calls.execute).toHaveBeenCalledTimes(5)
+    expect(calls.execute.mock.calls.filter(([node]) => node.id === nodes[0].id)).toHaveLength(2)
+    expect(calls.execute.mock.calls.filter(([node]) => node.id === nodes[3].id)).toHaveLength(1)
+  } finally {
+    unsubscribe()
+    useGenerationQueueStore.getState().cancelBatchRemaining(batchId)
+    await running
+  }
+})

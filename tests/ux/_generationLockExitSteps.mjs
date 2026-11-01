@@ -94,12 +94,14 @@ export async function generationLockExitJourney(input) {
     // Assets are forwarded normally; discard the first shot reply, including in the paid run.
     proxy.dropNextReplyMatching('@image')
     await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible(); await shot('storyboard-confirm'); await confirm()
+    let batchNodes
     await expect.poll(async () => {
-      const nodes = (await state()).filter(n => n.meta?.storyboardDesignId === design.id)
-      assert.ok(!nodes.some(n => /Storyboard target changed|storyboard_content_conflict|generation_input_changed/.test(n.error ?? '')), 'A4: automatic references must not invalidate the admitted storyboard')
-      if (nodes.length && nodes.every(n => n.result || n.status === 'error') && await page.locator('[data-storyboard-batch]').isEnabled()) assert.equal(nodes.length, 5, 'A4: batch ended before dispatching all three shots')
-      return nodes.filter(n => n.result || n.status === 'error').length
-    }, { timeout }).toBe(5)
+      batchNodes = (await state()).filter(n => n.meta?.storyboardDesignId === design.id)
+      return batchNodes.length > 0 && batchNodes.every(n => n.result || n.status === 'error')
+        && (batchNodes.length >= 5 || await page.locator('[data-place-storyboard]').isEnabled())
+    }, { timeout }).toBe(true)
+    assert.ok(!batchNodes.some(n => /Storyboard target changed|storyboard_content_conflict|generation_input_changed/.test(n.error ?? '')), 'A4: automatic references must not invalidate the admitted storyboard')
+    assert.equal(batchNodes.length, 5, 'A4: batch ended before dispatching all three shots')
     const bound = (await state()).filter(n => n.meta?.storyboardDesignId === design.id)
     const shotNodes = bound.filter(n => n.meta?.shotId)
     assert.ok(shotNodes.every(n => /@\[asset:/.test(n.prompt)), 'The editor plan and canvas nodes retain visible asset mentions')
@@ -124,7 +126,9 @@ export async function generationLockExitJourney(input) {
     await shot('storyboard-all-results'); report.stages.push('storyboard')
     await idle()
     for (const node of bound) assert.equal((await state()).find(n => n.id === node.id)?.status, 'success')
-    await expect(page.locator('[data-storyboard-batch]')).toBeEnabled()
+    await expect(page.locator('[data-place-storyboard]')).toBeEnabled()
+    // All shots already have results: the remaining-only batch button is correctly disabled.
+    await expect(page.locator('[data-storyboard-batch]')).toBeDisabled()
 
     await canvas()
     const blank = await findCanvasBlankPoint(page); assert.ok(blank)
@@ -208,12 +212,13 @@ export async function a4LockExitJourney(input) {
   await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible()
   assert.equal(await page.locator(dialog).count(), 1)
   await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click()
+  let batchNodes
   await expect.poll(async () => {
-    const nodes = (await readProject(page, projectId)).payload.generationCanvas.nodes
-    assert.ok(!nodes.some(n => /Storyboard target changed|storyboard_content_conflict|generation_input_changed/.test(n.error ?? '')), 'A4: system references must not invalidate the editor batch')
-    if (nodes.length && nodes.every(n => n.result || n.status === 'error') && await page.locator('[data-storyboard-batch]').isEnabled()) assert.equal(nodes.filter(n => n.result).length, 5, 'A4: mounted-editor batch ended before five images')
-    return nodes.filter(n => n.result).length
-  }, { timeout }).toBe(5)
+    batchNodes = (await readProject(page, projectId)).payload.generationCanvas.nodes
+    return batchNodes.length > 0 && batchNodes.every(n => n.result || n.status === 'error')
+      && (batchNodes.length >= 5 || await page.locator('[data-place-storyboard]').isEnabled())
+  }, { timeout }).toBe(true)
+  assert.equal(batchNodes.filter(n => n.result).length, 5, 'A4: mounted-editor batch ended before five images')
   assert.equal(proxy.records.length, 5)
   assert.ok(proxy.records.slice(2).every(r => /@image\d/.test(r.prompt) && r.referenceCount > 0), 'A4: shot HTTP requests contain mentions and generated references')
   return { checks: { mountedEditor: true, assetsBeforeShots: true, allFiveHttp: true }, requests: structuredClone(proxy.records) }
