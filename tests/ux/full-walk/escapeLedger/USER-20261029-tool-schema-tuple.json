@@ -12,7 +12,8 @@
     "用已配置文本模型把一份文稿拆成两镜，只建草稿。"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1407,
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-29-tool-schema-portable.md",
@@ -20,7 +21,8 @@
     "electron/shared/director/directorPlanSchema.test.ts",
     "tests/ux/tool-schema-real.paid.mjs",
     "tests/ux/tool-schema-real.rehearsal.walk.mjs",
-    "真实网关与 Windows 待协调核对，未合入不结 fixed。"
+    "docs/evidence/2026-11-01-tool-schema-real/report.json：真网关一次，3 次 HTTP 200，每次 30 个工具含 stage_shot，工具写对 2/2，回合 1/1，两镜落盘，媒体 0",
+    "没实测：报告用户那一家网关（没有它的 Key）和 Windows；数组式 items 和 prefixItems 在 54 条清单里已是 0 条，棘轮会拦住新的。"
   ],
   "completionCommits": [
     "964967ef0",
@@ -31,5 +33,5 @@
     "kind": "matrix",
     "file": "scripts/check-model-schema.node-test.mjs"
   },
-  "prevention": "结账须挂标准白名单 + 推导层转换 + 真实网关走查实际证据，并补合入 PR / 提交收据；当前 reviewed，不以本地演练替代真实网关。"
+  "prevention": "标准白名单 + 推导层转换 + 真实网关走查都已挂上：新的标准外写法在生成时和棘轮上都会红。"
 }
