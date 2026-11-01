@@ -11,6 +11,9 @@ describe('删除确认：卡片状态 → 文案 + 意图', () => {
     ['本地项目但数据越界（灰卡）', { source: 'native', unreadableReason: 'outside-workspace' }],
     ['本地项目但读不出（灰卡）', { source: 'native', unreadableReason: 'unreadable' }],
     ['外部文件夹且读不出', { source: 'folder', unreadableReason: 'unreadable' }],
+    ['本地项目但文件夹找不到', { source: 'native', missing: true }],
+    ['老项目（没有来源字段）且文件夹找不到', { missing: true }],
+    ['外部文件夹且文件夹找不到', { source: 'folder', missing: true }],
   ])('%s：说「从项目库移除」，意图只解绑', (_label, project) => {
     expect(projectDeleteChoice(project)).toEqual({
       intent: 'unbind',
@@ -22,6 +25,7 @@ describe('删除确认：卡片状态 → 文案 + 意图', () => {
 
   it.each([
     ['本地项目', { source: 'native' }],
+    ['本地项目，文件夹在', { source: 'native', missing: false }],
     ['老项目（没有来源字段）', {}],
   ])('%s：说「删除」，意图删文件', (_label, project) => {
     expect(projectDeleteChoice(project)).toEqual({
@@ -33,7 +37,7 @@ describe('删除确认：卡片状态 → 文案 + 意图', () => {
   })
 
   it('文案和意图永远同向：说「移除」的一定只解绑，说「删除」的一定删文件', () => {
-    const states = [{}, { source: 'native' }, { source: 'folder' }, { source: 'native', unreadableReason: 'unreadable' }, { source: 'folder', unreadableReason: 'outside-workspace' }]
+    const states = [{}, { source: 'native' }, { source: 'folder' }, { source: 'native', unreadableReason: 'unreadable' }, { source: 'folder', unreadableReason: 'outside-workspace' }, { source: 'native', missing: true }, { missing: true }]
     for (const state of states) {
       const choice = projectDeleteChoice(state)
       expect(choice.intent === 'unbind').toBe(choice.messageKey === 'studio.removeProjectMessage')

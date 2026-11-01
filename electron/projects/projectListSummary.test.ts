@@ -203,6 +203,31 @@ describe("项目列表摘要读面", () => {
       });
     }
 
+    it("默认根里改了名、.nomi 又指到根外：移除照样成功，不往根外写标记，下次启动不回来", async () => {
+      const neighbour = createProject({ name: "无辜的邻居" });
+      const project = createProject({ name: "改名又越界" });
+      const root = (findRecentWorkspace(settingsRoot, project.id) as { rootPath: string }).rootPath;
+      const source = path.join(root, ".nomi");
+      const destination = path.join(settingsRoot, `outside-renamed-${project.id}`);
+      fs.renameSync(source, destination);
+      fs.symlinkSync(destination, source, "junction");
+      const renamed = `${root}-改名`;
+      fs.renameSync(root, renamed);
+      const outsideBefore = fs.readdirSync(destination).sort();
+      try {
+        await expect(deleteProject(project.id, "unbind")).resolves.toEqual({ id: project.id, deleted: false });
+        expect(findRecentWorkspace(settingsRoot, project.id)).toBeFalsy();
+        expect(fs.readdirSync(destination).sort()).toEqual(outsideBefore);
+        resetLegacyDiscoveryGuard();
+        const next = await listProjects();
+        expect(next.some((item) => item.id === neighbour.id)).toBe(true);
+        expect(next.some((item) => item.id === project.id)).toBe(false);
+        expect(fs.existsSync(renamed)).toBe(true);
+      } finally {
+        fs.unlinkSync(path.join(renamed, ".nomi"));
+      }
+    });
+
     it("确认的是「删除文件」，此刻却读不出来：拒绝（状态变了），什么都不删、登记还在", async () => {
       const { project, inside, source } = nativeWithOutsideNomi("确认删除后变坏了");
       try {

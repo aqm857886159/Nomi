@@ -21,7 +21,7 @@ import {
   removeWorkspaceReference,
 } from "../workspace/workspaceRegistry";
 import { assertUserOwnedLocation } from "../workspace/workspaceLocationPolicy";
-import { resolveWorkspaceRelativePath } from "../workspace/workspacePaths";
+import { resolveWorkspaceRelativePath, workspaceNomiDir } from "../workspace/workspacePaths";
 import { WorkspaceManifestLockBusyError } from "../workspace/workspaceManifestLock";
 import { moveProjectFolderToTrash } from "./projectTrash";
 import {
@@ -243,28 +243,31 @@ export async function saveProject(projectId: string, input: unknown): Promise<Pr
   return record;
 }
 
-function readableWorkspaceDir(id: string, deps: ReturnType<typeof getWorkspaceRepositoryDeps>): string | null {
+/**
+ * 移除时要打「不再发现」标记的目录。登记的目录在就是它；登记的目录不在了（改名了）才按 id 在默认根里找。
+ * 目录在但读不出来（损坏）、或 `.nomi` 指到根外（越界）= null：不往里面写东西，下次启动的发现也只坏它自己。
+ */
+function folderToSuppress(id: string, deps: ReturnType<typeof getWorkspaceRepositoryDeps>): string | null {
   try {
-    return resolveWorkspaceProjectDir(id, deps);
+    const dir = resolveWorkspaceProjectDir(id, deps) ?? legacyProjectDirById(id);
+    if (dir) workspaceNomiDir(dir);
+    return dir;
   } catch {
     return null;
   }
 }
 
-/** 只从项目库解除登记，不碰盘上任何文件（「从项目库移除」）。 */
+/**
+ * 只从项目库解除登记，不碰项目内容（「从项目库移除」）。
+ * 要抑制下次启动的 legacy 重发现，否则它会自己回到库里：默认根内的项目（启动发现会扫默认根，改名了不抑制的话对账会把它接回来），
+ * 以及根目录还有旧版 project.json 的外部文件夹。
+ */
 function unbindProject(id: string): { id: string; deleted: false } {
   const deps = getWorkspaceRepositoryDeps();
-  if (findRecentWorkspace(deps.settingsRoot, id)) {
-    // 读得出来的目录要抑制下次启动的 legacy 重发现，否则它会自己回到库里：默认根内的项目（启动发现会扫默认根），
-    // 以及根目录还有旧版 project.json 的外部文件夹。读不出来的不往里写任何东西。
-    const workspaceDir = readableWorkspaceDir(id, deps); // 读不出来（越界 / 损坏）= null：不往那个目录里写任何东西
-    removeWorkspaceReference(deps.settingsRoot, id);
-    const insideDefaultRoot = workspaceDir !== null && path.resolve(workspaceDir).startsWith(`${path.resolve(deps.defaultProjectsRoot)}${path.sep}`);
-    if (workspaceDir && (insideDefaultRoot || fs.existsSync(path.join(workspaceDir, PROJECT_FILE)))) suppressLegacyProjectRediscovery(workspaceDir);
-    return { id, deleted: false };
-  }
-  const projectDir = legacyProjectDirById(id);
-  if (projectDir) suppressLegacyProjectRediscovery(projectDir);
+  const workspaceDir = folderToSuppress(id, deps);
+  if (findRecentWorkspace(deps.settingsRoot, id)) removeWorkspaceReference(deps.settingsRoot, id);
+  const insideDefaultRoot = workspaceDir !== null && path.resolve(workspaceDir).startsWith(`${path.resolve(deps.defaultProjectsRoot)}${path.sep}`);
+  if (workspaceDir && (insideDefaultRoot || fs.existsSync(path.join(workspaceDir, PROJECT_FILE)))) suppressLegacyProjectRediscovery(workspaceDir);
   return { id, deleted: false };
 }
 
@@ -273,8 +276,9 @@ function unbindProject(id: string): { id: string; deleted: false } {
  * 确认框按列表那一刻的卡片说话，这里在删除这一刻执行；两刻之间状态可能变了，所以这里**不自己判断该删多少**：
  *   · unbind：只解除登记，绝不删盘——哪怕此刻项目又读得出来了（V-plibrary2：灰卡确认「只解绑」后 .nomi 被挪回，
  *     旧写法在删除这一刻重读、读得出来就整目录删了）；
- *   · delete-files：此刻读不出来 = 和确认时对不上，拒绝，让界面刷新后重新确认；锁忙照常报忙。
+ *   · delete-files：清单此刻读不出来（读的时候抛错）= 和确认时对不上，拒绝，让界面刷新后重新确认；锁忙照常报忙。
  *     读得出来：项目文件夹进系统回收站（moveProjectFolderToTrash，⑭），进不了就原样报错、什么都不删。
+ *     文件夹此刻已经不在（删了、改名、盘没插，库页还没刷新）：没有东西可进回收站，只解除登记，回 deleted:false，界面如实说「只从项目库移除了」。
  */
 export async function deleteProject(projectId: string, intent: unknown): Promise<{ id: string; deleted: boolean }> {
   const id = String(projectId || "").trim();
@@ -303,12 +307,9 @@ export async function deleteProject(projectId: string, intent: unknown): Promise
     return result;
   }
 
-  const projectDir = legacyProjectDirById(id);
-  if (!projectDir) return { id, deleted: false };
-  if (fs.existsSync(path.join(projectDir, ".nomi", PROJECT_FILE))) {
-    suppressLegacyProjectRediscovery(projectDir);
-    return { id, deleted: false };
-  }
+  // 回 false 就一定摘了登记（projectDeleteFlow 按这个说话）。下面进回收站的只剩没有登记、根上只有旧版 project.json 的老格式项目。
+  const projectDir = findRecentWorkspace(deps.settingsRoot, id) ? null : legacyProjectDirById(id);
+  if (!projectDir || fs.existsSync(path.join(projectDir, ".nomi", PROJECT_FILE))) return unbindProject(id);
   const root = path.resolve(getProjectsRoot());
   const resolvedProjectDir = path.resolve(projectDir);
   const rootWithSep = `${root}${path.sep}`;
