@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconCircleCheck, IconFolderOpen, IconRefresh, IconSettings } from '@tabler/icons-react'
 import { DesignButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { cn } from '../../utils/cn'
 import type {
   DesktopProjectLocation,
   DesktopProjectLocationError,
@@ -194,7 +195,7 @@ export function ProjectLocationSection(): JSX.Element {
            </button>
          </div>
          <div
-           className="mt-2 text-caption text-nomi-ink-60"
+           className={cn('mt-2 text-caption', checkFeedback?.tone === 'error' ? 'text-workbench-danger' : 'text-nomi-ink-60')}
            data-project-location-check-feedback
            data-feedback-state={checking ? 'checking' : checkFeedback?.tone || 'idle'}
            data-feedback-tone={checkFeedback?.tone || 'idle'}

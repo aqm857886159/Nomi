@@ -59,7 +59,10 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   // 2026-10-29（「项目在哪」收敛单，用户批准的不变量 ④：每个入口拒绝 Nomi 自己的目录）：错误映射表加
   //             inside-app / missing 两类，仍走原有的状态行；布局与其它文案一个字没动。
   //             正向断言见下方 maps the app-owned and missing location errors to their own copy。
-  'ProjectLocationSection.tsx': '2f8ad7199fde02957893b8508b8c7233a75532aa22e4dc7deadee714207f6323',
+  // 2026-11-01（「项目在哪」收敛单第二轮，协调会话批准）：底部那行反馈在出错时改用危险色（被拒的位置原来和"检查通过"
+  //             同一档灰字，读起来像没事）；其余状态仍是原来的灰。只改这一行的类名并引入 `cn`，布局与文案一个字没动。
+  //             正向断言见下方 paints a rejected location line in the danger colour。
+  'ProjectLocationSection.tsx': 'a30e3767fcecb5fdbad9fe166f7b66c092327df82dc4dc94da139fdbe3d03dcc',
   // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
   // B4: user explicitly removed the global budget setting; the positive absence assertion is below.
   // 2026-09-14：删「默认模型策略」整栏（说明文字 + 161 个白名单复选框 + 深链聚焦）；已接入即放行。
@@ -154,6 +157,15 @@ describe('settings dialog structure', () => {
   it('maps the app-owned and missing location errors to their own copy', () => {
     expect(projectLocationSource).toContain("'inside-app': 'settings.file.projectLocationErrorInsideApp'")
     expect(projectLocationSource).toContain("missing: 'settings.file.projectLocationErrorMissing'")
+  })
+
+  // 2026-11-01：被拒的位置那一行要读起来是"出事了"——危险色只给 tone === 'error'，其余（空闲 / 检查中 / 通过）仍是原来的灰。
+  // 退回成一种固定的灰不会让任何快照变红，所以锁住这条表达式本身。
+  it('paints a rejected location line in the danger colour', () => {
+    expect(projectLocationSource).toContain("import { cn } from '../../utils/cn'")
+    expect(projectLocationSource).toContain(
+      "className={cn('mt-2 text-caption', checkFeedback?.tone === 'error' ? 'text-workbench-danger' : 'text-nomi-ink-60')}",
+    )
   })
 
   it('keeps directory failures in the visible status beside retry controls', () => {

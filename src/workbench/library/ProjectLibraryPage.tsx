@@ -27,7 +27,7 @@ import { filterProjectLibraryItems } from './libraryAdapters'
 import { LibraryDiscoveryToolbar } from './LibraryDiscoveryToolbar'
 import { getDesktopBridge } from '../../desktop/bridge'
 import ProjectSyncBadge from './ProjectSyncBadge'
-import { syncStatusBlocksOpen } from './projectSyncFace'
+import { SYNC_TONE_CLASS, syncStatusBlocksOpen } from './projectSyncFace'
 import { librarySyncInspect, useLibrarySyncInspections } from './projectSyncInspectStore'
 
 const SkillLibraryContent = lazyWithChunkBoundary('i18n:sidebar.skillLibrary', () =>
@@ -621,8 +621,19 @@ export default function ProjectLibraryPage({
                       )}
                       <div className="flex items-center gap-2 text-micro text-nomi-ink-40">
                         <span>{formatUpdatedAt(project.updatedAt)}</span>
-                        {/* 读不出来的卡不放同步角标：它弹层里的「打开文件夹 / 重新检查」对这种项目只会报失败，原因已写在灰卡上。 */}
-                        {project.rootPath && !project.unreadableReason && syncInspectionByProject[project.id] ? (
+                        {/* 找不到文件夹的卡：一直写着这句事实（不只悬停才看见），不放同步角标——它对不存在的文件夹只会说「文件异常」，
+                            弹层里的「打开文件夹 / 重新检查」也都无从做起。文件夹在、只是清单读不下去的，仍由同步角标说「文件异常」。
+                            读不出来的卡同样不放角标：原因已写在灰卡上。 */}
+                        {project.missing ? (
+                          <span
+                            data-project-folder-missing
+                            title={t('library.folderMissingHint')}
+                            className={cn('inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-micro', SYNC_TONE_CLASS.danger)}
+                          >
+                            <IconAlertTriangle size={12} stroke={1.8} aria-hidden="true" />
+                            <span>{t('library.folderMissingBadge')}</span>
+                          </span>
+                        ) : project.rootPath && !project.unreadableReason && syncInspectionByProject[project.id] ? (
                           <ProjectSyncBadge
                             inspection={syncInspectionByProject[project.id]}
                             rootPath={project.rootPath}
@@ -636,7 +647,7 @@ export default function ProjectLibraryPage({
                         ) : null}
                       </div>
                     </div>
-                    {onRevealProjectFolder && project.rootPath && !project.unreadableReason ? (
+                    {onRevealProjectFolder && project.rootPath && !project.unreadableReason && !project.missing ? (
                       <button
                         type="button"
                         aria-label={t('library.openProjectFolder', { name: project.name })}

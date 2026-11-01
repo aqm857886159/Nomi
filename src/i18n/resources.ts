@@ -273,6 +273,8 @@ export const zhCN = {
     deleteNamedProject: '删除项目 {{name}}',
     // 文件夹找不到的项目一直留在库里（「项目在哪」收敛单，用户 2026-10-29 批准）：标签说事实，悬停说下一步。
     folderUnavailable: '找不到这个文件夹',
+    // 卡片名字下面一直在的那一小句（不只悬停才看见），替掉同步角标：文件夹不在时角标只会说「文件异常」。下一步写在下面那条悬停说明里。
+    folderMissingBadge: '找不到文件夹',
     folderMissingHint: '文件夹被改名、挪走或删掉了。用「打开已有文件夹」重新选它就能接上原项目；不要了可以删除这张卡片，只从项目库移除，不删文件。',
     // 项目数据读不出来的置灰卡（悬停标签 + title 写下一步）：删除只从项目库移除、不删文件。
     dataOutsideFolder: '项目数据指向文件夹外，已停止读取',
@@ -703,6 +705,7 @@ export const en = {
     clearSearch: 'Clear search',
     deleteNamedProject: 'Delete project {{name}}',
     folderUnavailable: 'Folder not found',
+    folderMissingBadge: 'Folder missing',
     folderMissingHint: 'The folder was renamed, moved, or deleted. Use “Open existing folder” to pick it again and reconnect the project; if you no longer need it, delete this card. It only leaves the library; no files are deleted.',
     dataOutsideFolder: 'Project data points outside its folder; reading stopped',
     dataOutsideFolderHint: 'You can remove it from the library; no files are deleted. Fix the .nomi folder inside it and it comes back next time you open the library.',
