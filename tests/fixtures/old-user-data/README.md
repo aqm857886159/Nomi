@@ -28,18 +28,32 @@
 
 用法：`electron/catalog/referenceLinkDelivery.matrix.test.ts` 的「老用户升级后」一组把它拷进一个真项目，走活着、失效、超过 48 小时三种链接状态。升级本身不迁移任何东西（目录版本不变），所以这份夹具只证明：升级后的决定点读得懂旧 `.meta`，且请求和升级前一字不差。
 
+## 项目库（`projects/`）
+
+一个老用户的**项目库**：设置目录里的项目登记（`recent-workspaces.json`）、默认位置设置（`project-location.json`），加三个项目文件夹，同样用旧版本自己的真实函数落盘（项目的 `createProject`，含它当时的登记写入，和设置的 `writeProjectsRoot`），不是手写的形状。这里没有 Key、没有地址，只有项目清单和登记。
+
+| 目录 | 谁落的 | 怎么落的 | 里面有什么 |
+|---|---|---|---|
+| `projects/v0.24.0-library` | 0.24.0（清单带 `immutableProjectUuid`、`projectGeneration`） | 在 0.24.0 的导出里跑 `generators/zzProjectLibraryGen.ts.txt` | `userData/`（登记与默认位置设置）+ 三个项目：建在当时默认位置「文稿/Nomi Projects」里的、打开过的别处文件夹、建在应用数据目录下面的（默认位置最终停在那里，那时的版本没有任何拦截）；`manifest.json` 记着各项目的 id、文件夹、角色 |
+| `projects/v0.20.0-library` | 0.20.0（清单没有上面那两个字段） | 同上，在 0.20.0 的导出里跑 | 同上 |
+
+绝对路径落盘后统一换成占位符 `__OLD_USER_ROOT__`，测试把目录拷到临时位置时换回来，仓库里的文件从不被改动。生成器不带两样东西：锁文件（临时物），和同步基线 `workspace-sync-baseline.json`——它存的是清单内容的哈希，而清单里写着这台机器的绝对路径，换了根目录就对不上，只会在项目库里凭空报"另一台电脑改过"；基线只是缓存，缺了是正常状态。
+
+用法：`electron/projects/projectLocation.oldUser.test.ts` 把每份都拷出来，跑五件事（两份各 7 条）：①什么都不做，三个项目（含应用数据目录里的）照常列出、读、存；②文件夹找不到了，卡片留着、登记不减、默认位置不被建回，改名后重开接回同一个项目；③默认位置在应用目录里，新建被拒、设置值原样，换成正常文件夹后新建成功；④挪出应用目录再打开接回，复制一份打开被拒、两边字节不变；⑤退回上一版，登记里每条的键集合和那个版本自己落的一致。任何一条不成立都是锁死老用户，停下上报。
+
 ## 怎么跑
 
 ```
 pnpm exec vitest run electron/catalog/upgradeKeepsWorkingModels.test.ts
+pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 ```
 
 ## 怎么给一个新版本补一份目录
 
 1. 把那个版本的源码导出到一个空目录：`git archive <tag> | tar -x -C <空目录>`，装好依赖（或链接现成的 `node_modules`）。
-2. 把 `generators/` 里要用的脚本复制进去，去掉 `.txt`，放到脚本里 import 的位置：`zzRelGen` 放 `electron/providerAdapter/zzRelGen.test.ts`；`zzRelNative`、`zzRelDeclared` 放 `electron/catalog/` 下；`zzRefLinkGen`（素材，输出目录由 `V_OUT` 给）放 `electron/assets/zzRefLinkGen.test.ts`。（这里存成 `.ts.txt`，是为了不被本仓的测试和类型检查收进去。）
-3. 用 vitest 跑那一个文件，输出目录由环境变量给：`zzRelGen` 用 `V_REL_ROOT`（可选 `V_MODELS`：JSON 数组，每项 `{modelKey, labelZh, kind}`），`zzRelNative` 用 `V_REL_ROOT`（读）和 `V_OUT`（写），`zzRelDeclared` 用 `V_OUT`。地址必须是 `http://127.0.0.1:39017`，Key 必须是假的。
-4. 把输出目录整个放进 `catalogs/<版本>-<名字>/`。先跑 `pnpm run check:secrets`，被拦就停下，不要绕过。
-5. 在**干净的主线检出**（不是改动分支）上录 `expected.json`：设 `NOMI_RECORD_OLD_USER_DATA=<本目录的绝对路径>` 和 `NOMI_RECORD_COMMIT=<主线提交的完整 40 位>`，把测试文件放进那个检出的 `electron/catalog/`，只跑 `-t "saved by an older release"` 那一组。录不出「每个已发布模式只发一次 POST」，说明夹具或脚本错了，先查，不要放过。录完把放进去的测试文件删掉。
+2. 把 `generators/` 里要用的脚本复制进去，去掉 `.txt`，放到脚本里 import 的位置：`zzRelGen` 放 `electron/providerAdapter/zzRelGen.test.ts`；`zzRelNative`、`zzRelDeclared` 放 `electron/catalog/` 下；`zzRefLinkGen`（素材，输出目录由 `V_OUT` 给）放 `electron/assets/zzRefLinkGen.test.ts`；`zzProjectLibraryGen`（项目库，输出目录由 `V_OUT` 给、版本名由 `V_RELEASE` 给，如 `v0.24.0`）放 `electron/projects/zzProjectLibraryGen.test.ts`，导出里要带上 `tests/setup`、`tests/stubs`（0.24.0 的 vitest 配置用得着；0.20.0 没有 `tests/setup`，只有 `tests/stubs`）。（这里存成 `.ts.txt`，是为了不被本仓的测试和类型检查收进去。）
+3. 用 vitest 跑那一个文件，输出目录由环境变量给：`zzRelGen` 用 `V_REL_ROOT`（可选 `V_MODELS`：JSON 数组，每项 `{modelKey, labelZh, kind}`），`zzRelNative` 用 `V_REL_ROOT`（读）和 `V_OUT`（写），`zzRelDeclared` 用 `V_OUT`，`zzProjectLibraryGen` 用 `V_OUT` 和 `V_RELEASE`。地址必须是 `http://127.0.0.1:39017`，Key 必须是假的。
+4. 把输出目录整个放进 `catalogs/<版本>-<名字>/`（项目库放 `projects/<版本>-library/`）。先跑 `pnpm run check:secrets`，被拦就停下，不要绕过。
+5. （目录类才有这一步；项目库和素材没有 `expected.json`，断言写在各自的测试里。）在**干净的主线检出**（不是改动分支）上录 `expected.json`：设 `NOMI_RECORD_OLD_USER_DATA=<本目录的绝对路径>` 和 `NOMI_RECORD_COMMIT=<主线提交的完整 40 位>`，把测试文件放进那个检出的 `electron/catalog/`，只跑 `-t "saved by an older release"` 那一组。录不出「每个已发布模式只发一次 POST」，说明夹具或脚本错了，先查，不要放过。录完把放进去的测试文件删掉。
 
 主线以后有意改了目录版本或发出的请求，同样用这个办法重录，并在提交里写明为什么。
