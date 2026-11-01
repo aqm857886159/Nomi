@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// 「动手那一刻」的两个提醒（PreToolUse · Write|Edit）。只提醒、不拦、fail-open（任何异常都静默放行）。
+// 「动手那一刻」的三个提醒（PreToolUse · Write|Edit）。只提醒、不拦、fail-open（任何异常都静默放行）。
 //
 //  (a) 在 src/、electron/ 新建文件 → 附一份接口级「已有能力清单」，请回一行「已查过 / 没找到」。
 //      起因：laneContextFit 是在「pi 已经有压缩」没人看的地方长出来的；agent 不知道有，就不会触发 R5.3。
 //  (b) 改的文件或所在目录近 14 天已有 ≥2 个 fix 提交（这一刀是第 3 个）或出现 revert fix → 提醒先做方向检查（类根因复盘）。
+//  (c) 改规则正文的两个文件 → 提醒五步走了没有。起因：2026-11-02 几分钟内把同一条规则改了两遍，两遍都写进了这一次的名词。
 //
 // 机制已对着官方 hooks 文档核过（https://code.claude.com/docs/en/hooks，2026-10-01）：PreToolUse 的
 // `hookSpecificOutput.additionalContext` 会进上下文，位置在**工具结果旁边**——也就是提醒随写入结果一起到，
@@ -34,6 +35,10 @@ export function newFileMessage(rel, indexText) {
   ].filter(Boolean).join('\n')
 }
 
+const RULE_FILES = new Set(['CLAUDE.md', 'docs/engineering/rules.json'])
+
+export const RULE_CHANGE_MESSAGE = '【改规则】五步走了吗（docs/engineering-rules.md「改规则」）：先管眼前 → 写成一句话，不带这一次的名词 → 找家、能删哪句、谁来判 → 放回真实案例试跑 → 用户看过再定。用户定过的字不自己改。只改路径、错字的不用走。（只是提醒，不拦你。）'
+
 /** 纯决策：给定载荷和环境，返回 { kind, message, ... } 或 null。 */
 export function decideEditTimeReminder(payload, env) {
   const tool = payload?.tool_name
@@ -42,6 +47,7 @@ export function decideEditTimeReminder(payload, env) {
   if (typeof abs !== 'string' || !abs) return null
   const root = env.root
   const rel = norm(path.relative(root, path.resolve(root, abs)))
+  if (RULE_FILES.has(rel)) return { kind: 'rule-change', rel, message: RULE_CHANGE_MESSAGE }
   if (rel.startsWith('..') || !isWatchedSource(rel)) return null
 
   const exists = env.exists(path.resolve(root, abs))

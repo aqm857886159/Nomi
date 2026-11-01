@@ -338,25 +338,37 @@ export function upgradePathVerdict(line) {
 }
 
 /**
- * 真实场景复现证据的判据（2026-11-02，用户：「修好之后 要用真实场景复现一次」「这个是规则吧」）。
+ * 真实场景复现这一节的判据（2026-11-02，用户：「这是我们最核心的逻辑」「不能死板」）。
  *
  * 为什么单拎：规则早就有（P3、根因流程的「报的那个场景修前红、修后绿了吗」），但只是文字，
  * 一次批量出图的修复写设计卡时就只写了假服务商走查加一次最小付费。让逃逸账本转 fixed 的 PR 修的都是用户发现的问题，门岗挂在那里（pr-body-criteria.mjs）。
- * 修前、修后各要一份凭据（路径 / 链接 / 运行号，裸 PR 号不算）；缺真实资源写「未验证：原因」（P3：没有真实资源记 unverified）。
+ * 该走哪些地方每个问题自己从用户流程推，这里不列清单。门岗只查五行答没答、修前修后有没有凭据（路径 / 链接 / 运行号，裸 PR 号不算）；
+ * 走得全不全、准不准、修前真复现出来没有，由另一条线对照用户原话判（docs/engineering-rules.md R13）。
+ * 缺真实资源写「未验证：原因」（P3：没有真实资源记 unverified），放行，但要打出来。
  */
-export const REAL_SCENE_EVIDENCE_ID = 'real-scene-replay'
-const REAL_SCENE_LINE = /^\s*(?:[-*]\s*)?(?:\*\*)?real-scene-replay(?:\*\*)?\s*[:：]\s*(.*)$/i
-const REAL_SCENE_SIDES = /修前(.*)修后(.*)/
+export const REAL_SCENE_SECTION = '真实场景复现'
+const REAL_SCENE_FIELD = /^\s*(?:[-*]\s*)?(?:\*\*)?(用户的流程|我走的|差别|修前|修后)(?:\*\*)?\s*[:：]\s*(.*)$/
+const REAL_SCENE_RESULTS = ['修前', '修后']
+const REAL_SCENE_FIELDS = ['用户的流程', '我走的', '差别', ...REAL_SCENE_RESULTS]
 const REAL_SCENE_PROOF = EVIDENCE_TOKEN.filter((pattern) => pattern.source !== '#\\d{2,}').concat(/(?:^|[\s/])reports?\/[\w@./+-]+\.md\b/)
-const hasRealSceneProof = (text) => REAL_SCENE_PROOF.some((pattern) => pattern.test(text))
 export function realSceneVerdict(section) {
-  const line = String(section || '').split(/\r?\n/).map((raw) => REAL_SCENE_LINE.exec(raw)).find(Boolean)
-  if (!line) return { ok: false, reason: `没有「${REAL_SCENE_EVIDENCE_ID}：」这一行` }
-  const unverified = UNVERIFIED.exec(line[1])
-  if (unverified && unverified[1].trim().length >= 4) return { ok: true, unverified: true, reason: unverified[1].trim() }
-  const sides = REAL_SCENE_SIDES.exec(line[1])
-  if (sides && hasRealSceneProof(sides[1]) && hasRealSceneProof(sides[2])) return { ok: true }
-  return { ok: false, reason: '修前、修后要各有一份凭据（路径 / 链接 / 运行号，裸 PR 号不算），或写「未验证：原因」（原因至少 4 个字）' }
+  const answers = new Map()
+  for (const raw of String(section || '').split(/\r?\n/)) {
+    const field = REAL_SCENE_FIELD.exec(raw)
+    if (field && !answers.has(field[1])) answers.set(field[1], field[2].trim())
+  }
+  const missing = REAL_SCENE_FIELDS.filter((name) => !answers.get(name))
+  if (missing.length) return { ok: false, reason: `缺：${missing.join('、')}` }
+  const unverified = []
+  const unproven = []
+  for (const name of REAL_SCENE_RESULTS) {
+    const text = answers.get(name)
+    const skipped = UNVERIFIED.exec(text)
+    if (skipped && skipped[1].trim().length >= 4) unverified.push(`${name}：${skipped[1].trim()}`)
+    else if (!REAL_SCENE_PROOF.some((pattern) => pattern.test(text))) unproven.push(name)
+  }
+  if (unproven.length) return { ok: false, reason: `${unproven.join('、')}没有凭据（路径 / 链接 / 运行号，裸 PR 号不算），也没写「未验证：原因」（原因至少 4 个字）` }
+  return unverified.length ? { ok: true, unverified } : { ok: true }
 }
 
 /**

@@ -85,7 +85,7 @@ Do not call the issue solved until every answer has code or test evidence:
 1. Can the same class still enter through another caller, provider, version, platform, or old stored value? Answer from the door map, not from memory.
 2. Does every equivalent entry converge on a declared enforcement boundary?
 3. Does the boundary fail closed without a compatibility exception or fallback?
-4. Did the reported case fail before the fix and pass after it? For a user-reported problem this means the user's real scene (real app, real model, paid once), recorded as `real-scene-replay` in the PR's `## 验收证据`; a fake-provider walk alone does not count, and missing resources are written as `未验证：原因`.
+4. Did the reported case fail before the fix and pass after it? For a user-reported problem this means replaying the user's own flow under the same real conditions (what counts as real depends on the problem, for example a real model for generation, real old-version data for an upgrade): complete, with every difference from the user's run named, the same symptom seen before the fix and the same steps passing after it. Derive what to cover from the user's flow and the door map, not from a fixed list (`docs/engineering-rules.md` R13). Record it in the PR's `## 真实场景复现`; a fake-provider walk alone does not count, and missing resources are written as `未验证：原因`.
 5. Does a separate class-level test prove the invariant rather than the example?
 6. Are dependency and migration decisions explicit, bounded, and testable?
 

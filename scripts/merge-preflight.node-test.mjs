@@ -169,7 +169,7 @@ test('逃逸合同：判据看账本状态转换，不看正文用词', () => {
   assert.equal(silent.ok, false)
   assert.match(silent.lines.join(), /LAW12-a/)
   assert.equal(checkEscapeContract('修分镜比例', [{ file: 'docs/fixes/2026-10-05-x.root-cause.json' }], ['LAW12-a']).ok, false, '合同没写 detected_by 不行')
-  assert.equal(checkEscapeContract('修分镜比例\n\n## 验收证据\n\n- real-scene-replay：修前 docs/evidence/a.log；修后 docs/evidence/b.log', [contract], ['LAW12-a']).ok, true)
+  assert.equal(checkEscapeContract('修分镜比例\n\n## 真实场景复现\n\n- 用户的流程：改比例后重开\n- 我走的：同样的步骤\n- 差别：无\n- 修前：docs/evidence/a.log\n- 修后：docs/evidence/b.log', [contract], ['LAW12-a']).ok, true)
   // 合同声明用户发现、却没进账本：红（用户发现的问题必须进账本）
   const unledgered = checkEscapeContract('普通修复', [contract], [])
   assert.equal(unledgered.ok, false)

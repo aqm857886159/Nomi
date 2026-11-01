@@ -74,7 +74,7 @@ macOS 上密钥的钥匙串条目名随 app 名走，所以密钥要在 Preview 
 3. 在 release 分支把 `package.json` 版本改为 `0.20.0`，补齐 CHANGELOG 和 release notes。
    同一提交里补这一版的 Agent 提案收据样本：`pnpm exec tsx scripts/generate-published-receipt-fixtures.mjs HEAD`，再把生成的 `HEAD.json` 改名为 `v0.20.0.json`（写入器取自当前提交，与标签名无关；标签要到晋级时才打），并在同目录 README 的命令里加上这一版。漏了它，`projectAgentProposalReceiptStore.test.ts` 的「当前版本要进格式矩阵」会红，门岗推不上去。
    同一提交里再补这一版的老用户目录样本：按 `tests/fixtures/old-user-data/README.md` 用这一版的真实函数落一份，升级矩阵自动把它算进去。
-   切分支前对账：这一版每个让逃逸账本转 fixed 的 PR，`real-scene-replay` 是凭据还是未验证。未验证的在 RC 上补跑，补不了就写进发版说明的已知限制。
+   切分支前对账：这一版每个用户报的问题，真实场景复现完不完整、准不准确、是不是按用户流程走的、有没有复现成功（`docs/engineering-rules.md` R13）。未验证的在 RC 上补跑，补不了就写进发版说明的已知限制。
 4. 未选中的 PR 保持独立，不进入 release 分支。
 
 release 分支仍通过 PR 进入 `main`。为保持 RC commit 可追溯，release PR 使用 merge commit 或 fast-forward，不能 squash。
@@ -139,7 +139,7 @@ RC 发现问题时，在原功能分支或 release 分支修复并重新运行 R
 
 ## 5. 晋级正式版
 
-晋级前先做「规则体检」，产出一页记录（放 `docs/release-notes/` 同版本目录或 PR 正文）：这一批逃逸账本（`tests/ux/full-walk/escapeLedger.json`）里的问题，哪些被规则 / 门岗拦住了；哪些没拦住（补上，写清补的是删掉 / 结构 / 门岗 / 文字哪一档）；哪些门岗只会误报（改或删）。
+晋级前先做「规则体检」，产出一页记录（放 `docs/release-notes/` 同版本目录或 PR 正文）：这一批逃逸账本（`tests/ux/full-walk/escapeLedger.json`）里的问题，哪些被规则 / 门岗拦住了；哪些没拦住（补上，写清补的是删掉 / 结构 / 门岗 / 文字哪一档）；哪些门岗只会误报（改或删）；这一版改过的规则，各自管住几次、误伤几次、还留不留。
 
 RC 验收通过后：
 
