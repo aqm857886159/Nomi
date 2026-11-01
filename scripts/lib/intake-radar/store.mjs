@@ -111,11 +111,19 @@ export function listRawRecords(cacheDir, prefix) {
   return { records, corrupt }
 }
 
-export function writeReport(cacheDir, dateStamp, { markdown, json }) {
+/**
+ * 每轮一份报告，文件名到秒。按天命名时，同一天第二轮会盖掉第一轮：第一轮列出的新反馈，
+ * 第二轮已经不算新了，于是报告里写着「新增 0」，那条反馈从此没有人看得到（线上发生过两次）。
+ * 同一秒再跑一次就加序号。不用冒号：Windows 文件名不收。
+ */
+export function writeReport(cacheDir, generatedAt, { markdown, json }) {
   const dir = reportsDir(cacheDir)
   fs.mkdirSync(dir, { recursive: true })
-  const mdPath = path.join(dir, `${dateStamp}.md`)
-  const jsonPath = path.join(dir, `${dateStamp}.json`)
+  const stamp = String(generatedAt).replace(/\.\d+Z$/, 'Z').replace(/:/g, '')
+  let name = stamp
+  for (let copy = 2; fs.existsSync(path.join(dir, `${name}.md`)); copy += 1) name = `${stamp}-${copy}`
+  const mdPath = path.join(dir, `${name}.md`)
+  const jsonPath = path.join(dir, `${name}.json`)
   fs.writeFileSync(mdPath, markdown)
   fs.writeFileSync(jsonPath, JSON.stringify(json, null, 2) + '\n')
   return { mdPath, jsonPath }
