@@ -1,7 +1,7 @@
 {
   "status": "implemented-not-pushed; free four-stage rehearsal passed; explicit E1/paid/platform limits remain",
   "network": "fake providers only; guarded isolated Electron; no paid execution",
-  "sourceCommit": "6f7d2bb30",
+  "sourceCommit": "6f7d2bb30140dd5a56dae1e5d4f62257edb2e256",
   "walks": [
     {
       "journey": "en-a4LockExitJourney.json",
@@ -3227,7 +3227,7 @@
       "evidence": "threePage 中英以真实Run文件重启，三页同状态、出口有效；C7另验旧数据。"
     }
   ],
-  "productionSourceCommit": "6f7d2bb30",
+  "productionSourceCommit": "6f7d2bb30140dd5a56dae1e5d4f62257edb2e256",
   "mergedMain": "29313b236",
   "matrixScreenshotBuild": {
     "commit": "6badba715",
@@ -3272,7 +3272,11 @@
     "continue-queue-3-build": 0,
     "continue-baseline-build": 0,
     "continue-baseline-walk": 1,
-    "continue-baseline-restored-build": 0
+    "continue-baseline-restored-build": 0,
+    "continue-final-related": 0,
+    "continue-final-pr-criteria": 0,
+    "continue-final-pre-push": 1,
+    "continue-final-pr-judgement": 0
   },
   "relatedTestCaveat": "722 files, 9765 passed / 1 failed / 7 skipped; only pre-existing outbound A5 with NOMI_TEST_NETWORK_GUARD. Coordinator ruled out-of-scope. Prepush unsets the guard.",
   "idleTimerInventory": [
@@ -3325,13 +3329,15 @@
   "idleConclusion": "Longest active timer 300000ms; before302187ms/current302160ms stable. No whole-window freeze reproduced. Manual retrieval600s and video1200s were not active.",
   "visualReview": "docs/evidence/2026-11-02-generation-lock-exit/visual-review.json",
   "deliveryChecks": {
-    "testedHead": "a28899b73574a37f0eb56a4cd030941df7dbb2f0",
+    "testedHead": "d2f62f208cef8bd1480760b1102ebd8b4af42d0c",
     "prePushExit": 1,
-    "prePushSeconds": 47.6,
+    "prePushSeconds": 52.7,
     "prePushOnlyBlock": "fixedInPr must be a genuine positive PR number; coordinator-only PR creation has not happened",
     "testNetworkGuardForPrePush": "unset",
-    "finalFetchMerge": "Already up to date; origin/main29313b236",
-    "workingTreeAfterTests": "clean"
+    "finalFetchMerge": "Already up to date; origin/main 29313b236d1d587a88dc9092bfcc1f97b80fb0f8",
+    "workingTreeAfterTests": "clean; subsequent commit changes evidence metadata only",
+    "prJudgementExit": 0,
+    "prJudgementParserTests": 29
   },
   "continuationClassChecks": {
     "a11AndTaskCenter": {
@@ -3345,7 +3351,13 @@
       "numPendingTests": 0,
       "numTotalTestSuites": 48
     },
-    "relatedExit": 0
+    "relatedExit": 0,
+    "afterFinalMerge": {
+      "numTotalTests": 436,
+      "numPassedTests": 436,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    }
   },
   "continuationFacts": {
     "taskCenterBefore": "Both retry row and bulk retry produced zero extra POST; the old probe later failed because it incorrectly expected an ordinary single-item dialog. The pre-probe is partial, not passed.",

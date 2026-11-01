@@ -2,7 +2,7 @@
   "version": 1,
   "change": {
     "title": "批量生成恢复：实现与分项验收",
-    "headSha": "6f7d2bb30",
+    "headSha": "6f7d2bb30140dd5a56dae1e5d4f62257edb2e256",
     "headNote": "A11 and task-center owners implemented; four-stage free rehearsal passed. E1 actual drag remains stopped; paid/platform validation absent.",
     "userCan": "三页查看队列与失败、人工放行未知结果；完整真实付费闭环未验证。",
     "changed": [
