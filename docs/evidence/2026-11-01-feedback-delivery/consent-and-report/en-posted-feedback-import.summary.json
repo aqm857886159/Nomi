@@ -2,7 +2,7 @@
   "route": "/v1/feedback",
   "context": {
     "surface": "import",
-    "summary": "「nomi-feedback-loop-rejected.txt」不是 Nomi 认得的媒体格式",
+    "summary": "“nomi-feedback-loop-rejected.txt” is not a media format Nomi recognises",
     "errorCode": "asset-import-unsupported",
     "note": null,
     "contentIncluded": false,
@@ -13,18 +13,18 @@
     "entries": [
       {
         "path": "perf/summary.json",
-        "bytes": 233,
+        "bytes": 232,
         "what": "界面流畅度分档数字：点击响应与掉帧的档位、画布规模档位、设备档位（没有原始毫秒、没有内容）"
       },
       {
         "path": "logs/tail.txt",
-        "bytes": 1534,
+        "bytes": 1535,
         "what": "最近 17 行运行日志：只留时间、级别、模块、事件名和白名单字段，其余字段一律不出门"
       },
       {
         "path": "model-catalog.json",
-        "bytes": 50107,
-        "what": "模型目录（密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）"
+        "bytes": 50156,
+        "what": "模型目录（接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）"
       }
     ],
     "excluded": [
