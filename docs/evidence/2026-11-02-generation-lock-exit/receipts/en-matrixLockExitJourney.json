@@ -36,7 +36,9 @@
       "referenceCount": 0,
       "forwarded": true,
       "rejected": false,
-      "dropped": false
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-1"
     },
     {
       "sequence": 2,
@@ -45,7 +47,9 @@
       "referenceCount": 0,
       "forwarded": true,
       "rejected": false,
-      "dropped": false
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-2"
     },
     {
       "sequence": 3,
@@ -54,7 +58,9 @@
       "referenceCount": 0,
       "forwarded": true,
       "rejected": false,
-      "dropped": false
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-3"
     },
     {
       "sequence": 4,
@@ -63,7 +69,9 @@
       "referenceCount": 0,
       "forwarded": true,
       "rejected": false,
-      "dropped": false
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-4"
     },
     {
       "sequence": 5,
@@ -72,7 +80,9 @@
       "referenceCount": 0,
       "forwarded": true,
       "rejected": false,
-      "dropped": false
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-5"
     }
   ]
 }

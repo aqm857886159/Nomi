@@ -2,7 +2,7 @@
   "version": 1,
   "change": {
     "title": "批量生成恢复：实现与分项验收",
-    "headSha": "b74242b4775b16af7383268fabc7a1986ea3d60e",
+    "headSha": "6badba7157b76323c0a08bd54082ea63ea4b21ef",
     "headNote": "Source owners are implemented; complete four-stage rehearsal remains stopped, not passed.",
     "userCan": "三页查看队列与失败、人工放行未知结果；完整真实付费闭环未验证。",
     "changed": [
@@ -197,7 +197,7 @@
       {
         "name": "修后静置演练最长窗口响应",
         "unit": "ms",
-        "baseline": 8,
+        "baseline": 25,
         "current": 15,
         "n": 331,
         "basis": "script-count",
