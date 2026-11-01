@@ -107,7 +107,7 @@ function DetailPreview({ node }: { node: GenerationCanvasNode | undefined }): JS
   const playable = result?.url && result.type === 'video'
   return (
     <div className="relative mx-auto w-full overflow-hidden rounded-panel ring-1 ring-nomi-line-soft" style={{ maxWidth: width, aspectRatio: String(ratio) }} data-list-detail-preview>
-      {node ? <NodeFailureReport node={node} onFeedback={NO_FEEDBACK} /> : null}
+      {node ? <NodeFailureReport key={node.id} node={node} onFeedback={NO_FEEDBACK} /> : null}
       {playable ? (
         <video key={result.url} src={result.url} poster={result.thumbnailUrl} controls playsInline preload="metadata" crossOrigin="use-credentials" className="block size-full bg-nomi-ink" />
       ) : (
