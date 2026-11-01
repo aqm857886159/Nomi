@@ -1,0 +1,133 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-02-generation-lock-exit",
+  "problem_type": "Approved storyboard generation scope, queue ownership and local refusal recovery",
+  "symptom": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。",
+  "direct_cause": "整方案快照守卫被自动引用触发；quota 与本机拒绝参与刹车；单卡依赖整表 busy；画布 Run 释放缺 origin 映射。",
+  "class_root": "动作输入的所有权、排队所有权和错误类别没有在共享边界统一，多个入口读了不对应的状态。",
+  "affected_population": [
+    "分镜编辑器与 Agent",
+    "画布单发、框选及排队中的单发",
+    "当前及旧版 submission_unknown 画布 Run"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/capability/storyboardPresent.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "src/workbench/api/taskApi.ts",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/observability/narrate.ts",
+    "electron/productionRun/canvasShotRunIndex.ts",
+    "electron/shared/productionShotPhase.ts",
+    "src/workbench/production/releaseUnknownSubmission.ts",
+    "src/workbench/production/useProductionStatus.ts",
+    "scripts/lib/intake-radar/health.mjs"
+  ],
+  "entry_points": [
+    "StoryboardPlanEditor 的单卡、整批与放置",
+    "presentStoryboard",
+    "confirmAndRunNode / confirmAndRunPlan",
+    "NodeErrorReport 与 useProductionStatus 的人工核对"
+  ],
+  "internal_only_reason": "纯内部边界修复，外部来源与约束沿用已批准设计卡；本刀不改变请求、结果未知判定或 Run 状态机。",
+  "external_sources": [],
+  "invariants": [
+    "当前节点只与对应的作者行比较；确认只验证全局、参考池与本次目标镜头。",
+    "单发在共享提交口取消其它批次中该节点的排队条目。",
+    "quota 和 local-refusal 不计刹车，本机拒绝不损害模型健康。",
+    "结果不明只在真人核对放行之后走原有付费入口。"
+  ],
+  "doors": [],
+  "door_reduction": {
+    "before": 0,
+    "after": 0,
+    "why_not": "不同界面入口仍需存在，但编辑器和 Agent 将共用动作守卫；runner、通知重试和人工释放各有职责，不复制提交逻辑。"
+  },
+  "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode",
+      "responsibility": "每次提交前核对当前节点并取消其它排队出价，结算按 kind 决定刹车与模型健康。"
+    },
+    {
+      "path": "src/workbench/observability/classifyError.ts",
+      "symbol": "classifyGenerationError",
+      "responsibility": "本机拒绝和服务商真失败分开分类。"
+    },
+    {
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "releaseUnknownSubmissionForNode",
+      "responsibility": "制作与画布 Run 共用人工放行命令。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "StoryboardPlanEditor",
+      "disposition": "enforced",
+      "evidence": "编辑器单卡和整批沿用原有 runner。"
+    },
+    {
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "entry_point": "presentStoryboard",
+      "disposition": "enforced",
+      "evidence": "Agent 经 storyboardRowActions 进入同一 runner。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "供应商、节点和入口都可能不同，但整方案快照与队列状态混用的机制相同。",
+    "same_class_scan": [
+      "door-map assertAuthorCurrent: 8 doors",
+      "door-map nodeIdOfJob: 1 door",
+      "door-map releaseUnknownSubmission: 2 doors",
+      "door-map autoReferencePlan: 2 doors"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "invariant": "同一节点提交只保留正在执行这一份，作者守卫与已批准输入守卫都在执行前核对。",
+    "failure_mode": "当前镜内容冲突只拒这一镜；其它镜继续；结果不明保留锁直到真人确认。",
+    "exception_policy": "none",
+    "strategy": "替掉重复整方案守卫，在已有执行、分类和释放边界接通所有入口。",
+    "artifacts": [
+      "src/workbench/generationCanvas/runner/generationRunController.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
+    "src/workbench/capability/storyboardPresent.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+    "src/workbench/production/releaseUnknownSubmission.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.retrievalSource.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/generationLockExit.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "src/workbench/capability/storyboardPresent.ts",
+      "src/workbench/generationCanvas/components/batchPlanPreview.ts"
+    ],
+    "rationale": "同提交删编辑器与 Agent 的整方案比对，并删通知重试继承的旧基线。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有第三方运行时控制这些内部所有权不变量；复用已有 store、绑定和 Run 命令。",
+    "exit_criteria": []
+  },
+  "migration": "不改变 Run、节点、方案或队列的数据格式。旧字符串错误重新分类；真实旧版 Run 需要升级出口证据。",
+  "residual_risks": [
+    "未实现与未验收部分按设计卡逐项记录；Windows 与真付费由协调后续验证。"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-09"
+}
