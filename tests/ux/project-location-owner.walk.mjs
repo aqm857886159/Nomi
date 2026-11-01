@@ -5,6 +5,7 @@
 //   1. 建项目：「打开已有文件夹」把一个带图的项目文件夹加进库（外部盘），再「新建项目」建一个落在默认位置里的；
 //   2. 在访达里给两个项目文件夹改名，同一次运行里刷新项目库：两张卡都还在，写「找不到这个文件夹」，悬停说下一步；
 //   3. 关掉再开：外部那张还在库里、还写「找不到」，没被删；默认位置里那张由启动对账按新路径接回；
+//   3b. 那张再改一次名又「找不到」，点删除：确认框说从项目库移除（不说进回收站），确认后卡片消失、文件夹还在；再关掉再开也不回来；
 //   4. 「打开已有文件夹」选改名后的目录：接上原项目（同一个 id），画布上的图片照常加载；
 //   5. 打开一份还在的项目文件夹的副本：被拒，说原文件夹在哪，两个文件夹都不写；
 //   6. 「打开已有文件夹」选进 Nomi 自己的应用数据目录：被拒，文案说清是哪类目录；
@@ -228,6 +229,37 @@ try {
   check('默认位置里那张接到新路径', entryOf(nativeId)?.rootPath === renamedNative, entryOf(nativeId)?.rootPath)
   await card(win, external.projectId).hover()
   await snap(win, '03-after-restart-still-in-library')
+
+  // ── 「找不到」的卡不要了：确认框只说移除，真摘掉，重启不回来 ─────────────
+  // 默认位置里那张刚被对账接回；再改一次名，同一次运行里它又「找不到」。文件夹还在默认根里，移除时不打标记的话重启又被接回来。
+  const renamedNativeAgain = `${renamedNative}-2`
+  fs.renameSync(renamedNative, renamedNativeAgain)
+  await win.reload({ waitUntil: 'domcontentloaded' })
+  await newProjectEntry(win).waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
+  await expectMissingCard(win, nativeId, '再改一次名：默认位置里的项目', proofs)
+  const nativeName = entryOf(nativeId)?.name
+  const nativeCardProof = await proveProbe(card(win, nativeId), '移除前这张卡在库里')
+  await card(win, nativeId).hover()
+  await clickOrFail(card(win, nativeId).getByRole('button', { name: uiTextWith(locale, 'library.deleteNamedProject', { name: nativeName }) }), '「找不到」的卡：点删除')
+  await expect(win.locator('[data-confirm-dialog-surface]').first(), '确认框说「从项目库移除」，不说进回收站').toContainText(uiTextWith(locale, 'studio.removeProjectMessage', { name: nativeName }))
+  await expectVisible(win.getByText(uiText(locale, 'studio.removeProjectTitle'), { exact: true }), '确认框的标题是「从库移除项目」')
+  await snap(win, '03b-missing-card-remove-confirm')
+  await clickOrFail(win.locator('[data-confirm-dialog-confirm]').first(), '确认框：从库移除')
+  await expectAbsent(card(win, nativeId), { provenBy: nativeCardProof, message: '确认后卡片消失' })
+  check('移除：登记摘掉了', entryOf(nativeId) === undefined)
+  check('移除：文件夹和清单都还在', fs.existsSync(path.join(renamedNativeAgain, '.nomi', 'project.json')))
+  check('移除：没把原文件夹建回来', !fs.existsSync(renamedNative))
+  await win.mouse.move(2, 2)
+  await snap(win, '03c-missing-card-removed')
+  await app.close()
+  app = undefined
+  session = await launch(3)
+  app = session.app
+  win = session.win
+  await expectMissingCard(win, external.projectId, '再重启后：外部项目还是「找不到」', proofs)
+  await expectAbsent(card(win, nativeId), { provenBy: nativeCardProof, message: '再重启后：移除的卡没回来' })
+  check('再重启后：登记里没有它', entryOf(nativeId) === undefined)
+  check('再重启后：文件夹和清单都还在', fs.existsSync(path.join(renamedNativeAgain, '.nomi', 'project.json')))
 
   // ── 「打开已有文件夹」选改名后的目录 ─────────────────────────────────
   await answerNextFolderPicker(app, renamedExternal)

@@ -49,6 +49,16 @@ describe('项目库删除流程', () => {
     expect(calls.removedWithoutTrash).toEqual([]) // 用户要的就是「只移除」，没有哪句话需要纠正
   })
 
+  it('文件夹找不到的本地卡点删除：确认框说「从项目库移除」，不提回收站，交给主进程的是 unbind', async () => {
+    const { deps, calls } = harness({}, false)
+    await runProjectDeleteFlow({ id: 'p-missing', name: '找不到', source: 'native', missing: true }, deps)
+    expect(calls.confirm[0].title).toBe('«studio.removeProjectTitle»')
+    expect(calls.confirm[0].message).toContain('studio.removeProjectMessage')
+    expect(calls.deleted).toEqual([{ id: 'p-missing', intent: 'unbind' }])
+    expect(calls.movedToTrash).toEqual([])
+    expect(calls.removedWithoutTrash).toEqual([])
+  })
+
   it('外部文件夹点删除：同样只移除', async () => {
     const { deps, calls } = harness({}, false)
     await runProjectDeleteFlow({ id: 'p-folder', name: '外部', source: 'folder' }, deps)

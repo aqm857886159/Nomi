@@ -1,0 +1,167 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-01-remove-missing-project-card",
+  "problem_type": "The project library's delete door did nothing for a card whose folder cannot be found, while the interface reported a removal",
+  "symptom": "A local project's folder was deleted, renamed or moved, so its card says the folder cannot be found. Clicking delete shows a dialog saying the folder goes to the trash; after confirming, the card disappears and the interface says it was removed from the library, but the registration stays and the card returns on the next list or restart. A folder renamed inside the default root also received a removed-from-library marker, so startup reconciliation stopped reconnecting it.",
+  "direct_cause": "projectDeleteChoice looked only at source and unreadableReason, so a missing local card always asked for delete-files. deleteProject in electron/projects/repository.ts then read nothing, and two branches returned deleted:false without touching the registration. unbindProject marked only the folder it could read through the registered path, so a renamed folder removed from the library came back at the next startup.",
+  "class_root": "Card state, confirm dialog and main process are three layers tested separately, and nothing tested them joined together across a restart. The interface reads deleted:false as 'only the registration was removed', while the main process had paths where that was untrue. The old automatic removal on read paths hid this no-op until it was deleted on purpose in 2026-10-29-project-location-owner.",
+  "migration": "No data or schema change. Registrations and folders are read as before. Folders already carrying the marker stay marked and can still be reconnected through Open existing folder.",
+  "affected_population": [
+    "Users whose default location was inside the install folder and was wiped by an upgrade: every local card is missing and could not be removed",
+    "Users who delete, rename or move a project folder in Explorer or Finder, or whose sync drive or external disk is not mounted"
+  ],
+  "scope_paths": [
+    "electron/projects/repository.ts",
+    "src/workbench/library/projectDeleteChoice.ts",
+    "src/workbench/library/projectDeleteFlow.ts"
+  ],
+  "entry_points": [
+    "Delete button on a project card: ProjectLibraryPage -> NomiStudioApp deleteProject -> runProjectDeleteFlow -> projectDeleteChoice",
+    "nomi:projects:delete -> electron/projects/repository.ts deleteProject -> unbindProject"
+  ],
+  "invariants": [
+    "A card whose folder cannot be found is offered removal only: the dialog never says the folder goes to the trash.",
+    "deleteProject returning deleted:false means the registration is gone.",
+    "A project the user removed from the library does not come back on restart, including a folder renamed inside the default root.",
+    "Removal never changes project content: at most the removed-from-library marker is added inside Nomi's own .nomi directory, and only to a folder whose manifest is readable and carries this project id."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "deleteProject"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "deleteProject"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/projectsIpc.ts",
+      "symbol": "deleteProject"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/repository.ts",
+      "symbol": "unbindProject"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "runProjectDeleteFlow"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/library/projectDeleteFlow.ts",
+      "symbol": "projectDeleteChoice"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/library/projectDeleteChoice.ts",
+      "symbol": "projectDeleteChoice"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 7,
+    "why_not": "These are the layers of one call chain (button, flow, dialog decision, IPC, main process), not alternative entrances, so none can be merged away. Inside deleteProject the two do-nothing returns were merged into unbindProject, and unbindProject's own two branches became one."
+  },
+  "regression_tests": [
+    "electron/projects/projectLocation.matrix.test.ts",
+    "electron/projects/projectLocation.oldUser.test.ts",
+    "src/workbench/library/projectDeleteChoice.test.ts",
+    "src/workbench/library/projectDeleteFlow.test.ts"
+  ],
+  "residual_risks": [
+    "Windows is unverified in this Mac implementation; the path has no platform branch and is covered by the real 0.24.0 to 0.24.1 upgrade run at release time.",
+    "A card with a corrupted manifest looks like a normal card, so its dialog still says delete. The main process cannot recognise the folder, keeps it, removes only the registration and the interface says so. The dialog can only be more exact once the list reports that state, which belongs to the second cut of project location."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This concerns Nomi's own registry, its delete door and its confirm dialog. The system trash path is untouched, so no platform or vendor behaviour is involved.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "electron/projects/repository.ts has been fixed six times in 14 days, and this delete path has changed in several of them (intent contract, trash, failure wording). Each layer was green on its own while the joined path was broken, so the same shape can return with any new card state.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs deleteProject: 3087 files, one renderer door (src/workbench/NomiStudioApp.tsx), one IPC door (electron/projects/projectsIpc.ts), one registration (electron/main.ts); no external Agent door",
+      "grep of return { id, deleted: false } in electron/projects/repository.ts: now only inside unbindProject",
+      "electron/workspace/workspaceRepository.ts deleteWorkspaceProject already removes the registration when the folder cannot be resolved"
+    ]
+  },
+  "generality_proof": "Every delete goes through projectDeleteChoice and then deleteProject, so a new card state is either a state projectDeleteChoice knows, or falls to deleteProject, which now has one way to answer false. The joined matrix uses the real list, real decision, real main process and real startup reconciliation, so a later change to any layer is checked against the others.",
+  "shared_boundaries": [
+    {
+      "path": "electron/projects/repository.ts",
+      "symbol": "unbindProject",
+      "responsibility": "The only place that removes a registration; every deleted:false answer from deleteProject comes through it."
+    },
+    {
+      "path": "src/workbench/library/projectDeleteChoice.ts",
+      "symbol": "projectDeleteChoice",
+      "responsibility": "One decision for what the dialog says and which intent the main process receives, from the card's state."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "deleteProject",
+      "disposition": "enforced",
+      "evidence": "The matrix covers deleted, moved out, renamed in the default root, drive unplugged, corrupted manifest and three stale-list shapes; undoing the merge turns four rows red."
+    },
+    {
+      "path": "src/workbench/library/projectDeleteFlow.ts",
+      "entry_point": "runProjectDeleteFlow",
+      "disposition": "enforced",
+      "evidence": "Takes the intent and wording only from projectDeleteChoice; projectDeleteFlow.test.ts asserts a missing card sends unbind, and projectDeleteChoice.test.ts forbids hard-coding the intent at the call site."
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "entry_point": "deleteWorkspaceProject",
+      "disposition": "not-affected",
+      "evidence": "Already removes the registration when the folder cannot be resolved; deleteProject only calls it once the project is readable."
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "entry_point": "removeWorkspaceProjectReference",
+      "disposition": "not-affected",
+      "evidence": "Exported with no production caller (grep across electron and src), so no user path reaches it."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projects/repository.ts",
+    "invariant": "deleteProject answers deleted:false only through unbindProject, so the registration is gone whenever the interface says it was only removed.",
+    "failure_mode": "A branch that answers false without removing the registration turns the joined matrix red in CI: the card is still listed after the restart.",
+    "exception_policy": "none",
+    "strategy": "Merge the do-nothing branches into one path and test the layers joined together across restarts.",
+    "artifacts": [
+      "electron/projects/repository.ts",
+      "src/workbench/library/projectDeleteChoice.ts",
+      "electron/projects/projectLocation.matrix.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/projects/projectLocation.matrix.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projects/repository.ts"
+    ],
+    "rationale": "The two return-false branches in deleteProject and the second branch of unbindProject were deleted in this diff; the old matrix row that wrote the unbind intent by hand and never restarted was replaced by the joined rows."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency decides this; it is Nomi's own registry and dialog logic.",
+    "exit_criteria": []
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-30",
+  "invariant_owner_layer": {
+    "layer": "electron/projects/repository.ts",
+    "tests": [
+      "electron/projects/projectLocation.matrix.test.ts"
+    ],
+    "why": "deleteProject is the only door that removes a project, so the rule holds for every card state without touching the callers."
+  }
+}
