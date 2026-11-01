@@ -13,7 +13,7 @@
     "没有日志文件，或读不了"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-11-01-feedback-delivery.md",
@@ -21,14 +21,17 @@
     "tests/ux/feedback-delivery.walk.mjs：真 App 从隔离的日志目录读，接收端收到的每一份都扫一遍，零命中且行数不为零",
     "scripts/lib/intake-radar/aggregate.node-test.mjs：新版本的反馈缺日志尾巴时报警",
     "docs/fixes/2026-11-01-feedback-log-tail.root-cause.json",
-    "docs/lessons/attachment-proved-with-fake-reader-and-seen-is-not-handled.md"
+    "docs/lessons/attachment-proved-with-fake-reader-and-seen-is-not-handled.md",
+    "electron/feedback/feedbackCatalog.test.ts：自建地址塞进目录每一格零命中，日志和目录对同一家的判断逐个 key 一致；走查在真实目录文件上再扫一遍"
   ],
   "completionCommits": [
-    "35fd999bb"
+    "35fd999bb",
+    "5007e0fe2"
   ],
   "classCheck": {
     "kind": "matrix",
     "file": "electron/feedback/feedbackLogTail.test.ts"
   },
-  "rootCauseContract": "docs/fixes/2026-11-01-feedback-log-tail.root-cause.json"
+  "rootCauseContract": "docs/fixes/2026-11-01-feedback-log-tail.root-cause.json",
+  "fixedInPr": 1409
 }

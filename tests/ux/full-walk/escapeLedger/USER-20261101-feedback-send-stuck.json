@@ -14,7 +14,7 @@
     "老用户升级后，旧版留在本机的反馈"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-11-01-feedback-delivery.md",
@@ -27,12 +27,14 @@
   ],
   "completionCommits": [
     "35fd999bb",
-    "8b7edf76e"
+    "8b7edf76e",
+    "3ea46adf0"
   ],
   "classCheck": {
     "kind": "matrix",
     "file": "electron/feedback/feedbackDelivery.matrix.test.ts"
   },
   "rootCauseContract": "docs/fixes/2026-11-01-feedback-send-delivery.root-cause.json",
-  "notes": "线上那一次到底卡在哪一步证明不了：那份报告没到，也没有日志。这里修的是所有能卡住的地方，真实效果看新版发布后雷达的首发直达率。"
+  "notes": "线上那一次到底卡在哪一步证明不了：那份报告没到，也没有日志。这里修的是所有能卡住的地方，真实效果看新版发布后雷达的首发直达率。",
+  "fixedInPr": 1409
 }

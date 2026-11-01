@@ -14,7 +14,7 @@
     "同一份反馈送达多次"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-11-01-feedback-delivery.md",
@@ -22,14 +22,17 @@
     "scripts/intake-radar.node-test.mjs：同一天两次、退出 1、出账命令",
     "scripts/lib/intake-radar/inbox.node-test.mjs：进账不看 seenKeys，只有明确命令才出账",
     "docs/fixes/2026-11-01-feedback-radar-triage.root-cause.json",
-    "docs/lessons/attachment-proved-with-fake-reader-and-seen-is-not-handled.md"
+    "docs/lessons/attachment-proved-with-fake-reader-and-seen-is-not-handled.md",
+    "scripts/daily-radar-session.node-test.mjs：判停的退出码 1 报已跑加判停，其他退出码 1 照旧算没查成"
   ],
   "completionCommits": [
-    "d6726a347"
+    "d6726a347",
+    "e22d48e1e"
   ],
   "classCheck": {
     "kind": "matrix",
     "file": "scripts/daily-radar-session.node-test.mjs"
   },
-  "rootCauseContract": "docs/fixes/2026-11-01-feedback-radar-triage.root-cause.json"
+  "rootCauseContract": "docs/fixes/2026-11-01-feedback-radar-triage.root-cause.json",
+  "fixedInPr": 1409
 }
