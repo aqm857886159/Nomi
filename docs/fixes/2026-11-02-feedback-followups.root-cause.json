@@ -1,0 +1,274 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-02-feedback-followups",
+  "problem_type": "反馈持久化与出站边界缺失不变量",
+  "symptom": "队列读不了时旧件被覆盖；机器摘要能带出私有 host；清单未说明模型名；宿主卸载遗留关闭定时器",
+  "direct_cause": "队列读取（改名前叫 readStore）捕获所有异常后返回空；text 只做路径凭据脱敏；宿主 effect 只移除监听；清单省略模型名取舍",
+  "class_root": "失败状态被当成有效空状态；机器派生字段未共用地址判据；关闭任务未绑定宿主生命周期；告知未覆盖实际连接形状",
+  "migration": "队列格式不变；坏 JSON 改名留底；不可读原样保留。发送前按两个数字省略计数识别新投影；旧包只去目录附件，同步清单与字节数。新发与补发共用注册处理口；413 仍沿用原缩包。",
+  "affected_population": [
+    "断网后排队反馈在读失败时发送的用户",
+    "使用自建地址的机器派生摘要",
+    "兄弟连接或改址内置连接；关闭反馈宿主时存在延迟任务"
+  ],
+  "scope_paths": [
+    "electron/telemetry/intakeQueue.ts",
+    "electron/feedback/feedbackReport.ts",
+    "electron/feedback/feedbackCatalog.ts",
+    "src/ui/community/FeedbackShareHost.tsx",
+    "src/i18n/locales/feedbackReport.ts",
+    "electron/feedback/feedbackIpc.ts",
+    "electron/shared/contracts/feedback.ts"
+  ],
+  "entry_points": [
+    "feedbackSend.sendFeedbackReport → submitIntake → enqueueIntake/readQueueStore",
+    "feedbackIpc.registerFeedbackIpc → buildFeedbackReport / flushIntakeQueue",
+    "NomiStudioApp → FeedbackShareHost"
+  ],
+  "invariants": [
+    "文件不存在才当空；坏 JSON 先成功留底；其余读取异常终止读改写",
+    "机器摘要与目录共用 host 判据，留言只沿用既有密钥路径清洗",
+    "宿主卸载或重开不能遗留旧关闭任务",
+    "双语清单说明自建连接的地址、连接名、密钥不带，模型名保留",
+    "反馈新发与所有补发在 sendItem 使用同一准备器，通用队列不出现反馈字段名",
+    "目录两项省略计数都为数字才保留；否则只剥目录并同步清单、排除原因与字节数；留言摘要版本和其他附件保持"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/feedback/feedbackCatalog.ts",
+      "symbol": "maskForeignUrls"
+    },
+    {
+      "kind": "read",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "symbol": "prepareFeedbackReport"
+    },
+    {
+      "kind": "read",
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "FeedbackExclusionReason"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/feedback.ts",
+      "symbol": "FEEDBACK_EXCLUSION_REASONS"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/feedbackReport.ts",
+      "symbol": "FeedbackExclusionReason"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/feedbackReport.ts",
+      "symbol": "zhFeedbackReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhFeedbackReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/community/FeedbackShareHost.tsx",
+      "symbol": "closeTimer"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "FeedbackShareHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "symbol": "buildFeedbackReport"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "symbol": "setIntakePrepareHandler"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "symbol": "flushIntakeQueue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "maskForeignUrls"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "projectCatalogForReport"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackSend.ts",
+      "symbol": "submitIntake"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "flushIntakeQueue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "sendItem"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "enqueueIntake"
+    }
+  ],
+  "door_reduction": {
+    "before": 15,
+    "after": 18,
+    "why_not": "NomiStudioApp 保留全局宿主入口；feedbackIpc 的预览与发送共用组包并在启动补发；feedbackSend 保留提交适配；队列内部的重试/成功补发和入队入口保证离线投递，全部收敛到同一个 readQueueStore，不移除产品入口。 反馈 IPC 必须拥有专属准备器的注册；sendItem 是所有发件唯一共同发送口；排除原因类型由包、翻译和现有卡片共享，保留这些消费者避免第二套词表。"
+  },
+  "regression_tests": [
+    "electron/feedback/feedbackOutbound.test.ts",
+    "electron/feedback/feedbackReport.test.ts",
+    "src/ui/community/FeedbackShareHost.test.tsx",
+    "electron/feedback/feedbackCatalog.test.ts"
+  ],
+  "residual_risks": [
+    "Windows 真文件占用未验证；测试用注入错误码与 Mac 权限模拟",
+    "未跑真实用户资料、真实外部接收端或付费",
+    "手工给旧目录加上两个数字计数时会保留目录，与此前行为相同，不更差；新 builder 必写两项计数，新包不会被误剥。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "仅修内部 Node 文件错误分类、已存在的种子 host 判据、React 宿主关闭任务与告知文案；没有改第三方协议或依赖行为。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任一读改写、任一机器摘要或再次打开/卸载宿主都可重现，属于共享边界不变量。",
+    "same_class_scan": [
+      "git grep readIntakeQueue|clearIntakeQueue|flushIntakeQueue|enqueueIntake|submitIntake：生产提交与启动补发收敛 intakeQueue",
+      "node scripts/door-map.mjs 对提交/补发/组包/宿主/判据/准备器/排除原因重新扫描：当前 18 扇，以相同 AST 对 origin/main 重算 15 扇",
+      "改名前 readStore 同名扫描还命中 referenceLinkRefusals、telemetryOutbox、workspaceSyncBaseline，逐个确认是本地独立函数，不是该队列调用者；概念门岗按名字认人，所以队列这份改名 readQueueStore",
+      "git grep text / maskForeignUrls：摘要与留言共用原 text，目录私有 host 判据只在 feedbackCatalog，摘要接入、留言保持原义",
+      "CatalogState（electron/catalog/types.ts）无两项投影计数；五份真实落盘目录也无这两格，逐份经 git show v0.24.0 源码旧 builder 组包的附件均无这两格",
+      "旧 builder 与内部依赖共 10 份 tagged source；provenance.json 记录源码、输入和产物哈希，O1/O2 全部读取真实对应产物"
+    ]
+  },
+  "generality_proof": "所有队列读改写先过 readQueueStore，非缺失非语法错误一律抛出，不可能从空状态覆盖旧件；flush 在公共入口捕获并沿用重试。摘要调用同一个 maskForeignUrls，目录无第二套定义；宿主 effect 清除同一个 timer ref，重开与卸载均受保护。 新发、启动补发、成功后补发及定时重试都收敛 sendItem，发送前执行注册准备器，准备失败不发旧内容。五份真实旧目录均缺两项计数；新投影函数必写两个数字；不依赖外层 schemaVersion 或 app.version。",
+  "shared_boundaries": [
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "readQueueStore",
+      "responsibility": "分类文件不存在、语法损坏、读取失败，读不了禁止读改写"
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "buildFeedbackReport",
+      "responsibility": "机器派生摘要清洗共用目录的 host 判据；留言维持原处理"
+    },
+    {
+      "path": "electron/feedback/feedbackCatalog.ts",
+      "symbol": "maskForeignUrls",
+      "responsibility": "维护唯一的内置 host 留用/未知 URL 清洗判据"
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "prepareFeedbackReport",
+      "responsibility": "按已定计数字段区分目录投影，剥旧目录并同步清单，记录不含用户资料的事件"
+    },
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "sendItem",
+      "responsibility": "所有新发、启动补发、定时补发、413 后发送统一经过按货物注册的准备器"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "entry_point": "enqueueIntake",
+      "disposition": "enforced",
+      "evidence": "读失败经 readQueueStore 抛出；Q1 断言旧队列按字节不变且现有失败结果返回"
+    },
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "entry_point": "updateStore",
+      "disposition": "enforced",
+      "evidence": "出账和缩包都先 readQueueStore；Q2 验证读失败不写空"
+    },
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "entry_point": "flushIntakeQueue",
+      "disposition": "enforced",
+      "evidence": "启动与定时重试共用同一入口，读取失败保留队列并重试"
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "entry_point": "buildFeedbackReport",
+      "disposition": "enforced",
+      "evidence": "S1/S2 覆盖未知与内置 host；留言路径密钥规则保持"
+    },
+    {
+      "path": "src/ui/community/FeedbackShareHost.tsx",
+      "entry_point": "FeedbackShareHost",
+      "disposition": "enforced",
+      "evidence": "H1 用 fake timer 驱动真实宿主重开与卸载"
+    },
+    {
+      "path": "electron/feedback/feedbackIpc.ts",
+      "entry_point": "registerFeedbackIpc",
+      "disposition": "enforced",
+      "evidence": "真实 IPC 注册驱动 O1/O2，反馈准备器在启动补发前注册，其他货物没有该准备器"
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "entry_point": "shrinkFeedbackReport",
+      "disposition": "enforced",
+      "evidence": "413 从准备后的 item 缩包；测试检查旧目录排除原因保留、其余附件按既有规则去除"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/telemetry/intakeQueue.ts",
+    "invariant": "读取失败永远不能产生可写的空队列状态",
+    "failure_mode": "入队抛出后由既有 submitIntake 返回 lost/失败；出账只记失败；补发捕获并沿用定时重试",
+    "exception_policy": "none",
+    "strategy": "在所有读改写之前分类错误；目录与摘要共用唯一 host 函数，宿主生命周期回收定时任务，行为测试反例守住入口。 反馈目录准备器只在反馈 IPC 注册；同一 sendItem 入口覆盖新发与补发，413 对准备后的对象继续缩包。",
+    "artifacts": [
+      "electron/telemetry/intakeQueue.ts",
+      "electron/feedback/feedbackReport.ts",
+      "electron/feedback/feedbackCatalog.ts",
+      "src/ui/community/FeedbackShareHost.tsx",
+      "src/i18n/locales/feedbackReport.ts",
+      "electron/feedback/feedbackIpc.ts",
+      "electron/shared/contracts/feedback.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/feedback/feedbackOutbound.test.ts",
+    "electron/feedback/feedbackReport.test.ts",
+    "src/ui/community/FeedbackShareHost.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/telemetry/intakeQueue.ts",
+      "electron/feedback/feedbackReport.ts"
+    ],
+    "rationale": "同一修改删除 catch-all 当空旧行为；摘要移除只清路径凭据的旧行为，不留并行摘要路径；用户留言保持原有语义。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "复用 Node fs/错误码、既有原子 JSON writer、已安装 React 的 effect 与 timer；没有第三方版本引起的行为偏差。",
+    "exit_criteria": []
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-02",
+  "invariant_owner_layer": {
+    "layer": "electron/telemetry/intakeQueue.ts",
+    "tests": [
+      "electron/feedback/feedbackOutbound.test.ts",
+      "electron/telemetry/intakeQueue.test.ts"
+    ]
+  }
+}

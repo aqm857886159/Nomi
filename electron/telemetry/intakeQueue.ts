@@ -10,7 +10,7 @@
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
+import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from '../jsonFile'
 import { logWarn } from '../logging/logger'
 import { getSettingsRoot } from '../settings/settingsRoot'
 import { intakeConfigured, IntakeHttpError, postIntake, type IntakeResult } from './intakeClient'
@@ -67,13 +67,17 @@ function validItem(value: unknown): value is IntakeQueueItem {
   return typeof item.id === 'string' && typeof item.queuedAt === 'string' && 'payload' in item
 }
 
-function readStore(kind: IntakeQueueKind): QueueStore {
+function readQueueStore(kind: IntakeQueueKind): QueueStore {
   try {
     const raw = readJsonFile(queuePath(kind)) as Partial<QueueStore>
     const pending = Array.isArray(raw.pending) ? raw.pending.filter(validItem) : []
     return { schemaVersion: 1, pending }
-  } catch {
-    // 队列文件坏了不该让用户下一次反馈也发不出去。丢掉坏文件，从空开始。
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { schemaVersion: 1, pending: [] }
+    if (!(error instanceof SyntaxError)) throw error
+    // 只有坏 JSON 才从空开始；先留底成功，才能让后续写入替换原文件。
+    const file = queuePath(kind)
+    renameSyncWithRetry(file, `${file}.${crypto.randomUUID()}.corrupt`)
     return { schemaVersion: 1, pending: [] }
   }
 }
@@ -96,7 +100,7 @@ function newItem(payload: unknown): IntakeQueueItem {
 
 export function enqueueIntake(kind: IntakeQueueKind, payload: unknown): IntakeQueueItem {
   const item = newItem(payload)
-  const store = readStore(kind)
+  const store = readQueueStore(kind)
   store.pending.push(item)
   const dropped = prune(store)
   writeJsonFileAtomic(queuePath(kind), store)
@@ -105,14 +109,14 @@ export function enqueueIntake(kind: IntakeQueueKind, payload: unknown): IntakeQu
 }
 
 export function readIntakeQueue(kind: IntakeQueueKind): IntakeQueueItem[] {
-  const store = readStore(kind)
+  const store = readQueueStore(kind)
   prune(store)
   return store.pending
 }
 
 /** 关掉「帮 Nomi 变好」时清轨迹队列。**不清反馈队列**——见 `feedbackReport.ts` 的说明。 */
 export function clearIntakeQueue(kind: IntakeQueueKind): { deletedCount: number } {
-  const deletedCount = readStore(kind).pending.length
+  const deletedCount = readQueueStore(kind).pending.length
   try {
     fs.rmSync(queuePath(kind), { force: true })
   } catch {
@@ -124,7 +128,7 @@ export function clearIntakeQueue(kind: IntakeQueueKind): { deletedCount: number 
 /** 改队列文件失败只记一笔：货已经送到或已被拒收，这时候抛出去没有人接得住。 */
 function updateStore(kind: IntakeQueueKind, change: (store: QueueStore) => void): void {
   try {
-    const store = readStore(kind)
+    const store = readQueueStore(kind)
     change(store)
     writeJsonFileAtomic(queuePath(kind), store)
   } catch (error) {
@@ -136,6 +140,13 @@ function removeItem(kind: IntakeQueueKind, id: string): void {
   updateStore(kind, (store) => {
     store.pending = store.pending.filter((pending) => pending.id !== id)
   })
+}
+
+const prepareHandlers = new Map<IntakeQueueKind, (payload: unknown) => unknown>()
+
+/** 新发与补发共用的出门前处理；只由对应货物的 owner 注册。 */
+export function setIntakePrepareHandler(kind: IntakeQueueKind, handler: (payload: unknown) => unknown): void {
+  prepareHandlers.set(kind, handler)
 }
 
 type TooLargeHandler = (payload: unknown) => unknown | null
@@ -178,6 +189,8 @@ async function sendItem(kind: IntakeQueueKind, first: IntakeQueueItem): Promise<
   let item = first
   for (;;) {
     try {
+      const prepare = prepareHandlers.get(kind)
+      if (prepare) item = { ...item, payload: prepare(item.payload) }
       const result = await postIntake(`/v1/${kind}`, item.payload)
       retryDelays.delete(kind)
       removeItem(kind, item.id)
@@ -266,7 +279,7 @@ export function flushIntakeQueue(kind: IntakeQueueKind): Promise<void> {
   if (inflight) return inflight
   const run = (async () => {
     if (!intakeConfigured()) return
-    const store = readStore(kind)
+    const store = readQueueStore(kind)
     const dropped = prune(store)
     if (dropped > 0) {
       logWarn('diagnostics', 'intake-queue-pruned', { kind, dropped })
@@ -276,7 +289,7 @@ export function flushIntakeQueue(kind: IntakeQueueKind): Promise<void> {
       // 一条发不出去，后面的多半也发不出去（同一个端点）。留着，下一轮再来。
       if ((await deliver(kind, item)).status === 'failed') break
     }
-    if (readStore(kind).pending.length > 0) {
+    if (readQueueStore(kind).pending.length > 0) {
       scheduleRetry(kind)
     } else {
       // clearTimeout(undefined) 是 no-op，所以不用先取再判。
@@ -284,7 +297,10 @@ export function flushIntakeQueue(kind: IntakeQueueKind): Promise<void> {
       retryTimers.delete(kind)
       retryDelays.delete(kind)
     }
-  })().finally(() => {
+  })().catch((error: unknown) => {
+    logWarn('diagnostics', 'intake-queue-read-failed', { kind }, error)
+    scheduleRetry(kind)
+  }).finally(() => {
     flushing.delete(kind)
   })
   flushing.set(kind, run)
@@ -298,4 +314,5 @@ export function resetIntakeQueueTimers(): void {
   retryDelays.clear()
   flushing.clear()
   delivering.clear()
+  prepareHandlers.clear()
 }

@@ -203,7 +203,8 @@ export function FeedbackReportCard({
       </div>
 
       {viewing ? (
-        <div data-feedback-manifest className="space-y-1 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2">
+        // 清单多长都不能把「发送」挤出窗口：最高到放得下卡上其余部分为止，多的在这里滚。
+        <div data-feedback-manifest className="max-h-[calc(100vh-24rem)] space-y-1 overflow-y-auto rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2">
           {manifest === 'loading' ? (
             <p className="text-micro text-nomi-ink-40">{t('feedbackReport.manifestLoading')}</p>
           ) : manifest === null ? (
