@@ -3287,9 +3287,7 @@
             "type": "string"
           },
           "newAttemptOf": {
-            "description": "Only after the user explicitly requests a NEW order: current attemptId from the original submission receipt. Always requires confirmation in Nomi, even in full-auto. Omit to observe or safely retry the original intent; changing parameters never opens a new order.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Only after the user explicitly requests a NEW order: current attemptId from the original submission receipt. Always requires confirmation in Nomi, even in full-auto. Omit to observe or safely retry the original intent; changing parameters never opens a new order.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           },
           "params": {
