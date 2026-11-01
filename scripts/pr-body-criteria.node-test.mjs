@@ -31,6 +31,47 @@ test('reviewed push admission is exact for every new contract and leaves all set
   assert.equal(checkEscapeContract('', [{ ...contract, added: false }], [], [], [file]).ok, true, 'settled revision behavior retained')
 })
 
+test('让逃逸账本转 fixed 的 PR：用户那个场景要真实复现过（修前、修后各一份凭据，或未验证：原因）', () => {
+  const contract = { file: 'docs/fixes/2026-11-02-a.root-cause.json', added: true, detected_by: 'user' }
+  const judge = (line, options = {}) => checkEscapeContract(line === null ? '' : `## 验收证据\n\n${line}\n`, [contract], ['USER-a'], [], [], options)
+  const good = '- real-scene-replay：修前 docs/evidence/a/before.log；修后 https://github.com/o/r/actions/runs/12345678'
+
+  assert.equal(judge(good).ok, true)
+  assert.match(judge(good).lines.join('\n'), /修前、修后都有凭据/)
+
+  for (const [line, why] of [
+    [null, '没有这一节'],
+    ['- upgrade-path：docs/evidence/a.log', '别的证据不算'],
+    ['- real-scene-replay：docs/evidence/a.log', '没分修前修后'],
+    ['- real-scene-replay：修后 docs/evidence/a.log', '只有修后'],
+    ['- real-scene-replay：修前 docs/evidence/a.log；修后', '修后没有凭据'],
+    ['- real-scene-replay：修前 跑过了；修后 也跑过了', '光说不算'],
+    ['- real-scene-replay：修前 #123；修后 #124', '裸 PR 号证明不了谁跑过'],
+    ['- real-scene-replay：未验证：无', '未验证要写清原因'],
+    ['- real-scene-replay：修前 未验证；修后 docs/evidence/a.log', '半边没凭据又没写原因'],
+  ]) {
+    const result = judge(line)
+    assert.equal(result.ok, false, why)
+    assert.match(result.lines.join('\n'), /✖ 这个 PR 修的是用户发现的问题/, why)
+  }
+
+  const unverified = judge('- real-scene-replay：未验证：缺对方的中转和 Key')
+  assert.equal(unverified.ok, true, 'P3：没有真实资源记 unverified')
+  assert.match(unverified.lines.join('\n'), /⚠ 真实场景复现没做：缺对方的中转和 Key/, '没做要说出来')
+
+  const atPush = judge(null, { stage: 'push' })
+  assert.equal(atPush.ok, true, '真付费在验收之后才跑，推送时只提醒')
+  assert.match(atPush.lines.join('\n'), /⚠ 这个 PR 修的是用户发现的问题/)
+
+  assert.equal(judge(null, { createdAt: '2026-11-01T23:59:59Z' }).ok, true, '规则生效前开的 PR 只提醒')
+  assert.equal(judge(null, { createdAt: '2026-11-02T00:00:00Z' }).ok, false, '生效后开的 PR 要求')
+  assert.equal(judge(null, { createdAt: '2026-11-01T23:59:59Z', enforce: true }).ok, false, '回放按已生效')
+
+  // 没有转 fixed 的 PR 不要求：只引用账本条目、修订已结账的合同都不算修用户的问题
+  assert.equal(checkEscapeContract('', [], [], ['USER-a'], []).ok, true)
+  assert.equal(checkEscapeContract('', [{ ...contract, added: false }], [], [], [contract.file]).ok, true)
+})
+
 test('同一份正文、同一份改动 → 总入口只给一个结论（推送前与合并前调的就是它）', () => {
   const good = evaluatePrBody({ body: STAR, files: docsChange, createdAt: '2026-10-08T00:00:00Z' })
   assert.equal(good.blocked, false, good.lines.join('\n'))

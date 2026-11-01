@@ -8,7 +8,7 @@ import { checkPrBoardClaims, parsePrBoardClaims } from './check-board-parity.mjs
 import { approvalCommand, boardApprovalSubject, describeBoardDiff, describeSuppressionGrowth, suppressionApprovalSubject, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
 import { pinScenarioPolicy } from './perf-scenarios-lib.mjs'
 import { localEvidenceInputs } from './lib/prEvidenceInputs.mjs'
-import { deriveUiVerification, evaluatePrJudgement, evaluateProcessTier, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable, PROCESS_TIERS, processTieringEnforced } from './pr-judgement-lib.mjs'
+import { deriveUiVerification, EVIDENCE_SECTION, evaluatePrJudgement, evaluateProcessTier, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable, PROCESS_TIERS, processTieringEnforced, REAL_SCENE_EVIDENCE_ID, realSceneVerdict } from './pr-judgement-lib.mjs'
 
 /** 四类（花钱 / 长跑 / 可打断 / 新界面）——路由表里 pathRules.legacy 的那部分；files: [{ path, status }]，status 'A' = 新增。 */
 export function classifyChange(files, addedLines = '', table = undefined) {
@@ -371,7 +371,26 @@ export function reviewedContracts(files, fetchHead, { hasCommit = () => false } 
   })
 }
 
-export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = [], settled = [], { stage = 'merge', reviewed = [] } = {}) {
+/** 真实场景复现这条规则的生效时刻：比它早开的 PR 没机会照新要求写，只提醒不判红。 */
+export const REAL_SCENE_RULE_EFFECTIVE_AT = '2026-11-02T00:00:00Z'
+
+/** 让逃逸账本转 fixed = 修用户发现的问题：用户那个场景要真实复现过。推送时凭据多半还没有（真付费在验收之后跑），只提醒。 */
+function checkRealSceneReplay(body, { stage, createdAt, enforce }) {
+  const verdict = realSceneVerdict(extractSection(body, EVIDENCE_SECTION))
+  if (verdict.unverified) return { ok: true, lines: [`⚠ 真实场景复现没做：${verdict.reason}（这一条不算已解决，发版前要对账）`] }
+  if (verdict.ok) return { ok: true, lines: ['✅ 真实场景复现：修前、修后都有凭据'] }
+  const grandfathered = !enforce && Boolean(createdAt) && new Date(createdAt) < new Date(REAL_SCENE_RULE_EFFECTIVE_AT)
+  const soft = stage === 'push' || grandfathered
+  return {
+    ok: soft,
+    lines: [
+      `${soft ? '⚠' : '✖'} 这个 PR 修的是用户发现的问题，用户那个场景要真实复现过：${verdict.reason}`,
+      `  → \`## ${EVIDENCE_SECTION}\` 写一行 \`- ${REAL_SCENE_EVIDENCE_ID}：修前 <凭据>；修后 <凭据>\`，缺真实资源写 \`- ${REAL_SCENE_EVIDENCE_ID}：未验证：原因\``,
+    ],
+  }
+}
+
+export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = [], settled = [], { stage = 'merge', reviewed = [], createdAt = null, enforce = false } = {}) {
   const withField = contracts.filter((contract) => ['user', 'post-release', 'walkthrough', 'ci', 'review'].includes(contract.detected_by))
   const userFound = contracts.filter((contract) => ['user', 'post-release'].includes(contract.detected_by))
   const mentioned = ledgerIds.filter((id) => String(body || '').includes(id) && !transitions.includes(id))
@@ -394,7 +413,8 @@ export function checkEscapeContract(body, contracts, transitions = [], ledgerIds
   if (withField.length === 0) {
     return { applicable: true, ok: false, lines: [`✖ 本 PR 把逃逸账本条目 ${transitions.join('、')} 转成 fixed，但没带含 detected_by 的根因合同（docs/fixes/*.root-cause.json）`] }
   }
-  return { applicable: true, ok: true, lines: [`✅ 逃逸账本 ${transitions.join('、')} → fixed：带了含 detected_by 的合同（${withField.map((contract) => contract.file).join('、')}）`, ...hint] }
+  const realScene = checkRealSceneReplay(body, { stage, createdAt, enforce })
+  return { applicable: true, ok: realScene.ok, lines: [...realScene.lines, `✅ 逃逸账本 ${transitions.join('、')} → fixed：带了含 detected_by 的合同（${withField.map((contract) => contract.file).join('、')}）`, ...hint] }
 }
 
 /**
@@ -524,7 +544,7 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     processTier,
     design: checkDesignCard(body, { fourClass: classification.fourClass, short }),
     acceptance: checkIndependentAcceptance(body, { stage, strict: strictEvidence, headSha: inputs.headSha ?? null, readReport: inputs.readReport, headRelation: inputs.headRelation }),
-    escape: checkEscapeContract(body, contracts, ledger.transitions ?? [], ledger.ids ?? [], ledger.settledContracts ?? [], { stage, reviewed: ledger.preparedContracts ?? [] }),
+    escape: checkEscapeContract(body, contracts, ledger.transitions ?? [], ledger.ids ?? [], ledger.settledContracts ?? [], { stage, reviewed: ledger.preparedContracts ?? [], createdAt, enforce }),
     promises: checkDeferredPromises(body, { stage, createdAt, enforce }),
     scope: judgement.scope,
     // 短档不查功能分类 / 验收证据：由声明与 base / head 界面清单核实替代

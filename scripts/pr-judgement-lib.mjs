@@ -338,6 +338,28 @@ export function upgradePathVerdict(line) {
 }
 
 /**
+ * 真实场景复现证据的判据（2026-11-02，用户：「修好之后 要用真实场景复现一次」「这个是规则吧」）。
+ *
+ * 为什么单拎：规则早就有（P3、根因流程的「报的那个场景修前红、修后绿了吗」），但只是文字，
+ * 一次批量出图的修复写设计卡时就只写了假服务商走查加一次最小付费。让逃逸账本转 fixed 的 PR 修的都是用户发现的问题，门岗挂在那里（pr-body-criteria.mjs）。
+ * 修前、修后各要一份凭据（路径 / 链接 / 运行号，裸 PR 号不算）；缺真实资源写「未验证：原因」（P3：没有真实资源记 unverified）。
+ */
+export const REAL_SCENE_EVIDENCE_ID = 'real-scene-replay'
+const REAL_SCENE_LINE = /^\s*(?:[-*]\s*)?(?:\*\*)?real-scene-replay(?:\*\*)?\s*[:：]\s*(.*)$/i
+const REAL_SCENE_SIDES = /修前(.*)修后(.*)/
+const REAL_SCENE_PROOF = EVIDENCE_TOKEN.filter((pattern) => pattern.source !== '#\\d{2,}').concat(/(?:^|[\s/])reports?\/[\w@./+-]+\.md\b/)
+const hasRealSceneProof = (text) => REAL_SCENE_PROOF.some((pattern) => pattern.test(text))
+export function realSceneVerdict(section) {
+  const line = String(section || '').split(/\r?\n/).map((raw) => REAL_SCENE_LINE.exec(raw)).find(Boolean)
+  if (!line) return { ok: false, reason: `没有「${REAL_SCENE_EVIDENCE_ID}：」这一行` }
+  const unverified = UNVERIFIED.exec(line[1])
+  if (unverified && unverified[1].trim().length >= 4) return { ok: true, unverified: true, reason: unverified[1].trim() }
+  const sides = REAL_SCENE_SIDES.exec(line[1])
+  if (sides && hasRealSceneProof(sides[1]) && hasRealSceneProof(sides[2])) return { ok: true }
+  return { ok: false, reason: '修前、修后要各有一份凭据（路径 / 链接 / 运行号，裸 PR 号不算），或写「未验证：原因」（原因至少 4 个字）' }
+}
+
+/**
  * 必交证据 = 各类别要求的并集，只含 when = "pr" 的（每个 PR 按功能分类跑；paid 的在 PR 上只要求正文交证据、不在 CI 自动跑）。
  * when = "manual-full" 的只在用户手动触发的全量跑里跑，PR 正文不要求（用 manualFullEvidence 列出来）。
  */
