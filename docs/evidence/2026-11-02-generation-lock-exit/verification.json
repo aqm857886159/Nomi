@@ -1,7 +1,7 @@
 {
   "status": "partial",
   "network": "fake providers only; NOMI_TEST_NETWORK_GUARD=1; isolated offscreen Electron",
-  "build": "repair-build.exit=0; final whitespace-only source cleanup is rebuilt before handoff",
+  "build": "handoff-build.exit=0, both frontend and Electron; the final subsequent changes are evidence/contract metadata only",
   "baseline": {
     "sha": "31e80bbd362bd15af441e2e4b5c8e1c6a8c5a11f",
     "freeRehearsal": "failed",
@@ -1064,6 +1064,18 @@
         "path": "src/workbench/production/releaseUnknownSubmission.ts",
         "symbol": "releaseUnknownCanvasSubmissionsForNode"
       }
+    ],
+    "readProjectionAndTypeContract": [
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/canvasShotResult.ts",
+        "symbol": "productionJobPhase"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/storyboardShotTableTypes.ts",
+        "symbol": "StoryboardRowRuntime"
+      }
     ]
   },
   "sourceCommit": "81d4dfda376ad60b7b26e77bd87db30eb0be82eb",
@@ -1088,6 +1100,32 @@
     "build": {
       "exit": 0
     },
-    "knownRelatedFailures": 2
+    "knownRelatedFailures": 2,
+    "finalOwnerDirectories": {
+      "files": 283,
+      "passed": 4214,
+      "expectedFailures": 1,
+      "actualFailures": 0,
+      "exit": 0,
+      "scope": [
+        "src/workbench/creation/storyboard",
+        "src/workbench/generationCanvas/nodes",
+        "src/workbench/production"
+      ]
+    },
+    "prePushRelated": {
+      "files": 39,
+      "passed": 837,
+      "failed": 2,
+      "exit": 1,
+      "failures": [
+        "baseline outbound refusal classification",
+        "changed-node isolation contract test"
+      ]
+    }
+  },
+  "contractCheck": {
+    "exit": 0,
+    "warnings": 0
   }
 }

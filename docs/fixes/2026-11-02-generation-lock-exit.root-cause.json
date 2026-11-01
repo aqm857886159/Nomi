@@ -1394,11 +1394,21 @@
       "kind": "write",
       "path": "src/workbench/production/releaseUnknownSubmission.ts",
       "symbol": "releaseUnknownCanvasSubmissionsForNode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "symbol": "productionJobPhase"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/storyboardShotTableTypes.ts",
+      "symbol": "StoryboardRowRuntime"
     }
   ],
   "door_reduction": {
     "before": 13,
-    "after": 264,
+    "after": 266,
     "why_not": "三页和 Agent 的入口保留；重复方案快照、重复失败动作判断及列表原文显示已替换为共享 owner。门的文件数不等于判据份数。"
   },
   "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。",
