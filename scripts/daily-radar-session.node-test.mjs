@@ -13,7 +13,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, test } from 'node:test'
-import { RADARS, localDate, radarStateFile, runDailyRadar, runSession, skillExists, tryLock, unlock } from './daily-radar-session.mjs'
+import { RADARS, localDate, radarStateFile, runDailyRadar, runSession, skillExists, triageLine, tryLock, unlock } from './daily-radar-session.mjs'
+import { buildIntakeReport } from './lib/intake-radar/aggregate.mjs'
+import { writeInbox } from './lib/intake-radar/inbox.mjs'
+import { renderTerminalSummary } from './lib/intake-radar/render.mjs'
+
+// 没注入读账函数的用例也不碰这台机器上真实的雷达缓存。
+process.env.NOMI_INTAKE_CACHE = makeTempDir('nomi-radar-default-cache-')
 
 const NOW = new Date(2026, 9, 2, 9, 5) // 2026-10-02 09:05 本机时间
 const LATER = new Date(2026, 9, 2, 14, 30)
@@ -24,6 +30,8 @@ const cleanup = (...dirs) => dirs.forEach((dir) => fs.rmSync(dir, { recursive: t
 
 const okRun = (outputs = {}) => async (_root, radar) => ({ status: 0, stdout: outputs[radar.key] ?? `${radar.script} 结果行\n新增 0` })
 const failRun = (status = 1, stderr = 'boom') => async () => ({ status, stdout: '', stderr })
+const HEALTH_STOP = '停止放量：崩溃率比上一版高出一截'
+const healthStopRun = (stdout = `新增反馈 2 条\n${HEALTH_STOP}`) => async (_root, radar) => (radar.key === 'intake' ? { status: 1, stdout, stderr: '' } : { status: 0, stdout: 'ok', stderr: '' })
 
 describe('成功', () => {
   test('两个脚本都成功 → 带出结果与「分诊只由协调会话做」，状态记下今天与摘要', async () => {
@@ -58,6 +66,50 @@ describe('失败必须明说，不许说成没有新东西', () => {
   test('失败时把脚本自己的报错尾巴带出来，别吞', async () => {
     const { text } = await runDailyRadar({ root: '/x', now: NOW, run: failRun(1, 'Cloudflare token missing') })
     assert.match(text, /Cloudflare token missing/)
+  })
+})
+
+describe('版本健康判停的退出码 1 不是脚本报错', () => {
+  test('雷达跑完了：说已跑和判停，摘要带上，缓存算跑成，不说今天没查成', async () => {
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run: healthStopRun(), hasSkill: allSkills })
+    assert.match(text, /【用户反馈雷达】已跑（.*版本健康判停（退出码 1 是这个结论，不是脚本报错）/)
+    assert.match(text, /新增反馈 2 条/)
+    assert.ok(text.includes(HEALTH_STOP))
+    assert.doesNotMatch(text, /【用户反馈雷达】今天没查成/)
+    assert.deepEqual(state.intake, { ok: true, at: state.intake.at, text: `新增反馈 2 条\n${HEALTH_STOP}` })
+  })
+
+  test('真实摘要：过真实的报告渲染，最后一行还是判停', async () => {
+    const report = buildIntakeReport({ feedbackRecords: [], eventRecords: [], trajectoriesCount: 0, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-10-31T11:52:00.000Z', inbox: { rebuilt: false, items: {} } })
+    report.versionHealth = {
+      current: '0.24.1', previous: '0.24.0', window: { start: '2026-10-25', end: '2026-10-31' },
+      launches: { newer: 100, older: 100 }, observedDays: { newer: 7, older: 7 }, notes: [], rows: [],
+      stop: true, conclusion: HEALTH_STOP,
+    }
+    const stdout = renderTerminalSummary(report, { mdPath: 'a.md', jsonPath: 'a.json' })
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run: healthStopRun(stdout), hasSkill: allSkills })
+    assert.match(text, /【用户反馈雷达】已跑（.*版本健康判停/)
+    assert.doesNotMatch(text, /【用户反馈雷达】今天没查成/)
+    assert.equal(state.intake.ok, true)
+  })
+
+  for (const [name, run] of [
+    ['判停那句不在最后一行', healthStopRun(`${HEALTH_STOP}\n后面又打了一行`)],
+    ['脚本没有输出', healthStopRun('')],
+    ['退出码不是 1', async (_root, radar) => (radar.key === 'intake' ? { status: 2, stdout: HEALTH_STOP, stderr: '' } : { status: 0, stdout: 'ok', stderr: '' })],
+  ]) {
+    test(`其他退出码 1 照旧算没查成：${name}`, async () => {
+      const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run, hasSkill: allSkills })
+      assert.match(text, /【用户反馈雷达】今天没查成/)
+      assert.equal(state.intake.ok, false)
+    })
+  }
+
+  test('别的雷达碰巧打了同样一句，不算判停', async () => {
+    const run = async (_root, radar) => (radar.key === 'models' ? { status: 1, stdout: HEALTH_STOP, stderr: '' } : { status: 0, stdout: 'ok', stderr: '' })
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run, hasSkill: allSkills })
+    assert.match(text, /【供应商模型雷达】今天没查成/)
+    assert.equal(state.models.ok, false)
   })
 })
 
@@ -247,5 +299,138 @@ describe('技能在不在：不存在的技能不能叫人去跑；论文雷达�
       assert.equal(skillExists('nomi-intake-radar', { root: repo, home }), true)
       assert.equal(skillExists('nomi-competitive-radar', { root: repo, home }), true)
     } finally { cleanup(home) }
+  })
+})
+
+describe('待分诊：每次开会话现读，新反馈从哪条分支都漏不掉', () => {
+  const pendingRow = (id, date = '2026-10-31') => ({ id, date, surface: 'generation', version: '0.24.0', system: 'win32', firstSeenAt: '2026-10-31T00:00:00.000Z', triagedAt: null, todo: null, duplicateOf: null })
+  const withInbox = (items) => {
+    const cache = tmp('nomi-radar-cache-')
+    writeInbox(cache, { items })
+    return cache
+  }
+
+  test('triageLine：有几条、最新的编号、怎么出账', () => {
+    const cache = withInbox({ 'feedback/a.json': pendingRow('NF-1031-0001'), 'feedback/b.json': pendingRow('NF-1030-0001', '2026-10-30') })
+    try {
+      const line = triageLine(cache)
+      assert.match(line, /【待分诊】2 条还没记进待办/)
+      assert.match(line, /NF-1031-0001 NF-1030-0001/)
+      assert.match(line, /--triaged <编号…> --todo/)
+    } finally { cleanup(cache) }
+  })
+
+  test('triageLine：出过账的、重复送达的不算', () => {
+    const cache = withInbox({
+      'feedback/a.json': { ...pendingRow('a'), triagedAt: '2026-11-01T00:00:00.000Z', todo: 'T-1' },
+      'feedback/b.json': { ...pendingRow('b'), duplicateOf: 'a' },
+    })
+    try { assert.equal(triageLine(cache), '【待分诊】0 条。') } finally { cleanup(cache) }
+  })
+
+  test('triageLine：编号多的时候只列最新几个', () => {
+    const items = Object.fromEntries(Array.from({ length: 9 }, (_item, index) => [`feedback/${index}.json`, pendingRow(`NF-${index}`, `2026-10-2${index}`)]))
+    const cache = withInbox(items)
+    try {
+      const line = triageLine(cache)
+      assert.match(line, /9 条/)
+      assert.match(line, /NF-8 NF-7 NF-6 NF-5 NF-4 …/)
+    } finally { cleanup(cache) }
+  })
+
+  test('triageLine：账还没建 / 账坏了，都不说成没有', () => {
+    const missing = tmp('nomi-radar-cache-')
+    const corrupt = tmp('nomi-radar-cache-')
+    fs.writeFileSync(path.join(corrupt, 'inbox.json'), '{ not json')
+    try {
+      for (const cache of [missing, corrupt]) {
+        assert.match(triageLine(cache), /不是没有待分诊/)
+        assert.doesNotMatch(triageLine(cache), /0 条/)
+      }
+    } finally { cleanup(missing, corrupt) }
+  })
+
+  // 新反馈从哪条分支都漏不掉。分支清单：hook 多一条路，这里就多一行。
+  const BRANCHES = [
+    { name: '刚跑成功', state: {}, run: okRun(), head: /【用户反馈雷达】已跑/ },
+    { name: '今天已跑过，拿缓存摘要', state: { date: localDate(NOW), intake: { ok: true, at: '08:00', text: '新增反馈 0 条' }, models: { ok: true, at: '08:00', text: 'x' } }, run: okRun(), head: /今天 08:00 已在本机跑过/ },
+    { name: '版本健康判停，退出码 1', state: {}, run: healthStopRun(), head: /【用户反馈雷达】已跑.*版本健康判停/ },
+    { name: '脚本报错，退出码 1', state: {}, run: failRun(1, ''), head: /脚本退出码 1/ },
+    { name: '脚本超时', state: {}, run: async () => ({ status: null, signal: 'SIGTERM', stdout: '', stderr: '' }), head: /超时/ },
+    { name: '脚本没能启动', state: {}, run: async () => ({ status: null, stdout: '', stderr: '', error: Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }) }), head: /没能启动/ },
+    { name: '分诊技能不在这台机器上', state: {}, run: okRun(), hasSkill: noSkills, head: /今天没法按技能分诊/ },
+  ]
+  for (const branch of BRANCHES) {
+    test(`分支都报待分诊：${branch.name}`, async () => {
+      const cache = withInbox({ 'feedback/a.json': pendingRow('NF-A') })
+      const env = { NOMI_INTAKE_CACHE: cache }
+      try {
+        fs.writeFileSync(radarStateFile(env), JSON.stringify(branch.state))
+        const text = await runSession({ root: '/a', env, now: () => NOW, run: branch.run, hasSkill: branch.hasSkill ?? allSkills })
+        assert.match(text, branch.head)
+        assert.match(text, /【待分诊】1 条.*NF-A/)
+      } finally { cleanup(cache) }
+    })
+  }
+
+  test('连着三轮：读到这一轮刚进账的；缓存分支读到的是现在的数，不是当时的；隔天跑败账上的还在', async () => {
+    const cache = tmp('nomi-radar-cache-')
+    try {
+      const env = { NOMI_INTAKE_CACHE: cache }
+      // 第一轮：脚本成功，账上 1 条。
+      const first = await runSession({ root: '/a', env, now: () => NOW, run: async (_r, radar) => {
+        if (radar.key === 'intake') writeInbox(cache, { items: { 'feedback/a.json': pendingRow('NF-A') } })
+        return { status: 0, stdout: '新增反馈 1 条' }
+      } })
+      assert.match(first, /【待分诊】1 条.*NF-A/, '要读到这一轮刚进账的')
+
+      // 第二轮：今天已跑过，拿缓存摘要。这时账上多了一条（比如别处手动跑过），要报现在的数。
+      writeInbox(cache, { items: { 'feedback/a.json': pendingRow('NF-A'), 'feedback/b.json': pendingRow('NF-B') } })
+      const cached = await runSession({ root: '/b', env, now: () => LATER, run: okRun() })
+      assert.match(cached, /今天 09:05 已在本机跑过/)
+      assert.match(cached, /【待分诊】2 条/)
+
+      // 第三轮：隔天脚本跑败，今天没查成，但账上的还在，要照报。
+      const failed = await runSession({ root: '/c', env, now: () => new Date(2026, 9, 3, 8, 0), run: failRun(1, 'Cloudflare 登录过期') })
+      assert.match(failed, /【用户反馈雷达】今天没查成/)
+      assert.match(failed, /【待分诊】2 条/)
+    } finally { cleanup(cache) }
+  })
+
+  test('待分诊行紧跟在用户反馈雷达后面，不混进模型雷达那一段', async () => {
+    const { text } = await runDailyRadar({ root: '/x', now: NOW, run: okRun(), hasSkill: allSkills, readTriageLine: () => '【待分诊】3 条' })
+    const lines = text.split('\n')
+    const at = lines.indexOf('【待分诊】3 条')
+    assert.ok(at > lines.findIndex((line) => line.startsWith('【用户反馈雷达】')))
+    assert.equal(lines[at + 1].startsWith('【供应商模型雷达】'), true)
+  })
+
+  test('真实摘要过 hook 的截断：版本健康块再长，「新增」「待分诊」和报告路径都还在（线上它们被挤没了好几天）', async () => {
+    const key = 'feedback/2026-10-31/a.json'
+    const report = buildIntakeReport({
+      feedbackRecords: [{ key, record: { receivedAt: '2026-10-31T11:51:00.000Z', receipt: 'NF-1031-0001', payload: { manifest: {}, context: {} } } }],
+      eventRecords: [],
+      trajectoriesCount: 0,
+      newFeedbackKeys: [key],
+      newEventKeys: [],
+      generatedAt: '2026-10-31T11:52:00.000Z',
+      inbox: { rebuilt: false, items: { [key]: pendingRow('NF-1031-0001') } },
+    })
+    // 最坏的版本健康块：很多行，每行都长；判定也长。
+    report.versionHealth = {
+      current: '0.24.1', previous: '0.24.0', window: { start: '2026-10-25', end: '2026-10-31' },
+      launches: { newer: 100, older: 100 }, observedDays: { newer: 7, older: 7 },
+      notes: Array.from({ length: 30 }, (_item, index) => `第 ${index} 条说明：${'长'.repeat(80)}`),
+      rows: [],
+      conclusion: `继续放量：${'原因'.repeat(100)}`,
+    }
+    const stdout = renderTerminalSummary(report, { mdPath: '/Users/someone/Library/Caches/nomi-intake/reports/2026-10-31T115200Z.md', jsonPath: '/Users/someone/Library/Caches/nomi-intake/reports/2026-10-31T115200Z.json' })
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run: async (_r, radar) => ({ status: 0, stdout: radar.key === 'intake' ? stdout : 'ok' }), hasSkill: allSkills, readTriageLine: () => '' })
+    for (const summary of [text, state.intake.text]) {
+      assert.match(summary, /新增反馈 1 条/)
+      assert.match(summary, /待分诊 1 条：NF-1031-0001/)
+      assert.match(summary, /2026-10-31T115200Z\.md/)
+      assert.match(summary, /继续放量/)
+    }
   })
 })

@@ -59,6 +59,11 @@ test('extractFeedbackItem 取出报告要的那几格，缺字段兜底不抛', 
   assert.deepEqual(item, {
     key: 'feedback/2026-01-01/a.json',
     date: '2026-01-01',
+    receivedAt: '2026-01-01T08:00:00.000Z',
+    createdAt: '2026-01-01T08:00:00.000Z',
+    queueDelaySeconds: 0,
+    logTail: { attached: false, why: 'unlisted' },
+    duplicateOf: null,
     id: 'NF-0101-0001',
     version: '0.22.3',
     system: 'win32',
@@ -371,4 +376,130 @@ test('perf 进报告与 Markdown / 终端摘要；自动化事件不进性能统
   assert.match(renderMarkdown(report), /## 卡不卡/)
   assert.match(renderMarkdown(report), /共 2 份会话汇总，偏慢 1（50%）/)
   assert.match(renderTerminalSummary(report), /卡不卡：2 份会话汇总，偏慢 1（50%）/)
+})
+
+// ---------------------------------------------------------------------------
+// 重复送达 / 送达 / 日志尾巴 / 摘要的顺序
+// ---------------------------------------------------------------------------
+
+function feedbackWith({ key, receivedAt, createdAt = receivedAt, summary = '占位摘要文本', version = '0.24.0', receipt = key, tail = null, excluded = null }) {
+  const made = fakeFeedback({ key, receivedAt, receipt, version, summary })
+  made.record.payload.manifest.createdAt = createdAt
+  made.record.payload.manifest.entries = tail ? [{ path: 'logs/tail.txt', bytes: 10, what: '日志' }] : []
+  made.record.payload.manifest.excluded = excluded ? [{ what: 'logs/tail.txt', why: excluded }] : []
+  return made
+}
+
+const reportOf = (feedbackRecords, extra = {}) => buildIntakeReport({ feedbackRecords, eventRecords: [], trajectoriesCount: 0, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-11-01T00:00:00.000Z', ...extra })
+
+test('同一份报告送达多次：统计只算一条，最早到的是原件', () => {
+  const createdAt = '2026-10-20T08:00:00.000Z'
+  const records = [
+    feedbackWith({ key: 'feedback/2026-10-20/b.json', receipt: 'NF-1020-0002', receivedAt: '2026-10-20T09:00:00.000Z', createdAt }),
+    feedbackWith({ key: 'feedback/2026-10-20/a.json', receipt: 'NF-1020-0001', receivedAt: '2026-10-20T08:00:05.000Z', createdAt }),
+    feedbackWith({ key: 'feedback/2026-10-20/c.json', receipt: 'NF-1020-0003', receivedAt: '2026-10-20T10:00:00.000Z', createdAt }),
+    feedbackWith({ key: 'feedback/2026-10-20/other.json', receipt: 'NF-1020-0004', receivedAt: '2026-10-20T08:00:06.000Z', createdAt, summary: '另一件事' }),
+  ]
+  const items = buildFeedbackItems(records)
+  assert.equal(items.find((item) => item.id === 'NF-1020-0001').duplicateOf, null)
+  assert.equal(items.find((item) => item.id === 'NF-1020-0002').duplicateOf, 'NF-1020-0001')
+  assert.equal(items.find((item) => item.id === 'NF-1020-0003').duplicateOf, 'NF-1020-0001')
+  assert.equal(items.find((item) => item.id === 'NF-1020-0004').duplicateOf, null, '同一刻但说的是别的事，不是重复')
+
+  const report = reportOf(records, { newFeedbackKeys: records.map((record) => record.key) })
+  assert.equal(report.totals.feedbackCount, 2)
+  assert.equal(report.totals.duplicateDeliveries, 2)
+  assert.equal(report.totals.newFeedbackCount, 2, '重复的那几次不算新增')
+  assert.equal(report.delivery.duplicateDeliveries, 2)
+})
+
+test('老版本没有创建时间的不折叠：宁可多算，不能把两份不同的报告算成一份', () => {
+  const records = ['a', 'b'].map((name) => {
+    const made = feedbackWith({ key: `feedback/2026-09-01/${name}.json`, receivedAt: '2026-09-01T00:00:00.000Z' })
+    delete made.record.payload.manifest.createdAt
+    return made
+  })
+  assert.equal(buildFeedbackItems(records).filter((item) => item.duplicateOf).length, 0)
+})
+
+test('送达：一分钟内到的算直达，按版本分开看', () => {
+  const records = [
+    feedbackWith({ key: 'feedback/d/1.json', version: '0.24.0', createdAt: '2026-10-20T08:00:00.000Z', receivedAt: '2026-10-20T08:00:30.000Z' }),
+    feedbackWith({ key: 'feedback/d/2.json', version: '0.24.0', createdAt: '2026-10-20T09:00:00.000Z', receivedAt: '2026-10-20T09:01:00.000Z' }),
+    feedbackWith({ key: 'feedback/d/3.json', version: '0.24.0', createdAt: '2026-10-20T10:00:00.000Z', receivedAt: '2026-10-27T10:00:00.000Z' }),
+    feedbackWith({ key: 'feedback/d/4.json', version: '0.25.0', createdAt: '2026-10-20T11:00:00.000Z', receivedAt: '2026-10-20T11:00:01.000Z' }),
+  ]
+  const { delivery } = reportOf(records)
+  assert.deepEqual(delivery.byVersion.map((row) => row.version), ['0.25.0', '0.24.0'], '新版本在前')
+  const old = delivery.byVersion[1]
+  assert.equal(old.direct, 2)
+  assert.equal(old.late, 1)
+  assert.equal(old.directShare, 66.7)
+  assert.equal(old.slowestSeconds, 7 * 24 * 3600)
+  assert.equal(delivery.byVersion[0].directShare, 100)
+})
+
+test('日志尾巴：坏掉的那些老版本不报警，比它新的缺了才报警（29 份全空都没人发现，就因为没有东西在数）', () => {
+  const at = '2026-11-01T00:00:00.000Z'
+  const quiet = reportOf([
+    feedbackWith({ key: 'feedback/l/old.json', version: '0.24.1', receivedAt: at, excluded: 'logs-unavailable' }),
+    feedbackWith({ key: 'feedback/l/new.json', version: '0.24.2', receivedAt: at, summary: 'b', tail: true }),
+  ])
+  assert.deepEqual(quiet.logTail.alarms, [])
+  assert.deepEqual(quiet.logTail.byVersion.map((row) => [row.version, row.attached, row.total]), [['0.24.2', 1, 1], ['0.24.1', 0, 1]])
+  assert.deepEqual(quiet.logTail.byVersion[1].missing, { 'logs-unavailable': 1 })
+  assert.doesNotMatch(renderTerminalSummary(quiet), /没带日志尾巴/)
+
+  const loud = reportOf([
+    feedbackWith({ key: 'feedback/l/new-a.json', version: '0.24.2', receivedAt: at, summary: 'a', tail: true }),
+    feedbackWith({ key: 'feedback/l/new-b.json', version: '0.24.2', receivedAt: at, summary: 'b', excluded: 'logs-empty' }),
+  ])
+  assert.equal(loud.logTail.alarms.length, 1)
+  assert.match(renderTerminalSummary(loud), /0\.24\.2 有 1\/2 份反馈没带日志尾巴/)
+  assert.match(renderMarkdown(loud), /0\.24\.2：1\/2 份没带日志尾巴/)
+})
+
+test('终端摘要：新增、待分诊、报告路径都在尾部，判定在最后一行（hook 只留最后几行）', () => {
+  const key = 'feedback/2026-10-31/a.json'
+  const report = reportOf([feedbackWith({ key, receipt: 'NF-1031-0001', receivedAt: '2026-10-31T11:51:00.000Z' })], {
+    newFeedbackKeys: [key],
+    inbox: { rebuilt: false, items: { [key]: { id: 'NF-1031-0001', date: '2026-10-31', triagedAt: null, duplicateOf: null } } },
+  })
+  const lines = renderTerminalSummary(report, { mdPath: '/r/a.md', jsonPath: '/r/a.json' }).split('\n')
+  const tailLines = lines.slice(-6).join('\n')
+  assert.match(tailLines, /新增反馈 1 条/)
+  assert.match(tailLines, /待分诊 1 条：NF-1031-0001/)
+  assert.match(tailLines, /报告 → \/r\/a\.md/)
+  assert.equal(lines.at(-1), report.versionHealth.conclusion)
+  assert.equal(lines.filter((line) => line.includes('新增反馈')).length, 1, '只说一遍')
+})
+
+test('待分诊很多时终端只列最新几个，全部的在报告里，报告里有摘要可以直接分诊', () => {
+  const records = Array.from({ length: 8 }, (_item, index) => feedbackWith({ key: `feedback/2026-10-2${index}/x.json`, receipt: `NF-102${index}-0001`, receivedAt: `2026-10-2${index}T00:00:00.000Z`, summary: `占位 ${index}` }))
+  const inbox = { rebuilt: false, items: Object.fromEntries(records.map((record) => [record.key, { id: record.record.receipt, date: record.record.receivedAt.slice(0, 10), triagedAt: null, duplicateOf: null }])) }
+  const report = reportOf(records, { inbox })
+  const summary = renderTerminalSummary(report)
+  assert.match(summary, /待分诊 8 条：NF-1027-0001 NF-1026-0001 NF-1025-0001 NF-1024-0001 NF-1023-0001 …/)
+  const markdown = renderMarkdown(report)
+  assert.match(markdown, /## 待分诊（8 条）/)
+  for (let index = 0; index < 8; index += 1) assert.match(markdown, new RegExp(`占位 ${index}`))
+  assert.match(markdown, /--triaged/)
+})
+
+test('账上一条都没有时明说 0，新增 0 也照样有这一行', () => {
+  const report = reportOf([])
+  assert.match(renderTerminalSummary(report), /待分诊 0 条/)
+  assert.match(renderMarkdown(report), /## 待分诊（0 条）/)
+})
+
+test('账坏了重建：报告和摘要都要说，已出账的要再出一次', () => {
+  const report = reportOf([], { inbox: { rebuilt: true, items: {} } })
+  assert.match(renderTerminalSummary(report), /待分诊账坏了/)
+  assert.match(renderMarkdown(report), /账文件坏了/)
+})
+
+test('读不出来的反馈文件也在待分诊里：它也是用户发来的', () => {
+  const report = reportOf([], { inbox: { rebuilt: false, items: { 'feedback/2026-10-31/bad.json': { id: 'feedback/2026-10-31/bad.json', date: '2026-10-31', triagedAt: null, duplicateOf: null, unreadable: true } } } })
+  assert.equal(report.triage.count, 1)
+  assert.match(renderMarkdown(report), /这份文件读不出来/)
 })

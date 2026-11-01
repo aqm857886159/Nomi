@@ -1,0 +1,166 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-01-feedback-send-delivery",
+  "problem_type": "A report the user pressed Send on could stay unsent or be lost with nothing to retry it",
+  "symptom": "A Windows 0.24.0 report stopped at the sending line with the content checkbox ticked and nothing reached the receiver that day. In the stored reports, 10 of 26 unique ones arrived 30 minutes to 7 days late, and one report arrived four times.",
+  "direct_cause": "The send handler awaited an unbounded trajectory read before anything was saved. The report was queued only after a failed post, and nothing scheduled a retry after that, so a queued report waited for the next launch. The post had a fixed 8 second limit, too short for a 450 KB body on a slow link, and the receiver could accept a body the client had already given up on.",
+  "class_root": "The feedback path treated delivery as one attempt inside the user's wait. Nothing owned the promise that a report the user sent is durable first, retried without a restart, and answered within a bounded time.",
+  "affected_population": [
+    "Every desktop user on a slow or broken connection who sends a report from any failure surface or from settings",
+    "Users who send a report while an Agent turn is running, because the trajectory read queues behind derived view writes",
+    "Reports left in the queue file by older versions"
+  ],
+  "scope_paths": [
+    "electron/telemetry/intakeQueue.ts",
+    "electron/telemetry/intakeClient.ts",
+    "electron/feedback/feedbackSend.ts",
+    "electron/feedback/feedbackIpc.ts",
+    "src/ui/community/FeedbackReportCard.tsx",
+    "src/ui/community/FeedbackShareHost.tsx"
+  ],
+  "entry_points": [
+    "nomi:feedback:send from the four failure surfaces and from settings, all through FeedbackReportCard",
+    "flushIntakeQueue at app start for reports left by this or an older version",
+    "The retry timer inside intakeQueue after a failed attempt"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/getsentry/sentry-javascript/blob/develop/packages/core/src/transports/offline.ts",
+      "checked_at": "2026-11-01",
+      "purpose": "Offline transport retries on a doubling delay capped at one hour and takes one item at a time; data that cannot be lost is queued before it is sent. The queue here copies the doubling and the cap, and saves before sending."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/getsentry/sentry-docs/pull/15571.patch",
+      "checked_at": "2026-11-01",
+      "purpose": "Transport rules: network errors may be retried and an explicit server rejection must not block the queue. 400 and 413 are dropped from the queue here. 401, 403, 404 and 5xx stay on purpose: the token rotates with releases, so an update can still deliver what the user sent."
+    }
+  ],
+  "invariants": [
+    "A report is on disk before the first attempt, unless the disk refuses, and then the user is told when that attempt fails.",
+    "The card answers within a bounded time whatever the receiver or the main process does: trajectory 5 seconds, network wait 8 seconds, card watchdog 20 seconds.",
+    "A retryable failure schedules a retry in the running process with doubling delay, so delivery does not depend on a restart.",
+    "An explicit 400 or 413 never blocks the items behind it; 413 first retries once with attachments removed and keeps summary and note.",
+    "One item has at most one request in flight, shared between the user's send and the background flush.",
+    "The queue file keeps its shape, so older versions and older queued reports still read it."
+  ],
+  "doors": [
+    { "kind": "write", "path": "electron/feedback/feedbackIpc.ts", "symbol": "setIntakeTooLargeHandler" },
+    { "kind": "write", "path": "electron/feedback/feedbackIpc.ts", "symbol": "flushIntakeQueue" },
+    { "kind": "write", "path": "electron/feedback/feedbackSend.ts", "symbol": "submitIntake" },
+    { "kind": "write", "path": "electron/telemetry/intakeQueue.ts", "symbol": "flushIntakeQueue" },
+    { "kind": "write", "path": "electron/telemetry/intakeQueue.ts", "symbol": "postIntake" },
+    { "kind": "write", "path": "electron/telemetry/intakeQueue.ts", "symbol": "enqueueIntake" },
+    { "kind": "write", "path": "electron/telemetry/telemetryOutbox.ts", "symbol": "postIntake" },
+    { "kind": "read", "path": "electron/telemetry/intakeClient.ts", "symbol": "intakeTimeoutMs" },
+    { "kind": "read", "path": "src/ui/community/FeedbackReportCard.tsx", "symbol": "SEND_WATCHDOG_MS" },
+    { "kind": "read", "path": "src/ui/community/FeedbackShareHost.tsx", "symbol": "closeTimer" }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 10,
+    "why_not": "The door count went up because the old list was one send and one enqueue inline in feedbackIpc. Deciding when to save, retry and answer is now in one place, submitIntake, and it has one caller. The rest are not duplicates: flushIntakeQueue has the boot call and its own retry, postIntake has the queue and the separate telemetry outbox with its own contract, the timeout is read by the client only, and the two renderer doors only bound the wait and the close."
+  },
+  "generality_proof": "The feedback handler has no send logic left: it builds a report and calls sendFeedbackReport, which has one call to submitIntake. Every receiver answer, network failure and hang ends in one of the shapes that submitIntake returns, and each maps to one card state. The matrix walks every answer against a writable and an unwritable queue, so a new answer shape cannot leave the card waiting or the report unaccounted for without a row saying which fate it has.",
+  "shared_boundaries": [
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "submitIntake",
+      "responsibility": "Saves first, starts one delivery, waits at most waitMs and never throws. It is the only place that decides pending, lost, delivered or rejected."
+    },
+    {
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "sendItem",
+      "responsibility": "Classifies one attempt by status: 400 and 413 leave the queue, 413 shrinks once first, everything else stays and schedules a retry."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/feedback/feedbackSend.ts",
+      "entry_point": "sendFeedbackReport",
+      "disposition": "enforced",
+      "evidence": "The only caller of submitIntake. feedbackDelivery.matrix.test.ts drives it through every receiver answer and asserts the result the card renders."
+    },
+    {
+      "path": "electron/feedback/feedbackIpc.ts",
+      "entry_point": "registerFeedbackIpc",
+      "disposition": "enforced",
+      "evidence": "Registers the 413 handler before the boot flush, so a report queued by an older version can shrink too. intakeQueue.test.ts reads an old queue file and sends it."
+    },
+    {
+      "path": "electron/telemetry/telemetryOutbox.ts",
+      "entry_point": "flushTelemetryOutbox",
+      "disposition": "not-affected",
+      "evidence": "Anonymous counters with their own batch contract and consent gate. It only shares postIntake, whose timeout now grows with the body and stays about 8 seconds for its small batches; intakeClient.test.ts pins that."
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "entry_point": "buildFeedbackReport",
+      "disposition": "enforced",
+      "evidence": "The trajectory read races a 5 second timer and each attachment is isolated, so building cannot hold the card. feedbackReport.test.ts covers a read that never returns and each attachment throwing."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any slow link, proxy, receiver outage or running Agent turn reaches the same path on any platform, and stored reports show it happened repeatedly across versions.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs submitIntake enqueueIntake flushIntakeQueue postIntake setIntakeTooLargeHandler: one submit caller, two post callers",
+      "rg \"intakeQueue\" electron src: only feedback uses the queue in production; the trajectories kind has no production caller",
+      "Read of the 29 stored reports' manifest timestamps only: 16 of 26 unique arrived within 60 seconds"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/telemetry/intakeQueue.ts",
+    "invariant": "A report handed to the queue is saved before the first attempt and always gets an answer within waitMs, and every retryable failure schedules a retry.",
+    "failure_mode": "A receiver that never answers returns pending with the report on disk. A disk that refuses and a failed attempt return lost, which the card shows as not confirmed, keeping the note and the button.",
+    "exception_policy": "none",
+    "strategy": "The save, wait and retry rules moved out of the IPC handler into one queue function, so a caller has no way to send without them. The matrix lists every receiver answer and its fate.",
+    "artifacts": [
+      "electron/telemetry/intakeQueue.ts",
+      "electron/feedback/feedbackSend.ts",
+      "electron/feedback/feedbackDelivery.matrix.test.ts",
+      "tests/ux/feedback-delivery.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/feedback/feedbackDelivery.matrix.test.ts",
+    "electron/feedback/feedbackSend.test.ts",
+    "electron/feedback/feedbackReport.test.ts",
+    "electron/telemetry/intakeQueue.test.ts",
+    "electron/telemetry/intakeClient.test.ts",
+    "src/ui/community/FeedbackReportCard.test.tsx"
+  ],
+  "class_regression_tests": [
+    "electron/feedback/feedbackDelivery.matrix.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/feedback/feedbackIpc.ts"
+    ],
+    "rationale": "The inline post-then-enqueue in the send handler is gone. Nothing else sends a feedback report, and no fallback copy of the old order remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The delay is a doubling number and the store is the existing atomic JSON writer. Sentry's offline transport is tied to its envelope format and cannot carry these payloads.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. The queue file keeps its shape with one optional field, so reports queued by older versions are read and sent after the upgrade, and rolling back still reads the file. Those older reports have no log tail and are sent as they are.",
+  "residual_risks": [
+    "Which step held the original Windows report cannot be proven from stored data: it never arrived and there is no log. This closes every place that could hold it.",
+    "A lost response still means a duplicate, because the receiver has no idempotency key; the radar folds them by creation time and summary.",
+    "A report built in the seconds before the save is lost if the app quits there. The user has seen no receipt at that point.",
+    "Windows ran only through unit tests; there is no platform branch in this path."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-01",
+  "invariant_owner_layer": {
+    "layer": "electron/telemetry/intakeQueue.ts",
+    "tests": [
+      "electron/feedback/feedbackDelivery.matrix.test.ts",
+      "electron/telemetry/intakeQueue.test.ts"
+    ]
+  }
+}

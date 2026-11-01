@@ -228,18 +228,26 @@ export function builtinVendorScopeMatches(vendor: Vendor): boolean {
  */
 const HOST_TO_BUILTIN_VENDOR_KEY: ReadonlyMap<string, string> = new Map(
   BUILTIN_VENDOR_SEEDS.flatMap((seed) => {
-    if (!/^https?:\/\//i.test(seed.baseUrl)) return [];
-    let hostname: string;
-    try {
-      hostname = new URL(seed.baseUrl).hostname.toLowerCase();
-    } catch {
-      return [];
-    }
+    const hostname = seedHostname(seed);
     // 回环种子不参与别名（见上）。
-    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") return [];
-    return [[hostname, seed.key] as const];
+    return hostname === null || isLocalSeed(seed) ? [] : [[hostname, seed.key] as const];
   }),
 );
+
+function seedHostname(seed: VendorSeed): string | null {
+  if (!/^https?:\/\//i.test(seed.baseUrl)) return null;
+  try {
+    return new URL(seed.baseUrl).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/** 种子地址就在这台机器上：回环（ComfyUI 127.0.0.1:8188）或不走网络的 `local://`（Codex、本地语音）。 */
+export function isLocalSeed(seed: VendorSeed): boolean {
+  const hostname = seedHostname(seed);
+  return /^local:\/\//i.test(seed.baseUrl) || hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
+}
 
 /** 该 hostname 是否是我们内置认得的供应商；是则返回内置 vendorKey，否则 null。 */
 export function builtinVendorKeyForHostname(hostname: string): string | null {

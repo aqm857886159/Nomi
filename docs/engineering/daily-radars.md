@@ -11,7 +11,9 @@
 >
 > **技能不在就明说，不叫人去跑**：hook 对仍有技能的两个雷达（用户反馈 `nomi-intake-radar`、三日竞品 `nomi-competitive-radar`）先查 `agent-skills/<名>/SKILL.md`、`.claude/skills/<名>/SKILL.md`、`~/.claude/skills/<名>/SKILL.md`；不在就输出「技能 X 在这台机器上没有，今天没查成」。**论文雷达改为按需（2026-10-01 用户拍板），不再每日提醒**——用户想看时由协调会话跑；**模型雷达不恢复技能，分诊一律按 `docs/plan/2026-08-27-vendor-model-radar.md` 的规则由协调会话手做**。三日竞品雷达、分诊这几句要动手的提醒前面都有「只由协调会话做」。
 
-**③ 用户反馈雷达**：（SessionStart hook 已跑） `pnpm run intake:radar`（从 Cloudflare 增量拉用户反馈 / 匿名用量事件 / Agent 轨迹，算成功率、错误码排行、和上一窗口比的突增）。凭据由官方 `npx wrangler auth token --json` 提供（OAuth 过期由 Wrangler 自动刷新；账号 id 用 `NOMI_CF_ACCOUNT_ID` 或 `npx wrangler whoami`），脚本不读 Wrangler 配置文件。确定性脚本，不烧额度；有新反馈或有突增时才起 `nomi-intake-radar` 技能做分诊（归真 bug / 配置问题 / 体验问题 / 数据上报问题，挂私有待办）。脚本报错 = 明说「今天没查成」，**不许**说成「没有新反馈」。原始数据与报告只落仓库外缓存目录（`%LOCALAPPDATA%\nomi-intake\`，可用 `NOMI_INTAKE_CACHE` 改），不进仓库、不进提交。
+**③ 用户反馈雷达**：（SessionStart hook 已跑） `pnpm run intake:radar`（从 Cloudflare 增量拉用户反馈 / 匿名用量事件 / Agent 轨迹，算成功率、错误码排行、和上一窗口比的突增）。凭据由官方 `npx wrangler auth token --json` 提供（OAuth 过期由 Wrangler 自动刷新；账号 id 用 `NOMI_CF_ACCOUNT_ID` 或 `npx wrangler whoami`），脚本不读 Wrangler 配置文件。确定性脚本，不烧额度；待分诊不为 0 或有突增时才起 `nomi-intake-radar` 技能做分诊（归真 bug / 配置问题 / 体验问题 / 数据上报问题，挂私有待办）。脚本报错 = 明说「今天没查成」，**不许**说成「没有新反馈」。原始数据与报告只落仓库外缓存目录（`%LOCALAPPDATA%\nomi-intake\`，可用 `NOMI_INTAKE_CACHE` 改），不进仓库、不进提交。
+
+**「新增」和「待分诊」是两个数**：「新增 N 条」只回答这一轮多了什么，看过一次就清零；「待分诊 N 条」回答还有几条没人管，来自缓存目录的 `inbox.json`，hook 每次开会话现读（不走缓存摘要，脚本跑败也照报）。进账是自动的，出账必须说清记到了哪个待办：`pnpm run intake:radar -- --triaged <编号…> --todo <待办号或说明>`。每轮一份报告，文件名到秒，同一天多跑不会互相覆盖。
 
 **② 供应商模型雷达**：（SessionStart hook 已跑，带 `--no-liveness`）`pnpm run radar:models`（apimart / kie 有没有上新生图/生视频/音频模型）。确定性脚本，不烧额度；`新增 > 0` 时按 `docs/plan/2026-08-27-vendor-model-radar.md` 的分诊规则由协调会话手做。脚本报错 = 明说「今天没查成」，**不许**说成「没有新模型」。用户点头要接某个 → **先出接入方案**（契约摘要+档案设计+分档理由），点头后才写码。快照要等用户看过再 `-- --update-baseline`。
 
