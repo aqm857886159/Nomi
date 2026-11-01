@@ -49,12 +49,14 @@ function seedLogs(logsDir) {
   logFile(path.join(logsDir, `nomi-${day}.log`), 299)
 }
 
+// 都是内置家的兄弟连接：自建连接的模型和映射不出门（feedbackCatalog.ts），用自建夹具量到的是一份空目录。
+// 兄弟连接还要逐行换 key，是投影最费的一种。
 function seedCatalog(settingsDir) {
-  const vendors = Array.from({ length: 40 }, (_unused, index) => ({ key: `vendor-${index}`, name: `Vendor ${index}`, enabled: true, baseUrl: `https://api.vendor-${index}.example/v1` }))
+  const vendors = Array.from({ length: 40 }, (_unused, index) => ({ key: `apimart--bench-${index}`, name: `Bench ${index}`, enabled: true, baseUrlHint: 'https://api.apimart.ai' }))
   const mappings = []
   const filler = 'x'.repeat(200)
   while (JSON.stringify({ vendors, mappings }).length < CATALOG_BYTES) {
-    mappings.push({ vendorKey: `vendor-${mappings.length % 40}`, modelKey: `model-${mappings.length}`, stage: 'submit', note: filler })
+    mappings.push({ vendorKey: `apimart--bench-${mappings.length % 40}`, modelKey: `model-${mappings.length}`, stage: 'submit', note: filler })
   }
   const apiKeysByVendor = Object.fromEntries(vendors.map(({ key }) => [key, { vendorKey: key, enabled: true }]))
   fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({ version: 1, vendors, models: [], mappings, apiKeysByVendor }))
@@ -81,10 +83,12 @@ const queueLength = (queueFile) => {
 }
 
 // 接收端：ok 立刻回编号；hang 收了不答。
-const receiver = { mode: 'ok', accepted: 0, sequence: 0 }
+const receiver = { mode: 'ok', accepted: 0, sequence: 0, lastFeedbackBytes: 0 }
 const server = createServer((request, response) => {
-  request.on('data', () => undefined)
+  let bytes = 0
+  request.on('data', (chunk) => { bytes += chunk.length })
   request.on('end', () => {
+    if (request.url === '/v1/feedback') receiver.lastFeedbackBytes = bytes
     if (request.url === '/v1/feedback' && receiver.mode === 'hang') return
     receiver.accepted += 1
     receiver.sequence += 1
@@ -112,7 +116,7 @@ function startSampler(app) {
   }
 }
 
-const REQUEST = { surface: 'generation', summary: 'bench', includeContent: false, provider: 'vendor-0' }
+const REQUEST = { surface: 'generation', summary: 'bench', includeContent: false, provider: 'apimart' }
 const send = (win) => win.evaluate((request) => window.nomiDesktop.feedback.send(request), REQUEST)
 
 const metrics = { mainRoundTripMax: [], feedbackQueuedSendRoundTripMax: [], feedbackQueueDrainRoundTripMax: [] }
@@ -135,6 +139,8 @@ try {
   seedCatalog(settingsDir)
   // 预热：第一次组包要载模块，不算进数字里。
   await send(win)
+  // 目录要真的进了包，否则量的不是最坏规模（投影改过一次，这个夹具就悄悄变成了一份空目录）。
+  if (receiver.lastFeedbackBytes < CATALOG_BYTES * 0.8) throw new Error(`The report carried only ${receiver.lastFeedbackBytes} bytes, so this is not the worst case`)
 
   for (let run = 0; run < runs; run += 1) {
     const idleStop = startSampler(app)
