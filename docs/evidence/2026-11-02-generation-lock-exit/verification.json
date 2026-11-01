@@ -2836,5 +2836,14 @@
     }
   ],
   "idleConclusion": "Longest active timer 300000ms; before302063ms/current301911ms stable. No whole-window freeze reproduced. Manual retrieval600s and video1200s were not active.",
-  "visualReview": "docs/evidence/2026-11-02-generation-lock-exit/visual-review.json"
+  "visualReview": "docs/evidence/2026-11-02-generation-lock-exit/visual-review.json",
+  "deliveryChecks": {
+    "testedHead": "a28899b73574a37f0eb56a4cd030941df7dbb2f0",
+    "prePushExit": 1,
+    "prePushSeconds": 47.6,
+    "prePushOnlyBlock": "fixedInPr must be a genuine positive PR number; coordinator-only PR creation has not happened",
+    "testNetworkGuardForPrePush": "unset",
+    "finalFetchMerge": "Already up to date; origin/main29313b236",
+    "workingTreeAfterTests": "clean"
+  }
 }
