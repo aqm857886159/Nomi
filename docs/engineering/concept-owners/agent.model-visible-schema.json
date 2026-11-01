@@ -1,0 +1,49 @@
+{
+  "name": "模型可见工具 schema 的通用标准发布合同",
+  "subject": "agent.model-visible-schema",
+  "lifecycle": "author",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+    "symbol": "toPublishedJsonSchema"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "path": "electron/capabilityCore/modelSchemaStandardCheck.ts",
+      "symbol": "collectStandardSchemaFailures"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "symbol": "toRuntimeJsonSchema"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneToolSchema.mts",
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+    "electron/capabilityCore/modelSchemaStandardCheck.ts",
+    "electron/shared/agentCapabilities/flatModelInput.ts",
+    "electron/shared/agentCapabilities/modelFacingTools.ts",
+    "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+    "electron/shared/agentCapabilities/verbDeclaration.ts",
+    "electron/shared/agentCapabilities/verbs/verbFieldProvenance.ts",
+    "scripts/check-model-schema.ts",
+    "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts"
+  ],
+  "since": "2026-10-29",
+  "notes": "Zod 为唯一入参真相源；这里派生 JSON Schema 2020-12 / OpenAI 普通 function parameters 的通用形状。标准外已知约束转换为说明，原 Zod 校验保持不变；未知形状由单一白名单拒绝。生成期、存量棘轮、MCP 投影共用。标准形状交现有 Ajv 元 schema，不另写校验器。 MCP 执行视图保留原传输验证强度；与标准模型视图同源派生，不手抄第二份定义。"
+}

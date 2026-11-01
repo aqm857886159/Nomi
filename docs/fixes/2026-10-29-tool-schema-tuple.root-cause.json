@@ -1,0 +1,314 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-tool-schema-tuple",
+  "problem_type": "Model schemas lack a standards-based publication invariant",
+  "symptom": "The user could not split a manuscript into shots: the whole Agent request was rejected as Invalid request parameters three times.",
+  "direct_cause": "Two homogeneous fixed-length source arrays were Zod tuples; publication emitted array-valued items. The shared vendor check accepted this shape. Gateway-side causality is still unverified.",
+  "class_root": "No shared standards whitelist or Zod-derived conversion for unsupported shapes.",
+  "affected_population": [
+    "Agent requests carrying the resident tool catalog",
+    "MCP consumers of the same tool definitions",
+    "Persisted scene vectors and director plan windows"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+    "electron/agentLane/laneToolSchema.mts",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "scripts/check-model-schema.ts",
+    "electron/shared/agentCapabilities/modelFacingTools.ts",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/modelSchemaMetaValidator.generated.cjs",
+    "electron/capabilityCore/modelSchemaStandardCheck.ts",
+    ".dependency-cruiser.mjs",
+    "scripts/check-boundaries.mjs"
+  ],
+  "entry_points": [
+    "Agent lane generation-time validation",
+    "Production schema ratchet including MCP",
+    "Scene import and director plan execution / compilation"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://json-schema.org/draft/2020-12/json-schema-core",
+      "checked_at": "2026-10-29",
+      "purpose": "2020-12 items and references"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas",
+      "checked_at": "2026-10-29",
+      "purpose": "Supported keywords and recursion"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling#strict-mode",
+      "checked_at": "2026-10-29",
+      "purpose": "Non-strict function parameter contract"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ajv.js.org/standalone.html",
+      "checked_at": "2026-10-29",
+      "purpose": "Precompile without runtime string code generation; preserve renderer CSP and Electron context restrictions."
+    }
+  ],
+  "invariants": [
+    "Common JSON Schema 2020-12 / OpenAI keyword and shape whitelist without new vendor rules.",
+    "Zod runtime contracts and persisted arrays unchanged; unsupported declarations become description instructions.",
+    "Every Zod tuple is converted at the shared derivation boundary.",
+    "MCP protocol validates the derived execution view, never the model projection; original string bounds/defaults/tuple rules remain enforced before domain dispatch."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneToolSchema.mts",
+      "symbol": "collectVendorCompatibilityFailures"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneToolSchema.mts",
+      "symbol": "collectStandardSchemaFailures"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "runtimeInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "symbol": "runtimeInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpToolCatalog.ts",
+      "symbol": "runtimeInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "symbol": "collectStandardSchemaFailures"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "runtimeInputSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneToolSchema.mts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "transportSchemaFromZod"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpToolCatalog.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/flatModelInput.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "symbol": "toRuntimeJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "symbol": "toStandardModelSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/verbDeclaration.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentCapabilities/verbs/verbFieldProvenance.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts",
+      "symbol": "toPublishedJsonSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelSchemaMetaValidator.generated.cjs",
+      "symbol": "I"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelSchemaStandardCheck.ts",
+      "symbol": "collectStandardSchemaFailures"
+    }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 25,
+    "why_not": "Existing lane, MCP, fingerprint, declaration, provenance and storyboard prompt consumers remain distinct. Regenerated the final map for shared publication, execution, normalization and collector symbols; counted the two generated module exports (I) as the same static meta-validator in CJS/ESM formats. Every caller retains the single derivation and whitelist. scripts/check-model-schema.ts is outside default door-map roots and checked separately. No caller-specific exception or independent schema policy survives."
+  },
+  "generality_proof": "Shared derivation converts nested tuples, deferred key/string/default constraints and dialect metadata; relocates references; unsupported unknown shapes fail one shared standard collector. Full 54 tool census and unchanged runtime Zod matrix cover both profiles.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "symbol": "toPublishedJsonSchema",
+      "responsibility": "Derive common schema from canonical Zod."
+    },
+    {
+      "path": "electron/capabilityCore/modelSchemaStandardCheck.ts",
+      "symbol": "collectStandardSchemaFailures",
+      "responsibility": "One shared standards whitelist for generation, MCP and ratchet."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneToolSchema.mts",
+      "entry_point": "assertModelVisibleSchemaLossless",
+      "disposition": "enforced",
+      "evidence": "toModelVisibleSchema invokes the shared standard, structural and existing vendor collectors at derivation."
+    },
+    {
+      "path": "scripts/check-model-schema.ts",
+      "entry_point": "analyse",
+      "disposition": "enforced",
+      "evidence": "Every production internal and MCP schema invokes collectStandardSchemaFailures through the single owner."
+    },
+    {
+      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "entry_point": "transportSchemaFromZod",
+      "disposition": "enforced",
+      "evidence": "Existing MCP aggregate projection uses shared normalizer and whitelist."
+    },
+    {
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "entry_point": "validateToolArguments",
+      "disposition": "enforced",
+      "evidence": "MCP_TOOL_RESOLVER derives the retained runtimeInputSchema from the canonical source; this existing SDK validator reads it instead of the model projection. The empty/long/Unicode production journey is the regression."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any tool author can reintroduce either tuple dialect at a nested schema position and reject a whole tool-bearing request. Both vec3 and window already used the same shape.",
+    "same_class_scan": [
+      "rg z.tuple electron/shared: aiSceneSchema vec3 and directorPlanSchema window",
+      "rg collectVendorCompatibilityFailures electron scripts: lane generation and schema ratchet",
+      "node scripts/door-map.mjs collectVendorCompatibilityFailures; node scripts/door-map.mjs aiSceneSchema; node scripts/door-map.mjs directorPlanSchema",
+      "Full production registry / pi factory / request helper / MCP resolver census in scripts/check-model-schema.node-test.mjs"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/modelSchemaStandardCheck.ts",
+    "invariant": "Common JSON Schema 2020-12 / OpenAI keyword and shape whitelist without new vendor rules.",
+    "failure_mode": "Generation throws ModelSchemaInformationLoss, MCP and the ratchet report unsupported schema, runtime returns existing structured errors.",
+    "exception_policy": "none",
+    "strategy": "Standard whitelist + derivation-layer conversion + isolated real-gateway journey. Canonical Zod rejects runtime violations; unknown features fail publication.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "electron/agentLane/laneToolSchema.mts",
+      "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "electron/capabilityCore/mcpToolCatalog.ts",
+      "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+      "electron/capabilityCore/mcpProtocol.ts",
+      "electron/capabilityCore/modelSchemaMetaValidator.generated.cjs",
+      "electron/capabilityCore/modelSchemaStandardCheck.ts",
+      ".dependency-cruiser.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-model-schema.node-test.mjs",
+    "scripts/check-boundaries.renderer-cjs.test.mjs",
+    "electron/shared/director/directorPlanSchema.test.ts",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.test.ts",
+    "tests/agent-runtime/lane-tool-schema.test.mts",
+    "electron/capabilityCore/mcpRealUserJourneys.test.ts",
+    "electron/capabilityCore/projectSessionDispatch.test.ts",
+    "electron/capabilityCore/mcpGenerationParity.test.ts"
+  ],
+  "class_regression_tests": [
+    "scripts/check-model-schema.node-test.mjs",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.test.ts",
+    "electron/capabilityCore/mcpRealUserJourneys.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpTransportSchemaFromZod.ts"
+    ],
+    "rationale": "Independent MCP whitelist removed; existing aggregate projection retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "zod 3.25.76, zod-to-json-schema 3.25.1 and development-only Ajv 8.20.0; official 2020-12 meta-schema compiled to one self-contained CJS validator on the main-process side; the renderer uses conversion only and never reaches it (R-B7).",
+    "target": "A future Zod / converter upgrade that preserves the fixed-array transport contract",
+    "rationale": "The converter correctly emitted draft-07 tuples. The missing application publication invariant, not a converter bug, owns this repair.",
+    "exit_criteria": [
+      "On the next Zod / converter upgrade, rerun the full production schema census and nested tuple rejection matrix.",
+      "Rerun legacy JSON round trips and the real-gateway walkthrough before removing this publication rule."
+    ]
+  },
+  "migration": "No migration: original Zod tuple contracts and stored JSON values remain unchanged.",
+  "residual_risks": [
+    "Real gateway acceptance and Windows reproduction await coordination paid run.",
+    "HTTP acceptance does not prove valid tools or two persisted shots.",
+    "Existing root-union and const rules unchanged; follow-up should rederive them from common standards."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+    "tests": [
+      "scripts/check-model-schema.node-test.mjs"
+    ],
+    "why": "Shared publication compatibility rules own schema shape for both generation and the ratchet."
+  }
+}

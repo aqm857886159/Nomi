@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { toStandardModelSchema } from '../../electron/shared/agentCapabilities/modelVisibleJsonSchema.js';
 
 import {
   ModelSchemaInformationLoss,
@@ -23,7 +24,7 @@ const build = (schema: z.ZodTypeAny) =>
 
 /** 把「作者写的契约」与「被抹平后的产物」对上，返回门岗报出的缺失清单。 */
 function lossFrom(contract: z.ZodTypeAny, flattened: z.ZodTypeAny): string[] {
-  const json = zodToJsonSchema(flattened, { $refStrategy: 'none' }) as Record<string, unknown>;
+  const json = toStandardModelSchema(zodToJsonSchema(flattened, { $refStrategy: 'none' }) as Record<string, unknown>);
   try {
     assertModelVisibleSchemaLossless(contract, json, { toolName: 'probe' });
   } catch (error) {
@@ -65,8 +66,10 @@ test('min/max cross the bridge for strings, numbers and arrays — and dropped b
     shots: z.array(z.string()).min(1).max(10),
   }).strict();
   const properties = build(contract).properties as Record<string, Record<string, unknown>>;
-  assert.equal(properties.title.minLength, 1);
-  assert.equal(properties.title.maxLength, 80);
+  assert.match(String(properties.title.description), /minLength=1/);
+  assert.equal(properties.title.minLength, undefined);
+  assert.match(String(properties.title.description), /maxLength=80/);
+  assert.equal(properties.title.maxLength, undefined);
   assert.equal(properties.count.minimum, 1);
   assert.equal(properties.count.maximum, 24);
   assert.equal(properties.shots.minItems, 1);
@@ -179,7 +182,7 @@ test('G-05 · const is refused even though nothing was lost — Google’s legac
   const raw = zodToJsonSchema(withLiteral, { $refStrategy: 'none' }) as Record<string, unknown>;
   assert.equal((raw.properties as Record<string, { const?: string }>).scope.const, 'full');
 
-  assert.equal(refusal(withLiteral).filter((line) => line.includes('const')).length, 1,
+  assert.equal(refusal(withLiteral).filter((line) => line.includes('用了 const')).length, 1,
     'exactly one line, and it says which construct to use instead');
 
   // 阳性对照：同一个值写成 `z.enum` 就通过，产物是 `{"type":"string","enum":["full"]}`
@@ -202,7 +205,7 @@ test('数值界：产物更紧算过桥，产物更松必须红', () => {
   // **真正的**放松——所以两个方向各钉一条。
   const contract = z.object({ frame: z.number().int().min(0).max(100) }).strict();
   // 更紧：契约说 ≥0，产物说 ≥10。模型能填的比契约允许的少，不是信息丢失。
-  const tightened = zodToJsonSchema(z.object({ frame: z.number().int().min(10).max(90) }).strict(), { $refStrategy: 'none' }) as Record<string, unknown>;
+  const tightened = toStandardModelSchema(zodToJsonSchema(z.object({ frame: z.number().int().min(10).max(90) }).strict(), { $refStrategy: 'none' }) as Record<string, unknown>);
   assert.doesNotThrow(() => assertModelVisibleSchemaLossless(contract, tightened, { toolName: 'probe' }));
   // 更松：契约说 ≥0，产物说 ≥-100。模型会以为 -50 能填，然后在执行边界被拒——
   // 而拒绝的理由来自一个它从没被告知过的约束。这正是门岗要拦的那一族。
