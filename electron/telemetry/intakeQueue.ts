@@ -52,7 +52,10 @@ export type IntakeDelivery =
  * 交一件货给队列的结果。
  * `pending` = 已落盘，界面等不到回答但后台还在发；`lost` = 存不下来也没能确认发出去，只有这时候货可能真没了。
  */
-export type IntakeSubmission = Exclude<IntakeDelivery, { status: 'failed' }> | { status: 'pending' | 'lost' }
+export type IntakeSubmission =
+  | Exclude<IntakeDelivery, { status: 'failed' }>
+  | { status: 'pending' }
+  | { status: 'lost' }
 
 function queuePath(kind: IntakeQueueKind): string {
   return path.join(getSettingsRoot(), `intake-queue-${kind}.json`)

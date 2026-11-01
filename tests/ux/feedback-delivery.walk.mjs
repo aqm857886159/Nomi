@@ -41,9 +41,8 @@ const failures = []
 const check = (ok, message) => { if (!ok) failures.push(message) }
 
 // ── 埋进日志的东西 ─────────────────────────────────────────────────────────────
-// nomi-secret-scan:allow 合成靶子，不是任何真实账号的 key
+// 都是合成靶子，不是任何真实账号的 key。
 const SECRET_SK = 'sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf'
-// nomi-secret-scan:allow 合成靶子
 const SECRET_AWS = 'AKIAIOSFODNN7EXAMPLE'
 const LONG_BASE64 = 'V2Fsa0JERUZHSElKS0xNTk9QUVJTVFVWV1hZWmFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6'
 // 埋进日志的假路径，不是这台机器上的位置；分段拼，因为门岗不许脚本里出现主目录形状的字面量。

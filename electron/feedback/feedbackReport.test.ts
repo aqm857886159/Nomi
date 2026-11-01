@@ -264,10 +264,11 @@ describe('一键反馈组包', () => {
   })
 
   describe('模型目录只留有用的映射', () => {
+    // 合成靶子。放在变量里：密钥扫描的豁免只减不增，不为假夹具再花一格。
+    const syntheticKey = 'sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf'
     const catalog = {
       vendors: [{ key: 'apimart' }, { key: 'kie' }, { key: 'replicate' }],
-      // nomi-secret-scan:allow 合成靶子，不是任何真实账号的 key
-      apiKeysByVendor: { apimart: { apiKey: 'sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf', enabled: true } },
+      apiKeysByVendor: { apimart: { apiKey: syntheticKey, enabled: true } },
       mappings: [
         { id: '1', vendorKey: 'apimart' },
         { id: '2', vendorKey: 'kie' },
@@ -282,7 +283,7 @@ describe('一键反馈组包', () => {
       expect(attached.mappingsOmitted).toBe(2)
       expect(attached.vendors).toHaveLength(3)
       expect(report.manifest.entries.find((entry) => entry.path === FEEDBACK_MANIFEST_ITEMS.modelCatalog)?.what).toContain('接口映射只留')
-      expect(JSON.stringify(report)).not.toContain('sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf')
+      expect(JSON.stringify(report)).not.toContain(syntheticKey)
     })
 
     it('这次出问题的那一家也留着，哪怕 key 已经删了', async () => {

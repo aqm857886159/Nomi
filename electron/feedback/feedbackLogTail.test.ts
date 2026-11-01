@@ -13,10 +13,8 @@ const projected = (body: string): string => {
   return result.slice(`[${TS}] `.length)
 }
 
-// 测试密钥扫描器不认这些：都是合成靶子，断言的就是它们不许出现在产物里。
-// nomi-secret-scan:allow 合成靶子，不是任何真实账号的 key
+// 都是合成靶子，断言的就是它们不许出现在产物里。
 const SECRET_SK = 'sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf'
-// nomi-secret-scan:allow 合成靶子
 const SECRET_AWS = 'AKIAIOSFODNN7EXAMPLE'
 const LONG_BASE64 = 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg'
 
