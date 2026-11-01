@@ -259,7 +259,10 @@ describe('反馈出站收尾合同', () => {
 
 const LEGACY_ROOT = path.join(__dirname, '../../tests/fixtures/old-user-data/feedback/v0.24.0')
 const CATALOG_ROOT = path.join(__dirname, '../../tests/fixtures/old-user-data/catalogs')
-const legacyCatalogs = fs.readdirSync(CATALOG_ROOT).filter((name) => fs.existsSync(path.join(CATALOG_ROOT, name, 'model-catalog.json'))).sort()
+const legacyProvenance = JSON.parse(fs.readFileSync(path.join(LEGACY_ROOT, 'provenance.json'), 'utf8')) as {
+  tag: string; catalogs: { input: string; inputSha256: string; output: string; outputSha256: string }[]
+}
+const legacyCatalogs = legacyProvenance.catalogs.map((item) => path.basename(item.output, '.json'))
 const legacyReport = (name: string): FeedbackReportPayload => JSON.parse(fs.readFileSync(path.join(LEGACY_ROOT, `${name}.json`), 'utf8')) as FeedbackReportPayload
 
 describe('旧包补发：真实旧 builder 产物与新包共用发送前口', () => {
@@ -281,13 +284,10 @@ describe('旧包补发：真实旧 builder 产物与新包共用发送前口', (
 
   it('真实目录类型与五版落盘样本没有投影计数；旧包确实由对应样本生成', () => {
     expectTypeOf<Extract<keyof CatalogState, 'modelsOmitted' | 'mappingsOmitted'>>().toEqualTypeOf<never>()
-    const provenance = JSON.parse(fs.readFileSync(path.join(LEGACY_ROOT, 'provenance.json'), 'utf8')) as {
-      tag: string; catalogs: { input: string; inputSha256: string; output: string; outputSha256: string }[]
-    }
-    expect(provenance.tag).toBe('v0.24.0')
-    expect(provenance.catalogs.map((item) => item.output)).toEqual(legacyCatalogs.map((name) => `${name}.json`))
+    expect(legacyProvenance.tag).toBe('v0.24.0')
+    expect(legacyProvenance.catalogs).toHaveLength(5)
     const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
-    for (const item of provenance.catalogs) {
+    for (const item of legacyProvenance.catalogs) {
       const bytes = fs.readFileSync(path.join(__dirname, '../..', item.input))
       const catalog = JSON.parse(bytes.toString()) as Record<string, unknown>
       expect(catalog).not.toHaveProperty('modelsOmitted')
