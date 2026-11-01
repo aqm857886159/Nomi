@@ -22,6 +22,7 @@ async function editQueuedShot(input, surface) {
     await page.locator('[data-storyboard-batch]').click(); await page.locator('[data-spend-confirm-dialog] [data-spend-confirm-action="confirm"]').click()
     await expect.poll(() => proxy.records.length, { timeout: stationTimeout({ operations: 5 }) }).toBe(3)
     fixture.holdTasks(true)
+    await expect.poll(async () => (await nodes()).length, { timeout: stationTimeout({ operations: 5 }) }).toBe(5)
     const node = (await nodes()).find(n => n.meta?.shotId === design.plan.shots[2].shotId)
     assert.ok(node)
     if (surface === 'storyboard') {

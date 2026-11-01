@@ -1,3 +1,4 @@
+import { waitForVisualQuiescence } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -9,7 +10,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-unknown-runs', uiText('en', 'generationCommon.observability.error.storyboardContentChanged')]
+export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-unknown-runs']
 export const LOCK_EXIT_SCRIPT = '清晨，林薇在旧书店找到一封信。她走到窗边，最后把信放在桌上。'
 const dialog = '[data-spend-confirm-dialog]'
 const timeout = stationTimeout({ turns: 1 })
@@ -202,7 +203,9 @@ export async function generationLockExitJourney(input) {
 
 /** Mounted-editor A4 slice: serial assets expose whole-plan comparison regressions. */
 export async function a4LockExitJourney(input) {
-  const { page, projectId, proxy } = input
+  const { page, projectId, proxy, locale, screenshotDir } = input
+  const screenshots = []
+  const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-a4-${name}.png`); await page.screenshot({ path: file }); screenshots.push(file) }
   const design = await prepareLockExitStoryboard(input)
   await openCanvas(page)
   await page.waitForFunction(() => typeof window.__nomiSetBatchConcurrency === 'function')
@@ -211,17 +214,20 @@ export async function a4LockExitJourney(input) {
   proxy.setLimit(5)
   await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible()
   assert.equal(await page.locator(dialog).count(), 1)
+  await shot('confirm')
   await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click()
-  let batchNodes
+  let batchNodes, assetsSeen = false
   await expect.poll(async () => {
     batchNodes = (await readProject(page, projectId)).payload.generationCanvas.nodes
+    if (!assetsSeen && batchNodes.filter(n => n.meta?.anchorId && n.result).length === 2) { assetsSeen = true; await shot('assets'); await page.locator('[data-storyboard-scroll]').evaluate(e => { e.scrollTop = e.scrollHeight }); await shot('shot-references') }
     return batchNodes.length > 0 && batchNodes.every(n => n.result || n.status === 'error')
       && (batchNodes.length >= 5 || await page.locator('[data-place-storyboard]').isEnabled())
   }, { timeout }).toBe(true)
   assert.equal(batchNodes.filter(n => n.result).length, 5, 'A4: mounted-editor batch ended before five images')
   assert.equal(proxy.records.length, 5)
   assert.ok(proxy.records.slice(2).every(r => /@image\d/.test(r.prompt) && r.referenceCount > 0), 'A4: shot HTTP requests contain mentions and generated references')
-  return { checks: { mountedEditor: true, assetsBeforeShots: true, allFiveHttp: true }, requests: structuredClone(proxy.records) }
+  await shot('all-results')
+  return { checks: { mountedEditor: true, assetsBeforeShots: true, allFiveHttp: true }, screenshots, requests: structuredClone(proxy.records) }
 }
 
 export async function prepareLockExitStoryboard({ page, projectId, model, textLabel, fixture }) {

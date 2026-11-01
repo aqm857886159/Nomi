@@ -1,18 +1,19 @@
 {
   "version": 1,
   "change": {
-    "title": "批量生成锁退出：部分验收",
-    "headSha": "81d4dfda376ad60b7b26e77bd87db30eb0be82eb",
-    "headNote": "source owners validated by 413 selected tests, five typechecks and a build; acceptance remains partial",
-    "userCan": "列表批量入口可派发，三页可显示并释放未知结果；合同要求的完整付费确认闭环未完成。",
+    "title": "批量生成恢复：实现与分项验收",
+    "headSha": "b74242b4775b16af7383268fabc7a1986ea3d60e",
+    "headNote": "Source owners are implemented; complete four-stage rehearsal remains stopped, not passed.",
+    "userCan": "三页查看队列与失败、人工放行未知结果；完整真实付费闭环未验证。",
     "changed": [
-      "三页共享失败判据和恢复面",
-      "本机拒绝单独分类",
-      "排队状态读队列"
+      "按执行节点保护输入",
+      "三页共享失败动作和恢复面",
+      "本机拒绝单独分类与队列去重"
     ],
     "removed": [
-      "重复的整方案作者守卫",
-      "单行永久 retrying"
+      "两份整方案作者守卫",
+      "永久 retrying",
+      "重复的错误卡和动作判断"
     ]
   },
   "scenarioId": "browse-away-during-long-task",
@@ -28,135 +29,179 @@
       "window": "1280×860 offscreen isolated Electron",
       "language": "zh-CN / en",
       "theme": "light",
-      "boundary": "fake providers and a local two-request proxy; no billing"
+      "boundary": "Fake providers; concurrency caps vary by case; no billing"
     },
     "attempts": [
       {
-        "label": "baseline free rehearsal",
-        "result": "fail",
-        "note": "Expected five dispatched items; only two asset requests were made."
-      },
-      {
-        "label": "fixed free rehearsal 1",
-        "result": "fail",
-        "note": "creation page had no canvas test bridge; not a product-regression receipt"
-      },
-      {
-        "label": "fixed free rehearsal 2",
-        "result": "fail",
-        "note": "fixture omitted authored anchor bindings; not a product-regression receipt"
-      },
-      {
-        "label": "fixed free rehearsal 3",
-        "result": "fail",
-        "note": "build freshness rejected changed source tests; not a product-regression receipt"
-      },
-      {
-        "label": "three pages 1 zh-CN",
-        "result": "fail",
-        "note": "navigation helper expected canvas while list was persisted"
-      },
-      {
-        "label": "three pages 1 en",
-        "result": "fail",
-        "note": "navigation helper expected canvas while list was persisted"
-      },
-      {
-        "label": "three pages 2 zh-CN",
-        "result": "fail",
-        "note": "single-user generation skipped the required confirmation"
-      },
-      {
-        "label": "three pages 2 en",
-        "result": "fail",
-        "note": "single-user generation skipped the required confirmation"
-      },
-      {
-        "label": "three pages 3 zh-CN",
-        "result": "fail",
-        "note": "nine functional checks passed but confirmation remained missing"
-      },
-      {
-        "label": "three pages 3 en",
-        "result": "fail",
-        "note": "nine functional checks passed but confirmation remained missing"
-      },
-      {
-        "label": "independent list entry zh-CN",
+        "label": "en-a4LockExitJourney.json",
         "result": "pass",
-        "note": "Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task."
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-a4LockExitJourney.json"
       },
       {
-        "label": "independent list entry en",
+        "label": "zh-CN-a4LockExitJourney.json",
         "result": "pass",
-        "note": "Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task."
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-a4LockExitJourney.json"
       },
       {
-        "label": "list entry after owner reuse zh-CN",
+        "label": "en-agentMountedLockExitJourney.json",
         "result": "pass",
-        "note": "all three functional checks; process exit zero"
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-agentMountedLockExitJourney.json"
       },
       {
-        "label": "list entry after owner reuse en",
+        "label": "en-agentUnmountedLockExitJourney.json",
         "result": "pass",
-        "note": "all three functional checks; process exit zero"
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-agentUnmountedLockExitJourney.json"
       },
       {
-        "label": "list entry after final owner repair zh-CN",
+        "label": "zh-CN-agentMountedLockExitJourney.json",
         "result": "pass",
-        "note": "all three functional checks; exit 1 solely quiet-walk foreground detection, allowed by task"
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentMountedLockExitJourney.json"
       },
       {
-        "label": "list entry after final owner repair en",
+        "label": "zh-CN-agentUnmountedLockExitJourney.json",
         "result": "pass",
-        "note": "all three functional checks; exit 1 solely quiet-walk foreground detection, allowed by task"
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentUnmountedLockExitJourney.json"
+      },
+      {
+        "label": "en-editedCanvasLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedCanvasLockExitJourney.json"
+      },
+      {
+        "label": "en-editedListLockExitJourney.json",
+        "result": "fail",
+        "note": "locator.fill: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-composer-host=\"canvas\"]:visible [contenteditable=\"true\"]').first()\u001b[22m\n",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedListLockExitJourney.json"
+      },
+      {
+        "label": "en-editedStoryboardLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedStoryboardLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-editedCanvasLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedCanvasLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-editedListLockExitJourney.json",
+        "result": "fail",
+        "note": "locator.fill: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-composer-host=\"canvas\"]:visible [contenteditable=\"true\"]').first()\u001b[22m\n",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedListLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-editedStoryboardLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedStoryboardLockExitJourney.json"
+      },
+      {
+        "label": "en-httpEightLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-httpEightLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-httpEightLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-httpEightLockExitJourney.json"
+      },
+      {
+        "label": "en-matrixLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-matrixLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-matrixLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-matrixLockExitJourney.json"
+      },
+      {
+        "label": "en-listEntryLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-listEntryLockExitJourney.json"
+      },
+      {
+        "label": "en-threePageLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-threePageLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-listEntryLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-listEntryLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-threePageLockExitJourney.json",
+        "result": "pass",
+        "note": "Functional assertions passed; see raw receipt",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-threePageLockExitJourney.json"
+      },
+      {
+        "label": "en-singleActionsLockExitJourney.json",
+        "result": "fail",
+        "note": "expect(locator).toBeVisible() failed\n\nLocator:  locator('.generation-canvas-v2__stage')\nExpected: visible\nReceived: hidden\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('.generation-canvas-v2__stage')\n    14 × locator resolved to <section data-ready=\"true\" data-shortcut-surface=\"canvas\" aria-label=\"AI visual creation canvas\" data-nomi-generation-canvas-import-target=\"true\" class=\"generation-canvas-react-flow generation-canvas-v2__stage group/canvas [&[data-drop-active=true]_:is(.generation-canvas-v2-node\\_\\_composer,[data-node-floating-toolbar],[data-version-card-bar],[data-version-card],.generation-canvas-react-flow\\_\\_handle-hit,.generation-canvas-v2\\_\\_selection-toolbar,.generation-canvas-v2\\_\\_group-toolbar)]:!pointer-event…>…</section>\n       - unexpected value \"hidden\"\n",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-singleActionsLockExitJourney.json"
+      },
+      {
+        "label": "zh-CN-singleActionsLockExitJourney.json",
+        "result": "fail",
+        "note": "expect(locator).toBeVisible() failed\n\nLocator:  locator('.generation-canvas-v2__stage')\nExpected: visible\nReceived: hidden\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('.generation-canvas-v2__stage')\n    14 × locator resolved to <section data-ready=\"true\" aria-label=\"AI 影像创作画布\" data-shortcut-surface=\"canvas\" data-nomi-generation-canvas-import-target=\"true\" class=\"generation-canvas-react-flow generation-canvas-v2__stage group/canvas [&[data-drop-active=true]_:is(.generation-canvas-v2-node\\_\\_composer,[data-node-floating-toolbar],[data-version-card-bar],[data-version-card],.generation-canvas-react-flow\\_\\_handle-hit,.generation-canvas-v2\\_\\_selection-toolbar,.generation-canvas-v2\\_\\_group-toolbar)]:!pointer-events-none [&[data-d…>…</section>\n       - unexpected value \"hidden\"\n",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-singleActionsLockExitJourney.json"
+      },
+      {
+        "label": "complete repaired four-stage rehearsal",
+        "result": "fail",
+        "note": "expect(locator).toBeEnabled() failed\n\nLocator:  locator('[data-storyboard-batch]')\nExpected: enabled\nReceived: disabled\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.enabled\" with timeout 5000ms\n  - waiting for locator('[data-storyboard-batch]')\n    14 × locator resolved to <button disabled type=\"button\" data-storyboard-batch=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-8 px-3 text-body-sm border-0 bg-nomi-ink text-nomi-paper hover:enabled:bg-nomi-accent disabled:hover:bg-nomi-ink\">…</button>\n       - unexpected value \"disabled\"\n"
+      },
+      {
+        "label": "final merge-base rehearsal",
+        "result": "fail",
+        "note": "A4: batch ended before dispatching all three shots\n\n2 !== 5\n"
       }
     ],
     "metrics": [
       {
-        "name": "完整分镜资产与镜头 POST",
+        "name": "修前完整批量 HTTP",
         "unit": "requests",
         "baseline": 2,
         "current": null,
         "n": 1,
         "basis": "script-count",
-        "note": "baseline expected five; fixed full rehearsal stopped after three setup failures"
+        "note": "Baseline reproduction only; no repaired four-stage success receipt."
       },
       {
-        "name": "独立列表入口每语言 POST",
-        "unit": "requests",
-        "baseline": null,
-        "current": 6,
-        "n": 2,
-        "basis": "script-count",
-        "note": "three initial requests (one rejected), then three serial requests; five forwarded"
-      },
-      {
-        "name": "列表中文窗口响应最长等待",
+        "name": "修后分镜阶段静置",
         "unit": "ms",
         "baseline": null,
-        "current": 127,
-        "n": 32,
+        "current": 301911,
+        "n": 1,
         "basis": "script-count",
-        "note": "latest independent list replay; earlier observations 49ms/31 and 146ms/23"
+        "note": "Stable for over the 300s Run observer horizon; later script oracle failed."
       },
       {
-        "name": "列表英文窗口响应最长等待",
+        "name": "修后静置演练最长窗口响应",
         "unit": "ms",
-        "baseline": null,
-        "current": 238,
-        "n": 32,
+        "baseline": 8,
+        "current": 15,
+        "n": 331,
         "basis": "script-count",
-        "note": "latest independent list replay; earlier observations 53ms/32 and 324ms/32"
-      },
-      {
-        "name": "合同要求的单卡付费确认",
-        "unit": "dialogs",
-        "baseline": null,
-        "current": 0,
-        "n": 2,
-        "basis": "script-count",
-        "note": "both languages follow the existing skip-confirmation policy"
+        "note": "A whole-window freeze was not reproduced."
       }
     ]
   },
@@ -166,45 +211,65 @@
   },
   "guardrails": [
     {
-      "name": "不自动重发结果不明的请求",
+      "name": "按执行节点保护；自身输入仍不许偷换",
       "result": "pass",
-      "evidence": "host tests and three-page refused-click counts"
+      "evidence": "confirmedProjectContinuation and guarded queued-edit receipts"
     },
     {
-      "name": "改一镜只拒这一镜",
-      "result": "fail",
-      "evidence": "confirmedProjectContinuation changed-node case executes once instead of twice"
+      "name": "单用户生成按既定政策无普通确认卡",
+      "result": "pass",
+      "evidence": "eight-HTTP and three-page release receipts"
     },
     {
-      "name": "失败重试与放行先弹付费确认",
+      "name": "完整四段免费演练",
       "result": "fail",
-      "evidence": "three-page checks spendConfirmation=false in both languages"
+      "evidence": "Stopped after three attempts; paid receipt guard stays closed"
     },
     {
       "name": "整窗冻结复现",
       "result": "unverified",
-      "evidence": "no greater-than-two-second probe in the independent list journey; complete four stages not measured"
+      "evidence": "No measured greater-than-two-second response"
     }
   ],
   "friction": {
-    "moment": "用户已核对，现有单卡策略直接重发；完整分镜修后演练未拿到成功收据。",
-    "decision": "保留失败，不以独立列表绿灯替代整轮验收；付费入口禁止运行，待合同差异处理。"
+    "moment": "结果不明要由人核对；三页已有同一出口，完整四段演练仍缺绿灯。",
+    "decision": "保留失败与停点，未调用付费入口。"
   },
   "unverified": [
     {
-      "item": "完整四段真实场景和修后免费演练",
-      "owner": "implementation and coordinator",
-      "recheck": "resolve contract differences and the stopped rehearsal item"
+      "item": "The complete repaired four-stage rehearsal is not green; the coordinator must authorize another attempt before spending.",
+      "owner": "coordinator / independent acceptance",
+      "recheck": "See verification.json and local handoff report"
     },
     {
-      "item": "Windows and real billing",
-      "owner": "independent acceptance",
-      "recheck": "a green shared four-stage rehearsal and explicit paid execution by coordinator"
+      "item": "List queued-edit real-window check stopped after its third locator/setup failure; underlying per-node input class tests pass.",
+      "owner": "coordinator / independent acceptance",
+      "recheck": "See verification.json and local handoff report"
     },
     {
-      "item": "真人 SEQ / 操作观察",
-      "owner": "human review",
-      "recheck": "real participant session"
+      "item": "Changing to a more expensive model during asset generation can exceed the original confirmation; this item is stopped without changing spend policy.",
+      "owner": "coordinator / independent acceptance",
+      "recheck": "See verification.json and local handoff report"
+    },
+    {
+      "item": "New performance scenario has numeric measurements but no approved baseline; no baseline or gate was changed.",
+      "owner": "coordinator / independent acceptance",
+      "recheck": "See verification.json and local handoff report"
+    },
+    {
+      "item": "Escape entry is fixed as directed; a genuine fixedInPr cannot be filled before a PR exists.",
+      "owner": "coordinator / independent acceptance",
+      "recheck": "See verification.json and local handoff report"
+    },
+    {
+      "item": "Single-actions walk stopped after three setup/oracle failures: canvas/list retries and queued preemption lack a real-window receipt; storyboard retry and three-page result synchronization passed.",
+      "owner": "coordinator / independent acceptance",
+      "recheck": "See verification.json and local handoff report"
+    },
+    {
+      "item": "Windows, real billing, human SEQ and independent acceptance are unverified.",
+      "owner": "coordinator / independent acceptance",
+      "recheck": "See verification.json and local handoff report"
     }
   ],
   "evidence": [

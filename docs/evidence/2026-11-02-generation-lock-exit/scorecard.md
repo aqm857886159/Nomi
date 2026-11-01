@@ -1,85 +1,38 @@
-# 体验成绩单：批量生成锁退出：部分验收
+# 体验成绩单：批量生成恢复
 
-- 改动：批量生成锁退出：部分验收
-- 验收 head：`81d4dfda376ad60b7b26e77bd87db30eb0be82eb`（source owners validated by 413 selected tests, five typechecks and a build; acceptance remains partial）
-- 场景 id：`browse-away-during-long-task`
-- 谁验：Codex implementation（self-check; not independent acceptance）
-- 日期：2026-11-02
+验收源码：`b74242b4775b16af7383268fabc7a1986ea3d60e`。机器为 Mac、1280×860、中英亮色、隔离假服务商；没有真实付费或真人评分。
 
-**用户这次能完成：**列表批量入口可派发，三页可显示并释放未知结果；合同要求的完整付费确认闭环未完成。
+完整四段演练未通过，不能把分项通过写成整轮完成。旧口径把单卡不弹普通确认卡判为失败，已由更新合同撤销；当前按既定单卡政策验收。失败尝试的本地原始日志保留，当前有效结果如下。
 
-**能力变化：**新增：无；改变：三页共享失败判据和恢复面、本机拒绝单独分类、排队状态读队列；去掉：重复的整方案作者守卫、单行永久 retrying
-
-## 结果
-
-- 机器：完成 **6 / 16**（失败 10 条，原样列在下表，不丢）
-- 首次尝试成功：null（未采集：需要真人首次操作，AI 不代填）
-
-| 尝试 | 结果 | 说明 | 证据 |
-| --- | --- | --- | --- |
-| baseline free rehearsal | **失败** | Expected five dispatched items; only two asset requests were made. |  |
-| fixed free rehearsal 1 | **失败** | creation page had no canvas test bridge; not a product-regression receipt |  |
-| fixed free rehearsal 2 | **失败** | fixture omitted authored anchor bindings; not a product-regression receipt |  |
-| fixed free rehearsal 3 | **失败** | build freshness rejected changed source tests; not a product-regression receipt |  |
-| three pages 1 zh-CN | **失败** | navigation helper expected canvas while list was persisted |  |
-| three pages 1 en | **失败** | navigation helper expected canvas while list was persisted |  |
-| three pages 2 zh-CN | **失败** | single-user generation skipped the required confirmation |  |
-| three pages 2 en | **失败** | single-user generation skipped the required confirmation |  |
-| three pages 3 zh-CN | **失败** | nine functional checks passed but confirmation remained missing |  |
-| three pages 3 en | **失败** | nine functional checks passed but confirmation remained missing |  |
-| independent list entry zh-CN | 通过 | Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task. |  |
-| independent list entry en | 通过 | Three functional checks passed; process exit 1 solely from quiet-walk foreground detection, allowed by the task. |  |
-| list entry after owner reuse zh-CN | 通过 | all three functional checks; process exit zero |  |
-| list entry after owner reuse en | 通过 | all three functional checks; process exit zero |  |
-| list entry after final owner repair zh-CN | 通过 | all three functional checks; exit 1 solely quiet-walk foreground detection, allowed by task |  |
-| list entry after final owner repair en | 通过 | all three functional checks; exit 1 solely quiet-walk foreground detection, allowed by task |  |
-
-## 机器测的
-
-来源：walk-log
-设备 / 窗口 / 语言：macOS arm64 / 1280×860 offscreen isolated Electron / zh-CN / en / light。边界：fake providers and a local two-request proxy; no billing
-
-| 主指标 / 指标 | 现状 → 当前 | 单位 | 样本数 | 口径 | 备注 |
-| --- | --- | --- | --- | --- | --- |
-| 完整分镜资产与镜头 POST | 2 → null | requests | 1 | 未采 | baseline expected five; fixed full rehearsal stopped after three setup failures |
-| 独立列表入口每语言 POST | null → 6 | requests | 2 | 脚本计数（真事件，非采集器） | three initial requests (one rejected), then three serial requests; five forwarded |
-| 列表中文窗口响应最长等待 | null → 127 | ms | 32 | 脚本计数（真事件，非采集器） | latest independent list replay; earlier observations 49ms/31 and 146ms/23 |
-| 列表英文窗口响应最长等待 | null → 238 | ms | 32 | 脚本计数（真事件，非采集器） | latest independent list replay; earlier observations 53ms/32 and 324ms/32 |
-| 合同要求的单卡付费确认 | null → 0 | dialogs | 2 | 脚本计数（真事件，非采集器） | both languages follow the existing skip-confirmation policy |
-
-## 真人给的（和上面分开记）
-
-- SEQ（1–7）：null（未采集）
-- 误点：null · 回退：null · 求助：null · 首次尝试成功：null
-
-## 护栏
-
-| 护栏 | 结果 | 证据 / 说明 |
+| 分项 | 结果 | 原始收据 |
 | --- | --- | --- |
-| 不自动重发结果不明的请求 | 通过 | host tests and three-page refused-click counts |
-| 改一镜只拒这一镜 | **失败** | confirmedProjectContinuation changed-node case executes once instead of twice |
-| 失败重试与放行先弹付费确认 | **失败** | three-page checks spendConfirmation=false in both languages |
-| 整窗冻结复现 | 未验证 | no greater-than-two-second probe in the independent list journey; complete four stages not measured |
+| en-a4LockExitJourney.json | 过 | [JSON](receipts/en-a4LockExitJourney.json) |
+| zh-CN-a4LockExitJourney.json | 过 | [JSON](receipts/zh-CN-a4LockExitJourney.json) |
+| en-agentMountedLockExitJourney.json | 过 | [JSON](receipts/en-agentMountedLockExitJourney.json) |
+| en-agentUnmountedLockExitJourney.json | 过 | [JSON](receipts/en-agentUnmountedLockExitJourney.json) |
+| zh-CN-agentMountedLockExitJourney.json | 过 | [JSON](receipts/zh-CN-agentMountedLockExitJourney.json) |
+| zh-CN-agentUnmountedLockExitJourney.json | 过 | [JSON](receipts/zh-CN-agentUnmountedLockExitJourney.json) |
+| en-editedCanvasLockExitJourney.json | 过 | [JSON](receipts/en-editedCanvasLockExitJourney.json) |
+| en-editedListLockExitJourney.json | 未通过 | [JSON](receipts/en-editedListLockExitJourney.json) |
+| en-editedStoryboardLockExitJourney.json | 过 | [JSON](receipts/en-editedStoryboardLockExitJourney.json) |
+| zh-CN-editedCanvasLockExitJourney.json | 过 | [JSON](receipts/zh-CN-editedCanvasLockExitJourney.json) |
+| zh-CN-editedListLockExitJourney.json | 未通过 | [JSON](receipts/zh-CN-editedListLockExitJourney.json) |
+| zh-CN-editedStoryboardLockExitJourney.json | 过 | [JSON](receipts/zh-CN-editedStoryboardLockExitJourney.json) |
+| en-httpEightLockExitJourney.json | 过 | [JSON](receipts/en-httpEightLockExitJourney.json) |
+| zh-CN-httpEightLockExitJourney.json | 过 | [JSON](receipts/zh-CN-httpEightLockExitJourney.json) |
+| en-matrixLockExitJourney.json | 过 | [JSON](receipts/en-matrixLockExitJourney.json) |
+| zh-CN-matrixLockExitJourney.json | 过 | [JSON](receipts/zh-CN-matrixLockExitJourney.json) |
+| en-listEntryLockExitJourney.json | 过 | [JSON](receipts/en-listEntryLockExitJourney.json) |
+| en-threePageLockExitJourney.json | 过 | [JSON](receipts/en-threePageLockExitJourney.json) |
+| zh-CN-listEntryLockExitJourney.json | 过 | [JSON](receipts/zh-CN-listEntryLockExitJourney.json) |
+| zh-CN-threePageLockExitJourney.json | 过 | [JSON](receipts/zh-CN-threePageLockExitJourney.json) |
+| en-singleActionsLockExitJourney.json | 未通过 | [JSON](receipts/en-singleActionsLockExitJourney.json) |
+| zh-CN-singleActionsLockExitJourney.json | 未通过 | [JSON](receipts/zh-CN-singleActionsLockExitJourney.json) |
 
-## 最大摩擦点与决定
+修前按最终同一脚本运行，预期红；修改过的生产文件均按字节还原。修后完整免费演练第三次分镜阶段与五分钟静置完成，随后被错误的按钮断言中断；已修脚本，没有第四次运行。
 
-- 摩擦：用户已核对，现有单卡策略直接重发；完整分镜修后演练未拿到成功收据。
-- 决定：保留失败，不以独立列表绿灯替代整轮验收；付费入口禁止运行，待合同差异处理。
-- 协调决定：待协调（通过 / 退回 / 明示延期）
+真人 SEQ、误点、回退、求助、首次成功均未采集。Windows、真实模型、付费与独立验收未验证。
 
-## 没验证的
+价格风险：资产期间用户改成更贵模型，第二阶段读最新方案而原确认明细未更新；按裁决单独停止。
 
-| 缺口 | owner | 复查条件 |
-| --- | --- | --- |
-| 完整四段真实场景和修后免费演练 | implementation and coordinator | resolve contract differences and the stopped rehearsal item |
-| Windows and real billing | independent acceptance | a green shared four-stage rehearsal and explicit paid execution by coordinator |
-| 真人 SEQ / 操作观察 | human review | real participant session |
-
-## 证据路径
-
-- docs/evidence/2026-11-02-generation-lock-exit/verification.json
-- tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png
-- tests/ux/shots/generation-lock-exit/zh-CN-unknown-list-detail-light.png
-- tests/fixtures/old-user-data/runs/v0.24.0-canvas-unknown/manifest.json
-
-> 这一页不出总分：机器数、真人数、护栏、未验证各看各的。
+完整分项、HTTP 计数、反例 SHA、性能与截图限制见 [verification.json](verification.json)。

@@ -1,21 +1,229 @@
 {
   "status": "partial",
-  "network": "fake providers only; NOMI_TEST_NETWORK_GUARD=1; isolated offscreen Electron",
-  "build": "handoff-build.exit=0, both frontend and Electron; the final subsequent changes are evidence/contract metadata only",
-  "baseline": {
-    "sha": "31e80bbd362bd15af441e2e4b5c8e1c6a8c5a11f",
-    "freeRehearsal": "failed",
-    "expectedPosts": 5,
-    "actualPosts": 2,
-    "allProductionBytesRestored": true,
-    "windowResponseMaxMs": 8,
-    "warning": "No window-freeze reproduction; the user-visible work lock is reproduced."
-  },
+  "network": "fake providers only; guarded isolated Electron; no paid execution",
+  "sourceCommit": "b74242b4775b16af7383268fabc7a1986ea3d60e",
   "walks": [
     {
-      "journey": "three-pages",
-      "language": "zh-CN",
-      "status": "partial",
+      "journey": "en-a4LockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "mountedEditor": true,
+        "assetsBeforeShots": true,
+        "allFiveHttp": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-a4LockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-a4LockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "mountedEditor": true,
+        "assetsBeforeShots": true,
+        "allFiveHttp": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-a4LockExitJourney.json"
+    },
+    {
+      "journey": "en-agentMountedLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "agentEntry": true,
+        "fiveHttp": true,
+        "references": true,
+        "noFalseConflict": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-agentMountedLockExitJourney.json"
+    },
+    {
+      "journey": "en-agentUnmountedLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "agentEntry": true,
+        "fiveHttp": true,
+        "references": true,
+        "noFalseConflict": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-agentUnmountedLockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-agentMountedLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "agentEntry": true,
+        "fiveHttp": true,
+        "references": true,
+        "noFalseConflict": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentMountedLockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-agentUnmountedLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "agentEntry": true,
+        "fiveHttp": true,
+        "references": true,
+        "noFalseConflict": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-agentUnmountedLockExitJourney.json"
+    },
+    {
+      "journey": "en-editedCanvasLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "onlyEditedShotWithheld": true,
+        "otherFourSubmitted": true,
+        "allThreeSurfaces": true
+      },
+      "imagePosts": 4,
+      "forwarded": 4,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedCanvasLockExitJourney.json"
+    },
+    {
+      "journey": "en-editedListLockExitJourney.json",
+      "status": "failed",
+      "error": "locator.fill: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-composer-host=\"canvas\"]:visible [contenteditable=\"true\"]').first()\u001b[22m\n",
+      "checks": {},
+      "imagePosts": 3,
+      "forwarded": 3,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedListLockExitJourney.json"
+    },
+    {
+      "journey": "en-editedStoryboardLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "onlyEditedShotWithheld": true,
+        "otherFourSubmitted": true,
+        "allThreeSurfaces": true
+      },
+      "imagePosts": 4,
+      "forwarded": 4,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-editedStoryboardLockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-editedCanvasLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "onlyEditedShotWithheld": true,
+        "otherFourSubmitted": true,
+        "allThreeSurfaces": true
+      },
+      "imagePosts": 4,
+      "forwarded": 4,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedCanvasLockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-editedListLockExitJourney.json",
+      "status": "failed",
+      "error": "locator.fill: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-composer-host=\"canvas\"]:visible [contenteditable=\"true\"]').first()\u001b[22m\n",
+      "checks": {},
+      "imagePosts": 3,
+      "forwarded": 3,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedListLockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-editedStoryboardLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "onlyEditedShotWithheld": true,
+        "otherFourSubmitted": true,
+        "allThreeSurfaces": true
+      },
+      "imagePosts": 4,
+      "forwarded": 4,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-editedStoryboardLockExitJourney.json"
+    },
+    {
+      "journey": "en-httpEightLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "A1": true,
+        "B1": true,
+        "B4": true,
+        "B5": true
+      },
+      "imagePosts": 9,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-httpEightLockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-httpEightLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "A1": true,
+        "B1": true,
+        "B4": true,
+        "B5": true
+      },
+      "imagePosts": 9,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-httpEightLockExitJourney.json"
+    },
+    {
+      "journey": "en-matrixLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "E5": true,
+        "E7": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-matrixLockExitJourney.json"
+    },
+    {
+      "journey": "zh-CN-matrixLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "E5": true,
+        "E7": true
+      },
+      "imagePosts": 5,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-matrixLockExitJourney.json"
+    },
+    {
+      "journey": "en-listEntryLockExitJourney.json",
+      "status": "passed",
+      "error": null,
+      "checks": {
+        "listHeaderOncePerNode": true,
+        "classifiedSmallCard": true,
+        "actualQueue": true
+      },
+      "imagePosts": 6,
+      "forwarded": 5,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-listEntryLockExitJourney.json"
+    },
+    {
+      "journey": "en-threePageLockExitJourney.json",
+      "status": "passed",
+      "error": null,
       "checks": {
         "queue": true,
         "listModelChip": true,
@@ -24,47 +232,19 @@
         "anchorHasExit": true,
         "restart": true,
         "releaseTargetsOriginalRun": true,
-        "spendConfirmation": false,
+        "singleReleaseWithoutExtraDialog": true,
         "anchorRelease": true,
-        "canvasRelease": true
+        "canvasRelease": true,
+        "taskCenterRelease": true
       },
-      "imagePosts": 16,
-      "forwarded": 13,
-      "maxWindowResponseMs": null,
-      "heartbeatSamples": 0,
-      "blocked": [
-        "spend-confirmation-policy"
-      ],
-      "screenshots": [
-        "tests/ux/shots/generation-lock-exit/zh-CN-queue-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-queue-canvas.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-queue-list-small.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-queue-list-rail.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-queue-storyboard.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-429-canvas.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-429-list-small.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-429-list-detail.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-unknown-canvas-light.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-unknown-list-detail-light.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-shot.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-anchor.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-anchor-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-canvas.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-list.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-storyboard.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-release-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-released-result.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-storyboard-anchor-released-result.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-canvas-release-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-canvas-released-result.png"
-      ],
-      "screenshotRevision": "54bcef6de"
+      "imagePosts": 18,
+      "forwarded": 14,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-threePageLockExitJourney.json"
     },
     {
-      "journey": "list-entry",
-      "language": "zh-CN",
+      "journey": "zh-CN-listEntryLockExitJourney.json",
       "status": "passed",
+      "error": null,
       "checks": {
         "listHeaderOncePerNode": true,
         "classifiedSmallCard": true,
@@ -72,22 +252,12 @@
       },
       "imagePosts": 6,
       "forwarded": 5,
-      "maxWindowResponseMs": 49,
-      "heartbeatSamples": 31,
-      "blocked": [],
-      "screenshots": [
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png"
-      ],
-      "screenshotRevision": "54bcef6de"
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-listEntryLockExitJourney.json"
     },
     {
-      "journey": "three-pages",
-      "language": "en",
-      "status": "partial",
+      "journey": "zh-CN-threePageLockExitJourney.json",
+      "status": "passed",
+      "error": null,
       "checks": {
         "queue": true,
         "listModelChip": true,
@@ -96,179 +266,66 @@
         "anchorHasExit": true,
         "restart": true,
         "releaseTargetsOriginalRun": true,
-        "spendConfirmation": false,
+        "singleReleaseWithoutExtraDialog": true,
         "anchorRelease": true,
-        "canvasRelease": true
+        "canvasRelease": true,
+        "taskCenterRelease": true
       },
-      "imagePosts": 16,
-      "forwarded": 13,
-      "maxWindowResponseMs": null,
-      "heartbeatSamples": 0,
-      "blocked": [
-        "spend-confirmation-policy"
-      ],
-      "screenshots": [
-        "tests/ux/shots/generation-lock-exit/en-queue-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-queue-canvas.png",
-        "tests/ux/shots/generation-lock-exit/en-queue-list-small.png",
-        "tests/ux/shots/generation-lock-exit/en-queue-list-rail.png",
-        "tests/ux/shots/generation-lock-exit/en-queue-storyboard.png",
-        "tests/ux/shots/generation-lock-exit/en-429-canvas.png",
-        "tests/ux/shots/generation-lock-exit/en-429-list-small.png",
-        "tests/ux/shots/generation-lock-exit/en-429-list-detail.png",
-        "tests/ux/shots/generation-lock-exit/en-429-storyboard.png",
-        "tests/ux/shots/generation-lock-exit/en-unknown-canvas-light.png",
-        "tests/ux/shots/generation-lock-exit/en-unknown-list-detail-light.png",
-        "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-shot.png",
-        "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-anchor.png",
-        "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-anchor-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-restart-unknown-canvas.png",
-        "tests/ux/shots/generation-lock-exit/en-restart-unknown-list.png",
-        "tests/ux/shots/generation-lock-exit/en-restart-unknown-storyboard.png",
-        "tests/ux/shots/generation-lock-exit/en-list-release-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-list-released-result.png",
-        "tests/ux/shots/generation-lock-exit/en-storyboard-anchor-released-result.png",
-        "tests/ux/shots/generation-lock-exit/en-canvas-release-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-canvas-released-result.png"
-      ],
-      "screenshotRevision": "54bcef6de"
+      "imagePosts": 18,
+      "forwarded": 14,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-threePageLockExitJourney.json"
     },
     {
-      "journey": "list-entry",
-      "language": "en",
-      "status": "passed",
+      "journey": "en-singleActionsLockExitJourney.json",
+      "status": "failed",
+      "error": "expect(locator).toBeVisible() failed\n\nLocator:  locator('.generation-canvas-v2__stage')\nExpected: visible\nReceived: hidden\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('.generation-canvas-v2__stage')\n    14 × locator resolved to <section data-ready=\"true\" data-shortcut-surface=\"canvas\" aria-label=\"AI visual creation canvas\" data-nomi-generation-canvas-import-target=\"true\" class=\"generation-canvas-react-flow generation-canvas-v2__stage group/canvas [&[data-drop-active=true]_:is(.generation-canvas-v2-node\\_\\_composer,[data-node-floating-toolbar],[data-version-card-bar],[data-version-card],.generation-canvas-react-flow\\_\\_handle-hit,.generation-canvas-v2\\_\\_selection-toolbar,.generation-canvas-v2\\_\\_group-toolbar)]:!pointer-event…>…</section>\n       - unexpected value \"hidden\"\n",
       "checks": {
-        "listHeaderOncePerNode": true,
-        "classifiedSmallCard": true,
-        "actualQueue": true
+        "batchCancel": true,
+        "E3/storyboard": true,
+        "E9": true
       },
-      "imagePosts": 6,
-      "forwarded": 5,
-      "maxWindowResponseMs": 53,
-      "heartbeatSamples": 32,
-      "blocked": [],
-      "screenshots": [
-        "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
-        "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
-        "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png"
-      ],
-      "screenshotRevision": "54bcef6de"
+      "imagePosts": 11,
+      "forwarded": 7,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/en-singleActionsLockExitJourney.json"
     },
     {
-      "journey": "list-entry-after-owner-reuse",
-      "language": "zh-CN",
-      "status": "passed",
-      "processExit": 0,
+      "journey": "zh-CN-singleActionsLockExitJourney.json",
+      "status": "failed",
+      "error": "expect(locator).toBeVisible() failed\n\nLocator:  locator('.generation-canvas-v2__stage')\nExpected: visible\nReceived: hidden\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for locator('.generation-canvas-v2__stage')\n    14 × locator resolved to <section data-ready=\"true\" aria-label=\"AI 影像创作画布\" data-shortcut-surface=\"canvas\" data-nomi-generation-canvas-import-target=\"true\" class=\"generation-canvas-react-flow generation-canvas-v2__stage group/canvas [&[data-drop-active=true]_:is(.generation-canvas-v2-node\\_\\_composer,[data-node-floating-toolbar],[data-version-card-bar],[data-version-card],.generation-canvas-react-flow\\_\\_handle-hit,.generation-canvas-v2\\_\\_selection-toolbar,.generation-canvas-v2\\_\\_group-toolbar)]:!pointer-events-none [&[data-d…>…</section>\n       - unexpected value \"hidden\"\n",
       "checks": {
-        "listHeaderOncePerNode": true,
-        "classifiedSmallCard": true,
-        "actualQueue": true
+        "batchCancel": true,
+        "E3/storyboard": true,
+        "E9": true
       },
-      "imagePosts": 6,
-      "forwarded": 5,
-      "maxWindowResponseMs": 146,
-      "heartbeatSamples": 23,
-      "screenshots": [
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png"
-      ]
-    },
-    {
-      "journey": "list-entry-after-owner-reuse",
-      "language": "en",
-      "status": "passed",
-      "processExit": 0,
-      "checks": {
-        "listHeaderOncePerNode": true,
-        "classifiedSmallCard": true,
-        "actualQueue": true
-      },
-      "imagePosts": 6,
-      "forwarded": 5,
-      "maxWindowResponseMs": 324,
-      "heartbeatSamples": 32,
-      "screenshots": [
-        "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
-        "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
-        "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png"
-      ]
-    },
-    {
-      "journey": "list-entry-after-final-owner-repair",
-      "language": "zh-CN",
-      "status": "passed",
-      "processExit": 1,
-      "exitReason": "only quiet-walk foreground detection; functionality passed",
-      "checks": {
-        "listHeaderOncePerNode": true,
-        "classifiedSmallCard": true,
-        "actualQueue": true
-      },
-      "imagePosts": 6,
-      "forwarded": 5,
-      "maxWindowResponseMs": 127,
-      "heartbeatSamples": 32,
-      "screenshots": [
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
-        "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png"
-      ]
-    },
-    {
-      "journey": "list-entry-after-final-owner-repair",
-      "language": "en",
-      "status": "passed",
-      "processExit": 1,
-      "exitReason": "only quiet-walk foreground detection; functionality passed",
-      "checks": {
-        "listHeaderOncePerNode": true,
-        "classifiedSmallCard": true,
-        "actualQueue": true
-      },
-      "imagePosts": 6,
-      "forwarded": 5,
-      "maxWindowResponseMs": 238,
-      "heartbeatSamples": 32,
-      "screenshots": [
-        "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
-        "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
-        "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
-        "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png"
-      ]
+      "imagePosts": 11,
+      "forwarded": 7,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-singleActionsLockExitJourney.json"
     }
   ],
   "mutations": [
     {
       "id": "01-whole-plan",
-      "file": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "exit": 1,
-      "assertionFailures": 1,
+      "shaBefore": "21f03e5c2bf8d10af465e3de7abb9c456e3bc2a7327c707097f2983502dd27b9",
+      "buildExit": 0,
+      "walkExit": 1,
+      "errors": [
+        "A4: mounted-editor batch ended before five images\n\n1 !== 5\n",
+        "A4: mounted-editor batch ended before five images\n\n1 !== 5\n"
+      ],
       "red": true,
-      "first": "A9/A10: approval scopes global fields and references plus selected shots; runtime scopes only its own row, including keyframes",
-      "shaBefore": "4bd39b9f3ac1bef136ee28ccb7b76ca54496882c207831da095ab730ff61f847",
-      "byteRestored": true,
-      "acceptanceLimit": "class-level only; required mounted-editor A4 mutation not verified"
+      "shaRestored": "21f03e5c2bf8d10af465e3de7abb9c456e3bc2a7327c707097f2983502dd27b9"
     },
     {
       "id": "02-no-phase-refresh",
-      "file": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "exit": 1,
-      "assertionFailures": 1,
+      "shaBefore": "11abd5271aa653ed2ce20862ca11b05a9369f99533de2e201406504a9a56979f",
+      "buildExit": 0,
+      "walkExit": 1,
+      "errors": [
+        "A4: mounted-editor batch ended before five images\n\n2 !== 5\n",
+        "A4: mounted-editor batch ended before five images\n\n2 !== 5\n"
+      ],
       "red": true,
-      "first": "A4 phase boundary writes refreshed references, rebases and derives current shot IDs without an editor effect",
-      "shaBefore": "55e980629c1ad66c10c0f7c018a9a58019c52842927fa00298de9829e5cbee16",
-      "byteRestored": true,
-      "acceptanceLimit": "class-level only; required mounted-editor A4 mutation not verified"
+      "shaRestored": "11abd5271aa653ed2ce20862ca11b05a9369f99533de2e201406504a9a56979f"
     },
     {
       "id": "03-no-author-protection",
@@ -277,9 +334,8 @@
       "assertionFailures": 1,
       "red": true,
       "first": "A9/A10: approval scopes global fields and references plus selected shots; runtime scopes only its own row, including keyframes",
-      "shaBefore": "4bd39b9f3ac1bef136ee28ccb7b76ca54496882c207831da095ab730ff61f847",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaBefore": "21f03e5c2bf8d10af465e3de7abb9c456e3bc2a7327c707097f2983502dd27b9",
+      "shaRestored": "21f03e5c2bf8d10af465e3de7abb9c456e3bc2a7327c707097f2983502dd27b9"
     },
     {
       "id": "04-quota-brakes",
@@ -289,8 +345,7 @@
       "red": true,
       "first": "A1/A2/A3: quota uses the correct brake and model-health policy at the shared runner",
       "shaBefore": "43531c969dcdfe7dcc530c2e2824672224c652ab5b4057a8d6d373d984815f81",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaRestored": "43531c969dcdfe7dcc530c2e2824672224c652ab5b4057a8d6d373d984815f81"
     },
     {
       "id": "05-no-queue-cancel",
@@ -300,8 +355,7 @@
       "red": true,
       "first": "B3: a single generation takes the node out of another queued batch (paused=false)",
       "shaBefore": "43531c969dcdfe7dcc530c2e2824672224c652ab5b4057a8d6d373d984815f81",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaRestored": "43531c969dcdfe7dcc530c2e2824672224c652ab5b4057a8d6d373d984815f81"
     },
     {
       "id": "06-no-origin",
@@ -310,9 +364,8 @@
       "assertionFailures": 1,
       "red": true,
       "first": "C4: canvas runs find their node through origin, retaining production and legacy mappings",
-      "shaBefore": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaBefore": "2de2ccf3f96e1ea1ea6d49f897e0784fa7b32b524012c80ba17703812c7cb312",
+      "shaRestored": "2de2ccf3f96e1ea1ea6d49f897e0784fa7b32b524012c80ba17703812c7cb312"
     },
     {
       "id": "07-production-only-release",
@@ -321,9 +374,8 @@
       "assertionFailures": 2,
       "red": true,
       "first": "C1: zh-CN canvas submission unknown exposes the existing release confirmation",
-      "shaBefore": "613862c419c99cffcbd71546b6106c2871502bcc0137b581d18e90293d96ad7b",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaBefore": "7206ab1878895e44148d53217781157ea38d36a8b241ca923cc54a1a7cd27a12",
+      "shaRestored": "7206ab1878895e44148d53217781157ea38d36a8b241ca923cc54a1a7cd27a12"
     },
     {
       "id": "08-release-newer-refused-record",
@@ -332,9 +384,8 @@
       "assertionFailures": 1,
       "red": true,
       "first": "C2: a refused second click stays in history while the host-selected original Run is released and regenerated",
-      "shaBefore": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaBefore": "2de2ccf3f96e1ea1ea6d49f897e0784fa7b32b524012c80ba17703812c7cb312",
+      "shaRestored": "2de2ccf3f96e1ea1ea6d49f897e0784fa7b32b524012c80ba17703812c7cb312"
     },
     {
       "id": "09-local-refusal-retry",
@@ -344,8 +395,7 @@
       "red": true,
       "first": "three production pages share failure decisions in-flight refusal never offers retry: node_generation_in_flight: active",
       "shaBefore": "1db3cb5db7a3be1b11f7ed7cc084a6f86bd3385200fbd564e242cd135701b11a",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaRestored": "1db3cb5db7a3be1b11f7ed7cc084a6f86bd3385200fbd564e242cd135701b11a"
     },
     {
       "id": "10-no-list-error-card",
@@ -354,21 +404,8 @@
       "assertionFailures": 1,
       "red": true,
       "first": "every kind × all five failure surfaces submission-unknown has one reason/retry answer and no dead end",
-      "shaBefore": "82c1715339df9e70b9f9f7cbed59161a2856418a8c25669c3577a89fb6db0c1d",
-      "testedHead": "1b4dd68b2e5fa220da57b189b3959db0cedcb382",
-      "variant": "release card removed with current node key",
-      "priorVariant": {
-        "id": "10-no-list-error-card",
-        "file": "src/workbench/generation/list/GenerationListDetail.tsx",
-        "exit": 1,
-        "assertionFailures": 1,
-        "red": true,
-        "first": "every kind × all five failure surfaces submission-unknown has one reason/retry answer and no dead end",
-        "shaBefore": "708899132c71f23a37785d03d31f36d60331b0c938fea0de97da74c02087464b",
-        "shaRestored": "708899132c71f23a37785d03d31f36d60331b0c938fea0de97da74c02087464b"
-      },
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaBefore": "070e9a03e79c3a1398bc9c316190613f644567d8164c3f60355ddfb26f2484b7",
+      "shaRestored": "070e9a03e79c3a1398bc9c316190613f644567d8164c3f60355ddfb26f2484b7"
     },
     {
       "id": "11-list-raw-error",
@@ -378,8 +415,7 @@
       "red": true,
       "first": "every kind × all five failure surfaces quota has one reason/retry answer and no dead end",
       "shaBefore": "04db70ee10d0ee5cf20632165c926be80c55dc92740888880b3206a620a543ad",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaRestored": "04db70ee10d0ee5cf20632165c926be80c55dc92740888880b3206a620a543ad"
     },
     {
       "id": "12-list-ignores-queue",
@@ -389,8 +425,7 @@
       "red": true,
       "first": "E4: list card and narrow rail show queued from the real queue, never draft/not generated",
       "shaBefore": "2e7122e2b6d2832132f49039ec5cc15b0cef0d6896f2b2944a996203b5094a5b",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaRestored": "2e7122e2b6d2832132f49039ec5cc15b0cef0d6896f2b2944a996203b5094a5b"
     },
     {
       "id": "13-batch-ignores-queue",
@@ -400,8 +435,7 @@
       "red": true,
       "first": "E4: a queued idle node is busy and excluded from both group/list quotes",
       "shaBefore": "acaa8d32ba8dc2b47cb90e5a387fd1ef88de181f46d76472eb1b21400942d50d",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaRestored": "acaa8d32ba8dc2b47cb90e5a387fd1ef88de181f46d76472eb1b21400942d50d"
     },
     {
       "id": "14-shot-ignores-decision",
@@ -410,9 +444,8 @@
       "assertionFailures": 1,
       "red": true,
       "first": "E5: a real in-flight refusal in the shot action bar offers task viewing and never retry",
-      "shaBefore": "48f71955859237630c2bfa8013bc1876d2653d64e11507db2b59c7b41f02faa4",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaBefore": "dfeeabe76df2309bb47f2ee305f1210ba3837254a786b2ecb860a7f9b5e5b3ee",
+      "shaRestored": "dfeeabe76df2309bb47f2ee305f1210ba3837254a786b2ecb860a7f9b5e5b3ee"
     },
     {
       "id": "15-anchor-dead-end",
@@ -421,9 +454,8 @@
       "assertionFailures": 1,
       "red": true,
       "first": "every kind × all five failure surfaces submission-unknown has one reason/retry answer and no dead end",
-      "shaBefore": "dbec9942afe6037c512503adb7b2ac509cfc881b6ed6c1bda664de1dc635d0f2",
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      "shaBefore": "00e165e79d97b607f2cba00465c634ba61082d03785f0c728c56e942b6d36da1",
+      "shaRestored": "00e165e79d97b607f2cba00465c634ba61082d03785f0c728c56e942b6d36da1"
     },
     {
       "id": "16-retry-never-resets",
@@ -432,430 +464,123 @@
       "assertionFailures": 1,
       "red": true,
       "first": "E3: retry can be clicked again after rejection/failure, while the same row rejects a double click",
-      "shaBefore": "48f71955859237630c2bfa8013bc1876d2653d64e11507db2b59c7b41f02faa4",
-      "testedHead": "1b4dd68b2e5fa220da57b189b3959db0cedcb382",
-      "variant": "first click sets local retrying true; never resets after rejected attempt",
-      "priorVariant": {
-        "id": "16-retry-never-resets",
-        "file": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-        "exit": 1,
-        "assertionFailures": 1,
-        "red": true,
-        "first": "E3: retry can be clicked again after rejection/failure, while the same row rejects a double click",
-        "shaBefore": "48f71955859237630c2bfa8013bc1876d2653d64e11507db2b59c7b41f02faa4",
-        "shaRestored": "48f71955859237630c2bfa8013bc1876d2653d64e11507db2b59c7b41f02faa4"
+      "shaBefore": "dfeeabe76df2309bb47f2ee305f1210ba3837254a786b2ecb860a7f9b5e5b3ee",
+      "shaRestored": "dfeeabe76df2309bb47f2ee305f1210ba3837254a786b2ecb860a7f9b5e5b3ee"
+    }
+  ],
+  "baseline": {
+    "sha": "31e80bbd362bd15af441e2e4b5c8e1c6a8c5a11f",
+    "status": "failed",
+    "error": "A4: batch ended before dispatching all three shots\n\n2 !== 5\n",
+    "requests": [
+      {
+        "sequence": 1,
+        "model": "gpt-image-2",
+        "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-1"
       },
-      "byteRestored": true,
-      "acceptanceLimit": "behavioral regression; full paid-confirmation journey remains incomplete"
+      {
+        "sequence": 2,
+        "model": "gpt-image-2",
+        "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-2"
+      }
+    ],
+    "idle": {
+      "elapsedMs": 302063,
+      "longestRelevantTimerMs": 300000,
+      "stable": true
+    },
+    "windowResponseMaxMs": 25,
+    "restoredByteForByte": true,
+    "commands": {
+      "baseline-final-2-build": 0,
+      "baseline-final-2-walk": 1,
+      "baseline-final-2-restored-build": 0
     }
-  ],
-  "screenshots": [
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-confirm.png",
-      "sha256": "ec5ee373c5b3e65a45f0e69354c6317ffeb579decbe2eaade02daa31b88a19d2",
-      "reviewed": true,
-      "supportsClaim": false,
-      "limit": "not proof: transition, old media, or too small to read"
+  },
+  "freeFourStage": {
+    "status": "failed; stopped after three authorized attempts",
+    "latestError": "expect(locator).toBeEnabled() failed\n\nLocator:  locator('[data-storyboard-batch]')\nExpected: enabled\nReceived: disabled\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.enabled\" with timeout 5000ms\n  - waiting for locator('[data-storyboard-batch]')\n    14 × locator resolved to <button disabled type=\"button\" data-storyboard-batch=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-8 px-3 text-body-sm border-0 bg-nomi-ink text-nomi-paper hover:enabled:bg-nomi-accent disabled:hover:bg-nomi-ink\">…</button>\n       - unexpected value \"disabled\"\n",
+    "stages": [
+      "storyboard"
+    ],
+    "idle": {
+      "elapsedMs": 301911,
+      "longestRelevantTimerMs": 300000,
+      "stable": true
     },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-canvas.png",
-      "sha256": "9c5e6b4ea2e1b15568539fe290f3709776b0ac0c87d9d95364d012c5c6dad27e",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-list-small.png",
-      "sha256": "c6f0db283d852c8db9a2174ba96a5c85d8215ae6e17b68dc4f127872b1680496",
-      "reviewed": true,
-      "supportsClaim": false,
-      "limit": "not proof: transition, old media, or too small to read"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-list-rail.png",
-      "sha256": "582c8ff1700f4769c17d1a6476af2adbee7c0756f849fde741eee497d9c04b61",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-queue-storyboard.png",
-      "sha256": "68d44aa5c2b29ba617c67b703552b753e155bd804a03c3af20adc4ab6a046006",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-429-canvas.png",
-      "sha256": "dc5c7d94bf3b50ac17cd68c5f311abfb170cc375b0aa8fd6fea5f60ddac65bbc",
-      "reviewed": true,
-      "supportsClaim": false,
-      "limit": "not proof: transition, old media, or too small to read"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-429-list-small.png",
-      "sha256": "0a5c45a7a577a23ae76149db5e38046ec891941664ae6ffbb5b371528d4460b1",
-      "reviewed": true,
-      "supportsClaim": false,
-      "limit": "not proof: transition, old media, or too small to read"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-429-list-detail.png",
-      "sha256": "caa42131c56f7ec24ab4f7b780e301181cbef5c46c6f2bd9e9f56e6bf0576e28",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard.png",
-      "sha256": "a96d2907b64a1163318399345ad6e478ad91a78bb52810fa185c68f75bfc3254",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-unknown-canvas-light.png",
-      "sha256": "50e89413259e1da923bc8ac6080ce0d53f3809b9f94ae37d793ecd1efeed25ab",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-unknown-list-detail-light.png",
-      "sha256": "83f29e31e76cfc6924fd1643369de252feaa1ca1481dbfeff1b904a6225bb3dd",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-shot.png",
-      "sha256": "f61a2595734e76f8233faf22f5b097e3ae4430dbc2531d8716eeb40792bc962c",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-anchor.png",
-      "sha256": "6855d2200317fa61a5d04900e05880fd0e61dcf16b8dbf6713f88ffb4297d7fa",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-anchor-confirm.png",
-      "sha256": "486361f368f8bed53d86d83fcf04caf86622a4cabc32e52fc0e817c38985c133",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-canvas.png",
-      "sha256": "fee142839c228de36a713d41452c5cb9039f226967966fc67b9e52738c431251",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-list.png",
-      "sha256": "aae695da7f8fc81b7b82e9e95b33013c148b3402f9ad003e55af544cd43b0b81",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-storyboard.png",
-      "sha256": "b3ffbb41da2cc6e7b240ca01f2a833c66e6e875285c50884933425bf1f80aa6f",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-release-confirm.png",
-      "sha256": "fae96af51b9fd70ffbb8328054c363ac08aa89d25e91262e9ba11e3345bfbbef",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-released-result.png",
-      "sha256": "52c187824f3297e195ceced7c200115659151c3c8932aa45e22983948b2a2a6e",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-storyboard-anchor-released-result.png",
-      "sha256": "165882d91a50e73bd8dd92511a18b132363d8f55a1f7232cc87a9caa27640f08",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-canvas-release-confirm.png",
-      "sha256": "ee76169369737b531e3339c67538e811aba0054f3dd967856be626c5f6680415",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-canvas-released-result.png",
-      "sha256": "172e6ef89f45125a92afe514d243adcd07c663a4d14951d909cfc9edcf7409a9",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
-      "sha256": "2f82966deb70b6a83e27e21b3625d93ac867c51edc893eb0a8ea285ddd9bc17c",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
-      "sha256": "ba4da5948ce79a04446b5c08c3b244942cb41a667d344077afd0a6bab65aa5c6",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
-      "sha256": "021b1f27f12f13ec0f67e3da3a40a92646b0ecbdd1db60cc92bfc6ce3ffc822f",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
-      "sha256": "ae440d269c9aa9a7c6415c9cc62a8362c8053bf396e66a39b286a947bd0b3bbd",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png",
-      "sha256": "34e3f1aad1263c8c62c211dc3a449cd3bd50ae419e9017328dc5ae86e21e00ff",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-queue-confirm.png",
-      "sha256": "36db335a1b7a18649805dd06f2db69d81adc01b70966bdcbc84b1c14974c2aee",
-      "reviewed": true,
-      "supportsClaim": false,
-      "limit": "not proof: transition, old media, or too small to read"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-queue-canvas.png",
-      "sha256": "7bc4eb9153d72aa6b3d4490e15a2773de25003716a5475398333737f0a045ca0",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-queue-list-small.png",
-      "sha256": "14a5df55deed452997a8e7ba547ab9c3a5422803dd3c3676fa6792762164ca67",
-      "reviewed": true,
-      "supportsClaim": false,
-      "limit": "not proof: transition, old media, or too small to read"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-queue-list-rail.png",
-      "sha256": "4d4ec67b7f634686c23b5b7692d36a6105ebbbe448f91f9b491b448fbe959fbe",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-queue-storyboard.png",
-      "sha256": "be8a92a4860bf3ac73304cf7647e77b2bb01f43e5211cf7420d4a162bbe624c8",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-429-canvas.png",
-      "sha256": "b5de401f08f56cd90d9f3a3b877e4a389774732539d64d0141bfba8dc3a7b8ce",
-      "reviewed": true,
-      "supportsClaim": false,
-      "limit": "not proof: transition, old media, or too small to read"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-429-list-small.png",
-      "sha256": "ed1c4cae6ddff288463c9a9bc08f781c931201d6843cf5ad99409ca354a28f50",
-      "reviewed": true,
-      "supportsClaim": false,
-      "limit": "not proof: transition, old media, or too small to read"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-429-list-detail.png",
-      "sha256": "73f0da62ae4b06781436a36672b2c2ab466fba5945a200e91513653954823e9f",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-429-storyboard.png",
-      "sha256": "f8b87b6947f5907a693e2f0290dd7aff48d1224609a1d3169288715ba603f102",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-unknown-canvas-light.png",
-      "sha256": "c57514dc064398ff3590072bf5ed1d135f7e6e38b7e9771420633e49465ad567",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-unknown-list-detail-light.png",
-      "sha256": "bd8625e4fa70996d4de11c2285c66facd85638ffd31d3556aa29cc2d45bd2f0e",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-shot.png",
-      "sha256": "f5f922ba20f2b58017aabff64712b75279d603f5a7b227d0411b40e278848a33",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-anchor.png",
-      "sha256": "24675ae90b7cdd958165839983f58174f86ed2d3561d090456a544df3d47d1af",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-anchor-confirm.png",
-      "sha256": "8406ef87dc6ff7adf49d0cc98165211f1668a282a5390e86b0ae3ecae40822ef",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-restart-unknown-canvas.png",
-      "sha256": "b5eaa50ba5e7751cb9ef28808d678cf09e2a378f6248b07eadc07a879f66d20b",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-restart-unknown-list.png",
-      "sha256": "c90c951fb5f61f1c787ee332dc1b43cb5e06f982b5fa8094c8d920ed5d550ab6",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-restart-unknown-storyboard.png",
-      "sha256": "5c5c522d69aa41914911dfa4c6b8bfb878a9e59cb8cea7d65b5d33952bf41be5",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-list-release-confirm.png",
-      "sha256": "05e6b6cde6036ceef6a551837d0cb8f09a795e2734f84d6685ddc57e4ce9e4c0",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-list-released-result.png",
-      "sha256": "f19ab7303fc9cebb7c1fb4e6eebef9ab268958c5027aa0ddd823dc51c7ff3d44",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-storyboard-anchor-released-result.png",
-      "sha256": "2160fc2aa747f70a64844744271d14d97f865bd39babc6e4c3b534df86dcf891",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-canvas-release-confirm.png",
-      "sha256": "3f8db07421ae3533880f18ef319dd1a69fc31d9bd6fa7f62ea2b82d1dcde9177",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-canvas-released-result.png",
-      "sha256": "edfa484ff9988e2de6c68f3830ca40203373f5bf9dfec9c23d5fe47fcd4205cf",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "pre-final task-label correction; not a spend-confirmation receipt"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
-      "sha256": "741015386aa60f2f0360ea717cb3998aa24768f846bad8fbe62bb3c3a5aaf09a",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
-      "sha256": "23a4fdff884dde88dac94672053d65be8bfc857f49ceb321c6dc6879c184308a",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
-      "sha256": "81d95d76467d5d8a7480e17737c8a0dc962b77f9ac0b39ddf77931a65094caf9",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
-      "sha256": "ffffca19253909d16e29bd0986ab28ea47697c8f2b84f6495eaf1c55875ceadf",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    },
-    {
-      "path": "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png",
-      "sha256": "e5ff6512bfdb92a588f458d3920712b8eee49bc50b8a92abcd65f5a4208176d4",
-      "reviewed": true,
-      "supportsClaim": true,
-      "limit": "independent list entry, quota and queue only"
-    }
-  ],
-  "limits": [
-    "The existing single-user generation policy skips the confirmation required by this contract.",
-    "The approved-input guard still compares the entire batch; changed-node isolation is failing.",
-    "Two selected items cannot exceed a two-request proxy cap in the later real-scenario stages.",
-    "Three fixed free-rehearsal attempts failed in setup and have been stopped under the agreed rule.",
-    "The four-stage paid entry is fail-closed and must not be used for billing.",
-    "The escape entry remains candidate; independent acceptance, Windows and real billing are unverified."
-  ],
-  "followUp": {
-    "releaseStateOwner": "src/workbench/production/releaseUnknownSubmission.ts",
-    "deletedStandaloneHook": true,
-    "waitSafetyCeiling": "existing stationTimeout; completion remains DOM/persisted state/HTTP counts",
-    "browserRetryFixture": "unused release port moved to the new owner path; retry logic and decision remain real",
-    "c4Mutation": {
-      "exit": 1,
-      "shaBefore": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
-      "shaRestored": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
-      "restoredByteForByte": true
-    },
-    "pendingOwner": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-    "blockingPredicateMove": {
-      "unchangedBody": true,
-      "shaBefore": "5bf1bf94a658b938862fb54875420b1341a8ab18587cd6569bc608197f4862f2",
-      "shaAfter": "5bf1bf94a658b938862fb54875420b1341a8ab18587cd6569bc608197f4862f2"
+    "windowResponseMaxMs": 15,
+    "paidGuard": "rejects incomplete genuine rehearsal; never invoked paid entry"
+  },
+  "unitChecks": {
+    "late-green": {
+      "numTotalTestSuites": 5,
+      "numPassedTestSuites": 5,
+      "numFailedTestSuites": 0,
+      "numTotalTests": 66,
+      "numPassedTests": 66,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0
     }
   },
   "doors": {
+    "command": "node scripts/door-map.mjs <each contractual symbol>",
+    "sixSymbolSummary": [
+      {
+        "symbol": "assertAuthorCurrent",
+        "exit": 0,
+        "doors": 6,
+        "writes": 1,
+        "reads": 5
+      },
+      {
+        "symbol": "nodeIdOfJob",
+        "exit": 0,
+        "doors": 1,
+        "writes": 1,
+        "reads": 0
+      },
+      {
+        "symbol": "releaseUnknownSubmission",
+        "exit": 0,
+        "doors": 2,
+        "writes": 2,
+        "reads": 0
+      },
+      {
+        "symbol": "autoReferencePlan",
+        "exit": 0,
+        "doors": 2,
+        "writes": 2,
+        "reads": 0
+      },
+      {
+        "symbol": "NodeErrorReport",
+        "exit": 0,
+        "doors": 1,
+        "writes": 0,
+        "reads": 1
+      },
+      {
+        "symbol": "storyboardFailureCopy",
+        "exit": 0,
+        "doors": 2,
+        "writes": 2,
+        "reads": 0
+      }
+    ],
     "contractualSymbols": [
       {
         "kind": "read",
@@ -879,7 +604,74 @@
       },
       {
         "kind": "read",
-        "path": "src/workbench/generationCanvas/nodes/NodeFailureReport.tsx",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/useProductionStatus.ts",
+        "symbol": "nodeIdOfJob"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "releaseUnknownSubmission"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/useProductionStatus.ts",
+        "symbol": "releaseUnknownSubmission"
+      },
+      {
+        "kind": "write",
+        "path": "src/devlab/designLab/storyboardReuse/storyboardReuseFixtures.ts",
+        "symbol": "autoReferencePlan"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "symbol": "autoReferencePlan"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "NodeErrorReport"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+        "symbol": "storyboardFailureCopy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+        "symbol": "storyboardFailureCopy"
+      }
+    ],
+    "allOwners": [
+      {
+        "kind": "read",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "assertAuthorCurrent"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
         "symbol": "NodeErrorReport"
       },
       {
@@ -926,9 +718,1212 @@
         "kind": "write",
         "path": "src/workbench/production/useProductionStatus.ts",
         "symbol": "nodeIdOfJob"
-      }
-    ],
-    "additionalOwners": [
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegration.ts",
+        "symbol": "reworkProductionShot"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegration.ts",
+        "symbol": "resumeProductionBatch"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "CanvasShotRequest"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "CanvasShotGesture"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "CanvasHandOverLink"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "CanvasShotDeps"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "CanvasShotSubmitInput"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "CanvasConsentShot"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "createCanvasShotRuns"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/canvasShotRunApi.ts",
+        "symbol": "CanvasShotRuns"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/canvasShotRunApi.ts",
+        "symbol": "CanvasConsentShot"
+      },
+      {
+        "kind": "read",
+        "path": "electron/capabilityCore/canvasShotRunApi.ts",
+        "symbol": "CanvasShotSubmitInput"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopProxyMode"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopProxyProbeAttempt"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopDirectorBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopExportJobStartPayload"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopExportJobStartResult"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "ExportJobSnapshot"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopExportTempInputWritePayload"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopExportTempInputWriteResult"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopMp4ExportResult"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "ExportJobVerification"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "ExportJobEvent"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopAppInfo"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopUpdateEvent"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopProxyStatus"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopProxyProbe"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "AssetTransportChannelView"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "DesktopBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/desktop/bridge.ts",
+        "symbol": "getDesktopBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
+        "symbol": "STILL_ROOFTOP"
+      },
+      {
+        "kind": "read",
+        "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
+        "symbol": "LAB_ANCHORS"
+      },
+      {
+        "kind": "read",
+        "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
+        "symbol": "ShotRowExec"
+      },
+      {
+        "kind": "read",
+        "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
+        "symbol": "AnchorCardRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
+        "symbol": "STILL_NEON"
+      },
+      {
+        "kind": "read",
+        "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
+        "symbol": "STILL_WIDE"
+      },
+      {
+        "kind": "read",
+        "path": "src/i18n/locales/generationCommon.ts",
+        "symbol": "zhGenerationCommon"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "TaskKind"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "TaskStatus"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "TaskAssetDto"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "TaskRequestDto"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "TaskProjectIdentity"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "TaskResultDto"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "DesktopBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "getDesktopBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "CanvasConsentShot"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "ComfyCandidateTestResultDto"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "FetchWorkbenchTaskResultRequestDto"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "FetchWorkbenchTaskResultResponseDto"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "canvasUnknownRuns"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "StoryboardPresentResult"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "getDesktopBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+        "symbol": "AnchorCardRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+        "symbol": "StoryboardFailureActions"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+        "symbol": "AnchorCardRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+        "symbol": "StoryboardAnchorRow"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "createStoryboardActionGuard"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "symbol": "ReadyAnchorImage"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+        "symbol": "UnknownSubmissionConfirmation"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+        "symbol": "FailureRun"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+        "symbol": "StoryboardFailureCopy"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "GenerationApprovalGuards"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "StoryboardActionGuard"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "GenerationConfirmationGuards"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "RowActionContext"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "DeferredNodeMaterialization"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "StoryboardRowRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "SHOT_ROW_STATUSES"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "ShotRowStatus"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "PlannedFirstFrame"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "ShotRowExec"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "StoryboardRowRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "AnchorCardRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "StoryboardRowWithExec"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "StoryboardBatchView"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+        "symbol": "ShotRowExec"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+        "symbol": "StoryboardFailureActions"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+        "symbol": "ShotRowExec"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+        "symbol": "ShotRowExec"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+        "symbol": "StoryboardShotFrame"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+        "symbol": "StoryboardFrameActions"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "StoryboardRowRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "getDesktopBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "RowActionContext"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "AnchorCardRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "StoryboardAnchorZone"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "StoryboardShotTable"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "StoryboardPlanEditorFooter"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+        "symbol": "StoryboardRowRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+        "symbol": "AnchorCardRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+        "symbol": "StoryboardShotRow"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generation/list/GenerationListCard.tsx",
+        "symbol": "ListCardMedia"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generation/list/GenerationListCard.tsx",
+        "symbol": "ListStatusTag"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generation/list/GenerationListCard.tsx",
+        "symbol": "ReferenceThumbs"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generation/list/GenerationListDetail.tsx",
+        "symbol": "NodeFailureReport"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generation/list/GenerationListDetail.tsx",
+        "symbol": "ListCardMedia"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generation/list/GenerationListDetail.tsx",
+        "symbol": "ListStatusTag"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generation/list/GenerationListParts.tsx",
+        "symbol": "ShotRowStatus"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "resolveBatchHostingNodes"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "CanvasConsentShot"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "DeferredStoryboardPlan"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "GenerationConfirmationGuards"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "ItemizedBatch"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "BATCH_RUN_TOAST_ID"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "useBatchPlanPreviewStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "symbol": "DEFAULT_CANVAS_BATCH_CONCURRENCY"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "symbol": "CanvasGenerationScope"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+        "symbol": "BaseGenerationNodeProps"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+        "symbol": "NodeFailureReport"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "GenerationErrorAction"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "getDesktopBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "UnknownSubmissionConfirmation"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "useUnknownSubmissionRelease"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "classifyGenerationError"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "GenerationApprovalGuards"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "AssetUploadConsentDecision"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "RunGenerationNodeOptions"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "canRunGenerationNode"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "generationNodeInputsReady"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "getDesktopBridge"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "RunGenerationNodesBatchOptions"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "RunGenerationNodesBatchResult"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "DeferredNodeMaterialization"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "GenerationConfirmationGuards"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+        "symbol": "CanvasAutoReferencePlan"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+        "symbol": "CANVAS_AUTO_REFERENCED_META_KEY"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/classifyError.ts",
+        "symbol": "GenerationErrorKind"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/classifyError.ts",
+        "symbol": "GenerationErrorAction"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/classifyError.ts",
+        "symbol": "GenerationErrorReport"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/generationFailureActions.ts",
+        "symbol": "FailureRun"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/narrate.ts",
+        "symbol": "GenerationFeedbackPhase"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/narrate.ts",
+        "symbol": "GenerationProgressPhase"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/narrate.ts",
+        "symbol": "GENERATION_PHASE"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/narrate.ts",
+        "symbol": "ProgressNarrationContext"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/narrate.ts",
+        "symbol": "GenerationErrorKind"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/narrate.ts",
+        "symbol": "ERROR_KEY_BY_KIND"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/observability/narrate.ts",
+        "symbol": "GenerationErrorAction"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "ProductionGateKind"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "ProductionRunTone"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "ProductionRunPrimaryAction"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "ProductionRunControl"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "ProductionDecisionHome"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "ProductionRunView"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "ReleaseUnknownApi"
+      },
+      {
+        "kind": "write",
+        "path": "electron/capabilityCore/appIntegration.ts",
+        "symbol": "withdrawQueuedHandOvers"
+      },
+      {
+        "kind": "write",
+        "path": "electron/capabilityCore/appIntegration.ts",
+        "symbol": "canvasLocalArtifactReceipt"
+      },
+      {
+        "kind": "write",
+        "path": "electron/capabilityCore/appIntegration.ts",
+        "symbol": "createCanvasShotRuns"
+      },
+      {
+        "kind": "write",
+        "path": "electron/capabilityCore/appIntegration.ts",
+        "symbol": "installCanvasShotRuns"
+      },
+      {
+        "kind": "write",
+        "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+        "symbol": "withdrawQueuedHandOversImpl"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "releaseCanvasShotSender"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "mintSpendGrant"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "consentCanvasShots"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "withdrawCanvasShots"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "submitCanvasShot"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "pollCanvasShot"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "canvasUnknownRuns"
+      },
+      {
+        "kind": "write",
+        "path": "electron/tasks/taskIpcHandlers.ts",
+        "symbol": "releaseCanvasShot"
+      },
+      {
+        "kind": "write",
+        "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
+        "symbol": "labShot"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/api/taskApi.ts",
+        "symbol": "classifyGenerationError"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "createStoryboardActionGuard"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "deriveStoryboardRowRuntimes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "deriveAnchorCardRuntimes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "generateAnchorCard"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "deriveStoryboardBatch"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "runStoryboardBatch"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "autoReferenceFromCanvas"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "symbol": "imageReferenceMode"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "symbol": "autoReferenceShot"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "symbol": "deriveAnchorCardRuntimes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+        "symbol": "deriveStoryboardRowRuntimes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+        "symbol": "useUnknownSubmissionRelease"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+        "symbol": "narrateErrorActionLabel"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "confirmAndRunNode"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "confirmAndRunPlan"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "regenerateNodeInPlace"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "regenerateShotRow"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "deriveAnchorCardRuntimes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "autoReferenceFromCanvas"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "deriveStoryboardRowRuntimes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "materializeShotRow"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+        "symbol": "deriveShotRowExec"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "deriveStoryboardRowRuntimes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "deriveStoryboardBatch"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "deriveAnchorCardRuntimes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "autoReferenceFromCanvas"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "runStoryboardBatch"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "generateShotRow"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "regenerateShotRow"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "toggleNodeLock"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "rerunShotRowWithFreshRefs"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "generateAnchorCard"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "regenerateAnchorCard"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generation/list/GenerationListParts.tsx",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "confirmAndRunPlan"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "paidNodeLedger"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "consentCanvasShots"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "runPlanWithToasts"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "spendCostKind"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "spendCostKindForNodes"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "normalizeCanvasBatchConcurrency"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "isGenerationNodeBusy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "withdrawCanvasShots"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "describeBlockedNotice"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "symbol": "normalizeCanvasBatchConcurrency"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "symbol": "nodesInCanvasProductionScope"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "symbol": "isGenerationNodeBusy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "symbol": "eligibleGenerationNodeIds"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "useUnknownSubmissionRelease"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "narrateModelKind"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "narrateErrorActionLabel"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+        "symbol": "confirmAndRunNode"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "spendCostKind"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "reconcileNodeModeWithConnectedReferences"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "narrateProgress"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "releaseCanvasShotRun"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "classifyGenerationError"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "normalizeCanvasBatchConcurrency"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "runGenerationNode"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "paidNodeLedger"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "generationNodeInputsReady"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "unmetReferenceDependencyForNode"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+        "symbol": "planCanvasAutoReference"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+        "symbol": "applyCanvasAutoReference"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/observability/classifyError.ts",
+        "symbol": "narrateGenerationErrorActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/observability/classifyError.ts",
+        "symbol": "narrateGenerationError"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/observability/classifyError.ts",
+        "symbol": "narrateIsVendorSideFailure"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/observability/classifyError.ts",
+        "symbol": "narrateModelKind"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/observability/generationFailureActions.ts",
+        "symbol": "classifyGenerationError"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/observability/generationFailureActions.ts",
+        "symbol": "narrateGenerationErrorWithoutTask"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/observability/narrate.ts",
+        "symbol": "narrateProgress"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "productionRunStatusGroup"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/productionRunView.ts",
+        "symbol": "gateKindOf"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "canvasUnknownRuns"
+      },
+      {
+        "kind": "read",
+        "path": "electron/preload/runtimeBridge.ts",
+        "symbol": "canvasUnknownRuns"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "isGenerationNodeBusy"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "generationFailureActions"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+        "symbol": "isGenerationNodeBusy"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "assertAuthorCurrent"
+      },
       {
         "kind": "read",
         "path": "electron/integrationCertification/httpModelDiscovery.ts",
@@ -956,31 +1951,6 @@
       },
       {
         "kind": "read",
-        "path": "src/workbench/api/taskApi.ts",
-        "symbol": "canvasUnknownRuns"
-      },
-      {
-        "kind": "read",
-        "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
-        "symbol": "StoryboardFailureActions"
-      },
-      {
-        "kind": "read",
-        "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-        "symbol": "StoryboardFailureActions"
-      },
-      {
-        "kind": "read",
-        "path": "src/workbench/generation/list/GenerationListDetail.tsx",
-        "symbol": "NodeFailureReport"
-      },
-      {
-        "kind": "read",
-        "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
-        "symbol": "NodeFailureReport"
-      },
-      {
-        "kind": "read",
         "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
         "symbol": "useUnknownSubmissionRelease"
       },
@@ -991,81 +1961,19 @@
       },
       {
         "kind": "write",
-        "path": "electron/tasks/taskIpcHandlers.ts",
-        "symbol": "canvasUnknownRuns"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/creation/storyboard/exec/StoryboardFailureActions.tsx",
-        "symbol": "generationFailureActions"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/creation/storyboard/exec/StoryboardFailureActions.tsx",
-        "symbol": "useUnknownSubmissionRelease"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
-        "symbol": "generationFailureActions"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-        "symbol": "isGenerationNodeBusy"
-      },
-      {
-        "kind": "write",
         "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
         "symbol": "runStoryboardAction"
       },
       {
         "kind": "write",
-        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-        "symbol": "generationFailureActions"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/generation/list/GenerationListParts.tsx",
-        "symbol": "generationFailureActions"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-        "symbol": "isGenerationNodeBusy"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-        "symbol": "isGenerationNodeBusy"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
-        "symbol": "isGenerationNodeBusy"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-        "symbol": "generationFailureActions"
-      },
-      {
-        "kind": "write",
         "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
         "symbol": "useUnknownSubmissionRelease"
       },
       {
         "kind": "write",
         "path": "src/workbench/production/releaseUnknownSubmission.ts",
-        "symbol": "canvasUnknownRuns"
-      },
-      {
-        "kind": "write",
-        "path": "src/workbench/production/releaseUnknownSubmission.ts",
         "symbol": "releaseUnknownCanvasSubmissionsForNode"
-      }
-    ],
-    "readProjectionAndTypeContract": [
+      },
       {
         "kind": "read",
         "path": "electron/capabilityCore/canvasShotResult.ts",
@@ -1075,57 +1983,572 @@
         "kind": "read",
         "path": "src/workbench/creation/storyboard/storyboardShotTableTypes.ts",
         "symbol": "StoryboardRowRuntime"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/capability/productionHandOverShotsOp.ts",
+        "symbol": "captureApprovedGenerationInputs"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/productionHandOverShotsOp.ts",
+        "symbol": "captureApprovedGenerationInputs"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "captureApprovedGenerationInputs"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "captureApprovedGenerationInputs"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "readRunProjectRecord"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "RunGraph"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "readRunProjectRecord"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "RunGraph"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+        "symbol": "RunProjectTarget"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+        "symbol": "RunProjectTarget"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "RunGraph"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "RunProjectTarget"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "readRunGraph"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+        "symbol": "readRunGraph"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+        "symbol": "RunProjectTarget"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+        "symbol": "RunProjectTarget"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+        "symbol": "RunGraph"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+        "symbol": "readRunProjectRecord"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+        "symbol": "readRunGraph"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+        "symbol": "RunProjectTarget"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/NomiStudioApp.tsx",
+        "symbol": "ProductionCanvasLandingHost"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "isRunTargetLoaded"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "isRunTargetLoaded"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+        "symbol": "whenRunTargetLoaded"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+        "symbol": "deliverRunOutcome"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "whenRunTargetLoaded"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "deliverRunOutcome"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "isRunTargetLoaded"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+        "symbol": "deliverRunOutcome"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+        "symbol": "deliverRunOutcome"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+        "symbol": "isRunTargetLoaded"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/textActions.ts",
+        "symbol": "whenRunTargetLoaded"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/runner/textActions.ts",
+        "symbol": "deliverRunOutcome"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+        "symbol": "whenRunTargetLoaded"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+        "symbol": "deliverRunOutcome"
+      },
+      {
+        "kind": "read",
+        "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationQueueStore.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "read",
+        "path": "src/workbench/taskCenter/useBatchFinishNotifier.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "write",
+        "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generation/list/GenerationListCard.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generation/list/GenerationListDetail.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generation/list/GenerationListParts.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/composerRun.ts",
+        "symbol": "confirmAndRunNode"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/observability/useGenerationFeedback.ts",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/releaseUnknownSubmission.ts",
+        "symbol": "confirmAndRunNode"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/production/useProductionStatus.ts",
+        "symbol": "confirmAndRunNode"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+        "symbol": "useGenerationQueueStore"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+        "symbol": "confirmAndRunNode"
       }
-    ]
+    ],
+    "ownerCount": 324,
+    "coverage": "Eight user entries converge on the declared shared boundaries; class/host/renderer tests plus typed IPC callers cover them. Expanded owner scans include read faces and their walkthrough callers."
   },
-  "sourceCommit": "81d4dfda376ad60b7b26e77bd87db30eb0be82eb",
-  "unitChecks": {
-    "repair-selected": {
-      "files": 19,
-      "passed": 413,
-      "exit": 0
-    },
-    "hostC2C7": {
-      "passed": 2,
-      "exit": 0
-    },
-    "pendingOwner": {
-      "redExit": 1,
-      "greenExit": 0
-    },
-    "typecheck": {
-      "targets": 5,
-      "exit": 0
-    },
-    "build": {
-      "exit": 0
-    },
-    "knownRelatedFailures": 2,
-    "finalOwnerDirectories": {
-      "files": 283,
-      "passed": 4214,
-      "expectedFailures": 1,
-      "actualFailures": 0,
-      "exit": 0,
-      "scope": [
-        "src/workbench/creation/storyboard",
-        "src/workbench/generationCanvas/nodes",
-        "src/workbench/production"
-      ]
-    },
-    "prePushRelated": {
-      "files": 39,
-      "passed": 837,
-      "failed": 2,
+  "followUp": {
+    "releaseStateOwner": "src/workbench/production/releaseUnknownSubmission.ts",
+    "deletedStandaloneHook": true,
+    "waitSafetyCeiling": "existing stationTimeout; completion remains DOM/persisted state/HTTP counts",
+    "browserRetryFixture": "unused release port moved to the new owner path; retry logic and decision remain real",
+    "c4Mutation": {
       "exit": 1,
-      "failures": [
-        "baseline outbound refusal classification",
-        "changed-node isolation contract test"
-      ]
+      "shaBefore": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
+      "shaRestored": "f92bf7ee8369d989cd16708b9472f662bb12d379c28a675b1636765a20dea719",
+      "restoredByteForByte": true
+    },
+    "pendingOwner": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+    "blockingPredicateMove": {
+      "unchangedBody": true,
+      "shaBefore": "5bf1bf94a658b938862fb54875420b1341a8ab18587cd6569bc608197f4862f2",
+      "shaAfter": "5bf1bf94a658b938862fb54875420b1341a8ab18587cd6569bc608197f4862f2"
     }
   },
-  "contractCheck": {
-    "exit": 0,
-    "warnings": 0
-  }
+  "limits": [
+    "The complete repaired four-stage rehearsal is not green; the coordinator must authorize another attempt before spending.",
+    "List queued-edit real-window check stopped after its third locator/setup failure; underlying per-node input class tests pass.",
+    "Changing to a more expensive model during asset generation can exceed the original confirmation; this item is stopped without changing spend policy.",
+    "New performance scenario has numeric measurements but no approved baseline; no baseline or gate was changed.",
+    "Escape entry is fixed as directed; a genuine fixedInPr cannot be filled before a PR exists.",
+    "Single-actions walk stopped after three setup/oracle failures: canvas/list retries and queued preemption lack a real-window receipt; storyboard retry and three-page result synchronization passed.",
+    "Windows, real billing, human SEQ and independent acceptance are unverified."
+  ],
+  "screenshots": [
+    "tests/ux/shots/generation-lock-exit/en-429-canvas.png",
+    "tests/ux/shots/generation-lock-exit/en-429-list-detail.png",
+    "tests/ux/shots/generation-lock-exit/en-429-list-small.png",
+    "tests/ux/shots/generation-lock-exit/en-429-storyboard-asset.png",
+    "tests/ux/shots/generation-lock-exit/en-429-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/en-a4-all-results.png",
+    "tests/ux/shots/generation-lock-exit/en-a4-assets.png",
+    "tests/ux/shots/generation-lock-exit/en-a4-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-a4-shot-references.png",
+    "tests/ux/shots/generation-lock-exit/en-agent-mounted-all-results.png",
+    "tests/ux/shots/generation-lock-exit/en-agent-mounted-confirm-0.png",
+    "tests/ux/shots/generation-lock-exit/en-agent-mounted-confirm-1.png",
+    "tests/ux/shots/generation-lock-exit/en-agent-mounted-confirm-2.png",
+    "tests/ux/shots/generation-lock-exit/en-agent-unmounted-all-results.png",
+    "tests/ux/shots/generation-lock-exit/en-agent-unmounted-confirm-0.png",
+    "tests/ux/shots/generation-lock-exit/en-agent-unmounted-confirm-1.png",
+    "tests/ux/shots/generation-lock-exit/en-agent-unmounted-confirm-2.png",
+    "tests/ux/shots/generation-lock-exit/en-canvas-release-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-canvas-released-result.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-canvas-canvas-refusal.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-canvas-changed-while-queued.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-canvas-list-refusal.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-canvas-storyboard-refusal.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-storyboard-canvas-refusal.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-storyboard-changed-while-queued.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-storyboard-list-refusal.png",
+    "tests/ux/shots/generation-lock-exit/en-edit-storyboard-storyboard-refusal.png",
+    "tests/ux/shots/generation-lock-exit/en-eight-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-eight-refusals-others-running.png",
+    "tests/ux/shots/generation-lock-exit/en-eight-settled-no-brake.png",
+    "tests/ux/shots/generation-lock-exit/en-eight-single-retry-running.png",
+    "tests/ux/shots/generation-lock-exit/en-in-flight-canvas-asset.png",
+    "tests/ux/shots/generation-lock-exit/en-in-flight-canvas-shot.png",
+    "tests/ux/shots/generation-lock-exit/en-in-flight-list-asset.png",
+    "tests/ux/shots/generation-lock-exit/en-in-flight-list-shot.png",
+    "tests/ux/shots/generation-lock-exit/en-in-flight-storyboard-asset.png",
+    "tests/ux/shots/generation-lock-exit/en-in-flight-storyboard-shot.png",
+    "tests/ux/shots/generation-lock-exit/en-list-entry-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-list-queue-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-list-rail-queued-readable.png",
+    "tests/ux/shots/generation-lock-exit/en-list-release-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-list-released-result.png",
+    "tests/ux/shots/generation-lock-exit/en-list-small-classified-429.png",
+    "tests/ux/shots/generation-lock-exit/en-list-small-queued-readable.png",
+    "tests/ux/shots/generation-lock-exit/en-queue-canvas.png",
+    "tests/ux/shots/generation-lock-exit/en-queue-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-queue-list-rail.png",
+    "tests/ux/shots/generation-lock-exit/en-queue-list-small.png",
+    "tests/ux/shots/generation-lock-exit/en-queue-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/en-restart-unknown-canvas.png",
+    "tests/ux/shots/generation-lock-exit/en-restart-unknown-list.png",
+    "tests/ux/shots/generation-lock-exit/en-restart-unknown-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieve-canvas-asset.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieve-canvas-shot.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieve-list-asset.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieve-list-shot.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieve-storyboard-asset.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieve-storyboard-shot.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieved-0.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieved-1.png",
+    "tests/ux/shots/generation-lock-exit/en-retrieved-2.png",
+    "tests/ux/shots/generation-lock-exit/en-single-E9-canvas-same-result.png",
+    "tests/ux/shots/generation-lock-exit/en-single-E9-list-same-result.png",
+    "tests/ux/shots/generation-lock-exit/en-single-E9-storyboard-same-result.png",
+    "tests/ux/shots/generation-lock-exit/en-single-canvas-batch-cancel.png",
+    "tests/ux/shots/generation-lock-exit/en-single-storyboard-retried.png",
+    "tests/ux/shots/generation-lock-exit/en-storyboard-anchor-released-result.png",
+    "tests/ux/shots/generation-lock-exit/en-task-center-release-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-task-center-released.png",
+    "tests/ux/shots/generation-lock-exit/en-task-center-unknown.png",
+    "tests/ux/shots/generation-lock-exit/en-unknown-canvas-light.png",
+    "tests/ux/shots/generation-lock-exit/en-unknown-list-detail-light.png",
+    "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-anchor-confirm.png",
+    "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-anchor.png",
+    "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-shot.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-429-canvas.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-429-list-detail.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-429-list-small.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard-asset.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-429-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-a4-all-results.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-a4-assets.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-a4-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-a4-shot-references.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-agent-mounted-all-results.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-agent-mounted-confirm-0.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-agent-mounted-confirm-1.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-agent-mounted-confirm-2.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-agent-unmounted-all-results.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-agent-unmounted-confirm-0.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-agent-unmounted-confirm-1.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-agent-unmounted-confirm-2.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-canvas-release-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-canvas-released-result.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-canvas-refusal.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-changed-while-queued.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-list-refusal.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-canvas-storyboard-refusal.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-canvas-refusal.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-changed-while-queued.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-list-refusal.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-storyboard-refusal.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-eight-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-eight-refusals-others-running.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-eight-settled-no-brake.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-eight-single-retry-running.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-canvas-asset.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-canvas-shot.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-list-asset.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-list-shot.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-storyboard-asset.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-in-flight-storyboard-shot.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-list-entry-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-list-queue-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-list-rail-queued-readable.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-list-release-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-list-released-result.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-list-small-classified-429.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-list-small-queued-readable.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-queue-canvas.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-queue-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-queue-list-rail.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-queue-list-small.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-queue-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-canvas.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-list.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-restart-unknown-storyboard.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-canvas-asset.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-canvas-shot.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-list-asset.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-list-shot.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-storyboard-asset.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieve-storyboard-shot.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-0.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-1.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-retrieved-2.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-canvas-same-result.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-list-same-result.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-E9-storyboard-same-result.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-canvas-batch-cancel.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-single-storyboard-retried.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-storyboard-anchor-released-result.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-task-center-release-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-task-center-released.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-task-center-unknown.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-unknown-canvas-light.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-unknown-list-detail-light.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-anchor-confirm.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-anchor.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-shot.png"
+  ],
+  "errorDisplayInventory": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "display": "NodeFailureReport / NodeErrorReport",
+      "decision": "generationFailureActions",
+      "note": "画布和列表共用；复制详情和技术详情仍保留原始内容，主文案走共享判据"
+    },
+    {
+      "path": "src/workbench/generation/list/GenerationListParts.tsx",
+      "display": "失败小卡",
+      "decision": "generationFailureActions",
+      "note": "主文案只显示 reason"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+      "display": "镜头格和资产格",
+      "decision": "generationFailureActions",
+      "note": "包装共享判据，删除旧的单独分类"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "display": "镜头和资产失败动作",
+      "decision": "generationFailureActions",
+      "note": "同一组件决定可重试、查看任务、人工放行，不留无按钮失败面"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "display": "可找回任务的上次取回失败",
+      "decision": "existing recoverableCopyKeys + classifyGenerationError",
+      "note": "已知任务的免费查询路径，NodeFailureReport 直接复用；原话仅作为服务商原话或展开技术详情，不重新提交"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "display": "可找回资产 title",
+      "decision": "existing recoverableCopyKeys",
+      "note": "正文为可找回和免费取回，title 保留取回错误；失败态全部走共享判据"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "display": "facts.source.errorMessage",
+      "decision": "not applicable",
+      "note": "视频拆解来源的事实错误，不是图片节点的付费生成失败；本轮未改"
+    },
+    {
+      "path": "src/ui/onboarding/CustomCallEditor.tsx",
+      "display": "试调用和 transcript",
+      "decision": "not applicable",
+      "note": "连接调试界面的技术原话，不是生产三页失败卡；本轮未改"
+    },
+    {
+      "path": "src/ui/app-shell/UpdateDialog.tsx",
+      "display": "updater.errorMessage",
+      "decision": "not applicable",
+      "note": "安装更新错误，有自己的分类器；本轮未改"
+    },
+    {
+      "path": "src/devlab/designLab",
+      "display": "错误和进度样本",
+      "decision": "production component or fixture only",
+      "note": "非用户生产入口；流程实验室只把原始错误作为队列数据，不直显原文"
+    }
+  ],
+  "attemptHistory": [
+    {
+      "entry": "four-stage rehearsal 1",
+      "status": "failed",
+      "reason": "Expected @asset in HTTP; actual compiler emits @imageN."
+    },
+    {
+      "entry": "four-stage rehearsal 2",
+      "status": "failed",
+      "reason": "Fixture omitted the existing first hosting disclosure."
+    },
+    {
+      "entry": "four-stage rehearsal 3",
+      "status": "failed",
+      "reason": "After successful storyboard and 301s idle, script incorrectly required the completed remaining-only button to be enabled."
+    },
+    {
+      "entry": "final baseline attempt 1",
+      "status": "setup-failed",
+      "reason": "New translated build marker was unavailable on the old source; no product reproduction receipt."
+    },
+    {
+      "entry": "single-actions attempt 1",
+      "status": "setup-failed",
+      "reason": "Storyboard generation did not create the explicit canvas group used by the next action."
+    },
+    {
+      "entry": "single-actions attempt 2",
+      "status": "oracle-failed",
+      "reason": "Counted the hosting disclosure checkbox as a sixth image; final script counts the existing PlanRows only."
+    }
+  ]
 }

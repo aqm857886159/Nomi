@@ -1,0 +1,109 @@
+{
+  "status": "passed",
+  "report": {
+    "surface": "storyboard",
+    "checks": {
+      "onlyEditedShotWithheld": true,
+      "otherFourSubmitted": true,
+      "allThreeSurfaces": true
+    },
+    "screenshots": [
+      "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-changed-while-queued.png",
+      "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-storyboard-refusal.png",
+      "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-canvas-refusal.png",
+      "tests/ux/shots/generation-lock-exit/zh-CN-edit-storyboard-list-refusal.png"
+    ],
+    "http": [
+      {
+        "sequence": 1,
+        "model": "gpt-image-2",
+        "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-1"
+      },
+      {
+        "sequence": 2,
+        "model": "gpt-image-2",
+        "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-2"
+      },
+      {
+        "sequence": 3,
+        "model": "gpt-image-2",
+        "prompt": "林薇@image1在旧书店@image2找到一封信",
+        "referenceCount": 2,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-3"
+      },
+      {
+        "sequence": 4,
+        "model": "gpt-image-2",
+        "prompt": "林薇@image1走到旧书店@image2窗边",
+        "referenceCount": 2,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-4"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "sequence": 1,
+      "model": "gpt-image-2",
+      "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-1"
+    },
+    {
+      "sequence": 2,
+      "model": "gpt-image-2",
+      "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-2"
+    },
+    {
+      "sequence": 3,
+      "model": "gpt-image-2",
+      "prompt": "林薇@image1在旧书店@image2找到一封信",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-3"
+    },
+    {
+      "sequence": 4,
+      "model": "gpt-image-2",
+      "prompt": "林薇@image1走到旧书店@image2窗边",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-4"
+    }
+  ]
+}

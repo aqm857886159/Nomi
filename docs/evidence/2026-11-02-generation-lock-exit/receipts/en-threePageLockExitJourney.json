@@ -1,0 +1,239 @@
+{
+  "status": "passed",
+  "report": {
+    "locale": "en",
+    "checks": {
+      "queue": true,
+      "listModelChip": true,
+      "quota": true,
+      "refusedClickAndSameExit": true,
+      "anchorHasExit": true,
+      "restart": true,
+      "releaseTargetsOriginalRun": true,
+      "singleReleaseWithoutExtraDialog": true,
+      "anchorRelease": true,
+      "canvasRelease": true,
+      "taskCenterRelease": true
+    },
+    "screenshots": [
+      "tests/ux/shots/generation-lock-exit/en-queue-confirm.png",
+      "tests/ux/shots/generation-lock-exit/en-queue-canvas.png",
+      "tests/ux/shots/generation-lock-exit/en-queue-list-small.png",
+      "tests/ux/shots/generation-lock-exit/en-queue-list-rail.png",
+      "tests/ux/shots/generation-lock-exit/en-queue-storyboard.png",
+      "tests/ux/shots/generation-lock-exit/en-429-canvas.png",
+      "tests/ux/shots/generation-lock-exit/en-429-list-small.png",
+      "tests/ux/shots/generation-lock-exit/en-429-list-detail.png",
+      "tests/ux/shots/generation-lock-exit/en-429-storyboard.png",
+      "tests/ux/shots/generation-lock-exit/en-429-storyboard-asset.png",
+      "tests/ux/shots/generation-lock-exit/en-unknown-canvas-light.png",
+      "tests/ux/shots/generation-lock-exit/en-unknown-list-detail-light.png",
+      "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-shot.png",
+      "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-anchor.png",
+      "tests/ux/shots/generation-lock-exit/en-unknown-storyboard-anchor-confirm.png",
+      "tests/ux/shots/generation-lock-exit/en-restart-unknown-canvas.png",
+      "tests/ux/shots/generation-lock-exit/en-restart-unknown-list.png",
+      "tests/ux/shots/generation-lock-exit/en-restart-unknown-storyboard.png",
+      "tests/ux/shots/generation-lock-exit/en-list-release-confirm.png",
+      "tests/ux/shots/generation-lock-exit/en-list-released-result.png",
+      "tests/ux/shots/generation-lock-exit/en-storyboard-anchor-released-result.png",
+      "tests/ux/shots/generation-lock-exit/en-canvas-release-confirm.png",
+      "tests/ux/shots/generation-lock-exit/en-canvas-released-result.png",
+      "tests/ux/shots/generation-lock-exit/en-task-center-unknown.png",
+      "tests/ux/shots/generation-lock-exit/en-task-center-release-confirm.png",
+      "tests/ux/shots/generation-lock-exit/en-task-center-released.png"
+    ]
+  },
+  "requests": [
+    {
+      "sequence": 1,
+      "model": "gpt-image-2",
+      "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-1"
+    },
+    {
+      "sequence": 2,
+      "model": "gpt-image-2",
+      "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-2"
+    },
+    {
+      "sequence": 3,
+      "model": "gpt-image-2",
+      "prompt": "林薇在旧书店找到一封信",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-3"
+    },
+    {
+      "sequence": 4,
+      "model": "gpt-image-2",
+      "prompt": "林薇走到旧书店窗边",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-4"
+    },
+    {
+      "sequence": 5,
+      "model": "gpt-image-2",
+      "prompt": "林薇把信放在旧书店的桌上",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-5"
+    },
+    {
+      "sequence": 6,
+      "model": "gpt-image-2",
+      "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-6"
+    },
+    {
+      "sequence": 7,
+      "model": "gpt-image-2",
+      "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 8,
+      "model": "gpt-image-2",
+      "prompt": "林薇在旧书店找到一封信",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 9,
+      "model": "gpt-image-2",
+      "prompt": "林薇走到旧书店窗边",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 10,
+      "model": "gpt-image-2",
+      "prompt": "林薇把信放在旧书店的桌上",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 11,
+      "model": "gpt-image-2",
+      "prompt": "林薇在旧书店找到一封信",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": true,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-7"
+    },
+    {
+      "sequence": 12,
+      "model": "gpt-image-2",
+      "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": true,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-8"
+    },
+    {
+      "sequence": 13,
+      "model": "gpt-image-2",
+      "prompt": "林薇在旧书店找到一封信",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-9"
+    },
+    {
+      "sequence": 14,
+      "model": "gpt-image-2",
+      "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-10"
+    },
+    {
+      "sequence": 15,
+      "model": "gpt-image-2",
+      "prompt": "林薇走到旧书店窗边",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": true,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-11"
+    },
+    {
+      "sequence": 16,
+      "model": "gpt-image-2",
+      "prompt": "林薇走到旧书店窗边",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-12"
+    },
+    {
+      "sequence": 17,
+      "model": "gpt-image-2",
+      "prompt": "林薇走到旧书店窗边",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": true,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-13"
+    },
+    {
+      "sequence": 18,
+      "model": "gpt-image-2",
+      "prompt": "林薇走到旧书店窗边",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-14"
+    }
+  ]
+}

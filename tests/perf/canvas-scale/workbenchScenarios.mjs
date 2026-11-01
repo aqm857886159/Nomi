@@ -1155,7 +1155,9 @@ async function listQueueSettle(page, ctx) {
   const batchId = await page.evaluate(ids => {
     const queue = window.__nomiQueueStore
     queue.setState({ entries: [], batches: {} })
-    return queue.getState().enqueueBatch([ids], 'perf-list-queue')
+    const projectId = new URLSearchParams(location.hash.split('?')[1] ?? '').get('projectId')
+    if (!projectId) throw new Error('The benchmark project is not open')
+    return queue.getState().enqueueBatch([ids], projectId)
   }, ids)
   await page.locator(`[data-list-card="${ids[19]}"] [data-list-status="queued"]`).waitFor()
   const times = []
