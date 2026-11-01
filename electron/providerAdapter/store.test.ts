@@ -106,6 +106,19 @@ describe("ProviderAdapterStore", () => {
       .toEqual([{ kind: "image", contentType: "image/png", byteLength: 93, sha256: "a".repeat(64), metadata: { width: 2, height: 2 } }]);
   });
 
+  // 运行时据 wireProtocol 换协议（vendorModelConnection），坏值读回时必须丢掉、照连接上的 providerKind 走。
+  it("keeps only a valid text wire protocol on a persisted mode", () => {
+    const { store, filePath } = createStore();
+    const textRun = (id: string, wireProtocol: string) => run({ id, models: [{ modelKey: "text-v1", labelZh: "Text", kind: "text",
+      modes: [{ taskKind: "chat", state: "verified", attempts: 1, wireProtocol: wireProtocol as never }] }] });
+    store.upsertRun(textRun("run-ok", "openai-responses"));
+    store.upsertRun(textRun("run-bad", "anthropic"));
+
+    const reread = new ProviderAdapterStore(filePath);
+    expect(reread.getRun("run-ok")?.models[0].modes[0].wireProtocol).toBe("openai-responses");
+    expect(reread.getRun("run-bad")?.models[0].modes[0]).not.toHaveProperty("wireProtocol");
+  });
+
   it("returns interrupted work for resume but excludes terminal runs", () => {
     const runs = [
       run({ id: "queued", stage: "queued" }),

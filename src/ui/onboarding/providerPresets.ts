@@ -1,4 +1,10 @@
 /**
+ * [INPUT]: 依赖 src/desktop/providerKind
+ * [OUTPUT]: 对外提供 PROVIDER_PRESETS、ProviderPreset
+ * [POS]: 接入向导的预设表，被 OnboardingWizard 与预设分组消费；预设只定协议家族，不钉具体协议
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+/**
  * Provider presets for the manual model-add form.
  *
  * Picking a preset auto-fills BaseURL + 接口类型 + 供应商名称 so users don't have to
@@ -25,11 +31,11 @@ export type ProviderPreset = {
   group?: 'relay' | 'official'
 }
 
-// 具名预设已内置正确协议（providerKind），用户选名字即用、不必判断接口格式。
+// 具名预设已内置协议家族（providerKind），用户选名字即用、不必判断接口格式。
 // baseUrl/格式取各家官方 OpenAI-compatible 文档（host 均经 DNS+端点实测，见
-// tests/ux 协议指纹扫描）。providerKind 决定走 chat / responses / anthropic。
-// 注：openai-responses 协议的中转（如 foxcode codex，wire_api=responses）暂不放预设——
-// 其 host 未经核实；用户走「自定义」即可，主进程 auto-probe 会自动探测出 Responses 协议。
+// tests/ux 协议指纹扫描）。providerKind 只定家族：anthropic 走 Messages；openai-compatible
+// 在认证时按模型探一次 /responses，认得就走 Responses、否则走 Chat
+// （electron/providerAdapter/textProtocolProbe.ts，2026-10-27）。所以预设不必写死 openai-responses。
 export const PROVIDER_PRESETS: ProviderPreset[] = [
   // 中转站组（一等公民，最上）：用户填自己地址；图片/视频/文本都能接。
   { id: 'newapi', label: 'new-api 中转', providerKind: 'openai-compatible', baseUrl: '', custom: true, group: 'relay' },

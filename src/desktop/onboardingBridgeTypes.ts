@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 electron/shared 的 antigravity 状态，./providerKind
+ * [OUTPUT]: 对外提供 DesktopOnboardingBridge 与接入页用到的桥载荷 / 结果类型
+ * [POS]: 渲染层看主进程接入 IPC 的类型镜像；载荷字段与 electron/providerAdapter/ipc.ts 的规范化一一对应
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import type { ProviderKind } from './providerKind'
 import type { AntigravityConnectionStatus, AntigravityTestRequest } from '../../electron/shared/antigravity'
 import type { ModelListFailureKind } from '../../electron/ai/onboarding/modelListResponse'
@@ -168,6 +174,8 @@ export type DesktopOnboardingBridge = {
     apiKey: string
     authType?: 'none' | 'bearer' | 'x-api-key' | 'query'
     providerKind?: ProviderKind
+    /** 用户在「高级 → 接口协议」亲手选了协议（不是预设带的）。缺省 = 保留已存的选择。 */
+    providerKindPinned?: boolean
     headers?: Record<string, string>
     proxyUrl?: string
     models: Array<{ modelKey: string; labelZh?: string; kind: 'text' | 'image' | 'video' | 'audio' | 'model3d' }>
@@ -180,6 +188,8 @@ export type DesktopOnboardingBridge = {
     apiKey: string
     authType?: 'none' | 'bearer' | 'x-api-key' | 'query'
     providerKind?: ProviderKind
+    /** 用户在「高级 → 接口协议」亲手选了协议（不是预设带的）。缺省 = 保留已存的选择。 */
+    providerKindPinned?: boolean
     headers?: Record<string, string>
     proxyUrl?: string
     models: Array<{ modelKey: string; labelZh?: string; kind: 'text' | 'image' | 'video' | 'audio' | 'model3d' }>

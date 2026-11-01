@@ -200,6 +200,8 @@ function dependencies(catalog: ReturnType<typeof fakeCatalog>): ProviderAdapterS
     compile: async () => ({ draft: draft(), failures: [] }),
     probeCredential: async () => ({ ok: true as const, modelIds: [], listed: false }),
     verify: async ({ mode }) => ({ ok: true, taskKind: mode.taskKind }),
+    // 默认不出网：真探测由 textProtocolProbe.test.ts 对着本机假服务器验。
+    probeTextProtocol: async () => "openai-compatible",
     now: () => now,
     id: () => "run-test",
   };
@@ -874,6 +876,53 @@ describe("ProviderAdapterService", () => {
     expect(deps.resolveLanguageModels).not.toHaveBeenCalled();
     expect(catalog.promoted[0]?.verified).toEqual(["text-v1/chat"]);
     expect(service.getRun(started.id)?.stage).toBe("completed");
+  });
+
+  // 2026-10-27 默认 Responses：认证对 OpenAI 家文本模型探一次协议，结论跟着这一档模式落进 run（再由 promote 写进模型 meta）。
+  it("probes the text protocol once per OpenAI-family text model after its self-check passes, never for media", async () => {
+    const catalog = fakeCatalog();
+    const deps = dependencies(catalog);
+    const probe = vi.fn<ProviderAdapterServiceDependencies["probeTextProtocol"]>(async () => "openai-responses");
+    deps.probeTextProtocol = probe;
+    const service = new ProviderAdapterService(store(), deps);
+    const started = await service.start(startInput);
+
+    await service.executeRun(started.id);
+
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(probe.mock.calls[0]?.[0]).toMatchObject({ model: { modelKey: "text-v1" }, apiKey: "sk-test" });
+    const modes = service.getRun(started.id)?.models.flatMap((model) => model.modes.map((mode) => [model.modelKey, mode.wireProtocol]));
+    expect(modes).toEqual(expect.arrayContaining([["text-v1", "openai-responses"], ["paint-v2", undefined]]));
+    expect(catalog.promoted[0]?.verified).toEqual(expect.arrayContaining(["text-v1/chat"]));
+  });
+
+  it("does not probe when the self-check failed, the user pinned the protocol, or the batch has no time left", async () => {
+    for (const variant of ["failed", "pinned", "anthropic", "deadline"] as const) {
+      const catalog = fakeCatalog();
+      const load = catalog.load.bind(catalog);
+      catalog.load = async (vendorKey, keys) => {
+        const loaded = await load(vendorKey, keys);
+        if (!loaded || variant === "failed" || variant === "deadline") return loaded;
+        return { ...loaded, vendor: variant === "pinned"
+          ? { ...loaded.vendor, meta: { providerKindPinned: true } }
+          : { ...loaded.vendor, providerKind: "anthropic" } };
+      };
+      const deps = dependencies(catalog);
+      const probe = vi.fn<ProviderAdapterServiceDependencies["probeTextProtocol"]>(async () => "openai-responses");
+      deps.probeTextProtocol = probe;
+      // 批次只剩 1 分钟：不够一次探测加给后面模型的预留 → 不探，免得把本来能过的模型拖成到点失败。
+      if (variant === "deadline") deps.batchTimeoutMs = 60_000;
+      if (variant === "failed") {
+        deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "credential", error: "401", errorCategory: "auth", selfCheckReason: "endpoint_unreachable" });
+      }
+      const service = new ProviderAdapterService(store(), deps);
+      const started = await service.start({ ...startInput, models: [{ modelKey: "text-v1", labelZh: "Text V1", kind: "text" as const }] });
+
+      await service.executeRun(started.id);
+
+      expect(probe, variant).not.toHaveBeenCalled();
+      expect(service.getRun(started.id)?.models[0]?.modes[0]?.wireProtocol, variant).toBeUndefined();
+    }
   });
 
   it("resumes pre-submission work after restart because no provider create can be duplicated", async () => {

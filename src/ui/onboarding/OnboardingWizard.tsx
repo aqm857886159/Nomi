@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 ./providerPresets、./OnboardingWizardAdvancedFields、./useOnboardingConnectionTest，desktop 桥的 onboarding 接口
+ * [OUTPUT]: 对外提供 OnboardingWizard 组件
+ * [POS]: 手动接入模型的抽屉：填地址与 key → 保存连接（带 providerKindPinned）→ 选模型 → 发起认证
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import React, { type JSX } from 'react'
 import { MODEL_ACCESS_ENTRY_ONBOARDING } from '../../../electron/shared/contracts/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
@@ -87,6 +93,9 @@ export function OnboardingWizard({
   const [showKindOverride, setShowKindOverride] = React.useState(false)
   // 「高级设置」整段（接口协议 + 自定义请求头）是否展开。
   const [showAdvanced, setShowAdvanced] = React.useState(false)
+  const selectedPreset = PROVIDER_PRESETS.find((p) => p.id === presetId)
+  // 只有自定义中转里亲手选的协议才钉住；具名预设带的协议不算——认证照样按模型探 Responses（2026-10-27）。
+  const providerKindPinned = Boolean(selectedPreset?.custom) && kindForced
   const [baseUrl, setBaseUrl] = React.useState('')
   // 低频高级字段：给这个连接单独指定代理（多在高级折叠区，见 §1.5 控件层级）。
   const [proxyUrl, setProxyUrl] = React.useState('')
@@ -371,6 +380,7 @@ export function OnboardingWizard({
         apiKey: requestAuth.apiKey,
         authType: requestAuth.authType,
         providerKind,
+        providerKindPinned,
         headers: buildHeadersObject(),
         ...(proxyUrl.trim() ? { proxyUrl: proxyUrl.trim() } : {}),
         models: [],
@@ -393,6 +403,7 @@ export function OnboardingWizard({
     requestAuth.apiKey,
     requestAuth.authType,
     providerKind,
+    providerKindPinned,
     buildHeadersObject,
     proxyUrl,
     onConnectionConfigured,
@@ -432,7 +443,6 @@ export function OnboardingWizard({
   const proxyUrlValid = !proxyUrlTrimmed || /^(?:https?|socks(?:4|5)?):\/\//i.test(proxyUrlTrimmed)
   const canTest = baseUrlValid && proxyUrlValid && (providerKind === 'anthropic' || baseUrlTrimmed.length > 0)
   const connectionFieldsReady = canTest && isOnboardingApiKeyReady(userApiKey, noApiKey)
-  const selectedPreset = PROVIDER_PRESETS.find((p) => p.id === presetId)
   const isNamedPreset = Boolean(selectedPreset && !selectedPreset.custom)
   const isCustomGatewayEntry = initialPreset === 'newapi' || initialPreset === 'custom'
   // Named presets hide BaseURL until the user opts into customization.

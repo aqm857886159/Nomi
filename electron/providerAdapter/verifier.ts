@@ -1,4 +1,10 @@
 /**
+ * [INPUT]: 依赖 catalog 的 Vendor / Model，./selfCheck 的免费自检
+ * [OUTPUT]: 对外提供 probeAdapterCredential、verifyAdapterMode、AdapterVerificationResult
+ * [POS]: providerAdapter 的免费自检入口，被 service.verifyDraft 调用；ok 结果上的 wireProtocol 由 service 在探测后补上，这里从不写
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+/**
  * 一条模式的**免费自检**。2026-09-11 用户拍板后，这里不再向上游发任何一次生成请求。
  *
  * 在这之前它做的是：用真实 key 发一次真实生成（图片模型 = 一次付费出图）→ 轮询 → 下载产物 →
@@ -11,6 +17,8 @@
  *   ① 鉴权 + 这个模型在不在上游列出来的清单里（`GET /models`，一条连接只打一次）；
  *   ② 说明卡形状对不对（有没有可执行通道、声明异步却没给 query、改图模式没声明参考图槽）。
  * 过了就进画布模型框、标「未试跑」。**第一次真实生成就是试跑**，钱的闸在提交处看报价确认。
+ * ⚠ 唯一例外（用户 2026-10-27 拍板）：OpenAI 家文本模型自检过了之后，service 再发一次最小 `/responses`
+ * 判协议（textProtocolProbe.ts）。它不住在这里——这个文件仍然一次生成请求都不发。
  *
  * 失败原因分成正交的两维（治「把我们的能力缺口报成未知的上游错误」）：
  *   - `errorCategory`：上游怎么拒绝我们（沿用 vendorHttp 在抛出点的查表结论）。
@@ -19,7 +27,7 @@
  */
 import type { Model, Vendor } from "../catalog/types";
 import type { VendorErrorCategory } from "../vendor/vendorHttp";
-import type { AdapterModeDraft } from "./types";
+import type { AdapterModeDraft, TextWireProtocol } from "./types";
 import type { CertificationSubmissionState } from "../integrationCertification/types";
 import {
   checkAdapterModeContract,
@@ -41,6 +49,8 @@ export type AdapterVerificationResult =
       submissionState?: Extract<CertificationSubmissionState, "settled">;
       /** 上游的模型清单里没有它。**不判死**（很多中转不把模型列全），只作为提示带给界面。 */
       modelNotListed?: boolean;
+      /** 自检过了之后 service 补上的文本协议判定（textProtocolProbe.ts）。自检本身不发生成请求，从不写它。 */
+      wireProtocol?: TextWireProtocol;
     }
   | {
       ok: false;

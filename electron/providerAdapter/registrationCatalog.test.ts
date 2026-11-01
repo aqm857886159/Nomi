@@ -71,6 +71,27 @@ describe("provider adapter registration catalog", () => {
     expect(upsertModel).not.toHaveBeenCalled();
   });
 
+  // 「用户亲手选了协议」只由接入页写：驱动 Agent 重新登记、已有连接重认证不带这一位，不许把用户的选择抹掉。
+  it("writes the provider-kind pin only when the save says so, and keeps it when the save is silent", () => {
+    const register = (providerKindPinned?: boolean) => {
+      upsertVendor.mockClear();
+      defaultCatalog.register({
+        vendorKey: "saved-gateway", vendorName: "Saved Gateway", baseUrl: "https://gateway.example.test/v1",
+        apiKey: "sk-encrypt-me", authType: "bearer", providerKind: "openai-compatible",
+        ...(providerKindPinned === undefined ? {} : { providerKindPinned }), models: [], savedAt: now,
+      });
+      return (upsertVendor.mock.calls[0]?.[0].meta ?? {}) as Record<string, unknown>;
+    };
+    expect(register(true).providerKindPinned).toBe(true);
+    expect(register().providerKindPinned).toBeUndefined();
+
+    state.vendors.push({ key: "saved-gateway", name: "Saved Gateway", enabled: false, providerKind: "openai-compatible",
+      baseUrlHint: "https://gateway.example.test/v1", authType: "bearer", meta: { providerKindPinned: true, keep: 1 }, createdAt: now, updatedAt: now });
+    expect(register()).toMatchObject({ providerKindPinned: true, keep: 1 });
+    expect(register(false)).toMatchObject({ keep: 1 });
+    expect(register(false).providerKindPinned).toBeUndefined();
+  });
+
   it("keeps every newly registered model disabled and marks it unverified", () => {
     const kinds = ["text", "image", "video", "audio", "model3d"] as const;
     const models = Array.from({ length: 20 }, (_, index) => ({

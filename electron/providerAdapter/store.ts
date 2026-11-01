@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 ../jsonFile 的原子写，productionRun 的文件锁
+ * [OUTPUT]: 对外提供 ProviderAdapterStore、终态判定、运行恢复与连接指纹
+ * [POS]: providerAdapter 的运行持久层；sanitizeMode 只放行合法字段值（含 wireProtocol 两值），坏值读回时丢掉
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -104,11 +110,14 @@ function sanitizeMode(mode: AdapterModeResult): AdapterModeResult {
   delete base.mediaEvidence;
   delete base.reasonCode;
   delete base.errorParams;
+  delete base.wireProtocol;
   return {
     ...base as AdapterModeResult,
     ...(safeEvidence.length ? { mediaEvidence: safeEvidence } : {}),
     ...(typeof raw.reasonCode === "string" && SAFE_REASON_CODES.has(raw.reasonCode) ? { reasonCode: raw.reasonCode as AdapterModeResult["reasonCode"] } : {}),
     ...(Object.keys(safeParams).length ? { errorParams: safeParams } : {}),
+    // 运行时据它换协议：只认两个合法值，坏值丢掉 = 照连接上的 providerKind 走。
+    ...(raw.wireProtocol === "openai-responses" || raw.wireProtocol === "openai-compatible" ? { wireProtocol: raw.wireProtocol } : {}),
   };
 }
 

@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 electron 的 ipcMain，./service 的认证服务，../ipcSenderGuard
+ * [OUTPUT]: 对外提供 registerProviderAdapterIpc
+ * [POS]: providerAdapter 的 IPC 边界：把渲染层的连接载荷规范成 ProviderAdapterConnectionInput（含 providerKindPinned）再交给服务
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { ipcMain } from "electron";
 import type { AdapterAuthType } from "./types";
 import type { ProviderAdapterRegisterInput } from "./service";
@@ -43,6 +49,7 @@ function adapterConnectionInput(payload: unknown): ProviderAdapterRegisterInput 
     ...(typeof raw.authHeader === "string" ? { authHeader: raw.authHeader } : {}),
     ...(typeof raw.authQueryParam === "string" ? { authQueryParam: raw.authQueryParam } : {}),
     ...(typeof raw.proxyUrl === "string" ? { proxyUrl: raw.proxyUrl } : {}),
+    ...(typeof raw.providerKindPinned === "boolean" ? { providerKindPinned: raw.providerKindPinned } : {}),
     headers,
     models,
   };

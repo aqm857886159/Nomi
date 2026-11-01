@@ -122,6 +122,7 @@ function harness(overrides: Partial<ProviderAdapterServiceDependencies> = {}) {
     compile: async () => ({ draft: draft(), failures: [] }),
     repair: async () => draft(),
     verify: async ({ mode }) => ({ ok: true, taskKind: mode.taskKind }),
+    probeTextProtocol: async () => "openai-compatible",
     now: () => new Date().toISOString(),
     id: () => "run-failure-path",
     terminalErrorJournalPath: `${filePath}.errors.jsonl`,
