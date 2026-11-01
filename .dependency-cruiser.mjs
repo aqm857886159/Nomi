@@ -116,6 +116,22 @@ export default {
       to: { path: NODE_EDITOR_PATH },
     },
 
+    // R-B7 渲染层的依赖图里不许有仓库自己的 CJS 文件（当前 0，硬零，无 baseline）。
+    //
+    // 和 #614 同一类白屏：#614 是主进程实现把一条 CJS 依赖拖进浏览器；这回是 `electron/shared/` 的模块直接 import 了
+    // 一个 CJS 生成物，靠 `vite.config.ts` 里的别名换成 ESM 才跑得起来，而浏览器单测的夹具不读那份配置
+    // （`configFile: false`），页面一起白屏。别名只修得了一个入口，所以不让 CJS 进这张图。
+    // `reachable` 看整条传递路径：经 `electron/shared/`、经基线里冻结的越界边走到，都算。
+    // 反例单测：scripts/check-boundaries.renderer-cjs.test.mjs。
+    {
+      name: 'renderer-no-reach-local-cjs',
+      comment:
+        '渲染层（src/）的依赖图里不许有仓库自己的 CJS 文件：浏览器不认 CJS，靠打包配置换格式只修得了一个入口。把用它的代码搬到主进程一侧，或生成 ESM。',
+      severity: 'error',
+      from: { path: '^src/' },
+      to: { path: '^(?:src|electron)/.*\\.cjs$', reachable: true },
+    },
+
     // R-B4 禁新增「完全静态」循环。
     // viaOnly dependencyTypesNot=[dynamic-import,type-only]：只认「每条环边都不是懒加载、
     // 也不是纯类型」的硬环——即真·加载顺序风险。软的 499 个 lazy import() 环故意不入规则，

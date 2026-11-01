@@ -14,14 +14,15 @@
 // CI 扫源码看不见它（`z.preprocess` 那处就是这样活了半年）。防线建在最早能拦住它的
 // 那一层（R28）——这里就是最早的那一层。
 //
-// 校验只发生一次：pi 的 ajv 那次。宿主不再用 zod 复验，因为①的产物**不弱于** zod，
-// 这正是②保证的东西。两者是一件事的两半，拆开任何一半这个设计就不成立。
+// 模型 schema 只使用通用标准支持的声明；标准外约束保留在 description。
+// laneTools.mts 的 descriptor.schema.safeParse 仍以原 Zod 校验，返回既有结构化错误。
 import type { TSchema } from 'typebox';
 import { z, type ZodTypeAny } from 'zod';
 import { modelFacingBranch } from '../shared/agentCapabilities/jsonArgTolerance.js';
 import {
-  collectStructuralFailures, collectVendorCompatibilityFailures, toPublishedJsonSchema,
+  collectStructuralFailures, collectVendorCompatibilityFailures, runtimeConstraintDescription, toPublishedJsonSchema,
 } from '../shared/agentCapabilities/modelVisibleJsonSchema.js';
+import { collectStandardSchemaFailures } from '../capabilityCore/modelSchemaStandardCheck.js';
 
 const KIND = z.ZodFirstPartyTypeKind;
 
@@ -75,7 +76,7 @@ function collectExpectations(rawSchema: ZodTypeAny, path: string, out: Expectati
   const description = schema.description;
   if (typeof description === 'string' && description.trim()) {
     const text = description;
-    out.push({ label: `${path} 的 .describe() 文案「${text}」`, satisfied: (facts) => facts.descriptions.has(text) });
+    out.push({ label: `${path} 的 .describe() 文案「${text}」`, satisfied: (facts) => [...facts.descriptions].some((published) => published === text || published.startsWith(`${text}\n`)) });
   }
   const inner = unwrap(schema);
   if (inner !== schema) {
@@ -182,6 +183,7 @@ function expectNumber(out: Expectation[], path: string, keyword: string, value: 
   out.push({
     label: `${path} 的 ${keyword}=${value}`,
     satisfied: (facts) => {
+      if (['minLength', 'maxLength'].includes(keyword) && [...facts.descriptions].some((text) => text.split('\n').includes(runtimeConstraintDescription(keyword, value)))) return true;
       const published = facts.numbers.get(keyword);
       if (!published) return false;
       return [...published].some(tighter);
@@ -268,5 +270,6 @@ export function assertModelVisibleSchemaLossless(
   const missing = expectations.filter((expectation) => !expectation.satisfied(facts)).map((e) => e.label);
   collectStructuralFailures(json, options.toolName, missing);
   collectVendorCompatibilityFailures(json, options.toolName, missing);
+  collectStandardSchemaFailures(json, options.toolName, missing);
   if (missing.length > 0) throw new ModelSchemaInformationLoss(options.toolName, missing);
 }
