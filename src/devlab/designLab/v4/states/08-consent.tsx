@@ -115,6 +115,7 @@ export const V4_CONSENT_STATES: readonly LabState[] = [
             summary: '模型验证失败：接口地址返回 404',
             provider: 'apimart',
             model: 'gpt-5.5',
+            laneName: 'lab-conversation',
           }}
         />
       </Panel>

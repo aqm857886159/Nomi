@@ -8,7 +8,7 @@ import { buildFeedbackDiagnostics } from './feedbackDiagnostics'
 import { feedbackSummaryLine, feedbackSurfaceOf } from './feedbackSummary'
 import type { FeedbackOpenRequest } from './feedbackTypes'
 import type { DiagnosticsBundleManifest } from '../../../electron/shared/contracts/diagnostics'
-import type { FeedbackReportRequest } from '../../../electron/shared/contracts/feedback'
+import { FEEDBACK_MANIFEST_ITEMS, type FeedbackReportRequest } from '../../../electron/shared/contracts/feedback'
 
 // 一键反馈的那张面（样张 B，用户 09-15 已拍板）。**四个失败面共用这一份**：
 // Agent 报错卡 / 生成失败节点 / 导入被拒 / 模型验证失败。
@@ -24,14 +24,32 @@ import type { FeedbackReportRequest } from '../../../electron/shared/contracts/f
 
 type Phase = 'idle' | 'sending' | 'sent' | 'queued' | 'unconfigured' | 'failed'
 
+/**
+ * 主进程最迟多久该回答（组包等轨迹 5 秒 + 等网络 8 秒，再留点余量）。
+ * 超过说明主进程卡住了：这张卡不能跟着卡住，用户的留言还在上面。
+ */
+const SEND_WATCHDOG_MS = 20_000
+/** 发完后卡留多久再收：一个编号扫一眼就够，一句要读完的话多留一会儿。 */
+const RECEIPT_LINGER_MS = 2_200
+const NOTICE_LINGER_MS = 5_000
+
+const MANIFEST_ITEM_KEYS = new Map(Object.entries(FEEDBACK_MANIFEST_ITEMS).map(([key, name]) => [name as string, key]))
+/** 「没带」那一行写短名：长说明讲的是带了什么，放在没带的那一行读着像带了。 */
+const EXCLUDED_ITEM_LABELS = new Map<string, string>([
+  [FEEDBACK_MANIFEST_ITEMS.logTail, 'feedbackReport.attachItem.logs'],
+  [FEEDBACK_MANIFEST_ITEMS.modelCatalog, 'feedbackReport.attachItem.catalog'],
+  [FEEDBACK_MANIFEST_ITEMS.trajectory, 'feedbackReport.attachItem.trace'],
+  [FEEDBACK_MANIFEST_ITEMS.perf, 'feedbackReport.attachItem.perf'],
+])
+
 export function FeedbackReportCard({
   request = null,
   onDone,
   showHeading = true,
 }: {
   request?: FeedbackOpenRequest | null
-  /** 发完（拿到编号或排队）后调用。浮层态用它关窗，内嵌态用它退回首页。 */
-  onDone?: () => void
+  /** 发完（拿到编号或排队）后调用，带上这行回执该留多久。浮层态用它关窗，内嵌态用它退回首页。 */
+  onDone?: (lingerMs: number) => void
   /**
    * 宿主已经把「反馈这个问题」印在自己的标题栏上时传 false。
    * 为什么要这一格：从失败面进来时它装在一个 modal 里，modal 自己有标题栏——
@@ -47,8 +65,11 @@ export function FeedbackReportCard({
   const [note, setNote] = React.useState('')
   const [phase, setPhase] = React.useState<Phase>('idle')
   const [receipt, setReceipt] = React.useState<string | null>(null)
-  const [manifest, setManifest] = React.useState<DiagnosticsBundleManifest | null>(null)
+  const [trimmed, setTrimmed] = React.useState(false)
+  const [manifest, setManifest] = React.useState<DiagnosticsBundleManifest | 'loading' | null>(null)
   const [viewing, setViewing] = React.useState(false)
+  // 卡换了请求或关掉之后，上一次发送晚到的回答不许再动这张卡（也不许把新卡关掉）。
+  const sendAttempt = React.useRef(0)
   // 摘要行里的时间是**这张卡打开的时刻**，不是渲染时刻——否则它会随每次重绘往前跳。
   const openedAt = React.useMemo(() => new Date(), [request])
 
@@ -57,11 +78,15 @@ export function FeedbackReportCard({
     setNote('')
     setPhase('idle')
     setReceipt(null)
+    setTrimmed(false)
     setManifest(null)
     setViewing(false)
     let active = true
     void bridge?.update?.appInfo().then((info) => { if (active) setAppInfo(info) }).catch(() => undefined)
-    return () => { active = false }
+    return () => {
+      active = false
+      sendAttempt.current += 1
+    }
   }, [bridge, request])
 
   // 供应商身份走**既有**的脱敏（策展供应商原样、ComfyUI 塌成字面量、用户自建塌成 custom）。
@@ -82,11 +107,11 @@ export function FeedbackReportCard({
   // 卡顿数字：卡片打开这一刻的本机分档快照。点「发送」= 同意带上（卡上写明了），不看遥测开关。
   const [perf, setPerf] = React.useState(() => snapshotPerfSummary())
   React.useEffect(() => { setPerf(snapshotPerfSummary()) }, [request])
-  const payload: FeedbackReportRequest = React.useMemo(() => ({
+  // 留言不在这里：它不影响清单，打字时不该重算一遍清单。
+  const reportRequest: FeedbackReportRequest = React.useMemo(() => ({
     surface: feedbackSurfaceOf(request),
     summary,
     ...(request?.errorKind ? { errorCode: request.errorKind } : {}),
-    ...(note.trim() ? { note: note.trim() } : {}),
     includeContent,
     ...(diagnostics.context.provider ? { provider: diagnostics.context.provider } : {}),
     ...(diagnostics.context.model ? { model: diagnostics.context.model } : {}),
@@ -94,33 +119,46 @@ export function FeedbackReportCard({
     // 项目由发起的那个失败面给（见 feedbackTypes.projectId）；这里只转发，不自己去查。
     ...(request?.projectId ? { projectId: request.projectId } : {}),
     ...(perf ? { perf } : {}),
-  }), [diagnostics.context.model, diagnostics.context.provider, includeContent, note, perf, request, summary])
+  }), [diagnostics.context.model, diagnostics.context.provider, includeContent, perf, request, summary])
 
-  const view = React.useCallback(async (): Promise<void> => {
-    setViewing(true)
-    // 「查看」只算清单，不发任何东西。
-    const preview = await api?.preview(payload).catch(() => null)
-    setManifest(preview?.manifest ?? null)
-  }, [api, payload])
+  // 「查看」只算清单，不发任何东西。勾选变了清单跟着变：用户点发送前看到的要是实情。
+  React.useEffect(() => {
+    if (!viewing) return undefined
+    let active = true
+    setManifest('loading')
+    void Promise.resolve(api?.preview(reportRequest) ?? null).catch(() => null).then((preview) => {
+      if (active) setManifest(preview?.manifest ?? null)
+    })
+    return () => { active = false }
+  }, [api, reportRequest, viewing])
 
   const send = React.useCallback(async (): Promise<void> => {
     if (!api) return
+    sendAttempt.current += 1
+    const attempt = sendAttempt.current
     setPhase('sending')
-    // 发送**不阻塞**：主进程立刻返回，失败已在那边入队重试（四条硬性之一）。
-    const result = await api.send(payload).catch(() => null)
+    let watchdog: number | undefined
+    const result = await Promise.race([
+      // 主进程先把报告落盘再发，最多等几秒就回答，发不出去的那边接着重试（四条硬性之一）。
+      api.send(note.trim() ? { ...reportRequest, note: note.trim() } : reportRequest).catch(() => null),
+      new Promise<null>((resolve) => { watchdog = window.setTimeout(() => resolve(null), SEND_WATCHDOG_MS) }),
+    ])
+    window.clearTimeout(watchdog)
+    if (attempt !== sendAttempt.current) return
     if (!result || result.ok !== true) {
       setPhase(result?.reason === 'endpoint-unconfigured' ? 'unconfigured' : 'failed')
       return
     }
     setReceipt(result.id)
+    setTrimmed(result.trimmed)
     setPhase(result.queued ? 'queued' : 'sent')
-    onDone?.()
-  }, [api, onDone, payload])
+    onDone?.(result.queued || result.trimmed ? NOTICE_LINGER_MS : RECEIPT_LINGER_MS)
+  }, [api, note, onDone, reportRequest])
 
   // 发完就收成一行。用户拿到编号之后这张卡没有任何别的用途（⑥：只给编号，不做回复闭环）。
   if (phase === 'sent' || phase === 'queued') {
     return (
-      <div data-feedback-card data-feedback-phase={phase} className="flex items-center gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2 text-caption text-nomi-ink-60">
+      <div data-feedback-card data-feedback-phase={phase} className="flex flex-wrap items-center gap-2 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2 text-caption text-nomi-ink-60">
         {phase === 'sent'
           ? <IconCheck size={15} stroke={1.8} className="shrink-0 text-nomi-accent" aria-hidden="true" />
           : <IconClock size={15} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />}
@@ -129,9 +167,15 @@ export function FeedbackReportCard({
             ? t('feedbackReport.sentWithId', { id: receipt })
             : phase === 'sent' ? t('feedbackReport.sent') : t('feedbackReport.queued')}
         </span>
+        {trimmed ? <span data-feedback-trimmed>{t('feedbackReport.trimmedNote')}</span> : null}
       </div>
     )
   }
+
+  // 这一行写的是这次真会带什么：工具轨迹只有对话里的问题才有，卡顿数字要攒够了才有。
+  const attachItems = ['logs', 'catalog', ...(request?.laneName ? ['trace'] : []), ...(perf ? ['perf'] : [])]
+  const contentAttached = manifest !== null && manifest !== 'loading'
+    && !manifest.excluded.some((item) => item.what === FEEDBACK_MANIFEST_ITEMS.content)
 
   return (
     <div data-feedback-card data-feedback-phase={phase} className="space-y-3 rounded-nomi border border-nomi-line bg-nomi-paper p-3.5">
@@ -142,11 +186,13 @@ export function FeedbackReportCard({
 
       {/* 「附带」那一行 + 「查看」。附属信息紧跟内容流、不推到右缘（设计系统「行布局」那一节）。 */}
       <div className="flex flex-wrap items-center gap-1.5 text-caption text-nomi-ink-40">
-        <span>{t('feedbackReport.attaches')}</span>
+        <span data-feedback-attaches>
+          {t('feedbackReport.attachesLead')} {attachItems.map((item) => t(`feedbackReport.attachItem.${item}`)).join(' · ')}
+        </span>
         <button
           type="button"
           data-feedback-view
-          onClick={() => { void view() }}
+          onClick={() => setViewing(true)}
           className="border-0 bg-transparent px-0 text-caption text-nomi-accent underline-offset-2 hover:underline"
         >
           {t('feedbackReport.view')}
@@ -155,22 +201,31 @@ export function FeedbackReportCard({
 
       {viewing ? (
         <div data-feedback-manifest className="space-y-1 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-3 py-2">
-          {manifest === null ? (
+          {manifest === 'loading' ? (
+            <p className="text-micro text-nomi-ink-40">{t('feedbackReport.manifestLoading')}</p>
+          ) : manifest === null ? (
             <p className="text-micro text-nomi-ink-40">{t('feedbackReport.manifestUnavailable')}</p>
           ) : (
             <>
               {manifest.entries.map((entry) => (
-                <p key={entry.path} className="flex flex-wrap items-baseline gap-1.5 text-micro text-nomi-ink-60">
+                <p key={entry.path} data-feedback-entry={entry.path} className="flex flex-wrap items-baseline gap-1.5 text-micro text-nomi-ink-60">
                   <span className="font-nomi-mono">{entry.path}</span>
-                  <span className="text-nomi-ink-40">{entry.what}</span>
+                  <span className="text-nomi-ink-40">
+                    {entry.path === FEEDBACK_MANIFEST_ITEMS.trajectory && contentAttached
+                      ? t('feedbackReport.manifestTrajectoryWithContent')
+                      : t(`feedbackReport.manifestItem.${MANIFEST_ITEM_KEYS.get(entry.path)}`)}
+                  </span>
                 </p>
               ))}
               {/* 没带什么，比带了什么更容易引起误解（D4 诚实交付）。 */}
               {manifest.excluded.map((item) => (
-                <p key={`${item.what}-${item.why}`} className="flex flex-wrap items-baseline gap-1.5 text-micro text-nomi-ink-40">
-                  <span aria-hidden="true">✗</span>
-                  <span>{item.what}</span>
-                  <span className="font-nomi-mono">{item.why}</span>
+                <p key={`${item.what}-${item.why}`} data-feedback-excluded={item.what} data-feedback-why={item.why} className="flex items-baseline gap-1.5 text-micro text-nomi-ink-40">
+                  <span aria-hidden="true" className="shrink-0">✗</span>
+                  <span>
+                    {t(EXCLUDED_ITEM_LABELS.get(item.what) ?? `feedbackReport.manifestItem.${MANIFEST_ITEM_KEYS.get(item.what)}`)}
+                    {' · '}
+                    {t(`feedbackReport.manifestWhy.${item.why}`)}
+                  </span>
                 </p>
               ))}
               <p className="pt-1 text-micro text-nomi-ink-40">{t('feedbackReport.rawHint')}</p>
@@ -179,12 +234,15 @@ export function FeedbackReportCard({
         </div>
       ) : null}
 
-      <DesignCheckbox
-        data-feedback-include-content
-        label={t('feedbackReport.includeContent')}
-        checked={includeContent}
-        onChange={(event) => setIncludeContent(event.currentTarget.checked)}
-      />
+      {/* 内容只住在对话轨迹里。这个问题不在对话里就没有东西可带，给一个勾只会让人以为带了。 */}
+      {request?.laneName ? (
+        <DesignCheckbox
+          data-feedback-include-content
+          label={t('feedbackReport.includeContent')}
+          checked={includeContent}
+          onChange={(event) => setIncludeContent(event.currentTarget.checked)}
+        />
+      ) : null}
 
       <DesignTextInput
         data-feedback-note
