@@ -104,7 +104,7 @@ describe('一键反馈组包', () => {
   it('用户自建中转的 key 塌成字面量 custom，不带出私有域名', async () => {
     const report = await buildFeedbackReport({ ...request, provider: 'internal proxy corp.local', model: '我的模型' }, deps())
     expect(report.context.provider).toBe('custom')
-    expect(report.context.model).toBe('custom')
+    expect(report.context.model).toBeNull()
     const passthrough = await buildFeedbackReport({ ...request, provider: 'apimart', model: 'gpt-5.5' }, deps())
     expect(passthrough.context.provider).toBe('apimart')
     expect(passthrough.context.model).toBe('gpt-5.5')

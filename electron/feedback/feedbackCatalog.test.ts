@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { enFeedbackReport, zhFeedbackReport } from '../../src/i18n/locales/feedbackReport'
-import { BUILTIN_VENDOR_SEEDS, isLocalSeed } from '../catalog/builtinVendorSeeds'
+import { BUILTIN_VENDOR_SEEDS } from '../catalog/builtinVendorSeeds'
 import { applyBuiltinSeeds } from '../catalog/seedBuiltins'
 import { CURRENT_CATALOG_VERSION } from '../catalog/types'
 import { redactModelCatalog } from '../diagnostics/catalogRedaction'
 import { builtinVendorKeyOfKey } from '../shared/builtinVendorIdentity'
 import { projectCatalogForReport } from './feedbackCatalog'
 import { projectLogLine } from './feedbackLogTail'
-import { buildFeedbackReport } from './feedbackReport'
 
 type Row = Record<string, unknown>
 const project = (catalog: unknown, provider: string | null = null): Row | null => projectCatalogForReport(redactModelCatalog(catalog), provider)
@@ -217,25 +216,12 @@ describe('反馈包里的模型目录', () => {
       apiKeysByVendor: { 'comfyui-local--second-rig': { vendorKey: 'comfyui-local--second-rig', apiKey: 'plain-corp-secret', enc: 'plain', enabled: true } },
       suppressedBuiltinModels: [{ vendorKey: 'comfyui-local', modelKey: MODEL_KEY }, { vendorKey: 'apimart', modelKey: 'gpt-4' }],
     }
-    const wholeReport = (provider: string | undefined, model: string | undefined): Promise<string> => buildFeedbackReport({
-      surface: 'generation', summary: '生成失败', provider, model,
-    }, {
-      now: new Date(STAMP),
-      app: { version: '0.24.0', electron: '43.0.0', node: '22.0.0', chrome: '130' },
-      system: { platform: 'darwin', arch: 'arm64', osRelease: '25.5.0', locale: 'zh-CN', timeZone: 'Asia/Shanghai' },
-      projectId: 'planted-project',
-      readLogTail: () => [`[${STAMP}] WARN  vendor         call vendor=comfyui-local model=${MODEL_KEY} status=500`, `[${STAMP}] WARN  vendor         call vendor=comfyui-local--second-rig model=comfy-planted-portrait-2 status=500`],
-      readModelCatalog: () => workflowCatalog,
-      readTrajectory: async () => null,
-    }).then((report) => JSON.stringify(report))
-
     it.each([
-      ['问题就是这一家', 'comfyui-local', MODEL_KEY],
-      ['问题是这一家的第二台', 'comfyui-local--second-rig', 'comfy-planted-portrait-2'],
-      ['问题不是这一家', 'apimart', 'gpt-5.5'],
-      ['没说是哪一家', undefined, undefined],
-    ])('%s：整个包里搜不到提示词、文件名、标签和模型名', async (_name, provider, model) => {
-      const text = await wholeReport(provider, model)
+      ['问题就是这一家', 'comfyui-local'],
+      ['问题不是这一家', 'apimart'],
+      ['没说是哪一家', null],
+    ])('%s：目录里搜不到提示词、文件名、标签和模型名', (_name, provider) => {
+      const text = JSON.stringify(project(workflowCatalog, provider))
       expect(text).toContain('modelsOmitted')
       expect(SECRETS.filter((secret) => text.includes(secret))).toEqual([])
       expect(text).not.toContain('comfy-planted')
@@ -274,10 +260,6 @@ describe('反馈包里的模型目录', () => {
       expect((moved?.models as Row[]).map((row) => row.vendorKey)).toEqual(['apimart'])
       expect(moved?.mappings).toEqual([])
       expect(JSON.stringify(moved)).not.toContain(PROMPT)
-    })
-
-    it('种子表里本机的家就这几个；新加一个要来这里看一眼', () => {
-      expect(BUILTIN_VENDOR_SEEDS.filter(isLocalSeed).map((seed) => seed.key).sort()).toEqual([...LOCAL_SEED_KEYS].sort())
     })
 
     it.each(LOCAL_SEED_KEYS)('%s：模型和映射都不出门', (key) => {

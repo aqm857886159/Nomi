@@ -8,12 +8,11 @@
 // 和轨迹投影（`telemetry/trajectoryProjection.ts`）同一个做法：新字段想出门，来这张表登记一次。
 import fs from 'node:fs'
 import path from 'node:path'
-import { builtinVendorSeed, isLocalSeed } from '../catalog/builtinVendorSeeds'
+import { outboundVendor } from '../catalog/outboundVendor'
 import { diskSafeMessage } from '../logging/diskSafeFailure'
 import { CRASH_LOG_FILE_NAME, listLogFilesForBundle } from '../logging/logFiles'
 import { logWarn } from '../logging/logger'
 import { redactLogValue } from '../logging/redact'
-import { builtinVendorKeyOfKey } from '../shared/builtinVendorIdentity'
 import { isCodeClassName } from '../shared/contracts/ipcInvokeFailure'
 
 /**
@@ -49,27 +48,9 @@ const FRAME_FUNCTION = /^[\w$.<>-]{1,80}$/
 const FRAME_KEYWORDS: ReadonlySet<string> = new Set(['async', 'new'])
 const NO_VENDOR_VALUES: ReadonlySet<string> = new Set(['unknown', '?', '-'])
 
-/** 内置家的 root key（`apimart--mini` 的后半段是用户起的连接名，不要）；不是内置家给 null。出门的目录用同一个判据（`feedbackCatalog.ts`）。 */
-export function builtinVendorOf(value: string): string | null {
-  const root = builtinVendorKeyOfKey(value)
-  return builtinVendorSeed(root) ? root : null
-}
-
-/**
- * 种子地址就在这台机器上的内置家。判种子，不判当前地址：用户把地址改成局域网、再接一台（`--2`）都还算。
- * 这一家的名字留着，名下的模型是用户自己接进来的（工作流、提示词、文件名都在里面，模型名也是用户起的），和自建一样不出门。
- */
-export function isLocalVendor(value: string): boolean {
-  const seed = builtinVendorSeed(builtinVendorKeyOfKey(value))
-  return seed !== undefined && isLocalSeed(seed)
-}
-
-/**
- * 用户自建中转的 vendor key 是从用户自己的地址和连接名铸出来的，可能是一个内网域名；
- * 这一格和反馈包的 provider 同一条规矩（`buildFeedbackDiagnostics`）：内置家原样，其余塌成 `custom`。
- */
+/** 用户自建中转的 vendor key 是从用户自己的地址和连接名铸出来的，可能是一个内网域名。判据只有一份（`outboundVendor`）。 */
 function projectVendor(value: string): string {
-  return NO_VENDOR_VALUES.has(value) ? 'unknown' : builtinVendorOf(value) ?? 'custom'
+  return NO_VENDOR_VALUES.has(value) ? 'unknown' : outboundVendor(value).vendor
 }
 
 function vendorValueOf(token: string): string | null {
@@ -127,7 +108,7 @@ function projectFrames(tokens: readonly string[]): string[] {
 function projectBody(tokens: readonly string[]): string[] {
   const modelNameLeaves = tokens.some((token) => {
     const vendor = vendorValueOf(token)
-    return vendor !== null && builtinVendorOf(vendor) !== null && !isLocalVendor(vendor)
+    return vendor !== null && outboundVendor(vendor).modelsLeave
   })
   const kept: string[] = []
   const drop = (): void => {

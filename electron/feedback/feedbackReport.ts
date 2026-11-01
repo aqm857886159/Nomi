@@ -18,6 +18,7 @@ import { redactLogValue } from '../logging/redact'
 import { redactModelCatalog } from '../diagnostics/catalogRedaction'
 import { logWarn } from '../logging/logger'
 import { isPerfSummaryProps } from '../shared/contracts/perfTelemetry'
+import { outboundVendor } from '../catalog/outboundVendor'
 import { projectLaneTrajectory } from '../telemetry/trajectoryProjection'
 import type { TrajectoryTurnInput } from '../shared/agentLane/laneTrajectory'
 import type { DiagnosticsBundleEntry, DiagnosticsBundleExclusion, DiagnosticsBundleManifest } from '../shared/contracts/diagnostics'
@@ -29,7 +30,7 @@ import {
   type FeedbackSurface,
 } from '../shared/contracts/feedback'
 import { projectCatalogForReport } from './feedbackCatalog'
-import { isLocalVendor, projectLogLines } from './feedbackLogTail'
+import { projectLogLines } from './feedbackLogTail'
 
 /** 摘要那句人话的上限。它是**已经派生好的**一句话，长到这个数说明调用处传错了东西。 */
 const MAX_SUMMARY_CHARS = 300
@@ -85,9 +86,8 @@ function text(value: unknown, max: number): string {
 }
 
 /**
- * 供应商身份只放**渲染层已经脱敏过的那一格**（`buildFeedbackDiagnostics` 的产物：
- * 策展供应商原样、本机多实例塌成它的固定名字、用户自建塌成字面量 `custom`）。
- * 这里再收一次形状，防的是「有人绕过那一层直接调 IPC」。
+ * 供应商身份来自渲染层脱敏过的那一格（`buildFeedbackDiagnostics` 的产物）。这里收一次形状，
+ * 再由 `outboundVendor` 定什么能出门：渲染层读不了种子，判不了本机那几家；也防有人绕过那一层直接调 IPC。
  */
 function identity(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -148,7 +148,9 @@ export async function buildFeedbackReport(
   const entries: DiagnosticsBundleEntry[] = []
   const excluded: DiagnosticsBundleExclusion[] = []
   const attachments: Record<string, unknown> = {}
-  const provider = identity(request.provider)
+  const requestedProvider = identity(request.provider)
+  const outbound = requestedProvider === null ? null : outboundVendor(requestedProvider)
+  const provider = outbound?.vendor ?? null
 
   const exclude = (what: string, why: FeedbackExclusionReason): void => {
     excluded.push({ what, why })
@@ -257,8 +259,7 @@ export async function buildFeedbackReport(
       note: text(request.note, MAX_NOTE_CHARS) || null,
       contentIncluded,
       provider,
-      // 本机那几家的模型名可能是用户自己起的（`isLocalVendor`）。
-      model: provider !== null && isLocalVendor(provider) ? null : identity(request.model),
+      model: outbound?.modelsLeave ? identity(request.model) : null,
     },
     attachments,
   }

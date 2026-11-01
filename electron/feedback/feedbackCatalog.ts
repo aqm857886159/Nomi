@@ -3,9 +3,9 @@
 // 目录是排查「这个模型调不通」最有用的一份，但用户自建中转那几行是用户自己的东西：vendor key 从用户的地址铸出来
 // （`gw-example-com`、`internal-proxy-corp-local`），连接名和模型别名是用户起的，映射和脚本里写着用户的接口。
 // 诊断包可以带（用户自己看过、自己决定发给谁），点一下就走的这条路不行。规矩和日志尾巴同一条、同一个判据
-// （`builtinVendorOf`）：内置家留，其余塌成 `custom`。
+// （`outboundVendor`）：内置家留，其余塌成 `custom`。
 //
-// 种子地址就在这台机器上的内置家（`isLocalVendor`）同样：家留着，名下的模型和映射是用户自己接进来的
+// 种子地址就在这台机器上的内置家同样：家留着，名下的模型和映射是用户自己接进来的
 // （工作流、提示词、文件名都在里面），只留个数。
 //
 // 内置家那几行也只留下面列出的字段，默认不要：
@@ -15,13 +15,12 @@
 // 最后再过一遍：host 不是代码里登记过的 URL 一律换掉，不管它长在哪一格。
 import { AI_SDK_PROVIDER_KINDS, VENDOR_AUTH_TYPES } from '../shared/contracts/modelAccessCapabilities'
 import { BUILTIN_VENDOR_SEEDS, builtinVendorSeed } from '../catalog/builtinVendorSeeds'
+import { CUSTOM_VENDOR, outboundVendor } from '../catalog/outboundVendor'
 import { applyBuiltinSeeds } from '../catalog/seedBuiltins'
 import { CURRENT_CATALOG_VERSION } from '../catalog/types'
 import { CONNECTION_KEY_SEPARATOR } from '../shared/builtinVendorIdentity'
 import { codeDeclaredFallbackOrigins } from '../vendor/vendorBaseFallback'
-import { builtinVendorOf, isLocalVendor } from './feedbackLogTail'
 
-const CUSTOM_VENDOR = 'custom'
 const CUSTOM_ADDRESS = '<custom-address>'
 const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]*/gi
 const BUILTIN_VENDOR_FIELDS = ['enabled', 'authType', 'authHeader', 'authScheme', 'authQueryParam', 'providerKind', 'network', 'assetIngestion', 'createdAt', 'updatedAt'] as const
@@ -127,8 +126,8 @@ function namesForBuiltinKeys(keys: readonly string[]): Map<string, string> {
   const names = new Map<string, string>()
   const seen = new Map<string, number>()
   for (const key of keys) {
-    const root = builtinVendorOf(key)
-    if (root === null || names.has(key)) continue
+    const root = outboundVendor(key).vendor
+    if (root === CUSTOM_VENDOR || names.has(key)) continue
     if (key === root) {
       names.set(key, root)
       continue
@@ -164,7 +163,7 @@ export function projectCatalogForReport(catalog: unknown, provider: string | nul
   const ownRows = (rows: Row[]): Row[] => rows.flatMap((row) => {
     const key = vendorKeyOf(row)
     const name = names.get(key)
-    if (name === undefined || isLocalVendor(key)) return []
+    if (name === undefined || !outboundVendor(key).modelsLeave) return []
     return [(key === name ? row : mapStrings(row, (text) => text.split(key).join(name))) as Row]
   })
   const countOf = (rows: Row[], key: string): number => rows.filter((row) => vendorKeyOf(row) === key).length
@@ -185,10 +184,10 @@ export function projectCatalogForReport(catalog: unknown, provider: string | nul
     }
     return {
       key: name,
-      name: builtinVendorSeed(builtinVendorOf(key) ?? '')?.name,
+      name: builtinVendorSeed(outboundVendor(key).vendor)?.name,
       baseUrlHint: projectAddress(vendor.baseUrlHint),
       ...pick(vendor, BUILTIN_VENDOR_FIELDS),
-      ...(isLocalVendor(key) ? { modelCount: countOf(models, key), mappingCount: countOf(mappings, key) } : {}),
+      ...(outboundVendor(key).modelsLeave ? {} : { modelCount: countOf(models, key), mappingCount: countOf(mappings, key) }),
     }
   }
 

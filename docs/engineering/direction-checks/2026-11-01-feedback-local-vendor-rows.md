@@ -1,6 +1,6 @@
 # 方向检查：内置家名下也住着用户自己的东西（2026-11-01）
 
-命中（`node scripts/fix-churn.mjs --staged`）：`electron/feedback/` 目录近 14 天 3 个 fix，这一刀是第 4 个；`feedbackLogTail.ts`、`feedbackReport.ts` 各是第 3 个；词典 `feedbackReport.ts#manifestItem` 是第 4 个；概念「一键反馈带出机器的日志尾巴长什么样」是第 3 个。这些 fix 都在同一个 PR 里。
+命中（`node scripts/fix-churn.mjs --staged`）：`electron/feedback/` 目录近 14 天 3 个 fix，本机那几家这一刀是第 4 个，判据收成一份那一刀是第 5 个；`feedbackLogTail.ts`、`feedbackReport.ts` 各是第 3、第 4 个，`feedbackCatalog.ts` 文件级是第 3 个；`electron/telemetry/` 目录是第 3 个；词典 `feedbackReport.ts#manifestItem` 是第 4 个；概念「一键反馈带出机器的日志尾巴长什么样」是第 3、第 4 个。这些 fix 都在同一个 PR 里，两刀共用这份复盘。
 
 来源是逃逸账本的修复（`USER-20261101-feedback-logs-missing`）。结账挂的类检查是矩阵测试 `electron/feedback/feedbackCatalog.test.ts`：每个本机种子一行，整个包搜不到提示词和文件名。
 
@@ -15,7 +15,7 @@
 | `3ea46adf0` 日志尾巴读不到、带着自由文本 | 字段黑名单挡不住名字无害的字段 | 默认放行 |
 | `5007e0fe2` 目录带着自建连接的地址 | 只抹凭据，没人管地址 | 默认放行 |
 | `ee8152ad0` 英文清单多一行 | 清单跟着收的东西变，长度没人管 | 不是这一类，另有复盘 |
-| 这一刀 | 模型行和 `meta` 没走字段表；判据按「是不是内置」，工作流挂在内置的本机家名下 | 默认放行，且按名字判归属 |
+| 这一刀 | 模型行和 `meta` 没走字段表；判据按「是不是内置」，工作流挂在内置的本机家名下；轨迹的厂商名和模型名根本不判 | 默认放行，且每个出口各判各的 |
 
 ## 2. 为什么这一类会一直出现
 
@@ -28,13 +28,12 @@
 | 预测 | 怎么验证 |
 |---|---|
 | 用户写进云端内置家映射模板的字面量（默认提示词）跟着映射出门 | 已知，正文「已知限制」写了：在映射 `create.body` 里种一句话，配过这一家时能搜到 |
-| 工具轨迹里的厂商名和模型名也不判自建 | 已报协调：`trajectoryProjection.ts` 的 `gen_ai.provider.name` |
 | 加一个新的本机种子 | 判据自动覆盖；种子表那条测试变红，有人来看一眼 |
 | 模型行长出新字段 | 字段表外不出门，排查要用的话来表里登记 |
 
 ## 4. 靶子独立性
 
-测试种的是工作流的真实形状（`comfyuiWorkflowImport.ts` 写的 `meta.comfyWorkflowImport`、`create.body.prompt`），断言读 `buildFeedbackReport` 组出来的整个包，不读投影的内部状态。本机种子的名单写死在测试里，不用被测的判据去算。反证跑过：拿掉判据、拿掉字段表、拿掉日志和上下文那两处，6 种改法都变红。
+测试种的是工作流的真实形状（`comfyuiWorkflowImport.ts` 写的 `meta.comfyWorkflowImport`、`create.body.prompt`）和轨迹夹具的真实形状，断言读 `buildFeedbackReport` 组出来的整个包，不读投影的内部状态。本机种子的名单写死在测试里，不用被测的判据去算。反证跑过：判据本身和目录、日志、上下文、轨迹每个入口逐个撤掉，整个包那条回归都变红。
 
 ## 5. P0：这是我们独有的吗
 
@@ -45,7 +44,7 @@
 | 选项 | 做什么 | 代价 | 风险 | 推荐 |
 |---|---|---|---|---|
 | 接入现成做法 | 映射也定字段表，目录每一层都默认拒绝 | 映射模板字段多，逐家定，要看哪些排查用得上 | 表定窄了，排查「接口对不上」看不到请求长什么样 | 下一轮：这轮协调裁定不动云端映射模板 |
-| 补（这一刀） | 种子在本机的家只留个数，模型行和 `meta` 走字段表，日志尾巴和报告上下文同一个判据 | 约 40 行；排查本机那几家时看不到模型名和工作流 | 云端映射模板还开着 | 这轮做 |
+| 补（这一刀） | 判据收成一份（`electron/catalog/outboundVendor.ts`），目录、日志尾巴、报告上下文、轨迹都读它；种子在本机的家只留个数，模型行和 `meta` 走字段表 | 约 60 行；排查本机那几家时看不到模型名和工作流；自建中转的轨迹也看不到模型名 | 云端映射模板还开着 | 这轮做 |
 | 重写 | 目录只带家数和个数，不带模型和映射 | 「这个模型调不通」最有用的一份没了 | 高 | 不选 |
 | 删 | 不带目录 | 同上 | 高 | 不选 |
 
@@ -55,6 +54,8 @@
 
 ## 特征测试清单
 
+- `electron/feedback/feedbackOutbound.test.ts`：同一批东西种进目录、日志、上下文、轨迹，用真实组包函数组整个包，七种情况零命中；定期上报的投影也断言一次。
+- `electron/catalog/outboundVendor.test.ts`：每种 key 形状、每个种子，种子表里本机的家就这几个。
 - `electron/feedback/feedbackCatalog.test.ts`：`种子地址在本机的家` 整组（问题是不是这一家、第二台、改过地址、每个本机种子）、`模型行：表外的字段不出门`。
 - `electron/feedback/feedbackLogTail.test.ts`：本机那几家的 `model=` 换成 `…`。
 - `electron/feedback/feedbackReport.test.ts`：本机那几家的 `context.model` 是 null。
