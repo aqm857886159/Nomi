@@ -20,7 +20,7 @@ function deps(overrides: Partial<FeedbackReportDeps> = {}): FeedbackReportDeps {
       '[2026-09-15T02:41:00.000Z] WARN  tasks          generation-failed status=500 absolutePath=/Users/aoqimin/Documents/Nomi Projects/winter-bus/refs/glass-fog.png reason=sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf',
     ],
     // nomi-secret-scan:allow 这是金测试的合成靶子（同 tests/fixtures 里那份 trace.jsonl），不是任何真实账号的 key；它存在的意义就是被断言「不许出现在产物里」
-    readModelCatalog: () => ({ apiKeys: [{ vendor: 'apimart', apiKey: 'sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf', enabled: true }] }),
+    readModelCatalog: () => ({ vendors: [{ key: 'apimart', enabled: true }], apiKeysByVendor: { apimart: { vendorKey: 'apimart', apiKey: 'sk-live-9QhT2mVx7Zb4Lp0RwEaYcN1sKdJf', enabled: true } } }),
     readTrajectory: async () => fixtureTurns(),
     ...overrides,
   }
@@ -142,7 +142,7 @@ describe('一键反馈组包', () => {
 
   it('超预算时先牺牲最大的目录，日志和轨迹这些小而有用的留着', async () => {
     const report = await buildFeedbackReport(request, deps({
-      readModelCatalog: () => ({ vendors: [{ key: 'apimart', note: 'a b '.repeat(FEEDBACK_REPORT_MAX_BYTES / 4) }] }),
+      readModelCatalog: () => ({ vendors: [{ key: 'apimart' }], models: [{ vendorKey: 'apimart', labelZh: 'a b '.repeat(FEEDBACK_REPORT_MAX_BYTES / 4) }] }),
     }))
     expect(report.manifest.entries.map((entry) => entry.path).sort()).toEqual([FEEDBACK_MANIFEST_ITEMS.logTail, FEEDBACK_MANIFEST_ITEMS.trajectory])
     expect(report.manifest.excluded).toContainEqual({ what: FEEDBACK_MANIFEST_ITEMS.modelCatalog, why: 'report-size-limit' })
@@ -292,9 +292,15 @@ describe('一键反馈组包', () => {
       expect(attached.mappings.map((mapping) => mapping.id)).toEqual(['1', '2'])
     })
 
-    it('形状不认识就原样（已抹过密钥）带上，不猜', async () => {
+    it('形状不认识就不带，清单写这次没读到', async () => {
       const report = await buildFeedbackReport(request, deps({ readModelCatalog: () => ({ somethingElse: true }) }))
-      expect(report.attachments[FEEDBACK_MANIFEST_ITEMS.modelCatalog]).toEqual({ somethingElse: true })
+      expect(report.attachments).not.toHaveProperty([FEEDBACK_MANIFEST_ITEMS.modelCatalog])
+      expect(report.manifest.excluded).toContainEqual({ what: FEEDBACK_MANIFEST_ITEMS.modelCatalog, why: 'catalog-unavailable' })
+    })
+
+    it('给接收端看的那一句也说自建连接不带地址', async () => {
+      const report = await buildFeedbackReport(request, deps({ readModelCatalog: () => catalog }))
+      expect(report.manifest.entries.find((entry) => entry.path === FEEDBACK_MANIFEST_ITEMS.modelCatalog)?.what).toContain('自建连接只留「是自建」，不带地址')
     })
   })
 

@@ -49,8 +49,8 @@ const FRAME_FUNCTION = /^[\w$.<>-]{1,80}$/
 const FRAME_KEYWORDS: ReadonlySet<string> = new Set(['async', 'new'])
 const NO_VENDOR_VALUES: ReadonlySet<string> = new Set(['unknown', '?', '-'])
 
-/** 内置家的 root key（`apimart--mini` 的后半段是用户起的连接名，不要）；不是内置家给 null。 */
-function builtinVendorOf(value: string): string | null {
+/** 内置家的 root key（`apimart--mini` 的后半段是用户起的连接名，不要）；不是内置家给 null。出门的目录用同一个判据（`feedbackCatalog.ts`）。 */
+export function builtinVendorOf(value: string): string | null {
   const root = builtinVendorKeyOfKey(value)
   return builtinVendorSeed(root) ? root : null
 }

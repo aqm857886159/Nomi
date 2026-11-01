@@ -5,7 +5,7 @@
 // 为什么不直接把 `buildDiagnosticsBundle()` 那个 zip 发出去：它上限 25MB，而这是一次
 // 用户点了按钮就该立刻拿到编号的请求（接收端 body 上限 2MB）。所以这里带的是
 //   · 日志**尾部**（最近若干行，按 `feedbackLogTail.ts` 的白名单投影）
-//   · 模型目录（`redactModelCatalog` 抹掉密钥，只留配过的那几家的映射）
+//   · 模型目录（`redactModelCatalog` 抹掉密钥，`feedbackCatalog.ts` 抹掉自建连接的地址，只留配过的那几家的映射）
 //   · 这一回合的轨迹投影（`projectLaneTrajectory` 的字段白名单）
 //   · 上下文（版本 / 系统 / 失败面 / 错误码 / 那句人话 / 用户可空的留言）
 // 完整原始日志与 Agent 记录仍然走既有的 **设置 → 导出诊断包**（用户自己挑保存位置、
@@ -28,6 +28,7 @@ import {
   type FeedbackReportRequest,
   type FeedbackSurface,
 } from '../shared/contracts/feedback'
+import { projectCatalogForReport } from './feedbackCatalog'
 import { projectLogLines } from './feedbackLogTail'
 
 /** 摘要那句人话的上限。它是**已经派生好的**一句话，长到这个数说明调用处传错了东西。 */
@@ -110,18 +111,6 @@ export function isFeedbackReportRequest(value: unknown): value is FeedbackReport
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
-/**
- * 目录占了反馈包的九成，其中接口映射又是大头，而绝大多数映射属于用户根本没配 key 的内置厂商。
- * 排查「这个模型调不通」只看配过的那几家和这次失败的那一家；包小一半，弱网上才发得完。
- */
-function withRelevantMappings(catalog: unknown, provider: string | null): unknown {
-  if (!isRecord(catalog) || !Array.isArray(catalog.mappings)) return catalog
-  const configured = isRecord(catalog.apiKeysByVendor) ? Object.keys(catalog.apiKeysByVendor) : []
-  const relevant = new Set(provider ? [...configured, provider] : configured)
-  const mappings = catalog.mappings.filter((mapping) => isRecord(mapping) && relevant.has(String(mapping.vendorKey)))
-  return { ...catalog, mappings, mappingsOmitted: catalog.mappings.length - mappings.length }
 }
 
 type TrajectoryRead = { turns: TrajectoryTurnInput[] } | { why: FeedbackExclusionReason }
@@ -228,11 +217,12 @@ export async function buildFeedbackReport(
     else add(ITEMS.logTail, projected, `最近 ${projected.length} 行运行日志：只留时间、级别、模块、事件名和白名单字段，其余字段一律不出门`)
   })
 
-  // ④ 模型目录。它是「为什么这个模型不工作」最有用的一份，密钥由 redactModelCatalog 抹掉。
+  // ④ 模型目录。它是「为什么这个模型不工作」最有用的一份。密钥由 redactModelCatalog 抹掉，自建连接由 feedbackCatalog 收成一行「是自建」。
   attempt(ITEMS.modelCatalog, 'catalog-unavailable', () => {
     const catalog = deps.readModelCatalog()
-    if (catalog === null) exclude(ITEMS.modelCatalog, 'catalog-unavailable')
-    else add(ITEMS.modelCatalog, withRelevantMappings(redactModelCatalog(catalog), provider), '模型目录（密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）')
+    const projected = catalog === null ? null : projectCatalogForReport(redactModelCatalog(catalog), provider)
+    if (projected === null) exclude(ITEMS.modelCatalog, 'catalog-unavailable')
+    else add(ITEMS.modelCatalog, projected, '模型目录（接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）')
   })
 
   // 永远排除的三类，逐条写清原因（D4：包里没有什么，比包里有什么更容易引起误解）。

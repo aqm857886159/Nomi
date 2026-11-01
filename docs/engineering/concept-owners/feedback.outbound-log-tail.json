@@ -16,6 +16,10 @@
       "symbol": "projectLogLine"
     },
     {
+      "path": "electron/feedback/feedbackCatalog.ts",
+      "symbol": "projectCatalogForReport"
+    },
+    {
       "path": "electron/feedback/feedbackReport.ts",
       "symbol": "buildFeedbackReport"
     }
@@ -26,5 +30,5 @@
     "electron/feedback/feedbackReport.ts"
   ],
   "since": "2026-11-01",
-  "notes": "合同 docs/fixes/2026-11-01-feedback-log-tail.root-cause.json：默认拒绝的字段白名单投影，认不出形状的行整行不要，脱敏只是第二道网；新日志字段默认不出门。buildFeedbackReport 是唯一把尾巴放进报告并记下缺失原因的地方。本机日志和用户自己保存的诊断包不走这里。"
+  "notes": "合同 docs/fixes/2026-11-01-feedback-log-tail.root-cause.json：默认拒绝的字段白名单投影，认不出形状的行整行不要，脱敏只是第二道网；新日志字段默认不出门。buildFeedbackReport 是唯一把尾巴放进报告并记下缺失原因的地方。本机日志和用户自己保存的诊断包不走这里。 模型目录同一条规矩、同一个判据（builtinVendorOf）：内置家按字段表留，自建连接只留「是自建」，不认识的形状不带。"
 }

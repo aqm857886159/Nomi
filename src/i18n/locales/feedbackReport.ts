@@ -12,8 +12,8 @@ import type { FeedbackExclusionReason, FeedbackManifestItem } from '../../../ele
 
 export const zhFeedbackReport = {
   title: '反馈这个问题',
-  /** 调用处没给那句人话时的兜底。它不该经常出现——出现了说明某个失败面没接上 summary。 */
-  summaryFallback: '这一步没成功',
+  /** 没有失败可说时的那一句（设置 → 关于 → 反馈）。四个失败面都带自己的那句人话，不走这里。 */
+  summaryFallback: '你主动发起的反馈',
   attachesLead: '附带',
   attachItem: {
     logs: '日志',
@@ -26,7 +26,7 @@ export const zhFeedbackReport = {
   manifestUnavailable: '清单这次没算出来（日志或轨迹暂时读不到）。仍然可以发送。',
   manifestItem: {
     logTail: '最近的运行日志：只留时间、模块、事件名和状态码这类数字，其余字段不带',
-    modelCatalog: '模型目录：接了哪几家、各家的接口地址和模型配置；密钥、代理地址、自定义头全部抹掉',
+    modelCatalog: '模型目录：接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；密钥、代理地址、自定义头全部抹掉',
     trajectory: '最近 3 个回合用了哪些工具、成没成功、多久、多少 token；提示词、回复、工具结果都不带',
     perf: '界面流畅度的分档数字：没有原始毫秒，没有内容',
     secrets: '密钥、令牌、代理凭据',
@@ -64,7 +64,7 @@ export const zhFeedbackReport = {
 
 export const enFeedbackReport = {
   title: 'Report this problem',
-  summaryFallback: 'This step did not succeed',
+  summaryFallback: 'Feedback you started',
   attachesLead: 'Attaches',
   attachItem: {
     logs: 'logs',
@@ -77,7 +77,7 @@ export const enFeedbackReport = {
   manifestUnavailable: 'The manifest could not be built this time (logs or trace are unreadable right now). You can still send.',
   manifestItem: {
     logTail: 'Recent app logs: only the time, module, event name and figures such as status codes. Other fields stay out',
-    modelCatalog: 'Model catalog: which providers are connected, their endpoint addresses and model settings. Keys, proxy addresses and custom headers are wiped',
+    modelCatalog: 'Model catalog: which providers are connected, their official addresses and model settings. A self-hosted connection is only marked as self-hosted, with no address. Keys, proxy addresses and custom headers are wiped',
     trajectory: 'The last 3 turns: which tools ran, whether they worked, how long, how many tokens. No prompts, replies or tool results',
     perf: 'Banded interface smoothness figures: no raw timings, no content',
     secrets: 'API keys, tokens, proxy credentials',

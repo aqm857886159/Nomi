@@ -11,6 +11,7 @@
   ],
   "scope_paths": [
     "electron/feedback/feedbackLogTail.ts",
+    "electron/feedback/feedbackCatalog.ts",
     "electron/feedback/feedbackReport.ts",
     "electron/shared/contracts/feedback.ts",
     "src/i18n/locales/feedbackReport.ts"
@@ -33,21 +34,47 @@
     "A new log field stays on the machine unless someone adds it to the list.",
     "The tail is read by absolute path from the daily logs and never from the crash log.",
     "The manifest says logs-empty or logs-unavailable when there is no tail, and the radar counts missing tails per version.",
+    "A self-hosted connection leaves the machine in model-catalog.json as one row that only says it is self-hosted, decided by the same judge as the log tail. Only hosts declared in code keep their URL; anything else, in any field, becomes a marker.",
     "Keys, paths and prompts are not collected. The consent copy lists what is really sent, in the language of the interface."
   ],
   "doors": [
-    { "kind": "read", "path": "electron/feedback/feedbackIpc.ts", "symbol": "readRecentLogLines" },
-    { "kind": "write", "path": "electron/feedback/feedbackLogTail.ts", "symbol": "projectLogLine" },
-    { "kind": "write", "path": "electron/feedback/feedbackReport.ts", "symbol": "projectLogLines" },
-    { "kind": "read", "path": "electron/shared/contracts/feedback.ts", "symbol": "FEEDBACK_MANIFEST_ITEMS" },
-    { "kind": "read", "path": "src/i18n/locales/feedbackReport.ts", "symbol": "manifestItem" }
+    {
+      "kind": "read",
+      "path": "electron/feedback/feedbackIpc.ts",
+      "symbol": "readRecentLogLines"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackLogTail.ts",
+      "symbol": "projectLogLine"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackCatalog.ts",
+      "symbol": "projectCatalogForReport"
+    },
+    {
+      "kind": "write",
+      "path": "electron/feedback/feedbackReport.ts",
+      "symbol": "projectLogLines"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/feedback.ts",
+      "symbol": "FEEDBACK_MANIFEST_ITEMS"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/feedbackReport.ts",
+      "symbol": "manifestItem"
+    }
   ],
   "door_reduction": {
     "before": 1,
-    "after": 5,
-    "why_not": "Reading and projecting moved into one new file with one read caller and one projection caller, inside the report builder, so no path gets a tail around it. The two remaining doors are the contract table of manifest items and its translated copy, which the compiler ties together."
+    "after": 6,
+    "why_not": "Reading and projecting moved into one new file with one read caller and one projection caller, inside the report builder, so no path gets a tail around it. The two remaining doors are the contract table of manifest items and its translated copy, which the compiler ties together. The catalog projection sits at the same builder and shares the judge with the log projection, so the two attachments cannot disagree about who is self-hosted."
   },
-  "generality_proof": "The builder projects inside itself, so preview, send and any later caller cannot attach raw lines: readLogTail only supplies input. The projection is an allowlist, so new fields and new free text shapes fall out by default without anyone remembering them. The needle list covers each shape of secret, path and prompt found in the writer and in older logs, and a test runs real logger output through it so a writer format change turns it red.",
+  "generality_proof": "The builder projects inside itself, so preview, send and any later caller cannot attach raw lines: readLogTail only supplies input. The projection is an allowlist, so new fields and new free text shapes fall out by default without anyone remembering them. The needle list covers each shape of secret, path and prompt found in the writer and in older logs, and a test runs real logger output through it so a writer format change turns it red. The catalog projection keeps only listed fields and masks any host the seeds do not declare, so a new catalog field or a hand-edited mapping falls out by default; a test plants one self-hosted address in every field, another compares both attachments for every seed and key shape.",
   "shared_boundaries": [
     {
       "path": "electron/feedback/feedbackLogTail.ts",
@@ -58,6 +85,11 @@
       "path": "electron/feedback/feedbackReport.ts",
       "symbol": "buildFeedbackReport",
       "responsibility": "The only place that attaches the tail; records why it is missing."
+    },
+    {
+      "path": "electron/feedback/feedbackCatalog.ts",
+      "symbol": "projectCatalogForReport",
+      "responsibility": "Decides what of the model catalog may leave the machine: built-in rows by field list, self-hosted rows as a count only, unknown shapes not at all."
     }
   ],
   "same_class_entry_points": [
@@ -105,11 +137,13 @@
   },
   "regression_tests": [
     "electron/feedback/feedbackLogTail.test.ts",
+    "electron/feedback/feedbackCatalog.test.ts",
     "electron/feedback/feedbackReport.test.ts",
     "src/ui/community/FeedbackReportCard.test.tsx"
   ],
   "class_regression_tests": [
-    "electron/feedback/feedbackLogTail.test.ts"
+    "electron/feedback/feedbackLogTail.test.ts",
+    "electron/feedback/feedbackCatalog.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -126,7 +160,8 @@
   "migration": "No data migration. Logs written by older versions are read through the same projection, and lines it cannot recognize are dropped. Reports queued by older versions are sent without a tail, as they were built.",
   "residual_risks": [
     "firstLine and similar free text stay in the local log file; they only stop at the one-click report. The diagnostics bundle still carries them, and the user sees that file before sending it.",
-    "The catalog attachment still holds endpoint addresses of custom connections, so the manifest copy says so plainly. Dropping them is a separate decision.",
+    "Reports queued by an older version keep the catalog they were built with, including custom addresses; the manifest they went out with said so.",
+    "Developers lose the address when debugging a self-hosted relay: the row only says it is self-hosted, with its auth type, provider kind and counts.",
     "Crash log breadcrumbs are not attached."
   ],
   "detected_by": "user",
@@ -134,7 +169,8 @@
   "invariant_owner_layer": {
     "layer": "electron/feedback/feedbackLogTail.ts",
     "tests": [
-      "electron/feedback/feedbackLogTail.test.ts"
+      "electron/feedback/feedbackLogTail.test.ts",
+      "electron/feedback/feedbackCatalog.test.ts"
     ]
   }
 }

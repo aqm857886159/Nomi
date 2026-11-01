@@ -1,7 +1,8 @@
 // R13 走查：应用内反馈发得出去、带得上日志。中英两轨，各一个隔离资料库。
 //
 // 接收端是本机真起的 HTTP 服务（不 mock fetch），模式可切：ok / 413-once / reset（收完就断）/ hang（收了不答）。
-//   ① 成功：拿到编号；接收端收到的包里 logs/tail.txt 有行，夹具里埋的密钥、路径、提示词零命中。
+//   ① 成功：拿到编号；接收端收到的包里 logs/tail.txt 有行，夹具里埋的密钥、路径、提示词零命中；
+//      真实目录文件里加进去的自建连接只留「是自建」，地址、连接名、模型名零命中，内置家的官方地址还在。
 //   ② 对话里的问题：有勾选框；勾了但轨迹读不到时清单写明，contentIncluded 是 false。这张卡最高的样子放到最小窗口，「发送」还点得到。
 //   ③ 超限：接收端回 413 → 去掉附件再发，拿到编号，界面说明没带上；摘要和留言还在。
 //   ④ 断线 / 不回答：几秒内告诉用户已存本机，队列文件里有这份；恢复后不重启就送达。
@@ -80,6 +81,26 @@ const KEPT = [
   { body: 'ERROR export         done TypeError msg#ab12cd34 code=ENOSPC | at run (runner.js:5:1)', expected: 'ERROR export done TypeError msg#ab12cd34 code=ENOSPC | at run (runner.js:5:1)' },
 ]
 const CRASH_MARKER = 'walk-crash-marker'
+
+// ── 加进目录的自建连接 ─────────────────────────────────────────────────────────
+// 加在 App 自己写出来的目录文件上：形状是真实的，不是测试手写的那一份。
+const CATALOG_STAMP = '2026-11-01T00:00:00.000Z'
+const CATALOG_NEEDLES = [
+  'gw-walk-corp-example', 'gw.walk-corp.example', 'relay.walk-corp.example', 'Walk Corp Gateway', 'X-Walk-Tenant', 'walk-tenant-42',
+  'walk-team-line', 'Walk Team Line', 'walk-corp-model', '走查内部模型', '走查内部映射',
+]
+function plantSelfHostedConnections(settingsDir) {
+  const file = path.join(settingsDir, 'model-catalog.json')
+  const catalog = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const stamped = { createdAt: CATALOG_STAMP, updatedAt: CATALOG_STAMP }
+  catalog.vendors.push(
+    { key: 'gw-walk-corp-example', name: 'Walk Corp Gateway', enabled: true, baseUrlHint: 'https://gw.walk-corp.example/v1', authType: 'bearer', meta: { extraHeaders: { 'X-Walk-Tenant': 'walk-tenant-42' } }, ...stamped },
+    { key: 'apimart--walk-team-line', name: 'Walk Team Line', enabled: true, baseUrlHint: 'https://relay.walk-corp.example/v1', authType: 'bearer', ...stamped },
+  )
+  catalog.models.push({ vendorKey: 'gw-walk-corp-example', modelKey: 'walk-corp-model', labelZh: '走查内部模型', kind: 'text', enabled: true, ...stamped })
+  catalog.mappings.push({ id: 'walk-corp-mapping', vendorKey: 'gw-walk-corp-example', taskKind: 'chat', name: '走查内部映射', enabled: true, create: { method: 'POST', path: 'https://gw.walk-corp.example/v1/run' }, ...stamped })
+  fs.writeFileSync(file, JSON.stringify(catalog))
+}
 
 function seedLogs(logsDir) {
   fs.mkdirSync(logsDir, { recursive: true })
@@ -162,6 +183,7 @@ async function checkLanguage(card, locale, label) {
 
 function inspectBody(body, roots) {
   const needleHits = PLANTED.filter(({ needle }) => body.includes(needle)).map(({ name }) => name)
+  needleHits.push(...CATALOG_NEEDLES.filter((needle) => body.includes(needle)))
   if (body.includes(CRASH_MARKER)) needleHits.push('崩溃日志')
   const pathHits = [...roots, os.homedir(), repoRoot, '/Users/', '/home/', '/var/folders', 'C:\\\\Users'].filter((root) => body.includes(root))
   const envelope = JSON.parse(body)
@@ -209,6 +231,8 @@ async function journey(locale) {
   try {
     // 必须在第一次发送之前：之后主进程写日志、读日志都到这里。
     await app.evaluate(({ app: electronApp }, dir) => electronApp.setAppLogsPath(dir), logsDir)
+    await expect.poll(() => fs.existsSync(path.join(settingsDir, 'model-catalog.json')), { message: 'App 启动后应当写出目录文件', timeout: stationTimeout(), intervals: [200] }).toBe(true)
+    plantSelfHostedConnections(settingsDir)
 
     // ── ① 成功 ────────────────────────────────────────────────────────────────
     const checkbox = card.locator('input[type="checkbox"]').first()
@@ -232,6 +256,8 @@ async function journey(locale) {
     check(whyOf(ITEMS.secrets) === 'never-collected-by-design', `${locale}：清单应当写明密钥从不收集`)
     check(whyOf(ITEMS.paths) === 'never-collected-by-design', `${locale}：清单应当写明路径从不收集`)
     check(whyOf(ITEMS.content) === 'no-conversation-in-context', `${locale}：没有对话时内容的原因不该是「没勾选」，实际 ${whyOf(ITEMS.content)}`)
+    const catalogRow = await textOf(card.locator(`[data-feedback-entry="${ITEMS.modelCatalog}"]`).first())
+    check(catalogRow.includes(t.manifestItem.modelCatalog), `${locale}：清单应当说自建连接不带地址：${catalogRow}`)
     await checkLanguage(card, locale, '清单')
     await shot('manifest')
 
@@ -256,6 +282,13 @@ async function journey(locale) {
       check(pathHits.length === 0, `${locale}：包里有本机路径：${pathHits.length} 处`)
       const joined = (tail ?? []).join('\n')
       for (const { expected } of KEPT) check(joined.includes(expected), `${locale}：排查要用的这一行不该丢：${expected}`)
+      const catalog = envelope.attachments?.[ITEMS.modelCatalog]
+      const vendorRow = (key) => catalog?.vendors?.find((row) => row.key === key)
+      check(catalog?.vendors?.filter((row) => row.key === 'custom').length === 1, `${locale}：自建连接应当只留一行「是自建」`)
+      check(vendorRow('custom')?.modelCount === 1, `${locale}：自建那一行应当留着模型个数`)
+      check(vendorRow('apimart--2')?.baseUrlHint === '<custom-address>', `${locale}：内置家的兄弟连接改了地址，应当换成标记`)
+      check(/^https:\/\//.test(vendorRow('apimart')?.baseUrlHint ?? ''), `${locale}：内置家的官方地址应当还在：${vendorRow('apimart')?.baseUrlHint}`)
+      check(catalog?.vendors?.length > 2, `${locale}：内置家那些行应当还在`)
       measure.firstReport = {
         bodyBytes: Buffer.byteLength(okBody, 'utf8'),
         entries: envelope.manifest.entries.map(({ path: item, bytes }) => ({ path: item, bytes })),
@@ -263,6 +296,15 @@ async function journey(locale) {
         logTailBytes: Buffer.byteLength(JSON.stringify(tail ?? null), 'utf8'),
         plantedLines: PLANTED.length,
         keptLines: KEPT.length,
+        catalog: {
+          vendorRows: catalog?.vendors?.length ?? 0,
+          customRows: catalog?.vendors?.filter((row) => row.key === 'custom').length ?? 0,
+          modelRows: catalog?.models?.length ?? 0,
+          modelsOmitted: catalog?.modelsOmitted ?? null,
+          mappingRows: catalog?.mappings?.length ?? 0,
+          mappingsOmitted: catalog?.mappingsOmitted ?? null,
+          maskedAddresses: (JSON.stringify(catalog ?? null).match(/<custom-address>/g) ?? []).length,
+        },
       }
     }
 
