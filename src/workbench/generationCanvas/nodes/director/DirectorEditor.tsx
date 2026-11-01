@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、react-i18next、../../../../design 的 confirmDialog / TooltipProvider、
  *          ../../../generation/pageLayerContext 的 useGenerationPageLayerActive（这一格此刻看不看得见）、
@@ -393,8 +394,8 @@ export default function DirectorEditor({ rawProject, nodeTitle, readOnly = false
       void handleExit()
     }
     // 捕获期：壳根节点 onKeyDown 会 stopPropagation（隔离画布快捷键），冒泡到 window 的监听在壳内按键时永远收不到
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
+    canvasWindowInput.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => canvasWindowInput.removeEventListener('keydown', onKeyDown, { capture: true })
   }, [handleExit, layerActive, store])
 
   return (

@@ -15,6 +15,7 @@ import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive }
 import { findRawShellAnchors, RAW_SHELL_EXEMPT } from './lib/rawShellAnchors.mjs'
 import { findComposerInputReads } from './lib/composerInputReads.mjs'
 import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
+import { findAbsenceWithoutBaseline } from './lib/absenceWithoutBaseline.mjs'
 import { collectRenderText, countDeadDataAttributesAtRevision, findDeadDataAttributes } from './lib/deadDataAttributes.mjs'
 import { judgeBaselineGrowth, judgeBaseUnavailable, readJsonAtRevision, resolveMergeBase } from './lib/walkthroughBaselineGuard.mjs'
 
@@ -95,22 +96,14 @@ const RULES = [
     id: 'absence-without-baseline',
     label: '「不存在」断言没有基线（和「探针根本没生效」无法区分）',
     appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
-    scan(code, file) {
+    // 2026-10-30：判据从「归零比较附近 5 行有没有界面观测词」换成「被比较的那个表达式是不是界面观测」——
+    // 中转视频线的 `expect(readCreates(), …).toBe(0)` 数的是 HTTP POST，却因为上面 5 行碰巧有 locator 被判成界面断言。
+    // 判定逻辑住 scripts/lib/absenceWithoutBaseline.mjs（可单测）；吃原文、不吃 stripComments 之后的文本：
+    // 它会被 `// …/*.png …` 这类行注释里的 `/*` 吃掉后面几十行代码。
+    scan(code, file, raw) {
       // 用了共享的 expectAbsent 就天然带基线（它签名上强制 provenBy），整份文件豁免。
       if (code.includes('expectAbsent(')) return []
-      const hits = []
-      const lines = code.split('\n')
-      const OBSERVES = /count\(\)|isVisible|toBeVisible|querySelectorAll|getByText|getByRole|locator\(/
-      lines.forEach((line, i) => {
-        // 形如：=== 0 / == 0 / toBe(0) / toHaveCount(0) / .length === 0
-        const countsToZero = /(===?\s*0\b|toBe\(0\)|toHaveCount\(0\)|length\s*===?\s*0)/.test(line)
-        if (!countsToZero) return
-        // UI 观测常和归零比较**跨行**（先 const n = await x.count()，再 if (n === 0)）。
-        // 只看同一行会漏掉绝大多数真实写法——负向测试首跑就漏了这一类，所以往回看几行。
-        const window = lines.slice(Math.max(0, i - 5), i + 1).join('\n')
-        if (OBSERVES.test(window)) hits.push({ line: i + 1, text: line.trim().slice(0, 120), file })
-      })
-      return hits
+      return findAbsenceWithoutBaseline(raw, repoRelative(file)).map((hit) => ({ ...hit, file }))
     },
   },
   {
@@ -327,7 +320,7 @@ for (const file of files) {
   const code = stripComments(raw)
   for (const rule of RULES) {
     if (!rule.appliesTo(file)) continue
-    found[rule.id].push(...rule.scan(code, file))
+    found[rule.id].push(...rule.scan(code, file, raw))
   }
   if (file.includes(`${path.sep}tests${path.sep}ux${path.sep}`) && isRunnableWalk(code)) {
     density[repoRelative(file)] = countFailurePaths(code).total

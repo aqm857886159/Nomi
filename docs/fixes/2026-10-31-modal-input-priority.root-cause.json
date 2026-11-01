@@ -1,0 +1,613 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-31-modal-input-priority",
+  "problem_type": "Open modal layers do not take input priority over workspace surfaces",
+  "symptom": "With the real confirm dialog open, Delete removes the selected canvas node (1 to 0) in zh-CN and en. Cmd+Z, Cmd+A, Cmd+V and the timeline keys also act behind settings, the spend card and the media lightbox. The Esc that closes a modal also acts on whatever is behind it.",
+  "direct_cause": "Keyboard events always reach the focused element and bubble to window. shouldIgnoreCanvasShortcut only yields to the whiteboard, text editing and inactive hosts; shortcutSurfaceMayHandle has no idea a modal is open. Mantine closes on the window capture phase and React commits in the following microtask, so the same Esc then reaches the listeners behind a modal that is already gone.",
+  "class_root": "workspaceInputSurfaceIsActive answered whether the host is in front, not whether something covers it, and the fact that a modal is open had no shared reader. Each consumer guessed from the DOM or a private marker, or did not check at all.",
+  "affected_population": [
+    "Canvas, generation timeline, preview timeline and list surfaces, on every platform and locale",
+    "DesignModal and every hand-written modal: confirm, settings, spend card, lightboxes, update, provenance, handbook and the rest of the census"
+  ],
+  "scope_paths": [
+    "src/design/modalInputLayer.ts",
+    "src/design/overlays.tsx",
+    "src/workbench/shortcutSurface.ts",
+    "src/workbench/timeline/timelineShortcuts.ts",
+    "src/workbench/timeline/TimelinePanel.tsx",
+    "src/workbench/timeline/TimelineShortcutsDialog.tsx",
+    "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+    "src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx",
+    "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
+    "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+    "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx",
+    "src/workbench/generationCanvas/nodes/ProvenancePanel.tsx",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+    "src/workbench/settings/SettingsDialog.tsx",
+    "src/workbench/assets/AssetPreviewDialog.tsx",
+    "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+    "src/workbench/onboarding/HandbookPanel.tsx",
+    "src/workbench/onboarding/JourneyTourController.tsx",
+    "src/workbench/onboarding/SplashIntro.tsx",
+    "src/ui/app-shell/UpdateDialog.tsx",
+    "src/ui/app-shell/shell/ShellAgentHost.tsx",
+    "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
+    "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx",
+    "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx"
+  ],
+  "entry_points": [
+    "Window and document keyboard, paste and pointer listeners on workspace surfaces (canvasWindowInput, canvasDocumentInput, shortcutSurfaceMayHandle)",
+    "Timeline shortcuts, the timeline help key and timeline gestures",
+    "Mod+J and Mod+\\ in ShellAgentHost",
+    "Lightbox keyboard listeners inside the canvas cell",
+    "Gestures already in flight when a modal opens"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/",
+      "checked_at": "2026-10-31",
+      "purpose": "Windows under a modal dialog are inert; aria-modal is only truthful when the app prevents outside interaction."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://html.spec.whatwg.org/multipage/interaction.html",
+      "checked_at": "2026-10-31",
+      "purpose": "inert covers hit testing, selection and focus only. Measured in Electron 43.4.1: window listeners still receive keyboard, paste and pointer events, so the rule has to live on the listener boundary."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://raw.githubusercontent.com/tldraw/tldraw/main/packages/tldraw/src/lib/ui/hooks/useKeyboardShortcuts.ts",
+      "checked_at": "2026-10-31",
+      "purpose": "Hosts register into shared state and every shortcut reads it; same shape, no DOM queries."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/radix-ui/primitives/tree/main/packages/react/dismissable-layer",
+      "checked_at": "2026-10-31",
+      "purpose": "A stack records the highest layer; only the shape is taken because it is not a public primitive and Mantine does not register into it."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://mantine.dev/core/modal/",
+      "checked_at": "2026-10-31",
+      "purpose": "No read API for open modals and no stopPropagation on Esc, so registration sits in DesignModal and the closing event has to stay covered."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/api/web-contents",
+      "checked_at": "2026-10-31",
+      "purpose": "webContents.undo and selectAll are what the menu roles call. Measured in Electron 43.4.1: with focus on a button, undo reverts text typed in another field and selectAll selects the page, so the defaults have to be cancelled once surfaces stop consuming these keys."
+    }
+  ],
+  "invariants": [
+    "A workspace surface under an open modal layer takes no keyboard, paste or pointer input.",
+    "Whether a modal is open comes only from the host that owns its opened state, never from DOM class, role, aria-modal or z-index.",
+    "The event that closes a layer stays covered until its dispatch ends, so one Esc closes one layer.",
+    "While a layer covers the key target and focus is not in an editable field, the browser default of select-all, undo and redo does not happen, so they cannot reach text behind the modal.",
+    "A layer that covers only the canvas cell leaves the timeline and the Agent usable, and does not hand a key to the timeline when the last pointer was on the covered canvas.",
+    "A gesture in flight under a newly opened layer is interrupted through the same path as a hidden host."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/design/confirmDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/primitivesSurfaces/states/02-overlays.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/community/FeedbackShareHost.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomCallEditor.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsDetailDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasPickModeLayer.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasFrameTool.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasSelectionDrag.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/context/useDismissOnEscape.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/ActionSelectModal.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/timeline/TrackLanes.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeVideoClipPanel.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ToolbarActionMenu.tsx",
+      "symbol": "canvasDocumentInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardBoxSelection.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/useWhiteboardSelectionActions.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowMenus.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+      "symbol": "canvasWindowInput"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/library/WorkflowLibraryContent.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "shortcutSurfaceMayHandle"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/SkillDetail.tsx",
+      "symbol": "DesignModal"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/modalInputLayer.ts",
+      "symbol": "openModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/overlays.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab.tsx",
+      "symbol": "workspaceInputAttributes"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/shell/ShellAgentHost.tsx",
+      "symbol": "modalInputLayerCovers"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/UpdateDialog.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetPreviewDialog.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "workspaceInputAttributes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/list/GenerationListView.tsx",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx",
+      "symbol": "canvasLayerMayHandleInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "shortcutSurfaceMayHandle"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "symbol": "installShortcutSurfaceTracker"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+      "symbol": "canvasLayerMayHandleInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx",
+      "symbol": "canvasLayerMayHandleInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/ProvenancePanel.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/HandbookPanel.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/JourneyTourController.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/SplashIntro.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/promptLibrary/PromptPreviewOverlay.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "modalInputLayerCovers"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "canvasSurfaceMayHandleInput"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "onModalInputLayerOpened"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/timelineGesture.ts",
+      "symbol": "workspaceInputSurfaceIsActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "installShortcutSurfaceTracker"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "shortcutSurfaceMayHandle"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/timelineShortcuts.ts",
+      "symbol": "shortcutSurfaceMayHandle"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineShortcutsDialog.tsx",
+      "symbol": "useModalInputLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "workspaceInputAttributes"
+    }
+  ],
+  "door_reduction": {
+    "before": 42,
+    "after": 78,
+    "why_not": "Same census as before the fix, plus the new symbols of the layer and DesignModal, whose consumers now write the fact through it. The count grows because every modal host is now a visible counted writer of the fact, where before the fact had no writer at all, and all surface readers still exist because canvas, timeline, list and preview have different listeners. The rule itself lives in one place, workspaceInputSurfaceIsActive, and no consumer gained a branch. The census test pins every modal host and every global listener."
+  },
+  "generality_proof": "Every surface consumer already reads workspaceInputSurfaceIsActive directly or through shortcutSurfaceMayHandle, canvasSurfaceMayHandleInput, canvasWindowInput or canvasDocumentInput, so one condition there covers all surfaces, keys and event types without touching a consumer. New modals inherit it through DesignModal; a new hand-written modal or a new raw global listener turns the census test red.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/shortcutSurface.ts",
+      "symbol": "workspaceInputSurfaceIsActive",
+      "responsibility": "The single layer-priority rule: a covered surface is not active."
+    },
+    {
+      "path": "src/design/modalInputLayer.ts",
+      "symbol": "useModalInputLayer",
+      "responsibility": "Hosts register that they are open and which area they cover; owner of the open-layer fact."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasShortcuts.ts",
+      "entry_point": "createCanvasKeydownHandler",
+      "disposition": "enforced",
+      "evidence": "Goes through canvasWindowInput and shortcutSurfaceMayHandle; walk A1, A5, A6, A6b and the matrix."
+    },
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "entry_point": "dispatchTimelineShortcut",
+      "disposition": "enforced",
+      "evidence": "Reads shortcutSurfaceMayHandle on both timeline hosts; walk A2, A3, A8b."
+    },
+    {
+      "path": "src/workbench/timeline/timelineGesture.ts",
+      "entry_point": "startTimelinePointerSession",
+      "disposition": "enforced",
+      "evidence": "Reads workspaceInputSurfaceIsActive and holds a dragging lease that the layer-opened hook cancels; matrix gesture group."
+    },
+    {
+      "path": "src/ui/app-shell/shell/ShellAgentHost.tsx",
+      "entry_point": "Mod+J and Mod+\\",
+      "disposition": "enforced",
+      "evidence": "Reads modalInputLayerCovers(document.body); whole-window layers block it, the lightbox does not; walk A13."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+      "entry_point": "lightbox keydown",
+      "disposition": "enforced",
+      "evidence": "Registers a canvas-cell layer and reads canvasLayerMayHandleInput; walk A6b, A8c, A8d, A12."
+    },
+    {
+      "path": "src/workbench/generation/list/GenerationListView.tsx",
+      "entry_point": "list Escape",
+      "disposition": "not-affected",
+      "evidence": "Keeps its target-based [role=dialog] check because it also has to yield to non-modal dialogs like the task center; walk A4 proves Esc under a confirm stays with the confirm."
+    },
+    {
+      "path": "src/ui/browser/popover/useBrowserAssetActions.ts",
+      "entry_point": "asset tray keys",
+      "disposition": "not-affected",
+      "evidence": "Only live while the asset tray is open and acts on the tray selection, not on a workspace surface; left alone because the file is a churn hot spot. Listed in the census."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Each new modal or global shortcut could reintroduce it; three earlier one-off patches (director markers, version grid ref, list role check) are the same class.",
+    "same_class_scan": [
+      "door-map on the seven input-surface symbols before the fix: 3067 files, 14 write, 28 read, 42 doors, 133 mentions",
+      "AST census in src/workbench/modalInputLayerCensus.test.ts: every aria-modal or modal-shaped host and every window/document keyboard, paste and pointer listener in src",
+      "git log for 9aed7cd0d, 710d4e62c, 629e9fdb3, bcf63fe29, e57081ef0"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/shortcutSurface.ts",
+    "invariant": "A covered surface is not active; open-layer state only comes from hosts through useModalInputLayer.",
+    "failure_mode": "While a layer is open the surface reports inactive and the listener never fires. A missing registration or raw listener turns the census red before merge. A host that unmounts or throws closes its layer through effect cleanup, so it cannot lock the workspace.",
+    "exception_policy": "none",
+    "strategy": "Put the rule in the earliest shared predicate and keep the fact in one small stack written only by the hosts; the census pins the hosts and listeners.",
+    "artifacts": [
+      "src/workbench/shortcutSurface.ts",
+      "src/design/modalInputLayer.ts",
+      "src/design/overlays.tsx",
+      "src/workbench/modalInputLayerCensus.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/shortcutSurface.modalLayer.matrix.test.ts",
+    "src/design/modalInputLayer.test.ts",
+    "src/workbench/modalInputLayerCensus.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/shortcutSurface.modalLayer.matrix.test.ts",
+    "src/workbench/modalInputLayerCensus.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx",
+      "src/workbench/timeline/TimelinePanel.tsx"
+    ],
+    "rationale": "Removes the previewOpenRef yield, the three director modal escape markers and the timeline help close branches that the one rule replaces."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency owns this: Mantine, Radix and native inert were checked and none can express a partial cover or stop window listeners. The self-written registry entry modal-input-layer holds the exit condition.",
+    "exit_criteria": []
+  },
+  "migration": "No data or schema. Hand-written modal hosts add one registration line; state is in memory and starts empty on every launch.",
+  "residual_risks": [
+    "Independent acceptance is pending. Windows is unverified in this Mac implementation; the rule has no platform branch.",
+    "Page-cell tenants (director, panorama) are not modal by the page-layer contract, so they are out of this rule.",
+    "Hand-written modals without focus traps can leave focus behind the modal. Input is now isolated, focus is not part of this fix.",
+    "Cmd+Z with focus in an input inside the modal that has not been edited can still pop native undo for text behind the modal, because the undo stack is per document and the browser gives no way to tell. Same as before this fix.",
+    "Popups that are not modal still get their own Esc while a modal is above them, for example the task center under a confirm."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-30",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/shortcutSurface.ts",
+    "tests": [
+      "src/workbench/shortcutSurface.modalLayer.matrix.test.ts"
+    ],
+    "why": "Every surface consumer reads this predicate, so the rule holds for all of them without touching a consumer."
+  }
+}

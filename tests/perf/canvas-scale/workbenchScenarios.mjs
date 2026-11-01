@@ -10,6 +10,7 @@
 // 零花费、零外网（主进程网络闸 walkthrough-network-guard 只放行本机）。
 // D2 付费卡的两条（卡上指向元素 ↔ 画布节点）用同一台本机假 Agent：起草器和走查是同一个（_spendCardWalk.createPresenter），
 // 卡摆出来就一直开着——没人按「生成」，零花费。
+import { generationIdle, prepareGenerationIdle } from './generationIdleScenario.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { armResponse, takeResponse } from './responseTimer.mjs'
@@ -31,6 +32,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'timeline-play',
   'timeline-scrub',
   'pan-while-generating',
+  'generation-idle',
   'pan-while-agent-streaming',
   'library-skill-open',
   'library-prompt-open',
@@ -68,6 +70,7 @@ const SPEND_CARD_CANDIDATE = { providerId: 'apimart', modelId: 'doubao-seedance-
  * fixture 是 createCanvasPerformanceFixture 的返回；root 是本次（规模 × 场景）独占的临时目录。
  */
 export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot }) {
+  if (scenario === 'generation-idle') return prepareGenerationIdle({ fixture, root, repoRoot })
   if (scenario === 'document-typing') {
     seedLongDocument(fixture)
     return { launch: {}, close: async () => {} }
@@ -226,6 +229,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'creation-ai-rewrite-result') return creationAiRewriteResult(page, ctx)
   if (scenario === 'timeline-play') return timelinePlay(page, ctx)
   if (scenario === 'timeline-scrub') return timelineScrub(page, ctx)
+  if (scenario === 'generation-idle') return generationIdle(page, ctx)
   if (scenario === 'pan-while-generating') return panWhileGenerating(page, ctx)
   if (scenario === 'pan-while-agent-streaming') return panWhileAgentStreaming(page, ctx)
   if (scenario === 'library-skill-open') return libraryOpen(page, ctx, 'skills')
@@ -494,7 +498,7 @@ async function documentTyping(page, ctx) {
 async function textNodeTyping(page, ctx) {
   const selector = `[data-node-id="${TEXT_NODE_ID}"] .ProseMirror`
   const editor = page.locator(selector).first()
-  // 适应视图下 96 个节点走轻量渲染（canvasNodeLevelOfDetail：>80 个且缩放 <0.55），没有编辑器。
+  // 适应视图下没选中的卡走轻量渲染（canvasNodeLevelOfDetail：缩放 <0.40，与节点数无关），没有编辑器。
   // 像人一样：指着这张文本节点滚轮放大到 ~1 倍，再写字。
   const zoomOf = () => page.evaluate(() => {
     const viewport = document.querySelector('.react-flow__viewport')

@@ -10,8 +10,8 @@
  * （`catalog/higgsfieldVendor.ts` / `higgsfieldModels.ts` / `assetIngestionRegistry.ts`）。
  *
  * ── 手写的代价，由测试兜住 ────────────────────────────────────────────────────────
- * 样例会随 schema 漂。`kitExamples.test.ts` 把每一份都过一遍真实的
- * `validateProviderAdapterDraft`——schema 改了而样例没跟上，那条测试立刻红。
+ * 样例会随 schema 和登记规则漂。`kit.test.ts` 把每一份都原样交给真实的声明提交（`submitDeclaration`：
+ * 校验 + 登记 + 能力投影）——schema 或规则改了而样例没跟上，那条测试立刻红。
  * 「发给模型的例子自己就是非法的」是这类套件最贵的失败方式，所以它必须是机器守的。
  */
 import type { ProviderAdapterDraft } from "../../providerAdapter/types";
@@ -150,6 +150,8 @@ const ASYNC_TASK_EXAMPLE: OnboardingKitExample = {
  * 样例二：**同步返回 + OpenAI 兼容形状**（中转站最常见的那一种）。
  * 覆盖另一半形状：`delivery:"synchronous"` 时**不写** `query`／`statusMapping`，产物直接从
  * create 的响应里取；参考图用行内 base64 送。
+ * 另一格容易写错的是参数键：参数只用 Nomi 的中性键（这里是 `resolution`），供应商自己的字段名（`size`）
+ * 留在线缆里，由它去读中性键。把参数键写成 `size` 会被登记门拒掉。
  */
 const SYNCHRONOUS_EXAMPLE: OnboardingKitExample = {
   name: "synchronous-openai-compatible",
@@ -180,7 +182,7 @@ const SYNCHRONOUS_EXAMPLE: OnboardingKitExample = {
         labelZh: "GPT Image 1",
         kind: "image",
         parameters: [
-          { key: "size", label: "尺寸", type: "select", options: [{ value: "1024x1024", label: "1024x1024" }, { value: "1536x1024", label: "1536x1024" }], default: "1024x1024", sourceUrl: OPENAI_IMAGES_DOCS },
+          { key: "resolution", label: "尺寸", type: "select", options: [{ value: "1024x1024", label: "1024x1024" }, { value: "1536x1024", label: "1536x1024" }], default: "1024x1024", sourceUrl: OPENAI_IMAGES_DOCS },
         ],
         modes: [
           {
@@ -189,7 +191,7 @@ const SYNCHRONOUS_EXAMPLE: OnboardingKitExample = {
             create: {
               method: "POST",
               path: "/v1/images/generations",
-              body: { model: "gpt-image-1", prompt: "{{request.prompt}}", size: "{{request.params.size}}" },
+              body: { model: "gpt-image-1", prompt: "{{request.prompt}}", size: "{{request.params.resolution}}" },
               response_mapping: { image_url: "data.0.url" },
             },
             sourceUrls: [OPENAI_IMAGES_DOCS],

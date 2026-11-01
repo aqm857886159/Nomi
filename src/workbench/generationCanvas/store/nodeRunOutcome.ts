@@ -22,6 +22,19 @@ export type NodeRunOutcome =
 
 type NodeRunOutcomePatch = Partial<Pick<GenerationCanvasNode, 'size' | 'meta' | 'runs' | 'result' | 'history' | 'resultVersionMax' | 'status' | 'error' | 'progress' | 'contentJson'>>
 
+/** Percent, narration and observation clocks are transient; task identity and takeover survive restart. */
+export function nodeProgressChangesRecovery(node: GenerationCanvasNode, patch: NodeRunOutcomePatch): boolean {
+  const beforeRun = node.runs?.[0]
+  const afterRun = patch.runs?.[0]
+  return (patch.status !== undefined && patch.status !== node.status)
+    || (afterRun?.status !== undefined && afterRun.status !== beforeRun?.status)
+    || (afterRun?.taskId !== undefined && afterRun.taskId !== beforeRun?.taskId)
+    || (afterRun?.taskKind !== undefined && afterRun.taskKind !== beforeRun?.taskKind)
+    || (patch.progress?.runId !== undefined && patch.progress.runId !== (node.progress?.runId ?? beforeRun?.id))
+    || (patch.progress?.taskId !== undefined && patch.progress.taskId !== (node.progress?.taskId ?? beforeRun?.taskId))
+    || (patch.progress?.taskKind !== undefined && patch.progress.taskKind !== (node.progress?.taskKind ?? beforeRun?.taskKind))
+}
+
 function resultPatch(node: GenerationCanvasNode, result: GenerationNodeResult, mediaDimensions?: MediaDimensions): NodeRunOutcomePatch {
   const latestRun = node.runs?.[0]
   const patch: NodeRunOutcomePatch = {}

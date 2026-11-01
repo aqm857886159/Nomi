@@ -4,6 +4,7 @@ import {
   installUncaughtExceptionNoiseFilter,
   startNativeCrashCapture,
 } from "./crashLog";
+import { installStallMonitor } from "./diagnostics/stallMonitor";
 import { installMainLogger, markStderrAsDiagnosticSurface } from "./logging/logger";
 import { installParentProcessWatchdog } from "./parentProcessWatchdog";
 import { installProcessStdioErrorGuards } from "./processStdio";
@@ -19,6 +20,7 @@ type MainProcessLifecycleDependencies = {
   installCrashHandlers?: typeof installCrashHandlers;
   installUncaughtExceptionNoiseFilter?: typeof installUncaughtExceptionNoiseFilter;
   installProcessGoneHandlers?: typeof installProcessGoneHandlers;
+  installStallMonitor?: typeof installStallMonitor;
   startNativeCrashCapture?: typeof startNativeCrashCapture;
   installParentProcessWatchdog?: typeof installParentProcessWatchdog;
   installProcessStdioErrorGuards?: typeof installProcessStdioErrorGuards;
@@ -43,6 +45,7 @@ export function installMainProcessLifecycle(
     dependencies.installProcessStdioErrorGuards ?? installProcessStdioErrorGuards;
   const processGoneInstaller =
     dependencies.installProcessGoneHandlers ?? installProcessGoneHandlers;
+  const stallMonitorInstaller = dependencies.installStallMonitor ?? installStallMonitor;
   const nativeCrashCaptureStarter =
     dependencies.startNativeCrashCapture ?? startNativeCrashCapture;
   const noiseFilterInstaller =
@@ -68,6 +71,8 @@ export function installMainProcessLifecycle(
   nativeCrashCaptureStarter();
   // 不传 target：进程死亡事件挂在 Electron 的 app 上（覆盖所有窗口，含辅助窗），由 crashLog 自己绑。
   processGoneInstaller();
+  // 卡顿时间线的主进程监视器（诊断包用，只写本机）；MCP stdio 子进程里自己不装。回滚 = 删这一行。
+  stallMonitorInstaller({ env: dependencies.env ?? process.env });
   const stopParentProcessWatchdog = watchdogInstaller({
     // 正装由操作系统管理；只有开发/测试实例应跟随临时启动器退出。
     enabled: !app.isPackaged,

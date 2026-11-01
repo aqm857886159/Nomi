@@ -51,6 +51,9 @@ export const SEEDED_CONFIG_FILES = [
   "vendor-base-overrides.json",
   "preferences.json",
   "download-prefs.json",
+  // 这条连接的模型拉不到临时链接。连接本身在 model-catalog.json 里带过去了，这份事实跟着走，
+  // 不带的话 Preview 要再被模型拒一次才知道。
+  "reference-link-refusals.json",
 ] as const;
 
 /**

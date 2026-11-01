@@ -1,0 +1,433 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-relay-capability-projection",
+  "problem_type": "Declaration capability and executable wire diverge at publication",
+  "symptom": "Declared media models lose parameters and required references, advertise chat and retain removed routes.",
+  "direct_cause": "Registration drops capability fields; promotion separately builds metadata and mappings; the first fix tried to judge rows older releases wrote with the new compiler and withheld the ones it could not prove.",
+  "class_root": "No complete atomic projection owns the declared capability, wire and replacement lifecycle, and a refused replacement has no exit that a person or Agent can actually walk. A second face of the same class, found when the first fix reached real users: treating \"the new compiler cannot prove this old row\" as \"the person may not use it\", and testing that only against hand-written shapes instead of directories older releases really wrote.",
+  "affected_population": [
+    "New declared media models across connections and both publication paths",
+    "Models saved by older releases (wizard, native wire, an earlier release's card): they must keep working exactly as before the upgrade"
+  ],
+  "scope_paths": [
+    "electron/catalog/declaredProviderRegistration.ts",
+    "electron/providerAdapter/serviceCatalog.ts",
+    "electron/providerAdapter/promotionMeta.ts",
+    "electron/catalog/agentModelEntriesFromCatalog.ts",
+    "electron/shared/customCapabilityContract.ts",
+    "electron/shared/modelPublication.ts",
+    "electron/shared/modelAvailability.ts",
+    "electron/catalog/taskParams.ts",
+    "electron/catalog/comfyuiCandidateLifecycle.ts",
+    "electron/catalog/comfyuiWorkflowImport.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+    "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+    "electron/capabilityCore/modelOnboarding/envelope.ts",
+    "electron/shared/modelArchetypes/customCapabilityContract.ts"
+  ],
+  "entry_points": [
+    "submitDeclaration -> registerDeclaredProvider -> projectDeclaredModel",
+    "defaultCatalog.promote -> projectDeclaredModel + adapterModelMetadataForPromotion",
+    "runtime / apimartGenerationProvider -> applyHeadlessParamDefaults -> assertDeclaredCapabilityForTask",
+    "workflow import -> capabilityDraftForImportedWorkflow -> lifecycleArtifacts -> promoteCertifiedComfyCandidate -> defaultCatalog.promote",
+    "service -> builtinDraftForUndocumentedEndpoint / genericCompilation -> buildOpenAiCompatibleDraft -> defaultCatalog.promote",
+    "submitDeclaration -> registerDeclaredProvider -> assertDeclaredReplacementOwnership -> route_conflict -> nomi_remove_provider or a separate connection",
+    "commitPromotion -> PromotionJournal.replay -> defaultCatalog.promote"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal projection invariant; wire protocols are passed through unchanged and external protocol implementation belongs to a separate change.",
+  "invariants": [
+    "Registration and promotion compile the same capability and wire fact.",
+    "Only declared modes publish; required reference slots remain required.",
+    "Unsupported or conflicting shapes reject atomically before persistence.",
+    "An upgrade never rewrites, marks or withholds a model an older release saved: a row without the card's ownership record keeps the behaviour of the release that wrote it, and the catalog version does not move. Only a person (or an Agent they sent) resubmitting a card changes it.",
+    "Declared UI defaults feed mapping defaultParams; canonical request.params bindings prevent controls and headless requests diverging.",
+    "Original per-model declaration source and static untried evidence persist in the catalog transaction; the source has no reader today and is kept for resubmission and explanation.",
+    "Declaration parameter names come from the code-owned canonical registry and share the existing parameter-to-wire coverage invariant.",
+    "Every standard draft mode's wire agrees with its declaration: a mode with no declared reference role reads no reference key.",
+    "Replacement ownership is one fact table: certification may replace only what this run verified; declaration resubmission never replaces an unproved route silently.",
+    "A refused declaration returns every conflict at once, what stays true if nothing changes, and exits that existing tools can complete.",
+    "A deterministic promotion refusal never stays replayable; a failed run holds no publication lease."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+      "symbol": "registerDeclaredProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "mappingRowFromDeclaredMode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "adapterModelMetadataForPromotion"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelSpecRead.ts",
+      "symbol": "agentModelEntriesFromCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardOverrideActions.ts",
+      "symbol": "buildAgentModelEntries"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "buildAgentModelEntries"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/storyboardComposerModel.ts",
+      "symbol": "buildAgentModelEntries"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/availableModels.ts",
+      "symbol": "buildAgentModelEntries"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "projectDeclaredModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "projectDeclaredModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "projectDeclaredModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/agentModelEntriesFromCatalog.ts",
+      "symbol": "missingDeclaredCapabilityFields"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/modelAvailability.ts",
+      "symbol": "missingDeclaredCapabilityFields"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/modelPublication.ts",
+      "symbol": "missingDeclaredCapabilityFields"
+    },
+    {
+      "kind": "read",
+      "path": "electron/browser/prompt/browserPromptExtractionRun.ts",
+      "symbol": "findExecutableModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/executableModel.ts",
+      "symbol": "findExecutableModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "findExecutableModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "findExecutableModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/video/deconstructVideo.ts",
+      "symbol": "findExecutableModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/video/deconstructVisionLeg.ts",
+      "symbol": "findExecutableModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "assertDeclaredCapabilityForTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "applyHeadlessParamDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "applyHeadlessParamDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "capabilityDraftForImportedWorkflow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "promote"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "promoteCertifiedComfyCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/comfyuiConnector.ts",
+      "symbol": "promote"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "promoteCertifiedComfyCandidate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/providerAdapterCoordinator.ts",
+      "symbol": "promote"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "promote"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "assertDeclaredReplacementOwnership"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "assertDeclaredReplacementOwnership"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "buildOpenAiCompatibleDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "buildOpenAiCompatibleDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "buildOpenAiCompatibleDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "builtinDraftForUndocumentedEndpoint"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "genericCompilation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "symbol": "genericCompilation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "removeProvider"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/onboardingVerbs.ts",
+      "symbol": "removeProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/modelArchetypes/index.ts",
+      "symbol": "customCapabilityArchetypeForModel"
+    }
+  ],
+  "door_reduction": {
+    "before": 34,
+    "after": 41,
+    "why_not": "Declaration and leased certification remain separate lifecycle entries and call the same compiler. Specification and canvas/storyboard readers consume its persisted contract. Availability and publication independently answer eligibility using the same diagnosis. Workflow import, materialization, connector, integration session, adapter coordinator and parity probe retain their lifecycle roles. The complete promotion property census and one-hop wrappers are generated by door-map; the added door is an internal call from the existing lifecycle to the extracted workflow capability constructor, not a new external writer. Round 4 only counts doors that already existed and were missing from the census: the replacement gate, the three standard draft producers and the removal verb the exit reuses. It adds no new writer; certification and declaration keep separate lifecycles and call one gate, and the producers feed one compiler. Round 6 removes the one-time migration and the four doors it added (its compiler call, its revision reader and its two catalog entries); it adds none."
+  },
+  "generality_proof": "The compiler operates on declared kind/task/reference/parameter structure, independent of identity or provider; both writes converge on it, and rows older releases saved are not reprojected by it.",
+  "shared_boundaries": [
+    {
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "projectDeclaredModel",
+      "responsibility": "Compile complete capabilities and exact wire with field errors."
+    },
+    {
+      "path": "electron/shared/modelAvailability.ts",
+      "symbol": "assertDeclaredCapabilityForTask",
+      "responsibility": "Reject incomplete or withdrawn declared modes only at creation; leave accepted-task queries on their original read path."
+    },
+    {
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "assertDeclaredReplacementOwnership",
+      "responsibility": "One ownership table for replacing an existing route or capability; reports every conflict at once."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "entry_point": "registerDeclaredProvider",
+      "disposition": "enforced",
+      "evidence": "Compiles before the catalog transaction."
+    },
+    {
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "entry_point": "promote",
+      "disposition": "enforced",
+      "evidence": "Uses the same compiler and replacement ownership."
+    },
+    {
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "entry_point": "promoteCertifiedComfyCandidate",
+      "disposition": "enforced",
+      "evidence": "Materialization and integration session terminal callbacks supply complete workflow facts to the same promotion compiler; the inventory matrix covers each input lifecycle."
+    },
+    {
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "entry_point": "capabilityDraftForImportedWorkflow",
+      "disposition": "enforced",
+      "evidence": "Preserves controls and explicit reference shape/parameter; deleting referenceParam makes the caller matrix fail."
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "entry_point": "buildOpenAiCompatibleDraft",
+      "disposition": "enforced",
+      "evidence": "All three producer doors are fed into the caller matrix from the door census."
+    },
+    {
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "entry_point": "promote replay",
+      "disposition": "enforced",
+      "evidence": "A refused promotion fails its run with the reason; replay turns it into no-lease, so a later certification completes."
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+      "entry_point": "submit_declaration route conflict",
+      "disposition": "enforced",
+      "evidence": "Both exits run through the real tool schema and dispatch in the matrix."
+    },
+    {
+      "path": "electron/shared/modelArchetypes/customCapabilityContract.ts",
+      "entry_point": "customCapabilityArchetypeForModel",
+      "disposition": "enforced",
+      "evidence": "A contract states its own catalog row as its only model name, so certified rows stay in the model-name matrix instead of leaving it blind."
+    },
+    {
+      "path": "electron/shared/modelPublication.ts",
+      "entry_point": "derivePublishedExecution",
+      "disposition": "enforced",
+      "evidence": "Only a row carrying the card's ownership record is held to the card's modes. Every directory an older release saved, plus a hand-written half contract, is replayed against the mainline recording: still listed, publishes at least the same modes, one POST per mode with the same path and body."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new model, declaration replacement and prior installed catalog can reach this missing invariant.",
+    "same_class_scan": [
+      "door-map of registerDeclaredProvider, mappingRowFromDeclaredMode, adapterModelMetadataForPromotion, agentModelEntriesFromCatalog, buildAgentModelEntries",
+      "Inspected both catalog writers, renderer archetype consumer, modelPublication and original revision store.",
+      "Generated promote property census plus promoteCertifiedComfyCandidate wrapper hops; inventory-driven 6 caller by 5 lifecycle matrix.",
+      "door-map of assertDeclaredReplacementOwnership, buildOpenAiCompatibleDraft, builtinDraftForUndocumentedEndpoint, genericCompilation and removeProvider.",
+      "Read the promotion journal replay: any throw from promote stays in catalog_committing and is replayed before later promotions.",
+      "electron/parity/vendorScopedModelId.matrix.test.ts and electron/providerAdapter/promotionMappings.test.ts stay byte-identical and must pass as written.",
+      "After the compile error cleared, the model-name matrix showed certified relay rows had left its cells because a contract outranks the shared archetype; door-map of customCapabilityArchetypeForModel has one writer.",
+      "Round 6: every release-written directory (wizard connections, native wire, an earlier release's card, audio and text, and rows saved by 0.20) replayed against the mainline recording; the catalog version and the backup files it leaves are part of the recording."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/providerAdapter/promotionMeta.ts",
+    "invariant": "Capability and mappings compile together and replace only owned facts.",
+    "failure_mode": "Field-specific exception before writes; rows an older release saved are never touched on upgrade, so there is nothing to preserve and block.",
+    "exception_policy": "none",
+    "strategy": "Both publication writers compile one complete fact and reject unowned replacement. Creation passes the shared guard before spend/HTTP; read-only resolution for accepted task queries remains unchanged. Native import controls and all media references enter this compiler intact; it derives existing array slots and indexed node bindings. Declaration source snapshots and untried evidence commit atomically; new card controls use the code-owned canonical registry and existing param-map coverage invariant. Standard draft producers run through the same compiler in the caller matrix. Replacement is one fact table with no provider or model-name branch; a refused declaration names every conflict and exits that existing tools complete; a failed run gives up its promotion lease. An upgrade does not judge old rows with the new compiler: a row without the card's ownership record is neither migrated nor marked, and the creation gate, the publication filter and availability apply only to rows that carry it.",
+    "artifacts": [
+      "electron/providerAdapter/promotionMeta.ts",
+      "electron/catalog/declaredProviderRegistration.ts",
+      "electron/providerAdapter/serviceCatalog.ts",
+      "electron/shared/modelAvailability.ts",
+      "electron/catalog/taskParams.ts",
+      "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "electron/catalog/comfyuiWorkflowImport.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+      "electron/shared/modelArchetypes/customCapabilityContract.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/relay-onboarding/contracts.test.mjs",
+    "electron/catalog/declaredProviderRegistration.test.ts",
+    "electron/catalog/upgradeKeepsWorkingModels.test.ts",
+    "tests/ux/relay-capability-projection.walk.mjs",
+    "tests/ux/relay-video-onboarding.walk.mjs",
+    "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs",
+    "electron/catalog/declarationDurability.test.ts",
+    "electron/catalog/promotionCallerMatrix.test.ts",
+    "electron/catalog/workflowCompleteReferences.test.ts",
+    "electron/catalog/routeOwnershipMatrix.test.ts",
+    "electron/capabilityCore/modelOnboarding/routeConflictExit.test.ts",
+    "electron/providerAdapter/promotionRejection.integration.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/relay-onboarding/contracts.test.mjs",
+    "electron/catalog/declaredProviderRegistration.test.ts",
+    "electron/catalog/upgradeKeepsWorkingModels.test.ts",
+    "tests/ux/relay-capability-projection.walk.mjs",
+    "tests/ux/relay-video-onboarding.walk.mjs",
+    "tests/ux/relay-video-onboarding-real.rehearsal.walk.mjs",
+    "electron/catalog/declarationDurability.test.ts",
+    "electron/catalog/promotionCallerMatrix.test.ts",
+    "electron/catalog/workflowCompleteReferences.test.ts",
+    "electron/catalog/routeOwnershipMatrix.test.ts",
+    "electron/capabilityCore/modelOnboarding/routeConflictExit.test.ts",
+    "electron/providerAdapter/promotionRejection.integration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/providerAdapter/serviceCatalog.ts",
+      "electron/catalog/agentModelEntriesFromCatalog.ts"
+    ],
+    "rationale": "Remove inline mapping construction and media chat fallback in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is internal metadata ownership; no new runtime dependency or protocol is needed.",
+    "exit_criteria": []
+  },
+  "migration": "None. The catalog version stays 13 and a directory saved by an older release is read exactly as before: no row is reprojected, marked or withheld. Models saved by older releases keep the behaviour of the release that wrote them and do not become more accurate by themselves; to get accurate controls an Agent resubmits a card, which on an existing route is refused first (nothing written, the old model keeps sending) and then rebuilt through the replace exit. Only rows that carry the card's ownership record are checked against it.",
+  "residual_risks": [
+    "When another process submits a declaration while the app window is open, the renderer keeps the model list and contract it already read: a new model needs a reload to appear, and a model already listed keeps its old controls and sends its old default parameters on the next generation, with no notice. The catalog itself is correct and a reload fixes it.",
+    "The spend confirmation warns about public temporary hosting for any local reference without reading the connection's declared asset ingestion, so a connection that declared inline images still shows the notice.",
+    "Live upstream generation, Windows and paid verification are outside this local loopback validation.",
+    "A kept route of an unverified mode is written back after the model's routes are cleared, so its timestamps change while its wire and enabled flag do not.",
+    "Certification has no structured exit: a refusal fails the run with the reason in the existing untranslated banner. The AI declaration path carries the exits.",
+    "A hand-authored capability contract refuses re-verification until the model is removed or the contract matches; main kept the contract and republished routes.",
+    "Models saved by older releases do not gain accurate parameter controls on their own; resubmitting a card through an Agent is the way, and on an existing route it needs the person's confirmation to replace the model."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "electron/providerAdapter/promotionMeta.ts",
+    "tests": [
+      "electron/catalog/declaredProviderRegistration.test.ts",
+      "electron/catalog/upgradeKeepsWorkingModels.test.ts"
+    ],
+    "why": "The pure projection owns capability and wire completeness; the matrix tests exercise real catalog writes, and the upgrade test replays directories older releases really wrote."
+  }
+}

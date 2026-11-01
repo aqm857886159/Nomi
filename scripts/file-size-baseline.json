@@ -52,8 +52,8 @@
     },
     "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": {
       "kind": "legacy",
-      "max": 578,
-      "reason": "…→ 524（2026-10-11 全景浮条抽成 PanoramaNodeToolbar）→ 544（2026-10-11 切图确认条抽成 ImageCropGridActionBar）→ 549（2026-10-08 列表角标 / 「在列表里看」进来时把两段多行 import 收成一行）→ 555（2026-10-06 预览底纹收进 previewBackgroundClass）→ 557 → 558（2026-10-02 结果托盘不再要 selected 入参）…→ 560（2026-09-25 浮框放置层删除后的注释收短）…→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）→ 677（2026-09-12 S3：四个整表选择器收进 canvasNodeGenerationIndex）→ 654（2026-09-21 合并 ① 按门岗提示拧紧）",
+      "max": 569,
+      "reason": "…→ 524（2026-10-11 全景浮条抽成 PanoramaNodeToolbar）→ 544（2026-10-11 切图确认条抽成 ImageCropGridActionBar）→ 549（2026-10-08 列表角标 / 「在列表里看」进来时把两段多行 import 收成一行）→ 555（2026-10-06 预览底纹收进 previewBackgroundClass）→ 557 → 558（2026-10-02 结果托盘不再要 selected 入参）…→ 560（2026-09-25 浮框放置层删除后的注释收短）…→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）→ 677（2026-09-12 S3：四个整表选择器收进 canvasNodeGenerationIndex）→ 654（2026-09-21 合并 ① 按门岗提示拧紧） → 569（2026-10-31：按用户裁定删除等待preset四处接线）",
       "topDeclarations": [
         {
           "name": "BaseGenerationNodeImpl",
@@ -223,8 +223,8 @@
     },
     "electron/productionRun/productionRunService.ts": {
       "kind": "frozen",
-      "max": 973,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 965,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 965（2026-10-31：重新取回这条命令原样收进productionRetrievalReopen，行为不变）",
       "topDeclarations": [
         {
           "name": "createProductionRunService",
@@ -375,8 +375,8 @@
     },
     "electron/productionRun/productionGenerationSubmission.ts": {
       "kind": "frozen",
-      "max": 855,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 772,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-10-31：结果回执、取回错误、provider状态分组和把job补到产物原样收进productionGenerationMaterialization，行为不变）→ 772（2026-11-01：执行绑定的构造原样收进productionGenerationBinding，腾出位置给模型拒绝参考链接的记账，行为不变）",
       "topDeclarations": [
         {
           "name": "createProductionGenerationSubmission",
@@ -394,8 +394,8 @@
     },
     "electron/catalog/assetLocalization.ts": {
       "kind": "frozen",
-      "max": 853,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 850,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 850（2026-11-01：剪枝与去传输提示原样收进activeAssetPruning，腾出位置给「发链接还是传文件」的唯一决定点，行为不变）",
       "topDeclarations": [
         {
           "name": "resolveLocalAsset",

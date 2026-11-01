@@ -72,6 +72,22 @@ test('gitNameStatus 给出状态 + 未转义路径；重命名取新路径', (t)
   assert.equal(renamed[0].path, 'docs/改名后的中文附件.md', '重命名要取新路径，不是旧路径')
 })
 
+test('列表超过 Node 默认的 1 MiB 缓冲也读得全，调用方也缩不小它', (t) => {
+  const dir = makeRepo(t)
+  const blob = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: dir, input: 'x', encoding: 'utf8' }).trim()
+  const count = 12_000
+  const entries = Array.from({ length: count }, (_, i) => `100644 ${blob}\tlong/${'a'.repeat(90)}-${i}.md`)
+  execFileSync('git', ['update-index', '--index-info'], { cwd: dir, input: `${entries.join('\n')}\n` })
+
+  const listed = gitPaths(['ls-files'], { cwd: dir })
+  assert.equal(listed.filter((file) => file.startsWith('long/')).length, count)
+  assert.ok(listed.join('\0').length > 1024 * 1024, '夹具必须真的超过 1 MiB，否则这条什么也没证明')
+  assert.equal(gitPaths(['ls-files'], { cwd: dir, maxBuffer: 16 }).length, listed.length)
+
+  const changed = gitNameStatus(['diff', '--cached', '--name-status', '--no-renames'], { cwd: dir })
+  assert.equal(changed.filter((entry) => entry.status === 'A').length, count)
+})
+
 test('splitNulPaths 丢掉结尾的空记录，不产出空串', () => {
   assert.deepEqual(splitNulPaths('a\0b\0'), ['a', 'b'])
   assert.deepEqual(splitNulPaths(''), [])

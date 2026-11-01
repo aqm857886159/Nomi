@@ -8,7 +8,7 @@ import { checkPrBoardClaims, parsePrBoardClaims } from './check-board-parity.mjs
 import { approvalCommand, boardApprovalSubject, describeBoardDiff, describeSuppressionGrowth, suppressionApprovalSubject, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
 import { pinScenarioPolicy } from './perf-scenarios-lib.mjs'
 import { localEvidenceInputs } from './lib/prEvidenceInputs.mjs'
-import { evaluatePrJudgement, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable } from './pr-judgement-lib.mjs'
+import { deriveUiVerification, evaluatePrJudgement, evaluateProcessTier, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable, PROCESS_TIERS, processTieringEnforced } from './pr-judgement-lib.mjs'
 
 /** 四类（花钱 / 长跑 / 可打断 / 新界面）——路由表里 pathRules.legacy 的那部分；files: [{ path, status }]，status 'A' = 新增。 */
 export function classifyChange(files, addedLines = '', table = undefined) {
@@ -53,17 +53,20 @@ const ENGLISH_HEADINGS = {
 export const englishHeadingHint = (body, heading) =>
   (ENGLISH_HEADINGS[heading]?.test(String(body || '')) ? `（正文里是英文标题，判据只认中文标题 \`## ${heading}\`，请改成中文）` : '')
 
-export function checkDesignCard(body, { fourClass }) {
-  const section = extractSection(body, '设计卡')
+/** short = 短档：卡可以写在 `## 短版设计卡`（也认 `## 设计卡`），格子要求同 ★ 5 格；非短档与原来逐字相同。 */
+export function checkDesignCard(body, { fourClass, short = false }) {
+  const shortSection = short ? extractSection(body, '短版设计卡') : null
+  const section = shortSection ?? extractSection(body, '设计卡')
+  const label = shortSection === null ? '设计卡' : '短版设计卡'
   const required = fourClass ? ALL_CELLS : STAR_CELLS
-  if (section === null) return { ok: false, lines: [`✖ PR 正文没有 \`## 设计卡\` 一节（${fourClass ? '四类，9 格' : '★ 格 1、2、3、4、9'}）${englishHeadingHint(body, '设计卡')}`] }
+  if (section === null) return { ok: false, lines: [`✖ PR 正文没有 \`## 设计卡\` 一节（${fourClass ? '四类，9 格' : '★ 格 1、2、3、4、9'}${short ? '；短档也可以写 `## 短版设计卡`' : ''}）${englishHeadingHint(body, '设计卡')}`] }
   const link = /https?:\/\/\S+|docs\/\S+\.md/.exec(section)
   const missing = required.filter((n) => !cellFilled(cellContent(section, n)))
-  if (missing.length === 0) return { ok: true, lines: [`✅ 设计卡：${required.length} 格都填了`] }
+  if (missing.length === 0) return { ok: true, lines: [`✅ ${label}：${required.length} 格都填了`] }
   if (link && missing.length === required.length) {
-    return { ok: true, lines: [`⚠ 设计卡只放了链接（${link[0]}），格子内容要人工到链接里核对（${required.join('、')}）`] }
+    return { ok: true, lines: [`⚠ ${label}只放了链接（${link[0]}），格子内容要人工到链接里核对（${required.join('、')}）`] }
   }
-  return { ok: false, lines: [`✖ 设计卡缺格：${missing.join('、')}（要求：${fourClass ? '四类 9 格全填' : '★ 格 1、2、3、4、9'}；确实不适用写「不适用：理由」）`] }
+  return { ok: false, lines: [`✖ ${label}缺格：${missing.join('、')}（要求：${fourClass ? '四类 9 格全填' : '★ 格 1、2、3、4、9'}；确实不适用写「不适用：理由」）`] }
 }
 
 /** 实现线编号：设计卡里的「线/负责人：X」或正文里的「实现线：X」。 */
@@ -263,7 +266,7 @@ export function checkSuppressionContracts({ strict = false, suppressions = undef
  */
 const PRODUCTION_TSX = /^src\/(?!devlab\/).*\.tsx$/
 const TEST_TSX = /(?:\.(?:test|spec)\.tsx$|(?:^|\/)__tests__\/)/
-export function checkBoardClaim(body, { inferred, files = [], strict = false, table = undefined, boards = null, baseBoards = null, approvals = null } = {}) {
+export function checkBoardClaim(body, { inferred, files = [], strict = false, claimsRequired = true, table = undefined, boards = null, baseBoards = null, approvals = null } = {}) {
   const claims = parsePrBoardClaims(body)
   const lines = []
   let ok = true
@@ -287,7 +290,8 @@ export function checkBoardClaim(body, { inferred, files = [], strict = false, ta
   const contracts = checkBoardContracts({ strict, boards, baseBoards, approvals })
   lines.push(...contracts.lines)
   ok = ok && contracts.ok
-  if (!strict) return { ok, lines }
+  // claimsRequired=false（短档）：只免「改了界面要认领清单元素或写例外」；上面的认领核对和清单合同的批准照常
+  if (!strict || !claimsRequired) return { ok, lines }
   const touchesUi = (inferred?.categories ?? []).some((category) => category.id === 'ui')
   if (!touchesUi) return { ok, lines }
   if (claims.length) return { ok, lines }
@@ -439,11 +443,12 @@ export function isGrandfathered({ createdAt, effectiveAt = RULES_EFFECTIVE_AT })
 }
 
 /** 正文判据的逐行输出与是否判红；renderReport（合并前）和推送前各自加抬头 / 结论。 */
-export function renderBodyLines({ classification, design, acceptance, escape, promises = { ok: true, lines: [] }, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, board = { ok: true, lines: [] }, perfPolicy = { ok: true, lines: [] }, suppressions = { ok: true, lines: [] }, grandfathered = false }) {
+export function renderBodyLines({ classification, processTier = null, design, acceptance, escape, promises = { ok: true, lines: [] }, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, board = { ok: true, lines: [] }, perfPolicy = { ok: true, lines: [] }, suppressions = { ok: true, lines: [] }, grandfathered = false }) {
   const lines = []
   lines.push(classification.fourClass
     ? `· 四类：命中（${classification.classes.join('、')}）——${classification.hits.slice(0, 5).map((hit) => hit.path).join('、')}${classification.hits.length > 5 ? ' …' : ''}`
     : '· 四类：未命中，只查设计卡 ★ 格')
+  if (processTier) lines.push(...processTier.lines)
   const soften = (list) => (grandfathered ? list.map((line) => line.replace(/^✖/, '⚠')) : list)
   lines.push(...soften(design.lines))
   if (classification.fourClass) lines.push(...soften(acceptance.lines))
@@ -476,9 +481,11 @@ export const renderReport = ({ pr, ...rest }) => mergeReport(pr, renderBodyLines
  *   files: [{ path, status }]（A / M / D 或 added / modified / removed）；addedByFile: Map(路径 → 新增行)；
  *   contracts / ledger（transitions、ids、removed、settledContracts）见 checkEscapeContract / ledgerChanges；
  *   createdAt: PR 创建时间（拿不到 = 不宽限，fail-closed）；enforce: 假设规则已生效（回放用）；
- *   paidStrict: 合并前扫描传 true——花钱类的 spend-paid-sample 按严格口径判（pr-judgement-lib 的 paidSampleVerdict），CI / 推送前不传。
+ *   paidStrict: 合并前扫描传 true——花钱类的 spend-paid-sample 按严格口径判（pr-judgement-lib 的 paidSampleVerdict），CI / 推送前不传；
+ *   uiVerification: 短档声明的界面核实结果（测试注入；不传就用 evidence 里的 base / head 拍板图清单现算，且只有声明短档的 PR 才会去取）。
+ *   返回里的 processTier = 流程档位（严 ≡ 四类 classification.fourClass；其余分短 / 标准，见 pr-judgement-lib 的 evaluateProcessTier）。
  */
-export function evaluatePrBody({ body, files, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge', scenarios = null, table = undefined, paidStrict = false, evidence = undefined }) {
+export function evaluatePrBody({ body, files, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge', scenarios = null, table = undefined, paidStrict = false, evidence = undefined, uiVerification = null }) {
   const normalized = files.map((file) => ({ ...file, status: file.status === 'added' ? 'A' : file.status }))
   const withAdded = addedByFile ? normalized.map((file) => ({ ...file, added: addedByFile.get(file.path) ?? '' })) : normalized
   const classification = classifyChange(withAdded, addedLines, table)
@@ -502,18 +509,31 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     paidStrict,
     readRaw: inputs.readRaw ?? null,
   })
+  // 流程档位。严 ≡ 现行四类：直接用上面那次 inferRoutes 的结论（classification），和下面 9 格 / 独立验收是同一个判断，不另算。
+  const processTier = evaluateProcessTier({
+    body,
+    files: normalized,
+    inferred: classification,
+    ledgerTransitions: ledger.transitions ?? [],
+    uiVerification: () => uiVerification ?? deriveUiVerification({ files: normalized, baseBoards: inputs.baseBoards, headBoards: inputs.boards }),
+    shortAllowed: processTieringEnforced(createdAt, enforce),
+  })
+  const short = processTier.tier === PROCESS_TIERS.SHORT
   const result = renderBodyLines({
     classification,
-    design: checkDesignCard(body, classification),
+    processTier,
+    design: checkDesignCard(body, { fourClass: classification.fourClass, short }),
     acceptance: checkIndependentAcceptance(body, { stage, strict: strictEvidence, headSha: inputs.headSha ?? null, readReport: inputs.readReport, headRelation: inputs.headRelation }),
     escape: checkEscapeContract(body, contracts, ledger.transitions ?? [], ledger.ids ?? [], ledger.settledContracts ?? [], { stage, reviewed: ledger.preparedContracts ?? [] }),
     promises: checkDeferredPromises(body, { stage, createdAt, enforce }),
     scope: judgement.scope,
-    routing: judgement.routing,
-    board: checkBoardClaim(body, { inferred: judgement.inferred, files: normalized, strict: strictEvidence, table: policy, boards: inputs.boards ?? null, baseBoards: inputs.baseBoards ?? null, approvals: inputs.approvals ?? null }),
+    // 短档不查功能分类 / 验收证据：由声明与 base / head 界面清单核实替代
+    routing: short ? { ok: true, blocking: false, lines: ['· 功能分类 / 验收证据：短档不要求（由声明与 base/head 界面清单核实覆盖）'], gaps: [], categories: [] } : judgement.routing,
+    // 清单合同的批准看真实 diff，不分档位；短档只免「改了界面要认领或写例外」
+    board: checkBoardClaim(body, { inferred: judgement.inferred, files: normalized, strict: strictEvidence, claimsRequired: !short, table: policy, boards: inputs.boards ?? null, baseBoards: inputs.baseBoards ?? null, approvals: inputs.approvals ?? null }),
     perfPolicy: { ok: !pinned.blocked, lines: pinned.lines },
     suppressions: checkSuppressionContracts({ strict: strictEvidence, suppressions: inputs.suppressions, baseSuppressions: inputs.baseSuppressions, approvals: inputs.approvals ?? null }),
     grandfathered: !enforce && isGrandfathered({ createdAt }),
   })
-  return { ...result, classification, judgement }
+  return { ...result, classification, judgement, processTier }
 }

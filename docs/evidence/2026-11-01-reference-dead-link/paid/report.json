@@ -1,0 +1,45 @@
+{
+  "script": "reference-dead-link-real.paid.mjs",
+  "mode": "paid",
+  "startedAt": "2026-10-31T20:15:56.987Z",
+  "model": "apimart/gemini-3.1-flash-image-preview",
+  "deadLinkHost": "api.apimart.ai",
+  "locales": {
+    "zh-CN": {
+      "deadLink": {
+        "createRequests": 1,
+        "uploads": 1,
+        "sentImageUrls": 1,
+        "sentTheDeadLink": false,
+        "allFromUpload": true,
+        "probeGets": 1
+      }
+    }
+  },
+  "verified": [
+    "dead-link-sends-uploaded-link",
+    "dead-link-lands-with-no-new-element",
+    "one-post-per-submission"
+  ],
+  "finishedAt": "2026-10-31T20:16:28.459Z",
+  "paidCalls": 1,
+  "spend": [
+    {
+      "taskId": "task_01M69SP6YW9ACGSC11G5CNY3CQ",
+      "status": "ready",
+      "model": "gemini-3.1-flash-image-preview",
+      "vendor": "apimart"
+    }
+  ],
+  "providerTaskIds": [
+    "task_01M69SP6YW9ACGSC11G5CNY3CQ"
+  ],
+  "networkAllowlist": [
+    "https://api.apimart.ai",
+    "*.getapib.org",
+    "https://nomi-asset-relay.2373272608.workers.dev"
+  ],
+  "networkBlocked": [],
+  "walkOutputDir": ".tmp/pi-reference-dead-link-development-1793477756970",
+  "failure": null
+}

@@ -1,5 +1,5 @@
 {
-  "name": "自建中转视频模型走哪套报文（通用 / 原生）",
+  "name": "显式声明决定中转视频报文，缺协议证据不生成默认",
   "subject": "relay.video-wire-selection",
   "lifecycle": "catalog",
   "authority_kind": "decision",
@@ -7,17 +7,13 @@
   "fact_kind": "rule",
   "migration_status": "converged",
   "owner": {
-    "path": "electron/catalog/relayNativeWireUpgrade.ts",
-    "symbol": "upgradeRelayModelsToNativeWire"
+    "path": "electron/providerAdapter/validator.ts",
+    "symbol": "assertAdapterModeInvariants"
   },
   "write_api": [
     {
       "path": "electron/catalog/relayNativeWireUpgrade.ts",
       "symbol": "upgradeRelayModelsToNativeWire"
-    },
-    {
-      "path": "electron/catalog/relayNativeWireUpgrade.ts",
-      "symbol": "noteRelayQueryOutcome"
     },
     {
       "path": "electron/catalog/nativeEndpointProbe.ts",
@@ -26,6 +22,26 @@
     {
       "path": "electron/catalog/nativeWireProfiles.ts",
       "symbol": "ARK_TASK_NOT_FOUND_EVIDENCE"
+    },
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "assertAdapterModeInvariants"
+    },
+    {
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "buildOpenAiCompatibleDraft"
+    },
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "symbol": "openAiVideoMode"
+    },
+    {
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "draftShapeForKind"
+    },
+    {
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "scheduleRelayNativeWireUpgrade"
     }
   ],
   "forbidden_derivations": [],
@@ -36,5 +52,5 @@
     "electron/catalog/modelRetype.ts"
   ],
   "since": "2026-10-16",
-  "notes": "#1213：开机体检只在拿到原生合同证据（假任务号得到方舟自己的错误包络）时切原生报文，拿不到就降回通用并记日志，探不到不动；运行中原生通道查询连续 3 次按合同认出的非瞬时失败 → 单向退回。通道只在这里改。下一步（0.24 另开设计线）：去掉开机升级、改成接入时验证并在接入页显示。"
+  "notes": "声明与协议能力决定报文，未知连接不生成视频默认；标准视频档由代码拥有，其他路由按显式声明执行。原启动自动升降级及连续查询失败换路由已按获批方向删除：兼容启动API为空操作，保留所有旧mapping，不因缺作者标记推断来源。探测工具仅提供证据，不再有自动写mapping的权限。查询失败保留原任务合同，只重新取回，不重新生成。"
 }

@@ -16,7 +16,7 @@ import { readRunGraph, deliverRunOutcome } from './runProjectDelivery'
 import { buildTaskCenterView } from '../../taskCenter/taskCenterEntries'
 import { readLocalProjectAsync, saveLocalProject } from '../../library/localProjectStore'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness, testProjectBinding } from '../../project/projectSessionTestHarness'
-import type { TaskRequestDto } from '../../api/taskApi'
+import { releaseCanvasShotRun, type TaskRequestDto } from '../../api/taskApi'
 
 const disk = vi.hoisted(() => new Map<string, unknown>())
 vi.mock('../../library/localProjectStore', () => ({
@@ -27,7 +27,7 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   }),
 }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: vi.fn(async () => 'grant') }))
+vi.mock('../../api/taskApi', () => ({ mintSpendGrant: vi.fn(async () => 'grant'), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('../../../desktop/bridge', () => ({
   getDesktopBridge: () => ({ projects: {
     applyCanvasNodePatch: async ({ projectId, nodeId, patch }: { projectId: string; nodeId: string; patch: Record<string, unknown> }) => {
@@ -291,4 +291,83 @@ it('settles the queue if workspace identity changes between the graph read and i
   expect(useGenerationCanvasStore.getState().nodes).toEqual([])
   expect(useGenerationQueueStore.getState().entries).toEqual([expect.objectContaining({ nodeId: node.id, state: 'error' })])
   expect(Object.values(useGenerationQueueStore.getState().batches)).toEqual([expect.objectContaining({ finishedAt: expect.any(Number) })])
+})
+
+describe('节点落可找回：渲染层不再等这一笔，交给主进程观察者', () => {
+  const released = vi.mocked(releaseCanvasShotRun)
+  beforeEach(() => { released.mockReset().mockResolvedValue(undefined) })
+
+  function nodeWithTwoRuns(): string {
+    const store = useGenerationCanvasStore.getState()
+    const node = store.addNode({ kind: 'video' })
+    store.appendNodeRun(node.id, { id: 'run-old', status: 'error', projectId: 'project-a' })
+    store.appendNodeRun(node.id, { id: 'run-latest', status: 'running', projectId: 'project-a', taskId: 'task-1' })
+    return node.id
+  }
+
+  it('放手的是最新那次运行，而且节点已经落好了可找回（观察者先落的结果不会被盖掉）', async () => {
+    const target = await session.open('project-a')
+    const id = nodeWithTwoRuns()
+    let statusAtRelease: string | undefined
+    released.mockImplementation(async () => { statusAtRelease = useGenerationCanvasStore.getState().nodes.find((node) => node.id === id)?.status })
+    await expect(deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: 'timed out' })).resolves.toBe(true)
+    expect(released.mock.calls).toEqual([[{ projectId: 'project-a', runRecordId: 'run-latest' }]])
+    expect(statusAtRelease).toBe('recoverable')
+  })
+
+  it.each(['idle', 'running', 'error', 'success'] as const)('落成 %s 不放手', async (status) => {
+    const target = await session.open('project-a')
+    await deliverRunOutcome(target, nodeWithTwoRuns(), { kind: 'status', status, ...(status === 'error' ? { error: 'failed' } : {}) })
+    expect(released).not.toHaveBeenCalled()
+  })
+
+  it('进度和结果都不放手', async () => {
+    const target = await session.open('project-a')
+    const id = nodeWithTwoRuns()
+    await deliverRunOutcome(target, id, { kind: 'progress', progress: { runId: 'run-latest', percent: 1 } })
+    await deliverRunOutcome(target, id, { kind: 'result', result: { id: 'result-1', type: 'image', url: 'nomi-local://asset/project-a/out.png' } as GenerationNodeResult })
+    expect(released).not.toHaveBeenCalled()
+  })
+
+  it('原项目不在前台：写进盘上那一份，照样放手', async () => {
+    const target = await session.open('project-a')
+    const id = nodeWithTwoRuns()
+    persistOpenCanvasAs('project-a')
+    await session.open('project-b')
+    await expect(deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: 'timed out' })).resolves.toBe(false)
+    expect(diskNode('project-a', id)?.status).toBe('recoverable')
+    expect(released.mock.calls).toEqual([[{ projectId: 'project-a', runRecordId: 'run-latest' }]])
+  })
+
+  it('节点已经不在：没有运行记录可放，不报错', async () => {
+    const target = await session.open('project-a')
+    await expect(deliverRunOutcome(target, 'node-gone', { kind: 'status', status: 'recoverable', error: 'timed out' })).resolves.toBe(false)
+    expect(released).not.toHaveBeenCalled()
+  })
+
+  it('放手失败不影响落可找回', async () => {
+    const target = await session.open('project-a')
+    const id = nodeWithTwoRuns()
+    released.mockRejectedValue(new Error('ipc gone'))
+    await expect(deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: 'timed out' })).resolves.toBe(true)
+    expect(useGenerationCanvasStore.getState().nodes.find((node) => node.id === id)?.status).toBe('recoverable')
+  })
+})
+
+it('background delivery preserves first task identity but drops transient snapshots', async () => {
+  const target = await session.open('project-a')
+  const node = useGenerationCanvasStore.getState().addNode({ kind: 'video' })
+  useGenerationCanvasStore.getState().appendNodeRun(node.id, { id: 'idle-run', status: 'running', projectId: 'project-a' })
+  persistOpenCanvasAs('project-a')
+  await session.open('project-b')
+  const before = JSON.stringify(disk.get('project-a'))
+  await deliverRunOutcome(target, node.id, { kind: 'progress', progress: { runId: 'idle-run', percent: 1 } })
+  expect(JSON.stringify(disk.get('project-a'))).toBe(before)
+  await deliverRunOutcome(target, node.id, { kind: 'progress', progress: { runId: 'idle-run', taskId: 'upstream-id', taskKind: 'video' } })
+  expect(diskNode('project-a', node.id)?.runs?.[0].taskId).toBe('upstream-id')
+  const accepted = JSON.stringify(disk.get('project-a'))
+  for (let percent = 2; percent < 5; percent++) await deliverRunOutcome(target, node.id, { kind: 'progress', progress: { runId: 'idle-run', taskId: 'upstream-id', taskKind: 'video', percent } })
+  expect(JSON.stringify(disk.get('project-a'))).toBe(accepted)
+  await deliverRunOutcome(target, node.id, { kind: 'status', status: 'error', error: 'failed' })
+  expect(diskNode('project-a', node.id)?.status).toBe('error')
 })

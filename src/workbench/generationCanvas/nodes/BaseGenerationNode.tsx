@@ -3,7 +3,6 @@ import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useWhiteboardSession } from './whiteboard/whiteboardSession'
 import { NodeInlineWhiteboardHost } from './whiteboard/NodeInlineWhiteboardHost'
-import type { ImageGenerationPreset } from 'img-fx'
 import { useTranslation } from 'react-i18next'
 import { IconCopy } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
@@ -69,8 +68,6 @@ export type BaseGenerationNodeProps = {
   readOnly?: boolean
   focusFlash?: boolean
   appear?: boolean
-  waitingMotion?: 'reduced'
-  waitingPreset?: ImageGenerationPreset
 }
 const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('./model3d/Model3DViewer')) // 生成出的 .glb 卡内可旋转预览（R3F）
 const TextDocumentNode = lazyWithChunkBoundary('文本节点编辑器', () => import('./render/TextDocumentNode'))
@@ -84,8 +81,6 @@ function BaseGenerationNodeImpl({
   readOnly = false,
   focusFlash = false,
   appear = false,
-  waitingMotion,
-  waitingPreset,
 }: BaseGenerationNodeProps): JSX.Element {
   const [feedback, setFeedback] = React.useState<string | null>(null)
   const reportFeedback = React.useCallback((message: string) => {
@@ -440,7 +435,7 @@ function BaseGenerationNodeImpl({
 
       {!readOnly ? <NodeHoverTimelineHandle nodeId={node.id} readOnly={readOnly} /> : null}
 
-      {!localImageOpPending && !isTextKind ? <NodeGeneratingOverlay reportFeedback={reportFeedback} node={node} motion={waitingMotion} preset={waitingPreset} /> : null}
+      {!localImageOpPending && !isTextKind ? <NodeGeneratingOverlay reportFeedback={reportFeedback} node={node} /> : null}
 
       <ProductionShotOverlays reportFeedback={reportFeedback} node={node} selected={selected && !isMultiSelectActive} />{/* P4 S5+S6 多镜叠加：占位三态 + 版本条（非多镜早退零开销） */}
       {/* composer：生成类节点 + **单选**时浮出。多选(框选)一律不挂——否则每个选中节点都弹自己的

@@ -47,7 +47,7 @@
 | Agent 行为 | 意图评测（⑩ 说的=摆的、建了几份方案、首次做对率） | 已有 `evals/` + ⑩ 铁律测试 |
 | 大数据量 / 画布 / 长列表 | 真实规模性能（p95 和最长卡顿，只许变好） | **exists**：`pnpm run perf:scenarios` 跑性能场景登记表（`tests/perf/scenarios/`，复用 Playwright + CDP + PerformanceObserver 的现有量具，规矩见 `docs/engineering/perf-scenarios.md`）；每个 PR 另交 `perf-scenario` 数字证据；不用 Lighthouse CI |
 | 生成效果 | 效果评测题集（跨镜一致、参考有没有用上） | **missing**（计划照 OpenAI 图片评测 cookbook 的 LLM 成对比较评一致性，照 DreamBench++ 评「参考图有没有用上」；VBench 以后再说） |
-| 数据格式 | 升级路径（老项目能打开、能继续） | 已有 `core-a-old-project.packaged.mjs` |
+| 数据格式（含决定老模型能不能用的目录文件） | 升级路径（老用户的项目、模型、设置照常能用；真实旧数据，不接受「未验证」） | 老项目 `core-a-old-project.packaged.mjs`；老模型 `electron/catalog/upgradeKeepsWorkingModels.test.ts` + `tests/fixtures/old-user-data/` |
 
 - **路径推类别是下限**：`pathRules` 按改动路径推出一组类别（四类沿用旧判定，`legacy` 字段），设计卡 `### 功能分类` 里勾的只能比它多。
 - **缺工具的证据**：接受「未验证：工具未建」，同时 `node scripts/check-pr-judgement.mjs --gaps` 和 PR 扫描输出都会列出缺口——缺工具不是永久豁免，缺口账一直挂着，直到工具建成、该证据改成 `exists`。

@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconPointer } from '../../../vendor/tablerIcons'
@@ -47,13 +48,13 @@ export function CanvasPickModeLayer(): JSX.Element | null {
       event.preventDefault()
       event.stopPropagation()
     }
-    window.addEventListener('pointerdown', onPointerDown, true)
-    for (const type of ['mousedown', 'pointerup', 'mouseup', 'click'] as const) window.addEventListener(type, swallow, true)
-    window.addEventListener('keydown', onKeyDown, true)
+    canvasWindowInput.addEventListener('pointerdown', onPointerDown, true)
+    for (const type of ['mousedown', 'pointerup', 'mouseup', 'click'] as const) canvasWindowInput.addEventListener(type, swallow, true)
+    canvasWindowInput.addEventListener('keydown', onKeyDown, true)
     return () => {
-      window.removeEventListener('pointerdown', onPointerDown, true)
-      for (const type of ['mousedown', 'pointerup', 'mouseup', 'click'] as const) window.removeEventListener(type, swallow, true)
-      window.removeEventListener('keydown', onKeyDown, true)
+      canvasWindowInput.removeEventListener('pointerdown', onPointerDown, true)
+      for (const type of ['mousedown', 'pointerup', 'mouseup', 'click'] as const) canvasWindowInput.removeEventListener(type, swallow, true)
+      canvasWindowInput.removeEventListener('keydown', onKeyDown, true)
     }
   }, [active])
   if (!active) return null

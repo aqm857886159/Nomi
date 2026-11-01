@@ -504,6 +504,14 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       response.end(corruptImageBytes)
       return
     }
+    // 一条已经失效的服务商临时链接（参考素材的 .meta 里存着的 originalUrl，reference-dead-link 走查用）：发之前的试探 GET 到这里得到 410。
+    // 它是常驻应答，不算意外请求；活着的那条链接用上面的 /fixture/image.jpg。
+    if (record.path === '/fixture/dead-reference.png') {
+      if (!canWrite(response)) return
+      response.writeHead(410, { 'Content-Type': 'application/xml' })
+      response.end('<Error><Code>ExpiredToken</Code></Error>')
+      return
+    }
     if (record.path === '/fixture/video.mp4' || record.path === videoResultPath) {
       const bytes = await readVideoBytes()
       if (!canWrite(response)) return

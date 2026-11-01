@@ -13,9 +13,6 @@ overrides:
   '@earendil-works/pi-tui': 0.85.1
 
 patchedDependencies:
-  img-fx@0.5.1:
-    hash: 154bb3edce60ffb8f481292650a5d341f6881802d6d9b354d380725f8536be89
-    path: patches/img-fx@0.5.1.patch
   playwright-core@1.60.0:
     hash: 50fa230a1646acb5b2b24132532d75f19eeee84a502698e512ae767086a24dd3
     path: patches/playwright-core@1.60.0.patch
@@ -292,9 +289,6 @@ importers:
       i18next:
         specifier: 26.3.6
         version: 26.3.6(typescript@5.9.3)
-      img-fx:
-        specifier: 0.5.1
-        version: 0.5.1(patch_hash=154bb3edce60ffb8f481292650a5d341f6881802d6d9b354d380725f8536be89)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.184.0)
       immer:
         specifier: ^11.1.8
         version: 11.1.8
@@ -4602,13 +4596,6 @@ packages:
   ignore@7.0.6:
     resolution: {integrity: sha512-BAg6QkE8W+TuQLrrw0Ugr7HegXduRuuj8/ti2kSOc+jz1dmx8/WNcjr6XGnq5YpDWxFwwaavqD0+jIUOKelTsw==}
     engines: {node: '>= 4'}
-
-  img-fx@0.5.1:
-    resolution: {integrity: sha512-CXIFGoGgK5F80d8I+VXZ96dmfkWqb4EGpecAIVXVXhuUVqCe1571Xhf5oGZ4qmTce0UoTfNMKLQDOgSAbIbH0w==}
-    peerDependencies:
-      react: '>=18.0.0'
-      react-dom: '>=18.0.0'
-      three: '>=0.149.0'
 
   immediate@3.0.6:
     resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
@@ -11889,12 +11876,6 @@ snapshots:
   ignore@7.0.5: {}
 
   ignore@7.0.6: {}
-
-  img-fx@0.5.1(patch_hash=154bb3edce60ffb8f481292650a5d341f6881802d6d9b354d380725f8536be89)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.184.0):
-    dependencies:
-      react: 19.3.0
-      react-dom: 19.3.0(react@19.3.0)
-      three: 0.184.0
 
   immediate@3.0.6: {}
 

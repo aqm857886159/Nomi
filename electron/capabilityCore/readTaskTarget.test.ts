@@ -89,7 +89,7 @@ describe("nomi_read target=task", () => {
   });
 
   beforeEach(async () => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
+    vi.stubEnv("NOMI_SETTINGS_DIR", fs.mkdtempSync(path.join(root, "case-")));
     const docs = "https://docs.example-readtask.com/api";
     const submitted = await dispatch("model.onboarding.setup", {
       action: "submit_declaration",
@@ -236,6 +236,30 @@ describe("nomi_read target=task", () => {
     expect(out.message).toMatch(/no longer tracking/i);
     expect(out.nextAction).toMatch(/do not submit it again/i);
     expect(out.nextAction).toMatch(/provider's own console/i);
+    expect(submits).toBe(0);
+  });
+
+  it("模型被关了：Nomi 问不了供应商，照实说，不说供应商没产出，不建议重提交；开回来照常查", async () => {
+    const id = await submitPending();
+    submits = 0;
+    const gets = getCount;
+    const file = path.join(process.env.NOMI_SETTINGS_DIR!, "model-catalog.json");
+    const saved = fs.readFileSync(file);
+    const catalog = JSON.parse(saved.toString()) as { models: Array<{ modelKey: string; enabled?: boolean }> };
+    catalog.models.find((model) => model.modelKey === "readtask-paint")!.enabled = false;
+    fs.writeFileSync(file, JSON.stringify(catalog));
+
+    const out = await readTaskId(id);
+    expect(out.state).toBe("query_failed");
+    expect(out.message).toMatch(/model or API key/i);
+    expect(out.message).not.toMatch(/did not produce|does not recognize/i);
+    expect(out.nextAction).toMatch(/do not submit/i);
+    expect(getCount).toBe(gets);
+
+    fs.writeFileSync(file, saved);
+    const back = await readTaskId(id);
+    expect(back.state).toBe("queued");
+    expect(getCount).toBeGreaterThan(gets);
     expect(submits).toBe(0);
   });
 

@@ -35,7 +35,7 @@
     "preview": "vite preview",
     "test": "python3 scripts/with-gates-lock.py --command \"node ./scripts/vitest-fair-share.mjs && pnpm run test:node-suites\"",
     "test:unit:shard": "python3 scripts/with-gates-lock.py -- node ./scripts/vitest-fair-share.mjs",
-    "test:node-suites": "pnpm run test:agent-worktree-janitor && pnpm run test:agent-runtime && pnpm run test:stats && pnpm run test:mcp-legacy-entry && pnpm run test:eng-system",
+    "test:node-suites": "pnpm run test:agent-worktree-janitor && pnpm run test:agent-runtime && pnpm run test:stats && pnpm run test:mcp-legacy-entry && pnpm run test:eng-system && pnpm run test:intake-radar",
     "check:vitest-fair-share": "node --test ./scripts/vitest-fair-share.node-test.mjs",
     "test:agent-worktree-janitor": "node --test ./scripts/agent-worktree-janitor.node-test.mjs",
     "replay:shadow": "tsc -p tests/agent-runtime/tsconfig.json && node .tmp/agent-runtime-tests/tests/agent-runtime/agent-lane-replay-shadow.mjs",
@@ -221,7 +221,7 @@
     "check:test-types": "node --test ./scripts/typecheck.node-test.mjs && node ./scripts/check-test-types.mjs",
     "check:gates-chain": "node --test ./scripts/gate-slimming.node-test.mjs ./scripts/run-gates-contracts.node-test.mjs ./scripts/repair-doc-gates.node-test.mjs && node ./scripts/check-gates-chain.mjs",
     "check:quality-gate-workflow": "node --test ./scripts/validation-policy.node-test.mjs ./scripts/check-quality-gate-workflow.node-test.mjs ./scripts/ci-install-chromium.node-test.mjs ./scripts/nightly-walk-summary.node-test.mjs ./scripts/nightly-build-gate.node-test.mjs ./scripts/nightly-workflow-outputs.node-test.mjs ./scripts/nightly-walk-tree-guard.node-test.mjs ./scripts/nightly-walk-selection.node-test.mjs ./scripts/run-gates-tests.node-test.mjs ./scripts/ci-annotation-hygiene.node-test.mjs ./scripts/test-focused.node-test.mjs ./scripts/real-user-test-gates.node-test.mjs",
-    "check:desktop-rc-workflow": "node --test ./scripts/check-desktop-rc-workflow.node-test.mjs",
+    "check:desktop-rc-workflow": "node --test ./scripts/check-desktop-rc-workflow.node-test.mjs ./scripts/release-rollout.node-test.mjs",
     "check:workflow-protected-writes": "node --test ./scripts/check-workflow-protected-writes.node-test.mjs && node ./scripts/check-workflow-protected-writes.mjs",
     "check:workflow-script-refs": "node --test ./scripts/check-workflow-script-refs.node-test.mjs && node ./scripts/check-workflow-script-refs.mjs",
     "check:cla-workflow": "node --test ./scripts/check-cla-workflow.node-test.mjs",
@@ -269,7 +269,7 @@
     "gates:full": "python3 scripts/with-gates-lock.py --command \"pnpm run check:fresh-base && pnpm run gates:contracts && node ./scripts/run-gates-tests.mjs --tier=full && pnpm run build\"",
     "test:mcp-legacy-entry": "node --test ./scripts/nomi-mcp-entry.node-test.mjs",
     "handoff:report": "node ./scripts/check-handoff.mjs",
-    "test:eng-system": "node --test ./scripts/merge-preflight.node-test.mjs ./scripts/eng-metrics.node-test.mjs ./scripts/archetype-autosync-workflow.node-test.mjs ./scripts/site/released-version.node-test.mjs",
+    "test:eng-system": "node --test ./scripts/asset-file-owner.node-test.mjs ./scripts/merge-preflight.node-test.mjs ./scripts/eng-metrics.node-test.mjs ./scripts/archetype-autosync-workflow.node-test.mjs ./scripts/site/released-version.node-test.mjs",
     "eng:metrics": "node ./scripts/eng-metrics.mjs",
     "merge:preflight": "node ./scripts/merge-preflight.mjs",
     "eval:director": "tsx evals/director/run.ts",
@@ -369,7 +369,6 @@
     "framer-motion": "^12.39.0",
     "globals": "^17.6.0",
     "i18next": "26.3.6",
-    "img-fx": "0.5.1",
     "immer": "^11.1.8",
     "leafer-ui": "^2.1.0",
     "marked": "18.0.5",
@@ -511,7 +510,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh"
     },
     "publish": {
       "provider": "github",
@@ -545,7 +545,6 @@
       "@ffprobe-installer/darwin-arm64"
     ],
     "patchedDependencies": {
-      "img-fx@0.5.1": "patches/img-fx@0.5.1.patch",
       "playwright-core@1.60.0": "patches/playwright-core@1.60.0.patch"
     }
   }

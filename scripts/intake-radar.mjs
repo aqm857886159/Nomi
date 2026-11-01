@@ -39,6 +39,7 @@ export async function run({
   cacheDirOverride,
   log = console.log,
   errorLog = console.error,
+  healthOptions = {},
 } = {}) {
   const cacheDir = cacheDirOverride ?? resolveCacheDir(env)
   const state = readState(cacheDir)
@@ -90,11 +91,16 @@ export async function run({
     newEventKeys: newKeysByPrefix['events/'],
     corruptFiles: [...feedback.corrupt, ...events.corrupt, ...trajectories.corrupt],
     generatedAt: nowIso,
+    healthOptions: {
+      ...(env.NOMI_HEALTH_NEW_VERSION ? { newVersion: env.NOMI_HEALTH_NEW_VERSION } : {}),
+      ...(env.NOMI_HEALTH_OLD_VERSION ? { oldVersion: env.NOMI_HEALTH_OLD_VERSION } : {}),
+      ...healthOptions,
+    },
   })
 
   const { mdPath, jsonPath } = writeReport(cacheDir, report.generatedAt.slice(0, 10), { markdown: renderMarkdown(report), json: report })
   log(renderTerminalSummary(report, { mdPath, jsonPath }))
-  return 0
+  return report.versionHealth.stop ? 1 : 0
 }
 
 async function main() {

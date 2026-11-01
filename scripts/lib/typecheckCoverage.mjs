@@ -40,11 +40,10 @@ export const TYPECHECK_SIDE_INPUTS = Object.freeze(['package.json', 'pnpm-lock.y
 
 export function touchesTypecheck(changedFiles, root = defaultRoot) {
   const sideInputs = new Set(TYPECHECK_SIDE_INPUTS)
-  const candidates = changedFiles.filter((file) => /\.(?:ts|tsx|mts|cts|json|yaml)$/.test(file))
-  if (candidates.length === 0) return false
-  if (candidates.some((file) => sideInputs.has(file))) return true
+  if (changedFiles.length === 0) return false
+  if (changedFiles.some((file) => sideInputs.has(file))) return true
   // 任何 tsconfig*.json（含没人跑的 devlab 配置）：改了编译选项，宁可多跑一次
-  if (candidates.some((file) => /(?:^|\/)tsconfig[^/]*\.json$/.test(file))) return true
+  if (changedFiles.some((file) => /(?:^|\/)tsconfig[^/]*\.json$/.test(file))) return true
   const covered = typecheckCoveredFiles(root)
-  return candidates.some((file) => covered.has(file))
+  return changedFiles.some((file) => covered.has(file))
 }

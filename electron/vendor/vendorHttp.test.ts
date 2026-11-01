@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { VendorRequestError, categorizeVendorFailure, requestBinary, requestJson } from "./vendorHttp";
+import { VendorRequestError, categorizeVendorFailure, requestBinary, requestJson, requestMediaFile } from "./vendorHttp";
+import { PROVIDER_MEDIA_IDLE_TIMEOUT_MS, providerMediaFileRetrievalTotalMs } from "../shared/assets/providerMediaRetrievalBudget";
 import { setSubmitOutboundDepsForTests } from "./vendorOutboundGuard";
 import type { Vendor } from "../catalog/types";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
@@ -425,5 +426,106 @@ describe("requestBinary shared vendor transport", () => {
     assert(error instanceof VendorRequestError);
     expect(error.structured).toMatchObject({ logicalCode: 402, category: "balance", retryable: false });
     expect(`${error.message}${JSON.stringify(error.structured)}`).not.toContain(secret);
+  });
+});
+
+// 文件响应（鉴权视频字节）拿到响应头之后的时限：整次请求的 120s 总定时器不再盖住下载，换成取回预算那一份数字
+// （空闲时限 + 按声明大小放宽的总上限）。JSON / 二进制响应的行为不变，下面两条配对钉住这个边界。
+describe("requestMediaFile: the transfer after the response headers", () => {
+  const controlled = () => {
+    let stream!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({ start(c) { stream = c; } });
+    // 读的一方已经放弃（被 abort 取消）后，上游再写就是「写进已关的流」——和真 socket 一样静默丢弃。
+    const quietly = (write: () => void) => { try { write(); } catch { /* the reader cancelled */ } };
+    return { body, push: () => quietly(() => stream.enqueue(new Uint8Array(1))), close: () => quietly(() => stream.close()) };
+  };
+  /** 和真消费方一样：每收一块报一次进度，被 abort 就立刻结束。 */
+  const drain = (response: Response, signal: AbortSignal, progress: () => void) => new Promise<number>((resolve, reject) => {
+    const reader = response.body!.getReader();
+    let total = 0;
+    signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    void (async () => {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) return resolve(total);
+        total += value.length;
+        progress();
+      }
+    })().catch(reject);
+  });
+  const fileRequest = () => requestMediaFile({ vendor, apiKey: "k", url: "https://x/content", headers: {}, query: {}, consume: drain });
+  const track = (promise: Promise<unknown>) => {
+    const state: { settled: boolean; value?: unknown; error?: unknown } = { settled: false };
+    promise.then((value) => { state.settled = true; state.value = value; }, (error) => { state.settled = true; state.error = error; });
+    return state;
+  };
+
+  it("一直在走的下载不被整次请求的总超时掐断，同样节奏的 JSON 响应照旧被它掐断", async () => {
+    vi.useFakeTimers(); vi.stubEnv("NOMI_VENDOR_HTTP_TIMEOUT_MS", "100");
+    const file = controlled();
+    stubFetch(() => new Response(file.body, { status: 200, headers: { "content-type": "video/mp4" } }));
+    const download = track(fileRequest());
+    await vi.advanceTimersByTimeAsync(0);
+    for (let chunk = 0; chunk < 5; chunk += 1) { file.push(); await vi.advanceTimersByTimeAsync(40); } // 200ms，两倍于总超时
+    expect(download.settled).toBe(false);
+    file.close();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(download).toMatchObject({ settled: true, value: 5 });
+
+    const json = controlled();
+    stubFetch(() => new Response(json.body, { status: 200 }));
+    const read = track(requestJson(vendor, "k", "GET", "https://x", {}, {}, null));
+    await vi.advanceTimersByTimeAsync(0);
+    for (let chunk = 0; chunk < 5; chunk += 1) { json.push(); await vi.advanceTimersByTimeAsync(40); }
+    expect(read.settled).toBe(true);
+    assert(read.error instanceof VendorRequestError);
+    expect(read.error.structured).toMatchObject({ category: "timeout", retryable: true, reasonCode: "response_timeout" });
+  });
+
+  it("线路断了（连续没有字节）按取回预算的空闲时限放弃，不等总上限；错误和别的超时同一个类别", async () => {
+    vi.useFakeTimers();
+    const file = controlled();
+    stubFetch(() => new Response(file.body, { status: 200, headers: { "content-type": "video/mp4" } }));
+    const download = track(fileRequest());
+    await vi.advanceTimersByTimeAsync(0);
+    file.push();
+    await vi.advanceTimersByTimeAsync(PROVIDER_MEDIA_IDLE_TIMEOUT_MS - 1);
+    expect(download.settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(download.settled).toBe(true);
+    assert(download.error instanceof VendorRequestError);
+    expect(download.error.structured).toMatchObject({ category: "timeout", retryable: true, reasonCode: "response_timeout", upstreamMsg: "下载停滞（30s 没有收到数据）" });
+  });
+
+  it("线路活着但太慢：总上限按响应头声明的大小算，从拿到响应头起，数字读取回预算", async () => {
+    vi.useFakeTimers();
+    const file = controlled();
+    stubFetch(() => new Response(file.body, { status: 200, headers: { "content-type": "video/mp4", "content-length": "1024" } }));
+    const download = track(fileRequest());
+    await vi.advanceTimersByTimeAsync(0);
+    const total = providerMediaFileRetrievalTotalMs(1024);
+    let elapsed = 0;
+    const step = PROVIDER_MEDIA_IDLE_TIMEOUT_MS - 10_000; // 每一步都有字节：空闲时限一直不到点
+    while (elapsed + step < total - 1) { file.push(); await vi.advanceTimersByTimeAsync(step); elapsed += step; }
+    file.push();
+    await vi.advanceTimersByTimeAsync(total - elapsed - 1);
+    expect(download.settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(download.settled).toBe(true);
+    assert(download.error instanceof VendorRequestError);
+    expect(download.error.structured).toMatchObject({ category: "timeout", reasonCode: "response_timeout", upstreamMsg: "下载超过时限（60s）" });
+  });
+
+  it("调用方取消优先于我们自己的时限：原样抛出取消原因", async () => {
+    vi.useFakeTimers();
+    const file = controlled();
+    stubFetch(() => new Response(file.body, { status: 200, headers: { "content-type": "video/mp4" } }));
+    const caller = new AbortController();
+    const download = track(requestMediaFile({ vendor, apiKey: "k", url: "https://x/content", headers: {}, query: {}, signal: caller.signal, consume: drain }));
+    await vi.advanceTimersByTimeAsync(0);
+    caller.abort(new Error("Cancelled by creator"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(download.settled).toBe(true);
+    expect(String((download.error as Error).message)).toBe("Cancelled by creator");
   });
 });

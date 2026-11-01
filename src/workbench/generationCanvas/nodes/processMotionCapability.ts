@@ -17,7 +17,7 @@ export function readProcessMotionCapability(): ProcessMotionCapability {
   } catch {
     return { renderer: null, prefersReducedMotion }
   } finally {
-    // This temporary probe is not img-fx's shared renderer. Release it even if reading fails.
+    // Release this temporary probe even if reading fails.
     try { gl?.getExtension('WEBGL_lose_context')?.loseContext() } catch { /* Cleanup cannot invalidate a capability read. */ }
   }
 }

@@ -50,7 +50,7 @@ let baseRegistry = null
 let changedFiles = null
 if (base) {
   // 走 gitPaths（加 -z、按 NUL 切）：git 默认会把中文路径转义成八进制串，按行读会漏判（check:git-path-quoting）
-  const names = gitPaths(['diff', '--name-only', '--diff-filter=A', '-M', base, 'HEAD', '--', 'src', 'electron'], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 })
+  const names = gitPaths(['diff', '--name-only', '--diff-filter=A', '-M', base, 'HEAD', '--', 'src', 'electron'], { cwd: repoRoot })
   added = names.map((file) => {
     let content = ''
     try { content = execFileSync('git', ['show', `HEAD:${file}`], { cwd: repoRoot, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }) } catch { /* 读不到当空文件 */ }
@@ -58,7 +58,7 @@ if (base) {
   })
   // 评估到期真拦：要 base 登记表（判延期 / 新登记）与这次改动碰过的全部文件（含修改、删除）
   try { baseRegistry = JSON.parse(execFileSync('git', ['show', `${base}:${SELF_WRITTEN_FILE}`], { cwd: repoRoot, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })) } catch { baseRegistry = null }
-  changedFiles = gitPaths(['diff', '--name-only', '--no-renames', base, 'HEAD'], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 })
+  changedFiles = gitPaths(['diff', '--name-only', '--no-renames', base, 'HEAD'], { cwd: repoRoot })
 } else {
   baseNote = '（拿不到可信 base，本次不判新增文件——不拿算不出来当通过；登记表形状仍然检查）'
 }

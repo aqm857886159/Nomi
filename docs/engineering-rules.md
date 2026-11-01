@@ -9,6 +9,8 @@
 
 引入新组件 / 新流程替代旧的，必须同一 commit 删除被替代的旧代码。
 
+- **删旧前先答老用户怎么过（设计卡 ★1c）**：已经在用的人升级那一刻，手上的东西怎么办。默认迁不动就让旧的照常用，不因为证明不了就断供。
+
 - 不留「逃生口 / Collapse / 备选 fallback」；死代码（grep 不到外部引用）立刻物理删除；旧的有价值就把价值合并进新代码再删旧。
 - **CSS**：新样式一律用 Tailwind utility 写在组件 `className` 上；不用 `@apply`；CSS 文件分工固定、只可减不可增：`src/theme/nomi-tokens.css`（设计 token）、`src/styles/index.css`（App 唯一 CSS 入口）、`tailwind.config.ts` 的 `workbenchBasePlugin` addBase（全局 reset / keyframes / 第三方 DOM 覆盖的唯一真相源）。
 - **生成画布单内核（旧 R23）**：生产生成画布只许 `@xyflow/react` 一个内核，`GenerationCanvas` 是稳定入口；禁止第二 renderer、engine flag、fallback 或并行实现。Zustand / domain / 项目快照是唯一真相源，React Flow state 只是可丢弃的渲染投影，写入必须回到现有 graph actions。迁移或升级 React Flow 时，逐项保留旧画布的节点真实尺寸、fit/focus/虚拟化几何、连接入口与端点贴边、hover/selection、resize 命中区、边样式与菜单、动画、右键/键盘/触控协议；删旧实现前证明新内核覆盖对应能力；产品要改的另走样张流程。证据：纯映射写 adapter 测试，入口唯一写结构门禁，用户能看到的进真实 Electron 旅程，用计算样式、DOM 几何和截图共同验证。

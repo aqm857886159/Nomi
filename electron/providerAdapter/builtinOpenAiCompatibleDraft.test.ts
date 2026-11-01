@@ -46,6 +46,7 @@ describe("discoverProviderDocs 对无文档主机", () => {
 describe("buildOpenAiCompatibleDraft", () => {
   const draftFor = (kind: "text" | "image" | "video" | "audio") =>
     buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl: "http://192.168.18.254:3000",
       authType: "bearer",
       models: [{ modelKey: "m-1", labelZh: "m-1", kind }],
@@ -66,6 +67,7 @@ describe("buildOpenAiCompatibleDraft", () => {
   // → 落库缺 mapping → 用户连参考图被拒发「该模型没有图生图通道」，而这家中转其实支持改图。
   const editModeFor = (modelKey: string) =>
     buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl: "http://192.168.18.254:3000",
       authType: "bearer",
       models: [{ modelKey, labelZh: modelKey, kind: "image" }],
@@ -113,6 +115,7 @@ describe("buildOpenAiCompatibleDraft", () => {
 
   it.each(referenceDraftCases)("$kind/$modelKey：每个参考模式的注入 URL 都进入最终报文（空集也显式钉住）", async ({ kind, modelKey, expectedModes }) => {
     const model = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl: "http://192.168.18.254:3000",
       authType: "bearer",
       models: [{ modelKey, labelZh: modelKey, kind }],
@@ -179,6 +182,7 @@ describe("buildOpenAiCompatibleDraft", () => {
 
   it("3D 模型零通道——自建中转根本接不了，验证阶段如实报「没有可用通道」", () => {
     const model3d = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl: "http://192.168.18.254:3000",
       authType: "bearer",
       models: [{ modelKey: "m-3d", labelZh: "m-3d", kind: "model3d" }],
@@ -277,6 +281,7 @@ describe("buildOpenAiCompatibleDraft", () => {
 
   it("没有文档出处就如实留空，不编造来源", () => {
     const draft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl: "http://127.0.0.1:8188",
       authType: "none",
       models: [{ modelKey: "m-1", labelZh: "m-1", kind: "image" }],
@@ -287,6 +292,7 @@ describe("buildOpenAiCompatibleDraft", () => {
 
   it("uses the Anthropic Messages contract when the provider declares Anthropic", () => {
     const mode = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl: "https://api.anthropic.com",
       authType: "x-api-key",
       providerKind: "anthropic",
@@ -302,6 +308,7 @@ describe("buildOpenAiCompatibleDraft", () => {
 
   it("keeps the OpenAI-compatible contract for other providers", () => {
     const mode = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl: "https://api.example.com/v1",
       authType: "bearer",
       providerKind: "openai-compatible",
@@ -320,6 +327,7 @@ it("中转把 gpt-image-2 登记成不透明 id、真名在 alias 上时，改�
   // 中转如实回 400「not supported on the Chat Completions endpoint」→ 改图通道验证失败，
   // 连了参考图的节点被直接拒发，而这家中转其实完全支持改图。
   const draft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
     baseUrl: "http://10.0.0.7:3000/v1",
     authType: "bearer",
     models: [{ modelKey: "custom-1", modelAlias: "gpt-image-2", labelZh: "改图", kind: "image" }],
@@ -329,6 +337,7 @@ it("中转把 gpt-image-2 登记成不透明 id、真名在 alias 上时，改�
   expect(edit?.create.multipart?.imageField).toBe("image[]");
   // 反面对照：没有 alias 的不透明 id 仍走 chat 多模态（不因本修改而误判整片）。
   const noAlias = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
     baseUrl: "http://10.0.0.7:3000/v1",
     authType: "bearer",
     models: [{ modelKey: "custom-1", labelZh: "改图", kind: "image" }],

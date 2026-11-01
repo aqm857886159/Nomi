@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconCloud, IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser, IconX } from '@tabler/icons-react'
 import { BodyPortal, DecisionBar, NOMI_OVERLAY_Z_INDEX, useOverlayEscape, WorkbenchButton, WorkbenchIconButton } from '../../../design'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
 import { MultiShotContractSummary } from './MultiShotContractSummary'
@@ -51,6 +52,7 @@ export function SpendConfirmDialog() {
 
   // Esc 关闭 = 取消/忽略。让位规则（本卡之上还叠着更高层对话框时不接管）住在共用原语里。
   useOverlayEscape(cardRef, open, () => resolvePending(false))
+  useModalInputLayer(open)
 
   // E2E 专用桥（照 ConfirmDialogHost 既有写法）：仅当 localStorage['__nomiE2E']==='1' 时把**真实**
   // requestConfirm 挂到 window，供 R13 走查在真 app 里驱动同一条渲染管线取证键盘/无障碍保障

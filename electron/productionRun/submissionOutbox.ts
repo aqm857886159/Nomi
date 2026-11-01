@@ -94,6 +94,8 @@ export type SubmissionOutboxDependencies = {
    * 供应商不认幂等键就重发，等于下第二张单。
    */
   canResendAfterUnknown?: (error: unknown, input: ProviderDispatchInput) => boolean;
+  /** Callers with a durable cross-call retry budget can keep retries there instead. */
+  safeRetryLimit?: 0 | 1;
 };
 
 export type SubmissionOutboxResult = ProviderDispatchResult & {
@@ -375,6 +377,7 @@ export function createSubmissionOutbox(deps: SubmissionOutboxDependencies) {
         // 不碰意图日志：这一次尝试的 `provider.submit` 意图已经 committed，它覆盖的正是
         // 「同一个 attempt、同一个幂等键」的这两次调用；崩溃恢复看到它仍然正确地说「未知」。
         const neverWritten = error instanceof SubmissionNotDispatchedError;
+        if (neverWritten && deps.safeRetryLimit === 0) throw error;
         // 在本机就被拦下的（出网策略、本机检查、密钥缺失……）是确定性的：原样再派一次只会再被拦一次。
         if (neverWritten && error.reason === "never_reached_network") throw error;
         // 供应商给了确定的答复（明确拒绝 / 答了但本机没落下）：不论幂等声明、不论正文像不像连接层错误，重发就是第二笔。

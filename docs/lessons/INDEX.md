@@ -107,6 +107,7 @@
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
 - [探针测不到它命名的那件事，断言就永远绿](vacuous-probe-passes-forever.md) — 按路径过滤 fs 读 spy 恒空；四个会话判成「负载 flake」的那条其实恒真。变异测试是唯一判据，「永不发生」必配阳性对照
 - [迁移器被直接调用测了个遍，生产上却没人这么调它](migrator-tested-directly-is-never-tested.md) — 上一条的兼容层版本：`z.object` 默认剥未声明键，夹在原始数据和兼容读取之间就让迁移恒 no-op；老项目分镜因此打开即消失、下次自动保存永久抹掉
+- [迁移矩阵要用旧版本真实落的数据；改夹具让 CI 变绿之前，先答真实用户的数据会不会长这样](2026-10-31-migration-matrix-real-old-data.md) — 写/审升级迁移的矩阵、或新版本上走查红了想改夹具时读：手写的旧目录证明不了任何事；矩阵至少一格用旧版本真实落的目录，期望从主线录，新规则只管带归属记录的新数据
 - [硬链接复制 profile 会和运行中的 app 抢同一把 leveldb 锁](profile-copy-hardlink-shares-leveldb-lock.md) — 测启动性能前必读：`cp -Rl` 让副本共享 `Local Storage/leveldb/LOCK` 的 inode，凭空多出稳定可复现的 3.5s，伪装成"首屏渲染慢"；测前验 `lsof` 与两侧 inode；附冷/热文件缓存 10x 差异
 - [门岗断言不许手抄真相源的派生值，且必须与真相源同触发面](gate-assertions-must-not-copy-derived-values.md) — 看到 `>= N` 先问「N 是抄谁的」；决定落后与否的是触发面不是细心；死名字既造假红也造假绿
 - [有界性/复杂度不变量要用「计数」证，别用墙钟跑量](complexity-invariants-need-counters-not-wall-clock.md) — ✅ 已由 `check:test-waits` 第三条规则接管；留下的是门岗抓不到的那半：`fs.readFileSync(fd)` 让按路径过滤的 spy 断言恒真（实测 597 次重扫仍报 0）
@@ -147,6 +148,8 @@
 
 ## D. 排查与平台故障
 
+- [探针判不了的不能当失败，同一个决定写在两处时第二处会把第一处撤销](inconclusive-probe-is-not-a-failure-and-a-second-shortcut-undoes-the-decision.md) — 给「发之前先试一下」类的决定加探测、缓存或回退时；一个二选一的判断散在好几个函数里都读同一个标志时；测试里的探针要出网时
+- [安全封闭要同时设计人工出口，否则一处坏记录就是永久锁死](fail-closed-needs-a-human-exit.md) — 给花钱或不可逆动作加「读不出来就拒绝」、身份是固定路径、回执里写 `allowedActions` 时
 - [程序自己的簿记不许冒充「用户留下的事实」](program-bookkeeping-must-not-pose-as-user-facts.md) — 一个判断「有时生效、有时不生效」、换条路径复现结果就变时读；先数它读的每个事实的全部写口，挡掉同步回声 / 挂载 / 默认值兜底
 - [只在 Mac 上测，就是让 82% 的用户替我们测](mac-only-testing-ships-windows-blind.md) — 发版前；Windows 用户报卡死/点了没反应/保存或导入失败而 Mac 复现不了；「只在 Windows 红」的测试想当噪音跳过时。附同日五个 Windows 专属问题的机制对照表与「用 Electron 自带 Node 判红绿」
 - [手拼 `file://` 判断「我是不是入口」，Windows 上门岗静默零输出、退出码 0](main-guard-hand-built-file-url-is-silent-on-windows.md) — ✅ 已由 `check:main-guard` 接管；Windows 上某个门岗/脚本一行不打印就退出 0 时先读；入口判断只写 `pathToFileURL(process.argv[1]).href`
@@ -213,6 +216,7 @@
 - [查不查不能靠记性：先看别人做了没必须机器逼](prior-art-check-cannot-rely-on-memory.md) — 派实施前先派反方出 prior-art 报告；系统只奖励「做出来」，提醒在高负载下必漏（`check:prior-art` 已接管）
 - [子 agent 起不来时的探针法](subagent-startup-400-probe-method.md) — 一次 harness 侧 400 故障的定位法与两次误诊，别照抄已过期的结论
 - [长等待交给 shell 哨兵，别交给子 agent](long-waits-belong-to-shell-sentinels-not-agents.md) — 同一天三种死法（Monitor 交卷 / 零 commit 等到超时 / `--watch` 挂死）；附哨兵模板与「CI 不替你跑新入库走查」
+- [设计派线和等待之前先读官方的缓存规则](read-official-cache-rules-before-designing-lines.md) — 写等待脚本、定上下文或线型、想改缓存时长时；子线缓存默认 5 分钟，单次等待压在 4 分钟内；取舍用真实轨迹算账，别凭印象
 
 > 另见 playbook [§14 门岗验「没变坏」，不验「做到了」](../engineering/agent-orchestration-playbook.md#14-门岗验没变坏不验做到了把-p3-机器化进派工合同)——派下去的活「36 门全绿」不等于规格达成；派工要绑验收物、收货先验规格再看门岗。
 - [两个各自绿的 PR 合到一起会红](two-green-prs-merge-red.md) — 连合同一区域 PR 前先 update-branch 等 CI；分类器 skip 的门不算绿
@@ -230,6 +234,8 @@
 - [资料副本里的项目登记会指回用户的真实项目](profile-copy-registry-points-at-real-projects.md) — 用真实资料副本做候选版 / 升级 / 真付费验收前
 - [变异校验后别用 git checkout 目录还原](mutation-check-restore-one-file-not-the-directory.md) — 做“改回旧行为必红”变异校验时
 - [“以前能用、现在坏了”的热修：最小恢复，别重新设计](hotfix-restore-old-behavior-do-not-redesign.md) — 热修丢失的能力、开始想加新通道 / 新规则时
+
+- [说「旧版改不了」前先查调用者](legacy-behavior-needs-callsite-proof.md) — 附定位路径、执行顺序、被调用行为原文；删除搬移事务的安装器案例
 
 ## 🤖 自动收录（待人工归位）
 

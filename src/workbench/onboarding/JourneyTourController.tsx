@@ -7,6 +7,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconCheck, IconPlayerPlay } from '@tabler/icons-react'
+import { useModalInputLayer } from '../../design/modalInputLayer'
 import { cn } from '../../utils/cn'
 import { OnboardingSpotlight } from './OnboardingSpotlight'
 import { useJourneyTourStore } from './journeyTourStore'
@@ -16,6 +17,8 @@ export function JourneyTourController({ onStartReal }: { onStartReal: () => void
   const { t } = useTranslation()
   const active = useJourneyTourStore((s) => s.active)
   const phase = useJourneyTourStore((s) => s.phase)
+  // 只有收尾卡盖住整窗；教学那几步要用户真的操作工作区，不是模态。
+  useModalInputLayer(active && phase === 'finale')
   const beat = useJourneyTourStore((s) => s.beat)
   const teachIndex = useJourneyTourStore((s) => s.teachIndex)
   const selectors = useJourneyTourStore((s) => s.selectors)
