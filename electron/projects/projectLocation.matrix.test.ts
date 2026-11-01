@@ -47,6 +47,7 @@ vi.mock("electron", () => ({
   },
 }));
 
+import { projectDeleteChoice } from "../../src/workbench/library/projectDeleteChoice";
 import { createNamedProject } from "../capabilityCore/core";
 import { listProjectAssets } from "../assets/projectAssetStore";
 import { localAssetUrl } from "../assets/assetPaths";
@@ -587,19 +588,6 @@ describe("二、状态 × 入口（不变量 ①②③⑤）", () => {
     expect(readProject(project.id)).toMatchObject({ id: project.id });
   });
 
-  it("「找不到」的卡片用户能自己移除：只从项目库移除，不建、不碰任何文件夹；重启也不回来", async () => {
-    await startApp();
-    const project = createNative("要移除的短片");
-    const renamed = `${project.root}-改名`;
-    fs.renameSync(project.root, renamed);
-    const disk = userDisk();
-
-    await expect(deleteProject(project.id, "unbind")).resolves.toEqual({ id: project.id, deleted: false });
-    expect(entriesFor(project.id)).toHaveLength(0);
-    expect((await listProjects()).some((card) => card.id === project.id)).toBe(false);
-    expect(userDisk()).toEqual(disk);
-  });
-
   it("从项目库移除（文件夹还在默认根里）：重启后启动对账不把它找回来", async () => {
     await startApp();
     const project = createNative("移除后别回来");
@@ -609,5 +597,126 @@ describe("二、状态 × 入口（不变量 ①②③⑤）", () => {
       expect((await listProjects()).some((card) => card.id === project.id)).toBe(false);
     }
     expect(fs.existsSync(project.root)).toBe(true);
+  });
+});
+
+/**
+ * 删除要跨层走一遍：真列表给卡片状态 → 真确认框判断 → 真主进程 → 重启（真启动对账）。这几层以前各测各的，拼起来的路径没人测：
+ * 文件夹没了的本地卡，确认框说「移到废纸篓」，主进程什么都没摘，界面却说已移除，重启后卡片又回来。
+ * 不变量：主进程回 deleted:false，登记就一定摘了；用户移除的卡，重启多少次都不回来。
+ * 正常的本地卡进系统回收站在 projectDeleteToTrash.test.ts（这里 electron 是桩，没有回收站）。
+ */
+describe("删除：卡片状态 × 确认框 × 主进程 × 重启", () => {
+  const cardOf = async (id: string) => {
+    const card = (await listProjects()).find((item) => item.id === id);
+    if (!card) throw new Error(`项目库里没有 ${id}`);
+    return card;
+  };
+  const expectStaysRemoved = async (id: string): Promise<void> => {
+    expect(entriesFor(id)).toHaveLength(0);
+    for (let round = 0; round < 2; round += 1) {
+      await startApp();
+      expect((await listProjects()).some((card) => card.id === id), `第 ${round + 1} 次重启后`).toBe(false);
+      expect(entriesFor(id), `第 ${round + 1} 次重启后`).toHaveLength(0);
+    }
+  };
+
+  const MISSING_SHAPES: Array<{ label: string; arrange: (project: Project) => void }> = [
+    { label: "文件夹被删了", arrange: (project) => fs.rmSync(project.root, { recursive: true }) },
+    { label: "文件夹被挪出了默认位置", arrange: (project) => moveInto(project.root, path.join(home(), "Desktop", "挪走的短片")) },
+  ];
+
+  it.each(MISSING_SHAPES)("本地卡，$label：确认框只说移除，摘掉登记，盘上一个字节不变，重启不回来", async ({ arrange }) => {
+    await startApp();
+    const project = createNative("要移除的短片");
+    arrange(project);
+    const disk = userDisk();
+
+    const card = await cardOf(project.id);
+    expect(card.missing).toBe(true);
+    const choice = projectDeleteChoice(card);
+    expect(choice.intent).toBe("unbind");
+    await expect(deleteProject(project.id, choice.intent)).resolves.toEqual({ id: project.id, deleted: false });
+
+    await expectStaysRemoved(project.id);
+    expect(userDisk()).toEqual(disk);
+  });
+
+  it("本地卡，文件夹在默认根里改了名：摘掉登记，内容不动，重启不被对账接回；想要回来，「打开已有文件夹」选它还能接上", async () => {
+    await startApp();
+    const project = createNative("改名后不要了");
+    const renamed = `${project.root}-改名`;
+    fs.renameSync(project.root, renamed);
+    const disk = userDisk();
+
+    const card = await cardOf(project.id);
+    expect(card.missing).toBe(true);
+    const choice = projectDeleteChoice(card);
+    expect(choice.intent).toBe("unbind");
+    await expect(deleteProject(project.id, choice.intent)).resolves.toEqual({ id: project.id, deleted: false });
+
+    await expectStaysRemoved(project.id);
+    // 盘上只多一个「别找回来」的标记，在 Nomi 自己的 .nomi 目录里；项目内容一个字节不变。
+    const after = userDisk();
+    const added = Object.keys(after).filter((rel) => !(rel in disk));
+    expect(added.map((rel) => path.basename(rel))).toEqual(["removed-from-library"]);
+    delete after[added[0]];
+    expect(after).toEqual(disk);
+
+    expect((await openFolder(renamed)).id).toBe(project.id);
+    expectBoundTo(project.id, renamed);
+    await startApp();
+    expectBoundTo(project.id, renamed);
+  });
+
+  it("外部文件夹，盘没插：只移除；盘插回来也不回到库里", async () => {
+    await startApp();
+    const drive = path.join(base, "Volumes", "外置盘");
+    const project = await createExternal(path.join(drive, "作品", "不要了的短片"), "不要了的短片");
+    const unplugged = path.join(base, "Volumes", "拔下来的盘");
+    fs.renameSync(drive, unplugged);
+
+    const card = await cardOf(project.id);
+    expect(card.missing).toBe(true);
+    const choice = projectDeleteChoice(card);
+    expect(choice.intent).toBe("unbind");
+    await expect(deleteProject(project.id, choice.intent)).resolves.toEqual({ id: project.id, deleted: false });
+    await expectStaysRemoved(project.id);
+
+    fs.renameSync(unplugged, drive);
+    await expectStaysRemoved(project.id);
+    expect(fs.existsSync(path.join(project.root, REL))).toBe(true);
+  });
+
+  // 清单坏了的卡看着是张普通卡（列表用登记兜的），确认框说得出的只有删除；主进程认不出这是不是项目，不敢进回收站，只摘登记，界面如实说只移除了。
+  it("本地卡，清单坏了：主进程回 false 并摘掉登记，盘上一个字节不变，重启不回来", async () => {
+    await startApp();
+    const project = createNative("清单坏了的短片");
+    fs.writeFileSync(path.join(project.root, ".nomi", "project.json"), "不是 JSON");
+    const disk = userDisk();
+
+    const choice = projectDeleteChoice(await cardOf(project.id));
+    await expect(deleteProject(project.id, choice.intent)).resolves.toEqual({ id: project.id, deleted: false });
+
+    await expectStaysRemoved(project.id);
+    expect(userDisk()).toEqual(disk);
+  });
+
+  // 库页没刷新：确认框按列表那一刻说「进回收站」，文件夹在确认之后才没的。主进程回 false 且真摘了登记，界面才能如实说「只从项目库移除了」。
+  it.each([
+    { label: "被删了", gone: (project: Project) => fs.rmSync(project.root, { recursive: true }) },
+    { label: "被挪出了默认位置", gone: (project: Project) => moveInto(project.root, path.join(home(), "Desktop", "挪走的短片")) },
+    { label: "在默认根里改了名", gone: (project: Project) => fs.renameSync(project.root, `${project.root}-改名`) },
+  ])("列表之后文件夹才$label：意图还是删文件，主进程回 false 并摘掉登记，重启不回来", async ({ gone }) => {
+    await startApp();
+    const project = createNative("库页没刷新");
+    const card = await cardOf(project.id);
+    expect(card.missing).toBeFalsy();
+    const choice = projectDeleteChoice(card);
+    expect(choice.intent).toBe("delete-files");
+    gone(project);
+
+    await expect(deleteProject(project.id, choice.intent)).resolves.toEqual({ id: project.id, deleted: false });
+    await expectStaysRemoved(project.id);
   });
 });
