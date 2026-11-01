@@ -83,12 +83,14 @@ describe('一键反馈组包', () => {
     const report = await buildFeedbackReport({
       ...request,
       summary: '模型验证失败：https://my-private-relay.internal/v1/chat?key=abc123456789 返回 404',
-      note: '我把参考图放在 /Users/aoqimin/Desktop/ref.mov 就出这个',
+      note: '我用 https://user-written.internal ，把参考图放在 /Users/aoqimin/Desktop/ref.mov 就出这个',
     }, deps())
     expect(report.context.summary).not.toContain('key=abc123456789')
+    expect(report.context.summary).not.toContain('my-private-relay.internal')
     expect(report.context.summary).toContain('模型验证失败')
     expect(report.context.note).not.toContain('/Users/aoqimin/Desktop/ref.mov')
     expect(report.context.note).toContain('参考图')
+    expect(report.context.note).toContain('user-written.internal')
   })
 
   it('留言空 → null，不发一个空串让接收端去判断', async () => {
@@ -306,7 +308,7 @@ describe('一键反馈组包', () => {
 
     it('给接收端看的那一句也说自建连接不带地址', async () => {
       const report = await buildFeedbackReport(request, deps({ readModelCatalog: () => catalog }))
-      expect(report.manifest.entries.find((entry) => entry.path === FEEDBACK_MANIFEST_ITEMS.modelCatalog)?.what).toContain('自建连接只留「是自建」，不带地址')
+      expect(report.manifest.entries.find((entry) => entry.path === FEEDBACK_MANIFEST_ITEMS.modelCatalog)?.what).toContain('自建连接不带地址、连接名和密钥；模型名会带，用来查模型配置')
     })
   })
 

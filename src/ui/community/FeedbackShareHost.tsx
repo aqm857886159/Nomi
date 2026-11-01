@@ -32,7 +32,10 @@ export function FeedbackShareHost(): JSX.Element {
       setRequest(detail && typeof detail === 'object' ? detail : {})
     }
     window.addEventListener('nomi-open-feedback-share', handleOpen)
-    return () => window.removeEventListener('nomi-open-feedback-share', handleOpen)
+    return () => {
+      window.clearTimeout(closeTimer.current)
+      window.removeEventListener('nomi-open-feedback-share', handleOpen)
+    }
   }, [])
 
   if (!request) return <></>

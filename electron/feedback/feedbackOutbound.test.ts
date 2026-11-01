@@ -2,12 +2,18 @@
 // 「这一家什么能出门」只有一个判据（`catalog/outboundVendor.ts`），四个入口都读它；任一入口撤掉判据，这里就红（反证跑过）。
 import fs from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import os from 'node:os'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CURRENT_CATALOG_VERSION } from '../catalog/types'
 import type { TrajectoryTurnInput } from '../shared/agentLane/laneTrajectory'
 import { FEEDBACK_MANIFEST_ITEMS as ITEMS } from '../shared/contracts/feedback'
 import { projectLaneTrajectory } from '../telemetry/trajectoryProjection'
 import { buildFeedbackReport } from './feedbackReport'
+import { sendFeedbackReport } from './feedbackSend'
+import * as queue from '../telemetry/intakeQueue'
+import * as client from '../telemetry/intakeClient'
+import { SETTINGS_ROOT_ENV } from '../settings/settingsRoot'
+import { zhFeedbackReport, enFeedbackReport } from '../../src/i18n/locales/feedbackReport'
 
 const STAMP = '2026-11-01T00:00:00.000Z'
 const PROMPT = 'a girl walks in the planted rain'
@@ -72,15 +78,15 @@ const plantedTurn: TrajectoryTurnInput = {
   errors: [`request to https://${GATEWAY}/v1 failed for ${FILE_NAME}`],
 }
 
-const report = (provider: string | undefined, model: string | undefined, includeContent = false) => buildFeedbackReport({
-  surface: 'generation', summary: 'walk summary', laneName: 'walk-lane', provider, model, includeContent,
+const report = (provider: string | undefined, model: string | undefined, includeContent = false, options: { summary?: string; catalog?: unknown } = {}) => buildFeedbackReport({
+  surface: 'generation', summary: options.summary ?? 'walk summary', laneName: 'walk-lane', provider, model, includeContent,
 }, {
   now: new Date(STAMP),
   app: { version: '0.24.0', electron: '43.0.0', node: '22.0.0', chrome: '130' },
   system: { platform: 'darwin', arch: 'arm64', osRelease: '25.5.0', locale: 'zh-CN', timeZone: 'Asia/Shanghai' },
   projectId: 'walk-project',
   readLogTail: () => logLines,
-  readModelCatalog: () => catalog,
+  readModelCatalog: () => options.catalog ?? catalog,
   readTrajectory: async () => [plantedTurn],
 })
 
@@ -129,5 +135,118 @@ describe('整个包：用户的东西不出门，云端内置家照常', () => {
     expect(FORBIDDEN.filter((secret) => text.includes(secret))).toEqual([])
     expect(envelope.turns[0]['gen_ai.provider.name']).toEqual(['custom', 'comfyui-local', 'apimart'])
     expect(envelope.turns[0]['gen_ai.request.model']).toEqual(['gpt-5.5'])
+  })
+})
+
+
+describe('反馈出站收尾合同', () => {
+  let root: string
+  let file: string
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'feedback-followups-'))
+    file = path.join(root, 'intake-queue-feedback.json')
+    vi.stubEnv(SETTINGS_ROOT_ENV, root)
+    vi.spyOn(client, 'intakeConfigured').mockReturnValue(true)
+  })
+  afterEach(() => {
+    queue.resetIntakeQueueTimers()
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+  const plantTwo = () => {
+    queue.enqueueIntake('feedback', { old: 1 })
+    queue.enqueueIntake('feedback', { old: 2 })
+  }
+  const denyReads = (code: string) => {
+    const read = fs.readFileSync.bind(fs)
+    return vi.spyOn(fs, 'readFileSync').mockImplementation((...args: Parameters<typeof fs.readFileSync>) => {
+      if (args[0] === file) throw Object.assign(new Error('synthetic read failure'), { code })
+      return read(...args)
+    })
+  }
+
+  it.each(['EACCES', 'EBUSY', 'EPERM', 'EIO'])('Q1 %s: 读不了时新反馈失败，旧件按字节保留，恢复后能补发', async (code) => {
+    plantTwo()
+    const before = fs.readFileSync(file)
+    const post = vi.spyOn(client, 'postIntake').mockRejectedValue(new Error('offline'))
+    const unreadable = denyReads(code)
+    const result = await sendFeedbackReport(await report(undefined, undefined), { waitMs: 100 })
+    unreadable.mockRestore()
+    expect(result).toEqual({ ok: false, reason: 'failed' })
+    expect(fs.readFileSync(file)).toEqual(before)
+    expect(queue.readIntakeQueue('feedback')).toHaveLength(2)
+    post.mockResolvedValue({ id: 'fake-receipt' })
+    await queue.flushIntakeQueue('feedback')
+    expect(post.mock.calls.slice(1).map((call) => call[1])).toEqual([{ old: 1 }, { old: 2 }])
+    expect(queue.readIntakeQueue('feedback')).toHaveLength(0)
+  })
+
+  it('Q2: 送达出账时读不了，旧件不少，自动补发不抛异常', async () => {
+    plantTwo()
+    let unreadable: ReturnType<typeof denyReads> | undefined
+    vi.spyOn(client, 'postIntake').mockImplementation(async () => {
+      unreadable = denyReads('EBUSY')
+      return { id: 'fake-receipt' }
+    })
+    const result = await sendFeedbackReport(await report(undefined, undefined), { waitMs: 100 })
+    await queue.flushIntakeQueue('feedback')
+    unreadable?.mockRestore()
+    expect(result).toMatchObject({ ok: true, queued: false })
+    expect(queue.readIntakeQueue('feedback').map((item) => item.payload)).toEqual(expect.arrayContaining([{ old: 1 }, { old: 2 }]))
+  })
+
+  it('Q3: JSON 损坏原样留底，新反馈可入队', () => {
+    const broken = '{ broken json'
+    fs.writeFileSync(file, broken)
+    queue.enqueueIntake('feedback', { fresh: true })
+    expect(queue.readIntakeQueue('feedback').map((item) => item.payload)).toEqual([{ fresh: true }])
+    const backups = fs.readdirSync(root).filter((name) => name.startsWith('intake-queue-feedback.json.') && name.endsWith('.corrupt'))
+    expect(backups).toHaveLength(1)
+    expect(fs.readFileSync(path.join(root, backups[0]), 'utf8')).toBe(broken)
+  })
+
+  it('Q4: 文件不存在照常从空队列入队', () => {
+    expect(queue.readIntakeQueue('feedback')).toEqual([])
+    queue.enqueueIntake('feedback', { fresh: true })
+    expect(queue.readIntakeQueue('feedback').map((item) => item.payload)).toEqual([{ fresh: true }])
+  })
+
+  it('S1: 默认不勾内容，摘要里的未知 host、路径、假密钥在整包零命中', async () => {
+    const fakeKey = 'sk-' + 'syntheticFeedbackKey1234567890'
+    const privatePath = ['', 'Users', 'fixture', 'private-project', 'notes.txt'].join('/')
+    const built = await report(undefined, undefined, false, {
+      summary: `Request to https://${GATEWAY}/v1/chat failed for ${privatePath} using ${fakeKey}`,
+    })
+    const body = JSON.stringify(built)
+    for (const forbidden of [GATEWAY, privatePath, fakeKey]) expect(body).not.toContain(forbidden)
+    expect(built.context.summary).toContain('<custom-address>')
+    expect(built.context.contentIncluded).toBe(false)
+  })
+
+  it('S2: 内置 host 留着；用户主动留言的自建 host 不改', async () => {
+    const built = await report(undefined, undefined, false, { summary: 'Request to https://api.apimart.ai/v1/chat failed' })
+    expect(built.context.summary).toContain('api.apimart.ai')
+  })
+
+  it.each(['sibling', 'changed-root'])('M1 %s: 地址连接名密钥不出门，模型名保留，双语清单说准', async (shape) => {
+    const connectionKey = shape === 'sibling' ? `apimart--${CONNECTION}` : 'apimart'
+    const model = 'company-internal-model'
+    const fakeKey = 'sk-' + 'syntheticFeedbackKey1234567890'
+    const built = await report(connectionKey, model, false, { catalog: {
+      version: CURRENT_CATALOG_VERSION,
+      vendors: [{ key: connectionKey, name: CONNECTION, baseUrlHint: `https://${GATEWAY}/v1`, authType: 'bearer' }],
+      models: [{ vendorKey: connectionKey, modelKey: model, modelAlias: model, kind: 'text', enabled: true }],
+      mappings: [],
+      apiKeysByVendor: { [connectionKey]: { apiKey: fakeKey, enabled: true } },
+    } })
+    const body = JSON.stringify(built)
+    for (const forbidden of [GATEWAY, CONNECTION, fakeKey]) expect(body).not.toContain(forbidden)
+    expect(built.context.model).toBe(model)
+    expect(body).toContain(model)
+    const clause = '自建连接不带地址、连接名和密钥；模型名会带，用来查模型配置'
+    expect(zhFeedbackReport.manifestItem.modelCatalog).toContain(clause)
+    expect(built.manifest.entries.find((entry) => entry.path === ITEMS.modelCatalog)?.what).toContain(clause)
+    expect(enFeedbackReport.manifestItem.modelCatalog).toContain('Self-hosted connections omit addresses, connection names and keys; model names are included to diagnose model settings')
   })
 })

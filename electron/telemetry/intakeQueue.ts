@@ -10,7 +10,7 @@
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
+import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from '../jsonFile'
 import { logWarn } from '../logging/logger'
 import { getSettingsRoot } from '../settings/settingsRoot'
 import { intakeConfigured, IntakeHttpError, postIntake, type IntakeResult } from './intakeClient'
@@ -72,8 +72,12 @@ function readStore(kind: IntakeQueueKind): QueueStore {
     const raw = readJsonFile(queuePath(kind)) as Partial<QueueStore>
     const pending = Array.isArray(raw.pending) ? raw.pending.filter(validItem) : []
     return { schemaVersion: 1, pending }
-  } catch {
-    // 队列文件坏了不该让用户下一次反馈也发不出去。丢掉坏文件，从空开始。
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return { schemaVersion: 1, pending: [] }
+    if (!(error instanceof SyntaxError)) throw error
+    // 只有坏 JSON 才从空开始；先留底成功，才能让后续写入替换原文件。
+    const file = queuePath(kind)
+    renameSyncWithRetry(file, `${file}.${crypto.randomUUID()}.corrupt`)
     return { schemaVersion: 1, pending: [] }
   }
 }
@@ -284,7 +288,10 @@ export function flushIntakeQueue(kind: IntakeQueueKind): Promise<void> {
       retryTimers.delete(kind)
       retryDelays.delete(kind)
     }
-  })().finally(() => {
+  })().catch((error: unknown) => {
+    logWarn('diagnostics', 'intake-queue-read-failed', { kind }, error)
+    scheduleRetry(kind)
+  }).finally(() => {
     flushing.delete(kind)
   })
   flushing.set(kind, run)
