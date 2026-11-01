@@ -1,7 +1,7 @@
 {
   "route": "/v1/feedback",
   "authorizationScheme": "Bearer",
-  "totalBytes": 53570,
+  "totalBytes": 51994,
   "context": {
     "surface": "unspecified",
     "summary": "Feedback you started",
@@ -15,7 +15,7 @@
     "entries": [
       {
         "path": "perf/summary.json",
-        "bytes": 230,
+        "bytes": 231,
         "what": "界面流畅度分档数字：点击响应与掉帧的档位、画布规模档位、设备档位（没有原始毫秒、没有内容）"
       },
       {
@@ -25,8 +25,8 @@
       },
       {
         "path": "model-catalog.json",
-        "bytes": 50156,
-        "what": "模型目录（接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）"
+        "bytes": 48543,
+        "what": "模型目录（接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；本机连接的模型只留个数；密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）"
       }
     ],
     "excluded": [
@@ -51,7 +51,7 @@
         "why": "available-only-via-settings-diagnostics-export"
       }
     ],
-    "totalBytes": 51921
+    "totalBytes": 50309
   },
   "attachmentKeys": [
     "perf/summary.json",
