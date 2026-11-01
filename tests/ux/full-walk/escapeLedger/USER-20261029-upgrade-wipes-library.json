@@ -11,7 +11,8 @@
     "默认位置在 Nomi 自己的目录里时新建项目被拒，指向设置换位置"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1408,
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-29-project-location-owner.md",
@@ -21,8 +22,10 @@
     "docs/engineering/concept-owners/project.location-admission.json",
     "electron/projects/projectLocation.characterization.test.ts",
     "electron/projects/projectLocation.matrix.test.ts",
+    "electron/projects/projectLocation.oldUser.test.ts",
     "scripts/check-read-path-writes.node-test.mjs",
-    "tests/ux/project-location-owner.walk.mjs"
+    "tests/ux/project-location-owner.walk.mjs",
+    "没实测：Windows 上 0.24.0 升到 0.24.1 的真机升级，发版前跑。"
   ],
   "completionCommits": [
     "5628a820cbcb8ceae602e86c005940b9817693c9",
@@ -32,5 +35,6 @@
   "classCheck": {
     "kind": "matrix",
     "file": "electron/projects/projectLocation.matrix.test.ts"
-  }
+  },
+  "prevention": "读面不再摘登记、不再建目录，门岗 check:read-path-writes 守；位置判定只有一个，每个入口都问它；老用户真实落盘的项目库每次测试都跑一遍。"
 }

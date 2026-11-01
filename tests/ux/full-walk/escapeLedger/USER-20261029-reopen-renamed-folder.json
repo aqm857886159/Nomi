@@ -12,7 +12,8 @@
     "改名或挪走项目文件夹后，用「打开已有文件夹」选它，接上原来的项目"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1408,
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-10-29-project-location-owner.md",
@@ -21,7 +22,9 @@
     "docs/engineering/concept-owners/project.location.json",
     "electron/projects/projectLocation.characterization.test.ts",
     "electron/projects/projectLocation.matrix.test.ts",
-    "tests/ux/project-location-owner.walk.mjs"
+    "electron/projects/projectLocation.oldUser.test.ts",
+    "tests/ux/project-location-owner.walk.mjs",
+    "没实测：Windows 资源管理器里改名后重开，盘符和大小写由 path.win32 推导测试覆盖。"
   ],
   "completionCommits": [
     "5628a820cbcb8ceae602e86c005940b9817693c9",
@@ -31,5 +34,6 @@
   "classCheck": {
     "kind": "matrix",
     "file": "electron/projects/projectLocation.matrix.test.ts"
-  }
+  },
+  "prevention": "登记写入只剩 bindWorkspaceLocation(s)，入参不收项目记录，写不出抄清单旧路径；打开新目录时同一个项目 id 接上。"
 }
