@@ -16,11 +16,11 @@ import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getDesktopLocale } from '../desktopLocale'
 import { intakeConfigured } from '../telemetry/intakeClient'
-import { flushIntakeQueue, setIntakeTooLargeHandler } from '../telemetry/intakeQueue'
+import { flushIntakeQueue, setIntakePrepareHandler, setIntakeTooLargeHandler } from '../telemetry/intakeQueue'
 import type { TrajectoryTurnInput } from '../shared/agentLane/laneTrajectory'
 import type { FeedbackReportPreview, FeedbackSendResult } from '../shared/contracts/feedback'
 import { readRecentLogLines } from './feedbackLogTail'
-import { buildFeedbackReport, isFeedbackReportRequest, shrinkFeedbackReport, type FeedbackReportDeps } from './feedbackReport'
+import { buildFeedbackReport, isFeedbackReportRequest, prepareFeedbackReport, shrinkFeedbackReport, type FeedbackReportDeps } from './feedbackReport'
 import { sendFeedbackReport } from './feedbackSend'
 
 function readModelCatalog(): unknown | null {
@@ -107,6 +107,7 @@ export function registerFeedbackIpc(): void {
     return sendFeedbackReport(report)
   })
 
+  setIntakePrepareHandler('feedback', prepareFeedbackReport)
   setIntakeTooLargeHandler('feedback', shrinkFeedbackReport)
   // 上次没发出去的在这里补发掉（App 起来时注册一次就够）。失败无声——用户已经拿到过回执。
   void flushIntakeQueue('feedback')

@@ -142,6 +142,13 @@ function removeItem(kind: IntakeQueueKind, id: string): void {
   })
 }
 
+const prepareHandlers = new Map<IntakeQueueKind, (payload: unknown) => unknown>()
+
+/** 新发与补发共用的出门前处理；只由对应货物的 owner 注册。 */
+export function setIntakePrepareHandler(kind: IntakeQueueKind, handler: (payload: unknown) => unknown): void {
+  prepareHandlers.set(kind, handler)
+}
+
 type TooLargeHandler = (payload: unknown) => unknown | null
 
 const tooLargeHandlers = new Map<IntakeQueueKind, TooLargeHandler>()
@@ -182,6 +189,8 @@ async function sendItem(kind: IntakeQueueKind, first: IntakeQueueItem): Promise<
   let item = first
   for (;;) {
     try {
+      const prepare = prepareHandlers.get(kind)
+      if (prepare) item = { ...item, payload: prepare(item.payload) }
       const result = await postIntake(`/v1/${kind}`, item.payload)
       retryDelays.delete(kind)
       removeItem(kind, item.id)
@@ -305,4 +314,5 @@ export function resetIntakeQueueTimers(): void {
   retryDelays.clear()
   flushing.clear()
   delivering.clear()
+  prepareHandlers.clear()
 }

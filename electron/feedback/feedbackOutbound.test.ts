@@ -3,17 +3,22 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { CURRENT_CATALOG_VERSION } from '../catalog/types'
+import { createHash } from 'node:crypto'
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { CURRENT_CATALOG_VERSION, type CatalogState } from '../catalog/types'
 import type { TrajectoryTurnInput } from '../shared/agentLane/laneTrajectory'
-import { FEEDBACK_MANIFEST_ITEMS as ITEMS } from '../shared/contracts/feedback'
+import { FEEDBACK_EXCLUSION_REASONS, FEEDBACK_MANIFEST_ITEMS as ITEMS } from '../shared/contracts/feedback'
 import { projectLaneTrajectory } from '../telemetry/trajectoryProjection'
-import { buildFeedbackReport } from './feedbackReport'
+import { buildFeedbackReport, type FeedbackReportPayload } from './feedbackReport'
+import { registerFeedbackIpc } from './feedbackIpc'
+import * as logger from '../logging/logger'
 import { sendFeedbackReport } from './feedbackSend'
 import * as queue from '../telemetry/intakeQueue'
 import * as client from '../telemetry/intakeClient'
 import { SETTINGS_ROOT_ENV } from '../settings/settingsRoot'
 import { zhFeedbackReport, enFeedbackReport } from '../../src/i18n/locales/feedbackReport'
+
+vi.mock('electron', () => ({ app: { isPackaged: true }, ipcMain: { handle: vi.fn() } }))
 
 const STAMP = '2026-11-01T00:00:00.000Z'
 const PROMPT = 'a girl walks in the planted rain'
@@ -248,5 +253,146 @@ describe('反馈出站收尾合同', () => {
     expect(zhFeedbackReport.manifestItem.modelCatalog).toContain(clause)
     expect(built.manifest.entries.find((entry) => entry.path === ITEMS.modelCatalog)?.what).toContain(clause)
     expect(enFeedbackReport.manifestItem.modelCatalog).toContain('Self-hosted connections omit addresses, connection names and keys; model names are included to diagnose model settings')
+  })
+})
+
+
+const LEGACY_ROOT = path.join(__dirname, '../../tests/fixtures/old-user-data/feedback/v0.24.0')
+const CATALOG_ROOT = path.join(__dirname, '../../tests/fixtures/old-user-data/catalogs')
+const legacyCatalogs = fs.readdirSync(CATALOG_ROOT).filter((name) => fs.existsSync(path.join(CATALOG_ROOT, name, 'model-catalog.json'))).sort()
+const legacyReport = (name: string): FeedbackReportPayload => JSON.parse(fs.readFileSync(path.join(LEGACY_ROOT, `${name}.json`), 'utf8')) as FeedbackReportPayload
+
+describe('旧包补发：真实旧 builder 产物与新包共用发送前口', () => {
+  let root: string
+  beforeEach(async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'feedback-legacy-'))
+    vi.stubEnv(SETTINGS_ROOT_ENV, root)
+    vi.spyOn(client, 'intakeConfigured').mockReturnValue(true)
+    vi.spyOn(logger, 'logWarn').mockImplementation(() => undefined)
+    registerFeedbackIpc()
+    await queue.flushIntakeQueue('feedback')
+  })
+  afterEach(() => {
+    queue.resetIntakeQueueTimers()
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  it('真实目录类型与五版落盘样本没有投影计数；旧包确实由对应样本生成', () => {
+    expectTypeOf<Extract<keyof CatalogState, 'modelsOmitted' | 'mappingsOmitted'>>().toEqualTypeOf<never>()
+    const provenance = JSON.parse(fs.readFileSync(path.join(LEGACY_ROOT, 'provenance.json'), 'utf8')) as {
+      tag: string; catalogs: { input: string; inputSha256: string; output: string; outputSha256: string }[]
+    }
+    expect(provenance.tag).toBe('v0.24.0')
+    expect(provenance.catalogs.map((item) => item.output)).toEqual(legacyCatalogs.map((name) => `${name}.json`))
+    const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
+    for (const item of provenance.catalogs) {
+      const bytes = fs.readFileSync(path.join(__dirname, '../..', item.input))
+      const catalog = JSON.parse(bytes.toString()) as Record<string, unknown>
+      expect(catalog).not.toHaveProperty('modelsOmitted')
+      expect(catalog).not.toHaveProperty('mappingsOmitted')
+      expect(sha(bytes)).toBe(item.inputSha256)
+      expect(sha(fs.readFileSync(path.join(LEGACY_ROOT, item.output)))).toBe(item.outputSha256)
+    }
+  })
+
+  it.each(legacyCatalogs)('O1 %s：旧 builder 包补发只剥目录，保留留言摘要版本及其他附件', async (name) => {
+    const old = legacyReport(name)
+    expect(old.attachments[ITEMS.modelCatalog]).not.toHaveProperty('modelsOmitted')
+    expect(old.attachments[ITEMS.modelCatalog]).not.toHaveProperty('mappingsOmitted')
+    expect(old.attachments[ITEMS.modelCatalog]).toBeTruthy()
+    const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })
+    queue.enqueueIntake('feedback', old)
+    await queue.flushIntakeQueue('feedback')
+    expect(post).toHaveBeenCalledTimes(1)
+    const sent = post.mock.calls[0][1] as FeedbackReportPayload
+    expect(sent.attachments).not.toHaveProperty(ITEMS.modelCatalog)
+    expect(sent.attachments).toEqual(Object.fromEntries(Object.entries(old.attachments).filter(([key]) => key !== ITEMS.modelCatalog)))
+    expect(sent.context).toEqual(old.context)
+    expect(sent.manifest.app).toEqual(old.manifest.app)
+    expect(sent.manifest.entries).toEqual(old.manifest.entries.filter((entry) => entry.path !== ITEMS.modelCatalog))
+    expect(sent.manifest.excluded).toEqual([...old.manifest.excluded, { what: ITEMS.modelCatalog, why: 'legacy-catalog-dropped' }])
+    expect(sent.manifest.totalBytes).toBe(sent.manifest.entries.reduce((sum, entry) => sum + entry.bytes, 0))
+    expect(logger.logWarn).toHaveBeenCalledWith('diagnostics', 'feedback-legacy-catalog-dropped')
+  })
+
+  it.each(legacyCatalogs)('O2 %s：同一真实目录新组包有数字计数，补发附件按字节不变', async (name) => {
+    const catalog = JSON.parse(fs.readFileSync(path.join(CATALOG_ROOT, name, 'model-catalog.json'), 'utf8')) as unknown
+    const fresh = await report(undefined, undefined, false, { catalog })
+    const projected = fresh.attachments[ITEMS.modelCatalog] as Record<string, unknown>
+    expect(typeof projected.modelsOmitted).toBe('number')
+    expect(typeof projected.mappingsOmitted).toBe('number')
+    const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })
+    queue.enqueueIntake('feedback', fresh)
+    await queue.flushIntakeQueue('feedback')
+    expect(post.mock.calls[0][1]).toEqual(fresh)
+    expect(JSON.stringify(post.mock.calls[0][1])).toBe(JSON.stringify(fresh))
+  })
+
+  it('O2：立即发送和排队补发同口，数字 0 也算新投影', async () => {
+    const fresh = await report(undefined, undefined, false, { catalog: { vendors: [], models: [], mappings: [] } })
+    expect(fresh.attachments[ITEMS.modelCatalog]).toMatchObject({ modelsOmitted: 0, mappingsOmitted: 0 })
+    const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })
+    expect(await sendFeedbackReport(fresh)).toMatchObject({ ok: true, queued: false, trimmed: false })
+    await queue.flushIntakeQueue('feedback')
+    expect(post.mock.calls[0][1]).toEqual(fresh)
+  })
+
+  it.each([
+    { modelsOmitted: 0 }, { mappingsOmitted: 0 },
+    { modelsOmitted: '0', mappingsOmitted: 0 }, { modelsOmitted: 0, mappingsOmitted: null },
+  ])('任一计数缺失或非数字仍剥目录：%j', async (counters) => {
+    const old = legacyReport(legacyCatalogs[0])
+    Object.assign(old.attachments[ITEMS.modelCatalog] as object, counters)
+    const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })
+    queue.enqueueIntake('feedback', old)
+    await queue.flushIntakeQueue('feedback')
+    expect((post.mock.calls[0][1] as FeedbackReportPayload).attachments).not.toHaveProperty(ITEMS.modelCatalog)
+  })
+
+  it('手改旧目录加上两个数字会保留，符合已定安全方向', async () => {
+    const old = legacyReport(legacyCatalogs[0])
+    Object.assign(old.attachments[ITEMS.modelCatalog] as object, { modelsOmitted: 0, mappingsOmitted: 0 })
+    const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })
+    queue.enqueueIntake('feedback', old)
+    await queue.flushIntakeQueue('feedback')
+    expect(post.mock.calls[0][1]).toEqual(old)
+  })
+
+  it('413：旧目录先剥，接收端仍回超大时沿用原缩包且保留旧目录排除原因', async () => {
+    const old = legacyReport(legacyCatalogs[0])
+    const post = vi.spyOn(client, 'postIntake').mockRejectedValueOnce(new client.IntakeHttpError(413)).mockResolvedValue({ id: 'fake-receipt' })
+    expect(await sendFeedbackReport(old)).toMatchObject({ ok: true, queued: false, trimmed: true })
+    await queue.flushIntakeQueue('feedback')
+    expect(post).toHaveBeenCalledTimes(2)
+    expect((post.mock.calls[0][1] as FeedbackReportPayload).attachments).not.toHaveProperty(ITEMS.modelCatalog)
+    const smaller = post.mock.calls[1][1] as FeedbackReportPayload
+    expect(smaller.attachments).toEqual({})
+    expect(smaller.manifest.excluded).toContainEqual({ what: ITEMS.modelCatalog, why: 'legacy-catalog-dropped' })
+    expect(smaller.context.note).toBe(old.context.note)
+  })
+
+  it('新处理只注册反馈，轨迹货物不变', async () => {
+    const old = legacyReport(legacyCatalogs[0])
+    const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })
+    queue.enqueueIntake('trajectories', old)
+    await queue.flushIntakeQueue('trajectories')
+    expect(post.mock.calls[0]).toEqual(['/v1/trajectories', old])
+  })
+
+  it('目录需要剥离但清单坏了时不发送，也不丢原件', async () => {
+    const malformed = { ...legacyReport(legacyCatalogs[0]), manifest: null }
+    const post = vi.spyOn(client, 'postIntake').mockResolvedValue({ id: 'fake-receipt' })
+    queue.enqueueIntake('feedback', malformed)
+    await queue.flushIntakeQueue('feedback')
+    expect(post).not.toHaveBeenCalled()
+    expect(queue.readIntakeQueue('feedback')[0].payload).toEqual(malformed)
+  })
+
+  it('新增排除原因有双语翻译', () => {
+    expect(FEEDBACK_EXCLUSION_REASONS).toContain('legacy-catalog-dropped')
+    expect(zhFeedbackReport.manifestWhy).toHaveProperty('legacy-catalog-dropped')
+    expect(enFeedbackReport.manifestWhy).toHaveProperty('legacy-catalog-dropped')
   })
 })

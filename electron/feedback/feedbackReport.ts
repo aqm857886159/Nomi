@@ -266,6 +266,31 @@ export async function buildFeedbackReport(
   }
 }
 
+/** 旧版原目录没有两项投影计数；只剥目录，保留反馈原话与其他附件。 */
+export function prepareFeedbackReport(payload: unknown): unknown {
+  if (!isRecord(payload) || !isRecord(payload.attachments) || !(ITEMS.modelCatalog in payload.attachments)) return payload
+  const catalog = payload.attachments[ITEMS.modelCatalog]
+  // shortcut: 手改旧目录加上这两项数字会按原样发送；有正式投影版本字段时改用它。
+  if (isRecord(catalog) && typeof catalog.modelsOmitted === 'number' && typeof catalog.mappingsOmitted === 'number') return payload
+  if (!isRecord(payload.manifest) || !Array.isArray(payload.manifest.entries) || !Array.isArray(payload.manifest.excluded)) {
+    throw new Error('Invalid feedback manifest')
+  }
+  const report = payload as unknown as FeedbackReportPayload
+  const entries = report.manifest.entries.filter((entry) => entry.path !== ITEMS.modelCatalog)
+  const excluded = report.manifest.excluded.filter((entry) => entry.what !== ITEMS.modelCatalog)
+  logWarn('diagnostics', 'feedback-legacy-catalog-dropped')
+  return {
+    ...report,
+    attachments: Object.fromEntries(Object.entries(report.attachments).filter(([key]) => key !== ITEMS.modelCatalog)),
+    manifest: {
+      ...report.manifest,
+      entries,
+      excluded: [...excluded, { what: ITEMS.modelCatalog, why: 'legacy-catalog-dropped' }],
+      totalBytes: entries.reduce((sum, entry) => sum + entry.bytes, 0),
+    },
+  }
+}
+
 /**
  * 接收端回 413 时的那一份：附件全部去掉，摘要、留言、版本、清单留着。
  * 至少让我们知道出了什么事；清单写明附件是因为超限没带上的。形状认不出（比如旧版本排队的奇怪东西）回 null。
