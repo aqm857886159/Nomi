@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createReactTestRenderer } from '../../workbench/ai/v4/testReactRenderer'
+import { FeedbackShareHost } from './FeedbackShareHost'
 
 type CardProps = { request: Record<string, unknown>; onDone: (lingerMs: number) => void }
 const seen = vi.hoisted(() => ({
@@ -28,7 +29,6 @@ vi.mock('./FeedbackReportCard', () => ({
 describe('反馈宿主定时器', () => {
   let renderer: ReturnType<typeof createReactTestRenderer>
   let handler: ((event: unknown) => void) | null = null
-  let Host: () => React.ReactElement
 
   const tick = () => new Promise<void>((resolve) => { setImmediate(resolve) })
   const settle = async () => {
@@ -55,10 +55,8 @@ describe('反馈宿主定时器', () => {
       addEventListener: (name: string, fn: (event: unknown) => void) => { if (name === 'nomi-open-feedback-share') handler = fn },
       removeEventListener: (name: string) => { if (name === 'nomi-open-feedback-share') handler = null },
     })
-    const mod = await import('./FeedbackShareHost')
-    Host = mod.FeedbackShareHost
     renderer = createReactTestRenderer()
-    renderer.render(React.createElement(Host))
+    renderer.render(React.createElement(FeedbackShareHost))
     await settle()
   })
   afterEach(() => {
