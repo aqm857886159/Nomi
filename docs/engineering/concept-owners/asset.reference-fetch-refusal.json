@@ -19,5 +19,5 @@
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-11-01",
-  "notes": "合同 docs/fixes/2026-11-01-reference-link-delivery.root-cause.json：先认上游错误码，再认英文 / 中文的通用说法，不按服务商写分支；取结果、下载产物、任务、上传这几类长得像的失败不算。主进程记账和渲染层错误卡共用这一份，不再各写一份文字判据。"
+  "notes": "合同 docs/fixes/2026-11-01-reference-link-delivery.root-cause.json：一张原话表：上游错误码加服务商真实说过的整句，逐字比对，不用正则，没有出处的不登记，没说是输入的不收，不按服务商写分支；取结果、下载产物、任务、上传这几类长得像的失败不算。主进程记账和渲染层错误卡共用这一份，不再各写一份文字判据。"
 }

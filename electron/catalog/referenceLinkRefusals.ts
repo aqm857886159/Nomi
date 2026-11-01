@@ -26,11 +26,11 @@ const REFUSAL_VALID_MS = 30 * 24 * 60 * 60 * 1000;
 /** 只认自己的键：`constructor` / `__proto__` 这类原型上的名字不算已记录的连接。 */
 const hasOwn = (record: object, key: string): boolean => Object.prototype.hasOwnProperty.call(record, key);
 
-/** 这条连接有记录，而且还没过期。时间读不出来当作没有记录。 */
+/** 这条连接有记录，而且还没过期。时间读不出来、或者在未来（手改文件、时钟错），都当作没有记录。 */
 function refusedWithinValidity(store: RefusalStore, key: string, now: Date): boolean {
   if (!hasOwn(store.connections, key)) return false;
-  const at = Date.parse(store.connections[key]?.refusedAt);
-  return Number.isFinite(at) && now.getTime() - at < REFUSAL_VALID_MS;
+  const age = now.getTime() - Date.parse(store.connections[key]?.refusedAt);
+  return age >= 0 && age < REFUSAL_VALID_MS;
 }
 
 export function referenceLinkRefusalsPath(): string {

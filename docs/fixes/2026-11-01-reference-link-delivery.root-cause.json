@@ -57,7 +57,7 @@
     "A model refusal is recorded on the connection by exactly one function and never causes an automatic resend.",
     "The sentence test for \"the model could not fetch the input link\" is one shared function used by the recording and the error card.",
     "Probing and uploading references are not paid dispatch: they run outside the handoff ledger through one door, so a submission whose request never reached the model is never reported as possibly accepted, while the request handed to the model stays on the ledger.",
-    "The sentence test prefers missing a refusal over naming the wrong cause: it needs an explicit input link, or an input asset with a fetch verb, and a sentence naming moderation, auth, quota or size is never a refusal. A recorded refusal expires after 30 days."
+    "The sentence test is a table of upstream codes and sentences providers have really said, compared literally and without regular expressions: an entry needs a source and must name the input, so an unknown wording keeps the old card instead of naming the wrong cause. A recorded refusal expires after 30 days, and an unreadable or future time counts as no record."
   ],
   "doors": [
     {
@@ -254,7 +254,8 @@
       "node scripts/door-map.mjs localizeForSend: three send entrances, one door to localizeAssetsForVendor",
       "rg trustedOriginalUrl: the decision point, the pre-spend channel check and nothing else reads the window after the shortcut was deleted",
       "node scripts/door-map.mjs authorizedReferenceUrls: rework and its authorization are the only readers of the frozen table",
-      "rg runTask callers: nomi:tasks:run text, local ComfyUI and auxiliary paid doors do not go through a Run, so a refusal there is not recorded (kept as a residual risk) while the probe still protects them"
+      "rg runTask callers: nomi:tasks:run text, local ComfyUI and auxiliary paid doors do not go through a Run, so a refusal there is not recorded (kept as a residual risk) while the probe still protects them",
+      "git grep for nested regex quantifiers in src/workbench/observability and electron/shared: no other regex over provider text has the nested shape that hung; adjacent overlapping classes need a real checker (residual risk)"
     ]
   },
   "prevention": {
@@ -314,8 +315,9 @@
     "A rework whose upload fails reports an internal error code rather than the dedicated asset-upload message, because the rework action maps only its own failure kinds.",
     "Stopping while probing or uploading cannot prevent the submission; this is unchanged from today's stop during Submitting and is not part of this change.",
     "Windows was not exercised; there is no Windows-specific code in the change.",
-    "The card and the record read the sentence, so a refusal worded outside the known phrases keeps the old card and is not recorded; the probe still protects those sends.",
-    "A retry from a path that does not record a refusal (prompt extraction, model try-out) sends the same link unless the probe finds it dead, which is why the card says Nomi tries to upload rather than promising it."
+    "The card and the record read a table of known sentences, so a refusal worded outside the table keeps the old card and is not recorded, including every Chinese wording because none could be sourced; the probe still protects those sends.",
+    "A retry from a path that does not record a refusal (prompt extraction, model try-out) sends the same link unless the probe finds it dead, which is why the card says Nomi tries to upload rather than promising it.",
+    "Other regular expressions that read provider text have no gate against catastrophic backtracking. A scan for nested quantifiers in src/workbench/observability and electron/shared found none of this shape, but it cannot see adjacent overlapping character classes."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-12-01",

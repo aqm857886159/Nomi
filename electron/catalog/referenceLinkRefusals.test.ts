@@ -48,6 +48,14 @@ describe("referenceLinkRefusals：记在连接上的「模型拉不到临时链�
     expect(isConnectionRefused("relay-b")).toBe(false);
   });
 
+  it("未来时间的记录不算：手改文件或时钟错，不会让这条连接一直走上传；再被拒就记成现在", () => {
+    fs.writeFileSync(referenceLinkRefusalsPath(), JSON.stringify({ version: 1, connections: { "relay-a": { refusedAt: "2099-01-01T00:00:00.000Z" } } }));
+    expect(isConnectionRefused("relay-a")).toBe(false);
+    const now = new Date();
+    noteConnectionRefused("relay-a", now);
+    expect(JSON.parse(fs.readFileSync(referenceLinkRefusalsPath(), "utf8")).connections["relay-a"].refusedAt).toBe(now.toISOString());
+  });
+
   it("落在设置目录的文件里，换一个全新的读取（清内存）仍然生效；重复记不改文件", async () => {
     const refusedAt = new Date();
     noteConnectionRefused("relay-a", refusedAt);

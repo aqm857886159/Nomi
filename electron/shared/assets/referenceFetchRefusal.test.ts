@@ -1,3 +1,5 @@
+import fs from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { enBrowserAssets, zhBrowserAssets } from "../../../src/i18n/locales/browserAssets";
@@ -6,36 +8,41 @@ import { isReferenceFetchRefusal } from "./referenceFetchRefusal";
 
 type Case = [label: string, input: { upstreamCode?: string; text?: string }];
 
-// 判据的真实例子。每条旁边写它的来源形态（服务商文档 / 社区里的原话 / 用户反馈里的整句）。
+// 判据的真实例子。每一条都是原话，出处写在 referenceFetchRefusal.ts 的表里。
 const REPORTED = "An input media URL could not be fetched (403/404/410).";
 
 const REFUSALS: Case[] = [
-  // 用户反馈的那一句，三种报错形式：纯文字 / 带诊断前缀 / 结构化 400 里的 JSON 信封
+  // 用户反馈的那一句，四种报错形式：纯文字 / 带诊断前缀 / 结构化 400 里的 JSON 信封 / 换行和多空格
   ["用户反馈原句（纯文字）", { text: REPORTED }],
   ["带我们的诊断前缀", { text: `Provider request failed (HTTP 400) at relay POST https://relay.example.com/v1/videos: ${REPORTED}` }],
   ["JSON 信封里的 message", { text: `{"error":{"message":"${REPORTED}","type":"invalid_request_error"}}` }],
+  ["换行和多空格", { text: "An input  media URL\ncould not be fetched." }],
   // 上游错误码：先认码，文字可以是任何话
   ["码 file_download_error", { upstreamCode: "file_download_error", text: "Unprocessable Entity" }],
   ["码 invalid_image_url（大小写与连字符不影响）", { upstreamCode: "Invalid-Image-URL", text: "" }],
-  // 通用英文说法
-  ["输入图片下载失败", { text: "Failed to download input image from URL" }],
-  ["拉不到提供的链接", { text: "Cannot fetch content from the provided URL." }],
-  ["只说文件（无链接词）", { text: "Unable to download the file. Please verify the URL and try again." }],
-  ["只说文件，下一句才提链接（另一种说法）", { text: "Failed to download the file. Please check if the URL is accessible and try again." }],
-  ["参数名就是图片链接", { text: "The parameter `image_url` specified in the request is not valid: failed to download" }],
-  ["图片取不到（建议改用上传）", { text: "Image fetch failed. Check access settings or use our File Upload API instead." }],
-  ["下载超时（带链接，链接被抠掉）", { text: "Timeout while downloading https://cdn.example.com/a.png." }],
-  ["下载出错", { text: "Error while downloading https://cdn.example.com/a.png." }],
-  ["参考图链接不可访问", { text: "The reference image URL is not accessible." }],
-  ["输入链接返回 403", { text: "input_image URL returned 403 Forbidden" }],
-  ["参考视频链接已过期", { text: "The reference video link has expired" }],
-  ["同一句里带了任务号，但说的是输入", { text: "Task failed: could not download input image" }],
-  // 中文
-  ["中文：无法获取参考图", { text: "无法获取参考图片，请检查链接是否可访问" }],
-  ["中文：下载输入图片失败", { text: "下载输入图片失败（HTTP 403）" }],
-  ["中文：参考图链接已过期", { text: "参考图链接已过期或无法访问" }],
-  ["中文：输入媒体 URL 无法获取", { text: "输入媒体 URL 无法获取（403/404/410）" }],
-  ["中文：图片地址无法访问", { text: "图片地址无法访问，请检查后重试" }],
+  ["码 image_download_failed", { upstreamCode: "image_download_failed" }],
+  ["码 failed_to_download_image", { upstreamCode: "failed_to_download_image" }],
+  ["码 InvalidURL.Timeout", { upstreamCode: "InvalidURL.Timeout" }],
+  ["码 InvalidURL.ConnectionRefused", { upstreamCode: "InvalidURL.ConnectionRefused" }],
+  ["码 BadRequest.InputDownloadFailed", { upstreamCode: "BadRequest.InputDownloadFailed" }],
+  // 码被原样带进了错误文字
+  ["文字里的码（JSON 信封）", { text: '{"detail":[{"loc":["body","image_url"],"msg":"File download error","type":"file_download_error"}]}' }],
+  ["文字里的码（带点的）", { text: '{"code":"InvalidURL.Timeout","message":"Download xxx timeout, please check network connection."}' }],
+  // 一家模型 API 的文档与论坛
+  ["参考图下载失败", { text: "Reference image download failed, please check image url." }],
+  ["下载超时（带链接）", { text: "Timeout while downloading https://cdn.example.com/a.png." }],
+  ["下载出错（带链接）", { text: "Error while downloading https://cdn.example.com/a.png." }],
+  ["带签名的链接：链接里的 token、credential 不是证据", { text: "Timeout while downloading https://bucket.example.com/a.png?X-Amz-Credential=abc&X-Amz-Security-Token=def." }],
+  // 一家云厂商模型平台的错误码文档
+  ["多模态内容下载失败", { text: "Failed to download multimodal content." }],
+  ["数据检查时下载超时", { text: "Download the media resource timed out during the data inspection process." }],
+  ["数据检查时下载不了", { text: "Unable to download the media resource during the data inspection process." }],
+  ["数据检查时找不到资源", { text: "Failed to find the requested media resource during the data inspection process." }],
+  ["数据检查时没权限（签名过期）", { text: "Don't have authorization to access the media resource during the data inspection process." }],
+  ["输入文件下载失败（复数）", { text: "Failed to download input files." }],
+  ["输入文件下载失败（带详情）", { text: "Failed to download the input file: 403 Forbidden." }],
+  ["连接被拒", { text: "Connection to cdn.example.com refused, please provide available URL." }],
+  ["链接不可用", { text: "The request URL is invalid, please check the request URL is available" }],
 ];
 
 // 说法长得像、但说的是别的失败：取结果 / 下载产物 / 任务 / 上传 / 模型 / 拦截。它们的下一步各不相同，不能进这张卡。
@@ -111,7 +118,46 @@ const NOT_REFUSALS: Case[] = [
   ["内置浏览器：素材链接过期", { text: enBrowserAssets.capture.error.notFound }],
   ["内置浏览器：素材链接过期（中文）", { text: zhBrowserAssets.capture.error.notFound }],
   ["我们自己的本机检查：源文件缺失", { text: "This reference image is unavailable because its source file is missing or its link expired: https://cdn.example.com/a.png." }],
+  // 通用规则曾经认错的：别的原因在上一句、排除词没列到、产物的链接
+  ["审核在上一句", { text: "Request blocked by the safety system. Could not fetch input image." }],
+  ["鉴权：token", { text: "Invalid token: could not fetch the image URL." }],
+  ["配额：每日上限", { text: "You have reached your daily limit, could not fetch input image." }],
+  ["大小：超过上限", { text: "Failed to load input image: file is bigger than 20MB" }],
+  ["产物的链接过期", { text: "The generated video URL has expired" }],
+  ["产物的链接过期（中文）", { text: "生成的图片链接已过期" }],
+  // 真话，但没说是输入：取结果失败也可能这么说
+  ["没说是输入：下载文件（带链接）", { text: "Failed to download file from https://cdn.example.com/out.mp4" }],
+  ["没说是输入：下载图片", { text: "download image failed" }],
+  ["没说是输入：对象存储", { text: "oss download error." }],
+  ["没说是输入：链接错误", { text: "url error, please check url!" }],
+  ["没说是输入：文件下载错误", { text: "File download error" }],
+  ["没跟链接的下载失败", { text: "Error while downloading the result file." }],
+  ["链接路径里的 tasks / results 也不是证据", { text: "GET https://relay.example.com/v1/tasks/9/results failed" }],
   ["空", { text: "" }],
+];
+
+// 查不到出处的说法：不猜，卡片和以前一样，发送前的试探还在。查实了就加进表里，把这一行删掉。
+const UNSOURCED: string[] = [
+  "Failed to download input image from URL",
+  "Cannot fetch content from the provided URL.",
+  "Unable to download the file. Please verify the URL and try again.",
+  "Failed to download the file. Please check if the URL is accessible and try again.",
+  "The parameter `image_url` specified in the request is not valid: failed to download",
+  "Image fetch failed. Check access settings or use our File Upload API instead.",
+  "The reference image URL is not accessible.",
+  "input_image URL returned 403 Forbidden",
+  "The reference video link has expired",
+  "Task failed: could not download input image",
+  "Failed to retrieve the image from the provided address.",
+  "The image at the given URL could not be downloaded.",
+  "Error fetching image from URL: 403",
+  "Download failed for the input image",
+  "无法获取参考图片，请检查链接是否可访问",
+  "下载输入图片失败（HTTP 403）",
+  "参考图链接已过期或无法访问",
+  "输入媒体 URL 无法获取（403/404/410）",
+  "图片地址无法访问，请检查后重试",
+  "无法访问该图片链接",
 ];
 
 describe("isReferenceFetchRefusal：模型拉不到参考链接", () => {
@@ -121,6 +167,10 @@ describe("isReferenceFetchRefusal：模型拉不到参考链接", () => {
 
   it.each(NOT_REFUSALS)("%s → 否", (_label, input) => {
     expect(isReferenceFetchRefusal(input)).toBe(false);
+  });
+
+  it.each(UNSOURCED)("查不到出处的说法：%s → 否", (text) => {
+    expect(isReferenceFetchRefusal({ text })).toBe(false);
   });
 
   it.each([
@@ -133,7 +183,7 @@ describe("isReferenceFetchRefusal：模型拉不到参考链接", () => {
     expect(isReferenceFetchRefusal({ text: desktopT(key, values, "en") })).toBe(false);
   });
 
-  it("只看开头一段：几十 KB 的错误文本不会让正则跑完全文，开头 4000 字之后的话不算", () => {
+  it("只看开头一段：几十 KB 的错误文本也只比开头，4000 字之后的话不算", () => {
     expect(isReferenceFetchRefusal({ text: "a".repeat(200_000) })).toBe(false);
     expect(isReferenceFetchRefusal({ text: `${"a1.".repeat(70_000)} An input media URL could not be fetched.` })).toBe(false);
     expect(isReferenceFetchRefusal({ text: `An input media URL could not be fetched. ${"a1.".repeat(70_000)}` })).toBe(true);
@@ -143,18 +193,24 @@ describe("isReferenceFetchRefusal：模型拉不到参考链接", () => {
     expect(isReferenceFetchRefusal({})).toBe(false);
   });
 
-  it("两张表的体量：真实说法至少 12 条为真，别的失败至少 8 条为假（判据去掉排除词时假例会变真）", () => {
+  it("判句子不用正则：读的是别人写的文字，写错一个量词就能把整个 App 卡死", () => {
+    const source = fs.readFileSync(new URL("./referenceFetchRefusal.ts", import.meta.url), "utf8");
+    expect(source).not.toMatch(/new RegExp|\.test\(|\.exec\(|\.match\(|\.matchAll\(|\.search\(/);
+  });
+
+  it("把第 3 轮卡死的那些文字喂进来，只是一次字符串比对", () => {
+    for (const text of [`input ${"-".repeat(3990)}`, `input_${"_".repeat(3990)}`, `reference ${"_".repeat(3990)}`, `source ${"-_".repeat(1990)}`, `input ${" ".repeat(3990)}url`]) {
+      expect(isReferenceFetchRefusal({ text })).toBe(false);
+    }
+  });
+
+  it("两张表的体量：真实说法至少 12 条为真，别的失败至少 8 条为假", () => {
     expect(REFUSALS.length).toBeGreaterThanOrEqual(12);
     expect(NOT_REFUSALS.filter(([, input]) => Boolean(input.text || input.upstreamCode)).length).toBeGreaterThanOrEqual(8);
   });
 
-  it("排除词只看同一句：下一句里的 task 不拖累「下载超时」这句；同一句明说下载的是结果就不算", () => {
+  it("链接后面跟着别的话不影响，链接路径里的 tasks / results 也不影响", () => {
     expect(isReferenceFetchRefusal({ text: "Timeout while downloading https://cdn.example.com/a.png. The task was queued again." })).toBe(true);
-    expect(isReferenceFetchRefusal({ text: "Error while downloading the result file." })).toBe(false);
-  });
-
-  it("链接路径里的 tasks / results 不是证据（整段 URL 先抠掉）", () => {
-    expect(isReferenceFetchRefusal({ text: "Failed to download input image from https://relay.example.com/v1/tasks/results/9" })).toBe(true);
-    expect(isReferenceFetchRefusal({ text: "GET https://relay.example.com/v1/tasks/9/results failed" })).toBe(false);
+    expect(isReferenceFetchRefusal({ text: "Timeout while downloading https://relay.example.com/v1/tasks/results/9" })).toBe(true);
   });
 });
