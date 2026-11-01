@@ -25,8 +25,11 @@ import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
 
 const TRIAGE = '分诊只由协调会话做；其他会话看到不动手、不写待办。'
 const MODEL_TRIAGE_PLAN = 'docs/plan/2026-08-27-vendor-model-radar.md'
+const lastLine = (text) => String(text || '').split('\n').map((line) => line.trim()).filter(Boolean).at(-1) ?? ''
 export const RADARS = [
   { key: 'intake', label: '用户反馈雷达', script: 'intake:radar', argv: ['scripts/intake-radar.mjs'], skill: 'nomi-intake-radar',
+    // 版本健康判停也退出 1（发布流程靠它拦放量），但雷达是跑完了的：报告最后一行固定是结论（docs/release-process.md）。
+    ranWithAlarm: (result) => result.status === 1 && lastLine(result.stdout).startsWith('停止放量：'),
     next: (hasSkill) => (hasSkill
       ? `待分诊不为 0 或有突增时，由协调会话起 nomi-intake-radar 技能分诊，记进待办后出账。${TRIAGE}`
       : `技能 nomi-intake-radar 在这台机器上没有，今天没法按技能分诊（不是没有新反馈）；把「待分诊 N 条」告诉协调会话。${TRIAGE}`) },
@@ -142,10 +145,11 @@ export async function runDailyRadar({ root, now = new Date(), run = defaultRun, 
       lines.push(`→ ${radar.next(radar.skill ? hasSkill(radar.skill) : true)}`)
       continue
     }
-    if (result.status === 0) {
+    const alarmed = radar.ranWithAlarm?.(result) === true
+    if (result.status === 0 || alarmed) {
       const text = tail(result.stdout) || '（脚本没有输出）'
       next[radar.key] = { ok: true, at, text }
-      lines.push(`【${radar.label}】已跑（${at}，pnpm run ${radar.script}）：`)
+      lines.push(`【${radar.label}】已跑（${at}，pnpm run ${radar.script}）${alarmed ? '，版本健康判停（退出码 1 是这个结论，不是脚本报错）' : ''}：`)
       lines.push(text)
       lines.push(`→ ${radar.next(radar.skill ? hasSkill(radar.skill) : true)}`)
     } else {

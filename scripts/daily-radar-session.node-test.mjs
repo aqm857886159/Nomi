@@ -30,6 +30,8 @@ const cleanup = (...dirs) => dirs.forEach((dir) => fs.rmSync(dir, { recursive: t
 
 const okRun = (outputs = {}) => async (_root, radar) => ({ status: 0, stdout: outputs[radar.key] ?? `${radar.script} 结果行\n新增 0` })
 const failRun = (status = 1, stderr = 'boom') => async () => ({ status, stdout: '', stderr })
+const HEALTH_STOP = '停止放量：崩溃率比上一版高出一截'
+const healthStopRun = (stdout = `新增反馈 2 条\n${HEALTH_STOP}`) => async (_root, radar) => (radar.key === 'intake' ? { status: 1, stdout, stderr: '' } : { status: 0, stdout: 'ok', stderr: '' })
 
 describe('成功', () => {
   test('两个脚本都成功 → 带出结果与「分诊只由协调会话做」，状态记下今天与摘要', async () => {
@@ -64,6 +66,50 @@ describe('失败必须明说，不许说成没有新东西', () => {
   test('失败时把脚本自己的报错尾巴带出来，别吞', async () => {
     const { text } = await runDailyRadar({ root: '/x', now: NOW, run: failRun(1, 'Cloudflare token missing') })
     assert.match(text, /Cloudflare token missing/)
+  })
+})
+
+describe('版本健康判停的退出码 1 不是脚本报错', () => {
+  test('雷达跑完了：说已跑和判停，摘要带上，缓存算跑成，不说今天没查成', async () => {
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run: healthStopRun(), hasSkill: allSkills })
+    assert.match(text, /【用户反馈雷达】已跑（.*版本健康判停（退出码 1 是这个结论，不是脚本报错）/)
+    assert.match(text, /新增反馈 2 条/)
+    assert.ok(text.includes(HEALTH_STOP))
+    assert.doesNotMatch(text, /【用户反馈雷达】今天没查成/)
+    assert.deepEqual(state.intake, { ok: true, at: state.intake.at, text: `新增反馈 2 条\n${HEALTH_STOP}` })
+  })
+
+  test('真实摘要：过真实的报告渲染，最后一行还是判停', async () => {
+    const report = buildIntakeReport({ feedbackRecords: [], eventRecords: [], trajectoriesCount: 0, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-10-31T11:52:00.000Z', inbox: { rebuilt: false, items: {} } })
+    report.versionHealth = {
+      current: '0.24.1', previous: '0.24.0', window: { start: '2026-10-25', end: '2026-10-31' },
+      launches: { newer: 100, older: 100 }, observedDays: { newer: 7, older: 7 }, notes: [], rows: [],
+      stop: true, conclusion: HEALTH_STOP,
+    }
+    const stdout = renderTerminalSummary(report, { mdPath: 'a.md', jsonPath: 'a.json' })
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run: healthStopRun(stdout), hasSkill: allSkills })
+    assert.match(text, /【用户反馈雷达】已跑（.*版本健康判停/)
+    assert.doesNotMatch(text, /【用户反馈雷达】今天没查成/)
+    assert.equal(state.intake.ok, true)
+  })
+
+  for (const [name, run] of [
+    ['判停那句不在最后一行', healthStopRun(`${HEALTH_STOP}\n后面又打了一行`)],
+    ['脚本没有输出', healthStopRun('')],
+    ['退出码不是 1', async (_root, radar) => (radar.key === 'intake' ? { status: 2, stdout: HEALTH_STOP, stderr: '' } : { status: 0, stdout: 'ok', stderr: '' })],
+  ]) {
+    test(`其他退出码 1 照旧算没查成：${name}`, async () => {
+      const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run, hasSkill: allSkills })
+      assert.match(text, /【用户反馈雷达】今天没查成/)
+      assert.equal(state.intake.ok, false)
+    })
+  }
+
+  test('别的雷达碰巧打了同样一句，不算判停', async () => {
+    const run = async (_root, radar) => (radar.key === 'models' ? { status: 1, stdout: HEALTH_STOP, stderr: '' } : { status: 0, stdout: 'ok', stderr: '' })
+    const { text, state } = await runDailyRadar({ root: '/x', now: NOW, run, hasSkill: allSkills })
+    assert.match(text, /【供应商模型雷达】今天没查成/)
+    assert.equal(state.models.ok, false)
   })
 })
 
@@ -308,7 +354,8 @@ describe('待分诊：每次开会话现读，新反馈从哪条分支都漏不�
   const BRANCHES = [
     { name: '刚跑成功', state: {}, run: okRun(), head: /【用户反馈雷达】已跑/ },
     { name: '今天已跑过，拿缓存摘要', state: { date: localDate(NOW), intake: { ok: true, at: '08:00', text: '新增反馈 0 条' }, models: { ok: true, at: '08:00', text: 'x' } }, run: okRun(), head: /今天 08:00 已在本机跑过/ },
-    { name: '版本健康判停，退出码 1', state: {}, run: failRun(1, ''), head: /脚本退出码 1/ },
+    { name: '版本健康判停，退出码 1', state: {}, run: healthStopRun(), head: /【用户反馈雷达】已跑.*版本健康判停/ },
+    { name: '脚本报错，退出码 1', state: {}, run: failRun(1, ''), head: /脚本退出码 1/ },
     { name: '脚本超时', state: {}, run: async () => ({ status: null, signal: 'SIGTERM', stdout: '', stderr: '' }), head: /超时/ },
     { name: '脚本没能启动', state: {}, run: async () => ({ status: null, stdout: '', stderr: '', error: Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }) }), head: /没能启动/ },
     { name: '分诊技能不在这台机器上', state: {}, run: okRun(), hasSkill: noSkills, head: /今天没法按技能分诊/ },
