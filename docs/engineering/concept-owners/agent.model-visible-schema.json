@@ -20,7 +20,7 @@
       "symbol": "toStandardModelSchema"
     },
     {
-      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "path": "electron/capabilityCore/modelSchemaStandardCheck.ts",
       "symbol": "collectStandardSchemaFailures"
     },
     {
@@ -35,6 +35,7 @@
     "electron/capabilityCore/mcpGenerationToolCatalog.ts",
     "electron/capabilityCore/mcpToolCatalog.ts",
     "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+    "electron/capabilityCore/modelSchemaStandardCheck.ts",
     "electron/shared/agentCapabilities/flatModelInput.ts",
     "electron/shared/agentCapabilities/modelFacingTools.ts",
     "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",

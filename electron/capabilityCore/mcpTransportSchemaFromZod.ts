@@ -13,12 +13,12 @@
 // 分支互斥必填由 canonical Zod 执行。传输层 JSON Schema 由 Ajv 执行。
 // 递归 generation schema 无需展平，直接走共享 toPublishedJsonSchema。
 //
-// 对外广播的关键字白名单也住这里（发布期检查）：运行时校验引擎是官方 SDK 的 JSON Schema 校验器
-// （mcpProtocol.ts 的 validateToolArguments），它对不认识的关键字是放行的——所以「广播出去的 schema 只用宿主
-// 普遍认得的那几种关键字」这条约束必须在发布时卡住，而不是指望运行时报错。
+// 对外广播的关键字白名单在这里做发布期检查（名单本身住 modelSchemaStandardCheck.ts）：运行时校验引擎是官方 SDK 的
+// JSON Schema 校验器（mcpProtocol.ts 的 validateToolArguments），它对不认识的关键字是放行的——所以「广播出去的 schema
+// 只用宿主普遍认得的那几种关键字」这条约束必须在发布时卡住，而不是指望运行时报错。
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { collectStandardSchemaFailures, toStandardModelSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
-export { SUPPORTED_SCHEMA_KEYWORDS, SUPPORTED_SCHEMA_TYPES } from "../shared/agentCapabilities/modelVisibleJsonSchema";
+import { toStandardModelSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
+import { collectStandardSchemaFailures } from "./modelSchemaStandardCheck";
 
 import { JSON_TEXT_BRANCH_MARKER } from "../shared/agentCapabilities/jsonArgTolerance";
 

@@ -20,9 +20,10 @@
     "electron/capabilityCore/mcpToolCatalog.ts",
     "electron/capabilityCore/mcpGenerationToolCatalog.ts",
     "electron/capabilityCore/mcpProtocol.ts",
-    "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs",
-    "vite.config.ts",
-    "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.mjs"
+    "electron/capabilityCore/modelSchemaMetaValidator.generated.cjs",
+    "electron/capabilityCore/modelSchemaStandardCheck.ts",
+    ".dependency-cruiser.mjs",
+    "scripts/check-boundaries.mjs"
   ],
   "entry_points": [
     "Agent lane generation-time validation",
@@ -179,13 +180,13 @@
     },
     {
       "kind": "read",
-      "path": "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs",
+      "path": "electron/capabilityCore/modelSchemaMetaValidator.generated.cjs",
       "symbol": "I"
     },
     {
       "kind": "read",
-      "path": "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.mjs",
-      "symbol": "I"
+      "path": "electron/capabilityCore/modelSchemaStandardCheck.ts",
+      "symbol": "collectStandardSchemaFailures"
     }
   ],
   "door_reduction": {
@@ -201,7 +202,7 @@
       "responsibility": "Derive common schema from canonical Zod."
     },
     {
-      "path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+      "path": "electron/capabilityCore/modelSchemaStandardCheck.ts",
       "symbol": "collectStandardSchemaFailures",
       "responsibility": "One shared standards whitelist for generation, MCP and ratchet."
     }
@@ -244,7 +245,7 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "electron/shared/agentCapabilities/modelVisibleJsonSchema.ts",
+    "enforcement_path": "electron/capabilityCore/modelSchemaStandardCheck.ts",
     "invariant": "Common JSON Schema 2020-12 / OpenAI keyword and shape whitelist without new vendor rules.",
     "failure_mode": "Generation throws ModelSchemaInformationLoss, MCP and the ratchet report unsupported schema, runtime returns existing structured errors.",
     "exception_policy": "none",
@@ -258,12 +259,14 @@
       "electron/capabilityCore/mcpToolCatalog.ts",
       "electron/capabilityCore/mcpGenerationToolCatalog.ts",
       "electron/capabilityCore/mcpProtocol.ts",
-      "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs",
-      "electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.mjs"
+      "electron/capabilityCore/modelSchemaMetaValidator.generated.cjs",
+      "electron/capabilityCore/modelSchemaStandardCheck.ts",
+      ".dependency-cruiser.mjs"
     ]
   },
   "regression_tests": [
     "scripts/check-model-schema.node-test.mjs",
+    "scripts/check-boundaries.renderer-cjs.test.mjs",
     "electron/shared/director/directorPlanSchema.test.ts",
     "electron/capabilityCore/mcpTransportSchemaFromZod.test.ts",
     "tests/agent-runtime/lane-tool-schema.test.mts",
@@ -285,7 +288,7 @@
   },
   "dependency_lifecycle": {
     "decision": "retain-with-exit",
-    "current": "zod 3.25.76, zod-to-json-schema 3.25.1 and development-only Ajv 8.20.0; official 2020-12 meta-schema compiled to self-contained CJS/ESM formats of the same static validator for both Electron contexts.",
+    "current": "zod 3.25.76, zod-to-json-schema 3.25.1 and development-only Ajv 8.20.0; official 2020-12 meta-schema compiled to one self-contained CJS validator on the main-process side; the renderer uses conversion only and never reaches it (R-B7).",
     "target": "A future Zod / converter upgrade that preserves the fixed-array transport contract",
     "rationale": "The converter correctly emitted draft-07 tuples. The missing application publication invariant, not a converter bug, owns this repair.",
     "exit_criteria": [

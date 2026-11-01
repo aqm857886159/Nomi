@@ -83,6 +83,9 @@ test('the gate prints a per-tool ledger sorted by size with both totals', async 
 const rules = await import(
   pathToFileURL(path.join(repoRoot, 'electron/shared/agentCapabilities/modelVisibleJsonSchema.ts')).href
 )
+const standardCheck = await import(
+  pathToFileURL(path.join(repoRoot, 'electron/capabilityCore/modelSchemaStandardCheck.ts')).href
+)
 
 function structural(schema) {
   const out = []
@@ -92,7 +95,7 @@ function structural(schema) {
 
 function standard(schema) {
   const out = []
-  rules.collectStandardSchemaFailures(schema, '', out)
+  standardCheck.collectStandardSchemaFailures(schema, '', out)
   return out
 }
 
@@ -412,12 +415,11 @@ test('the actual lane execution boundary rejects deferred constraints with struc
 
 
 test('official meta validator is reproducible and runs with string code generation disabled', async () => {
-  const { generateMetaValidators, outputFiles } = await import('./gen-model-schema-meta-validator.mjs')
+  const { generateMetaValidator, outputFile } = await import('./gen-model-schema-meta-validator.mjs')
   const { readFileSync } = await import('node:fs')
   const vm = await import('node:vm')
-  const formats = await generateMetaValidators()
-  for (const format of ['cjs', 'esm']) assert.equal(readFileSync(outputFiles[format], 'utf8'), formats[format])
-  const code = formats.cjs
+  const code = await generateMetaValidator()
+  assert.equal(readFileSync(outputFile, 'utf8'), code)
   const module = { exports: {} }
   const context = vm.createContext({ module, exports: module.exports }, { codeGeneration: { strings: false, wasm: false } })
   vm.runInContext(code, context)

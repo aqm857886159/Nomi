@@ -9,7 +9,7 @@
   "include": [
     "**/*.mts",
     "**/*.cts",
-    "../../electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.cjs"
+    "../../electron/capabilityCore/modelSchemaMetaValidator.generated.cjs"
   ],
   "exclude": []
 }

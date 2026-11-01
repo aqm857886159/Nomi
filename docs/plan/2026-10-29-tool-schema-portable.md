@@ -62,4 +62,4 @@ Zod 是唯一入参真相源，原契约不改字、不新抄一套 schema。发
 - gates 退出 0；纪律页推送前快检与每次 fix-churn --staged；无推送、无合并。
 - 独立验收：四类未命中，不派验收线；合并前做模型面逐字段对照（说明原文不丢、挪走的约束都写进新说明），结果写 PR 正文。回滚实现提交即可，无数据迁移。
 
-运行上下文补充：共享模块同时被主进程与渲染进程使用。实走查证实运行时 Ajv 编译被上下文/CSP 拒绝；按 [Ajv standalone](https://ajv.js.org/standalone.html) 与 [CSP 说明](https://ajv.js.org/security.html#content-security-policy) 预编译官方元 schema，由一份生成逻辑生成自包含的 CJS / ESM 两种模块格式，主进程和渲染/开发预览共用同一个标准判据。Ajv 保留开发依赖，不增加运行时依赖、不放宽 CSP；生成器与禁用动态代码生成的回归锁定两种格式产物；编译后的 Agent 测试用 TypeScript 原生 allowJs 发射 CJS 依赖。开发预览真实浏览器探针已达到 __designLabReady，零 pageerror。
+运行上下文补充：转换函数在主进程和渲染进程都用，判据只在主进程和门岗里跑。实走查证实运行时 Ajv 编译被上下文/CSP 拒绝，所以按 [Ajv standalone](https://ajv.js.org/standalone.html) 与 [CSP 说明](https://ajv.js.org/security.html#content-security-policy) 预编译官方元 schema，生成一个自包含的 CJS 校验器，连同判据住在主进程一侧（`electron/capabilityCore/modelSchemaStandardCheck.ts`），不进 `electron/shared/`。曾生成 CJS / ESM 两份并在 `vite.config.ts` 用别名换格式，浏览器单测夹具不读那份配置，页面起不来；现在别名和 ESM 副本都删了，`renderer-no-reach-local-cjs` 守住渲染层的依赖图。Ajv 保留开发依赖，不增加运行时依赖、不放宽 CSP；生成器与禁用动态代码生成的回归锁定产物；编译后的 Agent 测试用 TypeScript 原生 allowJs 发射 CJS 依赖。开发预览真实浏览器探针已达到 __designLabReady，零 pageerror。

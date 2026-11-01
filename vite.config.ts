@@ -198,12 +198,6 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
     resolve: {
       dedupe: ['react', 'react-dom', 'scheduler', 'use-sync-external-store', 'three'],
       alias: [
-        // Both formats are generated from the same official meta-schema. Node keeps CJS;
-        // renderer dev/build receives native ESM, without runtime compilation or CJS shims.
-        {
-          find: /^(?:.*\/)?modelSchemaMetaValidator\.generated\.cjs$/,
-          replacement: resolve(__dirname, 'electron/shared/agentCapabilities/modelSchemaMetaValidator.generated.mjs'),
-        },
         {
           find: /^react$/,
           replacement: resolve(__dirname, 'node_modules/react/index.js'),

@@ -20,8 +20,9 @@ import type { TSchema } from 'typebox';
 import { z, type ZodTypeAny } from 'zod';
 import { modelFacingBranch } from '../shared/agentCapabilities/jsonArgTolerance.js';
 import {
-  collectStructuralFailures, collectVendorCompatibilityFailures, collectStandardSchemaFailures, runtimeConstraintDescription, toPublishedJsonSchema,
+  collectStructuralFailures, collectVendorCompatibilityFailures, runtimeConstraintDescription, toPublishedJsonSchema,
 } from '../shared/agentCapabilities/modelVisibleJsonSchema.js';
+import { collectStandardSchemaFailures } from '../capabilityCore/modelSchemaStandardCheck.js';
 
 const KIND = z.ZodFirstPartyTypeKind;
 

@@ -41,3 +41,11 @@
 模型提示只表达通用标准允许的约束；无法表达的写明说明，由原 Zod 拒绝违规输入，而不是改变工具实际接受什么。
 
 特征测试：scripts/check-model-schema.node-test.mjs、tests/agent-runtime/lane-tool-schema.test.mts、electron/shared/director/directorPlanSchema.test.ts；红测试先于产品实现保存在专用交接临时目录。
+
+## 8. 第 3 轮补充：碰到门岗族 `gate-family`
+
+CI 查出渲染层把 CJS 校验器带进了依赖图，靠 `vite.config.ts` 的别名才跑得起来，不读那份配置的浏览器夹具起不来。这一轮是换和删：判据搬到主进程一侧，别名和 ESM 副本删掉。
+
+为了不让它再回来，碰了 `scripts/check-boundaries.mjs`，所以命中自写登记 `gate-family`。这一刀用的是现成的 dependency-cruiser，只加一条规则，并把手抄的规则清单改成从规则集派生，没有新增自写判据。
+
+门岗族整体现在换不了现成工具：大部分门岗查的是 Nomi 自己的登记表和合同，没有现成工具对应；保留、合并、降级、删除的清单在 docs/audit/2026-10-01-gate-ledger.md，还没逐项拍板。哪天换：清单拍板之后（登记里的复查期限是 2026-11-30），按结论逐道删或合并。

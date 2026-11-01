@@ -29,8 +29,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MCP_TOOL_RESOLVER } from "../electron/capabilityCore/mcpToolCatalog";
 import {
-  collectStructuralFailures, collectVendorCompatibilityFailures, collectStandardSchemaFailures, toPublishedJsonSchema,
+  collectStructuralFailures, collectVendorCompatibilityFailures, toPublishedJsonSchema,
 } from "../electron/shared/agentCapabilities/modelVisibleJsonSchema";
+import { collectStandardSchemaFailures } from "../electron/capabilityCore/modelSchemaStandardCheck";
 import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_TOOL_BUDGET } from "../electron/agentLane/laneToolCatalog";
 import {
   evaluateLaneToolBudget, laneRequestToolDefinition, LANE_TOOL_SCHEMA_TOKEN_CEILING,

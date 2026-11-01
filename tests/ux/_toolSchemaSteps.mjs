@@ -9,7 +9,7 @@ import { readProductionRuns } from './_paidRun.mjs'
 import { APPROVAL_CARD, CANVAS_PANEL, COMPOSER, DOCUMENT, ERROR_BAR, INTERVENTION_CONFIRM,
   COMPOSER_PERMISSION, permissionTier, chooseAssistantModel, openCanvas, sendCanvas } from './agent-runtime-walk-support.mjs'
 
-const { collectStandardSchemaFailures } = tsxRequire('../../electron/shared/agentCapabilities/modelVisibleJsonSchema.ts', import.meta.url)
+const { collectStandardSchemaFailures } = tsxRequire('../../electron/capabilityCore/modelSchemaStandardCheck.ts', import.meta.url)
 export const DEFAULT_SCHEMA_DRAFT_IMAGE = Object.freeze({ vendorKey: 'apimart', modelKey: 'gemini-3.1-flash-image-preview' })
 const STORY = '雨后，红色纸船漂在水洼里。一只橘猫坐在窗台上看着纸船。'
 
