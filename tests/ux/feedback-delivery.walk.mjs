@@ -73,6 +73,7 @@ const PLANTED = [
   { name: '自建中转的 vendor', needle: 'internal-proxy-walk-local', body: 'WARN  vendor         call vendor=internal-proxy-walk-local model=walk-exec-model status=500 ms=12' },
   { name: '自建中转的模型别名', needle: 'walk-exec-model', body: 'WARN  vendor         call vendor=internal-proxy-walk-local model=walk-exec-model status=500 ms=12' },
   { name: '兄弟连接名', needle: 'walk-my-team', body: 'WARN  vendor         call vendor=apimart--walk-my-team status=500' },
+  { name: '本机那家的模型名', needle: 'comfy-walk-portrait', body: 'WARN  vendor         call vendor=comfyui-local model=comfy-walk-portrait-1 status=500 ms=12' },
 ]
 /** 排查要用的那些必须还在，否则「零命中」可能只是整份日志都没带上。 */
 const KEPT = [
@@ -82,14 +83,15 @@ const KEPT = [
 ]
 const CRASH_MARKER = 'walk-crash-marker'
 
-// ── 加进目录的自建连接 ─────────────────────────────────────────────────────────
+// ── 加进目录的自建连接和本机工作流 ─────────────────────────────────────────────────────────
 // 加在 App 自己写出来的目录文件上：形状是真实的，不是测试手写的那一份。
 const CATALOG_STAMP = '2026-11-01T00:00:00.000Z'
 const CATALOG_NEEDLES = [
   'gw-walk-corp-example', 'gw.walk-corp.example', 'relay.walk-corp.example', 'Walk Corp Gateway', 'X-Walk-Tenant', 'walk-tenant-42',
   'walk-team-line', 'Walk Team Line', 'walk-corp-model', '走查内部模型', '走查内部映射',
+  'walk workflow rainy alley', 'walk-portrait-source', 'comfy-walk-portrait', '走查工作流', 'walk-second-rig', 'Walk Second Rig', '192.168.77.88',
 ]
-function plantSelfHostedConnections(settingsDir) {
+function plantUserConnections(settingsDir) {
   const file = path.join(settingsDir, 'model-catalog.json')
   const catalog = JSON.parse(fs.readFileSync(file, 'utf8'))
   const stamped = { createdAt: CATALOG_STAMP, updatedAt: CATALOG_STAMP }
@@ -99,6 +101,13 @@ function plantSelfHostedConnections(settingsDir) {
   )
   catalog.models.push({ vendorKey: 'gw-walk-corp-example', modelKey: 'walk-corp-model', labelZh: '走查内部模型', kind: 'text', enabled: true, ...stamped })
   catalog.mappings.push({ id: 'walk-corp-mapping', vendorKey: 'gw-walk-corp-example', taskKind: 'chat', name: '走查内部映射', enabled: true, create: { method: 'POST', path: 'https://gw.walk-corp.example/v1/run' }, ...stamped })
+  // 本机那家名下导入的工作流，和接到局域网的第二台：提示词、文件名、标签都在里面。
+  const workflow = { 3: { class_type: 'CLIPTextEncode', inputs: { text: 'walk workflow rainy alley' } }, 4: { class_type: 'LoadImage', inputs: { image: 'walk-portrait-source.png' } } }
+  catalog.vendors.push({ key: 'comfyui-local--walk-second-rig', name: 'Walk Second Rig', enabled: true, baseUrlHint: 'http://192.168.77.88:8188', authType: 'none', ...stamped })
+  for (const [vendorKey, modelKey] of [['comfyui-local', 'comfy-walk-portrait-1'], ['comfyui-local--walk-second-rig', 'comfy-walk-portrait-2']]) {
+    catalog.models.push({ vendorKey, modelKey, labelZh: '走查工作流', kind: 'image', enabled: true, meta: { comfyWorkflowImport: { text: JSON.stringify(workflow) } }, ...stamped })
+    catalog.mappings.push({ id: `walk-${modelKey}`, vendorKey, modelKey, taskKind: 'text_to_image', name: '走查工作流', enabled: true, create: { method: 'POST', path: '/prompt', body: { prompt: workflow } }, ...stamped })
+  }
   fs.writeFileSync(file, JSON.stringify(catalog))
 }
 
@@ -232,7 +241,7 @@ async function journey(locale) {
     // 必须在第一次发送之前：之后主进程写日志、读日志都到这里。
     await app.evaluate(({ app: electronApp }, dir) => electronApp.setAppLogsPath(dir), logsDir)
     await expect.poll(() => fs.existsSync(path.join(settingsDir, 'model-catalog.json')), { message: 'App 启动后应当写出目录文件', timeout: stationTimeout(), intervals: [200] }).toBe(true)
-    plantSelfHostedConnections(settingsDir)
+    plantUserConnections(settingsDir)
 
     // ── ① 成功 ────────────────────────────────────────────────────────────────
     const checkbox = card.locator('input[type="checkbox"]').first()
@@ -287,6 +296,9 @@ async function journey(locale) {
       check(catalog?.vendors?.filter((row) => row.key === 'custom').length === 1, `${locale}：自建连接应当只留一行「是自建」`)
       check(vendorRow('custom')?.modelCount === 1, `${locale}：自建那一行应当留着模型个数`)
       check(vendorRow('apimart--2')?.baseUrlHint === '<custom-address>', `${locale}：内置家的兄弟连接改了地址，应当换成标记`)
+      check(vendorRow('comfyui-local')?.modelCount >= 2 && vendorRow('comfyui-local')?.mappingCount >= 2, `${locale}：本机那家应当留着个数`)
+      check(vendorRow('comfyui-local--2')?.baseUrlHint === '<custom-address>' && vendorRow('comfyui-local--2')?.modelCount === 1, `${locale}：本机那家的第二台应当只留标记和个数`)
+      check(!catalog?.models?.some((row) => String(row.vendorKey).startsWith('comfyui-local')), `${locale}：本机那家的模型行不该出门`)
       check(/^https:\/\//.test(vendorRow('apimart')?.baseUrlHint ?? ''), `${locale}：内置家的官方地址应当还在：${vendorRow('apimart')?.baseUrlHint}`)
       check(catalog?.vendors?.length > 2, `${locale}：内置家那些行应当还在`)
       measure.firstReport = {
@@ -304,8 +316,27 @@ async function journey(locale) {
           mappingRows: catalog?.mappings?.length ?? 0,
           mappingsOmitted: catalog?.mappingsOmitted ?? null,
           maskedAddresses: (JSON.stringify(catalog ?? null).match(/<custom-address>/g) ?? []).length,
+          localModelCount: vendorRow('comfyui-local')?.modelCount ?? null,
+          localMappingCount: vendorRow('comfyui-local')?.mappingCount ?? null,
         },
       }
+    }
+
+    // 问题就出在本机那一家：这时映射也算相关，工作流和模型名照样不出门。
+    await openCard(win, { surface: 'generation', summary: summaries.import, provider: 'comfyui-local', model: 'comfy-walk-portrait-1' })
+    const localNote = `walk-note-local-${locale}`
+    await note.fill(localNote)
+    await clickOrFail(send, '点「发送」')
+    await arrived(localNote)
+    const localBody = intake.state.accepted.find((body) => body.includes(localNote))
+    if (localBody) {
+      const { envelope, needleHits } = inspectBody(localBody, roots)
+      const catalog = envelope.attachments?.[ITEMS.modelCatalog]
+      check(envelope.context.provider === 'comfyui-local', `${locale}：这一家的名字应当留着：${envelope.context.provider}`)
+      check(envelope.context.model === null, `${locale}：这一家的模型名不该出门：${envelope.context.model}`)
+      check(!catalog?.mappings?.some((row) => String(row.vendorKey).startsWith('comfyui-local')), `${locale}：问题就是这一家时，它的映射也不该出门`)
+      check(needleHits.length === 0, `${locale}：问题是本机那一家时包里有不该出门的东西：${needleHits.join('、')}`)
+      measure.localReport = { provider: envelope.context.provider, model: envelope.context.model, mappingRows: catalog?.mappings?.length ?? 0, mappingsOmitted: catalog?.mappingsOmitted ?? null }
     }
 
     // ── ② 对话里的问题 ────────────────────────────────────────────────────────

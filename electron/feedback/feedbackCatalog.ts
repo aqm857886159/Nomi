@@ -1,14 +1,17 @@
 // 反馈包里的模型目录：自建连接只留「是自建」。
 //
-// 目录是排查「这个模型调不通」最有用的一份，但用户自建中转那几行是他自己的东西：vendor key 从他的地址铸出来
-// （`gw-example-com`、`internal-proxy-corp-local`），连接名和模型别名是他起的，映射和脚本里写着他的接口。
+// 目录是排查「这个模型调不通」最有用的一份，但用户自建中转那几行是用户自己的东西：vendor key 从用户的地址铸出来
+// （`gw-example-com`、`internal-proxy-corp-local`），连接名和模型别名是用户起的，映射和脚本里写着用户的接口。
 // 诊断包可以带（用户自己看过、自己决定发给谁），点一下就走的这条路不行。规矩和日志尾巴同一条、同一个判据
 // （`builtinVendorOf`）：内置家留，其余塌成 `custom`。
+//
+// 种子地址就在这台机器上的内置家（`isLocalVendor`）同样：家留着，名下的模型和映射是用户自己接进来的
+// （工作流、提示词、文件名都在里面），只留个数。
 //
 // 内置家那几行也只留下面列出的字段，默认不要：
 //   · 接口地址用户可以改成自己的中转，只有代码里登记过的才原样留；
 //   · 兄弟连接（`apimart--mini`）的后半段是用户起的连接名，换成序号；
-//   · `meta` 是杂物袋，手填的自定义头就住在里面，字段名不像密钥，`redactModelCatalog` 抹不到。
+//   · `meta` 是杂物袋，手填的自定义头、导入的工作流、草稿都住在里面，字段名不像密钥，`redactModelCatalog` 抹不到。
 // 最后再过一遍：host 不是代码里登记过的 URL 一律换掉，不管它长在哪一格。
 import { AI_SDK_PROVIDER_KINDS, VENDOR_AUTH_TYPES } from '../shared/contracts/modelAccessCapabilities'
 import { BUILTIN_VENDOR_SEEDS, builtinVendorSeed } from '../catalog/builtinVendorSeeds'
@@ -16,13 +19,19 @@ import { applyBuiltinSeeds } from '../catalog/seedBuiltins'
 import { CURRENT_CATALOG_VERSION } from '../catalog/types'
 import { CONNECTION_KEY_SEPARATOR } from '../shared/builtinVendorIdentity'
 import { codeDeclaredFallbackOrigins } from '../vendor/vendorBaseFallback'
-import { builtinVendorOf } from './feedbackLogTail'
+import { builtinVendorOf, isLocalVendor } from './feedbackLogTail'
 
 const CUSTOM_VENDOR = 'custom'
 const CUSTOM_ADDRESS = '<custom-address>'
 const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]*/gi
 const BUILTIN_VENDOR_FIELDS = ['enabled', 'authType', 'authHeader', 'authScheme', 'authQueryParam', 'providerKind', 'network', 'assetIngestion', 'createdAt', 'updatedAt'] as const
 const CREDENTIAL_FIELDS = ['enc', 'enabled', 'verificationPending', 'createdAt', 'updatedAt'] as const
+const MODEL_FIELDS = ['vendorKey', 'modelKey', 'modelAlias', 'labelZh', 'kind', 'enabled', 'unlisted', 'free', 'pricing', 'tokenPricing', 'createdAt', 'updatedAt'] as const
+const MODEL_META_FIELDS = ['archetypeId', 'wireProfile', 'canonicalModelId', 'catalogLifecycle', 'supportsImageInput', 'promptRefineOnly'] as const
+const MODEL_ADAPTER_FIELDS = ['state', 'evidence', 'updatedAt'] as const
+const MODEL_IMAGE_OPTION_FIELDS = ['supportsReferenceImages', 'imageEditProtocol'] as const
+/** 用户和 Agent 都能往里写的格子，只说有。 */
+const MODEL_META_PRESENCE = ['parameters', 'customCapabilityContract', 'customCallDraft'] as const
 
 type Row = Record<string, unknown>
 
@@ -95,6 +104,24 @@ function credentialFacts(record: unknown): Row | null {
   }
 }
 
+/** 排查「这个模型为什么不能用」要看的那几格，都是代码写的枚举和开关。工作流、参数默认值、备注都不在表里。 */
+function projectModelMeta(meta: Row): Row {
+  return {
+    ...pick(meta, MODEL_META_FIELDS),
+    ...(isRecord(meta.adapter) ? { adapter: pick(meta.adapter, MODEL_ADAPTER_FIELDS) } : {}),
+    ...(isRecord(meta.imageOptions) ? { imageOptions: pick(meta.imageOptions, MODEL_IMAGE_OPTION_FIELDS) } : {}),
+    ...Object.fromEntries(MODEL_META_PRESENCE.filter((field) => meta[field] !== undefined).map((field) => [field, true])),
+  }
+}
+
+function projectModelRow(model: Row): Row {
+  return {
+    ...pick(model, MODEL_FIELDS),
+    ...(model.customCall === undefined ? {} : { customCall: true }),
+    ...(isRecord(model.meta) ? { meta: projectModelMeta(model.meta) } : {}),
+  }
+}
+
 /** 内置家的 vendor key → 出门用的名字：root 原样，兄弟连接和认证候选换成 `root--序号`。 */
 function namesForBuiltinKeys(keys: readonly string[]): Map<string, string> {
   const names = new Map<string, string>()
@@ -133,11 +160,11 @@ export function projectCatalogForReport(catalog: unknown, provider: string | nul
     ...[...models, ...mappings, ...suppressed].map(vendorKeyOf),
     ...Object.keys(credentials),
   ])
-  /** 属于内置家的一行：换掉它身上每一处原来的 key（映射 id 里也可能带着连接名）。 */
+  /** 能出门的一行：属于内置家、这一家又不在本机。换掉它身上每一处原来的 key（映射 id 里也可能带着连接名）。 */
   const ownRows = (rows: Row[]): Row[] => rows.flatMap((row) => {
-    const name = names.get(vendorKeyOf(row))
-    if (name === undefined) return []
     const key = vendorKeyOf(row)
+    const name = names.get(key)
+    if (name === undefined || isLocalVendor(key)) return []
     return [(key === name ? row : mapStrings(row, (text) => text.split(key).join(name))) as Row]
   })
   const countOf = (rows: Row[], key: string): number => rows.filter((row) => vendorKeyOf(row) === key).length
@@ -161,13 +188,14 @@ export function projectCatalogForReport(catalog: unknown, provider: string | nul
       name: builtinVendorSeed(builtinVendorOf(key) ?? '')?.name,
       baseUrlHint: projectAddress(vendor.baseUrlHint),
       ...pick(vendor, BUILTIN_VENDOR_FIELDS),
+      ...(isLocalVendor(key) ? { modelCount: countOf(models, key), mappingCount: countOf(mappings, key) } : {}),
     }
   }
 
   const configured = Object.keys(credentials).flatMap((key) => names.get(key) ?? [])
   const relevant = new Set(provider ? [...configured, provider] : configured)
   const ownMappings = ownRows(mappings).filter((mapping) => relevant.has(vendorKeyOf(mapping)))
-  const ownModels = ownRows(models).map(({ customCall, ...model }) => (customCall === undefined ? model : { ...model, customCall: true }))
+  const ownModels = ownRows(models).map(projectModelRow)
   return mapStrings({
     ...pick(catalog, ['version']),
     vendors: vendors.map(projectVendorRow),

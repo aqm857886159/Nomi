@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { enFeedbackReport, zhFeedbackReport } from '../../src/i18n/locales/feedbackReport'
-import { BUILTIN_VENDOR_SEEDS } from '../catalog/builtinVendorSeeds'
+import { BUILTIN_VENDOR_SEEDS, isLocalSeed } from '../catalog/builtinVendorSeeds'
 import { applyBuiltinSeeds } from '../catalog/seedBuiltins'
 import { CURRENT_CATALOG_VERSION } from '../catalog/types'
 import { redactModelCatalog } from '../diagnostics/catalogRedaction'
 import { builtinVendorKeyOfKey } from '../shared/builtinVendorIdentity'
 import { projectCatalogForReport } from './feedbackCatalog'
 import { projectLogLine } from './feedbackLogTail'
+import { buildFeedbackReport } from './feedbackReport'
 
 type Row = Record<string, unknown>
 const project = (catalog: unknown, provider: string | null = null): Row | null => projectCatalogForReport(redactModelCatalog(catalog), provider)
@@ -19,6 +20,7 @@ const NEEDLES = [
   'studio-rig', 'studio rig', '192.168.50.60', '10.20.30.40', 'user:pw', 'plain-corp-secret', 'futureField',
 ]
 const STAMP = '2026-11-01T00:00:00.000Z'
+const LOCAL_SEED_KEYS = ['comfyui-local', 'local-text', 'codex-local', 'antigravity-cli', 'local-speech']
 const plantedCatalog = {
   version: CURRENT_CATALOG_VERSION,
   futureField: { vendorKey: 'gw-corp-example', note: 'gw.corp.example' },
@@ -134,13 +136,156 @@ describe('反馈包里的模型目录', () => {
     const { state } = applyBuiltinSeeds({ version: CURRENT_CATALOG_VERSION, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, STAMP)
     const everyVendorConfigured = Object.fromEntries(BUILTIN_VENDOR_SEEDS.map((seed) => [seed.key, { vendorKey: seed.key, apiKey: 'x', enabled: true, createdAt: STAMP, updatedAt: STAMP }]))
     const projected = project({ ...state, apiKeysByVendor: everyVendorConfigured })
-    expect(state.mappings.length).toBeGreaterThan(0)
-    expect((projected?.mappings as Row[]).length).toBe(state.mappings.length)
+    const localKeys = new Set(LOCAL_SEED_KEYS)
+    const cloudMappings = state.mappings.filter((mapping) => !localKeys.has(mapping.vendorKey))
+    expect(cloudMappings.length).toBeGreaterThan(0)
+    expect((projected?.mappings as Row[]).length).toBe(cloudMappings.length)
     expect(JSON.stringify(projected)).not.toContain('<custom-address>')
+    const seededMeta = (key: string, field: string): unknown => (state.models.find((model) => model.modelKey === key)?.meta as Row | undefined)?.[field]
+    const [seeded] = state.models.filter((model) => !localKeys.has(model.vendorKey) && seededMeta(model.modelKey, 'archetypeId'))
+    expect((projected?.models as { modelKey: string; meta: Row }[]).find((model) => model.modelKey === seeded.modelKey)?.meta.archetypeId).toBe(seededMeta(seeded.modelKey, 'archetypeId'))
     expect(vendorRows(projected).map((row) => row.key)).toEqual(state.vendors.map((vendor) => vendor.key))
     for (const row of vendorRows(projected)) {
       expect(row.baseUrlHint).toBe(BUILTIN_VENDOR_SEEDS.find((seed) => seed.key === row.key)?.baseUrl || null)
     }
+  })
+
+  it('模型行：表外的字段不出门，`meta` 也一样；用户和 Agent 能写的格子只说有', () => {
+    const [row] = project({
+      vendors: [{ key: 'apimart' }],
+      models: [{
+        vendorKey: 'apimart', modelKey: 'gpt-5.5', modelAlias: 'gpt-55', labelZh: 'GPT 5.5', kind: 'text', enabled: true, unlisted: true, createdAt: STAMP, updatedAt: STAMP,
+        futureField: 'planted-future-field',
+        customCall: { script: 'planted-script', updatedAt: STAMP },
+        meta: {
+          archetypeId: 'gpt', wireProfile: 'newapi', canonicalModelId: 'gpt 5.5', catalogLifecycle: 'current', supportsImageInput: true, promptRefineOnly: false,
+          note: 'planted-meta-note',
+          futureMeta: { nested: 'planted-future-meta' },
+          parameters: [{ key: 'prompt', default: 'planted-parameter-default' }],
+          customCapabilityContract: { note: 'planted-contract' },
+          customCallDraft: { createdAt: STAMP, script: 'planted-draft' },
+          comfyWorkflowImport: { text: 'planted-workflow' },
+          adapter: { state: 'declared', evidence: 'self-check', updatedAt: STAMP, runId: 'planted-run', publicationModes: ['planted-mode'] },
+          imageOptions: { supportsReferenceImages: true, imageEditProtocol: 'newapi', future: 'planted-option' },
+        },
+      }],
+    })?.models as Row[]
+    expect(row).toEqual({
+      vendorKey: 'apimart', modelKey: 'gpt-5.5', modelAlias: 'gpt-55', labelZh: 'GPT 5.5', kind: 'text', enabled: true, unlisted: true, createdAt: STAMP, updatedAt: STAMP,
+      customCall: true,
+      meta: {
+        archetypeId: 'gpt', wireProfile: 'newapi', canonicalModelId: 'gpt 5.5', catalogLifecycle: 'current', supportsImageInput: true, promptRefineOnly: false,
+        parameters: true, customCapabilityContract: true, customCallDraft: true,
+        adapter: { state: 'declared', evidence: 'self-check', updatedAt: STAMP },
+        imageOptions: { supportsReferenceImages: true, imageEditProtocol: 'newapi' },
+      },
+    })
+    expect(JSON.stringify(row)).not.toContain('planted')
+  })
+
+  describe('种子地址在本机的家：模型和映射是用户自己的，和自建一样只留个数', () => {
+    const PROMPT = 'a girl walks in the planted rain'
+    const FILE_NAME = 'planted-portrait.png'
+    const LABEL = '我的私人工作流'
+    const MODEL_KEY = 'comfy-planted-portrait-1'
+    const SECRETS = [PROMPT, FILE_NAME, LABEL, MODEL_KEY]
+    const WORKFLOW = { 3: { class_type: 'CLIPTextEncode', inputs: { text: PROMPT } }, 4: { class_type: 'LoadImage', inputs: { image: FILE_NAME } } }
+    const workflowRows = (vendorKey: string, modelKey = MODEL_KEY) => ({
+      model: {
+        vendorKey, modelKey, labelZh: LABEL, kind: 'image', enabled: true, createdAt: STAMP, updatedAt: STAMP,
+        meta: {
+          parameters: [{ key: 'prompt', label: LABEL, default: PROMPT }],
+          comfyWorkflowImport: { text: JSON.stringify(WORKFLOW), uiWorkflowText: JSON.stringify({ nodes: [{ widgets_values: [PROMPT, FILE_NAME] }] }), binding: { positivePrompt: { nodeId: '3' } } },
+        },
+      },
+      mapping: {
+        id: `map-${vendorKey}-${modelKey}`, vendorKey, modelKey, taskKind: 'text_to_image', name: LABEL, enabled: true, createdAt: STAMP, updatedAt: STAMP,
+        create: { method: 'POST', path: '/prompt', body: { prompt: WORKFLOW, extra_data: { extra_pnginfo: { workflow: { nodes: [{ widgets_values: [PROMPT, FILE_NAME] }] } } } } },
+      },
+    })
+    const first = workflowRows('comfyui-local')
+    const second = workflowRows('comfyui-local--second-rig', 'comfy-planted-portrait-2')
+    const workflowCatalog = {
+      version: CURRENT_CATALOG_VERSION,
+      vendors: [
+        { key: 'comfyui-local', name: 'ComfyUI', enabled: true, baseUrlHint: 'http://127.0.0.1:8188', authType: 'none' },
+        { key: 'comfyui-local--second-rig', name: '二号机', enabled: true, baseUrlHint: 'http://192.168.50.60:8188', authType: 'none' },
+        { key: 'apimart', name: 'APIMart', enabled: true, baseUrlHint: 'https://api.apimart.ai', authType: 'bearer' },
+      ],
+      models: [first.model, second.model, { vendorKey: 'apimart', modelKey: 'gpt-5.5', labelZh: 'GPT 5.5', kind: 'text', enabled: true }],
+      mappings: [first.mapping, second.mapping, { id: 'seed-apimart-chat', vendorKey: 'apimart', taskKind: 'chat', name: 'GPT', enabled: true, create: { method: 'POST', path: '/v1/chat/completions' } }],
+      apiKeysByVendor: { 'comfyui-local--second-rig': { vendorKey: 'comfyui-local--second-rig', apiKey: 'plain-corp-secret', enc: 'plain', enabled: true } },
+      suppressedBuiltinModels: [{ vendorKey: 'comfyui-local', modelKey: MODEL_KEY }, { vendorKey: 'apimart', modelKey: 'gpt-4' }],
+    }
+    const wholeReport = (provider: string | undefined, model: string | undefined): Promise<string> => buildFeedbackReport({
+      surface: 'generation', summary: '生成失败', provider, model,
+    }, {
+      now: new Date(STAMP),
+      app: { version: '0.24.0', electron: '43.0.0', node: '22.0.0', chrome: '130' },
+      system: { platform: 'darwin', arch: 'arm64', osRelease: '25.5.0', locale: 'zh-CN', timeZone: 'Asia/Shanghai' },
+      projectId: 'planted-project',
+      readLogTail: () => [`[${STAMP}] WARN  vendor         call vendor=comfyui-local model=${MODEL_KEY} status=500`, `[${STAMP}] WARN  vendor         call vendor=comfyui-local--second-rig model=comfy-planted-portrait-2 status=500`],
+      readModelCatalog: () => workflowCatalog,
+      readTrajectory: async () => null,
+    }).then((report) => JSON.stringify(report))
+
+    it.each([
+      ['问题就是这一家', 'comfyui-local', MODEL_KEY],
+      ['问题是这一家的第二台', 'comfyui-local--second-rig', 'comfy-planted-portrait-2'],
+      ['问题不是这一家', 'apimart', 'gpt-5.5'],
+      ['没说是哪一家', undefined, undefined],
+    ])('%s：整个包里搜不到提示词、文件名、标签和模型名', async (_name, provider, model) => {
+      const text = await wholeReport(provider, model)
+      expect(text).toContain('modelsOmitted')
+      expect(SECRETS.filter((secret) => text.includes(secret))).toEqual([])
+      expect(text).not.toContain('comfy-planted')
+    })
+
+    it('这一家的行留着和个数，模型和映射的省略数都算上', () => {
+      const projected = project(workflowCatalog, 'comfyui-local')
+      const [own, secondRow, cloud] = vendorRows(projected)
+      expect(own).toMatchObject({ key: 'comfyui-local', baseUrlHint: 'http://127.0.0.1:8188', modelCount: 1, mappingCount: 1 })
+      expect(cloud).not.toHaveProperty('modelCount')
+      expect((projected?.models as Row[]).map((row) => row.vendorKey)).toEqual(['apimart'])
+      expect((projected?.mappings as Row[])).toEqual([])
+      expect(projected?.modelsOmitted).toBe(2)
+      expect(projected?.mappingsOmitted).toBe(3)
+      expect(projected?.suppressedBuiltinModels).toEqual([{ vendorKey: 'apimart', modelKey: 'gpt-4' }])
+      expect(secondRow.key).toBe('comfyui-local--2')
+    })
+
+    it('第二台连接：名字换成序号，地址换成标记，也只留个数', () => {
+      const [, secondRow] = vendorRows(project(workflowCatalog, 'comfyui-local--second-rig'))
+      expect(secondRow).toMatchObject({ key: 'comfyui-local--2', baseUrlHint: '<custom-address>', modelCount: 1, mappingCount: 1 })
+      expect(secondRow.name).toBe(BUILTIN_VENDOR_SEEDS.find((seed) => seed.key === 'comfyui-local')?.name)
+      expect(project(workflowCatalog)?.apiKeysByVendor).toHaveProperty(['comfyui-local--2', 'enc'], 'plain')
+    })
+
+    it('判种子，不判当前地址：本机那家改成局域网地址还算；云端那家改成回环地址也不算', () => {
+      const moved = project({
+        vendors: [
+          { key: 'comfyui-local', baseUrlHint: 'http://192.168.50.60:8188' },
+          { key: 'apimart', baseUrlHint: 'http://127.0.0.1:9000' },
+        ],
+        models: [first.model, { vendorKey: 'apimart', modelKey: 'gpt-5.5', labelZh: 'GPT 5.5', kind: 'text', enabled: true }],
+        mappings: [first.mapping],
+      }, 'comfyui-local')
+      expect(vendorRows(moved)[0]).toMatchObject({ baseUrlHint: '<custom-address>', modelCount: 1, mappingCount: 1 })
+      expect((moved?.models as Row[]).map((row) => row.vendorKey)).toEqual(['apimart'])
+      expect(moved?.mappings).toEqual([])
+      expect(JSON.stringify(moved)).not.toContain(PROMPT)
+    })
+
+    it('种子表里本机的家就这几个；新加一个要来这里看一眼', () => {
+      expect(BUILTIN_VENDOR_SEEDS.filter(isLocalSeed).map((seed) => seed.key).sort()).toEqual([...LOCAL_SEED_KEYS].sort())
+    })
+
+    it.each(LOCAL_SEED_KEYS)('%s：模型和映射都不出门', (key) => {
+      const rows = workflowRows(key)
+      const projected = project({ vendors: [{ key }], models: [rows.model], mappings: [rows.mapping] }, key)
+      expect(vendorRows(projected)[0]).toMatchObject({ key, modelCount: 1, mappingCount: 1 })
+      expect(SECRETS.filter((secret) => JSON.stringify(projected).includes(secret))).toEqual([])
+    })
   })
 
   it('不是认识的形状就不带：认不出哪几行是自建，保证不了地址不出门', () => {
@@ -168,10 +313,12 @@ describe('反馈包里的模型目录', () => {
     })
   })
 
-  it('清单中英都说自建连接不带地址，也不再说带「各家的接口地址」', () => {
+  it('清单中英都说自建连接不带地址、本机连接只留个数，也不再说带「各家的接口地址」', () => {
     expect(zhFeedbackReport.manifestItem.modelCatalog).toContain('自建连接只留「是自建」，不带地址')
+    expect(zhFeedbackReport.manifestItem.modelCatalog).toContain('本机连接的模型只留个数')
     expect(zhFeedbackReport.manifestItem.modelCatalog).not.toContain('各家的接口地址')
     expect(enFeedbackReport.manifestItem.modelCatalog).toContain('Self-hosted connections show no address')
+    expect(enFeedbackReport.manifestItem.modelCatalog).toContain('local ones only model counts')
     expect(enFeedbackReport.manifestItem.modelCatalog).not.toContain('endpoint addresses')
   })
 })

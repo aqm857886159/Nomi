@@ -98,6 +98,11 @@ describe('日志投影：该留的都留着', () => {
       .toBe('WARN vendor call vendor=custom model=… status=500')
     expect(projected('WARN  vendor         call vendor=apimart--my-team model=gpt-5 status=500'))
       .toBe('WARN vendor call vendor=apimart model=gpt-5 status=500')
+    // 本机那几家：名字留着，模型名是用户自己起的，和目录同一个判据。
+    expect(projected('WARN  vendor         call vendor=comfyui-local model=comfy-my-portrait-1 status=500'))
+      .toBe('WARN vendor call vendor=comfyui-local model=… status=500')
+    expect(projected('WARN  vendor         call vendor=comfyui-local--second-rig model=comfy-my-portrait-2 status=500'))
+      .toBe('WARN vendor call vendor=comfyui-local model=… status=500')
   })
 
   it('说不上是哪家的时候老实写 unknown，不冒充 custom', () => {

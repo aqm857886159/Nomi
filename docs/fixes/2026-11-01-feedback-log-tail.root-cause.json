@@ -14,7 +14,8 @@
     "electron/feedback/feedbackCatalog.ts",
     "electron/feedback/feedbackReport.ts",
     "electron/shared/contracts/feedback.ts",
-    "src/i18n/locales/feedbackReport.ts"
+    "src/i18n/locales/feedbackReport.ts",
+    "electron/catalog/builtinVendorSeeds.ts"
   ],
   "entry_points": [
     "buildFeedbackReport from nomi:feedback:preview",
@@ -35,6 +36,7 @@
     "The tail is read by absolute path from the daily logs and never from the crash log.",
     "The manifest says logs-empty or logs-unavailable when there is no tail, and the radar counts missing tails per version.",
     "A self-hosted connection leaves the machine in model-catalog.json as one row that only says it is self-hosted, decided by the same judge as the log tail. Only hosts declared in code keep their URL; anything else, in any field, becomes a marker.",
+    "A vendor whose seed address is on this machine keeps its row and counts only: its models and mappings stay home wherever the report came from, judged by the seed and not the current address. The log tail and the report context drop its model names by the same judge. Model rows and their meta leave by field list.",
     "Keys, paths and prompts are not collected. The consent copy lists what is really sent, in the language of the interface."
   ],
   "doors": [
@@ -89,7 +91,7 @@
     {
       "path": "electron/feedback/feedbackCatalog.ts",
       "symbol": "projectCatalogForReport",
-      "responsibility": "Decides what of the model catalog may leave the machine: built-in rows by field list, self-hosted rows as a count only, unknown shapes not at all."
+      "responsibility": "Decides what of the model catalog may leave the machine: built-in rows by field list, self-hosted rows and models of vendors seeded on this machine as a count only, unknown shapes not at all."
     }
   ],
   "same_class_entry_points": [
@@ -162,7 +164,9 @@
     "firstLine and similar free text stay in the local log file; they only stop at the one-click report. The diagnostics bundle still carries them, and the user sees that file before sending it.",
     "Reports queued by an older version keep the catalog they were built with, including custom addresses; the manifest they went out with said so.",
     "Developers lose the address when debugging a self-hosted relay: the row only says it is self-hosted, with its auth type, provider kind and counts.",
-    "Crash log breadcrumbs are not attached."
+    "Crash log breadcrumbs are not attached.",
+    "A literal a user writes into a mapping template of a cloud built-in vendor, such as a default prompt, still leaves with the mappings of that vendor when it is configured or is the one that failed. Only foreign URLs in it are masked.",
+    "Developers lose the model names and workflows when debugging vendors seeded on this machine: the row only has counts."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-12-01",

@@ -110,6 +110,12 @@ describe('一键反馈组包', () => {
     expect(passthrough.context.model).toBe('gpt-5.5')
   })
 
+  it('本机那几家：家留着，模型名不带，它可能是用户自己起的', async () => {
+    const report = await buildFeedbackReport({ ...request, provider: 'comfyui-local', model: 'comfy-my-portrait-1' }, deps())
+    expect(report.context.provider).toBe('comfyui-local')
+    expect(report.context.model).toBeNull()
+  })
+
   it('取不到的东西写进 excluded 而不是静默消失', async () => {
     const report = await buildFeedbackReport({ ...request, laneName: undefined }, deps({
       readLogTail: () => null,

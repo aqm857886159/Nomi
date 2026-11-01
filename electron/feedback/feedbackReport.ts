@@ -29,7 +29,7 @@ import {
   type FeedbackSurface,
 } from '../shared/contracts/feedback'
 import { projectCatalogForReport } from './feedbackCatalog'
-import { projectLogLines } from './feedbackLogTail'
+import { isLocalVendor, projectLogLines } from './feedbackLogTail'
 
 /** 摘要那句人话的上限。它是**已经派生好的**一句话，长到这个数说明调用处传错了东西。 */
 const MAX_SUMMARY_CHARS = 300
@@ -86,7 +86,7 @@ function text(value: unknown, max: number): string {
 
 /**
  * 供应商身份只放**渲染层已经脱敏过的那一格**（`buildFeedbackDiagnostics` 的产物：
- * 策展供应商原样、ComfyUI 塌成 `comfyui-local`、用户自建塌成字面量 `custom`）。
+ * 策展供应商原样、本机多实例塌成它的固定名字、用户自建塌成字面量 `custom`）。
  * 这里再收一次形状，防的是「有人绕过那一层直接调 IPC」。
  */
 function identity(value: unknown): string | null {
@@ -222,7 +222,7 @@ export async function buildFeedbackReport(
     const catalog = deps.readModelCatalog()
     const projected = catalog === null ? null : projectCatalogForReport(redactModelCatalog(catalog), provider)
     if (projected === null) exclude(ITEMS.modelCatalog, 'catalog-unavailable')
-    else add(ITEMS.modelCatalog, projected, '模型目录（接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）')
+    else add(ITEMS.modelCatalog, projected, '模型目录（接了哪几家、官方地址和模型配置；自建连接只留「是自建」，不带地址；本机连接的模型只留个数；密钥、代理地址、自定义头全部抹掉；接口映射只留配过的厂商和这次出问题的那一家）')
   })
 
   // 永远排除的三类，逐条写清原因（D4：包里没有什么，比包里有什么更容易引起误解）。
@@ -257,7 +257,8 @@ export async function buildFeedbackReport(
       note: text(request.note, MAX_NOTE_CHARS) || null,
       contentIncluded,
       provider,
-      model: identity(request.model),
+      // 本机那几家的模型名可能是用户自己起的（`isLocalVendor`）。
+      model: provider !== null && isLocalVendor(provider) ? null : identity(request.model),
     },
     attachments,
   }

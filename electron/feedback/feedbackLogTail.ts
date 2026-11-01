@@ -8,7 +8,7 @@
 // 和轨迹投影（`telemetry/trajectoryProjection.ts`）同一个做法：新字段想出门，来这张表登记一次。
 import fs from 'node:fs'
 import path from 'node:path'
-import { builtinVendorSeed } from '../catalog/builtinVendorSeeds'
+import { builtinVendorSeed, isLocalSeed } from '../catalog/builtinVendorSeeds'
 import { diskSafeMessage } from '../logging/diskSafeFailure'
 import { CRASH_LOG_FILE_NAME, listLogFilesForBundle } from '../logging/logFiles'
 import { logWarn } from '../logging/logger'
@@ -56,7 +56,16 @@ export function builtinVendorOf(value: string): string | null {
 }
 
 /**
- * 用户自建中转的 vendor key 是从他自己的地址和连接名铸出来的，可能是一个内网域名；
+ * 种子地址就在这台机器上的内置家。判种子，不判当前地址：用户把地址改成局域网、再接一台（`--2`）都还算。
+ * 这一家的名字留着，名下的模型是用户自己接进来的（工作流、提示词、文件名都在里面，模型名也是用户起的），和自建一样不出门。
+ */
+export function isLocalVendor(value: string): boolean {
+  const seed = builtinVendorSeed(builtinVendorKeyOfKey(value))
+  return seed !== undefined && isLocalSeed(seed)
+}
+
+/**
+ * 用户自建中转的 vendor key 是从用户自己的地址和连接名铸出来的，可能是一个内网域名；
  * 这一格和反馈包的 provider 同一条规矩（`buildFeedbackDiagnostics`）：内置家原样，其余塌成 `custom`。
  */
 function projectVendor(value: string): string {
@@ -69,10 +78,10 @@ function vendorValueOf(token: string): string | null {
 }
 
 /** 这个字段出门时的值；整个字段都不该出门回 null。 */
-function projectField(key: string, value: string, builtinVendor: boolean): string | null {
+function projectField(key: string, value: string, modelNameLeaves: boolean): string | null {
   if (key === 'vendor' || key === 'vendorKey') return projectVendor(value)
-  // 自建中转的模型名可能是用户自己起的别名，跟着 vendor 一起判。
-  if (key === 'model') return builtinVendor && SAFE_VALUE.test(value) && value.length <= MAX_VALUE_CHARS ? value : DROPPED
+  // 自建中转和本机那几家的模型名可能是用户自己起的，跟着 vendor 一起判。
+  if (key === 'model') return modelNameLeaves && SAFE_VALUE.test(value) && value.length <= MAX_VALUE_CHARS ? value : DROPPED
   if (!OUTBOUND_LOG_FIELDS.has(key)) return null
   return SAFE_VALUE.test(value) && value.length <= MAX_VALUE_CHARS ? value : DROPPED
 }
@@ -116,9 +125,9 @@ function projectFrames(tokens: readonly string[]): string[] {
 
 /** 事件名之后的部分：`k=v k=v 错误类名 msg#… code=… | 栈帧`。 */
 function projectBody(tokens: readonly string[]): string[] {
-  const builtinVendor = tokens.some((token) => {
+  const modelNameLeaves = tokens.some((token) => {
     const vendor = vendorValueOf(token)
-    return vendor !== null && builtinVendorOf(vendor) !== null
+    return vendor !== null && builtinVendorOf(vendor) !== null && !isLocalVendor(vendor)
   })
   const kept: string[] = []
   const drop = (): void => {
@@ -130,7 +139,7 @@ function projectBody(tokens: readonly string[]): string[] {
     const token = tokens[cursor]
     const field = FIELD.exec(token)
     if (field && !inFreeText) {
-      const value = projectField(field[1], field[2], builtinVendor)
+      const value = projectField(field[1], field[2], modelNameLeaves)
       if (value === null) drop()
       else kept.push(`${field[1]}=${value}`)
     } else if (isErrorHead(token, tokens[cursor + 1])) {
