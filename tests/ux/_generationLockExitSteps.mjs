@@ -38,6 +38,7 @@ export async function generationLockExitJourney(input) {
     catch { /* Restart closes the previous page. */ } finally { pending = false }
   }, 1000)
   const shot = async name => {
+    await waitForVisualQuiescence(page)
     fs.mkdirSync(screenshotDir, { recursive: true })
     const file = path.join(screenshotDir, `${locale}-scene-${name}.png`)
     await page.screenshot({ path: file }); report.screenshots.push(file)
@@ -134,9 +135,10 @@ export async function generationLockExitJourney(input) {
     await canvas()
     const blank = await findCanvasBlankPoint(page); assert.ok(blank)
     await page.mouse.click(blank.x, blank.y); await page.keyboard.press('Meta+a'); await page.keyboard.press('Meta+g')
+    const groupBlank = await findCanvasBlankPoint(page); assert.ok(groupBlank); await page.mouse.click(groupBlank.x, groupBlank.y)
     await expect(page.locator('[data-frame-generate-all]').first()).toBeVisible()
     await page.locator('[data-frame-generate-all]').first().click(); await expect(page.locator(dialog)).toBeVisible()
-    const checks = page.locator(`${dialog} input[type="checkbox"]`)
+    const checks = page.locator(`${dialog} [data-v4-block="plan-rows"] input[type="checkbox"]`)
     assert.equal(await checks.count(), 5, 'All five cards from the storyboard appear in the group confirmation')
     const members = (await readProject(page, projectId)).payload.generationCanvas.groups.find(g => bound.every(n => g.nodeIds.includes(n.id))).nodeIds
     const twoShots = shotNodes.slice(0, 2).map(n => n.id)

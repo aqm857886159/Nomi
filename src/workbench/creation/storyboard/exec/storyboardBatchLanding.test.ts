@@ -357,3 +357,32 @@ it.each(['shot', 'keyframe'] as const)('E4: an actual queued %s is excluded from
     expect(calls.confirm).not.toHaveBeenCalled()
   } finally { queue.setState({ entries: [], batches: {} }) }
 })
+
+it.each(['selected-spend', 'prompt-only', 'unselected-spend', 'late-spend'] as const)('A11: second phase uses the current selected rows and only skips confirmation for unchanged spend (%s)', async change => {
+  let current = { title: 'Price', anchors: [{ id: 'actor', name: 'Actor', kind: 'character' as const, carrier: 'visual' as const, description: 'Actor' }],
+    shots: [1, 2, 3].map(index => ({ index, shotId: `price-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: 'Actor walks', params: { resolution: '1k' } })) }
+  useSpendConfirmStore.setState({ requestConfirm: async request => {
+    const third = request.planRows?.find(row => row.id === 'shot:price-3')
+    if (third) request.onPlanToggle?.(third, false)
+    return true
+  } })
+  let phaseStarted = false, phaseReads = 0
+  const guard = createStoryboardActionGuard({ plan: current, designId: 'design', shotIds: current.shots.map(s => s.shotId), readPlan: async () => {
+    if (change === 'late-spend' && phaseStarted && ++phaseReads === 2) current = { ...current, shots: current.shots.map(s => s.shotId === 'price-2' ? { ...s, params: { resolution: '4k' } } : s) }
+    return current
+  }, writePlan: next => { current = next as typeof current } })
+  calls.confirm.mockImplementationOnce(async () => {
+    const anchor = useGenerationCanvasStore.getState().nodes.find(n => n.meta?.anchorId === 'actor')!
+    useGenerationCanvasStore.getState().updateNode(anchor.id, { status: 'success', result: { id: 'asset', type: 'image', url: 'https://fixture.invalid/actor.png', createdAt: 1 } })
+    phaseStarted = true
+    if (change !== 'late-spend') current = { ...current, shots: current.shots.map(s => s.shotId === (change === 'unselected-spend' ? 'price-3' : 'price-2')
+      ? change === 'prompt-only' ? { ...s, prompt: 'Actor reads' } : { ...s, params: { resolution: '4k' } } : s) }
+    return 'started'
+  }).mockResolvedValue('declined')
+  const context = { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: current, actionGuard: guard, assertCurrent: guard.assertCurrent, assertAuthorCurrent: guard.assertAuthorCurrent }
+  expect(await runStoryboardBatch(context, runtimeRows(current.shots))).toBe('declined')
+  expect(calls.confirm.mock.calls[1][1].skipSpendConfirmation).toBe(change !== 'selected-spend' && change !== 'late-spend')
+  expect(calls.confirm.mock.calls[1][0].waves.flat()).toHaveLength(2)
+  expect(context.plan.shots[1][change === 'prompt-only' ? 'prompt' : 'params']).toEqual(change === 'prompt-only' ? 'Actor reads' : { resolution: change === 'selected-spend' || change === 'late-spend' ? '4k' : '1k' })
+  expect(useGenerationCanvasStore.getState().nodes.find(n => n.meta?.anchorId === 'actor')?.status).toBe('success')
+})

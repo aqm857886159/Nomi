@@ -42,3 +42,33 @@ it('A7: queued main or keyframe nodes stay unchanged; explicit phase refresh is 
   expect(autoReferenceFromCanvas(current, 'design', nodes(), useGenerationQueueStore.getState().entries)).toBe(current)
   await expect(guard.assertCurrent()).resolves.toBeUndefined()
 })
+
+it.each(['selected-spend', 'prompt-only', 'reverse-assets', 'unselected-spend'] as const)('A11: %s is compared after both plans receive automatic references', async change => {
+  let current = plan()
+  current.anchors.push({ id: 'b', name: 'Shop', kind: 'scene', carrier: 'visual', description: 'Shop' })
+  current.shots = current.shots.map(s => ({ ...s, prompt: 'Actor walks into Shop', anchorIds: ['a', 'b'] }))
+  const graph = nodes()
+  graph.push({ ...graph[0], id: 'shop', meta: { anchorId: 'b', storyboardDesignId: 'design' }, result: { ...graph[0].result!, id: 'shop-result', url: 'https://fixture.invalid/shop.png' } })
+  useGenerationCanvasStore.getState().restoreSnapshot({ nodes: graph, edges: [], groups: [], selectedNodeIds: [] })
+  const guard = createStoryboardActionGuard({ plan: current, designId: 'design', shotIds: ['s1', 's2'], readPlan: async () => current, writePlan: next => { current = next } })
+  if (change === 'reverse-assets') {
+    current = autoReferenceFromCanvas(current, 'design', graph.filter(n => n.id !== 'anchor'), [])
+    current = autoReferenceFromCanvas(current, 'design', graph, [])
+    expect(current.shots[0].modeId).toBe('omni')
+  } else current = { ...current, shots: current.shots.map(s => s.shotId === (change === 'unselected-spend' ? 's3' : 's2')
+    ? change === 'prompt-only' ? { ...s, prompt: 'Actor now reads in Shop' } : { ...s, modelKey: 'new-model', params: { resolution: '4k' } } : s) }
+  await guard.refreshReferences()
+  expect(guard.hasSpendChanges(['s1', 's2'])).toBe(change === 'selected-spend')
+  expect(current.shots[1].prompt).toContain(change === 'prompt-only' ? 'now reads' : 'walks')
+})
+
+it('A11: exclusion-based comparison includes new shot fields and all global fields except anchors/shots', async () => {
+  let current = plan()
+  const guard = createStoryboardActionGuard({ plan: current, designId: 'design', shotIds: ['s1'], readPlan: async () => current, writePlan: next => { current = next } })
+  current = { ...current, shots: current.shots.map(s => s.shotId === 's1' ? { ...s, futureSpendField: 2 } : s) }
+  await guard.refreshReferences()
+  expect(guard.hasSpendChanges(['s1'])).toBe(true)
+  current = { ...plan(), title: 'New global' }
+  await guard.refreshReferences()
+  expect(guard.hasSpendChanges(['s1'])).toBe(true)
+})

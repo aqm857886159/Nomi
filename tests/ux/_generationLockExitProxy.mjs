@@ -21,7 +21,7 @@ export async function createGenerationLockExitProxy({ target, imageModel, fakeDe
       try { parsed = JSON.parse(body.toString()) } catch { res.writeHead(400).end(); return }
       if (parsed.model !== imageModel || records.filter(r => r.forwarded).length >= maxImages) { res.writeHead(403).end(); return }
       const references = parsed.image ?? parsed.images ?? parsed.image_urls
-      record = { sequence: records.length + 1, model: parsed.model, prompt: redact(parsed.prompt), referenceCount: Array.isArray(references) ? references.length : references ? 1 : 0, forwarded: false, rejected: active >= limit, dropped: false }
+      record = { sequence: records.length + 1, model: parsed.model, resolution: parsed.resolution, prompt: redact(parsed.prompt), referenceCount: Array.isArray(references) ? references.length : references ? 1 : 0, forwarded: false, rejected: active >= limit, dropped: false }
       records.push(record)
       if (record.rejected) { res.writeHead(429, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'concurrency limit exceeded; too many simultaneous requests' } })); return }
       active++

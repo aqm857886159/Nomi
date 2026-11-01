@@ -9,6 +9,8 @@ import { canvasFitView, collapseAgentPanel, switchGenerationView, switchWorkspac
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { prepareLockExitStoryboard } from './_generationLockExitSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { waitForVisualQuiescence, expectAbsent, proveProbe } from './_assert.mjs'
+import { closeRailDrawer } from './_shell.mjs'
 
 /** Independent queue/refusal/recovery walk; it does not rerun the four-stage rehearsal. */
 export async function threePageLockExitJourney(input) {
@@ -18,7 +20,15 @@ export async function threePageLockExitJourney(input) {
   const dialog = '[data-spend-confirm-dialog]'
   const report = { locale, checks: {}, screenshots: [] }
   const nodes = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
-  const shot = async name => { fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
+  const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
+  const storyboard = async (designId, node) => {
+    await openStoryboardEditor(page, designId); await closeRailDrawer(page, 'docs'); await collapseAgentPanel(page)
+    if (node?.meta?.shotId) {
+      const row = await page.evaluate(({ nodeId }) => window.__nomiCanvasStore.getState().nodes.find(n => n.id === nodeId)?.meta?.shotId, { nodeId: node.id })
+      const index = report.shotIndices[row]
+      await page.locator(`[data-storyboard-row="${index}"]`).scrollIntoViewIfNeeded()
+    }
+  }
   const canvas = async id => {
     await switchWorkspace(page, 'generation')
     await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page)
@@ -39,6 +49,7 @@ export async function threePageLockExitJourney(input) {
   const submit = async () => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); if (await page.locator(dialog).isVisible()) await confirm() }
   try {
     const design = await prepareLockExitStoryboard(input)
+    report.shotIndices = Object.fromEntries(design.plan.shots.map(s => [s.shotId, s.index]))
     await openStoryboardEditor(page, design.id)
     await page.locator('[data-place-storyboard]').click()
     await expect.poll(async () => (await nodes()).filter(n => n.meta?.storyboardDesignId === design.id).length).toBe(5)
@@ -76,7 +87,7 @@ export async function threePageLockExitJourney(input) {
     await expect(modelChip).toHaveAttribute('data-lock-exit-model-clicked', 'true')
     await page.keyboard.press('Escape')
     report.checks.listModelChip = true
-    await openStoryboardEditor(page, design.id); await shot('429-storyboard')
+    await storyboard(design.id, failed); await shot('429-storyboard')
     const failedAsset = (await nodes()).find(n => n.status === 'error' && n.meta?.anchorId)
     assert.ok(failedAsset, 'E2 includes an asset refusal as well as a shot refusal')
     if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
@@ -96,7 +107,7 @@ export async function threePageLockExitJourney(input) {
     await shot('unknown-canvas-light')
     await list(failed.id); await shot('unknown-list-detail-light')
     await expect(page.locator('[data-list-detail-preview] [role="alert"]')).toBeVisible()
-    await openStoryboardEditor(page, design.id); await shot('unknown-storyboard-shot')
+    await storyboard(design.id, failed); await shot('unknown-storyboard-shot')
     await expect(page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true })).toBeVisible()
     report.checks.refusedClickAndSameExit = true
 
@@ -167,6 +178,11 @@ export async function threePageLockExitJourney(input) {
     }
     await expect(page.locator('[data-production-task-card]')).toBeVisible()
     await shot('task-center-unknown')
+    const taskCardProbe = await proveProbe(page.locator('[data-production-task-card]'), 'The host-owned unknown Run still exposes its checked-release action')
+    const unknownRows = page.locator(`[data-task-node-id="${canvasNode.id}"]`)
+    assert.ok(await unknownRows.count())
+    await expectAbsent(unknownRows.locator('[data-task-action="retry_generation"]'), { provenBy: taskCardProbe })
+    report.checks.taskCenterNoDeadRetry = true
     await page.locator('[data-production-task-card] [data-production-primary-action]').click()
     await expect(page.getByRole('button', { name: t('generationCommon.production.reconcile.releaseContinue'), exact: true })).toBeVisible()
     await shot('task-center-release-confirm')

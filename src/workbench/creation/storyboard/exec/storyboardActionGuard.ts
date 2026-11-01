@@ -19,6 +19,7 @@ export function createStoryboardActionGuard(input: {
   writePlan: (plan: StoryboardPlan) => void
 }) {
   let baseline = structuredClone(input.plan)
+  let phaseBaseline = baseline
   const scope = new Set(input.shotIds)
   const approvalContent = (plan: StoryboardPlan, targets: ReadonlySet<string>) => {
     const { shots, ...global } = plan
@@ -29,7 +30,17 @@ export function createStoryboardActionGuard(input: {
     if (!plan) throw new Error('storyboard_content_conflict')
     return plan
   }
+  const spendContent = (plan: StoryboardPlan, targets: ReadonlySet<string>) => {
+    const normalized = autoReferenceFromCanvas(plan, input.designId, useGenerationCanvasStore.getState().nodes, useGenerationQueueStore.getState().entries)
+    const { shots, anchors: _anchors, ...global } = normalized
+    return stableProjectAgentJson({ ...global, shots: shots.filter(shot => targets.has(stableShotId(shot)))
+      .map(({ prompt: _prompt, referenceBindings: _bindings, autoReferenced: _auto, ...spend }) => spend) })
+  }
   return {
+    hasSpendChanges(shotIds: readonly string[]) {
+      const targets = new Set(shotIds)
+      return spendContent(baseline, targets) !== spendContent(phaseBaseline, targets)
+    },
     async assertCurrent(targetIds?: readonly string[]) {
       const targets = targetIds ? new Set(targetIds) : scope
       if (approvalContent(await currentPlan(), targets) !== approvalContent(baseline, targets)) throw new Error('storyboard_content_conflict')
@@ -49,6 +60,8 @@ export function createStoryboardActionGuard(input: {
       const next = autoReferenceFromCanvas(current, input.designId, useGenerationCanvasStore.getState().nodes, useGenerationQueueStore.getState().entries)
       if (next !== current) input.writePlan(next)
       // Re-read the canonical plan after the write; the editor effect can have committed first.
+      // Compare the exact adopted phase snapshot, including edits made before the final read.
+      phaseBaseline = baseline
       baseline = structuredClone(await currentPlan())
       return baseline
     },

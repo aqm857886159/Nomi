@@ -1,4 +1,5 @@
 import { isGenerationNodeBusy } from '../../../generationCanvas/components/canvasProductionScope'
+import { groupGenerateRows } from '../../../generationCanvas/components/groupGenerate'
 import { preloadModelOptions } from '../../../../config/useModelOptions'
 import type { StoryboardActionGuard } from './storyboardActionGuard'
 import { autoReferenceFromCanvas } from './storyboardAutoReference'
@@ -541,6 +542,7 @@ export async function runStoryboardBatch(
   if (!landing?.placementOnly) ctx.plan = ctx.actionGuard
     ? await ctx.actionGuard.refreshReferences()
     : autoReferenceFromCanvas(ctx.plan, ctx.designId, canvasState().nodes, useGenerationQueueStore.getState().entries)
+  const spendChanged = !landing?.placementOnly && await ctx.actionGuard?.hasSpendChanges(confirmed.rows.map(row => stableShotId(row.shot)))
   const [imageModelOptions, videoModelOptions] = await Promise.all([preloadModelOptions('image', 'any-published'), preloadModelOptions('video', 'any-published')])
   const selectedIds = new Set(confirmed.rows.map(row => stableShotId(row.shot)))
   const currentRows = deriveStoryboardRowRuntimes({ plan: ctx.plan, designId: ctx.designId, nodes: canvasState().nodes, imageModelOptions, videoModelOptions })
@@ -568,5 +570,6 @@ export async function runStoryboardBatch(
   const { nodes, edges } = canvasState()
   await ctx.assertCurrent?.()
   // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
-  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), skipSpendConfirmation: !landing?.placementOnly, ...(onConsented ? { onConsented } : {}) })
+  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), skipSpendConfirmation: !spendChanged,
+    ...(spendChanged ? { itemized: { rows: groupGenerateRows(runIds) } } : {}), ...(onConsented ? { onConsented } : {}) })
 }
