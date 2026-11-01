@@ -10,6 +10,11 @@ import { useGenerationQueueStore } from '../../../generationCanvas/runner/genera
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import { autoReferenceFromCanvas } from './storyboardAutoReference'
 
+/** Compare the same JSON shape that project persistence retains, including Agent optional fields. */
+function storyboardComparableContent(value: unknown): string {
+  return stableProjectAgentJson(JSON.parse(JSON.stringify(value)))
+}
+
 /** Approval owns its selected shots; execution owns only the row bound to that node. */
 export function createStoryboardActionGuard(input: {
   plan: StoryboardPlan
@@ -23,7 +28,7 @@ export function createStoryboardActionGuard(input: {
   const scope = new Set(input.shotIds)
   const approvalContent = (plan: StoryboardPlan, targets: ReadonlySet<string>) => {
     const { shots, ...global } = plan
-    return stableProjectAgentJson({ ...global, shots: shots.filter(shot => targets.has(stableShotId(shot))) })
+    return storyboardComparableContent({ ...global, shots: shots.filter(shot => targets.has(stableShotId(shot))) })
   }
   const currentPlan = async () => {
     const plan = await input.readPlan()
@@ -33,7 +38,7 @@ export function createStoryboardActionGuard(input: {
   const spendContent = (plan: StoryboardPlan, targets: ReadonlySet<string>) => {
     const normalized = autoReferenceFromCanvas(plan, input.designId, useGenerationCanvasStore.getState().nodes, useGenerationQueueStore.getState().entries)
     const { shots, anchors: _anchors, ...global } = normalized
-    return stableProjectAgentJson({ ...global, shots: shots.filter(shot => targets.has(stableShotId(shot)))
+    return storyboardComparableContent({ ...global, shots: shots.filter(shot => targets.has(stableShotId(shot)))
       .map(({ prompt: _prompt, referenceBindings: _bindings, autoReferenced: _auto, ...spend }) => spend) })
   }
   return {
@@ -53,7 +58,7 @@ export function createStoryboardActionGuard(input: {
       if (!shot && !anchor) return
       const current = await currentPlan()
       const row = shot ? current.shots.find(value => stableShotId(value) === stableShotId(shot)) : current.anchors.find(value => value.id === anchor!.id)
-      if (stableProjectAgentJson(row ?? null) !== stableProjectAgentJson(shot ?? anchor)) throw new Error('storyboard_content_conflict')
+      if (storyboardComparableContent(row ?? null) !== storyboardComparableContent(shot ?? anchor)) throw new Error('storyboard_content_conflict')
     },
     async refreshReferences() {
       const current = await currentPlan()

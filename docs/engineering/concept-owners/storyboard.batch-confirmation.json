@@ -38,10 +38,18 @@
     {
       "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
       "symbol": "captureApprovedGenerationInputs"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "storyboardBatchShotUnclaimed"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "storyboardComparableContent"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-07",
-  "notes": "合同 docs/fixes/2026-10-07-storyboard-batch-confirmation.root-cause.json：所有分镜创建入口把画布写入推迟到共享确认执行器；confirmStoryboardBatch 出清单并只回传勾选行，runStoryboardBatch 确认后才物化并先发参考波，confirmAndRunPlan 保留每一付费波的花费确认，confirmAndRunNode 是新分镜节点确认到物化的唯一缝。 合同 docs/fixes/2026-11-02-generation-lock-exit.root-cause.json：批准之后作者和输入保护只比当前执行的节点，资产阶段改了已选镜的花钱口径就重新走这张确认卡。"
+  "notes": "合同 docs/fixes/2026-10-07-storyboard-batch-confirmation.root-cause.json：所有分镜创建入口把画布写入推迟到共享确认执行器；confirmStoryboardBatch 出清单并只回传勾选行，runStoryboardBatch 确认后才物化并先发参考波，confirmAndRunPlan 保留每一付费波的花费确认，confirmAndRunNode 是新分镜节点确认到物化的唯一缝。 合同 docs/fixes/2026-11-02-generation-lock-exit.root-cause.json：批准之后作者和输入保护只比当前执行的节点，资产阶段改了已选镜的花钱口径就重新走这张确认卡。 第二轮：storyboardBatchShotUnclaimed统一核确认到入队的整镜归属；storyboardComparableContent统一JSON落盘形状比较，覆盖Agent改稿和读盘往返。"
 }

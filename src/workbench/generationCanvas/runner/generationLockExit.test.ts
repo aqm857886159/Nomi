@@ -151,3 +151,30 @@ it('B2: retrying a failed card while its batch is paused does not resubmit it wh
     await running
   }
 })
+
+import { generationFailureActions } from '../../observability/generationFailureActions'
+it.each(['success', 'error', 'unknown'] as const)('in-flight refusal: the original late %s outcome clears or replaces the refusal card', async ending => {
+  await session.open('project-a')
+  const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'Original task' })
+  let settle!: () => void
+  const pending = new Promise<void>(resolve => { settle = resolve })
+  calls.execute.mockImplementationOnce(async () => {
+    await pending
+    if (ending === 'error') throw new Error('429 concurrency limit exceeded')
+    if (ending === 'unknown') throw new Error('NOMI_ERR::submission-unknown::The provider did not confirm this submission')
+    return imageResult(node.id)
+  }).mockRejectedValueOnce(new Error(encodeStructuredErrorMessage({ code: 'node_generation_in_flight' }, 'node_generation_in_flight')))
+  const original = confirmAndRunNode(node.id, { initiator: 'user' })
+  await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledOnce())
+  await confirmAndRunNode(node.id, { initiator: 'user' })
+  let current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
+  expect(generationFailureActions(current.error!, current.runs?.[0])).toMatchObject({ kind: 'local-refusal', primary: 'view-task', canRetry: false })
+  settle(); await original
+  current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
+  if (ending === 'success') expect(current).toMatchObject({ status: 'success', error: undefined, result: imageResult(node.id) })
+  else {
+    const actions = generationFailureActions(current.error!, current.runs?.[0])
+    expect(actions.kind).toBe(ending === 'unknown' ? 'submission-unknown' : 'quota')
+    expect(ending === 'unknown' ? actions.secondary : actions.primary).toBe(ending === 'unknown' ? 'release-regenerate' : 'retry')
+  }
+})

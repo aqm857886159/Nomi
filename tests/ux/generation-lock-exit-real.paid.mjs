@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Coordinator-only paid entry. Rehearse first; the forwarding proxy enforces a thirteen-image ceiling, reserving one of fourteen for the coordinator price probe.
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
 import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
@@ -15,6 +16,9 @@ assert.ok(receiptPath, 'Provide the green four-stage rehearsal receipt before ru
 const rehearsal = JSON.parse(fs.readFileSync(receiptPath, 'utf8'))
 assert.equal(rehearsal.status, 'passed', 'The free rehearsal must pass first')
 assert.deepEqual(rehearsal.report?.stages, ['storyboard', 'canvas', 'list', 'restart'], 'All four real-scenario stages must be rehearsed')
+assert.match(rehearsal.commit ?? '', /^[a-f0-9]{40}$/, 'The rehearsal must identify its exact commit')
+execFileSync('git', ['diff', '--quiet', rehearsal.commit, 'HEAD', '--', 'src', 'electron'])
+execFileSync('git', ['diff', '--quiet', 'HEAD', '--', 'src', 'electron'])
 const model = { vendorKey: ENV_KEY_VENDOR, modelKey: 'gpt-image-2' }
 let launchEnv
 const paid = await openPaidWalk('generation-lock-exit-real.paid.mjs', 'generation-lock-exit-real', [DEFAULT_PAID_BRAIN, model], {

@@ -475,6 +475,20 @@ async function materializeAnchorCard(ctx: RowActionContext, anchor: PlanAnchor):
   return clientIdToNodeId[anchor.id] ?? null
 }
 
+type StoryboardShotRuns = readonly ({ id: string; runId: string | undefined } | null)[]
+
+/** Confirmation owns existing runs only; another action taking either node owns the whole shot. */
+function storyboardBatchShotUnclaimed(ctx: RowActionContext, shot: PlanShot, approved: StoryboardShotRuns | undefined): boolean {
+  if (!approved) return false
+  const bound = existingRowBindings(ctx, shot)
+  return [bound.shotNode, bound.keyframeNode].every((node, index) => {
+    const before = approved[index]
+    if (!node) return !before
+    if (isGenerationNodeBusy(node) || isAnchorFrozen(node) || node.status === 'recoverable') return false
+    return before ? node.id === before.id && node.runs?.[0]?.id === before.runId : !node.runs?.length
+  })
+}
+
 /**
  * 「生成未生成的 N 镜」：把就绪行（含失败重试）一次 materialize，再交给既有批量通路
  * confirmAndRunPlan（一次花钱确认 + 依赖波次「首帧先、镜头后」+ 失败汇总/重试）。
@@ -500,7 +514,7 @@ export async function runStoryboardBatch(
     // 落地事务换一个手势，但**来源照旧**：谁发起的这一批不因为包了一层事务就变成「用户」（付费确认按它判）。
     const source = ctx.gesture ? ctx.gesture.source : ctx.initiator === 'agent' ? 'agent' as const : 'user' as const
     const { documentId, designId, plan, assertCurrent, assertAuthorCurrent, actionGuard } = ctx
-    const gesture = { source, txnId: `shot-table-batch-${crypto.randomUUID()}`, suppressUndoBarriers: true, canWrite: () => getUndoJournalGeneration() === generation && (canWrite?.() ?? true) }
+    const gesture = { source, txnId: `storyboard-batch-shot-ownership-v2-${crypto.randomUUID()}`, suppressUndoBarriers: true, canWrite: () => getUndoJournalGeneration() === generation && (canWrite?.() ?? true) }
     ctx = assertCurrent
       ? { documentId, designId, plan, assertCurrent, assertAuthorCurrent, actionGuard, gesture }
       : { documentId, designId, plan, gesture }
@@ -519,6 +533,10 @@ export async function runStoryboardBatch(
     ? { rows: [...rows], anchors: [] as PlanAnchor[] }
     : await confirmStoryboardBatch(ctx, rows)
   if (!confirmed || (!landing?.placementOnly && confirmed.rows.length === 0 && confirmed.anchors.length === 0)) return 'declined'
+  const confirmedShotRuns = new Map(confirmed.rows.map(row => {
+    const bound = existingRowBindings(ctx, row.shot)
+    return [stableShotId(row.shot), [bound.shotNode, bound.keyframeNode].map(node => node ? { id: node.id, runId: node.runs?.[0]?.id } : null)] as const
+  }))
 
   // Reference cards are a separate wave. A failed card stops here; shot nodes are not even materialized,
   // so a missing reference can never be silently dispatched as a shot without it.
@@ -567,9 +585,12 @@ export async function runStoryboardBatch(
   if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard confirmation')
   // 只摆位不生成：一张卡都没弹过。
   if (landing?.placementOnly) return 'nothing-to-run'
-  const { nodes, edges } = canvasState()
   await ctx.assertCurrent?.()
+  const { nodes, edges } = canvasState()
+  const unclaimedIds = new Set(currentRows.filter(row => storyboardBatchShotUnclaimed(ctx, row.shot, confirmedShotRuns.get(stableShotId(row.shot))))
+    .flatMap(row => { const bound = existingRowBindings(ctx, row.shot); return [bound.shotNode?.id, bound.keyframeNode?.id] }))
+  const remainingRunIds = runIds.filter(id => unclaimedIds.has(id))
   // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
-  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), skipSpendConfirmation: !spendChanged,
-    ...(spendChanged ? { itemized: { rows: groupGenerateRows(runIds) } } : {}), ...(onConsented ? { onConsented } : {}) })
+  return confirmAndRunPlan(buildDependencyWaves(remainingRunIds, { nodes, edges }), { ...confirmationGuards(ctx), skipSpendConfirmation: !spendChanged,
+    ...(spendChanged ? { itemized: { rows: groupGenerateRows(remainingRunIds) } } : {}), ...(onConsented ? { onConsented } : {}) })
 }

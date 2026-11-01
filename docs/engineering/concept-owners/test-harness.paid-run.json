@@ -22,6 +22,10 @@
     {
       "path": "tests/ux/_paidRun.mjs",
       "symbol": "spendReceipt"
+    },
+    {
+      "path": "tests/ux/_generationLockExitRehearsal.mjs",
+      "symbol": "runLockExitRehearsal"
     }
   ],
   "forbidden_derivations": [],
@@ -36,5 +40,5 @@
     "scripts/batch-generate-walkthrough.mjs"
   ],
   "since": "2026-09-26",
-  "notes": "真花钱的脚本开头只走 assertPaidRunAllowed：CI 拒跑、没有 NOMI_SPEND_OK=1 拒跑、用户 Nomi 开着拒跑；原库指纹跑前跑后比对。收据 spendReceipt 只记事实（供应商任务号、供应商回的 cost 字段、Agent token 用量），不折算金额——公开仓库不写价目。core-a 原来的 NOMI_CORE_A_LIVE 已删；APIMART_E2E 等开关在未迁的旧 e2e 里仍在，迁一个删一个。"
+  "notes": "真花钱的脚本开头只走 assertPaidRunAllowed：CI 拒跑、没有 NOMI_SPEND_OK=1 拒跑、用户 Nomi 开着拒跑；原库指纹跑前跑后比对。收据 spendReceipt 只记事实（供应商任务号、供应商回的 cost 字段、Agent token 用量），不折算金额——公开仓库不写价目。core-a 原来的 NOMI_CORE_A_LIVE 已删；APIMART_E2E 等开关在未迁的旧 e2e 里仍在，迁一个删一个。 生成恢复演练收据记录当时提交号并拒绝未提交的产品源码；对应付费入口比对收据提交与HEAD的src/electron，旧源码收据不具备开跑资格。"
 }

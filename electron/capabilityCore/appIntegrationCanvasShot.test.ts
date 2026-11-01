@@ -606,3 +606,16 @@ it('C7: v0.24.0 persisted unknown Run is found, survives a refused click, releas
   await expect(fx.submit(manifest.nodeId, 'upgrade-new-intent')).resolves.toMatchObject({ status: 'succeeded' })
   expect(fx.vendor.executes).toHaveLength(1)
 })
+
+it('in-flight refusal then restart: the accepted original task is handed to observation and can finish without another POST', async () => {
+  const h = setup()
+  h.vendor.answer = queued('accepted-before-restart')
+  await h.submit('node-a', 'original-before-restart')
+  await expect(h.submit('node-a', 'refused-before-restart')).rejects.toMatchObject({ code: 'node_generation_in_flight' })
+  const restarted = setup({ root: h.root })
+  restarted.runs.recoverOrphans(PROJECT)
+  expect(restarted.observed).toEqual([[PROJECT, canvasRunIdFor('original-before-restart')]])
+  await expect(restarted.runs.poll({ projectId: PROJECT, runRecordId: 'original-before-restart', senderId: 7 })).resolves.toMatchObject({ status: 'succeeded' })
+  expect(runOf(restarted.repository, 'original-before-restart')?.status).toBe('completed')
+  expect(h.vendor.executes.length + restarted.vendor.executes.length).toBe(1)
+})

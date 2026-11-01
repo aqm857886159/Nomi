@@ -72,3 +72,36 @@ it('A11: exclusion-based comparison includes new shot fields and all global fiel
   await guard.refreshReferences()
   expect(guard.hasSpendChanges(['s1'])).toBe(true)
 })
+
+it('B7: JSON-equivalent Agent memory and persisted plans compare equally; real author and spend edits still refuse', async () => {
+  let current = plan()
+  current.shots[0] = { ...current.shots[0], promptSegments: undefined, params: { omitted: undefined, resolution: '1k' } } as typeof current.shots[0]
+  const guard = createStoryboardActionGuard({ plan: current, designId: 'design', shotIds: ['s1'], readPlan: async () => current, writePlan: next => { current = next } })
+  await expect(guard.assertCurrent()).resolves.toBeUndefined()
+  await expect(guard.assertAuthorCurrent({ nodes: nodes(), edges: [] }, 'n1')).resolves.toBeUndefined()
+  current = JSON.parse(JSON.stringify(current))
+  await expect(guard.assertCurrent()).resolves.toBeUndefined()
+  await expect(guard.assertAuthorCurrent({ nodes: nodes(), edges: [] }, 'n1')).resolves.toBeUndefined()
+  await guard.refreshReferences()
+  expect(guard.hasSpendChanges(['s1'])).toBe(false)
+  current = { ...current, shots: current.shots.map(s => s.shotId === 's1' ? { ...s, prompt: 'Really edited' } : s) }
+  await expect(guard.assertAuthorCurrent({ nodes: nodes(), edges: [] }, 'n1')).rejects.toThrow('storyboard_content_conflict')
+  await expect(guard.assertCurrent()).rejects.toThrow('storyboard_content_conflict')
+  await guard.refreshReferences()
+  expect(guard.hasSpendChanges(['s1'])).toBe(false)
+  current = { ...current, shots: current.shots.map(s => s.shotId === 's1' ? { ...s, params: { resolution: '4k', omitted: undefined } } : s) }
+  await guard.refreshReferences()
+  expect(guard.hasSpendChanges(['s1'])).toBe(true)
+})
+
+it('B7: anchor/global optional fields and reordered JSON keys survive a disk roundtrip; null is a real edit', async () => {
+  const initial = { ...plan(), futureGlobal: undefined }
+  initial.anchors[0] = { ...initial.anchors[0], optional: undefined } as typeof initial.anchors[0]
+  let current = JSON.parse(JSON.stringify(initial)) as StoryboardPlan
+  const guard = createStoryboardActionGuard({ plan: initial, designId: 'design', shotIds: ['s1'], readPlan: async () => current, writePlan: next => { current = next } })
+  await expect(guard.assertCurrent()).resolves.toBeUndefined()
+  await expect(guard.assertAuthorCurrent({ nodes: nodes(), edges: [] }, 'anchor')).resolves.toBeUndefined()
+  current = { ...current, anchors: current.anchors.map(a => ({ ...a, optional: null })) }
+  await expect(guard.assertCurrent()).rejects.toThrow('storyboard_content_conflict')
+  await expect(guard.assertAuthorCurrent({ nodes: nodes(), edges: [] }, 'anchor')).rejects.toThrow('storyboard_content_conflict')
+})
