@@ -315,3 +315,18 @@ PR 判据把抽取复用的两个 tsx 文件当作新增界面，拒绝 pure-bug
 动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
 提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
 ```
+
+## 第2轮：验收阻断与金路径回归（协调明确授权补，共最多3轮）
+
+确认卡到入队之间缺少逐镜归属快照，单发已接管的镜仍被第二阶段重复发送；方案比较把JSON持久化形状和含undefined的内存形状混用，导致Agent改稿后抛invalid_json_snapshot。补在runStoryboardBatch最后派发前和guard唯一JSON归一口；不换运行器、不锁表、不改确认政策、请求或Run状态机。现有队列取消只覆盖已入队，不能替代确认缝归属。两者是分镜花钱/作者所有权领域约束，沿用现有JSON、节点运行记录与确认执行器，无依赖变化。
+
+系统漏拦：上一轮走查用直接准备的方案后生成，Agent用例只测交接，未串起Agent改稿→用户生成；排队单发只测入队后，没有资产阶段这一段。新增B6入口×结局矩阵与B7内存/读盘往返，并真跑既有金路径。
+
+```text
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · src/workbench/creation/storyboard/exec/storyboardActionGuard.ts：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · src/workbench/creation/storyboard/exec/storyboardRowActions.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · 概念「分镜批量生成的确认缝（确认前不落画布、取消零节点零波次）」：含 5 个文件，近 14 天已有 6 个 fix，这一刀是第 7 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
+```
