@@ -144,6 +144,8 @@ export async function generationLockExitJourney(input) {
     assert.equal(await checks.count(), 5, 'All five cards from the storyboard appear in the group confirmation')
     assert.deepEqual(shotNodes.slice(0, 2).map(node => node.meta.shotId), design.plan.shots.slice(0, 2).map(shot => shot.shotId))
     const selectTwoShots = async () => {
+      await expect(page.locator(dialog)).toBeVisible()
+      await expect(checks.first()).toBeVisible()
       const labels = await checks.evaluateAll(inputs => inputs.map(input => input.getAttribute('aria-label')))
       report.batchSelectionLabels = labels
       const firstShot = labels.length - design.plan.shots.length

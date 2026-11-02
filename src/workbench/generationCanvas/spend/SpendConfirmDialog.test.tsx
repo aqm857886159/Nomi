@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import React from 'react'
 import { MantineProvider } from '@mantine/core'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -11,7 +12,7 @@ it('G1: the real spend shell preserves the two risk lines and explicit decision 
  server.pending=useSpendConfirmStore.getState().pending
  try {
   const html=renderToStaticMarkup(<MantineProvider><SpendConfirmDialog /></MantineProvider>)
-  expect(html).toContain('whitespace-pre-line');expect(html).toContain('上一次没等到结果，可能已经扣费。\n再发一次可能会再扣一次钱。')
+  expect(html).toContain('whitespace-pre-line');expect(html).toContain(i18n.t('generationCommon.spend.resend.unknown'))
   expect(html).toContain('data-spend-confirm-action="cancel"');expect(html).toContain('data-spend-confirm-action="confirm"')
  } finally { server.pending=saved;useSpendConfirmStore.getState().resolvePending(false);await decision }
 })

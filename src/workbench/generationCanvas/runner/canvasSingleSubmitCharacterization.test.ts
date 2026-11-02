@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 // 特征测试：画布单节点 ↑ 的用户可见行为（发动机收敛第一刀 第 1–2 步动手前钉住，收敛后断言不变）。
 // 设计卡：docs/plan/2026-10-05-engine-convergence-cut1-step12-design-card.md §7。
 //
@@ -196,7 +197,7 @@ describe('画布单节点 ↑ —— 用户看得见的样子', () => {
     await confirmAndRunNode(id, { initiator: 'user' })
     expect(nodeOf(id).runs).toEqual(beforeRuns)
     expect(calls.runTask).not.toHaveBeenCalled()
-    expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: '再发一次', kind: 'generation' }))
+    expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: i18n.t('generationCommon.observability.action.releaseRegenerate.main'), kind: 'generation' }))
     expect(classifyGenerationError(nodeOf(id).runs?.[0]?.error ?? '').primary).toBe('release-regenerate')
   })
 

@@ -1,9 +1,9 @@
 // 生成确认卡上「将生成几段 / 几张」的文案：每个会弹卡的入口都说对数量与类型，不编时长。
 // （「×N 一次生成几个」入口 2026-10-06 按用户拍板删除，原来这里的连发语义测试随之删掉。）
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { confirmAndRunNode, regenerateNodeInPlace, spendCostKindForNodes } from './generationRunController'
+import { confirmAndRunNode, regenerateNodeInPlace } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { describeGenerationCost, useSpendConfirmStore } from '../spend/spendConfirm'
+import { describeGenerationCost, useSpendConfirmStore, spendCostKindForNodes } from '../spend/spendConfirm'
 import i18n from '../../../i18n'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'

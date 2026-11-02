@@ -1,3 +1,4 @@
+import { reconcileNodeModeWithConnectedReferences } from '../store/canvasAutoReference'
 import { productionMetaOf } from '../model/productionMeta'
 import { productionRunApi } from '../../production/productionRunApi'
 import { reportCanvasFeedback } from '../components/canvasFeedback'
@@ -15,7 +16,7 @@ import { isNodeGenerationOwnedByProduction } from '../../production/productionSh
 import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from '../nodes/director/model/directorPreviewState'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { canvasOpenRuns, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
-import { confirmGenerationResend, confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
+import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { classifyGenerationError, isOpenGenerationRefusal } from '../../observability/classifyError'
@@ -40,9 +41,7 @@ import {
 export { classifyGenerationError, type GenerationErrorReport } from '../../observability/classifyError'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { stampUpstreamRefSnapshot } from './refSnapshotStamp'
-import { archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import {
-  applyArchetypeModeSwitch,
   currentArchetypeMode,
   hasAnyArchetypeReference,
 } from '../nodes/controls/archetypeMeta'
@@ -50,9 +49,7 @@ import {
   nodeUnmetReferenceDependency,
   type UnmetReferenceDependency,
 } from '../nodes/controls/referenceDependency'
-import { dispatchedAttempt, resolveTaskArchetype, selectedVendor } from './catalogTaskResolve'
-import { isComfyuiVendorKey } from '../model/comfyuiVendor'
-import type { GenerationNodeKind } from '../model/generationCanvasTypes'
+import { dispatchedAttempt, resolveTaskArchetype } from './catalogTaskResolve'
 import i18n from '../../../i18n'
 import {
   AssetUploadConsentCancelledError,
@@ -66,26 +63,6 @@ import type { MediaDimensions } from '../nodes/nodeSizing'
 
 function countsTowardGenerationBrake(kind: ReturnType<typeof classifyGenerationError>['kind']): boolean {
   return kind !== 'quota' && kind !== 'local-refusal'
-}
-
-/** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
-export function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
-  const exec = getGenerationNodeExecutionKind(kind)
-  // model3d 同为一等产物口径——落回 'image' 会让花钱确认卡把 3D 生成说成「1 张画面」（同族 kind 边界漏 3D）。
-  return exec === 'text' || exec === 'video' || exec === 'audio' || exec === 'model3d' ? exec : 'image'
-}
-
-/** 一批节点的产物口径：全同则取该类，混合则 'mixed'，喂给 describeGenerationCost 报对名词。 */
-export function spendCostKindForNodes(ids: string[]): GenerationCostKind {
-  const nodes = useGenerationCanvasStore.getState().nodes
-  const kinds = new Set(
-    ids
-      .map((id) => nodes.find((n) => n.id === id))
-      .filter((n): n is GenerationCanvasNode => Boolean(n))
-      .map((n) => spendCostKind(n.kind)),
-  )
-  if (kinds.size === 1) return [...kinds][0]
-  return kinds.size === 0 ? 'image' : 'mixed'
 }
 
 /**
@@ -164,26 +141,6 @@ async function resolveHostingDisclosure(node: GenerationCanvasNode | undefined) 
 type GenerationRunContext = {
   nodes?: GenerationCanvasNode[]
   edges?: GenerationCanvasEdge[]
-}
-
-/**
- * 提交前对账「生成方式 × 活边参考」（2026-07-28 群反馈根治）：当前模式一条参考边都收不下、档案里
- * 有能收的模式 → 切过去（与建边 autoPromoteTargetModeForEdge 同一套语义，ModeBar 同步翻转）。
- * 建边时的 auto-promote 只覆盖「建边那一刻」，换模型（archetype 失配落回默认 t2i）、存量边都够不到；
- * 停在 t2i 的节点会在投影层（buildArchetypeInputParams 空槽互斥）把挂着的参考静默丢掉、付费发出
- * 纯文生（「男的角色图生成出女的」根因）。挂在唯一提交咽喉 runGenerationNode 入口，整类不再复发。幂等。
- */
-export function reconcileNodeModeWithConnectedReferences(nodeId: string): void {
-  const state = useGenerationCanvasStore.getState()
-  const node = state.nodes.find((candidate) => candidate.id === nodeId)
-  if (!node) return
-  const nextModeId = resolveModeForConnectedReferences(node, state.nodes, state.edges)
-  if (!nextModeId) return
-  const archetype = archetypeForNode(node)
-  if (!archetype) return
-  state.updateNode(nodeId, {
-    meta: applyArchetypeModeSwitch((node.meta || {}) as Record<string, unknown>, archetype, nextModeId),
-  })
 }
 
 // options 没有默认值：`= {}` 正是让调用点能省略托管同意的那个逃生口（F16b 根因）。
@@ -512,18 +469,6 @@ export async function runGenerationNodesBatch(
   await Promise.all(workers)
   return { totalCount: queue.length, successes, failures, skipped }
 }
-
-/**
- * 这个节点生成一次花不花钱、走哪条口（发动机收敛第一刀）：要花钱的走单镜 Run（批准、派发、记账都在制作流程那一个口子）；
- * 文本节点与本地 ComfyUI 不进 Run（登记的例外，到期：第二刀传输合一），也不要任何授权——本地 ComfyUI 不花钱，
- * 文本走它自己的流式口。
- */
-export function paidNodeLedger(node: GenerationCanvasNode | undefined): 'run' | undefined {
-  if (!node || getGenerationNodeExecutionKind(node.kind) === 'text') return undefined
-  return isComfyuiVendorKey(selectedVendor(node)) ? undefined : 'run'
-}
-
-
 
 /**
  * 单节点生成/重试/生成变体的轻确认 + 跑。要花钱的走单镜 Run（这一下点击就是批准，主进程记账）；文本 / 本地 ComfyUI 不进 Run、不要授权。

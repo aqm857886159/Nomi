@@ -1,3 +1,6 @@
+import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generationCanvasTypes'
+import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { declareStoreLifetime } from '../../project/storeLifetime'
 import { DEFAULT_CANVAS_BATCH_CONCURRENCY } from '../components/canvasProductionScope'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
@@ -46,6 +49,38 @@ export function generationCostContextForNodes(
     ? { concurrency: DEFAULT_CANVAS_BATCH_CONCURRENCY, vendorKey: [...vendorKeys][0], modelKey: [...modelKeys][0], projectId: contexts.find((context) => context.projectId)?.projectId }
     : { concurrency: DEFAULT_CANVAS_BATCH_CONCURRENCY }
 }
+
+/** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
+export function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
+  const exec = getGenerationNodeExecutionKind(kind)
+  // model3d 同为一等产物口径——落回 'image' 会让花钱确认卡把 3D 生成说成「1 张画面」（同族 kind 边界漏 3D）。
+  return exec === 'text' || exec === 'video' || exec === 'audio' || exec === 'model3d' ? exec : 'image'
+}
+
+/** 一批节点的产物口径：全同则取该类，混合则 'mixed'，喂给 describeGenerationCost 报对名词。 */
+export function spendCostKindForNodes(ids: string[]): GenerationCostKind {
+  const nodes = useGenerationCanvasStore.getState().nodes
+  const kinds = new Set(
+    ids
+      .map((id) => nodes.find((n) => n.id === id))
+      .filter((n): n is GenerationCanvasNode => Boolean(n))
+      .map((n) => spendCostKind(n.kind)),
+  )
+  if (kinds.size === 1) return [...kinds][0]
+  return kinds.size === 0 ? 'image' : 'mixed'
+}
+
+/**
+ * 这个节点生成一次花不花钱、走哪条口（发动机收敛第一刀）：要花钱的走单镜 Run（批准、派发、记账都在制作流程那一个口子）；
+ * 文本节点与本地 ComfyUI 不进 Run（登记的例外，到期：第二刀传输合一），也不要任何授权——本地 ComfyUI 不花钱，
+ * 文本走它自己的流式口。
+ */
+export function paidNodeLedger(node: GenerationCanvasNode | undefined): 'run' | undefined {
+  if (!node || getGenerationNodeExecutionKind(node.kind) === 'text') return undefined
+  return generationSpendsCredits([node]) ? 'run' : undefined
+}
+
+
 
 export type HostingDisclosure = {
   message: string
@@ -275,8 +310,8 @@ export async function confirmGenerationResend(input: {
   const kind = input.kind === 'image' || input.kind === 'video' ? input.kind : 'other'
   return useSpendConfirmStore.getState().requestConfirm({
     kind: 'generation',
-    title: i18n.t(`generationCommon.spend.resend.title.${kind}`),
-    message: i18n.t(`generationCommon.spend.resend.${input.state}`),
+    title: kind === 'image' ? i18n.t('generationCommon.spend.resend.title.image') : kind === 'video' ? i18n.t('generationCommon.spend.resend.title.video') : i18n.t('generationCommon.spend.resend.title.other'),
+    message: input.state === 'unknown' ? i18n.t('generationCommon.spend.resend.unknown') : i18n.t('generationCommon.spend.resend.waiting'),
     confirmLabel: i18n.t('generationCommon.observability.action.releaseRegenerate.main'),
     cancelLabel: i18n.t('common.cancel'),
     ...(input.hostingDisclosure ? { hostingDisclosure: input.hostingDisclosure } : {}),

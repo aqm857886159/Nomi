@@ -541,3 +541,16 @@ PR 判据把抽取复用的两个 tsx 文件当作新增界面，拒绝 pure-bug
 提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
 
 ```
+
+第4轮体积门岗：控制器837行超800，花钱口径归已有spend owner，连边参考模式对账归已有canvasAutoReference；同提交删除旧导出并迁移调用者，不加并行路径。追加热点原始输出：
+
+```text
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · src/workbench/generationCanvas/spend/spendConfirm.ts：目录 src/workbench/generationCanvas/spend/ 近 14 天已有 2 个 fix（只涉及 2 个文件，算同一概念），这一刀是第 3 个
+  · src/workbench/generationCanvas/components/batchPlanPreview.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/production/handOverPrecheck.ts：目录 src/workbench/production/ 近 14 天已有 8 个 fix（只涉及 5 个文件，算同一概念），这一刀是第 9 个
+  · 概念「分镜批量生成的确认缝（确认前不落画布、取消零节点零波次）」：含 5 个文件，近 14 天已有 11 个 fix，这一刀是第 12 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
+
+```

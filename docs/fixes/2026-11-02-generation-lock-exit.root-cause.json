@@ -369,12 +369,27 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "canvasOpenRuns"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "runPlanWithToasts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "spendCostKind"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "spendCostKindForNodes"
     },
     {
       "kind": "write",
@@ -454,6 +469,11 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "reconcileNodeModeWithConnectedReferences"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "assertAuthorCurrent"
     },
     {
@@ -474,12 +494,22 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "runGenerationNode"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "confirmGenerationResend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "spendCostKind"
     },
     {
       "kind": "write",
@@ -500,6 +530,11 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/textActions.ts",
       "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "spendCostKind"
     },
     {
       "kind": "write",
@@ -525,6 +560,11 @@
       "kind": "write",
       "path": "src/workbench/observability/generationFeedback.ts",
       "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/handOverPrecheck.ts",
+      "symbol": "paidNodeLedger"
     },
     {
       "kind": "write",
@@ -609,7 +649,7 @@
   ],
   "door_reduction": {
     "before": 13,
-    "after": 99,
+    "after": 107,
     "why_not": "三页和Agent/任务中心是必要入口，不能靠删页面减门。本轮按当前不变量的共享口重新扫，移除旧通用桥/其它接口的过宽枚举；计数变化不是结构性删入口的证据。结构性删除的是拒绝分支、旧查询和重复状态。"
   },
   "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。 B6的确认快照和最后一跳按整镜核对同时覆盖未落节点/已存在节点、主镜/关键帧、失败重试/画布/列表/组头和Agent；B7三处都经同一JSON归一口，真实改动仍拒绝。 第3轮查询全部未结束Run并在唯一主进程口准入；已批准回执只对真人单发有效，机器及过期回执不能覆盖新Run。同次意图去重保留，拒绝撤回记录，恢复订阅真正项目提交，制作多镜的原重启规则不被单镜guard吞掉。",
@@ -730,7 +770,7 @@
     "invariant": "机器不重发未结束节点；人只有确认当前全部占用才新发；同次意图仍一次。确认前不写新运行；机器跳过不进失败重试。 重发按钮永远先问；↑仅有未结束请求才问；取消不写记录、不放行。",
     "failure_mode": "旧回执、伪手势、批量或Agent回执不覆盖新占用；人点未覆盖先展示现有确认条，失败还原原记录和出路。",
     "exception_policy": "none",
-    "strategy": "删除永久拒绝人点的旧出口、只查unknown的旧IPC、released=false静默关条及提前await归属过滤。原有动作改读同一主进程准入和共享确认状态；孤儿规则复用制作实现。 第4轮删除专用确认state/浮层/卡内确认条，确认归spendConfirm主人，一张花钱卡承载重发风险与托管告知，放行只在确认之后。",
+    "strategy": "删除永久拒绝人点的旧出口、只查unknown的旧IPC、released=false静默关条及提前await归属过滤。原有动作改读同一主进程准入和共享确认状态；孤儿规则复用制作实现。 第4轮删除专用确认state/浮层/卡内确认条，确认归spendConfirm主人，一张花钱卡承载重发风险与托管告知，放行只在确认之后。 体积门岗要求下，将花钱口径纯函数归spendConfirm，连边参考模式对账归canvasAutoReference；调用者同提交迁移，旧导出删除。",
     "artifacts": [
       "src/workbench/generationCanvas/runner/generationRunController.ts",
       "src/workbench/observability/generationFailureActions.ts",
@@ -750,7 +790,6 @@
       "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
       "docs/evidence/2026-11-02-generation-lock-exit/round3.json",
       "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
-      "src/workbench/generationCanvas/components/confirmSingleNode.ts",
       "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx"
     ]
   },

@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { recoverNodeResult } from './recoverTaskActions'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -129,7 +130,7 @@ it('G1/G5/G10: explicit resend asks with an empty host and cancellation writes n
  const id = add(); const before = structuredClone(store().nodes.find(node => node.id === id))
  const request = vi.mocked(useSpendConfirmStore.getState().requestConfirm).mockResolvedValue(false)
  const outcome = await confirmAndRunNode(id, { initiator: 'user', resend: true })
- expect(request).toHaveBeenCalledWith(expect.objectContaining({ kind: 'generation', title: '再发一次这张图片？', message: '上一次还没结束。\n再发一次可能会再扣一次钱。', confirmLabel: '再发一次', cancelLabel: '取消' }))
+ expect(request).toHaveBeenCalledWith(expect.objectContaining({ kind: 'generation', title: i18n.t('generationCommon.spend.resend.title.image'), message: i18n.t('generationCommon.spend.resend.waiting'), confirmLabel: i18n.t('generationCommon.observability.action.releaseRegenerate.main'), cancelLabel: i18n.t('common.cancel') }))
  expect(calls.open).toHaveBeenCalledOnce();expect(outcome).toBe('declined'); expect(calls.execute).not.toHaveBeenCalled();expect(store().nodes.find(node => node.id === id)).toEqual(before)
 })
 it('G1/G8: the existing spend card owns the entire pending click and one confirmation sends once', async () => {
@@ -146,7 +147,7 @@ it('G7: release failure is visible and preserves the card for a later retry', as
  calls.open.mockResolvedValueOnce([{nodeId:id,runId:'old',reason:'in_flight',hasTaskId:false}]).mockRejectedValueOnce(new Error('cannot release'))
  await confirmAndRunNode(id,{initiator:'user',resend:true})
  expect(calls.execute).not.toHaveBeenCalled();expect(store().nodes.find(node=>node.id===id)).toEqual(before)
- expect(calls.notify).toHaveBeenCalledWith(expect.objectContaining({message:expect.stringContaining('还没有放行')}))
+ expect(calls.notify).toHaveBeenCalledWith(expect.objectContaining({message:i18n.t('generationCommon.observability.releaseConfirm.failed')}))
  await confirmAndRunNode(id,{initiator:'user',resend:true});expect(calls.execute).toHaveBeenCalledOnce()
 })
 it('G9: admission races may ask once more but never loop or turn a machine refusal into a card', async () => {

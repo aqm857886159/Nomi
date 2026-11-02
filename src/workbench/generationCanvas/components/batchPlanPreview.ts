@@ -1,3 +1,4 @@
+import { paidNodeLedger, spendCostKind, spendCostKindForNodes } from '../spend/spendConfirm'
 import { classifyGenerationError } from '../../observability/classifyError'
 import { declareStoreLifetime } from '../../project/storeLifetime'
 // 批量执行计划预览态(harness S2b,样张方案 A:画布原位确认)。
@@ -7,7 +8,7 @@ import { reportCanvasFeedback } from './canvasFeedback'
 import { notify, revealNotificationTarget } from '../../../ui/notificationPolicy'
 import { isProjectExecutionContextCurrent, isProjectOpen, withProjectAction, type ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
 import { captureApprovedGenerationInputs, type RunGraph, type RunProjectTarget } from '../runner/runProjectDelivery'
-import { paidNodeLedger, spendCostKind, spendCostKindForNodes, type GenerationConfirmationGuards } from '../runner/generationRunController'
+import { type GenerationConfirmationGuards } from '../runner/generationRunController'
 import { runGenerationNodesByPlan } from '../runner/generationRunWaves'
 import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNodes } from '../spend/spendConfirm'
 import { canvasOpenRuns, consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../../api/taskApi'

@@ -1,7 +1,7 @@
 {
   "round": 4,
-  "includingTests": 193,
-  "productionAndWalks": 99,
+  "includingTests": 204,
+  "productionAndWalks": 107,
   "doors": [
     {
       "kind": "read",
@@ -261,12 +261,27 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "canvasOpenRuns"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "runPlanWithToasts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "spendCostKind"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "spendCostKindForNodes"
     },
     {
       "kind": "write",
@@ -346,6 +361,11 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "reconcileNodeModeWithConnectedReferences"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "assertAuthorCurrent"
     },
     {
@@ -366,12 +386,22 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "runGenerationNode"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "confirmGenerationResend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "spendCostKind"
     },
     {
       "kind": "write",
@@ -392,6 +422,11 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/textActions.ts",
       "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "spendCostKind"
     },
     {
       "kind": "write",
@@ -417,6 +452,11 @@
       "kind": "write",
       "path": "src/workbench/observability/generationFeedback.ts",
       "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/handOverPrecheck.ts",
+      "symbol": "paidNodeLedger"
     },
     {
       "kind": "write",
@@ -1028,12 +1068,27 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "canvasOpenRuns"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "runPlanWithToasts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "spendCostKind"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "spendCostKindForNodes"
     },
     {
       "kind": "write",
@@ -1172,6 +1227,11 @@
     },
     {
       "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationConfirmCopy.test.ts",
+      "symbol": "spendCostKindForNodes"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
       "symbol": "runGenerationNode"
     },
@@ -1198,6 +1258,11 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "reconcileNodeModeWithConnectedReferences"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "assertAuthorCurrent"
     },
     {
@@ -1218,12 +1283,22 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "runGenerationNode"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "confirmGenerationResend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "spendCostKind"
     },
     {
       "kind": "write",
@@ -1239,6 +1314,11 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts",
       "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/reconcileNodeMode.test.ts",
+      "symbol": "reconcileNodeModeWithConnectedReferences"
     },
     {
       "kind": "write",
@@ -1269,6 +1349,16 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
       "symbol": "confirmGenerationResend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "spendCostKind"
     },
     {
       "kind": "write",
@@ -1374,6 +1464,11 @@
       "kind": "write",
       "path": "src/workbench/observability/vendorQuoteProvenance.test.ts",
       "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/handOverPrecheck.ts",
+      "symbol": "paidNodeLedger"
     },
     {
       "kind": "write",

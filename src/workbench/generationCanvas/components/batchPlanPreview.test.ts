@@ -25,6 +25,10 @@ vi.mock('../../api/taskApi', () => ({
   canvasOpenRuns: vi.fn(async () => []), consentCanvasShots: mocks.consentCanvasShots, withdrawCanvasShots: vi.fn() }))
 
 vi.mock('../spend/spendConfirm', () => ({
+  spendCostKind: vi.fn((kind: string) => kind === 'video' ? 'video' : 'image'),
+  spendCostKindForNodes: vi.fn(() => 'image'),
+  paidNodeLedger: vi.fn(() => 'run'),
+
   confirmGenerationSpend: mocks.confirmGenerationSpend,
   describeGenerationCost: vi.fn(() => '1 image'),
   generationCostContextForNodes: vi.fn(() => ({ vendorKey: 'v', modelKey: 'm', etaStats: [] })),
@@ -36,11 +40,7 @@ vi.mock('../store/generationCanvasStore', () => ({
 
 vi.mock('../agent/shotVerifyStore', () => ({ verifyShotsAndReport: vi.fn() }))
 
-vi.mock('../runner/generationRunController', () => ({
-  spendCostKind: vi.fn((kind: string) => kind === 'video' ? 'video' : 'image'),
-  spendCostKindForNodes: vi.fn(() => 'image'),
-  paidNodeLedger: vi.fn(() => 'run'),
-}))
+
 
 vi.mock('../runner/catalogTaskResolve', () => ({
   selectedVendor: vi.fn(() => 'relay'),
