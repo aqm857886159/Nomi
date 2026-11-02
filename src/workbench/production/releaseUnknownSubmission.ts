@@ -92,7 +92,7 @@ export function synchronizeCanvasOpenRuns(entries: Awaited<ReturnType<typeof can
     const node = store.nodes.find(value => value.id === entry.nodeId)
     if (isNodeSubmitInFlight(entry.nodeId) || !node || (entry.reason === 'in_flight' && node.status === 'recoverable')) continue
     if (entry.reason === 'needs_reconcile' && node.status === 'error' && node.error?.includes('NOMI_ERR::submission-unknown::')) continue
-    store.setNodeStatus(entry.nodeId, entry.reason === 'needs_reconcile' ? 'error' : 'recoverable',
+    store.setNodeRecoveryPresentation(entry.nodeId, entry.reason === 'needs_reconcile' ? 'error' : 'recoverable',
       entry.reason === 'needs_reconcile' ? tagNomiError('submission-unknown', 'Previous submission result was not received') : undefined)
   }
 }

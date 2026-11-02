@@ -77,3 +77,14 @@ it('F12: a host admission race withdraws the refused record and restores recover
  expect(useGenerationQueueStore.getState().entries.every(entry => entry.state === 'cancelled')).toBe(true)
  expect(useUnknownSubmissionReleaseStore.getState().nodes[id].confirming).toBe(true)
 })
+
+it.each(['in_flight', 'needs_reconcile'] as const)('F12: repairing a stale running card for %s does not rewrite the original record', async reason => {
+ const id = add();store().setNodeStatus(id, 'running')
+ const runs = structuredClone(store().nodes.find(node => node.id === id)?.runs)
+ calls.open.mockResolvedValue([{ nodeId: id, runId: 'canvas-original', reason, hasTaskId: false }])
+ await confirmAndRunNode(id, { initiator: 'user' })
+ expect(store().nodes.find(node => node.id === id)?.runs).toEqual(runs)
+ expect(store().nodes.find(node => node.id === id)?.status).toBe(reason === 'in_flight' ? 'recoverable' : 'error')
+ expect(calls.execute).not.toHaveBeenCalled()
+ expect(useUnknownSubmissionReleaseStore.getState().nodes[id].confirming).toBe(true)
+})

@@ -17,6 +17,17 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     if (node) emitCanvasGesture([{ type: 'canvas.node.run-updated', payload: { node, ...(landed ? { landed } : {}) } }], { source: 'runtime' })
   }
   return {
+  setNodeRecoveryPresentation: (nodeId, status, error) => {
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.status = status
+      node.error = error
+      node.progress = undefined
+      bumpPersistRevision(state)
+    })
+    emitRunUpdated(nodeId)
+  },
   setNodeStatus: (nodeId, status, error) => {
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)

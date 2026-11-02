@@ -149,6 +149,7 @@ export type CanvasGraphActions = {
 }
 
 export type CanvasRunActions = {
+  setNodeRecoveryPresentation: (nodeId: string, status: 'error' | 'recoverable', error?: string) => void
   setNodeStatus: (nodeId: string, status: GenerationNodeStatus, error?: string) => void
   /** 收起失败卡：有旧产物 → 回 success（露出下面那条片子），没有 → 回 idle。错误原文仍留在 runs 里。 */
   dismissNodeError: (nodeId: string) => void

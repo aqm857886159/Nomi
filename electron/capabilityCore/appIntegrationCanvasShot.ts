@@ -21,6 +21,7 @@
  *
  * 设计卡：docs/plan/2026-10-05-engine-convergence-cut1-step12-design-card.md、docs/plan/2026-10-05-engine-convergence-cut1-step34-design-card.md。
  */
+import { tagNomiError } from "../shared/nomiErrorCodes";
 import type { DirectorPreviewSpendBlockReason } from "../shared/director/directorPreviewStatus";
 
 import { logWarn } from "../logging/logger";
@@ -518,7 +519,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     const job = latestJob(run);
     if (!job) throw coded(`node_generation_in_flight: ${run.runId}`, "node_generation_in_flight", "in_flight");
     if (job.status === "submission_unknown" || job.status === "reconciling")
-      throw coded("production_shot_claimed: needs_reconcile", "production_shot_claimed", "needs_reconcile");
+      throw new Error(tagNomiError("submission-unknown", job.errorMessage || "The previous request got no result"));
     const artifact = readyArtifact(run, job);
     if (artifact) return resultFromArtifact(run, job, artifact, kind);
     if (job.status === "needs_attention") return failedResult(job, kind);

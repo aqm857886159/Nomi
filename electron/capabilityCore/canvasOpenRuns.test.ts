@@ -77,3 +77,12 @@ it('F10: replay the actual v0.24.0 submitting Run and release it without another
  await h.submit(manifest.nodeId, 'upgrade-send-again')
  expect(h.vendor.executes).toHaveLength(1)
 })
+
+it('F6/F12: replaying the same charged unknown Run is not another attempt being locally refused', async () => {
+ const h = setupCanvasShots();h.vendor.answer = async () => { throw new Error('acme create failed: socket hang up') }
+ await h.submit('node-a', 'same-intent').catch(() => undefined)
+ expect(h.repository.read(PROJECT, canvasRunIdFor('same-intent'))?.jobs[0].status).toBe('submission_unknown')
+ await expect(h.submit('node-a', 'same-intent')).rejects.toThrow('NOMI_ERR::submission-unknown::')
+ await expect(h.submit('node-a', 'another-intent')).rejects.toMatchObject({ code: 'production_shot_claimed', reason: 'needs_reconcile' })
+ expect(h.vendor.executes).toHaveLength(1)
+})
