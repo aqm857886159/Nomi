@@ -302,7 +302,8 @@
         "105-span-Technicaldet"
       ],
       "status": "implemented",
-      "assertion": "board:UnknownResultCard/restart.footer"
+      "assertion": "board:UnknownResultCard/restart.footer",
+      "note": "保留原页脚动作；窄英文画布的既有页脚换行压出卡框，样张在框内，本轮按不碰压字问题停在该差异，未改布局。既有英文反馈按钮 Report Issue 与样张 Report a problem 仍不同。"
     },
     {
       "id": "restart.dismiss",

@@ -2,9 +2,9 @@
   "schema_version": 3,
   "id": "2026-11-02-generation-lock-exit",
   "problem_type": "Approved storyboard generation scope, queue ownership and local refusal recovery",
-  "symptom": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。 第二轮独立验收发现资产阶段单点后批次重发同镜；CI金路径发现Agent改稿后生成请求为0。 第3轮独立验收：POST途中退出后永久拒绝、可找回被拒失去出口、通知假失败、入队前await窗口重复派发。",
+  "symptom": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。 第二轮独立验收发现资产阶段单点后批次重发同镜；CI金路径发现Agent改稿后生成请求为0。 第3轮独立验收：POST途中退出后永久拒绝、可找回被拒失去出口、通知假失败、入队前await窗口重复派发。 第4轮：卡内确认条缺少完整风险说明，结果未知被画成失败，三页确认视觉不一致。",
   "direct_cause": "整方案快照被自动引用触发；quota 与本机拒绝参与刹车；单卡依赖整表 busy；画布出口猜错 Run；三页重复判断失败动作、列表漏读队列。；Agent 每张资产单独确认却沿用整批目标的准入快照；列表窄列优先显示旧产物，盖住本次失败或可找回状态。 资产阶段镜头尚未入队而原去重只取消queued；三种方案比较绕过JSON往返，undefined键被严格JSON拒绝。 节点占用没有统一收尾，handOff漏无任务号submitting；被拒尝试覆盖runs[0]；归属核对早于最后await；通知未分类。",
-  "class_root": "人手再次生成、机器去重、同次意图幂等混成节点永久互斥；查询/准入/恢复/通知各自判断占用，缺少共享准入与最后同步派发边界。",
+  "class_root": "人手再次生成、机器去重、同次意图幂等混成节点永久互斥；查询/准入/恢复/通知各自判断占用，缺少共享准入与最后同步派发边界。 第4轮把恢复风险确认的决策、状态和宿主分在各卡，绕过既有花钱确认主人；未先按获批逐元素清单对账。",
   "affected_population": [
     "分镜编辑器与 Agent",
     "画布单发、框选、分组批量及排队中的单发",
@@ -108,7 +108,9 @@
     "人点未结束节点：确认前0次POST且运行记录不变，主进程只认真人手势且非批次/交接回执；机器始终跳过。",
     "主进程查询全部未结束Run与准入同源；活请求不作孤儿，退出留下的无任务号submitting复用同一规则转未知。",
     "最后一次归属核对在全部await后、入队前同步执行；过滤的出价收回；本机拒绝撤回渲染运行记录且不进失败通知。",
-    "重放同一笔已发出的结果不明Run仍是原请求的不确定结局，不是另一次本机拒绝；恢复投影只改节点展示，不改原运行记录。"
+    "重放同一笔已发出的结果不明Run仍是原请求的不确定结局，不是另一次本机拒绝；恢复投影只改节点展示，不改原运行记录。",
+    "第4轮：结果不明使用纸底而非失败红，三页和任务中心只调用confirmGenerationResend，一张SpendConfirmDialog同时说明风险与首次托管；确认前不放行、不创建新Run，四种取消保留原任务。",
+    "第4轮：显式再发按钮即使主进程已无占用也必须先问；普通↑无占用仍直接发；免费取回身份与机器跳过不变。"
   ],
   "doors": [
     {
@@ -768,9 +770,9 @@
     "kind": "centralized-boundary",
     "enforcement_path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
     "invariant": "机器不重发未结束节点；人只有确认当前全部占用才新发；同次意图仍一次。确认前不写新运行；机器跳过不进失败重试。 重发按钮永远先问；↑仅有未结束请求才问；取消不写记录、不放行。",
-    "failure_mode": "旧回执、伪手势、批量或Agent回执不覆盖新占用；人点未覆盖先展示现有确认条，失败还原原记录和出路。",
+    "failure_mode": "旧回执、伪手势、批量或Agent回执不覆盖新占用；人点未覆盖先同步原卡，单节点在既有花钱卡最多再问一次，失败撤回本次记录并保留原记录和出路。",
     "exception_policy": "none",
-    "strategy": "删除永久拒绝人点的旧出口、只查unknown的旧IPC、released=false静默关条及提前await归属过滤。原有动作改读同一主进程准入和共享确认状态；孤儿规则复用制作实现。 第4轮删除专用确认state/浮层/卡内确认条，确认归spendConfirm主人，一张花钱卡承载重发风险与托管告知，放行只在确认之后。 体积门岗要求下，将花钱口径纯函数归spendConfirm，连边参考模式对账归canvasAutoReference；调用者同提交迁移，旧导出删除。",
+    "strategy": "删除永久拒绝人点的旧出口、只查unknown的旧IPC、released=false静默关条及提前await归属过滤。原有动作改读同一主进程准入；第四轮把风险确认收回已有花钱确认队列；孤儿规则复用制作实现。 第4轮删除专用确认state/浮层/卡内确认条，确认归spendConfirm主人，一张花钱卡承载重发风险与托管告知，放行只在确认之后。 体积门岗要求下，将花钱口径纯函数归spendConfirm，连边参考模式对账归canvasAutoReference；调用者同提交迁移，旧导出删除。",
     "artifacts": [
       "src/workbench/generationCanvas/runner/generationRunController.ts",
       "src/workbench/observability/generationFailureActions.ts",
