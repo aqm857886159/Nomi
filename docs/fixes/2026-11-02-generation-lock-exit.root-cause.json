@@ -2,9 +2,9 @@
   "schema_version": 3,
   "id": "2026-11-02-generation-lock-exit",
   "problem_type": "Approved storyboard generation scope, queue ownership and local refusal recovery",
-  "symptom": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。 第二轮独立验收发现资产阶段单点后批次重发同镜；CI金路径发现Agent改稿后生成请求为0。",
-  "direct_cause": "整方案快照被自动引用触发；quota 与本机拒绝参与刹车；单卡依赖整表 busy；画布出口猜错 Run；三页重复判断失败动作、列表漏读队列。；Agent 每张资产单独确认却沿用整批目标的准入快照；列表窄列优先显示旧产物，盖住本次失败或可找回状态。 资产阶段镜头尚未入队而原去重只取消queued；三种方案比较绕过JSON往返，undefined键被严格JSON拒绝。",
-  "class_root": "动作输入的所有权、排队所有权和错误类别没有在共享边界统一，多个入口读了不对应的状态。 第2轮补正：批准到入队之间缺少逐镜运行归属核对；比较边界缺少持久化JSON归一，含undefined的作者内存态不能直接送严格JSON规范器。",
+  "symptom": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。 第二轮独立验收发现资产阶段单点后批次重发同镜；CI金路径发现Agent改稿后生成请求为0。 第3轮独立验收：POST途中退出后永久拒绝、可找回被拒失去出口、通知假失败、入队前await窗口重复派发。",
+  "direct_cause": "整方案快照被自动引用触发；quota 与本机拒绝参与刹车；单卡依赖整表 busy；画布出口猜错 Run；三页重复判断失败动作、列表漏读队列。；Agent 每张资产单独确认却沿用整批目标的准入快照；列表窄列优先显示旧产物，盖住本次失败或可找回状态。 资产阶段镜头尚未入队而原去重只取消queued；三种方案比较绕过JSON往返，undefined键被严格JSON拒绝。 节点占用没有统一收尾，handOff漏无任务号submitting；被拒尝试覆盖runs[0]；归属核对早于最后await；通知未分类。",
+  "class_root": "人手再次生成、机器去重、同次意图幂等混成节点永久互斥；查询/准入/恢复/通知各自判断占用，缺少共享准入与最后同步派发边界。",
   "affected_population": [
     "分镜编辑器与 Agent",
     "画布单发、框选、分组批量及排队中的单发",
@@ -58,7 +58,12 @@
     "src/workbench/taskCenter/TaskCenterPanel.tsx",
     "tests/ux/_generationLockExitRehearsal.mjs",
     "tests/ux/_generationLockExitSteps.mjs",
-    "tests/ux/generation-lock-exit-real.paid.mjs"
+    "tests/ux/generation-lock-exit-real.paid.mjs",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/singleShotRunLifecycle.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/project/workbenchProjectSession.ts"
   ],
   "entry_points": [
     "StoryboardPlanEditor 的单卡、整批与放置",
@@ -68,7 +73,7 @@
     "列表大详情 NodeFailureReport 与分区 runGroupGenerate",
     "分镜资产卡和镜头行 StoryboardFailureActions"
   ],
-  "internal_only_reason": "纯内部边界修复，外部来源与约束沿用已批准设计卡；本刀不改变请求、结果未知判定或 Run 状态机。",
+  "internal_only_reason": "用户已按方向检查第6节批准删掉人手操作的永久占用阻断；复用已有手势收据、job.reconcile和制作Run孤儿规则，不新增依赖或改变供应商请求。",
   "external_sources": [],
   "invariants": [
     "当前节点只与对应的作者行比较；确认只验证全局、参考池与本次目标镜头。",
@@ -79,7 +84,10 @@
     "排队状态读队列；列表按当前节点布尔订阅。",
     "第二阶段只跳过与已确认的已选镜及全局花钱字段一致的报价；两边先自动引用归一，改提示词或未选镜不额外询问。",
     "第一张卡确认后的节点新运行归其他动作所有，第二阶段不得重发整镜（含关键帧），用户确认的已有结果重跑仍允许。",
-    "方案作者/批准/花钱三种比较共用JSON持久化归一口，undefined不造成假冲突，真实变更仍拒绝。"
+    "方案作者/批准/花钱三种比较共用JSON持久化归一口，undefined不造成假冲突，真实变更仍拒绝。",
+    "人点未结束节点：确认前0次POST且运行记录不变，主进程只认真人手势且非批次/交接回执；机器始终跳过。",
+    "主进程查询全部未结束Run与准入同源；活请求不作孤儿，退出留下的无任务号submitting复用同一规则转未知。",
+    "最后一次归属核对在全部await后、入队前同步执行；过滤的出价收回；本机拒绝撤回渲染运行记录且不进失败通知。"
   ],
   "doors": [
     {
@@ -1766,11 +1774,36 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/textProcessRun.ts",
       "symbol": "startGenerationFromComposer"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "buildRecoverPayload"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "confirmAndRunPlan"
     }
   ],
   "door_reduction": {
     "before": 13,
-    "after": 337,
+    "after": 342,
     "why_not": "保留三页与 Agent 的必要用户入口，各自的执行、展示、重试都由声明的共享边界约束。before 是开工首次数门的直接入口；after 包含本轮展开的所有导出符号调用与读面，统计范围更全，不冒充入口数量减少。重复判断和旧文件已删除。"
   },
   "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。 B6的确认快照和最后一跳按整镜核对同时覆盖未落节点/已存在节点、主镜/关键帧、失败重试/画布/列表/组头和Agent；B7三处都经同一JSON归一口，真实改动仍拒绝。",
@@ -1919,7 +1952,7 @@
     "rationale": "没有第三方运行时控制这些内部所有权不变量；复用已有 store、绑定和 Run 命令。",
     "exit_criteria": []
   },
-  "migration": "不改持久化格式。v0.24.0 实际源码生成的 submission_unknown 快照已由当前主进程读原占用、拒绝新提交、人工放行并再提交；被拒点击保留在历史。普通单用户生成沿用既定不弹普通确认卡的政策。 演练收据增加提交号，旧格式或src/electron源码不同的收据明确拒绝，不兼容放行。",
+  "migration": "无数据格式迁移：0.24.0旧Run用既有job.status写入submission_unknown，旧节点错误字符串重新分类；查询全链路改名canvasOpenRuns，旧名/旧IPC同提交删除。",
   "residual_risks": [
     "E1实际拖框补测三次卡在空白落点与缩放准备，只停这一项；Meta+A分组不替代拖框证据。",
     "完整免费四段passed（302秒静置、15 POST/12张转发），付费前置收据校验通过；真付费、Windows、真人体验和独立验收仍由协调补。",
@@ -1927,7 +1960,8 @@
     "账本已转fixed，没有PR时不能编造fixedInPr。",
     "资产期间在画布改已有镜头节点模型，不回写方案，方案花钱比较看不到；main既有，本轮按裁决只报告。",
     "按裁决不修：单独发仍排队的资产后，旧批次第一波结束若资产尚无结果即返回，镜头阶段不继续、没有额外提示。",
-    "按裁决不修：withoutTask动作覆盖分类器的主次动作；无任务号时可能不保留原retry/release-regenerate。"
+    "按裁决不修：withoutTask动作覆盖分类器的主次动作；无任务号时可能不保留原retry/release-regenerate。",
+    "第3轮用户接受：再发后首笔晚到结果只留项目文件，本轮不自动投回节点；Windows与真实付费仍待协调。"
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-09",

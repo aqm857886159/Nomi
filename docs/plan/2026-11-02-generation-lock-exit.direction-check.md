@@ -392,3 +392,29 @@ PR 判据把抽取复用的两个 tsx 文件当作新增界面，拒绝 pure-bug
 动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
 提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
 ```
+
+## 第3轮执行：用户批准删锁和改字
+
+保留顶部协调/用户的裁决，按其第6节执行：删除人点后必被拒的永久节点占用路，单张确认前只读占用且不写运行记录，机器跳过占用；连点仍靠同意图去重。手势事实已核：taskIpcHandlers从受信窗口铸造input.gesture，decisionFor在无handover时直接读同一对象，不信渲染层伪造gesture。准入只在appIntegrationCanvasShot。孤儿规则抽取制作Run现成实现，两端调用；不改decideShotClaim和其它Run状态机。
+
+开工热点原始输出（此第3轮已获用户明确批准，无第4轮）：
+
+```text
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · electron/capabilityCore/appIntegrationCanvasShot.ts：文件近 14 天已有 4 个 fix，这一刀是第 5 个
+  · electron/productionRun/singleShotRunLifecycle.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · electron/tasks/taskIpcHandlers.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/generationCanvas/runner/generationRunController.ts：目录 src/workbench/generationCanvas/runner/ 近 14 天已有 22 个 fix（只涉及 6 个文件，算同一概念），这一刀是第 23 个
+  · src/workbench/production/releaseUnknownSubmission.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/production/releaseUnknownSubmission.ts：目录 src/workbench/production/ 近 14 天已有 5 个 fix（只涉及 5 个文件，算同一概念），这一刀是第 6 个
+  · src/workbench/generationCanvas/runner/recoverTaskActions.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/generationCanvas/runner/recoverTaskActions.ts：目录 src/workbench/generationCanvas/runner/ 近 14 天已有 22 个 fix（只涉及 6 个文件，算同一概念），这一刀是第 23 个
+  · src/workbench/generationCanvas/nodes/NodeErrorReport.tsx：文件近 14 天已有 4 个 fix，这一刀是第 5 个
+  · src/workbench/creation/storyboard/exec/storyboardRowActions.ts：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · 概念「付费卡交给画布之后的停下（「取消」不排队；还没轮到的同意当场收回、在交的照常交完；停下后照实说交出去几镜、几镜没发）」：含 2 个文件，近 14 天已有 4 个 fix，这一刀是第 5 个
+  · 概念「生成结局投递到运行所属项目（节点不在时暂存）」：含 3 个文件，近 14 天已有 4 个 fix，这一刀是第 5 个
+  · 概念「画布付费生成（一镜一个单镜 Run）」：含 6 个文件，近 14 天已有 7 个 fix，这一刀是第 8 个
+  · 概念「分镜批量生成的确认缝（确认前不落画布、取消零节点零波次）」：含 5 个文件，近 14 天已有 7 个 fix，这一刀是第 8 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
+```
