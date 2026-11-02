@@ -27,6 +27,7 @@ import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from 
 import type { ProjectBinding } from '../../../../electron/shared/projectBinding'
 
 vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []),
   mintSpendGrant: vi.fn(async () => 'grant-test'),
   fetchWorkbenchTaskResultByVendor: vi.fn(),
   // 这里是令牌路交出去的旧记录（没有单镜 Run）：Run 那一侧回 null。

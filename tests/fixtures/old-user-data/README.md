@@ -63,3 +63,5 @@ pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 `runs/v0.24.0-canvas-unknown` 由 `v0.24.0`（`9f3bb3c575058156690c0663a6c88a0b28dfa2a2`）源码的 `setupCanvasShots`、`createCanvasShotRuns.submit`、真实 Run 仓库与提交出口落盘。只有供应商传输是假服务，在读取创建请求后丢掉回复；没有手写 Run 或占用索引。`manifest.json` 记录生成版本及身份。重放测试在 `electron/capabilityCore/appIntegrationCanvasShot.test.ts` 的 C7：拒绝新点击仍找得到原 Run，真人核对放行不发请求，下一次新意图只提交一次。
 
 生成器是 `generators/zzLockExitGen.ts.txt`，复制到旧版导出的 `electron/capabilityCore/zzLockExitGen.test.ts`，设 `NOMI_OLD_RUN_OUT` 为输出目录、`NOMI_OLD_RUN_COMMIT` 为导出提交的完整 SHA，使用该导出的 vitest 运行。源码导出包含根目录 tsconfig、electron、src、scripts、tests/setup、tests/stubs，依赖可链接已有目录。只拷实际落盘的 `.nomi`；不包含活锁和任何用户资料，凭据机构仅使用测试假值。
+
+`runs/v0.24.0-canvas-interrupted` 同样由上述 v0.24.0 源码运行 `generators/zzLockExitInterruptedGen.ts.txt` 生成：真实 POST 尚未回复时保存 Run，旧版第二次提交产生实际 `node_generation_in_flight`，由旧版画布 store 写进 `node.json`。未手写 Run/节点形状，复制时排除活锁。F10 回放在 `electron/capabilityCore/canvasOpenRuns.test.ts`：打开后成为结果不明；真人放行不发 POST，新的生成意图恰发一次。

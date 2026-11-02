@@ -578,10 +578,10 @@ it('C2: the host identifies the original unknown Run after another click is refu
   await expect(h.submit('node-a', 'original')).rejects.toBeInstanceOf(SubmissionReceiptUnknownError)
   await expect(h.submit('node-a', 'refused')).rejects.toMatchObject({ code: 'production_shot_claimed' })
   const original = runOf(h.repository, 'original')!
-  expect(h.runs.unknownRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([{ runId: original.runId, jobId: original.jobs[0].jobId }])
-  expect(h.runs.unknownRuns({ projectId: PROJECT, nodeId: 'other' })).toEqual([])
+  expect(h.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([{ runId: original.runId, jobId: original.jobs[0].jobId, reason: 'needs_reconcile', hasTaskId: false, nodeId: 'node-a' }])
+  expect(h.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: 'other' })).toEqual([])
   const restarted = setup({ root: h.root })
-  expect(restarted.runs.unknownRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([{ runId: original.runId, jobId: original.jobs[0].jobId }])
+  expect(restarted.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([{ runId: original.runId, jobId: original.jobs[0].jobId, reason: 'needs_reconcile', hasTaskId: false, nodeId: 'node-a' }])
   expect(h.vendor.executes).toHaveLength(1)
 })
 
@@ -591,13 +591,13 @@ it('C7: v0.24.0 persisted unknown Run is found, survives a refused click, releas
   expect(manifest.recordedFrom).toBe('9f3bb3c575058156690c0663a6c88a0b28dfa2a2')
   const fx = setup()
   fs.cpSync(path.join(snapshot, '.nomi'), path.join(fx.root, '.nomi'), { recursive: true })
-  const query = () => fx.runs.unknownRuns({ projectId: PROJECT, nodeId: manifest.nodeId })
+  const query = () => fx.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: manifest.nodeId })
   const before = fx.repository.read(PROJECT, manifest.runId)!
   expect(before.jobs[0].status).toBe('submission_unknown')
-  expect(query()).toEqual([{ runId: manifest.runId, jobId: before.jobs[0].jobId }])
+  expect(query()).toEqual([{ runId: manifest.runId, jobId: before.jobs[0].jobId, reason: 'needs_reconcile', hasTaskId: false, nodeId: manifest.nodeId }])
   await expect(fx.submit(manifest.nodeId, 'upgrade-refused')).rejects.toMatchObject({ reason: 'needs_reconcile' })
   expect(fx.vendor.executes).toHaveLength(0)
-  expect(query()).toEqual([{ runId: manifest.runId, jobId: before.jobs[0].jobId }])
+  expect(query()).toEqual([{ runId: manifest.runId, jobId: before.jobs[0].jobId, reason: 'needs_reconcile', hasTaskId: false, nodeId: manifest.nodeId }])
   const service = createProductionRunService({ repository: fx.repository, projectRootResolver: () => fx.root })
   await service.command(PROJECT, manifest.runId, { commandId: 'upgrade-release', expectedRevision: before.revision,
     type: 'job.reconcile', payload: { jobId: before.jobs[0].jobId, outcome: 'user_checked_abandon' }, humanGesture: true, issuedAt: '2026-11-02T00:00:00.000Z' })

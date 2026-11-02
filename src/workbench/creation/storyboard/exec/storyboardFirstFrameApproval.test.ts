@@ -31,7 +31,8 @@ vi.mock('../../../api/modelCatalogApi', () => ({
   getWorkbenchModelCatalogHealth: async () => health,
 }))
 vi.mock('../../../api/vendorPreferenceApi', () => ({ getVendorPreference: async () => ({ orderedVendorKeys: [] }) }))
-vi.mock('../../../api/taskApi', () => ({ consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []), consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('../../../generationCanvas/runner/generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 
 const shot: PlanShot = {

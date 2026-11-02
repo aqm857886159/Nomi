@@ -20,7 +20,7 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   },
 }))
-vi.mock('../../api/taskApi', () => ({ canvasUnknownRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../api/taskApi', () => ({ canvasOpenRuns: calls.unknown, mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 
@@ -41,6 +41,7 @@ beforeEach(() => {
     return { applied: true }
   })
   calls.confirm.mockReset().mockResolvedValue(true)
+  calls.unknown.mockReset().mockResolvedValue([])
   calls.execute.mockReset()
   vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockImplementation(calls.confirm)
   calls.mint.mockReset().mockResolvedValue('approved-three')
@@ -97,7 +98,7 @@ it.each([false, true])('B3: a single generation takes the node out of another qu
 
 import { releaseUnknownCanvasSubmissionsForNode } from '../../production/releaseUnknownSubmission'
 
-it('C2: a refused second click stays in history while the host-selected original Run is released and regenerated', async () => {
+it('C2: a refused second click is withdrawn without hiding the original Run while the host-selected original Run is released and regenerated', async () => {
   await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'unconfirmed shot' })
   calls.execute.mockRejectedValueOnce(new Error('NOMI_ERR::submission-unknown::The provider did not confirm this submission'))
@@ -106,8 +107,8 @@ it('C2: a refused second click stays in history while the host-selected original
   calls.execute.mockRejectedValueOnce(new Error(encodeStructuredErrorMessage({ code: 'production_shot_claimed', reason: 'needs_reconcile' }, 'production_shot_claimed: needs_reconcile')))
   await confirmAndRunNode(node.id, { initiator: 'user' })
   const history = structuredClone(useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs!)
-  expect(history[0].id).not.toBe(original)
-  calls.unknown.mockResolvedValue([{ runId: 'canvas-' + original, jobId: 'original-job' }])
+  expect(history[0].id).toBe(original)
+  calls.unknown.mockResolvedValue([{ runId: 'canvas-' + original, jobId: 'original-job', nodeId: node.id, reason: 'needs_reconcile', hasTaskId: false }])
   const command = vi.fn(async () => ({ run: { runId: 'canvas-' + original, projectId: 'project-a', revision: 2, jobs: [] }, events: [] }))
   await releaseUnknownCanvasSubmissionsForNode('project-a', node.id, {
     read: async (_project: string, runId: string) => runId === 'canvas-' + original ? { runId, projectId: 'project-a', revision: 1, jobs: [] } : null,
@@ -115,6 +116,7 @@ it('C2: a refused second click stays in history while the host-selected original
   } as never)
   expect(command.mock.calls[0]).toMatchObject(['project-a', 'canvas-' + original, { payload: { jobId: 'original-job', outcome: 'user_checked_abandon' } }])
   expect(useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs).toEqual(history)
+  calls.unknown.mockResolvedValue([])
   calls.execute.mockImplementation(async n => imageResult(n.id))
   await confirmAndRunNode(node.id, { initiator: 'user' })
   const done = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
@@ -168,13 +170,14 @@ it.each(['success', 'error', 'unknown'] as const)('in-flight refusal: the origin
   await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledOnce())
   await confirmAndRunNode(node.id, { initiator: 'user' })
   let current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
-  expect(generationFailureActions(current.error!, current.runs?.[0])).toMatchObject({ kind: 'local-refusal', primary: 'view-task', canRetry: false })
+  expect(current.runs).toHaveLength(1)
+  expect(current.error).toBeUndefined()
   settle(); await original
   current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
   if (ending === 'success') expect(current).toMatchObject({ status: 'success', error: undefined, result: imageResult(node.id) })
   else {
     const actions = generationFailureActions(current.error!, current.runs?.[0])
     expect(actions.kind).toBe(ending === 'unknown' ? 'submission-unknown' : 'quota')
-    expect(ending === 'unknown' ? actions.secondary : actions.primary).toBe(ending === 'unknown' ? 'release-regenerate' : 'retry')
+    expect(actions.primary).toBe(ending === 'unknown' ? 'release-regenerate' : 'retry')
   }
 })

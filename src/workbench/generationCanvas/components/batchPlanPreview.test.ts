@@ -21,7 +21,8 @@ vi.mock('../../../ui/toast', () => ({
   useToastStore: { getState: () => ({ push: mocks.toastPush }) },
 }))
 
-vi.mock('../../api/taskApi', () => ({ consentCanvasShots: mocks.consentCanvasShots, withdrawCanvasShots: vi.fn() }))
+vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []), consentCanvasShots: mocks.consentCanvasShots, withdrawCanvasShots: vi.fn() }))
 
 vi.mock('../spend/spendConfirm', () => ({
   confirmGenerationSpend: mocks.confirmGenerationSpend,
@@ -47,7 +48,7 @@ vi.mock('../runner/catalogTaskResolve', () => ({
 }))
 
 vi.mock('../runner/generationRunWaves', () => ({
-  runGenerationNodesByPlan: vi.fn(async () => ({ totalCount: 1, successes: [], failures: [] })),
+  runGenerationNodesByPlan: vi.fn(async () => ({ totalCount: 1, skipped: [], successes: [], failures: [] })),
 }))
 
 function plan(over: Partial<DependencyWavePlan>): DependencyWavePlan {
@@ -93,8 +94,16 @@ describe('runPlanWithToasts concurrency', () => {
     mocks.edges = []
     projectSession = createProjectSessionTestHarness()
     await projectSession.open('project-a')
-    vi.mocked(runGenerationNodesByPlan).mockResolvedValue({ totalCount: 1, successes: [], failures: [] })
+    vi.mocked(runGenerationNodesByPlan).mockResolvedValue({ totalCount: 1, skipped: [], successes: [], failures: [] })
     mocks.confirmGenerationSpend.mockResolvedValue(true)
+  })
+
+  it('F6: an admission refusal is an informational skip with no retry action', async () => {
+    vi.mocked(runGenerationNodesByPlan).mockResolvedValueOnce({ totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('node_generation_in_flight') }] })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
+    expect(mocks.toastPush).toHaveBeenCalledOnce()
+    expect(mocks.toastPush.mock.calls[0][0]).toMatchObject({ type: 'info', message: '1 张上一次还没结束，这次跳过了。' })
+    expect(mocks.toastPush.mock.calls[0][0].actionLabel).toBe('生成区')
   })
 
   // 2026-09-26 用户拍板（T-QA-36）：点「生成全部」只花生成的钱，跑完不再自动调文本模型审片。
@@ -107,7 +116,7 @@ describe('runPlanWithToasts concurrency', () => {
     ]
     mocks.edges = [{ id: 'pair', source: 'frame', target: 'video', mode: 'first_frame' }]
     vi.mocked(runGenerationNodesByPlan).mockResolvedValueOnce({
-      totalCount: 2,
+      totalCount: 2, skipped: [],
       successes: ['frame', 'anchor'].map(nodeId => ({ nodeId, result: { id: `${nodeId}-r`, type: 'image', url: `nomi-local://${nodeId}.png`, createdAt: 1 } })),
       failures: [],
     })
@@ -135,7 +144,7 @@ describe('runPlanWithToasts concurrency', () => {
 
   it('keeps ordinary progress and success on nodes without toast echoes', async () => {
     vi.mocked(runGenerationNodesByPlan).mockResolvedValueOnce({
-      totalCount: 1,
+      totalCount: 1, skipped: [],
       successes: [{ nodeId: 'a', result: { id: 'result-a', type: 'image', url: 'data:image/png;base64,a', createdAt: 1 } }],
       failures: [],
     })
@@ -147,7 +156,7 @@ describe('runPlanWithToasts concurrency', () => {
 
   it('never retries an old batch against the newly active project', async () => {
     vi.mocked(runGenerationNodesByPlan).mockResolvedValueOnce({
-      totalCount: 1, successes: [], failures: [{ nodeId: 'a', error: new Error('failed') }],
+      totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('failed') }],
     })
     await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
     await projectSession.open('project-b')
@@ -160,7 +169,7 @@ describe('runPlanWithToasts concurrency', () => {
   })
 
   it('does not replace another project recovery action when node IDs match and no grant is supplied', async () => {
-    vi.mocked(runGenerationNodesByPlan).mockResolvedValue({ totalCount: 1, successes: [], failures: [{ nodeId: 'a', error: new Error('offline') }] })
+    vi.mocked(runGenerationNodesByPlan).mockResolvedValue({ totalCount: 1, skipped: [], successes: [], failures: [{ nodeId: 'a', error: new Error('offline') }] })
     await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
     await projectSession.open('project-b')
     await runPlanWithToasts(plan({ waves: [['a']] }), { assetUploadConsent: 'not-needed', project: openProject() })
@@ -178,12 +187,12 @@ describe('runPlanWithToasts concurrency', () => {
   it('keeps the selected concurrency when the explicit retry action reruns failures', async () => {
     vi.mocked(runGenerationNodesByPlan)
       .mockResolvedValueOnce({
-        totalCount: 1,
+        totalCount: 1, skipped: [],
         successes: [],
         failures: [{ nodeId: 'a', error: new Error('mock failure') }],
       })
       .mockResolvedValueOnce({
-        totalCount: 1,
+        totalCount: 1, skipped: [],
         successes: [{ nodeId: 'a', result: { id: 'result-a', type: 'image', url: 'data:image/png;base64,a', createdAt: 1 } }],
         failures: [],
       })

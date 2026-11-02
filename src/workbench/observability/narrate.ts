@@ -221,7 +221,7 @@ export function narrateGenerationError(
   return {
     // 标题只说失败的原因，不附「未计费」：现在都走中转站，扣没扣钱 Nomi 不知道，只说失败原因和下一步。
     reason,
-    hint: i18n.t(`generationCommon.observability.error.${key}.${hintKey}`, params),
+    hint: kind === 'submission-unknown' ? '' : i18n.t(`generationCommon.observability.error.${key}.${hintKey}`, params),
   }
 }
 
@@ -317,9 +317,8 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   'output-truncated': RETRY_FIRST,
   // 只有重试：读不出来发生在我们这一侧，换供应商不是它的解法，更不能把它说成服务商的失败。
   'output-unreadable': { primary: 'retry', secondary: null },
-  // 不给一键重试：这一镜可能已经被服务商收下，重试可能重复提交。次动作「我核对过了，重新生成」点下去先展开一段确认，
-  // 确认后只释放占用、再走正常的付费确认卡；主动作指路去任务中心看这一笔的时间 / 模型 / 服务商。
-  'submission-unknown': { primary: 'reconcile', secondary: 'release-regenerate' },
+  // 人确认可能再次扣费后发；机器仍然跳过。
+  'submission-unknown': { primary: 'release-regenerate', secondary: 'reconcile' },
   // 没发出去：处理好原因后直接重试；等不及就换一个模型（换了也不会和上一次重复，上一次根本没到服务商）。
   'submission-not-sent': RETRY_FIRST,
   // 只指路去任务面板（那里有「重新取回」）。绝不给 retry：重试 = 再生成一份、再花一次钱，而这一份已经做好了。

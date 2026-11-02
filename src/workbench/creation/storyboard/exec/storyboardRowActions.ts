@@ -1,3 +1,5 @@
+import { canvasOpenRuns } from '../../../api/taskApi'
+import { withProjectAction } from '../../../project/projectCanvasReadSurface'
 import { isGenerationNodeBusy } from '../../../generationCanvas/components/canvasProductionScope'
 import { groupGenerateRows } from '../../../generationCanvas/components/groupGenerate'
 import { preloadModelOptions } from '../../../../config/useModelOptions'
@@ -29,7 +31,7 @@ import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvas
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
 import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards, type DeferredNodeMaterialization } from '../../../generationCanvas/runner/generationRunController'
-import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
+import { confirmAndRunPlan, reportOpenRunSkips } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
 import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
@@ -410,15 +412,16 @@ async function syncAnchorNodeWithCard(ctx: RowActionContext, anchor: PlanAnchor,
 // ── 批量（footer 主按钮）──
 
 type StoryboardBatchSelection = {
+  skipped?: number
   rows: StoryboardRowRuntime[]
   anchors: PlanAnchor[]
 }
 
-function storyboardBatchRows(ctx: RowActionContext, rows: readonly StoryboardRowRuntime[]): { planRows: PlanRow[]; selection: StoryboardBatchSelection } {
+function storyboardBatchRows(ctx: RowActionContext, rows: readonly StoryboardRowRuntime[], occupied = new Set<string>()): { planRows: PlanRow[]; selection: StoryboardBatchSelection } {
   const anchorCards = deriveAnchorCardRuntimes({ plan: ctx.plan, designId: ctx.designId, nodes: canvasState().nodes })
   const neededAnchorIds = new Set(rows.flatMap((row) => row.shot.anchorIds))
   const anchors = anchorCards
-    .filter((card) => card.visual && neededAnchorIds.has(card.anchor.id) && !card.resultUrl && !isGenerationNodeBusy(card.node ?? undefined) && !card.locked)
+    .filter((card) => card.visual && neededAnchorIds.has(card.anchor.id) && !card.resultUrl && !isGenerationNodeBusy(card.node ?? undefined) && !card.locked && !occupied.has(card.node?.id ?? ''))
     .map((card) => card.anchor)
   const anchorRows: PlanRow[] = anchors.map((anchor) => ({
     id: `anchor:${anchor.id}`,
@@ -438,9 +441,17 @@ function storyboardBatchRows(ctx: RowActionContext, rows: readonly StoryboardRow
 }
 
 async function confirmStoryboardBatch(ctx: RowActionContext, rows: readonly StoryboardRowRuntime[]): Promise<StoryboardBatchSelection | null> {
-  rows = rows.filter(row => !isGenerationNodeBusy(row.exec.node ?? undefined) && !isGenerationNodeBusy(row.exec.keyframeNode ?? undefined))
-  const { planRows, selection } = storyboardBatchRows(ctx, rows)
-  if (planRows.length === 0) return null
+  const projectId = withProjectAction(project => project.binding.projectId)
+  const occupied = new Set(projectId ? (await canvasOpenRuns({ projectId })).map(entry => entry.nodeId) : [])
+  let skipped = 0
+  if (projectId && occupied.size) {
+    const needed = new Set(rows.flatMap(row => row.shot.anchorIds))
+    const targets = new Set([...rows.flatMap(row => [row.exec.node?.id, row.exec.keyframeNode?.id]), ...ctx.plan.anchors.filter(anchor => needed.has(anchor.id)).map(anchor => anchorNodeFor(ctx, canvasState().nodes, anchor)?.id)])
+    skipped = [...occupied].filter(id => targets.has(id)).length
+  }
+  rows = rows.filter(row => !occupied.has(row.exec.node?.id ?? '') && !occupied.has(row.exec.keyframeNode?.id ?? '') && !isGenerationNodeBusy(row.exec.node ?? undefined) && !isGenerationNodeBusy(row.exec.keyframeNode ?? undefined))
+  const { planRows, selection } = storyboardBatchRows(ctx, rows, occupied)
+  if (planRows.length === 0) return { rows: [], anchors: [], skipped }
   const checked = new Set(planRows.filter((row) => row.checked).map((row) => row.id))
   const ok = await confirmStoryboardPlanBatch({
     title: i18n.t('storyboardEditor.batch.title', { count: planRows.length }),
@@ -455,6 +466,7 @@ async function confirmStoryboardBatch(ctx: RowActionContext, rows: readonly Stor
   })
   if (!ok) return null
   return {
+    skipped,
     rows: selection.rows.filter((row) => checked.has(`shot:${stableShotId(row.shot)}`)),
     anchors: selection.anchors.filter((anchor) => checked.has(`anchor:${anchor.id}`)),
   }
@@ -478,15 +490,19 @@ async function materializeAnchorCard(ctx: RowActionContext, anchor: PlanAnchor):
 type StoryboardShotRuns = readonly ({ id: string; runId: string | undefined } | null)[]
 
 /** Confirmation owns existing runs only; another action taking either node owns the whole shot. */
+function storyboardNodeRunUnclaimed(node: GenerationCanvasNode | null | undefined, before: StoryboardShotRuns[number] | undefined): boolean {
+  if (before === undefined) return false
+  if (!node) return !before
+  if (isGenerationNodeBusy(node) || isAnchorFrozen(node) || node.status === 'recoverable') return false
+  if (!before || node.id !== before.id) return !node.runs?.length
+  return node.runs?.[0]?.id === before.runId
+}
+
 function storyboardBatchShotUnclaimed(ctx: RowActionContext, shot: PlanShot, approved: StoryboardShotRuns | undefined): boolean {
   if (!approved) return false
   const bound = existingRowBindings(ctx, shot)
-  return [bound.shotNode, bound.keyframeNode].every((node, index) => {
-    const before = approved[index]
-    if (!node) return !before
-    if (isGenerationNodeBusy(node) || isAnchorFrozen(node) || node.status === 'recoverable') return false
-    return before ? node.id === before.id && node.runs?.[0]?.id === before.runId : !node.runs?.length
-  })
+  return storyboardNodeRunUnclaimed(bound.shotNode, approved[0])
+    && (!(shot.shotKind !== 'image' && shot.keyframe?.enabled) || storyboardNodeRunUnclaimed(bound.keyframeNode, approved[1]))
 }
 
 /**
@@ -529,14 +545,23 @@ export async function runStoryboardBatch(
       if (args) await applyCreate(args, ctx.gesture, ctx.assertCurrent)
     }
   }
-  const confirmed = landing?.placementOnly
-    ? { rows: [...rows], anchors: [] as PlanAnchor[] }
-    : await confirmStoryboardBatch(ctx, rows)
-  if (!confirmed || (!landing?.placementOnly && confirmed.rows.length === 0 && confirmed.anchors.length === 0)) return 'declined'
-  const confirmedShotRuns = new Map(confirmed.rows.map(row => {
+  const confirmedAnchorRuns = new Map(ctx.plan.anchors.map(anchor => {
+    const node = anchorNodeFor(ctx, canvasState().nodes, anchor)
+    return [anchor.id, node ? { id: node.id, runId: node.runs?.[0]?.id } : null] as const
+  }))
+  const confirmedShotRuns = new Map(rows.map(row => {
     const bound = existingRowBindings(ctx, row.shot)
     return [stableShotId(row.shot), [bound.shotNode, bound.keyframeNode].map(node => node ? { id: node.id, runId: node.runs?.[0]?.id } : null)] as const
   }))
+  const confirmed = landing?.placementOnly
+    ? { rows: [...rows], anchors: [] as PlanAnchor[] }
+    : await confirmStoryboardBatch(ctx, rows)
+  if (!confirmed) return 'declined'
+  if (!landing?.placementOnly && confirmed.rows.length === 0 && confirmed.anchors.length === 0) {
+    if (confirmed.skipped) withProjectAction(project => reportOpenRunSkips(project.binding.projectId, confirmed.skipped!))
+    return 'nothing-to-run'
+  }
+
 
   // Reference cards are a separate wave. A failed card stops here; shot nodes are not even materialized,
   // so a missing reference can never be silently dispatched as a shot without it.
@@ -550,12 +575,22 @@ export async function runStoryboardBatch(
       const { nodes: anchorNodes, edges: anchorEdges } = canvasState()
       const anchorOutcome = await confirmAndRunPlan(
         buildDependencyWaves(anchorRunIds, { nodes: anchorNodes, edges: anchorEdges }),
-        { ...confirmationGuards(ctx), skipSpendConfirmation: true },
+        { ...confirmationGuards(ctx), skipSpendConfirmation: true, filterBeforeEnqueue: ids => {
+          const available = new Set(confirmed.anchors.filter(anchor => storyboardNodeRunUnclaimed(anchorNodeFor(ctx, canvasState().nodes, anchor), confirmedAnchorRuns.get(anchor.id)))
+            .map(anchor => anchorNodeFor(ctx, canvasState().nodes, anchor)?.id))
+          return ids.filter(id => available.has(id))
+        } },
       )
       if (anchorOutcome === 'unavailable' || anchorOutcome === 'declined') return anchorOutcome
       const afterAnchors = useGenerationCanvasStore.getState().nodes
       if (anchorRunIds.some((id) => !hasUsableResult(afterAnchors.find((node) => node.id === id)))) return 'started'
     }
+  }
+  if (confirmed.skipped) withProjectAction(project => reportOpenRunSkips(project.binding.projectId, confirmed.skipped!))
+  if (!landing?.placementOnly) {
+    const needed = new Set(confirmed.rows.flatMap(row => row.shot.anchorIds))
+    if (ctx.plan.anchors.some(anchor => needed.has(anchor.id) && isVisualAnchor(anchor) && !anchorCarriesOwnMaterial(anchor)
+      && !hasUsableResult(anchorNodeFor(ctx, canvasState().nodes, anchor)))) return 'started'
   }
   if (!landing?.placementOnly) ctx.plan = ctx.actionGuard
     ? await ctx.actionGuard.refreshReferences()
@@ -587,10 +622,13 @@ export async function runStoryboardBatch(
   if (landing?.placementOnly) return 'nothing-to-run'
   await ctx.assertCurrent?.()
   const { nodes, edges } = canvasState()
-  const unclaimedIds = new Set(currentRows.filter(row => storyboardBatchShotUnclaimed(ctx, row.shot, confirmedShotRuns.get(stableShotId(row.shot))))
-    .flatMap(row => { const bound = existingRowBindings(ctx, row.shot); return [bound.shotNode?.id, bound.keyframeNode?.id] }))
-  const remainingRunIds = runIds.filter(id => unclaimedIds.has(id))
+  const filterBeforeEnqueue = (ids: string[]) => {
+    const unclaimedIds = new Set(currentRows.filter(row => storyboardBatchShotUnclaimed(ctx, row.shot, confirmedShotRuns.get(stableShotId(row.shot))))
+      .flatMap(row => { const bound = existingRowBindings(ctx, row.shot); return [bound.shotNode?.id, bound.keyframeNode?.id] }))
+    return ids.filter(id => unclaimedIds.has(id))
+  }
+
   // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
-  return confirmAndRunPlan(buildDependencyWaves(remainingRunIds, { nodes, edges }), { ...confirmationGuards(ctx), skipSpendConfirmation: !spendChanged,
-    ...(spendChanged ? { itemized: { rows: groupGenerateRows(remainingRunIds) } } : {}), ...(onConsented ? { onConsented } : {}) })
+  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), filterBeforeEnqueue, skipSpendConfirmation: !spendChanged,
+    ...(spendChanged ? { itemized: { rows: groupGenerateRows(runIds) } } : {}), ...(onConsented ? { onConsented } : {}) })
 }

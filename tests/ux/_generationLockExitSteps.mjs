@@ -10,7 +10,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 
-export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-unknown-runs', 'storyboard-batch-shot-ownership-v2-']
+export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-open-runs', 'storyboard-batch-shot-ownership-v2-']
 export const LOCK_EXIT_SCRIPT = '清晨，林薇在旧书店找到一封信。她走到窗边，最后把信放在桌上。'
 const dialog = '[data-spend-confirm-dialog]'
 const timeout = stationTimeout({ turns: 1 })
@@ -75,7 +75,7 @@ export async function generationLockExitJourney(input) {
   const release = async () => {
     await page.getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot(`release-${report.stages.length}`)
-    await page.locator('[data-release-confirm]').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
     await expect(page.locator(dialog)).not.toBeVisible()
   }
   const idle = async () => {
@@ -123,7 +123,7 @@ export async function generationLockExitJourney(input) {
     await page.locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = 0 })
     await row(unknown).getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('storyboard-release')
-    await page.locator('[data-release-confirm]').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
     await expect(page.locator(dialog)).not.toBeVisible(); await success(unknown.id)
     await shot('storyboard-all-results'); report.stages.push('storyboard')
     await idle()
@@ -162,12 +162,12 @@ export async function generationLockExitJourney(input) {
     await page.getByRole('button', { name: text('generationCommon.observability.action.retry.main'), exact: true }).first().click(); await success(quota2.id)
     await canvas(unknown2.id); const beforeRefused = proxy.records.length
     const runsBefore = (await state()).find(n => n.id === unknown2.id).runs.length
-    await submit(); await expect.poll(async () => (await state()).find(n => n.id === unknown2.id).runs.length).toBe(runsBefore + 1)
+    await submit(); await expect(page.locator('[data-release-confirm]:visible')).toBeVisible(); assert.equal((await state()).find(n => n.id === unknown2.id).runs.length, runsBefore)
     assert.equal(proxy.records.length, beforeRefused); await shot('canvas-refused')
-    const refusedId = (await state()).find(n => n.id === unknown2.id).runs[0].id
-    await release(); await success(unknown2.id)
+    const originalId = (await state()).find(n => n.id === unknown2.id).runs[0].id
+    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click(); await success(unknown2.id)
     assert.equal(proxy.records.length, beforeRefused + 1)
-    assert.ok((await state()).find(n => n.id === unknown2.id).runs.some(r => r.id === refusedId), 'C2: refused history remains after releasing the original occupancy')
+    assert.ok((await state()).find(n => n.id === unknown2.id).runs.some(r => r.id === originalId), 'F12: the original Run history remains; asking permission creates no refused Run')
     await shot('canvas-released'); report.stages.push('canvas')
 
     await list(); await expect(page.locator('[data-list-card]')).toHaveCount(3)
@@ -240,8 +240,9 @@ export async function a4LockExitJourney(input) {
 
 export async function prepareLockExitStoryboard({ page, projectId, model, textLabel, fixture }) {
   await chooseAssistantModel(page, textLabel, CREATION_PANEL)
+  const draftedShots = lockExitDraft({ providerId: model.vendorKey, modelId: model.modelKey })
     if (fixture) {
-      fixture.expectText({ label: 'story script to storyboard', match: body => JSON.stringify(body).includes('旧书店'), reply: { type: 'tool', id: 'lock-exit-draft', name: 'draft_shots', args: { shots: lockExitDraft({ providerId: model.vendorKey, modelId: model.modelKey }) } } })
+      fixture.expectText({ label: 'story script to storyboard', match: body => JSON.stringify(body).includes('旧书店'), reply: { type: 'tool', id: 'lock-exit-draft', name: 'draft_shots', args: { shots: draftedShots } } })
       fixture.respond({ label: 'storyboard drafted', match: body => (body.messages ?? []).some(m => m.role === 'tool' && m.tool_call_id === 'lock-exit-draft'), reply: { type: 'text', text: '分镜方案已起草，请打开分镜表确认后生成。' } })
     }
     await sendCreation(page, `${LOCK_EXIT_SCRIPT} 请只起草分镜方案，不要生成。需要林薇和旧书店两张视觉资产卡，三个镜头都用图片模型 ${model.modelKey}，提示词明确写出资产名，每镜 storyboard.anchorIds 复用这两张参考卡的 id。`)

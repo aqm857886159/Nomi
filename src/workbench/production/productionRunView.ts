@@ -197,7 +197,7 @@ export function buildProductionRunView(
       tone: 'danger',
       titleKey: 'generationCommon.production.status.submissionUnknown',
       descriptionKey: 'generationCommon.production.description.submissionUnknown',
-      // 没拿到任务号 = Nomi 没法跟踪、只能让用户去服务商后台核对；核对完才有「我核对过了，重新生成」。有任务号仍走原来的对账。
+      // 没拿到任务号 = Nomi 没法跟踪、只能让用户去服务商后台核对；核对完才有「再发一次」。有任务号仍走原来的对账。
       primaryAction: unknown.providerTaskId ? 'reconcile' : 'release-unknown',
       targetId: unknown.jobId,
       // 给用户拿去和服务商后台比对的三项：提交时间、模型、服务商。

@@ -101,8 +101,11 @@ export async function threePageLockExitJourney(input) {
     await expect.poll(async () => (await nodes()).find(n => n.id === failed.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
     await expect(page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true })).toBeVisible()
     const count = proxy.records.length
+    const runsBeforePermission = JSON.stringify((await nodes()).find(n => n.id === failed.id).runs)
     await submit()
-    await expect.poll(async () => (await nodes()).find(n => n.id === failed.id)?.runs?.length).toBeGreaterThanOrEqual(4)
+    await expect(page.locator('[data-release-confirm]:visible')).toBeVisible()
+    assert.equal(JSON.stringify((await nodes()).find(n => n.id === failed.id).runs), runsBeforePermission)
+    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
     assert.equal(proxy.records.length, count)
     await shot('unknown-canvas-light')
     await list(failed.id); await shot('unknown-list-detail-light')
@@ -123,11 +126,12 @@ export async function threePageLockExitJourney(input) {
     await assetRow.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('unknown-storyboard-anchor-confirm')
     const cancelledAt = proxy.records.length
-    await page.locator('[data-release-confirm]').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
+    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
     assert.equal(proxy.records.length, cancelledAt)
     await canvas(asset.id)
     const assetRuns = (await nodes()).find(n => n.id === asset.id).runs.length
-    await submit(); await expect.poll(async () => (await nodes()).find(n => n.id === asset.id).runs.length).toBe(assetRuns + 1)
+    await submit(); await expect(page.locator('[data-release-confirm]:visible')).toBeVisible(); assert.equal((await nodes()).find(n => n.id === asset.id).runs.length, assetRuns)
+    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
     assert.equal(proxy.records.length, cancelledAt, 'C3: cancelling did not release the original occupancy')
     report.checks.anchorHasExit = true
 
@@ -149,7 +153,7 @@ export async function threePageLockExitJourney(input) {
     await openStoryboardEditor(page, design.id)
     if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
     await page.locator(`[data-storyboard-anchor-row="${asset.meta.anchorId}"]`).getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
-    await page.locator('[data-release-confirm]').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
     await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.anchorRelease = true
     await shot('storyboard-anchor-released-result')
@@ -158,13 +162,13 @@ export async function threePageLockExitJourney(input) {
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
     await page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('canvas-release-confirm')
-    await page.locator('[data-release-confirm]').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.canvasRelease = true
     await shot('canvas-released-result')
     proxy.dropNextReply(); await submit()
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
-    const occupied = await page.evaluate(({ projectId, nodeId }) => window.nomiDesktop.tasks.canvasUnknownRuns({ projectId, nodeId }), { projectId, nodeId: canvasNode.id })
+    const occupied = await page.evaluate(({ projectId, nodeId }) => window.nomiDesktop.tasks.canvasOpenRuns({ projectId, nodeId }), { projectId, nodeId: canvasNode.id })
     assert.ok(occupied.length)
     const beforeTaskCenter = proxy.records.length
     const blank = await findCanvasBlankPoint(page)

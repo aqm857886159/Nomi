@@ -1,3 +1,4 @@
+import { classifyGenerationError } from '../../observability/classifyError'
 import { declareStoreLifetime } from '../../project/storeLifetime'
 // 批量执行计划预览态(harness S2b,样张方案 A:画布原位确认)。
 // 语义铁律:进入预览 ≠ 开始生成——确认前零 vendor 调用零扣费;取消即散,画布零变化。
@@ -9,7 +10,7 @@ import { captureApprovedGenerationInputs, type RunGraph, type RunProjectTarget }
 import { paidNodeLedger, spendCostKind, spendCostKindForNodes, type GenerationConfirmationGuards } from '../runner/generationRunController'
 import { runGenerationNodesByPlan } from '../runner/generationRunWaves'
 import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNodes } from '../spend/spendConfirm'
-import { consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../../api/taskApi'
+import { canvasOpenRuns, consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../../api/taskApi'
 import { selectedModelKey, selectedVendor } from '../runner/catalogTaskResolve'
 import { createRunId } from '../store/canvasIds'
 import { hasLocalAssetReference, resolveAssetUploadConsent } from '../runner/assetUploadConsent'
@@ -166,22 +167,30 @@ async function consentPaidNodes(ids: readonly string[], projectId: string): Prom
  */
 export async function confirmAndRunPlan(
   plan: DependencyWavePlan,
-  options: { concurrency?: number; onConsented?: (runIds: string[]) => void; /** A storyboard batch already showed its checklist before materialization. */ skipSpendConfirmation?: boolean; deferredMaterialization?: DeferredStoryboardPlan; /** 同一张付费确认里按项勾选（画布组框与列表分区头「生成全部」）。 */ itemized?: ItemizedBatch } & GenerationConfirmationGuards,
+  options: { filterBeforeEnqueue?: (nodeIds: string[]) => string[]; concurrency?: number; onConsented?: (runIds: string[]) => void; /** A storyboard batch already showed its checklist before materialization. */ skipSpendConfirmation?: boolean; deferredMaterialization?: DeferredStoryboardPlan; /** 同一张付费确认里按项勾选（画布组框与列表分区头「生成全部」）。 */ itemized?: ItemizedBatch } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前换了项目 = 取消（没花钱）；提交后整批归原项目。
   const project = withProjectAction((issued) => issued)
   if (!project) return 'unavailable'
   const deferred = options.deferredMaterialization
   let executionPlan = plan
-  const itemized = options.itemized
+  const occupied = new Set((await canvasOpenRuns({ projectId: project.binding.projectId })).map(entry => entry.nodeId))
+  let skippedBeforeStart = 0
+  if (occupied.size) {
+    skippedBeforeStart = new Set([...plan.waves.flat(), ...(options.itemized?.rows.map(row => row.id).filter((id): id is string => Boolean(id)) ?? [])].filter(id => occupied.has(id))).size
+    executionPlan = { ...plan, waves: plan.waves.map(wave => wave.filter(id => !occupied.has(id))).filter(wave => wave.length), blocked: plan.blocked.filter(entry => !occupied.has(entry.nodeId)) }
+  }
+  const priceTargets = options.itemized && options.filterBeforeEnqueue ? new Set(options.filterBeforeEnqueue(options.itemized.rows.flatMap(row => row.id ? [row.id] : []))) : null
+  const itemized = options.itemized ? { rows: options.itemized.rows.filter(row => !row.id || (!occupied.has(row.id) && (!priceTargets || priceTargets.has(row.id)))) } : undefined
   // 逐项勾选时候选 = 行里没锁的全部（含默认没勾的）：托管披露、出价前的输入快照都按这个超集算，勾什么由用户在卡上定。
   const selectableIds = itemized ? itemized.rows.filter((row) => !row.disabled && row.id).map((row) => row.id!) : []
   let toggled = false
   const checkedIds = new Set(itemized ? itemized.rows.filter((row) => row.checked && !row.disabled && row.id).map((row) => row.id!) : [])
-  let ids = deferred ? deferred.draftNodes.map((node) => node.id) : itemized ? selectableIds : plan.waves.flat()
+  let ids = deferred ? deferred.draftNodes.map((node) => node.id) : itemized ? selectableIds : executionPlan.waves.flat()
   if (ids.length === 0) {
+    if (skippedBeforeStart) reportOpenRunSkips(project.binding.projectId, skippedBeforeStart)
     // 无可跑 → 复用人话 toast 报「为什么不能跑」。零节点也就没有素材要上传。
-    await runPlanWithToasts(executionPlan, { assetUploadConsent: 'not-needed', project })
+    if (executionPlan.blocked.length) await runPlanWithToasts(executionPlan, { assetUploadConsent: 'not-needed', project })
     return 'nothing-to-run'
   }
   let assertApprovedInputs = deferred ? undefined : captureApprovedGenerationInputs(ids)
@@ -239,15 +248,26 @@ export async function confirmAndRunPlan(
     assertApprovedInputs = captureApprovedGenerationInputs(ids)
   }
   const consented = await consentPaidNodes(ids, project.binding.projectId)
+  const consentNodeIds = [...consented.recordIds.keys()]
   const canvasRunRecordIds = consented.recordIds
   // 开出价那一下（一次 IPC）里换了项目：还没交任何东西，收回刚开的出价，这一批算没开始（与提交前换项目 = 取消同一条）。
   if (!isProjectExecutionContextCurrent(project)) {
     withdrawCanvasShots({ projectId: project.binding.projectId, runRecordIds: [...canvasRunRecordIds.values()], by: 'stopped' })
     return 'unavailable'
   }
-  options.onConsented?.(consented.runIds)
+  // All asynchronous approval and consent work has completed. Nothing may await before enqueue.
+  if (options.filterBeforeEnqueue) {
+    const kept = new Set(options.filterBeforeEnqueue(ids))
+    const removed = [...canvasRunRecordIds].filter(([id]) => !kept.has(id))
+    if (removed.length) withdrawCanvasShots({ projectId: project.binding.projectId, runRecordIds: removed.map(([, record]) => record), by: 'stopped' })
+    for (const [id] of removed) canvasRunRecordIds.delete(id)
+    executionPlan = { ...executionPlan, waves: executionPlan.waves.map(wave => wave.filter(id => kept.has(id))).filter(wave => wave.length), blocked: executionPlan.blocked.filter(entry => kept.has(entry.nodeId)) }
+    ids = executionPlan.waves.flat()
+  }
+  if (!ids.length) return 'nothing-to-run'
+  options.onConsented?.(consented.runIds.filter((_, index) => ids.includes(consentNodeIds[index])))
   await runPlanWithToasts(executionPlan, {
-    project,
+    project, skippedOpenRuns: skippedBeforeStart,
     assertAuthorCurrent: options.assertAuthorCurrent,
     assertApprovedInputs,
     canvasRunRecordIds,
@@ -264,7 +284,7 @@ export async function runPlanWithToasts(
   plan: DependencyWavePlan,
   // assetUploadConsent 必填：整批的托管同意在上面那张批量花钱卡里问过了，这里只是把答案带下去。
   // 缺省会让 runner 无从判断「谁问的用户」，那正是 F16b 第二张卡的来源。
-  options: { assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; canvasRunRecordIds?: ReadonlyMap<string, string>; concurrency?: number; assetUploadConsent: 'allow' | 'not-needed'; project: ProjectExecutionContext },
+  options: { skippedOpenRuns?: number; assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; canvasRunRecordIds?: ReadonlyMap<string, string>; concurrency?: number; assetUploadConsent: 'allow' | 'not-needed'; project: ProjectExecutionContext },
 ): Promise<void> {
   // 运行属于发起它的项目：身份（target）在这里定死，之后用户切项目也照样落回原项目。
   const target: RunProjectTarget = options.project.binding
@@ -297,7 +317,10 @@ export async function runPlanWithToasts(
       ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
     })
     const okCount = result.successes.length
-    const failCount = result.failures.length
+    const failures = result.failures.filter(failure => classifyGenerationError(failure.error.message).kind !== 'local-refusal')
+    const skippedCount = (options.skippedOpenRuns ?? 0) + (result.skipped?.length ?? 0) + result.failures.length - failures.length
+    if (skippedCount) reportOpenRunSkips(projectId, skippedCount)
+    const failCount = failures.length
     // 完成汇总：把「还有谁没跑、为什么」(notice) 并进同一条，不再跑完补弹第二条（消除连环弹，弹窗审计）。
     const tail = notice ? i18n.t('generationCommon.batchPlan.blockedTail', { notice }) : ''
     if (failCount === 0) {
@@ -314,7 +337,7 @@ export async function runPlanWithToasts(
       // 失败汇总挂「重试失败的 N 个」一键动作（样张拍板 2026-07-29）：只对失败节点重建依赖波次
       // → 重新轻确认（新的一张卡、新开的出价，不绕付费闸）→ 并发重跑；成功的不重付。上游仍缺果的会再次被
       // 人话拦下（describeBlockedNotice），不静默。ttl 放宽到 12s 给动作留点击窗口。
-      const failureIds = result.failures.map((failure) => failure.nodeId)
+      const failureIds = failures.map((failure) => failure.nodeId)
       const message =
         okCount === 0
           ? i18n.t('generationCommon.batchPlan.failed', { count: failCount, tail })
@@ -363,3 +386,7 @@ export const batchPlanPreviewStoreLifetime = declareStoreLifetime({
   fields: { plan: 'project', running: 'project' },
   releaseProject: () => useBatchPlanPreviewStore.setState({ plan: null, running: false }),
 })
+
+export function reportOpenRunSkips(projectId: string, count: number) {
+  reportCanvasFeedback(i18n.t('generationCommon.batchPlan.openRunsSkipped', { count }), 'info', { identity: 'canvas-open-skipped', reason: 'generation-skipped', projectId })
+}

@@ -27,7 +27,8 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   }),
 }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: vi.fn(async () => 'grant'), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []), mintSpendGrant: vi.fn(async () => 'grant'), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('../../../desktop/bridge', () => ({
   getDesktopBridge: () => ({ projects: {
     applyCanvasNodePatch: async ({ projectId, nodeId, patch }: { projectId: string; nodeId: string; patch: Record<string, unknown> }) => {

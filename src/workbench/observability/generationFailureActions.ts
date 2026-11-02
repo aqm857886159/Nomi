@@ -7,7 +7,7 @@ export type FailureRun = Readonly<{ id?: string; taskId?: string; productionRunI
 /** The three production pages read the same task provenance and retry decision. */
 export function generationFailureActions(message: string, run?: FailureRun) {
   const report = classifyGenerationError(message)
-  const withoutTask = !run?.taskId?.trim() && !isProductionRunRecord({ id: run?.id })
+  const withoutTask = report.primary !== 'release-regenerate' && !run?.taskId?.trim() && !isProductionRunRecord({ id: run?.id })
     ? narrateGenerationErrorWithoutTask(report.kind) : null
   const primary = withoutTask?.primary ?? report.primary
   const secondary = withoutTask ? withoutTask.secondary : report.secondary

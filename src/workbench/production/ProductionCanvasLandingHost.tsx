@@ -1,3 +1,6 @@
+import { canvasOpenRuns } from '../api/taskApi'
+import { synchronizeCanvasOpenRuns } from './releaseUnknownSubmission'
+import { isProjectExecutionContextCurrent, subscribeProjectOpened } from '../project/projectCanvasReadSurface'
 // P4 S5 — 画布落地 host（全程挂在工作区，跟着画布）。三件事：
 //   ① 画布上有制作节点时，把这些节点所属的每一份 Run 放进 landing store（「排队中 / 已停」小标、续拍入口、失败卡的返工判断，
 //      以及对话流里付费卡的收据「✓ 已发出 / 已生成 N 段」）；只重读还会变的那几份（`landingRunsToRefresh`，算法在 store 模块）；
@@ -51,6 +54,15 @@ function sameRuns(a: Readonly<Record<string, ProductionRun>>, b: Readonly<Record
 }
 
 export function ProductionCanvasLandingHost({ projectId }: { projectId: string | null }): null {
+  React.useEffect(() => {
+    let disposed = false
+    const unsubscribe = subscribeProjectOpened(project => {
+      void canvasOpenRuns({ projectId: project.binding.projectId }).then(open => {
+        if (!disposed && isProjectExecutionContextCurrent(project)) synchronizeCanvasOpenRuns(open)
+      }).catch(error => logRendererWarn('canvas-open-runs-recovery-failed', { projectId: project.binding.projectId }, error))
+    })
+    return () => { disposed = true; unsubscribe() }
+  }, [])
   // E2E 专用桥（同 CameraMoveCaptureHost/TaskCenterButton 既有写法）：仅当 localStorage['__nomiE2E']==='1' 时把
   // landing store + 画布 store 挂到 window，供零额度走查直接注入构造好的 Run（各态并存的批次）验三态占位、
   // 读画布落地结果、触发撤销，无需跑真后端。本 host 跟着画布常驻（不像 CameraMoveCaptureHost 仅按需挂），是稳的宿主。

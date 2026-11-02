@@ -31,6 +31,7 @@ import { matchNomiErrorCode, RETRIEVAL_UNAVAILABLE_MESSAGE } from '../../../../e
 import { writeWorkspaceManifest } from '../../../../electron/workspace/workspaceManifest'
 
 vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []),
   mintSpendGrant: vi.fn(async () => 'grant-test'),
   fetchWorkbenchTaskResultByVendor: vi.fn(),
   pollCanvasShotRun: vi.fn(async () => null),

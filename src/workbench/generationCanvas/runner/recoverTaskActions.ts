@@ -36,7 +36,7 @@ function buildRecoverPayload(nodeId: string): { taskId: string; vendor: string; 
   if (!node) return null
   const taskId = asTrimmedString(node.runs?.[0]?.taskId) || asTrimmedString(node.progress?.taskId)
   const vendor = selectedVendor(node)
-  if (!taskId || !vendor) return null
+  if ((!taskId && !node.runs?.[0]?.id) || !vendor) return null
   // 用同一套 reference 解析还原原始 granular kind（image_to_video vs text_to_video…），
   // 让主进程 findTaskMapping 命中与首发同一个 query 桶。
   const references = resolveGenerationReferences(node, { nodes: state.nodes, edges: state.edges })
@@ -116,6 +116,7 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
       // 单镜 Run 路交出去的这一次：经它的 Run 查（主进程记下这一次查询，出片就记进 Run）；旧运行记录没有 Run，照旧路查。
       const query = async () => {
         const viaRun = runId ? await pollCanvasShotRun({ projectId: target.projectId, runRecordId: runId }) : null
+        if (!viaRun && !payload.taskId) throw new Error(i18n.t('generationCommon.recoverable.missingTask'))
         return viaRun ? { vendor: payload.vendor, result: viaRun } : fetchWorkbenchTaskResultByVendor({
           taskId: payload.taskId,
           vendor: payload.vendor,

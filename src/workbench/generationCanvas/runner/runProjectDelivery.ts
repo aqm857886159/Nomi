@@ -47,7 +47,9 @@ function applyToStore(nodeId: string, outcome: NodeRunOutcome): boolean {
     else if (outcome.kind !== 'progress') store.holdRunOutcome(nodeId, outcome)
     return false
   }
-  if (outcome.kind === 'result') {
+  if (outcome.kind !== 'run-refused' && outcome.kind !== 'run-started' && outcome.runId && node.runs?.[0]?.id !== outcome.runId) return false
+  if (outcome.kind === 'run-refused') store.withdrawNodeRun(nodeId, outcome)
+  else if (outcome.kind === 'result') {
     if (outcome.mediaDimensions) store.addNodeResult(nodeId, outcome.result, outcome.mediaDimensions)
     else store.addNodeResult(nodeId, outcome.result)
   }

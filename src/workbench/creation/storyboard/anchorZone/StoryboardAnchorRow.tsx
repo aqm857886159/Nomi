@@ -1,3 +1,4 @@
+import { useUnknownSubmissionRelease } from '../../../production/releaseUnknownSubmission'
 import { StoryboardFailureActions } from '../shotRow/StoryboardFrameActions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -304,6 +305,7 @@ function AnchorFace({
   onOpenPreview?: (() => void) | undefined
 }): JSX.Element {
   const { t } = useTranslation()
+  const release = useUnknownSubmissionRelease(runtime.node?.id, runtime.node?.meta)
   const narrow = useStoryboardRowNarrow()
   const box = densityBox(frameMediaBox(filmAspect), narrow)
   const raw = runtime.anchor.params?.aspect_ratio
@@ -344,6 +346,7 @@ function AnchorFace({
         </div>
       )
     }
+    if (runtime.generating && release.confirming) return <StoryboardFailureActions node={runtime.node} />
     if (runtime.generating) {
       return (
         <div className="relative overflow-hidden rounded-nomi border border-nomi-line bg-nomi-ink-05" style={style} data-anchor-face="generating">
@@ -393,6 +396,7 @@ function AnchorFace({
           <span className="line-clamp-2 text-micro leading-tight text-nomi-ink-60" title={runtime.errorMessage ?? undefined}>
             {t('storyboardEditor.frame.recoverable')}
           </span>
+          <StoryboardFailureActions node={runtime.node} />
           {onRecover ? (
             <button
               type="button"

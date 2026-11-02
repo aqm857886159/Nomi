@@ -1,3 +1,4 @@
+vi.mock('../api/taskApi', async original => ({ ...await original<typeof import('../api/taskApi')>(), canvasOpenRuns: vi.fn(async () => []) }))
 import { autoReferenceFromCanvas } from '../creation/storyboard/exec/storyboardAutoReference'
 import { mentionUrlsInOrder } from '../assets/promptMentions'
 vi.mock('../generationCanvas/runner/runProjectDelivery', async original => ({ ...await original<typeof import('../generationCanvas/runner/runProjectDelivery')>(), isRunTargetLoaded: () => true }))

@@ -50,6 +50,15 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
       if (durable) bumpPersistRevision(state)
     })
   },
+  withdrawNodeRun: (nodeId, outcome) => {
+    set(state => {
+      const node = state.nodes.find(candidate => candidate.id === nodeId)
+      if (!node) return
+      Object.assign(node, nodeRunOutcomePatch(node, outcome))
+      bumpPersistRevision(state)
+    })
+    emitRunUpdated(nodeId)
+  },
   appendNodeRun: (nodeId, run) => {
     const now = Date.now()
     const nextRun: GenerationNodeRunRecord = {

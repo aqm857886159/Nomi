@@ -1,4 +1,5 @@
-import { canRunGenerationNode, confirmAndRunNode, regenerateNodeInPlace } from '../runner/generationRunController'
+import i18n from '../../../i18n'
+import { confirmAndRunNode } from '../runner/generationRunController'
 import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
 import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
@@ -13,14 +14,11 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
  * 每按一次 ↑ 只出一版；已有结果的「重新生成」原地回填：新图进当前节点堆叠并设为主图，不再复制新节点。
  */
 export async function startGenerationFromComposer(node: GenerationCanvasNode, hasResult: boolean): Promise<void> {
-  const state = useGenerationCanvasStore.getState()
-  const pendingRefs = collectUngeneratedReferenceAncestors(node.id, { nodes: state.nodes, edges: state.edges })
-  if (pendingRefs.length > 0) {
-    const plan = buildDependencyWaves([...pendingRefs, node.id], { nodes: state.nodes, edges: state.edges })
-    useBatchPlanPreviewStore.getState().open(plan)
-    return
-  }
-  if (!canRunGenerationNode(node, { nodes: state.nodes, edges: state.edges })) return
-  if (hasResult) await regenerateNodeInPlace(node.id, { initiator: 'user' })
-  else await confirmAndRunNode(node.id, { initiator: 'user' })
+  await confirmAndRunNode(node.id, { initiator: 'user', ...(hasResult ? { title: i18n.t('generationCommon.composer.regenerate'), confirmLabel: i18n.t('generationCommon.composer.regenerate') } : {}), prepareDependencies: () => {
+    const state = useGenerationCanvasStore.getState()
+    const pendingRefs = collectUngeneratedReferenceAncestors(node.id, { nodes: state.nodes, edges: state.edges })
+    if (!pendingRefs.length) return false
+    useBatchPlanPreviewStore.getState().open(buildDependencyWaves([...pendingRefs, node.id], { nodes: state.nodes, edges: state.edges }))
+    return true
+  } })
 }

@@ -15,7 +15,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../../ui/toast', () => ({ toast: vi.fn(), useToastStore: { getState: () => ({ push: vi.fn(), remove: vi.fn() }) } }))
-vi.mock('../../api/taskApi', () => ({ consentCanvasShots: mocks.consentCanvasShots, withdrawCanvasShots: vi.fn() }))
+vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []), consentCanvasShots: mocks.consentCanvasShots, withdrawCanvasShots: vi.fn() }))
 vi.mock('../spend/spendConfirm', () => ({
   confirmGenerationSpend: mocks.confirmGenerationSpend,
   describeGenerationCost: vi.fn(() => ''),

@@ -52,6 +52,30 @@ export async function runLockExitRehearsal(locale = 'zh-CN', journey = generatio
     if (page && failure) await page.screenshot({ path: path.join(out, `${locale}-FAIL.png`) }).catch(() => {})
     if (app) await closeNomiApp(app).catch(() => {})
     await proxy.close(); await fixture.close()
+    if (!failure && journey === generationLockExitJourney) {
+      report.openRunStages = []
+      const cases = [
+        ['window-close', 'generation-lock-exit-interrupted.walk.mjs', ['window-close'], 'i6-window-close'],
+        ['sigkill', 'generation-lock-exit-interrupted.walk.mjs', ['sigkill'], 'i6-sigkill'],
+        ['reload', 'generation-lock-exit-interrupted.walk.mjs', ['reload'], 'i6-reload'],
+        ['retrieve', 'generation-lock-exit-late-result.walk.mjs', [], 'i5LateResult'],
+        ['resend', 'generation-lock-exit-late-resend.walk.mjs', [], 'i5bResend'],
+      ]
+      try {
+        for (const [name, file, args, receiptName] of cases) {
+          const childOut = path.join(out, name)
+          fs.mkdirSync(childOut, { recursive: true })
+          let exit = 0
+          try { execFileSync(process.execPath, [path.join(root, 'tests/ux', file), ...args], { stdio: 'inherit', env: { ...process.env, NOMI_LOCK_EXIT_LOCALE: locale, NOMI_LOCK_EXIT_OUT: childOut } }) }
+          catch (error) { exit = error.status ?? 1 }
+          const receipt = path.join(childOut, `${locale}-${receiptName}.json`)
+          const result = JSON.parse(fs.readFileSync(receipt, 'utf8'))
+          if (result.status !== 'passed') throw new Error(`${name}: ${result.error ?? 'free scenario failed'}`)
+          report.openRunStages.push({ name, status: result.status, commit: result.commit, receipt, exit })
+        }
+        execFileSync('git', ['diff', '--quiet', commit, '--', 'src', 'electron'])
+      } catch (error) { failure = error; process.exitCode = 1; console.error(error) }
+    }
     fs.writeFileSync(path.join(out, journey === generationLockExitJourney ? `${locale}-rehearsal.json` : `${locale}-${journey.name}.json`), JSON.stringify({ commit, status: failure ? 'failed' : report?.blocked?.length ? 'partial' : 'passed', error: failure?.message, report, requests: proxy.records }, null, 2))
     fs.rmSync(tempRoot, { recursive: true, force: true })
   }

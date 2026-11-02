@@ -17,7 +17,8 @@ export async function httpEightLockExitJourney({ page, projectId, proxy, fixture
   const shot = async name => { fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
   try {
     await chooseAssistantModel(page, textLabel, CREATION_PANEL)
-    fixture.expectText({ label: 'eight image storyboard', match: body => JSON.stringify(body).includes('八张明信片'), reply: { type: 'tool', id: 'eight-shots', name: 'draft_shots', args: { shots: Array.from({ length: 8 }, (_, index) => ({ title: `明信片 ${index + 1}`, prompt: `明信片 ${index + 1}，窗边一本书`, taskKind: 'text_to_image', candidate: { providerId: model.vendorKey, modelId: model.modelKey } })) } } })
+    const draftedShots = Array.from({ length: 8 }, (_, index) => ({ title: `明信片 ${index + 1}`, prompt: `明信片 ${index + 1}，窗边一本书`, taskKind: 'text_to_image', candidate: { providerId: model.vendorKey, modelId: model.modelKey } }))
+    fixture.expectText({ label: 'eight image storyboard', match: body => JSON.stringify(body).includes('八张明信片'), reply: { type: 'tool', id: 'eight-shots', name: 'draft_shots', args: { shots: draftedShots } } })
     fixture.respond({ label: 'eight shots ready', match: body => (body.messages ?? []).some(m => m.tool_call_id === 'eight-shots' && m.role === 'tool'), reply: { type: 'text', text: '八张方案已就绪。' } })
     await sendCreation(page, '请起草八张明信片的分镜方案，只起草，不生成。')
     let design

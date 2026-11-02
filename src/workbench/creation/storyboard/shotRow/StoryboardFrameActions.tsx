@@ -98,10 +98,11 @@ export default function StoryboardFrameActions({
   // 「重试」按下去要重新扣一次费，所以它比别的钮更不该让人点第二下：
   // 2026-09-11 用户实测——点了之后这颗钮没有任何变化，和没点着长得一样。
   // 忙态既是回执也是闸（`disabled`），和旁边那颗免费的「重新拉取结果」同一副长相。
+  const release = useUnknownSubmissionRelease(exec.node?.id, exec.node?.meta)
   const hasResult = Boolean(exec.resultUrl) && (exec.status === 'done' || exec.status === 'locked')
   const failed = exec.status === 'failed'
   const recoverable = exec.status === 'recoverable'
-  if (!hasResult && !failed && !recoverable && variants.length === 0) return null
+  if (!hasResult && !failed && !recoverable && variants.length === 0 && !release.confirming) return null
   const locked = exec.status === 'locked'
 
   return (
@@ -109,6 +110,8 @@ export default function StoryboardFrameActions({
     {/* 五件动作要在 136px 的列宽里排成一行（4 枚 24px 图标钮 + 一枚带计数的变体钮 ≈ 132px）。
         给了 gap 就会挤到第二行——第二行会让"这镜做完没有"的竖向节奏错开，正是 v6 要修的那种噪音。 */}
     <div className="flex items-center">
+      {release.confirming && !failed && !recoverable ? <StoryboardFailureActions node={exec.node} /> : null}
+      {recoverable ? <StoryboardFailureActions node={exec.recoverableNode ?? exec.node} /> : null}
       {failed ? <StoryboardFailureActions message={exec.errorMessage} node={exec.failedNode} busy={actionBusy} onRetry={onGenerate} /> : null}
       {recoverable && onRecover ? (
         // 免费续查（`recoverNodeResult` → query IPC）。中性描边、不写「重试」——写「重试」就等于
@@ -166,7 +169,7 @@ export function StoryboardFailureActions({ message, node, busy = false, onRetry 
 }) {
   const { t } = useTranslation()
   const runId = productionMetaOf({ meta: node?.meta })?.runId
-  const decision = generationFailureActions(message ?? '', { ...node?.runs?.[0], productionRunId: runId })
+  const decision = generationFailureActions(node?.status === 'recoverable' ? 'node_generation_in_flight' : message ?? '', { ...node?.runs?.[0], productionRunId: runId })
   const release = useUnknownSubmissionRelease(node?.id, node?.meta)
   const anchorRef = React.useRef<HTMLDivElement>(null)
   const viewTask = () => {

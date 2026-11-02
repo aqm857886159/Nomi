@@ -84,6 +84,7 @@ export function NodeErrorReport({
 }): JSX.Element {
   const { t } = useTranslation()
   const report = generationFailureActions(message, { ...run, productionRunId: productionMetaOf({ meta })?.runId })
+  const showSummary = summaryVisible || report.primary === 'release-regenerate'
   const taskId = run?.taskId
   const hint = report.hint
   const reportPrimary = report.primary
@@ -273,8 +274,8 @@ export function NodeErrorReport({
       // 不拦 pointerdown：错误卡 inset-0 盖住整个节点正文，若 stopPropagation 会让节点**拖不动也选不中**
       // （用户真机反馈）。放行 → 节点可拖可选、参数框正常弹；复制错误详情走卡里的「复制详情」按钮（不靠划选）。
     >
-      <div className={cn("flex items-start gap-2", !summaryVisible && "justify-end")}>
-        {summaryVisible ? <GenerationStatusBar feedback={{ phase: 'failed', message: report.reason, active: false, late: false, previewLabel: '' }} /> : null}
+      <div className={cn("flex items-start gap-2", !showSummary && "justify-end")}>
+        {showSummary ? <GenerationStatusBar feedback={{ phase: 'failed', message: report.reason, active: false, late: false, previewLabel: '' }} /> : null}
         {/* 收起：失败卡是铺满正文的遮罩，节点先前生成的片子就压在它下面——没有这颗钮，用户「一直看不了
             原本的视频」（2026-08-24 用户反馈，并在截图上把 × 画在了这个位置）。§1.5：它是 L2 情境控件，
             只随失败卡存在，且长在卡自己的不透明表面上、不是压在画面内容上（§1.5.3 那条硬规则）。
@@ -388,13 +389,14 @@ export function NodeFailureReport({ node, onFeedback, summaryVisible = true }: {
   summaryVisible?: boolean
 }) {
   const productionRetry = useProductionNodeRetry(node, onFeedback)
+  const release = useUnknownSubmissionRelease(node.id, node.meta)
   if (node.status === 'error' && node.error) return <NodeErrorReport
     summaryVisible={summaryVisible} message={node.error} meta={node.meta} nodeId={node.id} run={node.runs?.[0]}
     onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
     onRetry={node.kind === 'asset' && node.meta?.source === 'clipboard-url' ? undefined
       : productionRetry ?? localStepRedoOf(node, onFeedback) ?? (() => { void confirmAndRunNode(node.id, { initiator: 'user' }) })}
   />
-  if (node.status === 'recoverable') return <NodeRecoverableReport node={node}
+  if (node.status === 'recoverable' || release.confirming) return <NodeRecoverableReport node={node}
     onRecover={() => { withProjectAction((project) => { void recoverNodeResult(node.id, project) }) }}
     onDismiss={() => dismissRecoverableNode(node.id)} />
   return null

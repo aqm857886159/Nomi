@@ -17,6 +17,8 @@ const rehearsal = JSON.parse(fs.readFileSync(receiptPath, 'utf8'))
 assert.equal(rehearsal.status, 'passed', 'The free rehearsal must pass first')
 assert.deepEqual(rehearsal.report?.stages, ['storyboard', 'canvas', 'list', 'restart'], 'All four real-scenario stages must be rehearsed')
 assert.match(rehearsal.commit ?? '', /^[a-f0-9]{40}$/, 'The rehearsal must identify its exact commit')
+assert.deepEqual(rehearsal.report?.openRunStages?.map(stage => stage.name), ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'], 'Interrupted and unfinished requests must be rehearsed across all three pages')
+assert.ok(rehearsal.report.openRunStages.every(stage => stage.status === 'passed' && stage.commit === rehearsal.commit), 'Every added scenario must pass on the same source commit')
 execFileSync('git', ['diff', '--quiet', rehearsal.commit, 'HEAD', '--', 'src', 'electron'])
 execFileSync('git', ['diff', '--quiet', 'HEAD', '--', 'src', 'electron'])
 const model = { vendorKey: ENV_KEY_VENDOR, modelKey: 'gpt-image-2' }

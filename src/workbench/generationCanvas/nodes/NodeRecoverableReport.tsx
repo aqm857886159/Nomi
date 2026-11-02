@@ -1,3 +1,5 @@
+import { useUnknownSubmissionRelease } from '../../production/releaseUnknownSubmission'
+import { UnknownSubmissionConfirmation } from './NodeErrorReport'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconClockSearch, IconRefresh } from '@tabler/icons-react'
@@ -26,12 +28,13 @@ export function NodeRecoverableReport({
   onRecover,
   onDismiss,
 }: {
-  node: Pick<GenerationCanvasNode, 'runs' | 'error'>
+  node: Pick<GenerationCanvasNode, 'id' | 'runs' | 'error' | 'meta'>
   onRecover?: () => void
   onDismiss?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   const copy = recoverableCopyKeys(node)
+  const release = useUnknownSubmissionRelease(node.id, node.meta)
   const [pending, setPending] = React.useState(false)
   const [showRaw, setShowRaw] = React.useState(false)
   const lastFailure = typeof node.error === 'string' && node.error.trim() ? node.error : ''
@@ -81,6 +84,7 @@ export function NodeRecoverableReport({
 
       {report && showRaw ? <TechnicalDetailsBlock raw={report.raw} /> : null}
 
+      {release.confirming ? <UnknownSubmissionConfirmation release={release} /> : null}
       <div className="flex flex-wrap items-center gap-2">
         {onRecover ? (
           <WorkbenchButton
