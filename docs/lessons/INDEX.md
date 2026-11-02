@@ -238,6 +238,7 @@
 - [变异校验后别用 git checkout 目录还原](mutation-check-restore-one-file-not-the-directory.md) — 做“改回旧行为必红”变异校验时
 - [“以前能用、现在坏了”的热修：最小恢复，别重新设计](hotfix-restore-old-behavior-do-not-redesign.md) — 热修丢失的能力、开始想加新通道 / 新规则时
 
+- [重画界面前先查旧决定和真实代码](check-decisions-and-real-code-before-redesign.md) — 改现有界面、准备删控件或重画样张前；别把删过的控件画回来，也别误删用户已拍板的功能
 - [照着一次事情写的规则，只对那一次成立](rule-written-from-one-case-only-fits-that-case.md) — 用户当场纠正、想「写成规则」时；要改 `CLAUDE.md` 或 `rules.json` 时
 - [说「旧版改不了」前先查调用者](legacy-behavior-needs-callsite-proof.md) — 附定位路径、执行顺序、被调用行为原文；删除搬移事务的安装器案例
 
