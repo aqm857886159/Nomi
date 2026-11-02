@@ -592,7 +592,9 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, acknowledgedOpenRuns: opts.initiator === 'user' ? opts.acknowledgedOpenRuns : undefined, assetUploadConsent: 'allow', target: project.binding })
     ready()
     const result = await work
-    whenRunTargetLoaded(project.binding, () => useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(runId, result))
+    whenRunTargetLoaded(project.binding, () => {
+      if (useGenerationCanvasStore.getState().nodes.find(node => node.id === runId)?.result?.id === result.id) useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(runId, result)
+    })
   } catch {
     // 原任务队列保留失败原因；原项目身份有效时，节点也显示错误。
   }

@@ -1,3 +1,4 @@
+import { useWorkbenchStore } from '../../workbenchStore'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { confirmAndRunNode } from './generationRunController'
 import { confirmAndRunPlan } from '../components/batchPlanPreview'
@@ -87,4 +88,20 @@ it.each(['in_flight', 'needs_reconcile'] as const)('F12: repairing a stale runni
  expect(store().nodes.find(node => node.id === id)?.status).toBe(reason === 'in_flight' ? 'recoverable' : 'error')
  expect(calls.execute).not.toHaveBeenCalled()
  expect(useUnknownSubmissionReleaseStore.getState().nodes[id].confirming).toBe(true)
+})
+
+it('F4: late result after acknowledged resend changes neither the current card nor its timeline', async () => {
+ const id = add()
+ const timeline = vi.spyOn(useWorkbenchStore.getState(), 'reconcileTimelineForUpdatedNodes').mockImplementation(() => undefined)
+ let finish!: (value: unknown) => void
+ calls.execute.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+ const old = confirmAndRunNode(id, { initiator: 'user' })
+ await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledOnce())
+ calls.open.mockResolvedValue([{ nodeId: id, runId: 'old-host-run', reason: 'in_flight', hasTaskId: true }])
+ await confirmAndRunNode(id, { initiator: 'user', acknowledgedOpenRuns: ['old-host-run'] })
+ const current = store().nodes.find(node => node.id === id)!.result!
+ finish({ id: 'late-old-result', type: 'image', url: 'https://fixture.invalid/old.png', createdAt: 1 })
+ await old
+ expect(store().nodes.find(node => node.id === id)?.result?.id).toBe(current.id)
+ expect(timeline.mock.calls.map(([, result]) => result?.id)).toEqual([current.id])
 })

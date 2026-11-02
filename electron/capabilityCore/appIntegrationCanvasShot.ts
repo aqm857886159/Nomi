@@ -333,8 +333,11 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       claimBoundProductionShot({ projectId, bound: link ?? bound, canvasRunId: runId, executeOn, now });
       const providerId = canvasProviderId(vendor);
       const modelKey = text(request.extras?.modelKey) || text(request.extras?.modelAlias) || "unknown";
-      markCanvasRunOpen(projectRoot, runId, nodeId);
-      leases.set(runId, { projectId, senderId: input.senderId, touchedAt: Date.now() });
+      // An acknowledgement during preview has already handed this Run away.
+      if (nodesInFlight.get(nodeKey)?.has(runId)) {
+        markCanvasRunOpen(projectRoot, runId, nodeId);
+        leases.set(runId, { projectId, senderId: input.senderId, touchedAt: Date.now() });
+      }
       consents.delete(runId);
       const issuedAt = now();
       const commands: Array<Omit<RunCommand, "expectedRevision">> = [];
@@ -504,11 +507,13 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
         });
       throw error;
     } finally {
+      const handedOff = ownsNode && !nodesInFlight.get(nodeKey)?.has(runId);
       // 只放自己占的那一格：同节点在途被拒的那一下没占过它，放了会把正在交的那一笔的占位一起抹掉。
       if (ownsNode) {
         nodesInFlight.get(nodeKey)?.delete(runId);
         if (!nodesInFlight.get(nodeKey)?.size) nodesInFlight.delete(nodeKey);
       }
+      if (handedOff) handOff(projectId, runId);
     }
   }
 

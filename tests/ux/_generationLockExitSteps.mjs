@@ -8,7 +8,7 @@ import { canvasFitView, collapseAgentPanel, switchGenerationView, switchWorkspac
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
-import { uiText, uiTextWith } from './full-walk/invariants.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-open-runs', 'storyboard-batch-shot-ownership-v2-']
 export const LOCK_EXIT_SCRIPT = '清晨，林薇在旧书店找到一封信。她走到窗边，最后把信放在桌上。'
@@ -140,12 +140,14 @@ export async function generationLockExitJourney(input) {
     await page.locator('[data-frame-generate-all]').first().click(); await expect(page.locator(dialog)).toBeVisible()
     const checks = page.locator(`${dialog} [data-v4-block="plan-rows"] input[type="checkbox"]`)
     assert.equal(await checks.count(), 5, 'All five cards from the storyboard appear in the group confirmation')
-    const twoShotLabels = shotNodes.slice(0, 2).map(n => uiTextWith(locale, 'generationList.shot', { index: String(design.plan.shots.find(s => s.shotId === n.meta.shotId).index).padStart(2, '0') }))
+    assert.deepEqual(shotNodes.slice(0, 2).map(node => node.meta.shotId), design.plan.shots.slice(0, 2).map(shot => shot.shotId))
     const selectTwoShots = async () => {
-      for (const checkbox of await checks.all()) {
-        const label = await checkbox.getAttribute('aria-label')
-        await checkbox.setChecked(twoShotLabels.some(shotLabel => label?.endsWith(shotLabel)))
-      }
+      const labels = await checks.evaluateAll(inputs => inputs.map(input => input.getAttribute('aria-label')))
+      report.batchSelectionLabels = labels
+      const firstShot = labels.length - design.plan.shots.length
+      assert.ok(firstShot === 0 || firstShot === design.plan.anchors.length)
+      assert.deepEqual(labels.slice(0, firstShot), design.plan.anchors.slice(0, firstShot).map(anchor => anchor.name))
+      for (let index = 0; index < labels.length; index++) await checks.nth(index).setChecked(index === firstShot || index === firstShot + 1)
       assert.equal(await checks.evaluateAll(inputs => inputs.filter(input => input.checked).length), 2)
     }
     await shot('canvas-cancel-confirm'); const beforeCancel = proxy.records.length

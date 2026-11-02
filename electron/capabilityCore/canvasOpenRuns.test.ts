@@ -86,3 +86,18 @@ it('F6/F12: replaying the same charged unknown Run is not another attempt being 
  await expect(h.submit('node-a', 'another-intent')).rejects.toMatchObject({ code: 'production_shot_claimed', reason: 'needs_reconcile' })
  expect(h.vendor.executes).toHaveLength(1)
 })
+
+it('F4: acknowledgement during preview does not let the released Run reclaim the node when its POST starts', async () => {
+ let finish!: () => void
+ const preview = new Promise<null>(resolve => { finish = () => resolve(null) })
+ const h = setupCanvasShots({ previewBlock: preview as never })
+ h.vendor.answer = async call => ({ ...queued(), id: 'accepted-' + call })
+ const original = h.submit('node-a', 'before-preview')
+ await vi.waitFor(() => expect(h.previewCalls).toHaveLength(1))
+ const resend = h.runs.submit({ projectId: PROJECT, nodeId: 'node-a', runRecordId: 'after-ack', vendor: 'acme', request: canvasTestRequest('node-a'), gesture: h.gesture, senderId: h.senderId, acknowledgedOpenRuns: [canvasRunIdFor('before-preview')] })
+ await vi.waitFor(() => expect(h.previewCalls).toHaveLength(2))
+ finish();await Promise.all([original, resend])
+ expect(h.vendor.executes).toHaveLength(2)
+ expect(h.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: 'node-a' }).map(entry => entry.runId)).toEqual([canvasRunIdFor('after-ack')])
+ expect(h.observed).toContainEqual([PROJECT, canvasRunIdFor('before-preview')])
+})
