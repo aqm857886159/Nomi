@@ -80,7 +80,6 @@ afterEach(() => { session.dispose(); vi.restoreAllMocks() })
 function seed(current: StoryboardPlan) {
   useWorkbenchStore.setState({ activeDocumentId: 'doc', activeStoryboardId: 'design', storyboardDesignsByDocumentId: { doc: [{ id: 'design', plan: current, documentId: 'doc' } as never] } })
 }
-const readCurrentPlan = () => useWorkbenchStore.getState().storyboardDesignsByDocumentId.doc[0].plan as StoryboardPlan
 const rowsOf = (current: StoryboardPlan) => deriveStoryboardRowRuntimes({ plan: current, designId: 'design', nodes: nodes(), imageModelOptions: [], videoModelOptions: [] })
 const addShot = (shotId: string, extra: Record<string, unknown> = {}, kind: 'image' | 'video' = 'image') => store().addNode({ kind, prompt: shotId, meta: { storyboardDesignId: 'design', shotId, ...extra } })
 function holdAnchors() {
@@ -108,7 +107,6 @@ function editor(current: StoryboardPlan) {
     },
   }
 }
-const priceChange = (shotId: string, resolution = '4k') => { const latest = readCurrentPlan(); useWorkbenchStore.getState().setStoryboardPlan({ ...latest, shots: latest.shots.map(shot => shot.shotId === shotId ? { ...shot, params: { resolution } } : shot) }, 'doc', 'design') }
 const notified = () => calls.notify.mock.calls.map(([input]) => ({ reason: input.reason, type: input.type, message: input.message, actionLabel: input.actionLabel }))
 
 const anchorDone = () => {
