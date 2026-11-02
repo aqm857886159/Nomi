@@ -132,17 +132,17 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
       if (isTerminalTaskStatus(current.status)) break
       if (Date.now() - startedAt > RECOVER_POLL_TIMEOUT_MS) {
         // 仍没出来 → 退回可找回态，按钮重现，稍后可再拉。
-        await deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: tagNomiError('retrieval-timeout', i18n.t('generationCommon.recoverable.stillUpstream')) })
+        await deliverRunOutcome(target, id, { kind: 'status', runId, status: 'recoverable', error: tagNomiError('retrieval-timeout', i18n.t('generationCommon.recoverable.stillUpstream')) })
         return
       }
       // 进度只给前台看：原项目不在画布上时不写（那是别的项目的 store），也不为一句进度去写盘。
       if (isTargetLoaded(target)) {
-        useGenerationCanvasStore.getState().setNodeProgress(id, {
+        await deliverRunOutcome(target, id, { kind: 'progress', runId, progress: {
           runId,
           phase: 'still-generating',
           message: narrateProgress('still-generating', { elapsedMs: Date.now() - startedAt }),
           taskId: payload.taskId,
-        })
+        } })
       }
       await delay(RECOVER_POLL_INTERVAL_MS)
     }
@@ -150,7 +150,7 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
     // 网络/查询本身报错 → 退回可找回态（不是真失败），让用户能再点。
     // 走 describeOpaqueFailure 而不是自己写一句「拉取结果失败」：这条路径正是出站被拦最常落地的地方，
     // 而那条错误的价值全在它的机器码和「钱没丢、去确认代理」那句人话上——一句同义反复会把它盖掉。
-    await deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: describeOpaqueFailure(error) })
+    await deliverRunOutcome(target, id, { kind: 'status', runId, status: 'recoverable', error: describeOpaqueFailure(error) })
     return
   }
 
@@ -161,14 +161,14 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
     const normalized = normalizeCatalogTaskResult(current, node, onMediaDimensions)
     // 结构闸（找回路径）：找回本身就发生在 CDN 快过期的时刻，此处尤其要把临时 URL 落地——落进任务所属项目。
     const localized = await localizeRemoteResultUrl(normalized, target.projectId, id, onMediaDimensions)
-    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', result: localized, ...(mediaDimensions ? { mediaDimensions } : {}) })
+    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', runId, result: localized, ...(mediaDimensions ? { mediaDimensions } : {}) })
     if (landedInOpenProject) await persistActiveWorkbenchProjectNow().catch(() => {})
   } catch (error) {
     // 终态是 failed（normalizeCatalogTaskResult 对 failed 抛错）→ 这才是真失败，落 error 桶。
     // 「结果取回」族（上游说成了却没地址等，带 retrieval-* 码）不是失败：留在可找回（#1213 原则 1）。
     const message = describeOpaqueFailure(error)
     const status = isRetrievalStageCode(matchNomiErrorCode(message)) ? 'recoverable' : 'error'
-    await deliverRunOutcome(target, id, { kind: 'status', status, error: message })
+    await deliverRunOutcome(target, id, { kind: 'status', runId, status, error: message })
   }
 }
 
