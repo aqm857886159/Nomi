@@ -1,50 +1,19 @@
 {
-  "command": "node scripts/door-map.mjs <each contractual symbol>",
-  "sixSymbolSummary": [
+  "round": 3,
+  "command": "node scripts/door-map.mjs NodeErrorReport assertAuthorCurrent autoReferencePlan buildRecoverPayload canvasOpenRuns classifyGenerationError confirmAndRunNode confirmAndRunPlan continueUnknownSubmissionRelease createStoryboardActionGuard deriveShotRowExec generationFailureActions isGenerationNodeBusy markInterruptedSingleShotUnknown nodeIdOfJob nodeRunOutcomePatch readCanvasOpenRuns recoverOrphans releaseUnknownSubmission runGenerationNode runPlanWithToasts startGenerationFromComposer storyboardBatchShotUnclaimed storyboardFailureCopy storyboardNodeRunUnclaimed synchronizeCanvasOpenRuns --roots=src,electron,tests/ux --include-tests",
+  "directEntriesIncludingTests": 174,
+  "productionAndWalkEntries": 85,
+  "doors": [
     {
-      "symbol": "assertAuthorCurrent",
-      "exit": 0,
-      "doors": 6,
-      "writes": 1,
-      "reads": 5
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "readCanvasOpenRuns"
     },
     {
-      "symbol": "nodeIdOfJob",
-      "exit": 0,
-      "doors": 1,
-      "writes": 1,
-      "reads": 0
+      "kind": "read",
+      "path": "src/workbench/api/taskApi.ts",
+      "symbol": "canvasOpenRuns"
     },
-    {
-      "symbol": "releaseUnknownSubmission",
-      "exit": 0,
-      "doors": 2,
-      "writes": 2,
-      "reads": 0
-    },
-    {
-      "symbol": "autoReferencePlan",
-      "exit": 0,
-      "doors": 2,
-      "writes": 2,
-      "reads": 0
-    },
-    {
-      "symbol": "NodeErrorReport",
-      "exit": 0,
-      "doors": 1,
-      "writes": 0,
-      "reads": 1
-    },
-    {
-      "symbol": "storyboardFailureCopy",
-      "exit": 0,
-      "doors": 2,
-      "writes": 2,
-      "reads": 0
-    }
-  ],
-  "contractualSymbols": [
     {
       "kind": "read",
       "path": "src/workbench/capability/storyboardPresent.ts",
@@ -53,73 +22,11 @@
     {
       "kind": "read",
       "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "symbol": "assertAuthorCurrent"
+      "symbol": "createStoryboardActionGuard"
     },
     {
       "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "assertAuthorCurrent"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "assertAuthorCurrent"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "assertAuthorCurrent"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "assertAuthorCurrent"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/useProductionStatus.ts",
-      "symbol": "nodeIdOfJob"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "releaseUnknownSubmission"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/useProductionStatus.ts",
-      "symbol": "releaseUnknownSubmission"
-    },
-    {
-      "kind": "write",
-      "path": "src/devlab/designLab/storyboardReuse/storyboardReuseFixtures.ts",
-      "symbol": "autoReferencePlan"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-      "symbol": "autoReferencePlan"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "NodeErrorReport"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
-      "symbol": "storyboardFailureCopy"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
-      "symbol": "storyboardFailureCopy"
-    }
-  ],
-  "allOwners": [
-    {
-      "kind": "read",
-      "path": "src/workbench/capability/storyboardPresent.ts",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
       "symbol": "assertAuthorCurrent"
     },
     {
@@ -140,7 +47,47 @@
     {
       "kind": "read",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "markInterruptedSingleShotUnknown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "markInterruptedSingleShotUnknown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "canvasOpenRuns"
     },
     {
       "kind": "write",
@@ -149,903 +96,38 @@
     },
     {
       "kind": "write",
+      "path": "src/ui/browser/prompt/browserPromptExtractionRunner.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/taskApi.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
       "symbol": "storyboardFailureCopy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "createStoryboardActionGuard"
     },
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
       "symbol": "autoReferencePlan"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
-      "symbol": "storyboardFailureCopy"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "assertAuthorCurrent"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "releaseUnknownSubmission"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/useProductionStatus.ts",
-      "symbol": "releaseUnknownSubmission"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/useProductionStatus.ts",
-      "symbol": "nodeIdOfJob"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegration.ts",
-      "symbol": "reworkProductionShot"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegration.ts",
-      "symbol": "resumeProductionBatch"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "CanvasShotRequest"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "CanvasShotGesture"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "CanvasHandOverLink"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "CanvasShotDeps"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "CanvasShotSubmitInput"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "CanvasConsentShot"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "createCanvasShotRuns"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/canvasShotRunApi.ts",
-      "symbol": "CanvasShotRuns"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/canvasShotRunApi.ts",
-      "symbol": "CanvasConsentShot"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/canvasShotRunApi.ts",
-      "symbol": "CanvasShotSubmitInput"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopProxyMode"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopProxyProbeAttempt"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopDirectorBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopExportJobStartPayload"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopExportJobStartResult"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "ExportJobSnapshot"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopExportTempInputWritePayload"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopExportTempInputWriteResult"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopMp4ExportResult"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "ExportJobVerification"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "ExportJobEvent"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopAppInfo"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopUpdateEvent"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopProxyStatus"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopProxyProbe"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "AssetTransportChannelView"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "DesktopBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/desktop/bridge.ts",
-      "symbol": "getDesktopBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
-      "symbol": "STILL_ROOFTOP"
-    },
-    {
-      "kind": "read",
-      "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
-      "symbol": "LAB_ANCHORS"
-    },
-    {
-      "kind": "read",
-      "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
-      "symbol": "ShotRowExec"
-    },
-    {
-      "kind": "read",
-      "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
-      "symbol": "AnchorCardRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
-      "symbol": "STILL_NEON"
-    },
-    {
-      "kind": "read",
-      "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
-      "symbol": "STILL_WIDE"
-    },
-    {
-      "kind": "read",
-      "path": "src/i18n/locales/generationCommon.ts",
-      "symbol": "zhGenerationCommon"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "TaskKind"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "TaskStatus"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "TaskAssetDto"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "TaskRequestDto"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "TaskProjectIdentity"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "TaskResultDto"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "DesktopBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "getDesktopBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "CanvasConsentShot"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "ComfyCandidateTestResultDto"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "FetchWorkbenchTaskResultRequestDto"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "FetchWorkbenchTaskResultResponseDto"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "canvasUnknownRuns"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "StoryboardPresentResult"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "getDesktopBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
-      "symbol": "AnchorCardRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
-      "symbol": "StoryboardFailureActions"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
-      "symbol": "AnchorCardRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
-      "symbol": "StoryboardAnchorRow"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "symbol": "createStoryboardActionGuard"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-      "symbol": "ReadyAnchorImage"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-      "symbol": "UnknownSubmissionConfirmation"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
-      "symbol": "FailureRun"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
-      "symbol": "StoryboardFailureCopy"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "GenerationApprovalGuards"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "StoryboardActionGuard"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "GenerationConfirmationGuards"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "RowActionContext"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "DeferredNodeMaterialization"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "StoryboardRowRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
-      "symbol": "SHOT_ROW_STATUSES"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
-      "symbol": "ShotRowStatus"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
-      "symbol": "PlannedFirstFrame"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
-      "symbol": "ShotRowExec"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
-      "symbol": "StoryboardRowRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
-      "symbol": "AnchorCardRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
-      "symbol": "StoryboardRowWithExec"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
-      "symbol": "StoryboardBatchView"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-      "symbol": "ShotRowExec"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-      "symbol": "StoryboardFailureActions"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
-      "symbol": "ShotRowExec"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
-      "symbol": "ShotRowExec"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
-      "symbol": "StoryboardShotFrame"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
-      "symbol": "StoryboardFrameActions"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "StoryboardRowRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "getDesktopBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "RowActionContext"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "AnchorCardRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "StoryboardAnchorZone"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "StoryboardShotTable"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "StoryboardPlanEditorFooter"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
-      "symbol": "StoryboardRowRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
-      "symbol": "AnchorCardRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
-      "symbol": "StoryboardShotRow"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generation/list/GenerationListCard.tsx",
-      "symbol": "ListCardMedia"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generation/list/GenerationListCard.tsx",
-      "symbol": "ListStatusTag"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generation/list/GenerationListCard.tsx",
-      "symbol": "ReferenceThumbs"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generation/list/GenerationListDetail.tsx",
-      "symbol": "NodeFailureReport"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generation/list/GenerationListDetail.tsx",
-      "symbol": "ListCardMedia"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generation/list/GenerationListDetail.tsx",
-      "symbol": "ListStatusTag"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generation/list/GenerationListParts.tsx",
-      "symbol": "ShotRowStatus"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "resolveBatchHostingNodes"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "CanvasConsentShot"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "DeferredStoryboardPlan"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "GenerationConfirmationGuards"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "ItemizedBatch"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "BATCH_RUN_TOAST_ID"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "useBatchPlanPreviewStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-      "symbol": "DEFAULT_CANVAS_BATCH_CONCURRENCY"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-      "symbol": "CanvasGenerationScope"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
-      "symbol": "BaseGenerationNodeProps"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
-      "symbol": "NodeFailureReport"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "GenerationErrorAction"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "getDesktopBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "UnknownSubmissionConfirmation"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "useUnknownSubmissionRelease"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "classifyGenerationError"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "GenerationApprovalGuards"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "AssetUploadConsentDecision"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "RunGenerationNodeOptions"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "canRunGenerationNode"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "generationNodeInputsReady"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "getDesktopBridge"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "RunGenerationNodesBatchOptions"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "RunGenerationNodesBatchResult"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "DeferredNodeMaterialization"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "GenerationConfirmationGuards"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
-      "symbol": "CanvasAutoReferencePlan"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
-      "symbol": "CANVAS_AUTO_REFERENCED_META_KEY"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/classifyError.ts",
-      "symbol": "GenerationErrorKind"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/classifyError.ts",
-      "symbol": "GenerationErrorAction"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/classifyError.ts",
-      "symbol": "GenerationErrorReport"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/generationFailureActions.ts",
-      "symbol": "FailureRun"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/narrate.ts",
-      "symbol": "GenerationFeedbackPhase"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/narrate.ts",
-      "symbol": "GenerationProgressPhase"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/narrate.ts",
-      "symbol": "GENERATION_PHASE"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/narrate.ts",
-      "symbol": "ProgressNarrationContext"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/narrate.ts",
-      "symbol": "GenerationErrorKind"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/narrate.ts",
-      "symbol": "ERROR_KEY_BY_KIND"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/observability/narrate.ts",
-      "symbol": "GenerationErrorAction"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "ProductionGateKind"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "ProductionRunTone"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "ProductionRunPrimaryAction"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "ProductionRunControl"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "ProductionDecisionHome"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "ProductionRunView"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "ReleaseUnknownApi"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/appIntegration.ts",
-      "symbol": "withdrawQueuedHandOvers"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/appIntegration.ts",
-      "symbol": "canvasLocalArtifactReceipt"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/appIntegration.ts",
-      "symbol": "createCanvasShotRuns"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/appIntegration.ts",
-      "symbol": "installCanvasShotRuns"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "withdrawQueuedHandOversImpl"
-    },
-    {
-      "kind": "write",
-      "path": "electron/tasks/taskIpcHandlers.ts",
-      "symbol": "releaseCanvasShotSender"
-    },
-    {
-      "kind": "write",
-      "path": "electron/tasks/taskIpcHandlers.ts",
-      "symbol": "mintSpendGrant"
-    },
-    {
-      "kind": "write",
-      "path": "electron/tasks/taskIpcHandlers.ts",
-      "symbol": "consentCanvasShots"
-    },
-    {
-      "kind": "write",
-      "path": "electron/tasks/taskIpcHandlers.ts",
-      "symbol": "withdrawCanvasShots"
-    },
-    {
-      "kind": "write",
-      "path": "electron/tasks/taskIpcHandlers.ts",
-      "symbol": "submitCanvasShot"
-    },
-    {
-      "kind": "write",
-      "path": "electron/tasks/taskIpcHandlers.ts",
-      "symbol": "pollCanvasShot"
-    },
-    {
-      "kind": "write",
-      "path": "electron/tasks/taskIpcHandlers.ts",
-      "symbol": "canvasUnknownRuns"
-    },
-    {
-      "kind": "write",
-      "path": "electron/tasks/taskIpcHandlers.ts",
-      "symbol": "releaseCanvasShot"
-    },
-    {
-      "kind": "write",
-      "path": "src/devlab/designLab/storyboard/storyboardFixtures.ts",
-      "symbol": "labShot"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/api/taskApi.ts",
-      "symbol": "classifyGenerationError"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "createStoryboardActionGuard"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "deriveStoryboardRowRuntimes"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "deriveAnchorCardRuntimes"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "generateAnchorCard"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "deriveStoryboardBatch"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "runStoryboardBatch"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "symbol": "autoReferenceFromCanvas"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-      "symbol": "imageReferenceMode"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-      "symbol": "autoReferenceShot"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-      "symbol": "deriveAnchorCardRuntimes"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
-      "symbol": "deriveStoryboardRowRuntimes"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-      "symbol": "generationFailureActions"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-      "symbol": "useUnknownSubmissionRelease"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-      "symbol": "narrateErrorActionLabel"
     },
     {
       "kind": "write",
@@ -1065,32 +147,22 @@
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "regenerateNodeInPlace"
+      "symbol": "isGenerationNodeBusy"
     },
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "regenerateShotRow"
+      "symbol": "canvasOpenRuns"
     },
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "deriveAnchorCardRuntimes"
+      "symbol": "storyboardNodeRunUnclaimed"
     },
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "autoReferenceFromCanvas"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "deriveStoryboardRowRuntimes"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "materializeShotRow"
+      "symbol": "storyboardBatchShotUnclaimed"
     },
     {
       "kind": "write",
@@ -1099,58 +171,18 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "deriveStoryboardRowRuntimes"
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "symbol": "storyboardFailureCopy"
     },
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "deriveStoryboardBatch"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "deriveAnchorCardRuntimes"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "autoReferenceFromCanvas"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "runStoryboardBatch"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "generateShotRow"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "regenerateShotRow"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "toggleNodeLock"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "rerunShotRowWithFreshRefs"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "generateAnchorCard"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "regenerateAnchorCard"
+      "symbol": "generationFailureActions"
     },
     {
       "kind": "write",
@@ -1165,12 +197,7 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "paidNodeLedger"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "consentCanvasShots"
+      "symbol": "canvasOpenRuns"
     },
     {
       "kind": "write",
@@ -1180,42 +207,12 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "spendCostKind"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "spendCostKindForNodes"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "normalizeCanvasBatchConcurrency"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "isGenerationNodeBusy"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "withdrawCanvasShots"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "describeBlockedNotice"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-      "symbol": "normalizeCanvasBatchConcurrency"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-      "symbol": "nodesInCanvasProductionScope"
+      "symbol": "classifyGenerationError"
     },
     {
       "kind": "write",
@@ -1224,8 +221,18 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-      "symbol": "eligibleGenerationNodeIds"
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/composerRun.ts",
+      "symbol": "confirmAndRunNode"
     },
     {
       "kind": "write",
@@ -1234,53 +241,58 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "useUnknownSubmissionRelease"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "narrateModelKind"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "narrateErrorActionLabel"
-    },
-    {
-      "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
       "symbol": "confirmAndRunNode"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "spendCostKind"
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "startGenerationFromComposer"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "reconcileNodeModeWithConnectedReferences"
+      "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "symbol": "classifyGenerationError"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "narrateProgress"
+      "path": "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx",
+      "symbol": "startGenerationFromComposer"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "releaseCanvasShotRun"
+      "path": "src/workbench/generationCanvas/nodes/textProcessRun.ts",
+      "symbol": "startGenerationFromComposer"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
       "symbol": "classifyGenerationError"
     },
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "normalizeCanvasBatchConcurrency"
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "synchronizeCanvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "classifyGenerationError"
     },
     {
       "kind": "write",
@@ -1290,47 +302,37 @@
     {
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "paidNodeLedger"
+      "symbol": "confirmAndRunNode"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "generationNodeInputsReady"
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "buildRecoverPayload"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "unmetReferenceDependencyForNode"
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
-      "symbol": "planCanvasAutoReference"
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
-      "symbol": "applyCanvasAutoReference"
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "nodeRunOutcomePatch"
     },
     {
       "kind": "write",
-      "path": "src/workbench/observability/classifyError.ts",
-      "symbol": "narrateGenerationErrorActions"
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
     },
     {
       "kind": "write",
-      "path": "src/workbench/observability/classifyError.ts",
-      "symbol": "narrateGenerationError"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/observability/classifyError.ts",
-      "symbol": "narrateIsVendorSideFailure"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/observability/classifyError.ts",
-      "symbol": "narrateModelKind"
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
     },
     {
       "kind": "write",
@@ -1339,383 +341,48 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/observability/generationFailureActions.ts",
-      "symbol": "narrateGenerationErrorWithoutTask"
+      "path": "src/workbench/observability/generationFeedback.ts",
+      "symbol": "classifyGenerationError"
     },
     {
       "kind": "write",
-      "path": "src/workbench/observability/narrate.ts",
-      "symbol": "narrateProgress"
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "canvasOpenRuns"
     },
     {
       "kind": "write",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "productionRunStatusGroup"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/productionRunView.ts",
-      "symbol": "gateKindOf"
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "synchronizeCanvasOpenRuns"
     },
     {
       "kind": "write",
       "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "canvasUnknownRuns"
-    },
-    {
-      "kind": "read",
-      "path": "electron/preload/runtimeBridge.ts",
-      "symbol": "canvasUnknownRuns"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "isGenerationNodeBusy"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "generationFailureActions"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
-      "symbol": "isGenerationNodeBusy"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "symbol": "assertAuthorCurrent"
-    },
-    {
-      "kind": "read",
-      "path": "electron/integrationCertification/httpModelDiscovery.ts",
-      "symbol": "blockingReason"
-    },
-    {
-      "kind": "read",
-      "path": "electron/integrationCertification/integrationSession.ts",
-      "symbol": "blockingReason"
-    },
-    {
-      "kind": "read",
-      "path": "src/ui/onboarding/AiAssistedOnboardingSection.tsx",
-      "symbol": "blockingReason"
-    },
-    {
-      "kind": "read",
-      "path": "src/ui/onboarding/integrationSelfCheckOutcome.ts",
-      "symbol": "blockingReason"
-    },
-    {
-      "kind": "read",
-      "path": "src/ui/onboarding/modelDiscovery.ts",
-      "symbol": "blockingReason"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "useUnknownSubmissionRelease"
-    },
-    {
-      "kind": "write",
-      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-      "symbol": "blockingReason"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "runStoryboardAction"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
-      "symbol": "useUnknownSubmissionRelease"
+      "symbol": "releaseUnknownSubmission"
     },
     {
       "kind": "write",
       "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "releaseUnknownCanvasSubmissionsForNode"
-    },
-    {
-      "kind": "read",
-      "path": "electron/capabilityCore/canvasShotResult.ts",
-      "symbol": "productionJobPhase"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/storyboardShotTableTypes.ts",
-      "symbol": "StoryboardRowRuntime"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/capability/productionHandOverShotsOp.ts",
-      "symbol": "captureApprovedGenerationInputs"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/productionHandOverShotsOp.ts",
-      "symbol": "captureApprovedGenerationInputs"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "captureApprovedGenerationInputs"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "captureApprovedGenerationInputs"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "readRunProjectRecord"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "symbol": "RunGraph"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "symbol": "readRunProjectRecord"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "RunGraph"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "symbol": "RunProjectTarget"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
-      "symbol": "RunProjectTarget"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "RunGraph"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "RunProjectTarget"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "readRunGraph"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
-      "symbol": "readRunGraph"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
-      "symbol": "RunProjectTarget"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
-      "symbol": "RunProjectTarget"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
-      "symbol": "RunGraph"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
-      "symbol": "readRunProjectRecord"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
-      "symbol": "readRunGraph"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
-      "symbol": "RunProjectTarget"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/NomiStudioApp.tsx",
-      "symbol": "ProductionCanvasLandingHost"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/capability/storyboardPresent.ts",
-      "symbol": "isRunTargetLoaded"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "symbol": "isRunTargetLoaded"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
-      "symbol": "whenRunTargetLoaded"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
-      "symbol": "deliverRunOutcome"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "whenRunTargetLoaded"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "deliverRunOutcome"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "isRunTargetLoaded"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
-      "symbol": "deliverRunOutcome"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
-      "symbol": "deliverRunOutcome"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
-      "symbol": "isRunTargetLoaded"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/textActions.ts",
-      "symbol": "whenRunTargetLoaded"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/textActions.ts",
-      "symbol": "deliverRunOutcome"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
-      "symbol": "whenRunTargetLoaded"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
-      "symbol": "deliverRunOutcome"
-    },
-    {
-      "kind": "read",
-      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationQueueStore.ts",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/generationCanvas/store/canvasAutoReference.ts",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/taskCenter/useBatchFinishNotifier.ts",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "write",
-      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generation/list/GenerationListCard.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generation/list/GenerationListDetail.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generation/list/GenerationListParts.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/generationCanvas/nodes/composerRun.ts",
-      "symbol": "confirmAndRunNode"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/observability/useGenerationFeedback.ts",
-      "symbol": "useGenerationQueueStore"
+      "symbol": "canvasOpenRuns"
     },
     {
       "kind": "write",
       "path": "src/workbench/production/releaseUnknownSubmission.ts",
       "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "continueUnknownSubmissionRelease"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "releaseUnknownSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "nodeIdOfJob"
     },
     {
       "kind": "write",
@@ -1724,38 +391,8 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
-      "symbol": "useGenerationQueueStore"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
-      "symbol": "confirmAndRunNode"
-    },
-    {
-      "kind": "read",
-      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
-      "symbol": "buildTaskCenterView"
-    },
-    {
-      "kind": "write",
-      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
-      "symbol": "buildTaskCenterView"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
-      "symbol": "hasSpendChanges"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
-      "symbol": "buildTaskCenterView"
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "classifyGenerationError"
     },
     {
       "kind": "write",
@@ -1765,9 +402,904 @@
     {
       "kind": "write",
       "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
-      "symbol": "buildTaskCenterView"
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_generationLockExitThreePages.mjs",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/fixtures/failure-toast-layout/main.tsx",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/fixtures/shot-nodes-media/main.tsx",
+      "symbol": "deriveShotRowExec"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/generation-lock-exit-interrupted.walk.mjs",
+      "symbol": "canvasOpenRuns"
     }
   ],
-  "ownerCount": 330,
-  "coverage": "Eight user entries converge on the declared shared boundaries; class/host/renderer tests plus typed IPC callers cover them. Expanded owner scans include read faces and their walkthrough callers."
+  "allDoors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "readCanvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasOpenRunsRecovery.test.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskIpcHandlers.test.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/api/taskApi.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardBatchOwnership.test.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.test.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.retrievalSource.test.tsx",
+      "symbol": "NodeErrorReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "NodeErrorReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeFailureDetails.providerQuote.test.tsx",
+      "symbol": "NodeErrorReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts",
+      "symbol": "NodeErrorReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/canvasSingleSubmitCharacterization.test.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/confirmedProjectContinuation.test.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/spendInitiatorRequired.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/spendInitiatorRequired.test.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/modelCallSecrets.integration.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/textEntries.ipc.integration.test.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/prompt/browserPromptExtraction.ipc.integration.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/agentPanelSpendCardStop.e2e.test.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "markInterruptedSingleShotUnknown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasOpenRuns.test.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasOpenRuns.test.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasOpenRuns.test.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasOpenRunsRecovery.test.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasOpenRunsRecovery.test.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasRefusalCard.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotLatency.perf.test.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/modelRetype.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/credentialRedirect.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "markInterruptedSingleShotUnknown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/referenceLinkDispatchLedger.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/unsentAttemptClaim.matrix.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/storyboardReuse/storyboardReuseFixtures.ts",
+      "symbol": "autoReferencePlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/prompt/browserPromptExtractionRunner.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneCommandFailure.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/taskApi.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/externalCanvasWriteKeepsLanded.test.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/storyboardPresent.test.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "storyboardFailureCopy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.test.ts",
+      "symbol": "autoReferencePlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+      "symbol": "autoReferencePlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardBatchOwnership.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardBatchOwnership.test.ts",
+      "symbol": "startGenerationFromComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardBatchOwnership.test.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardExec.test.ts",
+      "symbol": "deriveShotRowExec"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.test.ts",
+      "symbol": "storyboardFailureCopy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "storyboardNodeRunUnclaimed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "storyboardBatchShotUnclaimed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "deriveShotRowExec"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.test.ts",
+      "symbol": "deriveShotRowExec"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "symbol": "storyboardFailureCopy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.plannedFirstFrame.test.ts",
+      "symbol": "deriveShotRowExec"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/list/GenerationListParts.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.test.ts",
+      "symbol": "runPlanWithToasts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "runPlanWithToasts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/composerRun.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/extractVideoFrameProjectContext.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "startGenerationFromComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx",
+      "symbol": "startGenerationFromComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/textProcessRun.ts",
+      "symbol": "startGenerationFromComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/quickActions/deriveFromNode.run.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/canvasSingleSubmitCharacterization.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/canvasSingleSubmitCharacterization.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogUnavailableFeedback.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/confirmedProjectContinuation.test.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/confirmedProjectContinuation.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/failedAttemptIdentity.test.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationConfirmCopy.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationOpenRuns.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationOpenRuns.test.ts",
+      "symbol": "continueUnknownSubmissionRelease"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationOpenRuns.test.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "synchronizeCanvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/nodeSubmitInFlight.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "buildRecoverPayload"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.background.test.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/storyboardConfirmationGuard.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendInitiatorRequired.test.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendInitiatorRequired.test.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.test.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFailureActions.test.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFailureActions.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFailureSurfaces.test.tsx",
+      "symbol": "deriveShotRowExec"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFailureSurfaces.test.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFeedback.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/legacyEvidence.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/localProcessingError.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/modelKindMismatch.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/narrateWithoutTask.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/noTextBrainError.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/opaqueFailure.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/retrievalStageClassification.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/vendorQuoteProvenance.test.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "synchronizeCanvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.test.ts",
+      "symbol": "releaseUnknownSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.test.ts",
+      "symbol": "nodeIdOfJob"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "releaseUnknownSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "continueUnknownSubmissionRelease"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "releaseUnknownSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "nodeIdOfJob"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/_generationLockExitThreePages.mjs",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/fixtures/failure-toast-layout/main.tsx",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/fixtures/shot-nodes-media/main.tsx",
+      "symbol": "deriveShotRowExec"
+    },
+    {
+      "kind": "write",
+      "path": "tests/ux/generation-lock-exit-interrupted.walk.mjs",
+      "symbol": "canvasOpenRuns"
+    }
+  ]
 }

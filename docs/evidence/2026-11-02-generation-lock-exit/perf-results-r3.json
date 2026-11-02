@@ -1,0 +1,108 @@
+{
+  "round": 3,
+  "warmup": 1,
+  "runs": 5,
+  "quantile": "existing bench nearest rank",
+  "results": [
+    {
+      "scenario": "workbench-switch-canvas-list",
+      "nodes": 192,
+      "samples": [
+        {
+          "responseMs": 62.7,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 21.4
+        },
+        {
+          "responseMs": 68.5,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 23.4
+        },
+        {
+          "responseMs": 71.1,
+          "longTasks": 1,
+          "longTaskMaxMs": 52,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 14
+        },
+        {
+          "responseMs": 60.6,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 16.4
+        },
+        {
+          "responseMs": 51,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 18.4
+        }
+      ],
+      "medianMs": 62.7,
+      "p95Ms": 71.1,
+      "budgetMs": 100,
+      "longTasksTotal": 1
+    },
+    {
+      "scenario": "workbench-list-queue-settle",
+      "nodes": 192,
+      "samples": [
+        {
+          "responseMs": 23.3,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.1
+        },
+        {
+          "responseMs": 25.2,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.3
+        },
+        {
+          "responseMs": 24.1,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.3
+        },
+        {
+          "responseMs": 23.2,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.7
+        },
+        {
+          "responseMs": 23.9,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.3
+        }
+      ],
+      "medianMs": 23.9,
+      "p95Ms": 25.2,
+      "budgetMs": 100,
+      "longTasksTotal": 0
+    }
+  ]
+}

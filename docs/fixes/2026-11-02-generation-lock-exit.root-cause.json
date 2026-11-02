@@ -103,7 +103,8 @@
     "方案作者/批准/花钱三种比较共用JSON持久化归一口，undefined不造成假冲突，真实变更仍拒绝。",
     "人点未结束节点：确认前0次POST且运行记录不变，主进程只认真人手势且非批次/交接回执；机器始终跳过。",
     "主进程查询全部未结束Run与准入同源；活请求不作孤儿，退出留下的无任务号submitting复用同一规则转未知。",
-    "最后一次归属核对在全部await后、入队前同步执行；过滤的出价收回；本机拒绝撤回渲染运行记录且不进失败通知。"
+    "最后一次归属核对在全部await后、入队前同步执行；过滤的出价收回；本机拒绝撤回渲染运行记录且不进失败通知。",
+    "重放同一笔已发出的结果不明Run仍是原请求的不确定结局，不是另一次本机拒绝；恢复投影只改节点展示，不改原运行记录。"
   ],
   "doors": [
     {
@@ -537,7 +538,7 @@
     "after": 85,
     "why_not": "三页和Agent/任务中心是必要入口，不能靠删页面减门。本轮按当前不变量的共享口重新扫，移除旧通用桥/其它接口的过宽枚举；计数变化不是结构性删入口的证据。结构性删除的是拒绝分支、旧查询和重复状态。"
   },
-  "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。 B6的确认快照和最后一跳按整镜核对同时覆盖未落节点/已存在节点、主镜/关键帧、失败重试/画布/列表/组头和Agent；B7三处都经同一JSON归一口，真实改动仍拒绝。",
+  "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。 B6的确认快照和最后一跳按整镜核对同时覆盖未落节点/已存在节点、主镜/关键帧、失败重试/画布/列表/组头和Agent；B7三处都经同一JSON归一口，真实改动仍拒绝。 第3轮查询全部未结束Run并在唯一主进程口准入；已批准回执只对真人单发有效，机器及过期回执不能覆盖新Run。同次意图去重保留，拒绝撤回记录，恢复订阅真正项目提交，制作多镜的原重启规则不被单镜guard吞掉。",
   "shared_boundaries": [
     {
       "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
@@ -644,8 +645,8 @@
       "B6: row/retry/canvas/list/group × success/running/error/recoverable/locked, main/keyframe and explicitly confirmed prior result.",
       "B7: Agent patch creates optional undefined keys; guard was the only storyboard comparison without JSON roundtrip. runProjectDelivery input token and director plan/preview fingerprints already normalize.",
       "第3轮查confirmAndRunNode、canvasOpenRuns、nodeRunOutcomePatch、recoverOrphans、buildRecoverPayload及全部走查读者；画布/列表composer、分镜单卡、任务中心、Agent与批量的确认缝分别核对。",
-      "第3轮查confirmAndRunNode、canvasOpenRuns、nodeRunOutcomePatch、recoverOrphans、buildRecoverPayload及全部走查读者；画布/列表composer、分镜单卡、任务中心、Agent与批量的确认缝分别核对。",
-      "项目恢复补查先挂载、后提交项目的时序；用subscribeProjectOpened签发后再读，不以组件prop替代水合完成。制作多镜cancelled的submitting同样走抽出的原重启规则，保持旧行为。"
+      "项目恢复补查先挂载、后提交项目的时序；用subscribeProjectOpened签发后再读，不以组件prop替代水合完成。制作多镜cancelled的submitting同样走抽出的原重启规则，保持旧行为。",
+      "补查免费取回/原 worker 晚到结果和 preview await：异步落卡均携原 Run 号，时间轴只接当前结果；回执释放的 Run 不可在 await 返回后重新占用。"
     ]
   },
   "prevention": {
@@ -671,7 +672,11 @@
       "electron/capabilityCore/appIntegrationCanvasShot.ts",
       "electron/productionRun/singleShotRunLifecycle.ts",
       "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-      "src/workbench/generationCanvas/store/nodeRunOutcome.ts"
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "docs/evidence/2026-11-02-generation-lock-exit/round3.json",
+      "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "src/workbench/generationCanvas/components/confirmSingleNode.ts",
+      "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx"
     ]
   },
   "regression_tests": [
@@ -729,7 +734,7 @@
       "src/workbench/production/releaseUnknownSubmission.ts",
       "src/workbench/generationCanvas/store/nodeRunOutcome.ts"
     ],
-    "rationale": "同提交删编辑器与 Agent 的整方案比对，并删通知重试继承的旧基线。；三页旧失败动作判断、原始错误直显和只升不降的 retrying 同提交删除。 第3轮同提交删canvasUnknownRuns/旧IPC、nodeBlockingRuns、会静默不发的released=false及局部确认state；旧定义移动后不留re-export。 第3轮同提交删canvasUnknownRuns/旧IPC、nodeBlockingRuns、会静默不发的released=false及局部确认state；旧定义移动后不留re-export。"
+    "rationale": "同提交删编辑器与 Agent 的整方案比对，并删通知重试继承的旧基线。；三页旧失败动作判断、原始错误直显和只升不降的 retrying 同提交删除。 第3轮同提交删canvasUnknownRuns/旧IPC、nodeBlockingRuns、会静默不发的released=false及局部确认state；旧定义移动后不留re-export。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -739,13 +744,11 @@
   "migration": "无数据格式迁移：0.24.0旧Run用既有job.status写入submission_unknown，旧节点错误字符串重新分类；查询全链路改名canvasOpenRuns，旧名/旧IPC同提交删除。",
   "residual_risks": [
     "E1实际拖框补测三次卡在空白落点与缩放准备，只停这一项；Meta+A分组不替代拖框证据。",
-    "完整免费四段passed（302秒静置、15 POST/12张转发），付费前置收据校验通过；真付费、Windows、真人体验和独立验收仍由协调补。",
     "新队列性能场景有原始数字，协调尚须批准场景和基线；本轮未改基线。",
-    "账本已转fixed，没有PR时不能编造fixedInPr。",
     "资产期间在画布改已有镜头节点模型，不回写方案，方案花钱比较看不到；main既有，本轮按裁决只报告。",
     "按裁决不修：单独发仍排队的资产后，旧批次第一波结束若资产尚无结果即返回，镜头阶段不继续、没有额外提示。",
-    "按裁决不修：withoutTask动作覆盖分类器的主次动作；无任务号时可能不保留原retry/release-regenerate。",
-    "第3轮用户接受：再发后首笔晚到结果只留项目文件，本轮不自动投回节点；Windows与真实付费仍待协调。"
+    "第3轮用户接受：再发后首笔晚到结果只留项目文件，本轮不自动投回节点；Windows与真实付费仍待协调。",
+    "第3轮强杀重启真窗三次遇到测试helper停点，未取得该模式确认后重发的窗口收据；不再第四次尝试。完整新增段演练因此未通过，旧四段收据不能冒充本轮付费资格。"
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-09",

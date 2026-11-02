@@ -1,0 +1,1399 @@
+{
+  "board": "UnknownResultCard",
+  "extractor": "board-extract@1",
+  "source": "preview/UnknownResultCard.html",
+  "sourceSha256": "101b5d5ee1c5e3500c7fba459884acb1fad2952a587bd0852d41de0cd3171f61",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-figcaption-重启后分镜格",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "重启后 · 分镜格",
+      "bbox": [
+        24,
+        24,
+        135,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "002-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        84,
+        111,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "003-span-上一次没等到结果可能已经",
+      "kind": "text",
+      "tag": "span",
+      "text": "上一次没等到结果，可能已经扣费",
+      "bbox": [
+        38,
+        135,
+        108,
+        34
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        51,
+        178,
+        82,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "005-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        61,
+        185,
+        12,
+        12
+      ],
+      "region": "root",
+      "iconOf": "004-button"
+    },
+    {
+      "id": "006-span-再发一次",
+      "kind": "text",
+      "tag": "span",
+      "text": "再发一次",
+      "bbox": [
+        77,
+        184,
+        46,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "007-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        53,
+        212,
+        77,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "008-span-在任务中心查看",
+      "kind": "text",
+      "tag": "span",
+      "text": "在任务中心查看",
+      "bbox": [
+        53,
+        211,
+        77,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-figcaption-重启后画布卡",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "重启后 · 画布卡",
+      "bbox": [
+        187,
+        24,
+        202,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "010-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        187,
+        49,
+        202,
+        192
+      ],
+      "region": "card"
+    },
+    {
+      "id": "011-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        201,
+        62,
+        16,
+        16
+      ],
+      "region": "card",
+      "iconOf": "010-div"
+    },
+    {
+      "id": "012-span-上一次没等到结果可能已经",
+      "kind": "text",
+      "tag": "span",
+      "text": "上一次没等到结果，可能已经扣费",
+      "bbox": [
+        224,
+        61,
+        130,
+        36
+      ],
+      "region": "card"
+    },
+    {
+      "id": "013-button-收起",
+      "kind": "text",
+      "tag": "button",
+      "text": "收起",
+      "bbox": [
+        357,
+        59,
+        22,
+        22
+      ],
+      "region": "card"
+    },
+    {
+      "id": "014-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        363,
+        63,
+        14,
+        14
+      ],
+      "region": "card",
+      "iconOf": "013-button-收起"
+    },
+    {
+      "id": "015-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        201,
+        154,
+        86,
+        28
+      ],
+      "region": "card"
+    },
+    {
+      "id": "016-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        211,
+        162,
+        13,
+        13
+      ],
+      "region": "card",
+      "iconOf": "015-button"
+    },
+    {
+      "id": "017-span-再发一次",
+      "kind": "text",
+      "tag": "span",
+      "text": "再发一次",
+      "bbox": [
+        229,
+        159,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "018-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        201,
+        188,
+        84,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "019-span-在任务中心查看",
+      "kind": "text",
+      "tag": "span",
+      "text": "在任务中心查看",
+      "bbox": [
+        201,
+        188,
+        84,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "020-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        295,
+        188,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "021-span-复制详情",
+      "kind": "text",
+      "tag": "span",
+      "text": "复制详情",
+      "bbox": [
+        295,
+        188,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "022-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        201,
+        211,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "023-span-反馈问题",
+      "kind": "text",
+      "tag": "span",
+      "text": "反馈问题",
+      "bbox": [
+        201,
+        211,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "024-button",
+      "kind": "text",
+      "tag": "button",
+      "text": "›",
+      "bbox": [
+        318,
+        211,
+        57,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "025-span-技术详情",
+      "kind": "text",
+      "tag": "span",
+      "text": "技术详情",
+      "bbox": [
+        318,
+        211,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "026-figcaption-重启后列表大详情",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "重启后 · 列表大详情",
+      "bbox": [
+        417,
+        24,
+        624,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "027-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        417,
+        49,
+        624,
+        351
+      ],
+      "region": "card"
+    },
+    {
+      "id": "028-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        433,
+        64,
+        16,
+        16
+      ],
+      "region": "card",
+      "iconOf": "027-div"
+    },
+    {
+      "id": "029-span-上一次没等到结果可能已经",
+      "kind": "text",
+      "tag": "span",
+      "text": "上一次没等到结果，可能已经扣费",
+      "bbox": [
+        456,
+        63,
+        195,
+        18
+      ],
+      "region": "card"
+    },
+    {
+      "id": "030-button-收起",
+      "kind": "text",
+      "tag": "button",
+      "text": "收起",
+      "bbox": [
+        1009,
+        59,
+        22,
+        22
+      ],
+      "region": "card"
+    },
+    {
+      "id": "031-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1015,
+        63,
+        14,
+        14
+      ],
+      "region": "card",
+      "iconOf": "030-button-收起"
+    },
+    {
+      "id": "032-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        433,
+        358,
+        86,
+        28
+      ],
+      "region": "card"
+    },
+    {
+      "id": "033-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        443,
+        365,
+        13,
+        13
+      ],
+      "region": "card",
+      "iconOf": "032-button"
+    },
+    {
+      "id": "034-span-再发一次",
+      "kind": "text",
+      "tag": "span",
+      "text": "再发一次",
+      "bbox": [
+        461,
+        363,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "035-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        529,
+        363,
+        84,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "036-span-在任务中心查看",
+      "kind": "text",
+      "tag": "span",
+      "text": "在任务中心查看",
+      "bbox": [
+        529,
+        363,
+        84,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "037-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        623,
+        363,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "038-span-复制详情",
+      "kind": "text",
+      "tag": "span",
+      "text": "复制详情",
+      "bbox": [
+        623,
+        363,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "039-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        681,
+        363,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "040-span-反馈问题",
+      "kind": "text",
+      "tag": "span",
+      "text": "反馈问题",
+      "bbox": [
+        681,
+        363,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "041-button",
+      "kind": "text",
+      "tag": "button",
+      "text": "›",
+      "bbox": [
+        968,
+        363,
+        57,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "042-span-技术详情",
+      "kind": "text",
+      "tag": "span",
+      "text": "技术详情",
+      "bbox": [
+        968,
+        363,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "043-figcaption-确认卡上一次没结果三页同",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "确认卡 · 上一次没结果（三页同一张）",
+      "bbox": [
+        24,
+        428,
+        380,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "044-div-再发一次这张图片",
+      "kind": "text",
+      "tag": "div",
+      "role": "dialog",
+      "text": "再发一次这张图片？",
+      "bbox": [
+        24,
+        453,
+        380,
+        163
+      ],
+      "region": "root"
+    },
+    {
+      "id": "045-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        48,
+        477,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "044-div-再发一次这张图片"
+    },
+    {
+      "id": "046-span-再发一次这张图片",
+      "kind": "text",
+      "tag": "span",
+      "text": "再发一次这张图片？",
+      "bbox": [
+        83,
+        475,
+        135,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "047-button-关闭",
+      "kind": "text",
+      "tag": "button",
+      "text": "关闭",
+      "bbox": [
+        363,
+        474,
+        24,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "048-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        369,
+        478,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "047-button-关闭"
+    },
+    {
+      "id": "049-span-上一次没等到结果可能已经",
+      "kind": "text",
+      "tag": "span",
+      "text": "上一次没等到结果，可能已经扣费。 再发一次可能会再扣一次钱。",
+      "bbox": [
+        41,
+        513,
+        208,
+        39
+      ],
+      "region": "root"
+    },
+    {
+      "id": "050-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        249,
+        568,
+        52,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "051-span-取消",
+      "kind": "text",
+      "tag": "span",
+      "text": "取消",
+      "bbox": [
+        262,
+        574,
+        26,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "052-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        309,
+        568,
+        78,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "053-span-再发一次",
+      "kind": "text",
+      "tag": "span",
+      "text": "再发一次",
+      "bbox": [
+        322,
+        574,
+        52,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "054-figcaption-慢任务分镜格",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "慢任务 · 分镜格",
+      "bbox": [
+        432,
+        428,
+        135,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "055-span-可找回",
+      "kind": "text",
+      "tag": "span",
+      "text": "可找回",
+      "bbox": [
+        483,
+        518,
+        33,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "056-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        459,
+        543,
+        82,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "057-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        469,
+        550,
+        12,
+        12
+      ],
+      "region": "root",
+      "iconOf": "056-button"
+    },
+    {
+      "id": "058-span-重新取回",
+      "kind": "text",
+      "tag": "span",
+      "text": "重新取回",
+      "bbox": [
+        485,
+        550,
+        46,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "059-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        467,
+        577,
+        66,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "060-span-再发一次",
+      "kind": "text",
+      "tag": "span",
+      "text": "再发一次",
+      "bbox": [
+        477,
+        584,
+        46,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "061-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        461,
+        611,
+        77,
+        14
+      ],
+      "region": "root"
+    },
+    {
+      "id": "062-span-在任务中心查看",
+      "kind": "text",
+      "tag": "span",
+      "text": "在任务中心查看",
+      "bbox": [
+        461,
+        610,
+        77,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "063-figcaption-慢任务画布卡",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "慢任务 · 画布卡",
+      "bbox": [
+        595,
+        428,
+        202,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "064-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        595,
+        453,
+        202,
+        192
+      ],
+      "region": "card"
+    },
+    {
+      "id": "065-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        609,
+        466,
+        16,
+        16
+      ],
+      "region": "card",
+      "iconOf": "064-div"
+    },
+    {
+      "id": "066-span-任务可能已在上游完成",
+      "kind": "text",
+      "tag": "span",
+      "text": "任务可能已在上游完成",
+      "bbox": [
+        632,
+        465,
+        130,
+        18
+      ],
+      "region": "card"
+    },
+    {
+      "id": "067-span-等待已超上限但上游可能仍",
+      "kind": "text",
+      "tag": "span",
+      "text": "等待已超上限，但上游可能仍出了片。点下面的「重新取回」直接拉回，不用去服务商后台下载。",
+      "bbox": [
+        609,
+        487,
+        168,
+        69
+      ],
+      "region": "card"
+    },
+    {
+      "id": "068-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        609,
+        605,
+        86,
+        28
+      ],
+      "region": "card"
+    },
+    {
+      "id": "069-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        619,
+        612,
+        13,
+        13
+      ],
+      "region": "card",
+      "iconOf": "068-button"
+    },
+    {
+      "id": "070-span-重新取回",
+      "kind": "text",
+      "tag": "span",
+      "text": "重新取回",
+      "bbox": [
+        637,
+        610,
+        48,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "071-figcaption-确认卡还没结束三页同一张",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "确认卡 · 还没结束（三页同一张）",
+      "bbox": [
+        825,
+        428,
+        380,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "072-div-再发一次这张图片",
+      "kind": "text",
+      "tag": "div",
+      "role": "dialog",
+      "text": "再发一次这张图片？",
+      "bbox": [
+        825,
+        453,
+        380,
+        163
+      ],
+      "region": "root"
+    },
+    {
+      "id": "073-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        849,
+        477,
+        18,
+        18
+      ],
+      "region": "root",
+      "iconOf": "072-div-再发一次这张图片"
+    },
+    {
+      "id": "074-span-再发一次这张图片",
+      "kind": "text",
+      "tag": "span",
+      "text": "再发一次这张图片？",
+      "bbox": [
+        884,
+        475,
+        135,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "075-button-关闭",
+      "kind": "text",
+      "tag": "button",
+      "text": "关闭",
+      "bbox": [
+        1164,
+        474,
+        24,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "076-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1170,
+        478,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": "075-button-关闭"
+    },
+    {
+      "id": "077-span-上一次还没结束再发一次可",
+      "kind": "text",
+      "tag": "span",
+      "text": "上一次还没结束。 再发一次可能会再扣一次钱。",
+      "bbox": [
+        842,
+        513,
+        169,
+        39
+      ],
+      "region": "root"
+    },
+    {
+      "id": "078-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        1050,
+        568,
+        52,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "079-span-取消",
+      "kind": "text",
+      "tag": "span",
+      "text": "取消",
+      "bbox": [
+        1063,
+        574,
+        26,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "080-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        1110,
+        568,
+        78,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "081-span-再发一次",
+      "kind": "text",
+      "tag": "span",
+      "text": "再发一次",
+      "bbox": [
+        1123,
+        574,
+        52,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "082-figcaption-批量跳过提示不变",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "批量跳过提示（不变）",
+      "bbox": [
+        24,
+        721,
+        344,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "083-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        36,
+        768,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "084-span-1张上一次还没结束这次跳",
+      "kind": "text",
+      "tag": "span",
+      "text": "1 张上一次还没结束，这次跳过了。",
+      "bbox": [
+        62,
+        757,
+        179,
+        37
+      ],
+      "region": "root"
+    },
+    {
+      "id": "085-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        270,
+        763,
+        52,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "086-span-生成区",
+      "kind": "text",
+      "tag": "span",
+      "text": "生成区",
+      "bbox": [
+        278,
+        768,
+        36,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "087-button-收起",
+      "kind": "text",
+      "tag": "button",
+      "text": "收起",
+      "bbox": [
+        332,
+        764,
+        24,
+        24
+      ],
+      "region": "root"
+    },
+    {
+      "id": "088-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        338,
+        769,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "087-button-收起"
+    },
+    {
+      "id": "089-figcaption-Restartlistd",
+      "kind": "text",
+      "tag": "figcaption",
+      "text": "Restart · list detail (en)",
+      "bbox": [
+        396,
+        721,
+        624,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "090-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        396,
+        745,
+        624,
+        351
+      ],
+      "region": "card"
+    },
+    {
+      "id": "091-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        412,
+        760,
+        16,
+        16
+      ],
+      "region": "card",
+      "iconOf": "090-div"
+    },
+    {
+      "id": "092-span-Thelastreque",
+      "kind": "text",
+      "tag": "span",
+      "text": "The last request got no result and may have been charged.",
+      "bbox": [
+        435,
+        759,
+        367,
+        18
+      ],
+      "region": "card"
+    },
+    {
+      "id": "093-button-Dismiss",
+      "kind": "text",
+      "tag": "button",
+      "text": "Dismiss",
+      "bbox": [
+        988,
+        755,
+        22,
+        22
+      ],
+      "region": "card"
+    },
+    {
+      "id": "094-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        994,
+        759,
+        14,
+        14
+      ],
+      "region": "card",
+      "iconOf": "093-button-Dismiss"
+    },
+    {
+      "id": "095-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        412,
+        1054,
+        102,
+        28
+      ],
+      "region": "card"
+    },
+    {
+      "id": "096-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        422,
+        1062,
+        13,
+        13
+      ],
+      "region": "card",
+      "iconOf": "095-button"
+    },
+    {
+      "id": "097-span-Sendagain",
+      "kind": "text",
+      "tag": "span",
+      "text": "Send again",
+      "bbox": [
+        440,
+        1060,
+        64,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "098-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        524,
+        1060,
+        107,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "099-span-Viewintaskce",
+      "kind": "text",
+      "tag": "span",
+      "text": "View in task center",
+      "bbox": [
+        524,
+        1060,
+        107,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "100-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        640,
+        1060,
+        69,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "101-span-Copydetails",
+      "kind": "text",
+      "tag": "span",
+      "text": "Copy details",
+      "bbox": [
+        640,
+        1060,
+        69,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "102-button",
+      "kind": "control",
+      "tag": "button",
+      "text": "",
+      "bbox": [
+        720,
+        1060,
+        97,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "103-span-Reportaprobl",
+      "kind": "text",
+      "tag": "span",
+      "text": "Report a problem",
+      "bbox": [
+        720,
+        1060,
+        97,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "104-button",
+      "kind": "text",
+      "tag": "button",
+      "text": "›",
+      "bbox": [
+        902,
+        1060,
+        102,
+        17
+      ],
+      "region": "card"
+    },
+    {
+      "id": "105-span-Technicaldet",
+      "kind": "text",
+      "tag": "span",
+      "text": "Technical details",
+      "bbox": [
+        902,
+        1060,
+        94,
+        17
+      ],
+      "region": "card"
+    }
+  ]
+}
