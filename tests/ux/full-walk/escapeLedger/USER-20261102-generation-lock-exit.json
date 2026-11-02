@@ -19,7 +19,10 @@
     "docs/evidence/2026-11-02-generation-lock-exit/round3.json",
     "electron/capabilityCore/canvasOpenRuns.test.ts",
     "src/workbench/generationCanvas/runner/generationOpenRuns.test.ts",
-    "第3轮按用户批准删掉人手生成的永久拒绝；主进程统一准入、共享确认条、批次最后同步核对；强杀走查和完整新增段演练未完成，fixed不代表独立验收或已解决。"
+    "第3轮按用户批准删掉人手生成的永久拒绝；主进程统一准入、共享确认条、批次最后同步核对；强杀走查和完整新增段演练未完成，fixed不代表独立验收或已解决。",
+    "docs/evidence/2026-11-02-generation-lock-exit/round4.json",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx",
+    "第4轮确认归现有spend owner，旧局部store和浮层同提交删除；逐元素合同和改坏收据约束三页。"
   ],
   "completionCommits": [
     "54bcef6dea403593e0538f7e337823b55ecc845d",
@@ -30,7 +33,9 @@
     "adbe5b6f76a8e222023663a72f5610cb23da2941",
     "cf99bcdb50deb2d7751909b382e8c331ddb614f9",
     "df29f5021311fa1088a32fcabdaa13fd82ec983f",
-    "1f009eb6f77a17638cbd82970713908ead9ce82e"
+    "1f009eb6f77a17638cbd82970713908ead9ce82e",
+    "ff474932610f26a5c4f61803040a5c45f9bc7e60",
+    "b0654d0155c72603f757801912bc771992138e36"
   ],
   "rootCauseContract": "docs/fixes/2026-11-02-generation-lock-exit.root-cause.json",
   "classCheck": {

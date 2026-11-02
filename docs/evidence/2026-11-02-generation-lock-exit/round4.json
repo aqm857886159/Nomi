@@ -1,0 +1,97 @@
+{
+  "round": 4,
+  "sourceCommit": "b0654d0155c72603f757801912bc771992138e36",
+  "status": "partial",
+  "counterexamples": [
+    {
+      "name": "bypass-spend",
+      "file": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "exit": 1,
+      "failedTests": 1,
+      "beforeSha256": "684a4971086b370e286fac0ed5b0646a42e75c025aeb4109555fa6bf4410474b",
+      "byteRestored": true
+    },
+    {
+      "name": "release-before-confirm",
+      "file": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "exit": 1,
+      "failedTests": 1,
+      "beforeSha256": "684a4971086b370e286fac0ed5b0646a42e75c025aeb4109555fa6bf4410474b",
+      "byteRestored": true
+    },
+    {
+      "name": "hosting-twice",
+      "file": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "exit": 1,
+      "failedTests": 1,
+      "beforeSha256": "684a4971086b370e286fac0ed5b0646a42e75c025aeb4109555fa6bf4410474b",
+      "byteRestored": true
+    },
+    {
+      "name": "silent-release-failure",
+      "file": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "exit": 1,
+      "failedTests": 1,
+      "beforeSha256": "684a4971086b370e286fac0ed5b0646a42e75c025aeb4109555fa6bf4410474b",
+      "byteRestored": true
+    },
+    {
+      "name": "unknown-red",
+      "file": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "exit": 1,
+      "failedTests": 2,
+      "beforeSha256": "d4424aa5e1ecb0300aeba140c5ef4c1847d5d5dbe6dc93369de7c48f690a047e",
+      "byteRestored": true
+    },
+    {
+      "name": "paid-first",
+      "file": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "exit": 1,
+      "failedTests": 2,
+      "beforeSha256": "fb3b1a528162979ce40292e8b23b8ee64973bebe798e366b0e837cf0f73f0413",
+      "byteRestored": true
+    },
+    {
+      "name": "duplicate-summary",
+      "file": "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+      "exit": 1,
+      "failedTests": 1,
+      "beforeSha256": "097f9c94eabf655aedcec196a80191a6c8894462ec39242024b1ad78c6e9a4c1",
+      "byteRestored": true
+    },
+    {
+      "name": "lost-linebreak",
+      "file": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "exit": 1,
+      "failedTests": 1,
+      "beforeSha256": "9302fe8e8c9cb3c7c25534f684841ee64f6e01d8142ec86760dba1e3349da648",
+      "byteRestored": true
+    }
+  ],
+  "classChecks": {
+    "initialRed": 4,
+    "focusedPassed": 241,
+    "relatedFiles": 366,
+    "relatedPassed": 5840,
+    "remainingFixtures": 3,
+    "fixturesRetested": true
+  },
+  "approvedWalk": {
+    "attempts": 3,
+    "status": "stopped",
+    "gaps": [
+      "notice exact text lookup timed out although screenshot contains the notice; original whole journey remains failed"
+    ],
+    "verified": [
+      "three surfaces paper card and shared 380px modal",
+      "all four dismissals preserve node and POST count",
+      "slow task free-first order and 135x240 fit",
+      "dark/light and translated copy"
+    ]
+  },
+  "unverified": [
+    "paid live model",
+    "Windows",
+    "independent acceptance"
+  ]
+}

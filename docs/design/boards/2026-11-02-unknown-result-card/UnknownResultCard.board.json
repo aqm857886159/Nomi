@@ -1,7 +1,7 @@
 {
   "board": "UnknownResultCard",
   "approvedOn": "2026-11-02",
-  "stage": "explored",
+  "stage": "built",
   "visualReview": "用户 11-02 在 Claude Design 画布「结果未知的卡」第二版（https://claude.ai/artifact/Ws3NRu9dmtstoUyjx7mPDQ，私有）上说「按设计稿改」。画布同屏放了调研、用户以前定过的话和三条路。协调逐张对过设计系统。",
   "sourceBoundary": "板源是画布的原样副本：部件在画布上叫 Main.dc.html，这里按板名存为 source/UnknownResultCard.dc.html，薄板的 dc-import 仍写 Main。preview/UnknownResultCard.html 和 -dark.html 是把画布渲染后抠出卡、格、确认卡、提示拼成的静态页，只用来抽候选；preview/*.png 是拍板时看的整页截图。分镜页上已经去掉的两条按另一张已批样张画，那是另一条线，不归这张板。",
   "designIntent": "结果不知道的卡不再画成失败；点「再发一次」时，三页弹同一张已有的花钱确认卡，写清为什么可能多扣钱。",
@@ -65,10 +65,9 @@
         "072-div-再发一次这张图片",
         "073-svg"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/confirm.card",
-      "note": "替掉分镜 AnchoredPopover 浮层和画布 / 列表的卡内确认条。"
+      "status": "implemented",
+      "note": "替掉分镜 AnchoredPopover 浮层和画布 / 列表的卡内确认条。",
+      "assertion": "board:UnknownResultCard/confirm.card"
     },
     {
       "id": "confirm.title",
@@ -82,9 +81,8 @@
         "046-span-再发一次这张图片",
         "074-span-再发一次这张图片"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/confirm.title"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.title"
     },
     {
       "id": "confirm.body.restart",
@@ -98,9 +96,8 @@
       "candidates": [
         "049-span-上一次没等到结果可能已经"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/confirm.body.restart"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.body.restart"
     },
     {
       "id": "confirm.body.waiting",
@@ -114,9 +111,8 @@
       "candidates": [
         "077-span-上一次还没结束再发一次可"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/confirm.body.waiting"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.body.waiting"
     },
     {
       "id": "confirm.cancel",
@@ -137,9 +133,8 @@
         "078-button",
         "079-span-取消"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/confirm.cancel"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.cancel"
     },
     {
       "id": "confirm.resend",
@@ -159,10 +154,9 @@
         "080-button",
         "081-span-再发一次"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/confirm.resend",
-      "note": "替掉「继续」。设计系统 §1.9.1 要主动作写具体动词。"
+      "status": "implemented",
+      "note": "替掉「继续」。设计系统 §1.9.1 要主动作写具体动词。",
+      "assertion": "board:UnknownResultCard/confirm.resend"
     },
     {
       "id": "confirm.hosting-disclosure",
@@ -173,9 +167,8 @@
         "dark"
       ],
       "candidates": [],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/confirm.hosting-disclosure"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.hosting-disclosure"
     },
     {
       "id": "arrow.opens-card",
@@ -187,9 +180,8 @@
         "disabled"
       ],
       "candidates": [],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/arrow.opens-card"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/arrow.opens-card"
     },
     {
       "id": "restart.card",
@@ -209,9 +201,8 @@
         "090-div",
         "091-svg"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/restart.card"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.card"
     },
     {
       "id": "restart.title",
@@ -228,9 +219,8 @@
         "029-span-上一次没等到结果可能已经",
         "092-span-Thelastreque"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/restart.title"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.title"
     },
     {
       "id": "restart.resend",
@@ -256,9 +246,8 @@
         "096-svg",
         "097-span-Sendagain"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/restart.resend"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.resend"
     },
     {
       "id": "restart.view-task",
@@ -279,9 +268,8 @@
         "098-button",
         "099-span-Viewintaskce"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/restart.view-task"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.view-task"
     },
     {
       "id": "restart.footer",
@@ -313,9 +301,8 @@
         "104-button",
         "105-span-Technicaldet"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/restart.footer"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.footer"
     },
     {
       "id": "restart.dismiss",
@@ -334,9 +321,8 @@
         "093-button-Dismiss",
         "094-svg"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/restart.dismiss"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.dismiss"
     },
     {
       "id": "restart.storyboard-cell",
@@ -351,9 +337,8 @@
       "candidates": [
         "002-svg"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/restart.storyboard-cell"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.storyboard-cell"
     },
     {
       "id": "waiting.storyboard-cell",
@@ -369,10 +354,9 @@
         "061-button",
         "062-span-在任务中心查看"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/waiting.storyboard-cell",
-      "note": "今天付费的红按钮排在免费的上面。"
+      "status": "implemented",
+      "note": "今天付费的红按钮排在免费的上面。",
+      "assertion": "board:UnknownResultCard/waiting.storyboard-cell"
     },
     {
       "id": "waiting.card",
@@ -389,9 +373,8 @@
         "066-span-任务可能已在上游完成",
         "067-span-等待已超上限但上游可能仍"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/waiting.card"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/waiting.card"
     },
     {
       "id": "waiting.retrieve",
@@ -411,9 +394,8 @@
         "069-svg",
         "070-span-重新取回"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/waiting.retrieve"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/waiting.retrieve"
     },
     {
       "id": "waiting.resend",
@@ -429,9 +411,8 @@
         "059-button",
         "060-span-再发一次"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/waiting.resend"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/waiting.resend"
     },
     {
       "id": "pill.no-duplicate",
@@ -443,9 +424,8 @@
         "dark"
       ],
       "candidates": [],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/pill.no-duplicate"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/pill.no-duplicate"
     },
     {
       "id": "notice.skipped",
@@ -463,9 +443,8 @@
         "087-button-收起",
         "088-svg"
       ],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/notice.skipped"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/notice.skipped"
     },
     {
       "id": "other-failures.red",
@@ -477,9 +456,8 @@
         "dark"
       ],
       "candidates": [],
-      "status": "in-progress",
-      "owner": "#1413",
-      "assertionWhenDone": "board:UnknownResultCard/other-failures.red"
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/other-failures.red"
     },
     {
       "id": "legacy.in-card-confirm",
