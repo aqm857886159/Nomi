@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { runStoryboardAction } from './storyboardActionGuard'
 import { generateShotRow, runStoryboardBatch } from './storyboardRowActions'
+import { confirmAndRunNode } from '../../../generationCanvas/runner/generationRunController'
 import { deriveStoryboardRowRuntimes } from './storyboardRowStatus'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { useGenerationQueueStore } from '../../../generationCanvas/runner/generationQueueStore'
@@ -120,7 +121,6 @@ it('资产阶段单点一镜：跑完后批次第二阶段不得再发同一镜�
 })
 
 it('同一窗口·单点后还锁定了：批次第二阶段不得覆盖已锁定的结果', async () => {
-  const { toggleNodeLock } = await import('./storyboardRowActions')
   const current = plan(); seed(current)
   const release = holdAnchors()
   const ui = editor(current)
@@ -137,7 +137,6 @@ it('同一窗口·单点后还锁定了：批次第二阶段不得覆盖已锁�
 })
 
 it('同一窗口·已放进画布的镜头在画布上点 ↑（confirmAndRunNode，底线也有这条路）：批次第二阶段不得再发', async () => {
-  const { confirmAndRunNode } = await import('../../../generationCanvas/runner/generationRunController')
   const current = plan(); seed(current)
   const placed = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: current.shots[1].prompt, meta: { storyboardDesignId: 'design', shotId: 'shot-2' } })
   const release = holdAnchors()
