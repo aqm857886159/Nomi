@@ -1,0 +1,139 @@
+{
+  "sourceCommit": "3610b9aba09529df66191b6000c5e3f32ddcb978",
+  "warmup": 1,
+  "quantile": "existing bench nearest rank",
+  "results": [
+    {
+      "id": "workbench-list-queue-settle",
+      "nodes": 192,
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 25.5,
+          "p95": 27.9,
+          "samples": [
+            23.7,
+            24.5,
+            25.5,
+            25.7,
+            27.9
+          ]
+        }
+      },
+      "samples": [
+        {
+          "responseMs": 25.5,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.4,
+          "elapsedMs": 487
+        },
+        {
+          "responseMs": 27.9,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 11.3,
+          "elapsedMs": 503
+        },
+        {
+          "responseMs": 24.5,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.4,
+          "elapsedMs": 493
+        },
+        {
+          "responseMs": 23.7,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.1,
+          "elapsedMs": 491
+        },
+        {
+          "responseMs": 25.7,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 11.3,
+          "elapsedMs": 471
+        }
+      ],
+      "longTasksTotal": 0
+    },
+    {
+      "id": "workbench-switch-canvas-list",
+      "nodes": 192,
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 47.9,
+          "p95": 49.5,
+          "samples": [
+            38.8,
+            46.9,
+            47.9,
+            48,
+            49.5
+          ]
+        }
+      },
+      "samples": [
+        {
+          "responseMs": 47.9,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 20.8,
+          "elapsedMs": 526
+        },
+        {
+          "responseMs": 49.5,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 21.5,
+          "elapsedMs": 560
+        },
+        {
+          "responseMs": 38.8,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 24.3,
+          "elapsedMs": 526
+        },
+        {
+          "responseMs": 48,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 21.6,
+          "elapsedMs": 536
+        },
+        {
+          "responseMs": 46.9,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": null,
+          "listCards": null,
+          "frameP95Ms": 25.2,
+          "elapsedMs": 541
+        }
+      ],
+      "longTasksTotal": 0
+    }
+  ]
+}
