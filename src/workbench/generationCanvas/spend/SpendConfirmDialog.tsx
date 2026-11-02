@@ -209,7 +209,7 @@ export function SpendConfirmDialog() {
           />
         ) : (
         <>
-         <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{pending.message}</p>
+         <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3 whitespace-pre-line')}>{pending.message}</p>
 
          {pending.planRows?.length ? (
            <PlanRows rows={pending.planRows} onToggle={togglePlanRow} className="mb-3" />
@@ -359,7 +359,7 @@ function MultiShotCardBody(props: {
     <>
       {/* 内容区：一句正文 + 规格条/主角 chips/汇总/逐镜清单。flex-1 可滚（清单本身另有 ~40vh 内滚）。 */}
       <div className={cn('flex-1 min-h-0 overflow-y-auto')}>
-        <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{message}</p>
+        <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3 whitespace-pre-line')}>{message}</p>
         <MultiShotContractSummary view={view} />
       </div>
 

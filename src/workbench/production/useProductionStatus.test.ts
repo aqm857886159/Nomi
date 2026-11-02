@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-i18next', async original => ({ ...await original<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('../../design', () => ({ confirmDialog: mocks.confirm, alertDialog: vi.fn() }))
 vi.mock('../../ui/notificationPolicy', () => ({ notify: mocks.notify }))
-vi.mock('../generationCanvas/store/generationCanvasStore', () => ({ useGenerationCanvasStore: { getState: () => ({ selectNode: mocks.selectNode }) } }))
+vi.mock('../generationCanvas/store/generationCanvasStore', () => ({ useGenerationCanvasStore: { getState: () => ({ selectNode: mocks.selectNode, nodes: [{id:'canvas-origin-node',kind:'image'}] }) } }))
 vi.mock('../generationCanvas/spend/spendConfirm', () => ({ useSpendConfirmStore: {} }))
 vi.mock('../generationCanvas/spend/productionContractView', () => ({ buildProductionContractView: vi.fn() }))
 vi.mock('../generationCanvas/spend/anchorCheckpointView', () => ({ buildAnchorCheckpointCard: vi.fn() }))
@@ -64,7 +64,8 @@ describe('production command feedback', () => {
 
 vi.mock('../generationCanvas/runner/generationRunController', () => ({ confirmAndRunNode: mocks.runNode }))
 
-it('C4: task-center release of a canvas-origin Run selects its node and enters the ordinary user confirmation route', async () => {
+it('C4: task-center release delegates its node to the same resend-confirmation route', async () => {
+  vi.clearAllMocks()
   Object.assign(mocks.run, { origin: { host: 'canvas', nodeId: 'canvas-origin-node' }, jobs: [{ jobId: 'unknown-job', status: 'submission_unknown', updatedAt: '2026-11-02T00:00:00.000Z' }] })
   mocks.read.mockResolvedValue(mocks.run)
   mocks.command.mockResolvedValue({ run: mocks.run })
@@ -73,8 +74,9 @@ it('C4: task-center release of a canvas-origin Run selects its node and enters t
   mocks.runNode.mockResolvedValue('started')
   const status = mount()
   await status.onPrimaryAction('release-unknown')
-  await vi.waitFor(() => expect(mocks.runNode).toHaveBeenCalledWith('canvas-origin-node', { initiator: 'user' }))
+  await vi.waitFor(() => expect(mocks.runNode).toHaveBeenCalledWith('canvas-origin-node', { initiator: 'user', resend: true }))
   expect(mocks.selectNode).toHaveBeenCalledWith('canvas-origin-node')
   expect(mocks.workspace).toHaveBeenCalledWith('generation')
-  expect(mocks.command).toHaveBeenCalledWith('project-1', 'run-1', expect.objectContaining({ type: 'job.reconcile', payload: { jobId: 'unknown-job', outcome: 'user_checked_abandon' } }), expect.any(Object))
+  expect(mocks.confirm).not.toHaveBeenCalled()
+  expect(mocks.command).not.toHaveBeenCalled() // The shared single-node route owns confirmation before release.
 })

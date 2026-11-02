@@ -266,6 +266,23 @@ export async function confirmStoryboardPlanBatch(opts: {
   })
 }
 
+/** Explicitly resending an unfinished request always requires the existing spend card. */
+export async function confirmGenerationResend(input: {
+  state: 'unknown' | 'waiting'
+  kind: string
+  hostingDisclosure?: HostingDisclosure
+}): Promise<boolean> {
+  const kind = input.kind === 'image' || input.kind === 'video' ? input.kind : 'other'
+  return useSpendConfirmStore.getState().requestConfirm({
+    kind: 'generation',
+    title: i18n.t(`generationCommon.spend.resend.title.${kind}`),
+    message: i18n.t(`generationCommon.spend.resend.${input.state}`),
+    confirmLabel: i18n.t('generationCommon.observability.action.releaseRegenerate.main'),
+    cancelLabel: i18n.t('common.cancel'),
+    ...(input.hostingDisclosure ? { hostingDisclosure: input.hostingDisclosure } : {}),
+  })
+}
+
 export type GenerationCostKind = 'text' | 'image' | 'video' | 'audio' | 'model3d' | 'mixed'
 
 export type GenerationCostContext = {

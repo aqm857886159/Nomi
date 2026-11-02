@@ -20,7 +20,7 @@ export async function lateResultOpenRunsJourney(input, resend = false) {
       const began = performance.now()
       window.__lockExitFeedbackMs = null
       const observer = new MutationObserver(() => {
-        if (![...document.querySelectorAll('[data-release-confirm]')].some(bar => bar.getClientRects().length && getComputedStyle(bar).visibility !== 'hidden')) return
+        if (![...document.querySelectorAll('[data-spend-confirm-dialog]')].some(bar => bar.getClientRects().length && getComputedStyle(bar).visibility !== 'hidden')) return
         observer.disconnect()
         requestAnimationFrame(() => { window.__lockExitFeedbackMs = performance.now() - began })
       })
@@ -76,18 +76,18 @@ export async function lateResultOpenRunsJourney(input, resend = false) {
         host = page.locator(`[data-storyboard-anchor-row="${asset.meta.anchorId}"]`);await host.scrollIntoViewIfNeeded()
         await confirmClick(host.getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }), surface)
       }
-      await expect(page.locator('[data-release-confirm]:visible').first()).toBeVisible()
+      await expect(page.locator('[data-spend-confirm-dialog]:visible').first()).toBeVisible()
       assert.equal(JSON.stringify((await current()).runs), runs, 'F12: confirmation does not replace the original Run')
       assert.equal(proxy.records.length, 1)
       await shot(`${surface}-confirm`)
-      await page.locator('[data-release-confirm]:visible').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
+      await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('common.cancel'), exact: true }).click()
       await expect(host.getByRole('button', { name: text('generationCommon.production.runAction.retry-retrieval'), exact: true }).first()).toBeVisible()
       report.pages.push(surface)
     }
     host = await canvas()
     if (resend) {
       await arrow(host).click()
-      await page.locator('[data-release-confirm]:visible').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+      await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
       await expect.poll(() => proxy.records.length).toBe(2)
       await expect.poll(async () => (await current())?.runs?.[0]?.taskId).toBeTruthy()
       await expect.poll(async () => (await current())?.runs?.[0]?.taskId).not.toBe(originalTask)

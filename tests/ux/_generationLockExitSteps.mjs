@@ -10,7 +10,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-open-runs', 'storyboard-batch-shot-ownership-v2-']
+export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-open-runs', 'generationCommon.spend.resend.title.', 'storyboard-batch-shot-ownership-v2-']
 export const LOCK_EXIT_SCRIPT = '清晨，林薇在旧书店找到一封信。她走到窗边，最后把信放在桌上。'
 const dialog = '[data-spend-confirm-dialog]'
 const timeout = stationTimeout({ turns: 1 })
@@ -61,10 +61,12 @@ export async function generationLockExitJourney(input) {
     if (await page.locator('[data-list-detail-back]').isVisible()) await page.locator('[data-list-detail-back]').click()
     if (id) await page.locator(`[data-list-card="${id}"]`).click()
   }
-  const submit = async () => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); await expect(page.locator(dialog)).not.toBeVisible() }
+  const submit = async (expectCard = false) => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); if (expectCard) await expect(page.locator(dialog)).toBeVisible(); else await expect(page.locator(dialog)).not.toBeVisible() }
   const settled = async ids => expect.poll(async () => (await state()).filter(n => ids.includes(n.id) && ['success', 'error', 'recoverable'].includes(n.status)).length, { timeout }).toBe(ids.length)
   const success = async id => expect.poll(async () => {
     if (await page.locator(dialog).isVisible()) {
+      // board:UnknownResultCard/confirm.hosting-disclosure — one existing modal also carries hosting.
+      await expect(page.locator(dialog)).toHaveCount(1)
       await expect(page.locator(`${dialog} [data-hosting-disclosure]`)).toBeVisible()
       await page.locator(`${dialog} [data-hosting-remember] input`).check()
       report.hostingDisclosure = (report.hostingDisclosure ?? 0) + 1
@@ -75,7 +77,7 @@ export async function generationLockExitJourney(input) {
   const release = async () => {
     await page.getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot(`release-${report.stages.length}`)
-    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
     await expect(page.locator(dialog)).not.toBeVisible()
   }
   const idle = async () => {
@@ -123,7 +125,7 @@ export async function generationLockExitJourney(input) {
     await page.locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = 0 })
     await row(unknown).getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('storyboard-release')
-    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
     await expect(page.locator(dialog)).not.toBeVisible(); await success(unknown.id)
     await shot('storyboard-all-results'); report.stages.push('storyboard')
     await idle()
@@ -164,10 +166,10 @@ export async function generationLockExitJourney(input) {
     await page.getByRole('button', { name: text('generationCommon.observability.action.retry.main'), exact: true }).first().click(); await success(quota2.id)
     await canvas(unknown2.id); const beforeRefused = proxy.records.length
     const runsBefore = (await state()).find(n => n.id === unknown2.id).runs.length
-    await submit(); await expect(page.locator('[data-release-confirm]:visible')).toBeVisible(); assert.equal((await state()).find(n => n.id === unknown2.id).runs.length, runsBefore)
+    await submit(true); await expect(page.locator('[data-spend-confirm-dialog]:visible')).toBeVisible(); assert.equal((await state()).find(n => n.id === unknown2.id).runs.length, runsBefore)
     assert.equal(proxy.records.length, beforeRefused); await shot('canvas-refused')
     const originalId = (await state()).find(n => n.id === unknown2.id).runs[0].id
-    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: text('generationCommon.observability.releaseConfirm.continue'), exact: true }).click(); await success(unknown2.id)
+    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click(); await success(unknown2.id)
     assert.equal(proxy.records.length, beforeRefused + 1)
     assert.ok((await state()).find(n => n.id === unknown2.id).runs.some(r => r.id === originalId), 'F12: the original Run history remains; asking permission creates no refused Run')
     await shot('canvas-released'); report.stages.push('canvas')

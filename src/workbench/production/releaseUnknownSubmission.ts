@@ -1,12 +1,6 @@
-import { create } from 'zustand'
-import { declareStoreLifetime } from '../project/storeLifetime'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { isNodeSubmitInFlight } from '../generationCanvas/runner/nodeSubmitInFlight'
 import { tagNomiError } from '../../../electron/shared/nomiErrorCodes'
-import { withProjectAction } from '../project/projectCanvasReadSurface'
-import { productionRunApi } from './productionRunApi'
-import { productionMetaOf } from '../generationCanvas/model/productionMeta'
-import { confirmAndRunNode } from '../generationCanvas/runner/generationRunController'
 import { canvasOpenRuns } from '../api/taskApi'
 import type { DesktopProductionRunBridge } from '../../desktop/productionRunBridgeTypes'
 import { deriveProductionShotState, productionShotIdForNode } from '../../../electron/shared/productionShotPhase'
@@ -78,13 +72,6 @@ export async function releaseUnknownCanvasSubmissionsForNode(projectId: string, 
   return open.filter(entry => entry.reason === 'in_flight').map(entry => entry.runId)
 }
 
-type OpenRunConfirmation = { confirming: boolean; busy: boolean; failed: boolean }
-const CLOSED: OpenRunConfirmation = { confirming: false, busy: false, failed: false }
-export const useUnknownSubmissionReleaseStore = create<{ nodes: Record<string, OpenRunConfirmation> }>(() => ({ nodes: {} }))
-function updateConfirmation(nodeId: string, patch: Partial<OpenRunConfirmation>) {
-  useUnknownSubmissionReleaseStore.setState(state => ({ nodes: { ...state.nodes, [nodeId]: { ...(state.nodes[nodeId] ?? CLOSED), ...patch } } }))
-}
-
 /** The host owns occupancy; this projection never rewrites a live renderer submit. */
 export function synchronizeCanvasOpenRuns(entries: Awaited<ReturnType<typeof canvasOpenRuns>>) {
   const store = useGenerationCanvasStore.getState()
@@ -96,37 +83,3 @@ export function synchronizeCanvasOpenRuns(entries: Awaited<ReturnType<typeof can
       entry.reason === 'needs_reconcile' ? tagNomiError('submission-unknown', 'Previous submission result was not received') : undefined)
   }
 }
-
-export function requestOpenRunConfirmation(nodeId: string) {
-  updateConfirmation(nodeId, { confirming: true, failed: false })
-}
-
-export async function continueUnknownSubmissionRelease(nodeId: string, meta?: Record<string, unknown>) {
-    if (!nodeId || useUnknownSubmissionReleaseStore.getState().nodes[nodeId]?.busy) return
-    updateConfirmation(nodeId, { busy: true, failed: false })
-    try {
-      await withProjectAction(async project => {
-        const runId = productionMetaOf({ meta })?.runId
-        if (runId) await releaseUnknownSubmissionForNode(project.binding.projectId, runId, nodeId, productionRunApi)
-        const acknowledgedOpenRuns = await releaseUnknownCanvasSubmissionsForNode(project.binding.projectId, nodeId, productionRunApi)
-        project.assertCurrent()
-        updateConfirmation(nodeId, { confirming: false })
-        await confirmAndRunNode(nodeId, { initiator: 'user', acknowledgedOpenRuns })
-      })
-    } catch {
-      updateConfirmation(nodeId, { failed: true, confirming: true })
-    } finally {
-      updateConfirmation(nodeId, { busy: false })
-    }
-  }
-
-export function useUnknownSubmissionRelease(nodeId: string | undefined, meta?: Record<string, unknown>) {
-  const state = useUnknownSubmissionReleaseStore(value => nodeId ? value.nodes[nodeId] ?? CLOSED : CLOSED)
-
-  return { ...state, open: () => { if (nodeId) requestOpenRunConfirmation(nodeId) }, cancel: () => { if (nodeId && !useUnknownSubmissionReleaseStore.getState().nodes[nodeId]?.busy) updateConfirmation(nodeId, { confirming: false, failed: false }) }, continueRelease: () => nodeId ? continueUnknownSubmissionRelease(nodeId, meta) : Promise.resolve() }
-}
-
-export const unknownSubmissionReleaseLifetime = declareStoreLifetime({
-  store: 'useUnknownSubmissionReleaseStore', fields: { nodes: 'project' },
-  releaseProject: () => useUnknownSubmissionReleaseStore.setState({ nodes: {} }),
-})

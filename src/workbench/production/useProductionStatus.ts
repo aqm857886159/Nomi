@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { confirmDialog } from '../../design'
 import { notify } from '../../ui/notificationPolicy'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
-import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
+import { confirmGenerationResend, useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { buildProductionContractView } from '../generationCanvas/spend/productionContractView'
 import { buildAnchorCheckpointCard } from '../generationCanvas/spend/anchorCheckpointView'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -175,30 +175,20 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
           return
         }
         if (action === 'release-unknown') {
-          // 结果未知且没有任务号：Nomi 没法核对，只能请用户去服务商后台看。用户确认「没有」后放行这一镜，
-          // 核对框已确认后再走 confirmAndRunNode：用户单张直接发，首次托管告知照旧；放行本身不开拍。
           if (!targetJob) return
-          const confirmed = await confirmDialog({
-            title: t('generationCommon.production.reconcile.releaseTitle'),
-            message: t('generationCommon.production.reconcile.releaseMessage'),
-            confirmLabel: t('generationCommon.production.reconcile.releaseContinue'),
-            cancelLabel: t('common.cancel'),
-            danger: true,
-          })
-          if (!confirmed) return
-          try {
-            await releaseUnknownSubmission(run.projectId, run.runId, targetJob.jobId, productionRunApi)
-            await useProductionRunStore.getState().loadRun(run.projectId, run.runId)
-          } catch (error) {
-            reportFailure(error, 'generationCommon.production.reconcile.failed')
-            return
-          }
           const nodeId = nodeIdOfJob(run, targetJob)
-          if (nodeId) {
-            useGenerationCanvasStore.getState().selectNode(nodeId)
+          const node = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId)
+          if (node) {
+            useGenerationCanvasStore.getState().selectNode(node.id)
             useWorkbenchStore.getState().setWorkspaceMode('generation')
-            // 动态加载：生成控制器是重模块，只有走到「放行后重新生成」这一步才需要它。
-            void import('../generationCanvas/runner/generationRunController').then(({ confirmAndRunNode }) => confirmAndRunNode(nodeId, { initiator: 'user' }))
+            const { confirmAndRunNode } = await import('../generationCanvas/runner/generationRunController')
+            await confirmAndRunNode(node.id, { initiator: 'user', resend: true })
+          } else {
+            if (!await confirmGenerationResend({ state: 'unknown', kind: 'other' })) return
+            try {
+              await releaseUnknownSubmission(run.projectId, run.runId, targetJob.jobId, productionRunApi)
+              await useProductionRunStore.getState().loadRun(run.projectId, run.runId)
+            } catch (error) { reportFailure(error, 'generationCommon.observability.releaseConfirm.failed') }
           }
           return
         }

@@ -506,6 +506,7 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     })
     const first = confirmAndRunNode(placed.id, { initiator: 'user' })
     await vi.waitFor(() => expect(shot2Calls).toBe(1))
+    vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockResolvedValueOnce(false)
     await confirmAndRunNode(placed.id, { initiator: 'user' })
     expect(shot2Calls).toBe(2)
     return { current, placed, r1, first, r1Ctx: () => r1Ctx, shot2Calls: () => shot2Calls }

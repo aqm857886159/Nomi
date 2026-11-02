@@ -48,3 +48,18 @@ describe('generation spend ETA copy', () => {
     expect(message).not.toMatch(/预计约 5–20 分钟/)
   })
 })
+
+import i18n from '../../../i18n'
+import { confirmGenerationResend, useSpendConfirmStore } from './spendConfirm'
+it.each([
+ ['zh-CN','image','再发一次这张图片？'],['zh-CN','video','再发一次这段视频？'],['zh-CN','audio','再发一次？'],
+ ['en','image','Send this image again?'],['en','video','Send this video again?'],['en','model3d','Send it again?'],
+])('G10: %s %s resend copy belongs to the spend owner', async (locale,kind,title) => {
+ await i18n.changeLanguage(locale)
+ const request=vi.spyOn(useSpendConfirmStore.getState(),'requestConfirm').mockResolvedValue(false)
+ const disclosure={message:'hosting',rememberLabel:'remember'}
+ expect(await confirmGenerationResend({kind,state:'unknown',hostingDisclosure:disclosure})).toBe(false)
+ expect(request).toHaveBeenCalledWith(expect.objectContaining({title,kind:'generation',hostingDisclosure:disclosure,message:i18n.t('generationCommon.spend.resend.unknown')}))
+ expect(request.mock.calls.at(-1)?.[0].message.split('\n')).toHaveLength(2)
+ request.mockRestore();await i18n.changeLanguage('zh-CN')
+})

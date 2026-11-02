@@ -7,13 +7,12 @@ import { confirmAndRunPlan } from '../components/batchPlanPreview'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
-import { continueUnknownSubmissionRelease, useUnknownSubmissionReleaseStore } from '../../production/releaseUnknownSubmission'
 import { createProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import { encodeStructuredErrorMessage } from '../../../../electron/vendor/vendorHttp'
-const calls = vi.hoisted(() => ({ poll: vi.fn(), open: vi.fn(), execute: vi.fn(), consent: vi.fn(), notify: vi.fn() }))
+const calls = vi.hoisted(() => ({ poll: vi.fn(), open: vi.fn(), execute: vi.fn(), consent: vi.fn(), notify: vi.fn(), hosting: vi.fn() }))
 vi.mock('../../api/taskApi', () => ({ canvasOpenRuns: calls.open, pollCanvasShotRun: calls.poll, fetchWorkbenchTaskResultByVendor: vi.fn(), consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
-vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
+vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: calls.hosting }))
 vi.mock('./nodeModelHealth', () => ({ recordNodeModelFailure: vi.fn(), recordNodeModelSuccess: vi.fn() }))
 vi.mock('../../../desktop/bridge', () => ({ getDesktopBridge: () => ({ projects: {} }) }))
 vi.mock('../../../ui/notificationPolicy', async original => ({ ...await original<typeof import('../../../ui/notificationPolicy')>(), notify: calls.notify }))
@@ -26,33 +25,34 @@ const add = (meta?: Record<string, unknown>) => {
  return node.id
 }
 beforeEach(async () => {
- vi.clearAllMocks(); calls.poll.mockReset(); calls.open.mockReset().mockResolvedValue([])
+ vi.clearAllMocks(); calls.hosting.mockResolvedValue({allowed:true,needsConfirmation:false}); calls.poll.mockReset(); calls.open.mockReset().mockResolvedValue([])
  calls.execute.mockReset().mockImplementation(async node => ({ id: 'result-' + node.id, type: 'image', url: 'https://fixture.invalid/image.png', createdAt: 1 }))
  calls.consent.mockReset().mockImplementation(async ({ shots }) => shots.map((shot: { runRecordId: string }) => 'canvas-' + shot.runRecordId))
  session = createProjectSessionTestHarness(); await session.open('project-a')
  store().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
- useGenerationQueueStore.setState({ entries: [], batches: {} }); useUnknownSubmissionReleaseStore.setState({ nodes: {} })
+ useGenerationQueueStore.setState({ entries: [], batches: {} })
  vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockResolvedValue(true)
 })
 afterEach(() => { session.dispose(); vi.restoreAllMocks() })
 it('F3/F12: opening confirmation changes neither the original runs nor the free recovery state', async () => {
+ vi.mocked(useSpendConfirmStore.getState().requestConfirm).mockResolvedValue(false)
  const id = add(); const before = structuredClone(store().nodes.find(node => node.id === id)!)
  calls.open.mockResolvedValue([{ nodeId: id, runId: 'canvas-original', reason: 'in_flight', hasTaskId: false }])
  await confirmAndRunNode(id, { initiator: 'user' })
  expect(calls.execute).not.toHaveBeenCalled()
  expect(store().nodes.find(node => node.id === id)).toEqual(before)
- expect(useUnknownSubmissionReleaseStore.getState().nodes[id]).toEqual({ confirming: true, busy: false, failed: false })
+ expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledOnce()
 })
 it('F4: continuation still sends when the host reports that the old Run has already finished', async () => {
  const id = add()
- await continueUnknownSubmissionRelease(id)
+ await confirmAndRunNode(id, { initiator: 'user', resend: true })
  expect(calls.execute).toHaveBeenCalledOnce()
  expect(store().nodes.find(node => node.id === id)?.status).toBe('success')
 })
 it('F9: Agent acknowledgements do not bypass an open request', async () => {
  const id = add();const runs = structuredClone(store().nodes.find(node => node.id === id)?.runs)
  calls.open.mockResolvedValue([{ nodeId: id, runId: 'canvas-original', reason: 'in_flight', hasTaskId: true }])
- await expect(confirmAndRunNode(id, { initiator: 'agent', acknowledgedOpenRuns: ['canvas-original'] })).rejects.toMatchObject({ code: 'node_generation_in_flight' })
+ await expect(confirmAndRunNode(id, { initiator: 'agent' })).rejects.toMatchObject({ code: 'node_generation_in_flight' })
  expect(calls.execute).not.toHaveBeenCalled();expect(store().nodes.find(node => node.id === id)?.runs).toEqual(runs)
 })
 it('F6: batch confirmation excludes every open target, including cost rows and consent', async () => {
@@ -71,6 +71,7 @@ it('F8: two clicks while preflight is still pending produce one new intent', asy
  release([]);await Promise.all([first, second]);expect(calls.execute).toHaveBeenCalledOnce()
 })
 it('F12: a host admission race withdraws the refused record and restores recovery before asking', async () => {
+ vi.mocked(useSpendConfirmStore.getState().requestConfirm).mockResolvedValue(false)
  const id = add();const runs = structuredClone(store().nodes.find(node => node.id === id)?.runs)
  calls.open.mockResolvedValueOnce([]).mockResolvedValue([{ nodeId: id, runId: 'canvas-original', reason: 'in_flight', hasTaskId: true }])
  calls.execute.mockRejectedValueOnce(new Error(encodeStructuredErrorMessage({ code: 'node_generation_in_flight', reason: 'in_flight' }, 'node_generation_in_flight')))
@@ -78,10 +79,11 @@ it('F12: a host admission race withdraws the refused record and restores recover
  const node = store().nodes.find(value => value.id === id)!
  expect(node.runs).toEqual(runs);expect(node.status).toBe('recoverable');expect(node.error).toBeUndefined()
  expect(useGenerationQueueStore.getState().entries.every(entry => entry.state === 'cancelled')).toBe(true)
- expect(useUnknownSubmissionReleaseStore.getState().nodes[id].confirming).toBe(true)
+ expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledOnce()
 })
 
 it.each(['in_flight', 'needs_reconcile'] as const)('F12: repairing a stale running card for %s does not rewrite the original record', async reason => {
+ vi.mocked(useSpendConfirmStore.getState().requestConfirm).mockResolvedValue(false)
  const id = add();store().setNodeStatus(id, 'running')
  const runs = structuredClone(store().nodes.find(node => node.id === id)?.runs)
  calls.open.mockResolvedValue([{ nodeId: id, runId: 'canvas-original', reason, hasTaskId: false }])
@@ -89,7 +91,7 @@ it.each(['in_flight', 'needs_reconcile'] as const)('F12: repairing a stale runni
  expect(store().nodes.find(node => node.id === id)?.runs).toEqual(runs)
  expect(store().nodes.find(node => node.id === id)?.status).toBe(reason === 'in_flight' ? 'recoverable' : 'error')
  expect(calls.execute).not.toHaveBeenCalled()
- expect(useUnknownSubmissionReleaseStore.getState().nodes[id].confirming).toBe(true)
+ expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledOnce()
 })
 
 it('F4: late result after acknowledged resend changes neither the current card nor its timeline', async () => {
@@ -100,7 +102,7 @@ it('F4: late result after acknowledged resend changes neither the current card n
  const old = confirmAndRunNode(id, { initiator: 'user' })
  await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledOnce())
  calls.open.mockResolvedValue([{ nodeId: id, runId: 'old-host-run', reason: 'in_flight', hasTaskId: true }])
- await confirmAndRunNode(id, { initiator: 'user', acknowledgedOpenRuns: ['old-host-run'] })
+ await confirmAndRunNode(id, { initiator: 'user', resend: true })
  const current = store().nodes.find(node => node.id === id)!.result!
  finish({ id: 'late-old-result', type: 'image', url: 'https://fixture.invalid/old.png', createdAt: 1 })
  await old
@@ -115,10 +117,54 @@ it.each(['success', 'failed', 'query-error', 'running'] as const)('F4: outstandi
  const retrieval = recoverNodeResult(id, withProjectAction(project => project)!)
  await vi.waitFor(() => expect(calls.poll).toHaveBeenCalledOnce())
  calls.open.mockResolvedValue([{ nodeId: id, runId: 'old-host-run', reason: 'in_flight', hasTaskId: true }])
- await confirmAndRunNode(id, { initiator: 'user', acknowledgedOpenRuns: ['old-host-run'] })
+ await confirmAndRunNode(id, { initiator: 'user', resend: true })
  const current = store().nodes.find(node => node.id === id)!.result!
  finish(outcome === 'query-error' ? new Error('old query failed') : { id: 'old-task', kind: 'text_to_image', status: outcome === 'success' ? 'succeeded' : outcome, assets: [{ type: 'image', url: 'nomi-local://asset/project-a/assets/old.png' }], raw: {} })
  await retrieval
  expect(store().nodes.find(node => node.id === id)?.result?.id).toBe(current.id)
  expect(store().nodes.find(node => node.id === id)?.status).toBe('success')
 })
+
+it('G1/G5/G10: explicit resend asks with an empty host and cancellation writes nothing', async () => {
+ const id = add(); const before = structuredClone(store().nodes.find(node => node.id === id))
+ const request = vi.mocked(useSpendConfirmStore.getState().requestConfirm).mockResolvedValue(false)
+ const outcome = await confirmAndRunNode(id, { initiator: 'user', resend: true })
+ expect(request).toHaveBeenCalledWith(expect.objectContaining({ kind: 'generation', title: '再发一次这张图片？', message: '上一次还没结束。\n再发一次可能会再扣一次钱。', confirmLabel: '再发一次', cancelLabel: '取消' }))
+ expect(calls.open).toHaveBeenCalledOnce();expect(outcome).toBe('declined'); expect(calls.execute).not.toHaveBeenCalled();expect(store().nodes.find(node => node.id === id)).toEqual(before)
+})
+it('G1/G8: the existing spend card owns the entire pending click and one confirmation sends once', async () => {
+ const id = add(); let decide!: (ok: boolean) => void
+ const request = vi.mocked(useSpendConfirmStore.getState().requestConfirm).mockImplementation(() => new Promise(resolve => { decide = resolve }))
+ calls.open.mockResolvedValue([{ nodeId:id, runId:'old', reason:'in_flight', hasTaskId:false }])
+ const first = confirmAndRunNode(id, { initiator:'user' })
+ await vi.waitFor(() => expect(request).toHaveBeenCalledOnce())
+ await confirmAndRunNode(id, { initiator:'user', resend:true });expect(request).toHaveBeenCalledOnce();expect(calls.execute).not.toHaveBeenCalled()
+ decide(true);await first;expect(calls.execute).toHaveBeenCalledOnce()
+})
+it('G7: release failure is visible and preserves the card for a later retry', async () => {
+ const id=add();const before=structuredClone(store().nodes.find(node=>node.id===id))
+ calls.open.mockResolvedValueOnce([{nodeId:id,runId:'old',reason:'in_flight',hasTaskId:false}]).mockRejectedValueOnce(new Error('cannot release'))
+ await confirmAndRunNode(id,{initiator:'user',resend:true})
+ expect(calls.execute).not.toHaveBeenCalled();expect(store().nodes.find(node=>node.id===id)).toEqual(before)
+ expect(calls.notify).toHaveBeenCalledWith(expect.objectContaining({message:expect.stringContaining('还没有放行')}))
+ await confirmAndRunNode(id,{initiator:'user',resend:true});expect(calls.execute).toHaveBeenCalledOnce()
+})
+it('G9: admission races may ask once more but never loop or turn a machine refusal into a card', async () => {
+ const id=add();calls.open.mockResolvedValue([{nodeId:id,runId:'old',reason:'in_flight',hasTaskId:false}])
+ calls.execute.mockRejectedValue(new Error(encodeStructuredErrorMessage({code:'node_generation_in_flight',reason:'in_flight'},'node_generation_in_flight')))
+ await confirmAndRunNode(id,{initiator:'user'})
+ expect(calls.execute).toHaveBeenCalledTimes(2);expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledTimes(2)
+})
+
+ it('G6: first hosting disclosure shares the resend card and cannot create a second decision', async () => {
+  const id=add();calls.open.mockResolvedValue([{nodeId:id,runId:'old',reason:'in_flight',hasTaskId:false}])
+  calls.hosting.mockResolvedValue({allowed:true,needsConfirmation:true,remember:vi.fn()})
+  await confirmAndRunNode(id,{initiator:'user'})
+  expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledOnce()
+  expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledWith(expect.objectContaining({hostingDisclosure:expect.objectContaining({message:expect.any(String)})}))
+  expect(calls.execute).toHaveBeenCalledOnce()
+ })
+ it('G5: missing dependencies decline before any disclosure or spend decision', async () => {
+  const id=add();await confirmAndRunNode(id,{initiator:'user',resend:true,prepareDependencies:()=>true})
+  expect(calls.hosting).not.toHaveBeenCalled();expect(useSpendConfirmStore.getState().requestConfirm).not.toHaveBeenCalled();expect(calls.execute).not.toHaveBeenCalled()
+ })

@@ -1,8 +1,9 @@
-import { useUnknownSubmissionRelease } from '../../../production/releaseUnknownSubmission'
+import { generationFailureActions } from '../../../observability/generationFailureActions'
 import { StoryboardFailureActions } from '../shotRow/StoryboardFrameActions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  IconClockSearch,
   IconBox,
   IconDots,
   IconLock,
@@ -305,7 +306,6 @@ function AnchorFace({
   onOpenPreview?: (() => void) | undefined
 }): JSX.Element {
   const { t } = useTranslation()
-  const release = useUnknownSubmissionRelease(runtime.node?.id, runtime.node?.meta)
   const narrow = useStoryboardRowNarrow()
   const box = densityBox(frameMediaBox(filmAspect), narrow)
   const raw = runtime.anchor.params?.aspect_ratio
@@ -346,7 +346,6 @@ function AnchorFace({
         </div>
       )
     }
-    if (runtime.generating && release.confirming) return <StoryboardFailureActions node={runtime.node} />
     if (runtime.generating) {
       return (
         <div className="relative overflow-hidden rounded-nomi border border-nomi-line bg-nomi-ink-05" style={style} data-anchor-face="generating">
@@ -370,14 +369,16 @@ function AnchorFace({
       )
     }
     if (runtime.failed) {
+      const unknownResult = generationFailureActions(runtime.errorMessage ?? '').primary === 'release-regenerate'
       const failure = storyboardFailureCopy(runtime.errorMessage, { ...runtime.node?.runs?.[0], productionRunId: runtime.node?.meta?.productionRunId as string | undefined })
       return (
         <div
-          className="relative flex flex-col items-center justify-center gap-1.5 rounded-nomi border border-workbench-danger bg-workbench-danger-soft p-2 text-center"
+          className={cn('relative flex flex-col items-center justify-center gap-1.5 rounded-nomi border p-2 text-center', unknownResult ? 'border-nomi-line bg-nomi-paper' : 'border-workbench-danger bg-workbench-danger-soft')}
           style={style}
           data-anchor-face="failed"
         >
-          <span className="line-clamp-3 text-micro leading-tight text-workbench-danger" title={failure.hint} data-anchor-failure-reason="true">
+          {unknownResult ? <IconClockSearch size={14} stroke={1.6} className="shrink-0 text-nomi-warning-ink" /> : null}
+          <span className={cn('text-micro leading-tight', unknownResult ? 'font-bold text-nomi-ink' : 'line-clamp-3 text-workbench-danger')} title={failure.hint} data-anchor-failure-reason="true">
             {failure.reason}
           </span>
           <StoryboardFailureActions message={runtime.errorMessage} node={runtime.node} busy={actionBusy} onRetry={onGenerate} />
@@ -396,18 +397,7 @@ function AnchorFace({
           <span className="line-clamp-2 text-micro leading-tight text-nomi-ink-60" title={runtime.errorMessage ?? undefined}>
             {t('storyboardEditor.frame.recoverable')}
           </span>
-          <StoryboardFailureActions node={runtime.node} />
-          {onRecover ? (
-            <button
-              type="button"
-              onClick={onRecover}
-              title={t(recoverableHintKey(runtime.node))}
-              className="inline-flex h-6 items-center gap-0.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-micro text-nomi-ink-80 hover:border-nomi-ink-30 hover:text-nomi-accent"
-            >
-              <IconRefresh size={11} stroke={1.8} />
-              {t('generationCommon.production.runAction.retry-retrieval')}
-            </button>
-          ) : null}
+          <StoryboardFailureActions node={runtime.node} onRecover={onRecover} />
         </div>
       )
     }

@@ -9,9 +9,9 @@ import React, { type JSX } from 'react'
 import { GenerationStatusBar } from './GenerationStatusBar'
 import { MODEL_ACCESS_ENTRY } from '../../../../electron/shared/contracts/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
-import { IconListCheck, IconListDetails, IconRefresh, IconReplace, IconSettings, IconWand, IconX } from '@tabler/icons-react'
+import { IconClockSearch, IconListCheck, IconListDetails, IconRefresh, IconReplace, IconSettings, IconWand, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { WorkbenchButton, DecisionBar } from '../../../design'
+import { WorkbenchButton } from '../../../design'
 import { isKnownVendor } from '../../../config/knownVendors'
 import { notifyModelOptionsRefresh } from '../../../config/modelCatalogCache'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -19,7 +19,6 @@ import { setPendingCustomCallIntent } from '../../../ui/onboarding/customCallInt
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { generationFailureActions } from '../../observability/generationFailureActions'
-import { useUnknownSubmissionRelease } from '../../production/releaseUnknownSubmission'
 import { narrateErrorActionLabel, narrateModelKind, type GenerationErrorAction } from '../../observability/narrate'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { CopyDetailsButton, ProviderMessageNote, TechnicalDetailsBlock, TechnicalDetailsToggle } from './NodeFailureDetails'
@@ -84,7 +83,8 @@ export function NodeErrorReport({
 }): JSX.Element {
   const { t } = useTranslation()
   const report = generationFailureActions(message, { ...run, productionRunId: productionMetaOf({ meta })?.runId })
-  const showSummary = summaryVisible || report.primary === 'release-regenerate'
+  const unknownResult = report.primary === 'release-regenerate'
+  const showSummary = summaryVisible
   const taskId = run?.taskId
   const hint = report.hint
   const reportPrimary = report.primary
@@ -112,7 +112,6 @@ export function NodeErrorReport({
     [customCallTarget],
   )
   const [showRaw, setShowRaw] = React.useState(false)
-  const release = useUnknownSubmissionRelease(nodeId, meta)
   const rootRef = React.useRef<HTMLDivElement>(null)
 
   const handleRetry = React.useCallback(
@@ -230,7 +229,7 @@ export function NodeErrorReport({
     'view-task': handleReconcile,
     'open-recoverable': canvasRetrievable ? handleOpenRecoverable : undefined,
     // 画布在继续时向主进程查询占用；制作镜沿用元数据里的 Run。
-    'release-regenerate': nodeId ? (event: React.MouseEvent) => { event.stopPropagation(); release.open() } : undefined,
+    'release-regenerate': nodeId ? (event: React.MouseEvent) => { event.stopPropagation(); void confirmAndRunNode(nodeId, { initiator: 'user', resend: true }) } : undefined,
   }
   // 主动作点不了（例：同能力里没有另一个）时退到次动作，再不行才去模型接入。
   // 「已提交、没取回」那一类的去处按任务来源分：制作 Run 去「查看制作任务」（任务中心里那一笔）；画布任务回到可找回面板
@@ -263,19 +262,18 @@ export function NodeErrorReport({
     <div
       ref={rootRef}
       data-model-access-entry={MODEL_ACCESS_ENTRY.failureRecovery}
-      role="alert"
-      aria-label={t('generationCommon.error.failedAria', { reason: report.reason })}
+      role={unknownResult ? "status" : "alert"}
+      aria-label={unknownResult ? report.reason : t('generationCommon.error.failedAria', { reason: report.reason })}
       className={cn(
         'absolute inset-0 z-[5] flex flex-col rounded-nomi p-4',
         // 不透明浅红底：盖住下面的棋盘格占位，缩放时也一眼看出是失败态。
-        'bg-[color-mix(in_oklch,var(--workbench-danger)_5%,var(--nomi-paper))]',
-        'border border-[color-mix(in_oklch,var(--workbench-danger)_24%,transparent)]',
+        unknownResult ? 'bg-nomi-paper border border-nomi-line' : 'bg-[color-mix(in_oklch,var(--workbench-danger)_5%,var(--nomi-paper))] border border-[color-mix(in_oklch,var(--workbench-danger)_24%,transparent)]',
       )}
       // 不拦 pointerdown：错误卡 inset-0 盖住整个节点正文，若 stopPropagation 会让节点**拖不动也选不中**
       // （用户真机反馈）。放行 → 节点可拖可选、参数框正常弹；复制错误详情走卡里的「复制详情」按钮（不靠划选）。
     >
-      <div className={cn("flex items-start gap-2", !showSummary && "justify-end")}>
-        {showSummary ? <GenerationStatusBar feedback={{ phase: 'failed', message: report.reason, active: false, late: false, previewLabel: '' }} /> : null}
+      <div className={cn("flex items-start gap-2", !showSummary && !unknownResult && "justify-end")}>
+        {unknownResult ? <><IconClockSearch size={16} stroke={1.6} className="mt-[1px] shrink-0 text-nomi-warning-ink" /><span className="select-text cursor-text text-body font-bold leading-snug text-nomi-ink">{report.reason}</span></> : showSummary ? <GenerationStatusBar feedback={{ phase: 'failed', message: report.reason, active: false, late: false, previewLabel: '' }} /> : null}
         {/* 收起：失败卡是铺满正文的遮罩，节点先前生成的片子就压在它下面——没有这颗钮，用户「一直看不了
             原本的视频」（2026-08-24 用户反馈，并在截图上把 × 画在了这个位置）。§1.5：它是 L2 情境控件，
             只随失败卡存在，且长在卡自己的不透明表面上、不是压在画面内容上（§1.5.3 那条硬规则）。
@@ -334,8 +332,7 @@ export function NodeErrorReport({
           flex-wrap + 每颗 shrink-0 whitespace-nowrap：不加的话 flex 会压缩次要按钮，把文案**从词中间
           断开**成「换个模/型」「复制详/情」（2026-08-11 走查截图实拍）。几何断言抓不到它——没有溢出、
           没有越界，只是难看得像坏了。窄处该做的是整颗换行，不是把字劈两半（AssistantErrorCard 同款处理）。 */}
-      {release.confirming ? <UnknownSubmissionConfirmation release={release} /> : null}
-      <div className={cn('flex flex-wrap items-center gap-2', release.confirming && 'hidden')}>
+      <div className="flex flex-wrap items-center gap-2">
         {(() => {
           const PrimaryIcon = ACTION_ICON[primaryAction]
           const label = narrateErrorActionLabel(primaryAction, 'primary', actionLabelParams)
@@ -344,7 +341,7 @@ export function NodeErrorReport({
               size="sm"
               onClick={actionHandlers[primaryAction]}
               aria-label={label}
-              className="shrink-0 whitespace-nowrap bg-workbench-danger text-nomi-paper border-0 hover:bg-workbench-danger-soft"
+              className={cn('shrink-0 whitespace-nowrap text-nomi-paper border-0', unknownResult ? 'bg-nomi-ink hover:bg-nomi-accent' : 'bg-workbench-danger hover:bg-workbench-danger-soft')}
             >
               <PrimaryIcon size={13} stroke={1.6} />
               {label}
@@ -357,7 +354,7 @@ export function NodeErrorReport({
             onClick={actionHandlers[secondaryAction]}
             className="shrink-0 whitespace-nowrap text-caption text-nomi-ink-40 hover:text-nomi-ink"
           >
-            {narrateErrorActionLabel(secondaryAction, 'secondary', actionLabelParams)}
+            {unknownResult && secondaryAction === 'reconcile' ? t('generationCommon.observability.action.reconcile.main') : narrateErrorActionLabel(secondaryAction, 'secondary', actionLabelParams)}
           </button>
         ) : null}
         <CopyDetailsButton raw={report.raw} />
@@ -371,17 +368,6 @@ export function NodeErrorReport({
   )
 }
 
-export function UnknownSubmissionConfirmation({ release }: { release: ReturnType<typeof useUnknownSubmissionRelease> }) {
-  const { t } = useTranslation()
-  return <div data-release-confirm className="mb-1 grid gap-2" onPointerDown={(event) => event.stopPropagation()}>
-    <p className="text-caption leading-snug text-nomi-ink-80">{t('generationCommon.observability.releaseConfirm.message')}</p>
-    {release.failed ? <p className="text-micro text-workbench-danger">{t('generationCommon.observability.releaseConfirm.failed')}</p> : null}
-    <DecisionBar cancelLabel={t('generationCommon.observability.releaseConfirm.cancel')} onCancel={release.cancel}
-      primaryLabel={t('generationCommon.observability.releaseConfirm.continue')} onPrimary={() => { void release.continueRelease() }} primaryDisabled={release.busy}
-      tone="danger" dangerClassName="bg-workbench-danger text-nomi-paper hover:bg-workbench-danger" />
-  </div>
-}
-
 /** The canvas and list inspector host the same recovery surface and retry route. */
 export function NodeFailureReport({ node, onFeedback, summaryVisible = true }: {
   node: GenerationCanvasNode
@@ -389,14 +375,13 @@ export function NodeFailureReport({ node, onFeedback, summaryVisible = true }: {
   summaryVisible?: boolean
 }) {
   const productionRetry = useProductionNodeRetry(node, onFeedback)
-  const release = useUnknownSubmissionRelease(node.id, node.meta)
   if (node.status === 'error' && node.error) return <NodeErrorReport
     summaryVisible={summaryVisible} message={node.error} meta={node.meta} nodeId={node.id} run={node.runs?.[0]}
     onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
     onRetry={node.kind === 'asset' && node.meta?.source === 'clipboard-url' ? undefined
       : productionRetry ?? localStepRedoOf(node, onFeedback) ?? (() => { void confirmAndRunNode(node.id, { initiator: 'user' }) })}
   />
-  if (node.status === 'recoverable' || release.confirming) return <NodeRecoverableReport node={node}
+  if (node.status === 'recoverable') return <NodeRecoverableReport node={node}
     onRecover={() => { withProjectAction((project) => { void recoverNodeResult(node.id, project) }) }}
     onDismiss={() => dismissRecoverableNode(node.id)} />
   return null

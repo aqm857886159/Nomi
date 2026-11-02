@@ -81,7 +81,9 @@
     "tests/ux/_generationLockExitHttpEight.mjs",
     "tests/ux/_generationLockExitThreePages.mjs",
     "src/workbench/generationCanvas/spend/spendConfirm.ts",
-    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx"
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx"
   ],
   "entry_points": [
     "StoryboardPlanEditor 的单卡、整批与放置",
@@ -126,6 +128,11 @@
     },
     {
       "kind": "read",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "StoryboardFailureActions"
+    },
+    {
+      "kind": "read",
       "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
       "symbol": "createStoryboardActionGuard"
     },
@@ -141,8 +148,38 @@
     },
     {
       "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "StoryboardFailureActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "symbol": "StoryboardFailureActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "StoryboardShotFrame"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "NodeGenerationStatus"
+    },
+    {
+      "kind": "read",
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx",
+      "symbol": "NodeGenerationStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "NodeGenerationStatus"
     },
     {
       "kind": "read",
@@ -161,6 +198,16 @@
     },
     {
       "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "SpendConfirmDialog"
+    },
+    {
+      "kind": "read",
       "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
       "symbol": "confirmAndRunPlan"
     },
@@ -168,6 +215,11 @@
       "kind": "read",
       "path": "src/workbench/production/releaseUnknownSubmission.ts",
       "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/design-lab/c04-evidence.tsx",
+      "symbol": "SpendConfirmDialog"
     },
     {
       "kind": "write",
@@ -218,6 +270,11 @@
       "kind": "write",
       "path": "src/workbench/capability/storyboardPresent.ts",
       "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "generationFailureActions"
     },
     {
       "kind": "write",
@@ -277,6 +334,16 @@
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
       "symbol": "generationFailureActions"
     },
     {
@@ -356,6 +423,11 @@
     },
     {
       "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
       "symbol": "classifyGenerationError"
     },
@@ -403,6 +475,11 @@
       "kind": "write",
       "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
       "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "confirmGenerationResend"
     },
     {
       "kind": "write",
@@ -471,21 +548,6 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "confirmAndRunNode"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "continueUnknownSubmissionRelease"
-    },
-    {
-      "kind": "write",
-      "path": "src/workbench/production/useProductionStatus.ts",
-      "symbol": "releaseUnknownSubmission"
-    },
-    {
-      "kind": "write",
       "path": "src/workbench/production/useProductionStatus.ts",
       "symbol": "nodeIdOfJob"
     },
@@ -493,6 +555,16 @@
       "kind": "write",
       "path": "src/workbench/production/useProductionStatus.ts",
       "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "confirmGenerationResend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "releaseUnknownSubmission"
     },
     {
       "kind": "write",
@@ -537,7 +609,7 @@
   ],
   "door_reduction": {
     "before": 13,
-    "after": 85,
+    "after": 99,
     "why_not": "三页和Agent/任务中心是必要入口，不能靠删页面减门。本轮按当前不变量的共享口重新扫，移除旧通用桥/其它接口的过宽枚举；计数变化不是结构性删入口的证据。结构性删除的是拒绝分支、旧查询和重复状态。"
   },
   "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。 B6的确认快照和最后一跳按整镜核对同时覆盖未落节点/已存在节点、主镜/关键帧、失败重试/画布/列表/组头和Agent；B7三处都经同一JSON归一口，真实改动仍拒绝。 第3轮查询全部未结束Run并在唯一主进程口准入；已批准回执只对真人单发有效，机器及过期回执不能覆盖新Run。同次意图去重保留，拒绝撤回记录，恢复订阅真正项目提交，制作多镜的原重启规则不被单镜guard吞掉。",
@@ -603,11 +675,6 @@
       "responsibility": "打开项目及人点预检查使用同一投影，不动该窗口活请求；恢复可找回与结果不明面。"
     },
     {
-      "path": "src/workbench/production/releaseUnknownSubmission.ts",
-      "symbol": "continueUnknownSubmissionRelease",
-      "responsibility": "按节点共用确认状态和动作；先释放需要对账的Run，剩余Run回执交唯一单张入口；已经没占用也照发。"
-    },
-    {
       "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
       "symbol": "confirmAndRunPlan",
       "responsibility": "机器先排除未结束节点并修正报价；全部await后最后同步过滤，再入队；过滤的已开出价统一收回。"
@@ -621,6 +688,11 @@
       "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
       "symbol": "createCanvasShotRuns",
       "responsibility": "唯一主进程准入：读同一open Run事实，真人且非批次非交接的具体回执才放行；机器不放行，decideShotClaim不变。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "confirmGenerationResend",
+      "responsibility": "三页和任务中心的重发风险只经现有SpendConfirmDialog确认，取消不放行、不写记录，托管告知同卡。"
     }
   ],
   "same_class_entry_points": [
@@ -704,7 +776,10 @@
     "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
     "src/workbench/creation/storyboard/exec/storyboardDispatchAdversarial.test.ts",
     "electron/capabilityCore/canvasOpenRunsRecovery.test.ts",
-    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx"
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx",
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
@@ -721,7 +796,10 @@
     "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
     "src/workbench/creation/storyboard/exec/storyboardDispatchAdversarial.test.ts",
     "electron/capabilityCore/canvasOpenRunsRecovery.test.ts",
-    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx"
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx",
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

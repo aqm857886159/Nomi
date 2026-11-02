@@ -320,9 +320,6 @@ export const zhGenerationCommon = {
       fixModelKind: { main: '改成{{kind}}并重试', alt: '改成{{kind}}' },
     },
     releaseConfirm: {
-      message: '可能会再扣一次钱。',
-      continue: '继续',
-      cancel: '取消',
       failed: '没能记录你的核对结果，这一镜还没有放行。再点一次。',
     },
     progress: {
@@ -770,6 +767,7 @@ export const zhGenerationCommon = {
     },
   },
   spend: {
+    resend: { title: { image: '再发一次这张图片？', video: '再发一次这段视频？', other: '再发一次？' }, unknown: '上一次没等到结果，可能已经扣费。\n再发一次可能会再扣一次钱。', waiting: '上一次还没结束。\n再发一次可能会再扣一次钱。' },
     agentNotice: '经 AI 助手驱动 · 需你确认生成',
     agentNoticePlan: '经 AI 助手驱动 · 需你确认生成',
     ignore: '忽略',
@@ -1550,9 +1548,6 @@ export const zhGenerationCommon = {
       reworkSelected: '先重拍选中的，再回来过目',
     },
     reconcile: {
-      releaseTitle: '再发一次',
-      releaseMessage: '可能会再扣一次钱。',
-      releaseContinue: '继续',
       submittedAt: '提交时间 {{time}}',
       questionTitle: '核对供应商任务',
       message: '供应商：{{provider}}\n任务标识：{{taskId}}\nNomi 不会自动重下单。请先在供应商侧核对任务是否存在，再决定恢复或重新生成。',
@@ -2078,9 +2073,6 @@ export const enGenerationCommon = {
       fixModelKind: { main: 'Set to {{kind}} and retry', alt: 'Set to {{kind}}' },
     },
     releaseConfirm: {
-      message: 'This may charge you again.',
-      continue: 'Continue',
-      cancel: 'Cancel',
       failed: 'Your check could not be recorded, so this shot was not released. Try again.',
     },
     progress: {
@@ -2510,6 +2502,7 @@ export const enGenerationCommon = {
     },
   },
   spend: {
+    resend: { title: { image: 'Send this image again?', video: 'Send this video again?', other: 'Send it again?' }, unknown: 'The last request got no result and may have been charged.\nSending it again may charge you again.', waiting: 'The last request has not finished.\nSending it again may charge you again.' },
     agentNotice: 'Started by an AI assistant · Your approval is required before generating',
     agentNoticePlan: 'Started by an AI assistant · Your approval is required before generating',
     ignore: 'Ignore',
@@ -3273,9 +3266,6 @@ export const enGenerationCommon = {
       reworkSelected: 'Reshoot the selected ones first',
     },
     reconcile: {
-      releaseTitle: 'Send again',
-      releaseMessage: 'This may charge you again.',
-      releaseContinue: 'Continue',
       submittedAt: 'Submitted {{time}}',
       questionTitle: 'Reconcile provider task',
       message: 'Provider: {{provider}}\nTask ID: {{taskId}}\nNomi will not resubmit automatically. Verify whether the task exists with the provider before deciding to resume or regenerate.',

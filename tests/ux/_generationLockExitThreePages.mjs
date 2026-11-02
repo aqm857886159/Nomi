@@ -46,7 +46,7 @@ export async function threePageLockExitJourney(input) {
     if (detail) await page.locator(`[data-list-card="${id}"]`).click()
   }
   const confirm = async () => { await page.locator(dialog).waitFor(); await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click() }
-  const submit = async () => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); if (await page.locator(dialog).isVisible()) await confirm() }
+  const submit = async (expectCard = false) => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); if (!expectCard && await page.locator(dialog).isVisible()) await confirm() }
   try {
     const design = await prepareLockExitStoryboard(input)
     report.shotIndices = Object.fromEntries(design.plan.shots.map(s => [s.shotId, s.index]))
@@ -102,14 +102,14 @@ export async function threePageLockExitJourney(input) {
     await expect(page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true })).toBeVisible()
     const count = proxy.records.length
     const runsBeforePermission = JSON.stringify((await nodes()).find(n => n.id === failed.id).runs)
-    await submit()
-    await expect(page.locator('[data-release-confirm]:visible')).toBeVisible()
+    await submit(true)
+    await expect(page.locator('[data-spend-confirm-dialog]:visible')).toBeVisible()
     assert.equal(JSON.stringify((await nodes()).find(n => n.id === failed.id).runs), runsBeforePermission)
-    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
+    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('common.cancel'), exact: true }).click()
     assert.equal(proxy.records.length, count)
     await shot('unknown-canvas-light')
     await list(failed.id); await shot('unknown-list-detail-light')
-    await expect(page.locator('[data-list-detail-preview] [role="alert"]')).toBeVisible()
+    await expect(page.locator('[data-list-detail-preview] [role="status"]')).toBeVisible()
     await storyboard(design.id, failed); await shot('unknown-storyboard-shot')
     await expect(page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true })).toBeVisible()
     report.checks.refusedClickAndSameExit = true
@@ -126,12 +126,12 @@ export async function threePageLockExitJourney(input) {
     await assetRow.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('unknown-storyboard-anchor-confirm')
     const cancelledAt = proxy.records.length
-    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
+    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('common.cancel'), exact: true }).click()
     assert.equal(proxy.records.length, cancelledAt)
     await canvas(asset.id)
     const assetRuns = (await nodes()).find(n => n.id === asset.id).runs.length
-    await submit(); await expect(page.locator('[data-release-confirm]:visible')).toBeVisible(); assert.equal((await nodes()).find(n => n.id === asset.id).runs.length, assetRuns)
-    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.cancel'), exact: true }).click()
+    await submit(true); await expect(page.locator('[data-spend-confirm-dialog]:visible')).toBeVisible(); assert.equal((await nodes()).find(n => n.id === asset.id).runs.length, assetRuns)
+    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('common.cancel'), exact: true }).click()
     assert.equal(proxy.records.length, cancelledAt, 'C3: cancelling did not release the original occupancy')
     report.checks.anchorHasExit = true
 
@@ -143,7 +143,7 @@ export async function threePageLockExitJourney(input) {
     await canvas(failed.id); await list(failed.id)
     await page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('list-release-confirm')
-    await page.getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-spend-confirm-action="confirm"]').click()
     await expect.poll(async () => (await nodes()).find(n => n.id === failed.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     assert.equal(proxy.records.length, count + 2)
     report.checks.releaseTargetsOriginalRun = true
@@ -153,7 +153,7 @@ export async function threePageLockExitJourney(input) {
     await openStoryboardEditor(page, design.id)
     if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
     await page.locator(`[data-storyboard-anchor-row="${asset.meta.anchorId}"]`).getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
-    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
     await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.anchorRelease = true
     await shot('storyboard-anchor-released-result')
@@ -162,7 +162,7 @@ export async function threePageLockExitJourney(input) {
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
     await page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('canvas-release-confirm')
-    await page.locator('[data-release-confirm]:visible').getByRole('button', { name: t('generationCommon.observability.releaseConfirm.continue'), exact: true }).click()
+    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.canvasRelease = true
     await shot('canvas-released-result')
@@ -188,9 +188,9 @@ export async function threePageLockExitJourney(input) {
     await expectAbsent(unknownRows.locator('[data-task-action="retry_generation"]'), { provenBy: taskCardProbe })
     report.checks.taskCenterNoDeadRetry = true
     await page.locator('[data-production-task-card] [data-production-primary-action]').click()
-    await expect(page.getByRole('button', { name: t('generationCommon.production.reconcile.releaseContinue'), exact: true })).toBeVisible()
+    await expect(page.locator('[data-spend-confirm-action="confirm"]')).toBeVisible()
     await shot('task-center-release-confirm')
-    await page.getByRole('button', { name: t('generationCommon.production.reconcile.releaseContinue'), exact: true }).click()
+    await page.locator('[data-spend-confirm-action="confirm"]').click()
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     assert.equal(proxy.records.length, beforeTaskCenter + 1)
     assert.ok(await page.evaluate(id => window.__nomiCanvasStore.getState().selectedNodeIds.includes(id), canvasNode.id))

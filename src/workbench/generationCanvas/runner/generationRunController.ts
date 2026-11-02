@@ -1,4 +1,7 @@
-import { requestOpenRunConfirmation, synchronizeCanvasOpenRuns } from '../../production/releaseUnknownSubmission'
+import { productionMetaOf } from '../model/productionMeta'
+import { productionRunApi } from '../../production/productionRunApi'
+import { reportCanvasFeedback } from '../components/canvasFeedback'
+import { releaseUnknownSubmissionForNode, releaseUnknownCanvasSubmissionsForNode, synchronizeCanvasOpenRuns } from '../../production/releaseUnknownSubmission'
 import { normalizeCanvasBatchConcurrency } from '../components/canvasProductionScope'
 import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -12,7 +15,7 @@ import { isNodeGenerationOwnedByProduction } from '../../production/productionSh
 import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from '../nodes/director/model/directorPreviewState'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { canvasOpenRuns, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
-import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
+import { confirmGenerationResend, confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { classifyGenerationError, isOpenGenerationRefusal } from '../../observability/classifyError'
@@ -111,7 +114,7 @@ export type GenerationConfirmationGuards = GenerationApprovalGuards & {
    * 缺省成 'user' 就是 fail-open——下一个忘了报的新入口会被当成「用户点的便宜单张」静默花钱（R17：让编译器拦）。
    */
   initiator: SpendInitiator
-  acknowledgedOpenRuns?: string[]
+  resend?: boolean
 }
 
 export type DeferredNodeMaterialization = {
@@ -389,7 +392,7 @@ export async function runGenerationNode(
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       if (options.initiator === 'user') {
         const open = await canvasOpenRuns({ projectId: target.projectId, nodeId: id })
-        whenRunTargetLoaded(target, () => { synchronizeCanvasOpenRuns(open); requestOpenRunConfirmation(id) })
+        whenRunTargetLoaded(target, () => { synchronizeCanvasOpenRuns(open) })
       }
       throw error
     }
@@ -531,11 +534,16 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean;
   if (preparingSingleGeneration.has(nodeId)) return 'nothing-to-run'
   const intent = Symbol()
   preparingSingleGeneration.set(nodeId, intent)
-  const ready = () => { if (preparingSingleGeneration.get(nodeId) === intent) preparingSingleGeneration.delete(nodeId) }
+  const ready = (preparing = false) => {
+    if (preparing && preparingSingleGeneration.has(nodeId) && preparingSingleGeneration.get(nodeId) !== intent) return false
+    if (preparing) preparingSingleGeneration.set(nodeId, intent)
+    else if (preparingSingleGeneration.get(nodeId) === intent) preparingSingleGeneration.delete(nodeId)
+    return true
+  }
   try { return await confirmAndRunSingleNode(nodeId, opts, ready) } finally { ready() }
 }
 
-async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; title?: string; confirmLabel?: string; prepareDependencies?: () => boolean; deferredMaterialization?: DeferredNodeMaterialization } & GenerationConfirmationGuards, ready: () => void): Promise<GenerationRunOutcome> {
+async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; title?: string; confirmLabel?: string; prepareDependencies?: () => boolean; deferredMaterialization?: DeferredNodeMaterialization } & GenerationConfirmationGuards, ready: (preparing?: boolean) => boolean): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前（确认卡）换了项目 = 取消，没花钱；
   // 一旦提交，运行归原项目（target），之后切页/切项目都不取消它。
   const project = withProjectAction((issued) => issued)
@@ -545,27 +553,41 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     ? undefined
     : captureApprovedGenerationInputs([nodeId])
   const node = opts.deferredMaterialization?.draftNode ?? useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
-  if (!opts.rerun && paidNodeLedger(node)) {
-    const open = await canvasOpenRuns({ projectId, nodeId })
-    if (open.length && (opts.initiator !== 'user' || !opts.acknowledgedOpenRuns)) {
-      if (opts.initiator !== 'user') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
-      if (isProjectExecutionContextCurrent(project)) { synchronizeCanvasOpenRuns(open); requestOpenRunConfirmation(nodeId) }
-      return 'nothing-to-run'
-    }
-  }
+  const open = !opts.rerun && paidNodeLedger(node) ? await canvasOpenRuns({ projectId, nodeId }) : []
+  if (open.length && opts.initiator !== 'user') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
   if (opts.prepareDependencies?.()) return 'nothing-to-run'
   const hosting = await resolveHostingDisclosure(node)
-  // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
   if (!hosting.allowed) return 'declined'
-  const ok = await confirmGenerationSpend([node], {
+  let acknowledgedOpenRuns: string[] | undefined
+  const askToResend = async (entries: Awaited<ReturnType<typeof canvasOpenRuns>>): Promise<GenerationRunOutcome | null> => {
+    if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+    synchronizeCanvasOpenRuns(entries)
+    const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
+    const unknown = entries.some(entry => entry.reason === 'needs_reconcile') || Boolean(current?.error && classifyGenerationError(current.error).primary === 'release-regenerate')
+    const confirmed = await confirmGenerationResend({ state: unknown ? 'unknown' : 'waiting', kind: current ? spendCostKind(current.kind) : 'image', ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}) })
+    if (!confirmed) return 'declined'
+    if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+    try {
+      const productionRunId = productionMetaOf({ meta: current?.meta })?.runId
+      if (productionRunId) await releaseUnknownSubmissionForNode(projectId, productionRunId, nodeId, productionRunApi)
+      acknowledgedOpenRuns = await releaseUnknownCanvasSubmissionsForNode(projectId, nodeId, productionRunApi)
+      project.assertCurrent()
+    } catch {
+      reportCanvasFeedback(i18n.t('generationCommon.observability.releaseConfirm.failed'), 'error', { identity: `node:${nodeId}`, reason: 'release-failed', projectId, nodeIds: [nodeId] })
+      return 'unavailable'
+    }
+    return null
+  }
+  const resending = opts.initiator === 'user' && (opts.resend || open.length > 0)
+  if (resending) {
+    const outcome = await askToResend(open)
+    if (outcome) return outcome
+  }
+  const ok = resending || await confirmGenerationSpend([node], {
     initiator: opts.initiator,
-    title: opts.rerun
-      ? i18n.t('generationCommon.spend.generateVariant')
-      : opts.title || i18n.t('generationCommon.spend.startGeneration'),
+    title: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.title || i18n.t('generationCommon.spend.startGeneration'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
-    confirmLabel: opts.rerun
-      ? i18n.t('generationCommon.spend.generateVariant')
-      : opts.confirmLabel || i18n.t('generationCommon.spend.generate'),
+    confirmLabel: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.confirmLabel || i18n.t('generationCommon.spend.generate'),
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   // **这一行就是那个结局**：2026-09-22 之前它是一个裸 `return`，Agent 那一侧因此读不到
@@ -588,16 +610,23 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     assertApprovedInputs = captureApprovedGenerationInputs([runId])
     // 副本落在屏外时由画布边缘提示指路；不再替用户把画布挪过去（2026-09-25「程序不再主动平移画布」）。
   }
-  try {
-    const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, acknowledgedOpenRuns: opts.initiator === 'user' ? opts.acknowledgedOpenRuns : undefined, assetUploadConsent: 'allow', target: project.binding })
-    ready()
-    const result = await work
-    whenRunTargetLoaded(project.binding, () => {
-      if (useGenerationCanvasStore.getState().nodes.find(node => node.id === runId)?.result?.id === result.id) useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(runId, result)
-    })
-  } catch {
-    // 原任务队列保留失败原因；原项目身份有效时，节点也显示错误。
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, acknowledgedOpenRuns, assetUploadConsent: 'allow', target: project.binding })
+      ready()
+      const result = await work
+      whenRunTargetLoaded(project.binding, () => {
+        if (useGenerationCanvasStore.getState().nodes.find(node => node.id === runId)?.result?.id === result.id) useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(runId, result)
+      })
+      break
+    } catch (error) {
+      if (!isOpenGenerationRefusal(describeOpaqueFailure(error)) || opts.initiator !== 'user' || attempt > 0) break
+      if (!ready(true)) return 'nothing-to-run'
+      const outcome = await askToResend(await canvasOpenRuns({ projectId, nodeId }))
+      if (outcome) return outcome
+    }
   }
+
   // 提交已经发出去了（跑挂了由任务队列记失败），对「用户同不同意这次」这一格就是 started。
   return 'started'
 }

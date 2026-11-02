@@ -55,7 +55,7 @@ describe('published generation error-kind matrix × all five failure surfaces', 
         expect(html, `surface ${index} reason`).toContain(escapedReason)
         if (index === 2) { expect(html).not.toContain('<button'); continue }
         expect(html, `surface ${index} action`).toContain('<button')
-        if (index < 2) expect(html).toContain('role="alert"')
+        if (index < 2) expect(html).toContain(decision.primary === 'release-regenerate' ? 'role="status"' : 'role="alert"')
         if (index >= 3) expect(html).toContain('data-storyboard-failure-actions')
         if (index >= 3 && decision.primary === 'reconcile') expect(html).toContain(renderToStaticMarkup(<span>{narrateErrorActionLabel('reconcile', 'primary')}</span>).slice(6, -7))
         if (decision.secondary === 'release-regenerate') expect(html).toContain(renderToStaticMarkup(<span>{i18n.t('generationCommon.observability.action.releaseRegenerate.alt')}</span>).slice(6, -7))
@@ -100,9 +100,9 @@ it('E5: a real in-flight refusal in the shot action bar offers task viewing and 
   const error = encodeStructuredErrorMessage({ code: 'node_generation_in_flight', reason: 'in_flight' }, 'active')
   const node = { ...createGenerationNode({ id: 'in-flight-node', kind: 'image' }), status: 'error' as const, error, meta: { storyboardDesignId: 'd', shotId: 's' } }
   const exec = deriveShotRowExec({ plan, shot: plan.shots[0], designId: 'd', nodes: [node], mode: null })
-  const html = render(<StoryboardFrameActions exec={exec} variants={[]} onGenerate={noop} />)
+  const html = render(<StoryboardShotFrame shot={plan.shots[0]} exec={exec} aspect="9:16" box={{width:135,height:240}} />)
   expect(html).not.toContain('data-storyboard-retry-state')
-  expect(html).toContain(i18n.t('generationCommon.observability.action.viewTask.main'))
+  expect(html).toContain(i18n.t('generationCommon.observability.action.reconcile.main'))
 })
 
 it('E7: an anchor with retained media still exposes free retrieval when the latest run is recoverable', () => {
@@ -131,3 +131,13 @@ it.each([['running', 'generating'], ['error', 'failed'], ['recoverable', 'recove
     } finally { server.nodes = saved }
   },
 )
+
+it.each(['zh-CN','en'])('G3: %s slow storyboard offers free retrieval before paid resend and task center', async locale => {
+ await i18n.changeLanguage(locale)
+ const node={...createGenerationNode({id:'waiting',kind:'image'}),status:'recoverable' as const,meta:{storyboardDesignId:'d',anchorId:'a'}}
+ const runtime=deriveAnchorCardRuntimes({plan,designId:'d',nodes:[node]})[0]
+ const html=render(<StoryboardAnchorRow runtime={runtime} aspect="9:16" onUpdate={noop} onChangeKind={noop} onRemove={noop} onGenerate={noop} onRegenerate={noop} onToggleLock={noop} onRecover={noop} />)
+ const labels=Array.from(html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g),match=>match[1].replace(/<[^>]*>/g,'').trim())
+ const free=labels.indexOf(i18n.t('generationCommon.production.runAction.retry-retrieval')),paid=labels.indexOf(i18n.t('generationCommon.observability.action.releaseRegenerate.main')),view=labels.indexOf(i18n.t('generationCommon.observability.action.reconcile.main'))
+ expect(free).toBeGreaterThan(-1);expect(paid).toBeGreaterThan(free);expect(view).toBeGreaterThan(paid);expect(html).toContain('bg-nomi-ink');expect(html).not.toContain('border-workbench-danger')
+})

@@ -342,11 +342,12 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             exec={exec}
             aspect={aspect}
             box={frameBox}
+            onRecover={onRecover}
             onOpenPreview={onOpenPreview}
             selected={props.selected}
             onSelect={props.onSelect}
           />
-          <NodeGenerationStatus node={exec.node} keyframeNode={exec.keyframeNode} />
+          <NodeGenerationStatus node={exec.node} keyframeNode={exec.keyframeNode} summaryInCard />
           <StoryboardFrameActions
             exec={exec}
             actionBusy={props.actionBusy}

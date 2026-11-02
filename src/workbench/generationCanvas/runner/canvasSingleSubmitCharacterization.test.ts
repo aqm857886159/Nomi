@@ -8,7 +8,6 @@
 // 「写出去之后断了」那一条按 2026-10-05 拍板（F3）翻成「结果没法确认、确认可能再扣费后可以再发」；「当场拒绝」本来就是失败可再点。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { canvasOpenRuns } from '../../api/taskApi'
-import { useUnknownSubmissionReleaseStore } from '../../production/releaseUnknownSubmission'
 import { confirmAndRunNode, regenerateNodeInPlace } from './generationRunController'
 import { recoverNodeResult } from './recoverTaskActions'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
@@ -192,11 +191,12 @@ describe('画布单节点 ↑ —— 用户看得见的样子', () => {
 
     calls.runTask.mockClear()
     const beforeRuns = structuredClone(nodeOf(id).runs)
+    vi.mocked(useSpendConfirmStore.getState().requestConfirm).mockResolvedValueOnce(false)
     vi.mocked(canvasOpenRuns).mockResolvedValueOnce([{ runId: 'original', nodeId: id, reason: 'needs_reconcile', hasTaskId: false }])
     await confirmAndRunNode(id, { initiator: 'user' })
     expect(nodeOf(id).runs).toEqual(beforeRuns)
     expect(calls.runTask).not.toHaveBeenCalled()
-    expect(useUnknownSubmissionReleaseStore.getState().nodes[id].confirming).toBe(true)
+    expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: '再发一次', kind: 'generation' }))
     expect(classifyGenerationError(nodeOf(id).runs?.[0]?.error ?? '').primary).toBe('release-regenerate')
   })
 

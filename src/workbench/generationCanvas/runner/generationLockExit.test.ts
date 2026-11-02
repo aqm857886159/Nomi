@@ -104,6 +104,7 @@ it('C2: a refused second click is withdrawn without hiding the original Run whil
   calls.execute.mockRejectedValueOnce(new Error('NOMI_ERR::submission-unknown::The provider did not confirm this submission'))
   await confirmAndRunNode(node.id, { initiator: 'user' })
   const original = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs![0].id
+  calls.confirm.mockResolvedValueOnce(false)
   calls.execute.mockRejectedValueOnce(new Error(encodeStructuredErrorMessage({ code: 'production_shot_claimed', reason: 'needs_reconcile' }, 'production_shot_claimed: needs_reconcile')))
   await confirmAndRunNode(node.id, { initiator: 'user' })
   const history = structuredClone(useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!.runs!)
@@ -168,6 +169,7 @@ it.each(['success', 'error', 'unknown'] as const)('in-flight refusal: the origin
   }).mockRejectedValueOnce(new Error(encodeStructuredErrorMessage({ code: 'node_generation_in_flight' }, 'node_generation_in_flight')))
   const original = confirmAndRunNode(node.id, { initiator: 'user' })
   await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledOnce())
+  calls.confirm.mockResolvedValueOnce(false)
   await confirmAndRunNode(node.id, { initiator: 'user' })
   let current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
   expect(current.runs).toHaveLength(1)
