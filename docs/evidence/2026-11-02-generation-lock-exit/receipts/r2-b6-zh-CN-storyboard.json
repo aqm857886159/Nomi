@@ -1,0 +1,159 @@
+{
+  "commit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+  "status": "passed",
+  "report": {
+    "checks": {
+      "singleClickPostedNoCard": true
+    },
+    "screenshots": [
+      "[local evidence]/shots-all/r2-b6-after/zh-CN-asset-phase-storyboard-row-clickable.png",
+      "[local evidence]/shots-all/r2-b6-after/zh-CN-asset-phase-storyboard-single-done.png",
+      "[local evidence]/shots-all/r2-b6-after/zh-CN-asset-phase-storyboard-after-batch.png"
+    ],
+    "firstPost": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+    "targetPrompt": "林薇走到旧书店窗边",
+    "buttonStateDuringAssets": "idle",
+    "batchButtonDisabledDuringAssets": true,
+    "secondPost": "林薇走到旧书店窗边",
+    "singleResultId": "gen-v2-image-mvyhrpct-mogt-agent-runtime-2",
+    "postsWhenSingleDone": 3,
+    "sawSpendDialogInSecondPhase": false,
+    "http": [
+      {
+        "sequence": 1,
+        "model": "gpt-image-2",
+        "resolution": "1k",
+        "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-1"
+      },
+      {
+        "sequence": 2,
+        "model": "gpt-image-2",
+        "resolution": "1k",
+        "prompt": "林薇走到旧书店窗边",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-2"
+      },
+      {
+        "sequence": 3,
+        "model": "gpt-image-2",
+        "resolution": "1k",
+        "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-3"
+      },
+      {
+        "sequence": 4,
+        "model": "gpt-image-2",
+        "resolution": "1k",
+        "prompt": "林薇@image1在旧书店@image2找到一封信",
+        "referenceCount": 2,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-4"
+      },
+      {
+        "sequence": 5,
+        "model": "gpt-image-2",
+        "resolution": "1k",
+        "prompt": "林薇@image1把信放在旧书店@image2的桌上",
+        "referenceCount": 2,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false,
+        "upstreamStatus": 200,
+        "providerTaskId": "agent-runtime-5"
+      }
+    ],
+    "postsTotal": 5,
+    "postsPerPrompt": {
+      "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.": 1,
+      "林薇走到旧书店窗边": 1,
+      "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.": 1,
+      "林薇@image1在旧书店@image2找到一封信": 1,
+      "林薇@image1把信放在旧书店@image2的桌上": 1
+    },
+    "finalResultId": "gen-v2-image-mvyhrpct-mogt-agent-runtime-2",
+    "resultReplaced": false,
+    "finalHistoryCount": 1,
+    "finalRunsCount": 1,
+    "targetPosts": 1
+  },
+  "requests": [
+    {
+      "sequence": 1,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-1"
+    },
+    {
+      "sequence": 2,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇走到旧书店窗边",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-2"
+    },
+    {
+      "sequence": 3,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-3"
+    },
+    {
+      "sequence": 4,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1在旧书店@image2找到一封信",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-4"
+    },
+    {
+      "sequence": 5,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1把信放在旧书店@image2的桌上",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-5"
+    }
+  ]
+}

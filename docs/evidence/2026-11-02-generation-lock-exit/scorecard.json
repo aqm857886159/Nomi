@@ -2,15 +2,18 @@
   "version": 1,
   "change": {
     "title": "批量生成恢复：实现与分项验收",
-    "headSha": "6f7d2bb30140dd5a56dae1e5d4f62257edb2e256",
-    "headNote": "A11 and task-center owners implemented; four-stage free rehearsal passed. E1 actual drag remains stopped; paid/platform validation absent.",
+    "headSha": "053006bdea6d99de36dcc5667eca26c1f461e084",
+    "headNote": "Second-round confirmed-shot ownership and JSON comparison repair; first-round independent rejection is pending reacceptance.",
     "userCan": "三页查看队列与失败、人工放行未知结果；完整真实付费闭环未验证。",
     "changed": [
       "按执行节点保护输入",
       "三页共享失败动作和恢复面",
       "本机拒绝单独分类与队列去重",
       "选中镜花钱口径变化重新确认",
-      "任务中心共享失败重试判据"
+      "任务中心共享失败重试判据",
+      "确认后未入队的整镜归属核对",
+      "统一JSON往返比较",
+      "演练提交与当前源码一致性核对"
     ],
     "removed": [
       "两份整方案作者守卫",
@@ -201,6 +204,54 @@
         "result": "fail",
         "note": "A4: batch ended before dispatching all three shots\n\n2 !== 5\n",
         "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/baseline-rehearsal.json"
+      },
+      {
+        "label": "round2 B6 en-canvas",
+        "result": "pass",
+        "note": "5 POST; target once; result ID unchanged",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-en-canvas.json"
+      },
+      {
+        "label": "round2 B6 en-list",
+        "result": "pass",
+        "note": "5 POST; target once; result ID unchanged",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-en-list.json"
+      },
+      {
+        "label": "round2 B6 en-storyboard",
+        "result": "pass",
+        "note": "5 POST; target once; result ID unchanged",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-en-storyboard.json"
+      },
+      {
+        "label": "round2 B6 zh-CN-canvas",
+        "result": "pass",
+        "note": "5 POST; target once; result ID unchanged",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-zh-CN-canvas.json"
+      },
+      {
+        "label": "round2 B6 zh-CN-list",
+        "result": "pass",
+        "note": "5 POST; target once; result ID unchanged",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-zh-CN-list.json"
+      },
+      {
+        "label": "round2 B6 zh-CN-storyboard",
+        "result": "pass",
+        "note": "5 POST; target once; result ID unchanged",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-zh-CN-storyboard.json"
+      },
+      {
+        "label": "round2 original golden path",
+        "result": "pass",
+        "note": "Agent edit→user generation→cold restart; imageRequests=1",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-golden-after.json"
+      },
+      {
+        "label": "round2 complete free rehearsal",
+        "result": "pass",
+        "note": "Commit-bound four-stage rehearsal; no paid entry executed",
+        "evidence": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-rehearsal.json"
       }
     ],
     "metrics": [
@@ -286,11 +337,6 @@
     },
     {
       "item": "New queue performance scenario has numeric measurements but still needs coordinator approval of the scenario and baseline; no baseline or gate changed.",
-      "owner": "coordinator / independent acceptance",
-      "recheck": "verification.json and handoff report"
-    },
-    {
-      "item": "Escape entry is fixed as directed; a genuine fixedInPr cannot be supplied before a PR exists.",
       "owner": "coordinator / independent acceptance",
       "recheck": "verification.json and handoff report"
     },

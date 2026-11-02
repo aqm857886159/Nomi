@@ -1398,7 +1398,27 @@
       "reviewedInContinuation": true,
       "sourceRun": "continue-three-1",
       "limitations": []
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/zh-CN-b6-asset-phase-result-preserved.png",
+      "sha256": "19a78a2a23762af8725ca351851b50513b00ba3ea3c834002e19bea3db78c1ae",
+      "openedByImplementationAgent": true,
+      "round": 2,
+      "sourceCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+      "limitations": [
+        "The image shows the retained result. Equality of result IDs and one POST are asserted by the paired HTTP receipt; fixture images alone cannot distinguish task IDs."
+      ]
+    },
+    {
+      "path": "tests/ux/shots/generation-lock-exit/en-b6-asset-phase-result-preserved.png",
+      "sha256": "c5a485b787d63e857ca504ebeeca7ceaecb2e8eb4a5b5bba4e00e16f574a5557",
+      "openedByImplementationAgent": true,
+      "round": 2,
+      "sourceCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+      "limitations": [
+        "The image shows the retained result. Equality of result IDs and one POST are asserted by the paired HTTP receipt; fixture images alone cannot distinguish task IDs."
+      ]
     }
   ],
-  "inRepository": "仓库只留 32 张中英代表图控制体积；其余 147 张留在本地，这份清单的 sha256 可以逐张核对。"
+  "inRepository": "仓库保留34张代表图；本轮只新增B6中英各1张。前轮其余147张留本地；本轮其它截图在本地shots-all，未扩充仓库跟踪。"
 }

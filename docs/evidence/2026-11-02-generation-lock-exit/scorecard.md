@@ -40,3 +40,7 @@ A11中英：资产期间真下拉切2K，第二卡取消不增POST且保留资�
 [修前日志](rehearsal-before.log) · [修后日志](rehearsal-after.log) · [完整免费收据](receipts/zh-CN-rehearsal.json) · [付费前置收据校验](paid-receipt-validation.json)
 
 真实付费、Windows、真人SEQ、独立验收和整窗冻结复现均未验证；画布现有节点模型覆盖不回写方案，是main既有窗口，本轮只报告。
+
+## 第2轮
+
+原独立验收不通过，修复后待复验。B6中英三入口各5 POST、目标1次，结果不被顶掉；B7原金路径0→1图片请求并经冷启动。新完整免费四段绑定提交，旧源码/无提交收据不具备付费资格。详细原始数字见 [round2](round2.json)。

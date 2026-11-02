@@ -1,7 +1,7 @@
 {
-  "status": "implemented-not-pushed; free four-stage rehearsal passed; explicit E1/paid/platform limits remain",
+  "status": "second round implemented locally; B6 and golden regression repaired; independent reacceptance and paid run pending",
   "network": "fake providers only; guarded isolated Electron; no paid execution",
-  "sourceCommit": "6f7d2bb30140dd5a56dae1e5d4f62257edb2e256",
+  "sourceCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
   "walks": [
     {
       "journey": "en-a4LockExitJourney.json",
@@ -550,6 +550,33 @@
       "skippedTests": 26,
       "file": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
       "log": "a11-counterexample.log"
+    },
+    {
+      "id": "18-no-confirmed-shot-ownership",
+      "file": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "exit": 1,
+      "failedAssertions": 32,
+      "passedAssertions": 3,
+      "shaBefore": "8a44dbb9a40d8649b29f33c370ed0e14cf07ccfb10a9434474d2524e811025d4",
+      "shaRestored": "8a44dbb9a40d8649b29f33c370ed0e14cf07ccfb10a9434474d2524e811025d4"
+    },
+    {
+      "id": "19-no-json-roundtrip",
+      "file": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "exit": 1,
+      "failedAssertions": 2,
+      "passedAssertions": 7,
+      "shaBefore": "990e21c91a3da37261a539ebeb3eb6066df216be937432b71d519fee6fca075f",
+      "shaRestored": "990e21c91a3da37261a539ebeb3eb6066df216be937432b71d519fee6fca075f"
+    },
+    {
+      "id": "20-no-rehearsal-source-check",
+      "file": "tests/ux/generation-lock-exit-real.paid.mjs",
+      "exit": 1,
+      "failedAssertions": 2,
+      "passedAssertions": 7,
+      "shaBefore": "078fb376162ec09769a029943d1ced12b3dd1436d122937ccda0bec063ea149a",
+      "shaRestored": "078fb376162ec09769a029943d1ced12b3dd1436d122937ccda0bec063ea149a"
     }
   ],
   "baseline": {
@@ -600,8 +627,7 @@
   },
   "freeFourStage": {
     "status": "passed",
-    "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/zh-CN-rehearsal.json",
-    "log": "docs/evidence/2026-11-02-generation-lock-exit/rehearsal-after.log",
+    "commit": "053006bdea6d99de36dcc5667eca26c1f461e084",
     "stages": [
       "storyboard",
       "canvas",
@@ -609,16 +635,15 @@
       "restart"
     ],
     "idle": {
-      "elapsedMs": 302160,
+      "elapsedMs": 302055,
       "longestRelevantTimerMs": 300000,
       "stable": true
     },
-    "windowResponseMaxMs": 70,
-    "heartbeatSamples": 363,
     "imagePosts": 15,
     "imagesForwarded": 12,
-    "paidGuard": "Actual receipt-validation prefix accepts this genuine passed receipt and rejects a genuine failed rehearsal; no key helper imported, no paid entry executed.",
-    "remainingGap": "Canvas batch uses actual Meta+A→group→group Generate All; the separate E1 actual drag selection check stopped after three attempts and is not passed."
+    "windowResponseMaxMs": 110,
+    "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-rehearsal.json",
+    "priorReceipt": "receipts/zh-CN-rehearsal.json (historical, missing commit and now rejected by paid entry)"
   },
   "unitChecks": {
     "postmerge-related": {
@@ -2457,8 +2482,9 @@
     "E1 actual drag selection remains unverified after three authorized attempts; group generation and Meta+A are not counted as drag selection.",
     "Editing an existing canvas node model during asset generation does not update the storyboard plan; this pre-existing main window is report-only by coordinator ruling.",
     "New queue performance scenario has numeric measurements but still needs coordinator approval of the scenario and baseline; no baseline or gate changed.",
-    "Escape entry is fixed as directed; a genuine fixedInPr cannot be supplied before a PR exists.",
-    "Windows, real model/billing, human SEQ and independent acceptance remain unverified; whole-window freeze was not reproduced."
+    "Windows, real model/billing, human SEQ and independent acceptance remain unverified; whole-window freeze was not reproduced.",
+    "Independent first-round acceptance rejected the confirmation-to-enqueue duplicate; second-round implementation awaits reacceptance.",
+    "Review findings 2 and 3 remain unchanged by explicit coordinator ruling; see round2.json."
   ],
   "screenshots": [
     "tests/ux/shots/generation-lock-exit/en-429-canvas.png",
@@ -2639,7 +2665,9 @@
     "tests/ux/shots/generation-lock-exit/zh-CN-unknown-list-detail-light.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-anchor-confirm.png",
     "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-anchor.png",
-    "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-shot.png"
+    "tests/ux/shots/generation-lock-exit/zh-CN-unknown-storyboard-shot.png",
+    "tests/ux/shots/generation-lock-exit/zh-CN-b6-asset-phase-result-preserved.png",
+    "tests/ux/shots/generation-lock-exit/en-b6-asset-phase-result-preserved.png"
   ],
   "errorDisplayInventory": [
     {
@@ -3114,7 +3142,7 @@
     {
       "id": "B3",
       "result": "过",
-      "evidence": "continue-queue-3 中英三页真实排队单发：原批次条目取消，每次单卡恰+1 POST且无普通确认卡；每份两轮合计10 POST/10转发，第二轮五种提示词各一次，所有批次Promise结束。全部排队时再点组头不弹卡、不增POST。"
+      "evidence": "continue-queue-3 中英三页真实排队单发：原批次条目取消，每次单卡恰+1 POST且无普通确认卡；每份两轮合计10 POST/10转发，第二轮五种提示词各一次，所有批次Promise结束。全部排队时再点组头不弹卡、不增POST。 第2轮另补B6确认后未入队的资产窗口，中英三页目标仍只1 POST。"
     },
     {
       "id": "B4",
@@ -3125,6 +3153,16 @@
       "id": "B5",
       "result": "过",
       "evidence": "httpEight 真窗批量/放置互斥；表与行 pending 类测。"
+    },
+    {
+      "id": "B6",
+      "result": "过",
+      "evidence": "第2轮：5入口×5结局，关键帧、旧结果重跑、无新run的忙/锁/可找回、用户与Agent的改价第二卡均有行为类测；中英三入口真窗各5 POST，目标1 POST，结果ID和1条run保留。"
+    },
+    {
+      "id": "B7",
+      "result": "过",
+      "evidence": "第2轮：undefined内存/读盘JSON往返不假冲突，真实编辑仍拒绝；原金路径修前0图片请求、修后1，关窗重开仍保留。"
     },
     {
       "id": "C1",
@@ -3194,7 +3232,7 @@
     {
       "id": "E4",
       "result": "过",
-      "evidence": "continue-queue-3 中英三页真实排队单发：原批次条目取消，每次单卡恰+1 POST且无普通确认卡；每份两轮合计10 POST/10转发，第二轮五种提示词各一次，所有批次Promise结束。全部排队时再点组头不弹卡、不增POST。"
+      "evidence": "continue-queue-3 中英三页真实排队单发：原批次条目取消，每次单卡恰+1 POST且无普通确认卡；每份两轮合计10 POST/10转发，第二轮五种提示词各一次，所有批次Promise结束。全部排队时再点组头不弹卡、不增POST。 第2轮另补B6确认后未入队的资产窗口，中英三页目标仍只1 POST。"
     },
     {
       "id": "E5",
@@ -3227,7 +3265,7 @@
       "evidence": "threePage 中英以真实Run文件重启，三页同状态、出口有效；C7另验旧数据。"
     }
   ],
-  "productionSourceCommit": "6f7d2bb30140dd5a56dae1e5d4f62257edb2e256",
+  "productionSourceCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
   "mergedMain": "29313b236",
   "matrixScreenshotBuild": {
     "commit": "6badba715",
@@ -3326,7 +3364,7 @@
       "relevance": "本场景只有图片，未启用视频期限"
     }
   ],
-  "idleConclusion": "Longest active timer 300000ms; before302187ms/current302160ms stable. No whole-window freeze reproduced. Manual retrieval600s and video1200s were not active.",
+  "idleConclusion": "Active 300000ms horizon passed; new rehearsal 302055ms stable; max response 110ms. No whole-window freeze reproduced.",
   "visualReview": "docs/evidence/2026-11-02-generation-lock-exit/visual-review.json",
   "deliveryChecks": {
     "testedHead": "d2f62f208cef8bd1480760b1102ebd8b4af42d0c",
@@ -3363,5 +3401,6 @@
     "taskCenterBefore": "Both retry row and bulk retry produced zero extra POST; the old probe later failed because it incorrectly expected an ordinary single-item dialog. The pre-probe is partial, not passed.",
     "taskCenterAfter": "Shared failure predicate removes dead retry items and excludes them from the bulk cohort. Both locales passed the dedicated release UI with +1 POST.",
     "existingCanvasModelOverride": "Main already preserves overriddenFields on existing canvas nodes; changing the canvas node does not change the storyboard plan, so the plan spend comparison cannot see it. Report only, as directed."
-  }
+  },
+  "round2": "docs/evidence/2026-11-02-generation-lock-exit/round2.json"
 }
