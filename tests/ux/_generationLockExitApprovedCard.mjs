@@ -65,7 +65,8 @@ export async function approvedUnknownResultCardJourney(input) {
       if (name !== 'Storyboard') {
         // board:UnknownResultCard/restart.footer / board:UnknownResultCard/restart.dismiss
         for (const key of ['generationCommon.error.copyDetails', 'generationCommon.error.feedback', 'generationCommon.error.technicalDetails']) await expect(card.getByRole('button', { name: t(key), exact: true })).toBeVisible()
-        await expect(card.getByRole('button', { name: t('generationCommon.error.dismiss'), exact: true })).toBeVisible()
+        const dismiss = card.getByRole('button', { name: t('generationCommon.error.dismiss'), exact: true }); await expect(dismiss).toBeVisible()
+        const cardBox = await card.boundingBox(), dismissBox = await dismiss.boundingBox(); assert.ok(cardBox.x + cardBox.width - dismissBox.x - dismissBox.width <= 20, 'dismiss stays at the existing top-right edge')
       }
       // board:UnknownResultCard/pill.no-duplicate
       if (name === 'Canvas') assert.equal((await surface.locator('[data-node-inline-status]').innerText()).trim(), '')
@@ -88,7 +89,7 @@ export async function approvedUnknownResultCardJourney(input) {
     else { await storyboard(unknown.id); await shot('ZhDarkStoryboard') }
     await setTheme(false)
     fixture.holdTasks(true); await canvas(waiting.id); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click()
-    await expect.poll(async () => (await nodes()).find(n => n.id === waiting.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('recoverable')
+    await expect.poll(async () => (await nodes()).find(n => n.id === waiting.id)?.status, { timeout: stationTimeout({ turns: 1 }) }).toBe('recoverable')
     const face = await storyboard(waiting.id)
     // board:UnknownResultCard/waiting.storyboard-cell / board:UnknownResultCard/waiting.resend
     const labels = await face.getByRole('button').allTextContents(); assert.deepEqual(labels, [t('generationCommon.production.runAction.retry-retrieval'), t('generationCommon.observability.action.releaseRegenerate.main'), t('generationCommon.observability.action.reconcile.main')]); await expectToken(face.getByRole('button').first(), 'background-color', 'nomi-ink'); await expectToken(face.getByRole('button').nth(1), 'border-top-color', 'nomi-line')
@@ -104,7 +105,8 @@ export async function approvedUnknownResultCardJourney(input) {
     await page.evaluate(ids => { void window.__nomiConfirmAndRunPlan({waves:[ids],edgesUsed:[],blocked:[]},{initiator:'user'}) }, [unknown.id, waiting.id])
     await expect(page.getByText(t('generationCommon.batchPlan.openRunsSkipped').replace('{{count}}', '1'), { exact: true })).toBeVisible(); if (locale === 'zh-CN') await shot('NoticeStoryboard')
     // board:UnknownResultCard/other-failures.red — real provider refusal remains a failure.
-    const ordinary = (await nodes()).find(n => n.meta?.shotId); proxy.setLimit(0); await canvas(ordinary.id); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click(); if (await dialog.isVisible()) await dialog.locator('[data-spend-confirm-action="confirm"]').click(); await expect.poll(async () => (await nodes()).find(n => n.id === ordinary.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error'); await expect(page.locator(`[data-node-id="${ordinary.id}"] [role="alert"]`)).toBeVisible()
+    await expect.poll(async () => (await nodes()).find(n => n.id === waiting.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
+    const ordinary = (await nodes()).find(n => n.id === waiting.id); proxy.setLimit(0); await canvas(ordinary.id); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click(); if (await dialog.isVisible()) await dialog.locator('[data-spend-confirm-action="confirm"]').click(); await expect.poll(async () => (await nodes()).find(n => n.id === ordinary.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error'); await expect(page.locator(`[data-node-id="${ordinary.id}"] [role="alert"]`)).toBeVisible()
     report.checks.completed = true; return report
   } catch (error) { error.report = report; throw error }
 }
