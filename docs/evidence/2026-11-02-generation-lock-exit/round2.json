@@ -1,7 +1,7 @@
 {
   "round": 2,
   "baseHead": "6e8f4c8da9dea2ed1ebec4be6a209f8e5181e552",
-  "sourceCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+  "sourceCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
   "network": "loopback fake providers only; no paid entry",
   "B6": [
     {
@@ -89,7 +89,7 @@
   },
   "freeFourStage": {
     "status": "passed",
-    "commit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+    "commit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
     "stages": [
       "storyboard",
       "canvas",
@@ -97,13 +97,13 @@
       "restart"
     ],
     "idle": {
-      "elapsedMs": 302055,
+      "elapsedMs": 301909,
       "longestRelevantTimerMs": 300000,
       "stable": true
     },
     "imagePosts": 15,
     "imagesForwarded": 12,
-    "windowResponseMaxMs": 110,
+    "windowResponseMaxMs": 282,
     "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-rehearsal.json"
   },
   "unchangedSharedJourney": {
@@ -151,7 +151,8 @@
     ],
     "paidEntryExecuted": false,
     "credentialsRead": false,
-    "paidCalls": 0
+    "paidCalls": 0,
+    "receiptCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf"
   },
   "initialRelated": {
     "numTotalTests": 483,
@@ -267,6 +268,78 @@
     "r2-walk-build": 0,
     "r2-golden-after": 0,
     "r2-b6-after": 0,
-    "r2-free-after": 0
+    "r2-free-after": 0,
+    "r2-post-lint-core": 0,
+    "r2-post-lint-build": 0,
+    "r2-free-final": 0,
+    "r2-delivery-related": 0,
+    "r2-delivery-types": 0,
+    "r2-delivery-concepts": 0,
+    "r2-delivery-contract": 0,
+    "r2-delivery-pr-criteria": 0,
+    "r2-delivery-pre-push": 0,
+    "r2-delivery-pr-judgement": 0
+  },
+  "productionImplementationCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+  "oldGenuineSourceReceiptRejection": {
+    "result": "rejected as expected",
+    "oldGenuineReceiptCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+    "currentHead": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "gitDiffExit": 1,
+    "paidCalls": 0,
+    "reason": "A src test changed from dynamic to static imports; even this source-tree difference invalidates the older passed receipt"
+  },
+  "fixtureImportCorrection": {
+    "commit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "firstPrePushExit": 1,
+    "cause": "Two reviewer fixture test bodies used dynamic imports; replaced with static imports. No product behavior change.",
+    "receiptHandling": "The actual passed 053006 receipt is now rejected because src test bytes changed. Full rehearsal reran on the new commit; no receipt was relabeled."
+  },
+  "latestCore": {
+    "numTotalTests": 57,
+    "numPassedTests": 57,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "finalChecks": {
+    "head": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "main": "29313b236d1d587a88dc9092bfcc1f97b80fb0f8",
+    "commands": {
+      "r2-delivery-related": {
+        "exit": 0,
+        "seconds": 7.9
+      },
+      "r2-delivery-types": {
+        "exit": 0,
+        "seconds": 26.9
+      },
+      "r2-delivery-concepts": {
+        "exit": 0,
+        "seconds": 3.0
+      },
+      "r2-delivery-contract": {
+        "exit": 0,
+        "seconds": 7.1
+      },
+      "r2-delivery-pr-criteria": {
+        "exit": 0,
+        "seconds": 2.7
+      },
+      "r2-delivery-pre-push": {
+        "exit": 0,
+        "seconds": 50.0
+      },
+      "r2-delivery-pr-judgement": {
+        "exit": 0,
+        "seconds": 2.5
+      }
+    }
+  },
+  "latestRelated": {
+    "numTotalTests": 487,
+    "numPassedTests": 487,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "NOMI_TEST_NETWORK_GUARD": "unset, as for prepush; core 57 and every real UI walk used guard=1"
   }
 }

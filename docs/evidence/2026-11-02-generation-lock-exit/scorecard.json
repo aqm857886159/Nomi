@@ -2,8 +2,8 @@
   "version": 1,
   "change": {
     "title": "批量生成恢复：实现与分项验收",
-    "headSha": "053006bdea6d99de36dcc5667eca26c1f461e084",
-    "headNote": "Second-round confirmed-shot ownership and JSON comparison repair; first-round independent rejection is pending reacceptance.",
+    "headSha": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "headNote": "Final source commit includes static fixture imports; product implementation remains 053006. New complete free receipt binds the exact final source commit; independent reacceptance remains pending.",
     "userCan": "三页查看队列与失败、人工放行未知结果；完整真实付费闭环未验证。",
     "changed": [
       "按执行节点保护输入",

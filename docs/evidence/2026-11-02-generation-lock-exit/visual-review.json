@@ -1420,5 +1420,28 @@
       ]
     }
   ],
-  "inRepository": "仓库保留34张代表图；本轮只新增B6中英各1张。前轮其余147张留本地；本轮其它截图在本地shots-all，未扩充仓库跟踪。"
+  "inRepository": "仓库保留34张代表图；本轮只新增B6中英各1张。前轮其余147张留本地；本轮其它截图在本地shots-all，未扩充仓库跟踪。",
+  "round2FinalLocalRehearsal": [
+    {
+      "path": "[local evidence]/shots-all/r2-free-final/zh-CN-scene-idle-return.png",
+      "sourceCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+      "sha256": "8a8842816f5241e61cf36a50c232f052d49273865a55db6fd5d8c28de15d0dde",
+      "openedByImplementationAgent": true,
+      "tracked": false
+    },
+    {
+      "path": "[local evidence]/shots-all/r2-free-final/zh-CN-scene-restart-list.png",
+      "sourceCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+      "sha256": "4c76910030c0727dbc4a37fd2f177925e8a24e1e853878c9dff52f705e006f1f",
+      "openedByImplementationAgent": true,
+      "tracked": false
+    },
+    {
+      "path": "[local evidence]/shots-all/r2-free-final/zh-CN-scene-restart-released.png",
+      "sourceCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+      "sha256": "d31fda7d7467b373adb1f7d19ed9ff297b3d0109545afbc4a4c645c972b9025f",
+      "openedByImplementationAgent": true,
+      "tracked": false
+    }
+  ]
 }

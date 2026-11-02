@@ -1,7 +1,7 @@
 {
   "status": "second round implemented locally; B6 and golden regression repaired; independent reacceptance and paid run pending",
   "network": "fake providers only; guarded isolated Electron; no paid execution",
-  "sourceCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+  "sourceCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
   "walks": [
     {
       "journey": "en-a4LockExitJourney.json",
@@ -627,7 +627,7 @@
   },
   "freeFourStage": {
     "status": "passed",
-    "commit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+    "commit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
     "stages": [
       "storyboard",
       "canvas",
@@ -635,15 +635,15 @@
       "restart"
     ],
     "idle": {
-      "elapsedMs": 302055,
+      "elapsedMs": 301909,
       "longestRelevantTimerMs": 300000,
       "stable": true
     },
     "imagePosts": 15,
     "imagesForwarded": 12,
-    "windowResponseMaxMs": 110,
+    "windowResponseMaxMs": 282,
     "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-rehearsal.json",
-    "priorReceipt": "receipts/zh-CN-rehearsal.json (historical, missing commit and now rejected by paid entry)"
+    "priorReceipt": "receipts/zh-CN-rehearsal.json is historical and lacks a commit; the passed 053006 round2 receipt also became stale after the src fixture import correction."
   },
   "unitChecks": {
     "postmerge-related": {
@@ -685,6 +685,18 @@
       "numFailedTests": 0,
       "numPendingTests": 0,
       "numTodoTests": 0
+    },
+    "round2-final-core": {
+      "numTotalTests": 57,
+      "numPassedTests": 57,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "round2-final-related": {
+      "numTotalTests": 487,
+      "numPassedTests": 487,
+      "numFailedTests": 0,
+      "numPendingTests": 0
     }
   },
   "doors": {
@@ -3266,7 +3278,7 @@
     }
   ],
   "productionSourceCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
-  "mergedMain": "29313b236",
+  "mergedMain": "29313b236d1d587a88dc9092bfcc1f97b80fb0f8",
   "matrixScreenshotBuild": {
     "commit": "6badba715",
     "buildExit": 0,
@@ -3314,7 +3326,33 @@
     "continue-final-related": 0,
     "continue-final-pr-criteria": 0,
     "continue-final-pre-push": 1,
-    "continue-final-pr-judgement": 0
+    "continue-final-pr-judgement": 0,
+    "r2-build-before": 0,
+    "r2-class-red": 1,
+    "r2-table-red": 1,
+    "r2-golden-before": 1,
+    "r2-b6-before": 1,
+    "r2-related": 1,
+    "r2-types": 0,
+    "r2-concepts": 0,
+    "r2-contract": 0,
+    "r2-walk-quality": 0,
+    "r2-build": 0,
+    "r2-restored": 0,
+    "r2-walk-build": 0,
+    "r2-golden-after": 0,
+    "r2-b6-after": 0,
+    "r2-free-after": 0,
+    "r2-post-lint-core": 0,
+    "r2-post-lint-build": 0,
+    "r2-free-final": 0,
+    "r2-delivery-related": 0,
+    "r2-delivery-types": 0,
+    "r2-delivery-concepts": 0,
+    "r2-delivery-contract": 0,
+    "r2-delivery-pr-criteria": 0,
+    "r2-delivery-pre-push": 0,
+    "r2-delivery-pr-judgement": 0
   },
   "relatedTestCaveat": "722 files, 9765 passed / 1 failed / 7 skipped; only pre-existing outbound A5 with NOMI_TEST_NETWORK_GUARD. Coordinator ruled out-of-scope. Prepush unsets the guard.",
   "idleTimerInventory": [
@@ -3364,18 +3402,20 @@
       "relevance": "本场景只有图片，未启用视频期限"
     }
   ],
-  "idleConclusion": "Active 300000ms horizon passed; new rehearsal 302055ms stable; max response 110ms. No whole-window freeze reproduced.",
+  "idleConclusion": "Active 300000ms horizon passed; final rehearsal 301909ms stable; max response 282ms. No whole-window freeze reproduced.",
   "visualReview": "docs/evidence/2026-11-02-generation-lock-exit/visual-review.json",
   "deliveryChecks": {
-    "testedHead": "d2f62f208cef8bd1480760b1102ebd8b4af42d0c",
-    "prePushExit": 1,
-    "prePushSeconds": 52.7,
-    "prePushOnlyBlock": "fixedInPr must be a genuine positive PR number; coordinator-only PR creation has not happened",
+    "testedHead": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "prePushExit": 0,
+    "prePushSeconds": 50.0,
+    "prePushOnlyBlock": null,
     "testNetworkGuardForPrePush": "unset",
     "finalFetchMerge": "Already up to date; origin/main 29313b236d1d587a88dc9092bfcc1f97b80fb0f8",
-    "workingTreeAfterTests": "clean; subsequent commit changes evidence metadata only",
+    "workingTreeAfterTests": "Only evidence metadata changes; src/electron remain byte-identical to the final passed rehearsal commit",
     "prJudgementExit": 0,
-    "prJudgementParserTests": 29
+    "prJudgementParserTests": 29,
+    "conceptOwnersExit": 0,
+    "rootCauseContractsExit": 0
   },
   "continuationClassChecks": {
     "a11AndTaskCenter": {
@@ -3402,5 +3442,16 @@
     "taskCenterAfter": "Shared failure predicate removes dead retry items and excludes them from the bulk cohort. Both locales passed the dedicated release UI with +1 POST.",
     "existingCanvasModelOverride": "Main already preserves overriddenFields on existing canvas nodes; changing the canvas node does not change the storyboard plan, so the plan spend comparison cannot see it. Report only, as directed."
   },
-  "round2": "docs/evidence/2026-11-02-generation-lock-exit/round2.json"
+  "round2": "docs/evidence/2026-11-02-generation-lock-exit/round2.json",
+  "priorRoundDeliveryChecks": {
+    "testedHead": "d2f62f208cef8bd1480760b1102ebd8b4af42d0c",
+    "prePushExit": 1,
+    "prePushSeconds": 52.7,
+    "prePushOnlyBlock": "fixedInPr must be a genuine positive PR number; coordinator-only PR creation has not happened",
+    "testNetworkGuardForPrePush": "unset",
+    "finalFetchMerge": "Already up to date; origin/main 29313b236d1d587a88dc9092bfcc1f97b80fb0f8",
+    "workingTreeAfterTests": "clean; subsequent commit changes evidence metadata only",
+    "prJudgementExit": 0,
+    "prJudgementParserTests": 29
+  }
 }
