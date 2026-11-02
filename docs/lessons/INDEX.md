@@ -186,6 +186,7 @@
 
 ## E. 产品判断与对外表达
 
+- [先想方向，再想修法](think-direction-before-the-fix.md) — 拿出修法之前、修了一轮还没好时；沿原方向修、换一种做法、干脆不要它，各要依据
 - [分镜表 = 画布节点的表格表示版](shot-table-is-a-projection-of-canvas-nodes.md) — 不是落画布前的临时物；两半列各有各的 derive 来源
 - [参考槽：声明上限不是有效上限，锚→槽是语义绑定](nomi-reference-slots-are-already-declarative.md) — 别渲染 `slot.max`、别按下标推语义、Agent 建完只能改 prompt（结构本身见 `ARCHITECTURE-NOW.md`）
 - [批量产出要逐步冒出来 + 自动编组](batch-output-appears-progressively-and-grouped.md) — 一个动作产出多个节点时的既定交互
