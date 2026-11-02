@@ -292,7 +292,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    await startGenerationFromComposer(node, hasResult)
+    try { await startGenerationFromComposer(node, hasResult) }
+    catch (error) { reportFeedback(error instanceof Error ? error.message : t('generationCommon.batchPlan.authorizationFailed')) }
   }
 
   // 吃提示词的节点才有「最小可用高度」——不吃的（如某些 ComfyUI 工作流）本来就该按内容自然矮。

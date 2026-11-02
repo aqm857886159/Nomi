@@ -522,6 +522,7 @@ export async function runStoryboardBatch(
     const bound = existingRowBindings(ctx, row.shot)
     return bound.shotNode && (!(row.shot.shotKind !== 'image' && row.shot.keyframe?.enabled) || bound.keyframeNode)
   }) && ctx.plan.anchors.every(anchor => !isVisualAnchor(anchor) || anchorCarriesOwnMaterial(anchor) || anchorNodeFor(ctx, canvasState().nodes, anchor))) return 'nothing-to-run'
+  const projectId = withProjectAction(project => project.binding.projectId)
   const existingNodeIds = new Set(canvasState().nodes.map(node => node.id))
   if (landing) {
     const generation = getUndoJournalGeneration()
@@ -558,7 +559,7 @@ export async function runStoryboardBatch(
     : await confirmStoryboardBatch(ctx, rows)
   if (!confirmed) return 'declined'
   if (!landing?.placementOnly && confirmed.rows.length === 0 && confirmed.anchors.length === 0) {
-    if (confirmed.skipped) withProjectAction(project => reportOpenRunSkips(project.binding.projectId, confirmed.skipped!))
+    if (confirmed.skipped && projectId) reportOpenRunSkips(projectId, confirmed.skipped)
     return 'nothing-to-run'
   }
 
@@ -586,7 +587,7 @@ export async function runStoryboardBatch(
       if (anchorRunIds.some((id) => !hasUsableResult(afterAnchors.find((node) => node.id === id)))) return 'started'
     }
   }
-  if (confirmed.skipped) withProjectAction(project => reportOpenRunSkips(project.binding.projectId, confirmed.skipped!))
+  if (confirmed.skipped && projectId) reportOpenRunSkips(projectId, confirmed.skipped)
   if (!landing?.placementOnly) {
     const needed = new Set(confirmed.rows.flatMap(row => row.shot.anchorIds))
     if (ctx.plan.anchors.some(anchor => needed.has(anchor.id) && isVisualAnchor(anchor) && !anchorCarriesOwnMaterial(anchor)

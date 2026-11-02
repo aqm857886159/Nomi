@@ -47,15 +47,18 @@ export async function matrixLockExitJourney(input) {
     assert.equal(proxy.records.length, 5)
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'recoverable').length, { timeout: stationTimeout({ turns: 1 }) }).toBe(5)
     for (const node of inFlight) {
+      const originalRuns = JSON.stringify((await nodes()).find(n => n.id === node.id).runs)
       await page.evaluate(id => { void window.__nomiConfirmAndRunPlan({ waves: [[id]], edgesUsed: [], blocked: [] }, { initiator: 'user' }) }, node.id)
-      await expect.poll(async () => (await nodes()).find(n => n.id === node.id)?.status).toBe('error')
+      await expect(page.getByText(t('generationCommon.batchPlan.openRunsSkipped').replace('{{count}}', '1'), { exact: true }).first()).toBeVisible()
+      assert.equal((await nodes()).find(n => n.id === node.id).status, 'recoverable')
+      assert.equal(JSON.stringify((await nodes()).find(n => n.id === node.id).runs), originalRuns)
       assert.equal(proxy.records.length, 5)
       const row = await storyboard(node)
-      const taskProbe = await proveProbe(row.getByRole('button', { name: t('generationCommon.observability.action.viewTask.main'), exact: true }), 'The in-flight row exposes its task action')
+      const taskProbe = await proveProbe(row.getByRole('button', { name: t('generationCommon.production.runAction.retry-retrieval'), exact: true }), 'The unfinished row retains free retrieval after the batch skips it')
       await expectAbsent(row.getByRole('button', { name: t('storyboardEditor.frame.retryHint'), exact: true }), { provenBy: taskProbe })
       await shot(`in-flight-storyboard-${node.meta.anchorId ? 'asset' : 'shot'}`)
-      await canvas(node.id); await expect(page.getByRole('button', { name: t('generationCommon.observability.action.viewTask.main'), exact: true }).first()).toBeVisible(); await shot(`in-flight-canvas-${node.meta.anchorId ? 'asset' : 'shot'}`)
-      await list(node.id); await expect(page.locator('[data-list-detail-preview]').getByRole('button', { name: t('generationCommon.observability.action.viewTask.main'), exact: true })).toBeVisible(); await shot(`in-flight-list-${node.meta.anchorId ? 'asset' : 'shot'}`)
+      await canvas(node.id); await expect(page.getByRole('button', { name: t('generationCommon.production.runAction.retry-retrieval'), exact: true }).first()).toBeVisible(); await shot(`in-flight-canvas-${node.meta.anchorId ? 'asset' : 'shot'}`)
+      await list(node.id); await expect(page.locator('[data-list-detail-preview]').getByRole('button', { name: t('generationCommon.production.runAction.retry-retrieval'), exact: true })).toBeVisible(); await shot(`in-flight-list-${node.meta.anchorId ? 'asset' : 'shot'}`)
     }
     report.checks.E5 = true
     await expect.poll(async () => (await nodes()).filter(n => retrievable.some(r => r.id === n.id) && n.status === 'recoverable').length, { timeout: stationTimeout({ turns: 1 }) }).toBe(3)

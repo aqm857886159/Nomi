@@ -271,7 +271,6 @@ describe('二-4 全部被单独发过', () => {
     const current = plan(); seed(current)
     const release = holdAnchors()
     const onConsented = vi.fn()
-    let outcome: unknown
     let batch: Promise<unknown>
     const ui = editor(current)
     if (viaAgent) {
@@ -283,7 +282,7 @@ describe('二-4 全部被单独发过', () => {
     if (spendChanged) priceChange('shot-1')
     const cardsBefore = confirmCards.length
     release()
-    outcome = await Promise.race([batch, new Promise(resolve => setTimeout(() => resolve('HUNG'), 1500))])
+    const outcome = await Promise.race([batch, new Promise(resolve => setTimeout(() => resolve('HUNG'), 1500))])
     await quiet()
     return { outcome, s1: sends('shot-1'), s2: sends('shot-2'), extraCards: confirmCards.length - cardsBefore, onConsented: onConsented.mock.calls.length, notified: notified(), failures: [...failures] }
   }
@@ -588,7 +587,7 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     expect(released).toContain(r1Id)
     void current
   })
-  it('H-E 批次里被拒的那张：汇总算失败、给「重试失败的」，点了再被拒', async () => {
+  it('H-E 批次里被拒的那张只给跳过信息，不给付费重试', async () => {
     const current = plan(); seed(current)
     const refusedNode = addShot('shot-1'), ok = addShot('shot-2')
     const anchor = store().addNode({ kind: 'image', prompt: 'actor', meta: { storyboardDesignId: 'design', anchorId: 'actor' } })
@@ -596,11 +595,11 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     calls.execute.mockImplementation(async (node: GenerationCanvasNode) => { if (node.id === refusedNode.id) throw refusal(); return imageResult(node.id) })
     await editor(current).runBatch(); await quiet()
     const note = notified()
-    const onAction = calls.notify.mock.calls.map(([input]) => input.onAction).find(Boolean)
     const sendsBefore = sendsOf(refusedNode.id)
-    if (onAction) { await onAction(); await quiet() }
     facts['H-E'] = { note, sendsBefore, sendsAfterRetry: sendsOf(refusedNode.id), okSends: sendsOf(ok.id) }
     expect(note.filter(n => n.reason === 'generation-failed')).toEqual([])
+    expect(note.some(n => n.reason === 'generation-skipped' && n.type === 'info')).toBe(true)
+    expect(sendsOf(refusedNode.id)).toBe(sendsBefore)
   })
   it('T8 主节点已上锁且没有结果（老数据）：行是什么状态、批次吞不吞', async () => {
     const current = plan(); seed(current)

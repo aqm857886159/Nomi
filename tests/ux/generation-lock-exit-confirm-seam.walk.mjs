@@ -49,7 +49,7 @@ async function t2CardOpen(input) {
       const clickBatch = () => { log.clickedBatchAt = performance.now() - t0; log.batchDisabled = document.querySelector('[data-storyboard-batch]').disabled; document.querySelector('[data-storyboard-batch]').click() }
       if (gap <= 0) clickBatch(); else setTimeout(clickBatch, gap)
     }, { index: target.index, shotId: target.shotId, gap: GAP })
-    const opened = await dialog.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false)
+    const opened = await dialog.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 1 }) }).then(() => true, () => false)
     report.dialogOpened = opened
     report.logAtDialog = await page.evaluate(() => window.__vLog)
     if (!opened) { await shot('no-dialog'); report.http = structuredClone(proxy.records); return report }

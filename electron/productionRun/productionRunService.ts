@@ -1,6 +1,5 @@
 import { markInterruptedSingleShotUnknown } from './singleShotRunLifecycle'
 import crypto from 'node:crypto'
-import { tagNomiError } from '../shared/nomiErrorCodes'
 import fs from 'node:fs'
 import path from 'node:path'
 

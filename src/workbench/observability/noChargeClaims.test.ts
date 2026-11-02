@@ -41,7 +41,7 @@ describe('失败文案目录里不谈钱', () => {
   it.each(['zh-CN', 'en'] as const)('%s：目录里没有任何谈钱的说法（扣钱 / 扣费 / charged / charge again…）', (language) => {
     const offenders = leaves(catalog(language)).filter((leaf) => MONEY_TALK.test(leaf.text)).map((leaf) => `${leaf.path}: ${leaf.text.slice(0, 80)}`)
     // 用户11-02批准只在未结束请求上直说可能扣费；其它类别仍不谈钱。
-    const reason = language === 'en' ? 'The last request got no result and may have been charged.' : '上一次没等到结果，可能已经扣费'
+    const reason = catalog(language).submissionUnknown.reason
     expect(offenders.sort()).toEqual(['submissionUnknown.reason', 'nodeInFlight.reason', 'shotClaimed.needsReconcile.reason'].map(key => `${key}: ${reason}`).sort())
   })
 

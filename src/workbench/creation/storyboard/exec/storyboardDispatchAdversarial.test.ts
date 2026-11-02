@@ -1,19 +1,16 @@
 // 验收线提供的确认缝回归。真 runStoryboardAction / runStoryboardBatch / generateShotRow / confirmAndRunPlan /
 // confirmAndRunNode / 队列 / 咽喉 runGenerationNode；只假执行器和主进程 IPC。断言写「该有的样子」，红 = 复现。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createStoryboardActionGuard, runStoryboardAction } from './storyboardActionGuard'
+import { runStoryboardAction } from './storyboardActionGuard'
 import { generateAnchorCard, generateShotRow, runStoryboardBatch, regenerateShotRow } from './storyboardRowActions'
-import { deriveAnchorCardRuntimes, deriveStoryboardBatch, deriveStoryboardRowRuntimes } from './storyboardRowStatus'
+import { deriveStoryboardBatch, deriveStoryboardRowRuntimes } from './storyboardRowStatus'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { useGenerationQueueStore } from '../../../generationCanvas/runner/generationQueueStore'
 import { useSpendConfirmStore } from '../../../generationCanvas/spend/spendConfirm'
 import { useWorkbenchStore } from '../../../workbenchStore'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../../../generationCanvas/events/canvasGestureContext'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../../project/projectSessionTestHarness'
-import { confirmAndRunNode } from '../../../generationCanvas/runner/generationRunController'
-import { RecoverableTimeoutError } from '../../../generationCanvas/runner/recoverableTimeout'
 import { encodeStructuredErrorMessage } from '../../../../../electron/vendor/vendorHttp'
-import { generationFailureActions } from '../../../observability/generationFailureActions'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../../../generationCanvas/model/generationCanvasTypes'
 import type { StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 
@@ -55,10 +52,8 @@ const plan = (shots = 2): StoryboardPlan => ({
 const store = () => useGenerationCanvasStore.getState()
 const nodes = () => store().nodes
 const nodeOfShot = (shotId: string) => nodes().find(node => node.meta?.shotId === shotId && !node.meta?.storyboardKeyframe) as GenerationCanvasNode
-const assetNode = () => nodes().find(node => node.meta?.anchorId === 'actor') as GenerationCanvasNode
 const sends = (shotId: string) => calls.execute.mock.calls.filter(([node]) => (node as GenerationCanvasNode).meta?.shotId === shotId && !(node as GenerationCanvasNode).meta?.storyboardKeyframe).length
 const sendsOf = (id: string) => calls.execute.mock.calls.filter(([node]) => (node as GenerationCanvasNode).id === id).length
-const assetSends = () => calls.execute.mock.calls.filter(([node]) => (node as GenerationCanvasNode).meta?.anchorId === 'actor').length
 const refusal = () => new Error(encodeStructuredErrorMessage({ code: 'node_generation_in_flight', reason: 'in_flight' }, 'node_generation_in_flight: x'))
 const deferred = () => { let resolve!: (value?: unknown) => void, reject!: (error: unknown) => void; const promise = new Promise((res, rej) => { resolve = res; reject = rej }); return { promise, resolve, reject } }
 const quiet = async () => { await new Promise(resolve => setTimeout(resolve, 0)); await vi.waitFor(() => expect(Object.values(useGenerationQueueStore.getState().batches).every(b => (b as { finishedAt?: number }).finishedAt)).toBe(true)) }
@@ -112,12 +107,6 @@ function editor(current: StoryboardPlan) {
       return runStoryboardAction({ ...common, shotIds: [shotId], actionKey: `retry:${shotId}`, action: context => regenerateShotRow(context, shot, node, null) })
     },
   }
-}
-const heldCards = (autoFirst = 0) => {
-  const pending: Array<(value: boolean) => void> = []
-  let seen = 0
-  useSpendConfirmStore.setState({ requestConfirm: (request: never) => { confirmCards.push(request); seen += 1; if (seen <= autoFirst) return Promise.resolve(true); return new Promise<boolean>(resolve => { pending.push(resolve) }) } } as never)
-  return pending
 }
 const priceChange = (shotId: string, resolution = '4k') => { const latest = readCurrentPlan(); useWorkbenchStore.getState().setStoryboardPlan({ ...latest, shots: latest.shots.map(shot => shot.shotId === shotId ? { ...shot, params: { resolution } } : shot) }, 'doc', 'design') }
 const notified = () => calls.notify.mock.calls.map(([input]) => ({ reason: input.reason, type: input.type, message: input.message, actionLabel: input.actionLabel }))

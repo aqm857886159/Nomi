@@ -70,7 +70,7 @@ export async function runLockExitRehearsal(locale = 'zh-CN', journey = generatio
           catch (error) { exit = error.status ?? 1 }
           const receipt = path.join(childOut, `${locale}-${receiptName}.json`)
           const result = JSON.parse(fs.readFileSync(receipt, 'utf8'))
-          if (result.status !== 'passed') throw new Error(`${name}: ${result.error ?? 'free scenario failed'}`)
+          if (result.status !== 'passed') { failure = new Error(`${name}: ${result.error ?? 'free scenario failed'}`); process.exitCode = 1; break }
           report.openRunStages.push({ name, status: result.status, commit: result.commit, receipt, exit })
         }
         execFileSync('git', ['diff', '--quiet', commit, '--', 'src', 'electron'])

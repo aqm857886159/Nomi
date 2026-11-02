@@ -53,6 +53,7 @@ it('F9: the project query covers different nodes and every uncovered later Run s
  expect(h.vendor.executes).toHaveLength(3)
 })
 
+import i18n from '../../src/i18n'
 import { generationFailureActions } from '../../src/workbench/observability/generationFailureActions'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -63,7 +64,7 @@ it('F10: replay the actual v0.24.0 submitting Run and release it without another
  const oldNode = JSON.parse(fs.readFileSync(path.join(snapshot, 'node.json'), 'utf8'))
  expect(manifest.recordedFrom).toBe('9f3bb3c575058156690c0663a6c88a0b28dfa2a2')
  expect(oldNode.error).toContain('node_generation_in_flight')
- expect(generationFailureActions(oldNode.error, oldNode.runs[0])).toMatchObject({ kind: 'local-refusal', primary: 'release-regenerate', secondary: 'reconcile', reason: '上一次没等到结果，可能已经扣费', hint: '' })
+ expect(generationFailureActions(oldNode.error, oldNode.runs[0])).toMatchObject({ kind: 'local-refusal', primary: 'release-regenerate', secondary: 'reconcile', reason: i18n.t('generationCommon.observability.error.submissionUnknown.reason'), hint: '' })
  const h = setupCanvasShots();fs.cpSync(path.join(snapshot, '.nomi'), path.join(h.root, '.nomi'), { recursive: true })
  expect(h.repository.read(PROJECT, manifest.runId)?.jobs[0].status).toBe('submitting')
  h.runs.recoverOrphans(PROJECT)
