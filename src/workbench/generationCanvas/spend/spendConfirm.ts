@@ -303,7 +303,7 @@ export async function confirmStoryboardPlanBatch(opts: {
 
 /** Explicitly resending an unfinished request always requires the existing spend card. */
 export async function confirmGenerationResend(input: {
-  state: 'unknown' | 'waiting'
+  resultUnknown: boolean
   kind: string
   hostingDisclosure?: HostingDisclosure
 }): Promise<boolean> {
@@ -311,7 +311,7 @@ export async function confirmGenerationResend(input: {
   return useSpendConfirmStore.getState().requestConfirm({
     kind: 'generation',
     title: kind === 'image' ? i18n.t('generationCommon.spend.resend.title.image') : kind === 'video' ? i18n.t('generationCommon.spend.resend.title.video') : i18n.t('generationCommon.spend.resend.title.other'),
-    message: input.state === 'unknown' ? i18n.t('generationCommon.spend.resend.unknown') : i18n.t('generationCommon.spend.resend.waiting'),
+    message: input.resultUnknown ? i18n.t('generationCommon.spend.resend.unknown') : i18n.t('generationCommon.spend.resend.waiting'),
     confirmLabel: i18n.t('generationCommon.observability.action.releaseRegenerate.main'),
     cancelLabel: i18n.t('common.cancel'),
     ...(input.hostingDisclosure ? { hostingDisclosure: input.hostingDisclosure } : {}),

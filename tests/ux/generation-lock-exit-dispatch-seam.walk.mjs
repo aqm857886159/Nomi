@@ -70,7 +70,8 @@ async function t4Seam(input) {
     const final = (await nodes()).find(n => n.meta?.shotId === target.shotId)
     report.finalTarget = { status: final.status, error: String(final.error ?? '').slice(0, 120), resultId: final.result?.id ?? null, runs: (final.runs ?? []).map(r => r.status), history: (final.history ?? final.results ?? []).length }
     report.postsPerPrompt = Object.fromEntries([...new Set(proxy.records.map(r => r.prompt.slice(0, 24)))].map(prompt => [prompt, proxy.records.filter(r => r.prompt.startsWith(prompt)).length]))
-    report.targetPosts = proxy.records.filter(r => r.prompt.includes(target.prompt.slice(0, 6))).length
+    // Asset mentions become @imageN in transport; compare the complete authored prompt after removing only those transport bindings.
+    report.targetPosts = proxy.records.filter(r => r.prompt.replace(/@image\d+/g, '') === target.prompt).length
     report.postsTotal = proxy.records.length
     report.toasts = await page.locator('[data-sonner-toast], [role="status"]').allInnerTexts().catch(() => [])
     await shot('after-batch')

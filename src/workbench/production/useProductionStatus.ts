@@ -184,7 +184,7 @@ export function useProductionStatus(options: { enabled?: boolean } = {}) {
             const { confirmAndRunNode } = await import('../generationCanvas/runner/generationRunController')
             await confirmAndRunNode(node.id, { initiator: 'user', resend: true })
           } else {
-            if (!await confirmGenerationResend({ state: 'unknown', kind: 'other' })) return
+            if (!await confirmGenerationResend({ resultUnknown: true, kind: 'other' })) return
             try {
               await releaseUnknownSubmission(run.projectId, run.runId, targetJob.jobId, productionRunApi)
               await useProductionRunStore.getState().loadRun(run.projectId, run.runId)

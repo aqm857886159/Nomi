@@ -80,6 +80,7 @@ const runJob = () => {
 }
 const nodes = async () => (await readProject(page, project.id)).payload.generationCanvas.nodes
 const shot = async name => { await waitForVisualQuiescence(page).catch(() => undefined); const file = path.join(shots, `${locale}-i6-${MODE}-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
+const setWalkTheme = async dark => page.evaluate(dark => { document.documentElement.classList.toggle('dark', dark); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.dataset.nomiColorScheme = dark ? 'dark' : 'light'; document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; document.documentElement.setAttribute('data-mantine-color-scheme', dark ? 'dark' : 'light') }, dark)
 let design, assetId
 const snap = async label => {
   const all = await nodes().catch(() => [])
@@ -121,6 +122,7 @@ try {
   if (MODE !== 'reload') await reopen()
   await canvas(asset.id);
   await expect.poll(async () => (await nodes()).find(node => node.id === assetId)?.status).toBe(MODE === 'reload' ? 'recoverable' : 'error'); await snap('after-restart'); await shot('1-after-restart-canvas')
+  if (locale === 'en' && MODE === 'window-close') { await setWalkTheme(true); await shot('approved-EnDarkCanvas'); await setWalkTheme(false) }
 
   if (MODE === 'reload') {
     const open = await page.evaluate(projectId => window.nomiDesktop.tasks.canvasOpenRuns({ projectId }), project.id)
@@ -144,12 +146,15 @@ try {
   expect(proxy.records.length).toBe(1)
   await page.getByRole('button', { name: t('common.cancel'), exact: true }).last().click()
   const anchor = await anchorRow(asset.meta.anchorId); await shot('restart-storyboard')
+  if (locale === 'zh-CN' && MODE === 'window-close') { await setWalkTheme(true); await shot('approved-ZhDarkStoryboard'); await setWalkTheme(false) }
   await anchor.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
   await expect(page.locator('[data-spend-confirm-dialog]:visible').first()).toBeVisible();await shot('confirm-storyboard')
+  if (locale === 'en' && MODE === 'window-close') { await setWalkTheme(true); await shot('approved-EnDarkConfirm'); await setWalkTheme(false) }
   await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('common.cancel'), exact: true }).click()
   await list(asset.id); await shot('restart-list')
   await page.locator('[data-list-detail-preview]').getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
   await expect(page.locator('[data-spend-confirm-dialog]:visible').first()).toBeVisible();await shot('confirm-list')
+  if (locale === 'en' && MODE === 'window-close') await shot('approved-EnLightList')
   await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('common.cancel'), exact: true }).click()
   expect(proxy.records.length).toBe(1)
   expect(JSON.stringify((await nodes()).find(node => node.id === assetId).runs)).toBe(beforeRuns)

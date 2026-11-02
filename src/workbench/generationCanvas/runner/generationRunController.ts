@@ -509,7 +509,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
     synchronizeCanvasOpenRuns(entries)
     const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
     const unknown = entries.some(entry => entry.reason === 'needs_reconcile') || Boolean(current?.error && classifyGenerationError(current.error).primary === 'release-regenerate')
-    const confirmed = await confirmGenerationResend({ state: unknown ? 'unknown' : 'waiting', kind: current ? spendCostKind(current.kind) : 'image', ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}) })
+    const confirmed = await confirmGenerationResend({ resultUnknown: unknown, kind: current ? spendCostKind(current.kind) : 'image', ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}) })
     if (!confirmed) return 'declined'
     if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
     try {

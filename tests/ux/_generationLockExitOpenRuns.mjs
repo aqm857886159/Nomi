@@ -82,6 +82,7 @@ export async function lateResultOpenRunsJourney(input, resend = false) {
       await shot(`${surface}-confirm`)
       await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('common.cancel'), exact: true }).click()
       await expect(host.getByRole('button', { name: text('generationCommon.production.runAction.retry-retrieval'), exact: true }).first()).toBeVisible()
+      await shot(`${surface}-after-cancel`)
       report.pages.push(surface)
     }
     host = await canvas()

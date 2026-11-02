@@ -5,6 +5,7 @@ import { productionMetaOf } from '../../../generationCanvas/model/productionMeta
 import { withProjectAction } from '../../../project/projectCanvasReadSurface'
 import { revealNotificationTarget } from '../../../../ui/notificationPolicy'
 import { confirmAndRunNode } from '../../../generationCanvas/runner/generationRunController'
+import { reportCanvasFeedback } from '../../../generationCanvas/components/canvasFeedback'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -164,7 +165,7 @@ export function StoryboardFailureActions({ message, node, busy = false, onRetry,
       className="min-h-6 max-w-full rounded-nomi-sm border border-workbench-danger px-1 text-micro leading-tight text-workbench-danger disabled:opacity-50">
       {busy ? t('storyboardEditor.frame.generating') : t('storyboardEditor.frame.retry')}
     </button> : <>
-      {canRelease && node ? <button type="button" onClick={() => { void confirmAndRunNode(node.id, { initiator: 'user', resend: true }) }}
+      {canRelease && node ? <button type="button" onClick={() => { withProjectAction(project => { void confirmAndRunNode(node.id, { initiator: 'user', resend: true }).catch(() => reportCanvasFeedback(t('generationCommon.observability.releaseConfirm.failed'), 'error', { identity: `node:${node.id}`, reason: 'release-failed', projectId: project.binding.projectId, nodeIds: [node.id] })) }) }}
         className={cn('inline-flex min-h-6 max-w-full items-center justify-center gap-1 rounded-nomi-sm px-2 text-micro leading-tight', waiting ? 'border border-nomi-line bg-nomi-paper text-nomi-ink hover:border-nomi-ink-30' : 'border-0 bg-nomi-ink text-nomi-paper hover:bg-nomi-accent')}>
         {!waiting ? <IconRefresh size={12} stroke={1.6} /> : null}{t('generationCommon.observability.action.releaseRegenerate.main')}
       </button> : null}

@@ -554,3 +554,18 @@ PR 判据把抽取复用的两个 tsx 文件当作新增界面，拒绝 pure-bug
 提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
 
 ```
+
+第4轮完整门岗补查：新增单发按钮的前置IPC拒绝必须可见；花钱确认和恢复投影只收事实，不再在调用者重复定义状态词表。未改文案、门岗、白名单或基线。canvasRunActions/canvasStoreTypes 因门岗复用要求触达；原始热点输出：
+
+```text
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · src/workbench/generationCanvas/store/canvasStoreTypes.ts：文件近 14 天已有 2 个 fix，这一刀是第 3 个
+  · src/workbench/generationCanvas/store/canvasRunActions.ts：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx：文件近 14 天已有 4 个 fix，这一刀是第 5 个
+  · src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx：目录 src/workbench/creation/storyboard/shotRow/ 近 14 天已有 5 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 6 个
+  · 概念「运行进度的瞬态观察与耐久事实」：含 2 个文件，近 14 天已有 3 个 fix，这一刀是第 4 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
+```
+
+缝隙走查计数改为去掉传输绑定后比较完整提示词，仍严格等于一次；只改量具，不改生成请求。热点复核：方向检查：未命中热点。
