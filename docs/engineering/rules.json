@@ -18,8 +18,7 @@
         "gate:scripts/check-direction-trailer.mjs(自写登记连修第 2 次要带点名该登记的复盘)",
         "coordinator-tool:scripts/self-written-review.mjs(排版本计划时跑，到期清单给用户看)",
         "gate:check:prior-art",
-        "hook:self-check(先查别人块)",
-        "coordinator-tool:scripts/check-dispatch-brief.mjs(补还是换)"
+        "hook:self-check(先查别人块)"
       ],
       "evidence": "CI 里 check:self-written / prior-art 有红记录；用户纠正过「先接入再自写」",
       "owner": "协调会话",
@@ -34,14 +33,14 @@
         "R10",
         "R23"
       ],
-      "rule": "新实现同 commit 删旧实现，不留并行版 / fallback；删旧前先答老用户怎么过（设计卡 ★1c）；CSS 只写组件 className；生成画布只许 React Flow 一个内核。",
+      "rule": "新实现同 commit 删旧实现，不留并行版 / fallback；删旧前先答老用户怎么过（设计卡 ★1c）；CSS 只写组件 className；生成画布只许 React Flow 一个内核。复盘由没参与过这几轮的线先独立写，只给它原话、复现、原始数据、代码和约束，写完再和原方案对照。",
       "disease": "旧路径没删仍能写（最大一类逃逸）",
       "enforcement": [
         "gate:check:orphan-cables",
         "gate:check:tokens",
         "gate:check:pr-judgement(老用户这半句：碰存量路径的 PR 交 upgrade-path 证据，判据同 DC)"
       ],
-      "evidence": "复盘里 legacy-canvas-write-doors、legacy-storyboard-placement 两条：旧路径没删仍能写；老用户这半句：用户 2026-11-01 同意写进常驻 P1，起因见 DC 的证据",
+      "evidence": "2026-11-02 用户看过原文后批准「规则也可以这样」；用户指出「这个地方很多都是冗余的 我们以前就删过 你没考虑吗」「删掉无效的东西是很重要」。三条路放回 94 件真实案例，第一版会变 21 件，21 件里 12 件是用户当场提的；37 个 PR 里 4 个，查得到轮数且 3 轮以上的 12 个 PR 里 6 个；也有换了更差、删错对象的案例，复盘改由没参与过这几轮的线先独立写，写完再和原方案对照。这是历史回放，不是实验，证明不了省了几轮；复盘里 legacy-canvas-write-doors、legacy-storyboard-placement 两条：旧路径没删仍能写；老用户这半句：用户 2026-11-01 同意写进常驻 P1，起因见 DC 的证据",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "出现能自动判「并行实现」的门岗",
@@ -82,7 +81,7 @@
       "enforcement": [
         "gate:scripts/check-direction-trailer.mjs",
         "coordinator-tool:scripts/fix-churn.mjs",
-        "coordinator-tool:scripts/check-dispatch-brief.mjs(补还是换)",
+        "coordinator-tool:scripts/check-dispatch-brief.mjs(第 3 轮引用复盘)",
         "hook:edit-time-reminder",
         "hook:self-check(方向检查块)",
         "template:docs/engineering/direction-check-template.md"
@@ -119,7 +118,7 @@
     {
       "id": "P5",
       "aliases": [],
-      "rule": "想清楚再动手：碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；四类之外的纯文档 / 测试 / 配置，或声明单一意图的纯修复且 base/head 拍板图清单核实无界面差异，走短档：交短版设计卡（★1/2/3/4/9 各一行）、免功能分类与验收证据，核实不了或有差异、让逃逸账本转 fixed 的落标准档（要求同今天），见 design-card.md；新增或改动用户可见界面分两步：①先在 Claude Design（Artifact「Design」画布）按设计系统（Design.md、docs/design/nomi-design-system.md 的 token 与组件规格）出高保真视觉稿，协调会话逐张对过设计系统再给用户拍板；②拍板后在设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）照视觉稿复刻成屏、逐张截图对照，生产代码就是它。跳过①直接拼组件出的屏不进拍板；其它手写 HTML / 交互 widget 只准标 exploration；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。 新增功能（feat，或路径推出「新增功能 / 性能」类）另填设计卡 ★7 性能并自带可重跑的性能脚本：新增的用户操作、最坏规模、每个操作的预算（默认操作到反馈 ≤100ms、拖动帧间隔 p95 ≤33ms、交互期间 >50ms 长任务 0、打开到能操作 ≤1s @100 节点）、覆盖它的场景 id 与基线；每个新增操作登记成 tests/perf/scenarios/<id>.json（复用现有量具，不自写剖析器），用 pnpm run perf:scenarios 跑（≥5 次取中位数和 p95）；PR 正文交 perf-scenario 行，「未验证」不算通过，超预算不合并（docs/engineering/perf-scenarios.md）。",
+      "rule": "想清楚再动手：第一次拿出办法之前，改方案时也一样：先查这件事以前定过什么、删过什么，核对原话和现在还算不算数；说清要保住用户的什么结果；再想三条路：沿原方向修、换一种做法（换模式、接现成的）、删掉。按查到的事实选，查不到就写不知道。修法已经明确的小事，一句话带过。碰花钱 / 长跑 / 可打断 / 新界面先写设计卡；四类之外的纯文档 / 测试 / 配置，或声明单一意图的纯修复且 base/head 拍板图清单核实无界面差异，走短档：交短版设计卡（★1/2/3/4/9 各一行）、免功能分类与验收证据，核实不了或有差异、让逃逸账本转 fixed 的落标准档（要求同今天），见 design-card.md；新增或改动用户可见界面分两步：①先在 Claude Design（Artifact「Design」画布）按设计系统（Design.md、docs/design/nomi-design-system.md 的 token 与组件规格）出高保真视觉稿，协调会话逐张对过设计系统再给用户拍板；②拍板后在设计实验室用生产组件 + 真实宿主数据（ShellStage 手法）照视觉稿复刻成屏、逐张截图对照，生产代码就是它。跳过①直接拼组件出的屏不进拍板；其它手写 HTML / 交互 widget 只准标 exploration；新组件先写生产目录本体，实验室只给数据；重要改动动手前先 grill 一轮（每题带默认答案、连带面单独成题），纯 bug 修复不问。 新增功能（feat，或路径推出「新增功能 / 性能」类）另填设计卡 ★7 性能并自带可重跑的性能脚本：新增的用户操作、最坏规模、每个操作的预算（默认操作到反馈 ≤100ms、拖动帧间隔 p95 ≤33ms、交互期间 >50ms 长任务 0、打开到能操作 ≤1s @100 节点）、覆盖它的场景 id 与基线；每个新增操作登记成 tests/perf/scenarios/<id>.json（复用现有量具，不自写剖析器），用 pnpm run perf:scenarios 跑（≥5 次取中位数和 p95）；PR 正文交 perf-scenario 行，「未验证」不算通过，超预算不合并（docs/engineering/perf-scenarios.md）。",
       "disease": "没想清楚就写，返工与连带面漏掉；新功能不量性能，卡顿到用户手里才发现（2026-10-10 用户反馈 F3：选中节点卡、拖组卡）",
       "enforcement": [
         "template:docs/engineering/design-card.md",
@@ -135,7 +134,7 @@
         "hook:self-check(设计卡块)",
         "template:docs/design/nomi-design-flow-howto.md"
       ],
-      "evidence": "mockup-contracts 门岗；用户纠正「推荐先看用户控制权」；2026-10-08 用户看了直接拿组件拼的外壳样张：「明显很丑……是没用你的 claude design 设计吗，因为这个设计很重要」「这次重排以及前面的设计优化都最好过一遍 design，因为希望设计整体提升一个台阶，细节很重要，而且注意我们的设计系统」「把这个规则要计入仓库」（根因：该流程只记在协调会话私人记忆，子 agent 读不到）；2026-10-11 用户：「设计一个规则，新增功能都要考虑性能分析，防止以后出现大量卡顿问题，每一个新功能都得做，而且自己弄好测试脚本，以后用来测试性能」",
+      "evidence": "2026-11-02 用户看过原文后批准「规则也可以这样」；用户指出「这个地方很多都是冗余的 我们以前就删过 你没考虑吗」「删掉无效的东西是很重要」。三条路放回 94 件真实案例，第一版会变 21 件（其中 12 件用户当场提）；37 个 PR 里 4 个，查得到轮数且 3 轮以上的 12 个 PR 里 6 个；4 件新东西无历史可查，也有换了更差、删错对象的案例，所以写不知道、按事实选。先查旧决定放回 95 件：52 件以前定过，第一版没用上的 5 件查了都会变，查了不变 35 件、判断不了 11 件；旧决定过时 5 件、账本记错或读错 3 处，所以核原话和现在还算不算数。「答不出就删」放回 42 组删控件记录不能原样用，改为设计系统 §1.5.2 的逐项查证。派工填写项 184 份提到、63 份不适用、3 份同一 PR 修补轮写方向不变也过门，故删除。这是历史回放，不是实验，证明不了省了几轮；mockup-contracts 门岗；用户纠正「推荐先看用户控制权」；2026-10-08 用户看了直接拿组件拼的外壳样张：「明显很丑……是没用你的 claude design 设计吗，因为这个设计很重要」「这次重排以及前面的设计优化都最好过一遍 design，因为希望设计整体提升一个台阶，细节很重要，而且注意我们的设计系统」「把这个规则要计入仓库」（根因：该流程只记在协调会话私人记忆，子 agent 读不到）；2026-10-11 用户：「设计一个规则，新增功能都要考虑性能分析，防止以后出现大量卡顿问题，每一个新功能都得做，而且自己弄好测试脚本，以后用来测试性能」",
       "owner": "协调会话",
       "review_on": "2026-12-01",
       "delete_when": "设计卡覆盖全部内容后并入 DC",
@@ -156,7 +155,8 @@
       "enforcement": [
         "template:docs/engineering/design-card.md",
         "coordinator-tool:scripts/merge-preflight.mjs",
-        "hook:self-check(设计卡块)", "gate:check:pr-judgement(碰存量路径的 PR 交 upgrade-path 证据：真实旧数据的凭据或「不适用：理由」，未验证红，不进短档)"
+        "hook:self-check(设计卡块)",
+        "gate:check:pr-judgement(碰存量路径的 PR 交 upgrade-path 证据：真实旧数据的凭据或「不适用：理由」，未验证红，不进短档)"
       ],
       "evidence": "复盘：逃逸 bug 多出在中途状态和概念占用；卡取代原来分散的 plan 模板、6 角色评审、概念占用表；用户 2026-10-31：「替换的过程中要考虑老用户的迁移」，起因是一次目录迁移让一整类在用的模型升级后下架，矩阵只测手写形状，升级路径证据写的是未验证",
       "owner": "协调会话",

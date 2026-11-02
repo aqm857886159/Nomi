@@ -114,7 +114,7 @@ if hit_block root-cause 'bug|回归|根因|修复|崩|卡死|报错'; then
 fi
 # 方向检查（RW）：用户消息出现「第 N 轮 / 再修 / 又坏了 / 还是不对」这类反复修的信号
 if hit_block direction-check '第 ?([3-9]|[三四五六七八九十]|[0-9]{2,}) ?轮|再修|又坏了|又坏|还是不对|还是有问题|修了又|反复修|越修越'; then
-  echo "【方向检查 · RW】反复修的信号：别再派 / 打下一轮补丁。先 node scripts/fix-churn.mjs <路径> 看是不是热点；命中或已是第 3 轮 → 停，先写特征测试钉住现状，再按 docs/engineering/direction-check-template.md 做类根因复盘（归类表、为什么一直冒、2-3 个可验证预测、评测靶子是不是同一条线写的、P0 现成方案、补/重写/删对比），结构性结论交用户拍板｜fix 提交碰热点要带 Direction-Check: <复盘文档路径>（git commit-msg 会校验）"
+  echo "【方向检查 · RW】反复修的信号：别再派 / 打下一轮补丁。先 node scripts/fix-churn.mjs <路径> 看是不是热点；命中或已是第 3 轮 → 停，先写特征测试钉住现状，再按 docs/engineering/direction-check-template.md 做类根因复盘（归类表、为什么一直冒、2-3 个可验证预测、评测靶子是不是同一条线写的、P0 现成方案、三条路对比），复盘由没参与过这几轮的线先写，结构性结论交用户拍板｜fix 提交碰热点要带 Direction-Check: <复盘文档路径>（git commit-msg 会校验）"
   echo ""
 fi
 # 派工 / 子 agent（省 token，编排手册 §20）
