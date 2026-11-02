@@ -79,7 +79,9 @@
     "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
     "src/workbench/production/ProductionCanvasLandingHost.tsx",
     "tests/ux/_generationLockExitHttpEight.mjs",
-    "tests/ux/_generationLockExitThreePages.mjs"
+    "tests/ux/_generationLockExitThreePages.mjs",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx"
   ],
   "entry_points": [
     "StoryboardPlanEditor 的单卡、整批与放置",
@@ -646,16 +648,17 @@
       "B7: Agent patch creates optional undefined keys; guard was the only storyboard comparison without JSON roundtrip. runProjectDelivery input token and director plan/preview fingerprints already normalize.",
       "第3轮查confirmAndRunNode、canvasOpenRuns、nodeRunOutcomePatch、recoverOrphans、buildRecoverPayload及全部走查读者；画布/列表composer、分镜单卡、任务中心、Agent与批量的确认缝分别核对。",
       "项目恢复补查先挂载、后提交项目的时序；用subscribeProjectOpened签发后再读，不以组件prop替代水合完成。制作多镜cancelled的submitting同样走抽出的原重启规则，保持旧行为。",
-      "补查免费取回/原 worker 晚到结果和 preview await：异步落卡均携原 Run 号，时间轴只接当前结果；回执释放的 Run 不可在 await 返回后重新占用。"
+      "补查免费取回/原 worker 晚到结果和 preview await：异步落卡均携原 Run 号，时间轴只接当前结果；回执释放的 Run 不可在 await 返回后重新占用。",
+      "第4轮按拍板图：三页及任务中心重复确认入口、旧状态寿命、外层摘要重复与免费动作顺序全部归已有spendConfirm和generationFailureActions。"
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
-    "invariant": "机器不重发未结束节点；人只有确认当前全部占用才新发；同次意图仍一次。确认前不写新运行；机器跳过不进失败重试。",
+    "invariant": "机器不重发未结束节点；人只有确认当前全部占用才新发；同次意图仍一次。确认前不写新运行；机器跳过不进失败重试。 重发按钮永远先问；↑仅有未结束请求才问；取消不写记录、不放行。",
     "failure_mode": "旧回执、伪手势、批量或Agent回执不覆盖新占用；人点未覆盖先展示现有确认条，失败还原原记录和出路。",
     "exception_policy": "none",
-    "strategy": "删除永久拒绝人点的旧出口、只查unknown的旧IPC、released=false静默关条及提前await归属过滤。原有动作改读同一主进程准入和共享确认状态；孤儿规则复用制作实现。",
+    "strategy": "删除永久拒绝人点的旧出口、只查unknown的旧IPC、released=false静默关条及提前await归属过滤。原有动作改读同一主进程准入和共享确认状态；孤儿规则复用制作实现。 第4轮删除专用确认state/浮层/卡内确认条，确认归spendConfirm主人，一张花钱卡承载重发风险与托管告知，放行只在确认之后。",
     "artifacts": [
       "src/workbench/generationCanvas/runner/generationRunController.ts",
       "src/workbench/observability/generationFailureActions.ts",

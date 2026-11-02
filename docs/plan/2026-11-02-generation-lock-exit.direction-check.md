@@ -502,3 +502,23 @@ PR 判据把抽取复用的两个 tsx 文件当作新增界面，拒绝 pure-bug
 | 删确认 | 不选 | 点 ↑ 时眼前不一定有那句话，可能多扣钱且撤不回 |
 
 范围只有拍板图 `docs/design/boards/2026-11-02-unknown-result-card/` 这几处和前面没跑完的验证。这是这个 PR 的最后一轮，用户点头才开的。之后再有新问题：不多扣钱的进已知限制直接合，多扣钱的再问用户。
+
+
+开工热点原始输出（第4轮已由用户批准，按拍板图替换）：
+
+```text
+【方向检查 · RW】这一刀碰的地方已经被反复修，先别再补：
+  · src/workbench/generationCanvas/runner/generationRunController.ts：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · src/workbench/production/useProductionStatus.ts：目录 src/workbench/production/ 近 14 天已有 7 个 fix（只涉及 5 个文件，算同一概念），这一刀是第 8 个
+  · src/workbench/production/releaseUnknownSubmission.ts：文件近 14 天已有 4 个 fix，这一刀是第 5 个
+  · src/workbench/production/releaseUnknownSubmission.ts：目录 src/workbench/production/ 近 14 天已有 7 个 fix（只涉及 5 个文件，算同一概念），这一刀是第 8 个
+  · src/workbench/generationCanvas/nodes/NodeErrorReport.tsx：文件近 14 天已有 5 个 fix，这一刀是第 6 个
+  · src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx：文件近 14 天已有 3 个 fix，这一刀是第 4 个
+  · src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx：目录 src/workbench/creation/storyboard/shotRow/ 近 14 天已有 4 个 fix（只涉及 3 个文件，算同一概念），这一刀是第 5 个
+  · 概念「生成结局投递到运行所属项目（节点不在时暂存）」：含 4 个文件，近 14 天已有 7 个 fix，这一刀是第 8 个
+  · 概念「分镜批量生成的确认缝（确认前不落画布、取消零节点零波次）」：含 6 个文件，近 14 天已有 11 个 fix，这一刀是第 12 个
+动作：停止派 / 打修补，先做「类根因复盘」（模板 docs/engineering/direction-check-template.md，产出一页文档），结构性结论交用户拍板（例外：只因概念 / 目录 / 自写登记口径命中、文件本身没命中，且改法是换或删、不新增分支——由协调代批、事后报用户）；复盘前先写特征测试钉住现状。
+提交 fix 时在信息里加一行 `Direction-Check: <复盘文档路径>`（git commit-msg 会校验）。
+
+```
