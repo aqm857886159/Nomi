@@ -73,6 +73,10 @@ const INSTALL_SOURCE = `(() => {
     nodeCountAbove(count) {
       return document.querySelectorAll('.react-flow__node').length > count
     },
+    listQueueSettled(nodeId) {
+      const card = document.querySelector('[data-list-card="' + CSS.escape(nodeId) + '"]')
+      return visible(card) && !card.querySelector('[data-list-status="queued"]')
+    },
     stageReady(mode) {
       if (mode === 'creation') {
         const root = document.querySelector('.workbench-creation')

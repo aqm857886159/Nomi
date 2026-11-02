@@ -613,7 +613,7 @@ describe('每类错误都说得出「该干嘛」（2026-07-30 拍板：主按�
 describe('动作表：每类主 / 次动作都写在表里，改一类不许带动别的类', () => {
   // 穷举：漏写一类 → check:test-types 红（Record 要求每个 kind 都在）。
   const EVERY_KIND: Record<GenerationErrorKind, true> = {
-    auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
+    'local-refusal': true, auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
     'model-kind-mismatch': true, 'model-not-open': true, 'model-unavailable-upstream': true, 'model-retired': true,
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
     'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-unfetchable': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
@@ -629,7 +629,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
       // 结果未知：不给重试（可能重复提交），只指路去核对。
       // 已生成、取回失败 / 已提交、这次没取回：只指路「重新取回」，不给第二个动作（重试 = 再生成一份）。
       // 本机处理失败：没有模型参与，只留重试。
-      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' ? null : kind === 'submission-unknown' ? 'release-regenerate' : before })
+      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' || kind === 'local-refusal' ? null : kind === 'submission-unknown' ? 'release-regenerate' : before })
     }
   })
 })
@@ -1312,5 +1312,26 @@ describe('模型取不到参考图（reference-unfetchable）', () => {
     expect(classifyGenerationError(tagNomiError('output-retrieval-failed', 'Nomi could not retrieve the result: Fetch failed: HTTP 403')).kind).toBe('output-retrieval-failed')
     expect(classifyGenerationError('Failed to download the generated video from https://cdn.example.com/out.mp4').kind).not.toBe('reference-unfetchable')
     expect(classifyGenerationError('素材上传失败：a.png（1MB）的所有上传通道都没成功，所以还没请求这次选的服务商。').kind).toBe('asset-upload-failed')
+  })
+})
+
+
+describe('generation lock exit D1/D2: local refusal is not a provider failure', () => {
+  it.each(['node_generation_in_flight', 'canvas_consent_predates_upgrade', 'director_preview_blocked', 'production_shot_claimed', 'generation_input_changed', 'storyboard_content_conflict'])('%s has one local kind and truthful actions', code => {
+    const report = classifyGenerationError(encodeStructuredErrorMessage({ code, ...(code === 'production_shot_claimed' ? { reason: 'needs_reconcile' } : {}) }, code))
+    expect(report.kind).toBe('local-refusal')
+    expect(report.vendorSide).toBe(false)
+    expect(report.primary).toBe(code === 'production_shot_claimed' ? 'reconcile' : ['canvas_consent_predates_upgrade', 'generation_input_changed', 'storyboard_content_conflict'].includes(code) ? 'retry' : 'view-task')
+    if (code === 'production_shot_claimed') expect(report.secondary).toBe('release-regenerate')
+  })
+  it.each(['generation_input_changed', 'storyboard_content_conflict', 'Storyboard target changed'])('legacy string %s retains the content-change protection in both languages', async message => {
+    for (const lang of ['zh-CN', 'en']) {
+      await i18n.changeLanguage(lang)
+      const report = classifyGenerationError(message)
+      expect(report.kind).toBe('local-refusal')
+      expect(report.primary).toBe('retry')
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.storyboardContentChanged'))
+    }
+    await i18n.changeLanguage('zh-CN')
   })
 })

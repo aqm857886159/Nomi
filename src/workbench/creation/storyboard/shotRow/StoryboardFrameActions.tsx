@@ -1,3 +1,13 @@
+import { AnchoredPopover } from '../../../../design/AnchoredPopover'
+import { generationFailureActions } from '../../../observability/generationFailureActions'
+import { narrateErrorActionLabel } from '../../../observability/narrate'
+import { UnknownSubmissionConfirmation } from '../../../generationCanvas/nodes/NodeErrorReport'
+import { useUnknownSubmissionRelease } from '../../../production/releaseUnknownSubmission'
+import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
+import { productionMetaOf } from '../../../generationCanvas/model/productionMeta'
+import { withProjectAction } from '../../../project/projectCanvasReadSurface'
+import { revealNotificationTarget } from '../../../../ui/notificationPolicy'
+import { reopenRecoverableNode } from '../../../generationCanvas/runner/recoverTaskActions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -21,6 +31,7 @@ import type { ShotVariant } from './shotVariants'
  */
 
 type Props = {
+  actionBusy?: boolean
   exec: ShotRowExec
   variants: readonly ShotVariant[]
   /**
@@ -44,9 +55,11 @@ function ActButton({
   label,
   onClick,
   tone = 'quiet',
+  disabled,
   children,
 }: {
   label: string
+  disabled?: boolean
   onClick?: (() => void) | undefined
   tone?: 'quiet' | 'danger'
   children: React.ReactNode
@@ -55,6 +68,7 @@ function ActButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={label}
       aria-label={label}
       className={cn(
@@ -71,6 +85,7 @@ function ActButton({
 
 export default function StoryboardFrameActions({
   exec,
+  actionBusy = false,
   variants,
   outputTag,
   onRegenerate,
@@ -83,7 +98,6 @@ export default function StoryboardFrameActions({
   // 「重试」按下去要重新扣一次费，所以它比别的钮更不该让人点第二下：
   // 2026-09-11 用户实测——点了之后这颗钮没有任何变化，和没点着长得一样。
   // 忙态既是回执也是闸（`disabled`），和旁边那颗免费的「重新拉取结果」同一副长相。
-  const [retrying, setRetrying] = React.useState(false)
   const hasResult = Boolean(exec.resultUrl) && (exec.status === 'done' || exec.status === 'locked')
   const failed = exec.status === 'failed'
   const recoverable = exec.status === 'recoverable'
@@ -95,23 +109,7 @@ export default function StoryboardFrameActions({
     {/* 五件动作要在 136px 的列宽里排成一行（4 枚 24px 图标钮 + 一枚带计数的变体钮 ≈ 132px）。
         给了 gap 就会挤到第二行——第二行会让"这镜做完没有"的竖向节奏错开，正是 v6 要修的那种噪音。 */}
     <div className="flex items-center">
-      {failed && onGenerate ? (
-        // 真失败的重试 = 重新生成 = 重新扣费。按钮小得只放得下两个字，所以代价写在 title/aria 上——
-        // 让"这一下要花钱"在点之前就说得出口（P3/D4：缺口明着标）。
-        <button
-          type="button"
-          onClick={() => { if (retrying) return; setRetrying(true); onGenerate() }}
-          disabled={retrying}
-          aria-busy={retrying}
-          data-storyboard-retry-state={retrying ? 'busy' : 'idle'}
-          title={t('storyboardEditor.frame.retryHint')}
-          aria-label={t('storyboardEditor.frame.retryHint')}
-          className="h-6 px-2 rounded-nomi-sm border border-workbench-danger text-micro text-workbench-danger inline-flex items-center gap-1 hover:bg-workbench-danger-soft disabled:opacity-50 disabled:hover:bg-transparent"
-        >
-          <IconRefresh size={12} stroke={1.8} className={cn(retrying && 'animate-spin')} />
-          {retrying ? t('storyboardEditor.frame.generating') : t('storyboardEditor.frame.retry')}
-        </button>
-      ) : null}
+      {failed ? <StoryboardFailureActions message={exec.errorMessage} node={exec.failedNode} busy={actionBusy} onRetry={onGenerate} /> : null}
       {recoverable && onRecover ? (
         // 免费续查（`recoverNodeResult` → query IPC）。中性描边、不写「重试」——写「重试」就等于
         // 把一次免费的找回说成一次要重新付费的重跑。
@@ -129,7 +127,7 @@ export default function StoryboardFrameActions({
         </button>
       ) : null}
       {hasResult && !locked ? (
-        <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate}>
+        <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate} disabled={actionBusy}>
           <IconRefresh size={14} stroke={1.8} />
         </ActButton>
       ) : null}
@@ -158,4 +156,41 @@ export default function StoryboardFrameActions({
     ) : null}
     </div>
   )
+}
+
+export function StoryboardFailureActions({ message, node, busy = false, onRetry }: {
+  message?: string | null
+  node?: GenerationCanvasNode | null
+  busy?: boolean
+  onRetry?: (() => void) | undefined
+}) {
+  const { t } = useTranslation()
+  const runId = productionMetaOf({ meta: node?.meta })?.runId
+  const decision = generationFailureActions(message ?? '', { ...node?.runs?.[0], productionRunId: runId })
+  const release = useUnknownSubmissionRelease(node?.id, node?.meta)
+  const anchorRef = React.useRef<HTMLDivElement>(null)
+  const viewTask = () => {
+    if (decision.primary === 'open-recoverable' && node) { reopenRecoverableNode(node.id); return }
+    withProjectAction((project) => { void revealNotificationTarget({ projectId: project.binding.projectId, ...(runId ? { runId } : {}), taskCenter: true }) })
+  }
+  const canRelease = Boolean(node && (decision.primary === 'release-regenerate' || decision.secondary === 'release-regenerate'))
+  return <div ref={anchorRef} className="flex min-w-0 max-w-full flex-col items-start gap-1" data-storyboard-failure-actions>
+    {decision.canRetry && onRetry ? <button type="button" onClick={onRetry} disabled={busy}
+      aria-busy={busy} data-storyboard-retry-state={busy ? 'busy' : 'idle'}
+      title={t('storyboardEditor.frame.retryHint')} aria-label={t('storyboardEditor.frame.retryHint')}
+      className="min-h-6 max-w-full rounded-nomi-sm border border-workbench-danger px-1 text-micro leading-tight text-workbench-danger disabled:opacity-50">
+      {busy ? t('storyboardEditor.frame.generating') : t('storyboardEditor.frame.retry')}
+    </button> : <>
+      {canRelease ? <button type="button" onClick={release.open} disabled={release.busy}
+        className="min-h-6 max-w-full rounded-nomi-sm border border-workbench-danger px-1 text-left text-micro leading-tight text-workbench-danger">
+        {narrateErrorActionLabel('release-regenerate', 'secondary')}
+      </button> : null}
+      <button type="button" onClick={viewTask} className="min-h-6 max-w-full text-left text-micro leading-tight text-nomi-ink-60">
+        {narrateErrorActionLabel(decision.primary === 'open-recoverable' || decision.primary === 'reconcile' ? decision.primary : 'view-task', 'primary')}
+      </button>
+    </>}
+    {release.confirming ? <AnchoredPopover anchorRef={anchorRef} onClose={release.cancel}>
+      <div className="w-[300px] max-w-[calc(100vw-24px)] rounded-panel border border-nomi-line bg-nomi-paper p-3 shadow-nomi-md"><UnknownSubmissionConfirmation release={release} /></div>
+    </AnchoredPopover> : null}
+  </div>
 }

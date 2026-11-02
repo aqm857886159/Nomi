@@ -1,0 +1,32 @@
+{
+  "id": "USER-20261102-generation-lock-exit",
+  "since": "2026-11-02",
+  "source": "用户反馈批量生成错误后卡住且重启仍卡；公开条目仅记录现象。",
+  "category": "interaction-semantics",
+  "problem": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-02-generation-lock-exit.md",
+    "docs/evidence/2026-11-02-generation-lock-exit/verification.json",
+    "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
+    "src/workbench/observability/generationFailureSurfaces.test.tsx",
+    "按协调裁决转 fixed：作者与输入保护收在每个执行节点，提交咽喉统一撤回旧队列出价，原占用由主进程同一读面给出，三页共用失败动作。完整付费场景和列表示例的验收缺口如实保留，未声明已解决。"
+  ],
+  "completionCommits": [
+    "54bcef6dea403593e0538f7e337823b55ecc845d",
+    "530e052cef776d7dc7d04dba5d73211f8dea6007",
+    "b74242b4775b16af7383268fabc7a1986ea3d60e",
+    "6f7d2bb30140dd5a56dae1e5d4f62257edb2e256"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-02-generation-lock-exit.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/observability/generationFailureSurfaces.test.tsx"
+  },
+  "fixedInPr": 1413
+}

@@ -1,0 +1,218 @@
+{
+  "baseline": "29313b236d1d587a88dc9092bfcc1f97b80fb0f8",
+  "productionFiles": {
+    "electron/capabilityCore/appIntegration.ts": {
+      "shaFixed": "0fcdd5f68f9489610a4d18c6bae3b0592af660434e54c0e106a23c15c7f09c33",
+      "shaBaseline": "3e57732a18f2444bdf8a90b756b7fe9be51dc07ae9bed83800d0647a5e4977b8",
+      "shaRestored": "0fcdd5f68f9489610a4d18c6bae3b0592af660434e54c0e106a23c15c7f09c33"
+    },
+    "electron/capabilityCore/appIntegrationCanvasShot.ts": {
+      "shaFixed": "556fd76a369210f5e92b6bb885a309b67a90f32c70813e35adf87455e089f600",
+      "shaBaseline": "14e7610a85862008d7ba4ce57ec7dc1eecc4a4576dd1daf5c53f59e3bee1c1cb",
+      "shaRestored": "556fd76a369210f5e92b6bb885a309b67a90f32c70813e35adf87455e089f600"
+    },
+    "electron/capabilityCore/canvasShotResult.ts": {
+      "shaFixed": "9a8b3e3f7e03de77b0abf22a508ab4b1884bff14354c87ee55be9f89c1d5fd5a",
+      "shaBaseline": "a0ea69059cc213993f86a46e921323acbeff3c16023f3fa0cc376c7425a89843",
+      "shaRestored": "9a8b3e3f7e03de77b0abf22a508ab4b1884bff14354c87ee55be9f89c1d5fd5a"
+    },
+    "electron/capabilityCore/canvasShotRunApi.ts": {
+      "shaFixed": "db1501194d379343395b4b0e8fbd6f2e3eb18cb7a159a0879b63ed5d2a0051ae",
+      "shaBaseline": "400b1ec4f254e41274a460365ba3b351dcf56ee59f4d8c7a77093f1322cf7e56",
+      "shaRestored": "db1501194d379343395b4b0e8fbd6f2e3eb18cb7a159a0879b63ed5d2a0051ae"
+    },
+    "electron/preload/runtimeBridge.ts": {
+      "shaFixed": "de112b9f6a49aa16530a944463bb71355941a4864af969e4b4aa9708e7c41ed5",
+      "shaBaseline": "0135c7034c8945df83b65fafd7994031cb43a3fa36769e9eb7cbe822d7f4efaa",
+      "shaRestored": "de112b9f6a49aa16530a944463bb71355941a4864af969e4b4aa9708e7c41ed5"
+    },
+    "electron/tasks/taskIpcHandlers.ts": {
+      "shaFixed": "e7ece221b54a6c819969ed853841049f73e23408e74c5293666921ad93100678",
+      "shaBaseline": "a210f0a22fc1c162c406246c62d9f84be5f7538db9d3916cd163d433869d2cb3",
+      "shaRestored": "e7ece221b54a6c819969ed853841049f73e23408e74c5293666921ad93100678"
+    },
+    "src/desktop/bridge.ts": {
+      "shaFixed": "3b90a6b3e08cf1670e2fcb3939f231dbf82fb769f54e27240a67271573cca807",
+      "shaBaseline": "901dd9eb17920a943e2f5805f36118addde6fcd730bb66eb406c4a95f67e0200",
+      "shaRestored": "3b90a6b3e08cf1670e2fcb3939f231dbf82fb769f54e27240a67271573cca807"
+    },
+    "src/devlab/designLab/storyboard/storyboardFixtures.ts": {
+      "shaFixed": "79bb6109e8f94f9cb1a379ac8d5720865b05e874763ae5b76dcc3be3f91f4a84",
+      "shaBaseline": "6c348f7b2185d4e9fc4a2978c0cd8de3654cf2c68318f5c0ea463d9f0c95f06c",
+      "shaRestored": "79bb6109e8f94f9cb1a379ac8d5720865b05e874763ae5b76dcc3be3f91f4a84"
+    },
+    "src/i18n/locales/generationCommon.ts": {
+      "shaFixed": "cdbe0d89b78d027bd6889105bd5813bb9a6a0164056621c445df95babe25c71b",
+      "shaBaseline": "abb3accdd783ffd0d65c1f98b34f266e2e725daf1eede035366da84ba48d7a8a",
+      "shaRestored": "cdbe0d89b78d027bd6889105bd5813bb9a6a0164056621c445df95babe25c71b"
+    },
+    "src/workbench/api/taskApi.ts": {
+      "shaFixed": "768d52007b3141db21827d4ac8a988426853bd65122bfc01d80899bdda6fc546",
+      "shaBaseline": "f4fa659f1d178aa49238d7d4551314448cac92d7ff8b892cc3bca8a38b1cb3f9",
+      "shaRestored": "768d52007b3141db21827d4ac8a988426853bd65122bfc01d80899bdda6fc546"
+    },
+    "src/workbench/capability/storyboardPresent.ts": {
+      "shaFixed": "8be5de246cd9e327fd5973bef52bdc5e779d7738968473ebb6e35b09bd3ff7c2",
+      "shaBaseline": "30ab561a386081b841a75df95a716cc2b80c2213828ffa1ba5f72e5364c049a0",
+      "shaRestored": "8be5de246cd9e327fd5973bef52bdc5e779d7738968473ebb6e35b09bd3ff7c2"
+    },
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx": {
+      "shaFixed": "d055abae48801c1fa7ffe0fe288bfb0fbb558f22401c2b643826f640ed276f0e",
+      "shaBaseline": "c50d7f25b875ecffed14e1dabd08fbe2afc14c94ff70a27b7b1c2ddf6a3e3343",
+      "shaRestored": "d055abae48801c1fa7ffe0fe288bfb0fbb558f22401c2b643826f640ed276f0e"
+    },
+    "src/workbench/creation/storyboard/StoryboardShotTable.tsx": {
+      "shaFixed": "83d4252c5486fe2e33138e97960d3e282528d79dc04930bf72c2eb2ab2810644",
+      "shaBaseline": "55fa877370d75b650f0a50bed434c56f3941bf16fcada2f831ca11db114342e9",
+      "shaRestored": "83d4252c5486fe2e33138e97960d3e282528d79dc04930bf72c2eb2ab2810644"
+    },
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx": {
+      "shaFixed": "00e165e79d97b607f2cba00465c634ba61082d03785f0c728c56e942b6d36da1",
+      "shaBaseline": "a50711aa32a13cd439dfd7de0faf17c0e1d40306c6b3c3f0f7ab34a379d13ca0",
+      "shaRestored": "00e165e79d97b607f2cba00465c634ba61082d03785f0c728c56e942b6d36da1"
+    },
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx": {
+      "shaFixed": "041895c21252faad8cf7c1adc553d7ddbb352faead0a4e44404e27219548c500",
+      "shaBaseline": "d57dc3109ca6f21f637e4133e583c3369127cf937b093d8222942ac933f9c567",
+      "shaRestored": "041895c21252faad8cf7c1adc553d7ddbb352faead0a4e44404e27219548c500"
+    },
+    "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts": {
+      "shaFixed": "b81bb858a7dd8fe3c3feab611a2fc89a780fc94378f7b1b6bc23641238577c75",
+      "shaRestored": "b81bb858a7dd8fe3c3feab611a2fc89a780fc94378f7b1b6bc23641238577c75"
+    },
+    "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts": {
+      "shaFixed": "eaf3ee4ac7baa9e20f898851c023eeacdbdfbc00d2a419426bce32971ca71500",
+      "shaBaseline": "541edc6816e997a69fc4db8a6f6f7fbc0e0bc227b8828e173ff6ca787461d8f9",
+      "shaRestored": "eaf3ee4ac7baa9e20f898851c023eeacdbdfbc00d2a419426bce32971ca71500"
+    },
+    "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts": {
+      "shaFixed": "7ab3cde131bc7732222265e53598c428167d702f4c90eed6082c1d18a8ea79e2",
+      "shaBaseline": "cb573a6784198da6571df9c1f4407924d30acc62bef01d06ad897f0907fac2c7",
+      "shaRestored": "7ab3cde131bc7732222265e53598c428167d702f4c90eed6082c1d18a8ea79e2"
+    },
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts": {
+      "shaFixed": "11c41ce0af376c399b64def03dbfdd22b2f440bd18267d317d04e8f496589ee8",
+      "shaBaseline": "af2703237f513067c26b87ee34a8d6d49f26d55e2478c541628dac29301263ef",
+      "shaRestored": "11c41ce0af376c399b64def03dbfdd22b2f440bd18267d317d04e8f496589ee8"
+    },
+    "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts": {
+      "shaFixed": "b3c583aaf8d77f263e3e23626b83c630f194fea605841e24cf0459fb965cd385",
+      "shaBaseline": "d1d76b48b5741d639624325e8b0f41e470ea08555059b1b8ca47998176b388db",
+      "shaRestored": "b3c583aaf8d77f263e3e23626b83c630f194fea605841e24cf0459fb965cd385"
+    },
+    "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx": {
+      "shaFixed": "dfeeabe76df2309bb47f2ee305f1210ba3837254a786b2ecb860a7f9b5e5b3ee",
+      "shaBaseline": "13888b4dd0ba6c4d1a7c4d7dc90870fb87a7c19957b28703ad9a77ca250b0b69",
+      "shaRestored": "dfeeabe76df2309bb47f2ee305f1210ba3837254a786b2ecb860a7f9b5e5b3ee"
+    },
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx": {
+      "shaFixed": "a5cbf0bc0f18db0bb225da7e54044dc20d09ea6a94c2698b8f14b4083d0b83ee",
+      "shaBaseline": "6f86af9f7d23ba561c37ac537354d94782629fd7f1daa2c6f30c1bdfa5a58f94",
+      "shaRestored": "a5cbf0bc0f18db0bb225da7e54044dc20d09ea6a94c2698b8f14b4083d0b83ee"
+    },
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx": {
+      "shaFixed": "24762474fd284fb1856d599253030ee565cce341c80e340b668bb6c7415ab21e",
+      "shaBaseline": "2a7e9a38902edcb8b1798e9446036b85e249218ce0ee9e81b7b7bb37429d1b2c",
+      "shaRestored": "24762474fd284fb1856d599253030ee565cce341c80e340b668bb6c7415ab21e"
+    },
+    "src/workbench/creation/storyboard/storyboardShotTableTypes.ts": {
+      "shaFixed": "94a1562c12d400c7aa938df1bb30ac1c9757fabf16f27388e7ecec729937ce80",
+      "shaRestored": "94a1562c12d400c7aa938df1bb30ac1c9757fabf16f27388e7ecec729937ce80"
+    },
+    "src/workbench/generation/list/GenerationListCard.tsx": {
+      "shaFixed": "2e7122e2b6d2832132f49039ec5cc15b0cef0d6896f2b2944a996203b5094a5b",
+      "shaBaseline": "dc2bb765082589bddfd8dea9e3be45f832a30804c7e401b3c7f6d5fe2df49689",
+      "shaRestored": "2e7122e2b6d2832132f49039ec5cc15b0cef0d6896f2b2944a996203b5094a5b"
+    },
+    "src/workbench/generation/list/GenerationListDetail.tsx": {
+      "shaFixed": "070e9a03e79c3a1398bc9c316190613f644567d8164c3f60355ddfb26f2484b7",
+      "shaBaseline": "5b4b5f14111e98dccd787bb68021755b765437230c140d8345e0374582a20f7c",
+      "shaRestored": "070e9a03e79c3a1398bc9c316190613f644567d8164c3f60355ddfb26f2484b7"
+    },
+    "src/workbench/generation/list/GenerationListParts.tsx": {
+      "shaFixed": "04db70ee10d0ee5cf20632165c926be80c55dc92740888880b3206a620a543ad",
+      "shaBaseline": "0d5a3b77bedd3389b1280880581aca419a775e0a9550b7cba5ac52949c21e4fb",
+      "shaRestored": "04db70ee10d0ee5cf20632165c926be80c55dc92740888880b3206a620a543ad"
+    },
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts": {
+      "shaFixed": "24e198103474d8a94a771820d3f9c313e583486f40f89cfd2f7c107531849c8c",
+      "shaBaseline": "91e775d66542a2499f8d4e3b65ed5b67b3b0807f969921d5bfb88be0f385cbf7",
+      "shaRestored": "24e198103474d8a94a771820d3f9c313e583486f40f89cfd2f7c107531849c8c"
+    },
+    "src/workbench/generationCanvas/components/canvasProductionScope.ts": {
+      "shaFixed": "acaa8d32ba8dc2b47cb90e5a387fd1ef88de181f46d76472eb1b21400942d50d",
+      "shaBaseline": "68136ec7ae3a8c8bf785480ac245bbc7427ebd0d7f820b75d5a42b53b8a8abde",
+      "shaRestored": "acaa8d32ba8dc2b47cb90e5a387fd1ef88de181f46d76472eb1b21400942d50d"
+    },
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": {
+      "shaFixed": "dc039f66631e8a65b3b5d0c6c3f46fd527241589e9e65c2846a6f6deb7f53fd3",
+      "shaBaseline": "e397dbda68a2283cebd2ee444200dd2a7bb039ec1c445aa847473ff151f4bbfc",
+      "shaRestored": "dc039f66631e8a65b3b5d0c6c3f46fd527241589e9e65c2846a6f6deb7f53fd3"
+    },
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx": {
+      "shaFixed": "7206ab1878895e44148d53217781157ea38d36a8b241ca923cc54a1a7cd27a12",
+      "shaBaseline": "f7fc5ca52b591bc973c4b513a8ef9c84a6a2ef6e09a8df85452240d48625f1ff",
+      "shaRestored": "7206ab1878895e44148d53217781157ea38d36a8b241ca923cc54a1a7cd27a12"
+    },
+    "src/workbench/generationCanvas/runner/generationRunController.ts": {
+      "shaFixed": "43531c969dcdfe7dcc530c2e2824672224c652ab5b4057a8d6d373d984815f81",
+      "shaBaseline": "77b140c9aecf5e90c2dd3d7dceaeea4d8c099dda94595ab5a9345437b0ecbb77",
+      "shaRestored": "43531c969dcdfe7dcc530c2e2824672224c652ab5b4057a8d6d373d984815f81"
+    },
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts": {
+      "shaFixed": "0307199ecd5dffe83584bce46dfe1def80c076ac0ee214c148c7f305462d5b20",
+      "shaBaseline": "9c9f9aeebd0f50d4a3e51d2c678ad6092b8b8ce06a4f227b9b8604367dc4d5a6",
+      "shaRestored": "0307199ecd5dffe83584bce46dfe1def80c076ac0ee214c148c7f305462d5b20"
+    },
+    "src/workbench/generationCanvas/store/canvasAutoReference.ts": {
+      "shaFixed": "9989a129944aff23e12c032ccafb06a42f1e868a8f291969e99eb0e871571e79",
+      "shaBaseline": "dd9c460cd2ad890dad8b66cb4090e3499b19a74cc96d0e72cadefc67f52e2833",
+      "shaRestored": "9989a129944aff23e12c032ccafb06a42f1e868a8f291969e99eb0e871571e79"
+    },
+    "src/workbench/observability/classifyError.ts": {
+      "shaFixed": "3ceb49a97d5b69e0fc725a5fc7bb05a8c10429724129aaa4e3383b96f7ba49a6",
+      "shaBaseline": "2d0d899de1c300a9f2359c3a43c837bacbe12604ec02057673f72566fd7556d6",
+      "shaRestored": "3ceb49a97d5b69e0fc725a5fc7bb05a8c10429724129aaa4e3383b96f7ba49a6"
+    },
+    "src/workbench/observability/generationFailureActions.ts": {
+      "shaFixed": "7ebe126d24fd35be26b4593c014046e2cb70eb89f3971ac0935a428dd369a500",
+      "shaRestored": "7ebe126d24fd35be26b4593c014046e2cb70eb89f3971ac0935a428dd369a500"
+    },
+    "src/workbench/observability/narrate.ts": {
+      "shaFixed": "1db3cb5db7a3be1b11f7ed7cc084a6f86bd3385200fbd564e242cd135701b11a",
+      "shaBaseline": "e6000027f27e23d42c32ea467abb865817f78a818a68ba5669bb4e1b337b50c9",
+      "shaRestored": "1db3cb5db7a3be1b11f7ed7cc084a6f86bd3385200fbd564e242cd135701b11a"
+    },
+    "src/workbench/production/productionRunView.ts": {
+      "shaFixed": "fed5aa902d199bf47d3935f9a8f950f7f1fdf5c871b3c2310c271b2f7d02b344",
+      "shaBaseline": "31c3b12bdf8dd9780ab07e5e55c96a2f2bfdaec7c1725b6c4930dec1f278098e",
+      "shaRestored": "fed5aa902d199bf47d3935f9a8f950f7f1fdf5c871b3c2310c271b2f7d02b344"
+    },
+    "src/workbench/production/releaseUnknownSubmission.ts": {
+      "shaFixed": "2de2ccf3f96e1ea1ea6d49f897e0784fa7b32b524012c80ba17703812c7cb312",
+      "shaBaseline": "cb39c0f04bdf824f157efacef551bd3a8212afa748f75ba3a1088441a4db2fc9",
+      "shaRestored": "2de2ccf3f96e1ea1ea6d49f897e0784fa7b32b524012c80ba17703812c7cb312"
+    },
+    "src/workbench/production/useProductionStatus.ts": {
+      "shaFixed": "46c636ed263971064b11c6ec1c5bc0cde90ff262117476815d1a7c0ded01b441",
+      "shaBaseline": "090df4e4be9a5fc7e37d1469c1ad9ae7f97717d0e051cc780d8d8021cf3d6ee1",
+      "shaRestored": "46c636ed263971064b11c6ec1c5bc0cde90ff262117476815d1a7c0ded01b441"
+    },
+    "src/workbench/taskCenter/TaskCenterPanel.tsx": {
+      "shaFixed": "6bb897bb31d1470d4e1b2740e5c7022974442d1c76360d8c182856b932f0e801",
+      "shaBaseline": "56881d47d89ab5d0b3df92dee6c6f28f2eaa9fadcdb8005cfc931947d9aef4ff",
+      "shaRestored": "6bb897bb31d1470d4e1b2740e5c7022974442d1c76360d8c182856b932f0e801"
+    },
+    "src/workbench/taskCenter/taskCenterEntries.ts": {
+      "shaFixed": "de48e73a0057bcc29291cf046cb4f51921d54325e60a45b00697950034d46020",
+      "shaBaseline": "ede20e5d8c2f1302938a731d9b3247f1600ec78f7fffee7fe831c93aa2ec8eae",
+      "shaRestored": "de48e73a0057bcc29291cf046cb4f51921d54325e60a45b00697950034d46020"
+    }
+  },
+  "commands": {
+    "continue-baseline-build": 0,
+    "continue-baseline-walk": 1,
+    "continue-baseline-restored-build": 0
+  },
+  "restoredByteForByte": true
+}

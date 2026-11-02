@@ -1,0 +1,32 @@
+{
+  "name": "golden-path",
+  "mode": "development",
+  "tempRoot": "[isolated test data]",
+  "outputDir": "[worktree]/.tmp/golden-path-1793576772438",
+  "launches": [
+    {
+      "packaged": false,
+      "appPath": "[worktree]",
+      "userData": "[isolated test path]",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 38864
+    }
+  ],
+  "screenshots": [
+    "[worktree]/.tmp/golden-path-1793576772438/01-new-empty-project.png",
+    "[worktree]/.tmp/golden-path-1793576772438/02-script-written.png",
+    "[worktree]/.tmp/golden-path-1793576772438/03-original-three-shot-editor-before-placement.png",
+    "[worktree]/.tmp/golden-path-1793576772438/04-original-shot2-agent-patch-keeps-viewport.png"
+  ],
+  "paidCalls": 0,
+  "positiveControl": false,
+  "journey": "original-storyboard-editor",
+  "projectId": "project-1793576774914-p56tzz",
+  "projectRoot": "[isolated test data]",
+  "textRequests": 4,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "failed",
+  "error": "Error: A single shot the user starts goes straight to the provider without a confirmation card\n\nA single shot the user starts goes straight to the provider without a confirmation card\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 1\nReceived: 0\n\nCall Log:\n- Timeout 30000ms exceeded while waiting on the predicate\n    at captureRawStack ([worktree]/node_modules/.pnpm/playwright-core@1.60.0_patch_hash=50fa230a1646acb5b2b24132532d75f19eeee84a502698e512ae767086a24dd3/node_modules/playwright-core/lib/coreBundle.js:3130:17)\n    at callMatcherAsStep ([worktree]/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)\n    at Object.toBe ([worktree]/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)\n    at Proxy.<anonymous> ([worktree]/tests/ux/_collect.mjs:18:32)\n    at runOriginalStoryboardGolden ([worktree]/tests/ux/_goldenOriginalStoryboard.mjs:142:107)\n    at async file://[worktree]/tests/ux/golden-path.e2e.mjs:455:5"
+}

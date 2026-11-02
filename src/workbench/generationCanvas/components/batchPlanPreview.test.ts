@@ -188,7 +188,8 @@ describe('runPlanWithToasts concurrency', () => {
         failures: [],
       })
 
-    await runPlanWithToasts(plan({ waves: [['a']] }), { concurrency: 4, assetUploadConsent: 'not-needed', project: openProject() })
+    const staleAuthorGuard = vi.fn(async () => { throw new Error('Storyboard target changed') })
+    await runPlanWithToasts(plan({ waves: [['a']] }), { concurrency: 4, assetUploadConsent: 'not-needed', project: openProject(), assertAuthorCurrent: staleAuthorGuard })
     const failedToast = mocks.toastPush.mock.calls[0][0]
     expect(failedToast).toMatchObject({
       id: `${BATCH_RUN_TOAST_ID}:project-a:a`,

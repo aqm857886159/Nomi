@@ -10,7 +10,7 @@ import { cancelComfyCandidateTest, failComfyCandidateEnvelope, runComfyCandidate
 import { registerQuitDrain } from "../quitTeardown";
 
 type RuntimeLoader = () => Promise<typeof import("../runtime")>;
-type CanvasShotCore = Pick<typeof import("../capabilityCore/appIntegration"), "consentCanvasShots" | "submitCanvasShot" | "pollCanvasShot" | "releaseCanvasShot" | "withdrawCanvasShots" | "releaseCanvasShotSender">;
+type CanvasShotCore = Pick<typeof import("../capabilityCore/appIntegration"), "canvasUnknownRuns" | "consentCanvasShots" | "submitCanvasShot" | "pollCanvasShot" | "releaseCanvasShot" | "withdrawCanvasShots" | "releaseCanvasShotSender">;
 type CoreLoader = () => Promise<CanvasShotCore>;
 
 const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
@@ -104,6 +104,14 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
     const runRecordId = str(raw.runRecordId);
     if (!projectId || !runRecordId) throw new Error("canvas generation poll is invalid");
     return runTaskIpcGuard(payload, async () => withTaskOwner(event.sender.id, async () => (await loadCore()).pollCanvasShot({ projectId, runRecordId, senderId: event.sender.id })));
+  });
+  ipcMain.handle("nomi:tasks:canvas-unknown-runs", async (event, payload) => {
+    assertTrustedSender(event);
+    const raw = (payload || {}) as { projectId?: unknown; nodeId?: unknown };
+    const projectId = str(raw.projectId);
+    const nodeId = str(raw.nodeId);
+    if (!projectId || !nodeId) throw new Error("canvas unknown run query is invalid");
+    return (await loadCore()).canvasUnknownRuns({ projectId, nodeId });
   });
   ipcMain.handle("nomi:tasks:canvas-release", async (event, payload) => {
     assertTrustedSender(event);

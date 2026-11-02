@@ -100,3 +100,10 @@ describe('「已提交、没取回」错误卡的主按钮按任务来源分', (
     expect(reopenRecoverableNode(canvasNode())).toBe(false)
   })
 })
+
+
+it.each(['zh-CN', 'en'])('C1: %s canvas submission unknown exposes the existing release confirmation', async lang => {
+  await i18n.changeLanguage(lang)
+  const markup = renderToStaticMarkup(<NodeErrorReport message={tagNomiError('submission-unknown', 'not confirmed')} nodeId="canvas-node" run={{ id: 'canvas-record' }} meta={{}} onRetry={() => {}} />)
+  expect(markup).toContain(renderToStaticMarkup(<span>{i18n.t('generationCommon.observability.action.releaseRegenerate.alt')}</span>).slice(6, -7))
+})

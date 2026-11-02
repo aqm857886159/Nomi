@@ -34,7 +34,7 @@ import {
   canvasLastResult,
   type CanvasTaskResult,
 } from "./canvasTransportProvider";
-import { failedResult, latestJob, readyArtifact, resultFromArtifact } from "./canvasShotResult";
+import { blockingReason, failedResult, latestJob, readyArtifact, resultFromArtifact } from "./canvasShotResult";
 import { freezeCanvasExecutionContract, type PlanCandidate } from "./executionContract";
 import type { GenerationProvider, GenerationProviderOutput } from "./generationRuntimeAdapter";
 import { mainProcessGateApproval } from "./runOwnedGenerationGateAuthority";
@@ -146,16 +146,6 @@ function coded(message: string, code: string, reason: string): Error {
 }
 
 /** 这个画布单镜 Run 是替哪个制作 Run 的哪一镜交的（建同意时记在来历里）。 */
-
-/** 同节点还有一笔没收尾：在路上的说「还在生成」，可能已扣钱、结果不明的说「先去核对」。 */
-function blockingReason(run: ProductionRun | null): "in_flight" | "needs_reconcile" | null {
-  if (!run) return null;
-  for (const job of run.jobs) {
-    if (job.status === "submission_unknown" || job.status === "reconciling") return "needs_reconcile";
-    if (job.status === "submit_intent_persisted" || productionJobPhase(job.status) === "generating") return "in_flight";
-  }
-  return null;
-}
 
 /** 批量卡上同意了、还没轮到交的那一镜：草稿、出价开着、这一镜还没决定、一笔作业都没有。 */
 function consentedDraft(run: ProductionRun | null): run is ProductionRun {
@@ -300,16 +290,20 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
    * 同一节点：进程内有一笔正在交 → 拒；盘上有没收尾的 Run → 拒（收尾了的标记顺手删掉）。
    * 批量卡上同意了、还没轮到的那一镜不算在途（它什么都还没交）；`ownRunId` 是这一次自己要交的那个 Run。
    */
+  function nodeBlockingRuns(projectId: string, projectRoot: string, nodeId: string) {
+    return openCanvasRuns(projectRoot, nodeId).map(open => {
+      const run = repository().read(projectId, open.runId);
+      return { ...open, run, reason: consentedDraft(run) ? null : blockingReason(run) };
+    });
+  }
+
   function assertNodeIdle(projectId: string, projectRoot: string, nodeId: string, ownRunId: string): void {
     if (nodesInFlight.has(`${projectId}\u0000${nodeId}`))
       throw coded(`node_generation_in_flight: ${nodeId}`, "node_generation_in_flight", "in_flight");
-    for (const open of openCanvasRuns(projectRoot, nodeId)) {
-      if (open.runId === ownRunId) continue;
-      const run = repository().read(projectId, open.runId);
-      if (consentedDraft(run)) continue;
-      const reason = blockingReason(run);
+    for (const { runId, run, reason } of nodeBlockingRuns(projectId, projectRoot, nodeId)) {
+      if (runId === ownRunId || consentedDraft(run)) continue;
       if (!reason) {
-        markCanvasRunSettled(projectRoot, open.runId);
+        markCanvasRunSettled(projectRoot, runId);
         continue;
       }
       if (reason === "needs_reconcile")
@@ -833,6 +827,15 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       }
     },
     /** 打开项目：只看还挂着「没收尾」标记的画布 Run；没人在等的交给观察者，没人会再交的同意收回，收尾了的删标记。 */
+    /** Read the same occupancy as admission; rejected renderer records are not Run identities. */
+    unknownRuns(input: { projectId: string; nodeId: string }): Array<{ runId: string; jobId: string }> {
+      const { projectRoot } = identity(input.projectId);
+      return nodeBlockingRuns(input.projectId, projectRoot, input.nodeId).flatMap(({ runId, run, reason }) => {
+        if (reason !== "needs_reconcile") return [];
+        const job = run?.jobs.find(value => value.status === "submission_unknown" || value.status === "reconciling");
+        return job ? [{ runId, jobId: job.jobId }] : [];
+      });
+    },
     recoverOrphans(projectId: string): void {
       const projectRoot = deps.resolveProjectRoot(projectId);
       if (!projectRoot) return;
@@ -849,6 +852,7 @@ export type CanvasShotRuns = ReturnType<typeof createCanvasShotRuns>;
 
 export {
   consentCanvasShots,
+  canvasUnknownRuns,
   installCanvasShotRuns,
   pollCanvasShot,
   releaseCanvasShot,

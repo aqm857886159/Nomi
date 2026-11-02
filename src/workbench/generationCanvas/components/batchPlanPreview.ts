@@ -264,7 +264,7 @@ export async function runPlanWithToasts(
   plan: DependencyWavePlan,
   // assetUploadConsent 必填：整批的托管同意在上面那张批量花钱卡里问过了，这里只是把答案带下去。
   // 缺省会让 runner 无从判断「谁问的用户」，那正是 F16b 第二张卡的来源。
-  options: { assertAuthorCurrent?: () => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; canvasRunRecordIds?: ReadonlyMap<string, string>; concurrency?: number; assetUploadConsent: 'allow' | 'not-needed'; project: ProjectExecutionContext },
+  options: { assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>; assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void; canvasRunRecordIds?: ReadonlyMap<string, string>; concurrency?: number; assetUploadConsent: 'allow' | 'not-needed'; project: ProjectExecutionContext },
 ): Promise<void> {
   // 运行属于发起它的项目：身份（target）在这里定死，之后用户切项目也照样落回原项目。
   const target: RunProjectTarget = options.project.binding
@@ -333,9 +333,7 @@ export async function runPlanWithToasts(
           void confirmAndRunPlan(
             buildDependencyWaves(failureIds, { nodes: state.nodes, edges: state.edges }),
             // 通知里的「重试失败的」是人按的这一下，不继承原批次的发起方。
-            options.assertAuthorCurrent
-              ? { concurrency: options.concurrency, assertCurrent: options.assertAuthorCurrent, assertAuthorCurrent: options.assertAuthorCurrent, initiator: 'user' }
-              : { concurrency: options.concurrency, initiator: 'user' },
+            { concurrency: options.concurrency, initiator: 'user' },
           )
         },
       })

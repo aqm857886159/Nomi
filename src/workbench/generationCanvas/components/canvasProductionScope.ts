@@ -1,3 +1,4 @@
+import { selectIsNodeQueued, useGenerationQueueStore } from '../runner/generationQueueStore'
 import { isNodeGenerationOwnedByProduction, type ProductionRunsById } from '../../production/productionShotOwnership'
 import type { GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
@@ -40,7 +41,7 @@ export function nodesInCanvasProductionScope(
 /** 这个节点此刻在生成 / 排队，或归制作流程占着（再派一次 = 重复扣费）。逐项勾选里这类行锁住、不能勾。 */
 export function isGenerationNodeBusy(node: GenerationCanvasNode | undefined, productionRuns: ProductionRunsById = {}): boolean {
   if (!node) return false
-  return node.status === 'queued' || node.status === 'running' || isNodeGenerationOwnedByProduction(node, productionRuns)
+  return selectIsNodeQueued(useGenerationQueueStore.getState(), node.id) || node.status === 'queued' || node.status === 'running' || isNodeGenerationOwnedByProduction(node, productionRuns)
 }
 
 export function eligibleGenerationNodeIds(
@@ -52,7 +53,7 @@ export function eligibleGenerationNodeIds(
     .filter((node) => {
       if (!getGenerationNodeExecutionKind(node.kind)) return false
       // 归制作流程生成的镜头（报价卡等确认 / 排队 / 生成中）节点状态仍是 idle——再算进「生成整组」就是重复扣费。
-      if (isNodeGenerationOwnedByProduction(node, productionRuns)) return false
+      if (isGenerationNodeBusy(node, productionRuns)) return false
       const status = node.status ?? 'idle'
       return status === 'idle' || status === 'error'
     })

@@ -1,3 +1,6 @@
+import { autoReferenceFromCanvas } from '../creation/storyboard/exec/storyboardAutoReference'
+import { mentionUrlsInOrder } from '../assets/promptMentions'
+vi.mock('../generationCanvas/runner/runProjectDelivery', async original => ({ ...await original<typeof import('../generationCanvas/runner/runProjectDelivery')>(), isRunTargetLoaded: () => true }))
 import { beforeEach, expect, it, vi } from 'vitest'
 import { presentStoryboard } from './storyboardPresent'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -139,7 +142,56 @@ it('passes a persistent source check separately from the foreground materializat
   const guards = calls.confirm.mock.calls[0][1]
   calls.current = false
   await expect(guards.assertCurrent()).rejects.toThrow('changed project')
-  await expect(guards.assertAuthorCurrent()).resolves.toBeUndefined()
+  await expect(guards.assertAuthorCurrent({ nodes: shotNodes(), edges: [] }, shotNodes()[0].id)).resolves.toBeUndefined()
   editPlan(next => { next.shots[0].prompt = 'changed source after approval' })
-  await expect(guards.assertAuthorCurrent()).rejects.toThrow('storyboard_content_conflict')
+  await expect(guards.assertAuthorCurrent({ nodes: shotNodes(), edges: [] }, shotNodes()[0].id)).rejects.toThrow('storyboard_content_conflict')
+})
+
+
+it('A10: another shot changing during preload does not invalidate this shot approval', async () => {
+  calls.preload.mockImplementationOnce(async () => { editPlan(next => { next.shots[1].prompt = 'Another shot changed' }); return [] })
+  await expect(presentStoryboard(input(['shot-1']))).resolves.toMatchObject({ decision: 'started' })
+})
+it('A9: runtime author validation targets only the executing node', async () => {
+  await presentStoryboard(input(['shot-1', 'shot-2']))
+  const guards = calls.confirm.mock.calls[0][1]
+  const nodes = shotNodes()
+  editPlan(next => { next.shots[1].prompt = 'Changed while queued' })
+  await expect(guards.assertAuthorCurrent({ nodes, edges: [] }, nodes.find(n => n.meta?.shotId === 'shot-1')!.id)).resolves.toBeUndefined()
+  await expect(guards.assertAuthorCurrent({ nodes, edges: [] }, nodes.find(n => n.meta?.shotId === 'shot-2')!.id)).rejects.toThrow('storyboard_content_conflict')
+})
+it('A5: Agent explicitly refreshes reference images and modes between anchor and shot phases without an editor', async () => {
+  editPlan(next => {
+    next.anchors = [{ id: 'actor', kind: 'character', carrier: 'visual', name: 'Actor', description: 'Actor' }]
+    next.shots = next.shots.map(s => ({ ...s, anchorIds: ['actor'], prompt: 'Actor walks', modelKey: 'seedance-2-5', modelVendor: 'kie', modeId: 't2v' }))
+  })
+  calls.single.mockImplementation(async (_id, guards) => {
+    const id = await guards.deferredMaterialization.materialize()
+    useGenerationCanvasStore.getState().addNodeResult(id, { id: 'ready-actor', type: 'image', url: 'https://fixture.invalid/actor.png', createdAt: 1 })
+    return 'started'
+  })
+  await presentStoryboard({ projectId: 'p', designId: 'run', sourceDocumentId: 'doc' })
+  expect(design().plan.shots.every(s => mentionUrlsInOrder(s.prompt).includes('https://fixture.invalid/actor.png'))).toBe(true)
+  expect(design().plan.shots.every(s => s.modeId === 'omni')).toBe(true)
+})
+
+
+it('A5: two asset approvals survive the mounted editor refreshing other shot references after the first asset', async () => {
+  editPlan(next => {
+    next.anchors = [
+      { id: 'actor', kind: 'character', carrier: 'visual', name: 'Actor', description: 'Actor' },
+      { id: 'shop', kind: 'scene', carrier: 'visual', name: 'Shop', description: 'Shop' },
+    ]
+    next.shots = next.shots.map(s => ({ ...s, anchorIds: ['actor', 'shop'], prompt: 'Actor walks in Shop', modelKey: 'seedance-2-5', modelVendor: 'kie', modeId: 't2v' }))
+  })
+  calls.single.mockImplementation(async (_id, guards) => {
+    const id = await guards.deferredMaterialization.materialize()
+    const nodes = useGenerationCanvasStore.getState()
+    nodes.addNodeResult(id, { id: 'image-' + id, type: 'image', url: 'https://fixture.invalid/' + id + '.png', createdAt: 1 })
+    editPlan(next => Object.assign(next, autoReferenceFromCanvas(next, 'run', useGenerationCanvasStore.getState().nodes, [])))
+    return 'started'
+  })
+  await expect(presentStoryboard({ projectId: 'p', designId: 'run', sourceDocumentId: 'doc' })).resolves.toMatchObject({ decision: 'started' })
+  expect(calls.single).toHaveBeenCalledTimes(2)
+  expect(design().plan.shots.every(s => mentionUrlsInOrder(s.prompt).length === 2)).toBe(true)
 })

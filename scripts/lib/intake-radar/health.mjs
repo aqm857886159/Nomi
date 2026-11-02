@@ -7,10 +7,10 @@ const pct = value => value === null ? '无分母' : `${(100 * value).toFixed(1)}
 const points = value => `${value >= 0 ? '+' : ''}${(100 * value).toFixed(1)} 点`
 function counts(events) {
   const success = events.filter(e => e.props?.result === 'success').length
-  const failures = events.filter(e => e.props?.result === 'failure')
+  const failures = events.filter(e => e.props?.result === 'failure' && e.props.errorType !== 'local-refusal')
   const failure = failures.length
   const cancel = events.filter(e => e.props?.result === 'cancel').length
-  const unknown = events.length - success - failure - cancel
+  const unknown = events.filter(e => !['success', 'failure', 'cancel'].includes(e.props?.result)).length
   const n = success + failure
   const identified = failures.filter(e => typeof e.sessionId === 'string' && e.sessionId.trim())
   return { success, failure, cancel, unknown, n, total: events.length, rate: n ? failure / n : null,
@@ -88,7 +88,7 @@ export function buildVersionHealth(events, { generatedAt, newVersion, oldVersion
     compare(`generation.${capability}`, `${capability}失败率`, counts(a), counts(b))
     const local = list => counts(list.filter(e => e.props?.result === 'failure').map(e => {
       const known = typeof e.props.errorType === 'string' && e.props.errorType.length > 0 && ['<1s', '1-5s', '>5s'].includes(e.props.durationBucket)
-      return { ...e, props: { result: !known ? 'unknown' : e.props.errorType === 'unknown' && e.props.durationBucket === '<1s' ? 'failure' : 'success' } }
+      return { ...e, props: { result: !known ? 'unknown' : (e.props.errorType === 'local-refusal' || e.props.errorType === 'unknown' && e.props.durationBucket === '<1s') ? 'failure' : 'success' } }
     }))
     compare(`local.${capability}`, `${capability}疑似本地拒绝占失败`, local(a), local(b))
   }

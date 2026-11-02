@@ -73,7 +73,7 @@ import { createCanvasHandOver } from './canvasHandOver'
 import { canvasTransportProviders, isCanvasProviderId, lazyCanvasTransport } from './canvasTransportProvider'
 import { quoteSpendLine } from '../spendQuote'
 import { createGenerationReferenceScopeGuard } from './generationReferenceScope'
-export { consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
+export { canvasUnknownRuns, consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
 // 付费卡的四个动作住在它自己的模块里（这里只装配）。main.ts 的 IPC 经能力核门面转调，所以门面要露出这四个名字。
 export { handOverPendingSpendShots, discardPendingSpendConfirmation, removePendingSpendShot, restorePendingSpendShot } from './appIntegrationSpendConfirm'
 import { repairStaleMcpConfigs } from './mcpConfig'

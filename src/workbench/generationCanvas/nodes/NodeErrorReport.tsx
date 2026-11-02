@@ -1,20 +1,26 @@
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { confirmAndRunNode } from '../runner/generationRunController'
+import { dismissRecoverableNode, recoverNodeResult } from '../runner/recoverTaskActions'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { localStepRedoOf } from './localStepRedo'
+import { useProductionNodeRetry } from './useProductionNodeRetry'
+import { NodeRecoverableReport } from './NodeRecoverableReport'
 import React, { type JSX } from 'react'
 import { GenerationStatusBar } from './GenerationStatusBar'
 import { MODEL_ACCESS_ENTRY } from '../../../../electron/shared/contracts/modelAccessCapabilities'
 import { useTranslation } from 'react-i18next'
 import { IconListCheck, IconListDetails, IconRefresh, IconReplace, IconSettings, IconWand, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { DecisionBar, WorkbenchButton } from '../../../design'
+import { WorkbenchButton, DecisionBar } from '../../../design'
 import { isKnownVendor } from '../../../config/knownVendors'
 import { notifyModelOptionsRefresh } from '../../../config/modelCatalogCache'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { setPendingCustomCallIntent } from '../../../ui/onboarding/customCallIntent'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
-import { classifyGenerationError, confirmAndRunNode } from '../runner/generationRunController'
-import { releaseUnknownSubmissionForNode } from '../../production/releaseUnknownSubmission'
-import { productionRunApi } from '../../production/productionRunApi'
-import { narrateErrorActionLabel, narrateGenerationErrorWithoutTask, narrateModelKind, type GenerationErrorAction } from '../../observability/narrate'
+import { generationFailureActions } from '../../observability/generationFailureActions'
+import { useUnknownSubmissionRelease } from '../../production/releaseUnknownSubmission'
+import { narrateErrorActionLabel, narrateModelKind, type GenerationErrorAction } from '../../observability/narrate'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { CopyDetailsButton, ProviderMessageNote, TechnicalDetailsBlock, TechnicalDetailsToggle } from './NodeFailureDetails'
 import { stageForGenerationError } from '../../../ui/community/feedbackTypes'
@@ -24,7 +30,6 @@ import { useSameCapabilityAlternative } from './useSameCapabilityAlternative'
 import { productionMetaOf } from '../model/productionMeta'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { reopenRecoverableNode } from '../runner/recoverTaskActions'
-import { isProductionRunRecord } from '../../../../electron/shared/productionShotPhase'
 
 const ACTION_ICON: Record<GenerationErrorAction, typeof IconRefresh> = {
   retry: IconRefresh,
@@ -78,18 +83,11 @@ export function NodeErrorReport({
   nodeId?: string
 }): JSX.Element {
   const { t } = useTranslation()
-  const report = React.useMemo(() => classifyGenerationError(message), [message])
+  const report = generationFailureActions(message, { ...run, productionRunId: productionMetaOf({ meta })?.runId })
   const taskId = run?.taskId
-  const runRecordId = run?.id
-  // 这次失败有没有可以再查的任务：节点记着任务号（画布任务），或这条记录是制作投影写的（任务住在制作 Run 里）。
-  // 都没有 = 同步供应商的结果只在那一次回答里（2026-10-28）：说明和动作都换成不暗示能取回的那一版（narrate 那张表）。
-  const withoutTask = React.useMemo(
-    () => (!taskId?.trim() && !isProductionRunRecord({ id: runRecordId }) ? narrateGenerationErrorWithoutTask(report.kind) : null),
-    [report.kind, runRecordId, taskId],
-  )
-  const hint = withoutTask?.hint ?? report.hint
-  const reportPrimary = withoutTask?.primary ?? report.primary
-  const reportSecondary = withoutTask ? withoutTask.secondary : report.secondary
+  const hint = report.hint
+  const reportPrimary = report.primary
+  const reportSecondary = report.secondary
   // 自定义调用入口目标：节点当前模型属于「自定义/中转家」才给（内置家各有专属通道，不添噪音）。
   const customCallTarget = React.useMemo(() => {
     const { modelKey, vendorKey } = nodeSelectedModelAddress(meta)
@@ -113,10 +111,7 @@ export function NodeErrorReport({
     [customCallTarget],
   )
   const [showRaw, setShowRaw] = React.useState(false)
-  // 「我核对过了」：点下去先在卡里展开一段确认（不弹系统对话框），确认后只释放占用、再走正常的付费确认卡。
-  const [confirmingRelease, setConfirmingRelease] = React.useState(false)
-  const [releaseBusy, setReleaseBusy] = React.useState(false)
-  const [releaseFailed, setReleaseFailed] = React.useState(false)
+  const release = useUnknownSubmissionRelease(nodeId, meta)
   const rootRef = React.useRef<HTMLDivElement>(null)
 
   const handleRetry = React.useCallback(
@@ -166,25 +161,6 @@ export function NodeErrorReport({
     event.stopPropagation()
     window.dispatchEvent(new CustomEvent('nomi-open-model-catalog'))
   }, [])
-
-  const releaseRunId = productionMetaOf({ meta })?.runId
-  const handleReleaseContinue = React.useCallback((event?: React.MouseEvent) => {
-    event?.stopPropagation()
-    const nodeId = rootRef.current?.closest('[data-node-id]')?.getAttribute('data-node-id')
-    if (!nodeId || !releaseRunId || releaseBusy) return
-    setReleaseBusy(true)
-    setReleaseFailed(false)
-    withProjectAction((project) => {
-      void releaseUnknownSubmissionForNode(project.binding.projectId, releaseRunId, nodeId, productionRunApi)
-        .then((released) => {
-          setConfirmingRelease(false)
-          // 放行只是释放占用；真正的生成要用户在这一镜正常的付费确认卡上点（confirmAndRunNode 弹卡，不点就不发）。
-          if (released) void confirmAndRunNode(nodeId, { initiator: 'user' })
-        })
-        .catch(() => setReleaseFailed(true))
-        .finally(() => setReleaseBusy(false))
-    })
-  }, [releaseBusy, releaseRunId])
 
   // 画布任务（不是制作 Run）且节点记着这次的 taskId：才回得到可找回面板。
   const canvasRetrievable = Boolean(nodeId && taskId?.trim() && !productionMetaOf({ meta })?.runId)
@@ -252,13 +228,13 @@ export function NodeErrorReport({
     reconcile: handleReconcile,
     'view-task': handleReconcile,
     'open-recoverable': canvasRetrievable ? handleOpenRecoverable : undefined,
-    // 只有制作里的镜（有 runId）才放得了行；放行是把 Run 里那次未知尝试记掉，没有 Run 就没东西可记。
-    'release-regenerate': releaseRunId ? (event: React.MouseEvent) => { event.stopPropagation(); setConfirmingRelease(true) } : undefined,
+    // 画布在继续时向主进程查询占用；制作镜沿用元数据里的 Run。
+    'release-regenerate': nodeId ? (event: React.MouseEvent) => { event.stopPropagation(); release.open() } : undefined,
   }
   // 主动作点不了（例：同能力里没有另一个）时退到次动作，再不行才去模型接入。
   // 「已提交、没取回」那一类的去处按任务来源分：制作 Run 去「查看制作任务」（任务中心里那一笔）；画布任务回到可找回面板
   // 「去重新取回」——画布任务上写「查看制作任务」会误导（那是 Agent 制作任务的说法），而任务中心也不是重新取回的地方。
-  const sourcePrimary: GenerationErrorAction = reportPrimary === 'view-task' && canvasRetrievable ? 'open-recoverable' : reportPrimary
+  const sourcePrimary: GenerationErrorAction = reportPrimary
   const primaryAction = actionHandlers[sourcePrimary] ? sourcePrimary : reportSecondary && actionHandlers[reportSecondary] ? reportSecondary : 'open-model-access'
   const secondaryAction = reportSecondary && reportSecondary !== primaryAction && actionHandlers[reportSecondary] ? reportSecondary : null
   // 「改成图片」要点出改成**哪个**类型，否则按钮只是「改类型」——用户还得自己再想一步。
@@ -357,22 +333,8 @@ export function NodeErrorReport({
           flex-wrap + 每颗 shrink-0 whitespace-nowrap：不加的话 flex 会压缩次要按钮，把文案**从词中间
           断开**成「换个模/型」「复制详/情」（2026-08-11 走查截图实拍）。几何断言抓不到它——没有溢出、
           没有越界，只是难看得像坏了。窄处该做的是整颗换行，不是把字劈两半（AssistantErrorCard 同款处理）。 */}
-      {confirmingRelease ? (
-        <div data-release-confirm className="mb-1 grid gap-2" onPointerDown={(event) => event.stopPropagation()}>
-          <p className="text-caption leading-snug text-nomi-ink-80">{t('generationCommon.observability.releaseConfirm.message')}</p>
-          {releaseFailed ? <p className="text-micro text-workbench-danger">{t('generationCommon.observability.releaseConfirm.failed')}</p> : null}
-          <DecisionBar
-            cancelLabel={t('generationCommon.observability.releaseConfirm.cancel')}
-            onCancel={() => { setConfirmingRelease(false); setReleaseFailed(false) }}
-            primaryLabel={t('generationCommon.observability.releaseConfirm.continue')}
-            onPrimary={handleReleaseContinue}
-            primaryDisabled={releaseBusy}
-            tone="danger"
-            dangerClassName="bg-workbench-danger text-nomi-paper hover:bg-workbench-danger"
-          />
-        </div>
-      ) : null}
-      <div className={cn('flex flex-wrap items-center gap-2', confirmingRelease && 'hidden')}>
+      {release.confirming ? <UnknownSubmissionConfirmation release={release} /> : null}
+      <div className={cn('flex flex-wrap items-center gap-2', release.confirming && 'hidden')}>
         {(() => {
           const PrimaryIcon = ACTION_ICON[primaryAction]
           const label = narrateErrorActionLabel(primaryAction, 'primary', actionLabelParams)
@@ -406,4 +368,34 @@ export function NodeErrorReport({
       </div>
     </div>
   )
+}
+
+export function UnknownSubmissionConfirmation({ release }: { release: ReturnType<typeof useUnknownSubmissionRelease> }) {
+  const { t } = useTranslation()
+  return <div data-release-confirm className="mb-1 grid gap-2" onPointerDown={(event) => event.stopPropagation()}>
+    <p className="text-caption leading-snug text-nomi-ink-80">{t('generationCommon.observability.releaseConfirm.message')}</p>
+    {release.failed ? <p className="text-micro text-workbench-danger">{t('generationCommon.observability.releaseConfirm.failed')}</p> : null}
+    <DecisionBar cancelLabel={t('generationCommon.observability.releaseConfirm.cancel')} onCancel={release.cancel}
+      primaryLabel={t('generationCommon.observability.releaseConfirm.continue')} onPrimary={() => { void release.continueRelease() }} primaryDisabled={release.busy}
+      tone="danger" dangerClassName="bg-workbench-danger text-nomi-paper hover:bg-workbench-danger" />
+  </div>
+}
+
+/** The canvas and list inspector host the same recovery surface and retry route. */
+export function NodeFailureReport({ node, onFeedback, summaryVisible = true }: {
+  node: GenerationCanvasNode
+  onFeedback: (message: string) => void
+  summaryVisible?: boolean
+}) {
+  const productionRetry = useProductionNodeRetry(node, onFeedback)
+  if (node.status === 'error' && node.error) return <NodeErrorReport
+    summaryVisible={summaryVisible} message={node.error} meta={node.meta} nodeId={node.id} run={node.runs?.[0]}
+    onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
+    onRetry={node.kind === 'asset' && node.meta?.source === 'clipboard-url' ? undefined
+      : productionRetry ?? localStepRedoOf(node, onFeedback) ?? (() => { void confirmAndRunNode(node.id, { initiator: 'user' }) })}
+  />
+  if (node.status === 'recoverable') return <NodeRecoverableReport node={node}
+    onRecover={() => { withProjectAction((project) => { void recoverNodeResult(node.id, project) }) }}
+    onDismiss={() => dismissRecoverableNode(node.id)} />
+  return null
 }

@@ -1,0 +1,50 @@
+{
+  "name": "golden-path",
+  "mode": "development",
+  "tempRoot": "[isolated test data]",
+  "outputDir": "[worktree]/.tmp/golden-path-1793577515305",
+  "launches": [
+    {
+      "packaged": false,
+      "appPath": "[worktree]",
+      "userData": "[isolated test path]",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 58811
+    },
+    {
+      "packaged": false,
+      "appPath": "[worktree]",
+      "userData": "[isolated test path]",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 59249
+    }
+  ],
+  "screenshots": [
+    "[worktree]/.tmp/golden-path-1793577515305/01-new-empty-project.png",
+    "[worktree]/.tmp/golden-path-1793577515305/02-script-written.png",
+    "[worktree]/.tmp/golden-path-1793577515305/03-original-three-shot-editor-before-placement.png",
+    "[worktree]/.tmp/golden-path-1793577515305/04-original-shot2-agent-patch-keeps-viewport.png",
+    "[worktree]/.tmp/golden-path-1793577515305/05-original-shot2-generated-real-jpg.png",
+    "[worktree]/.tmp/golden-path-1793577515305/06-original-editor-cold-restored-fields-and-result.png"
+  ],
+  "paidCalls": 0,
+  "positiveControl": false,
+  "journey": "original-storyboard-editor",
+  "projectId": "project-1793577517831-k8not6",
+  "projectRoot": "[isolated test data]",
+  "verified": [
+    "document-draft-saves-with-zero-nodes",
+    "original-editor-complete-author-fields",
+    "explicit-original-placement-stable-binding",
+    "agent-patches-only-shot2-with-stable-canvas-viewport",
+    "original-single-shot-approval-exactly-one-image",
+    "original-editor-cold-restore",
+    "zero-restart-model-requests"
+  ],
+  "textRequests": 4,
+  "imageRequests": 1,
+  "unexpected": [],
+  "result": "passed"
+}

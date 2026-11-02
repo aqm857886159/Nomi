@@ -22,6 +22,10 @@
     {
       "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
       "symbol": "outcomeError"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode"
     }
   ],
   "forbidden_derivations": [],
@@ -34,5 +38,5 @@
     "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts"
   ],
   "since": "2026-10-07",
-  "notes": "运行的结局（开始 / 进度 / 结果 / 文本定稿 / 状态）投到运行所属项目的唯一入口：项目在前台写 store，不在前台写盘。前台但节点已被删（删节点不取消上游任务，钱已花）：除进度外的结局经 store.holdRunOutcome 按 nodeId 暂存在 store（heldNodeOutcomes），任何一扇门（撤销、放回节点、外部写）把节点带回来时由画布写边界统一提交口落上去。合同 docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json、docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json。 #1213：结局带的原因由 nodeRunOutcome.outcomeError 一处决定——失败要有原因、可找回保留传进来的取回失败原话、纯超时不编。"
+  "notes": "运行的结局（开始 / 进度 / 结果 / 文本定稿 / 状态）投到运行所属项目的唯一入口：项目在前台写 store，不在前台写盘。前台但节点已被删（删节点不取消上游任务，钱已花）：除进度外的结局经 store.holdRunOutcome 按 nodeId 暂存在 store（heldNodeOutcomes），任何一扇门（撤销、放回节点、外部写）把节点带回来时由画布写边界统一提交口落上去。合同 docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json、docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json。 #1213：结局带的原因由 nodeRunOutcome.outcomeError 一处决定——失败要有原因、可找回保留传进来的取回失败原话、纯超时不编。 合同 docs/fixes/2026-11-02-generation-lock-exit.root-cause.json：runGenerationNode 是提交咽喉，取消同节点旧排队出价，按失败分类结算刹车和模型健康。"
 }

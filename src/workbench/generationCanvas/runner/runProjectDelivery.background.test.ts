@@ -155,7 +155,7 @@ it.each([false, true])('does not submit a node deleted during author validation 
   const executor = vi.fn(async (): Promise<GenerationNodeResult> => ({ id: 'forbidden-result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }))
   const run = runGenerationNode(node.id, {
     target, assetUploadConsent: 'not-needed', executor,
-    assertAuthorCurrent: async () => { checking.resolve(); await resume.promise },
+    assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); checking.resolve(); await resume.promise },
   })
   const rejected = expect(run).rejects.toThrow('node not found')
   await checking.promise
@@ -190,7 +190,7 @@ it.each([0, 1])('batch validates author target before every wave (allowed attemp
   const executor = vi.fn(async (): Promise<GenerationNodeResult> => ({ id: 'result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }))
   const outcome = await runGenerationNodesByPlan({ waves: ids.map(id => [id]), blocked: [], edgesUsed: [] }, {
     target, assetUploadConsent: 'not-needed', executor,
-    assertAuthorCurrent: async () => { if (executor.mock.calls.length >= allowed) throw new Error('storyboard_content_conflict') },
+    assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); if (executor.mock.calls.length >= allowed) throw new Error('storyboard_content_conflict') },
   })
   expect(executor).toHaveBeenCalledTimes(allowed)
   expect(outcome.failures.map(item => item.nodeId)).toEqual(ids.slice(allowed))

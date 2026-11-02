@@ -51,6 +51,8 @@ export type ShotRowExec = {
    * `recoverNodeResult`——它可能是首帧图节点，所以不能让消费方拿 `node` 猜。
    */
   recoverableNode: GenerationCanvasNode | null
+  /** The failed step may be the prerequisite keyframe. */
+  failedNode: GenerationCanvasNode | null
   ignoredAnchors: IgnoredAnchor[]
   /**
    * 缺必填参考的槽（shotRowModel.missingRequiredSlots）。画面格「缺X参考」、批量排除、场组头计数、
@@ -181,6 +183,7 @@ export function deriveShotRowExec(input: {
     node,
     keyframeNode,
     recoverableNode,
+    failedNode,
     ignoredAnchors,
     missingSlots,
     plannedFirstFrame,
@@ -226,6 +229,7 @@ export function deriveNodeRowExec(
     node,
     keyframeNode: null,
     recoverableNode,
+    failedNode,
     ignoredAnchors: [],
     missingSlots: [],
     plannedFirstFrame: null,

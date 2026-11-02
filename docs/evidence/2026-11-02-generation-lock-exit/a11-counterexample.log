@@ -1,0 +1,71 @@
+
+ RUN  v4.1.8 [worktree]
+
+ ❯ src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts (7 tests | 2 failed | 2 skipped) 13ms
+   × A11: selected-spend is compared after both plans receive automatic references 10ms
+   × A11: exclusion-based comparison includes new shot fields and all global fields except anchors/shots 0ms
+ ❯ src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts (28 tests | 2 failed | 24 skipped) 19ms
+   × A11: second phase uses the current selected rows and only skips confirmation for unchanged spend (selected-spend) 14ms
+   × A11: second phase uses the current selected rows and only skips confirmation for unchanged spend (late-spend) 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts > A11: selected-spend is compared after both plans receive automatic references
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts:61:47
+     59|     ? change === 'prompt-only' ? { ...s, prompt: 'Actor now reads in S…
+     60|   await guard.refreshReferences()
+     61|   expect(guard.hasSpendChanges(['s1', 's2'])).toBe(change === 'selecte…
+       |                                               ^
+     62|   expect(current.shots[1].prompt).toContain(change === 'prompt-only' ?…
+     63| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts > A11: exclusion-based comparison includes new shot fields and all global fields except anchors/shots
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts:70:41
+     68|   current = { ...current, shots: current.shots.map(s => s.shotId === '…
+     69|   await guard.refreshReferences()
+     70|   expect(guard.hasSpendChanges(['s1'])).toBe(true)
+       |                                         ^
+     71|   current = { ...plan(), title: 'New global' }
+     72|   await guard.refreshReferences()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts > A11: second phase uses the current selected rows and only skips confirmation for unchanged spend (selected-spend)
+ FAIL  src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts > A11: second phase uses the current selected rows and only skips confirmation for unchanged spend (late-spend)
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts:384:64
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  4 failed | 5 passed | 26 skipped (35)
+   Start at  06:31:31
+   Duration  1.21s (transform 1.13s, setup 63ms, import 2.15s, tests 32ms, environment 0ms)
+

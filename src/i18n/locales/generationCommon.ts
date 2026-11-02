@@ -495,6 +495,8 @@ export const zhGenerationCommon = {
       opaque: {
         detail: '这次生成结束时没有带回任何错误信息——这是 Nomi 这侧的缺口，不是你的操作问题。请用这张卡片上的「反馈此问题」把它发给我们，技术详情里是我们目前能拿到的全部线索。',
       },
+      localRefusal: { reason: '这次请求在本机被拦下', hint: '这次请求在本机被拦下。请处理当前节点的状态后再生成。' },
+      storyboardContentChanged: '这一镜的内容改过了，这次没发',
       nodeInFlight: { reason: '这个节点还在生成', hint: '上一次生成还没回来，这一次还没发出去。等它出结果再决定要不要重新生成。' },
       previewBlocked: { hint: '这一次没发出去。等 3D-BOX 预演挂好再生成。' },
       // 升级前留下的批量确认（没记来源节点）：先落节点、再发请求之后它不能发——如实说没发出去，要他再确认一次。
@@ -1454,7 +1456,7 @@ export const zhGenerationCommon = {
       brief: '制作摘要', direction: '创意方向', script: '剧本', storyboard: '分镜', build: '搭画布',
       generate: '生成', qa: '审片', assemble: '粗剪', export: '导出', unknown: '其他阶段',
     },
-    origin: { nomi: 'Nomi', external: '外部客户端' },
+    origin: { nomi: 'Nomi', canvas: '画布', external: '外部客户端' },
     runPanel: {
       aria: '当前制作状态',
       origin: '来自 {{host}}',
@@ -2240,6 +2242,8 @@ export const enGenerationCommon = {
       opaque: {
         detail: "This generation ended without carrying back any error information - that is a gap on Nomi's side, not something you did. Use \"Report this problem\" on this card to send it to us; the technical details hold everything we currently have.",
       },
+      localRefusal: { reason: 'This request was blocked locally', hint: 'This request was blocked locally. Resolve the current node state before generating again.' },
+      storyboardContentChanged: 'This shot changed, so it was not submitted',
       nodeInFlight: { reason: 'This node is still generating', hint: 'The previous generation has not come back yet. Nothing was sent this time; wait for its result before generating again.' },
       previewBlocked: { hint: 'Nothing was sent. Generate again once the 3D-BOX preview is attached.' },
       consentPredatesUpgrade: { reason: 'This batch was not sent after the update', hint: 'This shot was confirmed before the update and could not be sent under the new rules. Generate it again on the canvas and confirm once more.' },
@@ -3174,7 +3178,7 @@ export const enGenerationCommon = {
       brief: 'Brief', direction: 'Direction', script: 'Script', storyboard: 'Storyboard', build: 'Canvas',
       generate: 'Generate', qa: 'Review', assemble: 'Rough cut', export: 'Export', unknown: 'Other stage',
     },
-    origin: { nomi: 'Nomi', external: 'external client' },
+    origin: { nomi: 'Nomi', canvas: 'Canvas', external: 'external client' },
     runPanel: {
       aria: 'Current production status',
       origin: 'From {{host}}',

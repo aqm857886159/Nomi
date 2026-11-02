@@ -1,0 +1,68 @@
+[walkthrough] content viewport {"width":1280,"height":860}
+feel record: generation-lock-exit/waitForFunction.png; findings=67; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-9d81a7ef-2b20-4e6a-8b94-ec5b11891e92
+feel record: generation-lock-exit/zh-CN-scene-storyboard-confirm.png; findings=67; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-9d81a7ef-2b20-4e6a-8b94-ec5b11891e92
+LOCK_EXIT_STAGE_FAILURE A4: batch ended before dispatching all three shots
+
+2 !== 5
+
+feel record: generation-lock-exit/waitForFunction.png; findings=18; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-9d81a7ef-2b20-4e6a-8b94-ec5b11891e92
+feel record: generation-lock-exit/zh-CN-scene-idle-return.png; findings=18; new-surfaces=1; evidence: [worktree]/artifacts/feel/generation-lock-exit-9d81a7ef-2b20-4e6a-8b94-ec5b11891e92
+LOCK_EXIT_HEARTBEAT {"maxMs":36,"samples":311}
+AssertionError [ERR_ASSERTION]: A4: batch ended before dispatching all three shots
+
+2 !== 5
+
+    at generationLockExitJourney (file://[worktree]/tests/ux/_generationLockExitSteps.mjs:106:12)
+    at async runLockExitRehearsal (file://[worktree]/tests/ux/_generationLockExitRehearsal.mjs:43:14)
+    at async file://[worktree]/tests/ux/generation-lock-exit-real.rehearsal.walk.mjs:3:1 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 2,
+  expected: 5,
+  operator: 'strictEqual',
+  diff: 'simple',
+  report: [Object]
+}
+feel record: generation-lock-exit/zh-CN-FAIL.png; findings=18; new-surfaces=1; evidence: [worktree]/artifacts/feel/generation-lock-exit-9d81a7ef-2b20-4e6a-8b94-ec5b11891e92
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: A4: batch ended before dispatching all three shots
+
+2 !== 5
+
+    at generationLockExitJourney (file://[worktree]/tests/ux/_generationLockExitSteps.mjs:106:12)
+    at async runLockExitRehearsal (file://[worktree]/tests/ux/_generationLockExitRehearsal.mjs:43:14)
+    at async file://[worktree]/tests/ux/generation-lock-exit-real.rehearsal.walk.mjs:3:1 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 2,
+  expected: 5,
+  operator: 'strictEqual',
+  diff: 'simple',
+  report: {
+    locale: 'zh-CN',
+    stages: [],
+    heartbeat: [
+      2, 2, 0, 36, 1, 1, 2, 2, 2, 1, 1, 1,
+      1, 1, 2,  1, 1, 2, 1, 2, 2, 1, 2, 1,
+      2, 2, 1,  1, 1, 1, 2, 2, 2, 2, 3, 1,
+      2, 2, 2,  2, 2, 2, 1, 2, 2, 2, 1, 1,
+      2, 2, 2,  2, 1, 2, 3, 2, 2, 2, 1, 2,
+      2, 2, 2,  2, 2, 2, 2, 2, 2, 3, 3, 2,
+      1, 1, 2,  2, 2, 1, 2, 2, 1, 1, 2, 1,
+      3, 2, 2,  1, 2, 1, 1, 2, 2, 2, 2, 2,
+      2, 2, 2,  2,
+      ... 211 more items
+    ],
+    screenshots: [
+      '[local evidence]/continue-baseline-shots/zh-CN-scene-storyboard-confirm.png',
+      '[local evidence]/continue-baseline-shots/zh-CN-scene-idle-return.png'
+    ],
+    simulated: [ 'concurrency refusal', 'discarding an accepted reply' ],
+    idle: { elapsedMs: 302187, longestRelevantTimerMs: 300000, stable: true }
+  }
+}
+
+Node.js v24.13.1
