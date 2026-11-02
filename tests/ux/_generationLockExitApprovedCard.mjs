@@ -14,9 +14,13 @@ export async function expectToken(locator, property, token) {
   const colors = await locator.evaluate((element, { property, token }) => {
     const probe = document.createElement('div'); probe.style.setProperty(property, `var(--${token})`); element.append(probe)
     const expected = getComputedStyle(probe).getPropertyValue(property), actual = getComputedStyle(element).getPropertyValue(property)
-    probe.remove(); return { actual, expected }
+    probe.remove()
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1
+    const context = canvas.getContext('2d')
+    const rgba = color => { context.clearRect(0, 0, 1, 1); context.fillStyle = color; context.fillRect(0, 0, 1, 1); return Array.from(context.getImageData(0, 0, 1, 1).data) }
+    return { actual: rgba(actual), expected: rgba(expected) }
   }, { property, token })
-  assert.equal(colors.actual, colors.expected, `${property}: ${token}`)
+  assert.deepEqual(colors.actual, colors.expected, `${property}: ${token}`)
 }
 
 /** Real discarded reply and accepted slow task; only the supplier is a fixture. */
@@ -25,7 +29,7 @@ export async function approvedUnknownResultCardJourney(input) {
   const t = key => uiText(locale, key), report = { checks: {}, screenshots: [], requestsBeforeDecision: [] }
   const nodes = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
   const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
-  const setTheme = async dark => page.evaluate(dark => { document.documentElement.classList.toggle('dark', dark); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.setAttribute('data-mantine-color-scheme', dark ? 'dark' : 'light') }, dark)
+  const setTheme = async dark => page.evaluate(dark => { document.documentElement.classList.toggle('dark', dark); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.dataset.nomiColorScheme = dark ? 'dark' : 'light'; document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; document.documentElement.setAttribute('data-mantine-color-scheme', dark ? 'dark' : 'light') }, dark)
   let design
   const canvas = async id => { await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page); await page.waitForFunction(() => Boolean(window.__nomiCanvasStore)); await page.evaluate(id => window.__nomiCanvasStore.getState().selectNode(id), id); await canvasFitView(page); await page.evaluate(id => window.dispatchEvent(new CustomEvent('nomi-focus-generation-node', { detail: { nodeId: id } })), id); return page.locator(`[data-node-id="${id}"]`).first() }
   const list = async id => { await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'list'); await collapseAgentPanel(page); if (await page.locator('[data-list-detail-back]').isVisible()) await page.locator('[data-list-detail-back]').click(); const node = (await nodes()).find(n => n.id === id); await page.locator(node.meta.anchorId ? `[data-list-anchor="${design.id}:${node.meta.anchorId}"], [data-list-unreferenced-asset="${id}"]` : `[data-list-card="${id}"]`).first().click(); return page.locator('[data-list-detail-preview]') }
