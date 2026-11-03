@@ -33,6 +33,7 @@
 | [2026-09-05-m0-m5-vertical-spine-status.md](2026-09-05-m0-m5-vertical-spine-status.md) | **M0–M5 真实垂直脊梁状态台账**：同一自然用户任务的红测、真实 Electron、Codex Host/MCP、持久化/重启、视觉、packaged 与合入证据边界 | 🚧 |
 | [2026-09-05-m0-live-certification-audit.md](2026-09-05-m0-live-certification-audit.md) | M0 MCP live certification 审计：中转站文档/API key 接入边界与真实调用证据 | 🚧 |
 | [2026-09-05-real-video-export-restart.md](2026-09-05-real-video-export-restart.md) | 真实视频生成→剪辑→预览→导出→关闭重启恢复旅程与证据门 | 🚧 |
+| [2026-11-02-storyboard-only-what-works.md](2026-11-02-storyboard-only-what-works.md) | 分镜控件收敛：逐镜模型、整片画幅、选中只交给 Agent 或删除；设计卡、删旧方向和验收反例 | 🚧 |
 | [2026-09-05-storyboard-two-state-generation-design.md](2026-09-05-storyboard-two-state-generation-design.md) | **分镜 v6 双状态生成设计**：编辑态能力槽、生成态结果卡、模型参考矩阵、自动引用、迁移与真实验收 | 📋 |
 | [2026-09-05-storyboard-table-v6-design-contract.md](../design/2026-09-05-storyboard-table-v6-design-contract.md) | **分镜表 v6 设计合同**（方向 A，用户已拍板）：信息架构、行/锚状态表、参考列规则+六档案槽矩阵、旧版 15 条功能对账、token/选择器契约草案、不做项与验收清单；样张 `docs/design/mockups/2026-09-05-storyboard-table-v6/` | 📋 |
 | [2026-09-06-storyboard-v6-feedback-rework.md](2026-09-06-storyboard-v6-feedback-rework.md) | 分镜表 v6 五条用户反馈返工：删展开与编辑字段、参数网格、参考堆、播放旅程、剧本来源设计 | 🚧 |
