@@ -77,6 +77,22 @@ test('保护出口：文件行出处允许无扩展名文件', () => {
   assert.equal(judgeExitCard('出口：Makefile:12 · 修正后重跑 · 确认重跑入口').blocked, false)
 })
 
+test('保护出口：列表标记后有空格的三段或不涉及行均接受，并提示可写在列表项里', () => {
+  for (const prefix of ['- ', '* ', '+ ', '14. ', '14) ']) {
+    assert.equal(judgeExitCard(`${prefix}${validExitLine}`).blocked, false, prefix)
+    assert.equal(judgeExitCard(`${prefix}出口：不涉及：本次未新增挡人保护`).blocked, false, prefix)
+    const plan = 'docs/plan/2026-11-05-example.md'
+    assert.equal(judgeExitCard('', { body: exitCardBody(plan), readRaw: () => `## ★0 先查别人\n${prefix}${validExitLine}` }).blocked, false, `方案 ${prefix}`)
+  }
+  assert.match(judgeExitCard('').routing.lines.join('\n'), /可以写在列表项里/)
+})
+
+test('保护出口：无空格标记、行中间、表格单元格及引用块均不接受', () => {
+  for (const line of [`-${validExitLine}`, `说明 ${validExitLine}`, `| ${validExitLine} |`, `> ${validExitLine}`]) {
+    assert.equal(judgeExitCard(line).blocked, true, line)
+  }
+})
+
 test('保护出口：四类之外不要求', () => {
   const result = judgeExitCard('', { files: [M('docs/example.md')], body: '## 设计卡\n其他改动' })
   assert.equal(result.inferred.fourClass, false)

@@ -8,7 +8,7 @@
 - `scripts/prior-art-lib.mjs:162` · 已有正文方案引用去重解析 · 确认复用 referencedPlans，不复制路径读取规则。
 - `scripts/pr-judgement-lib.mjs:564` · 推送前、CI、合并前扫描共用整体判据 · 确认在共享判据增加检查，不另起脚本或改变 prior-art 的判据。
 - `docs/engineering/design-card.md:34` · 非产品文件由 evaluateProcessTier 自动判短档 · 确认用短版设计卡，性能与产品走查不适用。
-出口：scripts/pr-judgement-lib.mjs:564 · 格式缺项给出修正写法，作者补正后重新运行同一门岗 · 确认本次格式门岗的重新发起出口，内容仍由独立验收判断。
+出口：[ESLint CLI 的 --fix](https://eslint.org/docs/latest/use/command-line-interface#--fix) · 作者运行 --fix 修正可自动修复项，输出仍未修复的问题以便继续补正（官方原文已实查） · 确认本门岗报错要给出可补正的写法，作者补正后重跑；本次只接受合格答案，不新增忽略或自动放行，内容仍由独立验收判断。
 
 ## 短版设计卡
 
