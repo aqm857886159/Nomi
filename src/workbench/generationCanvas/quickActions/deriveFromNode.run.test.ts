@@ -34,6 +34,8 @@ vi.mock('../../library/localProjectStore', () => ({
 vi.mock('../../api/taskApi', async (original) => ({
   ...await original<typeof import('../../api/taskApi')>(),
   mintSpendGrant: calls.mint,
+  // 新节点从来没下过单：单发前查「这一镜有没有旧单」，答没有。
+  canvasOpenRuns: vi.fn(async () => []),
   submitCanvasShotRun: (input: SubmitInput) =>
     calls.runTask(input.vendor, { ...input.request, extras: { ...input.request.extras, runRecordId: input.runRecordId } }, input.projectId),
   pollCanvasShotRun: async (input: { projectId: string; runRecordId: string }) => {
