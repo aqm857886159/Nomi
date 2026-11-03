@@ -36,6 +36,7 @@ import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectVisible, screenshotSettl
 // 「一次本地操作 15s、一条要过 runner 的链 2×15s」是全仓共用的那一把尺子，改预算只改那一处。
 import { stationTimeout } from './_station-budget.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = makeTempDir('nomi-film-aspect-')
@@ -43,7 +44,8 @@ const settingsDir = path.join(tempRoot, 'settings')
 const projectsDir = path.join(tempRoot, 'projects')
 const projectId = 'film-aspect-walk'
 const projectRoot = path.join(projectsDir, projectId)
-const outDir = process.env.FILM_ASPECT_OUT || path.join(repoRoot, 'tests/ux/shots/storyboard-film-aspect')
+const locale = process.env.NOMI_FULL_WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
+const outDir = process.env.FILM_ASPECT_OUT || path.join(repoRoot, 'tests/ux/shots/storyboard-film-aspect', locale)
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.mkdirSync(outDir, { recursive: true })
 
@@ -117,7 +119,7 @@ async function closeAppHard(instance) {
 // 其余 agent-runtime 走查用的那把（见 agent-runtime-walk-support.createRuntimeWalk：零种 key、
 // 照样真跑出图）。方案里每一镜已经钉死 modelKey，不依赖模型下拉列不列得出它。
 
-const { app, win } = await launchNomiApp({ name: 'storyboard-film-aspect', tempRoot, settingsDir, projectsDir, settleMs: 1200 })
+const { app, win } = await launchNomiApp({ name: 'storyboard-film-aspect', tempRoot, settingsDir, projectsDir, settleMs: 1200, initialLocalStorage: { 'nomi:locale:v1': locale } })
 const failures = []
 const snap = async (name) => { await screenshotSettled(win, { path: path.join(outDir, name) }) }
 
@@ -141,24 +143,22 @@ try {
   const projectCard = win.locator('[data-project-card]', { hasText: '整片画幅走查' }).first()
   if (await projectCard.isVisible().catch(() => false)) {
     await projectCard.hover()
-    const cont = projectCard.getByText('继续创作', { exact: false }).first()
-    if (await cont.isVisible().catch(() => false)) await cont.click()
-    else await projectCard.dblclick()
+    await projectCard.dblclick()
   }
-  await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
+  await clickOrFail(win.locator('.nomi-stepper__step[data-mode="creation"]').first(), '切到创作页')
   // 侧栏点中方案就直接进分镜页（草稿方案没有摘要卡那一跳）。
   await openStoryboardEditor(win, DESIGN, '侧栏选中分镜设计')
   await expectVisible(win.locator('[data-storyboard-editor="true"]'), '分镜编辑器没有渲染')
 
-  // ── 1. 起点：整片画幅还没定（批量条显「按模型默认」）──
+  // ── 1. 起点：标题行的整片画幅还没定 ──
   const aspectMarker = win.locator('[data-storyboard-aspect-default]')
-  await expect(aspectMarker, '批量条上没有整片画幅挂点')
+  await expect(aspectMarker, '标题行上没有整片画幅挂点')
     .toHaveAttribute('data-storyboard-aspect-default', 'model-default', { timeout: DEFAULT_TIMEOUT_MS })
   await snap('01-before-film-aspect.png')
 
-  // ── 2. 真人手势：在「全部镜头」批量条上把整片画幅设成 9:16 ──
-  await pickFromSelect('全部镜头的画幅', '9:16', '整片画幅')
-  await expect(aspectMarker, '选完 9:16 后批量条没有把整片默认换过去')
+  // ── 2. 真人手势：在标题行把整片画幅设成 9:16 ──
+  await pickFromSelect(uiText(locale, 'storyboardEditor.aspectScope.film'), '9:16', '整片画幅')
+  await expect(aspectMarker, '选完 9:16 后标题行没有把整片默认换过去')
     .toHaveAttribute('data-storyboard-aspect-default', '9:16', { timeout: DEFAULT_TIMEOUT_MS })
   // 每一行都只是"继承"——一行覆盖胶囊都不该冒出来（继承是读时算的，不是抄进每一行）。
   const overrideChips = await win.locator('[data-storyboard-aspect-override]').count()
@@ -167,7 +167,7 @@ try {
 
   // ── 3. 行内「生成」真跑（fixture 零额度）：materialize → runner ──
   if (fixture.images.length !== 0) failures.push(`点生成之前就发生了 ${fixture.images.length} 次供应商调用`)
-  await clickOrFail(win.locator('[data-storyboard-row="1"]').getByRole('button', { name: '生成镜 1' }), '点镜 1 生成')
+  await clickOrFail(win.locator('[data-storyboard-row="1"]').getByRole('button', { name: uiTextWith(locale, 'storyboardEditor.frame.generateAria', { index: 1 }) }), '点镜 1 生成')
   // 用户自己点的单份生成不弹付费确认卡（2026-09-25 拍板，判据按份数不按入口）；若中间弹卡而不点，
   // 请求永远发不出去——下面 loopback 恰好收到 1 次图片请求、镜 1 进入 done 就是证据。
   // 点击之后要过 materialize → 花钱回执 → runner → loopback 供应商，算两次操作的安全网（安全网不是完成条件：
@@ -201,5 +201,5 @@ if (failures.length) {
   for (const failure of failures) console.error(`  - ${failure}`)
   process.exit(1)
 }
-console.log('✅ 整片画幅贯通走查通过：批量条选 9:16 → 落画布 → 出站报文 aspect_ratio=9:16')
+console.log('✅ 整片画幅贯通走查通过：标题行选 9:16 → 落画布 → 出站报文 aspect_ratio=9:16')
 console.log(`   截图：${outDir}`)

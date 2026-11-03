@@ -24,8 +24,8 @@ export async function runStoryboardAgentBulk({ walk, brainLabel, imageLabel, bef
     const record = await readProject(win, projectId)
     return Object.values(record.payload.storyboardDesignsByDocumentId).flat()[0]
   }
+  await expect.poll(async () => (await readPlan()).plan.shots.map(shot => shot.shotKind), { message: 'All three image choices must reach the persisted plan before handoff' }).toEqual(['image', 'image', 'image'])
   const before = await readPlan()
-  expect(before.plan.shots.every(shot => shot.shotKind === 'image')).toBe(true)
   await editor.locator('[data-storyboard-agent-handoff="selection"]').click()
   await ensureAgentPanelOpen(win, '分镜交接面板')
   const panel = win.locator(STORYBOARD_PANEL)
