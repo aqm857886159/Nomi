@@ -32,6 +32,88 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const table = loadRoutingTable()
 const M = (p, status = 'M') => ({ path: p, status })
 
+const exitCardBody = (line = '') => `## 设计卡
+${line}
+### 功能分类
+- [x] 花钱
+## 验收证据
+- spend-walks：tests/ux/agent-spend-card.walk.mjs
+- spend-paid-sample：run 987654
+- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs
+`
+const judgeExitCard = (line, options = {}) => evaluatePrJudgement({
+  body: exitCardBody(line),
+  files: [M('electron/capabilityCore/generationSpendDecision.ts')],
+  createdAt: '2026-11-04T16:00:00Z',
+  table,
+  ...options,
+})
+const validExitLine = '出口：scripts/prior-art-lib.mjs:162 · 修正输入后重新运行 · 确认重新发起入口'
+
+for (const [name, line] of [
+  ['缺行', ''],
+  ['只有出口两字', '出口'],
+  ['只有两段', '出口：scripts/prior-art-lib.mjs:162 · 重新运行'],
+  ['第一段无出处', '出口：查过了 · 重新运行 · 确认入口'],
+  ['第二段为空', '出口：scripts/prior-art-lib.mjs:162 ·  · 确认入口'],
+  ['第三段为空', '出口：scripts/prior-art-lib.mjs:162 · 重新运行 · '],
+  ['不涉及理由为空', '出口：不涉及：  '],
+  ['四段', `${validExitLine} · 多一段`],
+]) {
+  test(`保护出口：四类 ${name} → 红并提示正确写法及人工责任`, () => {
+    const result = judgeExitCard(line)
+    assert.equal(result.blocked, true)
+    assert.match(result.routing.lines.join('\n'), /出口：<出处> · <别人怎么让人继续> · <确认或改变了我们哪处>/)
+    assert.match(result.routing.lines.join('\n'), /出口：不涉及：<理由>/)
+    assert.match(result.routing.lines.join('\n'), /只认格式.*独立验收/)
+  })
+}
+
+for (const line of [validExitLine, '出口：[出处](https://example.com/retry) · 取消后重来 · 确认取消入口', '出口：不涉及：本次只删除金额展示，没有新增、扩大或挪动挡人保护']) {
+  test(`保护出口：${line} → 绿`, () => assert.equal(judgeExitCard(line).blocked, false))
+}
+
+test('保护出口：文件行出处允许无扩展名文件', () => {
+  assert.equal(judgeExitCard('出口：Makefile:12 · 修正后重跑 · 确认重跑入口').blocked, false)
+})
+
+test('保护出口：四类之外不要求', () => {
+  const result = judgeExitCard('', { files: [M('docs/example.md')], body: '## 设计卡\n其他改动' })
+  assert.equal(result.inferred.fourClass, false)
+  assert.equal(result.blocked, false)
+})
+
+test('保护出口：创建时间按生效瞬时点，不追溯旧 PR', () => {
+  assert.equal(judgeExitCard('', { createdAt: '2026-11-04T15:59:59Z' }).blocked, false)
+  assert.equal(judgeExitCard('', { createdAt: '2026-11-05T00:00:00+08:00' }).blocked, true)
+  assert.equal(judgeExitCard('', { createdAt: '2026-11-04T16:00:00Z' }).blocked, true)
+  assert.equal(judgeExitCard('', { createdAt: null }).blocked, true)
+  assert.equal(judgeExitCard('', { createdAt: 'invalid' }).blocked, true)
+})
+
+test('保护出口：正文其他节或注释里的行不算设计卡回答', () => {
+  assert.equal(judgeExitCard('', { body: `${exitCardBody()}\n## 备注\n${validExitLine}` }).blocked, true)
+  assert.equal(judgeExitCard(`<!-- ${validExitLine} -->`).blocked, true)
+})
+
+test('保护出口：复用正文方案引用，只读方案的 ★0 节，正文有合格行时不读方案', () => {
+  const plan = 'docs/plan/2026-11-05-example.md'
+  const body = exitCardBody(`[方案](${plan})，再引用 ${plan}`)
+  const read = []
+  for (const heading of ['## ★0 先查别人（实查）', '## 先查别人（★0）', '### ★0 先查已有实现']) {
+    const readRaw = (file) => { read.push(file); return `${heading}\n${validExitLine}\n## ★1 用户\n内容` }
+    assert.equal(judgeExitCard('', { body, readRaw }).blocked, false)
+  }
+  assert.deepEqual(read, [plan, plan, plan], '同一正文重复引用只读一次')
+  assert.equal(judgeExitCard('', { body, readRaw: () => `## ★0 先查别人\n没有回答\n## ★1 用户\n${validExitLine}` }).blocked, true)
+  assert.equal(judgeExitCard('', { body, readRaw: () => null }).blocked, true)
+  assert.equal(judgeExitCard('', { body, readRaw: () => { throw new Error('unreadable') } }).blocked, true)
+  assert.equal(judgeExitCard('', { body: exitCardBody(`${validExitLine}\n${plan}`), readRaw: () => { assert.fail('正文合格不应读取方案') } }).blocked, false)
+  let outsideRead = false
+  assert.equal(judgeExitCard('', { body: exitCardBody('docs/plan/../../outside.md'), readRaw: () => { outsideRead = true; return null } }).blocked, true)
+  assert.equal(outsideRead, false, '不可读取方案目录之外的路径')
+})
+
 test('路由表自身：每个类别有证据、证据 id 全局唯一、tool 只能是 exists / missing、missing 必须写出计划', () => {
   const ids = new Set()
   for (const [id, def] of Object.entries(table.categories)) {

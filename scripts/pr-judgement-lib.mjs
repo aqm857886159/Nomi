@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 
 import { knownScenarios, loadScenarios, parsePerfEvidence } from './perf-scenarios-lib.mjs'
 import { compareBoardManifests } from './check-board-parity.mjs'
+import { referencedPlans } from './prior-art-lib.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -21,6 +22,7 @@ export const EVIDENCE_SECTION = '验收证据'
 export const SCOPE_SECTION = '碰到的规则与门岗'
 export const INTENT_SECTION = '变更意图'
 export const PROCESS_TIER_EFFECTIVE_FROM = '2026-10-28T00:00:00+08:00'
+export const PROTECTION_EXIT_EFFECTIVE_FROM = '2026-11-05T00:00:00+08:00'
 
 export const PROCESS_TIERS = Object.freeze({ SHORT: 'short', STANDARD: 'standard', STRICT: 'strict' })
 
@@ -565,16 +567,44 @@ export function evaluatePrJudgement({ body, files: rawFiles, addedLines = '', ad
   const files = addedByFile ? rawFiles.map((file) => ({ ...file, added: addedByFile.get(file.path) ?? '' })) : rawFiles
   const inferred = inferRoutes(files, addedLines, table)
   const routing = checkRouting(body, inferred, table, createdAt, scenarios, { paidStrict, readRaw })
+  const exitRequired = inferred.fourClass && !(createdAt && new Date(createdAt) < new Date(PROTECTION_EXIT_EFFECTIVE_FROM))
+  const exitOk = !exitRequired || hasProtectionExit(body, readRaw)
   const enforced = routingEnforced(createdAt, table)
   const softened = enforced ? routing.lines : routing.lines.map((line) => line.replace(/^✖/, '⚠'))
   if (!enforced) softened.push(`· 这个 PR 在路由规则生效（${table.effectiveFrom}）之前开的：缺项只给警告，不判红`)
+  if (exitRequired) {
+    softened.push(exitOk
+      ? '✅ 保护出口：格式合格；门岗只认格式，内容由独立验收看'
+      : '✖ 保护出口：在设计卡或所引方案的 ★0 节单独写一行「出口：<出处> · <别人怎么让人继续> · <确认或改变了我们哪处>」（出处带链接或 文件:行），或「出口：不涉及：<理由>」。门岗只认格式，内容由独立验收看')
+  }
   const scope = checkProtectedScope(body, files, { packageRemovedLines, ledgerRemovedIds })
+  const blocking = !exitOk || (enforced && !routing.ok)
   return {
     inferred,
-    routing: { ...routing, lines: softened, enforced, blocking: enforced && !routing.ok },
+    routing: { ...routing, ok: routing.ok && exitOk, lines: softened, enforced, blocking },
     scope,
-    blocked: !scope.ok || (enforced && !routing.ok),
+    blocked: !scope.ok || blocking,
   }
+}
+
+function hasProtectionExit(body, readRaw) {
+  const valid = (section) => String(section ?? '').split(/\r?\n/).some((raw) => {
+    const line = raw.trim()
+    if (/^出口：不涉及：\s*\S/.test(line)) return true
+    if (!line.startsWith('出口：')) return false
+    const parts = line.slice('出口：'.length).split('·').map((part) => part.trim())
+    return parts.length === 3 && parts.every(Boolean)
+      && /https?:\/\/\S+|\[[^\]]+\]\([^)]+\)|[\w@./+-]+:\d+/.test(parts[0])
+  })
+  if (valid(extractSection(body, '设计卡'))) return true
+  for (const file of referencedPlans(body)) {
+    if (file.split('/').includes('..')) continue
+    try {
+      const markdown = readRaw ? readRaw(file) : fs.readFileSync(path.join(repoRoot, file), 'utf8')
+      if (valid(extractSection(markdown, '(?:★0(?:\\s.*)?|先查别人.*)'))) return true
+    } catch { /* 方案读不到不能当作有回答。 */ }
+  }
+  return false
 }
 
 /** 体检报告用：路由表里所有「工具还没建」的缺口。 */
