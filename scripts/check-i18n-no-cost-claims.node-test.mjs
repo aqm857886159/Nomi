@@ -51,6 +51,16 @@ test('retrieval and offline transcription use action facts without a money claim
   assert.equal(stale.includes('taskCenter.row.recoverHint'), false)
 })
 
+test('结果不明的「可能扣费」只放行登记键的精确原句：改字、换键都红', () => {
+  const chargeRiskExact = { 'card.reason': { 'zh-CN': '上一次没等到结果，可能已经扣费', en: 'Sending it again may charge you again.' } }
+  const exact = scanDictionaries(dict({ card: { reason: '上一次没等到结果，可能已经扣费' } }, { card: { reason: 'Sending it again may charge you again.' } }), { notMoney: {}, chargeRiskExact })
+  assert.deepEqual(exact.hits, [])
+  const changed = scanDictionaries(dict({ card: { reason: '上一次没等到结果，不会扣费' } }, { card: { reason: 'Sending it again will charge you again.' } }), { notMoney: {}, chargeRiskExact })
+  assert.deepEqual(changed.hits.map((h) => `${h.locale}:${h.key}`), ['zh-CN:card.reason', 'en:card.reason'])
+  const otherKey = scanDictionaries(dict({ other: '再发一次可能会再扣一次钱。' }, { other: 'Sending it again may charge you again.' }), { notMoney: {}, chargeRiskExact })
+  assert.deepEqual(otherKey.hits.map((h) => `${h.locale}:${h.key}`), ['zh-CN:other', 'en:other'])
+})
+
 test('upstream error wording may be explicitly exempted with a reasoned key', () => {
   const { hits } = scanDictionaries(dict({ upstream: '供应商返回余额不足' }, { upstream: 'Provider returned insufficient balance' }), { notMoney: { upstream: '转述服务商返回，不是 Nomi 对某一步花费的断言' } })
   assert.deepEqual(hits, [])

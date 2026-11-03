@@ -309,7 +309,7 @@ export const zhGenerationCommon = {
   observability: {
     // 错误卡的动作按钮。main = 当主按钮时的说法，alt = 降为次要小字时的说法。
     action: {
-      reconcile: { main: '在任务中心查看', alt: '先在任务中心查看' },
+      reconcile: { main: '查看任务', alt: '先在任务中心查看' },
       viewTask: { main: '查看制作任务', alt: '去看制作任务' },
       openRecoverable: { main: '去重新取回', alt: '去重新取回' },
       releaseRegenerate: { main: '再发一次', alt: '再发一次' },
@@ -2062,7 +2062,7 @@ export const enGenerationCommon = {
   },
   observability: {
     action: {
-      reconcile: { main: 'View in task center', alt: 'View in task center first' },
+      reconcile: { main: 'View task', alt: 'View in task center first' },
       viewTask: { main: 'View production task', alt: 'Open task center' },
       openRecoverable: { main: 'Retrieve again', alt: 'Retrieve again' },
       releaseRegenerate: { main: 'Send again', alt: 'Send again' },
