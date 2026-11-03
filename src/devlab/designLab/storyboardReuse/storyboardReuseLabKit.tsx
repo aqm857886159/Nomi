@@ -66,15 +66,11 @@ export function ShotRow({ plan, shot, extra, models: modelsOverride }: { plan: S
       aspect={aspect}
       frameBox={frameMediaBox(planDefaultAspect(plan))}
       onChangeAspect={NOOP}
-      skipped={false}
-      onToggleSkip={NOOP}
       variants={[]}
       onGenerate={NOOP}
       onRegenerate={NOOP}
       onToggleLock={NOOP}
       onOpenPreview={NOOP}
-      onAgentHandoff={NOOP}
-      onInsertAbove={NOOP}
       onInsertBelow={NOOP}
       onCopy={NOOP}
       onMoveToScene={NOOP}

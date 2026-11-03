@@ -6,7 +6,7 @@ import {
   BatchDialogStage,
   BatchFooter,
   BatchRows,
-  BulkBarStage,
+  FilmAspectStage,
   ClickFirst,
   SelectionStage,
   batchItems,
@@ -27,7 +27,7 @@ const SOURCE_B5 = 'docs/plan/2026-10-06-storyboard-batch-select.md#B5b'
 const SOURCE_B7 = 'docs/plan/2026-10-06-storyboard-batch-select.md#B7'
 const ROW = 'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx:169'
 const BAR = 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx:45'
-const BULK = 'src/workbench/creation/storyboard/StoryboardBulkBar.tsx:55'
+const BULK = 'src/workbench/creation/storyboard/StoryboardFilmAspect.tsx:55'
 const CARD = 'src/workbench/ai/v4/AgentPanelV4Cards.tsx:208'
 const FOOTER = 'src/workbench/creation/storyboard/StoryboardPlanEditor.tsx:693'
 
@@ -133,11 +133,11 @@ export const BATCH_STATES: readonly LabState[] = [
   // ───── B5b ─────
   {
     id: 'sbb-b5-01-rows',
-    name: 'B5b · 勾选 = 选中（已生成 / 本次跳过 / 选中）',
+    name: 'B5b · 勾选 = 选中（已生成 / 未选中 / 选中）',
     source: SOURCE_B5,
     mirrors: ROW,
     coverage: 'component-only',
-    render: () => <BatchRows flags={['done', 'skipped', 'selected']} width={BATCH_WIDE} />,
+    render: () => <BatchRows flags={['done', 'plain', 'selected']} width={BATCH_WIDE} />,
   },
   {
     id: 'sbb-b5-02-rows-narrow',
@@ -145,7 +145,7 @@ export const BATCH_STATES: readonly LabState[] = [
     source: SOURCE_B5,
     mirrors: ROW,
     coverage: 'component-only',
-    render: () => <BatchRows flags={['done', 'skipped', 'selected']} width={BATCH_NARROW} />,
+    render: () => <BatchRows flags={['done', 'plain', 'selected']} width={BATCH_NARROW} />,
   },
   {
     id: 'sbb-b5-03-rows-dark',
@@ -154,11 +154,11 @@ export const BATCH_STATES: readonly LabState[] = [
     mirrors: ROW,
     coverage: 'component-only',
     scheme: 'dark',
-    render: () => <BatchRows flags={['done', 'skipped', 'selected']} width={BATCH_WIDE} />,
+    render: () => <BatchRows flags={['done', 'plain', 'selected']} width={BATCH_WIDE} />,
   },
   {
     id: 'sbb-b5-04-row-menu',
-    name: 'B5b · 行菜单里有「本次跳过」',
+    name: 'B5b · 行菜单 · 首帧开关与镜头动作',
     source: SOURCE_B5,
     mirrors: ROW,
     coverage: 'component-only',
@@ -180,7 +180,7 @@ export const BATCH_STATES: readonly LabState[] = [
   // ───── B7 ─────
   {
     id: 'sbb-b7-01-toolbar-same-model',
-    name: 'B7 · 多选 2 镜，同一个模型（参数全在；时长不一致 = 混合）',
+    name: 'B7 · 多选 2 镜，同一个模型（交给 Agent 或删除）',
     source: SOURCE_B7,
     mirrors: BAR,
     coverage: 'component-only',
@@ -196,7 +196,7 @@ export const BATCH_STATES: readonly LabState[] = [
   },
   {
     id: 'sbb-b7-03-toolbar-mixed-kinds',
-    name: 'B7 · 图片镜 + 视频镜（两档各一组）',
+    name: 'B7 · 图片镜 + 视频镜（选中后交给 Agent 或删除）',
     source: SOURCE_B7,
     mirrors: BAR,
     coverage: 'component-only',
@@ -212,50 +212,11 @@ export const BATCH_STATES: readonly LabState[] = [
   },
   {
     id: 'sbb-b7-05-toolbar-empty',
-    name: 'B7 · 边界 · 公共集为空（Seedance + Hailuo）',
+    name: 'B7 · 不同模型也只提供交给 Agent 与删除',
     source: SOURCE_B7,
     mirrors: BAR,
     coverage: 'component-only',
     render: () => <SelectionStage pick={[1, 6]} width={BATCH_WIDE} />,
-  },
-  {
-    id: 'sbb-b7-06-panel-three-models',
-    name: 'B7 · 点开参数 · 跨 3 个模型（只剩比例，其余说明谁没有）',
-    source: SOURCE_B7,
-    mirrors: BAR,
-    coverage: 'component-only',
-    capture: 'viewport',
-    render: () => (
-      <ClickFirst selector="[data-parameter-summary]">
-        <div className="pt-[260px]"><SelectionStage pick={[1, 4, 5]} width={BATCH_WIDE} withRows={false} /></div>
-      </ClickFirst>
-    ),
-  },
-  {
-    id: 'sbb-b7-07-panel-same-model',
-    name: 'B7 · 点开参数 · 同一个模型（全部参数，时长显示混合）',
-    source: SOURCE_B7,
-    mirrors: BAR,
-    coverage: 'component-only',
-    capture: 'viewport',
-    render: () => (
-      <ClickFirst selector="[data-parameter-summary]">
-        <div className="pt-[420px]"><SelectionStage pick={[1, 2]} width={BATCH_WIDE} withRows={false} /></div>
-      </ClickFirst>
-    ),
-  },
-  {
-    id: 'sbb-b7-08-panel-empty',
-    name: 'B7 · 点开参数 · 公共集为空时说明原因',
-    source: SOURCE_B7,
-    mirrors: BAR,
-    coverage: 'component-only',
-    capture: 'viewport',
-    render: () => (
-      <ClickFirst selector="[data-parameter-summary]">
-        <div className="pt-[300px]"><SelectionStage pick={[1, 6]} width={BATCH_WIDE} withRows={false} /></div>
-      </ClickFirst>
-    ),
   },
   {
     id: 'sbb-b7-09-toolbar-dark',
@@ -268,34 +229,34 @@ export const BATCH_STATES: readonly LabState[] = [
   },
   {
     id: 'sbb-b7-10-bulkbar',
-    name: 'B7 · 「全部镜头」条（图片 + 视频两档，画幅候选由模型派生）',
+    name: 'B7 · 整片画幅（候选由各镜模型派生）',
     source: SOURCE_B7,
     mirrors: BULK,
     coverage: 'component-only',
-    render: () => <BulkBarStage plan={batchPlan(batchShots().slice(0, 5))} width={BATCH_WIDE} />,
+    render: () => <FilmAspectStage plan={batchPlan(batchShots().slice(0, 5))} width={BATCH_WIDE} />,
   },
   {
     id: 'sbb-b7-11-bulkbar-narrow',
-    name: 'B7 · 全部镜头条 · 最小窗口 664',
+    name: 'B7 · 整片画幅 · 最小窗口 664',
     source: SOURCE_B7,
     mirrors: BULK,
     coverage: 'component-only',
-    render: () => <BulkBarStage plan={batchPlan(batchShots().slice(0, 5))} width={BATCH_NARROW} />,
+    render: () => <FilmAspectStage plan={batchPlan(batchShots().slice(0, 5))} width={BATCH_NARROW} />,
   },
   {
     id: 'sbb-b7-12-bulkbar-one-model',
-    name: 'B7 · 全部镜头条 · 边界 · 只有 Seedance 镜（参数全在）',
+    name: 'B7 · 整片画幅 · 边界 · 只有 Seedance 镜（整片画幅）',
     source: SOURCE_B7,
     mirrors: BULK,
     coverage: 'component-only',
-    render: () => <BulkBarStage plan={batchPlan(batchShots().slice(0, 2))} width={BATCH_WIDE} />,
+    render: () => <FilmAspectStage plan={batchPlan(batchShots().slice(0, 2))} width={BATCH_WIDE} />,
   },
   {
     id: 'sbb-b7-13-bulkbar-empty',
-    name: 'B7 · 全部镜头条 · 边界 · 其中有一镜的模型没有可调参数（公共集为空）',
+    name: 'B7 · 整片画幅 · 有模型不接收画幅时如实提示',
     source: SOURCE_B7,
     mirrors: BULK,
     coverage: 'component-only',
-    render: () => <BulkBarStage plan={batchPlan()} width={BATCH_WIDE} />,
+    render: () => <FilmAspectStage plan={batchPlan()} width={BATCH_WIDE} />,
   },
 ]

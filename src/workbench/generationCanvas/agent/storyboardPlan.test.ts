@@ -631,7 +631,7 @@ describe('v5 C2 storyboard profiles', () => {
  */
 describe('整片默认 → 落画布节点参数（film-level passthrough）', () => {
   const filmPlan = (aspectRatio?: string, extra?: Partial<StoryboardPlan>): StoryboardPlan => ({
-    title: '整片画幅',
+    title: 'Portrait film fixture',
     anchors: [],
     shots: [
       { index: 1, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '镜一' },

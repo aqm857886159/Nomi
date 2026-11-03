@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import type { LabState } from '../../labScreen'
 import StoryboardAnchorZone from '../../../../workbench/creation/storyboard/anchorZone/StoryboardAnchorZone'
-import StoryboardBulkBar from '../../../../workbench/creation/storyboard/StoryboardBulkBar'
+import StoryboardFilmAspect from '../../../../workbench/creation/storyboard/StoryboardFilmAspect'
 import StoryboardShotTable from '../../../../workbench/creation/storyboard/StoryboardShotTable'
 import { deriveStoryboardRowRuntimes } from '../../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import type { StoryboardPlan } from '../../../../workbench/generationCanvas/agent/storyboardPlan'
@@ -90,10 +90,8 @@ function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?
         onToggleLockRow={NOOP}
         onOpenPreviewRow={NOOP}
         onRerunFreshRefsRow={NOOP}
-        onGenerateSelected={NOOP}
         onDeleteSelected={NOOP}
         onAgentHandoff={NOOP}
-        onToggleSkip={NOOP}
         // 场组头的 ▶「播放本场」只在编辑器传了 onPlayGroup 时渲染；实验室不传就等于
         // 把这枚按钮从取景里悄悄漏掉——形态没被钉住，只能靠人记得它存在（假绿）。
         onPlayGroup={NOOP}
@@ -166,12 +164,12 @@ export const ZONE_STATES: readonly LabState[] = [
   },
   {
     id: 'sb-zone-04-bulkbar-project-aspect',
-    name: '批量条 · 整片默认画幅（+「已覆盖的 N 镜不跟着变」）',
+    name: '标题行 · 整片默认画幅（+「已覆盖的 N 镜不跟着变」）',
     source: '合同 §2.1 批量条 / §2.4.1 画幅是项目级设置',
     coverage: 'shell',
     render: () => (
       <TableStage clip={false}>
-        <StoryboardBulkBar
+        <StoryboardFilmAspect
           plan={scenePlan()}
           imageModelOptions={LAB_IMAGE_MODELS}
           videoModelOptions={LAB_VIDEO_MODELS}
@@ -211,14 +209,14 @@ export const ZONE_STATES: readonly LabState[] = [
   },
   {
     id: 'sb-zone-08-screen-composite',
-    name: '整屏拼装 · 批量条 + 锚区 + 分镜表',
+    name: '整屏拼装 · 整片画幅 + 锚区 + 分镜表',
     source: '合同 §2.1 表壳五段（缺标题栏与 footer——那两段住 StoryboardPlanEditor，本轮实验室未灌 store）',
     coverage: 'component-only',
     render: () => {
       const plan = scenePlan()
       return (
         <TableStage clip={false}>
-          <StoryboardBulkBar plan={plan} imageModelOptions={LAB_IMAGE_MODELS} videoModelOptions={LAB_VIDEO_MODELS} onChange={NOOP} />
+          <StoryboardFilmAspect plan={plan} imageModelOptions={LAB_IMAGE_MODELS} videoModelOptions={LAB_VIDEO_MODELS} onChange={NOOP} />
           <div className="flex flex-col gap-4 p-3">
             <StoryboardAnchorZone
               cards={ANCHOR_RUNTIMES}

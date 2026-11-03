@@ -235,92 +235,6 @@ export function buildModelSelectOptions(
 }
 
 /**
- * 批量下拉专用：把去重模型**按供应商摊平**——一家一行，右侧标注永远是那一家的短名。
- *
- * 为什么不能复用 buildModelSelectOptions（用户 2026-08-18 报「框选没法选不同供应商 → 一直生成失败」）：
- * 那份把多家折叠成一条（行尾 chip 标出各家），选中后由第二段供应商下拉锁家。但批量下拉是**一次性命令**
- * （无常驻值、永远显占位「统一模型」），第二段结构上出不来 → pickHealthiestProvider 替用户定死一家；
- * 那家在他账号上不通 = 每次都失败且无路可换。摊平后「哪家」直接在第一段选，不需要第二段。
- *
- * 病态判据与折叠版**不同口径**：折叠版问「是不是每家都病」（还有一家健康就不该误伤整条）；
- * 这里一行 = 一家，直接按那一家判。病的仍可点（手动选择永不拦，2026-07-30 拍板），只沉底 + 灰化。
- */
-export function buildVendorExplicitModelOptions(
-  deduped: readonly DedupedModel[],
-  isAiling: AilingProbe,
-  orderedVendorKeys: readonly string[] = [],
-  preference?: ModelBoxPreferenceSettings | null,
-): NomiSelectOption[] {
-  if (deduped.length === 0) return [connectVendorOption()]
-  // 批量下拉与折叠下拉共用同一份「显示哪些、排在哪」——藏起来的模型在**每个**模型框里都消失，
-  // 否则用户会在框选工具条里又看见他刚藏掉的那一个。
-  const { visible } = partitionByModelBoxPreference(deduped, preference)
-  type Row = { option: NomiSelectOption; ailing: boolean }
-  const rows: Row[] = []
-  for (const model of visible) {
-    // 一「模型 × 供应商」一行 —— 折叠维度必须是 vendor，不能是 (vendor, option.value)。
-    // 走查实测（2026-08-18）：同一家会把多个 modelKey 挂到同一个显示名
-    // （kie 的 nano-banana / nano-banana-kie；kie 的 gpt-image-2-text-to-image /
-    // gpt-image-2-image-to-image），按后者折叠会渲出**两行长得一模一样**的选项——
-    // 用户分不清只能瞎猜，比选不了供应商更糟。这里与既有 buildProviderSelectOptions 的
-    // byVendor 折叠同口径：用户锁的是「走哪家」，不是走这家的哪个内部 modelKey。
-    const byVendor = new Map<string, ModelProviderRef[]>()
-    // 用户排过偏好才重排；没排过就保持 catalog 原序（批量下拉是一次性命令，不该替他改主意）。
-    const providers = orderedVendorKeys.length > 0 ? sortModelProviders(model.providers, orderedVendorKeys) : model.providers
-    for (const provider of providers) {
-      const key = provider.vendor || provider.option.value
-      const bucket = byVendor.get(key)
-      if (bucket) bucket.push(provider)
-      else byVendor.set(key, [provider])
-    }
-    const sickOf = (p: ModelProviderRef): boolean => isAiling({ modelKey: p.option.modelKey || p.option.value, vendor: p.vendor })
-    for (const bucket of byVendor.values()) {
-      // 这家有健康变体就走健康那个；全病才落回首个（整行标病）。
-      const representative = bucket.find((p) => !sickOf(p)) ?? bucket[0]
-      const sick = sickOf(representative)
-      const value = providerAddress(representative)
-      rows.push({
-        ailing: sick,
-        option: sick
-          ? {
-              value,
-              more: modelCatalogLifecycle(model) === 'legacy',
-              label: modelDisplayLabel(model),
-              trailing: i18n.t('generationCommon.parameters.recentlyFailing'),
-              trailingTone: 'danger',
-              dimmed: true,
-            }
-          : {
-              value,
-              more: modelCatalogLifecycle(model) === 'legacy',
-              label: modelDisplayLabel(model),
-              icon: modelIdentityIcon(model),
-              // 摊平版一行就是一家，所以「暂未列出」按**这一家**判，不看别家
-              // （折叠版要每家都没列出才标——那一行代表的是所有家）。
-              trailing: providerTrailing(representative, representative.option.unlisted === true
-                ? [i18n.t('generationCommon.parameters.unlisted')] : []),
-            },
-      })
-    }
-  }
-  // 两段：能跑的 → 最近连败的。与折叠版同一套沉底口径（同一件事只有一种排法）。
-  return [...rows.filter((row) => !row.ailing), ...rows.filter((row) => row.ailing)].map((row) => row.option)
-}
-
-/** buildVendorExplicitModelOptions 的反查：复合寻址串 → 那一家供应商（认不出 → null，调用方不写）。 */
-export function resolveProviderByAddress(
-  deduped: readonly DedupedModel[],
-  addressValue: string,
-): ModelProviderRef | null {
-  if (!addressValue) return null
-  for (const model of deduped) {
-    const hit = model.providers.find((p) => providerAddress(p) === addressValue)
-    if (hit) return hit
-  }
-  return null
-}
-
-/**
  * 换家优先于换模型：先只在健康供应商里挑；全病（用户明知故选）才回退全集，绝不空选。
  *
  * `rememberedVendor` 压在最前面（用户在这个模型上手点过的那家）：样张原话「你手点过的，永远听你的」。
@@ -417,6 +331,7 @@ export function useDedupedModelSelect(
   value: string,
   onChange: (value: string, vendor?: string) => void,
   vendor?: string | null,
+  groupLabels?: Record<'image' | 'video', string>,
 ): DedupedModelSelectView {
   const deduped = React.useMemo(() => dedupeModelOptions([...modelOptions]), [modelOptions])
   const orderedVendorKeys = useVendorPreferenceOrder()
@@ -445,9 +360,18 @@ export function useDedupedModelSelect(
   )
 
   const modelOptionsView = React.useMemo<NomiSelectOption[]>(
-    () => buildModelSelectOptions(deduped, isModelRecentlyAiling, orderedVendorKeys, preference),
+    () => {
+      const options = buildModelSelectOptions(deduped, isModelRecentlyAiling, orderedVendorKeys, preference)
+      if (!groupLabels) return options
+      const kinds = new Map(deduped.map(model => [model.canonicalId, model.providers[0]?.option.kind] as const))
+      const grouped = options.map(option => {
+        const kind = kinds.get(option.value)
+        return { ...option, ...(kind === 'image' || kind === 'video' ? { group: groupLabels[kind] } : {}) }
+      })
+      return [...(['image', 'video'] as const).flatMap(kind => grouped.filter(option => option.group === groupLabels[kind])), ...grouped.filter(option => !option.group)]
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算 trailing 文案
-    [deduped, i18n.language, orderedVendorKeys, preference],
+    [deduped, i18n.language, orderedVendorKeys, preference, groupLabels],
   )
 
   const onModelPick = React.useCallback(

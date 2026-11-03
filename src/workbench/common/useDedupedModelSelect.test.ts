@@ -9,11 +9,8 @@ import {
   CONNECT_VENDOR_OPTION_VALUE,
   buildModelSelectOptions,
   buildProviderSelectOptions,
-  buildVendorExplicitModelOptions,
   modelBoxHiddenNote,
   pickHealthiestProvider,
-  providerAddress,
-  resolveProviderByAddress,
   resolveProviderSelectValue,
   useDedupedModelSelect,
   type DedupedModelSelectView,
@@ -103,20 +100,12 @@ describe('模型名跟着界面语言走，身份不动', () => {
     expect(en.map((row) => row.value)).toEqual(zh.map((row) => row.value))
   })
 
-  it('批量摊平版：同一个显示名函数', async () => {
-    await i18n.changeLanguage('en')
-    const rows = buildVendorExplicitModelOptions(dedupeModelOptions(gemini), healthy)
-    expect(rows.map((row) => row.label)).toEqual(['Gemini 3 Pro Image', 'Gemini 3 Pro Image'])
-  })
-
   // 「最近多次失败」那一支是另一段代码（灰化 + 沉底），名字同样要翻——两个版本各查一遍。
   it('最近连败、被灰化沉底的行：名字照样跟着语言走', async () => {
     await i18n.changeLanguage('en')
     const sick = ailing('gemini-3-pro-image-preview', 'gemini_image3_pro')
     const folded = buildModelSelectOptions(dedupeModelOptions(gemini), sick)
     expect(folded.map((row) => [row.label, row.dimmed])).toEqual([['Gemini 3 Pro Image', true]])
-    const flattened = buildVendorExplicitModelOptions(dedupeModelOptions(gemini), sick)
-    expect(flattened.map((row) => [row.label, row.dimmed])).toEqual([['Gemini 3 Pro Image', true], ['Gemini 3 Pro Image', true]])
   })
 })
 
@@ -174,116 +163,6 @@ describe('pickHealthiestProvider — 换家优先于换模型', () => {
   it('全病也绝不空选：用户明知故选时仍回退到某一家', () => {
     const [model] = dedupeModelOptions([option('only', 'apimart', '独苗')])
     expect(pickHealthiestProvider(model, ailing('only'))?.option.value).toBe('apimart:only')
-  })
-})
-
-describe('buildVendorExplicitModelOptions — 批量下拉里把供应商摊开（2026-08-18 用户报「框选没法选不同供应商」）', () => {
-  it('多家的模型一家一行、trailing 是那一家的短名（不再折叠成「N 家」）', () => {
-    const deduped = dedupeModelOptions([
-      option('nano-banana-apimart', 'apimart', 'Nano Banana'),
-      option('nano-banana-kie', 'kie', 'Nano Banana'),
-      option('nano-banana-vol', 'volcengine', 'Nano Banana'),
-      option('gpt-image-2-apimart', 'apimart', 'GPT Image 2'),
-    ])
-    const view = buildVendorExplicitModelOptions(deduped, healthy)
-
-    expect(view.map((o) => [o.label, o.trailing])).toEqual([
-      ['Nano Banana', 'APIMart'],
-      ['Nano Banana', 'Kie'],
-      ['Nano Banana', '火山方舟'],
-      ['GPT Image 2', 'APIMart'],
-    ])
-    // 每行 value 都是复合寻址串 → 同名模型跨厂商绝不撞值（撞了就又选不动家）。
-    expect(new Set(view.map((o) => o.value)).size).toBe(4)
-  })
-
-  it('病态按**这一家**判（不是折叠版的「每家都病」）：病的那家沉底 + 灰化，同模型其他家不受牵连', () => {
-    const deduped = dedupeModelOptions([
-      option('nano-banana-apimart', 'apimart', 'Nano Banana'),
-      option('nano-banana-kie', 'kie', 'Nano Banana'),
-    ])
-    const view = buildVendorExplicitModelOptions(deduped, ailing('nano-banana-apimart'))
-
-    expect(view).toHaveLength(2)
-    // 健康那家在前、保留厂商短名。
-    expect(view[0].trailing).toBe('Kie')
-    expect(view[0].dimmed).toBeUndefined()
-    // 病的那家沉底、灰化、标注换成「最近多次失败」——但仍可点（手动选择永不拦）。
-    expect(view[1].dimmed).toBe(true)
-    expect(view[1].trailing).toBe('最近多次失败')
-    expect(view[1].trailingTone).toBe('danger')
-    expect(view[1].disabled).toBeUndefined()
-  })
-
-  it('单家的模型仍是一行，trailing = 那家短名（与今天的折叠版行为一致）', () => {
-    const deduped = dedupeModelOptions([option('z-image-turbo', 'apimart', 'Z-Image Turbo')])
-    expect(buildVendorExplicitModelOptions(deduped, healthy)).toEqual([expect.objectContaining({
-      value: providerAddress(deduped[0].providers[0]),
-      label: 'Z-Image Turbo',
-      trailing: 'APIMart',
-      icon: { kind: 'model' },
-    })])
-  })
-
-  // 回归锁：2026-08-18 真机走查抓到的。第一版按 (vendor, option.value) 折叠，
-  // 而真实目录里**同一家**会把多个 modelKey 挂到同一个显示名（kie 的 nano-banana /
-  // nano-banana-kie），于是渲出两行「Nano Banana · Kie」——长得一模一样、用户只能瞎猜。
-  // 单测和七道门岗全没抓到，是走查截图看出来的。
-  it('同一家给同名模型挂多个 modelKey → 仍只出一行（不许出现两行完全相同的选项）', () => {
-    const deduped = dedupeModelOptions([
-      option('nano-banana', 'kie', 'Nano Banana'),
-      option('nano-banana-kie', 'kie', 'Nano Banana'),
-      option('gpt-image-2-text-to-image', 'kie', 'GPT Image 2'),
-      option('gpt-image-2-image-to-image', 'kie', 'GPT Image 2'),
-      option('nano-banana-apimart', 'apimart', 'Nano Banana'),
-    ])
-    const view = buildVendorExplicitModelOptions(deduped, healthy)
-
-    expect(view.map((o) => [o.label, o.trailing])).toEqual([
-      ['Nano Banana', 'Kie'],
-      ['Nano Banana', 'APIMart'],
-      ['GPT Image 2', 'Kie'],
-    ])
-    // 不变量：任意两行的「显示名 + 厂商」组合不得重复——重复即用户不可区分。
-    const shown = view.map((o) => `${o.label}␟${o.trailing}`)
-    expect(new Set(shown).size).toBe(shown.length)
-  })
-
-  it('一家有多个变体、其中一个病 → 走这家健康的那个变体，整行不标病', () => {
-    const deduped = dedupeModelOptions([
-      option('nano-banana', 'kie', 'Nano Banana'),
-      option('nano-banana-kie', 'kie', 'Nano Banana'),
-    ])
-    const view = buildVendorExplicitModelOptions(deduped, ailing('nano-banana'))
-
-    expect(view).toHaveLength(1)
-    expect(view[0].dimmed).toBeUndefined()
-    expect(view[0].trailing).toBe('Kie')
-    // 选中的应是这家健康的那个变体，不是病的那个。
-    expect(view[0].value).toContain('nano-banana-kie')
-  })
-})
-
-describe('resolveProviderByAddress — 摊平项反查回具体那一家', () => {
-  const deduped = dedupeModelOptions([
-    option('gpt-image-2', 'relay-a', 'GPT Image 2'),
-    option('gpt-image-2', 'relay-b', 'GPT Image 2'),
-  ])
-
-  it('每一行都能反查回它自己那一家（这就是 vendor 真正被写进节点的那一步）', () => {
-    for (const row of buildVendorExplicitModelOptions(deduped, healthy)) {
-      const picked = resolveProviderByAddress(deduped, row.value)
-      expect(picked).not.toBeNull()
-      expect(providerAddress(picked!)).toBe(row.value)
-    }
-    const vendors = buildVendorExplicitModelOptions(deduped, healthy)
-      .map((row) => resolveProviderByAddress(deduped, row.value)?.vendor)
-    expect(new Set(vendors)).toEqual(new Set(['relay-a', 'relay-b']))
-  })
-
-  it('认不出的串 → null（调用方据此不写模型，绝不瞎猜一家）', () => {
-    expect(resolveProviderByAddress(deduped, 'nope nope')).toBeNull()
-    expect(resolveProviderByAddress(deduped, '')).toBeNull()
   })
 })
 
@@ -347,13 +226,6 @@ describe('健康记忆按 (vendor, modelKey) 判定 —— 「换家优先于换
     expect(entry.trailing).toBe('APIMart')
   })
 
-  it('批量下拉一家一行：只有病的那一行标红并沉底', () => {
-    const rows = buildVendorExplicitModelOptions(twoVendors(), kieAiling)
-    expect(rows).toHaveLength(2)
-    expect(rows[0].dimmed).toBeFalsy()
-    expect(rows[1].dimmed).toBe(true)
-  })
-
   it('两家都病了才回退全集（绝不空选）', () => {
     const model = twoVendors()[0]
     expect(pickHealthiestProvider(model, () => true)).not.toBeNull()
@@ -372,10 +244,6 @@ describe('一家供应商都没接入 → 诚实空态，而不是空白下拉',
       trailing: '去接入',
       trailingTone: 'accent',
     })
-  })
-
-  it('批量下拉给出同一行（同一件事只有一种说法）', () => {
-    expect(buildVendorExplicitModelOptions([], healthy)).toEqual(buildModelSelectOptions([], healthy))
   })
 
   it('点那一行 = 打开模型接入页，绝不当成选了个模型', () => {
@@ -420,11 +288,10 @@ describe('模型框偏好', () => {
     schemaVersion: 1, modelOrder: [], hiddenModelIds: [], preferredVendorByModel: {}, ...patch,
   })
 
-  it('隐藏的模型一行都不进模型框，折叠版与批量版同一口径', () => {
+  it('隐藏的模型一行都不进模型框', () => {
     const hidden = preference({ hiddenModelIds: ['z-image-turbo'] })
     expect(buildModelSelectOptions(modelBoxDeduped, healthy, [], hidden).map(o => o.label))
       .toEqual(['GPT Image 2', 'Nano Banana 2'])
-    expect(buildVendorExplicitModelOptions(modelBoxDeduped, healthy, [], hidden).every(o => o.label !== 'Z-Image Turbo')).toBe(true)
   })
 
   it('手排过的模型排在前面，没排过的仍按原顺序跟在后面', () => {
@@ -493,15 +360,6 @@ describe('清单里暂时没有它 —— 只是一句实话，不是停用', ()
     const deduped = dedupeModelOptions([unlisted('kling-o1', 'kie', 'Kling O1'), option('kling-o1', 'apimart', 'Kling O1')])
     const [row] = buildModelSelectOptions(deduped, healthy)
     expect(JSON.stringify(row)).not.toContain('暂未列出')
-  })
-
-  it('摊平下拉：一行就是一家，所以按那一家判——没列出的那一行标，另一行不标', () => {
-    const deduped = dedupeModelOptions([unlisted('kling-o1', 'kie', 'Kling O1'), option('kling-o1', 'apimart', 'Kling O1')])
-    const rows = buildVendorExplicitModelOptions(deduped, healthy)
-    expect(rows).toHaveLength(2)
-    expect(rows.filter((row) => (row.trailing ?? '').includes('暂未列出'))).toHaveLength(1)
-    // 厂商短名没被顶掉：这个下拉存在的全部理由就是让用户看清走哪家。
-    for (const row of rows) expect(row.trailing).toMatch(/Kie|APIMart|kie|apimart/i)
   })
 })
 

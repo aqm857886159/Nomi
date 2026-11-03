@@ -1,0 +1,24 @@
+{
+  "id": "UX-20261103-STORYBOARD-CONTROLS",
+  "since": "2026-11-03",
+  "source": "用户 2026-11-02 控件去重与 Agent 反馈拍板",
+  "category": "parameter-contract",
+  "problem": "重复的整片和选中配置遮挡逐镜选择，选中交给 Agent 只有引用而没有面板反馈。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑪",
+    "⑫"
+  ],
+  "useCases": [
+    "S2"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/plan/2026-11-02-storyboard-only-what-works.md",
+    "docs/fixes/2026-11-03-storyboard-per-shot-controls.root-cause.json",
+    "tests/ux/storyboard-only-what-works.test.mjs"
+  ],
+  "completionCommits": []
+}

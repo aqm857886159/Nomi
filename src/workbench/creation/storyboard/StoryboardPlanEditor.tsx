@@ -4,7 +4,7 @@ import { deleteStoryboardRows, restoreStoryboardDeletion, type StoryboardDeletio
 import { isCanvasTextEditingContext } from '../../generationCanvas/components/useCanvasShortcuts'
 import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconRobot, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconMovie, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
 import { WorkbenchButton } from '../../../design'
 import { notify } from '../../../ui/notificationPolicy'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -23,7 +23,8 @@ import {
 import { isEmptyStoryboardPlan, stableShotId, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { planDefaultAspect } from '../../generationCanvas/agent/storyboardShotScope'
 import StoryboardAnchorZone from './anchorZone/StoryboardAnchorZone'
-import StoryboardBulkBar from './StoryboardBulkBar'
+import StoryboardFilmAspect from './StoryboardFilmAspect'
+import { focusComposerSoon } from '../../ai/resident/focusComposerSoon'
 import StoryboardShotTable from './StoryboardShotTable'
 import {
   deriveAnchorCardRuntimes,
@@ -78,8 +79,6 @@ export function StoryboardPlanEditorFooter({
   busy,
   runnableCount,
   generateLabel,
-  selectedCount = 0,
-  onAgentHandoff,
 }: {
   progress: string
   issueLabel?: string
@@ -88,28 +87,12 @@ export function StoryboardPlanEditorFooter({
   busy: boolean
   runnableCount: number
   generateLabel?: string
-  /** 勾选 = 选中的镜数（表是选择的唯一 owner，这里只读它上报的结果）。 */
-  selectedCount?: number
-  /** 「选中 N 镜 · 交给 Agent 改」（§2.7 入口 1/3，页脚常驻）；不传则不出这枚。 */
-  onAgentHandoff?: (() => void) | undefined
 }): JSX.Element {
   const { t } = useTranslation()
   return (
     <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-nomi-line bg-nomi-paper" data-storyboard-plan-footer="true">
       <div className="flex items-center gap-2 min-w-0">
         <WorkbenchButton variant="default" size="sm" onClick={onBack}>{t('storyboardEditor.backToCreation')}</WorkbenchButton>
-        {onAgentHandoff ? (
-          <WorkbenchButton
-            variant="default"
-            size="sm"
-            data-storyboard-agent-handoff="footer"
-            disabled={selectedCount === 0}
-            onClick={onAgentHandoff}
-          >
-            <IconRobot size={14} stroke={1.7} />
-            {t('storyboardEditor.agentHandoff.footer', { count: selectedCount })}
-          </WorkbenchButton>
-        ) : null}
         {issueLabel ? (
           <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">
             <IconAlertTriangle size={14} stroke={1.8} className="shrink-0" />
@@ -153,7 +136,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const [pendingActions, setPendingActions] = React.useState<ReadonlySet<string>>(new Set())
   const busy = pendingActions.has('table')
   // 表上报的「勾选 = 选中」镜（表是唯一 owner，这里只是页脚入口读的镜像，不另存一份选择）。
-  const [selectedRuntimes, setSelectedRuntimes] = React.useState<StoryboardRowRuntime[]>([])
   const [actionFeedback, setActionFeedback] = React.useState<{ designId: string | null; message: string } | null>(null)
   const reportFailure = (message: string): void => {
     notify({ identity: `storyboard:${activeDocumentId}:${designId}`, reason: 'edit-action', level: 'inline', type: 'error', message,
@@ -172,12 +154,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const [mentionPreviewAsset, setMentionPreviewAsset] = React.useState<AssetRef | null>(null)
   // 锚区两态（v6 §2.2）：一次切全部，不做逐张展开（那会多出"哪几张是展开的"这个状态）。
   const [anchorsExpanded, setAnchorsExpanded] = React.useState(false)
-  /**
-   * 「本次跳过」（v6 §2.10）。作用域是**这一批**：跑完自动清空——它是一次性的批次筛选，
-   * 不是持久属性（持久的那个叫「锁定」）。owner 在这里而不是表里，因为 footer 的「将跑 N 镜」
-   * 必须与它同一份 derive（合同 §9.3：不许 footer 自己再减一次）。
-   */
-  const [skippedShotIds, setSkippedShotIds] = React.useState<ReadonlySet<string>>(new Set())
   const deletedPlanUndoRef = React.useRef<(StoryboardDeletion & { projectId: typeof projectId; documentId: string; designId: string }) | null>(null)
   const editorRef = React.useRef<HTMLElement>(null)
   // 分镜页的滚动区：镜头表按它的视口只挂看得见的行（StoryboardShotTable 窗口化）。
@@ -232,7 +208,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     () => (plan ? deriveStoryboardRowRuntimes({ plan, designId, imageModelOptions, videoModelOptions, nodes: canvasNodes }) : []),
     [plan, designId, imageModelOptions, videoModelOptions, canvasNodes],
   )
-  const batch = React.useMemo(() => deriveStoryboardBatch(rows, skippedShotIds), [rows, skippedShotIds])
+  const batch = React.useMemo(() => deriveStoryboardBatch(rows), [rows])
   // 参考卡执行态（B3 图卡）：与行同一份 derive（生成态 / 是否出图）。
   const anchorCards = React.useMemo(
     () => (plan ? deriveAnchorCardRuntimes({ plan, designId, nodes: canvasNodes }) : []),
@@ -419,22 +395,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
   const onRunBatch = (): void => {
     const running = batch.runnable
-    // 「本次跳过」的作用域就是这一批：批次一发出去，标记立刻清空（§2.10）。
-    setSkippedShotIds(new Set())
     void guardMaterialize(running, context => runStoryboardBatch(context, running))
-  }
-  const onRunSelected = (selected: StoryboardRowRuntime[]): void => {
-    if (selected.length === 0) return
-    setSkippedShotIds(new Set())
-    void guardMaterialize(selected, context => runStoryboardBatch(context, selected))
-  }
-  const onToggleSkip = (shotId: string): void => {
-    setSkippedShotIds((previous) => {
-      const next = new Set(previous)
-      if (next.has(shotId)) next.delete(shotId)
-      else next.add(shotId)
-      return next
-    })
   }
   /**
    * 「交给 Agent 改」（§2.7）：把选中的镜头挂成常驻 Agent 的引用，用户接着用人话说要改什么。
@@ -453,6 +414,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         runtime.shot.shotId ? {documentId:activeDocumentId,designId,shotId:runtime.shot.shotId} : undefined,
       )),
     ])
+    useWorkbenchStore.getState().setProjectAgentDockCollapsed(false)
+    focusComposerSoon()
   }
   const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
@@ -526,7 +489,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       // 再被这里的 `overflow-hidden` 从右边剪掉：1280 视口 + Agent 面板展开时 29–33 个叶子越界。
       // 表格自己的 min-content 只有 417px，完全装得下 —— 它是被撑的，不是撑人的那个。
       // `grid-cols-1` = `repeat(1, minmax(0,1fr))`，把列钉回容器宽，各行自己去 truncate / 滚动。
-      className="relative w-full h-full min-h-0 grid grid-cols-1 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] rounded-panel bg-workbench-surface-solid ring-1 ring-nomi-line-soft overflow-hidden"
+      className="relative w-full h-full min-h-0 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)_auto] rounded-panel bg-workbench-surface-solid ring-1 ring-nomi-line-soft overflow-hidden"
       ref={editorRef}
       tabIndex={-1}
       onKeyDown={onUndo}
@@ -551,20 +514,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           </WorkbenchButton>
         </div>
       </header>
-
-      <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-nomi-line-soft text-caption text-nomi-ink-40">
-        <IconLockOpen size={14} stroke={1.6} className="shrink-0" />
-        <span className="truncate"><span className="text-nomi-ink-60">{t('storyboardEditor.draftEditable')}</span> · {t('storyboardEditor.spendHint')}</span>
-      </div>
-
-      {/* 「全部镜头」批量条（样张 A）：整片作用域的类型/模型/时长常驻这里，
-          底下镜行那排同款选择器作用域是「这一镜」——两者靠组名 + 底色分开（§1.5 C3）。 */}
-      <StoryboardBulkBar
-        plan={plan}
-        imageModelOptions={imageModelOptions}
-        videoModelOptions={videoModelOptions}
-        onChange={setStoryboardPlan}
-      />
 
       {/* 分镜行按**这块**的可用宽度分档（容器查询），不按视口宽——Agent 面板开/关才是真正的变量，
           视口宽只是它的一个远因。`container-type:inline-size` 同时把"内容反过来撑宽容器"这条路堵死，
@@ -595,7 +544,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         />
 
         <section>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <div className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.storyboardHeading', { count: filterAnchorId ? visibleRows.length : plan.shots.length })}</div>
             <button
               type="button"
@@ -608,6 +557,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               <IconPlayerPlay size={12} stroke={1.8} />
               {t('storyboardEditor.playback.start')}
             </button>
+            <StoryboardFilmAspect plan={plan} imageModelOptions={imageModelOptions} videoModelOptions={videoModelOptions} onChange={setStoryboardPlan} />
           </div>
           {filterAnchorId ? (() => {
             const anchor = plan.anchors.find((candidate) => candidate.id === filterAnchorId)
@@ -636,9 +586,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               durationWarnings={durationWarnings}
               onChange={setStoryboardPlan}
               onStoryboardShotSelect={onStoryboardShotSelect}
-              skippedShotIds={skippedShotIds}
-              onToggleSkip={onToggleSkip}
-              onSelectionChange={setSelectedRuntimes}
               onAgentHandoff={onAgentHandoff}
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
@@ -647,7 +594,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onOpenPreviewRow={onOpenPreviewRow}
               onLocateInCanvasRow={onLocateInCanvasRow}
               onRerunFreshRefsRow={onRerunFreshRefsRow}
-              onGenerateSelected={(selected) => onRunSelected(selected)}
               onDeleteSelected={(selected) => {
                 const current = currentTargetRef.current
                 if (current.plan !== plan || current.projectId !== projectId || current.activeDocumentId !== activeDocumentId
@@ -691,8 +637,6 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
         onGenerate={onRunBatch}
         busy={busy}
         runnableCount={batch.runnable.length}
-        selectedCount={selectedRuntimes.length}
-        onAgentHandoff={() => onAgentHandoff(selectedRuntimes)}
       />
 
       {actionFeedback?.designId === designId ? <p role="status" data-storyboard-action-feedback className="px-3 py-2 text-caption text-workbench-danger">{actionFeedback.message}</p> : null}

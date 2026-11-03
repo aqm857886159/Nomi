@@ -11,7 +11,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ModelOption } from '../../../config/models'
-import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import type { PlanAnchor, PlanShot } from '../../generationCanvas/agent/storyboardPlan'
 
 type RecordedSelect = {
   ariaLabel?: string
@@ -34,7 +34,6 @@ vi.mock('../../../design', async (importOriginal) => {
 })
 
 const { default: ShotComposerBar } = await import('./shotRow/ShotComposerBar')
-const { default: StoryboardBulkBar } = await import('./StoryboardBulkBar')
 const { default: StoryboardAnchorRow } = await import('./anchorZone/StoryboardAnchorRow')
 const i18n = (await import('../../../i18n')).default
 
@@ -64,10 +63,10 @@ beforeEach(() => {
 })
 
 describe('① 镜头卡底栏：选 APIMart 那条 → 镜头的 (modelKey, modelVendor) 成对落 APIMart', () => {
-  function renderBar(shot: PlanShot) {
+  function renderBar(shot: PlanShot, modelOptions = OPTIONS) {
     const onUpdate = vi.fn()
     renderToStaticMarkup(createElement(ShotComposerBar, {
-      shot, modelOptions: OPTIONS, aspect: '16:9', onChangeAspect: () => {}, onUpdate,
+      shot, modelOptions, aspect: '16:9', onChangeAspect: () => {}, onUpdate,
     }))
     return { onUpdate, select: findSelect(i18n.t('generationCommon.parameters.model')) }
   }
@@ -92,25 +91,24 @@ describe('① 镜头卡底栏：选 APIMart 那条 → 镜头的 (modelKey, mode
     expect(onUpdate.mock.calls[0]![0]).toHaveProperty('modelVendor', undefined)
     expect(onUpdate.mock.calls[0]![0]).toHaveProperty('modelKey', undefined)
   })
-})
-
-describe('② 批量条「统一模型」：选 APIMart 那一行 → 每一镜都写 apimart', () => {
-  it('批量条的模型按钮（与行底栏同一个 InlineParameterBar）回调的 vendor 一路写进每一镜', () => {
-    const onChange = vi.fn()
-    const plan: StoryboardPlan = {
-      title: 't', anchors: [],
-      shots: [imageShot({ index: 1, modelKey: 'gpt-image-2', modelVendor: CUSTOM }), imageShot({ index: 2 })],
-    }
-    renderToStaticMarkup(createElement(StoryboardBulkBar, { plan, imageModelOptions: OPTIONS, videoModelOptions: [], onChange }))
-    const select = findSelect(i18n.t('generationCommon.parameters.model'))
-    const apimartRow = select.options.find((option) => option.label === 'GPT Image 2')!
-    select.onChange(apimartRow.value)
-    const next = onChange.mock.calls[0]![0] as StoryboardPlan
-    expect(next.shots.map((shot) => [shot.modelKey, shot.modelVendor])).toEqual([
-      ['gpt-image-2', 'apimart'],
-      ['gpt-image-2', 'apimart'],
-    ])
+  it('the menu starts with default, then image/video groups, and cross-kind choices retain the selected provider', () => {
+    const video: ModelOption = { value: 'fixture-video', label: 'Fixture video', kind: 'video', vendor: 'fixture-video-vendor', meta: { archetypeId: 'rh-kling-3.0' } }
+    const { select, onUpdate } = renderBar(imageShot({ modelKey: 'gpt-image-2', modelVendor: CUSTOM }), [...OPTIONS, video])
+    expect(select.options[0]).toMatchObject({ value: '', label: i18n.t('storyboardEditor.defaultModel') })
+    expect(select.options.slice(1).map(option => (option as { group?: string }).group)).toEqual([i18n.t('storyboardEditor.imageModels'), i18n.t('storyboardEditor.imageModels'), i18n.t('storyboardEditor.videoModels')])
+    select.onChange(select.options.find(option => option.label === video.label)!.value)
+    expect(onUpdate.mock.calls[0]![0]).toMatchObject({ shotKind: 'video', modelKey: video.value, modelVendor: video.vendor, durationSec: 3 })
   })
+
+  it('default model preserves the video kind and its keyframe draft', () => {
+    const original = imageShot({ shotKind: 'video', keyframe: { enabled: true, prompt: 'keep keyframe' } })
+    const { select, onUpdate } = renderBar(original)
+    select.onChange('')
+    const next = { ...original, ...onUpdate.mock.calls[0]![0] }
+    expect(next.shotKind).toBe('video')
+    expect(next.keyframe).toEqual(original.keyframe)
+  })
+
 })
 
 describe('③ 锚行模型框：两家同名模型是两个可区分的选项，选 APIMart 写 apimart', () => {

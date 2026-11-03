@@ -87,13 +87,6 @@ export const ROW_STATES: readonly LabState[] = [
     }),
   },
   {
-    id: 'sb-row-10-skipped',
-    name: '行 · 本次跳过（60% + 标签，≠ 锁定）',
-    source: '合同 §2.10 本次跳过 / §3.3 skipped 与 locked 的边界',
-    coverage: 'shell',
-    render: () => RowStage({ skipped: true }),
-  },
-  {
     id: 'sb-row-11-ref-changed',
     name: '行 · 参考已变（只报事实 + 一键补跑）',
     source: '合同 §2.3 保留 v5 语义 / §3.1 done',

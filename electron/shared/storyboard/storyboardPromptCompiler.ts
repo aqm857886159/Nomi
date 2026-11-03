@@ -116,7 +116,7 @@ export type ShotOutbound = Readonly<{
 
 export function compileShotOutbound(shot: PlanShot, part: 'shot' | 'keyframe'): ShotOutbound {
   if (part === 'keyframe') {
-    const keyframePrompt = typeof shot.keyframe?.prompt === 'string' ? shot.keyframe.prompt.trim() : ''
+    const keyframePrompt = shot.keyframe?.enabled === true && typeof shot.keyframe.prompt === 'string' ? shot.keyframe.prompt.trim() : ''
     return { prompt: keyframePrompt || shot.prompt.trim(), referenceBindings: {} }
   }
   const referenceBindings = Object.fromEntries(

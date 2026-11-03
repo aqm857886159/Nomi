@@ -113,3 +113,10 @@ it('projects saved author edits into existing bound nodes only, retaining canvas
   expect(nodes[0].prompt).toBe('Canvas edit')
   expect(nodes[0].meta?.aspect_ratio).toBe('9:16')
 })
+
+it('disabled keyframe drafts never project into a stored keyframe node', () => {
+  const plan = planOf('9:16')
+  plan.shots[2].keyframe = { enabled: false, prompt: 'retained', modelKey: 'old-image-model', params: { aspect_ratio: '1:1' } }
+  expect(projectShotNode(plan, plan.shots[2], nodeOf(), 'keyframe', new Map())).toEqual({})
+  expect(plan.shots[2].keyframe.prompt).toBe('retained')
+})

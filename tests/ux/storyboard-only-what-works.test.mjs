@@ -1,0 +1,102 @@
+import { test } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { expect } from '@playwright/test'
+import { chromium } from 'playwright'
+import { assertTailwindApplied, freshTailwindCss } from './_freshTailwindCss.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
+import { expectAbsent, proveProbe } from './_assert.mjs'
+import { useBrowserFixture } from './_browserFixture.mjs'
+
+freshTailwindCss()
+const HARNESS = 'tests/ux/fixtures/original-storyboard-editor-harness.html'
+const fixture = useBrowserFixture({ entries: [HARNESS], browserType: chromium })
+for (const locale of ['zh-CN', 'en']) test(`per-shot controls ${locale}`, async () => {
+  const text = key => uiText(locale, key)
+  const page = await fixture.browser.newPage({ viewport: { width: 1100, height: 720 } })
+  try {
+    await page.goto(fixture.url(HARNESS, `?locale=${locale}&switch`))
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await page.addStyleTag({ url: '/src/styles/index.css' })
+    await assertTailwindApplied(page, 'storyboard-only-what-works.test.mjs')
+    await expect(page.locator('[data-storyboard-editor]')).toBeVisible()
+    const editor = page.locator('[data-storyboard-editor]')
+    const editorProof = await proveProbe(editor, 'Original storyboard editor and its control scope')
+    expect(await editor.locator(':scope > *').evaluateAll(elements => elements.map(element => element.tagName)), 'board:StoryboardOnlyWhatWorks/removed.strips').toEqual(['HEADER', 'DIV', 'FOOTER'])
+    await expect(page.locator('[data-storyboard-aspect-default]'), 'board:StoryboardOnlyWhatWorks/heading.film').toBeVisible()
+    await expectAbsent(page.locator('[data-storyboard-selection-toolbar]'), { provenBy: editorProof })
+    await page.getByRole('checkbox', { name: uiTextWith(locale, 'storyboardEditor.selection.rowAria', { index: 1 }), exact: true }).check()
+    const toolbar = page.locator('[data-storyboard-selection-toolbar]')
+    await expect(toolbar.getByRole('button'), 'board:StoryboardOnlyWhatWorks/selection.actions').toHaveCount(3)
+    const toolbarBox = await toolbar.boundingBox()
+    const tableBox = await page.locator('[data-storyboard-rows]').boundingBox()
+    expect(Math.abs(toolbarBox.x + toolbarBox.width / 2 - tableBox.x - tableBox.width / 2)).toBeLessThan(1)
+    const footerProof = await proveProbe(page.locator('[data-storyboard-plan-footer]'), 'Storyboard footer is mounted')
+    await expectAbsent(page.locator('[data-storyboard-agent-handoff="footer"]'), { provenBy: footerProof })
+    await toolbar.getByRole('button', { name: text('storyboardEditor.selection.clear') }).click()
+    const model = page.locator('[data-storyboard-composer-bar="true"]').getByRole('button', { name: text('generationCommon.parameters.model'), exact: true })
+    const imageSummary = await page.locator('[data-parameter-summary]').innerText()
+    await model.click()
+    await expect(page.getByRole('option').first(), 'board:StoryboardOnlyWhatWorks/row.model').toHaveText(text('storyboardEditor.defaultModel'))
+    await expect(page.getByText(text('storyboardEditor.imageModels'), { exact: true })).toBeVisible()
+    await expect(page.getByText(text('storyboardEditor.videoModels'), { exact: true })).toBeVisible()
+    fs.mkdirSync(path.resolve('tests/ux/shots/storyboard-only-what-works'), { recursive: true })
+    await page.screenshot({ path: path.resolve(`tests/ux/shots/storyboard-only-what-works/${locale}-model-menu.png`), fullPage: true })
+    await page.getByRole('option', { name: /Fixture 视频/ }).click()
+    const shot = () => page.evaluate(() => Object.values(window.originalStoryboard.plans()).flat()[0].plan.shots[0])
+    expect((await shot()).shotKind).toBe('video')
+    expect((await shot()).modelKey).toBe('pf-video')
+    await expect(page.locator('[data-storyboard-composer-params="video"] [data-parameter-summary]')).toBeVisible()
+    expect(await page.locator('[data-parameter-summary]').innerText()).not.toBe(imageSummary)
+    await model.click()
+    await page.getByRole('option', { name: text('storyboardEditor.defaultModel'), exact: true }).click()
+    expect((await shot()).shotKind).toBe('video')
+    await page.locator('[data-storyboard-row-menu-trigger="1"]').click()
+    const menuProof = await proveProbe(page.locator('[data-storyboard-row-menu="1"]'), 'The real row menu is open')
+    await expectAbsent(page.locator('[data-storyboard-row-menu="1"]').getByRole('button', { name: locale === 'en' ? 'Skip once' : '本次跳过', exact: true }), { provenBy: menuProof })
+    const toggle = page.getByRole('switch', { name: text('storyboardEditor.keyframeFirst') })
+    const before = await shot()
+    await toggle.check()
+    await page.keyboard.press('Escape')
+    const prompt = page.getByRole('textbox', { name: locale === 'en' ? 'Keyframe image prompt for shot 1' : '镜 1 首帧图提示词' })
+    await prompt.fill('saved keyframe prompt')
+    await page.locator('[data-storyboard-row-menu-trigger="1"]').click()
+    await toggle.uncheck()
+    const after = await shot()
+    expect(after.modelKey).toBe(before.modelKey)
+    expect(after.params).toEqual(before.params)
+    expect(after.keyframe, 'board:StoryboardOnlyWhatWorks/row.keyframe-toggle').toMatchObject({ enabled: false, prompt: 'saved keyframe prompt' })
+    await page.keyboard.press('Escape')
+    const folder = path.resolve('tests/ux/shots/storyboard-only-what-works')
+    fs.mkdirSync(folder, { recursive: true })
+    for (const scheme of ['light', 'dark']) {
+      await page.evaluate(scheme => document.documentElement.setAttribute('data-mantine-color-scheme', scheme), scheme)
+      await page.screenshot({ path: path.join(folder, `${locale}-${scheme}-minimum.png`), fullPage: true })
+    }
+  } finally { await page.close() }
+})
+
+for (const locale of ['zh-CN', 'en']) test(`keyframe toggle preserves authored video settings ${locale}`, async () => {
+  const page = await fixture.browser.newPage({ viewport: { width: 1100, height: 720 } })
+  try {
+    await page.goto(fixture.url(HARNESS, `?locale=${locale}&switch&media=video`))
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await page.addStyleTag({ url: '/src/styles/index.css' })
+    const shot = () => page.evaluate(() => Object.values(window.originalStoryboard.plans()).flat()[0].plan.shots[0])
+    await expect(page.locator('[data-storyboard-row="1"]')).toBeVisible()
+    const before = await shot()
+    expect(before.modelKey).toBe('pf-video')
+    expect(before.params).toEqual({ duration: 5, resolution: '720p' })
+    await page.locator('[data-storyboard-row-menu-trigger="1"]').click()
+    await page.getByRole('switch', { name: uiText(locale, 'storyboardEditor.keyframeFirst') }).check()
+    await page.keyboard.press('Escape')
+    await page.getByRole('textbox', { name: uiTextWith(locale, 'storyboardEditor.keyframePromptAria', { index: 1 }) }).fill('authored keyframe')
+    await page.locator('[data-storyboard-row-menu-trigger="1"]').click()
+    await page.getByRole('switch', { name: uiText(locale, 'storyboardEditor.keyframeFirst') }).uncheck()
+    const after = await shot()
+    expect(after.modelKey).toBe(before.modelKey)
+    expect(after.modelVendor).toBe(before.modelVendor)
+    expect(after.params).toEqual(before.params)
+    expect(after.keyframe).toMatchObject({ enabled: false, prompt: 'authored keyframe' })
+  } finally { await page.close() }
+})

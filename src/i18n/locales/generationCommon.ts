@@ -1393,7 +1393,6 @@ export const zhGenerationCommon = {
       scene: '场景',
       prop: '道具',
     },
-    unifyModel: '统一模型',
     modelGroup: {
       image: '图片 ×{{count}}',
       video: '视频 ×{{count}}',
@@ -3112,7 +3111,6 @@ export const enGenerationCommon = {
       scene: 'Scene',
       prop: 'Prop',
     },
-    unifyModel: 'Set model',
     modelGroup: {
       image: 'Images ×{{count}}',
       video: 'Videos ×{{count}}',

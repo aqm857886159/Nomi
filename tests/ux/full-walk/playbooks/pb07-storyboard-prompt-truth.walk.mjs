@@ -162,11 +162,11 @@ try {
     if (!(await editor().isVisible().catch(() => false))) await openStoryboardEditor(win(), DESIGN, '侧栏选中分镜方案')
     await expect(editor(), '分镜编辑器回来').toBeVisible({ timeout: stationTimeout() })
   }, { surfaces: ['*'] })
-  await monitor.step('E4 · 用户把第 5 镜的提示词改写成「巨龙」，并勾上「本次跳过」把它留给 Agent', async () => {
+  await monitor.step('E4 · 用户把第 5 镜的提示词改写成「巨龙」，并选中把它留给 Agent', async () => {
     await rewritePrompt(5, DRAGON)
   }, { surfaces: [] })
   await monitor.step('E2 · 跳过第 5 镜，按「生成剩余」', async () => {
-    await clickOrFail(editor().locator('[data-storyboard-row="5"] input[type="checkbox"]').first(), '第 5 镜的「本次跳过」')
+    await clickOrFail(editor().locator('[data-storyboard-row="5"] input[type="checkbox"]').first(), '选中第 5 镜')
     await monitor.screenshot('e2-batch-shown')
     await monitor.consentStoryboardRows([1, 3, 6], { kind: 'storyboard-batch', label: '「生成剩余」（镜 1、镜 3、镜 6）' })
     await clickOrFail(editor().locator('[data-storyboard-batch="true"]').first(), '「生成剩余」', { noWaitAfter: true })

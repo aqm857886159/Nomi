@@ -122,26 +122,9 @@ describe('model select structure — 选了模型就必须选得了供应商', (
     expect(survivors, 'resolveBestProvider 是被 sortModelProviders 取代的旧规则，不许复活（P1）').toEqual([])
   })
 
-  it('批量选模型只有一份实现：所有批量调用点都走同一份 BulkModelPicker，不各写各的', () => {
-    // 画布上的批量选模型入口已删（批量只走组的「生成整组」，各节点用自己选好的模型）；
-    // 现在只剩分镜批量条这一处批量调用点，它直接用 BulkModelPicker。
-    const bulkPickerImplementations = ['src/workbench/creation/storyboard/StoryboardBulkBar.tsx']
-    for (const relative of bulkPickerImplementations) {
-      const source = readCode(relative)
-      expect(source, `${relative} 应使用共享的 BulkModelPicker`).toContain('BulkModelPicker')
-      // P1 无并行版：批量调用点不许再自己调那个两段式 hook（调了就又会退化成「选不了家」）。
-      expect(source, `${relative} 不该再直接用 ${HOOK_NAME}`).not.toContain(HOOK_NAME)
+  it('removed bulk model controls have no production implementation', () => {
+    for (const relative of ['src/workbench/common/BulkModelPicker.tsx', 'src/workbench/creation/storyboard/StoryboardBulkBar.tsx']) {
+      expect(fs.existsSync(path.join(process.cwd(), relative))).toBe(false)
     }
-
-    // 画布上不许再长出批量选模型 / 批量底栏（用户 2026-10-06 拍板删除，P1 不留并行入口）。
-    for (const gone of ['CanvasBulkModelSelect', 'CanvasBatchGenerateDock', 'CanvasProductionControls']) {
-      expect(fs.existsSync(path.join(process.cwd(), `src/workbench/generationCanvas/components/${gone}.tsx`)), `${gone} 已删除`).toBe(false)
-    }
-  })
-
-  it('BulkModelPicker 选中后把 vendor 一起交出去（只写 modelKey 就等于没修）', () => {
-    const picker = readCode('src/workbench/common/BulkModelPicker.tsx')
-    expect(picker).toContain('resolveProviderByAddress')
-    expect(picker).toContain('onPick(provider.option.value, provider.vendor)')
   })
 })

@@ -98,6 +98,13 @@ beforeEach(() => {
 })
 
 describe('一镜发出去的只有行上的提示词和行上看得见的参考图（唯一出口 compileShotOutbound）', () => {
+  it('retains a disabled keyframe draft without compiling it as an active prompt', () => {
+    const keyframe = { enabled: false, prompt: 'saved keyframe draft' }
+    expect(compileShotOutbound({ ...shot, keyframe }, 'keyframe').prompt).toBe(DRAGON)
+    expect(compileShotOutbound({ ...shot, keyframe: { ...keyframe, enabled: true } }, 'keyframe').prompt).toBe(keyframe.prompt)
+    expect(keyframe).toEqual({ enabled: false, prompt: 'saved keyframe draft' })
+  })
+
   it('出口本身：提示词逐字等于行上写的，参考图只有行上摆着的；anchorIds 不参与', () => {
     const outbound = compileShotOutbound(shot, 'shot')
     expect(outbound.prompt).toBe(DRAGON)

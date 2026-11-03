@@ -187,13 +187,13 @@ try {
     await win().keyboard.press('Escape')
   })
 
-  await phase('P4-bulk-bar', async (r) => {
+  await phase('P4-film-aspect', async (r) => {
     await scrollTo(0)
-    r.controls = await editor().locator('[data-storyboard-bulkbar] [aria-label]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
-    await editor().locator('[data-storyboard-bulkbar] button').nth(3).click()
+    r.controls = await editor().locator('[data-storyboard-aspect-default] [aria-label]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
+    await editor().locator('[data-storyboard-aspect-default] button').click()
     await settle(400)
     r.aspectOptions = await visibleOptions()
-    await snap('09-bulk-aspect-menu')
+    await snap('09-film-aspect-menu')
     await win().keyboard.press('Escape')
   })
 

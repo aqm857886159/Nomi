@@ -151,7 +151,7 @@ export function resolveShotParams(plan: StoryboardPlan, shot: PlanShot): Record<
  * 运动落点从第一帧就偏了。所以整片默认同样要落到这张图上（首帧模型没有该控件时照样诚实缺席）。
  */
 export function resolveKeyframeParams(plan: StoryboardPlan, shot: PlanShot): Record<string, unknown> {
-  return withFilmDefaults(plan, shot, shot.keyframe?.params)
+  return withFilmDefaults(plan, shot, shot.keyframe?.enabled === true ? shot.keyframe.params : undefined)
 }
 
 function withFilmDefaults(

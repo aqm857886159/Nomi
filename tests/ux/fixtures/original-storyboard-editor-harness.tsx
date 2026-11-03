@@ -33,18 +33,18 @@ const planFor = (id: string) => ({ title: `Plan ${id}`, anchors: [], ...(query.h
   // `refs`：整片 16:9（参考条在预览框下面），镜 1 挂 6 张参考（改图模式收参考图）——窄档参考条一行放不下，
   // 确定性地折出「+N」浮层（不靠字体 / 宽度碰运气）。
   ...(query.has('refs') && mediaKind === 'image' ? { modeId: 'edit', referenceBindings: { image_ref: REF_IMAGES.map((url, index) => ({ url, name: `Ref ${index + 1}` })) } } : {}) }] })
-const designs = Object.fromEntries(['a', 'b'].map(id => [id, store.addStoryboardDesign({ initiator: 'user', documentId: 'doc', source: planFor(id), identity: { id: `design-${id}`, title: `Plan ${id}` } })!]))
+const designs = Object.fromEntries(['a', 'b'].map(id => [id, store.addStoryboardDesign({ initiator: 'user', documentId: 'doc', source: query.has('many') ? { ...planFor(id), shots: [1, 2, 3].map((index) => ({ ...planFor(id).shots[0], index, shotId: `shot-${id}-${index}` })) } : planFor(id), identity: { id: `design-${id}`, title: `Plan ${id}` } })!]))
 store.setActiveStoryboardId(designs.a.id, 'doc')
 if (query.has('confirm')) {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ id: 'result-node', kind: 'image', title: 'Result', position: { x: 0, y: 0 }, categoryId: 'shots', status: 'success', result: { id: 'result', type: 'image', url: '/favicon.ico', createdAt: 1 }, meta: { storyboardDesignId: designs.a.id, shotId: 'shot-a' } }], edges: [], groups: [] })
 }
-Object.assign(window, { originalStoryboard: { plans: () => useWorkbenchStore.getState().storyboardDesignsByDocumentId, agentRefs: () => useWorkbenchStore.getState().projectAgentReferences.map((item) => item.value) } })
+Object.assign(window, { originalStoryboard: { plans: () => useWorkbenchStore.getState().storyboardDesignsByDocumentId, agentRefs: () => useWorkbenchStore.getState().projectAgentReferences.map((item) => item.value), agentCollapsed: () => useWorkbenchStore.getState().projectAgentDockCollapsed, collapseAgent: () => useWorkbenchStore.getState().setProjectAgentDockCollapsed(true) } })
 useWorkbenchStore.getState().setWorkspaceMode('storyboard')
 function Fixture() {
   const [hidden, setHidden] = React.useState(false)
   const select = (id: string) => useWorkbenchStore.getState().setActiveStoryboardId(designs[id].id, 'doc')
   return <><button onClick={() => select('a')}>Plan A</button><button onClick={() => select('b')}>Plan B</button>
     {query.has('undo') ? <><button>Outside editor</button><input aria-label="Sibling text" /><button onClick={() => { setHidden(true); useWorkbenchStore.getState().setWorkspaceMode('generation') }}>Canvas sibling</button></> : null}
-    <div style={{ height: 800 }} hidden={hidden}><StoryboardPlanEditor projectId="project" /></div></>
+    <div style={{ height: 'min(800px, calc(100vh - 60px))' }} hidden={hidden}><StoryboardPlanEditor projectId="project" /></div></>
 }
 createRoot(document.getElementById('root')!).render(<NomiPreviewHost locale={query.get('locale') || 'zh-CN'}><Fixture /><ConfirmDialogHost /></NomiPreviewHost>)

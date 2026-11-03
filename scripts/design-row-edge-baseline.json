@@ -25,7 +25,6 @@
   "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx": 2,
   "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx": 1,
   "src/workbench/creation/storyboard/shotRow/StoryboardVariantsDrawer.tsx": 1,
-  "src/workbench/creation/storyboard/StoryboardBulkBar.tsx": 1,
   "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx": 3,
   "src/workbench/creation/storyboard/StoryboardShotTable.tsx": 1,
   "src/workbench/generationCanvas/components/CanvasControlsHelpPopover.tsx": 1,

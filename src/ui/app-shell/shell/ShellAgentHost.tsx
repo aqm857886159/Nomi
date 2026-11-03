@@ -1,3 +1,4 @@
+import { focusComposerSoon } from '../../../workbench/ai/resident/focusComposerSoon'
 // Agent 三种形态的宿主（10-08 外壳拍板稿 Main / CanvasAgent / CreationDoc / Chrome）：小球 / 浮窗 / 停靠右侧。
 // 设计卡 docs/plan/2026-10-08-shell-redesign.md「Agent 三形态状态表」。
 //
@@ -60,15 +61,6 @@ function useAreaSize(node: HTMLElement | null): { width: number; height: number 
   return size
 }
 
-function focusComposerSoon(): void {
-  let frames = 0
-  const tick = () => {
-    const input = document.querySelector<HTMLTextAreaElement>('#project-agent-resident textarea')
-    if (input) input.focus()
-    else if (frames++ < 20) window.requestAnimationFrame(tick)
-  }
-  window.requestAnimationFrame(tick)
-}
 
 function BallIcon(): JSX.Element {
   return <span className="block size-2 rounded-full bg-current" aria-hidden="true" />

@@ -126,7 +126,7 @@ function describeRow(entry) {
   const parts = [entry.selected ? '选中了' : '没有选中']
   if (!entry.visible) parts.push('整行看不见了')
   if (entry.opacity < 1) parts.push(`整行变淡到 ${Math.round(entry.opacity * 100)}%`)
-  if (entry.skipped) parts.push('被标成「本次跳过」')
+  if (entry.skipped) parts.push('出现了已删除的跳过标记')
   if (!entry.composerVisible) parts.push('底栏看不见了')
   return parts.join('，')
 }
@@ -254,7 +254,7 @@ try {
       return { ok, actual: `勾上之后第 3 镜${describeRow(target)}${countChange(before, after)}${gone.length ? `；这些东西不见了：${gone.slice(0, 6).join('、')}` : ''}` }
     },
   })
-  // 收回「本次跳过」，免得它影响后面的生成（这一下不是被测动作）。
+  // 清除选中，复原行首复选框（这一下不是被测动作）。
   await monitor.step('把第 3 镜的小方框取消勾选（复原）', async () => {
     const box = row(3).locator('input[type="checkbox"]').first()
     if (await box.isChecked().catch(() => false)) await clickOrFail(box, '第 3 镜行首的小方框（取消）')

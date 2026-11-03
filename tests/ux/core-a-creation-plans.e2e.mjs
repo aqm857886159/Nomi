@@ -119,7 +119,7 @@ try {
     // textarea in a replacement form is not storyboard feature parity.
     const sharedEditor = win.locator('[data-storyboard-editor="true"]')
     await expect(sharedEditor, 'Agent plans must open the existing storyboard editor').toBeVisible()
-    await expect(sharedEditor.locator('[data-storyboard-bulkbar]')).toBeVisible()
+    await expect(sharedEditor.locator('[data-storyboard-aspect-default]')).toBeVisible()
     await expect(sharedEditor.locator('[data-storyboard-row]')).toHaveCount(1)
     for (const selector of ['[data-storyboard-frame]', '[data-storyboard-visual-column]', '[data-storyboard-prompt-block]']) {
       await expect(sharedEditor.locator(selector), 'Existing shot editing regions must remain reachable').toBeVisible()

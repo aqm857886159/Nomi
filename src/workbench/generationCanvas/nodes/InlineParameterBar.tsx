@@ -77,6 +77,7 @@ type InlineParameterBarProps = {
    * 画布节点不传；分镜行传「默认模型」——分镜没选模型时落画布用默认模型，用户要能选回去。
    */
   leadingModelOption?: { label: string }
+  modelGroupLabels?: Record<'image' | 'video', string> | undefined
   /**
    * 面板最底下的一小段说明（分镜批量 / 多选：「哪些参数为什么没出现」）。画布节点不传。
    * 传了它，即使一个可调参数都没有，触发器也照样出现——点开才读得到「为什么没有」。
@@ -133,6 +134,7 @@ export default function InlineParameterBar({
   modeLabel,
   onModeSelect,
   leadingModelOption,
+  modelGroupLabels,
   panelFooter,
 }: InlineParameterBarProps): JSX.Element {
   const { t } = useTranslation()
@@ -142,6 +144,7 @@ export default function InlineParameterBar({
     selectedModelOption?.value || '',
     onModelChange,
     selectedModelOption?.vendor,
+    modelGroupLabels,
   )
 
   // 摘要 pill 文本：各参数当前值串接（16:9 · 1080p · 5 · 音频）。面板装**全部**参数（pill 不占走任何一个）。

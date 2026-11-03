@@ -1,0 +1,304 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-03-storyboard-per-shot-controls",
+  "problem_type": "Duplicated storyboard configuration scopes and invisible handoff",
+  "symptom": "Redundant global and selection controls; Agent handoff attaches references without revealing the composer.",
+  "direct_cause": "Global/selection parameter writers coexist with per-shot writers; handoff only writes references.",
+  "class_root": "A creative decision has multiple UI owners and an explicit handoff has no reveal/focus boundary.",
+  "affected_population": [
+    "All storyboard plans, image and video rows, stored keyframe drafts and multi-provider models"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/**",
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/design/NomiSelect.tsx",
+    "src/ui/app-shell/shell/ShellAgentHost.tsx",
+    "electron/shared/storyboard/storyboardPromptCompiler.ts",
+    "electron/shared/storyboard/storyboardShotScope.ts",
+    "src/workbench/common/useDedupedModelSelect.ts",
+    "src/workbench/ai/resident/focusComposerSoon.ts"
+  ],
+  "entry_points": [
+    "Per-shot model picker",
+    "Storyboard selection handoff",
+    "Video keyframe toggle",
+    "Film aspect control"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Scope ownership and approved control removal are internal product contracts. Existing components and catalog resolvers remain the implementation.",
+  "invariants": [
+    "Selection only hands off or deletes shots.",
+    "Changing model preserves vendor identity and changes shot kind only for an explicit model from the other catalog.",
+    "Disabled keyframe drafts are retained but never projected or compiled as active keyframes.",
+    "Film aspect remains one project setting and does not rewrite row overrides."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/generationPlanSchemas.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/storyboard/storyboardShotScope.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/storyboard/storyboardSubjectAdapter.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "setProjectAgentDockCollapsed"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/storyboardTimelinePlan.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/migration/legacyScene3dTypes.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/migration/migrateScene3d.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/characterRigMigration.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeCharacterActions.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/timelineClipboard.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/model/timelineTracks.ts",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/inspector/BoneKeyframeInspector.tsx",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/inspector/SkeletonTab.tsx",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/inspector/TimelineSelectionCards.tsx",
+      "symbol": "keyframe"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/shell/ShellAgentHost.tsx",
+      "symbol": "focusComposerSoon"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/shell/ShellAgentHost.tsx",
+      "symbol": "setProjectAgentDockCollapsed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "planModelSelection"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "symbol": "planModelSelection"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "setProjectAgentDockCollapsed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "focusComposerSoon"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "symbol": "planModelSelection"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
+      "symbol": "setProjectAgentDockCollapsed"
+    }
+  ],
+  "door_reduction": {
+    "before": 33,
+    "after": 34,
+    "why_not": "Compilation, projection, runtime status and persistence are separate necessary readers; unrelated animation keyframe readers remain unaffected. UI model writers are removed while the row/anchor model owner and existing shell reveal paths remain."
+  },
+  "generality_proof": "Delete bulk and selection parameter writer components and props. Reuse the paired model identity writer for every explicit row model. Disabled keyframe reads are checked at compiler, resolver and projection boundaries, regardless of how the draft was persisted.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "symbol": "ShotComposerBar",
+      "responsibility": "Explicit per-shot model choice and paired vendor identity."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "symbol": "projectStoryboardDesign",
+      "responsibility": "Do not project a retained disabled keyframe."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "entry_point": "ShotComposerBar",
+      "disposition": "enforced",
+      "evidence": "The row handles choices from both media catalogs and writes through planModelSelection."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "entry_point": "projectStoryboardDesign",
+      "disposition": "enforced",
+      "evidence": "Explicit plan edits must skip disabled keyframe drafts."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any plan or row may reach duplicated controls or preserve a disabled keyframe.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs keyframe",
+      "node scripts/door-map.mjs planModelSelection",
+      "node scripts/door-map.mjs setProjectAgentDockCollapsed",
+      "rg keyframe src electron, including projection, compilation, schema and persistence readers"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+    "invariant": "Only the per-shot composer chooses a row model and preserves its provider identity.",
+    "failure_mode": "No bulk writer remains; explicit cross-kind choices update type and model in one patch.",
+    "exception_policy": "none",
+    "strategy": "Delete duplicate UI writers; keep one paired model selection operation.",
+    "artifacts": [
+      "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+      "src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/storyboard-only-what-works.test.mjs",
+    "src/workbench/creation/storyboard/storyboardModelVendorIdentity.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/ux/storyboard-only-what-works.test.mjs",
+    "src/workbench/creation/storyboard/storyboardModelVendorIdentity.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/StoryboardBulkBar.tsx",
+      "src/workbench/creation/storyboard/StoryboardBulkParams.tsx",
+      "src/workbench/creation/storyboard/storyboardBulkModelScope.ts",
+      "src/workbench/creation/storyboard/storyboardBulkParamScope.ts",
+      "src/workbench/common/BulkModelPicker.tsx"
+    ],
+    "rationale": "The approved per-shot workflow replaces redundant configuration; film aspect is moved with unchanged persistence."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls this domain ownership invariant; reuse installed UI primitives.",
+    "exit_criteria": []
+  },
+  "migration": "No stored field is removed or migrated; skip state was local only. Disabled keyframe objects retain authored prompts. Explicit conversion to image keeps existing destructive type-switch semantics.",
+  "residual_risks": [
+    "Real-model Agent bulk edit and independent acceptance are coordinator-owned; implementation runs the free rehearsal only.",
+    "The existing Agent admission only captures storyboardTarget on the creation surface. Bulk editing from the storyboard surface is stopped for coordinator review; tools are outside this task."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-03",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
+    "tests": [
+      "src/workbench/creation/storyboard/storyboardModelVendorIdentity.test.ts",
+      "tests/ux/storyboard-only-what-works.test.mjs"
+    ]
+  }
+}
