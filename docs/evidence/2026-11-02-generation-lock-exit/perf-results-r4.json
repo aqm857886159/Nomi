@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "3610b9aba09529df66191b6000c5e3f32ddcb978",
+  "sourceCommit": "61e44843ec3a37e27f476af4c34610dd0168e22d",
   "warmup": 1,
   "quantile": "existing bench nearest rank",
   "results": [
@@ -9,62 +9,62 @@
       "metrics": {
         "response": {
           "runs": 5,
-          "median": 25.5,
-          "p95": 27.9,
+          "median": 24.3,
+          "p95": 24.9,
           "samples": [
-            23.7,
-            24.5,
-            25.5,
-            25.7,
-            27.9
+            23.1,
+            23.8,
+            24.3,
+            24.8,
+            24.9
           ]
         }
       },
       "samples": [
         {
-          "responseMs": 25.5,
+          "responseMs": 24.3,
           "longTasks": 0,
           "longTaskMaxMs": 0,
           "queueSettled": 20,
           "listCards": 192,
-          "frameP95Ms": 10.4,
-          "elapsedMs": 487
+          "frameP95Ms": 10.6,
+          "elapsedMs": 496
         },
         {
-          "responseMs": 27.9,
+          "responseMs": 23.8,
           "longTasks": 0,
           "longTaskMaxMs": 0,
           "queueSettled": 20,
           "listCards": 192,
-          "frameP95Ms": 11.3,
+          "frameP95Ms": 10.7,
+          "elapsedMs": 504
+        },
+        {
+          "responseMs": 23.1,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 11,
+          "elapsedMs": 496
+        },
+        {
+          "responseMs": 24.9,
+          "longTasks": 0,
+          "longTaskMaxMs": 0,
+          "queueSettled": 20,
+          "listCards": 192,
+          "frameP95Ms": 10.5,
           "elapsedMs": 503
         },
         {
-          "responseMs": 24.5,
+          "responseMs": 24.8,
           "longTasks": 0,
           "longTaskMaxMs": 0,
           "queueSettled": 20,
           "listCards": 192,
-          "frameP95Ms": 10.4,
-          "elapsedMs": 493
-        },
-        {
-          "responseMs": 23.7,
-          "longTasks": 0,
-          "longTaskMaxMs": 0,
-          "queueSettled": 20,
-          "listCards": 192,
-          "frameP95Ms": 10.1,
-          "elapsedMs": 491
-        },
-        {
-          "responseMs": 25.7,
-          "longTasks": 0,
-          "longTaskMaxMs": 0,
-          "queueSettled": 20,
-          "listCards": 192,
-          "frameP95Ms": 11.3,
-          "elapsedMs": 471
+          "frameP95Ms": 10.5,
+          "elapsedMs": 508
         }
       ],
       "longTasksTotal": 0
@@ -75,65 +75,65 @@
       "metrics": {
         "response": {
           "runs": 5,
-          "median": 47.9,
-          "p95": 49.5,
+          "median": 59.4,
+          "p95": 83.4,
           "samples": [
-            38.8,
-            46.9,
-            47.9,
-            48,
-            49.5
+            49.9,
+            56.8,
+            59.4,
+            72.6,
+            83.4
           ]
         }
       },
       "samples": [
         {
-          "responseMs": 47.9,
-          "longTasks": 0,
-          "longTaskMaxMs": 0,
+          "responseMs": 72.6,
+          "longTasks": 1,
+          "longTaskMaxMs": 59,
           "queueSettled": null,
           "listCards": null,
-          "frameP95Ms": 20.8,
-          "elapsedMs": 526
+          "frameP95Ms": 34.4,
+          "elapsedMs": 791
         },
         {
-          "responseMs": 49.5,
+          "responseMs": 59.4,
           "longTasks": 0,
           "longTaskMaxMs": 0,
           "queueSettled": null,
           "listCards": null,
-          "frameP95Ms": 21.5,
-          "elapsedMs": 560
+          "frameP95Ms": 14.8,
+          "elapsedMs": 570
         },
         {
-          "responseMs": 38.8,
+          "responseMs": 56.8,
           "longTasks": 0,
           "longTaskMaxMs": 0,
           "queueSettled": null,
           "listCards": null,
-          "frameP95Ms": 24.3,
-          "elapsedMs": 526
+          "frameP95Ms": 23.4,
+          "elapsedMs": 562
         },
         {
-          "responseMs": 48,
-          "longTasks": 0,
-          "longTaskMaxMs": 0,
+          "responseMs": 83.4,
+          "longTasks": 1,
+          "longTaskMaxMs": 70,
           "queueSettled": null,
           "listCards": null,
-          "frameP95Ms": 21.6,
-          "elapsedMs": 536
+          "frameP95Ms": 17.5,
+          "elapsedMs": 621
         },
         {
-          "responseMs": 46.9,
+          "responseMs": 49.9,
           "longTasks": 0,
           "longTaskMaxMs": 0,
           "queueSettled": null,
           "listCards": null,
-          "frameP95Ms": 25.2,
-          "elapsedMs": 541
+          "frameP95Ms": 19.2,
+          "elapsedMs": 619
         }
       ],
-      "longTasksTotal": 0
+      "longTasksTotal": 2
     }
   ]
 }

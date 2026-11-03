@@ -10,18 +10,20 @@ import { canvasFitView, closeRailDrawer, collapseAgentPanel, switchGenerationVie
 import { prepareLockExitStoryboard } from './_generationLockExitSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
-export async function expectToken(locator, property, token) {
-  const colors = await locator.evaluate((element, { property, token }) => {
-    const probe = document.createElement('div'); probe.style.setProperty(property, `var(--${token})`); element.append(probe)
+export async function expectCssColor(locator, property, value) {
+  const colors = await locator.evaluate((element, { property, value }) => {
+    const probe = document.createElement('div'); probe.style.setProperty(property, value); element.append(probe)
     const expected = getComputedStyle(probe).getPropertyValue(property), actual = getComputedStyle(element).getPropertyValue(property)
     probe.remove()
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1
     const context = canvas.getContext('2d')
     const rgba = color => { context.clearRect(0, 0, 1, 1); context.fillStyle = color; context.fillRect(0, 0, 1, 1); return Array.from(context.getImageData(0, 0, 1, 1).data) }
     return { actual: rgba(actual), expected: rgba(expected) }
-  }, { property, token })
-  assert.deepEqual(colors.actual, colors.expected, `${property}: ${token}`)
+  }, { property, value })
+  assert.deepEqual(colors.actual, colors.expected, `${property}: ${value}`)
 }
+
+export function expectToken(locator, property, token) { return expectCssColor(locator, property, `var(--${token})`) }
 
 /** Real discarded reply and accepted slow task; only the supplier is a fixture. */
 export async function approvedUnknownResultCardJourney(input) {

@@ -219,11 +219,6 @@
       "symbol": "canvasOpenRuns"
     },
     {
-      "kind": "read",
-      "path": "tests/ux/design-lab/c04-evidence.tsx",
-      "symbol": "SpendConfirmDialog"
-    },
-    {
       "kind": "write",
       "path": "electron/capabilityCore/appIntegration.ts",
       "symbol": "recoverOrphans"
@@ -590,6 +585,11 @@
     },
     {
       "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "setNodeRecoveryPresentation"
+    },
+    {
+      "kind": "write",
       "path": "src/workbench/production/useProductionStatus.ts",
       "symbol": "nodeIdOfJob"
     },
@@ -627,34 +627,14 @@
       "kind": "write",
       "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
       "symbol": "confirmAndRunNode"
-    },
-    {
-      "kind": "write",
-      "path": "tests/ux/_generationLockExitThreePages.mjs",
-      "symbol": "canvasOpenRuns"
-    },
-    {
-      "kind": "write",
-      "path": "tests/ux/fixtures/failure-toast-layout/main.tsx",
-      "symbol": "classifyGenerationError"
-    },
-    {
-      "kind": "write",
-      "path": "tests/ux/fixtures/shot-nodes-media/main.tsx",
-      "symbol": "deriveShotRowExec"
-    },
-    {
-      "kind": "write",
-      "path": "tests/ux/generation-lock-exit-interrupted.walk.mjs",
-      "symbol": "canvasOpenRuns"
     }
   ],
   "door_reduction": {
     "before": 13,
-    "after": 107,
+    "after": 103,
     "why_not": "三页和Agent/任务中心是必要入口，不能靠删页面减门。本轮按当前不变量的共享口重新扫，移除旧通用桥/其它接口的过宽枚举；计数变化不是结构性删入口的证据。结构性删除的是拒绝分支、旧查询和重复状态。"
   },
-  "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。 B6的确认快照和最后一跳按整镜核对同时覆盖未落节点/已存在节点、主镜/关键帧、失败重试/画布/列表/组头和Agent；B7三处都经同一JSON归一口，真实改动仍拒绝。 第3轮查询全部未结束Run并在唯一主进程口准入；已批准回执只对真人单发有效，机器及过期回执不能覆盖新Run。同次意图去重保留，拒绝撤回记录，恢复订阅真正项目提交，制作多镜的原重启规则不被单镜guard吞掉。",
+  "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。 B6的确认快照和最后一跳按整镜核对同时覆盖未落节点/已存在节点、主镜/关键帧、失败重试/画布/列表/组头和Agent；B7三处都经同一JSON归一口，真实改动仍拒绝。 第3轮查询全部未结束Run并在唯一主进程口准入；已批准回执只对真人单发有效，机器及过期回执不能覆盖新Run。同次意图去重保留，拒绝撤回记录，恢复订阅真正项目提交，制作多镜的原重启规则不被单镜guard吞掉。 第4轮新分镜再发按钮前置IPC拒绝有真实浏览器点击回归；恢复投影只接结果不明这一事实，节点状态映射收回原store动作，未放宽状态取值。",
   "shared_boundaries": [
     {
       "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
@@ -792,7 +772,11 @@
       "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
       "docs/evidence/2026-11-02-generation-lock-exit/round3.json",
       "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
-      "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx"
+      "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "src/workbench/creation/storyboard/shotRow/ShotRetry.browser.test.ts"
     ]
   },
   "regression_tests": [
@@ -820,7 +804,8 @@
     "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx",
     "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
     "src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx",
-    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts"
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts",
+    "src/workbench/creation/storyboard/shotRow/ShotRetry.browser.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
@@ -840,7 +825,8 @@
     "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx",
     "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
     "src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx",
-    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts"
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts",
+    "src/workbench/creation/storyboard/shotRow/ShotRetry.browser.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -870,7 +856,9 @@
     "资产期间在画布改已有镜头节点模型，不回写方案，方案花钱比较看不到；main既有，本轮按裁决只报告。",
     "按裁决不修：单独发仍排队的资产后，旧批次第一波结束若资产尚无结果即返回，镜头阶段不继续、没有额外提示。",
     "第3轮用户接受：再发后首笔晚到结果只留项目文件，本轮不自动投回节点；Windows与真实付费仍待协调。",
-    "第3轮强杀重启真窗三次遇到测试helper停点，未取得该模式确认后重发的窗口收据；不再第四次尝试。完整新增段演练因此未通过，旧四段收据不能冒充本轮付费资格。"
+    "第4轮中英强杀重启均取得passed收据并用完本轮两次上限；完整免费演练被首次确认卡314.4–315.3ms的冷响应拦下，100ms预算未放宽，按三次停点不再跑冷路径。最终门岗修复之后不再强杀复跑。",
+    "用户获批的重复收费警示与既有不谈费用门岗冲突，获批文字链与控件短标签门岗冲突；本轮不改原字、门岗或基线，保留红灯。",
+    "窄英文画布页脚在框外，既有英文反馈按钮Report Issue与样张Report a problem不同；按布局/其它失败文案范围只报告。"
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-09",

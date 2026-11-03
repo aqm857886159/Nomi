@@ -1,3 +1,4 @@
+import { expectCssColor, expectToken } from './_generationLockExitApprovedCard.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
@@ -77,9 +78,14 @@ export async function threePageLockExitJourney(input) {
     proxy.setLimit(2)
     const failed = (await nodes()).find(n => n.status === 'error' && n.meta?.shotId)
     assert.ok(failed)
-    await canvas(failed.id); await shot('429-canvas')
+    await canvas(failed.id)
+    // board:UnknownResultCard/other-failures.red — retain the actual danger token on all three surfaces.
+    await expectCssColor(page.locator(`[data-node-id="${failed.id}"] [role="alert"]`).first(), 'background-color', 'color-mix(in oklch,var(--workbench-danger) 5%,var(--nomi-paper))')
+    await shot('429-canvas')
     await list(failed.id, false); await shot('429-list-small')
-    await page.locator(`[data-list-card="${failed.id}"]`).click(); await shot('429-list-detail')
+    await page.locator(`[data-list-card="${failed.id}"]`).click()
+    await expectCssColor(page.locator('[data-list-detail-preview] [role="alert"]').first(), 'background-color', 'color-mix(in oklch,var(--workbench-danger) 5%,var(--nomi-paper))')
+    await shot('429-list-detail')
     assert.ok(!(await page.locator('[data-list-detail]').innerText()).includes('Error invoking remote method'))
     const modelChip = page.locator('[data-list-detail]').getByRole('button', { name: t('generationCommon.parameters.model'), exact: true }).first()
     await modelChip.evaluate(element => element.addEventListener('click', () => { element.dataset.lockExitModelClicked = 'true' }, { once: true }))
@@ -87,7 +93,10 @@ export async function threePageLockExitJourney(input) {
     await expect(modelChip).toHaveAttribute('data-lock-exit-model-clicked', 'true')
     await page.keyboard.press('Escape')
     report.checks.listModelChip = true
-    await storyboard(design.id, failed); await shot('429-storyboard')
+    await storyboard(design.id, failed)
+    const failedRowIndex = design.plan.shots.find(value => value.shotId === failed.meta.shotId).index
+    await expectToken(page.locator(`[data-storyboard-row="${failedRowIndex}"] [data-storyboard-visual-box]`).first(), 'background-color', 'workbench-danger-soft')
+    await shot('429-storyboard')
     const failedAsset = (await nodes()).find(n => n.status === 'error' && n.meta?.anchorId)
     assert.ok(failedAsset, 'E2 includes an asset refusal as well as a shot refusal')
     if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
@@ -107,10 +116,18 @@ export async function threePageLockExitJourney(input) {
     assert.equal(JSON.stringify((await nodes()).find(n => n.id === failed.id).runs), runsBeforePermission)
     await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('common.cancel'), exact: true }).click()
     assert.equal(proxy.records.length, count)
+    // board:UnknownResultCard/restart.card — these checks also run in the final three-page journey.
+    await expectToken(page.locator(`[data-node-id="${failed.id}"] [role="status"]`).first(), 'background-color', 'nomi-paper')
     await shot('unknown-canvas-light')
-    await list(failed.id); await shot('unknown-list-detail-light')
+    await list(failed.id)
+    await expectToken(page.locator('[data-list-detail-preview] [role="status"]').first(), 'background-color', 'nomi-paper')
+    await shot('unknown-list-detail-light')
     await expect(page.locator('[data-list-detail-preview] [role="status"]')).toBeVisible()
-    await storyboard(design.id, failed); await shot('unknown-storyboard-shot')
+    await storyboard(design.id, failed)
+    // board:UnknownResultCard/restart.storyboard-cell — use the shot cell as well as the asset-cell audit.
+    await expectToken(page.locator(`[data-storyboard-row="${failedRowIndex}"] [data-storyboard-visual-box]`).first(), 'background-color', 'nomi-paper')
+    report.checks.approvedPalette = true
+    await shot('unknown-storyboard-shot')
     await expect(page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true })).toBeVisible()
     report.checks.refusedClickAndSameExit = true
 

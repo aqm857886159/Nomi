@@ -169,6 +169,7 @@ try {
   await expect.poll(() => proxy.records.length).toBe(2)
   await expect.poll(async () => page.locator('[data-place-storyboard]').isEnabled(), { timeout: stationTimeout({ operations: 4 }) }).toBe(true)
   expect(proxy.records.filter(record => record.prompt.includes(design.plan.shots[0].prompt.slice(0, 8))).length).toBe(0)
+  // board:UnknownResultCard/notice.skipped — the completed batch keeps the information notice and no failure retry.
   await expect(page.getByText(t('generationCommon.batchPlan.openRunsSkipped').replace('{{count}}', '1'), { exact: true }).first()).toBeVisible()
   await shot('batch-skipped-notice')
 
