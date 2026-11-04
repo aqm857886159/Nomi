@@ -444,3 +444,14 @@ function MultiShotCardBody(props: {
     </>
   )
 }
+
+/**
+ * 付费确认卡在整个 app 里唯一的挂载点：画布、列表、分镜、Agent、试用与取回等所有确认请求都经 requestConfirm
+ * 进同一个队列，由这里把队首变成画面。工作台根组件静态引入它，不能「用到才加载」：按需加载时，每次打开 Nomi
+ * 后第一张卡要先挂起等代码，React 19 揭开挂起内容又固定节流 300ms，用户点了生成、屏幕上 0.3 秒什么都没有。
+ * 渲染仍然按需：没有待确认时不挂卡。
+ */
+export function SpendConfirmHost(): JSX.Element | null {
+  const pending = useSpendConfirmStore((state) => Boolean(state.pending))
+  return pending ? <SpendConfirmDialog /> : null
+}
