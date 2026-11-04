@@ -72,7 +72,7 @@
       "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
       "entry_point": "confirmGenerationResend",
       "disposition": "enforced",
-      "evidence": "画布 / 列表 / 分镜的生成与重新生成都经这里调 requestConfirm；卡由 SpendConfirmHost 出。真包对照：首张卡 305.7 ms → 4.9 ms（各 5 次新启动的中位数）。"
+      "evidence": "画布 / 列表 / 分镜的生成与重新生成都经这里调 requestConfirm；卡由 SpendConfirmHost 出。真包对照：首张卡 305.7 ms → 5.4 ms（各 5 次新启动的中位数）。"
     },
     {
       "path": "src/workbench/capability/generationGateConfirm.ts",
@@ -138,6 +138,6 @@
     "另外 16 处按需加载、加载时什么都不显示的界面（侧栏素材库 / 提示词库 / 技能库、上手手册、引导、内置浏览器、批量生成面板、画板、3D 预览等）首次打开同样晚约 300 ms。要拿启动内存换首次打开速度，单独登记、交用户决定，不在本次修。",
     "卡片渲染出错时，原先由按需加载自带的容错域就地降级；现在和同在根上的通用确认框、更新弹窗一样，冒到根错误页。",
     "Windows 没有实测；React 节流与平台无关，但没量。",
-    "没有进 CI 的真窗性能场景；本次真包前后对照是一次性量的（改前 305.7 / 改后 4.9 ms，各 5 次新启动的中位数）。"
+    "没有进 CI 的真窗性能场景；本次真包前后对照是一次性量的（改前 305.7 / 改后 5.4 ms，各 5 次新启动的中位数）。"
   ]
 }
