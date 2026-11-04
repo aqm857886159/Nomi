@@ -2,7 +2,7 @@
 
 > 触发：`node scripts/fix-churn.mjs src/workbench/NomiStudioApp.tsx`——文件 14 天已有 6 个 fix，这是第 7 个。
 > 谁写：协调会话；没参与过那 6 轮（都是项目库线）。只看了那 6 个提交的标题与改动、本次的复现数据和代码。
-> 特征测试：`src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx`（先在「照搬现状的按需加载」写法上跑红 3 条，再换成本次实现跑绿）。
+> 特征测试：`src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx`（4 条；把根组件改回按需加载的反例上 2 条红，按字节还原后全绿）。
 
 ## 0. 一句话根因
 

@@ -7,12 +7,12 @@
   "fact_kind": "projection",
   "migration_status": "converged",
   "owner": {
-    "path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+    "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
     "symbol": "SpendConfirmHost"
   },
   "write_api": [
     {
-      "path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
       "symbol": "SpendConfirmHost"
     }
   ],

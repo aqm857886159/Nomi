@@ -11,7 +11,7 @@
   ],
   "scope_paths": [
     "src/workbench/NomiStudioApp.tsx",
-    "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx"
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx"
   ],
   "entry_points": [
     "画布节点 ↑ / 批量与列表、分镜的生成与重新生成：spendConfirm.ts 的 confirmGenerationSpend / confirmGenerationResend → requestConfirm",
@@ -44,7 +44,7 @@
     { "kind": "write", "path": "src/workbench/NomiStudioApp.tsx", "symbol": "requestConfirm" },
     { "kind": "write", "path": "src/workbench/production/useProductionStatus.ts", "symbol": "requestConfirm" },
     { "kind": "read", "path": "src/workbench/NomiStudioApp.tsx", "symbol": "SpendConfirmHost" },
-    { "kind": "read", "path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx", "symbol": "SpendConfirmDialog" }
+    { "kind": "read", "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx", "symbol": "SpendConfirmDialog" }
   ],
   "door_reduction": {
     "before": 11,
@@ -54,7 +54,7 @@
   "detected_by": "walkthrough",
   "recurrence_check_on": "2026-12-04",
   "invariant_owner_layer": {
-    "layer": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+    "layer": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
     "tests": [
       "src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx"
     ]
@@ -62,7 +62,7 @@
   "generality_proof": "door-map 显示 SpendConfirmDialog 只被 SpendConfirmHost 读、SpendConfirmHost 只被 NomiStudioApp 读一次；所有确认请求（现有 8 个来源和以后新增的）都必须经 requestConfirm 进同一个队列，再由这唯一的挂载点出卡。挂载点静态加载卡的代码、同一次渲染返回卡，就覆盖了每一个来源；测试同时扫整个 src，任何地方再按需引入卡或挂载点都会红。",
   "shared_boundaries": [
     {
-      "path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
       "symbol": "SpendConfirmHost",
       "responsibility": "付费确认卡唯一的挂载点：静态引入卡的代码，有待确认时同一次渲染就出卡，没有待确认时不挂卡。"
     }
@@ -105,13 +105,13 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+    "enforcement_path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
     "invariant": "有待确认时同一次渲染就出卡；卡和挂载点在 src 里只能被静态引入；NomiStudioApp 只挂一个 SpendConfirmHost。",
-    "failure_mode": "挂载点一旦改回按需加载，同一次渲染交不出卡，SpendConfirmHost.test.tsx 红；src 任何地方按需引入卡或挂载点，扫描红；根组件绕过挂载点直接挂卡或挂多份，结构断言红。",
+    "failure_mode": "挂载点和卡同在 SpendConfirmDialog.tsx，挂载点直接引用卡；有待确认时同一次渲染交不出真卡，SpendConfirmHost.test.tsx 红；src 任何地方（含根组件）改回按需 import 卡所在的模块，扫描红；根组件绕过挂载点直接挂卡或挂多份，结构断言红（把根组件改回按需加载的反例实测 2 条红，按字节还原后回绿）。",
     "exception_policy": "none",
-    "strategy": "把确认卡的挂载收成一个静态加载的组件，所有确认来源只能经 requestConfirm 到达它；同提交删掉根组件里按需加载卡的定义和外包的 Suspense。",
+    "strategy": "把确认卡的挂载收成和卡同文件、被根组件静态引入的 SpendConfirmHost，所有确认来源只能经 requestConfirm 到达它；同提交删掉根组件里按需加载卡的定义、对 pending 的订阅和外包的 Suspense。",
     "artifacts": [
-      "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+      "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
       "src/workbench/NomiStudioApp.tsx"
     ]
   },
