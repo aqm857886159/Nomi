@@ -1,0 +1,143 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-04-spend-confirm-first-open",
+  "problem_type": "A surface the user is waiting on right after a click is loaded on demand, so its first appearance suspends and React holds the reveal for its fallback throttle",
+  "symptom": "每次打开 Nomi 后第一次弹出付费确认卡，点下去约 0.3 秒屏幕上什么都没有，像没点上。画布上对结果不明的镜头点 ↑ 重新生成实测 307–316 ms，同一步在列表页、分镜页（卡已加载过）约 12 ms；仓库预算是操作到可见反馈 ≤100 ms。",
+  "direct_cause": "工作台根组件用按需加载（lazyWithChunkBoundary）引入付费确认卡，并且只在有待确认时才挂上它、外面包着空的 Suspense。第一次请求确认时卡的代码还没加载，渲染先挂起、提交了空的占位；代码 3 ms 内就到了，但揭开挂起内容属于重试渲染，React 19 按 FALLBACK_THROTTLE_MS（300 ms）从占位提交那一刻起节流，于是卡固定晚约 300 ms 才出现。真包同一会话第二次弹卡约 4 ms，证明慢的只是首开那一次挂起。",
+  "class_root": "付费确认卡的唯一挂载点没有保证「有待确认时同一次渲染就出卡」：卡的代码允许被按需加载，首开就必然先挂起。画布、列表、分镜、Agent 闸门、能力应用、凭证试探、提示词提取、试用与制作状态这 8 个确认来源都汇到这一个挂载点，所以每个来源的首张卡都受影响。",
+  "affected_population": [
+    "每次启动 Nomi 之后的第一张付费 / 方案 / 试用确认卡，任一页面、任一来源（用户直发或 Agent 发起）",
+    "macOS 与 Windows 相同：这是 React 渲染节流，与平台无关（Windows 未实测）"
+  ],
+  "scope_paths": [
+    "src/workbench/NomiStudioApp.tsx",
+    "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx"
+  ],
+  "entry_points": [
+    "画布节点 ↑ / 批量与列表、分镜的生成与重新生成：spendConfirm.ts 的 confirmGenerationSpend / confirmGenerationResend → requestConfirm",
+    "Agent 生成闸门与方案门：capability/generationGateConfirm.ts → requestConfirm",
+    "能力应用、凭证试探、提示词提取、不确定的先前试用：capability/*SpendCard.ts、capabilityApplyHandler.ts → requestConfirm",
+    "制作任务的确认：production/useProductionStatus.ts → requestConfirm",
+    "走查用的同一管线：NomiStudioApp.tsx 的 __nomiSpendConfirmE2E → requestConfirm"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/facebook/react/blob/v19.2.0/packages/react-reconciler/src/ReactFiberWorkLoop.js",
+      "checked_at": "2026-11-04",
+      "purpose": "FALLBACK_THROTTLE_MS = 300：占位提交后，只含重试的渲染按 globalMostRecentFallbackTime + 300ms 节流提交（\"Throttle committing retries so that we don't show too many loading states too quickly\"）；本仓安装的 react-dom 19.3.0 构建产物里同一常量同为 300"
+    }
+  ],
+  "invariants": [
+    "有待确认时，SpendConfirmHost 在同一次渲染里就返回确认卡，中间不经过任何挂起",
+    "src 里没有任何地方按需 import 付费确认卡（SpendConfirmDialog）或它的挂载点（SpendConfirmHost）",
+    "NomiStudioApp 是唯一挂载点：静态引入 SpendConfirmHost 并只渲染一次，不直接渲染 SpendConfirmDialog"
+  ],
+  "doors": [
+    { "kind": "read", "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx", "symbol": "requestConfirm" },
+    { "kind": "write", "path": "src/workbench/capability/capabilityApplyHandler.ts", "symbol": "requestConfirm" },
+    { "kind": "write", "path": "src/workbench/capability/credentialProbeSpendCard.ts", "symbol": "requestConfirm" },
+    { "kind": "write", "path": "src/workbench/capability/generationGateConfirm.ts", "symbol": "requestConfirm" },
+    { "kind": "write", "path": "src/workbench/capability/promptExtractionSpendCard.ts", "symbol": "requestConfirm" },
+    { "kind": "write", "path": "src/workbench/capability/uncertainPriorTrialSpendCard.ts", "symbol": "requestConfirm" },
+    { "kind": "write", "path": "src/workbench/generationCanvas/spend/spendConfirm.ts", "symbol": "requestConfirm" },
+    { "kind": "write", "path": "src/workbench/NomiStudioApp.tsx", "symbol": "requestConfirm" },
+    { "kind": "write", "path": "src/workbench/production/useProductionStatus.ts", "symbol": "requestConfirm" },
+    { "kind": "read", "path": "src/workbench/NomiStudioApp.tsx", "symbol": "SpendConfirmHost" },
+    { "kind": "read", "path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx", "symbol": "SpendConfirmDialog" }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 11,
+    "why_not": "8 个写入口是 8 种不同的产品动作（单镜 / 批量生成、Agent 闸门、能力应用、凭证试探、提示词提取、先前试用、制作任务，以及走查用的同一管线），各自要问用户一次，不能合并；它们都只经 requestConfirm 进同一个队列，不变量收在唯一把队列变成画面的读入口 SpendConfirmHost，写入口不需要合并。读入口数量没变：根组件原来自己读 pending、再挂按需加载的卡（两扇读门），现在换成挂 SpendConfirmHost、由它读 pending 并静态挂卡（同样两扇）。"
+  },
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-12-04",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx"
+    ]
+  },
+  "generality_proof": "door-map 显示 SpendConfirmDialog 只被 SpendConfirmHost 读、SpendConfirmHost 只被 NomiStudioApp 读一次；所有确认请求（现有 8 个来源和以后新增的）都必须经 requestConfirm 进同一个队列，再由这唯一的挂载点出卡。挂载点静态加载卡的代码、同一次渲染返回卡，就覆盖了每一个来源；测试同时扫整个 src，任何地方再按需引入卡或挂载点都会红。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+      "symbol": "SpendConfirmHost",
+      "responsibility": "付费确认卡唯一的挂载点：静态引入卡的代码，有待确认时同一次渲染就出卡，没有待确认时不挂卡。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "entry_point": "confirmGenerationResend",
+      "disposition": "enforced",
+      "evidence": "画布 / 列表 / 分镜的生成与重新生成都经这里调 requestConfirm；卡由 SpendConfirmHost 出。真包对照：首张卡 305.7 ms → 4.9 ms（各 5 次新启动的中位数）。"
+    },
+    {
+      "path": "src/workbench/capability/generationGateConfirm.ts",
+      "entry_point": "requestConfirm",
+      "disposition": "enforced",
+      "evidence": "Agent 发起的生成闸门与方案门同样只调 requestConfirm，走同一个队列和同一个挂载点，没有自己的卡。"
+    },
+    {
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "entry_point": "requestConfirm",
+      "disposition": "enforced",
+      "evidence": "制作任务的确认同样只调 requestConfirm，由 SpendConfirmHost 出卡。"
+    },
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "ConfirmDialogHost",
+      "disposition": "not-affected",
+      "evidence": "通用确认框从 ../design 静态引入、一直挂着，第一次弹出不经过按需加载和挂起。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每个用户每次启动都会命中；以后新增的任何确认来源也都走同一个挂载点。只要卡的代码能被按需加载，首开就会再挂起、再被节流。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs requestConfirm：8 个写入口文件、1 个读入口（SpendConfirmDialog），全部汇到同一个队列",
+      "node scripts/door-map.mjs SpendConfirmDialog / SpendConfirmHost：卡只被挂载点读，挂载点只被 NomiStudioApp 读一次",
+      "rg \"lazyWithChunkBoundary\\(\" src：30 处按需加载；rg \"Suspense fallback={null}\" src：17 处生产代码加载时什么都不显示，付费确认卡是其中用户点完就在等它的那一处",
+      "rg \"import\\(.*SpendConfirm\" src：修后为 0（由 SpendConfirmHost.test.tsx 持续扫）"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+    "invariant": "有待确认时同一次渲染就出卡；卡和挂载点在 src 里只能被静态引入；NomiStudioApp 只挂一个 SpendConfirmHost。",
+    "failure_mode": "挂载点一旦改回按需加载，同一次渲染交不出卡，SpendConfirmHost.test.tsx 红；src 任何地方按需引入卡或挂载点，扫描红；根组件绕过挂载点直接挂卡或挂多份，结构断言红。",
+    "exception_policy": "none",
+    "strategy": "把确认卡的挂载收成一个静态加载的组件，所有确认来源只能经 requestConfirm 到达它；同提交删掉根组件里按需加载卡的定义和外包的 Suspense。",
+    "artifacts": [
+      "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+      "src/workbench/NomiStudioApp.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/NomiStudioApp.tsx"
+    ],
+    "rationale": "同提交删掉根组件里按需加载的 SpendConfirmDialog 定义、根组件对 pending 的订阅和包在卡外的 Suspense；没有保留旧的按需加载路径。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "300 ms 节流是 React 有意的行为，当前 react-dom 19.3.0 就是这个值，升级不会去掉它；应用层的不变量是这张卡不挂起，与 React 版本无关。",
+    "exit_criteria": []
+  },
+  "migration": "不涉及存储的数据、设置或项目文件；老用户升级后直接生效，没有要迁移的东西。工作台主包多约 10 KB（卡原来自己那块 25 KB，大部分依赖本来就在主包里）。",
+  "residual_risks": [
+    "另外 16 处按需加载、加载时什么都不显示的界面（侧栏素材库 / 提示词库 / 技能库、上手手册、引导、内置浏览器、批量生成面板、画板、3D 预览等）首次打开同样晚约 300 ms。要拿启动内存换首次打开速度，单独登记、交用户决定，不在本次修。",
+    "卡片渲染出错时，原先由按需加载自带的容错域就地降级；现在和同在根上的通用确认框、更新弹窗一样，冒到根错误页。",
+    "Windows 没有实测；React 节流与平台无关，但没量。",
+    "没有进 CI 的真窗性能场景；本次真包前后对照是一次性量的（改前 305.7 / 改后 4.9 ms，各 5 次新启动的中位数）。"
+  ]
+}
