@@ -1,0 +1,25 @@
+{
+  "name": "付费确认卡的挂载",
+  "subject": "spend.confirmation-card-mount",
+  "lifecycle": "spend-authority",
+  "authority_kind": "projection",
+  "trust_domain": "renderer",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+    "symbol": "SpendConfirmHost"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmHost.tsx",
+      "symbol": "SpendConfirmHost"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/NomiStudioApp.tsx"
+  ],
+  "since": "2026-11-04",
+  "notes": "付费确认卡在整个 app 里只有这一个挂载点：所有确认请求经 requestConfirm 进 useSpendConfirmStore 的队列，由 SpendConfirmHost 把队首变成画面。卡的代码静态引入，有待确认时同一次渲染就出卡（按需加载会先挂起，React 再节流 300ms 才揭开，首张卡晚约 0.3 秒）；没有待确认时不挂卡。要不要弹归 spend.confirmation-requirement，这里只管弹在哪、怎么立刻出来。守卫：src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx。"
+}
