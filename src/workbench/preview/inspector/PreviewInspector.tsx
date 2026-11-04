@@ -37,11 +37,13 @@ function TypeIcon({ type }: { type: 'video' | 'image' | 'text' }): JSX.Element {
 
 export type PreviewInspectorProps = {
   timeline: TimelineState
+  /** 画收起条还是展开内容——按本栏此刻的真实宽度定（PreviewWorkspace），不读存档开关。 */
   collapsed: boolean
-  onToggleCollapsed: () => void
+  onExpand: () => void
+  onCollapse: () => void
 }
 
-export default function PreviewInspector({ timeline, collapsed, onToggleCollapsed }: PreviewInspectorProps): JSX.Element {
+export default function PreviewInspector({ timeline, collapsed, onExpand, onCollapse }: PreviewInspectorProps): JSX.Element {
   const { t } = useTranslation()
   const aspectRatio = useWorkbenchStore((state) => state.previewAspectRatio)
   const setAspectRatio = useWorkbenchStore((state) => state.setPreviewAspectRatio)
@@ -75,9 +77,9 @@ export default function PreviewInspector({ timeline, collapsed, onToggleCollapse
   const durationFrames = target ? target.endFrame - target.startFrame : computeTimelineDuration(timeline)
   const objectDuration = `${(durationFrames / fps).toFixed(1)}${t('timelinePreview.previewInspector.seconds')}`
   // 收起态与素材栏共用同一个 PanelRail：宽度由面板系统的 collapsedSize 决定，组件里不再各写一个 w-8。
-  if (collapsed) return <PanelRail icon={<IconAdjustments size={16} />} label={t('timelinePreview.previewInspector.title')} title={t('timelinePreview.previewInspector.expand')} onClick={onToggleCollapsed} />
+  if (collapsed) return <PanelRail icon={<IconAdjustments size={16} />} label={t('timelinePreview.previewInspector.title')} title={t('timelinePreview.previewInspector.expand')} onClick={onExpand} />
   return <aside className="flex h-full min-w-0 flex-col overflow-y-auto border-l border-[var(--workbench-border)] bg-[var(--workbench-surface)]" aria-label={t('timelinePreview.previewInspector.aria')}>
-    <header className="flex h-10 flex-none items-center justify-between border-b border-[var(--workbench-border)] px-3"><div className="flex items-center gap-2 text-body-sm font-semibold"><IconAdjustments size={16} />{t('timelinePreview.previewInspector.title')}</div><WorkbenchIconButton label={t('timelinePreview.previewInspector.collapse')} title={t('timelinePreview.previewInspector.collapse')} icon={<IconChevronDown size={16} />} onClick={onToggleCollapsed} /></header>
+    <header className="flex h-10 flex-none items-center justify-between border-b border-[var(--workbench-border)] px-3"><div className="flex items-center gap-2 text-body-sm font-semibold"><IconAdjustments size={16} />{t('timelinePreview.previewInspector.title')}</div><WorkbenchIconButton label={t('timelinePreview.previewInspector.collapse')} title={t('timelinePreview.previewInspector.collapse')} icon={<IconChevronDown size={16} />} onClick={onCollapse} /></header>
     <div className="min-h-0 flex-1 overflow-y-auto">
       {/* 类型色条用**现役轨道色相**：视频 = --workbench-video，字幕 = --workbench-text，
           图片与整片 = --workbench-accent（图片轨的点就是 accent，没有 --workbench-image 这个 token）。 */}

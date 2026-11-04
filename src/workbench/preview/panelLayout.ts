@@ -43,8 +43,13 @@ export const EDITING_PANEL_BOUNDS = {
   inspector: { min: 200, max: 420 },
   assistant: { min: ASSISTANT_WIDTH_MIN, max: ASSISTANT_WIDTH_MAX },
   timeline: { min: 140, max: 360 },
-  /** 预览列不可收起，只有下限。 */
-  preview: { min: 480 },
+  /**
+   * 预览列不可收起。min = 两侧栏都开着时预览至少留的宽（合同 §2.1）：不够就先把让出的那一栏收成条。
+   * floor = 留下的那一栏放不下时，预览最多让到的宽（2026-11-04 拍板）。它由最窄内容区推出：
+   * 视口 ≥ 1100 且 Nomi 停靠时舞台行至少 684（= ASSISTANT_CONTENT_FLOOR 760 − 左栏 60 − 两条 8px 缝），
+   * 684 − 两条 1px 分隔 − 左栏最小 240 − 收起条 32 = 410 ≥ 400，于是任何窗口下点开的那一栏都放得下。
+   */
+  preview: { min: 480, floor: 400 },
   /** 舞台行（预览 + 左右两栏）的高度下限，给时间轴让出 260 后仍能站住画面。 */
   stage: { min: 260 },
 } as const
@@ -54,29 +59,127 @@ export const EDITING_PANEL_RAIL_WIDTH = 32
 
 export type EditingPanelSizeKey = 'sourceWidth' | 'inspectorWidth' | 'assistantWidth' | 'timelineHeight'
 
-/** 能被拖成收起条的两栏（Nomi 那列不在面板组里，收起后由顶栏角标叫回）。 */
-const COLLAPSIBLE_PANEL_BY_SIZE_KEY: Partial<Record<EditingPanelSizeKey, keyof EditingPanelVisibility>> = {
-  sourceWidth: 'source',
-  inspectorWidth: 'inspector',
-}
+/** 预览页能收成收起条的两侧栏（Nomi 那列不在面板组里，收起后由顶栏角标叫回）。 */
+export type EditingSidePanel = 'source' | 'inspector'
+const SIDE_PANELS: readonly EditingSidePanel[] = ['source', 'inspector']
+const WIDTH_KEY: Record<EditingSidePanel, 'sourceWidth' | 'inspectorWidth'> = { source: 'sourceWidth', inspector: 'inspectorWidth' }
+const otherSide = (panel: EditingSidePanel): EditingSidePanel => (panel === 'source' ? 'inspector' : 'source')
 
-export type EditingPanelResizeEffect =
-  | { kind: 'visibility'; panel: keyof EditingPanelVisibility; visible: boolean }
-  | { kind: 'size'; size: number }
-  | null
+/** 一块侧栏这一刻画成什么：展开（width ≥ 它的最小宽）或收起条（width = 收起条宽）。 */
+export type EditingSideFrame = { open: boolean; width: number }
 
 /**
- * 面板库回报一次尺寸，store 该做什么。「收起」只有 store 一份真相（visibility）：
- * 拖过最小宽度，面板库会把栏吸成收起条；从收起条拖开同理——这一跨必须写回 visibility，内容才跟着换。
- * 此前 ≤ rail 宽的回报被直接丢掉：栏宽收成 32px，内容仍按展开态画，镜头 / 素材标签与整块面板挤成一条
- * （2026-09-25「素材标签页重叠」）。收起态量到的是 rail 宽，不是用户挑的宽度，不写回尺寸。
+ * 舞台行这一刻的实际布局。**只派生、不存储**：存档（editingPanelLayout）只记用户想要的开合与宽度，
+ * 窗口多宽、Nomi 开没开都不是用户改主意（同 assistantWidthBounds「窄窗不偷改当前宽」）。
+ * previewMin 喂给面板库当预览的 minSize：平时 480，留下的那一栏放不下时就是这一刻的预览宽（≥ floor）。
  */
-export function editingPanelResizeEffect(key: EditingPanelSizeKey, pixels: number, visible: boolean): EditingPanelResizeEffect {
-  const panel = COLLAPSIBLE_PANEL_BY_SIZE_KEY[key]
-  const collapsedNow = pixels <= EDITING_PANEL_RAIL_WIDTH
-  if (panel && collapsedNow === visible) return { kind: 'visibility', panel, visible: !collapsedNow }
-  if (!visible || collapsedNow) return null
-  return { kind: 'size', size: Math.round(pixels) }
+export type EditingStageFrame = {
+  source: EditingSideFrame
+  inspector: EditingSideFrame
+  preview: number
+  previewMin: number
+}
+
+/**
+ * 按真实空间把用户意图落成舞台行布局——面板库和栏里画什么都听它，这样「画成什么」和「多宽」只有一个出处。
+ * （2026-11-04：此前栏里画展开还是收起条读存档开关、多宽由面板库按空间算，1280 宽开着 Nomi 时
+ * 三栏最小宽 920 > 舞台 814，面板库把左栏吸成 32px，栏里仍画展开内容，空态一字一行竖排。）
+ *
+ * `panelsWidth` = 三块面板宽度之和（不含分隔条，与面板库算百分比的基数相同）。
+ * `keep` = 两栏放不下时留哪边（用户最近点开的那边；默认左栏，2026-11-04 用户拍板「先收属性」）。
+ * 只开着一栏时它就是留下的那一栏。依次让步：
+ *   ① 让出的那栏缩到最小 → ② 留下的缩到最小（都只为让预览回到 480）
+ *   → ③ 让出的那栏收成条，留下的回到想要的宽（到预览 480 为止）
+ *   → ④ 留下的那栏维持最小宽，预览从 480 让到 400 → ⑤ 还不够（只在比最小窗还窄时）留下的也收成条。
+ * 放得下多出来的宽度全给预览，侧栏保持用户的宽。
+ */
+export function resolveEditingStageFrame(input: {
+  panelsWidth: number
+  layout: Pick<EditingPanelLayout, 'sourceWidth' | 'inspectorWidth' | 'visibility'>
+  keep: EditingSidePanel
+}): EditingStageFrame {
+  const total = Math.max(0, Math.round(input.panelsWidth))
+  const rail = EDITING_PANEL_RAIL_WIDTH
+  const { min: comfort, floor } = EDITING_PANEL_BOUNDS.preview
+  const intentOpen = { source: input.layout.visibility.source, inspector: input.layout.visibility.inspector }
+  const kept: EditingSidePanel = intentOpen[input.keep] || !intentOpen[otherSide(input.keep)] ? input.keep : otherSide(input.keep)
+  const yielding = otherSide(kept)
+  const want = {
+    source: clamp(input.layout.sourceWidth, EDITING_PANEL_BOUNDS.source),
+    inspector: clamp(input.layout.inspectorWidth, EDITING_PANEL_BOUNDS.inspector),
+  }
+  const open = { ...intentOpen }
+  const width = { source: open.source ? want.source : rail, inspector: open.inspector ? want.inspector : rail }
+  const preview = () => total - width.source - width.inspector
+  const shrinkFor = (panel: EditingSidePanel, target: number) => {
+    const deficit = target - preview()
+    if (open[panel] && deficit > 0) width[panel] = Math.max(EDITING_PANEL_BOUNDS[panel].min, width[panel] - deficit)
+  }
+  const fold = (panel: EditingSidePanel) => { open[panel] = false; width[panel] = rail }
+
+  shrinkFor(yielding, comfort)
+  shrinkFor(kept, comfort)
+  if (preview() < comfort && open[yielding]) {
+    fold(yielding)
+    if (open[kept]) width[kept] = Math.max(EDITING_PANEL_BOUNDS[kept].min, Math.min(want[kept], total - rail - comfort))
+  }
+  if (preview() < floor && open[kept]) fold(kept)
+
+  const previewWidth = preview()
+  return {
+    source: { open: open.source, width: width.source },
+    inspector: { open: open.inspector, width: width.inspector },
+    preview: previewWidth,
+    previewMin: Math.max(0, Math.min(comfort, previewWidth)),
+  }
+}
+
+/** 一块侧栏在这个像素宽下该不该画展开内容：不到它的最小宽就画收起条，展开内容永远不会挤进窄列。 */
+export function editingSidePanelDrawnOpen(panel: EditingSidePanel, pixels: number): boolean {
+  return pixels >= EDITING_PANEL_BOUNDS[panel].min - 0.5
+}
+
+/** 用户亲手拖完分隔条，要写回存档的东西。 */
+export type EditingPanelDragIntent = {
+  visibility: Partial<Record<EditingSidePanel, boolean>>
+  sizes: Partial<Record<'sourceWidth' | 'inspectorWidth', number>>
+  keep: EditingSidePanel | null
+}
+
+/**
+ * 写回存档的唯一规则：只在**用户亲手拖完**（面板库 onLayoutChanged 的 isUserInteraction）时调用，
+ * 拿拖之前的求解结果和拖之后的真实像素比——窗口变窄、开关 Nomi、约束重算都不经过这里，
+ * 所以它们永远改不动存档（此前 onResize 一律回写：关掉 Nomi 后属性栏被按比例撑到 420 还被存下）。
+ *  · 拖成收起条 → 关掉这一栏（09-25「拖过最小宽变收起条」照旧）；
+ *  · 从收起条拖开 → 打开并记宽，且它成为放不下时留下的那一栏；
+ *  · 只是改宽 → 记宽；被抓的是哪条分隔线（grabbed）就留哪一栏，免得下一次求解把刚拖宽的栏又缩回去。
+ */
+export function editingPanelDragIntent(
+  frame: EditingStageFrame,
+  drawnPixels: Record<EditingSidePanel, number>,
+  grabbed: EditingSidePanel | null,
+): EditingPanelDragIntent {
+  const intent: EditingPanelDragIntent = { visibility: {}, sizes: {}, keep: null }
+  for (const panel of SIDE_PANELS) {
+    const pixels = drawnPixels[panel]
+    const drawnOpen = pixels > EDITING_PANEL_RAIL_WIDTH + 0.5
+    if (frame[panel].open && !drawnOpen) intent.visibility[panel] = false
+    else if (!frame[panel].open && drawnOpen) {
+      intent.visibility[panel] = true
+      intent.sizes[WIDTH_KEY[panel]] = Math.round(pixels)
+      intent.keep = panel
+    } else if (drawnOpen && Math.abs(pixels - frame[panel].width) > 1) {
+      intent.sizes[WIDTH_KEY[panel]] = Math.round(pixels)
+      if (grabbed === panel) intent.keep ??= panel
+    }
+  }
+  return intent
+}
+
+/** 时间轴高度：用户想要的高度夹进上下限，并给舞台行留住它的最小高。只派生、不存储。 */
+export function resolveEditingTimelineHeight(columnHeight: number, timelineHeight: number): number {
+  const room = Math.max(0, Math.round(columnHeight)) - EDITING_PANEL_BOUNDS.stage.min
+  return Math.max(EDITING_PANEL_BOUNDS.timeline.min, Math.min(clamp(timelineHeight, EDITING_PANEL_BOUNDS.timeline), room))
 }
 
 function clamp(value: number, bounds: { min: number; max: number }): number {

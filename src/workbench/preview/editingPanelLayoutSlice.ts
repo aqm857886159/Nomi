@@ -7,6 +7,7 @@ import {
   type EditingPanelLayout,
   type EditingPanelPreset,
   type EditingPanelSizeKey,
+  type EditingSidePanel,
 } from './panelLayout'
 
 /**
@@ -43,6 +44,16 @@ export type EditingPanelLayoutSlice = {
   /** 切 tab；顺带保证左栏是展开的——收起状态下切 tab 等于什么都没发生。 */
   openPreviewSourceTab: (tab: PreviewSourceTab) => void
   /**
+   * 两侧栏放不下时留哪一栏（resolveEditingStageFrame 的 keep）。默认左栏：2026-11-04 用户拍板「先收属性」——
+   * 剪辑页的主活是把镜头拖进成片，属性要选中片段才有内容。会话态、不落盘：它只记「用户刚点开的是哪边」，
+   * 只由显式动作改（点收起条 / 布局菜单打开 / Agent 打开 / 拖开或拖宽那一栏），不从状态变化里猜。
+   */
+  editingPanelKeep: EditingSidePanel
+  /** 放不下时留这一栏（拖宽某一栏时用；开合不变）。 */
+  keepEditingPanel: (panel: EditingSidePanel) => void
+  /** 打开 / 关掉一块面板。打开侧栏 = 它成为放不下时留下的那一栏（点收起条一定看得到它展开，C1）。 */
+  showEditingPanel: (panel: keyof EditingPanelLayout['visibility'], visible: boolean) => void
+  /**
    * 时间轴吸附开关。必须住在 store：预览面（full）与生成画布（compact）两个 TimelinePanel
    * 因 keep-alive **同时挂载**，各注册一个 window keydown。放在组件局部 state 时，按 N 只翻了
    * 「先注册的那个」——很可能是屏幕上看不见的那一个，用户看到的工具条纹丝不动，而拖动时的
@@ -60,10 +71,10 @@ export type EditingPanelLayoutSlice = {
   toggleEditingPanel: (panel: keyof EditingPanelLayout['visibility']) => void
   undoEditingPanelLayout: () => boolean
   /**
-   * 面板拖动的**唯一回写口**：只镜像 react-resizable-panels 量到的真实像素，
-   * 不动 preset、不压撤销栈。用户手拖导致的 preset → 'custom' 由 Group 的
-   * onLayoutChanged(isUserInteraction) 走 markEditingPanelLayoutCustom，
-   * 这样「切预设 → 面板按预设 resize → onResize 回写」不会把刚选的预设洗掉。
+   * 用户**亲手拖完**分隔条后记下的宽 / 高（PreviewWorkspace 只在 onLayoutChanged.isUserInteraction 时调，
+   * 规则见 panelLayout 的 editingPanelDragIntent）。不动 preset、不压撤销栈：⌘Z 先撤布局、再撤时间轴，
+   * 拖一下宽度不该占掉一次 ⌘Z；preset → 'custom' 由 markEditingPanelLayoutCustom 走同一个用户动作口。
+   * 窗口变窄、开关 Nomi、约束重算都不走这里——它们改的是这一刻的实际布局，不是用户的选择。
    */
   syncEditingPanelSize: (patch: Partial<Record<EditingPanelSizeKey, number>>) => void
   markEditingPanelLayoutCustom: () => void
@@ -75,6 +86,15 @@ const UNDO_LIMIT = 20
 
 const pushUndo = (stack: EditingPanelLayout[], entry: EditingPanelLayout): EditingPanelLayout[] =>
   [...stack, entry].slice(-UNDO_LIMIT)
+
+const DEFAULT_KEEP: EditingSidePanel = 'source'
+const isSidePanel = (panel: keyof EditingPanelLayout['visibility']): panel is EditingSidePanel => panel === 'source' || panel === 'inspector'
+
+/** 一次补丁里只打开了一块侧栏，它就是用户这一下要看的那栏；两块都开或都没开就不改留哪边。 */
+function keepFromOpened(patch: Partial<EditingPanelLayout['visibility']> | undefined): { editingPanelKeep: EditingSidePanel } | Record<string, never> {
+  const opened = (['source', 'inspector'] as const).filter((panel) => patch?.[panel] === true)
+  return opened.length === 1 ? { editingPanelKeep: opened[0] } : {}
+}
 
 /**
  * 布局是 per-project 落盘物（`readCurrentWorkbenchProjectPayload` 把它写进 projectRecord），
@@ -120,17 +140,29 @@ export const createEditingPanelLayoutSlice: StateCreator<
   }),
   editingPanelUndoStack: [],
   previewSourceTab: 'shots',
+  editingPanelKeep: DEFAULT_KEEP,
+
+  keepEditingPanel: (panel) => set((state) => (state.editingPanelKeep === panel ? state : { editingPanelKeep: panel })),
+
+  showEditingPanel: (panel, visible) => set((state) => {
+    const keep = visible && isSidePanel(panel) ? { editingPanelKeep: panel } : {}
+    if (state.editingPanelLayout.visibility[panel] === visible) return keep
+    const visibility = { ...state.editingPanelLayout.visibility, [panel]: visible }
+    return { ...replaceLayout(state, { ...state.editingPanelLayout, preset: 'custom', visibility }), ...keep }
+  }),
   timelineSnapEnabled: true,
 
   setTimelineSnapEnabled: (next) => set((state) => ({
     timelineSnapEnabled: typeof next === 'function' ? next(state.timelineSnapEnabled) : next,
   })),
 
+  // 左栏可能是因为放不下被让成了收起条（意图仍是开着）：切 tab 同时让它成为留下的那栏，才真的看得到。
   openPreviewSourceTab: (tab) => set((state) => (
-    state.previewSourceTab === tab && state.editingPanelLayout.visibility.source
+    state.previewSourceTab === tab && state.editingPanelLayout.visibility.source && state.editingPanelKeep === 'source'
       ? state
       : {
         previewSourceTab: tab,
+        editingPanelKeep: 'source' as const,
         ...(state.editingPanelLayout.visibility.source ? {} : replaceLayout(state, {
           ...state.editingPanelLayout,
           preset: 'custom' as const,
@@ -151,21 +183,22 @@ export const createEditingPanelLayoutSlice: StateCreator<
       editingPanelLayout: next,
       editingPanelUndoStack: recordUndo && changed ? pushUndo(state.editingPanelUndoStack, state.editingPanelLayout) : state.editingPanelUndoStack,
       projectAgentDockCollapsed: !next.visibility.assistant,
-      // recordUndo === false 是「打开项目时还原落盘布局」的口（workbenchProjectSession），不是有人叫回 Nomi。
+      // recordUndo === false 是「打开项目时还原落盘布局」的口（workbenchProjectSession），不是有人叫回 Nomi；
+      // 换了项目，「刚点开的是哪边」也回到默认。
       ...(recordUndo ? recallIfReopened(state, next.visibility.assistant) : {}),
+      ...(recordUndo ? keepFromOpened(patch.visibility) : { editingPanelKeep: DEFAULT_KEEP }),
       persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
     }
   }),
 
-  setEditingPanelPreset: (preset) => set((state) =>
-    replaceLayout(state, cloneEditingPanelLayout(EDITING_PANEL_PRESETS[preset === 'custom' ? 'default' : preset]))),
+  setEditingPanelPreset: (preset) => set((state) => ({
+    ...replaceLayout(state, cloneEditingPanelLayout(EDITING_PANEL_PRESETS[preset === 'custom' ? 'default' : preset])),
+    editingPanelKeep: DEFAULT_KEEP,
+  })),
 
-  resetEditingPanelLayout: () => set((state) => replaceLayout(state, cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS))),
+  resetEditingPanelLayout: () => set((state) => ({ ...replaceLayout(state, cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS)), editingPanelKeep: DEFAULT_KEEP })),
 
-  toggleEditingPanel: (panel) => set((state) => {
-    const visibility = { ...state.editingPanelLayout.visibility, [panel]: !state.editingPanelLayout.visibility[panel] }
-    return replaceLayout(state, { ...state.editingPanelLayout, preset: 'custom', visibility })
-  }),
+  toggleEditingPanel: (panel) => get().showEditingPanel(panel, !get().editingPanelLayout.visibility[panel]),
 
   undoEditingPanelLayout: () => {
     const stack = get().editingPanelUndoStack
