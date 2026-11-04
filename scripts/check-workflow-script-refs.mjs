@@ -14,6 +14,12 @@
 // 不在这道门里（它们由 check-e2e-launch / check-walkthroughs 一族按各自语义管），
 // `pnpm <script>`（省略 run）也不认——仓库现状全是 `pnpm run`，真出现省略写法时这里会漏，
 // 故下面的正则同时接受 `pnpm run x` 与 `pnpm -s run x` 这类插旗写法，避免「换个写法就绕过」。
+//
+// 第二条（硬零）：workflow 里不许用 `ubuntu-latest` / `macos-latest` / `windows-latest` 这类会漂的机器标签。
+// GitHub 换默认镜像是一两个月里分批切的，同一个标签这次分到旧系统、下次分到新系统，
+// 于是 PR 上绿、合进 main 后同一项检查红（2026-11-04 真事：ubuntu-latest 开始分到 26.04，
+// 项目当时的 Playwright 不支持那上面的 Chromium，main 上 Unit 装浏览器就挂，合并收据红）。
+// 写死版本号（ubuntu-24.04 / macos-26 / windows-2025），换系统就成了一次看得见、在 PR 上验过的改动。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -59,6 +65,22 @@ export function findMissingRefs(files, scripts, { fsImpl = fs, root = repoRoot }
   return missing
 }
 
+/** 会漂的机器标签：GitHub 托管机器的 `<系统>-latest`（含 -large / -xlarge 变体）。注释行不算。 */
+const FLOATING_RUNNER = /\b(?:ubuntu|macos|windows)-latest(?:-large|-xlarge)?\b/
+
+/** 回所有用了会漂的机器标签的位置。 */
+export function findFloatingRunners(files, { fsImpl = fs, root = repoRoot } = {}) {
+  const floating = []
+  for (const file of files) {
+    fsImpl.readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+      const code = line.replace(/(^|\s)#.*$/, '')
+      const match = FLOATING_RUNNER.exec(code)
+      if (match) floating.push({ file: path.relative(root, file), line: index + 1, label: match[0] })
+    })
+  }
+  return floating
+}
+
 /**
  * 覆盖不变量：至少要扫到一份 workflow、且至少解析出一处引用。
  * 不断言具体条数（派生值写死会在下次增删 workflow 时假红，而假红会诱人直接改数字）；
@@ -81,14 +103,21 @@ export function main({ root = repoRoot, log = console.log } = {}) {
   assertScanCoverage(files.length, refCount)
 
   const missing = findMissingRefs(files, scripts, { root })
+  const floating = findFloatingRunners(files, { root })
   if (missing.length > 0) {
     log(`✖ workflow 脚本引用门岗未通过：${missing.length} 处引用了 package.json 里不存在的 script`)
     for (const item of missing) log(`    ${item.file}:${item.line}  pnpm run ${item.script}`)
     log('  → 改名/退役 npm script 时，引用它的 workflow 必须同 commit 跟着改（P1：不留悬空引用）。')
     log('    这类漏网在 PR 上是看不见的——RC/release workflow 不在每个 PR 上跑，会一路绿到发版当天才炸。')
-    return 1
   }
-  log(`✅ workflow 脚本引用门岗通过：${files.length} 份 workflow、${refCount} 处 \`pnpm run\` 全部解析得到（硬零）`)
+  if (floating.length > 0) {
+    log(`✖ workflow 机器标签门岗未通过：${floating.length} 处用了会漂的 -latest 标签`)
+    for (const item of floating) log(`    ${item.file}:${item.line}  ${item.label}`)
+    log('  → 写死版本（ubuntu-24.04 / macos-26 / windows-2025）。-latest 会被 GitHub 分批换成新系统，')
+    log('    同一项检查 PR 上分到旧系统是绿的、合进 main 分到新系统就红。')
+  }
+  if (missing.length > 0 || floating.length > 0) return 1
+  log(`✅ workflow 脚本引用门岗通过：${files.length} 份 workflow、${refCount} 处 \`pnpm run\` 全部解析得到，机器标签全部写死版本（硬零）`)
   return 0
 }
 

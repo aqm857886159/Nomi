@@ -7,6 +7,7 @@ import test from 'node:test'
 import {
   assertScanCoverage,
   extractScriptRefs,
+  findFloatingRunners,
   findMissingRefs,
   listWorkflowFiles,
   main,
@@ -91,5 +92,41 @@ test('端到端：悬空引用回 1、清理后回 0（这道门真会红）', (
     const green = []
     assert.equal(main({ root, log: (line) => green.push(line) }), 0, '改成后继 lane 后必须回绿')
     assert.match(green.join('\n'), /全部解析得到/)
+  })
+})
+
+test('会漂的 -latest 机器标签逐处点名；写死版本、注释里提到、gh 的 --latest 参数都不算', () => {
+  withRepo((root) => {
+    writeWorkflow(root, 'ci.yml', [
+      'jobs:',
+      '  unit:',
+      '    runs-on: ubuntu-latest',
+      '  mac:',
+      '    runs-on: macos-latest-xlarge',
+      '  win:',
+      '    runs-on: windows-2025',
+      '  pinned:',
+      '    runs-on: ubuntu-24.04  # 不用 ubuntu-latest：会漂',
+      '  matrix:',
+      '    strategy: { matrix: { os: [macos-26, windows-latest] } }',
+      '  release:',
+      '    run: gh release edit v1 --latest',
+    ].join('\n'))
+    const floating = findFloatingRunners(listWorkflowFiles(root), { root })
+    assert.deepEqual(floating.map((item) => `${item.line} ${item.label}`), ['3 ubuntu-latest', '5 macos-latest-xlarge', '11 windows-latest'])
+  })
+})
+
+test('端到端：有 -latest 机器标签回 1，写死版本后回 0', () => {
+  withRepo((root) => {
+    writePackage(root, { gates: 'node gates.mjs' })
+    writeWorkflow(root, 'quality-gate.yml', ['jobs:', '  unit:', '    runs-on: ubuntu-latest', '    steps:', '      - run: pnpm run gates'].join('\n'))
+    const red = []
+    assert.equal(main({ root, log: (line) => red.push(line) }), 1, '会漂的标签必须报红')
+    assert.match(red.join('\n'), /quality-gate\.yml:3 {2}ubuntu-latest/)
+
+    writeWorkflow(root, 'quality-gate.yml', ['jobs:', '  unit:', '    runs-on: ubuntu-24.04', '    steps:', '      - run: pnpm run gates'].join('\n'))
+    const green = []
+    assert.equal(main({ root, log: (line) => green.push(line) }), 0, '写死版本后必须回绿')
   })
 })

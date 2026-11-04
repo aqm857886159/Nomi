@@ -39,7 +39,7 @@ concurrency:
 jobs:
   scenarios:
     name: Windows installer scenarios
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
