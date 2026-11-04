@@ -1,5 +1,7 @@
 # 模态弹层的输入优先：设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：模态弹层开着时工作区面不接键盘、粘贴、指针手势　线/负责人：I-modal-input-priority　类别：[其他：既有缺口，逻辑 bug]（路径启发式另命中「新界面」「花钱」，见「功能分类」；没有界面变化）
 
 方向已由协调裁定（修在共享输入边界，开关状态来自浮层宿主自己），独立验收待协调派线。方向说明见 [direction-checks/2026-10-31-modal-input-priority.md](../engineering/direction-checks/2026-10-31-modal-input-priority.md)。

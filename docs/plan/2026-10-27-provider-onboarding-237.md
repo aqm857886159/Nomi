@@ -1,5 +1,7 @@
 # Issue #237: provider onboarding and English first-run guide
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Initial base: `26fbc87d3266460c9cd1cca2f4b9cf0f43db6f46`. Before delivery, merged updated upstream `e6d14729287d16c21883d1049463280648b47330`, then `e8c9c3b7fba7cce186360ac868ef08605eb6241e`, without rewriting history. Scope: request-size calculation, deterministic request coverage, and documentation. No installed-app configuration or live provider credentials are used.
 
 ## Design card (before implementation)

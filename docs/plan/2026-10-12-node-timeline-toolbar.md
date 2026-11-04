@@ -1,5 +1,7 @@
 # 节点加入时间轴入口迁移
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 实现线：T-node-timeline；独立普查 / 验收线：toolbar_census。类别：现有界面单一动作迁移。
 
 拍板：2026-10-12，用户查看 `node-timeline-interaction.html` 后确认「看到了 没啥问题」。

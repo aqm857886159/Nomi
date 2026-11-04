@@ -1,5 +1,7 @@
 # 方向检查：外壳 Agent「叫回」信号（#1136，2026-10-09）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`node scripts/fix-churn.mjs src/ui/app-shell/shell/ShellAgentHost.tsx` 命中——文件近 14 天 3 个 fix、本刀第 4 个；目录 `src/ui/app-shell/shell/` 第 5 个。
 > 说明：这四个 fix 全在 #1136 这条还没合入 main 的分支上（文件本身就是本 PR 的 `f59b38d80` 新建的），分别是：静态门岗补洞 `aed983058`、
 > 左栏网格 `dd6ec9a17`、评审阻断 1 的 portal 重挂 `fa68dc032`、本刀。前三个不是同一类问题，本刀是新的一类。仍按规则走一遍复盘，

@@ -1,5 +1,7 @@
 # 方向检查：分镜编辑器把「浮层里的焦点」算成外人（RW）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`StoryboardPlanEditor.tsx` 14 天内第 4 个 fix（`fix-churn` 命中）。本页按 `docs/engineering/direction-check-template.md` 写。
 
 ### 0. 一句话根因

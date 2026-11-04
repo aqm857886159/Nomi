@@ -1,5 +1,7 @@
 # 打开分镜方案（320 行一次性全挂载）：现状与待拍板
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 来源：性能场景 `storyboard-plan-open`（`tests/perf/scenarios/storyboard-plan-open.json`，量具 `tests/perf/document-switch-bench.mjs`）。
 > 上游诊断：PR #1179 的 `heavy-document-switch-and-plan-open`。
 

@@ -1,5 +1,7 @@
 # 浏览器「提取提示词」接上付费令牌 · 设计卡（方案 B：每次提取都问）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 日期：2026-10-27。线：I-browser-extract-grant（第 1 轮：特征测试、设计卡、方向复盘）→ I-browser-extract-grant-r2（第 2 轮：实现）。基线：第 1 轮 `origin/main` @ `6c05eebae`，第 2 轮 `50b12b763`（协调已并上最新 origin/main）。
 
 **状态：用户 10-27 放行（「五件都按推荐办」，记在 approvals.jsonl），第 2 轮按本卡实现。** 热点文件 `src/workbench/capability/capabilityApplyHandler.ts` 只放行付费卡分流那一处，换成按 intent 查表。方向复盘：[`docs/engineering/direction-checks/2026-10-27-browser-extract-grant.md`](../engineering/direction-checks/2026-10-27-browser-extract-grant.md)。第 2 轮定稿见下面「第 2 轮定稿」一节；它和后文冲突的地方，以定稿为准（后文相关处已同步改过）。
