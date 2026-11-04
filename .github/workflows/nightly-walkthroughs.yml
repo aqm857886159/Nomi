@@ -16,7 +16,7 @@ concurrency:
 jobs:
   walks:
     name: Walk batch ${{ matrix.batch }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -86,7 +86,7 @@ jobs:
   # 跑的是和 Mac Package 同一条 `pnpm run dist:mac:dir`（打包 + packaged-mcp-smoke），结果写进同一张夜跑汇总表 / issue。
   packaged-mac:
     name: Packaged smoke (macOS)
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -129,7 +129,7 @@ jobs:
     name: Summarize nightly walkthroughs
     if: always()
     needs: [walks, packaged-mac]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
