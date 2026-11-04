@@ -1,0 +1,91 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-39017",
+      "name": "Relay One",
+      "enabled": false,
+      "hasApiKey": false,
+      "baseUrlHint": "http://127.0.0.1:39017/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-compatible",
+      "meta": {},
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.410Z",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:39017",
+        "authType": "bearer",
+        "confirmedAt": "2026-10-31T12:40:09.410Z"
+      }
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "deepseek-chat",
+      "vendorKey": "local-39017",
+      "modelAlias": "deepseek-chat",
+      "labelZh": "Chat",
+      "kind": "text",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "testing",
+          "runId": "run-rel-1",
+          "modes": [],
+          "updatedAt": "2026-10-31T12:40:09.410Z"
+        }
+      },
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.410Z"
+    },
+    {
+      "modelKey": "opaque-tts",
+      "vendorKey": "local-39017",
+      "modelAlias": "opaque-tts",
+      "labelZh": "Opaque TTS",
+      "kind": "audio",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "testing",
+          "runId": "run-rel-1",
+          "modes": [],
+          "updatedAt": "2026-10-31T12:40:09.410Z"
+        }
+      },
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.410Z"
+    },
+    {
+      "modelKey": "tts-1",
+      "vendorKey": "local-39017",
+      "modelAlias": "tts-1",
+      "labelZh": "TTS",
+      "kind": "audio",
+      "enabled": false,
+      "meta": {
+        "adapter": {
+          "state": "testing",
+          "runId": "run-rel-1",
+          "modes": [],
+          "updatedAt": "2026-10-31T12:40:09.410Z"
+        }
+      },
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.410Z"
+    }
+  ],
+  "mappings": [],
+  "apiKeysByVendor": {
+    "local-39017": {
+      "vendorKey": "local-39017",
+      "apiKey": "c2stdi1yZWxheS1mYWtl",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-10-31T12:40:09.410Z",
+      "updatedAt": "2026-10-31T12:40:09.410Z"
+    }
+  }
+}

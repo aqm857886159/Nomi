@@ -1,4 +1,4 @@
-import { canvasWindowInput } from '../../shortcutSurface'
+import { canvasLayerMayHandleInput } from '../../shortcutSurface'
 /**
  * 全局截图落地面板：热键抓完整屏 → 在这里拖一个区域 → 落成画布节点。
  *
@@ -13,6 +13,7 @@ import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { IconX } from '@tabler/icons-react'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { dataUrlToFile, persistNodeImageFile } from '../adapters/persistNodeImage'
@@ -37,14 +38,17 @@ export function ScreenshotCropOverlay({ capture, project, basePosition, category
   const [busy, setBusy] = React.useState(false)
 
   const selection: SelectionRect | null = drag ? normalizeSelectionRect(drag.start, drag.end) : null
+  const canvasViewport =
+    typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.workbench-generation__canvas')
+  const isTopLayer = useModalInputLayer(Boolean(canvasViewport), canvasViewport)
 
   React.useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.stopPropagation(); onClose() }
+      if (event.key === 'Escape' && canvasLayerMayHandleInput(isTopLayer)) { event.stopPropagation(); onClose() }
     }
-    canvasWindowInput.addEventListener('keydown', onKey, true)
-    return () => canvasWindowInput.removeEventListener('keydown', onKey, true)
-  }, [onClose])
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [isTopLayer, onClose])
 
   const pointFromEvent = (event: React.PointerEvent): { x: number; y: number } => {
     const rect = frameRef.current?.getBoundingClientRect()
@@ -105,8 +109,6 @@ export function ScreenshotCropOverlay({ capture, project, basePosition, category
     }
   }
 
-  const canvasViewport =
-    typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.workbench-generation__canvas')
   if (!canvasViewport) return <></>
 
   return createPortal(

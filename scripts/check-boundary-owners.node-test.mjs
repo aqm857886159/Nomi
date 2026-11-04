@@ -115,6 +115,16 @@ test("台账读口：读不到、根不是对象、改锚条目没写全新锚�
   assert.deepEqual(readLedger(sandbox({ [LEDGER_PATH]: JSON.stringify(whole) })), whole);
 });
 
+test("台账读口：退役条目不写理由（缺、空串、空白、不是字符串）读的时候就红；桶不是数组也红", () => {
+  for (const reason of [undefined, "", "   ", 7]) {
+    const ledger = { retirements: [{ ...ENTRY, ...(reason === undefined ? {} : { reason }) }] };
+    assert.throws(() => readLedger(sandbox({ [LEDGER_PATH]: JSON.stringify(ledger) })), /retirements 条目要写理由[\s\S]*c::a\.ts::owner/, `reason=${JSON.stringify(reason)}`);
+  }
+  assert.throws(() => readLedger(sandbox({ [LEDGER_PATH]: JSON.stringify({ retirements: { [ENTRY.path]: "x" } }) })), /retirements 必须是数组/);
+  const explained = { retirements: [{ ...ENTRY, reason: "主人删了，那条不变量不再适用" }] };
+  assert.deepEqual(readLedger(sandbox({ [LEDGER_PATH]: JSON.stringify(explained) })), explained);
+});
+
 test("台账只有一个读口：scripts 里认得台账路径的生产脚本只有 boundary-owners.mjs（别的门岗要读台账只能经 readLedger）", () => {
   const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
   const readers = fs.readdirSync(scriptsDir, { recursive: true })

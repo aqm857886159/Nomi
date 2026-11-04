@@ -101,7 +101,7 @@ trajectories/2026-09-15/<uuid>.json
 
 ---
 
-## 三条要诚实说清的事
+## 四条要诚实说清的事
 
 **1. `INTAKE_TOKEN` 不是密钥，是发布令牌。**
 它随桌面 App 一起发出去，任何人解包都能拿到。它挡的是「随手扫到这个 URL 的机器人」，
@@ -121,6 +121,11 @@ trajectories/2026-09-15/<uuid>.json
 （`electron/telemetry/trajectoryProjection.mts` 的字段白名单 + `electron/logging/redact.ts` 的第二道网）。
 服务端再抹一遍会制造一种「反正服务端会兜」的错觉，而那正是客户端脱敏松掉的起点。
 接收端同样**不存** IP、User-Agent、Cloudflare geo —— 那是用户身份，而我们说了不收。
+
+**4. 同一份反馈可能收到不止一次。**
+客户端先把报告存在本机再发，发出去没等到回答（弱网、超时）就留着重发，而第一次可能已经落进 R2。
+这里不做幂等：要做就得读一次已有的东西，而这个端点只写不读是第 1 条的前提。
+重复由雷达折叠（`scripts/lib/intake-radar/aggregate.mjs`：创建时间和摘要都一样的算同一份），用户那边只是多拿过一个编号。
 
 ---
 

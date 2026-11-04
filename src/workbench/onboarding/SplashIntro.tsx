@@ -16,6 +16,7 @@
  */
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useModalInputLayer } from '../../design/modalInputLayer'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '../../utils/cn'
 import { NomiBrand } from '../../design'
@@ -71,6 +72,7 @@ function playSceneTone(audio: AudioRef, step: number): void {
 }
 
 export function SplashIntro({ onDone }: SplashIntroProps): JSX.Element {
+  useModalInputLayer(true)
   const { t } = useTranslation()
   const [step, setStep] = React.useState(0)
   const [leaving, setLeaving] = React.useState(false)

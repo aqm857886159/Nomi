@@ -302,3 +302,12 @@ test('回放护栏覆盖：四类里每一类，夹具中都至少有一个 PR �
     assert.ok(only.length > 0, `夹具里没有只因「${label}」才严的 PR：护栏拦不住「去掉这一类」，要重生成夹具或扩大窗口`)
   }
 })
+
+test('声明纯修复却碰了存量数据路径：落标准档，不进短档，也不升严', () => {
+  const body = '## 变更意图\n- 意图：纯修复\n- 候选档位：短\n- 单一意图：是\n- 声明：纯修复：不改用户可见元素、布局、文案\n- 界面核实：无界面差异（base/head 清单由门岗核实）\n'
+  for (const file of ['electron/catalog/catalogMigrations.ts', 'electron/workspace/persistState.ts', 'electron/shared/modelPublication.ts']) {
+    const result = tierOf([M(file)], { body, uiVerification: { known: true, changed: false } })
+    assert.equal(result.tier, PROCESS_TIERS.STANDARD, `${file}：${text(result)}`)
+    assert.ok(result.failures.some((reason) => reason.includes('存量数据')), text(result))
+  }
+})

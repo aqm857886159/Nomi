@@ -270,6 +270,7 @@ function model(): Model {
 /** 走**真实内置草稿**建模式（用户填 BaseURL 后 service.ts:313 走的就是这条）。 */
 function draftModes(): AdapterModeDraft[] {
   const draft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
     baseUrl,
     authType: "bearer",
     providerKind: "openai-compatible",
@@ -406,6 +407,7 @@ describe("自建中转一致性台架 · 真实接入链（内置草稿 → 免�
 
   it("图生视频模式按首帧单值声明（image_url/single），不与改图的数组键混用", () => {
     const videoDraft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl,
       authType: "bearer",
       models: [{ modelKey: "relay-video-1", labelZh: "relay video", kind: "video" }],

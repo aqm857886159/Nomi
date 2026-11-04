@@ -61,6 +61,32 @@ export function scanSource(source, file) {
   return hits
 }
 
+/**
+ * 第二条判据（2026-10-31）：列表多长归仓库大小管，Node 默认缓冲只有 1 MiB。09-17 一道门、10-31 五道门，
+ * 都是仓库长过它才炸。上限只定在 gitPaths 一处，所以 JS 里的 `ls-files` 只能走它。
+ * 测试文件不管：它们列的是自己建的临时仓库。shell 不管：没有这个缓冲。
+ */
+const DIRECT_LS_FILES = /['"`](?:git\s+)?ls-files\b/
+const GIT_CALL = /\b(execSync|execFileSync|spawnSync|execFile|spawn)\s*\(|\bgit\w*\s*\(/
+const TEST_SOURCE = /\.(?:node-)?test\.[cm]?[jt]sx?$/
+
+export function scanDirectListing(source, file) {
+  if (/\.(sh|ya?ml)$/.test(file) || TEST_SOURCE.test(file)) return []
+  const hits = []
+  const lines = source.split('\n')
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trim()
+    if (line.startsWith('//') || line.startsWith('#') || line.startsWith('*')) return
+    if (!DIRECT_LS_FILES.test(line)) return
+    const window = lines.slice(Math.max(0, index - 2), index + 2).join('\n')
+    if (/\b(gitPaths|trackedFiles)\s*\(/.test(window)) return
+    if (window.includes(INTENTIONAL_MARKER)) return
+    if (!GIT_CALL.test(window)) return
+    hits.push({ file, line: index + 1, text: line.slice(0, 140) })
+  })
+  return hits
+}
+
 function collect() {
   const files = []
   const walk = (dir) => {
@@ -78,18 +104,27 @@ function collect() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const hits = []
+  const directHits = []
   for (const file of collect()) {
     // 门岗自己那几条判据字面量、以及它的阳性对照（整篇都是喂给 scanSource 的样本串）不算调用点。
     if (file === fileURLToPath(import.meta.url)) continue
     if (path.basename(file) === 'check-git-path-quoting.node-test.mjs') continue
     hits.push(...scanSource(fs.readFileSync(file, 'utf8'), file))
+    directHits.push(...scanDirectListing(fs.readFileSync(file, 'utf8'), file))
   }
-  if (hits.length === 0) {
-    console.log('✅ git 路径读取门岗通过：所有 --name-only / --name-status / ls-files 调用都关掉了引号转义（-z 或 core.quotePath=false）。')
+  if (hits.length === 0 && directHits.length === 0) {
+    console.log('✅ git 路径读取门岗通过：所有 --name-only / --name-status / ls-files 调用都关掉了引号转义（-z 或 core.quotePath=false），JS 里的 ls-files 都走 gitPaths。')
     process.exit(0)
   }
-  console.log('\n✖ 有调用点按默认 core.quotePath 读 git 的路径列表——非 ASCII 路径会变成 `"docs/\\344..."`：')
-  for (const hit of hits) console.log(`    ${path.relative(repoRoot, hit.file)}:${hit.line}  ${hit.text}`)
-  console.log('\n  → JS 走 `scripts/lib/gitPaths.mjs` 的 gitPaths() / gitNameStatus()；shell 直接加 `-z` 并按 NUL 读。')
+  if (hits.length > 0) {
+    console.log('\n✖ 有调用点按默认 core.quotePath 读 git 的路径列表——非 ASCII 路径会变成 `"docs/\\344..."`：')
+    for (const hit of hits) console.log(`    ${path.relative(repoRoot, hit.file)}:${hit.line}  ${hit.text}`)
+    console.log('\n  → JS 走 `scripts/lib/gitPaths.mjs` 的 gitPaths() / gitNameStatus()；shell 直接加 `-z` 并按 NUL 读。')
+  }
+  if (directHits.length > 0) {
+    console.log('\n✖ 有调用点绕开 gitPaths 直接起 `git ls-files`——缓冲上限只定在 gitPaths，绕开它仓库一大就 ENOBUFS：')
+    for (const hit of directHits) console.log(`    ${path.relative(repoRoot, hit.file)}:${hit.line}  ${hit.text}`)
+    console.log('\n  → 改走 `scripts/lib/gitPaths.mjs` 的 gitPaths() / trackedFiles()。')
+  }
   process.exit(1)
 }

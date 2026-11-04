@@ -1,0 +1,67 @@
+{
+  "recordedFrom": "03c4c8fb3957b7033c2d3caf00a741c747a21913",
+  "diskVersionAfterRead": 13,
+  "backupFiles": [],
+  "models": {
+    "tts-1": {
+      "kind": "audio",
+      "listed": true,
+      "published": [
+        "text_to_audio"
+      ],
+      "modes": {
+        "text_to_audio": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/audio/speech",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"tts-1\",\"input\":\"a blue marble\",\"response_format\":\"mp3\"}"
+          }
+        }
+      }
+    },
+    "opaque-tts": {
+      "kind": "audio",
+      "listed": true,
+      "published": [
+        "text_to_audio"
+      ],
+      "modes": {
+        "text_to_audio": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/audio/speech",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"opaque-tts\",\"input\":\"a blue marble\",\"response_format\":\"mp3\"}"
+          }
+        }
+      }
+    },
+    "deepseek-chat": {
+      "kind": "text",
+      "listed": true,
+      "published": [
+        "chat"
+      ],
+      "modes": {
+        "chat": {
+          "posts": 1,
+          "via": "task",
+          "request": {
+            "method": "POST",
+            "path": "/v1/chat/completions",
+            "contentType": "application/json",
+            "authScheme": "Bearer",
+            "body": "{\"model\":\"deepseek-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"a blue marble\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true},\"store\":false,\"temperature\":0.7}"
+          }
+        }
+      }
+    }
+  }
+}

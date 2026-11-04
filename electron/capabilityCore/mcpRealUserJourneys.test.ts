@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createMcpProtocol, type McpTransport } from './mcpProtocol'
+import { MCP_TOOL_RESOLVER } from './mcpToolCatalog'
 
 type Frame = {
   id?: number
@@ -204,6 +205,9 @@ describe('MCP production entrypoint user journeys', () => {
 
   it('keeps empty, long, and Unicode inputs at the production schema boundary', async () => {
     const { calls, frames, protocol } = createTransportHarness()
+    const tool = MCP_TOOL_RESOLVER.resolve('nomi_operation_plan')!
+    expect((tool.inputSchema.properties as Record<string, Record<string, unknown>>).prompt.minLength).toBeUndefined()
+    expect((tool.runtimeInputSchema.properties as Record<string, Record<string, unknown>>).prompt.minLength).toBe(1)
     try {
       const empty = await callTool(protocol, frames, 11, 'nomi_operation_plan', { leaseHandle: 'lease-1', prompt: '' })
       expect(empty?.isError).toBe(true)

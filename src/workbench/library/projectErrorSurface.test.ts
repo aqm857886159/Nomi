@@ -2,8 +2,9 @@ import { PROJECT_SAVE_REASONS, projectSaveFailure } from '../../../electron/shar
 import { unwrapIpcResult } from '../../../electron/shared/contracts/ipcResult'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import type { TFunction } from 'i18next'
+import { createInstance, type TFunction } from 'i18next'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { resources } from '../../i18n/resources'
 
 const logRendererError = vi.hoisted(() => vi.fn())
 vi.mock('../../desktop/rendererLog', () => ({ logRendererError }))
@@ -68,6 +69,8 @@ describe('项目库报错：原文只进日志，界面只给一句人话', () =
     ['openWorkspace', '«studio.openWorkspaceFailed»'],
     ['save', '«studio.projectSaveFailed»'],
     ['restore', '«studio.projectRestoreFailed»'],
+    ['create', '«studio.newProjectFailed»'],
+    ['createDemo', '«studio.demoProjectFailed»'],
   ] as const
   it.each(OPERATION_MATRIX)('单一出口：%s 取自己的那句，原文不进返回值；锁忙先认', (operation, expected) => {
     expect(projectOperationFailureText(operation, new Error(RAW), t)).toBe(expected)
@@ -103,6 +106,60 @@ describe('项目库报错：原文只进日志，界面只给一句人话', () =
     const tWithParams = ((k: string, params?: Record<string, unknown>) => `«${k}|${params?.bin ?? ''}»`) as unknown as TFunction
     const error = new Error(`Error invoking remote method 'nomi:projects:delete': Error: ProjectTrashFailedError[${reason}]: project folder was not moved to the trash and nothing was deleted (x)`)
     expect(projectOperationFailureText('delete', error, tWithParams, { trashBin: '回收站' })).toBe(`«${key}|回收站»`)
+  })
+
+  // 「项目在哪」收敛单：位置在 Nomi 自己的目录里、打开的是另一个还在的项目文件夹的副本。经同步 IPC（新建项目，只剩信息文本）
+  // 和经 invoke（`Error invoking remote method …: Error: …`）都认得出，说清为什么、去哪改；不会放项目的操作不认这两种身份。
+  const tParams = ((k: string, params?: Record<string, unknown>) =>
+    `«${k}${params ? Object.entries(params).map(([key, value]) => `|${key}=${String(value)}`).join('') : ''}»`) as unknown as TFunction
+
+  it.each([
+    ['install', '«studio.appOwnedPlaceInstall»'],
+    ['app-data', '«studio.appOwnedPlaceAppData»'],
+    ['temp', '«studio.appOwnedPlaceTemp»'],
+  ])('新建项目被拒（默认位置在 %s 里，经同步 IPC 只剩信息文本）：说清是哪类目录、去设置换', (kind, place) => {
+    const error = new Error(`ProjectLocationRejectedError[${kind}]: refusing to keep projects inside Nomi's own ${kind} directory (F:\\Nomi_new\\xiangmu)`)
+    expect(projectOperationFailureText('create', error, tParams)).toBe(`«studio.newProjectLocationInsideApp|place=${place}»`)
+    expect(projectOperationFailureText('createDemo', error, tParams)).toBe(`«studio.newProjectLocationInsideApp|place=${place}»`)
+  })
+
+  it('打开已有文件夹被拒（在应用目录里，经 invoke）：说清是哪类目录', () => {
+    const error = new Error("Error invoking remote method 'nomi:workspace:open-folder': Error: ProjectLocationRejectedError[app-data]: refusing to keep projects inside Nomi's own app-data directory (C:\\Users\\张三\\AppData\\Roaming\\Nomi\\x)")
+    expect(projectOperationFailureText('openWorkspace', error, tParams)).toBe('«studio.workspaceFolderInsideApp|place=«studio.appOwnedPlaceAppData»»')
+  })
+
+  it('打开的是另一个还在的项目文件夹的副本（经 invoke）：说原项目名和原文件夹在哪，路径里的引号、反斜杠、中文原样带出', () => {
+    const original = 'D:\\作品\\"原片" 文件夹'
+    const error = new Error(`Error invoking remote method 'nomi:workspace:open-folder': Error: WorkspaceFolderCopyError: ${JSON.stringify({ projectName: '原片', originalRootPath: original })}`)
+    expect(projectOperationFailureText('openWorkspace', error, tParams)).toBe(`«studio.workspaceFolderIsCopy|name=原片|path=${original}»`)
+  })
+
+  it('这两种身份只在会放项目的操作上认：保存 / 删除 / 打开位置照旧说自己的那句；新建不认副本', () => {
+    const rejected = new Error('ProjectLocationRejectedError[install]: refusing (x)')
+    const copy = new Error(`WorkspaceFolderCopyError: ${JSON.stringify({ projectName: 'a', originalRootPath: '/a' })}`)
+    for (const error of [rejected, copy]) {
+      expect(projectOperationFailureText('save', error, t)).toBe('«studio.projectSaveFailed»')
+      expect(projectOperationFailureText('delete', error, t)).toBe('«studio.projectDeleteFailed»')
+      expect(projectOperationFailureText('revealFolder', error, t)).toBe('«studio.openFolderFailed»')
+    }
+    expect(projectOperationFailureText('create', copy, t)).toBe('«studio.newProjectFailed»')
+  })
+
+  it.each(['zh-CN', 'en'] as const)('真词典（%s）：三句都带上目录类别 / 原项目名 / 原路径，不漏插值', async (language) => {
+    const i18n = createInstance()
+    await i18n.init({ lng: language, resources, interpolation: { escapeValue: false } })
+    const real = i18n.t.bind(i18n) as TFunction
+    const texts = [
+      projectOperationFailureText('create', new Error('ProjectLocationRejectedError[install]: refusing (x)'), real),
+      projectOperationFailureText('openWorkspace', new Error('ProjectLocationRejectedError[temp]: refusing (x)'), real),
+      projectOperationFailureText('openWorkspace', new Error(`WorkspaceFolderCopyError: ${JSON.stringify({ projectName: '原片 & <花絮>', originalRootPath: 'D:\\作品\\原片' })}`), real),
+    ]
+    const studio = resources[language].translation.studio
+    expect(texts[0]).toContain(studio.appOwnedPlaceInstall)
+    expect(texts[1]).toContain(studio.appOwnedPlaceTemp)
+    expect(texts[2]).toContain('原片 & <花絮>')
+    expect(texts[2]).toContain('D:\\作品\\原片')
+    for (const text of texts) expect(text).not.toMatch(/\{\{|\}\}|ProjectLocationRejectedError|WorkspaceFolderCopyError/)
   })
 
   it('类型上做不出来：原文字符串不能当 UserText 传进界面', () => {

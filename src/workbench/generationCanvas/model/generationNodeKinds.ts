@@ -38,6 +38,11 @@ export function getGenerationNodeDefinition(kind: GenerationNodeKind): Generatio
   return GENERATION_NODE_DEFINITIONS[kind]
 }
 
+/** 这一种卡远看是否自己画（registry 的 ownsZoomTiers；唯一读者是 canvasNodeLevelOfDetail 的细节准入）。 */
+export function generationNodeKindOwnsZoomTiers(kind: GenerationNodeKind): boolean {
+  return getGenerationNodeDefinition(kind)?.ownsZoomTiers === true
+}
+
 export function getGenerationNodeDefaultSize(kind: GenerationNodeKind): { width: number; height: number } {
   return getGenerationNodeDefinition(kind).defaultSize
 }

@@ -12,7 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, test } from 'node:test'
-import { countRecentFixes, decideEditTimeReminder, FIX_THRESHOLD, isWatchedSource } from './edit-time-reminder.mjs'
+import { countRecentFixes, decideEditTimeReminder, FIX_THRESHOLD, isWatchedSource, RULE_CHANGE_MESSAGE } from './edit-time-reminder.mjs'
 import { loadRegistries } from './build-capability-index.mjs'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -104,6 +104,26 @@ describe('(b) 同一文件反复修', () => {
   })
 })
 
+describe('(c) 改规则正文', () => {
+  test('CLAUDE.md、rules.json → 提醒五步，文件新建还是已有都一样；别的文档不提醒', () => {
+    for (const file of ['CLAUDE.md', 'docs/engineering/rules.json']) {
+      for (const exists of [true, false]) {
+        const hit = decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => exists }))
+        assert.equal(hit.kind, 'rule-change', file)
+        assert.equal(hit.message, RULE_CHANGE_MESSAGE)
+      }
+    }
+    assert.match(RULE_CHANGE_MESSAGE, /docs\/engineering-rules\.md「改规则」/)
+    for (const file of ['AGENTS.md', 'docs/engineering/rules.md', 'docs/engineering-rules.md', 'docs/CLAUDE.md']) {
+      assert.equal(decideEditTimeReminder(write(file, 'Edit'), env({ exists: () => true })), null, file)
+    }
+  })
+
+  test('提醒指向的那一节真的在文档里（指向不存在的东西等于没提醒）', () => {
+    assert.match(fs.readFileSync(path.join(repo, 'docs/engineering-rules.md'), 'utf8'), /^## 改规则（五步）$/m)
+  })
+})
+
 describe('真跑 hook：输出必须是官方规定的形状', () => {
   const run = (payload, sessionId) => spawnSync('bash', [HOOK], {
     input: Buffer.from(typeof payload === 'string' ? payload : JSON.stringify({ session_id: sessionId, cwd: repo, ...payload }), 'utf8'),
@@ -123,6 +143,14 @@ describe('真跑 hook：输出必须是官方规定的形状', () => {
     const second = run(payload, session)
     assert.equal(second.status, 0)
     assert.equal(second.stdout, '')
+  })
+
+  test('改 CLAUDE.md → 同样的形状，同一会话只提醒一次', () => {
+    const payload = write('CLAUDE.md', 'Edit')
+    const first = run(payload, `${session}-rule`)
+    assert.equal(first.status, 0)
+    assert.equal(JSON.parse(first.stdout).hookSpecificOutput.additionalContext, RULE_CHANGE_MESSAGE)
+    assert.equal(run(payload, `${session}-rule`).stdout, '')
   })
 
   test('不相干的写入、坏载荷 → 静默放行（退出 0、什么也不吐）', () => {

@@ -1,4 +1,4 @@
-import { canvasDocumentInput } from '../../shortcutSurface'
+import { canvasLayerMayHandleInput } from '../../shortcutSurface'
 import { notify } from '../../../ui/notificationPolicy'
 /**
  * 「按镜头拆」面板：检测 → 预览 → 勾选 → 才落画布。
@@ -14,6 +14,7 @@ import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconX } from '@tabler/icons-react'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { cn } from '../../../utils/cn'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -50,6 +51,9 @@ type DetectState =
 type Props = { onFeedback: (message: string) => void;  node: GenerationCanvasNode; onClose: () => void }
 
 export default function NodeShotCutPanel({ onFeedback, node, onClose }: Props): JSX.Element {
+  const canvasViewport =
+    typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.workbench-generation__canvas')
+  const isTopLayer = useModalInputLayer(Boolean(canvasViewport), canvasViewport)
   const feedbackOwnerRef = React.useRef<string | null>(node.id)
   feedbackOwnerRef.current = node.id
   React.useEffect(() => { feedbackOwnerRef.current = node.id; return () => { feedbackOwnerRef.current = null } }, [node.id])
@@ -103,10 +107,10 @@ export default function NodeShotCutPanel({ onFeedback, node, onClose }: Props): 
   }, [t, videoUrl])
 
   React.useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    canvasDocumentInput.addEventListener('keydown', onKey)
-    return () => canvasDocumentInput.removeEventListener('keydown', onKey)
-  }, [onClose])
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && canvasLayerMayHandleInput(isTopLayer)) onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [isTopLayer, onClose])
 
   const allCuts = React.useMemo(() => (state.phase === 'ready' ? state.cuts : []), [state])
   const visible = React.useMemo(() => filterShotCuts(allCuts, threshold), [allCuts, threshold])
@@ -155,8 +159,6 @@ export default function NodeShotCutPanel({ onFeedback, node, onClose }: Props): 
             ? t('generationCommon.node.shotCuts.foundAutoRelaxed', { count: visible.length })
             : t('generationCommon.node.shotCuts.found', { count: visible.length })
 
-  const canvasViewport =
-    typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.workbench-generation__canvas')
   if (!canvasViewport) return <>
 {feedback ? <p role="status" className="m-0 px-2 py-1 text-caption text-nomi-ink-60">{feedback}</p> : null}</>
 

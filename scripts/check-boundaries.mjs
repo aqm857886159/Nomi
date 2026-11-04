@@ -171,15 +171,8 @@ function baselineIdentities(baseline, rule) {
   return new Set(Array.isArray(entry) ? entry : Object.keys(entry))
 }
 
-const RULE_ORDER = [
-  'src-no-import-electron',
-  // 设计实验室那条（R-B5）没有 baseline 条目：它当前零违规，是硬零规则。
-  // 但**必须列在这里**——本脚本只统计 RULE_ORDER 里的规则名，漏列 = 规则写了没人看。
-  'devlab-no-import-electron-impl',
-  'electron-no-import-src',
-  'src-no-import-scripts',
-  CIRCULAR_RULE,
-]
+// 从规则集派生，不手抄：手抄的清单漏列一条，那条规则就写了没人看（R-B6 曾这样漏过）。
+const RULE_ORDER = ruleConfig.forbidden.map((rule) => rule.name)
 
 function rel(p) {
   return path.relative(repoRoot, p).split(path.sep).join('/')

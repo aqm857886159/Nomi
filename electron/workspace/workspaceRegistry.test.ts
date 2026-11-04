@@ -7,10 +7,12 @@ import {
   findRecentWorkspace,
   listRecentWorkspaces,
   recentWorkspacesPath,
-  rememberWorkspace,
+  bindWorkspaceLocation,
+  bindWorkspaceLocations,
   removeWorkspaceReference,
+  type WorkspaceLocationBinding,
 } from "./workspaceRegistry";
-import type { WorkspaceProjectRecordV2 } from "./workspaceTypes";
+import { workspaceFolderCopy } from "../shared/contracts/projectLocation";
 
 const tempRoots: string[] = [];
 
@@ -32,17 +34,14 @@ function makeTempDir(name = "nomi-workspace-registry-test-"): string {
   return dir;
 }
 
-function record(id: string, rootPath: string, name = id): WorkspaceProjectRecordV2 {
-  return {
-    id,
-    name,
-    version: 2,
-    createdAt: 100,
-    updatedAt: 200,
-    savedAt: 300,
-    revision: 0,
-    lastKnownRootPath: rootPath,
-  };
+function binding(id: string, rootPath: string, name = id): WorkspaceLocationBinding {
+  return { id, name, rootPath };
+}
+
+/** 让 rootPath 成为一个装着 id 的项目文件夹（只写登记判定要读的 .nomi/project.json 的 id）。 */
+function holdProject(rootPath: string, id: string): void {
+  fs.mkdirSync(path.join(rootPath, ".nomi"), { recursive: true });
+  fs.writeFileSync(path.join(rootPath, ".nomi", "project.json"), JSON.stringify({ id, name: id, version: 2 }));
 }
 
 describe("recentWorkspacesPath", () => {
@@ -60,9 +59,9 @@ describe("workspace registry", () => {
     const secondRoot = makeTempDir();
 
     vi.setSystemTime(new Date("2026-05-31T12:00:00Z"));
-    rememberWorkspace(settingsRoot, record("project-1", firstRoot, "First"));
+    bindWorkspaceLocation(settingsRoot, binding("project-1", firstRoot, "First"));
     vi.setSystemTime(new Date("2026-05-31T12:05:00Z"));
-    const entries = rememberWorkspace(settingsRoot, record("project-2", secondRoot, "Second"));
+    const entries = bindWorkspaceLocation(settingsRoot, binding("project-2", secondRoot, "Second"));
 
     expect(entries.map((entry) => entry.id)).toEqual(["project-2", "project-1"]);
     expect(entries[0]).toMatchObject({
@@ -74,14 +73,14 @@ describe("workspace registry", () => {
     });
   });
 
-  it("dedupes by project id and updates the remembered root path", () => {
+  it("dedupes by project id and rebinds to the folder the caller names when the old one does not hold the id", () => {
     const settingsRoot = makeTempDir();
     const oldRoot = makeTempDir();
     const newRoot = makeTempDir();
 
-    rememberWorkspace(settingsRoot, record("project-1", oldRoot, "Old Name"));
+    bindWorkspaceLocation(settingsRoot, binding("project-1", oldRoot, "Old Name"));
     vi.setSystemTime(new Date("2026-05-31T12:10:00Z"));
-    const entries = rememberWorkspace(settingsRoot, record("project-1", newRoot, "New Name"));
+    const entries = bindWorkspaceLocation(settingsRoot, binding("project-1", newRoot, "New Name"));
 
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({
@@ -99,11 +98,8 @@ describe("workspace registry", () => {
     const projectRoot = path.join(nativeRoot, "project-1");
     fs.mkdirSync(projectRoot);
 
-    rememberWorkspace(settingsRoot, record("project-1", projectRoot), {
-      source: "native",
-      nativeRootPath: nativeRoot,
-    });
-    rememberWorkspace(settingsRoot, record("project-1", projectRoot, "Saved Again"));
+    bindWorkspaceLocation(settingsRoot, { ...binding("project-1", projectRoot), origin: { source: "native", nativeRootPath: nativeRoot } });
+    bindWorkspaceLocation(settingsRoot, binding("project-1", projectRoot, "Saved Again"));
 
     expect(findRecentWorkspace(settingsRoot, "project-1")).toMatchObject({
       source: "native",
@@ -117,8 +113,8 @@ describe("workspace registry", () => {
     const nativeProjectRoot = path.join(oldDefaultRoot, "native-project");
     const externalProjectRoot = makeTempDir();
     fs.mkdirSync(nativeProjectRoot);
-    rememberWorkspace(settingsRoot, record("native", nativeProjectRoot));
-    rememberWorkspace(settingsRoot, record("external", externalProjectRoot));
+    bindWorkspaceLocation(settingsRoot, binding("native", nativeProjectRoot));
+    bindWorkspaceLocation(settingsRoot, binding("external", externalProjectRoot));
 
     backfillWorkspaceOrigins(settingsRoot, oldDefaultRoot);
 
@@ -132,7 +128,7 @@ describe("workspace registry", () => {
   it("marks missing root paths without deleting entries", () => {
     const settingsRoot = makeTempDir();
     const workspaceRoot = makeTempDir();
-    rememberWorkspace(settingsRoot, record("project-1", workspaceRoot, "Missing Soon"));
+    bindWorkspaceLocation(settingsRoot, binding("project-1", workspaceRoot, "Missing Soon"));
     fs.rmSync(workspaceRoot, { recursive: true, force: true });
 
     const entries = listRecentWorkspaces(settingsRoot);
@@ -182,7 +178,7 @@ describe("workspace registry", () => {
     const settingsRoot = makeTempDir();
     const workspaceRoot = makeTempDir();
     fs.writeFileSync(path.join(workspaceRoot, "script.md"), "hello");
-    rememberWorkspace(settingsRoot, record("project-1", workspaceRoot, "Keep Folder"));
+    bindWorkspaceLocation(settingsRoot, binding("project-1", workspaceRoot, "Keep Folder"));
 
     const entries = removeWorkspaceReference(settingsRoot, "project-1");
 
@@ -190,11 +186,46 @@ describe("workspace registry", () => {
     expect(fs.existsSync(path.join(workspaceRoot, "script.md"))).toBe(true);
   });
 
-  it("rejects records without a current root path for the local registry", () => {
+  it("rejects bindings without an explicit rootPath (the registry never copies a manifest's lastKnownRootPath)", () => {
     const settingsRoot = makeTempDir();
-    const noRoot = { ...record("project-1", makeTempDir()), lastKnownRootPath: undefined };
 
-    expect(() => rememberWorkspace(settingsRoot, noRoot)).toThrow(/rootPath/i);
+    expect(() => bindWorkspaceLocation(settingsRoot, binding("project-1", ""))).toThrow(/rootPath/i);
+    expect(() => bindWorkspaceLocations(settingsRoot, [binding("project-1", "  ")])).toThrow(/rootPath/i);
+    expect(listRecentWorkspaces(settingsRoot)).toEqual([]);
+  });
+
+  it("refuses to rebind an id whose registered folder still holds it (a copy), in single and batch form", () => {
+    const settingsRoot = makeTempDir();
+    const original = makeTempDir();
+    const copy = makeTempDir();
+    holdProject(original, "project-1");
+    holdProject(copy, "project-1");
+    bindWorkspaceLocation(settingsRoot, binding("project-1", original, "原片"));
+    const before = fs.readFileSync(recentWorkspacesPath(settingsRoot), "utf8");
+
+    let thrown: unknown;
+    try {
+      bindWorkspaceLocation(settingsRoot, binding("project-1", copy, "原片"));
+    } catch (error) {
+      thrown = error;
+    }
+    expect(workspaceFolderCopy(thrown)).toEqual({ projectName: "原片", originalRootPath: path.resolve(original) });
+    const batch = bindWorkspaceLocations(settingsRoot, [binding("project-1", copy, "原片")]);
+    expect(batch.conflicts).toEqual([expect.objectContaining({ boundRootPath: path.resolve(original) })]);
+    expect(fs.readFileSync(recentWorkspacesPath(settingsRoot), "utf8")).toBe(before);
+  });
+
+  it("rebinds once the registered folder is gone or no longer holds the id (rename / move, then reopen)", () => {
+    const settingsRoot = makeTempDir();
+    const original = makeTempDir();
+    const renamed = `${original}-renamed`;
+    holdProject(original, "project-1");
+    bindWorkspaceLocation(settingsRoot, binding("project-1", original));
+    fs.renameSync(original, renamed);
+    tempRoots.push(renamed);
+
+    bindWorkspaceLocation(settingsRoot, binding("project-1", renamed));
+    expect(findRecentWorkspace(settingsRoot, "project-1")).toMatchObject({ rootPath: path.resolve(renamed), missing: false });
   });
 });
 
@@ -212,7 +243,7 @@ describe("registry lock release under a transient Windows sharing violation", ()
       return realRmdir(target, options);
     }) as typeof fs.rmdirSync);
 
-    rememberWorkspace(settingsRoot, record("project-1", makeTempDir()));
+    bindWorkspaceLocation(settingsRoot, binding("project-1", makeTempDir()));
 
     expect(failures).toBe(0);
     expect(fs.existsSync(lockDir)).toBe(false);

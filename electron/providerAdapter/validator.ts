@@ -57,8 +57,8 @@ const multipartSchema = z.object({
 }).strict().superRefine((value, context) => {
   const generic = Boolean(value.fileField && value.fileSource);
   const legacy = Boolean(value.imageField && value.imageSource);
-  if (!generic && !legacy) {
-    context.addIssue({ code: z.ZodIssueCode.custom, message: "multipart requires fileField/fileSource" });
+  if (!generic && !legacy && !Object.keys(value.fields || {}).length) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "multipart requires text fields or fileField/fileSource" });
   }
   if ((value.fileField && !value.fileSource) || (!value.fileField && value.fileSource)) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "multipart fileField and fileSource must be paired" });
@@ -80,6 +80,7 @@ const httpOperationSchema = z
     provider_meta_mapping: z.record(z.string(), z.unknown()).optional(),
     defaultParams: z.record(z.string(), z.unknown()).optional(),
     audioResponse: audioResponseSchema.optional(),
+    mediaResponse: z.object({ kind: z.literal("binary"), contentType: z.literal("video/mp4") }).strict().optional(),
     multipart: multipartSchema.optional(),
   })
   .strict();
@@ -373,6 +374,10 @@ export function assertAdapterModeInvariants(
     if (mode.result && !mode.query) {
       throw new Error(`Mode ${model.modelKey}/${mode.taskKind} declares result without query`);
     }
+    if (mode.create.mediaResponse || mode.query?.mediaResponse) throw new Error("mediaResponse is only supported on GET result operations");
+    if (mode.result?.mediaResponse && (model.kind !== "video" || mode.result.method.toUpperCase() !== "GET" || mode.result.multipart || mode.result.audioResponse)) {
+      throw new Error("mediaResponse requires a video GET result");
+    }
     if (model.kind !== "text") {
       const resultKeys = new Set([
         ...Object.keys(mode.create.response_mapping || {}),
@@ -397,8 +402,9 @@ export function assertAdapterModeInvariants(
             : model.kind === "audio"
               ? (mode.taskKind === "transcribe" ? ["text"] : ["assets", "audio_url"])
               : ["assets"];
+      const declaredMediaBody = model.kind === "video" && Boolean(mode.result?.mediaResponse);
       const declaredAudioBody = model.kind === "audio" && mode.taskKind !== "transcribe" && Boolean(mode.create.audioResponse);
-      if (!declaredAudioBody && !accepted.some((key) => resultKeys.has(key))) {
+      if (!declaredMediaBody && !declaredAudioBody && !accepted.some((key) => resultKeys.has(key))) {
         throw new Error(`Mode ${model.modelKey}/${mode.taskKind} requires a media result mapping`);
       }
     }

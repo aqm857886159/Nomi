@@ -26,6 +26,53 @@ async function anotherHost(prompt = "changed") {
   return JSON.parse(stdout);
 }
 
+describe("试跑写记录时撞上损坏或被占着的生命周期锁", () => {
+  afterEach(() => { vi.useRealTimers(); });
+  function runtimeFile(dir: string): string {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isFile() && entry.name === "runtime.json") return full;
+      if (entry.isDirectory()) { try { return runtimeFile(full); } catch { /* keep looking */ } }
+    }
+    throw new Error("no runtime envelope here");
+  }
+  async function accepted() {
+    const intent = open();
+    const first = claim();
+    await intent.submit(first, async () => ({ id: "remote-job", status: "queued", assets: [] }));
+    return { intent, jobId: first.job.jobId, lockFile: `${runtimeFile(root)}.lifecycle-lock` };
+  }
+
+  it("坏记录放了超过一个租期：调用返回，这次的结果也记上了", async () => {
+    const { intent, jobId, lockFile } = await accepted();
+    fs.writeFileSync(lockFile, "");
+    const stamped = new Date(Date.now() - 31_000);
+    fs.utimesSync(lockFile, stamped, stamped);
+
+    await intent.recordResult(jobId, { id: "remote-job", status: "running", assets: [] });
+
+    expect(intent.read()?.result?.status).toBe("running");
+    expect(fs.existsSync(lockFile)).toBe(false);
+  });
+
+  it("别的进程一直占着：等到期限就返回，不挂死；这次没记上，下一次观察再问供应商", async () => {
+    const { intent, jobId, lockFile } = await accepted();
+    fs.writeFileSync(lockFile, JSON.stringify({ schemaVersion: 1, ownerId: "alive", pid: 1, acquiredAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 600_000).toISOString(), fencingEpoch: 1, nonce: "n" }));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    let returned = false;
+    const recording = intent.recordResult(jobId, { id: "remote-job", status: "running", assets: [] }).then(() => { returned = true; });
+
+    await vi.advanceTimersByTimeAsync(44_000);
+    expect(returned).toBe(false);
+    await vi.advanceTimersByTimeAsync(2_000);
+    await recording;
+
+    expect(returned).toBe(true);
+    expect(intent.read()?.result?.status).not.toBe("running");
+    expect(fs.existsSync(lockFile)).toBe(true);
+  });
+});
+
 describe("shared durable submission intent", () => {
   it("only a durable bounded safe-failure budget can retry; a third call cannot allocate", async () => {
     const intent = open();

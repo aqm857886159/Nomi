@@ -3,7 +3,7 @@
 // 真装真升真卸只能在 .github/workflows/win-installer.yml 的 Windows 作业里跑；这里在默认 vitest 车道（任何平台）守住
 // 「那个作业量的东西还是对的」：
 //   · 任务书点名的每个覆盖面都有场景认领，场景登记 ↔ 执行器 ↔ 设计卡 ★9 表一一对应；
-//   · 工作流在 windows-latest 上跑全部场景、反例开着、不带 --only，旧版是 v0.24.0；
+//   · 工作流在 Windows 机器上跑全部场景、反例开着、不带 --only，旧版是 v0.24.0；
 //   · 它是发版硬门：desktop-rc.yml 恰好一个作业无条件调用它、finalize 依赖它，desktop-release.yml 只晋级 success 的候选版；
 //   · 执行器种「默认位置」用户数据的地方，还是应用代码里新项目的默认位置（「文档」\Nomi Projects）；
 //   · build/installer.nsh 没有 `RMDir /r`、4 个钩子都在，常量和 scenarios.mjs 逐字一致，引入的清单路径就是生成器写的路径；
@@ -175,9 +175,9 @@ function workflowProblems(text) {
   const problems = []
   const workflow = yaml.load(text)
   const jobs = Object.values(workflow.jobs ?? {})
-  const steps = jobs.filter((job) => job['runs-on'] === 'windows-latest').flatMap((job) => job.steps ?? [])
+  const steps = jobs.filter((job) => /^windows-/.test(String(job['runs-on']))).flatMap((job) => job.steps ?? [])
   const runner = steps.filter((step) => typeof step.run === 'string' && step.run.includes('tests/installer/windows-installer-scenarios.mjs'))
-  if (runner.length !== 1) problems.push(`expected one windows-latest step running the scenario runner, found ${runner.length}`)
+  if (runner.length !== 1) problems.push(`expected one Windows-runner step running the scenario runner, found ${runner.length}`)
   for (const step of runner) {
     if (!/(^|\s)--counterexamples(\s|$)/.test(step.run)) problems.push('the runner step does not pass --counterexamples')
     if (/(^|\s)--only(\s|=|$)/.test(step.run)) problems.push('the runner step passes --only (every scenario must run)')
@@ -237,7 +237,7 @@ describe('installer scenario registry', () => {
 })
 
 describe('Windows installer workflow', () => {
-  it('runs every scenario and the counterexamples on windows-latest against the v0.24.0 release, on pushes that touch the installer', () => {
+  it('runs every scenario and the counterexamples on a Windows runner against the v0.24.0 release, on pushes that touch the installer', () => {
     expect(workflowProblems(read(WORKFLOW))).toEqual([])
   })
 
@@ -256,7 +256,7 @@ describe('Windows installer workflow', () => {
     const text = read(WORKFLOW)
     expect(workflowProblems(text.replaceAll('--counterexamples', '--counterexamples --only old-to-new-user-folder'))).toContain('the runner step passes --only (every scenario must run)')
     expect(workflowProblems(text.replaceAll('--counterexamples', ''))).toContain('the runner step does not pass --counterexamples')
-    expect(workflowProblems(text.replaceAll('runs-on: windows-latest', 'runs-on: ubuntu-latest'))).toContain('expected one windows-latest step running the scenario runner, found 0')
+    expect(workflowProblems(text.replaceAll('runs-on: windows-2025', 'runs-on: ubuntu-24.04'))).toContain('expected one Windows-runner step running the scenario runner, found 0')
     expect(workflowProblems(text.replaceAll('      - tests/installer/**\n', ''))).toContain('push.paths does not cover tests/installer/scenarios.mjs')
     expect(workflowProblems(text.replaceAll(`v${OLD_VERSION} `, 'v0.23.9 '))).toContain(`no step downloads the v${OLD_VERSION} release installer`)
     expect(workflowProblems(text.replace('  workflow_call:\n', ''))).toContain(`workflow_call trigger missing (${RC_WORKFLOW} calls this workflow as a release gate)`)

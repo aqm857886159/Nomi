@@ -93,9 +93,93 @@ function stripJsonTextBranches(node: unknown): unknown {
   return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, stripJsonTextBranches(value)]));
 }
 
+/** Execution schema retains the converter's original constraints; never sent as the model view. */
+export function toRuntimeJsonSchema(schema: ZodTypeAny): JsonSchemaObject {
+  return stripJsonTextBranches(convertToJsonSchema(schema, GENERATE_OPTIONS)) as JsonSchemaObject;
+}
+
 /** 契约 → 模型真正收到的那份 JSON Schema。**唯一生成点。** */
 export function toPublishedJsonSchema(schema: ZodTypeAny): JsonSchemaObject {
-  return stripJsonTextBranches(convertToJsonSchema(schema, GENERATE_OPTIONS)) as JsonSchemaObject;
+  return toStandardModelSchema(toRuntimeJsonSchema(schema));
+}
+
+export const isObject = (value: unknown): value is JsonSchemaObject => !!value && typeof value === "object" && !Array.isArray(value);
+export const escapePointer = (value: string) => value.replace(/~/g, "~0").replace(/\//g, "~1");
+
+/** Machine-stable wording shared with the information-preservation check, not a second schema. */
+export function runtimeConstraintDescription(keyword: string, value: unknown): string {
+  return `${keyword}=${JSON.stringify(value)}.`;
+}
+
+/** Derive standard shapes without changing the canonical Zod validator or JSON input shape. */
+export function toStandardModelSchema(schema: JsonSchemaObject): JsonSchemaObject {
+  const relocated = new Map<string, string>();
+  const visit = (node: unknown, from: string, to: string): unknown => {
+    relocated.set(from, to);
+    if (!isObject(node)) return node;
+    const out: JsonSchemaObject = {};
+    const notes: string[] = [];
+    for (const [key, value] of Object.entries(node)) {
+      // Converter dialect metadata is not part of function parameters (MCP defaults to 2020-12).
+      if (key === "$schema") continue;
+      // Not explicitly listed by OpenAI supported schemas. Preserve the constraints as instructions;
+      // canonical Zod still owns defaults, string length and dynamic dictionary key validation.
+      if (["default", "minLength", "maxLength", "propertyNames"].includes(key)) {
+        notes.push(runtimeConstraintDescription(key, value));
+        continue;
+      }
+      if ((key === "items" || key === "prefixItems") && Array.isArray(value)) continue;
+      const targetKey = key === "definitions" ? "$defs" : key;
+      if (["properties", "$defs", "definitions"].includes(key) && isObject(value)) {
+        out[targetKey] = Object.fromEntries(Object.entries(value).map(([name, child]) => [name,
+          visit(child, `${from}/${key}/${escapePointer(name)}`, `${to}/${targetKey}/${escapePointer(name)}`)]));
+      } else if (["items", "additionalProperties"].includes(key)) {
+        out[key] = visit(value, `${from}/${key}`, `${to}/${key}`);
+      } else if (key === "anyOf" && Array.isArray(value)) {
+        out[key] = value.map((child, index) => visit(child, `${from}/${key}/${index}`, `${to}/${key}/${index}`));
+      } else out[key] = value;
+    }
+    // zod-to-json-schema emits draft-07 items arrays. Accept prefixItems as a derivation input too;
+    // neither positional form may escape to the model (2020-12 §10.3.1 + OpenAI array examples).
+    const tupleKey = Array.isArray(node.items) ? "items" : Array.isArray(node.prefixItems) ? "prefixItems" : null;
+    if (tupleKey) {
+      const tuple = node[tupleKey] as unknown[];
+      const rest = tupleKey === "items" ? node.additionalItems : node.items;
+      const openRest = isObject(rest);
+      const homogeneous = tuple.length > 0 && tuple.every((item) => JSON.stringify(item) === JSON.stringify(tuple[0])) && !openRest;
+      const members = [...tuple, ...(openRest ? [rest] : [])];
+      out.items = homogeneous
+        ? visit(tuple[0], `${from}/${tupleKey}/0`, `${to}/items`)
+        : members.length ? { anyOf: members.map((child, index) => visit(child,
+          index < tuple.length ? `${from}/${tupleKey}/${index}` : `${from}/${tupleKey === "items" ? "additionalItems" : "items"}`,
+          `${to}/items/anyOf/${index}`)) }
+          : { type: "string" }; // No values are reachable when maxItems=0.
+      if (homogeneous) tuple.forEach((_child, index) => relocated.set(`${from}/${tupleKey}/${index}`, `${to}/items`));
+      out.minItems = node.minItems ?? tuple.length;
+      if (!openRest) out.maxItems = node.maxItems ?? tuple.length;
+      delete out.additionalItems;
+      if (!homogeneous && tuple.length) notes.push(`Tuple positions (runtime validated): ${JSON.stringify(tuple)}.`);
+    }
+    if (notes.length) out.description = [node.description, ...notes].filter(Boolean).join("\n");
+    return out;
+  };
+  const result = visit(schema, "#", "#") as JsonSchemaObject;
+  // Moving tuple members / definitions also moves local reference targets. Rewrite only schemas,
+  // never enum data or business property names. Longest-prefix matching handles deduplicated tuples.
+  const locations = [...relocated].sort(([a], [b]) => b.length - a.length);
+  const rewrite = (node: unknown): void => {
+    if (!isObject(node)) return;
+    if (typeof node.$ref === "string" && node.$ref.startsWith("#")) {
+      const ref = node.$ref;
+      const match = locations.find(([old]) => ref === old || ref.startsWith(`${old}/`));
+      if (match) node.$ref = match[1] + ref.slice(match[0].length);
+    }
+    for (const key of ["properties", "$defs"]) if (isObject(node[key])) Object.values(node[key]).forEach(rewrite);
+    for (const key of ["items", "additionalProperties"]) rewrite(node[key]);
+    if (Array.isArray(node.anyOf)) node.anyOf.forEach(rewrite);
+  };
+  rewrite(result);
+  return result;
 }
 
 /** `additionalProperties` 说清了值的形状吗？`false`（封闭）和一个非空 schema（开放但有类型）都算说清了。 */
@@ -175,6 +259,7 @@ export function collectVendorCompatibilityFailures(json: JsonSchemaObject, point
     );
   }
   collectConstFailures(json, pointer, out);
+
 }
 
 function collectConstFailures(node: unknown, pointer: string, out: string[]): void {

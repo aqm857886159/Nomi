@@ -1,0 +1,125 @@
+{
+  "failures": [],
+  "measures": [
+    {
+      "locale": "zh-CN",
+      "firstReport": {
+        "bodyBytes": 52747,
+        "entries": [
+          {
+            "path": "perf/summary.json",
+            "bytes": 225
+          },
+          {
+            "path": "logs/tail.txt",
+            "bytes": 1712
+          },
+          {
+            "path": "model-catalog.json",
+            "bytes": 49076
+          }
+        ],
+        "logTailLines": 24,
+        "logTailBytes": 1712,
+        "plantedLines": 21,
+        "keptLines": 3,
+        "catalog": {
+          "vendorRows": 23,
+          "customRows": 1,
+          "modelRows": 152,
+          "modelsOmitted": 6,
+          "mappingRows": 0,
+          "mappingsOmitted": 249,
+          "maskedAddresses": 2,
+          "localModelCount": 2,
+          "localMappingCount": 2
+        }
+      },
+      "localReport": {
+        "provider": "comfyui-local",
+        "model": null,
+        "mappingRows": 0,
+        "mappingsOmitted": 249
+      },
+      "minWindow": {
+        "width": 1100,
+        "height": 720,
+        "cardHeight": 553
+      },
+      "queuedAfterResetMs": 43,
+      "resetDeliveredAfterMs": 60216,
+      "queuedAfterHangMs": 8183,
+      "hangDeliveredAfterMs": 71403,
+      "reopenDeliveredAfterMs": 7845,
+      "accepted": 8,
+      "attempts": 13,
+      "scan": {
+        "bodies": 13,
+        "bytes": 637409,
+        "needleHits": 0,
+        "pathHits": 0
+      },
+      "realLoggerLines": 5
+    },
+    {
+      "locale": "en",
+      "firstReport": {
+        "bodyBytes": 52739,
+        "entries": [
+          {
+            "path": "perf/summary.json",
+            "bytes": 225
+          },
+          {
+            "path": "logs/tail.txt",
+            "bytes": 1712
+          },
+          {
+            "path": "model-catalog.json",
+            "bytes": 49076
+          }
+        ],
+        "logTailLines": 24,
+        "logTailBytes": 1712,
+        "plantedLines": 21,
+        "keptLines": 3,
+        "catalog": {
+          "vendorRows": 23,
+          "customRows": 1,
+          "modelRows": 152,
+          "modelsOmitted": 6,
+          "mappingRows": 0,
+          "mappingsOmitted": 249,
+          "maskedAddresses": 2,
+          "localModelCount": 2,
+          "localMappingCount": 2
+        }
+      },
+      "localReport": {
+        "provider": "comfyui-local",
+        "model": null,
+        "mappingRows": 0,
+        "mappingsOmitted": 249
+      },
+      "minWindow": {
+        "width": 1100,
+        "height": 720,
+        "cardHeight": 586
+      },
+      "queuedAfterResetMs": 42,
+      "resetDeliveredAfterMs": 60230,
+      "queuedAfterHangMs": 8171,
+      "hangDeliveredAfterMs": 71378,
+      "reopenDeliveredAfterMs": 7007,
+      "accepted": 8,
+      "attempts": 13,
+      "scan": {
+        "bodies": 13,
+        "bytes": 637310,
+        "needleHits": 0,
+        "pathHits": 0
+      },
+      "realLoggerLines": 5
+    }
+  ]
+}

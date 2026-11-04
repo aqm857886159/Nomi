@@ -15,6 +15,7 @@ import { Rnd } from 'react-rnd'
 import { createHtmlPortalNode, InPortal, OutPortal, type HtmlPortalNode } from 'react-reverse-portal'
 import { IconLayoutSidebarRight, IconPictureInPicture } from '@tabler/icons-react'
 import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
+import { modalInputLayerCovers } from '../../../design/modalInputLayer'
 import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { useResidentActivityStore } from '../../../workbench/ai/residentActivity'
@@ -258,6 +259,8 @@ export function ShellAgentHost({
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
+      // 整窗模态开着时不叫面板，也不把焦点抢出模态；灯箱只盖画布那一格，不算。
+      if (modalInputLayerCovers(document.body)) return
       const current = useAgentFormStore.getState().bySurface[surface].form
       if (event.key.toLowerCase() === 'j') {
         event.preventDefault()

@@ -189,5 +189,5 @@ export function reopenRecoverableNode(nodeId: string): boolean {
 export function dismissRecoverableNode(nodeId: string): void {
   const id = String(nodeId || '').trim()
   if (!id) return
-  useGenerationCanvasStore.getState().setNodeStatus(id, 'error', '已标记为失败：生成超时，未找回结果。可重新生成。')
+  useGenerationCanvasStore.getState().setNodeStatus(id, 'error', i18n.t('generationCommon.recoverable.markedFailed'))
 }

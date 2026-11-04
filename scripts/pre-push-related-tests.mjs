@@ -22,6 +22,7 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { gitPaths } from './lib/gitPaths.mjs'
 
 /** 触发：改动里有这些根目录下的源码（含测试）。纯文档、配置不触发。 */
 export const SOURCE_FILE = /^(?:src|electron|evals|scripts|tests)\/.*\.(?:[cm]?[jt]sx?)$/
@@ -129,7 +130,7 @@ export function relatedTests(files, { root, exclude = new Set(), maxFiles = MAX_
   const empty = { vitest: [], node: [], browser: [], skipped: [], truncated: 0 }
   const sources = files.filter((file) => SOURCE_FILE.test(file))
   if (sources.length === 0) return empty
-  const tracked = new Set(gitLines(root, ['ls-files', '--', '*.test.ts', '*.test.tsx', '*.test.mjs', '*.test.js', '*.test.cjs', '*.node-test.mjs']).filter(isTestFile))
+  const tracked = new Set(gitPaths(['ls-files', '--', '*.test.ts', '*.test.tsx', '*.test.mjs', '*.test.js', '*.test.cjs', '*.node-test.mjs'], { cwd: root }).filter(isTestFile))
   const ordered = new Map() // file → 优先级（小者先）
   const add = (file, rank) => { if (tracked.has(file) && !ordered.has(file)) ordered.set(file, rank) }
   const changedDirs = new Set(sources.map((file) => path.posix.dirname(file)))

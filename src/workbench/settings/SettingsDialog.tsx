@@ -9,6 +9,7 @@ import {
   settingsEscapeTargetWasRemoved,
   shouldYieldSettingsEscape,
 } from '../../design/overlayLayers'
+import { useModalInputLayer } from '../../design/modalInputLayer'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useNomiColorScheme } from '../../theme/colorScheme'
 import { getAppLocale, setAppLocale, SUPPORTED_LOCALES, type AppLocale } from '../../i18n'
@@ -77,6 +78,7 @@ export function SettingsDialog({
   onClose: () => void
   onReplaySplash?: () => void
 }): JSX.Element {
+  useModalInputLayer(true)
   const { t } = useTranslation()
   const { isDark } = useNomiColorScheme()
   const [tab, setTab] = React.useState<SettingsTab>(initialTab)

@@ -48,23 +48,10 @@ vi.mock("./catalogStore", () => ({
 import { scheduleRelayNativeWireUpgrade } from "./relayNativeWireUpgrade";
 
 describe("relay native-wire post-window maintenance", () => {
-  it("does not resolve an encrypted relay credential until maintenance is explicitly scheduled", async () => {
+  it("does not decrypt credentials or probe routes to infer video mappings", async () => {
+    scheduleRelayNativeWireUpgrade();
+    await Promise.resolve();
     expect(mocks.decryptApiKeyRecord).not.toHaveBeenCalled();
     expect(mocks.probeNativeEndpoint).not.toHaveBeenCalled();
-
-    scheduleRelayNativeWireUpgrade();
-
-    await vi.waitFor(() => expect(mocks.probeNativeEndpoint).toHaveBeenCalledTimes(1));
-    expect(mocks.decryptApiKeyRecord).toHaveBeenCalledTimes(1);
-    expect(mocks.decryptApiKeyRecord).toHaveBeenCalledWith(expect.objectContaining({
-      enc: "safeStorage",
-      apiKey: "encrypted-keychain-payload",
-    }));
-    expect(mocks.probeNativeEndpoint).toHaveBeenCalledWith(
-      "https://relay.example/v1",
-      "/api/v3/contents/generations/tasks",
-      expect.any(Function),
-      "relay-key-after-window",
-    );
   });
 });

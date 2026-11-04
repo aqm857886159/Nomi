@@ -69,6 +69,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
   log: {
     report: (entry: unknown) => ipcRenderer.send("nomi:log:renderer", entry),
   },
+  // 卡顿时间线：渲染层把 ≥200ms 的长帧和当前场景单向报给主进程（只写本机，不进遥测）。
+  diagnostics: {
+    reportStall: (report: unknown) => ipcRenderer.send("nomi:diagnostics:stall-report", report),
+  },
   app: {
     reopenLibraryWindow: () => ipcRenderer.send("nomi:app:reopen-library-window"),
     hardReloadWindow: () => ipcRenderer.send("nomi:app:hard-reload-window"),

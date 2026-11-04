@@ -1,0 +1,23 @@
+{
+  "name": "这次参考素材发服务商的临时链接，还是用本机文件上传换新链接",
+  "subject": "asset.reference-link-trust",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/assetLocalization.ts",
+    "symbol": "localizeAssetsForVendor"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "localizeAssetsForVendor"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-01",
+  "notes": "合同 docs/fixes/2026-11-01-reference-link-delivery.root-cause.json：窗内（48 小时）的临时链接发之前并发试探一次，活着或判断不了就发原链接，明确失效或这条连接被模型拒绝过才走上传通道。三处读时间窗的决定（决定点、resolveLocalAsset 里的捷径、发送前通道检查）收成这一处；做片返工问同一条规则（reworkReferenceUrls）。"
+}

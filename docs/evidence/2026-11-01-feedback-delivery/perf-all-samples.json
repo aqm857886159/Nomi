@@ -1,0 +1,36 @@
+{
+  "note": "tests/perf/feedback-send-main-stall-bench.mjs 同一轮的全部原始样本，单位 ms。只有 mainRoundTripMax 判预算；后两项是队列里已有 50 份约 450 KB 时再发一份和一起补发，不判预算。",
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "3bb5c2927",
+  "noisy": false,
+  "samples": {
+    "mainRoundTripMax": [
+      28.5,
+      31.7,
+      27.5,
+      25.8,
+      26.0
+    ],
+    "feedbackQueuedSendRoundTripMax": [
+      71.7,
+      78.2,
+      74.4,
+      74.0,
+      73.5
+    ],
+    "feedbackQueueDrainRoundTripMax": [
+      97.3,
+      97.3,
+      95.7,
+      103.6,
+      105.2
+    ],
+    "idle": [
+      3.3,
+      1.2,
+      1.1,
+      1.1,
+      23.2
+    ]
+  }
+}

@@ -31,6 +31,68 @@ test('reviewed push admission is exact for every new contract and leaves all set
   assert.equal(checkEscapeContract('', [{ ...contract, added: false }], [], [], [file]).ok, true, 'settled revision behavior retained')
 })
 
+test('用户发现的问题转 fixed 的 PR 要有真实场景复现一节：五行答了、修前修后有凭据；该走哪些地方不列清单', () => {
+  const contract = { file: 'docs/fixes/2026-11-02-a.root-cause.json', added: true, detected_by: 'user' }
+  const judge = (body, options = {}) => checkEscapeContract(body, [contract], ['USER-a'], [], [], options)
+  const section = (changes = {}) => {
+    const fields = {
+      用户的流程: '把剧本给 Agent 出分镜，点生成资产图，报错后放着去忙，回来和重启后还卡（用户原话）',
+      我走的: '同样的步骤，真应用真模型，放置和重启都走',
+      差别: '并发上限用本机代理模拟，不改变结论：本机怎么处理这个报错才是问题',
+      修前: '看到同样的报错和锁定 docs/evidence/a/before.log',
+      修后: '同样的步骤走通 https://github.com/o/r/actions/runs/12345678',
+      ...changes,
+    }
+    return `正文\n\n## 真实场景复现\n\n${Object.entries(fields).filter(([, value]) => value !== null).map(([name, value]) => `- ${name}：${value}`).join('\n')}\n\n## 别的\n\n- 修后：这一节外面的不算\n`
+  }
+
+  assert.equal(judge(section()).ok, true)
+  assert.match(judge(section()).lines.join('\n'), /✅ 真实场景复现/)
+  assert.equal(judge(section({ 差别: '无' })).ok, true, '和用户那次一模一样可以写无')
+  assert.equal(judge(section({ 我走的: '只有设置页这一处' })).ok, true, '走哪些地方每个问题自己推，门岗不列清单')
+
+  for (const [body, why] of [
+    ['', '没有这一节'],
+    ['## 验收证据\n\n- 修前：docs/evidence/a.log\n- 修后：docs/evidence/b.log', '别的节不算'],
+    [section({ 用户的流程: null }), '不写用户怎么走的'],
+    [section({ 我走的: null }), '不写自己怎么走的'],
+    [section({ 差别: null }), '不写差别'],
+    [section({ 修前: null }), '没有修前'],
+    [section({ 修后: null }), '没有修后，那一节外面的不算'],
+    [section({ 修前: '复现了' }), '光说不算'],
+    [section({ 修后: '#124' }), '裸 PR 号证明不了谁跑过'],
+    [section({ 修前: '未验证：无' }), '未验证要写清原因'],
+    [section({ 修前: '未验证' }), '未验证要写原因'],
+  ]) {
+    const result = judge(body)
+    assert.equal(result.ok, false, why)
+    assert.match(result.lines.join('\n'), /✖ 这个 PR 修的是用户发现的问题/, why)
+  }
+
+  const unverified = judge(section({ 修前: '未验证：缺对方的中转和 Key' }))
+  assert.equal(unverified.ok, true, 'P3：没有真实资源记 unverified')
+  assert.match(unverified.lines.join('\n'), /⚠ 真实场景复现有没做的（修前：缺对方的中转和 Key）/, '没做要说出来')
+
+  const atPush = judge('', { stage: 'push' })
+  assert.equal(atPush.ok, true, '真付费在验收之后才跑，推送时只提醒')
+  assert.match(atPush.lines.join('\n'), /⚠ 这个 PR 修的是用户发现的问题/)
+
+  assert.equal(judge('', { createdAt: '2026-11-01T23:59:59Z' }).ok, true, '规则生效前开的 PR 只提醒')
+  assert.equal(judge('', { createdAt: '2026-11-02T00:00:00Z' }).ok, false, '生效后开的 PR 要求')
+  assert.equal(judge('', { createdAt: '2026-11-01T23:59:59Z', enforce: true }).ok, false, '回放按已生效')
+
+  // 没有转 fixed 的 PR 不要求：只引用账本条目、修订已结账的合同都不算修用户的问题
+  assert.equal(checkEscapeContract('', [], [], ['USER-a'], []).ok, true)
+  assert.equal(checkEscapeContract('', [{ ...contract, added: false }], [], [], [contract.file]).ok, true)
+
+  // 放回真实 PR 试跑时查出来的：评审发现的问题转 fixed（#1401 的形状）没有用户的流程可写；发版后发现的算用户发现
+  const foundBy = (detected_by) => checkEscapeContract('', [{ ...contract, detected_by }], ['REV-a'], [], [])
+  for (const notUser of ['review', 'walkthrough', 'ci']) assert.equal(foundBy(notUser).ok, true, notUser)
+  assert.doesNotMatch(foundBy('review').lines.join('\n'), /真实场景复现/)
+  assert.equal(foundBy('post-release').ok, false)
+  assert.equal(checkEscapeContract('', [{ ...contract, detected_by: 'review' }, contract], ['REV-a', 'USER-a'], [], []).ok, false, '混着用户发现的也要')
+})
+
 test('同一份正文、同一份改动 → 总入口只给一个结论（推送前与合并前调的就是它）', () => {
   const good = evaluatePrBody({ body: STAR, files: docsChange, createdAt: '2026-10-08T00:00:00Z' })
   assert.equal(good.blocked, false, good.lines.join('\n'))

@@ -27,7 +27,7 @@ import { createProjectSessionTestHarness, TEST_PROJECT_UUID, type ProjectSession
 import { readCurrentWorkbenchProjectPayload, restoreWorkbenchProjectPayload } from '../../project/workbenchProjectSession'
 import type { WorkbenchProjectPayload } from '../../project/projectRecordSchema'
 import type { ProjectBinding } from '../../../../electron/shared/projectBinding'
-import { matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
+import { matchNomiErrorCode, RETRIEVAL_UNAVAILABLE_MESSAGE } from '../../../../electron/shared/nomiErrorCodes'
 import { writeWorkspaceManifest } from '../../../../electron/workspace/workspaceManifest'
 
 vi.mock('../../api/taskApi', () => ({
@@ -68,13 +68,14 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 
-describe.skipIf(!fs.existsSync(tsxCli))('五种取回异常：真落盘、新进程读回后原因、阶段、可找回都还在（V-1213）', () => {
+describe.skipIf(!fs.existsSync(tsxCli))('每种取回异常：真落盘、新进程读回后原因、阶段、可找回都还在（V-1213）', () => {
   it.each([
     ['上游说成了却没地址', 'retrieval-parse', 'NOMI_ERR::retrieval-parse:: 取回卡在「读结果」这一步：上游说任务已完成，但响应里没找到结果地址。（上游原话：{"status":"completed"}）'],
     ['状态词认不出、等够宽限', 'retrieval-parse', 'NOMI_ERR::retrieval-parse:: 取回卡在「读结果」这一步：上游返回了认不出的任务状态「marinating」（连续查询 4 次、持续 160 秒）。'],
     ['查询连续失败', 'retrieval-query', 'NOMI_ERR::retrieval-query:: 取回卡在「查询任务」这一步：Provider request failed (HTTP 503) at relay GET x: 当前分组 default 下对于模型  无可用渠道'],
     ['下载这一步没成', 'retrieval-download', 'NOMI_ERR::retrieval-download:: 取回卡在「下载结果」这一步：Remote asset fetch failed (HTTP 403)'],
     ['等待超时', 'retrieval-timeout', 'NOMI_ERR::retrieval-timeout:: 取回卡在「等待结果」这一步：等到上限还没有结果（任务号 task-5）。'],
+    ['这一次问不了', 'retrieval-unavailable', RETRIEVAL_UNAVAILABLE_MESSAGE],
   ])('%s', async (_name, code, message) => {
     const id = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: '镜头 5', meta: { modelVendor: 'apimart', modelKey: 'MiniMax-H3' } }).id
     await runGenerationNodesBatch([id], { target: projectTarget,

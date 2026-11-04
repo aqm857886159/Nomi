@@ -33,6 +33,7 @@ import {
 import { readAssetRelayRuntimeConfig, readDefaultAssetRelayRuntimeConfig } from "./assetRelayRuntimeConfig";
 import { isVendorOfBuiltin } from "../shared/builtinVendorIdentity";
 import { APIMART_VENDOR_SEED } from "./apimartVendor";
+import { pruneInactiveLocalAssets, stripTransportHints } from "./activeAssetPruning";
 
 export {
   ingestionAccepts,
@@ -59,9 +60,9 @@ export class AnonymousAssetConsentRequiredError extends Error {
   }
 }
 
-/** sidecar originalUrl 的信任窗：kie ~3 天 / apimart 72h 的安全下界。窗内直接用公网直链（零上传
- *  零延迟）；过窗视为可能已死 → 走上传链用本地字节换新链。ageMs 未知（老调用方/stat 失败）按新鲜
- *  处理（保持既有行为，不为不可知情况加惩罚）。 */
+/** sidecar originalUrl 的**候选窗**：已接入的两家服务商的临时链接寿命（约 3 天 / 72 小时）的安全下界。窗内的临时直链才有资格被发出去，
+ *  **但发不发由 `localizeAssetsForVendor` 发之前试一下再定**（这个数是对别家寿命的猜测，接入别的服务后不成立）；
+ *  过窗直接走上传链用本地字节换新链，不试探。ageMs 未知（老调用方/stat 失败）按在窗内处理。 */
 export const ORIGINAL_URL_TRUST_MS = 48 * 60 * 60 * 1000;
 
 export function trustedOriginalUrl(asset: Pick<LocalAsset, "originalUrl" | "ageMs"> | null | undefined): string | null {
@@ -210,7 +211,8 @@ export function assertLocalAssetTransportReady(
       throw new Error(tagNomiError("asset-invalid", `无法识别本地素材「${asset.fileName || describeAssetValue(url)}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`));
     }
     assertLocalAssetMediaBytes(asset);
-    if (trustedOriginalUrl(asset)) continue;
+    // 这条连接被模型拒绝过：临时链接不再直接发，要走上传，所以通道检查不能跳过。
+    if (trustedOriginalUrl(asset) && !options.linkPolicy?.refused) continue;
     const mediaKind = assetUploadChannelKind(asset.contentType);
     const candidates = resolveIngestion(mediaKind);
     let consentRequired = false;
@@ -295,8 +297,8 @@ export async function resolveLocalAsset(
   const asset = readLocalizableAsset(localUrl, read);
   if (!asset) throw new Error(tagNomiError("asset-invalid", `参考素材的本地文件读取失败（可能已被删除或随项目迁移）：${describeAssetValue(localUrl)}。请换一张或重新导入这张素材。`));
   assertLocalAssetMediaBytes(asset);
-  // 本地 ComfyUI：LoadImage 只认上传回的 input 目录文件名（非公网 URL），故**跳过下面的 trustedOriginalUrl
-  // 公网 URL 快路**，恒把本地字节 POST 到 /upload/image 换文件名（field 名 "image"、type=input、overwrite 避重名堆积）。
+  // 本地 ComfyUI：LoadImage 只认上传回的 input 目录文件名（非公网 URL），恒把本地字节 POST 到 /upload/image
+  // 换文件名（field 名 "image"、type=input、overwrite 避重名堆积）。
   if (ingestion.strategy === "comfyui-upload") {
     const response = await postMultipart(
       ingestion.endpoint,
@@ -313,10 +315,8 @@ export async function resolveLocalAsset(
     const sub = typeof rec.subfolder === "string" ? rec.subfolder : "";
     return sub ? `${sub}/${name}` : name; // LoadImage 的 image 输入按 subfolder/name 引用
   }
-  // sidecar originalUrl **新鲜窗内**优先：公网 URL 所有 vendor 直接使用，不转 base64、不需供应商上传 API。
-  // 过窗（服务商临时链可能已死）→ 落到下面的上传/内联路径，用本地字节换新值（参考图永不过期的关键）。
-  const trusted = trustedOriginalUrl(asset);
-  if (trusted) return trusted;
+  // 这里**没有**「窗内 originalUrl 直接返回」的捷径：发链接还是传文件只在 localizeAssetsForVendor 决定一次。
+  // 以前这里还有一份，于是被判死（或模型拒绝过）的链接会在上传这一步被原样再发出去。
   // base64 **按需算**：只有 inline-base64 / upload-url 两条策略要它。此前无条件先算一遍，
   // multipart / stream 上传（视频走的就是这两条）白白在主进程上同步造一个 1.33× 文件大小的字符串
   // ——一段 200MB 的 mp4 = 267MB 字符串 + 一次同步 CPU 峰值，整个 app 当场卡住（R17 卡死一族同款）。
@@ -503,43 +503,21 @@ export type IngestionCandidate = {
   borrowed?: true;
 };
 
+/** 一条临时链接此刻的结论：alive 取到了媒体；dead 明确失效；unknown 判断不了（超时、断网、5xx、策略拒绝……）。 */
+export type ReferenceLinkVerdict = "alive" | "dead" | "unknown";
+
+/**
+ * 窗内临时链接怎么处置（由 assetTransportRuntime 按目标连接组装；本模块被渲染层间接 import，不引任何 node 模块，试探从这里注入）。
+ * `refused`：这条连接的模型拒绝过临时链接 → 一律上传，不再试探。没有 linkPolicy = 和没有这个功能时一样直接发。
+ */
+export type ReferenceLinkPolicy = { refused: boolean; probe(url: string): Promise<ReferenceLinkVerdict> };
+
 export type LocalizeAssetsOptions = {
   anonymousConsent?: AnonymousAssetConsent;
   minimizeUploads?: boolean;
   activeAssetUrls?: ReadonlyArray<string>;
+  linkPolicy?: ReferenceLinkPolicy;
 };
-
-function pruneInactiveLocalAssets(value: unknown, active: ReadonlySet<string>): unknown {
-  // 内联字节永远算「活的」：它是本次请求**当场带进来**的，不可能是画布上早已过期的残留引用
-  // （剪枝要解决的是那个）。若按 activeAssetUrls 名单剪，调用方自己拼名单时漏了它 = 参考被
-  // 静默丢掉照样出图照样扣费——这是本次修复最不该复制的失败形状。
-  if (classifyAssetValue(value) === "inline-data") return value;
-  if (isLocalAssetUrl(value)) return active.has(value) ? value : undefined;
-  if (Array.isArray(value)) return value.map((item) => pruneInactiveLocalAssets(item, active)).filter((item) => item !== undefined);
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) {
-      const next = pruneInactiveLocalAssets(item, active);
-      if (next !== undefined) out[key] = next;
-    }
-    return out;
-  }
-  return value;
-}
-
-/** 内部传输提示只给本地上传策略使用，绝不能泄漏到供应商请求体。 */
-function stripTransportHints(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(stripTransportHints);
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) {
-      if (key === "activeAssetUrls") continue;
-      out[key] = stripTransportHints(item);
-    }
-    return out;
-  }
-  return value;
-}
 
 const MEDIA_LABEL: Record<AssetMediaKind, string> = { image: "图片", video: "视频", audio: "音频" };
 
@@ -574,6 +552,17 @@ function allChannelsFailedError(asset: LocalAsset | null, mediaKind: AssetMediaK
   return new Error(tagNomiError("asset-upload-failed", `素材上传失败：${what} 的所有上传通道都没成功，所以还没请求这次选的服务商。详情：${detail}`));
 }
 
+/** 一批窗内临时链接的结论。该连接拒绝过 → 一律当失效（不试探）；没有策略 → 当判断不了；试探本身出错也当判断不了。 */
+async function judgeReferenceLinks(links: readonly string[], policy: ReferenceLinkPolicy | undefined): Promise<Map<string, ReferenceLinkVerdict>> {
+  const unique = [...new Set(links)];
+  const verdicts = await Promise.all(unique.map((link): Promise<ReferenceLinkVerdict> => {
+    if (policy?.refused) return Promise.resolve("dead");
+    if (!policy) return Promise.resolve("unknown");
+    return new Promise<ReferenceLinkVerdict>((resolve) => resolve(policy.probe(link))).catch(() => "unknown");
+  }));
+  return new Map(unique.map((link, index) => [link, verdicts[index]]));
+}
+
 /**
  * 对一整个值(通常是 request.extras)做本地素材本地化:扫出所有 nomi-local、每个唯一 URL 只上传一次、
  * 替换成可达值。无本地素材时原样返回(零开销)。
@@ -600,7 +589,8 @@ export async function localizeAssetsForVendor(
     return { value: effectiveValue === value ? value : stripTransportHints(effectiveValue), uploaded: 0 };
   }
   const urlMap = new Map<string, string>();
-  for (const url of urls) {
+  // 第一遍：读盘、核对、定通道。任何一个素材不合格，在发出任何试探之前就抛。
+  const prepared = urls.map((url) => {
     const asset = readLocalizableAsset(url, read);
     if (asset && (!asset.contentType || asset.contentType.toLowerCase().split(";")[0].trim() === "application/octet-stream")) {
       throw new Error(tagNomiError("asset-invalid", `无法识别本地素材「${asset.fileName || describeAssetValue(url)}」的类型，不能安全判断它是图片、视频还是音频。请重新导入并保留正确的文件扩展名。`));
@@ -608,16 +598,17 @@ export async function localizeAssetsForVendor(
     const mediaKind = assetUploadChannelKind(asset?.contentType);
     if (asset) assertLocalAssetMediaBytes(asset, mediaKind);
     const candidates = resolveIngestion(mediaKind);
-    // 本地 ComfyUI（comfyui-upload）：公网 URL 用不了，必须传到它自己的 input 目录换文件名 → 跳过 trusted 快路，恒上传。
-    const skipTrusted = candidates[0]?.ingestion.strategy === "comfyui-upload";
-    if (!skipTrusted) {
-      // sidecar originalUrl（新鲜窗内，见 trustedOriginalUrl）优先:已是公网 URL,不需任何上传通道,
-      // 任意媒体类型直接用。过窗 → 走下面的通道解析用本地字节重新换链。
-      const trusted = trustedOriginalUrl(asset);
-      if (trusted) {
-        urlMap.set(url, trusted);
-        continue;
-      }
+    // 本地 ComfyUI（comfyui-upload）：公网 URL 用不了，必须传到它自己的 input 目录换文件名 → 没有候选链接，恒上传。
+    const link = candidates[0]?.ingestion.strategy === "comfyui-upload" ? null : trustedOriginalUrl(asset);
+    return { url, asset, mediaKind, candidates, link };
+  });
+  // 「这次发链接还是传文件」**只在这里决定**：窗内的临时链接一并**并发**试探一次（耗时 ≈ 最慢的那一条，不随张数累加）；
+  // 活着或判断不了就发原链接（和没有这个功能时逐字相同），明确失效或这条连接被模型拒绝过就走下面的上传通道。
+  const verdicts = await judgeReferenceLinks(prepared.flatMap((item) => (item.link ? [item.link] : [])), options.linkPolicy);
+  for (const { url, asset, mediaKind, candidates, link } of prepared) {
+    if (link && verdicts.get(link) !== "dead") {
+      urlMap.set(url, link);
+      continue;
     }
     if (candidates.length === 0) {
       throw new Error(

@@ -12,7 +12,7 @@ const tempRoots: string[] = [];
 
 vi.mock("electron", () => ({
   app: { getPath: () => mockedUserDataRoot, getAppPath: () => process.cwd() },
-  safeStorage: { isEncryptionAvailable: () => false, encryptString: (s: string) => Buffer.from(s), decryptString: (b: Buffer) => b.toString() },
+  safeStorage: { isEncryptionAvailable: () => true, encryptString: (s: string) => Buffer.from(s), decryptString: (b: Buffer) => b.toString() },
 }));
 
 /** 一个「中转拉进来、被猜成文本」的模型：kind=text 且**没有任何 mapping**（文本走 chat 直连）。 */
@@ -63,15 +63,36 @@ describe("retypeModelCatalogModel", () => {
     expect(selectTaskMapping([...listModelCatalogMappings()], "relay", "image_edit", "seedream-4-0")).toBeTruthy();
   });
 
-  it("text → video：文生视频与图生视频两条通道都建（少一条＝一连首帧就被拒发）", async () => {
-    seedCatalog({ modelKey: "kling-v2" } as Partial<Model>);
+  it("text → video：只改对类型，不猜通道；下一次运行在发请求前停下，错误卡指去模型接入", async () => {
+    seedCatalog({ modelKey: "kling-v2", kind: "text" } as Partial<Model>);
     const { retypeModelCatalogModel } = await import("./modelRetype");
-    const { listModelCatalogMappings } = await import("./catalogStore");
+    const { listModelCatalogMappings, upsertModelCatalogVendorApiKey } = await import("./catalogStore");
+    upsertModelCatalogVendorApiKey("relay", { apiKey: "sk-retype", enabled: true });
 
-    retypeModelCatalogModel({ vendorKey: "relay", modelKey: "kling-v2", kind: "video" });
+    const res = retypeModelCatalogModel({ vendorKey: "relay", modelKey: "kling-v2", kind: "video" });
+    expect(res.model.kind).toBe("video");
+    expect(res.rebuiltMappings).toBe(0);
     const maps = [...listModelCatalogMappings()];
-    expect(selectTaskMapping(maps, "relay", "text_to_video", "kling-v2")).toBeTruthy();
-    expect(selectTaskMapping(maps, "relay", "image_to_video", "kling-v2")).toBeTruthy();
+    expect(selectTaskMapping(maps, "relay", "text_to_video", "kling-v2")).toBeNull();
+    expect(selectTaskMapping(maps, "relay", "image_to_video", "kling-v2")).toBeNull();
+
+    // 真走一次运行入口：不花钱、不出门，错误能被分类成「去模型接入」，不是分类不了的英文原话 + 重试。
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const spendGate = vi.fn(async () => {});
+    const { runTask } = await import("../runtime");
+    const failure = await runTask(
+      { vendor: "relay", request: { kind: "text_to_video", prompt: "a marble", extras: { modelKey: "kling-v2" } } },
+      { spendGate },
+    ).then(() => null, (error: unknown) => error as Error);
+    expect(failure?.message).toMatch(/not published/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(spendGate).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+    const { classifyGenerationError } = await import("../../src/workbench/observability/classifyError");
+    const report = classifyGenerationError(String(failure?.message));
+    expect(report.kind).toBe("model-config");
+    expect(report.primary).toBe("open-model-access");
+    expect(report.providerMessage).toBeUndefined();
   });
 
   it("重建参数控件：改成图片后 meta.parameters 不再是空的（否则节点上一个控件都没有）", async () => {

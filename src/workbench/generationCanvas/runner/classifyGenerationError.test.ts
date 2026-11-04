@@ -616,7 +616,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
     auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
     'model-kind-mismatch': true, 'model-not-open': true, 'model-unavailable-upstream': true, 'model-retired': true,
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
-    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
+    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-unfetchable': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
     'outbound-blocked-submit': true, 'outbound-blocked-credential-origin': true, 'credential-redirect': true, server: true, input: true,
     'output-truncated': true, 'output-unreadable': true, 'submission-unknown': true, 'submission-not-sent': true, 'output-retrieval-failed': true, 'retrieval-incomplete': true, 'local-processing': true, unknown: true,
   }
@@ -1242,5 +1242,75 @@ describe('认不出的失败如实说认不出：不编原因、不提额度，�
         await i18n.changeLanguage('zh-CN')
       }
     }
+  })
+})
+
+// 模型那一侧拉不到我们给的参考临时链接（过期 / 防盗链 / 地区限制）。用户反馈原句：
+// `An input media URL could not be fetched (403/404/410).`——以前纯文字报错落「认不出原因」，结构化 400 落
+// 「参数不被接受，请检查比例/尺寸」，点重试还是同一条链接。判据住 electron/shared/assets/referenceFetchRefusal（主进程记账读同一份）。
+describe('模型取不到参考图（reference-unfetchable）', () => {
+  const REPORTED = 'An input media URL could not be fetched (403/404/410).'
+  const structured400 = (upstreamMsg: string, tail: string) =>
+    encodeStructuredErrorMessage({ vendorKey: 'relay', method: 'POST', url: 'https://relay.example.com/v1/videos', httpStatus: 400, upstreamMsg, category: 'input', retryable: false }, tail)
+
+  it.each([
+    ['纯文字', REPORTED],
+    ['带我们的诊断前缀', `Provider request failed (HTTP 422) at relay POST https://relay.example.com/v1/videos: ${REPORTED}`],
+    ['结构化 400（以前被说成「参数不被接受，请检查比例/尺寸」）', structured400(REPORTED, `Provider request failed (HTTP 400) at relay POST https://relay.example.com/v1/videos: ${REPORTED}`)],
+    ['上游错误码（文字是别的话）', encodeStructuredErrorMessage({ vendorKey: 'relay', method: 'POST', url: 'https://relay.example.com/v1/images', httpStatus: 422, upstreamMsg: 'Unprocessable Entity', upstreamCode: 'file_download_error', category: 'input', retryable: false }, 'Provider request failed (HTTP 422)')],
+  ])('%s → 归新种类', (_label, message) => {
+    const report = classifyGenerationError(message)
+    expect(report.kind).toBe('reference-unfetchable')
+    expect(report.reason).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.reason'))
+    expect(report.reason).not.toContain('generationCommon.')
+    expect(report.hint).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.hint'))
+    // 主按钮重试：重试会尽量改用本机原图上传。上传过模型还拒绝时换模型是唯一的出口，留在次动作。
+    expect(report.primary).toBe('retry')
+    expect(report.secondary).toBe('switch-model')
+    // 修法在我们这一侧，不点名服务商「失败了」，也不触发切家提示。
+    expect(report.vendorSide).toBe(false)
+    // 不提扣费（narrate 现有规矩）。
+    expect(`${report.reason}${report.hint}`).not.toMatch(/扣费|计费|没有扣|未扣/)
+  })
+
+  it('英文界面：标题与说明逐字，且不含中文', async () => {
+    await i18n.changeLanguage('en')
+    try {
+      const report = classifyGenerationError(structured400(REPORTED, `Provider request failed (HTTP 400): ${REPORTED}`))
+      expect(report.kind).toBe('reference-unfetchable')
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.reason'))
+      expect(report.hint).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.hint'))
+      expect(`${report.reason}${report.hint}`).not.toMatch(/[㐀-鿿]/)
+    } finally {
+      await i18n.changeLanguage('zh-CN')
+    }
+  })
+
+  it('服务商原话放进「服务商原话」，不当标题；完整报文留在技术详情', () => {
+    const report = classifyGenerationError(structured400(REPORTED, 'Provider request failed (HTTP 400)'))
+    expect(report.providerMessage).toBe(REPORTED)
+    expect(report.reason).not.toContain('could not be fetched')
+    expect(report.raw).toContain('Provider request failed')
+  })
+
+  it.each([
+    ['输入图片未能通过审核', 'input-image-blocked'],
+    ['Failed to access input image: sensitive content detected', 'input-image-blocked'],
+    ['The input image URL is forbidden due to content policy', 'content-policy'],
+    ['Failed to load input image: content policy violation', 'content-policy'],
+    ['Could not fetch input image: invalid api key', 'auth'],
+    ['Failed to fetch input image: 401 Unauthorized', 'auth'],
+    ['Cannot load input: rate limit exceeded', 'quota'],
+    ['Failed to fetch image', 'network'],
+    ['Timeout while downloading', 'network'],
+  ])('别的失败不被说成取不到参考图（重试要花钱）：%s', (message, kind) => {
+    expect(classifyGenerationError(message).kind).toBe(kind)
+  })
+
+  it('别的 400 不被吞：比例不对仍是 input，取结果 / 下载产物 / 上传失败仍是各自的类', () => {
+    expect(classifyGenerationError(structured400('invalid ratio: 21:9 not supported', 'Provider request failed (HTTP 400)')).kind).toBe('input')
+    expect(classifyGenerationError(tagNomiError('output-retrieval-failed', 'Nomi could not retrieve the result: Fetch failed: HTTP 403')).kind).toBe('output-retrieval-failed')
+    expect(classifyGenerationError('Failed to download the generated video from https://cdn.example.com/out.mp4').kind).not.toBe('reference-unfetchable')
+    expect(classifyGenerationError('素材上传失败：a.png（1MB）的所有上传通道都没成功，所以还没请求这次选的服务商。').kind).toBe('asset-upload-failed')
   })
 })

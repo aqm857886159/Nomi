@@ -13,7 +13,8 @@ import {
 import { parseVendorErrorFromMessage, stripVendorErrorMarker, type VendorErrorStructuredLite } from '../generationCanvas/runner/vendorErrorIpc'
 import { parseTaskFailureMessage } from '../generationCanvas/runner/taskFailureMessage'
 import { shotClaimCopy } from './shotClaimCopy'
-import { matchNomiErrorCode, stripNomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
+import { isRetrievalStageCode, matchNomiErrorCode, stripNomiErrorCode } from '../../../electron/shared/nomiErrorCodes'
+import { isReferenceFetchRefusal } from '../../../electron/shared/assets/referenceFetchRefusal'
 import { withoutIpcInvokeWrapper } from '../../../electron/shared/contracts/ipcInvokeFailure'
 import i18n from '../../i18n'
 
@@ -600,7 +601,8 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   // 已提交、这次没取回（⑬）：任务已经交给服务商，是查 / 读 / 下载 / 等这一次没成——主动作只有「重新取回」，
   // 绝不落进 unknown 被配上「可以重试一次」（= 再生成、再扣一次）。服务商真说过的话（503「无可用渠道」）照旧给；
   // 没有就给 ''，不从正文里抠一句冒充（取回出口写的「Nomi 本机拦下」那句不是服务商说的）。
-  if (outboundCode === 'retrieval-query' || outboundCode === 'retrieval-parse' || outboundCode === 'retrieval-download' || outboundCode === 'retrieval-timeout') {
+  // 按族判，不抄码表：新增的 retrieval-* 自动归这里，不会漏到下面被猜文案判成别的（族里的 outbound-blocked 上面已经先判了）。
+  if (isRetrievalStageCode(outboundCode)) {
     return reportFor('retrieval-incomplete', cleanRaw, upstream || '')
   }
   // 本机处理失败：没有服务商参与，upstream 给 ''（不印「服务商原话」）；原因就是码后面那句人话，已经在 raw / 标题里。
@@ -609,13 +611,9 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
     const detail = stripNomiErrorCode(cleanRaw.split('\n')[0] ?? '')
     return reportFor('local-processing', cleanRaw, '', detail ? { detail } : undefined)
   }
-  // 主进程的出站证据说「这次付费提交确定没离开本机」（结构化码 submission_not_sent，不认文案）。上面那几条更具体的
-  // 本机拒绝（出网策略 / 凭据绑定 / 目录没配好）已经先判了；剩下的：连不上 → network（请求没发到服务商，查网络和代理），
-  // 在本机就被拦下 → submission-not-sent。都排在一切「猜文案」的检测之前：这一类没有服务商参与，不许被说成服务商的失败。
-  if (structured?.code === 'submission_not_sent' && outboundCode !== 'asset-invalid') {
-    return reportFor(structured.reason === 'connect_failed' ? 'network' : 'submission-not-sent', cleanRaw, '')
-  }
-  // 已退役下线**最先**判：判据是 electron 抛的专用签名（确定性事实），不该被任何猜文案的检测抢走。
+  // 已退役下线**最先**判：判据是 electron 抛的专用签名（确定性事实），不该被任何猜文案的检测抢走——
+  // 也不该被下面那条通用的 submission_not_sent 抢走：画布的付费提交把花钱之前的失败统一包成那个码，退役 / 类型不符的
+  // 签名正是从这条路抛出来的（findExecutableModel 在 runTask 里），排在它后面，画布上就只剩一张泛泛的「没发出去」+ 重试。
   // upstream 显式给 ''，与下面类型不符 / 缺文本大脑同理：这是我们自己的签名，服务商根本没被请求到
   // （2026-09-29 Sora 2 退役走查抓到过「Model is retired: sora-2」被印成「服务商原话」；没有来源证据的话现在一律不进那一行）。
   if (detectModelRetired(cleanRaw)) return reportFor('model-retired', cleanRaw, '')
@@ -636,6 +634,13 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
         requested: kindMismatch.requested,
       },
     }
+  }
+  // 主进程的出站证据说「这次付费提交确定没离开本机」（结构化码 submission_not_sent，不认文案）。上面那几条更具体的
+  // 本机拒绝（出网策略 / 凭据绑定 / 目录没配好）已经先判了；剩下的：连不上 → network（请求没发到服务商，查网络和代理），
+  // 在本机就被拦下 → submission-not-sent。都排在一切「猜文案」的检测之前：这一类没有服务商参与，不许被说成服务商的失败。
+  // 参考素材没送出去（读不到、传不上、太大）有自己更具体的卡，说得清下一步。
+  if (structured?.code === 'submission_not_sent' && outboundCode !== 'asset-invalid' && outboundCode !== 'asset-upload-failed' && outboundCode !== 'asset-too-large') {
+    return reportFor(structured.reason === 'connect_failed' ? 'network' : 'submission-not-sent', cleanRaw, '')
   }
   // 缺可用文本大脑同样是**我们自己**的内部签名（服务商没被请求到）——归 model-config 报人话，
   // upstream='' 抑制「服务商说：」框，别把那句英文散句栽赃给上游（2026-08-25 走查 F5）。
@@ -671,6 +676,12 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (outboundCode === 'asset-invalid') return reportFor('asset-invalid', cleanRaw, undefined)
   if (detectAssetTooLarge(cleanRaw)) return reportFor('asset-too-large', cleanRaw, undefined)
   if (detectAssetUploadFailed(cleanRaw)) return reportFor('asset-upload-failed', cleanRaw, undefined)
+  // 模型那一侧去拉参考图的临时链接、拉不到（过期 / 防盗链 / 地区限制）：失败在**链接**这一跳。必须先于 category 判——
+  // 这类报错常走 HTTP 400 / 422，会被派生成「参数不被接受·检查比例/尺寸」，把人带去改一个并没有错的参数。
+  // 判据与主进程记账共用一份（electron/shared/assets/referenceFetchRefusal）。服务商原话照给（上游真说过才有），完整报文在技术详情。
+  if (isReferenceFetchRefusal({ upstreamCode: structured?.upstreamCode, text: `${upstream ?? ''}\n${cleanRaw}` })) {
+    return reportFor('reference-unfetchable', cleanRaw, upstream)
+  }
   // 内容安全拦截先于 category 判——审核拒绝走 HTTP 400，会被派生成「参数不被接受·检查比例/尺寸」
   // 并配一个必然再撞的「重试」（理由见 detectContentModerationTarget）。
   const moderated = detectContentModerationTarget(upstream, cleanRaw)

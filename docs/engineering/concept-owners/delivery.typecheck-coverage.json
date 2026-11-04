@@ -1,0 +1,26 @@
+{
+  "name": "类型检查门岗的真实输入覆盖",
+  "subject": "delivery.typecheck-coverage",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/lib/typecheckCoverage.mjs",
+    "symbol": "touchesTypecheck"
+  },
+  "write_api": [
+    {
+      "path": "scripts/lib/typecheckCoverage.mjs",
+      "symbol": "touchesTypecheck"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "scripts/pre-push-gate-inputs.mjs",
+    "scripts/pre-push-structure.node-test.mjs"
+  ],
+  "since": "2026-10-30",
+  "notes": "TYPECHECK_PROJECTS 的真实根文件并集是源码覆盖唯一判据；保留显式配置与 side inputs 触发，不再手写扩展名预过滤。调用者统一经 touchesGateInputs；直接调用只用于隔离夹具回归。"
+}

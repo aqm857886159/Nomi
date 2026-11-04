@@ -479,25 +479,9 @@ export function draftShapeForKind(
   /** 落 model.meta：这个模型实际用的是哪套 wire（诚实标注，护栏与排障都读它）。 */
   wireProfileId?: string;
 } {
-  // 原生报文优先：命中档案且这家真提供该端点 → 复用已验证的完整形状（首尾帧/角色图/参考视频/
-  // 参考音频/generate_audio 全在），只换地址。通用做法，不是给某一家打补丁。
-  if (nativeProfile && kind === "video") {
-    const create = nativeProfile.create.text_to_video;
-    const i2v = nativeProfile.create.image_to_video;
-    if (create) {
-      return {
-        targetKind: "video",
-        // 不落通用标准参数：UI 本来就由档案驱动，而 headless 缺参由 archetypeWireDefaults 按档案 id
-        // 兜底。落了反而会让 reconcile 把 size/image_url 塞进原生 body（诚实：这条 wire 没这些键）。
-        modelFields: [],
-        mappingCreate: create,
-        ...(i2v ? { mappingImageToVideo: i2v } : {}),
-        ...(nativeProfile.query ? { mappingQuery: nativeProfile.query } : {}),
-        ...(nativeProfile.statusMapping ? { mappingStatus: nativeProfile.statusMapping } : {}),
-        wireProfileId: nativeProfile.archetypeId,
-      };
-    }
-  }
+  // A model identity or endpoint probe is not a documentation-backed video declaration.
+  // Preserve the identity; the AI declaration publishes the explicit protocol and capabilities.
+  if (kind === "video") return { targetKind: "video", modelFields: [] };
   // 图像同样吃原生报文（同步族：只有 create/edit，无轮询）。不这么做的话，中转就算代理了方舟，
   // Seedream 改图仍会被当**聊天模型**塞进 chat/completions 多模态——它不是聊天模型，改图不按原图甚至直接失败。
   if (nativeProfile && kind === "image") {
@@ -519,18 +503,6 @@ export function draftShapeForKind(
     // 改图协议：探测/手动 override 优先，否则按模型族智能默认（gpt-image/dall-e → multipart edits）。
     const edit = newapiImageEditProfileForModel(modelKey, null, imageEditProtocol).operation;
     return { targetKind: "image", modelFields: paramsToOnboardingFields(t.params), mappingCreate: t.create, mappingEdit: edit };
-  }
-  if (kind === "video") {
-    const t = newapiTransportFor("video");
-    return {
-      targetKind: "video",
-      modelFields: paramsToOnboardingFields(t.params),
-      mappingCreate: t.create,
-      // 图生视频通道：不注册它，连了参考图/首帧的视频节点会被 imageEditGuardError 拒发（「没有配置
-      // 图生视频通道」）——中转接入的视频模型此前一律缺这条。
-      ...(t.imageToVideo ? { mappingImageToVideo: t.imageToVideo.create } : {}),
-      ...(t.query ? { mappingQuery: t.query } : {}),
-    };
   }
   if (kind === "audio") {
     // 中转配音(TTS)：OpenAI 兼容 /v1/audio/speech 同步出二进制音频（无 query）。命中 seed-tts 档案 → UI 出火山音色。

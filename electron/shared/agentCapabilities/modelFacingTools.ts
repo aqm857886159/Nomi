@@ -31,7 +31,7 @@
 // 手改任何一边当场红（R17 的阳性对照在 `check-model-schema.node-test.mjs`）。
 import type { CapabilityContract } from "./capabilityContract";
 import { unwrapWholeArguments } from "./modelArgumentTolerance";
-import { toPublishedJsonSchema, type JsonSchemaObject } from "./modelVisibleJsonSchema";
+import { toPublishedJsonSchema, toRuntimeJsonSchema, toStandardModelSchema, type JsonSchemaObject } from "./modelVisibleJsonSchema";
 import {
   MODEL_TOOL_READ_TIMEOUT_MS_VALUE,
   MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE,
@@ -226,6 +226,8 @@ export interface McpProfileTool {
   readonly description: string;
   /** `tools/list` 上真正广播出去的那份 JSON Schema（含租约字段）。 */
   readonly inputSchema: JsonSchemaObject;
+  /** Derived execution view, retaining the original transport constraints. */
+  readonly runtimeInputSchema: JsonSchemaObject;
   /** 判别字段名 → 合法值。别名恢复用；`parseCall` 因此不需要任何映射表。 */
   readonly discriminators: Readonly<Record<string, readonly string[]>>;
   /** 声明出来的「外部才有」传输字段名。剥语义输入与算指纹时都按它跳过。 */
@@ -319,7 +321,7 @@ export function projectMcpTool(
       bucket.add(value);
       discriminators.set(field, bucket);
     }
-    const published = toPublishedJsonSchema(spec.schema);
+    const published = toRuntimeJsonSchema(spec.schema);
     for (const [field, schema] of Object.entries(propertiesOf(published))) {
       const existing = fields.get(field);
       if (!existing) {
@@ -362,17 +364,14 @@ export function projectMcpTool(
     ...[...requiredCounts.entries()].filter(([, count]) => count === specs.length).map(([field]) => field).sort(),
   ];
 
+  const runtimeInputSchema: JsonSchemaObject = { type: "object", properties, required, additionalProperties: false };
   const annotations = mcpAnnotationsFor(contract);
   return Object.freeze({
     contractId: contract.id,
     name,
     description: mcpToolDescription(contract, specs),
-    inputSchema: Object.freeze({
-      type: "object",
-      properties,
-      required,
-      additionalProperties: false,
-    }) as JsonSchemaObject,
+    runtimeInputSchema: Object.freeze(runtimeInputSchema),
+    inputSchema: Object.freeze(toStandardModelSchema(runtimeInputSchema)),
     discriminators: Object.freeze(
       Object.fromEntries([...discriminators].map(([field, values]) => [field, Object.freeze([...values].sort())])),
     ),

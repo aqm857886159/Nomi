@@ -6,12 +6,14 @@ import { NodeShotLabel } from '../../generation/list/CanvasListLinks'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { docToPlainText } from '../../../../electron/shared/canvas/textNodeBody'
 import { getCanvasNodeVisualSize } from './generationCanvasGeometry'
 import { resolveLightweightNodePreview } from './canvasNodeLevelOfDetail'
 import { useNodeMediaMeasurement } from '../nodes/useNodeMediaMeasurement'
 import { readNodeCardInfoHeight } from '../nodes/nodeSizing'
 import { DeferredNodeImage, DeferredNodeVideo } from '../nodes/DeferredNodeMedia'
 import { getGenerationNodeIcon } from '../nodes/renderRegistry'
+import { NodeHoverTimelineHandle } from '../nodes/NodeFloatingToolbar'
 import { NodeEmptyState } from '../nodes/render/NodeEmptyState'
 import { NodeEmptyStateProvider } from '../nodes/render/NodeEmptyStateProvider'
 import { EMPTY_STATE_COMPACT_MIN_HEIGHT } from '../nodes/render/nodeEmptyStateLayout'
@@ -39,17 +41,27 @@ export function LightweightGenerationNode({
   const size = getCanvasNodeVisualSize(node)
   const bodyHeight = size.height - readNodeCardInfoHeight(node)
   const preview = resolveLightweightNodePreview(node)
+  // 文本卡的字：读整卡正文读的那个来源（contentJson 经 docToPlainText，整卡的字数、下游提示词也是它），不另写一份。
+  // 只有空白字符算没内容、走空态：整卡里那时也看不到字。写了字的卡缩远后不能和空卡一个样，否则创作者以为字没了。
+  const text = React.useMemo(() => (node.kind === 'text' ? docToPlainText(node.contentJson) : ''), [node.kind, node.contentJson])
   const mediaMeasurement = useNodeMediaMeasurement(node)
   const Icon = getGenerationNodeIcon(node.kind)
+  // 「悬停也能拖」（用户 2026-10-12 拍板）远看时也算数：缩小画布往剪辑卡里拖素材就靠它。但几十张远看卡每张都挂一份
+  // 就白加 DOM，所以光标进来才挂。用 mouse 事件、不用 pointer 事件：原生拖放一起手浏览器就发 pointercancel /
+  // pointerleave，这时摘掉把手拖放就断了；拖放期间不发 mouse 事件，拖完才收。
+  const [hovered, setHovered] = React.useState(false)
+  const offersTimelineHandle = !readOnly && !loading
   return (
     <article
       className={cn(
-        'generation-canvas-v2-node',
+        'generation-canvas-v2-node group/node',
         'absolute p-0 border-0 rounded-none bg-transparent shadow-none',
         readOnly ? 'cursor-default' : 'cursor-pointer',
         'select-none touch-none overflow-visible',
         'block',
       )}
+      onMouseEnter={offersTimelineHandle ? () => setHovered(true) : undefined}
+      onMouseLeave={offersTimelineHandle ? () => setHovered(false) : undefined}
       data-node-id={node.id}
       data-kind={node.kind}
       data-selected={selected ? 'true' : 'false'}
@@ -78,6 +90,7 @@ export function LightweightGenerationNode({
       <div data-node-inline-status className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+40px)] z-[4] flex h-7 items-center [&_[data-generation-message]]:truncate [&_[data-generation-status]]:bg-nomi-paper/90">
         <NodeGenerationStatus node={node} />
       </div>
+      {hovered && offersTimelineHandle ? <NodeHoverTimelineHandle nodeId={node.id} /> : null}
       <div
         className={cn(
           'w-full h-full overflow-hidden rounded-nomi ring-1 ring-inset',
@@ -105,6 +118,9 @@ export function LightweightGenerationNode({
               controls={false}
               onLoadedMetadata={mediaMeasurement.onVideoMetadata}
             />
+          ) : text ? (
+            // 只读、不挂编辑器；字号 / 字色 / 内边距同整卡正文（TextDocumentNode 的 .ProseMirror），超出裁掉，不摘要、不加省略号。
+            <p data-node-text-preview className="pointer-events-none size-full overflow-hidden whitespace-pre-wrap break-words p-3 text-body-sm leading-5 text-nomi-ink-80">{text}</p>
           ) : (
             <NodeEmptyStateProvider engaged={false} readOnly>
               <NodeEmptyState icon={<Icon size={18} stroke={1.5} />} height={bodyHeight} strip={bodyHeight < EMPTY_STATE_COMPACT_MIN_HEIGHT} />

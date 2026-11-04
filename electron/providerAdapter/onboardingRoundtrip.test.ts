@@ -83,6 +83,7 @@ function modelFor(kind: "image" | "video"): Model {
 
 function opsFor(kind: "image" | "video", authType: "none" | "bearer") {
   const draft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
     baseUrl,
     authType,
     models: [{ modelKey: "probe-model", labelZh: "probe", kind }],

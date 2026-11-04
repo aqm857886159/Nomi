@@ -1,4 +1,5 @@
 import { buildVersionHealth } from './health.mjs'
+import { untriagedItems } from './inbox.mjs'
 import pkg from '../../../package.json' with { type: 'json' }
 
 // Intake Radar —— 汇总算法层。纯函数，不摸网络、不摸文件系统、不调 LLM。
@@ -28,9 +29,17 @@ export function extractFeedbackItem(key, wrapped) {
   const payload = wrapped?.payload ?? {}
   const manifest = payload.manifest ?? {}
   const context = payload.context ?? {}
+  const receivedAt = typeof wrapped?.receivedAt === 'string' ? wrapped.receivedAt : null
+  const createdAt = typeof manifest.createdAt === 'string' ? manifest.createdAt : null
   return {
     key,
     date: dayOf(wrapped?.receivedAt),
+    receivedAt,
+    createdAt,
+    // 从点发送到接收端收下过了多久。用户机器的时钟可能不准（线上见过差 45 秒），只看量级。
+    queueDelaySeconds: secondsBetween(createdAt, receivedAt),
+    logTail: logTailOf(manifest),
+    duplicateOf: null,
     id: wrapped?.receipt || wrapped?.ref || key,
     version: manifest.app?.version ?? 'unknown',
     system: manifest.system?.platform ?? 'unknown',
@@ -46,11 +55,114 @@ export function extractFeedbackItem(key, wrapped) {
   }
 }
 
-/** 一批反馈记录 → 逐条提取，按日期新到旧排（同日按 key 稳定排序，保证输出确定性可测）。 */
+function secondsBetween(startIso, endIso) {
+  const start = Date.parse(startIso ?? '')
+  const end = Date.parse(endIso ?? '')
+  return Number.isFinite(start) && Number.isFinite(end) ? Math.round((end - start) / 1000) : null
+}
+
+const LOG_TAIL_PATH = 'logs/tail.txt'
+
+function logTailOf(manifest) {
+  const entries = Array.isArray(manifest.entries) ? manifest.entries : []
+  if (entries.some((entry) => entry?.path === LOG_TAIL_PATH)) return { attached: true, why: null }
+  const excluded = Array.isArray(manifest.excluded) ? manifest.excluded : []
+  return { attached: false, why: excluded.find((item) => item?.what === LOG_TAIL_PATH)?.why ?? 'unlisted' }
+}
+
+/**
+ * 同一份报告送达多次：接收端收下了，客户端没等到回答，留在队列里重发（线上有一份到了 4 次）。
+ * 接收端不做幂等（它只写不读），所以在这里折叠：创建时间和摘要都一样的算同一份，最早到的是原件。
+ * 老版本没有创建时间的不折叠。
+ */
+function foldDuplicateDeliveries(items) {
+  const originals = new Map()
+  const duplicateOf = new Map()
+  for (const item of [...items].sort((a, b) => String(a.receivedAt).localeCompare(String(b.receivedAt)))) {
+    if (!item.createdAt) continue
+    const identity = `${item.createdAt}|${item.summary}`
+    const original = originals.get(identity)
+    if (original) duplicateOf.set(item.key, original.id)
+    else originals.set(identity, item)
+  }
+  return items.map((item) => (duplicateOf.has(item.key) ? { ...item, duplicateOf: duplicateOf.get(item.key) } : item))
+}
+
+/**
+ * 一批反馈记录 → 逐条提取，按日期新到旧排（同日按 key 稳定排序，保证输出确定性可测）。
+ * 重复送达的也在里面，`duplicateOf` 指向原件；要统计的话先滤掉。
+ */
 export function buildFeedbackItems(feedbackRecords) {
-  return feedbackRecords
+  return foldDuplicateDeliveries(feedbackRecords
     .map(({ key, record }) => extractFeedbackItem(key, record))
-    .sort((a, b) => (a.date === b.date ? a.key.localeCompare(b.key) : b.date.localeCompare(a.date)))
+    .sort((a, b) => (a.date === b.date ? a.key.localeCompare(b.key) : b.date.localeCompare(a.date))))
+}
+
+/** 版本号比大小。认不出的（`unknown`）排最小。 */
+function compareVersions(a, b) {
+  const parts = (version) => (/^\d+\.\d+\.\d+/.test(version) ? version.match(/^(\d+)\.(\d+)\.(\d+)/).slice(1).map(Number) : [-1, -1, -1])
+  const [left, right] = [parts(a), parts(b)]
+  return left[0] - right[0] || left[1] - right[1] || left[2] - right[2]
+}
+
+function rowsByVersion(items, emptyRow, addItem) {
+  const rows = new Map()
+  for (const item of items) {
+    const row = rows.get(item.version) ?? emptyRow(item.version)
+    addItem(row, item)
+    rows.set(item.version, row)
+  }
+  return [...rows.values()].sort((a, b) => compareVersions(b.version, a.version))
+}
+
+// ---------------------------------------------------------------------------
+// 送达：反馈有没有在用户点发送之后很快到
+// ---------------------------------------------------------------------------
+
+/** 一分钟内到的算一次发成。更晚到的说明第一次失败、排队等了重试或下次启动。 */
+export const DIRECT_DELIVERY_SECONDS = 60
+
+export function summarizeDelivery(feedbackItems, duplicateDeliveries = 0) {
+  const byVersion = rowsByVersion(
+    feedbackItems,
+    (version) => ({ version, total: 0, direct: 0, late: 0, unknown: 0, slowestSeconds: 0 }),
+    (row, item) => {
+      row.total += 1
+      if (item.queueDelaySeconds === null) row.unknown += 1
+      else if (item.queueDelaySeconds <= DIRECT_DELIVERY_SECONDS) row.direct += 1
+      else {
+        row.late += 1
+        row.slowestSeconds = Math.max(row.slowestSeconds, item.queueDelaySeconds)
+      }
+    },
+  ).map((row) => ({ ...row, directShare: row.direct + row.late > 0 ? Math.round((row.direct / (row.direct + row.late)) * 1000) / 10 : null }))
+  return { directSeconds: DIRECT_DELIVERY_SECONDS, duplicateDeliveries, byVersion }
+}
+
+// ---------------------------------------------------------------------------
+// 日志尾巴：反馈包里到底有没有日志
+// ---------------------------------------------------------------------------
+
+/**
+ * 这个版本及更老的反馈包都带不上日志尾巴（读日志的路径错了，2026-11-01 修）。
+ * 比它新的版本再缺就是回归：29 份全空而没有人发现过，就是因为没有东西在数这个。
+ */
+export const LOG_TAIL_BROKEN_THROUGH_VERSION = '0.24.1'
+
+export function summarizeLogTail(feedbackItems) {
+  const byVersion = rowsByVersion(
+    feedbackItems,
+    (version) => ({ version, total: 0, attached: 0, missing: {} }),
+    (row, item) => {
+      row.total += 1
+      if (item.logTail.attached) row.attached += 1
+      else row.missing[item.logTail.why] = (row.missing[item.logTail.why] ?? 0) + 1
+    },
+  )
+  return {
+    byVersion,
+    alarms: byVersion.filter((row) => compareVersions(row.version, LOG_TAIL_BROKEN_THROUGH_VERSION) > 0 && row.attached < row.total),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -346,14 +458,19 @@ export function buildIntakeReport({
   corruptFiles = [],
   generatedAt = new Date().toISOString(),
   healthOptions = {},
+  inbox = { items: {}, rebuilt: false },
 }) {
-  const feedbackItems = buildFeedbackItems(feedbackRecords)
+  const allFeedbackItems = buildFeedbackItems(feedbackRecords)
+  const feedbackItems = allFeedbackItems.filter((item) => !item.duplicateOf)
   const allEvents = flattenEvents(eventRecords)
   // 自动化事件默认排除：下面所有统计只看真实用户事件，被排除的条数单独报。
   const { real: events, excluded: excludedAutomated } = splitAutomatedEvents(allEvents)
   const newKeySet = new Set(newFeedbackKeys)
   const newFeedback = feedbackItems.filter((item) => newKeySet.has(item.key))
   const { latestDate, previousDate } = latestTwoDatesWithData(events)
+  const duplicateDeliveries = allFeedbackItems.length - feedbackItems.length
+  const itemsByKey = new Map(allFeedbackItems.map((item) => [item.key, item]))
+  const untriaged = untriagedItems(inbox).map((row) => itemsByKey.get(row.key) ?? row)
 
   return {
     generatedAt,
@@ -366,8 +483,12 @@ export function buildIntakeReport({
       trajectoriesCount,
       newFeedbackCount: newFeedback.length,
       newEventKeysCount: newEventKeys.length,
+      duplicateDeliveries,
     },
     newFeedback,
+    triage: { count: untriaged.length, items: untriaged, rebuilt: inbox.rebuilt === true },
+    delivery: summarizeDelivery(feedbackItems, duplicateDeliveries),
+    logTail: summarizeLogTail(feedbackItems),
     excludedAutomated,
     generationResults: groupGenerationResults(events),
     failureReasons: rankFailureReasons(events),

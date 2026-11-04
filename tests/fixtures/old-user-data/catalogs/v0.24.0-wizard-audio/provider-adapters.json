@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "revision": 17,
+  "runs": [
+    {
+      "id": "run-rel-1",
+      "vendorKey": "local-39017",
+      "lineageRootVendorKey": "local-39017",
+      "vendorName": "Relay One",
+      "connectionFingerprint": "9171661d504e4f540449e3199c39e6bdc2fb89ebe3679ce30ac2247326378aa8",
+      "selectedModelKeys": [
+        "tts-1",
+        "opaque-tts",
+        "deepseek-chat"
+      ],
+      "stage": "completed",
+      "completedCount": 3,
+      "totalCount": 3,
+      "lastProgressAt": "2026-10-20T00:00:00.000Z",
+      "stageStartedAt": "2026-10-20T00:00:00.000Z",
+      "deadlineAt": "2026-10-20T00:05:00.000Z",
+      "repairAttempt": 0,
+      "models": [
+        {
+          "modelKey": "deepseek-chat",
+          "labelZh": "Chat",
+          "kind": "text",
+          "modes": [
+            {
+              "taskKind": "chat",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "modelKey": "opaque-tts",
+          "labelZh": "Opaque TTS",
+          "kind": "audio",
+          "modes": [
+            {
+              "taskKind": "text_to_audio",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "modelKey": "tts-1",
+          "labelZh": "TTS",
+          "kind": "audio",
+          "modes": [
+            {
+              "taskKind": "text_to_audio",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [],
+      "createdAt": "2026-10-20T00:00:00.000Z",
+      "updatedAt": "2026-10-20T00:00:00.000Z",
+      "certificationOperations": {
+        "63690a66c29f42d9a083fdeca044c8db7a2ef5a036e5220cb6cb036d29087c6d": {
+          "operationKey": "48c5f7173d3ad755dd4bf9ae190daa5722d66cf984ec4d829cb05bf472d55082",
+          "submissionState": "settled",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "chat"
+          }
+        },
+        "78841a07520aa131a2854090584f736c56fdfb291390afe68dd775ee39646fbf": {
+          "operationKey": "cab052497378db89fddb0beab9f7ef553038432dbdae2cda694d7cd553f25956",
+          "submissionState": "settled",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "text_to_audio"
+          }
+        },
+        "46b9a7f11551a84b45a40099bc84c66c10c9c7b9e465b78a9dc54eb0c7d5280d": {
+          "operationKey": "e613dcf8a6e4103274bed620a37dc925dfef5636edaffd421111c6dceece3d33",
+          "submissionState": "settled",
+          "settledResult": {
+            "ok": true,
+            "taskKind": "text_to_audio"
+          }
+        }
+      },
+      "activeRevision": "adapter-revision-1bb5f3676bdc2f5c5a6f"
+    }
+  ],
+  "revisions": [
+    {
+      "id": "adapter-revision-1bb5f3676bdc2f5c5a6f",
+      "vendorKey": "local-39017",
+      "digest": "1bb5f3676bdc2f5c5a6fb994c1023704f572a91fea5aedc570551d5787feada6",
+      "draft": {
+        "provider": {
+          "baseUrl": "http://127.0.0.1:39017/v1",
+          "authType": "bearer",
+          "providerKind": "openai-compatible"
+        },
+        "sources": [],
+        "models": [
+          {
+            "modelKey": "deepseek-chat",
+            "labelZh": "Chat",
+            "kind": "text",
+            "modes": [
+              {
+                "taskKind": "chat",
+                "create": {
+                  "method": "POST",
+                  "path": "/v1/chat/completions",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer {{user_api_key}}"
+                  },
+                  "body": {
+                    "model": "{{model.modelKey}}",
+                    "messages": [
+                      {
+                        "role": "user",
+                        "content": "{{request.prompt}}"
+                      }
+                    ],
+                    "stream": false
+                  }
+                },
+                "sourceUrls": []
+              }
+            ]
+          },
+          {
+            "modelKey": "opaque-tts",
+            "labelZh": "Opaque TTS",
+            "kind": "audio",
+            "parameters": [
+              {
+                "key": "voice",
+                "label": "音色 ID",
+                "type": "text"
+              },
+              {
+                "key": "speed",
+                "label": "语速",
+                "type": "number",
+                "default": 1,
+                "min": 0.25,
+                "max": 4
+              }
+            ],
+            "modes": [
+              {
+                "taskKind": "text_to_audio",
+                "create": {
+                  "method": "POST",
+                  "path": "/v1/audio/speech",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer {{user_api_key}}"
+                  },
+                  "body": {
+                    "model": "{{request.params.model}}",
+                    "input": "{{request.prompt}}",
+                    "voice": "{{request.params.voice}}",
+                    "speed": "{{request.params.speed}}",
+                    "response_format": "mp3"
+                  },
+                  "audioResponse": {
+                    "type": "binary",
+                    "contentType": "audio/mpeg",
+                    "extension": "mp3"
+                  }
+                },
+                "delivery": "synchronous",
+                "sourceUrls": []
+              }
+            ]
+          },
+          {
+            "modelKey": "tts-1",
+            "labelZh": "TTS",
+            "kind": "audio",
+            "parameters": [
+              {
+                "key": "voice",
+                "label": "音色 ID",
+                "type": "text"
+              },
+              {
+                "key": "speed",
+                "label": "语速",
+                "type": "number",
+                "default": 1,
+                "min": 0.25,
+                "max": 4
+              }
+            ],
+            "modes": [
+              {
+                "taskKind": "text_to_audio",
+                "create": {
+                  "method": "POST",
+                  "path": "/v1/audio/speech",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer {{user_api_key}}"
+                  },
+                  "body": {
+                    "model": "{{request.params.model}}",
+                    "input": "{{request.prompt}}",
+                    "voice": "{{request.params.voice}}",
+                    "speed": "{{request.params.speed}}",
+                    "response_format": "mp3"
+                  },
+                  "audioResponse": {
+                    "type": "binary",
+                    "contentType": "audio/mpeg",
+                    "extension": "mp3"
+                  }
+                },
+                "delivery": "synchronous",
+                "sourceUrls": []
+              }
+            ]
+          }
+        ]
+      },
+      "verifiedModes": [
+        {
+          "modelKey": "deepseek-chat",
+          "taskKind": "chat"
+        },
+        {
+          "modelKey": "opaque-tts",
+          "taskKind": "text_to_audio"
+        },
+        {
+          "modelKey": "tts-1",
+          "taskKind": "text_to_audio"
+        }
+      ],
+      "createdAt": "2026-10-20T00:00:00.000Z"
+    }
+  ],
+  "inputs": []
+}

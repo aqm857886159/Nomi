@@ -1,0 +1,58 @@
+{
+  "script": "tests/ux/tool-schema-real.paid.mjs",
+  "mode": "paid",
+  "headCommit": "e94b98168",
+  "date": "2026-11-01",
+  "result": "passed",
+  "credentialSource": "real-profile",
+  "models": [
+    "apimart/deepseek-v4-pro",
+    "apimart/gemini-3.1-flash-image-preview"
+  ],
+  "locale": "zh-CN",
+  "http": [
+    {
+      "status": 200,
+      "toolCount": 30,
+      "hasStageShot": true
+    },
+    {
+      "status": 200,
+      "toolCount": 30,
+      "hasStageShot": true
+    },
+    {
+      "status": 200,
+      "toolCount": 30,
+      "hasStageShot": true
+    }
+  ],
+  "calls": [
+    {
+      "name": "read_script",
+      "isError": false
+    },
+    {
+      "name": "draft_shots",
+      "isError": false
+    }
+  ],
+  "toolWriteCorrect": "2/2",
+  "turnSuccess": "1/1",
+  "persistedShots": 2,
+  "schemaCaptureProblems": [],
+  "spend": {
+    "media": [],
+    "text": {
+      "replies": 3,
+      "input": 29654,
+      "output": 831,
+      "cacheRead": 55296,
+      "cacheWrite": 0,
+      "models": {
+        "apimart/deepseek-v4-pro": 3
+      }
+    }
+  },
+  "credentialCopyRemoved": true
+}

@@ -19,6 +19,8 @@ import type { TransportAbandonDisposition, TransportDelivery } from "../catalog/
 import type { AdapterSelfCheckReason } from "./selfCheck";
 import type { DeclaredAssetIngestion, DeclaredSelfCheck } from "./declarationCard";
 
+export type AdapterMediaProtocol = "openai-videos-v1" | "video-generations-json-v1";
+
 export type AdapterAuthType = "none" | "bearer" | "x-api-key" | "query";
 
 export type ProviderAdapterModelSelection = {

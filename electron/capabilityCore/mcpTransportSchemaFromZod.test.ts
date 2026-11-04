@@ -10,14 +10,10 @@ import { MCP_TOOL_RESOLVER } from "./mcpToolCatalog";
 
 describe("published keyword subset", () => {
   it("reports keywords and types outside the published subset", () => {
-    expect(findUnsupportedSchemaFeatures(null)).toEqual([]);
-    expect(findUnsupportedSchemaFeatures("invalid")).toEqual([]);
-    expect(findUnsupportedSchemaFeatures([])).toEqual([]);
-    expect(findUnsupportedSchemaFeatures({ unknown: true })).toEqual(['<root>: 不支持的关键字 "unknown"']);
-    expect(findUnsupportedSchemaFeatures({ properties: { nested: { unknown: true } } })).toEqual(['nested: 不支持的关键字 "unknown"']);
-    expect(findUnsupportedSchemaFeatures({ type: "unsupported" })).toEqual(['<root>: 不支持的 type "unsupported"']);
-    expect(findUnsupportedSchemaFeatures({ type: 123 })).toEqual([]);
-    expect(findUnsupportedSchemaFeatures({ type: "object", properties: null, items: null })).toEqual([]);
+    for (const malformed of [null, "invalid", [], { type: 123 }, { type: "unsupported" },
+      { type: "object", properties: null, items: null }]) expect(findUnsupportedSchemaFeatures(malformed).length).toBeGreaterThan(0);
+    expect(findUnsupportedSchemaFeatures({ unknown: true }).join(" ")).toContain("/unknown");
+    expect(findUnsupportedSchemaFeatures({ properties: { nested: { unknown: true } } }).join(" ")).toContain("/properties/nested/unknown");
     expect(findUnsupportedSchemaFeatures({ properties: { nested: { type: "string" } }, items: { type: "string" } })).toEqual([]);
   });
 
@@ -88,7 +84,8 @@ describe("the published canvas.write transport schema is derived, not hand-writt
 
   it("carries the Zod prompt-writing guidance all the way to tools/list", () => {
     const nodePrompt = ((properties.nodes?.items as Record<string, unknown>)?.properties as Record<string, { description?: string }>)?.prompt;
-    expect(nodePrompt?.description).toBe(plannedNodeSchema.innerType().shape.prompt.description);
+    expect(nodePrompt?.description).toContain(plannedNodeSchema.innerType().shape.prompt.description);
+    expect(nodePrompt?.description).toContain("maxLength=262144");
     expect(nodePrompt?.description).toMatch(/Generation prompt/);
     // 20 动词：镜头提示词只由 `draft_shots` 写（`generation.plan`），跨字段的写作指引随它进系统提示词；
     // 对外 `nomi_canvas_edit` 仍靠字段级 Zod 描述带指引（外部画布面按动词拆名与 #754 同一刀定）。

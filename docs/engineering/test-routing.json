@@ -101,7 +101,7 @@
       "label": "数据格式",
       "fourClass": false,
       "evidence": [
-        { "id": "upgrade-path", "when": "pr", "paid": false, "label": "升级路径：老项目能打开、能继续", "aliases": ["升级路径", "老项目", "旧项目", "upgrade"], "tool": "exists", "toolRef": "tests/ux/core-a-old-project.packaged.mjs" }
+        { "id": "upgrade-path", "when": "pr", "paid": false, "label": "升级路径：老用户的项目、模型、设置升级后照常能用，用真实旧版本落的数据跑过（手写形状不算）；碰不到存量写「不适用：理由」；不接受「未验证」", "aliases": ["升级路径", "老项目", "旧项目", "老模型", "老用户", "upgrade"], "tool": "exists", "toolRef": "老项目：tests/ux/core-a-old-project.packaged.mjs；老模型：electron/catalog/upgradeKeepsWorkingModels.test.ts + tests/fixtures/old-user-data/" }
       ]
     },
     "perf": {
@@ -135,7 +135,8 @@
     { "category": "agent", "pattern": "^(?:electron/agentLane/|electron/agentHost/|src/workbench/ai/|evals/)" },
     { "category": ["scale", "perf"], "pattern": "^src/workbench/(?:generationCanvas|timeline)/" },
     { "category": "gen-quality", "pattern": "^(?:electron/shared/storyboard/|src/workbench/generationCanvas/nodes/director/|electron/capabilityCore/semanticGeneration|evals/director/)" },
-    { "category": "data-format", "pattern": "(?:^|/)[^/]*(?:schema|migrat|persist|projectFile|projectStore|projectVersion)[^/]*\\.(?:ts|tsx|mts|cts|mjs)$", "scope": "^(?:src|electron)/" }
+    { "category": "data-format", "pattern": "(?:^|/)[^/]*(?:schema|migrat|persist|projectFile|projectStore|projectVersion)[^/]*\\.(?:ts|tsx|mts|cts|mjs)$", "scope": "^(?:src|electron)/" },
+    { "category": "data-format", "pattern": "^electron/(?:catalog/|providerAdapter/|shared/(?:modelPublication|modelAvailability|customCapabilityContract)\\.ts$)", "_note": "这些文件决定老目录里的模型还能不能用，名字里不带 schema / migrat 也算碰存量（2026-10-31）" }
   ],
   "abortSignal": { "category": ["long-run", "perf"], "legacy": "可打断", "pattern": "\\bnew\\s+AbortController\\b|\\bAbortSignal\\b", "scope": "^(?:src|electron)/" },
   "fullRun": {

@@ -2,6 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { hasWorkspaceManifest } from "./workspaceManifest";
+import { findAppOwnedLocation } from "./workspaceLocationPolicy";
+import { projectLocationRejectedError } from "../shared/contracts/projectLocation";
 import { desktopT } from "../i18n";
 
 export type WorkspaceFolderSelection =
@@ -96,6 +98,8 @@ function isProtectedSystemPath(rawPath: string, resolved: string, homedir: strin
 
 /**
  * 评估某路径能否安全地作为 Nomi 工作区。
+ * - 在 Nomi 自己的目录里（安装目录 / 应用数据 / 系统临时目录，判定见 workspaceLocationPolicy）→ `{ ok: false, reason }`，
+ *   reason 是 ProjectLocationRejectedError[类别] 那句（渲染层按类别说清为什么，选择时和打开时都判）。
  * - 命中危险目录 denylist → `{ ok: false, reason }`（可读中文原因）。
  * - 安全 → `{ ok: true, isEmpty }`：isEmpty=false 表示目录已有非 Nomi 内容，IPC/UI 层据此
  *   要求用户二次确认（避免在塞满文件的目录里悄悄初始化工作区）。已是 Nomi 工作区
@@ -109,6 +113,9 @@ export function assessWorkspaceFolderSafety(rootPath: string, options: SafetyOpt
   const homedir = path.resolve(options.homedir ?? os.homedir());
   const platform = options.platform ?? process.platform;
   const resolved = path.resolve(rawRootPath);
+
+  const appOwned = findAppOwnedLocation(resolved);
+  if (appOwned) return { ok: false, reason: projectLocationRejectedError(appOwned.kind, resolved).message };
 
   if (isProtectedSystemPath(rawRootPath, resolved, homedir, platform)) {
     return {

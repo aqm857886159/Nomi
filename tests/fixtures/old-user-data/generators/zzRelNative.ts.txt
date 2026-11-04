@@ -1,0 +1,35 @@
+// 验收线探针（跑在 v0.24.0 副本）：v0.24.0 真实的开机体检 upgradeRelayModelsToNativeWire 把一个已认证的中转视频行切到原生报文。
+import fs from "node:fs";
+import http from "node:http";
+import path from "node:path";
+import { describe, it, vi } from "vitest";
+const source = process.env.V_REL_ROOT as string;
+const out = process.env.V_OUT as string;
+fs.rmSync(out, { recursive: true, force: true });
+fs.cpSync(source, out, { recursive: true });
+vi.mock("electron", () => ({
+  app: { getPath: () => out, getAppPath: () => process.cwd(), isPackaged: false },
+  safeStorage: { isEncryptionAvailable: () => true, encryptString: (v: string) => Buffer.from(v), decryptString: (v: Buffer) => v.toString() },
+}));
+import { readCatalog } from "./catalogStore";
+import { upgradeRelayModelsToNativeWire } from "./relayNativeWireUpgrade";
+describe("native", () => {
+  it("upgrades", async () => {
+    const server = http.createServer((req, res) => {
+      res.statusCode = 404;
+      res.setHeader("content-type", "application/json");
+      if (String(req.url).startsWith("/api/v3/contents/generations/tasks")) res.end(JSON.stringify({ error: { code: "ResourceNotFound", message: "task not found" } }));
+      else res.end(JSON.stringify({ error: { code: "not_found", message: "no route" } }));
+    });
+    await new Promise<void>((r) => server.listen(39017, "127.0.0.1", r));
+    try {
+      const results = await upgradeRelayModelsToNativeWire();
+      console.log("UPGRADE", JSON.stringify(results.map((r) => [r.modelKey, r.archetypeId, r.upgraded, r.detail])));
+      const state = readCatalog();
+      for (const m of state.models.filter((x) => String(x.vendorKey).includes("39017"))) {
+        const meta = m.meta as Record<string, any>;
+        console.log("ROW", m.modelKey, "archetypeId", meta.archetypeId, "wireProfile", meta.wireProfile, "activeRevision", Boolean(meta.adapter?.activeRevision), "routes", JSON.stringify(state.mappings.filter((r) => r.vendorKey === m.vendorKey && r.modelKey === m.modelKey).map((r) => [r.taskKind, r.create.path])));
+      }
+    } finally { server.close(); }
+  }, 60000);
+});

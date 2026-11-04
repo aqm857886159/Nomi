@@ -152,7 +152,7 @@ describe("canvas.read MCP capability projection", () => {
       required: ["leaseHandle"],
       additionalProperties: false,
     });
-    expect(findUnsupportedSchemaFeatures(CANVAS_READ_MCP_ADAPTER.transportInputSchema)).toEqual([]);
+    expect(findUnsupportedSchemaFeatures(MCP_CAPABILITY_RESOLVER.resolve("nomi_canvas_read")!.inputSchema)).toEqual([]);
     expect(collectKeys(CANVAS_READ_MCP_ADAPTER.transportInputSchema)).not.toEqual(
       expect.arrayContaining(["$schema", "$ref"]),
     );
@@ -180,7 +180,8 @@ describe("canvas.read MCP capability projection", () => {
       name: CANVAS_READ_CAPABILITY.aliases.mcp,
       description: mcpProfileToolFor(CANVAS_READ_CAPABILITY.id)?.description,
       method: CANVAS_READ_CAPABILITY.id,
-      inputSchema: CANVAS_READ_MCP_ADAPTER.transportInputSchema,
+      inputSchema: mcpProfileToolFor(CANVAS_READ_CAPABILITY.id)!.inputSchema,
+      runtimeInputSchema: CANVAS_READ_MCP_ADAPTER.transportInputSchema,
       annotations: { readOnlyHint: true },
     });
     expect(CANVAS_READ_MCP_ADAPTER.authority).toEqual({

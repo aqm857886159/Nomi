@@ -28,7 +28,6 @@
       ],
       "promptSnippet": "Read the generation canvas: every node (id, kind, title, prompt, model, status), each shot table's rows and ticked shots, the links, groups and selection.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {},
         "type": "object"
@@ -73,7 +72,6 @@
       ],
       "promptSnippet": "Read the creation document as plain text: the whole document, or only the text the user has selected.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "scope": {
@@ -122,7 +120,6 @@
       ],
       "promptSnippet": "Read the project timeline: fps, duration, playhead, every track, clip, text overlay and transition, plus the revision every edit must carry.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "endFrame": {
@@ -185,13 +182,10 @@
       ],
       "promptSnippet": "Search the project's media library, or read bounded technical facts (record, codec, frame-range usage, waveform buckets) about one asset.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "assetId": {
-            "description": "Stable asset id from a look_at_media search, a canvas read or a timeline read — never a filename or path.",
-            "maxLength": 512,
-            "minLength": 1,
+            "description": "Stable asset id from a look_at_media search, a canvas read or a timeline read — never a filename or path.\nminLength=1.\nmaxLength=512.",
             "type": "string"
           },
           "endFrame": {
@@ -219,8 +213,7 @@
             "type": "integer"
           },
           "query": {
-            "description": "Free-text search over the media library.",
-            "maxLength": 200,
+            "description": "Free-text search over the media library.\nmaxLength=200.",
             "type": "string"
           },
           "startFrame": {
@@ -286,7 +279,6 @@
       ],
       "promptSnippet": "Read the models the user has connected: each model's modes, parameters with allowed values, and reference slots.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "kind": {
@@ -299,13 +291,11 @@
             "type": "string"
           },
           "modelId": {
-            "description": "Catalog id of one model to read in full — the same modelId this verb returns and draft_shots takes.",
-            "minLength": 1,
+            "description": "Catalog id of one model to read in full — the same modelId this verb returns and draft_shots takes.\nminLength=1.",
             "type": "string"
           },
           "vendor": {
-            "description": "Provider of that model. Required when the thin list shows the same modelId under two providers — they are two different models with different modes and parameters.",
-            "minLength": 1,
+            "description": "Provider of that model. Required when the thin list shows the same modelId under two providers — they are two different models with different modes and parameters.\nminLength=1.",
             "type": "string"
           }
         },
@@ -348,7 +338,6 @@
       ],
       "promptSnippet": "Read one generation or export job: its stage, progress, result reference and what it has cost so far.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "domain": {
@@ -360,9 +349,7 @@
             "type": "string"
           },
           "jobId": {
-            "description": "The job id returned by generate or export_video, or shown on a canvas node.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "The job id returned by generate or export_video, or shown on a canvas node.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           }
         },
@@ -402,13 +389,10 @@
       "promptGuidelines": null,
       "promptSnippet": "Read one installed skill's body so you can follow its method.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "name": {
-            "description": "Skill name exactly as listed in the skills index.",
-            "maxLength": 240,
-            "minLength": 1,
+            "description": "Skill name exactly as listed in the skills index.\nminLength=1.\nmaxLength=240.",
             "type": "string"
           }
         },
@@ -454,12 +438,10 @@
       ],
       "promptSnippet": "Write finished prose into the creation document — at the cursor, in place of the selection, or at the end.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "content": {
-            "description": "The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.",
-            "minLength": 1,
+            "description": "The exact text to write. Plain prose or Markdown, never a diff or a summary of the change.\nminLength=1.",
             "type": "string"
           },
           "where": {
@@ -535,7 +517,6 @@
       ],
       "promptSnippet": "Create or update image, video, audio or 3D shot drafts in the project; document plans are saved without automatic canvas placement.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "candidate": {
@@ -543,13 +524,11 @@
             "description": "Default catalog candidate for these shots.",
             "properties": {
               "modelId": {
-                "description": "Model id from list_models.",
-                "minLength": 1,
+                "description": "Model id from list_models.\nminLength=1.",
                 "type": "string"
               },
               "providerId": {
-                "description": "Provider id from list_models.",
-                "minLength": 1,
+                "description": "Provider id from list_models.\nminLength=1.",
                 "type": "string"
               }
             },
@@ -564,9 +543,7 @@
             "type": "boolean"
           },
           "operationId": {
-            "description": "Plan id from a draft_shots result.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Plan id from a draft_shots result.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           },
           "shots": {
@@ -583,13 +560,11 @@
                   "description": "Catalog candidate identity when known.",
                   "properties": {
                     "modelId": {
-                      "description": "Model id from list_models.",
-                      "minLength": 1,
+                      "description": "Model id from list_models.\nminLength=1.",
                       "type": "string"
                     },
                     "providerId": {
-                      "description": "Provider id from list_models.",
-                      "minLength": 1,
+                      "description": "Provider id from list_models.\nminLength=1.",
                       "type": "string"
                     }
                   },
@@ -606,13 +581,11 @@
                   "type": "number"
                 },
                 "modeId": {
-                  "description": "Mode id from list_models; it decides taskKind.",
-                  "minLength": 1,
+                  "description": "Mode id from list_models; it decides taskKind.\nminLength=1.",
                   "type": "string"
                 },
                 "modelId": {
-                  "description": "Catalog model id from list_models; omit for the user's default.",
-                  "minLength": 1,
+                  "description": "Catalog model id from list_models; omit for the user's default.\nminLength=1.",
                   "type": "string"
                 },
                 "parameters": {
@@ -628,15 +601,13 @@
                   "type": "object"
                 },
                 "prompt": {
-                  "description": "Prompt in the user's language; required for a new shot.",
-                  "maxLength": 8000,
-                  "minLength": 1,
+                  "description": "Prompt in the user's language; required for a new shot.\nminLength=1.\nmaxLength=8000.",
                   "type": "string"
                 },
                 "references": {
                   "description": "Asset ids from look_at_media. To reuse another shot's look use storyboard.anchorIds, not a shot id.",
                   "items": {
-                    "minLength": 1,
+                    "description": "minLength=1.",
                     "type": "string"
                   },
                   "maxItems": 30,
@@ -651,9 +622,7 @@
                   "type": "string"
                 },
                 "shotId": {
-                  "description": "Shot id to revise; omit for a new shot.",
-                  "maxLength": 160,
-                  "minLength": 1,
+                  "description": "Shot id to revise; omit for a new shot.\nminLength=1.\nmaxLength=160.",
                   "type": "string"
                 },
                 "storyboard": {
@@ -794,8 +763,7 @@
                             "type": "integer"
                           },
                           "key": {
-                            "description": "Segment name",
-                            "minLength": 1,
+                            "description": "Segment name\nminLength=1.",
                             "type": "string"
                           },
                           "start": {
@@ -819,8 +787,7 @@
                           "additionalProperties": true,
                           "properties": {
                             "anchorId": {
-                              "description": "Source anchor id",
-                              "minLength": 1,
+                              "description": "Source anchor id\nminLength=1.",
                               "type": "string"
                             },
                             "ignore": {
@@ -832,13 +799,11 @@
                               "type": "string"
                             },
                             "sourceNodeId": {
-                              "description": "Source node id",
-                              "minLength": 1,
+                              "description": "Source node id\nminLength=1.",
                               "type": "string"
                             },
                             "url": {
-                              "description": "Media URL",
-                              "minLength": 1,
+                              "description": "Media URL\nminLength=1.",
                               "type": "string"
                             }
                           },
@@ -862,18 +827,15 @@
                       "type": "string"
                     },
                     "referenceSourceNodeId": {
-                      "description": "Source node id",
-                      "minLength": 1,
+                      "description": "Source node id\nminLength=1.",
                       "type": "string"
                     },
                     "referenceUrl": {
-                      "description": "Anchor media URL",
-                      "minLength": 1,
+                      "description": "Anchor media URL\nminLength=1.",
                       "type": "string"
                     },
                     "sceneId": {
-                      "description": "Scene id; omit when the story has no scene grouping.",
-                      "minLength": 1,
+                      "description": "Scene id; omit when the story has no scene grouping.\nminLength=1.",
                       "type": "string"
                     },
                     "scope": {
@@ -918,14 +880,11 @@
                   "type": "string"
                 },
                 "title": {
-                  "description": "Short human title in the user's language, shown on the canvas node and spend card.",
-                  "maxLength": 120,
-                  "minLength": 1,
+                  "description": "Short human title in the user's language, shown on the canvas node and spend card.\nminLength=1.\nmaxLength=120.",
                   "type": "string"
                 },
                 "variantId": {
-                  "description": "From list_models variants.",
-                  "minLength": 1,
+                  "description": "From list_models variants.\nminLength=1.",
                   "type": "string"
                 }
               },
@@ -981,20 +940,16 @@
       "promptGuidelines": null,
       "promptSnippet": "Ask the user to approve generating a draft and wait for his answer; the result says whether generation started, he declined, or he wrote something else.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "operationId": {
-            "description": "The operationId returned by draft_shots.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "The operationId returned by draft_shots.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           },
           "shotIds": {
             "description": "Shots for the card. Omit: only shots still undecided on the latest card (first card: all not yet generated). Name shots to retry or add others.",
             "items": {
-              "maxLength": 160,
-              "minLength": 1,
+              "description": "minLength=1.\nmaxLength=160.",
               "type": "string"
             },
             "maxItems": 40,
@@ -1047,12 +1002,10 @@
       ],
       "promptSnippet": "Connect reference links between existing nodes or tidy the layout.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "categoryId": {
-            "description": "With tidy: only this canvas category.",
-            "minLength": 1,
+            "description": "With tidy: only this canvas category.\nminLength=1.",
             "type": "string"
           },
           "links": {
@@ -1061,8 +1014,7 @@
               "additionalProperties": false,
               "properties": {
                 "fromId": {
-                  "description": "Source node id.",
-                  "minLength": 1,
+                  "description": "Source node id.\nminLength=1.",
                   "type": "string"
                 },
                 "role": {
@@ -1078,8 +1030,7 @@
                   "type": "string"
                 },
                 "toId": {
-                  "description": "Target node id.",
-                  "minLength": 1,
+                  "description": "Target node id.\nminLength=1.",
                   "type": "string"
                 }
               },
@@ -1135,12 +1086,10 @@
       ],
       "promptSnippet": "Put a hand-authored artifact on the canvas — SVG, HTML, Markdown, a table or plain text you wrote yourself.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "content": {
-            "description": "The whole artifact content.",
-            "minLength": 1,
+            "description": "The whole artifact content.\nminLength=1.",
             "type": "string"
           },
           "fileType": {
@@ -1155,9 +1104,7 @@
             "type": "string"
           },
           "title": {
-            "description": "Node title in the user's language.",
-            "maxLength": 120,
-            "minLength": 1,
+            "description": "Node title in the user's language.\nminLength=1.\nmaxLength=120.",
             "type": "string"
           }
         },
@@ -1201,7 +1148,6 @@
       ],
       "promptSnippet": "Replace or append a text node's body. Text only: it generates nothing and costs nothing.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "mode": {
@@ -1213,14 +1159,11 @@
             "type": "string"
           },
           "nodeId": {
-            "description": "Text node id (look_at_canvas).",
-            "minLength": 1,
+            "description": "Text node id (look_at_canvas).\nminLength=1.",
             "type": "string"
           },
           "text": {
-            "description": "Exact body; newlines become paragraphs.",
-            "maxLength": 20000,
-            "minLength": 1,
+            "description": "Exact body; newlines become paragraphs.\nminLength=1.\nmaxLength=20000.",
             "type": "string"
           }
         },
@@ -1354,13 +1297,10 @@
       ],
       "promptSnippet": "Build or change a 3D-BOX director plan; Nomi compiles a gray 3D preview with blocking and cameras and attaches it to the shot as reference video.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "baseRevision": {
-            "description": "Current revision of that node; required with edits.",
-            "maxLength": 64,
-            "minLength": 1,
+            "description": "Current revision of that node; required with edits.\nminLength=1.\nmaxLength=64.",
             "type": "string"
           },
           "edits": {
@@ -1378,9 +1318,7 @@
                   "type": "string"
                 },
                 "path": {
-                  "description": "By name: /shots/<name>[/field], /actors/<name>[/field], /scene/setPieces/<name>[/field], /scene/<field>, /blocking/<actor>.",
-                  "maxLength": 240,
-                  "minLength": 2,
+                  "description": "By name: /shots/<name>[/field], /actors/<name>[/field], /scene/setPieces/<name>[/field], /scene/<field>, /blocking/<actor>.\nminLength=2.\nmaxLength=240.",
                   "type": "string"
                 },
                 "value": {
@@ -1425,8 +1363,7 @@
                               "additionalProperties": false,
                               "properties": {
                                 "over_shoulder": {
-                                  "description": "Actor whose shoulder is foreground.",
-                                  "minLength": 1,
+                                  "description": "Actor whose shoulder is foreground.\nminLength=1.",
                                   "type": "string"
                                 }
                               },
@@ -1439,8 +1376,7 @@
                               "additionalProperties": false,
                               "properties": {
                                 "pov": {
-                                  "description": "Actor whose viewpoint is used.",
-                                  "minLength": 1,
+                                  "description": "Actor whose viewpoint is used.\nminLength=1.",
                                   "type": "string"
                                 }
                               },
@@ -1463,8 +1399,7 @@
                           "type": "string"
                         },
                         "id": {
-                          "description": "Stable shot name.",
-                          "minLength": 1,
+                          "description": "Stable shot name.\nminLength=1.",
                           "type": "string"
                         },
                         "move": {
@@ -1489,8 +1424,7 @@
                               "type": "string"
                             },
                             "easing": {
-                              "default": "linear",
-                              "description": "Easing.",
+                              "description": "Easing.\ndefault=\"linear\".",
                               "enum": [
                                 "linear",
                                 "ease_in",
@@ -1525,8 +1459,7 @@
                               "type": "string"
                             },
                             "speed": {
-                              "default": "medium",
-                              "description": "Speed.",
+                              "description": "Speed.\ndefault=\"medium\".",
                               "enum": [
                                 "slow",
                                 "medium",
@@ -1554,14 +1487,13 @@
                           "type": "string"
                         },
                         "subject": {
-                          "description": "Primary actor id or actor.part reference.",
-                          "minLength": 1,
+                          "description": "Primary actor id or actor.part reference.\nminLength=1.",
                           "type": "string"
                         },
                         "subjects": {
                           "description": "Other actors in frame.",
                           "items": {
-                            "minLength": 1,
+                            "description": "minLength=1.",
                             "type": "string"
                           },
                           "type": "array"
@@ -1576,16 +1508,10 @@
                         },
                         "window": {
                           "description": "[start,end] seconds, end after start.",
-                          "items": [
-                            {
-                              "minimum": 0,
-                              "type": "number"
-                            },
-                            {
-                              "minimum": 0,
-                              "type": "number"
-                            }
-                          ],
+                          "items": {
+                            "minimum": 0,
+                            "type": "number"
+                          },
                           "maxItems": 2,
                           "minItems": 2,
                           "type": "array"
@@ -1630,15 +1556,11 @@
                             ],
                             "type": "object"
                           },
-                          "description": "Named parts with local offsets; reference as actor.part.",
-                          "propertyNames": {
-                            "pattern": "^[a-z][a-z0-9_]*$"
-                          },
+                          "description": "Named parts with local offsets; reference as actor.part.\npropertyNames={\"pattern\":\"^[a-z][a-z0-9_]*$\"}.",
                           "type": "object"
                         },
                         "desc": {
-                          "description": "Actor noun copied verbatim from the user wording.",
-                          "minLength": 1,
+                          "description": "Actor noun copied verbatim from the user wording.\nminLength=1.",
                           "type": "string"
                         },
                         "id": {
@@ -1661,8 +1583,7 @@
                           "description": "Initial actor placement.",
                           "properties": {
                             "ref": {
-                              "description": "Template anchor, set-piece id, or actor id.",
-                              "minLength": 1,
+                              "description": "Template anchor, set-piece id, or actor id.\nminLength=1.",
                               "type": "string"
                             },
                             "relation": {
@@ -1699,13 +1620,11 @@
                       "additionalProperties": false,
                       "properties": {
                         "id": {
-                          "description": "Stable piece id.",
-                          "minLength": 1,
+                          "description": "Stable piece id.\nminLength=1.",
                           "type": "string"
                         },
                         "kind": {
-                          "description": "Scene-piece noun copied from the user wording.",
-                          "minLength": 1,
+                          "description": "Scene-piece noun copied from the user wording.\nminLength=1.",
                           "type": "string"
                         },
                         "relation": {
@@ -1713,8 +1632,7 @@
                           "description": "Relation to a scene anchor.",
                           "properties": {
                             "ref": {
-                              "description": "Template anchor or earlier set-piece id.",
-                              "minLength": 1,
+                              "description": "Template anchor or earlier set-piece id.\nminLength=1.",
                               "type": "string"
                             },
                             "type": {
@@ -1750,18 +1668,15 @@
                         "additionalProperties": false,
                         "properties": {
                           "action": {
-                            "description": "Optional action-library id; unavailable actions remain explicit gaps.",
-                            "minLength": 1,
+                            "description": "Optional action-library id; unavailable actions remain explicit gaps.\nminLength=1.",
                             "type": "string"
                           },
                           "actor": {
-                            "description": "Acting actor.",
-                            "minLength": 1,
+                            "description": "Acting actor.\nminLength=1.",
                             "type": "string"
                           },
                           "target": {
-                            "description": "Destination or focus actor/set-piece id.",
-                            "minLength": 1,
+                            "description": "Destination or focus actor/set-piece id.\nminLength=1.",
                             "type": "string"
                           },
                           "verb": {
@@ -1781,16 +1696,10 @@
                           },
                           "window": {
                             "description": "[start,end] seconds, end after start.",
-                            "items": [
-                              {
-                                "minimum": 0,
-                                "type": "number"
-                              },
-                              {
-                                "minimum": 0,
-                                "type": "number"
-                              }
-                            ],
+                            "items": {
+                              "minimum": 0,
+                              "type": "number"
+                            },
                             "maxItems": 2,
                             "minItems": 2,
                             "type": "array"
@@ -1820,8 +1729,7 @@
                           "additionalProperties": false,
                           "properties": {
                             "over_shoulder": {
-                              "description": "Actor whose shoulder is foreground.",
-                              "minLength": 1,
+                              "description": "Actor whose shoulder is foreground.\nminLength=1.",
                               "type": "string"
                             }
                           },
@@ -1834,8 +1742,7 @@
                           "additionalProperties": false,
                           "properties": {
                             "pov": {
-                              "description": "Actor whose viewpoint is used.",
-                              "minLength": 1,
+                              "description": "Actor whose viewpoint is used.\nminLength=1.",
                               "type": "string"
                             }
                           },
@@ -1895,15 +1802,11 @@
                         ],
                         "type": "object"
                       },
-                      "description": "Named parts with local offsets; reference as actor.part.",
-                      "propertyNames": {
-                        "pattern": "^[a-z][a-z0-9_]*$"
-                      },
+                      "description": "Named parts with local offsets; reference as actor.part.\npropertyNames={\"pattern\":\"^[a-z][a-z0-9_]*$\"}.",
                       "type": "object"
                     },
                     "desc": {
-                      "description": "Actor noun copied verbatim from the user wording.",
-                      "minLength": 1,
+                      "description": "Actor noun copied verbatim from the user wording.\nminLength=1.",
                       "type": "string"
                     },
                     "id": {
@@ -1926,8 +1829,7 @@
                       "description": "Initial actor placement.",
                       "properties": {
                         "ref": {
-                          "description": "Template anchor, set-piece id, or actor id.",
-                          "minLength": 1,
+                          "description": "Template anchor, set-piece id, or actor id.\nminLength=1.",
                           "type": "string"
                         },
                         "relation": {
@@ -1965,24 +1867,20 @@
                 "type": "array"
               },
               "blocking": {
-                "default": [],
-                "description": "Time-coded actor movement and pose.",
+                "description": "Time-coded actor movement and pose.\ndefault=[].",
                 "items": {
                   "additionalProperties": false,
                   "properties": {
                     "action": {
-                      "description": "Optional action-library id; unavailable actions remain explicit gaps.",
-                      "minLength": 1,
+                      "description": "Optional action-library id; unavailable actions remain explicit gaps.\nminLength=1.",
                       "type": "string"
                     },
                     "actor": {
-                      "description": "Acting actor.",
-                      "minLength": 1,
+                      "description": "Acting actor.\nminLength=1.",
                       "type": "string"
                     },
                     "target": {
-                      "description": "Destination or focus actor/set-piece id.",
-                      "minLength": 1,
+                      "description": "Destination or focus actor/set-piece id.\nminLength=1.",
                       "type": "string"
                     },
                     "verb": {
@@ -2002,16 +1900,10 @@
                     },
                     "window": {
                       "description": "[start,end] seconds, end after start.",
-                      "items": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        }
-                      ],
+                      "items": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
                       "maxItems": 2,
                       "minItems": 2,
                       "type": "array"
@@ -2040,19 +1932,16 @@
                     "type": "string"
                   },
                   "setPieces": {
-                    "default": [],
-                    "description": "Named scene objects required by the brief.",
+                    "description": "Named scene objects required by the brief.\ndefault=[].",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
                         "id": {
-                          "description": "Stable piece id.",
-                          "minLength": 1,
+                          "description": "Stable piece id.\nminLength=1.",
                           "type": "string"
                         },
                         "kind": {
-                          "description": "Scene-piece noun copied from the user wording.",
-                          "minLength": 1,
+                          "description": "Scene-piece noun copied from the user wording.\nminLength=1.",
                           "type": "string"
                         },
                         "relation": {
@@ -2060,8 +1949,7 @@
                           "description": "Relation to a scene anchor.",
                           "properties": {
                             "ref": {
-                              "description": "Template anchor or earlier set-piece id.",
-                              "minLength": 1,
+                              "description": "Template anchor or earlier set-piece id.\nminLength=1.",
                               "type": "string"
                             },
                             "type": {
@@ -2096,10 +1984,9 @@
                     "type": "array"
                   },
                   "tags": {
-                    "default": [],
-                    "description": "Scene nouns and constraints copied from the user wording.",
+                    "description": "Scene nouns and constraints copied from the user wording.\ndefault=[].",
                     "items": {
-                      "minLength": 1,
+                      "description": "minLength=1.",
                       "type": "string"
                     },
                     "type": "array"
@@ -2141,8 +2028,7 @@
                           "additionalProperties": false,
                           "properties": {
                             "over_shoulder": {
-                              "description": "Actor whose shoulder is foreground.",
-                              "minLength": 1,
+                              "description": "Actor whose shoulder is foreground.\nminLength=1.",
                               "type": "string"
                             }
                           },
@@ -2155,8 +2041,7 @@
                           "additionalProperties": false,
                           "properties": {
                             "pov": {
-                              "description": "Actor whose viewpoint is used.",
-                              "minLength": 1,
+                              "description": "Actor whose viewpoint is used.\nminLength=1.",
                               "type": "string"
                             }
                           },
@@ -2179,8 +2064,7 @@
                       "type": "string"
                     },
                     "id": {
-                      "description": "Stable shot name.",
-                      "minLength": 1,
+                      "description": "Stable shot name.\nminLength=1.",
                       "type": "string"
                     },
                     "move": {
@@ -2205,8 +2089,7 @@
                           "type": "string"
                         },
                         "easing": {
-                          "default": "linear",
-                          "description": "Easing.",
+                          "description": "Easing.\ndefault=\"linear\".",
                           "enum": [
                             "linear",
                             "ease_in",
@@ -2241,8 +2124,7 @@
                           "type": "string"
                         },
                         "speed": {
-                          "default": "medium",
-                          "description": "Speed.",
+                          "description": "Speed.\ndefault=\"medium\".",
                           "enum": [
                             "slow",
                             "medium",
@@ -2270,14 +2152,13 @@
                       "type": "string"
                     },
                     "subject": {
-                      "description": "Primary actor id or actor.part reference.",
-                      "minLength": 1,
+                      "description": "Primary actor id or actor.part reference.\nminLength=1.",
                       "type": "string"
                     },
                     "subjects": {
                       "description": "Other actors in frame.",
                       "items": {
-                        "minLength": 1,
+                        "description": "minLength=1.",
                         "type": "string"
                       },
                       "type": "array"
@@ -2292,16 +2173,10 @@
                     },
                     "window": {
                       "description": "[start,end] seconds, end after start.",
-                      "items": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        }
-                      ],
+                      "items": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
                       "maxItems": 2,
                       "minItems": 2,
                       "type": "array"
@@ -2323,8 +2198,7 @@
                 "type": "array"
               },
               "version": {
-                "default": 2,
-                "description": "Director plan version; always 2.",
+                "description": "Director plan version; always 2.\ndefault=2.",
                 "maximum": 2,
                 "minimum": 2,
                 "type": "integer"
@@ -2342,15 +2216,11 @@
             "description": "Omit for a standalone preview; shotId to build one for a shot; directorNodeId to edit one.",
             "properties": {
               "directorNodeId": {
-                "description": "Existing 3D-BOX node id; required with edits.",
-                "maxLength": 160,
-                "minLength": 1,
+                "description": "Existing 3D-BOX node id; required with edits.\nminLength=1.\nmaxLength=160.",
                 "type": "string"
               },
               "shotId": {
-                "description": "Video shot id from look_at_canvas or draft_shots; the preview becomes its reference video.",
-                "maxLength": 160,
-                "minLength": 1,
+                "description": "Video shot id from look_at_canvas or draft_shots; the preview becomes its reference video.\nminLength=1.\nmaxLength=160.",
                 "type": "string"
               }
             },
@@ -2402,13 +2272,10 @@
       ],
       "promptSnippet": "Apply one transaction of timeline operations (move, trim, split, ripple, transition, text, audio) against the revision you read.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "baseRevision": {
-            "description": "The revision returned by read_timeline; the edit applies only if it is still current.",
-            "maxLength": 64,
-            "minLength": 1,
+            "description": "The revision returned by read_timeline; the edit applies only if it is still current.\nminLength=1.\nmaxLength=64.",
             "type": "string"
           },
           "operations": {
@@ -2457,14 +2324,13 @@
                   "type": "object"
                 },
                 "clipId": {
-                  "description": "[for move, remove, split, trim, source-window, text, clip-audio]",
-                  "minLength": 1,
+                  "description": "[for move, remove, split, trim, source-window, text, clip-audio]\nminLength=1.",
                   "type": "string"
                 },
                 "clipIds": {
                   "description": "[for remove]",
                   "items": {
-                    "minLength": 1,
+                    "description": "minLength=1.",
                     "type": "string"
                   },
                   "minItems": 1,
@@ -2498,8 +2364,7 @@
                   "type": "integer"
                 },
                 "fromClipId": {
-                  "description": "[for transition]",
-                  "minLength": 1,
+                  "description": "[for transition]\nminLength=1.",
                   "type": "string"
                 },
                 "fromFrame": {
@@ -2509,8 +2374,7 @@
                   "type": "integer"
                 },
                 "id": {
-                  "description": "[for text]",
-                  "minLength": 1,
+                  "description": "[for text]\nminLength=1.",
                   "type": "string"
                 },
                 "includeText": {
@@ -2533,8 +2397,7 @@
                   "type": "string"
                 },
                 "rightClipId": {
-                  "description": "[for split]",
-                  "minLength": 1,
+                  "description": "[for split]\nminLength=1.",
                   "type": "string"
                 },
                 "ripple": {
@@ -2548,8 +2411,7 @@
                   "type": "integer"
                 },
                 "sourceNodeId": {
-                  "description": "[for text]",
-                  "minLength": 1,
+                  "description": "[for text]\nminLength=1.",
                   "type": "string"
                 },
                 "sourceStartFrame": {
@@ -2573,23 +2435,19 @@
                   "type": "string"
                 },
                 "targetTrackId": {
-                  "description": "[for move]",
-                  "minLength": 1,
+                  "description": "[for move]\nminLength=1.",
                   "type": "string"
                 },
                 "text": {
-                  "description": "[for text]",
-                  "minLength": 1,
+                  "description": "[for text]\nminLength=1.",
                   "type": "string"
                 },
                 "toClipId": {
-                  "description": "[for transition]",
-                  "minLength": 1,
+                  "description": "[for transition]\nminLength=1.",
                   "type": "string"
                 },
                 "trackId": {
-                  "description": "[for ripple]",
-                  "minLength": 1,
+                  "description": "[for ripple]\nminLength=1.",
                   "type": "string"
                 },
                 "type": {
@@ -2614,8 +2472,7 @@
             "type": "array"
           },
           "summary": {
-            "maxLength": 500,
-            "minLength": 1,
+            "description": "minLength=1.\nmaxLength=500.",
             "type": "string"
           }
         },
@@ -2659,19 +2516,14 @@
       "promptGuidelines": null,
       "promptSnippet": "Revert one reversible change you made, by the changeId its result returned.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "changeId": {
-            "description": "The changeId returned by the reversible write you are reverting.",
-            "maxLength": 200,
-            "minLength": 1,
+            "description": "The changeId returned by the reversible write you are reverting.\nminLength=1.\nmaxLength=200.",
             "type": "string"
           },
           "expectedRevision": {
-            "description": "Current timeline revision from read_timeline.",
-            "maxLength": 64,
-            "minLength": 1,
+            "description": "Current timeline revision from read_timeline.\nminLength=1.\nmaxLength=64.",
             "type": "string"
           }
         },
@@ -2713,13 +2565,11 @@
       "promptGuidelines": null,
       "promptSnippet": "Delete exact nodes (shots, artifacts, director references) from the canvas.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "nodeIds": {
             "items": {
-              "maxLength": 512,
-              "minLength": 1,
+              "description": "minLength=1.\nmaxLength=512.",
               "type": "string"
             },
             "maxItems": 24,
@@ -2727,7 +2577,7 @@
             "type": "array"
           },
           "reason": {
-            "maxLength": 300,
+            "description": "maxLength=300.",
             "type": "string"
           }
         },
@@ -2767,7 +2617,6 @@
       "promptGuidelines": null,
       "promptSnippet": "Start exporting the timeline to an MP4 file at one exact revision.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "aspectRatio": {
@@ -2784,15 +2633,11 @@
             "type": "string"
           },
           "expectedRevision": {
-            "description": "The timeline revision from read_timeline.",
-            "maxLength": 64,
-            "minLength": 1,
+            "description": "The timeline revision from read_timeline.\nminLength=1.\nmaxLength=64.",
             "type": "string"
           },
           "outputName": {
-            "description": "File name without extension.",
-            "maxLength": 120,
-            "minLength": 1,
+            "description": "File name without extension.\nminLength=1.\nmaxLength=120.",
             "type": "string"
           },
           "quality": {
@@ -2853,7 +2698,6 @@
       "promptGuidelines": null,
       "promptSnippet": "Cancel one running generation or export job.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "domain": {
@@ -2865,9 +2709,7 @@
             "type": "string"
           },
           "jobId": {
-            "description": "The job to cancel.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "The job to cancel.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           }
         },
@@ -2908,20 +2750,15 @@
       "promptGuidelines": null,
       "promptSnippet": "Save a validated skill package to the user's library.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "dirName": {
-            "description": "Directory slug for the skill (ASCII letters, digits, . _ -).",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Directory slug for the skill (ASCII letters, digits, . _ -).\nminLength=1.\nmaxLength=160.",
             "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$",
             "type": "string"
           },
           "skillMarkdown": {
-            "description": "The complete SKILL.md content, frontmatter included.",
-            "maxLength": 1048576,
-            "minLength": 1,
+            "description": "The complete SKILL.md content, frontmatter included.\nminLength=1.\nmaxLength=1048576.",
             "type": "string"
           }
         },
@@ -2961,13 +2798,10 @@
       "promptGuidelines": null,
       "promptSnippet": "Open Nomi's model settings for one provider so the user can connect it.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "provider": {
-            "description": "Provider name hint, e.g. DeepSeek or Anthropic.",
-            "maxLength": 80,
-            "minLength": 1,
+            "description": "Provider name hint, e.g. DeepSeek or Anthropic.\nminLength=1.\nmaxLength=80.",
             "type": "string"
           }
         },
@@ -3059,7 +2893,6 @@
       ],
       "promptSnippet": "Ask up to three related questions on one card and wait for his answers.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "questions": {
@@ -3072,8 +2905,7 @@
                   "type": "boolean"
                 },
                 "note": {
-                  "description": "Optional: why you ask. Not a second question.",
-                  "minLength": 1,
+                  "description": "Optional: why you ask. Not a second question.\nminLength=1.",
                   "type": "string"
                 },
                 "options": {
@@ -3082,18 +2914,15 @@
                     "additionalProperties": false,
                     "properties": {
                       "description": {
-                        "description": "One short line on what picking means; omit rather than restate the label.",
-                        "minLength": 1,
+                        "description": "One short line on what picking means; omit rather than restate the label.\nminLength=1.",
                         "type": "string"
                       },
                       "id": {
-                        "description": "Your id for this option, echoed back on pick. Omit and Nomi numbers them.",
-                        "minLength": 1,
+                        "description": "Your id for this option, echoed back on pick. Omit and Nomi numbers them.\nminLength=1.",
                         "type": "string"
                       },
                       "label": {
-                        "description": "Chip text. Picking it sends exactly these words back.",
-                        "minLength": 1,
+                        "description": "Chip text. Picking it sends exactly these words back.\nminLength=1.",
                         "type": "string"
                       },
                       "recommended": {
@@ -3109,8 +2938,7 @@
                   "type": "array"
                 },
                 "question": {
-                  "description": "One sentence in the user's language, answerable on its own.",
-                  "minLength": 1,
+                  "description": "One sentence in the user's language, answerable on its own.\nminLength=1.",
                   "type": "string"
                 }
               },
@@ -3172,18 +3000,14 @@
       ],
       "promptSnippet": "Open Nomi's credential page for one provider so the user can paste its key, and start a setup.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "docs": {
-            "description": "API documentation: the text itself, or one http(s) URL per line.",
-            "maxLength": 65536,
+            "description": "API documentation: the text itself, or one http(s) URL per line.\nmaxLength=65536.",
             "type": "string"
           },
           "name": {
-            "description": "Provider display name. Required when connecting a new provider; on a declaration it names the connection the card creates.",
-            "maxLength": 240,
-            "minLength": 1,
+            "description": "Provider display name. Required when connecting a new provider; on a declaration it names the connection the card creates.\nminLength=1.\nmaxLength=240.",
             "type": "string"
           },
           "proxyEnabled": {
@@ -3195,15 +3019,11 @@
             "type": "boolean"
           },
           "suggestedBaseUrl": {
-            "description": "Address suggestion. It is only pre-filled on the credential page; the user confirms it by saving, and Nomi binds the key to it.",
-            "maxLength": 2000,
-            "minLength": 1,
+            "description": "Address suggestion. It is only pre-filled on the credential page; the user confirms it by saving, and Nomi binds the key to it.\nminLength=1.\nmaxLength=2000.",
             "type": "string"
           },
           "vendorKey": {
-            "description": "Connection id, exactly as nomi_read target=models returned it.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Connection id, exactly as nomi_read target=models returned it.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           }
         },
@@ -3245,25 +3065,18 @@
       ],
       "promptSnippet": "Hand Nomi one whole declaration card describing a provider and its models, and register everything in it that passes.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "declaration": {
-            "description": "The whole declaration card as JSON text, including its provider block. Its shape is the contractSchema returned by nomi_read target=onboarding_kit, which also carries worked examples.",
-            "maxLength": 524288,
-            "minLength": 2,
+            "description": "The whole declaration card as JSON text, including its provider block. Its shape is the contractSchema returned by nomi_read target=onboarding_kit, which also carries worked examples.\nminLength=2.\nmaxLength=524288.",
             "type": "string"
           },
           "name": {
-            "description": "Provider display name. Required when connecting a new provider; on a declaration it names the connection the card creates.",
-            "maxLength": 240,
-            "minLength": 1,
+            "description": "Provider display name. Required when connecting a new provider; on a declaration it names the connection the card creates.\nminLength=1.\nmaxLength=240.",
             "type": "string"
           },
           "vendorKey": {
-            "description": "Connection id, exactly as nomi_read target=models returned it.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Connection id, exactly as nomi_read target=models returned it.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           }
         },
@@ -3307,19 +3120,14 @@
       ],
       "promptSnippet": "Save an API key the user handed you onto one connection, through the same door Nomi's own credential page writes to.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "apiKey": {
-            "description": "The API key exactly as the provider issued it. Only send a key the user handed you for this purpose; never ask for one, never print it back, never write it to a file.",
-            "maxLength": 4096,
-            "minLength": 1,
+            "description": "The API key exactly as the provider issued it. Only send a key the user handed you for this purpose; never ask for one, never print it back, never write it to a file.\nminLength=1.\nmaxLength=4096.",
             "type": "string"
           },
           "vendorKey": {
-            "description": "Connection id, exactly as nomi_read target=models returned it.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Connection id, exactly as nomi_read target=models returned it.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           }
         },
@@ -3366,14 +3174,12 @@
       "promptGuidelines": null,
       "promptSnippet": "Show or hide models of a connected provider in Nomi's model pickers.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "modelKeys": {
             "description": "Exact model ids from nomi_read target=models.",
             "items": {
-              "maxLength": 160,
-              "minLength": 1,
+              "description": "minLength=1.\nmaxLength=160.",
               "type": "string"
             },
             "maxItems": 200,
@@ -3381,9 +3187,7 @@
             "type": "array"
           },
           "vendorKey": {
-            "description": "Connection id, exactly as nomi_read target=models returned it.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Connection id, exactly as nomi_read target=models returned it.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           },
           "visible": {
@@ -3430,13 +3234,10 @@
       "promptGuidelines": null,
       "promptSnippet": "Abandon an in-flight model setup.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "setupId": {
-            "description": "The setup handle returned by connect_provider; nomi_read target=setup reports its state.",
-            "maxLength": 200,
-            "minLength": 1,
+            "description": "The setup handle returned by connect_provider; nomi_read target=setup reports its state.\nminLength=1.\nmaxLength=200.",
             "type": "string"
           }
         },
@@ -3479,19 +3280,14 @@
       ],
       "promptSnippet": "Run or observe the original model trial, returning its durable submission identity and the provider's own response.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "modelKey": {
-            "description": "Exact model id, as nomi_read target=models or your own submitted card spells it.",
-            "maxLength": 256,
-            "minLength": 1,
+            "description": "Exact model id, as nomi_read target=models or your own submitted card spells it.\nminLength=1.\nmaxLength=256.",
             "type": "string"
           },
           "newAttemptOf": {
-            "description": "Only after the user explicitly requests a NEW order: current attemptId from the original submission receipt. Always requires confirmation in Nomi, even in full-auto. Omit to observe or safely retry the original intent; changing parameters never opens a new order.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Only after the user explicitly requests a NEW order: current attemptId from the original submission receipt. Always requires confirmation in Nomi, even in full-auto. Omit to observe or safely retry the original intent; changing parameters never opens a new order.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           },
           "params": {
@@ -3506,21 +3302,15 @@
             "type": "object"
           },
           "prompt": {
-            "description": "Prompt for the one test generation; a short neutral prompt is used when omitted.",
-            "maxLength": 4000,
-            "minLength": 1,
+            "description": "Prompt for the one test generation; a short neutral prompt is used when omitted.\nminLength=1.\nmaxLength=4000.",
             "type": "string"
           },
           "taskKind": {
-            "description": "Which declared mode to exercise, for example text_to_image. The model's first declared mode is used when omitted.",
-            "maxLength": 64,
-            "minLength": 1,
+            "description": "Which declared mode to exercise, for example text_to_image. The model's first declared mode is used when omitted.\nminLength=1.\nmaxLength=64.",
             "type": "string"
           },
           "vendorKey": {
-            "description": "Connection id, exactly as nomi_read target=models returned it.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Connection id, exactly as nomi_read target=models returned it.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           }
         },
@@ -3564,20 +3354,16 @@
       ],
       "promptSnippet": "Permanently delete models, or a whole provider connection including its saved key.",
       "publishedJsonSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
           "ifUnchanged": {
-            "description": "Fingerprint from the nomi_read that listed these; the delete is refused if anything changed since.",
-            "maxLength": 200,
-            "minLength": 1,
+            "description": "Fingerprint from the nomi_read that listed these; the delete is refused if anything changed since.\nminLength=1.\nmaxLength=200.",
             "type": "string"
           },
           "modelKeys": {
             "description": "Exact model ids to delete. Omit to delete the whole connection and its saved key.",
             "items": {
-              "maxLength": 160,
-              "minLength": 1,
+              "description": "minLength=1.\nmaxLength=160.",
               "type": "string"
             },
             "maxItems": 200,
@@ -3585,9 +3371,7 @@
             "type": "array"
           },
           "vendorKey": {
-            "description": "Connection id, exactly as nomi_read target=models returned it.",
-            "maxLength": 160,
-            "minLength": 1,
+            "description": "Connection id, exactly as nomi_read target=models returned it.\nminLength=1.\nmaxLength=160.",
             "type": "string"
           }
         },

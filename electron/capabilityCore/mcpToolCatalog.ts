@@ -12,7 +12,7 @@
 // 不再靠 mcpProtocol.ts 的 name 集合旁挂）。
 //
 import { productionRunToolDescriptors } from '../shared/agentCapabilities/productionRunDescriptors'
-import { toPublishedJsonSchema, type JsonSchemaObject } from '../shared/agentCapabilities/modelVisibleJsonSchema'
+import { toRuntimeJsonSchema, type JsonSchemaObject } from '../shared/agentCapabilities/modelVisibleJsonSchema'
 import { listProductionPlaybookNames } from '../productionRun/productionPlaybooks'
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
@@ -25,7 +25,7 @@ const str = (value: unknown): string => (typeof value === 'string' ? value : '')
 // Same descriptor schemas used by laneToolCatalog; only the external addressing,
 // object aggregation and approval envelope are owned by this transport.
 function productionFields(name: keyof typeof productionRunToolDescriptors): Record<string, JsonSchemaObject> {
-  return toPublishedJsonSchema(productionRunToolDescriptors[name].parameters).properties as Record<string, JsonSchemaObject>
+  return toRuntimeJsonSchema(productionRunToolDescriptors[name].parameters).properties as Record<string, JsonSchemaObject>
 }
 const RUN_CREATE_FIELDS = productionFields('start_production_run')
 const RUN_EVENT_FIELDS = productionFields('subscribe_production_run')
@@ -347,6 +347,7 @@ export const MCP_TOOL_CATALOG = [
 ] as const
 
 export type McpToolDefinition = (typeof MCP_TOOL_CATALOG)[number] & {
+  readonly runtimeInputSchema: JsonSchemaObject;
   title?: string
   titleByLocale?: { readonly 'zh-CN': string; readonly en: string }
   resolveMethod?: (args: Record<string, unknown>) => string
@@ -378,6 +379,7 @@ const MCP_TOOL_SNAPSHOT = Object.freeze(MCP_TOOL_CATALOG.map((tool) => {
   return Object.freeze({
     ...tool,
     inputSchema: immutableSchemaSnapshot(tool.inputSchema),
+    runtimeInputSchema: immutableSchemaSnapshot('runtimeInputSchema' in tool ? tool.runtimeInputSchema as JsonSchemaObject : tool.inputSchema, false),
     ...(annotations ? { annotations } : {}),
   })
 })) as readonly McpToolDefinition[]

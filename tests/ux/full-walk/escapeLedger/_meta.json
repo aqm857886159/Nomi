@@ -16,6 +16,7 @@
     "claims-and-outcomes": "界面 / Agent 对状态、断线或失败的描述与事实不一致",
     "language-surface": "语言轨道与用户所选界面不一致",
     "deletion-integrity": "删除动作后的分组、选择或落盘结构不完整",
-    "overlay-legibility": "画面上的标注 / 名牌互相遮挡，用户读不出是谁"
+    "overlay-legibility": "画面上的标注 / 名牌互相遮挡，用户读不出是谁",
+    "project-location": "项目和它的文件夹对不上：读路径摘掉 / 抄错登记、写进别的文件夹，或项目被放进 Nomi 自己会清掉的目录"
   }
 }

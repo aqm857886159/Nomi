@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { cn } from '../../../utils/cn'
 import { useOverlayEscape } from '../../../design'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 /** Trim trailing zeros from a credits amount (8.50 → "8.5", 8.00 → "8"). Local to the
@@ -43,6 +44,7 @@ export default function ProvenancePanel({ node, open, onClose }: Props): JSX.Ele
   // Esc = 关闭（只读溯源面板，关掉不丢任何东西）。hook 必须在 early return 之前。
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useOverlayEscape(dialogRef, open, onClose)
+  useModalInputLayer(open)
   if (!open) return null
   const provenance = node.result?.provenance
   return (

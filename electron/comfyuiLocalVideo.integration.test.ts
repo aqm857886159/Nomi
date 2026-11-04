@@ -16,7 +16,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 let mockedUserDataRoot = "";
 vi.mock("electron", () => ({
-  app: { getPath: () => mockedUserDataRoot, getAppPath: () => process.cwd() },
+  // 和真 Electron 一样每个 name 一个目录：项目文件夹（下面的 project-*）不能落在 userData 里，入口会拒绝。
+  app: { getPath: (name: string) => path.join(mockedUserDataRoot, name), getAppPath: () => process.cwd() },
   safeStorage: {
     isEncryptionAvailable: () => false,
     encryptString: (s: string) => Buffer.from(s),

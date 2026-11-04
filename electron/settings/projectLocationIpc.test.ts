@@ -9,8 +9,13 @@ const electronMocks = vi.hoisted(() => ({
   openPath: vi.fn(),
 }));
 
+// 真 Electron 的 userData / temp / documents 是不同目录；位置判定（workspaceLocationPolicy）拿 userData、temp 当 Nomi 自己的目录，
+// 所以桩也分开给，documents 照旧落在系统临时根（「恢复默认」用例按它算默认位置）。
 vi.mock("electron", () => ({
-  app: { getPath: () => os.tmpdir(), getAppPath: () => process.cwd() },
+  app: {
+    getPath: (name: string) => (name === "documents" ? os.tmpdir() : path.join(os.tmpdir(), "nomi-project-location-ipc-electron", name)),
+    getAppPath: () => process.cwd(),
+  },
   ipcMain: { handle: electronMocks.handle },
   dialog: { showOpenDialog: electronMocks.showOpenDialog },
   shell: { openPath: electronMocks.openPath },
@@ -26,15 +31,18 @@ import {
   validateProjectLocationRoot,
 } from "./projectLocationIpc";
 import { readProjectLocationSettings, writeProjectsRoot } from "./projectLocationSettings";
-import { findRecentWorkspace, rememberWorkspace } from "../workspace/workspaceRegistry";
-import type { WorkspaceProjectRecordV2 } from "../workspace/workspaceTypes";
+import { bindWorkspaceLocation, findRecentWorkspace } from "../workspace/workspaceRegistry";
 
+/** 每个用例一个根：设置根（= 应用数据，项目不能放进去）和候选位置是兄弟目录。 */
+let base = "";
 let settingsRoot = "";
 const previousSettingsRoot = process.env.NOMI_SETTINGS_DIR;
 const previousProjectsRoot = process.env.NOMI_PROJECTS_DIR;
 
 beforeEach(() => {
-  settingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-location-ipc-"));
+  base = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-location-ipc-"));
+  settingsRoot = path.join(base, "settings");
+  fs.mkdirSync(settingsRoot);
   vi.stubEnv("NOMI_SETTINGS_DIR", settingsRoot);
   vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
   electronMocks.handle.mockReset();
@@ -42,7 +50,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  fs.rmSync(settingsRoot, { recursive: true, force: true });
+  fs.rmSync(base, { recursive: true, force: true });
   if (previousSettingsRoot === undefined) vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
   else vi.stubEnv("NOMI_SETTINGS_DIR", previousSettingsRoot);
   if (previousProjectsRoot === undefined) vi.stubEnv("NOMI_PROJECTS_DIR", undefined);
@@ -63,7 +71,7 @@ describe("project location IPC", () => {
   });
 
   it("returns the current location without mutating it", () => {
-    const customRoot = path.join(settingsRoot, "custom");
+    const customRoot = path.join(base, "custom");
     writeProjectsRoot(customRoot);
 
     expect(getProjectLocationResponse()).toEqual({
@@ -72,19 +80,22 @@ describe("project location IPC", () => {
     });
   });
 
-  it("checks that the current location is a usable directory", () => {
-    const currentRoot = path.join(settingsRoot, "current");
+  it("checks the current location without creating it: a missing folder is reported, not built (收敛单第 7 条)", () => {
+    const currentRoot = path.join(base, "current");
     writeProjectsRoot(currentRoot);
 
+    expect(checkProjectLocation()).toEqual({ ok: false, error: "missing" });
+    expect(fs.existsSync(currentRoot)).toBe(false);
+    fs.mkdirSync(currentRoot);
     expect(checkProjectLocation()).toEqual({
       ok: true,
       location: { path: currentRoot, source: "custom" },
     });
-    expect(fs.statSync(currentRoot).isDirectory()).toBe(true);
+    expect(fs.readdirSync(currentRoot)).toEqual([]);
   });
 
   it("accepts an empty directory as a usable project location", () => {
-    const emptyRoot = path.join(settingsRoot, "empty");
+    const emptyRoot = path.join(base, "empty");
     fs.mkdirSync(emptyRoot);
     writeProjectsRoot(emptyRoot);
 
@@ -96,7 +107,7 @@ describe("project location IPC", () => {
   });
 
   it("leaves the setting unchanged when the native picker is canceled", async () => {
-    const existingRoot = path.join(settingsRoot, "existing");
+    const existingRoot = path.join(base, "existing");
     writeProjectsRoot(existingRoot);
 
     const result = await pickProjectLocation({
@@ -112,8 +123,8 @@ describe("project location IPC", () => {
   });
 
   it("rejects a selected file and preserves the previous setting", async () => {
-    const existingRoot = path.join(settingsRoot, "existing");
-    const selectedFile = path.join(settingsRoot, "not-a-directory.txt");
+    const existingRoot = path.join(base, "existing");
+    const selectedFile = path.join(base, "not-a-directory.txt");
     fs.writeFileSync(selectedFile, "x", "utf8");
     writeProjectsRoot(existingRoot);
 
@@ -126,8 +137,8 @@ describe("project location IPC", () => {
   });
 
   it("rejects an unwritable selection and preserves the previous setting", async () => {
-    const existingRoot = path.join(settingsRoot, "existing");
-    const selectedRoot = path.join(settingsRoot, "unwritable");
+    const existingRoot = path.join(base, "existing");
+    const selectedRoot = path.join(base, "unwritable");
     writeProjectsRoot(existingRoot);
 
     const result = await pickProjectLocation({
@@ -140,7 +151,7 @@ describe("project location IPC", () => {
   });
 
   it("saves a valid selected directory", async () => {
-    const selectedRoot = path.join(settingsRoot, "selected");
+    const selectedRoot = path.join(base, "selected");
 
     const result = await pickProjectLocation({
       showOpenDialog: vi.fn(async () => ({ canceled: false, filePaths: [selectedRoot] })),
@@ -155,7 +166,7 @@ describe("project location IPC", () => {
   });
 
   it("uses an actual create-and-delete probe to verify write access", () => {
-    const selectedRoot = path.join(settingsRoot, "probe-target");
+    const selectedRoot = path.join(base, "probe-target");
     const openSpy = vi.spyOn(fs, "openSync");
     const unlinkSpy = vi.spyOn(fs, "unlinkSync");
 
@@ -169,7 +180,7 @@ describe("project location IPC", () => {
   });
 
   it("rejects the directory when the real write probe cannot be created", () => {
-    const selectedRoot = path.join(settingsRoot, "acl-blocked-target");
+    const selectedRoot = path.join(base, "acl-blocked-target");
     const originalOpenSync = fs.openSync.bind(fs);
     vi.spyOn(fs, "openSync").mockImplementation(((filePath, flags, ...args) => {
       if (String(filePath).includes(".nomi-write-probe-")) {
@@ -184,22 +195,13 @@ describe("project location IPC", () => {
   });
 
   it("freezes legacy project origins before changing the default location", async () => {
-    const oldRoot = path.join(settingsRoot, "old-default");
+    const oldRoot = path.join(base, "old-default");
     const oldProjectRoot = path.join(oldRoot, "old-project");
-    const newRoot = path.join(settingsRoot, "new-default");
+    const newRoot = path.join(base, "new-default");
     fs.mkdirSync(oldProjectRoot, { recursive: true });
     writeProjectsRoot(oldRoot);
-    const legacyRecord: WorkspaceProjectRecordV2 = {
-      id: "old-project",
-      name: "Old project",
-      version: 2,
-      createdAt: 1,
-      updatedAt: 1,
-      savedAt: 1,
-      revision: 0,
-      lastKnownRootPath: oldProjectRoot,
-    };
-    rememberWorkspace(settingsRoot, legacyRecord);
+    const legacyRecord = { id: "old-project", name: "Old project", rootPath: oldProjectRoot };
+    bindWorkspaceLocation(settingsRoot, legacyRecord);
 
     await pickProjectLocation({
       showOpenDialog: vi.fn(async () => ({ canceled: false, filePaths: [newRoot] })),
@@ -212,7 +214,7 @@ describe("project location IPC", () => {
   });
 
   it("restores the documents default without touching any project folders", () => {
-    const customRoot = path.join(settingsRoot, "custom");
+    const customRoot = path.join(base, "custom");
     fs.mkdirSync(customRoot);
     writeProjectsRoot(customRoot);
 
@@ -224,20 +226,23 @@ describe("project location IPC", () => {
     expect(fs.existsSync(customRoot)).toBe(true);
   });
 
-  it("creates and reveals the effective root", async () => {
-    const customRoot = path.join(settingsRoot, "new-root");
+  it("reveals an existing root, and reports a missing one instead of creating it (收敛单第 7 条)", async () => {
+    const customRoot = path.join(base, "new-root");
     writeProjectsRoot(customRoot);
     const openPath = vi.fn(async () => "");
 
-    const result = await revealProjectLocation({ openPath });
+    await expect(revealProjectLocation({ openPath })).resolves.toEqual({ ok: false, error: "missing" });
+    expect(fs.existsSync(customRoot)).toBe(false);
+    expect(openPath).not.toHaveBeenCalled();
 
+    fs.mkdirSync(customRoot);
+    const result = await revealProjectLocation({ openPath });
     expect(result).toEqual({ ok: true, location: { path: customRoot, source: "custom" } });
-    expect(fs.statSync(customRoot).isDirectory()).toBe(true);
     expect(openPath).toHaveBeenCalledWith(customRoot);
   });
 
   it("returns an explicit error when the file manager rejects the reveal", async () => {
-    const customRoot = path.join(settingsRoot, "open-failed-root");
+    const customRoot = path.join(base, "open-failed-root");
     fs.mkdirSync(customRoot);
     writeProjectsRoot(customRoot);
 
@@ -248,7 +253,7 @@ describe("project location IPC", () => {
   });
 
   it("returns an explicit error when the file manager times out", async () => {
-    const customRoot = path.join(settingsRoot, "open-timeout-root");
+    const customRoot = path.join(base, "open-timeout-root");
     fs.mkdirSync(customRoot);
     writeProjectsRoot(customRoot);
 
@@ -259,7 +264,7 @@ describe("project location IPC", () => {
   });
 
   it("reveals an existing read-only location without running the write probe", async () => {
-    const customRoot = path.join(settingsRoot, "read-only-root");
+    const customRoot = path.join(base, "read-only-root");
     fs.mkdirSync(customRoot);
     writeProjectsRoot(customRoot);
     const openPath = vi.fn(async () => "");
@@ -274,7 +279,7 @@ describe("project location IPC", () => {
   });
 
   it("does not pretend a saved choice can override the environment", async () => {
-    const environmentRoot = path.join(settingsRoot, "environment");
+    const environmentRoot = path.join(base, "environment");
     vi.stubEnv("NOMI_PROJECTS_DIR", environmentRoot);
     const showOpenDialog = vi.fn();
 

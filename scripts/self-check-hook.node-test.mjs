@@ -112,7 +112,10 @@ describe('方向检查块：只在反复修信号出现时注入，普通 bug �
   })
   test('第 2 轮不触发，第 3 轮触发', () => {
     assert.doesNotMatch(inject('这是第 2 轮'), /【方向检查 · RW】/)
-    assert.match(inject('这是第 3 轮'), /【方向检查 · RW】/)
+    const out = inject('这是第 3 轮')
+    assert.match(out, /【方向检查 · RW】/)
+    assert.match(out, /三条路对比/)
+    assert.match(out, /复盘由没参与过这几轮的线先写/)
   })
 })
 

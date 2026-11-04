@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:
       RELEASE_VERSION: ${{ inputs.version }}
@@ -177,7 +177,7 @@ jobs:
 
   windows:
     needs: validate
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -235,7 +235,7 @@ jobs:
 
   finalize:
     needs: [validate, macos, windows, windows-installer]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       RELEASE_VERSION: ${{ inputs.version }}

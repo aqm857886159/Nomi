@@ -16,9 +16,9 @@ describe("注册表并发写不丢条目（poison 根因回归）", () => {
     const worker = path.join(root, "worker.ts");
     fs.writeFileSync(
       worker,
-      `import { rememberWorkspace } from ${JSON.stringify(path.resolve(__dirname, "workspaceRegistry.ts"))};\n` +
+      `import { bindWorkspaceLocation } from ${JSON.stringify(path.resolve(__dirname, "workspaceRegistry.ts"))};\n` +
         `const root = process.env.RR; const p = process.argv[2];\n` +
-        `for (let i = 0; i < ${N}; i++) rememberWorkspace(root, { id: p + "-" + i, name: p + "-" + i, lastKnownRootPath: root });\n`,
+        `for (let i = 0; i < ${N}; i++) bindWorkspaceLocation(root, { id: p + "-" + i, name: p + "-" + i, rootPath: root });\n`,
     );
     const run = (prefix: string) =>
       new Promise<void>((resolve) =>

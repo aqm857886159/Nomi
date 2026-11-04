@@ -311,6 +311,7 @@ export async function startCapabilityCore(
     const runObservation = createRunObservationDrivers({
       repository: generationService.repository,
       buildSchedulerForRun,
+      buildSubmissionForRun,
     })
     disposeSingleShotObservationLifecycle = runObservation.stop
     const { settleSingleShotCompleted, settleSingleShotAttention, driveScheduler, kickSchedulerForRun, observeSingleShotRun } = runObservation

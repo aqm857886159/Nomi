@@ -17,6 +17,7 @@ import {
 } from '@tabler/icons-react'
 import { DecisionBar, DesignProgress, useOverlayEscape, WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { dialogDigest, type LocaleDigest, type UpdaterErrorReason, type UpdaterErrorStage } from '../../../electron/shared/updateReminder'
+import { useModalInputLayer } from '../../design/modalInputLayer'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useUpdateStore } from './updateStore'
 import { useRunningTaskCount } from './useRunningTaskCount'
@@ -292,6 +293,7 @@ export function UpdateDialog(): JSX.Element | null {
   const visible = view !== null
   // Esc = 右上角「关闭」（更新提示是可推迟的，不是不可逆动作），让位规则走共用原语。
   useOverlayEscape(dialogRef, visible, updater.closeDialog)
+  useModalInputLayer(visible && Boolean(updater.latestVersion))
   if (!view || !updater.latestVersion) return null
 
   return (

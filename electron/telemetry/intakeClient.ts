@@ -73,7 +73,27 @@ export type IntakeResult = {
 
 export type IntakeFetch = typeof globalThis.fetch
 
-const DEFAULT_TIMEOUT_MS = 8_000
+const BASE_TIMEOUT_MS = 8_000
+/** 按最慢多少算上传时间：16 字节每毫秒，也就是 16 KB/s。 */
+const SLOWEST_UPLOAD_BYTES_PER_MS = 16
+
+/**
+ * 请求的时间上限 = 基础 8 秒 + 把这么多字节传上去要多久。
+ *
+ * 固定 8 秒对一份几百 KB 的反馈太紧（线上见过）：接收端已经收下，客户端先超时，
+ * 留在队列里重发，同一份报告到了 4 次。用量事件只有几 KB，几乎还是 8 秒。
+ */
+export function intakeTimeoutMs(bodyBytes: number): number {
+  return BASE_TIMEOUT_MS + Math.ceil(bodyBytes / SLOWEST_UPLOAD_BYTES_PER_MS)
+}
+
+/** 接收端明确回了非 2xx。队列要靠状态码分清「这份字节它不收」和「过会儿再来」。 */
+export class IntakeHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`Nomi intake HTTP ${status}`)
+    this.name = 'IntakeHttpError'
+  }
+}
 
 /**
  * 令牌。**它不是密钥，是发布令牌**——随打好的 App 一起发出去，解包就能拿到。
@@ -131,6 +151,7 @@ export async function postIntake(
   const endpoint = deps.endpoint === undefined ? intakeEndpoint() : deps.endpoint
   const token = deps.token ?? intakeToken()
   if (!endpoint || !token) throw new Error('Nomi intake endpoint is not configured')
+  const body = JSON.stringify(payload)
 
   // `AbortSignal.timeout` 替掉手写的 AbortController + setTimeout + finally clearTimeout：
   // 同一件事，少三处可以忘的清理。超时/网络错都直接往上抛（fetch 与 AbortSignal 抛的本来就是
@@ -141,10 +162,10 @@ export async function postIntake(
     // 反馈回路永远不该带 cookie：带了就等于给了一个跨请求可关联的身份，
     // 而我们对用户说的是「匿名」。
     credentials: 'omit',
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(deps.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+    body,
+    signal: AbortSignal.timeout(deps.timeoutMs ?? intakeTimeoutMs(Buffer.byteLength(body, 'utf8'))),
   })
-  if (!response.ok) throw new Error(`Nomi intake HTTP ${response.status}`)
+  if (!response.ok) throw new IntakeHttpError(response.status)
   // 接收端回的是 JSON，但网关/代理可能插一页 HTML。解不出来不算失败——
   // 200 已经说明收到了，编号拿不到只是少一个把手。
   try {

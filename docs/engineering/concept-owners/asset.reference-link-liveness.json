@@ -1,0 +1,23 @@
+{
+  "name": "一条服务商临时链接此刻还能不能取到媒体（活着 / 明确失效 / 判断不了）",
+  "subject": "asset.reference-link-liveness",
+  "lifecycle": "provider-observation",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/assets/providerMediaFetch.ts",
+    "symbol": "probeProviderLink"
+  },
+  "write_api": [
+    {
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "probeProviderLink"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-11-01",
+  "notes": "合同 docs/fixes/2026-11-01-reference-link-delivery.root-cause.json：试探走 hardenedFetch（出站策略、跳转逐跳检查、不带 Key）的 GET + Range；只有 4xx（408 / 425 / 429 / 416 除外）和 2xx 回来的网页 / XML / JSON / 文字算失效，其余一律判断不了。同一条链接并发只发一个 GET；活着或判断不了记 5 分钟，失效记到进程结束。"
+}

@@ -2120,6 +2120,15 @@
       ],
       "reason": "保存结果包络记录的主进程阶段：authorize 只包含发送者校验，save-project 包含项目事务；两个阶段只由保存 handler 写入，并由 ProjectSaveFailure.stage 作为唯一词表供记录和读取使用。",
       "site": "electron/shared/contracts/projectSaveFailure.ts::type:ProjectSaveFailure/property:stage/type-union"
+    },
+    {
+      "members": [
+        "monitor-not-running",
+        "none-this-session",
+        "recorded"
+      ],
+      "reason": "诊断包清单里卡顿时间线的三态：recorded 有记录、none-this-session 监视器在跑但本次没记到、monitor-not-running 监视器没运行。只由诊断包组包函数按监视器状态和盘上读回的行数推出，写进清单给收包的人读；没有别的状态机用这三个词，无处可复用，也不会有第二个写入方。",
+      "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsStallTimeline/property:state/type-union"
     }
   ],
   "debt": [

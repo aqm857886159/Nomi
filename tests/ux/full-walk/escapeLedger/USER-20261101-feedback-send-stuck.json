@@ -1,0 +1,40 @@
+{
+  "id": "USER-20261101-feedback-send-stuck",
+  "since": "2026-11-01",
+  "source": "用户反馈：一位 Windows 用户在 0.24.0 勾选带内容后点发送，截图停在「正在发送…」，当天接收端没有收到。未读取用户真实资料，只看了接收端已有反馈包的时间戳和清单。",
+  "category": "claims-and-outcomes",
+  "problem": "点发送后界面可能一直停在「正在发送…」，这时报告还没存到本机，用户关窗就真丢了。发送失败才入队，入队后没有人排重试，要等下次启动：去重后 26 份里有 10 份晚到半小时到 7 天。接收端收下但客户端 8 秒等不到回答的会重复送达，有一份送了 4 次。413 这种重发也不会变的回答会永远堵住队列。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "Windows 用户弱网，勾了内容点发送，接收端不回",
+    "Agent 还在跑时点反馈，轨迹读不出来",
+    "排着队就关掉 App，下次打开",
+    "接收端拒收或超限",
+    "老用户升级后，旧版留在本机的反馈"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-01-feedback-delivery.md",
+    "electron/feedback/feedbackDelivery.matrix.test.ts：接收端的每种回答 × 队列写得了 / 写不了，逐行断言用户看到的结局和队列里还剩什么",
+    "electron/telemetry/intakeQueue.test.ts：先存盘再发、同一条只有一个请求在飞、退避、拒收不堵队列",
+    "src/ui/community/FeedbackReportCard.test.tsx：主进程不回时卡解锁，留言还在",
+    "tests/ux/feedback-delivery.walk.mjs：本机真接收端，中英两轨走成功、413、断线、不回答、存不下来、关 App 重开、没配接收端",
+    "docs/fixes/2026-11-01-feedback-send-delivery.root-cause.json",
+    "docs/lessons/attachment-proved-with-fake-reader-and-seen-is-not-handled.md"
+  ],
+  "completionCommits": [
+    "35fd999bb",
+    "8b7edf76e",
+    "3ea46adf0"
+  ],
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/feedback/feedbackDelivery.matrix.test.ts"
+  },
+  "rootCauseContract": "docs/fixes/2026-11-01-feedback-send-delivery.root-cause.json",
+  "notes": "线上那一次到底卡在哪一步证明不了：那份报告没到，也没有日志。这里修的是所有能卡住的地方，真实效果看新版发布后雷达的首发直达率。",
+  "fixedInPr": 1409
+}

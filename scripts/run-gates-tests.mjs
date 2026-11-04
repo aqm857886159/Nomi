@@ -19,6 +19,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { classifyValidationPolicy } from './validation-policy.mjs'
+import { gitPaths } from './lib/gitPaths.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -74,9 +75,8 @@ export function collectChangedEntries(cwd = repoRoot) {
     /* 没有 HEAD（空仓库）→ 只按上面那份算 */
   }
   try {
-    const untracked = git(['ls-files', '--others', '--exclude-standard', '-z'], cwd)
-    for (const file of String(untracked).split('\0')) {
-      if (file) entries.push({ status: 'A', path: file.replaceAll('\\', '/') })
+    for (const file of gitPaths(['ls-files', '--others', '--exclude-standard'], { cwd })) {
+      entries.push({ status: 'A', path: file.replaceAll('\\', '/') })
     }
   } catch {
     /* ls-files 失败不改变结论方向：已有条目照算，没有条目就是空 diff → full */

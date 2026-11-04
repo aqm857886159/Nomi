@@ -1,0 +1,309 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-31-git-listing-buffer",
+  "problem_type": "A file listing that grows with the repository was capped by a hidden default buffer, and a failed listing read as an empty one",
+  "symptom": "Once the tracked file list passed 1 MiB, CI Contracts went red on check:root-cause-contracts, check:main-guard, check:mcp-operation-constructible, check:model-face-frozen and check:verb-host-conformance with spawnSync git ENOBUFS, while check:secrets printed that it scanned 0 tracked files and passed.",
+  "direct_cause": "gitPaths passed maxBuffer only when a caller supplied it, so most callers got the Node default of 1 MiB. The output of git ls-files -z reached 1,051,294 bytes; check-no-secrets caught the error and returned an empty list.",
+  "class_root": "How long a path listing is depends on the repository, but the limit was left to each caller, so an unrelated default became a repository size limit. Nothing separated a listing that failed from a listing that is empty. The 2026-09-17 occurrence was fixed only in the one gate that hit it.",
+  "affected_population": [
+    "Every pull request and local push once the list passes 1 MiB; main had 351 bytes left when this was found",
+    "The public repository, because the secrets scan passed without reading a file"
+  ],
+  "scope_paths": [
+    "scripts/lib/gitPaths.mjs",
+    "scripts/check-no-secrets.mjs",
+    "scripts/check-git-path-quoting.mjs",
+    "scripts/check-no-machine-symlinks.mjs",
+    "scripts/check-source-nul-bytes.mjs",
+    "scripts/pre-push-related-tests.mjs",
+    "scripts/run-gates-tests.mjs",
+    "scripts/check-scan-guard-census.mjs",
+    "scripts/check-self-written.mjs",
+    "scripts/concept-owners-scan.mjs"
+  ],
+  "entry_points": [
+    "Every gate that lists files through gitPaths, gitNameStatus or trackedFiles",
+    "Four gates that started git ls-files directly: machine symlinks, NUL bytes, related tests, gates test selection",
+    "check:secrets in --all mode and staged mode"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is about this repository's own gate scripts. The limit and the failure were measured directly: the byte count of the listing and the ENOBUFS error in CI and locally.",
+  "invariants": [
+    "gitPaths and gitNameStatus read a listing of any realistic length, and a caller cannot lower the limit",
+    "JavaScript under scripts/ lists files with ls-files only through gitPaths or trackedFiles",
+    "check:secrets is red when it cannot list files, and red when --all lists none"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "scripts/check-scan-guard-census.mjs",
+      "symbol": "trackedFiles"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-dangling-tokens.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-design-tokens.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-direction-trailer.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-file-sizes.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-framework-boundary.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-main-guard.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-model-availability.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-model-identity.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-no-machine-symlinks.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-no-secrets.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-pr-judgement.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-prior-art.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-root-cause-contracts.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-scan-guard-census.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-self-written.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-source-nul-bytes.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-test-copy-literals.mjs",
+      "symbol": "trackedFiles"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/check-test-waits.mjs",
+      "symbol": "trackedFiles"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/concept-owners-scan.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/fix-churn.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/gate-mutation-harness.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/generate-published-receipt-fixtures.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/git-delivery.mjs",
+      "symbol": "gitNameStatus"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/lib/entryDirectory.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/lib/gitPaths.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/pre-push-related-tests.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/run-ci-e2e-chain.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/run-gates-tests.mjs",
+      "symbol": "gitPaths"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/select-quality-gate-profile.mjs",
+      "symbol": "gitNameStatus"
+    }
+  ],
+  "door_reduction": {
+    "before": 34,
+    "after": 30,
+    "why_not": "The 30 callers stay because each gate reads its own file set. They no longer own the limit: it is one constant inside gitPaths. The four direct callers moved behind it."
+  },
+  "generality_proof": "Every listing now passes through one function with one limit and no caller option, so no caller or future gate can run with a smaller buffer, and check:git-path-quoting rejects a new direct ls-files. Reproduced at more than 1 MiB with a real git index in the boundary test.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/lib/gitPaths.mjs",
+      "symbol": "gitPaths",
+      "responsibility": "Owns the only listing buffer limit; callers cannot pass one."
+    },
+    {
+      "path": "scripts/lib/gitPaths.mjs",
+      "symbol": "gitNameStatus",
+      "responsibility": "Applies the same limit to name-status listings."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-main-guard.mjs",
+      "entry_point": "gitPaths ls-files",
+      "disposition": "enforced",
+      "evidence": "Went red with ENOBUFS in CI; calls gitPaths, which now owns the limit."
+    },
+    {
+      "path": "scripts/check-root-cause-contracts.mjs",
+      "entry_point": "gitPaths ls-files",
+      "disposition": "enforced",
+      "evidence": "Went red with ENOBUFS in CI; calls gitPaths, which now owns the limit."
+    },
+    {
+      "path": "scripts/check-no-machine-symlinks.mjs",
+      "entry_point": "ls-files -s",
+      "disposition": "enforced",
+      "evidence": "Hit this on 2026-09-17 and carried its own limit; now calls gitPaths and the private limit is gone."
+    },
+    {
+      "path": "scripts/check-source-nul-bytes.mjs",
+      "entry_point": "filesToScan",
+      "disposition": "enforced",
+      "evidence": "Carried a private 64 MiB limit; now calls gitPaths."
+    },
+    {
+      "path": "scripts/pre-push-related-tests.mjs",
+      "entry_point": "relatedTests",
+      "disposition": "enforced",
+      "evidence": "Listed test files without -z through its own wrapper; now calls gitPaths."
+    },
+    {
+      "path": "scripts/run-gates-tests.mjs",
+      "entry_point": "collectChangedEntries",
+      "disposition": "enforced",
+      "evidence": "Listed untracked files with the default buffer; now calls gitPaths."
+    },
+    {
+      "path": "scripts/lib/walkthroughBaselineGuard.mjs",
+      "entry_point": "readTreeTexts",
+      "disposition": "not-affected",
+      "evidence": "Uses ls-tree limited to named prefixes and has its own 64 MiB limit, because it needs the object ids that gitPaths does not parse."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The repository keeps growing and the same limit was already hit once on 2026-09-17, so any caller left with its own limit would hit it again.",
+    "same_class_scan": [
+      "git grep for ls-files, ls-tree, --name-only and --name-status across scripts, excluding tests",
+      "git grep for gitPaths, gitNameStatus and trackedFiles followed by catch within four lines, read each one",
+      "node scripts/door-map.mjs gitPaths gitNameStatus trackedFiles --roots=scripts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/lib/gitPaths.mjs",
+    "invariant": "One limit, owned by the listing entry, that callers cannot change.",
+    "failure_mode": "A listing that still fails throws. check:secrets exits 1 and says it did not scan.",
+    "exception_policy": "none",
+    "strategy": "Remove the caller option so a small limit cannot be written, move direct callers behind the entry, and let the existing path gate reject new direct calls.",
+    "artifacts": [
+      "scripts/lib/gitPaths.mjs",
+      "scripts/check-no-secrets.mjs",
+      "scripts/check-git-path-quoting.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/lib/gitPaths.node-test.mjs",
+    "scripts/check-no-secrets.test.mjs",
+    "scripts/check-git-path-quoting.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/lib/gitPaths.node-test.mjs",
+    "scripts/check-git-path-quoting.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/lib/gitPaths.mjs",
+      "scripts/check-no-machine-symlinks.mjs",
+      "scripts/check-source-nul-bytes.mjs"
+    ],
+    "rationale": "The maxBuffer option and the private limits in the direct callers are gone. Callers that passed the option no longer do."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The Node default is documented behaviour and stays as it is; the repository now states its own limit at one place.",
+    "exit_criteria": []
+  },
+  "migration": "None. These scripts hold no stored state.",
+  "residual_risks": [
+    "Other git commands with their own wrappers and the default buffer remain, such as the commit history read in scripts/fix-churn.mjs; their output depends on the size of a change or a time window, not the whole repository. Checked by reading, not by a test.",
+    "Other gates that catch a listing error and continue were read and left alone: the limit can no longer cause that error, but a broken repository still could."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-30",
+  "invariant_owner_layer": {
+    "layer": "scripts/lib/gitPaths.mjs",
+    "tests": [
+      "scripts/lib/gitPaths.node-test.mjs",
+      "scripts/check-git-path-quoting.node-test.mjs"
+    ]
+  }
+}

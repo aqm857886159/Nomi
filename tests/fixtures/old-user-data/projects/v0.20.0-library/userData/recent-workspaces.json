@@ -1,0 +1,28 @@
+[
+  {
+    "id": "workspace-07213602-f8ce-47e2-9bec-9f37547a13cf",
+    "name": "App Data Project",
+    "rootPath": "__OLD_USER_ROOT__/userData/Nomi Projects/App Data Project-mvxnu7b3-dc703051",
+    "lastOpenedAt": 1793527286667,
+    "missing": false,
+    "source": "native",
+    "nativeRootPath": "__OLD_USER_ROOT__/userData/Nomi Projects"
+  },
+  {
+    "id": "workspace-71ddd13c-34c8-4f47-834b-25564ce50dd7",
+    "name": "External Project",
+    "rootPath": "__OLD_USER_ROOT__/home/Elsewhere/External Project",
+    "lastOpenedAt": 1793527286647,
+    "missing": false,
+    "source": "folder"
+  },
+  {
+    "id": "workspace-733a6b0c-76a8-4190-99db-e5038ec56c03",
+    "name": "Docs Project",
+    "rootPath": "__OLD_USER_ROOT__/home/Documents/Nomi Projects/Docs Project-mvxnu79u-d3c2c5f9",
+    "lastOpenedAt": 1793527286629,
+    "missing": false,
+    "source": "native",
+    "nativeRootPath": "__OLD_USER_ROOT__/home/Documents/Nomi Projects"
+  }
+]

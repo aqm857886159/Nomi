@@ -220,9 +220,9 @@ export function answeredSubmissionFailure(error: unknown): boolean {
 // 只有执行器**声明**自己的每个请求都走 `appFetch`（`GenerationProvider.networkTransport === "app-fetch"`）时才信这本账；
 // 没声明的（测试替身、未来接进来的别的传输）只认 cause 链证据，与以前一样。
 //
-// 不计入「可能写出去」的只有一种：**不带任何凭据、没有 query、没有请求体的 GET / HEAD**（例如官方备用域探测
+// 不计入「可能写出去」的只有两种：**不带任何凭据、没有 query、没有请求体的 GET / HEAD**（例如官方备用域探测
 // `GET /v1/models`）。不带用户的 key，就不可能记到用户账上。带了凭据（任何非标准头，判据在 credentialRedirectPolicy）、
-// 带 query（query 式鉴权）或带请求体的，一律算可能花钱。
+// 带 query（query 式鉴权）或带请求体的，一律算可能花钱。另一种是发送入口的素材落地，见 `outsidePaidDispatch`。
 
 export type NotDispatchedReason =
   /** 这次派发一个请求都没交给网络层：在本机就被拦下（出网策略、本机检查、密钥缺失、网络设置没就绪……）。 */
@@ -230,7 +230,7 @@ export type NotDispatchedReason =
   /** 交给网络层的请求全都在连上之前就失败了（DNS / 建连 / TLS 握手前）。 */
   | "connect_failed";
 
-const ledgerStorage = new AsyncLocalStorage<HandoffLedger>();
+const ledgerStorage = new AsyncLocalStorage<HandoffLedger | undefined>();
 
 type HandoffLedger = {
   /** 交给网络层、可能花钱的请求，还没被证明「没写出去」的那几笔。 */
@@ -298,6 +298,15 @@ export async function handOffToNetwork<T>(input: FetchInput, init: RequestInit |
     if (token && outboundRequestWasNeverWritten(error)) for (const ledger of chain) ledger.open.delete(token);
     throw error;
   }
+}
+
+/**
+ * 发送入口把参考素材落地（试探临时链接、上传本机文件）不是付费派发：这些请求不会产生一笔生成，不管成败，都不能让这次派发
+ * 被说成「可能已被服务商收下」。放到账本外跑，账上只剩真正交给模型的那些请求；重试最多多传一次文件，不会多一笔生成。
+ * 只给发送入口的唯一口用（`catalog/assetTransportRuntime.ts`，door-map 数得出只有这一扇）。
+ */
+export function outsidePaidDispatch<T>(work: () => Promise<T>): Promise<T> {
+  return ledgerStorage.run(undefined, work);
 }
 
 export type ObservedSubmission<T> =
