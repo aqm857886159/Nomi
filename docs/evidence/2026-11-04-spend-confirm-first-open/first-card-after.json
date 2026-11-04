@@ -1,0 +1,31 @@
+{
+  "build": "statically loaded card (this change)",
+  "platform": "darwin arm64, zh-CN, production renderer build, isolated profile",
+  "method": "each run is a fresh app launch; time from requesting a spend confirmation to the card visible plus one frame; second = another request in the same session",
+  "runs": 5,
+  "firstMedian": 5.400000095367432,
+  "firstMax": 7.799999713897705,
+  "secondMedian": 3.5999999046325684,
+  "results": [
+    {
+      "first": 7,
+      "second": 3.5999999046325684
+    },
+    {
+      "first": 4.899999618530273,
+      "second": 3.3000001907348633
+    },
+    {
+      "first": 7.799999713897705,
+      "second": 3.5999999046325684
+    },
+    {
+      "first": 5.400000095367432,
+      "second": 3.8000001907348633
+    },
+    {
+      "first": 2.9000000953674316,
+      "second": 2.3000001907348633
+    }
+  ]
+}
