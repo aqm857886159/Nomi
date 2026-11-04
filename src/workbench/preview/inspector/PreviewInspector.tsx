@@ -25,8 +25,11 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   </section>
 }
 
+// 属性栏最窄 200（panelLayout EDITING_PANEL_BOUNDS.inspector.min，1440 开着 Nomi 时就是这个宽）。
+// 两列网格：名字列至少放下它最长的词、其余空间都归它；控件列按内容宽，只有名字折到最窄后才缩，缩的是滑块——读数、输入框、下拉不被裁。
+// 不用弹性布局分差额：那样名字一折行，控件组也会被分走零点几像素，下拉里的「1080p」就成了「108…」。
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }): JSX.Element {
-  return <label className="flex items-center justify-between gap-2 text-caption text-[var(--workbench-muted)]" title={hint}><span>{label}</span><span className="flex items-center gap-1">{children}</span></label>
+  return <label className="grid grid-cols-[minmax(min-content,1fr)_minmax(0,max-content)] items-center gap-2 text-caption text-[var(--workbench-muted)]" title={hint}><span>{label}</span><span className="flex min-w-0 items-center justify-end gap-1 [&>input[type=range]]:min-w-0">{children}</span></label>
 }
 
 function TypeIcon({ type }: { type: 'video' | 'image' | 'text' }): JSX.Element {

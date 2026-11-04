@@ -290,9 +290,13 @@ try {
   await win.waitForTimeout(700)
   const narrow = await readGeometry()
   console.log('  · 窄窗几何：', JSON.stringify({ source: narrow.source?.w, preview: narrow.preview?.w, inspector: narrow.inspector?.w, assistant: narrow.assistant?.w }))
-  // ±1px：面板宽度是 flexGrow 算出来的分数像素，边界上会四舍五入掉 1px。
-  check('窄窗下各面板仍不低于合同下限', (narrow.source?.w ?? 0) >= 239 && (narrow.inspector?.w ?? 0) >= 199 && (narrow.assistant?.w ?? 0) >= 319,
-    `source=${narrow.source?.w} inspector=${narrow.inspector?.w} assistant=${narrow.assistant?.w}`)
+  // 1280 开着 Nomi 时三栏最小宽 920 放不下舞台行 812：侧栏要么可读宽度、要么 32px 收起条（2026-11-04 拍板「先收属性」，
+  // 设计卡 docs/plan/2026-11-04-preview-narrow-panels.md）。旧判据「三栏都 ≥ 下限」在这个宽度做不到，正是左栏被吸成 32px 还画展开内容的那一类。
+  // ±1px：面板宽度是分数像素，边界上会四舍五入掉 1px。
+  const readableOrRail = (width, min) => width <= 33 || width >= min - 1
+  check('窄窗下侧栏要么收起条要么不低于合同下限、预览 ≥ 480、Nomi 不低于下限',
+    readableOrRail(narrow.source?.w ?? 0, 240) && readableOrRail(narrow.inspector?.w ?? 0, 200) && (narrow.preview?.w ?? 0) >= 479 && (narrow.assistant?.w ?? 0) >= 319,
+    `source=${narrow.source?.w} preview=${narrow.preview?.w} inspector=${narrow.inspector?.w} assistant=${narrow.assistant?.w}`)
   check('窄窗下 transport 仍贴预览列底部', Math.abs((narrow.column?.bottom ?? 0) - (narrow.bar?.bottom ?? 0)) <= 2,
     `距列底 ${(narrow.column?.bottom ?? 0) - (narrow.bar?.bottom ?? 0)}px`)
   await screenshotSettled(win, { path: path.join(shotsDir, '07-narrow.png') })
