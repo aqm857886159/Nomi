@@ -1,6 +1,6 @@
 import { makeTempDir } from './_test-temp.mjs'
 // 走查网络闸（scripts/walkthrough-network-guard.cjs）先验它会红：每一层都拿一次真实的出门尝试去撞，必须被拦下、记账；
-// 本机回环必须放行；放行的连接不出本机（域名解析当场失败，见 NO_PUBLIC_DNS）。起一个装了闸的 node 子进程（Chromium 那一层只在 Electron 主进程里有，这里验不到，由走查的 layers 检查兜）。
+// 本机回环必须放行。起一个装了闸的 node 子进程（Chromium 那一层只在 Electron 主进程里有，这里验不到，由走查的 layers 检查兜）。
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -14,34 +14,47 @@ const guard = path.join(path.dirname(fileURLToPath(import.meta.url)), 'walkthrou
 const { scrubText } = createRequire(import.meta.url)('./walkthrough-url-shape.cjs')
 const temps = []
 
-// 子进程里的域名解析一律当场答「查无此名」：闸在解析之前就按主机名决定放行还是拦，所以验的东西不变；
-// 被放行的连接也就到不了外网。以前放行的 cdn.getapib.org:443 真连出去，子进程一直不退，测试跟着卡死。
-const NO_PUBLIC_DNS = `{
-  const dns = require('node:dns')
-  const { isIP } = require('node:net')
-  const original = dns.lookup
-  dns.lookup = function lookupWithoutNetwork(host, options, callback) {
-    if (typeof options === 'function') { callback = options; options = {} }
-    // 本机服务器 listen 也走这里（连 '127.0.0.1' 都查），IP 写法和 localhost 照常解析。
-    if (host === 'localhost' || isIP(String(host))) return original.call(this, host, options, callback)
-    process.nextTick(callback, Object.assign(new Error('getaddrinfo ENOTFOUND ' + host + ' (test: no public network)'), { code: 'ENOTFOUND', syscall: 'getaddrinfo', hostname: host }))
-  }
+// 子进程里先于网闸装上的「不出网」层：网闸放行的连接走到这里就以 ENETUNREACH 结束，并记一条 offline。
+// 这些用例只验网闸怎么判、怎么记，不许真连外网——有的网络会把外连接住、对方不发数据就一直不放，
+// 子进程就永远不退出；而 spawnSync 是同步的，vitest 的用例超时打断不了它，整轮测试会一直挂着。
+// 本机回环和 unix socket 照旧放行（hold-response、loopback 两条用例要真的连本机）。
+const OFFLINE_PRELOAD = `
+const fs = require('node:fs')
+const net = require('node:net')
+const realConnect = net.Socket.prototype.connect
+function isLoopback(host) {
+  if (host === undefined || host === null || host === '') return true
+  const value = String(host).trim().toLowerCase().replace(/^\\[/, '').replace(/\\]$/, '')
+  return ['localhost', '::1', '0:0:0:0:0:0:0:1', '::ffff:127.0.0.1'].includes(value) || /^127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$/.test(value)
+}
+net.Socket.prototype.connect = function offlineConnect(...args) {
+  let options = args[0]
+  if (Array.isArray(options)) options = options[0]
+  const target = options && typeof options === 'object'
+    ? { host: options.host, port: options.port, path: options.path }
+    : typeof options === 'string' && Number.isNaN(Number(options)) ? { path: options } : { port: options, host: typeof args[1] === 'string' ? args[1] : undefined }
+  if (target.path || isLoopback(target.host)) return realConnect.apply(this, args)
+  fs.appendFileSync(process.env.NOMI_WALK_NET_LOG, JSON.stringify({ kind: 'offline', host: String(target.host), port: Number(target.port) || 0 }) + '\\n')
+  const error = Object.assign(new Error('connect ENETUNREACH ' + target.host + ':' + target.port + ' (unit test is offline)'), { code: 'ENETUNREACH', syscall: 'connect' })
+  process.nextTick(() => this.destroy(error))
+  return this
 }
 `
-// spawnSync 会堵住测试进程，测试自己的超时管不到它；子进程必须自己有时限。
-const CHILD_TIMEOUT_MS = 15_000
+// 「不出网」层之外的兜底：子进程 20 秒还没结束就算这条用例失败，不再无限等。
+const CHILD_LIMIT_MS = 20_000
 
 function runGuarded(code, extraEnv = {}) {
   const dir = makeTempDir('nomi-net-guard-')
   temps.push(dir)
   const log = path.join(dir, 'net.jsonl')
-  const result = spawnSync(process.execPath, ['-r', guard, '-e', NO_PUBLIC_DNS + code], {
+  const offline = path.join(dir, 'offline.cjs')
+  fs.writeFileSync(offline, OFFLINE_PRELOAD)
+  const result = spawnSync(process.execPath, ['-r', offline, '-r', guard, '-e', code], {
     env: { ...process.env, NOMI_WALK_NET_LOG: log, HTTPS_PROXY: '', HTTP_PROXY: '', ALL_PROXY: '', https_proxy: '', http_proxy: '', all_proxy: '', ...extraEnv },
     encoding: 'utf8',
-    timeout: CHILD_TIMEOUT_MS,
-    killSignal: 'SIGKILL',
+    timeout: CHILD_LIMIT_MS,
   })
-  if (result.error) throw new Error(`装了闸的子进程没在 ${CHILD_TIMEOUT_MS}ms 内退出（${result.error.code ?? result.error.message}）：有连接没被拦也没失败，还挂着`)
+  if (result.error) throw new Error(`guarded child did not finish within ${CHILD_LIMIT_MS} ms (${result.error.code ?? result.error.message})`)
   const entries = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : []
   return { stdout: result.stdout, stderr: result.stderr, status: result.status, entries }
 }
@@ -65,6 +78,8 @@ describe('walkthrough network guard', () => {
     `, { NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid/v1', CI: '' })
     const blocked = entries.filter((entry) => entry.kind === 'blocked')
     expect(blocked.map((entry) => entry.host)).toEqual(['other.invalid'])
+    // 放行的那一笔走到「不出网」层就停：fetch 底下的连接也经过它，测试不会真连外网。
+    expect(entries.filter((entry) => entry.kind === 'offline').map((entry) => entry.host)).toEqual(['allowed.invalid'])
   })
 
   it('NOMI_WALK_HOLD_RESPONSE lets the request reach the provider and holds only its answer until released', () => {
@@ -208,6 +223,7 @@ describe('walkthrough network guard', () => {
       for (const host of ['cdn.getapib.org', 'getapib.org.evil.test']) net.connect(443, host).on('error', () => undefined)
     `, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: '' })
     expect(entries.filter((entry) => entry.kind === 'blocked' && entry.via === 'socket').map((entry) => entry.host)).toEqual(['getapib.org.evil.test'])
+    expect(entries.filter((entry) => entry.kind === 'offline').map((entry) => entry.host)).toEqual(['cdn.getapib.org'])
   })
 
   it('"*.domain" is ignored under CI too', () => {

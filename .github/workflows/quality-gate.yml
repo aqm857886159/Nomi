@@ -48,7 +48,7 @@ permissions:
 jobs:
   scope:
     name: Validation Scope
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       core_smoke: ${{ steps.profile.outputs.core_smoke }}
@@ -79,7 +79,7 @@ jobs:
 
   contracts:
     name: Contracts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
@@ -125,7 +125,7 @@ jobs:
   unit:
     name: Unit
     needs: scope
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 50
     # 2026-10-09：full 档按 vitest 原生 `--shard` 分 3 片并行（实测此前单机 16.3 分钟，其中 vitest 7.6 分钟）。
     # vitest 按文件路径哈希把测试文件无重叠无遗漏地分到各片（脚本侧证据见 PR 正文）；focused 档只有一片，照旧。
@@ -174,7 +174,7 @@ jobs:
       needs.scope.outputs.desktop == 'true' ||
       needs.scope.outputs.journeys == 'true' ||
       needs.scope.outputs.canvas == 'critical'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     # 2026-10-09：按 4 片并行（实测此前单机串行 38.9 分钟）。每片跑哪些走查、哪些普查格由
     # scripts/lib/e2eShardPlan.mjs 按历史耗时装箱，这里不写死；每个步骤只靠 `Plan shard` 的输出决定跑不跑。
@@ -330,7 +330,7 @@ jobs:
     name: Canvas Acceptance (Linux)
     needs: scope
     if: needs.scope.outputs.canvas == 'full'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -380,7 +380,7 @@ jobs:
     name: Canvas Performance (Linux)
     needs: scope
     if: needs.scope.outputs.performance == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -431,7 +431,7 @@ jobs:
     name: Core Flow Smoke (${{ matrix.fixture }})
     needs: scope
     if: needs.scope.outputs.core_smoke == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     # used 这一格**照跑、照传证据，但不阻断**（2026-09-22 用户拍板）：实测同一份代码连跑 5 次
     # 只有 1 次全绿，三种失败都出自还没修的小窗布局问题（T-CV-19 / T-CV-20 / T-QA-21），
@@ -486,7 +486,7 @@ jobs:
     name: Mac Package
     needs: scope
     if: needs.scope.outputs.package == 'true'
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
@@ -546,7 +546,7 @@ jobs:
     name: Quality Gate
     needs: [scope, contracts, unit, core-smoke, desktop-linux, canvas-acceptance, canvas-performance, mac-package, design-lab-macos]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
