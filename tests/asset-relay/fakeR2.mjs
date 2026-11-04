@@ -23,6 +23,8 @@ export function createFakeR2({ pageCap = R2_BATCH_LIMIT, maxOperations = Infinit
     values,
     calls,
     get operations() { return operations; },
+    /** A new Worker invocation (the next cron run, the next request) gets a fresh subrequest budget. */
+    newInvocation() { operations = 0; },
     /** Test seeding: customMetadata is stored exactly as put() would store it. */
     seed(key, { size = 1, expiresAt, customMetadata, contentType = "image/png" } = {}) {
       const meta = customMetadata ?? (expiresAt === undefined ? undefined : { expiresAt });

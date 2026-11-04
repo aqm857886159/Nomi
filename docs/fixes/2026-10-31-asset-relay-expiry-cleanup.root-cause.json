@@ -29,12 +29,19 @@
       "url": "https://developers.cloudflare.com/r2/api/workers/workers-api-reference/",
       "checked_at": "2026-10-31",
       "purpose": "list() returns httpMetadata/customMetadata only when named in include (compatibility date 2022-08-04 or later); list pages and delete([keys]) are capped at 1000."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.cloudflare.com/workers/platform/limits/#subrequests",
+      "checked_at": "2026-11-05",
+      "purpose": "R2 binding calls are subrequests to an internal service: 1,000 per invocation on Workers Free, 10,000 by default on Paid; past the limit the runtime throws Too many subrequests."
     }
   ],
   "invariants": [
     "Every bucket listing the relay performs asks for customMetadata and goes through the single assetPages() generator.",
     "storageBytes and objectCount cover every object still in the bucket, expired or not; expired and metadata-less objects are reported separately.",
     "cleanup deletes exactly the objects whose expiresAt has passed, one batched delete (<= 1000 keys) per listed page, and never deletes an object without a usable expiresAt.",
+    "No relay invocation spends more than 900 R2 calls on a scan (assetPages owns the budget): a cleanup that reaches it stops cleanly and logs complete:false, and the next hourly run continues from the oldest keys; a usage scan that reaches it throws, so uploads fail closed with usage_unavailable instead of trusting a short total.",
     "The relay's tests run against a bucket double that withholds list() metadata unless it is requested, and the suite is run by a gate (check:asset-relay, CI Contracts)."
   ],
   "doors": [
@@ -49,7 +56,7 @@
   },
   "generality_proof": "All relay listings go through assetPages(), which fixes prefix, page size and include in one place; expiry is decided by one assetExpiryMs() used by usageSnapshot, cleanup and readAsset. The class-level matrix runs object populations (all expired, all live, mixed, missing or garbled expiresAt, empty) across R2 page sizes of 1, 2, 3 and 1000 against a bucket double that behaves like R2, and a source census fails any worker file that lists an R2 bucket without include or that adds a second listing site to the relay.",
   "shared_boundaries": [
-    { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "assetPages", "responsibility": "Own how the relay bucket is listed: prefix, page size and the include that makes expiresAt visible." },
+    { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "assetPages", "responsibility": "Own how the relay bucket is listed: prefix, page size, the include that makes expiresAt visible, and the per-invocation R2 call budget that ends a scan before the runtime limit does." },
     { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "assetExpiryMs", "responsibility": "Own the single definition of an object's expiry, returning null when no usable expiresAt exists so such objects are never deleted." },
     { "path": "workers/nomi-asset-relay/src/index.mjs", "symbol": "usageSnapshot", "responsibility": "Own the stored-bytes figure the hard cap and budget guard compare against: every byte still in the bucket." }
   ],
@@ -106,7 +113,8 @@
   "residual_risks": [
     "Until an hourly run finishes, uploads are refused with storage_limit_reached while the bucket is above the cap, because expired bytes now count; the desktop falls back to other upload channels. At the normal 24 h TTL the pending backlog is at most about an hour of uploads.",
     "check:asset-relay is CI-only for now (declared in pre-push-gate-table.mjs); wiring it into the pre-push selector waits for the direction check on the temp-roots concept.",
-    "A backlog larger than the Worker's per-invocation subrequest budget (2 operations per 1000 objects) would finish over several hourly runs rather than one.",
+    "A backlog longer than one run's 900-call budget finishes over several hourly runs (each cut-short run logs complete:false). Objects that stay (live or without expiresAt) are listed again by every run, so cleanup only stalls if they alone fill about 900 pages (roughly 900k objects at R2's usual 1000 per page); the bucket held 23 objects after the 2026-10-31 cleanup.",
+    "A usage scan longer than the same budget refuses every upload with usage_unavailable until cleanup shrinks the bucket; that only happens past about 900 pages of objects, far beyond the 8 GB cap at media file sizes.",
     "Objects without an expiresAt are never deleted by this change; whether to age them out by upload time is a product decision left to the coordinator."
   ],
   "invariant_owner_layer": {

@@ -18,6 +18,7 @@
 - 承诺的过期兑现：过期对象残留数 → 清理后 `expiredObjectCount` 应为 0 → 部署后 cron 日志 `deleted` 与 bucket info 对象数下降一致。
 - 硬上限看得见真实占用：`storageBytes` 与桶内字节差 → 矩阵测试 5 种对象构成 × 4 种分页，差为 0。
 - 不超子请求预算：每次清理调用桶的次数 → 每页 1 次 list + 1 次批量 delete；2,700 个对象 6 次调用（测试在 50 次上限下通过）。
+- 单次运行有上限（第 2 轮，验收发现）：R2 调用算 Worker 对内部服务的子请求，免费版每次 1,000、付费版默认 10,000（[官方限额](https://developers.cloudflare.com/workers/platform/limits/#subrequests)，11-05 核对）。一次清理或一次用量统计最多 900 次 R2 调用，由 `assetPages()` 记账 → 量具：测试替身按 1,000 次上限抛错，5,001 个过期对象、每页 1 个时每次运行 ≤ 900 次、多次运行清完。
 - 基线与现状：13.7 GB / 6,728 个对象；目标 ≤ 8 GB；清理后数字见 PR 正文，未验证的写「未验证」。
 
 ★1b 连带界面：无用户界面；`/v1/usage` 的 JSON 多了 `expiredStorageBytes`、`untrackedObjectCount`，`objectCount` / `storageBytes` 现在含已过期未删对象（唯一读者是管理员 curl 和测试，仓库内无其他消费者）；cron 每次输出一行 `asset_cleanup` JSON 日志。
@@ -36,6 +37,8 @@
 - 正常：过期对象每页一次批量删除；未过期保留。
 - 失败：list / delete 抛错 → cron 任务失败（Cloudflare 日志可见），下个整点重试；上传前统计失败 → `usage_unavailable` 503，不放行。
 - 部分成功：某页删除后下一页失败 → 已删的不回滚，下次继续。
+- 一次清不完：用到 900 次调用就正常收工，日志 `complete:false`；键以上传时间开头、按时间从旧到新列，下个整点从最旧的接着删。留下的对象（未过期、无 `expiresAt`）每次都会重新列一遍，只有它们自己就占满约 900 页（约 90 万个）才会卡住。
+- 用量统计数不完：到 900 次就算「数不清」，上传返回 `usage_unavailable` 503，不拿少算的总数放行。
 - 取消中 / 过期：对象在 24 小时点后、整点清理前仍可能被读到——`readAsset` 读到已过期的会当场删除并返回 404。
 - 容量满：已过期未删的字节也算，上传返回 507 `storage_limit_reached`；桌面端回落到其他上传通道；清理后恢复。
 - 能力不可用：无用户界面。
@@ -53,6 +56,7 @@
 6. 反例「过期字节不计容量」：上限 120、过期 100 + 活 10，再传 20 → 507。
 7. 类会从哪回来：①别的 Worker 列 R2 桶漏 include → census 覆盖 `workers/`、`infra/`；②测试替身放宽 → 替身自身有「不 include 不返回元数据」「超 1000 抛错」的测试；③测试文件没人跑 → 接了 `check:asset-relay`（CI Contracts 的 `gates:contracts`，在 `pre-push-gate-table.mjs` 登记为 CI 门岗；推送前选择器 `pre-push-contracts.mjs` 属热点概念「测试与走查的临时目录归属」，近 14 天 10 个 fix，不往里加登记，方向检查后再接）。
 8. 部署后：第一个整点后 `wrangler r2 bucket info nomi-assets` 对象数 / 体积下降，报删除量、剩余量与剩余对象为何不过期。
+9. 反例「一次运行超出调用上限」（第 2 轮）：替身上限 1,000 次、每页 1 个、5,001 个过期对象 → 每次 cron ≤ 900 次、不抛错、未清完时日志 `complete:false` 且有进度，多次后清空；1/3 未过期对象夹在中间也能清完；1,000 个对象的用量统计 → `/v1/usage` 与上传都 503、不写入。把上限改成无穷大，这 3 项必须红。
 
 命令：`pnpm run check:asset-relay`；`node --test scripts/pre-push-structure.node-test.mjs scripts/pre-push-contracts.node-test.mjs`；`pnpm run check:root-cause-contracts`；`pnpm run check:escape-ledger`。
 

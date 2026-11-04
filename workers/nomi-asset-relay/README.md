@@ -1,6 +1,6 @@
 # Nomi asset relay
 
-This Worker is a bounded Nomi-owned fallback upload channel. Configured provider upload APIs are tried first; the built-in public relay is used only when those channels are unavailable or fail. It keeps R2 credentials server-side, accepts limited public multipart uploads at `POST /v1/assets`, supports private bearer uploads for self-hosted users, serves short-lived model-readable URLs at `GET /v1/assets/:key`, and removes expired objects from its hourly scheduled cleanup (one batched delete per listed page; objects without an `expiresAt` are never deleted, only counted).
+This Worker is a bounded Nomi-owned fallback upload channel. Configured provider upload APIs are tried first; the built-in public relay is used only when those channels are unavailable or fail. It keeps R2 credentials server-side, accepts limited public multipart uploads at `POST /v1/assets`, supports private bearer uploads for self-hosted users, serves short-lived model-readable URLs at `GET /v1/assets/:key`, and removes expired objects from its hourly scheduled cleanup (one batched delete per listed page; objects without an `expiresAt` are never deleted, only counted). A run spends at most 900 R2 calls, under the Workers Free limit of 1,000 per invocation; a longer backlog ends the run with `complete: false` in the `asset_cleanup` log line and the next hourly run continues from the oldest objects. A usage scan that would need more than 900 calls refuses uploads with `usage_unavailable` rather than trusting a partial total.
 
 ## Deploy
 
