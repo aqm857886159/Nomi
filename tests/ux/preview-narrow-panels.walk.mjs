@@ -20,6 +20,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { clickOrFail, expect, screenshotSettled, textLineBoxes } from './_assert.mjs'
 import { collapseAgentPanel, ensureAgentPanelOpen, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/preview-narrow-panels')
@@ -97,7 +98,7 @@ async function runLocale(locale) {
     app = launched.app
     let win = launched.win
     win.on('pageerror', (error) => console.log(`[renderer:pageerror] ${error.message}`))
-    await clickOrFail(win.locator('[data-project-card]', { hasText: projectName }).first(), 'open project', { timeout: 60_000 })
+    await clickOrFail(win.locator('[data-project-card]', { hasText: projectName }).first(), 'open project', { timeout: stationTimeout() })
     for (let i = 0; i < 40 && !app.windows().some((page) => /projectId=/.test(page.url())); i += 1) await win.waitForTimeout(250)
     win = app.windows().find((page) => /projectId=/.test(page.url())) ?? win
 
@@ -107,7 +108,7 @@ async function runLocale(locale) {
       await win.setViewportSize({ width, height: HEIGHT })
     }
     await resize(1280)
-    await win.locator('.nomi-stepper').first().waitFor({ timeout: 60_000 })
+    await win.locator('.nomi-stepper').first().waitFor({ timeout: stationTimeout({ operations: 2 }) })
     await switchWorkspace(win, 'preview')
     await ensureAgentPanelOpen(win, 'Nomi docked', { form: 'dock' })
 
@@ -236,7 +237,7 @@ async function runLocale(locale) {
     // ── 只有用户亲手拖才写回 ──
     await collapseAgentPanel(win, 'collapse Nomi for drag')
     await expectRow('1440 关 Nomi（拖之前）', [300, 830, 240])
-    const separators = win.locator('#editing-surface-stage-row > [data-separator]')
+    const separators = win.locator('#editing-surface-stage-row > [role="separator"]')
     const drag = async (index, dx) => {
       const box = await separators.nth(index).boundingBox()
       const x = box.x + box.width / 2

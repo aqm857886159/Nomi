@@ -103,9 +103,12 @@ const check = (name, ok, detail = '') => {
   console.log(`  ${ok ? '✅' : '❌'} ${name}${detail ? ` — ${detail}` : ''}`)
 }
 
+// 安静走查（_launchApp 默认）里窗口不上屏，setBounds 改不动内容视口——此前这里一直停在 1280×933，
+// 「1680 下五块面板的默认几何」实际量的是 1280。改内容尺寸 + 同步页面视口（同 preview-narrow-panels.walk.mjs）。
 async function resize(width, height) {
   const browserWindow = await app.browserWindow(win)
-  await browserWindow.evaluate((windowRef, bounds) => { windowRef.setBounds({ x: 0, y: 0, ...bounds }); windowRef.center() }, { width, height })
+  await browserWindow.evaluate((windowRef, size) => windowRef.setContentSize(size.width, size.height), { width, height })
+  await win.setViewportSize({ width, height })
   await win.waitForTimeout(400)
 }
 
@@ -139,7 +142,13 @@ const readGeometry = () => win.evaluate(() => {
     source: panel('editing-surface-source'),
     preview: panel('editing-surface-preview'),
     inspector: panel('editing-surface-inspector'),
-    assistant: panel('editing-surface-assistant'),
+    // Nomi 列不在面板组里（外壳重设计后是 grid 的一列 aside），没有 data-panel；收起时整列不渲染。
+    assistant: box('#editing-surface-assistant'),
+    // 列宽 = Nomi 宽 + 左侧拖动缝（AssistantPane 的 paddingLeft）；合同默认宽 390 指的是缝右边那块。
+    assistantContentWidth: (() => {
+      const pane = document.querySelector('#editing-surface-assistant [data-assistant-pane]')
+      return pane ? Math.round(pane.getBoundingClientRect().width - parseFloat(getComputedStyle(pane).paddingLeft)) : null
+    })(),
     timelinePanelBox: panel('editing-surface-timeline'),
     stageRow: box('[data-panel][data-testid="editing-surface-stage"]'),
     column,
@@ -267,8 +276,8 @@ try {
   await clickOrFail(win.getByRole('menuitemradio', { name: '结果全屏' }).first(), '切到「结果全屏」预设')
   await win.waitForTimeout(700)
   const focused = await readGeometry()
-  check('「结果全屏」把左栏/属性/Nomi 一起收成图标条',
-    (focused.source?.w ?? 999) <= 40 && (focused.inspector?.w ?? 999) <= 40 && (focused.assistant?.w ?? 999) <= 40,
+  check('「结果全屏」把左栏/属性收成图标条、Nomi 整列让出',
+    (focused.source?.w ?? 999) <= 40 && (focused.inspector?.w ?? 999) <= 40 && !focused.assistant,
     `source=${focused.source?.w} inspector=${focused.inspector?.w} assistant=${focused.assistant?.w}`)
   check('结果全屏下预览列变宽（画面真的拿到空间）', (focused.preview?.w ?? 0) > (geo.preview?.w ?? 0), `${geo.preview?.w} → ${focused.preview?.w}`)
   await screenshotSettled(win, { path: path.join(shotsDir, '05-preset-result.png') })
@@ -279,10 +288,10 @@ try {
   await clickOrFail(win.getByRole('menuitem', { name: '恢复默认' }).first(), '恢复默认布局')
   await win.waitForTimeout(700)
   const restored = await readGeometry()
-  console.log('  · 恢复后几何：', JSON.stringify({ source: restored.source?.w, preview: restored.preview?.w, inspector: restored.inspector?.w, assistant: restored.assistant?.w, stageRow: restored.stageRow?.w }))
+  console.log('  · 恢复后几何：', JSON.stringify({ source: restored.source?.w, preview: restored.preview?.w, inspector: restored.inspector?.w, assistant: restored.assistantContentWidth, stageRow: restored.stageRow?.w }))
   check('「恢复默认」回到合同默认宽（300 / 240 / 390，±4px）',
-    Math.abs((restored.source?.w ?? 0) - 300) <= 4 && Math.abs((restored.inspector?.w ?? 0) - 240) <= 4 && Math.abs((restored.assistant?.w ?? 0) - 390) <= 4,
-    `source=${restored.source?.w} inspector=${restored.inspector?.w} assistant=${restored.assistant?.w}`)
+    Math.abs((restored.source?.w ?? 0) - 300) <= 4 && Math.abs((restored.inspector?.w ?? 0) - 240) <= 4 && Math.abs((restored.assistantContentWidth ?? 0) - 390) <= 4,
+    `source=${restored.source?.w} inspector=${restored.inspector?.w} assistant=${restored.assistantContentWidth}`)
   await screenshotSettled(win, { path: path.join(shotsDir, '06-restored.png') })
 
   // ========== ⑦ 窗口变窄：面板不塌、不违反合同下限（最小窗口下 composer 还得能用） ==========
