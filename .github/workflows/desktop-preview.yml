@@ -52,7 +52,7 @@ jobs:
 
   windows-preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'desktop-preview')
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4

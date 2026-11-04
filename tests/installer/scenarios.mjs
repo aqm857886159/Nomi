@@ -1,7 +1,7 @@
 // Windows 安装器场景登记（清单）。设计卡 ★9：docs/plan/2026-10-29-installer-keep-user-files.md。
 //
 // 三方共用这一份：
-//   · tests/installer/windows-installer-scenarios.mjs：.github/workflows/win-installer.yml 在 windows-latest 上逐个真装真升真卸；
+//   · tests/installer/windows-installer-scenarios.mjs：.github/workflows/win-installer.yml 在 Windows 机器上逐个真装真升真卸；
 //   · tests/installer/installerScenarios.test.mjs：普查——每个覆盖面有场景认领、每个场景有执行器、工作流跑全部、
 //     build/installer.nsh 的字面量与这里逐字一致、每个反例的改动在 installer.nsh 里恰好一处；
 //   · build/installer.nsh：能力标记名与它的 !define 对账，改一边不改另一边普查就红。
