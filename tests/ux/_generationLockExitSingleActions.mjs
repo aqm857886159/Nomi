@@ -4,7 +4,7 @@ import path from 'node:path'
 import { expect } from '@playwright/test'
 import { readProject, openCanvas } from './agent-runtime-walk-support.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
-import { switchGenerationView, collapseAgentPanel, switchWorkspace, closeRailDrawer, canvasFitView, canvasSetZoomPercent, canvasZoomPercent } from './_shell.mjs'
+import { switchGenerationView, collapseAgentPanel, switchWorkspace, closeRailDrawer, canvasFitView, canvasZoomSlider, closeCanvasViewOptions, canvasZoomPercent } from './_shell.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { prepareLockExitStoryboard } from './_generationLockExitSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -47,7 +47,16 @@ export async function singleActionsLockExitJourney(input) {
     const blank = await findCanvasBlankPoint(page); assert.ok(blank); await page.mouse.click(blank.x, blank.y)
     await canvasFitView(page)
     try {
-      await canvasSetZoomPercent(page, 30)
+      await waitForVisualQuiescence(page)
+      const slider = await canvasZoomSlider(page)
+      await slider.press('Home')
+      await expect.poll(() => canvasZoomPercent(page)).toBe(20)
+      // The range is controlled by the viewport; the next key must use its committed value.
+      for (let percent = 21; percent <= 30; percent++) {
+        await slider.press('ArrowRight')
+        await expect.poll(() => canvasZoomPercent(page)).toBe(percent)
+      }
+      await closeCanvasViewOptions(page)
       await expect.poll(() => canvasZoomPercent(page)).toBe(30)
       const rect = await page.locator('.generation-canvas-v2__stage').evaluate(stage => {
         const r = stage.getBoundingClientRect()
