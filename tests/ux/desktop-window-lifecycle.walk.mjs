@@ -23,7 +23,11 @@ const locales = process.env.NOMI_WALK_LANG ? [process.env.NOMI_WALK_LANG === 'en
 const results = []
 const alive = (pid) => { try { process.kill(pid, 0); return true } catch { return false } }
 async function start(locale, name) {
+  const tempRoot = fs.mkdtempSync(path.join(output, `${locale}-${name}-`))
+  const matchingProcesses = spawnSync('ps', ['-A', '-o', 'pid=,ppid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter((line) => line.includes(tempRoot))
+  console.log('LIFECYCLE_PROFILE_PREFLIGHT', JSON.stringify({ tempRoot, fresh: fs.readdirSync(tempRoot).length === 0, matchingProcesses, lockFiles: fs.readdirSync(tempRoot).filter((file) => /Singleton|lock/i.test(file)) }))
   const launched = await launchNomiApp({ name: `desktop-lifecycle-${locale}-${name}`, settleMs: 0,
+    tempRoot,
     mainRequire: [path.join(root, 'tests/ux/_desktopWindowLifecycle.cjs')],
     initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
   })
