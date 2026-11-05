@@ -6,9 +6,9 @@ import { expect } from '@playwright/test'
 import { registerTestTemp } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { newProjectEntry } from './_shell.mjs'
-import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
+import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR } from './agent-runtime-fixture.mjs'
 import { createGenerationLockExitProxy } from './_generationLockExitProxy.mjs'
-import { generationLockExitJourney } from './_generationLockExitSteps.mjs'
+import { generationLockExitJourney, lockExitFixtureInput } from './_generationLockExitSteps.mjs'
 
 export async function runLockExitRehearsal(locale = 'zh-CN', journey = generationLockExitJourney) {
   const root = process.cwd()
@@ -43,7 +43,7 @@ export async function runLockExitRehearsal(locale = 'zh-CN', journey = generatio
     await expect(page.locator('.tiptap[contenteditable="true"]').first()).toBeVisible()
     const projectId = await page.evaluate(() => new URL(location.href).searchParams.get('projectId') ?? new URLSearchParams(location.hash.split('?')[1] ?? '').get('projectId'))
     project = (await page.evaluate(() => window.nomiDesktop.projects.listAsync())).find(value => value.id === projectId)
-    report = await journey({ page, projectId, proxy, fixture, model: { vendorKey: FIXTURE_APIMART_VENDOR, modelKey: FIXTURE_APIMART_MODEL }, textLabel: FIXTURE_TEXT_MODEL_LABEL, locale,
+    report = await journey({ page, ...lockExitFixtureInput({ projectId }, fixture), proxy, model: { vendorKey: FIXTURE_APIMART_VENDOR, modelKey: FIXTURE_APIMART_MODEL }, locale,
       screenshotDir: process.env.NOMI_LOCK_EXIT_SHOTS || path.join(root, 'tests/ux/shots/generation-lock-exit'),
       restart: async () => { await closeNomiApp(app); app = null; await launch(); await page.locator('[data-project-card]', { hasText: project.name }).first().click(); return page } })
     if (journey === generationLockExitJourney) execFileSync('git', ['diff', '--quiet', commit, '--', 'src', 'electron'])

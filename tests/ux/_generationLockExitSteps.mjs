@@ -9,11 +9,24 @@ import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 
 export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-open-runs', 'generationCommon.spend.resend.title.', 'storyboard-batch-shot-ownership-v2-']
 export const LOCK_EXIT_SCRIPT = '清晨，林薇在旧书店找到一封信。她走到窗边，最后把信放在桌上。'
 const dialog = '[data-spend-confirm-dialog]'
 const timeout = stationTimeout({ turns: 1 })
+
+export function lockExitFixtureInput(project, fixture) {
+  return { projectId: project.projectId, fixture, textLabel: FIXTURE_TEXT_MODEL_LABEL }
+}
+
+async function readLockExitProject(page, projectId) {
+  assert.ok(typeof projectId === 'string' && projectId.trim(), 'projectId 必须是非空字符串')
+  const record = await readProject(page, projectId)
+  assert.ok(record, `项目不存在：${projectId}`)
+  assert.equal(record.id, projectId, '项目 ID 不匹配')
+  return record
+}
 
 export function lockExitDraft(candidate) {
   return [
@@ -25,6 +38,7 @@ export function lockExitDraft(candidate) {
 
 /** Shared real UI sequence; the supplier alone differs between rehearsal and paid mode. */
 export async function generationLockExitJourney(input) {
+  const design = await prepareLockExitStoryboard(input)
   let { page } = input
   const { projectId, proxy, locale = 'zh-CN', screenshotDir, restart } = input
   const text = key => uiText(locale, key)
@@ -92,7 +106,6 @@ export async function generationLockExitJourney(input) {
     await shot('idle-return')
   }
   try {
-    const design = await prepareLockExitStoryboard(input)
     await openStoryboardEditor(page, design.id); await collapseAgentPanel(page)
     proxy.setLimit(2)
     // Assets are forwarded normally; discard the first shot reply, including in the paid run.
@@ -245,6 +258,7 @@ export async function a4LockExitJourney(input) {
 }
 
 export async function prepareLockExitStoryboard({ page, projectId, model, textLabel, fixture }) {
+  await readLockExitProject(page, projectId)
   await chooseAssistantModel(page, textLabel, CREATION_PANEL)
   const draftedShots = lockExitDraft({ providerId: model.vendorKey, modelId: model.modelKey })
     if (fixture) {
@@ -254,8 +268,8 @@ export async function prepareLockExitStoryboard({ page, projectId, model, textLa
     await sendCreation(page, `${LOCK_EXIT_SCRIPT} 请只起草分镜方案，不要生成。需要林薇和旧书店两张视觉资产卡，三个镜头都用图片模型 ${model.modelKey}，提示词明确写出资产名，每镜 storyboard.anchorIds 复用这两张参考卡的 id。`)
     let design
     await expect.poll(async () => {
-      const record = await readProject(page, projectId)
-      design = Object.values(record?.payload?.storyboardDesignsByDocumentId ?? {}).flat().at(-1)
+      const record = await readLockExitProject(page, projectId)
+      design = Object.values(record.payload?.storyboardDesignsByDocumentId ?? {}).flat().at(-1)
       return design?.plan?.shots?.length
     }, { timeout }).toBe(3)
     assert.equal(design.plan.anchors.length, 2)

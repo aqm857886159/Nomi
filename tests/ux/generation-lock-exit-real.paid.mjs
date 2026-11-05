@@ -8,7 +8,7 @@ import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { ENV_KEY_VENDOR } from './_paidEnvKey.mjs'
 import { createRuntimeWalk, openCanvas } from './agent-runtime-walk-support.mjs'
 import { createGenerationLockExitProxy } from './_generationLockExitProxy.mjs'
-import { generationLockExitJourney, LOCK_EXIT_BUILD_MARKERS } from './_generationLockExitSteps.mjs'
+import { generationLockExitJourney, lockExitFixtureInput, LOCK_EXIT_BUILD_MARKERS } from './_generationLockExitSteps.mjs'
 
 // A partial rehearsal is not authorization to spend on an unfinished four-stage journey.
 const receiptPath = process.env.NOMI_LOCK_EXIT_REHEARSAL_RECEIPT
@@ -39,8 +39,8 @@ try {
   await paid.lockToAuthorizedModels(win)
   await win.evaluate(() => localStorage.setItem('__nomiE2E', '1'))
   const project = await walk.newProject()
-  const report = await generationLockExitJourney({ page: win, projectId: project.id, model, proxy,
-    textLabel: paid.label(DEFAULT_PAID_BRAIN.vendorKey, DEFAULT_PAID_BRAIN.modelKey), locale: 'zh-CN',
+  const report = await generationLockExitJourney({ page: win, ...lockExitFixtureInput(project, walk.fixture), model, proxy,
+    locale: 'zh-CN',
     screenshotDir: path.join(walk.outputDir, 'shots'),
     restart: async () => {
       await walk.stopApp()
