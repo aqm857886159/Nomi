@@ -105,12 +105,52 @@
       "kind": "write",
       "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
       "symbol": "showEditingPanel"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "keepAfterLayoutChange"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "undoEditingPanelLayout"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "setEditingPanelLayout"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "openPreviewSourceTab"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "setEditingPanelPreset"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "resetEditingPanelLayout"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/EditingLayoutMenu.tsx",
+      "symbol": "toggleEditingPanel"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "undoEditingPanelLayout"
     }
   ],
   "door_reduction": {
-    "before": 12,
-    "after": 12,
-    "why_not": "门数口径相同（改前也是这些文件各一扇：两栏读开合、工作区回写、slice / Agent / 还原写意图），数量没变；变的是「栏里画展开还是收起条」由谁定——原来三处各说各的（PreviewSourcePanel 自己读存档开关、PreviewWorkspace 把存档开关传给属性栏、面板库按空间算实际宽），现在 panelLayout 派生一份、PreviewWorkspace 按真实像素传给两栏，两栏只读 collapsed 这一个 prop。写存档的入口（拖分隔条、收起条 / 收起 / 布局菜单、Agent layout.write、打开项目还原）是不同的用户动作，不合并；派生层只读意图不写。"
+    "before": 20,
+    "after": 20,
+    "why_not": "门数口径相同（改前也是这些文件各一扇：两栏读开合、工作区回写、slice / Agent / 还原写意图），数量没变；变的是「栏里画展开还是收起条」由谁定——原来三处各说各的（PreviewSourcePanel 自己读存档开关、PreviewWorkspace 把存档开关传给属性栏、面板库按空间算实际宽），现在 panelLayout 派生一份、PreviewWorkspace 按真实像素传给两栏，两栏只读 collapsed 这一个 prop。写存档的入口（拖分隔条、收起条 / 收起 / 布局菜单、Agent layout.write、打开项目还原）是不同的用户动作，不合并；派生层只读意图不写。（2026-11-05 第 2 轮：「放不下时留哪边」的写入口一并计入，共 20 扇。门数不减：点收起条、布局菜单、⌘Z、Agent、预设、切左栏 tab 是不同的用户动作；减的是规则份数——原来每个入口各记一遍留哪边、⌘Z 漏了，现在都经 keepAfterLayoutChange 一条。）"
   },
   "detected_by": "walkthrough",
   "recurrence_check_on": "2026-12-04",
@@ -121,7 +161,7 @@
       "src/workbench/preview/editingPanelKeep.test.ts"
     ]
   },
-  "generality_proof": "resolveEditingStageFrame 是舞台行布局唯一的派生点：每一种入口（窗口、Nomi、收起条、菜单、Agent、拖动、还原）最后都只改输入（舞台宽或意图），布局一律由它重算，栏里画什么由真实像素决定。单测按类扫：视口 1100–2560 每 10px × Nomi 关 / 300 / 340 / 390 / 600 × 4 种开合 × 9 种栏宽 × 2 种留哪边，逐个断言四条不变量；拍板数字逐项钉住。",
+  "generality_proof": "resolveEditingStageFrame 是舞台行布局唯一的派生点：每一种入口（窗口、Nomi、收起条、菜单、Agent、拖动、还原）最后都只改输入（舞台宽或意图），布局一律由它重算，栏里画什么由真实像素决定。单测按类扫：视口 1100–2560 每 10px × Nomi 关 / 300 / 340 / 390 / 600 × 4 种开合 × 9 种栏宽 × 2 种留哪边，逐个断言四条不变量；拍板数字逐项钉住。 留哪边同理：所有改开合的入口共用 keepAfterLayoutChange；editingPanelKeep.test.ts 先核对 slice 的动作全部登记，再逐个入口在 682 / 812 / 972 三个舞台宽下断言打开的那栏展开，最后随机串 400 条 12 步序列。",
   "shared_boundaries": [
     {
       "path": "src/workbench/preview/panelLayout.ts",
@@ -132,6 +172,11 @@
       "path": "src/workbench/preview/panelLayout.ts",
       "symbol": "editingPanelDragIntent",
       "responsibility": "写回存档的唯一规则：只在用户亲手拖完时，比较拖前的布局与拖后的真实像素"
+    },
+    {
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "keepAfterLayoutChange",
+      "responsibility": "放不下时留哪一栏的唯一规则：改侧栏开合的每个入口都经它（点名只开一块 → 它；从关变开只有一块 → 它；两块一起开 → 默认先收属性；否则不变）"
     }
   ],
   "same_class_entry_points": [
@@ -164,6 +209,36 @@
       "entry_point": "AssistantPane",
       "disposition": "not-affected",
       "evidence": "Nomi 列不在面板组里，宽度由 assistantWidthBounds 管；窗口变窄只钳超限的上限（09-01 定稿），不属于本类"
+    },
+    {
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "entry_point": "⌘Z（undoEditingPanelLayout）",
+      "disposition": "enforced",
+      "evidence": "2026-11-05 独立验收发现：撤销把属性开合还原成开，却没改留哪边，1280 开 Nomi 仍是收起条。现经 keepAfterLayoutChange；单测「undoEditingPanelLayout 打开 source / inspector」与随机序列；走查「布局菜单收起属性 → ⌘Z」中英。"
+    },
+    {
+      "path": "src/workbench/preview/EditingLayoutMenu.tsx",
+      "entry_point": "布局菜单勾选（toggleEditingPanel）",
+      "disposition": "enforced",
+      "evidence": "经 showEditingPanel → keepAfterLayoutChange；单测「toggleEditingPanel 打开 …」。"
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "Agent layout.write（setEditingPanelLayout）",
+      "disposition": "enforced",
+      "evidence": "单栏写入与整份写入都按开合前后定留哪边；单测两条 + 走查「Agent 关了再打开属性」中英。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineContextMenu.tsx",
+      "entry_point": "时间轴右键「从素材库添加…」/ 左栏切 tab（openPreviewSourceTab）",
+      "disposition": "enforced",
+      "evidence": "点名打开左栏 → 留左栏；单测「openPreviewSourceTab 打开 source」。"
+    },
+    {
+      "path": "src/workbench/preview/EditingLayoutMenu.tsx",
+      "entry_point": "预设 / 恢复默认",
+      "disposition": "enforced",
+      "evidence": "整份换回默认，留哪边回到默认左栏（先收属性）；单测「setEditingPanelPreset / resetEditingPanelLayout」。"
     }
   ],
   "recurrence": {
@@ -173,14 +248,15 @@
       "node scripts/door-map.mjs resolveEditingStageFrame：唯一读入口 PreviewWorkspace",
       "node scripts/door-map.mjs editingPanelDragIntent：唯一写回口 PreviewWorkspace",
       "node scripts/door-map.mjs syncEditingPanelSize：只被 PreviewWorkspace 的用户拖动回调调用",
-      "rg \"editingPanelLayout.visibility\" src/workbench/preview：只剩 PreviewWorkspace 与 slice 本身"
+      "rg \"editingPanelLayout.visibility\" src/workbench/preview：只剩 PreviewWorkspace 与 slice 本身",
+      "node scripts/door-map.mjs keepAfterLayoutChange：只在 editingPanelLayoutSlice 内部被各动作调用"
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/preview/panelLayout.ts",
-    "invariant": "舞台行布局只由 resolveEditingStageFrame 派生；栏里画什么只按真实像素（editingSidePanelDrawnOpen）；写回只经 editingPanelDragIntent 且只在 isUserInteraction 时。",
-    "failure_mode": "求解改坏（栏被撑宽、展开却 < 最小宽、预览 < 400、替用户打开关掉的栏、变宽不回来）→ panelLayout.test.ts 类扫描红；回写恢复成不分来源 → 走查里改窗口宽后读 layout.read 不等于原值，红。",
+    "invariant": "舞台行布局只由 resolveEditingStageFrame 派生；栏里画什么只按真实像素（editingSidePanelDrawnOpen）；写回只经 editingPanelDragIntent 且只在 isUserInteraction 时。 侧栏开合一变，留哪边只经 keepAfterLayoutChange 定；slice 里每个动作都要在 editingPanelKeep.test.ts 的入口表里登记会不会打开侧栏。",
+    "failure_mode": "求解改坏（栏被撑宽、展开却 < 最小宽、预览 < 400、替用户打开关掉的栏、变宽不回来）→ panelLayout.test.ts 类扫描红；回写恢复成不分来源 → 走查里改窗口宽后读 layout.read 不等于原值，红。 新加一个改布局的动作没登记 → 入口表测试红；某个入口打开侧栏却不改留哪边 → 逐入口测试与随机序列红（2026-11-05 已用去掉撤销那一行的改坏版本证实会红）。",
     "exception_policy": "none",
     "strategy": "加一层纯函数派生「这一刻怎么摆」，面板库整组 setLayout；同提交删掉 usePanelLayoutSync、syncing 标志、onResize 回写与 editingPanelResizeEffect / COLLAPSIBLE_PANEL_BY_SIZE_KEY。",
     "artifacts": [
@@ -194,7 +270,8 @@
     "tests/ux/preview-narrow-panels.walk.mjs"
   ],
   "class_regression_tests": [
-    "src/workbench/preview/panelLayout.test.ts"
+    "src/workbench/preview/panelLayout.test.ts",
+    "src/workbench/preview/editingPanelKeep.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

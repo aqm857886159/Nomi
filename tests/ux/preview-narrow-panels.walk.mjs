@@ -192,6 +192,25 @@ async function runLocale(locale) {
     await clickRail('source')
     await expectRow('1280 开 Nomi · 再点左栏收起条', [300, 480, 'rail'])
 
+    // ── 别的入口打开一栏，也得看得到它（设计卡 ★9 第 9 项）：布局菜单收起属性 → ⌘Z 撤回；Agent layout.write 关了再开 ──
+    // 2026-11-05 独立验收：⌘Z 撤回后属性的开合回到开，却仍被让成收起条（撤销没改「留哪边」）。
+    const layoutTitle = uiText(locale, 'timelinePreview.previewLayout.title')
+    await clickOrFail(win.locator(`[data-shell-topbar] [aria-label="${layoutTitle}"]`).first(), 'open layout menu')
+    await clickOrFail(win.getByRole('menuitemcheckbox', { name: uiText(locale, 'timelinePreview.previewLayout.panels.inspector'), exact: true }).first(), 'layout menu: hide inspector')
+    await win.keyboard.press('Escape')
+    await expectIntent('布局菜单收起属性', { ...defaults, inspector: false })
+    await win.keyboard.press('Meta+z')
+    await expectRow('1280 开 Nomi · ⌘Z 撤回收起属性', ['rail', 540, 240], [BOARD.dragWrites])
+    await expectIntent('⌘Z 之后', defaults)
+    await clickRail('source')
+    await expectRow('1280 开 Nomi · 点左栏收起条换回', [300, 480, 'rail'])
+    const agentWrite = (visibility) => win.evaluate((patch) => window.__nomiCapabilityApply('layout.write', { layout: { visibility: patch } }), visibility)
+    await agentWrite({ inspector: false })
+    await agentWrite({ inspector: true })
+    await expectRow('1280 开 Nomi · Agent 关了再打开属性', ['rail', 540, 240], [BOARD.dragWrites])
+    await clickRail('source')
+    await expectRow('1280 开 Nomi · 回到默认', [300, 480, 'rail'])
+
     await resize(1440)
     await expectRow('1440 开 Nomi', [292, 480, 200], [BOARD.row1440Open])
     await shot('1440-nomi-open')
