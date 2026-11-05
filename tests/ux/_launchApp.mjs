@@ -7,12 +7,11 @@ import { cleanupTestTemp, makeTempDir, registerTestTemp } from '../../scripts/_t
 //   1) 少 NOMI_E2E_ALLOW_MULTI_INSTANCE=1
 //      → 用户本机 Nomi.app 在跑时 requestSingleInstanceLock() 拿不到锁，新实例主动让出并退出
 //        （electron/main.ts:74-75）。窗口永不出现。
-//   2) 少 NOMI_E2E=1
-//      → COOP/COEP cross-origin isolation 不关，Playwright 的 CDP target 握手直接卡死
-//        （electron/main.ts:684-689 注释已写明）。连不上。
+//   2) 开发构建显式传 executablePath
+//      → Playwright 不注入 ready loader；跨源隔离下首窗可能抢在 CDP 握手前导航，连不上。
 //
-// 所以这里做两件事：把那套必需 env **钉死**（调用方覆盖不掉），以及在起不来时抛一条**说人话**
-// 的错——带上主进程 stderr 尾巴，别让人再对着静默超时猜。
+// 所以这里统一隔离环境，并让开发构建走 Playwright 的官方 ready 屏障；起不来时带上主进程
+// stderr 尾巴，别让人再对着静默超时猜。
 //
 // 用法：
 //   import { launchNomiApp } from './_launchApp.mjs'
@@ -679,10 +678,11 @@ export async function launchNomiApp(options = {}) {
     : null
 
   const launchOptions = {
-    executablePath,
+    // 开发版省略路径才能让 Playwright 前置官方 ready loader；打包版自带入口，仍显式选择二进制。
+    ...(!isDevElectron ? { executablePath } : {}),
     args: withLinuxNoSandbox(withLinuxSyntheticCredentialStorage(
       withPackagedPlaywrightOrigin([
-        ...(isDevElectron ? preMainArgs : []),
+        ...(isDevElectron ? ['-r', path.join(repoRoot, 'tests/ux/_playwrightReady.cjs'), ...preMainArgs] : []),
         ...(packagedPreMain ? [`--inspect-brk=127.0.0.1:${packagedPreMain.port}`] : []),
         ...(isDevElectron ? ['.'] : []),
         ...(userDataDir ? [`--user-data-dir=${userDataDir}`] : []),
