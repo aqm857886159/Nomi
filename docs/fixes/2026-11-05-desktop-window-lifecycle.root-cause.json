@@ -1,0 +1,268 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-05-desktop-window-lifecycle",
+  "problem_type": "Desktop intent resolves against auxiliary windows or platform close defaults",
+  "symptom": "Reopening can leave the main window hidden or restore an auxiliary window; idle macOS main-window close leaves the process alive.",
+  "direct_cause": "Recovery uses getAllWindows instead of the main registry; save confirmation never consults known-idle work or requests quit.",
+  "class_root": "Window intent lacks a shared identity and final outcome boundary, and tests accepted arbitrary windows as the main window.",
+  "affected_population": [
+    "macOS idle close",
+    "activate, second-instance, deep links and notifications with hidden or absent main windows"
+  ],
+  "scope_paths": [
+    "electron/main.ts",
+    "electron/mainWindowPresence.ts",
+    "electron/backgroundLaunch.ts",
+    "electron/update/autoUpdater.ts",
+    "electron/windowCloseConfirmation.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.ts",
+    "electron/notificationIpc.ts",
+    "electron/productionRun/productionNotificationsDesktop.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/screenshot/screenshotHotkey.ts"
+  ],
+  "entry_points": [
+    "activate",
+    "second-instance",
+    "open-url",
+    "desktop notifications",
+    "confirmed main-window close"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/electron/electron/blob/v43.4.1/docs/api/app.md",
+      "checked_at": "2026-11-05",
+      "purpose": "activate and second-instance intent and quit lifecycle."
+    }
+  ],
+  "invariants": [
+    "Only the registered main window satisfies main-window recovery.",
+    "Save confirmation must succeed before a macOS idle close may request quit.",
+    "Unknown or busy main or renderer state must not trigger automatic quit."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/backgroundLaunch.ts",
+      "symbol": "hasInFlightProductionWork"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "getMainWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationLandFirst.ts",
+      "symbol": "getMainWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/diagnostics/diagnosticsIpc.ts",
+      "symbol": "getMainWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "getMainWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "hasInFlightProductionWork"
+    },
+    {
+      "kind": "read",
+      "path": "electron/mainWindowPresence.ts",
+      "symbol": "getMainWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/screenshot/screenshotHotkey.ts",
+      "symbol": "getMainWindow"
+    },
+    {
+      "kind": "read",
+      "path": "electron/update/autoUpdater.ts",
+      "symbol": "busyGate"
+    },
+    {
+      "kind": "read",
+      "path": "electron/windowCloseConfirmation.ts",
+      "symbol": "productionWorkBusyGate"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "showWindow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "ensureMainWindow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/mainWindowPresence.ts",
+      "symbol": "showWindow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/notificationIpc.ts",
+      "symbol": "ensureMainWindow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionNotificationsDesktop.ts",
+      "symbol": "ensureMainWindow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunDesktopLifecycle.ts",
+      "symbol": "ensureMainWindow"
+    },
+    {
+      "kind": "write",
+      "path": "electron/screenshot/screenshotHotkey.ts",
+      "symbol": "showWindow"
+    }
+  ],
+  "door_reduction": {
+    "before": 12,
+    "after": 17,
+    "why_not": "Distinct user intents retain main.ts (startup, activation, maintenance), lifecycle (second-instance, deep link), renderer notifications and production notifications as thin adapters. Credential and screenshot paths must retain their captured windows and project leases, so they share showWindow only. Registry reads for landing access, diagnostics and closed-window cleanup remain necessary and do not select recovery targets. Updater and close share the one busyGate instance; the new helper edges increase the machine door count while removing four independent recovery selectors."
+  },
+  "generality_proof": "All user reopen intents converge on the registry-based presence boundary; both update and close consume the same busyGate instance owned by backgroundLaunch, preserving unknown protection.",
+  "shared_boundaries": [
+    {
+      "path": "electron/mainWindowPresence.ts",
+      "symbol": "createMainWindowGuard",
+      "responsibility": "Deduplicate creation, wait for readiness and restore the registered main window."
+    },
+    {
+      "path": "electron/backgroundLaunch.ts",
+      "symbol": "productionWorkBusyGate",
+      "responsibility": "Own the existing main/renderer aggregate without a second count."
+    },
+    {
+      "path": "electron/windowCloseConfirmation.ts",
+      "symbol": "registerCloseResponseIpc",
+      "responsibility": "After successful save, recheck work before destroying and request the existing quit owner."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/main.ts",
+      "entry_point": "activate",
+      "disposition": "enforced",
+      "evidence": "Uses mainWindowPresence."
+    },
+    {
+      "path": "electron/productionRun/productionRunDesktopLifecycle.ts",
+      "entry_point": "second-instance",
+      "disposition": "enforced",
+      "evidence": "No auxiliary-window selection."
+    },
+    {
+      "path": "electron/notificationIpc.ts",
+      "entry_point": "notification click",
+      "disposition": "enforced",
+      "evidence": "Uses installed presence owner."
+    },
+    {
+      "path": "electron/productionRun/productionNotificationsDesktop.ts",
+      "entry_point": "production notification click",
+      "disposition": "enforced",
+      "evidence": "Deep link delivered to ready main window."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "openCredentialsInNomi",
+      "disposition": "enforced",
+      "evidence": "The captured registry window is retained; only restore/show/focus uses showWindow. Existing macOS app.focus remains."
+    },
+    {
+      "path": "electron/screenshot/screenshotHotkey.ts",
+      "entry_point": "captureScreenToCanvas",
+      "disposition": "enforced",
+      "evidence": "The captured window and issued project lease are retained across awaits; only displaying that window uses showWindow."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every reopen entry and auxiliary-window ordering can reach the same identity defect.",
+    "same_class_scan": [
+      "door-map ensureMainWindow: 3 doors / 5 occurrences",
+      "door-map getMainWindow: 6 doors / 8 occurrences",
+      "door-map hasInFlightProductionWork: 2 doors / 2 occurrences",
+      "rg getAllWindows and restore/show/focus across both notifications, credentials and screenshot capture"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/mainWindowPresence.ts",
+    "invariant": "All reopen intents resolve the registered main window and wait for creation readiness.",
+    "failure_mode": "Creation errors destroy only the newly registered unready window and return null with a log; deep links remain pending for the next successful creation; busy or unknown work keeps the process alive.",
+    "exception_policy": "none",
+    "strategy": "Remove arbitrary first-window branches and reuse the existing busy singleton and quit owner.",
+    "artifacts": [
+      "electron/mainWindowPresence.ts",
+      "electron/backgroundLaunch.ts",
+      "electron/windowCloseConfirmation.ts",
+      "electron/update/autoUpdater.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/mainWindowPresence.test.ts",
+    "electron/windowCloseConfirmation.test.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.test.ts",
+    "electron/notificationIpc.test.ts",
+    "electron/productionRun/productionNotificationsDesktop.test.ts",
+    "electron/backgroundLaunch.inflight.test.ts",
+    "electron/update/autoUpdater.flow.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/mainWindowPresence.test.ts",
+    "electron/windowCloseConfirmation.test.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.test.ts",
+    "electron/notificationIpc.test.ts",
+    "electron/productionRun/productionNotificationsDesktop.test.ts",
+    "electron/backgroundLaunch.inflight.test.ts",
+    "electron/update/autoUpdater.flow.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/mainWindowPresence.ts",
+      "electron/productionRun/productionRunDesktopLifecycle.ts",
+      "electron/notificationIpc.ts",
+      "electron/productionRun/productionNotificationsDesktop.ts"
+    ],
+    "rationale": "Delete all arbitrary-window recovery selections in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Electron 43.4.1",
+    "target": "A supported Electron release with a verified upstream fix if packaged platform tests identify a runtime fault.",
+    "rationale": "Application identity and close policy can be enforced using the installed platform APIs.",
+    "exit_criteria": [
+      "If Finder/Dock or packaged Windows reproduces a native fault after the app invariant holds, identify the upstream fixed release and repeat the platform matrix."
+    ]
+  },
+  "migration": "No persisted schema or user settings change. macOS known-idle close now quits; busy and unknown retain existing close behavior.",
+  "residual_risks": [
+    "Packaged Finder/Dock and Windows are not verified by this Mac development walkthrough.",
+    "Hung main loop, destroyed renderer and permanent pending creation cannot be promised recoverable.",
+    "Low-load English reopen walkthrough hit three consecutive 60-second electron.launch handshakes before entering window actions; post-fix native journeys remain unverified."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-05",
+  "invariant_owner_layer": {
+    "layer": "electron/mainWindowPresence.ts",
+    "tests": [
+      "electron/mainWindowPresence.test.ts"
+    ],
+    "why": "Registered main-window identity and readiness are owned by the existing presence boundary."
+  }
+}

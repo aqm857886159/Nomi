@@ -118,7 +118,7 @@ const { ensureArtifactPreviewSecret, flushPendingProductionDeepLink } = installP
   isMcpStdio,
   allowE2eMultiInstance,
   hasSingleInstanceLock,
-  ensureMainWindow: () => ensureMainWindow(),
+  ensureMainWindow: (entry) => ensureMainWindow(entry),
 });
 if (isMcpStdio) {
   void app
@@ -332,7 +332,9 @@ async function createWindow(
   return mainWindow;
 }
 // 零窗口自愈的唯一入口（issue #62）；activate / second-instance / 窗口重建失败都走它。
-const ensureMainWindow = createMainWindowGuard({ createWindow, onWindowReady: () => flushPendingProductionDeepLink() });
+const ensureMainWindow: ReturnType<typeof createMainWindowGuard> = hasSingleInstanceLock
+  ? createMainWindowGuard({ createWindow, onWindowReady: () => flushPendingProductionDeepLink() })
+  : async () => null;
 
 function recreateMainWindowFromSender(sender: WebContents, options: { preserveRoute: boolean; reason: string }): void {
   if (isRecreatingMainWindow) return;
@@ -344,22 +346,24 @@ function recreateMainWindowFromSender(sender: WebContents, options: { preserveRo
     : getRendererUrl();
   isRecreatingMainWindow = true;
   if (oldWindow && !oldWindow.isDestroyed()) oldWindow.destroy();
-  void Promise.all([
-    session.defaultSession.clearCache().catch(() => undefined),
-    session.defaultSession.clearCodeCaches({}).catch(() => undefined),
-  ])
-    .then(() => createWindow({ bounds, maximize, rendererUrl }))
+  void ensureMainWindow("maintenance", false, async () => {
+    await Promise.all([
+      session.defaultSession.clearCache().catch(() => undefined),
+      session.defaultSession.clearCodeCaches({}).catch(() => undefined),
+    ]);
+    return createWindow({ bounds, maximize, rendererUrl });
+  })
     .then((nextWindow) => {
       // A renderer reload can also happen in the hidden MCP-launched process;
       // never let that maintenance path surface the background window.
-      if (!isBackgroundLaunch) nextWindow.focus();
+      if (nextWindow && !isBackgroundLaunch) nextWindow.focus();
     })
     .catch((error) => {
       logError("window", "recreate-window-failed", error, { reason: options.reason });
     })
     .finally(() => {
       isRecreatingMainWindow = false;
-      void ensureMainWindow(); // 重建失败会永久停在零窗口（window-all-closed 已被重建标记跳过）→ 补建兜底
+      void ensureMainWindow("maintenance", false); // 重建失败会永久停在零窗口（window-all-closed 已被重建标记跳过）→ 补建兜底
     });
 }
 
@@ -620,7 +624,7 @@ if (hasSingleInstanceLock)
         logError("catalog", "builtin-model-seeds-failed", error);
       }
       registerIpc(); void import('./telemetry/telemetryLifecycle').then(({ recordAppStarted }) => recordAppStarted());
-      await createWindow();
+      if (!await ensureMainWindow("startup", false)) throw new Error("Main window creation failed");
       installBackgroundLifecycle({ hasInFlightWork: hasInFlightProductionWork, quit: () => app.quit() });
       // 外部 capability RPC 不是首窗依赖，且它一旦 listen 就可能收到会解析凭据的 models/generation 请求。
       // 必须在窗口完成后才暴露；失败显式消化，不能反向拖垮已经可用的首窗。低内存模式仍默认跳过。
@@ -645,7 +649,7 @@ if (hasSingleInstanceLock)
         lowMemoryMode ? 15000 : 3000,
       );
       registerQuitDrain("catalog-reconciliation", startCatalogReconciliation(), { required: false, timeoutMs: 100 });
-      app.on("activate", () => void ensureMainWindow()); // macOS 关窗后进程不退，点 Dock 靠这条把窗口建回来
+      app.on("activate", () => void ensureMainWindow("activate")); // macOS 关窗后进程不退，点 Dock 靠这条把窗口建回来
     })
     .catch((error) => {
       logError("main", "start-failed", error);

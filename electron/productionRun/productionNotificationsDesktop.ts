@@ -3,19 +3,15 @@
 // （复用 nomi:production-deep-link 通道，renderer 既有处理器会定位到 run）。
 // 通知钩子绝不允许影响制作主流程：全部 try/catch 吞错。
 
-import { BrowserWindow } from 'electron'
+import { ensureMainWindow } from '../mainWindowPresence'
 import { showDesktopNotification } from '../desktopNotification'
 
 import { createNoticeDedupe, decideProductionNotice } from './productionNotifications'
 import type { ProductionRun, RunEvent } from './productionRunTypes'
 
-function focusAndDeepLink(target: { projectId: string; runId: string }): void {
-  const win = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed())
-  if (!win) return // MCP stdio 无窗进程：通知仍有价值（提示用户开 Nomi），点击无窗可聚焦则不动
-  if (win.isMinimized()) win.restore()
-  win.show()
-  win.focus()
-  win.webContents.send('nomi:production-deep-link', target)
+async function focusAndDeepLink(target: { projectId: string; runId: string }): Promise<void> {
+  const win = await ensureMainWindow('production-notification')
+  if (win && !win.isDestroyed()) win.webContents.send('nomi:production-deep-link', target)
 }
 
 /** 装一个可直接塞给 service deps.onEvents 的监听器。 */
@@ -26,7 +22,7 @@ export function createProductionNotificationsListener(): (events: RunEvent[], ru
       const decided = decideProductionNotice(events, run)
       if (!decided || !allow(decided.key)) return
       showDesktopNotification({ title: decided.title, body: decided.body,
-        event: decided.soundEvent, onClick: () => focusAndDeepLink(decided.target) })
+        event: decided.soundEvent, onClick: () => focusAndDeepLink(decided.target).catch(() => undefined) })
     } catch {
       // 通知失败不影响制作。
     }

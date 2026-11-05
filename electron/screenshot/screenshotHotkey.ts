@@ -15,6 +15,7 @@ import { desktopCapturer, globalShortcut, screen, shell, systemPreferences } fro
 import path from "node:path";
 import { getSettingsRoot, ensureDir } from "../runtimePaths";
 import { readConfigFileOrDefault, writeConfigFileAtomic } from "../configFileStore";
+import { showWindow } from "../mainWindowPresence";
 import { getMainWindow } from "../appWindowRegistry";
 import { writeGeneratedAsset } from "../runtime";
 import { logError } from "../logging/logger";
@@ -196,8 +197,7 @@ export async function captureScreenToCanvas(): Promise<void> {
   if (access !== "granted") {
     // 未授权：给人话 + 指路，绝不静默什么都不发生。
     win.webContents.send("nomi:screenshot:denied", { screenAccess: access });
-    win.show();
-    win.focus();
+    showWindow(win);
     return;
   }
 
@@ -213,8 +213,7 @@ export async function captureScreenToCanvas(): Promise<void> {
   }
   if (!project) {
     win.webContents.send("nomi:screenshot:failed", { reason: "no-project" });
-    win.show();
-    win.focus();
+    showWindow(win);
     return;
   }
 
@@ -254,8 +253,7 @@ export async function captureScreenToCanvas(): Promise<void> {
     }
 
     project.write.assertCurrent();
-    win.show();
-    win.focus();
+    showWindow(win);
     const payload: ScreenshotCapture = { url, width: size.width, height: size.height, surfaceBinding: project.surfaceBinding };
     win.webContents.send("nomi:screenshot:captured", payload);
   } catch (error) {

@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  busy: vi.fn(() => true),
   ipcListener: undefined as undefined | ((event: { sender: object }, payload: unknown) => void),
   fromWebContents: vi.fn(),
   showMessageBox: vi.fn(),
@@ -13,10 +14,13 @@ vi.mock("electron", () => ({
   dialog: { showMessageBox: mocks.showMessageBox },
 }));
 
+vi.mock("./backgroundLaunch", () => ({ productionWorkBusyGate: { isBusyForInstall: mocks.busy } }));
+
 import { installWindowCloseConfirmation } from "./windowCloseConfirmation";
 import { installQuitTeardown, isQuitRequested, resetQuitTeardownForTests } from "./quitTeardown";
 
 class FakeWebContents extends EventEmitter {
+  readonly id = 17;
   readonly send = vi.fn();
 }
 
@@ -67,10 +71,42 @@ describe("window close confirmation", () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     resetQuitTeardownForTests();
+    mocks.busy.mockReturnValue(true);
+    vi.stubGlobal("process", { ...process, platform: "darwin" });
     mocks.showMessageBox.mockReset().mockResolvedValue({ response: 1 });
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
+  it.each([false, true])("保存后重新判断空闲并仅在空闲退出（busy=%s）", (busy) => {
+    const window = new FakeWindow(); mocks.fromWebContents.mockReturnValue(window);
+    const app = installOwner(() => 1); installWindowCloseConfirmation(window as never);
+    mocks.busy.mockReturnValue(!busy);
+    window.emit("close", { preventDefault: vi.fn() });
+    const { requestId } = window.webContents.send.mock.calls[0]![1] as { requestId: string };
+    mocks.busy.mockReturnValue(busy);
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId, confirmed: true });
+    expect(app.quit).toHaveBeenCalledTimes(busy ? 0 : 1);
+    expect(mocks.busy).toHaveBeenCalledWith(window.webContents.id);
+    expect(window.close).toHaveBeenCalledOnce();
+  });
+  it.each(["cancel", "save-failed"])("%s 不退出、不销毁，稍后仍可关闭", (kind) => {
+    const window = new FakeWindow(); mocks.fromWebContents.mockReturnValue(window);
+    const app = installOwner(() => 1); installWindowCloseConfirmation(window as never); mocks.busy.mockReturnValue(false);
+    window.emit("close", { preventDefault: vi.fn() });
+    const { requestId } = window.webContents.send.mock.calls[0]![1] as { requestId: string };
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId, confirmed: false, reason: kind });
+    expect(app.quit).not.toHaveBeenCalled(); expect(window.close).not.toHaveBeenCalled();
+    window.emit("close", { preventDefault: vi.fn() }); expect(window.webContents.send).toHaveBeenCalledTimes(2);
+  });
+  it("Windows 普通关窗不新增退出请求", () => {
+    vi.stubGlobal("process", { ...process, platform: "win32" });
+    const window = new FakeWindow(); mocks.fromWebContents.mockReturnValue(window);
+    const app = installOwner(() => 1); installWindowCloseConfirmation(window as never); mocks.busy.mockReturnValue(false);
+    window.emit("close", { preventDefault: vi.fn() });
+    const { requestId } = window.webContents.send.mock.calls[0]![1] as { requestId: string };
+    mocks.ipcListener?.({ sender: window.webContents }, { requestId, confirmed: true });
+    expect(app.quit).not.toHaveBeenCalled(); expect(window.close).toHaveBeenCalledOnce();
+  });
   it("keeps the window open while an ACKed renderer waits ten seconds before confirming", () => {
     const window = new FakeWindow();
     mocks.fromWebContents.mockReturnValue(window);

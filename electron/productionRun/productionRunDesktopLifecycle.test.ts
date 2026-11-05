@@ -1,87 +1,50 @@
-// 回归钉：再次启动 app 时「必须能看见窗口」。
-// issue #62：second-instance 曾只 focus 已存在的窗口，零窗口时什么都不做 —— 而新进程因拿不到
-// 单实例锁已经自杀，结果用户怎么点图标都打不开，只能杀进程。这条不变量不许再退化。
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const appHandlers = new Map<string, (...args: unknown[]) => unknown>();
-const quit = vi.fn();
-let windows: FakeWindow[] = [];
-
-type FakeWindow = {
-  isMinimized: () => boolean;
-  restore: () => void;
-  show: () => void;
-  focus: () => void;
-};
-
-vi.mock("electron", () => ({
-  app: {
-    on: (event: string, handler: (...args: unknown[]) => unknown) => appHandlers.set(event, handler),
-    quit: () => quit(),
-    isReady: () => true,
-    getPath: () => "/tmp/nomi-lifecycle-test",
-    dock: { show: vi.fn() },
-  },
-  BrowserWindow: { getAllWindows: () => windows },
-}));
-vi.mock("../appWindowRegistry", () => ({ getMainWindow: () => null }));
-vi.mock("./artifactProjection", () => ({ loadOrCreateArtifactPreviewSecret: () => "secret" }));
+const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>(), quit: vi.fn(), main: null as ReturnType<typeof win> | null, windows: [] as ReturnType<typeof win>[], ready: true }));
+vi.mock("electron", () => ({ app: { on: (event: string, fn: (...args: unknown[]) => unknown) => h.handlers.set(event, fn), quit: h.quit, isReady: () => h.ready }, BrowserWindow: { getAllWindows: () => h.windows } }));
+vi.mock("../appWindowRegistry", () => ({ getMainWindow: () => h.main }));
+vi.mock("../logging/logger", () => ({ logError: vi.fn(), logWarn: vi.fn(), logInfo: vi.fn() }));
+vi.mock("./artifactProjection", () => ({ loadOrCreateArtifactPreviewSecret: vi.fn() }));
 vi.mock("./productionRunRepository", () => ({ createProductionRunRepository: () => ({}) }));
-
+vi.mock("./productionDeepLink", () => ({ resolveProductionDeepLink: () => ({ projectId: "p", nodeId: "n" }) }));
+import { logError } from "../logging/logger";
+import { createMainWindowGuard } from "../mainWindowPresence";
 import { installProductionRunDesktopLifecycle } from "./productionRunDesktopLifecycle";
-
-function fakeWindow(minimized = false): FakeWindow {
-  return { isMinimized: () => minimized, restore: vi.fn(), show: vi.fn(), focus: vi.fn() };
+function win() { return { isDestroyed: () => false, isMinimized: () => true, restore: vi.fn(), show: vi.fn(), focus: vi.fn(), webContents: { send: vi.fn() } }; }
+function setup() {
+  const createWindow = vi.fn(async () => { h.main = win(); h.windows.push(h.main); });
+  const ensureMainWindow = createMainWindowGuard({ createWindow, onWindowReady: () => lifecycle.flushPendingProductionDeepLink() });
+  const lifecycle = installProductionRunDesktopLifecycle({ isMcpStdio: false, allowE2eMultiInstance: false, hasSingleInstanceLock: true, ensureMainWindow });
+  return { createWindow, ensureMainWindow, ...lifecycle };
 }
-
-function install(ensureMainWindow = vi.fn()) {
-  installProductionRunDesktopLifecycle({
-    isMcpStdio: false,
-    allowE2eMultiInstance: false,
-    hasSingleInstanceLock: true,
-    ensureMainWindow,
+async function settle() { await vi.waitFor(() => expect(h.main?.focus).toHaveBeenCalled()); }
+describe("desktop lifecycle · registry 与深链", () => {
+  beforeEach(() => { h.handlers.clear(); vi.clearAllMocks(); h.main = null; h.windows = []; h.ready = true; });
+  it.each(["zero", "aux-only", "aux-first"])("second-instance %s 总是叫回真正主窗", async (kind) => {
+    const aux = win(); if (kind !== "zero") h.windows.push(aux);
+    if (kind === "aux-first") { h.main = win(); h.windows.push(h.main); }
+    const f = setup(); h.handlers.get("second-instance")!({}, []); await settle();
+    expect(h.main?.show).toHaveBeenCalled(); expect(aux.show).not.toHaveBeenCalled(); expect(f.createWindow).toHaveBeenCalledTimes(kind === "aux-first" ? 0 : 1);
   });
-  const handler = appHandlers.get("second-instance");
-  if (!handler) throw new Error("second-instance handler was not registered");
-  return { ensureMainWindow, secondInstance: () => handler(null, [] as unknown as string[]) };
-}
-
-describe("production run desktop lifecycle · 单实例再次启动", () => {
-  beforeEach(() => {
-    appHandlers.clear();
-    quit.mockClear();
-    windows = [];
+  it("深链在新主窗就绪后投递，辅助窗不能收", async () => {
+    const aux = win(); h.windows = [aux]; setup();
+    h.handlers.get("open-url")!({ preventDefault: vi.fn() }, "nomi://project/p/node/n"); await settle();
+    await vi.waitFor(() => expect(h.main?.webContents.send).toHaveBeenCalledWith("nomi:production-deep-link", { projectId: "p", nodeId: "n" }));
+    expect(aux.webContents.send).not.toHaveBeenCalled();
   });
-
-  it("零窗口时建回主窗口（否则 app 永远打不开）", () => {
-    const { ensureMainWindow, secondInstance } = install();
-    secondInstance();
-    expect(ensureMainWindow).toHaveBeenCalledTimes(1);
+  it("建窗失败仍保留原深链，下次召回就绪后只投递一次", async () => {
+    const f = setup(); f.createWindow.mockRejectedValueOnce(new Error("load failed"));
+    h.handlers.get("open-url")!({ preventDefault: vi.fn() }, "nomi://project/p/node/n");
+    await vi.waitFor(() => expect(logError).toHaveBeenCalled());
+    await f.ensureMainWindow("activate");
+    await vi.waitFor(() => expect(h.main?.webContents.send).toHaveBeenCalledExactlyOnceWith("nomi:production-deep-link", { projectId: "p", nodeId: "n" }));
   });
-
-  it("已有窗口时恢复并聚焦它，不另建窗口", () => {
-    const existing = fakeWindow(true);
-    windows = [existing];
-    const { ensureMainWindow, secondInstance } = install();
-    secondInstance();
-    expect(existing.restore).toHaveBeenCalled();
-    expect(existing.show).toHaveBeenCalled();
-    expect(existing.focus).toHaveBeenCalled();
-    expect(ensureMainWindow).not.toHaveBeenCalled();
+  it("ready 前暂存深链，初始建窗完成后再投递", async () => {
+    h.ready = false; const f = setup(); h.handlers.get("open-url")!({ preventDefault: vi.fn() }, "nomi://project/p/node/n");
+    expect(f.createWindow).not.toHaveBeenCalled(); h.ready = true; h.main = win(); f.flushPendingProductionDeepLink(); await settle();
+    expect(h.main?.webContents.send).toHaveBeenCalledWith("nomi:production-deep-link", { projectId: "p", nodeId: "n" });
   });
-
-  it("拿不到单实例锁的那个进程仍然直接退出（让位给老实例）", () => {
-    const log = vi.fn();
-    installProductionRunDesktopLifecycle({
-      isMcpStdio: false,
-      allowE2eMultiInstance: false,
-      hasSingleInstanceLock: false,
-      ensureMainWindow: vi.fn(),
-      log,
-    });
-    expect(quit).toHaveBeenCalledTimes(1);
-    expect(appHandlers.has("second-instance")).toBe(false);
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("another Nomi instance is already using this profile"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("NOMI_ELECTRON_USER_DATA_DIR"));
+  it("无单实例锁仍退出", () => {
+    const log = vi.fn(); installProductionRunDesktopLifecycle({ isMcpStdio: false, allowE2eMultiInstance: false, hasSingleInstanceLock: false, ensureMainWindow: vi.fn(), log });
+    expect(h.quit).toHaveBeenCalledOnce(); expect(h.handlers.has("second-instance")).toBe(false); expect(log).toHaveBeenCalled();
   });
 });

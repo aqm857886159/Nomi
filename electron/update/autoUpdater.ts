@@ -8,10 +8,9 @@ import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
 import { isAutomatedLaunch, type UpdateFailureReason } from "../telemetry/telemetryEvents";
 import type { TelemetryResult } from "../shared/contracts/telemetry";
 import { AUTO_CHECK_FIRST_DELAY_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from "./autoCheck";
-import { hasInFlightProductionWork } from "../backgroundLaunch";
+import { productionWorkBusyGate as busyGate } from "../backgroundLaunch";
 import { createInstallGate, type UpdaterInstaller } from "./installGate";
 import { createInstallOnQuit } from "./installOnQuit";
-import { createUpdateBusyGate } from "./updateBusyGate";
 import { digestReleaseNotesHtml } from "../shared/releaseNotesDigest";
 import { currentUpdaterState, publishUpdateEvent } from "./updateHub";
 import { openUpdateReminderStore, type UpdateReminderStore } from "./updateReminderStore";
@@ -87,7 +86,6 @@ function installerSizeBytes(info: UpdateInfo): number | null {
 
 const UPDATE_BUSY_PROBE = "update-busy";
 const busySenders = new Set<number>();
-const busyGate = createUpdateBusyGate({ hasMainBusy: hasInFlightProductionWork });
 
 const installOnQuit = createInstallOnQuit({
   registerDrain: registerQuitDrain,
