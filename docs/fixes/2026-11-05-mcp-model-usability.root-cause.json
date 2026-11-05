@@ -11,7 +11,7 @@
   ],
   "scope_paths": [
     "electron/capabilityCore/mcpToolResults.ts",
-    "electron/capabilityCore/mcpModelListOutcome.ts"
+    "electron/capabilityCore/mcpToolResultsModelList.ts"
   ],
   "entry_points": [
     "nomi_read target=models through the shared SDK server",
@@ -28,7 +28,7 @@
   "doors": [
     {
       "kind": "write",
-      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "path": "electron/capabilityCore/mcpToolResultsModelList.ts",
       "symbol": "acceptsTag"
     },
     {
@@ -50,20 +50,20 @@
   "generality_proof": "Every MCP transport reaches assembleToolResultContent and buildToolOutcome; both locales and every model row use one presenter that consumes the canonical usability flag.",
   "shared_boundaries": [
     {
-      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "path": "electron/capabilityCore/mcpToolResultsModelList.ts",
       "symbol": "buildListModelsOutcome",
       "responsibility": "Project every model-list label, group, count and next action from canonical usable rows."
     }
   ],
   "same_class_entry_points": [
     {
-      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "path": "electron/capabilityCore/mcpToolResultsModelList.ts",
       "entry_point": "buildListModelsOutcome: configured but unusable rows",
       "disposition": "enforced",
       "evidence": "False usable with keyStatus ok is excluded and retains statusReason in both locales."
     },
     {
-      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "path": "electron/capabilityCore/mcpToolResultsModelList.ts",
       "entry_point": "buildListModelsOutcome: rows without a usable fact",
       "disposition": "enforced",
       "evidence": "Missing usable is treated as unavailable instead of inferred from credentials."
@@ -81,14 +81,14 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "electron/capabilityCore/mcpModelListOutcome.ts",
+    "enforcement_path": "electron/capabilityCore/mcpToolResultsModelList.ts",
     "invariant": "Canonical usable is the only admission criterion for recommendation groups and counts.",
     "failure_mode": "False or absent usable stays unavailable; configured credentials do not override it.",
     "exception_policy": "none",
     "strategy": "Delete credential-based usability derivation at the common result presenter and use usable === true for all presentation decisions.",
     "artifacts": [
       "electron/capabilityCore/mcpToolResults.ts",
-      "electron/capabilityCore/mcpModelListOutcome.ts"
+      "electron/capabilityCore/mcpToolResultsModelList.ts"
     ]
   },
   "regression_tests": [
@@ -116,7 +116,7 @@
   "detected_by": "review",
   "recurrence_check_on": "2026-12-05",
   "invariant_owner_layer": {
-    "layer": "electron/capabilityCore/mcpModelListOutcome.ts",
+    "layer": "electron/capabilityCore/mcpToolResultsModelList.ts",
     "tests": [
       "electron/capabilityCore/mcpToolResults.test.ts"
     ],

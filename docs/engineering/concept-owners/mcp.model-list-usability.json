@@ -7,12 +7,12 @@
   "fact_kind": "projection",
   "migration_status": "converged",
   "owner": {
-    "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+    "path": "electron/capabilityCore/mcpToolResultsModelList.ts",
     "symbol": "buildListModelsOutcome"
   },
   "write_api": [
     {
-      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "path": "electron/capabilityCore/mcpToolResultsModelList.ts",
       "symbol": "buildListModelsOutcome"
     }
   ],

@@ -6,7 +6,7 @@
 // structuredContent.nomiOutcome 给模型稳定字段（runId/params/nextActions/error），不再让它从文本里抠 ID。
 // 纯逻辑、不碰 electron —— 与 mcpProtocol 同边界，可裸 node 单测。
 
-import { buildListModelsOutcome } from "./mcpModelListOutcome";
+import { buildListModelsOutcome } from "./mcpToolResultsModelList";
 import { isStillAtProvider } from "../productionRun/productionRunLifecycle";
 import type { ProductionJobStatus, ProductionRunStopReason } from "../productionRun/productionRunTypes";
 import { isAnchorCheckpointGate } from "../productionRun/anchorCheckpoint";
