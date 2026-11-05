@@ -118,7 +118,11 @@ export async function singleActionsLockExitJourney(input) {
     await canvas(); const queueBlank = await findCanvasBlankPoint(page); assert.ok(queueBlank); await page.mouse.click(queueBlank.x, queueBlank.y); await canvasFitView(page); await waitForVisualQuiescence(page)
     await page.evaluate(() => window.__nomiSetBatchConcurrency(1)); fixture.holdTasks(true)
     await page.locator('[data-frame-generate-all]').first().click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]')).toHaveCount(5)
     for (const checkbox of await dialog.locator('input[type="checkbox"]').all()) if (!(await checkbox.isDisabled())) await checkbox.check()
+    report.queuedSelected = await dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').count()
+    assert.equal(report.queuedSelected, 5, 'The queued wave must include all five selected rows')
     const queuedStart = proxy.records.length
     await confirm(); await expect.poll(() => proxy.records.length).toBe(queuedStart + 1)
     const beforeQueuedGroupClick = proxy.records.length
