@@ -161,7 +161,7 @@
       "src/workbench/preview/editingPanelKeep.test.ts"
     ]
   },
-  "generality_proof": "resolveEditingStageFrame 是舞台行布局唯一的派生点：每一种入口（窗口、Nomi、收起条、菜单、Agent、拖动、还原）最后都只改输入（舞台宽或意图），布局一律由它重算，栏里画什么由真实像素决定。单测按类扫：求解器只看舞台宽，按舞台宽扫——从最窄的 682（1100 宽开 Nomi）到阈值段上界 1421（两栏最大宽 520 + 420 + 预览 480，再 +1）逐像素，再加 1600 / 2000 / 2490 三个宽样本；× 4 种开合 × 9 种栏宽 × 2 种留哪边，共 53,496 种，逐个断言不变量；另一条用例核对视口 1100–2560 × Nomi 关 / 各档宽能到达的舞台宽全在扫描范围内。拍板数字逐项钉住。（2026-11-05 第 3 轮：原先按视口 × Nomi 扫 52,920 种、每种十几次 expect，负载 44 时超过 30 秒；改按舞台宽扫、只在出错时拼说明，单条用例约 5ms。7 种改坏版本对照，旧扫描抓得住的新扫描全抓得住。） 留哪边同理：所有改开合的入口共用 keepAfterLayoutChange；editingPanelKeep.test.ts 先核对 slice 的动作全部登记，再逐个入口在 682 / 812 / 972 三个舞台宽下断言打开的那栏展开，最后随机串 400 条 12 步序列。",
+  "generality_proof": "resolveEditingStageFrame 是舞台行布局唯一的派生点：每一种入口（窗口、Nomi、收起条、菜单、Agent、拖动、还原）最后都只改输入（舞台宽或意图），布局一律由它重算，栏里画什么由真实像素决定。单测按类扫：求解器只看舞台宽，按舞台宽扫——支持域从最窄的 682（1100 宽开 Nomi，外壳把 Nomi 钳到上限）到最宽的 2490（2560 宽关 Nomi），每个整数都扫、不抽样；× 4 种开合 × 左栏 3 档宽（最小 / 默认 / 最大）× 属性 3 档宽 × 2 种留哪边，共 130,248 种，每种核 12 条不变量，失败只收集、最后一次断言（打印失败数和前 5 个输入输出）。另一条用例独立核对：视口 1100–2560（每 10）× Nomi 关 / 4 档宽能到达的 298 个舞台宽全在扫描集合里，扫描两端就是能到达的最窄和最宽。拍板数字逐项钉住。栏宽只取三档、不是每个整数栏宽，这是扫描的边界。（2026-11-05：第 3 轮为提速把阈值以上收成 3 个样本，漏掉旧扫描能到达的 181 个舞台宽，独立验收用「舞台 1500、左栏最大宽多撑 1px」证实旧红新绿；用户拍板「按全宽重扫」，方向检查 docs/engineering/direction-checks/2026-11-05-preview-narrow-panels-scan-domain.md。现在这个反例和另一个「舞台 2223、留下属性却把它折成条」的反例注进求解器都会红，还原都绿；后者旧扫描和第 3 轮扫描都抓不到。） 留哪边同理：所有改开合的入口共用 keepAfterLayoutChange；editingPanelKeep.test.ts 先核对 slice 的动作全部登记，再逐个入口在 682 / 812 / 972 三个舞台宽下断言打开的那栏展开，最后随机串 400 条 12 步序列。",
   "shared_boundaries": [
     {
       "path": "src/workbench/preview/panelLayout.ts",
@@ -256,7 +256,7 @@
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/preview/panelLayout.ts",
     "invariant": "舞台行布局只由 resolveEditingStageFrame 派生；栏里画什么只按真实像素（editingSidePanelDrawnOpen）；写回只经 editingPanelDragIntent 且只在 isUserInteraction 时。 侧栏开合一变，留哪边只经 keepAfterLayoutChange 定；slice 里每个动作都要在 editingPanelKeep.test.ts 的入口表里登记会不会打开侧栏。",
-    "failure_mode": "求解改坏（栏被撑宽、展开却 < 最小宽、预览 < 400、替用户打开关掉的栏、变宽不回来）→ panelLayout.test.ts 类扫描红；回写恢复成不分来源 → 走查里改窗口宽后读 layout.read 不等于原值，红。 新加一个改布局的动作没登记 → 入口表测试红；某个入口打开侧栏却不改留哪边 → 逐入口测试与随机序列红（2026-11-05 已用去掉撤销那一行的改坏版本证实会红）。",
+    "failure_mode": "求解改坏（栏被撑宽、展开却 < 最小宽或 > 最大宽、预览 < 400、替用户打开关掉的栏、留下的栏被折、变宽不回来）→ panelLayout.test.ts 类扫描红，支持域内哪个整数舞台宽出错都红（2026-11-05 已用 1500 / 2223 两个改坏版本证实）；回写恢复成不分来源 → 走查里改窗口宽后读 layout.read 不等于原值，红。 新加一个改布局的动作没登记 → 入口表测试红；某个入口打开侧栏却不改留哪边 → 逐入口测试与随机序列红（2026-11-05 已用去掉撤销那一行的改坏版本证实会红）。",
     "exception_policy": "none",
     "strategy": "加一层纯函数派生「这一刻怎么摆」，面板库整组 setLayout；同提交删掉 usePanelLayoutSync、syncing 标志、onResize 回写与 editingPanelResizeEffect / COLLAPSIBLE_PANEL_BY_SIZE_KEY。",
     "artifacts": [

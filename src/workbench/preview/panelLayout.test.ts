@@ -18,6 +18,8 @@ import {
 const SEPARATORS = 2
 /** Electron 主窗最小宽（electron/main 的 minWidth）。 */
 const MIN_WINDOW_WIDTH = 1100
+/** 测试支持的最宽视口（2560 宽显示器全屏）。 */
+const MAX_VIEWPORT_WIDTH = 2560
 
 /** 视口宽 → 舞台行三块面板宽度之和。外壳：左栏 60 + 右缝 8；Nomi 停靠时再减它那列（宽 + 8px 缝）。 */
 function stagePanelsWidth(viewport: number, assistantWidth: number | null): number {
@@ -73,23 +75,20 @@ describe('resolveEditingStageFrame — 2026-11-04 拍板的数字（左 / 预览
 
 describe('resolveEditingStageFrame — 这一类的全部形状（舞台宽 × 开合 × 栏宽 × 留哪边）', () => {
   const viewports: number[] = []
-  for (let viewport = MIN_WINDOW_WIDTH; viewport <= 2560; viewport += 10) viewports.push(viewport)
+  for (let viewport = MIN_WINDOW_WIDTH; viewport <= MAX_VIEWPORT_WIDTH; viewport += 10) viewports.push(viewport)
   const assistants = [null, ASSISTANT_WIDTH_MIN, 340, EDITING_PANEL_DEFAULTS.assistantWidth, ASSISTANT_WIDTH_MAX]
   const sourceWidths = [EDITING_PANEL_BOUNDS.source.min, EDITING_PANEL_DEFAULTS.sourceWidth, EDITING_PANEL_BOUNDS.source.max]
   const inspectorWidths = [EDITING_PANEL_BOUNDS.inspector.min, EDITING_PANEL_DEFAULTS.inspectorWidth, EDITING_PANEL_BOUNDS.inspector.max]
   const visibilities = [[true, true], [true, false], [false, true], [false, false]] as const
   const keeps: EditingSidePanel[] = ['source', 'inspector']
 
-  // 求解器只看舞台宽：视口和 Nomi 宽都先经 stagePanelsWidth 变成它，所以按舞台宽扫，不按视口 × Nomi 扫
-  // （2026-11-05 之前那样扫 5.3 万种，大量组合落在同一个舞台宽上，负载高时整条用例超过 30 秒）。
-  // 会收、会折的阈值都在「两栏最大宽 + 预览 480」以内：这一段逐像素扫，阈值上差一像素也抓得到；
-  // 再往宽求解只是把多出来的给预览，取三个样本。最窄一档是 1100 宽开着 Nomi（外壳把 Nomi 钳到上限）。
-  const narrowestStage = Math.min(...viewports.flatMap((viewport) => assistants.map((assistant) => stagePanelsWidth(viewport, assistant))))
-  const widestStage = stagePanelsWidth(2560, null)
-  const thresholdBandEnd = EDITING_PANEL_BOUNDS.source.max + EDITING_PANEL_BOUNDS.inspector.max + EDITING_PANEL_BOUNDS.preview.min
+  // 求解器只看舞台宽：视口和 Nomi 宽都先经 stagePanelsWidth 变成它，所以按舞台宽扫。
+  // 支持域是最小窗开着最宽的 Nomi（外壳把 Nomi 钳到上限）到最宽视口关着 Nomi，这一段每个整数都扫、不抽样：
+  // 求解器在哪个宽度上出错都抓得到，不依赖「阈值以上只是预览变宽」这类对实现的推断（2026-11-05 方向检查）。
+  const narrowestStage = stagePanelsWidth(MIN_WINDOW_WIDTH, ASSISTANT_WIDTH_MAX)
+  const widestStage = stagePanelsWidth(MAX_VIEWPORT_WIDTH, null)
   const stageWidths: number[] = []
-  for (let width = narrowestStage; width <= thresholdBandEnd + 1; width += 1) stageWidths.push(width)
-  stageWidths.push(1600, 2000, widestStage)
+  for (let width = narrowestStage; width <= widestStage; width += 1) stageWidths.push(width)
 
   /** 一种组合违反了哪些不变量（不用 expect 逐条断言：组合多，失败时才拼说明）。 */
   function problemsOf(width: number, layout: Intent, keep: EditingSidePanel, frame: EditingStageFrame): string[] {
@@ -125,27 +124,29 @@ describe('resolveEditingStageFrame — 这一类的全部形状（舞台宽 × �
     expect(narrowestStage - EDITING_PANEL_BOUNDS.inspector.min - EDITING_PANEL_RAIL_WIDTH).toBeGreaterThanOrEqual(EDITING_PANEL_BOUNDS.preview.floor)
   })
 
-  it('扫的舞台宽覆盖所有支持的窗口（视口 1100–2560 × Nomi 关 / 各档宽）', () => {
-    const reachable = viewports.flatMap((viewport) => assistants.map((assistant) => stagePanelsWidth(viewport, assistant)))
-    expect(Math.min(...reachable)).toBe(stageWidths[0])
-    expect(Math.max(...reachable)).toBe(stageWidths[stageWidths.length - 1])
-    // 阈值段以内的每一个能到达的舞台宽都在扫的里面。
-    expect(reachable.filter((width) => width <= thresholdBandEnd + 1 && !stageWidths.includes(width))).toEqual([])
+  it('视口 × Nomi 宽能到达的每一个舞台宽都在扫的里面，扫的两端就是能到达的最窄和最宽', () => {
+    const reachable = new Set(viewports.flatMap((viewport) => assistants.map((assistant) => stagePanelsWidth(viewport, assistant))))
+    const scanned = new Set(stageWidths)
+    expect([...reachable].filter((width) => !scanned.has(width))).toEqual([])
+    expect(Math.min(...reachable)).toBe(narrowestStage)
+    expect(Math.max(...reachable)).toBe(widestStage)
   })
 
-  for (const [source, inspector] of visibilities) {
-    const combos = stageWidths.length * sourceWidths.length * inspectorWidths.length * keeps.length
-    it(`开合 左${source ? '开' : '关'} / 属性${inspector ? '开' : '关'}（${combos} 种）：侧栏要么有可读宽度要么是收起条、加起来正好铺满、预览不低于 400`, () => {
-      const failures: string[] = []
-      for (const width of stageWidths) for (const sourceWidth of sourceWidths) for (const inspectorWidth of inspectorWidths) for (const keep of keeps) {
+  const combos = stageWidths.length * visibilities.length * sourceWidths.length * inspectorWidths.length * keeps.length
+  it(`每一种（${combos} 种）：侧栏要么有可读宽度要么是收起条、加起来正好铺满、预览不低于 400`, () => {
+    let failed = 0
+    const first: string[] = []
+    for (const width of stageWidths) for (const [source, inspector] of visibilities)
+      for (const sourceWidth of sourceWidths) for (const inspectorWidth of inspectorWidths) for (const keep of keeps) {
         const layout = intent(source, inspector, sourceWidth, inspectorWidth)
         const frame = solve(width, layout, keep)
         const problems = problemsOf(width, layout, keep, frame)
-        if (problems.length > 0 && failures.length < 5) failures.push(JSON.stringify({ width, layout, keep, frame, problems }))
+        if (problems.length === 0) continue
+        failed += 1
+        if (first.length < 5) first.push(JSON.stringify({ width, layout, keep, frame, problems }))
       }
-      expect(failures).toEqual([])
-    })
-  }
+    expect({ failed, first }).toEqual({ failed: 0, first: [] })
+  })
 
   it('窗口变宽，被自动收起的栏自己回来：开着的栏在更宽的窗口里不会变成收起条', () => {
     for (const assistant of assistants) for (const [source, inspector] of visibilities) for (const keep of keeps) {
@@ -161,7 +162,7 @@ describe('resolveEditingStageFrame — 这一类的全部形状（舞台宽 × �
         previous = frame
       }
       // 足够宽时，用户开着的栏全部回到他的宽。
-      const wide = solve(stagePanelsWidth(2560, assistant), layout, keep)
+      const wide = solve(stagePanelsWidth(MAX_VIEWPORT_WIDTH, assistant), layout, keep)
       expect(wide.source).toEqual(source ? { open: true, width: layout.sourceWidth } : { open: false, width: EDITING_PANEL_RAIL_WIDTH })
       expect(wide.inspector).toEqual(inspector ? { open: true, width: layout.inspectorWidth } : { open: false, width: EDITING_PANEL_RAIL_WIDTH })
     }
