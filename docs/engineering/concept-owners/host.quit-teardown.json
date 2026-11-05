@@ -40,6 +40,10 @@
       "symbol": "installWindowCloseConfirmation"
     },
     {
+      "path": "electron/windowCloseConfirmation.ts",
+      "symbol": "registerCloseResponseIpc"
+    },
+    {
       "path": "eslint.config.mjs",
       "symbol": "quitLifecycleSelectors"
     }
@@ -54,5 +58,5 @@
     "electron/video/depthVideoIpc.ts"
   ],
   "since": "2026-10-07",
-  "notes": "before-quit 只记录退出意图并保留可取消路径；所有不可逆拆除统一由 will-quit 边界编排，完成后才重新进入 app.quit。"
+  "notes": "before-quit 只记录退出意图并保留可取消路径；所有不可逆拆除统一由 will-quit 边界编排，完成后才重新进入 app.quit。 保存确认的响应入口 registerCloseResponseIpc 归本概念：成功保存后、销毁窗口前复核共享工作状态，Mac 确知空闲才调用原 requestQuit；取消、失败、忙或未知不推断退出，显式退出和 Windows 路径保持原语义。关闭响应行为由 electron/windowCloseConfirmation.test.ts 覆盖，不新增退出主人。"
 }

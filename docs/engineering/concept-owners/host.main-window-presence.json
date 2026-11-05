@@ -1,0 +1,29 @@
+{
+  "name": "主窗口恢复目标与创建就绪",
+  "subject": "host.main-window-presence",
+  "lifecycle": "host",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/mainWindowPresence.ts",
+    "symbol": "createMainWindowGuard"
+  },
+  "write_api": [
+    {
+      "path": "electron/mainWindowPresence.ts",
+      "symbol": "createMainWindowGuard"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/mainWindowPresence.test.ts",
+  "allowed_consumers": [
+    "electron/main.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.ts",
+    "electron/notificationIpc.ts",
+    "electron/productionRun/productionNotificationsDesktop.ts"
+  ],
+  "since": "2026-11-05",
+  "notes": "恢复只认 appWindowRegistry 登记的主窗口，创建并发共享就绪 Promise；没有主窗才补建，加载完成后再投递深链。导出的 ensureMainWindow 只委托已安装的同一主人，无 GUI 的进程不另建主人。showWindow 只显示调用者已固定的窗口，不重选项目或窗口，凭据和截图租约保持原样。"
+}
