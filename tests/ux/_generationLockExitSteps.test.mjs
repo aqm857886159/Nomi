@@ -2,9 +2,9 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 import { assertPaidRunAllowed, lockSpendToModels } from './_paidRun.mjs'
 
-vi.mock('./agent-runtime-walk-support.mjs', () => ({
+vi.mock('./agent-runtime-walk-support.mjs', async importOriginal => ({
   chooseAssistantModel: vi.fn(), sendCreation: vi.fn(), readProject: vi.fn(),
-  openCanvas: vi.fn(), CREATION_PANEL: '[data-test-creation]',
+  openCanvas: vi.fn(), CREATION_PANEL: (await importOriginal()).CREATION_PANEL,
 }))
 import { readProject, chooseAssistantModel, sendCreation } from './agent-runtime-walk-support.mjs'
 import { generationLockExitJourney, prepareLockExitStoryboard, lockExitFixtureInput } from './_generationLockExitSteps.mjs'
