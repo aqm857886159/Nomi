@@ -13,7 +13,7 @@
     "确知全空闲保存确认后关闭退出"
   ],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-11-05-desktop-window-lifecycle.md",
@@ -33,5 +33,6 @@
   "completionCommits": [
     "65692769d79bff008ae900edc1ebb25636209eaf",
     "53e80bef05cd0756429217d66d229b83917a090b"
-  ]
+  ],
+  "fixedInPr": 1424
 }
