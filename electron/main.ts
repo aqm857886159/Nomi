@@ -333,7 +333,7 @@ async function createWindow(
 }
 // 零窗口自愈的唯一入口（issue #62）；activate / second-instance / 窗口重建失败都走它。
 const ensureMainWindow: ReturnType<typeof createMainWindowGuard> = hasSingleInstanceLock
-  ? createMainWindowGuard({ createWindow, onWindowReady: () => flushPendingProductionDeepLink() })
+  ? createMainWindowGuard({ createWindow, onWindowReady: flushPendingProductionDeepLink })
   : async () => null;
 
 function recreateMainWindowFromSender(sender: WebContents, options: { preserveRoute: boolean; reason: string }): void {
@@ -346,18 +346,13 @@ function recreateMainWindowFromSender(sender: WebContents, options: { preserveRo
     : getRendererUrl();
   isRecreatingMainWindow = true;
   if (oldWindow && !oldWindow.isDestroyed()) oldWindow.destroy();
-  void ensureMainWindow("maintenance", false, async () => {
+  void ensureMainWindow("maintenance", !isBackgroundLaunch, async () => {
     await Promise.all([
       session.defaultSession.clearCache().catch(() => undefined),
       session.defaultSession.clearCodeCaches({}).catch(() => undefined),
     ]);
     return createWindow({ bounds, maximize, rendererUrl });
   })
-    .then((nextWindow) => {
-      // A renderer reload can also happen in the hidden MCP-launched process;
-      // never let that maintenance path surface the background window.
-      if (nextWindow && !isBackgroundLaunch) nextWindow.focus();
-    })
     .catch((error) => {
       logError("window", "recreate-window-failed", error, { reason: options.reason });
     })
@@ -633,7 +628,6 @@ if (hasSingleInstanceLock)
           logError("capability", "start-failed", error);
         });
       }
-      flushPendingProductionDeepLink();
       setTimeout(
         () => {
           // 存量中转模型升级会在真实探测前按需解密凭据；首窗完成后再让出一个后台时段调度，

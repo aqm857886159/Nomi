@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { newProjectEntry, switchWorkspace } from './_shell.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -56,7 +57,7 @@ try {
       if (before) {
         await expect.poll(() => idle.app.windows().length).toBe(0)
         expect(alive(pid)).toBe(true)
-      } else await expect.poll(() => alive(pid), { timeout: 15_000 }).toBe(false)
+      } else await expect.poll(() => alive(pid), { timeout: stationTimeout() }).toBe(false)
       results.push({ locale, case: 'idle-close', pid, alive: alive(pid), expectedAlive: before })
     } finally { await finish(idle) }
 
