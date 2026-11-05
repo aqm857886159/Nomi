@@ -1,6 +1,27 @@
 import http from 'node:http'
 import { expect, it } from 'vitest'
-import { createGenerationLockExitProxy } from './_generationLockExitProxy.mjs'
+import { createGenerationLockExitProxy, createLockExitJourneyProxy } from './_generationLockExitProxy.mjs'
+
+it('holds immediate upstream replies so the journey still rejects a third concurrent image', async () => {
+  let replies = 0
+  const server = http.createServer(async (req, res) => {
+    for await (const part of req) void part
+    res.writeHead(200).end('{"data":[{"task_id":"immediate-task"}]}')
+    replies++
+  })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  let proxy
+  try {
+    proxy = await createLockExitJourneyProxy({ target: `http://127.0.0.1:${server.address().port}`, imageModel: 'fake-image', maxImages: 3 })
+    const post = () => fetch(`${proxy.origin}/v1/images/generations`, { method: 'POST', body: '{"model":"fake-image","prompt":"fixture"}' })
+    const first = post(), second = post()
+    await expect.poll(() => replies).toBe(2)
+    expect((await post()).status).toBe(429)
+    expect((await first).status).toBe(200)
+    expect((await second).status).toBe(200)
+    expect(replies).toBe(2)
+  } finally { if (proxy) await proxy.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }
+})
 
 it('forwards the same bytes, rejects a third concurrent image, drops only a forwarded reply and caps spend', async () => {
   const received = [], pending = []

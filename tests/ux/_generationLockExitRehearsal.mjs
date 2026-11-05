@@ -7,7 +7,7 @@ import { registerTestTemp } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { newProjectEntry } from './_shell.mjs'
 import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR } from './agent-runtime-fixture.mjs'
-import { createGenerationLockExitProxy } from './_generationLockExitProxy.mjs'
+import { createLockExitJourneyProxy } from './_generationLockExitProxy.mjs'
 import { generationLockExitJourney, lockExitFixtureInput } from './_generationLockExitSteps.mjs'
 
 export async function runLockExitRehearsal(locale = 'zh-CN', journey = generationLockExitJourney) {
@@ -23,7 +23,7 @@ export async function runLockExitRehearsal(locale = 'zh-CN', journey = generatio
   const userDataDir = path.join(tempRoot, 'user-data')
   const projectsDir = path.join(tempRoot, 'projects')
   const fixture = await createAgentRuntimeFixture({ rootDir: root, settingsDir, userDataDir, appName: 'nomi', generationProvider: 'apimart' })
-  const proxy = await createGenerationLockExitProxy({ target: fixture.baseURL, imageModel: FIXTURE_APIMART_MODEL, fakeDelayMs: 2500 })
+  const proxy = await createLockExitJourneyProxy({ target: fixture.baseURL, imageModel: FIXTURE_APIMART_MODEL })
   let app, page, project
   const launch = async () => {
     const started = await launchNomiApp({ name: 'generation-lock-exit', tempRoot, settingsDir, userDataDir, projectsDir, settleMs: 0, viewportSize: { width: 1280, height: 860 },

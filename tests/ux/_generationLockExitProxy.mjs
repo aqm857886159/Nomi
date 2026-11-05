@@ -3,6 +3,13 @@ import http from 'node:http'
 import https from 'node:https'
 import { gunzipSync, inflateSync, brotliDecompressSync } from 'node:zlib'
 
+// Fast provider receipts must be held so the journey can reach the concurrency limit.
+export const LOCK_EXIT_JOURNEY_REPLY_HOLD_MS = 2500
+
+export function createLockExitJourneyProxy({ target, imageModel, maxImages }) {
+  return createGenerationLockExitProxy({ target, imageModel, maxImages, fakeDelayMs: LOCK_EXIT_JOURNEY_REPLY_HOLD_MS })
+}
+
 /** Test-only fault boundary: forward bytes unchanged, reject concurrency, or discard one accepted reply. */
 export async function createGenerationLockExitProxy({ target, imageModel, fakeDelayMs = 0, maxImages = 14 }) {
   const records = []

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { ENV_KEY_VENDOR } from './_paidEnvKey.mjs'
 import { createRuntimeWalk, openCanvas } from './agent-runtime-walk-support.mjs'
-import { createGenerationLockExitProxy } from './_generationLockExitProxy.mjs'
+import { createLockExitJourneyProxy, LOCK_EXIT_JOURNEY_REPLY_HOLD_MS } from './_generationLockExitProxy.mjs'
 import { generationLockExitJourney, lockExitFixtureInput, LOCK_EXIT_BUILD_MARKERS } from './_generationLockExitSteps.mjs'
 
 // A partial rehearsal is not authorization to spend on an unfinished four-stage journey.
@@ -33,7 +33,7 @@ let proxy, failure
 try {
   const target = walk.report.networkAllowlist[0]
   if (!target || !/^https:\/\//.test(target)) throw new Error('The authorized upstream API origin is missing')
-  proxy = await createGenerationLockExitProxy({ target, imageModel: model.modelKey, maxImages: 13 })
+  proxy = await createLockExitJourneyProxy({ target, imageModel: model.modelKey, maxImages: 13 })
   Object.assign(launchEnv, { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: target, to: proxy.origin }]), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: proxy.origin })
   const { win } = await walk.start({ first: true })
   await paid.lockToAuthorizedModels(win)
@@ -51,6 +51,6 @@ try {
     },
   })
   walk.report.generationLockExit = report
-  walk.report.proxy = { simulated: ['concurrency refusal', 'discarding one accepted reply'], maxImages: 13, reservedPriceProbe: 1, requests: proxy.records }
+  walk.report.proxy = { simulated: ['concurrency refusal', 'discarding one accepted reply'], fakeDelayMs: LOCK_EXIT_JOURNEY_REPLY_HOLD_MS, maxImages: 13, reservedPriceProbe: 1, requests: proxy.records }
 } catch (error) { failure = error; process.exitCode = 1 }
 finally { if (proxy) await proxy.close(); await paid.finish(failure) }
