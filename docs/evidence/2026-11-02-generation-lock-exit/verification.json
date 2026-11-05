@@ -1,6 +1,6 @@
 {
-  "status": "second round implemented locally; B6 and golden regression repaired; independent reacceptance and paid run pending",
-  "network": "fake providers only; guarded isolated Electron; no paid execution",
+  "status": "Historical free verification retained; paidRun2 records partial real-image-provider evidence; independent reacceptance pending",
+  "network": "Historical sections use fake providers; paidRun2 used real image generation with fixture text in an isolated development App; full paid journey did not pass",
   "sourceCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
   "walks": [
     {
@@ -3453,5 +3453,77 @@
     "workingTreeAfterTests": "clean; subsequent commit changes evidence metadata only",
     "prJudgementExit": 0,
     "prJudgementParserTests": 29
+  },
+  "paidRun2": {
+    "commit": "9d3ad70fbce4de96730c571fdaa01f61a7399662",
+    "startedAt": "2026-11-05T11:58:13.357Z",
+    "timeBasis": "Run artifact creation timestamp",
+    "environment": "macOS isolated Electron development build",
+    "models": {
+      "image": {
+        "label": "图片模型",
+        "execution": "real-provider"
+      },
+      "text": {
+        "label": "文本模型",
+        "execution": "fixture; this run does not verify real text generation"
+      }
+    },
+    "status": "partial",
+    "walkResult": "failed",
+    "exitCode": 1,
+    "observed": {
+      "successfulAssetImages": 2,
+      "successfulShotImages": 2,
+      "successfulImagesTotal": 4,
+      "discardedReplies": 1,
+      "unknownResultShots": 1,
+      "concurrencyRefusals": 0,
+      "imageCalls": 5,
+      "unknownResultCopy": "上一次没等到结果，可能已经扣费",
+      "visibleRecoveryActions": [
+        "再发一次",
+        "查看任务"
+      ],
+      "recoveryActionsExecuted": false,
+      "billingCost": null
+    },
+    "failure": {
+      "type": "AssertionError [ERR_ASSERTION]",
+      "message": "First batch must contain both refusal and discarded reply",
+      "cause": "The three shot requests were not simultaneously in flight under real-provider timing; the proxy concurrency limit did not trigger"
+    },
+    "conclusion": "Four real images completed and the discarded-reply shot exposed the intended recovery exits. The full paid journey failed its initial mixed-outcome assertion; visible recovery controls do not prove a completed recovery journey.",
+    "concurrencyRefusalCoverage": {
+      "realProviderRun": "not triggered; unverified",
+      "freeRehearsal": "covered by the passed free rehearsal on the same commit",
+      "mechanism": "The proxy rejects before sending a request to the provider; a real provider is not required to validate that refusal"
+    },
+    "freeRehearsal": {
+      "commit": "9d3ad70fbce4de96730c571fdaa01f61a7399662",
+      "status": "passed",
+      "stages": [
+        "storyboard",
+        "canvas",
+        "list",
+        "restart"
+      ],
+      "interruptionCoverage": "Coordinator confirmed window-close, sigkill, reload, retrieve and resend passed"
+    },
+    "decision": {
+      "thirdPaidAttempt": "will not run",
+      "testChanges": "none; preserve the failed assertion",
+      "followUp": "Separate paid timing assumptions from deterministic proxy-refusal coverage"
+    },
+    "unverified": [
+      "Concurrency refusal was not triggered in this real-provider run; covered by the free rehearsal instead",
+      "Recovery after clicking resend or view-task, and the remaining canvas/list/restart paid stages were not reached",
+      "Actual charge and cost for the discarded reply were not confirmed",
+      "Real text generation, Windows and packaged-build behavior were not verified by this run",
+      "Independent acceptance after the main merge is pending"
+    ],
+    "screenshots": [
+      "docs/evidence/2026-11-02-generation-lock-exit/paid-run2-storyboard-unknown.png"
+    ]
   }
 }
