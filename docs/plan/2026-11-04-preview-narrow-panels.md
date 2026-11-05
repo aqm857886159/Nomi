@@ -118,7 +118,7 @@
 不适用：本改动没有新增用户操作，也没有随项目规模增长的计算。
 - ①操作：点收起条、拖分隔条、改窗口、开关 Nomi 都是原有操作。改的只是这些操作之后怎么摆：一次纯算术求解（`resolveEditingStageFrame`），再整组 `setLayout` 一次。
 - ②最坏规模：求解只看三栏宽度和开合，和镜头数、片段数、素材数无关，是常数级。
-- ③预算：沿用默认「操作到可见反馈 ≤100ms」。求解本身的代价用类扫描单测量：约 5.3 万次求解（含断言）整份文件本机约 2.3 秒，单次远低于 1ms（`pnpm exec vitest run src/workbench/preview/panelLayout.test.ts`）。没套上时最多补 3 帧（`APPLY_ATTEMPTS`），不轮询。
+- ③预算：沿用默认「操作到可见反馈 ≤100ms」。求解本身的代价用类扫描单测量：53,496 次求解按 4 种开合拆成 4 条用例，每条本机约 5ms（`pnpm exec vitest run src/workbench/preview/panelLayout.test.ts`），单次远低于 1ms。没套上时最多补 3 帧（`APPLY_ATTEMPTS`），不轮询。
 - ④场景：不新登记性能场景。预览页播放与拖时间轴已有 `timeline-preview-play` / `timeline-scrub`；播放时舞台宽不变，不会触发求解。
 
 ## 拍板图清单

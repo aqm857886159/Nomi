@@ -161,7 +161,7 @@
       "src/workbench/preview/editingPanelKeep.test.ts"
     ]
   },
-  "generality_proof": "resolveEditingStageFrame 是舞台行布局唯一的派生点：每一种入口（窗口、Nomi、收起条、菜单、Agent、拖动、还原）最后都只改输入（舞台宽或意图），布局一律由它重算，栏里画什么由真实像素决定。单测按类扫：视口 1100–2560 每 10px × Nomi 关 / 300 / 340 / 390 / 600 × 4 种开合 × 9 种栏宽 × 2 种留哪边，逐个断言四条不变量；拍板数字逐项钉住。 留哪边同理：所有改开合的入口共用 keepAfterLayoutChange；editingPanelKeep.test.ts 先核对 slice 的动作全部登记，再逐个入口在 682 / 812 / 972 三个舞台宽下断言打开的那栏展开，最后随机串 400 条 12 步序列。",
+  "generality_proof": "resolveEditingStageFrame 是舞台行布局唯一的派生点：每一种入口（窗口、Nomi、收起条、菜单、Agent、拖动、还原）最后都只改输入（舞台宽或意图），布局一律由它重算，栏里画什么由真实像素决定。单测按类扫：求解器只看舞台宽，按舞台宽扫——从最窄的 682（1100 宽开 Nomi）到阈值段上界 1421（两栏最大宽 520 + 420 + 预览 480，再 +1）逐像素，再加 1600 / 2000 / 2490 三个宽样本；× 4 种开合 × 9 种栏宽 × 2 种留哪边，共 53,496 种，逐个断言不变量；另一条用例核对视口 1100–2560 × Nomi 关 / 各档宽能到达的舞台宽全在扫描范围内。拍板数字逐项钉住。（2026-11-05 第 3 轮：原先按视口 × Nomi 扫 52,920 种、每种十几次 expect，负载 44 时超过 30 秒；改按舞台宽扫、只在出错时拼说明，单条用例约 5ms。7 种改坏版本对照，旧扫描抓得住的新扫描全抓得住。） 留哪边同理：所有改开合的入口共用 keepAfterLayoutChange；editingPanelKeep.test.ts 先核对 slice 的动作全部登记，再逐个入口在 682 / 812 / 972 三个舞台宽下断言打开的那栏展开，最后随机串 400 条 12 步序列。",
   "shared_boundaries": [
     {
       "path": "src/workbench/preview/panelLayout.ts",
