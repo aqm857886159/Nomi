@@ -69,16 +69,35 @@ describe('buildToolOutcome (A2 结果重写：转述原材料 + 参数回显)', 
   })
 })
 
-describe('nomi_read target=models 转述（交付1：只有 keyStatus=ok 说可用 + 参考能力 + locale）', () => {
+describe('nomi_read target=models 转述（交付1：只有 usable=true 说可用 + 参考能力 + locale）', () => {
+  it.each(['zh-CN', 'en'] as const)('uses canonical usability for groups, labels and next actions (%s)', locale => {
+    const models = [
+      { modelId: 'ready', keyStatus: 'ok', usable: true },
+      { modelId: 'blocked', keyStatus: 'ok', usable: false, statusReason: 'executor unavailable' },
+      { modelId: 'unknown', keyStatus: 'ok', statusReason: 'not verified' },
+    ]
+    const { text, outcome } = buildToolOutcome('nomi_read', { target: 'models' }, { models }, locale)
+    expect(outcome).toMatchObject({ total: 3, usable: 1, models, nextActions: ['pick_model'] })
+    expect(outcome!.models).toBe(models)
+    const lines = text!.split('\n')
+    expect(lines.find(line => line.includes(' · blocked'))).toContain(locale === 'en' ? '✗ unavailable' : '✗ 不可用')
+    expect(lines.find(line => line.includes(' · blocked'))).toContain('executor unavailable')
+    expect(lines.find(line => line.includes(' · unknown'))).toContain('not verified')
+    expect(lines.find(line => line.includes(' · ready'))).toContain('✓')
+    const none = buildToolOutcome('nomi_read', { target: 'models' }, { models: models.slice(1) }, locale)
+    expect(none.outcome).toMatchObject({ usable: 0, nextActions: ['inspect_model'] })
+    expect(none.text).not.toContain(locale === 'en' ? 'configure an API key first' : '请先配置 API Key')
+  })
+
   const modelsResult = {
     models: [
-      { vendor: 'apimart', modelId: 'seedream', label: 'Seedream', kind: 'image', keyStatus: 'ok', statusReason: '已接入且可用', accepts: { image: true, video: false, audio: false, multiImage: true }, modeIds: ['image_edit'] },
+      { vendor: 'apimart', modelId: 'seedream', label: 'Seedream', kind: 'image', keyStatus: 'ok', usable: true, statusReason: '已接入且可用', accepts: { image: true, video: false, audio: false, multiImage: true }, modeIds: ['image_edit'] },
       { vendor: 'kie', modelId: 'kie-x', label: 'Kie X', kind: 'video', keyStatus: 'missing', statusReason: '未配置 Kie 的 API Key；请先在 Nomi 应用的模型接入里填入', accepts: { image: false, video: false, audio: false, multiImage: false }, modeIds: [] },
       { vendor: 'volcengine', modelId: 'volc-y', label: '火山 Y', kind: 'image', keyStatus: 'locked', statusReason: '火山 的 API Key 已保存但当前宿主身份解不开；请在 Nomi 应用里重新保存该 Key', accepts: { image: false, video: false, audio: false, multiImage: false }, modeIds: [] },
     ],
   }
 
-  it('分组：可用（ok）与「已列出但不可用」（missing/locked）分开；只 ok 打 ✓', () => {
+  it('分组：可用（usable=true）与「已列出但不可用」（missing/locked）分开；只 usable=true 打 ✓', () => {
     const { text, outcome } = buildToolOutcome('nomi_read', { target: 'models' }, modelsResult)
     expect(text).toContain('可用模型 1 个')
     expect(text).toContain('apimart · seedream')

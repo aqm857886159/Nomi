@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-05-mcp-model-usability",
+  "problem_type": "Result presenters must preserve canonical model usability",
+  "symptom": "External AI is told that a model is usable merely because its credential is configured.",
+  "direct_cause": "The model-list presenter groups and counts rows by keyStatus instead of the existing usable flag.",
+  "class_root": "A presentation boundary re-derives a domain fact using an incomplete proxy.",
+  "affected_population": [
+    "Configured models whose executor or setup is unavailable",
+    "Rows with no verified usable fact, across all MCP hosts and locales"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpToolResults.ts",
+    "electron/capabilityCore/mcpModelListOutcome.ts"
+  ],
+  "entry_points": [
+    "nomi_read target=models through the shared SDK server",
+    "Model-list text, row labels, counts and next actions"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal projection invariant: modelSpecRead supplies canonical usable rows and statusReason, so no external standard or dependency determines whether a row can be recommended.",
+  "invariants": [
+    "Only rows with usable === true enter the usable group or increment its count.",
+    "Unavailable rows remain visible with their reason.",
+    "No usable models with configured credentials points to model inspection, not credential replacement.",
+    "Structured model rows pass through unchanged."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "symbol": "acceptsTag"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpResultPayload.ts",
+      "symbol": "buildToolOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/mcpToolResults.ts",
+      "symbol": "buildListModelsOutcome"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "Content assembly calls the common tool presenter, which delegates to the sole model-list presenter. Its reference tag helper preserves existing reference capability labels. These are sequential stages of one result path, not competing usability producers."
+  },
+  "generality_proof": "Every MCP transport reaches assembleToolResultContent and buildToolOutcome; both locales and every model row use one presenter that consumes the canonical usability flag.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "symbol": "buildListModelsOutcome",
+      "responsibility": "Project every model-list label, group, count and next action from canonical usable rows."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "entry_point": "buildListModelsOutcome: configured but unusable rows",
+      "disposition": "enforced",
+      "evidence": "False usable with keyStatus ok is excluded and retains statusReason in both locales."
+    },
+    {
+      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "entry_point": "buildListModelsOutcome: rows without a usable fact",
+      "disposition": "enforced",
+      "evidence": "Missing usable is treated as unavailable instead of inferred from credentials."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future model, executor failure, host or locale can repeat the same proxy-based mistake.",
+    "same_class_scan": [
+      "door-map buildListModelsOutcome buildToolOutcome found the local model presenter call and mcpResultPayload.ts as the content assembly caller.",
+      "assembleToolResultContent is called by the shared SDK server in mcpProtocol.ts.",
+      "Read modelSpecRead.listModelSpecRows and ModelAvailabilityFacts; inspect model-list and locale tests."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpModelListOutcome.ts",
+    "invariant": "Canonical usable is the only admission criterion for recommendation groups and counts.",
+    "failure_mode": "False or absent usable stays unavailable; configured credentials do not override it.",
+    "exception_policy": "none",
+    "strategy": "Delete credential-based usability derivation at the common result presenter and use usable === true for all presentation decisions.",
+    "artifacts": [
+      "electron/capabilityCore/mcpToolResults.ts",
+      "electron/capabilityCore/mcpModelListOutcome.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpToolResults.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpToolResults.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpToolResults.ts"
+    ],
+    "rationale": "Remove keyStatus-based usable grouping, counting and success labels; keep keyStatus only for credential-related explanations."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls this invariant; the existing model-row producer already supplies the canonical fact.",
+    "exit_criteria": []
+  },
+  "migration": "No schema, stored data or tool changes. Existing hosts receive the corrected projection on their next model-list read.",
+  "residual_risks": [
+    "Actual external AI selection and model rounds remain unverified; no paid calls are authorized."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-05",
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore/mcpModelListOutcome.ts",
+    "tests": [
+      "electron/capabilityCore/mcpToolResults.test.ts"
+    ],
+    "why": "The common result presenter owns externally visible model recommendations in both locales."
+  }
+}

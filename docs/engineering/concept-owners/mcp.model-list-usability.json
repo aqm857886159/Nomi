@@ -1,0 +1,25 @@
+{
+  "name": "MCP model-list usability presentation",
+  "subject": "mcp.model-list-usability",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+    "symbol": "buildListModelsOutcome"
+  },
+  "write_api": [
+    {
+      "path": "electron/capabilityCore/mcpModelListOutcome.ts",
+      "symbol": "buildListModelsOutcome"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/capabilityCore/mcpToolResults.ts"
+  ],
+  "since": "2026-11-05",
+  "notes": "Contract docs/fixes/2026-11-05-mcp-model-usability.root-cause.json: recommendations consume canonical usable and do not infer it from credential status."
+}
