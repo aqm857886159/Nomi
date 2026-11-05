@@ -1,3 +1,4 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -35,7 +36,7 @@ export async function listEntryLockExitJourney(input) {
     await expect(dialog).toBeVisible()
     assert.equal(await dialog.locator('input[type="checkbox"]:checked').count(), 3)
     await shot('list-entry-confirm')
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
     await expect.poll(() => proxy.records.length).toBe(3)
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length).toBe(1)
     const failedNode = (await nodes()).find(n => n.status === 'error')
@@ -51,7 +52,7 @@ export async function listEntryLockExitJourney(input) {
     await page.locator('[data-section-generate]').first().click(); await expect(dialog).toBeVisible()
     for (const checkbox of await dialog.locator('input[type="checkbox"]').all()) if (!(await checkbox.isDisabled())) await checkbox.check()
     await shot('list-queue-confirm')
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
     const queued = page.locator('[data-list-card]:has([data-list-status="queued"])').first()
     await expect(queued).toBeVisible()
     const queuedId = await queued.getAttribute('data-list-card')

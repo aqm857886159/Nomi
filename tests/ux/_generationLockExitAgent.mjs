@@ -1,3 +1,4 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -34,7 +35,7 @@ async function agentGenerate(input, mounted) {
         await shot(`confirm-${report.confirmations}`)
         report.confirmations++
         assert.ok(report.confirmations <= 3, 'Agent keeps its existing two asset approvals and one shot-batch approval')
-        await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+        await confirmLockExitSpend(page, report, { shot })
       }
       const nodes = (await readProject(page, projectId)).payload.generationCanvas.nodes
       assert.ok(!nodes.some(n => /storyboard_content_conflict|generation_input_changed/.test(n.error ?? '')), 'A5: automatic references must not invalidate the agent handoff')

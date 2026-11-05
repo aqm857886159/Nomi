@@ -1,3 +1,4 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import assert from 'node:assert/strict'
 import { expect } from '@playwright/test'
 import { stationTimeout } from './_station-budget.mjs'
@@ -27,7 +28,7 @@ export async function httpEightLockExitJourney({ page, projectId, proxy, fixture
     proxy.setLimit(4); fixture.holdTasks(true)
     await page.evaluate(() => window.__nomiSetBatchConcurrency(6))
     await page.locator('[data-storyboard-batch]').click(); await expect(dialog).toBeVisible(); await shot('eight-confirm')
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
     await expect.poll(() => proxy.records.length).toBe(8)
     assert.equal(proxy.records.filter(r => r.rejected).length, 4)
     report.eightHttpReceipts = structuredClone(proxy.records)
@@ -42,8 +43,7 @@ export async function httpEightLockExitJourney({ page, projectId, proxy, fixture
     const rowIndex = design.plan.shots.find(s => s.shotId === failed.meta.shotId).index
     await page.locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = element.scrollHeight })
     await page.locator(`[data-storyboard-row="${rowIndex}"]`).getByRole('button', { name: t('storyboardEditor.frame.retryHint'), exact: true }).dblclick()
-    await expect(dialog).not.toBeVisible()
-    await expect.poll(() => proxy.records.length).toBe(9)
+    await confirmLockExitSpend(page, report, { shot, until: () => proxy.records.length === 9 })
     await shot('eight-single-retry-running'); fixture.holdTasks(false)
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'running').length, { timeout: stationTimeout({ operations: 8 }) }).toBe(0)
     assert.equal(proxy.records.length, 9)

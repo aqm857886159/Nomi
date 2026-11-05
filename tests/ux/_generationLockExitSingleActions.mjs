@@ -1,3 +1,4 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -18,7 +19,7 @@ export async function singleActionsLockExitJourney(input) {
   const nodes = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
   const dialog = page.locator('[data-spend-confirm-dialog]')
   const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-single-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
-  const confirm = async () => { await expect(dialog).toBeVisible(); await dialog.locator('[data-spend-confirm-action="confirm"]').click() }
+  const confirm = async () => { await expect(dialog).toBeVisible(); await confirmLockExitSpend(page, report, { shot }) }
   const canvas = async () => { await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page); await page.waitForFunction(() => Boolean(window.__nomiCanvasStore)) }
   try {
     const design = await prepareLockExitStoryboard(input)
@@ -99,8 +100,7 @@ export async function singleActionsLockExitJourney(input) {
       const surface = surfaces[i], target = shots[i], scope = await navigate(surface, target), before = proxy.records.length
       const label = surface === 'storyboard' ? t('storyboardEditor.frame.retryHint') : t('generationCommon.observability.action.retry.main')
       await scope.getByRole('button', { name: label, exact: true }).dblclick()
-      await expect(dialog).not.toBeVisible()
-      await expect.poll(async () => (await nodes()).find(n => n.id === target.node.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
+      await confirmLockExitSpend(page, report, { shot, until: async () => (await nodes()).find(n => n.id === target.node.id)?.status === 'success' })
       assert.equal(proxy.records.length, before + 1, `E3/${surface}: a double-click retries exactly once`)
       await shot(`${surface}-retried`); report.checks[`E3/${surface}`] = true
       if (i === 0) {
@@ -137,8 +137,7 @@ export async function singleActionsLockExitJourney(input) {
       await shot(`${surface}-queued`)
       if (surface === 'storyboard') await scope.getByRole('button', { name: t('storyboardEditor.frame.regenerate'), exact: true }).click()
       else await page.locator(surface === 'list' ? '[data-inspector-composer] [data-bar-segment="generate"]' : '[data-composer-host="canvas"]:visible [data-bar-segment="generate"]').click()
-      await expect(dialog).not.toBeVisible()
-      await expect.poll(() => proxy.records.length).toBe(before + 1)
+      await confirmLockExitSpend(page, report, { shot, until: () => proxy.records.length === before + 1 })
       report.checks[`E4/${surface}`] = true
     }
     fixture.holdTasks(false)
@@ -159,8 +158,7 @@ export async function spendChangeLockExitJourney(input) {
   const nodes = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
   const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-a11-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
   const confirm = async () => {
-    if (await dialog.locator('[data-hosting-remember] input').isVisible()) await dialog.locator('[data-hosting-remember] input').check()
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
   }
   try {
     const design = await prepareLockExitStoryboard(input)

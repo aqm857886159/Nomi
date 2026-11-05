@@ -1,3 +1,4 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -112,7 +113,7 @@ export async function approvedUnknownResultCardJourney(input) {
     if (locale === 'zh-CN') await shot('NoticeStoryboard')
     // board:UnknownResultCard/other-failures.red — real provider refusal remains a failure.
     await expect.poll(async () => (await nodes()).find(n => n.id === waiting.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
-    const ordinary = (await nodes()).find(n => n.id === waiting.id); proxy.setLimit(0); await canvas(ordinary.id); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click(); if (await dialog.isVisible()) await dialog.locator('[data-spend-confirm-action="confirm"]').click(); await expect.poll(async () => (await nodes()).find(n => n.id === ordinary.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error'); await expect(page.locator(`[data-node-id="${ordinary.id}"] [role="alert"]`)).toBeVisible()
+    const ordinary = (await nodes()).find(n => n.id === waiting.id); proxy.setLimit(0); await canvas(ordinary.id); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click(); await confirmLockExitSpend(page, report, { shot, until: async () => (await nodes()).find(n => n.id === ordinary.id)?.status === 'error' }); await expect.poll(async () => (await nodes()).find(n => n.id === ordinary.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error'); await expect(page.locator(`[data-node-id="${ordinary.id}"] [role="alert"]`)).toBeVisible()
     report.checks.completed = true; return report
   } catch (error) { error.report = report; throw error }
 }

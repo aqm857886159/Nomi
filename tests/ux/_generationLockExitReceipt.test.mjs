@@ -5,6 +5,7 @@ import vm from 'node:vm'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { assertPaidBuildReady } from './_paidRun.mjs'
+import { LOCK_EXIT_JOURNEY_CONDITIONS, assertLockExitHostingReceipt } from './_generationLockExitHosting.mjs'
 import { LOCK_EXIT_BUILD_MARKERS } from './_generationLockExitSteps.mjs'
 
 const roots = []
@@ -21,10 +22,10 @@ function fixture() {
   const first = commit()
   const source = fs.readFileSync('tests/ux/generation-lock-exit-real.paid.mjs', 'utf8')
   const prefix = source.slice(source.indexOf('const receiptPath'), source.indexOf('const model'))
-  const validate = (receipt = { commit: first, status: 'passed', report: { stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }) => {
+  const validate = (receipt = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, hostingDisclosure: 1, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }) => {
     const file = path.join(root, 'receipt.json'); fs.writeFileSync(file, JSON.stringify(receipt))
     // Execute only the actual preflight block; no paid entry, credentials or provider is invoked.
-    vm.runInNewContext(prefix, { fs, assert, process: { env: { NOMI_LOCK_EXIT_REHEARSAL_RECEIPT: file } }, execFileSync: (exe, args) => execFileSync(exe, args, { cwd: root, stdio: 'pipe' }) })
+    vm.runInNewContext(prefix, { fs, assert, assertLockExitHostingReceipt: receipt => assertLockExitHostingReceipt(JSON.parse(JSON.stringify(receipt))), process: { env: { NOMI_LOCK_EXIT_REHEARSAL_RECEIPT: file } }, execFileSync: (exe, args) => execFileSync(exe, args, { cwd: root, stdio: 'pipe' }) })
   }
   return { root, write, commit, first, validate }
 }

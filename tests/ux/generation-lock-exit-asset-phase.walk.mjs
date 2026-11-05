@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 // B6 真窗回归：真窗 + 假服务商，同 spendChangeLockExitJourney 的起手，
 // 资产在跑时点第 2 镜行上的「生成」，放开后数 HTTP POST。合同（★1 场景六、★4、B3、E4）：这一镜恰 1 次，整批 5 次。
 import assert from 'node:assert/strict'
@@ -21,8 +22,7 @@ async function assetPhaseRowClick(input, surface) {
   const nodes = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
   const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-asset-phase-${surface}-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
   const confirm = async () => {
-    if (await dialog.locator('[data-hosting-remember] input').isVisible()) await dialog.locator('[data-hosting-remember] input').check()
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
   }
   try {
     const design = await prepareLockExitStoryboard(input)
@@ -54,10 +54,9 @@ async function assetPhaseRowClick(input, surface) {
         await page.locator('[data-inspector-composer] [data-bar-segment="generate"]').click()
       }
     }
-    await expect.poll(() => proxy.records.length).toBe(2)
-    await expect(dialog).not.toBeVisible()
+    await confirmLockExitSpend(page, report, { shot, until: () => proxy.records.length === 2 })
     report.secondPost = proxy.records[1].prompt
-    report.checks.singleClickPostedNoCard = true
+    report.checks.singleClickPostedOnce = true
     fixture.holdTasks(false)
     // 单点这一镜先出结果（资产 2 还要 2.5 秒假延迟 + 轮询）
     await expect.poll(async () => (await nodes()).find(n => n.meta?.shotId === target.shotId)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')

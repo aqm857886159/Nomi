@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 // 验收线提供的回归走查：真窗 + 假服务商。点第 2 镜行上的「生成」，gap 毫秒后点底部整批。
 // 单行 pending 不禁用整表钮，第一张卡盖在单发之上。单发在卡开着时跑完，确认后这一镜发几次？
 // 用法：node t2-card-open.walk.mjs <gapMs>，从工作树目录运行。
@@ -61,8 +62,7 @@ async function t2CardOpen(input) {
     report.singleBeforeConfirm = { status: single?.status, resultId: single?.result?.id ?? null, runs: (single?.runs ?? []).map(r => r.status) }
     report.postsBeforeConfirm = proxy.records.length
     await shot('card-open-single-done')
-    if (await dialog.locator('[data-hosting-remember] input').isVisible().catch(() => false)) await dialog.locator('[data-hosting-remember] input').check()
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
     await expect.poll(async () => {
       const all = await nodes()
       return all.filter(n => n.status === 'success' || n.status === 'error').length === 5 && await page.locator('[data-place-storyboard]').isEnabled()

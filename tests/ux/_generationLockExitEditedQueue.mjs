@@ -1,3 +1,4 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import assert from 'node:assert/strict'
 import { expect } from '@playwright/test'
 import fs from 'node:fs'
@@ -20,7 +21,7 @@ async function editQueuedShot(input, surface) {
     await openCanvas(page); await page.waitForFunction(() => typeof window.__nomiSetBatchConcurrency === 'function')
     await page.evaluate(() => window.__nomiSetBatchConcurrency(1)); proxy.setLimit(5)
     await openStoryboardEditor(page, design.id); await collapseAgentPanel(page)
-    await page.locator('[data-storyboard-batch]').click(); await page.locator('[data-spend-confirm-dialog] [data-spend-confirm-action="confirm"]').click()
+    await page.locator('[data-storyboard-batch]').click(); await confirmLockExitSpend(page, report, { shot })
     await expect.poll(() => proxy.records.length, { timeout: stationTimeout({ operations: 5 }) }).toBe(3)
     fixture.holdTasks(true)
     await expect.poll(async () => (await nodes()).length, { timeout: stationTimeout({ operations: 5 }) }).toBe(5)

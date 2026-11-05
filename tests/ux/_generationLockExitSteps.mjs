@@ -9,6 +9,7 @@ import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { chooseAssistantModel, sendCreation, readProject, openCanvas, CREATION_PANEL } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { confirmLockExitSpend, LOCK_EXIT_JOURNEY_CONDITIONS } from './_generationLockExitHosting.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 
 export const LOCK_EXIT_BUILD_MARKERS = ['nomi:tasks:canvas-open-runs', 'generationCommon.spend.resend.title.', 'storyboard-batch-shot-ownership-v2-']
@@ -42,7 +43,7 @@ export async function generationLockExitJourney(input) {
   let { page } = input
   const { projectId, proxy, locale = 'zh-CN', screenshotDir, restart } = input
   const text = key => uiText(locale, key)
-  const report = { locale, stages: [], heartbeat: [], screenshots: [], simulated: ['concurrency refusal', 'discarding an accepted reply'] }
+  const report = { locale, journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, hostingDisclosure: 0, observations: { batchConfirmations: [], hostingConsents: [], referenceRequests: [] }, stages: [], heartbeat: [], screenshots: [], simulated: ['concurrency refusal', 'discarding an accepted reply'] }
   let pending = false, observedIdle = false
   const timer = setInterval(async () => {
     if (pending) return
@@ -58,7 +59,7 @@ export async function generationLockExitJourney(input) {
     await page.screenshot({ path: file }); report.screenshots.push(file)
   }
   const state = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
-  const confirm = async () => { await expect(page.locator(dialog)).toBeVisible(); await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click() }
+  const confirm = (context = 'generation', until) => confirmLockExitSpend(page, report, { context, until, shot })
   const canvas = async id => {
     await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page)
     // Selection is preparation; every spending/recovery action below is a real UI click.
@@ -75,24 +76,13 @@ export async function generationLockExitJourney(input) {
     if (await page.locator('[data-list-detail-back]').isVisible()) await page.locator('[data-list-detail-back]').click()
     if (id) await page.locator(`[data-list-card="${id}"]`).click()
   }
-  const submit = async (expectCard = false) => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); if (expectCard) await expect(page.locator(dialog)).toBeVisible(); else await expect(page.locator(dialog)).not.toBeVisible() }
+  const submit = async (expectCard = false) => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); if (expectCard) await expect(page.locator(dialog)).toBeVisible() }
   const settled = async ids => expect.poll(async () => (await state()).filter(n => ids.includes(n.id) && ['success', 'error', 'recoverable'].includes(n.status)).length, { timeout }).toBe(ids.length)
-  const success = async id => expect.poll(async () => {
-    if (await page.locator(dialog).isVisible()) {
-      // board:UnknownResultCard/confirm.hosting-disclosure — one existing modal also carries hosting.
-      await expect(page.locator(dialog)).toHaveCount(1)
-      await expect(page.locator(`${dialog} [data-hosting-disclosure]`)).toBeVisible()
-      await page.locator(`${dialog} [data-hosting-remember] input`).check()
-      report.hostingDisclosure = (report.hostingDisclosure ?? 0) + 1
-      await shot('first-hosting-disclosure'); await confirm()
-    }
-    return (await state()).find(n => n.id === id)?.status
-  }, { timeout }).toBe('success')
+  const success = async id => confirm('single-recovery', async () => (await state()).find(n => n.id === id)?.status === 'success')
   const release = async () => {
     await page.getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot(`release-${report.stages.length}`)
-    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
-    await expect(page.locator(dialog)).not.toBeVisible()
+    await confirm('restart-release')
   }
   const idle = async () => {
     observedIdle = true
@@ -110,7 +100,7 @@ export async function generationLockExitJourney(input) {
     proxy.setLimit(2)
     // Assets are forwarded normally; discard the first shot reply, including in the paid run.
     proxy.dropNextReplyMatching('@image')
-    await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible(); await shot('storyboard-confirm'); await confirm()
+    await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible(); await shot('storyboard-confirm'); await confirm('batch-storyboard')
     let batchNodes
     await expect.poll(async () => {
       batchNodes = (await state()).filter(n => n.meta?.storyboardDesignId === design.id)
@@ -133,13 +123,13 @@ export async function generationLockExitJourney(input) {
     const firstRetry = proxy.records.length
     await page.locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = element.scrollHeight })
     await row(quota).getByRole('button', { name: text('storyboardEditor.frame.retryHint'), exact: true }).first().click()
-    await expect(page.locator(dialog)).not.toBeVisible(); await success(quota.id)
+    await success(quota.id)
     assert.equal(proxy.records.length, firstRetry + 1)
     await page.locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = 0 })
     await row(unknown).getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('storyboard-release')
-    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
-    await expect(page.locator(dialog)).not.toBeVisible(); await success(unknown.id)
+    await success(unknown.id)
+    assert.equal(proxy.records.length, firstRetry + 2)
     await shot('storyboard-all-results'); report.stages.push('storyboard')
     await idle()
     for (const node of bound) assert.equal((await state()).find(n => n.id === node.id)?.status, 'success')
@@ -172,19 +162,20 @@ export async function generationLockExitJourney(input) {
     proxy.setLimit(1); proxy.dropNextReply()
     await page.locator('[data-frame-generate-all]').first().click()
     await selectTwoShots()
-    await confirm(); await expect.poll(async () => (await state()).filter(n => shotNodes.slice(0, 2).some(s => s.id === n.id) && n.status === 'error').length, { timeout }).toBe(2); await settled(shotNodes.slice(0, 2).map(n => n.id))
+    await confirm('batch-canvas'); await expect.poll(async () => (await state()).filter(n => shotNodes.slice(0, 2).some(s => s.id === n.id) && n.status === 'error').length, { timeout }).toBe(2); await settled(shotNodes.slice(0, 2).map(n => n.id))
     let current = await state()
     const quota2 = shotNodes.find(n => /429|concurrency/.test(current.find(c => c.id === n.id)?.error ?? ''))
     const unknown2 = shotNodes.find(n => n.id !== quota2?.id && current.find(c => c.id === n.id)?.status === 'error')
     assert.ok(quota2 && unknown2)
+    const beforeCanvasRetry = proxy.records.length
     await canvas(quota2.id); await shot('canvas-quota')
-    await page.getByRole('button', { name: text('generationCommon.observability.action.retry.main'), exact: true }).first().click(); await success(quota2.id)
+    await page.getByRole('button', { name: text('generationCommon.observability.action.retry.main'), exact: true }).first().click(); await success(quota2.id); assert.equal(proxy.records.length, beforeCanvasRetry + 1)
     await canvas(unknown2.id); const beforeRefused = proxy.records.length
     const runsBefore = (await state()).find(n => n.id === unknown2.id).runs.length
     await submit(true); await expect(page.locator('[data-spend-confirm-dialog]:visible')).toBeVisible(); assert.equal((await state()).find(n => n.id === unknown2.id).runs.length, runsBefore)
     assert.equal(proxy.records.length, beforeRefused); await shot('canvas-refused')
     const originalId = (await state()).find(n => n.id === unknown2.id).runs[0].id
-    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click(); await success(unknown2.id)
+    await success(unknown2.id)
     assert.equal(proxy.records.length, beforeRefused + 1)
     assert.ok((await state()).find(n => n.id === unknown2.id).runs.some(r => r.id === originalId), 'F12: the original Run history remains; asking permission creates no refused Run')
     await shot('canvas-released'); report.stages.push('canvas')
@@ -193,14 +184,15 @@ export async function generationLockExitJourney(input) {
     proxy.setLimit(1); proxy.dropNextReply()
     await page.locator('[data-section-generate]').first().click(); await expect(page.locator(dialog)).toBeVisible()
     await selectTwoShots()
-    await shot('list-confirm'); await confirm(); await expect.poll(async () => (await state()).filter(n => shotNodes.slice(0, 2).some(s => s.id === n.id) && n.status === 'error').length, { timeout }).toBe(2); await settled(shotNodes.slice(0, 2).map(n => n.id))
+    await shot('list-confirm'); await confirm('batch-list'); await expect.poll(async () => (await state()).filter(n => shotNodes.slice(0, 2).some(s => s.id === n.id) && n.status === 'error').length, { timeout }).toBe(2); await settled(shotNodes.slice(0, 2).map(n => n.id))
     current = await state()
     const quota3 = shotNodes.find(n => /429|concurrency/.test(current.find(c => c.id === n.id)?.error ?? ''))
     const unknown3 = shotNodes.find(n => n.id !== quota3?.id && current.find(c => c.id === n.id)?.status === 'error')
     assert.ok(quota3 && unknown3)
+    const beforeListRetry = proxy.records.length
     await list(quota3.id); await shot('list-quota')
     assert.ok(!(await page.locator('[data-list-detail]').innerText()).includes('Error invoking remote method'))
-    await page.locator('[data-list-detail-preview]').getByRole('button', { name: text('generationCommon.observability.action.retry.main'), exact: true }).click(); await success(quota3.id)
+    await page.locator('[data-list-detail-preview]').getByRole('button', { name: text('generationCommon.observability.action.retry.main'), exact: true }).click(); await success(quota3.id); assert.equal(proxy.records.length, beforeListRetry + 1)
     await list(unknown3.id); await shot('list-unknown'); report.stages.push('list')
     assert.equal((await state()).find(n => n.id === unknown3.id).status, 'error')
 
@@ -216,6 +208,7 @@ export async function generationLockExitJourney(input) {
     await list(unknown3.id); const beforeRelease = proxy.records.length
     await release(); await success(unknown3.id); assert.equal(proxy.records.length, beforeRelease + 1)
     await shot('restart-released'); report.stages.push('restart')
+    report.observations.referenceRequests = proxy.records.filter(record => record.referenceCount > 0).map(record => ({ sequence: record.sequence, at: record.at, hostingConsentBeforeRequest: report.observations.hostingConsents.some(consent => consent.at <= record.at) }))
     report.imagesForwarded = proxy.records.filter(r => r.forwarded).length
     assert.ok(report.imagesForwarded <= 14)
     report.maxUnresponsiveMs = Math.max(0, ...report.heartbeat)
@@ -242,7 +235,7 @@ export async function a4LockExitJourney(input) {
   await page.locator('[data-storyboard-batch]').click(); await expect(page.locator(dialog)).toBeVisible()
   assert.equal(await page.locator(dialog).count(), 1)
   await shot('confirm')
-  await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click()
+  await confirmLockExitSpend(page, {}, { context: 'batch-a4', shot })
   let batchNodes, assetsSeen = false
   await expect.poll(async () => {
     batchNodes = (await readProject(page, projectId)).payload.generationCanvas.nodes

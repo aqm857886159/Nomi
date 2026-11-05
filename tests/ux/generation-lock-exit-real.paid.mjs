@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Coordinator-only paid entry. Rehearse first; the forwarding proxy enforces a thirteen-image ceiling, reserving one of fourteen for the coordinator price probe.
+import { LOCK_EXIT_JOURNEY_CONDITIONS, applyLockExitJourneyConditions, assertLockExitHostingReceipt } from './_generationLockExitHosting.mjs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -15,6 +16,7 @@ const receiptPath = process.env.NOMI_LOCK_EXIT_REHEARSAL_RECEIPT
 assert.ok(receiptPath, 'Provide the green four-stage rehearsal receipt before running the paid entry')
 const rehearsal = JSON.parse(fs.readFileSync(receiptPath, 'utf8'))
 assert.equal(rehearsal.status, 'passed', 'The free rehearsal must pass first')
+assertLockExitHostingReceipt(rehearsal)
 assert.deepEqual(rehearsal.report?.stages, ['storyboard', 'canvas', 'list', 'restart'], 'All four real-scenario stages must be rehearsed')
 assert.match(rehearsal.commit ?? '', /^[a-f0-9]{40}$/, 'The rehearsal must identify its exact commit')
 assert.deepEqual(rehearsal.report?.openRunStages?.map(stage => stage.name), ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'], 'Interrupted and unfinished requests must be rehearsed across all three pages')
@@ -25,7 +27,7 @@ const model = { vendorKey: ENV_KEY_VENDOR, modelKey: 'gpt-image-2' }
 let launchEnv
 const paid = await openPaidWalk('generation-lock-exit-real.paid.mjs', 'generation-lock-exit-real', [DEFAULT_PAID_BRAIN, model], {
   buildMarkers: LOCK_EXIT_BUILD_MARKERS,
-  hostedUploads: true,
+  hostedUploads: LOCK_EXIT_JOURNEY_CONDITIONS.hostedUploads,
   createWalk: (name, options) => { launchEnv = options.env; return createRuntimeWalk(name, { env: launchEnv }) },
 })
 const { walk } = paid
@@ -37,6 +39,7 @@ try {
   Object.assign(launchEnv, { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: target, to: proxy.origin }]), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: proxy.origin })
   const { win } = await walk.start({ first: true })
   await paid.lockToAuthorizedModels(win)
+  await applyLockExitJourneyConditions(win)
   await win.evaluate(() => localStorage.setItem('__nomiE2E', '1'))
   const project = await walk.newProject()
   const report = await generationLockExitJourney({ page: win, ...lockExitFixtureInput(project, walk.fixture), model, proxy,

@@ -1,3 +1,4 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import { expectCssColor, expectToken } from './_generationLockExitApprovedCard.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -46,8 +47,8 @@ export async function threePageLockExitJourney(input) {
     if (await page.locator('[data-list-detail-back]').isVisible()) await page.locator('[data-list-detail-back]').click()
     if (detail) await page.locator(`[data-list-card="${id}"]`).click()
   }
-  const confirm = async () => { await page.locator(dialog).waitFor(); await page.locator(`${dialog} [data-spend-confirm-action="confirm"]`).click() }
-  const submit = async (expectCard = false) => { await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); if (!expectCard && await page.locator(dialog).isVisible()) await confirm() }
+  const confirm = async () => { await page.locator(dialog).waitFor(); await confirmLockExitSpend(page, report, { shot }) }
+  const submit = async (expectCard = false) => { const before = proxy.records.length; await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click(); if (!expectCard) await confirmLockExitSpend(page, report, { shot, until: () => proxy.records.length > before }) }
   try {
     const design = await prepareLockExitStoryboard(input)
     report.shotIndices = Object.fromEntries(design.plan.shots.map(s => [s.shotId, s.index]))
@@ -160,7 +161,7 @@ export async function threePageLockExitJourney(input) {
     await canvas(failed.id); await list(failed.id)
     await page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('list-release-confirm')
-    await page.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
     await expect.poll(async () => (await nodes()).find(n => n.id === failed.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     assert.equal(proxy.records.length, count + 2)
     report.checks.releaseTargetsOriginalRun = true
@@ -170,7 +171,7 @@ export async function threePageLockExitJourney(input) {
     await openStoryboardEditor(page, design.id)
     if (await page.locator('[data-storyboard-anchors]').getAttribute('data-storyboard-anchors-expanded') !== 'true') await page.locator('[data-storyboard-anchors-toggle]').click()
     await page.locator(`[data-storyboard-anchor-row="${asset.meta.anchorId}"]`).getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
-    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
+    await confirmLockExitSpend(page, report, { shot })
     await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.anchorRelease = true
     await shot('storyboard-anchor-released-result')
@@ -179,7 +180,7 @@ export async function threePageLockExitJourney(input) {
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error')
     await page.getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.alt'), exact: true }).click()
     await shot('canvas-release-confirm')
-    await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: t('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
+    await confirmLockExitSpend(page, report, { shot })
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     report.checks.canvasRelease = true
     await shot('canvas-released-result')
@@ -207,7 +208,7 @@ export async function threePageLockExitJourney(input) {
     await page.locator('[data-production-task-card] [data-production-primary-action]').click()
     await expect(page.locator('[data-spend-confirm-action="confirm"]')).toBeVisible()
     await shot('task-center-release-confirm')
-    await page.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
     await expect.poll(async () => (await nodes()).find(n => n.id === canvasNode.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
     assert.equal(proxy.records.length, beforeTaskCenter + 1)
     assert.ok(await page.evaluate(id => window.__nomiCanvasStore.getState().selectedNodeIds.includes(id), canvasNode.id))
