@@ -75,7 +75,8 @@
     "same_class_scan": [
       "door-map buildListModelsOutcome buildToolOutcome found the local model presenter call and mcpResultPayload.ts as the content assembly caller.",
       "assembleToolResultContent is called by the shared SDK server in mcpProtocol.ts.",
-      "Read modelSpecRead.listModelSpecRows and ModelAvailabilityFacts; inspect model-list and locale tests."
+      "Read modelSpecRead.listModelSpecRows and ModelAvailabilityFacts; inspect model-list and locale tests.",
+      "Detection source is review of draft #1388 as named by the implementation brief; no real external-AI user reproduction is claimed."
     ]
   },
   "prevention": {
@@ -112,7 +113,7 @@
   "residual_risks": [
     "Actual external AI selection and model rounds remain unverified; no paid calls are authorized."
   ],
-  "detected_by": "user",
+  "detected_by": "review",
   "recurrence_check_on": "2026-12-05",
   "invariant_owner_layer": {
     "layer": "electron/capabilityCore/mcpModelListOutcome.ts",
