@@ -22,12 +22,13 @@ function fixture() {
   const first = commit()
   const source = fs.readFileSync('tests/ux/generation-lock-exit-real.paid.mjs', 'utf8')
   const prefix = source.slice(source.indexOf('const receiptPath'), source.indexOf('const model'))
-  const validate = (receipt = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, hostingDisclosure: 1, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }) => {
+  const green = { commit: first, status: 'passed', report: { journeyConditions: LOCK_EXIT_JOURNEY_CONDITIONS, hostingDisclosure: 1, stages: ['storyboard', 'canvas', 'list', 'restart'], openRunStages: ['window-close', 'sigkill', 'reload', 'retrieve', 'resend'].map(name => ({ name, status: 'passed', commit: first })) } }
+  const validate = (receipt = green) => {
     const file = path.join(root, 'receipt.json'); fs.writeFileSync(file, JSON.stringify(receipt))
     // Execute only the actual preflight block; no paid entry, credentials or provider is invoked.
     vm.runInNewContext(prefix, { fs, assert, assertLockExitHostingReceipt: receipt => assertLockExitHostingReceipt(JSON.parse(JSON.stringify(receipt))), process: { env: { NOMI_LOCK_EXIT_REHEARSAL_RECEIPT: file } }, execFileSync: (exe, args) => execFileSync(exe, args, { cwd: root, stdio: 'pipe' }) })
   }
-  return { root, write, commit, first, validate }
+  return { root, write, commit, first, validate, green }
 }
 it('paid receipt accepts the same source through documentation-only commits', () => {
   const f = fixture(); f.write('docs/note.md', 'docs only'); f.commit(); expect(() => f.validate()).not.toThrow()
@@ -52,4 +53,13 @@ it('the old IPC-only product cannot pass the updated repair markers', () => {
   expect(() => assertPaidBuildReady(f.root, { markers: LOCK_EXIT_BUILD_MARKERS, verify: () => {} })).toThrow(/标记/)
   f.write('dist/main.js', LOCK_EXIT_BUILD_MARKERS.join('\n'))
   expect(() => assertPaidBuildReady(f.root, { markers: LOCK_EXIT_BUILD_MARKERS, verify: () => {} })).not.toThrow()
+})
+
+it.each([undefined, 0])('paid entry rejects a complete rehearsal without hosting disclosure %j', hostingDisclosure => {
+  const f = fixture()
+  expect(() => f.validate({ ...f.green, report: { ...f.green.report, hostingDisclosure } })).toThrow(/hosting disclosure/)
+})
+it('paid entry rejects a complete rehearsal with different journey conditions', () => {
+  const f = fixture()
+  expect(() => f.validate({ ...f.green, report: { ...f.green.report, journeyConditions: { ...LOCK_EXIT_JOURNEY_CONDITIONS, anonymousAssetHosting: 'allow' } } })).toThrow(/conditions must match/)
 })

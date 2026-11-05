@@ -41,8 +41,8 @@ export async function matrixLockExitJourney(input) {
     fixture.holdTasks(true); proxy.setLimit(5)
     for (const node of bound) {
       await canvas(node.id)
-      await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click()
       const before = proxy.records.length
+      await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').first().click()
       await confirmLockExitSpend(page, report, { shot, until: async () => Boolean((await nodes()).find(n => n.id === node.id)?.runs?.[0]?.taskId) })
       assert.equal(proxy.records.length, before + 1)
     }
