@@ -65,6 +65,8 @@ export async function singleActionsLockExitJourney(input) {
     }
     const afterSelectionBlank = await findCanvasBlankPoint(page); assert.ok(afterSelectionBlank); await page.mouse.click(afterSelectionBlank.x, afterSelectionBlank.y)
     await page.locator('[data-frame-generate-all]').first().click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]')).toHaveCount(5)
     for (const checkbox of await dialog.locator('input[type="checkbox"]').all()) if (!(await checkbox.isDisabled())) await checkbox.check()
     assert.equal(await dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').count(), 5)
     const cancelledAt = proxy.records.length
@@ -73,6 +75,8 @@ export async function singleActionsLockExitJourney(input) {
     await expect(dialog).not.toBeVisible(); assert.equal(proxy.records.length, cancelledAt)
     report.checks.batchCancel = true
     await page.locator('[data-frame-generate-all]').first().click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]')).toHaveCount(5)
     for (const checkbox of await dialog.locator('input[type="checkbox"]').all()) if (!(await checkbox.isDisabled())) await checkbox.check()
     await confirm()
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(4)
