@@ -1,4 +1,4 @@
-const { app } = require('electron')
+const { app } = module.require('electron')
 
 if (typeof globalThis.__playwright_run !== 'function') {
   throw new Error('Playwright ready loader was not installed before the app entry')

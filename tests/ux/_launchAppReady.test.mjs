@@ -80,10 +80,10 @@ test.each([
 ])('ready 适配器保留调用方的凭据后端选择（%j）', (args, expected) => {
   const switches = new Map([['use-mock-keychain', ''], ['password-store', 'basic']])
   vm.runInNewContext(fs.readFileSync(path.join(path.dirname(QUIET_WALK_MODULE), '_playwrightReady.cjs'), 'utf8'), {
-    require: () => ({ app: { commandLine: {
+    module: { require: () => ({ app: { commandLine: {
       removeSwitch: (name) => switches.delete(name),
       appendSwitch: (name, value) => switches.set(name, value),
-    } } }),
+    } } }) },
     process: { argv: ['electron', '.', ...args] },
     __playwright_run: () => {},
   })
@@ -91,7 +91,7 @@ test.each([
 })
 
 test('ready 适配器在官方屏障缺失时拒绝应用入口，不伪造放行函数', () => {
-  const context = { require: () => ({ app: {} }) }
+  const context = { module: { require: () => ({ app: {} }) } }
   expect(() => vm.runInNewContext(fs.readFileSync(path.join(path.dirname(QUIET_WALK_MODULE), '_playwrightReady.cjs'), 'utf8'), context))
     .toThrow('Playwright ready loader was not installed')
   expect(context.__playwright_run).toBeUndefined()
