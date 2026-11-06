@@ -1,0 +1,25 @@
+{
+  "id": "USER-20261107-agent-expands-verbatim-prompt",
+  "since": "2026-11-07",
+  "source": "用户反馈（2026-11-07 Windows 候选包验收）：说「提示词写：一只橘猫坐在窗台上」「改成：一只黑猫坐在窗台上」，落下的是多了氛围词和写实摄影风格的句子。",
+  "category": "parameter-contract",
+  "problem": "用户逐字给出的提示词被 Agent 扩写：起草工具的说明无条件要求加风格词，身份层没有「给了原文就照写」的规则。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-07-agent-verbatim-prompt.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/harness/context/verbatimPromptRule.test.ts"
+  },
+  "evidence": [
+    "docs/plan/2026-11-07-agent-verbatim-prompt.md",
+    "electron/harness/context/verbatimPromptRule.test.ts",
+    "tests/ux/verbatim-prompt-judges.test.mjs"
+  ],
+  "completionCommits": [],
+  "notes": "已修：身份层加规则，起草工具说明与生成区规划技能加适用条件。真模型逐字率 / 该扩写时扩写率未验证（协调在修前修后各跑一遍 tests/ux/agent-verbatim-prompt-real-model.walk.mjs），未验证前不转 fixed。"
+}
