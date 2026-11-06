@@ -168,7 +168,7 @@ async function auditStandardCase(browser, testCase) {
     `${testCase.name}: current group QR is directly visible`,
   )
   assert(
-    facts.groupQrSize[0] === 1050 && facts.groupQrSize[1] === 1566,
+    facts.groupQrSize[0] === 720 && facts.groupQrSize[1] === 1094,
     `${testCase.name}: group QR keeps the supplied asset dimensions`,
   )
   assert(
