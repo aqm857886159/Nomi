@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { main as accept, withCalibratedRunner } from '../../../scripts/design-lab-accept.mjs'
-import { acceptPlan, decideVisualMode, majorMinor, runnerIdentityFrom, sameRunner } from './visualMode.mjs'
+import { acceptPlan, decideVisualMode, majorMinor, runnerIdentityFrom, sameRunner, visualVerdict } from './visualMode.mjs'
 
 const CI_MAC = runnerIdentityFrom({ platform: 'darwin', arch: 'arm64', productVersion: '26.4.1\n' })
 
@@ -26,9 +26,29 @@ describe('这一趟视觉道怎么跑', () => {
   it('CI 上机器一致才硬拦', () => {
     expect(decideVisualMode({ identity: CI_MAC, calibrated: CI_MAC, ci: true })).toBe('strict')
   })
-  it('CI 上机器不一致（含首次登记为 null）照样比对，但必须红', () => {
+  it('CI 上机器不一致（含首次登记为 null）照样比对', () => {
     expect(decideVisualMode({ identity: CI_MAC, calibrated: null, ci: true })).toBe('runner-drift')
     expect(decideVisualMode({ identity: CI_MAC, calibrated: { ...CI_MAC, osVersion: '26.3' }, ci: true })).toBe('runner-drift')
+  })
+})
+
+describe('跑完红不红：只看像素，不看版本号', () => {
+  // 11-06：同一个 macos-26 标签下 26.6 / 26.7 混着派活，两边 154 张全在容差内，以前照红。
+  it('换了小版本的机器，像素全对就放行，并说明不用重录', () => {
+    expect(visualVerdict({ mode: 'runner-drift', pixelsPassed: true })).toEqual({ exitCode: 0, kind: 'pass-other-runner' })
+  })
+  it('换了小版本的机器，像素不符照样红，并点破可能是镜像换了字体', () => {
+    expect(visualVerdict({ mode: 'runner-drift', pixelsPassed: false })).toEqual({ exitCode: 1, kind: 'mismatch-other-runner' })
+  })
+  it('基准机上像素不符就红', () => {
+    expect(visualVerdict({ mode: 'strict', pixelsPassed: false })).toEqual({ exitCode: 1, kind: 'mismatch' })
+    expect(visualVerdict({ mode: 'strict', pixelsPassed: true })).toEqual({ exitCode: 0, kind: 'pass' })
+  })
+  it('本机不符只报告', () => {
+    expect(visualVerdict({ mode: 'advisory', pixelsPassed: false })).toEqual({ exitCode: 0, kind: 'advisory-mismatch' })
+  })
+  it('CI 上任何模式，像素不符都不会被放行', () => {
+    for (const mode of ['strict', 'runner-drift']) expect(visualVerdict({ mode, pixelsPassed: false }).exitCode).toBe(1)
   })
   it('本机 Mac 只报告不阻断——哪怕版本恰好相同，本机也不是基准机', () => {
     expect(decideVisualMode({ identity: CI_MAC, calibrated: { ...CI_MAC, osVersion: '26.5' }, ci: false })).toBe('advisory')
