@@ -118,8 +118,8 @@
     }
   ],
   "door_reduction": {
-    "before": 8,
-    "after": 8,
+    "before": 14,
+    "after": 14,
     "why_not": "The catalog declarations, shared seed reconciliation, health inventory, identity normalization and design projection are existing distinct readers; their public shapes are unchanged."
   },
   "generality_proof": "All sounds versions use the same constrained body declaration; independent field fixtures check music, sounds, TTS and Lyria and a non-Suno mutation proves the class check rejects drift.",
