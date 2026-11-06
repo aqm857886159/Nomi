@@ -38,6 +38,7 @@ export type {
 export { verbMutates as laneToolMutates, verbBillable as laneToolBillable, approvalFacetsOf as laneToolApprovalFacets } from "../agentCapabilities/modelFacingTools";
 
 import type { ModelFacingToolExample as LaneToolExample, ModelFacingToolSpec as LaneToolSpec } from "../agentCapabilities/modelFacingTools";
+import { issuesFromZod, publicToolInputIssues, renderToolInputIssue, zodIssuesOfError, type ToolInputIssue } from "./toolInputIssues";
 
 /**
  * 「一个工具最多允许跑多久」的 lane 侧叫法与预算常量。**同一份定义的别名**，理由与数字
@@ -71,15 +72,41 @@ export interface LaneToolFailureShape {
   /** 枚举/operation 的全部合法值。模型自纠时最有用的一样东西。 */
   readonly allowed?: readonly string[];
   /**
-   * 出错的字段。**只带类型名，绝不回传收到的值**——用户文稿正文、素材路径都可能在参数里，
-   * 那是 provenance/隐私边界。今天 pi 那层会把整个 `Received arguments` 原样回给模型。
+   * 出错的字段（`toolInputIssues.ts` 的同一份清单）。模型那一行可以带**收到的短标量**（它自己刚发的），
+   * 公开信封里没有（`publicToolInputIssues`）——用户文稿正文、素材路径都可能在参数里。
    */
-  readonly issues?: readonly { readonly path: string; readonly expected: string; readonly receivedType: string }[];
+  readonly issues?: readonly ToolInputIssue[];
+  /** 一个对的调用（工具自己的 `examples[0].arguments`）。模型照着改最快；不进公开信封。 */
+  readonly example?: unknown;
   /**
    * `code === "wrong_verb"` 时点名正确的动词。**只点名，不代调**（设计正本原则 7：错动词拒绝，
    * 没有静默转发、没有兜底）。模型读到后自己改用它。
    */
   readonly useInstead?: string;
+}
+
+/** 一个例子塞进拒收信的上限：再长就不是「照着改」，是又一份要读的说明书。 */
+const EXAMPLE_TEXT_LIMIT = 600;
+
+/**
+ * 「入参被拒收」的**唯一构造点**（pi 的形状校验、契约 parse、执行期抛出的 ZodError 三处共用）。
+ *
+ * 首行保留 `Validation failed for tool "X"`：走查脚本按这个头数「参数被拒」次数（`ARG_REJECTED`），
+ * 熔断按 `tool_arguments_invalid` + 字段路径认墙。2026-11-07 之前三处各写各的
+ * （pi 默认文本 / `argumentFailure` / 裸 issue JSON）。
+ */
+export function toolArgumentsRejected(toolName: string, issues: readonly ToolInputIssue[], example?: unknown): LaneToolFailureShape {
+  const fields = issues.length === 1 ? "1 field" : `${issues.length} fields`;
+  // 第一条「不在表里」的合法值也挂到顶层 `allowed`：熔断撞满转 `ask_user` 时，这几个值就是现成的选项。
+  const allowed = issues.find((issue) => issue.kind === "not_allowed" && issue.allowed && issue.allowed.length > 0)?.allowed;
+  return {
+    code: "tool_arguments_invalid",
+    message: `Validation failed for tool "${toolName}" (tool_arguments_invalid): nothing ran. Fix ${fields}:`,
+    issues,
+    ...(allowed ? { allowed } : {}),
+    ...(example === undefined ? {} : { example }),
+    nextAction: `Fix the listed fields and call ${toolName} again with the same intent. Fields that belong to another operation must be left out.`,
+  };
 }
 
 /** `wrong_verb` 的唯一构造点：拒绝的原因、该用哪个动词、下一步。 */
@@ -108,13 +135,16 @@ export { renderLaneToolNextAction, laneToolNextActionOf } from "./laneToolNextAc
  */
 export function renderLaneToolFailure(failure: LaneToolFailureShape): string {
   const lines = [failure.message];
-  for (const issue of failure.issues ?? []) {
-    lines.push(`  - ${issue.path}: expected ${issue.expected}, received ${issue.receivedType}`);
-  }
-  if (failure.allowed && failure.allowed.length > 0) {
+  for (const issue of failure.issues ?? []) lines.push(renderToolInputIssue(issue));
+  // 某条 issue 已经逐字列过这份合法值（`toolArgumentsRejected` 挂上来的就是同一个数组）就不再印第二遍。
+  if (failure.allowed && failure.allowed.length > 0 && !failure.issues?.some((issue) => issue.allowed === failure.allowed)) {
     lines.push(`Allowed values: ${failure.allowed.join(", ")}.`);
   }
   if (failure.useInstead) lines.push(`Use ${failure.useInstead} instead.`);
+  if (failure.example !== undefined) {
+    const example = JSON.stringify(failure.example);
+    if (example.length <= EXAMPLE_TEXT_LIMIT) lines.push(`Example of a valid call: ${example}`);
+  }
   lines.push(`Next: ${failure.nextAction}`);
   return lines.join("\n");
 }
@@ -136,6 +166,24 @@ export class LaneDomainFailure extends Error {
 }
 
 /**
+ * 一个抛出来的异常 → lane 失败。认得出两种：领域自己写好的 `LaneDomainFailure`，以及 ZodError
+ * （契约 parse 抛出的；它的 `message` 是整段 issue JSON，原样给模型等于什么都没说）。
+ * 认不出返回 `undefined`，由调用方兜——这里不猜。
+ *
+ * `args` / `schema` 是**这次被校验的那份输入**与它的模型可见 schema：有了才能回收到的短值、这一层能填的字段名。
+ */
+export function laneFailureOfThrown(
+  toolName: string,
+  error: unknown,
+  input: Readonly<{ args?: unknown; schema?: unknown; example?: unknown }> = {},
+): LaneToolFailureShape | undefined {
+  if (error instanceof LaneDomainFailure) return error.failure;
+  const zodIssues = zodIssuesOfError(error);
+  if (zodIssues) return toolArgumentsRejected(toolName, issuesFromZod(zodIssues, input.args, input.schema), input.example);
+  return undefined;
+}
+
+/**
  * 同一个失败的**对外 MCP 投影**（方案 §3.6：一个描述符两个投影）。
  *
  * 形状对齐 `capabilityCore/dispatcher.ts:557-565` 今天已经在用的那个——不是新发明的，
@@ -149,7 +197,7 @@ export function laneToolFailureToRpc(failure: LaneToolFailureShape): Readonly<Re
     message: failure.message,
     nextAction: failure.nextAction,
     ...(failure.allowed ? { allowed: failure.allowed } : {}),
-    ...(failure.issues ? { issues: failure.issues } : {}),
+    ...(failure.issues ? { issues: publicToolInputIssues(failure.issues) } : {}),
     ...(failure.useInstead ? { useInstead: failure.useInstead } : {}),
   };
 }
