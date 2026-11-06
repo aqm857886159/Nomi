@@ -7,7 +7,9 @@
 // 且不含结构化特征那一段（旧写法会把描述整段换成它）。
 // 做法：提示词由**构建产物里的编译函数**算出（dist-electron，和创作区 / 整方案落画布走的是同一个函数），原样放进一个图片节点的提示词框，
 // 点 ↑ 生成，只读网络账本 / 夹具里真收到的创建请求。脚本不碰 store、不替产品拼提示词。
+import path from 'node:path'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { clickOrFail, expect } from './_assert.mjs'
 import { canvasFitView, collapseAgentPanel } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -16,6 +18,7 @@ import { generateOnce, setLocale, IMAGE } from './_referenceDeadLinkSteps.mjs'
 
 export { IMAGE }
 const require = createRequire(import.meta.url)
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 /** 样本卡：画风词只写在描述里（Agent 起草的真实形状），另有一段结构化的身份特征。 */
 export const ANCHOR = {
@@ -39,7 +42,7 @@ export const ANCHOR_OUTBOUND_PAID_OPTIONS = { hostedUploads: false, recordAllowe
 
 /** 用构建产物里的编译函数算这张卡的出站提示词（花钱前先自检：改前的构建会算出不含描述的那份）。 */
 export function compileAnchorPrompt(anchor = ANCHOR) {
-  const compiler = require('../../dist-electron/shared/storyboard/storyboardPromptCompiler.js')
+  const compiler = require(path.join(repoRoot, 'dist-electron/shared/storyboard/storyboardPromptCompiler.js'))
   return compiler.buildAnchorSheetPrompt(anchor)
 }
 

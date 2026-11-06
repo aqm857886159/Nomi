@@ -2,6 +2,7 @@ vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: asyn
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { buildAnchorSheetPrompt, compileShotOutbound } from '../../../generationCanvas/agent/storyboardPromptCompiler'
+import { isVisualAnchor } from '../../../../../electron/shared/storyboard/storyboardPromptCompiler'
 import { encodeMention } from '../../../assets/promptMentions'
 import { storyboardPlanToCreateNodesArgs, type PlanAnchor, type StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import { buildCatalogTaskRequest } from '../../../generationCanvas/runner/catalogTaskActions'
@@ -147,9 +148,8 @@ describe('参考卡：发出去的 = 描述框里的字（风格词不丢），�
     }
   })
 
-  it('所有可出图的种类都被矩阵遍历：新增一种锚类型却没进这张表就红', async () => {
-    const { isVisualAnchor } = await import('../../../../../electron/shared/storyboard/storyboardPromptCompiler')
-    const visual = (['character', 'scene', 'prop', 'style', 'event'] as const).filter((kind) => isVisualAnchor({ carrier: 'visual', kind }))
+  it('所有可出图的种类都被矩阵遍历：新增一种锚类型却没进这张表就红', () => {
+    const visual = (['character', 'scene', 'prop', 'style', 'event'] as const).filter((kind) => isVisualAnchor({ carrier: 'visual', kind } as never))
     expect([...visual].sort()).toEqual([...ANCHOR_KINDS].sort())
   })
 })
