@@ -1,0 +1,53 @@
+[
+  {
+    "family": "suno-music",
+    "source": "https://docs.apimart.ai/en/api-reference/audios/suno/generation.md",
+    "latest": ["suno-v6", "suno-v6-wild", "suno-v6-mini"],
+    "previous": ["suno-v5.5"],
+    "older": []
+  },
+  {
+    "family": "suno-sounds",
+    "source": "https://docs.apimart.ai/en/api-reference/audios/suno/sounds.md",
+    "latest": ["suno-sounds-v6", "suno-sounds-v6-wild", "suno-sounds-v6-mini"],
+    "previous": ["suno-sounds-v5.5"],
+    "older": []
+  },
+  {
+    "family": "deepseek-flash",
+    "source": "https://api.apimart.ai/api/pricing/models/all",
+    "latest": ["deepseek-v4.1-flash"],
+    "previous": ["deepseek-v4-flash"],
+    "older": ["deepseek-v3.1-terminus"]
+  },
+  {
+    "family": "gemini-flash",
+    "source": "https://api.apimart.ai/api/pricing/models/all",
+    "latest": ["gemini-3.8-flash"],
+    "previous": ["gemini-3.5-flash"],
+    "older": []
+  },
+  {
+    "family": "single-generation",
+    "note": "目录里只声明了这一代；上一代没有声明，不是被藏。",
+    "source": "https://api.apimart.ai/api/pricing/models/all",
+    "latest": [
+      "gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-luna",
+      "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5.1",
+      "gemini-4-argon", "deepseek-v4-pro",
+      "qwen3.8-max-0902", "qwen3.8-flash", "qwen3.8-27b", "qwen3.8-2.4t-a95b",
+      "glm-5.3", "glm-5.3-flash", "kimi-k3", "grok-4.7", "minimax-m3", "step-3.7-flash",
+      "flowmusic-lyria-3.5"
+    ],
+    "previous": [],
+    "older": []
+  },
+  {
+    "family": "umbrella-voice-row",
+    "note": "nomi-audio 是配音 + 转写的伞形行，不是一代模型；2026-08-30 起就是 legacy（收进「更多」，新节点想要明确的当前型号）。这里只登记现状，不替它改档。",
+    "source": "https://docs.apimart.ai/en/api-reference/audios/tts.md",
+    "latest": [],
+    "previous": [],
+    "older": ["nomi-audio"]
+  }
+]

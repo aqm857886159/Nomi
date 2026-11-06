@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 // One current candidate per family, chosen from the checked public short-request prices.
 export const CATALOG_LATEST_SAMPLES = [
   { family: 'Suno music', modelKey: 'suno-v6-mini', kind: 'text_to_audio', params: { instrumental: true } },
+  // Previous generation: the official page lists only v6 versions, so one cheap real order confirms V5.5 still works.
+  { family: 'Suno music previous generation', modelKey: 'suno-v5.5', kind: 'text_to_audio', params: { instrumental: true } },
   { family: 'Suno sounds', modelKey: 'suno-sounds-v6-mini', kind: 'text_to_audio', params: { sound_type: 'one-shot' } },
   { family: 'Lyria', modelKey: 'flowmusic-lyria-3.5', kind: 'text_to_audio', params: { length: 1 } },
   { family: 'TTS', modelKey: 'nomi-audio', kind: 'text_to_audio', params: { modeId: 'speech', voice: 'alloy', speed: 1 } },

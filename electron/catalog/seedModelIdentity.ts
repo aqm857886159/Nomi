@@ -271,6 +271,7 @@ const FLAGSHIP_MODEL_KEYS = new Set([
 ]);
 
 const VALUE_MODEL_KEYS = new Set([
+  "deepseek-v4-flash",
   "nano-banana-2-lite",
   "seedream/5-lite-text-to-image",
   "doubao-seedream-5-0-260128",
@@ -285,13 +286,12 @@ const VALUE_MODEL_KEYS = new Set([
   "speech-2.8-turbo",
 ]);
 
+// 分档规则（用户 2026-11-07 拍板：「最新代和旧一代的都可以接」）：每个模型家族的**最新一代**进旗舰 / 性价比，
+// **上一代**留在陪跑（或性价比），照常出现在新节点的选择里；只有**比上一代更老**的才进下面这张退役表
+// （收进「更多」、排在最后，旧项目里已选的照常显示和执行）。Suno v6 是最新、v5.5 是上一代，
+// DeepSeek V4.1 Flash 最新、V4 Flash 上一代，Gemini 3.8 Flash 最新、3.5 Flash 上一代，所以这几个不在表里。
+// 契约见 `electron/catalog/apimartLatestContracts.test.ts` 与 `tests/fixtures/apimart/model-generations*.json`。
 const LEGACY_MODEL_KEYS = new Set([
-  "suno-v5.5",
-  "suno-sounds-v5.5",
-  "suno-sounds-v5-5",
-  "deepseek-v4-flash",
-  "gemini-3.5-flash",
-
   "happyhorse",
   "happyhorse_1_0",
   "seedream",

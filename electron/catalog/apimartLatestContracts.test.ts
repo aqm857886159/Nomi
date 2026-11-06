@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import contracts from '../../tests/fixtures/apimart/audio-contracts.json';
 import prices from '../../tests/fixtures/apimart/text-prices.json';
+import generations from '../../tests/fixtures/apimart/model-generations.json';
 import { buildHttpRequest, buildTemplateContext } from '../ai/requestPipeline';
 import { nomiModelConfigFor } from '../ai/vendorModelConnection';
 import { callModelOnce } from '../agentLane/laneModelCall.mjs';
@@ -50,7 +51,7 @@ describe('APIMart audio official field contracts and request previews', () => {
       }
       return { status: 'succeeded' };
     });
-    expect(results).toHaveLength(14);
+    expect(results).toHaveLength(15);
   });
 
   it('checks every declared version against independently recorded official wire fields', () => {
@@ -132,7 +133,6 @@ describe('current brains and old catalog compatibility', () => {
     expect(APIMART_TEXT_MODELS.some(row => row.modelKey.startsWith('mimo-'))).toBe(false);
     for (const key of ['deepseek-v4-flash', 'gemini-3.5-flash', 'deepseek-v3.1-terminus']) {
       expect(APIMART_TEXT_MODELS.find(row => row.modelKey === key)).toBeDefined();
-      expect(curatedCatalogLifecycle(key)).toBe('legacy');
     }
   });
 
@@ -149,10 +149,29 @@ describe('current brains and old catalog compatibility', () => {
       const mapping = selectTaskMapping(state.mappings, 'apimart', 'text_to_audio', modelKey)!;
       expect(mapping).toBeTruthy();
       expect(mapping.create.body).toMatchObject({ version: 'v5.5' });
-      expect(curatedCatalogLifecycle(modelKey)).toBe('legacy');
+      // 上一代：旧作品照跑，新节点也照常能选（用户 2026-11-07：最新代和旧一代的都可以接）。
+      expect(curatedCatalogLifecycle(modelKey)).not.toBe('legacy');
     }
     const sounds = preview('suno-sounds-v5.5', { sound_type: 'loop', sound_tempo: 80, sound_key: 'Cm' });
     expect(sounds.built.body).toMatchObject({ version: 'v5.5', type: 'loop', bpm: 80, key: 'Cm' });
     expect(applyBuiltinSeeds(state, '2026-11-08').changed).toBe(false);
+  });
+});
+
+// 用户 2026-11-07：「最新代和旧一代的都可以接」。最新一代和上一代都是新节点的可选项（不是 legacy，legacy 会被收进「更多」）；
+// 只有比上一代更老的才是 legacy。表在 tests/fixtures/apimart/model-generations*.json，每个家族一条，新模型进目录必须先登记到这里。
+describe('model generations: latest and previous stay available to new nodes', () => {
+  const rows = generations as Array<{ family: string; latest: string[]; previous: string[]; older: string[] }>;
+  it.each(rows)('$family: latest and previous are not legacy, older ones are', row => {
+    for (const key of [...row.latest, ...row.previous]) expect(curatedCatalogLifecycle(key), key).not.toBe('legacy');
+    for (const key of row.older) expect(curatedCatalogLifecycle(key), key).toBe('legacy');
+    if (row.previous.length) expect(row.latest.length).toBeGreaterThan(0);
+  });
+
+  it('every declared audio and text model belongs to exactly one family generation row', () => {
+    const known = rows.flatMap(row => [...row.latest, ...row.previous, ...row.older]);
+    expect(new Set(known).size).toBe(known.length);
+    const declared = [...APIMART_AUDIO_MODELS.map(row => row.modelKey), ...APIMART_TEXT_MODELS.filter(row => !row.meta?.promptRefineOnly).map(row => row.modelKey)];
+    expect(declared.filter(key => !known.includes(key)), 'register new models in tests/fixtures/apimart/model-generations.json').toEqual([]);
   });
 });
