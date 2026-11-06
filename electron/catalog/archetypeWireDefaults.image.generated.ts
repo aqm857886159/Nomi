@@ -528,6 +528,42 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       }
     }
   },
+  "gpt-image-2.6-flare": {
+    "text_to_image": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K",
+        "background": "auto",
+        "quality": "medium"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K",
+        "background": "auto",
+        "quality": "medium"
+      }
+    }
+  },
+  "gpt-image-2.6-sunburst": {
+    "text_to_image": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K",
+        "background": "auto",
+        "quality": "medium"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K",
+        "background": "auto",
+        "quality": "medium"
+      }
+    }
+  },
   "imagen-4-fast": {
     "text_to_image": {
       "*": {

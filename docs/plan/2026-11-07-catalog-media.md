@@ -1,5 +1,12 @@
 # Current basic image and video declarations
 
+## 本次实际范围与旧代规则（用户 2026-11-07：「Seedance 2.0 肯定要接，最新代和旧一代的都可以接」）
+
+- 规则：每个家族的最新代与上一代都对新节点可用（不是 legacy），只有更老的代才 legacy。表：`tests/fixtures/apimart/model-generations-media.json`，测试 `electron/catalog/apimartLatestMediaContracts.test.ts`。
+- 本次改的档位：Seedance 2.0 全部渠道 key、Seedream 4.5、HappyHorse 1.0、Qwen Image 2.0、Wan 2.7 从 legacy 回到 companion；Nano Banana 第一代、Seedream 4.0 仍 legacy。
+- 本次新增身份：GPT Image 2.6 Flare / Sunburst（apimart，t2i + 改图，4 条 mapping）；2.5 保留为上一代。
+- 未做（见报告）：Nano Banana 2.1、FLUX 3、Hunyuan 3.5、Muse 图/视频、Kling v4、Vidu Q4、H3 Max、PixVerse v6、flux-3-video、SkyReels、GPT Image 2.6 Ext 等。下文 ★ 各节是整条线的合同，未做项不在本 PR 范围。
+
 类别：[花钱][其他]；仅现有基础操作的声明数据，不增加运行时分支。
 
 ## ★0 先查别人

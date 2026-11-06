@@ -1,0 +1,23 @@
+{
+  "rule": "用户 2026-11-07：最新代和上一代都对新节点可用（不是 legacy）；只有更老的代才 legacy。",
+  "families": [
+    { "family": "seedance", "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["seedance2_5", "doubao-seedance-2.5"],
+      "previous": ["seedance2", "seedance2_fast", "seedance2_mini", "bytedance/seedance-2", "doubao-seedance-2.0", "doubao-seedance-2-0-260128", "bytedance/seedance-2.0-global"],
+      "older": [] },
+    { "family": "seedream", "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["seedream5_pro", "seedream5_lite", "doubao-seedream-5-0-260128"],
+      "previous": ["seedream", "doubao-seedream-4.5", "doubao-seedream-4-5-251128", "seedream-v4.5"],
+      "older": ["doubao-seedream-4-0-250828"] },
+    { "family": "happyhorse", "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["happyhorse-1.1"], "previous": ["happyhorse", "happyhorse_1_0"], "older": [] },
+    { "family": "qwen-image", "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["qwen-image-3.0", "qwen-image-3.0-pro"], "previous": ["qwen-image-2.0", "rh-qwen-image-2.0"], "older": [] },
+    { "family": "wan", "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["wan3"], "previous": ["wan2.7", "rh-wan-2.7"], "older": [] },
+    { "family": "gpt-image", "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"], "previous": ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"], "older": [] },
+    { "family": "nano-banana", "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": [], "previous": [], "older": ["nano-banana", "gemini_2.5_flash", "gemini-2.5-flash-image-preview"] }
+  ]
+}

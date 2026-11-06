@@ -87,5 +87,13 @@ export const ARCHETYPE_SIZE_RATIO_SEMANTIC: Record<string, Record<string, boolea
   "gpt-image-2.5-sunburst": {
     "text_to_image": true,
     "image_edit": true
+  },
+  "gpt-image-2.6-flare": {
+    "text_to_image": true,
+    "image_edit": true
+  },
+  "gpt-image-2.6-sunburst": {
+    "text_to_image": true,
+    "image_edit": true
   }
 };

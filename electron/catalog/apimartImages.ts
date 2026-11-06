@@ -164,6 +164,20 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
     editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
     paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
   }),
+  // GPT Image 2.6 Flare（2026-11-07 照 docs.apimart.ai gpt-image-2.6/generation.md）：形状同 2.5，2.5 保留为上一代。
+  imageModel({
+    modelKey: "gpt-image-2.6-flare", labelZh: "GPT Image 2.6 Flare", archetypeId: "gpt-image-2.6-flare",
+    t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
+    editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
+    paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
+  }),
+  // GPT Image 2.6 Sunburst（2026-11-07 照 docs.apimart.ai gpt-image-2.6/generation.md）：形状同 2.5，2.5 保留为上一代。
+  imageModel({
+    modelKey: "gpt-image-2.6-sunburst", labelZh: "GPT Image 2.6 Sunburst", archetypeId: "gpt-image-2.6-sunburst",
+    t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
+    editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
+    paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
+  }),
   // Gemini 3 Pro Image（2026-09-18 照 docs.apimart.ai gemini-3-pro/generation.md 对账）：
   // 复用已有档案 `gemini-image-3-pro`（原只有 Runway 一条线，见 runwayNativeImage.ts 文件头的
   // 「日后别家也提供同一模型，原地加 identifierPatterns + vendorParams 即可」）——P4：档案是模型身份。

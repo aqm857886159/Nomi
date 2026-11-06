@@ -671,6 +671,20 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "i2i": "image_edit"
     }
   },
+  "gpt-image-2.6-flare": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gpt-image-2.6-sunburst": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
   "imagen-4-fast": {
     "defaultModeId": "t2i",
     "modes": {
