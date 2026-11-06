@@ -25,7 +25,7 @@ export async function runReleaseCoreCompare(mode, openPaid) {
   process.argv = process.argv.slice(0, 2)
   const load = relative => import(pathToFileURL(path.join(root, relative)).href)
   const { createRuntimeWalk } = await load('tests/ux/agent-runtime-walk-support.mjs')
-  const { assertPaidBuildReady, DEFAULT_PAID_BRAIN } = await load('tests/ux/_paidRun.mjs')
+  const { assertPaidBuildReady, DEFAULT_PAID_BRAIN, spendReceipt } = await load('tests/ux/_paidRun.mjs')
   // Install only shared test instrumentation beside the target's test dependencies, never product code.
   for (const name of ['Proxy', 'Hosting']) fs.copyFileSync(new URL(`./_generationLockExit${name}.mjs`, import.meta.url), path.join(root, `tests/ux/.releaseCore${name}.mjs`))
   const { createGenerationLockExitProxy } = await load('tests/ux/.releaseCoreProxy.mjs')
@@ -75,9 +75,11 @@ export async function runReleaseCoreCompare(mode, openPaid) {
     result.draft = await draftTask({ walk, win, input, brainLabel, rehearsal: mode === 'rehearsal', locale: values.locale })
     assert.equal(proxy ? proxy.records.length : walk.fixture.images.length, 0, 'No image requests during the draft')
     const draftRoot = result.draft.project.projectRoot
+    result.draftSpend = spendReceipt(draftRoot)
     assert.equal((await win.evaluate(id => window.nomiDesktop.projects.readAsync(id), result.draft.project.projectId)).payload.generationCanvas?.nodes?.filter(n => n.runs?.length || n.result).length ?? 0, 0, 'Draft must not submit media')
     await walk.stopApp()
     const batch = seedBatch(walk, input)
+    Object.assign(walk.report, { projectId: batch.projectId, projectRoot: batch.projectRoot })
     ;({ win } = await walk.start())
     console.log(`[release-core] ${mode} ${values.locale}: batch`)
     result.batch = await batchTask({ walk, win, input, batch })
