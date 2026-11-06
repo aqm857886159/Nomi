@@ -251,7 +251,7 @@ it('cancel after the refusal stops the running shot and the shot can be generate
   calls.confirm.mockResolvedValue(false)
   B.reject(refused()); await storyboard
   expect(isGenerationNodeBusy(live(id))).toBe(true)
-  requestTaskCancel(live(id)!)
+  requestTaskCancel(live(id)!, () => undefined)
   A.reject(new LocalTaskCancelledError()); await canvas.catch(() => undefined)
   expect(live(id)?.status).toBe('idle')
   expect(record(live(id), A.runId)?.status).toBe('cancelled')
