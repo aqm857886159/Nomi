@@ -8,6 +8,7 @@ const countKeys = ['shotCount', 'toolCalls', 'failures', 'retries', 'manualSteps
 function validate(record) {
   assert.equal(record.schema, 1, 'Unknown receipt schema')
   assert.equal(record.complete, true, 'Incomplete evidence blocks the release comparison')
+  assert.equal(record.exitCode, 0, 'A clean process exit receipt is required')
   assert.ok(['paid', 'rehearsal'].includes(record.mode), 'Missing run mode')
   assert.match(record.commit ?? '', /^[a-f0-9]{40}$/)
   assert.match(record.contract?.inputHash ?? '', /^[a-f0-9]{64}$/)

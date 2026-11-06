@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { compareResults } from './release-core-compare.results.mjs'
 
-const receipt = () => ({ schema: 1, complete: true, mode: 'rehearsal', commit: 'a'.repeat(40),
+const receipt = () => ({ schema: 1, complete: true, exitCode: 0, mode: 'rehearsal', commit: 'a'.repeat(40),
   contract: { inputHash: 'b'.repeat(64), brain: { vendorKey: 'test', modelKey: 'brain' }, image: { vendorKey: 'test', modelKey: 'image' }, parameters: {}, language: 'zh', locale: 'zh-CN', draftTurns: 1, maxImages: 5 },
   draft: { success: true, shotCount: 4, toolCalls: 1, failures: 0, retries: 0, manualSteps: 0, placeholders: 0, elapsedMs: 10000 },
   batch: { shots: Array.from({ length: 5 }, (_, i) => ({ shotId: `shot-${i + 1}`, outcome: 'success' })), elapsedMs: 10000,
@@ -39,6 +39,7 @@ test('missing, nonfinite, duplicated, incomplete and mismatched evidence blocks 
     r => { r.mode = 'paid' }, r => { r.contract.inputHash = 'c'.repeat(64) },
     r => { r.contract.locale = 'en' }, r => { r.contract.parameters.size = 'other' },
     r => { r.batch.heartbeat.samples = 0 }, r => { r.batch.busyReleased = null },
+    r => { r.exitCode = 1 }, r => { delete r.exitCode },
   ]
   for (const mutate of mutations) {
     const after = receipt(); mutate(after)

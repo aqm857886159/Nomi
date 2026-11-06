@@ -118,7 +118,13 @@ export async function runReleaseCoreCompare(mode, openPaid) {
     if (walk) result.screenshots = fs.readdirSync(walk.outputDir).filter(name => name.endsWith('.png')).map(name => path.join(out, 'runtime', name))
     result.finishedAt = new Date().toISOString()
     fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2))
+    // Existing launch guards may reject only at process exit, after all task observations passed.
+    process.once('exit', () => {
+      result.exitCode = process.exitCode ?? 0
+      if (result.exitCode !== 0) { result.complete = false; result.error ??= 'Runtime guard or teardown rejected this walk; see the process log' }
+      fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2))
+    })
     fs.rmSync(scratch, { recursive: true, force: true })
   }
-  console.log(`${mode}: ${result.complete ? 'complete' : 'partial'}; ${path.join(out, 'result.json')}`)
+  console.log(`${mode}: observations recorded; ${path.join(out, 'result.json')}`)
 }
