@@ -19,6 +19,9 @@
     "docs/plan/2026-11-07-prompt-outbound-description.md",
     "src/workbench/creation/storyboard/exec/outboundContract.test.ts"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "49dbbb252",
+    "283eb55f2"
+  ],
   "notes": "序号 1 已修（参考卡描述不再被结构化特征顶掉）。序号 2 批量沿用旧卡提示词；3 带站位构图参考时请求上追加写实要求（只出方案，待用户拍板）；4 发送前整理空白；5 首帧框空时借用视频框；6 孤儿 @ 引用被静默删掉；7 部分适配器 trim；8 参考卡版面外壳是固定模板（本轮新发现）；9 质检定向重试追加修正句（本轮新发现）。序号 2–9 登记为已知例外、各自被契约测试钉住（序号 7 除外，分散在各适配器，归后续普查），归后续一并处理。真实生图画风对照未验证，待协调一次付费走查。"
 }
