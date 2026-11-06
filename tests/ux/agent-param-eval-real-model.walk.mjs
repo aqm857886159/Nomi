@@ -102,7 +102,7 @@ const unscorable = []
 let app, win, failure
 try {
   ;({ app, win } = await launchNomiApp({ name: 'agent-param-eval', userDataDir: iso.chromiumDir,
-    projectsDir: iso.projectsDir, settingsDir: iso.settingsDir, capabilityDir: iso.capabilityDir }))
+    projectsDir: iso.projectsDir, settingsDir: iso.settingsDir, capabilityDir: iso.capabilityDir, hostConfigDir: iso.hostConfigDir }))
   await dismissSplashIfPresent(win)
   const assetFiles = TASKS.some((task) => task.fixture === 'assets') ? makeAssetFiles() : []
 
