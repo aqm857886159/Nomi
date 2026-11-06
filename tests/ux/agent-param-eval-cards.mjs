@@ -14,6 +14,9 @@ import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
 import { COMPOSER, COMPOSER_INPUT } from './agent-runtime-walk-support.mjs'
 
+/** 轮询间隔：每圈都重新观察卡 / 回合状态，这不是「操作完成」的信号。 */
+const POLL_MS = 1000
+
 export function createCardDriver({ win, panel, outputDir }) {
   const card = (kind) => win.locator(`${panel} [data-v4-block="intervention"][data-kind="${kind}"]`)
   const questionCard = card('question')
@@ -68,8 +71,8 @@ export function createCardDriver({ win, panel, outputDir }) {
     await running.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
     const deadline = Date.now() + stationTimeout({ turns: 3 })
     while (Date.now() < deadline) {
-      if (await closeSettingsPanelIfOpen()) { cardsAnswered.push('settings:closed'); await win.waitForTimeout(1000); continue }
-      if (await declineSpendDialogIfOpen()) { cardsAnswered.push('spend-dialog:declined'); await win.waitForTimeout(1500); continue }
+      if (await closeSettingsPanelIfOpen()) { cardsAnswered.push('settings:closed'); await win.waitForTimeout(POLL_MS); continue }
+      if (await declineSpendDialogIfOpen()) { cardsAnswered.push('spend-dialog:declined'); await win.waitForTimeout(POLL_MS); continue }
       if (await questionCard.count() > 0) {
         const chip = questionCard.locator('[data-ask-question][data-active="true"] [data-v4-control="question-option"]').first()
         const proceed = questionCard.locator('[data-v4-control="ask-continue"]').first()
@@ -83,36 +86,36 @@ export function createCardDriver({ win, panel, outputDir }) {
           await own.fill('你定就好，按最稳妥的来').catch(() => {})
           await own.press('Enter').then(() => cardsAnswered.push('question:typed')).catch(() => {})
         }
-        await win.waitForTimeout(1500)
+        await win.waitForTimeout(POLL_MS)
         continue
       }
       if (await spendCard.count() > 0) {
         await win.screenshot({ path: path.join(outputDir, `${label}-spend-card.png`) }).catch(() => {})
         await rejectIntervention(spendCard)
         cardsAnswered.push('spend:declined')
-        await win.waitForTimeout(1500)
+        await win.waitForTimeout(POLL_MS)
         continue
       }
       if (await irreversibleCard.count() > 0) {
         await rejectIntervention(irreversibleCard)
         cardsAnswered.push('approval-irreversible:declined')
-        await win.waitForTimeout(1500)
+        await win.waitForTimeout(POLL_MS)
         continue
       }
       const dialogCancel = win.locator('[data-confirm-dialog-cancel="true"]').first()
       const batchCancel = win.locator('[data-batch-plan-overlay] button').filter({ hasText: /取消|Cancel/ }).first()
       if (await dialogCancel.isVisible().catch(() => false)) {
         await dialogCancel.click(tap).then(() => cardsAnswered.push('editor-confirm:cancelled')).catch(() => {})
-        await win.waitForTimeout(1500)
+        await win.waitForTimeout(POLL_MS)
         continue
       }
       if (await batchCancel.isVisible().catch(() => false)) {
         await batchCancel.click(tap).then(() => cardsAnswered.push('batch-preview:cancelled')).catch(() => {})
-        await win.waitForTimeout(1500)
+        await win.waitForTimeout(POLL_MS)
         continue
       }
       if (!await running.isVisible().catch(() => false)) return { cardsAnswered, timedOut: false }
-      await win.waitForTimeout(1000)
+      await win.waitForTimeout(POLL_MS)
     }
     return { cardsAnswered, timedOut: true }
   }

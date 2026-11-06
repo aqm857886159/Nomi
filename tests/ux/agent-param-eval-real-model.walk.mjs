@@ -44,6 +44,8 @@ import {
 } from './agent-runtime-walk-support.mjs'
 import { leaveProjectIfOpen, newProjectEntry, openRailDrawer, switchWorkspace } from './_shell.mjs'
 
+/** 切页 / 导入后给渲染层喘口气的间隔；每一步之后都有观测（点得到 / 落盘数 / 编辑器文字），它不是完成信号。 */
+const POLL_MS = 1000
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '../..')
 const { values } = parseArgs({ options: {
@@ -127,7 +129,7 @@ try {
 
   async function importAssets(projectDir) {
     await switchWorkspace(win, 'generation', '切到生成区')
-    await win.waitForTimeout(1500)
+    await win.waitForTimeout(POLL_MS)
     await openRailDrawer(win, 'assets', '打开素材库')
     const uploadInput = win.locator('section[aria-label="素材库"] input[type="file"]').first()
     await uploadInput.waitFor({ state: 'attached', timeout: stationTimeout({ operations: 2 }) })
@@ -138,7 +140,7 @@ try {
       const dir = path.join(projectDir, 'assets')
       count = fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true }).filter((name) => /\.(png|mp4)$/i.test(String(name))).length : 0
       if (count >= assetFiles.length) break
-      await win.waitForTimeout(1000)
+      await win.waitForTimeout(POLL_MS)
     }
     const closeLibrary = win.locator('section[aria-label="素材库"] button[aria-label*="关闭"]').first()
     if (await closeLibrary.count()) await closeLibrary.click({ timeout: stationTimeout({ operations: 1 }) }).catch(() => {})
@@ -147,7 +149,7 @@ try {
 
   async function writeScript() {
     await win.getByRole('button', { name: '创作', exact: true }).first().click({ timeout: stationTimeout({ operations: 2 }) })
-    await win.waitForTimeout(1200)
+    await win.waitForTimeout(POLL_MS)
     const doc = win.locator(DOCUMENT)
     await doc.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
     await doc.fill(BANK.script)
@@ -176,7 +178,7 @@ try {
     await input.fill(text)
     await win.locator(`${CANVAS_PANEL} ${COMPOSER_SEND}`).click({ timeout: stationTimeout({ operations: 2 }) })
     const turn = await cards.driveTurn(label)
-    await win.waitForTimeout(1500)
+    await win.waitForTimeout(POLL_MS)
     return turn
   }
 
@@ -199,7 +201,7 @@ try {
         if (!row.scriptTyped) throw Object.assign(new Error('文稿没敲进编辑器'), { setup: true })
       }
       await switchWorkspace(win, 'generation', '切到生成区')
-      await win.waitForTimeout(1200)
+      await win.waitForTimeout(POLL_MS)
       if (DRY_RUN) {
         // 干跑：到这里起始态已搭好（空 / 文稿 / 素材）。不选模型、不发话。确认面板和输入框在。
         await expandResidentPanel(win)
