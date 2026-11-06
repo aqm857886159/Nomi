@@ -79,11 +79,18 @@ export async function shotResultOwnershipJourney(input) {
     // 放开：两单都出图。等到两张图都在这一镜上（新的当前、旧的进历史），或等满时限后如实记下看到的。
     holdTasks(false)
     const landed = (node) => [node?.result, ...(node?.history ?? [])].filter(Boolean).map((entry) => entry.taskId)
+    // 旧的那单由主进程观察者收完再落画布，回来的时间不由画布定：缺省等 5 个操作，NOMI_OWNERSHIP_LATE_WAIT_MS 可拉长；
+    // 等的过程中每次读到的「当前图 / 历史 / 记录状态」都记下来（收据里看它什么时候、落在哪）。
+    const lateWaitMs = Number(process.env.NOMI_OWNERSHIP_LATE_WAIT_MS) || stationTimeout({ operations: 5 })
+    const releasedAt = Date.now()
+    report.timeline = []
     let bothLanded = true
     await expect.poll(async () => {
       const node = await current()
+      const seen = { ms: Date.now() - releasedAt, status: node?.status, current: node?.result?.taskId, landed: landed(node), runs: (node?.runs ?? []).map((run) => `${run.taskId}:${run.status}`) }
+      if (JSON.stringify({ ...report.timeline.at(-1), ms: 0 }) !== JSON.stringify({ ...seen, ms: 0 })) report.timeline.push(seen)
       return node?.status === 'success' && node?.result?.taskId === secondTask && landed(node).includes(firstTask)
-    }, { timeout: stationTimeout({ operations: 5 }) }).toBe(true).catch(() => { bothLanded = false })
+    }, { timeout: lateWaitMs, intervals: [1000] }).toBe(true).catch(() => { bothLanded = false })
     const finalNode = await current()
     report.facts = {
       firstTask, secondTask, posts: proxy.records.length, status: finalNode?.status, currentTask: finalNode?.result?.taskId,
