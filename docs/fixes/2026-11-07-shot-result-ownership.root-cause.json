@@ -1,0 +1,353 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-07-shot-result-ownership",
+  "problem_type": "Generation outcome ownership decided by the renderer's first run record instead of the main-process admission and the run's own id",
+  "symptom": "Two entries click the same shot almost together; the later click is refused by the main process. The earlier, already paid image does not land on the shot, the shot keeps showing generating, cancel keeps spinning, and confirming sends (and pays) again.",
+  "direct_cause": "runGenerationNode wrote every click into node.runs[0] before the main process admitted it (run-started before submit). nodeRunOutcomePatch and runProjectDelivery.applyToStore dropped any outcome whose runId was not runs[0].id, so the earlier run's result was discarded while the refused click occupied runs[0]; the refusal then restored the snapshot taken when the refused click started (status generating). The same 'first record' rule merged foreground progress of an older run into the newer record and credited results without a run id to whatever record was first.",
+  "class_root": "Run identity, run records and the node display had no single owner: the renderer self-appointed the 'current run' by array position, every outcome writer judged ownership by runs[0], and refusal / cancellation rolled the display back to a snapshot instead of appending the end of that run. Any new interleaving (result before or after the refusal, foreground or background, node deleted and restored, restart) could swallow a paid result.",
+  "migration": "No persisted format change: node.runs keeps the same shape, newest first. Paid runs now enter node.runs only after admission (attempt-started / attempt-refused are display-only outcomes); every outcome finds its record by run id; the display is projected from the records (projectNodeDisplay). Deleted in the same commit: the runs[0] filters in nodeRunOutcomePatch and runProjectDelivery.applyToStore, the run-refused outcome with its 'previous' snapshot, and the withdrawNodeRun store action. Old v0.24.0 nodes that stored a refused click as runs[0] open unchanged and outcomes for that record land by its id.",
+  "affected_population": [
+    "Canvas composer, storyboard rows / asset cards and list detail generating the same shot (all through confirmAndRunNode)",
+    "Batch canvas generation (runGenerationNodesBatch) and its timeline reconciliation",
+    "Background delivery to a project that is no longer in front (disk patch)",
+    "Nodes deleted while generating and restored by undo (held outcomes)",
+    "Projects reopened after a restart with a generating node (convergence)",
+    "Projects saved by v0.24.0 whose refused click is stored as the latest run"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+    "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/runner/generationRunController.ts runGenerationNode (attempt-started, admit, deliverOwnOutcome, attempt-refused)",
+    "src/workbench/generationCanvas/runner/generationRunController.ts runGenerationNodesBatch (timeline reconciliation)",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts deliverRunOutcome / applyToStore / handRunToObserver / captureApprovedGenerationInputs",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts applyRunOutcome / addNodeResult / setNodeStatus / setNodeProgress / appendNodeRun / trackNodeRun",
+    "src/workbench/generationCanvas/store/canvasDocumentCommit.ts reapplyLandedOutcomes (undo / put-back / external write)",
+    "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts convergeStuckMidFlightNode",
+    "src/workbench/capability/multiShotCanvasLanding.ts attachShotResult / applyShotGeneration (results without a run id)",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts recoverNodeResult"
+  ],
+  "invariants": [
+    "A paid canvas click enters node.runs only after the main process admits it; a refused click never writes a run record.",
+    "Every result, status and progress with a run id changes only the record with that id; progress never writes an ended or unknown record.",
+    "A result always lands on the shot; it becomes the current image unless a newer run already succeeded, in which case it only enters version history and the timeline is not reconciled.",
+    "The node display (status / error / progress) is projected from the records: the newest live record that no newer success supersedes, else an unadmitted click still occupying the display, else the newest record.",
+    "Refusal and cancellation never restore a start snapshot; restart convergence only touches the live record.",
+    "A result without a run id only closes a live production record and never another record."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "addNodeResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "setNodeStatus"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "addNodeResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "holdRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "setNodeStatus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "trackNodeRun"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "appendNodeRun"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/comfyuiProgressBridge.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/localTaskControl.ts",
+      "symbol": "setNodeStatus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "setNodeStatus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "holdRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "addNodeResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "applyRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "applyRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "setNodeStatus"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "setNodeProgress"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts",
+      "symbol": "deliverRunOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/journeyTourStore.ts",
+      "symbol": "addNodeResult"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "symbol": "projectNodeDisplay"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+      "symbol": "applyRunOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+      "symbol": "applyRunOutcome"
+    }
+  ],
+  "door_reduction": {
+    "before": 38,
+    "after": 36,
+    "why_not": "Counted with the same symbols before and after (plus the store-type and write-boundary registrations): the withdrawNodeRun door, its runs[0] filter and the run-refused branch in runProjectDelivery are deleted. The remaining doors are the run's own writers (controller, retrieval, text finalisation, production projection, local processing, design lab, tour) which all funnel into one merge rule, nodeRunOutcomePatch, through the store actions or the disk patch; they cannot be merged further because each owns a different source of outcomes (paid run, free retrieval, production Run, local job)."
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts",
+    "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+  ],
+  "residual_risks": [
+    "A user-dismissed failure card can reappear when a refused click recomputes the display from the records (the record itself still says failed).",
+    "The real-UI race (two entries within one admission window) is reproduced by holding executor replies in the matrix; the Electron rehearsal is listed separately in the PR and report."
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.temporal.io/workflow-execution/workflowid-runid",
+      "checked_at": "2026-11-07",
+      "purpose": "Run identity is granted by the server at admission; a rejected start is not a run."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+      "checked_at": "2026-11-07",
+      "purpose": "Records are the source, the state is a projection, undo appends a compensation instead of restoring old state."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates",
+      "checked_at": "2026-11-07",
+      "purpose": "Optimistic state lives only in the view and is recomputed from server facts when it settles."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new interleaving of outcomes (result vs refusal order, foreground vs background, delete and undo, restart, confirmed resend with a late old run) re-opened the same hole because ownership was decided by runs[0]; three symptoms of the same rule were already found (lost result, stale progress in the new record, id-less result credited to the newest run).",
+    "same_class_scan": [
+      "node scripts/door-map.mjs addNodeResult appendNodeRun deliverRunOutcome holdRunOutcome nodeRunOutcomePatch setNodeProgress setNodeStatus trackNodeRun withdrawNodeRun: 35 doors before, 33 after (output copied into doors)",
+      "grep 'runs?.[0]' under src/workbench: the readers that meant 'the run in flight' (captureApprovedGenerationInputs, handRunToObserver, convergeStuckMidFlightNode) now use the run's own id or the live record",
+      "grep 'run-refused|withdrawNodeRun' in src: 0 after the change"
+    ]
+  },
+  "generality_proof": "All four places that land an outcome (live store, disk copy, held outcomes on undo, rewind re-application) call the single nodeRunOutcomePatch, which now has no positional rule: it looks up the record by id and recomputes the display from the records. The characterization matrix drives the real controller through every order (result first / refusal first) x foreground / background x confirm / cancel, confirmed resend with a late old success / failure / progress, cancel, delete + undo, restart, the real v0.24.0 fixture and id-less results; on the old code the lost-result cells are red.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch",
+      "responsibility": "The only merge rule for run outcomes: by run id, display projected from records, no positional ownership."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode",
+      "responsibility": "Run identity: paid runs are written only after main-process admission; refusal appends nothing."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "entry_point": "deliverRunOutcome",
+      "disposition": "enforced",
+      "evidence": "applyToStore forwards every outcome with its run id to the store; the disk path uses the same patch; matrix background cells."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "entry_point": "reapplyLandedOutcomes",
+      "disposition": "enforced",
+      "evidence": "Held outcomes (result / status / run-started / attempt-refused) are re-applied by id; matrix delete + undo cell and deletedNodeArrivingOutcome.test.ts."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
+      "entry_point": "convergeStuckMidFlightNode",
+      "disposition": "enforced",
+      "evidence": "Only the live record is converged; matrix restart cells."
+    },
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "attachShotResult",
+      "disposition": "enforced",
+      "evidence": "Id-less results only close a live production record; matrix cell 19 and productionOutcomeOnDeletedNode.test.ts."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "recoverNodeResult",
+      "disposition": "not-affected",
+      "evidence": "Already passes the record id it retrieves for; outcomes land by that id (generationOpenRuns.test.ts F4 free query cells)."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "invariant": "Outcomes are accounted by run id and the node display is a projection of the run records.",
+    "failure_mode": "Any writer that bypasses the id lookup or restores a snapshot turns the characterization matrix red (lost result, record of the refused click, stale progress in the new record).",
+    "exception_policy": "none",
+    "strategy": "Delete the positional ownership rule and the rollback, give run identity to main-process admission, and project the display from the records.",
+    "artifacts": [
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "src/workbench/generationCanvas/store/canvasRunActions.ts"
+    ],
+    "rationale": "Deleted inside these files in the implementation commit: the runs[0] filters (nodeRunOutcome.ts, runProjectDelivery.ts), the run-refused outcome with its start snapshot (nodeRunOutcome.ts) and the withdrawNodeRun store action (canvasRunActions.ts). They were session-only (not persisted), so upgrade needs no migration."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is added or changed.",
+    "exit_criteria": []
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-07",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "tests": [
+      "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts",
+      "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+    ],
+    "why": "nodeRunOutcomePatch is the single merge rule used by the live store, the disk copy, held outcomes and undo re-application; the controller only decides when a paid run is admitted."
+  }
+}
