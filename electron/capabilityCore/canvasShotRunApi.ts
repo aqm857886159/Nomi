@@ -45,6 +45,11 @@ export function pollCanvasShot(input: {
   return activeRuns().poll(input);
 }
 
+/** 仓库每一次耐久变化（appIntegration 的事件旁路）：交给观察者的那一笔收尾了就摇渲染层去收。 */
+export function followCanvasShotChange(run: ProductionRun): void {
+  active?.followRunChange(run);
+}
+
 export function releaseCanvasShot(input: { projectId: string; runRecordId: string }): void {
   active?.release(input);
 }

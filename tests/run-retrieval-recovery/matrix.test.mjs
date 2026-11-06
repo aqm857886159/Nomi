@@ -209,6 +209,8 @@ function createHost({ project, projectRoot, row }, crash, { forgetSubmitResult =
   const runs = createCanvasShotRuns({
     service, readProject: () => ({ id: project.id, ...identity, revision: 3 }), resolveProjectRoot: () => projectRoot, receipts, providers: () => providers, buildSubmission,
     previewBlock: async () => null, quote: () => ({ known: false }), observe: (submission, projectId, runId) => drivers.observeSingleShotRun(submission, projectId, runId),
+    // 摇渲染层在这里直接算接住（这份矩阵测的是渲染层自己的找回路）；收观察者那一笔的两半各有测试（canvasShotSettledBell.test.ts、shotResultOwnership.test.ts）。
+    notifySettled: async () => undefined,
   })
   const host = {
     repository, service, runs, drivers,

@@ -17,6 +17,7 @@
   "scope_paths": [
     "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
     "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
     "src/workbench/generationCanvas/runner/runOwnOutcomes.ts",
     "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
     "src/workbench/generationCanvas/store/canvasRunActions.ts",
@@ -33,7 +34,9 @@
     "src/workbench/generationCanvas/store/canvasDocumentCommit.ts reapplyLandedOutcomes (undo / put-back / external write)",
     "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts convergeStuckMidFlightNode",
     "src/workbench/capability/multiShotCanvasLanding.ts attachShotResult / applyShotGeneration (results without a run id)",
-    "src/workbench/generationCanvas/runner/recoverTaskActions.ts recoverNodeResult"
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts recoverNodeResult",
+    "electron/capabilityCore/canvasShotSettledBell.ts createCanvasShotSettledBell (a run handed to the main-process observer settles: ring the renderer with the run's own record id)",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts landObservedCanvasRun (canvas.run-settled: land the observer's outcome by its own record id)"
   ],
   "invariants": [
     "A paid canvas click enters node.runs only after the main process admits it; a refused click never writes a run record.",
@@ -237,11 +240,14 @@
   },
   "regression_tests": [
     "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts",
-    "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts"
+    "src/workbench/generationCanvas/store/deletedNodeArrivingOutcome.test.ts",
+    "electron/capabilityCore/canvasShotSettledBell.test.ts"
   ],
   "residual_risks": [
     "A user-dismissed failure card can reappear when a refused click recomputes the display from the records (the record itself still says failed).",
-    "The real-UI race (two entries within one admission window) is reproduced by holding executor replies in the matrix; the Electron rehearsal is listed separately in the PR and report."
+    "The real-UI race (two entries within one admission window) is reproduced by holding executor replies in the matrix; the Electron rehearsal is listed separately in the PR and report.",
+    "A confirmed resend clears the older run's open marker; if the app restarts before that older run returns, nothing observes it again (pre-existing) and its record stays recoverable.",
+    "If the node was deleted when the bell rings, the result stays in the run and is not put back on a node."
   ],
   "external_sources": [
     {
@@ -314,7 +320,13 @@
       "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
       "entry_point": "recoverNodeResult",
       "disposition": "not-affected",
-      "evidence": "Already passes the record id it retrieves for; outcomes land by that id (generationOpenRuns.test.ts F4 free query cells)."
+      "evidence": "The user's retrieval button acts on the record the card shows (the latest one) and lands by that record's id; late outcomes of older records no longer depend on it (landObservedCanvasRun)."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "landObservedCanvasRun",
+      "disposition": "enforced",
+      "evidence": "Main process rings canvas.run-settled with the run's own record id when the observer settles it (canvasShotSettledBell.test.ts); the renderer polls that run by id and delivers through deliverRunOutcome with that id, foreground and background (shotResultOwnership.test.ts observer cells)."
     }
   ],
   "prevention": {
@@ -332,7 +344,8 @@
     ]
   },
   "class_regression_tests": [
-    "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts"
+    "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts",
+    "electron/capabilityCore/canvasShotSettledBell.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
