@@ -100,3 +100,15 @@ describe('「已提交、没取回」错误卡的主按钮按任务来源分', (
     expect(reopenRecoverableNode(canvasNode())).toBe(false)
   })
 })
+
+
+it.each(['zh-CN', 'en'])('G2/G12: %s unknown is paper with a warning icon; real failures keep their red recovery actions', async lang => {
+  await i18n.changeLanguage(lang)
+  const markup = renderToStaticMarkup(<NodeErrorReport message={tagNomiError('submission-unknown', 'not confirmed')} nodeId="canvas-node" run={{ id: 'canvas-record' }} meta={{}} onRetry={() => {}} />)
+  expect(markup).toContain('bg-nomi-paper border border-nomi-line')
+  expect(markup).toContain('text-nomi-warning-ink')
+  expect(markup).toContain('bg-nomi-ink hover:bg-nomi-accent')
+  expect(markup).toContain(i18n.t('generationCommon.observability.action.reconcile.main'))
+  expect(markup).not.toContain('bg-workbench-danger')
+  expect(markup).toContain(renderToStaticMarkup(<span>{i18n.t('generationCommon.observability.action.releaseRegenerate.alt')}</span>).slice(6, -7))
+})

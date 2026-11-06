@@ -52,6 +52,7 @@ vi.mock('../../../desktop/bridge', async (importOriginal) => ({
 }))
 vi.mock('../../api/taskApi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/taskApi')>()),
+  canvasOpenRuns: vi.fn(async () => []),
   fetchWorkbenchTaskResultByVendor: vi.fn(),
   // 这里的找回走旧运行记录（没有单镜 Run）。
   pollCanvasShotRun: vi.fn(async () => null),

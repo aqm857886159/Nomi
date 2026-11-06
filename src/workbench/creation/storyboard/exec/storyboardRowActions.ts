@@ -1,3 +1,11 @@
+import { canvasOpenRuns } from '../../../api/taskApi'
+import { withProjectAction } from '../../../project/projectCanvasReadSurface'
+import { isGenerationNodeBusy } from '../../../generationCanvas/components/canvasProductionScope'
+import { groupGenerateRows } from '../../../generationCanvas/components/groupGenerate'
+import { preloadModelOptions } from '../../../../config/useModelOptions'
+import type { StoryboardActionGuard } from './storyboardActionGuard'
+import { autoReferenceFromCanvas } from './storyboardAutoReference'
+import { useGenerationQueueStore } from '../../../generationCanvas/runner/generationQueueStore'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../../../generationCanvas/events/canvasGestureContext'
 import { pushUndoSnapshot, getUndoJournalGeneration } from '../../../generationCanvas/events/canvasUndoJournal'
 import { projectShotNode } from './storyboardProjection'
@@ -23,14 +31,14 @@ import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvas
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
 import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
 import { confirmAndRunNode, regenerateNodeInPlace, type GenerationApprovalGuards, type GenerationConfirmationGuards, type DeferredNodeMaterialization } from '../../../generationCanvas/runner/generationRunController'
-import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
+import { confirmAndRunPlan, reportOpenRunSkips } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
 import { buildModelEntryIndex } from '../../../generationCanvas/agent/plannedNodeMeta'
 import type { AgentModelEntry } from '../../../../../electron/shared/agentCapabilities/availableModels'
 import { getVendorPreference } from '../../../api/vendorPreferenceApi'
 import { ANCHOR_META_KEYS, isAnchorFrozen, type AnchorFrozenMark } from '../../../generationCanvas/model/anchorBibleKeys'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
-import { deriveAnchorCardRuntimes, type StoryboardRowRuntime } from './storyboardRowStatus'
+import { deriveAnchorCardRuntimes, deriveStoryboardRowRuntimes, type StoryboardRowRuntime } from './storyboardRowStatus'
 import { storyboardComposerMeta } from '../shotRow/storyboardComposerModel'
 import { confirmStoryboardPlanBatch } from '../../../generationCanvas/spend/spendConfirm'
 import type { PlanRow } from '../../../shared/PlanRows'
@@ -53,6 +61,7 @@ export type RowActionContext = GenerationApprovalGuards & {
   documentId: string
   designId: string
   plan: StoryboardPlan
+  actionGuard?: StoryboardActionGuard
 } & (
   | { gesture: CanvasGestureContext; initiator?: never }
   | { gesture?: undefined; initiator: GenerationConfirmationGuards['initiator'] }
@@ -403,15 +412,16 @@ async function syncAnchorNodeWithCard(ctx: RowActionContext, anchor: PlanAnchor,
 // ── 批量（footer 主按钮）──
 
 type StoryboardBatchSelection = {
+  skipped?: number
   rows: StoryboardRowRuntime[]
   anchors: PlanAnchor[]
 }
 
-function storyboardBatchRows(ctx: RowActionContext, rows: readonly StoryboardRowRuntime[]): { planRows: PlanRow[]; selection: StoryboardBatchSelection } {
+function storyboardBatchRows(ctx: RowActionContext, rows: readonly StoryboardRowRuntime[], occupied = new Set<string>()): { planRows: PlanRow[]; selection: StoryboardBatchSelection } {
   const anchorCards = deriveAnchorCardRuntimes({ plan: ctx.plan, designId: ctx.designId, nodes: canvasState().nodes })
   const neededAnchorIds = new Set(rows.flatMap((row) => row.shot.anchorIds))
   const anchors = anchorCards
-    .filter((card) => card.visual && neededAnchorIds.has(card.anchor.id) && !card.resultUrl && !card.generating && !card.locked)
+    .filter((card) => card.visual && neededAnchorIds.has(card.anchor.id) && !card.resultUrl && !isGenerationNodeBusy(card.node ?? undefined) && !card.locked && !occupied.has(card.node?.id ?? ''))
     .map((card) => card.anchor)
   const anchorRows: PlanRow[] = anchors.map((anchor) => ({
     id: `anchor:${anchor.id}`,
@@ -431,8 +441,17 @@ function storyboardBatchRows(ctx: RowActionContext, rows: readonly StoryboardRow
 }
 
 async function confirmStoryboardBatch(ctx: RowActionContext, rows: readonly StoryboardRowRuntime[]): Promise<StoryboardBatchSelection | null> {
-  const { planRows, selection } = storyboardBatchRows(ctx, rows)
-  if (planRows.length === 0) return null
+  const projectId = withProjectAction(project => project.binding.projectId)
+  const occupied = new Set(projectId ? (await canvasOpenRuns({ projectId })).map(entry => entry.nodeId) : [])
+  let skipped = 0
+  if (projectId && occupied.size) {
+    const needed = new Set(rows.flatMap(row => row.shot.anchorIds))
+    const targets = new Set([...rows.flatMap(row => [row.exec.node?.id, row.exec.keyframeNode?.id]), ...ctx.plan.anchors.filter(anchor => needed.has(anchor.id)).map(anchor => anchorNodeFor(ctx, canvasState().nodes, anchor)?.id)])
+    skipped = [...occupied].filter(id => targets.has(id)).length
+  }
+  rows = rows.filter(row => !occupied.has(row.exec.node?.id ?? '') && !occupied.has(row.exec.keyframeNode?.id ?? '') && !isGenerationNodeBusy(row.exec.node ?? undefined) && !isGenerationNodeBusy(row.exec.keyframeNode ?? undefined))
+  const { planRows, selection } = storyboardBatchRows(ctx, rows, occupied)
+  if (planRows.length === 0) return { rows: [], anchors: [], skipped }
   const checked = new Set(planRows.filter((row) => row.checked).map((row) => row.id))
   const ok = await confirmStoryboardPlanBatch({
     title: i18n.t('storyboardEditor.batch.title', { count: planRows.length }),
@@ -447,6 +466,7 @@ async function confirmStoryboardBatch(ctx: RowActionContext, rows: readonly Stor
   })
   if (!ok) return null
   return {
+    skipped,
     rows: selection.rows.filter((row) => checked.has(`shot:${stableShotId(row.shot)}`)),
     anchors: selection.anchors.filter((anchor) => checked.has(`anchor:${anchor.id}`)),
   }
@@ -467,6 +487,24 @@ async function materializeAnchorCard(ctx: RowActionContext, anchor: PlanAnchor):
   return clientIdToNodeId[anchor.id] ?? null
 }
 
+type StoryboardShotRuns = readonly ({ id: string; runId: string | undefined } | null)[]
+
+/** Confirmation owns existing runs only; another action taking either node owns the whole shot. */
+function storyboardNodeRunUnclaimed(node: GenerationCanvasNode | null | undefined, before: StoryboardShotRuns[number] | undefined): boolean {
+  if (before === undefined) return false
+  if (!node) return !before
+  if (isGenerationNodeBusy(node) || isAnchorFrozen(node) || node.status === 'recoverable') return false
+  if (!before || node.id !== before.id) return !node.runs?.length
+  return node.runs?.[0]?.id === before.runId
+}
+
+function storyboardBatchShotUnclaimed(ctx: RowActionContext, shot: PlanShot, approved: StoryboardShotRuns | undefined): boolean {
+  if (!approved) return false
+  const bound = existingRowBindings(ctx, shot)
+  return storyboardNodeRunUnclaimed(bound.shotNode, approved[0])
+    && (!(shot.shotKind !== 'image' && shot.keyframe?.enabled) || storyboardNodeRunUnclaimed(bound.keyframeNode, approved[1]))
+}
+
 /**
  * 「生成未生成的 N 镜」：把就绪行（含失败重试）一次 materialize，再交给既有批量通路
  * confirmAndRunPlan（一次花钱确认 + 依赖波次「首帧先、镜头后」+ 失败汇总/重试）。
@@ -484,6 +522,7 @@ export async function runStoryboardBatch(
     const bound = existingRowBindings(ctx, row.shot)
     return bound.shotNode && (!(row.shot.shotKind !== 'image' && row.shot.keyframe?.enabled) || bound.keyframeNode)
   }) && ctx.plan.anchors.every(anchor => !isVisualAnchor(anchor) || anchorCarriesOwnMaterial(anchor) || anchorNodeFor(ctx, canvasState().nodes, anchor))) return 'nothing-to-run'
+  const projectId = withProjectAction(project => project.binding.projectId)
   const existingNodeIds = new Set(canvasState().nodes.map(node => node.id))
   if (landing) {
     const generation = getUndoJournalGeneration()
@@ -491,10 +530,10 @@ export async function runStoryboardBatch(
     const canWrite = ctx.gesture?.canWrite
     // 落地事务换一个手势，但**来源照旧**：谁发起的这一批不因为包了一层事务就变成「用户」（付费确认按它判）。
     const source = ctx.gesture ? ctx.gesture.source : ctx.initiator === 'agent' ? 'agent' as const : 'user' as const
-    const { documentId, designId, plan, assertCurrent, assertAuthorCurrent } = ctx
-    const gesture = { source, txnId: `shot-table-batch-${crypto.randomUUID()}`, suppressUndoBarriers: true, canWrite: () => getUndoJournalGeneration() === generation && (canWrite?.() ?? true) }
+    const { documentId, designId, plan, assertCurrent, assertAuthorCurrent, actionGuard } = ctx
+    const gesture = { source, txnId: `storyboard-batch-shot-ownership-v2-${crypto.randomUUID()}`, suppressUndoBarriers: true, canWrite: () => getUndoJournalGeneration() === generation && (canWrite?.() ?? true) }
     ctx = assertCurrent
-      ? { documentId, designId, plan, assertCurrent, assertAuthorCurrent, gesture }
+      ? { documentId, designId, plan, assertCurrent, assertAuthorCurrent, actionGuard, gesture }
       : { documentId, designId, plan, gesture }
   }
   // Placement includes the original reference pool, including unused visual anchors.
@@ -507,10 +546,23 @@ export async function runStoryboardBatch(
       if (args) await applyCreate(args, ctx.gesture, ctx.assertCurrent)
     }
   }
+  const confirmedAnchorRuns = new Map(ctx.plan.anchors.map(anchor => {
+    const node = anchorNodeFor(ctx, canvasState().nodes, anchor)
+    return [anchor.id, node ? { id: node.id, runId: node.runs?.[0]?.id } : null] as const
+  }))
+  const confirmedShotRuns = new Map(rows.map(row => {
+    const bound = existingRowBindings(ctx, row.shot)
+    return [stableShotId(row.shot), [bound.shotNode, bound.keyframeNode].map(node => node ? { id: node.id, runId: node.runs?.[0]?.id } : null)] as const
+  }))
   const confirmed = landing?.placementOnly
     ? { rows: [...rows], anchors: [] as PlanAnchor[] }
     : await confirmStoryboardBatch(ctx, rows)
-  if (!confirmed || (!landing?.placementOnly && confirmed.rows.length === 0 && confirmed.anchors.length === 0)) return 'declined'
+  if (!confirmed) return 'declined'
+  if (!landing?.placementOnly && confirmed.rows.length === 0 && confirmed.anchors.length === 0) {
+    if (confirmed.skipped && projectId) reportOpenRunSkips(projectId, confirmed.skipped)
+    return 'nothing-to-run'
+  }
+
 
   // Reference cards are a separate wave. A failed card stops here; shot nodes are not even materialized,
   // so a missing reference can never be silently dispatched as a shot without it.
@@ -524,15 +576,33 @@ export async function runStoryboardBatch(
       const { nodes: anchorNodes, edges: anchorEdges } = canvasState()
       const anchorOutcome = await confirmAndRunPlan(
         buildDependencyWaves(anchorRunIds, { nodes: anchorNodes, edges: anchorEdges }),
-        { ...confirmationGuards(ctx), skipSpendConfirmation: true },
+        { ...confirmationGuards(ctx), skipSpendConfirmation: true, filterBeforeEnqueue: ids => {
+          const available = new Set(confirmed.anchors.filter(anchor => storyboardNodeRunUnclaimed(anchorNodeFor(ctx, canvasState().nodes, anchor), confirmedAnchorRuns.get(anchor.id)))
+            .map(anchor => anchorNodeFor(ctx, canvasState().nodes, anchor)?.id))
+          return ids.filter(id => available.has(id))
+        } },
       )
       if (anchorOutcome === 'unavailable' || anchorOutcome === 'declined') return anchorOutcome
       const afterAnchors = useGenerationCanvasStore.getState().nodes
       if (anchorRunIds.some((id) => !hasUsableResult(afterAnchors.find((node) => node.id === id)))) return 'started'
     }
   }
+  if (confirmed.skipped && projectId) reportOpenRunSkips(projectId, confirmed.skipped)
+  if (!landing?.placementOnly) {
+    const needed = new Set(confirmed.rows.flatMap(row => row.shot.anchorIds))
+    if (ctx.plan.anchors.some(anchor => needed.has(anchor.id) && isVisualAnchor(anchor) && !anchorCarriesOwnMaterial(anchor)
+      && !hasUsableResult(anchorNodeFor(ctx, canvasState().nodes, anchor)))) return 'started'
+  }
+  if (!landing?.placementOnly) ctx.plan = ctx.actionGuard
+    ? await ctx.actionGuard.refreshReferences()
+    : autoReferenceFromCanvas(ctx.plan, ctx.designId, canvasState().nodes, useGenerationQueueStore.getState().entries)
+  const spendChanged = !landing?.placementOnly && await ctx.actionGuard?.hasSpendChanges(confirmed.rows.map(row => stableShotId(row.shot)))
+  const [imageModelOptions, videoModelOptions] = await Promise.all([preloadModelOptions('image', 'any-published'), preloadModelOptions('video', 'any-published')])
+  const selectedIds = new Set(confirmed.rows.map(row => stableShotId(row.shot)))
+  const currentRows = deriveStoryboardRowRuntimes({ plan: ctx.plan, designId: ctx.designId, nodes: canvasState().nodes, imageModelOptions, videoModelOptions })
+    .filter(row => selectedIds.has(stableShotId(row.shot)))
   const runIds: string[] = []
-  for (const row of confirmed.rows) {
+  for (const row of currentRows) {
     if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard batch')
     const { shotNodeId, keyframeNodeId } = await materializeShotRow(ctx, row.shot, row.mode, landing?.placementOnly)
     const { nodes } = canvasState()
@@ -551,8 +621,15 @@ export async function runStoryboardBatch(
   if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard confirmation')
   // 只摆位不生成：一张卡都没弹过。
   if (landing?.placementOnly) return 'nothing-to-run'
-  const { nodes, edges } = canvasState()
   await ctx.assertCurrent?.()
+  const { nodes, edges } = canvasState()
+  const filterBeforeEnqueue = (ids: string[]) => {
+    const unclaimedIds = new Set(currentRows.filter(row => storyboardBatchShotUnclaimed(ctx, row.shot, confirmedShotRuns.get(stableShotId(row.shot))))
+      .flatMap(row => { const bound = existingRowBindings(ctx, row.shot); return [bound.shotNode?.id, bound.keyframeNode?.id] }))
+    return ids.filter(id => unclaimedIds.has(id))
+  }
+
   // 结局要往回送：Agent 的 `generate` 对文稿方案就是经这条链问的用户（见 `generationRunOutcome.ts`）。
-  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), skipSpendConfirmation: !landing?.placementOnly, ...(onConsented ? { onConsented } : {}) })
+  return confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }), { ...confirmationGuards(ctx), filterBeforeEnqueue, skipSpendConfirmation: !spendChanged,
+    ...(spendChanged ? { itemized: { rows: groupGenerateRows(runIds) } } : {}), ...(onConsented ? { onConsented } : {}) })
 }

@@ -1,0 +1,175 @@
+{
+  "status": "failed",
+  "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-frame-generate-all]').first()\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" data-frame-generate-all=\"true\" class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap cursor-pointer transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 h-7 px-3 text-caption border border-workbench-border-soft bg-workbench-surface text-workbench-ink hover:bg-workbench-hover active:bg-workbench-pressed\">生成全部</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - element is outside of the viewport\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - element is outside of the viewport\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    87 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - element is outside of the viewport\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n",
+  "report": {
+    "checks": {
+      "batchCancel": true,
+      "E3/storyboard": true,
+      "E9": true,
+      "E3/canvas": true,
+      "E3/list": true
+    },
+    "screenshots": [
+      "[local evidence]/continue-single-3/shots/zh-CN-single-canvas-batch-cancel.png",
+      "[local evidence]/continue-single-3/shots/zh-CN-single-storyboard-retried.png",
+      "[local evidence]/continue-single-3/shots/zh-CN-single-E9-storyboard-same-result.png",
+      "[local evidence]/continue-single-3/shots/zh-CN-single-E9-canvas-same-result.png",
+      "[local evidence]/continue-single-3/shots/zh-CN-single-E9-list-same-result.png",
+      "[local evidence]/continue-single-3/shots/zh-CN-single-canvas-retried.png",
+      "[local evidence]/continue-single-3/shots/zh-CN-single-list-retried.png"
+    ],
+    "blocked": [
+      "E1 selection: expect(received).toBe(expected) // Object.is equality\n\nExpected: 30\nReceived: 42\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+    ]
+  },
+  "requests": [
+    {
+      "sequence": 1,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-1"
+    },
+    {
+      "sequence": 2,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-2"
+    },
+    {
+      "sequence": 3,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1在旧书店@image2找到一封信",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-3"
+    },
+    {
+      "sequence": 4,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1走到旧书店@image2窗边",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-4"
+    },
+    {
+      "sequence": 5,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1把信放在旧书店@image2的桌上",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-5"
+    },
+    {
+      "sequence": 6,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.\nThe same character \"林薇\" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套\nViews: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).\nRequirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-6"
+    },
+    {
+      "sequence": 7,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.\nThe same location \"旧书店\": 旧书店，木桌和窗户\nViews: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.\nRequirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 8,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1在旧书店@image2找到一封信",
+      "referenceCount": 2,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 9,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1走到旧书店@image2窗边",
+      "referenceCount": 2,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 10,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1把信放在旧书店@image2的桌上",
+      "referenceCount": 2,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 11,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1在旧书店@image2找到一封信",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-7"
+    },
+    {
+      "sequence": 12,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1走到旧书店@image2窗边",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-8"
+    },
+    {
+      "sequence": 13,
+      "model": "gpt-image-2",
+      "resolution": "1k",
+      "prompt": "林薇@image1把信放在旧书店@image2的桌上",
+      "referenceCount": 2,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false,
+      "upstreamStatus": 200,
+      "providerTaskId": "agent-runtime-9"
+    }
+  ]
+}

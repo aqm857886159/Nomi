@@ -163,7 +163,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const canGenerate = React.useMemo(
     () => { void productionLandingRuns; return canRunGenerationNode(node, graph) },
     [node, graph, productionLandingRuns],
-  ) && !isGenerating
+  )
   // 跨槽依赖未满足（档案 slot.requiresAnyOf；如 Seedance 2.0 只放了参考音频、缺图/视频）。
   // 与 canGenerate 同一个判定（unmetReferenceDependencyForNode），composer 不再按 node.kind 重猜原因。
   // 文案仍留到渲染时用 t() 格式化，保证切语言能实时重渲。
@@ -178,7 +178,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const pendingRefKey = React.useMemo(() => collectUngeneratedReferenceAncestors(node.id, graph).join(','), [node.id, graph])
   const hasPendingRefs = pendingRefKey.length > 0
   // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
-  const canGenerateNow = canGenerate || (hasPendingRefs && !isGenerating)
+  const canGenerateNow = canGenerate || hasPendingRefs
   const productionBinding = productionMetaOf(node)
   const productionRun = useProductionRunStore((state) => state.run?.runId === productionBinding?.runId ? state.run : null)
   const productionClaim = productionRun && productionBinding
@@ -292,7 +292,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    await startGenerationFromComposer(node, hasResult)
+    try { await startGenerationFromComposer(node, hasResult) }
+    catch (error) { reportFeedback(error instanceof Error ? error.message : t('generationCommon.batchPlan.authorizationFailed')) }
   }
 
   // 吃提示词的节点才有「最小可用高度」——不吃的（如某些 ComfyUI 工作流）本来就该按内容自然矮。

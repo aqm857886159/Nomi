@@ -1,0 +1,871 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-02-generation-lock-exit",
+  "problem_type": "Approved storyboard generation scope, queue ownership and local refusal recovery",
+  "symptom": "批量资产报错后整表挂起，结果不明节点重启后仍不能从已有人工核对出口重新生成。 第二轮独立验收发现资产阶段单点后批次重发同镜；CI金路径发现Agent改稿后生成请求为0。 第3轮独立验收：POST途中退出后永久拒绝、可找回被拒失去出口、通知假失败、入队前await窗口重复派发。 第4轮：卡内确认条缺少完整风险说明，结果未知被画成失败，三页确认视觉不一致。",
+  "direct_cause": "整方案快照被自动引用触发；quota 与本机拒绝参与刹车；单卡依赖整表 busy；画布出口猜错 Run；三页重复判断失败动作、列表漏读队列。；Agent 每张资产单独确认却沿用整批目标的准入快照；列表窄列优先显示旧产物，盖住本次失败或可找回状态。 资产阶段镜头尚未入队而原去重只取消queued；三种方案比较绕过JSON往返，undefined键被严格JSON拒绝。 节点占用没有统一收尾，handOff漏无任务号submitting；被拒尝试覆盖runs[0]；归属核对早于最后await；通知未分类。",
+  "class_root": "人手再次生成、机器去重、同次意图幂等混成节点永久互斥；查询/准入/恢复/通知各自判断占用，缺少共享准入与最后同步派发边界。 第4轮把恢复风险确认的决策、状态和宿主分在各卡，绕过既有花钱确认主人；未先按获批逐元素清单对账。",
+  "affected_population": [
+    "分镜编辑器与 Agent",
+    "画布单发、框选、分组批量及排队中的单发",
+    "列表分区批量、小卡与大详情",
+    "当前及旧版 submission_unknown 画布 Run"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "electron/capabilityCore/canvasShotRunApi.ts",
+    "electron/preload/runtimeBridge.ts",
+    "electron/tasks/taskIpcHandlers.ts",
+    "scripts/lib/intake-radar/health.mjs",
+    "src/desktop/bridge.ts",
+    "src/devlab/designLab/storyboard/storyboardFixtures.ts",
+    "src/devlab/designLab/storyboardReuse/storyboardReuseFixtures.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "src/workbench/api/taskApi.ts",
+    "src/workbench/capability/storyboardPresent.ts",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+    "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+    "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorZone.tsx",
+    "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+    "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+    "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/generation/list/GenerationListCard.tsx",
+    "src/workbench/generation/list/GenerationListDetail.tsx",
+    "src/workbench/generation/list/GenerationListParts.tsx",
+    "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+    "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/store/canvasAutoReference.ts",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/observability/generationFailureActions.ts",
+    "src/workbench/observability/narrate.ts",
+    "src/workbench/production/productionRunView.ts",
+    "src/workbench/production/releaseUnknownSubmission.ts",
+    "src/workbench/production/useProductionStatus.ts",
+    "electron/capabilityCore/canvasShotResult.ts",
+    "src/workbench/creation/storyboard/storyboardShotTableTypes.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/taskCenter/taskCenterEntries.ts",
+    "src/workbench/taskCenter/TaskCenterPanel.tsx",
+    "tests/ux/_generationLockExitRehearsal.mjs",
+    "tests/ux/_generationLockExitSteps.mjs",
+    "tests/ux/generation-lock-exit-real.paid.mjs",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/singleShotRunLifecycle.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "electron/capabilityCore/canvasShotTestUtils.ts",
+    "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+    "src/workbench/generationCanvas/nodes/composerRun.ts",
+    "src/workbench/generationCanvas/runner/assetUploadConsent.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
+    "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+    "src/workbench/generationCanvas/runner/generationRunOutcome.ts",
+    "src/workbench/generationCanvas/runner/generationRunWaves.ts",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/workbench/generationCanvas/store/canvasStoreTypes.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.tsx",
+    "tests/ux/_generationLockExitHttpEight.mjs",
+    "tests/ux/_generationLockExitThreePages.mjs",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx"
+  ],
+  "entry_points": [
+    "StoryboardPlanEditor 的单卡、整批与放置",
+    "presentStoryboard",
+    "confirmAndRunNode / confirmAndRunPlan",
+    "NodeErrorReport 与 useProductionStatus 的人工核对",
+    "列表大详情 NodeFailureReport 与分区 runGroupGenerate",
+    "分镜资产卡和镜头行 StoryboardFailureActions"
+  ],
+  "internal_only_reason": "用户已按方向检查第6节批准删掉人手操作的永久占用阻断；复用已有手势收据、job.reconcile和制作Run孤儿规则，不新增依赖或改变供应商请求。",
+  "external_sources": [],
+  "invariants": [
+    "当前节点只与对应的作者行比较；确认只验证全局、参考池与本次目标镜头。",
+    "单发在共享提交口取消其它批次中该节点的排队条目。",
+    "quota 和 local-refusal 不计刹车，本机拒绝不损害模型健康。",
+    "人确认可能再扣费后走原有单张入口；结果不明仍绝不自动重发。",
+    "三页失败原因同源，列表详情与画布共用恢复卡，窄格子动作没有死路。",
+    "排队状态读队列；列表按当前节点布尔订阅。",
+    "第二阶段只跳过与已确认的已选镜及全局花钱字段一致的报价；两边先自动引用归一，改提示词或未选镜不额外询问。",
+    "第一张卡打开前快照之后的节点新运行归其他动作所有，第二阶段不得重发整镜（含关键帧），用户确认的已有结果重跑仍允许。",
+    "方案作者/批准/花钱三种比较共用JSON持久化归一口，undefined不造成假冲突，真实变更仍拒绝。",
+    "人点未结束节点：确认前0次POST且运行记录不变，主进程只认真人手势且非批次/交接回执；机器始终跳过。",
+    "主进程查询全部未结束Run与准入同源；活请求不作孤儿，退出留下的无任务号submitting复用同一规则转未知。",
+    "最后一次归属核对在全部await后、入队前同步执行；过滤的出价收回；本机拒绝撤回渲染运行记录且不进失败通知。",
+    "重放同一笔已发出的结果不明Run仍是原请求的不确定结局，不是另一次本机拒绝；恢复投影只改节点展示，不改原运行记录。",
+    "第4轮：结果不明使用纸底而非失败红，三页和任务中心只调用confirmGenerationResend，一张SpendConfirmDialog同时说明风险与首次托管；确认前不放行、不创建新Run，四种取消保留原任务。",
+    "第4轮：显式再发按钮即使主进程已无占用也必须先问；普通↑无占用仍直接发；免费取回身份与机器跳过不变。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "readCanvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/api/taskApi.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "StoryboardFailureActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "StoryboardFailureActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "symbol": "StoryboardFailureActions"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "StoryboardShotFrame"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "symbol": "NodeGenerationStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx",
+      "symbol": "NodeGenerationStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "NodeGenerationStatus"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "NodeErrorReport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "SpendConfirmDialog"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "recoverOrphans"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "markInterruptedSingleShotUnknown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "markInterruptedSingleShotUnknown"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/storyboardReuse/storyboardReuseFixtures.ts",
+      "symbol": "autoReferencePlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/prompt/browserPromptExtractionRunner.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/taskApi.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "symbol": "storyboardFailureCopy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "createStoryboardActionGuard"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardAutoReference.ts",
+      "symbol": "autoReferencePlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "storyboardNodeRunUnclaimed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "storyboardBatchShotUnclaimed"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "deriveShotRowExec"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "symbol": "storyboardFailureCopy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/list/GenerationListParts.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "runPlanWithToasts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "spendCostKind"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "spendCostKindForNodes"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "isGenerationNodeBusy"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/groupGenerate.ts",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/composerRun.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "startGenerationFromComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx",
+      "symbol": "startGenerationFromComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/textProcessRun.ts",
+      "symbol": "startGenerationFromComposer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "reconcileNodeModeWithConnectedReferences"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "assertAuthorCurrent"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "synchronizeCanvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "confirmGenerationResend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "spendCostKind"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "buildRecoverPayload"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "spendCostKind"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasDocumentCommit.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFailureActions.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/observability/generationFeedback.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/handOverPrecheck.ts",
+      "symbol": "paidNodeLedger"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/ProductionCanvasLandingHost.tsx",
+      "symbol": "synchronizeCanvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "releaseUnknownSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "canvasOpenRuns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "setNodeRecoveryPresentation"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "nodeIdOfJob"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "confirmAndRunNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "confirmGenerationResend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/production/useProductionStatus.ts",
+      "symbol": "releaseUnknownSubmission"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "classifyGenerationError"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "generationFailureActions"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "confirmAndRunPlan"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "confirmAndRunNode"
+    }
+  ],
+  "door_reduction": {
+    "before": 13,
+    "after": 103,
+    "why_not": "三页和Agent/任务中心是必要入口，不能靠删页面减门。本轮按当前不变量的共享口重新扫，移除旧通用桥/其它接口的过宽枚举；计数变化不是结构性删入口的证据。结构性删除的是拒绝分支、旧查询和重复状态。"
+  },
+  "generality_proof": "统一动作守卫和提交咽喉覆盖编辑器、Agent、单发和批量；分类 kind 是动作、健康与遥测唯一输入；释放沿用同一个 job.reconcile。 B6的确认快照和最后一跳按整镜核对同时覆盖未落节点/已存在节点、主镜/关键帧、失败重试/画布/列表/组头和Agent；B7三处都经同一JSON归一口，真实改动仍拒绝。 第3轮查询全部未结束Run并在唯一主进程口准入；已批准回执只对真人单发有效，机器及过期回执不能覆盖新Run。同次意图去重保留，拒绝撤回记录，恢复订阅真正项目提交，制作多镜的原重启规则不被单镜guard吞掉。 第4轮新分镜再发按钮前置IPC拒绝有真实浏览器点击回归；恢复投影只接结果不明这一事实，节点状态映射收回原store动作，未放宽状态取值。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "createStoryboardActionGuard",
+      "responsibility": "批准范围保留全局、全部参考卡和当前动作目标；每张 Agent 资产确认只检查该资产目标，执行只检查本节点作者行；阶段切换显式补引用重读。 两个方案均自动引用归一，以当前采用的阶段快照和上一基线按排除法比较已选镜花钱字段；变化交既有批量卡重问，最后一次重读前的改动也不会被吞。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode",
+      "responsibility": "取消同节点其它排队出价，按分类结算刹车和模型健康。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "readCanvasOpenRuns",
+      "responsibility": "所有未结束Run的项目/节点查询与主进程准入同源，包含活请求与盘上占用；真人非批次非交接的回执才能覆盖具体旧Run。"
+    },
+    {
+      "path": "src/workbench/observability/generationFailureActions.ts",
+      "symbol": "generationFailureActions",
+      "responsibility": "三页共用任务来源、说明和安全重试决策。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "runStoryboardAction",
+      "responsibility": "现有分镜项目/批准守卫接收单行或整表 key，动作结束或拒绝都清 pending；整表 busy 从同一集合推导。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "symbol": "captureApprovedGenerationInputs",
+      "responsibility": "按 executingNodeId 比批准 token；保留所有输入字段及受批准上游产物/文本封印保护。"
+    },
+    {
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "buildTaskCenterView",
+      "responsibility": "历史行重试与顶部重试集合都使用共享canRetry判据；未知提交保留原人工出口。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "storyboardBatchShotUnclaimed",
+      "responsibility": "卡打开之前捕获整镜运行归属；同一过滤供价格清单与全部await后的最后同步入队点读取，资产和镜头共用节点判据；出价收回。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "symbol": "storyboardComparableContent",
+      "responsibility": "批准、作者、花钱比较统一使用JSON持久化后的可比内容，undefined不制造假冲突。"
+    },
+    {
+      "path": "tests/ux/_generationLockExitRehearsal.mjs",
+      "symbol": "runLockExitRehearsal",
+      "responsibility": "完整免费演练把提交号和源码一致性一起写进收据，真实入口据此拒绝旧源码收据；仍由现有付费owner控制开跑。"
+    },
+    {
+      "path": "electron/productionRun/singleShotRunLifecycle.ts",
+      "symbol": "markInterruptedSingleShotUnknown",
+      "responsibility": "制作和画布共用孤儿提交规则，活POST不转未知；无任务号的中断提交及预算同档收敛。"
+    },
+    {
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "synchronizeCanvasOpenRuns",
+      "responsibility": "打开项目及人点预检查使用同一投影，不动该窗口活请求；恢复可找回与结果不明面。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "symbol": "confirmAndRunPlan",
+      "responsibility": "机器先排除未结束节点并修正报价；全部await后最后同步过滤，再入队；过滤的已开出价统一收回。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeRunOutcomePatch",
+      "responsibility": "主进程准入拒绝撤回本次运行记录并还原原状态；旧worker不能覆盖用户后来发的新一笔。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "createCanvasShotRuns",
+      "responsibility": "唯一主进程准入：读同一open Run事实，真人且非批次非交接的具体回执才放行；机器不放行，decideShotClaim不变。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "confirmGenerationResend",
+      "responsibility": "三页和任务中心的重发风险只经现有SpendConfirmDialog确认，取消不放行、不写记录，托管告知同卡。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "StoryboardPlanEditor",
+      "disposition": "enforced",
+      "evidence": "编辑器单卡和整批沿用原有 runner。"
+    },
+    {
+      "path": "src/workbench/capability/storyboardPresent.ts",
+      "entry_point": "presentStoryboard",
+      "disposition": "enforced",
+      "evidence": "Agent 经 storyboardRowActions 进入同一 runner。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "供应商、节点和入口都可能不同，但整方案快照与队列状态混用的机制相同。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs assertAuthorCurrent nodeIdOfJob releaseUnknownSubmission autoReferencePlan NodeErrorReport storyboardFailureCopy: 14 doors",
+      "node scripts/door-map.mjs isGenerationNodeBusy canvasUnknownRuns releaseUnknownCanvasSubmissionsForNode generationFailureActions NodeFailureReport StoryboardFailureActions useUnknownSubmissionRelease runStoryboardAction blockingReason: 27 doors",
+      "node scripts/door-map.mjs NodeFailureReport StoryboardFailureActions captureApprovedGenerationInputs --roots=src,electron,tests/ux: 8 doors, 12 call occurrences",
+      "B6: row/retry/canvas/list/group × success/running/error/recoverable/locked, main/keyframe and explicitly confirmed prior result.",
+      "B7: Agent patch creates optional undefined keys; guard was the only storyboard comparison without JSON roundtrip. runProjectDelivery input token and director plan/preview fingerprints already normalize.",
+      "第3轮查confirmAndRunNode、canvasOpenRuns、nodeRunOutcomePatch、recoverOrphans、buildRecoverPayload及全部走查读者；画布/列表composer、分镜单卡、任务中心、Agent与批量的确认缝分别核对。",
+      "项目恢复补查先挂载、后提交项目的时序；用subscribeProjectOpened签发后再读，不以组件prop替代水合完成。制作多镜cancelled的submitting同样走抽出的原重启规则，保持旧行为。",
+      "补查免费取回/原 worker 晚到结果和 preview await：异步落卡均携原 Run 号，时间轴只接当前结果；回执释放的 Run 不可在 await 返回后重新占用。",
+      "第4轮按拍板图：三页及任务中心重复确认入口、旧状态寿命、外层摘要重复与免费动作顺序全部归已有spendConfirm和generationFailureActions。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "invariant": "机器不重发未结束节点；人只有确认当前全部占用才新发；同次意图仍一次。确认前不写新运行；机器跳过不进失败重试。 重发按钮永远先问；↑仅有未结束请求才问；取消不写记录、不放行。",
+    "failure_mode": "旧回执、伪手势、批量或Agent回执不覆盖新占用；人点未覆盖先同步原卡，单节点在既有花钱卡最多再问一次，失败撤回本次记录并保留原记录和出路。",
+    "exception_policy": "none",
+    "strategy": "删除永久拒绝人点的旧出口、只查unknown的旧IPC、released=false静默关条及提前await归属过滤。原有动作改读同一主进程准入；第四轮把风险确认收回已有花钱确认队列；孤儿规则复用制作实现。 第4轮删除专用确认state/浮层/卡内确认条，确认归spendConfirm主人，一张花钱卡承载重发风险与托管告知，放行只在确认之后。 体积门岗要求下，将花钱口径纯函数归spendConfirm，连边参考模式对账归canvasAutoReference；调用者同提交迁移，旧导出删除。",
+    "artifacts": [
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/observability/generationFailureActions.ts",
+      "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "src/workbench/production/releaseUnknownSubmission.ts",
+      "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+      "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "src/workbench/taskCenter/taskCenterEntries.ts",
+      "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "tests/ux/_generationLockExitRehearsal.mjs",
+      "tests/ux/_generationLockExitSteps.mjs",
+      "tests/ux/generation-lock-exit-real.paid.mjs",
+      "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "electron/productionRun/singleShotRunLifecycle.ts",
+      "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "docs/evidence/2026-11-02-generation-lock-exit/round3.json",
+      "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "src/workbench/creation/storyboard/shotRow/ShotRetry.browser.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
+    "src/workbench/capability/storyboardPresent.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+    "src/workbench/production/releaseUnknownSubmission.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.retrievalSource.test.tsx",
+    "electron/capabilityCore/appIntegrationCanvasShot.test.ts",
+    "src/workbench/observability/generationFailureActions.test.ts",
+    "src/workbench/observability/generationFailureSurfaces.test.tsx",
+    "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardActionPending.test.ts",
+    "src/workbench/generationCanvas/runner/confirmedProjectContinuation.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts",
+    "src/workbench/taskCenter/taskCenterEntries.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchOwnership.test.ts",
+    "tests/ux/_generationLockExitReceipt.test.mjs",
+    "electron/capabilityCore/canvasOpenRuns.test.ts",
+    "src/workbench/generationCanvas/runner/generationOpenRuns.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardDispatchAdversarial.test.ts",
+    "electron/capabilityCore/canvasOpenRunsRecovery.test.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx",
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts",
+    "src/workbench/creation/storyboard/shotRow/ShotRetry.browser.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/generationLockExit.test.ts",
+    "src/workbench/observability/generationFailureSurfaces.test.tsx",
+    "src/workbench/creation/storyboard/exec/storyboardActionPending.test.ts",
+    "src/workbench/generationCanvas/runner/confirmedProjectContinuation.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardActionGuard.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts",
+    "src/workbench/taskCenter/taskCenterEntries.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchOwnership.test.ts",
+    "tests/ux/_generationLockExitReceipt.test.mjs",
+    "electron/capabilityCore/canvasOpenRuns.test.ts",
+    "src/workbench/generationCanvas/runner/generationOpenRuns.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardDispatchSeam.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardDispatchAdversarial.test.ts",
+    "electron/capabilityCore/canvasOpenRunsRecovery.test.ts",
+    "src/workbench/production/ProductionCanvasLandingHost.projectScope.test.tsx",
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
+    "src/workbench/generationCanvas/spend/SpendConfirmDialog.test.tsx",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts",
+    "src/workbench/creation/storyboard/shotRow/ShotRetry.browser.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "src/workbench/capability/storyboardPresent.ts",
+      "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "src/workbench/creation/storyboard/exec/storyboardFailureCopy.ts",
+      "src/workbench/generation/list/GenerationListParts.tsx",
+      "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "electron/productionRun/singleShotRunLifecycle.ts",
+      "src/workbench/production/releaseUnknownSubmission.ts",
+      "src/workbench/generationCanvas/store/nodeRunOutcome.ts"
+    ],
+    "rationale": "同提交删编辑器与 Agent 的整方案比对，并删通知重试继承的旧基线。；三页旧失败动作判断、原始错误直显和只升不降的 retrying 同提交删除。 第3轮同提交删canvasUnknownRuns/旧IPC、nodeBlockingRuns、会静默不发的released=false及局部确认state；旧定义移动后不留re-export。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有第三方运行时控制这些内部所有权不变量；复用已有 store、绑定和 Run 命令。",
+    "exit_criteria": []
+  },
+  "migration": "无数据格式迁移：0.24.0旧Run用既有job.status写入submission_unknown，旧节点错误字符串重新分类；查询全链路改名canvasOpenRuns，旧名/旧IPC同提交删除。",
+  "residual_risks": [
+    "E1实际拖框补测三次卡在空白落点与缩放准备，只停这一项；Meta+A分组不替代拖框证据。",
+    "新队列性能场景有原始数字，协调尚须批准场景和基线；本轮未改基线。",
+    "资产期间在画布改已有镜头节点模型，不回写方案，方案花钱比较看不到；main既有，本轮按裁决只报告。",
+    "按裁决不修：单独发仍排队的资产后，旧批次第一波结束若资产尚无结果即返回，镜头阶段不继续、没有额外提示。",
+    "第3轮用户接受：再发后首笔晚到结果只留项目文件，本轮不自动投回节点；Windows与真实付费仍待协调。",
+    "第4轮中英强杀重启均取得passed收据并用完本轮两次上限；完整免费演练被首次确认卡314.4–315.3ms的冷响应拦下，100ms预算未放宽，按三次停点不再跑冷路径。最终门岗修复之后不再强杀复跑。",
+    "用户获批的重复收费警示与既有不谈费用门岗冲突，获批文字链与控件短标签门岗冲突；本轮不改原字、门岗或基线，保留红灯。",
+    "窄英文画布页脚在框外，既有英文反馈按钮Report Issue与样张Report a problem不同；按布局/其它失败文案范围只报告。"
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-09",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "tests": [
+      "src/workbench/generationCanvas/runner/generationLockExit.test.ts"
+    ]
+  }
+}

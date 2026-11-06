@@ -1,3 +1,6 @@
+import { useGenerationQueueStore } from '../../../generationCanvas/runner/generationQueueStore'
+import { createStoryboardActionGuard } from './storyboardActionGuard'
+vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [] }))
 import { beforeEach, expect, it, vi } from 'vitest'
 import { runStoryboardBatch, regenerateShotRow, generateShotRow, generateAnchorCard } from './storyboardRowActions'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
@@ -315,4 +318,71 @@ it('参考卡换成「只靠目录元数据认档案」的模型（自建中转 
   expect(meta.modelKey).toBe('relay-image')
   expect(meta.modelVendor).toBe('my-relay')
   expect((meta.archetype as { id: string }).id).toBe('agnes-image')
+})
+
+it('A4 phase boundary writes refreshed references, rebases and derives current shot IDs without an editor effect', async () => {
+  let current = { title: 'Phase', anchors: [{ id: 'actor', name: 'Actor', description: 'Actor', kind: 'character' as const, carrier: 'visual' as const }],
+    shots: [1, 2].map(index => ({ index, shotId: `phase-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: 'Actor walks', modelVendor: 'kie', modelKey: 'seedance-2-5', modeId: 't2v' })) }
+  const writePlan = vi.fn(next => { current = next })
+  const actionGuard = createStoryboardActionGuard({ plan: current, designId: 'design', shotIds: current.shots.map(s => s.shotId), readPlan: async () => current, writePlan })
+  calls.confirm.mockImplementationOnce(async () => {
+    const node = useGenerationCanvasStore.getState().nodes.find(n => n.meta?.anchorId === 'actor')!
+    useGenerationCanvasStore.getState().updateNode(node.id, { status: 'success', result: { id: 'anchor-image', type: 'image', url: 'https://fixture.invalid/actor.png', createdAt: 1 } })
+    current = { ...current, shots: current.shots.slice(0, 1) }
+    return 'started'
+  }).mockResolvedValue('started')
+  await runStoryboardBatch({ initiator: 'user', documentId: 'doc', designId: 'design', plan: current, actionGuard,
+    assertCurrent: actionGuard.assertCurrent, assertAuthorCurrent: actionGuard.assertAuthorCurrent }, runtimeRows(current.shots))
+  expect(writePlan).toHaveBeenCalledOnce()
+  expect(current.shots[0].modeId).toBe('omni')
+  expect(current.shots[0].prompt).toContain('@[asset:')
+  expect(calls.confirm).toHaveBeenCalledTimes(2)
+  const ids = calls.confirm.mock.calls[1][0].waves.flat()
+  expect(ids).toHaveLength(1)
+  expect(useGenerationCanvasStore.getState().nodes.find(n => n.id === ids[0])?.meta?.shotId).toBe('phase-1')
+  await expect(actionGuard.assertCurrent()).resolves.toBeUndefined()
+})
+
+it.each(['shot', 'keyframe'] as const)('E4: an actual queued %s is excluded from the storyboard quote without relying on node.status', async step => {
+  const queue = useGenerationQueueStore
+  queue.setState({ entries: [], batches: {} })
+  const shot: PlanShot = { index: 1, shotId: 'queued-quote', shotKind: step === 'shot' ? 'image' : 'video', durationSec: 2, anchorIds: [], prompt: 'Door', ...(step === 'keyframe' ? { keyframe: { enabled: true } } : {}) }
+  const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', meta: { storyboardDesignId: 'design', shotId: shot.shotId, ...(step === 'keyframe' ? { storyboardKeyframe: true } : {}) } })
+  queue.getState().enqueueBatch([[node.id]], 'fixture-project')
+  const request = vi.fn(async () => false)
+  useSpendConfirmStore.setState({ requestConfirm: request })
+  try {
+    await runStoryboardBatch({ initiator: 'user', documentId: 'doc', designId: 'design', plan: { title: 'Queued', anchors: [], shots: [shot] } }, runtimeRows([shot]))
+    expect(request).not.toHaveBeenCalled()
+    expect(calls.confirm).not.toHaveBeenCalled()
+  } finally { queue.setState({ entries: [], batches: {} }) }
+})
+
+it.each(['selected-spend', 'prompt-only', 'unselected-spend', 'late-spend'] as const)('A11: second phase uses the current selected rows and only skips confirmation for unchanged spend (%s)', async change => {
+  let current = { title: 'Price', anchors: [{ id: 'actor', name: 'Actor', kind: 'character' as const, carrier: 'visual' as const, description: 'Actor' }],
+    shots: [1, 2, 3].map(index => ({ index, shotId: `price-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: 'Actor walks', params: { resolution: '1k' } })) }
+  useSpendConfirmStore.setState({ requestConfirm: async request => {
+    const third = request.planRows?.find(row => row.id === 'shot:price-3')
+    if (third) request.onPlanToggle?.(third, false)
+    return true
+  } })
+  let phaseStarted = false, phaseReads = 0
+  const guard = createStoryboardActionGuard({ plan: current, designId: 'design', shotIds: current.shots.map(s => s.shotId), readPlan: async () => {
+    if (change === 'late-spend' && phaseStarted && ++phaseReads === 2) current = { ...current, shots: current.shots.map(s => s.shotId === 'price-2' ? { ...s, params: { resolution: '4k' } } : s) }
+    return current
+  }, writePlan: next => { current = next as typeof current } })
+  calls.confirm.mockImplementationOnce(async () => {
+    const anchor = useGenerationCanvasStore.getState().nodes.find(n => n.meta?.anchorId === 'actor')!
+    useGenerationCanvasStore.getState().updateNode(anchor.id, { status: 'success', result: { id: 'asset', type: 'image', url: 'https://fixture.invalid/actor.png', createdAt: 1 } })
+    phaseStarted = true
+    if (change !== 'late-spend') current = { ...current, shots: current.shots.map(s => s.shotId === (change === 'unselected-spend' ? 'price-3' : 'price-2')
+      ? change === 'prompt-only' ? { ...s, prompt: 'Actor reads' } : { ...s, params: { resolution: '4k' } } : s) }
+    return 'started'
+  }).mockResolvedValue('declined')
+  const context = { initiator: 'user' as const, documentId: 'doc', designId: 'design', plan: current, actionGuard: guard, assertCurrent: guard.assertCurrent, assertAuthorCurrent: guard.assertAuthorCurrent }
+  expect(await runStoryboardBatch(context, runtimeRows(current.shots))).toBe('declined')
+  expect(calls.confirm.mock.calls[1][1].skipSpendConfirmation).toBe(change !== 'selected-spend' && change !== 'late-spend')
+  expect(calls.confirm.mock.calls[1][0].waves.flat()).toHaveLength(2)
+  expect(context.plan.shots[1][change === 'prompt-only' ? 'prompt' : 'params']).toEqual(change === 'prompt-only' ? 'Actor reads' : { resolution: change === 'selected-spend' || change === 'late-spend' ? '4k' : '1k' })
+  expect(useGenerationCanvasStore.getState().nodes.find(n => n.meta?.anchorId === 'actor')?.status).toBe('success')
 })

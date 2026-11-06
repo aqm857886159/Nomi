@@ -20,6 +20,7 @@ import { StoryboardRowsBox } from '../shotRow/storyboardRowDensity'
  */
 
 type Props = {
+  pendingActions?: ReadonlySet<string>
   cards: readonly AnchorCardRuntime[]
   /** 整片默认画幅（展开态锚的画面格与镜头行同一套几何）。 */
   aspect: string
@@ -89,6 +90,7 @@ export default function StoryboardAnchorZone(props: Props): JSX.Element {
             <StoryboardAnchorRow
               key={runtime.anchor.id}
               runtime={runtime}
+              actionBusy={props.pendingActions?.has(`anchor:${runtime.anchor.id}`)}
               aspect={aspect}
               modelOptions={imageModelOptions}
               nameInvalid={noNameAnchorIds?.has(runtime.anchor.id)}

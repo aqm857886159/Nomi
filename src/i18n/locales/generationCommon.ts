@@ -309,10 +309,10 @@ export const zhGenerationCommon = {
   observability: {
     // 错误卡的动作按钮。main = 当主按钮时的说法，alt = 降为次要小字时的说法。
     action: {
-      reconcile: { main: '在任务中心查看', alt: '先在任务中心查看' },
+      reconcile: { main: '查看任务', alt: '先在任务中心查看' },
       viewTask: { main: '查看制作任务', alt: '去看制作任务' },
       openRecoverable: { main: '去重新取回', alt: '去重新取回' },
-      releaseRegenerate: { main: '我核对过了，重新生成', alt: '我核对过了，重新生成' },
+      releaseRegenerate: { main: '再发一次', alt: '再发一次' },
       retry: { main: '重试', alt: '仍要重试' },
       switchModel: { main: '换个模型', alt: '换个模型' },
       switchSameCapability: { main: '换成 {{model}}', alt: '换成 {{model}}' },
@@ -320,9 +320,6 @@ export const zhGenerationCommon = {
       fixModelKind: { main: '改成{{kind}}并重试', alt: '改成{{kind}}' },
     },
     releaseConfirm: {
-      message: '只有在服务商后台确认没有这一笔时再继续。点「继续」会马上重新生成这一镜；如果其实已经收下，会重复提交。',
-      continue: '继续',
-      cancel: '取消',
       failed: '没能记录你的核对结果，这一镜还没有放行。再点一次。',
     },
     progress: {
@@ -458,8 +455,8 @@ export const zhGenerationCommon = {
       },
       // 付费提交发出后没拿到回复：只说事实（可能已被收下、Nomi 没法核对）和下一步（先去服务商后台看），不说花没花钱。
       submissionUnknown: {
-        reason: '这一镜可能已被服务商收下，结果没法确认',
-        hint: '请求发出去之后，Nomi 没拿到服务商的回复，所以不知道它有没有收下这一镜。Nomi 没法自动核对，也不会自动重发。请先到服务商后台看一眼有没有这一笔；确认没有，再重新生成——否则可能重复提交。',
+        reason: '上一次没等到结果，可能已经扣费',
+        hint: '',
       },
       submissionNotSent: {
         reason: '这次生成没有发出去，停在了这台电脑上',
@@ -495,7 +492,9 @@ export const zhGenerationCommon = {
       opaque: {
         detail: '这次生成结束时没有带回任何错误信息——这是 Nomi 这侧的缺口，不是你的操作问题。请用这张卡片上的「反馈此问题」把它发给我们，技术详情里是我们目前能拿到的全部线索。',
       },
-      nodeInFlight: { reason: '这个节点还在生成', hint: '上一次生成还没回来，这一次还没发出去。等它出结果再决定要不要重新生成。' },
+      localRefusal: { reason: '这次请求在本机被拦下', hint: '这次请求在本机被拦下。请处理当前节点的状态后再生成。' },
+      storyboardContentChanged: '这一镜的内容改过了，这次没发',
+      nodeInFlight: { reason: '上一次没等到结果，可能已经扣费', hint: '' },
       previewBlocked: { hint: '这一次没发出去。等 3D-BOX 预演挂好再生成。' },
       // 升级前留下的批量确认（没记来源节点）：先落节点、再发请求之后它不能发——如实说没发出去，要他再确认一次。
       consentPredatesUpgrade: { reason: '升级后这批没有发出', hint: '这一镜是升级前确认的，按新的规则没能发出生成请求。在画布上重新生成它，再确认一次。' },
@@ -504,7 +503,7 @@ export const zhGenerationCommon = {
         queued: { reason: '这一镜已在制作流程中排队', hint: '请先等制作流程完成，或去任务中心查看进度。' },
         awaitingConfirmation: { reason: '这一镜在等待生成确认', hint: '请先完成制作流程的生成确认，再从画布生成。' },
         inFlight: { reason: '这一镜制作流程已经在生成了', hint: '请先等待当前制作任务完成，不要再次提交。' },
-        needsReconcile: { reason: '这一镜可能已被服务商收下，结果没法确认', hint: '提交时 Nomi 没拿到服务商的回复，所以不知道它有没有收下这一镜。Nomi 没法自动核对，也不会自动重发。请先到服务商后台看一眼有没有这一笔；确认没有，再重新生成——否则可能重复提交。' },
+        needsReconcile: { reason: '上一次没等到结果，可能已经扣费', hint: '' },
       },
       webMedia: {
         reason: '网页媒体下载失败',
@@ -768,6 +767,7 @@ export const zhGenerationCommon = {
     },
   },
   spend: {
+    resend: { title: { image: '再发一次这张图片？', video: '再发一次这段视频？', other: '再发一次？' }, unknown: '上一次没等到结果，可能已经扣费。\n再发一次可能会再扣一次钱。', waiting: '上一次还没结束。\n再发一次可能会再扣一次钱。' },
     agentNotice: '经 AI 助手驱动 · 需你确认生成',
     agentNoticePlan: '经 AI 助手驱动 · 需你确认生成',
     ignore: '忽略',
@@ -1274,6 +1274,7 @@ export const zhGenerationCommon = {
     startTitle: '开始生成',
     confirmGenerate: '生成',
     unavailable: '还不能生成：{{notice}}',
+    openRunsSkipped: '{{count}} 张上一次还没结束，这次跳过了。',
     noRunnableNodes: '没有可生成的节点',
     blockedTail: '；{{notice}}',
     completed: '已完成 {{count}} 个{{tail}}',
@@ -1454,7 +1455,7 @@ export const zhGenerationCommon = {
       brief: '制作摘要', direction: '创意方向', script: '剧本', storyboard: '分镜', build: '搭画布',
       generate: '生成', qa: '审片', assemble: '粗剪', export: '导出', unknown: '其他阶段',
     },
-    origin: { nomi: 'Nomi', external: '外部客户端' },
+    origin: { nomi: 'Nomi', canvas: '画布', external: '外部客户端' },
     runPanel: {
       aria: '当前制作状态',
       origin: '来自 {{host}}',
@@ -1473,7 +1474,7 @@ export const zhGenerationCommon = {
       'review-storyboard': '审阅分镜方案',
       'open-gate': '核对并确认',
       reconcile: '查看安全暂停详情',
-      'release-unknown': '我核对过了，重新生成',
+      'release-unknown': '再发一次',
       'review-rough-cut': '审看粗剪',
       'open-export': '进入导出',
       'resume-run': '从断点继续',
@@ -1547,9 +1548,6 @@ export const zhGenerationCommon = {
       reworkSelected: '先重拍选中的，再回来过目',
     },
     reconcile: {
-      releaseTitle: '我核对过了，重新生成',
-      releaseMessage: '只有在服务商后台确认没有这一笔时再继续。点「继续」会马上重新生成这一镜；如果其实已经收下，会重复提交。',
-      releaseContinue: '继续',
       submittedAt: '提交时间 {{time}}',
       questionTitle: '核对供应商任务',
       message: '供应商：{{provider}}\n任务标识：{{taskId}}\nNomi 不会自动重下单。请先在供应商侧核对任务是否存在，再决定恢复或重新生成。',
@@ -2064,10 +2062,10 @@ export const enGenerationCommon = {
   },
   observability: {
     action: {
-      reconcile: { main: 'View in task center', alt: 'View in task center first' },
+      reconcile: { main: 'View task', alt: 'View in task center first' },
       viewTask: { main: 'View production task', alt: 'Open task center' },
       openRecoverable: { main: 'Retrieve again', alt: 'Retrieve again' },
-      releaseRegenerate: { main: "I've checked, generate again", alt: "I've checked, generate again" },
+      releaseRegenerate: { main: 'Send again', alt: 'Send again' },
       retry: { main: 'Retry', alt: 'Retry anyway' },
       switchModel: { main: 'Switch model', alt: 'Switch model' },
       switchSameCapability: { main: 'Switch to {{model}}', alt: 'Switch to {{model}}' },
@@ -2075,9 +2073,6 @@ export const enGenerationCommon = {
       fixModelKind: { main: 'Set to {{kind}} and retry', alt: 'Set to {{kind}}' },
     },
     releaseConfirm: {
-      message: 'Only continue if you have confirmed in the provider dashboard that this request is not there. Continue generates this shot again right away; if it was in fact received, it will be submitted twice.',
-      continue: 'Continue',
-      cancel: 'Cancel',
       failed: 'Your check could not be recorded, so this shot was not released. Try again.',
     },
     progress: {
@@ -2211,8 +2206,8 @@ export const enGenerationCommon = {
         hint: 'The provider sent the result back, but Nomi could not read the file (it may be incomplete or damaged, in an unsupported format, or not an image / video at all). The result was generated, Nomi just could not read it; a retry generates a new one. You can try once; if it keeps happening, click “Report Issue” and send us the technical details.',
       },
       submissionUnknown: {
-        reason: 'Result unconfirmed: the provider may have received this shot',
-        hint: 'The request was sent, but Nomi never got a reply, so it cannot tell whether the provider accepted this shot. Nomi cannot check this itself and will not resend automatically. Look in the provider’s dashboard for this request first; only generate again once you have confirmed it is not there, otherwise it may be submitted twice.',
+        reason: 'The last request got no result and may have been charged.',
+        hint: '',
       },
       submissionNotSent: {
         reason: 'This generation was never sent; it stopped on this computer',
@@ -2240,7 +2235,9 @@ export const enGenerationCommon = {
       opaque: {
         detail: "This generation ended without carrying back any error information - that is a gap on Nomi's side, not something you did. Use \"Report this problem\" on this card to send it to us; the technical details hold everything we currently have.",
       },
-      nodeInFlight: { reason: 'This node is still generating', hint: 'The previous generation has not come back yet. Nothing was sent this time; wait for its result before generating again.' },
+      localRefusal: { reason: 'This request was blocked locally', hint: 'This request was blocked locally. Resolve the current node state before generating again.' },
+      storyboardContentChanged: 'This shot changed, so it was not submitted',
+      nodeInFlight: { reason: 'The last request got no result and may have been charged.', hint: '' },
       previewBlocked: { hint: 'Nothing was sent. Generate again once the 3D-BOX preview is attached.' },
       consentPredatesUpgrade: { reason: 'This batch was not sent after the update', hint: 'This shot was confirmed before the update and could not be sent under the new rules. Generate it again on the canvas and confirm once more.' },
       shotClaimed: {
@@ -2248,7 +2245,7 @@ export const enGenerationCommon = {
         queued: { reason: 'This shot is queued in the production workflow', hint: 'Wait for production to finish, or check its progress in the task center.' },
         awaitingConfirmation: { reason: 'This shot is waiting for generation confirmation', hint: 'Confirm the production card before generating it from the canvas.' },
         inFlight: { reason: 'This shot is already being generated by production', hint: 'Wait for the current production task to finish instead of submitting it again.' },
-        needsReconcile: { reason: 'Result unconfirmed: the provider may have received this shot', hint: 'Nomi never got a reply while submitting, so it cannot tell whether the provider accepted this shot. Nomi cannot check this itself and will not resend automatically. Look in the provider’s dashboard for this request first; only generate again once you have confirmed it is not there, otherwise it may be submitted twice.' },
+        needsReconcile: { reason: 'The last request got no result and may have been charged.', hint: '' },
       },
       webMedia: {
         reason: 'Web media download failed',
@@ -2505,6 +2502,7 @@ export const enGenerationCommon = {
     },
   },
   spend: {
+    resend: { title: { image: 'Send this image again?', video: 'Send this video again?', other: 'Send it again?' }, unknown: 'The last request got no result and may have been charged.\nSending it again may charge you again.', waiting: 'The last request has not finished.\nSending it again may charge you again.' },
     agentNotice: 'Started by an AI assistant · Your approval is required before generating',
     agentNoticePlan: 'Started by an AI assistant · Your approval is required before generating',
     ignore: 'Ignore',
@@ -2996,6 +2994,7 @@ export const enGenerationCommon = {
     startTitle: 'Start generation',
     confirmGenerate: 'Generate',
     unavailable: 'Cannot generate yet: {{notice}}',
+    openRunsSkipped: '{{count}} previous requests have not finished and were skipped this time.',
     noRunnableNodes: 'No nodes are ready to generate',
     blockedTail: '. {{notice}}',
     completed: 'Completed {{count}}{{tail}}',
@@ -3174,7 +3173,7 @@ export const enGenerationCommon = {
       brief: 'Brief', direction: 'Direction', script: 'Script', storyboard: 'Storyboard', build: 'Canvas',
       generate: 'Generate', qa: 'Review', assemble: 'Rough cut', export: 'Export', unknown: 'Other stage',
     },
-    origin: { nomi: 'Nomi', external: 'external client' },
+    origin: { nomi: 'Nomi', canvas: 'Canvas', external: 'external client' },
     runPanel: {
       aria: 'Current production status',
       origin: 'From {{host}}',
@@ -3193,7 +3192,7 @@ export const enGenerationCommon = {
       'review-storyboard': 'Review storyboard',
       'open-gate': 'Review and approve',
       reconcile: 'View safe-pause details',
-      'release-unknown': "I've checked, generate again",
+      'release-unknown': 'Send again',
       'review-rough-cut': 'Review rough cut',
       'open-export': 'Open export',
       'resume-run': 'Resume from checkpoint',
@@ -3267,9 +3266,6 @@ export const enGenerationCommon = {
       reworkSelected: 'Reshoot the selected ones first',
     },
     reconcile: {
-      releaseTitle: "I've checked, generate again",
-      releaseMessage: 'Only continue if you have confirmed in the provider dashboard that this request is not there. Continue generates this shot again right away; if it was in fact received, it will be submitted twice.',
-      releaseContinue: 'Continue',
       submittedAt: 'Submitted {{time}}',
       questionTitle: 'Reconcile provider task',
       message: 'Provider: {{provider}}\nTask ID: {{taskId}}\nNomi will not resubmit automatically. Verify whether the task exists with the provider before deciding to resume or regenerate.',

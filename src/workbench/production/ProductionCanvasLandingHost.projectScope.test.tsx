@@ -6,13 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const api = vi.hoisted(() => ({
   read: vi.fn(),
   command: vi.fn(),
+  open: vi.fn(async () => []),
 }))
 const logs = vi.hoisted(() => ({ warn: vi.fn(), error: vi.fn() }))
 
+vi.mock('../api/taskApi', () => ({ canvasOpenRuns: api.open }))
 vi.mock('./productionRunApi', () => ({ productionRunApi: api }))
 vi.mock('../../desktop/rendererLog', () => ({ logRendererWarn: logs.warn, logRendererError: logs.error }))
 
 import { ProductionCanvasLandingHost } from './ProductionCanvasLandingHost'
+import { createProjectSessionTestHarness } from '../project/projectSessionTestHarness'
 import { emitProductionCanvasSignal } from './productionCanvasSignals'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
@@ -72,6 +75,7 @@ describe('ProductionCanvasLandingHost project-scoped signal routing', () => {
   let restoreBrowser: (() => void) | undefined
 
   beforeEach(() => {
+    api.open.mockReset().mockResolvedValue([])
     api.read.mockResolvedValue({ runId: 'run-a', projectId: 'project-a', revision: 1, status: 'running', jobs: [], gates: [] })
     api.command.mockResolvedValue({ run: {}, events: [] })
     logs.warn.mockReset()
@@ -85,6 +89,19 @@ describe('ProductionCanvasLandingHost project-scoped signal routing', () => {
   afterEach(async () => {
     await act(async () => root?.unmount())
     restoreBrowser?.()
+  })
+
+  it('F1: recovery reads once after project hydration, even when the host mounted before open', async () => {
+    const session = createProjectSessionTestHarness()
+    try {
+      await act(async () => { root!.render(React.createElement(ProductionCanvasLandingHost, { projectId: null })) })
+      expect(api.open).not.toHaveBeenCalled()
+      useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [{ ...node('orphan'), status: 'running' }], edges: [], groups: [] }, 'project-a')
+      api.open.mockResolvedValueOnce([{ nodeId: 'orphan', runId: 'old', jobId: 'job', reason: 'needs_reconcile', hasTaskId: false }] as never)
+      await act(async () => { await session.open('project-a') })
+      expect(api.open).toHaveBeenCalledExactlyOnceWith({ projectId: 'project-a' })
+      expect(useGenerationCanvasStore.getState().nodes[0]).toMatchObject({ status: 'error', error: expect.stringContaining('submission-unknown') })
+    } finally { session.dispose() }
   })
 
   it('keeps a delayed A report on A while B host drops and logs A signals, including B undo/redo', async () => {

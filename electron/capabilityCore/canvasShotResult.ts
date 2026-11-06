@@ -1,3 +1,4 @@
+import { productionJobPhase } from '../shared/productionShotPhase'
 /** 画布单镜从 Run 账本读出来的那一份结果：最新一笔作业、它的产物、交回渲染层的形状。只读，不写账本。 */
 import { localAssetUrl } from "../assets/assetPaths";
 import type { ProductionArtifact, ProductionJob, ProductionRun } from "../productionRun/productionRunTypes";
@@ -46,4 +47,14 @@ export function failedResult(job: ProductionJob, kind: string): CanvasTaskResult
     raw: {},
     error: job.errorMessage || job.errorCode || "generation failed",
   };
+}
+
+/** 同节点还有一笔没收尾：在路上的说「还在生成」，可能已扣钱、结果不明的说「先去核对」。 */
+export function blockingReason(run: ProductionRun | null): "in_flight" | "needs_reconcile" | null {
+  if (!run) return null;
+  for (const job of run.jobs) {
+    if (job.status === "submission_unknown" || job.status === "reconciling") return "needs_reconcile";
+    if (job.status === "submit_intent_persisted" || productionJobPhase(job.status) === "generating") return "in_flight";
+  }
+  return null;
 }

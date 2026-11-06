@@ -8,7 +8,6 @@ const stripComments = (source: string): string =>
 
 const composer = stripComments(read('src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx'))
 const row = stripComments(read('src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx'))
-const actions = stripComments(read('src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx'))
 const anchorRow = stripComments(read('src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx'))
 
 /**
@@ -18,7 +17,7 @@ const anchorRow = stripComments(read('src/workbench/creation/storyboard/anchorZo
  */
 describe('行内「生成」有忙态，而且忙态就是闸', () => {
   it('忙态由行状态派生，不在按钮里自己记一份', () => {
-    expect(row).toContain("generating={exec?.status === 'generating'}")
+    expect(row).toContain("generating={props.actionBusy || exec?.status === 'generating'}")
     expect(composer).toContain('generating = false')
   })
 
@@ -30,12 +29,7 @@ describe('行内「生成」有忙态，而且忙态就是闸', () => {
     expect(composer).toContain("generating ? t('storyboardEditor.frame.generating') : t('storyboardEditor.frame.generate')")
   })
 
-  /** 失败行的「重试」会重新扣费，所以它更不该让人点第二下；长相对齐旁边那颗免费的「重新拉取结果」。 */
-  it('失败行的「重试」按下即忙，和免费的「重新拉取」同一副长相', () => {
-    expect(actions).toContain('if (retrying) return; setRetrying(true); onGenerate()')
-    expect(actions).toContain('disabled={retrying}')
-    expect(actions).toContain("data-storyboard-retry-state={retrying ? 'busy' : 'idle'}")
-  })
+
 })
 
 describe('参考卡「生成中」压在能托住字的那层上', () => {

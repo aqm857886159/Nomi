@@ -198,3 +198,7 @@ node scripts/perf-scenarios.mjs --measure-only --out perf-$(node -p "process.pla
 
 回滚：删掉 `test-routing.json` 里的 `evidenceJudgement` 一节，三处新口径同时退回旧判据。
 
+
+## 列表队列结算场景（2026-11-02）
+
+`workbench-list-queue-settle` 复用 `canvas-scale-bench.mjs` 的 L 档（96 图 + 96 视频节点）。在列表实际挂载的 20 张卡上加入真实队列条目，再连续结算，量每次到排队标签消失并经过两帧的响应，记录这 20 次的最大响应和窗口长任务。每轮保留列表卡总数和结算条目数；预算沿用设计卡的 100ms。场景和数字由实现线交付，性能基线与新场景的批准仍由协调负责，不在修复分支改既有基线。

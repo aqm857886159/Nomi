@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>结果未知的卡</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.light{--bg:oklch(.985 .003 90);--paper:oklch(1 0 0);--ink:oklch(.22 .01 80);--ink80:oklch(.32 .01 80);--ink60:oklch(.5 .01 80);--ink40:oklch(.68 .01 80);--ink10:oklch(.94 .003 80);--ink05:oklch(.97 .003 80);--line:oklch(.91 .004 80);--soft:oklch(.95 .003 80);--accent:oklch(.55 .13 250);--warn-ink:oklch(.45 .085 72);--band:oklch(.94 .003 80);--scrim:oklch(.22 .01 80/.2);--shadow:0 2px 4px oklch(0 0 0/.04),0 8px 24px oklch(0 0 0/.06);--shadow-lg:0 4px 8px oklch(0 0 0/.05),0 20px 50px oklch(0 0 0/.08)}
+.dark{--bg:oklch(.18 .006 80);--paper:oklch(.235 .007 80);--ink:oklch(.93 .006 85);--ink80:oklch(.84 .006 85);--ink60:oklch(.7 .006 85);--ink40:oklch(.62 .006 85);--ink10:oklch(.34 .006 85);--ink05:oklch(.3 .006 85);--line:oklch(.36 .007 80);--soft:oklch(.31 .007 80);--accent:oklch(.7 .13 250);--warn-ink:oklch(.82 .085 72);--band:oklch(.27 .006 80);--scrim:oklch(0 0 0/.45);--shadow:0 2px 5px oklch(0 0 0/.30),0 14px 34px oklch(0 0 0/.32);--shadow-lg:0 4px 10px oklch(0 0 0/.30),0 24px 64px oklch(0 0 0/.40)}
+.root{--accent-soft:color-mix(in srgb,var(--accent) 12%,var(--paper));position:relative;width:100%;height:860px;overflow:hidden;background:var(--bg);color:var(--ink);font:13px/1.45 Inter,'PingFang SC','Noto Sans SC',system-ui,sans-serif}
+.root *{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+svg{display:block;flex:none}
+.rail{position:absolute;left:0;top:52px;width:60px;display:flex;flex-direction:column;align-items:center;gap:18px;font-size:11px;color:var(--ink60)}
+.rail div{display:flex;flex-direction:column;align-items:center;gap:2px}
+.logo{position:absolute;left:76px;top:10px;width:20px;height:20px;border-radius:5px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:12px;font-weight:700}
+.proj{position:absolute;left:110px;top:10px;font-size:13px;color:var(--ink80)}
+.tabs{position:absolute;left:50%;top:7px;transform:translateX(-50%);display:flex;gap:2px;padding:3px;background:var(--ink10);border-radius:999px}
+.tabs span{padding:2px 12px;border-radius:999px;color:var(--ink60)}
+.tabs .on{background:var(--paper);color:var(--ink);font-weight:500}
+.topr{position:absolute;right:14px;top:11px;display:flex;align-items:center;gap:14px;color:var(--ink60)}
+.badge{width:16px;height:16px;border-radius:50%;background:var(--accent);color:var(--paper);font-size:10px;display:grid;place-items:center;margin-left:-8px}
+.panel{position:absolute;left:60px;top:40px;right:8px;bottom:8px;background:var(--paper);border-radius:14px;box-shadow:0 0 0 1px var(--soft);overflow:hidden}
+.phead{height:48px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line)}
+.ptitle{font-size:15px;font-weight:600}
+.chip0{font-size:11px;color:var(--ink60);background:var(--ink05);padding:2px 8px;border-radius:999px}
+.sp{flex:1 1 auto;min-width:0}
+.btn{height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--paper);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.sec{display:flex;align-items:center;justify-content:space-between;margin:14px 16px 8px;font-weight:500;color:var(--ink80)}
+.secr{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:400;color:var(--ink60)}
+.pill{height:24px;display:inline-flex;align-items:center;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--ink60)}
+.box{margin:0 16px;border:1px solid var(--line);border-radius:12px}
+.row{position:relative;height:265px;border-bottom:1px solid var(--soft)}
+.row:last-child{border-bottom:0}
+.lcol{position:absolute;left:14px;top:12px;width:14px;color:var(--ink60);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
+.cell{position:absolute;left:38px;top:12px;width:135px;height:240px;border-radius:10px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:0 10px;text-align:center}
+.cell.empty{border-style:dashed;background:var(--ink05)}
+.cell.pic{padding:0;background:var(--ink05);overflow:hidden;justify-content:center}
+.pic-img{width:100%;height:133px;background:linear-gradient(135deg,oklch(.62 .08 55),oklch(.38 .05 40))}
+.celltxt{font-size:12px;line-height:1.45;color:var(--ink);font-weight:500}
+.cellsub{font-size:11px;color:var(--ink60)}
+.mini{min-height:26px;padding:0 9px;border-radius:6px;border:1px solid var(--line);background:var(--paper);font-size:11.5px;display:inline-flex;align-items:center;gap:4px;line-height:1.2}
+.mini.pri{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.lnk{border:0;background:transparent;padding:0;font-size:11px;color:var(--ink60);line-height:1.3}
+.plus{position:absolute;left:181px;top:12px;width:36px;height:36px;border-radius:8px;background:var(--ink05);display:grid;place-items:center;color:var(--ink80);font-size:18px}
+.rcol{position:absolute;left:291px;right:12px;top:12px}
+.name{height:28px;border:1px solid var(--line);border-radius:6px;padding:0 9px;display:flex;align-items:center;font-weight:600}
+.pbox{margin-top:6px;border:1px solid var(--line);border-radius:8px}
+.ptext{padding:10px 10px 22px;color:var(--ink80)}
+.pbar{display:flex;align-items:center;gap:6px;padding:7px 8px;border-top:1px solid var(--soft)}
+.c{height:26px;display:inline-flex;align-items:center;gap:4px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--ink80)}
+.c.f{background:var(--ink10);border-color:transparent}
+.foot{position:absolute;left:0;right:0;bottom:0;height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-top:1px solid var(--line);background:var(--paper)}
+.nfab{position:absolute;right:24px;width:44px;height:44px;border-radius:50%;background:var(--paper);box-shadow:var(--shadow);display:grid;place-items:center}
+.nfab b{width:22px;height:22px;border-radius:5px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:12px}
+.cv{position:absolute;left:60px;top:40px;right:8px;bottom:44px;border-radius:14px;overflow:hidden;background-color:var(--bg);background-image:radial-gradient(var(--ink10) 1px,transparent 1px);background-size:18px 18px}
+.band{position:absolute;left:483px;top:0;bottom:0;width:386px;background:var(--band)}
+.gt{position:absolute;left:498px;top:6px;font-weight:500;font-size:12.5px;color:var(--ink80)}
+.ga{position:absolute;left:785px;top:1px;height:25px;padding:0 12px;border-radius:6px;background:var(--paper);display:flex;align-items:center;font-size:12px;font-weight:500}
+.nlabel{position:absolute;left:506px;top:30px;font-size:12px;color:var(--ink60)}
+.node{position:absolute;left:505px;top:57px;width:202px;height:192px;border-radius:12px;border:2px solid var(--ink);box-shadow:0 0 0 6px color-mix(in oklch,var(--ink) 18%,transparent);background:var(--paper)}
+.ntool{position:absolute;left:568px;top:10px;height:38px;width:78px;background:var(--paper);border-radius:10px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:10px;color:var(--ink60)}
+.pl{position:absolute;top:139px;width:28px;height:28px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink80);box-shadow:var(--shadow)}
+.comp{position:absolute;background:var(--paper);border-radius:14px;box-shadow:var(--shadow-lg);padding:12px;display:flex;flex-direction:column;gap:8px}
+.ctool{display:flex;gap:8px}
+.ctool span{width:40px;height:40px;border-radius:6px;background:var(--ink05);display:grid;place-items:center;color:var(--ink80)}
+.ctext{font-size:13px;line-height:1.7;color:var(--ink80);flex:1 1 auto;overflow:hidden}
+.send{width:30px;height:30px;border-radius:50%;border:0;background:var(--accent);color:var(--paper);display:grid;place-items:center}
+.send.k{background:var(--ink)}
+.rest{position:absolute;background:var(--paper);border-radius:12px;box-shadow:var(--shadow)}
+.zoom{position:absolute;left:17px;bottom:16px;height:36px;width:206px;background:var(--paper);border-radius:10px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-around;color:var(--ink80);font-size:12px}
+.tl{position:absolute;left:60px;right:8px;bottom:8px;height:36px;background:var(--paper);border-radius:12px;display:flex;align-items:center;gap:8px;padding:0 14px;font-size:12px;color:var(--ink60);box-shadow:0 0 0 1px var(--soft)}
+.tl b{font-weight:500;color:var(--ink80)}
+.card{position:absolute;inset:0;border-radius:10px;background:var(--paper);display:flex;flex-direction:column;padding:14px 16px}
+.ctitle{display:flex;align-items:flex-start;gap:7px;font-size:13px;font-weight:700;line-height:1.4;padding-right:18px}
+.cdesc{margin:8px 0 0;font-size:12px;line-height:1.6;color:var(--ink60)}
+.acts{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.acts .t{font-size:12px;color:var(--ink40);border:0;background:transparent;padding:0;white-space:nowrap}
+.acts .tb{height:28px;padding:0 10px;border-radius:7px;border:0;background:var(--ink);color:var(--paper);font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.x{position:absolute;right:10px;top:10px;width:22px;height:22px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink40)}
+.lcolumn{position:absolute;left:60px;top:40px;width:288px;bottom:44px;background:var(--paper);border-radius:14px 0 0 14px;border-right:1px solid var(--line);padding:16px}
+.lrow{display:flex;gap:10px;height:45px;margin-top:14px}
+.lthumb{flex:none;width:80px;height:45px;border-radius:6px;background:var(--ink05);display:grid;place-items:center;color:var(--ink40)}
+.lmeta{min-width:0;flex:1 1 auto;font-size:12px}
+.lmeta b{display:flex;gap:6px;font-weight:600;white-space:nowrap;overflow:hidden}
+.lmeta b i{font-style:normal;font-weight:400;font-size:11px;color:var(--ink40);margin-left:auto}
+.lmeta span{display:block;color:var(--ink60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rarea{position:absolute;left:348px;top:40px;right:8px;bottom:44px;background:var(--paper);border-radius:0 14px 14px 0}
+.result{position:absolute;left:150px;top:56px;width:624px;height:351px;border:1px solid var(--line);border-radius:10px}
+.scrim{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;z-index:20}
+.dlg{width:380px;border-radius:16px;border:1px solid var(--line);background:var(--paper);box-shadow:var(--shadow);padding:16px}
+.dhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dico{width:32px;height:32px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.dt{flex:1 1 auto;font-size:15px;font-weight:500}
+.dx{width:24px;height:24px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink60)}
+.db{margin:0 0 14px;font-size:13px;line-height:1.65;color:var(--ink80);white-space:pre-line}
+.da{display:flex;justify-content:flex-end;gap:8px}
+.toast{position:absolute;right:12px;top:52px;width:344px;padding:12px;background:var(--paper);border-radius:12px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;z-index:15}
+.ta{height:26px;padding:0 8px;border:0;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:500;white-space:nowrap}
+.spin{color:var(--ink60)}
+</style>
+</helmet>
+<div class="root {{theme}}" data-page="{{page}}">
+
+  <nav class="rail" aria-label="{{c.railAria}}">
+    <sc-for list="{{rail}}" as="item" hint-placeholder-count="6">
+      <div><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="2.5" width="10" height="11" rx="1.5"></rect><path d="M5.5 6h5M5.5 8.5h5"></path></svg><span>{{item}}</span></div>
+    </sc-for>
+  </nav>
+  <div class="logo" aria-hidden="true">N</div>
+  <div class="proj">{{c.project}}</div>
+  <div class="tabs"><span class="{{tabCreate}}">{{c.tabCreate}}</span><span class="{{tabGen}}">{{c.tabGen}}</span><span>{{c.tabPreview}}</span></div>
+  <div class="topr" aria-hidden="true">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 4h10M3 8h10M3 12h10"></path></svg><span class="badge">1</span>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="3" width="11" height="10.5" rx="1.5"></rect><path d="M2.5 6.5h11"></path></svg>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="2.2"></circle><circle cx="8" cy="8" r="5.5"></circle></svg>
+  </div>
+
+  <sc-if value="{{isStoryboard}}" hint-placeholder-val="{{ true }}">
+    <div class="panel">
+      <div class="phead">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" style="color:var(--ink60)"><rect x="2.5" y="3" width="11" height="10" rx="1.5"></rect><path d="M5 3v10M11 3v10M2.5 8h11"></path></svg>
+        <span class="ptitle">{{c.title}}</span><span class="chip0">{{c.shots}}</span><span class="sp"></span>
+        <button type="button" class="btn">{{c.viewCanvas}}</button>
+      </div>
+      <div class="sec"><span>{{c.consistency}}</span><span class="secr"><span>{{secState}}</span><span class="pill">{{c.collapse}}</span></span></div>
+      <div class="box">
+        <div class="row">
+          <div class="lcol"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="5.5" r="2.5"></circle><path d="M3.5 13c.6-2.4 2.4-3.6 4.5-3.6s3.9 1.2 4.5 3.6"></path></svg><span>···</span></div>
+
+          <sc-if value="{{cellRestart}}" hint-placeholder-val="{{ true }}">
+            <div class="cell" data-cell="restart">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn-ink)"><path d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path d="M12 7v5l1 1"></path><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path d="M20.2 20.2l1.8 1.8"></path></svg>
+              <div class="celltxt">{{c.unknown}}</div>
+              <button type="button" class="mini pri" onClick="{{openConfirm}}"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>{{c.resend}}</button>
+              <button type="button" class="lnk">{{c.viewTask}}</button>
+            </div>
+          </sc-if>
+          <sc-if value="{{cellWaiting}}" hint-placeholder-val="{{ false }}">
+            <div class="cell" data-cell="waiting">
+              <div class="cellsub">{{c.recoverable}}</div>
+              <button type="button" class="mini pri" onClick="{{retrieve}}"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>{{c.retrieve}}</button>
+              <button type="button" class="mini" onClick="{{openConfirm}}">{{c.resend}}</button>
+              <button type="button" class="lnk">{{c.viewTask}}</button>
+            </div>
+          </sc-if>
+          <sc-if value="{{cellSending}}" hint-placeholder-val="{{ false }}">
+            <div class="cell"><div class="cellsub">{{c.generating}}</div></div>
+          </sc-if>
+          <sc-if value="{{cellGot}}" hint-placeholder-val="{{ false }}">
+            <div class="cell pic"><div class="pic-img"></div></div>
+          </sc-if>
+
+          <div class="plus" aria-hidden="true">+</div>
+          <div class="rcol">
+            <div class="name">{{c.anchor1}}</div>
+            <div class="pbox"><div class="ptext">{{c.anchor1p}}</div><div class="pbar"><span class="c">GPT Image 2 ⌄</span><span class="c f">{{c.params}} ⌄</span></div></div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="lcol"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="3" width="11" height="10" rx="1.5"></rect><circle cx="6" cy="6.5" r="1"></circle><path d="M3 12l3.5-3 2.5 2 2-1.5 2 2"></path></svg><span>···</span></div>
+          <sc-if value="{{secondDone}}" hint-placeholder-val="{{ false }}">
+            <div class="cell pic"><div class="pic-img"></div></div>
+          </sc-if>
+          <sc-if value="{{secondEmpty}}" hint-placeholder-val="{{ true }}">
+            <div class="cell empty"></div>
+          </sc-if>
+          <div class="plus" aria-hidden="true">+</div>
+          <div class="rcol">
+            <div class="name">{{c.anchor2}}</div>
+            <div class="pbox"><div class="ptext">{{c.anchor2p}}</div><div class="pbar"><span class="c">GPT Image 2 ⌄</span><span class="c f">{{c.params}} ⌄</span><span class="sp"></span><sc-if value="{{secondEmpty}}" hint-placeholder-val="{{ true }}"><button type="button" class="btn pri" style="height:28px">{{c.generate}} ↑</button></sc-if></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="foot">
+        <button type="button" class="btn">{{c.back}}</button>
+        <span style="font-size:12px;color:var(--ink60)">{{c.progress}}</span>
+        <span class="sp"></span>
+        <button type="button" class="btn pri" style="height:32px;padding-right:50px">▷ {{c.remaining}}</button>
+      </div>
+    </div>
+    <div class="nfab" style="bottom:22px" aria-hidden="true"><b>N</b></div>
+  </sc-if>
+
+  <sc-if value="{{isCanvas}}" hint-placeholder-val="{{ false }}">
+    <div class="cv">
+      <div class="band"></div>
+      <div class="gt">{{c.title}} · {{c.groupCount}}</div>
+      <div class="ga">{{c.genAll}}</div>
+      <div class="nlabel">{{c.anchor1}}</div>
+      <div class="ntool" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3.5" y="7" width="9" height="6.5" rx="1.2"></rect><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"></path></svg><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"></path></svg></div>
+      <div class="pl" style="left:465px" aria-hidden="true">+</div><div class="pl" style="left:719px" aria-hidden="true">+</div>
+      <div class="node">
+        <sc-if value="{{cellRestart}}" hint-placeholder-val="{{ true }}">
+          <div class="card" style="padding:12px 14px" data-card="restart">
+            <div class="ctitle"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn-ink);margin-top:1px"><path d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path d="M12 7v5l1 1"></path><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path d="M20.2 20.2l1.8 1.8"></path></svg><span>{{c.unknown}}</span></div>
+            <button type="button" class="x" aria-label="{{c.dismiss}}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+            <span class="sp"></span>
+            <div class="acts">
+              <button type="button" class="tb" onClick="{{openConfirm}}"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>{{c.resend}}</button>
+              <button type="button" class="t">{{c.viewTask}}</button><button type="button" class="t">{{c.copy}}</button><button type="button" class="t">{{c.feedback}}</button><span class="sp"></span><button type="button" class="t">{{c.tech}} ›</button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{cellWaiting}}" hint-placeholder-val="{{ false }}">
+          <div class="card" style="padding:12px 14px" data-card="waiting">
+            <div class="ctitle" style="padding-right:0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink60);margin-top:1px"><path d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path d="M12 7v5l1 1"></path><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path d="M20.2 20.2l1.8 1.8"></path></svg><span>{{c.waitTitle}}</span></div>
+            <p class="cdesc" style="margin-top:4px;line-height:1.45">{{c.waitDesc}}</p>
+            <span class="sp"></span>
+            <div class="acts"><button type="button" class="tb" onClick="{{retrieve}}"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>{{c.retrieve}}</button></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{cellSending}}" hint-placeholder-val="{{ false }}"><div class="card" style="align-items:center;justify-content:center"><div class="cellsub">{{c.generating}}</div></div></sc-if>
+        <sc-if value="{{cellGot}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding:0;overflow:hidden"><div class="pic-img" style="height:100%"></div></div></sc-if>
+      </div>
+      <div class="comp" style="left:327px;top:263px;width:558px;height:287px">
+        <div class="ctool" aria-hidden="true"><span>↖</span><span>+</span></div>
+        <div class="ctext">{{c.promptLong}}</div>
+        <div class="pbar" style="border:0;padding:0"><span class="c">GPT Image 2 ⌄</span><span class="c f">{{c.paramsShort}} ⌄</span><span class="sp"></span><button type="button" class="send" aria-label="{{c.generate}}" onClick="{{sendArrow}}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M18 11l-6-6M6 11l6-6"></path></svg></button></div>
+      </div>
+      <div class="rest" style="left:506px;top:550px;width:320px;height:32px;border-radius:0 0 12px 12px"></div>
+      <div class="rest" style="left:506px;top:695px;width:190px;height:24px;border-radius:6px;font-size:12px;line-height:24px;padding:0 9px;color:var(--ink80);white-space:nowrap;overflow:hidden">{{c.shotLabel}}</div>
+      <div class="zoom" aria-hidden="true"><span>⛶</span><span>−</span><span>100%</span><span>+</span><span>···</span></div>
+      <div class="rest" style="left:478px;bottom:16px;width:256px;height:38px;border-radius:10px" aria-hidden="true"></div>
+    </div>
+    <div class="tl"><b>{{c.timeline}}</b><span>{{c.timelineEmpty}}</span></div>
+    <div class="nfab" style="bottom:60px" aria-hidden="true"><b>N</b></div>
+  </sc-if>
+
+  <sc-if value="{{isList}}" hint-placeholder-val="{{ false }}">
+    <div class="lcolumn">
+      <div style="font-weight:600;white-space:nowrap;overflow:hidden">{{c.listHead}}</div>
+      <sc-for list="{{listRows}}" as="r" hint-placeholder-count="3">
+        <div class="lrow"><div class="lthumb" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="3" width="11" height="10" rx="1.5"></rect><circle cx="6" cy="6.5" r="1"></circle><path d="M3 12l3.5-3 2.5 2 2-1.5 2 2"></path></svg></div><div class="lmeta"><b><span style="color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis">{{r.t}}</span><i>{{c.notYet}}</i></b><span>{{r.s}}</span></div></div>
+      </sc-for>
+    </div>
+    <div class="rarea">
+      <div style="position:absolute;left:12px;right:12px;top:10px;height:32px;display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="color:var(--ink60)">←</span><span style="font-size:15px;font-weight:600">{{c.anchor1}}</span><span style="font-size:12px;color:var(--ink60)">GPT Image 2</span><span class="sp"></span><button type="button" class="btn">{{c.toCanvas}}</button></div>
+      <div class="result">
+        <sc-if value="{{cellRestart}}" hint-placeholder-val="{{ true }}">
+          <div class="card" data-card="restart">
+            <div class="ctitle"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn-ink);margin-top:1px"><path d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path d="M12 7v5l1 1"></path><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path d="M20.2 20.2l1.8 1.8"></path></svg><span>{{c.unknown}}</span></div>
+            <button type="button" class="x" aria-label="{{c.dismiss}}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+            <span class="sp"></span>
+            <div class="acts">
+              <button type="button" class="tb" onClick="{{openConfirm}}"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>{{c.resend}}</button>
+              <button type="button" class="t">{{c.viewTask}}</button><button type="button" class="t">{{c.copy}}</button><button type="button" class="t">{{c.feedback}}</button><span class="sp"></span><button type="button" class="t">{{c.tech}} ›</button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{cellWaiting}}" hint-placeholder-val="{{ false }}">
+          <div class="card" data-card="waiting">
+            <div class="ctitle" style="padding-right:0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink60);margin-top:1px"><path d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path d="M12 7v5l1 1"></path><path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path d="M20.2 20.2l1.8 1.8"></path></svg><span>{{c.waitTitle}}</span></div>
+            <p class="cdesc">{{c.waitDesc}}</p>
+            <span class="sp"></span>
+            <div class="acts"><button type="button" class="tb" onClick="{{retrieve}}"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>{{c.retrieve}}</button></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{cellSending}}" hint-placeholder-val="{{ false }}"><div class="card" style="align-items:center;justify-content:center"><div class="cellsub">{{c.generating}}</div></div></sc-if>
+        <sc-if value="{{cellGot}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding:0;overflow:hidden"><div class="pic-img" style="height:100%"></div></div></sc-if>
+      </div>
+      <div class="comp" style="left:182px;top:423px;width:560px;height:289px">
+        <div class="ctool" aria-hidden="true"><span>↖</span><span>+</span></div>
+        <div class="ctext">{{c.promptLong}}</div>
+        <div class="pbar" style="border:0;padding:0"><span class="c">GPT Image 2 ⌄</span><span class="c f">{{c.paramsShort}} ⌄</span><span class="sp"></span><button type="button" class="send k" aria-label="{{c.generate}}" onClick="{{sendArrow}}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M18 11l-6-6M6 11l6-6"></path></svg></button></div>
+      </div>
+    </div>
+    <div class="tl"><b>{{c.timeline}}</b><span>{{c.timelineEmpty}}</span></div>
+    <div class="nfab" style="bottom:60px" aria-hidden="true"><b>N</b></div>
+  </sc-if>
+
+  <sc-if value="{{notice}}" hint-placeholder-val="{{ false }}">
+    <div class="toast" role="status">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink60)"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v4h1"></path></svg>
+      <span style="flex:1 1 auto;min-width:0">{{c.skipped}}</span>
+      <button type="button" class="ta">{{c.toGen}}</button>
+      <button type="button" class="dx" aria-label="{{c.dismiss}}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{confirm}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim" data-confirm="spend-card">
+      <div class="dlg" role="dialog" aria-modal="true" aria-label="{{c.confirmTitle}}">
+        <div class="dhead">
+          <span class="dico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path d="M12 7v10"></path></svg></span>
+          <span class="dt">{{c.confirmTitle}}</span>
+          <button type="button" class="dx" aria-label="{{c.close}}" onClick="{{cancel}}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+        </div>
+        <p class="db">{{confirmBody}}</p>
+        <div class="da"><button type="button" class="btn" onClick="{{cancel}}">{{c.cancel}}</button><button type="button" class="btn pri" onClick="{{send}}">{{c.resend}}</button></div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"page":{"editor":"enum","options":["storyboard","canvas","list"],"default":"storyboard"},"state":{"editor":"enum","options":["restart","waiting"],"default":"restart"},"confirm":{"editor":"boolean","default":false},"notice":{"editor":"boolean","default":false},"lang":{"editor":"enum","options":["zh","en"],"default":"zh"},"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { confirm: undefined, sent: false, got: false };
+  }
+  renderVals() {
+    const flag = (value) => value === true || value === 'true';
+    const page = this.props.page ?? 'storyboard';
+    const stateName = this.props.state ?? 'restart';
+    const en = (this.props.lang ?? 'zh') === 'en';
+    const dark = flag(this.props.dark);
+    const notice = flag(this.props.notice);
+    const confirm = this.state.confirm ?? flag(this.props.confirm);
+    const sent = this.state.sent;
+    const got = this.state.got;
+    const c = en ? {
+      railAria: 'Sections', project: 'Untitled project 11/02, 01:39 PM', tabCreate: 'Create', tabGen: page === 'storyboard' ? 'Generate 0/5' : 'Generate 0/5', tabPreview: 'Preview',
+      title: '林薇在旧书店找到一封信', shots: '3 shots', viewCanvas: 'View canvas', consistency: 'Keep consistent across shots', collapse: 'Collapse all',
+      unknown: 'The last request got no result and may have been charged.', resend: 'Send again', viewTask: 'View in task center', recoverable: 'Recoverable', retrieve: 'Retrieve again', generating: 'Generating…',
+      anchor1: '林薇', anchor1p: '林薇，短发，灰色外套', anchor2: '旧书店', anchor2p: '旧书店，木桌和窗户', params: 'Text-to-image · Auto · 1K', paramsShort: 'Auto · 1K', generate: 'Generate', back: 'To Draft', progress: '0/3 shots generated', remaining: 'Generate Remaining',
+      groupCount: '5 items', genAll: 'Generate all', dismiss: 'Dismiss', copy: 'Copy details', feedback: 'Report a problem', tech: 'Technical details',
+      waitTitle: 'The task may have finished upstream', waitDesc: 'The wait limit passed, but the provider may still have produced it. Retrieve again pulls it back, with no need to download it from the provider.',
+      promptLong: 'Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel. The same character "林薇" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套. Views: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry). Requirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.',
+      shotLabel: '林薇在旧书店找到一封信 · Shot 01', timeline: 'Timeline', timelineEmpty: '0 clips · 0:00', listHead: 'Storyboard · 林薇在旧书店找到一封信  3', notYet: 'Not yet', toCanvas: 'To canvas',
+      skipped: '1 item from last time is still unfinished, so it was skipped.', toGen: 'Generate', close: 'Close', cancel: 'Cancel',
+      confirmTitle: 'Send this image again?', bodyRestart: 'The last request got no result and may have been charged.\nSending it again may charge you again.', bodyWaiting: 'The last request has not finished.\nSending it again may charge you again.',
+      secPending: '2 pending', secDone: '1 ready · 1 pending',
+    } : {
+      railAria: '工作台分区', project: '未命名项目 11/02 13:39', tabCreate: '创作', tabGen: '生成 0/5', tabPreview: '预览',
+      title: '林薇在旧书店找到一封信', shots: '3 镜', viewCanvas: '查看画布', consistency: '跨镜头要一致的', collapse: '全部收起',
+      unknown: '上一次没等到结果，可能已经扣费', resend: '再发一次', viewTask: '在任务中心查看', recoverable: '可找回', retrieve: '重新取回', generating: '生成中…',
+      anchor1: '林薇', anchor1p: '林薇，短发，灰色外套', anchor2: '旧书店', anchor2p: '旧书店，木桌和窗户', params: '文生图 · 自动 · 1K', paramsShort: '自动 · 1K', generate: '生成', back: '返回原稿', progress: '已生成 0/3 镜', remaining: '生成剩余',
+      groupCount: '5 个', genAll: '生成全部', dismiss: '收起', copy: '复制详情', feedback: '反馈问题', tech: '技术详情',
+      waitTitle: '任务可能已在上游完成', waitDesc: '等待已超上限，但上游可能仍出了片。点下面的「重新取回」直接拉回，不用去服务商后台下载。',
+      promptLong: 'Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel. The same character "林薇" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: 林薇，短发，灰色外套. Views: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry). Requirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.',
+      shotLabel: '林薇在旧书店找到一封信 · 镜 01', timeline: '时间轴', timelineEmpty: '0 段 · 0:00', listHead: '分镜 · 林薇在旧书店找到一封信  3', notYet: '还没生成', toCanvas: '去画布',
+      skipped: '1 张上一次还没结束，这次跳过了。', toGen: '生成区', close: '关闭', cancel: '取消',
+      confirmTitle: '再发一次这张图片？', bodyRestart: '上一次没等到结果，可能已经扣费。\n再发一次可能会再扣一次钱。', bodyWaiting: '上一次还没结束。\n再发一次可能会再扣一次钱。',
+      secPending: '2 张待生成', secDone: '1 张就绪 · 1 张待生成',
+    };
+    const rail = en ? ['Docs', 'Catalog', 'Assets', 'Flows', 'Skills', 'Prompts'] : ['文稿', '目录', '素材', '流程', 'Skill', '提示词'];
+    const listRows = en
+      ? [{ t: '林薇在旧书店找到…', s: '林薇在旧书店找到一封信' }, { t: '林薇在旧书店找到…', s: '林薇走到旧书店窗边' }, { t: '林薇在旧书店找到…', s: '林薇把信放在旧书店的桌上' }]
+      : [{ t: '林薇在旧书店找到…', s: '林薇在旧书店找到一封信' }, { t: '林薇在旧书店找到…', s: '林薇走到旧书店窗边' }, { t: '林薇在旧书店找到…', s: '林薇把信放在旧书店的桌上' }];
+    const quiet = !sent && !got;
+    return {
+      theme: dark ? 'dark' : 'light', page, c, rail, listRows,
+      isStoryboard: page === 'storyboard', isCanvas: page === 'canvas', isList: page === 'list',
+      tabCreate: page === 'storyboard' ? 'on' : '', tabGen: page === 'storyboard' ? '' : 'on',
+      cellRestart: quiet && stateName === 'restart', cellWaiting: quiet && stateName === 'waiting', cellSending: sent, cellGot: got,
+      secondDone: notice, secondEmpty: !notice, secState: notice ? c.secDone : c.secPending,
+      notice, confirm,
+      confirmBody: stateName === 'waiting' ? c.bodyWaiting : c.bodyRestart,
+      openConfirm: () => this.setState({ confirm: true }),
+      sendArrow: () => { if (quiet) this.setState({ confirm: true }); },
+      cancel: () => this.setState({ confirm: false }),
+      send: () => this.setState({ confirm: false, sent: true }),
+      retrieve: () => this.setState({ got: true }),
+    };
+  }
+}
+</script>
+</body>
+</html>

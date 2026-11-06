@@ -1,3 +1,4 @@
+import { canvasLocalArtifactReceipt } from "./canvasShotRunApi";
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
 import { parseDirectorPreviewBlockReply } from "../shared/director/directorPreviewStatus";
 // 能力核 · app 集成（见 docs/plan/2026-06-20-capability-core-headless-exposure.md §S4）。
@@ -68,12 +69,12 @@ import { createGenerationProviderBootstrap } from './generationProviderBootstrap
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
 import { installPendingSpendActions, pendingSpendDependencies, readInstalledPendingSpend } from './appIntegrationSpendConfirm'
-import { canvasLocalArtifactReceipt, createCanvasShotRuns, installCanvasShotRuns, withdrawQueuedHandOvers } from './appIntegrationCanvasShot'
+import { createCanvasShotRuns, installCanvasShotRuns, withdrawQueuedHandOvers } from './appIntegrationCanvasShot'
 import { createCanvasHandOver } from './canvasHandOver'
 import { canvasTransportProviders, isCanvasProviderId, lazyCanvasTransport } from './canvasTransportProvider'
 import { quoteSpendLine } from '../spendQuote'
 import { createGenerationReferenceScopeGuard } from './generationReferenceScope'
-export { consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
+export { canvasOpenRuns, consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
 // 付费卡的四个动作住在它自己的模块里（这里只装配）。main.ts 的 IPC 经能力核门面转调，所以门面要露出这四个名字。
 export { handOverPendingSpendShots, discardPendingSpendConfirmation, removePendingSpendShot, restorePendingSpendShot } from './appIntegrationSpendConfirm'
 import { repairStaleMcpConfigs } from './mcpConfig'

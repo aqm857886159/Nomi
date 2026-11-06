@@ -15,18 +15,19 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../../ui/toast', () => ({ toast: vi.fn(), useToastStore: { getState: () => ({ push: vi.fn(), remove: vi.fn() }) } }))
-vi.mock('../../api/taskApi', () => ({ consentCanvasShots: mocks.consentCanvasShots, withdrawCanvasShots: vi.fn() }))
+vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []), consentCanvasShots: mocks.consentCanvasShots, withdrawCanvasShots: vi.fn() }))
 vi.mock('../spend/spendConfirm', () => ({
+  spendCostKind: vi.fn(() => 'image'),
+  spendCostKindForNodes: vi.fn(() => 'image'),
+  paidNodeLedger: vi.fn(() => 'run'),
+
   confirmGenerationSpend: mocks.confirmGenerationSpend,
   describeGenerationCost: vi.fn(() => ''),
   generationCostContextForNodes: vi.fn(() => ({})),
 }))
 vi.mock('../store/generationCanvasStore', () => ({ useGenerationCanvasStore: { getState: () => ({ nodes: mocks.nodes, edges: mocks.edges }) } }))
-vi.mock('../runner/generationRunController', () => ({
-  spendCostKind: vi.fn(() => 'image'),
-  spendCostKindForNodes: vi.fn(() => 'image'),
-  paidNodeLedger: vi.fn(() => 'run'),
-}))
+
 vi.mock('../runner/catalogTaskResolve', () => ({ selectedVendor: vi.fn(() => 'relay'), selectedModelKey: vi.fn(() => 'image-model') }))
 vi.mock('../runner/generationRunWaves', () => ({ runGenerationNodesByPlan: vi.fn(async () => ({ totalCount: 0, successes: [], failures: [] })) }))
 

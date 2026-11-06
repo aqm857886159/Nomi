@@ -1,0 +1,130 @@
+{
+  "laterSource": "a5387c33b",
+  "unchangedVisualFiles": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "captureBlob": "910d89b1faa69c7c28f9759bad07faa06c03385a",
+      "finalBlob": "910d89b1faa69c7c28f9759bad07faa06c03385a"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeRecoverableReport.tsx",
+      "captureBlob": "0865ad39408c9ccb38e92ed680c25498377073c0",
+      "finalBlob": "0865ad39408c9ccb38e92ed680c25498377073c0"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+      "captureBlob": "6ba4f16b4b8a672ece82808b85c40e99d6ead60f",
+      "finalBlob": "6ba4f16b4b8a672ece82808b85c40e99d6ead60f"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "captureBlob": "ca362c4ee3aaf2fa8786fc2673219e57aa9d8768",
+      "finalBlob": "ca362c4ee3aaf2fa8786fc2673219e57aa9d8768"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "captureBlob": "ecc90d0a62e49773bd4172f7b5a829dc0b81ff67",
+      "finalBlob": "ecc90d0a62e49773bd4172f7b5a829dc0b81ff67"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/anchorZone/StoryboardAnchorRow.tsx",
+      "captureBlob": "b542a67c367a0c94404584b615c332941b54335d",
+      "finalBlob": "b542a67c367a0c94404584b615c332941b54335d"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
+      "captureBlob": "5862ba438d96dc9eadc76f5bee9f8d5400f761ff",
+      "finalBlob": "5862ba438d96dc9eadc76f5bee9f8d5400f761ff"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "captureBlob": "cafcf84115f078ed06262402fb30753df11c3417",
+      "finalBlob": "cafcf84115f078ed06262402fb30753df11c3417"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "captureBlob": "596b8e17d45b942496a5e62a0e979580eac2203b",
+      "finalBlob": "596b8e17d45b942496a5e62a0e979580eac2203b"
+    },
+    {
+      "path": "src/i18n/locales/generationCommon.ts",
+      "captureBlob": "81df756091a271e608b3a32459e319a4edcaf253",
+      "finalBlob": "81df756091a271e608b3a32459e319a4edcaf253"
+    }
+  ],
+  "finalRestartCaptureCommit": "a5387c33b",
+  "darkAndWaitingCaptureCommit": "a5387c33b",
+  "screenshots": [
+    {
+      "name": "ConfirmCanvas.png",
+      "sha256": "26cc57f2cb01042d93216f6e89f9dffed0c8bbf217ae80b4907889b0addc49bf",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "ConfirmList.png",
+      "sha256": "3a1f6b7b0dbd4dfce91f302d98435e8f8cd1f86bb4e6804275068eca3f384053",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "ConfirmStoryboard.png",
+      "sha256": "b8419a859475fdc04279076c64ad58adf3c7955aadddb51bda96051966e66f52",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "EnDarkCanvas.png",
+      "sha256": "203616b9330c84be16e6e264f924d12e427740fdf9f4629b8c6160d2c4414741",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "EnDarkConfirm.png",
+      "sha256": "2ac26377a66edec32fa048833cb644241c244604e511c99bfcb1823d724b76f0",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "EnLightList.png",
+      "sha256": "746bec6842905d61d67ad67371ff7c4ae47852b3759f0535c6b337ee022f4f59",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "NoticeStoryboard.png",
+      "sha256": "626ce49a6bbc6ef0c4a301d4ef8402082ae5a63110f81194b474b09c58ba572f",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "RestartCanvas.png",
+      "sha256": "0eff8002dc3271c70ad8c2bfb535e3507537c93b46dde921a6aeb6be9d40ba34",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "RestartList.png",
+      "sha256": "9ef595718746da15e9c2abc4ab0d52d7caadf7adf120d72385a73de3d5ab9e70",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "RestartStoryboard.png",
+      "sha256": "29dc526f1d7b9910cf6096913e63ea98e24c5f94a7f612d007393c905ff773b0",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "WaitingCanvasConfirm.png",
+      "sha256": "53888824abdc411be9909897034d385c2bf302be34b9190842b94210763a09c0",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "WaitingStoryboard.png",
+      "sha256": "b340b707069cdcd7f4dcc4b146c603b297fe9b5ddb75b895c071525b589ffd0d",
+      "captureCommit": "a5387c33b"
+    },
+    {
+      "name": "ZhDarkStoryboard.png",
+      "sha256": "16ae1e6901c179ade5edeb689d93e87b926669b8672b0c806f0c517ad5142e91",
+      "captureCommit": "a5387c33b"
+    }
+  ],
+  "reviewed": true,
+  "differences": [
+    "English narrow canvas footer wraps beyond the card, while the approved preview fits it inside; retained under the explicit footer compression exclusion.",
+    "The retained English footer says Report Issue, while the preview says Report a problem; other failure copy was left unchanged as required.",
+    "Secondary action now reads 查看任务 / View task (user decision 2026-11-03, board D6); being shorter, it sits on the same row as the primary button on canvas and list, so the footer moves up one row compared with the preview."
+  ]
+}

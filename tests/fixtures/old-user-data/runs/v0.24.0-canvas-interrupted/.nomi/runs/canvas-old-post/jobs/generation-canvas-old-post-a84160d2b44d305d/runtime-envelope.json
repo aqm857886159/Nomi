@@ -1,0 +1,48 @@
+{
+  "runId": "canvas-old-post",
+  "jobId": "generation-canvas-old-post-a84160d2b44d305d",
+  "runtimeTaskId": "runtime-canvas-old-post-a84160d2b44d305d-attempt-1",
+  "contractHash": "a84160d2b44d305d24c95666f1f5cab656afd0a9be9c34123f845202f44b7b37",
+  "providerIdempotencyKey": "generation:canvas-old-post:generation-canvas-old-post-a84160d2b44d305d:a84160d2b44d305d24c95666f1f5cab656afd0a9be9c34123f845202f44b7b37:attempt-1",
+  "requestFingerprint": "43e11a35fc6597c818a4ff93f6d7b5179b82da001f36fec889d53f647cacda06",
+  "request": {
+    "moduleId": "generation.canvas",
+    "providerId": "canvas:acme",
+    "modelId": "img-model",
+    "mode": "text_to_image",
+    "prompt": "a red cube",
+    "parameters": {
+      "vendor": "acme",
+      "request": {
+        "kind": "text_to_image",
+        "prompt": "a red cube",
+        "extras": {
+          "nodeId": "gen-v2-image-mvysub98-2ht3",
+          "projectId": "project-1",
+          "modelKey": "img-model",
+          "idempotencyKey": "k"
+        }
+      }
+    },
+    "references": [],
+    "contractHash": "a84160d2b44d305d24c95666f1f5cab656afd0a9be9c34123f845202f44b7b37",
+    "idempotencyKey": "generation:canvas-old-post:generation-canvas-old-post-a84160d2b44d305d:a84160d2b44d305d24c95666f1f5cab656afd0a9be9c34123f845202f44b7b37:attempt-1",
+    "requestFingerprint": "43e11a35fc6597c818a4ff93f6d7b5179b82da001f36fec889d53f647cacda06",
+    "executionBinding": {
+      "immutableProjectUuid": "uuid-1",
+      "projectGeneration": 1,
+      "runId": "canvas-old-post",
+      "shotId": "generation-canvas-old-post-a84160d2b44d305d",
+      "contractHash": "a84160d2b44d305d24c95666f1f5cab656afd0a9be9c34123f845202f44b7b37",
+      "runtimeTaskId": "runtime-canvas-old-post-a84160d2b44d305d-attempt-1",
+      "providerNamespace": "canvas:acme",
+      "providerIdempotencyKey": "generation:canvas-old-post:generation-canvas-old-post-a84160d2b44d305d:a84160d2b44d305d24c95666f1f5cab656afd0a9be9c34123f845202f44b7b37:attempt-1",
+      "requestFingerprint": "43e11a35fc6597c818a4ff93f6d7b5179b82da001f36fec889d53f647cacda06",
+      "runtimeEnvelopeRef": ".nomi/runs/canvas-old-post/jobs/generation-canvas-old-post-a84160d2b44d305d/runtime-envelope.json",
+      "fencingEpoch": 1
+    }
+  },
+  "schemaVersion": 1,
+  "state": "sealed",
+  "updatedAt": "2026-11-02T05:09:16.040Z"
+}

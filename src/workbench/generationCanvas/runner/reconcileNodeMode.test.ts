@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { reconcileNodeModeWithConnectedReferences } from './generationRunController'
+import { reconcileNodeModeWithConnectedReferences } from '../store/canvasAutoReference'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 // 提交咽喉的「生成方式 × 活边参考」对账（2026-07-28 群反馈根治）：真实 store + 真实档案。

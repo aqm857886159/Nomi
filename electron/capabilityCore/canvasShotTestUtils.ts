@@ -1,3 +1,4 @@
+import { canvasLocalArtifactReceipt } from "./canvasShotRunApi";
 import fs from "node:fs";
 import type { DirectorPreviewSpendBlockReason } from "../shared/director/directorPreviewStatus";
 import os from "node:os";
@@ -8,7 +9,7 @@ import path from "node:path";
 // 单节点 ↑、批量卡、双扣地图的端到端测试共用这一份，免得每份测试各搭一套、各漏一处真实边界。
 
 import { createApprovalReceiptAuthority } from "./approvalReceipt";
-import { canvasLocalArtifactReceipt, createCanvasShotRuns, type CanvasConsentShot, type CanvasShotRequest } from "./appIntegrationCanvasShot";
+import { createCanvasShotRuns, type CanvasConsentShot, type CanvasShotRequest } from "./appIntegrationCanvasShot";
 import { createCanvasTransportProvider, type CanvasTaskResult, type CanvasTransport } from "./canvasTransportProvider";
 import { createProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";

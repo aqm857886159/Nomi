@@ -1,6 +1,9 @@
+import { generationFailureActions } from '../../../observability/generationFailureActions'
+import { StoryboardFailureActions } from '../shotRow/StoryboardFrameActions'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  IconClockSearch,
   IconBox,
   IconDots,
   IconLock,
@@ -53,6 +56,7 @@ const KIND_ICON: Record<PlanAnchorKind, typeof IconUser> = {
 }
 
 type Props = {
+  actionBusy?: boolean
   runtime: AnchorCardRuntime
   /** 整片默认画幅——锚的画面格与镜头行用同一套几何。 */
   aspect: string
@@ -70,11 +74,12 @@ type Props = {
   onFilterByAnchor?: (() => void) | undefined
 }
 
-function ActButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }): JSX.Element {
+function ActButton({ label, onClick, disabled, children }: { label: string; disabled?: boolean; onClick: () => void; children: React.ReactNode }): JSX.Element {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={label}
       aria-label={label}
       className="grid size-[26px] place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-10 hover:text-nomi-ink-80"
@@ -93,6 +98,7 @@ export default function StoryboardAnchorRow({
   onChangeKind,
   onRemove,
   onGenerate,
+  actionBusy = false,
   onRegenerate,
   onRecover,
   onToggleLock,
@@ -172,7 +178,7 @@ export default function StoryboardAnchorRow({
 
 
   // 底栏右端那一颗「生成」：只有「出图、还没出过、不在跑、没失败、不可找回」时出现（其余状态的动作在画面格上）。
-  const canGenerate = runtime.visual && !runtime.resultUrl && !runtime.generating && !runtime.failed && !runtime.recoverable
+  const canGenerate = runtime.visual && !runtime.resultUrl && !runtime.generating && !runtime.failed && !runtime.recoverable && !runtime.recoverable
 
   return (
     <StoryboardRowShell
@@ -186,6 +192,7 @@ export default function StoryboardAnchorRow({
           <div className="flex flex-col">
           <AnchorFace
             runtime={runtime}
+            actionBusy={actionBusy}
             filmAspect={aspect}
             displayName={displayName}
             onGenerate={onGenerate}
@@ -198,7 +205,7 @@ export default function StoryboardAnchorRow({
                 <ActButton label={t('storyboardEditor.frame.unlock')} onClick={onToggleLock}><IconLockOpen size={14} stroke={1.8} /></ActButton>
               ) : (
                 <>
-                  <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate}><IconRefresh size={14} stroke={1.8} /></ActButton>
+                  <ActButton label={t('storyboardEditor.frame.regenerate')} onClick={onRegenerate} disabled={actionBusy}><IconRefresh size={14} stroke={1.8} /></ActButton>
                   <ActButton label={t('storyboardEditor.anchor.lockTitle')} onClick={onToggleLock}><IconLock size={14} stroke={1.8} /></ActButton>
                 </>
               )}
@@ -272,7 +279,7 @@ export default function StoryboardAnchorRow({
                   />
                 )}
                 action={canGenerate ? (
-                  <ComposerGenerateButton onGenerate={onGenerate} ariaLabel={t('storyboardEditor.anchor.generateAria', { name: displayName })} />
+                  <ComposerGenerateButton onGenerate={onGenerate} generating={actionBusy} ariaLabel={t('storyboardEditor.anchor.generateAria', { name: displayName })} />
                 ) : null}
               />
             ) : null}
@@ -288,9 +295,10 @@ export default function StoryboardAnchorRow({
  * （角色 3:4、场景 16:9…）完整放进框里，浅底补空，左下角标它的画幅。要在网格里面渲染才读得到档位。
  */
 function AnchorFace({
-  runtime, filmAspect, displayName, onGenerate, onRecover, onOpenPreview,
+  runtime, filmAspect, displayName, onGenerate, onRecover, onOpenPreview, actionBusy,
 }: {
   runtime: AnchorCardRuntime
+  actionBusy?: boolean
   filmAspect: string
   displayName: string
   onGenerate: () => void
@@ -316,7 +324,7 @@ function AnchorFace({
       )
     }
     const style = { width: box.width, height: box.height }
-    if (runtime.resultUrl && !runtime.generating && !runtime.failed) {
+    if (runtime.resultUrl && !runtime.generating && !runtime.failed && !runtime.recoverable) {
       return (
         <div
           className="relative overflow-hidden rounded-nomi border border-nomi-line bg-nomi-ink-05"
@@ -361,26 +369,19 @@ function AnchorFace({
       )
     }
     if (runtime.failed) {
-      const failure = storyboardFailureCopy(runtime.errorMessage)
+      const unknownResult = generationFailureActions(runtime.errorMessage ?? '').primary === 'release-regenerate'
+      const failure = storyboardFailureCopy(runtime.errorMessage, { ...runtime.node?.runs?.[0], productionRunId: runtime.node?.meta?.productionRunId as string | undefined })
       return (
         <div
-          className="relative flex flex-col items-center justify-center gap-1.5 rounded-nomi border border-workbench-danger bg-workbench-danger-soft p-2 text-center"
+          className={cn('relative flex flex-col items-center justify-center gap-1.5 rounded-nomi border p-2 text-center', unknownResult ? 'border-nomi-line bg-nomi-paper' : 'border-workbench-danger bg-workbench-danger-soft')}
           style={style}
           data-anchor-face="failed"
         >
-          <span className="line-clamp-3 text-micro leading-tight text-workbench-danger" title={failure.hint} data-anchor-failure-reason="true">
+          {unknownResult ? <IconClockSearch size={14} stroke={1.6} className="shrink-0 text-nomi-warning-ink" /> : null}
+          <span className={cn('text-micro leading-tight', unknownResult ? 'font-bold text-nomi-ink' : 'line-clamp-3 text-workbench-danger')} title={failure.hint} data-anchor-failure-reason="true">
             {failure.reason}
           </span>
-          {failure.canRetry ? <button
-            type="button"
-            onClick={onGenerate}
-            title={t('storyboardEditor.frame.retryHint')}
-            aria-label={t('storyboardEditor.frame.retryHint')}
-            className="inline-flex h-6 items-center gap-0.5 rounded-nomi-sm border border-workbench-danger bg-nomi-paper px-2 text-micro text-workbench-danger"
-          >
-            <IconRefresh size={11} stroke={1.8} />
-            {t('storyboardEditor.frame.retry')}
-          </button> : null}
+          <StoryboardFailureActions message={runtime.errorMessage} node={runtime.node} busy={actionBusy} onRetry={onGenerate} />
         </div>
       )
     }
@@ -396,17 +397,7 @@ function AnchorFace({
           <span className="line-clamp-2 text-micro leading-tight text-nomi-ink-60" title={runtime.errorMessage ?? undefined}>
             {t('storyboardEditor.frame.recoverable')}
           </span>
-          {onRecover ? (
-            <button
-              type="button"
-              onClick={onRecover}
-              title={t(recoverableHintKey(runtime.node))}
-              className="inline-flex h-6 items-center gap-0.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-micro text-nomi-ink-80 hover:border-nomi-ink-30 hover:text-nomi-accent"
-            >
-              <IconRefresh size={11} stroke={1.8} />
-              {t('generationCommon.production.runAction.retry-retrieval')}
-            </button>
-          ) : null}
+          <StoryboardFailureActions node={runtime.node} onRecover={onRecover} />
         </div>
       )
     }

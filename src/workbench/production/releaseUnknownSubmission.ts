@@ -1,3 +1,7 @@
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
+import { isNodeSubmitInFlight } from '../generationCanvas/runner/nodeSubmitInFlight'
+import { tagNomiError } from '../../../electron/shared/nomiErrorCodes'
+import { canvasOpenRuns } from '../api/taskApi'
 import type { DesktopProductionRunBridge } from '../../desktop/productionRunBridgeTypes'
 import { deriveProductionShotState, productionShotIdForNode } from '../../../electron/shared/productionShotPhase'
 import { executeProductionRunCommand } from './productionRunCommands'
@@ -7,9 +11,9 @@ import { useProductionRunStore } from './productionRunStore'
 export type ReleaseUnknownApi = Pick<DesktopProductionRunBridge, 'read' | 'command'>
 
 /**
- * 「我去服务商后台核对过了，没有这一笔」——把那次结果未知的尝试记成「用户核对后放弃」，释放这一镜的占用。
+ * 人确认可能再扣费后——把那次结果未知的尝试记成「用户核对后放弃」，释放这一镜的占用。
  *
- * 只是释放：不重发、不开拍。接下来的重新生成走这一镜正常的付费确认卡（调用方负责弹），钱照常要用户在卡上点。
+ * 只是释放：不重发、不开拍。接下来的重新生成走 confirmAndRunNode：用户单张直接发，首次托管告知仍由既有判据决定。
  * 命令由主进程盖「真人手势章」后才生效（Agent / MCP 路径发不了）。失败照实抛给调用方，不吞。
  */
 export async function releaseUnknownSubmission(
@@ -51,12 +55,31 @@ export async function releaseUnknownSubmissionForNode(
 
 /** 这个任务对应的画布节点：批次镜看 `shots[].nodeId`，单镜看计划的 `nodeId`，老数据才有 `job.nodeId`。 */
 export function nodeIdOfJob(
-  run: { generationPlan?: { nodeId?: string; shots?: ReadonlyArray<{ shotId: string; nodeId?: string }> } },
+  run: { origin?: { nodeId?: string }; generationPlan?: { nodeId?: string; shots?: ReadonlyArray<{ shotId: string; nodeId?: string }> } },
   job: { nodeId?: string; metadata?: Record<string, unknown> },
 ): string | undefined {
   if (job.nodeId) return job.nodeId
   const shotId = job.metadata?.shotId
   const plan = run.generationPlan
   if (typeof shotId === 'string' && plan?.shots?.length) return plan.shots.find((shot) => shot.shotId === shotId)?.nodeId
-  return plan?.nodeId
+  return plan?.nodeId ?? run.origin?.nodeId
+}
+
+/** Query at the moment of release; a failed newer click must not hide the original occupancy. */
+export async function releaseUnknownCanvasSubmissionsForNode(projectId: string, nodeId: string, api: ReleaseUnknownApi): Promise<string[]> {
+  const open = await canvasOpenRuns({ projectId, nodeId })
+  for (const entry of open) if (entry.reason === 'needs_reconcile' && entry.jobId) await releaseUnknownSubmission(projectId, entry.runId, entry.jobId, api)
+  return open.filter(entry => entry.reason === 'in_flight').map(entry => entry.runId)
+}
+
+/** The host owns occupancy; this projection never rewrites a live renderer submit. */
+export function synchronizeCanvasOpenRuns(entries: Awaited<ReturnType<typeof canvasOpenRuns>>) {
+  const store = useGenerationCanvasStore.getState()
+  for (const entry of entries) {
+    const node = store.nodes.find(value => value.id === entry.nodeId)
+    if (isNodeSubmitInFlight(entry.nodeId) || !node || (entry.reason === 'in_flight' && node.status === 'recoverable')) continue
+    if (entry.reason === 'needs_reconcile' && node.status === 'error' && node.error?.includes('NOMI_ERR::submission-unknown::')) continue
+    store.setNodeRecoveryPresentation(entry.nodeId, entry.reason === 'needs_reconcile',
+      entry.reason === 'needs_reconcile' ? tagNomiError('submission-unknown', 'Previous submission result was not received') : undefined)
+  }
 }

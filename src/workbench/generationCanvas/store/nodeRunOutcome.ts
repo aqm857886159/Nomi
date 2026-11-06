@@ -10,15 +10,18 @@ import { createProgress, getResultTaskKind, mergeRunRecord, type NodeProgressInp
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { appendNodeResultVersion } from '../model/nodeResultLifecycle'
 
-export type NodeRunOutcome =
+export type NodeRunOutcome = (
   | Readonly<{ kind: 'result'; result: GenerationNodeResult; mediaDimensions?: MediaDimensions }>
   | Readonly<{ kind: 'status'; status: GenerationNodeStatus; error?: string }>
   /** 一次运行开始（记录已规范化：id/startedAt/updatedAt/durationSeconds 已定）。 */
   | Readonly<{ kind: 'run-started'; run: GenerationNodeRunRecord }>
+  | Readonly<{ kind: 'run-refused'; runId: string; previous: Pick<GenerationCanvasNode, 'status' | 'error' | 'progress'> }>
   /** 运行中的进度（含首次拿到的 taskId——找回靠它）；undefined = 清掉进度。 */
   | Readonly<{ kind: 'progress'; progress: NodeProgressInput | undefined }>
   /** 文本生成定稿后的文档（续写/重写落地）。 */
   | Readonly<{ kind: 'content'; contentJson: TiptapDocJson; runId?: string }>
+
+) & Readonly<{ runId?: string }>
 
 type NodeRunOutcomePatch = Partial<Pick<GenerationCanvasNode, 'size' | 'meta' | 'runs' | 'result' | 'history' | 'resultVersionMax' | 'status' | 'error' | 'progress' | 'contentJson'>>
 
@@ -137,7 +140,9 @@ function progressPatch(node: GenerationCanvasNode, progress: NodeProgressInput |
 
 /** 这个结局落到节点上要改哪些字段（store 用 Object.assign 应用到草稿；盘上副本 spread 成新节点）。 */
 export function nodeRunOutcomePatch(node: GenerationCanvasNode, outcome: NodeRunOutcome): NodeRunOutcomePatch {
+  if (outcome.kind !== 'run-refused' && outcome.kind !== 'run-started' && outcome.runId && node.runs?.[0]?.id !== outcome.runId) return {}
   switch (outcome.kind) {
+    case 'run-refused': return { ...(node.runs?.[0]?.id === outcome.runId ? outcome.previous : {}), runs: node.runs?.filter(run => run.id !== outcome.runId) }
     case 'result': return resultPatch(node, outcome.result, outcome.mediaDimensions)
     case 'status': return statusPatch(node, outcome.status, outcome.error)
     case 'run-started': return runStartedPatch(node, outcome.run)
@@ -169,6 +174,7 @@ export type HeldNodeOutcome =
   | LandedNodeOutcome
   | Extract<NodeRunOutcome, { kind: 'status' }>
   | Extract<NodeRunOutcome, { kind: 'run-started' }>
+  | Extract<NodeRunOutcome, { kind: 'run-refused' }>
 
 /** Reapply every system-owned outcome in arrival order when a node returns to the document. */
 export function reapplyLandedOutcomes(

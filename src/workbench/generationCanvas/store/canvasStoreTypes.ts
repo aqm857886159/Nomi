@@ -149,10 +149,12 @@ export type CanvasGraphActions = {
 }
 
 export type CanvasRunActions = {
+  setNodeRecoveryPresentation: (nodeId: string, resultUnknown: boolean, error?: string) => void
   setNodeStatus: (nodeId: string, status: GenerationNodeStatus, error?: string) => void
   /** 收起失败卡：有旧产物 → 回 success（露出下面那条片子），没有 → 回 idle。错误原文仍留在 runs 里。 */
   dismissNodeError: (nodeId: string) => void
   setNodeProgress: (nodeId: string, progress?: NodeProgressInput) => void
+  withdrawNodeRun: (nodeId: string, outcome: Extract<import('./nodeRunOutcome').NodeRunOutcome, { kind: 'run-refused' }>) => void
   appendNodeRun: (nodeId: string, run: NodeRunRecordInput) => GenerationNodeRunRecord
   trackNodeRun: (nodeId: string, runId: string, patch: NodeRunRecordPatch) => void
   addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions) => void

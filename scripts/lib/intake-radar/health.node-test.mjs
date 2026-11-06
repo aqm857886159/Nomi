@@ -129,3 +129,12 @@ for (const [rate, expected, condition] of [[.36,30,count => count <= 50],[.66,96
     assert.ok(condition(measured))
   })
 }
+
+
+test('D3: local-refusal is excluded from generation failure rate and included in local rejection, unknown keeps its old rule', () => {
+  const extra = ['local-refusal', 'local_refusal', 'unknown'].map(errorType => event(24, 'generation.completed', { capability: 'image', result: 'failure', errorType, durationBucket: '<1s' }))
+  const h = health([...fixture(), ...extra])
+  assert.equal(image(h).newer.failure, 2)
+  assert.equal(image(h).newer.n, 22)
+  assert.equal(h.rows.find(r => r.key === 'local.image').newer.failure, 2)
+})

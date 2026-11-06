@@ -26,6 +26,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'create-node-burst',
   'switch-stages',
   'switch-canvas-list',
+  'list-queue-settle',
   'document-typing',
   'text-node-typing',
   'creation-ai-rewrite-result',
@@ -224,6 +225,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'create-node-burst') return createNodeBurst(page, ctx)
   if (scenario === 'switch-stages') return switchStages(page, ctx)
   if (scenario === 'switch-canvas-list') return switchCanvasList(page, ctx)
+  if (scenario === 'list-queue-settle') return listQueueSettle(page, ctx)
   if (scenario === 'document-typing') return documentTyping(page, ctx)
   if (scenario === 'text-node-typing') return textNodeTyping(page, ctx)
   if (scenario === 'creation-ai-rewrite-result') return creationAiRewriteResult(page, ctx)
@@ -1139,4 +1141,36 @@ async function spendCardNodeEditRefresh(page, ctx) {
     selected: 1,
     path: `卡上第 ${index + 1}/${spend.ids.length} 镜的节点改「${key}」→ 卡摘要「${before}」→「${after}」`,
   }
+}
+
+/** Preparation seeds only the real queue; each measured settlement uses its existing action. */
+async function listQueueSettle(page, ctx) {
+  await clearSelection(page)
+  await page.locator('[data-generation-view-switcher]').first().click()
+  await page.locator('[data-list-card]').first().waitFor()
+  const count = await page.evaluate(() => window.__nomiCanvasStore.getState().nodes.filter(node => node.kind === 'image' || node.kind === 'video').length)
+  if (count < 180) throw new Error(`Expected roughly 190 list cards, received ${count}`)
+  await page.waitForFunction(() => document.querySelectorAll('[data-list-card]').length >= 20)
+  const ids = await page.locator('[data-list-card]').evaluateAll(cards => cards.slice(0, 20).map(card => card.dataset.listCard))
+  const batchId = await page.evaluate(ids => {
+    const queue = window.__nomiQueueStore
+    queue.setState({ entries: [], batches: {} })
+    const projectId = new URLSearchParams(location.hash.split('?')[1] ?? '').get('projectId')
+    if (!projectId) throw new Error('The benchmark project is not open')
+    return queue.getState().enqueueBatch([ids], projectId)
+  }, ids)
+  await page.locator(`[data-list-card="${ids[19]}"] [data-list-status="queued"]`).waitFor()
+  const times = []
+  await ctx.startWindow(page)
+  for (const id of ids) {
+    await armResponse(page, { trigger: 'nomi-perf-queue-settle', predicate: 'listQueueSettled', arg: id })
+    await page.evaluate(({ id, batchId }) => {
+      document.dispatchEvent(new Event('nomi-perf-queue-settle'))
+      window.__nomiQueueStore.getState().markSettled(batchId, id, 'success')
+    }, { id, batchId })
+    times.push((await takeResponse(page)).ms)
+  }
+  const raw = await ctx.stopWindow(page)
+  await page.locator('[data-generation-view-switcher]').first().click()
+  return { raw, responseMs: Math.max(...times), queueSettled: ids.length, listCards: count, path: '20 real queue settlements → visible list labels + two frames' }
 }
