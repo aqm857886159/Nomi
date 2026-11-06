@@ -183,7 +183,7 @@ describe('the user confirmed "send again"; the earlier run arrives late', () => 
     expect(results(node)).toContain('paid-a')
     expect(record(node, A.runId)).toMatchObject({ status: 'success', resultId: 'paid-a' })
     expect(record(node, C.runId)).toMatchObject({ status: 'success', resultId: 'paid-c', taskId: 'task-c' })
-    expect(timeline.mock.calls.map(([, result]) => (result as GenerationNodeResult).id)).toEqual(['paid-c'])
+    expect(timeline.mock.calls.map((call: unknown[]) => (call[1] as GenerationNodeResult).id)).toEqual(['paid-c'])
     expect(attempts).toHaveLength(2)
     await assertActionable(id)
   })
@@ -238,7 +238,7 @@ describe('the user confirmed "send again"; the earlier run arrives late', () => 
     A.resolve(image('paid-a')); await batch
     expect(live(id)?.result?.id).toBe('paid-c')
     expect(results(live(id))).toContain('paid-a')
-    expect(timeline.mock.calls.map(([, result]) => (result as GenerationNodeResult).id)).toEqual(['paid-c'])
+    expect(timeline.mock.calls.map((call: unknown[]) => (call[1] as GenerationNodeResult).id)).toEqual(['paid-c'])
   })
 })
 
