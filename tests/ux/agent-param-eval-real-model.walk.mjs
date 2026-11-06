@@ -108,7 +108,7 @@ try {
 
   /** 回到项目库，开一个全新的空白项目，返回它的目录（用「新出现的目录」认，不靠位置）。 */
   async function openFreshProject() {
-    await leaveProjectIfOpen(win, '回项目库')
+    await leaveProjectIfOpen(win, 'back to library before a fresh project')
     const known = new Set(fs.existsSync(iso.projectsDir) ? fs.readdirSync(iso.projectsDir) : [])
     await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
     const deadline = Date.now() + stationTimeout({ operations: 2 })
