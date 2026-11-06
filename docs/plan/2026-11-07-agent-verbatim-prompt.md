@@ -16,8 +16,8 @@
 
 - 出口：不涉及：不新增、不扩大、不挪动任何挡人的保护（只改模型读到的几句话）。
 - Anthropic「Writing effective tools for AI agents」(https://www.anthropic.com/engineering/writing-tools-for-agents) · 举的例子就是模型在搜索词里擅自加年份，靠改工具说明解决；主张用评测量说明改动的效果 · 确认了：根因在模型读到的说明（不在代码），要用真实评测量「逐字率」；决定：改说明，配用例表量尺。
-- 本仓 `electron/harness/context/agentContext.ts` 的 `buildLanguageRule` · 已有「用户给的标题、名字、字幕、台词逐字保留，除非用户让改写或翻译」一句 · 确认了：规则的家是 Agent 身份层（所有面共用），沿它的写法；决定：提示词原文这一条放在身份层，不在每个工具各加一句。
-- 本仓 `electron/shared/agentCapabilities/canvasWrite.ts` 的 `CANVAS_NODE_PROMPT_GUIDELINES`（修前）· 无条件写「按结构化骨架写，末尾加风格关键词」，起草改草稿共用 · 改了决定：这一段是「你自己写提示词时」的做法，加上适用条件，不是对所有提示词的无条件要求。
+- 本仓 `electron/harness/context/agentContext.ts:86` 的 `buildLanguageRule` · 已有「用户给的标题、名字、字幕、台词逐字保留，除非用户让改写或翻译」一句 · 确认了：规则的家是 Agent 身份层（所有面共用），沿它的写法；决定：提示词原文这一条放在身份层，不在每个工具各加一句。
+- 本仓 `electron/shared/agentCapabilities/canvasWrite.ts:732` 的 `CANVAS_NODE_PROMPT_GUIDELINES`（修前）· 无条件写「按结构化骨架写，末尾加风格关键词」，起草改草稿共用 · 改了决定：这一段是「你自己写提示词时」的做法，加上适用条件，不是对所有提示词的无条件要求。
 
 ## ★1 用户怎么用
 
