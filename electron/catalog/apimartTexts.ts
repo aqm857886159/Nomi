@@ -36,6 +36,7 @@ export type ApimartTextModel = {
 // These are conservative estimates; membership, time discounts and the task receipt remain authoritative.
 const APIMART_PRICING_SOURCE = { url: "https://api.apimart.ai/api/pricing/models/all", checkedAt: "2026-11-07" } as const;
 
+// Vision declarations: APIMart Claude family page and DeepSeek V4.1 Flash vision section, checked 2026-11-07.
 export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
   {
     modelKey: "gpt-6-astra", labelZh: "GPT-6 Astra",
@@ -54,19 +55,19 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
     tokenPricing: { inputPerMTokUsd: 0.16, outputPerMTokUsd: 0.6, cacheReadPerMTokUsd: 0.016, cacheWritePerMTokUsd: 0.4, source: APIMART_PRICING_SOURCE },
   },
   {
-    modelKey: "claude-opus-5-5", labelZh: "Claude Opus 5.5",
+    modelKey: "claude-opus-5-5", labelZh: "Claude Opus 5.5", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 3.2, outputPerMTokUsd: 16, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 6.4, source: APIMART_PRICING_SOURCE },
   },
   {
-    modelKey: "claude-sonnet-5-5", labelZh: "Claude Sonnet 5.5",
+    modelKey: "claude-sonnet-5-5", labelZh: "Claude Sonnet 5.5", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 1.6, outputPerMTokUsd: 8, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 3.2, source: APIMART_PRICING_SOURCE },
   },
   {
-    modelKey: "claude-haiku-5-5", labelZh: "Claude Haiku 5.5",
+    modelKey: "claude-haiku-5-5", labelZh: "Claude Haiku 5.5", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 0.4, outputPerMTokUsd: 2.0, cacheReadPerMTokUsd: 0.04, cacheWritePerMTokUsd: 0.8, source: APIMART_PRICING_SOURCE },
   },
   {
-    modelKey: "claude-fable-5.1", labelZh: "Claude Fable 5.1",
+    modelKey: "claude-fable-5.1", labelZh: "Claude Fable 5.1", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 8, outputPerMTokUsd: 40, cacheReadPerMTokUsd: 0.2, cacheWritePerMTokUsd: 16, source: APIMART_PRICING_SOURCE },
   },
   {
@@ -82,7 +83,7 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
     tokenPricing: { inputPerMTokUsd: 1.0285712, outputPerMTokUsd: 3.0857144, cacheReadPerMTokUsd: 0.0514284, source: APIMART_PRICING_SOURCE },
   },
   {
-    modelKey: "deepseek-v4.1-flash", labelZh: "DeepSeek V4.1 Flash",
+    modelKey: "deepseek-v4.1-flash", labelZh: "DeepSeek V4.1 Flash", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 0.2285712, outputPerMTokUsd: 0.9142856, cacheReadPerMTokUsd: 0.0114284, source: APIMART_PRICING_SOURCE },
   },
   {

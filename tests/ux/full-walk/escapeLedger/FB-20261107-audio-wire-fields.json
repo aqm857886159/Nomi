@@ -1,7 +1,7 @@
 {
   "id": "FB-20261107-audio-wire-fields",
   "since": "2026-11-07",
-  "source": "用户交付任务指出现有音效目录发送了错误字段；以官方合同和请求预览复现。",
+  "source": "供应商目录普查发现（review），交付任务转述字段错误并要求修复；不是用户亲自报告的生产运行故障。以官方合同和请求预览复现。",
   "category": "parameter-contract",
   "problem": "Suno Sounds 的类型、速度和调性使用 canonical 控件名充当 wire 字段。",
   "existingInvariants": [],

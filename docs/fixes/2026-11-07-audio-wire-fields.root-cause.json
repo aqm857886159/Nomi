@@ -19,7 +19,8 @@
   ],
   "entry_points": [
     "APIMART_AUDIO_MODELS to seedBuiltins to requestPipeline",
-    "APIMART_AUDIO_MODELS to apimartModelHealth"
+    "APIMART_AUDIO_MODELS to apimartModelHealth",
+    "Provider catalog census found this contract mismatch; the task relays the review finding, not a first-person production incident."
   ],
   "external_sources": [
     {
@@ -186,7 +187,7 @@
     "Official V6 endpoints do not enumerate V5.5 support; retained legacy requests require coordinator live verification.",
     "Only first audio result is consumed by existing D operation."
   ],
-  "detected_by": "user",
+  "detected_by": "review",
   "recurrence_check_on": "2026-12-07",
   "invariant_owner_layer": {
     "layer": "electron/catalog/apimartAudios.ts",
