@@ -101,7 +101,8 @@ export type DeferredNodeMaterialization = {
 
 export type RunGenerationNodeOptions = {
   assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>
-  assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void
+  /** runId = 正在跑的这一次（运行自己报号，D9）。 */
+  assertApprovedInputs?: (graph: RunGraph, executingNodeId: string, runId?: string) => void
   executor?: GenerationNodeExecutor
   retry?: {
     maxAttempts?: number
@@ -141,6 +142,14 @@ async function resolveHostingDisclosure(node: GenerationCanvasNode | undefined) 
 type GenerationRunContext = {
   nodes?: GenerationCanvasNode[]
   edges?: GenerationCanvasEdge[]
+}
+
+// 本窗口里点下去的先后 = 开始时间的先后（同一毫秒里连点两下也分得出谁先谁后）：
+// 花钱的那次要等主进程准入才进运行记录，记录按开始时间插入，所以开始时间不能撞。
+let lastRunStartedAt = 0
+function nextRunStartedAt(): number {
+  lastRunStartedAt = Math.max(Date.now(), lastRunStartedAt + 1)
+  return lastRunStartedAt
 }
 
 // options 没有默认值：`= {}` 正是让调用点能省略托管同意的那个逃生口（F16b 根因）。
@@ -204,7 +213,7 @@ export async function runGenerationNode(
   }
   queue.markRunning(batchId, id)
 
-  const now = Date.now()
+  const now = nextRunStartedAt()
   // 运行记录随原项目持久化（含 projectId）：找回/重启都只认它，不认「当时打开的是哪个」。
   // attempt = 这次发给哪家的哪个模型（提交那一刻从被执行的节点读出）：失败提示点名的是它，
   // 健康记账记到的也是它——不是「失败时节点碰巧选着谁」（运行期间用户可以换家）。
@@ -215,20 +224,44 @@ export async function runGenerationNode(
   let progressDelivery: Promise<void> = Promise.resolve()
   let progressDeliveryFailure: unknown
   let persistedTaskId = ''
+  // 运行身份由主进程准入给（D1）：花钱的那条路点下去只在节点显示上「排队中」，不写运行记录；
+  // 准入回执到了（第一个带任务号的进度 = 提交已返回；或结果；或除被拒以外的任何结局）才把这次写进记录。
+  // 不花钱的本地 / 文本运行没有主进程准入，渲染层就是唯一权威，开始即写。
+  const paidRun = options.ledger === 'run'
+  let admitted = false
+  const queueDelivery = (outcome: Parameters<typeof deliverRunOutcome>[2]): void => {
+    // Existing delivery serializes writes; retain rejection for this run's awaited completion.
+    const delivery = deliverRunOutcome(target, id, outcome).then(() => undefined, (error: unknown) => { progressDeliveryFailure ??= error })
+    progressDelivery = progressDelivery.then(() => delivery)
+  }
+  const admit = (patch: { taskId?: string } = {}): void => {
+    if (admitted) return
+    admitted = true
+    queueDelivery({ kind: 'run-started', run: { ...run, status: 'running', updatedAt: Date.now(), ...patch } })
+  }
   const reportProgress = (progress: NodeProgressInput): void => {
+    if (paidRun && !admitted && progress.taskId) admit({ taskId: progress.taskId })
     // 前台看进度；不在前台只把首次拿到的 taskId 写进原项目（找回靠它），其余瞬态不写盘。
     if (whenRunTargetLoaded(target, () => useGenerationCanvasStore.getState().setNodeProgress(id, progress))) return
     if (progress.taskId && progress.taskId !== persistedTaskId) {
       persistedTaskId = progress.taskId
-      // Existing delivery serializes writes; retain rejection for this run's awaited completion.
-      progressDelivery = deliverRunOutcome(target, id, { kind: 'progress', progress, runId: run.id }).then(
-        () => undefined, error => { progressDeliveryFailure ??= error },
-      )
+      queueDelivery({ kind: 'progress', progress, runId: run.id })
     }
   }
+  /** 这次的结局要落之前：没拿到回执的先写进记录（主进程可能已经收下了，记录号要留着对账），再按号结掉。 */
+  const deliverOwnOutcome = async (outcome: Parameters<typeof deliverRunOutcome>[2]): Promise<boolean> => {
+    admit()
+    await progressDelivery
+    return deliverRunOutcome(target, id, outcome)
+  }
   try {
-    await deliverRunOutcome(target, id, { kind: 'run-started', run })
-    reportProgress({ runId: run.id, phase: 'queued', message: narrateProgress('queued') })
+    const queuedProgress = { runId: run.id, phase: 'queued', message: narrateProgress('queued') } as const
+    if (paidRun) await deliverRunOutcome(target, id, { kind: 'attempt-started', runId: run.id, progress: queuedProgress })
+    else {
+      await deliverRunOutcome(target, id, { kind: 'run-started', run })
+      admitted = true
+    }
+    reportProgress(queuedProgress)
     const executor = options.executor ?? generationNodeExecutor
     const maxAttempts = normalizeRetryAttempts(options.retry?.maxAttempts)
     const baseDelayMs = normalizeBaseDelayMs(options.retry?.baseDelayMs)
@@ -245,7 +278,7 @@ export async function runGenerationNode(
       }
       const node = state?.nodes.find((candidate) => candidate.id === id)
       if (!state || !node) throw new Error('node not found')
-      options.assertApprovedInputs?.(state, id)
+      options.assertApprovedInputs?.(state, id, run.id)
       const nodeMeta = (node.meta || {}) as Record<string, unknown>
       const dialogueArchetype = resolveTaskArchetype(nodeMeta)
       const dialogueMode = dialogueArchetype ? currentArchetypeMode(dialogueArchetype, nodeMeta) : null
@@ -293,7 +326,7 @@ export async function runGenerationNode(
     await progressDelivery
     if (progressDeliveryFailure) throw progressDeliveryFailure
     if (!result) throw new Error(describeOpaqueFailure(null))
-    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', result, runId: run.id, ...(mediaDimensions ? { mediaDimensions } : {}) })
+    const landedInOpenProject = await deliverOwnOutcome({ kind: 'result', result, runId: run.id, ...(mediaDimensions ? { mediaDimensions } : {}) })
     // 自动另存（集中设置页开启时）：新生成的图/视频静默复制一份到用户目录。fire-and-forget——不 await
     // （不拖慢生成收尾）、失败不冒泡（best-effort 全在主进程侧，关着/没设目录/失败都静默）。只对新生成，
     // 找回(recoverTaskActions)不触发、避免重复另存。
@@ -315,19 +348,19 @@ export async function runGenerationNode(
     if (isLocalTaskCancelledError(error) || isTaskCancelRequested(id)) {
       // 单镜 Run 路：只是渲染层不等了——还在路上的交给主进程观察者收完，钱花了的结果照样进项目。
       if (options.ledger === 'run') void releaseCanvasShotRun({ projectId: target.projectId, runRecordId: run.id }).catch(() => undefined)
-      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'idle' })
+      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'idle' })
       // 用户主动停的：不进刹车计数（模型没挂，是人喊停的）。
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       throw isLocalTaskCancelledError(error) ? error : new LocalTaskCancelledError()
     }
     if (error instanceof AssetUploadConsentCancelledError) {
-      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'idle' })
+      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'idle' })
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       throw error
     }
     // A polling timeout remains recoverable from its persisted taskId; it is not a model failure.
     if (isRecoverableTimeoutError(error)) {
-      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'recoverable', error: error.message })
+      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'recoverable', error: error.message })
       // 上游没有明确判死（可能仍在跑/已出片）→ 健康记账不算失败，刹车也不该算。
       useGenerationQueueStore.getState().markSettled(batchId, id, 'error', {
         error: error.message,
@@ -340,12 +373,15 @@ export async function runGenerationNode(
     const blocked = outboundBlockedRecoverableMessage(error, (await readRunGraph(target))?.nodes.find((n) => n.id === id))
     if (blocked) {
       // 不记模型失败（挂的是本机网络），但刹车照记：后续每条都会同样失败而提交侧照旧扣费。
-      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'recoverable', error: blocked })
+      await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'recoverable', error: blocked })
       useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: blocked })
       throw error
     }
     if (isOpenGenerationRefusal(describeOpaqueFailure(error))) {
-      await deliverRunOutcome(target, id, { kind: 'run-refused', runId: run.id, previous: { status: initialNode.status, error: initialNode.error, progress: initialNode.progress } })
+      // 主进程拒了 = 这次从来不是一次运行（D3）：不写记录、不恢复开始时的快照；它占着显示的话，显示按记录重算。
+      // 已经写进记录的（不花钱的路开始即写）只追加「这次结束」，同样不回滚。
+      if (admitted) await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'idle' })
+      else await deliverRunOutcome(target, id, { kind: 'attempt-refused', runId: run.id })
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       if (options.initiator === 'user') {
         const open = await canvasOpenRuns({ projectId: target.projectId, nodeId: id })
@@ -358,7 +394,7 @@ export async function runGenerationNode(
     // Store the RAW message (describeOpaqueFailure only fills in when there is none): NodeErrorReport
     // runs classifyGenerationError over it, and a plain string needs no persisted-shape migration.
     const rawMessage = describeOpaqueFailure(error)
-    await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'error', error: rawMessage })
+    await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'error', error: rawMessage })
     // 真执行失败 → 计入刹车（连续 3 个即暂停队列，防上游整体挂掉时把剩下的额度一路烧完）。
     useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: rawMessage, countsTowardBrake: countsTowardGenerationBrake(kind) })
     throw error
@@ -455,7 +491,10 @@ export async function runGenerationNodesBatch(
         })
         successes.push({ nodeId, result })
         // 批量重生成也要走回填闸（与单发路径同款）：位置不变、clip 换新产物 URL；无引用时 no-op。
-        whenRunTargetLoaded(options.target, () => useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(nodeId, result))
+        // 只有这张图就是当前图才对账（D7）：比它新的运行已经成功时，它只进了版本历史，时间轴不动。
+        whenRunTargetLoaded(options.target, () => {
+          if (useGenerationCanvasStore.getState().nodes.find(node => node.id === nodeId)?.result?.id === result.id) useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(nodeId, result)
+        })
         options.onNodeResult?.({ ok: true, nodeId, result })
       } catch (error: unknown) {
         const normalizedError = error instanceof Error ? error : new Error(String(error))
