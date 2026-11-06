@@ -13,6 +13,7 @@
 | `catalogs/v0.24.0-native-wire` | 0.24.0 | 先 `zzRelGen` 接 6 个模型，再在它的输出上跑 `generators/zzRelNative.ts.txt`（开机体检 `upgradeRelayModelsToNativeWire` 把其中一个视频行切到原生报文） | 上一份的 5 个，加一个带档案和原生报文的视频行 |
 | `catalogs/v0.24.0-declared-card` | 0.24.0 | 在 0.24.0 的导出里跑 `generators/zzRelDeclared.ts.txt`：用真实的 `registerDeclaredProvider` 登记一张 AI 交的声明卡 | 视频 1，`card.json` 是登记它的那张卡（升级后重交卡用） |
 | `catalogs/v0.24.0-wizard-audio` | 0.24.0 | `zzRelGen`，模型表换成音频 2 + 文本 1（`V_MODELS` 环境变量） | 音频 2、文本 1；带认证日志文件（`integration-certification/`）和备份，都是旧版本真实落下来的，原样保留 |
+| `catalogs/v0.24.1-wizard` | 0.24.1（目录格式 13） | 在 0.24.1 的导出里跑 `zzRelGen`（`V_MODELS` 给的模型表与 v0.24.0-wizard 一致） | 图片 2 已接通，一个图片模型的图生图是 multipart 上传；视频 3 没接通——0.24.1 起连接向导不再替没声明协议的视频模型猜路由，这就是 0.24.1 用户这样接出来的真实样子，原样保留禁用与失败状态；带认证日志和备份，原样保留 |
 
 每份目录的 `expected.json` 是**从主线录的**，不是手写的：里面写着它录自哪个主线提交（`recordedFrom`）、读完目录后盘上的目录版本和留下的备份文件（`diskVersionAfterRead`、`backupFiles`），以及每个模型的 `listed`、`published`，和每个已发布模式发出的那一个请求（`modes.<taskKind>.request`，地址换成 `{{origin}}`，multipart 的边界去掉）。`v0.24.0-wizard/expected.hand-written-half-contract.json` 是同一份目录加「手写了半份能力合同」（只写文生，路由还有图生）那一格。
 
