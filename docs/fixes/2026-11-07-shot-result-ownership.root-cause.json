@@ -17,6 +17,7 @@
   "scope_paths": [
     "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
     "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/runOwnOutcomes.ts",
     "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
     "src/workbench/generationCanvas/store/canvasRunActions.ts",
     "src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts",
@@ -24,7 +25,8 @@
     "src/workbench/generationCanvas/store/nodeRunOutcome.ts"
   ],
   "entry_points": [
-    "src/workbench/generationCanvas/runner/generationRunController.ts runGenerationNode (attempt-started, admit, deliverOwnOutcome, attempt-refused)",
+    "src/workbench/generationCanvas/runner/generationRunController.ts runGenerationNode (start, own outcomes, refusal)",
+    "src/workbench/generationCanvas/runner/runOwnOutcomes.ts createRunOwnOutcomes (attempt-started, admit, deliverOwn, attempt-refused)",
     "src/workbench/generationCanvas/runner/generationRunController.ts runGenerationNodesBatch (timeline reconciliation)",
     "src/workbench/generationCanvas/runner/runProjectDelivery.ts deliverRunOutcome / applyToStore / handRunToObserver / captureApprovedGenerationInputs",
     "src/workbench/generationCanvas/store/canvasRunActions.ts applyRunOutcome / addNodeResult / setNodeStatus / setNodeProgress / appendNodeRun / trackNodeRun",
@@ -42,6 +44,11 @@
     "A result without a run id only closes a live production record and never another record."
   ],
   "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "createRunOwnOutcomes"
+    },
     {
       "kind": "write",
       "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
@@ -104,12 +111,12 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "path": "src/workbench/generationCanvas/runner/runOwnOutcomes.ts",
       "symbol": "deliverRunOutcome"
     },
     {
       "kind": "write",
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "path": "src/workbench/generationCanvas/runner/runOwnOutcomes.ts",
       "symbol": "setNodeProgress"
     },
     {
@@ -225,8 +232,8 @@
   ],
   "door_reduction": {
     "before": 38,
-    "after": 36,
-    "why_not": "Counted with the same symbols before and after (plus the store-type and write-boundary registrations): the withdrawNodeRun door, its runs[0] filter and the run-refused branch in runProjectDelivery are deleted. The remaining doors are the run's own writers (controller, retrieval, text finalisation, production projection, local processing, design lab, tour) which all funnel into one merge rule, nodeRunOutcomePatch, through the store actions or the disk patch; they cannot be merged further because each owns a different source of outcomes (paid run, free retrieval, production Run, local job)."
+    "after": 37,
+    "why_not": "Counted with the same symbols before and after (plus the store-type and write-boundary registrations, and the controller's one call into createRunOwnOutcomes, which now holds its two direct writes): the withdrawNodeRun door, its runs[0] filter and the run-refused branch in runProjectDelivery are deleted. The remaining doors are the run's own writers (controller, retrieval, text finalisation, production projection, local processing, design lab, tour) which all funnel into one merge rule, nodeRunOutcomePatch, through the store actions or the disk patch; they cannot be merged further because each owns a different source of outcomes (paid run, free retrieval, production Run, local job)."
   },
   "regression_tests": [
     "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts",
@@ -273,8 +280,8 @@
       "responsibility": "The only merge rule for run outcomes: by run id, display projected from records, no positional ownership."
     },
     {
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "symbol": "runGenerationNode",
+      "path": "src/workbench/generationCanvas/runner/runOwnOutcomes.ts",
+      "symbol": "createRunOwnOutcomes",
       "responsibility": "Run identity: paid runs are written only after main-process admission; refusal appends nothing."
     }
   ],
@@ -320,6 +327,7 @@
     "artifacts": [
       "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
       "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/generationCanvas/runner/runOwnOutcomes.ts",
       "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts"
     ]
   },

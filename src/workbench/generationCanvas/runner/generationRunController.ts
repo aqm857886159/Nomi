@@ -24,8 +24,8 @@ import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
 import { createRunId } from '../store/canvasIds'
-import type { NodeProgressInput } from '../store/runRecordHelpers'
-import { captureApprovedGenerationInputs, deliverRunOutcome, isRunTargetLoaded, readRunGraph, whenRunTargetLoaded, type RunGraph, type RunProjectTarget } from './runProjectDelivery'
+import { createRunOwnOutcomes, nextRunStartedAt } from './runOwnOutcomes'
+import { captureApprovedGenerationInputs, isRunTargetLoaded, readRunGraph, whenRunTargetLoaded, type RunGraph, type RunProjectTarget } from './runProjectDelivery'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
 import { outboundBlockedRecoverableMessage } from './outboundBlockedRecovery'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
@@ -144,14 +144,6 @@ type GenerationRunContext = {
   edges?: GenerationCanvasEdge[]
 }
 
-// 本窗口里点下去的先后 = 开始时间的先后（同一毫秒里连点两下也分得出谁先谁后）：
-// 花钱的那次要等主进程准入才进运行记录，记录按开始时间插入，所以开始时间不能撞。
-let lastRunStartedAt = 0
-function nextRunStartedAt(): number {
-  lastRunStartedAt = Math.max(Date.now(), lastRunStartedAt + 1)
-  return lastRunStartedAt
-}
-
 // options 没有默认值：`= {}` 正是让调用点能省略托管同意的那个逃生口（F16b 根因）。
 // 去掉它之后，「谁问的用户」在编译期就必须有答案。target 同理：运行属于哪个项目在提交那一刻就定死。
 export async function runGenerationNode(
@@ -221,47 +213,11 @@ export async function runGenerationNode(
   const attempt = dispatchedAttempt(initialNode)
   const run = { id: options.runRecordId ?? createRunId(id), status: 'queued' as const, startedAt: now, updatedAt: now, projectId: target.projectId, ...(attempt ? { attempt } : {}) }
   let runFailure: unknown
-  let progressDelivery: Promise<void> = Promise.resolve()
-  let progressDeliveryFailure: unknown
-  let persistedTaskId = ''
-  // 运行身份由主进程准入给（D1）：花钱的那条路点下去只在节点显示上「排队中」，不写运行记录；
-  // 准入回执到了（第一个带任务号的进度 = 提交已返回；或结果；或除被拒以外的任何结局）才把这次写进记录。
-  // 不花钱的本地 / 文本运行没有主进程准入，渲染层就是唯一权威，开始即写。
-  const paidRun = options.ledger === 'run'
-  let admitted = false
-  const queueDelivery = (outcome: Parameters<typeof deliverRunOutcome>[2]): void => {
-    // Existing delivery serializes writes; retain rejection for this run's awaited completion.
-    const delivery = deliverRunOutcome(target, id, outcome).then(() => undefined, (error: unknown) => { progressDeliveryFailure ??= error })
-    progressDelivery = progressDelivery.then(() => delivery)
-  }
-  const admit = (patch: { taskId?: string } = {}): void => {
-    if (admitted) return
-    admitted = true
-    queueDelivery({ kind: 'run-started', run: { ...run, status: 'running', updatedAt: Date.now(), ...patch } })
-  }
-  const reportProgress = (progress: NodeProgressInput): void => {
-    if (paidRun && !admitted && progress.taskId) admit({ taskId: progress.taskId })
-    // 前台看进度；不在前台只把首次拿到的 taskId 写进原项目（找回靠它），其余瞬态不写盘。
-    if (whenRunTargetLoaded(target, () => useGenerationCanvasStore.getState().setNodeProgress(id, progress))) return
-    if (progress.taskId && progress.taskId !== persistedTaskId) {
-      persistedTaskId = progress.taskId
-      queueDelivery({ kind: 'progress', progress, runId: run.id })
-    }
-  }
-  /** 这次的结局要落之前：没拿到回执的先写进记录（主进程可能已经收下了，记录号要留着对账），再按号结掉。 */
-  const deliverOwnOutcome = async (outcome: Parameters<typeof deliverRunOutcome>[2]): Promise<boolean> => {
-    admit()
-    await progressDelivery
-    return deliverRunOutcome(target, id, outcome)
-  }
+  // 这次自己的结局（准入前只占显示、准入后按号收账）都经它投：runOwnOutcomes.ts。
+  const own = createRunOwnOutcomes(target, id, run, options.ledger === 'run')
+  const { reportProgress, deliverOwn: deliverOwnOutcome } = own
   try {
-    const queuedProgress = { runId: run.id, phase: 'queued', message: narrateProgress('queued') } as const
-    if (paidRun) await deliverRunOutcome(target, id, { kind: 'attempt-started', runId: run.id, progress: queuedProgress })
-    else {
-      await deliverRunOutcome(target, id, { kind: 'run-started', run })
-      admitted = true
-    }
-    reportProgress(queuedProgress)
+    await own.start()
     const executor = options.executor ?? generationNodeExecutor
     const maxAttempts = normalizeRetryAttempts(options.retry?.maxAttempts)
     const baseDelayMs = normalizeBaseDelayMs(options.retry?.baseDelayMs)
@@ -323,8 +279,8 @@ export async function runGenerationNode(
         await waitForRetry(attempt, baseDelayMs)
       }
     }
-    await progressDelivery
-    if (progressDeliveryFailure) throw progressDeliveryFailure
+    const deliveryFailure = await own.drained()
+    if (deliveryFailure) throw deliveryFailure
     if (!result) throw new Error(describeOpaqueFailure(null))
     const landedInOpenProject = await deliverOwnOutcome({ kind: 'result', result, runId: run.id, ...(mediaDimensions ? { mediaDimensions } : {}) })
     // 自动另存（集中设置页开启时）：新生成的图/视频静默复制一份到用户目录。fire-and-forget——不 await
@@ -341,8 +297,7 @@ export async function runGenerationNode(
     if (landedInOpenProject) await persistActiveWorkbenchProjectNow().catch(() => {})
     return result
   } catch (caughtError: unknown) {
-    await progressDelivery
-    const error = progressDeliveryFailure ?? caughtError
+    const error = (await own.drained()) ?? caughtError
     runFailure = error
     // Both explicit cancellation and its polling race return to idle without penalizing model health.
     if (isLocalTaskCancelledError(error) || isTaskCancelRequested(id)) {
@@ -378,10 +333,8 @@ export async function runGenerationNode(
       throw error
     }
     if (isOpenGenerationRefusal(describeOpaqueFailure(error))) {
-      // 主进程拒了 = 这次从来不是一次运行（D3）：不写记录、不恢复开始时的快照；它占着显示的话，显示按记录重算。
-      // 已经写进记录的（不花钱的路开始即写）只追加「这次结束」，同样不回滚。
-      if (admitted) await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'idle' })
-      else await deliverRunOutcome(target, id, { kind: 'attempt-refused', runId: run.id })
+      // 主进程拒了 = 这次从来不是一次运行（D3）：不写记录、不回滚（runOwnOutcomes.refused）。
+      await own.refused()
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       if (options.initiator === 'user') {
         const open = await canvasOpenRuns({ projectId: target.projectId, nodeId: id })

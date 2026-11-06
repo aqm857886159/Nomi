@@ -3,8 +3,8 @@
     "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
     "src/workbench/generationCanvas/comfyuiProgressBridge.ts",
     "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
-    "src/workbench/generationCanvas/runner/generationRunController.ts",
     "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/generationCanvas/runner/runOwnOutcomes.ts",
     "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts"
   ],
   "events": [
