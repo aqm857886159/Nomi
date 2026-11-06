@@ -21,6 +21,7 @@ export async function confirmLockExitSpend(page, report, { until, shot, context 
       const hostingDisclosure = await page.locator('[data-spend-confirm-dialog] [data-hosting-disclosure]').isVisible()
       report.observations ??= { batchConfirmations: [], hostingConsents: [] }
       if (context.startsWith('batch')) report.observations.batchConfirmations.push({ context, hostingDisclosure })
+      // board:UnknownResultCard/confirm.hosting-disclosure — one existing modal also carries hosting; rehearsals require it at least once.
       if (hostingDisclosure) {
         if (!report.hostingDisclosure) await page.locator('[data-spend-confirm-dialog] [data-hosting-remember] input').check()
         report.hostingDisclosure = (report.hostingDisclosure ?? 0) + 1
