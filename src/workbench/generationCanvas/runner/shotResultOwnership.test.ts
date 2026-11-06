@@ -11,10 +11,10 @@ import type { GenerationCanvasNode, GenerationNodeResult } from '../model/genera
 import type { GenerationNodeExecutorContext } from './generationNodeExecutor'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 
-const calls = vi.hoisted(() => ({ execute: vi.fn(), open: vi.fn(), confirm: vi.fn(), disk: new Map<string, unknown>() }))
+const calls = vi.hoisted(() => ({ execute: vi.fn(), open: vi.fn(), confirm: vi.fn(), poll: vi.fn(), disk: new Map<string, unknown>() }))
 vi.mock('../../api/taskApi', () => ({
   canvasOpenRuns: calls.open, releaseCanvasShotRun: vi.fn(async () => undefined), withdrawCanvasShots: vi.fn(),
-  pollCanvasShotRun: vi.fn(), consentCanvasShots: vi.fn(), mintSpendGrant: vi.fn(), fetchWorkbenchTaskResultByVendor: vi.fn(),
+  pollCanvasShotRun: calls.poll, consentCanvasShots: vi.fn(), mintSpendGrant: vi.fn(), fetchWorkbenchTaskResultByVendor: vi.fn(),
 }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 vi.mock('./assetUploadConsent', async (original) => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
@@ -38,6 +38,7 @@ vi.mock('../../../desktop/bridge', () => ({
 import { confirmAndRunNode, regenerateNodeInPlace, runGenerationNodesBatch } from './generationRunController'
 import { deliverRunOutcome } from './runProjectDelivery'
 import { requestTaskCancel, LocalTaskCancelledError } from './localTaskControl'
+import { RecoverableTimeoutError } from './recoverableTimeout'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
@@ -95,6 +96,7 @@ beforeEach(async () => {
     attempts.push({ runId: String(ctx.idempotencyKey), ctx, resolve, reject })
   }))
   calls.open.mockReset().mockResolvedValue([])
+  calls.poll.mockReset().mockResolvedValue(null)
   calls.confirm.mockReset().mockResolvedValue(true)
   vi.spyOn(useSpendConfirmStore.getState(), 'requestConfirm').mockImplementation(calls.confirm)
   timeline = vi.spyOn(useWorkbenchStore.getState(), 'reconcileTimelineForUpdatedNodes').mockImplementation(() => undefined)
@@ -239,6 +241,71 @@ describe('the user confirmed "send again"; the earlier run arrives late', () => 
     expect(live(id)?.result?.id).toBe('paid-c')
     expect(results(live(id))).toContain('paid-a')
     expect(timeline.mock.calls.map((call: unknown[]) => (call[1] as GenerationNodeResult).id)).toEqual(['paid-c'])
+  })
+})
+
+// 真窗走出来的那条（修补轮）：旧的那单交给了主进程观察者（超时可找回 / 确认再发时放手），镜头这边不再等它；
+// 观察者收完以后，主进程按「项目 + 节点 + 这次的运行记录号」摇一下渲染层，渲染层按这个号去取、按这个号收账。
+// 修前没有这条路：图只进了主进程的 Run，镜头上没有，旧记录一直停在「可找回」。
+describe('the earlier run was handed to the main-process observer; the observer finishes later', () => {
+  const PAID_A_URL = 'nomi-local://asset/project-a/paid-a.png'
+  const observedA = { id: 'task-a', kind: 'text_to_image', status: 'succeeded', assets: [{ type: 'image', url: PAID_A_URL }], raw: {} }
+  /** 主进程观察者收完：经渲染层能力口那一下（真分发器），op 名照字面写，修前没有这个口。 */
+  async function observerSettles(projectId: string, nodeId: string, runRecordId: string): Promise<void> {
+    const { handleCapabilityApply } = await import('../../capability/capabilityApplyHandler')
+    await handleCapabilityApply('canvas.run-settled', { ...testProjectBinding(projectId), nodeId, runRecordId }).catch(() => undefined)
+  }
+  async function handOffThenResend(): Promise<{ id: string; A: Attempt; C: Attempt }> {
+    const id = store().addNode({ kind: 'image', prompt: 'shot 1' }).id
+    const old = confirmAndRunNode(id, { initiator: 'user' })
+    const A = await nextAttempt(1)
+    A.ctx.onProgress?.({ phase: 'generating', message: 'old', taskId: 'task-a' })
+    A.reject(new RecoverableTimeoutError({ taskId: 'task-a', vendor: 'v' } as never)); await old.catch(() => undefined)
+    expect(record(live(id), A.runId)?.status).toBe('recoverable')
+    calls.open.mockResolvedValue([{ nodeId: id, runId: `canvas-${A.runId}`, reason: 'in_flight', hasTaskId: true }])
+    const resend = confirmAndRunNode(id, { initiator: 'user', resend: true })
+    const C = await nextAttempt(2)
+    C.resolve(image('paid-c')); await resend
+    return { id, A, C }
+  }
+
+  it('foreground: the paid old image goes into this shot\'s version history by its own run number; the new image stays current', async () => {
+    const { id, A, C } = await handOffThenResend()
+    calls.poll.mockResolvedValue(observedA)
+    await observerSettles('project-a', id, A.runId)
+    const node = live(id)
+    expect(node?.result?.id).toBe('paid-c')
+    expect((node?.history ?? []).map((entry) => entry.url)).toContain(PAID_A_URL)
+    expect(record(node, A.runId)).toMatchObject({ status: 'success', taskId: 'task-a' })
+    expect(calls.poll).toHaveBeenCalledWith({ projectId: 'project-a', runRecordId: A.runId })
+    expect(record(node, C.runId)).toMatchObject({ status: 'success', resultId: 'paid-c' })
+    expect(node?.status).toBe('success')
+    expect(timeline.mock.calls.map((call: unknown[]) => (call[1] as GenerationNodeResult).id)).toEqual(['paid-c'])
+    expect(attempts).toHaveLength(2)
+    await assertActionable(id)
+  })
+
+  it('background: the user is in another project; the paid old image lands in the original project\'s saved copy', async () => {
+    const { id, A } = await handOffThenResend()
+    persistOpenCanvasAs('project-a')
+    await session.open('project-b')
+    store().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
+    calls.poll.mockResolvedValue(observedA)
+    await observerSettles('project-a', id, A.runId)
+    const node = diskNode('project-a', id)
+    expect((node?.history ?? []).map((entry) => entry.url)).toContain(PAID_A_URL)
+    expect(node?.result?.id).toBe('paid-c')
+    expect(record(node, A.runId)).toMatchObject({ status: 'success', taskId: 'task-a' })
+    expect(store().nodes).toHaveLength(0)
+  })
+
+  it('a run that already landed is not fetched or written again', async () => {
+    const { id, C } = await handOffThenResend()
+    const before = structuredClone(live(id))
+    await observerSettles('project-a', id, C.runId)
+    await observerSettles('project-a', id, 'not-a-run-of-this-node')
+    expect(calls.poll).not.toHaveBeenCalled()
+    expect(live(id)).toEqual(before)
   })
 })
 
