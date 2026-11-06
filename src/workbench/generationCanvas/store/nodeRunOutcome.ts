@@ -189,8 +189,8 @@ function runStartedPatch(node: GenerationCanvasNode, run: GenerationNodeRunRecor
 }
 
 function attemptStartedPatch(node: GenerationCanvasNode, progress: NodeProgressInput): NodeRunOutcomePatch {
-  // 已经有一次在跑：它说了算，这一下等主进程的回话。
-  if (displayOwningRun(node.runs || [])) return {}
+  // 已经有一次在跑（记录里的，或先点、还没拿到准入回执的那一下）：它说了算，这一下等主进程的回话。
+  if (displayOwningRun(node.runs || []) || optimisticAttempt(node, node.runs || [])) return {}
   return { status: 'queued', error: undefined, progress: createProgress(progress) }
 }
 

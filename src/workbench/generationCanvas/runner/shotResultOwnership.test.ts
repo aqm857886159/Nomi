@@ -248,7 +248,6 @@ it('cancel after the refusal stops the running shot and the shot can be generate
   const A = await nextAttempt(1)
   const storyboard = regenerateNodeInPlace(id, { initiator: 'user' })
   const B = await nextAttempt(2)
-  calls.open.mockResolvedValue([{ nodeId: id, runId: `canvas-${A.runId}`, reason: 'in_flight', hasTaskId: false }])
   calls.confirm.mockResolvedValue(false)
   B.reject(refused()); await storyboard
   expect(isGenerationNodeBusy(live(id))).toBe(true)
