@@ -1,0 +1,137 @@
+{
+  "name": "windows-rc-0.24.1-agent-native-ui",
+  "mode": "packaged",
+  "tempRoot": "D:\\Temp\\nomi-pi-windows-rc-0.24.1-agent-native-ui-p33676-iiSZhO",
+  "outputDir": "D:\\nomi-rc-0.24.1\\.tmp\\pi-windows-rc-0.24.1-agent-native-ui-packaged-1793985923193",
+  "launches": [],
+  "screenshots": [],
+  "paidCalls": 0,
+  "networkAllowlist": [
+    "https://api.apimart.ai",
+    "*.getapib.org"
+  ],
+  "credentialSource": "real-profile",
+  "seededModels": [
+    "apimart/deepseek-v4-pro",
+    "apimart/gpt-image-2"
+  ],
+  "realProfileBefore": {
+    "model-catalog.json": "sha256:efa402408dfa8fcd72581e1b87a783c66589ef676396536f38f24f8ba00da64c:size:567853:mtime:1791044862236",
+    "Local State": "sha256:0de53b7701fc8913cf144e7920725912cac4420ec6988807e285985e61c57eeb:size:490:mtime:1787791944771"
+  },
+  "nativeLaunch": {
+    "executable": "D:\\Nomi-rc-0.24.1-installed\\Nomi.exe",
+    "pid": 8164,
+    "inspector": false,
+    "productNetworkGuard": true,
+    "projectsDir": "D:\\Temp\\nomi-pi-windows-rc-0.24.1-agent-native-ui-p33676-iiSZhO\\projects"
+  },
+  "acceptance": {
+    "mode": "native-ui-no-inspector",
+    "asks": [
+      "你好",
+      "加一个图片节点，提示词写：一只橘猫坐在窗台上，先别生成",
+      "把它的提示词改成：一只黑猫坐在窗台上"
+    ],
+    "observation": {
+      "projectRoot": "D:\\Temp\\nomi-pi-windows-rc-0.24.1-agent-native-ui-p33676-iiSZhO\\projects\\未命名项目 11_06 14_26-mw58x7ab-d9a0afd7",
+      "nodes": [
+        {
+          "id": "gen-v2-image-mw590ybx-wwoc",
+          "kind": "image",
+          "title": "橘猫窗台",
+          "position": {
+            "x": 82.25999999999999,
+            "y": 69.44
+          },
+          "size": {
+            "width": 340,
+            "height": 280
+          },
+          "prompt": "一只黑猫坐在窗台上，阳光洒落，温暖宁静的氛围，写实摄影风格",
+          "references": [],
+          "history": [],
+          "status": "idle",
+          "meta": {
+            "modelKey": "gpt-image-2",
+            "modelLabel": "GPT Image 2",
+            "archetype": {
+              "id": "gpt-image-2",
+              "modeId": "t2i"
+            },
+            "modelVendor": "apimart",
+            "vendor": "apimart",
+            "aspect_ratio": "auto",
+            "resolution": "1K",
+            "materializationOperationId": "canvas-landing:op-9903fdf3-2f98-4d9a-a521-b43d4fab6555",
+            "materializationClientId": "shot-1",
+            "productionRunId": "op-9903fdf3-2f98-4d9a-a521-b43d4fab6555",
+            "productionShotId": "shot-1",
+            "productionCandidateId": "cand-shot-1",
+            "productionCandidateRevision": 2,
+            "productionCandidateModelKey": "gpt-image-2",
+            "productionCandidateModelVendor": "apimart",
+            "productionCandidateIntent": "{\"fields\":{\"model\":\"acyv5b\",\"prompt\":\"1cysaub\",\"title\":\"bqf663\"},\"references\":[]}",
+            "overriddenFields": [
+              "prompt"
+            ]
+          },
+          "categoryId": "shots",
+          "shotIndex": 1
+        }
+      ],
+      "inputs": [
+        "你好",
+        "加一个图片节点，提示词写：一只橘猫坐在窗台上，先别生成",
+        "把它的提示词改成：一只黑猫坐在窗台上"
+      ],
+      "replies": [
+        "你好！你现在在 Nomi 的 **生成画布** 工作区，这里负责把想法落地成画布上的镜头节点、参考图和生成任务。\n\n你可以直接告诉我你想做什么——比如：\n\n- 把一段文案/剧本拆成镜头\n- 生成角色定妆照或场景设定图\n- 做一条视频（宣传片、剧情短片、氛围片等）\n- 调整画布上已有的镜头\n\n你手头有什么想法？",
+        "草稿已建好，节点「橘猫窗台」已放到画布上，使用 **GPT Image 2**（你的图片默认模型）。没有生成、没有花费。想看效果时告诉我。",
+        "已改好。节点「橘猫窗台」的提示词现在是「一只黑猫坐在窗台上，阳光洒落，温暖宁静的氛围，写实摄影风格」。未生成，随时可以继续改或生成。"
+      ],
+      "toolErrors": [
+        {
+          "tool": "draft_shots",
+          "text": "draft_shots was called with arguments its contract rejects."
+        }
+      ],
+      "spend": {
+        "media": [],
+        "text": {
+          "replies": 6,
+          "input": 33602,
+          "output": 1005,
+          "cacheRead": 141312,
+          "cacheWrite": 0,
+          "models": {
+            "apimart/deepseek-v4-pro": 6
+          }
+        }
+      }
+    }
+  },
+  "projectRoot": "D:\\Temp\\nomi-pi-windows-rc-0.24.1-agent-native-ui-p33676-iiSZhO\\projects\\未命名项目 11_06 14_26-mw58x7ab-d9a0afd7",
+  "networkBlocked": [],
+  "backgroundFixtureCalls": [],
+  "spend": {
+    "media": [],
+    "text": {
+      "replies": 6,
+      "input": 33602,
+      "output": 1005,
+      "cacheRead": 141312,
+      "cacheWrite": 0,
+      "models": {
+        "apimart/deepseek-v4-pro": 6
+      }
+    }
+  },
+  "realProfileAfter": {
+    "model-catalog.json": "sha256:efa402408dfa8fcd72581e1b87a783c66589ef676396536f38f24f8ba00da64c:size:567853:mtime:1791044862236",
+    "Local State": "sha256:0de53b7701fc8913cf144e7920725912cac4420ec6988807e285985e61c57eeb:size:490:mtime:1787791944771"
+  },
+  "credentialCopyRemoved": true,
+  "result": "failed",
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ '一只黑猫坐在窗台上，阳光洒落，温暖宁静的氛围，写实摄影风格'\n- '一只黑猫坐在窗台上'\n            ^\n\n    at Interface.<anonymous> (file:///C:/Users/23732/Documents/Codex/2026-11-06/new-chat/work/native-installed-agent-holder.mjs:58:14)\n    at Interface.emit (node:events:509:28)\n    at [_onLine] [as _onLine] (node:internal/readline/interface:465:12)\n    at [_normalWrite] [as _normalWrite] (node:internal/readline/interface:647:22)\n    at ReadStream.ondata (node:internal/readline/interface:263:23)\n    at ReadStream.emit (node:events:509:28)\n    at addChunk (node:internal/streams/readable:563:12)\n    at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)\n    at Readable.push (node:internal/streams/readable:394:5)\n    at TTY.onStreamRead (node:internal/stream_base_commons:189:23)"
+}
