@@ -296,3 +296,27 @@ export function reopenSingleShotRetrieval(
   }
   return null;
 }
+
+/** Share the existing restart rule: an orphaned synchronous POST may already have charged. */
+export function markInterruptedSingleShotUnknown(
+  repository: SingleShotRunLifecycleRepository & Pick<import("./productionRunRepository").ProductionRunRepository, "readBudgetLedger">,
+  projectId: string,
+  runId: string,
+  now: () => string = defaultNow,
+): ProductionRun | null {
+  let run = repository.read(projectId, runId);
+  for (const job of run?.jobs ?? []) {
+    if (job.status !== "submitting" || job.providerTaskId) continue;
+    run = repository.read(projectId, runId)!;
+    const pending = run.jobs.find(value => value.jobId === job.jobId);
+    if (pending?.status !== "submitting" || pending.providerTaskId) continue;
+    run = repository.execute(projectId, runId, commandFor(run, "job.status", {
+      jobId: job.jobId, status: "submission_unknown", patch: { errorCode: "submission_unknown_restart", errorMessage: tagNomiError("submission-unknown", "Nomi was closed while the request was being sent") },
+    }, `restart-unknown:${job.jobId}`, now)).run;
+    const reservationId = `${runId}:${job.jobId}:${job.attempt}`;
+    if (repository.readBudgetLedger(projectId, runId).reservations[reservationId]?.status === "reserved") {
+      run = repository.execute(projectId, runId, commandFor(run, "budget.entry", { entry: { billingEntryId: `${reservationId}:mark-unsettled`, kind: "mark_unsettled", reservationId, occurredAt: now() } }, `restart-unsettled:${job.jobId}`, now)).run;
+    }
+  }
+  return run;
+}

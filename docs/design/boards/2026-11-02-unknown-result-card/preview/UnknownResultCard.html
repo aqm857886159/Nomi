@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>结果未知的卡 · 去壳拼页</title>
+<style>
+body{margin:0}
+.light{--bg:oklch(.985 .003 90);--paper:oklch(1 0 0);--ink:oklch(.22 .01 80);--ink80:oklch(.32 .01 80);--ink60:oklch(.5 .01 80);--ink40:oklch(.68 .01 80);--ink10:oklch(.94 .003 80);--ink05:oklch(.97 .003 80);--line:oklch(.91 .004 80);--soft:oklch(.95 .003 80);--accent:oklch(.55 .13 250);--warn-ink:oklch(.45 .085 72);--band:oklch(.94 .003 80);--scrim:oklch(.22 .01 80/.2);--shadow:0 2px 4px oklch(0 0 0/.04),0 8px 24px oklch(0 0 0/.06);--shadow-lg:0 4px 8px oklch(0 0 0/.05),0 20px 50px oklch(0 0 0/.08)}
+.dark{--bg:oklch(.18 .006 80);--paper:oklch(.235 .007 80);--ink:oklch(.93 .006 85);--ink80:oklch(.84 .006 85);--ink60:oklch(.7 .006 85);--ink40:oklch(.62 .006 85);--ink10:oklch(.34 .006 85);--ink05:oklch(.3 .006 85);--line:oklch(.36 .007 80);--soft:oklch(.31 .007 80);--accent:oklch(.7 .13 250);--warn-ink:oklch(.82 .085 72);--band:oklch(.27 .006 80);--scrim:oklch(0 0 0/.45);--shadow:0 2px 5px oklch(0 0 0/.30),0 14px 34px oklch(0 0 0/.32);--shadow-lg:0 4px 10px oklch(0 0 0/.30),0 24px 64px oklch(0 0 0/.40)}
+.root{--accent-soft:color-mix(in srgb,var(--accent) 12%,var(--paper));position:relative;width:100%;height:860px;overflow:hidden;background:var(--bg);color:var(--ink);font:13px/1.45 Inter,'PingFang SC','Noto Sans SC',system-ui,sans-serif}
+.root *{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+svg{display:block;flex:none}
+.rail{position:absolute;left:0;top:52px;width:60px;display:flex;flex-direction:column;align-items:center;gap:18px;font-size:11px;color:var(--ink60)}
+.rail div{display:flex;flex-direction:column;align-items:center;gap:2px}
+.logo{position:absolute;left:76px;top:10px;width:20px;height:20px;border-radius:5px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:12px;font-weight:700}
+.proj{position:absolute;left:110px;top:10px;font-size:13px;color:var(--ink80)}
+.tabs{position:absolute;left:50%;top:7px;transform:translateX(-50%);display:flex;gap:2px;padding:3px;background:var(--ink10);border-radius:999px}
+.tabs span{padding:2px 12px;border-radius:999px;color:var(--ink60)}
+.tabs .on{background:var(--paper);color:var(--ink);font-weight:500}
+.topr{position:absolute;right:14px;top:11px;display:flex;align-items:center;gap:14px;color:var(--ink60)}
+.badge{width:16px;height:16px;border-radius:50%;background:var(--accent);color:var(--paper);font-size:10px;display:grid;place-items:center;margin-left:-8px}
+.panel{position:absolute;left:60px;top:40px;right:8px;bottom:8px;background:var(--paper);border-radius:14px;box-shadow:0 0 0 1px var(--soft);overflow:hidden}
+.phead{height:48px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line)}
+.ptitle{font-size:15px;font-weight:600}
+.chip0{font-size:11px;color:var(--ink60);background:var(--ink05);padding:2px 8px;border-radius:999px}
+.sp{flex:1 1 auto;min-width:0}
+.btn{height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--paper);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.sec{display:flex;align-items:center;justify-content:space-between;margin:14px 16px 8px;font-weight:500;color:var(--ink80)}
+.secr{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:400;color:var(--ink60)}
+.pill{height:24px;display:inline-flex;align-items:center;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--ink60)}
+.box{margin:0 16px;border:1px solid var(--line);border-radius:12px}
+.row{position:relative;height:265px;border-bottom:1px solid var(--soft)}
+.row:last-child{border-bottom:0}
+.lcol{position:absolute;left:14px;top:12px;width:14px;color:var(--ink60);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px}
+.cell{position:absolute;left:38px;top:12px;width:135px;height:240px;border-radius:10px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:0 10px;text-align:center}
+.cell.empty{border-style:dashed;background:var(--ink05)}
+.cell.pic{padding:0;background:var(--ink05);overflow:hidden;justify-content:center}
+.pic-img{width:100%;height:133px;background:linear-gradient(135deg,oklch(.62 .08 55),oklch(.38 .05 40))}
+.celltxt{font-size:12px;line-height:1.45;color:var(--ink);font-weight:500}
+.cellsub{font-size:11px;color:var(--ink60)}
+.mini{min-height:26px;padding:0 9px;border-radius:6px;border:1px solid var(--line);background:var(--paper);font-size:11.5px;display:inline-flex;align-items:center;gap:4px;line-height:1.2}
+.mini.pri{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.lnk{border:0;background:transparent;padding:0;font-size:11px;color:var(--ink60);line-height:1.3}
+.plus{position:absolute;left:181px;top:12px;width:36px;height:36px;border-radius:8px;background:var(--ink05);display:grid;place-items:center;color:var(--ink80);font-size:18px}
+.rcol{position:absolute;left:291px;right:12px;top:12px}
+.name{height:28px;border:1px solid var(--line);border-radius:6px;padding:0 9px;display:flex;align-items:center;font-weight:600}
+.pbox{margin-top:6px;border:1px solid var(--line);border-radius:8px}
+.ptext{padding:10px 10px 22px;color:var(--ink80)}
+.pbar{display:flex;align-items:center;gap:6px;padding:7px 8px;border-top:1px solid var(--soft)}
+.c{height:26px;display:inline-flex;align-items:center;gap:4px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--ink80)}
+.c.f{background:var(--ink10);border-color:transparent}
+.foot{position:absolute;left:0;right:0;bottom:0;height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-top:1px solid var(--line);background:var(--paper)}
+.nfab{position:absolute;right:24px;width:44px;height:44px;border-radius:50%;background:var(--paper);box-shadow:var(--shadow);display:grid;place-items:center}
+.nfab b{width:22px;height:22px;border-radius:5px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:12px}
+.cv{position:absolute;left:60px;top:40px;right:8px;bottom:44px;border-radius:14px;overflow:hidden;background-color:var(--bg);background-image:radial-gradient(var(--ink10) 1px,transparent 1px);background-size:18px 18px}
+.band{position:absolute;left:483px;top:0;bottom:0;width:386px;background:var(--band)}
+.gt{position:absolute;left:498px;top:6px;font-weight:500;font-size:12.5px;color:var(--ink80)}
+.ga{position:absolute;left:785px;top:1px;height:25px;padding:0 12px;border-radius:6px;background:var(--paper);display:flex;align-items:center;font-size:12px;font-weight:500}
+.nlabel{position:absolute;left:506px;top:30px;font-size:12px;color:var(--ink60)}
+.node{position:absolute;left:505px;top:57px;width:202px;height:192px;border-radius:12px;border:2px solid var(--ink);box-shadow:0 0 0 6px color-mix(in oklch,var(--ink) 18%,transparent);background:var(--paper)}
+.ntool{position:absolute;left:568px;top:10px;height:38px;width:78px;background:var(--paper);border-radius:10px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:10px;color:var(--ink60)}
+.pl{position:absolute;top:139px;width:28px;height:28px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink80);box-shadow:var(--shadow)}
+.comp{position:absolute;background:var(--paper);border-radius:14px;box-shadow:var(--shadow-lg);padding:12px;display:flex;flex-direction:column;gap:8px}
+.ctool{display:flex;gap:8px}
+.ctool span{width:40px;height:40px;border-radius:6px;background:var(--ink05);display:grid;place-items:center;color:var(--ink80)}
+.ctext{font-size:13px;line-height:1.7;color:var(--ink80);flex:1 1 auto;overflow:hidden}
+.send{width:30px;height:30px;border-radius:50%;border:0;background:var(--accent);color:var(--paper);display:grid;place-items:center}
+.send.k{background:var(--ink)}
+.rest{position:absolute;background:var(--paper);border-radius:12px;box-shadow:var(--shadow)}
+.zoom{position:absolute;left:17px;bottom:16px;height:36px;width:206px;background:var(--paper);border-radius:10px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-around;color:var(--ink80);font-size:12px}
+.tl{position:absolute;left:60px;right:8px;bottom:8px;height:36px;background:var(--paper);border-radius:12px;display:flex;align-items:center;gap:8px;padding:0 14px;font-size:12px;color:var(--ink60);box-shadow:0 0 0 1px var(--soft)}
+.tl b{font-weight:500;color:var(--ink80)}
+.card{position:absolute;inset:0;border-radius:10px;background:var(--paper);display:flex;flex-direction:column;padding:14px 16px}
+.ctitle{display:flex;align-items:flex-start;gap:7px;font-size:13px;font-weight:700;line-height:1.4;padding-right:18px}
+.cdesc{margin:8px 0 0;font-size:12px;line-height:1.6;color:var(--ink60)}
+.acts{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.acts .t{font-size:12px;color:var(--ink40);border:0;background:transparent;padding:0;white-space:nowrap}
+.acts .tb{height:28px;padding:0 10px;border-radius:7px;border:0;background:var(--ink);color:var(--paper);font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.x{position:absolute;right:10px;top:10px;width:22px;height:22px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink40)}
+.lcolumn{position:absolute;left:60px;top:40px;width:288px;bottom:44px;background:var(--paper);border-radius:14px 0 0 14px;border-right:1px solid var(--line);padding:16px}
+.lrow{display:flex;gap:10px;height:45px;margin-top:14px}
+.lthumb{flex:none;width:80px;height:45px;border-radius:6px;background:var(--ink05);display:grid;place-items:center;color:var(--ink40)}
+.lmeta{min-width:0;flex:1 1 auto;font-size:12px}
+.lmeta b{display:flex;gap:6px;font-weight:600;white-space:nowrap;overflow:hidden}
+.lmeta b i{font-style:normal;font-weight:400;font-size:11px;color:var(--ink40);margin-left:auto}
+.lmeta span{display:block;color:var(--ink60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rarea{position:absolute;left:348px;top:40px;right:8px;bottom:44px;background:var(--paper);border-radius:0 14px 14px 0}
+.result{position:absolute;left:150px;top:56px;width:624px;height:351px;border:1px solid var(--line);border-radius:10px}
+.scrim{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;z-index:20}
+.dlg{width:380px;border-radius:16px;border:1px solid var(--line);background:var(--paper);box-shadow:var(--shadow);padding:16px}
+.dhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dico{width:32px;height:32px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.dt{flex:1 1 auto;font-size:15px;font-weight:500}
+.dx{width:24px;height:24px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink60)}
+.db{margin:0 0 14px;font-size:13px;line-height:1.65;color:var(--ink80);white-space:pre-line}
+.da{display:flex;justify-content:flex-end;gap:8px}
+.toast{position:absolute;right:12px;top:52px;width:344px;padding:12px;background:var(--paper);border-radius:12px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;z-index:15}
+.ta{height:26px;padding:0 8px;border:0;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:500;white-space:nowrap}
+.spin{color:var(--ink60)}
+body{margin:0;background:#fff}.page{height:auto;overflow:visible;display:flex;flex-wrap:wrap;align-items:flex-start;gap:28px;padding:24px;width:auto}figure{margin:0}figcaption{font:12px/1.4 system-ui,sans-serif;color:var(--ink60);margin-bottom:8px}.slot{position:relative}.slot>.cell{left:0;top:0}.slot>.toast{left:0;top:0;right:auto}
+</style>
+</head>
+<body>
+<div class="root light page">
+<figure><figcaption>重启后 · 分镜格</figcaption><div class="slot" style="width:135px;height:240px"><div data-dc-tpl="49" class="cell" data-cell="restart">
+              <svg data-dc-tpl="50" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warn-ink);"><path data-dc-tpl="51" d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path data-dc-tpl="52" d="M12 7v5l1 1"></path><path data-dc-tpl="53" d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path data-dc-tpl="54" d="M20.2 20.2l1.8 1.8"></path></svg>
+              <div data-dc-tpl="55" class="celltxt"><span class="sc-interp">上一次没等到结果，可能已经扣费</span></div>
+              <button data-dc-tpl="56" type="button" class="mini pri"><svg data-dc-tpl="57" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path data-dc-tpl="58" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path data-dc-tpl="59" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg><span class="sc-interp">再发一次</span></button>
+              <button data-dc-tpl="60" type="button" class="lnk"><span class="sc-interp">在任务中心查看</span></button>
+            </div></div></figure>
+<figure><figcaption>重启后 · 画布卡</figcaption><div class="slot" style="width:202px;height:192px"><div data-dc-tpl="131" class="card" data-card="restart" style="padding: 12px 14px;">
+            <div data-dc-tpl="132" class="ctitle"><svg data-dc-tpl="133" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warn-ink); margin-top: 1px;"><path data-dc-tpl="134" d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path data-dc-tpl="135" d="M12 7v5l1 1"></path><path data-dc-tpl="136" d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path data-dc-tpl="137" d="M20.2 20.2l1.8 1.8"></path></svg><span data-dc-tpl="138"><span class="sc-interp">上一次没等到结果，可能已经扣费</span></span></div>
+            <button data-dc-tpl="139" type="button" class="x" aria-label="收起"><svg data-dc-tpl="140" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path data-dc-tpl="141" d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+            <span data-dc-tpl="142" class="sp"></span>
+            <div data-dc-tpl="143" class="acts">
+              <button data-dc-tpl="144" type="button" class="tb"><svg data-dc-tpl="145" aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path data-dc-tpl="146" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path data-dc-tpl="147" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg><span class="sc-interp">再发一次</span></button>
+              <button data-dc-tpl="148" type="button" class="t"><span class="sc-interp">在任务中心查看</span></button><button data-dc-tpl="149" type="button" class="t"><span class="sc-interp">复制详情</span></button><button data-dc-tpl="150" type="button" class="t"><span class="sc-interp">反馈问题</span></button><span data-dc-tpl="151" class="sp"></span><button data-dc-tpl="152" type="button" class="t"><span class="sc-interp">技术详情</span> ›</button>
+            </div>
+          </div></div></figure>
+<figure><figcaption>重启后 · 列表大详情</figcaption><div class="slot" style="width:624px;height:351px"><div data-dc-tpl="225" class="card" data-card="restart">
+            <div data-dc-tpl="226" class="ctitle"><svg data-dc-tpl="227" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warn-ink); margin-top: 1px;"><path data-dc-tpl="228" d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path data-dc-tpl="229" d="M12 7v5l1 1"></path><path data-dc-tpl="230" d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path data-dc-tpl="231" d="M20.2 20.2l1.8 1.8"></path></svg><span data-dc-tpl="232"><span class="sc-interp">上一次没等到结果，可能已经扣费</span></span></div>
+            <button data-dc-tpl="233" type="button" class="x" aria-label="收起"><svg data-dc-tpl="234" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path data-dc-tpl="235" d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+            <span data-dc-tpl="236" class="sp"></span>
+            <div data-dc-tpl="237" class="acts">
+              <button data-dc-tpl="238" type="button" class="tb"><svg data-dc-tpl="239" aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path data-dc-tpl="240" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path data-dc-tpl="241" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg><span class="sc-interp">再发一次</span></button>
+              <button data-dc-tpl="242" type="button" class="t"><span class="sc-interp">在任务中心查看</span></button><button data-dc-tpl="243" type="button" class="t"><span class="sc-interp">复制详情</span></button><button data-dc-tpl="244" type="button" class="t"><span class="sc-interp">反馈问题</span></button><span data-dc-tpl="245" class="sp"></span><button data-dc-tpl="246" type="button" class="t"><span class="sc-interp">技术详情</span> ›</button>
+            </div>
+          </div></div></figure>
+<figure><figcaption>确认卡 · 上一次没结果（三页同一张）</figcaption><div class="slot" style="width:380px;height:163px"><div data-dc-tpl="298" class="dlg" role="dialog" aria-modal="true" aria-label="再发一次这张图片？">
+        <div data-dc-tpl="299" class="dhead">
+          <span data-dc-tpl="300" class="dico" aria-hidden="true"><svg data-dc-tpl="301" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle data-dc-tpl="302" cx="12" cy="12" r="9"></circle><path data-dc-tpl="303" d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path data-dc-tpl="304" d="M12 7v10"></path></svg></span>
+          <span data-dc-tpl="305" class="dt"><span class="sc-interp">再发一次这张图片？</span></span>
+          <button data-dc-tpl="306" type="button" class="dx" aria-label="关闭"><svg data-dc-tpl="307" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path data-dc-tpl="308" d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+        </div>
+        <p data-dc-tpl="309" class="db"><span class="sc-interp">上一次没等到结果，可能已经扣费。
+再发一次可能会再扣一次钱。</span></p>
+        <div data-dc-tpl="310" class="da"><button data-dc-tpl="311" type="button" class="btn"><span class="sc-interp">取消</span></button><button data-dc-tpl="312" type="button" class="btn pri"><span class="sc-interp">再发一次</span></button></div>
+      </div></div></figure>
+<figure><figcaption>慢任务 · 分镜格</figcaption><div class="slot" style="width:135px;height:240px"><div data-dc-tpl="62" class="cell" data-cell="waiting">
+              <div data-dc-tpl="63" class="cellsub"><span class="sc-interp">可找回</span></div>
+              <button data-dc-tpl="64" type="button" class="mini pri"><svg data-dc-tpl="65" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path data-dc-tpl="66" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path data-dc-tpl="67" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg><span class="sc-interp">重新取回</span></button>
+              <button data-dc-tpl="68" type="button" class="mini"><span class="sc-interp">再发一次</span></button>
+              <button data-dc-tpl="69" type="button" class="lnk"><span class="sc-interp">在任务中心查看</span></button>
+            </div></div></figure>
+<figure><figcaption>慢任务 · 画布卡</figcaption><div class="slot" style="width:202px;height:192px"><div data-dc-tpl="154" class="card" data-card="waiting" style="padding: 12px 14px;">
+            <div data-dc-tpl="155" class="ctitle" style="padding-right: 0px;"><svg data-dc-tpl="156" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink60); margin-top: 1px;"><path data-dc-tpl="157" d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path data-dc-tpl="158" d="M12 7v5l1 1"></path><path data-dc-tpl="159" d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path data-dc-tpl="160" d="M20.2 20.2l1.8 1.8"></path></svg><span data-dc-tpl="161"><span class="sc-interp">任务可能已在上游完成</span></span></div>
+            <p data-dc-tpl="162" class="cdesc" style="margin-top: 4px; line-height: 1.45;"><span class="sc-interp">等待已超上限，但上游可能仍出了片。点下面的「重新取回」直接拉回，不用去服务商后台下载。</span></p>
+            <span data-dc-tpl="163" class="sp"></span>
+            <div data-dc-tpl="164" class="acts"><button data-dc-tpl="165" type="button" class="tb"><svg data-dc-tpl="166" aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path data-dc-tpl="167" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path data-dc-tpl="168" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg><span class="sc-interp">重新取回</span></button></div>
+          </div></div></figure>
+<figure><figcaption>确认卡 · 还没结束（三页同一张）</figcaption><div class="slot" style="width:380px;height:163px"><div data-dc-tpl="298" class="dlg" role="dialog" aria-modal="true" aria-label="再发一次这张图片？">
+        <div data-dc-tpl="299" class="dhead">
+          <span data-dc-tpl="300" class="dico" aria-hidden="true"><svg data-dc-tpl="301" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle data-dc-tpl="302" cx="12" cy="12" r="9"></circle><path data-dc-tpl="303" d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1"></path><path data-dc-tpl="304" d="M12 7v10"></path></svg></span>
+          <span data-dc-tpl="305" class="dt"><span class="sc-interp">再发一次这张图片？</span></span>
+          <button data-dc-tpl="306" type="button" class="dx" aria-label="关闭"><svg data-dc-tpl="307" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path data-dc-tpl="308" d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+        </div>
+        <p data-dc-tpl="309" class="db"><span class="sc-interp">上一次还没结束。
+再发一次可能会再扣一次钱。</span></p>
+        <div data-dc-tpl="310" class="da"><button data-dc-tpl="311" type="button" class="btn"><span class="sc-interp">取消</span></button><button data-dc-tpl="312" type="button" class="btn pri"><span class="sc-interp">再发一次</span></button></div>
+      </div></div></figure>
+<figure><figcaption>批量跳过提示（不变）</figcaption><div class="slot" style="width:344px;height:62px"><div data-dc-tpl="287" class="toast" role="status">
+      <svg data-dc-tpl="288" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink60);"><circle data-dc-tpl="289" cx="12" cy="12" r="9"></circle><path data-dc-tpl="290" d="M12 8h.01M11 12h1v4h1"></path></svg>
+      <span data-dc-tpl="291" style="flex: 1 1 auto; min-width: 0px;"><span class="sc-interp">1 张上一次还没结束，这次跳过了。</span></span>
+      <button data-dc-tpl="292" type="button" class="ta"><span class="sc-interp">生成区</span></button>
+      <button data-dc-tpl="293" type="button" class="dx" aria-label="收起"><svg data-dc-tpl="294" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path data-dc-tpl="295" d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+    </div></div></figure>
+<figure><figcaption>Restart · list detail (en)</figcaption><div class="slot" style="width:624px;height:351px"><div data-dc-tpl="225" class="card" data-card="restart">
+            <div data-dc-tpl="226" class="ctitle"><svg data-dc-tpl="227" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warn-ink); margin-top: 1px;"><path data-dc-tpl="228" d="M20.993 11.646a9 9 0 1 0 -9.318 9.348"></path><path data-dc-tpl="229" d="M12 7v5l1 1"></path><path data-dc-tpl="230" d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path><path data-dc-tpl="231" d="M20.2 20.2l1.8 1.8"></path></svg><span data-dc-tpl="232"><span class="sc-interp">The last request got no result and may have been charged.</span></span></div>
+            <button data-dc-tpl="233" type="button" class="x" aria-label="Dismiss"><svg data-dc-tpl="234" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path data-dc-tpl="235" d="M18 6l-12 12M6 6l12 12"></path></svg></button>
+            <span data-dc-tpl="236" class="sp"></span>
+            <div data-dc-tpl="237" class="acts">
+              <button data-dc-tpl="238" type="button" class="tb"><svg data-dc-tpl="239" aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path data-dc-tpl="240" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path data-dc-tpl="241" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg><span class="sc-interp">Send again</span></button>
+              <button data-dc-tpl="242" type="button" class="t"><span class="sc-interp">View in task center</span></button><button data-dc-tpl="243" type="button" class="t"><span class="sc-interp">Copy details</span></button><button data-dc-tpl="244" type="button" class="t"><span class="sc-interp">Report a problem</span></button><span data-dc-tpl="245" class="sp"></span><button data-dc-tpl="246" type="button" class="t"><span class="sc-interp">Technical details</span> ›</button>
+            </div>
+          </div></div></figure>
+</div>
+</body>
+</html>

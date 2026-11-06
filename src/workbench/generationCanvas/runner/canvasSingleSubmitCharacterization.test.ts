@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 // 特征测试：画布单节点 ↑ 的用户可见行为（发动机收敛第一刀 第 1–2 步动手前钉住，收敛后断言不变）。
 // 设计卡：docs/plan/2026-10-05-engine-convergence-cut1-step12-design-card.md §7。
 //
@@ -5,8 +6,9 @@
 // runCatalogGenerationTask），只在渲染层 ↔ 主进程那条边上换成假的（taskApi）。
 // 收敛后这条边从「铸令牌 + runTask + 查任务」换成了单镜 Run 的「交 / 查」（submitCanvasShotRun / pollCanvasShotRun）：
 // 节点状态、结果落地、任务队列、取消的样子一条没改；改的只有边上的调用形状（不再铸令牌，交的时候带这一次运行记录号）。
-// 「写出去之后断了」那一条按 2026-10-05 拍板（F3）翻成「结果没法确认、核对前不许再点」；「当场拒绝」本来就是失败可再点。
+// 「写出去之后断了」那一条按 2026-10-05 拍板（F3）翻成「结果没法确认、确认可能再扣费后可以再发」；「当场拒绝」本来就是失败可再点。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { canvasOpenRuns } from '../../api/taskApi'
 import { confirmAndRunNode, regenerateNodeInPlace } from './generationRunController'
 import { recoverNodeResult } from './recoverTaskActions'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
@@ -41,6 +43,7 @@ vi.mock('../../library/localProjectStore', () => ({
 }))
 vi.mock('../../api/taskApi', async (original) => ({
   ...await original<typeof import('../../api/taskApi')>(),
+  canvasOpenRuns: vi.fn(async () => []),
   mintSpendGrant: calls.mint,
   submitCanvasShotRun: (input: SubmitInput) =>
     calls.runTask(input.vendor, { ...input.request, extras: { ...input.request.extras, runRecordId: input.runRecordId } }, input.projectId),
@@ -188,8 +191,14 @@ describe('画布单节点 ↑ —— 用户看得见的样子', () => {
     expect(queueOf(id).map((entry) => entry.state)).toEqual(['error'])
 
     calls.runTask.mockClear()
+    const beforeRuns = structuredClone(nodeOf(id).runs)
+    vi.mocked(useSpendConfirmStore.getState().requestConfirm).mockResolvedValueOnce(false)
+    vi.mocked(canvasOpenRuns).mockResolvedValueOnce([{ runId: 'original', nodeId: id, reason: 'needs_reconcile', hasTaskId: false }])
     await confirmAndRunNode(id, { initiator: 'user' })
-    expect(classifyGenerationError(nodeOf(id).runs?.[0]?.error ?? '').primary).toBe('reconcile')
+    expect(nodeOf(id).runs).toEqual(beforeRuns)
+    expect(calls.runTask).not.toHaveBeenCalled()
+    expect(useSpendConfirmStore.getState().requestConfirm).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: i18n.t('generationCommon.observability.action.releaseRegenerate.main'), kind: 'generation' }))
+    expect(classifyGenerationError(nodeOf(id).runs?.[0]?.error ?? '').primary).toBe('release-regenerate')
   })
 
   it('供应商任务在轮询中失败：节点失败，任务队列记失败', async () => {

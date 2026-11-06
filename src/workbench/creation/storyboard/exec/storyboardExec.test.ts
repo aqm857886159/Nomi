@@ -293,7 +293,7 @@ describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
       status,
       node: null,
       keyframeNode: null,
-      recoverableNode: null,
+      recoverableNode: null, failedNode: null,
       ignoredAnchors: [],
       missingSlots: [],
       plannedFirstFrame: null,

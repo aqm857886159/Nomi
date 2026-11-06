@@ -28,7 +28,8 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   },
 }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []), mintSpendGrant: calls.mint, consentCanvasShots: calls.consent, withdrawCanvasShots: vi.fn(), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('./generationNodeExecutor', () => ({ generationNodeExecutor: calls.execute }))
 vi.mock('./assetUploadConsent', async original => ({ ...await original<typeof import('./assetUploadConsent')>(), resolveAssetUploadConsent: async () => ({ allowed: true, needsConfirmation: false }) }))
 
@@ -139,19 +140,26 @@ it('project switching while the batch card opens its consents prevents the first
 })
 
 
-it.each(['author', 'node'] as const)('the original plan confirmation refuses a genuinely changed %s after the first submission', async changed => {
+it.each(['author', 'node', 'prompt'] as const)('the original plan confirmation refuses only the changed %s and continues unrelated shots', async changed => {
   await session.open('project-a')
   const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'first approved shot' })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved shot' })
+  const unrelated = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'independent approved shot' })
   let authorCurrent = true
-  const assertAuthorCurrent = async () => { if (!authorCurrent) throw new Error('storyboard_content_conflict') }
+  const assertAuthorCurrent = async (graph: { nodes: Array<{ id: string }> }, executingNodeId: string) => {
+    expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true)
+    if (executingNodeId === node.id && !authorCurrent) throw new Error('storyboard_content_conflict')
+  }
   calls.execute.mockImplementation(async (): Promise<GenerationNodeResult> => {
     if (changed === 'author') authorCurrent = false
+    else if (changed === 'prompt') useGenerationCanvasStore.getState().updateNode(node.id, { prompt: 'edited after approval' })
     else useGenerationCanvasStore.getState().deleteNode(node.id)
     return { id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
   })
-  await confirmAndRunPlan(twoWavePlan(first.id, node.id), { initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent }).catch(() => undefined)
-  expect(calls.execute).toHaveBeenCalledOnce()
+  await confirmAndRunPlan({ waves: [[first.id], [node.id, unrelated.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent }).catch(() => undefined)
+  expect(calls.execute).toHaveBeenCalledTimes(2)
+  expect(calls.execute.mock.calls.map(([running]) => running.id)).toEqual([first.id, unrelated.id])
+  if (changed === 'prompt') expect(useGenerationCanvasStore.getState().nodes.find(value => value.id === node.id)?.error).toContain('generation_input_changed')
 })
 
 it('permits result history and measured preview changes without changing approved generation inputs', async () => {

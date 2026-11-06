@@ -56,6 +56,7 @@ import { usePromptHistoryCarry } from './promptHistoryCarry'
  */
 
 type Props = {
+  actionBusy?: boolean
   shot: PlanShot
   anchors: PlanAnchor[]
   modelOptions?: ModelOption[]
@@ -341,13 +342,15 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             exec={exec}
             aspect={aspect}
             box={frameBox}
+            onRecover={onRecover}
             onOpenPreview={onOpenPreview}
             selected={props.selected}
             onSelect={props.onSelect}
           />
-          <NodeGenerationStatus node={exec.node} keyframeNode={exec.keyframeNode} />
+          <NodeGenerationStatus node={exec.node} keyframeNode={exec.keyframeNode} summaryInCard />
           <StoryboardFrameActions
             exec={exec}
+            actionBusy={props.actionBusy}
             variants={variants}
             outputTag={outputTag}
             onRegenerate={onRegenerate}
@@ -478,7 +481,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onChangeAspect={onChangeAspect}
           onUpdate={onUpdate}
           onGenerate={statusTag ? undefined : onGenerate}
-          generating={exec?.status === 'generating'}
+          generating={props.actionBusy || exec?.status === 'generating'}
           statusTag={statusTag}
         />
       </div>
@@ -495,6 +498,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             <button
               type="button"
               onClick={onRerunFreshRefs}
+              disabled={props.actionBusy}
               className="h-6 shrink-0 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-micro text-nomi-ink-80 hover:border-nomi-ink-30 hover:text-nomi-accent"
             >
               {t('storyboardEditor.row.rerunFreshRefs')}

@@ -401,11 +401,11 @@ export function buildCatalogTaskRequest(
  * 单镜 Run 路的「交」：与 runWorkbenchTaskByVendor 同形，主进程按这一次运行记录号建 / 认这个 Run。
  * 批量卡上的这一镜在轮到它之前被去掉 / 整批 × 了（主进程回 `canvas_generation_withdrawn`）：没交、没花钱，按取消收尾。
  */
-function canvasRunSubmitter(nodeId: string, runRecordId: string): NonNullable<CatalogTaskRunOptions['runTask']> {
+function canvasRunSubmitter(nodeId: string, runRecordId: string, acknowledgedOpenRuns?: string[]): NonNullable<CatalogTaskRunOptions['runTask']> {
   return async (vendor, request, projectId) => {
     if (!projectId) throw new Error('canvas generation requires a project')
     try {
-      return await submitCanvasShotRun({ projectId, nodeId, runRecordId, vendor, request })
+      return await submitCanvasShotRun({ projectId, nodeId, runRecordId, vendor, request, ...(acknowledgedOpenRuns ? { acknowledgedOpenRuns } : {}) })
     } catch (error) {
       if (String(error instanceof Error ? error.message : error).includes('canvas_generation_withdrawn')) throw new LocalTaskCancelledError()
       throw error
@@ -606,7 +606,7 @@ async function runCatalogGenerationTaskWithFeedback(
     return normalizeCatalogTaskResult(streamed, executableNode, options.onMediaDimensions)
   }
 
-  const runTask = options.runTask || (options.canvasRun ? canvasRunSubmitter(executableNode.id, options.canvasRun.runRecordId) : runWorkbenchTaskByVendor)
+  const runTask = options.runTask || (options.canvasRun ? canvasRunSubmitter(executableNode.id, options.canvasRun.runRecordId, options.canvasRun.acknowledgedOpenRuns) : runWorkbenchTaskByVendor)
   report('requesting')
   // ComfyUI 新协议允许客户端预生成 prompt UUID。先登记 WS、再 POST /prompt，极快任务的首事件也有归属；
   // 旧服若忽略该 UUID 并返回另一个 id，下方会切换 watcher，history 轮询始终照常兜底。

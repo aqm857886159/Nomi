@@ -21,6 +21,7 @@ import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from 
 import type { ProjectBinding } from '../../../../electron/shared/projectBinding'
 
 vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []),
   mintSpendGrant: vi.fn(async () => 'grant-test'),
 }))
 

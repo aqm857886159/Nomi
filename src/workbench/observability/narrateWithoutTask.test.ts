@@ -72,8 +72,9 @@ describe('类守门：没有任务号时，任何一类都不暗示能取回', (
     it(`${lang} · 全部失败类别`, async () => {
       await i18n.changeLanguage(lang)
       const offenders = GENERATION_ERROR_KINDS
+        // 结果不明和本机占用拒绝即使没有服务商任务号也要去本机任务中心；其余类无号不暗示可取回。
         // 结果未知那一类说的就是「可能有一笔」：去任务中心核对是它的本分，不归这条管。
-        .filter((kind) => kind !== 'submission-unknown')
+        .filter((kind) => kind !== 'submission-unknown' && kind !== 'local-refusal')
         .filter((kind) => {
           const shown = withoutTask(kind)
           return TASK_BOUND_ACTIONS.includes(shown.primary)

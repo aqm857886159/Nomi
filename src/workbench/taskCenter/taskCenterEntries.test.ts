@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildTaskCenterView, formatElapsed, resolveTaskButtonTone } from './taskCenterEntries'
 import { TASK_CENTER_GROUPS } from './taskCenterProjection'
+import { encodeStructuredErrorMessage } from '../../../electron/vendor/vendorHttp'
 import type { GenerationQueueBatch, GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 
@@ -23,6 +24,20 @@ function node(id: string, patch: Partial<GenerationCanvasNode> = {}): Generation
 const batches: Record<string, GenerationQueueBatch> = {
   b1: { id: 'b1', projectId: 'project-test', createdAt: 0, total: 3, cancelRequested: false, paused: false, consecutiveFailures: 0 },
 }
+
+it('unknown/in-flight history rows cannot offer ordinary retry; bulk retry reads the same action decision', () => {
+  const unknown = 'NOMI_ERR::submission-unknown::The provider did not confirm this submission'
+  const inFlight = encodeStructuredErrorMessage({ code: 'node_generation_in_flight' }, 'node_generation_in_flight')
+  const view = buildTaskCenterView({ entries: [
+    entry({ id: 'old-quota', nodeId: 'unknown', state: 'error', error: '429 concurrency limit exceeded' }),
+    entry({ nodeId: 'unknown', state: 'error', error: unknown }),
+    entry({ nodeId: 'flight', state: 'error', error: inFlight }),
+    entry({ nodeId: 'quota', state: 'error', error: '429 concurrency limit exceeded' }),
+  ], batches, nodes: [node('unknown', { status: 'error', error: unknown }), node('flight', { status: 'error', error: inFlight }), node('quota', { status: 'error', error: '429 concurrency limit exceeded' })], fallbackTitle: 'Shot', now: 2000 })
+  expect(view.rows.filter(row => row.nodeId !== 'quota').every(row => row.action === null)).toBe(true)
+  expect(view.rows.filter(row => row.action?.kind === 'retry_generation').map(row => row.nodeId)).toEqual(['quota'])
+  expect(view.summary.failed).toBe(4)
+})
 
 describe('buildTaskCenterView', () => {
   it('offers the same local-process cancel action as the canvas after receipt', () => {

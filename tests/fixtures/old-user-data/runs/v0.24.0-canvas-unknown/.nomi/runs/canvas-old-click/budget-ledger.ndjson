@@ -1,0 +1,3 @@
+{"billingEntryId":"approval:generation-authorization:canvas-old-click:v1:n1:authorize","kind":"authorize","amount":0,"occurredAt":"2026-11-01T18:26:47.413Z"}
+{"billingEntryId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1:reserve","kind":"reserve","reservationId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1","jobId":"generation-canvas-old-click-7bdb41b3fb53b710","amount":null,"occurredAt":"2026-11-01T18:26:47.417Z"}
+{"billingEntryId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1:mark-unsettled","kind":"mark_unsettled","reservationId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1","occurredAt":"2026-11-01T18:26:47.420Z"}

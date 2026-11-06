@@ -1,3 +1,5 @@
+import { selectIsNodeQueued, useGenerationQueueStore } from '../../generationCanvas/runner/generationQueueStore'
+import { NodeFailureReport } from '../../generationCanvas/nodes/NodeErrorReport'
 // 点一张卡 = 大详情（样张板 ListDetail）：左边收成 288 窄列（同一份列表，点别的镜即切换），
 // 右边 = 大预览 + 版本行 + 完整输入框（画布节点那张现役 NodeGenerationComposer，host="inline"）+ 底部「生成 / 重新生成」。
 // 这里**不包 NodeWriteAccessProvider**——写口就是画布 store，改的就是画布上那个节点；列表与画布只有一份数据（概念 generation.list-view）。
@@ -43,7 +45,8 @@ function RailRow({ card, active, onSelect }: { card: GenerationListCard; active:
   const preview = node ? resolveLightweightNodePreview(node) : null
   const execution = node ? getGenerationNodeExecutionKind(node.kind) : undefined
   const duration = node && (execution === 'video' || execution === 'audio') ? readDurationSeconds(node) : null
-  const generated = Boolean(node?.result?.url) || node?.kind === 'text'
+  const queued = useGenerationQueueStore((state) => selectIsNodeQueued(state, card.nodeId))
+  const generated = !queued && Boolean(node?.result?.url) || node?.kind === 'text'
   return (
     <button
       type="button"
@@ -62,7 +65,9 @@ function RailRow({ card, active, onSelect }: { card: GenerationListCard; active:
         <span className="flex items-baseline gap-1.5">
           <span className="truncate text-caption font-semibold tabular-nums text-nomi-ink">{shotLabel(t, card)}</span>
           <span className="shrink-0 text-micro tabular-nums text-nomi-ink-40">
-            {generated ? (duration ? formatSeconds(duration) : '') : card.status === 'generating' ? t('shotTable.status.generating') : card.status === 'failed' ? t('shotTable.status.failed') : t('generationList.notGenerated')}
+            {queued ? t('generationCommon.observability.progress.queued')
+              : card.status && !['ready', 'done', 'locked'].includes(card.status) ? t(`shotTable.status.${card.status}`)
+                : generated ? (duration ? formatSeconds(duration) : '') : t('generationList.notGenerated')}
           </span>
         </span>
         <span className={cn('mt-0.5 block truncate text-caption', active ? 'text-nomi-ink-80' : 'text-nomi-ink-60')}>{plainPrompt(node?.prompt) || t('generationList.promptEmpty')}</span>
@@ -103,7 +108,8 @@ function DetailPreview({ node }: { node: GenerationCanvasNode | undefined }): JS
   const result = node?.result
   const playable = result?.url && result.type === 'video'
   return (
-    <div className="mx-auto w-full overflow-hidden rounded-panel ring-1 ring-nomi-line-soft" style={{ maxWidth: width, aspectRatio: String(ratio) }} data-list-detail-preview>
+    <div className="relative mx-auto w-full overflow-hidden rounded-panel ring-1 ring-nomi-line-soft" style={{ maxWidth: width, aspectRatio: String(ratio) }} data-list-detail-preview>
+      {node ? <NodeFailureReport key={node.id} node={node} onFeedback={NO_FEEDBACK} /> : null}
       {playable ? (
         <video key={result.url} src={result.url} poster={result.thumbnailUrl} controls playsInline preload="metadata" crossOrigin="use-credentials" className="block size-full bg-nomi-ink" />
       ) : (
@@ -135,6 +141,7 @@ function DetailVersions({ node, width }: { node: GenerationCanvasNode; width: nu
 export function GenerationListDetail({ card, onBack }: { card: GenerationListCard; onBack: () => void }): JSX.Element {
   const { t } = useTranslation()
   const node = useGenerationCanvasStore((state) => state.nodes.find((candidate) => candidate.id === card.nodeId))
+  const queued = useGenerationQueueStore((state) => selectIsNodeQueued(state, card.nodeId))
   const modelLabel = useNodeModelLabel(node)
   const execution = node ? getGenerationNodeExecutionKind(node.kind) : undefined
   const duration = node && (execution === 'video' || execution === 'audio') ? readDurationSeconds(node) : null
@@ -143,11 +150,11 @@ export function GenerationListDetail({ card, onBack }: { card: GenerationListCar
   const [aw, ah] = (aspect ?? '16:9').split(':').map(Number)
   const previewWidth = Math.round(Math.min(DETAIL_PREVIEW_WIDTH, DETAIL_PREVIEW_HEIGHT * ((aw || 16) / (ah || 9))))
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col" data-list-inspector={card.key} data-list-detail aria-label={shotLabel(t, card)}>
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col" data-list-inspector={card.key} data-list-detail data-node-id={node?.id} aria-label={shotLabel(t, card)}>
       <header className="flex h-[52px] shrink-0 items-center gap-2.5 px-3">
         <WorkbenchIconButton icon={<IconArrowLeft size={16} stroke={1.8} />} label={t('generationList.backToList')} size="sm" onClick={onBack} data-list-detail-back />
         <h2 className="m-0 min-w-0 truncate text-title font-semibold tabular-nums text-nomi-ink">{shotLabel(t, card)}</h2>
-        {card.status ? <ListStatusTag status={card.status} /> : null}
+        {card.status ? <ListStatusTag status={card.status} queued={queued} /> : null}
         {meta ? <span className="min-w-0 truncate text-caption tabular-nums text-nomi-ink-40" data-list-detail-meta>{meta}</span> : null}
         <span className="flex-1" />
         {node ? (

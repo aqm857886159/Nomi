@@ -4,7 +4,7 @@
 // 现在都走中转站，扣没扣钱 Nomi 不知道，界面只说事实和下一步。
 // 以前这条扫描在 vitest 里，只在 Unit CI 跑，违例要上了 PR 才被拦；现在进 check:i18n，本地 gates / pre-push 都会跑到。
 // 匹配器不在这里写第二份：NO_COST_CLAIMS 来自 tests/ux/full-walk/outcomeText.mjs（走查监视器同一份）。
-// 例外键（NOT_MONEY / NON_MONEY_KEYS）也住在 outcomeText.mjs：本门岗按键豁免，走查监视器按同一批键从词典取值豁免——同一份事实只有一份。
+// 例外键（NOT_MONEY / NON_MONEY_KEYS / CHARGE_RISK_DISCLOSURE_EXACT）也住在 outcomeText.mjs：本门岗按键豁免，走查监视器按同一批键从词典取值豁免——同一份事实只有一份。
 //
 // ⚠ 能力边界（2026-10-18 写明）：下面对「自由文本」的正则扫描是**启发式、尽力而为**，不承诺「哪里都没有金额」——
 // 正则证明不了「没有」，总能再找到绕法（V-mcp 三轮验收各找到一类）。已知**不覆盖**：罗马数字（Ⅻ）等本规则没列的数字类别、
@@ -15,7 +15,7 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { NO_COST_CLAIMS, NON_MONEY_KEYS, NOT_MONEY } from '../tests/ux/full-walk/outcomeText.mjs'
+import { CHARGE_RISK_DISCLOSURE_KEYS, NO_COST_CLAIMS, NON_MONEY_KEYS, NOT_MONEY } from '../tests/ux/full-walk/outcomeText.mjs'
 
 export { NON_MONEY_KEYS, NOT_MONEY }
 
@@ -60,6 +60,29 @@ export const POSITIVE_SPEND_CLAIMS = Object.freeze({
 export const COST_LABEL_EXACT = Object.freeze({
   'runtime.capability.generationGateCost': Object.freeze({ 'zh-CN': '费用', en: 'Cost' }),
 })
+
+/**
+ * 结果不明时的扣费风险提示（用户 2026-11-03 拍板保留）：只说「可能」，不断言扣没扣。
+ * 和 COST_LABEL_EXACT 一样只认精确原句：去掉「可能」、改成「不会」、带数字都红；别的键写同样的话照样红。
+ * 键名单的正本在 outcomeText.mjs 的 CHARGE_RISK_DISCLOSURE_KEYS（走查监视器同一份），这里对上它。
+ */
+const RESULT_UNKNOWN_REASON = Object.freeze({ 'zh-CN': '上一次没等到结果，可能已经扣费', en: 'The last request got no result and may have been charged.' })
+export const CHARGE_RISK_DISCLOSURE_EXACT = Object.freeze({
+  'generationCommon.observability.error.submissionUnknown.reason': RESULT_UNKNOWN_REASON,
+  'generationCommon.observability.error.nodeInFlight.reason': RESULT_UNKNOWN_REASON,
+  'generationCommon.observability.error.shotClaimed.needsReconcile.reason': RESULT_UNKNOWN_REASON,
+  'generationCommon.spend.resend.unknown': Object.freeze({
+    'zh-CN': '上一次没等到结果，可能已经扣费。\n再发一次可能会再扣一次钱。',
+    en: 'The last request got no result and may have been charged.\nSending it again may charge you again.',
+  }),
+  'generationCommon.spend.resend.waiting': Object.freeze({
+    'zh-CN': '上一次还没结束。\n再发一次可能会再扣一次钱。',
+    en: 'The last request has not finished.\nSending it again may charge you again.',
+  }),
+})
+if (JSON.stringify(Object.keys(CHARGE_RISK_DISCLOSURE_EXACT).sort()) !== JSON.stringify([...CHARGE_RISK_DISCLOSURE_KEYS].sort())) {
+  throw new Error('CHARGE_RISK_DISCLOSURE_EXACT 和 outcomeText.mjs 的 CHARGE_RISK_DISCLOSURE_KEYS 对不上：两边的键要一样')
+}
 
 /** 设计实验室的样例串（fixture*）只在 devlab 里渲染，用户界面不出现。 */
 export const isFixture = (key) => /(^|\.)fixture[A-Z]/.test(key)
@@ -122,13 +145,15 @@ export const FIX_HINT = '界面不谈钱（#957）：只说动作事实；上游
 const flatOf = (node, prefix = '') => Object.entries(node).flatMap(([key, value]) => (typeof value === 'string' ? [[`${prefix}${key}`, value]] : value && typeof value === 'object' ? flatOf(value, `${prefix}${key}.`) : []))
 
 /** 返回 { hits: [{locale,key,text}]，stale: [key] }。dictionaries = { 'zh-CN': {...}, en: {...} }。 */
-export function scanDictionaries(dictionaries, { notMoney = NOT_MONEY } = {}) {
+export function scanDictionaries(dictionaries, { notMoney = NOT_MONEY, chargeRiskExact = CHARGE_RISK_DISCLOSURE_EXACT } = {}) {
   const hits = []
   for (const locale of Object.keys(NO_COST_CLAIMS)) {
     for (const [key, value] of flatOf(dictionaries[locale] ?? {})) {
       // 结构解：这个键只认精确值，**在原文上**逐字比较（不规整、不看正则）——带插值占位、罗马数字、软连字符、任何别的值都红。
-      if (Object.prototype.hasOwnProperty.call(COST_LABEL_EXACT, key)) {
-        if (value !== COST_LABEL_EXACT[key][locale]) hits.push({ locale, key, text: value.slice(0, 60) })
+      const exact = Object.prototype.hasOwnProperty.call(COST_LABEL_EXACT, key) ? COST_LABEL_EXACT[key]
+        : Object.prototype.hasOwnProperty.call(chargeRiskExact, key) ? chargeRiskExact[key] : null
+      if (exact) {
+        if (value !== exact[locale]) hits.push({ locale, key, text: value.slice(0, 60) })
         continue
       }
       const visibleValue = normalizeForScan(value.replace(/\{\{[^}]+\}\}/g, ''))

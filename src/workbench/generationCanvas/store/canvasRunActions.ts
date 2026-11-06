@@ -17,6 +17,17 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     if (node) emitCanvasGesture([{ type: 'canvas.node.run-updated', payload: { node, ...(landed ? { landed } : {}) } }], { source: 'runtime' })
   }
   return {
+  setNodeRecoveryPresentation: (nodeId, resultUnknown, error) => {
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.status = resultUnknown ? 'error' : 'recoverable'
+      node.error = error
+      node.progress = undefined
+      bumpPersistRevision(state)
+    })
+    emitRunUpdated(nodeId)
+  },
   setNodeStatus: (nodeId, status, error) => {
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
@@ -49,6 +60,15 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
       Object.assign(node, patch)
       if (durable) bumpPersistRevision(state)
     })
+  },
+  withdrawNodeRun: (nodeId, outcome) => {
+    set(state => {
+      const node = state.nodes.find(candidate => candidate.id === nodeId)
+      if (!node) return
+      Object.assign(node, nodeRunOutcomePatch(node, outcome))
+      bumpPersistRevision(state)
+    })
+    emitRunUpdated(nodeId)
   },
   appendNodeRun: (nodeId, run) => {
     const now = Date.now()

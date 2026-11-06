@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "snapshotCursor": 9,
+  "run": {
+    "schemaVersion": 1,
+    "runId": "canvas-old-click",
+    "projectId": "project-1",
+    "revision": 8,
+    "status": "draft",
+    "stageId": "generate",
+    "playbook": {
+      "name": "generation.single-shot",
+      "version": "1.0.0"
+    },
+    "origin": {
+      "host": "canvas",
+      "nodeId": "old-node"
+    },
+    "policy": {
+      "trustedHosts": [
+        "canvas"
+      ],
+      "allowedProviders": [
+        "canvas:acme"
+      ],
+      "allowedModels": [
+        "img-model"
+      ],
+      "maxSpend": null,
+      "maxAttemptsPerJob": 1,
+      "minimizeUploads": true,
+      "trustLevel": "key_confirm"
+    },
+    "budget": {
+      "currency": "CNY",
+      "authorized": 0,
+      "reserved": 0,
+      "actual": 0,
+      "unsettled": 0,
+      "unknownInFlight": 1
+    },
+    "planVersion": 1,
+    "snapshotCursor": 9,
+    "stages": [
+      {
+        "stageId": "generate",
+        "title": "Generate",
+        "status": "pending",
+        "order": 0
+      }
+    ],
+    "gates": [
+      {
+        "gateId": "generation-authorization:canvas-old-click:v1:n1",
+        "scope": "budget_envelope",
+        "status": "approved",
+        "planHash": "7ff788be64b0aa766b9cab15ca780816b285b6dd93965fe7e0b3a1933f5b74de",
+        "authorizationDigest": "7ff788be64b0aa766b9cab15ca780816b285b6dd93965fe7e0b3a1933f5b74de",
+        "authorizationEnvelope": {
+          "schemaVersion": 1,
+          "immutableProjectUuid": "uuid-1",
+          "projectGeneration": 1,
+          "projectId": "project-1",
+          "projectRevision": 3,
+          "runId": "canvas-old-click",
+          "planVersion": 1,
+          "gateId": "generation-authorization:canvas-old-click:v1:n1",
+          "costScope": "generation.single-shot:canvas-old-click",
+          "expiresAt": "2026-11-01T18:36:47.408Z",
+          "jobs": [
+            {
+              "jobId": "generation-canvas-old-click-7bdb41b3fb53b710",
+              "shotId": "canvas-old-click-shot",
+              "attempt": 1,
+              "target": {
+                "kind": "generation-operation",
+                "operationId": "canvas-old-click",
+                "candidateRevision": 1
+              },
+              "contractHash": "7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8",
+              "providerId": "canvas:acme",
+              "modelId": "img-model",
+              "mode": "text_to_image",
+              "parameters": {
+                "vendor": "acme",
+                "request": {
+                  "kind": "text_to_image",
+                  "prompt": "a red cube",
+                  "extras": {
+                    "nodeId": "old-node",
+                    "projectId": "project-1",
+                    "modelKey": "img-model",
+                    "idempotencyKey": "k"
+                  }
+                }
+              },
+              "references": [],
+              "providerWirePayloadHash": "6fe7acf5b1bcac39c9a634b4c6fc37e45e0345845aa6863a6470304dd55b8f06",
+              "providerIdempotencyKey": "generation:canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8:attempt-1",
+              "price": {
+                "currency": "CNY",
+                "maximum": null
+              }
+            }
+          ],
+          "budget": {
+            "currency": "CNY",
+            "maximum": 0,
+            "ledgerCeiling": 0,
+            "unknownJobCount": 1
+          }
+        },
+        "costScope": "generation.single-shot:canvas-old-click",
+        "requestedSpend": 0,
+        "requestedUnknownJobs": 1,
+        "jobIds": [
+          "generation-canvas-old-click-7bdb41b3fb53b710"
+        ],
+        "title": "Confirm generation spend",
+        "summary": "Approve the frozen provider requests and their maximum total cost.",
+        "createdAt": "2026-11-01T18:26:47.413Z",
+        "expiresAt": "2026-11-01T18:36:47.408Z",
+        "decidedAt": "2026-11-01T18:26:47.413Z",
+        "receiptId": "61bd22a0-9a0b-4251-8ddb-13e5194a8b01"
+      }
+    ],
+    "jobs": [
+      {
+        "jobId": "generation-canvas-old-click-7bdb41b3fb53b710",
+        "stageId": "generate",
+        "status": "submission_unknown",
+        "attempt": 1,
+        "provider": "canvas:acme",
+        "model": "img-model",
+        "idempotencyKey": "generation:canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8:attempt-1",
+        "providerIdempotencyKey": "generation:canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8:attempt-1",
+        "authorizationDigest": "7ff788be64b0aa766b9cab15ca780816b285b6dd93965fe7e0b3a1933f5b74de",
+        "taskKind": "text_to_image",
+        "createdAt": "2026-11-01T18:26:47.413Z",
+        "updatedAt": "2026-11-01T18:26:47.420Z",
+        "executionBinding": {
+          "immutableProjectUuid": "uuid-1",
+          "projectGeneration": 1,
+          "runId": "canvas-old-click",
+          "shotId": "generation-canvas-old-click-7bdb41b3fb53b710",
+          "contractHash": "7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8",
+          "runtimeTaskId": "runtime-canvas-old-click-7bdb41b3fb53b710-attempt-1",
+          "providerNamespace": "canvas:acme",
+          "providerIdempotencyKey": "generation:canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8:attempt-1",
+          "requestFingerprint": "20e28e097f9ef84ba2b6cf82a3ad71f6719059eaba6df1b2dea48162d3d89fd3",
+          "runtimeEnvelopeRef": ".nomi/runs/canvas-old-click/jobs/generation-canvas-old-click-7bdb41b3fb53b710/runtime-envelope.json",
+          "fencingEpoch": 1
+        },
+        "requestFingerprint": "20e28e097f9ef84ba2b6cf82a3ad71f6719059eaba6df1b2dea48162d3d89fd3",
+        "runtimeEnvelopeRef": ".nomi/runs/canvas-old-click/jobs/generation-canvas-old-click-7bdb41b3fb53b710/runtime-envelope.json"
+      }
+    ],
+    "artifacts": [],
+    "generationPlan": {
+      "operationId": "canvas-old-click",
+      "state": "sealed",
+      "presentations": [],
+      "candidate": {
+        "candidateId": "canvas-old-click-shot",
+        "revision": 1,
+        "moduleId": "generation.canvas",
+        "providerId": "canvas:acme",
+        "modelId": "img-model",
+        "mode": "text_to_image",
+        "prompt": "a red cube",
+        "parameters": {
+          "vendor": "acme",
+          "request": {
+            "kind": "text_to_image",
+            "prompt": "a red cube",
+            "extras": {
+              "nodeId": "old-node",
+              "projectId": "project-1",
+              "modelKey": "img-model",
+              "idempotencyKey": "k"
+            }
+          }
+        },
+        "references": [],
+        "sealedContractHash": "7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8"
+      },
+      "updatedAt": "2026-11-01T18:26:47.413Z",
+      "contract": {
+        "schemaVersion": 1,
+        "candidateId": "canvas-old-click-shot",
+        "candidateRevision": 1,
+        "moduleId": "generation.canvas",
+        "moduleVersion": "1.0.0",
+        "providerId": "canvas:acme",
+        "modelId": "img-model",
+        "mode": "text_to_image",
+        "prompt": "a red cube",
+        "parameters": {
+          "vendor": "acme",
+          "request": {
+            "kind": "text_to_image",
+            "prompt": "a red cube",
+            "extras": {
+              "nodeId": "old-node",
+              "projectId": "project-1",
+              "modelKey": "img-model",
+              "idempotencyKey": "k"
+            }
+          }
+        },
+        "references": [],
+        "contractHash": "7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8",
+        "warnings": []
+      }
+    },
+    "createdAt": "2026-11-01T18:26:47.410Z",
+    "updatedAt": "2026-11-01T18:26:47.421Z"
+  },
+  "checksum": "6da8d42599981d24b85a1011a03871d1189b99ff936fd67b534968df3eabe059"
+}

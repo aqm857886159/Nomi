@@ -48,7 +48,7 @@ export type CatalogTaskActionOptions = {
    * 单镜 Run 路（发动机收敛第一刀）：交 / 查都经主进程这一次运行的单镜 Run——要花钱的节点一律走它（单节点 ↑ 的批准是这一下点击，
    * 批量的批准是那张卡）。缺省 = 不花钱的本地 / 文本路。由控制器按节点定（`generationRunController.paidNodeLedger`）。
    */
-  canvasRun?: { runRecordId: string }
+  canvasRun?: { runRecordId: string; acknowledgedOpenRuns?: string[] }
   /** 提交幂等键（= node run.id）：随 request.extras 下到主进程，让同一次意图提交 at-most-once（不二次下单）。 */
   idempotencyKey?: string
   /** Renderer disclosure gate for a public temporary-host fallback. */

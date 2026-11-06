@@ -32,7 +32,7 @@ export const PRICE_WORDING = Object.freeze({
 
 /**
  * 「没花钱 / 不计费 / 免费」这一类**断言**（界面不谈钱：只说事实和下一步）。
- * 费用方向的披露同样不进入界面；只有空间、方向、视图或惯用语里的 free、转述上游原文，登记在下面的例外键里。
+ * 费用方向的披露同样不进入界面；只有空间、方向、视图或惯用语里的 free、转述上游原文、结果不明时的「可能扣费」原句，登记在下面的例外键里。
  * 单测会拿整本中英词典核对，命中必须是例外键。
  */
 export const NO_COST_CLAIMS = Object.freeze({
@@ -83,6 +83,18 @@ export const NOT_MONEY = Object.freeze({
   'knownVendors.runninghub.promoText': '服务商账户前置条件与用量、计费由 RunningHub 账户决定，不是 Nomi 对某一步花费的断言',
   'knownVendors.replicate.promoText': '服务商账户前置条件与用量、计费由 Replicate 账户决定，不是 Nomi 对某一步花费的断言',
 })
+/**
+ * 结果不明时的扣费风险提示：只说「可能」，不断言扣没扣。用户 2026-11-03 拍板保留，只限下面这几个键。
+ * 精确原句锁在 check:i18n（scripts/check-i18n-no-cost-claims.mjs 的 CHARGE_RISK_DISCLOSURE_EXACT）：值一改就红；
+ * 走查监视器按同一批键从词典取值豁免。
+ */
+export const CHARGE_RISK_DISCLOSURE_KEYS = Object.freeze([
+  'generationCommon.observability.error.submissionUnknown.reason',
+  'generationCommon.observability.error.nodeInFlight.reason',
+  'generationCommon.observability.error.shotClaimed.needsReconcile.reason',
+  'generationCommon.spend.resend.unknown',
+  'generationCommon.spend.resend.waiting',
+])
 /** 非金钱同形词：这些 key 的 free 只描述空间、方向、视图或惯用语，不表达费用。 */
 export const NON_MONEY_KEYS = Object.freeze([
   'director.aspect.free',
@@ -105,7 +117,7 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * 代价写明：单词值（如画幅 `Free`）抹掉的是屏上每一个大写的独立 `Free`；词典侧有 `check:i18n` 按键把关，监视器这一侧只能按字认。
  */
 export function compileExemptions(dictionaries) {
-  const keys = [...Object.keys(NOT_MONEY), ...NON_MONEY_KEYS]
+  const keys = [...Object.keys(NOT_MONEY), ...NON_MONEY_KEYS, ...CHARGE_RISK_DISCLOSURE_KEYS]
   const patterns = []
   for (const dictionary of Object.values(dictionaries ?? {})) {
     for (const key of keys) {
@@ -115,7 +127,8 @@ export function compileExemptions(dictionaries) {
       patterns.push(new RegExp(/^\w/.test(body) ? `\\b${body}` : body, 'g'))
     }
   }
-  return patterns
+  // 长句先抹：一条例外值是另一条的开头时（标题句 ⊂ 两行正文），先抹短的会把长的拆坏、留下半句被判红。
+  return patterns.sort((a, b) => b.source.length - a.source.length)
 }
 
 /**

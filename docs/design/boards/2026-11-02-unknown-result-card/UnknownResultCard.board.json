@@ -1,0 +1,593 @@
+{
+  "board": "UnknownResultCard",
+  "approvedOn": "2026-11-02",
+  "stage": "built",
+  "visualReview": "用户 11-02 在 Claude Design 画布「结果未知的卡」第二版（https://claude.ai/artifact/Ws3NRu9dmtstoUyjx7mPDQ，私有）上说「按设计稿改」。画布同屏放了调研、用户以前定过的话和三条路。协调逐张对过设计系统。",
+  "sourceBoundary": "板源是画布的原样副本：部件在画布上叫 Main.dc.html，这里按板名存为 source/UnknownResultCard.dc.html，薄板的 dc-import 仍写 Main。preview/UnknownResultCard.html 和 -dark.html 是把画布渲染后抠出卡、格、确认卡、提示拼成的静态页，只用来抽候选；preview/*.png 是拍板时看的整页截图。分镜页上已经去掉的两条按另一张已批样张画，那是另一条线，不归这张板。",
+  "designIntent": "结果不知道的卡不再画成失败；点「再发一次」时，三页弹同一张已有的花钱确认卡，写清为什么可能多扣钱。",
+  "priorArt": [
+    {
+      "url": "https://www.nngroup.com/articles/confirmation-dialog/",
+      "takeaway": "确认框只用在有严重后果、撤不回的动作上；写清后果；按钮写具体动作，不写 OK。",
+      "decisionImpact": "确认了保留确认（可能多扣钱，撤不回）；改了：按钮从「继续」换成「再发一次」。"
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/9e001703a2/components/dialog_strings.grdp",
+      "takeaway": "Chromium 的 Confirm Form Resubmission：重复提交可能重复下单，用弹窗说清，人点了才重发；按钮是 Continue。",
+      "decisionImpact": "确认了「人亲手重发用弹窗问一次」；没有学它的按钮字。"
+    },
+    {
+      "url": "https://docs.wcpos.com/error-codes/PAYMENT201",
+      "takeaway": "POS 收款结果未知单独一类，提示先核对再重刷：Do not run the card again yet。",
+      "decisionImpact": "确认了结果未知不当失败，卡不用失败红。Nomi 看不到账单，所以只提醒不拦人。"
+    },
+    {
+      "url": "https://developer.apple.com/design/human-interface-guidelines/alerts",
+      "takeaway": "提醒框的按钮用和提示内容相关的动词。",
+      "decisionImpact": "确认了主按钮写「再发一次」。"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "text": "确认留着，不删：点 ↑ 时眼前不一定有那句话。全走已有的花钱确认卡，不另画。",
+      "source": "用户 11-02「按设计稿改」，画布上三条路选第二条"
+    },
+    {
+      "id": "D2",
+      "text": "主按钮「再发一次」，不是「继续」。",
+      "source": "用户 11-02 批过的字和设计系统 §1.9.1 相冲突，交用户定，「按设计稿改」按推荐走"
+    },
+    {
+      "id": "D3",
+      "text": "结果不明的卡用纸底，不用失败红；其它失败照旧红。",
+      "source": "用户 11-02「按设计稿改」；可找回态代码注释早就写了刻意不进红色"
+    },
+    {
+      "id": "D4",
+      "text": "同一句话一处只说一次；分镜慢任务免费按钮排第一。",
+      "source": "用户 11-02「按设计稿改」"
+    },
+    {
+      "id": "D5",
+      "text": "「可能已经扣费」「再发一次可能会再扣一次钱」两句保留原字；「界面不谈钱」门岗只放行这几个键的精确原句，别处照拦。",
+      "source": "用户 11-03：拍板字和 10-02 定的「界面不谈钱」相冲突，交用户定，选「保留原字，门岗精确放行」"
+    },
+    {
+      "id": "D6",
+      "text": "次按钮由「在任务中心查看」改成「查看任务」/ \"View task\"，三页同一个词条；preview 里的样张保留拍板时原样。",
+      "source": "用户 11-03：拍板字超过控件文案 ≤4 字的上限（例外 0 条），交用户定，选「改成查看任务」"
+    }
+  ],
+  "elements": [
+    {
+      "id": "confirm.card",
+      "label": "人亲手对还有没结束那一次的节点再发（卡上「再发一次」、节点生成框 ↑、分镜行 ↑、任务中心）时，弹已有的花钱确认卡 SpendConfirmDialog：居中 380 宽、硬币图标、×、遮罩，三页同一张。这一笔问不问只由 spendConfirm.ts 回答。确认之前不发请求，不写运行记录。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark",
+        "disabled"
+      ],
+      "candidates": [
+        "044-div-再发一次这张图片",
+        "045-svg",
+        "072-div-再发一次这张图片",
+        "073-svg"
+      ],
+      "status": "implemented",
+      "note": "替掉分镜 AnchoredPopover 浮层和画布 / 列表的卡内确认条。",
+      "assertion": "board:UnknownResultCard/confirm.card"
+    },
+    {
+      "id": "confirm.title",
+      "label": "标题：图片「再发一次这张图片？」/ \"Send this image again?\"；视频「再发一次这段视频？」/ \"Send this video again?\"。",
+      "change": "new",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "046-span-再发一次这张图片",
+        "074-span-再发一次这张图片"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.title"
+    },
+    {
+      "id": "confirm.body.restart",
+      "label": "上一次没结果时的两行（要保留换行）：「上一次没等到结果，可能已经扣费。\\n再发一次可能会再扣一次钱。」/ \"The last request got no result and may have been charged.\\nSending it again may charge you again.\"",
+      "change": "new",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "candidates": [
+        "049-span-上一次没等到结果可能已经"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.body.restart"
+    },
+    {
+      "id": "confirm.body.waiting",
+      "label": "上一次还在等时的两行：「上一次还没结束。\\n再发一次可能会再扣一次钱。」/ \"The last request has not finished.\\nSending it again may charge you again.\"",
+      "change": "new",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "candidates": [
+        "077-span-上一次还没结束再发一次可"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.body.waiting"
+    },
+    {
+      "id": "confirm.cancel",
+      "label": "「取消」/ \"Cancel\"、×、Esc、点遮罩：不发、不扣钱、运行记录不变，卡片保持原样，再点还是先问。",
+      "change": "new",
+      "states": [
+        "hover",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "047-button-关闭",
+        "048-svg",
+        "050-button",
+        "051-span-取消",
+        "075-button-关闭",
+        "076-svg",
+        "078-button",
+        "079-span-取消"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.cancel"
+    },
+    {
+      "id": "confirm.resend",
+      "label": "主按钮「再发一次」/ \"Send again\"，默认黑，不用危险红。点了先放行上一笔，再真发一次，请求恰好多 1 个；连点只发一次。放行失败时人看得到一句话（releaseConfirm.failed），卡还在，可再点。",
+      "change": "restyle",
+      "states": [
+        "hover",
+        "disabled",
+        "loading",
+        "error",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "052-button",
+        "053-span-再发一次",
+        "080-button",
+        "081-span-再发一次"
+      ],
+      "status": "implemented",
+      "note": "替掉「继续」。设计系统 §1.9.1 要主动作写具体动词。",
+      "assertion": "board:UnknownResultCard/confirm.resend"
+    },
+    {
+      "id": "confirm.hosting-disclosure",
+      "label": "第一次托管告知落在同一张确认卡上，不弹第二张（样张没画，沿用卡上已有的 hostingDisclosure 一块）。",
+      "change": "keep",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/confirm.hosting-disclosure"
+    },
+    {
+      "id": "arrow.opens-card",
+      "label": "节点生成框和分镜行的 ↑：节点有没结束的一次时，人点弹同一张确认卡（结果不明用上一次没结果那两行，可找回用还没结束那两行）。Agent 和批量照旧不发、不弹。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark",
+        "disabled"
+      ],
+      "candidates": [],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/arrow.opens-card"
+    },
+    {
+      "id": "restart.card",
+      "label": "上一次没等到结果的卡：和「可找回」同一副骨架（纸底 bg-nomi-paper + 细线 border-nomi-line），时钟放大镜图标用警示墨色，不用失败红底。画布节点和列表大详情都是这一张。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark",
+        "narrow",
+        "long-text"
+      ],
+      "candidates": [
+        "010-div",
+        "011-svg",
+        "027-div",
+        "028-svg",
+        "090-div",
+        "091-svg"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.card"
+    },
+    {
+      "id": "restart.title",
+      "label": "粗体一句「上一次没等到结果，可能已经扣费」/ \"The last request got no result and may have been charged.\"，三页同一句，同一处只说一次。",
+      "change": "restyle",
+      "states": [
+        "zh-en",
+        "dark",
+        "long-text"
+      ],
+      "candidates": [
+        "003-span-上一次没等到结果可能已经",
+        "012-span-上一次没等到结果可能已经",
+        "029-span-上一次没等到结果可能已经",
+        "092-span-Thelastreque"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.title"
+    },
+    {
+      "id": "restart.resend",
+      "label": "主按钮「再发一次」/ \"Send again\"，黑底带刷新图标，三页都是；点了弹 confirm.card。",
+      "change": "restyle",
+      "states": [
+        "hover",
+        "disabled",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "004-button",
+        "005-svg",
+        "006-span-再发一次",
+        "015-button",
+        "016-svg",
+        "017-span-再发一次",
+        "032-button",
+        "033-svg",
+        "034-span-再发一次",
+        "095-button",
+        "096-svg",
+        "097-span-Sendagain"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.resend"
+    },
+    {
+      "id": "restart.view-task",
+      "label": "次按钮「查看任务」/ \"View task\"（D6：样张上是「在任务中心查看」），三页同字；这张卡上不再有「先在任务中心查看」「查看制作任务」。",
+      "change": "restyle",
+      "states": [
+        "hover",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "007-button",
+        "008-span-在任务中心查看",
+        "018-button",
+        "019-span-在任务中心查看",
+        "035-button",
+        "036-span-在任务中心查看",
+        "098-button",
+        "099-span-Viewintaskce"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.view-task"
+    },
+    {
+      "id": "restart.footer",
+      "label": "复制详情 / 反馈问题 / 技术详情（Copy details / Report a problem / Technical details）：画布和列表照旧在，技术详情里可以放原始错误。分镜格太窄不放。",
+      "change": "keep",
+      "states": [
+        "hover",
+        "narrow",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "020-button",
+        "021-span-复制详情",
+        "022-button",
+        "023-span-反馈问题",
+        "024-button",
+        "025-span-技术详情",
+        "037-button",
+        "038-span-复制详情",
+        "039-button",
+        "040-span-反馈问题",
+        "041-button",
+        "042-span-技术详情",
+        "100-button",
+        "101-span-Copydetails",
+        "102-button",
+        "103-span-Reportaprobl",
+        "104-button",
+        "105-span-Technicaldet"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.footer",
+      "note": "保留原页脚动作；窄英文画布的既有页脚换行压出卡框，样张在框内，本轮按不碰压字问题停在该差异，未改布局。既有英文反馈按钮 Report Issue 与样张 Report a problem 仍不同。"
+    },
+    {
+      "id": "restart.dismiss",
+      "label": "× 收起，画布和列表照旧。",
+      "change": "keep",
+      "states": [
+        "hover",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "013-button-收起",
+        "014-svg",
+        "030-button-收起",
+        "031-svg",
+        "093-button-Dismiss",
+        "094-svg"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.dismiss"
+    },
+    {
+      "id": "restart.storyboard-cell",
+      "label": "分镜格（资产卡和镜头行）：中性纸底、居中图标、一句话、黑色小按钮、文字链；不再是粉红底和红按钮。",
+      "change": "restyle",
+      "states": [
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "002-svg"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/restart.storyboard-cell"
+    },
+    {
+      "id": "waiting.storyboard-cell",
+      "label": "分镜格慢任务的顺序：可找回 → 免费「重新取回」（黑，排第一）→「再发一次」（安静描边，不红）→「查看任务」（D6）。",
+      "change": "restyle",
+      "states": [
+        "narrow",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "055-span-可找回",
+        "061-button",
+        "062-span-在任务中心查看"
+      ],
+      "status": "implemented",
+      "note": "今天付费的红按钮排在免费的上面。",
+      "assertion": "board:UnknownResultCard/waiting.storyboard-cell"
+    },
+    {
+      "id": "waiting.card",
+      "label": "画布和列表的可找回卡不变（标题、说明、重新取回）；确认不再把免费按钮顶出卡外。",
+      "change": "keep",
+      "states": [
+        "narrow",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "064-div",
+        "065-svg",
+        "066-span-任务可能已在上游完成",
+        "067-span-等待已超上限但上游可能仍"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/waiting.card"
+    },
+    {
+      "id": "waiting.retrieve",
+      "label": "「重新取回」/ \"Retrieve again\"：免费，请求数不增加，一直在。",
+      "change": "keep",
+      "states": [
+        "hover",
+        "loading",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "056-button",
+        "057-svg",
+        "058-span-重新取回",
+        "068-button",
+        "069-svg",
+        "070-span-重新取回"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/waiting.retrieve"
+    },
+    {
+      "id": "waiting.resend",
+      "label": "分镜格里安静描边的「再发一次」；画布和列表没有这颗，走 ↑。",
+      "change": "restyle",
+      "states": [
+        "hover",
+        "narrow",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "059-button",
+        "060-span-再发一次"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/waiting.resend"
+    },
+    {
+      "id": "pill.no-duplicate",
+      "label": "同一句话不出现两遍：错误卡或可找回卡盖着节点时，节点外层状态胶囊不再写同一句（画布节点、分镜行）；远景小节点没有卡，胶囊保留。",
+      "change": "remove",
+      "states": [
+        "narrow",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/pill.no-duplicate"
+    },
+    {
+      "id": "notice.skipped",
+      "label": "批量碰到没结束的卡：跳过，提示「1 张上一次还没结束，这次跳过了。」+「生成区」+ ×。",
+      "change": "keep",
+      "states": [
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [
+        "083-svg",
+        "084-span-1张上一次还没结束这次跳",
+        "085-button",
+        "086-span-生成区",
+        "087-button-收起",
+        "088-svg"
+      ],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/notice.skipped"
+    },
+    {
+      "id": "other-failures.red",
+      "label": "其它失败（撞并发、服务端、参数）照旧红色和「重试」，只有结果不明这一种改纸底。",
+      "change": "keep",
+      "states": [
+        "error",
+        "zh-en",
+        "dark"
+      ],
+      "candidates": [],
+      "status": "implemented",
+      "assertion": "board:UnknownResultCard/other-failures.red"
+    },
+    {
+      "id": "legacy.in-card-confirm",
+      "label": "分镜 AnchoredPopover 浮层、画布 / 列表卡内确认条、按钮「继续」、useUnknownSubmissionRelease 这一套状态。",
+      "change": "remove",
+      "states": [
+        "empty"
+      ],
+      "candidates": [],
+      "status": "dropped",
+      "userDecision": {
+        "quote": "按设计稿改",
+        "date": "2026-11-02"
+      },
+      "note": "同 PR 删，没有并行版。"
+    }
+  ],
+  "decor": [
+    "001-figcaption-重启后分镜格",
+    "009-figcaption-重启后画布卡",
+    "026-figcaption-重启后列表大详情",
+    "043-figcaption-确认卡上一次没结果三页同",
+    "054-figcaption-慢任务分镜格",
+    "063-figcaption-慢任务画布卡",
+    "071-figcaption-确认卡还没结束三页同一张",
+    "082-figcaption-批量跳过提示不变",
+    "089-figcaption-Restartlistd"
+  ],
+  "functionCensus": [
+    {
+      "censusId": "UR-01",
+      "function": "点「再发一次」先确认",
+      "before": "画布 / 列表卡内确认条，分镜 AnchoredPopover",
+      "after": "confirm.card",
+      "afterNote": "换成已有花钱确认卡"
+    },
+    {
+      "censusId": "UR-02",
+      "function": "确认后真发",
+      "before": "确认条「继续」→ continueUnknownSubmissionRelease",
+      "after": "confirm.resend",
+      "afterNote": "按钮字改「再发一次」，行为不变"
+    },
+    {
+      "censusId": "UR-03",
+      "function": "不发了",
+      "before": "确认条「取消」",
+      "after": "confirm.cancel",
+      "afterNote": "取消、×、Esc、遮罩"
+    },
+    {
+      "censusId": "UR-04",
+      "function": "放行失败的那句话",
+      "before": "确认条里的 releaseConfirm.failed",
+      "after": "confirm.resend",
+      "afterNote": "确认条没了，这句不能跟着消失"
+    },
+    {
+      "censusId": "UR-05",
+      "function": "节点有没结束的一次时再点 ↑",
+      "before": "requestOpenRunConfirmation 展开确认条",
+      "after": "arrow.opens-card",
+      "afterNote": "弹同一张卡"
+    },
+    {
+      "censusId": "UR-06",
+      "function": "任务中心放行后重发",
+      "before": "confirmDialog + 「继续」，红按钮",
+      "after": "confirm.card",
+      "afterNote": "同一张卡、同样的字"
+    },
+    {
+      "censusId": "UR-07",
+      "function": "去任务中心看",
+      "before": "「先在任务中心查看」「查看制作任务」",
+      "after": "restart.view-task",
+      "afterNote": "一个名字"
+    },
+    {
+      "censusId": "UR-08",
+      "function": "免费取回",
+      "before": "分镜格排在付费按钮下面",
+      "after": "waiting.retrieve",
+      "afterNote": "排第一"
+    },
+    {
+      "censusId": "UR-09",
+      "function": "复制详情 / 反馈 / 技术详情",
+      "before": "错误卡页脚",
+      "after": "restart.footer",
+      "afterNote": "不变"
+    },
+    {
+      "censusId": "UR-10",
+      "function": "× 收起",
+      "before": "错误卡右上",
+      "after": "restart.dismiss",
+      "afterNote": "不变"
+    },
+    {
+      "censusId": "UR-11",
+      "function": "节点外层状态胶囊",
+      "before": "NodeGenerationStatus 和卡同时写同一句",
+      "after": "pill.no-duplicate",
+      "afterNote": "卡在时不重复；远景保留"
+    },
+    {
+      "censusId": "UR-12",
+      "function": "批量跳过提示",
+      "before": "toast",
+      "after": "notice.skipped",
+      "afterNote": "不变"
+    },
+    {
+      "censusId": "UR-13",
+      "function": "其它失败重试",
+      "before": "红卡「重试」",
+      "after": "other-failures.red",
+      "afterNote": "不变"
+    }
+  ]
+}

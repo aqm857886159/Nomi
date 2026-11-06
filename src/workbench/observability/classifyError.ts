@@ -688,6 +688,56 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
   if (moderated) {
     return reportFor(moderated === 'image' ? 'input-image-blocked' : 'content-policy', cleanRaw, upstream)
   }
+  // 同一节点上一笔还在路上，主进程拒了这一笔（这一次还没发出去）：照实说，不当成供应商失败。
+  if (isOpenGenerationRefusal(message)) {
+    return {
+      kind: 'local-refusal',
+      reason: i18n.t('generationCommon.observability.error.nodeInFlight.reason'),
+      hint: '',
+      vendorSide: false,
+      raw: cleanRaw,
+      primary: 'release-regenerate', secondary: 'reconcile',
+    }
+  }
+  // 升级前留下的批量确认草稿（没记来源节点）：先落节点、再发请求之后主进程不发它，按「没交」收尾——如实说，要他再确认一次。
+  if (structured?.code === 'canvas_consent_predates_upgrade') {
+    return {
+      kind: 'local-refusal',
+      reason: i18n.t('generationCommon.observability.error.consentPredatesUpgrade.reason'),
+      hint: i18n.t('generationCommon.observability.error.consentPredatesUpgrade.hint'),
+      vendorSide: false,
+      raw: cleanRaw,
+      primary: 'retry', secondary: null,
+    }
+  }
+  // 3D-BOX 预演没好，主进程准入拒了这一次（还没发出去、没花钱）：说的是哪一步没好，不当成供应商失败。
+  if (structured?.code === 'director_preview_blocked') {
+    return {
+      kind: 'local-refusal',
+      reason: i18n.t(structured.reason === 'failed' ? 'director.agent.spendBlockedFailed' : 'director.agent.spendBlockedRendering'),
+      hint: i18n.t('generationCommon.observability.error.previewBlocked.hint'),
+      vendorSide: false,
+      raw: cleanRaw,
+      ...narrateGenerationErrorActions('local-refusal'),
+    }
+  }
+  const claimReason = structured?.code === 'production_shot_claimed' ? structured.reason : undefined
+  const copy = shotClaimCopy(claimReason as Parameters<typeof shotClaimCopy>[0])
+  if (copy) {
+    return {
+      kind: 'local-refusal',
+      reason: i18n.t(`generationCommon.observability.error.shotClaimed.${copy.key}.reason`),
+      hint: claimReason === 'needs_reconcile' ? '' : i18n.t(`generationCommon.observability.error.shotClaimed.${copy.key}.hint`),
+      vendorSide: false,
+      raw: cleanRaw,
+      primary: claimReason === 'needs_reconcile' ? 'release-regenerate' : copy.action,
+      secondary: claimReason === 'needs_reconcile' ? 'reconcile' : null,
+    }
+  }
+  if (['generation_input_changed', 'storyboard_content_conflict'].includes(structured?.code ?? '')
+    || /generation_input_changed|storyboard_content_conflict|Storyboard target changed/.test(cleanRaw)) {
+    return { ...reportFor('local-refusal', cleanRaw, ''), reason: i18n.t('generationCommon.observability.error.storyboardContentChanged'), primary: 'retry', secondary: null }
+  }
   if (structured?.category && (STRUCTURED_KINDS as readonly string[]).includes(structured.category)) {
     return reportFor(structured.category as GenerationErrorKind, stripVendorErrorMarker(message), upstream)
   }
@@ -707,52 +757,6 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
       vendorSide: false,
       raw,
       ...narrateGenerationErrorActions('unknown'),
-    }
-  }
-  // 同一节点上一笔还在路上，主进程拒了这一笔（这一次还没发出去）：照实说，不当成供应商失败。
-  if (structured?.code === 'node_generation_in_flight') {
-    return {
-      kind: 'unknown',
-      reason: i18n.t('generationCommon.observability.error.nodeInFlight.reason'),
-      hint: i18n.t('generationCommon.observability.error.nodeInFlight.hint'),
-      vendorSide: false,
-      raw,
-      ...narrateGenerationErrorActions('unknown'),
-    }
-  }
-  // 升级前留下的批量确认草稿（没记来源节点）：先落节点、再发请求之后主进程不发它，按「没交」收尾——如实说，要他再确认一次。
-  if (structured?.code === 'canvas_consent_predates_upgrade') {
-    return {
-      kind: 'unknown',
-      reason: i18n.t('generationCommon.observability.error.consentPredatesUpgrade.reason'),
-      hint: i18n.t('generationCommon.observability.error.consentPredatesUpgrade.hint'),
-      vendorSide: false,
-      raw,
-      ...narrateGenerationErrorActions('unknown'),
-    }
-  }
-  // 3D-BOX 预演没好，主进程准入拒了这一次（还没发出去、没花钱）：说的是哪一步没好，不当成供应商失败。
-  if (structured?.code === 'director_preview_blocked') {
-    return {
-      kind: 'unknown',
-      reason: i18n.t(structured.reason === 'failed' ? 'director.agent.spendBlockedFailed' : 'director.agent.spendBlockedRendering'),
-      hint: i18n.t('generationCommon.observability.error.previewBlocked.hint'),
-      vendorSide: false,
-      raw,
-      ...narrateGenerationErrorActions('unknown'),
-    }
-  }
-  const claimReason = structured?.code === 'production_shot_claimed' ? structured.reason : undefined
-  const copy = shotClaimCopy(claimReason as Parameters<typeof shotClaimCopy>[0])
-  if (copy) {
-    return {
-      kind: 'unknown',
-      reason: i18n.t(`generationCommon.observability.error.shotClaimed.${copy.key}.reason`),
-      hint: i18n.t(`generationCommon.observability.error.shotClaimed.${copy.key}.hint`),
-      vendorSide: false,
-      raw,
-      primary: copy.action,
-      secondary: copy.action,
     }
   }
   const kind = detectLegacyErrorKind(legacyEvidence(upstream, raw))
@@ -784,4 +788,12 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
     raw,
     ...narrateGenerationErrorActions('unknown'),
   }
+}
+
+/** Admission races are not generation failures and must not replace the original Run. */
+export function isOpenGenerationRefusal(message: string): boolean {
+  const error = parseVendorErrorFromMessage(message)
+  return error?.code === 'node_generation_in_flight'
+    || (error?.code === 'production_shot_claimed' && (error.reason === 'in_flight' || error.reason === 'needs_reconcile'))
+    || /node_generation_in_flight|production_shot_claimed:\s*(?:in_flight|needs_reconcile)/.test(message)
 }

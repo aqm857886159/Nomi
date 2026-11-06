@@ -17,8 +17,8 @@ describe('classifyGenerationError — 已知分类', () => {
     const cases = [
       ['queued', 'generationCommon.observability.error.shotClaimed.queued.reason', 'view-task'],
       ['awaiting_confirmation', 'generationCommon.observability.error.shotClaimed.awaitingConfirmation.reason', 'view-task'],
-      ['in_flight', 'generationCommon.observability.error.shotClaimed.inFlight.reason', 'view-task'],
-      ['needs_reconcile', 'generationCommon.observability.error.shotClaimed.needsReconcile.reason', 'reconcile'],
+      ['in_flight', 'generationCommon.observability.error.submissionUnknown.reason', 'release-regenerate'],
+      ['needs_reconcile', 'generationCommon.observability.error.submissionUnknown.reason', 'release-regenerate'],
     ] as const
     for (const [reason, key, action] of cases) {
       const report = classifyGenerationError(encodeStructuredErrorMessage({ code: 'production_shot_claimed', reason }, `production_shot_claimed: ${reason}`))
@@ -613,7 +613,7 @@ describe('每类错误都说得出「该干嘛」（2026-07-30 拍板：主按�
 describe('动作表：每类主 / 次动作都写在表里，改一类不许带动别的类', () => {
   // 穷举：漏写一类 → check:test-types 红（Record 要求每个 kind 都在）。
   const EVERY_KIND: Record<GenerationErrorKind, true> = {
-    auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
+    'local-refusal': true, auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
     'model-kind-mismatch': true, 'model-not-open': true, 'model-unavailable-upstream': true, 'model-retired': true,
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
     'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-unfetchable': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
@@ -629,7 +629,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
       // 结果未知：不给重试（可能重复提交），只指路去核对。
       // 已生成、取回失败 / 已提交、这次没取回：只指路「重新取回」，不给第二个动作（重试 = 再生成一份）。
       // 本机处理失败：没有模型参与，只留重试。
-      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' ? null : kind === 'submission-unknown' ? 'release-regenerate' : before })
+      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' || kind === 'local-refusal' ? null : kind === 'submission-unknown' ? 'reconcile' : before })
     }
   })
 })
@@ -655,10 +655,9 @@ describe('付费提交结果未知（连接在请求发出后被重置）', () =
     expect(report.kind).toBe('submission-unknown')
     expect(report.reason).not.toContain('连不上')
     expect(report.hint).not.toContain('没发到')
-    expect(report.primary).toBe('reconcile')
-    // 没有一键重试；次动作是「我核对过了，重新生成」（点下去先展开确认，不直接生成）。
-    expect(report.secondary).toBe('release-regenerate')
-    expect(report.hint).toContain('先到服务商后台')
+    expect(report.primary).toBe('release-regenerate')
+    expect(report.secondary).toBe('reconcile')
+    expect(report.hint).toBe('')
   })
 
   it('同样的原始网络报错不带标记时仍按网络类处理（标记才是「未知」的唯一出处）', () => {
@@ -1312,5 +1311,26 @@ describe('模型取不到参考图（reference-unfetchable）', () => {
     expect(classifyGenerationError(tagNomiError('output-retrieval-failed', 'Nomi could not retrieve the result: Fetch failed: HTTP 403')).kind).toBe('output-retrieval-failed')
     expect(classifyGenerationError('Failed to download the generated video from https://cdn.example.com/out.mp4').kind).not.toBe('reference-unfetchable')
     expect(classifyGenerationError('素材上传失败：a.png（1MB）的所有上传通道都没成功，所以还没请求这次选的服务商。').kind).toBe('asset-upload-failed')
+  })
+})
+
+
+describe('generation lock exit D1/D2: local refusal is not a provider failure', () => {
+  it.each(['node_generation_in_flight', 'canvas_consent_predates_upgrade', 'director_preview_blocked', 'production_shot_claimed', 'generation_input_changed', 'storyboard_content_conflict'])('%s has one local kind and truthful actions', code => {
+    const report = classifyGenerationError(encodeStructuredErrorMessage({ code, ...(code === 'production_shot_claimed' ? { reason: 'needs_reconcile' } : {}) }, code))
+    expect(report.kind).toBe('local-refusal')
+    expect(report.vendorSide).toBe(false)
+    expect(report.primary).toBe(['production_shot_claimed', 'node_generation_in_flight'].includes(code) ? 'release-regenerate' : ['canvas_consent_predates_upgrade', 'generation_input_changed', 'storyboard_content_conflict'].includes(code) ? 'retry' : 'view-task')
+    if (['production_shot_claimed', 'node_generation_in_flight'].includes(code)) expect(report.secondary).toBe('reconcile')
+  })
+  it.each(['generation_input_changed', 'storyboard_content_conflict', 'Storyboard target changed'])('legacy string %s retains the content-change protection in both languages', async message => {
+    for (const lang of ['zh-CN', 'en']) {
+      await i18n.changeLanguage(lang)
+      const report = classifyGenerationError(message)
+      expect(report.kind).toBe('local-refusal')
+      expect(report.primary).toBe('retry')
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.storyboardContentChanged'))
+    }
+    await i18n.changeLanguage('zh-CN')
   })
 })

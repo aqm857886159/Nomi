@@ -1,0 +1,33 @@
+{
+  "id": "gen-v2-image-mvysub98-2ht3",
+  "kind": "image",
+  "title": "图片",
+  "position": {
+    "x": 120,
+    "y": 360
+  },
+  "size": {
+    "width": 340,
+    "height": 280
+  },
+  "prompt": "old user image",
+  "references": [],
+  "history": [],
+  "status": "error",
+  "meta": {},
+  "categoryId": "shots",
+  "shotIndex": 1,
+  "error": "node_generation_in_flight: gen-v2-image-mvysub98-2ht3",
+  "runs": [
+    {
+      "id": "old-post",
+      "status": "error",
+      "projectId": "project-1",
+      "startedAt": 1793596156030,
+      "updatedAt": 1793596156082,
+      "durationSeconds": 0.052,
+      "error": "node_generation_in_flight: gen-v2-image-mvysub98-2ht3",
+      "completedAt": 1793596156082
+    }
+  ]
+}
