@@ -1,0 +1,26 @@
+{
+  "name": "Agent 身份层（所有 Agent 面共用的系统提示开头：我是谁、输出铁律、用户给了提示词原文就逐字落）",
+  "subject": "agent.identity-layer",
+  "lifecycle": "execution",
+  "authority_kind": "schema",
+  "trust_domain": "main",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/harness/context/agentContext.ts",
+    "symbol": "NOMI_AGENT_IDENTITY"
+  },
+  "write_api": [
+    {
+      "path": "electron/harness/context/agentContext.ts",
+      "symbol": "NOMI_AGENT_IDENTITY"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/agentLane/laneDesktopRuntime.ts",
+    "evals/director/agentLoop/directorAgentLoop.mts"
+  ],
+  "since": "2026-11-07",
+  "notes": "合同 docs/fixes/2026-11-07-agent-verbatim-prompt.root-cause.json：「用户给了提示词原文就逐字落，不扩写、不补风格 / 氛围词」这条规则只有身份层一个家。工具说明（canvasWrite 的起草工具）和生成区规划技能里只留适用条件「只在由 Agent 来写时才加风格词」，不复述规则正文。桌面 Agent 通道（laneDesktopRuntime）和导演评测回路（directorAgentLoop）都只把这段常量拼进系统提示，不另写身份文字；创作区 AI 模式的注释只指向它，不复制。"
+}
