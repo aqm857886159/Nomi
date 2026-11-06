@@ -20,7 +20,7 @@ concurrency:
 jobs:
   mac-preview:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'desktop-preview')
-    runs-on: macos-14
+    runs-on: macos-26
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
