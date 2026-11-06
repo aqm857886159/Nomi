@@ -12,7 +12,7 @@ import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 // 产物里一定有、修复之前没有的字面量（运行结局的种类名）：付费入口拿它证明被验的修复真在产物里。
-export const SHOT_RESULT_OWNERSHIP_BUILD_MARKERS = ['attempt-refused', 'attempt-started']
+export const SHOT_RESULT_OWNERSHIP_BUILD_MARKERS = ['attempt-refused', 'attempt-started', 'canvas.run-settled']
 
 /**
  * 同一镜两个入口先后各下一单，旧的那单晚到（docs/plan/2026-11-07-shot-result-ownership.md「真实场景复现」）。
