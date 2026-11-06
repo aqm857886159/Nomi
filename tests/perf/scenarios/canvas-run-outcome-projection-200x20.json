@@ -1,0 +1,22 @@
+{
+  "id": "canvas-run-outcome-projection-200x20",
+  "feature": "生成结局按运行记录号收账、节点显示从运行记录算：批量跑着时一轮里每个节点来一个进度和一个结果",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/run-outcome-projection-bench.mjs",
+    "--"
+  ],
+  "scale": "一个项目 200 个节点，每节点 20 条运行记录、19 版历史；原始结果里另有打开项目时 200 个节点一起收敛（convergeMs）",
+  "metrics": [
+    "projectionMs",
+    "convergeMs"
+  ],
+  "budget": 16,
+  "budgetStatus": "proposed",
+  "budgetBasis": "主指标 projectionMs = 200 个节点各落一个进度 + 一个结果的纯计算合计毫秒。这些都在渲染进程主线程上算，预算取一帧（60Hz 下 16ms），不产生 >50ms 的长任务（docs/engineering/perf-scenarios.md 默认预算「交互期间 0 个长任务」）。convergeMs 只打印，同样应在一帧之内。",
+  "measurement": {
+    "state": "pending",
+    "reason": "实现线只交冒烟和 5 次的数字（见 PR 与报告），基线由协调在安静窗口量"
+  }
+}

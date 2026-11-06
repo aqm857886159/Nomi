@@ -1,0 +1,25 @@
+{
+  "id": "REV-20261104-shot-result-ownership",
+  "since": "2026-11-04",
+  "source": "独立验收发现（生成占用出口那一单第 3 次独立验收）；公开条目仅记录现象。",
+  "category": "interaction-semantics",
+  "problem": "同一镜从两个入口几乎同时点生成，后点的那下被拒；先点那次已经付费出来的图进不了镜头，镜头一直显示生成中，取消一直转，确认又付一次钱。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-07-shot-result-ownership.md",
+    "docs/plan/2026-11-07-shot-result-ownership.direction-check.md",
+    "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts",
+    "用户 2026-11-04 拍板「先合，再单独修」；方向检查由没参与过前几轮的线独立写，推荐换模式：主进程准入给运行身份、结局按运行记录号收账、节点显示从记录算，同提交删掉「只认第一条」的过滤和被拒后的快照回滚。"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-11-07-shot-result-ownership.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts"
+  }
+}
