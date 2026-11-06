@@ -202,6 +202,34 @@ describe('mainRequire（主进程入口前的 -r 模块）', () => {
     expect(parseLsappinfoInfo('')).toEqual({ pid: null, name: null, applicationType: null })
   })
 
+  test('read-only foreground receipt keeps the process-wide first violation without changing exit behavior', () => {
+    const launcher = pathToFileURL(path.join(repoRoot, 'tests/ux/_launchApp.mjs')).href
+    const run = (frontPid, exitWith) => spawnSync(process.execPath, ['--input-type=module', '-e', `
+      const { startMacForegroundGuard, readMacForegroundGuardState } = await import(${JSON.stringify(launcher)})
+      console.log(JSON.stringify(readMacForegroundGuardState()))
+      const guard = startMacForegroundGuard({ appPid: 42, platform: 'darwin', intervalMs: 60000,
+        sample: () => ({ pid: ${frontPid}, name: 'first' }) })
+      const copy = readMacForegroundGuardState()
+      if (copy.firstViolation) copy.firstViolation.name = 'changed by reader'
+      guard.stop()
+      startMacForegroundGuard({ appPid: 43, platform: 'darwin', intervalMs: 60000,
+        sample: () => ({ pid: 43, name: 'second' }) }).stop()
+      process.once('exit', () => console.log(JSON.stringify(readMacForegroundGuardState())))
+      process.exit(${exitWith})
+    `], { cwd: repoRoot, encoding: 'utf8' })
+    const stolen = run(42, 0)
+    expect(stolen.status, stolen.stderr).toBe(1)
+    const rows = stolen.stdout.split('\n').filter(line => line.startsWith('{')).map(line => JSON.parse(line))
+    expect(rows[0]).toEqual({ violated: false, firstViolation: null, exitCodeBeforeGuard: null })
+    expect(rows.at(-1)).toMatchObject({ violated: true, firstViolation: { pid: 42, name: 'first', ok: false }, exitCodeBeforeGuard: 0 })
+    const alreadyFailed = run(42, 3)
+    expect(alreadyFailed.status).toBe(3)
+    expect(JSON.parse(alreadyFailed.stdout.trim().split('\n').at(-1)).exitCodeBeforeGuard).toBe(3)
+    const laterViolation = run(41, 0)
+    expect(laterViolation.status).toBe(1)
+    expect(JSON.parse(laterViolation.stdout.trim().split('\n').at(-1)).firstViolation.name).toBe('second')
+  }, 60000)
+
   test('门岗收尾那一行：全程最前是谁、走查 App 类型、判定', () => {
     const row = (overrides) => ({ phase: 'interval', at: 't1', pid: 30987, name: 'Claude', appType: 'UIElement', ok: true, exempt: false, ...overrides })
     expect(summarizeFrontSamples([row({ phase: 'started', at: 't0' }), row()], 42))

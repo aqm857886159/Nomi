@@ -6,6 +6,18 @@ import { parseArgs } from 'node:util'
 import { createHash } from 'node:crypto'
 import { createReleaseCoreSteps } from './_releaseCoreCompareSteps.mjs'
 
+export function finalizeReleaseCoreReceipt(result, foregroundGuard, exitCode) {
+  Object.assign(result, { exitCode, foregroundGuard, exitCause: exitCode === 0 ? 'clean' : 'failure' })
+  if (!result.observationsPassed || result.exitCodeBeforeExit !== 0) result.complete = false
+  if (exitCode === 1 && result.complete && foregroundGuard?.violated && foregroundGuard.firstViolation?.ok === false && foregroundGuard.exitCodeBeforeGuard === 0) {
+    result.exitCause = 'foreground-guard'
+  } else if (exitCode !== 0) {
+    result.complete = false
+    result.error ??= 'Runtime guard or teardown rejected this walk; see the process log'
+  }
+  return result
+}
+
 export async function runReleaseCoreCompare(mode, openPaid) {
   const { values } = parseArgs({ options: { 'target-root': { type: 'string' }, commit: { type: 'string' }, output: { type: 'string' }, locale: { type: 'string', default: 'zh-CN' } } })
   assert.ok(path.isAbsolute(values['target-root'] ?? ''), '--target-root must be absolute')
@@ -25,6 +37,8 @@ export async function runReleaseCoreCompare(mode, openPaid) {
   process.argv = process.argv.slice(0, 2)
   const load = relative => import(pathToFileURL(path.join(root, relative)).href)
   const { createRuntimeWalk } = await load('tests/ux/agent-runtime-walk-support.mjs')
+  const { readMacForegroundGuardState } = await load('tests/ux/_launchApp.mjs')
+  assert.equal(typeof readMacForegroundGuardState, 'function', 'Install the current read-only launcher instrumentation before comparison')
   const { assertPaidBuildReady, DEFAULT_PAID_BRAIN, spendReceipt } = await load('tests/ux/_paidRun.mjs')
   // Install only shared test instrumentation beside the target's test dependencies, never product code.
   for (const name of ['Proxy', 'Hosting']) fs.copyFileSync(new URL(`./_generationLockExit${name}.mjs`, import.meta.url), path.join(root, `tests/ux/.releaseCore${name}.mjs`))
@@ -107,6 +121,7 @@ export async function runReleaseCoreCompare(mode, openPaid) {
     result.error = error.stack
     process.exitCode = 1
   } finally {
+    result.observationsPassed = result.complete
     if (walk) {
       walk.report.releaseCoreCompare = result
       try { if (paid) await paid.finish(failure); else await walk.finish(failure) }
@@ -117,14 +132,14 @@ export async function runReleaseCoreCompare(mode, openPaid) {
     if (proxy) await proxy.close()
     if (walk) result.screenshots = fs.readdirSync(walk.outputDir).filter(name => name.endsWith('.png')).map(name => path.join(out, 'runtime', name))
     result.finishedAt = new Date().toISOString()
+    fs.rmSync(scratch, { recursive: true, force: true })
+    result.exitCodeBeforeExit = Number(process.exitCode ?? 0)
     fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2))
     // Existing launch guards may reject only at process exit, after all task observations passed.
     process.once('exit', () => {
-      result.exitCode = process.exitCode ?? 0
-      if (result.exitCode !== 0) { result.complete = false; result.error ??= 'Runtime guard or teardown rejected this walk; see the process log' }
+      finalizeReleaseCoreReceipt(result, readMacForegroundGuardState(), Number(process.exitCode ?? 0))
       fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2))
     })
-    fs.rmSync(scratch, { recursive: true, force: true })
   }
   console.log(`${mode}: observations recorded; ${path.join(out, 'result.json')}`)
 }

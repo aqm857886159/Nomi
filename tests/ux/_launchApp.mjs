@@ -253,10 +253,19 @@ export function summarizeFrontSamples(samples, appPid) {
   return `[quiet-walk] 前台抽样 ${samples.length} 次；最前：${fronts}；走查 App(pid ${appPid ?? '?'}) 类型：${types}；${verdict}`
 }
 
+let firstMacForegroundViolation = null
+let macForegroundGuardExitCode = null
+
+/** Process-wide observation only; readers cannot change the guard's retained evidence. */
+export function readMacForegroundGuardState() {
+  return { violated: firstMacForegroundViolation !== null, firstViolation: firstMacForegroundViolation ? { ...firstMacForegroundViolation } : null, exitCodeBeforeGuard: macForegroundGuardExitCode }
+}
+
 /** 'exit' 回调里改的 exitCode 是进程真正的退出码：走查结尾自己 process.exit(0) 也盖不掉抢前台的红。 */
 function failOnForegroundViolation() {
   // 0（绿）和 125（跳过，nightly-walk-summary 不算失败）都会把抢前台藏起来；别的非零本来就是红，留走查自己的码。
   const code = Number(process.exitCode ?? 0)
+  macForegroundGuardExitCode ??= code
   if (code === 0 || code === WALK_SKIPPED_EXIT_CODE) process.exitCode = 1
 }
 
@@ -271,6 +280,7 @@ export function startMacForegroundGuard({ appPid, foreground = false, intervalMs
     samples.push(row)
     if (!verdict.ok && !violation) {
       violation = row
+      firstMacForegroundViolation ??= { ...row }
       console.error(`[quiet-walk] 走查抢了前台：${JSON.stringify(row)}`)
       process.once('exit', failOnForegroundViolation)
     }

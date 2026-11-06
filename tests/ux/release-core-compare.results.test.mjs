@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { compareResults } from './release-core-compare.results.mjs'
+import { finalizeReleaseCoreReceipt } from './_releaseCoreCompare.mjs'
 
 const receipt = () => ({ schema: 1, complete: true, exitCode: 0, mode: 'rehearsal', commit: 'a'.repeat(40),
   contract: { inputHash: 'b'.repeat(64), brain: { vendorKey: 'test', modelKey: 'brain' }, image: { vendorKey: 'test', modelKey: 'image' }, parameters: {}, language: 'zh', locale: 'zh-CN', draftTurns: 1, maxImages: 5 },
@@ -57,4 +58,20 @@ test('each adverse metric and stuck/failed ordering blocks the release', () => {
   const before = receipt(); before.batch.shots[0].outcome = 'failed'
   after.batch.busyReleased = true; after.batch.shots[0].outcome = 'stuck'
   assert.equal(compareResults(before, after).verdict, '变差')
+})
+
+test('only the observed foreground guard may turn a complete clean task into an accepted exit 1', () => {
+  const guard = { violated: true, firstViolation: { pid: 42, phase: 'started', ok: false }, exitCodeBeforeGuard: 0 }
+  const finish = (overrides = {}, state = guard, code = 1) => finalizeReleaseCoreReceipt({ ...receipt(), observationsPassed: true, exitCodeBeforeExit: 0, ...overrides }, state, code)
+  const foregroundOnly = finish()
+  assert.equal(foregroundOnly.complete, true)
+  assert.equal(foregroundOnly.exitCode, 1)
+  assert.equal(foregroundOnly.exitCause, 'foreground-guard')
+  assert.equal(compareResults(receipt(), foregroundOnly).verdict, '持平')
+  assert.ok(compareResults(receipt(), foregroundOnly).rows.some(row => String(row.candidate).includes('foreground-guard')))
+  assert.throws(() => compareResults(receipt(), finish({ complete: false, observationsPassed: false, error: 'assertion failed', exitCodeBeforeExit: 1 })), /Incomplete/)
+  assert.throws(() => compareResults(receipt(), finish({}, { violated: false, firstViolation: null, exitCodeBeforeGuard: null })))
+  assert.throws(() => compareResults(receipt(), { ...foregroundOnly, foregroundGuard: null }), /exit/)
+  assert.throws(() => compareResults(receipt(), finish({}, { ...guard, exitCodeBeforeGuard: 1 })))
+  assert.throws(() => compareResults(receipt(), finish({}, guard, 2)))
 })

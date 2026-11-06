@@ -8,7 +8,9 @@ const countKeys = ['shotCount', 'toolCalls', 'failures', 'retries', 'manualSteps
 function validate(record) {
   assert.equal(record.schema, 1, 'Unknown receipt schema')
   assert.equal(record.complete, true, 'Incomplete evidence blocks the release comparison')
-  assert.equal(record.exitCode, 0, 'A clean process exit receipt is required')
+  const foregroundOnly = record.exitCode === 1 && record.exitCause === 'foreground-guard' && record.observationsPassed === true && record.exitCodeBeforeExit === 0
+    && record.foregroundGuard?.violated === true && record.foregroundGuard.firstViolation?.ok === false && record.foregroundGuard.exitCodeBeforeGuard === 0
+  assert.ok(record.exitCode === 0 || foregroundOnly, 'A clean exit or an evidenced foreground-only exit is required')
   assert.ok(['paid', 'rehearsal'].includes(record.mode), 'Missing run mode')
   assert.match(record.commit ?? '', /^[a-f0-9]{40}$/)
   assert.match(record.contract?.inputHash ?? '', /^[a-f0-9]{64}$/)
@@ -58,6 +60,7 @@ export function compareResults(previous, candidate) {
   add('结束后解除忙碌', previous.batch.busyReleased, candidate.batch.busyReleased, 1)
   add('被拒重试数', previous.batch.rejectedRetries, candidate.batch.rejectedRetries)
   const verdict = rows.some(row => row.verdict === '变差') ? '变差' : rows.some(row => row.verdict === '变好') ? '变好' : '持平'
+  rows.push({ metric: '进程退出（前台护栏单独记账）', previous: `${previous.exitCode} (${previous.exitCause ?? 'clean'})`, candidate: `${candidate.exitCode} (${candidate.exitCause ?? 'clean'})`, verdict: '持平' })
   return { mode: previous.mode, previousCommit: previous.commit, candidateCommit: candidate.commit, verdict, rows }
 }
 
