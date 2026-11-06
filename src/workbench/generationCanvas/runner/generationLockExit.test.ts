@@ -172,7 +172,9 @@ it.each(['success', 'error', 'unknown'] as const)('in-flight refusal: the origin
   calls.confirm.mockResolvedValueOnce(false)
   await confirmAndRunNode(node.id, { initiator: 'user' })
   let current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!
-  expect(current.runs).toHaveLength(1)
+  // 花钱的那次在主进程准入回执到之前不进运行记录，被拒的那下从来不是一次运行（docs/plan/2026-11-07-shot-result-ownership.md D1 / D3）：
+  // 此刻记录里一条都没有；以前断言「1 条」是因为点下去就写记录。
+  expect(current.runs ?? []).toHaveLength(0)
   expect(current.error).toBeUndefined()
   settle(); await original
   current = useGenerationCanvasStore.getState().nodes.find(n => n.id === node.id)!

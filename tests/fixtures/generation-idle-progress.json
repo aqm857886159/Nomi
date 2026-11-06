@@ -5,7 +5,6 @@
     "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
     "src/workbench/generationCanvas/runner/generationRunController.ts",
     "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
-    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
     "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts"
   ],
   "events": [
@@ -14,7 +13,6 @@
     { "name": "phase and narration", "patch": { "phase": "still-generating", "message": "waiting" }, "dirty": false },
     { "name": "first taskId", "patch": { "taskId": "provider-task" }, "dirty": true },
     { "name": "task kind", "patch": { "taskKind": "video" }, "dirty": true },
-    { "name": "run takeover", "patch": { "runId": "run-2" }, "dirty": true },
     { "name": "queued takeover", "patch": { "percent": 1 }, "queued": true, "dirty": true }
   ]
 }
