@@ -1,0 +1,27 @@
+{
+  "id": "FB-20261107-audio-wire-fields",
+  "since": "2026-11-07",
+  "source": "用户交付任务指出现有音效目录发送了错误字段；以官方合同和请求预览复现。",
+  "category": "parameter-contract",
+  "problem": "Suno Sounds 的类型、速度和调性使用 canonical 控件名充当 wire 字段。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩"
+  ],
+  "useCases": [
+    "旧声音节点升级后保留原参数并按供应商字段发送",
+    "其它模型声明同类字段漂移由端点合同矩阵检出"
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "electron/catalog/apimartLatestContracts.test.ts"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-11-07-audio-wire-fields.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/catalog/apimartLatestContracts.test.ts"
+  }
+}
