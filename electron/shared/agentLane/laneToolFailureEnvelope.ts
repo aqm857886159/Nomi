@@ -127,6 +127,8 @@ export const LANE_TOOL_OWN_FAILURE_CODE_LIST = [
   // 准入层（模型档案）拒收入参的粗码。它不是 lane 自己铸的，但它是 Agent 起草时**最常见**的失败
   // （11-07 用户反馈「经常参数不合法」）；不在这张表里时面板只能落到兜底那一句。
   "generation_input_invalid",
+  // 入参边界：同一工具同一处连错 3 次，这一次被拦下没执行（`laneToolInputBoundary.mts`）。
+  "tool_retry_stopped",
 ] as const;
 
 export type LaneToolOwnFailureCode = (typeof LANE_TOOL_OWN_FAILURE_CODE_LIST)[number];

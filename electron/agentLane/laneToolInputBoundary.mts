@@ -31,12 +31,12 @@ import {
   issuesFromTypeBox, issuesFromZod, publicToolInputIssues, zodIssuesOfError, type ToolInputIssue, type TypeBoxLikeError,
 } from '../shared/agentLane/toolInputIssues.js';
 import { renderLaneToolFailure, toolArgumentsRejected, type LaneToolFailureShape } from '../shared/agentLane/laneToolContract.js';
-import type { LaneToolPublicFailure } from '../shared/agentLane/laneToolFailureEnvelope.js';
+import type { LaneToolOwnFailureCode, LaneToolPublicFailure } from '../shared/agentLane/laneToolFailureEnvelope.js';
 import { LANE_REPEATED_FAILURE_BLOCK, type LaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';
 import type { LaneToolFailureEvent } from './laneRuntimePort.js';
 
 /** 被熔断拦下的那一次调用的码（立即结果没有 `details`，码写在正文首行）。 */
-export const LANE_TOOL_RETRY_STOPPED_CODE = 'tool_retry_stopped';
+export const LANE_TOOL_RETRY_STOPPED_CODE = 'tool_retry_stopped' satisfies LaneToolOwnFailureCode;
 
 /** 两种立即结果的首行头。`Validation failed for tool "X"` 也是走查脚本数「参数被拒」的那个头。 */
 const rejectedHead = (toolName: string): string => `Validation failed for tool "${toolName}"`;

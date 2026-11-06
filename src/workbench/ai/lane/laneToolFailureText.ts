@@ -10,7 +10,7 @@
 // 现在结构化信封一路带到这里（`details.failure` → 投影 → 视图模型），本文件按 `code` 取词条、
 // 按字段摆结构化细节。**它不接受、也不回退到模型正文**：那段字是给模型的，
 // 印给用户就是名实不一（英文、第三人称、还带着 `Next:` 这种只对模型成立的指令）。
-import type { LaneToolPublicFailure } from '../../../../electron/shared/agentLane/laneToolFailureEnvelope'
+import type { LaneToolPublicFailure, LaneToolPublicIssue } from '../../../../electron/shared/agentLane/laneToolFailureEnvelope'
 import { LANE_TOOL_OWN_FAILURE_CODE_LIST } from '../../../../electron/shared/agentLane/laneToolFailureEnvelope'
 import {
   CAPABILITY_TRANSPORT_VERIFICATION_ERROR_CODE_LIST,
@@ -64,14 +64,80 @@ export const AGENT_TOOL_FAILURE_TEXT_KEY = {
   generation_execution_failed: 'agentToolFailure.generation_execution_failed',
   generation_not_started: 'agentToolFailure.generation_not_started',
   generation_provider_unavailable: 'agentToolFailure.generation_provider_unavailable',
+  generation_input_invalid: 'agentToolFailure.generation_input_invalid',
+  tool_retry_stopped: 'agentToolFailure.tool_retry_stopped',
 } as const
+
+/** 期望类型名 → 本地话。认不出的类型名原样给（它本来就是个短标识符）。 */
+const TYPE_TEXT_KEY: Readonly<Record<string, string>> = {
+  object: 'agentToolFailure.typeObject',
+  array: 'agentToolFailure.typeArray',
+  string: 'agentToolFailure.typeString',
+  number: 'agentToolFailure.typeNumber',
+  integer: 'agentToolFailure.typeInteger',
+  boolean: 'agentToolFailure.typeBoolean',
+}
+
+/** 列合法值最多几个：再多就不是「该填什么」，是一份目录。 */
+const ALLOWED_SHOWN = 6
+
+function valuesText(t: Translate, values: readonly string[]): string {
+  const separator = t('agentToolFailure.listSeparator')
+  return values.length > ALLOWED_SHOWN ? `${values.slice(0, ALLOWED_SHOWN).join(separator)}…` : values.join(separator)
+}
+
+/**
+ * 一条入参问题 → 「哪个字段 · 该填什么」。按 `kind` 出本地话；2026-11-07 之前的信封没有 `kind`，
+ * 只有 `expected / receivedType`，按「应是什么类型」那一句说。
+ */
+export function laneToolIssueText(t: Translate, issue: LaneToolPublicIssue): string {
+  const field = issue.path === '(root)' || issue.path === 'root' || !issue.path ? t('agentToolFailure.issueRoot') : issue.path
+  const typeText = (name: string): string => {
+    const key = TYPE_TEXT_KEY[name]
+    return key ? t(key) : name
+  }
+  switch (issue.kind) {
+    case 'unknown_field':
+      return issue.nearest
+        ? t('agentToolFailure.issueUnknownFieldNearest', { field, nearest: issue.nearest })
+        : t('agentToolFailure.issueUnknownField', { field })
+    case 'not_allowed':
+      return issue.allowed && issue.allowed.length > 0
+        ? t('agentToolFailure.issueNotAllowed', { field, values: valuesText(t, issue.allowed) })
+        : t('agentToolFailure.issueInvalid', { field })
+    case 'missing':
+      return t('agentToolFailure.issueMissing', { field })
+    case 'out_of_range':
+      if (issue.min !== undefined && issue.max !== undefined) return t('agentToolFailure.issueRange', { field, min: issue.min, max: issue.max })
+      if (issue.min !== undefined) return t('agentToolFailure.issueAtLeast', { field, min: issue.min })
+      if (issue.max !== undefined) return t('agentToolFailure.issueAtMost', { field, max: issue.max })
+      return t('agentToolFailure.issueInvalid', { field })
+    case 'too_few':
+      return issue.min !== undefined ? t('agentToolFailure.issueTooFew', { field, min: issue.min }) : t('agentToolFailure.issueInvalid', { field })
+    case 'too_many':
+      return issue.max !== undefined ? t('agentToolFailure.issueTooMany', { field, max: issue.max }) : t('agentToolFailure.issueInvalid', { field })
+    case 'wrong_type':
+    case undefined:
+      return issue.expected
+        ? t('agentToolFailure.issueWrongType', { field, expected: issue.expected.split(' or ').map(typeText).join(' / ') })
+        : t('agentToolFailure.issueInvalid', { field })
+    default:
+      return t('agentToolFailure.issueInvalid', { field })
+  }
+}
 
 /** 行尾摘要：一句话，不带结构化细节（展开体才摆细节）。 */
 export function laneToolFailureSummary(t: Translate, failure: LaneToolPublicFailure): string {
+  // 入参没填对、且信封里有出错字段：行尾直接说第一处「哪个字段 · 该填什么」，不说「参数不合法」。
+  const first = failure.issues?.[0]
+  if (first && (failure.code === 'tool_arguments_invalid' || failure.code === 'generation_input_invalid')) {
+    return t('agentToolFailure.argumentsWithField', { issue: laneToolIssueText(t, first) })
+  }
   const key = AGENT_TOOL_FAILURE_TEXT_KEY[failure.code as keyof typeof AGENT_TOOL_FAILURE_TEXT_KEY]
-  // 码不在闭合集合里（域里还有大量更专门的码）时**仍然说本地话**，只是把码带出来给排查用。
+  // 码不在闭合集合里（域里还有大量更专门的码）时**仍然说本地话**，但**不带码**：码是给排查看的
+  // （转录、日志、遥测里都有），创作者读到 `(capability_xxx)` 只会多一个看不懂的词。
   // 绝不退回模型正文——那正是这条门要堵的东西。
-  return key ? t(key) : t('agentToolFailure.unknown', { code: failure.code })
+  return key ? t(key) : t('agentToolFailure.unknown')
 }
 
 /**
@@ -81,15 +147,14 @@ export function laneToolFailureSummary(t: Translate, failure: LaneToolPublicFail
  * 用户文稿正文、素材路径都可能在参数里）。
  */
 export function laneToolFailureDetail(t: Translate, failure: LaneToolPublicFailure): string {
-  const lines = [laneToolFailureSummary(t, failure)]
-  for (const issue of failure.issues ?? []) {
-    lines.push(t('agentToolFailure.fieldExpected', {
-      field: issue.path, expected: issue.expected, received: issue.receivedType,
-    }))
-    if (lines.length > 7) break
-  }
-  if (failure.allowed && failure.allowed.length > 0) {
-    lines.push(t('agentToolFailure.allowedValues', { values: failure.allowed.join('、') }))
+  const key = AGENT_TOOL_FAILURE_TEXT_KEY[failure.code as keyof typeof AGENT_TOOL_FAILURE_TEXT_KEY]
+  const lines = [key ? t(key) : t('agentToolFailure.unknown')]
+  for (const issue of (failure.issues ?? []).slice(0, 6)) lines.push(laneToolIssueText(t, issue))
+  // 某条字段已经逐个列过同一份合法值，就不再印第二遍。
+  const listed = (failure.issues ?? []).some((issue) => issue.allowed && failure.allowed
+    && issue.allowed.length === failure.allowed.length && issue.allowed.every((value, index) => value === failure.allowed![index]))
+  if (failure.allowed && failure.allowed.length > 0 && !listed) {
+    lines.push(t('agentToolFailure.allowedValues', { values: valuesText(t, failure.allowed) }))
   }
   if (failure.useInstead) lines.push(t('agentToolFailure.useInstead', { verb: failure.useInstead }))
   return lines.join('\n')
