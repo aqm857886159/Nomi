@@ -48,6 +48,7 @@ function readFace(win) {
       bodyBg: style?.backgroundColor ?? null,
       bodyTransform: style?.transform ?? null,
       bodyDuration: style?.transitionDuration ?? null,
+      bodyTransitionProperty: style?.transitionProperty ?? null,
       bodyEase: style?.transitionTimingFunction ?? null,
       bodyOutline: style?.outlineStyle ?? null,
       bodyShadow: style?.boxShadow ?? '',
@@ -224,8 +225,18 @@ export async function walkAgentPersona(win, { locale, zh, scheme, shotPath, setB
   await win.mouse.move(centre.x + 2, centre.y + 1, { steps: 2 })
   await win.mouse.up()
   await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), '点小球（抖 2px）没打开面板 · board:AgentPersona/ball.behaviors').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect.poll(() => win.evaluate(() => Boolean(document.activeElement?.closest('#project-agent-resident') && document.activeElement?.tagName === 'TEXTAREA')),
-    { message: '点开后焦点不在 Agent 输入框 · board:AgentPersona/ball.behaviors', timeout: stationTimeout() }).toBe(true)
+  // 输入框是 TipTap 可编辑区，不是 textarea：按它的定位口（AGENT_COMPOSER_INPUT_SELECTOR）认；失败时把焦点现场带出来。
+  const focusFacts = () => win.evaluate(() => {
+    const active = document.activeElement
+    return {
+      inComposer: Boolean(active?.closest('#project-agent-resident [data-v4-control="input"]')),
+      active: active ? `${active.tagName}#${active.id}[${active.getAttribute('data-v4-control') ?? ''}]` : null,
+      inputs: document.querySelectorAll('#project-agent-resident [data-v4-control="input"]').length,
+    }
+  })
+  await expect.poll(async () => (await focusFacts()).inComposer, { message: '点开后焦点不在 Agent 输入框 · board:AgentPersona/ball.behaviors', timeout: stationTimeout() })
+    .toBe(true)
+    .catch(async (error) => { throw new Error(`${error.message}\n焦点现场：${JSON.stringify(await focusFacts())}`) })
   await clickOrFail(win.locator('[data-agent-form-to="ball"]').first(), '浮窗收回小球')
   await expect(ball, '没收回小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
 
@@ -243,7 +254,9 @@ export async function walkAgentPersona(win, { locale, zh, scheme, shotPath, setB
     expect(reducedRunning.ring, '减弱动效时在跑那段弧不见了（应静止留着） · board:AgentPersona/state.running').not.toBeNull()
     expect(reducedRunning.ring.animations, '减弱动效时弧还在转 · board:AgentPersona/state.running').toBe(0)
     expect(reducedRunning.animations, '减弱动效时小球上还有动画 · board:AgentPersona/motion.morph-token').toEqual([])
-    expect(reducedRunning.bodyDuration, '减弱动效时形变不是硬切 · board:AgentPersona/motion.morph-token').toBe('0s')
+    // 硬切 = 没有过渡：要么不过渡任何属性（transition-property: none），要么时长全是 0。
+    const hardCut = reducedRunning.bodyTransitionProperty === 'none' || /^0s(, 0s)*$/.test(reducedRunning.bodyDuration ?? '')
+    expect(hardCut, `减弱动效时形变不是硬切（transition-property ${reducedRunning.bodyTransitionProperty} / duration ${reducedRunning.bodyDuration}） · board:AgentPersona/motion.morph-token`).toBe(true)
     await crop('persona-reduced-running')
     const reducedDone = await pose('done', 0, 0, 'done', 'board:AgentPersona/state.done')
     expect(reducedDone.animations, '减弱动效时刚做完还在跳 · board:AgentPersona/state.done').toEqual([])

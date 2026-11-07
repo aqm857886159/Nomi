@@ -22,12 +22,14 @@ import { useResidentActivityStore } from '../../../workbench/ai/residentActivity
 import { AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from './agentPanelHeaderSlot'
 import { dockStatusLabel } from '../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../workbench/ai/v4/agentPanelV4Labels'
+import { AGENT_COMPOSER_INPUT_SELECTOR } from '../../../workbench/ai/v4/AgentPanelV4Composer'
 import { AgentBallFace } from './AgentBallFace'
 import {
   BALL_SIZE,
   FLOAT_MIN,
   agentBallIsPill,
   createBallDragClickGuard,
+  focusAgentComposerSoon,
   useEffectiveAgentForm,
   clampBall,
   clampRect,
@@ -61,14 +63,9 @@ function useAreaSize(node: HTMLElement | null): { width: number; height: number 
   return size
 }
 
+/** 打开后把焦点放进 Agent 输入框；定位口归输入框持有（AGENT_COMPOSER_INPUT_SELECTOR），找不到会出声。 */
 function focusComposerSoon(): void {
-  let frames = 0
-  const tick = () => {
-    const input = document.querySelector<HTMLTextAreaElement>('#project-agent-resident textarea')
-    if (input) input.focus()
-    else if (frames++ < 20) window.requestAnimationFrame(tick)
-  }
-  window.requestAnimationFrame(tick)
+  focusAgentComposerSoon(`#project-agent-resident ${AGENT_COMPOSER_INPUT_SELECTOR}`)
 }
 
 function BallIcon(): JSX.Element {

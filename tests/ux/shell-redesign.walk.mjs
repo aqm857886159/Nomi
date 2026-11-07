@@ -466,7 +466,8 @@ try {
     await win.locator('.workbench-generation__canvas').click({ position: { x: 500, y: 60 } })
     await win.keyboard.press('Control+J')
     await expect(win.locator('[data-agent-float="generation"] [data-v4-panel]'), 'Ctrl+J 没有打开 Agent').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-    await expect.poll(() => win.evaluate(() => Boolean(document.activeElement?.closest('#project-agent-resident') && document.activeElement?.tagName === 'TEXTAREA')),
+    // 输入框是 TipTap 可编辑区，不是 textarea：按它的定位口（AGENT_COMPOSER_INPUT_SELECTOR）认。
+    await expect.poll(() => win.evaluate(() => Boolean(document.activeElement?.closest('#project-agent-resident [data-v4-control="input"]'))),
       { message: 'Ctrl+J 打开后焦点不在 Agent 输入框', timeout: stationTimeout() }).toBe(true)
     await shoot(win, 'check-mod-j')
     await win.keyboard.press('Control+\\')

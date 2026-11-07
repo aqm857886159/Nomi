@@ -11,6 +11,7 @@ import { persist } from 'zustand/middleware'
 import { declareStoreLifetime } from '../../../workbench/project/storeLifetime'
 import type { V4DockStatus } from '../../../workbench/ai/v4/agentPanelV4DockStatus'
 import type { NomiAgentPose } from '../../../design'
+import { logRendererWarn } from '../../../desktop/rendererLog'
 
 export type AgentForm = 'ball' | 'float' | 'dock'
 export type AgentFormSurface = 'creation' | 'storyboard' | 'generation' | 'preview'
@@ -132,6 +133,36 @@ export function createBallDragClickGuard(schedule: (reset: () => void) => void =
       return false
     },
   }
+}
+
+/** 打开面板后等输入框挂上的最多帧数（面板下一两帧才挂上；20 帧在 60Hz 下约 1/3 秒）。 */
+export const COMPOSER_FOCUS_MAX_FRAMES = 20
+
+/**
+ * 打开 Agent 面板后把焦点放进输入框：面板还没挂上就按帧再找，最多 `COMPOSER_FOCUS_MAX_FRAMES` 帧。
+ * 等满还找不到**要出声**，不许悄悄放弃——10-12 输入框换实现后这里找的还是 `textarea`，一声不吭失效了近一个月。
+ * 出声走渲染层唯一的告警出口（开发时进 DevTools，打包版只落日志、进诊断包），不弹给用户。
+ */
+export function focusAgentComposerSoon(
+  selector: string,
+  {
+    find = (wanted: string) => document.querySelector<HTMLElement>(wanted),
+    nextFrame = (tick: () => void) => { window.requestAnimationFrame(tick) },
+    warn = (fields: { selector: string; frames: number }) => logRendererWarn('agent-composer-focus-target-missing', fields),
+  }: {
+    find?: (selector: string) => HTMLElement | null
+    nextFrame?: (tick: () => void) => void
+    warn?: (fields: { selector: string; frames: number }) => void
+  } = {},
+): void {
+  let frames = 0
+  const tick = () => {
+    const input = find(selector)
+    if (input) input.focus()
+    else if (frames++ < COMPOSER_FOCUS_MAX_FRAMES) nextFrame(tick)
+    else warn({ selector, frames: COMPOSER_FOCUS_MAX_FRAMES })
+  }
+  nextFrame(tick)
 }
 
 export const agentFormStoreLifetime = declareStoreLifetime({

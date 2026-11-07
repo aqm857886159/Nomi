@@ -45,6 +45,12 @@ import { DEFAULT_PERMISSION_TIER, PERMISSION_TIERS } from './agentPanelV4Types'
 import { SkillMedia } from '../../skillLibrary/SkillMedia'
 
 const COMPOSER_INPUT_ATTRIBUTES = { 'data-v4-control': 'input', role: 'textbox', 'aria-multiline': 'true' }
+/**
+ * 外壳找 Agent 输入框的唯一定位口（打开面板后把焦点放进来：ShellAgentHost 的 focusComposerSoon）。
+ * 约定归输入框这边持有、从上面那组属性推出来：10-12 输入框从 textarea 换成 TipTap 后，外壳还在找 `textarea`，
+ * 点小球 / ⌘J 打开后焦点进不来、悄悄失效近一个月。换输入框实现时，这个口跟着这组属性走。
+ */
+export const AGENT_COMPOSER_INPUT_SELECTOR = `[data-v4-control="${COMPOSER_INPUT_ATTRIBUTES['data-v4-control']}"]`
 const MODEL_TRIGGER_WIDTH = 164
 
 function compactModelLabel(label: string): string {
