@@ -128,9 +128,10 @@ const asked = (modelKey: string, modelDoc?: string, sawImage?: "sawImage"): Apim
  *      单镜分镜提取实测：1178 token 进（图片占 1058）/ 1160 出 / 10.4s。
  *
  * 2026-11-07 新加的这一批（GPT-6 / Claude 5.5 / Gemini 4 / Qwen 3.8 / GLM 5.3 / Kimi K3 / Grok 4.7 / MiniMax M3 / Step 3.7）：
- * 依据是协议页 + 价目接口；2026-11-08 一问一个真调用：除 `claude-fable-5.1` 外都调通（它那次 402，余额不够 APIMart 的预扣，
-没调成）；带暗号图问一次、完整回出暗号的 6 个（Claude Opus / Sonnet / Haiku 5.5、Gemini 4 Argon、Gemini 3.8 Flash、
-DeepSeek V4.1 Flash）加回读图声明，其余不写读图。`qwen3.8-max` 照官方专页的写法
+ * 依据是协议页 + 价目接口；2026-11-08 一问一个真调用：除 `claude-fable-5.1` 外都调通（它两次 402：没带输出上限时
+ * APIMart 按最长输出预扣 $40，超过余额；等文本大脑总发输出上限后再问）；带暗号图问一次、完整回出暗号的 6 个
+ * （Claude Opus / Sonnet / Haiku 5.5、Gemini 4 Argon、Gemini 3.8 Flash、DeepSeek V4.1 Flash）加回读图声明，
+ * 其余不写读图。`qwen3.8-max` 照官方专页的写法
  * （texts/qwen3.8-max/guide），不用价目表里另挂的 `-0902`。合入前跑一遍免费的 `/v1/models` 对账
  * （tests/ux/apimart-text-list.real.mjs）和付费一问一个，调不通的在同一个 PR 里删（新加的，没有老用户）。
  */

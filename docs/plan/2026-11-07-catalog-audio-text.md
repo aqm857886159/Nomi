@@ -144,13 +144,13 @@ Mac 合同与回环可验；Windows/真付费/真实供应商/中英真窗口/�
 |---|---|
 | 文字调通（HTTP 200，回了正文，回答的模型就是请求的那个） | gpt-6-astra、gpt-6.1-sol、gpt-6.1-terra、gpt-6-luna、claude-opus-5-5、claude-sonnet-5-5、claude-haiku-5-5、gemini-4-argon、gemini-3.8-flash、deepseek-v4-pro、deepseek-v4.1-flash、qwen3.8-max、qwen3.8-flash、qwen3.8-27b、qwen3.8-2.4t-a95b、glm-5.3、glm-5.3-flash、kimi-k3、grok-4.7、minimax-m3、step-3.7-flash、deepseek-v4-flash、gemini-3.5-flash |
 | 读图通过（完整回出暗号） | claude-opus-5-5、claude-sonnet-5-5、claude-haiku-5-5、gemini-4-argon、gemini-3.8-flash、deepseek-v4.1-flash、gemini-3.5-flash |
-| 没调成：余额不够预扣 | claude-fable-5.1：HTTP 402 `insufficient_user_quota`（APIMart 按单次最大花费先预扣，要 40 美元以上余额；不是模型的问题）。文字、读图两题都是 |
+| 没调成：预扣超过余额 | claude-fable-5.1：HTTP 402 `insufficient_user_quota`，文字、读图两题都是。11-08 问了两次（余额 $2.76、充值后 $12.19），都要预扣 $40.05：我们走 OpenAI 协议时没带输出上限，APIMart 按最长输出（100 万 token × $40/M）预扣。不是模型的问题，修法是请求链改造里「文本大脑总发输出上限」那一片 |
 | 调不通 | deepseek-v3.1-terminus：HTTP 503 `model_not_found`；`/v1/models` 列表里也没有它 |
 
 据此改的声明（`electron/catalog/apimartTexts.ts`）：
 - 调通的 20 条新加的：`evidence.liveCall` 从「未」改成这次（`ASKED_20261108`）。
 - 读图通过的 6 条新加的：加回 `meta.supportsImageInput: true`，带 `evidence.imageInput`（`SAW_IMAGE_20261108`）。
-- claude-fable-5.1：照旧「未」、不写读图；余额补上后补问一次。
+- claude-fable-5.1：照旧「未」、不写读图；等「总发输出上限」那一片合入后再问（预扣会降到按上限算）。
 - deepseek-v3.1-terminus：本 PR 不动；它有老用户，退役要迁移，走 `seedBuiltins.ts` 的退役清单另开 PR（计划表登记）。
 - 自动读图不跟着变：多了 6 个读图声明后，没指定模型时「挑第一个能读图的」会按目录序从 gemini-3.5-flash 换成 claude-opus-5-5（价贵两倍多，视频拆解读帧也没比过）。给 gemini-3.5-flash 声明 `meta.autoImageReader: true`，`selectTextModelCandidates` 在同为「能读图」时把它排前；`apimartLatestContracts.test.ts` 断言新装和 v0.24.1 升级两种目录自动读图都还是它（去掉排序规则这条红：`expected 'claude-opus-5-5' to be 'gemini-3.5-flash'`）。换不换成更新、更便宜的读图模型，等读帧质量和花费比过再定（计划表登记）。
 
