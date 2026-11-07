@@ -38,8 +38,8 @@ const IMAGE_CASES: Record<string, { t2i: Expected; i2i: Expected }> = {
     i2i: { model: "flux-3-image", fields: ["model", "prompt", "aspect_ratio", "resolution", "grounding", "image_urls"] },
   },
   "flux-3-image-klein": {
-    t2i: { model: "flux-3-image-klein", fields: ["model", "prompt", "aspect_ratio", "resolution", "output_format"] }, // steps / seed 留空即用官方默认
-    i2i: { model: "flux-3-image-klein", fields: ["model", "prompt", "aspect_ratio", "resolution", "output_format", "image_urls"] },
+    t2i: { model: "flux-3-image-klein", fields: ["model", "prompt", "aspect_ratio", "resolution", "output_format", "steps"] }, // seed 留空即用官方默认；steps 默认 16 照发
+    i2i: { model: "flux-3-image-klein", fields: ["model", "prompt", "aspect_ratio", "resolution", "output_format", "steps", "image_urls"] },
   },
   "grok-imagine-image-2.0": {
     t2i: { model: "grok-imagine-image-2.0", fields: ["model", "prompt", "aspect_ratio", "resolution", "quality"], values: { quality: "medium" } },
@@ -129,6 +129,7 @@ const VIDEO_CASES: Record<string, { t2v?: Expected; i2v: Expected }> = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- create 是目录 mapping 的原样 JSON，字段形状由生产函数消费
 function buildBody(model: { modelKey: string; archetypeId?: string; mappings: Array<{ taskKind: string; create: any }> }, taskKind: string, referenceExtras: Record<string, unknown>) {
   const mapping = model.mappings.find((item) => item.taskKind === taskKind);
   if (!mapping) throw new Error(`${model.modelKey}: no ${taskKind} mapping`);

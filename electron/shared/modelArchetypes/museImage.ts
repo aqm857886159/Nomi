@@ -10,7 +10,7 @@ import type { ModelArchetype } from "./types";
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
 
 const PARAMS: ModelParameterControl[] = [
-  { key: "aspect_ratio", label: "比例", type: "select", options: opt(["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"]) },
+  { key: "aspect_ratio", label: "比例", type: "select", options: [{ value: "auto", label: "自动" }, ...opt(["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"])], defaultValue: "auto" },
 ];
 
 export const MUSE_IMAGE_EXT_ARCHETYPE: ModelArchetype = {

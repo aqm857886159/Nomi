@@ -61,6 +61,9 @@ const RESOLUTION = "{{request.params.resolution}}";
 const QUALITY = "{{request.params.quality}}"; // GPT Image 2.5 专属质量档（kie 那四个端点没有这个字段）
 const BACKGROUND = "{{request.params.background}}"; // 透明/不透明/自动
 const ASPECT_RATIO = "{{request.params.aspect_ratio}}";
+// 「不选就不发」的比例：官方明说不要发 auto：生成框选「自动」，经 omitAuto 不产出改名后的键，body 引用它、整键丢弃。
+const ASPECT_RATIO_OPTIONAL = "{{request.params.aspect_ratio_wire}}";
+const OPTIONAL_ASPECT_PARAM_MAP: ParamMap = { rules: [{ wire: "aspect_ratio_wire", fromMany: ["aspect_ratio"], transform: "omitAuto" }] };
 const GROUNDING = "{{request.params.grounding}}"; // FLUX 3 联网检索（布尔）
 const OUTPUT_FORMAT = "{{request.params.output_format}}";
 const STEPS = "{{request.params.steps}}";
@@ -231,8 +234,9 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
   // Muse Image Ext：比例没选就不发（官方不收 auto，也不收 resolution）。
   imageModel({
     modelKey: "muse-image-ext", labelZh: "Muse Image", archetypeId: "muse-image-ext",
-    t2iBody: { aspect_ratio: ASPECT_RATIO },
-    editBody: { aspect_ratio: ASPECT_RATIO, image_urls: IMAGE_URLS },
+    t2iBody: { aspect_ratio: ASPECT_RATIO_OPTIONAL },
+    editBody: { aspect_ratio: ASPECT_RATIO_OPTIONAL, image_urls: IMAGE_URLS },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
   }),
   // 万相 2.7 图像：改图比例跟随最后一张输入图，所以改图 body 不发 size。
   imageModel({

@@ -50,6 +50,9 @@ const VARIANT_MODEL_REF = "{{request.params.model}}";
 
 // 通用 snake 参数引用（值取自档案控件/槽，键 = 各模型 apimart 字段名）。
 const ASPECT = "{{request.params.aspect_ratio}}";
+// 「不选就不发」的比例（官方明说不要发 auto：选「自动」经 omitAuto 不产出改名后的键，body 引用它、整键丢弃）。
+const ASPECT_OPTIONAL = "{{request.params.aspect_ratio_wire}}";
+const OPTIONAL_ASPECT_PARAM_MAP: ParamMap = { rules: [{ wire: "aspect_ratio_wire", fromMany: ["aspect_ratio"], transform: "omitAuto" }] };
 const SIZE = "{{request.params.size}}";
 const RESOLUTION = "{{request.params.resolution}}";
 const QUALITY = "{{request.params.quality}}";
@@ -106,16 +109,18 @@ function videoModel(p: {
   i2vBody?: Record<string, unknown>;
   /** i2v 模式「故意不发」的 canonical 参数（比例由图自动决定）。明示 drop 满足铁律不变量，行为不变。 */
   i2vDrops?: string[];
+  /** 两个方式共用的参数翻译（如「不选就不发」的比例）；i2v 同时有 i2vDrops 时 drops 并入。 */
+  paramMap?: ParamMap;
 }): ApimartVideoModel {
   const idKey = p.idKey ?? p.archetypeId;
   const mappings: ApimartVideoModel["mappings"] = [];
   if (p.t2vBody) {
-    const create = videoCreateOp(p.t2vBody, p.modelRef);
+    const create = videoCreateOp(p.t2vBody, p.modelRef, p.paramMap);
     if (p.requestTransform) create.request_transform = p.requestTransform;
     mappings.push({ id: `seed-apimart-${idKey}-text_to_video`, taskKind: "text_to_video", name: `${p.labelZh} · 文生视频`, create });
   }
   if (p.i2vBody) {
-    const create = videoCreateOp(p.i2vBody, p.modelRef, p.i2vDrops?.length ? dropParamMap(p.i2vDrops) : undefined);
+    const create = videoCreateOp(p.i2vBody, p.modelRef, p.i2vDrops?.length ? { ...(p.paramMap ?? { rules: [] }), drops: p.i2vDrops } : p.paramMap);
     if (p.requestTransform) create.request_transform = p.requestTransform;
     mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create });
   }
@@ -238,8 +243,9 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // Grok Imagine Video 1.5 官方通道：字段名 resolution / aspect_ratio（Ext 那条叫 quality / size），图生只发 image_urls。
   videoModel({
     modelKey: "grok-imagine-video-1.5", labelZh: "Grok Imagine Video 1.5 官方", archetypeId: "grok-imagine-video-1.5-official",
-    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
+    t2vBody: { aspect_ratio: ASPECT_OPTIONAL, resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
   }),
   // PixVerse V6：比例字段 size；单图 image_urls，首尾帧 first_frame_image + last_frame_image（互斥由模式投影保证）。
   videoModel({
@@ -256,8 +262,9 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   // Muse Video Ext：时长 / 清晰度 / 声音官方都固定，比例没选就不发。
   videoModel({
     modelKey: "muse-video-ext", labelZh: "Muse Video", archetypeId: "muse-video-ext",
-    t2vBody: { aspect_ratio: ASPECT },
-    i2vBody: { aspect_ratio: ASPECT, image_urls: IMAGE_URLS },
+    t2vBody: { aspect_ratio: ASPECT_OPTIONAL },
+    i2vBody: { aspect_ratio: ASPECT_OPTIONAL, image_urls: IMAGE_URLS },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
   }),
   // FLUX 3 Video：resolution 取 hd / fhd；图生关键帧 1–10 张。
   videoModel({
@@ -303,12 +310,14 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   videoModel({
     modelKey: "gemini-omni-1.2-flash", labelZh: "Gemini Omni 1.2 Flash", archetypeId: "gemini-omni-1.2-flash",
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
-    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
+    i2vBody: { aspect_ratio: ASPECT_OPTIONAL, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
   }),
   videoModel({
     modelKey: "gemini-omni-1.2-flash-ext", labelZh: "Gemini Omni 1.2 Flash Ext", archetypeId: "gemini-omni-1.2-flash-ext",
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
-    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
+    i2vBody: { aspect_ratio: ASPECT_OPTIONAL, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
   }),
   {
     modelKey: "MiniMax-H3-Regeneration",

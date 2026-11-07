@@ -208,7 +208,7 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
     width: request.width,
     height: request.height,
     seed: request.seed ?? numericWireParam(extras.seed),
-    steps: request.steps,
+    steps: request.steps ?? numericWireParam(extras.steps),
     cfgScale: request.cfgScale,
     cfg_scale: request.cfgScale,
     negative_prompt: request.negativePrompt ?? extras.negative_prompt,

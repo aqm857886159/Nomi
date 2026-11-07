@@ -10,7 +10,7 @@ const opt = (values: string[]): ModelParameterControl["options"] => values.map((
 // 固定约 10 秒、720p、自带声音的 MP4；时长 / 清晰度 / 声音官方都不让改（audio:false 会被拒），所以一个都不声明、也不发。
 // 比例 7 档；不选就不发（文生默认 16:9，带参考图则跟随参考图）；官方明写不要发 "auto"，所以没有 auto 项也没有默认值。
 // 参考图最多 9 张，合计原始大小 ≤11 MiB；参考图是「引导」，不保证首帧逐像素一致。
-const MUSE_ASPECT: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"]) };
+const MUSE_ASPECT: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: [{ value: "auto", label: "自动" }, ...opt(["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"])], defaultValue: "auto" };
 
 export const MUSE_VIDEO_EXT_ARCHETYPE: ModelArchetype = {
   id: "muse-video-ext",

@@ -11,7 +11,7 @@ const opt = (values: string[]): ModelParameterControl["options"] => values.map((
 
 const RESOLUTION: ModelParameterControl = { key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p", "1080p"]), defaultValue: "480p" };
 const DURATION: ModelParameterControl = { key: "duration", label: "时长(秒)", type: "number", options: [], min: 1, max: 15, defaultValue: 8 };
-const ASPECT: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"]) };
+const ASPECT: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: [{ value: "auto", label: "自动" }, ...opt(["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"])], defaultValue: "auto" };
 
 export const GROK_IMAGINE_VIDEO_15_OFFICIAL_ARCHETYPE: ModelArchetype = {
   id: "grok-imagine-video-1.5-official",

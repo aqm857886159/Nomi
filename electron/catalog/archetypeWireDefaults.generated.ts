@@ -2,13 +2,17 @@
 // 档案参数默认值桥接：headless/MCP 生成缺参时 runtime 按 (archetypeId, taskKind) 兜底填，既有值优先。
 // 表体按 kind 分片（各 *.generated.ts），此处合并 —— 分片是为了不让单文件随档案数顶破 800 行巨壳门岗。
 import { ARCHETYPE_WIRE_DEFAULTS_IMAGE } from "./archetypeWireDefaults.image.generated";
+import { ARCHETYPE_WIRE_DEFAULTS_IMAGE2 } from "./archetypeWireDefaults.image2.generated";
 import { ARCHETYPE_WIRE_DEFAULTS_VIDEO } from "./archetypeWireDefaults.video.generated";
+import { ARCHETYPE_WIRE_DEFAULTS_VIDEO2 } from "./archetypeWireDefaults.video2.generated";
 import { ARCHETYPE_WIRE_DEFAULTS_AUDIO } from "./archetypeWireDefaults.audio.generated";
 import { ARCHETYPE_WIRE_DEFAULTS_MODEL3D } from "./archetypeWireDefaults.model3d.generated";
 
 export const ARCHETYPE_WIRE_DEFAULTS: Record<string, Record<string, Record<string, Record<string, unknown>>>> = {
   ...ARCHETYPE_WIRE_DEFAULTS_IMAGE,
+  ...ARCHETYPE_WIRE_DEFAULTS_IMAGE2,
   ...ARCHETYPE_WIRE_DEFAULTS_VIDEO,
+  ...ARCHETYPE_WIRE_DEFAULTS_VIDEO2,
   ...ARCHETYPE_WIRE_DEFAULTS_AUDIO,
   ...ARCHETYPE_WIRE_DEFAULTS_MODEL3D,
 };

@@ -18,7 +18,7 @@ const RESOLUTION: ModelParameterControl = { key: "resolution", label: "清晰度
 const duration = (max: number): ModelParameterControl => ({ key: "duration", label: "时长(秒)", type: "number", options: [], min: 3, max, defaultValue: 10 });
 const ASPECT_TEXT: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16"]), defaultValue: "16:9" };
 // 有图时官方说省略比例则输出跟随素材，所以图生类模式的比例不设默认（不发）。
-const ASPECT_FOLLOW: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16"]) };
+const ASPECT_FOLLOW: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: [{ value: "auto", label: "自动" }, ...opt(["16:9", "9:16"])], defaultValue: "auto" };
 
 const T2V: ArchetypeMode = {
   id: "t2v", intent: "text", vendorTerm: "文生视频", hint: "纯文字生成 3–15 秒视频", promptRequired: true, transportTaskKind: "text_to_video",
