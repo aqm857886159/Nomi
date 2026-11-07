@@ -43,7 +43,9 @@ export const AgentBallFace = React.forwardRef<HTMLButtonElement, {
         // 点击区域照旧：44×44（胶囊时宿主给 132 宽）；按钮本身透明，看得见的是里面那张脸。
         'relative block h-11 rounded-pill border-0 bg-transparent p-0',
         // 焦点描边画在看得见的身体上（outline 跟着身体的圆角走），不画在透明的点击框上。
-        'focus-visible:outline-none [&:focus-visible_[data-nomi-agent-body]]:outline [&:focus-visible_[data-nomi-agent-body]]:outline-2 [&:focus-visible_[data-nomi-agent-body]]:outline-offset-2 [&:focus-visible_[data-nomi-agent-body]]:outline-nomi-ink',
+        // 透明框上那道要用 !：全局底座 `:root :focus-visible:not(文本框)`（tailwind.config.ts）特异性比
+        // `focus-visible:outline-none` 高，不加 ! 会在 44px 圆框外再画一圈（两道焦点圈，走查 ③ 量着）。
+        'focus-visible:!outline-none [&:focus-visible_[data-nomi-agent-body]]:outline [&:focus-visible_[data-nomi-agent-body]]:outline-2 [&:focus-visible_[data-nomi-agent-body]]:outline-offset-2 [&:focus-visible_[data-nomi-agent-body]]:outline-nomi-ink',
         pill ? undefined : 'w-11',
         className,
       )}
