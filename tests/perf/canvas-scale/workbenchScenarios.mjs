@@ -113,8 +113,11 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
     }
     const { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR } = await import('../../ux/agent-runtime-fixture.mjs')
     const provider = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir })
-    // 常驻应答：每一句都回一段慢慢吐的长正文（约 2400 字，12 字一帧、40ms 一帧 ≈ 8 秒）。
-    provider.respond({ label: 'perf stream', match: () => true, reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs: 40 } })
+    // 常驻应答：每一句都回一段慢慢吐的长正文。1240 字，一帧 12 字，平移那条 40ms 一帧，约 4 秒吐完。
+    // 眼睛跟随那条要在「在跑」里先量 1.2 秒静止对照、再扫一圈，4 秒不够：扫完时 Agent 已经停了，样本会被跳过（11-07 冒烟两次都跳过）。
+    // 所以这条放慢到 120ms 一帧，约 12 秒吐完。
+    const intervalMs = scenario === 'agent-ball-eye-follow' ? 120 : 40
+    provider.respond({ label: 'perf stream', match: () => true, reply: { type: 'stream', text: STREAM_TEXT, chunkChars: 12, intervalMs } })
     return {
       launch: {
         settingsDir,
@@ -790,7 +793,7 @@ async function panWhileGenerating(page, ctx) {
 }
 
 /**
- * ⑨ Agent 流式输出时平移画布。每次采样：在生成页的 Agent 面板发一句话，本机假模型约 8 秒慢慢吐一段长正文；
+ * ⑨ Agent 流式输出时平移画布。每次采样：在生成页的 Agent 面板发一句话，本机假模型约 4 秒慢慢吐一段长正文；
  * 第一段字出现在面板里之后开始平移。
  */
 async function panWhileAgentStreaming(page, ctx) {
