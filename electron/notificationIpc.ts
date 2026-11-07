@@ -4,7 +4,8 @@
 //
 // 为什么走主进程而不是渲染层的 HTML5 Notification：只有主进程这边点击回调能真正把窗口
 // show()+focus() 拉回前台（渲染层的 window.focus() 在 macOS 上不可靠）。
-import { BrowserWindow, ipcMain } from "electron";
+import { ipcMain } from "electron";
+import { ensureMainWindow } from "./mainWindowPresence";
 import { showDesktopNotification } from "./desktopNotification";
 import { assertTrustedSender } from "./ipcSenderGuard";
 
@@ -13,15 +14,6 @@ type NotifyPayload = {
   body?: unknown;
   event?: unknown;
 };
-
-function focusMainWindow(): void {
-  // 通知可能在窗口最小化时被点：先 restore 再 show+focus，否则 macOS 上只是抢焦点、窗口仍收着。
-  const win = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed());
-  if (!win) return;
-  if (win.isMinimized()) win.restore();
-  win.show();
-  win.focus();
-}
 
 // 异步通道（ipcMain.handle）而非 registerSyncIpc：发通知没必要阻塞渲染层。
 export function registerNotificationIpc(): void {
@@ -32,6 +24,6 @@ export function registerNotificationIpc(): void {
     const title = String(input.title || "").trim();
     if (!title) return { ok: false, reason: "empty-title" };
     return showDesktopNotification({ title, body: String(input.body || ""),
-      event: input.event === 'decision' || input.event === 'slow' ? input.event : 'completed', onClick: focusMainWindow })
+      event: input.event === 'decision' || input.event === 'slow' ? input.event : 'completed', onClick: () => ensureMainWindow("notification") })
   });
 }

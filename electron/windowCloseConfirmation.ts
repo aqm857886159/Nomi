@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
-import { continueRequestedQuit, resetQuitRequest } from "./quitTeardown";
+import { productionWorkBusyGate } from "./backgroundLaunch";
+import { continueRequestedQuit, isQuitRequested, requestQuit, resetQuitRequest } from "./quitTeardown";
 
 export const CLOSE_ACK_DEADLINE_MS = 1500;
 const windowsAllowedToClose = new WeakSet<BrowserWindow>();
@@ -76,6 +77,11 @@ function registerCloseResponseIpc(): void {
     if (!response.confirmed || mainWindow.isDestroyed()) {
       resetQuitRequest();
       return;
+    }
+    // 保存期间工作可能变化；必须在窗口销毁、上报被清除之前复核两端。
+    if (process.platform === "darwin" && !isQuitRequested() && !productionWorkBusyGate.isBusyForInstall(mainWindow.webContents.id)) {
+      windowsAllowedToClose.add(mainWindow);
+      requestQuit();
     }
     forceClose(mainWindow);
   });

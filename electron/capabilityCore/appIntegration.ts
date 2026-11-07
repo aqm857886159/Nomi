@@ -15,6 +15,7 @@ import { parseDirectorPreviewBlockReply } from "../shared/director/directorPrevi
 // 这里只做接线，不碰 main.ts 的其它职责（保持 main.ts 精简、单一关注点）。
 import { app } from 'electron'
 import { getMainWindow } from '../appWindowRegistry'
+import { showWindow } from '../mainWindowPresence'
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureCapabilitySigningKey, ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
@@ -658,9 +659,7 @@ export async function startCapabilityCore(
         // 那条走查在锁屏/无前台登录会话时会用阳性对照判出「窗口服务器不给任何 App 焦点」并明说没跑成，
         // 不会把环境没功率报成 Nomi 的 bug。
         if (process.platform === 'darwin') app.focus({ steal: true })
-        if (win.isMinimized()) win.restore()
-        win.show()
-        win.focus()
+        showWindow(win)
         await requestRenderer('integration.open-credentials', { sessionId }, 30_000)
         return { opened: true }
       }),

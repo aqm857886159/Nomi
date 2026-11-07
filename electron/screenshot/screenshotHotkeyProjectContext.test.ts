@@ -44,7 +44,7 @@ beforeEach(() => {
   mock.root = temp()
   vi.stubEnv("NOMI_SETTINGS_DIR", path.join(mock.root, 'settings'))
   const webContents = { send: mock.send }
-  mock.win = { isDestroyed: () => false, show: vi.fn(), focus: vi.fn(), webContents }
+  mock.win = { isDestroyed: () => false, isMinimized: () => false, show: vi.fn(), focus: vi.fn(), webContents }
 })
 afterEach(() => {
   vi.clearAllMocks()

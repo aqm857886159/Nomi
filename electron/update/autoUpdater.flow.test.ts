@@ -49,7 +49,7 @@ async function load(options: { version?: string } = {}) {
   vi.doMock("../i18n", () => ({ desktopT: (key: string) => key }));
   vi.doMock("../ipcSenderGuard", () => ({ assertTrustedSender: vi.fn() }));
   vi.doMock("../telemetry/telemetryOutbox", () => ({ recordTelemetryEvent: vi.fn() }));
-  vi.doMock("../backgroundLaunch", () => ({ hasInFlightProductionWork: () => mainBusy.value }));
+  vi.doMock("../backgroundLaunch", async () => ({ productionWorkBusyGate: (await import("./updateBusyGate")).createUpdateBusyGate({ hasMainBusy: () => mainBusy.value }) }));
   vi.doMock("../settings/settingsRoot", () => ({ getSettingsRoot: () => root }));
   const owner = await import("../quitTeardown");
   owner.installQuitTeardown(electronApp as never, {
@@ -76,7 +76,8 @@ async function load(options: { version?: string } = {}) {
     quitListeners.get("will-quit")?.({ preventDefault: vi.fn() });
     await flush();
   };
-  return { call, updater, sent, announceAvailable, quit, electronApp, reportBusy, mod };
+  const { productionWorkBusyGate: gate } = await import("../backgroundLaunch");
+  return { call, updater, sent, announceAvailable, quit, electronApp, reportBusy, mod, sender, gate };
 }
 
 describe("更新流程：下载 → 退出时装 / 重启装 / 失败重试", () => {
@@ -91,6 +92,16 @@ describe("更新流程：下载 → 退出时装 / 重启装 / 失败重试", ()
     fs.rmSync(root, { recursive: true, force: true });
   });
 
+  it("渲染上报和销毁沿同一个生产工作单例生效", async () => {
+    const { reportBusy, sender, gate } = await load();
+    expect(gate.isBusyForInstall(1)).toBe(true);
+    await reportBusy(0); expect(gate.isBusyForInstall(1)).toBe(false);
+    await reportBusy(2); expect(gate.isBusyForInstall(1)).toBe(true);
+    const destroyed = sender.once.mock.calls.find(([event]) => event === "destroyed")?.[1];
+    expect(destroyed).toBeTypeOf("function"); destroyed();
+    expect(gate.isBusyForInstall(1)).toBe(true);
+    expect(gate.isBusyAtQuit()).toBe(false);
+  });
   it("晚打开的窗口用快照拿到已发现的新版（含两种语言的摘要、安装包大小、完整说明地址）", async () => {
     const { call, announceAvailable } = await load();
     await announceAvailable();

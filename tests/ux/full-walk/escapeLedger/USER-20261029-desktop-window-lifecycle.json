@@ -1,0 +1,38 @@
+{
+  "id": "USER-20261029-desktop-window-lifecycle",
+  "since": "2026-10-29",
+  "source": "用户反馈更新后点开没有反应、Mac 关窗不能退出。",
+  "category": "interaction-semantics",
+  "problem": "主窗隐藏或辅助窗排首时恢复目标错误；Mac 全空闲关闭主窗后进程不退。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "再次打开得到真正主窗",
+    "确知全空闲保存确认后关闭退出"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-05-desktop-window-lifecycle.md",
+    "tests/ux/desktop-window-lifecycle.walk.mjs",
+    "隔离开发构建修前中文 idle 收据：before/results.json，关闭后 PID12399 仍在。",
+    "隔离开发构建修前中文 reopen 收据：before/results-reopen-zh.json，activate 后主窗不可见，second-instance 显示辅助窗而主窗仍不可见。",
+    "隔离开发构建修前中文 export 收据：before/results-export-zh.json，真实待输入导出作业在场关闭后保活，activate 未补回主窗。",
+    "隔离开发构建修后中文 idle 收据：r4-after/results-idle-zh.json，保存确认后 PID92975 消失；不据此宣称召回、导出和英文流程已验收。",
+    "⑫行为矩阵：electron/mainWindowPresence.test.ts、electron/windowCloseConfirmation.test.ts、electron/productionRun/productionRunDesktopLifecycle.test.ts、electron/notificationIpc.test.ts、electron/productionRun/productionNotificationsDesktop.test.ts、electron/backgroundLaunch.inflight.test.ts、electron/update/autoUpdater.flow.test.ts。"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-05-desktop-window-lifecycle.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/mainWindowPresence.test.ts"
+  },
+  "prevention": "恢复只认 registry；关闭沿用主、渲染共用 busyGate，保存后复核，经原退出 owner 退出。",
+  "completionCommits": [
+    "65692769d79bff008ae900edc1ebb25636209eaf",
+    "53e80bef05cd0756429217d66d229b83917a090b"
+  ],
+  "fixedInPr": 1424
+}

@@ -7,6 +7,11 @@ import { getWorkspaceRepositoryDeps } from "./runtimePaths";
 import { listRegisteredProjectIds } from "./workspace/workspaceRegistry";
 import { getProductionRunService } from "./productionRun/productionRunRuntime";
 
+import { createUpdateBusyGate } from "./update/updateBusyGate";
+
+// 更新与关窗共享原上报表；主工作事实仍由下面的唯一 owner 实时读取。
+export const productionWorkBusyGate = createUpdateBusyGate({ hasMainBusy: hasInFlightProductionWork });
+
 export const isBackgroundLaunch = process.env.NOMI_LAUNCH_BACKGROUND === "1";
 
 let idleExit: BackgroundIdleExit | undefined;

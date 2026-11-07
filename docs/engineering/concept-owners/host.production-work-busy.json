@@ -1,0 +1,27 @@
+{
+  "name": "主进程与渲染层工作繁忙状态聚合",
+  "subject": "host.production-work-busy",
+  "lifecycle": "host",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/backgroundLaunch.ts",
+    "symbol": "productionWorkBusyGate"
+  },
+  "write_api": [
+    {
+      "path": "electron/backgroundLaunch.ts",
+      "symbol": "productionWorkBusyGate"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/backgroundLaunch.inflight.test.ts",
+  "allowed_consumers": [
+    "electron/update/autoUpdater.ts",
+    "electron/windowCloseConfirmation.ts"
+  ],
+  "since": "2026-11-05",
+  "notes": "原 updater busyGate 单例迁到既有工作主人 backgroundLaunch，共用同一份渲染层上报 Map，不增加工作计数。主进程工作继续读任务、导出和 Run 的原有事实；未知或忙都不作为空闲退出。更新的 report/forget 与安装判据、保存确认后的严格空闲复核共读这个实例，updater 接线由 electron/update/autoUpdater.flow.test.ts 核对。后台闲退策略仍归 host.background-idle-exit，退出拆除仍归 host.quit-teardown。"
+}

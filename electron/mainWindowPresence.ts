@@ -1,31 +1,50 @@
-// 「进程活着 ⇒ 一定有窗口可点」的守卫（issue #62 根因收口）。
-//
-// 零窗口但进程还活着是个死局：老实例攥着单实例锁，用户再次启动时新进程拿不到锁会直接退出，
-// 老实例又既不建窗也不退出 —— 用户看到的是「双击图标毫无反应，只能去任务管理器杀进程」。
-// 进入零窗口态的路不止一条（macOS 关窗后按设计不退出、窗口重建半途失败……），所以不在每条路上
-// 各补一次症状，而是让所有路都汇到这里自愈：谁发现「该有窗口却没有」，就调它。
-import { BrowserWindow } from "electron";
-import { logError } from "./logging/logger";
+import type { BrowserWindow } from "electron";
+import { getMainWindow } from "./appWindowRegistry";
+import { logError, logInfo } from "./logging/logger";
+
+type MainWindowGuard = (entry: string, reveal?: boolean, create?: () => Promise<unknown>) => Promise<BrowserWindow | null>;
+let installedGuard: MainWindowGuard | undefined;
+
+/** 显示调用者已固定的窗口，不重新选窗或更换它的项目租约。 */
+export function showWindow(window: BrowserWindow): void {
+  if (window.isDestroyed()) return;
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+}
+
+/** 通知等入口复用主进程已装配的建窗主人；无 GUI 的进程不另建窗口。 */
+export function ensureMainWindow(entry: string): Promise<BrowserWindow | null> {
+  if (installedGuard) return installedGuard(entry);
+  logInfo("window", "main-window-presence", { entry, found: false, result: "no-gui-owner" });
+  return Promise.resolve(null);
+}
 
 export function createMainWindowGuard(args: {
   createWindow: () => Promise<unknown>;
-  /** 窗口就绪后要补做的事（如冲刷积压的 deep link）。 */
   onWindowReady: () => void;
-}): () => Promise<void> {
+}): MainWindowGuard {
   let inFlight: Promise<void> | null = null;
-  return function ensureMainWindow(): Promise<void> {
-    if (BrowserWindow.getAllWindows().length > 0) return Promise.resolve();
-    // 并发去重：activate 与 second-instance 可能几乎同时到达，别建出两个窗口。
-    if (inFlight) return inFlight;
-    inFlight = args
-      .createWindow()
-      .then(() => args.onWindowReady())
-      .catch((error) => {
-        logError("window", "ensure-main-window-failed", error);
-      })
-      .finally(() => {
-        inFlight = null;
-      });
-    return inFlight;
+  installedGuard = async (entry, reveal = true, create = args.createWindow) => {
+    const found = Boolean(getMainWindow());
+    try {
+      // 先等正在加载的窗口：registry 登记早于 renderer ready，深链不能提前投递。
+      if (!inFlight && !found) {
+        inFlight = create().catch((error) => {
+          // 创建者已经登记但页面未就绪：删掉这次失败的窗口，别把它当成可用主窗。
+          getMainWindow()?.destroy();
+          throw error;
+        }).then(() => { args.onWindowReady(); }).finally(() => { inFlight = null; });
+      }
+      if (inFlight) await inFlight;
+      const window = getMainWindow();
+      if (window && reveal) showWindow(window);
+      logInfo("window", "main-window-presence", { entry, found, result: window ? (reveal ? "revealed" : "retained") : "missing" });
+      return window;
+    } catch (error) {
+      logError("window", "ensure-main-window-failed", error, { entry, found, result: "failed" });
+      return null;
+    }
   };
+  return installedGuard;
 }
