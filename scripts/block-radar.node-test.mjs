@@ -61,11 +61,14 @@ const RUNS = [
   // 不算：main 推送、取消
   { databaseId: 4, attempt: 1, conclusion: 'failure', event: 'push', headBranch: 'main', headSha: 'm1', createdAt: '2026-11-01T03:00:00Z' },
   { databaseId: 5, attempt: 1, conclusion: 'cancelled', event: 'pull_request', headBranch: 'fix/d', headSha: 'd1', createdAt: '2026-11-01T04:00:00Z' },
+  // 重跑过：第 1 次只有一个 job 被取消（没分到机器、一步没跑）、汇总 job 红——PR 上是红的，但没有哪道门岗拦，单独计数
+  { databaseId: 7, attempt: 2, conclusion: 'success', event: 'pull_request', headBranch: 'fix/e', headSha: 'e1', createdAt: '2026-11-01T05:00:00Z' },
 ]
 const JOBS = {
   '1-1': [{ id: 11, name: 'Contracts', conclusion: 'failure' }, { id: 12, name: 'Unit (1)', conclusion: 'success' }, { id: 13, name: 'Quality Gate', conclusion: 'failure' }],
   '2-1': [{ id: 21, name: 'Contracts', conclusion: 'failure' }, { id: 22, name: 'Unit (2)', conclusion: 'failure' }, { id: 23, name: 'Unit (3)', conclusion: 'failure' }],
   '3-1': [{ id: 31, name: 'Contracts', conclusion: 'failure' }],
+  '7-1': [{ id: 71, name: 'Mac Package', conclusion: 'cancelled' }, { id: 72, name: 'Contracts', conclusion: 'success' }, { id: 73, name: 'Quality Gate', conclusion: 'failure' }],
 }
 const LOGS = {
   11: asActionsLog(`❌ 1 个门岗阻断失败：\n  · ${BODY_GATE}（退出码 1）\n      ✖ 独立验收没有带报告链接\n\n  这一轮已经跑完全部门岗，上面就是**全部**需要修的东西——一次改完，不用一轮推一个。`),
@@ -77,23 +80,25 @@ test('red rounds include the failures hidden behind a rerun; push and cancelled 
   const seen = []
   const rounds = collectRedRounds({
     runs: RUNS,
-    attemptConclusion: (id, n) => { seen.push(`${id}-${n}`); return id === 1 && n === 1 ? 'failure' : 'success' },
+    attemptConclusion: (id, n) => { seen.push(`${id}-${n}`); return (id === 1 || id === 7) && n === 1 ? 'failure' : 'success' },
     jobs: (id, n) => JOBS[`${id}-${n}`],
     log: (jobId) => LOGS[jobId],
   })
-  assert.deepEqual(seen, ['1-1'], '只问重跑过的运行的前几次')
-  assert.deepEqual(rounds.map(({ runId, attempt, final, failedJobs, gates, bodyClass, bodyOnly }) => ({ runId, attempt, final, failedJobs, gates, bodyClass, bodyOnly })), [
-    { runId: 1, attempt: 1, final: false, failedJobs: ['Contracts'], gates: [BODY_GATE], bodyClass: true, bodyOnly: true },
-    { runId: 2, attempt: 1, final: true, failedJobs: ['Contracts', 'Unit'], gates: [BODY_GATE, 'typecheck'], bodyClass: true, bodyOnly: false },
-    { runId: 3, attempt: 1, final: true, failedJobs: ['Contracts'], gates: null, bodyClass: false, bodyOnly: false },
+  assert.deepEqual(seen, ['1-1', '7-1'], '只问重跑过的运行的前几次')
+  assert.deepEqual(rounds.map(({ runId, attempt, final, failedJobs, gates, bodyClass, bodyOnly, cancelledOnly }) => ({ runId, attempt, final, failedJobs, gates, bodyClass, bodyOnly, cancelledOnly })), [
+    { runId: 1, attempt: 1, final: false, failedJobs: ['Contracts'], gates: [BODY_GATE], bodyClass: true, bodyOnly: true, cancelledOnly: false },
+    { runId: 2, attempt: 1, final: true, failedJobs: ['Contracts', 'Unit'], gates: [BODY_GATE, 'typecheck'], bodyClass: true, bodyOnly: false, cancelledOnly: false },
+    { runId: 3, attempt: 1, final: true, failedJobs: ['Contracts'], gates: null, bodyClass: false, bodyOnly: false, cancelledOnly: false },
+    { runId: 7, attempt: 1, final: false, failedJobs: ['Mac Package'], gates: [], bodyClass: false, bodyOnly: false, cancelledOnly: true },
   ])
   const summary = summarize(rounds.map((round) => ({ ...round, codeChanged: round.runId === 2 ? true : round.runId === 1 ? false : null })))
-  assert.equal(summary.redRounds, 3)
+  assert.equal(summary.redRounds, 4, 'PR 上红过就算一轮（要人重跑）')
+  assert.equal(summary.cancelledOnly, 1, '其中没有任何 job 真失败、只是被取消的单列，便于和只数失败 job 的口径对账')
   assert.equal(summary.finalReds, 2)
-  assert.equal(summary.hiddenReds, 1)
+  assert.equal(summary.hiddenReds, 2)
   assert.equal(summary.bodyClass, 2)
   assert.equal(summary.bodyOnly, 1)
-  assert.deepEqual(summary.codeChanged, { yes: 1, no: 1, unknown: 1 })
+  assert.deepEqual(summary.codeChanged, { yes: 1, no: 1, unknown: 2 })
   assert.deepEqual(summary.byGate[0], [BODY_GATE, 2])
 })
 
