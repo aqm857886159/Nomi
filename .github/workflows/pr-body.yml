@@ -1,0 +1,45 @@
+name: PR Body
+
+# 试验用（草稿 PR，不合并）：核 `gh pr edit` 改正文能不能触发 pull_request 的 edited、不装依赖能不能跑完正文判据。
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-body-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-body:
+    name: PR Body
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NOMI_PR_NUMBER: ${{ github.event.pull_request.number }}
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+    steps:
+      - name: Probe event
+        run: |
+          echo "action=${{ github.event.action }} head=${{ github.event.pull_request.head.sha }} sha=$GITHUB_SHA started=$(date -u +%FT%TZ)"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: PR body criteria (merge stage)
+        run: |
+          test -d node_modules && echo node_modules=present || echo node_modules=absent
+          start=$(date +%s%N)
+          set +e
+          node scripts/check-pr-judgement.mjs --stage=merge
+          code=$?
+          echo "check-pr-judgement exit=$code elapsedMs=$(( ($(date +%s%N) - start) / 1000000 ))"
+          exit $code
