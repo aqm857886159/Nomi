@@ -16,8 +16,12 @@
   "budget": 20,
   "budgetStatus": "proposed",
   "budgetBasis": "主指标 turnBoundaryMs = 50 次包过的 prepareArguments 总耗时（含边界替 pi 先跑的那一次校验，是边界额外开销的上界）。一个回合 50 次调用至少 50 次模型往返、秒级，20ms 在其中可以忽略；超过说明校验器没有缓存或拒收清单在重复算。projectionRecomputeMs（20 条拒收各重推一次信封，宿主按调用只算一次）设计卡给的预算是 ≤5ms，只打印；rejectedPerTurn 是量具自检（应恒为 20）。",
-  "measurement": {
-    "state": "pending",
-    "reason": "实现线已在本机量过 5 次并把数字贴进 PR；基线待协调会话在安静窗口用 --update-baseline 写入（实现线不许写基线）"
+  "baseline": {
+    "median": 6,
+    "p95": 7.4,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-07",
+    "commit": "bc93f187f"
   }
 }
