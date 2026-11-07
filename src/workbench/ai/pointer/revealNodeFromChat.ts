@@ -11,7 +11,7 @@ import { viewNodeInCanvas } from '../../generation/list/generationListSource'
 import { useGenerationViewStore } from '../../generation/list/generationViewStore'
 import { AGENT_FLOAT_SELECTOR } from '../../generation/workspaceBottomDocks'
 import { resolveFreeViewRect } from '../../generationCanvas/reactFlow/focusViewportRecovery'
-import { useAgentFormStore } from '../../../ui/app-shell/shell/agentFormStore'
+import { readEffectiveAgentForm, useAgentFormStore } from '../../../ui/app-shell/shell/agentFormStore'
 import { useNodePointerStore } from './nodePointerStore'
 
 type Rect = Readonly<{ left: number; top: number; width: number; height: number }>
@@ -47,8 +47,8 @@ const nextFrame = (): Promise<void> => new Promise((resolve) => window.requestAn
 /** 对话是不是挡住了画布（量此刻的舞台与浮窗）；挡住了就收成小球并记下怎么回来。 */
 function collapseChatIfCovering(nodeId: string, label: string): void {
   const surface = 'generation' as const
-  const forms = useAgentFormStore.getState()
-  const form = forms.bySurface[surface].form
+  // 看**此刻显示的**形态（窄窗档里存着「停靠」的页此刻是小球 / 浮窗），收起也走 requestForm——不把窄窗的临时形态写进存档。
+  const form = readEffectiveAgentForm(surface)
   if (form === 'ball') return
   const stage = document.querySelector(CANVAS_STAGE_SELECTOR)?.getBoundingClientRect()
   if (!stage) return
@@ -58,7 +58,7 @@ function collapseChatIfCovering(nodeId: string, label: string): void {
     : stage.width < POINTER_REVEAL_MIN_FREE.width || stage.height < POINTER_REVEAL_MIN_FREE.height
   if (!covered) return
   useNodePointerStore.getState().setReturnTo({ surface, form, nodeId, label })
-  forms.setForm(surface, 'ball')
+  useAgentFormStore.getState().requestForm(surface, 'ball')
 }
 
 /** 去画布上的这个节点。`label` 是这个指向元素的镜号 / 名字，窄窗口「回到对话」上带着它。 */
@@ -80,7 +80,7 @@ export function returnToChat(): void {
   const target = useNodePointerStore.getState().returnTo
   if (!target) return
   useNodePointerStore.getState().setReturnTo(null)
-  useAgentFormStore.getState().setForm(target.surface, target.form)
+  useAgentFormStore.getState().requestForm(target.surface, target.form)
   window.requestAnimationFrame(() => {
     document.querySelector<HTMLElement>(`[data-node-pointer-id="${CSS.escape(target.nodeId)}"]`)?.focus()
   })

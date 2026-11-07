@@ -466,7 +466,7 @@ function V4HeaderShellActions({ slot, compact, onHistory, historyLabel, moreLabe
     const items: WorkbenchMenuNode[] = [
       { id: 'history', label: historyLabel, icon: IconHistory, onSelect: () => onHistory?.() },
       { kind: 'separator', id: 'sep' },
-      ...(slot.menuItems ?? []).map((item) => ({ id: item.id, label: item.label, onSelect: item.onSelect })),
+      ...(slot.menuItems ?? []).map((item) => ({ id: item.id, label: item.label, onSelect: item.onSelect, disabled: item.disabled, disabledReason: item.disabledReason })),
     ]
     return (
       <>
