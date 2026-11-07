@@ -1,0 +1,45 @@
+{
+  "script": "anchor-outbound-real.paid.mjs",
+  "mode": "paid",
+  "variant": "after",
+  "startedAt": "2026-11-07T05:04:59.940Z",
+  "model": "apimart/gemini-3.1-flash-image-preview",
+  "runStatus": "success",
+  "keptImage": {
+    "file": "anchor-image.jpg",
+    "bytes": 663535
+  },
+  "wire": {
+    "createRequests": 1,
+    "sentContainsDescription": true,
+    "missingStyleWords": [],
+    "sentContainsStructuredFeatures": false,
+    "promptChars": 549
+  },
+  "problems": [],
+  "verified": [
+    "anchor-description-reaches-provider",
+    "no-structured-suffix",
+    "one-post-per-submission"
+  ],
+  "finishedAt": "2026-11-07T05:05:28.848Z",
+  "paidCalls": 1,
+  "spend": [
+    {
+      "taskId": "task_01M6T6B42X2KF856JN2FXS3ZN1",
+      "status": "ready",
+      "model": "gemini-3.1-flash-image-preview",
+      "vendor": "apimart"
+    }
+  ],
+  "providerTaskIds": [
+    "task_01M6T6B42X2KF856JN2FXS3ZN1"
+  ],
+  "networkAllowlist": [
+    "https://api.apimart.ai",
+    "*.getapib.org"
+  ],
+  "networkBlocked": [],
+  "walkOutputDir": ".tmp/pi-anchor-outbound-development-1794027899922",
+  "failure": null
+}

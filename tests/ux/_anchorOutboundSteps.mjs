@@ -194,7 +194,8 @@ export async function runAnchorOutboundJourney({ paid, evidence, observe, expect
   evidence.problems = judged.problems
   if (judged.problems.length && !expectBefore) throw new Error(`参考卡出站请求核对没过：${judged.problems.join('；')}`)
   if (!expectBefore) expect(evidence.runStatus, '这一次生成成功').toBe('success')
-  evidence.verified = ['anchor-description-reaches-provider', 'no-structured-suffix', 'one-post-per-submission']
+  // 改前对照档带着问题跑完，「已核」只在没有问题时才写，免得证据自相矛盾。
+  evidence.verified = judged.problems.length ? [] : ['anchor-description-reaches-provider', 'no-structured-suffix', 'one-post-per-submission']
   // 英文界面各截一张（同一张卡，不再点生成）。
   await setLocale(win, 'en')
   await openAnchorCard({ win, locale: 'en' })
