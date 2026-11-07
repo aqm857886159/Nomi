@@ -17,6 +17,10 @@ import { HAPPYHORSE_ARCHETYPE } from "./happyhorse";
 import { HAPPYHORSE_1_1_ARCHETYPE } from "./happyhorse11";
 import { KLING_3_ARCHETYPE } from "./kling";
 import { KLING_3_TURBO_ARCHETYPE } from "./kling30Turbo";
+import { KLING_4_ARCHETYPE } from "./kling4";
+import { GROK_IMAGINE_VIDEO_15_OFFICIAL_ARCHETYPE } from "./grokImagineVideoOfficial";
+import { PIXVERSE_V6_ARCHETYPE, PIXVERSE_V6_MAX_ARCHETYPE } from "./pixverse6";
+import { FLUX_3_VIDEO_ARCHETYPE, MUSE_VIDEO_EXT_ARCHETYPE } from "./museFluxVideo";
 import { MINIMAX_H3_ARCHETYPE } from "./minimaxH3";
 import { MINIMAX_H3_MAX_ARCHETYPE } from "./minimaxH3Max";
 import { MINIMAX_H3_APIMART_ARCHETYPE } from "./minimaxH3Apimart";
@@ -39,7 +43,10 @@ import { RUNWAY_GEN4_TURBO_ARCHETYPE } from "./runwayGen4Turbo";
 import { VIDU_Q3_ARCHETYPE } from "./viduQ3";
 import { WAN_2_7_ARCHETYPE } from "./wan27";
 import { WAN_3_0_ARCHETYPE } from "./wan30";
-import { WAN_3_0_APIMART_ARCHETYPE } from "./wan30Apimart";
+import { WAN_3_0_APIMART_ARCHETYPE, WAN_3_0_PRIME_APIMART_ARCHETYPE } from "./wan30Apimart";
+import { VEO_31_FAST_OFFICIAL_ARCHETYPE, VEO_31_QUALITY_OFFICIAL_ARCHETYPE } from "./veoOfficial";
+import { VIDU_Q3_PRO_ARCHETYPE, VIDU_Q3_TURBO_ARCHETYPE, VIDU_Q4_PREVIEW_ARCHETYPE } from "./viduNew";
+import { GEMINI_OMNI_12_FLASH_ARCHETYPE, GEMINI_OMNI_12_FLASH_EXT_ARCHETYPE } from "./geminiOmni12";
 
 /**
  * The catalog is the user's source of truth for which models actually exist.
@@ -97,6 +104,20 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
   AGNES_VIDEO_ARCHETYPE,
   AGNES_VIDEO_25_ARCHETYPE,
   AGNES_VIDEO_25_FLASH_ARCHETYPE,
+  KLING_4_ARCHETYPE,
+  GROK_IMAGINE_VIDEO_15_OFFICIAL_ARCHETYPE,
+  PIXVERSE_V6_ARCHETYPE,
+  PIXVERSE_V6_MAX_ARCHETYPE,
+  FLUX_3_VIDEO_ARCHETYPE,
+  MUSE_VIDEO_EXT_ARCHETYPE,
+  WAN_3_0_PRIME_APIMART_ARCHETYPE,
+  VEO_31_FAST_OFFICIAL_ARCHETYPE,
+  VEO_31_QUALITY_OFFICIAL_ARCHETYPE,
+  VIDU_Q3_PRO_ARCHETYPE,
+  VIDU_Q3_TURBO_ARCHETYPE,
+  VIDU_Q4_PREVIEW_ARCHETYPE,
+  GEMINI_OMNI_12_FLASH_ARCHETYPE,
+  GEMINI_OMNI_12_FLASH_EXT_ARCHETYPE,
 ];
 
 /**
@@ -110,12 +131,15 @@ const SOURCE_BACKED_PROFILES: readonly ModelArchetype[] = [
  * continues that version (`.5`, `-5`, `_5`, `5`) is a *different* model, not this one.
  * A pattern that does not end in a digit (`happyhorse`) is a family name, so a version suffix
  * (`happyhorse_1_0`) still belongs to it — that hit stays valid.
+ *
+ * Same for a kind suffix: `wan2.7` + `-image` (`wan2.7-image`, `wan2.7-image-pro`) is the image model of that
+ * generation, not the video one, so the video profile must not claim it (the renderer resolves it to the image profile).
  */
 function substringHitIsVersionSafe(normalizedKey: string, candidate: string): boolean {
   if (!/[0-9]$/.test(candidate)) return true; // family-name pattern: version suffixes still belong to it
   const at = normalizedKey.indexOf(candidate);
   const rest = normalizedKey.slice(at + candidate.length);
-  return !/^[.\-_]?[0-9]/.test(rest);
+  return !/^[.\-_]?[0-9]/.test(rest) && !/^[-_]image/.test(rest);
 }
 
 /** 与渲染层 rawIdentifier 同规则（trim + 去 "models/" 前缀）：归一化必须两侧一致，

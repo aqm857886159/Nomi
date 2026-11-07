@@ -273,7 +273,6 @@ const LEGACY_MODEL_KEYS = new Set([
   "agnes-video-v2.0",
   "meshy6",
   "deepseek-v3.1-terminus",
-  "Omni-Flash-Ext",
   "nomi-audio",
 ]);
 

@@ -148,3 +148,12 @@ export const WAN_3_0_APIMART_ARCHETYPE: ModelArchetype = {
     },
   ],
 };
+
+// Wan 3.0 Prime（同一官方页，2026-11-07 核）：model `wan3.0-video-prime`，官方写明与 `wan3.0-video` 参数、模式逐字相同，
+// 只是另一档（更贵，质量 / 速度差别文档未明说）。所以直接复用 Wan 3.0 的模式表，只换 id / 名称 / 判别串。
+export const WAN_3_0_PRIME_APIMART_ARCHETYPE: ModelArchetype = {
+  ...WAN_3_0_APIMART_ARCHETYPE,
+  id: "wan-3.0-prime-apimart",
+  label: "Wan 3.0 Prime",
+  identifierPatterns: ["wan3.0-video-prime", "wan3-0-video-prime"],
+};

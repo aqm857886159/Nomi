@@ -288,6 +288,110 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
       "reference": "image_to_video"
     }
   },
+  "kling-v4": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "grok-imagine-video-1.5-official": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "pixverse-v6": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video",
+      "firstlast": "image_to_video"
+    }
+  },
+  "pixverse-v6-max": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "flux-3-video": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "muse-video-ext": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "wan-3.0-prime-apimart": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "first": "image_to_video",
+      "firstlast": "image_to_video",
+      "ref": "image_to_video"
+    }
+  },
+  "veo3.1-fast-official": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "veo3.1-quality-official": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "viduq3-pro": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "viduq3-turbo": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video"
+    }
+  },
+  "viduq4-preview": {
+    "defaultModeId": "i2v",
+    "modes": {
+      "i2v": "image_to_video",
+      "ref": "image_to_video"
+    }
+  },
+  "gemini-omni-1.2-flash": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video",
+      "firstlast": "image_to_video",
+      "reference": "image_to_video"
+    }
+  },
+  "gemini-omni-1.2-flash-ext": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video",
+      "reference": "image_to_video"
+    }
+  },
   "minimax-music-3": {
     "defaultModeId": "music",
     "modes": {
@@ -679,6 +783,83 @@ export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; mo
     }
   },
   "gpt-image-2.6-sunburst": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gemini-nano-banana-2.1": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gemini-nano-banana-2.1-ext": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gemini-3.1-flash-lite-image": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "gemini-3.1-flash-lite-image-ext": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "flux-3-image": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "flux-3-image-klein": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "grok-imagine-image-2.0-official": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "hy-image-v3.5-preview": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "muse-image-ext": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "wan2.7-image": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "i2i": "image_edit"
+    }
+  },
+  "wan2.7-image-pro": {
     "defaultModeId": "t2i",
     "modes": {
       "t2i": "text_to_image",

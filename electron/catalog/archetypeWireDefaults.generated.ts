@@ -43,6 +43,13 @@ export const ARCHETYPE_SIZE_RATIO_SEMANTIC: Record<string, Record<string, boolea
     "text_to_video": true,
     "image_to_video": true
   },
+  "pixverse-v6": {
+    "text_to_video": true
+  },
+  "wan-3.0-prime-apimart": {
+    "text_to_video": true,
+    "image_to_video": true
+  },
   "grok-imagine-image-2": {
     "text_to_image": true
   },
@@ -95,5 +102,31 @@ export const ARCHETYPE_SIZE_RATIO_SEMANTIC: Record<string, Record<string, boolea
   "gpt-image-2.6-sunburst": {
     "text_to_image": true,
     "image_edit": true
+  },
+  "gemini-nano-banana-2.1": {
+    "text_to_image": true,
+    "image_edit": true
+  },
+  "gemini-nano-banana-2.1-ext": {
+    "text_to_image": true,
+    "image_edit": true
+  },
+  "gemini-3.1-flash-lite-image": {
+    "text_to_image": true,
+    "image_edit": true
+  },
+  "gemini-3.1-flash-lite-image-ext": {
+    "text_to_image": true,
+    "image_edit": true
+  },
+  "hy-image-v3.5-preview": {
+    "text_to_image": true,
+    "image_edit": true
+  },
+  "wan2.7-image": {
+    "text_to_image": true
+  },
+  "wan2.7-image-pro": {
+    "text_to_image": true
   }
 };

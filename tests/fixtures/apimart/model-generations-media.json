@@ -1,23 +1,159 @@
 {
   "rule": "用户 2026-11-07：最新代和上一代都对新节点可用（不是 legacy）；只有更老的代才 legacy。",
   "families": [
-    { "family": "seedance", "source": "docs/plan/2026-11-07-catalog-media.md",
+    {
+      "family": "seedance",
+      "source": "docs/plan/2026-11-07-catalog-media.md",
       "latest": ["seedance2_5", "doubao-seedance-2.5"],
       "previous": ["seedance2", "seedance2_fast", "seedance2_mini", "bytedance/seedance-2", "doubao-seedance-2.0", "doubao-seedance-2-0-260128", "bytedance/seedance-2.0-global"],
-      "older": [] },
-    { "family": "seedream", "source": "docs/plan/2026-11-07-catalog-media.md",
-      "latest": ["seedream5_pro", "seedream5_lite", "doubao-seedream-5-0-260128"],
+      "older": []
+    },
+    {
+      "family": "seedream",
+      "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["seedream5_pro", "seedream5_lite", "doubao-seedream-5-0-260128", "doubao-seedream-5-0-pro"],
       "previous": ["seedream", "doubao-seedream-4.5", "doubao-seedream-4-5-251128", "seedream-v4.5"],
-      "older": ["doubao-seedream-4-0-250828"] },
-    { "family": "happyhorse", "source": "docs/plan/2026-11-07-catalog-media.md",
-      "latest": ["happyhorse-1.1"], "previous": ["happyhorse", "happyhorse_1_0"], "older": [] },
-    { "family": "qwen-image", "source": "docs/plan/2026-11-07-catalog-media.md",
-      "latest": ["qwen-image-3.0", "qwen-image-3.0-pro"], "previous": ["qwen-image-2.0", "rh-qwen-image-2.0"], "older": [] },
-    { "family": "wan", "source": "docs/plan/2026-11-07-catalog-media.md",
-      "latest": ["wan3"], "previous": ["wan2.7", "rh-wan-2.7"], "older": [] },
-    { "family": "gpt-image", "source": "docs/plan/2026-11-07-catalog-media.md",
-      "latest": ["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"], "previous": ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"], "older": [] },
-    { "family": "nano-banana", "source": "docs/plan/2026-11-07-catalog-media.md",
-      "latest": [], "previous": [], "older": ["nano-banana", "gemini_2.5_flash", "gemini-2.5-flash-image-preview"] }
+      "older": ["doubao-seedream-4-0-250828"]
+    },
+    {
+      "family": "happyhorse",
+      "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["happyhorse-1.1"],
+      "previous": ["happyhorse", "happyhorse_1_0"],
+      "older": []
+    },
+    {
+      "family": "qwen-image",
+      "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["qwen-image-3.0", "qwen-image-3.0-pro"],
+      "previous": ["qwen-image-2.0", "rh-qwen-image-2.0"],
+      "older": []
+    },
+    {
+      "family": "wan",
+      "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["wan3", "wan3.0-video", "wan3.0-video-prime"],
+      "previous": ["wan2.7", "rh-wan-2.7"],
+      "older": []
+    },
+    {
+      "family": "gpt-image",
+      "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"],
+      "previous": ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"],
+      "older": []
+    },
+    {
+      "family": "nano-banana",
+      "source": "docs/plan/2026-11-07-catalog-media.md",
+      "latest": ["gemini-nano-banana-2.1", "gemini-nano-banana-2.1-ext", "gemini-3.1-flash-lite-image", "gemini-3.1-flash-lite-image-ext"],
+      "previous": ["gemini-3.1-flash-image-preview", "nano-banana-2"],
+      "older": ["nano-banana", "gemini_2.5_flash", "gemini-2.5-flash-image-preview"],
+      "note": "2.1 是最新，Nano Banana 2 是上一代，第一代才是旧代"
+    },
+    {
+      "family": "flux",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["flux-3-image", "flux-3-image-klein", "flux-3-video"],
+      "previous": [],
+      "older": [],
+      "note": "FLUX 2 Pro 只在 Kie 和 Runway，不在 APIMart 目录"
+    },
+    {
+      "family": "grok-imagine-image",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["grok-imagine-image-2.0", "grok-imagine-2.0-ext"],
+      "previous": [],
+      "older": [],
+      "note": "官方页没有更老的 APIMart 图片代"
+    },
+    {
+      "family": "grok-imagine-video",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["grok-imagine-video-1.5", "grok-imagine-1.5-video-apimart"],
+      "previous": [],
+      "older": [],
+      "note": "官方通道与 Ext 同代，基础款 grok-imagine-video 不在目录"
+    },
+    {
+      "family": "hunyuan-image",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["hy-image-v3.5-preview"],
+      "previous": [],
+      "older": []
+    },
+    {
+      "family": "muse",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["muse-image-ext", "muse-video-ext"],
+      "previous": [],
+      "older": []
+    },
+    {
+      "family": "wan-image",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["wan2.7-image", "wan2.7-image-pro"],
+      "previous": [],
+      "older": [],
+      "note": "万相图像只有 2.7 一代"
+    },
+    {
+      "family": "kling",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["kling-v4"],
+      "previous": ["kling-v3", "kling-3.0-turbo"],
+      "older": []
+    },
+    {
+      "family": "pixverse",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["pixverse-v6", "pixverse-v6-max"],
+      "previous": [],
+      "older": []
+    },
+    {
+      "family": "veo",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["veo3.1-fast-official", "veo3.1-quality-official", "veo3.1-fast"],
+      "previous": [],
+      "older": [],
+      "note": "Veo 3.1 的官方通道与 Ext 通道同代"
+    },
+    {
+      "family": "vidu",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["viduq4-preview"],
+      "previous": ["viduq3", "viduq3-pro", "viduq3-turbo"],
+      "older": []
+    },
+    {
+      "family": "minimax-h3",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["MiniMax-H3", "MiniMax-H3-Regeneration"],
+      "previous": ["MiniMax-Hailuo-2.3"],
+      "older": []
+    },
+    {
+      "family": "gemini-omni",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["gemini-omni-1.2-flash", "gemini-omni-1.2-flash-ext"],
+      "previous": ["Omni-Flash-Ext"],
+      "older": [],
+      "note": "Omni 1.2 是最新代；Omni-Flash-Ext 是 Omni 1.1，升为上一代，回到可选"
+    },
+    {
+      "family": "gemini-image-3",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["gemini-3-pro-image-preview"],
+      "previous": [],
+      "older": []
+    },
+    {
+      "family": "z-image",
+      "source": "docs/plan/2026-11-07-catalog-media-rest.md",
+      "latest": ["z-image-turbo"],
+      "previous": [],
+      "older": []
+    }
   ]
 }
