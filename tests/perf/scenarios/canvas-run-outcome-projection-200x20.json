@@ -15,8 +15,12 @@
   "budget": 16,
   "budgetStatus": "proposed",
   "budgetBasis": "主指标 projectionMs = 200 个节点各落一个进度 + 一个结果的纯计算合计毫秒。这些都在渲染进程主线程上算，预算取一帧（60Hz 下 16ms），不产生 >50ms 的长任务（docs/engineering/perf-scenarios.md 默认预算「交互期间 0 个长任务」）。convergeMs 只打印，同样应在一帧之内。",
-  "measurement": {
-    "state": "pending",
-    "reason": "实现线只交冒烟和 5 次的数字（见 PR 与报告），基线由协调在安静窗口量"
+  "baseline": {
+    "median": 0.6,
+    "p95": 1.1,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-07",
+    "commit": "1db65cc4e"
   }
 }
