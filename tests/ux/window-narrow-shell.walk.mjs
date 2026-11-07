@@ -16,7 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import {
   AGENT_BALL, AGENT_PANEL, CANVAS_ADD_BAR, CANVAS_ZOOM_BAR, COLLAPSE_BUTTON, closeRailDrawer, closeSettings, ensureAgentPanelOpen, openRailDrawer, openSettings,
   railDrawerPanel, settingsDialog, switchWorkspace,
@@ -72,6 +72,15 @@ const knownIssues = []
 const check = (name, ok, detail = '') => {
   if (!ok) failures.push(`${name}${detail ? ` — ${detail}` : ''}`)
   console.log(`  ${ok ? '✅' : '❌'} ${name}${detail ? ` — ${detail}` : ''}`)
+}
+/** 「没有某个东西」的检查：带基线（proveProbe 先证过这个探针找得到它），并且要持续没有，不是此刻恰好没看见。 */
+const checkAbsent = async (name, locator, provenBy) => {
+  try {
+    await expectAbsent(locator, { provenBy, message: name }, 5000)
+    check(name, true)
+  } catch (error) {
+    check(name, false, String(error?.message ?? error).split('\n')[0])
+  }
 }
 
 const clip = (id, type, startFrame, endFrame) => ({
@@ -273,6 +282,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
 
     // ── 存档只认人：拖着窗口来回三次，四份存档一个字节不变 ──
     const panelWide = (await rectOf(win, AGENT_PANEL))?.width
+    const dockProof = await proveProbe(dockLayer, '1100 宽停靠时找得到停靠栏')
     await win.waitForTimeout(2500)
     const before = await snapshot()
     const beforeProjection = readDiskProjection()
@@ -280,7 +290,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     for (let trip = 1; trip <= 3; trip += 1) {
       await drag(WIDE, NARROW)
       await expect(narrowBall.first(), `第 ${trip} 次拖到 700：停靠的 Nomi 没有收成小球`).toBeVisible({ timeout: 5000 })
-      check(`${BOARD.tier} 第 ${trip} 次 700：没有停靠栏`, (await dockLayer.count()) === 0)
+      await checkAbsent(`${BOARD.tier} 第 ${trip} 次 700：没有停靠栏`, dockLayer, dockProof)
       const narrow = await snapshot()
       check(`${BOARD.noWriteback} 第 ${trip} 次 700：存的形态 / 抽屉宽 / Nomi 宽不变`, narrow.form === before.form && narrow.shellLayout === before.shellLayout && JSON.parse(narrow.layout).assistantWidth === 390, diffKeys(before, narrow).join(','))
       if (trip === 1) await shot(win, 'creation-700-ball')
@@ -332,9 +342,13 @@ async function runRound({ locale, scheme, tag, projectName }) {
         const skillText = skill?.querySelector('span')
         const vw = window.innerWidth
         const stage = document.querySelector('[data-creation-surface]')?.getBoundingClientRect()
+        const box = panel?.querySelector('[data-v4-block="composer"]')?.getBoundingClientRect()
+        const send = panel?.querySelector('[data-v4-control="send"]')?.getBoundingClientRect()
         return {
           panel: Math.round(panel?.getBoundingClientRect().width ?? 0),
           row: row ? Math.round(row.clientWidth - parseFloat(getComputedStyle(row).paddingLeft) - parseFloat(getComputedStyle(row).paddingRight)) : 0,
+          rowOverflow: row ? row.scrollWidth - row.clientWidth : null,
+          sendInside: box && send ? send.left >= box.left && send.right <= box.right - 1 : null,
           model: Math.round(model?.getBoundingClientRect().width ?? 0),
           skillTextShown: skillText ? getComputedStyle(skillText).display !== 'none' : null,
           skillLabel: skill?.getAttribute('aria-label'),
@@ -346,21 +360,36 @@ async function runRound({ locale, scheme, tag, projectName }) {
       }, AGENT_PANEL)
       check(`${BOARD.tier} 1060 停靠：面板最窄 300，内容区不小于 684`, composer.panel >= 299 && composer.panel <= 301 && composer.stage >= 683, JSON.stringify(composer))
       check(`${BOARD.tight} 1060（面板 300）：Skill 只留图标、读屏仍念 Skill，模型钮 ≥ 64`, composer.skillTextShown === false && composer.skillLabel === uiText(locale, 'agentPanelV4.skill') && composer.model >= 64 && composer.skillRight <= composer.panelRight, JSON.stringify(composer))
+      check(`${BOARD.tight} 1060（面板 300）：发送钮在输入框里、这一排不溢出`, composer.sendInside === true && composer.rowOverflow === 0, JSON.stringify(composer))
       await shot(win, 'creation-1060-dock-tight')
     }
     await resize(THRESHOLD - 1)
     await expect(narrowBall.first(), '1059 应收成小球').toBeVisible({ timeout: 5000 })
-    check(`${BOARD.tier} 1059 小球（只有「< 1060」这一个判断）`, (await dockLayer.count()) === 0)
+    await checkAbsent(`${BOARD.tier} 1059 小球（只有「< 1060」这一个判断）`, dockLayer, dockProof)
     await resize(WIDE)
     await expect(dockLayer.first()).toBeAttached({ timeout: 5000 })
     {
-      const wide = await win.evaluate(() => {
-        const skillText = document.querySelector('[data-agent-resident] [data-v4-control="skill"] span')
-        return { skillTextShown: skillText ? getComputedStyle(skillText).display !== 'none' : null }
-      })
+      // 停回的过渡要先放完再量（收拢 / 停回 260ms）。
+      await win.waitForTimeout(400)
+      const wide = await win.evaluate((panelSelector) => {
+        const panel = document.querySelector(panelSelector)
+        const skillText = panel?.querySelector('[data-v4-control="skill"] span')
+        const row = panel?.querySelector('[data-v4-control="model"]')?.parentElement
+        const box = panel?.querySelector('[data-v4-block="composer"]')?.getBoundingClientRect()
+        const send = panel?.querySelector('[data-v4-control="send"]')?.getBoundingClientRect()
+        return {
+          skillTextShown: skillText ? getComputedStyle(skillText).display !== 'none' : null,
+          row: row?.clientWidth ?? 0,
+          rowOverflow: row ? row.scrollWidth - row.clientWidth : null,
+          sendInside: box && send ? send.left >= box.left && send.right <= box.right - 1 : null,
+        }
+      }, AGENT_PANEL)
       check(`${BOARD.tight} 1100（面板 340）：Skill 带字`, wide.skillTextShown === true, JSON.stringify(wide))
+      check(`${BOARD.tight} 1100（面板 340）：发送钮在输入框里、这一排不溢出`, wide.sendInside === true && wide.rowOverflow === 0, JSON.stringify(wide))
+      // 基线是「停靠」钮本身：getAttribute 先要找到这颗钮（找不到就超时报错），再看它身上没有「放不下」的标。
       const dockButton = await rectOf(win, `${AGENT_PANEL} [data-agent-form-to="dock"]`)
-      check(`${BOARD.dockDisabled} 1100：「停靠」不灰`, (await win.locator(`${AGENT_PANEL} [data-agent-form-blocked]`).count()) === 0, JSON.stringify(dockButton))
+      const blockedAttr = await win.locator(`${AGENT_PANEL} [data-agent-form-to="dock"]`).first().getAttribute('data-agent-form-blocked', { timeout: 5000 })
+      check(`${BOARD.dockDisabled} 1100：「停靠」不灰`, dockButton !== null && blockedAttr === null, `${JSON.stringify(dockButton)} blocked=${blockedAttr}`)
     }
 
     // ── 700：小球悬停提示 → 点开浮窗 → 「停靠」变灰并说为什么 → 收回小球 → 等你确认胶囊 ──
@@ -399,7 +428,8 @@ async function runRound({ locale, scheme, tag, projectName }) {
       // aria-disabled 的钮 Playwright 默认不点；人照样能点下去，所以强制点一下，看它确实不动。
       await dockButton.click({ force: true })
       await win.waitForTimeout(300)
-      check(`${BOARD.dockDisabled} 点灰的「停靠」不动：还是浮窗、存档不变`, (await float.isVisible()) && (await dockLayer.count()) === 0 && (await snapshot()).form === formBefore)
+      await checkAbsent(`${BOARD.dockDisabled} 点灰的「停靠」不动：没有停靠栏`, dockLayer, dockProof)
+      check(`${BOARD.dockDisabled} 点灰的「停靠」不动：还是浮窗、存档不变`, (await float.isVisible()) && (await snapshot()).form === formBefore)
     }
     await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '浮窗收回小球')
     await expect(narrowBall.first()).toBeVisible({ timeout: 5000 })

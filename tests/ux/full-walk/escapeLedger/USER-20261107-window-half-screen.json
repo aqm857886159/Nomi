@@ -22,7 +22,7 @@
     "src/ui/app-shell/shell/agentFormNarrowTier.test.ts",
     "src/ui/app-shell/shell/narrowOneThreshold.structure.test.ts",
     "tests/ux/window-narrow-shell.walk.mjs",
-    "结构性预防：①最小窗只有一份定义（electron/mainWindowMinSize.json，主进程和走查同读，走查不许各写 1100 / 700）；②窄窗只有一个判断（narrowOneThreshold 结构测试拦第二处阈值）；③存档只认人：窗口宽不再进任何写入口，显示让步交给 CSS Grid（assistantDockColumns），写口普查测试逐个入口钉住；④真 App 走查拖 1100 ↔ 700 三次比四份存档逐字节。"
+    "结构性预防：①最小窗只有一份定义（electron/mainWindowMinSize.json，主进程和走查同读，走查不许各写 1100 / 700）；②窄窗只有一个判断（narrowOneThreshold 结构测试拦第二处阈值）；③存档只认人：窗口宽不再进任何写入口，显示让步交给 CSS Grid（assistantDockColumns），写口普查测试逐个入口钉住；④真 App 走查拖 1100 ↔ 700 三次，四份存档的意图（形态、各栏宽、Agent 宽、抽屉宽）逐字节比；停靠投影 visibility.assistant 会停在 false，走查打 ⚠ 汇总，移交 A4g 后续「显示投影与落盘意图拆开」。"
   ],
   "completionCommits": [
     "e61311a64",

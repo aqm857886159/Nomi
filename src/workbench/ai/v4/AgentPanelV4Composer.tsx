@@ -258,9 +258,15 @@ export function AgentPanelV4Composer({
           又允许浏览器把 scrollLeft 推到 17px 且用户拖不回来，助手正文、工具收据、
           头部头像左边全被**永久**裁掉。让模型钮成为那个会缩的（`min-w-0` + 名字 truncate），
           这一行就再也宽不过面板。 */}
-      {/* 这一行自己是尺寸容器：面板窄到 < 320（行内容宽 < 286）时「Skill」只留图标（悬停出字），模型钮保底 64 宽、
-          露模型名的省略形式（WindowNarrow 板 composer.tight）。按内容量，不看窗口宽。 */}
-      <V4Row as="div" className="h-10 min-w-0 shrink-0 px-1 pb-2 pt-1 [container-type:inline-size]">
+      {/* 外层是尺寸容器，里面那一排按它的内容宽收紧（容器查询管不到容器自己，所以分两层）：
+          · 行内容宽 286–319（面板约 320–350）：控件间距 6 → 4。面板 340（1100 宽停靠）时带字的一排比行宽多 3 左右，
+            发送钮压在输入框边上；
+          · 行内容宽 ≤ 285（面板 < 320）：「Skill」只留图标（悬停出字），间距再收到 2；
+          · 模型钮保底 64 宽、露模型名的省略形式（WindowNarrow 板 composer.tight）。有了这个底，面板最窄 300（行宽 270）
+            时只能靠收间距放下发送钮。
+          走查在 1060 / 1100 量发送钮在输入框内、这一排不溢出。按内容量，不看窗口宽。 */}
+      <div className="h-10 min-w-0 shrink-0 px-1 pb-2 pt-1 [container-type:inline-size]">
+      <V4Row as="div" className="h-full [@container_(min-width:286px)_and_(max-width:319px)]:gap-1 [@container_(max-width:285px)]:gap-0.5">
         {onAddReference ? <AssetReferenceButton onClick={onAddReference} iconOnly /> : null}
 
         <button
@@ -354,6 +360,7 @@ export function AgentPanelV4Composer({
           )}
         </button>
       </V4Row>
+      </div>
     </form>
   )
 }
