@@ -11,7 +11,7 @@
 //
 // 本文件**零运行时依赖**（Zod / TypeBox 只取结构，不 import）：渲染层要读它的类型，主进程两种岛
 // （NodeNext `.mts` 与 CommonJS）都要调它的函数。
-import type { LaneToolPublicIssue, ToolInputIssueKind } from "./laneToolFailureEnvelope";
+import type { LaneToolPublicIssue } from "./laneToolFailureEnvelope";
 
 export type { LaneToolPublicIssue, ToolInputIssueKind } from "./laneToolFailureEnvelope";
 

@@ -10,7 +10,7 @@ import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContrac
 import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { LANE_LEGACY_NOTE, LANE_LEGACY_TOOLS_NOTE, laneLegacyFacts } from '../shared/agentLane/laneLegacyNote.js';
 import { findLaneReceiptAuthority } from './laneReceiptAuthority.mjs';
-import { createLaneRepeatedFailureTracker, LANE_REPEATED_FAILURE_BLOCK } from './laneRepeatedFailure.mjs';
+import { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';
 import { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs';
 import { ASK_USER_VERB_NAME } from '../shared/agentCapabilities/askUser.js';
 // Agent lane · 主进程宿主（**薄**）
@@ -206,18 +206,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 连续撞同一堵墙的计数器，和入参边界共用一个：形状错（pi 的立即结果）、契约 parse 错、执行失败，同一处记数。
   const failures = createLaneRepeatedFailureTracker();
   const toolInput = createLaneToolInputBoundary({ failures, specs: options.tools, onFailure: options.onToolFailure });
-  // 立即结果没有 `details`，面板的信封按入参重推（`laneToolInputBoundary.failureOf`）。投影每次快照都跑，
-  // 同一个 toolCallId 的结论不会变，记一份；上限防一条活一整天的 lane 慢慢长表。
-  const toolInputFailures = new Map<string, ReturnType<typeof toolInput.failureOf>>();
+  // 立即结果没有 `details`，面板的信封按入参重推（`laneToolInputBoundary.failureOf`，按 toolCallId 记一份）。
   const modelFacts: LaneModelFacts = { pricing: pricingBasis,
     supportedThinkingLevels: getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[],
-    toolInputFailure: (input) => {
-      if (toolInputFailures.has(input.toolCallId)) return toolInputFailures.get(input.toolCallId);
-      const failure = toolInput.failureOf(input);
-      if (toolInputFailures.size >= 512) toolInputFailures.delete(toolInputFailures.keys().next().value!);
-      toolInputFailures.set(input.toolCallId, failure);
-      return failure;
-    },
+    toolInputFailure: toolInput.failureOf,
     isTransientError: isRetryableAssistantError,
     // 「上下文装不下」同样只问 pi 那一张表（各家溢出原话），投影把结论变成 `fault`（NF-0928-0003）。
     isContextOverflow: (message) => isContextOverflow(message, options.model.contextWindow),
@@ -446,16 +438,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     }
     const accessDenial = await native?.toolAccessDenial(event.toolName);
     if (accessDenial) return { block: { reason: accessDenial } };
-    try {
-      await options.toolLifecycle?.prepare(event, hookContext.abortSignal ?? new AbortController().signal);
-    } catch (error) {
-      // 契约 parse（Zod）拒收和领域写好的准备失败（`LaneDomainFailure`）：和 pi 的形状校验同一个正文、
-      // 同一个计数器（`laneToolInputBoundary`）——拦截是立即结果、跳过 after_tool，不在这里记就永远数不到 3。
-      // 别的异常照旧原样抛，pi 把它的 message 变成拦截理由。
-      const rejected = toolInput.rejectPreparation(event.toolName, event.args, error);
-      if (rejected === undefined) throw error;
-      return { block: { reason: rejected } };
-    }
+    // 契约 parse（Zod）拒收和领域写好的准备失败（`LaneDomainFailure`）走入参边界：和 pi 的形状校验同一个正文、
+    // 同一个计数器——拦截是立即结果、跳过 after_tool，不在这里记就永远数不到 3。别的异常照旧原样抛。
+    const rejected = await toolInput.prepare(event.toolName, event.args,
+      () => options.toolLifecycle?.prepare(event, hookContext.abortSignal ?? new AbortController().signal));
+    if (rejected !== undefined) return { block: { reason: rejected } };
     // ② 闸。上限先判：到了上限就没有「问用户要不要放行」这回事了。
     if (gate) {
       // 撞满 3 次之后模型改去问用户：那张卡上要多一句**我们自己**说的话
@@ -532,16 +519,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     // 是在赌它——而它已经连着错了三次的正是这件事。
     const failure = event.isError ? takeLaneToolFailure(event.toolCallId) : undefined;
     // 墙按**语义码 + 出错字段**认，不按正文首行（正文里有 id、镜头数、字段值，同一堵墙每次都不一样）。
-    const consecutive = failures.note(event.toolName, event.isError, body, failure);
-    const wall = event.isError ? failures.block(event.toolName) : null;
-    if (event.isError) {
-      options.onToolFailure?.({ toolName: event.toolName, code: failure?.code ?? 'unknown', attempt: consecutive,
-        breakerTripped: wall !== null });
-    }
-    // 这一次正好撞满：和入参边界同一句「停」接在正文后面（`laneToolInputBoundary` 的 `reject`），
-    // 模型在第 3 次就读到「别再发、去问用户」，而不是等第 4 次被拦下才知道。
-    const stopNote = wall && consecutive === LANE_REPEATED_FAILURE_BLOCK
-      ? [{ type: 'text' as const, text: `\n${wall.reason}` }] : [];
+    // 和入参边界同一个熔断：正好撞满的这一次，「停」那句接在正文后面（模型第 3 次就读到「别再发、去问用户」）。
+    const { consecutive, stop } = toolInput.settle(event.toolName, event.isError, body, failure);
     // 工具失败要在**主进程日志**里留一行（2026-09-17）。此前整条失败链只有 lane 自己的会话 JSONL
     // 记得住：真机复现 `surface_port_stale` 那一轮，`read_script` 连挂 3 次、会话里 12 处命中，
     // 而 `logs/nomi-<date>.log` 一共 9 行、**一个字都没提这件事**。排查的人打开日志看到的是「什么都没发生」。
@@ -564,9 +543,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     if (appliedDirectly && !event.isError) {
       return { content: [...event.content, { type: 'text', text: '\nApplied directly (undoable)' }] };
     }
-    if (!details && stopNote.length === 0) return undefined;
-    return { ...(stopNote.length > 0 ? { content: [...event.content, ...stopNote] } : {}),
-      ...(details ? { details: details as never } : {}) };
+    if (!details && !stop) return undefined;
+    return { ...(stop ? { content: [...event.content, { type: 'text', text: `\n${stop}` }] } : {}), ...(details ? { details: details as never } : {}) };
   });
 
   async function inputMessage(text: string): Promise<string | LaneInputMessage> {

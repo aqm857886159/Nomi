@@ -84,11 +84,10 @@ describe('deferred desktop domain authority', () => {
     vi.mocked(f.input.generation).mockReturnValue(generation)
     // 裸 ZodError 的 `message` 就是 `JSON.stringify(issues, null, 2)`，模型收到的是一整段 JSON 数组
     // （真实轨迹里以 `[` 开头的那几条）。2026-11-07 起端口不再自己包一层：契约 parse 的 ZodError 原样抛出，
-    // 由 lane 宿主 `before_tool` 里的入参边界（`laneToolInputBoundary.rejectPreparation`）换成和 pi 形状校验
+    // 由 lane 宿主 `before_tool` 里的入参边界（`laneToolInputBoundary.prepare`）换成和 pi 形状校验
     // 同一份正文、记进同一个熔断。断言的是**模型真正读到的那份**：码 + 字段路径 + 该填什么。
-    const thrown = await f.prepareAndApprove(value).then(() => undefined, (error: unknown) => error)
-    const text = createLaneToolInputBoundary({ failures: createLaneRepeatedFailureTracker(), specs: [] })
-      .rejectPreparation('cancel_job', value.args, thrown)
+    const text = await createLaneToolInputBoundary({ failures: createLaneRepeatedFailureTracker(), specs: [] })
+      .prepare('cancel_job', value.args, () => f.prepareAndApprove(value))
     expect(text).toMatch(/^Validation failed for tool "cancel_job" \(tool_arguments_invalid\)/)
     expect(text).toMatch(/^ {2}- domain: required, but missing/m)
     expect(text).not.toMatch(/^\s*\[/m)

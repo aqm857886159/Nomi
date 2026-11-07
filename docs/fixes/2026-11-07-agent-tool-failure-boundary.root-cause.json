@@ -24,8 +24,8 @@
   ],
   "entry_points": [
     "pi prepareToolCall → tool.prepareArguments（electron/agentLane/laneToolInputBoundary.mts:160 包上的那一层）：形状校验与工具自己的准备步骤",
-    "before_tool 准备步骤（electron/agentLane/laneHost.mts:455 rejectPreparation）：契约 Zod parse 与桌面端口的领域拒收",
-    "after_tool 执行层失败（electron/agentLane/laneHost.mts:524，第 3 次的 stopNote 在 :543）",
+    "before_tool 准备步骤（electron/agentLane/laneHost.mts:443 toolInput.prepare）：契约 Zod parse 与桌面端口的领域拒收",
+    "after_tool 执行层失败（electron/agentLane/laneHost.mts:523 toolInput.settle，第 3 次的「停」由它给回）",
     "投影层读信封（electron/shared/agentLane/laneProjection.ts:344 laneToolFailureOf；立即结果按入参重推 laneToolInputBoundary.mts:182 failureOf）",
     "面板文案（src/workbench/ai/v4/useAgentPanelV4Data.ts:239-240 laneToolFailureSummary / laneToolFailureDetail）"
   ],
@@ -193,14 +193,14 @@
     "reason": "机制不依赖某个工具或某个供应商：任何注册工具的入参只要过不了 pi 的校验或在准备步骤被拒，就是一条跳过钩子的立即结果；模型越弱、参数越大（12 镜起草）越常见。新工具、新校验层都会落进同一条路。",
     "same_class_scan": [
       "node_modules/@earendil-works/pi-agent-core/dist/harness/execution/tools.js:22,33,39,52 —— immediateError 的全部调用点：找不到工具、准备 / 校验抛错、before_tool block、改参后重校验",
-      "electron/agentLane/laneHost.mts:429-500 —— before_tool 的全部 block 来源：请求上限、surface_authority_denied、toolAccessDenial、准备步骤（Zod / LaneDomainFailure / 其它）、审批闸",
+      "electron/agentLane/laneHost.mts:421-492 —— before_tool 的全部 block 来源：请求上限、surface_authority_denied、toolAccessDenial、准备步骤（Zod / LaneDomainFailure / 其它）、审批闸",
       "electron/agentLane/laneExtendedDesktopPorts.ts:127 rejectPreparation、electron/agentLane/laneDesktopTools.ts:177 toolLifecycle.prepare —— 桌面端口准备步骤抛出的失败",
       "grep 'prepareArguments' electron/agentLane electron/shared/agentLane —— 工具自己的准备步骤（draft_shots 的比例、arrange_canvas / make_artifact 的 rejectGeneratingNodes、导演台摆镜）",
       "grep 'safeParse\\|\\.parse(' src/workbench/generationCanvas/agent —— applyCanvasToolCall 的第二次校验（已删）",
       "grep 'describeSchemaIssues' electron —— 准入散文（generationTransportAdapters.ts:125），字段事实已并入同一份清单"
     ]
   },
-  "generality_proof": "边界按 pi 的结构放，不按工具放：入参边界包的是 lane 注册表里的每一个工具的 prepareArguments（pi 校验之前唯一的官方口子），所以任何工具的形状错与准备步骤拒收都先经过它；before_tool 的准备步骤只有一个 catch，Zod 与领域拒收都交给同一个 rejectPreparation；执行层失败只有 after_tool 一处。三处都调用同一个 reject()：同一个格式器（toolArgumentsRejected / renderLaneToolFailure，清单来自 toolInputIssues 的三个适配器）、同一个熔断、同一个遥测出口。面板只认信封的码和字段，不读正文。新增工具自动被包、自动计数，不需要登记。",
+  "generality_proof": "边界按 pi 的结构放，不按工具放：入参边界包的是 lane 注册表里的每一个工具的 prepareArguments（pi 校验之前唯一的官方口子），所以任何工具的形状错与准备步骤拒收都先经过它；before_tool 的准备步骤只有一个 catch，Zod 与领域拒收都交给入参边界的同一个 prepare；执行层失败只有 after_tool 一处。三处都经同一个 settle() 记数（入参边界的 reject() 与 after_tool 都调它）：同一个格式器（toolArgumentsRejected / renderLaneToolFailure，清单来自 toolInputIssues 的三个适配器）、同一个熔断、同一个遥测出口。面板只认信封的码和字段，不读正文。新增工具自动被包、自动计数，不需要登记。",
   "shared_boundaries": [
     {
       "path": "electron/agentLane/laneToolInputBoundary.mts",
@@ -234,7 +234,7 @@
       "path": "electron/agentLane/laneHost.mts",
       "entry_point": "before_tool",
       "disposition": "enforced",
-      "evidence": "准备步骤的 catch 交给 rejectPreparation：ZodError 与 LaneDomainFailure 都走 reject()，block 正文第 3 次带「停」。laneToolInputBoundary.test.ts「before_tool 里准备那一步的领域拒收」与 laneExtendedDesktopPorts.test.ts C17 钉住。"
+      "evidence": "准备步骤交给入参边界的 prepare：ZodError 与 LaneDomainFailure 都走 reject()，block 正文第 3 次带「停」。laneToolInputBoundary.test.ts「before_tool 里准备那一步的领域拒收」与 laneExtendedDesktopPorts.test.ts C17 钉住。"
     },
     {
       "path": "electron/agentLane/laneHost.mts",
