@@ -18,7 +18,15 @@
     "tests/perf/scenarios/agent-tool-input-boundary-50.json",
     "实现线：工具失败走一个边界（一份清单、一个正文、一个熔断、一个遥测），25 条起草错写过真 lane 逐条钉住；转 fixed 由协调在 PR 合入时填 fixedInPr。"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "f40fb22ce",
+    "cdb2d35e1",
+    "e9093aa79",
+    "7bc8d14f2",
+    "dd48d2298",
+    "02fba146c",
+    "4d6a093cb"
+  ],
   "rootCauseContract": "docs/fixes/2026-11-07-agent-tool-failure-boundary.root-cause.json",
   "classCheck": {
     "kind": "matrix",
