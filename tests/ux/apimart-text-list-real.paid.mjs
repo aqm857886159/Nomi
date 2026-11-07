@@ -20,7 +20,9 @@ const paid = await openPaidWalk('apimart-text-list-real.paid.mjs', 'apimart-text
 const { walk } = paid
 let failure
 try {
-  const { app } = await walk.start({ first: true })
+  const { win, app } = await walk.start({ first: true })
+  // 和花钱的走查同一道前置：先确认网络闸装上了、账本写得进，再发第一个带 Key 的请求（这里不开项目，所以显式调）。
+  await paid.lockToAuthorizedModels(win)
   const origin = apimartOriginOf(walk.settingsDir)
   walk.report.origin = origin
   const before = await readUsedBalance(app, { settingsDir: walk.settingsDir, origin })
