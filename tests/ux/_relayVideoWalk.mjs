@@ -54,9 +54,16 @@ export async function createRelayProject(walk, win) {
   return { projectId, projectRoot: project.rootPath, name: project.name }
 }
 
-/** Scope selection to the open combobox; closed dropdowns retain hidden option labels. */
-export function relayModelOption(win, modelKey) {
-  return win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: win.getByText(modelKey, { exact: true }) })
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Scope selection to the open combobox; closed dropdowns retain hidden option labels.
+ * The menu shows the row's display name: a declared relay row shows its id, a built-in row shows its label
+ * (gpt-image-2.6-flare → 「GPT Image 2.6 Flare」), so an option matches either exactly.
+ */
+export function relayModelOption(win, modelKey, label) {
+  const names = [...new Set([modelKey, label].filter(Boolean))].map(escapeRegExp)
+  return win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: win.getByText(new RegExp(`^(?:${names.join('|')})$`)) })
 }
 
 /** Shared free/paid segment: select the declared model, prepare one video (or image, `kind: 'image'`), stop before generate. */
@@ -85,14 +92,15 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
   const projection = await win.evaluate(async (want) => {
     const rows = await window.nomiDesktop.modelCatalog.listModels({})
     const row = rows.find((r) => r.vendorKey === want.vendorKey && r.modelKey === want.modelKey)
-    return row ? { kind: row.kind, enabled: row.enabled, published: row.published, publishedModes: row.publishedModes, availability: row.availability } : null
+    return row ? { label: row.labelZh, kind: row.kind, enabled: row.enabled, published: row.published, publishedModes: row.publishedModes, availability: row.availability } : null
   }, model)
   console.log('[relay] catalog projection', JSON.stringify(projection))
   console.log('[relay] picker evidence', JSON.stringify({ node: await fresh(), videoRows: await win.evaluate(async (rowKind) => (await window.nomiDesktop.modelCatalog.listModels({ kind: rowKind, enabled: true })).filter((row) => row.availability?.usable).map(({ vendorKey, modelKey, publishedModes, availability }) => ({ vendorKey, modelKey, publishedModes, availability })), kind) }))
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await capture('model-menu')
   let neededReload = false
-  if (!(await relayModelOption(win, model.modelKey).count())) {
+  const option = () => relayModelOption(win, model.modelKey, projection?.label)
+  if (!(await option().count())) {
     await capture('model-missing-before-reload')
     await win.keyboard.press('Escape')
     await win.reload()
@@ -103,7 +111,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
     neededReload = true
   }
   // This is the visible model menu, never a catalog/meta write that skips model selection.
-  await relayModelOption(win, model.modelKey).click()
+  await option().click()
   const prompt = 'A blue glass marble rolls across a white table in morning light'
   await node.locator('[contenteditable="true"]').last().fill(prompt)
   await expect.poll(async () => {
