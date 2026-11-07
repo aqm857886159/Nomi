@@ -682,6 +682,8 @@ async function windowNarrowDrag(page, ctx) {
   const raw = await ctx.stopWindow(page)
   await sleep(page, 400)
   const motions = await page.evaluate(() => window.__perfNarrowMotions)
+  // 预算的第二半：跨阈值 6 次，过渡只该播 6 次（收拢 3 + 停回 3），拖动途中不连播。
+  console.log(`    · 跨阈值过渡 ${motions} 次（跨了 6 次）`)
   await setWidth(original[0])
   await sleep(page, 400)
   return { raw, crossings: 6, narrowMotions: motions, path: 'window edge drag 1100 ↔ 700 ×3' }
