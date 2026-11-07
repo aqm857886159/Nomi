@@ -16,7 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp } from './_launchApp.mjs'
-import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import {
   AGENT_BALL, AGENT_PANEL, CANVAS_ADD_BAR, CANVAS_ZOOM_BAR, COLLAPSE_BUTTON, closeRailDrawer, closeSettings, ensureAgentPanelOpen, openRailDrawer, openSettings,
   railDrawerPanel, settingsDialog, switchWorkspace,
@@ -76,7 +76,7 @@ const check = (name, ok, detail = '') => {
 /** 「没有某个东西」的检查：带基线（proveProbe 先证过这个探针找得到它），并且要持续没有，不是此刻恰好没看见。 */
 const checkAbsent = async (name, locator, provenBy) => {
   try {
-    await expectAbsent(locator, { provenBy, message: name }, 5000)
+    await expectAbsent(locator, { provenBy, message: name })
     check(name, true)
   } catch (error) {
     check(name, false, String(error?.message ?? error).split('\n')[0])
@@ -245,7 +245,8 @@ async function runRound({ locale, scheme, tag, projectName }) {
       const layout = readDiskLayout()
       if (!layout) return 'null'
       const { visibility = {}, ...rest } = layout
-      const { assistant: _projection, ...intentVisibility } = visibility
+      const intentVisibility = { ...visibility }
+      delete intentVisibility.assistant
       return JSON.stringify({ ...rest, visibility: intentVisibility })
     }
     const readDiskProjection = () => String(readDiskLayout()?.visibility?.assistant)
@@ -289,13 +290,13 @@ async function runRound({ locale, scheme, tag, projectName }) {
     check(`${BOARD.noWriteback} 起点：存的 Nomi 宽 390`, JSON.parse(before.layout).assistantWidth === 390, before.layout)
     for (let trip = 1; trip <= 3; trip += 1) {
       await drag(WIDE, NARROW)
-      await expect(narrowBall.first(), `第 ${trip} 次拖到 700：停靠的 Nomi 没有收成小球`).toBeVisible({ timeout: 5000 })
+      await expect(narrowBall.first(), `第 ${trip} 次拖到 700：停靠的 Nomi 没有收成小球`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       await checkAbsent(`${BOARD.tier} 第 ${trip} 次 700：没有停靠栏`, dockLayer, dockProof)
       const narrow = await snapshot()
       check(`${BOARD.noWriteback} 第 ${trip} 次 700：存的形态 / 抽屉宽 / Nomi 宽不变`, narrow.form === before.form && narrow.shellLayout === before.shellLayout && JSON.parse(narrow.layout).assistantWidth === 390, diffKeys(before, narrow).join(','))
       if (trip === 1) await shot(win, 'creation-700-ball')
       await drag(NARROW, WIDE)
-      await expect(dockLayer.first(), `第 ${trip} 次拉回 1100：没有自动停回`).toBeAttached({ timeout: 5000 })
+      await expect(dockLayer.first(), `第 ${trip} 次拉回 1100：没有自动停回`).toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
       await win.waitForTimeout(1000)
       const settled = await settle(before)
       const back = settled.snap
@@ -323,16 +324,16 @@ async function runRound({ locale, scheme, tag, projectName }) {
     {
       const startCount = (await motionCount()).length
       await drag(WIDE, NARROW)
-      await expect(narrowBall.first()).toBeVisible({ timeout: 5000 })
+      await expect(narrowBall.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       await drag(NARROW, WIDE)
-      await expect(dockLayer.first()).toBeAttached({ timeout: 5000 })
+      await expect(dockLayer.first()).toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
       check(`${BOARD.motion} 减弱动效：跨两次 0 次过渡，形态照换`, (await motionCount()).length === startCount, `多出 ${(await motionCount()).length - startCount}`)
     }
     await win.emulateMedia({ reducedMotion: 'no-preference' })
 
     // ── 阈值两侧：1060 停靠（面板最窄 300，输入框底栏收紧），1059 小球 ──
     await resize(THRESHOLD)
-    await expect(dockLayer.first(), '1060 应仍停靠').toBeAttached({ timeout: 5000 })
+    await expect(dockLayer.first(), '1060 应仍停靠').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
     {
       const composer = await win.evaluate((panelSelector) => {
         const panel = document.querySelector(panelSelector)
@@ -364,10 +365,10 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await shot(win, 'creation-1060-dock-tight')
     }
     await resize(THRESHOLD - 1)
-    await expect(narrowBall.first(), '1059 应收成小球').toBeVisible({ timeout: 5000 })
+    await expect(narrowBall.first(), '1059 应收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     await checkAbsent(`${BOARD.tier} 1059 小球（只有「< 1060」这一个判断）`, dockLayer, dockProof)
     await resize(WIDE)
-    await expect(dockLayer.first()).toBeAttached({ timeout: 5000 })
+    await expect(dockLayer.first()).toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
     {
       // 停回的过渡要先放完再量（收拢 / 停回 260ms）。
       await win.waitForTimeout(400)
@@ -388,13 +389,13 @@ async function runRound({ locale, scheme, tag, projectName }) {
       check(`${BOARD.tight} 1100（面板 340）：发送钮在输入框里、这一排不溢出`, wide.sendInside === true && wide.rowOverflow === 0, JSON.stringify(wide))
       // 基线是「停靠」钮本身：getAttribute 先要找到这颗钮（找不到就超时报错），再看它身上没有「放不下」的标。
       const dockButton = await rectOf(win, `${AGENT_PANEL} [data-agent-form-to="dock"]`)
-      const blockedAttr = await win.locator(`${AGENT_PANEL} [data-agent-form-to="dock"]`).first().getAttribute('data-agent-form-blocked', { timeout: 5000 })
+      const blockedAttr = await win.locator(`${AGENT_PANEL} [data-agent-form-to="dock"]`).first().getAttribute('data-agent-form-blocked', { timeout: DEFAULT_TIMEOUT_MS })
       check(`${BOARD.dockDisabled} 1100：「停靠」不灰`, dockButton !== null && blockedAttr === null, `${JSON.stringify(dockButton)} blocked=${blockedAttr}`)
     }
 
     // ── 700：小球悬停提示 → 点开浮窗 → 「停靠」变灰并说为什么 → 收回小球 → 等你确认胶囊 ──
     await drag(WIDE, NARROW)
-    await expect(narrowBall.first()).toBeVisible({ timeout: 5000 })
+    await expect(narrowBall.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     {
       const ball = await rectOf(win, '[data-agent-ball-narrow="true"]')
       const tip = uiTextWith(locale, 'appShell.agent.ballNarrow', { shortcut: '⌘J' })
@@ -408,7 +409,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     }
     await clickOrFail(narrowBall.first(), '700 点小球')
     const float = win.locator('[data-agent-float]').first()
-    await expect(float, '700 点小球应出浮窗').toBeVisible({ timeout: 5000 })
+    await expect(float, '700 点小球应出浮窗').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     {
       const box = await rectOf(win, '[data-agent-float]')
       const area = await rectOf(win, '[data-shell-agent-layer]')
@@ -419,7 +420,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
       check(`${BOARD.dockDisabled} 「停靠」标着放不下、aria-disabled`, (await dockButton.getAttribute('data-agent-form-blocked')) === 'narrow' && (await dockButton.getAttribute('aria-disabled')) === 'true')
       await dockButton.hover()
       const hint = win.locator('[data-agent-form-blocked-hint]').first()
-      await expect(hint, '悬停「停靠」应出提示').toBeVisible({ timeout: 5000 })
+      await expect(hint, '悬停「停靠」应出提示').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       const hintText = (await hint.textContent())?.trim()
       // Radix 提示会在里面再放一份只给读屏的副本，所以按「以这句开头」判。
       check(`${BOARD.dockDisabled} 悬停提示说为什么、什么时候回来`, Boolean(hintText?.startsWith(uiTextWith(locale, 'appShell.agent.dockNarrow', { width: THRESHOLD }))), `「${hintText}」`)
@@ -432,12 +433,12 @@ async function runRound({ locale, scheme, tag, projectName }) {
       check(`${BOARD.dockDisabled} 点灰的「停靠」不动：还是浮窗、存档不变`, (await float.isVisible()) && (await snapshot()).form === formBefore)
     }
     await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), '浮窗收回小球')
-    await expect(narrowBall.first()).toBeVisible({ timeout: 5000 })
+    await expect(narrowBall.first()).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     {
       const setBadge = (status, pending, unread = 0) => win.evaluate(([s, n, u]) => window.__nomiResidentActivityStore?.getState().setResidentDockBadge(s, n, u), [status, pending, unread])
       await setBadge('needs-confirm', 2)
       const pill = win.locator('[data-agent-ball="pending"]').first()
-      await expect(pill, '等你确认胶囊没出现').toBeVisible({ timeout: 5000 })
+      await expect(pill, '等你确认胶囊没出现').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       check(`${BOARD.pill} 700：「等你确认 2」胶囊整个在窗内`, (await outOfWindow(win, '[data-agent-ball="pending"]')).length === 0, (await outOfWindow(win, '[data-agent-ball="pending"]')).join('; '))
       await shot(win, 'creation-700-pill')
       await setBadge(null, 0)
@@ -456,7 +457,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     }
     await closeRailDrawer(win, 'docs')
     await drag(NARROW, WIDE)
-    await expect(dockLayer.first()).toBeAttached({ timeout: 5000 })
+    await expect(dockLayer.first()).toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
     await openRailDrawer(win, 'docs')
     {
       const drawer = await railDrawerPanel(win, 'docs').boundingBox()
@@ -554,9 +555,9 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await clickOrFail(win.locator(`${AGENT_PANEL} ${COLLAPSE_BUTTON}`).first(), `${width} 生成页收回`)
       // 预览页：停靠的页显示小球，⌘J 叫出浮窗并聚焦输入框；播放区和时间轴都在。
       await switchWorkspace(win, 'preview')
-      await expect(narrowBall.first(), `${width} 预览页应是小球`).toBeVisible({ timeout: 5000 })
+      await expect(narrowBall.first(), `${width} 预览页应是小球`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       await win.keyboard.press('Meta+J')
-      await expect(win.locator('[data-agent-float]').first(), `${width} ⌘J 应叫出浮窗`).toBeVisible({ timeout: 5000 })
+      await expect(win.locator('[data-agent-float]').first(), `${width} ⌘J 应叫出浮窗`).toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
       const focusedIn = () => win.evaluate((panel) => {
         const active = document.activeElement
         const inPanel = Boolean(active?.closest(panel)) && (active?.tagName === 'TEXTAREA' || active?.getAttribute('contenteditable') === 'true')
@@ -585,7 +586,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     // 回到宽屏：创作页停回，存的 Nomi 宽仍是 390。
     await resize(WIDE)
     await switchWorkspace(win, 'creation')
-    await expect(dockLayer.first(), '回到 1100 应停回').toBeAttached({ timeout: 5000 })
+    await expect(dockLayer.first(), '回到 1100 应停回').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
     const end = await snapshot()
     check(`${BOARD.noWriteback} 走完回到 1100：存的 Nomi 宽仍是 390、停靠没被改掉`, JSON.parse(end.layout).assistantWidth === 390 && JSON.parse(end.form ?? '{}').state?.bySurface?.creation?.form !== 'ball', `${end.layout.slice(0, 120)}`)
   } catch (error) {

@@ -64,6 +64,6 @@ describe('存档只认静态界、显示让步交给 Grid（方向检查 2026-11
   it('两列：内容先保底（容器比地板还窄时不撑破），停靠栏最宽 = 存的宽 + 缝、最窄 308', () => {
     expect(assistantDockColumns(390)).toBe(`minmax(min(${ASSISTANT_DOCK_CONTENT_FLOOR}px, 100%), 1fr) minmax(min(398px, ${ASSISTANT_DOCK_TRACK_MIN}px), 398px)`)
     // 生成页：最宽给会动画的变量，变量 0px 时这一轨收成 0（收起 / 展开逐帧插值）。
-    expect(assistantDockColumnsAnimated('var(--w)')).toBe(`minmax(min(${ASSISTANT_DOCK_CONTENT_FLOOR}px, 100%), 1fr) minmax(min(var(--w), ${ASSISTANT_DOCK_TRACK_MIN}px), var(--w))`)
+    expect(assistantDockColumnsAnimated('var(--generation-assistant-width)')).toBe(`minmax(min(${ASSISTANT_DOCK_CONTENT_FLOOR}px, 100%), 1fr) minmax(min(var(--generation-assistant-width), ${ASSISTANT_DOCK_TRACK_MIN}px), var(--generation-assistant-width))`)
   })
 })

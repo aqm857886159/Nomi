@@ -5,7 +5,7 @@ import path from 'node:path'
 
 const file = path.resolve(import.meta.dirname, '../../electron/mainWindowMinSize.json')
 const parsed = JSON.parse(fs.readFileSync(file, 'utf8'))
-if (!(parsed.width > 0) || !(parsed.height > 0)) throw new Error(`读不到最小窗：${file}`)
+if (!(parsed.minWidth > 0) || !(parsed.minHeight > 0)) throw new Error(`读不到最小窗：${file}`)
 
-export const MIN_WINDOW = Object.freeze({ width: parsed.width, height: parsed.height })
+export const MIN_WINDOW = Object.freeze({ width: parsed.minWidth, height: parsed.minHeight })
 export const MIN_WINDOW_SOURCE = 'electron/mainWindowMinSize.json（主进程 minWidth / minHeight 同读这一份）'

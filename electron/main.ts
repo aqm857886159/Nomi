@@ -285,8 +285,7 @@ async function createWindow(
     width: options.bounds?.width ?? 1440,
     height: options.bounds?.height ?? 960,
     ...(options.bounds ? { x: options.bounds.x, y: options.bounds.y } : {}),
-    minWidth: MAIN_WINDOW_MIN_SIZE.width,
-    minHeight: MAIN_WINDOW_MIN_SIZE.height,
+    ...MAIN_WINDOW_MIN_SIZE, // minWidth / minHeight
     backgroundColor: "#f6f3ee",
     title: "Nomi",
     // 40px 合一顶栏：Windows 原生窗口按钮浮在顶栏右端、macOS 红绿灯落在顶栏左端（见 mainWindowChrome.ts）。
