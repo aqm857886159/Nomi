@@ -147,6 +147,8 @@ export const CANONICAL_MODEL_IDS: Record<string, string> = {
   // Muse Image 是 Meta 的模型（Meta Superintelligence Labs，2026-07-07 发布，出处见 runwayNativeImage.ts），
   // Runway 只是转售渠道 → 写模型本身的身份，不写「runway muse image」。
   "muse_image": "muse image",
+  // APIMart 的 Muse Image Ext 和 Runway 的 muse_image 是同一个模型的两条接入线：组里有渠道行，这一行也要显式写身份。
+  "muse-image-ext": "muse image",
   "suno-v5-5": "suno v5.5",
   "suno-v5.5": "suno v5.5",
   "suno-sounds-v5-5": "suno sounds v5.5",
@@ -177,6 +179,7 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   // 不跟着标就会出现「同一款经 Runway 是旗舰、经 APIMart 是陪跑」的自相矛盾分档。
   "gemini-3-pro-image-preview",
   "grok-imagine-2.0-ext",
+  "muse-image-ext",
   "nano-banana-2",
   "gemini-3.1-flash-image-preview",
   "seedream/5-pro-text-to-image",
