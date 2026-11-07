@@ -49,7 +49,7 @@
 
 指标（目标 → 信号 → 指标）：
 - 主指标：形状层拒收里「点名字段 + 合法值 / 近似键 / 期望类型」的比例。基线：§3.2 Zod 层 10 条里 0 条给近似键、pi 层 0 条给合法值；目标 100%。量具：`electron/agentLane/laneToolInputBoundary.test.ts`（25 条错写逐条断言）。
-- 质量指标：同一错误连发 6 次时第几次被拦。基线：形状层永不拦（调研里的两条复现）；目标第 3 次起拦。量具：`tests/agent-runtime/lane-tool-input-boundary.test.mts`（真 pi 循环 + 真 HTTP 假模型）。
+- 质量指标：同一错误连发 6 次时第几次被拦。基线：形状层永不拦（调研里的两条复现）；目标第 3 次起拦。量具：`electron/agentLane/laneToolInputBoundary.test.ts`（真 lane：真 pi 循环 + 本机 HTTP 假模型，25 条错写与「同错 ×6」在同一个文件；原计划的 `tests/agent-runtime/lane-tool-input-boundary.test.mts` 不另建）。
 - 护栏指标：失败码为空的工具失败比例。基线：10-29 包 16/16 为空；目标 0。量具：同上测试断言面板投影 `failure.code` 非空；线上量具：新增匿名事件 `agent.tool.failed`（`electron/telemetry/telemetryEvents.ts`）。
 - 真模型被拒后一次改对率 / 平均重试数：未验证：本线不花钱，由协调的测试集跑器跑（命令写在报告里）。
 
@@ -57,10 +57,10 @@
 - Agent 面板工具行（`useAgentPanelV4Data` → `laneToolFailureSummary`）：标题按码查词条；展开按 issue 类型逐行说「哪个字段 · 该填什么」。没有词条的码**不露码**，说「这一步没做成，Agent 会看情况换个办法」。
 - 撞满 3 次后的提问卡（`ask_user` 的 `askReason: retry_exhausted`）：沿用现有词条，不新增文案。
 - 主进程日志 `lane-tool-failed`：照旧只记工具名、首行、连续次数；首行现在稳定为 `Validation failed for tool "X" (tool_arguments_invalid)…`。
-- 匿名事件：新增 `agent.tool.failed`（工具名闭合表、失败码、第几次、是否熔断、模型家族），不带任何用户文字。
+- 匿名事件：新增 `agent.tool.failed`（工具名闭合表、失败码、第几次、是否熔断、模型种类 `modelClass`：builtin / local / custom），不带任何用户文字。
 
 ### ★1c 老用户
-- 老会话转录里 pi 默认文本的失败行：升级后照常显示；面板对没有信封的旧失败显示「它这次的参数不对，这一步没有执行。」+ 可展开的原文，不再用正则翻英文（那条路删了）。不迁移、不改落盘格式。
+- 老会话转录里 pi 默认文本的失败行（`Validation failed for tool "X":`，不带码）：升级后投影层按转录里的原参数重推同一份字段清单（`laneToolInputBoundary.failureOf` 认这个旧头），面板照样说「哪个字段 · 该填什么」；原参数不在（上一页历史）或重推不出来的只显示码对应的中文 / 英文，没有词条的码不露码。不再用正则翻英文（那条路删了）。不迁移、不改落盘格式。
 - 老会话里有 `details.failure` 的失败：信封形状只加了可选字段（`kind` / `allowed` / `nearest` / `min` / `max`），老信封照读。
 - 设置 / 项目 / 模型：不碰。遥测：用户已同意的告知范围 1 含「失败类别、Agent 工具轨迹」，新事件按范围 1 入队；没开遥测的人一条不发。
 - 退回上一版：新信封多出的可选字段被老版 `laneToolFailureOf` 忽略；新事件名老版不认识，只是不再入队。
@@ -96,7 +96,9 @@
 - 两个 schema 对自己的输出幂等（`parse(parse(x)) ≡ parse(x)`），测试逐个夹具断言；
 - 所以第二次 parse 对这条路恒成功，失败分支不可达；删掉后由测试钉住「只有一个生产调用者」和幂等。
 
-pi 框架限制（如实写）：`prepareArguments` 抛错只能变成 `terminate:false` 的立即结果，所以形状层撞满后**拦得住、说得清、转得了提问**，但「第 5 次直接结束回合」只对执行层成立。形状层的兜底是：第 3 次起每一次都是拦截话术（不再给新的修改指引），并上报 `breakerTripped`。
+pi 框架限制（如实写）：`prepareArguments` 抛错只能变成 `terminate:false` 的立即结果，所以形状层撞满后**拦得住、说得清、转得了提问**，但结束不了回合。实现时把执行层原有的「第 5 次直接结束回合」也删了：墙现在判在入参边界（第 4 次起在执行之前就拦下），执行层根本走不到第 5 次，那条分支不可达；两层同一个停法。兜底是：第 3 次正文末尾带「停」那句，第 4 次起每一次都是拦截话术（`tool_retry_stopped`，不再给新的修改指引），并上报 `breakerTripped`。
+
+残余风险（2026-11-07 协调定 A）：模型无视拦截、一直调同一个工具时，被拦的调用不执行、不花生成的钱，但每次多一次模型请求；宿主的回合请求上限（`maxModelRequests`，默认不设）只在 `before_tool` 判，立即结果绕过它，截不断这个循环。本 PR 用 `it.fails` 钉住这个缺口；「连续不听就像用户点停止一样中止这一轮」作为后续一刀，由协调按真模型测试集里「同错连续 ≥3 次」还剩多少定优先级。
 
 ## ★4 全状态
 
@@ -133,7 +135,7 @@ pi 框架限制（如实写）：`prepareArguments` 抛错只能变成 `terminat
 - ① 新增操作：无用户操作；新增的是每次工具调用的一次额外校验（pass 时）与拒收时的 issue 计算 + 投影重算。
 - ② 最坏规模：一个回合 50 次工具调用，其中 20 次被拒（12 镜 `draft_shots` 的大参数）。
 - ③ 预算：整轮边界额外开销 ≤20ms（相对一次模型往返的秒级可忽略；超过说明校验没有缓存）；单次投影重算（20 条拒收）≤5ms。
-- ④ 场景 `agent-tool-input-boundary-50`（`tests/perf/scenarios/agent-tool-input-boundary-50.json`，跑法 `pnpm run perf:scenarios -- --id agent-tool-input-boundary-50`），基线数字见 PR `## 验收证据`。
+- ④ 场景 `agent-tool-input-boundary-50`（`tests/perf/scenarios/agent-tool-input-boundary-50.json`，量具 `tests/perf/agent-tool-input-boundary-bench.mjs`，跑法 `pnpm run perf:scenarios -- --id agent-tool-input-boundary-50`）。实现线本机 5 次（`--measure-only`，load 不吵）：`turnBoundaryMs` 中位 5.7ms / p95 7.4ms（预算 20），`projectionRecomputeMs` 中位 3.3ms / p95 3.8ms（预算 5）。登记为待测，基线由协调在安静窗口写入。
 
 ## 8 真实条件
 
@@ -164,7 +166,9 @@ A. 一个格式器（类 1）
 B. 熔断覆盖立即失败（类 2）
 9. 真 pi 循环里，同一形状错连发 6 次：第 1、2 次是 issue 文本；第 3 次起文本含「has failed the same way 3 times」那句拦截话术 + `ask_user` 指引；之后模型调 `ask_user` 时带 `askReason: retry_exhausted`。
 10. 不同字段的错不合并成一堵墙；本工具成功一次清墙；用户新消息清零（复用现有测试，不能红）。
-11. 执行层原有「第 3 次 block、第 5 次 terminate」行为不变（`laneRepeatedFailure.test.ts` 全绿）。
+11. 执行层（`after_tool`）连败第 3 次时正文末尾当场带上同一句「停」，第 4 次起在入参边界拦下；原「第 5 次 terminate」删掉（墙先判，执行层走不到第 5 次）。`laneRepeatedFailure.test.ts` 全绿。
+11a. 工具自己准备步骤里的拒收（`LaneDomainFailure`，如 `parameters.aspectRatio`、画布写的 `rejectGeneratingNodes`）走同一个出口：同一个正文、同一个计数器、信封带码（`wrong_verb` 等）。
+11b. `before_tool` 里桌面端口准备步骤抛的领域拒收（`LaneDomainFailure`，如 `capability_authority_invalid`）同样记进熔断、第 3 次带「停」、发遥测；要换界面（`surface_authority_denied`）、没有权限（`toolAccessDenial`）、审批闸的用户拒绝 / 取消不计数（模型改不了 / 是用户的决定），面板信封不重推（异步、有状态）。
 
 C. 失败带码、细节不吞（类 4）
 12. 形状层失败在面板投影里有 `failure.code === "tool_arguments_invalid"` 和 issues（由主进程按原参数重算），失败码不再为空。
@@ -178,7 +182,7 @@ D. 面板说出字段（item 4）
 18. `residentToolDisplay.ts` 的 `humanizeSchemaIssues` / `humanizeValidationProse` 与 `issueInvalidArgs`「参数不合法」兜底同批删除；全仓再 grep 不到「参数不合法」出现在 Agent 面板路径。
 
 E. 线上可见（item 5）
-19. 新事件 `agent.tool.failed` 登记进 `TELEMETRY_EVENT_NAMES` / `TELEMETRY_EVENT_MIN_SCOPE`（范围 1）/ `isTelemetryProps`；props 恰好五格：`toolName`（闭合表或 `other`）、`failureCode`（类别码形状）、`attempt`（1–5，封顶 5）、`breakerTripped`（布尔）、`modelFamily`（闭合表或 `other`）；夹带任何其它键或用户文字的事件被 `isTelemetryProps` 拒。
+19. 新事件 `agent.tool.failed` 登记进 `TELEMETRY_EVENT_NAMES` / `TELEMETRY_EVENT_MIN_SCOPE`（范围 1）/ `isTelemetryProps`；props 恰好五格：`toolName`（标识符形状，否则 `other`）、`failureCode`（标识符形状，否则 `unknown`）、`attempt`（1–5，封顶 5）、`breakerTripped`（布尔）、`modelClass`（builtin / local / custom，判据同出门的模型目录：判种子不判地址）；夹带任何其它键或用户文字的事件被 `isTelemetryProps` 拒。
 20. 没开遥测时一条不入队（复用 `enqueueTelemetryEvent` 的门）。
 
 F. 删旧（P1）
@@ -191,7 +195,9 @@ F. 删旧（P1）
 - 另一个版本：老转录 → ★1c，面板不报错、不露码。
 - 另一个形状：`anyOf` 多分支报错刷屏 → 去重封顶 8 条，测试钉住。
 - 旧数据：信封老形状 → `laneToolFailureOf` 照读。
-- 反例 · 不该拦的：缺 `taskKind`、`parameters.aspectRatio`、`seed: null` 照旧放行（第 1 条里的放行项）。
+- 反例 · 不该拦的：缺 `taskKind`、`shots` 写成单个对象（容忍层包成数组）、`seed: null` 照旧放行（第 1 条里的放行项）。更正：动手前这里写过 `parameters.aspectRatio` 放行——错的，2026-10-05 起它一律拒（比例只有一个家：镜头上的 `aspectRatio`），拒在工具自己的准备步骤里，现在带码 `wrong_verb`（11a）。
+- 反例 · 模型无视拦截连调同一工具：3 次错 + 7 次改对的调用 → 7 次全被拦、一镜都不起草（墙到用户下一句话才倒）；不设上限时 10 次调用 = 10 条结果、11 次模型请求；设了上限（5）也截不断立即结果的循环——`it.fails` 钉住，见 ★3 残余风险。
+- 反例 · 另一个入口：工具准备步骤的拒收（11a）、`before_tool` 准备步骤的领域拒收（11b）、执行层第 3 次（11）。
 
 真实场景复现：
 - 用户的流程：用户反馈——Agent 起草批量分镜，一回合 21 次工具调用、14 次重试，面板一串红叉、「参数不合法」。
