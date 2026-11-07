@@ -417,7 +417,7 @@ describe('任务号还在就只取回：矩阵', () => {
       // 打开项目时会清掉已经收尾的标记：这个节点立刻不再被这一笔锁着；观察者收的那一笔要等渲染层接住铃才删盘上标记。
       host.runs.recoverOrphans(prepared.project.id)
       expect(host.runs.canvasOpenRuns({ projectId: prepared.project.id })).toEqual([])
-      await new Promise((resolve) => setImmediate(resolve))
+      await new Promise((resolve) => setTimeout(resolve, 0))
       expect(openCanvasRuns(prepared.projectRoot)).toEqual([])
       expect(run.artifacts.filter((value) => value.status === 'ready')).toHaveLength(1)
     }
