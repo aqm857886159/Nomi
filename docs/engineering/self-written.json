@@ -2346,6 +2346,34 @@
       ],
       "whyNotIntegrated": "自写的只有领域归因，不是通用能力：停顿要挂到 Nomi 的页面、生成状态和节点数档位上，这些只有 Nomi 的渲染层知道；行形状是封闭枚举（路径 / 提示词没有位置可进），用来守住「不含内容」的承诺。直方图用 Node 标准接口、滚动用仓内唯一的日志写手，都不自写。",
       "revisitWhen": "出现可直接接入的、带产品场景归因且只落本机的主进程卡顿记录方案时重新评估"
+    },
+    {
+      "id": "agent-ball-eye-follow",
+      "capability": "右下 Agent 小球的眼睛跟着鼠标看：指针在小球 160px 内时按方向偏眼、停在身上抬眼、离开 / 失焦归位；pointermove 只记坐标、rAF 合并，一帧最多算一次，只写宿主按钮上的两个 CSS 变量",
+      "status": "justified",
+      "paths": [
+        "src/ui/app-shell/shell/useAgentBallEyeFollow.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "framer-motion useMotionValue（仓里已装 12.39）：值变了不走 React 渲染、在它自己的帧循环里写样式；但它不提供指针来源，pointermove 监听和方向换算照样要写，而且要把设计系统里纯 CSS 的 NomiAgentFace 眼睛层改成 motion 组件、跨组件边界传 MotionValue，形变 token 和减弱动效规则就得在两套机制里各守一遍",
+          "source": "node_modules/framer-motion/dist/index.d.ts:1033"
+        },
+        {
+          "name": "react-use useMouse（ahooks useMouse 同理）：把坐标放进 React state（useRafState），每次移动 setState 重渲染一次，正好违反设计卡 ★7「跟随不触发重渲染」",
+          "source": "https://github.com/streamich/react-use/blob/master/src/useMouse.ts"
+        },
+        {
+          "name": "Rive 状态机的指针 Listener（Duolingo 角色用它）：眼睛跟随在运行时里做；设计卡 ★0 ④ 已定不为这一处引入动画运行时",
+          "source": "https://rive.app/docs/editor/state-machine/listeners"
+        },
+        {
+          "name": "xeyes：从眼睛中心指向指针、按半径夹住的经典算法；方向换算照它写，不另发明",
+          "source": "https://en.wikipedia.org/wiki/Xeyes"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：这是 Nomi 的 Agent 形象（品牌组件）的一部分，规则全来自 10-27 拍板——160px 半径、胶囊往左长时按右缘那颗球的中心算、停在身上抬眼、减弱动效下不挂监听，而且 ★7 预算要求跟随零重渲染、空闲不请求帧。通用部分只有三行 addEventListener 和浏览器标准的 requestAnimationFrame，没有现成库能在不进 React state 的前提下把指针换成这两个 CSS 变量、比这 ~50 行的 effect 更短。",
+      "revisitWhen": "Nomi 里出现第二处要跟随指针的元素（那时抽成共用的指针跟随，或整体换到 framer-motion 的 MotionValue）；或 Agent 形象改用 Rive / Lottie 之类的动画运行时时"
     }
   ]
 }
