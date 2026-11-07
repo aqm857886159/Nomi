@@ -14,6 +14,7 @@ import { clickOrFail, expect, expectVisible } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { readProject } from './agent-runtime-walk-support.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { setLocale, IMAGE } from './_referenceDeadLinkSteps.mjs'
 
 export { IMAGE }
@@ -118,10 +119,13 @@ export function judgeAnchorSend(observed, { anchor = ANCHOR } = {}) {
   return { problems, summary: { createRequests: observed.length, sentContainsDescription: hasDescription, missingStyleWords: missingStyle, sentContainsStructuredFeatures: hasStructured, promptChars: sent.length } }
 }
 
+// 按钮名从词典按键取（check:test-copy-literals：测试不抄文案）。「创作」页签名短到门岗不认作文案，照写。
 const LABELS = {
-  'zh-CN': { creation: '创作', expandAll: '全部展开', generateAnchor: (name) => `生成参考卡「${name}」` },
-  en: { creation: 'Create', expandAll: 'Expand all', generateAnchor: (name) => `Generate reference card "${name}"` },
+  'zh-CN': { creation: '创作' },
+  en: { creation: 'Create' },
 }
+const expandAllLabel = (locale) => uiText(locale, 'storyboardEditor.anchor.expandAll')
+const generateAnchorLabel = (locale, name) => uiTextWith(locale, 'storyboardEditor.anchor.generateAria', { name })
 
 /** 打开项目 → 创作区 → 打开那份方案 → 展开参考卡区；返回那张卡的容器。 */
 async function openAnchorCard({ win, locale }) {
@@ -140,7 +144,7 @@ async function openAnchorCard({ win, locale }) {
   const card = win.locator(`[data-anchor-card="${ANCHOR.id}"]`)
   await expectVisible(card, '参考卡区里有「叶秋」那张卡')
   // 参考卡区默认收着：有「全部展开」就点开；已经开着（换语言重载后）就不点。
-  const expand = win.getByRole('button', { name: text.expandAll, exact: true })
+  const expand = win.getByRole('button', { name: expandAllLabel(locale), exact: true })
   if (await expand.isVisible().catch(() => false)) await clickOrFail(expand, '展开参考卡区')
   return card
 }
@@ -179,7 +183,7 @@ export async function runAnchorOutboundJourney({ paid, evidence, observe, expect
   const card = await openAnchorCard({ win, locale: 'zh-CN' })
   await walk.snap('anchor-card-zh')
   const offset = observe().length
-  await clickOrFail(card.getByRole('button', { name: LABELS['zh-CN'].generateAnchor(ANCHOR.name) }), '点参考卡「叶秋」的生成')
+  await clickOrFail(card.getByRole('button', { name: generateAnchorLabel('zh-CN', ANCHOR.name) }), '点参考卡「叶秋」的生成')
   await expect.poll(() => observe().length - offset, { message: '点生成后供应商收到创建请求', timeout: stationTimeout({ operations: 2 }) }).toBeGreaterThan(0)
   const latestRun = async () => {
     const nodes = (await readProject(win, seeded.projectId)).payload.generationCanvas.nodes ?? []
@@ -199,6 +203,6 @@ export async function runAnchorOutboundJourney({ paid, evidence, observe, expect
   // 英文界面各截一张（同一张卡，不再点生成）。
   await setLocale(win, 'en')
   await openAnchorCard({ win, locale: 'en' })
-  await expectVisible(win.getByText('Keep consistent across shots', { exact: true }), '英文界面里参考卡区的标题是英文')
+  await expectVisible(win.getByText(uiText('en', 'storyboardEditor.consistencyTitle'), { exact: true }), '英文界面里参考卡区的标题是英文')
   await walk.snap('anchor-card-en')
 }
