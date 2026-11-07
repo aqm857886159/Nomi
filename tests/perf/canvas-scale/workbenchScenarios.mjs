@@ -28,6 +28,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'switch-canvas-list',
   'list-queue-settle',
   'document-typing',
+  'creation-toolbar-resize',
   'text-node-typing',
   'creation-ai-rewrite-result',
   'timeline-play',
@@ -227,6 +228,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'switch-canvas-list') return switchCanvasList(page, ctx)
   if (scenario === 'list-queue-settle') return listQueueSettle(page, ctx)
   if (scenario === 'document-typing') return documentTyping(page, ctx)
+  if (scenario === 'creation-toolbar-resize') return creationToolbarResize(page, ctx)
   if (scenario === 'text-node-typing') return textNodeTyping(page, ctx)
   if (scenario === 'creation-ai-rewrite-result') return creationAiRewriteResult(page, ctx)
   if (scenario === 'timeline-play') return timelinePlay(page, ctx)
@@ -490,6 +492,74 @@ async function documentTyping(page, ctx) {
   // 40 个字符里至少 30 个要量到「改了 DOM 再上屏」：少于这个数说明键没打进这份文稿（焦点跑了），数字不作数。
   if (keys.length < 30) return { skipped: `40 个字符只量到 ${keys.length} 次编辑器改动，键没打进文稿` }
   return { raw, responseMs: quantile(keys, 0.95), keyMaxMs: round(Math.max(...keys)), keys: keys.length, paragraphs, path: `creation document（${paragraphs} 段）` }
+}
+
+/**
+ * 窄窗：拖 Nomi 栏的边，创作页主区在约 680–870 之间来回变宽变窄，编辑工具条跟着反复收起 / 展开
+ * （2026-11-07 窄窗拍板 creation.toolbar-overflow，设计卡 ★7）。真鼠标拖 `[data-assistant-resize]`，余弦来回两趟、约 2 秒。
+ * 量拖动期间的帧间隔与长任务。前提：拖动中工具条真的收起又展开过（收起项数变了至少 4 次），否则不作数。
+ * 窗口：量具默认 1600 宽时 Nomi 栏最宽 600，主区 ≥ 924，工具条（约 780）永远放得下、量不到收起；
+ * 所以这一项改按 1280 宽量（栏 300–520，主区约 684–904，跨过「放不下」那条线），量完还原，不影响后面的场景。
+ */
+async function creationToolbarResize(page, ctx) {
+  if (!ctx.state.onCreation) {
+    await switchTo(page, 'creation')
+    ctx.state.onCreation = true
+  }
+  await sleep(page, 400)
+  if (!(await page.locator('.workbench-editor-toolbar [data-nomi-overflow-row]').count())) return { skipped: '工具条不是可收起的那一排（构建里没有 NomiOverflowRow）' }
+  const original = page.viewportSize() ?? await page.evaluate(() => ({ width: innerWidth, height: innerHeight }))
+  await page.setViewportSize({ width: 1280, height: original.height })
+  await page.waitForFunction(() => innerWidth === 1280)
+  try {
+    return await dragDockEdgeAcrossToolbarFit(page, ctx)
+  } finally {
+    await page.setViewportSize(original)
+    await page.waitForFunction((width) => innerWidth === width, original.width)
+  }
+}
+
+async function dragDockEdgeAcrossToolbarFit(page, ctx) {
+  const handle = await page.evaluate(() => {
+    const rect = document.querySelector('[data-assistant-resize]')?.getBoundingClientRect()
+    return rect && rect.height > 0 ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null
+  })
+  if (!handle) return { skipped: '创作页没有可拖的 Nomi 栏边（Nomi 没停靠）' }
+  await page.evaluate(() => {
+    const toolbar = document.querySelector('.workbench-editor-toolbar')
+    const count = () => toolbar.querySelectorAll('[data-overflow-item][data-overflowing]').length
+    const rec = { changes: 0, last: count(), min: count(), max: count() }
+    rec.mo = new MutationObserver(() => {
+      const next = count()
+      if (next === rec.last) return
+      rec.changes += 1
+      rec.last = next
+      rec.min = Math.min(rec.min, next)
+      rec.max = Math.max(rec.max, next)
+    })
+    rec.mo.observe(toolbar, { attributes: true, attributeFilter: ['data-overflowing'], subtree: true, childList: true })
+    window.__nomiToolbarProbe = rec
+  })
+  await page.mouse.move(handle.x, handle.y)
+  await page.mouse.down()
+  await ctx.startWindow(page)
+  const steps = 120
+  const span = 320
+  for (let index = 1; index <= steps; index += 1) {
+    const ratio = (1 - Math.cos((index / steps) * Math.PI * 4)) / 2
+    await page.mouse.move(handle.x - span * ratio, handle.y, { steps: 1 })
+    await sleep(page, 14)
+  }
+  const raw = await ctx.stopWindow(page)
+  await page.mouse.up()
+  await sleep(page, 300)
+  const probe = await page.evaluate(() => {
+    const rec = window.__nomiToolbarProbe
+    rec.mo.disconnect()
+    return { changes: rec.changes, min: rec.min, max: rec.max }
+  })
+  if (probe.changes < 4 || probe.max === probe.min) return { skipped: `拖动中工具条收起项数只变了 ${probe.changes} 次（${probe.min}–${probe.max}），没有真的来回收起 / 展开` }
+  return { raw, toolbarChanges: probe.changes, hiddenRange: `${probe.min}–${probe.max}`, path: 'drag agent dock edge (creation)' }
 }
 
 /**

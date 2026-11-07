@@ -259,6 +259,7 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         'diff',
         '@radix-ui/react-switch',
         '@floating-ui/dom',
+        '@fluentui/priority-overflow',
         '@mantine/core',
         '@mantine/modals',
         '@mantine/notifications',

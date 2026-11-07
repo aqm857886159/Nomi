@@ -1,0 +1,25 @@
+{
+  "id": "creation-toolbar-resize",
+  "feature": "创作页拖 Nomi 栏的边，主区在约 680–870 之间来回变宽变窄（窗口按 1280 宽量），编辑工具条跟着反复收起进「⋯」又展开（窄窗拍板 creation.toolbar-overflow），量拖动期间的帧间隔",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "M",
+    "--scenarios",
+    "creation-toolbar-resize",
+    "--warmup",
+    "1"
+  ],
+  "scale": "编辑工具条全部 15 颗格式钮（4 组）+ 撤销 / 重做；拖动约 2 秒、来回两趟，收起项数在 0 到最多之间反复变；项目里同时有 96 节点的画布",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "budgetStatus": "proposed",
+  "budgetBasis": "60Hz 下拖动的 p95 帧间隔不超过 2 帧（33ms），交互期间 >50ms 长任务 0 个（docs/engineering/perf-scenarios.md 默认预算表「拖动 / 平移 / 缩放」）；同类拖动场景 timeline-scrub、canvas-drag-single-node 用的是同一档",
+  "measurement": {
+    "state": "pending",
+    "reason": "实现线只交冒烟和 5 次的数字；基线由协调或验收线在安静窗口写"
+  }
+}

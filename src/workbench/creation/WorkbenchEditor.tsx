@@ -9,7 +9,7 @@ import { rewriteDocumentIdentity, setRewriteDocumentIdentityTransaction, setRewr
 import { useOpenProjectId } from '../project/useOpenProjectId'
 import { toast } from '../../ui/toast'
 import { useAiRewrite } from './aiRewrite/aiRewriteBinding'
-import { TooltipProvider } from '../../design'
+import { NomiOverflowRow, TooltipProvider, type NomiOverflowRowGroup, type NomiOverflowRowItem, type WorkbenchMenuIcon } from '../../design'
 import { TIPTAP_PLACEHOLDER_CLASSES } from '../assets/tiptapPlaceholderClasses'
 import { cn } from '../../utils/cn'
 import { useWorkbenchStore } from '../workbenchStore'
@@ -30,6 +30,8 @@ import { documentSessionState, overrideDocumentSessionPort, type DocumentSession
 // 工具栏分组：格式按语义分 4 簇（文字 / 标题段落 / 列表 / 插入）靠左，历史（撤销/重做）推到右端。
 // 之前用一个 flex-1 spacer 把 9 个按钮全挤到左侧、右边 ~570px 浪费 —— 这里按语义两端锚定。
 // 5 簇封顶（§1.5 硬规则），每个簇都是往已有语义里补成员，不新增平铺簇。
+// 窄时（2026-11-07 窄窗拍板 WindowNarrow / creation.toolbar-overflow）：格式簇放不下的按钮从右往左收进「⋯」，
+// 只按「量出来放不下」收，不按窗口宽写断点；撤销 / 重做不在可收的那一排里，永远钉在右端。
 const TOOLBAR_LEFT_GROUPS: readonly (readonly string[])[] = [
   ['bold', 'italic', 'strike', 'code', 'highlight'],
   ['h1', 'h2', 'h3', 'blockquote', 'horizontal-rule'],
@@ -40,7 +42,25 @@ const TOOLBAR_RIGHT_GROUP: readonly string[] = ['undo', 'redo']
 const TOOLBAR_BUTTON_CLASS = 'workbench-editor-toolbar__button h-[30px] w-[30px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-ink [&>svg]:size-4 [&>svg]:stroke-2'
 
 function ToolbarDivider(): JSX.Element {
-  return <div className="w-px h-[18px] bg-workbench-border mx-1" aria-hidden="true" />
+  return <div className="w-px h-[18px] bg-workbench-border mx-1 shrink-0" aria-hidden="true" />
+}
+
+// 菜单项要的是组件（WorkbenchMenu 统一给图标上尺寸）；格式钮的图标是模块级常量元素，按元素缓存一份组件，免得每次渲染换身份。
+const menuIconByElement = new WeakMap<JSX.Element, WorkbenchMenuIcon>()
+function menuIconFor(element: JSX.Element): WorkbenchMenuIcon {
+  const cached = menuIconByElement.get(element)
+  if (cached) return cached
+  const Icon: WorkbenchMenuIcon = () => element
+  menuIconByElement.set(element, Icon)
+  return Icon
+}
+
+function toOverflowItem(action: RichTextAction): NomiOverflowRowItem {
+  return {
+    id: action.id,
+    node: <RichTextActionButton action={action} className={TOOLBAR_BUTTON_CLASS} />,
+    menuItem: { label: action.label, icon: menuIconFor(action.icon), disabled: action.disabled, onSelect: () => action.onClick() },
+  }
 }
 
 function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Element {
@@ -48,13 +68,15 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
   const actions = useRichTextActions(editor)
   const byId = new Map(actions.map((action) => [action.id, action]))
   const pick = (ids: readonly string[]) => ids.map((id) => byId.get(id)).filter((a): a is RichTextAction => Boolean(a))
-  const leftGroups = TOOLBAR_LEFT_GROUPS.map(pick).filter((group) => group.length > 0)
+  const leftGroups: NomiOverflowRowGroup[] = TOOLBAR_LEFT_GROUPS
+    .map((ids) => ({ id: ids[0] ?? '', items: pick(ids).map(toOverflowItem) }))
+    .filter((group) => group.items.length > 0)
   const rightGroup = pick(TOOLBAR_RIGHT_GROUP)
   return (
     <div
       className={cn(
         'workbench-editor-toolbar',
-        'flex items-center gap-1',
+        'flex min-w-0 items-center gap-1',
         workspacePanelHeader,
       )}
       aria-label={t('creationAi.editor.toolbarAria')}
@@ -63,15 +85,11 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
       <CreationDocumentSwitcher />
       <ToolbarDivider />
       <TooltipProvider delayDuration={250} disableHoverableContent>
-        {leftGroups.map((group, index) => (
-          <React.Fragment key={group[0]?.id ?? index}>
-            {index > 0 ? <ToolbarDivider /> : null}
-            {group.map((action) => (
-              <RichTextActionButton key={action.id} action={action} className={TOOLBAR_BUTTON_CLASS} />
-            ))}
-          </React.Fragment>
-        ))}
-        <div className="flex-1" aria-hidden="true" />
+        <NomiOverflowRow
+          groups={leftGroups}
+          overflowLabel={t('creationAi.editor.moreTools')}
+          overflowButtonClassName={TOOLBAR_BUTTON_CLASS}
+        />
         {rightGroup.map((action) => (
           <RichTextActionButton key={action.id} action={action} className={TOOLBAR_BUTTON_CLASS} />
         ))}
@@ -204,8 +222,10 @@ export default function WorkbenchEditor(): JSX.Element {
     <section
       className={cn(
         'workbench-editor',
-        'relative w-full h-full min-h-0',
-        'grid grid-rows-[auto_minmax(0,1fr)]',
+        'relative w-full h-full min-w-0 min-h-0',
+        // 列模板必须写：不写就是隐式 auto 列，宽度被工具条一整排按钮的 min-content 撑开，
+        // 主区一窄正文和工具条一起被裁（2026-11-07 窄窗拍板 F1 / creation.editor-grid）。
+        'grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]',
         workspacePanelFrame,
       )}
       aria-label={t('creationAi.editor.documentAria')}

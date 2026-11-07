@@ -29,6 +29,7 @@ export const zhCreationAi = {
   editor: {
     placeholder: '从这里开始写你的故事、脚本或文案……  选中文字，点右侧即可生成图片 / 视频节点。',
     toolbarAria: '文本工具栏',
+    moreTools: '更多格式',
     documentAria: '创作文档编辑区',
   },
   selection: {
@@ -171,6 +172,7 @@ export const enCreationAi = {
   editor: {
     placeholder: 'Start writing your story, script, or copy here… Select text to create an image or video node.',
     toolbarAria: 'Text toolbar',
+    moreTools: 'More formatting',
     documentAria: 'Creation document editor',
   },
   selection: {

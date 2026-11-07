@@ -330,7 +330,7 @@ async function fitView(page, { expectZoomBelow = 0.9 } = {}) {
 }
 
 /** 不在画布上量的工作台场景：每次采样前不做「适应视图」（那颗钮在创作 / 预览页上不存在）。 */
-const OFF_CANVAS_SCENARIOS = new Set(['document-typing', 'creation-ai-rewrite-result', 'timeline-play', 'timeline-scrub', 'library-skill-open', 'library-prompt-open', 'library-prompt-scroll', 'library-prompt-search'])
+const OFF_CANVAS_SCENARIOS = new Set(['document-typing', 'creation-toolbar-resize', 'creation-ai-rewrite-result', 'timeline-play', 'timeline-scrub', 'library-skill-open', 'library-prompt-open', 'library-prompt-scroll', 'library-prompt-search'])
 /**
  * 在「工作缩放」（约 100%）下量的场景：点卡出生成框是在正常干活的缩放下发生的，不是缩到全图。
  * 适应视图之后在舞台中间滚轮放大到 ≥0.95：10 / 100 / 200 三档的视口里都是同样大小的卡，差别只剩画布上一共有多少个节点。

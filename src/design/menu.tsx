@@ -137,6 +137,11 @@ export type WorkbenchMenuProps = WorkbenchMenuAnchor & {
    * 放不下时仍由 Radix 按真实尺寸翻边，不是写死。
    */
   side?: 'top' | 'bottom'
+  /**
+   * 菜单与锚点哪条边对齐。默认 `start`（左边对齐）。`end` = 右边对齐——锚点贴着容器右端的按钮
+   * （工具条收起后的「⋯」）往左展开，不越过它所在的那块面板（2026-11-07 窄窗拍板 N4-creation-menu）。
+   */
+  align?: 'start' | 'end'
   /** 菜单与 `anchorRect` 之间的缝（只对按钮点开的菜单有意义；点位菜单贴点）。默认 6。 */
   gap?: number
   items: readonly WorkbenchMenuNode[]
@@ -312,6 +317,7 @@ export function WorkbenchMenu({
   point,
   anchorRect,
   side = 'bottom',
+  align = 'start',
   gap = 6,
   items,
   ariaLabel,
@@ -345,7 +351,7 @@ export function WorkbenchMenu({
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
           side={side}
-          align="start"
+          align={align}
           sideOffset={anchorRect ? gap : 0}
           alignOffset={0}
           // 8 = 现役画布菜单手写的 MENU_EDGE_GAP。差别在于避让用的是**真实测量的盒子**，

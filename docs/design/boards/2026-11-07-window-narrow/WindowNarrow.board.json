@@ -949,9 +949,10 @@
     "662-p-第二场河边",
     "663-p-纸船漂进小河阿禾在桥上追"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-pages",
-   "stateNotes": "1100-dock340 / 700"
+   "stateNotes": "1100-dock340 / 700",
+   "assertion": "board:WindowNarrow/creation.editor-grid"
   },
   {
    "id": "creation.toolbar-overflow",
@@ -1017,9 +1018,10 @@
     "1708-span-改后",
     "1709-span-主区684正文宽min6"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-pages",
-   "stateNotes": "zh-en / 700 / 1100-dock340"
+   "stateNotes": "zh-en / 700 / 1100-dock340",
+   "assertion": "board:WindowNarrow/creation.toolbar-overflow"
   },
   {
    "id": "creation.toolbar-more-menu",
@@ -1059,9 +1061,10 @@
     "675-div-Link",
     "676-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-pages",
-   "stateNotes": "zh-en / dark-unverified"
+   "stateNotes": "zh-en / dark-unverified",
+   "assertion": "board:WindowNarrow/creation.toolbar-more-menu"
   },
   {
    "id": "preview.grid-rows",
@@ -1227,9 +1230,10 @@
     "1972-span-生成3张",
     "1973-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-pages",
-   "stateNotes": "1100x720 / 700x720"
+   "stateNotes": "1100x720 / 700x720",
+   "assertion": "board:WindowNarrow/preview.grid-rows"
   },
   {
    "id": "preview.side-strips",
@@ -1256,9 +1260,10 @@
     "886-svg",
     "887-span-属性"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-pages",
-   "stateNotes": "zh-en / dark"
+   "stateNotes": "zh-en / dark",
+   "assertion": "board:WindowNarrow/preview.side-strips"
   },
   {
    "id": "preview.timeline-toolbar",
@@ -1324,9 +1329,14 @@
     "919-span-100",
     "920-span"
    ],
-   "status": "in-progress",
+   "status": "dropped",
    "owner": "I-window-narrow-pages",
-   "stateNotes": "zh-en / dark"
+   "stateNotes": "zh-en / dark",
+   "userDecision": {
+    "quote": "都按推荐",
+    "date": "2026-11-08"
+   },
+   "note": "不做。方向检查 docs/engineering/direction-checks/2026-11-08-window-narrow-pages.md：内容区恒 ≥ 700、工具条约 454 宽，在新最小窗里永远触发不了；TimelinePanel.tsx 不动。用户 11-08 02:2x「都按推荐」（协调转达）。"
   },
   {
    "id": "preview.min-player-comment",
@@ -1338,9 +1348,15 @@
    ],
    "component": "panelLayout.ts 注释；docs/design/boards/2026-11-04-preview-narrow-panels 不变量",
    "candidates": [],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-pages",
-   "stateNotes": ""
+   "stateNotes": "",
+   "assertion": "board:WindowNarrow/preview.min-player-comment",
+   "note": "已知限制：窗口 700–约 740 宽时，预览的素材 / 属性栏点不开，要先拉宽窗口；756、960 不受影响。用户 2026-11-08 原话「A 记为已知限制」：行为不改，panelLayout.ts 注释写实话（停靠 1100 时主区 684 → 410 ≥ 400 放得下；最小窗 700 不停靠约 632 → 358 < 400，点开的那一栏也收成条）。",
+   "knownLimitationDecision": {
+    "quote": "A 记为已知限制",
+    "date": "2026-11-08"
+   }
   },
   {
    "id": "drawer.clamp",
@@ -2790,7 +2806,7 @@
   "抽屉钳宽「窗口 − 232」是设计线定的数，没和谁对过",
   "项目名藏起的阈值「左簇内容宽 ≤ 89」按画板字体量出，生产字体下要复量",
   "Markdown 快捷输入在「⋯」里的功能上照常可用，是按编辑器默认输入规则推断，未实测",
-  "直接以 720 高打开预览（而不是从 900 缩到 720）未测；F2 改后是按生成页的网格写法推的",
+  "已测（2026-11-08，tests/ux/window-narrow-pages.walk.mjs，修前 / 修后构建各跑一遍）：直接以 1100×720 打开预览本来就不出问题；F2 的触发条件 = 预览页开着时窗口变矮（900 → 720），修前复现（行高留在 852，付费卡「生成」767、时间轴 723 在窗外），修后两条路都在窗内",
   "收起 / 停回动效只在说明里写了，画板是静态三帧"
  ]
 }
