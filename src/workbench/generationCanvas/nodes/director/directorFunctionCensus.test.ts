@@ -25,6 +25,7 @@ import { DIRECTOR_HOTKEYS } from './model/hotkeys'
 import { createDirectorStore } from './model/directorStore'
 import { DIRECTOR_PLAN_META_KEY, DIRECTOR_PROJECT_META_KEY } from './model/directorNodeMeta'
 import { createDirectorEditorPersistence } from './directorEditorPersistence'
+import { directorWriteSemanticInputSchema } from '../../../../../electron/shared/agentCapabilities/directorWrite'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const read = (relative: string): string => fs.readFileSync(path.join(here, relative), 'utf8')
@@ -166,7 +167,7 @@ const PROBES: ReadonlyArray<readonly [string, () => void | Promise<void>]> = [
   }],
   ['Agent 旧 stage_shot', async () => {
     const [shot] = generationCanvasTools.create_nodes([{ kind: 'video', title: 'shot-a', prompt: 'p', position: { x: 0, y: 0 } }])
-    const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: { operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN } as unknown as Record<string, unknown> }])
+    const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: directorWriteSemanticInputSchema.parse({ operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN }) as unknown as Record<string, unknown> }])
     expect(outcome.status).toBe('committed')
     const [director] = directorNodes()
     expect(director?.meta?.[DIRECTOR_PLAN_META_KEY]).toBeTruthy()
