@@ -378,7 +378,8 @@ export function renderToolInputIssue(issue: ToolInputIssue): string {
       if (issue.allowed?.length) line += ` Use one of: ${list(issue.allowed)}.`;
       break;
     case "wrong_type":
-      line = `expected ${issue.expected ?? "another type"}, received ${issue.receivedType ?? "another type"}${got}.`;
+      // 收到的类型不知道（准入层只说期望什么）就不写「received another type」：0 也是数字，那句话是假的。
+      line = `expected ${issue.expected ?? "another type"}${issue.receivedType ? `, received ${issue.receivedType}` : ""}${got}.`;
       break;
     case "missing":
       line = `required, but missing${issue.expected ? ` (expected ${issue.expected})` : ""}.`;

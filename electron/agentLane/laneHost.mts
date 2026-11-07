@@ -10,7 +10,7 @@ import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContrac
 import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { LANE_LEGACY_NOTE, LANE_LEGACY_TOOLS_NOTE, laneLegacyFacts } from '../shared/agentLane/laneLegacyNote.js';
 import { findLaneReceiptAuthority } from './laneReceiptAuthority.mjs';
-import { createLaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';
+import { createLaneRepeatedFailureTracker, LANE_REPEATED_FAILURE_BLOCK } from './laneRepeatedFailure.mjs';
 import { createLaneToolInputBoundary } from './laneToolInputBoundary.mjs';
 import { ASK_USER_VERB_NAME } from '../shared/agentCapabilities/askUser.js';
 // Agent lane · 主进程宿主（**薄**）
@@ -84,8 +84,10 @@ export const LANE_RETRY_POLICY = Object.freeze({ enabled: true, maxRetries: 3, b
  * 「累计次数不在这里算——『这个工具总在坏』是审计的活，**不是拦截的活**」。而 24 这个数干的正是那件事。
  *
  * 真正的危险各有各的守卫，一个都不靠这个数：
- *   · 模型卡在循环里重发同一个调用 → `laneRepeatedFailure`（同工具同错误连撞 3 次拦、5 次终止，
- *     用户再说一句话即清零）。它 3 次就拦住了，轮不到 24。
+ *   · 模型卡在循环里重发同一个调用 → `laneRepeatedFailure`（同工具同错误连撞 3 次起拦，之后每次都是
+ *     一次不执行的立即结果；用户再说一句话即清零）。它 3 次就拦住了，轮不到 24。
+ *     拦不住的只剩一种：模型无视拦截话术、一直调同一个工具——每次都不执行、不花钱，但回合不会自己结束，
+ *     只有宿主设了这个上限才会被截断（缺省不设；`laneToolInputBoundary.test.ts` 的反例把这条钉住）。
  *   · 上下文撑爆 → `laneContextBudget` 的自动压缩（8 万 token 预算）。
  *   · 花钱失控 → 报价卡，每次提交由用户点头。
  * 所以 24 不保护任何具体的东西，它只在一种情况下生效：**活是真的多**——而那恰恰是不该拦的时候。
@@ -447,9 +449,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     try {
       await options.toolLifecycle?.prepare(event, hookContext.abortSignal ?? new AbortController().signal);
     } catch (error) {
-      // 契约 parse（Zod）拒收：和 pi 的形状校验同一个正文、同一个计数器（`laneToolInputBoundary`）。
-      // 别的异常（领域写好的准备失败）照旧原样抛，pi 把它的 message 变成拦截理由。
-      const rejected = toolInput.rejectContract(event.toolName, event.args, error);
+      // 契约 parse（Zod）拒收和领域写好的准备失败（`LaneDomainFailure`）：和 pi 的形状校验同一个正文、
+      // 同一个计数器（`laneToolInputBoundary`）——拦截是立即结果、跳过 after_tool，不在这里记就永远数不到 3。
+      // 别的异常照旧原样抛，pi 把它的 message 变成拦截理由。
+      const rejected = toolInput.rejectPreparation(event.toolName, event.args, error);
       if (rejected === undefined) throw error;
       return { block: { reason: rejected } };
     }
@@ -530,10 +533,15 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     const failure = event.isError ? takeLaneToolFailure(event.toolCallId) : undefined;
     // 墙按**语义码 + 出错字段**认，不按正文首行（正文里有 id、镜头数、字段值，同一堵墙每次都不一样）。
     const consecutive = failures.note(event.toolName, event.isError, body, failure);
+    const wall = event.isError ? failures.block(event.toolName) : null;
     if (event.isError) {
       options.onToolFailure?.({ toolName: event.toolName, code: failure?.code ?? 'unknown', attempt: consecutive,
-        breakerTripped: failures.block(event.toolName) !== null });
+        breakerTripped: wall !== null });
     }
+    // 这一次正好撞满：和入参边界同一句「停」接在正文后面（`laneToolInputBoundary` 的 `reject`），
+    // 模型在第 3 次就读到「别再发、去问用户」，而不是等第 4 次被拦下才知道。
+    const stopNote = wall && consecutive === LANE_REPEATED_FAILURE_BLOCK
+      ? [{ type: 'text' as const, text: `\n${wall.reason}` }] : [];
     // 工具失败要在**主进程日志**里留一行（2026-09-17）。此前整条失败链只有 lane 自己的会话 JSONL
     // 记得住：真机复现 `surface_port_stale` 那一轮，`read_script` 连挂 3 次、会话里 12 处命中，
     // 而 `logs/nomi-<date>.log` 一共 9 行、**一个字都没提这件事**。排查的人打开日志看到的是「什么都没发生」。
@@ -556,7 +564,9 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     if (appliedDirectly && !event.isError) {
       return { content: [...event.content, { type: 'text', text: '\nApplied directly (undoable)' }] };
     }
-    return details ? { details: details as never } : undefined;
+    if (!details && stopNote.length === 0) return undefined;
+    return { ...(stopNote.length > 0 ? { content: [...event.content, ...stopNote] } : {}),
+      ...(details ? { details: details as never } : {}) };
   });
 
   async function inputMessage(text: string): Promise<string | LaneInputMessage> {

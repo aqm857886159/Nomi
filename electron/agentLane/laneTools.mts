@@ -21,10 +21,10 @@
 import { formatSize, truncateHead, type AgentHarnessTool, type AgentToolResult } from '@earendil-works/pi-agent-core';
 import { LANE_MODEL_OUTPUT_MAX_BYTES, LANE_MODEL_OUTPUT_MAX_LINES } from '../shared/agentLane/laneContracts.js';
 import {
-  LANE_READ_TOOL_TIMEOUT_MS, laneToolBillable, laneToolModelDescription, laneToolMutates, renderLaneToolFailure,
+  LANE_READ_TOOL_TIMEOUT_MS, laneToolBillable, laneToolModelDescription, laneToolMutates, laneToolPublicFailure, renderLaneToolFailure,
   renderLaneToolNextAction, toolArgumentsRejected, type LaneToolFailureShape,
 } from '../shared/agentLane/laneToolContract.js';
-import { issuesFromZod, publicToolInputIssues } from '../shared/agentLane/toolInputIssues.js';
+import { issuesFromZod } from '../shared/agentLane/toolInputIssues.js';
 import type { LaneToolPublicFailure } from '../shared/agentLane/laneToolFailureEnvelope.js';
 import { VERB_EFFECTS } from '../shared/agentCapabilities/verbDeclaration.js';
 import type { LaneApprovalDecision } from '../shared/agentLane/laneContracts.js';
@@ -57,12 +57,7 @@ class LaneToolFailure extends Error {}
 const pendingToolFailures = new Map<string, LaneToolPublicFailure>()
 
 function rememberToolFailure(toolCallId: string, failure: LaneToolFailureShape): void {
-  pendingToolFailures.set(toolCallId, {
-    code: failure.code,
-    ...(failure.allowed ? { allowed: failure.allowed } : {}),
-    ...(failure.issues ? { issues: publicToolInputIssues(failure.issues) } : {}),
-    ...(failure.useInstead ? { useInstead: failure.useInstead } : {}),
-  })
+  pendingToolFailures.set(toolCallId, laneToolPublicFailure(failure))
 }
 
 

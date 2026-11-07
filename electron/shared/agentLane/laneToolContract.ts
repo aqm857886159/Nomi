@@ -39,6 +39,7 @@ export { verbMutates as laneToolMutates, verbBillable as laneToolBillable, appro
 
 import type { ModelFacingToolExample as LaneToolExample, ModelFacingToolSpec as LaneToolSpec } from "../agentCapabilities/modelFacingTools";
 import { issuesFromZod, publicToolInputIssues, renderToolInputIssue, zodIssuesOfError, type ToolInputIssue } from "./toolInputIssues";
+import type { LaneToolPublicFailure } from "./laneToolFailureEnvelope";
 
 /**
  * 「一个工具最多允许跑多久」的 lane 侧叫法与预算常量。**同一份定义的别名**，理由与数字
@@ -181,6 +182,19 @@ export function laneFailureOfThrown(
   const zodIssues = zodIssuesOfError(error);
   if (zodIssues) return toolArgumentsRejected(toolName, issuesFromZod(zodIssues, input.args, input.schema), input.example);
   return undefined;
+}
+
+/**
+ * 同一个失败的**公开信封**（转录 `details.failure`、面板、遥测读的那一份）：只有码和结构化事实，没有散文、没有收到的值。
+ * 执行期（`laneTools` 的 `after_tool` 取件）和入参边界（立即结果按入参重推）都从这里出，不各拼一份。
+ */
+export function laneToolPublicFailure(failure: LaneToolFailureShape): LaneToolPublicFailure {
+  return {
+    code: failure.code,
+    ...(failure.allowed ? { allowed: failure.allowed } : {}),
+    ...(failure.issues ? { issues: publicToolInputIssues(failure.issues) } : {}),
+    ...(failure.useInstead ? { useInstead: failure.useInstead } : {}),
+  };
 }
 
 /**

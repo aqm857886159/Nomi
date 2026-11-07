@@ -10,15 +10,17 @@
 //
 // pi 留给工具的唯一一个**校验之前**的口子是 `prepareArguments`（官方钩子，同步，`tools.js:25`）。
 // 这里把每个工具的 `prepareArguments` 包一层：
-//   ① 先跑工具自己的 `prepareArguments`（容忍畸形输入的那一步，原样保留）；
-//   ② 这个工具已经撞满一堵墙 → 直接拦下，说「这一轮别再发」——墙**先于**校验判，否则形状错的调用
-//      会一直拿到校验正文、永远到不了「停」；
+//   ① 这个工具已经撞满一堵墙 → 直接拦下，说「这一轮别再发」——墙**先于**一切判，否则错着的调用
+//      会一直拿到拒收正文、永远到不了「停」；
+//   ② 跑工具自己的 `prepareArguments`（容忍畸形输入的那一步，原样保留）。它自己写好的拒收
+//      （`LaneDomainFailure`，如 draft_shots 的「比例只有一个家」）同样是一次立即结果，走同一个出口、同一个计数器；
 //   ③ 用 pi **自己的** `validateToolArguments` 判通不通过（尺子只有 pi 那一把，这里不复制它的强转规则）；
 //      过了原样返回，pi 随后再校验一次得到同一个结论（编译后的校验器 pi 有缓存）；
 //   ④ 不过 → TypeBox 的结构化错误 → `toolInputIssues` 的同一份清单 → `toolArgumentsRejected` 的同一个正文，
 //      记进熔断，第 3 次时正文末尾直接带上「停」那句。
-// 契约 parse（Zod）那一步在 `before_tool` 里（桌面端口的 `prepare`），由 `rejectContract` 走同一条：
-// 同一个构造器、同一个计数器、同一句「停」。
+// 契约 parse（Zod）和领域准备（`LaneDomainFailure`）那一步在 `before_tool` 里（桌面端口的 `prepare`），
+// 由 `rejectPreparation` 走同一条：同一个构造器、同一个计数器、同一句「停」。领域准备的拒收是异步、有状态的，
+// 面板信封没法按入参重推，只有正文与熔断（见 `failureOf`）。
 //
 // 面板那一半：立即结果没有 `details`，信封只能**按入参重推**——同一个函数、同一份入参，结论确定。
 // `failureOf` 就是给投影层（`LaneModelFacts.toolInputFailure`）的那个读口；正文首行带着码，
@@ -28,9 +30,11 @@ import type { AgentHarnessTool } from '@earendil-works/pi-agent-core';
 import { Compile } from 'typebox/compile';
 import { Value } from 'typebox/value';
 import {
-  issuesFromTypeBox, issuesFromZod, publicToolInputIssues, zodIssuesOfError, type ToolInputIssue, type TypeBoxLikeError,
+  issuesFromTypeBox, issuesFromZod, zodIssuesOfError, type ToolInputIssue, type TypeBoxLikeError,
 } from '../shared/agentLane/toolInputIssues.js';
-import { renderLaneToolFailure, toolArgumentsRejected, type LaneToolFailureShape } from '../shared/agentLane/laneToolContract.js';
+import {
+  LaneDomainFailure, laneToolPublicFailure, renderLaneToolFailure, toolArgumentsRejected, type LaneToolFailureShape,
+} from '../shared/agentLane/laneToolContract.js';
 import type { LaneToolOwnFailureCode, LaneToolPublicFailure } from '../shared/agentLane/laneToolFailureEnvelope.js';
 import { LANE_REPEATED_FAILURE_BLOCK, type LaneRepeatedFailureTracker } from './laneRepeatedFailure.mjs';
 import type { LaneToolFailureEvent } from './laneRuntimePort.js';
@@ -50,12 +54,15 @@ export type LaneToolInputBoundary = Readonly<{
   /** 给每个工具包上 `prepareArguments`。返回新数组，不改传入的工具对象。 */
   wrap<T extends BoundaryTool>(tools: readonly T[]): T[];
   /**
-   * `before_tool` 里契约 parse 抛出的异常 → 模型读的那段正文（并记进熔断）。认不出（不是 ZodError）返回 `undefined`，
-   * 由调用方原样再抛。
+   * `before_tool` 里准备那一步（桌面端口的 `prepare`）抛出的拒收 → 模型读的那段正文（并记进熔断）。认两种：
+   * 契约 parse 的 ZodError（同一个格式器），领域写好的 `LaneDomainFailure`（如「标识符 / 版本对不上，先重读」）。
+   * 拦截同样是 pi 的立即结果、跳过 `after_tool`，不在这里记数，连发同一个错的模型就永远停不下来。
+   * 认不出的返回 `undefined`，由调用方原样再抛。
    */
-  rejectContract(toolName: string, args: unknown, error: unknown): string | undefined;
+  rejectPreparation(toolName: string, args: unknown, error: unknown): string | undefined;
   /**
-   * 一条立即失败的工具结果 → 公开信封（面板用）。只认本边界写下的两种头；别的返回 `undefined`。
+   * 一条立即失败的工具结果 → 公开信封（面板用）。只认本边界写下的三种：拦截头、形状 / 契约拒收头、
+   * 工具准备步骤自己写好的拒收（按入参重跑那一步，正文以它的 message 开头才认）；别的返回 `undefined`。
    * 2026-11-07 之前 pi 的默认正文（`Validation failed for tool "X":` 不带码）也认：同一份入参重推出同一份清单。
    */
   failureOf(input: Readonly<{ toolName: string; args: unknown; text: string }>): LaneToolPublicFailure | undefined;
@@ -127,6 +134,16 @@ export function createLaneToolInputBoundary(options: Readonly<{
     throw new Error(`${stoppedHead(toolName)}${reason}`);
   }
 
+  /** 工具自己的准备步骤（`prepareArguments`）跑一遍：它写好的拒收给回来，别的异常照旧抛。 */
+  function prepared(tool: BoundaryTool, args: unknown): { ok: true; args: unknown } | { ok: false; failure: LaneToolFailureShape } {
+    try {
+      return { ok: true, args: tool.prepareArguments ? tool.prepareArguments(args) : args };
+    } catch (error) {
+      if (error instanceof LaneDomainFailure) return { ok: false, failure: error.failure };
+      throw error;
+    }
+  }
+
   function contractFailure(toolName: string, args: unknown): LaneToolFailureShape | undefined {
     const spec = specByName.get(toolName);
     if (!spec) return undefined;
@@ -140,22 +157,23 @@ export function createLaneToolInputBoundary(options: Readonly<{
     wrap<T extends BoundaryTool>(tools: readonly T[]): T[] {
       return tools.map((tool) => {
         originals.set(tool.name, tool);
-        const inner = tool.prepareArguments?.bind(tool);
         const prepareArguments = (args: unknown): never => {
-          const prepared = inner ? inner(args) : args;
           const wall = options.failures.block(tool.name);
           if (wall) stopped(tool.name, wall.reason);
-          const verdict = piVerdict(tool, prepared);
+          const own = prepared(tool, args);
+          if (!own.ok) throw new Error(reject(tool.name, own.failure));
+          const verdict = piVerdict(tool, own.args);
           if (!verdict.ok) {
-            throw new Error(reject(tool.name, toolArgumentsRejected(tool.name, shapeIssues(tool, prepared, verdict.paths), exampleOf(tool.name))));
+            throw new Error(reject(tool.name, toolArgumentsRejected(tool.name, shapeIssues(tool, own.args, verdict.paths), exampleOf(tool.name))));
           }
-          return prepared as never;
+          return own.args as never;
         };
         // 原型一起带上：工具对象不保证是字面量，展开会丢掉原型上的方法。
         return Object.assign(Object.create(Object.getPrototypeOf(tool) as object) as T, tool, { prepareArguments });
       });
     },
-    rejectContract(toolName, args, error) {
+    rejectPreparation(toolName, args, error) {
+      if (error instanceof LaneDomainFailure) return reject(toolName, error.failure);
       const zodIssues = zodIssuesOfError(error);
       if (!zodIssues) return undefined;
       return reject(toolName, toolArgumentsRejected(toolName,
@@ -163,25 +181,23 @@ export function createLaneToolInputBoundary(options: Readonly<{
     },
     failureOf({ toolName, args, text }) {
       if (text.startsWith(stoppedHead(toolName))) return { code: LANE_TOOL_RETRY_STOPPED_CODE };
+      // 入参找不到（调用在上一页历史里）就不重推：拿 `undefined` 去校验只会得到一条假的「根不是对象」。
+      // 工具已不在这条 lane 上（改名、下线）或它的准备步骤抛了别的，就只剩码。
+      const tool = args === undefined ? undefined : originals.get(toolName);
+      let own: ReturnType<typeof prepared> | undefined;
+      try { own = tool ? prepared(tool, args) : undefined; } catch { own = undefined; }
+      if (own && !own.ok) return text.startsWith(own.failure.message) ? laneToolPublicFailure(own.failure) : undefined;
       if (!text.startsWith(rejectedHead(toolName))) return undefined;
       // 形状先、契约后，契约 parse 收的是 pi 校验后的那份——和实际执行的顺序一样。
-      // 工具已不在这条 lane 上（改名、下线）或它自己的 prepare 抛了，就只剩码。
-      // 入参找不到（调用在上一页历史里）就不重推：拿 `undefined` 去校验只会得到一条假的「根不是对象」。
-      const tool = args === undefined ? undefined : originals.get(toolName);
       let failure: LaneToolFailureShape | undefined;
       try {
-        if (tool) {
-          const prepared = tool.prepareArguments ? tool.prepareArguments(args) : args;
-          const verdict = piVerdict(tool, prepared);
+        if (tool && own?.ok) {
+          const verdict = piVerdict(tool, own.args);
           failure = verdict.ok ? contractFailure(toolName, verdict.args)
-            : toolArgumentsRejected(toolName, shapeIssues(tool, prepared, verdict.paths));
+            : toolArgumentsRejected(toolName, shapeIssues(tool, own.args, verdict.paths));
         }
       } catch { failure = undefined; }
-      return {
-        code: 'tool_arguments_invalid',
-        ...(failure?.allowed ? { allowed: failure.allowed } : {}),
-        ...(failure?.issues ? { issues: publicToolInputIssues(failure.issues) } : {}),
-      };
+      return failure ? laneToolPublicFailure(failure) : { code: 'tool_arguments_invalid' };
     },
   });
 }
