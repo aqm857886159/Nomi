@@ -41,6 +41,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'library-prompt-search',
   'pointer-hover-focus',
   'spend-card-node-edit-refresh',
+  'window-narrow-drag',
 ])
 
 const sleep = (page, ms) => page.waitForTimeout(ms)
@@ -240,6 +241,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'library-prompt-search') return librarySearch(page, ctx)
   if (scenario === 'pointer-hover-focus') return pointerHoverFocus(page, ctx)
   if (scenario === 'spend-card-node-edit-refresh') return spendCardNodeEditRefresh(page, ctx)
+  if (scenario === 'window-narrow-drag') return windowNarrowDrag(page, ctx)
   throw new Error(`未知工作台场景 ${scenario}`)
 }
 
@@ -628,6 +630,61 @@ async function ensurePreview(page, ctx) {
   await switchTo(page, 'preview')
   ctx.state.onPreview = true
   await sleep(page, 800)
+}
+
+/**
+ * ⑪ 拖窗口边过窄窗档（WindowNarrow 板，计划 A4g）：创作页停靠着 Nomi，像人拖窗口边那样 1100 ↔ 700 来回三次
+ * （一帧 25px），量拖动期间的帧间隔和长任务；同时数跨阈值的过渡播了几次——应正好 = 跨的次数（6），多了就是拖动途中连播。
+ */
+async function windowNarrowDrag(page, ctx) {
+  if (!ctx.state.onCreation) {
+    await switchTo(page, 'creation')
+    ctx.state.onCreation = true
+    ctx.state.onPreview = false
+    await sleep(page, 800)
+  }
+  const browserWindow = await ctx.app.browserWindow(page)
+  const original = await browserWindow.evaluate((windowRef) => windowRef.getContentSize())
+  const height = original[1]
+  const setWidth = async (width) => {
+    await browserWindow.evaluate((windowRef, size) => windowRef.setContentSize(size.width, size.height), { width, height })
+    await page.setViewportSize({ width, height })
+  }
+  const wide = 1100
+  const narrow = 700
+  const step = 25
+  await setWidth(wide)
+  await sleep(page, 600)
+  const docked = await page.evaluate(() => Boolean(document.querySelector('[data-shell-agent-layer][data-agent-form="dock"]')))
+  if (!docked) {
+    await setWidth(original[0])
+    return { skipped: '创作页 1100 宽时 Nomi 不是停靠，过不了窄窗档' }
+  }
+  await page.evaluate(() => {
+    window.__perfNarrowMotions = 0
+    if (window.__perfNarrowMotionArmed) return
+    window.__perfNarrowMotionArmed = true
+    document.addEventListener('animationstart', (event) => {
+      if (/nomi-agent-(gather|dock-in)/.test(event.animationName)) window.__perfNarrowMotions += 1
+    }, true)
+  })
+  await ctx.startWindow(page)
+  for (let trip = 0; trip < 3; trip += 1) {
+    for (let width = wide - step; width >= narrow; width -= step) {
+      await setWidth(width)
+      await sleep(page, 16)
+    }
+    for (let width = narrow + step; width <= wide; width += step) {
+      await setWidth(width)
+      await sleep(page, 16)
+    }
+  }
+  const raw = await ctx.stopWindow(page)
+  await sleep(page, 400)
+  const motions = await page.evaluate(() => window.__perfNarrowMotions)
+  await setWidth(original[0])
+  await sleep(page, 400)
+  return { raw, crossings: 6, narrowMotions: motions, path: 'window edge drag 1100 ↔ 700 ×3' }
 }
 
 /** ⑩ 预览播放 4 秒的帧间隔。 */

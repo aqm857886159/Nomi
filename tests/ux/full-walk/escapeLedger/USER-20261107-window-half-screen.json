@@ -1,0 +1,36 @@
+{
+  "id": "USER-20261107-window-half-screen",
+  "since": "2026-11-07",
+  "source": "用户 2026-11-07：「在我缩小的时候，我发现nomi都无法缩到一半…」",
+  "category": "interaction-semantics",
+  "problem": "Nomi 窗口最小 1100 宽，拖不到半屏；就算能窄，停靠的 Nomi 把内容挤没，而且窗口一窄就把存下的 Nomi 面板宽改成 300，拉回宽屏也不还原。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-08-assistant-width-writeback.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/preview/assistantWidthWriteback.test.ts"
+  },
+  "evidence": [
+    "docs/design/boards/2026-11-07-window-narrow/WindowNarrow.board.json",
+    "docs/engineering/direction-checks/2026-11-08-workbench-shell-width-writeback.md",
+    "src/workbench/preview/assistantWidthWriteback.test.ts",
+    "src/ui/app-shell/shell/agentFormNarrowTier.test.ts",
+    "src/ui/app-shell/shell/narrowOneThreshold.structure.test.ts",
+    "tests/ux/window-narrow-shell.walk.mjs",
+    "结构性预防：①最小窗只有一份定义（electron/mainWindowMinSize.json，主进程和走查同读，走查不许各写 1100 / 700）；②窄窗只有一个判断（narrowOneThreshold 结构测试拦第二处阈值）；③存档只认人：窗口宽不再进任何写入口，显示让步交给 CSS Grid（assistantDockColumns），写口普查测试逐个入口钉住；④真 App 走查拖 1100 ↔ 700 三次比四份存档逐字节。"
+  ],
+  "completionCommits": [
+    "e61311a64",
+    "286ea7459",
+    "2b7b5eaa5",
+    "e064e1efc",
+    "0ca660d5f",
+    "08b22ca8e"
+  ],
+  "notes": "实现线 I-window-narrow-shell 本地提交、未推送；协调开 PR 后改 status 为 fixed 并挂 fixedInPr（独立验收之前）。页面那一半（创作正文 / 工具条、预览时间轴）由 I-window-narrow-pages 修，合流后走查里的 PAGES_LINE_MERGED 开关整个删掉。"
+}

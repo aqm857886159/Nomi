@@ -263,6 +263,19 @@ async function runRound(walk, win, { locale, scheme, round }) {
   const card = drafted.card
   const cardProof = await proveProbe(card, `${round}：付费卡在 Agent 面板的介入槽里`)
   await expect(card.locator('[data-v4-block="slot-title"]')).toContainText(cardTitle(locale, 3, 'image'))
+  // WindowNarrow 板：最小窗已在窄窗档（< 1060），付费卡原样在浮窗里，「生成 N 张」和取消两颗钮都整个露在浮窗与窗口里。
+  const actions = await card.evaluate((root) => {
+    const float = root.closest('[data-agent-float]')?.getBoundingClientRect()
+    const inside = (selector) => {
+      const box = root.querySelector(selector)?.getBoundingClientRect()
+      if (!box || !float || box.width < 1) return false
+      return box.left >= Math.max(0, float.left) - 0.5 && box.right <= Math.min(window.innerWidth, float.right) + 0.5
+        && box.top >= Math.max(0, float.top) - 0.5 && box.bottom <= Math.min(window.innerHeight, float.bottom) + 0.5
+    }
+    return { inFloat: Boolean(float), confirm: inside('[data-v4-control="confirm"]'), dismiss: inside('[data-v4-control="slot-dismiss"]') }
+  })
+  expect(actions, `board:WindowNarrow/spendcard.in-float：${round}，付费卡在浮窗里，「生成 N 张」和取消都在窗内`).toEqual({ inFloat: true, confirm: true, dismiss: true })
+  await walk.snap(r('spend-card-in-float'))
   const nodes = await shotNodes(win, walk.report.projectId, drafted.operationId)
   expect(nodes.every((shot) => shot.nodeId), `${round}：三镜都落到了画布上`).toBe(true)
   const [first, second, third] = nodes.map((shot) => shot.nodeId)

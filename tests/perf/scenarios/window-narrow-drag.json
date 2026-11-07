@@ -1,0 +1,26 @@
+{
+  "id": "window-narrow-drag",
+  "feature": "创作页停靠着 Nomi，拖窗口边 1100 ↔ 700 来回三次（一帧 25px，跨窄窗阈值 1060 六次），拖动期间的帧间隔和长任务；跨阈值的过渡应只播 6 次",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "M",
+    "--scenarios",
+    "window-narrow-drag",
+    "--warmup",
+    "1"
+  ],
+  "scale": "项目里 96 节点；窗口宽 1100 ↔ 700 来回三次（96 步）",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "group": "⑪ 拖窗口边过窄窗档",
+  "budgetStatus": "proposed",
+  "budgetBasis": "拖窗口边是连续手势、要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；同类连续手势 timeline-scrub 基线中位 18.3ms（Windows，10-16）",
+  "measurement": {
+    "state": "pending",
+    "reason": "实现线已在本机量过 5 次并把数字贴进 PR；基线待协调会话在安静窗口用 --update-baseline 写入（实现线不许写基线）"
+  }
+}

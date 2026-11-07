@@ -201,7 +201,8 @@
     "src/workbench/assistantWidthBounds.test.ts",
     "src/workbench/generation/generationWorkspaceLayout.structure.test.ts",
     "tests/ux/preview-narrow-panels.walk.mjs",
-    "src/ui/app-shell/shell/agentFormNarrowTier.test.ts"
+    "src/ui/app-shell/shell/agentFormNarrowTier.test.ts",
+    "tests/ux/window-narrow-shell.walk.mjs"
   ],
   "class_regression_tests": [
     "src/workbench/preview/assistantWidthWriteback.test.ts",

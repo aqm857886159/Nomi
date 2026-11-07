@@ -142,9 +142,10 @@
    ],
    "component": "electron/main.ts:286-287",
    "candidates": [],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "mac / win-unverified"
+   "stateNotes": "mac / win-unverified",
+   "assertion": "board:WindowNarrow/window.min-size"
   },
   {
    "id": "shell.narrow-tier",
@@ -156,9 +157,10 @@
    ],
    "component": "src/workbench/WorkbenchShell.tsx:278（现有 resize 监听）+ useEffectiveAgentForm（同 dockSuppressed 派生）",
    "candidates": [],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "700 / 1059 / 1060 / 1100"
+   "stateNotes": "700 / 1059 / 1060 / 1100",
+   "assertion": "board:WindowNarrow/shell.narrow-tier"
   },
   {
    "id": "agent.ball-narrow",
@@ -178,9 +180,10 @@
     "1555-span-窄窗档停靠的Nomi临时",
     "1603-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / dark / pending / idle"
+   "stateNotes": "zh-en / dark / pending / idle",
+   "assertion": "board:WindowNarrow/agent.ball-narrow"
   },
   {
    "id": "agent.pill-confirm",
@@ -213,9 +216,10 @@
     "1195-svg",
     "1196-span-等你确认1"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / dark"
+   "stateNotes": "zh-en / dark",
+   "assertion": "board:WindowNarrow/agent.pill-confirm"
   },
   {
    "id": "agent.float-narrow",
@@ -341,9 +345,10 @@
     "503-svg",
     "504-span"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / dark"
+   "stateNotes": "zh-en / dark",
+   "assertion": "board:WindowNarrow/agent.float-narrow"
   },
   {
    "id": "agent.form-switch-dock-disabled",
@@ -380,9 +385,10 @@
     "460-span",
     "461-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / dark / hover"
+   "stateNotes": "zh-en / dark / hover",
+   "assertion": "board:WindowNarrow/agent.form-switch-dock-disabled"
   },
   {
    "id": "spendcard.in-float",
@@ -472,9 +478,10 @@
     "491-span-生成3张",
     "492-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / dark"
+   "stateNotes": "zh-en / dark",
+   "assertion": "board:WindowNarrow/spendcard.in-float"
   },
   {
    "id": "composer.tight",
@@ -500,9 +507,10 @@
     "1984-svg",
     "1985-span"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / 300"
+   "stateNotes": "zh-en / 300",
+   "assertion": "board:WindowNarrow/composer.tight"
   },
   {
    "id": "agent.ball-hover-tip",
@@ -518,9 +526,10 @@
    "candidates": [
     "1604-div-窗口窄Nomi先收在这里"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / hover"
+   "stateNotes": "zh-en / hover",
+   "assertion": "board:WindowNarrow/agent.ball-hover-tip"
   },
   {
    "id": "agent.collapse-motion",
@@ -540,9 +549,10 @@
     "1695-svg",
     "1696-span-拉宽"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "reduced-motion"
+   "stateNotes": "reduced-motion",
+   "assertion": "board:WindowNarrow/agent.collapse-motion"
   },
   {
    "id": "shell.panel-width-no-writeback",
@@ -633,9 +643,10 @@
     "1698-span-修现有问题",
     "1699-span-今天窗口一变窄面板宽被写"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "1100→700→1100"
+   "stateNotes": "1100→700→1100",
+   "assertion": "board:WindowNarrow/shell.panel-width-no-writeback"
   },
   {
    "id": "topbar.export-icon",
@@ -664,9 +675,10 @@
     "1430-span-ExportMP4",
     "1431-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / 700 / 960"
+   "stateNotes": "zh-en / 700 / 960",
+   "assertion": "board:WindowNarrow/topbar.export-icon"
   },
   {
    "id": "topbar.project-name-hide",
@@ -778,9 +790,10 @@
     "1424-span-未命名项目1107213",
     "1425-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / 700 / 960"
+   "stateNotes": "zh-en / 700 / 960",
+   "assertion": "board:WindowNarrow/topbar.project-name-hide"
   },
   {
    "id": "topbar.segment",
@@ -922,9 +935,10 @@
     "1466-span-03",
     "1467-span-Preview"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "zh-en / 700 / 960"
+   "stateNotes": "zh-en / 700 / 960",
+   "assertion": "board:WindowNarrow/topbar.segment"
   },
   {
    "id": "creation.editor-grid",
@@ -1398,9 +1412,10 @@
     "1214-span-拖文件进来或看看抖音同类",
     "1215-span-找参考"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "700 / 存宽 720"
+   "stateNotes": "700 / 存宽 720",
+   "assertion": "board:WindowNarrow/drawer.clamp"
   },
   {
    "id": "library.grid",
@@ -1460,9 +1475,10 @@
     "982-span-已就绪",
     "983-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "700"
+   "stateNotes": "700",
+   "assertion": "board:WindowNarrow/library.grid"
   },
   {
    "id": "settings.dialog",
@@ -1619,9 +1635,10 @@
     "1127-span-2个可使用",
     "1128-svg"
    ],
-   "status": "in-progress",
+   "status": "implemented",
    "owner": "I-window-narrow-shell",
-   "stateNotes": "700"
+   "stateNotes": "700",
+   "assertion": "board:WindowNarrow/settings.dialog"
   },
   {
    "id": "shell.never-yield",
@@ -2479,8 +2496,9 @@
     "1927-span-素材",
     "1936-div"
    ],
-   "status": "in-progress",
-   "owner": "I-window-narrow-shell"
+   "status": "implemented",
+   "owner": "I-window-narrow-shell",
+   "assertion": "board:WindowNarrow/shell.never-yield"
   }
  ],
  "decor": [

@@ -14,7 +14,8 @@ import { cloneEditingPanelLayout, EDITING_PANEL_DEFAULTS } from './panelLayout'
  * docs/engineering/direction-checks/2026-11-08-workbench-shell-width-writeback.md）。
  *
  * 旧测试量的是纯函数 clampAssistantWidth（函数确实不改没超限的宽），会写存档的是 store 的写入口——尺子量错了层。
- * 这里换成：把窗口设成 700，调每一个会经过写入咽喉 clampEditingPanelLayout 的入口，读 store 里的 assistantWidth 与 persistRevision。
+ * 这里换成写口普查：把窗口设成 700，按根因合同 doors 清单把会经过写入咽喉 clampEditingPanelLayout 的入口逐个调一遍，
+ * 读 store 里的 assistantWidth 与 persistRevision。
  * 窗口大小只影响显示（Grid 让步，assistantDockColumns）；只有人亲手拖（setAssistantWidth）按视口收上限。
  */
 const STORED = 450
