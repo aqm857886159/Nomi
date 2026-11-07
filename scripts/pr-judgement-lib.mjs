@@ -1,5 +1,5 @@
 // PR 正文判据的**唯一实现**（2026-10-06）：按功能分类决定测试路由 + 规则与门岗的改动范围。
-// 合并前扫描（scripts/merge-preflight.mjs，协调会话那一道）和 CI（pnpm run check:pr-judgement，Contracts 里）调用同一份，
+// 合并前扫描（scripts/merge-preflight.mjs，协调会话那一道）和 CI（scripts/check-pr-judgement.mjs：Contracts 里判推送档，「PR Body」检查判合并档）调用同一份，
 // 判据只留这一处——#1033 的「规则与门岗改动范围」原先只在 merge-preflight 里，CI 拦不住，现在挪到这里。
 //
 // 路由表：docs/engineering/test-routing.json（唯一一份）。四类（花钱 / 长跑 / 可打断 / 新界面）的路径判定也在表里（pathRules.legacy），
