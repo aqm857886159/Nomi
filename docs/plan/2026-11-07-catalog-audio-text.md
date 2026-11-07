@@ -14,7 +14,7 @@
 
 当创作者在作品里选音乐、音效或 Agent 大脑时，希望选到各子线当前模型，并能继续运行旧作品。
 步骤：打开作品 → 保留原节点 → 新节点选最新或上一代型号 → 设置已有参数 → 查看报价状态 → 确认生成 → 原结果收口。
-真实任务目标：已有 V5.5 音乐节点继续执行，新节点也能选 V5.5；新 V6 音效 one-shot/loop 与 BPM/调性正确发送；各家大脑执行同一 Chat 请求。
+真实任务目标：新节点能选 Suno V6 三档（APIMart 的 V5.5 已被上游下线，见下）；新 V6 音效 one-shot/loop 与 BPM/调性正确发送；各家大脑执行同一 Chat 请求。
 主指标：新增声明请求逐字段匹配率 100%，量具 `electron/catalog/apimartLatestContracts.test.ts`。
 质量指标：旧目录已发布模式保留率 100%，量具 `electron/catalog/upgradeKeepsWorkingModels.test.ts` 与新增旧目录回放。
 护栏：付费执行次数为零；真供应商结果、质量与连通性未验证，只交回环/请求预览证据。
@@ -36,11 +36,11 @@
 | Gemini Flash | 3.8 Flash | 3.5 Flash | 目录里没有 |
 | 其余大脑 | 目录只声明了最新一代 | 未声明（不是被藏） | — |
 
-契约：`tests/fixtures/apimart/model-generations.json` 登记每个家族的最新 / 上一代 / 更老，`apimartLatestContracts.test.ts` 断言最新和上一代都不是 `legacy`、更老的才是；每个已声明的音频 / 文本模型都必须登记进这张表，新模型漏登记会红。注意：官方 Suno 页只公开列 v6 三档、没提 v5.5，v5.5 在官方侧是否仍接受请求未验证（付费走查样本里补一条最便宜的 v5.5 来验）。`nomi-audio` 是配音 + 转写的伞形行（不是一代模型），2026-08-30 起就是 `legacy`，这里只登记现状。
+契约：`tests/fixtures/apimart/model-generations.json` 登记每个家族的最新 / 上一代 / 更老，`apimartLatestContracts.test.ts` 断言最新和上一代都不是 `legacy`、更老的才是；每个已声明的音频 / 文本模型都必须登记进这张表，新模型漏登记会红。已核结论（2026-11-07）：付费抽检里 `POST /v1/music/generations` 带 version=v5.5 回 HTTP 400 invalid_parameter「Suno 旧版本 "v5.5" 已下线，请将 version 改为 v6、v6-wild 或 v6-mini。」（没扣钱）；音效文档的 version 也只列 v6 / v6-wild / v6-mini。所以表里的「上一代 v5.5」在 APIMart 侧已不可用。本 PR 不改 V5.5 的声明（main 上本来就带着它，这里不新增问题），也不再拿它做付费样本；退役这两行要改 `seedBuiltins.ts` 的退役清单，而这个文件 14 天里已有两次同类修复（都是上游下线后手动加退役行），按 P1 先做类根因复盘，再另开 PR。`nomi-audio` 是配音 + 转写的伞形行（不是一代模型），2026-08-30 起就是 `legacy`，这里只登记现状。
 
 ### ★1c 老用户
 
-保留 V5.5、旧 Flash 与旧 Gemini 的原 key、mapping id、enabled、用户标签和保存参数；V6 另建身份。旧音效仅把线缆字段改正，canonical sound_type/sound_tempo/sound_key 不变。
+保留 V5.5、旧 Flash 与旧 Gemini 的原 key、mapping id、enabled、用户标签和保存参数（APIMart 的 V5.5 已被上游下线，旧节点生成时会收到上游原话「已下线，请改为 v6…」；退役与提示另开 PR，见上）；V6 另建身份。旧音效仅把线缆字段改正，canonical sound_type/sound_tempo/sound_key 不变。
 旧数据由修改前基线真实目录函数生成，登记到 `tests/fixtures/old-user-data/` 并记录生成 SHA。现有真实旧目录矩阵也重跑；无法取得旧项目资源的部分照实记未验证。
 
 ## ★2 谁说了算

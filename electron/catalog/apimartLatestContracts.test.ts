@@ -51,7 +51,7 @@ describe('APIMart audio official field contracts and request previews', () => {
       }
       return { status: 'succeeded' };
     });
-    expect(results).toHaveLength(15);
+    expect(results).toHaveLength(14);
   });
 
   it('follows an accepted order through the bridge shapes: run gives the task, result wraps it as { vendor, result }', async () => {
