@@ -1,0 +1,844 @@
+{
+  "board": "PreviewNarrowPanels",
+  "extractor": "board-extract@1",
+  "source": "preview/PreviewNarrowPanels.html",
+  "sourceSha256": "6b96dfa9a0fcbbf30e0a67985dcb9172cdc4808670b9a2cfc0cf52639174deee",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-p-预览页修bug带可见改动",
+      "kind": "text",
+      "tag": "p",
+      "text": "预览页 · 修 bug 带可见改动 · 已拍板 2026-11-04（Q1 用户原话「先收属性」，Q2–Q4 按默认）",
+      "bbox": [
+        64,
+        56,
+        1272,
+        18
+      ],
+      "region": "root"
+    },
+    {
+      "id": "002-h1-窗口窄时预览页左栏不再被",
+      "kind": "text",
+      "tag": "h1",
+      "text": "窗口窄时，预览页左栏不再被压成一条缝",
+      "bbox": [
+        64,
+        82,
+        1272,
+        45
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-h2-今天发生了什么",
+      "kind": "text",
+      "tag": "h2",
+      "text": "今天发生了什么",
+      "bbox": [
+        89,
+        180,
+        574,
+        25
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-p-1280宽Nomi开着中",
+      "kind": "text",
+      "tag": "p",
+      "text": "1280 宽、Nomi 开着：中间只剩 814px，三栏最小宽加起来要 240 + 480 + 200 = 920，放不",
+      "bbox": [
+        89,
+        217,
+        574,
+        71
+      ],
+      "region": "root"
+    },
+    {
+      "id": "005-p-同一类的另两处关掉Nom",
+      "kind": "text",
+      "tag": "p",
+      "text": "同一类的另两处：关掉 Nomi 后，左右两栏被按比例撑宽（属性栏撑到 420 上限），这个宽度还被当成你拖出来的存下；1",
+      "bbox": [
+        89,
+        300,
+        574,
+        71
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-p-根子栏画成展开还是收起条",
+      "kind": "text",
+      "tag": "p",
+      "text": "根子：栏「画成展开还是收起条」看的是存档里的开关，栏「实际多宽」由面板库按空间算，两份各说各的。",
+      "bbox": [
+        89,
+        384,
+        574,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "007-h2-修后四条规则",
+      "kind": "text",
+      "tag": "h2",
+      "text": "修后四条规则",
+      "bbox": [
+        737,
+        180,
+        574,
+        25
+      ],
+      "region": "root"
+    },
+    {
+      "id": "008-li-侧栏要么有可读宽度左栏2",
+      "kind": "text",
+      "tag": "li",
+      "text": "侧栏要么有可读宽度（左栏 ≥ 240、属性 ≥ 200），要么就是 32px 收起条（图标 + 竖排名字，今天点「收起」",
+      "bbox": [
+        757,
+        217,
+        554,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-li-窗口变窄打开Nomi不算",
+      "kind": "text",
+      "tag": "li",
+      "text": "窗口变窄、打开 Nomi 不算你改主意：存下的开合和栏宽都不动，宽度差额全给预览；窗口变宽，被自动收起的栏自己回来。",
+      "bbox": [
+        757,
+        271,
+        554,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "010-li-两边都开时预览至少留48",
+      "kind": "text",
+      "tag": "li",
+      "text": "两边都开时预览至少留 480；不够就先把右侧「属性」收成条，左栏「镜头 / 素材」留着。",
+      "bbox": [
+        757,
+        324,
+        554,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "011-li-点收起条一定有用点哪边开",
+      "kind": "text",
+      "tag": "li",
+      "text": "点收起条一定有用：点哪边开哪边，另一边让成收起条（窄窗下两边轮流开）；你点开的那边一直开着，必要时预览最窄让到 400。",
+      "bbox": [
+        757,
+        378,
+        554,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "012-h2-拍板结果",
+      "kind": "text",
+      "tag": "h2",
+      "text": "拍板结果",
+      "bbox": [
+        89,
+        509,
+        1222,
+        25
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-strong-Q1",
+      "kind": "text",
+      "tag": "strong",
+      "text": "Q1",
+      "bbox": [
+        89,
+        548,
+        56,
+        45
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-span-两边放不下先收哪边",
+      "kind": "text",
+      "tag": "span",
+      "text": "两边放不下，先收哪边？",
+      "bbox": [
+        161,
+        548,
+        515,
+        45
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-span-预览页的主活是把镜头拖进",
+      "kind": "text",
+      "tag": "span",
+      "text": "预览页的主活是把镜头拖进成片，左栏用得最多；属性要先选中片段才有内容，要看时点它的收起条就开，左栏让成条。",
+      "bbox": [
+        692,
+        548,
+        619,
+        45
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-strong-已定先收属性用户原话先收",
+      "kind": "text",
+      "tag": "strong",
+      "text": "已定：先收属性（用户原话「先收属性」）。",
+      "bbox": [
+        692,
+        549,
+        266,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "017-strong-Q2",
+      "kind": "text",
+      "tag": "strong",
+      "text": "Q2",
+      "bbox": [
+        89,
+        603,
+        56,
+        45
+      ],
+      "region": "root"
+    },
+    {
+      "id": "018-span-点收起条但没地方放",
+      "kind": "text",
+      "tag": "span",
+      "text": "点收起条但没地方放？",
+      "bbox": [
+        161,
+        603,
+        515,
+        45
+      ],
+      "region": "root"
+    },
+    {
+      "id": "019-span-不这样的话1280开着N",
+      "kind": "text",
+      "tag": "span",
+      "text": "不这样的话，1280 开着 Nomi 时点属性收起条什么都不会发生。",
+      "bbox": [
+        692,
+        603,
+        619,
+        45
+      ],
+      "region": "root"
+    },
+    {
+      "id": "020-strong-已定按默认打开它另一边让",
+      "kind": "text",
+      "tag": "strong",
+      "text": "已定（按默认）：打开它，另一边让成收起条。",
+      "bbox": [
+        692,
+        604,
+        287,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "021-strong-Q3",
+      "kind": "text",
+      "tag": "strong",
+      "text": "Q3",
+      "bbox": [
+        89,
+        658,
+        56,
+        67
+      ],
+      "region": "root"
+    },
+    {
+      "id": "022-span-你点开的那边放不下时预览",
+      "kind": "text",
+      "tag": "span",
+      "text": "你点开的那边放不下时，预览可以从 480 让到 400？",
+      "bbox": [
+        161,
+        658,
+        515,
+        67
+      ],
+      "region": "root"
+    },
+    {
+      "id": "023-span-只在窗口11001170",
+      "kind": "text",
+      "tag": "span",
+      "text": "只在窗口 1100–1170 宽、开着 Nomi 时会发生；不让的话这个宽度下点收起条没反应。自动收栏仍按 480 判断",
+      "bbox": [
+        692,
+        658,
+        619,
+        67
+      ],
+      "region": "root"
+    },
+    {
+      "id": "024-strong-已定按默认可以",
+      "kind": "text",
+      "tag": "strong",
+      "text": "已定（按默认）：可以。",
+      "bbox": [
+        692,
+        659,
+        147,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "025-strong-Q4",
+      "kind": "text",
+      "tag": "strong",
+      "text": "Q4",
+      "bbox": [
+        89,
+        735,
+        56,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "026-span-开关Nomi改窗口宽时左",
+      "kind": "text",
+      "tag": "span",
+      "text": "开关 Nomi、改窗口宽时左右栏保持你定的宽度？",
+      "bbox": [
+        161,
+        735,
+        515,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "027-span-今天会按比例撑宽并存下属",
+      "kind": "text",
+      "tag": "span",
+      "text": "今天会按比例撑宽并存下（属性栏 240 → 420）。",
+      "bbox": [
+        692,
+        735,
+        619,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "028-strong-已定按默认是差额给预览",
+      "kind": "text",
+      "tag": "strong",
+      "text": "已定（按默认）：是，差额给预览。",
+      "bbox": [
+        692,
+        736,
+        217,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "029-h2-宽度对照左栏预览属性px",
+      "kind": "text",
+      "tag": "h2",
+      "text": "宽度对照（左栏 / 预览 / 属性，px；真 App 实测）",
+      "bbox": [
+        89,
+        836,
+        1222,
+        25
+      ],
+      "region": "root"
+    },
+    {
+      "id": "030-strong-窗口",
+      "kind": "text",
+      "tag": "strong",
+      "text": "窗口",
+      "bbox": [
+        89,
+        875,
+        246,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "031-strong-今天",
+      "kind": "text",
+      "tag": "strong",
+      "text": "今天",
+      "bbox": [
+        351,
+        875,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "032-strong-修后",
+      "kind": "text",
+      "tag": "strong",
+      "text": "修后",
+      "bbox": [
+        694,
+        875,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "033-strong-点属性收起条后",
+      "kind": "text",
+      "tag": "strong",
+      "text": "点属性收起条后",
+      "bbox": [
+        1038,
+        875,
+        273,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "034-span-1280Nomi开",
+      "kind": "text",
+      "tag": "span",
+      "text": "1280 · Nomi 开",
+      "bbox": [
+        89,
+        905,
+        246,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "035-span-32竖排480300",
+      "kind": "text",
+      "tag": "span",
+      "text": "32（竖排）/ 480 / 300",
+      "bbox": [
+        351,
+        905,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "036-span-300480收起条",
+      "kind": "text",
+      "tag": "span",
+      "text": "300 / 480 / 收起条",
+      "bbox": [
+        694,
+        905,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "037-span-收起条540240",
+      "kind": "text",
+      "tag": "span",
+      "text": "收起条 / 540 / 240",
+      "bbox": [
+        1038,
+        905,
+        273,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "038-span-1280Nomi关",
+      "kind": "text",
+      "tag": "span",
+      "text": "1280 · Nomi 关",
+      "bbox": [
+        89,
+        935,
+        246,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "039-span-240550420",
+      "kind": "text",
+      "tag": "span",
+      "text": "240 / 550 / 420",
+      "bbox": [
+        351,
+        935,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "040-span-300670240",
+      "kind": "text",
+      "tag": "span",
+      "text": "300 / 670 / 240",
+      "bbox": [
+        694,
+        935,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "041-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "—",
+      "bbox": [
+        1038,
+        935,
+        273,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "042-span-1440Nomi开",
+      "kind": "text",
+      "tag": "span",
+      "text": "1440 · Nomi 开",
+      "bbox": [
+        89,
+        966,
+        246,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "043-span-240480252",
+      "kind": "text",
+      "tag": "span",
+      "text": "240 / 480 / 252",
+      "bbox": [
+        351,
+        966,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "044-span-292480200",
+      "kind": "text",
+      "tag": "span",
+      "text": "292 / 480 / 200",
+      "bbox": [
+        694,
+        966,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "045-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "—",
+      "bbox": [
+        1038,
+        966,
+        273,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "046-span-1440Nomi关",
+      "kind": "text",
+      "tag": "span",
+      "text": "1440 · Nomi 关",
+      "bbox": [
+        89,
+        996,
+        246,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "047-span-338677355",
+      "kind": "text",
+      "tag": "span",
+      "text": "338 / 677 / 355",
+      "bbox": [
+        351,
+        996,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "048-span-300830240",
+      "kind": "text",
+      "tag": "span",
+      "text": "300 / 830 / 240",
+      "bbox": [
+        694,
+        996,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "049-span",
+      "kind": "text",
+      "tag": "span",
+      "text": "—",
+      "bbox": [
+        1038,
+        996,
+        273,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "050-span-1100Nomi开",
+      "kind": "text",
+      "tag": "span",
+      "text": "1100 · Nomi 开",
+      "bbox": [
+        89,
+        1026,
+        246,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "051-span-两栏都收着时收起条460",
+      "kind": "text",
+      "tag": "span",
+      "text": "两栏都收着时：收起条 / 460 / 192 空白条",
+      "bbox": [
+        351,
+        1026,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "052-span-240410收起条",
+      "kind": "text",
+      "tag": "span",
+      "text": "240 / 410 / 收起条",
+      "bbox": [
+        694,
+        1026,
+        328,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "053-span-收起条450200",
+      "kind": "text",
+      "tag": "span",
+      "text": "收起条 / 450 / 200",
+      "bbox": [
+        1038,
+        1026,
+        273,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "054-p-修后截图是实现后的真Ap",
+      "kind": "text",
+      "tag": "p",
+      "text": "修后截图是实现后的真 App（打包产物）按走查 tests/ux/preview-narrow-panels.walk.",
+      "bbox": [
+        89,
+        1063,
+        1222,
+        18
+      ],
+      "region": "root"
+    },
+    {
+      "id": "055-h2-先查别人",
+      "kind": "text",
+      "tag": "h2",
+      "text": "先查别人",
+      "bbox": [
+        89,
+        1159,
+        574,
+        25
+      ],
+      "region": "root"
+    },
+    {
+      "id": "056-li-macOSNSSplit",
+      "kind": "text",
+      "tag": "li",
+      "text": "macOS NSSplitViewItem.canCollapseFromWindowResize：随窗口变窄自动收、变",
+      "bbox": [
+        109,
+        1194,
+        554,
+        43
+      ],
+      "region": "root"
+    },
+    {
+      "id": "057-li-VSCode1029侧栏",
+      "kind": "text",
+      "tag": "li",
+      "text": "VS Code #1029：侧栏挤到最窄时按钮被裁掉、没有提示 → 确认规则 1，宁可收成条也不挤。",
+      "bbox": [
+        109,
+        1243,
+        554,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "058-li-reactresizab",
+      "kind": "text",
+      "tag": "li",
+      "text": "react-resizable-panels：库只改宽度不管内容；onLayoutChanged 的 isUserInt",
+      "bbox": [
+        109,
+        1270,
+        554,
+        43
+      ],
+      "region": "root"
+    },
+    {
+      "id": "059-li-Obsidian窗口窄时",
+      "kind": "text",
+      "tag": "li",
+      "text": "Obsidian「窗口窄时隐藏侧栏」插件：低于阈值收、变宽恢复 → 确认规则 2。",
+      "bbox": [
+        109,
+        1319,
+        554,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "060-h2-不变的",
+      "kind": "text",
+      "tag": "h2",
+      "text": "不变的",
+      "bbox": [
+        737,
+        1159,
+        574,
+        25
+      ],
+      "region": "root"
+    },
+    {
+      "id": "061-li-收起条收起标签栏空态文案",
+      "kind": "text",
+      "tag": "li",
+      "text": "收起条、「‹ 收起」、标签栏、空态文案的样子和文字都不改。",
+      "bbox": [
+        757,
+        1194,
+        554,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "062-li-顶栏布局菜单的开关和预设",
+      "kind": "text",
+      "tag": "li",
+      "text": "顶栏「布局」菜单的开关和预设、⌘Z 撤销布局、拖分隔条收起 / 展开 / 改宽照旧。",
+      "bbox": [
+        757,
+        1221,
+        554,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "063-li-Agent的layout",
+      "kind": "text",
+      "tag": "li",
+      "text": "Agent 的 layout.read / layout.write 读写的仍是你选的开合与宽度。",
+      "bbox": [
+        757,
+        1249,
+        554,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "064-li-老项目里存的布局原样读不",
+      "kind": "text",
+      "tag": "li",
+      "text": "老项目里存的布局原样读，不迁移；只是以后不再把窗口挤出来的宽度写回去。",
+      "bbox": [
+        757,
+        1276,
+        554,
+        21
+      ],
+      "region": "root"
+    }
+  ]
+}
