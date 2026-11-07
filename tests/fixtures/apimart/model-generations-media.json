@@ -40,8 +40,10 @@
       "family": "gpt-image",
       "source": "docs/plan/2026-11-07-catalog-media.md",
       "latest": ["gpt-image-2.6-flare", "gpt-image-2.6-sunburst"],
-      "previous": ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"],
-      "older": []
+      "previous": ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst"],
+      "older": [],
+      "userKept": ["gpt-image-2", "gpt-image-2-text-to-image", "gpt-image-2-image-to-image", "openai/gpt-image-2", "gpt_image_2"],
+      "note": "userKept = 用户点名保留：GPT Image 2 比 2.6 早两代，但用户 2026-11-07 原话「image2留着」，新节点继续可选，任何一条渠道的 key 都不许标 legacy"
     },
     {
       "family": "nano-banana",

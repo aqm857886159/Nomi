@@ -16,7 +16,33 @@ const REF2 = "https://example.invalid/ref2.png";
 
 type Expected = { fields: string[]; model: string; values?: Record<string, unknown> };
 
+// 上限（官方页写明的参考图张数）：档案声明的槽上限不许超过它。
+const REF_LIMITS: Record<string, number> = {
+  // GPT Image 2.6：image_urls 最多 16 张（官方页 gpt-image-2.6/generation，llms-full.txt 6338 行附近）。
+  "gpt-image-2.6-flare": 16,
+  "gpt-image-2.6-sunburst": 16,
+};
+
 const IMAGE_CASES: Record<string, { t2i: Expected; i2i: Expected }> = {
+  // ── 分支 2 改过档位（legacy → 可选）且带请求体声明的上一代：字段集合也钉住 ──
+  "doubao-seedream-4.5": {
+    t2i: { model: "doubao-seedream-4.5", fields: ["model", "prompt", "size", "resolution"] },
+    i2i: { model: "doubao-seedream-4.5", fields: ["model", "prompt", "size", "resolution", "image_urls"] },
+  },
+  "qwen-image-2.0": {
+    t2i: { model: "qwen-image-2.0", fields: ["model", "prompt", "size", "resolution"] },
+    i2i: { model: "qwen-image-2.0", fields: ["model", "prompt", "size", "resolution", "image_urls"] },
+  },
+  // GPT Image 2.6 两档（分支 2 的新型号）：默认参数五字段齐发，改图参考图落在官方的 image_urls 数组上。
+  // 质量默认 medium 而不是官方默认的 auto（auto 按最高档预扣款）；清晰度发小写 1k。
+  "gpt-image-2.6-flare": {
+    t2i: { model: "gpt-image-2.6-flare", fields: ["model", "prompt", "size", "resolution", "quality", "background"], values: { resolution: "1k", quality: "medium" } },
+    i2i: { model: "gpt-image-2.6-flare", fields: ["model", "prompt", "size", "resolution", "quality", "background", "image_urls"] },
+  },
+  "gpt-image-2.6-sunburst": {
+    t2i: { model: "gpt-image-2.6-sunburst", fields: ["model", "prompt", "size", "resolution", "quality", "background"], values: { resolution: "1k", quality: "medium" } },
+    i2i: { model: "gpt-image-2.6-sunburst", fields: ["model", "prompt", "size", "resolution", "quality", "background", "image_urls"] },
+  },
   "gemini-nano-banana-2.1": {
     t2i: { model: "gemini-nano-banana-2.1", fields: ["model", "prompt", "size", "resolution"], values: { resolution: "1K" } },
     i2i: { model: "gemini-nano-banana-2.1", fields: ["model", "prompt", "size", "resolution", "image_urls"] },
@@ -67,6 +93,19 @@ const IMAGE_CASES: Record<string, { t2i: Expected; i2i: Expected }> = {
 };
 
 const VIDEO_CASES: Record<string, { t2v?: Expected; i2v: Expected }> = {
+  // ── 分支 2 改过档位（legacy → 可选）且带请求体声明的上一代 ──
+  "doubao-seedance-2.0": {
+    t2v: { model: "doubao-seedance-2.0", fields: ["model", "prompt", "duration", "size", "resolution", "generate_audio"] },
+    i2v: { model: "doubao-seedance-2.0", fields: ["model", "prompt", "duration", "size", "resolution", "generate_audio", "image_urls"] },
+  },
+  "wan2.7": {
+    t2v: { model: "wan2.7", fields: ["model", "prompt", "size", "resolution", "duration"] },
+    i2v: { model: "wan2.7", fields: ["model", "prompt", "resolution", "duration", "image_urls"] },
+  },
+  "Omni-Flash-Ext": {
+    t2v: { model: "Omni-Flash-Ext", fields: ["model", "prompt", "size", "resolution", "duration"] },
+    i2v: { model: "Omni-Flash-Ext", fields: ["model", "prompt", "size", "resolution", "duration", "image_urls", "generation_type"] },
+  },
   "kling-v4": {
     t2v: { model: "kling-v4", fields: ["model", "prompt", "aspect_ratio", "resolution", "duration"], values: { duration: 5 } },
     i2v: { model: "kling-v4", fields: ["model", "prompt", "resolution", "duration", "first_frame_image"] },
@@ -165,20 +204,25 @@ function check(label: string, actual: { body: Record<string, unknown>; url: stri
   }
 }
 
-describe("APIMart 剩余图片型号：每个模式的真实请求体字段集合等于官方允许集合", () => {
+describe("APIMart 图片型号（GPT Image 2.6 + 上一代改档 + 剩余新型号）：每个模式的真实请求体字段集合等于官方允许集合", () => {
   for (const [modelKey, modes] of Object.entries(IMAGE_CASES)) {
     const model = APIMART_IMAGE_MODELS.find((item) => item.modelKey === modelKey);
     it(`${modelKey} 文生图 / 改图`, () => {
       expect(model, `${modelKey} must be declared`).toBeTruthy();
       check(`${modelKey}/t2i`, buildBody(model!, "text_to_image", {}), modes.t2i);
-      const images = buildBody(model!, "image_edit", { image_urls: [REF, REF2] });
+      // 参考图按档案槽自己的键名喂进去（2.5 / 2.6 的槽叫 input_urls，由目录 body 转接成官方的 image_urls）：
+      // 槽 → 官方字段这一段才是真走过的，body 里把 image_urls 写错（比如 image_url）会少一个字段当场红。
+      const slot = getArchetypeById(model!.archetypeId ?? "")!.modes.find((mode) => mode.transportTaskKind === "image_edit")!.slots?.find((item) => item.kind === "image_ref");
+      const images = buildBody(model!, "image_edit", { [slot?.inputKey ?? "image_urls"]: [REF, REF2] });
       check(`${modelKey}/i2i`, images, modes.i2i);
       expect(images.body.image_urls, `${modelKey} image_urls is an array`).toEqual([REF, REF2]);
+      const limit = REF_LIMITS[modelKey];
+      if (limit !== undefined) expect(slot?.max, `${modelKey} 参考图槽上限 = 官方上限`).toBe(limit);
     });
   }
 });
 
-describe("APIMart 剩余视频型号：每个模式的真实请求体字段集合等于官方允许集合", () => {
+describe("APIMart 视频型号（上一代改档 + 剩余新型号）：每个模式的真实请求体字段集合等于官方允许集合", () => {
   for (const [modelKey, modes] of Object.entries(VIDEO_CASES)) {
     const model = APIMART_VIDEO_MODELS.find((item) => item.modelKey === modelKey);
     it(`${modelKey} 文生视频 / 图生视频`, () => {
