@@ -134,4 +134,24 @@ Mac 合同与回环可验；Windows/真付费/真实供应商/中英真窗口/�
 
 合入前：协调跑一问一个，调不通的在本 PR 里删（新加的，无老用户）；terminus 调不通记进 retire 待办，本 PR 不动 `seedBuiltins.ts`；带图读出暗号的再加回读图声明（带 `evidence.imageInput`）。
 
-未验证：21 条新加的文字大脑一条都没真调用过；7 条读图候选没带图真调用过；列表对账没对真列表跑过（只有演练）；gemini-3.5-flash 无缓存价是接口现状，APIMart 实际怎么计缓存命中不知道。
+未验证（2026-11-07 写的，结果见下一节）：21 条新加的文字大脑一条都没真调用过；7 条读图候选没带图真调用过。
+
+## 一问一个结果（2026-11-08）
+
+协调跑 `tests/ux/apimart-text-brains-real.paid.mjs`（开发构建、隔离副本、Agent 主进程大脑路，每条只问一次、不重试）。文字题：「只回复一个字：好」；读图题：带一张印着四位暗号的图，问图上写的什么。
+
+| 结果 | 模型 |
+|---|---|
+| 文字调通（HTTP 200，回了正文，回答的模型就是请求的那个） | gpt-6-astra、gpt-6.1-sol、gpt-6.1-terra、gpt-6-luna、claude-opus-5-5、claude-sonnet-5-5、claude-haiku-5-5、gemini-4-argon、gemini-3.8-flash、deepseek-v4-pro、deepseek-v4.1-flash、qwen3.8-max、qwen3.8-flash、qwen3.8-27b、qwen3.8-2.4t-a95b、glm-5.3、glm-5.3-flash、kimi-k3、grok-4.7、minimax-m3、step-3.7-flash、deepseek-v4-flash、gemini-3.5-flash |
+| 读图通过（完整回出暗号） | claude-opus-5-5、claude-sonnet-5-5、claude-haiku-5-5、gemini-4-argon、gemini-3.8-flash、deepseek-v4.1-flash、gemini-3.5-flash |
+| 没调成：余额不够预扣 | claude-fable-5.1：HTTP 402 `insufficient_user_quota`（APIMart 按单次最大花费先预扣，要 40 美元以上余额；不是模型的问题）。文字、读图两题都是 |
+| 调不通 | deepseek-v3.1-terminus：HTTP 503 `model_not_found`；`/v1/models` 列表里也没有它 |
+
+据此改的声明（`electron/catalog/apimartTexts.ts`）：
+- 调通的 20 条新加的：`evidence.liveCall` 从「未」改成这次（`ASKED_20261108`）。
+- 读图通过的 6 条新加的：加回 `meta.supportsImageInput: true`，带 `evidence.imageInput`（`SAW_IMAGE_20261108`）。
+- claude-fable-5.1：照旧「未」、不写读图；余额补上后补问一次。
+- deepseek-v3.1-terminus：本 PR 不动；它有老用户，退役要迁移，走 `seedBuiltins.ts` 的退役清单另开 PR（计划表登记）。
+- 自动读图不跟着变：多了 6 个读图声明后，没指定模型时「挑第一个能读图的」会按目录序从 gemini-3.5-flash 换成 claude-opus-5-5（价贵两倍多，视频拆解读帧也没比过）。给 gemini-3.5-flash 声明 `meta.autoImageReader: true`，`selectTextModelCandidates` 在同为「能读图」时把它排前；`apimartLatestContracts.test.ts` 断言新装和 v0.24.1 升级两种目录自动读图都还是它（去掉排序规则这条红：`expected 'claude-opus-5-5' to be 'gemini-3.5-flash'`）。换不换成更新、更便宜的读图模型，等读帧质量和花费比过再定（计划表登记）。
+
+未验证：claude-fable-5.1 没真调用过；6 个新读图模型只验了「读得出图上的字」，没验视频拆解读帧的质量；列表对账没对真列表跑过（只有演练）；gemini-3.5-flash 无缓存价是接口现状，APIMart 实际怎么计缓存命中不知道。

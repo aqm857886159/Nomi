@@ -83,6 +83,22 @@ const DEEPSEEK_PROBED_0821 = {
   checkedAt: "2026-08-21",
   record: "本文件头：/v1/models?expand=category&category=chat 对账 + 逐个 chat、tool-call 探针",
 } as const;
+/** 2026-11-08 一问一个（tests/ux/apimart-text-brains-real.paid.mjs，走 Agent 主进程大脑路，每个只问一次、不重试）。逐条结果在设计卡。 */
+const ASKED_20261108 = {
+  checkedAt: "2026-11-08",
+  record: "docs/plan/2026-11-07-catalog-audio-text.md「一问一个结果（2026-11-08）」",
+} as const;
+/** 同一次里带一张暗号图再问一次，模型完整回出了暗号。 */
+const SAW_IMAGE_20261108 = {
+  checkedAt: "2026-11-08",
+  record: "docs/plan/2026-11-07-catalog-audio-text.md「一问一个结果（2026-11-08）」：带暗号图问一次，完整回出暗号",
+} as const;
+/** 协议页 + 价目 + 2026-11-08 真调用通过；`sawImage` = 同一次带图也读出来了。 */
+const asked = (modelKey: string, modelDoc?: string, sawImage?: "sawImage"): ApimartTextEvidence => ({
+  ...unrun(modelKey, modelDoc),
+  liveCall: ASKED_20261108,
+  ...(sawImage ? { imageInput: SAW_IMAGE_20261108 } : {}),
+});
 
 /**
  * apimart 的 curated 文本模型（单源）。
@@ -90,8 +106,9 @@ const DEEPSEEK_PROBED_0821 = {
  * - `deepseek-v4-pro`：默认大脑，思考型纯文本与工具调用的主控入口。
  * - `deepseek-v4-flash`：低延迟回退，纯文本与工具调用。
  * - `deepseek-v3.1-terminus`：V3.1 终版文本与工具调用回退。2026-11-07：文档和全量价目表都查不到它，
- *   单模型价目接口只回一条旧倍率价（像 `deepseek-v3.2` 那样的残留）；价格照旧留白。能不能调由付费一问一个
- *   （tests/ux/apimart-text-brains-real.paid.mjs）定，调不通走 seedBuiltins 的退役清单（另开 PR）。
+ *   单模型价目接口只回一条旧倍率价（像 `deepseek-v3.2` 那样的残留）；价格照旧留白。2026-11-08 一问一个
+ *   （tests/ux/apimart-text-brains-real.paid.mjs）回 503 `model_not_found`，`/v1/models` 列表里也没有它：
+ *   按退役处理，走 seedBuiltins 的退役清单（有老用户，要迁移，另开 PR，计划表登记）。
  *
  * `deepseek-v3.2` 2026-10-27 下架：APIMart 的 `/v1/models` 仍列着它，调用却确定性 404 `model_not_found`
  * （10-18 付费走查实录）。退役清单与存量迁移见 seedBuiltins.ts 的 `RETIRED_APIMART_TEXT_MODEL_KEYS`。
@@ -111,7 +128,9 @@ const DEEPSEEK_PROBED_0821 = {
  *      单镜分镜提取实测：1178 token 进（图片占 1058）/ 1160 出 / 10.4s。
  *
  * 2026-11-07 新加的这一批（GPT-6 / Claude 5.5 / Gemini 4 / Qwen 3.8 / GLM 5.3 / Kimi K3 / Grok 4.7 / MiniMax M3 / Step 3.7）：
- * 依据只有协议页 + 价目接口，一个都还没真跑，读图声明一律不写（查不到出处）。`qwen3.8-max` 照官方专页的写法
+ * 依据是协议页 + 价目接口；2026-11-08 一问一个真调用：除 `claude-fable-5.1` 外都调通（它那次 402，余额不够 APIMart 的预扣，
+没调成）；带暗号图问一次、完整回出暗号的 6 个（Claude Opus / Sonnet / Haiku 5.5、Gemini 4 Argon、Gemini 3.8 Flash、
+DeepSeek V4.1 Flash）加回读图声明，其余不写读图。`qwen3.8-max` 照官方专页的写法
  * （texts/qwen3.8-max/guide），不用价目表里另挂的 `-0902`。合入前跑一遍免费的 `/v1/models` 对账
  * （tests/ux/apimart-text-list.real.mjs）和付费一问一个，调不通的在同一个 PR 里删（新加的，没有老用户）。
  */
@@ -119,37 +138,37 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
   {
     modelKey: "gpt-6-astra", labelZh: "GPT-6 Astra",
     tokenPricing: { inputPerMTokUsd: 16.0, outputPerMTokUsd: 60.0, cacheReadPerMTokUsd: 1.6, cacheWritePerMTokUsd: 40.0, source: pricingSource("gpt-6-astra") },
-    evidence: unrun("gpt-6-astra"),
+    evidence: asked("gpt-6-astra"),
   },
   {
     modelKey: "gpt-6.1-sol", labelZh: "GPT-6.1 Sol",
     tokenPricing: { inputPerMTokUsd: 3.2, outputPerMTokUsd: 12.0, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 8.0, source: pricingSource("gpt-6.1-sol") },
-    evidence: unrun("gpt-6.1-sol"),
+    evidence: asked("gpt-6.1-sol"),
   },
   {
     modelKey: "gpt-6.1-terra", labelZh: "GPT-6.1 Terra",
     tokenPricing: { inputPerMTokUsd: 1.6, outputPerMTokUsd: 6.0, cacheReadPerMTokUsd: 0.08, cacheWritePerMTokUsd: 4.0, source: pricingSource("gpt-6.1-terra") },
-    evidence: unrun("gpt-6.1-terra", "https://docs.apimart.ai/en/api-reference/texts/openai/context-cache"),
+    evidence: asked("gpt-6.1-terra", "https://docs.apimart.ai/en/api-reference/texts/openai/context-cache"),
   },
   {
     modelKey: "gpt-6-luna", labelZh: "GPT-6 Luna",
     tokenPricing: { inputPerMTokUsd: 0.16, outputPerMTokUsd: 0.6, cacheReadPerMTokUsd: 0.016, cacheWritePerMTokUsd: 0.4, source: pricingSource("gpt-6-luna") },
-    evidence: unrun("gpt-6-luna"),
+    evidence: asked("gpt-6-luna"),
   },
   {
-    modelKey: "claude-opus-5-5", labelZh: "Claude Opus 5.5",
+    modelKey: "claude-opus-5-5", labelZh: "Claude Opus 5.5", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 3.2, outputPerMTokUsd: 16, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 6.4, source: pricingSource("claude-opus-5-5") },
-    evidence: unrun("claude-opus-5-5"),
+    evidence: asked("claude-opus-5-5", undefined, "sawImage"),
   },
   {
-    modelKey: "claude-sonnet-5-5", labelZh: "Claude Sonnet 5.5",
+    modelKey: "claude-sonnet-5-5", labelZh: "Claude Sonnet 5.5", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 1.6, outputPerMTokUsd: 8, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 3.2, source: pricingSource("claude-sonnet-5-5") },
-    evidence: unrun("claude-sonnet-5-5"),
+    evidence: asked("claude-sonnet-5-5", undefined, "sawImage"),
   },
   {
-    modelKey: "claude-haiku-5-5", labelZh: "Claude Haiku 5.5",
+    modelKey: "claude-haiku-5-5", labelZh: "Claude Haiku 5.5", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 0.4, outputPerMTokUsd: 2.0, cacheReadPerMTokUsd: 0.04, cacheWritePerMTokUsd: 0.8, source: pricingSource("claude-haiku-5-5") },
-    evidence: unrun("claude-haiku-5-5"),
+    evidence: asked("claude-haiku-5-5", undefined, "sawImage"),
   },
   {
     modelKey: "claude-fable-5.1", labelZh: "Claude Fable 5.1",
@@ -157,14 +176,14 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
     evidence: unrun("claude-fable-5.1"),
   },
   {
-    modelKey: "gemini-4-argon", labelZh: "Gemini 4 Argon",
+    modelKey: "gemini-4-argon", labelZh: "Gemini 4 Argon", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 1.6, outputPerMTokUsd: 8, cacheReadPerMTokUsd: 0.08, source: pricingSource("gemini-4-argon") },
-    evidence: unrun("gemini-4-argon"),
+    evidence: asked("gemini-4-argon", undefined, "sawImage"),
   },
   {
-    modelKey: "gemini-3.8-flash", labelZh: "Gemini 3.8 Flash",
+    modelKey: "gemini-3.8-flash", labelZh: "Gemini 3.8 Flash", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 0.6, outputPerMTokUsd: 3, cacheReadPerMTokUsd: 0.06, source: pricingSource("gemini-3.8-flash") },
-    evidence: unrun("gemini-3.8-flash"),
+    evidence: asked("gemini-3.8-flash", undefined, "sawImage"),
   },
   {
     modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro",
@@ -172,59 +191,59 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
     evidence: { protocolDoc: CHAT_PROTOCOL_DOC, modelDoc: CHAT_PROTOCOL_DOC, pricingApi: apimartTextPricingApi("deepseek-v4-pro"), liveCall: DEEPSEEK_PROBED_0821 },
   },
   {
-    modelKey: "deepseek-v4.1-flash", labelZh: "DeepSeek V4.1 Flash",
+    modelKey: "deepseek-v4.1-flash", labelZh: "DeepSeek V4.1 Flash", meta: { supportsImageInput: true },
     tokenPricing: { inputPerMTokUsd: 0.2285712, outputPerMTokUsd: 0.9142856, cacheReadPerMTokUsd: 0.0228568, source: pricingSource("deepseek-v4.1-flash") },
-    evidence: unrun("deepseek-v4.1-flash"),
+    evidence: asked("deepseek-v4.1-flash", undefined, "sawImage"),
   },
   {
     modelKey: "qwen3.8-max", labelZh: "Qwen 3.8 Max",
     tokenPricing: { inputPerMTokUsd: 1.3714288, outputPerMTokUsd: 4.1142856, cacheReadPerMTokUsd: 0.1714288, cacheWritePerMTokUsd: 1.7142856, source: pricingSource("qwen3.8-max") },
-    evidence: unrun("qwen3.8-max", "https://docs.apimart.ai/en/api-reference/texts/qwen3.8-max/guide"),
+    evidence: asked("qwen3.8-max", "https://docs.apimart.ai/en/api-reference/texts/qwen3.8-max/guide"),
   },
   {
     modelKey: "qwen3.8-flash", labelZh: "Qwen 3.8 Flash",
     tokenPricing: { inputPerMTokUsd: 0.0914288, outputPerMTokUsd: 0.3085712, cacheReadPerMTokUsd: 0.0114288, cacheWritePerMTokUsd: 0.1428568, source: pricingSource("qwen3.8-flash") },
-    evidence: unrun("qwen3.8-flash"),
+    evidence: asked("qwen3.8-flash"),
   },
   {
     modelKey: "qwen3.8-27b", labelZh: "Qwen 3.8 27B",
     tokenPricing: { inputPerMTokUsd: 0.3428568, outputPerMTokUsd: 1.3714288, cacheReadPerMTokUsd: 0.0685712, cacheWritePerMTokUsd: 0.4285712, source: pricingSource("qwen3.8-27b") },
-    evidence: unrun("qwen3.8-27b"),
+    evidence: asked("qwen3.8-27b"),
   },
   {
     modelKey: "qwen3.8-2.4t-a95b", labelZh: "Qwen 3.8 2.4T A95B",
     tokenPricing: { inputPerMTokUsd: 1.3714288, outputPerMTokUsd: 4.1142856, cacheReadPerMTokUsd: 0.1714288, cacheWritePerMTokUsd: 1.7142856, source: pricingSource("qwen3.8-2.4t-a95b") },
-    evidence: unrun("qwen3.8-2.4t-a95b"),
+    evidence: asked("qwen3.8-2.4t-a95b"),
   },
   {
     modelKey: "glm-5.3", labelZh: "GLM 5.3",
     tokenPricing: { inputPerMTokUsd: 1.12, outputPerMTokUsd: 3.52, cacheReadPerMTokUsd: 0.208, source: pricingSource("glm-5.3") },
-    evidence: unrun("glm-5.3"),
+    evidence: asked("glm-5.3"),
   },
   {
     modelKey: "glm-5.3-flash", labelZh: "GLM 5.3 Flash",
     tokenPricing: { inputPerMTokUsd: 0.06, outputPerMTokUsd: 0.2, cacheReadPerMTokUsd: 0.012, source: pricingSource("glm-5.3-flash") },
-    evidence: unrun("glm-5.3-flash"),
+    evidence: asked("glm-5.3-flash"),
   },
   {
     modelKey: "kimi-k3", labelZh: "Kimi K3",
     tokenPricing: { inputPerMTokUsd: 2.4, outputPerMTokUsd: 12, cacheReadPerMTokUsd: 0.24, source: pricingSource("kimi-k3") },
-    evidence: unrun("kimi-k3"),
+    evidence: asked("kimi-k3"),
   },
   {
     modelKey: "grok-4.7", labelZh: "Grok 4.7",
     tokenPricing: { inputPerMTokUsd: 3.2, outputPerMTokUsd: 9.6, cacheReadPerMTokUsd: 0.8, source: pricingSource("grok-4.7") },
-    evidence: unrun("grok-4.7"),
+    evidence: asked("grok-4.7"),
   },
   {
     modelKey: "minimax-m3", labelZh: "MiniMax M3",
     tokenPricing: { inputPerMTokUsd: 0.24, outputPerMTokUsd: 0.96, source: pricingSource("minimax-m3") },
-    evidence: unrun("minimax-m3"),
+    evidence: asked("minimax-m3"),
   },
   {
     modelKey: "step-3.7-flash", labelZh: "Step 3.7 Flash",
     tokenPricing: { inputPerMTokUsd: 0.15424, outputPerMTokUsd: 0.92544, source: pricingSource("step-3.7-flash") },
-    evidence: unrun("step-3.7-flash"),
+    evidence: asked("step-3.7-flash"),
   },
   // Saved legacy identities remain executable; lifecycle policy only changes recommendation order.
   {
@@ -242,7 +261,10 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
     evidence: { protocolDoc: CHAT_PROTOCOL_DOC, pricingApi: apimartTextPricingApi("deepseek-v3.1-terminus"), liveCall: DEEPSEEK_PROBED_0821 },
   },
   {
-    modelKey: "gemini-3.5-flash", labelZh: "Gemini 3.5 Flash", meta: { supportsImageInput: true },
+    modelKey: "gemini-3.5-flash", labelZh: "Gemini 3.5 Flash",
+    // autoImageReader：没指定模型时自动读图（视频拆解读帧）用它。2026-08-12 单镜分镜提取实测过；
+    // 别的读图模型读帧的质量和花费还没比过，比过再换（计划表登记）。
+    meta: { supportsImageInput: true, autoImageReader: true },
     // 2026-11-07 起记 APIMart 价（旧倍率计费，接口里没有缓存价；以前记 Google 官网 1.5 / 9 / 缓存读 0.15）。
     tokenPricing: { inputPerMTokUsd: 1.2, outputPerMTokUsd: 7.2, source: pricingSource("gemini-3.5-flash") },
     evidence: {

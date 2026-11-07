@@ -12,6 +12,7 @@ import { APIMART_AUDIO_MODELS } from './apimartAudios';
 import { APIMART_TEXT_MODELS, apimartTextPricingApi } from './apimartTexts';
 import { applyHeadlessParamDefaults, taskTemplateParams } from './taskParams';
 import { applyBuiltinSeeds } from './seedBuiltins';
+import { selectTextModelCandidates } from '../ai/textBrainResolver';
 import { curatedCatalogLifecycle } from './seedModelIdentity';
 import { selectTaskMapping, type CatalogState, type HttpOperation } from './types';
 import { CATALOG_LATEST_SAMPLES, actualChargeOf, runCatalogLatestSamples, settleSampleTask } from '../../tests/ux/catalogLatestSamples';
@@ -230,11 +231,23 @@ describe('every text declaration names where it comes from', () => {
   it('an image-input claim needs its own first-hand record; nothing claims image input on the protocol page alone', () => {
     const claimed = APIMART_TEXT_MODELS.filter(row => row.meta?.supportsImageInput === true);
     for (const row of claimed) expect(row.evidence.imageInput, `${row.modelKey} claims image input without a Vision tag or a live image call`).toEqual({ checkedAt: expect.any(String), record: expect.any(String) });
-    // 2026-11-07 这一批新加的 7 条读图声明没有出处，已去掉；只剩 2026-08-12 真带图调用过的那一个。
-    expect(claimed.map(row => row.modelKey)).toEqual(['gemini-3.5-flash']);
+    // 读图只认一手依据：gemini-3.5-flash 是 2026-08-12 带图真调用；另 6 个是 2026-11-08 一问一个带暗号图读出来的。
+    // claude-fable-5.1 那次没调成（402），不写读图。
+    expect(claimed.map(row => row.modelKey)).toEqual(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'gemini-4-argon', 'gemini-3.8-flash', 'deepseek-v4.1-flash', 'gemini-3.5-flash']);
     const state = applyBuiltinSeeds({ version: 11, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, '2026-11-07').state;
     const seededReaders = state.models.filter(row => row.vendorKey === 'apimart' && row.kind === 'text' && (row.meta as { supportsImageInput?: unknown } | undefined)?.supportsImageInput === true);
-    expect(seededReaders.map(row => row.modelKey)).toEqual(['gemini-3.5-flash']);
+    expect(seededReaders.map(row => row.modelKey).sort()).toEqual([...['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'gemini-4-argon', 'gemini-3.8-flash', 'deepseek-v4.1-flash', 'gemini-3.5-flash']].sort());
+  });
+
+  it('more readers do not move the automatic image reader: new and upgraded catalogs both still pick gemini-3.5-flash', () => {
+    const everyRowUsable = { of: () => ({ usable: true }) } as unknown as Parameters<typeof selectTextModelCandidates>[3];
+    const fresh = applyBuiltinSeeds({ version: 11, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, '2026-11-08').state;
+    const root = new URL('../../tests/fixtures/old-user-data/curated/v0.24.1-apimart/', import.meta.url);
+    const upgraded = applyBuiltinSeeds(JSON.parse(fs.readFileSync(new URL('model-catalog.json', root), 'utf8')) as CatalogState, '2026-11-08').state;
+    for (const state of [fresh, upgraded]) {
+      const first = selectTextModelCandidates(state, undefined, true, everyRowUsable)[0];
+      expect(first?.model.modelKey).toBe('gemini-3.5-flash');
+    }
   });
 
   it('ids are spelled the way the official page spells them: qwen3.8-max, not the price-list alias qwen3.8-max-0902', () => {

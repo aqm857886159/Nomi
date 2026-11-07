@@ -19,6 +19,11 @@ const IMAGE_INPUT_RANK: Record<ImageInputSupport, number> = { supported: 2, unkn
 function imageInputRank(model: Model): number {
   return IMAGE_INPUT_RANK[modelImageInputSupport(model)];
 }
+// 同为「能读图」时，声明了 `meta.autoImageReader` 的排前。自动挑读图模型（视频拆解读帧）是一个产品选择，
+// 不能随目录里谁排得靠前漂移：2026-11-08 加回 6 个读图声明后，按目录序会从 Gemini 3.5 Flash 换成 Claude Opus 5.5。
+function autoImageReaderRank(model: Model): number {
+  return (model.meta as { autoImageReader?: unknown } | null | undefined)?.autoImageReader === true ? 1 : 0;
+}
 
 /**
  * Some catalog text entries are asynchronous task profiles rather than
@@ -161,7 +166,7 @@ export function selectTextModelCandidates(
   const ordered = preferredModelKey
     ? [...texts].sort((a, b) => preferenceRank(b) - preferenceRank(a))
     : preferImageInput
-      ? [...texts].sort((a, b) => imageInputRank(b) - imageInputRank(a))
+      ? [...texts].sort((a, b) => (imageInputRank(b) - imageInputRank(a)) || (autoImageReaderRank(b) - autoImageReaderRank(a)))
       : [...texts].sort((a, b) => autoTextModelPenalty(a) - autoTextModelPenalty(b));
   return ordered.flatMap((model) => {
     const vendor = state.vendors.find((item) => item.key === model.vendorKey && item.enabled);
