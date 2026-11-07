@@ -419,7 +419,7 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
     '1 image = first frame; 2 images = first and last frames; aspect ratio follows the images',
   '1–10 张主体 / 风格参考图（提示词必填）': '1–10 subject or style reference images (prompt required)',
   '1–10 张关键帧图，按顺序': '1–10 keyframe images, in order',
-  '1–15 张参考图，必须写提示词': '1–15 reference images; a prompt is required',
+  '1–15 张参考图（1 张也按参考），必须写提示词': '1–15 reference images (even one counts as a reference); a prompt is required',
   '最多 9 张参考图；约 10 秒、720p': 'Up to 9 reference images; about 10 seconds at 720p',
   '刚好 1 张图，比例跟随图片': 'Exactly 1 image; aspect ratio follows the image',
   单张公网参考图: 'One reference image (public URL)',

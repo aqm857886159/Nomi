@@ -4232,8 +4232,7 @@
         ],
         "aspectRatios": [
           "16:9",
-          "9:16",
-          "auto"
+          "9:16"
         ],
         "durationSeconds": {
           "min": 3,
@@ -4266,15 +4265,18 @@
         "intents": [
           "text",
           "single",
+          "firstlast",
           "character"
         ],
         "modeTerms": [
           "文生视频",
           "首帧图生视频",
+          "首尾帧",
           "多图参考"
         ],
         "references": {
           "first_frame": 1,
+          "last_frame": 1,
           "image_ref": 10
         },
         "resolutions": [
@@ -4285,8 +4287,7 @@
         ],
         "aspectRatios": [
           "16:9",
-          "9:16",
-          "auto"
+          "9:16"
         ],
         "durationSeconds": {
           "min": 3,
