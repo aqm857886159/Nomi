@@ -190,6 +190,20 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await browserWindow.evaluate((windowRef, size) => windowRef.setContentSize(size.width, size.height), { width, height })
       await win.setViewportSize({ width, height })
     }
+    // 面板里那层（[data-v4-panel]）的宽是外框 ResizeObserver 回传、React 再写上去的，比外框晚一拍：
+    // 改完窗口立刻量，量到的是上一个宽度的输入框底栏（2026-11-08 en 1060 量到 row 310 > 面板 300）。
+    // 只等「内层跟上外框」这件事本身，不等结果对；等不到就记一条红。
+    const panelInnerCaughtUp = async (label) => {
+      const ok = await win.waitForFunction((panelSelector) => {
+        const panel = document.querySelector(panelSelector)
+        const inner = panel?.querySelector('[data-v4-panel]')
+        if (!panel || !(inner instanceof HTMLElement)) return false
+        const style = getComputedStyle(panel)
+        const content = panel.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+        return Math.abs(parseFloat(inner.style.width) - content) <= 1
+      }, AGENT_PANEL, { timeout: DEFAULT_TIMEOUT_MS }).then(() => true, () => false)
+      check(`${label}：面板内层宽跟上外框`, ok)
+    }
 
     // ── 最小窗：700×720，再小拖不下去 ──
     {
@@ -334,6 +348,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
     // ── 阈值两侧：1060 停靠（面板最窄 300，输入框底栏收紧），1059 小球 ──
     await resize(THRESHOLD)
     await expect(dockLayer.first(), '1060 应仍停靠').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
+    await panelInnerCaughtUp(`${BOARD.tight} 1060`)
     {
       const composer = await win.evaluate((panelSelector) => {
         const panel = document.querySelector(panelSelector)
@@ -372,7 +387,8 @@ async function runRound({ locale, scheme, tag, projectName }) {
     {
       // 停回的过渡要先放完再量（收拢 / 停回 260ms）。
       await win.waitForTimeout(400)
-      const wide = await win.evaluate((panelSelector) => {
+      await panelInnerCaughtUp(`${BOARD.tight} 1100`)
+      const wide =await win.evaluate((panelSelector) => {
         const panel = document.querySelector(panelSelector)
         const skillText = panel?.querySelector('[data-v4-control="skill"] span')
         const row = panel?.querySelector('[data-v4-control="model"]')?.parentElement
