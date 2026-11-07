@@ -2,8 +2,9 @@
 // 真实用户任务（窄窗拍板 WindowNarrow 的页面半边，2026-11-07 用户「可以，开做」）：
 //
 // 创作者把 Nomi 开在 1100 宽的窗口里，Nomi 停靠在右边（外壳在 1100 把它钳到 340），在创作页写稿；
-// 写完去生成页让 Nomi 起草三镜、摆上付费确认卡（本机夹具，零额度），然后把窗口放到 720 高（MacBook 常见）再切到
-// 预览页——这是 F2 当时的真实条件：Nomi 栏里有一张付费卡，卡上的「生成」掉到窗外。
+// 写完去生成页让 Nomi 起草三镜、摆上付费确认卡（本机夹具，零额度），再去预览页、把窗口调到 720 高（MacBook 常见）。
+// F2 的触发条件 = 预览页开着时窗口变矮（900 → 720）：Nomi 栏里那张付费卡的「生成」掉到窗外；直接以 720 高打开不出这个问题
+// （修前构建两条路都量过）。
 //   · board:WindowNarrow/creation.editor-grid —— 正文不被裁：编辑区宽 = 主区，正文宽 min(680, 主区) 居中，不出横向滚动。
 //   · board:WindowNarrow/creation.toolbar-overflow —— 工具条放不下的按钮从右往左收进「⋯」，撤销 / 重做钉在右端；
 //     拉宽到放得下时「⋯」消失、按钮全回来（只有「量出来放不下」一个阈值）。
@@ -21,8 +22,8 @@
 // NOMI_WALK_SHOT_DIR：截图另存一份到这个目录（给验收线和报告用）。
 import fs from 'node:fs'
 import path from 'node:path'
-import { applyColorSchemeForShot, clickOrFail, expect } from './_assert.mjs'
-import { setAppLanguage, switchWorkspace } from './_shell.mjs'
+import { applyColorSchemeForShot, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
+import { AGENT_PANEL, setAppLanguage, switchWorkspace } from './_shell.mjs'
 import { createPresenter } from './_spendCardWalk.mjs'
 import { APPROVAL_CARD, closeSpendCard, COMPOSER, createRuntimeWalk, expandResidentPanel, INTERVENTION_CONFIRM, INTERVENTION_REJECT, openCanvas, PREVIEW_PANEL, recorded } from './agent-runtime-walk-support.mjs'
 
@@ -58,7 +59,7 @@ async function shot(walk, win, label) {
 
 /** 创作页这一刻的几何：编辑区、正文、工具条、哪些按钮收起了、「⋯」、撤销 / 重做。 */
 function creationGeometry(win) {
-  return win.evaluate(({ editor, toolbar, row, trigger }) => {
+  return win.evaluate(({ editor, toolbar, row, trigger, agentPanel }) => {
     const box = (element) => {
       if (!element) return null
       const rect = element.getBoundingClientRect()
@@ -77,7 +78,7 @@ function creationGeometry(win) {
     return {
       innerWidth, innerHeight,
       section: box(section),
-      agent: box(document.querySelector('[data-agent-resident="true"][data-agent-panel="true"]')),
+      agent: box(document.querySelector(agentPanel)),
       toolbar: box(document.querySelector(toolbar)),
       content: box(content),
       scroll: scroll ? { scrollWidth: scroll.scrollWidth, clientWidth: scroll.clientWidth } : null,
@@ -88,7 +89,7 @@ function creationGeometry(win) {
       redo: box(document.querySelector(`${toolbar} [data-rich-text-action="redo"]`)),
       undoInRow: Boolean(document.querySelector(`${row} [data-rich-text-action="undo"], ${row} [data-rich-text-action="redo"]`)),
     }
-  }, { editor: EDITOR, toolbar: TOOLBAR, row: ROW, trigger: TRIGGER })
+  }, { editor: EDITOR, toolbar: TOOLBAR, row: ROW, trigger: TRIGGER, agentPanel: AGENT_PANEL })
 }
 
 function assertCreationNarrow(g, round) {
@@ -137,9 +138,10 @@ async function creationStation(walk, win, round) {
   assertCreationNarrow(narrow, round)
 
   // 只有一个阈值：拉宽到放得下，「⋯」消失、全部回来；再拉回 1100，收起的那一截和刚才一样。
+  const triggerProof = await proveProbe(win.locator(TRIGGER), `${A.overflow}（${round}）：1100 有收起项时「⋯」在`)
   await walk.resizeWindow(1440, 900)
   await expect.poll(async () => (await creationGeometry(win)).items.filter((item) => item.hidden).length, { message: `${A.overflow}（${round}）：1440 放得下，一颗都不收` }).toBe(0)
-  await expect(win.locator(TRIGGER), `${A.overflow}（${round}）：放得下时没有「⋯」`).toHaveCount(0)
+  await expectAbsent(win.locator(TRIGGER), { provenBy: triggerProof, message: `${A.overflow}（${round}）：放得下时没有「⋯」` })
   report.creation1440 = await creationGeometry(win).then((g) => ({ section: g.section, visible: g.items.filter((item) => !item.hidden).length }))
   await shot(walk, win, `${round}-creation-1440x900`)
   await walk.resizeWindow(1100, 900)
@@ -176,9 +178,10 @@ async function creationStation(walk, win, round) {
   if (hiddenItems.some((item) => item.id === 'bullet-list')) {
     await clickOrFail(menu.locator('[data-menu-item="bullet-list"]'), `${A.menu}（${round}）：点「项目符号」`)
     await expect(win.locator(`${EDITOR_TEXT} ul`), `${A.menu}（${round}）：光标所在段变成列表`).toHaveCount(1)
+    const listProof = await proveProbe(win.locator(`${EDITOR_TEXT} ul`), `${A.menu}（${round}）：菜单里点「项目符号」起了列表`)
     await expect(menu, `${A.menu}（${round}）：选完菜单关上`).toBeHidden()
     await clickOrFail(win.locator(`${TOOLBAR} [data-rich-text-action="undo"]`), `${A.overflow}（${round}）：点撤销`)
-    await expect(win.locator(`${EDITOR_TEXT} ul`), `${A.overflow}（${round}）：撤销撤回了列表`).toHaveCount(0)
+    await expectAbsent(win.locator(`${EDITOR_TEXT} ul`), { provenBy: listProof, message: `${A.overflow}（${round}）：撤销撤回了列表` })
   } else {
     await win.keyboard.press('Escape')
   }
@@ -189,12 +192,13 @@ async function creationStation(walk, win, round) {
   await win.keyboard.type('- ')
   await win.keyboard.insertText('rule')
   await expect(win.locator(`${EDITOR_TEXT} ul`), `${A.menu}（${round}）：收起之后「- 」输入规则照常起列表`).toHaveCount(1)
+  const ruleProof = await proveProbe(win.locator(`${EDITOR_TEXT} ul`), `${round}：「- 」输入规则起了列表`)
   // 撤到列表没了为止（输入规则和随后打的字可能合成一步，也可能两步）；不多撤，免得撤掉前面的稿子。
   for (let step = 0; step < 3 && (await win.locator(`${EDITOR_TEXT} ul`).count()) > 0; step += 1) {
     await clickOrFail(win.locator(`${TOOLBAR} [data-rich-text-action="undo"]`), `${round}：撤销输入规则（第 ${step + 1} 下）`)
     await win.waitForTimeout(120)
   }
-  await expect(win.locator(`${EDITOR_TEXT} ul`), `${round}：输入规则起的列表撤掉了`).toHaveCount(0)
+  await expectAbsent(win.locator(`${EDITOR_TEXT} ul`), { provenBy: ruleProof, message: `${round}：输入规则起的列表撤掉了` })
 }
 
 function previewGeometry(win) {
