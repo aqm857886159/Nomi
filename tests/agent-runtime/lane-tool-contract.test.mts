@@ -249,15 +249,17 @@ test('失败正文带机器码之外的人话与可行动下一步，且内外�
     message: 'canvas.write does not have an operation called "make_video".',
     nextAction: 'Call it again with one of the listed operations.',
     allowed: ['tidy_canvas', 'set_node_prompt'],
-    issues: [{ path: 'operation', expected: 'enum', receivedType: 'string' }],
+    issues: [{ path: 'operation', kind: 'not_allowed' }],
   } as const;
   const rendered = renderLaneToolFailure(failure);
   assert.notEqual(rendered, failure.code, '模型收到错误码等于什么都没收到');
   assert.ok(rendered.includes(failure.message));
   assert.ok(rendered.includes('Next: '), '没有下一步的拒绝会让模型把同一个调用再发一遍');
   assert.ok(rendered.includes('tidy_canvas'), '合法值是模型自纠时最有用的一样东西');
-  assert.ok(rendered.includes('operation: expected enum'));
-  // 隐私边界：只带类型名，**绝不回传收到的值**——用户文稿正文、素材路径都可能在参数里。
+  // 字段行出自入参拒收的唯一格式器（`toolInputIssues.renderToolInputIssue`）：路径 + 该填什么。
+  assert.ok(rendered.includes('  - operation: value is not allowed.'));
+  // 隐私边界：issue 不带 `received` 时**不回传收到的值**——用户文稿正文、素材路径都可能在参数里。
+  // （短标量的回显只由 `issuesFromZod` / `issuesFromTypeBox` 判定后写进 `received`，见 `toolInputIssues.ts`。）
   assert.ok(!rendered.includes('make_video') || rendered.indexOf('make_video') === rendered.indexOf(failure.message) + failure.message.indexOf('make_video'));
 
   // 内外同源：同一个描述符的两个投影，字段一致。
