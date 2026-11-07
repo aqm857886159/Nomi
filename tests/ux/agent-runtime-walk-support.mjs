@@ -656,3 +656,36 @@ export async function assertNodeTextWriteReceipt(win, { snap }) {
   await switchAppLocale(win, 'zh-CN')
   return rows
 }
+
+// ── 回合结局：一轮对话结束后，面板上到底发生了什么 ───────────────────────────────
+//
+// 真模型走查曾把「模型服务商拒了请求、Agent 根本没干活」当成正常回合记进分母，报出一个看起来像
+// 「修复无效」的假数。结局只按面板上的真实元素判（ERROR_BAR / PANEL_ERROR 两个 data 属性、助手消息积木），
+// 不按错误正文猜——正文是词典键渲染出来的，随语言和服务商变。
+export const TURN_OUTCOME = Object.freeze({
+  RAN_WITH_TOOLS: 'ran-with-tools',
+  RAN_NO_TOOLS: 'ran-no-tools',
+  PROVIDER_ERROR: 'provider-error',
+  NOT_STARTED: 'not-started',
+})
+/** 不可判的结局：模型没真正干活，这一轮不能进任何比率的分母。 */
+export const UNJUDGEABLE_OUTCOMES = Object.freeze([TURN_OUTCOME.PROVIDER_ERROR, TURN_OUTCOME.NOT_STARTED])
+export const isJudgeableOutcome = (outcome) => !UNJUDGEABLE_OUTCOMES.includes(outcome)
+
+/**
+ * 判一轮的结局。`panel` 是面板根选择器（如 CANVAS_PANEL）；`toolCallCount` 是这一轮从磁盘轨迹读到的工具调用数；
+ * `sawRunning` 是发送后有没有观察到过「运行中」（快回合可能漏采，所以只是旁证之一，不是唯一依据）。
+ * 顺序有讲究：先看工具（有调用就是真干过活，哪怕后面报了错）；再看错误块（没工具 + 有错误块 = 服务商 / 网络报错）；
+ * 最后才分「只说话」与「根本没起来」。
+ */
+export async function classifyTurnOutcome(page, { panel, toolCallCount = 0, sawRunning = false }) {
+  const errorBlock = page.locator(`${panel} ${ERROR_BAR}, ${panel} ${PANEL_ERROR}`).first()
+  const errorText = (await errorBlock.isVisible().catch(() => false))
+    ? ((await errorBlock.innerText().catch(() => '')) || '').trim().slice(0, 300)
+    : null
+  if (toolCallCount > 0) return { outcome: TURN_OUTCOME.RAN_WITH_TOOLS, errorText }
+  if (errorText !== null) return { outcome: TURN_OUTCOME.PROVIDER_ERROR, errorText }
+  const spoke = await page.locator(`${panel} ${ASSISTANT_MESSAGE}`).last().isVisible().catch(() => false)
+  if (spoke || sawRunning) return { outcome: TURN_OUTCOME.RAN_NO_TOOLS, errorText: null }
+  return { outcome: TURN_OUTCOME.NOT_STARTED, errorText: null }
+}

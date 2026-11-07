@@ -14,7 +14,9 @@
 // ── 跑法（真模型，约 20 轮对话，文本档几分钱；不会生成媒体：报价卡一律拒绝）──
 //   协调在**修前提交**与**修后提交**上各跑一遍，同一模型、同一用例表：
 //   pnpm run build
-//   node tests/ux/agent-verbatim-prompt-real-model.walk.mjs --label before [--model "DeepSeek V3.2"] [--only V1,W1]
+//   node tests/ux/agent-verbatim-prompt-real-model.walk.mjs --label before --model "DeepSeek V4 Flash" [--only V1,W1]
+//   --model 必填，且必须是内置目录里的、该资料里真有的模型（没有就退出）；修前修后各用自己的 --label，报告按 label 分文件。
+//   模型服务商报错 / 回合没起来的轮记「不可判」，不进比率分母；连续 2 轮不可判就停、退出码非 0、打印最后一屏截图。
 //   判据与离线对照：tests/ux/verbatim-prompt-judges.mjs / .test.mjs；用例表：agent-verbatim-prompt.cases.json
 //
 // ── 已知局限 ──
@@ -31,7 +33,7 @@ import { closeNomiApp, launchNomiApp } from './_launchApp.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { collectPrompts, judgeExpansion, judgeVerbatim, summarize } from './verbatim-prompt-judges.mjs'
 import {
-  CANVAS_PANEL, COMPOSER, COMPOSER_INPUT, COMPOSER_SEND, HISTORY_BUTTON,
+  CANVAS_PANEL, COMPOSER, TURN_OUTCOME, classifyTurnOutcome, isJudgeableOutcome, COMPOSER_INPUT, COMPOSER_SEND, HISTORY_BUTTON,
   MODEL_POPOVER, COMPOSER_MODEL, THREAD_MENU, escapeForRegExp, expandResidentPanel,
 } from './agent-runtime-walk-support.mjs'
 import { switchWorkspace } from './_shell.mjs'
@@ -49,9 +51,16 @@ if (ONLY) {
   if (unknown.length) throw new Error(`--only 里这些 id 不在用例表里：${unknown.join(', ')}`)
 }
 const SELECTED = ONLY ? CASES.filter((item) => ONLY.includes(item.id)) : CASES
-const MODEL_LABEL = values.model || 'DeepSeek V3.2'
+const MODEL_LABEL = values.model
+if (!MODEL_LABEL) {
+  console.error('必须显式传 --model "<模型显示名>"（内置目录里的、这份资料里真有的模型，例如 "DeepSeek V4 Flash"）；不再默认一个用户未必有的模型。')
+  process.exit(2)
+}
+const MAX_CONSECUTIVE_UNJUDGEABLE = 2
+let consecutiveUnjudgeable = 0
 const LABEL = values.label || 'run'
 const outputDir = path.resolve(repoRoot, values['output-dir'] || `tests/ux/shots/verbatim-prompt-real-model/${LABEL}`)
+const reportFile = path.join(outputDir, `report-${LABEL}.json`)
 fs.mkdirSync(outputDir, { recursive: true })
 
 const { prepareIsolation, dismissSplashIfPresent, createBlankProject } = await import(pathToFileURL(path.join(repoRoot, 'evals/lib/isoApp.mjs')).href)
@@ -166,9 +175,11 @@ try {
         await input.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
         await input.fill(text)
         await win.locator(`${CANVAS_PANEL} ${COMPOSER_SEND}`).click({ timeout: stationTimeout({ operations: 2 }) })
-        await running.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
+        const sawRunning = await running.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).then(() => true, () => false)
         await driveTurnToIdle(row.cardsAnswered)
-        row.turnCalls.push(readNewCalls(projectDir, seenCallIds).map((call) => ({ name: call.name, args: call.args })))
+        const turnCalls = readNewCalls(projectDir, seenCallIds).map((call) => ({ name: call.name, args: call.args }))
+        row.turnCalls.push(turnCalls)
+        row.turnOutcome = await classifyTurnOutcome(win, { panel: CANVAS_PANEL, toolCallCount: turnCalls.length, sawRunning })
       }
     } catch (roundError) {
       row.roundError = roundError.message
@@ -179,12 +190,33 @@ try {
     row.toolsInFinalTurn = finalCalls.map((call) => call.name)
     const prompts = finalCalls.flatMap((call) => collectPrompts(call.args))
     row.finalPrompts = prompts
+    row.outcome = row.turnOutcome?.outcome ?? TURN_OUTCOME.NOT_STARTED
+    if (!isJudgeableOutcome(row.outcome)) {
+      // 服务商报错 / 回合没起来：Agent 没干活，这一轮不能进逐字率 / 扩写率的分母。
+      row.unjudgeable = true
+      report.unjudgeable = (report.unjudgeable ?? 0) + 1
+      consecutiveUnjudgeable += 1
+      row.verdict = null
+      report.cases.push(row)
+      console.log(`${item.id} UNJUDGEABLE outcome=${row.outcome} error=${JSON.stringify(row.turnOutcome?.errorText ?? null)} ${row.ms}ms`)
+      fs.writeFileSync(reportFile, JSON.stringify(report, null, 2))
+      if (consecutiveUnjudgeable >= MAX_CONSECUTIVE_UNJUDGEABLE) {
+        const shot = path.join(outputDir, `stopped-${LABEL}.png`)
+        await win.screenshot({ path: shot }).catch(() => {})
+        report.stoppedEarly = `连续 ${consecutiveUnjudgeable} 轮不可判（${row.outcome}），已停`
+        process.exitCode = 1
+        console.error(`${report.stoppedEarly}。最后一屏截图：${shot}`)
+        break
+      }
+      continue
+    }
+    consecutiveUnjudgeable = 0
     row.verdict = item.kind === 'verbatim' ? judgeVerbatim(item.expected, prompts) : judgeExpansion(item.seed, prompts)
     report.cases.push(row)
     console.log(`${item.id} ${item.kind} wrote=${row.verdict.wrotePrompt} ${item.kind === 'verbatim' ? `exact=${row.verdict.exact} expanded=${row.verdict.expanded}` : `expanded=${row.verdict.expanded}`} tools=[${row.toolsInFinalTurn.join(',')}] ${row.ms}ms`)
-    fs.writeFileSync(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2))
+    fs.writeFileSync(reportFile, JSON.stringify(report, null, 2))
   }
-  report.summary = { rounds: report.cases.length, roundErrors: report.cases.filter((row) => row.roundError).length, ...summarize(report.cases) }
+  report.summary = { rounds: report.cases.length, unjudgeable: report.cases.filter((row) => row.unjudgeable).length, roundErrors: report.cases.filter((row) => row.roundError).length, ...summarize(report.cases.filter((row) => !row.unjudgeable)) }
   console.log('SUMMARY', JSON.stringify(report.summary))
 } catch (error) {
   failure = error
@@ -193,8 +225,8 @@ try {
   if (win) await win.screenshot({ path: path.join(outputDir, 'failure.png') }).catch(() => {})
 } finally {
   report.endedAt = new Date().toISOString()
-  fs.writeFileSync(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2))
-  console.log(`report → ${pathToFileURL(path.join(outputDir, 'report.json')).href}`)
+  fs.writeFileSync(reportFile, JSON.stringify(report, null, 2))
+  console.log(`report → ${pathToFileURL(reportFile).href}`)
   if (app) await closeNomiApp(app).catch(() => {})
   fs.rmSync(isoDir, { recursive: true, force: true })
   if (failure) console.error(failure)
