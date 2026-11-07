@@ -254,7 +254,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO2: Record<string, Record<string, Recor
     },
     "image_to_video": {
       "*": {
-        "aspect_ratio": "auto",
+        "aspect_ratio": "16:9",
         "resolution": "720p",
         "duration": 10
       }
@@ -270,7 +270,7 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO2: Record<string, Record<string, Recor
     },
     "image_to_video": {
       "*": {
-        "aspect_ratio": "auto",
+        "aspect_ratio": "16:9",
         "resolution": "720p",
         "duration": 10
       }

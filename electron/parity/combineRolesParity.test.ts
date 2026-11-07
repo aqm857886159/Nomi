@@ -96,9 +96,9 @@ async function runPathBody(item: Case, materials: ReturnType<typeof materialsFor
 }
 
 describe("角色数组合并：画布路与 Run 路发出的 image_with_roles 逐项相同", () => {
-  it("覆盖面：至少包含 Wan 2.7 角色参考、Seedance 首尾帧", () => {
+  it("覆盖面：至少包含 Wan 2.7 角色参考、Vidu Q4 参考生、Seedance 首尾帧", () => {
     const ids = CASES.map((item) => `${item.modelKey}/${item.mode.id}`);
-    expect(ids).toEqual(expect.arrayContaining(["wan2.7/ref", "doubao-seedance-2.5/firstlast"]));
+    expect(ids).toEqual(expect.arrayContaining(["wan2.7/ref", "viduq4-preview/ref", "doubao-seedance-2.5/firstlast"]));
   });
 
   for (const item of CASES) {

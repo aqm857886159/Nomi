@@ -42,7 +42,8 @@ const VIDU_Q3_PRO: Official = {
   resolution: ["540p", "720p", "1080p"],
   duration: { min: 1, max: 16 },
 };
-const OMNI12: Official = { aspect_ratio: ["16:9", "9:16", "auto"], resolution: ["360p", "720p", "1080p", "4k"], duration: { min: 3, max: 15 } };
+// Omni 1.2（两页都是）：aspect_ratio 只有 16:9 / 9:16、默认 16:9，没有 auto（Flash 页「Other values are treated as 16:9」，Ext 页「other values return a 400 error」）。
+const OMNI12: Official = { aspect_ratio: ["16:9", "9:16"], resolution: ["360p", "720p", "1080p", "4k"], duration: { min: 3, max: 15 } };
 
 /** archetypeId → 官方取值（控件 key → 取值集合或数值范围；布尔开关不在表里）。 */
 export const OFFICIAL_VALUES: Record<string, Official> = {

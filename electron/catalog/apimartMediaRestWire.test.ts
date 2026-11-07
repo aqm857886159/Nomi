@@ -157,11 +157,12 @@ const VIDEO_CASES: Record<string, { t2v?: Expected; i2v: Expected }> = {
   "gemini-omni-1.2-flash": {
     t2v: { model: "gemini-omni-1.2-flash", fields: ["model", "prompt", "aspect_ratio", "resolution", "duration"], values: { duration: 10, resolution: "720p" } },
     // 首帧图生：只发首帧字段（官方：首尾帧才加 last_frame_image；image_urls 是多图参考）。
-    i2v: { model: "gemini-omni-1.2-flash", fields: ["model", "prompt", "resolution", "duration", "first_frame_image"] },
+    // 比例官方只有 16:9 | 9:16、默认 16:9，没有 auto：图生也照发 aspect_ratio=16:9。
+    i2v: { model: "gemini-omni-1.2-flash", fields: ["model", "prompt", "aspect_ratio", "resolution", "duration", "first_frame_image"], values: { aspect_ratio: "16:9" } },
   },
   "gemini-omni-1.2-flash-ext": {
     t2v: { model: "gemini-omni-1.2-flash-ext", fields: ["model", "prompt", "aspect_ratio", "resolution", "duration"], values: { duration: 10, resolution: "720p" } },
-    i2v: { model: "gemini-omni-1.2-flash-ext", fields: ["model", "prompt", "resolution", "duration", "first_frame_image"] },
+    i2v: { model: "gemini-omni-1.2-flash-ext", fields: ["model", "prompt", "aspect_ratio", "resolution", "duration", "first_frame_image"], values: { aspect_ratio: "16:9" } },
   },
   "viduq4-preview": {
     i2v: { model: "viduq4-preview", fields: ["model", "prompt", "resolution", "duration", "audio", "first_frame_image"] },
@@ -241,11 +242,11 @@ describe("APIMart 视频型号（上一代改档 + 剩余新型号）：每个�
 });
 
 describe("Gemini Omni 1.2：多图参考和首尾帧的边界", () => {
-  it("多图参考带 omni_reference_task_type=reference；Ext 没有首尾帧；首尾帧最长 10 秒", () => {
+  it("多图参考带 omni_reference_task_type=reference；Flash 与 Ext 都有首尾帧；首尾帧最长 10 秒", () => {
     const flash = getArchetypeById("gemini-omni-1.2-flash")!;
     const ext = getArchetypeById("gemini-omni-1.2-flash-ext")!;
     expect(flash.modes.find((mode) => mode.id === "reference")?.fixedParams).toEqual({ omni_reference_task_type: "reference" });
-    expect(ext.modes.map((mode) => mode.id)).toEqual(["t2v", "i2v", "reference"]);
+    expect(ext.modes.map((mode) => mode.id)).toEqual(["t2v", "i2v", "firstlast", "reference"]);
     const firstlast = flash.modes.find((mode) => mode.id === "firstlast")!;
     expect(firstlast.params.find((param) => param.key === "duration")?.max).toBe(10);
     expect(flash.modes.find((mode) => mode.id === "i2v")!.params.find((param) => param.key === "duration")?.max).toBe(15);

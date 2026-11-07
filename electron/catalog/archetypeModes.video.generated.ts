@@ -389,6 +389,7 @@ export const ARCHETYPE_MODE_MANIFEST_VIDEO: Record<string, { defaultModeId: stri
     "modes": {
       "t2v": "text_to_video",
       "i2v": "image_to_video",
+      "firstlast": "image_to_video",
       "reference": "image_to_video"
     }
   }

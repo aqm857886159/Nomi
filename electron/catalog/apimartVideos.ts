@@ -295,24 +295,24 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, audio: AUDIO, image_urls: IMAGE_URLS },
   }),
-  // Vidu Q4 预览版：没有文生；图生走 first_frame_image，参考生走 image_urls + aspect_ratio（两个模式共用一条 mapping，互斥由模式投影保证）。
+  // Vidu Q4 预览版：没有文生；图生走 first_frame_image，参考生走 image_with_roles（[{url, role:'reference_image'}]，
+  // 模式的 combineSlotsInto 组装）+ aspect_ratio。官方：只给 1 张、不带角色时按图生视频走，所以参考生不能发扁平的 image_urls；
+  // 两个模式共用一条 mapping，互斥由模式投影保证。image_urls 只留给没有模式的 headless 调用（官方：1 张 = 图生，2–15 张 = 参考生）。
   videoModel({
     modelKey: "viduq4-preview", labelZh: "Vidu Q4 预览版", archetypeId: "viduq4-preview",
-    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS },
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS, image_with_roles: IMAGE_WITH_ROLES },
   }),
-  // Gemini Omni 1.2：官方通道 Flash 有首尾帧，Ext 没有；多图参考发 omni_reference_task_type=reference（mode.fixedParams 注入）。
-  // 视频编辑 / 续写（video_urls）不声明。Omni 1.1（Omni-Flash-Ext）是上一代，保留可选。
+  // Gemini Omni 1.2：两条通道都有首帧 / 首尾帧 / 多图参考；多图参考发 omni_reference_task_type=reference（mode.fixedParams 注入）。
+  // 比例只有 16:9 / 9:16（官方没有 auto），每种模式照发。视频编辑 / 续写（video_urls）不声明。Omni 1.1（Omni-Flash-Ext）是上一代，保留可选。
   videoModel({
     modelKey: "gemini-omni-1.2-flash", labelZh: "Gemini Omni 1.2 Flash", archetypeId: "gemini-omni-1.2-flash",
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
-    i2vBody: { aspect_ratio: ASPECT_OPTIONAL, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
-    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
   }),
   videoModel({
     modelKey: "gemini-omni-1.2-flash-ext", labelZh: "Gemini Omni 1.2 Flash Ext", archetypeId: "gemini-omni-1.2-flash-ext",
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
-    i2vBody: { aspect_ratio: ASPECT_OPTIONAL, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
-    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
   }),
   {
     modelKey: "MiniMax-H3-Regeneration",
