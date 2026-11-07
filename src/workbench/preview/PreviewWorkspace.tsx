@@ -3,7 +3,7 @@ import { AssistantPane } from '../AssistantPane'
 import { assistantPaneWidth } from '../assistantWidthBounds'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Group, Panel, Separator, usePanelRef, type PanelImperativeHandle } from 'react-resizable-panels'
+import { Group, Panel, Separator, useGroupRef, usePanelRef, type GroupImperativeHandle, type Layout, type LayoutChangedMeta } from 'react-resizable-panels'
 import { useWorkbenchStore } from '../workbenchStore'
 import { cn } from '../../utils/cn'
 import TimelinePanel from '../timeline/TimelinePanel'
@@ -11,33 +11,50 @@ import { computeTimelineDuration, resolveActiveClipsAtFrame } from '../timeline/
 import TimelinePreview from './TimelinePreview'
 import PreviewSourcePanel from './PreviewSourcePanel'
 import PreviewInspector from './inspector/PreviewInspector'
-import { EDITING_PANEL_BOUNDS, EDITING_PANEL_RAIL_WIDTH, editingPanelResizeEffect, type EditingPanelSizeKey } from './panelLayout'
+import {
+  EDITING_PANEL_BOUNDS,
+  EDITING_PANEL_RAIL_WIDTH,
+  editingPanelDragIntent,
+  editingSidePanelDrawnOpen,
+  resolveEditingStageFrame,
+  resolveEditingTimelineHeight,
+  type EditingSidePanel,
+} from './panelLayout'
 import { useTimelinePlaybackClock } from '../timeline/useTimelinePlaybackClock'
 
 // 剪辑面板系统（合同 §2.1 布局 C′）。
 //
-// 一条真相：面板像素尺寸住在 workbenchStore.editingPanelLayout（它同时是 Agent `layout.read/write`
-// 的契约、也是随项目落盘的那份）。react-resizable-panels v4 的尺寸 prop 直接吃像素数字
-// （`defaultSize={300}` = 300px，字符串才是百分比），所以合同里那张「300 / 240 / 390 / 260 · 最小
-// 240 / 200 / 320 / 140」的表可以逐字落成 props，不再靠百分比换算——上一版把 300px 写成 18%，
-// 在实际宽度下算出 232px < 240px 最小值，左栏于是被压到 tab 文字截断成「素」。
+// 两份东西、各一个出处（2026-11-04 窄窗修复）：
+//  · 用户想要的开合与宽度：workbenchStore.editingPanelLayout（Agent `layout.read/write` 的契约、随项目落盘）。
+//  · 这一刻实际怎么摆：resolveEditingStageFrame(舞台行宽, 意图, 放不下时留哪边) 派生，不存储。
+//    面板库只吃这份（整组 setLayout），栏里画展开还是收起条按面板的真实宽度（不到最小宽就画收起条）。
+// 此前两份各说各的：栏里画什么读存档开关、多宽由面板库按空间算，1280 宽开着 Nomi 时三栏最小宽 920 > 舞台 814，
+// 面板库把左栏吸成 32px，栏里仍画展开内容，空态一字一行竖排。
 //
-// 回写只有一个口：Panel.onResize → syncEditingPanelSize（纯镜像）。用户手拖才把 preset 标成
-// 'custom'，判据是 Group.onLayoutChanged 的 isUserInteraction——程序化 resize（切预设、恢复
-// 落盘布局）不会误标。
+// 回写存档只有一个口：用户亲手拖完分隔条（Group.onLayoutChanged 的 isUserInteraction），规则见 editingPanelDragIntent。
+// 窗口变窄、开关 Nomi、约束重算都不写存档——它们不是用户改主意（同 assistantWidthBounds「窄窗不偷改当前宽」）。
+// 两侧栏 preserve-pixel-size：容器变宽变窄，差额全给预览。
 //
 // 顶栏「布局」菜单与「导出 MP4」不在这里：合同 §2.2 要求它们固定在**应用顶栏右上**，
 // 见 40px 合一顶栏（ShellTopBar）预览页右簇的「布局」与「导出 MP4」。
 
 type PreviewWorkspaceProps = { aiCollapsed?: boolean; agentDockRef?: React.Ref<HTMLDivElement> }
 
-function SplitHandle({ vertical = false }: { vertical?: boolean }): JSX.Element {
+const STAGE_PANEL = { source: 'editing-surface-source', preview: 'editing-surface-preview', inspector: 'editing-surface-inspector' } as const
+const COLUMN_PANEL = { stage: 'editing-surface-stage', timeline: 'editing-surface-timeline' } as const
+/** 套上去的布局和要求的差多少像素算没套上；没套上就下一帧再套，最多这么多帧（面板库改约束要多渲染一轮才生效）。 */
+const APPLY_TOLERANCE_PX = 1
+const APPLY_ATTEMPTS = 3
+
+function SplitHandle({ vertical = false, onGrab }: { vertical?: boolean; onGrab?: () => void }): JSX.Element {
   return (
     <Separator
       className={cn(
         'group relative z-10 flex flex-none items-center justify-center bg-[var(--workbench-border)]',
         vertical ? 'w-px cursor-col-resize' : 'h-px cursor-row-resize',
       )}
+      onPointerDown={onGrab}
+      onKeyDown={onGrab}
     >
       <span
         className={cn(
@@ -49,76 +66,50 @@ function SplitHandle({ vertical = false }: { vertical?: boolean }): JSX.Element 
   )
 }
 
-type PanelTarget = {
-  ref: React.RefObject<PanelImperativeHandle | null>
-  /** 面板根 div，用来量**渲染后的真实像素**——见 usePanelLayoutSync 里为什么不能只信 resize()。 */
-  element: React.MutableRefObject<HTMLDivElement | null>
-  orientation: 'width' | 'height'
-  visible: boolean
-  size: number
+/** 一个面板组里各面板长度之和——面板库算百分比的基数（不含分隔条）。组没量到（页面藏着）是 0。 */
+function useGroupExtent(groupElement: React.RefObject<HTMLDivElement | null>, axis: 'width' | 'height'): number {
+  const [extent, setExtent] = React.useState(0)
+  React.useLayoutEffect(() => {
+    const element = groupElement.current
+    if (!element) return undefined
+    const measure = () => {
+      let sum = 0
+      for (const child of Array.from(element.children)) {
+        if (child instanceof HTMLElement && child.hasAttribute('data-panel')) sum += axis === 'width' ? child.offsetWidth : child.offsetHeight
+      }
+      setExtent(sum)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [groupElement, axis])
+  return extent
 }
 
-/**
- * 把 store 的「可见 + 像素宽」推回三块可收起的面板。
- *
- * 必须是**一个协调的 effect**，不能三块各一个：
- *  · 三块分属两个 Group（Nomi 在根组，镜头/属性在舞台行组），各自 expand/resize 会互相抢空间，
- *    彼此看到的都是对方改到一半的中间态；上一版三个独立 effect 于是把「恢复默认」的 300/240
- *    先落成两块的下限、后来又冲到 383/307，两次都不是合同值。
- *  · expand() 之后要**等一帧**再定尺寸：同帧里尺寸还没重新分配完，resize 会被当时的剩余空间夹住。
- *  · 外层先于内层：先把 Nomi 那一刀切好，舞台行的可用宽度才是最终值，再分镜头/属性。
- *  · 收敛判据量的是 DOM 的 getBoundingClientRect()，不是 getSize().inPixels：真正要成立的是
- *    「用户看到的那一列有多宽」，量渲染结果再按「当前百分比 × 目标/实测」比例修正，
- *    才不依赖库内部像素→flexGrow 的换算细节。
- * 最多试 CONVERGE_FRAMES 帧；某一帧不需要任何改动就提前停。
- */
-const CONVERGE_FRAMES = 6
-
-function usePanelLayoutSync(targets: PanelTarget[]): React.MutableRefObject<boolean> {
-  const latest = React.useRef(targets)
-  latest.current = targets
-  // 同步期间**必须屏蔽回写**：不然中间态（比如 Nomi 刚展开、舞台行还没重新分配完）会被
-  // onResize 当成用户的新选择写进 store，目标值当场被覆盖，收敛循环就再也追不回合同值了。
-  // 上一版「恢复默认」落在 383/307 而不是 300/240，就是这条自我覆盖。
-  const syncing = React.useRef(false)
-  const signature = targets.map((target) => `${target.visible ? 1 : 0}:${target.size}`).join('|')
-
-  React.useEffect(() => {
+/** 把一组像素长度（按面板顺序）一次交给面板库。 */
+function useApplyGroupLayout(group: React.RefObject<GroupImperativeHandle | null>, extent: number, sizes: ReadonlyArray<readonly [string, number]> | null): void {
+  const latest = React.useRef({ extent, sizes })
+  latest.current = { extent, sizes }
+  const signature = sizes && extent > 0 ? `${extent}|${sizes.map(([id, pixels]) => `${id}:${pixels}`).join('|')}` : ''
+  React.useLayoutEffect(() => {
+    if (!signature) return undefined
+    const { extent: total, sizes: wanted } = latest.current
+    if (!wanted || total <= 0) return undefined
+    const requested: Layout = Object.fromEntries(wanted.map(([id, pixels]) => [id, (pixels / total) * 100]))
     let frame = 0
-    let remaining = CONVERGE_FRAMES
-    syncing.current = true
-
-    const finish = () => { syncing.current = false }
-    const step = () => {
-      let changed = false
-      for (const target of latest.current) {
-        const panel = target.ref.current
-        if (!panel) continue
-        if (!target.visible) {
-          if (!panel.isCollapsed()) { panel.collapse(); changed = true }
-          continue
-        }
-        if (panel.isCollapsed()) { panel.expand(); changed = true; continue }
-        const rect = target.element.current?.getBoundingClientRect()
-        const rendered = rect ? (target.orientation === 'width' ? rect.width : rect.height) : panel.getSize().inPixels
-        if (Math.abs(rendered - target.size) <= 1) continue
-        const current = panel.getSize()
-        // 按实测比例修正：目标百分比 = 当前百分比 × (目标像素 / 实测像素)。
-        // 实测拿不到（首帧、隐藏中）就退回直接给像素。
-        if (rendered > 0 && current.asPercentage > 0) panel.resize(`${current.asPercentage * (target.size / rendered)}%`)
-        else panel.resize(target.size)
-        changed = true
-      }
-      remaining -= 1
-      if (changed && remaining > 0) frame = requestAnimationFrame(step)
-      else frame = requestAnimationFrame(finish)
+    let attempts = APPLY_ATTEMPTS
+    const apply = () => {
+      const handle = group.current
+      if (!handle) return
+      const applied = handle.setLayout(requested)
+      attempts -= 1
+      const missed = wanted.some(([id]) => Math.abs((applied[id] ?? 0) - requested[id]) * total / 100 > APPLY_TOLERANCE_PX)
+      if (missed && attempts > 0) frame = requestAnimationFrame(apply)
     }
-
-    step()
-    return () => { if (frame) cancelAnimationFrame(frame); syncing.current = false }
-  }, [signature])
-
-  return syncing
+    apply()
+    return () => cancelAnimationFrame(frame)
+  }, [group, signature])
 }
 
 export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: PreviewWorkspaceProps): JSX.Element {
@@ -130,19 +121,22 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const setTimelinePlaying = useWorkbenchStore((state) => state.setTimelinePlaying)
   const setTimelinePlayhead = useWorkbenchStore((state) => state.setTimelinePlayhead)
   const layout = useWorkbenchStore((state) => state.editingPanelLayout)
+  const keep = useWorkbenchStore((state) => state.editingPanelKeep)
   const syncSize = useWorkbenchStore((state) => state.syncEditingPanelSize)
   const markCustom = useWorkbenchStore((state) => state.markEditingPanelLayoutCustom)
-  const toggleEditingPanel = useWorkbenchStore((state) => state.toggleEditingPanel)
+  const showEditingPanel = useWorkbenchStore((state) => state.showEditingPanel)
+  const keepEditingPanel = useWorkbenchStore((state) => state.keepEditingPanel)
   const setEditingPanelLayout = useWorkbenchStore((state) => state.setEditingPanelLayout)
   const undoEditingPanelLayout = useWorkbenchStore((state) => state.undoEditingPanelLayout)
   const inputHostRef = React.useRef<HTMLElement | null>(null)
   const sourcePanelRef = usePanelRef()
   const inspectorPanelRef = usePanelRef()
-  const sourceElementRef = React.useRef<HTMLDivElement | null>(null)
-  const inspectorElementRef = React.useRef<HTMLDivElement | null>(null)
-  // defaultSize 是**挂载时**的初值，不是受控值。喂它实时 store 值的话，每次改布局都会在
-  // 我们的同步循环之后再触发一次库内部的「默认尺寸变了 → 重排」，把刚定好的 300/240 顶成 383/307。
-  // 之后的所有布局变更都只走 usePanelLayoutSync 的命令式通道。
+  const timelinePanelRef = usePanelRef()
+  const stageGroupRef = useGroupRef()
+  const columnGroupRef = useGroupRef()
+  const stageRowElementRef = React.useRef<HTMLDivElement | null>(null)
+  const columnElementRef = React.useRef<HTMLDivElement | null>(null)
+  // defaultSize 只是挂载那一帧的初值；之后每一刻的布局都由下面的求解结果整组套上去。
   const initialLayout = React.useRef(layout).current
   const durationFrame = React.useMemo(() => computeTimelineDuration(timeline), [timeline])
   const activeClips = React.useMemo(() => resolveActiveClipsAtFrame(timeline, playheadFrame), [timeline, playheadFrame])
@@ -150,19 +144,52 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
 
   useTimelinePlaybackClock({ playing, playheadFrame, durationFrame, fps: timeline.fps, onPlayheadChange: setTimelinePlayhead, onPlayingChange: setTimelinePlaying })
 
-  // 顺序即外层先于内层：Nomi 那一刀定了，舞台行的可用宽度才是最终值。
-  const syncingRef = usePanelLayoutSync([
-    { ref: sourcePanelRef, element: sourceElementRef, orientation: 'width', visible: layout.visibility.source, size: layout.sourceWidth },
-    { ref: inspectorPanelRef, element: inspectorElementRef, orientation: 'width', visible: layout.visibility.inspector, size: layout.inspectorWidth },
-  ])
-  const onPanelResized = React.useCallback((key: EditingPanelSizeKey, pixels: number, visible: boolean) => {
-    // 同步期间量到的是中间态，不写回。
-    if (syncingRef.current) return
-    // 拖过收起阈值 → 写回 visibility；普通拖宽 → 镜像像素（规则见 editingPanelResizeEffect）。
-    const effect = editingPanelResizeEffect(key, pixels, visible)
-    if (effect?.kind === 'visibility') setEditingPanelLayout({ visibility: { [effect.panel]: effect.visible } })
-    else if (effect?.kind === 'size') syncSize({ [key]: effect.size })
-  }, [setEditingPanelLayout, syncSize, syncingRef])
+  const panelsWidth = useGroupExtent(stageRowElementRef, 'width')
+  const columnHeight = useGroupExtent(columnElementRef, 'height')
+  const frame = React.useMemo(
+    () => (panelsWidth > 0 ? resolveEditingStageFrame({ panelsWidth, layout: { sourceWidth: layout.sourceWidth, inspectorWidth: layout.inspectorWidth, visibility: layout.visibility }, keep }) : null),
+    [panelsWidth, layout.sourceWidth, layout.inspectorWidth, layout.visibility, keep],
+  )
+  const frameRef = React.useRef(frame)
+  frameRef.current = frame
+  useApplyGroupLayout(stageGroupRef, panelsWidth, frame ? [
+    [STAGE_PANEL.source, frame.source.width],
+    [STAGE_PANEL.preview, frame.preview],
+    [STAGE_PANEL.inspector, frame.inspector.width],
+  ] : null)
+  const timelineHeight = columnHeight > 0 ? resolveEditingTimelineHeight(columnHeight, layout.timelineHeight) : 0
+  useApplyGroupLayout(columnGroupRef, columnHeight, timelineHeight > 0 ? [
+    [COLUMN_PANEL.stage, columnHeight - timelineHeight],
+    [COLUMN_PANEL.timeline, timelineHeight],
+  ] : null)
+
+  // 栏里画展开还是收起条，按面板此刻的真实宽度：不到最小宽就画收起条，展开内容永远不挤进窄列。
+  const [drawnOpen, setDrawnOpen] = React.useState<Record<EditingSidePanel, boolean>>(() => ({ source: layout.visibility.source, inspector: layout.visibility.inspector }))
+  const onSideResize = React.useCallback((panel: EditingSidePanel, pixels: number) => {
+    const open = editingSidePanelDrawnOpen(panel, pixels)
+    setDrawnOpen((previous) => (previous[panel] === open ? previous : { ...previous, [panel]: open }))
+  }, [])
+
+  // 用户抓的是哪条分隔线：拖宽哪一栏，放不下时就留哪一栏（不从布局变化里猜）。
+  const grabbedRef = React.useRef<EditingSidePanel | null>(null)
+  const onStageLayoutChanged = React.useCallback((_layout: Layout, meta: LayoutChangedMeta) => {
+    if (!meta.isUserInteraction) return
+    markCustom()
+    const current = frameRef.current
+    const source = sourcePanelRef.current?.getSize().inPixels
+    const inspector = inspectorPanelRef.current?.getSize().inPixels
+    if (!current || source === undefined || inspector === undefined) return
+    const intent = editingPanelDragIntent(current, { source, inspector }, grabbedRef.current)
+    if (Object.keys(intent.sizes).length > 0) syncSize(intent.sizes)
+    if (Object.keys(intent.visibility).length > 0) setEditingPanelLayout({ visibility: intent.visibility })
+    if (intent.keep) keepEditingPanel(intent.keep)
+  }, [inspectorPanelRef, keepEditingPanel, markCustom, setEditingPanelLayout, sourcePanelRef, syncSize])
+  const onColumnLayoutChanged = React.useCallback((_layout: Layout, meta: LayoutChangedMeta) => {
+    if (!meta.isUserInteraction) return
+    markCustom()
+    const height = timelinePanelRef.current?.getSize().inPixels
+    if (height !== undefined) syncSize({ timelineHeight: Math.round(height) })
+  }, [markCustom, syncSize, timelinePanelRef])
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -174,11 +201,6 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [undoEditingPanelLayout])
 
-  const onUserLayout = React.useCallback(
-    (_layout: unknown, meta: { isUserInteraction: boolean }) => { if (meta.isUserInteraction) markCustom() },
-    [markCustom],
-  )
-
   return (
     <section
       ref={inputHostRef}
@@ -188,26 +210,32 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
       <div className="grid h-full w-full min-w-0" id="editing-surface-root"
         style={{ gridTemplateColumns: assistantVisible ? `minmax(0,1fr) ${assistantPaneWidth(layout.assistantWidth)}px` : 'minmax(0,1fr)' }}>
         <div className="min-h-0 min-w-0 overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft" id="editing-surface-main">
-          <Group orientation="vertical" className="h-full" id="editing-surface-left" onLayoutChanged={onUserLayout}>
-            <Panel id="editing-surface-stage" minSize={EDITING_PANEL_BOUNDS.stage.min}>
-              <Group orientation="horizontal" className="h-full" id="editing-surface-stage-row" onLayoutChanged={onUserLayout}>
+          <Group orientation="vertical" className="h-full" id="editing-surface-left" groupRef={columnGroupRef} elementRef={columnElementRef} onLayoutChanged={onColumnLayoutChanged}>
+            <Panel id={COLUMN_PANEL.stage} minSize={EDITING_PANEL_BOUNDS.stage.min}>
+              <Group orientation="horizontal" className="h-full" id="editing-surface-stage-row" groupRef={stageGroupRef} elementRef={stageRowElementRef} onLayoutChanged={onStageLayoutChanged}>
                 {/* 剪辑页左边那栏「镜头 / 素材」原样保留（协调裁决：外壳只搬容器、不拆内容；布局菜单与 Agent 的 layout 契约都还认它）。
                     同样的「拖进时间轴 / 点击追加」也在左栏「目录」抽屉里（第 32 项）。 */}
                 <Panel
-                  id="editing-surface-source"
+                  id={STAGE_PANEL.source}
                   panelRef={sourcePanelRef}
-                  elementRef={sourceElementRef}
                   defaultSize={initialLayout.sourceWidth}
                   minSize={EDITING_PANEL_BOUNDS.source.min}
                   maxSize={EDITING_PANEL_BOUNDS.source.max}
                   collapsible
                   collapsedSize={EDITING_PANEL_RAIL_WIDTH}
-                  onResize={(size) => onPanelResized('sourceWidth', size.inPixels, layout.visibility.source)}
+                  groupResizeBehavior="preserve-pixel-size"
+                  onResize={(size) => onSideResize('source', size.inPixels)}
                 >
-                  <div className="h-full min-w-0 overflow-hidden"><PreviewSourcePanel /></div>
+                  <div className="h-full min-w-0 overflow-hidden">
+                    <PreviewSourcePanel
+                      collapsed={!drawnOpen.source}
+                      onExpand={() => showEditingPanel('source', true)}
+                      onCollapse={() => showEditingPanel('source', false)}
+                    />
+                  </div>
                 </Panel>
-                <SplitHandle vertical />
-                <Panel id="editing-surface-preview" minSize={EDITING_PANEL_BOUNDS.preview.min}>
+                <SplitHandle vertical onGrab={() => { grabbedRef.current = 'source' }} />
+                <Panel id={STAGE_PANEL.preview} minSize={frame?.previewMin ?? EDITING_PANEL_BOUNDS.preview.min}>
                   <div className="relative h-full min-w-0 overflow-hidden">
                     <TimelinePreview
                       activeClips={activeClips}
@@ -218,34 +246,35 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
                     />
                   </div>
                 </Panel>
-                <SplitHandle vertical />
+                <SplitHandle vertical onGrab={() => { grabbedRef.current = 'inspector' }} />
                 <Panel
-                  id="editing-surface-inspector"
+                  id={STAGE_PANEL.inspector}
                   panelRef={inspectorPanelRef}
-                  elementRef={inspectorElementRef}
                   defaultSize={initialLayout.inspectorWidth}
                   minSize={EDITING_PANEL_BOUNDS.inspector.min}
                   maxSize={EDITING_PANEL_BOUNDS.inspector.max}
                   collapsible
                   collapsedSize={EDITING_PANEL_RAIL_WIDTH}
-                  onResize={(size) => onPanelResized('inspectorWidth', size.inPixels, layout.visibility.inspector)}
+                  groupResizeBehavior="preserve-pixel-size"
+                  onResize={(size) => onSideResize('inspector', size.inPixels)}
                 >
                   <PreviewInspector
                     timeline={timeline}
-                    collapsed={!layout.visibility.inspector}
-                    onToggleCollapsed={() => toggleEditingPanel('inspector')}
+                    collapsed={!drawnOpen.inspector}
+                    onExpand={() => showEditingPanel('inspector', true)}
+                    onCollapse={() => showEditingPanel('inspector', false)}
                   />
                 </Panel>
               </Group>
             </Panel>
             <SplitHandle />
             <Panel
-              id="editing-surface-timeline"
+              id={COLUMN_PANEL.timeline}
+              panelRef={timelinePanelRef}
               defaultSize={initialLayout.timelineHeight}
               minSize={EDITING_PANEL_BOUNDS.timeline.min}
               maxSize={EDITING_PANEL_BOUNDS.timeline.max}
               groupResizeBehavior="preserve-pixel-size"
-              onResize={(size) => onPanelResized('timelineHeight', size.inPixels, true)}
             >
               <div className="relative h-full min-h-0 min-w-0 overflow-hidden border-t border-[var(--workbench-border)]">
                 <TimelinePanel

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>PreviewNarrowPanels · 预览页窄窗侧栏（拍板：先收属性）</title>
+<style>body{margin:0}</style>
+</head>
+<body>
+<div style="width: 1400px; height: 1720px; box-sizing: border-box; padding: 56px 64px; display: flex; flex-direction: column; gap: 28px; background: oklch(0.97 0.003 80); color: oklch(0.22 0.01 80); font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', system-ui, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<p style="margin: 0; font-size: 13px; color: oklch(0.50 0.01 80)">预览页 · 修 bug 带可见改动 · 已拍板 2026-11-04（Q1 用户原话「先收属性」，Q2–Q4 按默认）</p>
+<h1 style="margin: 0; font-size: 32px; font-weight: 600">窗口窄时，预览页左栏不再被压成一条缝</h1>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<section style="background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">今天发生了什么</h2>
+<p style="margin: 0; font-size: 14px; line-height: 1.7">1280 宽、Nomi 开着：中间只剩 814px，三栏最小宽加起来要 240 + 480 + 200 = 920，放不下。面板库把左栏缩到 32px，但左栏里仍按展开画，空态说明一字一行竖排，「收起」也被拆成两行。</p>
+<p style="margin: 0; font-size: 14px; line-height: 1.7">同一类的另两处：关掉 Nomi 后，左右两栏被按比例撑宽（属性栏撑到 420 上限），这个宽度还被当成你拖出来的存下；1100 宽时反过来，属性栏明明收着，收起条却被拉成 192px 的空白。</p>
+<p style="margin: 0; font-size: 14px; line-height: 1.7; color: oklch(0.50 0.01 80)">根子：栏「画成展开还是收起条」看的是存档里的开关，栏「实际多宽」由面板库按空间算，两份各说各的。</p>
+</section>
+
+<section style="background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">修后四条规则</h2>
+<ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.7; display: flex; flex-direction: column; gap: 6px">
+<li>侧栏要么有可读宽度（左栏 ≥ 240、属性 ≥ 200），要么就是 32px 收起条（图标 + 竖排名字，今天点「收起」就是它），不会挤着画。</li>
+<li>窗口变窄、打开 Nomi 不算你改主意：存下的开合和栏宽都不动，宽度差额全给预览；窗口变宽，被自动收起的栏自己回来。</li>
+<li>两边都开时预览至少留 480；不够就先把右侧「属性」收成条，左栏「镜头 / 素材」留着。</li>
+<li>点收起条一定有用：点哪边开哪边，另一边让成收起条（窄窗下两边轮流开）；你点开的那边一直开着，必要时预览最窄让到 400。</li>
+</ol>
+</section>
+</div>
+
+<section style="background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">拍板结果</h2>
+<div style="display: grid; grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1.2fr); gap: 10px 16px; font-size: 14px; line-height: 1.6">
+<strong>Q1</strong>
+<span>两边放不下，先收哪边？</span>
+<span><strong>已定：先收属性（用户原话「先收属性」）。</strong>预览页的主活是把镜头拖进成片，左栏用得最多；属性要先选中片段才有内容，要看时点它的收起条就开，左栏让成条。</span>
+<strong>Q2</strong>
+<span>点收起条但没地方放？</span>
+<span><strong>已定（按默认）：打开它，另一边让成收起条。</strong>不这样的话，1280 开着 Nomi 时点属性收起条什么都不会发生。</span>
+<strong>Q3</strong>
+<span>你点开的那边放不下时，预览可以从 480 让到 400？</span>
+<span><strong>已定（按默认）：可以。</strong>只在窗口 1100–1170 宽、开着 Nomi 时会发生；不让的话这个宽度下点收起条没反应。自动收栏仍按 480 判断，平时预览不会变小。400 由「最窄内容区 684 = 左栏 240 + 收起条 32 + 预览」推出，测试按公式守。</span>
+<strong>Q4</strong>
+<span>开关 Nomi、改窗口宽时左右栏保持你定的宽度？</span>
+<span><strong>已定（按默认）：是，差额给预览。</strong>今天会按比例撑宽并存下（属性栏 240 → 420）。</span>
+</div>
+</section>
+
+<section style="background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">宽度对照（左栏 / 预览 / 属性，px；真 App 实测）</h2>
+<div style="display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: 8px 16px; font-size: 14px; line-height: 1.6">
+<strong style="color: oklch(0.50 0.01 80)">窗口</strong>
+<strong style="color: oklch(0.50 0.01 80)">今天</strong>
+<strong style="color: oklch(0.50 0.01 80)">修后</strong>
+<strong style="color: oklch(0.50 0.01 80)">点属性收起条后</strong>
+<span>1280 · Nomi 开</span>
+<span>32（竖排）/ 480 / 300</span>
+<span>300 / 480 / 收起条</span>
+<span>收起条 / 540 / 240</span>
+<span>1280 · Nomi 关</span>
+<span>240 / 550 / 420</span>
+<span>300 / 670 / 240</span>
+<span>—</span>
+<span>1440 · Nomi 开</span>
+<span>240 / 480 / 252</span>
+<span>292 / 480 / 200</span>
+<span>—</span>
+<span>1440 · Nomi 关</span>
+<span>338 / 677 / 355</span>
+<span>300 / 830 / 240</span>
+<span>—</span>
+<span>1100 · Nomi 开</span>
+<span>两栏都收着时：收起条 / 460 / 192 空白条</span>
+<span>240 / 410 / 收起条</span>
+<span>收起条 / 450 / 200</span>
+</div>
+<p style="margin: 0; font-size: 13px; color: oklch(0.50 0.01 80)">修后截图是实现后的真 App（打包产物）按走查 tests/ux/preview-narrow-panels.walk.mjs 拍的；今天的样子是 0.24.0 真包。</p>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<section style="background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">先查别人</h2>
+<ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.65; display: flex; flex-direction: column; gap: 6px">
+<li>macOS NSSplitViewItem.canCollapseFromWindowResize：随窗口变窄自动收、变宽自动回来，不改用户设定 → 确认规则 2；先收哪边按 Nomi 预览页的主活定（规则 3）。</li>
+<li>VS Code #1029：侧栏挤到最窄时按钮被裁掉、没有提示 → 确认规则 1，宁可收成条也不挤。</li>
+<li>react-resizable-panels：库只改宽度不管内容；onLayoutChanged 的 isUserInteraction 区分「用户拖的」和「约束重算」→ 改了写回：只记用户亲手拖的。</li>
+<li>Obsidian「窗口窄时隐藏侧栏」插件：低于阈值收、变宽恢复 → 确认规则 2。</li>
+</ul>
+</section>
+<section style="background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">不变的</h2>
+<ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.65; display: flex; flex-direction: column; gap: 6px">
+<li>收起条、「‹ 收起」、标签栏、空态文案的样子和文字都不改。</li>
+<li>顶栏「布局」菜单的开关和预设、⌘Z 撤销布局、拖分隔条收起 / 展开 / 改宽照旧。</li>
+<li>Agent 的 layout.read / layout.write 读写的仍是你选的开合与宽度。</li>
+<li>老项目里存的布局原样读，不迁移；只是以后不再把窗口挤出来的宽度写回去。</li>
+</ul>
+</section>
+</div>
+</div>
+</body>
+</html>

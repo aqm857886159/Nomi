@@ -4,7 +4,7 @@
 // 场景登记在 tests/installer/scenarios.mjs，普查在 tests/installer/installerScenarios.test.mjs。
 //
 // 用法（工作流里就是这一行，不带 --only）：
-//   node tests/installer/windows-installer-scenarios.mjs --old <v0.24.0 安装包> --old-sums <SHA256SUMS.txt>
+//   node tests/installer/windows-installer-scenarios.mjs --old <旧版安装包> --old-sums <SHA256SUMS.txt> [--old-version x.y.z，默认 0.24.0]
 //     --new <本次构建的安装包> --manifest .tmp/installer-manifest/Nomi-x64.json --unpacked release/win-unpacked
 //     --work <工作目录，路径里不能有空格> --report <报告.json> [--counterexamples]
 //   --only <场景 id>：只给本机排查用。
@@ -33,8 +33,15 @@ import { COUNTEREXAMPLES, DEFAULT_PROJECTS_FOLDER, MARKER_VALUE_NAME, SCENARIOS 
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const WATCHER = path.join(repoRoot, 'tests', 'installer', 'dialog-watcher.ps1')
-/** 旧版：GitHub Release v0.24.0（事故发生的那一版，卸载程序还是 RMDir /r）。 */
-export const OLD_VERSION = '0.24.0'
+/** 旧版默认值：GitHub Release v0.24.0（事故发生的那一版，卸载程序还是 RMDir /r）。推送与发版硬门永远用它；手动触发可用 --old-version 指定更早的版本。 */
+export const DEFAULT_OLD_VERSION = '0.24.0'
+const OLD_VERSION_PATTERN = /^\d+\.\d+\.\d+$/
+/** 旧版本号只认 x.y.z；格式不对直接抛错（不静默回落到默认值）。 */
+export function parseOldVersion(value) {
+  if (value === undefined) return DEFAULT_OLD_VERSION
+  if (typeof value !== 'string' || !OLD_VERSION_PATTERN.test(value)) throw new Error(`--old-version must look like x.y.z, got "${value}"`)
+  return value
+}
 const INSTALLER_TIMEOUT_MS = 20 * 60_000
 /** 我们自己起的安装 / 卸载进程名；只有它们的对话框算数（runner 桌面上别的系统弹窗只记录、不判）。 */
 const INSTALLER_PROCESS = /^(?:nomi-|old-uninstaller$|Au_$|Un_A$|Uninstall )/i
@@ -288,6 +295,7 @@ function scenarioContext(state, root, newExe) {
     root,
     manifest,
     newVersion: manifest.version,
+    oldVersion: state.oldVersion,
     legacyOnly: state.legacyOnly ?? [],
     snapshotTree,
     registrationSnapshot: registryEntries,
@@ -305,10 +313,10 @@ function scenarioContext(state, root, newExe) {
     },
     async installOld(dir, { allUsers = false } = {}) {
       fs.mkdirSync(path.dirname(dir), { recursive: true })
-      const run = await runInstaller(state, state.oldExe, ['/S', ...(allUsers ? ['/allusers'] : []), `/D=${dir}`], `install ${OLD_VERSION}${allUsers ? ' for all users' : ''}`)
+      const run = await runInstaller(state, state.oldExe, ['/S', ...(allUsers ? ['/allusers'] : []), `/D=${dir}`], `install ${t.oldVersion}${allUsers ? ' for all users' : ''}`)
       t.expectExit(run, 0)
       t.expectNoDialogs(run)
-      return t.learnRegistration(allUsers ? 'HKLM' : 'HKCU', dir, OLD_VERSION)
+      return t.learnRegistration(allUsers ? 'HKLM' : 'HKCU', dir, t.oldVersion)
     },
     async installNew(dir) {
       fs.mkdirSync(path.dirname(dir), { recursive: true })
@@ -414,7 +422,7 @@ function scenarioContext(state, root, newExe) {
     },
     expectOldAppStillThere(dir) {
       for (const name of [appExe, manifest.uninstallerFileName, 'resources']) {
-        if (!fs.existsSync(path.join(dir, name))) throw new Error(`the ${OLD_VERSION} installation lost ${name}`)
+        if (!fs.existsSync(path.join(dir, name))) throw new Error(`the ${t.oldVersion} installation lost ${name}`)
       }
     },
     expectAppGone(dir) {
@@ -578,7 +586,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
     const dir = path.join(t.root, '我的 工作')
     const seeded = t.seed(dir, FULL_DIR_FILES)
     await t.installOld(dir)
-    t.expectUserFiles(dir, seeded, `after installing ${OLD_VERSION} into the folder`)
+    t.expectUserFiles(dir, seeded, `after installing ${t.oldVersion} into the folder`)
     const run = await t.upgrade()
     t.expectExit(run, 0)
     t.expectNoDialogs(run)
@@ -663,7 +671,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
     const dir = path.join(t.root, 'Nomi_stale')
     await t.installOld(dir)
     const seeded = t.seed(dir, INCIDENT_FILES)
-    // 标记的值等于新版本号、却不等于登记着的 0.24.0：只信「当前登记的那一版写的」标记。
+    // 标记的值等于新版本号、却不等于登记着的旧版本号：只信「当前登记的那一版写的」标记。
     setRegistryValue('HKCU', `Software\\${t.guid}`, MARKER_VALUE_NAME, t.newVersion)
     const run = await t.upgrade()
     t.expectExit(run, 0)
@@ -794,7 +802,7 @@ export const SCENARIO_RUNNERS = Object.freeze({
     if (JSON.stringify(t.registrationSnapshot()) !== JSON.stringify(registration)) throw new Error('registration changed after replacement failure')
     t.expectUserFiles(dir, seeded)
     t.expectOldAppStillThere(dir)
-    t.expectRegistration('HKCU', dir, { version: OLD_VERSION, marker: '' })
+    t.expectRegistration('HKCU', dir, { version: t.oldVersion, marker: '' })
     const retry = await t.upgrade('retry after releasing the registered uninstaller')
     t.expectExit(retry, 0)
     t.expectNoDialogs(retry)
@@ -952,7 +960,7 @@ function verifyChecksum(file, sumsFile) {
 }
 
 function writeSummary(report) {
-  const lines = ['## Windows installer scenarios', '', `build under test: ${report.version}; old installer: v${OLD_VERSION}`, '', '| card | scenario | result | duration |', '|---|---|---|---|']
+  const lines = ['## Windows installer scenarios', '', `build under test: ${report.version}; old installer: v${report.oldVersion}`, '', '| card | scenario | result | duration |', '|---|---|---|---|']
   for (const item of report.scenarios) lines.push(`| ${item.card} | ${item.id} | ${item.ok ? 'pass' : `**fail**: ${String(item.error).replaceAll('|', '\\|').slice(0, 300)}`} | ${Math.round(item.durationMs / 1000)}s |`)
   if (report.counterexamples.length > 0) {
     lines.push('', '| counterexample | expected red | went red |', '|---|---|---|')
@@ -964,6 +972,7 @@ function writeSummary(report) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
+  const oldVersion = parseOldVersion(args['old-version'])
   if (process.platform !== 'win32') {
     console.error('windows-installer-scenarios: Windows only (see .github/workflows/win-installer.yml)')
     process.exit(2)
@@ -984,13 +993,13 @@ async function main() {
   fs.copyFileSync(path.resolve(args.new), newExe)
   const manifest = JSON.parse(fs.readFileSync(path.resolve(args.manifest), 'utf8'))
   // 被测包必须和旧版不同号：A7 要的是「标记不是当前登记的那一版写的」，同号时这个场景量不到任何东西（工作流会先改一个测试版本号）。
-  if (manifest.version === OLD_VERSION) throw new Error(`the build under test is version ${OLD_VERSION}, the same as the old installer; give it its own version first (see .github/workflows/win-installer.yml)`)
+  if (manifest.version === oldVersion) throw new Error(`the build under test is version ${oldVersion}, the same as the old installer; give it its own version first (see .github/workflows/win-installer.yml)`)
   // 「默认位置」= Electron app.getPath('documents') 那个目录（同一个系统已知文件夹）。
   const documents = powershell("[Environment]::GetFolderPath('MyDocuments')")
   if (!documents || !path.isAbsolute(documents)) throw new Error(`cannot resolve the Documents folder: "${documents}"`)
   const projectsRoot = path.join(documents, DEFAULT_PROJECTS_FOLDER)
   const projectsRootExisted = fs.existsSync(projectsRoot)
-  const state = { work, manifest, unpacked: path.resolve(args.unpacked), installerName: path.basename(args.new), oldExe, newExe, documents, outsideSeeds: [], runCounter: 0, uninstallCounter: 0, guid: null, current: null, cleanups: [] }
+  const state = { oldVersion, work, manifest, unpacked: path.resolve(args.unpacked), installerName: path.basename(args.new), oldExe, newExe, documents, outsideSeeds: [], runCounter: 0, uninstallCounter: 0, guid: null, current: null, cleanups: [] }
   const selected = args.only ? SCENARIOS.filter((scenario) => scenario.id === args.only) : SCENARIOS
   if (selected.length === 0) throw new Error(`no scenario matches --only ${args.only}`)
   state.current = { runs: [] }
@@ -1019,7 +1028,7 @@ async function main() {
       // 不存在或不空：都不动
     }
   }
-  const report ={ legacyOnly: state.legacyOnly, version: manifest.version, oldVersion: OLD_VERSION, only: args.only ?? null, scenarios, counterexamples }
+  const report ={ legacyOnly: state.legacyOnly, version: manifest.version, oldVersion, only: args.only ?? null, scenarios, counterexamples }
   fs.mkdirSync(path.dirname(path.resolve(args.report)), { recursive: true })
   fs.writeFileSync(path.resolve(args.report), `${JSON.stringify(report, null, 2)}\n`)
   writeSummary(report)
