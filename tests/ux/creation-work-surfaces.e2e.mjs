@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { ensureCreationResourceTree } from './_creationResourceTree.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = makeTempDir('nomi-creation-surfaces-')
@@ -230,7 +231,7 @@ try {
   await win.locator('[data-document-id="doc-a"]:not([data-storyboard-id])').click()
   await expect(win.locator('[data-creation-surface]'), '返回原稿后没有切回原稿编辑面').toHaveAttribute('data-creation-surface', 'source')
 
-  await win.setViewportSize({ width: 1100, height: 720 })
+  await win.setViewportSize({ width: MIN_WINDOW.width, height: MIN_WINDOW.height })
   const geometry = await win.evaluate(() => {
     const rect = (selector) => {
       const value = document.querySelector(selector)?.getBoundingClientRect()

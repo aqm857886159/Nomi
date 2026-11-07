@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { require as tsxRequire } from 'tsx/cjs/api'
+import { MIN_WINDOW, MIN_WINDOW_SOURCE } from '../_minWindow.mjs'
 import { STALE_AFTER_MS } from './spinnerVerdict.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
@@ -49,7 +50,7 @@ export const INVARIANTS = Object.freeze([
   Object.freeze({
     id: 7, key: 'visible-and-closable',
     title: Object.freeze({ 'zh-CN': '看得见、关得掉', en: 'Visible and closable' }),
-    how: '每一步收尾时量每个弹出层：关闭钮在视口内且点得到、弹层本体不出视口（最小窗 1100×720 也量）；英文界面可见文字里不许有中文；中文界面的提示 / 报错里不许原样出现供应商英文原话（7c）。',
+    how: '每一步收尾时量每个弹出层：关闭钮在视口内且点得到、弹层本体不出视口（最小窗 electron/mainWindowMinSize.json 也量）；英文界面可见文字里不许有中文；中文界面的提示 / 报错里不许原样出现供应商英文原话（7c）。',
   }),
   Object.freeze({
     id: 8, key: 'no-token-burn',
@@ -203,13 +204,10 @@ export function loadLimits() {
       value: readNumericConstant('electron/productionRun/multiShotBatchScheduler.ts', 'POLL_DELAY_CAP_MS', { exported: false }),
       source: 'electron/productionRun/multiShotBatchScheduler.ts POLL_DELAY_CAP_MS（调度器两轮之间最长的等待）',
     }),
-    minWindow: Object.freeze((() => {
-      const source = fs.readFileSync(path.join(repoRoot, 'electron/main.ts'), 'utf8')
-      const width = Number(/minWidth:\s*(\d+)/.exec(source)?.[1])
-      const height = Number(/minHeight:\s*(\d+)/.exec(source)?.[1])
-      if (!width || !height) throw new Error('full-walk 读不到 electron/main.ts 的 minWidth / minHeight——写法变了，监视器要跟着改')
-      return { value: { width, height }, source: 'electron/main.ts BrowserWindow minWidth / minHeight（铁律 7「窗口缩到最小也要测」）' }
-    })()),
+    minWindow: Object.freeze({
+      value: { width: MIN_WINDOW.width, height: MIN_WINDOW.height },
+      source: `${MIN_WINDOW_SOURCE}（铁律 7「窗口缩到最小也要测」）`,
+    }),
     // 付费卡 2026-10-05 起随对话投影推送（38db4a3d9 删了它的 1.5 秒轮询，原来读的 POLL_INTERVAL_MS 跟着没了，
     // 整个走查一起动就抛）。界面上还在按节拍追 Run 状态的是制作 Run 视图那一拍，收场检查点等的是它。
     runViewPollMs: Object.freeze({

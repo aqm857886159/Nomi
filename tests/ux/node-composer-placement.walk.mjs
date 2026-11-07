@@ -490,7 +490,7 @@ try {
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '07-image-param-panel.png') })
   await dismiss()
 
-  // ⑧ 窄视口：真实场景不是缩小 OS 窗口（主窗口 minWidth=1100，缩不下去，而且 Electron
+  // ⑧ 窄视口：真实场景不是缩小 OS 窗口（主窗口最小宽见 electron/mainWindowMinSize.json，缩不下去，而且 Electron
   // 真实窗口下 `page.setViewportSize` 只改 CDP 上报的量值、不动原生边界，会撞出「布局和
   // React Flow 各读各的尺寸」——实测就是这条路先炸了：composer 整个从 DOM 消失，量了 8 次全
   // null）。真实会让画布变窄的是**拉宽常驻 Agent 面板**这个既有 UI（`AssistantPane` 的

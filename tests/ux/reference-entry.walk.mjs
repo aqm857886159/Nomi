@@ -7,6 +7,7 @@ import { canvasAddBar, canvasAddMoreMenu, canvasFitView, canvasZoomPercent, canv
 import { createRuntimeWalk, CREATION_PANEL, CANVAS_PANEL, COMPOSER, COMPOSER_INPUT, openCanvas,
   recorded, waitForV4TurnIdle, chooseAssistantModel, readProject } from './agent-runtime-walk-support.mjs'
 import { readLaneTranscripts } from './agent-lane-observer.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 
 const walk = await createRuntimeWalk('reference-entry')
@@ -205,7 +206,7 @@ try {
   await expect(theme).toBeVisible()
   await theme.click()
   await win.locator('[data-settings-close]').click()
-  await walk.resizeWindow(1100,720)
+  await walk.resizeWindow(MIN_WINDOW.width, MIN_WINDOW.height)
   await expect(canvasPanel.locator('[data-reference-entry]'), 'board:ReferenceEntry/agent.entry.visible').toBeVisible()
   await expect(canvasPanel.locator('[data-reference-entry]')).toHaveText('')
   await expect(canvasPanel.locator('[data-reference-entry]')).toHaveAttribute('aria-label', 'Add reference')

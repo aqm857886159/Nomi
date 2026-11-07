@@ -5,6 +5,7 @@
 import { expectHidden } from './_assert.mjs'
 import { clickOrFail, dragGround, expectVisible, launchDirectorLab, placeCharacter } from './_directorLab.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 
 const lab = await launchDirectorLab({ name: 'j2-walk-to-b' })
 const { page, check } = lab
@@ -22,7 +23,7 @@ try {
   await lab.snap('pencil-mode')
 
   // ⑥（2026-10-24）：提示条以前写死 top-3，正好压在顶栏正中的「导演 | 精修」底下；画线的钮住在属性卡头，画线时卡一定开着，
-  // 窄窗里居中的提示条还会钻到卡底下。走查默认窗口（1440）和 App 最小窗口（1100×720，导演台区再让出右侧 Agent 面板）各量一次：两样都不许相交。
+  // 窄窗里居中的提示条还会钻到卡底下。走查默认窗口（1440）和 App 最小窗口（electron/mainWindowMinSize.json；窗宽 < 1060 时 Agent 收成小球，不再让出右侧）各量一次：两样都不许相交。
   const hudOverlaps = () => page.evaluate(() => {
     const rect = (testId) => document.querySelector(`[data-testid="${testId}"]`)?.getBoundingClientRect() ?? null
     const meet = (a, b) => Boolean(a && b) && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
@@ -35,10 +36,10 @@ try {
   check('画线提示条不压在「导演 | 精修」切换上', wide.ok && !wide.overSwitch, JSON.stringify(wide))
   check('画线提示条不钻到属性卡底下', wide.ok && !wide.overCard, JSON.stringify(wide))
   const fullSize = page.viewportSize()
-  await page.setViewportSize({ width: 1100, height: 720 })
-  await page.waitForFunction(() => window.innerWidth === 1100)
+  await page.setViewportSize({ width: MIN_WINDOW.width, height: MIN_WINDOW.height })
+  await page.waitForFunction((width) => window.innerWidth === width, MIN_WINDOW.width)
   const narrow = await hudOverlaps()
-  check('App 最小窗口（1100×720）里提示条照样不压切换、不钻到属性卡底下', narrow.ok && !narrow.overSwitch && !narrow.overCard, JSON.stringify(narrow))
+  check(`App 最小窗口（${MIN_WINDOW.width}×${MIN_WINDOW.height}）里提示条照样不压切换、不钻到属性卡底下`, narrow.ok && !narrow.overSwitch && !narrow.overCard, JSON.stringify(narrow))
   await lab.snap('pencil-mode-narrow')
   await page.setViewportSize(fullSize)
   await page.waitForFunction((size) => window.innerWidth === size.width && window.innerHeight === size.height, fullSize)

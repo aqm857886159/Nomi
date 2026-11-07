@@ -11,16 +11,14 @@ import path from 'node:path'
 import { chromium } from 'playwright'
 import { createServer } from 'vite'
 import { expect, expectAbsent, expectHittable, expectOverlayReachable, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const evidence = path.join(root, '.tmp', 'failure-toast-layout-evidence')
 fs.mkdirSync(evidence, { recursive: true })
 
-/** Supported window sizes: the everyday laptop size, and the smallest window the app allows (electron/main.ts). */
-const mainSource = fs.readFileSync(path.join(root, 'electron/main.ts'), 'utf8')
-const minWindow = { width: Number(/minWidth:\s*(\d+)/.exec(mainSource)?.[1]), height: Number(/minHeight:\s*(\d+)/.exec(mainSource)?.[1]) }
-assert.ok(minWindow.width > 0 && minWindow.height > 0, 'cannot read the minimum window size from electron/main.ts')
-const SIZES = [{ width: 1280, height: 800 }, minWindow]
+/** Supported window sizes: the everyday laptop size, and the smallest window the app allows (electron/mainWindowMinSize.json). */
+const SIZES = [{ width: 1280, height: 800 }, { ...MIN_WINDOW }]
 
 const server = await createServer({ root, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 5299, strictPort: true } })
 await server.listen()

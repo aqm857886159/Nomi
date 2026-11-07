@@ -5,7 +5,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 要证的三句话（都是「用户看得到、点得到」，不是「DOM 里有」）：
 //   ① 选中一行之后，多选浮条**不用滚动**就在视野里、点得到（sticky 不能被表格的 overflow-hidden 废掉）；
 //   ② 最后一行的弹出层（行 ⋯ 菜单 / 提示词片段菜单）完整露出、整块点得到，不被表格边界裁掉；
-//   ③ 最小窗口 1100×690、中英两种语言下，每一行的「生成」和「⋯」都点得到。
+//   ③ 最小窗口宽（electron/mainWindowMinSize.json）× 690、中英两种语言下，每一行的「生成」和「⋯」都点得到。
 //
 // 判据全部走 `_assert.mjs` 的 elementFromPoint 采样（`expectOverlayReachable` / `expectHittable`）：
 // 裁切不改 getBoundingClientRect，DOM 在、toBeVisible 绿、Playwright click 还会自己滚——只有命中测试说实话。
@@ -19,13 +19,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { clickOrFail, expectOverlayReachable, expectVisible, screenshotSettled } from './_assert.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outRoot = process.env.STORYBOARD_TABLE_STRUCTURE_OUT || path.join(repoRoot, 'tests', 'ux', 'shots', 'storyboard-table-structure')
 const scheme = process.env.WALK_SCHEME === 'dark' ? 'dark' : 'light'
-const MIN_WINDOW = { width: 1100, height: 690 }
+const MIN_TABLE_WINDOW = { width: MIN_WINDOW.width, height: 690 }
 const projectId = 'storyboard-table-structure-walk'
 const designId = 'table-structure-design'
 const LAST = 5
@@ -161,7 +162,7 @@ async function openEditor(locale) {
   const { tempRoot, settingsDir, projectsDir } = makeFixture()
   appInstance = await launchNomiApp({
     name: `storyboard-table-structure-${locale}`, tempRoot, settingsDir, projectsDir, settleMs: 1200,
-    viewportSize: MIN_WINDOW,
+    viewportSize: MIN_TABLE_WINDOW,
     mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')],
     initialLocalStorage: {
       'nomi:locale:v1': locale, 'nomi-color-scheme': scheme, 'nomi:splash:v1': 'seen',
@@ -207,7 +208,7 @@ async function walkLocale(locale) {
   await openEditor(locale)
   const viewport = await win.evaluate(() => ({ w: innerWidth, h: innerHeight }))
   record(tag, 'viewport', viewport)
-  if (viewport.w !== MIN_WINDOW.width || viewport.h !== MIN_WINDOW.height) failures.push(`${tag}：视口不是 ${MIN_WINDOW.width}×${MIN_WINDOW.height}（${viewport.w}×${viewport.h}）`)
+  if (viewport.w !== MIN_TABLE_WINDOW.width || viewport.h !== MIN_TABLE_WINDOW.height) failures.push(`${tag}：视口不是 ${MIN_TABLE_WINDOW.width}×${MIN_TABLE_WINDOW.height}（${viewport.w}×${viewport.h}）`)
 
   // ── ③ 最小窗口：每一行的「生成」和「⋯」都点得到 ──
   await scrollTop(0)
@@ -333,7 +334,7 @@ const report = [
   `result: ${failures.length ? 'failed' : 'passed'}`,
   `screenshots: ${screenshots.join(', ')}`,
   `measured: ${JSON.stringify(measured, null, 2)}`,
-  'covers: selection toolbar reachable without scrolling and while scrolling; last-row row-menu / prompt-segment menu fully hittable; every row generate button and ellipsis hittable at 1100x690 in zh and en; no composer-bar leaf past the row edge.',
+  'covers: selection toolbar reachable without scrolling and while scrolling; last-row row-menu / prompt-segment menu fully hittable; every row generate button and ellipsis hittable at the minimum window width x690 in zh and en; no composer-bar leaf past the row edge.',
   failures.length ? `failures:\n- ${failures.join('\n- ')}` : 'failures: none',
 ].join('\n')
 fs.mkdirSync(outRoot, { recursive: true })

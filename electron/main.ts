@@ -85,6 +85,8 @@ import { issueChildWindowProject } from "./assets/windowProjectCapture";
 import { installWindowNavigation } from "./windowNavigation";
 import { registerQuitDrain, requestQuit } from "./quitTeardown";
 import { installMainQuitOwner } from "./quitOwnerMain";
+// 最小窗只有这一份定义（WindowNarrow 板 narrow.min-size：700 × 720，半屏也放得下）；走查读同一个文件。
+import MAIN_WINDOW_MIN_SIZE from "./mainWindowMinSize.json";
 import { backgroundWindowOptions, disposeBackgroundLifecycle, hasInFlightProductionWork, installBackgroundLifecycle, installBackgroundWindowBehavior, isBackgroundLaunch, touchBackgroundActivity } from "./backgroundLaunch";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
 // 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
@@ -283,8 +285,8 @@ async function createWindow(
     width: options.bounds?.width ?? 1440,
     height: options.bounds?.height ?? 960,
     ...(options.bounds ? { x: options.bounds.x, y: options.bounds.y } : {}),
-    minWidth: 1100,
-    minHeight: 720,
+    minWidth: MAIN_WINDOW_MIN_SIZE.width,
+    minHeight: MAIN_WINDOW_MIN_SIZE.height,
     backgroundColor: "#f6f3ee",
     title: "Nomi",
     // 40px 合一顶栏：Windows 原生窗口按钮浮在顶栏右端、macOS 红绿灯落在顶栏左端（见 mainWindowChrome.ts）。

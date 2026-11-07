@@ -9,7 +9,7 @@
 //   ⑥ 拖拽排序仍然换得动位置；
 //   ⑦ 加一镜后总数 +1、滚到底够得着它；删掉它再 Ctrl+Z 回来；
 //   ⑧ 滚到中间、滚到底，末镜挂得上；
-//   ⑨ 英文 + 暗色 + 最小窗口（1100×690）：行走窄档、同样只挂首屏；
+//   ⑨ 英文 + 暗色 + 最小窗口宽（electron/mainWindowMinSize.json）× 690：行走窄档、同样只挂首屏；
 //   ⑪ 快速滚动：滚过的行先挂轻量占位、滚动中不建编辑器，停下后换成完整行（记长任务数）；
 //   ⑫ 快速滚动后点占位行马上打字，字不丢；⑬ 重挂后接着改再撤销，新编辑另起一组；
 //   ⑩ 生成中的状态刷新：画布节点状态一变，挂着的行立刻跟、视口外的行挂上时就是最新态（只改 store，不发请求）。
@@ -19,6 +19,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 
@@ -174,7 +175,7 @@ async function passZhLight() {
     check(typedLayout.ok, '② 打字后各行首尾相接（不重叠、不留缝）', typedLayout.detail)
     // 窗口变窄 → 行走窄档、整行变矮：每一项按实测高度重新排
     const before = await win.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().height, rowSel(2))
-    await resize(smoke, win, { width: 1100, height: 690 })
+    await resize(smoke, win, { width: MIN_WINDOW.width, height: 690 })
     const after = await win.evaluate((sel) => document.querySelector(sel).getBoundingClientRect().height, rowSel(2))
     const resizedLayout = await itemsContiguous(win)
     check(after !== before && resizedLayout.ok, '② 行高变了（窄档），各行按实测高度重排、首尾相接', `第 2 镜 ${Math.round(before)} → ${Math.round(after)}；${resizedLayout.detail}`)
@@ -407,8 +408,8 @@ async function passZhLight() {
 }
 
 async function passEnDarkNarrow() {
-  console.log('[windowing] en · 暗 · 1100×690')
-  const smoke = await launchCoreSmoke({ name: 'storyboard-windowing-en', seed, needs: [], locale: 'en', emptyViewport: { width: 1100, height: 690 }, preferences: { 'nomi-color-scheme': 'dark' }, extras: { mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')], env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' } } })
+  console.log(`[windowing] en · 暗 · ${MIN_WINDOW.width}×690`)
+  const smoke = await launchCoreSmoke({ name: 'storyboard-windowing-en', seed, needs: [], locale: 'en', emptyViewport: { width: MIN_WINDOW.width, height: 690 }, preferences: { 'nomi-color-scheme': 'dark' }, extras: { mainRequire: [path.join(repoRoot, 'tests', 'ux', '_quietWalk.cjs')], env: { ELECTRON_EXTRA_LAUNCH_ARGS: '--disable-features=CalculateNativeWinOcclusion' } } })
   try {
     await smoke.openProject()
     const win = smoke.win

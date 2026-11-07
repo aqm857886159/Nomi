@@ -553,7 +553,7 @@ export async function createRuntimeWalk(name, { generationProvider = 'loopback',
   /**
    * 把内容区调成指定尺寸，返回调之前那份内容区尺寸（调回去用）。
    *
-   * 有些事只有在**真实的小窗**里才发生：最小窗 1100×720（`electron/main.ts` 的 minWidth/minHeight）
+   * 有些事只有在**真实的小窗**里才发生：最小窗（`electron/mainWindowMinSize.json`，主进程 minWidth/minHeight 同读它；现 700×720）
    * 下面板只剩 476 高，对话流这才真的溢出——「展开回来还停在原处」那条断言也才有信号可言。
    * 在默认大窗里流根本装得下，滚动位置恒 0，前后相等是个恒真式。
    *

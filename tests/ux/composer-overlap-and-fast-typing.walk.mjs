@@ -23,8 +23,8 @@
 //   · 模型是从界面上选的：选之前芯片上不是它；菜单里列着它；点完芯片显示它、再开菜单勾在它那行；参考入口可点；
 //   · 参考图真用上了：接进来后参考行里是一张在用的小图（不是淡显的「未用到」）；
 //   · 浮框卡片顶边 = 节点底边 + 14×缩放、中线 = 节点中线、屏幕宽恒 560——默认位置、拖到左下停靠区那片、
-//     压到舞台底边（以前会翻上去的现场）、缩到最小窗口（1100×720 内容区）各测一次；伸出舞台 / 钻到停靠区底下是预期；
-//   · 底栏芯片文字不被裁断——只允许「有意省略号 + title 全名 + 省略后仍 ≥24px」（1100×720 EN 是现场）；
+//     压到舞台底边（以前会翻上去的现场）、缩到最小窗口（electron/mainWindowMinSize.json 内容区）各测一次；伸出舞台 / 钻到停靠区底下是预期；
+//   · 底栏芯片文字不被裁断——只允许「有意省略号 + title 全名 + 省略后仍 ≥24px」（当时 1100×720 EN 是现场）；
 //   · 0ms / 5ms 逐键键入 ≥80 字符中英混合串（含空格与标点）后，编辑器与输入逐字相同、文字从未倒退（图片 + 视频节点）；
 //   · 一次性粘贴长文本逐字相同；
 //   · 外部改写（优化 → 应用）把夹具回的那句逐字写进编辑器，之后继续快打不丢字；夹具恰好收到一次带原句的请求；
@@ -36,6 +36,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { clickOrFail, expect, expectAbsent, expectHittable, expectVisible, proveProbe } from './_assert.mjs'
 import { waitForCanvasViewportSettled } from './_canvasHit.mjs'
 import { addCanvasNode, canvasAddBar, canvasFitView, newProjectEntry, setAppLanguage, switchWorkspace } from './_shell.mjs'
@@ -57,8 +58,8 @@ const IN_USE_TILE = '[data-reference-row] [data-asset-slot-group="array"] [data-
 // 与 composerCanvasPlacement.ts 的 NODE_COMPOSER_GAP / NODE_COMPOSER_WIDTH 同一组数（前者是画布单位，后者是屏幕像素）。
 const COMPOSER_GAP = 14
 const COMPOSER_WIDTH = 560
-// 最小窗口 = electron/main.ts 的 minWidth / minHeight。
-const MIN_VIEWPORT = Object.freeze({ width: 1100, height: 720 })
+// 最小窗口 = electron/mainWindowMinSize.json（主进程 minWidth / minHeight 同读它）。
+const MIN_VIEWPORT = Object.freeze({ width: MIN_WINDOW.width, height: MIN_WINDOW.height })
 // 界面上选的那个图片模型：内置 APIMart 档案里的 GPT Image 2（文生图 + 参考图生图，参考槽收图），出图地址由出网闸指到本机夹具。
 const PICKED_MODEL = FIXTURE_APIMART_MODEL_LABEL
 const IMPORT_TIMEOUT = stationTimeout({ operations: 4 })

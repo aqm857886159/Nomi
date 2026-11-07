@@ -6,6 +6,7 @@ import { chromium } from 'playwright'
 import { expect } from '@playwright/test'
 import { createServer } from 'vite'
 import { screenshotSettled, proveProbe, expectAbsent } from './_assert.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(root, '.tmp/toast-policy-evidence')
 fs.mkdirSync(output, { recursive: true })
@@ -18,7 +19,7 @@ for (const phase of ['before', 'after']) {
   try {
     await server.listen()
     browser = await chromium.launch({ headless: true })
-    const page = await browser.newPage({ viewport: { width: 1100, height: 720 } })
+    const page = await browser.newPage({ viewport: { width: MIN_WINDOW.width, height: MIN_WINDOW.height } })
     const pageErrors = []
     page.on('pageerror', error => { pageErrors.push(error.message); console.error(error.message) })
     await page.addInitScript(() => { localStorage.setItem('nomi-color-scheme', 'light'); localStorage.setItem('nomi:locale:v1', 'zh-CN') })

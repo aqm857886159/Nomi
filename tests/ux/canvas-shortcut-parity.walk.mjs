@@ -24,6 +24,7 @@ import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, expectHittable, expectOverlayReachable, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint, CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
 import { canvasControlsHelpDialog, canvasControlsHelpTrigger, canvasFitViewButton, canvasFrameToolPressed, collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
@@ -306,8 +307,8 @@ try {
   const layouts = [
     { name: '1280-agent-open', width: 1280, height: 900, agent: true },
     { name: '1280-agent-collapsed', width: 1280, height: 900, agent: false },
-    { name: 'min-agent-open', width: 1100, height: 720, agent: true },
-    { name: 'min-agent-collapsed', width: 1100, height: 720, agent: false },
+    { name: 'min-agent-open', width: MIN_WINDOW.width, height: MIN_WINDOW.height, agent: true },
+    { name: 'min-agent-collapsed', width: MIN_WINDOW.width, height: MIN_WINDOW.height, agent: false },
   ]
   results.help = []
   // 两种底部浮层状态都要过：没选中；选中一张 = 选择浮条 + composer。（原先没选中时还有「生成全部」批量条，已删。）

@@ -18,6 +18,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
+import { MIN_WINDOW } from './_minWindow.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
@@ -435,8 +436,8 @@ try {
 
   await phase('P11-min-window', async (r) => {
     const browserWindow = await smoke.app.browserWindow(win())
-    await browserWindow.evaluate((target) => { target.setContentSize(1100, 690) })
-    await win().setViewportSize({ width: 1100, height: 690 })
+    await browserWindow.evaluate((target, width) => { target.setContentSize(width, 690) }, MIN_WINDOW.width)
+    await win().setViewportSize({ width: MIN_WINDOW.width, height: 690 })
     await settle(900)
     r.viewport = await win().evaluate(() => ({ w: innerWidth, h: innerHeight }))
     await openEditor()
