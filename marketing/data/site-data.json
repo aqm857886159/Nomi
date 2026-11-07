@@ -2109,6 +2109,230 @@
       }
     },
     {
+      "slug": "seedance-2-0",
+      "canonicalId": "seedance 2.0",
+      "label": "Seedance 2.0",
+      "kind": "video",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "seedance-2",
+        "seedance-2-apimart",
+        "volcengine-seedance-2",
+        "runninghub-seedance"
+      ],
+      "family": "seedance",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "kie",
+          "name": "Kie.ai",
+          "authType": "bearer"
+        },
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        },
+        {
+          "key": "volcengine",
+          "name": "火山方舟",
+          "authType": "bearer"
+        },
+        {
+          "key": "runninghub",
+          "name": "RunningHub",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "single",
+          "firstlast",
+          "character"
+        ],
+        "modeTerms": [
+          "文生视频",
+          "首帧",
+          "首尾帧",
+          "全能参考",
+          "图生视频"
+        ],
+        "references": {
+          "first_frame": 1,
+          "last_frame": 1,
+          "image_ref": 9,
+          "video_ref": 3,
+          "audio_ref": 3
+        },
+        "resolutions": [
+          "480p",
+          "720p",
+          "1080p",
+          "4k",
+          "2k"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "21:9",
+          "adaptive"
+        ],
+        "durationSeconds": {
+          "min": 4,
+          "max": 15,
+          "options": [
+            "4",
+            "5",
+            "6",
+            "8",
+            "10",
+            "12"
+          ]
+        },
+        "audio": true,
+        "variants": [
+          "标准",
+          "快速",
+          "Mini",
+          "Seedance 2.0",
+          "Fast"
+        ]
+      }
+    },
+    {
+      "slug": "happyhorse-1-0",
+      "canonicalId": "happyhorse 1.0",
+      "label": "HappyHorse 1.0",
+      "kind": "video",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "happyhorse"
+      ],
+      "family": "happyhorse",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "kie",
+          "name": "Kie.ai",
+          "authType": "bearer"
+        },
+        {
+          "key": "runway",
+          "name": "Runway Dev",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "single",
+          "character",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生视频",
+          "图生视频",
+          "角色参考",
+          "视频编辑"
+        ],
+        "references": {
+          "first_frame": 1,
+          "image_ref": 9,
+          "source_video": 1
+        },
+        "resolutions": [
+          "720p",
+          "1080p"
+        ],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "durationSeconds": {
+          "min": 3,
+          "max": 15
+        },
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
+      "slug": "seedream-4-5",
+      "canonicalId": "seedream 4.5",
+      "label": "Seedream 4.5",
+      "kind": "image",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "seedream",
+        "volcengine-seedream",
+        "rh-seedream-4.5"
+      ],
+      "family": "seedream",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "kie",
+          "name": "Kie.ai",
+          "authType": "bearer"
+        },
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        },
+        {
+          "key": "volcengine",
+          "name": "火山方舟",
+          "authType": "bearer"
+        },
+        {
+          "key": "runninghub",
+          "name": "RunningHub",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生图",
+          "改图"
+        ],
+        "references": {
+          "image_ref": 14
+        },
+        "resolutions": [
+          "2k",
+          "4k"
+        ],
+        "aspectRatios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "2:3",
+          "3:2",
+          "21:9"
+        ],
+        "durationSeconds": null,
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
       "slug": "imagen-4-fast",
       "canonicalId": "imagen 4 fast",
       "label": "Imagen 4 Fast",
@@ -2263,6 +2487,140 @@
       }
     },
     {
+      "slug": "gpt-image-2-6-flare",
+      "canonicalId": "gpt image 2.6 flare",
+      "label": "GPT Image 2.6 Flare",
+      "kind": "image",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "gpt-image-2.6-flare"
+      ],
+      "family": "gpt-image",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生图",
+          "改图"
+        ],
+        "references": {
+          "image_ref": 16
+        },
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [],
+        "durationSeconds": null,
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
+      "slug": "gpt-image-2-6-sunburst",
+      "canonicalId": "gpt image 2.6 sunburst",
+      "label": "GPT Image 2.6 Sunburst",
+      "kind": "image",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "gpt-image-2.6-sunburst"
+      ],
+      "family": "gpt-image",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生图",
+          "改图"
+        ],
+        "references": {
+          "image_ref": 16
+        },
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [],
+        "durationSeconds": null,
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
+      "slug": "qwen-image-2-0",
+      "canonicalId": "qwen-image 2.0",
+      "label": "Qwen-Image 2.0",
+      "kind": "image",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "qwen-image",
+        "rh-qwen-image-2.0"
+      ],
+      "family": "qwen-image",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        },
+        {
+          "key": "runninghub",
+          "name": "RunningHub",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生图",
+          "改图"
+        ],
+        "references": {
+          "image_ref": 4
+        },
+        "resolutions": [
+          "1K",
+          "2K"
+        ],
+        "aspectRatios": [],
+        "durationSeconds": null,
+        "audio": false,
+        "variants": [
+          "标准",
+          "Pro"
+        ]
+      }
+    },
+    {
       "slug": "happyhorse-1-1",
       "canonicalId": "happyhorse 1.1",
       "label": "HappyHorse 1.1",
@@ -2373,6 +2731,71 @@
           "高质",
           "轻量"
         ]
+      }
+    },
+    {
+      "slug": "wan-2-7",
+      "canonicalId": "wan 2.7",
+      "label": "Wan 2.7",
+      "kind": "video",
+      "lifecycle": "companion",
+      "recognized": true,
+      "archetypeIds": [
+        "wan-2.7",
+        "rh-wan-2.7"
+      ],
+      "family": "wan",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        },
+        {
+          "key": "runninghub",
+          "name": "RunningHub",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "single",
+          "character",
+          "firstlast"
+        ],
+        "modeTerms": [
+          "文生视频",
+          "图生视频",
+          "角色参考"
+        ],
+        "references": {
+          "image_ref": 5,
+          "video_ref": 5,
+          "first_frame": 1,
+          "last_frame": 1
+        },
+        "resolutions": [
+          "720P",
+          "1080P"
+        ],
+        "aspectRatios": [],
+        "durationSeconds": {
+          "min": 2,
+          "max": 15,
+          "options": [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "8",
+            "10"
+          ]
+        },
+        "audio": false,
+        "variants": []
       }
     },
     {
@@ -3187,230 +3610,6 @@
       }
     },
     {
-      "slug": "seedance-2-0",
-      "canonicalId": "seedance 2.0",
-      "label": "Seedance 2.0",
-      "kind": "video",
-      "lifecycle": "legacy",
-      "recognized": true,
-      "archetypeIds": [
-        "seedance-2",
-        "seedance-2-apimart",
-        "volcengine-seedance-2",
-        "runninghub-seedance"
-      ],
-      "family": "seedance",
-      "identityGapWith": null,
-      "vendors": [
-        {
-          "key": "kie",
-          "name": "Kie.ai",
-          "authType": "bearer"
-        },
-        {
-          "key": "apimart",
-          "name": "APIMart",
-          "authType": "bearer"
-        },
-        {
-          "key": "volcengine",
-          "name": "火山方舟",
-          "authType": "bearer"
-        },
-        {
-          "key": "runninghub",
-          "name": "RunningHub",
-          "authType": "bearer"
-        }
-      ],
-      "facts": {
-        "intents": [
-          "text",
-          "single",
-          "firstlast",
-          "character"
-        ],
-        "modeTerms": [
-          "文生视频",
-          "首帧",
-          "首尾帧",
-          "全能参考",
-          "图生视频"
-        ],
-        "references": {
-          "first_frame": 1,
-          "last_frame": 1,
-          "image_ref": 9,
-          "video_ref": 3,
-          "audio_ref": 3
-        },
-        "resolutions": [
-          "480p",
-          "720p",
-          "1080p",
-          "4k",
-          "2k"
-        ],
-        "aspectRatios": [
-          "1:1",
-          "4:3",
-          "3:4",
-          "16:9",
-          "9:16",
-          "21:9",
-          "adaptive"
-        ],
-        "durationSeconds": {
-          "min": 4,
-          "max": 15,
-          "options": [
-            "4",
-            "5",
-            "6",
-            "8",
-            "10",
-            "12"
-          ]
-        },
-        "audio": true,
-        "variants": [
-          "标准",
-          "快速",
-          "Mini",
-          "Seedance 2.0",
-          "Fast"
-        ]
-      }
-    },
-    {
-      "slug": "happyhorse-1-0",
-      "canonicalId": "happyhorse 1.0",
-      "label": "HappyHorse 1.0",
-      "kind": "video",
-      "lifecycle": "legacy",
-      "recognized": true,
-      "archetypeIds": [
-        "happyhorse"
-      ],
-      "family": "happyhorse",
-      "identityGapWith": null,
-      "vendors": [
-        {
-          "key": "kie",
-          "name": "Kie.ai",
-          "authType": "bearer"
-        },
-        {
-          "key": "runway",
-          "name": "Runway Dev",
-          "authType": "bearer"
-        }
-      ],
-      "facts": {
-        "intents": [
-          "text",
-          "single",
-          "character",
-          "edit"
-        ],
-        "modeTerms": [
-          "文生视频",
-          "图生视频",
-          "角色参考",
-          "视频编辑"
-        ],
-        "references": {
-          "first_frame": 1,
-          "image_ref": 9,
-          "source_video": 1
-        },
-        "resolutions": [
-          "720p",
-          "1080p"
-        ],
-        "aspectRatios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4"
-        ],
-        "durationSeconds": {
-          "min": 3,
-          "max": 15
-        },
-        "audio": false,
-        "variants": []
-      }
-    },
-    {
-      "slug": "seedream-4-5",
-      "canonicalId": "seedream 4.5",
-      "label": "Seedream 4.5",
-      "kind": "image",
-      "lifecycle": "legacy",
-      "recognized": true,
-      "archetypeIds": [
-        "seedream",
-        "volcengine-seedream",
-        "rh-seedream-4.5"
-      ],
-      "family": "seedream",
-      "identityGapWith": null,
-      "vendors": [
-        {
-          "key": "kie",
-          "name": "Kie.ai",
-          "authType": "bearer"
-        },
-        {
-          "key": "apimart",
-          "name": "APIMart",
-          "authType": "bearer"
-        },
-        {
-          "key": "volcengine",
-          "name": "火山方舟",
-          "authType": "bearer"
-        },
-        {
-          "key": "runninghub",
-          "name": "RunningHub",
-          "authType": "bearer"
-        }
-      ],
-      "facts": {
-        "intents": [
-          "text",
-          "edit"
-        ],
-        "modeTerms": [
-          "文生图",
-          "改图"
-        ],
-        "references": {
-          "image_ref": 14
-        },
-        "resolutions": [
-          "2k",
-          "4k"
-        ],
-        "aspectRatios": [
-          "1:1",
-          "4:3",
-          "3:4",
-          "16:9",
-          "9:16",
-          "2:3",
-          "3:2",
-          "21:9"
-        ],
-        "durationSeconds": null,
-        "audio": false,
-        "variants": []
-      }
-    },
-    {
       "slug": "nano-banana",
       "canonicalId": "nano banana",
       "label": "Nano Banana",
@@ -3472,121 +3671,6 @@
           "auto"
         ],
         "durationSeconds": null,
-        "audio": false,
-        "variants": []
-      }
-    },
-    {
-      "slug": "qwen-image-2-0",
-      "canonicalId": "qwen-image 2.0",
-      "label": "Qwen-Image 2.0",
-      "kind": "image",
-      "lifecycle": "legacy",
-      "recognized": true,
-      "archetypeIds": [
-        "qwen-image",
-        "rh-qwen-image-2.0"
-      ],
-      "family": "qwen-image",
-      "identityGapWith": null,
-      "vendors": [
-        {
-          "key": "apimart",
-          "name": "APIMart",
-          "authType": "bearer"
-        },
-        {
-          "key": "runninghub",
-          "name": "RunningHub",
-          "authType": "bearer"
-        }
-      ],
-      "facts": {
-        "intents": [
-          "text",
-          "edit"
-        ],
-        "modeTerms": [
-          "文生图",
-          "改图"
-        ],
-        "references": {
-          "image_ref": 4
-        },
-        "resolutions": [
-          "1K",
-          "2K"
-        ],
-        "aspectRatios": [],
-        "durationSeconds": null,
-        "audio": false,
-        "variants": [
-          "标准",
-          "Pro"
-        ]
-      }
-    },
-    {
-      "slug": "wan-2-7",
-      "canonicalId": "wan 2.7",
-      "label": "Wan 2.7",
-      "kind": "video",
-      "lifecycle": "legacy",
-      "recognized": true,
-      "archetypeIds": [
-        "wan-2.7",
-        "rh-wan-2.7"
-      ],
-      "family": "wan",
-      "identityGapWith": null,
-      "vendors": [
-        {
-          "key": "apimart",
-          "name": "APIMart",
-          "authType": "bearer"
-        },
-        {
-          "key": "runninghub",
-          "name": "RunningHub",
-          "authType": "bearer"
-        }
-      ],
-      "facts": {
-        "intents": [
-          "text",
-          "single",
-          "character",
-          "firstlast"
-        ],
-        "modeTerms": [
-          "文生视频",
-          "图生视频",
-          "角色参考"
-        ],
-        "references": {
-          "image_ref": 5,
-          "video_ref": 5,
-          "first_frame": 1,
-          "last_frame": 1
-        },
-        "resolutions": [
-          "720P",
-          "1080P"
-        ],
-        "aspectRatios": [],
-        "durationSeconds": {
-          "min": 2,
-          "max": 15,
-          "options": [
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-            "8",
-            "10"
-          ]
-        },
         "audio": false,
         "variants": []
       }
