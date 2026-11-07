@@ -1229,6 +1229,18 @@
     },
     {
       "members": [
+        "confirm",
+        "done",
+        "failed",
+        "idle",
+        "running",
+        "unread"
+      ],
+      "reason": "NomiAgentPose 是品牌组件 NomiAgentFace 的「长相」词表（2026-10-27 Agent 形象拍板，docs/design/boards/2026-10-27-agent-persona/AgentPersona.board.json）：每个词对应一副画法（形、眼、弧、跳），只给设计系统画脸用。它不是第二份注意力状态：真相源仍是 V4DockStatus 五个词，状态 → 长相的唯一映射写在 agentFormStore.agentBallLook，和胶囊判定 agentBallIsPill 放在一起，AgentBallFace.test.ts 断言五个状态各落到哪副长相。不能直接复用 V4DockStatus：① src/design 不依赖 src/workbench；② 长相和状态不一一对应——unread 是空闲时「眼睛往屏幕里看」的那副脸（未读在别的状态上只是叠一颗点），confirm 只在 needs-confirm 且条数 > 0 时才是胶囊，条数为 0 落回空闲。",
+      "site": "src/design/identity.tsx::type:NomiAgentPose/type-union"
+    },
+    {
+      "members": [
         "danger",
         "info",
         "neutral",
