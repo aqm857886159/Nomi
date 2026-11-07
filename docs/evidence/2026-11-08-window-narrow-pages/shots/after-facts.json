@@ -1,0 +1,894 @@
+{
+  "zh-light": {
+    "window": {
+      "width": 1100,
+      "height": 900
+    },
+    "creation1100": {
+      "section": {
+        "left": 60,
+        "right": 744,
+        "top": 40,
+        "bottom": 892,
+        "width": 684
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340
+      },
+      "content": {
+        "left": 62,
+        "right": 742,
+        "top": 88,
+        "bottom": 892,
+        "width": 680
+      },
+      "scroll": {
+        "scrollWidth": 684,
+        "clientWidth": 684
+      },
+      "toolbar": {
+        "left": 60,
+        "right": 744,
+        "top": 40,
+        "bottom": 88,
+        "width": 684
+      },
+      "undo": {
+        "left": 668,
+        "right": 698,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "redo": {
+        "left": 702,
+        "right": 732,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "trigger": {
+        "left": 624,
+        "right": 654,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "visible": [
+        "bold",
+        "italic",
+        "strike",
+        "code",
+        "highlight",
+        "h1",
+        "h2",
+        "h3",
+        "blockquote",
+        "horizontal-rule",
+        "bullet-list"
+      ],
+      "hidden": [
+        "ordered-list",
+        "task-list",
+        "table",
+        "link"
+      ],
+      "legacyButtons": [
+        "bold@211-241",
+        "italic@245-275",
+        "strike@279-309",
+        "code@313-343",
+        "highlight@347-377",
+        "h1@394-424",
+        "h2@428-458",
+        "h3@462-492",
+        "blockquote@496-526",
+        "horizontal-rule@530-560",
+        "bullet-list@577-607",
+        "ordered-list@0-0",
+        "task-list@0-0",
+        "table@0-0",
+        "link@0-0",
+        "undo@668-698",
+        "redo@702-732"
+      ]
+    },
+    "creation1440": {
+      "section": {
+        "left": 60,
+        "right": 1084,
+        "top": 40,
+        "bottom": 892,
+        "width": 1024
+      },
+      "visible": 15
+    },
+    "menu": {
+      "rows": [
+        {
+          "kind": "item",
+          "id": "ordered-list",
+          "label": "编号列表",
+          "icon": true
+        },
+        {
+          "kind": "item",
+          "id": "task-list",
+          "label": "待办列表",
+          "icon": true
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "table",
+          "label": "插入表格",
+          "icon": true
+        },
+        {
+          "kind": "item",
+          "id": "link",
+          "label": "链接",
+          "icon": true
+        }
+      ],
+      "menuRight": 654,
+      "menuLeft": 494,
+      "menuTop": 85,
+      "triggerRight": 654,
+      "triggerBottom": 78.5,
+      "triggerActive": "true"
+    },
+    "preview1100x720": {
+      "innerWidth": 1100,
+      "innerHeight": 720,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 340,
+        "height": 672
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 604,
+        "bottom": 702,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 403,
+        "bottom": 596,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 979,
+        "right": 1071,
+        "top": 559,
+        "bottom": 587,
+        "width": 92,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 923,
+        "right": 973,
+        "top": 559,
+        "bottom": 587,
+        "width": 50,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 418,
+        "bottom": 446,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 451,
+        "width": 410,
+        "height": 411
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 522,
+        "bottom": 543,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 451,
+            "width": 32,
+            "height": 411
+          },
+          "label": "属性",
+          "name": "展开属性"
+        }
+      ],
+      "documentScrollHeight": 720
+    },
+    "preview1100x900": {
+      "innerWidth": 1100,
+      "innerHeight": 900,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 1032,
+        "height": 852
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 1032,
+        "height": 852
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340,
+        "height": 852
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 784,
+        "bottom": 882,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 583,
+        "bottom": 776,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 979,
+        "right": 1071,
+        "top": 739,
+        "bottom": 767,
+        "width": 92,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 923,
+        "right": 973,
+        "top": 739,
+        "bottom": 767,
+        "width": 50,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 598,
+        "bottom": 626,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 631,
+        "width": 410,
+        "height": 591
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 702,
+        "bottom": 723,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 631,
+            "width": 32,
+            "height": 591
+          },
+          "label": "属性",
+          "name": "展开属性"
+        }
+      ],
+      "documentScrollHeight": 900
+    },
+    "preview900to720": {
+      "innerWidth": 1100,
+      "innerHeight": 720,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 340,
+        "height": 672
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 604,
+        "bottom": 702,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 403,
+        "bottom": 596,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 979,
+        "right": 1071,
+        "top": 559,
+        "bottom": 587,
+        "width": 92,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 923,
+        "right": 973,
+        "top": 559,
+        "bottom": 587,
+        "width": 50,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 418,
+        "bottom": 446,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 451,
+        "width": 410,
+        "height": 411
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 522,
+        "bottom": 543,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 451,
+            "width": 32,
+            "height": 411
+          },
+          "label": "属性",
+          "name": "展开属性"
+        }
+      ],
+      "documentScrollHeight": 720
+    }
+  },
+  "en-dark": {
+    "window": {
+      "width": 1100,
+      "height": 900
+    },
+    "creation1100": {
+      "section": {
+        "left": 60,
+        "right": 744,
+        "top": 40,
+        "bottom": 892,
+        "width": 684
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340
+      },
+      "content": {
+        "left": 62,
+        "right": 742,
+        "top": 88,
+        "bottom": 892,
+        "width": 680
+      },
+      "scroll": {
+        "scrollWidth": 684,
+        "clientWidth": 684
+      },
+      "toolbar": {
+        "left": 60,
+        "right": 744,
+        "top": 40,
+        "bottom": 88,
+        "width": 684
+      },
+      "undo": {
+        "left": 668,
+        "right": 698,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "redo": {
+        "left": 702,
+        "right": 732,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "trigger": {
+        "left": 609,
+        "right": 639,
+        "top": 49,
+        "bottom": 79,
+        "width": 30
+      },
+      "visible": [
+        "bold",
+        "italic",
+        "strike",
+        "code",
+        "highlight",
+        "h1",
+        "h2",
+        "h3",
+        "blockquote",
+        "horizontal-rule"
+      ],
+      "hidden": [
+        "bullet-list",
+        "ordered-list",
+        "task-list",
+        "table",
+        "link"
+      ],
+      "legacyButtons": [
+        "bold@243-273",
+        "italic@277-307",
+        "strike@311-341",
+        "code@345-375",
+        "highlight@379-409",
+        "h1@426-456",
+        "h2@460-490",
+        "h3@494-524",
+        "blockquote@528-558",
+        "horizontal-rule@562-592",
+        "bullet-list@0-0",
+        "ordered-list@0-0",
+        "task-list@0-0",
+        "table@0-0",
+        "link@0-0",
+        "undo@668-698",
+        "redo@702-732"
+      ]
+    },
+    "creation1440": {
+      "section": {
+        "left": 60,
+        "right": 1084,
+        "top": 40,
+        "bottom": 892,
+        "width": 1024
+      },
+      "visible": 15
+    },
+    "menu": {
+      "rows": [
+        {
+          "kind": "item",
+          "id": "bullet-list",
+          "label": "Bulleted list",
+          "icon": true
+        },
+        {
+          "kind": "item",
+          "id": "ordered-list",
+          "label": "Numbered list",
+          "icon": true
+        },
+        {
+          "kind": "item",
+          "id": "task-list",
+          "label": "Task list",
+          "icon": true
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "id": "table",
+          "label": "Insert table",
+          "icon": true
+        },
+        {
+          "kind": "item",
+          "id": "link",
+          "label": "Link",
+          "icon": true
+        }
+      ],
+      "menuRight": 639,
+      "menuLeft": 479,
+      "menuTop": 85,
+      "triggerRight": 638.515625,
+      "triggerBottom": 78.5,
+      "triggerActive": "true"
+    },
+    "preview1100x720": {
+      "innerWidth": 1100,
+      "innerHeight": 720,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 340,
+        "height": 672
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 604,
+        "bottom": 702,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 403,
+        "bottom": 596,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 921,
+        "right": 1071,
+        "top": 559,
+        "bottom": 587,
+        "width": 150,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 849,
+        "right": 915,
+        "top": 559,
+        "bottom": 587,
+        "width": 66,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 418,
+        "bottom": 446,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 451,
+        "width": 410,
+        "height": 411
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 522,
+        "bottom": 543,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 451,
+            "width": 32,
+            "height": 411
+          },
+          "label": "Inspector",
+          "name": "Expand inspector"
+        }
+      ],
+      "documentScrollHeight": 720
+    },
+    "preview1100x900": {
+      "innerWidth": 1100,
+      "innerHeight": 900,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 1032,
+        "height": 852
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 1032,
+        "height": 852
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 892,
+        "width": 340,
+        "height": 852
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 784,
+        "bottom": 882,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 583,
+        "bottom": 776,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 921,
+        "right": 1071,
+        "top": 739,
+        "bottom": 767,
+        "width": 150,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 849,
+        "right": 915,
+        "top": 739,
+        "bottom": 767,
+        "width": 66,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 598,
+        "bottom": 626,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 631,
+        "width": 410,
+        "height": 591
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 702,
+        "bottom": 723,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 631,
+            "width": 32,
+            "height": 591
+          },
+          "label": "Inspector",
+          "name": "Expand inspector"
+        }
+      ],
+      "documentScrollHeight": 900
+    },
+    "preview900to720": {
+      "innerWidth": 1100,
+      "innerHeight": 720,
+      "preview": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "root": {
+        "left": 60,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 1032,
+        "height": 672
+      },
+      "agent": {
+        "left": 752,
+        "right": 1092,
+        "top": 40,
+        "bottom": 712,
+        "width": 340,
+        "height": 672
+      },
+      "composer": {
+        "left": 762,
+        "right": 1082,
+        "top": 604,
+        "bottom": 702,
+        "width": 320,
+        "height": 98
+      },
+      "spendCard": {
+        "left": 762,
+        "right": 1082,
+        "top": 403,
+        "bottom": 596,
+        "width": 320,
+        "height": 193
+      },
+      "spendConfirm": {
+        "left": 921,
+        "right": 1071,
+        "top": 559,
+        "bottom": 587,
+        "width": 150,
+        "height": 28
+      },
+      "spendReject": {
+        "left": 849,
+        "right": 915,
+        "top": 559,
+        "bottom": 587,
+        "width": 66,
+        "height": 28
+      },
+      "play": {
+        "left": 309,
+        "right": 337,
+        "top": 418,
+        "bottom": 446,
+        "width": 28,
+        "height": 28
+      },
+      "player": {
+        "left": 301,
+        "right": 711,
+        "top": 40,
+        "bottom": 451,
+        "width": 410,
+        "height": 411
+      },
+      "timeline": {
+        "left": 210,
+        "right": 726,
+        "top": 522,
+        "bottom": 543,
+        "width": 516,
+        "height": 21
+      },
+      "rails": [
+        {
+          "box": {
+            "left": 712,
+            "right": 744,
+            "top": 40,
+            "bottom": 451,
+            "width": 32,
+            "height": 411
+          },
+          "label": "Inspector",
+          "name": "Expand inspector"
+        }
+      ],
+      "documentScrollHeight": 720
+    }
+  }
+}
