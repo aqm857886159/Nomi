@@ -1,0 +1,25 @@
+{
+  "name": "用户拖预览页分隔条后写回什么（栏宽 / 开合 / 留哪边）",
+  "subject": "editing.panel-drag-intent",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/panelLayout.ts",
+    "symbol": "editingPanelDragIntent"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/panelLayout.ts",
+      "symbol": "editingPanelDragIntent"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/preview/PreviewWorkspace.tsx"
+  ],
+  "since": "2026-11-04",
+  "notes": "存档的唯一写回规则：只有 onLayoutChanged.isUserInteraction（用户亲手拖）才经它算出写回动作；窗口变宽变窄、开关 Nomi、点收起条都不经这里写栏宽。"
+}
