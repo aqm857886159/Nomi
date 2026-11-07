@@ -30,3 +30,11 @@
 - `chrome-ball-running/failed/pending/unread-zh-light-1280.png`：外壳里的四种状态。pending 时是「等你确认 N」胶囊，这是原有行为，没改。
 - `check-float-compact-zh-light-1280.png`：窄浮窗。
 - `form-switch-ball-pending-zh-light.png`、`form-switch-ball-after-reply-zh-light.png`：「停靠 → 小球 → 浮窗 → 停靠」切了一圈以后，小球在待确认和已回复两种状态下的样子。来自 `tests/ux/agent-form-switch-state.walk.mjs`，同一个构建，窗口 1440 宽。
+
+## perf-agent-ball-eye-follow.json：眼睛跟随性能
+
+- 命令：`pnpm run perf:scenarios -- --measure-only --id agent-ball-eye-follow --out …`。Mac M5 上 1 次预热加 5 次，只量、不写基线。
+- 量的时候：画布 192 个节点，Agent 在流式输出，面板收成小球，鼠标在小球 160px 以内扫 120 步。
+- 帧间隔 p95：中位数 10.9ms，p95 10.9ms，预算 33ms。长任务 0。
+- 结构硬断言 5 个样本全过：跟着看的那一段小球重渲染 0 次；回合跑完、落回空闲后 2 秒里，整页动画帧请求 0 次；小球上除眨眼外动画 0 条。有一条不是 0，量具就会非 0 退出。
+- 场景还是待测：按 `docs/engineering/perf-scenarios.md`，基线只能由协调会话或验收线写。
