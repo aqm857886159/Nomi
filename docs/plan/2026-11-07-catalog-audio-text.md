@@ -78,7 +78,7 @@
 ## 8 真实条件
 
 Mac 合同与回环可验；Windows/真付费/真实供应商/中英真窗口/安装包均 unverified；付费脚本先走 openPaidWalk 并复用零花费演练步骤，交协调执行，不自行运行。
-协调真付费抽检结果（2026-11-07，开发构建，隔离副本，每条只提交一次）：Suno V6 Mini、Suno Sounds V6 Mini、Lyria 3.5 三条成功；配音（`nomi-audio`）请求发出后存盘被落盘关口拒（`generated_output_expected_kind_required`），这是 main 自 10-17 起就有的问题、和本 PR 无关，单独修复后再验；文字大脑 10 个不在本脚本里验：创作者用文字模型走的是 Agent 那条路，不走本脚本用的任务通道（第一条就被花钱授权拦下，说明这条通道不是用户的路），改为在 Agent 大脑选择那一片从真实 Agent 界面各发一句来验，本 PR 记 unverified。
+协调真付费抽检结果（2026-11-07，开发构建，隔离副本，每条只提交一次）：Suno V6 Mini、Suno Sounds V6 Mini、Lyria 3.5 三条成功；配音（`nomi-audio`）请求发出后存盘被落盘关口拒（`generated_output_expected_kind_required`），这是 main 自 10-17 起就有的问题、和本 PR 无关，单独修复后再验；文字大脑 10 个不在本脚本里验：创作者用文字模型走的是 Agent 那条路，不走本脚本用的任务通道（第一条就被花钱授权拦下，说明这条通道不是用户的路），改为走 Agent 主进程大脑路一问一个（`tests/ux/apimart-text-brains-real.paid.mjs`，见「按官方文档对齐」），合入前由协调跑。
 拍板图清单不适用：不新增布局或交互。
 
 ## ★9 验收清单与反例（实现前）
@@ -89,7 +89,7 @@ Mac 合同与回环可验；Windows/真付费/真实供应商/中英真窗口/�
 4. 22 个当前大脑精确 ID；不加入 MiMo，不改既有默认；保留旧大脑原 key。反例：旧 ID 替换冒充升级。
 5. 旧目录回放保留模型 enabled/label/key 与可执行路由；V5.5 只纠正声音线缆字段，不变原参数。
 6. lifecycle 走现有分类机制落盘：最新一代与上一代都不是 legacy（Suno V5.5、DeepSeek V4 Flash、Gemini 3.5 Flash 是上一代）；只有更老的 V3.1 Terminus 是 legacy；旧代仍可执行。
-7. 文本价格保守覆盖官方分档/缓存；TTS 不造价、不声明免费。无法用现有声明接入的价格列缺口。
+7. 文本价格取 APIMart 价目接口有效值（分档取最高、峰谷取峰，见「按官方文档对齐」）；TTS 不造价、不声明免费。无法用现有声明接入的价格列缺口。
 8. 免费请求预览与付费步骤共用；每家族选公开价最低的当前候选各一次，收费脚本不得自动重试。
 9. 单测、根因合同检查、推送前快检与交付自检；红项保留原文，门岗 bug 停下交协调。独立验收由协调另派，本线不自签。
 
@@ -105,3 +105,33 @@ Mac 合同与回环可验；Windows/真付费/真实供应商/中英真窗口/�
 - [ ] 生成效果
 - [x] 数据格式
 - [ ] 新增功能 / 性能
+
+## 按官方文档对齐（2026-11-07，I-catalog-a-docs-align，协调定方案 A）
+
+**口径（一句话，D-check 复盘引用这句）：通用协议模型：协议页给依据、列表 + 真调用给封印。** 文字大脑都走 APIMart 的通用 OpenAI 协议（Chat Completions），官方文档只给协议页和模型列表接口，不逐个模型出页；所以「文档出处」认协议页（id 在某页逐字出现就以那页的拼法为准），「能不能调」只认一次真调用，「能不能读图」只认 `/v1/models` 的 Vision 标签或一次带图真调用。列表里有 ≠ 调得通。
+
+价目口径：每条文字模型的价都取公开价目接口 `GET https://api.apimart.ai/api/pricing/model?model=<id>` 的有效值（列表价 `rates` × `price_factor`；分档取最高档、峰谷取峰、缓存读取取隐式 / 显式里高的、缓存写入取 5 分钟 / 1 小时里高的；接口里没有的字段不填）。原始快照 `tests/fixtures/apimart/text-pricing-api.json`，契约测试从快照重算，不抄算好的数。以前「中转价查不到就记一手厂商价」作废。
+
+| 模型 | main 上有 | 之前（#1436 头） | 之后 | 依据 |
+|---|---|---|---|---|
+| deepseek-v4-pro | 是 | 1.0285712 / 3.0857144 / 缓存读 0.0514284 | 缓存读 0.1028568（原来是接口值的一半） | 价目接口 |
+| deepseek-v4.1-flash | 否 | 缓存读 0.0114284，读图 | 缓存读 0.0228568，去掉读图 | 价目接口；读图无一手依据 |
+| deepseek-v4-flash | 是 | 0.44 / 1.32 / 0.014（DeepSeek 官方价） | 0.3428568 / 1.0285712 / 0.0342856 | 价目接口 |
+| gemini-3.5-flash | 是 | 1.5 / 9 / 0.15（Google 官方价），读图 | 1.2 / 7.2 / 无缓存价，读图保留 | 价目接口；读图 = 2026-08-12 带图真调用 |
+| qwen3.8-max-0902 | 否 | 价目表别名 | 改名 qwen3.8-max（价不变） | 官方 Qwen 页的拼法 |
+| claude-opus-5-5 / claude-sonnet-5-5 / claude-haiku-5-5 / claude-fable-5.1 / gemini-4-argon / gemini-3.8-flash | 否 | 读图 | 去掉读图（价不变） | 读图只有协议页，没有一手依据 |
+| 其余 14 条新加的 | 否 | 来源写总价目表 | 数不变，来源改成逐个价目接口 | 价目接口 |
+| deepseek-v3.1-terminus | 是 | 无价 | 不动（价目接口查不到它；2026-08-21 探针调通过） | 本文件头记录 |
+| MiniMax-H3-Context-IR | 是 | 无价 | 不动（提示词增强专用） | Context-IR 页 |
+
+删 0。每条声明的 `evidence` 写明协议页、价目接口、是否已真跑（新加的 22 条都是「未」）；读图声明必须带 `evidence.imageInput`，契约测试守。
+
+老用户（升级后看到的）：deepseek-v4-pro、deepseek-v4-flash、gemini-3.5-flash 三行的价整份换成价目接口的有效值、来源改成价目接口（种子对账按价目漂移整份替换，`apimartLatestContracts.test.ts` 用 v0.24.1 真实旧目录回放断言）；v4-flash 输入 / 输出变便宜、缓存读取变贵；gemini-3.5-flash 输入 / 输出变便宜，缓存命中的 token 不再按缓存价算（接口没有缓存价，按输入价估，宁可高估）；读图照旧。terminus、Context-IR 不变。改名和去读图的都是 #1436 新加的，没有老用户。
+
+两个脚本（协调跑；先在专用工作树 `pnpm build`，Nomi 关掉）：
+- 列表对账（零花费）：`NOMI_SPEND_OK=1 node tests/ux/apimart-text-list-real.paid.mjs` → `text-list.md`：「声明了、列表没有」「列表最新一代、没声明」、读图事实。演练 `node tests/ux/apimart-text-list.rehearsal.walk.mjs`。
+- 一问一个（付费，约 24 + 7 次很短的调用）：`NOMI_SPEND_OK=1 node tests/ux/apimart-text-brains-real.paid.mjs`；续跑 `NOMI_TEXT_BRAINS_FROM=<id 或 id#image>`；读图候选 `NOMI_TEXT_IMAGE_CANDIDATES`（缺省 = 上面去掉读图的 7 个）。走 Agent 主进程大脑路（single-shot），不走任务通道；每个只问一次、不重试、失败接着问；回执一条一落（`brains.jsonl`）。演练 `tests/ux/apimart-text-brains.rehearsal.walk.mjs`。
+
+合入前：协调跑一问一个，调不通的在本 PR 里删（新加的，无老用户）；terminus 调不通记进 retire 待办，本 PR 不动 `seedBuiltins.ts`；带图读出暗号的再加回读图声明（带 `evidence.imageInput`）。
+
+未验证：22 条新加的文字大脑一条都没真调用过；7 条读图候选没带图真调用过；列表对账没对真列表跑过（只有演练）；gemini-3.5-flash 无缓存价是接口现状，APIMart 实际怎么计缓存命中不知道。
