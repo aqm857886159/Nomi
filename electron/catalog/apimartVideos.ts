@@ -40,11 +40,6 @@ function videoCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.
   };
 }
 
-// i2v「比例由图自动决定」→ 档案该模式仍显示比例控件（与 t2v 共享 params），但 apimart i2v body 不发它。
-// 用 drops 把这层「故意不发」显式声明（铁律不变量要求：每个 canonical 参数要么被 codec 覆盖、要么明示 drop），
-// 行为与迁移前完全一致，只是从「静默丢弃」变「明示不支持」。
-const dropParamMap = (keys: string[]): ParamMap => ({ drops: keys, rules: [] });
-
 // 变体合并模型用：body model = 档案当前变体的 modelKey（{{request.params.model}}）。
 const VARIANT_MODEL_REF = "{{request.params.model}}";
 
