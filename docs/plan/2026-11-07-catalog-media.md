@@ -17,6 +17,7 @@
 - https://docs.apimart.ai/en/api-reference/videos/veo3/generation-official.md · 官方通道单独 ID、4/6/8 秒和当前 4K 枚举 · 改变普查中只有 720p/1080p 的结论。
 - https://docs.apimart.ai/en/api-reference/images/qwen-image-3.0/generation.md · 当前参考图写 1–3，不是普查的 6 · 确认保留已有上限 3，报告差异。
 - https://docs.apimart.ai/en/api-reference/videos/muse-video-ext/generation.md · 当前只列参考图、固定约 10 秒 720p 有声 · 不声明参考视频，不把参考图当精确首帧。
+- 出口：不涉及：本卡只加目录声明与守卫测试，不新增长跑任务流程，任务可打断 / 续跑行为不变。
 
 ## ★1 用户怎么用
 
