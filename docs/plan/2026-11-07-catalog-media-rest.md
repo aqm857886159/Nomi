@@ -31,7 +31,7 @@
 
 ### ★1c 老用户
 
-不删旧 key、不改旧 mapping id、enabled、用户标签和节点参数；新型号另建身份；旧代只经 `curatedCatalogLifecycle` 降推荐，不删除执行行。Nano Banana 2 / Wan 2.7 / Kling v3 / Vidu Q3 等上一代继续可选。升级路径复用 `tests/fixtures/old-user-data/curated/v0.24.1-apimart/` 的对账测试。
+不删旧 key、不改旧 mapping id、enabled、用户标签和节点参数；新型号另建身份；旧代只经 `curatedCatalogLifecycle` 降推荐，不删除执行行。Nano Banana 2 / Wan 2.7 / Kling v3 / Vidu Q3 等上一代继续可选。升级路径回放依据：基线（merge-base 的真实种子）+ 用户改动再套本分支种子；`tests/fixtures/old-user-data/curated/v0.24.1-apimart/` 目前仓库里不存在，合入 main 后存在就改用它，对账测试 `electron/catalog/seedBuiltins.test.ts`。
 
 ## ★2 谁说了算
 
@@ -67,6 +67,7 @@ Mac 请求预览与合同可验；真供应商、真付费、Windows、安装包
 6. 新旧目录对账：旧行不删、不改 enabled / label / key。
 7. 比例普查与映射数量更新，并在注释里写明新增来源。
 8. 单测、类型、声明与门岗、排锁快检全部通过；失败和未验证如实记录。独立验收由协调另派，不自签；回滚即回退本分支提交。
+9. 与分支 2 合成一个 PR 后补的三条自动防线（详见 `catalog-media.md` ★9 第 10 条）：请求体字段集合（`apimartMediaRestWire.test.ts` 盖到本批全部型号 + 2.6 + 改过档位的上一代）、默认值与选项在官方取值内（`apimartMediaOfficialValues.test.ts`，覆盖本批全部型号）、用户点名保留的 GPT Image 2 不得标 legacy。变异（质量默认值改成 `ultra`、`image_urls` 改成 `image_url`、`gpt-image-2` 标 legacy）都先确认红再还原。
 
 ### 功能分类
 - [x] 花钱

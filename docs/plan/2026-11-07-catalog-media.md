@@ -33,7 +33,7 @@
 ### ★1c 老用户
 
 保留原 key、mapping id、enabled、用户标签、项目节点及已有参考参数；当前型号另建身份；旧代只复用 catalogLifecycle 降推荐，不删除执行行。
-使用基线真实写入的 `tests/fixtures/old-user-data/curated/v0.24.1-apimart/` 目录快照逐行核对身份与用户字段，并验证旧 mapping 保留。它只证明目录兼容，旧作品实际供应商执行仍需协调真跑。
+回放依据：基线（merge-base 的真实种子）+ 用户改动（隔一个停用、改标签、停用部分 mapping）再套本分支种子，逐行核身份与用户字段、旧 mapping 保留（独立验收 V-catalog-media 已按此回放）。`tests/fixtures/old-user-data/curated/v0.24.1-apimart/` 目前仓库里不存在（随音频 PR 一起带进来），合入 main 后那个目录存在就改用它。它只证明目录兼容，旧作品实际供应商执行仍需协调真跑。
 
 ## ★2 谁说了算
 
@@ -85,6 +85,11 @@ Mac 请求预览/合同可验；真供应商、真付费、Windows、安装包�
 7. 复用 apimartModelIds / CrossField / VideoShared 测试形状；补比例普查数量，并解释新档案数。
 8. 付费抽检每家最低价当前基础档一次、失败停止；脚本先经 openPaidWalk，修复标记与样本清单明确；本线只跑合同演练。
 9. 单测、类型、声明与门岗、排锁快检；完整记录失败与未验证。独立验收由协调另派，不自签；回滚本分支提交，不触碰用户旧项目。
+10. 三条自动防线（验收线 V-catalog-media 的变异 M2 / M3 / M4 当时全存活，现补上；每条都先在旧代码上做对应变异确认红，再还原）：
+    - 请求体（M3）：`apimartMediaRestWire.test.ts` 的期望表盖到 GPT Image 2.6 两档（文生、改图）和上一代改过档位且有请求体声明的型号；字段集合 = 官方允许集合，改图 / 参考图槽落在官方字段（2.6 是 `image_urls`，上限 16）。变异：`image_urls` 改成 `image_url` 必红。
+    - 默认值在官方范围（M2）：`apimartMediaOfficialValues.test.ts`，每个有选项的控件，默认值必在声明选项里，选项必为手抄官方取值的子集（出处写在期望表里）。变异：2.6 质量默认值改成官方范围外的 `ultra` 必红。
+    - 保持可选（M4）：`gpt-image-2` 及各渠道 key 登记在合同表的 `userKept`（用户原话「image2留着」），标 legacy 必红。
+11. GPT Image 2.6 两档是这一家最新一代，进旗舰（`seedModelIdentity.ts`），与上一代 2.5 同档；`apimartLatestMediaContracts.test.ts` 钉住。
 
 ### 功能分类
 - [x] 花钱

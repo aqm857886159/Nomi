@@ -59,19 +59,19 @@ export function relayModelOption(win, modelKey) {
   return win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: win.getByText(modelKey, { exact: true }) })
 }
 
-/** Shared free/paid segment: select the declared model, prepare one video, stop before generate. */
-export async function prepareRelayVideo({ win, newProject, model, capture }) {
+/** Shared free/paid segment: select the declared model, prepare one video (or image, `kind: 'image'`), stop before generate. */
+export async function prepareRelayVideo({ win, newProject, model, capture, kind = 'video' }) {
   const { projectId, projectRoot } = await newProject()
   await openCanvas(win)
   await collapseAgentPanel(win)
   const before = new Set(((await readProject(win, projectId)).payload.generationCanvas.nodes ?? []).map((n) => n.id))
-  await win.getByRole('button', { name: /添加视频节点|Add video node/i }).first().click()
-  const fresh = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.find((n) => !before.has(n.id) && n.kind === 'video')
+  await win.getByRole('button', { name: kind === 'image' ? /添加图片节点|Add image node/i : /添加视频节点|Add video node/i }).first().click()
+  const fresh = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.find((n) => !before.has(n.id) && n.kind === kind)
   await expect.poll(async () => Boolean(await fresh()), { timeout: stationTimeout() }).toBe(true)
   const id = (await fresh()).id
   const node = win.locator(`[data-node-id="${id}"]`)
   const locale = await win.evaluate(() => localStorage.getItem('nomi:locale:v1') || 'zh-CN')
-  const textMode = node.getByText(uiText(locale, 'generationCommon.nodeTry.video.text'), { exact: true })
+  const textMode = node.getByText(uiText(locale, `generationCommon.nodeTry.${kind}.text`), { exact: true })
   // A reload drops the selection and fit-view overshoots: use the zoom UI and a real pointer target.
   // At 100% an input-driven mode's composer and option list leave the viewport, so stay at 60%.
   const exposeComposer = async () => {
@@ -88,7 +88,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
     return row ? { kind: row.kind, enabled: row.enabled, published: row.published, publishedModes: row.publishedModes, availability: row.availability } : null
   }, model)
   console.log('[relay] catalog projection', JSON.stringify(projection))
-  console.log('[relay] picker evidence', JSON.stringify({ node: await fresh(), videoRows: await win.evaluate(async () => (await window.nomiDesktop.modelCatalog.listModels({ kind: 'video', enabled: true })).filter((row) => row.availability?.usable).map(({ vendorKey, modelKey, publishedModes, availability }) => ({ vendorKey, modelKey, publishedModes, availability }))) }))
+  console.log('[relay] picker evidence', JSON.stringify({ node: await fresh(), videoRows: await win.evaluate(async (rowKind) => (await window.nomiDesktop.modelCatalog.listModels({ kind: rowKind, enabled: true })).filter((row) => row.availability?.usable).map(({ vendorKey, modelKey, publishedModes, availability }) => ({ vendorKey, modelKey, publishedModes, availability })), kind) }))
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await capture('model-menu')
   let neededReload = false
@@ -117,7 +117,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture }) {
 }
 
 /** Shared paid/rehearsal segment: exactly one click, local asset, decoder and browser playback. */
-export async function generateRelayVideo({ win, prepared, capture }) {
+export async function generateRelayVideo({ win, prepared, capture, kind = 'video' }) {
   const { node, projectId, nodeId } = prepared
   const readNode = async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.find((n) => n.id === nodeId)
   const previousRunIds = new Set(((await readNode()).runs || []).map((run) => run.id))
@@ -145,17 +145,22 @@ export async function generateRelayVideo({ win, prepared, capture }) {
   expect(landed.result?.url).toMatch(/^nomi-local:\/\/asset\//)
   const { probeLandedMedia } = await import('./_agentVideoPaid.mjs')
   const media = await probeLandedMedia(prepared.projectRoot, projectId, landed.result.url)
-  expect(media.probe.kind).toBe('video')
-  const playable = await node.locator('video').first().evaluate(async (video) => {
-    await video.play()
-    return { readyState: video.readyState, width: video.videoWidth, duration: video.duration }
-  })
+  expect(media.probe.kind).toBe(kind)
+  const playable = kind === 'image'
+    ? await node.locator('img').first().evaluate(async (image) => {
+      await image.decode()
+      return { readyState: 4, width: image.naturalWidth, duration: 0 }
+    })
+    : await node.locator('video').first().evaluate(async (video) => {
+      await video.play()
+      return { readyState: video.readyState, width: video.videoWidth, duration: video.duration }
+    })
   expect(playable.width).toBeGreaterThan(0)
   await capture('landed')
   let stored
   await expect.poll(async () => {
     stored = (await win.evaluate((id) => window.nomiDesktop.assets.list({ projectId: id }), projectId)).items.find((asset) => asset.data?.url === landed.result.url)
-    return Boolean(stored && stored.data.mediaType === 'video')
+    return Boolean(stored && stored.data.mediaType === kind)
   }, { timeout: stationTimeout() }).toBe(true)
   const library = await openRailDrawer(win, 'assets', 'Open the project asset library')
   await expect(library.getByText(stored.name, { exact: true }).first()).toBeVisible()
