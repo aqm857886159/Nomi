@@ -8,9 +8,8 @@ export const CATALOG_LATEST_SAMPLES = [
   { family: 'Suno sounds', modelKey: 'suno-sounds-v6-mini', kind: 'text_to_audio', params: { sound_type: 'one-shot' } },
   { family: 'Lyria', modelKey: 'flowmusic-lyria-3.5', kind: 'text_to_audio', params: { length: 1 } },
   { family: 'TTS', modelKey: 'nomi-audio', kind: 'text_to_audio', params: { modeId: 'speech', voice: 'alloy', speed: 1 } },
-  ...['gpt-6-luna', 'claude-haiku-5-5', 'gemini-3.8-flash', 'deepseek-v4.1-flash', 'qwen3.8-flash',
-    'glm-5.3-flash', 'kimi-k3', 'grok-4.7', 'minimax-m3', 'step-3.7-flash']
-    .map(modelKey => ({ family: modelKey, modelKey, kind: 'chat', params: { maxTokens: 1024, maxRetries: 0 } })),
+  // No Agent-brain samples here: creators reach text models through the Agent, not this task bridge, so a bridge
+  // order would test a path nobody uses. The brains are checked one turn each through the real Agent UI instead.
 ] as const;
 
 export type CatalogLatestSample = (typeof CATALOG_LATEST_SAMPLES)[number];

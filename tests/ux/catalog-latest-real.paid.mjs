@@ -25,18 +25,14 @@ try {
   walk.report.resumedFrom = from ?? null
   walk.report.samples = await runCatalogLatestSamples(async (sample) => {
     const nodeId = `catalog-sample-${sample.modelKey}`
-    const request = { kind: sample.kind, prompt: sample.kind === 'chat' ? 'Reply with OK.' : 'A soft bell.',
+    const request = { kind: sample.kind, prompt: 'A soft bell.',
       extras: { modelKey: sample.modelKey, ...sample.params, maxRetries: 0, nodeId, projectId } }
-    if (sample.kind !== 'chat') {
-      const { grantId } = await win.evaluate((id) => window.nomiDesktop.tasks.grantSpend({ nodeIds: [id], maxAttemptsPerNode: 1 }), nodeId)
-      request.extras.grantId = grantId
-    }
+    const { grantId } = await win.evaluate((id) => window.nomiDesktop.tasks.grantSpend({ nodeIds: [id], maxAttemptsPerNode: 1 }), nodeId)
+    request.extras.grantId = grantId
     const pending = win.evaluate((input) => window.nomiDesktop.tasks.run({ vendor: 'apimart', request: input }), request)
     // Preserve an early rejection while waiting for the ordinary generation confirmation.
     pending.catch(() => {})
-    if (sample.kind !== 'chat') {
-      await clickOrFail(win.locator('[data-spend-confirm-action="confirm"]'), `Approve ${sample.family} once`)
-    }
+    await clickOrFail(win.locator('[data-spend-confirm-action="confirm"]'), `Approve ${sample.family} once`)
     const result = await settleSampleTask(await pending, (taskId) => win.evaluate((input) => window.nomiDesktop.tasks.result(input), {
       vendor: 'apimart', taskId, taskKind: sample.kind, modelKey: sample.modelKey, prompt: request.prompt,
     }), { timeoutMs: stationTimeout({ operations: 8 }), intervalMs: 3000 })

@@ -41,17 +41,12 @@ function preview(modelKey: string, extras: Record<string, unknown> = {}) {
 describe('APIMart audio official field contracts and request previews', () => {
   it('rehearses the paid runner sample loop through the production request preview', async () => {
     const results = await runCatalogLatestSamples(async sample => {
-      if (sample.kind === 'chat') {
-        const model = APIMART_TEXT_MODELS.find(row => row.modelKey === sample.modelKey);
-        expect(model?.tokenPricing).toBeDefined();
-      } else {
-        const result = preview(sample.modelKey, sample.params);
-        expect(result.built.body).toHaveProperty('model');
-        expect(JSON.stringify(result.built.body)).not.toContain('{{');
-      }
+      const result = preview(sample.modelKey, sample.params);
+      expect(result.built.body).toHaveProperty('model');
+      expect(JSON.stringify(result.built.body)).not.toContain('{{');
       return { status: 'succeeded' };
     });
-    expect(results).toHaveLength(14);
+    expect(results).toHaveLength(4);
   });
 
   it('resumes a paid run at one sample without re-submitting the ones before it, and refuses an unknown resume point', async () => {

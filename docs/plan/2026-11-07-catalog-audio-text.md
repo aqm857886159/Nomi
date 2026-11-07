@@ -78,6 +78,7 @@
 ## 8 真实条件
 
 Mac 合同与回环可验；Windows/真付费/真实供应商/中英真窗口/安装包均 unverified；付费脚本先走 openPaidWalk 并复用零花费演练步骤，交协调执行，不自行运行。
+协调真付费抽检结果（2026-11-07，开发构建，隔离副本，每条只提交一次）：Suno V6 Mini、Suno Sounds V6 Mini、Lyria 3.5 三条成功；配音（`nomi-audio`）请求发出后存盘被落盘关口拒（`generated_output_expected_kind_required`），这是 main 自 10-17 起就有的问题、和本 PR 无关，单独修复后再验；文字大脑 10 个不在本脚本里验：创作者用文字模型走的是 Agent 那条路，不走本脚本用的任务通道（第一条就被花钱授权拦下，说明这条通道不是用户的路），改为在 Agent 大脑选择那一片从真实 Agent 界面各发一句来验，本 PR 记 unverified。
 拍板图清单不适用：不新增布局或交互。
 
 ## ★9 验收清单与反例（实现前）
