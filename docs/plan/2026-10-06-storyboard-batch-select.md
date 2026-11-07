@@ -1,5 +1,7 @@
 # 分镜「生成剩余 / 勾选 / 批量参数」样张设计卡（B2 · B5b · B7）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 状态：样张阶段（2026-10-06，L-sbbatch）。**只出可体验的样张，不接产品逻辑**：下面「做了什么」里的组件改动是为了让实验室里摆的是真组件，数据变化走真函数；确认框的接线、「移除结果」的清结果逻辑都等用户拍板后再做。
 > 基线：`origin/main` 878f4ecc7（含 #1042 行底栏改版）。实验室屏：`design-lab.html?screen=storyboard-batch`（设计实验室「分镜 · 生成剩余 / 勾选 / 批量参数（提案）」，31 格）。
 > 截图：`docs/evidence/2026-10-06-storyboard-batch-select/{now,after}/{zh-CN,en}/`，逐张索引见该目录 `README.md`。

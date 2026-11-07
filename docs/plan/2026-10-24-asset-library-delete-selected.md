@@ -1,5 +1,7 @@
 # 设计卡：项目素材删除——列出来的每一种素材，删了都有明确结果
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：项目素材多选删除一张都删不掉（夜跑 asset-library-interactions ⑤）  线/负责人：C-asset-delete（Claude 修复线）  类别：[其他]（bug 修复）
 ```

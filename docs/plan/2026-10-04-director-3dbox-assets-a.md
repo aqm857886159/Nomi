@@ -1,5 +1,7 @@
 # 2026-10-04 Director 3D-BOX 素材 A 期：第三轮方向
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 决策
 
 第二轮的 X Bot 重定向指标会把整体躺倒/站立抵消掉：Push_Loop 中位角 0.5°、Death01 中位角 0.8°，但联系图分别显示目标举臂悬空和站立浮空。用户于 2026-10-04 拍板：3D-BOX 默认角色改用 Quaternius Universal Animation Library Standard 自带的 CC0 人偶，动作原生使用；旧导演台 X Bot + Mixamo 不动；“藏信”等细节动作交给视频模型，不再扩展 3D 重定向库。

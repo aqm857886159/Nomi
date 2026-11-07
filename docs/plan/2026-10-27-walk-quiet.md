@@ -1,5 +1,7 @@
 # 2026-10-27 走查后台安静设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## ★1 用户怎么用 / 怎么量
 
 走查脚本经 `tests/ux/_launchApp.mjs` 启动隔离 Nomi 时，默认窗口屏外、不可聚焦，且所有会把控制权交给 macOS 的出口只留记录。用户可以继续在前台使用 Claude 或其它应用。真实前台行为走查必须写 `launchNomiApp({ foreground: '<原因>' })`，并由 `NOMI_WALK_FOREGROUND_OK=1` 明确放行。

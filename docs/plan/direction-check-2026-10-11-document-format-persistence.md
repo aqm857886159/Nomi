@@ -1,5 +1,7 @@
 # 方向检查：文稿格式的保存与撤销（2026-10-11）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 触发：`fix-churn.mjs` 对 `src/workbench/common/useNomiRichTextEditor.ts` 报「14 天第 3 个 fix」。本刀是否该停：下面第 1 节逐条看前两个 fix 与本刀是不是同一类，结论是**不是**，但仍写成一页留档。
 
 ### 0. 一句话根因

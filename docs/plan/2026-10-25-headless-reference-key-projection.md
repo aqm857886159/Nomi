@@ -1,5 +1,7 @@
 # 设计卡：headless 参考键投影改为声明驱动
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：headless 参考只投进声明过的参考位
 线/负责人：Mac Codex 修复线 / fix(headless-reference-key-projection)
 类别：[花钱][其他]

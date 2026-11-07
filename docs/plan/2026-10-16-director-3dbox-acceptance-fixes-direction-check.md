@@ -1,5 +1,7 @@
 # 方向检查：V-3dbox 有条件通过的三项（2026-10-16 第五轮）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`fix-churn` 命中 `electron/capabilityCore/dispatcher.ts`（14 天第 8 个）、`model/directorPreviewState.ts`（第 7 个）。
 > 来源：独立验收 V-3dbox 报告（协调目录）第 1、3 节：对外 MCP 两个操作实调不通；超过 10 秒不置灰；「出成片碰不到花钱入口」的结构测试漏掉真实回调。
 > 协调 10-16：三项都修，验收线只复验这三项；「改设计不能丢功能」，删旧导演台不能让外部 Agent 少两个能力。

@@ -1,5 +1,7 @@
 # 参考素材的临时链接失效后，改用本机文件（设计卡）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：参考素材发给模型前先确认临时链接还活着。类别：[花钱][长跑]。实现线和验收线分开，验收线编号见 PR 正文。
 
 方向检查：`docs/engineering/direction-checks/2026-11-01-reference-link-delivery.md`。

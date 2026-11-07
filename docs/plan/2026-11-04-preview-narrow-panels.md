@@ -1,5 +1,7 @@
 # 预览页窄窗：左栏不再被压成一条缝 · 设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：预览页侧栏按真实空间收放　　线 / 负责人：预览页窄窗修复线（协调会话派）　　类别：[其他]（修 bug，带可见改动）
 
 拍板画布（Claude Design）：<https://claude.ai/artifact/7GS3EXDGtMrK86Bu6csVSF>；截图与源码落 `docs/design/boards/2026-11-04-preview-narrow-panels/`。
