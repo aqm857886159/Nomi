@@ -185,15 +185,15 @@ describe("applyBuiltinSeeds", () => {
       .toMatchObject({ catalogLifecycle: "flagship" });
     expect((fresh.models.find((model) => model.modelKey === "nano-banana-2-lite")?.meta as Record<string, unknown>))
       .toMatchObject({ catalogLifecycle: "value" });
-    expect((fresh.models.find((model) => model.modelKey === "seedream")?.meta as Record<string, unknown>))
+    expect((fresh.models.find((model) => model.modelKey === "nano-banana")?.meta as Record<string, unknown>))
       .toMatchObject({ catalogLifecycle: "legacy" });
 
-    const staleIndex = fresh.models.findIndex((model) => model.modelKey === "seedream");
-    fresh.models[staleIndex] = { ...fresh.models[staleIndex], meta: { archetypeId: "seedream" } };
+    const staleIndex = fresh.models.findIndex((model) => model.modelKey === "nano-banana");
+    fresh.models[staleIndex] = { ...fresh.models[staleIndex], meta: { archetypeId: "nano-banana" } };
     const reconciled = applyBuiltinSeeds(fresh, "2026-08-30T00:00:00.000Z");
     expect(reconciled.changed).toBe(true);
     expect((reconciled.state.models[staleIndex].meta as Record<string, unknown>))
-      .toMatchObject({ archetypeId: "seedream", catalogLifecycle: "legacy" });
+      .toMatchObject({ archetypeId: "nano-banana", catalogLifecycle: "legacy" });
   });
 
   it("re-sync（model）：meta 里用户自加的其它键不被对账抹掉（只覆盖 archetypeId）", () => {

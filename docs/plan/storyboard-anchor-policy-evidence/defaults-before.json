@@ -890,6 +890,42 @@
     },
     "video": {}
   },
+  "gpt-image-2.6-flare/kie": {
+    "image": {
+      "modelKey": "gpt-image-2.6-flare",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gpt-image-2.6-flare/apimart": {
+    "image": {
+      "modelKey": "gpt-image-2.6-flare",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gpt-image-2.6-sunburst/kie": {
+    "image": {
+      "modelKey": "gpt-image-2.6-sunburst",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gpt-image-2.6-sunburst/apimart": {
+    "image": {
+      "modelKey": "gpt-image-2.6-sunburst",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
   "seedream/kie": {
     "image": {
       "modelKey": "seedream",

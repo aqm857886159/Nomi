@@ -29,8 +29,8 @@ function seededContext(mapping: ReturnType<typeof seededMapping>) {
 describe("reference-key projection census — declared reference behavior", () => {
   it("has no false positives in real seeded creation bodies", () => {
     const census = buildReferenceKeyCensus();
-    expect(census.summary.seededMappings).toBe(246);
-    expect(census.summary.rowsWithClassifiedKeys).toBe(124);
+    expect(census.summary.seededMappings).toBe(250);
+    expect(census.summary.rowsWithClassifiedKeys).toBe(126);
     expect(census.summary.falsePositiveRows).toBe(0);
     expect(census.summary.falsePositiveKeys).toBe(0);
     expect(census.summary.falsePositiveKeyNames).toEqual([]);

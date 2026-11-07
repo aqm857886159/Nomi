@@ -468,6 +468,12 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "gpt-image-2-5-sunburst-text-to-image",
     "gpt-image-2-5-sunburst-image-to-image"
   ],
+  "gpt-image-2.6-flare": [
+    "gpt-image-2.6-flare"
+  ],
+  "gpt-image-2.6-sunburst": [
+    "gpt-image-2.6-sunburst"
+  ],
   "imagen-4-fast": [
     "google/imagen4-fast",
     "imagen4-fast",
