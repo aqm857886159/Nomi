@@ -8,15 +8,26 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1437,
   "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-11-07-shot-result-ownership.md",
     "docs/plan/2026-11-07-shot-result-ownership.direction-check.md",
     "src/workbench/generationCanvas/runner/shotResultOwnership.test.ts",
-    "用户 2026-11-04 拍板「先合，再单独修」；方向检查由没参与过前几轮的线独立写，推荐换模式：主进程准入给运行身份、结局按运行记录号收账、节点显示从记录算，同提交删掉「只认第一条」的过滤和被拒后的快照回滚。"
+    "用户 2026-11-04 拍板「先合，再单独修」；方向检查由没参与过前几轮的线独立写，推荐换模式：主进程准入给运行身份、结局按运行记录号收账、节点显示从记录算，同提交删掉「只认第一条」的过滤和被拒后的快照回滚。",
+    "协调开 PR 后转 fixed（#1437），独立验收在这之后；付费走查由协调在验收后跑一次。"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "eda6e2f56",
+    "7db2e79c1",
+    "450809e20",
+    "b15c7f494",
+    "f63f1408b",
+    "b85d93f58",
+    "026409f8a",
+    "c05ac86b4"
+  ],
   "rootCauseContract": "docs/fixes/2026-11-07-shot-result-ownership.root-cause.json",
   "classCheck": {
     "kind": "matrix",
