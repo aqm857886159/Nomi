@@ -9,6 +9,7 @@
 3. Azure 架构中心「Event Sourcing pattern」（https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing ）· 追加写的记录是正本，当前状态是投影；撤销靠补偿记录，不改回旧状态；文档提醒整套事件溯源很重 · 影响 D3、D5：删掉「恢复开始时的快照」，节点显示从运行记录算；不引入事件溯源框架，只在运行记录这一处用。
 4. Stripe「Idempotent requests」（https://docs.stripe.com/api/idempotent_requests ）· 按幂等键记第一次请求的结果；和正在执行的请求冲突时不产生副作用 · 影响 D2、D3：结果绑在这一次意图（运行记录号）上；被拒的并发尝试不碰原来那次的结果。
 5. TanStack Query v5「Optimistic Updates」（https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates ）· 乐观的那一层只在界面上显示，不写进正式缓存，结束时按服务端事实重算 · 影响 D1、D3：点下去到主进程准入之间，只在节点显示上写「排队中」，不写运行记录；被拒就按记录重算，不回滚快照。
+6. 出口：TanStack Query v5「Optimistic Updates」（https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates ）· 乐观那一层只活到请求结束：失败时用 onError 拿回原样、成败都在 onSettled 按服务端事实重算，用户随后照常能再发 · 确认了 D1、D3 的出口：本 PR 没新增锁，挪动的只是「等准入」住在哪（节点显示而不是运行记录）——「排队中」只活到准入回执或被拒，被拒、重启都按运行记录重算，镜头照常能取消、能再生成；修补轮留着的「没收尾」标记不挡人（Run 已收尾的那一笔不算在途），只在渲染层接住结局后删。
 
 ## ★1 用户怎么用
 
