@@ -74,7 +74,8 @@ const LANDING_DOORS: readonly LandingDoor[] = [
     name: 'runner result (deliverRunOutcome result → addNodeResult)',
     land: async () => {
       await startRun('run-a')
-      await deliverRunOutcome(TARGET, NODE_ID, { kind: 'result', result: LANDED_RESULT })
+      // 结果带着交出它的那次运行的号（控制器交回的结果都带号；不带号的只结掉制作记录，归属规则 D6）。
+      await deliverRunOutcome(TARGET, NODE_ID, { kind: 'result', result: LANDED_RESULT, runId: 'run-a' })
     },
     assertLanded: expectLandedResult,
   },
@@ -98,7 +99,7 @@ const LANDING_DOORS: readonly LandingDoor[] = [
     name: 'text rewrite of a selection (addNodeResult + landSelectionRewrite)',
     land: async () => {
       await startRun('run-rw')
-      await deliverRunOutcome(TARGET, NODE_ID, { kind: 'result', result: { id: 'r-rw', type: 'text', text: 'PAID REWRITE', createdAt: 5 } })
+      await deliverRunOutcome(TARGET, NODE_ID, { kind: 'result', result: { id: 'r-rw', type: 'text', text: 'PAID REWRITE', createdAt: 5 }, runId: 'run-rw' })
       landSelectionRewrite(NODE_ID, 'r-rw', REWRITE_DOC)
     },
     assertLanded: (landed) => {
@@ -196,7 +197,7 @@ describe('undo never takes back a landed generation outcome', () => {
   it('keeps a result when the prompt changes while generation is running, across undo and redo', async () => {
     await startRun('run-prompt-change')
     useGenerationCanvasStore.getState().updateNodePrompt(NODE_ID, 'new prompt')
-    await deliverRunOutcome(TARGET, NODE_ID, { kind: 'result', result: LANDED_RESULT })
+    await deliverRunOutcome(TARGET, NODE_ID, { kind: 'result', result: LANDED_RESULT, runId: 'run-prompt-change' })
 
     expect(node()?.prompt).toBe('new prompt')
     expect(node()?.result?.id).toBe('r-landed')
