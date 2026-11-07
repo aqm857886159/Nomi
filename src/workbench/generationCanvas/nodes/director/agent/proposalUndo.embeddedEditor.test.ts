@@ -5,7 +5,7 @@
  * 走真实边界：真提议事务、真收据转移（lane 命令桩）、真撤销日志、真编辑器 store。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DirectorWriteInput } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
+import { directorWriteSemanticInputSchema, type DirectorWriteInput } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
 import { laneClient } from '../../../../ai/lane/laneClient'
 import { applyProposalBatch } from '../../../agent/proposalTxn'
 import { hydrateCommittedProposalReceipt, runProposalUndo, type CommittedProposalRecord } from '../../../agent/proposalUndo'
@@ -38,7 +38,7 @@ const plan = {
 const nodeById = (id: string) => useGenerationCanvasStore.getState().nodes.find((node) => node.id === id)
 
 async function commit(input: DirectorWriteInput): Promise<{ result: DirectorWriteDomainResult; record: CommittedProposalRecord }> {
-  const outcome = await applyProposalBatch([{ toolCallId: `tc-${input.operation}`, toolName: input.operation, effectiveArgs: input as unknown as Record<string, unknown> }])
+  const outcome = await applyProposalBatch([{ toolCallId: `tc-${input.operation}`, toolName: input.operation, effectiveArgs: directorWriteSemanticInputSchema.parse(input) as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error(`aborted: ${outcome.reason}`)
   return {
     result: outcome.results[0] as DirectorWriteDomainResult,
