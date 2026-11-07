@@ -93,7 +93,7 @@
 8 真实条件：全部 `unverified`，0.25 实现后逐项跑：Windows / 英文界面（胶囊更长）/ 最小窗口 / 暗色 / 减弱动效 / 键盘全程（Tab 到小球有焦点描边、回车打开、⌘J）/ 100% 缩放的普通屏上 44px 和 16px 是否清楚。
 
 ★9 验收与回滚：0.25 实现 PR 由另一条线独立验收（新界面类强制），验收线只核下面这份清单。证据：`## 独立验收` 一节；`pnpm run check:board-parity`
-- ① 验收清单：拍板清单两块板的每个元素都是 implemented 且有走查断言（`board:AgentPersona/<元素>`、`board:AgentIdentityRow/<元素>`）；八种样子各一张真截图（浅色 / 暗色、中 / 英），和拍板拼页逐格对账；功能普查 A-1 到 A-12、I-1 到 I-2 逐行写「在新位置可用（走查名）」；`perf-scenario` 交数字。
+- ① 验收清单：拍板清单两块板的每个元素都是 implemented 且有走查断言（`board:AgentPersona/<元素>`、`board:AgentIdentityRow/<元素>`），以下例外按「实现时的取舍」照实核：`variant.setup`（取舍 1，随 D2-1）、`variant.long-task`（取舍 2，等 Run 状态接进小球）留 `missing`；身份行 `identity.face` / `identity.wordmark` 组件已换、但 `NomiIdentityRow` 现在没有挂载点、用户看不到，留 `in-progress`（owner D2-1），只核组件单测与几何，不核真界面；八种样子各一张真截图（浅色 / 暗色、中 / 英），和拍板拼页逐格对账；功能普查 A-1 到 A-12、I-1 到 I-2 逐行写「在新位置可用（走查名）」；`perf-scenario` 交数字。
 - ② 反例（这一类会从哪回来）：小球自己打开了面板；眼睛跟随引起整个外壳重渲染（React Profiler 看提交次数）；减弱动效下还在动；拖动不到 4px 没算点击，或拖完被当成点击；右键菜单、⌘J 失效；胶囊没往左长、把右缘推出屏幕；英文胶囊字被截；暗色身体写死 hex 不走 token；`data-agent-ball` / `-dock-status` / `-dock-count` / `-dock-unread` / `-ball-progress` 少了一个（走查会全瞎）；面板开着时刚做完却挂上了未读点；出错时读屏不读；身份行的脸在动；`NomiLoadingMark` 或 App 图标被顺手换了。
 - ③ 开工第一步：独立只读线按代码复核两块板的功能普查（现有功能全表，带代码出处），漏的先补进清单再动手。
 - ④ 回滚：revert 0.25 的实现 PR（一个合并提交）；没有数据迁移，没有开关。

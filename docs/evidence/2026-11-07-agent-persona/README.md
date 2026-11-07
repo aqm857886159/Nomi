@@ -21,7 +21,7 @@
 
 ## identity-row/：聊天里的身份行
 
-- `identity-live.png`：实拍。
+- `identity-live.png`：组件单独渲染（没装界面文案，字标显示成 `brand.wordStart` 这类键名，不是界面上的样子）。`NomiIdentityRow` 现在没有挂载点，用户看不到这一行，所以没有真界面截图；只证头像几何与静止，字标以单测为准。
 - `row-light.png`、`row-dark.png`：光暗两种模式。
 - `big-light.png`、`big-dark.png`：放大看头像。
 
