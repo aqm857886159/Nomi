@@ -45,6 +45,15 @@ const SHARED_ITEMS: readonly { id: ShellDrawerItem; icon: typeof IconFolder }[] 
 
 /** 抽屉卡离左栏 4px、离顶栏 4px、离窗口下缘 12px（CreationDoc 板 .drw）。 */
 const DRAWER_INSET = { left: SHELL_RAIL_WIDTH + 4, top: SHELL_TOPBAR_HEIGHT + 4, bottom: 12 } as const
+/**
+ * 抽屉**显示**宽最多到「窗口 − 232」（WindowNarrow 板 drawer.clamp）：232 = 左栏 60 + 抽屉左缝 4 + 右下角 Nomi 胶囊 132
+ * + 胶囊离边 16 + 外壳缝 8 + 余量 12——窄窗里抽屉拉到多宽都盖不住小球 / 胶囊。只在显示时用 CSS 钳，存的宽一个字节不改，宽回来照旧。
+ */
+const DRAWER_VIEWPORT_RESERVE = 232
+
+function drawerDisplayWidth(width: number): string {
+  return `calc(min(${width}px, 100vw - ${DRAWER_VIEWPORT_RESERVE}px))`
+}
 
 /** 每一项的全名与左栏短字（写成字面键，i18n 键引用门岗看得见）。 */
 function railText(t: (key: string) => string, id: ShellDrawerItem): { label: string; short: string } {
@@ -132,6 +141,8 @@ function DrawerResizeHandle({ item, width }: { item: ShellDrawerItem; width: num
   const setDrawerWidth = useShellLayoutStore((state) => state.setDrawerWidth)
   const drag = React.useRef<{ startX: number; startW: number } | null>(null)
   const [dragging, setDragging] = React.useState(false)
+  // 从**看到的**宽开始拖 / 按键（窄窗里显示宽被钳了，按存的宽起步会先跳一下）。
+  const shownWidth = (handle: HTMLElement): number => Math.round(handle.parentElement?.getBoundingClientRect().width || width)
   const end = (event: React.PointerEvent<HTMLDivElement>) => {
     drag.current = null
     setDragging(false)
@@ -145,7 +156,7 @@ function DrawerResizeHandle({ item, width }: { item: ShellDrawerItem; width: num
       tabIndex={0}
       className="group absolute inset-y-0 right-0 z-10 flex w-2.5 cursor-col-resize touch-none items-center justify-center"
       onPointerDown={(event) => {
-        drag.current = { startX: event.clientX, startW: width }
+        drag.current = { startX: event.clientX, startW: shownWidth(event.currentTarget) }
         event.currentTarget.setPointerCapture(event.pointerId)
         setDragging(true)
       }}
@@ -157,7 +168,7 @@ function DrawerResizeHandle({ item, width }: { item: ShellDrawerItem; width: num
       onKeyDown={(event) => {
         if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
           event.preventDefault()
-          setDrawerWidth(item, width + (event.key === 'ArrowRight' ? 16 : -16))
+          setDrawerWidth(item, shownWidth(event.currentTarget) + (event.key === 'ArrowRight' ? 16 : -16))
         }
       }}
       data-shell-drawer-resize
@@ -271,7 +282,7 @@ export function ShellRail({ projectId }: { projectId: string | null }): JSX.Elem
         opened={open !== null}
         onClose={() => setOpen(null)}
         position="left"
-        size={width}
+        size={drawerDisplayWidth(width)}
         withOverlay={false}
         withCloseButton={false}
         trapFocus={false}
@@ -288,7 +299,7 @@ export function ShellRail({ projectId }: { projectId: string | null }): JSX.Elem
         }}
         styles={{
           inner: { top: DRAWER_INSET.top, left: DRAWER_INSET.left, bottom: DRAWER_INSET.bottom, height: 'auto' },
-          content: { height: '100%', maxHeight: '100%', flex: `0 0 ${width}px` },
+          content: { height: '100%', maxHeight: '100%', flex: `0 0 ${drawerDisplayWidth(width)}` },
         }}
         aria-label={open ? railText(t, open).label : undefined}
       >
