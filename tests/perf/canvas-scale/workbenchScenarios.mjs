@@ -10,6 +10,7 @@
 // 零花费、零外网（主进程网络闸 walkthrough-network-guard 只放行本机）。
 // D2 付费卡的两条（卡上指向元素 ↔ 画布节点）用同一台本机假 Agent：起草器和走查是同一个（_spendCardWalk.createPresenter），
 // 卡摆出来就一直开着——没人按「生成」，零花费。
+import { agentBallEyeFollow } from './agentBallEyeFollowScenario.mjs'
 import { generationIdle, prepareGenerationIdle } from './generationIdleScenario.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -35,6 +36,7 @@ export const WORKBENCH_SCENARIOS = Object.freeze([
   'pan-while-generating',
   'generation-idle',
   'pan-while-agent-streaming',
+  'agent-ball-eye-follow',
   'library-skill-open',
   'library-prompt-open',
   'library-prompt-scroll',
@@ -97,7 +99,7 @@ export async function prepareWorkbenchLaunch(scenario, { fixture, root, repoRoot
     }
   }
   if (SPEND_CARD_SCENARIOS.has(scenario)) return prepareSpendCardLaunch({ root, repoRoot })
-  if (scenario === 'pan-while-generating' || scenario === 'pan-while-agent-streaming') {
+  if (scenario === 'pan-while-generating' || scenario === 'pan-while-agent-streaming' || scenario === 'agent-ball-eye-follow') {
     const settingsDir = path.join(root, 'settings')
     fs.mkdirSync(settingsDir, { recursive: true })
     const guard = {
@@ -234,6 +236,7 @@ export async function runWorkbenchScenario(page, scenario, ctx) {
   if (scenario === 'generation-idle') return generationIdle(page, ctx)
   if (scenario === 'pan-while-generating') return panWhileGenerating(page, ctx)
   if (scenario === 'pan-while-agent-streaming') return panWhileAgentStreaming(page, ctx)
+  if (scenario === 'agent-ball-eye-follow') return agentBallEyeFollow(page, ctx)
   if (scenario === 'library-skill-open') return libraryOpen(page, ctx, 'skills')
   if (scenario === 'library-prompt-open') return libraryOpen(page, ctx, 'prompts')
   if (scenario === 'library-prompt-scroll') return libraryScroll(page, ctx)

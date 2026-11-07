@@ -1,16 +1,20 @@
-// Agent 小球的长相（10-08 外壳拍板稿 Chrome 板「Agent 小球 · 四种状态，都不会自己弹开」）。
+// Agent 小球的长相（2026-10-27 拍板 docs/design/boards/2026-10-27-agent-persona/AgentPersona.board.json：
+// G · 去框——logo 同一块底色、同一个圆角比例的形 + 两只眼，脸是品牌组件 NomiAgentFace）。
 // 只画，不判断：状态与条数由宿主（ShellAgentHost 读 residentActivity 的角标投影）算好传进来，
-// 所以设计实验室能不带宿主把四档一格一格截出来。
-//   空闲：纸色圆 + Nomi 标；处理中：外面一圈 accent 环；出错：右上一粒 danger 点；
-//   等你确认 N：同一位置变成 warning 胶囊（要花钱的事等你点头，不自己弹开）。
-//   有未读（收起期间来了新回复 / 工具跑完）：右上一颗强调色小点（外壳共用的 DotMark，同顶栏「新版本」图标上那颗）；
-//   「等你确认 N」优先：两者同时在时只出胶囊；出错点占同一个角，出错时不叠未读点（10-08 协调拍板：原有功能一个不少）。
+// 所以设计实验室能不带宿主把每一档一格一格截出来。只换脸，不换行为：原生 button、探针、title / aria-label、
+// 焦点描边、ref 与 button 属性透传全照旧；脸和角上的点全是装饰（aria-hidden、不吃指针事件）。
+//   空闲：logo 形 + 两只眼；在跑：变圆、accent 弧转圈、眼睛低头扫；出错：歪倒、眼睛塌下、右上一粒 danger 点；
+//   等你确认 N：同一位置长成 warning 胶囊（右缘不动往左长；要花钱的事等你点头，不自己弹开）；
+//   刚做完：轻跳、眯眼笑；有未读（收起期间来了新回复 / 工具跑完）：右上一颗强调色小点（外壳共用的 DotMark），
+//   空闲时眼睛还往屏幕里看。未读和其它状态叠在一起照 10-08 的规则：在跑、刚做完照样挂点；
+//   「等你确认 N」优先（两者同时在时只出胶囊）；出错点占同一个角，出错时不叠未读点。
 import React, { type JSX } from 'react'
-import { NomiLogoMark } from '../../../design'
+import { NomiAgentFace } from '../../../design'
 import { cn } from '../../../utils/cn'
 import type { V4DockStatus } from '../../../workbench/ai/v4/agentPanelV4DockStatus'
-import { agentBallIsPill } from './agentFormStore'
+import { agentBallLook, BALL_SIZE } from './agentFormStore'
 import { DotMark } from './DotMark'
+import { useAgentBallEyeFollow } from './useAgentBallEyeFollow'
 
 export const AgentBallFace = React.forwardRef<HTMLButtonElement, {
   status: V4DockStatus | null
@@ -22,19 +26,25 @@ export const AgentBallFace = React.forwardRef<HTMLButtonElement, {
   title?: string
   className?: string
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'title'>>(function AgentBallFace({ status, pendingCount, unreadCount = 0, label, title, className, ...rest }, ref): JSX.Element {
-  const pill = agentBallIsPill(status, pendingCount)
-  const unreadDot = !pill && status !== 'failed' && unreadCount > 0
+  const look = agentBallLook(status, pendingCount, unreadCount)
+  const pill = look.pose === 'confirm'
+  const button = React.useRef<HTMLButtonElement | null>(null)
+  const setRef = React.useCallback((node: HTMLButtonElement | null) => {
+    button.current = node
+    if (typeof ref === 'function') ref(node)
+    else if (ref) ref.current = node
+  }, [ref])
+  useAgentBallEyeFollow(button)
   return (
     <button
-      ref={ref}
+      ref={setRef}
       type="button"
       className={cn(
-        'relative flex h-11 items-center justify-center rounded-pill border-0 p-0',
-        'shadow-nomi-md transition-[background,box-shadow,width] duration-nomi-fast ease-nomi-fast',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nomi-ink',
-        pill
-          ? 'gap-2 bg-nomi-warning-soft pl-2.5 pr-3.5 text-body-sm font-medium text-nomi-warning-ink ring-1 ring-nomi-warning-edge hover:brightness-[0.98]'
-          : cn('w-11 bg-nomi-paper ring-1 ring-nomi-line-soft hover:bg-nomi-ink-05', status === 'running' && 'ring-2 ring-nomi-accent'),
+        // 点击区域照旧：44×44（胶囊时宿主给 132 宽）；按钮本身透明，看得见的是里面那张脸。
+        'relative block h-11 rounded-pill border-0 bg-transparent p-0',
+        // 焦点描边画在看得见的身体上（outline 跟着身体的圆角走），不画在透明的点击框上。
+        'focus-visible:outline-none [&:focus-visible_[data-nomi-agent-body]]:outline [&:focus-visible_[data-nomi-agent-body]]:outline-2 [&:focus-visible_[data-nomi-agent-body]]:outline-offset-2 [&:focus-visible_[data-nomi-agent-body]]:outline-nomi-ink',
+        pill ? undefined : 'w-11',
         className,
       )}
       // 无障碍名带上状态（出错只有一粒点，读屏得听到「有一步没成」）。
@@ -46,14 +56,10 @@ export const AgentBallFace = React.forwardRef<HTMLButtonElement, {
       data-agent-dock-unread={unreadCount}
       {...rest}
     >
-      <NomiLogoMark size={pill ? 22 : 24} />
-      {pill ? <span className="whitespace-nowrap tabular-nums">{label}</span> : null}
-      {status === 'running' && !pill ? (
-        // 真在跑才转；减弱动效时只留那圈静态 accent 环。
-        <span className="pointer-events-none absolute -inset-[3px] animate-spin rounded-full border-2 border-transparent border-t-nomi-accent motion-reduce:animate-none motion-reduce:border-t-transparent" aria-hidden="true" data-agent-ball-progress />
-      ) : null}
-      {unreadDot ? <DotMark className="right-0 top-0 size-2.5 ring-nomi-paper" /> : null}
-      {status === 'failed' && !pill ? <span className="absolute right-0 top-0 size-2.5 rounded-full bg-nomi-danger ring-2 ring-nomi-paper" aria-hidden="true" /> : null}
+      <NomiAgentFace pose={look.pose} size={BALL_SIZE} text={pill ? label : undefined} ringProps={{ 'data-agent-ball-progress': true }}>
+        {look.dot === 'unread' ? <DotMark className="right-[3px] top-[4px] size-2 ring-nomi-paper motion-safe:animate-nomi-badge-settle dark:ring-nomi-bg" /> : null}
+        {look.dot === 'failed' ? <span className="pointer-events-none absolute right-[3px] top-[4px] size-2 rounded-full bg-nomi-danger ring-2 ring-nomi-paper dark:ring-nomi-bg" aria-hidden="true" /> : null}
+      </NomiAgentFace>
     </button>
   )
 })

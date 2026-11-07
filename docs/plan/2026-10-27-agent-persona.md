@@ -120,3 +120,4 @@
 | 13 | 悬停说明照旧用原生 `title`（板 `persona.tooltip`：说明 = 现在的 title）；小样里那颗自画气泡不做 | 不另造一套提示组件；原生提示截不到图，走查改断言 title 文字 | 实现线代定 |
 | 14 | 压在深色画面上 / 暗色模式的那圈浅描边用 `ring-nomi-media-ink` 加透明度（浅色 30%、暗色 14%），不写 hex | 板 `persona.on-dark`「走 token，不写死 hex」 | 实现线代定 |
 | 15 | 性能场景 `agent-ball-eye-follow` 用现成规模 L（96 图 + 96 视频 = 192 个节点，离「200 个节点」最近的媒体档），照 `canvas-pan-while-agent-streaming` 的跑法：Agent 在流式吐字、面板收成小球时，鼠标在小球 160px 内连续转圈；另量两段：跟随期间小球按钮的 React 重渲染次数、空闲时整页的 rAF 请求数与小球上在跑的动画数 | 不另起量具；★7 的四个预算都要有读数 | 实现线代定 |
+| 16 | 老 bug 顺手修：拖小球松手后面板会弹开。原因：react-rnd 不拦松手时浏览器补发的那次 click，`ShellAgentHost` 的 onDragStop 只是「动得少就 return」，没挡这次 click（普查 A-2 当时标了「未验证」）。修法：「几乎没动」的界收成一个数 `BALL_CLICK_SLOP_PX = 4`（`agentFormStore`），拖过界就吞掉紧跟的那一次 click（标记只活到这次松手的输入任务结束），位置照存；抖 2px 照常当点击。复现：脱离 Nomi 的 `rnd-click.mjs`（react-rnd 里放一颗普通按钮，拖 120px 松手收到 1 次 click）；走查 `_agentPersonaWalk.mjs` 第 ⑤ 段与单测钉住 | ★9 反例「拖完被当成点击」；只让行为回到注释与本卡写的合同，点击、右键、⌘J 不变 | 协调 11-07（选 A） |

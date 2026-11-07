@@ -1,0 +1,26 @@
+{
+  "id": "agent-ball-eye-follow",
+  "feature": "Agent 在跑时把面板收成右下小球，鼠标在小球 160px 以内来回扫、眼睛跟着看；扫的那一段的帧间隔与长任务（另有硬断言：跟随时小球零重渲染、跑完落回空闲后 2 秒整页零动画帧请求、小球上除眨眼外零动画）",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "L",
+    "--scenarios",
+    "agent-ball-eye-follow",
+    "--warmup",
+    "1"
+  ],
+  "scale": "96 图 + 96 视频节点 / Agent 正文约 2400 字、12 字一帧、40ms 一帧（流式中）/ 鼠标 120 步、每步约 14ms",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 33,
+  "group": "⑨ Agent 流式输出时操作画布",
+  "budgetStatus": "proposed",
+  "budgetBasis": "鼠标移动是连续手势、眼睛要跟手：60Hz 下 p95 帧间隔不超过 2 帧（33ms），仓库默认预算同此；同组的 canvas-pan-while-agent-streaming 基线中位 7.9ms（10-16，Windows i9）；跟随只写两个 CSS 变量、一帧最多算一次，不该比平移更重。零重渲染 / 空闲零帧是结构断言（agentBallEyeFollowScenario.mjs），不靠机器快慢",
+  "measurement": {
+    "state": "pending",
+    "reason": "量具已写好，实现线在 Mac 上跑的冒烟和 5 次只量不写的数字贴在 PR；基线由验收线或协调在安静窗口写"
+  }
+}

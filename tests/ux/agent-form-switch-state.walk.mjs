@@ -156,6 +156,9 @@ try {
   await clickOrFail(panel.locator('[data-agent-form-to="ball"]'), '停靠 → 小球')
   await expect(ball, '没收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await expect(ball, '小球没报等你确认').toHaveAttribute('data-agent-ball', 'pending')
+  // 2026-10-27 形象：真实待确认（不是注入的显示态）也长成 warning 胶囊、里面写「等你确认 N」（board:AgentPersona/state.needs-confirm）。
+  await expect(ball.locator('[data-nomi-agent-face="confirm"]'), '真实待确认时小球没长成胶囊 · board:AgentPersona/state.needs-confirm').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect(ball.locator('[data-nomi-agent-label]'), '胶囊里没写「等你确认 N」').toHaveText(/\d/, { timeout: DEFAULT_TIMEOUT_MS })
   await snap('02-ball')
   await ball.click({ button: 'right' })
   await clickOrFail(win.getByRole('menuitem', { name: /浮窗/ }).first(), '小球右键 → 浮窗')
@@ -204,6 +207,15 @@ try {
   await expect(panel.locator(ASSISTANT_MESSAGE).filter({ hasText: 'WALK_REJECTED' }), '#58 拒绝后没有回到模型').toBeVisible({ timeout: stationTimeout({ turns: 1 }) })
   await snap('05-confirm-and-reject')
   console.log('✅ #58 搬家后的面板里确认 / 带原因拒绝都走得通。')
+
+  // ⑥ 设计卡 ★9 反例「面板开着时刚做完却挂上了未读点」：上面那轮回复是面板开着时到的，收起后小球不许冒未读点
+  // （未读只记收起期间来的；board:AgentPersona/variant.unread）。
+  await clickOrFail(panel.locator('[data-agent-form-to="ball"]'), '回复到齐后 停靠 → 小球')
+  await expect(ball, '没收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  await expect(ball, '面板开着时到的回复被记成了未读').toHaveAttribute('data-agent-dock-unread', '0')
+  const quietBall = await proveProbe(ball.locator('[data-nomi-agent-face]'), '收起后小球的脸在（判未读点之前先证探针活着）')
+  await expectAbsent(ball.locator('[data-dot-mark]'), { provenBy: quietBall, message: '面板开着时刚做完，收起后却挂上了未读点 · board:AgentPersona/variant.unread' })
+  await snap('06-ball-after-reply-no-unread')
 } catch (error) {
   failure = error
   try { await win.screenshot({ path: path.join(shotsDir, 'FAIL.png') }) } catch { /* window gone */ }

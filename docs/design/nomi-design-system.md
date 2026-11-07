@@ -715,6 +715,10 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 |---|---|---|---|
 | `--nomi-duration-fast` | `140ms` | `duration-nomi-fast` | 所有交互过渡的默认时长 |
 | `--nomi-ease-fast` | `cubic-bezier(.2, .7, .3, 1)` | `ease-nomi-fast` | 所有交互过渡的默认缓动 |
+| `--nomi-duration-morph` | `550ms` | `duration-nomi-morph` | **形变**：只给 Agent 形象（`NomiAgentFace`）在状态之间连续变形用（2026-10-27 拍板）。别处不用 |
+| `--nomi-ease-morph` | `cubic-bezier(.16, 1, .3, 1)` | `ease-nomi-morph` | 形变的缓动：快起慢停、不回弹 |
+
+形变这一档只有一个用户：Agent 形象。系统开了「减弱动效」时直接切（组件写 `motion-reduce:transition-none`）。形象自己的动作周期（跳一下 700ms、在跑转一圈 1.1s、低头扫 1.4s、约 20 秒眨一次眼）是组件常量，写在 `tailwind.config.ts` 的 `nomi-agent-*` keyframes / animation 里，**不是**全局 token，别处不要拿来当时长用。
 
 **标准写法**（三段齐全：property + duration + easing）：
 
@@ -850,7 +854,7 @@ mark 是 **28×28 viewBox 的圆角方块**：深色底（`oklch(0.22 0.01 80)` 
 - **底色永远是 ink（深暖灰），笔画永远纯白。** 不要换底色、不要给 mark 加 accent。
 - accent 蓝紫**只出现在字标的中间 m**（`NomiWordmark`），不在 mark 上——这是品牌的色彩分工。
 
-#### 3.9.1 六个品牌组件（含默认尺寸 + 何时用）
+#### 3.9.1 七个品牌组件（含默认尺寸 + 何时用）
 
 | 组件 | 是什么 | 默认尺寸 | 何时用 |
 |---|---|---|---|
@@ -860,6 +864,7 @@ mark 是 **28×28 viewBox 的圆角方块**：深色底（`oklch(0.22 0.01 80)` 
 | `NomiAILabel` | mark +「Nomi {suffix}」，suffix 灰字 | `markSize=22 wordSize=14`，`suffix='AI'` | 标注「这是 Nomi 的某个 AI 助手」，suffix 传 `生成`/`创作` |
 | `NomiLoadingMark` | **全仓唯一的加载动画**：旋转的 logo mark | `size=18` | 一切 loading/spinner——别自己用 `IconLoader2`+`animate-spin`（§14 有 1 处违规）|
 | `NomiStepper` | 创作/生成/预览 三段 pill 切换器 | — | 顶栏工作区切换，唯一处 |
+| `NomiAgentFace` | **Agent 形象（Nomi 这个角色）**：logo 同一块底色（`--nomi-logo-ground`）、同一个圆角比例（25%）的形 + 两只眼。`variant="live"` 是右下小球的活形象（六种姿态之间按形变 token 连续变形、约 20 秒眨一次、在跑转弧，眼睛跟鼠标由宿主写 CSS 变量）；`variant="mark"` 是静态脸，不动、不带状态 | live `size=44`（舞台边长）；mark `size=16` | 只有两处：右下 Agent 小球（`AgentBallFace`）、聊天身份行（`NomiIdentityRow`）。App 图标、营销字标、加载标照旧用 logo（拍板 `docs/design/boards/2026-10-27-agent-persona/`）|
 
 #### 3.9.2 调用点地图（「logo 在哪里调用」——做新东西照这些抄）
 

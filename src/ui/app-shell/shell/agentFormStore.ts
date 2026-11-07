@@ -10,6 +10,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { declareStoreLifetime } from '../../../workbench/project/storeLifetime'
 import type { V4DockStatus } from '../../../workbench/ai/v4/agentPanelV4DockStatus'
+import type { NomiAgentPose } from '../../../design'
 
 export type AgentForm = 'ball' | 'float' | 'dock'
 export type AgentFormSurface = 'creation' | 'storyboard' | 'generation' | 'preview'
@@ -99,6 +100,40 @@ export function clampBall(point: BallPoint, area: { width: number; height: numbe
   }
 }
 
+/** 拖小球「几乎没动」的界（px，起点到落点的横纵距离之和）：不到算点击，到了算拖动。全仓只此一个数。 */
+export const BALL_CLICK_SLOP_PX = 4
+
+/**
+ * 拖完小球松手，浏览器照样补发一次 click（react-rnd 不拦；老 bug，见设计卡 2026-10-27-agent-persona「实现时的取舍」第 16 条）。
+ * 拖过界：吞掉紧跟着的那一次 click，位置照存；没过界：click 照常开面板。吞的标记只活到这次松手的输入任务结束
+ * （click 和 mouseup 在同一个任务里派发）——松手时指针不在按钮上、没有补发 click，下一次真点击也不会被吞。
+ */
+export function createBallDragClickGuard(schedule: (reset: () => void) => void = (reset) => { setTimeout(reset, 0) }) {
+  let start: BallPoint | null = null
+  let swallow = false
+  return {
+    dragStart(point: BallPoint): void {
+      start = point
+      swallow = false
+    },
+    /** true = 真拖动了（该存位置）；false = 几乎没动，这是一次点击。 */
+    dragStop(point: BallPoint): boolean {
+      const from = start
+      start = null
+      const dragged = from !== null && Math.abs(from.x - point.x) + Math.abs(from.y - point.y) >= BALL_CLICK_SLOP_PX
+      swallow = dragged
+      if (dragged) schedule(() => { swallow = false })
+      return dragged
+    },
+    /** 这次 click 该不该开面板。 */
+    takeClick(): boolean {
+      if (!swallow) return true
+      swallow = false
+      return false
+    },
+  }
+}
+
 export const agentFormStoreLifetime = declareStoreLifetime({
   store: 'useAgentFormStore',
   // 形态与位置是这台机器的界面偏好（每页一份）；「此刻有东西要整块右边」只在这个项目里有意义。
@@ -120,4 +155,20 @@ export function useEffectiveAgentForm(surface: AgentFormSurface): AgentForm {
 /** 小球什么时候变成「等你确认 N」胶囊（Chrome 板）：只有要你点头的事在等时。 */
 export function agentBallIsPill(status: V4DockStatus | null, pendingCount: number): boolean {
   return status === 'needs-confirm' && pendingCount > 0
+}
+
+export type AgentBallLook = { pose: NomiAgentPose; dot: 'unread' | 'failed' | null }
+
+/**
+ * 小球状态 → 形象长相（2026-10-27 形象拍板；和胶囊判定放在一起，同一件事一处判）。
+ * 优先级照 10-08 现状：等你确认 > 出错 > 在跑 / 刚做完 > 空闲；未读是叠加的点，在跑、刚做完照样挂，
+ * 出错点占同一个角、出错时不叠未读点。
+ */
+export function agentBallLook(status: V4DockStatus | null, pendingCount: number, unreadCount: number): AgentBallLook {
+  if (agentBallIsPill(status, pendingCount)) return { pose: 'confirm', dot: null }
+  if (status === 'failed') return { pose: 'failed', dot: 'failed' }
+  const dot = unreadCount > 0 ? 'unread' : null
+  if (status === 'running') return { pose: 'running', dot }
+  if (status === 'done') return { pose: 'done', dot }
+  return { pose: dot ? 'unread' : 'idle', dot }
 }
