@@ -579,7 +579,8 @@
           "9:16",
           "2:3",
           "3:2",
-          "21:9"
+          "21:9",
+          "auto"
         ],
         "durationSeconds": null,
         "audio": false,
@@ -821,6 +822,124 @@
             "10"
           ]
         },
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
+      "slug": "gpt-image-2-6-flare",
+      "canonicalId": "gpt image 2.6 flare",
+      "label": "GPT Image 2.6 Flare",
+      "kind": "image",
+      "lifecycle": "flagship",
+      "recognized": true,
+      "archetypeIds": [
+        "gpt-image-2.6-flare"
+      ],
+      "family": "gpt-image",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生图",
+          "改图"
+        ],
+        "references": {
+          "image_ref": 16
+        },
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "auto",
+          "1:1",
+          "3:2",
+          "2:3",
+          "4:3",
+          "3:4",
+          "5:4",
+          "4:5",
+          "16:9",
+          "9:16",
+          "2:1",
+          "1:2",
+          "21:9",
+          "9:21",
+          "3:1",
+          "1:3"
+        ],
+        "durationSeconds": null,
+        "audio": false,
+        "variants": []
+      }
+    },
+    {
+      "slug": "gpt-image-2-6-sunburst",
+      "canonicalId": "gpt image 2.6 sunburst",
+      "label": "GPT Image 2.6 Sunburst",
+      "kind": "image",
+      "lifecycle": "flagship",
+      "recognized": true,
+      "archetypeIds": [
+        "gpt-image-2.6-sunburst"
+      ],
+      "family": "gpt-image",
+      "identityGapWith": null,
+      "vendors": [
+        {
+          "key": "apimart",
+          "name": "APIMart",
+          "authType": "bearer"
+        }
+      ],
+      "facts": {
+        "intents": [
+          "text",
+          "edit"
+        ],
+        "modeTerms": [
+          "文生图",
+          "改图"
+        ],
+        "references": {
+          "image_ref": 16
+        },
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "aspectRatios": [
+          "auto",
+          "1:1",
+          "3:2",
+          "2:3",
+          "4:3",
+          "3:4",
+          "5:4",
+          "4:5",
+          "16:9",
+          "9:16",
+          "2:1",
+          "1:2",
+          "21:9",
+          "9:21",
+          "3:1",
+          "1:3"
+        ],
+        "durationSeconds": null,
         "audio": false,
         "variants": []
       }
@@ -1069,7 +1188,15 @@
           "1K",
           "2K"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "3:2",
+          "2:3"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": [
@@ -1215,7 +1342,13 @@
           "image_ref": 7
         },
         "resolutions": [],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "3:2",
+          "2:3"
+        ],
         "durationSeconds": {
           "min": 6,
           "max": 30
@@ -2055,7 +2188,15 @@
           "1K",
           "2K"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "3:2",
+          "2:3"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -2502,90 +2643,6 @@
       }
     },
     {
-      "slug": "gpt-image-2-6-flare",
-      "canonicalId": "gpt image 2.6 flare",
-      "label": "GPT Image 2.6 Flare",
-      "kind": "image",
-      "lifecycle": "companion",
-      "recognized": true,
-      "archetypeIds": [
-        "gpt-image-2.6-flare"
-      ],
-      "family": "gpt-image",
-      "identityGapWith": null,
-      "vendors": [
-        {
-          "key": "apimart",
-          "name": "APIMart",
-          "authType": "bearer"
-        }
-      ],
-      "facts": {
-        "intents": [
-          "text",
-          "edit"
-        ],
-        "modeTerms": [
-          "文生图",
-          "改图"
-        ],
-        "references": {
-          "image_ref": 16
-        },
-        "resolutions": [
-          "1K",
-          "2K",
-          "4K"
-        ],
-        "aspectRatios": [],
-        "durationSeconds": null,
-        "audio": false,
-        "variants": []
-      }
-    },
-    {
-      "slug": "gpt-image-2-6-sunburst",
-      "canonicalId": "gpt image 2.6 sunburst",
-      "label": "GPT Image 2.6 Sunburst",
-      "kind": "image",
-      "lifecycle": "companion",
-      "recognized": true,
-      "archetypeIds": [
-        "gpt-image-2.6-sunburst"
-      ],
-      "family": "gpt-image",
-      "identityGapWith": null,
-      "vendors": [
-        {
-          "key": "apimart",
-          "name": "APIMart",
-          "authType": "bearer"
-        }
-      ],
-      "facts": {
-        "intents": [
-          "text",
-          "edit"
-        ],
-        "modeTerms": [
-          "文生图",
-          "改图"
-        ],
-        "references": {
-          "image_ref": 16
-        },
-        "resolutions": [
-          "1K",
-          "2K",
-          "4K"
-        ],
-        "aspectRatios": [],
-        "durationSeconds": null,
-        "audio": false,
-        "variants": []
-      }
-    },
-    {
       "slug": "nano-banana-2-1",
       "canonicalId": "nano banana 2.1",
       "label": "Nano Banana 2.1",
@@ -2621,7 +2678,23 @@
           "2K",
           "4K"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "auto",
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9",
+          "1:4",
+          "4:1",
+          "1:8",
+          "8:1"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -2663,7 +2736,23 @@
           "2K",
           "4K"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "auto",
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9",
+          "1:4",
+          "4:1",
+          "1:8",
+          "8:1"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -2701,7 +2790,19 @@
           "image_ref": 14
         },
         "resolutions": [],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "auto",
+          "1:1",
+          "3:2",
+          "2:3",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "5:4",
+          "4:5",
+          "21:9"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -2739,7 +2840,19 @@
           "image_ref": 14
         },
         "resolutions": [],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "auto",
+          "1:1",
+          "3:2",
+          "2:3",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "5:4",
+          "4:5",
+          "21:9"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -2959,7 +3072,19 @@
           "2K",
           "4K"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "auto",
+          "1:1",
+          "2:3",
+          "3:2",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -3000,7 +3125,15 @@
           "1K",
           "2K"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -3042,7 +3175,15 @@
           "2K",
           "4K"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -3089,7 +3230,15 @@
           "1K",
           "2K"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "3:2",
+          "2:3"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": [
@@ -3136,7 +3285,13 @@
           "720P",
           "1080P"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
         "durationSeconds": {
           "min": 3,
           "max": 15
@@ -3258,7 +3413,13 @@
           "720P",
           "1080P"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
         "durationSeconds": {
           "min": 2,
           "max": 15,
@@ -3367,7 +3528,11 @@
           "1080p",
           "4k"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ],
         "durationSeconds": {
           "options": [
             "4",
@@ -3525,7 +3690,16 @@
           "720p",
           "1080p"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "1:1",
+          "2:3",
+          "3:2",
+          "21:9"
+        ],
         "durationSeconds": {
           "min": 1,
           "max": 15,
@@ -3737,7 +3911,14 @@
           "720P",
           "1080P"
         ],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "adaptive",
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16"
+        ],
         "durationSeconds": {
           "min": 2,
           "max": 30
@@ -4181,7 +4362,16 @@
           "image_ref": null
         },
         "resolutions": [],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "1:1",
+          "3:4",
+          "4:3",
+          "16:9",
+          "9:16",
+          "2:3",
+          "3:2",
+          "21:9"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": []
@@ -4496,7 +4686,14 @@
           "audio_ref": 3
         },
         "resolutions": [],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "21:9"
+        ],
         "durationSeconds": {
           "min": 4,
           "max": 15
@@ -4583,7 +4780,16 @@
           "image_ref": 10
         },
         "resolutions": [],
-        "aspectRatios": [],
+        "aspectRatios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "2:3",
+          "3:2",
+          "21:9"
+        ],
         "durationSeconds": null,
         "audio": false,
         "variants": [

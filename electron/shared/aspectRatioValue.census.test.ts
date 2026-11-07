@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MODEL_ARCHETYPES, specializeArchetypeForVariant, specializeArchetypeForVendor } from "./modelArchetypes";
-import { optionsAreAspectRatios, resolveAspectRatioChoice, sameAspectRatio } from "./aspectRatioValue";
+import { aspectRatioControlKey, optionsAreAspectRatios, resolveAspectRatioChoice, sameAspectRatio } from "./aspectRatioValue";
 import { isAspectRatioControl, videoAspectDefaultPatch, type DynamicModelControl } from "../../src/workbench/generationCanvas/nodes/controls/parameterControlModel";
 
 type Combo = { id: string; kind: string; controls: Array<{ key: string; options: Array<{ value: unknown; text?: string }>; defaultValue?: unknown }> };
@@ -98,6 +98,24 @@ describe("全目录普查（档案 × 变体 × 供应商分层 × 模式）", (
           expect(videoAspectDefaultPatch([dynamic], "9:16"), `${combo.id}:${control.key}`).toEqual({});
         }
       }
+    }
+  });
+  // 官网「画幅」导出（scripts/site/export-site-data.mts）用的就是 aspectRatioControlKey，不按键名：
+  // 2.6 的比例控件叫 size，以前按键名导出得到空数组。这里钉两件事——
+  //  ① 以前按键名能导出的（叫 aspect_ratio、有选项）一个都不能被判据丢掉，否则那些卡的画幅会悄悄变；
+  //  ② 2.6 的比例控件（size）被判据认出，且是官方那 15 档 + auto。
+  it("官网画幅导出走比例控件判据：叫 aspect_ratio 的控件都被它认出，GPT Image 2.6 的 size 也被认出", () => {
+    for (const combo of combos) {
+      if (!combo.controls.some((control) => control.key === "aspect_ratio" && control.options.length > 0)) continue;
+      expect(aspectRatioControlKey(combo.controls), `${combo.id} 的 aspect_ratio 控件应被判据认作比例控件`).toBe("aspect_ratio");
+    }
+    const gpt26 = combos.filter((combo) => combo.id.startsWith("gpt-image-2.6-flare/"));
+    expect(gpt26.length).toBeGreaterThan(0);
+    for (const combo of gpt26) {
+      const key = aspectRatioControlKey(combo.controls);
+      expect(key, combo.id).toBe("size");
+      const options = combo.controls.find((control) => control.key === key)!.options.map(({ value }) => value);
+      expect(options, combo.id).toEqual(["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "21:9", "9:21", "3:1", "1:3"]);
     }
   });
 });

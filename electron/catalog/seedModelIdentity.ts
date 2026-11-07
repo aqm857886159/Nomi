@@ -170,6 +170,9 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   "gpt-image-2-5-sunburst-text-to-image",
   "gpt-image-2.5-flare",
   "gpt-image-2.5-sunburst",
+  // 2.6 是这一家最新一代（只有 APIMart 提供）：用户 2026-11-07「最新一代和上一代都给新节点用」，推荐排序不排在上一代后面。
+  "gpt-image-2.6-flare",
+  "gpt-image-2.6-sunburst",
   // 与已在旗舰名单里的 Runway 行 `gemini_image3_pro` / `grok_imagine_image_2` 是同一个模型的另一条接入线，
   // 不跟着标就会出现「同一款经 Runway 是旗舰、经 APIMart 是陪跑」的自相矛盾分档。
   "gemini-3-pro-image-preview",
