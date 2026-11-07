@@ -68,7 +68,8 @@
 |---|---|---|
 | 带运行记录号（这一次运行自己的结局） | `generationRunController.ts`（开始、进度、结果、取消、可找回、出站被拦、拒绝、失败）、`recoverTaskActions.ts`（取回）、`textActions.ts`（文本定稿） | 按号收账；拒绝不写记录、不恢复快照 |
 | 不带号、但属于某次运行 | `multiShotCanvasLanding.ts`（制作投影：结果、生成中 / 失败 / 结束）、`localTaskControl.ts`（取消）、`recoverTaskActions.ts`（取回开始）、`generationRunWaves.ts`（缺上游 / 成环） | 结果只记到在跑的制作记录上；状态只改在跑的那条（不改已经结束的） |
-| 不带号、没有运行记录（本机处理、演示） | `trimVideoToNode.ts`、`startVideoDepthDerivation.ts`、`comfyuiProgressBridge.ts`、`journeyTourStore.ts`、`processFeedbackLabKit.tsx`（设计实验室） | 行为不变 |
+| 不带号、没有运行记录（本机处理、演示） | `trimVideoToNode.ts`、`startVideoDepthDerivation.ts`、`comfyuiProgressBridge.ts`、`journeyTourStore.ts` | 行为不变 |
+| 夹具里手写的「控制器运行」（有一条非制作记录、落结果却不带号） | `processFeedbackLabKit.tsx`（设计实验室）、`tests/ux/fixtures/text-document-generation-ownership.tsx`（文本选区改写） | 生产里走不到（控制器落结果一律带 `run.id`）。改后这条记录不再被不带号的结果结掉，节点停在「生成中」；两个夹具改成和控制器一样带号（独立验收时 Design Lab 两张图红，就是第一个） |
 
 读「第一条记录」的地方 20 处（`grep runs?.[0]`）：大部分是失败卡读这次失败的上下文（任务号、模型、制作 Run），改后失败的那次照样是最新那条，不受影响；`storyboardRowActions.ts` 比 `runs[0].id` 判「确认期间有没有别人占了这一镜」：被拒的那下不再写记录，正好不再误判；`captureApprovedGenerationInputs` 原来用 `runs[0]` 当「正在跑的这次」，改成运行自己报号（D9）。
 
@@ -167,7 +168,7 @@
 
 1. 特征矩阵每格在修复前的代码上的结果、修复后的结果，两份输出都贴（修前该红的红）。
 2. 矩阵格：成功 / 被拒先后（2）× 前台 / 后台（2）；确认再发一次 × 旧的晚到成功 / 失败 / 进度（3）；取消（被拒之后点取消能停、能再生成）；删节点期间到达再撤销；重启收敛（有任务号 / 只有乐观显示 / 第一条已成功）；v0.24.0 真实夹具（原样显示、按号收账、被拒后原样）；不带号的结果（不结掉别人的记录）；前台旧进度（不写进新记录）。每格断言：结果在不在、记在哪条记录、下了几单、终态能不能动手（不忙 + 再生成一次真的跑）。
-3. `rg "run-refused|withdrawNodeRun|previous:" src` 在生产代码里为零。
+3. `rg "run-refused|withdrawNodeRun" src electron` 在生产代码里为零；`previous:` 只在结局相关的 7 个文件里查（全 src 有 40 来处无关的参数名）。
 4. `rg "runs\?\.\[0\]\?\.id !== outcome.runId"` 为零（过滤删干净）。
 5. 已有的结局相关测试全绿：`generationOpenRuns.test.ts`、`generationLockExit.test.ts`、`runProjectDelivery.background.test.ts`、`canvasRunActions` / `nodeRunOutcome` / 撤销叠回 / 制作投影相关测试、`electron/capabilityCore/canvasOpenRuns.test.ts`、`appIntegrationCanvasShot.test.ts`。改了断言的每一处写明旧语义是什么、为什么改。
 6. 项目文件格式：`generationCanvasSchema.ts` 不改；夹具读写往返不变。
@@ -179,9 +180,9 @@
 
 | 改坏的方式 | 该红的格 |
 |---|---|
-| 恢复「只认第一条」过滤 | 先发成功 → 后发被拒（前台、后台）；删节点再撤销 |
+| 恢复「只认第一条」过滤 | 7、8、10、11、20、21（确认再发后旧号不是第一条的那些格；被拒那下不再写记录，1、2、5、13 恢复过滤后照样绿；独立验收实测） |
 | 被拒时恢复开始时的快照 | 先发成功 → 后发被拒（节点回到生成中） |
-| 点下去就写运行记录（不等准入） | 不带号的结果那格；前台旧进度那格；重启「第一条已成功」那格 |
+| 点下去就写运行记录（不等准入） | 1–6、12、13、18（被拒那下不该有记录的那些格；独立验收实测） |
 | 晚到的旧图直接当当前图 | 确认再发一次 × 旧的晚到成功（时间轴、当前图） |
 | 不带号的结果记到第一条 | 不带号的结果那格 |
 | 收敛改第一条 | 重启「第一条已成功」那格 |
@@ -215,8 +216,8 @@
 |---|---|
 | 被拒那下仍写一条记录（哪怕之后撤掉） | 1–6、13、18（被拒那下的记录应为空 / 夹具记录不变） |
 | 进度不看自己的号，并进最新那条记录 | 9 |
-| 旧运行还在跑时不管新的已成功，显示一律跟在跑那条 | 7、8、16（镜头应是成功） |
-| 放手给观察者时读第一条记录而不是这次自己的号 | `runProjectDelivery.background.test.ts`「放手的是这一次运行」 |
+| 旧运行还在跑时不管新的已成功，显示一律跟在跑那条 | 9（独立验收实测；7、8、16 不红） |
+| 放手给观察者时读第一条记录而不是这次自己的号 | `runProjectDelivery.background.test.ts`「放手的是这一次运行：确认再发后新那单排在最前，旧那单按自己的号报可找回，放手的是旧那单」（独立验收时这条测试还不存在，变异零红；验收后补上） |
 
 **改了断言的已有用例（只改旧语义那一处）：** `store/deletedNodeArrivingOutcome.test.ts`「generation result」那一格的结果原来不带运行号、靠「并进第一条」把 `run-a` 记成成功；真实控制器交回的结果都带号，改成带 `runId: 'run-a'`（不带号的结果按 D6 只结掉制作记录）。其余改动在实现提交里逐条写明。
 
