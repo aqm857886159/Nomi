@@ -46,12 +46,16 @@ function imageNode(id: string, x: number, extra: Partial<GenerationCanvasNode> =
   return { id, kind: 'image', title: id, position: { x, y: 40 }, prompt: `${id} prompt`, categoryId: 'shots', ...extra }
 }
 
+// 结果带着交出它的那次运行的号（控制器交回的结果都带号；不带号的只结掉制作记录，docs/plan/2026-11-07-shot-result-ownership.md D6）。
+const startedRuns = new Map<string, string>()
 async function startRun(nodeId: string, runId: string): Promise<void> {
+  startedRuns.set(nodeId, runId)
   await deliverRunOutcome(TARGET, nodeId, { kind: 'run-started', run: { id: runId, status: 'running', startedAt: 10, updatedAt: 10 } })
 }
 
 async function land(nodeId: string, mediaDimensions?: { width: number; height: number }): Promise<void> {
-  await deliverRunOutcome(TARGET, nodeId, { kind: 'result', result: LANDED, ...(mediaDimensions ? { mediaDimensions } : {}) })
+  const runId = startedRuns.get(nodeId)
+  await deliverRunOutcome(TARGET, nodeId, { kind: 'result', result: LANDED, ...(mediaDimensions ? { mediaDimensions } : {}), ...(runId ? { runId } : {}) })
 }
 
 function expectLanded(nodeId: string): void {

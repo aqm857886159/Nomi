@@ -15,6 +15,8 @@ import { createProductionGenerationSubmission } from "../productionRun/productio
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
 import { createProductionRunService } from "../productionRun/productionRunService";
 import type { WorkspaceProjectRecordV2 } from "../workspace/workspaceTypes";
+import type { CanvasShotSettledNotice } from "../shared/canvas/canvasShotSettled";
+import type { ProductionRun } from "../productionRun/productionRunTypes";
 
 export const CANVAS_TEST_PROJECT = "project-1";
 
@@ -42,6 +44,8 @@ export function setupCanvasShots(options: {
    * 正文像连接层错误，也不自动重发；对照组证明真的连接层失败在声明幂等时确实会重发一次。
    */
   submitIdempotency?: boolean;
+  /** 摇渲染层（交给观察者的那一笔收尾了）。缺省 = 接住；抛错 = 没有窗口 / 渲染层没接住。 */
+  notifySettled?: (notice: CanvasShotSettledNotice) => Promise<unknown>;
 } = {}) {
   const root = options.root ?? fs.mkdtempSync(path.join(os.tmpdir(), "nomi-canvas-shot-"));
   const imagePath = path.join(root, "assets", "out.png");
@@ -59,14 +63,18 @@ export function setupCanvasShots(options: {
   };
   const repository = options.repository ?? createProductionRunRepository({ projectDirResolver: (id) => (id === CANVAS_TEST_PROJECT ? root : null), ...(options.now ? { now: options.now } : {}) });
   const receipts = createApprovalReceiptAuthority({ filePath: path.join(root, "receipts.json"), macKey: "k", storeMacKey: "s", keyId: "v1", ...(options.now ? { now: options.now } : {}) });
+  // 和生产一样：Run 的每一次耐久变化都经仓库 execute 的事件旁路，画布这台跟着它摇渲染层。
+  let followRunChange: (run: ProductionRun) => void = () => undefined;
   const service = createProductionRunService({
     repository, projectRootResolver: () => root, requestRenderer: async () => { throw new Error("no renderer"); },
+    onEvents: (_events, run) => followRunChange(run),
     approvalReceiptAuthority: receipts, projectRevisionResolver: () => 0,
   });
   const canvasProvider = createCanvasTransportProvider("acme", options.transport ?? transport);
   const providers = [options.submitIdempotency ? { ...canvasProvider, capabilities: { ...canvasProvider.capabilities, submitIdempotency: true } } : canvasProvider];
   const observed: Array<[string, string]> = [];
   const previewCalls: string[] = [];
+  const settled: CanvasShotSettledNotice[] = [];
   const runs = createCanvasShotRuns({
     service,
     readProject: () => ({ id: CANVAS_TEST_PROJECT, immutableProjectUuid: "uuid-1", projectGeneration: 1, revision: 3 }) as unknown as WorkspaceProjectRecordV2,
@@ -74,7 +82,7 @@ export function setupCanvasShots(options: {
     receipts,
     providers: () => providers,
     buildSubmission: (input) => createProductionGenerationSubmission({
-      repository, projectRoot: input.projectRoot, immutableProjectUuid: input.immutableProjectUuid, projectGeneration: input.projectGeneration,
+      repository: service.repository, projectRoot: input.projectRoot, immutableProjectUuid: input.immutableProjectUuid, projectGeneration: input.projectGeneration,
       intentMacKey: "intent-key", providers: input.providers,
       materializeOutput: async ({ projectId, providerTaskId, output }) => canvasLocalArtifactReceipt({ projectId, projectRoot: root, providerTaskId, output })!,
       ...(options.now ? { now: options.now } : {}),
@@ -82,8 +90,10 @@ export function setupCanvasShots(options: {
     previewBlock: async (_projectId, nodeId) => { previewCalls.push(nodeId); return options.previewBlock ?? null; },
     quote: () => ({ known: false }),
     observe: (submission, projectId, runId) => { observed.push([projectId, runId]); options.observe?.(submission, projectId, runId); },
+    notifySettled: async (notice) => { settled.push(notice); await options.notifySettled?.(notice); },
     ...(options.now ? { now: options.now } : {}),
   });
+  followRunChange = runs.followRunChange;
   const gesture = { webContentsId: 7, frameId: 1, origin: "app://nomi" };
   /** 单节点 ↑ 或批量卡上轮到的那一镜：渲染层「交」。 */
   const submit = (nodeId: string, runRecordId: string, prompt?: string, extras?: Record<string, unknown>) => runs.submit({
@@ -97,5 +107,5 @@ export function setupCanvasShots(options: {
   const withdraw = (runRecordIds: string[], by: "removed" | "user_closed" | "stopped") => runs.withdraw({ projectId: CANVAS_TEST_PROJECT, runRecordIds, by });
   /** 这一下点击来自哪个窗口（节点 ↑、批量卡、付费卡交给画布的那几镜都是同一个渲染层窗口）。 */
   const senderId = 7;
-  return { root, repository, runs, vendor, observed, previewCalls, submit, consent, withdraw, receipts, gesture, senderId };
+  return { root, repository, service, runs, vendor, observed, settled, previewCalls, submit, consent, withdraw, receipts, gesture, senderId };
 }

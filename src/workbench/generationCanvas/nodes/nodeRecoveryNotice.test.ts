@@ -165,8 +165,9 @@ describe('lifecycle on the real store and the real toast owner', () => {
 
   it('is withdrawn when the card succeeds — the "it failed, switch vendors" line must not outlive the failure', () => {
     const { nodeId } = showFailureNotice()
-    store().appendNodeRun(nodeId, { status: 'queued', attempt: { vendorKey: 'vendor-b', modelKey: A.modelKey } })
-    store().addNodeResult(nodeId, { id: 'r1', type: 'image', url: 'nomi-local://asset/p/a.png', createdAt: 1 })
+    const run = store().appendNodeRun(nodeId, { status: 'queued', attempt: { vendorKey: 'vendor-b', modelKey: A.modelKey } })
+    // 结果按交出它的那次运行的号收账（docs/plan/2026-11-07-shot-result-ownership.md D4 / D6）。
+    store().addNodeResult(nodeId, { id: 'r1', type: 'image', url: 'nomi-local://asset/p/a.png', createdAt: 1 }, undefined, run.id)
     expect(nodeState(nodeId)?.status).toBe('success')
     expect(items()).toHaveLength(0)
   })

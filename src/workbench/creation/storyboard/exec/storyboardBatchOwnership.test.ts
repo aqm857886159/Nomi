@@ -218,7 +218,8 @@ it.each(entries.flatMap(entry => endings.map(ending => ({ entry, ending }))))('B
   if (single) await single
   await vi.waitFor(() => expect(Object.values(useGenerationQueueStore.getState().batches).every(b => b.finishedAt)).toBe(true))
   expect(sends('shot-2')).toBe(1)
-  expect(nodeOfShot('shot-2').runs?.map(r => r.id)).toEqual(owned.runs?.map(r => r.id))
+  // 还在跑的那次（running）主进程准入回执到了才进运行记录（归属规则 D1），所以多出的只能是它自己那一条；批次一条也不加。
+  expect((nodeOfShot('shot-2').runs ?? []).map(r => r.id).slice(ending === 'running' ? 1 : 0)).toEqual((owned.runs ?? []).map(r => r.id))
   if (ending !== 'running') expect(nodeOfShot('shot-2').result).toEqual(owned.result)
   if (ending === 'locked') expect(isAnchorFrozen(nodeOfShot('shot-2'))).toBe(true)
   expect(failures).toEqual([])
