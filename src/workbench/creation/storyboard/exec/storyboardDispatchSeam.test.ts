@@ -577,7 +577,8 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     })
     const first = confirmAndRunNode(placed.id, { initiator: 'user' })
     await vi.waitFor(() => expect(shot2Calls).toBe(1))
-    const r1Id = nodes().find(n => n.id === placed.id)!.runs?.[0]?.id
+    // R1 的号由它自己报（执行器拿到的运行记录号）：花钱的那次在主进程准入之前不在运行记录里（归属规则 D1）。
+    const r1Id = facts.I3r1
     await confirmAndRunNode(placed.id, { initiator: 'user' })
     r1.reject(new RecoverableTimeoutError({ taskId: 'accepted', vendor: 'fixture', taskKind: 'text_to_image', modelKey: 'fixture-image' }))
     await first
