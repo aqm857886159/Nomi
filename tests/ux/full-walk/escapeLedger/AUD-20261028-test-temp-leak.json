@@ -1,0 +1,34 @@
+{
+  "id": "AUD-20261028-test-temp-leak",
+  "since": "2026-10-28",
+  "source": "用户 2026-10-28 发现：10-27 磁盘到 99%、只剩 6.4G；清理会话查到 10-24 到 10-28 漏了 10 份 nomi-prepush-*，约 8.6G。",
+  "category": "performance-coverage",
+  "problem": "测试和门岗超时被 SIGKILL 后，创建者的退出清理钩子不会执行，10 份 nomi-prepush-* 临时目录留在系统临时目录里，占掉约 8.6G；根因是临时目录只在进程内 Set 里登记，没有把创建者归属写进目录，也没有共享的回收边界，其他进程无法判断目录是否已无人使用。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "门岗超时杀进程组后临时目录可回收",
+    "下一个进程首次分配时回收已死亡创建者的目录",
+    "活着的创建者、别的用户和非本仓库形状目录不被误删"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "scripts/_test-temp.node-test.mjs：9/9；钉住目录名带创建者进程号、首次分配只回收已死亡创建者且保护活进程/文件/符号链接/别的用户、真 SIGKILL 后下次分配回收、runner 回收口。",
+    "scripts/check-test-temp-static.node-test.mjs：18/18；钉住 scripts/ 与 tests/ 的直接系统临时目录绕过由语法树扫描，存量基线只减不增。",
+    "scripts/pre-push-structure.node-test.mjs：44/44；钉住每个 killProcessTree 都经 terminateAndReclaim、整组退净后再回收，以及整体超时期限结果和任务池竞态。",
+    "scripts/pre-push-contracts.node-test.mjs：26/26；钉住真实推送前门岗的单门/整体超时杀树与回收。"
+  ],
+  "completionCommits": [
+    "998644b61",
+    "abfd7af6d",
+    "68481eae1"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-28-test-temp-owner-reclaim.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "scripts/check-test-temp-static.node-test.mjs"
+  },
+  "fixedInPr": 1360
+}

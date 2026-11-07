@@ -3,8 +3,16 @@
  *
  * Portals are siblings under document.body, so React ownership does not determine which
  * surface is on top. Keep the ordered tiers here and make every global overlay consume them.
+ *
+ * `shellChrome` is the floor of the scale: the shell's own top bar / rail (Mantine AppShell, wired in
+ * theme/nomiTheme.ts). Every other tier sits above it. A hand-written number on any `position: fixed` layer,
+ * or any hand-written number >= this floor, bypasses the scale (2026-10-27: the splash wrote `z-[60]`, the
+ * AppShell header kept Mantine's default 100, and the header was painted over the splash's skip button);
+ * `pnpm run check:tokens` class 9 (scripts/lib/overlayZScan.mjs) enforces it. Numbers below the floor on
+ * non-fixed elements are component-local stacking and are not part of the scale.
  */
 export const NOMI_OVERLAY_Z_INDEX = {
+  shellChrome: 100,
   floatingPanel: 4000,
   applicationModal: 9000,
   dialog: 9100,

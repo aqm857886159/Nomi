@@ -243,6 +243,33 @@ test('every panel selector lives in the shared support module, not hand-copied i
   expect(typeof support.waitForV4TurnIdle).toBe('function')
 })
 
+describe('Agent 输入框占位的读出口：占位是空段落 ::before 画出来的字，不是 placeholder 属性', () => {
+  // 只会回答「有没有空段落、它的 ::before 画了什么」的输入框替身；evaluate 里跑的，就是 helper 真正发给页面的那段读取。
+  const inputWith = (emptyParagraph, painted) => ({
+    evaluate: async (read) => {
+      vi.stubGlobal('getComputedStyle', () => ({ content: painted }))
+      try { return read({ querySelector: (selector) => (selector === '.is-editor-empty' ? emptyParagraph : null) }) } finally { vi.unstubAllGlobals() }
+    },
+  })
+
+  // 替身文字特意不用词典里的任何一句：测试不抄界面文案（check:test-copy-literals）。
+  const PAINTED = 'ghost text painted by css'
+
+  test('空编辑器：读到 ::before 画出来的那一句（去掉 content 外面的引号）', async () => {
+    expect(await support.composerPlaceholder(inputWith({}, `"${PAINTED}"`))).toBe(PAINTED)
+    expect(typeof support.expectComposerPlaceholder).toBe('function')
+  })
+
+  test('框里有字（没有空段落，占位不画）：读到 null', async () => {
+    expect(await support.composerPlaceholder(inputWith(null, `"${PAINTED}"`))).toBeNull()
+  })
+
+  test('样式丢了（空段落和 data-placeholder 都在，但 ::before 什么也没画）：读到 null，不被属性骗绿', async () => {
+    expect(await support.composerPlaceholder(inputWith({ getAttribute: () => PAINTED }, 'none'))).toBeNull()
+    expect(await support.composerPlaceholder(inputWith({}, 'normal'))).toBeNull()
+  })
+})
+
 function ownedApp(close) {
   const child = Object.assign(new EventEmitter(), { exitCode: null, signalCode: null })
   child.kill = vi.fn((signal) => {

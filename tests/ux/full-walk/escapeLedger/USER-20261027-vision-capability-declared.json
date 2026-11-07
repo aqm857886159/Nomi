@@ -1,0 +1,35 @@
+{
+  "id": "USER-20261027-vision-capability-declared",
+  "since": "2026-10-27",
+  "source": "用户截图反馈：配了能读图的模型，在 Agent 面板附图提问，Agent 回「读不到图片画面内容（只能读到文件本身）」。",
+  "category": "reference-integrity",
+  "problem": "用户附的图没有进到发给模型的请求里：能不能读图没声明时拿模型名撞一条写死的正则，用户自起名的中转模型、新型号撞不上就被当成不能读图，图在发出前被静默丢掉，只在话里附一句注。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "自配 OpenAI 兼容中转 + 自起名模型（没声明读图能力），Agent 面板附一张照片问「图里有什么」：图作为 image part 进请求体，由真后端决定。",
+    "内置纯文本种子（APIMart deepseek-v4-pro）附图：不发图、附注说明、素材原身份仍在，模型如实说看不到。",
+    "分镜表底栏把读图模型点名成声明不能读图 / 内置纯文本的行：开拆前拒，零报价零调用。"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "electron/agentLane/laneImageInputLoopback.test.ts：Agent 车道真门 → 真 pi → 本机回环录请求体；改前没声明的 my-relay/my-gpt、apimart/gpt-5.5 在三种协议下 6 格红（请求体只有「1 张图片未发送」注），改后绿。",
+    "electron/ai/agentUserContent.test.ts：名字矩阵（12 个名字 × 没声明 / true / false）与种子矩阵（applyBuiltinSeeds 真目录逐行）；变异把名字正则放回当主判据 → 改动涉及的 5 个测试文件共 27 格红（含 my-gpt 回环 3 格）。",
+    "electron/video/deconstructVisionLeg.test.ts、electron/ai/textBrainResolver.test.ts：拆解点名「不能」零报价零调用、带图选型 能 > 不知道 > 不能，改前红。",
+    "真实核对（2026-10-28 付费 1 次，APIMart 手填 `gpt-5-mini`，读图能力判为「不知道」档）：两轮的图都送到了模型。第 1 轮暗号 `NOMI 4862` 答成 `NOMI 4362`：前缀和 4 位里 3 位对，点阵字的 8 读成了 3，瞎猜做到的概率约 0.71%；当时的量具要求全对，所以判红，之后已改成「前缀对且至少 3 位对」。第 2 轮 3840×2160 的 16 位 PNG（29,703,774 字节）整份送达并被接受，回答准确描述了画面。证据：`docs/evidence/2026-10-27-vision-capability-declared/paid/report.json`（原样保留量具判红的那一版）。"
+  ],
+  "completionCommits": [
+    "fb56c9c22",
+    "eab8bbae6"
+  ],
+  "fixedInPr": 1346,
+  "rootCauseContract": "docs/fixes/2026-10-27-vision-capability-declared.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/ai/agentUserContent.test.ts"
+  }
+}

@@ -178,7 +178,12 @@ function isOpaqueBytesType(contentType: string): boolean {
   return !type || type === OPAQUE_BYTES_TYPE || OPAQUE_BYTES_ALIASES.has(type);
 }
 
-function isAllowedContentType(contentType: string, allow: readonly string[]): boolean {
+/**
+ * 「这个响应头里的类型，调用方收不收」的唯一判据——URL 路（上面 allowContentTypes）和鉴权字节路
+ * （capabilityCore/generationOutputMaterializer 的 streamProfileMediaToFile）问的是同一个函数、各带自己的白名单，
+ * 不各写一份。类型只是一句声明，不是判真伪的东西：真伪由下游按字节判（projectAssetStore 的发布边界）。
+ */
+export function isAllowedContentType(contentType: string, allow: readonly string[]): boolean {
   const type = mediaTypeOf(contentType);
   // 白名单收 application/octet-stream = 调用方接受「没说是什么的字节」，由下游字节校验判真伪
   // （生成产物落盘：projectAssetStore 的 validatedGeneratedMeta）。同一件事的另外两种写法——缺类型、
@@ -187,8 +192,8 @@ function isAllowedContentType(contentType: string, allow: readonly string[]): bo
   return Boolean(type) && allow.some((prefix) => type.startsWith(prefix.toLowerCase()));
 }
 
-/** 响应头声明的长度；没声明、不是正数都算「不知道多大」（null）。 */
-function declaredContentLength(response: Response): number | null {
+/** 响应头声明的长度；没声明、不是正数都算「不知道多大」（null）。取回预算（shared/assets/providerMediaRetrievalBudget）的入参就是它。 */
+export function declaredContentLength(response: Response): number | null {
   const declared = Number(response.headers.get("content-length") || "0");
   return Number.isFinite(declared) && declared > 0 ? declared : null;
 }

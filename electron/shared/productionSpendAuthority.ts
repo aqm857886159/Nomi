@@ -85,8 +85,12 @@ export function waitingAuthorizationGateForShot(run: Pick<ProductionRun, "gates"
 }
 
 /**
- * 这份合同上一次被批准时冻住的参考图 URL。重做沿用它：同一份合同、同一批参考，不因为「又一份授权」
- * 去重新上传一遍（传上去的地址也会变，线上报文哈希就对不上了）。
+ * 这份合同上一次被批准时冻住的参考图 URL。重做**默认**沿用它：同一份合同、同一批参考，不因为「又一份授权」
+ * 去重新上传一遍。
+ *
+ * 但这是默认，不是必须：重做是又一份自带信封的授权，线上报文哈希按**这一份授权自己的**链接算、派发时也按它自己的核，
+ * 重新换过的链接不会被「报文对不上」拒发（`prepareProductionGenerationReauthorization` 的 `referenceUrls`，
+ * 由 `reworkReferenceUrls` 在「这条连接拒绝过」或「冻住的链接明确失效」时给）；重做校验只钉 `references`，不钉链接。
  */
 export function authorizedReferenceUrls(
   run: Pick<ProductionRun, "gates">,

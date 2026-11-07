@@ -13,6 +13,10 @@ import { measureProjectOpenMainStageSync } from "./projectOpenTimeline";
 import { applyCanvasNodePatch } from "./projectCanvasWrite";
 import type { ProjectBinding } from "../shared/projectBinding";
 
+import { logError } from '../logging/logger'
+import { projectSaveFailure, type ProjectSaveFailure } from '../shared/contracts/projectSaveFailure'
+import type { IpcResult } from '../shared/contracts/ipcResult'
+
 type RegisterSyncIpc = (channel: string, handler: (...args: never[]) => unknown) => void;
 
 export type ProjectsIpcDeps = {
@@ -81,9 +85,17 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
     assertTrustedSender(event);
     return recoverProject(String(projectId || ""));
   });
-  ipcMain.handle("nomi:projects:save-async", (event, projectId: unknown, record: unknown) => {
-    assertTrustedSender(event);
-    return saveProject(String(projectId || ""), record);
+  ipcMain.handle("nomi:projects:save-async", async (event, projectId: unknown, record: unknown): Promise<IpcResult<unknown, ProjectSaveFailure>> => {
+    let stage: ProjectSaveFailure['stage'] = 'authorize'
+    try {
+      assertTrustedSender(event)
+      stage = 'save-project'
+      return { ok: true, value: await saveProject(String(projectId || ""), record) }
+    } catch (error) {
+      const reason = projectSaveFailure(error, stage)
+      logError('workspace', 'project-save-rejected', undefined, { channel: 'nomi:projects:save-async', reason: reason.kind, code: reason.code, errno: reason.errno, syscall: reason.syscall, stage: reason.stage })
+      return { ok: false, error: 'project-save-failed', reason }
+    }
   });
   ipcMain.handle("nomi:projects:apply-canvas-node-patch", (event, input: unknown) => {
       assertTrustedSender(event);

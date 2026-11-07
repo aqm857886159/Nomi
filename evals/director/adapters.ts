@@ -16,7 +16,7 @@ import type {
   Vec3,
   Waypoint,
 } from '../../src/workbench/generationCanvas/nodes/director/model/directorTypes'
-import { lookAtAngles } from '../../src/workbench/generationCanvas/nodes/director/model/vec3'
+import { lookAtAngles, rightFromYaw } from '../../src/workbench/generationCanvas/nodes/director/model/vec3'
 import { resolveActionAlias } from '../../src/workbench/generationCanvas/nodes/director/model/actionLibrary'
 import type { DirectorCard } from './cardSchema'
 import type { SpatialAuditContext } from '../../src/workbench/generationCanvas/nodes/director/model/directorSpatialAudit'
@@ -434,14 +434,10 @@ function cameraForShot(
     ]
     targets = [target, endTarget]
   } else if (move === 'truck') {
-    positions = [
-      { x: firstPosition.x - sign * 0.15, y: firstPosition.y, z: firstPosition.z },
-      { x: firstPosition.x + sign * 0.15, y: firstPosition.y, z: firstPosition.z },
-    ]
-    targets = [
-      { x: target.x - sign * 0.15, y: target.y, z: target.z },
-      { x: target.x + sign * 0.15, y: target.y, z: target.z },
-    ]
+    const right = rightFromYaw(lookAtAngles(firstPosition, target).yaw)
+    const shifted = (p: Vec3, amount: number) => ({ x: p.x + right.x * amount, y: p.y, z: p.z + right.z * amount })
+    positions = [shifted(firstPosition, -sign * 0.15), shifted(firstPosition, sign * 0.15)]
+    targets = [shifted(target, -sign * 0.15), shifted(target, sign * 0.15)]
   } else if (move === 'crane')
     positions = [
       { x: firstPosition.x, y: firstPosition.y - 2 * (direction === 'down' ? -1 : 1), z: firstPosition.z },
@@ -536,15 +532,19 @@ function buildCardOracle(card: DirectorCard): AdaptedProject {
     if (shot.move === 'follow' && !actor.motionTrajectory) {
       const window = windows[index]
       const direction = shot.direction === 'left' ? -1 : 1
+      // Match the follow camera offset above; actor and camera travel in its screen-right basis.
+      const right = rightFromYaw(lookAtAngles({ x: -0.25, y: 0.5, z: -1 }, { x: 0, y: 0, z: 0 }).yaw)
       actor.motionTrajectory = [
         entityPoint(actor.position, window[0]),
-        entityPoint({ x: actor.position.x + direction * 2, y: actor.position.y, z: actor.position.z }, window[1]),
+        entityPoint({ x: actor.position.x + right.x * direction * 2, y: actor.position.y, z: actor.position.z + right.z * direction * 2 }, window[1]),
       ]
       actor.trajectoryClips = [clip(`${actor.id}-follow`, window[0], window[1])]
     }
     const anchor = anchorFor(subject, actor)
     if (anchor && subject?.part) anchors[`${actor.id}.${subject.part}`] = anchor
-    return cameraForShot(`shot-${index}`, shot, windows[index], actor, actors, anchor)
+    const camera = cameraForShot(`shot-${index}`, shot, windows[index], actor, actors, anchor)
+    camera.measurementSubject = { objectId: actor.id, ...(anchor && subject?.part ? { anchor: { name: subject.part, ...anchor } } : {}) }
+    return camera
   })
   const project = base(objects, cameras, duration)
   Object.defineProperty(project, '__evalAnchors', { value: anchors, enumerable: false })

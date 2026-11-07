@@ -1,0 +1,233 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-project-location-owner",
+  "problem_type": "Where a project lives (project id -> folder) was inferred on read paths from secondary sources instead of being written only from the user's explicit open / create action, and no entrance rejected Nomi's own directories",
+  "symptom": "A 0.24.0 Windows user had set the default location for new projects inside the install folder. After upgrading, the first launch showed every project as unavailable; after closing and reopening Nomi they were all gone from the library. Renaming a project folder in Explorer made the project disappear from the library, and opening the renamed folder with 'Open existing folder' reported that the project folder does not exist. Copying a project folder made later edits land in the other folder (opening the copy kept writing to the original; inside the default location every restart flipped the registration between original and copy).",
+  "direct_cause": "(1) listProjects removed registry entries of native projects whose folder was missing whenever the default root existed, and six doors recreated the default root on read paths (createProject, listProjectAssets / projectDirById / readProject through legacyProjectDirById's ensureDir, settings check and reveal through ensureProjectLocationDirectory), so after the install folder was wiped any of them turned 'folder missing' into 'user deleted it'. (2) rememberWorkspace registered the manifest's lastKnownRootPath (the path at creation time) instead of the folder the user had just opened, so reopening a renamed folder re-registered the stale path; startup discovery rebound an id to whichever unregistered folder carried it. (3) No entrance checked whether a location was inside the install folder, resources, userData or the system temp folder.",
+  "class_root": "The project-location fact had three sources (registry, manifest lastKnownRootPath, a scan of the default root) and read paths that could create directories and remove registrations, so any secondary signal (a remembered path, a missing folder, a scanned id) could overwrite or erase what the user had opened; and the admission of a location had no single rule, so each entrance accepted Nomi's own directories.",
+  "affected_population": [
+    "0.24.0 users whose default location for new projects is inside the install folder (Windows: the folder chosen during installation), after any upgrade or uninstall",
+    "Users who rename or move a project folder in Explorer / Finder, or whose sync drive or external disk is not mounted when Nomi starts",
+    "Users who copy a project folder, leaving one project id in two folders"
+  ],
+  "scope_paths": [
+    "electron/projects/repository.ts",
+    "electron/workspace/workspaceRegistry.ts",
+    "electron/workspace/workspaceRepository.ts",
+    "electron/workspace/workspaceLocationPolicy.ts",
+    "electron/workspace/workspaceIpc.ts",
+    "electron/workspace/legacyProjectMigration.ts",
+    "electron/settings/projectLocationIpc.ts",
+    "scripts/check-read-path-writes.mjs"
+  ],
+  "entry_points": [
+    "listProjects (library page, MCP / external Agent project list): formerly removed registrations of missing native projects; now only startup reconciliation binds newly found folders and skips live copies",
+    "createProject / createDefaultProject (renderer new project through nomi:projects:create, external Agent through createNamedProject): default location judged before anything is created",
+    "selectWorkspaceFolder / openWorkspaceFolder -> createWorkspaceProject (Open existing folder): location judged at select and at open; binds the folder the user opened; a live copy is refused before anything is written",
+    "pickProjectLocation / checkProjectLocation / revealProjectLocation (Settings -> File & saving): pick rejects Nomi's own directories; check and reveal only report",
+    "readProject / projectDirById / listProjectAssets / parseLocalAssetUrl: reads that reached ensureDir(default root) through legacyProjectDirById"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariants concern Nomi's own project registry, its entrances and the directories it owns. The two platform facts they lean on are exercised directly instead of taken from documents: path.win32.relative comparing drive letters and directory names case-insensitively, and Electron's app.getPath names, are pinned by electron/workspace/workspaceLocationPolicy.test.ts; Windows itself is not verified on real hardware (residual risk).",
+  "invariants": [
+    "The registered folder of a project comes only from the entrance's own argument: the folder the user just opened or created, the registered path itself on save / recover, or the folder startup reconciliation scanned. bindWorkspaceLocation / bindWorkspaceLocations require rootPath and accept no record, so the manifest's lastKnownRootPath cannot be registered.",
+    "Read paths (list / read / resolve / get / check / reveal / locate) never remove a registration, never write one (apart from startup reconciliation, registered in the gate baseline until the second cut moves it to app ready) and never create a directory. A project whose folder is missing stays in the library marked missing until the user removes it or reopens the folder.",
+    "Reopening a renamed or moved project folder with Open existing folder reconnects the same project id and updates the registered folder.",
+    "Every entrance that places a project (settings pick and check, folder select and open, new project, external Agent create) asks the single rule findAppOwnedLocation / assertUserOwnedLocation and rejects the install folder (macOS .app bundle, Windows / Linux executable folder, packaged only), process.resourcesPath, userData and the settings root, and the system temp folder, comparing case-insensitively on Windows and through symlinks. A location managed by NOMI_PROJECTS_DIR is not judged.",
+    "When the same project id is still bound to another existing folder that still carries that id, opening the other folder is refused with WorkspaceFolderCopyError (project name and original folder) and nothing is written to either folder; startup reconciliation keeps the original registration and does not register the copy."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/settings/projectLocationIpc.ts",
+      "symbol": "findAppOwnedLocation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/workspaceIpc.ts",
+      "symbol": "findAppOwnedLocation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/workspaceLocationPolicy.ts",
+      "symbol": "findAppOwnedLocation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/repository.ts",
+      "symbol": "bindWorkspaceLocations"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/repository.ts",
+      "symbol": "assertUserOwnedLocation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/projects/repository.ts",
+      "symbol": "removeWorkspaceReference"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceRepository.ts",
+      "symbol": "bindWorkspaceLocation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceRepository.ts",
+      "symbol": "removeWorkspaceReference"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "bindWorkspaceLocation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/workspace/legacyProjectMigration.ts",
+      "symbol": "discoverLegacyProjects"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 10,
+    "why_not": "Before: rememberWorkspace (defined in workspaceRegistry.ts, called from workspaceRepository.ts), rememberWorkspaces and the prune through removeWorkspaceReference in listProjects (repository.ts), removeWorkspaceReference in workspaceRepository.ts, ensureDir(default root) on the read path (repository.ts legacyProjectDirById), ensureProjectLocationDirectory (projectLocationIpc.ts) and the reconciliation scan discoverLegacyProjects (legacyProjectMigration.ts). The two read-path directory creators and the prune are gone; the record-taking writers are replaced one for one by bindWorkspaceLocation(s), which share one merge. The count grows only because the admission rule did not exist: findAppOwnedLocation is one function, asked from each user entrance that places a project (settings pick and check in projectLocationIpc.ts, folder select and open in workspaceIpc.ts, new project and external Agent create in repository.ts through assertUserOwnedLocation). Those entrances are different user actions and each must be guarded; merging them would mean merging settings, the folder picker and project creation."
+  },
+  "generality_proof": "The bad states came from secondary signals overwriting or erasing what the user opened. After the change the only writer, bindWorkspaceLocation(s), takes the folder as an explicit argument and refuses to move an id away from a live folder that still carries it, so no caller can register a remembered path or flip between copies; the only remaining removals are the user's remove and delete; check:read-path-writes makes any read-named function that reaches removeWorkspaceReference, bindWorkspaceLocation(s), backfillWorkspaceOrigins or ensureDir fail CI unless the pair is registered with a reason (only startup reconciliation is, until the second cut). Admission has one rule for every entrance, built from Electron's own path API, so a new entrance gets the same answer by calling it; electron/projects/projectLocation.matrix.test.ts walks six entrances x five app directories x five path shapes plus nine states and is red when any guard is removed (five mutations, PR body).",
+  "shared_boundaries": [
+    {
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "bindWorkspaceLocation",
+      "responsibility": "Single writer of project id -> folder: rootPath required, no record accepted, a live copy is refused (single) or skipped and reported (batch), one merge shared by both."
+    },
+    {
+      "path": "electron/workspace/workspaceLocationPolicy.ts",
+      "symbol": "findAppOwnedLocation",
+      "responsibility": "Single admission rule: is this location inside the install folder, resources, userData / settings root or the system temp folder (literal and realpath forms, path.relative containment)."
+    },
+    {
+      "path": "scripts/check-read-path-writes.mjs",
+      "symbol": "READ_PATH_WRITE_DOORS",
+      "responsibility": "Static gate: no read-named function may reach a registry removal, a registry write or ensureDir, except (site, door) pairs registered with a reason in scripts/read-path-writes-baseline.json; stale pairs are red."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "listProjects",
+      "disposition": "enforced",
+      "evidence": "The prune filter is deleted; startup reconciliation binds through bindWorkspaceLocations and logs skipped copies. projectLocation.characterization.test.ts problem 1 (six doors, five projects stay registered and missing across restarts) and 2a / 2g; runtime.workspace-projects.test.ts keeps a missing native project marked missing."
+    },
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "entry_point": "createWorkspaceProject / saveWorkspaceProject / recoverWorkspaceProject",
+      "disposition": "enforced",
+      "evidence": "createWorkspaceProject binds the folder the user opened and checks for a live copy before initializeWorkspace writes anything; save and recover bind the registered folder itself. Matrix: renamed, moved, copied, symlinked and trailing-separator states."
+    },
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "createProject / createDefaultProject",
+      "disposition": "enforced",
+      "evidence": "assertUserOwnedLocation runs before ensureDir(default root) and before an explicit rootPath is used; the renderer IPC nomi:projects:create and the external Agent createNamedProject both reach it (matrix rows for both)."
+    },
+    {
+      "path": "electron/workspace/workspaceIpc.ts",
+      "entry_point": "assessWorkspaceFolderSafety (selectWorkspaceFolder and openWorkspaceFolder)",
+      "disposition": "enforced",
+      "evidence": "Checks findAppOwnedLocation first, at select and again at open; the rejection travels as ProjectLocationRejectedError[kind] and the renderer maps it in projectOperationFailureText."
+    },
+    {
+      "path": "electron/settings/projectLocationIpc.ts",
+      "entry_point": "pickProjectLocation / checkProjectLocation / revealProjectLocation",
+      "disposition": "enforced",
+      "evidence": "Pick rejects inside-app before the injectable validateRoot; check and reveal only stat and report missing / not-directory / not-writable / inside-app; ensureProjectLocationDirectory is deleted. projectLocationIpc.test.ts and the matrix."
+    },
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "legacyProjectDirById (readProject / projectDirById / saveProject fallback)",
+      "disposition": "enforced",
+      "evidence": "No longer creates the default root (readdir failure returns null). The scan itself remains until the second cut (deletion items 4 and 5); characterization keeps it pinned as current state."
+    },
+    {
+      "path": "electron/workspace/legacyProjectMigration.ts",
+      "entry_point": "discoverLegacyProjects / discoverLegacyProjectsOnce",
+      "disposition": "enforced",
+      "evidence": "Returns the scanned folder with each id, so reconciliation binds what it found; a live-bound id is skipped by bindWorkspaceLocations (2g flipped: three restarts keep the original)."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "06-14's self-healing prune, the read-path ensureDir and the lastKnownRootPath registration each fixed one symptom by trusting another secondary signal; the same class came back as the upgrade wipe, the rename report and the copy flip-flop.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs bindWorkspaceLocation bindWorkspaceLocations removeWorkspaceReference assertUserOwnedLocation findAppOwnedLocation: 5 write doors, 3 read doors",
+      "check:read-path-writes with removeWorkspaceReference, bindWorkspaceLocation(s), backfillWorkspaceOrigins and ensureDir as doors and check / reveal / locate as read prefixes: 9 registered pairs, 0 unregistered",
+      "git grep rememberWorkspace / ensureProjectLocationDirectory / mergeWorkspaceEntry in electron src scripts: 0 (registered as forbidden definitions in project.location)",
+      "door-map of process.resourcesPath, app.getPath('userData'), app.getPath('temp') consumers deciding a project location: only workspaceLocationPolicy.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/workspace/workspaceRegistry.ts",
+    "invariant": "A project's folder is registered only through bindWorkspaceLocation(s) with an explicit rootPath and never moved away from a live folder that still carries the id; read-named functions cannot reach a registry removal, a registry write or ensureDir; every entrance that places a project asks findAppOwnedLocation.",
+    "failure_mode": "A caller cannot pass a record to the registry (there is no such API); a live copy throws WorkspaceFolderCopyError; a read path reaching a write door fails check:read-path-writes and names the chain; removing an entrance guard turns electron/projects/projectLocation.matrix.test.ts red.",
+    "exception_policy": "none",
+    "strategy": "Delete the prune, the read-path directory creators and the record-taking registry writers; replace them with one explicit-folder binder and one admission rule; make reintroducing a read-path write a red gate with a counterexample test.",
+    "artifacts": [
+      "electron/workspace/workspaceRegistry.ts",
+      "electron/workspace/workspaceLocationPolicy.ts",
+      "scripts/check-read-path-writes.mjs",
+      "electron/projects/repository.ts",
+      "electron/settings/projectLocationIpc.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/projects/projectLocation.characterization.test.ts",
+    "electron/projects/projectLocation.matrix.test.ts",
+    "electron/workspace/workspaceLocationPolicy.test.ts",
+    "electron/workspace/workspaceRegistry.test.ts",
+    "electron/settings/projectLocationIpc.test.ts",
+    "electron/runtime.workspace-projects.test.ts",
+    "src/workbench/library/projectErrorSurface.test.ts",
+    "scripts/check-read-path-writes.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/projects/projectLocation.matrix.test.ts",
+    "electron/projects/projectLocation.characterization.test.ts",
+    "scripts/check-read-path-writes.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/workspace/workspaceRegistry.ts",
+      "electron/settings/projectLocationIpc.ts",
+      "electron/projects/repository.ts"
+    ],
+    "rationale": "rememberWorkspace, rememberWorkspaces, mergeWorkspaceEntry and assertRegistrableRecord (workspaceRegistry.ts), ensureProjectLocationDirectory (projectLocationIpc.ts), the listProjects prune and the ensureDir in legacyProjectDirById (repository.ts) are deleted in the same change; no fallback writer or creator remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency decides where a project lives; containment uses Node's path module.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration and no settings change. Registrations removed by 0.24.0's prune cannot be restored by this change; reopening the folder registers it again. Users whose default location is inside an app directory are refused on new project and told to change it in Settings -> File & saving; their existing projects keep working where they are.",
+  "residual_risks": [
+    "The scan of the default root by id (legacyProjectDirById) still answers readProject / projectDirById when the registered folder is missing: a project renamed inside the default root and not yet reopened reads as a fabricated record with another id until restart or reopen, while media resolution still finds its files (deletion items 4 and 5, second cut).",
+    "Media resolution still re-reads the manifest under its lock when the lock-free snapshot is unavailable, so a busy writer can make a canvas image fail to load (problem 3C, second cut).",
+    "Startup reconciliation still runs inside the first listProjects and writes the registry there (registered gate pair, deletion item 8, second cut).",
+    "Windows is derived through path.win32 and not verified on real hardware; checkProjectLocation's writability uses fs.access, which ignores Windows ACLs, so a real write failure surfaces at new project.",
+    "No confirmation dialog for 'use this copy instead' and no startup banner for users whose default location is inside an app directory yet (both go through the design pipeline as follow-ups).",
+    "check:read-path-writes links calls by unique function name and only knows the listed prefixes; a read path calling fs.mkdirSync directly or through a differently named helper is caught only by the matrix's directory snapshots."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "electron/workspace/workspaceRegistry.ts",
+    "tests": [
+      "electron/workspace/workspaceRegistry.test.ts",
+      "electron/projects/projectLocation.matrix.test.ts",
+      "electron/projects/projectLocation.characterization.test.ts",
+      "electron/workspace/workspaceLocationPolicy.test.ts"
+    ],
+    "why": "The registry module owns the only writer (explicit folder, live-copy refusal); workspaceLocationPolicy.ts owns the only admission rule; check:read-path-writes keeps read paths away from both writers and from ensureDir."
+  }
+}

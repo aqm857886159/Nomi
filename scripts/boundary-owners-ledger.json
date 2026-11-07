@@ -520,6 +520,36 @@
         "symbol": "createIpcRequestRegistry"
       },
       "reason": "2026-10-27 拆解取消第一刀（docs/fixes/2026-10-27-deconstruct-cancel.root-cause.json，用户拍板「五件都按推荐办」第 5 题）：补预览的在途请求登记原样挪成中立模块 electron/ipcRequestRegistry.ts（补预览与视频拆解共用一份，加退出收摊 abortAll），旧文件同提交删除。10-16 合同的不变量「补预览在途请求的取消边界：发起窗口销毁、项目上下文失效、渲染层按请求号撤回，汇成一个 AbortSignal 交给预览 owner」不变，由 createIpcRequestRegistry 承担，assetsIpc 的 nomi:assets:ensure-preview / cancel-preview 照旧经它。守它的测试：electron/ipcRequestRegistry.test.ts（登记本身）、electron/assets/previewRequests.test.ts（补预览取消的行为用例原样保留，只改成从新模块取登记）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-16-relay-video-result-retrieval.root-cause.json",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "retrievalStageError",
+      "anchor": {
+        "path": "electron/tasks/retrievalStageError.ts",
+        "symbol": "retrievalStageError"
+      },
+      "reason": "2026-10-28 取回阶段的错误出口 retrievalStageError 从 taskResultQuery.ts 原样搬到 electron/tasks/retrievalStageError.ts：结果落地门 assets/localizeTaskAsset 失败时要经它挂取回阶段码（同步供应商在提交里落地），而 taskResultQuery 从运行时取执行器、运行时又引落地门，搬到不依赖运行时的模块才不成环。函数体一字未改，取回出口仍只有它一个（合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-22-retrieval-stage-error-class.root-cause.json",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "retrievalStageError",
+      "anchor": {
+        "path": "electron/tasks/retrievalStageError.ts",
+        "symbol": "retrievalStageError"
+      },
+      "reason": "2026-10-28 取回阶段的错误出口 retrievalStageError 从 taskResultQuery.ts 原样搬到 electron/tasks/retrievalStageError.ts：结果落地门 assets/localizeTaskAsset 失败时要经它挂取回阶段码（同步供应商在提交里落地），而 taskResultQuery 从运行时取执行器、运行时又引落地门，搬到不依赖运行时的模块才不成环。函数体一字未改，取回出口仍只有它一个（合同 docs/fixes/2026-10-28-sync-landing-not-unknown.root-cause.json）。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-03-startup-library-discovery-rescan.root-cause.json",
+      "path": "electron/workspace/workspaceRegistry.ts",
+      "symbol": "rememberWorkspaces",
+      "anchor": {
+        "path": "electron/workspace/workspaceRegistry.ts",
+        "symbol": "bindWorkspaceLocations"
+      },
+      "reason": "2026-10-29「项目在哪」收敛单第一刀（docs/fixes/2026-10-29-project-location-owner.root-cause.json，用户 10-29 批准「按推荐方向修」）：批量登记 rememberWorkspaces 换成 bindWorkspaceLocations，入参从项目记录换成 { id, name, rootPath, origin? }（rootPath 必填，不再抄清单里的 lastKnownRootPath），旧名同提交删除；概念登记 docs/engineering/concept-owners/project.location.json 把它列为「项目在哪」的唯一写口之一。09-03 合同的不变量「批量登记一把锁、一次读、一次写，与单条登记共用一个合并函数」不变：bindWorkspaceLocations 与单条 bindWorkspaceLocation 共用 mergeWorkspaceBinding，锁 withRegistryLock 与排序沿用。语义上新增两点：同一 id 还绑在一个装着它的文件夹上，这一条跳过、原登记不动（不变量 ⑤）；位置变了（改名 / 挪走后重开、启动对账接回）时来源跟着新位置，位置没变时已冻结的来源优先。守它的测试：electron/workspace/workspaceRegistry.test.ts、electron/workspace/workspaceRegistry.concurrency.test.ts、electron/projects/projectLocation.matrix.test.ts。"
     }
   ],
   "retirements": [
@@ -1038,6 +1068,18 @@
       "path": "scripts/claude-hooks/pre-push-check.sh",
       "symbol": "is_docs_only",
       "reason": "doc-only 判据只用来判「这次推送要不要本机门岗戳」，2026-10-24 推送改由 CI 把关后随戳一起删除（设计卡 docs/plan/2026-10-24-push-gate-ci.md），push 闸不再列任何路径。「shell 侧读 git 路径列表必须关掉引号转义」这一族仍由同一份合同的 scanSource 锚（scripts/check-git-path-quoting.mjs）守住，scripts/check-git-path-quoting.node-test.mjs 的阳性对照改用 fixture 里那行原样写法（带 -z 放行、去掉 -z 报红）。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-24-waiting-effect-shader-compile-freeze.root-cause.json",
+      "path": "patches/img-fx@0.5.1.patch",
+      "symbol": "IMG_FX_EFFECT",
+      "reason": "用户批准删除等待shader、img-fx依赖及patch；静止灰格路径不再编译或调度该shader，旧编译冻结不变量随引擎整体退役，没有替代shader或回退。静态等待及零绘制由2026-10-31-generation-idle-work根因合同与GenerationWaitingSurface.test.ts、generation-idle性能场景守。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-16-relay-video-result-retrieval.root-cause.json",
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "noteRelayQueryOutcome",
+      "reason": "获批方向已反转旧不变量：连续查询失败不得自动换通道，也不得修改已受理任务的查询合同。旧noteRelayQueryOutcome与调用方重查分支同提交删除；现役executeTaskQuery只沿原mapping查询，阶段错误保留收据。旧“连续三次失败单向退回”不再适用，故退役而非改锚；新不变量由协议根因合同及relayQueryFallback回归持有。"
     }
   ],
   "unverified": [

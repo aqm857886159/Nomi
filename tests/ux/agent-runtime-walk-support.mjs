@@ -99,6 +99,27 @@ export const COMPOSER_INPUT = '[data-v4-control="input"]'
 export const COMPOSER_SEND = '[data-v4-control="send"]'
 
 /**
+ * 读 / 断言 Agent 输入框此刻**画给人看的**占位提示。输入框是 TipTap 富文本编辑器（PromptEditor），没有 `placeholder`
+ * 属性：`toHaveAttribute('placeholder', …)` 读到 null（10-12 换形态后，短片走查的运行中那一句每晚红在这）。
+ * 占位的真实长相：Placeholder 扩展只在编辑器**空着**时给那个空段落挂 `is-editor-empty` + `data-placeholder`，
+ * 再由 CSS `::before { content: attr(data-placeholder) }` 画出来（`src/workbench/assets/tiptapPlaceholderClasses.ts`）。
+ * 这里读空段落 `::before` 算出来的 content，也就是用户眼睛看到的那句：框里有字（占位不画）、样式丢了（属性在、字画不出来）
+ * 都读到 null——只读属性会在后一种坏法下仍然绿。读到的是哪句话由调用方按词典键给，这里不抄任何一句文案。
+ * 这两个是读占位的**唯一**出口：check-walkthroughs 的 composer-input-read 规则拦按 `placeholder` 属性读 Agent 输入框的写法。
+ */
+export async function composerPlaceholder(input) {
+  return input.evaluate((el) => {
+    const empty = el.querySelector('.is-editor-empty')
+    if (!empty) return null
+    const painted = getComputedStyle(empty, '::before').content
+    return /^(["']).*\1$/.test(painted) ? painted.slice(1, -1) : null
+  })
+}
+export async function expectComposerPlaceholder(input, text, message) {
+  await expect.poll(() => composerPlaceholder(input), { message, timeout: DEFAULT_TIMEOUT_MS }).toBe(text)
+}
+
+/**
  * 读 / 断言 Agent 输入框里的字。输入框是富文本编辑器（PromptEditor，句中能插参考缩略图），不是 input / textarea：
  * toHaveValue / inputValue 会报 "Not an input element"。走查读它的字只走这两个出口（check:walkthroughs 的
  * composer-input-read 规则拦直接读）；写字用 locator.fill / pressSequentially（编辑器上照常可用）。
@@ -644,4 +665,37 @@ export async function assertNodeTextWriteReceipt(win, { snap }) {
   }
   await switchAppLocale(win, 'zh-CN')
   return rows
+}
+
+// ── 回合结局：一轮对话结束后，面板上到底发生了什么 ───────────────────────────────
+//
+// 真模型走查曾把「模型服务商拒了请求、Agent 根本没干活」当成正常回合记进分母，报出一个看起来像
+// 「修复无效」的假数。结局只按面板上的真实元素判（ERROR_BAR / PANEL_ERROR 两个 data 属性、助手消息积木），
+// 不按错误正文猜——正文是词典键渲染出来的，随语言和服务商变。
+export const TURN_OUTCOME = Object.freeze({
+  RAN_WITH_TOOLS: 'ran-with-tools',
+  RAN_NO_TOOLS: 'ran-no-tools',
+  PROVIDER_ERROR: 'provider-error',
+  NOT_STARTED: 'not-started',
+})
+/** 不可判的结局：模型没真正干活，这一轮不能进任何比率的分母。 */
+export const UNJUDGEABLE_OUTCOMES = Object.freeze([TURN_OUTCOME.PROVIDER_ERROR, TURN_OUTCOME.NOT_STARTED])
+export const isJudgeableOutcome = (outcome) => !UNJUDGEABLE_OUTCOMES.includes(outcome)
+
+/**
+ * 判一轮的结局。`panel` 是面板根选择器（如 CANVAS_PANEL）；`toolCallCount` 是这一轮从磁盘轨迹读到的工具调用数；
+ * `sawRunning` 是发送后有没有观察到过「运行中」（快回合可能漏采，所以只是旁证之一，不是唯一依据）。
+ * 顺序有讲究：先看工具（有调用就是真干过活，哪怕后面报了错）；再看错误块（没工具 + 有错误块 = 服务商 / 网络报错）；
+ * 最后才分「只说话」与「根本没起来」。
+ */
+export async function classifyTurnOutcome(page, { panel, toolCallCount = 0, sawRunning = false }) {
+  const errorBlock = page.locator(`${panel} ${ERROR_BAR}, ${panel} ${PANEL_ERROR}`).first()
+  const errorText = (await errorBlock.isVisible().catch(() => false))
+    ? ((await errorBlock.innerText().catch(() => '')) || '').trim().slice(0, 300)
+    : null
+  if (toolCallCount > 0) return { outcome: TURN_OUTCOME.RAN_WITH_TOOLS, errorText }
+  if (errorText !== null) return { outcome: TURN_OUTCOME.PROVIDER_ERROR, errorText }
+  const spoke = await page.locator(`${panel} ${ASSISTANT_MESSAGE}`).last().isVisible().catch(() => false)
+  if (spoke || sawRunning) return { outcome: TURN_OUTCOME.RAN_NO_TOOLS, errorText: null }
+  return { outcome: TURN_OUTCOME.NOT_STARTED, errorText: null }
 }

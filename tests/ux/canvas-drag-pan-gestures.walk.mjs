@@ -3,7 +3,7 @@
 // 真实任务：「打开项目 → 摆两个节点并连线 → 拖画布找位置 → 框选一批 → 拖动一个节点调位置」，
 // 全程验证四条新契约：
 //   ① 空白左键拖=平移；点一下空白=取消选中；Shift+左键拖=框选（追加）；滚轮以光标为锚缩放
-//   ② 平移期间节点不重渲染（拖前后节点 DOM 实例不变 + 变换层已提升为合成层 will-change）
+//   ② 平移期间节点不重渲染（拖前后节点 DOM 实例不变；视口静止时不升合成层，2026-10-31 起 will-change 不含 transform）
 //   ③ 连线标签默认不显示，选中节点后其关联边才浮出标签
 //   ④ 拖动节点时浮动工具条 / 提示词面板隐身，松手回来
 //
@@ -22,7 +22,7 @@ import {
   CANVAS_PANE_SELECTOR, expectArrivalsReachable, findCanvasBlankPoint, findEdgeHitPoint, findNodeHitPoint, waitForCanvasViewportSettled,
 } from './_canvasHit.mjs'
 import { launchCoreSmoke } from './core-smoke/fixture.mjs'
-import { canvasAddBar, canvasControlsHelpDialog, canvasFitView, canvasResetView, openCanvasControlsHelp, revealCanvasDock } from './_shell.mjs'
+import { canvasAddBar, canvasControlsHelpDialog, canvasFitView, canvasResetView, canvasZoomStep, openCanvasControlsHelp, revealCanvasDock } from './_shell.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 // 语言与 node-params 走查同一套约定：位置参数 argv[2]，夹具再让 NOMI_CORE_SMOKE_LOCALE（runner 的 --locale）覆盖。
@@ -282,6 +282,54 @@ async function frameOwnCards() {
   return view
 }
 
+/** 像用户一样中键拖画布，把两张卡摆到舞台中间（用户自己的平移，允许动画布）。已经在中间（±40px）就不动。 */
+async function centerOwnCards() {
+  const ownCentre = await getWin().evaluate((ownNode) => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
+    const rects = Array.from(document.querySelectorAll(ownNode)).map((node) => node.getBoundingClientRect())
+    if (!stage || !rects.length) return null
+    return {
+      dx: (stage.left + stage.right) / 2 - (Math.min(...rects.map((r) => r.left)) + Math.max(...rects.map((r) => r.right))) / 2,
+      dy: (stage.top + stage.bottom) / 2 - (Math.min(...rects.map((r) => r.top)) + Math.max(...rects.map((r) => r.bottom))) / 2,
+    }
+  }, OWN.node)
+  if (ownCentre && (Math.abs(ownCentre.dx) > 40 || Math.abs(ownCentre.dy) > 40)) {
+    const panFrom = await findBlankPoint()
+    await getWin().mouse.move(panFrom.x, panFrom.y)
+    await getWin().mouse.down({ button: 'middle' })
+    await getWin().mouse.move(panFrom.x + ownCentre.dx, panFrom.y + ownCentre.dy, { steps: 12 })
+    await getWin().mouse.up({ button: 'middle' })
+    await waitForCanvasViewportSettled(getWin())
+  }
+}
+
+// 细节线：缩放低于它，没选中的卡画轻量卡（预览图，没有提示词面板 / 浮条 / 卡面按钮，按下去也不挂，拖完才变整卡）。
+// 同 src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts 的 LIGHTWEIGHT_NODE_ZOOM_THRESHOLD（用户 2026-10-31 定的 40%）。
+const DETAIL_LINE_ZOOM = 0.4
+
+/**
+ * 把缩放定到细节线之上（+ 5 个百分点的余量），再把两张卡摆回舞台中间。
+ * 为什么不靠 frameOwnCards 的滚轮格数：同一条 mouse.wheel(0, -120) 放大的倍数 Mac 是 Linux 的两倍（上面「向上滚轮放大画布」那条：
+ * 同一 240 的滚动 Mac 1.00 → 1.95、CI 1.00 → 1.39），同一个 1280×800 窗口里，两张卡 Mac 落在 48%、CI 落在 34%，跨在线两侧。
+ * 改点缩放簇里的「+」（每点一次固定倍数，绕舞台中心），每点一次读回真实缩放；已经在线之上（Mac 的 48%）就一下都不点。
+ */
+async function zoomOwnCardsAboveDetailLine(minZoom = DETAIL_LINE_ZOOM + 0.05) {
+  let zoom = (await readTransform()).zoom
+  const clicks = []
+  for (let step = 0; step < 8 && zoom < minZoom; step += 1) {
+    await canvasZoomStep(getWin(), 'in')
+    await waitForCanvasViewportSettled(getWin())
+    zoom = (await readTransform()).zoom
+    clicks.push(Number(zoom.toFixed(3)))
+  }
+  if (clicks.length) {
+    // 绕舞台中心放大会把偏在一侧的卡推向边缘 / 推出去：摆回中间，下面按卡的点才都在舞台里。
+    await centerOwnCards()
+    console.log(`  · 放大到细节线之上：点「+」${clicks.length} 次 ${clicks.join(' → ')}`)
+  }
+  return (await readTransform()).zoom
+}
+
 // 数一段操作里「连线层 / 标签层 / 画布外壳」到底被写了多少次 DOM。
 // 这是「点一下空白不该刷新连线」的可执行判据——比人眼盯重绘高亮更稳。
 async function countMutationsDuring(action) {
@@ -469,7 +517,9 @@ try {
   // 等画面视觉安定（_assert.mjs 的共享判据）再开始。
   await waitForVisualQuiescence(getWin())
   const before = await readTransform()
-  assert(before.willChange.includes('transform'), '变换层已提升为合成层（will-change: transform）', before.willChange)
+  // 2026-10-31 反过来钉：视口静止时不升合成层（常驻 will-change 让远看按近看倍率栅格、连线 / 组框 / 卡各拆一层，
+  // 512MB 瓦片预算下整块不画；设计卡 docs/plan/2026-10-31-canvas-detail-admission.md）。
+  assert(!before.willChange.includes('transform'), '视口静止时不升合成层（will-change 不含 transform）', before.willChange)
 
   // 这一笔平移偶发「画布反向跳 (+322,+177)」（2026-09-22 两个会话各见过一次，之后 30+ 次复跑未再现）。
   // 失败时要有证据：被动记下视口 transform 的每次改写、指针事件落点、选中变化（只观察、不改时序），
@@ -643,23 +693,7 @@ try {
 
   // 2026-09-25 起新卡优先落进可见区的空位——used 夹具里那常是贴着底边的一条缝，四周没有起手的空白。
   // 像用户一样中键把两张卡拖到舞台中间再扫（用户自己的平移，允许动画布）。
-  const ownCentre = await getWin().evaluate((ownNode) => {
-    const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
-    const rects = Array.from(document.querySelectorAll(ownNode)).map((node) => node.getBoundingClientRect())
-    if (!stage || !rects.length) return null
-    return {
-      dx: (stage.left + stage.right) / 2 - (Math.min(...rects.map((r) => r.left)) + Math.max(...rects.map((r) => r.right))) / 2,
-      dy: (stage.top + stage.bottom) / 2 - (Math.min(...rects.map((r) => r.top)) + Math.max(...rects.map((r) => r.bottom))) / 2,
-    }
-  }, OWN.node)
-  if (ownCentre && (Math.abs(ownCentre.dx) > 40 || Math.abs(ownCentre.dy) > 40)) {
-    const panFrom = await findBlankPoint()
-    await getWin().mouse.move(panFrom.x, panFrom.y)
-    await getWin().mouse.down({ button: 'middle' })
-    await getWin().mouse.move(panFrom.x + ownCentre.dx, panFrom.y + ownCentre.dy, { steps: 12 })
-    await getWin().mouse.up({ button: 'middle' })
-    await waitForCanvasViewportSettled(getWin())
-  }
+  await centerOwnCards()
 
   const partialGesture = await getWin().evaluate(({ paneSelector, inset, ownNode }) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
@@ -1031,6 +1065,18 @@ try {
   console.log('  ✓ 断线、锁定各按一次 Cmd+Z 还原，前一笔节点/连线保留')
 
   // ── ④ 拖动节点：浮条 / 提示词面板隐身，松手回来 ─────────────────────────
+  // 这一段的前提：被按下去的那张卡是整卡——它的提示词面板 / 浮条挂着、只是拖动期间被藏起来（visibility: hidden）。
+  // 缩放低于细节线（40%）时没选中的卡是轻量卡，按下去不挂这些（拖完才变整卡），「浮层一个都不显示」就成了什么都没挂的空话
+  // （CI 上 Linux 落在 34%：overlays 0，防空断言红；Mac 落在 48%：overlays 2）。所以先把缩放明确定到线之上，不留给滚轮格数。
+  const detailZoom = await zoomOwnCardsAboveDetailLine()
+  assert(detailZoom >= DETAIL_LINE_ZOOM, '拖动那一段的前提：缩放在细节线（40%）之上，没选中的卡是整卡', `缩放 ${detailZoom.toFixed(3)}`)
+  // 放大 / 摆正画布不该带走选中；万一带走了就像人一样再点一下视频卡，下面「选中节点时提示词面板可见」才测得到东西。
+  if (!(await selectedNodeIds()).includes(ownId('video'))) {
+    const reselect = await findNodeHitPoint(getWin(), { nodeSelector: OWN.video })
+    assert(Boolean(reselect), '放大后视频卡上找得到真正点得到的一点', JSON.stringify(reselect))
+    await getWin().mouse.click(reselect.x, reselect.y)
+    await getWin().waitForTimeout(400)
+  }
   const composerBefore = await getWin().evaluate(() => {
     const composer = document.querySelector('.generation-canvas-v2-node__composer')
     return composer ? getComputedStyle(composer).visibility : null

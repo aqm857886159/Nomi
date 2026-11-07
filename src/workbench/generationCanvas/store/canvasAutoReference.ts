@@ -1,6 +1,7 @@
+import { useGenerationQueueStore } from '../runner/generationQueueStore'
 import { insertAutoMentions } from '../../assets/promptMentions'
 import { resultUrl } from '../runner/referenceUrl'
-import { referenceAssetKindForNode, validateReferenceEdge, archetypeForNode } from '../agent/referenceEdgeCapability'
+import { referenceAssetKindForNode, validateReferenceEdge, archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import { resolveMentionReference } from '../model/canvasReferenceConnection'
 import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import { currentReferenceMedia } from '../nodes/mentionCandidates'
@@ -61,11 +62,12 @@ export function planCanvasAutoReference(
     .filter((node) => node.categoryId === source.categoryId)
     .map((node) => userNodeName(node, defaults))
     .filter(Boolean)
+  const unsettled = new Set(useGenerationQueueStore.getState().entries.filter(entry => entry.state === 'queued' || entry.state === 'running').map(entry => entry.nodeId))
   const plans: CanvasAutoReferencePlan[] = []
   for (const target of nodes) {
     if (target.id === source.id) continue
     if (target.kind !== 'image' && target.kind !== 'video') continue
-    if (target.result || target.status === 'running' || target.status === 'queued' || target.status === 'recoverable') continue
+    if (target.result || target.status === 'running' || unsettled.has(target.id) || target.status === 'recoverable') continue
     const meta = (target.meta || {}) as Record<string, unknown>
     if (meta.storyboardDesignId) continue
     if (target.categoryId !== source.categoryId) continue
@@ -136,4 +138,24 @@ export function initCanvasAutoReferenceBridge(): () => void {
     unsubscribeOpened()
     unsubscribeStore()
   }
+}
+
+/**
+ * 提交前对账「生成方式 × 活边参考」（2026-07-28 群反馈根治）：当前模式一条参考边都收不下、档案里
+ * 有能收的模式 → 切过去（与建边 autoPromoteTargetModeForEdge 同一套语义，ModeBar 同步翻转）。
+ * 建边时的 auto-promote 只覆盖「建边那一刻」，换模型（archetype 失配落回默认 t2i）、存量边都够不到；
+ * 停在 t2i 的节点会在投影层（buildArchetypeInputParams 空槽互斥）把挂着的参考静默丢掉、付费发出
+ * 纯文生（「男的角色图生成出女的」根因）。挂在唯一提交咽喉 runGenerationNode 入口，整类不再复发。幂等。
+ */
+export function reconcileNodeModeWithConnectedReferences(nodeId: string): void {
+  const state = useGenerationCanvasStore.getState()
+  const node = state.nodes.find((candidate) => candidate.id === nodeId)
+  if (!node) return
+  const nextModeId = resolveModeForConnectedReferences(node, state.nodes, state.edges)
+  if (!nextModeId) return
+  const archetype = archetypeForNode(node)
+  if (!archetype) return
+  state.updateNode(nodeId, {
+    meta: applyArchetypeModeSwitch((node.meta || {}) as Record<string, unknown>, archetype, nextModeId),
+  })
 }

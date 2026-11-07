@@ -5,6 +5,7 @@ import type { ParameterField } from "./moduleManifest";
 import { generationPlanningHintType } from "./generationPlanningParameters";
 import { draftFieldForMisplacedParameter } from "../shared/agentCapabilities/draftFieldAliases";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
+import { closestKey as nearestKeyOf } from "../shared/agentLane/toolInputIssues";
 
 export const EXECUTION_CONTRACT_SCHEMA_VERSION = 1 as const;
 
@@ -176,38 +177,8 @@ function parameterMatches(type: string, value: unknown): boolean {
   }
 }
 
-/** Levenshtein distance, capped at the shorter word — only used to suggest a near-miss key. */
-function editDistance(left: string, right: string): number {
-  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= left.length; i += 1) {
-    let diagonal = previous[0]!;
-    previous[0] = i;
-    for (let j = 1; j <= right.length; j += 1) {
-      const candidateCost = Math.min(
-        previous[j]! + 1,
-        previous[j - 1]! + 1,
-        diagonal + (left[i - 1] === right[j - 1] ? 0 : 1),
-      );
-      diagonal = previous[j]!;
-      previous[j] = candidateCost;
-    }
-  }
-  return previous[right.length]!;
-}
-
-/**
- * 「你是不是想写这个」——只在**真的接近**时才给（阈值 = 键长的 1/3，至少 1，最多 3）。
- * 没有足够接近的就返回 undefined：给一个不相干的键会把模型带去第二个错误答案。
- */
-function closestParameterKey(written: string, allowedKeys: readonly string[]): string | undefined {
-  const budget = Math.min(3, Math.max(1, Math.floor(written.length / 3)));
-  let best: { key: string; distance: number } | undefined;
-  for (const key of allowedKeys) {
-    const distance = editDistance(written.toLowerCase(), key.toLowerCase());
-    if (distance <= budget && (!best || distance < best.distance)) best = { key, distance };
-  }
-  return best?.key;
-}
+// 「你是不是想写这个」的近似键：唯一 owner 在 `shared/agentLane/toolInputIssues.ts`（2026-11-07 起入参失败三个来源共用一把尺子）。
+// 原来这里的「编辑距离 ≤ 键长 1/3」原样搬过去了，那边多认两种：只差大小写 / 下划线、前后缀。
 
 const displayValue = (value: unknown): string => (typeof value === "string" ? value : JSON.stringify(value));
 
@@ -266,7 +237,7 @@ function compileParameters(candidate: PlanCandidate, module: ResolvedModule, all
       continue;
     }
     if (!field) {
-      const closestKey = closestParameterKey(key, allowedKeys);
+      const closestKey = nearestKeyOf(key, allowedKeys);
       // 键认得出是起草的顶层字段（variant → variantId……），而这个模型的参数表里本来没有它：直说它的家在哪，
       // variantId 还把这个模型真实的变体词列出来。
       const useField = draftFieldForMisplacedParameter(key);

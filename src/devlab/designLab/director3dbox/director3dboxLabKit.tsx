@@ -33,7 +33,7 @@ import type { DirectorE2EBridge } from '../../../workbench/generationCanvas/node
 import { assistantPaneWidth } from '../../../workbench/assistantWidthBounds'
 import { S1_ORACLE_PLANS } from '../../../../evals/director/s1OraclePlans'
 import { ShellStage, labAssistantItem, labHostState, labToolItem, labUserItem } from '../v4/agentPanelV4LabHost'
-import { useWorkbenchStore } from '../../../workbench/workbenchStore'
+import { SHELL_TOPBAR_HEIGHT } from '../../../ui/app-shell/shellGeometry'
 import type { Director3dBoxFixture, LabDrive, LabStep } from './director3dboxCell'
 /** 右侧 Agent 面板宽：与 v4 实验室同一取值，导演视图占的画布宽因此与真机 1280 窗口一致（≈858）。 */
 const AGENT_PANEL_WIDTH = 390
@@ -250,10 +250,8 @@ function afterPatchItems(): ReturnType<typeof labHostState> {
 export function Director3dBoxStage({ locale, fixture, drive = 'none', steps = NO_STEPS, agentWidth = AGENT_PANEL_WIDTH, conversation = 'empty', preview = 'none', editable = false, release }: Director3dBoxStageProps): JSX.Element {
   React.useMemo(() => {
     enableDirectorE2EBridge()
-    // 导演台壳的右缘读工作台 store 的 Agent 宽（真机同一个值），实验室把它设成这一格要的宽
-    useWorkbenchStore.getState().setAssistantWidth(agentWidth)
     void i18n.changeLanguage(locale)
-  }, [agentWidth, locale])
+  }, [locale])
   const courtyard = React.useMemo(() => (fixture === 'empty' ? null : courtyardFixture(fixture)), [fixture])
   const project = courtyard?.project ?? null
   React.useMemo(() => installCanvasNode(courtyard, preview), [courtyard, preview])
@@ -274,7 +272,11 @@ export function Director3dBoxStage({ locale, fixture, drive = 'none', steps = NO
   const noop = React.useCallback(() => undefined, [])
   return (
     <>
-      <DirectorEditor rawProject={project ?? undefined} nodeTitle={title} readOnly={!editable} nodeId={courtyard ? LAB_DIRECTOR_NODE_ID : undefined} onClose={noop} onProjectChange={noop} />
+      {/* 产品里导演台是生成页画布那一格里的一块（根 size-full 铺满所在容器）；实验室没有生成页，这里替它摆一格：
+          顶栏带之下、右边让开假 Agent 栏——与真机 1280 窗口的页格同一个矩形。 */}
+      <div className="fixed inset-x-0 bottom-0" style={{ top: SHELL_TOPBAR_HEIGHT, right: assistantPaneWidth(agentWidth) }}>
+        <DirectorEditor rawProject={project ?? undefined} nodeTitle={title} readOnly={!editable} nodeId={courtyard ? LAB_DIRECTOR_NODE_ID : undefined} onClose={noop} onProjectChange={noop} />
+      </div>
       <div className="fixed inset-y-0 right-0 bg-nomi-bg p-4" style={{ width: assistantPaneWidth(agentWidth) }}>
         <ShellStage surface="generation" snapshot={conversation === 'after-patch' ? afterPatchItems() : labHostState({ items: [] })} width={agentWidth} height={window.innerHeight - assistantPaneWidth(0)} />
       </div>

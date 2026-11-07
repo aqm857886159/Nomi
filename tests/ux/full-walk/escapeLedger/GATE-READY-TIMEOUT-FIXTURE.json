@@ -1,0 +1,24 @@
+{
+  "id": "GATE-READY-TIMEOUT-FIXTURE",
+  "since": "2026-10-29",
+  "source": "协调复核的四次门岗自测 slow.pid ENOENT，以及写PID前同步延迟2000ms的5次确定性复现",
+  "category": "claims-and-outcomes",
+  "problem": "门岗自测把夹具在1500ms内写出PID或计数当作前提，高负载启动未完成时超时断言已过，随后读文件ENOENT，拦住无关交付。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "scripts/pre-push-structure.node-test.mjs：目标用例修前注入2000ms，5/5 ENOENT",
+    "scripts/_test-ready-timeout.mjs：共享就绪、子孙存活、推进期限与退出断言",
+    "本地修复验收不等于合入后收据，未结为fixed"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-10-29-ready-timeout-fixtures.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "scripts/pre-push-structure.node-test.mjs"
+  }
+}

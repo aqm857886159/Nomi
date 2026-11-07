@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:
       RELEASE_VERSION: ${{ inputs.version }}
@@ -117,7 +117,7 @@ jobs:
 
   macos:
     needs: validate
-    runs-on: macos-14
+    runs-on: macos-26
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -177,7 +177,7 @@ jobs:
 
   windows:
     needs: validate
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -225,9 +225,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # 发版硬门：Windows 安装器真装、真升级、真卸载（v0.24.0 → 本提交、本提交 → 本提交、卸载，三处用户数据都在；
+  # 设计卡 docs/plan/2026-10-29-installer-keep-user-files.md）。它红了 finalize 不跑、本次运行不是 success，
+  # desktop-release.yml 就不晋级。不等 validate：它要一个多小时，和 validate 并行；测的是同一个提交（github.sha，
+  # validate 的第一步核过 inputs.ref 就是它），自己按被测版本号另打一个安装包（工作流里加 -installer-test 后缀），
+  # 和 windows 作业上传的候选包同一份源码、同一套打包配置。
+  windows-installer:
+    uses: ./.github/workflows/win-installer.yml
+
   finalize:
-    needs: [validate, macos, windows]
-    runs-on: ubuntu-latest
+    needs: [validate, macos, windows, windows-installer]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       RELEASE_VERSION: ${{ inputs.version }}

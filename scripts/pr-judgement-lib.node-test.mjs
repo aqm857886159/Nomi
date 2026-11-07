@@ -17,18 +17,118 @@ import {
   checkRoutingEvidence,
   evaluatePrJudgement,
   evidenceLineVerdict,
+  upgradePathVerdict,
   inferRoutes,
   isMissingTool,
   loadRoutingTable,
   paidSampleVerdict,
   requiredEvidence,
   routingEnforced,
+  processTieringEnforced,
   toolGaps,
 } from './pr-judgement-lib.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const table = loadRoutingTable()
 const M = (p, status = 'M') => ({ path: p, status })
+
+const exitCardBody = (line = '') => `## 设计卡
+${line}
+### 功能分类
+- [x] 花钱
+## 验收证据
+- spend-walks：tests/ux/agent-spend-card.walk.mjs
+- spend-paid-sample：run 987654
+- spend-fault-injection：tests/ux/full-walk/playbooks/pb07-failure-kinds.walk.mjs
+`
+const judgeExitCard = (line, options = {}) => evaluatePrJudgement({
+  body: exitCardBody(line),
+  files: [M('electron/capabilityCore/generationSpendDecision.ts')],
+  createdAt: '2026-11-04T16:00:00Z',
+  table,
+  ...options,
+})
+const validExitLine = '出口：scripts/prior-art-lib.mjs:162 · 修正输入后重新运行 · 确认重新发起入口'
+
+for (const [name, line] of [
+  ['缺行', ''],
+  ['只有出口两字', '出口'],
+  ['只有两段', '出口：scripts/prior-art-lib.mjs:162 · 重新运行'],
+  ['第一段无出处', '出口：查过了 · 重新运行 · 确认入口'],
+  ['第二段为空', '出口：scripts/prior-art-lib.mjs:162 ·  · 确认入口'],
+  ['第三段为空', '出口：scripts/prior-art-lib.mjs:162 · 重新运行 · '],
+  ['不涉及理由为空', '出口：不涉及：  '],
+  ['四段', `${validExitLine} · 多一段`],
+]) {
+  test(`保护出口：四类 ${name} → 红并提示正确写法及人工责任`, () => {
+    const result = judgeExitCard(line)
+    assert.equal(result.blocked, true)
+    assert.match(result.routing.lines.join('\n'), /出口：<出处> · <别人怎么让人继续> · <确认或改变了我们哪处>/)
+    assert.match(result.routing.lines.join('\n'), /出口：不涉及：<理由>/)
+    assert.match(result.routing.lines.join('\n'), /只认格式.*独立验收/)
+  })
+}
+
+for (const line of [validExitLine, '出口：[出处](https://example.com/retry) · 取消后重来 · 确认取消入口', '出口：不涉及：本次只删除金额展示，没有新增、扩大或挪动挡人保护']) {
+  test(`保护出口：${line} → 绿`, () => assert.equal(judgeExitCard(line).blocked, false))
+}
+
+test('保护出口：文件行出处允许无扩展名文件', () => {
+  assert.equal(judgeExitCard('出口：Makefile:12 · 修正后重跑 · 确认重跑入口').blocked, false)
+})
+
+test('保护出口：列表标记后有空格的三段或不涉及行均接受，并提示可写在列表项里', () => {
+  for (const prefix of ['- ', '* ', '+ ', '14. ', '14) ']) {
+    assert.equal(judgeExitCard(`${prefix}${validExitLine}`).blocked, false, prefix)
+    assert.equal(judgeExitCard(`${prefix}出口：不涉及：本次未新增挡人保护`).blocked, false, prefix)
+    const plan = 'docs/plan/2026-11-05-example.md'
+    assert.equal(judgeExitCard('', { body: exitCardBody(plan), readRaw: () => `## ★0 先查别人\n${prefix}${validExitLine}` }).blocked, false, `方案 ${prefix}`)
+  }
+  assert.match(judgeExitCard('').routing.lines.join('\n'), /可以写在列表项里/)
+})
+
+test('保护出口：无空格标记、行中间、表格单元格及引用块均不接受', () => {
+  for (const line of [`-${validExitLine}`, `说明 ${validExitLine}`, `| ${validExitLine} |`, `> ${validExitLine}`]) {
+    assert.equal(judgeExitCard(line).blocked, true, line)
+  }
+})
+
+test('保护出口：四类之外不要求', () => {
+  const result = judgeExitCard('', { files: [M('docs/example.md')], body: '## 设计卡\n其他改动' })
+  assert.equal(result.inferred.fourClass, false)
+  assert.equal(result.blocked, false)
+})
+
+test('保护出口：创建时间按生效瞬时点，不追溯旧 PR', () => {
+  assert.equal(judgeExitCard('', { createdAt: '2026-11-04T15:59:59Z' }).blocked, false)
+  assert.equal(judgeExitCard('', { createdAt: '2026-11-05T00:00:00+08:00' }).blocked, true)
+  assert.equal(judgeExitCard('', { createdAt: '2026-11-04T16:00:00Z' }).blocked, true)
+  assert.equal(judgeExitCard('', { createdAt: null }).blocked, true)
+  assert.equal(judgeExitCard('', { createdAt: 'invalid' }).blocked, true)
+})
+
+test('保护出口：正文其他节或注释里的行不算设计卡回答', () => {
+  assert.equal(judgeExitCard('', { body: `${exitCardBody()}\n## 备注\n${validExitLine}` }).blocked, true)
+  assert.equal(judgeExitCard(`<!-- ${validExitLine} -->`).blocked, true)
+})
+
+test('保护出口：复用正文方案引用，只读方案的 ★0 节，正文有合格行时不读方案', () => {
+  const plan = 'docs/plan/2026-11-05-example.md'
+  const body = exitCardBody(`[方案](${plan})，再引用 ${plan}`)
+  const read = []
+  for (const heading of ['## ★0 先查别人（实查）', '## 先查别人（★0）', '### ★0 先查已有实现']) {
+    const readRaw = (file) => { read.push(file); return `${heading}\n${validExitLine}\n## ★1 用户\n内容` }
+    assert.equal(judgeExitCard('', { body, readRaw }).blocked, false)
+  }
+  assert.deepEqual(read, [plan, plan, plan], '同一正文重复引用只读一次')
+  assert.equal(judgeExitCard('', { body, readRaw: () => `## ★0 先查别人\n没有回答\n## ★1 用户\n${validExitLine}` }).blocked, true)
+  assert.equal(judgeExitCard('', { body, readRaw: () => null }).blocked, true)
+  assert.equal(judgeExitCard('', { body, readRaw: () => { throw new Error('unreadable') } }).blocked, true)
+  assert.equal(judgeExitCard('', { body: exitCardBody(`${validExitLine}\n${plan}`), readRaw: () => { assert.fail('正文合格不应读取方案') } }).blocked, false)
+  let outsideRead = false
+  assert.equal(judgeExitCard('', { body: exitCardBody('docs/plan/../../outside.md'), readRaw: () => { outsideRead = true; return null } }).blocked, true)
+  assert.equal(outsideRead, false, '不可读取方案目录之外的路径')
+})
 
 test('路由表自身：每个类别有证据、证据 id 全局唯一、tool 只能是 exists / missing、missing 必须写出计划', () => {
   const ids = new Set()
@@ -207,6 +307,12 @@ test('整体：路径推出的类别没勾 → 红；勾全且证据齐 → 绿�
   assert.match(before.routing.lines.join('\n'), /⚠/)
   assert.doesNotMatch(before.routing.lines.join('\n'), /✖/)
   assert.equal(routingEnforced(null, table), true, '创建时间未知按已生效处理（fail-closed）')
+})
+
+test('流程档位生效日按带时区 ISO 瞬时点核实：跨日边界按 +08:00 比较', () => {
+  assert.equal(processTieringEnforced('2026-10-27T15:59:59Z'), false, '台北 10-27 23:59:59 仍是旧规')
+  assert.equal(processTieringEnforced('2026-10-27T16:00:00Z'), true, '台北 10-28 00:00:00 进入新规')
+  assert.equal(processTieringEnforced('2026-10-27T21:26:05Z'), true)
 })
 
 test('规则与门岗改动范围：移到判据库后行为不变；旧 PR 也不吃路由宽限（#1032 型回退）', () => {
@@ -588,4 +694,29 @@ test('性能场景：PR 头文件取不到 / JSON 解析不了 → 判红并说�
   assert.match(checkRoutingEvidence(perfLine('base-one'), ['perf'], table, '2026-10-12T00:00:00Z', broken).lines.join('\n'), /JSON 读不了/)
   const removed = knownScenarios({ baseEntries: base, prFiles: [], removedFiles: ['tests/perf/scenarios/base-one.json'] })
   assert.equal(checkRoutingEvidence(perfLine('base-one'), ['perf'], table, '2026-10-12T00:00:00Z', removed).ok, false, '本 PR 删掉的基线场景不再认得')
+})
+
+test('老用户升级路径证据：只认跑过旧数据的凭据或「不适用：理由」，未验证和裸 PR 号都红', () => {
+  assert.equal(upgradePathVerdict('- upgrade-path：electron/catalog/upgradeKeepsWorkingModels.test.ts 五份真实旧目录全绿').ok, true)
+  assert.equal(upgradePathVerdict('- upgrade-path：tests/fixtures/old-user-data/catalogs 跑过').ok, true)
+  assert.equal(upgradePathVerdict('- upgrade-path：运行号 19283746').ok, true)
+  assert.equal(upgradePathVerdict('- upgrade-path：不适用：只改错误文案，不碰存量').notApplicable, true)
+  assert.equal(upgradePathVerdict('- upgrade-path：未验证：缺旧项目').ok, false, '未验证不算：这就是放过老模型下架的那一行')
+  assert.equal(upgradePathVerdict('- upgrade-path：electron/x.test.ts 未验证').ok, false, '带了路径也不能写未验证')
+  assert.equal(upgradePathVerdict('- upgrade-path：#1402').ok, false, '裸 PR 号证明不了跑过旧数据')
+  assert.equal(upgradePathVerdict('- upgrade-path：跑过了').ok, false)
+  assert.equal(upgradePathVerdict('- upgrade-path：不适用：无').ok, false, '理由太短')
+})
+
+test('碰决定老模型能不能用的文件 → 数据格式类，要交升级路径证据', () => {
+  const ids = (files) => inferRoutes(files).categories.map((category) => category.id)
+  for (const file of ['electron/catalog/catalogStore.ts', 'electron/providerAdapter/promotionMeta.ts', 'electron/shared/modelPublication.ts', 'electron/shared/modelAvailability.ts', 'electron/shared/customCapabilityContract.ts']) {
+    assert.ok(ids([M(file)]).includes('data-format'), file)
+  }
+  assert.ok(!ids([M('electron/catalog/catalogStore.test.ts')]).includes('data-format'), '测试文件不算')
+  assert.ok(!ids([M('electron/shared/modelPublicationView.ts')]).includes('data-format'), '名字只是相近的不算')
+  const body = CARD('- [x] 数据格式') + '\n## 验收证据\n- upgrade-path：未验证：缺旧数据\n'
+  const result = checkRoutingEvidence(body, ['data-format'])
+  assert.equal(result.ok, false)
+  assert.ok(result.lines.some((line) => line.includes('不接受「未验证」')), result.lines.join('\n'))
 })

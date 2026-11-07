@@ -1,0 +1,318 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-relay-video-protocol",
+  "problem_type": "Media protocol declarations cannot preserve binary result semantics",
+  "symptom": "Accepted video completes but content bytes produce assets=[]",
+  "direct_cause": "Result executor reads every HTTP body as JSON/text; multipart requires a reference file",
+  "class_root": "HTTP operation has no media response role and unknown video connections inherit a route without evidence",
+  "affected_population": [
+    "All declared asynchronous video results with authenticated content bytes",
+    "Text-only multipart video creation",
+    "Undocumented connections without an explicit video protocol"
+  ],
+  "scope_paths": [
+    "electron/catalog/types.ts",
+    "electron/catalog/multipartOperation.ts",
+    "electron/catalog/newapiTransport.ts",
+    "electron/providerAdapter/types.ts",
+    "electron/providerAdapter/validator.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+    "electron/runtime.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/vendor/vendorHttp.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "electron/catalog/catalogCommit.ts",
+    "electron/catalog/relayNativeWireUpgrade.ts",
+    "scripts/perf-scenarios-lib.mjs",
+    "scripts/pre-push-scan-guards.mjs",
+    "electron/hardenedFetch.ts"
+  ],
+  "entry_points": [
+    "Agent declaration to runtime",
+    "Canvas create/query/result",
+    "Restart rebuild to query/result"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/reference/resources/videos/methods/download_content",
+      "checked_at": "2026-10-30",
+      "purpose": "Authenticated binary content is separate from metadata"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/openai/openai-node/blob/master/src/resources/videos.ts",
+      "checked_at": "2026-10-30",
+      "purpose": "Multipart creation and Response content contract"
+    }
+  ],
+  "invariants": [
+    "New video drafts require explicit protocol evidence; startup and retrieval never rewrite stored video mappings or accepted query snapshots",
+    "Binary video results never pass through JSON/text buffering",
+    "Task identifier survives retrieval errors; retrieval does not submit",
+    "Non-UI metrics must be explicit quiet, complete finite sample arrays matching requested runs; failed subprocesses and partial data never become baselines; the wrapper clears its requested result file before starting the child so a stale prior JSON cannot satisfy a new run",
+    "A file response's content type is a claim, not proof: the byte path asks the URL path's own predicate (hardenedFetch.isAllowedContentType) with the same per-kind allow-list, so only a type that says it is not a video is refused; octet-stream or no type goes on to the byte check at publication",
+    "A file response keeps the vendor timeout only until its headers arrive; the download after them is bounded by the shared retrieval budget (idle timeout plus declared-size total, 2GiB tier), never by the whole-call timeout",
+    "A retirement in the boundary owners ledger only excuses a shared boundary the ratchet reference already declared with its owner present (or one the reference ledger already retired); a boundary born in the change under review cannot be retired into existence"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeProfileOperation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationOutputs.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultReading.ts",
+      "symbol": "readTaskResponse"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "newapiTransportFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "newapiTransportFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "newapiTransportFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/modelRetype.ts",
+      "symbol": "draftShapeForKind"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/perf-scenarios-lib.mjs",
+      "symbol": "readNodeMetricRuns"
+    },
+    {
+      "kind": "read",
+      "path": "tests/perf/node-json-bench.mjs",
+      "symbol": "readNodeMetricRuns"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/check-perf-scenarios.node-test.mjs",
+      "symbol": "DRIVERS"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/perf-scenarios-lib.mjs",
+      "symbol": "DRIVERS"
+    },
+    {
+      "kind": "read",
+      "path": "scripts/perf-scenarios.mjs",
+      "symbol": "DRIVERS"
+    }
+  ],
+  "door_reduction": {
+    "before": 16,
+    "after": 17,
+    "why_not": "Remove the relay startup automatic transport producer. Remaining catalogCommit transport calls are image/audio; builtin selection requires explicit video protocol. Runtime create and result-query are separate lifecycle callers, and JSON readers remain necessary for declared URL results. The modelRetype wrapper must retain a distinct reclassification entry, but calls the same draftShapeForKind boundary and cannot manufacture video operations. Generic perf registration adds two validation readers: the subprocess wrapper rejects failed/partial instruments before accepting a result, and the registry driver independently validates requested metrics. Existing registry readers in structural tests, validation and the unified runner retain their distinct lifecycle roles; UI drivers are unchanged. Script doors were generated separately with --roots=scripts,tests/perf --include-tests; the root checker default scan covers application roots only."
+  },
+  "generality_proof": "Response role drives streaming at the shared executor for all declared connections; no vendor or model branch.",
+  "shared_boundaries": [
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "requestVendor",
+      "responsibility": "Shared bound authentication, timeout and streaming response consumption"
+    },
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "assertAdapterModeInvariants",
+      "responsibility": "Media response stage/kind and multipart declaration validation"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "symbol": "executeProfileOperation",
+      "responsibility": "Dispatch typed file results before JSON parsing"
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "materializeProfileMediaResult",
+      "responsibility": "Stream to private staging and publish only after decode"
+    },
+    {
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "draftShapeForKind",
+      "responsibility": "Preserve video identity without creating a route from model names or endpoint probes"
+    },
+    {
+      "path": "electron/catalog/relayNativeWireUpgrade.ts",
+      "symbol": "scheduleRelayNativeWireUpgrade",
+      "responsibility": "Retire automatic startup mutations when stored mapping authorship cannot be established"
+    },
+    {
+      "path": "scripts/perf-scenarios-lib.mjs",
+      "symbol": "readNodeMetricRuns",
+      "responsibility": "One generic numeric-array result contract shared by subprocess execution and the scenario registry"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "executeProfileOperation",
+      "disposition": "enforced",
+      "evidence": "All declared result operations use the same executor"
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "fetchTaskResult",
+      "disposition": "enforced",
+      "evidence": "Cache hits and restart rebuild converge on executeTaskQuery"
+    },
+    {
+      "path": "electron/catalog/modelRetype.ts",
+      "entry_point": "retypeModelCatalogModel",
+      "disposition": "enforced",
+      "evidence": "The wrapper calls draftShapeForKind, whose video branch now returns identity fields without wire operations. The next run stops before any POST with a model-config error whose card points at model access (electron/catalog/modelRetype.test.ts)."
+    },
+    {
+      "path": "tests/perf/node-json-bench.mjs",
+      "entry_point": "readNodeMetricRuns",
+      "disposition": "enforced",
+      "evidence": "The real child must exit successfully and emit complete quiet metrics matching requested repetitions."
+    },
+    {
+      "path": "scripts/perf-scenarios.mjs",
+      "entry_point": "driver.readRuns",
+      "disposition": "enforced",
+      "evidence": "The explicit Node JSON adapter reads the same contract; existing UI adapters are unchanged."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future gateway can return binary content or require multipart without a file",
+    "same_class_scan": [
+      "door-map executeProfileOperation / readTaskResponse",
+      "rg audioResponse multipart result in catalog/providerAdapter/runtime/tasks",
+      "door-map readNodeMetricRuns / DRIVERS --roots=scripts,tests/perf --include-tests; follow registry readers to structural gate and PR evidence"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/runtime.ts",
+    "invariant": "Declared video file responses flow through bounded stream and verified asset storage",
+    "failure_mode": "Reject invalid declarations before POST; retain accepted task on retrieval failure",
+    "exception_policy": "none",
+    "strategy": "Type the response at the HTTP operation boundary; never sniff routes or retry another POST",
+    "artifacts": [
+      "electron/runtime.ts",
+      "electron/providerAdapter/validator.ts",
+      "electron/vendor/vendorHttp.ts",
+      "electron/capabilityCore/generationOutputMaterializer.ts",
+      "electron/catalog/catalogCommit.ts",
+      "electron/catalog/relayNativeWireUpgrade.ts",
+      "electron/tasks/taskResultQuery.ts",
+      "scripts/perf-scenarios-lib.mjs",
+      "tests/perf/node-json-bench.mjs",
+      "tests/perf/relay-media-materialization-bench.mjs",
+      "tests/perf/scenarios/relay-content-fetch-256m.json",
+      "tests/perf/scenarios/relay-content-fetch-2g.json",
+      "tests/perf/scenarios/relay-content-fetch-4x256m.json"
+    ]
+  },
+  "regression_tests": [
+    "tests/relay-onboarding/contracts.test.mjs",
+    "tests/relay-onboarding/protocol.test.mjs",
+    "electron/catalog/catalogCommit.videoEvidence.test.ts",
+    "electron/catalog/relayNativeWireReconcile.test.ts",
+    "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
+    "electron/tasks/relayQueryFallback.test.ts",
+    "scripts/check-perf-scenarios.node-test.mjs",
+    "tests/relay-onboarding/restart-child.test.mjs",
+    "electron/vendor/vendorHttp.test.ts",
+    "electron/assets/providerMediaFetch.test.ts",
+    "scripts/check-concept-owners.node-test.mjs",
+    "scripts/check-boundary-owners.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/relay-onboarding/contracts.test.mjs",
+    "tests/relay-onboarding/protocol.test.mjs",
+    "electron/catalog/catalogCommit.videoEvidence.test.ts",
+    "electron/catalog/relayNativeWireReconcile.test.ts",
+    "electron/catalog/relayNativeWireUpgrade.startup.test.ts",
+    "electron/tasks/relayQueryFallback.test.ts",
+    "scripts/check-perf-scenarios.node-test.mjs",
+    "tests/relay-onboarding/restart-child.test.mjs",
+    "electron/vendor/vendorHttp.test.ts",
+    "electron/assets/providerMediaFetch.test.ts",
+    "scripts/check-concept-owners.node-test.mjs",
+    "scripts/check-boundary-owners.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "electron/runtime.ts",
+      "electron/catalog/catalogCommit.ts",
+      "electron/catalog/relayNativeWireUpgrade.ts",
+      "electron/tasks/taskResultQuery.ts"
+    ],
+    "rationale": "Delete implicit video selection in builtin drafts, catalog video drafts and the no-mapping runtime. Delete automatic native/generic mapping migration and runtime query-route fallback. The main startup callback remains inert so its independent caller need not change. Preserve all existing mappings because authorship is not reliably distinguishable."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Native Fetch/FormData/Node stream and existing decoder; no SDK dependency introduced",
+    "exit_criteria": []
+  },
+  "migration": "Existing stored mappings and accepted task query contracts remain unchanged; model/probe-derived video drafts retain identity without mappings until an explicit AI declaration is supplied. Ambiguous legacy defaults remain executable if already stored; do not infer authorship from identical bytes.",
+  "residual_risks": [
+    "Real provider, paid run, Windows and independent acceptance remain unverified",
+    "Legacy public URL materialization still uses the existing buffered path; the new bounded stream applies to authenticated file responses",
+    "The retrieval function accepts AbortSignal, but main IPC and production cancellation callers have not been changed or end-to-end verified",
+    "File responses require project identity; the independently owned tryModel entry does not currently supply it",
+    "Global closed-state inference is explicitly deferred by coordination: preserve existing hard-evidence inference and bounded unknown tolerance; use sanitized paid-response projections for a separate post-0.24.1 direction review.",
+    "Stored generated defaults are indistinguishable from explicit declarations; preserving all old rows also preserves any old guessed route.",
+    "Unified Node scenarios passed at clean head ddddcc680 with 25 fresh clients, five target repetitions per case and ten same-batch references, load5 4.77-7.89. Single256MiB RSS p95 107.7MiB, single2GiB 130.4MiB (difference22.7<=32), four concurrent256MiB 151.7MiB versus113.5MiB same-batch reference (ratio1.337<=2). These meet the revised coordination budget, not the superseded64MiB threshold. Scope is loopback transfer/write and function cancellation, not TLS, decode/publication or UI cancellation. Windows weak machine remains unverified: no Windows test machine. Four isolated protocol GUI walkthroughs and two shared-step free rehearsals exited zero, with every PNG inspected. Full gates remain pending.",
+    "GUI declaration requires renderer reload to refresh model selection. Neutral parameter and reference projection remains independently owned; free rehearsals use the existing visible capability editor for minimum controls. No real LLM documentation-reading journey was executed.",
+    "The first complete gates run exposed missing ownership/test registrations and runtime shell growth; these are repaired through the existing registries and a single shared request-construction path, without changing gate decisions or baselines. Local visual reference differences remain subject to macOS CI.",
+    "Restart or window-close recovery: when the observer takes over and the first retrieval fails once, the free recover is refused and the primary button places a second order (acceptance B4, pre-existing, not introduced here; separate PR).",
+    "The renderer waits for a poll tick no longer than 5 minutes unless the main process announces localization, and the byte path does not announce it: a legitimate download that now may run for hours (file tier, up to 8252s at the slowest accepted speed) is shown as recoverable after the renderer deadline while the main process keeps downloading. generationPhaseDeadline was read, not changed (round-3 scope)."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "electron/runtime.ts",
+    "tests": [
+      "tests/relay-onboarding/protocol.test.mjs"
+    ]
+  }
+}

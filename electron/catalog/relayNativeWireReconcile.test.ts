@@ -1,6 +1,4 @@
-// 中转视频通道启动体检（#1213）：被旧判据错切到方舟原生报文的模型要降回通用通道；探不到不动；
-// 有合同证据才升级；存量旧版通用查询刷成 canonical。目录是内存版，探测结论直接给——测的是
-// 「拿到哪种结论就改成哪种通道」这条决策，探测本身的判据在 nativeEndpointProbe.test.ts。
+// Stored wire authorship is ambiguous: startup preserves every saved contract.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mapping, Model } from "./types";
 
@@ -65,76 +63,26 @@ beforeEach(() => {
   state.warnings = [];
 });
 
-describe("中转视频通道启动体检", () => {
-  it("#1213：已切原生、探测拿不到合同证据 → 降回通用通道，撤掉 wireProfile/archetypeId，留日志写清新旧判据", async () => {
-    seedModel({ parameters: [], wireProfile: "volcengine-seedance-2", archetypeId: "volcengine-seedance-2" });
-    seedNativeMappings();
-    state.verdict = "no-contract";
-
-    const [outcome] = await upgradeRelayModelsToNativeWire();
-
-    expect(outcome).toMatchObject({ modelKey: MODEL_KEY, downgraded: true, upgraded: false });
-    for (const taskKind of ["text_to_video", "image_to_video"]) {
-      const mapping = state.mappings.find((m) => m.taskKind === taskKind)!;
-      expect(mapping.create.path).toBe("/v1/video/generations");
-      expect(mapping.query).toEqual(NEWAPI_VIDEO_QUERY_OP);
-      expect(mapping.statusMapping).toEqual(NEWAPI_STATUS_MAPPING);
-    }
-    // 不撤 archetypeId，modelRetype 会不经探测把原生报文装回来。
-    expect(state.models[0].meta).toEqual({ parameters: [] });
-    expect(state.warnings).toEqual([
-      expect.objectContaining({
-        event: "relay-native-wire-downgraded",
-        fields: expect.objectContaining({ modelKey: MODEL_KEY, oldCriterion: expect.any(String), newCriterion: expect.any(String) }),
-      }),
-    ]);
-  });
-
-  it("探不到（unreachable）不是「没有」：已切原生的模型原样不动", async () => {
-    seedModel({ wireProfile: "volcengine-seedance-2", archetypeId: "volcengine-seedance-2" });
-    seedNativeMappings();
-    state.verdict = "unreachable";
-
-    const [outcome] = await upgradeRelayModelsToNativeWire();
-
-    expect(outcome.downgraded).toBeUndefined();
-    expect(state.mappings.every((m) => m.create.path === native.create.text_to_video!.path)).toBe(true);
+describe("legacy relay wire preservation", () => {
+  it.each(["contract", "no-contract", "unreachable"] as const)("%s cannot rewrite a saved native query or create a guessed replacement", async (verdict) => {
+    seedModel({ wireProfile: "volcengine-seedance-2", archetypeId: "volcengine-seedance-2", userNote: "keep contract" });
+    seedNativeMappings({ ...native.query!, headers: { "x-contract": "explicit-user" } });
+    const before = structuredClone({ models: state.models, mappings: state.mappings });
+    state.verdict = verdict;
+    await upgradeRelayModelsToNativeWire();
+    expect({ models: state.models, mappings: state.mappings }).toEqual(before);
     expect(state.warnings).toEqual([]);
   });
-
-  it("有合同证据才升级；已在原生的旧 query 刷成 canonical（含中转信封的结果地址位置）", async () => {
-    seedModel({});
-    seedGenericMappings();
-    state.verdict = "contract";
-    expect((await upgradeRelayModelsToNativeWire())[0].upgraded).toBe(true);
-    expect(state.mappings.find((m) => m.taskKind === "text_to_video")!.create.path).toBe(native.create.text_to_video!.path);
-
-    seedNativeMappings({ ...native.query!, response_mapping: { video_url: "content.video_url" } });
-    const [again] = await upgradeRelayModelsToNativeWire();
-    expect(again.detail).toContain("query refreshed");
-    expect(state.mappings.every((m) => JSON.stringify(m.query) === JSON.stringify(native.query))).toBe(true);
-  });
-
-  it("没被切过的通用通道 + 无证据：通道不动；存量旧版通用查询刷成读官方 new-api 信封的 canonical", async () => {
+  it("keeps indistinguishable legacy generic rows byte-for-byte, including the original accepted-task query", async () => {
     seedModel({});
     seedGenericMappings(LEGACY_QUERY as Mapping["query"]);
-    state.verdict = "no-contract";
-
-    const [outcome] = await upgradeRelayModelsToNativeWire();
-
-    expect(outcome).toMatchObject({ upgraded: false });
-    expect(outcome.downgraded).toBeUndefined();
-    expect(state.mappings.every((m) => JSON.stringify(m.query) === JSON.stringify(NEWAPI_VIDEO_QUERY_OP))).toBe(true);
-  });
-
-  it("用户手改过的通用查询不碰（只认我们自己发过的原样）", async () => {
-    seedModel({});
-    const custom = { ...NEWAPI_VIDEO_QUERY_OP, response_mapping: { status: "status", video_url: "result.my_url" } };
-    seedGenericMappings(custom as Mapping["query"]);
-    state.verdict = "no-contract";
-
+    const before = JSON.stringify(state.mappings);
     await upgradeRelayModelsToNativeWire();
-
-    expect(state.mappings.every((m) => JSON.stringify(m.query) === JSON.stringify(custom))).toBe(true);
+    expect(JSON.stringify(state.mappings)).toBe(before);
+  });
+  it("cannot manufacture mappings for a video model with no stored contract", async () => {
+    seedModel({}); state.mappings = []; state.verdict = "contract";
+    await upgradeRelayModelsToNativeWire();
+    expect(state.mappings).toEqual([]);
   });
 });

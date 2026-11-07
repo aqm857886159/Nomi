@@ -89,7 +89,7 @@ describe('normalizePayload — storyboard design owner', () => {
       [legacyKey]: { [documentId]: { plan: { ...plan, retiredTopLevelField: 'x' }, committed: true } } })
     expect(out.storyboardDesignsByDocumentId?.[documentId]?.[0].plan.shots).toHaveLength(1)
   })
-  it('says which document and which field when a legacy plan is genuinely unreadable', () => {
+  it('says which field without exposing the document key when a legacy plan is genuinely unreadable', () => {
     const base = createDefaultWorkbenchProjectPayload(); const documentId = base.activeDocumentId!
     const legacyKey = ['storyboard', 'Plans'].join('')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -97,7 +97,7 @@ describe('normalizePayload — storyboard design owner', () => {
       const out = normalizePayload({ ...base, [legacyKey]: { [documentId]: { plan: { title: 'broken', anchors: [], shots: [{ index: 1 }] }, committed: true } } })
       expect(out.storyboardDesignsByDocumentId).toBeUndefined()
       expect(warn).toHaveBeenCalledTimes(1)
-      expect(String(JSON.stringify(warn.mock.calls[0]))).toContain(documentId)
+      expect(String(JSON.stringify(warn.mock.calls[0]))).not.toContain(documentId)
       expect(String(JSON.stringify(warn.mock.calls[0]))).toContain('shots')
     } finally { warn.mockRestore() }
   })

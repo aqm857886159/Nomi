@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../../shortcutSurface'
 /**
  * [INPUT]: 依赖 react、../../../../../design（BodyPortal / NOMI_OVERLAY_Z_INDEX）、../../../../../utils/cn
  * [OUTPUT]: 对外提供 TimelineMenuItem 类型与 TimelineContextMenu（按指针位置定位的右键菜单；外点 / Esc 关闭）
@@ -30,11 +31,11 @@ export function TimelineContextMenu({ x, y, items, onClose }: { x: number; y: nu
       event.stopPropagation()
       onClose()
     }
-    window.addEventListener('pointerdown', onPointerDown, { capture: true })
-    window.addEventListener('keydown', onKeyDown, { capture: true })
+    canvasWindowInput.addEventListener('pointerdown', onPointerDown, { capture: true })
+    canvasWindowInput.addEventListener('keydown', onKeyDown, { capture: true })
     return () => {
-      window.removeEventListener('pointerdown', onPointerDown, { capture: true })
-      window.removeEventListener('keydown', onKeyDown, { capture: true })
+      canvasWindowInput.removeEventListener('pointerdown', onPointerDown, { capture: true })
+      canvasWindowInput.removeEventListener('keydown', onKeyDown, { capture: true })
     }
   }, [onClose])
 

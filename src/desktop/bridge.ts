@@ -5,6 +5,7 @@ import type { WorkspaceSyncInspection } from '../../electron/shared/workspaceSyn
 import type { ProviderKind } from './providerKind'
 import type { ProjectDeleteIntent } from '../../electron/shared/projectDeleteIntent'
 import type { DesktopMediaBridge, DesktopVideoDepthBridge } from './bridgeMedia'
+import type { DeleteAssetResultOutcome } from '../workbench/assets/deleteAssetResult'
 import type { DesktopConnectorBridge } from './bridgeConnector'
 import type { McpClientProfile, McpClientUsage, McpInfo, McpInstallResult, McpMigrationResult, McpMigrationState, McpUninstallResult, McpVerifyResult } from './mcpBridgeTypes'
 import type { DesktopSettingsBridge } from './settingsBridge'
@@ -183,9 +184,13 @@ export type DesktopBridge = DesktopMediaBridge &
   log?: {
     report: (entry: import('../../electron/shared/contracts/rendererLog').RendererLogEntry) => void
   }
+  /** 卡顿时间线：渲染层 → 主进程的单向报文（长帧 + 场景）。只写本机文件，不进遥测。老 preload 可能无此口。 */
+  diagnostics?: {
+    reportStall: (report: import('../../electron/shared/contracts/stallTimeline').StallReport) => void
+  }
   /**
    * 一键反馈。**不受「帮 Nomi 变好」开关管**（用户主动点的那一条）。
-   * `preview` 只算清单不发东西；`send` 立刻返回，失败已在主进程入队重试。
+   * `preview` 只算清单不发东西；`send` 先落盘再发，最多等几秒就回答，发不出去的主进程接着重试。
    */
   feedback?: {
     preview: (payload: import('../../electron/shared/contracts/feedback').FeedbackReportRequest)
@@ -203,6 +208,7 @@ export type DesktopBridge = DesktopMediaBridge &
     openFolder: (payload: { rootPath: string; initialize?: boolean; name?: string }) => Promise<unknown>
     listFiles: (payload: { projectId: string; limit?: number }) => Promise<WorkspaceFileListResult>
     revealFile: (payload: { projectId: string; relativePath: string }) => Promise<{ ok: boolean }>
+    deleteAssets?: (payload: { projectId: string; relativePaths: string[] }) => Promise<DeleteAssetResultOutcome[]>
     deleteFiles?: (payload: {
       projectId: string
       relativePaths: string[]
@@ -226,7 +232,7 @@ export type DesktopBridge = DesktopMediaBridge &
     readAsync?: (projectId: string) => Promise<unknown | null>
     diagnose?: (projectId: string) => Promise<{ projectId: string; rootPath?: string; status: 'ok' | 'not-registered' | 'missing-folder' | 'missing-manifest' | 'corrupt-manifest' | 'id-mismatch'; recoverable: boolean; backupAvailable: boolean }>
     recover?: (projectId: string) => Promise<unknown>
-    save: (projectId: string, record: unknown) => Promise<unknown>
+    save: (projectId: string, record: unknown) => Promise<import("../../electron/shared/contracts/ipcResult").IpcResult<unknown, import("../../electron/shared/contracts/projectSaveFailure").ProjectSaveFailure>>
     applyCanvasNodePatch?: (input: { projectId: string; nodeId: string; patch: Record<string, unknown>; expectedBinding?: unknown }) => Promise<{ applied: boolean }>
     /** intent = 用户在确认框里确认的那一种；主进程只照它执行（electron/shared/projectDeleteIntent.ts）。 */
     delete: (projectId: string, intent: ProjectDeleteIntent) => Promise<{ id: string; deleted: boolean }>
@@ -256,8 +262,9 @@ export type DesktopBridge = DesktopMediaBridge &
     run: (payload: unknown) => Promise<unknown>
     result: (payload: unknown) => Promise<unknown>
     /** 画布单节点 ↑ 的唯一付费口（单镜 Run）：交 / 查 / 不再等。旧 preload 没有 → 可选。 */
-    canvasSubmit?: (payload: { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: unknown }) => Promise<unknown>
+    canvasSubmit?: (payload: { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: unknown; acknowledgedOpenRuns?: string[] }) => Promise<unknown>
     canvasPoll?: (payload: { projectId: string; runRecordId: string }) => Promise<unknown>
+    canvasOpenRuns?: (payload: { projectId: string; nodeId?: string }) => Promise<Array<{ runId: string; jobId?: string; reason: 'in_flight' | 'needs_reconcile'; hasTaskId: boolean; nodeId: string }>>
     canvasRelease?: (payload: { projectId: string; runRecordId: string }) => Promise<void>
     canvasConsent?: (payload: { projectId: string; shots: Array<{ nodeId: string; runRecordId: string; vendor: string; modelKey: string; kind: string; production?: { runId: string; shotId: string } }> }) => Promise<{ runIds: string[] }>
     canvasWithdraw?: (payload: { projectId: string; runRecordIds: string[]; by: 'removed' | 'user_closed' | 'stopped' }) => Promise<void>

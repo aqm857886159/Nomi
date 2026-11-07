@@ -1,0 +1,28 @@
+{
+  "name": "同步与显式异步 IPC 结果的唯一拆封",
+  "subject": "ipc.result-envelope",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/contracts/ipcResult.ts",
+    "symbol": "unwrapIpcResult"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/contracts/ipcResult.ts",
+      "symbol": "unwrapIpcResult"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/preload/ipcCall.ts",
+    "electron/preload/modelOnboardingBridge.ts",
+    "src/workbench/project/projectRepository.ts"
+  ],
+  "parity_test": "electron/shared/contracts/ipcResult.test.ts",
+  "since": "2026-10-30",
+  "notes": "把原 preload 的 IpcResult / unwrapIpcResult 搬到两侧可读的契约层，同提交删除旧实现。保存 reason 以普通数据穿过 contextBridge 后在渲染层拆封，同步通道仍从同一个 owner 拆封，不存在保存专用的第二种拆包。"
+}

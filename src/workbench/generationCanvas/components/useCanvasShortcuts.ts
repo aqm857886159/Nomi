@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 import React from 'react'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import {
@@ -423,12 +424,12 @@ export function useCanvasShortcuts(opts: {
       zoomByStep(direction)
     })
     installShortcutSurfaceTracker()
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('paste', handlePaste)
+    canvasWindowInput.addEventListener('keydown', handleKeyDown)
+    canvasWindowInput.addEventListener('paste', handlePaste)
     return () => {
       clearPasteFallback()
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('paste', handlePaste)
+      canvasWindowInput.removeEventListener('keydown', handleKeyDown)
+      canvasWindowInput.removeEventListener('paste', handlePaste)
       offDesktopZoom?.()
     }
   }, [

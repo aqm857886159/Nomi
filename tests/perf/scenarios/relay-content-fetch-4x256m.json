@@ -1,0 +1,34 @@
+{
+  "id": "relay-content-fetch-4x256m",
+  "feature": "同一进程四路视频文件响应并发取回与临时写盘",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/relay-media-materialization-bench.mjs",
+    "--",
+    "--case",
+    "parallel-256"
+  ],
+  "scale": "同批单路参考；每进程4个256MiB响应同时活跃",
+  "metrics": [
+    "memoryGrowthRatio",
+    "rssMiB",
+    "referenceRssMiB",
+    "heapUsedMiB",
+    "externalMiB",
+    "arrayBuffersMiB",
+    "transferMs"
+  ],
+  "budget": 2,
+  "budgetStatistic": "p95",
+  "budgetStatus": "approved",
+  "budgetBasis": "协调10-31依据安静实测裁定：单路额外RSS p95≤160MiB、跨文件规模p95差≤32MiB、四路并发p95≤同批实测单路p95×2。量具自动校验相对条件，不使用固定历史参考，不强制GC；不含解码发布。",
+  "baseline": {
+    "median": 1.3,
+    "p95": 1.3,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-10-30",
+    "commit": "ddddcc680"
+  }
+}

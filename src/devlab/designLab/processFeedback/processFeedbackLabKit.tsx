@@ -1,5 +1,4 @@
 import React, { type JSX } from 'react'
-import type { ImageGenerationPreset } from 'img-fx'
 import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGenerationNode'
 import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/store/generationCanvasStore'
 import { useGenerationQueueStore } from '../../../workbench/generationCanvas/runner/generationQueueStore'
@@ -23,7 +22,7 @@ const PROCESS_FEEDBACK_RAF_STEP_MS = 16
 
 type ProcessFeedbackClockRestore = () => void
 
-/** Freeze both elapsed copy and img-fx's frame clock for repeatable lab pixels. */
+/** Keep elapsed copy and frame sampling repeatable in the lab. */
 function installProcessFeedbackFixtureClock(): ProcessFeedbackClockRestore {
   const realDateNow = Date.now
   const realRaf = window.requestAnimationFrame.bind(window)
@@ -43,7 +42,7 @@ function installProcessFeedbackFixtureClock(): ProcessFeedbackClockRestore {
     else delete (window.performance as unknown as { now?: () => number }).now
   }
 }
-export type ProcessFixture = { kind: 'image' | 'video' | 'audio'; stage: GenerationProgressPhase | 'failed' | 'saved'; preview?: boolean; reduced?: boolean; preset?: ImageGenerationPreset; percent?: number; zoom?: number }
+export type ProcessFixture = { kind: 'image' | 'video' | 'audio'; stage: GenerationProgressPhase | 'failed' | 'saved'; preview?: boolean; percent?: number; zoom?: number }
 
 /** Laboratory automation drives the same mounted host without creating a second store instance. */
 export function advanceProcessFeedback(stage: ProcessFixture['stage']): void {
@@ -72,7 +71,7 @@ function fixtureNode(fixture: ProcessFixture): GenerationCanvasNode {
 }
 const clip: Clip = { id: 'pf-clip', type: 'image', sourceNodeId: PF_NODE_ID, label: '镜 1', startFrame: 0, endFrame: 150, frameCount: 150, offsetStartFrame: 0, offsetEndFrame: 0 }
 
-function Surfaces({ zoom, reduced, preset }: { zoom: number; reduced?: boolean; preset?: ImageGenerationPreset }): JSX.Element | null {
+function Surfaces({ zoom }: { zoom: number }): JSX.Element | null {
   const node = useGenerationCanvasStore((state) => state.nodes.find((item) => item.id === PF_NODE_ID))
   const entries = useGenerationQueueStore((state) => state.entries)
   const now = useGenerationFeedbackClock()
@@ -80,7 +79,7 @@ function Surfaces({ zoom, reduced, preset }: { zoom: number; reduced?: boolean; 
   const row = buildTaskCenterView({ nodes: [node], entries, batches: {}, now, fallbackTitle: '镜 1' }).rows[0]
   return <div data-process-lab-ready className="grid gap-6 p-6 pt-24" style={{ width: 800, height: 632, gridTemplateRows: '240px 104px 64px' }}>
     <div className="relative" style={{ width: 340, height: 240, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
-      <BaseGenerationNode node={node} selected={false} readOnly waitingMotion={reduced ? 'reduced' : undefined} waitingPreset={preset} />
+      <BaseGenerationNode node={node} selected={false} readOnly />
     </div>
     <div data-process-task className="w-full rounded-nomi border border-nomi-line bg-nomi-paper">{row ? <TaskRow row={row} /> : null}</div>
     <div data-process-timeline className="relative h-16"><TimelineClip clip={clip} /></div>
@@ -135,14 +134,14 @@ export function ProcessFeedbackStage(fixture: ProcessFixture): JSX.Element {
     setReady(true)
   }, [fixture.kind, fixture.stage, fixture.percent, fixture.preview, fixture.zoom])
   React.useEffect(() => () => { fixtureClock.current?.(); fixtureClock.current = null }, [])
-  return ready ? <Surfaces zoom={fixture.zoom ?? 1} reduced={fixture.reduced} preset={fixture.preset} /> : <div />
+  return ready ? <Surfaces zoom={fixture.zoom ?? 1} /> : <div />
 }
 
 /**
  * 导入中：同一个生产节点壳，进度来自真实的导入进度 store（不是画一张假卡）。
  * 和生成的区别只有一条——渐显的格子数由「已拷贝字节 / 总字节」决定，不按时间跑。
  */
-export function ProcessFeedbackImportStage({ ratio, reduced = false }: { ratio: number; reduced?: boolean }): JSX.Element {
+export function ProcessFeedbackImportStage({ ratio }: { ratio: number }): JSX.Element {
   const [ready, setReady] = React.useState(false)
   React.useLayoutEffect(() => {
     const workbench = useWorkbenchStore.getState()
@@ -165,28 +164,28 @@ export function ProcessFeedbackImportStage({ ratio, reduced = false }: { ratio: 
     setReady(true)
     return () => { useAssetImportProgressStore.getState().clear(PF_NODE_ID) }
   }, [ratio])
-  return <div data-pf-import-state data-pf-reduced={reduced || undefined}>
-    {ready ? <ImportSurface reduced={reduced} /> : <div />}
+  return <div data-pf-import-state>
+    {ready ? <ImportSurface /> : <div />}
   </div>
 }
 
-function ImportSurface({ reduced }: { reduced?: boolean }): JSX.Element | null {
+function ImportSurface(): JSX.Element | null {
   const node = useGenerationCanvasStore((state) => state.nodes.find((item) => item.id === PF_NODE_ID))
   if (!node) return null
   return <div data-process-lab-ready className="grid gap-6 p-6 pt-24" style={{ width: 800, height: 440, gridTemplateRows: '340px' }}>
     <div className="relative" style={{ width: 340, height: 240 }}>
-      <BaseGenerationNode node={node} selected={false} readOnly waitingMotion={reduced ? 'reduced' : undefined} />
+      <BaseGenerationNode node={node} selected={false} readOnly />
     </div>
   </div>
 }
 
 /** Transition screenshots use the mounted production host and real preview/result stores. */
-export function ProcessFeedbackFxStage({ transition, reduced = false, preset }: { preset?: ImageGenerationPreset; transition?: 'preview' | 'saved'; reduced?: boolean }): JSX.Element {
+export function ProcessFeedbackFxStage({ transition }: { transition?: 'preview' | 'saved' }): JSX.Element {
   React.useEffect(() => {
     if (!transition) return
     let advanced = false
     const advance = () => {
-      if (advanced || !document.querySelector('[data-process-fx]')) return
+      if (advanced || !document.querySelector('[data-generation-waiting]')) return
       advanced = true
       if (transition === 'preview') useNodeLivePreviewStore.getState().setPreview(PF_NODE_ID, FRAME)
       else advanceProcessFeedback('saved')
@@ -196,6 +195,6 @@ export function ProcessFeedbackFxStage({ transition, reduced = false, preset }: 
     advance()
     return () => observer.disconnect()
   }, [transition])
-  return <div data-pf-fx-state data-pf-reduced={reduced || undefined}><ProcessFeedbackStage kind="image" stage="generating" reduced={reduced} preset={preset} /></div>
+  return <div data-pf-fx-state><ProcessFeedbackStage kind="image" stage="generating" /></div>
 }
 

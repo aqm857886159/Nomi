@@ -1,0 +1,168 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-30-installer-windows-harness",
+  "problem_type": "PowerShell scenario subprocesses must have explicit success and visible failure at a shared execution boundary",
+  "symptom": "Windows run 41008253991: A1-A13 exit during resetMachine; only CLIXML progress is visible and CX1-CX3 are correctly NOT RED.",
+  "direct_cause": "resetMachine ends with Remove-Item on absent work/s under script-level SilentlyContinue. Implicit powershell.exe exit follows false $?; helper prefers progress-only stderr over stdout.",
+  "class_root": "No common contract for terminating errors, explicit exit, and diagnostic capture across inline, -File watcher and spawned lock scripts.",
+  "affected_population": [
+    "All installer scenarios on clean Windows runners",
+    "Missing attribute targets, failed registry writes, watcher and lock helper failures"
+  ],
+  "scope_paths": [
+    "tests/installer/windows-installer-scenarios.mjs",
+    "tests/installer/dialog-watcher.ps1",
+    "tests/installer/powershell.mjs",
+    "tests/installer/powershell-boundary.ps1"
+  ],
+  "entry_points": [
+    "Ten synchronous powershell calls (eleven textual matches including definition)",
+    "-File dialog watcher",
+    "-EncodedCommand lock helper"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe?view=powershell-5.1",
+      "checked_at": "2026-10-30",
+      "purpose": "Explicit exit required rather than last-command $? semantics."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/c527797a-d017-4755-8a81-9f58280a7135",
+      "checked_at": "2026-10-30",
+      "purpose": "ErrorRecord XML shape."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/PowerShell/PowerShell/blob/master/src/Microsoft.PowerShell.ConsoleHost/host/msh/Serialization.cs",
+      "checked_at": "2026-10-30",
+      "purpose": "CLIXML header and named streams."
+    }
+  ],
+  "invariants": [
+    "All scripts run through Stop/try/catch, stdout marker plus message and position, exit 0/1.",
+    "File cleanup uses fs.rmSync recursive force, registry absent paths guarded by Test-Path.",
+    "Progress is never reported as error text; asynchronous process failures cannot produce a passing scenario."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "tests/installer/windows-installer-scenarios.mjs",
+      "symbol": "powershell"
+    },
+    {
+      "kind": "write",
+      "path": "tests/installer/windows-installer-scenarios.mjs",
+      "symbol": "attributesOf"
+    },
+    {
+      "kind": "write",
+      "path": "tests/installer/windows-installer-scenarios.mjs",
+      "symbol": "resetMachine"
+    }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 3,
+    "why_not": "powershell owns platform calls, resetMachine owns scenario isolation, attributesOf owns attribute reads; separate responsibilities converge at one subprocess boundary."
+  },
+  "generality_proof": "Common PS1 boundary is invoked by encoded inline scripts and dot-sourced by the -File watcher. Sync and async diagnostics share one XML parser. Node owns filesystem deletion. No caller relies on final $? or script-level error suppression.",
+  "shared_boundaries": [
+    {
+      "path": "tests/installer/powershell-boundary.ps1",
+      "symbol": "Invoke-NomiHarnessScript",
+      "responsibility": "Stop, explicit exit and stdout failure diagnostics."
+    },
+    {
+      "path": "tests/installer/powershell.mjs",
+      "symbol": "powerShellFailure",
+      "responsibility": "Keep both streams and process failure; remove progress through XML parsing."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/installer/windows-installer-scenarios.mjs",
+      "entry_point": "attributesOf",
+      "disposition": "enforced",
+      "evidence": "Get-Item inherits Stop; missing files terminate rather than silently shortening JSON."
+    },
+    {
+      "path": "tests/installer/windows-installer-scenarios.mjs",
+      "entry_point": "setRegistryValue",
+      "disposition": "enforced",
+      "evidence": "New-ItemProperty inherits Stop; failures reach shared catch with position."
+    },
+    {
+      "path": "tests/installer/dialog-watcher.ps1",
+      "entry_point": "-File watcher",
+      "disposition": "enforced",
+      "evidence": "Dot sources shared PS1; Node captures streams and validates lifecycle."
+    },
+    {
+      "path": "tests/installer/windows-installer-scenarios.mjs",
+      "entry_point": "lockFile",
+      "disposition": "enforced",
+      "evidence": "Shared encoded script and captured spawn errors; intentional kill distinguished from premature exit."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every scenario and future clean Windows run can reach the same implicit exit and swallowed-error mechanism.",
+    "same_class_scan": [
+      "door-map.mjs powershell resetMachine attributesOf --roots=tests/installer --include-tests",
+      "rg powershell/Remove-Item/EncodedCommand/-File across tests/installer: ten synchronous calls plus watcher and lock helper",
+      "Reviewed registryEntries, pendingRecordExists, setRegistryValue, processesUnder, attributesOf, isElevated, shortcutPaths, resetMachine, expectNoRegistration, main Documents resolver."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/installer/powershell-boundary.ps1",
+    "invariant": "Explicit successful exit or caught error with original message and position, shared by every script.",
+    "failure_mode": "Node throws visible diagnostic and scenario stays red.",
+    "exception_policy": "none",
+    "strategy": "Replace implicit shell completion with one wrapper, use existing xmldom parser, delete PowerShell file cleanup and script-level suppression.",
+    "artifacts": [
+      "tests/installer/powershell-boundary.ps1",
+      "tests/installer/powershell.mjs",
+      "tests/installer/windows-installer-scenarios.mjs",
+      "tests/installer/dialog-watcher.ps1"
+    ]
+  },
+  "regression_tests": [
+    "tests/installer/windowsHarness.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/installer/windowsHarness.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/installer/windows-installer-scenarios.mjs",
+      "tests/installer/dialog-watcher.ps1"
+    ],
+    "rationale": "Remove raw encoded execution, ignored watcher output, implicit success and PowerShell filesystem deletion in same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "Windows PowerShell 5.1 is built into runner; no runtime installation needed. Existing @xmldom/xmldom 0.9.12 handles XML.",
+    "current": "Windows PowerShell 5.1; @xmldom/xmldom 0.9.12",
+    "target": "Supported Windows PowerShell runtime and existing XML parser",
+    "exit_criteria": [
+      "Runtime/parser upgrades must pass static and CLIXML regression tests plus Windows A1-A13 and CX1-CX3."
+    ]
+  },
+  "migration": "No user state migration; CI harness only. Existing scenarios and installer logic unchanged.",
+  "residual_risks": [
+    "Mac has no PowerShell: static and diagnostic parser tests do not execute registry, NTFS, UAC or installer behavior. Windows loop is required."
+  ],
+  "change_kind": "corrective",
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-29",
+  "invariant_owner_layer": {
+    "layer": "tests/installer/powershell-boundary.ps1",
+    "tests": [
+      "tests/installer/windowsHarness.test.mjs"
+    ]
+  }
+}

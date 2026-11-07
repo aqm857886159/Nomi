@@ -81,3 +81,23 @@ export function categorizeVendorFailure(
   if (code >= 500) return { category: "server", retryable: true };
   return { category: "unknown", retryable: false };
 }
+
+/**
+ * 沿 cause 链找供应商在答复里说的话与码（`VendorRequestError.structured`）。提交失败时最外层常是包过一层的错
+ * （目录引擎的 `CatalogGenerationProviderError`），真正的上游原话与码在 cause 上；没有结构化载荷就用最外层的 message。
+ * 只做"读"：谁来判这句话是什么意思（例如 `isReferenceFetchRefusal`）是调用方的事。
+ */
+export function upstreamFailureOf(error: unknown): { code?: string; text: string } {
+  let node: unknown = error;
+  for (let depth = 0; depth < 6 && node !== null && typeof node === "object"; depth += 1) {
+    const structured = (node as { structured?: unknown }).structured;
+    if (structured !== null && typeof structured === "object") {
+      const { upstreamMsg, upstreamCode } = structured as { upstreamMsg?: unknown; upstreamCode?: unknown };
+      if (typeof upstreamMsg === "string" && upstreamMsg) {
+        return { text: upstreamMsg, ...(typeof upstreamCode === "string" && upstreamCode ? { code: upstreamCode } : {}) };
+      }
+    }
+    node = (node as { cause?: unknown }).cause;
+  }
+  return { text: error instanceof Error ? error.message : String(error ?? "") };
+}

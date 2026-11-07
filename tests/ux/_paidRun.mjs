@@ -28,6 +28,8 @@ import { readRealCatalog, realNomiIsRunning, realNomiProfile, realProfileFingerp
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const SPEND_OPT_IN_ENV = 'NOMI_SPEND_OK'
+/** 付费走查缺省的 Agent 大脑（单源）：各脚本都从这里拿，不各写一个 key——写死的 deepseek-v3.2 在 10-27 退役后，Agent 生图付费走查就跑不起来了。它必须在 APIMART_TEXT_MODEL_KEYS 里（单测守）。 */
+export const DEFAULT_PAID_BRAIN = Object.freeze({ vendorKey: ENV_KEY_VENDOR, modelKey: 'deepseek-v4-pro' })
 
 /**
  * 纯判据（单测钉它）：返回拒跑理由，null = 放行。
@@ -141,6 +143,8 @@ export async function openPaidWalk(script, name, models, deps = {}) {
     buildMarkers = [], argv = process.argv.slice(2), assertBuild = assertPaidBuildReady,
     // 带本地参考素材的生成要先经应用的托管上传中转：按需把**当前配置的那一个**中转源加进放行名单（缺省关，别的付费走查行为不变）。
     hostedUploads = false,
+    // App-scoped trials use the same Run layout outside a creator project. Receipt selection only; all spend guards stay unchanged.
+    receiptRoot = (walk) => walk.report.projectRoot,
     // false = 供应商的源不进放行名单（零花费探测：就算误提交，网络闸也当场挡下，结构上花不了钱）。缺省 true，别的付费走查不变。
     vendorNetwork = true,
     // true = 闸把放行名单上公网请求的请求体（先脱敏：不记请求头、签名查询串与 key 形状的串打码）记进账本，`readAllowedRequests()` 读回。
@@ -246,7 +250,7 @@ export async function openPaidWalk(script, name, models, deps = {}) {
         // App 已经关了：项目与截图是证据，先把收据取出来；凭据副本（目录里的 key 密文 + 钥匙）当场删掉。
         // env-key 路：收据读不出来（转录坏了等）也不许挡住收尾——副本里还躺着凭据密文，必须删。
         let spend
-        try { spend = spendReceipt(walk.report.projectRoot) }
+        try { spend = spendReceipt(receiptRoot(walk)) }
         catch (error) { if (!envKey) throw error; spend = { media: [], text: null, readError: redact(String(error?.message ?? error), secrets).slice(0, 300) } }
         if (envKey) {
           envKeyTeardown()
@@ -278,9 +282,9 @@ export function assertEnvKeyModels(models) {
   if (foreign.length) throw new Error(`${ENV_KEY_VAR} 只能授权 ${ENV_KEY_VENDOR} 的模型，这一场还点名了：${foreign.map((model) => `${model.vendorKey}/${model.modelKey}`).join('、')}（一分钱没花）`)
 }
 
-/** 接入页里要验证的文本模型：授权名单里点名的那个 APIMart 文本模型；没点名就用缺省的 deepseek-v4-pro。 */
+/** 接入页里要验证的文本模型：授权名单里点名的那个 APIMart 文本模型；没点名就用缺省的 DEFAULT_PAID_BRAIN。 */
 export function envKeyBrainOf(models) {
-  return models.find((model) => APIMART_TEXT_MODEL_KEYS.includes(model.modelKey))?.modelKey ?? 'deepseek-v4-pro'
+  return models.find((model) => APIMART_TEXT_MODEL_KEYS.includes(model.modelKey))?.modelKey ?? DEFAULT_PAID_BRAIN.modelKey
 }
 
 function readJson(file) {

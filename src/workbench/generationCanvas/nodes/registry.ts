@@ -61,6 +61,14 @@ export type GenerationNodePluginDefinition<TKind extends string = string> = {
    * - `output`：有没有能给下游用的产出（图 / 视频 / 声音素材，或文本给下游当提示词上下文）。
    */
   connects: { input: 'models' | readonly ReferenceAssetKind[] | false; output: boolean }
+  /**
+   * 这一种卡自己管远看：缩到细节线（40%）以下也不换成通用轻量卡
+   * （2026-10-31 设计卡 docs/plan/2026-10-31-canvas-detail-admission.md ★2；读它的只有节点外壳的细节准入）。
+   * 只有自己读画布缩放的卡才声明，目前两种：分镜表按缩放换画法（拍板稿图 4 的远 / 中 / 近三档，`shotTableDensityForZoom`）；
+   * 剪辑卡的时间轴就是给缩小的画布用的（窄片段保点击下限，没选中也能在 35% 下接素材、拖片段，`clip-drop-zoom` 走查）。
+   * 不声明的卡远看一律画通用轻量卡（标题 + 预览图），点中才换整卡。
+   */
+  ownsZoomTiers?: true
 }
 
 function defineGenerationNodePlugins<
@@ -87,6 +95,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: false,
     agentCreatable: false,
     connects: NODE_KIND_CONNECTS['shot_table'],
+    ownsZoomTiers: true,
   },
   {
     kind: 'text',
@@ -212,6 +221,7 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     promptPlaceholder: 'Add media to edit...',
     // 剪辑卡不走模型档案，自己读上游边（ClipNode：上游产物是图 / 视频才进时间轴）；导出的成片落成新的视频卡，它本身不给下游引用。
     connects: NODE_KIND_CONNECTS['clip'],
+    ownsZoomTiers: true,
   },
   {
     kind: 'shot',

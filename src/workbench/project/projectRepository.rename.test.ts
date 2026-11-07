@@ -25,7 +25,7 @@ function mountBridge(record: unknown) {
   const read = vi.fn(() => record)
   const save = vi.fn((_id: string, rec: unknown) => {
     saved.push(rec)
-    return rec
+    return { ok: true, value: rec }
   })
   mockedBridge.mockReturnValue({
     platform: 'darwin',

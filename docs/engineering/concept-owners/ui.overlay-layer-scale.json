@@ -1,0 +1,23 @@
+{
+  "name": "全局层级刻度（谁压在谁上面：外壳顶栏是地板，其余各档严格在它之上）",
+  "subject": "ui.overlay-layer-scale",
+  "lifecycle": "live-interaction",
+  "authority_kind": "schema",
+  "trust_domain": "renderer",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/design/overlayLayers.ts",
+    "symbol": "NOMI_OVERLAY_Z_INDEX"
+  },
+  "write_api": [
+    {
+      "path": "src/design/overlayLayers.ts",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-splash-skip-under-topbar.root-cause.json：NOMI_OVERLAY_Z_INDEX 一处定义全部全局层的层级，地板是 shellChrome（外壳顶栏 / 左栏，Mantine AppShell 的 zIndex 在 src/theme/nomiTheme.ts 接到它），CSS 变量与 Tailwind 刻度都从它派生。视口级层（position: fixed）和任何 ≥ 地板的手写数字层级一律走它，由 pnpm run check:tokens 第 9 类（scripts/lib/overlayZScan.mjs，存量基线 scripts/overlay-z-baseline.json 只减不增）拦。和 canvas.layer-order（画布内节点与分组的叠放）不是一回事：这里管的是整个 App 视口里全局层之间谁压谁。"
+}

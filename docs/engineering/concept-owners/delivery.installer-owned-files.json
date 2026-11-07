@@ -1,0 +1,53 @@
+{
+  "name": "Windows 安装器的删除范围（安装目录里哪些属于安装器）",
+  "subject": "delivery.installer-owned-files",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/packaging/installer-manifest.cjs",
+    "symbol": "computeInstallerManifest"
+  },
+  "write_api": [
+    {
+      "path": "scripts/packaging/installer-manifest.cjs",
+      "symbol": "computeInstallerManifest"
+    },
+    {
+      "path": "build/installer.nsh",
+      "symbol": "customRemoveFiles"
+    },
+    {
+      "path": "build/installer.nsh",
+      "symbol": "nomiReplaceUntrustedUninstaller"
+    },
+    {
+      "path": "build/installer.nsh",
+      "symbol": "!include"
+    },
+    {
+      "path": "scripts/packaging/installer-compile.cases.mjs",
+      "symbol": "compileInstallerTemplates"
+    },
+    {
+      "path": "tests/installer/powershell-boundary.ps1",
+      "symbol": "Invoke-NomiHarnessScript"
+    },
+    {
+      "path": "tests/installer/powershell.mjs",
+      "symbol": "powerShellFailure"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "tests/installer/installerScenarios.test.mjs",
+  "allowed_consumers": [
+    "scripts/after-pack-mac.cjs",
+    "package.json",
+    ".github/workflows/win-installer.yml",
+    ".github/workflows/desktop-rc.yml"
+  ],
+  "since": "2026-10-29",
+  "notes": "文件归属只由 computeInstallerManifest 从 afterPack 产物生成。customRemoveFiles 只删清单文件/卸载器/可选图标，目录非递归。customInit 唯一调用 nomiReplaceUntrustedUninstaller，按模板登记路径替换不可信卸载器，失败在旧执行前退出；不搬移用户文件、不读取恢复状态。compileInstallerTemplates 只验证真实双轮编译，Invoke-NomiHarnessScript/powerShellFailure 只负责测试退出和诊断，不产生第二份归属判据。installerScenarios.test.mjs 对拍清单路径、四钩子、唯一接线、变更目标白名单、模板指纹；Windows A1–A16 与变异包验证行为。"
+}

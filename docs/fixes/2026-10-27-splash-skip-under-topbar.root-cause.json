@@ -1,0 +1,399 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-27-splash-skip-under-topbar",
+  "change_kind": "corrective",
+  "problem_type": "整屏层的层级与系统拖拽带 / 窗口按钮区的几何没有统一规则：开屏手写层级低于顶栏，可交互的「跳过」又落在顶栏带里",
+  "symptom": "用户第一次打开 Nomi（中英文界面一样），开机动画右上角的「跳过」点不动：点上去落在顶栏的「全局操作」，动画不关，只能等约 13 秒自己放完。Windows 上还有一支（按代码推算，未实测）：「跳过」整个落在原生最小化 / 最大化 / 关闭三键的水平范围内，点中心是最大化，靠右边缘是关闭。",
+  "direct_cause": "src/workbench/onboarding/SplashIntro.tsx 的两个根节点手写 `fixed inset-0 z-[60]`；顶栏是 Mantine AppShell.Header，AppShell 没传 zIndex，取默认 100（10-08 外壳重做 f59b38d80 起），顶栏 100 > 开屏 60，整条顶栏画在开屏上面；「跳过」写成 `absolute top-7 right-9`（y 28–46），有 12px 在 40px 顶栏带里，中心 y=37 也在带里。",
+  "class_root": "三层，缺一不算修好。① 层级：全屏层（position: fixed）的层级由各处手敲的数字决定，不走 src/design/overlayLayers.ts 这一份刻度，外壳自己的层级（Mantine 默认 100）也不在刻度里；设计系统 §2.0 写了「禁止硬写数字」却没有任何门岗拦，这是同一类的第三次（09-07 画布浮层 z-[9999] 压过花钱确认卡；10-09 #1136 文稿右键菜单 fixed z-50 沉到抽屉下面）。② 拖拽带：全屏浮层（`fixed inset-0`）没进 windowChrome.test.ts 的名单。40px 顶栏同时是系统拖拽带和窗口按钮区，命中测试看几何、不看 DOM 层级，盖在它上面的可交互内容落进带里就被系统当成拖窗口 / 窗口按钮吃掉（issue #58、2026-09-04 导演台）；那份名单只有 4 个「让开顶栏」的全屏层，开屏是 `fixed inset-0`、不在其中，而名单靠自觉、没有自动发现（2026-09-04 合同的 residual_risks 早写了这一条），于是新增的全屏层可以不登记、不被任何测试看见。③ 验证：约 27 个走查 / 评测旅程经 evals/lib/isoApp.mjs 的 dismissSplashIfPresent 点掉开屏，它在 Playwright 真点超时后悄悄改用 DOM click() 兜底，所以 10-08 以来「跳过被盖住」在这些走查里一直是绿的；CDP 合成点击又绕过原生命中测试，就算抬了层级，真用户点击过不过得了拖拽带，也没有任何自动检查在量。",
+  "migration": "不涉及持久化数据，`nomi:splash:v1` 键语义不变，开屏照旧首启出现、设置「关于」可重看。可见变化只有一处：「跳过」比原来低约 20px（落在 40px 顶栏带之外）。开屏根的层级从手写 60 换成刻度 applicationModal（9000）：花钱确认卡（dialog 9100）、菜单 / 下拉（popover）、toast 仍在开屏之上，设置（同档，DOM 后者在上）不受影响。旧写法已删：开屏的 `z-[60]` 与 `top-7`、基线里开屏那一条（2 → 0）、窄的 portalLayer.structure.test.ts（同分支 ce20ff220，由 check:tokens 第 9 类取代）。",
+  "affected_population": [
+    "每个第一次打开 Nomi 的用户（Mac / Windows，中英文界面）：开屏的「跳过」点不动，只能等约 13 秒",
+    "在设置「关于」里点「重看开屏动画」的用户：同一个开屏、同一个按钮",
+    "Windows 用户（按代码推算，未实测）：「跳过」落在原生最小化 / 最大化 / 关闭三键的范围里",
+    "约 27 个经 dismissSplashIfPresent 点掉开屏的走查 / 评测旅程（含 test:journeys 的 j1 到 j6）：10-08 以来一直靠 DOM 兜底点掉它，「跳过」被盖住这件事对它们不可见"
+  ],
+  "scope_paths": [
+    "src/workbench/onboarding/SplashIntro.tsx",
+    "src/ui/app-shell/windowChrome.ts",
+    "src/ui/app-shell/windowChrome.test.ts",
+    "src/design/overlayLayers.ts",
+    "src/theme/nomiTheme.ts",
+    "src/ui/feedbackLayer.test.ts",
+    "src/ui/app-shell/shell/shellFrame.zIndex.test.tsx",
+    "scripts/check-design-tokens.mjs",
+    "scripts/lib/overlayZScan.mjs",
+    "scripts/overlay-z-baseline.json",
+    "evals/lib/isoApp.mjs",
+    "tests/ux/first-launch-system-locale.walk.mjs"
+  ],
+  "entry_points": [
+    "开屏动画的「跳过」按钮（首启自动出现；设置「关于」→「重看开屏动画」）：src/workbench/onboarding/SplashIntro.tsx",
+    "顶栏的层级：ShellFrame.tsx 里唯一一处 <AppShell>（git grep \"<AppShell\" -- src 只有这一处），层级来自 AppShell 的 zIndex",
+    "每一个铺满整窗的 `fixed inset-0` 根：src 里 13 个文件（排除 devlab 与测试），其中 11 个居中遮罩、1 个独立文档（浏览器素材浮层）、1 个开屏",
+    "手写数字层级：扫描器普查 37 处 / 24 个文件，本单修后 35 处 / 23 个文件（scripts/overlay-z-baseline.json）",
+    "经 evals/lib/isoApp.mjs 的 dismissSplashIfPresent 点开屏的走查 / 评测旅程（约 27 个文件）"
+  ],
+  "invariants": [
+    "盖住顶栏的整屏层（开屏）：根的层级是刻度里高于 shellChrome 的一档，不是手写数字；windowChrome.test.ts 在渲染出来的标记上判，check:tokens 第 9 类拦手写数字。",
+    "盖住顶栏的整屏层里，每个可交互元素是根的直接子节点、绝对定位、行内 top ≥ 顶栏高（40px），顶偏移取自 windowChrome 的单口，不写 top-N 类名；开屏「跳过」的 top = currentFullscreenOverlayTopOffset() + SHELL_GUTTER。",
+    "src 里每个铺满整窗的 `fixed inset-0` 根（居中遮罩除外）都已分类：让开顶栏 / 盖住顶栏但控件在带外 / 独立文档；没分类就红，名单里多出已不是整窗根的文件也红。",
+    "顶栏层级是刻度的地板 shellChrome（AppShell 默认 zIndex 在主题里接线），其余各档严格高于它。",
+    "手写数字层级只减不增：视口级层（fixed）和任何 ≥ 地板的数字层级只许走刻度。",
+    "dismissSplashIfPresent 在「跳过」被别的元素盖住时抛错，不再悄悄 DOM 点掉。",
+    "首启走查里「跳过」的几何三项（中心点系统视角不是拖拽区、与 40px 带重叠 = 0、不落在 Windows 原生三键区的推算）与「开屏整屏」是硬断言，并各带同一次运行内的阳性对照。"
+  ],
+  "regression_tests": [
+    "src/ui/app-shell/windowChrome.test.ts",
+    "src/ui/feedbackLayer.test.ts",
+    "src/ui/app-shell/shell/shellFrame.zIndex.test.tsx",
+    "scripts/overlayZScan.test.mjs",
+    "evals/lib/isoApp.test.mjs",
+    "tests/ux/first-launch-system-locale.walk.mjs"
+  ],
+  "residual_risks": [
+    "Windows 原生三键区那一条在 Mac 上测不到，按代码推算（x ≥ 宽−138 且 y < 40；electron/mainWindowChrome.ts 的 titleBarOverlay.height = 40）标 unverified；走查里的断言是推算，不是 Windows 实点。",
+    "Mac 上的「系统视角」是按 Chromium 收集拖拽区的规则（DOM 顺序、后者覆盖前者）算出来的，不是真 OS 点击（安静模式的窗口鼠标穿透，量不了真点）。",
+    "发现只认字面量 `fixed inset-0`，居中遮罩被排除：居中遮罩里贴边的控件、窗口很矮时居中卡片的顶部进带（例如提示词抽取设置弹窗 `h-[min(720px,calc(100vh-40px))]`，窗口高小于 760 时其关闭 × 在带里）静态扫描判不了，没扫；建议另起一单把这一支扫全。",
+    "可交互元素的判据看的是服务端渲染出来的标记：原生可交互标签 + role + tabindex，看不到只挂 onClick 的 div；判据还要求它们是根的直接子节点，将来开屏做嵌套布局时必须有意扩展判据，而不是绕过。",
+    "37 处（现 35 处）手写数字层级存量没迁，多数是按代码和数字判断没有被盖住到用不了，没有逐个在真 App 里触发（更新弹窗、溯源面板、引导旅途、提取设置各要不同的前置状态）。",
+    "开屏盖住顶栏期间顶栏上的图标点不到：开屏最长 13 秒且随时可跳，接受。"
+  ],
+  "internal_only_reason": "外部依据（Electron 无边框窗口的 -webkit-app-region 拖拽区按几何命中、Windows 原生命中测试先于渲染进程）已在 docs/fixes/2026-09-04-fullscreen-overlay-windows-windowbar.root-cause.json 核过官方文档与源码（checked_at 2026-09-04）；本单没有引入新的外部依赖或新的外部行为假设。Mantine AppShell 顶栏默认层级 100 是在本仓真 App 里实测的（computed z-index，中英两轨一致），不是凭记忆。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一机制已经回来过：issue #58（Windows，浮卡右上角 × 点中心没反应）与 2026-09-04（导演台整条顶部工具栏点不动）都是「盖在拖拽带上的可交互内容被系统吃掉」，各自只修了当时那一个入口，名单靠自觉；层级这一支是同一类第三次（09-07、10-09、本次）。每个新的铺满整窗的层、每个新写的 fixed 层级数字，都是再来一次的机会。",
+    "same_class_scan": [
+      "grep -rn \"fixed inset-0\" src --include=*.tsx（排除 devlab 与测试）→ 13 个文件：11 个居中遮罩（UpdateDialog、BrowserPromptExtractionSettingsModal、SelectionPromptSaveController、ProvenancePanel、AnchorCheckpointCard、SpendConfirmDialog、HandbookPanel、JourneyTourController、PromptPreviewOverlay、SettingsDialog、TimelineShortcutsDialog）、1 个独立文档（ui/browser/overlay/BrowserAssetOverlayApp.tsx）、1 个开屏（SplashIntro.tsx，两处）。",
+      "node scripts/door-map.mjs SplashIntro → 1 扇读门（src/workbench/NomiStudioApp.tsx，挂在公共根）。",
+      "node scripts/door-map.mjs NOMI_OVERLAY_Z_INDEX → 14 扇读门、0 扇写门（常量）。",
+      "git grep \"<AppShell\" -- src → 只有 src/ui/app-shell/shell/ShellFrame.tsx 一处（顶栏层级的唯一来源）。",
+      "scripts/lib/overlayZScan.mjs 普查手写数字层级 → 37 处 / 24 个文件（简报只数了 `fixed inset-0 z-[N]` 的 6 处），本单修后 35 处 / 23 个文件，逐处带判档理由登记在 scripts/overlay-z-baseline.json。",
+      "windowChrome.test.ts 的名单（让开顶栏）只有 4 个全屏层：导演台、ComfyUI 整页、全景、素材预览，都不含 fixed inset-0；开屏是同一类里没扫到的一员。",
+      "evals/lib/isoApp.mjs 的 dismissSplashIfPresent 调用方：直接 13 个、经 createBlankProject 间接 19 个，去重约 27 个文件。"
+    ]
+  },
+  "generality_proof": "这类失败要两个条件同时成立：整窗的层盖住了顶栏，并且层里有可交互内容落在 40px 带里（Windows 上还有原生三键）。修在共享边界上：层级走一份刻度（shellChrome 是地板、门岗拦手写数字），所以不会再有「够不着顶栏」或「压过花钱确认卡」的手写层；带内带外的几何由 windowChrome 一个口给出，盖住顶栏的层（开屏）把可交互内容放在带外并有渲染标记上的判据，让开顶栏的层照旧不许 fixed inset-0；名单本身加了发现，铺满整窗的根没分类就红，所以第六个全屏层不能悄悄绕过。这样不依赖「记得登记」，也不依赖「记得抬层级」。真像素那一层（中心点系统视角、与带重叠、整屏）由首启走查量，并带同一次运行内的阳性对照。",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/app-shell/windowChrome.ts",
+      "symbol": "currentFullscreenOverlayTopOffset",
+      "responsibility": "拥有「全屏层的可交互内容离 40px 顶栏带多远」：让开顶栏的层用它做顶偏移，盖住顶栏的层（开屏）用它把控件放到带外；各层不许自己写数。"
+    },
+    {
+      "path": "src/design/overlayLayers.ts",
+      "symbol": "NOMI_OVERLAY_Z_INDEX",
+      "responsibility": "全局层级刻度的唯一来源：shellChrome（外壳顶栏 / 左栏）是地板，其余各档严格高于它；CSS 变量与 Tailwind 刻度都从它派生。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/onboarding/SplashIntro.tsx",
+      "entry_point": "开屏根（主层与淡出层）",
+      "disposition": "enforced",
+      "evidence": "两个根的 `z-[60]` 换成 `z-application-modal`；windowChrome.test.ts 在渲染标记上判根的层级是刻度里高于 shellChrome 的一档，改回 z-[60] 该测试与 check:tokens 第 9 类同时红，走查里的命中断言也红。"
+    },
+    {
+      "path": "src/workbench/onboarding/SplashIntro.tsx",
+      "entry_point": "开屏「跳过」按钮",
+      "disposition": "enforced",
+      "evidence": "`top-7` 换成行内 `top: currentFullscreenOverlayTopOffset() + SHELL_GUTTER`（48px，在带外）；windowChrome.test.ts 判它是根的直接子节点、绝对定位、行内 top ≥ 顶栏高，改回 top-7 该测试红；首启走查在 Mac 真机量几何三项，改回老位置阳性对照翻红。"
+    },
+    {
+      "path": "src/ui/app-shell/shell/ShellFrame.tsx",
+      "entry_point": "AppShell 顶栏的层级",
+      "disposition": "enforced",
+      "evidence": "顶栏层级只来自主题里 AppShell 的默认 zIndex（= shellChrome 100，与 Mantine 默认值相同，行为不变但有了名字）；shellFrame.zIndex.test.tsx 读渲染出来的顶栏层级，并有阳性对照（ShellFrame 自己传 zIndex 即红）。"
+    },
+    {
+      "path": "scripts/overlay-z-baseline.json",
+      "entry_point": "存量手写数字层级（35 处 / 23 个文件）",
+      "disposition": "enforced",
+      "evidence": "check:tokens 第 9 类按棘轮拦：新增红、清理黄，逐处写了判档理由；本单删掉开屏那一条（2 → 0）。没有一处被实测盖住到用不了，迁移留待以后。"
+    },
+    {
+      "path": "src/ui/browser/overlay/BrowserAssetOverlayApp.tsx",
+      "entry_point": "浏览器素材浮层根（fixed inset-0）",
+      "disposition": "not-affected",
+      "evidence": "src/main.tsx 只在 ?nomiOverlay=browserAsset 时用它替掉整个 App（另起的 WebContentsView 文档），这个文档里没有外壳也没有顶栏 / 窗口栏；windowChrome.test.ts 把它登记为「独立文档」并断言 main.tsx 里它替掉 App 而不是挂在 App 里面。"
+    },
+    {
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "entry_point": "居中遮罩类（另外 10 个文件同形：fixed inset-0 + 居中）",
+      "disposition": "not-affected",
+      "evidence": "遮罩本身没有控件，内容居中（place-items-center / items-center justify-center），2026-09-04 合同同样判 not-affected；发现把同一个 className 字符串里就带居中类的根排除在外。窗口很矮时居中卡片的顶部进带这一支静态扫描判不了，写在 residual_risks，建议另起一单。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/app-shell/windowChrome.ts",
+    "invariant": "铺满整窗并盖住顶栏的层，根在刻度里高于 shellChrome 的一档，可交互内容全落在 40px 顶栏带之外（顶偏移取自 windowChrome 单口）；src 里每个铺满整窗的 fixed inset-0 根都已分类。",
+    "failure_mode": "开屏改回 z-[60]：windowChrome.test.ts 的根层级判据与 check:tokens 第 9 类（2 处 > 基线 0）红；「跳过」改回 top-7 或任何没放在带外的可交互元素：windowChrome.test.ts 的可交互元素判据红，首启走查的几何硬断言红；从名单里去掉开屏、或新增一个没分类的 fixed inset-0 全屏根：windowChrome.test.ts 的发现红并点名文件。",
+    "exception_policy": "none",
+    "strategy": "把两件互相独立的事都收进共享边界：层级只走刻度（地板 shellChrome、门岗拦手写数字），带内带外的几何只走 windowChrome 的单口；让开顶栏的那一类原样保留，再补上盖住顶栏的那一类，并给名单加发现，使「全屏层没进名单」这条路在结构上走不通。",
+    "artifacts": [
+      "src/ui/app-shell/windowChrome.ts",
+      "src/ui/app-shell/windowChrome.test.ts",
+      "src/design/overlayLayers.ts",
+      "src/theme/nomiTheme.ts",
+      "scripts/check-design-tokens.mjs",
+      "scripts/lib/overlayZScan.mjs",
+      "scripts/overlay-z-baseline.json",
+      "src/workbench/onboarding/SplashIntro.tsx"
+    ]
+  },
+  "class_regression_tests": [
+    "src/ui/app-shell/windowChrome.test.ts",
+    "scripts/overlayZScan.test.mjs",
+    "tests/ux/first-launch-system-locale.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/design/portalLayer.structure.test.ts"
+    ],
+    "rationale": "窄的 portal 专用层级测试（只认 createPortal 文件里同一行的 fixed + z-数字，一个存量）在同分支 ce20ff220 里被覆盖五种写法的 check:tokens 第 9 类取代并删除；开屏的手写 z-[60] 与 top-7 在本次提交里换成刻度与行内 top，没有并行的旧写法；基线里开屏那一条同提交删除。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Mantine AppShell 的默认层级 100 现在显式接线到 shellChrome 并有不变量测试，不再依赖 Mantine 版本的默认值；Electron 的拖拽区命中语义沿用 2026-09-04 合同已核过的结论，本单不涉及依赖升级。",
+    "exit_criteria": []
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-27",
+  "invariant_owner_layer": {
+    "layer": "src/ui/app-shell/windowChrome.ts",
+    "tests": [
+      "src/ui/app-shell/windowChrome.test.ts",
+      "src/ui/feedbackLayer.test.ts"
+    ]
+  },
+  "strategy": "协调 10-28 定方案 B：开屏仍整屏（根走刻度 applicationModal、盖住顶栏），「跳过」挪到 40px 顶栏带外；在 windowChrome 一个口之下补上「盖住顶栏」这一类的判据与发现，换掉开屏里手写的层级与位置，同提交删基线条目，不留按平台的特例。",
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/design/AnchoredPopover.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/confirmDialog.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/menu.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/NomiSelect.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/overlayLayers.ts",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/overlayLayers.ts",
+      "symbol": "NomiOverlayLayer"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/overlayLayers.ts",
+      "symbol": "SettingsEscapeOwnership"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/overlays.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/design/previewHost.tsx",
+      "symbol": "nomiCssVariablesResolver"
+    },
+    {
+      "kind": "read",
+      "path": "src/NomiAppProviders.tsx",
+      "symbol": "nomiCssVariablesResolver"
+    },
+    {
+      "kind": "read",
+      "path": "src/theme/nomiTheme.ts",
+      "symbol": "nomiDesignTokens"
+    },
+    {
+      "kind": "read",
+      "path": "src/theme/nomiTheme.ts",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/feedbackLayer.ts",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsDetailDialog.tsx",
+      "symbol": "getSettingsEscapeOwnership"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/assistantWidthBounds.ts",
+      "symbol": "nomiDesignTokens"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/Popover.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/timeline/TimelineContextMenu.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "symbol": "SplashIntro"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "getSettingsEscapeOwnership"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "NOMI_OVERLAY_Z_INDEX"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/AnchoredPopover.tsx",
+      "symbol": "hasOpenPopupAbove"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/AnchoredPopover.tsx",
+      "symbol": "hasOpenDialogAbove"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/AnchoredPopover.tsx",
+      "symbol": "isInsidePopupAbove"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/overlayLayers.ts",
+      "symbol": "overlayZIndexCssVar"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/overlayLayers.ts",
+      "symbol": "hasOpenDialogAbove"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/previewHost.tsx",
+      "symbol": "buildNomiTheme"
+    },
+    {
+      "kind": "write",
+      "path": "src/design/useOverlayEscape.ts",
+      "symbol": "hasOpenDialogAbove"
+    },
+    {
+      "kind": "write",
+      "path": "src/NomiAppProviders.tsx",
+      "symbol": "buildNomiTheme"
+    },
+    {
+      "kind": "write",
+      "path": "src/NomiAppProviders.tsx",
+      "symbol": "currentWorkbenchFloatingTopOffset"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/windowChrome.ts",
+      "symbol": "workbenchFloatingTopOffset"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/windowChrome.ts",
+      "symbol": "fullscreenOverlayTopOffset"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ModelSettingsDetailDialog.tsx",
+      "symbol": "shouldYieldSettingsEscape"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ModelSettingsDetailDialog.tsx",
+      "symbol": "settingsEscapeTargetWasRemoved"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+      "symbol": "currentFullscreenOverlayTopOffset"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/AssetPreviewDialog.tsx",
+      "symbol": "currentFullscreenOverlayTopOffset"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "symbol": "currentFullscreenOverlayTopOffset"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+      "symbol": "currentFullscreenOverlayTopOffset"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/onboarding/SplashIntro.tsx",
+      "symbol": "currentFullscreenOverlayTopOffset"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "shouldYieldSettingsEscape"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "symbol": "settingsEscapeTargetWasRemoved"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "symbol": "currentWorkbenchFloatingTopOffset"
+    }
+  ],
+  "door_reduction": {
+    "before": 44,
+    "after": 44,
+    "why_not": "这些门是被改动的四个文件（overlayLayers.ts、nomiTheme.ts、SplashIntro.tsx、windowChrome.ts）导出符号的读 / 写入口，不是同一份可变状态的多个写入口：NOMI_OVERLAY_Z_INDEX 是常量，14 个消费者读同一份刻度，这正是「唯一来源」的样子；windowChrome 的几个偏移函数是各浮层读同一个口；SplashIntro 只有公共根一个读门；其余（Esc 键归属那组函数、主题的变量解析器与设计 token）不是本单改的行为，只因同在被改的文件里被数进来。本单没有新增或合并任何写入口，所以没有可以合并的门。"
+  }
+}

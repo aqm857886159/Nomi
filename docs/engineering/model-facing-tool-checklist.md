@@ -11,6 +11,10 @@
 - [Agent 测试要由用户话驱动](../lessons/agent-tests-must-be-prompt-driven-and-human-path.md)：至少准备 20 句用户真会说的话，并走真实人类路径。
 - [参考实现要逐层对照](../lessons/reference-implementation-not-dissected-is-not-research.md)：逐字段写一致、有意不同及理由、没想到，不能只贴一个链接。
 
+## 通用标准
+
+模型可见工具 schema 只按通用标准写（JSON Schema 2020-12 + OpenAI function calling 官方支持范围），不给单个供应商另开规则（用户 10-29）。Zod 是唯一真相源，标准外约束在共享推导层转为标准写法与 description，运行时仍按原契约校验。
+
 ## 注册表约束
 
 - 唯一注册表是 [`VERB_DECLARATIONS`](../../electron/shared/agentCapabilities/verbDeclarations.ts)；内部 Agent 与 MCP 的差异只能来自 `profiles` + `profileReason`（[`ARCHITECTURE-NOW.md`](../ARCHITECTURE-NOW.md) 的“内部 Agent vs MCP”、[`modelFacingToolRegistry.ts`](../../electron/shared/agentCapabilities/modelFacingToolRegistry.ts) 头注释）。

@@ -1,5 +1,5 @@
+import { markInterruptedSingleShotUnknown } from './singleShotRunLifecycle'
 import crypto from 'node:crypto'
-import { tagNomiError } from '../shared/nomiErrorCodes'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -25,11 +25,11 @@ import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings
 import { readConnectedModelScope } from './connectedModelScope'
 import { assertProductionPolicyReady } from './productionPolicyReadiness'
 import { normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
-import { jobAwaitsRetrieval } from '../shared/productionShotPhase'
 import { assertCallerDeclaredTrustLevel, trustLevelFromApprovalPolicy } from './productionRunTrustAuthority'
 import { createGateApprovalOwner } from './productionRunApprovalReceipt'
 import { isAnchorCheckpointGate } from './anchorCheckpoint'
 import { kickBatchSchedulerForRun } from './batchSchedulerKick'
+import { retryJobRetrieval } from './productionRetrievalReopen'
 import { renewDispatchConsent } from './productionDispatchConsentEdits'
 import { recoverStoryboardContentHashes } from './productionRunStoryboardHashRecovery'
 import type { ApprovalReceiptAuthority } from '../capabilityCore/approvalReceipt'
@@ -301,20 +301,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       })
     }
     if (runCommand.type === 'job.retry_retrieval') {
-      // 「已生成但取回失败」→ 重新取回（#975 A2）。只做一件事：把这一镜放回轮询，叫醒批次调度器去**查一次、取一次**。
-      // 不重新提交、不预留、不扣费：轮询只用已有的供应商任务号；停着的 Run 也只观察在飞的镜，不派新的。
-      const current = requireRun(safeProjectId, safeRunId)
-      const jobId = typeof runCommand.payload.jobId === 'string' ? runCommand.payload.jobId.trim() : ''
-      const job = current.jobs.find((candidate) => candidate.jobId === jobId)
-      if (!job || !jobAwaitsRetrieval(job)) {
-        throw new Error('Production job is not waiting for its result to be retrieved')
-      }
-      if (!isSemanticMultiShotRun(current)) throw new Error('Retrieving a result again is only available for batch shots')
-      const result = repository.execute(safeProjectId, safeRunId, {
-        ...runCommand,
-        type: 'job.status',
-        payload: { jobId, status: 'polling', patch: { errorCode: '', errorMessage: '' } },
-      })
+      const result = retryJobRetrieval(repository, safeProjectId, safeRunId, requireRun(safeProjectId, safeRunId), runCommand)
       kickBatchSchedulerForRun(safeProjectId, safeRunId)
       return result
     }
@@ -648,21 +635,9 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
             // 已经拿到任务号的（polling 等）仍由 ProductionGenerationSubmission 的恢复路径接手。
             if (job.status === 'submitting' && !job.providerTaskId) {
               try {
-                current = executeInternal(safeProjectId, current.runId, current, 'job.status', {
-                  jobId: job.jobId,
-                  status: 'submission_unknown',
-                  patch: { errorCode: 'submission_unknown_restart', errorMessage: tagNomiError('submission-unknown', 'Nomi was closed while the request was being sent') },
-                }, `recovery-${current.runId}-${job.jobId}-submit-unknown`).run
-                const reservationId: string = `${current.runId}:${job.jobId}:${job.attempt}`
-                if (repository.readBudgetLedger(safeProjectId, current.runId).reservations[reservationId]?.status === 'reserved') {
-                  current = executeInternal(safeProjectId, current.runId, current, 'budget.entry', {
-                    entry: { billingEntryId: `${reservationId}:mark-unsettled`, kind: 'mark_unsettled', reservationId, occurredAt: new Date().toISOString() },
-                  }, `recovery-${current.runId}-${job.jobId}-unsettled`).run
-                }
+                current = markInterruptedSingleShotUnknown(repository, safeProjectId, current.runId) ?? current
                 changedUnknown = true
-              } catch {
-                // A concurrent command may have already settled this job.
-              }
+              } catch { /* A concurrent command may have already settled this job. */ }
             }
             continue
           }

@@ -1,8 +1,10 @@
 import { mediaKindFromContentType } from '../assets/mediaTypes'
+import { builtinCatalogModelKeys } from '../catalog/seedBuiltins'
+import type { Model } from '../catalog/types'
 import { mentionUrlsInOrder, numberPromptReferences, projectPromptForSend } from '../shared/storyboard/promptMentions'
 // 把「文字 prompt + 待发附件」拼成 Vercel AI SDK 的 user message content。
 // 纯函数（字节读取由 resolveBytes 回调注入），便于单测。
-// 图片 → image part；PDF → file part（按模型能力门控）；其它文档 → 计数提示（S4 抽文本接手）。
+// 图片 → image part（只有「不能读图」才不发）；PDF → file part（按模型能力门控）；其它文档 → 计数提示（S4 抽文本接手）。
 
 export type AgentUserAttachment = {
   /** Main-resolved original identity; never accept renderer URLs as references. */
@@ -18,10 +20,6 @@ type ImagePart = { type: 'image'; image: Uint8Array; mimeType?: string }
 type FilePart = { type: 'file'; data: Uint8Array; mimeType: string; fileName: string }
 export type AgentUserContent = string | Array<TextPart | ImagePart | FilePart>
 
-// 已知支持图片输入（vision）的模型族。meta.supportsImageInput 显式声明优先。
-const VISION_MODEL_RE =
-  /gpt-4o|gpt-4\.1|gpt-4-vision|chatgpt-4o|o1|o3|o4-mini|claude-3|claude-opus-4|claude-sonnet-4|claude-haiku-4|gemini|llava|qwen.*-?vl|pixtral|internvl|minicpm-v|grok.*vision|vision/i
-
 // 已知支持原生 PDF file part 的模型族（Anthropic claude-3.5+ / OpenAI gpt-4o,4.1,o-系 / Google gemini）。
 const PDF_INPUT_MODEL_RE =
   /claude-3-5|claude-3-7|claude-opus-4|claude-sonnet-4|claude-haiku-4|gpt-4o|gpt-4\.1|o1|o3|o4-mini|gemini/i
@@ -34,10 +32,22 @@ function metaFlag(meta: unknown, key: string): boolean | undefined {
   return undefined
 }
 
-export function modelSupportsImageInput(modelKey: string, modelAlias: string | null | undefined, meta: unknown): boolean {
-  const declared = metaFlag(meta, 'supportsImageInput')
-  if (typeof declared === 'boolean') return declared
-  return VISION_MODEL_RE.test(`${modelKey || ''} ${modelAlias || ''}`.toLowerCase())
+/** 这一行模型能不能读图：能 / 不能 / 不知道。 */
+export type ImageInputSupport = 'supported' | 'unsupported' | 'unknown'
+
+/**
+ * 「这一行能不能读图」的唯一判据——只认声明，不按名字猜（设计卡 docs/plan/2026-10-27-vision-capability-declared.md）。
+ *   · `meta.supportsImageInput` 是布尔 → 就是它（种子行由 seedBuiltins 对账写入，Antigravity 行由能力验证写入）；
+ *   · 没声明、且**这一行**是内置目录种子 → 不能：内置能读图的行都已声明 true。按行的身份判，不按 vendor 判——
+ *     用户在内置 vendor 下自己加的型号、兄弟连接拉来的行都不是种子行；
+ *   · 其余没声明（自配、中转、本地、内置 vendor 下自加的行）→ 不知道。
+ * 「不知道」由每扇门按自己的语义处理：Agent 车道照发（让真后端说话），带图选型排在能与不能之间，拆解只拒「不能」。
+ * 2026-10-27 之前没声明的行一律拿名字撞一条写死的正则，撞不上就当不能：新型号和用户自起名的中转模型附图被静默丢掉。
+ */
+export function modelImageInputSupport(model: Pick<Model, 'vendorKey' | 'modelKey' | 'meta'>): ImageInputSupport {
+  const declared = metaFlag(model.meta, 'supportsImageInput')
+  if (declared !== undefined) return declared ? 'supported' : 'unsupported'
+  return builtinCatalogModelKeys(model.vendorKey).has(model.modelKey) ? 'unsupported' : 'unknown'
 }
 
 export function modelSupportsPdfInput(modelKey: string, modelAlias: string | null | undefined, meta: unknown): boolean {
@@ -68,13 +78,14 @@ export function projectAgentPromptForSend(prompt: string, attachments: readonly 
 export async function buildAgentUserContent(params: {
   prompt: string
   attachments?: AgentUserAttachment[]
-  supportsImageInput: boolean
+  /** 由 `modelImageInputSupport` 给出；只有「不能」才不发图。 */
+  imageInput: ImageInputSupport
   supportsPdfInput: boolean
   resolveBytes: (url: string) => Uint8Array | null
   /** 文档（docx/xlsx/csv/txt/md）抽文本，注入 prompt（任何文本模型可用）。 */
   extractText: (attachment: AgentUserAttachment) => Promise<string | null>
 }): Promise<AgentUserContent> {
-  const { prompt, attachments = [], supportsImageInput, supportsPdfInput, resolveBytes, extractText } = params
+  const { prompt, attachments = [], imageInput, supportsPdfInput, resolveBytes, extractText } = params
   if (!attachments.length) return prompt
 
   const mediaAttachments = mediaReferences(attachments)
@@ -95,7 +106,8 @@ export async function buildAgentUserContent(params: {
       continue
     }
     if (att.kind === 'image') {
-      if (!supportsImageInput) { droppedImages += 1; continue }
+      // 「不知道」照发：真后端收得下就看图，拒图就走现有 Agent 错误面——不替它把图先丢了。
+      if (imageInput === 'unsupported') { droppedImages += 1; continue }
       const bytes = resolveBytes(att.url)
       if (!bytes) { droppedImages += 1; continue }
       mediaParts.push({ type: 'image', image: bytes, mimeType: att.contentType })

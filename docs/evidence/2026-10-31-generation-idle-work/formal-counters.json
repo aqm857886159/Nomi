@@ -1,0 +1,971 @@
+{
+  "sourceCommit": "0041f4b15205a48be9d8149952dc581274162379",
+  "notApprovedBaseline": true,
+  "control": "Restore only the four baseline files for the approved idle cuts and lifecycle fix; all other source stays at final product HEAD.",
+  "restores": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/GenerationWaitingSurface.tsx",
+      "before": "8c49d165a2910177ae522655d0499a9c66c65a631ab48f2c72a7c12c3eeec05b",
+      "after": "8c49d165a2910177ae522655d0499a9c66c65a631ab48f2c72a7c12c3eeec05b",
+      "restored": true
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "before": "a8266146e5a2a102bbfe610bc2764b53ce2043f28117625deb602d94d08dfc5d",
+      "after": "a8266146e5a2a102bbfe610bc2764b53ce2043f28117625deb602d94d08dfc5d",
+      "restored": true
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "before": "64fa8266b28d5ae9c3f2e2cd3d2585ad5d7aa4a94c55bb382c48d0110debd3f6",
+      "after": "64fa8266b28d5ae9c3f2e2cd3d2585ad5d7aa4a94c55bb382c48d0110debd3f6",
+      "restored": true
+    },
+    {
+      "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+      "before": "92a0b5c0b0c7f72f9f913e4c750c9d8b032f9ed5eaad0bf4297a91853616477b",
+      "after": "92a0b5c0b0c7f72f9f913e4c750c9d8b032f9ed5eaad0bf4297a91853616477b",
+      "restored": true
+    }
+  ],
+  "samples": [
+    {
+      "idleDraws": 14616,
+      "idleSaveIPC30": 7,
+      "idleSnapshotWrites": 600,
+      "idleQueries": 59,
+      "supplierQueries": 241,
+      "idleSeconds": 60.663,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10,
+      "load1AtStart": 4.28515625,
+      "scale": "I60",
+      "runIndex": 0,
+      "mainBefore": {
+        "saves": 10,
+        "snapshots": 174,
+        "submits": 1,
+        "queries": 1,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 22,
+        "snapshots": 774,
+        "submits": 1,
+        "queries": 60,
+        "revision": 70
+      },
+      "snapshotEventsCount": 600,
+      "snapshotInitializationCount": 174,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14568,
+      "idleSaveIPC30": 14,
+      "idleSnapshotWrites": 598,
+      "idleQueries": 59,
+      "supplierQueries": 240,
+      "idleSeconds": 60.695,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.100000143051147,
+      "load1AtStart": 4.72021484375,
+      "scale": "I60",
+      "runIndex": 1,
+      "mainBefore": {
+        "saves": 22,
+        "snapshots": 788,
+        "submits": 1,
+        "queries": 60,
+        "revision": 70
+      },
+      "mainAfter": {
+        "saves": 43,
+        "snapshots": 1386,
+        "submits": 1,
+        "queries": 119,
+        "revision": 129
+      },
+      "snapshotEventsCount": 598,
+      "snapshotInitializationCount": 788,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14568,
+      "idleSaveIPC30": 8,
+      "idleSnapshotWrites": 600,
+      "idleQueries": 59,
+      "supplierQueries": 241,
+      "idleSeconds": 60.785,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.099999904632568,
+      "load1AtStart": 4.07275390625,
+      "scale": "I60",
+      "runIndex": 2,
+      "mainBefore": {
+        "saves": 43,
+        "snapshots": 1392,
+        "submits": 1,
+        "queries": 119,
+        "revision": 129
+      },
+      "mainAfter": {
+        "saves": 65,
+        "snapshots": 1992,
+        "submits": 1,
+        "queries": 178,
+        "revision": 188
+      },
+      "snapshotEventsCount": 600,
+      "snapshotInitializationCount": 1392,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14448,
+      "idleSaveIPC30": 9,
+      "idleSnapshotWrites": 578,
+      "idleQueries": 58,
+      "supplierQueries": 232,
+      "idleSeconds": 60.25,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.199999809265137,
+      "load1AtStart": 3.70458984375,
+      "scale": "I60",
+      "runIndex": 3,
+      "mainBefore": {
+        "saves": 66,
+        "snapshots": 2006,
+        "submits": 1,
+        "queries": 178,
+        "revision": 188
+      },
+      "mainAfter": {
+        "saves": 86,
+        "snapshots": 2584,
+        "submits": 1,
+        "queries": 236,
+        "revision": 246
+      },
+      "snapshotEventsCount": 578,
+      "snapshotInitializationCount": 2006,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14424,
+      "idleSaveIPC30": 10,
+      "idleSnapshotWrites": 590,
+      "idleQueries": 58,
+      "supplierQueries": 238,
+      "idleSeconds": 60.189,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.099999904632568,
+      "load1AtStart": 3.525390625,
+      "scale": "I60",
+      "runIndex": 4,
+      "mainBefore": {
+        "saves": 86,
+        "snapshots": 2592,
+        "submits": 1,
+        "queries": 236,
+        "revision": 246
+      },
+      "mainAfter": {
+        "saves": 107,
+        "snapshots": 3182,
+        "submits": 1,
+        "queries": 294,
+        "revision": 304
+      },
+      "snapshotEventsCount": 590,
+      "snapshotInitializationCount": 2592,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14568,
+      "idleSaveIPC30": 8,
+      "idleSnapshotWrites": 608,
+      "idleQueries": 59,
+      "supplierQueries": 245,
+      "idleSeconds": 60.757,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.200000047683716,
+      "load1AtStart": 12.72265625,
+      "scale": "I100",
+      "runIndex": 0,
+      "mainBefore": {
+        "saves": 12,
+        "snapshots": 202,
+        "submits": 1,
+        "queries": 1,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 30,
+        "snapshots": 810,
+        "submits": 1,
+        "queries": 60,
+        "revision": 70
+      },
+      "snapshotEventsCount": 608,
+      "snapshotInitializationCount": 202,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14424,
+      "idleSaveIPC30": 16,
+      "idleSnapshotWrites": 590,
+      "idleQueries": 58,
+      "supplierQueries": 237,
+      "idleSeconds": 60.097,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.200000047683716,
+      "load1AtStart": 7.76904296875,
+      "scale": "I100",
+      "runIndex": 1,
+      "mainBefore": {
+        "saves": 30,
+        "snapshots": 816,
+        "submits": 1,
+        "queries": 60,
+        "revision": 70
+      },
+      "mainAfter": {
+        "saves": 59,
+        "snapshots": 1406,
+        "submits": 1,
+        "queries": 118,
+        "revision": 128
+      },
+      "snapshotEventsCount": 590,
+      "snapshotInitializationCount": 816,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14448,
+      "idleSaveIPC30": 9,
+      "idleSnapshotWrites": 580,
+      "idleQueries": 58,
+      "supplierQueries": 232,
+      "idleSeconds": 60.321,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 9.300000190734863,
+      "load1AtStart": 7.6337890625,
+      "scale": "I100",
+      "runIndex": 2,
+      "mainBefore": {
+        "saves": 61,
+        "snapshots": 1416,
+        "submits": 1,
+        "queries": 118,
+        "revision": 128
+      },
+      "mainAfter": {
+        "saves": 76,
+        "snapshots": 1996,
+        "submits": 1,
+        "queries": 176,
+        "revision": 186
+      },
+      "snapshotEventsCount": 580,
+      "snapshotInitializationCount": 1416,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14664,
+      "idleSaveIPC30": 8,
+      "idleSnapshotWrites": 602,
+      "idleQueries": 59,
+      "supplierQueries": 242,
+      "idleSeconds": 61.126,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 9.199999809265137,
+      "load1AtStart": 6.27099609375,
+      "scale": "I100",
+      "runIndex": 3,
+      "mainBefore": {
+        "saves": 76,
+        "snapshots": 2006,
+        "submits": 1,
+        "queries": 176,
+        "revision": 186
+      },
+      "mainAfter": {
+        "saves": 93,
+        "snapshots": 2608,
+        "submits": 1,
+        "queries": 235,
+        "revision": 245
+      },
+      "snapshotEventsCount": 602,
+      "snapshotInitializationCount": 2006,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 14568,
+      "idleSaveIPC30": 10,
+      "idleSnapshotWrites": 598,
+      "idleQueries": 59,
+      "supplierQueries": 240,
+      "idleSeconds": 60.781,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 9.200000047683716,
+      "load1AtStart": 5.05517578125,
+      "scale": "I100",
+      "runIndex": 4,
+      "mainBefore": {
+        "saves": 94,
+        "snapshots": 2610,
+        "submits": 1,
+        "queries": 235,
+        "revision": 245
+      },
+      "mainAfter": {
+        "saves": 117,
+        "snapshots": 3208,
+        "submits": 1,
+        "queries": 294,
+        "revision": 304
+      },
+      "snapshotEventsCount": 598,
+      "snapshotInitializationCount": 2610,
+      "variant": "before"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 239,
+      "idleSeconds": 60.355,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.200000047683716,
+      "load1AtStart": 5.38720703125,
+      "scale": "I60",
+      "runIndex": 0,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 1,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 61,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 235,
+      "idleSeconds": 60.26,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.199999809265137,
+      "load1AtStart": 6.39404296875,
+      "scale": "I60",
+      "runIndex": 1,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 61,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 121,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 237,
+      "idleSeconds": 60.278,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.100000143051147,
+      "load1AtStart": 7.04541015625,
+      "scale": "I60",
+      "runIndex": 2,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 121,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 181,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 239,
+      "idleSeconds": 60.341,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.100000143051147,
+      "load1AtStart": 10.81201171875,
+      "scale": "I60",
+      "runIndex": 3,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 181,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 241,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 243,
+      "idleSeconds": 60.297,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.199999809265137,
+      "load1AtStart": 9.3623046875,
+      "scale": "I60",
+      "runIndex": 4,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 241,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 301,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 236,
+      "idleSeconds": 60.546,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.099999904632568,
+      "load1AtStart": 3.3759765625,
+      "scale": "I100",
+      "runIndex": 0,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 1,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 61,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 240,
+      "idleSeconds": 60.503,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.099999904632568,
+      "load1AtStart": 3.794921875,
+      "scale": "I100",
+      "runIndex": 1,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 61,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 121,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 241,
+      "idleSeconds": 60.457,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.099999904632568,
+      "load1AtStart": 4.41015625,
+      "scale": "I100",
+      "runIndex": 2,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 121,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 181,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 238,
+      "idleSeconds": 60.551,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.100000143051147,
+      "load1AtStart": 3.4296875,
+      "scale": "I100",
+      "runIndex": 3,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 181,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 241,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 236,
+      "idleSeconds": 60.516,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 10.100000143051147,
+      "load1AtStart": 3.72021484375,
+      "scale": "I100",
+      "runIndex": 4,
+      "mainBefore": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 241,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 14,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 301,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106,
+      "variant": "after"
+    }
+  ],
+  "summaries": [
+    {
+      "variant": "before",
+      "scale": 60,
+      "report": {
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "commit": "0041f4b15",
+        "head": "0041f4b15205a48be9d8149952dc581274162379",
+        "dirty": true,
+        "sourceTree": "05590094eea87ac965e358891166fd4bc76bd5a6",
+        "date": "2026-10-30",
+        "runs": 5,
+        "results": [
+          {
+            "id": "generation-idle-60",
+            "metrics": {
+              "frameGapP95": {
+                "runs": 5,
+                "median": 10.1,
+                "p95": 10.2
+              },
+              "longTasks": {
+                "runs": 5,
+                "median": 0,
+                "p95": 0
+              }
+            },
+            "samples": {
+              "frameGapP95": [
+                10,
+                10.1,
+                10.1,
+                10.2,
+                10.1
+              ],
+              "longTasks": [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "response": [],
+              "mainRoundTripMax": [],
+              "mediaRequests": []
+            },
+            "budget": 33,
+            "verdict": {
+              "status": "ok",
+              "note": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "variant": "before",
+      "scale": 100,
+      "report": {
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "commit": "0041f4b15",
+        "head": "0041f4b15205a48be9d8149952dc581274162379",
+        "dirty": true,
+        "sourceTree": "05590094eea87ac965e358891166fd4bc76bd5a6",
+        "date": "2026-10-30",
+        "runs": 5,
+        "results": [
+          {
+            "id": "generation-idle-100",
+            "metrics": {
+              "frameGapP95": {
+                "runs": 5,
+                "median": 9.3,
+                "p95": 10.2
+              },
+              "longTasks": {
+                "runs": 5,
+                "median": 0,
+                "p95": 0
+              }
+            },
+            "samples": {
+              "frameGapP95": [
+                10.2,
+                10.2,
+                9.3,
+                9.2,
+                9.2
+              ],
+              "longTasks": [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "response": [],
+              "mainRoundTripMax": [],
+              "mediaRequests": []
+            },
+            "budget": 33,
+            "verdict": {
+              "status": "ok",
+              "note": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "variant": "after",
+      "scale": 60,
+      "report": {
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "commit": "0041f4b15",
+        "head": "0041f4b15205a48be9d8149952dc581274162379",
+        "dirty": true,
+        "sourceTree": "0db9a0615d0df94779e2cd41d0410277fdffd12a",
+        "date": "2026-10-30",
+        "runs": 5,
+        "results": [
+          {
+            "id": "generation-idle-60",
+            "metrics": {
+              "frameGapP95": {
+                "runs": 5,
+                "median": 10.2,
+                "p95": 10.2
+              },
+              "longTasks": {
+                "runs": 5,
+                "median": 0,
+                "p95": 0
+              }
+            },
+            "samples": {
+              "frameGapP95": [
+                10.2,
+                10.2,
+                10.1,
+                10.1,
+                10.2
+              ],
+              "longTasks": [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "response": [],
+              "mainRoundTripMax": [],
+              "mediaRequests": []
+            },
+            "budget": 33,
+            "verdict": {
+              "status": "ok",
+              "note": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "variant": "after",
+      "scale": 100,
+      "report": {
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "commit": "0041f4b15",
+        "head": "0041f4b15205a48be9d8149952dc581274162379",
+        "dirty": true,
+        "sourceTree": "0db9a0615d0df94779e2cd41d0410277fdffd12a",
+        "date": "2026-10-31",
+        "runs": 5,
+        "results": [
+          {
+            "id": "generation-idle-100",
+            "metrics": {
+              "frameGapP95": {
+                "runs": 5,
+                "median": 10.1,
+                "p95": 10.1
+              },
+              "longTasks": {
+                "runs": 5,
+                "median": 0,
+                "p95": 0
+              }
+            },
+            "samples": {
+              "frameGapP95": [
+                10.1,
+                10.1,
+                10.1,
+                10.1,
+                10.1
+              ],
+              "longTasks": [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "response": [],
+              "mainRoundTripMax": [],
+              "mediaRequests": []
+            },
+            "budget": 33,
+            "verdict": {
+              "status": "ok",
+              "note": ""
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

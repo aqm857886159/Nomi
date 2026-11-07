@@ -1,5 +1,5 @@
 import type { GenerationNodeRunRecord } from '../model/generationCanvasTypes'
-import { nodeRunOutcomePatch, type LandedNodeOutcome } from './nodeRunOutcome'
+import { nodeProgressChangesRecovery, nodeRunOutcomePatch, type LandedNodeOutcome } from './nodeRunOutcome'
 import { createRunId } from './canvasIds'
 import { bumpPersistRevision } from './canvasGuards'
 import { getRunDurationSeconds, mergeRunRecord } from './runRecordHelpers'
@@ -17,6 +17,17 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     if (node) emitCanvasGesture([{ type: 'canvas.node.run-updated', payload: { node, ...(landed ? { landed } : {}) } }], { source: 'runtime' })
   }
   return {
+  setNodeRecoveryPresentation: (nodeId, resultUnknown, error) => {
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.status = resultUnknown ? 'error' : 'recoverable'
+      node.error = error
+      node.progress = undefined
+      bumpPersistRevision(state)
+    })
+    emitRunUpdated(nodeId)
+  },
   setNodeStatus: (nodeId, status, error) => {
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
@@ -44,9 +55,20 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return
-      Object.assign(node, nodeRunOutcomePatch(node, { kind: 'progress', progress }))
+      const patch = nodeRunOutcomePatch(node, { kind: 'progress', progress })
+      const durable = nodeProgressChangesRecovery(node, patch)
+      Object.assign(node, patch)
+      if (durable) bumpPersistRevision(state)
+    })
+  },
+  withdrawNodeRun: (nodeId, outcome) => {
+    set(state => {
+      const node = state.nodes.find(candidate => candidate.id === nodeId)
+      if (!node) return
+      Object.assign(node, nodeRunOutcomePatch(node, outcome))
       bumpPersistRevision(state)
     })
+    emitRunUpdated(nodeId)
   },
   appendNodeRun: (nodeId, run) => {
     const now = Date.now()

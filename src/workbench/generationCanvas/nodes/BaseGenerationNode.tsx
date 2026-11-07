@@ -1,9 +1,9 @@
+import { NodeFailureReport } from './NodeErrorReport'
 import NodeGenerationComposer from './LazyNodeGenerationComposer'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useWhiteboardSession } from './whiteboard/whiteboardSession'
 import { NodeInlineWhiteboardHost } from './whiteboard/NodeInlineWhiteboardHost'
-import type { ImageGenerationPreset } from 'img-fx'
 import { useTranslation } from 'react-i18next'
 import { IconCopy } from '@tabler/icons-react'
 import ProvenancePanel from './ProvenancePanel'
@@ -33,21 +33,14 @@ import { DeferredNodeImage } from './DeferredNodeMedia'
 import { canvasImageSourceOf } from './canvasImageSource'
 import { NodeVideoSessionProvider } from './NodeVideoSession'
 import { NodeVideoPlaybackGuard } from './NodeVideoPlaybackGuard'
-import { useNodePanoramaHandlers } from './useNodePanoramaHandlers'
+import { useNodePanoramaHandlers, usePanoramaFullscreenTrigger } from './useNodePanoramaHandlers'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { NodeGeneratingOverlay } from './NodeGeneratingOverlay'
 import { NodeGenerationStatus } from './NodeGenerationStatus'
 import { ProductionShotOverlays } from './ProductionShotOverlays'
-import { useProductionNodeRetry } from './useProductionNodeRetry'
-import { confirmAndRunNode } from '../runner/generationRunController'
 import { selectCanvasNodeById, selectCanvasNodeExists } from '../store/canvasNodeGenerationIndex'
-import { localStepRedoOf } from './localStepRedo'
 import { useHasNodeAttachedPanel } from './nodeAttachedPanel'
-import { NodeErrorReport } from './NodeErrorReport'
-import { NodeRecoverableReport } from './NodeRecoverableReport'
-import { dismissRecoverableNode, recoverNodeResult } from '../runner/recoverTaskActions'
-import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { WorkbenchButton } from '../../../design'
 import { getGenerationNodeExecutionKind, isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import { anchorFreezeToolbarProps } from '../fixation/freezeAnchor'
@@ -69,8 +62,6 @@ export type BaseGenerationNodeProps = {
   readOnly?: boolean
   focusFlash?: boolean
   appear?: boolean
-  waitingMotion?: 'reduced'
-  waitingPreset?: ImageGenerationPreset
 }
 const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('./model3d/Model3DViewer')) // 生成出的 .glb 卡内可旋转预览（R3F）
 const TextDocumentNode = lazyWithChunkBoundary('文本节点编辑器', () => import('./render/TextDocumentNode'))
@@ -84,15 +75,12 @@ function BaseGenerationNodeImpl({
   readOnly = false,
   focusFlash = false,
   appear = false,
-  waitingMotion,
-  waitingPreset,
 }: BaseGenerationNodeProps): JSX.Element {
   const [feedback, setFeedback] = React.useState<string | null>(null)
   const reportFeedback = React.useCallback((message: string) => {
     notify({ identity: `BaseGenerationNodeImpl:${node.id}`, reason: 'interaction', message, level: 'inline', present: setFeedback })
   }, [node.id])
   const { t } = useTranslation()
-  const productionRetry = useProductionNodeRetry(node, reportFeedback) // P4 S6：多镜节点失败→返工链；非多镜/项目没开→null 退回本地重跑（回归门）
   const selectNode = useGenerationCanvasStore((state) => state.selectNode)
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
@@ -112,7 +100,7 @@ function BaseGenerationNodeImpl({
     selectCanvasNodeExists(state, node.derivedFrom),
   )
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
-  const panoramaFullscreenRef = React.useRef<(() => void) | null>(null)
+  const panoramaFullscreen = usePanoramaFullscreenTrigger()
   const panoramaUploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const [provenanceOpen, setProvenanceOpen] = React.useState(false)
   const showVersionCards = React.useMemo(() => nodeHasVersionCards(node), [node])
@@ -236,7 +224,7 @@ function BaseGenerationNodeImpl({
         <PanoramaNodeToolbar
           node={node}
           reportFeedback={reportFeedback}
-          fullscreenRef={panoramaFullscreenRef}
+          fullscreenRef={panoramaFullscreen.ref}
           uploadInputRef={panoramaUploadInputRef}
           onFileChange={handlePanoramaFileChange}
           onOpenProvenance={() => setProvenanceOpen(true)}
@@ -294,39 +282,12 @@ function BaseGenerationNodeImpl({
         {/* 2026-08-04 撤离卡片右上两颗常驻按钮（放大＝浮条「全屏」去重；生成记录迁进浮动工具栏，门是 selected 非 hover）——动作不压内容（§1.5）。 */}
       </NodeLabelRow>
       <div data-node-inline-status className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+40px)] z-[4] flex h-7 items-center [&_[data-generation-message]]:truncate [&_[data-generation-status]]:bg-nomi-paper/90">
-        <NodeGenerationStatus node={node} />
+        <NodeGenerationStatus node={node} summaryInCard />
       </div>
 
       <ProvenancePanel node={node} open={provenanceOpen} onClose={() => setProvenanceOpen(false)} />
 
-      {/* 失败态：错误卡铺满节点正文（absolute inset-0 z-[5]），盖占位底纹但不挡 composer/resize/handles。 */}
-      {status === 'error' && node.error ? (
-        <NodeErrorReport summaryVisible={false}
-          message={node.error} meta={node.meta} nodeId={node.id} taskId={node.runs?.[0]?.taskId}
-          onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
-          onRetry={
-            isAssetKind && node.meta?.source === 'clipboard-url'
-              ? undefined
-              // P4 S6：多镜物化节点走返工链（一功能一个家 §3.E）；否则本地重跑/素材重导入（单镜/普通节点不变=回归门）。
-              // 本机处理失败（素材复制 / 截帧）重试的是那一步本机处理，不是重新生成：见 localStepRedo。
-              : productionRetry ?? localStepRedoOf(node, reportFeedback) ?? (() => {
-                  void confirmAndRunNode(node.id, { initiator: 'user' })
-                })
-          }
-        />
-      ) : null}
-
-      {/* 可找回态：异步任务超时但上游可能已出片——中性面板 + 一键重新拉取（query 不扣费），不进红色错误桶。 */}
-      {status === 'recoverable' ? (
-        <NodeRecoverableReport node={node}
-          onRecover={() => {
-            withProjectAction((project) => { void recoverNodeResult(node.id, project) })
-          }}
-          onDismiss={() => {
-            dismissRecoverableNode(node.id)
-          }}
-        />
-      ) : null}
+      <NodeFailureReport node={node} onFeedback={reportFeedback} summaryVisible={false} />
 
       {/* [DESIGN-CARDS-07] 卡片分发抽到 NodeCardBody（R9 治巨壳）：非 shots 分类共用外壳只换 body。 */}
       {isCardKind && !whiteboardOpen ? <NodeCardBody renderKind={renderKind} node={node} readOnly={readOnly} /> : null}
@@ -360,12 +321,11 @@ function BaseGenerationNodeImpl({
           node.result?.url || node.meta?.imageUrl ? (
             <React.Suspense fallback={<NodeBodyLoading />}>
               <PanoramaViewer
+                nodeId={node.id}
                 imageUrl={(node.result?.url || node.meta?.imageUrl) as string}
                 width={visualSize.width}
                 height={previewHeight}
-                onEnterFullscreen={(trigger) => {
-                  panoramaFullscreenRef.current = trigger
-                }}
+                onEnterFullscreen={panoramaFullscreen.onEnterFullscreen}
                 onScreenshot={handlePanoramaScreenshot}
               />
             </React.Suspense>
@@ -441,7 +401,7 @@ function BaseGenerationNodeImpl({
 
       {!readOnly ? <NodeHoverTimelineHandle nodeId={node.id} readOnly={readOnly} /> : null}
 
-      {!localImageOpPending && !isTextKind ? <NodeGeneratingOverlay reportFeedback={reportFeedback} node={node} motion={waitingMotion} preset={waitingPreset} /> : null}
+      {!localImageOpPending && !isTextKind ? <NodeGeneratingOverlay reportFeedback={reportFeedback} node={node} /> : null}
 
       <ProductionShotOverlays reportFeedback={reportFeedback} node={node} selected={selected && !isMultiSelectActive} />{/* P4 S5+S6 多镜叠加：占位三态 + 版本条（非多镜早退零开销） */}
       {/* composer：生成类节点 + **单选**时浮出。多选(框选)一律不挂——否则每个选中节点都弹自己的

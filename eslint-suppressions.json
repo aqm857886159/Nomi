@@ -1,4 +1,34 @@
 {
+  "electron/capabilityCore/hostConfigWrite.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/integrationCertification/operationLedger.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/integrationCertification/promotionJournal.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/jsonFile.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/providerAdapter/store.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "electron/workspace/workspaceRegistry.ts": {
+    "main-sync-wait/no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "evals/director/judge/preregister.ts": {
     "@typescript-eslint/no-unused-expressions": {
       "count": 1
@@ -294,7 +324,7 @@
   },
   "scripts/check-test-temp-static.node-test.mjs": {
     "no-useless-escape": {
-      "count": 2
+      "count": 1
     }
   },
   "scripts/check-test-types.test.mjs": {
@@ -1976,11 +2006,6 @@
       "count": 1
     }
   },
-  "tests/ux/process-feedback-imgfx-real.e2e.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/production-flow-fixes.walk.mjs": {
     "no-control-regex": {
       "count": 1
@@ -2000,11 +2025,6 @@
     }
   },
   "tests/ux/project-asset-healthcheck.walk.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "tests/ux/project-location-settings.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

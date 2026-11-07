@@ -38,7 +38,7 @@ echo 99 > /tmp/<name>.exit   # 99 = 窗口始终没开，别把它当成功
 要点：
 - **超时哨兵值要能和成功/失败区分开**（这里用 99），否则「没等到」会被读成「跑过了」。
 - 哨兵/日志文件名**带 worktree 后缀**——并行会话会串写同名 `/tmp` 文件（见 [`tmp-log-paths-collide-across-parallel-sessions.md`](tmp-log-paths-collide-across-parallel-sessions.md)）。
-- 若非要让 agent 自己等：任务书必须写死「**每完成一个单元立即 commit**，等窗口期间不许空转不 commit」——Codex 那次就是零 commit 死在等待里。
+- 若非要让 agent 自己等：任务书必须写死「**每完成一个单元立即 commit**，等窗口期间不许空转不 commit」——Codex 那次就是零 commit 死在等待里。Claude 子线每次等待还要压在 4 分钟以内，超过缓存寿命整段上下文要重写，见 [`read-official-cache-rules-before-designing-lines.md`](read-official-cache-rules-before-designing-lines.md)。
 
 ## 配套事实：CI 不会替你跑新入库的走查
 

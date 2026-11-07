@@ -1,0 +1,32 @@
+# 浏览器提取提示词 真入口 IPC 集成测试——修之前（base 6c05eebae）
+# pnpm exec vitest run electron/browser/prompt/browserPromptExtraction.ipc.integration.test.ts
+# 前提核实：渲染层 runBrowserPromptExtractionToLibrary → 真 preload 桥 nomi:tasks:run → electron/runtime.ts:405（文本分支的付费闸）
+#   → electron/tasks/taskSpend.ts:17 consumeTaskSpend → electron/spendGrant.ts:166 / :149 assertAndConsumeQuotedSpend 找不到令牌，
+#   抛 SpendNotAuthorizedError；本机假上游 0 次请求，没进提示词库，没弹卡（抛在问人之前）。
+ ❯ electron/browser/prompt/browserPromptExtraction.ipc.integration.test.ts (1 test | 1 failed) 10ms
+     × 点「提取」：恰好请求供应商一次、进提示词库，不弹付费卡 6ms
+
+ FAIL  electron/browser/prompt/browserPromptExtraction.ipc.integration.test.ts > 浏览器提取提示词：从真入口到本机假上游 > 点「提取」：恰好请求供应商一次、进提示词库，不弹付费卡
+AssertionError: expected { upstreamRequests: +0, …(1) } to deeply equal { upstreamRequests: 1, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "failure": undefined,
+-   "upstreamRequests": 1,
++   "failure": {
++     "cause": "SpendNotAuthorizedError: Authorization expired or does not cover this target; confirm again",
++     "frames": [
++       "electron/spendGrant.ts:149",
++       "electron/spendGrant.ts:166",
++       "electron/tasks/taskSpend.ts:17",
++       "electron/runtime.ts:405",
++     ],
++     "message": "Error invoking remote method 'nomi:tasks:run': SpendNotAuthorizedError: Authorization expired or does not cover this target; confirm again",
++   },
++   "upstreamRequests": 0,
+  }
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)

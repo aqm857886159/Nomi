@@ -105,8 +105,9 @@ export function registerVideoIpc(captureInteraction: ProjectInteractionCapture):
     const requestId = typeof (payload as { requestId?: unknown } | null)?.requestId === "string" ? String((payload as { requestId: string }).requestId).trim() : "";
     return { ok: deconstructRequests.cancel(event.sender.id, requestId) };
   });
-  // 退出收摊：在跑的拆解全撤，退出那几秒里不再发新的付费调用。挂在这里而不是 main.ts（同 depthVideoIpc）。
-  registerQuitDrain("video-deconstruct-requests", () => { deconstructRequests.abortAll(); }, { required: true, timeoutMs: 250 });
+  // 退出收摊：在跑的拆解全撤、此后不再接新拆解（drain 立刻生效），退出那几秒里不再发新的付费调用；只中止、不等落定。
+  // 挂在这里而不是 main.ts（同 depthVideoIpc）。
+  registerQuitDrain("video-deconstruct-requests", () => { void deconstructRequests.drain(); }, { required: true, timeoutMs: 250 });
 
   // 深度视频处理节点的五个原语同属 video 家族，挂在这里而不是 main.ts —— main.ts 是已登记的
   // 巨壳（828 行封顶），每加一个子系统就往里塞两行，正是它长成这样的原因。

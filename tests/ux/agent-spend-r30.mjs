@@ -31,7 +31,7 @@ import {
   openCanvas, readProject, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 import { SPEND_R30_CASES } from './agent-spend-r30-cases.mjs'
-import { assertPaidRunAllowed } from './_paidRun.mjs'
+import { DEFAULT_PAID_BRAIN, assertPaidRunAllowed } from './_paidRun.mjs'
 import { removeRealCredentials, seedRealModels } from './_realProfile.mjs'
 
 /**
@@ -66,8 +66,8 @@ function toolRouteCensus(projectRoot) {
 // 档位走**环境变量**而不是命令行参数：走查启动器自己要校验 argv（只允许 `--packaged <路径>`），
 // 多一个 flag 会被它当成用法错误挡下来。
 const DEEPSEEK = process.env.NOMI_R30_ARM === 'deepseek'
-/** 真实档的大脑：APIMart（内置供应商，谁的机器上都有）上的 DeepSeek，真实目录里的那一行原样用。 */
-const DEEPSEEK_BRAIN = { vendorKey: 'apimart', modelKey: 'deepseek-v3.2' }
+/** 真实档的大脑：付费走查的缺省大脑（`_paidRun.mjs` 的 `DEFAULT_PAID_BRAIN`，APIMart 上的现役文本模型），真实目录里的那一行原样用。 */
+const DEEPSEEK_BRAIN = DEFAULT_PAID_BRAIN
 const CARD = `${CANVAS_PANEL} ${APPROVAL_CARD}[data-kind="spend"]`
 
 /**

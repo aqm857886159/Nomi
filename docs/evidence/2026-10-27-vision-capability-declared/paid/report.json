@@ -1,0 +1,210 @@
+{
+  "script": "agent-image-input-real.paid.mjs",
+  "mode": "paid",
+  "startedAt": "2026-10-28T01:27:57.769Z",
+  "finishedAt": "2026-10-28T01:29:43.904Z",
+  "result": "failed",
+  "failure": "这一场有红：\n  第 1 轮没认出暗号（回答：\"NOMI 4362\"）",
+  "failures": [],
+  "buildMarker": "Model does not accept image input:",
+  "model": "apimart/gpt-5-mini",
+  "handTypedModel": {
+    "vendorKey": "apimart",
+    "modelKey": "gpt-5-mini",
+    "kind": "text",
+    "enabled": true,
+    "published": true,
+    "usable": true,
+    "metaKeys": [
+      "adapter"
+    ],
+    "declaredImageInput": null,
+    "selfCheck": {
+      "stage": "completed"
+    },
+    "imageInputTier": "unknown"
+  },
+  "asks": [
+    {
+      "id": "sees-code",
+      "name": "看得见",
+      "ask": "图里写的暗号是什么？只回暗号"
+    },
+    {
+      "id": "real-size",
+      "name": "真尺寸",
+      "ask": "用一句话说这张图里有什么"
+    }
+  ],
+  "metrics": {
+    "sawCodeWord": "第 1 轮：回答里有这一次随机暗号的 4 位数字 = 像素到了模型手里（暗号每次现生成，模型猜不中）",
+    "realSizeOk": "第 2 轮：没走错误面（面板错误带 / 助手消息 stopReason=error）且回答非空 = 真实大小的图没被后端拒、没被截断",
+    "wireImagePart": "发出去的请求体里，带这一轮那句话的用户消息有图片部件（image_url / input_image / image），且没有「图片未发送」那句注"
+  },
+  "codeWord": "NOMI 4862",
+  "images": {
+    "code": {
+      "bytes": 3644,
+      "width": 1180,
+      "height": 260
+    },
+    "real": {
+      "bytes": 29703774,
+      "width": 3840,
+      "height": 2160,
+      "bitDepth": 16,
+      "colorType": 2,
+      "attachCapBytes": 31457280,
+      "source": "video-4k-hevc-10bit 第 5 秒抽一帧 → image-4k-png（登记表）"
+    }
+  },
+  "numbers": {
+    "rounds": 2,
+    "sawCodeWord": false,
+    "fullCodeEchoed": false,
+    "realSizeOk": true,
+    "realSizeDeniesImage": false,
+    "errorSurfaceRounds": 0,
+    "harnessErrors": 0
+  },
+  "hard": {
+    "checks": 3,
+    "failures": []
+  },
+  "gaugeProblems": [],
+  "rounds": [
+    {
+      "index": 1,
+      "id": "sees-code",
+      "name": "看得见",
+      "ask": "图里写的暗号是什么？只回暗号",
+      "startedAt": "2026-10-28T01:28:11.097Z",
+      "harnessError": null,
+      "shots": [
+        "04-sees-code-attached.png",
+        "05-sees-code-sent.png",
+        "06-sees-code-answered.png"
+      ],
+      "attached": {
+        "sourceBytes": 3644,
+        "landedBytes": 3644
+      },
+      "sendAttempts": 1,
+      "settle": {
+        "interventions": [],
+        "stoppedByWalk": false,
+        "errorBar": null,
+        "timedOut": false
+      },
+      "ms": 6894,
+      "sessions": 1,
+      "models": [
+        "apimart/gpt-5-mini"
+      ],
+      "attachmentClaims": 1,
+      "finalAnswer": "NOMI 4362",
+      "stopReason": "stop",
+      "errorMessage": null,
+      "toolCalls": [],
+      "usage": {
+        "input": 23746,
+        "output": 335
+      },
+      "errorSurface": null,
+      "score": {
+        "saw": false,
+        "fullCodeEchoed": false,
+        "answerChars": 9
+      },
+      "wire": {
+        "source": "net-log",
+        "requests": 1,
+        "askInPrefix": 1,
+        "imagePartInPrefix": 1,
+        "droppedNoteInPrefix": 0,
+        "truncated": 1,
+        "verdict": "image-in-request"
+      }
+    },
+    {
+      "index": 2,
+      "id": "real-size",
+      "name": "真尺寸",
+      "ask": "用一句话说这张图里有什么",
+      "startedAt": "2026-10-28T01:28:17.992Z",
+      "harnessError": null,
+      "shots": [
+        "07-real-size-attached.png",
+        "08-real-size-sent.png",
+        "09-real-size-answered.png"
+      ],
+      "attached": {
+        "sourceBytes": 29703774,
+        "landedBytes": 29703774
+      },
+      "sendAttempts": 1,
+      "settle": {
+        "interventions": [],
+        "stoppedByWalk": false,
+        "errorBar": null,
+        "timedOut": false
+      },
+      "ms": 85657,
+      "sessions": 1,
+      "models": [
+        "apimart/gpt-5-mini"
+      ],
+      "attachmentClaims": 1,
+      "finalAnswer": "这张图里是一位坐在电脑椅前对着麦克风讲话的年轻男性，后方有书架、衣物和喷雾清洁剂，画面底部有一行中文黑底白字字幕。",
+      "stopReason": "stop",
+      "errorMessage": null,
+      "toolCalls": [],
+      "usage": {
+        "input": 3195,
+        "output": 381
+      },
+      "errorSurface": null,
+      "score": {
+        "ok": true,
+        "answerChars": 57,
+        "deniesImage": false,
+        "why": null
+      },
+      "wire": {
+        "source": "net-log",
+        "requests": 2,
+        "askInPrefix": 1,
+        "imagePartInPrefix": 1,
+        "droppedNoteInPrefix": 0,
+        "truncated": 1,
+        "verdict": "image-in-request"
+      }
+    }
+  ],
+  "screenshots": [
+    "01-model-hand-typed.png",
+    "02-model-self-check-running.png",
+    "03-model-self-check-done.png",
+    "04-sees-code-attached.png",
+    "05-sees-code-sent.png",
+    "06-sees-code-answered.png",
+    "07-real-size-attached.png",
+    "08-real-size-sent.png",
+    "09-real-size-answered.png"
+  ],
+  "brain": {
+    "text": {
+      "replies": 2,
+      "input": 26941,
+      "output": 716,
+      "cacheRead": 22912,
+      "cacheWrite": 0,
+      "models": {
+        "apimart/gpt-5-mini": 2
+      }
+    },
+    "mediaCalls": 0
+  },
+  "networkBlocked": [],
+  "walkOutputDir": ".tmp/pi-agent-image-input-real-development-1793150880332"
+}

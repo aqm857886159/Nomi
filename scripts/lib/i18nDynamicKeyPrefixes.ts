@@ -13,6 +13,7 @@
 //   · **concat**:`t(`P${x}`)` —— **无点直接拼后缀**(如 `mode${'System'|'Custom'|'Off'}`)。
 //     此时 P 是半个词、不是子树,故改为枚举全部字面量后缀,逐个校验 `P+suffix` 是叶子。
 
+import { FEEDBACK_EXCLUSION_REASONS, FEEDBACK_MANIFEST_ITEMS } from '../../electron/shared/contracts/feedback'
 import { VENDOR_CONNECTION_PILL_LABEL_MEMBERS } from '../../src/ui/onboarding/vendorConnectionView'
 import { MISSING_CARD_REASONS } from '../../src/workbench/ai/v4/missingInterventionCard'
 import { REWRITE_PRESET_INSTRUCTIONS, REWRITE_TONE_INSTRUCTIONS, REWRITE_TRANSLATE_INSTRUCTIONS } from '../../src/workbench/creation/aiRewrite/rewritePrompt'
@@ -35,6 +36,9 @@ export type DynamicPrefix =
 export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = []
 
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
+  { prefix: 'feedbackReport.attachItem', members: ['logs', 'catalog', 'trace', 'perf'], why: '动态：反馈卡「附带」行按这次真会带什么拼；枚举来源 FeedbackReportCard.tsx 的 attachItems 字面量。' },
+  { prefix: 'feedbackReport.manifestItem', members: Object.keys(FEEDBACK_MANIFEST_ITEMS), why: '动态：清单条目由主进程写，界面按条目名翻译；枚举来源契约 FEEDBACK_MANIFEST_ITEMS。' },
+  { prefix: 'feedbackReport.manifestWhy', members: FEEDBACK_EXCLUSION_REASONS, why: '动态：清单「没带的原因」由主进程写，界面按原因码翻译；枚举来源契约 FEEDBACK_EXCLUSION_REASONS。' },
   { prefix: 'shotTable.columns', members: ['index', 'thumbnail', 'duration'], why: '动态：表头紧凑/完整档遍历固定 leading 列；枚举来源 ShotTableGrid.tsx 的 leading 字面量元组，其余表头用完整键。' },
   { prefix: 'shotTable.facts', members: ['shotSize', 'motion', 'visual', 'dialogue', 'onScreenText', 'mood'], why: '动态：事实表按持久列顺序展示内置列；枚举来源 shotTableFacts.ts 的事实列集，自定义列直接显示用户标签。' },
   { prefix: 'shotTable.status', members: ['ready', 'anchor-ignored', 'missing-required', 'generating', 'failed', 'recoverable', 'done', 'locked'], why: '动态：表投影现役执行状态；枚举来源 storyboardRowStatus.ts 的 ShotRowExec.status，未另建状态机。' },

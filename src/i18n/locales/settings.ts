@@ -208,7 +208,7 @@ export const zhSettings = {
     diagnostics: {
       title: '导出诊断包',
       description: '把本机日志、模型目录（密钥已抹）、当前项目的 Agent 记录与制作收据打成一个 zip，保存到你选的位置。不会自动上传任何东西。',
-      contentNotice: '⚠️ 包里的 Agent 记录含你的创作内容；日志本身不记提示词、密钥和文件路径。发给我们之前可以先打开看看。',
+      contentNotice: '⚠️ 包里的 Agent 记录含你的创作内容；日志不记密钥和文件路径，但工具出错时可能留下一小段原话。发给我们之前可以先打开看看。',
       export: '导出诊断',
       exporting: '正在打包…',
       saved: '已保存 {{count}} 项 · {{size}} MB',
@@ -245,6 +245,8 @@ export const zhSettings = {
     projectLocationErrorNotWritable: '这个文件夹不可写，请选择其他位置。',
     projectLocationErrorOpenFailed: '无法在文件管理器中打开这个文件夹。',
     projectLocationErrorUnknown: '项目位置更改失败，原设置没有改变。',
+    projectLocationErrorInsideApp: '这个位置在 Nomi 自己的目录里（安装目录、应用数据或系统临时目录），升级、卸载或系统清理会把里面的项目删掉。请点「更换位置」选一个你自己的文件夹。',
+    projectLocationErrorMissing: '这个文件夹现在不存在。新建项目时会自动建好；也可以点「更换位置」换一个。',
   },
 }
 
@@ -457,7 +459,7 @@ export const enSettings = {
     diagnostics: {
       title: 'Export a diagnostics bundle',
       description: 'Packs local logs, your model catalog (keys removed), the current project\u2019s Agent record and production receipts into a zip saved wherever you choose. Nothing is uploaded automatically.',
-      contentNotice: '\u26a0\ufe0f The Agent record inside contains your creative content; the logs themselves never record prompts, keys, or file paths. Feel free to open the zip before sending it to us.',
+      contentNotice: '\u26a0\ufe0f The Agent record inside contains your creative content. The logs never record keys or file paths, but a tool failure can leave a short snippet of its original text. Feel free to open the zip before sending it to us.',
       export: 'Export bundle',
       exporting: 'Packing\u2026',
       saved: 'Saved {{count}} items · {{size}} MB',
@@ -494,5 +496,7 @@ export const enSettings = {
     projectLocationErrorNotWritable: 'That folder is not writable. Choose another location.',
     projectLocationErrorOpenFailed: 'Nomi could not open this folder in the file manager.',
     projectLocationErrorUnknown: 'Nomi could not change the project location. Nothing was changed.',
+    projectLocationErrorInsideApp: 'This location is inside Nomi’s own folders (install, app data, or system temp), which updates, uninstalls, or system cleanup can wipe. Click “Change location” and choose a folder of your own.',
+    projectLocationErrorMissing: 'This folder does not exist right now. Nomi creates it when you make a new project, or click “Change location” to choose another.',
   },
 }

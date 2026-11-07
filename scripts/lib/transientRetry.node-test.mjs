@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict'
+import childProcess from 'node:child_process'
+import { syncBuiltinESMExports } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 
 import { makeTempDir } from '../_test-temp.mjs'
+import { FIXTURE_TIMEOUT_MS, readyTreeTimeout } from '../_test-ready-timeout.mjs'
+import { runNode } from '../pre-push-contracts.mjs'
+import { NODE_TEST_ARGV_PREFIX } from '../pre-push-related-tests.mjs'
 import {
   assertGhReadOnly,
   execGhReadSync,
@@ -141,44 +146,56 @@ test('execGhReadSync 用真子进程：先瞬断一次再成功；404 只试一�
 })
 
 // ---- 只读调用的超时也算瞬断（2026-10-10：verify-merged 的 gh api 卡死 45 秒被掐，CI 全绿收据却红）----
-const HANG_SCRIPT = (counter, hangTimes) => [
-  "import fs from 'node:fs'",
-  `const file = ${JSON.stringify(counter)}`,
-  "const n = fs.existsSync(file) ? Number(fs.readFileSync(file, 'utf8')) : 0",
-  'fs.writeFileSync(file, String(n + 1))',
-  `if (n < ${hangTimes}) setTimeout(() => {}, 60000)`,
-  "else console.log('done')",
-  '',
-].join('\n')
+// 同步调用期间父线程无法等就绪：先用真实runner观察就绪树的超时终止，
+// 再把该结果交给同步重试策略。原先“子进程在短预算前写count”的隐含前提已删除。
+async function observedTimeout(t) {
+  const { result } = await readyTreeTimeout(t, (file, timeoutMs) =>
+    runNode([...NODE_TEST_ARGV_PREFIX, file], { NODE_TEST_CONTEXT: undefined }, { timeoutMs, name: 'retry-timeout-fixture' }))
+  assert.equal(result.status, 124, result.output)
+  return Object.assign(new Error('spawnSync ETIMEDOUT'), { code: 'ETIMEDOUT', signal: 'SIGKILL' })
+}
 
-test('execGhReadSync：第一次挂住超时、第二次成功 → 结果是绿（每次尝试的超时预算不变）', () => {
-  const dir = makeTempDir('nomi-gh-timeout-')
-  try {
-    const counter = path.join(dir, 'count')
-    const script = path.join(dir, 'fake-gh.mjs')
-    fs.writeFileSync(script, HANG_SCRIPT(counter, 1))
-    const out = execGhReadSync([script], { bin: process.execPath, timeout: 1500, killSignal: 'SIGKILL' }, { sleep: () => {} })
-    assert.equal(out.trim(), 'done')
-    assert.equal(fs.readFileSync(counter, 'utf8'), '2')
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
+function withObservedTimeout(t, timeout, hangs, check) {
+  let calls = 0
+  const command = t.mock.method(childProcess, 'execFileSync', (_bin, _argv, options) => {
+    calls += 1
+    assert.equal(options.timeout, FIXTURE_TIMEOUT_MS, '每次尝试的预算不变')
+    if (calls <= hangs) throw timeout
+    return 'done\n'
+  })
+  syncBuiltinESMExports()
+  try { check(); return calls } finally {
+    command.mock.restore()
+    syncBuiltinESMExports()
   }
+}
+
+test('execGhReadSync：第一次挂住超时、第二次成功 → 结果是绿（每次尝试的超时预算不变）', async (t) => {
+  const timeout = await observedTimeout(t)
+  const calls = withObservedTimeout(t, timeout, 1, () => {
+    const out = execGhReadSync(['fixture'], { bin: process.execPath, timeout: FIXTURE_TIMEOUT_MS, killSignal: 'SIGKILL' }, { sleep: () => {} })
+    assert.equal(out.trim(), 'done')
+  })
+  assert.equal(calls, 2)
 })
 
-test('execGhReadSync：一直超时 → 用满 3 次，错误信息写明「每次超时 N 毫秒，共尝试 3 次」', () => {
-  const dir = makeTempDir('nomi-gh-timeout-')
-  try {
-    const counter = path.join(dir, 'count')
-    const script = path.join(dir, 'fake-gh.mjs')
-    fs.writeFileSync(script, HANG_SCRIPT(counter, 99))
+test('execGhReadSync：一直超时 → 用满 3 次，错误信息写明「每次超时 N 毫秒，共尝试 3 次」', async (t) => {
+  const timeout = await observedTimeout(t)
+  const calls = withObservedTimeout(t, timeout, Infinity, () => {
     assert.throws(
-      () => execGhReadSync([script], { bin: process.execPath, timeout: 1500, killSignal: 'SIGKILL' }, { sleep: () => {} }),
+      () => execGhReadSync(['fixture'], { bin: process.execPath, timeout: FIXTURE_TIMEOUT_MS, killSignal: 'SIGKILL' }, { sleep: () => {} }),
       (error) => /每次超时 1500 毫秒，共尝试 3 次/u.test(error.message) && error.retryAttempts === 3,
     )
-    assert.equal(fs.readFileSync(counter, 'utf8'), '3')
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
+  })
+  assert.equal(calls, 3)
+})
+
+// 原生同步超时的集成契约只断言错误，不依赖“用户代码已执行”的副作用。
+test('execGhReadSync：原生命令超时错误进入重试边界，不要求夹具启动完成', () => {
+  assert.throws(
+    () => execGhReadSync(['-e', 'setInterval(() => {}, 1000)'], { bin: process.execPath, timeout: 1, killSignal: 'SIGKILL' }, { attempts: 1 }),
+    (error) => error.code === 'ETIMEDOUT' && error.signal === 'SIGKILL' && error.retryAttempts === 1,
+  )
 })
 
 test('写调用超时仍然只试一次：retryTransient 默认不把超时当瞬断，execGhWriteSync 根本不重试', () => {

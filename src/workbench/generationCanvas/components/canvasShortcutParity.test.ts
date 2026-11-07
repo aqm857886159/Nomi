@@ -66,7 +66,7 @@ function harness(selectedNodeCount: number) {
     ungroupSelectedNodes: vi.fn(),
   }
   const handler = createCanvasKeydownHandler({
-    stageRef: { current: { offsetParent: {} } } as RefObject<HTMLDivElement>,
+    stageRef: { current: { offsetParent: {}, closest: (selector: string) => selector.includes('="false"') ? null : {} } } as RefObject<HTMLDivElement>,
     selectedNodeCount,
     selectedGroupCount: 0,
     activeCategoryId: 'shots',

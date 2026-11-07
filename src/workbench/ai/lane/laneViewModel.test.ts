@@ -9,7 +9,7 @@ import type {
 } from '../../../../electron/shared/agentLane/laneContracts'
 import { LANE_APPROVAL_NOTE_TYPE, LANE_TASK_STATUSES } from '../../../../electron/shared/agentLane/laneContracts'
 import { laneInterventionSource, laneViewModel, type LaneViewModelLabels } from './laneViewModel'
-import { humanizeToolFailure, readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
+import { readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { laneToolFailureDetail, laneToolFailureSummary } from './laneToolFailureText'
 
 const labels: LaneViewModelLabels = {
@@ -87,10 +87,10 @@ describe('laneViewModel', () => {
       ...labels,
       toolLabel: (name, args) => readableToolName(translate, name, args),
       toolSummary: (name, args) => readableToolSummary(translate, name, args),
-      toolFailure: (text, failure) => (failure ? laneToolFailureSummary(translate, failure) : humanizeToolFailure(translate, text)),
+      toolFailure: (_text, failure) => (failure ? laneToolFailureSummary(translate, failure) : undefined),
       toolFailureDetail: failure => laneToolFailureDetail(translate, failure),
     }
-    const receipt = (isError: boolean, denied = false) => {
+    const receipt = (isError: boolean, denied = false, enveloped = true) => {
       next = 0
       const model = laneViewModel(projection([
         ...(denied ? [part({ kind: 'host-note', noteType: LANE_APPROVAL_NOTE_TYPE,
@@ -98,7 +98,9 @@ describe('laneViewModel', () => {
         part({ kind: 'tool-call', toolCallId: 'c1', toolName: 'make_artifact',
           args: { fileType: 'table', title: 'Opening', content: '| shot | note |' }, running: false }),
         part({ kind: 'tool-result', toolCallId: 'c1', toolName: 'make_artifact',
-          text: isError ? 'Validation failed for tool "make_artifact":\n  - nodes: Expected array\n\nReceived arguments:\n{}' : 'Created.', isError }),
+          text: isError ? 'Validation failed for tool "make_artifact":\n  - nodes: Expected array\n\nReceived arguments:\n{}' : 'Created.', isError,
+          // 入参失败的信封由宿主按入参重推（`LaneModelFacts.toolInputFailure`）；冷读旧转录时没有。
+          ...(isError && enveloped ? { failure: { code: 'tool_arguments_invalid', issues: [{ path: 'nodes', kind: 'wrong_type' as const, expected: 'array' }] } } : {}) }),
       ]), display)
       const item = model.items[0]
       if (item.kind !== 'tool') throw new Error('missing receipt')
@@ -107,14 +109,18 @@ describe('laneViewModel', () => {
     expect(receipt(false)).toMatchObject({ label: 'agentResident.toolCanvasWriteArtifact', action: 'canvas', status: 'output-available' })
     expect(receipt(false).summary).toContain('agentResident.toolCanvasWriteArtifactSummary')
     expect(receipt(true).summary).not.toContain('agentResident.toolNoGeneration')
-    expect(receipt(true).summary).toContain('agentResident.issueExpected')
+    // 2026-11-07：行尾说「哪个字段 · 该填什么」，不再是一句「参数不合法」。
+    expect(receipt(true).summary).toBe('agentToolFailure.argumentsWithField')
     // C5（2026-09-18）：展开体**不再**是模型收到的那段英文散文。这条断言以前逐字锁着
     // `Validation failed for tool "make_artifact": …\nReceived arguments:\n{}`——
     // 也就是把「中文界面印英文原文 + 回显整个参数对象」锁成了正确行为。
-    // 现在失败一律走本地文案：这一条没有结构化信封（旧转录形状），退回正文猜法的结果。
-    expect(receipt(true).output).toContain('agentResident.issueExpected')
+    expect(receipt(true).output).toContain('agentToolFailure.issueWrongType')
     expect(receipt(true).output).not.toContain('Received arguments')
     expect(receipt(true).output).not.toContain('Validation failed for tool')
+    // 没有信封（冷读旧转录）：不按正文猜，也不印原文——只剩红色的状态。
+    expect(receipt(true, false, false)).toMatchObject({ status: 'output-error' })
+    expect(receipt(true, false, false).summary).toBeUndefined()
+    expect(receipt(true, false, false).output).toBeUndefined()
     expect(receipt(true, true)).toMatchObject({ status: 'output-denied' })
     expect(receipt(true, true).summary).toBeUndefined()
   })
@@ -134,7 +140,7 @@ describe('laneViewModel', () => {
       ...labels,
       toolLabel: (name, args) => readableToolName(translate, name, args),
       toolSummary: (name, args) => readableToolSummary(translate, name, args),
-      toolFailure: (text, failure) => (failure ? laneToolFailureSummary(translate, failure) : humanizeToolFailure(translate, text)),
+      toolFailure: (_text, failure) => (failure ? laneToolFailureSummary(translate, failure) : undefined),
       toolFailureDetail: failure => laneToolFailureDetail(translate, failure),
     }
     next = 0
@@ -157,7 +163,7 @@ describe('laneViewModel', () => {
     const translate = (key: string) => key
     const display: LaneViewModelLabels = {
       ...labels,
-      toolFailure: (text, failure) => (failure ? laneToolFailureSummary(translate, failure) : humanizeToolFailure(translate, text)),
+      toolFailure: (_text, failure) => (failure ? laneToolFailureSummary(translate, failure) : undefined),
       toolFailureDetail: failure => laneToolFailureDetail(translate, failure),
     }
     next = 0
@@ -171,12 +177,12 @@ describe('laneViewModel', () => {
     expect(item.receipt.status).toBe('output-error')
   })
 
-  it('C5：码不在闭合集合里也说本地话，把码带出来给排查用——不退回模型正文', () => {
+  it('C5：码不在闭合集合里也说本地话，不带码（码给排查看）——不退回模型正文', () => {
     const translate = (key: string, options?: Record<string, unknown>) =>
       (options ? `${key}(${Object.values(options).join(',')})` : key)
     const display: LaneViewModelLabels = {
       ...labels,
-      toolFailure: (text, failure) => (failure ? laneToolFailureSummary(translate, failure) : humanizeToolFailure(translate, text)),
+      toolFailure: (_text, failure) => (failure ? laneToolFailureSummary(translate, failure) : undefined),
       toolFailureDetail: failure => laneToolFailureDetail(translate, failure),
     }
     next = 0
@@ -188,9 +194,10 @@ describe('laneViewModel', () => {
     ]), display)
     const item = model.items[0]
     if (item.kind !== 'tool') throw new Error('missing receipt')
-    expect(item.receipt.summary).toBe('agentToolFailure.unknown(generation_pricing_unknown)')
-    expect(item.receipt.output).toContain('agentToolFailure.unknown(generation_pricing_unknown)')
-    expect(item.receipt.output).toContain('agentToolFailure.allowedValues(a、b)')
+    expect(item.receipt.summary).toBe('agentToolFailure.unknown')
+    expect(item.receipt.output).toContain('agentToolFailure.unknown')
+    expect(item.receipt.output).not.toContain('generation_pricing_unknown')
+    expect(item.receipt.output).toContain('agentToolFailure.allowedValues(a')
     expect(item.receipt.output).not.toContain('provider prose')
   })
 

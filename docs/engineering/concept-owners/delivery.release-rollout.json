@@ -1,0 +1,27 @@
+{
+  "name": "稳定发布比例与暂停计划",
+  "subject": "delivery.release-rollout",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "scripts/release-rollout.mjs",
+    "symbol": "planMetadata"
+  },
+  "write_api": [
+    {
+      "path": "scripts/release-rollout.mjs",
+      "symbol": "planMetadata"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "scripts/release-rollout.node-test.mjs",
+  "allowed_consumers": [
+    ".github/workflows/desktop-release.yml",
+    "scripts/release-rollout.mjs"
+  ],
+  "since": "2026-10-29",
+  "notes": "两平台比例和校验和只能经planMetadata统一验证再改写；公开操作必须显式确认，暂停用发布状态，不使用非法0比例。"
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { anySubmissionMayHaveReachedProvider, jobEndedBeforeAcceptance, jobMayHaveReachedProvider } from './productionShotJobs'
+import { anySubmissionMayHaveReachedProvider, jobEndedAfterProviderAnswer, jobEndedBeforeAcceptance, jobMayHaveReachedProvider } from './productionShotJobs'
 import type { ProductionJob } from '../productionRun/productionRunTypes'
 
 // 「有没有可能到过供应商」的唯一判据：面板付费卡的失败文案、Agent generate 的失败码、这一次出价的逐镜结局都只读它。
@@ -36,5 +36,19 @@ describe('jobMayHaveReachedProvider', () => {
     expect(anySubmissionMayHaveReachedProvider([job('authorized'), job('needs_attention', 'provider_not_reached')])).toBe(false)
     expect(anySubmissionMayHaveReachedProvider([job('authorized'), job('polling')])).toBe(true)
     expect(anySubmissionMayHaveReachedProvider([])).toBe(false)
+  })
+})
+
+describe('jobEndedAfterProviderAnswer（2026-10-28）', () => {
+  it('答了、结果没落进本机（output_retrieval_failed）：确定到过供应商、可能已扣，也确定不是结果未知', () => {
+    expect(jobEndedAfterProviderAnswer(job('needs_attention', 'output_retrieval_failed'))).toBe(true)
+    expect(jobMayHaveReachedProvider(job('needs_attention', 'output_retrieval_failed'))).toBe(true)
+    expect(jobEndedBeforeAcceptance(job('needs_attention', 'output_retrieval_failed'))).toBe(false)
+  })
+
+  it('其余都不是：结果未知、受理之前就结束的、还在路上的、别的失败', () => {
+    for (const shape of [job('submission_unknown'), job('reconciling'), job('needs_attention', 'provider_rejected'), job('needs_attention', 'provider_not_reached'), job('needs_attention', 'single_shot_observation_failed'), job('polling'), job('submitting')]) {
+      expect(jobEndedAfterProviderAnswer(shape), `${shape.status}:${shape.errorCode ?? ''}`).toBe(false)
+    }
   })
 })

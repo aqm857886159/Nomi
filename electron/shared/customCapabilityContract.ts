@@ -232,13 +232,14 @@ function parseSlot(value: unknown): ArchetypeReferenceSlot | null {
     !kind ||
     !label ||
     !Number.isInteger(min) ||
-    !Number.isInteger(max) ||
+    (max !== undefined && !Number.isInteger(max)) ||
     typeof min !== "number" ||
-    typeof max !== "number" ||
+    (max !== undefined && typeof max !== "number") ||
     min < 0 ||
-    max < 1 ||
-    min > max ||
-    max > MAX_REFERENCES_PER_SLOT ||
+    min > MAX_REFERENCES_PER_SLOT ||
+    (max !== undefined && max < 1) ||
+    (max !== undefined && min > max) ||
+    (max !== undefined && max > MAX_REFERENCES_PER_SLOT) ||
     (SINGLE_REFERENCE_KINDS.has(kind) && max !== 1)
   ) return null;
 
@@ -254,7 +255,7 @@ function parseSlot(value: unknown): ArchetypeReferenceSlot | null {
     kind,
     label,
     min,
-    max,
+    ...(max !== undefined ? { max } : {}),
     ...(inputKey ? { inputKey } : {}),
     ...(typeof value.asArray === "boolean" ? { asArray: value.asArray } : {}),
     ...(typeof value.characterIndexed === "boolean" ? { characterIndexed: value.characterIndexed } : {}),
@@ -401,4 +402,14 @@ export function parseCustomCapabilityContract(meta: unknown): CustomCapabilityCo
   } catch {
     return null;
   }
+}
+
+/**
+ * What a newly submitted card still lacks. Only a row that carries the card's own ownership record (`declarationProjection`) can be
+ * incomplete: its record says a media contract was written, so a contract that no longer parses is a real gap. A row without that record
+ * was never projected from a card, so nothing here may call it incomplete, and nothing guesses a capability from a model name.
+ */
+export function missingDeclaredCapabilityFields(meta: unknown): string[] {
+  if (!isRecord(meta)) return [];
+  return isRecord(meta.declarationProjection) && meta.declarationProjection.hasMediaContract === true && !parseCustomCapabilityContract(meta) ? ["customCapabilityContract"] : [];
 }

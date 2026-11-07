@@ -11,7 +11,8 @@ export function groupGenerateButton(win) {
 
 /** 把已选中的 ≥2 个节点编成一组（点框选浮条上的「编组」）。编完选中的就是这个整组，组工具条随之出现。 */
 export async function groupSelectedNodes(win) {
-  const groupButton = win.locator('.generation-canvas-v2__selection-toolbar').getByRole('button', { name: /^(编组|Group)$/ })
+  // 按钮上写「编组」，读屏名是「创建分组 (⌘G)」——按读屏名前缀找，和免费走查的 [aria-label^="创建分组"] 同一口径。
+  const groupButton = win.locator('.generation-canvas-v2__selection-toolbar').getByRole('button', { name: /^(创建分组|Create group)/ })
   await clickOrFail(groupButton, '框选浮条「编组」')
   await expect(win.locator(GROUP_TOOLBAR), '编组后出现组工具条').toBeVisible()
 }

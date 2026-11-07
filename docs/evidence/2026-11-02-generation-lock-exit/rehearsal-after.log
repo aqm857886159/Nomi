@@ -1,0 +1,45 @@
+[walkthrough] content viewport {"width":1280,"height":860}
+feel record: generation-lock-exit/waitForFunction.png; findings=67; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-storyboard-confirm.png; findings=67; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=24; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-storyboard-errors.png; findings=24; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=58; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-first-hosting-disclosure.png; findings=58; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=30; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-storyboard-release.png; findings=30; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=22; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-storyboard-all-results.png; findings=22; new-surfaces=1; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=22; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-idle-return.png; findings=22; new-surfaces=1; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=8; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=43; new-surfaces=1; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-canvas-cancel-confirm.png; findings=43; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=8; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=13; new-surfaces=1; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-canvas-quota.png; findings=13; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=13; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=14; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-canvas-refused.png; findings=14; new-surfaces=4; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=13; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-release-1.png; findings=13; new-surfaces=4; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=14; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-canvas-released.png; findings=14; new-surfaces=4; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=46; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-list-confirm.png; findings=46; new-surfaces=4; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=16; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-list-quota.png; findings=16; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/waitForFunction.png; findings=15; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+feel record: generation-lock-exit/zh-CN-scene-list-unknown.png; findings=15; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-2fec303d-9f69-4d9d-a5fa-194b38b6efc7
+[walkthrough] content viewport {"width":1280,"height":860}
+feel record: generation-lock-exit/waitForFunction.png; findings=8; new-surfaces=1; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/waitForFunction.png; findings=17; new-surfaces=3; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/zh-CN-scene-restart-canvas.png; findings=17; new-surfaces=4; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/waitForFunction.png; findings=14; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/zh-CN-scene-restart-list.png; findings=14; new-surfaces=2; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/waitForFunction.png; findings=22; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/zh-CN-scene-restart-storyboard.png; findings=22; new-surfaces=1; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/waitForFunction.png; findings=13; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/zh-CN-scene-release-3.png; findings=13; new-surfaces=2; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/waitForFunction.png; findings=12; new-surfaces=0; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+feel record: generation-lock-exit/zh-CN-scene-restart-released.png; findings=12; new-surfaces=2; evidence: [worktree]/artifacts/feel/generation-lock-exit-25cc4bbb-d0d1-4aa1-9e59-9ecbd1157f61
+LOCK_EXIT_HEARTBEAT {"maxMs":70,"samples":363}

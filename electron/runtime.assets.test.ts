@@ -8,7 +8,10 @@ import { createProject, importRemoteAsset, listProjectAssets, localizeTaskAsset,
 import { importLocalFile } from "./assets/localFileImport";
 import { resolveFfmpegPath } from "./export/ffmpegRunner";
 
-vi.mock("./export/mediaProbe", () => ({
+// 只把探测换成假的，模块其余导出照用真的：导入归一化靠 BoundedProcessError 认出「取消」、经有界运行器起 ffmpeg，
+// 漏掉的导出在 vitest 里一访问就抛，会把「转码失败 → 回退原样导入」这条路变成导入失败。
+vi.mock("./export/mediaProbe", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./export/mediaProbe")>()),
   MEDIA_DECODER_PROTOCOL_WHITELIST: "file,pipe,data",
   probeMediaMetadata: vi.fn(async () => ({ kind: "video", hasAudio: false, durationSeconds: 3.0625 })),
 }));

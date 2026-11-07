@@ -3,7 +3,7 @@
  * 编辑器 store（createDirectorStore + 会话登记处）。手改的写法和真编辑器一样：关着时写节点 meta，开着时调 store 动作。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DirectorWriteInput } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
+import { directorWriteSemanticInputSchema, type DirectorWriteInput } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
 import { applyProposalBatch } from '../../../agent/proposalTxn'
 import { applyCompensationOps } from '../../../agent/proposalUndo'
 import { generationCanvasTools } from '../../../agent/generationCanvasTools'
@@ -40,7 +40,7 @@ function plan(lastEnd = 6) {
 }
 
 async function run(input: DirectorWriteInput) {
-  const outcome = await applyProposalBatch([{ toolCallId: `call-${Math.random()}`, toolName: input.operation, effectiveArgs: input as unknown as Record<string, unknown> }])
+  const outcome = await applyProposalBatch([{ toolCallId: `call-${Math.random()}`, toolName: input.operation, effectiveArgs: directorWriteSemanticInputSchema.parse(input) as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error(`aborted: ${outcome.reason}`)
   return { result: outcome.results[0] as DirectorWriteDomainResult, compensation: outcome.compensation, proposalId: outcome.proposalId }
 }

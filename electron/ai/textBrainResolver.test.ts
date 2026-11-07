@@ -80,6 +80,20 @@ describe("Nomi text brain resolver", () => {
     expect(resolver.selectTextModelCandidates(state, { modelKey: "plain" }, true)[0].model.modelKey).toBe("plain");
   });
 
+  // 读图能力三态（设计卡 docs/plan/2026-10-27-vision-capability-declared.md，A9）：能 > 不知道 > 不能。
+  // 目录序故意把「不能」放最前：只按「能 / 其余」两档排的旧判据会把它排在「不知道」前面。
+  it("ranks declared image input first, undeclared custom rows next, and undeclared built-in seed rows last", () => {
+    const state = catalog({ vendors: [freeVendor("apimart"), freeVendor("my-relay")], models: [
+      model("apimart", "deepseek-v4-pro"),
+      model("my-relay", "my-gpt"),
+      model("my-relay", "declared", { meta: { supportsImageInput: true } }),
+    ] });
+    expect(resolver.selectTextModelCandidates(state, undefined, true).map((candidate) => `${candidate.vendor.key}/${candidate.model.modelKey}`))
+      .toEqual(["my-relay/declared", "my-relay/my-gpt", "apimart/deepseek-v4-pro"]);
+    expect(resolver.selectTextModelCandidates(state).map((candidate) => candidate.model.modelKey))
+      .toEqual(["deepseek-v4-pro", "my-gpt", "declared"]);
+  });
+
   it("excludes prompt-refine-only, disabled, non-text and orphaned candidates", () => {
     const state = catalog({
       vendors: [freeVendor("a"), freeVendor("off", { enabled: false })],

@@ -1,0 +1,35 @@
+{
+  "name": "这一行文本模型能不能读图（能 / 不能 / 不知道，只认声明）",
+  "subject": "catalog.model-image-input",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/ai/agentUserContent.ts",
+    "symbol": "modelImageInputSupport"
+  },
+  "write_api": [
+    {
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "modelImageInputSupport"
+    }
+  ],
+  "forbidden_derivations": [
+    {
+      "symbol": "VISION_MODEL_RE",
+      "kind": "definition",
+      "why": "2026-10-27 前没声明的行拿模型名撞的那条写死正则：名字撞不上（新型号、用户自起名的中转模型）就当不能读图，附图在发出前被静默丢掉。已删，判据只认声明"
+    },
+    {
+      "symbol": "modelSupportsImageInput",
+      "kind": "definition",
+      "why": "旧的两态判据（有声明用声明，否则按名字猜），把「不知道」折叠成「不能」；已换成三态 modelImageInputSupport，调用方不再拿布尔"
+    }
+  ],
+  "parity_test": "electron/ai/agentUserContent.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-vision-capability-declared.root-cause.json，设计卡 docs/plan/2026-10-27-vision-capability-declared.md。判定：meta.supportsImageInput 是布尔就是它（种子行由 seedBuiltins 对账写入，Antigravity 行由能力验证写入）；没声明、且这一行的身份在 builtinCatalogModelKeys(这一行的 vendorKey) 里 = 不能（内置能读图的行都已声明 true，种子矩阵逐行核）；其余没声明（自配、中转、本地、兄弟连接、内置 vendor 下用户自加的行）= 不知道。模型名、别名、vendor 是不是内置都不参与；meta 上渲染层写得动的字段（catalogLifecycle 等）也不拿来判种子身份。三扇主进程门读同一个三态、各自处理「不知道」：Agent 车道（laneDesktopInput → buildAgentUserContent）只在「不能」时丢图并附注；带图选型（textBrainResolver.imageInputRank）排 能 > 不知道 > 不能；拆解读图腿（deconstructVisionLeg.resolveVisionLeg）点名「不能」开拆前拒、软偏好「不能」才跳过、自动挑第一名是「不能」= 没有读图模型。渲染层拆解下拉（deconstructLegChoice）仍只隐去显式 false——只隐去主进程也判「不能」的那段，不会藏掉主进程会接受的行；要它读三态得把判定投影过 IPC，下一版。类检查：agentUserContent.test.ts 的名字矩阵 + 种子矩阵（applyBuiltinSeeds 真目录取数），laneImageInputLoopback.test.ts 经真 pi 走本机回环录请求体（三种协议）。"
+}

@@ -3,6 +3,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
 import { IconCheck, IconCopy, IconExternalLink, IconPencil, IconPhoto, IconTrash, IconVideo, IconX } from '@tabler/icons-react'
+import { useModalInputLayer } from '../../design/modalInputLayer'
 import { cn } from '../../utils/cn'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
 import { libraryGroup } from '../library/libraryGroups'
@@ -32,6 +33,7 @@ const ANIM_MS = 260
  * 底栏左边是「来源 ↗」（我的条目是删除），右边（我的）编辑、复制图标、唯一主按钮「放上画布」。
  */
 export function PromptPreviewOverlay({ prompt, originRect, onClose, onAddToCanvas, addToCanvasBlockedReason, onEdit, onDelete }: Props): JSX.Element {
+  useModalInputLayer(true)
   const { t, i18n } = useTranslation()
   const boxRef = React.useRef<HTMLDivElement>(null)
   const [closing, setClosing] = React.useState(false)

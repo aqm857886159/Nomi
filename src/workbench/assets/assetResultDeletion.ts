@@ -10,6 +10,8 @@ import type { GenerationCanvasNode, GenerationNodeResult } from '../generationCa
 import type { AssetOrigin, AssetRef } from './assetTypes'
 import type { TimelineState } from '../timeline/timelineTypes'
 
+export type AssetDeletionRequest = AssetRef | { origin: Extract<AssetOrigin, { source: 'project' }> }
+
 export type ProjectFileTarget = { projectId: string; relativePath: string }
 
 /** 项目里还有谁在用这份文件。画布是正本；时间轴上的片段也直接拿着结果的地址（删了它片段就黑了）。 */
@@ -136,10 +138,13 @@ function unknownOrigin(origin: never): never {
   throw new Error(`Unknown asset origin: ${JSON.stringify(origin)}`)
 }
 
-export function planAssetDeletion(asset: AssetRef, scope: AssetDeletionScope): AssetDeletionPlan {
+export function planAssetDeletion(asset: AssetDeletionRequest, scope: AssetDeletionScope): AssetDeletionPlan {
   const origin = asset.origin
   switch (origin.source) {
-    case 'canvas': return planResultDeletion(asset, origin, scope)
+    case 'canvas': {
+      if (!('renderUrl' in asset)) throw new Error('Canvas result deletion requires a result asset')
+      return planResultDeletion(asset, origin, scope)
+    }
     case 'project': return planFileDeletion(origin, scope)
     // 素材来源多一种（AssetOrigin 加成员）而这里没认它：编译不过，不会悄悄落进「什么都不删」。
     default: return unknownOrigin(origin)

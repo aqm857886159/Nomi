@@ -2,7 +2,6 @@ import { BrowserWindow, WebContentsView, ipcMain, session, shell } from "electro
 import {
   BROWSER_IMAGE_DRAG_END_CONSOLE_MESSAGE,
   BROWSER_IMAGE_DRAG_START_CONSOLE_PREFIX,
-  BROWSER_IMAGE_PROMPT_CONSOLE_PREFIX,
   BROWSER_TEXT_PROMPT_CONSOLE_PREFIX,
   installBrowserImageDragBridge,
   installBrowserPromptHoverBridge,
@@ -20,7 +19,6 @@ import {
   captureBrowserResource,
   importBrowserMedia,
 } from "../media/browserViewMedia";
-import { normalizeCaptureSourceRect } from "../media/browserCaptureSource";
 import { selectBrowserPromptScreenshotRect } from "../media/browserPromptScreenshotSelection";
 import {
   applyBrowserAssetOverlayMouseEvents,
@@ -65,7 +63,7 @@ import {
   getSenderWindow,
   normalizeBounds,
   normalizeBrowserUrl,
-  normalizePromptExtractionMode,
+  promptCaptureEventFromConsole,
   readViewId,
   sameRectangle,
   sendBrowserViewState,
@@ -93,7 +91,6 @@ import type {
   BrowserAssetOverlayPayload,
   BrowserAssetOverlayStatePayload,
   BrowserChromeMenuPayload,
-  BrowserResourceCapturePayload,
   BrowserViewCreatePayload,
   BrowserViewIdPayload,
   BrowserViewImportMediaPayload,
@@ -148,44 +145,11 @@ function attachBrowserViewEvents(record: BrowserViewRecord): void {
     void captureBrowserResource(record);
   });
   contents.on("console-message", (_event, _level, message) => {
-    if (message.startsWith(BROWSER_IMAGE_PROMPT_CONSOLE_PREFIX)) {
+    // 页内「提取」：事件怎么从这一行来、来源页为什么换成视图真实地址，见 promptCaptureEventFromConsole。
+    const promptCapture = promptCaptureEventFromConsole(record, message);
+    if (promptCapture) {
       const win = BrowserWindow.fromId(record.ownerWindowId);
-      if (!win || win.isDestroyed()) return;
-      try {
-        const payload = JSON.parse(
-          message.slice(BROWSER_IMAGE_PROMPT_CONSOLE_PREFIX.length),
-        ) as BrowserResourceCapturePayload;
-        const url = typeof payload?.url === "string" ? payload.url.trim() : "";
-        if (!url) {
-          win.webContents.send("browser:view:prompt-capture", {
-            ok: false,
-            viewId: record.viewId,
-            tabId: record.tabId,
-            reason: "empty",
-          });
-          return;
-        }
-        win.webContents.send("browser:view:prompt-capture", {
-          ok: true,
-          viewId: record.viewId,
-          tabId: record.tabId,
-          url,
-          title: typeof payload?.title === "string" ? payload.title : "",
-          fileName: typeof payload?.fileName === "string" ? payload.fileName : "",
-          pageUrl: typeof payload?.pageUrl === "string" ? payload.pageUrl : "",
-          pageTitle: typeof payload?.pageTitle === "string" ? payload.pageTitle : "",
-          extractionMode: normalizePromptExtractionMode(payload?.extractionMode),
-          sourceRect: normalizeCaptureSourceRect(record, payload?.sourceRect) || undefined,
-        });
-      } catch (error) {
-        win.webContents.send("browser:view:prompt-capture", {
-          ok: false,
-          viewId: record.viewId,
-          tabId: record.tabId,
-          reason: "error",
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
+      if (win && !win.isDestroyed()) win.webContents.send("browser:view:prompt-capture", promptCapture);
       return;
     }
     if (message.startsWith(BROWSER_TEXT_PROMPT_CONSOLE_PREFIX)) {

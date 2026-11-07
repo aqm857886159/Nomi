@@ -1,0 +1,204 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Now.dc.html": {
+      "expand": "fill",
+      "h": 700,
+      "is_interactive": true,
+      "title": "现在（真实截图，三页三个样）",
+      "w": 2000,
+      "x": 0,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "可以点：分镜页，点「再发一次」试试",
+      "w": 1280,
+      "x": 2080,
+      "y": 0
+    },
+    "RestartStoryboard.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "新 · 重启后 · 分镜页",
+      "w": 1280,
+      "x": 0,
+      "y": 780
+    },
+    "RestartCanvas.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "新 · 重启后 · 画布",
+      "w": 1280,
+      "x": 1360,
+      "y": 780
+    },
+    "RestartList.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "新 · 重启后 · 生成列表",
+      "w": 1280,
+      "x": 2720,
+      "y": 780
+    },
+    "ConfirmStoryboard.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "新 · 点了再发一次 · 分镜页",
+      "w": 1280,
+      "x": 0,
+      "y": 1720
+    },
+    "ConfirmCanvas.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "新 · 点了再发一次 · 画布",
+      "w": 1280,
+      "x": 1360,
+      "y": 1720
+    },
+    "ConfirmList.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "新 · 点了再发一次 · 生成列表",
+      "w": 1280,
+      "x": 2720,
+      "y": 1720
+    },
+    "WaitingStoryboard.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "新 · 中转很慢，免费取回排第一 · 分镜页",
+      "w": 1280,
+      "x": 0,
+      "y": 2660
+    },
+    "WaitingCanvasConfirm.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "新 · 中转很慢，点生成 ↑ · 画布",
+      "w": 1280,
+      "x": 1360,
+      "y": 2660
+    },
+    "NoticeStoryboard.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "不变 · 整批跳过这张的通知 · 分镜页",
+      "w": 1280,
+      "x": 2720,
+      "y": 2660
+    },
+    "EnDarkConfirm.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "英文暗色 · 分镜页确认",
+      "w": 1280,
+      "x": 0,
+      "y": 3600
+    },
+    "EnDarkCanvas.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "英文暗色 · 画布",
+      "w": 1280,
+      "x": 1360,
+      "y": 3600
+    },
+    "EnLightList.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "英文亮色 · 生成列表确认",
+      "w": 1280,
+      "x": 2720,
+      "y": 3600
+    },
+    "ZhDarkStoryboard.dc.html": {
+      "expand": "fill",
+      "h": 860,
+      "is_interactive": true,
+      "title": "中文暗色 · 分镜页",
+      "w": 1280,
+      "x": 0,
+      "y": 4540
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-02T06:50:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "noteOrder": [
+    "plain",
+    "decided",
+    "priorArt",
+    "roads"
+  ],
+  "notes": {
+    "plain": {
+      "size": 24,
+      "w": 1240,
+      "x": 0,
+      "y": -760,
+      "text": "一句话：结果不知道的卡不再画成失败；再发一次之前，三页弹同一张已有的花钱确认卡，上面写清楚为什么可能多扣钱。\n\n改了什么：\n1. 确认：删掉我这版新加的小浮层和卡内确认条，全部走 Nomi 已有的花钱确认卡。\n2. 确认卡的字：标题「再发一次这张图片？」；正文说上一次的情况，再说「可能会再扣一次钱」；按钮「取消」「再发一次」。「继续」不用了（要你点头，见下）。\n3. 卡的样子：不再用失败的红色，换成和「可找回」同一种纸底，图标用警示色。\n4. 三页同一套：再发一次都是黑色主按钮，去任务中心都叫「在任务中心查看」。\n5. 分镜页慢任务：免费的「重新取回」排第一，要花钱的「再发一次」排在它下面，不再是红的。\n6. 同一句话在画布上不再写两遍（现在卡里一遍，节点上方还有一条被挡住的）。\n\n不变：复制详情、反馈问题、技术详情是所有失败卡共用的，这次不动；整批跳过的通知不变；手快连点只发一次；Agent 不发。\n分镜页按已批的样张画（删掉两条之后的样子）。"
+    },
+    "decided": {
+      "size": 24,
+      "w": 1240,
+      "x": 1320,
+      "y": -760,
+      "text": "以前定过什么（这次才查）\n\n你 09-25：单个节点生成不弹窗。确认卡是为了别让人意外花钱。\n你 09-26：卡上不写金额，等官方额度上线。\n09-08 通知策略：确认弹窗只用在必须停下来决定的风险上，花钱算。\n你 10-07（设计系统 1.9）：花钱才弹确认，走确认框，写清后果，主动作写具体动词，不写泛词。\n10-16：分镜批量绕开花钱确认的统一入口，付费验收抓到过一次。\n可找回态的代码注释：刻意不进红色，红色会让人以为白花了钱。\n你 11-02：不会再有发不出去的卡；重启后那张不算失败；确认这一步保留；字是「再发一次」「可能会再扣一次钱。」「取消」「继续」。\n\n矛盾在这里：「继续」和 10-07 的「主动作写具体动词」对不上，我不能自己挑，等你定。我推荐「再发一次」。"
+    },
+    "priorArt": {
+      "size": 24,
+      "w": 1240,
+      "x": 2640,
+      "y": -760,
+      "text": "别人怎么做\n\nNN/g 确认框指南 https://www.nngroup.com/articles/confirmation-dialog/\n花钱又撤不回才确认；写清后果；按钮写具体动作。→ 改了：「继续」换成「再发一次」，加一句上一次的情况。\n\nChromium 重新提交表单 https://chromium.googlesource.com/chromium/src/+/9e001703a2/components/dialog_strings.grdp\n同一种事：再发可能把动作重复一遍。用弹窗，标题说情况，正文说后果；按钮写 Continue。→ 确认了用弹窗；按钮不学它。\n\nWCPOS 结果未知 https://docs.wcpos.com/error-codes/PAYMENT201\n「结果未知」单独一类，不算失败，叫人先查服务商记录再重发。→ 改了：卡不再用失败红。Nomi 看不到服务商账单，所以只提醒，不拦人。\n\nApple 提示框规范 https://developer.apple.com/design/human-interface-guidelines/alerts\n按钮用和提示文字直接相关的动词。→ 确认了。"
+    },
+    "roads": {
+      "size": 24,
+      "w": 1240,
+      "x": 3960,
+      "y": -760,
+      "text": "要保住的结果：不会再有发不出去的卡；点之前知道可能多花钱。\n\n三条路\n① 沿原方向修：留小确认条，把位置修好。分镜格只有 135 宽，放不下说明；点 ↑ 的地方和卡不在一处；还是第二套花钱确认。不选。\n② 换做法，接现成的：用已有的花钱确认卡。三页一张，说明放得下，代码还能删掉一整套确认状态。代价：多一个居中弹窗。这种情况很少（关窗、崩溃或等超过两分钟后才有），不是每天点几十次的摩擦。选这条。\n③ 删掉确认，点了就发：卡上的「再发一次」确实写了可能扣费，但点生成 ↑ 时眼前没有这句话，会不知不觉多花一份钱。你也定了确认保留。不选。\n\n要你权衡的只有一点：卡上已经写了可能扣费，再问一次是多点一下；换来的是手滑不多花钱。我选多点一下。"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Now.dc.html",
+    "RestartStoryboard.dc.html",
+    "RestartCanvas.dc.html",
+    "RestartList.dc.html",
+    "ConfirmStoryboard.dc.html",
+    "ConfirmCanvas.dc.html",
+    "ConfirmList.dc.html",
+    "WaitingStoryboard.dc.html",
+    "WaitingCanvasConfirm.dc.html",
+    "NoticeStoryboard.dc.html",
+    "EnDarkConfirm.dc.html",
+    "EnDarkCanvas.dc.html",
+    "EnLightList.dc.html",
+    "ZhDarkStoryboard.dc.html"
+  ],
+  "pages": [],
+  "title": "结果未知的卡"
+}

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import { builtinModules } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -9,6 +10,7 @@ import { CI_E2E_CHAIN } from './run-ci-e2e-chain.mjs'
 import { assertPartition, E2E_UNITS, listShardItems, planShards } from './lib/e2eShardPlan.mjs'
 import { CORE_SMOKE_ADVISORY_CHECK_NAMES, CORE_SMOKE_ADVISORY_FIXTURES, CORE_SMOKE_BLOCKING_CHECK_NAMES, CORE_SMOKE_BLOCKING_FIXTURES, CORE_SMOKE_CHECK_NAMES, CORE_SMOKE_FIXTURES, coreSmokeCheckName } from './validation-policy.mjs'
 import { REQUIRED_MERGED_CHECKS } from './git-delivery.mjs'
+import { PR_BODY_CHECK_NAME, PR_BODY_WORKFLOW_FILE, PR_BODY_WORKFLOW_NAME } from './lib/prBodyCheck.mjs'
 import { CHROMIUM_INSTALL_STEP as PLAYWRIGHT_INSTALL_STEP } from './ci-browser-install.mjs'
 import { CORE_SMOKE_SCENARIOS } from '../tests/ux/core-smoke/scenarios.mjs'
 import { PROFILES, STAGES } from '../tests/system/profiles.mjs'
@@ -537,11 +539,20 @@ test('browser feel fixtures run in the Chromium-equipped desktop lane, never Uni
 
 // 没设 timeout-minutes 的 job 卡住时 GitHub 要跑满 6 小时才杀，合并队列堵半天还不报红。
 // 数字按各 job 近 30 次成功运行的最长耗时 ×2~3 给（见引入它的 PR 表）；这里只钉「每个 job 都有」。
+// 调可复用工作流的 job（写了 uses:）GitHub 不许写 timeout-minutes，超时只能写在被调那份工作流自己的 job 上
+// （https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations 「Supported keywords for jobs that call a reusable workflow」）。
+// 所以只放行调本目录工作流的 job：那份文件同一个循环会查到；调别的仓库的，它的超时这里查不到，照红。
 test('every job in every workflow declares a job-level timeout-minutes', () => {
   const dir = path.join(repoRoot, '.github/workflows')
-  for (const file of fs.readdirSync(dir).filter((name) => /\.ya?ml$/.test(name))) {
+  const files = fs.readdirSync(dir).filter((name) => /\.ya?ml$/.test(name))
+  for (const file of files) {
     const doc = load(fs.readFileSync(path.join(dir, file), 'utf8'))
     for (const [id, job] of Object.entries(doc.jobs ?? {})) {
+      if (job.uses !== undefined) {
+        const callee = /^\.\/\.github\/workflows\/([^/]+\.ya?ml)$/.exec(job.uses)?.[1]
+        assert.ok(callee && files.includes(callee), `${file} job "${id}" calls ${job.uses}: only workflows in .github/workflows can be called, so their own jobs carry timeout-minutes`)
+        continue
+      }
       assert.ok(Number.isFinite(job['timeout-minutes']) && job['timeout-minutes'] > 0, `${file} job "${id}" needs timeout-minutes`)
     }
   }
@@ -632,4 +643,81 @@ test('every workflow job that runs a repository script checks out the repository
     }
   }
   assert.deepEqual(offenders, [])
+})
+
+// ── 「PR Body」检查（.github/workflows/pr-body.yml，2026-11-07）────────────────────────────────
+// 正文合并档判据从 Quality Gate 的 Contracts 里拆出来：Quality Gate 只在推送时触发，正文改了它不知道，
+// 四类 PR「先开 PR 再派验收」第一次 CI 按构造必红（10-24 → 11-07：94 次 PR 红里 63 次带这一项、46 次只有这一项）。
+// 这里钉死这个检查的形状：正文一改就重判（edited）、只读权限、不装依赖、正文现取不读事件负载、名字与合并前扫描同一份。
+const readPrBodyWorkflow = () => {
+  const text = fs.readFileSync(path.join(repoRoot, PR_BODY_WORKFLOW_FILE), 'utf8')
+  return { text, definition: load(text) }
+}
+
+test('PR Body check reruns the merge-stage body criteria on every body edit, with read-only permissions', () => {
+  const { text, definition } = readPrBodyWorkflow()
+  assert.equal(definition.name, PR_BODY_WORKFLOW_NAME)
+  // edited = 改标题 / 正文 / 基线分支；没有它，改完正文还得重推或手点重跑——这条检查就白拆了。
+  assert.deepEqual(definition.on, { pull_request: { types: ['opened', 'edited', 'synchronize', 'reopened'] } })
+  // 只读：判正文要读 PR（gh pr view）和仓库内容（git diff），别的一概不要。
+  assert.deepEqual(definition.permissions, { contents: 'read', 'pull-requests': 'read' })
+  // 连改几次正文只留最新一次：旧的取消掉（合并前扫描只认最新一次，见 scripts/lib/prBodyCheck.mjs）。
+  assert.deepEqual(definition.concurrency, { group: 'pr-body-${{ github.event.pull_request.number }}', 'cancel-in-progress': true })
+  const jobs = Object.values(definition.jobs)
+  assert.equal(jobs.length, 1, 'PR Body 只有一个 job：检查名就是合并前扫描认的那个名字')
+  const [job] = jobs
+  assert.equal(job.name, PR_BODY_CHECK_NAME, '检查名改了合并前扫描就找不到它（会一直拒合并）：两边都从 scripts/lib/prBodyCheck.mjs 取')
+  assert.deepEqual(runCommands(job), ['node scripts/check-pr-judgement.mjs --stage=merge'])
+  assert.equal(job.env.GH_TOKEN, '${{ github.token }}')
+  assert.equal(job.env.GH_REPO, '${{ github.repository }}')
+  assert.equal(job.env.NOMI_PR_NUMBER, '${{ github.event.pull_request.number }}')
+  assert.equal(job.env.GITHUB_EVENT_NAME, '${{ github.event_name }}')
+  // 档位只认命令行参数；正文只认现取（scripts/lib/prBody.mjs）——事件负载里的正文是触发那一刻的快照。
+  assert.equal(job.env.NOMI_PR_JUDGEMENT_STAGE, undefined)
+  assert.equal(job.env.NOMI_PR_BODY, undefined)
+  assert.equal(job.env.NOMI_PR_BODY_FILE, undefined)
+  assert.doesNotMatch(text, /github\.event\.pull_request\.body/)
+  // 不装依赖（判据的 import 闭包只有 node 内置模块，见下一条）：几秒出结论，不排 pnpm install 的队。
+  const uses = job.steps.flatMap((step) => (typeof step.uses === 'string' ? [step.uses] : []))
+  assert.deepEqual(uses, ['actions/checkout@v7', 'actions/setup-node@v7'])
+  assert.equal(job.steps.find((step) => step.uses === 'actions/checkout@v7').with['fetch-depth'], 0, '改动范围按 merge-base(HEAD, origin/main) 算，要完整历史')
+  assert.ok(!job.steps.some((step) => /\b(?:pnpm|npm|yarn|npx)\b/.test(`${step.run ?? ''} ${step.uses ?? ''}`)), '不许有装依赖 / 包管理器的步骤')
+  assert.equal(job.steps.find((step) => step.uses === 'actions/setup-node@v7').with.cache, undefined, '不装依赖就不要包管理器缓存')
+})
+
+test('PR Body runs without node_modules: the body criteria import only node built-ins (lazy playwright stays behind --reextract)', () => {
+  const builtins = new Set(builtinModules)
+  const isBuiltin = (specifier) => specifier.startsWith('node:') || builtins.has(specifier.split('/')[0])
+  const SPECIFIER = /(?:\bfrom|\bimport)\s*(\()?\s*['"]([^'"]+)['"]/g
+  const seen = new Set()
+  const queue = ['scripts/check-pr-judgement.mjs']
+  const external = []
+  while (queue.length) {
+    const file = queue.shift()
+    if (seen.has(file)) continue
+    seen.add(file)
+    for (const [, dynamic, specifier] of fs.readFileSync(path.join(repoRoot, file), 'utf8').matchAll(SPECIFIER)) {
+      if (specifier.startsWith('.')) {
+        const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier))
+        assert.ok(fs.existsSync(path.join(repoRoot, target)), `${file} imports ${specifier}, which does not resolve`)
+        queue.push(target)
+      } else if (!isBuiltin(specifier)) {
+        external.push(`${file} ${dynamic ? 'import()' : 'import'} ${specifier}`)
+      }
+    }
+  }
+  assert.ok(seen.has('scripts/pr-body-criteria.mjs') && seen.has('scripts/lib/prBody.mjs'), '断言空转：闭包里没走到判据本身')
+  // 唯一的例外是看板重抽（--reextract）才懒加载的 playwright，判正文永远走不到那条路。
+  assert.deepEqual(external, ['scripts/board-extract.mjs import() playwright'], '判据闭包里出现了 npm 包：PR Body 检查不装依赖，会直接崩')
+})
+
+test('Contracts judges only the push stage; the merge stage lives in PR Body and the merge preflight', () => {
+  assert.match(packageJson.scripts['check:pr-judgement'], / && node \.\/scripts\/check-pr-judgement\.mjs --stage=push$/)
+  assert.match(packageJson.scripts['check:pr-judgement'], /pr-body-check\.node-test\.mjs/)
+  assert.match(packageJson.scripts['gates:contracts'], / check:pr-judgement /)
+  // 合并前扫描认的检查名与工作流里的同一份（反例：工作流改名、合并前扫描没跟 → 上面那条红）。
+  assert.match(fs.readFileSync(path.join(repoRoot, 'scripts/merge-preflight.mjs'), 'utf8'), /prBodyCheckVerdict/)
+  // PR Body 不进 Quality Gate 的汇总：它红不该把代码检查拖进重跑。
+  assert.ok(!Object.keys(workflow.jobs).some((id) => /pr-body/i.test(id)))
+  assert.doesNotMatch(JSON.stringify(workflow.jobs.quality.needs), /pr-body/i)
 })

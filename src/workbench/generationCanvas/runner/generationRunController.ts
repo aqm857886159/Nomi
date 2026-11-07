@@ -1,8 +1,13 @@
+import { reconcileNodeModeWithConnectedReferences } from '../store/canvasAutoReference'
+import { productionMetaOf } from '../model/productionMeta'
+import { productionRunApi } from '../../production/productionRunApi'
+import { reportCanvasFeedback } from '../components/canvasFeedback'
+import { releaseUnknownSubmissionForNode, releaseUnknownCanvasSubmissionsForNode, synchronizeCanvasOpenRuns } from '../../production/releaseUnknownSubmission'
 import { normalizeCanvasBatchConcurrency } from '../components/canvasProductionScope'
 import type { GenerationCanvasEdge, GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
-import type { GenerationRunOutcome } from './generationRunOutcome'
+import type { GenerationRunOutcome, RunGenerationNodesBatchResult } from './generationRunOutcome'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -10,10 +15,11 @@ import { useProductionCanvasLandingStore } from '../../production/productionCanv
 import { isNodeGenerationOwnedByProduction } from '../../production/productionShotOwnership'
 import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from '../nodes/director/model/directorPreviewState'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
-import { releaseCanvasShotRun } from '../../api/taskApi'
-import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNode, type GenerationCostKind, type SpendInitiator } from '../spend/spendConfirm'
+import { canvasOpenRuns, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
+import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
+import { classifyGenerationError, isOpenGenerationRefusal } from '../../observability/classifyError'
 import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
@@ -35,9 +41,7 @@ import {
 export { classifyGenerationError, type GenerationErrorReport } from '../../observability/classifyError'
 import { resolveGenerationReferences } from './generationReferenceResolver'
 import { stampUpstreamRefSnapshot } from './refSnapshotStamp'
-import { archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
 import {
-  applyArchetypeModeSwitch,
   currentArchetypeMode,
   hasAnyArchetypeReference,
 } from '../nodes/controls/archetypeMeta'
@@ -45,37 +49,20 @@ import {
   nodeUnmetReferenceDependency,
   type UnmetReferenceDependency,
 } from '../nodes/controls/referenceDependency'
-import { dispatchedAttempt, resolveTaskArchetype, selectedVendor } from './catalogTaskResolve'
-import { isComfyuiVendorKey } from '../model/comfyuiVendor'
-import type { GenerationNodeKind } from '../model/generationCanvasTypes'
+import { dispatchedAttempt, resolveTaskArchetype } from './catalogTaskResolve'
 import i18n from '../../../i18n'
 import {
   AssetUploadConsentCancelledError,
+  buildConsentNode,
+  hostingDisclosureForResolution,
   hasLocalAssetReference,
   resolveAssetUploadConsent,
 } from './assetUploadConsent'
-import type { HostingDisclosure } from '../spend/spendConfirm'
 import { buildDialoguePromptSuffix } from '../agent/storyboardDialogue'
 import type { MediaDimensions } from '../nodes/nodeSizing'
 
-/** 节点 kind → 付费预估用的产物口径，喂给 describeGenerationCost 报对名词与时长。 */
-export function spendCostKind(kind: GenerationNodeKind): Exclude<GenerationCostKind, 'mixed'> {
-  const exec = getGenerationNodeExecutionKind(kind)
-  // model3d 同为一等产物口径——落回 'image' 会让花钱确认卡把 3D 生成说成「1 张画面」（同族 kind 边界漏 3D）。
-  return exec === 'text' || exec === 'video' || exec === 'audio' || exec === 'model3d' ? exec : 'image'
-}
-
-/** 一批节点的产物口径：全同则取该类，混合则 'mixed'，喂给 describeGenerationCost 报对名词。 */
-export function spendCostKindForNodes(ids: string[]): GenerationCostKind {
-  const nodes = useGenerationCanvasStore.getState().nodes
-  const kinds = new Set(
-    ids
-      .map((id) => nodes.find((n) => n.id === id))
-      .filter((n): n is GenerationCanvasNode => Boolean(n))
-      .map((n) => spendCostKind(n.kind)),
-  )
-  if (kinds.size === 1) return [...kinds][0]
-  return kinds.size === 0 ? 'image' : 'mixed'
+function countsTowardGenerationBrake(kind: ReturnType<typeof classifyGenerationError>['kind']): boolean {
+  return kind !== 'quota' && kind !== 'local-refusal'
 }
 
 /**
@@ -96,7 +83,7 @@ export type AssetUploadConsentDecision = 'allow' | 'not-needed'
 /** Interactive validation is only for approval; author validation survives project switches. */
 export type GenerationApprovalGuards =
   | { assertCurrent?: never; assertAuthorCurrent?: never }
-  | { assertCurrent: () => Promise<void>; assertAuthorCurrent: () => Promise<void> }
+  | { assertCurrent: () => Promise<void>; assertAuthorCurrent: (graph: RunGraph, executingNodeId: string) => Promise<void> }
 
 export type GenerationConfirmationGuards = GenerationApprovalGuards & {
   /**
@@ -104,6 +91,7 @@ export type GenerationConfirmationGuards = GenerationApprovalGuards & {
    * 缺省成 'user' 就是 fail-open——下一个忘了报的新入口会被当成「用户点的便宜单张」静默花钱（R17：让编译器拦）。
    */
   initiator: SpendInitiator
+  resend?: boolean
 }
 
 export type DeferredNodeMaterialization = {
@@ -112,7 +100,7 @@ export type DeferredNodeMaterialization = {
 }
 
 export type RunGenerationNodeOptions = {
-  assertAuthorCurrent?: () => Promise<void>
+  assertAuthorCurrent?: (graph: RunGraph, executingNodeId: string) => Promise<void>
   assertApprovedInputs?: (graph: RunGraph, executingNodeId: string) => void
   executor?: GenerationNodeExecutor
   retry?: {
@@ -121,6 +109,8 @@ export type RunGenerationNodeOptions = {
   }
   /** 'run' = 单镜 Run 路：这一次运行的批准、派发、记账都在主进程的单镜 Run 里（paidNodeLedger 定）。缺省 = 不花钱的本地 / 文本路。 */
   ledger?: 'run'
+  initiator?: SpendInitiator
+  acknowledgedOpenRuns?: string[]
   /** 批量卡上点确认时就定下的运行记录号（主进程已经为它开了出价）。缺省 = 这一次现起一个号（单节点 ↑）。 */
   runRecordId?: string
   /** One-shot correction appended to the provider prompt for a bounded QA retry. */
@@ -143,88 +133,14 @@ export type RunGenerationNodeOptions = {
   claimAdmittedByHost?: true
 }
 
-async function buildConsentNode(node: GenerationCanvasNode): Promise<Pick<GenerationCanvasNode, 'meta' | 'references'>> {
-  const resolved = resolveGenerationReferences(node, { nodes: [node], edges: [] })
-  return {
-    ...node,
-    references: [
-      ...(node.references || []),
-      ...resolved.referenceImages,
-      ...resolved.referenceVideos,
-      ...resolved.referenceAudios,
-      ...(resolved.firstFrameUrl ? [resolved.firstFrameUrl] : []),
-      ...(resolved.lastFrameUrl ? [resolved.lastFrameUrl] : []),
-      ...(resolved.relayFromVideoUrl ? [resolved.relayFromVideoUrl] : []),
-    ],
-  }
+async function resolveHostingDisclosure(node: GenerationCanvasNode | undefined) {
+  return node ? hostingDisclosureForResolution(await resolveAssetUploadConsent(await buildConsentNode(node))) : { allowed: true }
 }
 
-async function resolveHostingDisclosure(node: GenerationCanvasNode | undefined): Promise<{ allowed: boolean; disclosure?: HostingDisclosure }> {
-  if (!node) return { allowed: true }
-  const consentNode = await buildConsentNode(node)
-  const resolution = await resolveAssetUploadConsent(consentNode)
-  if (!resolution.allowed) return { allowed: false }
-  if (!resolution.needsConfirmation) return { allowed: true }
-  return {
-    allowed: true,
-    disclosure: {
-      message: i18n.t('generationCommon.spendHostingDisclosure.message'),
-      rememberLabel: i18n.t('generationCommon.spendHostingDisclosure.remember'),
-      onRemember: resolution.remember,
-    },
-  }
-}
-
-/**
- * 给**自主路径**（外部 agent / MCP 能力）解析托管同意——这些路径没有人坐在屏幕前，
- * 弹卡等于把整条自动化挂死在一个没人点的对话框上。
- *
- * 判据完全复用同一个 resolveAssetUploadConsent，不另立一套语义：
- * - 策略 deny → 抛 AssetUploadConsentCancelledError，这次生成不发（诚实失败，理由回给调用方）；
- * - 还需要问一次（策略 ask + 有本地素材 + KIE 没配）→ 同样**拒发**。自动化不能替用户
- *   默默把素材传到公共托管上；把「去设置里配 KIE，或把托管策略改成允许」这句人话回给
- *   agent，由它转达。这是 D4「缺口明着标」：宁可这一次不跑，也不偷偷上传。
- * - 其余 → 'allow' / 'not-needed'，照常跑。
- */
-export async function resolveAutonomousUploadConsent(
-  nodeId: string,
-): Promise<AssetUploadConsentDecision> {
-  const state = useGenerationCanvasStore.getState()
-  const node = state.nodes.find((candidate) => candidate.id === nodeId)
-  if (!node) return 'not-needed'
-  const consentNode = await buildConsentNode(node)
-  if (!hasLocalAssetReference(consentNode)) return 'not-needed'
-  const resolution = await resolveAssetUploadConsent(consentNode)
-  if (!resolution.allowed) throw new AssetUploadConsentCancelledError()
-  if (resolution.needsConfirmation) {
-    throw new Error(i18n.t('generationCommon.spendHostingDisclosure.autonomousBlocked'))
-  }
-  return 'allow'
-}
 
 type GenerationRunContext = {
   nodes?: GenerationCanvasNode[]
   edges?: GenerationCanvasEdge[]
-}
-
-/**
- * 提交前对账「生成方式 × 活边参考」（2026-07-28 群反馈根治）：当前模式一条参考边都收不下、档案里
- * 有能收的模式 → 切过去（与建边 autoPromoteTargetModeForEdge 同一套语义，ModeBar 同步翻转）。
- * 建边时的 auto-promote 只覆盖「建边那一刻」，换模型（archetype 失配落回默认 t2i）、存量边都够不到；
- * 停在 t2i 的节点会在投影层（buildArchetypeInputParams 空槽互斥）把挂着的参考静默丢掉、付费发出
- * 纯文生（「男的角色图生成出女的」根因）。挂在唯一提交咽喉 runGenerationNode 入口，整类不再复发。幂等。
- */
-export function reconcileNodeModeWithConnectedReferences(nodeId: string): void {
-  const state = useGenerationCanvasStore.getState()
-  const node = state.nodes.find((candidate) => candidate.id === nodeId)
-  if (!node) return
-  const nextModeId = resolveModeForConnectedReferences(node, state.nodes, state.edges)
-  if (!nextModeId) return
-  const archetype = archetypeForNode(node)
-  if (!archetype) return
-  state.updateNode(nodeId, {
-    meta: applyArchetypeModeSwitch((node.meta || {}) as Record<string, unknown>, archetype, nextModeId),
-  })
 }
 
 // options 没有默认值：`= {}` 正是让调用点能省略托管同意的那个逃生口（F16b 根因）。
@@ -281,7 +197,12 @@ export async function runGenerationNode(
   // markRunning 只把 queued 翻成 running（幂等），所以两条路都能安全调。
   const ownsBatch = !options.batchId
   const batchId = options.batchId ?? beginSingletonBatch(id, target.projectId)
-  useGenerationQueueStore.getState().markRunning(batchId, id)
+  const queue = useGenerationQueueStore.getState()
+  for (const entry of queue.entries) {
+    if (entry.nodeId === id && entry.batchId !== batchId && entry.state === 'queued'
+      && queue.batches[entry.batchId]?.projectId === target.projectId) queue.cancelEntry(entry.batchId, id)
+  }
+  queue.markRunning(batchId, id)
 
   const now = Date.now()
   // 运行记录随原项目持久化（含 projectId）：找回/重启都只认它，不认「当时打开的是哪个」。
@@ -300,7 +221,7 @@ export async function runGenerationNode(
     if (progress.taskId && progress.taskId !== persistedTaskId) {
       persistedTaskId = progress.taskId
       // Existing delivery serializes writes; retain rejection for this run's awaited completion.
-      progressDelivery = deliverRunOutcome(target, id, { kind: 'progress', progress }).then(
+      progressDelivery = deliverRunOutcome(target, id, { kind: 'progress', progress, runId: run.id }).then(
         () => undefined, error => { progressDeliveryFailure ??= error },
       )
     }
@@ -314,10 +235,14 @@ export async function runGenerationNode(
   let result: GenerationNodeResult | null = null
   let mediaDimensions: MediaDimensions | undefined
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      await options.assertAuthorCurrent?.()
       const savedGraph = await readRunGraph(target)
       // Validation and disk reads may outlive deletion. Never resurrect the initial snapshot.
-      const state = isRunTargetLoaded(target) ? useGenerationCanvasStore.getState() : savedGraph
+      let state = isRunTargetLoaded(target) ? useGenerationCanvasStore.getState() : savedGraph
+      if (!state) throw new Error('node not found')
+      if (options.assertAuthorCurrent) {
+        await options.assertAuthorCurrent(state, id)
+        state = await readRunGraph(target)
+      }
       const node = state?.nodes.find((candidate) => candidate.id === id)
       if (!state || !node) throw new Error('node not found')
       options.assertApprovedInputs?.(state, id)
@@ -332,7 +257,7 @@ export async function runGenerationNode(
           nodes: state.nodes,
           edges: state.edges,
           projectTarget: target,
-          ...(options.ledger === 'run' ? { canvasRun: { runRecordId: run.id } } : {}),
+          ...(options.ledger === 'run' ? { canvasRun: { runRecordId: run.id, ...(options.initiator === 'user' && options.acknowledgedOpenRuns ? { acknowledgedOpenRuns: options.acknowledgedOpenRuns } : {}) } } : {}),
           ...(options.promptSuffix || dialoguePromptSuffix
             ? { promptSuffix: [options.promptSuffix, dialoguePromptSuffix].filter(Boolean).join('\n\n') }
             : {}),
@@ -368,7 +293,7 @@ export async function runGenerationNode(
     await progressDelivery
     if (progressDeliveryFailure) throw progressDeliveryFailure
     if (!result) throw new Error(describeOpaqueFailure(null))
-    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', result, ...(mediaDimensions ? { mediaDimensions } : {}) })
+    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', result, runId: run.id, ...(mediaDimensions ? { mediaDimensions } : {}) })
     // 自动另存（集中设置页开启时）：新生成的图/视频静默复制一份到用户目录。fire-and-forget——不 await
     // （不拖慢生成收尾）、失败不冒泡（best-effort 全在主进程侧，关着/没设目录/失败都静默）。只对新生成，
     // 找回(recoverTaskActions)不触发、避免重复另存。
@@ -390,19 +315,19 @@ export async function runGenerationNode(
     if (isLocalTaskCancelledError(error) || isTaskCancelRequested(id)) {
       // 单镜 Run 路：只是渲染层不等了——还在路上的交给主进程观察者收完，钱花了的结果照样进项目。
       if (options.ledger === 'run') void releaseCanvasShotRun({ projectId: target.projectId, runRecordId: run.id }).catch(() => undefined)
-      await deliverRunOutcome(target, id, { kind: 'status', status: 'idle' })
+      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'idle' })
       // 用户主动停的：不进刹车计数（模型没挂，是人喊停的）。
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       throw isLocalTaskCancelledError(error) ? error : new LocalTaskCancelledError()
     }
     if (error instanceof AssetUploadConsentCancelledError) {
-      await deliverRunOutcome(target, id, { kind: 'status', status: 'idle' })
+      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'idle' })
       useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
       throw error
     }
     // A polling timeout remains recoverable from its persisted taskId; it is not a model failure.
     if (isRecoverableTimeoutError(error)) {
-      await deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: error.message })
+      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'recoverable', error: error.message })
       // 上游没有明确判死（可能仍在跑/已出片）→ 健康记账不算失败，刹车也不该算。
       useGenerationQueueStore.getState().markSettled(batchId, id, 'error', {
         error: error.message,
@@ -415,17 +340,27 @@ export async function runGenerationNode(
     const blocked = outboundBlockedRecoverableMessage(error, (await readRunGraph(target))?.nodes.find((n) => n.id === id))
     if (blocked) {
       // 不记模型失败（挂的是本机网络），但刹车照记：后续每条都会同样失败而提交侧照旧扣费。
-      await deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: blocked })
+      await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'recoverable', error: blocked })
       useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: blocked })
       throw error
     }
-    if (isRunTargetLoaded(target)) recordNodeModelFailure(run.attempt)
+    if (isOpenGenerationRefusal(describeOpaqueFailure(error))) {
+      await deliverRunOutcome(target, id, { kind: 'run-refused', runId: run.id, previous: { status: initialNode.status, error: initialNode.error, progress: initialNode.progress } })
+      useGenerationQueueStore.getState().markSettled(batchId, id, 'cancelled', { countsTowardBrake: false })
+      if (options.initiator === 'user') {
+        const open = await canvasOpenRuns({ projectId: target.projectId, nodeId: id })
+        whenRunTargetLoaded(target, () => { synchronizeCanvasOpenRuns(open) })
+      }
+      throw error
+    }
+    const kind = classifyGenerationError(describeOpaqueFailure(error)).kind
+    if (kind !== 'local-refusal' && isRunTargetLoaded(target)) recordNodeModelFailure(run.attempt)
     // Store the RAW message (describeOpaqueFailure only fills in when there is none): NodeErrorReport
     // runs classifyGenerationError over it, and a plain string needs no persisted-shape migration.
     const rawMessage = describeOpaqueFailure(error)
-    await deliverRunOutcome(target, id, { kind: 'status', status: 'error', error: rawMessage })
+    await deliverRunOutcome(target, id, { kind: 'status', runId: run.id, status: 'error', error: rawMessage })
     // 真执行失败 → 计入刹车（连续 3 个即暂停队列，防上游整体挂掉时把剩下的额度一路烧完）。
-    useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: rawMessage })
+    useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: rawMessage, countsTowardBrake: countsTowardGenerationBrake(kind) })
     throw error
   } finally {
     // A rejected disk write/read must not strand the original queue entry as running.
@@ -458,11 +393,7 @@ export type RunGenerationNodesBatchOptions = Omit<RunGenerationNodeOptions, 'led
   ) => void
 }
 
-export type RunGenerationNodesBatchResult = {
-  totalCount: number
-  successes: Array<{ nodeId: string; result: GenerationNodeResult }>
-  failures: Array<{ nodeId: string; error: Error }>
-}
+
 
 
 /**
@@ -488,6 +419,7 @@ export async function runGenerationNodesBatch(
   const concurrency = normalizeCanvasBatchConcurrency(options.concurrency)
   const successes: RunGenerationNodesBatchResult['successes'] = []
   const failures: RunGenerationNodesBatchResult['failures'] = []
+  const skipped: string[] = []
   let cursor = 0
 
   async function worker(): Promise<void> {
@@ -501,6 +433,14 @@ export async function runGenerationNodesBatch(
       // 闸二：这一个被单独取消了 → 直接跳过。**零 vendor 调用零扣费**，这就是「取消不产生费用」的兑现处。
       if (isEntryCancelled(options.batchId, nodeId)) continue
       try {
+        const node = (await readRunGraph(options.target))?.nodes.find(value => value.id === nodeId)
+        if (paidNodeLedger(node) && (await canvasOpenRuns({ projectId: options.target.projectId, nodeId })).length) {
+          skipped.push(nodeId)
+          if (options.batchId) useGenerationQueueStore.getState().markSettled(options.batchId, nodeId, 'cancelled', { countsTowardBrake: false })
+          const record = options.canvasRunRecordIds?.get(nodeId)
+          if (record) withdrawCanvasShots({ projectId: options.target.projectId, runRecordIds: [record], by: 'stopped' })
+          continue
+        }
         const result = await runGenerationNode(nodeId, {
           assertAuthorCurrent: options.assertAuthorCurrent,
           assertApprovedInputs: options.assertApprovedInputs,
@@ -519,6 +459,7 @@ export async function runGenerationNodesBatch(
         options.onNodeResult?.({ ok: true, nodeId, result })
       } catch (error: unknown) {
         const normalizedError = error instanceof Error ? error : new Error(String(error))
+        if (isOpenGenerationRefusal(normalizedError.message)) { skipped.push(nodeId); continue }
         failures.push({ nodeId, error: normalizedError })
         options.onNodeResult?.({ ok: false, nodeId, error: normalizedError })
       }
@@ -526,28 +467,28 @@ export async function runGenerationNodesBatch(
   }
   const workers = Array.from({ length: Math.min(concurrency, queue.length) }, () => worker())
   await Promise.all(workers)
-  return { totalCount: queue.length, successes, failures }
-}
-
-/**
- * 这个节点生成一次花不花钱、走哪条口（发动机收敛第一刀）：要花钱的走单镜 Run（批准、派发、记账都在制作流程那一个口子）；
- * 文本节点与本地 ComfyUI 不进 Run（登记的例外，到期：第二刀传输合一），也不要任何授权——本地 ComfyUI 不花钱，
- * 文本走它自己的流式口。
- */
-export function paidNodeLedger(node: GenerationCanvasNode | undefined): 'run' | undefined {
-  if (!node || getGenerationNodeExecutionKind(node.kind) === 'text') return undefined
-  return isComfyuiVendorKey(selectedVendor(node)) ? undefined : 'run'
-}
-
-function ledgerOptions(node: GenerationCanvasNode | undefined): Pick<RunGenerationNodeOptions, 'ledger'> {
-  return paidNodeLedger(node) ? { ledger: 'run' } : {}
+  return { totalCount: queue.length, successes, failures, skipped }
 }
 
 /**
  * 单节点生成/重试/生成变体的轻确认 + 跑。要花钱的走单镜 Run（这一下点击就是批准，主进程记账）；文本 / 本地 ComfyUI 不进 Run、不要授权。
  * rerun=true 是「基于此生成变体」：先复制出新节点再跑；普通重新生成走 regenerateNodeInPlace。
  */
-export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean; deferredMaterialization?: DeferredNodeMaterialization } & GenerationConfirmationGuards): Promise<GenerationRunOutcome> {
+const preparingSingleGeneration = new Map<string, symbol>()
+export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean; title?: string; confirmLabel?: string; prepareDependencies?: () => boolean; deferredMaterialization?: DeferredNodeMaterialization } & GenerationConfirmationGuards): Promise<GenerationRunOutcome> {
+  if (preparingSingleGeneration.has(nodeId)) return 'nothing-to-run'
+  const intent = Symbol()
+  preparingSingleGeneration.set(nodeId, intent)
+  const ready = (preparing = false) => {
+    if (preparing && preparingSingleGeneration.has(nodeId) && preparingSingleGeneration.get(nodeId) !== intent) return false
+    if (preparing) preparingSingleGeneration.set(nodeId, intent)
+    else if (preparingSingleGeneration.get(nodeId) === intent) preparingSingleGeneration.delete(nodeId)
+    return true
+  }
+  try { return await confirmAndRunSingleNode(nodeId, opts, ready) } finally { ready() }
+}
+
+async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; title?: string; confirmLabel?: string; prepareDependencies?: () => boolean; deferredMaterialization?: DeferredNodeMaterialization } & GenerationConfirmationGuards, ready: (preparing?: boolean) => boolean): Promise<GenerationRunOutcome> {
   // 点「生成」即动作起点：签发此刻打开的项目。提交前（确认卡）换了项目 = 取消，没花钱；
   // 一旦提交，运行归原项目（target），之后切页/切项目都不取消它。
   const project = withProjectAction((issued) => issued)
@@ -557,18 +498,41 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean;
     ? undefined
     : captureApprovedGenerationInputs([nodeId])
   const node = opts.deferredMaterialization?.draftNode ?? useGenerationCanvasStore.getState().nodes.find((n) => n.id === nodeId)
+  const open = !opts.rerun && paidNodeLedger(node) ? await canvasOpenRuns({ projectId, nodeId }) : []
+  if (open.length && opts.initiator !== 'user') throw Object.assign(new Error('node_generation_in_flight'), { code: 'node_generation_in_flight' })
+  if (opts.prepareDependencies?.()) return 'nothing-to-run'
   const hosting = await resolveHostingDisclosure(node)
-  // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
   if (!hosting.allowed) return 'declined'
-  const ok = await confirmGenerationSpend([node], {
+  let acknowledgedOpenRuns: string[] | undefined
+  const askToResend = async (entries: Awaited<ReturnType<typeof canvasOpenRuns>>): Promise<GenerationRunOutcome | null> => {
+    if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+    synchronizeCanvasOpenRuns(entries)
+    const current = useGenerationCanvasStore.getState().nodes.find(value => value.id === nodeId) ?? node
+    const unknown = entries.some(entry => entry.reason === 'needs_reconcile') || Boolean(current?.error && classifyGenerationError(current.error).primary === 'release-regenerate')
+    const confirmed = await confirmGenerationResend({ resultUnknown: unknown, kind: current ? spendCostKind(current.kind) : 'image', ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}) })
+    if (!confirmed) return 'declined'
+    if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
+    try {
+      const productionRunId = productionMetaOf({ meta: current?.meta })?.runId
+      if (productionRunId) await releaseUnknownSubmissionForNode(projectId, productionRunId, nodeId, productionRunApi)
+      acknowledgedOpenRuns = await releaseUnknownCanvasSubmissionsForNode(projectId, nodeId, productionRunApi)
+      project.assertCurrent()
+    } catch {
+      reportCanvasFeedback(i18n.t('generationCommon.observability.releaseConfirm.failed'), 'error', { identity: `node:${nodeId}`, reason: 'release-failed', projectId, nodeIds: [nodeId] })
+      return 'unavailable'
+    }
+    return null
+  }
+  const resending = opts.initiator === 'user' && (opts.resend || open.length > 0)
+  if (resending) {
+    const outcome = await askToResend(open)
+    if (outcome) return outcome
+  }
+  const ok = resending || await confirmGenerationSpend([node], {
     initiator: opts.initiator,
-    title: opts.rerun
-      ? i18n.t('generationCommon.spend.generateVariant')
-      : i18n.t('generationCommon.spend.startGeneration'),
+    title: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.title || i18n.t('generationCommon.spend.startGeneration'),
     message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
-    confirmLabel: opts.rerun
-      ? i18n.t('generationCommon.spend.generateVariant')
-      : i18n.t('generationCommon.spend.generate'),
+    confirmLabel: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.confirmLabel || i18n.t('generationCommon.spend.generate'),
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })
   // **这一行就是那个结局**：2026-09-22 之前它是一个裸 `return`，Agent 那一侧因此读不到
@@ -591,11 +555,23 @@ export async function confirmAndRunNode(nodeId: string, opts: { rerun?: boolean;
     assertApprovedInputs = captureApprovedGenerationInputs([runId])
     // 副本落在屏外时由画布边缘提示指路；不再替用户把画布挪过去（2026-09-25「程序不再主动平移画布」）。
   }
-  try {
-    await runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...ledgerOptions(runNode), assetUploadConsent: 'allow', target: project.binding })
-  } catch {
-    // 原任务队列保留失败原因；原项目身份有效时，节点也显示错误。
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const work = runGenerationNode(runId, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...(paidNodeLedger(runNode) ? { ledger: 'run' as const } : {}), initiator: opts.initiator, acknowledgedOpenRuns, assetUploadConsent: 'allow', target: project.binding })
+      ready()
+      const result = await work
+      whenRunTargetLoaded(project.binding, () => {
+        if (useGenerationCanvasStore.getState().nodes.find(node => node.id === runId)?.result?.id === result.id) useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(runId, result)
+      })
+      break
+    } catch (error) {
+      if (!isOpenGenerationRefusal(describeOpaqueFailure(error)) || opts.initiator !== 'user' || attempt > 0) break
+      if (!ready(true)) return 'nothing-to-run'
+      const outcome = await askToResend(await canvasOpenRuns({ projectId, nodeId }))
+      if (outcome) return outcome
+    }
   }
+
   // 提交已经发出去了（跑挂了由任务队列记失败），对「用户同不同意这次」这一格就是 started。
   return 'started'
 }
@@ -609,36 +585,7 @@ export async function regenerateNodeInPlace(
   // 「到底用没用新图」）。缺省仍是「重新生成」，画布 composer 等既有调用方零变化。
   opts: { title?: string; confirmLabel?: string } & GenerationConfirmationGuards,
 ): Promise<GenerationRunOutcome> {
-  const project = withProjectAction((issued) => issued)
-  if (!project) return 'unavailable'
-  const projectId = project.binding.projectId
-  const id = String(nodeId || '').trim()
-  if (!id) return 'nothing-to-run'
-  const assertApprovedInputs = captureApprovedGenerationInputs([id])
-  const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)
-  const hosting = await resolveHostingDisclosure(node)
-  // 素材托管那张披露卡也是一次「他没同意这次」，不是一个错误。
-  if (!hosting.allowed) return 'declined'
-  const ok = await confirmGenerationSpend([node], {
-    initiator: opts.initiator,
-    title: opts.title || i18n.t('generationCommon.composer.regenerate'),
-    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
-    confirmLabel: opts.confirmLabel || i18n.t('generationCommon.composer.regenerate'),
-    ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
-  })
-  // **这一行就是那个结局**：2026-09-22 之前它是一个裸 `return`，Agent 那一侧因此读不到
-  // 「他点了取消」（见 `generationRunOutcome.ts`）。
-  if (!ok) return 'declined'
-  await opts.assertCurrent?.()
-  if (!isProjectExecutionContextCurrent(project)) return 'unavailable'
-  try {
-    const result = await runGenerationNode(id, { assertAuthorCurrent: opts.assertAuthorCurrent, assertApprovedInputs, ...ledgerOptions(node), assetUploadConsent: 'allow', target: project.binding })
-    whenRunTargetLoaded(project.binding, () => useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(id, result))
-  } catch {
-    // 原任务队列保留失败原因；身份被替换时不向新项目写错误。
-  }
-  // 提交已经发出去了（跑挂了由任务队列记失败），对「用户同不同意这次」这一格就是 started。
-  return 'started'
+  return confirmAndRunNode(nodeId, opts)
 }
 
 export function canRunGenerationNode(

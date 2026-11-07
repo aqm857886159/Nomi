@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 /**
  * 框的四个动作 + 那份菜单的开合：改名/说明、生成整框、整框进时间轴、折叠、解散。
  *
@@ -153,10 +154,10 @@ export function useCanvasFrameActions({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setFrameMenu(null)
     }
-    window.addEventListener('keydown', handleKeyDown)
+    canvasWindowInput.addEventListener('keydown', handleKeyDown)
     return () => {
       stopListeningOutside()
-      window.removeEventListener('keydown', handleKeyDown)
+      canvasWindowInput.removeEventListener('keydown', handleKeyDown)
     }
   }, [frameMenu])
 

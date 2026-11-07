@@ -1,0 +1,16 @@
+{
+  "windowDays": 3,
+  "windowBasis": "协调2026-10-30确定：新版在同一窗口至少3个UTC日期有事件；日精度不等于完整72小时。",
+  "minLaunches": 10,
+  "launchBasis": "0.23平均每天约47次启动，20%首批3天约28次；协调取保守最低10次。",
+  "primaryMinSamples": 20,
+  "primaryBasis": "协调确定唯一主指标image最低20个成功或失败结果，以小用户群排除大的变差，不要求统计证明无退步。",
+  "stopMinSamples": 10,
+  "stopSampleBasis": "协调确定各项新版至少10个已知结果才判停；不足10列未覆盖，不阻挡全量。",
+  "stopMinIncrease": 0.05,
+  "increaseBasis": "协调确定点估计至少增加5个百分点，且差值95%区间下界大于0才视作可信变差。",
+  "stopMinFailureSessions": 2,
+  "sessionBasis": "现有flattenEvents保留sessionId；协调要求每指标新版失败来自至少2个不同会话，避免单会话重复失败判停。",
+  "z": 1.959963984540054,
+  "intervalBasis": "标准正态双侧95%分位数；Newcombe 1998方法10，无连续性校正，两边各用Wilson score区间。"
+}

@@ -1,3 +1,4 @@
+import { workspaceInputSurfaceIsActive } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -198,6 +199,7 @@ export default function InlineParameterBar({
   React.useEffect(() => {
     if (!panelOpen) return
     const onPointerDown = (event: PointerEvent): void => {
+      if (!workspaceInputSurfaceIsActive(triggerRef.current)) return
       const target = event.target as Node
       // 防御：panelRef 尚未挂上（portal 首帧/HMR 重建瞬间）时绝不误关——否则点面板内选项
       // 会被当成「点外面」把面板关掉，表现为「点击不了」。
@@ -207,6 +209,7 @@ export default function InlineParameterBar({
       closePanel()
     }
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (!workspaceInputSurfaceIsActive(triggerRef.current)) return
       if (event.key !== 'Escape') return
       // Let the inner combobox consume Escape first; the next Escape closes this panel.
       if (event.target instanceof Element && event.target.closest('[data-nomi-select-dropdown], [data-mantine-stop-propagation="true"]')) return

@@ -69,10 +69,22 @@ test('state 文件损坏时退回空状态而不是抛错', () => {
   assert.deepEqual(state.seenKeys, {})
 })
 
-test('writeReport 写出同名 .md 与 .json 到 reports/ 子目录', () => {
+test('writeReport 写出同名 .md 与 .json 到 reports/ 子目录，文件名到秒且不带冒号（Windows 不收）', () => {
   const cacheDir = tmpDir()
-  const { mdPath, jsonPath } = writeReport(cacheDir, '2026-09-29', { markdown: '# hi', json: { a: 1 } })
-  assert.equal(mdPath, path.join(reportsDir(cacheDir), '2026-09-29.md'))
+  const { mdPath, jsonPath } = writeReport(cacheDir, '2026-09-29T08:01:02.345Z', { markdown: '# hi', json: { a: 1 } })
+  assert.equal(mdPath, path.join(reportsDir(cacheDir), '2026-09-29T080102Z.md'))
   assert.equal(fs.readFileSync(mdPath, 'utf8'), '# hi')
   assert.deepEqual(JSON.parse(fs.readFileSync(jsonPath, 'utf8')), { a: 1 })
+})
+
+test('writeReport 同一天多跑、甚至同一秒多跑，都不盖掉前一份', () => {
+  const cacheDir = tmpDir()
+  const first = writeReport(cacheDir, '2026-10-31T19:45:15.000Z', { markdown: 'first', json: { n: 1 } })
+  const later = writeReport(cacheDir, '2026-10-31T22:45:43.000Z', { markdown: 'later', json: { n: 2 } })
+  const sameSecond = writeReport(cacheDir, '2026-10-31T22:45:43.000Z', { markdown: 'again', json: { n: 3 } })
+  assert.equal(new Set([first.mdPath, later.mdPath, sameSecond.mdPath]).size, 3)
+  assert.equal(fs.readFileSync(first.mdPath, 'utf8'), 'first')
+  assert.equal(fs.readFileSync(later.mdPath, 'utf8'), 'later')
+  assert.equal(fs.readFileSync(sameSecond.mdPath, 'utf8'), 'again')
+  assert.deepEqual(JSON.parse(fs.readFileSync(sameSecond.jsonPath, 'utf8')), { n: 3 })
 })

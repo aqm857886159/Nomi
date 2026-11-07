@@ -1,5 +1,6 @@
 import { classifyGenerationError } from '../observability/classifyError'
 import { generationFeedback } from '../observability/generationFeedback'
+import { generationFailureActions } from '../observability/generationFailureActions'
 import { narrateTaskOutcome } from '../observability/narrate'
 // 任务中心的展示派生（纯函数，逻辑全在这，组件只负责画）。
 // 方案：docs/plan/2026-08-02-task-center-queue.md
@@ -130,7 +131,7 @@ export function buildTaskCenterView(input: {
         ? { kind: 'cancel_generation_queue' as const, batchId: entry.batchId, nodeId: entry.nodeId }
         : group === 'running' && resolveRunningCancelKind(node) === 'interrupt'
           ? { kind: 'interrupt_generation' as const, nodeId: entry.nodeId }
-          : group === 'done' && outcome === 'error'
+          : group === 'done' && outcome === 'error' && generationFailureActions(node?.error || entry.error || '', node?.runs?.[0]).canRetry
             ? { kind: 'retry_generation' as const, nodeId: entry.nodeId }
             // 「等你处理」组必须把它在等的那个动作摆出来：不然用户只能点进画布找节点上的按钮。
             : recoverable

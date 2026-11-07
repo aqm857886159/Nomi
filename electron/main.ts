@@ -38,7 +38,7 @@ import { registerEventsIpc } from "./events/eventsIpc";
 import { registerMemoryIpc } from "./memory/memoryIpc";
 import { registerPromptLibraryIpc } from "./promptLibrary/promptLibraryIpc";
 import { registerBrowserViewIpc } from "./browser/core/browserViews";
-import { registerBrowserPromptExtractionSettingsIpc } from "./browser/settings/browserPromptExtractionSettings";
+import { registerBrowserPromptExtractionIpc } from "./browser/prompt/browserPromptExtractionRun";
 import { applyProxyAtBoot, registerProxyIpc } from "./proxyIpc";
 import { catalogSecretsProvider } from "./events/secretsProvider";
 import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
@@ -570,7 +570,7 @@ function registerIpc(): void {
   registerEventsIpc();
   registerMemoryIpc();
   registerPromptLibraryIpc();
-  registerBrowserPromptExtractionSettingsIpc();
+  registerBrowserPromptExtractionIpc(loadRuntimeModule);
   registerProxyIpc();
   registerBrowserViewIpc(getRendererUrl);
   registerOnboardingIpc();

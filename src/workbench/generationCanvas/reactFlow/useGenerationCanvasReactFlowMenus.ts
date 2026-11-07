@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 import React from 'react'
 import type { CanvasPlacementAnchor } from '../model/canvasPlacement'
 import type { OnConnectEnd, OnConnectStart } from '@xyflow/react'
@@ -238,11 +239,11 @@ export function useGenerationCanvasReactFlowMenus({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') closeMenus()
     }
-    window.addEventListener('pointerdown', closeMenus)
-    window.addEventListener('keydown', handleKeyDown)
+    canvasWindowInput.addEventListener('pointerdown', closeMenus)
+    canvasWindowInput.addEventListener('keydown', handleKeyDown)
     return () => {
-      window.removeEventListener('pointerdown', closeMenus)
-      window.removeEventListener('keydown', handleKeyDown)
+      canvasWindowInput.removeEventListener('pointerdown', closeMenus)
+      canvasWindowInput.removeEventListener('keydown', handleKeyDown)
     }
   }, [cancelConnection, connectionCreateMenu, contextNodeMenu, setContextNodeMenu])
 
@@ -390,11 +391,11 @@ export function useGenerationCanvasReactFlowMenus({
   React.useEffect(() => {
     const handleNativePointerUp = (event: PointerEvent) => handlePendingGroupPointerUp(event)
     const handleNativeMouseUp = (event: MouseEvent) => handlePendingGroupPointerUp(event)
-    window.addEventListener('pointerup', handleNativePointerUp)
-    window.addEventListener('mouseup', handleNativeMouseUp)
+    canvasWindowInput.addEventListener('pointerup', handleNativePointerUp)
+    canvasWindowInput.addEventListener('mouseup', handleNativeMouseUp)
     return () => {
-      window.removeEventListener('pointerup', handleNativePointerUp)
-      window.removeEventListener('mouseup', handleNativeMouseUp)
+      canvasWindowInput.removeEventListener('pointerup', handleNativePointerUp)
+      canvasWindowInput.removeEventListener('mouseup', handleNativeMouseUp)
     }
   }, [handlePendingGroupPointerUp])
 

@@ -22,8 +22,10 @@
 // **只有这个工具自己成功**才清掉它自己的墙。
 //
 // 累计次数不在这里算——「这个工具总在坏」是审计的活，不是拦截的活。
+// 2026-11-07：删掉了「第 5 次终止整轮」。它从来到不了——被拦下的调用不记数，计数停在 3 直到用户再开口；
+// 而形状错的调用（pi 的立即结果）连 3 都摸不到。现在墙判在入参边界（`laneToolInputBoundary.mts`），
+// 拦截是一次立即结果，本来也没有「终止」这个出口。
 export const LANE_REPEATED_FAILURE_BLOCK = 3;
-export const LANE_REPEATED_FAILURE_TERMINATE = 5;
 
 /** 认墙用的那几件事实（`LaneToolPublicFailure` 的子集，不 import 它以免把 zod 那条链拖进来）。 */
 export type LaneFailureIdentity = Readonly<{
@@ -59,8 +61,8 @@ export type LaneRepeatedFailureTracker = Readonly<{
    * 让模型自己回忆「刚才拒收信里写了哪几个值」是在赌它，而那正是它已经连错三次的那件事。
    */
   note(toolName: string, isError: boolean, body: string, failure?: LaneFailureIdentity | readonly string[]): number;
-  /** before_tool：这个工具是否已经撞满某一堵墙；到了就给出模型看到的那句拦截理由。 */
-  block(toolName: string): { terminate: boolean; reason: string } | null;
+  /** 入参边界：这个工具是否已经撞满某一堵墙；到了就给出模型看到的那句拦截理由。 */
+  block(toolName: string): { reason: string } | null;
   /**
    * 撞满之后那一次**转提问**要带的两个数：这是第几次、上次拒收给的合法值是哪些。
    * `undefined` = 现在没有撞满的连败，这次提问是模型自己要问的（不该盖上「试了 N 次」那句话）。
@@ -107,7 +109,6 @@ export function createLaneRepeatedFailureTracker(): LaneRepeatedFailureTracker {
       if (!worst || worst.count < LANE_REPEATED_FAILURE_BLOCK) return null;
       const { count, allowed } = worst;
       return {
-        terminate: count >= LANE_REPEATED_FAILURE_TERMINATE,
         // 2026-09-21：这句话原来的收尾是「换条路，或者跟用户说清是什么挡住了」。
         // 「跟用户说清」在真机上落成的是一段散文，用户读完仍然不知道该回什么——
         // 而此刻缺的恰恰是**一个他答得上来的问题**。所以撞满之后的下一步点名 `ask_user`：

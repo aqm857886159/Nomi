@@ -303,6 +303,11 @@ export function prepareProductionGenerationReauthorization(input: Readonly<{
   resolveShotPrice: (contract: ExecutionContractV1) => ShotPrice;
   now: string;
   ttlMs?: number;
+  /**
+   * 这一次返工要发的参考链接表。不给 = 沿用上一次批准冻住的那份（`authorizedReferenceUrls`）；给了（重新换过链接）
+   * 就用它——它同时进线上报文哈希和信封，派发时按这一份授权自己的链接核，所以换链接不会被「报文对不上」拒发。
+   */
+  referenceUrls?: Readonly<Record<string, string>>;
 }>): PreparedProductionGenerationReauthorization {
   if (
     input.run.projectId !== input.lease.projectId
@@ -333,10 +338,11 @@ export function prepareProductionGenerationReauthorization(input: Readonly<{
     attempt,
     input.shotId,
   );
+  const referenceUrls = input.referenceUrls ?? authorizedReferenceUrls(input.run, unit.contract.contractHash);
   const prepared = createGenerationRuntimeAdapter({ providers: input.providers }).prepareAuthorization({
     contract: unit.contract,
     providerIdempotencyKey,
-    referenceUrls: authorizedReferenceUrls(input.run, unit.contract.contractHash),
+    referenceUrls,
   });
   const issuedAt = Date.parse(input.now);
   if (!Number.isFinite(issuedAt)) throw new Error("Generation reauthorization time is invalid");
@@ -368,7 +374,7 @@ export function prepareProductionGenerationReauthorization(input: Readonly<{
       mode: unit.contract.mode,
       parameters: unit.contract.parameters,
       references: unit.contract.references,
-      referenceUrls: authorizedReferenceUrls(input.run, unit.contract.contractHash),
+      referenceUrls,
       providerWirePayloadHash: prepared.providerRequestHash,
       providerIdempotencyKey,
       price: { currency: input.run.budget.currency, maximum: priceCeiling },

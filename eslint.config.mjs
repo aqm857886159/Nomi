@@ -93,6 +93,15 @@ const testFileRestrictedSyntax = [
   },
 ]
 
+// Main-process synchronous waits freeze IPC while waiting. Existing debt uses
+// ESLint bulk suppressions (file x rule counts); new calls fail and deleted calls
+// require --prune-suppressions. The independent core-rule id survives overrides.
+const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const mainSyncWaitSelectors = [{
+  selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
+  message: 'Do not add Atomics.wait in the main process: synchronous sleep blocks IPC and window events. Use an asynchronous retry; existing debt may only decrease.',
+}]
+
 const windowsPathSelectors = [
   {
     selector: 'MemberExpression[property.name="pathname"][object.type="NewExpression"][object.callee.name="URL"]:has(MetaProperty)',
@@ -199,6 +208,31 @@ const uiMoneyPlugin = { rules: {
 // scripts/focus-by-tag-lookup.test.mjs 按同一组选择器普查全 src 卡死）。同 ② 的做法独立注册内置规则：只有下面两个块配置这个规则 id
 // （渲染层一块、走查一块，文件范围不重叠），别的块里同名规则的选项盖不到它。
 const focusOwnerPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+
+// ⑥ 渲染层直调主进程的任务口 `nomi:tasks:run` 只有一扇门（2026-10-28）：src/workbench/api/taskApi.ts 的 runWorkbenchTaskByVendor。
+// 令牌路普查（scripts/spend-token-doors.mjs）按符号名数门，数不到 `desktop.tasks.run(...)` 这种成员调用：渲染层新文件直接调它，
+// 普查、check:run-task-grant、check:generation-entrances 全绿（独立验收 R14）；而这个口缺省走 TOKEN_ADMISSION，没有令牌的付费种类
+// 会被主进程的闸拒——浏览器「提取提示词」坏了七周就是这个形状。这条规则让「再加一个直调点」当场红。
+// 同 ② 的做法独立注册内置规则：src/** 已经有别的块配了 no-restricted-syntax，同名规则后面的块会整条覆盖前面的。
+// 拦得住：点号 / 方括号取 run（desktop.tasks.run、desktop['tasks']['run']、可选链、当值取出来、bind），
+//   从桥上解构出 tasks 再 tasks.run，解构 run（const { run } = desktop.tasks、const { tasks: { run } } = desktop）。
+// 拦不住（明写的缺口）：换了变量名的别名（const t = desktop.tasks; t.run()）、把 desktop.tasks 当参数传出去——静态看不出那个名字是谁。
+const taskRunBridgePlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const TASK_RUN_BRIDGE_MESSAGE = '渲染层直调 nomi:tasks:run 只有一扇门：src/workbench/api/taskApi.ts 的 runWorkbenchTaskByVendor。'
+  + '这个口没有令牌，付费种类会被主进程的闸拒（浏览器「提取提示词」就这样坏了七周）；要花钱就走主进程自己问人、铸令牌再发的那条链，并在 scripts/spend-token-doors.mjs 登记。'
+export const TASK_RUN_BRIDGE_DOOR = 'src/workbench/api/taskApi.ts'
+export const TASK_RUN_BRIDGE_FILES = ['src/**/*.{ts,tsx}']
+export const TASK_RUN_BRIDGE_IGNORES = ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', TASK_RUN_BRIDGE_DOOR]
+/** `tasks` 的几种写法：X.tasks / X['tasks'] / tasks（解构出来的本地名）/ X.tasks! 、(X.tasks as T)、(X?.tasks) 这类外面包了一层的。 */
+const TASKS_OWNER = ["property.name='tasks'", "property.value='tasks'", "name='tasks'", "expression.property.name='tasks'", "expression.name='tasks'"]
+export const TASK_RUN_BRIDGE_SELECTORS = [
+  // X.tasks.run / X.tasks['run'] / tasks.run / tasks['run']：调用、取值、bind 都算。
+  ...["[computed=false][property.name='run']", "[computed=true][property.value='run']"]
+    .flatMap((run) => TASKS_OWNER.map((owner) => `MemberExpression${run}[object.${owner}]`)),
+  // const { run } = X.tasks / tasks、({ run } = X.tasks)、const { tasks: { run } } = X、function f({ tasks: { run } })（键写不写引号都算）。
+  ...["VariableDeclarator[init.property.name='tasks']", "VariableDeclarator[init.name='tasks']", "AssignmentExpression[right.property.name='tasks']", "AssignmentExpression[right.name='tasks']", "Property[key.name='tasks']", "Property[key.value='tasks']"]
+    .flatMap((from) => ["Property[key.name='run']", "Property[key.value='run']"].map((run) => `${from} > ObjectPattern > ${run}`)),
+].map((selector) => ({ selector, message: TASK_RUN_BRIDGE_MESSAGE }))
 
 /**
  * 每个 no-restricted-syntax 都经这里拼：flat config 里后面的对象会**整条覆盖**前面同名规则的选项，
@@ -400,6 +434,14 @@ export default tseslint.config(
     rules: { 'no-console': ['error', { allow: ['log', 'info', 'debug'] }] },
   },
   {
+    // Alias ESLint's core rule, as above: independent options cannot be overwritten
+    // by quit lifecycle exemptions and do not extend those rules to new file types.
+    files: ['electron/**/*.{ts,tsx,mts,cts,js,mjs,cjs,jsx}'],
+    ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
+    plugins: { 'main-sync-wait': mainSyncWaitPlugin },
+    rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
+  },
+  {
     files: ['electron/**/*.{ts,tsx}'],
     ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts', ...directQuitExemptionFiles],
     rules: { 'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors) },
@@ -419,6 +461,8 @@ export default tseslint.config(
     // 2026-10-16 真付费验收：分镜方案整批生成直接调了 requestConfirm，绕过 owner，「直接生成」档对它完全不起作用，
     // 而且没有任何东西会红。下面这几处是允许的调用者——它们只**展示主进程已经做出的决定**，自己不判问不问：
     //   capabilityApplyHandler.ts + generationGateConfirm.ts（MCP 生成闸 / 计划门）、credentialProbeSpendCard.ts（接入页凭据试跑）、
+    //   promptExtractionSpendCard.ts（浏览器提取提示词：主进程每次经 confirmSpendAndMintGrant 问人，卡只展示）、
+    //   uncertainPriorTrialSpendCard.ts（试跑开新单而上一笔结果不确定：同样由主进程经 confirmSpendAndMintGrant 问人，卡只展示）、
     //   useProductionStatus.ts（制作流程门）；SpendConfirmDialog.tsx / NomiStudioApp.tsx 是 E2E 驱动桥。
     // 新增调用者 = 又一处自己决定弹不弹付费框 → 红；要么经 owner，要么先让主进程做决定、再登记进这张表。
     files: ['src/**/*.{ts,tsx}'],
@@ -430,6 +474,8 @@ export default tseslint.config(
       'src/workbench/capability/capabilityApplyHandler.ts',
       'src/workbench/capability/generationGateConfirm.ts', // 从 capabilityApplyHandler.ts 拆出的 MCP 生成确认卡：只展示主进程决定的挑战
       'src/workbench/capability/credentialProbeSpendCard.ts',
+      'src/workbench/capability/promptExtractionSpendCard.ts',
+      'src/workbench/capability/uncertainPriorTrialSpendCard.ts',
       'src/workbench/production/useProductionStatus.ts',
     ],
     rules: {
@@ -438,6 +484,28 @@ export default tseslint.config(
         message: '付费确认框只经 owner 弹：用 src/workbench/generationCanvas/spend/spendConfirm.ts 的 confirmGenerationSpend / confirmStoryboardPlanBatch；只展示主进程决定的调用者才登记进 eslint.config.mjs 的允许表。',
       }],
     },
+  },
+  {
+    // 渲染层直调 nomi:tasks:run 只有一扇门（见上面 ⑥）：名单外的渲染层文件一处都不许有；只有这一个块配置 task-run-bridge/*。
+    files: TASK_RUN_BRIDGE_FILES,
+    ignores: TASK_RUN_BRIDGE_IGNORES,
+    plugins: { 'task-run-bridge': taskRunBridgePlugin },
+    rules: { 'task-run-bridge/no-restricted-syntax': ['error', ...TASK_RUN_BRIDGE_SELECTORS] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/workbench/assets/assetFileDeletion.ts'],
+    plugins: { 'asset-file-owner': { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } } },
+    rules: { 'asset-file-owner/no-restricted-syntax': ['error',
+      { selector: "MemberExpression:matches([property.name='deleteFiles'], [property.value='deleteFiles'])", message: 'Physical file trash belongs to assets/assetFileDeletion.ts; UI must use the shared asset deletion command.' },
+      { selector: "Property:matches([key.name='deleteFiles'], [key.value='deleteFiles'])", message: 'Do not alias the physical file deletion bridge outside assets/assetFileDeletion.ts.' },
+    ] },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}', 'src/**/__tests__/**', 'src/workbench/assets/assetFileDeletion.ts', 'src/workbench/assets/deleteAssetResult.ts', 'src/workbench/assets/pendingAssetDeletions.ts'],
+    plugins: { 'asset-command-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
+    rules: { 'asset-command-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/assetFileDeletion'], importNames: ['trashProjectFiles'], message: 'UI must request the asset deletion command; physical trash is private to the deletion domain.' }] }] },
   },
   {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。
@@ -492,6 +560,28 @@ export default tseslint.config(
     files: PLAYWRIGHT_ALIAS_FILES,
     plugins: { 'playwright-wait': playwrightAliasPlugin },
     rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors] },
+  },
+  {
+    // 项目存读只认草稿；严格面属于模型/Agent 作者入参。测试可验证两面的区别。
+    files: ['src/workbench/project/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{
+        group: ['**/storyboardPlanSchema', '**/storyboardPlanSchema.ts'],
+        allowImportNames: ['storyboardDraftPlanSchema'],
+        allowTypeImports: true,
+        message: 'Project persistence must use storyboardDraftPlanSchema; strict content validation belongs to authoring/generation.',
+      }] }],
+    },
+  },
+  {
+    files: ['electron/shared/storyboard/storyboardPlanSchema.ts'],
+    rules: {
+      'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors, {
+        selector: "VariableDeclarator[id.name=/^(draftPlanAnchorSchema|storyboardDraftPlanSchema)$/] Property[key.name=/^(name|aspectRatio)$/] CallExpression[callee.property.name=/^(min|max|nonempty|length|regex|refine|superRefine|transform|trim)$/]",
+        message: 'Draft content fields must remain editable strings; add content constraints only in the strict schema extension.',
+      }),
+    },
   },
   prettier,
 )

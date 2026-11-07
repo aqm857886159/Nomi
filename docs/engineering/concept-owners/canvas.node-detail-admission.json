@@ -1,0 +1,25 @@
+{
+  "name": "这张卡此刻画多细（整卡 / 轻量卡）",
+  "subject": "canvas.node-detail-admission",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
+    "symbol": "shouldRenderFullNodeContent"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasNodeLevelOfDetail.ts",
+      "symbol": "shouldRenderFullNodeContent"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+  ],
+  "since": "2026-10-31",
+  "notes": "只收四个输入：缩放是否低于细节线、这种卡是否自己管远看（登记表 ownsZoomTiers）、唯一选中、点名闪烁。节点数和卡片状态都不是输入（docs/fixes/2026-10-31-canvas-detail-admission.root-cause.json，类检查 canvasDetailAdmission.matrix.test.ts）。"
+}

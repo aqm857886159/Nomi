@@ -4,6 +4,7 @@
 // S2 先覆盖生成进度域;错误 hint(classifyGenerationError 七段)按总方案在 S4 迁入。
 // 设计系统铁律呼应:No fake progress——没有真实百分比就不给 percent,用"已等 N 秒"说真话。
 import i18n from '../../i18n'
+import type { TranslationKey } from '../../i18n/translationKey'
 
 export type GenerationProgressPhase =
   | 'queued' //      已入队,还没开始
@@ -110,9 +111,17 @@ export type GenerationErrorKind =
   // 参考素材本身有问题（上传前的本机检查没过）。与 asset-upload-failed 分开：那条是通道没通、
   // 换网络或稍后重试可能就好；这条是**这个文件**不行，重试一万次都一样，得换素材。
   | 'asset-invalid'
+  // 参考图走的是服务商的临时链接，**模型那一侧**去拉时拉不到（过期 / 防盗链 / 地区限制）。请求已经发出去了；
+  // 与 asset-upload-failed 分开（那条是我们这侧上传没成、服务商没被请求到），也与 input 分开（400 不是「参数不对」）。
+  // 下一步先「重试」：重试会尽量改用本机原图上传后再发（这条连接已被记下）；上传过模型还拒绝，就换个模型。判据与记账共用 electron/shared/assets/referenceFetchRefusal。
+  | 'reference-unfetchable'
   // 主进程发送前的参考守在花钱之前拒了：请求里带着参考区没在用的图（有入口绕过了唯一推导）。
   // 请求没离开本机；下一步是重新点生成，会按参考区重新组一次请求。不是服务商的事。
   | 'reference-not-in-use'
+  // 用户明确选的画幅比例超出这条连接的尺寸范围（electron/catalog/paramTranslate.ts 的 ratioResToOpenAiSize 在构造请求时抛，
+  // 机器码 NOMI_ERR::aspect-ratio-unsupported::）。以前这种比例会被悄悄省略 size、让服务商按默认尺寸出图——选的画幅被换成别的。
+  // 请求没离开本机；下一步是在生成框里换一个比例再生成（或换一个支持该比例的模型）。不是服务商的事，也不是模型没配好。
+  | 'aspect-ratio-unsupported'
   // Nomi 自己的出站安全策略把取片拦下了（私网/回环/fake-ip 未确证）。与 network 分开，因为
   // 它的**真相和下一步都不同**：network = 上游或线路偶发，等一等重试可能就好；这条是**确定性**
   // 的自我拒绝（同一个 URL 重试一万次都是同一堵墙），而且任务**已经付过钱**——正确的动作是去
@@ -152,6 +161,7 @@ export type GenerationErrorKind =
   | 'retrieval-incomplete'
   // 本机处理失败（机器码 NOMI_ERR::local-processing::）：截帧 / 提取深度 / 本地素材复制——没有服务商参与，所以动作只有「重试」。
   | 'local-processing'
+  | 'local-refusal'
   | 'unknown'
 
 /** 目录（generationCommon.observability.error）里每一类失败的词条 key——单源；noChargeClaims.test 也读它。 */
@@ -173,7 +183,9 @@ export const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'asset-upload-failed': 'assetUploadFailed',
   'asset-too-large': 'assetTooLarge',
   'asset-invalid': 'assetInvalid',
+  'reference-unfetchable': 'referenceUnfetchable',
   'reference-not-in-use': 'referenceNotInUse',
+  'aspect-ratio-unsupported': 'aspectRatioUnsupported',
   'outbound-blocked': 'outboundBlocked',
   'outbound-blocked-submit': 'outboundBlockedSubmit',
   'outbound-blocked-credential-origin': 'outboundBlockedCredentialOrigin',
@@ -187,6 +199,7 @@ export const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'output-retrieval-failed': 'outputRetrievalFailed',
   'retrieval-incomplete': 'retrievalIncomplete',
   'local-processing': 'localProcessing',
+  'local-refusal': 'localRefusal',
   unknown: 'unknown',
 }
 
@@ -208,7 +221,7 @@ export function narrateGenerationError(
   return {
     // 标题只说失败的原因，不附「未计费」：现在都走中转站，扣没扣钱 Nomi 不知道，只说失败原因和下一步。
     reason,
-    hint: i18n.t(`generationCommon.observability.error.${key}.${hintKey}`, params),
+    hint: kind === 'submission-unknown' ? '' : i18n.t(`generationCommon.observability.error.${key}.${hintKey}`, params),
   }
 }
 
@@ -276,8 +289,13 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   // 参考素材本身不行：换素材的地方就在画布上（连着的那个节点，不需要按钮），换好后点重试。
   // 同「改提示词后重试」那两类的理由——按钮只给 retry，改的动作在画布上。
   'asset-invalid': RETRY_FIRST,
+  // 先重试：重试会尽量改用本机原图上传，不用换图。上传过模型还拒绝（比如这家拉不到上传通道的地址）时，再点重试只会再失败一次，
+  // 换模型是唯一的出口，所以留在次动作。
+  'reference-unfetchable': RETRY_FIRST,
   // 请求没离开本机：重新点生成会按参考区重新组请求，主动作就是重试。
   'reference-not-in-use': RETRY_FIRST,
+  // 比例超界：换比例的地方就在下方生成框（按钮只给 retry，改的动作在 composer）；该比例确实要用，就换一个支持它的模型。
+  'aspect-ratio-unsupported': RETRY_FIRST,
   // 「去模型接入」正是网络那一行的家（NetworkSection 就住在模型设置抽屉里）。绝不给 retry：
   // 重试 = 再生成 = 再扣一次钱，而这次的钱根本没丢，只是产物还没取回来。
   'outbound-blocked': ACCESS_FIRST,
@@ -299,9 +317,8 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   'output-truncated': RETRY_FIRST,
   // 只有重试：读不出来发生在我们这一侧，换供应商不是它的解法，更不能把它说成服务商的失败。
   'output-unreadable': { primary: 'retry', secondary: null },
-  // 不给一键重试：这一镜可能已经被服务商收下，重试可能重复提交。次动作「我核对过了，重新生成」点下去先展开一段确认，
-  // 确认后只释放占用、再走正常的付费确认卡；主动作指路去任务中心看这一笔的时间 / 模型 / 服务商。
-  'submission-unknown': { primary: 'reconcile', secondary: 'release-regenerate' },
+  // 人确认可能再次扣费后发；机器仍然跳过。
+  'submission-unknown': { primary: 'release-regenerate', secondary: 'reconcile' },
   // 没发出去：处理好原因后直接重试；等不及就换一个模型（换了也不会和上一次重复，上一次根本没到服务商）。
   'submission-not-sent': RETRY_FIRST,
   // 只指路去任务面板（那里有「重新取回」）。绝不给 retry：重试 = 再生成一份、再花一次钱，而这一份已经做好了。
@@ -310,6 +327,7 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorActions> = {
   'retrieval-incomplete': { primary: 'view-task', secondary: null },
   // 本机处理失败：换模型帮不上忙（没有模型参与），只留重试。
   'local-processing': { primary: 'retry', secondary: null },
+  'local-refusal': { primary: 'view-task', secondary: null },
   unknown: RETRY_FIRST,
 }
 
@@ -338,7 +356,10 @@ const VENDOR_SIDE_BY_KIND: Record<GenerationErrorKind, boolean> = {
   'asset-upload-failed': false,
   'asset-too-large': true,
   'asset-invalid': false,
+  // 拉不到的是我们给的临时链接，修法在我们这一侧（改用上传）；不点名服务商「失败了」，也不触发「换一家」的切家提示。
+  'reference-unfetchable': false,
   'reference-not-in-use': false,
+  'aspect-ratio-unsupported': false,
   'outbound-blocked': false,
   'outbound-blocked-submit': false,
   'outbound-blocked-credential-origin': false,
@@ -357,6 +378,7 @@ const VENDOR_SIDE_BY_KIND: Record<GenerationErrorKind, boolean> = {
   'retrieval-incomplete': false,
   // 全程在本机，没有服务商。
   'local-processing': false,
+  'local-refusal': false,
   unknown: false,
 }
 
@@ -374,6 +396,30 @@ export function narrateGenerationErrorActions(kind: GenerationErrorKind): {
 } {
   const { primary, secondary } = ACTION_BY_KIND[kind]
   return { primary, secondary }
+}
+
+/**
+ * 没有可以再查的任务时（2026-10-28）：同步供应商把结果放在创建请求的那一次回答里，Nomi 本机没能把它落进项目——
+ * 节点上没有任务号，结果地址也只在那一次回答里，再取一次无从谈起。默认动作 / 说明会把人领去「重新取回」的那几类，
+ * 这里给不暗示能取回的那一版：动作按「有没有任务号」选（主动作重试 = 重新生成；取片被拦照旧先去网络那一行），
+ * 说明换成 `hintWithoutTask`（只说事实和下一步，不谈钱；两类取回失败说的是同一件事，共用一条）。
+ * 不在表里的类照默认：它们的动作和说明本来就不暗示能取回。守门：`narrateWithoutTask.test.ts` 遍历全部类别。
+ */
+const WITHOUT_TASK_BY_KIND: Readonly<Partial<Record<GenerationErrorKind, GenerationErrorActions & { hintKey: TranslationKey }>>> = {
+  'retrieval-incomplete': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
+  'output-retrieval-failed': { primary: 'retry', secondary: null, hintKey: 'generationCommon.observability.error.retrievalIncomplete.hintWithoutTask' },
+  'outbound-blocked': { ...ACCESS_FIRST, hintKey: 'generationCommon.observability.error.outboundBlocked.hintWithoutTask' },
+}
+
+/** 这一类失败在「没有可以再查的任务」时的说明与动作；`null` = 照默认（默认本来就不暗示能取回）。 */
+export function narrateGenerationErrorWithoutTask(kind: GenerationErrorKind): {
+  hint: string
+  primary: GenerationErrorAction
+  secondary: GenerationErrorAction | null
+} | null {
+  const entry = WITHOUT_TASK_BY_KIND[kind]
+  if (!entry) return null
+  return { hint: i18n.t(entry.hintKey), primary: entry.primary, secondary: entry.secondary }
 }
 
 const ACTION_KEY: Record<GenerationErrorAction, string> = {

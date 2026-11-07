@@ -12,7 +12,7 @@ import {
   APIMART_TEXT_MODEL_KEYS, ENV_KEY_ALLOW_CATALOG, ENV_KEY_VAR, REDACTED, assertNoSecretOnDisk, assertUsableEnvKey, envKeyOf,
   filesContainingSecret, paidCredentialSource, redact, redactNetLogEntry, redactedError,
 } from './_paidEnvKey.mjs'
-import { assertEnvKeyModels, envKeyBrainOf, openPaidWalk, paidRunRefusal } from './_paidRun.mjs'
+import { assertEnvKeyModels, DEFAULT_PAID_BRAIN, envKeyBrainOf, openPaidWalk, paidRunRefusal } from './_paidRun.mjs'
 import { finalizeRuntimeWalk } from './agent-runtime-walk-support.mjs'
 
 // 合成 key：形状像真 key，值纯属虚构。
@@ -118,6 +118,30 @@ describe('登记表和产品代码对得上', () => {
     expect(() => assertEnvKeyModels([{ vendorKey: 'apimart', modelKey: 'z-image-turbo' }])).not.toThrow()
     expect(envKeyBrainOf([{ vendorKey: 'apimart', modelKey: 'deepseek-v4-flash' }, { vendorKey: 'apimart', modelKey: 'z-image-turbo' }])).toBe('deepseek-v4-flash')
     expect(envKeyBrainOf([{ vendorKey: 'apimart', modelKey: 'z-image-turbo' }])).toBe('deepseek-v4-pro')
+  })
+
+  test('付费走查缺省大脑在现役文本模型表里：退役了这里就红，不等跑付费才发现', () => {
+    expect(APIMART_TEXT_MODEL_KEYS).toContain(DEFAULT_PAID_BRAIN.modelKey)
+    expect(envKeyBrainOf([{ vendorKey: 'apimart', modelKey: 'z-image-turbo' }])).toBe(DEFAULT_PAID_BRAIN.modelKey)
+  })
+
+  test('走查脚本不点名已退役的 APIMart 文本模型：退役了在这里红，不等跑付费才发现', () => {
+    const seed = fs.readFileSync(new URL('../../electron/catalog/seedBuiltins.ts', import.meta.url), 'utf8')
+    const listed = seed.match(/RETIRED_APIMART_TEXT_MODEL_KEYS = Object\.freeze\(\[([^\]]*)\]\)/)
+    expect(listed).not.toBeNull()
+    const retired = [...listed[1].matchAll(/["']([^"']+)['"]/g)].map((match) => match[1])
+    expect(retired).toContain('deepseek-v3.2')
+    // 故意种退役模型、用来测「退役的会被清掉」的走查：这里点名退役 key 是对的。
+    const SEEDS_RETIRED_ON_PURPOSE = new Set(['model-selection-real.e2e.mjs'])
+    const here = new URL('./', import.meta.url)
+    const offenders = fs.readdirSync(here)
+      .filter((name) => name.endsWith('.mjs') && !name.endsWith('.test.mjs') && !SEEDS_RETIRED_ON_PURPOSE.has(name))
+      .flatMap((name) => {
+        const text = fs.readFileSync(new URL(name, here), 'utf8')
+        return retired.filter((key) => text.includes(`'${key}'`) || text.includes(`"${key}"`)).map((key) => `${name}: ${key}`)
+      })
+    for (const name of SEEDS_RETIRED_ON_PURPOSE) expect(fs.existsSync(new URL(name, here))).toBe(true)
+    expect(offenders).toEqual([])
   })
 })
 

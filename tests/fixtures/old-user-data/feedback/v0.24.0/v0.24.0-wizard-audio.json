@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "manifest": {
+    "schemaVersion": 1,
+    "createdAt": "2026-11-02T00:00:00.000Z",
+    "app": {
+      "version": "0.24.0",
+      "electron": "43",
+      "node": "22",
+      "chrome": "130"
+    },
+    "system": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "osRelease": "fixture",
+      "locale": "zh-CN",
+      "timeZone": "UTC"
+    },
+    "projectId": null,
+    "entries": [
+      {
+        "path": "logs/tail.txt",
+        "bytes": 61,
+        "what": "最近 1 行主进程日志（写入时已脱敏，此处再过一遍）"
+      },
+      {
+        "path": "model-catalog.json",
+        "bytes": 3751,
+        "what": "模型目录（密钥、代理地址、自定义头全部抹掉）"
+      }
+    ],
+    "excluded": [
+      {
+        "what": "trajectory/turns.json",
+        "why": "no-conversation-in-context"
+      },
+      {
+        "what": "perf/summary.json",
+        "why": "perf-unavailable"
+      },
+      {
+        "what": "API keys / tokens / proxy credentials",
+        "why": "never-collected-by-design"
+      },
+      {
+        "what": "file paths / project paths / asset paths",
+        "why": "never-collected-by-design"
+      },
+      {
+        "what": "prompts / manuscripts / tool results",
+        "why": "content-checkbox-not-ticked"
+      },
+      {
+        "what": "full logs / Agent command ledger / project artifacts",
+        "why": "available-only-via-settings-diagnostics-export"
+      }
+    ],
+    "totalBytes": 3812
+  },
+  "context": {
+    "surface": "generation",
+    "summary": "legacy fixture summary",
+    "errorCode": null,
+    "note": "legacy fixture note",
+    "contentIncluded": false,
+    "provider": null,
+    "model": null
+  },
+  "attachments": {
+    "logs/tail.txt": [
+      "[2026-11-02T00:00:00.000Z] WARN vendor fixture status=500"
+    ],
+    "model-catalog.json": {
+      "version": 13,
+      "vendors": [
+        {
+          "key": "local-39017",
+          "name": "Relay One",
+          "enabled": true,
+          "hasApiKey": "<redacted>",
+          "baseUrlHint": "http://127.0.0.1:39017/v1",
+          "authType": "bearer",
+          "authHeader": null,
+          "authQueryParam": null,
+          "providerKind": "openai-compatible",
+          "credentialBinding": "<redacted>",
+          "meta": {
+            "adapterCandidatePromotionPredecessors": {}
+          },
+          "createdAt": "2026-10-31T12:40:09.410Z",
+          "updatedAt": "2026-10-31T12:40:09.441Z"
+        }
+      ],
+      "models": [
+        {
+          "modelKey": "tts-1",
+          "vendorKey": "local-39017",
+          "modelAlias": "tts-1",
+          "labelZh": "TTS",
+          "kind": "audio",
+          "enabled": true,
+          "meta": {
+            "adapter": {
+              "state": "verified",
+              "runId": "run-rel-1",
+              "activeRevision": "adapter-revision-1bb5f3676bdc2f5c5a6f",
+              "evidence": "self-check",
+              "modes": [
+                {
+                  "taskKind": "text_to_audio",
+                  "state": "verified",
+                  "attempts": 1,
+                  "verifiedAt": "2026-10-20T00:00:00.000Z"
+                }
+              ],
+              "updatedAt": "2026-10-20T00:00:00.000Z",
+              "publicationModes": [
+                "text_to_audio"
+              ]
+            },
+            "parameters": [
+              {
+                "key": "voice",
+                "label": "音色 ID",
+                "type": "text"
+              },
+              {
+                "key": "speed",
+                "label": "语速",
+                "type": "number",
+                "default": 1,
+                "min": 0.25,
+                "max": 4
+              }
+            ]
+          },
+          "createdAt": "2026-10-31T12:40:09.410Z",
+          "updatedAt": "2026-10-31T12:40:09.441Z"
+        },
+        {
+          "modelKey": "opaque-tts",
+          "vendorKey": "local-39017",
+          "modelAlias": "opaque-tts",
+          "labelZh": "Opaque TTS",
+          "kind": "audio",
+          "enabled": true,
+          "meta": {
+            "adapter": {
+              "state": "verified",
+              "runId": "run-rel-1",
+              "activeRevision": "adapter-revision-1bb5f3676bdc2f5c5a6f",
+              "evidence": "self-check",
+              "modes": [
+                {
+                  "taskKind": "text_to_audio",
+                  "state": "verified",
+                  "attempts": 1,
+                  "verifiedAt": "2026-10-20T00:00:00.000Z"
+                }
+              ],
+              "updatedAt": "2026-10-20T00:00:00.000Z",
+              "publicationModes": [
+                "text_to_audio"
+              ]
+            },
+            "parameters": [
+              {
+                "key": "voice",
+                "label": "音色 ID",
+                "type": "text"
+              },
+              {
+                "key": "speed",
+                "label": "语速",
+                "type": "number",
+                "default": 1,
+                "min": 0.25,
+                "max": 4
+              }
+            ]
+          },
+          "createdAt": "2026-10-31T12:40:09.410Z",
+          "updatedAt": "2026-10-31T12:40:09.441Z"
+        },
+        {
+          "modelKey": "deepseek-chat",
+          "vendorKey": "local-39017",
+          "modelAlias": "deepseek-chat",
+          "labelZh": "Chat",
+          "kind": "text",
+          "enabled": true,
+          "meta": {
+            "adapter": {
+              "state": "verified",
+              "runId": "run-rel-1",
+              "activeRevision": "adapter-revision-1bb5f3676bdc2f5c5a6f",
+              "evidence": "self-check",
+              "modes": [
+                {
+                  "taskKind": "chat",
+                  "state": "verified",
+                  "attempts": 1,
+                  "verifiedAt": "2026-10-20T00:00:00.000Z"
+                }
+              ],
+              "updatedAt": "2026-10-20T00:00:00.000Z",
+              "publicationModes": [
+                "chat"
+              ]
+            }
+          },
+          "createdAt": "2026-10-31T12:40:09.410Z",
+          "updatedAt": "2026-10-31T12:40:09.441Z"
+        }
+      ],
+      "mappings": [
+        {
+          "id": "mapping-4dfb70ce-d35e-4e7b-89db-c172fad977c7",
+          "vendorKey": "local-39017",
+          "taskKind": "text_to_audio",
+          "modelKey": "tts-1",
+          "name": "TTS · text_to_audio",
+          "enabled": true,
+          "create": {
+            "method": "POST",
+            "path": "/v1/audio/speech",
+            "headers": {
+              "Content-Type": "application/json",
+              "Authorization": "<redacted>"
+            },
+            "body": {
+              "model": "{{request.params.model}}",
+              "input": "{{request.prompt}}",
+              "voice": "{{request.params.voice}}",
+              "speed": "{{request.params.speed}}",
+              "response_format": "mp3"
+            },
+            "audioResponse": {
+              "type": "binary",
+              "contentType": "audio/mpeg",
+              "extension": "mp3"
+            }
+          },
+          "createdAt": "2026-10-31T12:40:09.441Z",
+          "updatedAt": "2026-10-31T12:40:09.441Z"
+        },
+        {
+          "id": "mapping-0a16c436-a836-403e-96b1-5c0d77338ed8",
+          "vendorKey": "local-39017",
+          "taskKind": "text_to_audio",
+          "modelKey": "opaque-tts",
+          "name": "Opaque TTS · text_to_audio",
+          "enabled": true,
+          "create": {
+            "method": "POST",
+            "path": "/v1/audio/speech",
+            "headers": {
+              "Content-Type": "application/json",
+              "Authorization": "<redacted>"
+            },
+            "body": {
+              "model": "{{request.params.model}}",
+              "input": "{{request.prompt}}",
+              "voice": "{{request.params.voice}}",
+              "speed": "{{request.params.speed}}",
+              "response_format": "mp3"
+            },
+            "audioResponse": {
+              "type": "binary",
+              "contentType": "audio/mpeg",
+              "extension": "mp3"
+            }
+          },
+          "createdAt": "2026-10-31T12:40:09.441Z",
+          "updatedAt": "2026-10-31T12:40:09.441Z"
+        }
+      ],
+      "apiKeysByVendor": {
+        "local-39017": {
+          "vendorKey": "local-39017",
+          "apiKey": "<redacted>",
+          "enc": "safeStorage",
+          "enabled": true,
+          "createdAt": "2026-10-31T12:40:09.410Z",
+          "updatedAt": "2026-10-31T12:40:09.410Z"
+        }
+      }
+    }
+  }
+}

@@ -533,7 +533,7 @@ describe("Imagen 4 退役（2026-07-30：上游 Google 确定性 404，用户拍
 
 describe("Agnes complete catalog upgrade", () => {
   it("adds ten public models, keeps user state, and preserves image attachments through explicit metadata", async () => {
-    const { modelSupportsImageInput, buildAgentUserContent } = await import("../ai/agentUserContent");
+    const { modelImageInputSupport, buildAgentUserContent } = await import("../ai/agentUserContent");
     const stale = applyBuiltinSeeds(emptyCatalog(), NOW).state;
     const old = stale.models.find((m) => m.vendorKey === "agnes" && m.modelKey === "agnes-2.0-flash")!;
     old.enabled = false; old.labelZh = "My Agnes"; old.meta = { note: "keep" };
@@ -547,8 +547,9 @@ describe("Agnes complete catalog upgrade", () => {
     expect(state.mappings.find((m) => m.id === mapping.id)).toMatchObject({ enabled: false, name: "My video" });
     expect(state.apiKeysByVendor).toEqual(savedKeys);
     for (const model of state.models.filter((m) => m.vendorKey === "agnes" && m.kind === "text")) {
-      const supportsImageInput = modelSupportsImageInput(model.modelKey, model.modelAlias, model.meta);
-      const content = await buildAgentUserContent({ prompt: "Describe it", supportsImageInput, supportsPdfInput: false, attachments: [{ url: "nomi-local://test.png", fileName: "test.png", contentType: "image/png", kind: "image" }], resolveBytes: () => new Uint8Array([1]), extractText: async () => null });
+      const imageInput = modelImageInputSupport(model);
+      expect(imageInput).toBe("supported");
+      const content = await buildAgentUserContent({ prompt: "Describe it", imageInput, supportsPdfInput: false, attachments: [{ url: "nomi-local://test.png", fileName: "test.png", contentType: "image/png", kind: "image" }], resolveBytes: () => new Uint8Array([1]), extractText: async () => null });
       expect(content).toContainEqual({ type: "image", image: new Uint8Array([1]), mimeType: "image/png" });
     }
     expect(applyBuiltinSeeds(state, "2026-08-27T00:00:00.000Z").changed).toBe(false);

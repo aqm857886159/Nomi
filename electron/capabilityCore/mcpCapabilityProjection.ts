@@ -1,6 +1,6 @@
 import { deepFreeze } from "../jsonUtils";
 import { z, type ZodTypeAny } from "zod";
-import { toPublishedJsonSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
+import { toRuntimeJsonSchema, toStandardModelSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
 
 import type { CapabilityContract } from "../shared/agentCapabilities/capabilityContract";
 import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
@@ -59,13 +59,8 @@ export type McpCapabilityAdapter = {
   readonly contract: AnyCapabilityContract;
   readonly authority: McpCapabilityAuthority;
   readonly port: McpCapabilityPortBinding;
-  /**
-   * `tools/list` 上真正广播出去的那份 JSON Schema。
-   *
-   * 阶段 5a 删掉了并列的 `semanticInputJsonSchema`：每个适配器都把它设成和这份**一模一样**的
-   * 对象，除了两处测试没有任何消费者——它是一份不会被任何东西证伪的第二真相源（P1）。
-   * 语义输入的形状由契约的 `inputSchema` 说了算，模型可见的那一半由共享描述符说了算。
-   */
+  /** Canonical derived execution schema. The resolver publishes its standard model projection
+   * and retains this view for mcpProtocol validation, so deferred constraints are never weakened. */
   readonly transportInputSchema: SchemaLike;
   readonly parseCall: (args: Record<string, unknown>) => McpCapabilityCall;
   /**
@@ -84,6 +79,7 @@ export type McpCapabilityTool = {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: SchemaLike;
+  readonly runtimeInputSchema: SchemaLike;
   readonly method: string;
   readonly build: (args: Record<string, unknown>) => Record<string, unknown>;
   /** 见 `McpCapabilityAdapter.prepareArguments`。协议层在校验参数之前调用它。 */
@@ -98,8 +94,9 @@ export type McpCapabilityResolver = {
 };
 
 /** Clone transport JSON before freezing so registration callers cannot mutate the resolver later. */
-export function immutableSchemaSnapshot(schema: SchemaLike): SchemaLike {
-  return deepFreeze(JSON.parse(JSON.stringify(schema)) as SchemaLike);
+export function immutableSchemaSnapshot(schema: SchemaLike, modelVisible = true): SchemaLike {
+  const snapshot = JSON.parse(JSON.stringify(schema)) as SchemaLike;
+  return deepFreeze(modelVisible ? toStandardModelSchema(snapshot) : snapshot);
 }
 
 function isMcpExposable(adapter: McpCapabilityAdapter): boolean {
@@ -144,8 +141,8 @@ function derivedAdapter(
 ): McpCapabilityAdapter {
   const tool = mcpProfileToolFor(contract.id);
   if (!tool) throw new Error(`No model-facing descriptor projects ${contract.id} to MCP`);
-  const schema = immutableSchemaSnapshot(tool.inputSchema as SchemaLike);
-  const unsupported = findUnsupportedSchemaFeatures(schema);
+  const schema = immutableSchemaSnapshot(tool.runtimeInputSchema as SchemaLike, false);
+  const unsupported = findUnsupportedSchemaFeatures(toStandardModelSchema(schema));
   if (unsupported.length) {
     throw new Error(`Unsupported derived MCP transport schema for ${contract.id}: ${unsupported.join("; ")}`);
   }
@@ -234,15 +231,15 @@ const timelineEditMcpInput = z.discriminatedUnion("operation", [
 ]);
 const exportJobMcpInput = contractModelSchema("inspect_export_job", exportReadPiInputSchemaForAlias("inspect_export_job"))
   .extend({ ...leaseField, operation: z.enum(["status", "verify"]) }).strict();
-const timelineEditTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(timelineEditMcpInput, {
-  label: "timelineEdit",
+const timelineEditTransportSchema = transportSchemaFromZod(timelineEditMcpInput, {
+  label: "timelineEdit", modelVisible: false,
   // Keep JSON Schema numeric exclusive bounds (not OpenAPI boolean bounds).
   extraProperties: { plan: (() => {
-    const { $schema: _dialect, ...schema } = toPublishedJsonSchema(contractModelSchema("apply_edit_plan", timelineEditPlanModelSchema));
+    const { $schema: _dialect, ...schema } = toRuntimeJsonSchema(contractModelSchema("apply_edit_plan", timelineEditPlanModelSchema));
     return schema;
   })() },
-}));
-const exportJobTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(exportJobMcpInput, { label: "exportJob" }));
+});
+const exportJobTransportSchema = transportSchemaFromZod(exportJobMcpInput, { label: "exportJob", modelVisible: false });
 
 export const TIMELINE_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(TIMELINE_READ_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: "timeline:read" },
@@ -316,6 +313,7 @@ export function createMcpCapabilityResolver(registrations: readonly McpCapabilit
       const description = mcpToolDescription(adapter.contract, specsForCapability(adapter.contract.id));
       const annotations = readOnlyAnnotations(adapter);
       const inputSchema = immutableSchemaSnapshot(adapter.transportInputSchema);
+      const runtimeInputSchema = immutableSchemaSnapshot(adapter.transportInputSchema, false);
       const method = adapter.contract.id;
       const parseCall = adapter.parseCall;
       const outputSchema = adapter.outputSchema ?? adapter.contract.outputSchema;
@@ -323,6 +321,7 @@ export function createMcpCapabilityResolver(registrations: readonly McpCapabilit
         name,
         description,
         inputSchema,
+        runtimeInputSchema,
         method,
         build: (args) => parseCall(args).transport,
         ...(adapter.prepareArguments ? { prepareArguments: adapter.prepareArguments } : {}),
@@ -361,8 +360,8 @@ export const CANVAS_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(CANV
 // 外部画布面按动词拆名与 #754（接模型 4 工具）同一刀定，不在这里另造第 21 个动词声明去凑数。
 const canvasEditMcpInput = z.object({ ...leaseField }).passthrough();
 // 发布走与动词声明同一个发布器（`toPublishedJsonSchema`：record 字段带值类型、枚举带说明），只在外面套租约字段。
-const canvasEditTransportSchema = immutableSchemaSnapshot((() => {
-  const { $schema: _dialect, ...published } = toPublishedJsonSchema(
+const canvasEditTransportSchema = (() => {
+  const { $schema: _dialect, ...published } = toRuntimeJsonSchema(
     flattenDiscriminatedUnion(canvasWriteSemanticInputSchema, { name: "nomi_canvas_edit", mergeEnumFields: ["operation"] }),
   ) as { $schema?: string; properties?: Record<string, unknown>; required?: string[] } & Record<string, unknown>;
   const schema = {
@@ -370,10 +369,10 @@ const canvasEditTransportSchema = immutableSchemaSnapshot((() => {
     properties: { ...MCP_LEASE_PROPERTIES, ...(published.properties ?? {}) },
     required: [...MCP_LEASE_FIELD_NAMES.filter((name) => name === "leaseHandle"), ...(published.required ?? [])],
   };
-  const unsupported = findUnsupportedSchemaFeatures(schema as SchemaLike);
+  const unsupported = findUnsupportedSchemaFeatures(toStandardModelSchema(schema as SchemaLike));
   if (unsupported.length) throw new Error(`Unsupported canvas.write MCP transport schema: ${unsupported.join("; ")}`);
   return schema as SchemaLike;
-})());
+})();
 export const CANVAS_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   contract: CANVAS_WRITE_CAPABILITY,
   authority: Object.freeze({ kind: "project_session", requiredScope: CANVAS_WRITE_CAPABILITY.requiredScope }),
@@ -394,7 +393,7 @@ const canvasMaintenanceMcpInput = contractModelSchema("delete_canvas_nodes", can
   ...leaseField, operation: z.enum(["delete_canvas_nodes", "undo_canvas_delete"]),
   confirmation: z.boolean().optional(), undoToken: z.string().trim().min(1).optional(),
 }).strict();
-const canvasMaintenanceTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(canvasMaintenanceMcpInput, { label: "canvasMaintenance" }));
+const canvasMaintenanceTransportSchema = transportSchemaFromZod(canvasMaintenanceMcpInput, { label: "canvasMaintenance", modelVisible: false });
 export const CANVAS_MAINTENANCE_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   contract: CANVAS_DELETE_CAPABILITY,
   authority: Object.freeze({ kind: "project_session", requiredScope: CANVAS_DELETE_CAPABILITY.requiredScope }),

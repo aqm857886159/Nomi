@@ -1,3 +1,5 @@
+import { deleteAssetResult } from '../assets/deleteAssetResult'
+import { sameProjectAgentBinding } from '../../../electron/shared/projectBinding'
 import type { SpendQuoteLine } from '../../../electron/shared/contracts/spendQuote'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import {
@@ -50,7 +52,8 @@ import { directorPreviewBlocksOp } from './directorPreviewBlocksOp'
 import { handOverShotsOp } from './productionHandOverShotsOp'
 import { HAND_OVER_SHOTS_OP } from '../../../electron/shared/contracts/canvasHandOver'
 import { extendAgentStoryboardDesign, patchAgentStoryboardDesign, upsertAgentStoryboardDesign } from '../creation/storyboard/agentStoryboardDesign'
-import { confirmCredentialProbeSpend, spendModelLine } from './credentialProbeSpendCard'
+import { spendModelLine } from './credentialProbeSpendCard'
+import { dedicatedSpendCardFor } from './spendCardByIntent'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。单一真相源：画布读写复用 store 现成动作（readDocumentSnapshot / applyExternalGraph），
@@ -151,9 +154,10 @@ async function runProductionTextPlanner(input: {
  *   · 用户自己在画布上点的那一下（视频拆解）→ 金币图标 + 说清「这一批要发几次调用」。
  */
 async function confirmSpendFromMainProcess(info: SpendConfirmPayload): Promise<{ confirmed: boolean }> {
-  // 凭据验证（T-MO-10）：它不挂在任何节点上（用户此刻在接入页，不在画布），措辞与明细
-  // 另有一家（`credentialProbeSpendCard.ts`），但弹的仍是全仓唯一那张卡。
-  if (info.intent === 'credential-probe') return confirmCredentialProbeSpend(info)
+  // 不挂在画布节点上、措辞另有一家的（凭据验证、浏览器提取提示词）按 intent 查表（`spendCardByIntent.ts`），
+  // 弹的仍是全仓唯一那张卡；新的一种只在表里加一行，这里不再长分支。
+  const dedicatedCard = dedicatedSpendCardFor(info.intent)
+  if (dedicatedCard) return dedicatedCard(info)
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find((item) => item.id === info.nodeId)
   const nodeLabel =
@@ -286,6 +290,24 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   // 处理这条能力操作即动作起点：签发此刻打开的项目；实时面的项目闸与之后的写入只认它。
   const loaded = withProjectAction((project) => project) ?? null
   const activeId = loaded ? loaded.binding.projectId : null
+  // Internal UI command: capture the parent project before the first await, never overlay-local stores.
+  if (op === 'assets.delete-files') {
+    if (!loaded || projectId !== loaded.binding.projectId
+      || (data.projectBinding !== undefined && !sameProjectAgentBinding(data.projectBinding as typeof loaded.binding, loaded.binding))) {
+      throw new SurfacePortWireError('project_binding_stale')
+    }
+    const relativePaths = Array.isArray(data.relativePaths) ? data.relativePaths : []
+    const outcomes = []
+    for (const relativePath of relativePaths) {
+      if (typeof relativePath !== 'string' || !relativePath.trim()) throw new Error('relativePath is required')
+      loaded.assertCurrent()
+      outcomes.push(await deleteAssetResult({
+        origin: { source: 'project', projectId, relativePath },
+      }, loaded, loaded.assertCurrent))
+    }
+    return outcomes
+  }
+
   // 画布读写**只能**作用于当前打开的项目（动 store → 必须是活动项目，否则串台）；目标≠活动 → 拒。
   // 确认门（spend.confirm / plan.confirm）不在此限：AI 想在「非当前项目」生成/落方案时也弹全局卡，
   // 卡里标明项目名，确认后走盘落地（不动非活动 store）。这正是治静默黑洞的关键放开。

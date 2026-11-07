@@ -19,10 +19,10 @@ const MARGIN = 1.35
 
 export function directorOverviewPose(scene: DirectorScene): OverviewPose | null {
   const frame = sceneFrame(scene.sceneConfig)
-  // 取景围着「演的东西」（角色 / 道具），场景件（编译器标 isAuxiliary 的地面、墙、门）只当背景，不撑大取景
-  const visible = scene.objects.filter((object) => object.visible && !object.parentId)
-  const actors = visible.filter((object) => !object.isAuxiliary)
-  const points = (actors.length ? actors : visible).map((object) => transformPoint(frame, object.position))
+  // 取景角色与道具；背景身份独立于实体渲染/碰撞，不拿物理辅助标志推断取景。
+  const visible = scene.objects.filter((object) => object.visible && !object.isAuxiliary && !object.parentId)
+  const actors = visible.filter((object) => object.framingRole !== 'background')
+  const points = actors.map((object) => transformPoint(frame, object.position))
   if (points.length === 0) return null
   const min = { x: Math.min(...points.map((p) => p.x)), y: Math.min(...points.map((p) => p.y)), z: Math.min(...points.map((p) => p.z)) }
   const max = { x: Math.max(...points.map((p) => p.x)), y: Math.max(...points.map((p) => p.y)), z: Math.max(...points.map((p) => p.z)) }

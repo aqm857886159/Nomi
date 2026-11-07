@@ -11,7 +11,7 @@ import { AGENT_CONTEXT_SNAPSHOT_VERSION, formatAgentContextSnapshot } from '../s
 import { resolveProjectAgentAttachmentClaims } from '../assets/projectAssetStore'
 import { readNomiLocalAsset } from '../assets/localAssetFile'
 import { extractTextFromLocalAsset } from '../files/extractText'
-import { buildAgentUserContent, projectAgentPromptForSend, modelSupportsImageInput, modelSupportsPdfInput } from '../ai/agentUserContent'
+import { buildAgentUserContent, projectAgentPromptForSend, modelImageInputSupport, modelSupportsPdfInput } from '../ai/agentUserContent'
 import { rewritePdfPayload, type NativePdf } from '../ai/nativePdfPayload'
 
 const text = z.string().max(128 * 1024)
@@ -89,7 +89,7 @@ export function createDesktopLaneInput(input: {
       const content = await buildAgentUserContent({
         prompt: [projectAgentPromptForSend(message.content, attachments), formatAgentContextSnapshot(message.context.contextSnapshot), formatStoryboardRequestTarget(message.context.storyboardTarget), formatLaneModelDelta(message.context, previous)].filter(Boolean).join('\n\n'),
         attachments,
-        supportsImageInput: modelSupportsImageInput(model.modelKey, model.modelAlias, model.meta),
+        imageInput: modelImageInputSupport(model),
         supportsPdfInput: selected.kind !== 'openai-compatible' && modelSupportsPdfInput(model.modelKey, model.modelAlias, model.meta),
         resolveBytes: (url) => readNomiLocalAsset(url)?.bytes ?? null,
         extractText: (attachment) => extractTextFromLocalAsset(attachment.url, attachment.contentType, attachment.fileName),

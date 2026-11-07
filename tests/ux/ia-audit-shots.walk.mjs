@@ -329,8 +329,8 @@ try {
   )
   note('加导演台节点', `已加（_canvasRail，节点 ${nodeCountBefore} → ${nodeCountBefore + 1}）`)
   await getWin().waitForTimeout(3000)
-  // 全屏导演台**唯一真标志**：DirectorEditor 经 createPortal 挂到 body 的 `[data-testid="director-editor"]`
-  // 满屏壳（DirectorEditor.tsx）。role="tablist" 会误命中顶栏创作/生成/预览页签，不能用它判定。
+  // 导演台**唯一真标志**：生成页画布那一格里的 `[data-testid="director-editor"]`（DirectorEditor.tsx，2026-10-29 起经 GenerationPageLayer 挂页格，
+  // 不再是挂 body 的满屏壳）。role="tablist" 会误命中顶栏创作/生成/预览页签，不能用它判定。
   const isFullscreenOpen = async () =>
     await getWin().evaluate(() => !!document.querySelector('[data-testid="director-editor"]')).catch(() => false)
   // 导演台节点卡上的按钮：aria-label = 「进入导演台」（director.node.open）。

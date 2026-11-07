@@ -99,6 +99,7 @@ describe("接入矩阵 · 鉴权方式 → 请求头", () => {
     for (const kind of ["text", "image", "video", "audio"] as const) {
       it(`${row.authType} · ${kind} → 鉴权头随 authType derive，不钉死 Bearer`, () => {
         const draft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
           baseUrl: "http://127.0.0.1:8188",
           authType: row.authType,
           models: [{ modelKey: "m", labelZh: "m", kind }],
@@ -116,6 +117,7 @@ describe("接入矩阵 · 鉴权方式 → 请求头", () => {
 
   it("无 key 端点绝不发出空的 Authorization（会被部分服务直接拒）", () => {
     const draft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
       baseUrl: "http://127.0.0.1:11434/v1",
       authType: "none",
       models: [{ modelKey: "llama3", labelZh: "llama3", kind: "text" }],
@@ -135,6 +137,7 @@ describe("接入矩阵 · 本地端点每种模型类型都拿得到通道", () 
     for (const kind of kinds) {
       it(`${baseUrl} · ${kind} → 至少一条通道且每条都有 create`, () => {
         const draft = buildOpenAiCompatibleDraft({
+      mediaProtocols: ["video-generations-json-v1"],
           baseUrl,
           authType: "bearer",
           models: [{ modelKey: `probe-${kind}`, labelZh: `probe-${kind}`, kind }],

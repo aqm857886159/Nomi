@@ -309,10 +309,10 @@ export const zhGenerationCommon = {
   observability: {
     // 错误卡的动作按钮。main = 当主按钮时的说法，alt = 降为次要小字时的说法。
     action: {
-      reconcile: { main: '在任务中心查看', alt: '先在任务中心查看' },
+      reconcile: { main: '查看任务', alt: '先在任务中心查看' },
       viewTask: { main: '查看制作任务', alt: '去看制作任务' },
       openRecoverable: { main: '去重新取回', alt: '去重新取回' },
-      releaseRegenerate: { main: '我核对过了，重新生成', alt: '我核对过了，重新生成' },
+      releaseRegenerate: { main: '再发一次', alt: '再发一次' },
       retry: { main: '重试', alt: '仍要重试' },
       switchModel: { main: '换个模型', alt: '换个模型' },
       switchSameCapability: { main: '换成 {{model}}', alt: '换成 {{model}}' },
@@ -320,9 +320,6 @@ export const zhGenerationCommon = {
       fixModelKind: { main: '改成{{kind}}并重试', alt: '改成{{kind}}' },
     },
     releaseConfirm: {
-      message: '只有在服务商后台确认没有这一笔时再继续。点「继续」会马上重新生成这一镜；如果其实已经收下，会重复提交。',
-      continue: '继续',
-      cancel: '取消',
       failed: '没能记录你的核对结果，这一镜还没有放行。再点一次。',
     },
     progress: {
@@ -343,6 +340,10 @@ export const zhGenerationCommon = {
       progressUnknownSize: '导入中 · {{percent}}%',
       checking: '导入中 · 检查中 · {{size}}',
       checkingUnknownSize: '导入中 · 检查中',
+      converting: '导入中 · 转换格式 · {{percent}}% · {{size}}',
+      convertingUnknownSize: '导入中 · 转换格式 · {{percent}}%',
+      convertingUnmeasured: '导入中 · 转换格式 · {{size}}',
+      convertingUnmeasuredUnknownSize: '导入中 · 转换格式',
       finalizing: '导入中 · 收尾中 · {{size}}',
       finalizingUnknownSize: '导入中 · 收尾中',
     },
@@ -408,6 +409,14 @@ export const zhGenerationCommon = {
         reason: '这次生成没发出去：请求里带了参考区没在用的图',
         hint: 'Nomi 在发给服务商之前发现，这次请求里夹着参考区标「未用到」或当前方式用不上的图，于是在发出之前拦下了——这次请求一个字节都没离开你的电脑，服务商没被请求到。重新点一次生成即可：Nomi 会按参考区里正在用的图重新组一次请求。如果反复出现，请把下方技术详情反馈给我们，这说明有个入口没走统一的参考规则。',
       },
+      aspectRatioUnsupported: {
+        reason: '这次生成没发出去：所选画幅比例超出了这条连接出图尺寸支持的范围',
+        hint: '这条连接用 OpenAI 兼容的尺寸字段传出图尺寸，长边最多是短边的 3 倍（最宽 3:1、最窄 1:3），你选的比例超出了——哪怕模型本身支持这个比例，这条连接也表达不了。Nomi 没有悄悄换成别的画幅，而是在发出之前就拦下了：这次生成请求没有发出去，服务商没被请求到。请在下方换一个比例（比如 16:9、1:1 或 9:16）再点重试；这个比例确实要用的话，换一个能直接选这个比例的模型或连接。具体选了哪个比例，见下方技术详情。',
+      },
+      referenceUnfetchable: {
+        reason: '模型取不到参考图',
+        hint: '模型那边取不到这张参考图的链接，可能已过期或被拦。点「重试」时，Nomi 会尽量改用你电脑上的原图上传后再发。还是不行就换个模型；这张图本机没有原文件的话，换一张或重新生成。',
+      },
       assetInvalid: {
         reason: '参考素材本身有问题',
         hint: '这张参考素材没通过发送前的本机检查：文件读不到、认不出类型，或者内容不是真正的图片/视频（比如把网页存成了 .png）。请求还没发出去。同一个文件重试结果不会变——请在画布上换一张参考素材，或重新导入原文件，再点重试。具体是哪个文件，见下方技术详情。',
@@ -415,6 +424,8 @@ export const zhGenerationCommon = {
       outboundBlocked: {
         reason: '取片被 Nomi 自己的安全策略拦下了',
         hint: '这不是服务商的故障，也不是你的生成失败了——任务多半已经在服务商那边跑完了，产物还在。是 Nomi 在下载产物时把目标地址判成了内网并拒绝下载。最常见的原因是你开着 Clash / Surge / sing-box 的 TUN（fake-ip）模式：所有域名都会被解析成 198.18.x 这类合成地址。请到「模型接入 → 网络」看那一行有没有写「检测到本地代理」；确认后回到这里用「重新取回」把它取回来；不要重新生成，重新生成会另做一份新的。具体是哪个地址，见下方技术详情。',
+        // 没有可以再查的任务（同步供应商：结果只在那一次回答里）：不提「重新取回」，下一步是先看网络、再重试。
+        hintWithoutTask: '这不是服务商的故障。服务商这次把结果直接放在了回答里，是 Nomi 在下载它时把目标地址判成了内网并拒绝下载。最常见的原因是你开着 Clash / Surge / sing-box 的 TUN（fake-ip）模式：所有域名都会被解析成 198.18.x 这类合成地址。这一次没有可以再查的任务，没法再下载一次。请先到「模型接入 → 网络」看那一行有没有写「检测到本地代理」，确认后再重试（重试会重新生成一次）。具体是哪个地址，见下方技术详情。',
       },
       outboundBlockedSubmit: {
         reason: '这次生成没发出去，Nomi 自己的安全策略先拦下了',
@@ -444,8 +455,8 @@ export const zhGenerationCommon = {
       },
       // 付费提交发出后没拿到回复：只说事实（可能已被收下、Nomi 没法核对）和下一步（先去服务商后台看），不说花没花钱。
       submissionUnknown: {
-        reason: '这一镜可能已被服务商收下，结果没法确认',
-        hint: '请求发出去之后，Nomi 没拿到服务商的回复，所以不知道它有没有收下这一镜。Nomi 没法自动核对，也不会自动重发。请先到服务商后台看一眼有没有这一笔；确认没有，再重新生成——否则可能重复提交。',
+        reason: '上一次没等到结果，可能已经扣费',
+        hint: '',
       },
       submissionNotSent: {
         reason: '这次生成没有发出去，停在了这台电脑上',
@@ -461,6 +472,8 @@ export const zhGenerationCommon = {
       retrievalIncomplete: {
         reason: '任务已提交，这次没能取回结果',
         hint: '这一镜已经交给服务商了，是 Nomi 这一次查结果、读结果或下载结果没成（常见原因：本机网络或代理一时不通、服务商的查询接口报错）。不要重新生成，那会另做一份新的。点「重新取回」，Nomi 只会再查一次、再下载一次。具体原因见下方技术详情。',
+        // 没有可以再查的任务（同步供应商：结果只在那一次回答里）：不提「重新取回」，下一步是重试（会重新生成）。
+        hintWithoutTask: '服务商这次把结果直接放在了回答里，是 Nomi 把它下载回项目这一步没成（常见原因：结果地址过期或不让访问、本机网络或代理一时不通、返回的不是能用的文件）。这一次没有可以再查的任务，没法再下载一次；重试会重新生成一次。具体原因见下方技术详情。',
       },
       // 本机处理失败（截帧 / 提取深度 / 本地素材复制）：没有服务商、没有模型参与——不说「换模型」，只留重试。
       localProcessing: {
@@ -479,7 +492,9 @@ export const zhGenerationCommon = {
       opaque: {
         detail: '这次生成结束时没有带回任何错误信息——这是 Nomi 这侧的缺口，不是你的操作问题。请用这张卡片上的「反馈此问题」把它发给我们，技术详情里是我们目前能拿到的全部线索。',
       },
-      nodeInFlight: { reason: '这个节点还在生成', hint: '上一次生成还没回来，这一次还没发出去。等它出结果再决定要不要重新生成。' },
+      localRefusal: { reason: '这次请求在本机被拦下', hint: '这次请求在本机被拦下。请处理当前节点的状态后再生成。' },
+      storyboardContentChanged: '这一镜的内容改过了，这次没发',
+      nodeInFlight: { reason: '上一次没等到结果，可能已经扣费', hint: '' },
       previewBlocked: { hint: '这一次没发出去。等 3D-BOX 预演挂好再生成。' },
       // 升级前留下的批量确认（没记来源节点）：先落节点、再发请求之后它不能发——如实说没发出去，要他再确认一次。
       consentPredatesUpgrade: { reason: '升级后这批没有发出', hint: '这一镜是升级前确认的，按新的规则没能发出生成请求。在画布上重新生成它，再确认一次。' },
@@ -488,7 +503,7 @@ export const zhGenerationCommon = {
         queued: { reason: '这一镜已在制作流程中排队', hint: '请先等制作流程完成，或去任务中心查看进度。' },
         awaitingConfirmation: { reason: '这一镜在等待生成确认', hint: '请先完成制作流程的生成确认，再从画布生成。' },
         inFlight: { reason: '这一镜制作流程已经在生成了', hint: '请先等待当前制作任务完成，不要再次提交。' },
-        needsReconcile: { reason: '这一镜可能已被服务商收下，结果没法确认', hint: '提交时 Nomi 没拿到服务商的回复，所以不知道它有没有收下这一镜。Nomi 没法自动核对，也不会自动重发。请先到服务商后台看一眼有没有这一笔；确认没有，再重新生成——否则可能重复提交。' },
+        needsReconcile: { reason: '上一次没等到结果，可能已经扣费', hint: '' },
       },
       webMedia: {
         reason: '网页媒体下载失败',
@@ -752,6 +767,7 @@ export const zhGenerationCommon = {
     },
   },
   spend: {
+    resend: { title: { image: '再发一次这张图片？', video: '再发一次这段视频？', other: '再发一次？' }, unknown: '上一次没等到结果，可能已经扣费。\n再发一次可能会再扣一次钱。', waiting: '上一次还没结束。\n再发一次可能会再扣一次钱。' },
     agentNotice: '经 AI 助手驱动 · 需你确认生成',
     agentNoticePlan: '经 AI 助手驱动 · 需你确认生成',
     ignore: '忽略',
@@ -1258,6 +1274,7 @@ export const zhGenerationCommon = {
     startTitle: '开始生成',
     confirmGenerate: '生成',
     unavailable: '还不能生成：{{notice}}',
+    openRunsSkipped: '{{count}} 张上一次还没结束，这次跳过了。',
     noRunnableNodes: '没有可生成的节点',
     blockedTail: '；{{notice}}',
     completed: '已完成 {{count}} 个{{tail}}',
@@ -1438,7 +1455,7 @@ export const zhGenerationCommon = {
       brief: '制作摘要', direction: '创意方向', script: '剧本', storyboard: '分镜', build: '搭画布',
       generate: '生成', qa: '审片', assemble: '粗剪', export: '导出', unknown: '其他阶段',
     },
-    origin: { nomi: 'Nomi', external: '外部客户端' },
+    origin: { nomi: 'Nomi', canvas: '画布', external: '外部客户端' },
     runPanel: {
       aria: '当前制作状态',
       origin: '来自 {{host}}',
@@ -1457,7 +1474,7 @@ export const zhGenerationCommon = {
       'review-storyboard': '审阅分镜方案',
       'open-gate': '核对并确认',
       reconcile: '查看安全暂停详情',
-      'release-unknown': '我核对过了，重新生成',
+      'release-unknown': '再发一次',
       'review-rough-cut': '审看粗剪',
       'open-export': '进入导出',
       'resume-run': '从断点继续',
@@ -1531,9 +1548,6 @@ export const zhGenerationCommon = {
       reworkSelected: '先重拍选中的，再回来过目',
     },
     reconcile: {
-      releaseTitle: '我核对过了，重新生成',
-      releaseMessage: '只有在服务商后台确认没有这一笔时再继续。点「继续」会马上重新生成这一镜；如果其实已经收下，会重复提交。',
-      releaseContinue: '继续',
       submittedAt: '提交时间 {{time}}',
       questionTitle: '核对供应商任务',
       message: '供应商：{{provider}}\n任务标识：{{taskId}}\nNomi 不会自动重下单。请先在供应商侧核对任务是否存在，再决定恢复或重新生成。',
@@ -1712,11 +1726,14 @@ export const zhGenerationCommon = {
     description: '等待已超上限，但上游可能仍出了片。点下面的「重新取回」直接拉回，不用去服务商后台下载。',
     recovering: '正在拉取…',
     dismiss: '标记失败',
+    markedFailed: '已标记为失败：没有找回结果。可以重新生成。',
     missingTask: '无法找回：缺少任务标识（taskId）或模型信息，请重新生成。',
     otherProjectTask: '无法在这里找回：这条任务属于另一个项目，请回到发起它的项目里重新拉取。',
     retrievingResult: '正在重新拉取结果…',
     stillUpstream: '任务仍在上游进行，请稍后再次拉取。',
     timedOut: '取回卡在「等待结果」这一步：等到上限还没有结果（任务号 {{taskId}}）。',
+    unavailableTitle: '查不到这一单的结果',
+    unavailableDescription: '多半是模型或 Key 现在用不了，Nomi 没法去服务商那边查。恢复后点「重新取回」，不会重新生成。这单不要了就点「标记失败」。',
   },
   // 生成的某一步等不到回音、到点收场时的说法（runner/generationPhaseDeadline）。每句都说清钱在哪、下一步是什么。
   phaseDeadline: {
@@ -2045,10 +2062,10 @@ export const enGenerationCommon = {
   },
   observability: {
     action: {
-      reconcile: { main: 'View in task center', alt: 'View in task center first' },
+      reconcile: { main: 'View task', alt: 'View in task center first' },
       viewTask: { main: 'View production task', alt: 'Open task center' },
       openRecoverable: { main: 'Retrieve again', alt: 'Retrieve again' },
-      releaseRegenerate: { main: "I've checked, generate again", alt: "I've checked, generate again" },
+      releaseRegenerate: { main: 'Send again', alt: 'Send again' },
       retry: { main: 'Retry', alt: 'Retry anyway' },
       switchModel: { main: 'Switch model', alt: 'Switch model' },
       switchSameCapability: { main: 'Switch to {{model}}', alt: 'Switch to {{model}}' },
@@ -2056,9 +2073,6 @@ export const enGenerationCommon = {
       fixModelKind: { main: 'Set to {{kind}} and retry', alt: 'Set to {{kind}}' },
     },
     releaseConfirm: {
-      message: 'Only continue if you have confirmed in the provider dashboard that this request is not there. Continue generates this shot again right away; if it was in fact received, it will be submitted twice.',
-      continue: 'Continue',
-      cancel: 'Cancel',
       failed: 'Your check could not be recorded, so this shot was not released. Try again.',
     },
     progress: {
@@ -2079,6 +2093,10 @@ export const enGenerationCommon = {
       progressUnknownSize: 'Importing · {{percent}}%',
       checking: 'Importing · Checking · {{size}}',
       checkingUnknownSize: 'Importing · Checking',
+      converting: 'Importing · Converting · {{percent}}% · {{size}}',
+      convertingUnknownSize: 'Importing · Converting · {{percent}}%',
+      convertingUnmeasured: 'Importing · Converting · {{size}}',
+      convertingUnmeasuredUnknownSize: 'Importing · Converting',
       finalizing: 'Importing · Finishing up · {{size}}',
       finalizingUnknownSize: 'Importing · Finishing up',
     },
@@ -2142,6 +2160,14 @@ export const enGenerationCommon = {
         reason: 'This generation was not sent: the request carried references that are not in use',
         hint: 'Before sending, Nomi found images in this request that the reference row marks as Unused, or that the current mode cannot take, so it stopped the request before sending. Not a single byte left your machine and the provider was never called. Just generate again: Nomi will rebuild the request from the references currently in use. If this keeps happening, please send us the technical details below — it means some entry point is not following the shared reference rule.',
       },
+      aspectRatioUnsupported: {
+        reason: 'This generation was not sent: the aspect ratio you picked is outside the image sizes this connection supports',
+        hint: 'This connection sends the image size as an OpenAI-compatible size field, which keeps the long edge within 3 times the short edge (at most 3:1 wide or 1:3 tall). The ratio you picked is outside that, even if the model itself supports it. Rather than silently generating a different shape, Nomi stopped before sending - the generation request was never sent and the provider was never called. Pick another ratio below (for example 16:9, 1:1 or 9:16) and retry; if you really need this ratio, use a model or connection that offers it directly. The technical details below show which ratio was selected.',
+      },
+      referenceUnfetchable: {
+        reason: 'The model could not fetch a reference image',
+        hint: "The model could not fetch this reference image's link. It may have expired or been blocked. When you retry, Nomi tries to upload the original file from your computer and send that instead. If it still fails, switch models. If the image has no local file, replace it or generate it again.",
+      },
       assetInvalid: {
         reason: 'The reference asset itself is invalid',
         hint: 'This reference asset failed the local check before sending: the file could not be read, its type could not be identified, or its content is not a real image or video (for example, a web page saved as .png). Nothing was sent. Retrying the same file will not change the result — replace the reference on the canvas or re-import the original file, then retry. The technical details below name the file.',
@@ -2149,6 +2175,7 @@ export const enGenerationCommon = {
       outboundBlocked: {
         reason: "Nomi's own network policy blocked the download",
         hint: 'This is not a provider outage and your generation did not fail — it most likely finished upstream, and the result is still there. Nomi classified the download address as a private network and refused to fetch it. The usual cause is Clash / Surge / sing-box running in TUN (fake-IP) mode, where every domain resolves to a synthetic address like 198.18.x. Check Model Access > Network for a "Local proxy detected" line, then come back and use "Retrieve again" to retrieve it. Do NOT regenerate — that would make a brand-new one. The technical details below name the address.',
+        hintWithoutTask: 'This is not a provider outage. This time the provider put the result directly in its reply, and Nomi classified the download address as a private network and refused to fetch it. The usual cause is Clash / Surge / sing-box running in TUN (fake-IP) mode, where every domain resolves to a synthetic address like 198.18.x. There is no task to check this time, so it cannot be downloaded again. Check Model Access > Network for a "Local proxy detected" line first, then retry (a retry generates a new one). The technical details below name the address.',
       },
       outboundBlockedSubmit: {
         reason: "This generation was never sent - Nomi's own network policy stopped it first",
@@ -2179,8 +2206,8 @@ export const enGenerationCommon = {
         hint: 'The provider sent the result back, but Nomi could not read the file (it may be incomplete or damaged, in an unsupported format, or not an image / video at all). The result was generated, Nomi just could not read it; a retry generates a new one. You can try once; if it keeps happening, click “Report Issue” and send us the technical details.',
       },
       submissionUnknown: {
-        reason: 'Result unconfirmed: the provider may have received this shot',
-        hint: 'The request was sent, but Nomi never got a reply, so it cannot tell whether the provider accepted this shot. Nomi cannot check this itself and will not resend automatically. Look in the provider’s dashboard for this request first; only generate again once you have confirmed it is not there, otherwise it may be submitted twice.',
+        reason: 'The last request got no result and may have been charged.',
+        hint: '',
       },
       submissionNotSent: {
         reason: 'This generation was never sent; it stopped on this computer',
@@ -2193,6 +2220,7 @@ export const enGenerationCommon = {
       retrievalIncomplete: {
         reason: 'Submitted, but the result could not be retrieved this time',
         hint: 'This shot was already handed to the provider; what failed is Nomi checking the task, reading its result or downloading it this time (usually the local network or proxy dropped for a moment, or the provider’s status endpoint returned an error). Do not generate again — that makes a brand-new one. Use “Retrieve again”: Nomi only checks the task and downloads it once more. The technical details below give the exact reason.',
+        hintWithoutTask: 'This time the provider put the result directly in its reply; the step that failed is Nomi downloading it into your project (usually the result address expired or was not allowed, the local network or proxy dropped for a moment, or what came back was not a usable file). There is no task to check this time, so it cannot be downloaded again; a retry generates a new one. The technical details below give the exact reason.',
       },
       localProcessing: {
         reason: 'Local processing failed',
@@ -2207,7 +2235,9 @@ export const enGenerationCommon = {
       opaque: {
         detail: "This generation ended without carrying back any error information - that is a gap on Nomi's side, not something you did. Use \"Report this problem\" on this card to send it to us; the technical details hold everything we currently have.",
       },
-      nodeInFlight: { reason: 'This node is still generating', hint: 'The previous generation has not come back yet. Nothing was sent this time; wait for its result before generating again.' },
+      localRefusal: { reason: 'This request was blocked locally', hint: 'This request was blocked locally. Resolve the current node state before generating again.' },
+      storyboardContentChanged: 'This shot changed, so it was not submitted',
+      nodeInFlight: { reason: 'The last request got no result and may have been charged.', hint: '' },
       previewBlocked: { hint: 'Nothing was sent. Generate again once the 3D-BOX preview is attached.' },
       consentPredatesUpgrade: { reason: 'This batch was not sent after the update', hint: 'This shot was confirmed before the update and could not be sent under the new rules. Generate it again on the canvas and confirm once more.' },
       shotClaimed: {
@@ -2215,7 +2245,7 @@ export const enGenerationCommon = {
         queued: { reason: 'This shot is queued in the production workflow', hint: 'Wait for production to finish, or check its progress in the task center.' },
         awaitingConfirmation: { reason: 'This shot is waiting for generation confirmation', hint: 'Confirm the production card before generating it from the canvas.' },
         inFlight: { reason: 'This shot is already being generated by production', hint: 'Wait for the current production task to finish instead of submitting it again.' },
-        needsReconcile: { reason: 'Result unconfirmed: the provider may have received this shot', hint: 'Nomi never got a reply while submitting, so it cannot tell whether the provider accepted this shot. Nomi cannot check this itself and will not resend automatically. Look in the provider’s dashboard for this request first; only generate again once you have confirmed it is not there, otherwise it may be submitted twice.' },
+        needsReconcile: { reason: 'The last request got no result and may have been charged.', hint: '' },
       },
       webMedia: {
         reason: 'Web media download failed',
@@ -2472,6 +2502,7 @@ export const enGenerationCommon = {
     },
   },
   spend: {
+    resend: { title: { image: 'Send this image again?', video: 'Send this video again?', other: 'Send it again?' }, unknown: 'The last request got no result and may have been charged.\nSending it again may charge you again.', waiting: 'The last request has not finished.\nSending it again may charge you again.' },
     agentNotice: 'Started by an AI assistant · Your approval is required before generating',
     agentNoticePlan: 'Started by an AI assistant · Your approval is required before generating',
     ignore: 'Ignore',
@@ -2963,6 +2994,7 @@ export const enGenerationCommon = {
     startTitle: 'Start generation',
     confirmGenerate: 'Generate',
     unavailable: 'Cannot generate yet: {{notice}}',
+    openRunsSkipped: '{{count}} previous requests have not finished and were skipped this time.',
     noRunnableNodes: 'No nodes are ready to generate',
     blockedTail: '. {{notice}}',
     completed: 'Completed {{count}}{{tail}}',
@@ -3141,7 +3173,7 @@ export const enGenerationCommon = {
       brief: 'Brief', direction: 'Direction', script: 'Script', storyboard: 'Storyboard', build: 'Canvas',
       generate: 'Generate', qa: 'Review', assemble: 'Rough cut', export: 'Export', unknown: 'Other stage',
     },
-    origin: { nomi: 'Nomi', external: 'external client' },
+    origin: { nomi: 'Nomi', canvas: 'Canvas', external: 'external client' },
     runPanel: {
       aria: 'Current production status',
       origin: 'From {{host}}',
@@ -3160,7 +3192,7 @@ export const enGenerationCommon = {
       'review-storyboard': 'Review storyboard',
       'open-gate': 'Review and approve',
       reconcile: 'View safe-pause details',
-      'release-unknown': "I've checked, generate again",
+      'release-unknown': 'Send again',
       'review-rough-cut': 'Review rough cut',
       'open-export': 'Open export',
       'resume-run': 'Resume from checkpoint',
@@ -3234,9 +3266,6 @@ export const enGenerationCommon = {
       reworkSelected: 'Reshoot the selected ones first',
     },
     reconcile: {
-      releaseTitle: "I've checked, generate again",
-      releaseMessage: 'Only continue if you have confirmed in the provider dashboard that this request is not there. Continue generates this shot again right away; if it was in fact received, it will be submitted twice.',
-      releaseContinue: 'Continue',
       submittedAt: 'Submitted {{time}}',
       questionTitle: 'Reconcile provider task',
       message: 'Provider: {{provider}}\nTask ID: {{taskId}}\nNomi will not resubmit automatically. Verify whether the task exists with the provider before deciding to resume or regenerate.',
@@ -3417,11 +3446,15 @@ export const enGenerationCommon = {
       'The wait timed out, but the provider may still have produced the result. Click “Retrieve again” to get it back without downloading it from the provider dashboard.',
     recovering: 'Retrieving…',
     dismiss: 'Mark Failed',
+    markedFailed: 'Marked as failed: the result was not retrieved. You can generate it again.',
     missingTask: 'Cannot retrieve this result because its task ID or model information is missing. Generate it again.',
     otherProjectTask: 'This task belongs to another project. Open the project that started it to retrieve the result.',
     retrievingResult: 'Retrieving the result again…',
     stillUpstream: 'The task is still running upstream. Try retrieving it again later.',
     timedOut: 'Retrieval stopped while waiting for the result: the wait limit was reached (task {{taskId}}).',
+    unavailableTitle: 'Can’t check this task right now',
+    unavailableDescription:
+      'The model or API key most likely isn’t available right now, so Nomi can’t ask the provider about this task. Once it’s back, click “Retrieve again”; nothing is generated again. If you don’t want this task anymore, click “Mark Failed”.',
   },
   phaseDeadline: {
     resultSilent:

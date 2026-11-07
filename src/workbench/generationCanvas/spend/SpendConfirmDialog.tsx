@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconCloud, IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser, IconX } from '@tabler/icons-react'
 import { BodyPortal, DecisionBar, NOMI_OVERLAY_Z_INDEX, useOverlayEscape, WorkbenchButton, WorkbenchIconButton } from '../../../design'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
 import { MultiShotContractSummary } from './MultiShotContractSummary'
@@ -51,6 +52,7 @@ export function SpendConfirmDialog() {
 
   // Esc 关闭 = 取消/忽略。让位规则（本卡之上还叠着更高层对话框时不接管）住在共用原语里。
   useOverlayEscape(cardRef, open, () => resolvePending(false))
+  useModalInputLayer(open)
 
   // E2E 专用桥（照 ConfirmDialogHost 既有写法）：仅当 localStorage['__nomiE2E']==='1' 时把**真实**
   // requestConfirm 挂到 window，供 R13 走查在真 app 里驱动同一条渲染管线取证键盘/无障碍保障
@@ -207,7 +209,7 @@ export function SpendConfirmDialog() {
           />
         ) : (
         <>
-         <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{pending.message}</p>
+         <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3 whitespace-pre-line')}>{pending.message}</p>
 
          {pending.planRows?.length ? (
            <PlanRows rows={pending.planRows} onToggle={togglePlanRow} className="mb-3" />
@@ -357,7 +359,7 @@ function MultiShotCardBody(props: {
     <>
       {/* 内容区：一句正文 + 规格条/主角 chips/汇总/逐镜清单。flex-1 可滚（清单本身另有 ~40vh 内滚）。 */}
       <div className={cn('flex-1 min-h-0 overflow-y-auto')}>
-        <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3')}>{message}</p>
+        <p className={cn('text-body-sm text-nomi-ink-80 leading-relaxed mb-3 whitespace-pre-line')}>{message}</p>
         <MultiShotContractSummary view={view} />
       </div>
 
@@ -441,4 +443,15 @@ function MultiShotCardBody(props: {
       </div>
     </>
   )
+}
+
+/**
+ * 付费确认卡在整个 app 里唯一的挂载点：画布、列表、分镜、Agent、试用与取回等所有确认请求都经 requestConfirm
+ * 进同一个队列，由这里把队首变成画面。工作台根组件静态引入它，不能「用到才加载」：按需加载时，每次打开 Nomi
+ * 后第一张卡要先挂起等代码，React 19 揭开挂起内容又固定节流 300ms，用户点了生成、屏幕上 0.3 秒什么都没有。
+ * 渲染仍然按需：没有待确认时不挂卡。
+ */
+export function SpendConfirmHost(): JSX.Element | null {
+  const pending = useSpendConfirmStore((state) => Boolean(state.pending))
+  return pending ? <SpendConfirmDialog /> : null
 }

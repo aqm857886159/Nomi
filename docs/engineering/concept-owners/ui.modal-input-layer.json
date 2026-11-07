@@ -1,0 +1,32 @@
+{
+  "name": "模态开着时谁盖住了哪一块（工作区输入让路的依据）",
+  "subject": "ui.modal-input-layer",
+  "lifecycle": "live-interaction",
+  "authority_kind": "writer",
+  "trust_domain": "renderer",
+  "fact_kind": "state-machine",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/design/modalInputLayer.ts",
+    "symbol": "openModalInputLayer"
+  },
+  "write_api": [
+    {
+      "path": "src/design/modalInputLayer.ts",
+      "symbol": "openModalInputLayer"
+    },
+    {
+      "path": "src/design/modalInputLayer.ts",
+      "symbol": "useModalInputLayer"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/shortcutSurface.modalLayer.matrix.test.ts",
+  "allowed_consumers": [
+    "src/design/overlays.tsx",
+    "src/workbench/shortcutSurface.ts",
+    "src/ui/app-shell/shell/ShellAgentHost.tsx"
+  ],
+  "since": "2026-10-31",
+  "notes": "开关只来自持有 opened 状态的宿主（DesignModal 与手写模态各调一次 useModalInputLayer），不查 DOM、class、role、z-index。规则只有一条，住在 shortcutSurface.ts 的 workspaceInputSurfaceIsActive。手写宿主全表由 src/workbench/modalInputLayerCensus.test.ts 钉死，新模态不登记就红。合同 docs/fixes/2026-10-31-modal-input-priority.root-cause.json。"
+}

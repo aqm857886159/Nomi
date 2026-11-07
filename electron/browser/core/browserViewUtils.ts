@@ -1,7 +1,10 @@
 import { BrowserWindow } from "electron";
 import type { Rectangle, WebContents } from "electron";
 import { browserViews, browserViewsByWindow } from "./browserViewState";
-import type { BrowserViewIdPayload, BrowserViewRecord } from "./browserViewTypes";
+import { BROWSER_IMAGE_PROMPT_CONSOLE_PREFIX } from "./browserViewBridges";
+import { normalizeCaptureSourceRect } from "../media/browserCaptureSource";
+import type { BrowserResourceCapturePayload, BrowserViewIdPayload, BrowserViewRecord } from "./browserViewTypes";
+import type { BrowserPromptExtractionMode } from "../../shared/contracts/browserPromptExtraction";
 
 export class BrowserViewUnavailableError extends Error {
   constructor(message = "Browser view is unavailable") {
@@ -67,8 +70,54 @@ export function normalizeBrowserUrl(url: unknown): string {
   return parsed.toString();
 }
 
-export function normalizePromptExtractionMode(value: unknown): "replicate" | "style" {
+export function normalizePromptExtractionMode(value: unknown): BrowserPromptExtractionMode {
   return value === "style" ? "style" : "replicate";
+}
+
+/** 页内「提取」转给主窗口的那一条事件（`browser:view:prompt-capture`）。 */
+export type BrowserPromptCaptureEvent =
+  | {
+      ok: true;
+      viewId: number;
+      tabId: string;
+      url: string;
+      title: string;
+      fileName: string;
+      pageUrl: string;
+      pageTitle: string;
+      extractionMode: BrowserPromptExtractionMode;
+      sourceRect?: NonNullable<ReturnType<typeof normalizeCaptureSourceRect>>;
+    }
+  | { ok: false; viewId: number; tabId: string; reason: "empty" | "error"; message?: string };
+
+/**
+ * 页内图片「提取」经 console 转出来的那一行 → 发给主窗口的事件；不是这个前缀 = null。
+ *
+ * 这一行网页自己就能写（按钮注入在网页主世界里，docs/plan/2026-10-27-browser-extract-grant.md 第二节），
+ * 所以里面的东西全不可信：图片地址只用来抓图、上卡的「图片」那一行，标题只在库条目没标题时兜底。
+ * **来源页不用网页自报的**：一律换成主进程手里这个视图的真实地址（`getURL()`，网页改不了），付费卡上的「来源页」只用它。
+ */
+export function promptCaptureEventFromConsole(record: BrowserViewRecord, message: string): BrowserPromptCaptureEvent | null {
+  if (!message.startsWith(BROWSER_IMAGE_PROMPT_CONSOLE_PREFIX)) return null;
+  const base = { viewId: record.viewId, tabId: record.tabId };
+  try {
+    const payload = JSON.parse(message.slice(BROWSER_IMAGE_PROMPT_CONSOLE_PREFIX.length)) as BrowserResourceCapturePayload | null;
+    const url = typeof payload?.url === "string" ? payload.url.trim() : "";
+    if (!url) return { ok: false, ...base, reason: "empty" };
+    return {
+      ok: true,
+      ...base,
+      url,
+      title: typeof payload?.title === "string" ? payload.title : "",
+      fileName: typeof payload?.fileName === "string" ? payload.fileName : "",
+      pageUrl: record.view.webContents.getURL(),
+      pageTitle: typeof payload?.pageTitle === "string" ? payload.pageTitle : "",
+      extractionMode: normalizePromptExtractionMode(payload?.extractionMode),
+      sourceRect: normalizeCaptureSourceRect(record, payload?.sourceRect) || undefined,
+    };
+  } catch (error) {
+    return { ok: false, ...base, reason: "error", message: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 export function sendBrowserViewState(record: BrowserViewRecord): void {

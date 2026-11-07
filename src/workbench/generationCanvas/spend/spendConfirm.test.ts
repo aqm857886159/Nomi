@@ -1,3 +1,4 @@
+import { createGenerationNode } from '../model/graphOps'
 import { describe, expect, it, vi } from 'vitest'
 import { describeGenerationCost, generationCostContextForNode } from './spendConfirm'
 
@@ -47,4 +48,27 @@ describe('generation spend ETA copy', () => {
     expect(message).toContain('2–10')
     expect(message).not.toMatch(/预计约 5–20 分钟/)
   })
+})
+
+import i18n from '../../../i18n'
+import { confirmGenerationResend, useSpendConfirmStore, paidNodeLedger } from './spendConfirm'
+it.each([
+ ['zh-CN','image','image'],['zh-CN','video','video'],['zh-CN','audio','other'],
+ ['en','image','image'],['en','video','video'],['en','model3d','other'],
+])('G10: %s %s resend copy belongs to the spend owner', async (locale,kind,titleKind) => {
+ await i18n.changeLanguage(locale)
+ const request=vi.spyOn(useSpendConfirmStore.getState(),'requestConfirm').mockResolvedValue(false)
+ const disclosure={message:'hosting',rememberLabel:'remember'}
+ expect(await confirmGenerationResend({kind,resultUnknown:true,hostingDisclosure:disclosure})).toBe(false)
+ expect(request).toHaveBeenCalledWith(expect.objectContaining({title:i18n.t(`generationCommon.spend.resend.title.${titleKind}`),kind:'generation',hostingDisclosure:disclosure,message:i18n.t('generationCommon.spend.resend.unknown')}))
+ expect(request.mock.calls.at(-1)?.[0].message.split('\n')).toHaveLength(2)
+ request.mockRestore();await i18n.changeLanguage('zh-CN')
+})
+
+it.each(['image','video','audio','model3d','asset'] as const)('the moved %s ledger decision retains local and remote spend semantics',kind=>{
+ const node={...createGenerationNode({id:'ledger-case',kind}),meta:{modelVendor:'relay'}}
+ expect(paidNodeLedger(node)).toBe('run')
+ expect(paidNodeLedger({...node!,meta:{modelVendor:'comfyui-local'}})).toBeUndefined()
+ expect(paidNodeLedger({...node!,meta:{modelVendor:'comfyui-local-studio'}})).toBeUndefined()
+ expect(paidNodeLedger({...node!,kind:'text'})).toBeUndefined()
 })

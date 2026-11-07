@@ -11,18 +11,56 @@ import type { AssetImportFailure } from '../shared/contracts/assetImportResult';
 import type { ProjectInteractionCapture } from './projectInteractionCapture';
 import { surfacePortFailure } from '../shared/surfacePortBinding';
 import { registerOnboardingDemoAssetSourceDir } from '../onboarding/demoAssetSource';
-import { createIpcRequestRegistry } from '../ipcRequestRegistry';
+import { createIpcRequestRegistry, type IpcRequestRegistry, type IpcRequestSender } from '../ipcRequestRegistry';
+import { registerQuitDrain } from '../quitTeardown';
+
+/**
+ * 退出排空最多等多久（quitTeardown 的整个退出预算也是 3 秒，实际拿到的是剩下的那部分）。
+ * 杀进程组是信号一发就生效的；要等的是 ffmpeg 真退出（不退就 250ms 后升级 SIGKILL）、半成品和临时目录删掉。
+ */
+const IMPORT_QUIT_DRAIN_TIMEOUT_MS = 3_000;
 
 function importFailure(error: unknown, reason: AssetImportFailure['reason'] = 'import-failed'): AssetImportResult<never> {
   return { ok: false, failure: { code: surfacePortFailure(error).code, reason } };
 }
 
-async function importAssetResult(payload: unknown, capture: () => (() => void) | undefined, allowSourcePath = false): Promise<AssetImportResult<unknown>> {
+/**
+ * 导入类请求（界面导入、拷贝文件、懒自愈）都登在中立的 ipcRequestRegistry 上，不带请求号：
+ * 没有渲染层撤回口，同一个窗口同时来几件互不相撤。登记里回 null = 停下；懒自愈自己会合法地回 null
+ * （本就可播 / 无法处理），所以结果先装进箱子，箱子是 null 才是停下。
+ */
+function runImport<T>(
+  imports: IpcRequestRegistry,
+  sender: IpcRequestSender,
+  assertCurrent: (() => void) | undefined,
+  work: (signal: AbortSignal) => Promise<T>,
+): Promise<{ result: T } | null> {
+  return imports.run(sender, "", assertCurrent, async (signal) => ({ result: await work(signal) }));
+}
+
+async function importAssetResult(
+  payload: unknown,
+  capture: () => (() => void) | undefined,
+  allowSourcePath: boolean,
+  imports: IpcRequestRegistry,
+  sender: IpcRequestSender,
+): Promise<AssetImportResult<unknown>> {
   let assertCurrent: (() => void) | undefined;
   try { assertCurrent = capture(); } catch (error) { return importFailure(error); }
-  const { importLocalFile, MediaImportRejectedError } = await import('./localFileImport');
+  const { importLocalFile, MediaImportRejectedError, AssetImportCancelledError } = await import('./localFileImport');
   try {
-    return { ok: true, asset: await importLocalFile(payload, { allowSourcePath, assertCurrent }) };
+    const done = await runImport(imports, sender, assertCurrent, (signal) => importLocalFile(payload, {
+      allowSourcePath,
+      assertCurrent,
+      signal,
+    }));
+    if (!done) {
+      // 停下了：既不是成功也不是普通失败，不发布资产。项目会话失效的话照旧抛 project_binding_stale（下面的 catch
+      // 收成同样的失败回执）；否则（窗口没了 / 退出）就是「已取消」。
+      assertCurrent?.();
+      return importFailure(new AssetImportCancelledError());
+    }
+    return { ok: true, asset: done.result };
   } catch (error) {
     return importFailure(error, error instanceof MediaImportRejectedError ? error.rejection.reason : 'import-failed');
   }
@@ -69,6 +107,19 @@ export function parseCopyProjectAssetPayload(payload: unknown): {
 }
 
 export function registerAssetsIpc(captureInteraction: ProjectInteractionCapture): void {
+  const imports = createIpcRequestRegistry();
+  // 退出时停导入：界面发起的导入请求（连临时目录一起收尾），加上任何一扇门起的导入转码
+  // （Agent 的 asset.import 不走这张请求表）。两次调用都幂等，同一个函数按 quitTeardown 的语义登记两次：
+  // · 可选项在 will-quit（退出已不可撤销）那一刻就挨着内置收尾链跑：立刻中止。必选项排在 Agent 收尾之后，
+  //   而 Agent 收尾可能正等着一个在转码的导入落定——只靠必选项就互相等到期限，ffmpeg 在退出时还活着；
+  // · 必选项排进串行收尾链、拖住退出：等进程真没了、半成品和临时目录真删了，最多 3 秒（退出预算封顶）。
+  const stopImports = async () => {
+    const requests = imports.drain();
+    const { stopVideoImportTranscodes } = await import('./videoImportNormalize');
+    await Promise.all([requests, stopVideoImportTranscodes()]);
+  };
+  registerQuitDrain('asset-import-abort', stopImports, { required: false });
+  registerQuitDrain('asset-import-transcode', stopImports, { required: true, timeoutMs: IMPORT_QUIT_DRAIN_TIMEOUT_MS });
   // 随包引导示例图目录：引导 seed 与「旧项目里的构建产物地址 → 项目资产」迁移都从这里读原图。
   // 放 `resources/` 而不是 `src/`（Vite 加内容哈希，只有渲染进程算得出地址——事故起点）或 `public/`（进包两份）；
   // `resources/**` 在 package.json > build.files 里随包走，dev（仓库根）与打包版（app.asar 根）是同一条相对路径。
@@ -90,7 +141,11 @@ export function registerAssetsIpc(captureInteraction: ProjectInteractionCapture)
     const parsed = parseCopyFilesPayload(payload);
     if (!parsed) throw new Error("projectId and paths are required");
     const { importLocalFilePaths } = await import("./localFileCopy");
-    return importLocalFilePaths(parsed.projectId, parsed.paths);
+    const { AssetImportCancelledError } = await import("./localFileImport");
+    const done = await runImport(imports, event.sender, undefined, (signal) => importLocalFilePaths(parsed.projectId, parsed.paths, "asset-library", { signal }));
+    // 停下 → invoke 被拒（渲染层的约定），不是一份空的成功结果。
+    if (!done) throw new AssetImportCancelledError();
+    return done.result;
   });
   // 本机视频解码能力：渲染层探一次送进来，决定导入要不要转码（原来是 hardcode 白名单在猜）。
   ipcMain.handle("nomi:assets:report-video-codecs", async (event, payload) => {
@@ -127,11 +182,11 @@ export function registerAssetsIpc(captureInteraction: ProjectInteractionCapture)
     assertTrustedUiSender(event);
     const raw = (payload || {}) as Record<string, unknown>;
     // 字节通道不接受 renderer 自报路径；原生路径只能经 webUtils 桥进入下面的专用通道。
-    return importAssetResult({ ...raw, sourcePath: undefined }, () => captureInteraction(event, raw));
+    return importAssetResult({ ...raw, sourcePath: undefined }, () => captureInteraction(event, raw), false, imports, event.sender);
   });
   ipcMain.handle("nomi:assets:import-native-file", async (event, payload) => {
     assertTrustedSender(event);
-    return importAssetResult(payload, () => captureInteraction(event, payload), true);
+    return importAssetResult(payload, () => captureInteraction(event, payload), true, imports, event.sender);
   });
   ipcMain.handle("nomi:assets:import-remote-url", async (event, payload): Promise<AssetImportResult<unknown>> => {
     assertTrustedSender(event);
@@ -141,10 +196,14 @@ export function registerAssetsIpc(captureInteraction: ProjectInteractionCapture)
       return { ok: true, asset: await importRemoteAsset(payload as RemoteAssetImportPayload, { assertCurrent }) };
     } catch (error) { return importFailure(error); }
   });
+  // 懒自愈也是导入转码那扇门：跟着发起窗口和应用退出走，同一个排空等它真停。
   ipcMain.handle("nomi:assets:ensure-playable", async (event, payload) => {
     assertTrustedSender(event);
-    const { ensurePlayableAsset } = await import("./localFileImport");
-    return ensurePlayableAsset(payload);
+    const { ensurePlayableAsset, AssetImportCancelledError } = await import("./localFileImport");
+    const done = await runImport(imports, event.sender, undefined, (signal) => ensurePlayableAsset(payload, { signal }));
+    // 停下 → invoke 被拒；「本就可播 / 无法处理」是 ensurePlayableAsset 合法回的 null，照原样交回（不是取消）。
+    if (!done) throw new AssetImportCancelledError();
+    return done.result;
   });
   // 补预览：带发起项目的绑定与请求号，项目关了 / 换了 / 窗口没了 / 渲染层撤了就杀掉在途 ffmpeg（中立的请求登记 ipcRequestRegistry）。
   const previewRequests = createIpcRequestRegistry();

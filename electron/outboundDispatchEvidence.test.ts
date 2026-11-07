@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { describeOutboundFailure, handOffToNetwork, isTransportLevelFailure, observeSubmissionHandoffs, outboundRequestWasNeverWritten } from "./outboundDispatchEvidence";
+import { answeredSubmissionFailure, describeOutboundFailure, handOffToNetwork, isTransportLevelFailure, observeSubmissionHandoffs, outsidePaidDispatch, outboundRequestWasNeverWritten, withResultLandingEvidence } from "./outboundDispatchEvidence";
+import { tagNomiError } from "./shared/nomiErrorCodes";
 
 /**
  * undici 的 SocketError 形状。字节计数**刻意带上**：它们是整条连接累计的，
@@ -118,6 +119,32 @@ describe("observeSubmissionHandoffs", () => {
     expect(result).toMatchObject({ ok: false, notDispatched: null });
   });
 
+  it("素材落地（带查询串的试探、上传）在账外：之后模型接口连不上 ⇒ 确定没发出，可以直接重试", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", async () => {
+      await outsidePaidDispatch(async () => {
+        await handOff({ method: "GET" }, async () => "probe answered", "https://cdn.vendor.test/a.png?X-Amz-Signature=abc");
+        await handOff({ method: "POST", body: "bytes" }, async () => "uploaded", "https://relay.test/upload");
+      });
+      await handOff({ method: "POST", body: "{}" }, async () => { throw connectRefused(); });
+    });
+    expect(result).toMatchObject({ ok: false, notDispatched: "connect_failed" });
+  });
+
+  it("上传回了错误、模型一次都没请求 ⇒ never_reached_network（一笔没发，不说「可能已被收下」）", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", async () => {
+      await outsidePaidDispatch(() => handOff({ method: "POST", body: "bytes" }, async () => { throw new Error("upload answered 500"); }, "https://relay.test/upload"));
+    });
+    expect(result).toMatchObject({ ok: false, notDispatched: "never_reached_network" });
+  });
+
+  it("只有素材落地在账外：交给模型的那一笔写出去之后才断 ⇒ 仍是结果未知（防双扣最要紧的一格）", async () => {
+    const result = await observeSubmissionHandoffs("app-fetch", async () => {
+      await outsidePaidDispatch(() => handOff({ method: "POST", body: "bytes" }, async () => "uploaded", "https://relay.test/upload"));
+      await handOff({ method: "POST", body: "{}" }, async () => { throw fetchFailed(socketError("other side closed")); });
+    });
+    expect(result).toMatchObject({ ok: false, notDispatched: null });
+  });
+
   it("不带凭据、没有 query、没有请求体的 GET（官方备用域探测那种）不算可能花钱；带了任何一样就算", async () => {
     const probeThenLocal = await observeSubmissionHandoffs("app-fetch", async () => {
       await handOff({ method: "GET" }, async () => "probe answered");
@@ -161,5 +188,38 @@ describe("observeSubmissionHandoffs", () => {
 
   it("成功原样返回", async () => {
     expect(await observeSubmissionHandoffs("app-fetch", async () => 42)).toEqual({ ok: true, value: 42 });
+  });
+});
+
+describe("「答了、本机没落下」的正证据（2026-10-28）", () => {
+  const connectRefused = () => fetchFailed(Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:9"), { code: "ECONNREFUSED", syscall: "connect" }));
+
+  it("只认落地门挂上的那一份：原样返回同一个错误对象；正文怎么写都伪造不出来", () => {
+    const error = new Error(tagNomiError("output-unreadable", "decode_failed"));
+    expect(answeredSubmissionFailure(error)).toBe(false);
+    expect(withResultLandingEvidence(error)).toBe(error);
+    expect(answeredSubmissionFailure(error)).toBe(true);
+    expect(answeredSubmissionFailure(new Error(error.message))).toBe(false);
+    expect(answeredSubmissionFailure(Object.assign(new Error("x"), { resultLandingAfterAnswer: true }))).toBe(false);
+  });
+
+  it("只认到达出口的那个错误对象自己：别的代码把它当 cause 包一层（哪怕两层）不算——外层说的是另一件事（X12）；不许加属性的错误由落地门包的那一层在最顶上，照算", () => {
+    const landed = withResultLandingEvidence(new Error("landing failed"));
+    expect(answeredSubmissionFailure(landed), "对照：落地门抛出的那个对象自己带证据").toBe(true);
+    expect(answeredSubmissionFailure(new Error("outer", { cause: landed }))).toBe(false);
+    expect(answeredSubmissionFailure(new Error("outer", { cause: new Error("middle", { cause: landed }) }))).toBe(false);
+    const frozen = Object.freeze(new Error("frozen"));
+    const carrier = withResultLandingEvidence(frozen);
+    expect(carrier).not.toBe(frozen);
+    expect(carrier.cause).toBe(frozen);
+    expect(answeredSubmissionFailure(carrier)).toBe(true);
+  });
+
+  it("X9：带着证据的失败，cause 链深处那一下建连失败是取片的——两种传输都不判「没发出去」", async () => {
+    const landingAfterAnswer = () => withResultLandingEvidence(new Error(tagNomiError("retrieval-download", "x"), { cause: connectRefused() }));
+    expect(outboundRequestWasNeverWritten(landingAfterAnswer()), "对照：只看 cause 链，它像「没写出去」").toBe(true);
+    expect(await observeSubmissionHandoffs(undefined, async () => { throw landingAfterAnswer(); })).toMatchObject({ ok: false, notDispatched: null });
+    // app-fetch：哪怕这本账上一笔可能花钱的交接都没记到（交的那一下不经 appFetch 的替身），也不判「没出门」。
+    expect(await observeSubmissionHandoffs("app-fetch", async () => { throw landingAfterAnswer(); })).toMatchObject({ ok: false, notDispatched: null });
   });
 });

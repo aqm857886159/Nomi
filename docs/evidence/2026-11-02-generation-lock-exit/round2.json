@@ -1,0 +1,345 @@
+{
+  "round": 2,
+  "baseHead": "6e8f4c8da9dea2ed1ebec4be6a209f8e5181e552",
+  "sourceCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+  "network": "loopback fake providers only; no paid entry",
+  "B6": [
+    {
+      "case": "en-canvas",
+      "status": "passed",
+      "imagePosts": 5,
+      "targetPosts": 1,
+      "resultIdBefore": "gen-v2-image-mvyhtx8i-r59k-agent-runtime-2",
+      "resultIdAfter": "gen-v2-image-mvyhtx8i-r59k-agent-runtime-2",
+      "runs": 1,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-en-canvas.json"
+    },
+    {
+      "case": "en-list",
+      "status": "passed",
+      "imagePosts": 5,
+      "targetPosts": 1,
+      "resultIdBefore": "gen-v2-image-mvyhuhz4-v00t-agent-runtime-2",
+      "resultIdAfter": "gen-v2-image-mvyhuhz4-v00t-agent-runtime-2",
+      "runs": 1,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-en-list.json"
+    },
+    {
+      "case": "en-storyboard",
+      "status": "passed",
+      "imagePosts": 5,
+      "targetPosts": 1,
+      "resultIdBefore": "gen-v2-image-mvyhtem0-rcsl-agent-runtime-2",
+      "resultIdAfter": "gen-v2-image-mvyhtem0-rcsl-agent-runtime-2",
+      "runs": 1,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-en-storyboard.json"
+    },
+    {
+      "case": "zh-CN-canvas",
+      "status": "passed",
+      "imagePosts": 5,
+      "targetPosts": 1,
+      "resultIdBefore": "gen-v2-image-mvyhs89l-cs36-agent-runtime-2",
+      "resultIdAfter": "gen-v2-image-mvyhs89l-cs36-agent-runtime-2",
+      "runs": 1,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-zh-CN-canvas.json"
+    },
+    {
+      "case": "zh-CN-list",
+      "status": "passed",
+      "imagePosts": 5,
+      "targetPosts": 1,
+      "resultIdBefore": "gen-v2-image-mvyhstm5-7mih-agent-runtime-2",
+      "resultIdAfter": "gen-v2-image-mvyhstm5-7mih-agent-runtime-2",
+      "runs": 1,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-zh-CN-list.json"
+    },
+    {
+      "case": "zh-CN-storyboard",
+      "status": "passed",
+      "imagePosts": 5,
+      "targetPosts": 1,
+      "resultIdBefore": "gen-v2-image-mvyhrpct-mogt-agent-runtime-2",
+      "resultIdAfter": "gen-v2-image-mvyhrpct-mogt-agent-runtime-2",
+      "runs": 1,
+      "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-zh-CN-storyboard.json"
+    }
+  ],
+  "B6Before": {
+    "status": "failed as expected",
+    "imagePosts": 6,
+    "targetPosts": 2,
+    "resultReplaced": true,
+    "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-b6-before.json",
+    "log": "r2-b6-before.log"
+  },
+  "goldenBefore": {
+    "result": "failed",
+    "imageRequests": 0,
+    "textRequests": 4,
+    "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-golden-before.json",
+    "exit": 1
+  },
+  "goldenAfter": {
+    "result": "passed",
+    "imageRequests": 1,
+    "textRequests": 4,
+    "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-golden-after.json",
+    "exit": 0
+  },
+  "freeFourStage": {
+    "status": "passed",
+    "commit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "stages": [
+      "storyboard",
+      "canvas",
+      "list",
+      "restart"
+    ],
+    "idle": {
+      "elapsedMs": 301909,
+      "longestRelevantTimerMs": 300000,
+      "stable": true
+    },
+    "imagePosts": 15,
+    "imagesForwarded": 12,
+    "windowResponseMaxMs": 282,
+    "receipt": "docs/evidence/2026-11-02-generation-lock-exit/receipts/r2-rehearsal.json"
+  },
+  "unchangedSharedJourney": {
+    "unchanged": true,
+    "sha256": "0245981da768cc98b9806dbd8095fb652f3d4e4aa0e1d7dd5871b56b3e7f8380",
+    "baseline": "6e8f4c8da",
+    "scope": "shared four-stage journey function including first stage and 3b"
+  },
+  "priorFourStageBefore": "rehearsal-before.log: reused because the entire shared journey function is byte-identical",
+  "mutations": [
+    {
+      "id": "18-no-confirmed-shot-ownership",
+      "file": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "exit": 1,
+      "failedAssertions": 32,
+      "passedAssertions": 3,
+      "shaBefore": "8a44dbb9a40d8649b29f33c370ed0e14cf07ccfb10a9434474d2524e811025d4",
+      "shaRestored": "8a44dbb9a40d8649b29f33c370ed0e14cf07ccfb10a9434474d2524e811025d4"
+    },
+    {
+      "id": "19-no-json-roundtrip",
+      "file": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+      "exit": 1,
+      "failedAssertions": 2,
+      "passedAssertions": 7,
+      "shaBefore": "990e21c91a3da37261a539ebeb3eb6066df216be937432b71d519fee6fca075f",
+      "shaRestored": "990e21c91a3da37261a539ebeb3eb6066df216be937432b71d519fee6fca075f"
+    },
+    {
+      "id": "20-no-rehearsal-source-check",
+      "file": "tests/ux/generation-lock-exit-real.paid.mjs",
+      "exit": 1,
+      "failedAssertions": 2,
+      "passedAssertions": 7,
+      "shaBefore": "078fb376162ec09769a029943d1ced12b3dd1436d122937ccda0bec063ea149a",
+      "shaRestored": "078fb376162ec09769a029943d1ced12b3dd1436d122937ccda0bec063ea149a"
+    }
+  ],
+  "paidPreflight": {
+    "status": "passed",
+    "checks": [
+      "current genuine four-stage receipt accepted",
+      "legacy genuine receipt without commit rejected",
+      "current real compiled product passes both markers and build stamp"
+    ],
+    "paidEntryExecuted": false,
+    "credentialsRead": false,
+    "paidCalls": 0,
+    "receiptCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf"
+  },
+  "initialRelated": {
+    "numTotalTests": 483,
+    "numPassedTests": 482,
+    "numFailedTests": 1,
+    "caveat": "The sole A5 outbound-policy assertion is the coordinator-confirmed network-guard environment difference; test left unchanged."
+  },
+  "refusedOriginalOutcomes": [
+    {
+      "test": "in-flight refusal then restart: the accepted original task is handed to observation and can finish without another POST",
+      "status": "passed"
+    },
+    {
+      "test": "in-flight refusal: the original late success outcome clears or replaces the refusal card",
+      "status": "passed"
+    },
+    {
+      "test": "in-flight refusal: the original late error outcome clears or replaces the refusal card",
+      "status": "passed"
+    },
+    {
+      "test": "in-flight refusal: the original late unknown outcome clears or replaces the refusal card",
+      "status": "passed"
+    }
+  ],
+  "refusalConclusion": "Late success clears the refusal; late quota failure replaces it and offers retry; unknown replaces it and offers manual release. Accepted-task restart hands the original Run to observation and polling returns the result without a second POST. No product copy change.",
+  "unchangedReviewFindings": [
+    "A singled queued anchor can leave the original first wave without a usable result; the batch returns before the shot phase and gives no extra notification.",
+    "Without-task narration still overrides classified primary/secondary actions; original retry/release secondary may not survive."
+  ],
+  "comparisonAudit": [
+    "storyboardActionGuard: all three comparisons now share storyboardComparableContent",
+    "runProjectDelivery.captureApprovedGenerationInputs: already JSON roundtrips generation inputs",
+    "director planOverrides.hashOf: already clones JSON",
+    "directorPreviewSourceFingerprint: already normalizes and JSON roundtrips",
+    "directorPlanRevision: runtime applyDirectorWrite canonicalizes before revision; applyDirectorPlanEdits canonicalizes both comparisons",
+    "Generic strict stableProjectAgentJson and legacy integrity checks are unchanged"
+  ],
+  "doors": {
+    "expandedCount": 337,
+    "newScan": [
+      {
+        "kind": "write",
+        "path": "src/workbench/capability/storyboardPresent.ts",
+        "symbol": "runStoryboardBatch"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardActionGuard.ts",
+        "symbol": "storyboardComparableContent"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "regenerateShotRow"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+        "symbol": "storyboardBatchShotUnclaimed"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "runStoryboardBatch"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+        "symbol": "regenerateShotRow"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generation/list/GenerationListSectionHeader.tsx",
+        "symbol": "runGroupGenerate"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/components/useCanvasFrameActions.ts",
+        "symbol": "runGroupGenerate"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+        "symbol": "startGenerationFromComposer"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/TextNodeComposer.tsx",
+        "symbol": "startGenerationFromComposer"
+      },
+      {
+        "kind": "write",
+        "path": "src/workbench/generationCanvas/nodes/textProcessRun.ts",
+        "symbol": "startGenerationFromComposer"
+      }
+    ],
+    "rehearsalReaders": []
+  },
+  "exitCodes": {
+    "r2-build-before": 0,
+    "r2-class-red": 1,
+    "r2-table-red": 1,
+    "r2-golden-before": 1,
+    "r2-b6-before": 1,
+    "r2-related": 1,
+    "r2-types": 0,
+    "r2-concepts": 0,
+    "r2-contract": 0,
+    "r2-walk-quality": 0,
+    "r2-build": 0,
+    "r2-restored": 0,
+    "r2-walk-build": 0,
+    "r2-golden-after": 0,
+    "r2-b6-after": 0,
+    "r2-free-after": 0,
+    "r2-post-lint-core": 0,
+    "r2-post-lint-build": 0,
+    "r2-free-final": 0,
+    "r2-delivery-related": 0,
+    "r2-delivery-types": 0,
+    "r2-delivery-concepts": 0,
+    "r2-delivery-contract": 0,
+    "r2-delivery-pr-criteria": 0,
+    "r2-delivery-pre-push": 0,
+    "r2-delivery-pr-judgement": 0
+  },
+  "productionImplementationCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+  "oldGenuineSourceReceiptRejection": {
+    "result": "rejected as expected",
+    "oldGenuineReceiptCommit": "053006bdea6d99de36dcc5667eca26c1f461e084",
+    "currentHead": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "gitDiffExit": 1,
+    "paidCalls": 0,
+    "reason": "A src test changed from dynamic to static imports; even this source-tree difference invalidates the older passed receipt"
+  },
+  "fixtureImportCorrection": {
+    "commit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "firstPrePushExit": 1,
+    "cause": "Two reviewer fixture test bodies used dynamic imports; replaced with static imports. No product behavior change.",
+    "receiptHandling": "The actual passed 053006 receipt is now rejected because src test bytes changed. Full rehearsal reran on the new commit; no receipt was relabeled."
+  },
+  "latestCore": {
+    "numTotalTests": 57,
+    "numPassedTests": 57,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "finalChecks": {
+    "head": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
+    "main": "29313b236d1d587a88dc9092bfcc1f97b80fb0f8",
+    "commands": {
+      "r2-delivery-related": {
+        "exit": 0,
+        "seconds": 7.9
+      },
+      "r2-delivery-types": {
+        "exit": 0,
+        "seconds": 26.9
+      },
+      "r2-delivery-concepts": {
+        "exit": 0,
+        "seconds": 3.0
+      },
+      "r2-delivery-contract": {
+        "exit": 0,
+        "seconds": 7.1
+      },
+      "r2-delivery-pr-criteria": {
+        "exit": 0,
+        "seconds": 2.7
+      },
+      "r2-delivery-pre-push": {
+        "exit": 0,
+        "seconds": 50.0
+      },
+      "r2-delivery-pr-judgement": {
+        "exit": 0,
+        "seconds": 2.5
+      }
+    }
+  },
+  "latestRelated": {
+    "numTotalTests": 487,
+    "numPassedTests": 487,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "NOMI_TEST_NETWORK_GUARD": "unset, as for prepush; core 57 and every real UI walk used guard=1"
+  }
+}

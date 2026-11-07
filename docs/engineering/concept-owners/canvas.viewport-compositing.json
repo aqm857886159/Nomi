@@ -1,0 +1,23 @@
+{
+  "name": "画布视口要不要常驻合成层（不要）",
+  "subject": "canvas.viewport-compositing",
+  "lifecycle": "live-interaction",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+    "symbol": ".react-flow__viewport"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+      "symbol": ".react-flow__viewport"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-31",
+  "notes": "视口不写 will-change，跟 React Flow 默认走。常驻时 Chromium 按近看倍率栅格远看画面、连线和卡各成一层，512MB 瓦片预算装不下就整块不画。走查 canvas-drag-pan-gestures 断言静止时不升层，场景 canvas-far-dense-blank 的结构硬数守合成层 ≤ 20（docs/fixes/2026-10-31-canvas-detail-admission.root-cause.json）。"
+}

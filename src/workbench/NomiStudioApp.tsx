@@ -68,6 +68,7 @@ import { lazyWithChunkBoundary } from '../ui/chunkBoundary'
 import { releaseWorkbenchProjectRuntimeState } from './project/releaseWorkbenchProjectSession'
 import { readDocumentThroughSessionPort, writeDocumentThroughSessionPort } from './project/documentSessionPort'
 import { useSpendConfirmStore } from './generationCanvas/spend/spendConfirm'
+import { SpendConfirmHost } from './generationCanvas/spend/SpendConfirmDialog'
 import { runAssetSurfaceMigrations } from './assets/assetSurfaceMigration'
 import { ProductionCanvasLandingHost } from './production/ProductionCanvasLandingHost'
 import { ProjectHydrationSupersededError, createProjectCanvasReadSurfaceCoordinator, registerProjectCanvasReadSurface } from './project/projectCanvasReadSurface'
@@ -104,11 +105,6 @@ const HandbookPanel = lazyWithChunkBoundary('上手手册', () =>
 const GenerationCanvas = lazyWithChunkBoundary(
   '生成画布',
   () => import('./generationCanvas/components/GenerationCanvas'),
-)
-const SpendConfirmDialog = lazyWithChunkBoundary('付费确认', () =>
-  import('./generationCanvas/spend/SpendConfirmDialog').then((module) => ({
-    default: module.SpendConfirmDialog,
-  })),
 )
 const JourneyTourController = lazyWithChunkBoundary('引导旅途', () =>
   import('./onboarding/JourneyTourController').then((module) => ({
@@ -156,7 +152,6 @@ export default function NomiStudioApp(): JSX.Element {
   const [handbookOpened, setHandbookOpened] = React.useState(false)
   const [browserOpened, setBrowserOpened] = React.useState(false)
   const [browserMounted, setBrowserMounted] = React.useState(false)
-  const hasPendingSpendConfirm = useSpendConfirmStore((state) => Boolean(state.pending))
   // 首启开屏：仅首次未看过时自动放；看过后可经设置「关于」→「重看开屏动画」重看。
   const [splashDone, setSplashDone] = React.useState(() => hasSeenSplash())
   const [journeyTourControllerMounted, setJourneyTourControllerMounted] = React.useState(false)
@@ -465,7 +460,7 @@ export default function NomiStudioApp(): JSX.Element {
     // 「新建项目」：默认位置建项目，落「创作」区（CTA「从一段文字或想法开始」）。
     void createAndOpenProject({ workspaceMode: 'creation' }).catch((error) => {
       logRendererError('project-create-failed', error)
-      report(null, projectNotice(t, 'studio.newProjectFailed'))
+      report(null, projectOperationFailureText('create', error, t))
     })
   }, [createAndOpenProject, report, t])
 
@@ -486,7 +481,7 @@ export default function NomiStudioApp(): JSX.Element {
       if (result.opened) useJourneyTourStore.getState().start()
     })().catch((error) => {
       logRendererError('project-create-failed', error, { seed: 'journey-tour' })
-      report(null, projectNotice(t, 'studio.demoProjectFailed'))
+      report(null, projectOperationFailureText('createDemo', error, t))
     })
   }, [createAndOpenProject, report, t])
 
@@ -770,12 +765,9 @@ export default function NomiStudioApp(): JSX.Element {
       <UpdateDialog />
       {/* 付费确认卡挂在公共根：制作任务的家是任务中心（顶栏常驻、创作/生成/预览都能开），
           门的兜底决策必须在任一视图都弹得出来。原先库页一处、生成区插槽内一处——创作/预览视图
-          下根本没挂载，在那儿点确认永远没反应（本轮走查实测抓出）。单一挂载，不留并行版（P1）。 */}
-      {hasPendingSpendConfirm ? (
-        <React.Suspense fallback={null}>
-          <SpendConfirmDialog />
-        </React.Suspense>
-      ) : null}
+          下根本没挂载，在那儿点确认永远没反应（本轮走查实测抓出）。单一挂载，不留并行版（P1）。
+          卡的代码静态加载、点下去同一帧出卡，理由见 SpendConfirmHost。 */}
+      <SpendConfirmHost />
       {/* 开屏动画提到视图之外（原先只挂在库页分支）：重放入口已归位到设置「关于」，
           而设置在库页和 studio 都能开——不提上来的话从 studio 点「重看开屏动画」不会有任何反应。 */}
       {!splashDone ? (

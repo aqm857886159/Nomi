@@ -1,0 +1,35 @@
+{
+  "id": "FB-20261029-browser-asset-reference-delete",
+  "since": "2026-10-29",
+  "source": "只读视图对等审计发现，真实隔离 Electron 复核；detected_by: review。不是用户直接报告的这两件缺陷。",
+  "category": "interaction-semantics",
+  "problem": "浏览器素材托盘绕过素材删除规划，删除画布/时间轴仍在引用的文件，重载后媒体加载失败。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "同一作品切换视图后只操作当前交互面",
+    "共享文件引用不能因入口不同而悬空"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "修前真实窗口复现；两次收尾均没抢前台。",
+    "src/workbench/assets/assetDeletionMatrix.test.ts",
+    "修复：删除素材前查引用，正被作品使用的文件不能从浏览器托盘直接删掉（#1384）。"
+  ],
+  "completionCommits": [
+    "e57081ef0",
+    "5cce90275",
+    "cfb73b136",
+    "75a9f8462"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-29-view-parity-cut1.root-cause.json",
+  "fixedInPr": 1384,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/assets/assetDeletionMatrix.test.ts"
+  }
+}

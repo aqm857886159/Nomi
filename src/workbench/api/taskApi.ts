@@ -239,6 +239,7 @@ export async function submitCanvasShotRun(input: {
   runRecordId: string
   vendor: string
   request: TaskRequestDto
+  acknowledgedOpenRuns?: string[]
 }): Promise<TaskResultDto> {
   const desktop = requireDesktopRuntime('canvas generation')
   if (!desktop.tasks.canvasSubmit) throw new Error('canvas generation requires a newer desktop runtime')
@@ -250,6 +251,7 @@ export async function submitCanvasShotRun(input: {
       projectId: input.projectId,
       nodeId: input.nodeId,
       runRecordId: input.runRecordId,
+      ...(input.acknowledgedOpenRuns ? { acknowledgedOpenRuns: input.acknowledgedOpenRuns } : {}),
       vendor: String(input.vendor || '').trim(),
       request: withTaskProjectIdentity(input.request, input.projectId),
     }) as TaskResultDto
@@ -411,4 +413,11 @@ export async function runWorkbenchTextTaskStream(
       else opts.signal.addEventListener('abort', onAbort, { once: true })
     }
   })
+}
+
+/** Occupancy belongs to the host, including after a new renderer record was refused. */
+export async function canvasOpenRuns(input: { projectId: string; nodeId?: string }): Promise<Array<{ runId: string; jobId?: string; reason: 'in_flight' | 'needs_reconcile'; hasTaskId: boolean; nodeId: string }>> {
+  const query = requireDesktopRuntime('canvas reconciliation').tasks.canvasOpenRuns
+  if (!query) throw new Error('Canvas reconciliation is unavailable')
+  return query(input)
 }

@@ -1,8 +1,10 @@
+import { canvasLayerMayHandleInput } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { IconX } from '@tabler/icons-react'
 import { NomiImage } from '../../../design/media'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { cn } from '../../../utils/cn'
 import { useVideoPlaybackHeal } from '../../../media/useVideoPlaybackHeal'
 import { VideoPlaybackStatusOverlay } from '../../../media/VideoPlaybackStatusOverlay'
@@ -29,6 +31,7 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose,
   stepRef.current = onStep
   const canvasViewport =
     typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.workbench-generation__canvas')
+  const isTopLayer = useModalInputLayer(Boolean(canvasViewport), canvasViewport)
 
   React.useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -54,6 +57,7 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose,
     closeButtonRef.current?.focus()
 
     const handleKeyDown = (event: KeyboardEvent): void => {
+      if (!canvasLayerMayHandleInput(isTopLayer)) return
       if (event.key === 'Escape') onClose()
       else if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && stepRef.current && !(event.target instanceof HTMLVideoElement)) {
         event.preventDefault()
@@ -71,7 +75,7 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose,
       }
       previousFocus?.focus()
     }
-  }, [canvasViewport, onClose])
+  }, [canvasViewport, isTopLayer, onClose])
 
   const mediaTypeLabel =
     mediaType === 'video' ? t('generationCommon.imagePreview.video') : t('generationCommon.imagePreview.image')

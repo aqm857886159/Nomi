@@ -1,0 +1,398 @@
+{
+  "board": "AgentIdentityRow",
+  "extractor": "board-extract@1",
+  "source": "preview/AgentIdentityRow.html",
+  "sourceSha256": "d81c31e23a745867346b9b037ed1b1a8767dca7724fcbbc274073f42d0fd0d3c",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-div-G第15版第5处聊天里的",
+      "kind": "text",
+      "tag": "div",
+      "text": "G · 第 15 版 · 第 5 处：聊天里的身份行",
+      "bbox": [
+        52,
+        40,
+        1096,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "002-h1-以Nomi身份说话那一行",
+      "kind": "text",
+      "tag": "h1",
+      "text": "「以 Nomi 身份说话」那一行，也换成形象（静态）",
+      "bbox": [
+        52,
+        65,
+        1096,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-p-产品里就一处身份行Nom",
+      "kind": "text",
+      "tag": "p",
+      "text": "产品里就一处：身份行 NomiIdentityRow，16px 的标加「Nomi」字标。现在只用在「还没连文本模型」那张",
+      "bbox": [
+        52,
+        113,
+        1020,
+        45
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-span-浅色",
+      "kind": "text",
+      "tag": "span",
+      "text": "浅色",
+      "bbox": [
+        76,
+        202,
+        330,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "005-span-现在",
+      "kind": "text",
+      "tag": "span",
+      "text": "现在",
+      "bbox": [
+        76,
+        237,
+        330,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        76,
+        260,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "007-span-Noi",
+      "kind": "text",
+      "tag": "span",
+      "text": "Noi",
+      "bbox": [
+        98,
+        260,
+        28,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "008-span-m",
+      "kind": "text",
+      "tag": "span",
+      "text": "m",
+      "bbox": [
+        114,
+        260,
+        9,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-span-换成",
+      "kind": "text",
+      "tag": "span",
+      "text": "换成",
+      "bbox": [
+        76,
+        295,
+        330,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "010-svg-Nomi形象",
+      "kind": "icon",
+      "tag": "svg",
+      "role": "img",
+      "text": "Nomi 形象",
+      "bbox": [
+        76,
+        318,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "011-span-Noi",
+      "kind": "text",
+      "tag": "span",
+      "text": "Noi",
+      "bbox": [
+        98,
+        318,
+        28,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "012-span-m",
+      "kind": "text",
+      "tag": "span",
+      "text": "m",
+      "bbox": [
+        114,
+        318,
+        9,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-div-恢复卡原来的内容不变",
+      "kind": "text",
+      "tag": "div",
+      "text": "（恢复卡原来的内容不变）",
+      "bbox": [
+        76,
+        341,
+        330,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-span-暗色",
+      "kind": "text",
+      "tag": "span",
+      "text": "暗色",
+      "bbox": [
+        474,
+        202,
+        330,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-span-现在",
+      "kind": "text",
+      "tag": "span",
+      "text": "现在",
+      "bbox": [
+        474,
+        237,
+        330,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        474,
+        260,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "017-span-Noi",
+      "kind": "text",
+      "tag": "span",
+      "text": "Noi",
+      "bbox": [
+        496,
+        260,
+        28,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "018-span-m",
+      "kind": "text",
+      "tag": "span",
+      "text": "m",
+      "bbox": [
+        512,
+        260,
+        9,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "019-span-换成",
+      "kind": "text",
+      "tag": "span",
+      "text": "换成",
+      "bbox": [
+        474,
+        295,
+        330,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "020-svg-Nomi形象",
+      "kind": "icon",
+      "tag": "svg",
+      "role": "img",
+      "text": "Nomi 形象",
+      "bbox": [
+        474,
+        318,
+        16,
+        16
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "021-span-Noi",
+      "kind": "text",
+      "tag": "span",
+      "text": "Noi",
+      "bbox": [
+        496,
+        318,
+        28,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "022-span-m",
+      "kind": "text",
+      "tag": "span",
+      "text": "m",
+      "bbox": [
+        512,
+        318,
+        9,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "023-div-恢复卡原来的内容不变",
+      "kind": "text",
+      "tag": "div",
+      "text": "（恢复卡原来的内容不变）",
+      "bbox": [
+        474,
+        341,
+        330,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "024-span-放大看几何64px",
+      "kind": "text",
+      "tag": "span",
+      "text": "放大看几何（64px）",
+      "bbox": [
+        872,
+        202,
+        252,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "025-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        872,
+        233,
+        64,
+        64
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "026-svg-Nomi形象放大",
+      "kind": "icon",
+      "tag": "svg",
+      "role": "img",
+      "text": "Nomi 形象，放大",
+      "bbox": [
+        954,
+        233,
+        64,
+        64
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "027-div-外形和logo同一块底色",
+      "kind": "text",
+      "tag": "div",
+      "text": "外形：和 logo 同一块底色、同一个圆角比例（边长的 25%），只是把 N 换成两只眼。",
+      "bbox": [
+        872,
+        311,
+        252,
+        62
+      ],
+      "region": "root"
+    },
+    {
+      "id": "028-div-眼睛宽为边长的15高30",
+      "kind": "text",
+      "tag": "div",
+      "text": "眼睛：宽为边长的 15%、高 30%，上沿距顶 30%，左右两只的左沿在 28% 和 56%，两只眼的中点正好在中线上。",
+      "bbox": [
+        872,
+        387,
+        252,
+        62
+      ],
+      "region": "root"
+    },
+    {
+      "id": "029-div-底色走logo底色tok",
+      "kind": "text",
+      "tag": "div",
+      "text": "底色走 logo 底色 token，暗色跟着 token 变；眼睛恒为白色，和 logo 的笔画一样。",
+      "bbox": [
+        872,
+        464,
+        252,
+        42
+      ],
+      "region": "root"
+    }
+  ]
+}

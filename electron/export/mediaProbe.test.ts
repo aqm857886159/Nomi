@@ -10,6 +10,7 @@ import {
   BoundedProcessError,
   decodeMediaBytes,
   decodeMediaFile,
+  isFfmpegProgressLine,
   MediaProbeError,
   parseFfprobeJson,
   probeMediaBytes,
@@ -409,6 +410,100 @@ describe("runBoundedProcess", () => {
     controller.abort();
 
     await expect(pending).rejects.toMatchObject({ code: "cancelled" });
+  });
+
+  describe("stderr tail mode (long-running progress streams)", () => {
+    // 假 ffmpeg：持续往 stderr 刷 -progress 记录，中间夹警告行（手机片的时间戳警告就是这样刷屏的），
+    // 一共远超 1 MB，最后一条 progress=end 收尾、正常退出。
+    const RECORDS = 9_000;
+    const floodingProgress = `
+      let i = 0;
+      const step = () => {
+        let chunk = "";
+        for (let k = 0; k < 100 && i < ${RECORDS}; k += 1, i += 1) {
+          chunk += "[mov,mp4 @ 0x1] Timestamps are unset in a packet for stream 0, frame " + i + ". This is deprecated and will stop working\\n";
+          chunk += "frame=" + i + "\\nfps=30.00\\nout_time_ms=" + (i * 1000) + "\\nspeed=   1x\\nprogress=continue\\n";
+        }
+        const last = i >= ${RECORDS};
+        if (last) chunk += "progress=end\\n";
+        process.stderr.write(chunk, () => { if (!last) step(); });
+      };
+      step();
+    `;
+    const MAX_STDERR = 16 * 1024;
+
+    it("keeps only the last maxStderrBytes, never kills for output volume, and keeps feeding progress", async () => {
+      const outTimes: number[] = [];
+      const stages: string[] = [];
+      const result = await runBoundedProcess(
+        process.execPath,
+        ["-e", floodingProgress],
+        {
+          timeoutMs: 60_000,
+          maxStdoutBytes: 1_024,
+          maxStderrBytes: MAX_STDERR,
+          stderrMode: "tail",
+          onProgress: (progress) => {
+            if (progress.outTimeMs !== undefined) outTimes.push(progress.outTimeMs);
+            if (progress.stage) stages.push(progress.stage);
+          },
+        },
+      );
+
+      expect(result.code).toBe(0);
+      // 每条记录都送到了解析器，一直送到最后一条（out_time_ms 是微秒，解析成毫秒）。
+      expect(outTimes).toHaveLength(RECORDS);
+      expect(outTimes.at(-1)).toBe(RECORDS - 1);
+      expect(stages.at(-1)).toBe("end");
+      // 只留尾巴做错误信息：不超过上限，而且是真的尾巴。
+      expect(Buffer.byteLength(result.stderr, "utf8")).toBeLessThanOrEqual(MAX_STDERR);
+      expect(result.stderr.endsWith("progress=end\n")).toBe(true);
+    });
+
+    it("counter-example: the default mode still stops the same flood as output_limit", async () => {
+      const error = await runBoundedProcess(
+        process.execPath,
+        ["-e", floodingProgress],
+        { timeoutMs: 60_000, maxStdoutBytes: 1_024, maxStderrBytes: MAX_STDERR, onProgress: () => undefined },
+      ).catch((caught) => caught);
+      expect(error).toBeInstanceOf(BoundedProcessError);
+      expect(error).toMatchObject({ code: "output_limit" });
+    });
+
+    it("a throwing progress listener neither crashes the host nor stops the process", async () => {
+      const result = await runBoundedProcess(
+        process.execPath,
+        ["-e", "process.stderr.write('out_time_ms=1000\\nprogress=continue\\nout_time_ms=2000\\nprogress=end\\n')"],
+        {
+          timeoutMs: 10_000,
+          maxStdoutBytes: 1_024,
+          maxStderrBytes: 1_024,
+          stderrMode: "tail",
+          onProgress: () => { throw new Error("listener bug"); },
+        },
+      );
+      expect(result.code).toBe(0);
+    });
+  });
+
+  it("recognizes ffmpeg -progress record lines, including padded values, and nothing else", () => {
+    for (const line of ["frame=50", "fps=0.00", "stream_0_0_q=-1.0", "bitrate=  61.4kbits/s", "bitrate=N/A", "out_time=00:00:01.880078", "speed=   0x", "speed=85.7x", "progress=end"]) {
+      expect(isFfmpegProgressLine(line), line).toBe(true);
+    }
+    for (const line of ["Conversion failed!", "Error while opening encoder for output stream #0:0 - maybe incorrect parameters such as bit_rate, rate, width or height", "[mp4 @ 0x1] Could not find tag for codec vp8 in stream #0, codec not currently supported in container", ""]) {
+      expect(isFfmpegProgressLine(line), line).toBe(false);
+    }
+  });
+
+  it("optionally lowers child priority before the bounded process runs", async () => {
+    const setPriority = vi.fn();
+    await runBoundedProcess(
+      process.execPath,
+      ["-e", "process.stdout.write('ok')"],
+      { lowPriority: true, timeoutMs: 1_000, maxStdoutBytes: 1_024, maxStderrBytes: 1_024 },
+      { setPriority },
+    );
+    expect(setPriority).toHaveBeenCalledWith(expect.any(Number));
   });
 
   it("uses a detached POSIX process group and escalates from TERM to KILL", async () => {

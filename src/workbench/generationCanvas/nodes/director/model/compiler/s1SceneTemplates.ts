@@ -23,7 +23,7 @@ export type S1TemplateSpec = { parts: TemplatePart[]; marks: TemplateMark[]; int
  */
 const part = (id: string, name: string, kind: DirectorStageKind, type: DirectorObject['type'], at: { x: number; z: number }, scale: Size, color = '#94a3b8', bottom = 0): TemplatePart => ({
   kind,
-  object: { id, name, type, position: { x: at.x, y: originYForBottom({ type, scale }, bottom), z: at.z }, rotation: { x: 0, y: 0, z: 0 }, scale, color, visible: true, locked: true, isAuxiliary: false },
+  object: { id, name, type, position: { x: at.x, y: originYForBottom({ type, scale }, bottom), z: at.z }, rotation: { x: 0, y: 0, z: 0 }, scale, color, visible: true, locked: true, isAuxiliary: false, framingRole: 'background' },
 })
 const block = (id: string, name: string, kind: DirectorStageKind, at: { x: number; z: number }, scale: Size, color?: string, bottom?: number) => part(id, name, kind, 'cube', at, scale, color, bottom)
 const ground = (id: string, size: { x: number; z: number }, color: string) => block(id, 'ground', 'ground', { x: 0, z: 0 }, { x: size.x, y: GROUND_THICKNESS, z: size.z }, color, -GROUND_THICKNESS)

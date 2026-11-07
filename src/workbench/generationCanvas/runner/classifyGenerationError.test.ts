@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { classifyGenerationError } from './generationRunController'
 import { parseVendorErrorFromMessage, stripVendorErrorMarker } from './vendorErrorIpc'
 import { desktopT } from '../../../../electron/i18n'
+import { ratioResToOpenAiSize } from '../../../../electron/catalog/paramTranslate'
 import { describeAgentError } from '../../../../electron/ai/agentError'
 import { modelCallFailure } from '../../../../electron/ai/runtimeVendorError'
 import { laneModelTimeoutMessage } from '../../../../electron/shared/agentLane/laneAssistantFault'
@@ -16,8 +17,8 @@ describe('classifyGenerationError — 已知分类', () => {
     const cases = [
       ['queued', 'generationCommon.observability.error.shotClaimed.queued.reason', 'view-task'],
       ['awaiting_confirmation', 'generationCommon.observability.error.shotClaimed.awaitingConfirmation.reason', 'view-task'],
-      ['in_flight', 'generationCommon.observability.error.shotClaimed.inFlight.reason', 'view-task'],
-      ['needs_reconcile', 'generationCommon.observability.error.shotClaimed.needsReconcile.reason', 'reconcile'],
+      ['in_flight', 'generationCommon.observability.error.submissionUnknown.reason', 'release-regenerate'],
+      ['needs_reconcile', 'generationCommon.observability.error.submissionUnknown.reason', 'release-regenerate'],
     ] as const
     for (const [reason, key, action] of cases) {
       const report = classifyGenerationError(encodeStructuredErrorMessage({ code: 'production_shot_claimed', reason }, `production_shot_claimed: ${reason}`))
@@ -335,6 +336,56 @@ describe('classifyGenerationError — 已知分类', () => {
     expect(i18n.t('generationCommon.observability.error.referenceNotInUse.reason', { lng: 'en' })).not.toBe(coded.reason)
   })
 
+  // 用户明确选了、却超过 3:1 的生图比例（#1344 评审）：以前悄悄省略 size，服务商按默认尺寸出图，选的画幅被换成别的。
+  // 现在主进程在构造请求时就拒（electron/catalog/paramTranslate.ts），渲染层按码给词条。错误取自真实生产者、不手写——
+  // 码或人话任一边改了，这条跟着红。
+  describe('画幅比例超出连接范围被主进程在构造请求时拒发（aspect-ratio-unsupported）', () => {
+    const refusal = (): string => {
+      try {
+        ratioResToOpenAiSize(['4:1', '1K'], 'text_to_image')
+      } catch (error) {
+        return `Error invoking remote method 'nomi:tasks:run': ${String(error)}`
+      }
+      throw new Error('expected 4:1 to be refused for an image task')
+    }
+
+    it('归到它自己那一类：不落 unknown、不甩锅服务商，主动作重试、次动作换模型，码标记不外露', () => {
+      const report = classifyGenerationError(refusal())
+      expect(report.kind).toBe('aspect-ratio-unsupported')
+      expect(report.vendorSide).toBe(false)
+      expect(report.primary).toBe('retry')
+      expect(report.secondary).toBe('switch-model')
+      expect(report.providerMessage).toBeUndefined()
+      expect(report.raw).not.toMatch(/NOMI_ERR/)
+      expect(report.raw).toMatch(/4:1/)
+      expect(report.hint).not.toMatch(/服务商临时故障/)
+    })
+
+    it('中文词条：说清比例超出了这条连接支持的范围、请求没发出去、请换一个比例', () => {
+      const report = classifyGenerationError(refusal())
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.aspectRatioUnsupported.reason'))
+      expect(report.hint).toBe(i18n.t('generationCommon.observability.error.aspectRatioUnsupported.hint'))
+      expect(report.reason).toMatch(/比例.*超出/)
+      expect(report.hint).toMatch(/3:1/)
+      expect(report.hint).toMatch(/换一个比例/)
+      expect(report.hint).toMatch(/没被请求到/)
+    })
+
+    it('英文词条同样来自词典，不混中文', async () => {
+      await i18n.changeLanguage('en')
+      try {
+        const report = classifyGenerationError(refusal())
+        expect(report.kind).toBe('aspect-ratio-unsupported')
+        expect(report.reason).toMatch(/aspect ratio.*outside/i)
+        expect(report.hint).toMatch(/Pick another ratio/)
+        expect(report.hint).toMatch(/provider was never called/)
+        expect(`${report.reason}${report.hint}`).not.toMatch(/[㐀-鿿]/)
+      } finally {
+        await i18n.changeLanguage('zh-CN')
+      }
+    })
+  })
+
   it('stripNomiErrorCode:剥掉码标记后只留人话（展示端不泄露机器信号）', () => {
     expect(stripNomiErrorCode(tagNomiError('asset-too-large', '文件太大了'))).toBe('文件太大了')
     expect(stripNomiErrorCode('没有标记的普通错误')).toBe('没有标记的普通错误')
@@ -562,10 +613,10 @@ describe('每类错误都说得出「该干嘛」（2026-07-30 拍板：主按�
 describe('动作表：每类主 / 次动作都写在表里，改一类不许带动别的类', () => {
   // 穷举：漏写一类 → check:test-types 红（Record 要求每个 kind 都在）。
   const EVERY_KIND: Record<GenerationErrorKind, true> = {
-    auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
+    'local-refusal': true, auth: true, balance: true, quota: true, 'poll-timeout': true, network: true, 'model-config': true,
     'model-kind-mismatch': true, 'model-not-open': true, 'model-unavailable-upstream': true, 'model-retired': true,
     'image-route-disabled': true, 'account-gate': true, 'content-policy': true, 'input-image-blocked': true,
-    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-not-in-use': true, 'outbound-blocked': true,
+    'asset-upload-failed': true, 'asset-too-large': true, 'asset-invalid': true, 'reference-unfetchable': true, 'reference-not-in-use': true, 'aspect-ratio-unsupported': true, 'outbound-blocked': true,
     'outbound-blocked-submit': true, 'outbound-blocked-credential-origin': true, 'credential-redirect': true, server: true, input: true,
     'output-truncated': true, 'output-unreadable': true, 'submission-unknown': true, 'submission-not-sent': true, 'output-retrieval-failed': true, 'retrieval-incomplete': true, 'local-processing': true, unknown: true,
   }
@@ -578,7 +629,7 @@ describe('动作表：每类主 / 次动作都写在表里，改一类不许带�
       // 结果未知：不给重试（可能重复提交），只指路去核对。
       // 已生成、取回失败 / 已提交、这次没取回：只指路「重新取回」，不给第二个动作（重试 = 再生成一份）。
       // 本机处理失败：没有模型参与，只留重试。
-      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' ? null : kind === 'submission-unknown' ? 'release-regenerate' : before })
+      expect({ kind, secondary }).toEqual({ kind, secondary: kind === 'model-retired' || kind === 'output-unreadable' || kind === 'output-retrieval-failed' || kind === 'retrieval-incomplete' || kind === 'local-processing' || kind === 'local-refusal' ? null : kind === 'submission-unknown' ? 'reconcile' : before })
     }
   })
 })
@@ -604,10 +655,9 @@ describe('付费提交结果未知（连接在请求发出后被重置）', () =
     expect(report.kind).toBe('submission-unknown')
     expect(report.reason).not.toContain('连不上')
     expect(report.hint).not.toContain('没发到')
-    expect(report.primary).toBe('reconcile')
-    // 没有一键重试；次动作是「我核对过了，重新生成」（点下去先展开确认，不直接生成）。
-    expect(report.secondary).toBe('release-regenerate')
-    expect(report.hint).toContain('先到服务商后台')
+    expect(report.primary).toBe('release-regenerate')
+    expect(report.secondary).toBe('reconcile')
+    expect(report.hint).toBe('')
   })
 
   it('同样的原始网络报错不带标记时仍按网络类处理（标记才是「未知」的唯一出处）', () => {
@@ -1088,6 +1138,7 @@ describe('vendorSide —— 失败是不是服务商那一侧的事', () => {
   it.each([
     ['结果已送达、本机读不出来', tagNomiError('output-unreadable', 'Generated media validation failed (decode_failed)')],
     ['参考素材本身不行（请求没发出）', tagNomiError('asset-invalid', '参考素材读取失败')],
+    ['选的画幅比例超出连接范围（构造请求时就拒了）', tagNomiError('aspect-ratio-unsupported', 'Request stopped before sending: aspect ratio 4:1 is outside the image sizes this connection supports')],
     ['我们自己的出站策略拦了提交（走的是 VendorRequestError 的壳）', structuredMessage({ vendorKey: 'x', category: 'network', upstreamMsg: 'refused' }, `Provider request refused by outbound policy: ${tagNomiError('outbound-blocked-submit', 'blocked')}`)],
     ['取片被出站策略拦了', tagNomiError('outbound-blocked', 'blocked')],
     ['模型已被我们下线', 'Model is retired: sora-2'],
@@ -1190,5 +1241,96 @@ describe('认不出的失败如实说认不出：不编原因、不提额度，�
         await i18n.changeLanguage('zh-CN')
       }
     }
+  })
+})
+
+// 模型那一侧拉不到我们给的参考临时链接（过期 / 防盗链 / 地区限制）。用户反馈原句：
+// `An input media URL could not be fetched (403/404/410).`——以前纯文字报错落「认不出原因」，结构化 400 落
+// 「参数不被接受，请检查比例/尺寸」，点重试还是同一条链接。判据住 electron/shared/assets/referenceFetchRefusal（主进程记账读同一份）。
+describe('模型取不到参考图（reference-unfetchable）', () => {
+  const REPORTED = 'An input media URL could not be fetched (403/404/410).'
+  const structured400 = (upstreamMsg: string, tail: string) =>
+    encodeStructuredErrorMessage({ vendorKey: 'relay', method: 'POST', url: 'https://relay.example.com/v1/videos', httpStatus: 400, upstreamMsg, category: 'input', retryable: false }, tail)
+
+  it.each([
+    ['纯文字', REPORTED],
+    ['带我们的诊断前缀', `Provider request failed (HTTP 422) at relay POST https://relay.example.com/v1/videos: ${REPORTED}`],
+    ['结构化 400（以前被说成「参数不被接受，请检查比例/尺寸」）', structured400(REPORTED, `Provider request failed (HTTP 400) at relay POST https://relay.example.com/v1/videos: ${REPORTED}`)],
+    ['上游错误码（文字是别的话）', encodeStructuredErrorMessage({ vendorKey: 'relay', method: 'POST', url: 'https://relay.example.com/v1/images', httpStatus: 422, upstreamMsg: 'Unprocessable Entity', upstreamCode: 'file_download_error', category: 'input', retryable: false }, 'Provider request failed (HTTP 422)')],
+  ])('%s → 归新种类', (_label, message) => {
+    const report = classifyGenerationError(message)
+    expect(report.kind).toBe('reference-unfetchable')
+    expect(report.reason).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.reason'))
+    expect(report.reason).not.toContain('generationCommon.')
+    expect(report.hint).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.hint'))
+    // 主按钮重试：重试会尽量改用本机原图上传。上传过模型还拒绝时换模型是唯一的出口，留在次动作。
+    expect(report.primary).toBe('retry')
+    expect(report.secondary).toBe('switch-model')
+    // 修法在我们这一侧，不点名服务商「失败了」，也不触发切家提示。
+    expect(report.vendorSide).toBe(false)
+    // 不提扣费（narrate 现有规矩）。
+    expect(`${report.reason}${report.hint}`).not.toMatch(/扣费|计费|没有扣|未扣/)
+  })
+
+  it('英文界面：标题与说明逐字，且不含中文', async () => {
+    await i18n.changeLanguage('en')
+    try {
+      const report = classifyGenerationError(structured400(REPORTED, `Provider request failed (HTTP 400): ${REPORTED}`))
+      expect(report.kind).toBe('reference-unfetchable')
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.reason'))
+      expect(report.hint).toBe(i18n.t('generationCommon.observability.error.referenceUnfetchable.hint'))
+      expect(`${report.reason}${report.hint}`).not.toMatch(/[㐀-鿿]/)
+    } finally {
+      await i18n.changeLanguage('zh-CN')
+    }
+  })
+
+  it('服务商原话放进「服务商原话」，不当标题；完整报文留在技术详情', () => {
+    const report = classifyGenerationError(structured400(REPORTED, 'Provider request failed (HTTP 400)'))
+    expect(report.providerMessage).toBe(REPORTED)
+    expect(report.reason).not.toContain('could not be fetched')
+    expect(report.raw).toContain('Provider request failed')
+  })
+
+  it.each([
+    ['输入图片未能通过审核', 'input-image-blocked'],
+    ['Failed to access input image: sensitive content detected', 'input-image-blocked'],
+    ['The input image URL is forbidden due to content policy', 'content-policy'],
+    ['Failed to load input image: content policy violation', 'content-policy'],
+    ['Could not fetch input image: invalid api key', 'auth'],
+    ['Failed to fetch input image: 401 Unauthorized', 'auth'],
+    ['Cannot load input: rate limit exceeded', 'quota'],
+    ['Failed to fetch image', 'network'],
+    ['Timeout while downloading', 'network'],
+  ])('别的失败不被说成取不到参考图（重试要花钱）：%s', (message, kind) => {
+    expect(classifyGenerationError(message).kind).toBe(kind)
+  })
+
+  it('别的 400 不被吞：比例不对仍是 input，取结果 / 下载产物 / 上传失败仍是各自的类', () => {
+    expect(classifyGenerationError(structured400('invalid ratio: 21:9 not supported', 'Provider request failed (HTTP 400)')).kind).toBe('input')
+    expect(classifyGenerationError(tagNomiError('output-retrieval-failed', 'Nomi could not retrieve the result: Fetch failed: HTTP 403')).kind).toBe('output-retrieval-failed')
+    expect(classifyGenerationError('Failed to download the generated video from https://cdn.example.com/out.mp4').kind).not.toBe('reference-unfetchable')
+    expect(classifyGenerationError('素材上传失败：a.png（1MB）的所有上传通道都没成功，所以还没请求这次选的服务商。').kind).toBe('asset-upload-failed')
+  })
+})
+
+
+describe('generation lock exit D1/D2: local refusal is not a provider failure', () => {
+  it.each(['node_generation_in_flight', 'canvas_consent_predates_upgrade', 'director_preview_blocked', 'production_shot_claimed', 'generation_input_changed', 'storyboard_content_conflict'])('%s has one local kind and truthful actions', code => {
+    const report = classifyGenerationError(encodeStructuredErrorMessage({ code, ...(code === 'production_shot_claimed' ? { reason: 'needs_reconcile' } : {}) }, code))
+    expect(report.kind).toBe('local-refusal')
+    expect(report.vendorSide).toBe(false)
+    expect(report.primary).toBe(['production_shot_claimed', 'node_generation_in_flight'].includes(code) ? 'release-regenerate' : ['canvas_consent_predates_upgrade', 'generation_input_changed', 'storyboard_content_conflict'].includes(code) ? 'retry' : 'view-task')
+    if (['production_shot_claimed', 'node_generation_in_flight'].includes(code)) expect(report.secondary).toBe('reconcile')
+  })
+  it.each(['generation_input_changed', 'storyboard_content_conflict', 'Storyboard target changed'])('legacy string %s retains the content-change protection in both languages', async message => {
+    for (const lang of ['zh-CN', 'en']) {
+      await i18n.changeLanguage(lang)
+      const report = classifyGenerationError(message)
+      expect(report.kind).toBe('local-refusal')
+      expect(report.primary).toBe('retry')
+      expect(report.reason).toBe(i18n.t('generationCommon.observability.error.storyboardContentChanged'))
+    }
+    await i18n.changeLanguage('zh-CN')
   })
 })

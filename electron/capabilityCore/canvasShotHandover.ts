@@ -17,7 +17,7 @@ import type {
   ProductionRun,
   RunCommand,
 } from "../productionRun/productionRunTypes";
-import { currentShotAttempt, jobEndedBeforeAcceptance } from "../shared/productionShotJobs";
+import { currentShotAttempt, jobEndedAfterProviderAnswer, jobEndedBeforeAcceptance } from "../shared/productionShotJobs";
 import { canvasShotClaimCommandId } from "../shared/productionRunCommandId";
 import { decideShotClaim } from "../shared/decideShotClaim";
 import type { CanvasConsentShot } from "./appIntegrationCanvasShot";
@@ -192,10 +192,13 @@ export function settleFromRun(input: {
     projectId,
     link,
     canvasRunId,
+    // 确定结束在受理之前 = 没交到；确定结束在供应商答复之后（答了、本机没落下）= 交到了；其余拿不出证据 = 结果未知。
     settlement:
       !job || jobEndedBeforeAcceptance(job)
         ? { outcome: "not_sent", failure: handOverFailureOf(error, job) }
-        : { outcome: "unknown" },
+        : jobEndedAfterProviderAnswer(job)
+          ? { outcome: "accepted" }
+          : { outcome: "unknown" },
     now,
   });
 }

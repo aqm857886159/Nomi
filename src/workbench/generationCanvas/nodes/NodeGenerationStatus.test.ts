@@ -75,3 +75,11 @@ it('keeps exactly one failure summary while retaining the existing recovery acti
   expect(html).toContain('SpecificProviderFailure')
   expect(html).toContain('重试')
 })
+
+it('G4: a full unknown-result card owns the summary; the distant node keeps it', () => {
+ const unknown={...node,status:'error' as const,error:'NOMI_ERR::submission-unknown::not received'}
+ expect(renderToStaticMarkup(React.createElement(NodeGenerationStatus,{node:unknown,summaryInCard:true}))).toBe('')
+ expect(renderToStaticMarkup(React.createElement(NodeGenerationStatus,{node:unknown}))).toContain('上一次没等到结果')
+ const failedKeyframe={...unknown,id:'keyframe',error:'429 concurrency limit exceeded'}
+ expect(renderToStaticMarkup(React.createElement(NodeGenerationStatus,{node:{...node,status:'recoverable'},keyframeNode:failedKeyframe,summaryInCard:true}))).toContain('data-phase="failed"')
+})

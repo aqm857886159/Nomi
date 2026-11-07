@@ -6,18 +6,30 @@ import { findCanvasBlankPoint, findNodeHitPoint } from '../_canvasHit.mjs'
 import { canvasResetView } from '../_shell.mjs'
 
 const vid = (n) => `gen-v2-video-${String(n).padStart(3, '0')}`
+export const videoNodeId = vid
+/**
+ * 悬停那几步用的三张相邻视频卡（夹具第 3 排、同一行）：放大到细节线之上、摆到舞台正中后三张都整张看得见。
+ * 视频悬停起播只有整卡才有（缩放低于 40% 没选中的卡是轻量卡，没有 <video>），所以先 zoomIntoCards 再悬停。
+ * 第一张做「悬停起播 / 离开卸载 / 再悬停」，后两张做「相邻两张连续悬停，同时在播 ≤ 1」。
+ */
+export const HOVER_CARDS = [22, 23, 24]
 
-/** 等画布上的媒体安顿下来：改后构建=封面补齐且没有挂着的播放器；改前构建=挂着的播放器数与缓冲量连续 3 秒不变。 */
+/**
+ * 等画布上的媒体安顿下来：改后构建=存盘里每个视频节点的封面都补齐、没有挂着的播放器、屏上的东西连续 2 秒不变；
+ * 改前构建=挂着的播放器数与缓冲量连续 3 秒不变。
+ * 不数 [data-node-video-poster]：只有整卡才带，适应视图（缩放 < 40%）下全是轻量卡（预览图，没有这个标记），
+ * 数它永远等不齐——CI 上白等满了 180 秒（2026-10-31）。封面补齐看存盘（census.videoNodesWithThumbnail），与画哪一档卡无关。
+ */
 export async function waitMediaSettled(s, { maxMs = 90_000 } = {}) {
   const t0 = Date.now()
   let prev = null; let stable = 0; let last = null
   while (Date.now() - t0 < maxMs) {
     const c = await census(s)
     last = c
-    if (c.videos === 0 && c.posters >= c.videoNodes && c.videoNodesWithThumbnail >= c.videoNodes) return { settledMs: Date.now() - t0, how: 'posters', census: c }
-    const sig = `${c.videos}|${Math.round(c.buffered)}|${c.posters}`
+    const sig = `${c.videos}|${Math.round(c.buffered)}|${c.posters}|${c.renderedNodes}`
     stable = sig === prev ? stable + 1 : 0
     prev = sig
+    if (c.videos === 0 && c.videoNodes > 0 && c.videoNodesWithThumbnail >= c.videoNodes && stable >= 2) return { settledMs: Date.now() - t0, how: 'posters', census: c }
     if (stable >= 3 && c.videos > 0) return { settledMs: Date.now() - t0, how: 'players-stable', census: c }
     await sleep(1000)
   }
@@ -70,9 +82,13 @@ export async function hoverSweep(s, { rounds = 3, passes = 2, steps = 60 } = {})
   return { runs, queueP99: median(runs.map((r) => r.queueP99)), maxFrame: median(runs.map((r) => r.maxFrame)), commits: median(runs.map((r) => r.commits)), maxVideosMounted: maxOf(runs.map((r) => r.maxVideosMounted)), maxPlaying: maxOf(runs.map((r) => r.maxPlaying)), videosLeftMounted: maxOf(runs.map((r) => r.videosLeftMounted)) }
 }
 
-/** 停在一张卡上：pointerover 进卡 → 这张卡的 <video> 触发 playing。最后连续悬停相邻两张，查同时在播数。 */
-export async function hoverToPlay(s, { cards = [20, 21, 22], holdMs = 2500 } = {}) {
-  const blank = await blankPoint(s)
+/**
+ * 停在一张卡上：pointerover 进卡 → 这张卡的 <video> 触发 playing。最后连续悬停相邻两张，查同时在播数。
+ * 前提：这几张卡此刻是整卡（缩放在细节线之上、整张都在舞台里）——调用方先 zoomIntoCards。
+ */
+export async function hoverToPlay(s, { cards = HOVER_CARDS, holdMs = 2500 } = {}) {
+  // 放大后的舞台被卡铺满，真空白只剩列与列之间的窄缝；找不到就停在画布外（左上角）：同样「不在任何一张卡上」。
+  const blank = (await blankPoint(s)) ?? { x: 5, y: 5 }
   const runs = []
   for (const n of cards) {
     const id = vid(n)
@@ -87,7 +103,7 @@ export async function hoverToPlay(s, { cards = [20, 21, 22], holdMs = 2500 } = {
     runs.push({ id, startMs: enter && playing ? r1(playing.t - enter.t) : null, played: Boolean(playing), maxPlaying: m.video.maxPlaying, maxVideosMounted: m.video.maxMounted })
   }
   // 相邻两张连续悬停：新的开始播，上一张必须停（全画布同时 ≤ 1 个在播）。
-  const a = await nodeRect(s, vid(23)); const b = await nodeRect(s, vid(24))
+  const a = await nodeRect(s, vid(HOVER_CARDS[1])); const b = await nodeRect(s, vid(HOVER_CARDS[2]))
   await s.win.mouse.move(blank.x, blank.y); await sleep(1500)
   const t0 = await beginMeasure(s.win, {})
   await s.win.mouse.move(a.x + a.w / 2, a.y + a.h / 2, { steps: 3 }); await sleep(1800)
@@ -245,10 +261,20 @@ export async function stackDragOut(s, { rounds = 4, shotDir = null } = {}) {
   const clear = await findCanvasBlankPoint(win, { preference: 'top-left' })
   await win.mouse.click(clear.x, clear.y); await sleep(300)
   let sr = await nodeRect(s, pasted[0])
-  for (let i = 0; i < 16 && sr && sr.w < 125; i++) {
+  // 放大到卡够大（宽 ≥ 125px，下面落点要排得出 30 个、彼此不重叠，这个大小是这条的几何前提；它比细节线 40%（154px）小，
+  // 所以这条量的是轻量卡，和 CI 上一直以来的 144px 同一档）。一格滚多大因平台而异：同一条 Ctrl+wheel(0, -120)，CI（Linux）把卡放大到 144px、
+  // 排得出 30 个落点；Mac 页面收到的 deltaY 是发出的 2 倍（实测），一格就过头，舞台里排不出叠放处以外的落点、slots 为空，
+  // 下面 dest.press 抛 TypeError（2026-10-31 Mac 上红）。所以一格只滚一点、每格读回卡宽、一到就停；一格几乎没放大就加大格子、
+  // 放大太多就收小（不知道平台一格多大也走得到、也不会越过 125px 太远）。
+  let notch = 5
+  for (let i = 0; i < 80 && sr && sr.w < 125; i++) {
     await win.mouse.move(sr.x + sr.w / 2, sr.y + sr.h / 2)
-    await win.keyboard.down('Control'); await win.mouse.wheel(0, -120); await win.keyboard.up('Control'); await sleep(160)
-    sr = await nodeRect(s, pasted[0])
+    await win.keyboard.down('Control'); await win.mouse.wheel(0, -notch); await win.keyboard.up('Control'); await sleep(160)
+    const grown = await nodeRect(s, pasted[0])
+    const ratio = grown ? grown.w / sr.w : 1
+    if (ratio < 1.03) notch = Math.min(notch * 2, 40)
+    else if (ratio > 1.2) notch = Math.max(notch / 2, 1)
+    sr = grown
   }
   await sleep(1200)
   sr = await nodeRect(s, pasted[0])

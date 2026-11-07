@@ -1,8 +1,9 @@
+import { profileMediaResponseHandler, profileMediaTaskResult, profileResponseReceipt } from "./capabilityCore/generationOutputMaterializer";
 import { revalidatePendingCredential } from './catalog/validateCandidateCredential';
 import crypto from "node:crypto";
-import { assertLocalAssetTransportReady, localizeAssetsForVendor } from "./catalog/assetLocalization";
+import { assertLocalAssetTransportReady } from "./catalog/assetLocalization";
 import { assertNoReferencesOutsideSubmit, stageSubmitsReferences } from "./catalog/referenceStage";
-import { assetIngestionResolver, assetLocalizationOptions } from "./catalog/assetTransportRuntime";
+import { assetIngestionResolver, assetLocalizationOptions, localizeForSend } from "./catalog/assetTransportRuntime";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "./assets/localAssetFile";
 import { writeAsset, writeGeneratedAsset, writeGeneratedDeterministicAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
@@ -20,11 +21,11 @@ import { authHeaders as buildAuthHeaders, extractTaskId as extractTaskIdShared }
 import { assertCanonicalAntigravityOperation, executeProcessOperation, prepareAntigravityCreateOperation } from "./catalog/processOperation"; import type { AntigravityProcessStage } from "./catalog/antigravityCatalog";
 import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
-import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
-import { firstMappedString, providerMetaFromResponse, taskFailureMessageFromResponse } from "./tasks/responseParsing"; import { expectedMediaKind, readTaskResponse, requestEchoUrls } from "./tasks/taskResultReading";
-import { applyResponseTransform } from "./tasks/responseTransforms";
+import { firstString, trim, type JsonRecord } from "./jsonUtils";
+import { taskFailureMessageFromResponse } from "./tasks/responseParsing"; import { expectedMediaKind, readTaskResponse, requestEchoUrls } from "./tasks/taskResultReading";
 import { applyRequestTransform } from "./tasks/requestTransforms";
 import { taskCache } from "./tasks/taskCache";
+import { tagNomiError } from "./shared/nomiErrorCodes";
 export { taskCache, hasInFlightTasks } from "./tasks/taskCache";
 import { markTaskAdmitted } from "./tasks/taskAdmission";
 import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "./vendor/fingerprintCache";
@@ -190,6 +191,7 @@ export async function executeProfileOperation(input: {
   providerMeta?: JsonRecord;
   localAssetReader?: import("./catalog/assetLocalization").LocalAssetReader; signal?: AbortSignal; stage: ProfileOperationStage; antigravityPreflight?: import("./ai/antigravityTask").PreparedAntigravityTask;
 }): Promise<{ response: unknown; request: unknown }> {
+  const mediaResponseHandler = profileMediaResponseHandler(input);
   // Process and multipart declarations are handled by their shared executors.
   if (input.operation.process) {
     if (input.stage === "result") throw new Error("ANTIGRAVITY_INVALID_CONFIG");
@@ -211,17 +213,18 @@ export async function executeProfileOperation(input: {
   }
   if (input.operation.multipart) return runMultipartProfileOperation(input, (u, h, q, f) => requestMultipart(input.vendor, input.apiKey, u, h, q, f, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) }));
   const uploadCatalog = readCatalog();
-  const localized = stageSubmitsReferences(input.stage) ? await localizeAssetsForVendor(
+  const localized = stageSubmitsReferences(input.stage) ? await localizeForSend(
     input.request.extras,
     assetIngestionResolver(input.vendor, uploadCatalog, input.operation.assetIngestion),
     input.localAssetReader || readNomiLocalAsset,
     postJsonForAssetUpload,
     postMultipartForAssetUpload,
-    assetLocalizationOptions(input.request.extras),
+    assetLocalizationOptions(input.vendor, input.request.extras),
     putBinaryForAssetUpload,
   ) : { value: input.request.extras, uploaded: 0 };
   const effectiveInput = localized.uploaded > 0 ? { ...input, request: { ...input.request, extras: localized.value as TaskRequest["extras"] } } : input;
   const built = assertNoReferencesOutsideSubmit(input.stage, buildProfileHttpRequest(effectiveInput));
+  if (mediaResponseHandler) return mediaResponseHandler(built);
   const body = await applyRequestTransform(input.operation.request_transform, built.body, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId), request: input.request });
   const { vendor, apiKey } = effectiveInput;
   const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) });
@@ -241,31 +244,9 @@ export async function buildProfileTaskResult(input: {
   vendor?: Vendor;
   model?: Model;
 }): Promise<{ result: TaskResult; providerMeta: JsonRecord; unrecognizedStatus: string; actualCost?: ProviderCostActual }> {
-  const response = applyResponseTransform(input.operation.response_transform, input.response, {
-    baseUrl: String(input.vendor?.baseUrlHint || ""),
-  });
-  const { response_mapping: rawResponseMapping, provider_meta_mapping: rawMetaMapping } = input.operation;
-  const responseMapping = isJsonRecord(rawResponseMapping) ? rawResponseMapping : null;
-  const providerMetaMapping = isJsonRecord(rawMetaMapping) ? rawMetaMapping : null;
-  const providerMeta = providerMetaFromResponse(response, providerMetaMapping);
-  // 「上游到底给没给任务编号」只能有一个答案。providerMeta 只看 provider_meta_mapping 与
-  // extractTaskId 认得的那几个键（id / taskId / task_id / jobId…），**看不见 response_mapping**；
-  // 而像本机 ComfyUI 这样把编号叫 `prompt_id` 的供应商，编号只走 response_mapping 这一条路。
-  // 于是 result.id 明明已经拿到了 prompt_id，runTask 里那道「没返回任务编号就按失败处理」的闸
-  // 却问的是 providerMeta，答案是「没有」——整条 ComfyUI 认证必失败（2026-09-11 真机实锤）。
-  // 所以在这里就把「来自上游的编号」统一回填：本地兜底 id（taskIdFallback）刻意不回填，
-  // 那道闸要拦的正是「拿伪造编号去轮询」。
-  const providerTaskId = firstString(
-    firstMappedString(response, responseMapping, "task_id"),
-    providerMeta.task_id,
-    providerMeta.query_id,
-    extractTaskIdShared(response),
-  );
-  if (providerTaskId) {
-    providerMeta.task_id = providerMeta.task_id || providerTaskId;
-    providerMeta.query_id = providerMeta.query_id || providerTaskId;
-  }
-  const taskId = firstString(providerTaskId, input.taskIdFallback);
+  const materialized = profileMediaTaskResult(input);
+  if (materialized) return materialized;
+  const { response, taskId, providerMeta, responseMapping } = profileResponseReceipt(input);
   const type: "image" | "video" | "audio" | "model3d" =
     input.wantedKind === "video" ? "video" : input.wantedKind === "audio" ? "audio" : input.wantedKind === "model3d" ? "model3d" : "image";
   // 「成没成、结果在哪」只有一种读法（tasks/taskResultReading，两台引擎共用）：先合同、再通用规则。
@@ -327,6 +308,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
   }
   if (mapping) {
+    if (mapping.result?.mediaResponse && !projectId) throw new Error("Video file results require a project before generation can be submitted.");
     await validateProfileRequestBeforeSpend({ vendor, model, apiKey, request, operation: mapping.create });
     const uploadCatalog = readCatalog();
     if (!mapping.create.multipart && !mapping.create.process) {
@@ -334,7 +316,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
         request.extras,
         assetIngestionResolver(vendor, uploadCatalog, mapping.create.assetIngestion),
         readNomiLocalAsset,
-        assetLocalizationOptions(request.extras),
+        assetLocalizationOptions(vendor, request.extras),
       );
     }
     const recipe = buildNormalizedRecipe({
@@ -369,7 +351,9 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
       vendor,
       model,
     });
-    if (normalized.result.status === "queued" && mapping.query && !normalized.providerMeta.task_id && !normalized.providerMeta.query_id) {
+    // Completed metadata still requires the separate result GET; return the receipt before downloading.
+    if (normalized.result.status === "succeeded" && !normalized.result.assets.length && mapping.result && mapping.query) normalized.result.status = "queued";
+    if (["queued", "running"].includes(normalized.result.status) && mapping.query && !normalized.providerMeta.task_id && !normalized.providerMeta.query_id) {
       const missingTaskIdResult: TaskResult = { ...normalized.result, status: "failed", error: desktopT("tasks.missingTaskId") };
       traceVendorRequested(projectId, { runId: missingTaskIdResult.id, nodeId, recipe });
       traceVendorCompleted(projectId, {
@@ -408,7 +392,9 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return executeTextTask({ vendor, model, apiKey, kind, request, taskId });
   }
 
-  const suffix = wantedKind === "video" ? "/v1/videos/generations" : "/v1/images/generations";
+  // Machine code, not only the wording: the canvas wraps pre-network failures as submission_not_sent and the card classifier reads that first.
+  if (wantedKind === "video") throw new Error(tagNomiError("model-config", "Model is not configured: no declared video route for this mode. Provide a documented create/query/result declaration before generating."));
+  const suffix = "/v1/images/generations";
   const fallbackRecipe = buildNormalizedRecipe({ vendor, model, request });
   const fallbackFingerprint = recipeFingerprint(fallbackRecipe);
   const fallbackHit = readCachedTaskResult({
@@ -453,7 +439,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
     return { id: upstreamTaskId, kind, status: "queued", assets: [], raw: providerResponse };
   }
   const type: "image" | "video" | "audio" | "model3d" =
-    wantedKind === "video" ? "video" : wantedKind === "audio" ? "audio" : wantedKind === "model3d" ? "model3d" : "image";
+    wantedKind === "audio" ? "audio" : wantedKind === "model3d" ? "model3d" : "image";
   const asset: TaskResult["assets"][number] = projectId
     ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl);
   const actualCost = extractProviderCostActual(vendor.key, providerResponse);

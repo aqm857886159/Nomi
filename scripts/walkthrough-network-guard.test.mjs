@@ -14,14 +14,47 @@ const guard = path.join(path.dirname(fileURLToPath(import.meta.url)), 'walkthrou
 const { scrubText } = createRequire(import.meta.url)('./walkthrough-url-shape.cjs')
 const temps = []
 
+// 子进程里先于网闸装上的「不出网」层：网闸放行的连接走到这里就以 ENETUNREACH 结束，并记一条 offline。
+// 这些用例只验网闸怎么判、怎么记，不许真连外网——有的网络会把外连接住、对方不发数据就一直不放，
+// 子进程就永远不退出；而 spawnSync 是同步的，vitest 的用例超时打断不了它，整轮测试会一直挂着。
+// 本机回环和 unix socket 照旧放行（hold-response、loopback 两条用例要真的连本机）。
+const OFFLINE_PRELOAD = `
+const fs = require('node:fs')
+const net = require('node:net')
+const realConnect = net.Socket.prototype.connect
+function isLoopback(host) {
+  if (host === undefined || host === null || host === '') return true
+  const value = String(host).trim().toLowerCase().replace(/^\\[/, '').replace(/\\]$/, '')
+  return ['localhost', '::1', '0:0:0:0:0:0:0:1', '::ffff:127.0.0.1'].includes(value) || /^127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$/.test(value)
+}
+net.Socket.prototype.connect = function offlineConnect(...args) {
+  let options = args[0]
+  if (Array.isArray(options)) options = options[0]
+  const target = options && typeof options === 'object'
+    ? { host: options.host, port: options.port, path: options.path }
+    : typeof options === 'string' && Number.isNaN(Number(options)) ? { path: options } : { port: options, host: typeof args[1] === 'string' ? args[1] : undefined }
+  if (target.path || isLoopback(target.host)) return realConnect.apply(this, args)
+  fs.appendFileSync(process.env.NOMI_WALK_NET_LOG, JSON.stringify({ kind: 'offline', host: String(target.host), port: Number(target.port) || 0 }) + '\\n')
+  const error = Object.assign(new Error('connect ENETUNREACH ' + target.host + ':' + target.port + ' (unit test is offline)'), { code: 'ENETUNREACH', syscall: 'connect' })
+  process.nextTick(() => this.destroy(error))
+  return this
+}
+`
+// 「不出网」层之外的兜底：子进程 20 秒还没结束就算这条用例失败，不再无限等。
+const CHILD_LIMIT_MS = 20_000
+
 function runGuarded(code, extraEnv = {}) {
   const dir = makeTempDir('nomi-net-guard-')
   temps.push(dir)
   const log = path.join(dir, 'net.jsonl')
-  const result = spawnSync(process.execPath, ['-r', guard, '-e', code], {
+  const offline = path.join(dir, 'offline.cjs')
+  fs.writeFileSync(offline, OFFLINE_PRELOAD)
+  const result = spawnSync(process.execPath, ['-r', offline, '-r', guard, '-e', code], {
     env: { ...process.env, NOMI_WALK_NET_LOG: log, HTTPS_PROXY: '', HTTP_PROXY: '', ALL_PROXY: '', https_proxy: '', http_proxy: '', all_proxy: '', ...extraEnv },
     encoding: 'utf8',
+    timeout: CHILD_LIMIT_MS,
   })
+  if (result.error) throw new Error(`guarded child did not finish within ${CHILD_LIMIT_MS} ms (${result.error.code ?? result.error.message})`)
   const entries = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : []
   return { stdout: result.stdout, stderr: result.stderr, status: result.status, entries }
 }
@@ -45,6 +78,38 @@ describe('walkthrough network guard', () => {
     `, { NOMI_WALK_ALLOW_ORIGINS: 'https://allowed.invalid/v1', CI: '' })
     const blocked = entries.filter((entry) => entry.kind === 'blocked')
     expect(blocked.map((entry) => entry.host)).toEqual(['other.invalid'])
+    // 放行的那一笔走到「不出网」层就停：fetch 底下的连接也经过它，测试不会真连外网。
+    expect(entries.filter((entry) => entry.kind === 'offline').map((entry) => entry.host)).toEqual(['allowed.invalid'])
+  })
+
+  it('NOMI_WALK_HOLD_RESPONSE lets the request reach the provider and holds only its answer until released', () => {
+    const dir = makeTempDir('nomi-net-guard-hold-')
+    temps.push(dir)
+    const releaseFile = path.join(dir, 'release')
+    const { stdout, status, stderr, entries } = runGuarded(`
+      const http = require('node:http')
+      const fs = require('node:fs')
+      const seen = []
+      const server = http.createServer((request, response) => { seen.push(request.method + ' ' + request.url); response.end('{}') })
+      server.listen(0, '127.0.0.1', async () => {
+        const origin = 'http://127.0.0.1:' + server.address().port
+        const free = await fetch(origin + '/v1/tasks/1', { method: 'GET' })
+        const quick = await fetch(origin + '/v1/other', { method: 'POST' })
+        let answered = false
+        const held = fetch(origin + '/v1/images/generations', { method: 'POST', body: '{}' }).then((response) => { answered = true; return response.status })
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        const receivedWhileHeld = seen.includes('POST /v1/images/generations')
+        const answeredWhileHeld = answered
+        fs.writeFileSync(${JSON.stringify(releaseFile)}, '')
+        const status = await held
+        const after = await fetch(origin + '/v1/images/generations', { method: 'POST', body: '{}' })
+        server.close()
+        console.log(JSON.stringify({ free: free.status, quick: quick.status, receivedWhileHeld, answeredWhileHeld, status, after: after.status, creates: seen.filter((line) => line.endsWith('/generations')).length }))
+      })
+    `, { NOMI_WALK_HOLD_RESPONSE: JSON.stringify({ method: 'POST', pathSuffix: '/images/generations', releaseFile }), CI: '' })
+    expect(status, stderr).toBe(0)
+    expect(JSON.parse(stdout)).toEqual({ free: 200, quick: 200, receivedWhileHeld: true, answeredWhileHeld: false, status: 200, after: 200, creates: 2 })
+    expect(entries.filter((entry) => entry.kind === 'response-held').map((entry) => new URL(entry.url).pathname)).toEqual(['/v1/images/generations'])
   })
 
   it('NOMI_WALK_NET_BODIES=1 records the body of allowed public requests, scrubbed (no headers, no signed query, no key-shaped strings)', () => {
@@ -158,6 +223,7 @@ describe('walkthrough network guard', () => {
       for (const host of ['cdn.getapib.org', 'getapib.org.evil.test']) net.connect(443, host).on('error', () => undefined)
     `, { NOMI_WALK_ALLOW_ORIGINS: '*.getapib.org', CI: '' })
     expect(entries.filter((entry) => entry.kind === 'blocked' && entry.via === 'socket').map((entry) => entry.host)).toEqual(['getapib.org.evil.test'])
+    expect(entries.filter((entry) => entry.kind === 'offline').map((entry) => entry.host)).toEqual(['cdn.getapib.org'])
   })
 
   it('"*.domain" is ignored under CI too', () => {

@@ -1,0 +1,32 @@
+{
+  "name": "项目能不能放在这里（每个入口拒绝 Nomi 自己的目录：安装目录、resources、userData 与设置根、系统临时目录）",
+  "subject": "project.location-admission",
+  "lifecycle": "project-data",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/workspace/workspaceLocationPolicy.ts",
+    "symbol": "findAppOwnedLocation"
+  },
+  "write_api": [
+    {
+      "path": "electron/workspace/workspaceLocationPolicy.ts",
+      "symbol": "findAppOwnedLocation"
+    },
+    {
+      "path": "electron/workspace/workspaceLocationPolicy.ts",
+      "symbol": "assertUserOwnedLocation"
+    },
+    {
+      "path": "electron/workspace/workspaceLocationPolicy.ts",
+      "symbol": "appOwnedLocationRoots"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/workspace/workspaceLocationPolicy.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-10-29",
+  "notes": "设计卡 docs/plan/2026-10-29-project-location-owner.md 不变量 ④（用户 2026-10-29 批准）。0.24.0 用户把新项目默认位置设在安装目录下，升级清空安装目录，项目跟着没了。入口：设置选位置（electron/settings/projectLocationIpc.ts 的 pickProjectLocation，在可注入的 validateRoot 之前判）、设置检查（inspectProjectLocationRoot）、选文件夹的选择与打开（electron/workspace/workspaceIpc.ts 的 assessWorkspaceFolderSafety）、新建项目与外部 Agent 建项目（electron/projects/repository.ts 的 createProject / createDefaultProject）。应用目录全取自 Electron 自己的路径接口；安装目录只对打包的应用成立。路径包含用 path.relative（win32 不分大小写），符号链接按最近存在祖先的 realpath 比。环境变量 NOMI_PROJECTS_DIR 托管的默认位置不判（不经产品入口选出、设置页只读，拒了用户没处改）。拒绝的身份经 ProjectLocationRejectedError[类别]: 跨 IPC（electron/shared/contracts/projectLocation.ts），渲染层只在 projectOperationFailureText 一处认。入口矩阵 electron/projects/projectLocation.matrix.test.ts。"
+}

@@ -1,3 +1,4 @@
+import { canvasLocalArtifactReceipt } from "./canvasShotRunApi";
 import fs from "node:fs";
 import type { DirectorPreviewSpendBlockReason } from "../shared/director/directorPreviewStatus";
 import os from "node:os";
@@ -8,7 +9,7 @@ import path from "node:path";
 // 单节点 ↑、批量卡、双扣地图的端到端测试共用这一份，免得每份测试各搭一套、各漏一处真实边界。
 
 import { createApprovalReceiptAuthority } from "./approvalReceipt";
-import { canvasLocalArtifactReceipt, createCanvasShotRuns, type CanvasConsentShot, type CanvasShotRequest } from "./appIntegrationCanvasShot";
+import { createCanvasShotRuns, type CanvasConsentShot, type CanvasShotRequest } from "./appIntegrationCanvasShot";
 import { createCanvasTransportProvider, type CanvasTaskResult, type CanvasTransport } from "./canvasTransportProvider";
 import { createProductionGenerationSubmission } from "../productionRun/productionGenerationSubmission";
 import { createProductionRunRepository } from "../productionRun/productionRunRepository";
@@ -36,6 +37,11 @@ export function setupCanvasShots(options: {
   observe?: (submission: unknown, projectId: string, runId: string) => void;
   /** 换掉画布那台的传输（缺省 = 进程内假供应商）。「没发出去」矩阵用它接真的 vendorHttp → appFetch。 */
   transport?: CanvasTransport;
+  /**
+   * 让画布那台声明「提交幂等」（生产恒为 false）。只给反例用：证明「答了、本机没落下」哪怕碰上声明了幂等、
+   * 正文像连接层错误，也不自动重发；对照组证明真的连接层失败在声明幂等时确实会重发一次。
+   */
+  submitIdempotency?: boolean;
 } = {}) {
   const root = options.root ?? fs.mkdtempSync(path.join(os.tmpdir(), "nomi-canvas-shot-"));
   const imagePath = path.join(root, "assets", "out.png");
@@ -57,7 +63,8 @@ export function setupCanvasShots(options: {
     repository, projectRootResolver: () => root, requestRenderer: async () => { throw new Error("no renderer"); },
     approvalReceiptAuthority: receipts, projectRevisionResolver: () => 0,
   });
-  const providers = [createCanvasTransportProvider("acme", options.transport ?? transport)];
+  const canvasProvider = createCanvasTransportProvider("acme", options.transport ?? transport);
+  const providers = [options.submitIdempotency ? { ...canvasProvider, capabilities: { ...canvasProvider.capabilities, submitIdempotency: true } } : canvasProvider];
   const observed: Array<[string, string]> = [];
   const previewCalls: string[] = [];
   const runs = createCanvasShotRuns({

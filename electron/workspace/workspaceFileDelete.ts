@@ -1,7 +1,8 @@
+import { requestRenderer } from '../capabilityCore/rendererBridge'
 import { ipcMain, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { assertTrustedUiSender } from "../ipcSenderGuard";
+import { assertTrustedSender, assertTrustedUiSender } from "../ipcSenderGuard";
 import { resolveWorkspaceFilePath } from "./workspaceFileIndex";
 import { broadcastAssetsUpdated } from "../assets/assetEvents";
 import type { ChildWindowProjectIssuer } from "../assets/projectInteractionCapture";
@@ -9,11 +10,21 @@ import type { ChildWindowProjectIssuer } from "../assets/projectInteractionCaptu
 type ProjectReader = (projectId: string) => unknown | null;
 
 export function registerWorkspaceFileDeleteIpc({ readProject, childWindowProject }: { readProject: ProjectReader; childWindowProject: ChildWindowProjectIssuer }): void {
-  // 破坏性：把用户项目里的文件扔进废纸篓。只认 Nomi 自有 UI 面——素材盒浮层窗的右键删除
-  // 也走这条（用户点了确认弹窗却收到权限错误，是这类里最难看的一种）。远端网页仍够不到：
-  // 它是无 preload 的 WebContentsView，不隶属任何登记窗口。
-  ipcMain.handle("nomi:workspace:delete-files", async (event, payload) => {
+  // Child UI expresses deletion intent; the main renderer owns reference planning and undo.
+  ipcMain.handle("nomi:workspace:delete-assets", async (event, payload) => {
     assertTrustedUiSender(event);
+    const raw = payload as { projectId?: unknown; relativePaths?: unknown } | null;
+    const projectId = typeof raw?.projectId === 'string' ? raw.projectId.trim() : '';
+    const relativePaths = Array.isArray(raw?.relativePaths) ? [...new Set(raw.relativePaths.filter((value): value is string => typeof value === 'string' && Boolean(value.trim())).map(value => value.trim()))] : [];
+    if (!projectId) throw new Error('projectId is required');
+    const child = childWindowProject(event.sender);
+    if (child && child.binding.projectId !== projectId) throw new Error('project_binding_stale');
+    child?.assertCurrent();
+    return requestRenderer('assets.delete-files', { projectId, relativePaths, ...(child ? { projectBinding: child.binding } : {}) }, 30_000);
+  });
+  // Physical trash accepts only the main UI. Child windows must use the domain command above.
+  ipcMain.handle("nomi:workspace:delete-files", async (event, payload) => {
+    assertTrustedSender(event);
     const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
     const rawRelativePaths = (payload as { relativePaths?: unknown } | null)?.relativePaths;
     const relativePaths = Array.isArray(rawRelativePaths)

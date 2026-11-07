@@ -1,9 +1,19 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { describeGenerateOutcome } from "../shared/agentLane/generateOutcomeReceipt";
-import { generationPresentationOutcome } from "../shared/productionGenerationPresentation";
+import { currentPresentation, generationPresentationOutcome } from "../shared/productionGenerationPresentation";
+import { GENERATION_METHODS } from "../shared/agentCapabilities/generation";
 import { VendorRequestError } from "../vendor/vendorHttp";
-import { PROJECT_ID, resetSpendFixture, shotsDraft, spendWorld } from "./agentPanelSpendConfirmTestUtils";
+import { SYNC_RESULT_URL, decodeFailed } from "./resultLandingTestUtils";
+import { OPERATION_ID, PROJECT_ID, callTool, resetSpendFixture, shotsDraft, spendWorld } from "./agentPanelSpendConfirmTestUtils";
+
+// 结果落地门用真的（「答过了」的正证据只有它挂得上），只把它下面的落盘换成按剧本失败。
+const importRemoteAsset = vi.hoisted(() => vi.fn());
+vi.mock("../assets/projectAssetStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../assets/projectAssetStore")>()),
+  importRemoteAsset: (...args: unknown[]) => importRemoteAsset(...args),
+}));
+const { localizeTaskAsset } = await import("../assets/localizeTaskAsset");
 
 // 失败留在卡里（D2 第③步 3.7）：哪一段、发没发、下一步 + 一颗对应按钮。账本里每一镜的交接落定就是卡读的那一份——
 //   · 确定没发出去（本机判得出 / 没连上 / 窗口没了）→「先不发了」·「再试一次」；
@@ -148,6 +158,52 @@ describe("结果未知：写出去之后断了", () => {
     expect(outcome.generating).toEqual(["shot-1", "shot-2"]);
     expect(outcome.failedBeforeSending).toEqual([]);
     expect(describeGenerateOutcome(outcome).userSees).not.toContain("nothing was spent");
+  });
+});
+
+// A7（2026-10-28）：同步供应商答了、结果在回答里，Nomi 本机没落下。这一镜交到了（可能已扣），不是「结果未知」：
+// 交接写回「交到了」，卡上这一镜是「已交」，不叫人去核对；直接生成档的出价也不因它退回。失败与重新生成住在节点上。
+describe("答了、本机没落下：交接写回「交到了」，不是结果未知", () => {
+  afterEach(() => { importRemoteAsset.mockReset(); });
+
+  /** 第 1 笔：同步供应商答了 200，画布那台当场落地（真的落地门）失败；其余照常。 */
+  function firstAnswerFailsToLand(world: ReturnType<typeof spendWorld>) {
+    const original = world.vendor.answer;
+    world.vendor.answer = async (call) => {
+      if (call !== 1) return original(call);
+      importRemoteAsset.mockRejectedValueOnce(decodeFailed());
+      await localizeTaskAsset(PROJECT_ID, SYNC_RESULT_URL, "image");
+      throw new Error("the landing gate was expected to fail");
+    };
+  }
+
+  it("卡上那一镜是「已交」、交接写回 accepted；不许再交一次；回执不说没花钱", async () => {
+    const world = spendWorld();
+    await shotsDraft(world, [{}, {}]);
+    firstAnswerFailsToLand(world);
+    await world.generate();
+    await world.renderer.drain();
+    expect(world.vendor.executes, "一镜一笔").toHaveLength(2);
+    expect(offers(world) ?? [], "两镜都交到了：卡关").toEqual([]);
+    const handOvers = currentPresentation(world.run().generationPlan)?.handOvers ?? [];
+    expect(handOvers.map((entry) => [entry.shotId, entry.settled?.outcome])).toEqual([["shot-1", "accepted"], ["shot-2", "accepted"]]);
+    const outcome = generationPresentationOutcome(world.run())!;
+    expect(outcome.failedBeforeSending).toEqual([]);
+    expect(describeGenerateOutcome(outcome).userSees).not.toContain("nothing was spent");
+  });
+
+  it("直接生成档：出价不退回（策略批的照旧是策略批的），不出卡", async () => {
+    const world = spendWorld();
+    await shotsDraft(world, [{}, {}], false);
+    firstAnswerFailsToLand(world);
+    const presented = await callTool(world.transport("direct"), GENERATION_METHODS.plan, { operation: "present", operationId: OPERATION_ID }) as { ok?: boolean; result?: { spendDecision?: { decidedBy?: string } } };
+    await world.renderer.drain();
+    expect(presented).toMatchObject({ ok: true, result: { spendDecision: { decidedBy: "policy:full_auto" } } });
+    expect(world.pending(), "没有一镜要人决定").toBeUndefined();
+    const presentation = currentPresentation(world.run().generationPlan);
+    expect(presentation?.policyDecisionState).not.toBe("failed");
+    expect(presentation?.handOvers?.map((entry) => entry.settled?.outcome)).toEqual(["accepted", "accepted"]);
+    expect(world.vendor.executes).toHaveLength(2);
   });
 });
 

@@ -24,8 +24,8 @@
   "external_sources": [],
   "internal_only_reason": "Internal state ownership between the canvas node record and the production run; no external API or library behaviour is involved.",
   "invariants": [
-    "A shot the production run owns (priced card awaiting the user, queued, or generating) is never offered to or accepted by a canvas generation entry",
-    "Ownership is judged only by productionShotOwnsGeneration, separately from the display phase (deriveProductionShotState), so changing how a draft is displayed cannot reopen the double-generation window"
+    "A shot the production run owns is never offered to or accepted by a canvas generation entry. Who owns a shot depends on the offer's host and is stated once, in docs/engineering/concept-owners/production.shot-generation-ownership.json (owner: decideShotClaim): for an external host (semantic-mcp) a priced card awaiting the user, queued and generating shots belong to production; for Nomi's own Agent panel (D2, 2026-10-23) a still-undecided shot on an open card may be taken by the canvas (the node's generate arrow is the user's decision and the card recognises it), a shot being handed over belongs to production (only the bound canvas Run may claim it), and a handed-over shot belongs to the canvas, where the per-node in-flight admission stops a second submit",
+    "Ownership is judged only by decideShotClaim (folded in from productionShotOwnsGeneration in #921), separately from the display phase (deriveProductionShotState), so changing how a draft is displayed cannot reopen the double-generation window"
   ],
   "invariant_owner_layer": {
     "layer": "src/workbench/production/productionShotOwnership.ts",

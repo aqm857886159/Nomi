@@ -24,6 +24,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import { reclaimAbandonedTestTemp } from './_test-temp.mjs'
+import { recordBlockEvent } from './lib/blockEvents.mjs'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
 import { implementationFiles, touchesGateInputs } from './pre-push-gate-inputs.mjs'
@@ -33,6 +35,8 @@ import { SCAN_GUARDS, SCAN_GUARDS_GATE, touchesScanGuard } from './pre-push-scan
 import { classifyValidationPolicy } from './validation-policy.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+/** 这一次被拦在哪一档、哪几道（main 一路填，命令行入口在阻断出口写一条本机记录，见 scripts/lib/blockEvents.mjs）。 */
+const blockContext = { stage: 'quick', gates: [] }
 
 /** 同时跑几个门岗：mjs-parse 自己就开 8 个子进程，再叠太多反而更慢。 */
 export const CONCURRENCY = Math.min(6, Math.max(3, os.availableParallelism() - 2))
@@ -170,7 +174,7 @@ export const SCAN_TESTS = Object.freeze([
   { name: 'check:design-lab-mirrors', argv: ['scripts/check-design-lab.mjs', '--mirrors-only'], rerun: 'node scripts/check-design-lab.mjs --mirrors-only', when: (files) => touchesGateInputs('check:design-lab-mirrors', files) },
   // 整库类型检查（10-09 #1137 合 main 后 3 处 TS2345，推送前不跑 typecheck）：增量模式复用 node_modules/.cache/nomi-typecheck 的缓存，首次约 100 秒、之后约 30 秒；最慢，排在任务队列最前
   { name: 'typecheck', softTimeout: true, argv: ['scripts/typecheck.mjs', '--incremental'], rerun: 'node scripts/typecheck.mjs --incremental', when: (files) => touchesGateInputs('typecheck', files) },
-  { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs', when: (files) => touchesGateInputs('test:temp-helper', files) },
+  { name: 'test:temp-helper', argv: ['--test', 'scripts/check-test-temp-static.node-test.mjs', 'scripts/_test-temp.node-test.mjs'], rerun: 'node --test scripts/check-test-temp-static.node-test.mjs scripts/_test-temp.node-test.mjs', when: (files) => touchesGateInputs('test:temp-helper', files) },
   { name: 'check:test-copy-literals', argv: ['scripts/check-test-copy-literals.mjs'], rerun: 'node scripts/check-test-copy-literals.mjs', when: (files) => touchesGateInputs('check:test-copy-literals', files) },
   { name: 'test:control-contract', argv: [VITEST_ENTRY, 'run', 'scripts/check-control-contract.test.mjs'], rerun: 'node node_modules/vitest/vitest.mjs run scripts/check-control-contract.test.mjs', when: (files) => touchesGateInputs('test:control-contract', files) },
   // 本文件与门表 / 输入声明 / package.json 的契约 + 结构用例（几秒；整份 pre-push-contracts.node-test.mjs > 90 秒只在 CI，快的部分拆到这里，#1147 / #1141 在 CI 才红）
@@ -312,6 +316,55 @@ export const HOOK_TIMEOUT_MS = 600_000
 /** 仍在跑的子进程：{ child → { name, started } }，给整体超时点名并终止用。 */
 const running = new Map()
 
+/** 杀完以后最多等多久让整棵进程树真的退出（SIGKILL 整组实测 1–17 毫秒；等不到就不回收，留给下一次分配）。 */
+const TREE_GONE_WAIT_MS = 5_000
+const TREE_GONE_POLL_MS = 10
+
+/**
+ * 这棵进程树退干净了吗？POSIX 子进程自成进程组（processTreeSpawnOptions），组里只要还剩一个成员（含还没被收尸的僵尸）
+ * kill(-pgid, 0) 就不报 ESRCH；Windows 没有进程组，只看组长。
+ */
+async function treeGone(child, waitMs) {
+  const pid = child?.pid
+  if (!pid) return true
+  const target = process.platform === 'win32' ? pid : -pid
+  const giveUp = Date.now() + waitMs
+  for (;;) {
+    try {
+      process.kill(target, 0)
+    } catch (error) {
+      if (error?.code === 'ESRCH') return true
+    }
+    if (Date.now() >= giveUp) return false
+    await new Promise((resolve) => setTimeout(resolve, TREE_GONE_POLL_MS))
+  }
+}
+
+/**
+ * 终止进程树 → 等它们真的没了 → 回收被杀进程留下的测试临时目录。单门超时与整体超时两处都只走这一个口子（结构测试守着：
+ * 本文件里 killProcessTree 的每一处调用都在这里）。
+ *
+ * 为什么杀的一方要收：被 SIGKILL 的进程跑不了 _test-temp.mjs 的退出钩子，它建的目录（pre-push-contracts.node-test.mjs 整仓克隆 0.85G）
+ * 就留在系统临时目录里——10-24 到 10-28 漏了 10 份、约 8.6G。目录名带创建者的进程号，所以这里调的就是 _test-temp.mjs 的同一个回收函数，
+ * 不另写判据。创建目录的往往是被杀进程的后代（node --test 再起文件子进程），runner 只认识组长，所以不按组长的进程号点名，
+ * 而是等整组退干净后回收「创建者已死」的全部目录。必须先等：SIGKILL 刚发出去时进程还没真的死（实测 40 次里 40 次
+ * 孙进程与僵尸组长都还「活着」），此刻回收会把它们的目录当成还有人要。
+ * 前提：runner 与被杀的子进程共用同一个临时根——runNode 只加门岗自己的环境变量，从不改 TMPDIR / TEMP / TMP；
+ * 子进程自己换了临时根的，那个根里的目录留给它的下一次分配时回收。
+ * 杀其它进程树的入口（git-hook 分发器、git-delivery 等）不在这里改：它们留下的目录由下一个进程第一次分配时回收。
+ */
+export async function terminateAndReclaim(children) {
+  for (const child of children) killProcessTree(child, 'SIGKILL')
+  const gone = (await Promise.all(children.map((child) => treeGone(child, TREE_GONE_WAIT_MS)))).every(Boolean)
+  return { reclaimed: reclaimAbandonedTestTemp(), gone }
+}
+
+/** 超时输出末尾追加的一句：回收了几个；有进程树没退出就如实说「留给下一次」。 */
+const reclaimNote = ({ reclaimed, gone }) => [
+  reclaimed.length > 0 ? `；已回收 ${reclaimed.length} 个被杀进程留下的临时目录` : '',
+  gone ? '' : `；有进程树 ${TREE_GONE_WAIT_MS / 1000} 秒内没退出，它们的临时目录留给下一次分配时回收`,
+].join('')
+
 export function runNode(argv, env = {}, { timeoutMs = GATE_TIMEOUT_MS, name = argv.join(' ') } = {}) {
   return new Promise((resolve) => {
     const started = Date.now()
@@ -333,15 +386,18 @@ export function runNode(argv, env = {}, { timeoutMs = GATE_TIMEOUT_MS, name = ar
       running.delete(child)
       resolve(result)
     }
+    let timedOut = false
     const timer = setTimeout(() => {
-      killProcessTree(child, 'SIGKILL')
-      finish({ status: 124, output: `${output}
-[pre-push] 超时：${name} 跑了 ${((Date.now() - started) / 1000).toFixed(1)} 秒仍未结束（上限 ${timeoutMs / 1000} 秒），已终止`, ms: Date.now() - started })
+      timedOut = true
+      running.delete(child) // 它已经归这一处收尾，整体超时不要再对它发第二次杀
+      const notice = `[pre-push] 超时：${name} 跑了 ${((Date.now() - started) / 1000).toFixed(1)} 秒仍未结束（上限 ${timeoutMs / 1000} 秒），已终止`
+      // 收尾期间 close 事件会先到（被杀的进程 status 为 null → 1），所以用 timedOut 挡住它改写结果；状态码恒为 124（softenTimeout 认它）
+      terminateAndReclaim([child]).then((outcome) => finish({ status: 124, output: `${output}\n${notice}${reclaimNote(outcome)}`, ms: Date.now() - started }))
     }, timeoutMs)
     child.stdout.on('data', (chunk) => { output += chunk })
     child.stderr.on('data', (chunk) => { output += chunk })
-    child.on('error', (error) => finish({ status: 1, output: `${output}${error.message}`, ms: Date.now() - started }))
-    child.on('close', (status) => finish({ status: status ?? 1, output, ms: Date.now() - started }))
+    child.on('error', (error) => { if (!timedOut) finish({ status: 1, output: `${output}${error.message}`, ms: Date.now() - started }) })
+    child.on('close', (status) => { if (!timedOut) finish({ status: status ?? 1, output, ms: Date.now() - started }) })
   })
 }
 
@@ -372,14 +428,19 @@ async function pool(tasks, limit) {
 /** 跑完所有任务，但整体最多 deadlineMs：到点就终止仍在跑的子进程并点名。返回 { results, timedOut, stillRunning }。 */
 export async function runWithDeadline(tasks, limit, deadlineMs) {
   let timer
+  // 期限一到先同步记下来：杀树 + 等树退干净 + 回收要几毫秒，这期间被杀子进程的 close 会让任务池先「跑完」。
+  // 所以到期后 ① 池里还没开始的任务不再起（否则期限之后还在起新的门岗子进程）；② 池的结果让位给期限的结果，
+  // 否则整体超时会被当成「全跑完了」（pre-push-contracts.node-test.mjs 的「整个钩子超过期限」用例守着）。
+  let expired = false
   const deadline = new Promise((resolve) => {
     timer = setTimeout(() => {
+      expired = true
       const stillRunning = [...running.values()].map((entry) => `${entry.name}（${((Date.now() - entry.started) / 1000).toFixed(0)}s）`)
-      for (const child of [...running.keys()]) killProcessTree(child, 'SIGKILL')
-      resolve({ results: [], timedOut: true, stillRunning })
+      terminateAndReclaim([...running.keys()]).then((outcome) => resolve({ results: [], timedOut: true, stillRunning, ...outcome }))
     }, deadlineMs)
   })
-  const finished = pool(tasks, limit).then((results) => ({ results, timedOut: false, stillRunning: [] }))
+  const guarded = tasks.map((task) => () => (expired ? Promise.resolve(null) : task()))
+  const finished = pool(guarded, limit).then((results) => (expired ? deadline : { results, timedOut: false, stillRunning: [] }))
   const outcome = await Promise.race([finished, deadline])
   clearTimeout(timer)
   return outcome
@@ -416,6 +477,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   const shaped = argv.length === 2 && argv.every((arg) => arg !== '' && !arg.startsWith('-'))
   // 光有两个参数不算钩子（谁都能伪造）：必须同时见到分发器设的内部标记，才读 stdin、才走 ref 判定；否则一律按当前 HEAD 检查、不读 stdin
   const hooked = shaped && process.env.NOMI_GIT_HOOK_DISPATCH === 'pre-push'
+  blockContext.stage = hooked ? 'push' : 'quick'
   const bad = shaped ? [] : argv.filter((arg) => arg !== '--list')
   if (bad.length > 0) {
     console.error(`[pre-push] 不接受参数：${bad.map((arg) => JSON.stringify(arg)).join('、')}（只有 --list，或 git 钩子传入的 <remote名> <url>；要单独重跑某道门岗请直接 pnpm run check:xxx）`)
@@ -439,6 +501,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   }
   if (decision.blocked) {
     console.error(`[pre-push] BLOCKED：${decision.blocked}`)
+    blockContext.gates = ['pre-push:push-refs']
     return 1
   }
 
@@ -503,6 +566,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
     if (!pr.available && (pr.required || !hooked)) {
       // 指定了来源却读不了 / gh 超时，或手动重跑却拿不到正文：明确报错退出，不能当「查过了」
       console.error(`[pre-push] BLOCKED：取不到 PR 正文：${pr.reason}。手动跑请给 NOMI_PR_BODY 或 NOMI_PR_BODY_FILE，或先写好 .tmp-pr-body.md`)
+      blockContext.gates = bodyGates
       return 1
     }
     if (!pr.available) {
@@ -511,7 +575,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
       console.error(`[pre-push] PR 正文取自 ${pr.source}`)
       for (const name of bodyGates) {
         const script = name === 'check:prior-art' ? 'scripts/check-prior-art.mjs' : 'scripts/check-pr-judgement.mjs'
-        // 推送这一步：独立验收的报告链接还不可能有，pr-judgement 只提醒（CI 照旧要），见 resolveJudgementStage。
+        // 推送这一步：独立验收的报告链接还不可能有，pr-judgement 只提醒；合并档由 GitHub 上的「PR Body」检查判（.github/workflows/pr-body.yml），见 resolveJudgementStage。
         tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script), '--pr'], { NOMI_PR_BODY: pr.body, NOMI_PR_JUDGEMENT_STAGE: 'push' }, { name })) }))
       }
     }
@@ -520,12 +584,14 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   const started = Date.now()
   const outcome = await runWithDeadline(tasks, CONCURRENCY, hookTimeoutMs)
   if (outcome.timedOut) {
-    console.error(`[pre-push] BLOCKED：整个钩子超过 ${hookTimeoutMs / 1000} 秒仍未结束，已终止。仍在跑：${outcome.stillRunning.join('、') || '（无）'}`)
+    console.error(`[pre-push] BLOCKED：整个钩子超过 ${hookTimeoutMs / 1000} 秒仍未结束，已终止。仍在跑：${outcome.stillRunning.join('、') || '（无）'}${reclaimNote(outcome)}`)
+    blockContext.gates = ['pre-push:timeout', ...outcome.stillRunning.map((entry) => entry.replace(/（\d+s）$/, ''))]
     return 1
   }
   const results = outcome.results
   const { text, failed } = formatSummary(results)
   console.error(text)
+  blockContext.gates = failed.map((result) => result.name)
   const ciOnlyCount = CI_ONLY.reduce((total, group) => total + group.gates.length, 0)
   const partial = Object.entries(PARTIAL_LOCAL).map(([gate, { by }]) => `${gate}（本机只跑了 ${by}）`).join('、')
   console.error(`[pre-push] 共 ${((Date.now() - started) / 1000).toFixed(1)}s；${SLOW_GATES_NOTE}`)
@@ -534,5 +600,9 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().then((code) => { process.exitCode = code })
+  // 返回 1 = 被门岗拦下，留一条本机记录（2 是参数 / 清单写错，不算被拦）。CI 里不写；写不成只警告，退出码不变。
+  main().then((code) => {
+    if (code === 1) recordBlockEvent({ stage: blockContext.stage, gates: blockContext.gates.length ? blockContext.gates : ['pre-push'], durationMs: process.uptime() * 1000, cwd: repoRoot })
+    process.exitCode = code
+  })
 }

@@ -1,0 +1,273 @@
+{
+  "schema_version": 3,
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-13",
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/submissionIntent.ts",
+    "tests": [
+      "electron/productionRun/submissionIntent.test.ts"
+    ]
+  },
+  "id": "2026-10-30-try-model-intent-lock",
+  "problem_type": "Paid intent identity recreated by repeated tool calls",
+  "symptom": "A model trial reports submission_unknown, then another tool call submits a second provider order. After the first fix, a damaged or missing trial record locked the connection and model: even an explicit new order could not reach human confirmation.",
+  "direct_cause": "Every call minted a new node and spend grant; the single-grant attempt limit did not span calls. The fix then read the old record before any error handling, so a record that could not be read threw before the confirmation card, or offered request_new_attempt that only returned the old receipt.",
+  "class_root": "App-scoped paid callers lacked a durable intent claim before approval or dispatch. Fail-closed handling then only considered blocking automatic resends and left no human exit: the trial identity is a fixed path derived from connection and model, so one broken record made that path unreadable forever.",
+  "affected_population": [
+    "Model trials across callers, changed prompts/parameters/modes, provider-card revisions and host restarts",
+    "Trial records that are damaged, truncated, of an unrecognized shape, partly missing or left behind by a crash, including future record-format changes"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/productionRun/productionRunLock.ts",
+    "electron/productionRun/submissionIntent.ts",
+    "electron/productionRun/submissionOutbox.ts",
+    "electron/shared/agentCapabilities/modelOnboarding.ts",
+    "electron/shared/agentCapabilities/verbs/onboardingVerbs.ts",
+    "electron/shared/productionSubmissionActions.ts",
+    "src/workbench/capability/spendCardByIntent.ts",
+    "src/workbench/capability/uncertainPriorTrialSpendCard.ts"
+  ],
+  "entry_points": [
+    "MCP model.onboarding.try through onboarding dispatch",
+    "Repeated and concurrent callers sharing the same app execution root",
+    "Existing Run-owned project submissions"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.stripe.com/api/idempotent_requests",
+      "checked_at": "2026-10-30",
+      "purpose": "Separate operation identity from request parameters; preserve a prior outcome."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-idempotency.html",
+      "checked_at": "2026-10-30",
+      "purpose": "Stable client identity prevents repeated resource creation across requests."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-08",
+      "checked_at": "2026-10-30",
+      "purpose": "Do not assume a provider honors idempotency; no blind replay of an unknown POST."
+    }
+  ],
+  "invariants": [
+    "An unresolved intent is claimed before any await or spend-grant creation.",
+    "Same model trial intent always observes the original attempt until an explicit new attempt request passes human confirmation.",
+    "Only shared never-sent or explicit-rejection evidence permits one durable retry; changing parameters does not unlock unknown submissions.",
+    "The tool receipt and permission to present a new-order confirmation derive from the same persisted record.",
+    "An unreadable record is neither proof that no order exists nor permission to send. A plain call never dispatches and returns unknown with a new-order action that requires human confirmation.",
+    "An explicit new order moves the unreadable record aside without deleting it, starts from a clean record, forces spendDecidedBy=user and passes the existing confirmation card, including in full-auto. Users never have to delete files or change connection.",
+    "The fact that a record was moved aside survives a crash before the new claim. New attempt names never collide with a moved attempt. The claim lease lives outside the directory being moved.",
+    "Every allowed action in every state can actually be taken. When a new order cannot be opened the receipt says so; the old receipt never stands in for the failure.",
+    "A new order after an uncertain prior result, with the record readable or not, shows the same warning in both languages through the confirmation dialog message line, derived from the frozen request and inherited by safe retries.",
+    "Whether a call may allocate an order is decided in one place. The early observation and the claim both ask it, so no second copy can cover for or drift from it.",
+    "A lock file carries no order facts. One that can never be parsed again is replaced, not counted as a damaged record, so a half-written lock cannot turn a queryable order into an unknown one.",
+    "A safe retry skips the person only when full-auto held at both the refused attempt and this one; the mode is read at every attempt."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "tryModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "createSubmissionIntent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "createSubmissionIntent"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "createSubmissionIntent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/submissionOutbox.ts",
+      "symbol": "createSubmissionOutbox"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/generationSubmission.ts",
+      "symbol": "createSubmissionOutbox"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "createSubmissionOutbox"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/productionSubmissionActions.ts",
+      "symbol": "submissionActions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "submissionActions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/modelOnboarding.ts",
+      "symbol": "modelTryInputSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/onboardingVerbs.ts",
+      "symbol": "modelTryInputSchema"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "observeSubmissionHandoffs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "observeSubmissionHandoffs"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "confirmSpendAndMintGrant"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "inspectProductionRunLockFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/productionRunLock.ts",
+      "symbol": "inspectProductionRunLockFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/spendCardByIntent.ts",
+      "symbol": "UNCERTAIN_PRIOR_TRIAL_SPEND_INTENT"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/capability/spendCardByIntent.ts",
+      "symbol": "confirmUncertainPriorTrialSpend"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "dedicatedSpendCardFor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/uncertainPriorTrialSpendCard.ts",
+      "symbol": "requestConfirm"
+    }
+  ],
+  "door_reduction": {
+    "before": 7,
+    "after": 21,
+    "why_not": "The trial dispatch is the app entry. Type readers describe the same API. Run-owned and project generation callers keep distinct orchestration responsibilities but share submissionOutbox; submissionActions is the receipt/permission projection. The new-order confirmation adds no way to reach the provider: it joins the one existing chain, confirmSpendAndMintGrant, and the card is one row in the existing intent table. The last six doors are that chain counted out (the intent constant both ends read, the table and its caller, the one confirm store) plus the lock reader. They only decide what the human is asked, and a dead lock file is replaced, never counted as damage."
+  },
+  "generality_proof": "Identity depends on the app execution root and connection/model, never caller, prompt, mode or card revision. The short existing Run lease serializes identity allocation. Every existing job is observation-only after restart, including authorized jobs whose owner crashed. Shared repository/outbox states retain unknown and accepted submissions. Safe retries and explicit new requests allocate journaled jobs and cannot reset their retry/confirmation lineage. A fixture-registry class census drives the real trial/runtime/money gate and counts loopback POSTs for repeat inputs, unknown and succeeded receipts, fresh processes, declined approvals, and independent model/mode intents. The record inspection sits at the shared claim boundary, so every shape of unreadable record (damaged, truncated, unrecognized, missing, journal behind snapshot or job directories, side ledgers) lands on one outcome regardless of provider, caller or record-format version. The fixture registry drives records x actions, shared-claim cells, a crash sweep over every durable step of the new-order claim, two-process races and every allowed action.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/submissionIntent.ts",
+      "symbol": "createSubmissionIntent",
+      "responsibility": "Own durable identity allocation and route all app trial submissions through the existing Run outbox."
+    },
+    {
+      "path": "electron/shared/productionSubmissionActions.ts",
+      "symbol": "submissionActions",
+      "responsibility": "Project allowed actions for tool receipts and confirmation decisions."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "entry_point": "dispatchModelOnboarding",
+      "disposition": "enforced",
+      "evidence": "All model.onboarding.try calls invoke tryModel, which claims before minting a spend grant."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "entry_point": "createProductionGenerationSubmission",
+      "disposition": "not-affected",
+      "evidence": "Existing project generation already owns stable Run/job identities and the same shared submissionOutbox; its default safe retry behavior is retained."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any provider or host can lose a paid submission response and repeat the tool call.",
+    "same_class_scan": [
+      "door-map tryModel and follow dispatchModelOnboarding -> dispatcher",
+      "door-map createSubmissionOutbox and inspect both generationSubmission and productionGenerationSubmission",
+      "Inspect runtime runTask mapped/custom/audio/fallback submit entries and shared outboundDispatchEvidence"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/submissionIntent.ts",
+    "invariant": "No app trial dispatch occurs without owning a durable claim; existing unresolved attempts are only observed; an unreadable record blocks automatic dispatch but always leaves a human-confirmed new order.",
+    "failure_mode": "A plain call on unknown, stale, inaccessible or corrupt persistence never allocates a provider order. The only way forward is an explicit new order that moves the unreadable record aside and passes human confirmation; failing to open it is reported, not hidden behind the old receipt.",
+    "exception_policy": "none",
+    "strategy": "Replace per-call minted identities with shared Run identity/receipt, retaining bounded safe retry and mandatory human confirmation lineage for explicit new attempts.",
+    "artifacts": [
+      "electron/productionRun/submissionIntent.ts",
+      "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "electron/shared/productionSubmissionActions.ts",
+      "electron/productionRun/productionRunLock.ts",
+      "electron/shared/contracts/modelTrialSpend.ts",
+      "src/workbench/capability/uncertainPriorTrialSpendCard.ts",
+      "tests/fixtures/try-model-intent-matrix.json",
+      "scripts/walkthrough-network-guard.cjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts",
+    "electron/capabilityCore/modelOnboarding/tryModelAsyncQueued.test.ts",
+    "electron/productionRun/submissionIntent.test.ts",
+    "electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts",
+    "electron/productionRun/productionRunLock.test.ts",
+    "src/workbench/capability/spendCardRouting.test.ts",
+    "scripts/walkthrough-network-guard.test.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/submissionIntent.test.ts",
+    "electron/capabilityCore/modelOnboarding/tryModelSubmitBudget.test.ts",
+    "electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/modelOnboarding/tryModel.ts"
+    ],
+    "rationale": "Removed the Date.now-based per-call identity and the unstructured connection-failure decision path; all trial dispatches now claim the Run-owned submission first."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Reuse existing Run repository, lease and outbox; no new durable-execution dependency or custom outbox.",
+    "exit_criteria": []
+  },
+  "migration": "Old per-call trials did not persist an intent identity and cannot be reconstructed without provider evidence. A record the running version cannot recognize, including a future format change, is treated as unreadable: plain calls stay closed and an explicit new order moves it aside untouched. Existing project Run records and provider contracts are unchanged.",
+  "residual_risks": [
+    "Real paid verification is reserved for coordination; this line prepares the runner only.",
+    "No provider exactly-once guarantee is inferred. Pre-upgrade unknown calls without a durable identity cannot be reconstructed automatically.",
+    "Independent acceptance and Windows execution remain unverified by this implementation line.",
+    "If the whole app-executions root including its claim directory is deleted, no evidence of a prior order survives and the next trial behaves as a first trial.",
+    "Project production Runs keep their own run.lock inside the run directory; a lock file that can never be parsed still blocks those Runs. The read-only judgement now exists in productionRunLock.ts, but this round only acts on it in the trial intent layer and reports that gap.",
+    "Directory rename on Windows can be refused by another process holding a file open; the receipt then reports the new order could not be opened and the next call retries. Not run on Windows.",
+    "A late provider answer for an attempt whose record was moved aside while the request was still in flight cannot be attached to the moved record.",
+    "Hand-edited records can still leave an explicit new order unavailable (valid JSON that is not an event, a hand-edited budget or command ledger). No order is placed; real writers cannot produce these shapes. Tracked as a post-merge item."
+  ]
+}

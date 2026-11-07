@@ -27,8 +27,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { resolveMedia, scriptRepo, IDLE_NODE } from './canvas-follow-hand/fixture.mjs'
-import { openCanvasSession, fitAll, otherElectronProcesses } from './canvas-follow-hand/session.mjs'
-import { waitMediaSettled, idleState, hoverSweep, hoverToPlay, createVideoNode, dragNode, arrowKeys, stackDragOut, posterAndPlayShots } from './canvas-follow-hand/scenarios-canvas.mjs'
+import { openCanvasSession, fitAll, zoomIntoCards, otherElectronProcesses } from './canvas-follow-hand/session.mjs'
+import { waitMediaSettled, idleState, hoverSweep, hoverToPlay, createVideoNode, dragNode, arrowKeys, stackDragOut, posterAndPlayShots, HOVER_CARDS, videoNodeId } from './canvas-follow-hand/scenarios-canvas.mjs'
 import { typing, typingOneKey, atMention, atVideoInImageToVideo, durationSlider, autosave, switchModel } from './canvas-follow-hand/scenarios-composer.mjs'
 import { requireRealMediaAssets } from './fixtures/realMedia.mjs'
 
@@ -93,9 +93,14 @@ try {
   result.fitTransform = await fitAll(s)
   // 快速档要在慢机（CI 的 2 核 Linux、软件渲染 / 软解）上也判得准：封面补齐与悬停起播都多给时间，只影响等多久，不影响判据。
   await run('settle', () => waitMediaSettled(s, structural ? { maxMs: 180_000 } : {}))
-  await run('idle', () => idleState(s))
   if (!structural) await run('hoverSweep', () => hoverSweep(s, { rounds }))
-  await run('hoverToPlay', () => hoverToPlay(s, structural ? { cards: [20], holdMs: 4000 } : {}))
+  // 适应视图是 20%，低于细节线（40%）：没选中的卡全是轻量卡（预览图，没有 <video>），悬停不试播（用户 2026-10-31 定的）。
+  // 「空闲时没有 <video>」「悬停起播 / 离开卸载」这几条量的是整卡，所以放大到细节线之上、把悬停的三张卡摆到舞台正中再量；
+  // 判据一字没动，只是换了在什么缩放下量。打字 / 新建 / 方向键 / 叠放拖出仍在适应视图那一屏做（和以前一样）。
+  await run('zoomIn', () => zoomIntoCards(s, HOVER_CARDS.map(videoNodeId)))
+  await run('idle', () => idleState(s))
+  await run('hoverToPlay', () => hoverToPlay(s, structural ? { cards: [HOVER_CARDS[0]], holdMs: 4000 } : {}))
+  await fitAll(s)
   if (structural) await run('typingOneKey', () => typingOneKey(s, IDLE_NODE))
   else {
     await run('typing', () => typing(s, IDLE_NODE, { rounds }))

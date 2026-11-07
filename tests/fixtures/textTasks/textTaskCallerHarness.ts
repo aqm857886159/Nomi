@@ -50,7 +50,8 @@ export const CALLERS: readonly Caller[] = [
     extras: { temperature: 0.2, maxTokens: 1200, maxRetries: 0, referenceImages: ["nomi-local://frame-1.png", "nomi-local://frame-2.png", "nomi-local://frame-3.png"] },
     entry: { from: "main", gap: "主进程内发起，令牌由拆解开跑前的确认铸出（deconstructSpend）；整机演练补（2026-10-21 本机磁盘满，unverified）" } },
   { id: "#7 浏览器提取提示词", door: "one-shot", kind: "image_to_prompt", extras: { temperature: 0.35, maxTokens: 1600, referenceImages: [DATA_PNG] },
-    entry: { from: "renderer", gap: "既有缺陷：走 nomi:tasks:run 的令牌闸却无人铸令牌。附属付费口（M9，2026-11-15 到期），协调另线真机核实后交用户定" } },
+    // 2026-10-27 起整次提取在主进程（browser:prompt-extraction:run）：每次弹卡问人、铸令牌、再发；真入口测试从渲染层 runner 走到本机假上游。
+    entry: { from: "renderer", test: "electron/browser/prompt/browserPromptExtraction.ipc.integration.test.ts" } },
   { id: "#8 MCP 试跑文本模型", door: "one-shot", kind: "chat",
     entry: { from: "main", gap: "MCP 工具层（tryModel）经 capabilityCore 的 runTask 发起，准入随工具调度；本线未补真入口测试" } },
   { id: "#9 画布单镜 Run 文本", door: "one-shot", kind: "chat",
@@ -58,7 +59,7 @@ export const CALLERS: readonly Caller[] = [
 ];
 export const STREAM_CALLERS = CALLERS.filter((caller) => caller.door === "stream");
 /** 渲染层发起、却只登记了缺口的调用方——只许这几条（各有到期 / 另线），新增的必须带真入口测试。 */
-export const RENDERER_ENTRY_GAP_EXCEPTIONS: readonly string[] = ["#7 浏览器提取提示词"];
+export const RENDERER_ENTRY_GAP_EXCEPTIONS: readonly string[] = [];
 
 export type Observation = {
   ok: boolean;

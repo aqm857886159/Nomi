@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 import React from 'react'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import { getUndoJournalGeneration } from '../events/canvasUndoJournal'
@@ -243,11 +244,11 @@ export function useCanvasSelectionDrag({
       if (!active || event.pointerId !== active.pointerId) return
       settleDrag()
     }
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
+    canvasWindowInput.addEventListener('pointermove', handleMove)
+    canvasWindowInput.addEventListener('pointerup', handleUp)
     return () => {
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
+      canvasWindowInput.removeEventListener('pointermove', handleMove)
+      canvasWindowInput.removeEventListener('pointerup', handleUp)
       settleDrag()
     }
   }, [settleDrag, captureHistory, readOnly, scheduleGroupMove, zoomRef])

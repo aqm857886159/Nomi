@@ -1,0 +1,231 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-director-layer-in-page",
+  "change_kind": "corrective",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-11-29",
+  "problem_type": "页面里的一块（导演台、全景查看器这类铺满「画布那一格」的编辑器 / 查看器）被做成挂在 body 上的 fixed 全屏层：它自己算「我占窗口哪一块」、靠节点本地 state 管什么时候消失，不属于外壳的版面、也不属于任何页面",
+  "symptom": "用户 2026-10-29：「2.导演台 我打开以后 画布右侧还有漏出」；「点入导演台之后呢？然后我点其他页面我都出不去了。我点创作也出不去，预览也出不去。」复现（诊断线 R-blockers-repro）：① Agent 是浮窗时，导演层右边白留 assistantWidth + 8（用户项目 608px），露出可点的真画布；② 点顶栏「创作」「预览」页面在导演层底下切、导演层不动，左栏整块被它盖住点不到；③ 小球形态下导演层 right:0 把 Agent 小球盖住，导演台里叫不出 Agent。",
+  "direct_cause": "DirectorEditor 的根是 `fixed inset-x-0 bottom-0` + `createPortal(…, document.body)`：右边留多少读 `projectAgentDockCollapsed`——而外壳（10-08 f59b38d80）把这面旗子按「小球 ⇔ 收起」写，浮窗形态它为假但生成页网格里并没有停靠列，白留的就是画布本身；`left: 0` 盖住整条左栏；`open` 是 DirectorNode 的本地 state，生成页被切走时槽位只是 hidden、节点不卸载，没有任何东西在切页时收它。",
+  "class_root": "外壳里放东西有两种办法：生成页网格里的一格（版面由网格给、跟着槽位 hidden 走），或 body 上的 fixed 层（自己算、自己管生命）。全屏编辑器 / 查看器图方便挂了后者，于是外壳每变形一次（09-04 顶栏、10-08 Agent 三形态与 40px 顶栏、10-27 顶栏层级）它们就要被回头改一次，每次只修眼前那个读方，层本身还是 body 级；挂在 window 上的键盘监听和 3D 渲染循环也不知道「这一格现在看不看得见」。门岗只认字面量 `fixed inset-0`，`fixed inset-x-0 bottom-0` 漏网，左 / 右 / 下三边与生命周期没人守。缺的是「页面里的全屏层归页格管」这一层。",
+  "migration": "不涉及持久化数据。可见变化：导演台 / 全景查看器占的是生成页那一格（顶栏、左栏、停靠的 Agent、生成页底部时间轴窄条都不再被盖）；点「创作」「预览」随生成页一起藏、回来原样还开着；生成页「画布 | 列表」切到列表时同样藏、切回还在；藏着时暗色锁释放（创作 / 预览页按用户自己的明暗显示）。导演台根的语义从 role=dialog + aria-modal 改为 role=region（它不再是模态）。FULLSCREEN_Z_INDEX（唯一用户是导演层）与它在 overlay-z-baseline / feedbackLayer.test 里的三条断言同提交删；挂 body 的滚动锁（整个 App 本来就不会页面级滚动）同提交删。三处存量灯箱（NodeMediaPreviewDialog / NodeShotCutPanel / ScreenshotCropOverlay）行为不变，由普查登记为只减不增。",
+  "affected_population": [
+    "每个打开导演台的用户：Agent 为浮窗时右侧漏出可点的画布（宽度 = 项目存的 assistantWidth + 8px，新项目 398px、用户项目 608px），与窗口宽度无关；小球形态下 Agent 被盖住",
+    "每个在导演台开着时想切去创作 / 预览 / 点左栏的用户：切不走、点不到，只能从导演台自己的 ← / Esc 出来",
+    "全景查看器的用户（同形，本单复现后同修）：点「创作」「预览」查看器留在最上面、左栏被盖住",
+    "Windows 用户：40px 顶栏同时是系统拖拽带，页格在它之下由构造保证（真机未测）"
+  ],
+  "scope_paths": [
+    "src/workbench/generation/pageLayer.tsx",
+    "src/workbench/generation/pageLayerContext.ts",
+    "src/workbench/generation/GenerationWorkspace.tsx",
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+    "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+    "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/DirectorCanvas.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/context/useDismissOnEscape.ts",
+    "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+    "src/workbench/generationCanvas/nodes/fullscreenZIndex.ts"
+  ],
+  "entry_points": [
+    "导演台：DirectorNode「进入」→ DirectorEditor（src/workbench/generationCanvas/nodes/director/）",
+    "全景查看器：BaseGenerationNode → PanoramaViewer 的「进入全屏」（src/workbench/generationCanvas/nodes/PanoramaViewer.tsx）",
+    "页内全屏层的挂载点与可见性：GenerationWorkspace（画布那一格 + 外壳槽位 active + 画布 | 列表视图）",
+    "body 上的 portal：src/workbench 里 createPortal(…, document.body) 与 <BodyPortal>，共 9 个文件，逐个登记在 pageLayerCensus.test.ts",
+    "挂在 window / document 上的键盘监听：导演台目录 7 个文件 + 全景查看器 1 个文件"
+  ],
+  "invariants": [
+    "页面里的一块（导演台、全景查看器）只经 GenerationPageLayer 挂进生成页画布那一格：矩形 = 页格矩形，不读 Agent 形态、不算顶偏移、不挂 body；pageLayerCensus.test.ts 与 windowChrome.test.ts 的页格内名单把它钉在源码层，walk 在真窗口里量 6/6。",
+    "页格内的层的可见性只有一份：GenerationWorkspace 用外壳槽位 active 与「画布 | 列表」视图算出 active，经 Provider 下发；层里不许读 workspaceMode。",
+    "层藏着（切走生成页 / 列表视图）时：窗口级键盘监听（Esc、导演台快捷键、视口漫游、创建模式 Esc、面板 Esc、psv 键盘控制）摘掉，3D 渲染循环停，App 级暗色锁释放，录制中的运镜放弃；租户目录里每个 window / document 键盘监听要么读 useGenerationPageLayerActive、要么登记豁免。",
+    "src/workbench 里每个挂到 document.body 的 portal（createPortal / <BodyPortal>）都登记归属（外壳模态 / 锚定浮层）与生命周期，没登记就红、登记多出来也红。",
+    "整窗 fixed 根的分类扫描认 `fixed inset-0` 与 `fixed inset-x-0` 两种形状。",
+    "按 class 名找画布格的第二种办法只许三处存量灯箱，只减不增。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/pageLayer.tsx",
+      "symbol": "GenerationPageLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/pageLayerContext.ts",
+      "symbol": "GenerationPageLayerProvider"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "GenerationPageLayerProvider"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "generationActive"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "symbol": "GenerationPageLayer"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+      "symbol": "GenerationPageLayer"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "symbol": "useGenerationPageLayerActive"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+      "symbol": "useGenerationPageLayerActive"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "symbol": "useGenerationPageLayerActive"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/scene/DirectorCanvas.tsx",
+      "symbol": "useGenerationPageLayerActive"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+      "symbol": "useGenerationPageLayerActive"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/context/useDismissOnEscape.ts",
+      "symbol": "useGenerationPageLayerActive"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+      "symbol": "useGenerationPageLayerActive"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 13,
+    "why_not": "门数不减反增，因为修之前根本没有「这一格看不看得见」这件共享的事实：两个层（DirectorEditor、PanoramaViewer）各自算版面、各自管生命周期（2 扇），而挂在 window 上的键盘监听、3D 渲染循环、暗色锁对它一无所知。现在是 1 个提供者（GenerationWorkspace，吃外壳槽位的 active）+ 1 个挂载口（GenerationPageLayer，两个租户）+ 7 个读者；每个读者都是一条挂在 window / document 上的监听、一个渲染循环或一个 App 级的锁，藏着时必须各自停，不能由别处代停，所以必须各自存在。读者集合由 pageLayerCensus.test.ts 钉住（租户目录里的键盘监听必须读它或登记豁免），不会悄悄变多。"
+  },
+  "regression_tests": [
+    "src/workbench/pageLayerCensus.test.ts",
+    "src/ui/app-shell/windowChrome.test.ts",
+    "src/workbench/generation/generationWorkspaceLayout.structure.test.ts",
+    "src/ui/feedbackLayer.test.ts",
+    "src/workbench/generationCanvas/nodes/PanoramaViewerProjectContext.test.ts",
+    "tests/ux/director-layer-in-page.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/pageLayerCensus.test.ts",
+    "src/ui/app-shell/windowChrome.test.ts"
+  ],
+  "residual_risks": [
+    "Windows 真机没测：页格在 40px 顶栏之下由构造保证（顶栏两平台同高），没有在 Windows 上实点；本机是 macOS。",
+    "三处存量灯箱（NodeMediaPreviewDialog / NodeShotCutPanel / ScreenshotCropOverlay）仍按 class 名找画布格、行为是盖住 Agent 的模态；它们在页格内、随生成页槽位一起藏，没有逃出页面的问题，但找格子的办法是第二种。普查把它们钉成只减不增，迁到 GenerationPageLayer 要连带改设计实验室的四个夹具（靠 `.workbench-generation__canvas` 这个 class 活着），另起一单。",
+    "切走时只停了「会吞别的页的键」和「渲染循环」这两类：导演台的自动保存、外部写入登记、手机桥在藏着时照常跑（有意：藏着的导演台仍是开着的会话，Agent 的外部写入要落进它）。手机虚拟相机桥在藏着时是否应暂停，没有单独验。",
+    "pageLayerCensus 的键盘监听判据只认 window / document 上字面量 addEventListener('keydown' | 'keyup' | 'keypress')；经变量、经第三方库（psv 的 keyboard:'always' 靠运行时开关单独处理）注册的监听判不到。",
+    "录制中切走即放弃录制是新行为（原来无法切走）：用户在录运镜时点了创作页会丢掉本次录制，与 Esc 同语义，但没有向用户确认过这条取舍。"
+  ],
+  "internal_only_reason": "判断的依据是本仓的真 App（走查量几何 / 命中测试）与已安装第三方版本的源码：@react-three/fiber 9.8.1（setFrameloop / loop / invalidate：从 never 回到 always 时循环已停，必须 invalidate 才重新起；Canvas 的 Activity 隐藏支持与场景树独立成根）、@photo-sphere-viewer/core 5.14.3（keyboard:'always' 的 startKeyboardControl / stopKeyboardControl 运行时开关）。没有引入新的外部依赖或新的外部行为假设。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个家族已经回来过三次：2026-09-04 Windows 窗口栏（全屏层盖住拖拽带）、2026-10-12 左栏抽屉盖住刚打开的编辑器、2026-10-27 开屏「跳过」被顶栏压住；本次是 10-08 外壳重设计（Agent 三形态 + 40px 顶栏）之后，body 级全屏层自己算位置 / 自己管生命周期的第四个表现。每次外壳再变形、每个新写的 body 级全屏层，都是再来一次的机会。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs createPortal → 22 个文件（含 src/design 的 3 个原语、外壳 ShellAgentHost、浏览器子窗口、设计实验室）；src/workbench 里 17 个文件，其中挂到 document.body 的 8 个文件 + 3 个 <BodyPortal> 文件，逐个登记在 pageLayerCensus.test.ts（外壳模态 / 锚定浮层）；导演台与全景查看器是仅有的两个「页面里的一块却挂 body」的，本单改挂页格。",
+      "git grep \"workbench-generation__canvas\" -- src → 三处按 class 名 portal 进画布格的灯箱（NodeMediaPreviewDialog / NodeShotCutPanel / ScreenshotCropOverlay），已在页格内、随生成页槽位藏，登记为只减不增。",
+      "git grep -n \"fixed inset-x-0\" -- src → ComfyuiWorkflowSettingsPage、AssetPreviewDialog 两个真整窗层（登记在 windowChrome.test.ts 的让开顶栏名单）+ 导演台、全景查看器（本单改挂页格）+ devlab；扫描补认 inset-x-0 这一形。",
+      "src/workbench/generationCanvas/nodes/director/ 里 window / document 上的键盘监听：DirectorEditor、useDirectorHotkeys、ViewCamera、DirectorViewport、useDismissOnEscape（读 useGenerationPageLayerActive）+ Popover、TimelineContextMenu（按需出现的浮层，登记豁免）；PanoramaViewer 的 Esc 与 psv 键盘控制。",
+      "tests/ux 里引用 director-editor 的走查：director-windowbar（顶栏之下仍成立）、shell-redesign #50（旧断言 left<=1 / bottom>=窗高，是旧行为，改成「= 页格矩形」）、ia-audit-shots / smoke（只判存在，改注释）。"
+    ]
+  },
+  "generality_proof": "这类失败要两个条件同时成立：层挂在页面之外（body），并且它自己决定位置或生命周期。修在共享边界上：页面里的一块一律经 GenerationPageLayer 挂进生成页那一格——位置是网格给的（所以停靠 / 浮窗 / 小球三种形态、左栏、顶栏、时间轴窄条都不用它操心，外壳再变形也不需要回头改它），可见性是 GenerationWorkspace 算出的一份（切页、列表视图同一条规矩），层里藏着时该停的事读同一份 active。普查把这条规矩钉在机制上而不是某个类名上：src/workbench 里任何新的 body portal 没登记就红，页格租户目录里任何新的窗口级键盘监听没读 active 也红，所以第三个节点持有的全屏层不能悄悄再挂 body。真窗口里的几何 / 命中测试由 walk 量（3 种 Agent 形态 × 3 种窗口尺寸），并在未改的 main 构建上跑出红作阳性对照。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generation/pageLayer.tsx",
+      "symbol": "GenerationPageLayer",
+      "responsibility": "页内全屏层的唯一挂法：把 children 挂进生成页画布那一格，铺满（absolute inset-0，z-[40]，在 Agent 层之下），藏着时 display:none；层里藏着时该停的事读 useGenerationPageLayerActive。"
+    },
+    {
+      "path": "src/workbench/generation/pageLayerContext.ts",
+      "symbol": "GenerationPageLayerProvider",
+      "responsibility": "提供挂载点（画布那一格）与这一格此刻看不看得见（外壳槽位 active && 画布视图）；版面归它的网格，层不再自己算。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "entry_point": "导演台编辑器的挂载（DirectorEditor）",
+      "disposition": "enforced",
+      "evidence": "createPortal 到 document.body 换成 <GenerationPageLayer>；DirectorEditor 根改 size-full，删 assistantPaneWidth / projectAgentDockCollapsed / 顶偏移 / FULLSCREEN_Z_INDEX 的读法。windowChrome.test.ts 的 PAGE_CELL_* 在源码层钉住，walk 在真窗口里量矩形 = 页格。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+      "entry_point": "全景查看器的全屏态",
+      "disposition": "enforced",
+      "evidence": "先在未改的 main 构建上用走查复现（点创作 / 预览查看器留在最上、左栏被盖），再换成 <GenerationPageLayer>，尺寸改用容器查询单位，Esc 与 psv 键盘控制跟 active。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/DirectorCanvas.tsx",
+      "entry_point": "3D 渲染循环（R3F frameloop）",
+      "disposition": "enforced",
+      "evidence": "FrameloopGate 读 useGenerationPageLayerActive：藏着切 never、回来切 always 并 invalidate；walk 数 WebGL 绘制调用，藏着 2 秒 = 0、切回来恢复。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+      "entry_point": "导演台快捷键分发（window 捕获期，preventDefault + stopImmediatePropagation）",
+      "disposition": "enforced",
+      "evidence": "藏着时整条监听摘掉；walk 在创作 / 预览页按 Backspace 用文档级探针确认没被吞、也没被 preventDefault。"
+    },
+    {
+      "path": "src/workbench/assets/AssetPreviewDialog.tsx",
+      "entry_point": "素材库放大预览（body portal 的全屏 lightbox）",
+      "disposition": "not-affected",
+      "evidence": "素材库在左栏抽屉里、跨创作 / 生成 / 预览三页，必须在 body（AssetPreviewDialog.tsx 自己的注释写明）；它是外壳模态、不属于某一页，登记在 pageLayerCensus.test.ts（shell-modal），从顶栏之下起画由 windowChrome.test.ts 的让开顶栏名单钉。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx",
+      "entry_point": "节点图片 / 视频预览灯箱（按 class 名 portal 进画布格）",
+      "disposition": "not-affected",
+      "evidence": "已经在页格内（portal 到 .workbench-generation__canvas，随生成页槽位一起藏），没有逃出页面的问题；行为是盖住 Agent 的模态，本单不改，普查登记为按 class 名找格子的存量（只减不增）。NodeShotCutPanel、ScreenshotCropOverlay 同。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generation/pageLayer.tsx",
+    "invariant": "页面里的一块只经 GenerationPageLayer 挂进生成页画布那一格；层的版面归 GenerationWorkspace 的网格、可见性归它算出的 active，层里窗口级的监听 / 渲染循环 / App 级锁跟着 active 停。",
+    "failure_mode": "新增的 body portal 没登记、新的页格租户目录里有没读 active 的窗口级键盘监听、新的按 class 名找画布格的 portal，都让 pageLayerCensus.test.ts 红（推送前钩子经 scripts/pre-push-scan-guards.mjs 本机就拦）；导演台 / 全景查看器源码里再出现整窗 fixed、顶偏移、第二份层级常量、Agent 宽度 / 小球旗子，windowChrome.test.ts 红。",
+    "exception_policy": "none",
+    "strategy": "删掉「自己算位置」那一套而不是补：把挂载点和可见性收进 GenerationWorkspace 的网格这一个最早的共享边界，外壳再变形（第四种 Agent 形态、左栏宽、顶栏高）层自动跟着；普查按机制（portal 到 body）判而不是按类名判，补上了只认 `fixed inset-0` 的洞。",
+    "artifacts": [
+      "src/workbench/generation/pageLayer.tsx",
+      "src/workbench/generation/pageLayerContext.ts",
+      "src/workbench/generation/GenerationWorkspace.tsx",
+      "src/workbench/WorkbenchShell.tsx",
+      "src/workbench/pageLayerCensus.test.ts",
+      "src/ui/app-shell/windowChrome.test.ts",
+      "scripts/pre-push-scan-guards.mjs"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/fullscreenZIndex.ts"
+    ],
+    "rationale": "导演层 / 全景层挂 body 的 createPortal、整窗 fixed 根、顶偏移、assistantPaneWidth / projectAgentDockCollapsed 的读法、FULLSCREEN_Z_INDEX（文件整个删，唯一用户是导演层）、挂 body 的滚动锁，都在同一个提交里删掉，没有开关也没有第二条路径；overlay-z-baseline 里那一条与 feedbackLayer.test.ts 里的三条断言同提交删。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "页格的挂载用 React 自带的 createPortal，3D 循环用 @react-three/fiber 已有的 setFrameloop / invalidate，psv 用已有的 startKeyboardControl / stopKeyboardControl，没有新增依赖，也没有哪个依赖的版本决定了这条不变量。",
+    "exit_criteria": []
+  }
+}

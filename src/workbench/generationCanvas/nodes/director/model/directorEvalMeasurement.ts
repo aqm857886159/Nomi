@@ -10,7 +10,7 @@ import { evaluateSceneObjectPose } from './evaluatedSceneObject'
 import { programCameraIdAt } from './programCamera'
 import { scaledBounds } from './directorSpace'
 import { sceneFrame, transformPoint, type SceneFrame } from './sceneObjectGraph'
-import { forwardFromAngles, normalize, signedDeg, sub } from './vec3'
+import { forwardFromAngles, normalize, rightFromYaw, signedDeg, sub } from './vec3'
 import { CAMERA_MOVES, EVAL_SHOT_SIZES, type CameraMove, type EvalShotSize } from '../../../../../../electron/shared/director/vocab'
 import type { StagingShot } from '../agent/stagingVocab'
 
@@ -129,7 +129,7 @@ function objectCenter(scene: DirectorScene, object: DirectorObject, frame: Scene
 
 function cameraBasis(camera: CameraSample): { forward: Vec3; right: Vec3; up: Vec3 } {
   const forward = forwardFromAngles(camera.yaw, camera.pitch)
-  const right = normalize(cross(forward, vec(0, 1, 0)))
+  const right = rightFromYaw(camera.yaw)
   const up = normalize(cross(right, forward))
   return { forward, right, up }
 }
@@ -295,6 +295,10 @@ export function sampleDirectorProject(
     previousCamera = cameraId
     const camera = cameraId ? scene.cameras.find((item) => item.id === cameraId) : undefined
     const cameraState = camera ? cameraSample(scene, camera, time) : null
+    const subject = camera?.measurementSubject
+    const anchors = subject?.anchor
+      ? { ...options.anchors, [`${subject.objectId}.${subject.anchor.name}`]: subject.anchor }
+      : options.anchors
     const objects: Record<string, ObjectSample> = {}
     for (const object of scene.objects)
       objects[object.id] = objectSample(
@@ -303,7 +307,7 @@ export function sampleDirectorProject(
         time,
         cameraState,
         options.aspectRatio ?? DEFAULT_ASPECT,
-        options.anchors,
+        anchors,
       )
     frames.push({ frame, time, cameraId, camera: cameraState, objects })
   }
@@ -320,6 +324,8 @@ export type MotionRecognition = {
   jerkRms: number
   jump: boolean
   cameraDelta: Vec3
+  /** Signed camera travel along the first frame screen-right axis. */
+  lateralTravel: number
   yawDelta: number
   pitchDelta: number
   fovDelta: number
@@ -363,6 +369,7 @@ export function recognizeCameraMotion(
       jerkRms: 0,
       jump: false,
       cameraDelta: vec(0, 0, 0),
+      lateralTravel: 0,
       yawDelta: 0,
       pitchDelta: 0,
       fovDelta: 0,
@@ -383,6 +390,7 @@ export function recognizeCameraMotion(
   const dt = Math.max(EPS, last.time - first.time)
   const cameraDelta = sub(points.at(-1)!, points[0]),
     subjectDelta = sub(subjects.at(-1)!, subjects[0])
+  const lateralTravel = dot(cameraDelta, cameraBasis(first.camera).right)
   const cameraTravel = distance(points.at(-1)!, points[0])
   const verticalTravel = Math.abs(cameraDelta.y),
     horizontalTravel = Math.hypot(cameraDelta.x, cameraDelta.z)
@@ -438,8 +446,7 @@ export function recognizeCameraMotion(
   else if (Math.abs(orbit) >= 25) move = orbit > 0 ? 'orbit_right' : 'orbit_left'
   else if (cameraTravel >= 0.25 && coMotion && Math.abs(distanceDelta) < 0.25) move = 'follow'
   else if (cameraTravel >= 0.25) {
-    const dx = last.camera.position.x - first.camera.position.x
-    move = dx < 0 ? 'track_left' : 'track_right'
+    move = lateralTravel < 0 ? 'track_left' : 'track_right'
   }
   if (move !== 'zoom_in' && move !== 'zoom_out' && Math.abs(fovDelta) > 0.5) issues.push('非变焦运镜出现 fov 变化')
   return {
@@ -451,6 +458,7 @@ export function recognizeCameraMotion(
     jerkRms,
     jump,
     cameraDelta,
+    lateralTravel,
     yawDelta: signedDeg(last.camera.yaw - first.camera.yaw),
     pitchDelta: last.camera.pitch - first.camera.pitch,
     fovDelta,

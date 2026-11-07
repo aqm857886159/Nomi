@@ -1,3 +1,4 @@
+import { canvasDocumentInput } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { IconChevronDown } from '@tabler/icons-react'
 import { AnchoredPopover } from '../../../design'
@@ -113,8 +114,8 @@ export function ToolbarActionMenu(props: ToolbarActionMenuProps): JSX.Element {
       if (document.querySelector(`[data-testid="${contentTestId}"]`)?.contains(target)) return
       setOpen(false)
     }
-    document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
+    canvasDocumentInput.addEventListener('pointerdown', onDown, true)
+    return () => canvasDocumentInput.removeEventListener('pointerdown', onDown, true)
   }, [contentTestId, isPanel, open])
 
   const toggle = (): void => {

@@ -1,0 +1,1251 @@
+{
+  "version": 13,
+  "vendors": [
+    {
+      "key": "local-39017",
+      "name": "Relay One",
+      "enabled": true,
+      "hasApiKey": true,
+      "baseUrlHint": "http://127.0.0.1:39017/v1",
+      "authType": "bearer",
+      "authHeader": null,
+      "authQueryParam": null,
+      "providerKind": "openai-compatible",
+      "credentialBinding": {
+        "origin": "http://127.0.0.1:39017",
+        "authType": "bearer",
+        "confirmedAt": "2026-10-31T12:23:51.649Z"
+      },
+      "meta": {
+        "adapterCandidatePromotionPredecessors": {}
+      },
+      "createdAt": "2026-10-31T12:23:51.649Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    }
+  ],
+  "models": [
+    {
+      "modelKey": "gpt-image-2",
+      "vendorKey": "local-39017",
+      "modelAlias": "gpt-image-2",
+      "labelZh": "GPT Image 2",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-b71f1f64d66436eea9f3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_image",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            },
+            {
+              "taskKind": "image_edit",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "publicationModes": [
+            "text_to_image",
+            "image_edit"
+          ]
+        },
+        "parameters": [
+          {
+            "key": "aspect_ratio",
+            "label": "比例",
+            "type": "select",
+            "options": [
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              },
+              {
+                "value": "4:3",
+                "label": "4:3"
+              },
+              {
+                "value": "3:4",
+                "label": "3:4"
+              }
+            ],
+            "default": "1:1"
+          },
+          {
+            "key": "resolution",
+            "label": "清晰度",
+            "type": "select",
+            "options": [
+              {
+                "value": "1K",
+                "label": "1K"
+              },
+              {
+                "value": "2K",
+                "label": "2K"
+              },
+              {
+                "value": "4K",
+                "label": "4K"
+              }
+            ],
+            "default": "1K"
+          },
+          {
+            "key": "quality",
+            "label": "质量",
+            "type": "select",
+            "options": [
+              {
+                "value": "standard",
+                "label": "standard"
+              },
+              {
+                "value": "hd",
+                "label": "hd"
+              }
+            ],
+            "default": "standard"
+          },
+          {
+            "key": "n",
+            "label": "张数",
+            "type": "number",
+            "default": 1,
+            "min": 1,
+            "max": 4
+          }
+        ],
+        "imageOptions": {
+          "supportsReferenceImages": true
+        }
+      },
+      "createdAt": "2026-10-31T12:23:51.649Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "modelKey": "opaque-image-x",
+      "vendorKey": "local-39017",
+      "modelAlias": "opaque-image-x",
+      "labelZh": "Opaque Image",
+      "kind": "image",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-b71f1f64d66436eea9f3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_image",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            },
+            {
+              "taskKind": "image_edit",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "publicationModes": [
+            "text_to_image",
+            "image_edit"
+          ]
+        },
+        "parameters": [
+          {
+            "key": "aspect_ratio",
+            "label": "比例",
+            "type": "select",
+            "options": [
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              },
+              {
+                "value": "4:3",
+                "label": "4:3"
+              },
+              {
+                "value": "3:4",
+                "label": "3:4"
+              }
+            ],
+            "default": "1:1"
+          },
+          {
+            "key": "resolution",
+            "label": "清晰度",
+            "type": "select",
+            "options": [
+              {
+                "value": "1K",
+                "label": "1K"
+              },
+              {
+                "value": "2K",
+                "label": "2K"
+              },
+              {
+                "value": "4K",
+                "label": "4K"
+              }
+            ],
+            "default": "1K"
+          },
+          {
+            "key": "quality",
+            "label": "质量",
+            "type": "select",
+            "options": [
+              {
+                "value": "standard",
+                "label": "standard"
+              },
+              {
+                "value": "hd",
+                "label": "hd"
+              }
+            ],
+            "default": "standard"
+          },
+          {
+            "key": "n",
+            "label": "张数",
+            "type": "number",
+            "default": 1,
+            "min": 1,
+            "max": 4
+          }
+        ],
+        "imageOptions": {
+          "supportsReferenceImages": true
+        }
+      },
+      "createdAt": "2026-10-31T12:23:51.649Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "modelKey": "veo3.1-fast",
+      "vendorKey": "local-39017",
+      "modelAlias": "veo3.1-fast",
+      "labelZh": "Veo 3.1 Fast",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-b71f1f64d66436eea9f3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_video",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            },
+            {
+              "taskKind": "image_to_video",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "publicationModes": [
+            "text_to_video",
+            "image_to_video"
+          ]
+        },
+        "parameters": [
+          {
+            "key": "duration",
+            "label": "时长(秒)",
+            "type": "number",
+            "default": 5,
+            "min": 1,
+            "max": 30
+          },
+          {
+            "key": "size",
+            "label": "比例 / 尺寸",
+            "type": "select",
+            "options": [
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              },
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "1280x720",
+                "label": "1280x720"
+              },
+              {
+                "value": "720x1280",
+                "label": "720x1280"
+              }
+            ],
+            "default": "16:9"
+          }
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.649Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "modelKey": "seedance-2",
+      "vendorKey": "local-39017",
+      "modelAlias": "seedance-2",
+      "labelZh": "Seedance 2",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-b71f1f64d66436eea9f3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_video",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            },
+            {
+              "taskKind": "image_to_video",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "publicationModes": [
+            "text_to_video",
+            "image_to_video"
+          ]
+        },
+        "parameters": [
+          {
+            "key": "duration",
+            "label": "时长(秒)",
+            "type": "number",
+            "default": 5,
+            "min": 1,
+            "max": 30
+          },
+          {
+            "key": "size",
+            "label": "比例 / 尺寸",
+            "type": "select",
+            "options": [
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              },
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "1280x720",
+                "label": "1280x720"
+              },
+              {
+                "value": "720x1280",
+                "label": "720x1280"
+              }
+            ],
+            "default": "16:9"
+          }
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.649Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "modelKey": "opaque-video-x",
+      "vendorKey": "local-39017",
+      "modelAlias": "opaque-video-x",
+      "labelZh": "Opaque Video",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "adapter": {
+          "state": "verified",
+          "runId": "run-rel-1",
+          "activeRevision": "adapter-revision-b71f1f64d66436eea9f3",
+          "evidence": "self-check",
+          "modes": [
+            {
+              "taskKind": "text_to_video",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            },
+            {
+              "taskKind": "image_to_video",
+              "state": "verified",
+              "attempts": 1,
+              "verifiedAt": "2026-10-20T00:00:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-10-20T00:00:00.000Z",
+          "publicationModes": [
+            "text_to_video",
+            "image_to_video"
+          ]
+        },
+        "parameters": [
+          {
+            "key": "duration",
+            "label": "时长(秒)",
+            "type": "number",
+            "default": 5,
+            "min": 1,
+            "max": 30
+          },
+          {
+            "key": "size",
+            "label": "比例 / 尺寸",
+            "type": "select",
+            "options": [
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              },
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "1280x720",
+                "label": "1280x720"
+              },
+              {
+                "value": "720x1280",
+                "label": "720x1280"
+              }
+            ],
+            "default": "16:9"
+          }
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.649Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    }
+  ],
+  "mappings": [
+    {
+      "id": "mapping-9f5af31f-1f28-41c9-806f-f666d4e67be4",
+      "vendorKey": "local-39017",
+      "taskKind": "image_edit",
+      "modelKey": "gpt-image-2",
+      "name": "GPT Image 2 · image_edit",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/edits",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "multipart": {
+          "fields": {
+            "model": "{{request.params.model}}",
+            "prompt": "{{request.prompt}}",
+            "size": "{{request.params.size}}",
+            "quality": "{{request.params.quality}}",
+            "n": "{{request.params.n}}",
+            "response_format": "url"
+          },
+          "imageField": "image[]",
+          "imageSource": "{{request.params.reference_images}}",
+          "multiple": true
+        },
+        "response_mapping": {
+          "image_url": "data[*].url"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-b6836891-380f-49c1-a87c-a93f9afc7b05",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_image",
+      "modelKey": "gpt-image-2",
+      "name": "GPT Image 2 · text_to_image",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "quality": "{{request.params.quality}}",
+          "n": "{{request.params.n}}",
+          "response_format": "url"
+        },
+        "response_mapping": {
+          "image_url": "data[*].url"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-f8d0b453-e636-4fb1-b541-ad37f66a230d",
+      "vendorKey": "local-39017",
+      "taskKind": "image_edit",
+      "modelKey": "opaque-image-x",
+      "name": "Opaque Image · image_edit",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{{request.prompt}}"
+                },
+                "{{request.params.chat_image_parts}}"
+              ]
+            }
+          ],
+          "stream": false
+        },
+        "response_mapping": {
+          "image_url": "choices.0.message.images.0.url"
+        }
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-2b12d286-b1e4-4b2d-b7b6-84cff92c509e",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_image",
+      "modelKey": "opaque-image-x",
+      "name": "Opaque Image · text_to_image",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "size": "{{request.params.size}}",
+          "quality": "{{request.params.quality}}",
+          "n": "{{request.params.n}}",
+          "response_format": "url"
+        },
+        "response_mapping": {
+          "image_url": "data[*].url"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-56823984-383f-437a-8a9d-b3d9e4b64ebd",
+      "vendorKey": "local-39017",
+      "taskKind": "image_to_video",
+      "modelKey": "veo3.1-fast",
+      "name": "Veo 3.1 Fast · image_to_video",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/video/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "size": "{{request.params.size}}",
+          "image": "{{request.params.image_url}}",
+          "seed": "{{request.params.seed}}",
+          "metadata": "{{request.params.relay_metadata}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/video/generations/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "video_url": [
+            "data.result_url",
+            "data.fail_reason",
+            "data.data.content.video_url",
+            "content.video_url",
+            "url",
+            "data[*].url"
+          ],
+          "error_message": "error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "queued",
+          "pending",
+          "submitted",
+          "not_start",
+          "notstart"
+        ],
+        "running": [
+          "processing",
+          "running",
+          "in_progress",
+          "queueing"
+        ],
+        "succeeded": [
+          "succeeded",
+          "success",
+          "completed",
+          "done"
+        ],
+        "failed": [
+          "failed",
+          "fail",
+          "failure",
+          "error",
+          "cancelled",
+          "canceled",
+          "timeout",
+          "rejected",
+          "refused",
+          "expired",
+          "aborted"
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-9f76f667-e687-4d25-ac67-3b4533a27441",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_video",
+      "modelKey": "veo3.1-fast",
+      "name": "Veo 3.1 Fast · text_to_video",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/video/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "size": "{{request.params.size}}",
+          "image": "{{request.params.image_url}}",
+          "seed": "{{request.params.seed}}",
+          "metadata": "{{request.params.relay_metadata}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/video/generations/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "video_url": [
+            "data.result_url",
+            "data.fail_reason",
+            "data.data.content.video_url",
+            "content.video_url",
+            "url",
+            "data[*].url"
+          ],
+          "error_message": "error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "queued",
+          "pending",
+          "submitted",
+          "not_start",
+          "notstart"
+        ],
+        "running": [
+          "processing",
+          "running",
+          "in_progress",
+          "queueing"
+        ],
+        "succeeded": [
+          "succeeded",
+          "success",
+          "completed",
+          "done"
+        ],
+        "failed": [
+          "failed",
+          "fail",
+          "failure",
+          "error",
+          "cancelled",
+          "canceled",
+          "timeout",
+          "rejected",
+          "refused",
+          "expired",
+          "aborted"
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-dd5dcfa4-1b7c-44bc-80bf-5d7fdf83dfc3",
+      "vendorKey": "local-39017",
+      "taskKind": "image_to_video",
+      "modelKey": "seedance-2",
+      "name": "Seedance 2 · image_to_video",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/video/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "size": "{{request.params.size}}",
+          "image": "{{request.params.image_url}}",
+          "seed": "{{request.params.seed}}",
+          "metadata": "{{request.params.relay_metadata}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/video/generations/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "video_url": [
+            "data.result_url",
+            "data.fail_reason",
+            "data.data.content.video_url",
+            "content.video_url",
+            "url",
+            "data[*].url"
+          ],
+          "error_message": "error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "queued",
+          "pending",
+          "submitted",
+          "not_start",
+          "notstart"
+        ],
+        "running": [
+          "processing",
+          "running",
+          "in_progress",
+          "queueing"
+        ],
+        "succeeded": [
+          "succeeded",
+          "success",
+          "completed",
+          "done"
+        ],
+        "failed": [
+          "failed",
+          "fail",
+          "failure",
+          "error",
+          "cancelled",
+          "canceled",
+          "timeout",
+          "rejected",
+          "refused",
+          "expired",
+          "aborted"
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-940479c3-06fa-46f6-946e-df3359849ffb",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_video",
+      "modelKey": "seedance-2",
+      "name": "Seedance 2 · text_to_video",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/video/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "size": "{{request.params.size}}",
+          "image": "{{request.params.image_url}}",
+          "seed": "{{request.params.seed}}",
+          "metadata": "{{request.params.relay_metadata}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/video/generations/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "video_url": [
+            "data.result_url",
+            "data.fail_reason",
+            "data.data.content.video_url",
+            "content.video_url",
+            "url",
+            "data[*].url"
+          ],
+          "error_message": "error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "queued",
+          "pending",
+          "submitted",
+          "not_start",
+          "notstart"
+        ],
+        "running": [
+          "processing",
+          "running",
+          "in_progress",
+          "queueing"
+        ],
+        "succeeded": [
+          "succeeded",
+          "success",
+          "completed",
+          "done"
+        ],
+        "failed": [
+          "failed",
+          "fail",
+          "failure",
+          "error",
+          "cancelled",
+          "canceled",
+          "timeout",
+          "rejected",
+          "refused",
+          "expired",
+          "aborted"
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-c8f5b9b7-68b2-4aa5-aa2f-58cc7bd5e80e",
+      "vendorKey": "local-39017",
+      "taskKind": "image_to_video",
+      "modelKey": "opaque-video-x",
+      "name": "Opaque Video · image_to_video",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/video/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "size": "{{request.params.size}}",
+          "image": "{{request.params.image_url}}",
+          "seed": "{{request.params.seed}}",
+          "metadata": "{{request.params.relay_metadata}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/video/generations/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "video_url": [
+            "data.result_url",
+            "data.fail_reason",
+            "data.data.content.video_url",
+            "content.video_url",
+            "url",
+            "data[*].url"
+          ],
+          "error_message": "error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "queued",
+          "pending",
+          "submitted",
+          "not_start",
+          "notstart"
+        ],
+        "running": [
+          "processing",
+          "running",
+          "in_progress",
+          "queueing"
+        ],
+        "succeeded": [
+          "succeeded",
+          "success",
+          "completed",
+          "done"
+        ],
+        "failed": [
+          "failed",
+          "fail",
+          "failure",
+          "error",
+          "cancelled",
+          "canceled",
+          "timeout",
+          "rejected",
+          "refused",
+          "expired",
+          "aborted"
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    },
+    {
+      "id": "mapping-5207fe76-4b6b-4d5a-9d4c-9a5529879791",
+      "vendorKey": "local-39017",
+      "taskKind": "text_to_video",
+      "modelKey": "opaque-video-x",
+      "name": "Opaque Video · text_to_video",
+      "enabled": true,
+      "create": {
+        "method": "POST",
+        "path": "/v1/video/generations",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "body": {
+          "model": "{{request.params.model}}",
+          "prompt": "{{request.prompt}}",
+          "duration": "{{request.params.duration}}",
+          "size": "{{request.params.size}}",
+          "image": "{{request.params.image_url}}",
+          "seed": "{{request.params.seed}}",
+          "metadata": "{{request.params.relay_metadata}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id"
+        },
+        "provider_meta_mapping": {
+          "task_id": "task_id"
+        },
+        "paramMap": {
+          "rules": [
+            {
+              "wire": "size",
+              "fromMany": [
+                "aspect_ratio",
+                "resolution"
+              ],
+              "transform": "ratioResToOpenAiSize"
+            }
+          ]
+        }
+      },
+      "query": {
+        "method": "GET",
+        "path": "/v1/video/generations/{{providerMeta.task_id}}",
+        "headers": {
+          "Authorization": "Bearer {{user_api_key}}"
+        },
+        "response_mapping": {
+          "task_id": "task_id",
+          "status": "status",
+          "video_url": [
+            "data.result_url",
+            "data.fail_reason",
+            "data.data.content.video_url",
+            "content.video_url",
+            "url",
+            "data[*].url"
+          ],
+          "error_message": "error.message"
+        }
+      },
+      "statusMapping": {
+        "queued": [
+          "queued",
+          "pending",
+          "submitted",
+          "not_start",
+          "notstart"
+        ],
+        "running": [
+          "processing",
+          "running",
+          "in_progress",
+          "queueing"
+        ],
+        "succeeded": [
+          "succeeded",
+          "success",
+          "completed",
+          "done"
+        ],
+        "failed": [
+          "failed",
+          "fail",
+          "failure",
+          "error",
+          "cancelled",
+          "canceled",
+          "timeout",
+          "rejected",
+          "refused",
+          "expired",
+          "aborted"
+        ]
+      },
+      "createdAt": "2026-10-31T12:23:51.700Z",
+      "updatedAt": "2026-10-31T12:23:51.700Z"
+    }
+  ],
+  "apiKeysByVendor": {
+    "local-39017": {
+      "vendorKey": "local-39017",
+      "apiKey": "c2stdi1yZWxheS1mYWtl",
+      "enc": "safeStorage",
+      "enabled": true,
+      "createdAt": "2026-10-31T12:23:51.649Z",
+      "updatedAt": "2026-10-31T12:23:51.649Z"
+    }
+  }
+}

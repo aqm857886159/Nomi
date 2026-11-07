@@ -7,6 +7,8 @@
  *        （titleBarOverlay）和 macOS 的红绿灯都住在这条栏里，它同时是系统拖拽带——命中测试看几何、
  *        不看 DOM 层级，压上去的东西点击会被当成拖窗口吃掉、也会把窗口按钮埋住。
  *        所以全屏浮层（导演台 / 白板 / 整页设置 / 全景 / 素材预览）一律从顶栏下方开始，各浮层不许自己写数。
+ *        唯一刻意盖住顶栏的整屏层是开屏动画（一次性品牌片，要整屏）：它的根走刻度 applicationModal，可交互内容（「跳过」）
+ *        按本文件的偏移落在带外。判据与「铺满整窗的 fixed inset-0 根都得分类」的发现见 windowChrome.test.ts。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { SHELL_TOPBAR_HEIGHT } from './shellGeometry'

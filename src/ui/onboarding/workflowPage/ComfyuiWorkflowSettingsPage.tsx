@@ -20,6 +20,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Portal } from '@mantine/core'
 import { IconAlertTriangle, IconArrowLeft, IconTrash, IconX } from '@tabler/icons-react'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { cn } from '../../../utils/cn'
 import { confirmDialog, NOMI_OVERLAY_Z_INDEX } from '../../../design'
 import { currentFullscreenOverlayTopOffset } from '../../app-shell/windowChrome'
@@ -63,6 +64,7 @@ export function ComfyuiWorkflowSettingsPage({
   onClose,
   onChanged,
 }: ComfyuiWorkflowSettingsPageProps): JSX.Element {
+  useModalInputLayer(true)
   const { t } = useTranslation()
   const [vendorKey, setVendorKey] = React.useState(initialVendorKey)
   const [refreshToken, setRefreshToken] = React.useState(0)

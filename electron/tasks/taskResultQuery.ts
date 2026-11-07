@@ -25,9 +25,7 @@ import {
   localizeTaskAsset,
 } from "../runtime";
 import { logWarn } from "../logging/logger";
-import { NOMI_ERROR_ONLY_BEFORE_SUBMIT, matchNomiErrorCode, tagNomiError } from "../shared/nomiErrorCodes";
-import { VendorRequestError } from "../vendor/vendorHttp";
-import { noteRelayQueryOutcome } from "../catalog/relayNativeWireUpgrade";
+import { retrievalStageError } from "./retrievalStageError";
 import { expectedMediaKind, readTaskResponse } from "./taskResultReading";
 
 // ── 未登记状态动词的有界容忍（根因修复，见 docs/plan/2026-08-11-unrecognized-task-status-root-fix.md）──
@@ -94,32 +92,6 @@ function upstreamExcerpt(response: unknown): string {
   } catch {
     return "";
   }
-}
-
-/**
- * 取回失败的统一出口：带上阶段码（shared/nomiErrorCodes 的 retrieval-*）与阶段说明。已经带码、且码说的是
- * 取回阶段的错误（出站被拦 / 产物读不出……）原样放行——那是更具体的事实。VendorRequestError 保留结构化字段
- * （IPC 那头靠它说出「服务商原话」）。渲染层见码即落「可找回」：任务已受理，重新取回，绝不重新提交。
- *
- * 码的话只在「提交之前」成立（NOMI_ERROR_ONLY_BEFORE_SUBMIT：没发出去 / 没请求服务商 / 可以重新生成）：生产者被提交和
- * 查询共用、不知道这是查询（vendorHttp 出站守卫一律按提交挂码），这里改挂本阶段码。原码和诊断前缀留进正文
- * （技术详情），标明是 Nomi 本机拦下；那句提交前的话不带（任务已提交，它是假话），也不把它当服务商原话（不带 structured）。
- */
-export function retrievalStageError(code: "retrieval-query" | "retrieval-parse" | "retrieval-download", error: unknown, note = ""): Error {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  const carried = matchNomiErrorCode(message);
-  if (carried && !NOMI_ERROR_ONLY_BEFORE_SUBMIT[carried]) return error instanceof Error ? error : new Error(message);
-  const stageKey = code === "retrieval-query" ? "tasks.retrievalStage.query" : code === "retrieval-parse" ? "tasks.retrievalStage.parse" : "tasks.retrievalStage.download";
-  if (carried) {
-    const marker = message.indexOf("NOMI_ERR::");
-    const diagnostic = marker > 0 ? message.slice(0, marker).replace(/[:：\s]+$/, "").trim() : "";
-    return new Error(tagNomiError(code, `${note ? `${note} ` : ""}${desktopT(stageKey)}${desktopT("tasks.refusedLocallyAfterSubmit", { code: carried })}${diagnostic ? ` ${diagnostic}` : ""}`));
-  }
-  const human = `${note ? `${note} ` : ""}${desktopT(stageKey)}${message}`;
-  const tagged = tagNomiError(code, human);
-  // 只带 message + structured（IPC 那头读 structured 说出服务商原话）：providerAnswer 只服务「提交有没有被受理」的判定，
-  // 查询 / 下载阶段用不上；两参构造也让这段能原样回补到 0.23.x（那里的 VendorRequestError 只有两参）。
-  return error instanceof VendorRequestError ? new VendorRequestError(tagged, error.structured) : new Error(tagged);
 }
 
 /**
@@ -195,7 +167,7 @@ function rebuildCachedTaskFromPayload(taskId: string, raw: JsonRecord): CachedTa
  * 跑一次续查（缓存命中 / 无状态重建 共用单一真相）：有 query op 走 query；无则尝试 raw 里已带的
  * 资产；两条都不成立 → **诚实报失败**（这个任务根本查不了，不是「还没好」，见函数末尾）。
  */
-async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ vendor: string; result: TaskResult }> {
+async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: AbortSignal): Promise<{ vendor: string; result: TaskResult }> {
   const queryOperation = cached.mapping?.query;
   if (cached.mapping && queryOperation && cached.model) {
     // 不再用缓存的明文 key，轮询时按 vendor 重新派生（并重新校验 key 仍可用）。
@@ -203,53 +175,39 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
     // this query has produced and decoded a real artifact. Resolve the exact
     // staged revision instead of treating that disabled model as unavailable.
     const stagedCandidate = resolveComfyCandidateExecution(cached.request);
-    // 模型解析必须可守（与 rebuildCachedTaskFromPayload 同款）：模型下架/凭证失效是**永久
-    // 条件**，裸抛会被渲染层当可恢复轮询错误、45s 后落「可找回」——错误既不指向根因也
-    // 不会再自愈。落诚实失败终态（用户去供应商后台核对或重配模型）。
+    // 模型解析必须可守（与 rebuildCachedTaskFromPayload 同款）。模型 / 供应商被关、Key 没了不是永久条件：
+    // 开回来就能查，而且这一次根本没问过供应商，任务可能早就出片了。所以 raw 带判别码（isLocalQueryBlockedRaw），
+    // 单镜 Run 和 AI 读任务据此不把它当成这一单的结论；没有 Run 的旧路径照旧读 status 和 error 那句话。
     let vendor: ReturnType<typeof findExecutableModel>["vendor"], model: Model, apiKey: string;
     try {
       ({ vendor, model, apiKey } = stagedCandidate || findExecutableModel(cached.vendor, cached.model.modelKey, cached.wantedKind));
     } catch {
-      return { vendor: cached.vendor, result: { id: taskId, kind: cached.request.kind, status: "failed", assets: [], raw: {}, error: desktopT("tasks.modelUnresolvable") } };
+      return { vendor: cached.vendor, result: { id: taskId, kind: cached.request.kind, status: "failed", assets: [], raw: { code: "model_unresolvable", taskId }, error: desktopT("tasks.modelUnresolvable") } };
     }
     const queryProviderMeta = {
       ...(cached.providerMeta || {}),
       query_id: cached.providerMeta?.query_id || taskId,
       task_id: cached.providerMeta?.task_id || taskId,
     };
+    const executionRequest = { ...cached.request, extras: { ...cached.request.extras, projectId: cached.projectId, nodeId: cached.nodeId } };
     const runQuery = (operation: NonNullable<typeof queryOperation>) => executeProfileOperation({
       vendor,
       model,
       apiKey,
-      request: cached.request,
+      request: executionRequest,
+      signal,
       operation,
       stage: "query",
       providerMeta: queryProviderMeta,
     });
-    // 「查」这一步只有一种构造（首次轮询与「重新取回」都走这里，缓存命中与无状态重建只差上下文来源）。
-    // 中转上的原生通道连续按合同认出的非瞬时失败（无可用渠道 / 路由不存在 / 任务号无效）→ 体检 owner
-    // 单向退回通用通道、记日志；这一单免费用通用查询再试一次，不重新提交（#1213 原则 2）。
-    let mapping = cached.mapping;
-    let activeQuery = queryOperation;
-    let fellBackNote = "";
+    // The accepted task owns its query contract. Failures never select another route.
+    const mapping = cached.mapping;
+    const activeQuery = queryOperation;
     let executed: Awaited<ReturnType<typeof executeProfileOperation>>;
     try {
       executed = await runQuery(activeQuery);
-      noteRelayQueryOutcome({ vendorKey: cached.vendor, model, mapping, error: null });
     } catch (error) {
-      const fallback = noteRelayQueryOutcome({ vendorKey: cached.vendor, model, mapping, error });
-      const archetype = cached.request.extras?.archetype;
-      const modeId = archetype && typeof archetype === "object" ? trim((archetype as JsonRecord).modeId) : "";
-      const replacement = fallback ? findTaskMapping(cached.vendor, cached.request.kind, model.modelKey, modeId || undefined) : null;
-      if (!fallback || !replacement?.query) throw retrievalStageError("retrieval-query", error);
-      fellBackNote = desktopT("tasks.wireFellBack", { from: fallback.from, to: fallback.to, count: fallback.count });
-      mapping = replacement;
-      activeQuery = replacement.query;
-      try {
-        executed = await runQuery(activeQuery);
-      } catch (retryError) {
-        throw retrievalStageError("retrieval-query", retryError, fellBackNote);
-      }
+      throw retrievalStageError("retrieval-query", error);
     }
     const readResult = async (response: unknown, operation: NonNullable<typeof queryOperation>) => {
       try {
@@ -267,11 +225,13 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
         });
       } catch (error) {
         // 读到地址后落盘没成（下载 / 落盘）：带 download 阶段；出站被拦等更具体的码原样放行。
-        throw retrievalStageError("retrieval-download", error, fellBackNote);
+        throw retrievalStageError("retrieval-download", error);
       }
     };
     let normalized = await readResult(executed.response, activeQuery);
     if (normalized.result.status === "succeeded" && mapping.result) {
+      // Preserve the accepted receipt before any result download; failure only retries this GET.
+      admitTask(taskId, { ...cached, mapping, providerMeta: { ...queryProviderMeta, ...normalized.providerMeta } });
       const resultProviderMeta = {
         ...(cached.providerMeta || {}),
         ...normalized.providerMeta,
@@ -283,16 +243,17 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
           vendor,
           model,
           apiKey,
-          request: cached.request,
+          request: executionRequest,
+          signal,
           operation: mapping.result,
           stage: "result",
           providerMeta: resultProviderMeta,
         });
       } catch (error) {
-        throw retrievalStageError("retrieval-query", error, fellBackNote);
+        throw retrievalStageError(mapping.result.mediaResponse ? "retrieval-download" : "retrieval-query", error);
       }
       const resultNormalized = await readResult(executed.response, mapping.result);
-      normalized = { ...resultNormalized, providerMeta: { ...resultProviderMeta, ...resultNormalized.providerMeta } };
+      normalized = { ...resultNormalized, actualCost: resultNormalized.actualCost ?? normalized.actualCost, providerMeta: { ...resultProviderMeta, ...resultNormalized.providerMeta } };
     }
     // 认不出的动词：连击够久也**不判失败**（原则 1），而是交「可找回」并如实报出原始动词。
     const now = Date.now();
@@ -316,7 +277,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
         status: streak?.verb || "",
         polls: streak?.polls || 0,
         seconds: Math.round((now - (streak?.firstSeenAt || now)) / 1000),
-      }), fellBackNote);
+      }));
     }
     // 「说成了却没产物」对 query 与 result 两跳统一生效：不判失败，留在缓存里等下一次查 / 重新取回。
     const missingOutput = missingAsyncMediaOutput(normalized.result, cached.wantedKind || model.kind, lastResponse);
@@ -349,8 +310,9 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
     const type: "image" | "video" | "audio" | "model3d" = cached.wantedKind === "video" ? "video" : cached.wantedKind === "audio" ? "audio" : cached.wantedKind === "model3d" ? "model3d" : "image";
     // vendor 提示必须带上：本地 ComfyUI 的产物 URL 是私网 /view，缺它 hardenedFetch 会按 SSRF 拒下载。
     const vendorHint = readCatalog().vendors.find((item) => item.key === cached.vendor);
+    // 落地失败由落地门自己挂取回阶段码（同一个 retrievalStageError），这里不再包一层。
     const asset = cached.projectId
-      ? await localizeTaskAsset(cached.projectId, assetUrl, type, cached.nodeId, vendorHint).catch((error: unknown) => { throw retrievalStageError("retrieval-download", error); })
+      ? await localizeTaskAsset(cached.projectId, assetUrl, type, cached.nodeId, vendorHint)
       : unlocalizedTaskAsset(type, assetUrl);
     taskCache.delete(taskId);
     const lateResult: TaskResult = { id: taskId, kind: cached.request.kind, status: "succeeded", assets: [asset], raw: cached.raw };
@@ -405,12 +367,12 @@ function assertPollProjectMatchesTask(cached: CachedTask, pollProjectId: string)
   return cached;
 }
 
-export async function fetchTaskResult(payload: unknown): Promise<{ vendor: string; result: TaskResult }> {
+export async function fetchTaskResult(payload: unknown, signal?: AbortSignal): Promise<{ vendor: string; result: TaskResult }> {
   const raw = payload as JsonRecord;
   const taskId = trim(raw.taskId);
   // 唯一出口：从这里抛出去的错误一律带「提交之后」那一族的码（retrievalStageError 按阶段表放行 / 改挂），
   // 20 个调用者（画布、重新取回、MCP、制作 Run 对账、试模型……）读到的都不会是「没发出去、重新生成」。
-  const query = (task: CachedTask) => executeTaskQuery(taskId, task).catch((error: unknown) => { throw retrievalStageError("retrieval-query", error); });
+  const query = (task: CachedTask) => executeTaskQuery(taskId, task, signal).catch((error: unknown) => { throw retrievalStageError("retrieval-query", error); });
   const cached = taskCache.get(taskId);
   if (cached) return query(assertPollProjectMatchesTask(cached, trim(raw.projectId)));
 

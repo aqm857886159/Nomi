@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 import { isCanvasMenuTarget } from '../components/canvasPointerGestureModel'
 import React from 'react'
 import type { Viewport } from '@xyflow/react'
@@ -228,13 +229,13 @@ export function useGenerationCanvasReactFlowPointer({
       hostRef.current?.removeAttribute('data-space-pan')
       cancelPanRef.current()
     }
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-    window.addEventListener('blur', handleBlur)
+    canvasWindowInput.addEventListener('keydown', handleKeyDown)
+    canvasWindowInput.addEventListener('keyup', handleKeyUp)
+    canvasWindowInput.addEventListener('blur', handleBlur)
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-      window.removeEventListener('blur', handleBlur)
+      canvasWindowInput.removeEventListener('keydown', handleKeyDown)
+      canvasWindowInput.removeEventListener('keyup', handleKeyUp)
+      canvasWindowInput.removeEventListener('blur', handleBlur)
       handleBlur()
     }
   }, [handleCanvasPointerEnd, hostRef, readOnly])

@@ -1,12 +1,14 @@
 import i18n from '../../../i18n'
 import type { TaskResultDto } from '../../../workbench/api/taskApi'
+import type { BrowserPromptExtractionMode } from '../../../../electron/shared/contracts/browserPromptExtraction'
 
 export type BrowserPromptExtraction = {
   title: string
   prompt: string
 }
 
-export type BrowserPromptExtractionMode = 'replicate' | 'style'
+// 模式只有一个主人：跨进程合同（主进程按它定温度与 maxTokens）。这里转出，渲染层用的地方不动。
+export type { BrowserPromptExtractionMode }
 
 // 模式名只存**键**,取文案一律在用的地方 t(...)。
 // 原先这里是写死中文的 label 表(`replicate: '画面复刻'`),两个毛病:

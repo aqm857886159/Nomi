@@ -16,7 +16,7 @@ import { trashBinKey } from '../project/projectOperationFailureText'
  * 确认的是删除文件、主进程却回 false（文件夹已被挪走、库页没刷新；或其实是外部文件夹），只摘了登记、没有东西进回收站，
  * 这时如实说「只从项目库移除了」，不说「已移到回收站」。
  */
-export type ProjectDeleteTarget = { id: string; name: string; source?: string; unreadableReason?: string }
+export type ProjectDeleteTarget = { id: string; name: string; source?: string; unreadableReason?: string; missing?: boolean }
 
 export type ProjectDeleteFlowDeps = {
   t: TFunction

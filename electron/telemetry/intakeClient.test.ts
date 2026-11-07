@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { intakeConfigPath, intakeConfigured, intakeEndpoint, intakeToken, postIntake, resetIntakeConfigCache } from './intakeClient'
+import { intakeConfigPath, intakeConfigured, intakeEndpoint, IntakeHttpError, intakeTimeoutMs, intakeToken, postIntake, resetIntakeConfigCache } from './intakeClient'
 
 const ORIGINAL = { endpoint: process.env.NOMI_INTAKE_ENDPOINT, token: process.env.NOMI_INTAKE_TOKEN }
 
@@ -77,6 +77,20 @@ describe('postIntake', () => {
     const fetch = vi.fn(async () => new Response('nope', { status: 503 }))
     await expect(postIntake('/v1/events', {}, { fetch: fetch as never, endpoint: 'https://intake.example', token: 'tok' }))
       .rejects.toThrow(/HTTP 503/)
+  })
+
+  it('非 2xx 带上状态码：队列要靠它分清「不收」和「过会儿再来」', async () => {
+    const fetch = vi.fn(async () => new Response('too big', { status: 413 }))
+    const failure = await postIntake('/v1/feedback', {}, { fetch: fetch as never, endpoint: 'https://intake.example', token: 'tok' }).catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(IntakeHttpError)
+    expect((failure as IntakeHttpError).status).toBe(413)
+  })
+
+  it('时间上限随体积长：一份几百 KB 的反馈传得完，用量事件几乎还是 8 秒', async () => {
+    expect(intakeTimeoutMs(2_000)).toBeLessThan(8_200)
+    // 线上反馈包的体积：固定 8 秒时这种大小在弱网上永远传不完。
+    expect(intakeTimeoutMs(450_000)).toBeGreaterThan(30_000)
+    expect(intakeTimeoutMs(1_200_000)).toBeLessThan(90_000)
   })
 
   it('200 但回的不是 JSON（网关插了一页 HTML）算成功 —— 收到了，只是少一个把手', async () => {

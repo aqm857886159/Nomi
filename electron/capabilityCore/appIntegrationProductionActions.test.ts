@@ -20,6 +20,7 @@ import { GenerationProviderCapabilityError, type GenerationProvider } from "./ge
 import { createModuleRegistry } from "./moduleRegistry";
 import { createProductionActionHooks, productionShotActionFailureOf, type ProductionDriverReadiness } from "./appIntegrationProductionActions";
 import { createApprovalReceiptAuthority, HumanApprovalRequiredError, ReceiptExpiredError, ReceiptScopeError } from "./approvalReceipt";
+import type { reworkReferenceUrls } from "./productionReferenceUrls";
 import { sealAndApproveProductionGeneration } from "../productionRun/productionGenerationAuthorizationTestUtils";
 import { applyRunControl, ProductionRunControlRefusedError } from "../productionRun/productionRunControl";
 import { createProductionRunRepository, ProductionRunParseError, ProductionRunRevisionConflictError } from "../productionRun/productionRunRepository";
@@ -66,6 +67,8 @@ type SetupOptions = {
   projectRevision?: () => number;
   /** 落地失败停下的批次「继续」那一下先落画布（生产里是 landBatchBeforeKick）。 */
   landBeforeResume?: (projectId: string, runId: string) => Promise<{ allNotPlaced: boolean } | null>;
+  /** 返工前问「要不要换参考链接」那一步（生产里会等网络）。 */
+  reworkLinks?: typeof reworkReferenceUrls;
 };
 
 /** 批过的付费门上记的「谁续过同意」（付费卡① 第 13 条）。 */
@@ -74,7 +77,7 @@ const renewedBy = (repository: ReturnType<typeof createProductionRunRepository>)
   .map((gate) => gate.consentRenewedBy);
 
 /** 两镜整批已确认、已提交、已开跑（running），还没有一镜交给供应商。 */
-function setup({ withReceipts = false, providers = [provider], readiness = "ready", project, projectRevision = () => 0, landBeforeResume }: SetupOptions = {}) {
+function setup({ withReceipts = false, providers = [provider], readiness = "ready", project, projectRevision = () => 0, landBeforeResume, reworkLinks }: SetupOptions = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-production-actions-"));
   roots.push(root);
   const repository = createProductionRunRepository({ projectDirResolver: (projectId) => (projectId === PROJECT ? root : null), now });
@@ -119,6 +122,7 @@ function setup({ withReceipts = false, providers = [provider], readiness = "read
     driverReadiness: () => readiness,
     kickScheduler,
     ...(landBeforeResume ? { landBeforeResume } : {}),
+    ...(reworkLinks ? { reworkLinks } : {}),
     ...(withReceipts ? { receiptAuthority: receipts, confirmGenerationInNomi } : {}),
   });
   return { repository, service, hooks, kickScheduler, confirmGenerationInNomi };
@@ -247,6 +251,35 @@ describe("「重做这一镜」", () => {
     expect(gate.status).toBe("approved");
     expect(gate.authorizationEnvelope?.projectRevision, "批的是封信封那一刻的那一份").toBe(0);
     expect(reworked.status).toBe("authorized");
+  });
+
+  // 返工前问「要不要换参考链接」要等网络（试探最多 4 秒，换链接还要上传）。这几秒里批次的别的镜照常在走，Run 的版本号会变：
+  // 按等之前读到的 Run 去批，一个跟这一镜无关的版本号变化就让重做失败，用户看到的是「批次变了」。
+  it("等参考链接的这几秒里批次往前走了：重做按等完之后的 Run 批下来，不因为版本号白白失败", async () => {
+    let finishWaiting = () => {};
+    const waiting = new Promise<void>((resolve) => { finishWaiting = resolve; });
+    let assertCurrent: () => void = () => {};
+    const { repository, hooks } = setup({
+      withReceipts: true,
+      reworkLinks: async (input) => {
+        assertCurrent = input.assertCurrent;
+        await waiting;
+        return undefined;
+      },
+    });
+    settleShots(repository);
+    stop(repository, "needs_attention", "failed");
+
+    const reworking = hooks.reworkProductionShot({ projectId: PROJECT, runId: RUN, shotId: "shot-1" });
+    const during = repository.read(PROJECT, RUN)!;
+    const otherJob = during.jobs.find((job) => job.metadata?.shotId === "shot-2")!;
+    const moved = repository.execute(PROJECT, RUN, { commandId: "other-shot-moved", expectedRevision: during.revision, type: "job.patch", payload: { jobId: otherJob.jobId, patch: { lastPollAt: now() } }, issuedAt: now() }).run;
+    expect(moved.revision, "前提：Run 的版本号在等的时候变了").toBeGreaterThan(during.revision);
+    expect(() => assertCurrent(), "这一镜的合同没变，版本号变了不算「范围变了」").not.toThrow();
+    finishWaiting();
+
+    await expect(reworking).resolves.toEqual({ ok: true, code: "reworked" });
+    expect(repository.read(PROJECT, RUN)!.jobs.filter((job) => job.metadata?.shotId === "shot-1").map((job) => job.status)).toEqual(["needs_attention", "authorized"]);
   });
 
   it("用户自己暂停的批次：重做一镜不替他改主意，批次仍停着", async () => {

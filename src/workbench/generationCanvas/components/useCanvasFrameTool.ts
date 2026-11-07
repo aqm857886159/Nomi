@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../shortcutSurface'
 /**
  * 「画一个框」这件事的全部：工具就绪状态、F 快捷键、拖出矩形的手势、落笔建框。
  *
@@ -108,8 +109,8 @@ export function useCanvasFrameTool({
       event.preventDefault()
       setArmed((current) => !current)
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    canvasWindowInput.addEventListener('keydown', handleKeyDown)
+    return () => canvasWindowInput.removeEventListener('keydown', handleKeyDown)
   }, [readOnly])
 
   const finishDraw = React.useCallback((clientX: number, clientY: number) => {
@@ -164,15 +165,15 @@ export function useCanvasFrameTool({
       setDrawPreview(null)
       setArmed(false)
     }
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
-    window.addEventListener('pointercancel', handleCancel)
-    window.addEventListener('blur', handleCancel)
+    canvasWindowInput.addEventListener('pointermove', handleMove)
+    canvasWindowInput.addEventListener('pointerup', handleUp)
+    canvasWindowInput.addEventListener('pointercancel', handleCancel)
+    canvasWindowInput.addEventListener('blur', handleCancel)
     return () => {
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-      window.removeEventListener('pointercancel', handleCancel)
-      window.removeEventListener('blur', handleCancel)
+      canvasWindowInput.removeEventListener('pointermove', handleMove)
+      canvasWindowInput.removeEventListener('pointerup', handleUp)
+      canvasWindowInput.removeEventListener('pointercancel', handleCancel)
+      canvasWindowInput.removeEventListener('blur', handleCancel)
     }
   }, [drawPreview, finishDraw, getCanvasPointFromClientPoint])
 

@@ -10,11 +10,12 @@
 // 直接用内置模板。模板不另起一份：复用 catalog/newapiTransport 这张中转接入用了很久的单一真相源，
 // 图生图协议、i2v 通道、参数键名那些血泪细节都在里面（P1 不造并行版）。
 // 后半段不打折：仍然拿真实请求验过才启用，不假设它能用。
-import { newapiImageEditProfileForModel, newapiTransportFor } from "../catalog/newapiTransport";
+import { newapiImageEditProfileForModel, newapiTransportFor, openAiVideoMode } from "../catalog/newapiTransport";
 import { canHostPublicDocs } from "./docsDiscovery";
+import { referenceKeyDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { assertAdapterModeInvariants } from "./validator";
 import type { BillingModelKind, HttpOperation, Model, Vendor } from "../catalog/types";
-import type { AdapterAuthType, AdapterModeDraft, AdapterModelDraft, ProviderAdapterDraft } from "./types";
+import type { AdapterAuthType, AdapterMediaProtocol, AdapterModeDraft, AdapterModelDraft, ProviderAdapterDraft } from "./types";
 import type { AiSdkProviderKind } from "../catalog/types";
 
 // 文本的 OpenAI 兼容 wire。声明它是为了让说明卡形状完整、也把线缆写明；实际文本请求走
@@ -69,6 +70,22 @@ function toDraftParameters(params: readonly ParamControl[]): DraftParameters {
   return supported;
 }
 
+const WHOLE_PARAM_TOKEN = /^{{\s*request\.params\.([^{}\s]+)\s*}}$/;
+
+/**
+ * 文生模式没有声明参考角色，它的报文就不读参考键（判据是现役参考键表，不看键名、不看供应商）。
+ * 模板本身不动：图生模式共用它，`catalogCommit` 的对账也按它补缺键。
+ * 纯文生的真实报文不变：这个键本来就没有值，模板整键丢弃。带着首帧走文生的请求改由第三道闸在花钱前拒发。
+ */
+function textModeOperation(operation: HttpOperation): HttpOperation {
+  if (!operation.body || typeof operation.body !== "object" || Array.isArray(operation.body)) return operation;
+  const body = Object.entries(operation.body as Record<string, unknown>).filter(([, value]) => {
+    const key = typeof value === "string" ? WHOLE_PARAM_TOKEN.exec(value)?.[1] : undefined;
+    return !(key && referenceKeyDeclarationFor(key));
+  });
+  return { ...operation, body: Object.fromEntries(body) };
+}
+
 // 按鉴权方式重写鉴权头。newapiTransport 的模板是给「中转站」写的，那边永远有 key，所以把
 // `Authorization: Bearer {{user_api_key}}` 写死了。自建端点常常**根本不需要 key**（ComfyUI、
 // Ollama、LM Studio 默认无鉴权）——照抄就会发出一个空的 `Authorization: Bearer `，有的服务直接拒。
@@ -91,6 +108,7 @@ function modesForKind(
   providerKind?: AiSdkProviderKind,
   modelKey?: string,
   modelAlias?: string | null,
+  mediaProtocols?: readonly AdapterMediaProtocol[],
 ): AdapterModeDraft[] {
   // 没有文档出处就诚实留空——这张卡来自内置标准契约，不是从某个页面读出来的（D4 缺口明着标）。
   const noSources = { sourceUrls: [] as string[] };
@@ -102,6 +120,14 @@ function modesForKind(
   if (kind === "text") {
     const operation = providerKind === "anthropic" ? ANTHROPIC_CHAT_OP : OPENAI_COMPATIBLE_CHAT_OP;
     return [{ taskKind: "chat", create: auth(operation), ...noSources }];
+  }
+  if (kind === "video") {
+    if (new Set(mediaProtocols).size > 1) throw new Error("Multiple video protocols require an explicit model declaration; no default route is selected.");
+    if (mediaProtocols?.includes("openai-videos-v1")) {
+      const mode = openAiVideoMode();
+      return [{ taskKind: "text_to_video", delivery: "asynchronous", create: auth(mode.create), query: auth(mode.query), result: auth(mode.result), statusMapping: mode.statusMapping, ...noSources }];
+    }
+    if (!mediaProtocols?.includes("video-generations-json-v1")) return [];
   }
   // 3D 没有通用 OpenAI 兼容契约 → 不编造。返回空 modes，验证阶段如实报「这个模型没有可用通道」。
   if (kind !== "image" && kind !== "video" && kind !== "audio") return [];
@@ -115,7 +141,7 @@ function modesForKind(
     ...(mode.query ? { query: auth(mode.query) } : {}),
     ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}),
   });
-  const modes: AdapterModeDraft[] = [{ taskKind: transport.taskKind, create: auth(transport.create), ...shape(transport), ...noSources }];
+  const modes: AdapterModeDraft[] = [{ taskKind: transport.taskKind, create: auth(textModeOperation(transport.create)), ...shape(transport), ...noSources }];
   // 图生图 / 图生视频各自注册一条：runtime 按 taskKind 选投递通道，缺了它连参考图的节点会被直接拒发。
   // 改图协议必须**按模型族 derive**，与接入落库路径（catalogCommit → newapiImageEditProfileForModel）同源：
   // newapiTransportFor("image").edit 恒是 chat/completions 多模态，但 gpt-image 系 / dall-e-2 的改图端点是
@@ -155,9 +181,11 @@ export function builtinDraftForUndocumentedEndpoint(
     return null; // 连 URL 都不合法 → 交给原路径如实报错，别在这里吞掉
   }
   if (canHostPublicDocs(hostname)) return null;
+  const protocols = (connection.vendor.meta as Record<string, unknown> | undefined)?.mediaProtocols;
   return buildOpenAiCompatibleDraft({
     baseUrl,
     authType: (connection.vendor.authType || "bearer") as AdapterAuthType,
+    mediaProtocols: Array.isArray(protocols) ? protocols.filter((value): value is AdapterMediaProtocol => value === "openai-videos-v1" || value === "video-generations-json-v1") : [],
     ...(connection.vendor.providerKind ? { providerKind: connection.vendor.providerKind } : {}),
     models: connection.models.map((model) => ({ modelKey: model.modelKey, labelZh: model.labelZh, kind: model.kind, modelAlias: model.modelAlias ?? null })),
   });
@@ -167,6 +195,7 @@ export function buildOpenAiCompatibleDraft(input: {
   baseUrl: string;
   authType: AdapterAuthType;
   providerKind?: AiSdkProviderKind;
+  mediaProtocols?: readonly AdapterMediaProtocol[];
   models: ReadonlyArray<{ modelKey: string; labelZh: string; kind: BillingModelKind; modelAlias?: string | null }>;
 }): ProviderAdapterDraft {
   return {
@@ -178,15 +207,19 @@ export function buildOpenAiCompatibleDraft(input: {
     sources: [],
     models: input.models.map((model): AdapterModelDraft => {
       const parameters =
-        model.kind === "image" || model.kind === "video" || model.kind === "audio"
+        (model.kind === "image" || model.kind === "audio" || (model.kind === "video" && input.mediaProtocols?.includes("video-generations-json-v1")))
           ? toDraftParameters(newapiTransportFor(model.kind).params)
           : [];
+      if (model.kind === "video" && input.mediaProtocols?.includes("openai-videos-v1")) parameters.push(
+        { key: "duration", label: "Seconds", type: "select", options: ["4", "8", "12"].map((value) => ({ value, label: value })), default: "4" },
+        { key: "size", label: "Size", type: "select", options: ["720x1280", "1280x720", "1024x1792", "1792x1024"].map((value) => ({ value, label: value })), default: "1280x720" },
+      );
       const draftModel: AdapterModelDraft = {
         modelKey: model.modelKey,
         labelZh: model.labelZh,
         kind: model.kind,
         ...(parameters.length > 0 ? { parameters } : {}),
-        modes: modesForKind(model.kind, input.authType, input.providerKind, model.modelKey, model.modelAlias ?? null),
+        modes: modesForKind(model.kind, input.authType, input.providerKind, model.modelKey, model.modelAlias ?? null, input.mediaProtocols),
       };
       // 与 AI 编译路走**同一份**语义校验（P1 不留第二套判断）。此前这条路一次都没被校验过，
       // 「参考类模式必须声明 referenceParam/referenceShape」对它结构性失效 —— image_edit 漏声明

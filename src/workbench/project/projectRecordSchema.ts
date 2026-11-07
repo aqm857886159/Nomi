@@ -11,7 +11,7 @@ import type { StoryboardDesign } from '../workbenchTypes'
 import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
 import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
 import { editingPanelLayoutSchema, type EditingPanelLayout } from '../preview/panelLayout'
-import { storyboardPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
+import { storyboardDraftPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
 import { cloneBuiltinCategories, projectCategorySchema, type ProjectCategory } from './projectCategories'
 
 // Persisted records come in two shapes that carry an identical `payload`:
@@ -69,7 +69,7 @@ export const workbenchProjectPayloadSchema = z.object({
       id: z.string().min(1),
       documentId: z.string().min(1),
       title: z.string(),
-      plan: storyboardPlanSchema,
+      plan: storyboardDraftPlanSchema,
       committed: z.boolean(),
       status: z.enum(STORYBOARD_DESIGN_STATUSES),
       sourceDocumentUpdatedAt: z.number().finite(),

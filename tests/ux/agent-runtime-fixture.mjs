@@ -472,6 +472,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
    * releaseVideos 的事，一件事只有一个开关。
    * `({ kind: 'image'|'video', body, index }) => undefined | { reject: { status, json } } | { fail: { message } } | { corruptResult: true } | { trailingBytesResult: true }`
    *   · reject：受理那一步就回错（没有任务号）；
+   *   · inlineResult：图片任务回内联字节，落盘后没有可复用的供应商链接，参考图必须真实上传。
    *   · fail：受理成功、轮询回 failed（apimart 形状）/ 同步那一档直接回 500；
    *   · corruptResult：受理、出图都「成功」，给的图却是读不出来的字节（JPEG 魔数 + 随机字节；apimart 异步档与回环同步档都认）；
    *   · trailingBytesResult：出图「成功」，给的是一张完整的 PNG、IEND 之后带了尾数据（回环同步档认）——宿主应当照常落地。
@@ -502,6 +503,14 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       if (!canWrite(response)) return
       response.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': corruptImageBytes.length })
       response.end(corruptImageBytes)
+      return
+    }
+    // 一条已经失效的服务商临时链接（参考素材的 .meta 里存着的 originalUrl，reference-dead-link 走查用）：发之前的试探 GET 到这里得到 410。
+    // 它是常驻应答，不算意外请求；活着的那条链接用上面的 /fixture/image.jpg。
+    if (record.path === '/fixture/dead-reference.png') {
+      if (!canWrite(response)) return
+      response.writeHead(410, { 'Content-Type': 'application/xml' })
+      response.end('<Error><Code>ExpiredToken</Code></Error>')
       return
     }
     if (record.path === '/fixture/video.mp4' || record.path === videoResultPath) {
@@ -541,7 +550,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       if (holdTasks) { jsonResponse(response, 200, { code: 200, data: { id: taskQuery[1], status: 'processing' } }); return }
       jsonResponse(response, 200, { code: 200, data: {
         id: taskQuery[1], status: 'completed',
-        result: { images: [{ id: taskQuery[1], url: [`${fixtureOrigin}/fixture/${task.behavior?.corruptResult ? 'corrupt' : 'image'}.jpg`], filename: 'fixture.jpg' }] },
+        result: { images: [{ id: taskQuery[1], url: [task.behavior?.inlineResult ? `data:image/jpeg;base64,${imageBytes.toString('base64')}` : `${fixtureOrigin}/fixture/${task.behavior?.corruptResult ? 'corrupt' : 'image'}.jpg`], filename: 'fixture.jpg' }] },
       } })
       return
     }

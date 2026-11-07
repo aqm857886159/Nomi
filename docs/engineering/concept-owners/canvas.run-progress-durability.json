@@ -1,0 +1,36 @@
+{
+  "name": "运行进度的瞬态观察与耐久事实",
+  "subject": "canvas.run-progress-durability",
+  "lifecycle": "execution",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+    "symbol": "nodeProgressChangesRecovery"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
+      "symbol": "nodeProgressChangesRecovery"
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "symbol": "createCanvasRunActions"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/generationCanvas/store/canvasRunActions.idle.test.ts",
+  "allowed_consumers": [
+    "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+    "src/workbench/generationCanvas/comfyuiProgressBridge.ts",
+    "src/workbench/generationCanvas/nodes/trimVideoToNode.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/generationCanvas/runner/runProjectDelivery.ts",
+    "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts"
+  ],
+  "since": "2026-10-31",
+  "notes": "进度百分比只改内存；运行身份、接管及恢复事实变化才标脏。前台apply和后台held outcome复用nodeProgressChangesRecovery，终态仍由原状态写口持久化；7写门×事件矩阵守。"
+}

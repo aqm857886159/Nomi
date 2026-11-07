@@ -1,0 +1,40 @@
+{
+  "id": "USER-20261030-relay-video-protocol",
+  "since": "2026-10-30",
+  "source": "用户接入中转视频后无法取回成品；协调以真实协议形状复现。",
+  "category": "reference-integrity",
+  "problem": "声明卡不能表达视频字节结果和无文件 multipart，未知连接还会默认选择未经文档证明的路径。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩",
+    "⑫"
+  ],
+  "useCases": [
+    "AI 提交标准视频声明→画布生成→鉴权 content→本地可播资产",
+    "结果错误/断流/取消、运行时重启重建（窗口一直开着时）只重新 GET 原单，POST=1；已知不覆盖：关窗或重启后取回失败一次，免费重新取回失效，主按钮还会再下一单（POST=2），这是既有问题，另开 PR 修",
+    "旧显式 URL 路由不改写；无协议证据不发送"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "tests/relay-onboarding/contracts.test.mjs：本刀四项修复前普通 it 红，修复后绿。",
+    "tests/relay-onboarding/protocol.test.mjs：生产函数、真实本地 HTTP、解码落库与反例矩阵。",
+    "tests/ux/relay-video-onboarding.walk.mjs 与 relay-video-onboarding-real.rehearsal.walk.mjs：最终构建上中英两协议真窗和零费用演练均退出 0，每次生成 POST=1、任务=1，成品落库可播放，截图已亲读。",
+    "修复：声明卡能表达文件字节结果和纯文本 multipart，已受理任务只重新 GET；未知连接不生成默认路由，没有声明的视频模型停在发请求前并指去模型接入（#1392）。"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-30-relay-video-protocol.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/relay-onboarding/protocol.test.mjs"
+  },
+  "completionCommits": [
+    "d1d7ab8ad",
+    "c07844ba8",
+    "98b633f43",
+    "9c70b1ff8",
+    "28254c3af",
+    "6a02bcc2c"
+  ],
+  "fixedInPr": 1392
+}

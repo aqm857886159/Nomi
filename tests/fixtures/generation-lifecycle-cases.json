@@ -1,0 +1,278 @@
+[
+  {
+    "id": "poll-poll-materialized-processing",
+    "pair": "poll-poll",
+    "timing": "materialized",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "poll-poll-materialized-completed",
+    "pair": "poll-poll",
+    "timing": "materialized",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "poll-poll-materialized-failed",
+    "pair": "poll-poll",
+    "timing": "materialized",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "poll-poll-materialized-unknown",
+    "pair": "poll-poll",
+    "timing": "materialized",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "poll-poll-completed-processing",
+    "pair": "poll-poll",
+    "timing": "completed",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "poll-poll-completed-completed",
+    "pair": "poll-poll",
+    "timing": "completed",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "poll-poll-completed-failed",
+    "pair": "poll-poll",
+    "timing": "completed",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "poll-poll-completed-unknown",
+    "pair": "poll-poll",
+    "timing": "completed",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "poll-poll-revision-processing",
+    "pair": "poll-poll",
+    "timing": "revision",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "poll-poll-revision-completed",
+    "pair": "poll-poll",
+    "timing": "revision",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "poll-poll-revision-failed",
+    "pair": "poll-poll",
+    "timing": "revision",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "poll-poll-revision-unknown",
+    "pair": "poll-poll",
+    "timing": "revision",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "poll-materialize-materialized-processing",
+    "pair": "poll-materialize",
+    "timing": "materialized",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "poll-materialize-materialized-completed",
+    "pair": "poll-materialize",
+    "timing": "materialized",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "poll-materialize-materialized-failed",
+    "pair": "poll-materialize",
+    "timing": "materialized",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "poll-materialize-materialized-unknown",
+    "pair": "poll-materialize",
+    "timing": "materialized",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "poll-materialize-completed-processing",
+    "pair": "poll-materialize",
+    "timing": "completed",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "poll-materialize-completed-completed",
+    "pair": "poll-materialize",
+    "timing": "completed",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "poll-materialize-completed-failed",
+    "pair": "poll-materialize",
+    "timing": "completed",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "poll-materialize-completed-unknown",
+    "pair": "poll-materialize",
+    "timing": "completed",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "poll-materialize-revision-processing",
+    "pair": "poll-materialize",
+    "timing": "revision",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "poll-materialize-revision-completed",
+    "pair": "poll-materialize",
+    "timing": "revision",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "poll-materialize-revision-failed",
+    "pair": "poll-materialize",
+    "timing": "revision",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "poll-materialize-revision-unknown",
+    "pair": "poll-materialize",
+    "timing": "revision",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "materialize-materialize-materialized-processing",
+    "pair": "materialize-materialize",
+    "timing": "materialized",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "materialize-materialize-materialized-completed",
+    "pair": "materialize-materialize",
+    "timing": "materialized",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "materialize-materialize-materialized-failed",
+    "pair": "materialize-materialize",
+    "timing": "materialized",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "materialize-materialize-materialized-unknown",
+    "pair": "materialize-materialize",
+    "timing": "materialized",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "materialize-materialize-completed-processing",
+    "pair": "materialize-materialize",
+    "timing": "completed",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "materialize-materialize-completed-completed",
+    "pair": "materialize-materialize",
+    "timing": "completed",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "materialize-materialize-completed-failed",
+    "pair": "materialize-materialize",
+    "timing": "completed",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "materialize-materialize-completed-unknown",
+    "pair": "materialize-materialize",
+    "timing": "completed",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "materialize-materialize-revision-processing",
+    "pair": "materialize-materialize",
+    "timing": "revision",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "materialize-materialize-revision-completed",
+    "pair": "materialize-materialize",
+    "timing": "revision",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "materialize-materialize-revision-failed",
+    "pair": "materialize-materialize",
+    "timing": "revision",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "materialize-materialize-revision-unknown",
+    "pair": "materialize-materialize",
+    "timing": "revision",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "positive-poll-processing",
+    "pair": "positive-poll",
+    "timing": "revision",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "positive-poll-completed",
+    "pair": "positive-poll",
+    "timing": "revision",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "positive-poll-failed",
+    "pair": "positive-poll",
+    "timing": "revision",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "positive-poll-unknown",
+    "pair": "positive-poll",
+    "timing": "revision",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "positive-materialize-processing",
+    "pair": "positive-materialize",
+    "timing": "revision",
+    "lateStatus": "processing"
+  },
+  {
+    "id": "positive-materialize-completed",
+    "pair": "positive-materialize",
+    "timing": "revision",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "positive-materialize-failed",
+    "pair": "positive-materialize",
+    "timing": "revision",
+    "lateStatus": "failed"
+  },
+  {
+    "id": "positive-materialize-unknown",
+    "pair": "positive-materialize",
+    "timing": "revision",
+    "lateStatus": "unknown"
+  },
+  {
+    "id": "materialize-output-ownership",
+    "pair": "output-ownership",
+    "timing": "revision",
+    "lateStatus": "completed"
+  },
+  {
+    "id": "positive-pending-io",
+    "pair": "positive-io",
+    "timing": "none",
+    "lateStatus": "processing"
+  }
+]

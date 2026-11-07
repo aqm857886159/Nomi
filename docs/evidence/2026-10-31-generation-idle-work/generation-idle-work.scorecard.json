@@ -1,0 +1,280 @@
+{
+  "version": 1,
+  "change": {
+    "title": "生成等待：停止空转，重启后找回原单",
+    "headSha": "0041f4b15205a48be9d8149952dc581274162379",
+    "headNote": "产品源码指纹0db9a0615d0df94779e2cd41d0410277fdffd12a；与804ed30e只差一个词表登记锚。保留全部历史失败，当前HEAD单列2/2合格、24/24功能完成，不把混合版本总数当同一版本成功率。",
+    "userCan": "同时等待多张生成卡，重启后找回原单结果，进度仍显示，纯进度不触发保存。"
+  },
+  "scenarioId": "browse-away-during-long-task",
+  "verifier": {
+    "line": "implementation",
+    "kind": "实施自验，非独立验收"
+  },
+  "date": "2026-10-31",
+  "machine": {
+    "source": "walk-log",
+    "env": {
+      "device": "macOS arm64，真实隔离Electron",
+      "window": "1600×1000，暗色；生成等待与原单重启变体",
+      "language": "zh-CN / en",
+      "boundary": "引用既有候选场景的等待/重启变体；未宣称已验证完整切页或取消迟到分支。零花费loopback，非真实供应商延迟。"
+    },
+    "attempts": [
+      {
+        "label": "修复前英文第一轮",
+        "result": "fail",
+        "note": "11/12结果落卡，保留失败。",
+        "evidence": "docs/evidence/2026-10-31-generation-idle-work/restart-blocker.json"
+      },
+      {
+        "label": "修复前英文第二轮",
+        "result": "fail",
+        "note": "严格点击断言下仍11/12，供应商受理/完成竞态。",
+        "evidence": "docs/evidence/2026-10-31-generation-idle-work/restart-blocker.json"
+      },
+      {
+        "label": "共享修复后旧HEAD中文",
+        "result": "pass",
+        "note": "12/12；提交12→12。"
+      },
+      {
+        "label": "旧HEAD英文首轮",
+        "result": "fail",
+        "note": "功能12/12，启动抢前台，不能算整轨通过。"
+      },
+      {
+        "label": "旧HEAD英文第二轮",
+        "result": "fail",
+        "note": "partial：重启起窗条件不足，被拒绝；没有成功终点。"
+      },
+      {
+        "label": "旧HEAD英文第三轮",
+        "result": "pass",
+        "note": "12/12；未改前台检查。"
+      },
+      {
+        "label": "此前804源码中文首轮",
+        "result": "fail",
+        "note": "功能12/12且落盘，但重启抢前台。",
+        "evidence": "docs/evidence/2026-10-31-generation-idle-work/final-validation.json"
+      },
+      {
+        "label": "此前804源码中文完整重跑",
+        "result": "pass",
+        "note": "12/12，提交12→12，结果落卡且落盘。"
+      },
+      {
+        "label": "此前804源码英文",
+        "result": "pass",
+        "note": "12/12，提交12→12，结果落卡且落盘。"
+      },
+      {
+        "label": "登记迁移后中文首轮",
+        "result": "fail",
+        "note": "partial：等待画面通过；重启前load5=10.09，守卫拒绝起窗。",
+        "evidence": "docs/evidence/2026-10-31-generation-idle-work/final-validation.json"
+      },
+      {
+        "label": "最终HEAD中文完整重跑",
+        "result": "pass",
+        "note": "12/12原单接回，提交12→12，落卡且落盘。"
+      },
+      {
+        "label": "最终HEAD英文",
+        "result": "pass",
+        "note": "12/12原单接回，提交12→12，落卡且落盘。"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "英文每12原单的结果落卡数",
+        "unit": "份/12任务",
+        "baseline": 11,
+        "current": 12,
+        "n": 1,
+        "basis": "script-count",
+        "note": "baseline为恢复修复前英文11/12；current为本HEAD英文12/12，n=1，未混合语言。"
+      },
+      {
+        "name": "最终HEAD合格完整走查",
+        "unit": "轮/2轮",
+        "baseline": null,
+        "current": 2,
+        "n": 2,
+        "basis": "script-count",
+        "note": "当前登记迁移后HEAD中英各一完整轨；此前源码中文前台失败及本HEAD起窗partial仍逐条保留。"
+      },
+      {
+        "name": "最终HEAD功能结果落卡",
+        "unit": "份/24原单",
+        "baseline": null,
+        "current": 24,
+        "n": 24,
+        "basis": "script-count",
+        "note": "本HEAD两条完整轨各12/12；此前源码36/36功能、2/3整轨另保留在历史记录。"
+      },
+      {
+        "name": "恢复竞态保护不增加纯pending同步读",
+        "unit": "次/轮询",
+        "baseline": 4,
+        "current": 4,
+        "n": 1,
+        "basis": "script-count",
+        "note": "对照为三处删减后、恢复竞态修复前；不是最初卡顿版本。两边写/建锁/删均0。"
+      },
+      {
+        "name": "等待时绘制（60 节点）",
+        "unit": "次/60秒",
+        "baseline": 14568,
+        "current": 0,
+        "n": 5,
+        "basis": "script-count",
+        "note": "5 次中位数；改前范围 14424–14616，改后范围 0–0。改前只还原四个基线文件，其余源码相同。"
+      },
+      {
+        "name": "纯进度保存 IPC（60 节点）",
+        "unit": "次/30秒",
+        "baseline": 9,
+        "current": 0,
+        "n": 5,
+        "basis": "script-count",
+        "note": "5 次中位数；改前范围 7–14，改后范围 0–0。改前只还原四个基线文件，其余源码相同。"
+      },
+      {
+        "name": "重复 pending 快照写（60 节点）",
+        "unit": "次/60秒",
+        "baseline": 598,
+        "current": 0,
+        "n": 5,
+        "basis": "script-count",
+        "note": "5 次中位数；改前范围 578–600，改后范围 0–0。改前只还原四个基线文件，其余源码相同。"
+      },
+      {
+        "name": "帧间隔 p95（60 节点）",
+        "unit": "ms",
+        "baseline": 10.1,
+        "current": 10.2,
+        "n": 5,
+        "basis": "script-count",
+        "note": "5 次中位数，预算 33ms。这台 Apple M5 上改前改后都约 10ms，这项分不出差别，不能说这台机器变跟手了。"
+      },
+      {
+        "name": "等待时绘制（100 节点）",
+        "unit": "次/60秒",
+        "baseline": 14568,
+        "current": 0,
+        "n": 5,
+        "basis": "script-count",
+        "note": "5 次中位数；改前范围 14424–14664，改后范围 0–0。改前只还原四个基线文件，其余源码相同。"
+      },
+      {
+        "name": "纯进度保存 IPC（100 节点）",
+        "unit": "次/30秒",
+        "baseline": 9,
+        "current": 0,
+        "n": 5,
+        "basis": "script-count",
+        "note": "5 次中位数；改前范围 8–16，改后范围 0–0。改前只还原四个基线文件，其余源码相同。"
+      },
+      {
+        "name": "重复 pending 快照写（100 节点）",
+        "unit": "次/60秒",
+        "baseline": 598,
+        "current": 0,
+        "n": 5,
+        "basis": "script-count",
+        "note": "5 次中位数；改前范围 580–608，改后范围 0–0。改前只还原四个基线文件，其余源码相同。"
+      },
+      {
+        "name": "帧间隔 p95（100 节点）",
+        "unit": "ms",
+        "baseline": 9.3,
+        "current": 10.1,
+        "n": 5,
+        "basis": "script-count",
+        "note": "5 次中位数，预算 33ms。这台 Apple M5 上改前改后都约 10ms，这项分不出差别，不能说这台机器变跟手了。"
+      }
+    ]
+  },
+  "human": {
+    "seq": null,
+    "events": {
+      "misclicks": null,
+      "backtracks": null,
+      "helpRequests": null,
+      "firstAttemptSuccess": null
+    },
+    "note": "无人类评分或人工事件观察；不把自动化点击数当误点/回退/求助。"
+  },
+  "guardrails": [
+    {
+      "name": "原taskId保留，提交12→12",
+      "result": "pass",
+      "evidence": "最终双语各12原单；final-validation.json"
+    },
+    {
+      "name": "旧观察不能覆盖更新完成事实",
+      "result": "pass",
+      "evidence": "46格矩阵，单去共享判据23红/9阳性绿；recovery-lifecycle.json"
+    },
+    {
+      "name": "全局重启不抢前台",
+      "result": "fail",
+      "evidence": "此前804源码中文首轮有前台红；未改守卫，当前HEAD双语完整通过，仍保留历史失败。"
+    },
+    {
+      "name": "正式性能五次与预算",
+      "result": "pass",
+      "evidence": "每档改前改后各 5 次，四项预算都达标；docs/evidence/2026-10-31-generation-idle-work/formal-counters.json"
+    }
+  ],
+  "friction": {
+    "moment": "等外部查询/提取时另一方先完成，会让原单无法落卡；另有本机全局启动抢前台红记录。",
+    "decision": "共享信封版本与文件租约保护恢复事实；全局前台守卫保留，不为过关改启动器。"
+  },
+  "coordinatorDecision": "性能预算已确认：帧间隔 p95≤33ms，三项硬计数为 0。独立验收另排。",
+  "unverified": [
+    {
+      "item": "弱机和 Windows 上的帧间隔",
+      "owner": "协调",
+      "recheck": "有对应机器时跑 generation-idle-60 / 100。这台 M5 上改前改后都约 10ms，只证明等待成本降到 0，没证明跟手改善。"
+    },
+    {
+      "item": "并入最新 main 后的完整门岗",
+      "owner": "CI",
+      "recheck": "PR 的 Contracts 与 Quality Gate 通过才算。并 main 前本机完整门岗 107/107、风险测试全过；那一轮日志停在 Electron 构建、没留退出码，同一 HEAD 的构建另有退出 0。"
+    },
+    {
+      "item": "真实供应商、Windows、安装包、窄窗、浅色",
+      "owner": "协调",
+      "recheck": "对应环境提供后独立运行；本线仅免费本机双语。"
+    },
+    {
+      "item": "完整候选场景的切页、取消后迟到结果分支",
+      "owner": "协调独立验收",
+      "recheck": "明确场景合同后补真实动作，不由本次重启变体代签。"
+    },
+    {
+      "item": "真人SEQ和人工事件",
+      "owner": "协调",
+      "recheck": "有参与者时测，当前为null。"
+    },
+    {
+      "item": "process-feedback旧shader视觉基线与批准静态路径的更新",
+      "owner": "协调",
+      "recheck": "开PR后核CI基准机产物，再按design-lab:accept收录；实施线不录本机基线。"
+    }
+  ],
+  "evidence": [
+    "docs/evidence/2026-10-31-generation-idle-work/final-validation.json",
+    "docs/evidence/2026-10-31-generation-idle-work/recovery-lifecycle.json",
+    "docs/evidence/2026-10-31-generation-idle-work/restart-blocker.json",
+    "docs/plan/2026-10-31-generation-idle-work.md",
+    "docs/evidence/2026-10-31-generation-idle-work/formal-before-60.json",
+    "docs/evidence/2026-10-31-generation-idle-work/formal-before-100.json",
+    "docs/evidence/2026-10-31-generation-idle-work/formal-after-60.json",
+    "docs/evidence/2026-10-31-generation-idle-work/formal-after-100.json",
+    "docs/evidence/2026-10-31-generation-idle-work/formal-counters.json"
+  ]
+}

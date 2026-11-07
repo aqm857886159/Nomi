@@ -128,6 +128,13 @@ export const zhRuntime = {
     credentialProbeTitle: '验证 {{vendor}} 的密钥',
     credentialProbeMessage: '确认后 Nomi 会用你刚填的密钥发一次最小的真实请求来验它是否可用。不确认也能保存密钥，只是标为「未验证」，首次真正调用时再见分晓。',
     confirmCredentialProbe: '确认并验证',
+    // 浏览器「提取提示词」：用户自己点的那一下，卡上写清来源页、哪张图、哪个读图模型，不用「AI 助手想…」的口气。
+    promptExtractionTitle: '把这张图写成提示词？',
+    promptExtractionMessage: '读图模型会看一次这张图，写好的提示词存进提示词库。',
+    promptExtractionPage: '来源页',
+    promptExtractionImage: '图片',
+    promptExtractionScreenshot: '页面截图',
+    confirmPromptExtraction: '提取',
     generationGateTitle: '允许 Nomi 生成这一镜？',
     generationGateBatchTitle: '允许 Nomi 生成这一批镜头？',
     generationGateMessage: '允许 Nomi 在当前项目使用模型 {{model}}，生成这一镜？',
@@ -156,6 +163,9 @@ export const zhRuntime = {
     noProjectOpen: '（没有打开任何项目）',
     unknownOperation: '未知 capability 操作：{{operation}}',
     storyboardPlanMissing: '分镜规划没有返回可审阅的方案',
+  },
+  modelTrial: {
+    uncertainPrior: '上一笔结果不确定，不知道扣没扣钱，再试可能多扣一次。确认后将生成。',
   },
   export: {
     jobRequiresDesktop: '导出任务需要 Electron 桌面运行时',
@@ -314,6 +324,12 @@ export const enRuntime = {
     credentialProbeTitle: 'Verify the {{vendor}} key',
     credentialProbeMessage: 'Confirm and Nomi sends one minimal real request with the key you just entered to check that it works. You can also decline and still save the key — it is then marked unverified, and the first real call is the judge.',
     confirmCredentialProbe: 'Confirm and verify',
+    promptExtractionTitle: 'Turn this image into a prompt?',
+    promptExtractionMessage: 'A vision model reads this image once and saves the prompt to your library.',
+    promptExtractionPage: 'Page',
+    promptExtractionImage: 'Image',
+    promptExtractionScreenshot: 'Page screenshot',
+    confirmPromptExtraction: 'Extract',
     generationGateTitle: 'Allow Nomi to generate this shot?',
     generationGateBatchTitle: 'Allow Nomi to generate this batch of shots?',
     generationGateMessage: 'Allow Nomi to use {{model}} in the current project to generate this shot?',
@@ -341,6 +357,9 @@ export const enRuntime = {
     noProjectOpen: '(no project open)',
     unknownOperation: 'Unknown capability operation: {{operation}}',
     storyboardPlanMissing: 'The storyboard planner did not return a reviewable plan.',
+  },
+  modelTrial: {
+    uncertainPrior: "The previous attempt's result is uncertain, and we don't know whether it was charged. Trying again may cost you twice. Confirm to start generation.",
   },
   export: {
     jobRequiresDesktop: 'Export jobs require the Electron desktop runtime',

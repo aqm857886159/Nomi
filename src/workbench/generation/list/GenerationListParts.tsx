@@ -1,3 +1,5 @@
+import { generationFailureActions } from '../../observability/generationFailureActions'
+import { selectIsNodeQueued, useGenerationQueueStore } from '../../generationCanvas/runner/generationQueueStore'
 // 生成页列表视图的零件：状态标签、卡片画面、「未被引用的素材」条、空态。
 // 没有批量条、卡上没有勾选（2026-10-08 用户：模型在节点创建时就选好了，批量走分区头的「生成全部」）。
 // 卡只读画布 store 里的那个节点（投影见 generationListModel.ts）；改东西只在大详情里，改的就是那个节点。
@@ -33,11 +35,11 @@ function statusTone(status: ShotRowStatus): Tone {
   return 'neutral'
 }
 
-export function ListStatusTag({ status }: { status: ShotRowStatus }): JSX.Element {
+export function ListStatusTag({ status, queued = false }: { status: ShotRowStatus; queued?: boolean }): JSX.Element {
   const { t } = useTranslation()
   return (
-    <DesignBadge size="xs" tone={statusTone(status)} tt="none" fw={500} data-list-status={status}>
-      {t(`shotTable.status.${status}`)}
+    <DesignBadge size="xs" tone={queued ? 'info' : statusTone(status)} tt="none" fw={500} data-list-status={queued ? 'queued' : status}>
+      {queued ? t('generationCommon.observability.progress.queued') : t(`shotTable.status.${status}`)}
     </DesignBadge>
   )
 }
@@ -82,7 +84,8 @@ export function ListCardMedia({ node, height, kind, fit = 'cover', width }: { no
   const { t } = useTranslation()
   const preview = node ? resolveLightweightNodePreview(node) : null
   const execution = node ? getGenerationNodeExecutionKind(node.kind) : undefined
-  const running = node?.status === 'queued' || node?.status === 'running'
+  const queued = useGenerationQueueStore((state) => Boolean(node && selectIsNodeQueued(state, node.id)))
+  const running = queued || node?.status === 'queued' || node?.status === 'running'
   const failed = node?.status === 'error'
   const fitClass = fit === 'cover' ? 'object-cover' : 'object-contain'
   const framed = !preview || fit === 'contain'
@@ -101,13 +104,13 @@ export function ListCardMedia({ node, height, kind, fit = 'cover', width }: { no
             ) : placeholder ? null : <EmptyMedia kind={execution ?? kind} />}
       {placeholder === 'running' ? (
         <span className={cn('absolute inset-0 z-[1] grid place-items-center text-nomi-ink-60', preview && 'bg-nomi-paper/50')} data-list-media-running>
-          <IconLoader2 size={24} stroke={1.6} className="motion-safe:animate-spin" aria-label={t('generationList.generating')} />
+          {queued ? t('generationCommon.observability.progress.queued') : <IconLoader2 size={24} stroke={1.6} className="motion-safe:animate-spin" aria-label={t('generationList.generating')} />}
         </span>
       ) : null}
       {placeholder === 'failed' ? (
         <span className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-1.5 px-4 text-center text-nomi-danger" data-list-media-failed>
           <IconAlertTriangle size={22} stroke={1.6} aria-hidden />
-          {node?.error ? <span className="line-clamp-2 text-caption">{node.error}</span> : null}
+          {node?.error ? <span className="line-clamp-2 text-caption">{generationFailureActions(node.error, node.runs?.[0]).reason}</span> : null}
         </span>
       ) : null}
     </div>

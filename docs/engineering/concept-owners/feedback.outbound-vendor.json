@@ -1,0 +1,29 @@
+{
+  "name": "一个 vendor key 离开这台机器时的样子",
+  "subject": "feedback.outbound-vendor",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/catalog/outboundVendor.ts",
+    "symbol": "outboundVendor"
+  },
+  "write_api": [
+    {
+      "path": "electron/catalog/outboundVendor.ts",
+      "symbol": "outboundVendor"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/feedback/feedbackOutbound.test.ts",
+  "allowed_consumers": [
+    "electron/feedback/feedbackCatalog.ts",
+    "electron/feedback/feedbackLogTail.ts",
+    "electron/feedback/feedbackReport.ts",
+    "electron/telemetry/trajectoryProjection.ts"
+  ],
+  "since": "2026-11-01",
+  "notes": "合同 docs/fixes/2026-11-01-feedback-log-tail.root-cause.json：唯一判据，判种子不判当前地址。云端内置家留名字和模型；自建塌成 custom，模型不出门；种子在本机的家留固定名字，模型不出门。放在 electron/catalog 而不是 shared/builtinVendorIdentity：判据要读种子，渲染层不能带种子。渲染层 sanitizeProviderIdentity 是发请求前的第一道，读不了种子，主进程这里说了算。"
+}

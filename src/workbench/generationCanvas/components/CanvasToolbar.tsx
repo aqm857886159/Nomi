@@ -1,3 +1,4 @@
+import { canvasDocumentInput } from '../../shortcutSurface'
 import { CANVAS_LAYER } from '../reactFlow/canvasLayerOrder'
 import { useCanvasChromeOcclusion } from './useCanvasChromeOcclusion'
 import { CanvasAddPreferenceActions } from './CanvasAddPreferenceActions'
@@ -101,11 +102,11 @@ export function CanvasMoreAddMenu({ onPick, onClose, className }: {
       onClose()
     }
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    document.addEventListener('keydown', onKeyDown)
+    canvasDocumentInput.addEventListener('pointerdown', onPointerDown, true)
+    canvasDocumentInput.addEventListener('keydown', onKeyDown)
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      document.removeEventListener('keydown', onKeyDown)
+      canvasDocumentInput.removeEventListener('pointerdown', onPointerDown, true)
+      canvasDocumentInput.removeEventListener('keydown', onKeyDown)
     }
   }, [onClose])
   return (

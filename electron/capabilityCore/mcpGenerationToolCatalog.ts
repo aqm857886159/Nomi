@@ -8,7 +8,7 @@
  * Reconciliation vocabulary is owned by shared/agentCapabilities/generationPlanSchemas.
  */
 import { z } from "zod";
-import { toPublishedJsonSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
+import { toRuntimeJsonSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
 import { generationPlanInputSchema, GENERATION_RECONCILE_OUTCOMES } from "../shared/agentCapabilities/generationPlanSchemas";
 import {
   assertPaidBoundaryExternalSurface,
@@ -27,7 +27,7 @@ const generationTransportSchema = generationPlanInputSchema.options[1].omit({ op
   modelKey: z.string().describe("modelId alias from nomi_read(target=models).").optional(),
   patch: generationPlanInputSchema.options[2].shape.patch.optional(),
 });
-const { $schema: _dialect, ...generationInputSchema } = toPublishedJsonSchema(generationTransportSchema);
+const { $schema: _dialect, ...generationInputSchema } = toRuntimeJsonSchema(generationTransportSchema);
 
 /**
  * 对外 `nomi_operation_plan` 的 create 分支：**字段名单从宿主 schema 取，不在这里抄第二份。**

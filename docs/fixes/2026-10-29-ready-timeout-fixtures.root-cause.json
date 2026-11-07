@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-29-ready-timeout-fixtures",
+  "problem_type": "Timeout fixtures assume startup side effects precede a short deadline",
+  "symptom": "Gate self-test returns its expected timeout result then fails reading slow.pid with ENOENT.",
+  "direct_cause": "The 1500ms production deadline can terminate node:test/tsx startup before fixture PID or counter writes.",
+  "class_root": "Timeout policy tests treated elapsed startup time as evidence of fixture readiness.",
+  "affected_population": [
+    "Related-test soft timeout self-test",
+    "Synchronous read retry success-after-timeout and exhausted-timeout self-tests"
+  ],
+  "scope_paths": [
+    "scripts/_test-ready-timeout.mjs",
+    "scripts/pre-push-structure.node-test.mjs",
+    "scripts/lib/transientRetry.node-test.mjs",
+    "docs/engineering/concept-owners/delivery.script-process-tree.json"
+  ],
+  "entry_points": [
+    "relatedTests node:test lane",
+    "execGhReadSync timeout retry success",
+    "execGhReadSync timeout retry exhaustion"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/sindresorhus/execa/blob/main/test/terminate/kill-descendants.js",
+      "checked_at": "2026-10-29",
+      "purpose": "Readiness and paired descendant liveness assertions."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/sindresorhus/execa/blob/main/test/terminate/timeout.js",
+      "checked_at": "2026-10-29",
+      "purpose": "Short native timeout tests need no user-code side effects."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/nodejs/node/blob/main/test/parallel/test-child-process-fork-timeout-kill-signal.js",
+      "checked_at": "2026-10-29",
+      "purpose": "Short startup deadline tests assert signal rather than fixture side effects."
+    }
+  ],
+  "invariants": [
+    "A tree timeout assertion requires two distinct valid PIDs alive before the deadline fires and gone before success.",
+    "Fixture startup delay is excluded from the test-controlled deadline; production startup deadlines are unchanged.",
+    "Synchronous retry policy cannot depend on a counter being written by a process that may time out during startup.",
+    "PID readiness files are published by rename only after the complete PID has been written."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/lib/transientRetry.node-test.mjs",
+      "symbol": "readyTreeTimeout"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/pre-push-structure.node-test.mjs",
+      "symbol": "readyTreeTimeout"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "The two existing test files exercise different production boundaries. Both now enter readyTreeTimeout; the retry file shares one observedTimeout wrapper across its two cases. Production callers remain unchanged."
+  },
+  "generality_proof": "Both test files converge on one readiness and liveness owner; neither a missing PID nor a skipped assertion can produce success. PID files are written by the processes themselves. Real termination remains in the production runner, including under tree-kill mutation.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/_test-ready-timeout.mjs",
+      "symbol": "readyTreeTimeout",
+      "responsibility": "Freeze the test deadline until readiness, check two live PIDs, trigger timeout with real cleanup scheduling, then require both PIDs gone. Publish complete PID records atomically before exposing readiness."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/pre-push-structure.node-test.mjs",
+      "entry_point": "related timeout softening and real failure",
+      "disposition": "enforced",
+      "evidence": "readyTreeTimeout surrounds actual runRelatedTests/isolatedRun."
+    },
+    {
+      "path": "scripts/lib/transientRetry.node-test.mjs",
+      "entry_point": "success after one timeout",
+      "disposition": "enforced",
+      "evidence": "observedTimeout requires real ready tree termination; synchronous policy uses explicit parent-owned attempt observations."
+    },
+    {
+      "path": "scripts/lib/transientRetry.node-test.mjs",
+      "entry_point": "exhausted after three timeouts",
+      "disposition": "enforced",
+      "evidence": "Same shared tree observation and explicit parent-owned call count, no child startup counter."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Startup latency varies by CPU, IO, memory, runner layers and future machines; all three cases had this assumption.",
+    "same_class_scan": [
+      "Searched all 177 scripts/**/*.node-test.mjs and *.test.mjs for timeout/budget, PID and counter writes.",
+      "Checked processTree.node-test.mjs and _test-temp.node-test.mjs condition-based readiness; short pure timeout assertions have no side-effect prerequisite.",
+      "door-map runNode runRelatedTests execGhReadSync --roots=scripts --include-tests: 13 doors/24 call sites; new shared readiness owner has 2 doors."
+    ]
+  },
+  "prevention": {
+    "kind": "runtime-assertion",
+    "enforcement_path": "scripts/_test-ready-timeout.mjs",
+    "invariant": "Two valid distinct real fixture processes must be observed alive before the deadline and gone after it.",
+    "failure_mode": "Missing readiness, invalid PID, premature exit or surviving descendant fails the test; cleanup never substitutes for assertions.",
+    "exception_policy": "none",
+    "strategy": "Centralize fixture startup and paired liveness checks, use the built-in test clock only for the deadline, and separate synchronous retry policy from native timeout integration.",
+    "artifacts": [
+      "scripts/_test-ready-timeout.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/pre-push-structure.node-test.mjs",
+    "scripts/lib/transientRetry.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/pre-push-structure.node-test.mjs",
+    "scripts/lib/transientRetry.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/pre-push-structure.node-test.mjs",
+      "scripts/lib/transientRetry.node-test.mjs"
+    ],
+    "rationale": "Removed inline slow fixture and HANG_SCRIPT/counter assumptions in the same change; no parallel old fixture remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency migration; uses existing Node test mock timers, real runner and process tree utilities.",
+    "exit_criteria": []
+  },
+  "migration": "No product data or production runner migration. Only self-test fixtures and observations change.",
+  "residual_risks": [
+    "Validation is macOS/Node 24; Windows PID cleanup semantics remain unverified locally.",
+    "Synchronous retry policy uses an explicit command-boundary double; native exec timeout has a separate real integration assertion."
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-11-05",
+  "invariant_owner_layer": {
+    "layer": "scripts/_test-ready-timeout.mjs",
+    "tests": [
+      "scripts/pre-push-structure.node-test.mjs",
+      "scripts/lib/transientRetry.node-test.mjs"
+    ]
+  }
+}

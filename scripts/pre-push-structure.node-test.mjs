@@ -11,10 +11,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 
-import { makeTempDir } from './_test-temp.mjs'
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
+import { readyTreeTimeout } from './_test-ready-timeout.mjs'
 import { gitPaths } from './lib/gitPaths.mjs'
 import { TEST_FILE, scanEvidence, walkSites } from './lib/scanGuardDetect.mjs'
+import { clearTypecheckCoverageCache, programRootFiles, touchesTypecheck } from './lib/typecheckCoverage.mjs'
+import { TYPECHECK_PROJECTS, TYPECHECK_SHARED_CONFIGS } from './lib/typecheckProjects.mjs'
 
 import { scanGuardCensusInputs } from './check-scan-guard-census.mjs'
 import { judgeLint } from './lint-changed.mjs'
@@ -33,6 +37,7 @@ import {
   parsePushRefs,
   pushDecision,
   runNode,
+  runWithDeadline,
   scanGuardsToRun,
   selectGates,
   softenTimeout,
@@ -82,10 +87,10 @@ const SCANNER_READS = {
   'check:dangling-tailwind': ['src/a.css', 'src/b.tsx', 'tailwind.config.ts', 'scripts/dangling-tailwind-baseline.json'],
   'check:design-lab-mirrors': ['src/devlab/designLab/a.tsx', 'src/workbench/x/Y.tsx', 'tests/ux/design-lab/baselines/a.png', 'scripts/check-design-lab.mjs'],
   'check:walkthroughs': ['tests/ux/a.walk.mjs', 'tests/ux/g1/cases.node-test.mjs', 'tests/ux/x.json', 'src/a.css', 'src/b.tsx', 'scripts/walkthrough-baseline.json', 'scripts/check-walkthroughs.mjs'],
-  'check:tokens': ['src/theme/nomi-tokens.css', 'src/ui/A.tsx', 'src/a.ts', 'src/a.mts', 'electron/x.ts', 'electron/theme.css', 'tailwind.config.ts', 'scripts/check-design-tokens.mjs', 'scripts/lib/colorMixHue.mjs', 'scripts/lib/scopedTokenScan.mjs', 'scripts/lib/gitPaths.mjs'],
+  'check:tokens': ['src/theme/nomi-tokens.css', 'src/ui/A.tsx', 'src/a.ts', 'src/a.mts', 'electron/x.ts', 'electron/theme.css', 'tailwind.config.ts', 'scripts/check-design-tokens.mjs', 'scripts/lib/colorMixHue.mjs', 'scripts/lib/scopedTokenScan.mjs', 'scripts/lib/overlayZScan.mjs', 'scripts/overlay-z-baseline.json', 'scripts/lib/gitPaths.mjs'],
   'check:vocabularies': ['src/a.ts', 'src/a.tsx', 'src/a.mts', 'src/a.cts', 'electron/b.cts', 'electron/b.mts', 'scripts/check-vocabularies.mjs', 'scripts/check-vocabularies-scan.mjs', 'scripts/vocabularies-baseline.json'],
   'check:controls': ['src/ui/B.tsx', 'scripts/check-control-contract.mjs', 'scripts/control-contract-copy.mjs', 'scripts/control-contract-discarded-commands.mjs', 'scripts/control-copy-baseline.json'],
-  'test:temp-helper': ['scripts/x.node-test.mjs', 'tests/ux/y.walk.mjs', 'tests/ux/z.probe.mjs', 'scripts/check-test-temp-static.node-test.mjs', 'scripts/_test-temp.mjs'],
+  'test:temp-helper': ['scripts/x.node-test.mjs', 'tests/ux/y.walk.mjs', 'tests/ux/z.probe.mjs', 'tests/ux/_helper.mjs', 'tests/agent-runtime/a.test.mts', 'scripts/b.test.cjs', 'tests/ux/c.tsx', 'scripts/check-test-temp-static.node-test.mjs', 'scripts/_test-temp.node-test.mjs', 'scripts/_test-temp.mjs', 'scripts/lib/systemTempScan.mjs', 'scripts/test-temp-bypass-baseline.json'],
   'check:test-copy-literals': ['src/a.test.ts', 'electron/b.test.ts', 'scripts/c.node-test.mjs', 'tests/ux/d.walk.mjs', 'tests/ux/exempt.json', 'evals/e.test.mjs', 'packages/p/f.test.ts', 'src/i18n/locales/zh.ts', 'electron/desktopStrings.ts', 'scripts/check-test-copy-literals.mjs'],
   'test:control-contract': ['scripts/check-control-contract.test.mjs', 'scripts/control-contract-copy.mjs', 'scripts/control-contract-discarded-commands.mjs', 'scripts/_test-temp.mjs'],
   'test:pre-push-structure': ['scripts/x.mjs', 'package.json', 'scripts/git-hooks.json', 'scripts/pre-push-structure.node-test.mjs', 'scripts/pre-push-gate-table.mjs', 'scripts/pre-push-gate-inputs.mjs', 'scripts/pre-push-contracts.mjs', 'scripts/pre-push-related-tests.mjs'],
@@ -280,6 +285,47 @@ test('check:i18n 如实标成「只在 CI 跑」：不再有同名别名掩盖�
   assert.ok(PRE_PUSH_NAMES.has('check:test-copy-literals'))
 })
 
+function typecheckFixture(t) {
+  const root = makeTempDir('typecheck-selector-')
+  t.after(() => {
+    clearTypecheckCoverageCache()
+    cleanupTestTemp(root)
+  })
+  const roots = ['covered.ts', 'covered-js.js', 'covered-jsx.jsx', 'covered-mjs.mjs', 'covered.cjs']
+  for (const file of [...roots, 'uncovered.mjs']) fs.writeFileSync(path.join(root, file), 'export {}\n')
+  for (const config of TYPECHECK_SHARED_CONFIGS) fs.writeFileSync(path.join(root, config), '{}\n')
+  for (const [label, config] of Object.entries(TYPECHECK_PROJECTS)) {
+    const dir = path.dirname(path.join(root, config))
+    fs.mkdirSync(dir, { recursive: true })
+    const files = label === 'nativeTest' ? roots : ['covered.ts']
+    fs.writeFileSync(path.join(root, config), JSON.stringify({
+      compilerOptions: { allowJs: label === 'nativeTest', jsx: 'preserve' },
+      include: files.map((file) => path.relative(dir, path.join(root, file)).split(path.sep).join('/')),
+    }))
+  }
+  return { root, roots }
+}
+
+test('typecheck 夹具：allowJs 的 CJS 根文件单独改必须选中，所有 JS 根文件同样遵循真实覆盖', (t) => {
+  const { root, roots } = typecheckFixture(t)
+  const compiled = programRootFiles(TYPECHECK_PROJECTS.nativeTest, root)
+  for (const file of ['covered.cjs', ...roots]) {
+    assert.ok(compiled.includes(file), `${file} 必须先被真实 tsconfig 展开为根文件`)
+    assert.equal(touchesTypecheck([file], root), true, `${file} 是根文件，单独修改必须选中 typecheck`)
+  }
+})
+
+test('typecheck 夹具反例：未覆盖 MJS 不选中；TS、配置、side inputs 与混合输入保持原语义', (t) => {
+  const { root } = typecheckFixture(t)
+  assert.equal(touchesTypecheck(['uncovered.mjs'], root), false)
+  assert.equal(touchesTypecheck([], root), false)
+  for (const file of ['covered.ts', ...Object.values(TYPECHECK_PROJECTS), ...TYPECHECK_SHARED_CONFIGS,
+    'other/tsconfig.devlab.json', 'package.json', 'pnpm-lock.yaml', 'scripts/test-types-baseline.json']) {
+    assert.equal(touchesTypecheck([file], root), true, file)
+  }
+  assert.equal(touchesTypecheck(['uncovered.mjs', 'covered.cjs'], root), true)
+})
+
 test('typecheck 不覆盖的目录诚实地不选中（tests/ux 的 tsx、evals 非 test、packages 等），（tsconfig 配置文件本身另测：任何 tsconfig*.json 都选中）', () => {
   for (const file of ['tests/ux/fixtures/foo.tsx', 'tests/ux/walk.ts', 'tests/agent-system/schema.mts', 'evals/director/binding.ts', 'packages/p/index.ts', 'workers/w.ts']) {
     assert.equal(touchesGateInputs('typecheck', [file]), false, `${file} 不在任何 tsc program 里，不该选中 typecheck`)
@@ -327,6 +373,20 @@ const isolatedRun = (argv, env, options) => {
   return runNode(argv, { ...blanked, ...env }, options)
 }
 
+test('必红：整体超时的「杀树 + 等树退净 + 回收」期间，被杀子进程的 close 不能让任务池先跑完——期限的结果压过池的结果，期限之后不再起新任务', async () => {
+  // 杀树要等几毫秒，这期间被杀子进程的 close 事件会让两个任务先结束；早先 runWithDeadline 一到期就同步 resolve，现在要等回收，
+  // 池要是先 resolve，整体超时就被当成「全跑完了」（check:claude-hooks 的同名用例在 CI 才红过一次）。第三个任务排在池里，期限一到就不许再起。
+  let started = 0
+  const tasks = [0, 1, 2].map((index) => async () => {
+    started += 1
+    return { name: `probe:${index}`, ...(await isolatedRun(['-e', 'setInterval(() => {}, 1000)'], {}, { timeoutMs: 60_000, name: `probe:${index}` })) }
+  })
+  const outcome = await runWithDeadline(tasks, 2, 1500)
+  assert.equal(outcome.timedOut, true, '整体超时被当成了「全跑完了」')
+  assert.equal(outcome.stillRunning.length, 2)
+  assert.equal(started, 2, '期限之后不该再起新任务')
+})
+
 test('结构：本文件里只有 isolatedRun 一处直接起子进程（runNode 只调用一次），谁绕开它就红', () => {
   const source = read('scripts/pre-push-structure.node-test.mjs')
   assert.equal(source.match(/\brunNode\(/g).length, 1, 'runNode 的调用只许出现在 isolatedRun 里')
@@ -334,7 +394,7 @@ test('结构：本文件里只有 isolatedRun 一处直接起子进程（runNode
 })
 
 test('结构：scripts/ 里 spawn 出来的子进程统一走 processTree；直接 kill 只能是具名生命周期例外', () => {
-  const files = gitPaths(['ls-files', 'scripts'], { cwd: repoRoot, maxBuffer: 256 * 1024 * 1024 })
+  const files = gitPaths(['ls-files', 'scripts'], { cwd: repoRoot })
     .filter((file) => /\.(?:mjs|cjs|js)$/.test(file) && file !== 'scripts/lib/processTree.mjs')
   const directKillFiles = files.filter((file) => /\.kill\s*\(/.test(read(file).replace(/\bprocess\.kill\s*\(/g, '')))
   assert.deepEqual(directKillFiles.sort(), Object.keys(DIRECT_KILL_EXCEPTIONS).sort(), `未登记的直接 kill：${directKillFiles.join('、')}`)
@@ -344,6 +404,28 @@ test('结构：scripts/ 里 spawn 出来的子进程统一走 processTree；直�
   const helper = read('scripts/lib/processTree.mjs')
   assert.match(helper, /process\.kill\(-pid, signal\)/, 'POSIX 必须按负 pid 终止进程组；退回 child.kill 不能过结构门')
   assert.match(helper, /taskkill.*\/T.*\/F/s, 'Windows 必须保留 taskkill /T /F')
+})
+
+test('结构：pre-push-contracts.mjs 里每一处 killProcessTree( 都在 terminateAndReclaim 里，单门超时与整体超时各走它一次——杀进程的一方收它留下的目录，不留直接杀的口子', () => {
+  const file = 'scripts/pre-push-contracts.mjs'
+  const ast = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
+  const enclosingFunction = (node) => {
+    for (let current = node.parent; current; current = current.parent) if (ts.isFunctionDeclaration(current) && current.name) return current.name.text
+    return null
+  }
+  const kills = []
+  const terminations = []
+  const visit = (node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      if (node.expression.text === 'killProcessTree') kills.push(enclosingFunction(node))
+      if (node.expression.text === 'terminateAndReclaim') terminations.push(enclosingFunction(node))
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(ast)
+  assert.ok(kills.length > 0, '没找到 killProcessTree 的调用：结构变了，这条测试要跟着改')
+  assert.deepEqual([...new Set(kills)], ['terminateAndReclaim'], `直接杀进程树、不经 terminateAndReclaim 的口子：${JSON.stringify(kills)}`)
+  assert.deepEqual(terminations.sort(), ['runNode', 'runWithDeadline'], '单门超时（runNode）与整体超时（runWithDeadline）都要走 terminateAndReclaim')
 })
 
 test('必红：钩子环境里的 GIT_DIR / GIT_INDEX_FILE 等不传给门岗与测试子进程（10-10 测试的 git init 把真仓库改成 bare）', async () => {
@@ -422,35 +504,16 @@ test('慢测试不进相关单测：pre-push-contracts.node-test.mjs 被命中�
   for (const file of Object.keys(SLOW_TEST_FILES)) assert.ok(fs.existsSync(path.join(repoRoot, file)), `SLOW_TEST_FILES 里的 ${file} 已不存在`)
 })
 
-test('必红：假慢测试（永不退出）→ 到上限被终止、不算红、note 点名文件并说「没跑完，CI 会跑」；真红的测试照样红', async () => {
-  const dir = makeTempDir('nomi-related-')
-  const slow = path.join(dir, 'slow.node-test.mjs')
-  const slowPidFile = path.join(dir, 'slow.pid')
-  const descendantPidFile = path.join(dir, 'descendant.pid')
-  const red = path.join(dir, 'red.node-test.mjs')
-  fs.writeFileSync(slow, ["import fs from 'node:fs'", "import { spawn } from 'node:child_process'", "import test from 'node:test'", `fs.writeFileSync(${JSON.stringify(slowPidFile)}, String(process.pid))`, `const descendant = ${['sp', 'awn'].join('')}(process.execPath, ['-e', ${JSON.stringify("setInterval(() => {}, 1000)")}], { stdio: 'ignore' }); fs.writeFileSync(${JSON.stringify(descendantPidFile)}, String(descendant.pid))`, "test('hang', () => new Promise(() => setInterval(() => {}, 1000)))", ''].join('\n'))
-  fs.writeFileSync(red, ["import test from 'node:test'", "import assert from 'node:assert/strict'", "test('red', () => assert.equal(1, 2))", ''].join('\n'))
-  const started = Date.now()
-  const timedOut = await runRelatedTests({ vitest: [], node: [slow], browser: [], skipped: [], truncated: 0 }, isolatedRun, { budgetMs: 1500 })
-  assert.ok(Date.now() - started < 30_000, '超时上限没生效')
+test('必红：假慢测试（永不退出）→ 到上限被终止、不算红、note 点名文件并说「没跑完，CI 会跑」；真红的测试照样红', async (t) => {
+  const { result: timedOut, file: slow } = await readyTreeTimeout(t, (file, budgetMs) =>
+    runRelatedTests({ vitest: [], node: [file], browser: [], skipped: [], truncated: 0 }, isolatedRun, { budgetMs }))
   assert.equal(timedOut.status, 0, '超时不算红')
   assert.match(timedOut.note, /相关单测没跑完/)
   assert.match(timedOut.note, /CI 会跑/)
   assert.ok(timedOut.note.includes(slow), '要点名没跑的文件')
-  const slowPid = Number(fs.readFileSync(slowPidFile, 'utf8'))
-  const deadline = Date.now() + 3000
-  while (Date.now() < deadline) {
-    try {
-      process.kill(slowPid, 0)
-    } catch (error) {
-      if (error.code === 'ESRCH') break
-      throw error
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50))
-  }
-  assert.throws(() => process.kill(slowPid, 0), { code: 'ESRCH' }, '超时后假慢测试的 pid 仍存活')
-  const descendantPid = Number(fs.readFileSync(descendantPidFile, 'utf8'))
-  assert.throws(() => process.kill(descendantPid, 0), { code: 'ESRCH' }, '超时后假慢测试派生的 pid 仍存活')
+  const dir = makeTempDir('nomi-related-red-')
+  const red = path.join(dir, 'red.node-test.mjs')
+  fs.writeFileSync(red, ["import test from 'node:test'", "import assert from 'node:assert/strict'", "test('red', () => assert.equal(1, 2))", ''].join('\n'))
   const failed = await runRelatedTests({ vitest: [], node: [red], browser: [], skipped: [], truncated: 0 }, isolatedRun, { budgetMs: 60_000 })
   assert.notEqual(failed.status, 0, '上限内真红必须拦')
 })
@@ -517,7 +580,7 @@ test('必红：typecheck 超时 → 推送不被拦（状态 0）、输出写明
 const scanGuardInputs = scanGuardCensusInputs
 
 test('扫描型守卫：仓库里每个「遍历源码并对全集断言」的测试都有去处——推送前登记 / CI_ONLY（附理由）/ 已被推送前门岗覆盖 / 识别器误判（附理由）', () => {
-  const tracked = gitPaths(['ls-files'], { cwd: repoRoot, maxBuffer: 256 * 1024 * 1024 })
+  const tracked = gitPaths(['ls-files'], { cwd: repoRoot })
   const problems = scanGuardProblems(scanGuardInputs(repoRoot, tracked, pkg))
   assert.deepEqual(problems, [], `\n${problems.join('\n')}\n`)
   assert.ok(SCAN_GUARDS.length >= 40, `登记的扫描型守卫太少：${SCAN_GUARDS.length}`)

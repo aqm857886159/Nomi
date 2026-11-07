@@ -1,0 +1,285 @@
+{
+  "schema_version": 3,
+  "id": "2026-10-28-prompt-library-refresh",
+  "change_kind": "corrective",
+  "detected_by": "walkthrough",
+  "recurrence_check_on": "2026-11-28",
+  "problem_type": "「我的库」提示词列表在渲染层没有唯一持有者：直调写口的入口写完，屏上的列表不更新",
+  "symptom": "浏览器「提取提示词」成功后，标签页写「已存入提示词库：…」，左侧「提示词」抽屉里却看不到新条目，重载窗口才出现；用户以为没存上，再提取一次，就多花一次钱。同路径还有「保存选中文字」、画布「选区存为提示词」、素材面迁移（读码推断同症状，未起窗口验证）。",
+  "direct_cause": "useUserPrompts.ts 的模块级 cached 只被 hook 自己的 add / update / remove / restore 刷新，抽屉每次打开都从 cached 起步且 load(false) 有缓存就不读盘；直调 promptLibraryApi.addUserPrompt 的 4 个发起处不经 hook，写成功了也没人通知这份缓存。",
+  "class_root": "缓存所有权和写入口分居两层：列表住在 React hook 的文件里，写入口住在更下层的 API 文件里，下层写完没法也没义务通知上层；hook 里又同时留着模块缓存和实例 state 两份表示。每多一个绕过 hook 的写入口，就多一个「已存入、屏上却没有」的洞——结构上没人强制「写成功必发布整表」。",
+  "affected_population": [
+    "用浏览器「提取提示词」存提示词的用户（存完抽屉里看不到，会重复提取、重复付费）",
+    "用浏览器「保存选中文字」、画布「选区存为提示词」存提示词的用户（读码推断同症状）",
+    "已打开的提示词抽屉、`/` 菜单和生成框里的「提示词预设」列表（共用同一份陈旧缓存）"
+  ],
+  "scope_paths": [
+    "src/workbench/promptLibrary/userPromptList.ts",
+    "src/workbench/api/promptLibraryApi.ts",
+    "src/workbench/promptLibrary/useUserPrompts.ts",
+    "src/workbench/promptLibrary/PromptLibraryPanel.tsx"
+  ],
+  "entry_points": [
+    "渲染层写入口 8 个（4 个经 hook 的 add / update / remove / restore；4 个直调 API 的：浏览器「提取提示词」、浏览器「保存选中文字」、画布「选区存为提示词」、素材面迁移）→ promptLibraryApi 的 4 个写函数 → 桥 userAdd / userUpdate / userDelete / userRestore",
+    "主进程写入口 4 个（IPC nomi:prompt-library:user-add / -update / -delete / -restore → userPromptStore）：全部只由上面那 4 个桥方法触发，运行期没有第二个写入者",
+    "渲染层读：fetchUserPrompts（桥 userList）；列表的消费方 3 个（抽屉 PromptLibraryPanel、`/` 菜单 ProjectAgentResidentShell、生成框 NodeEffectChips）与启动预热 composerResidentData"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "「我的库」列表在渲染层的持有关系是 Nomi 自己的内部契约（渲染层缓存 + 主进程 JSON 存储 + IPC），不涉及第三方运行时行为；状态容器用仓库已有的 zustand（vanilla store），订阅用 React 自带的 useSyncExternalStore。",
+  "invariants": [
+    "渲染层「我的库」整表只有一个持有者（userPromptList，zustand vanilla store、寿命 process）；hook 只订阅它，不存副本",
+    "读口和 4 个写口收到的整表，只经 promptLibraryApi 的 acceptUserPromptList 校验（ok 且 prompts 是数组）后发布；校验不过就抛，什么也不发布",
+    "发布带发起序号：晚到的旧应答（读在途时写先落了地、两次写的应答乱序）被丢掉，缓存只往新走",
+    "订阅者抛错不拦后面的订阅者，也不把一次已经成功的写变成「写失败」",
+    "随点随挂的路径（生成框、`/` 菜单）缓存里有就 0 次读盘；只有抽屉打开时重读一次，兜住不经渲染层写口的写入",
+    "主进程存储的写函数只有 promptLibraryIpc.ts 引用；桥上的写方法只有 promptLibraryApi.ts 调用"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/promptLibrary/userPromptList.ts",
+      "symbol": "publishUserPrompts"
+    },
+    {
+      "kind": "read",
+      "path": "electron/promptLibrary/promptLibraryIpc.ts",
+      "symbol": "listUserPrompts"
+    },
+    {
+      "kind": "read",
+      "path": "electron/promptLibrary/userPromptStore.ts",
+      "symbol": "listUserPrompts"
+    },
+    {
+      "kind": "read",
+      "path": "electron/promptLibrary/userPromptStore.ts",
+      "symbol": "DeletedUserPrompt"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "useUserPrompts"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/composerResidentData.ts",
+      "symbol": "loadUserPromptItems"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+      "symbol": "useUserPrompts"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+      "symbol": "useUserPrompts"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/promptLibrary/useUserPrompts.ts",
+      "symbol": "getUserPromptsSnapshot"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/promptLibrary/useUserPrompts.ts",
+      "symbol": "hasLoadedUserPrompts"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/promptLibrary/useUserPrompts.ts",
+      "symbol": "subscribeUserPrompts"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryIpc.ts",
+      "symbol": "addUserPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryIpc.ts",
+      "symbol": "restoreUserPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryIpc.ts",
+      "symbol": "updateUserPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryIpc.ts",
+      "symbol": "deleteUserPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/dialog/useBrowserDialogActions.ts",
+      "symbol": "addUserPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/prompt/browserPromptExtractionRunner.ts",
+      "symbol": "addUserPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/promptLibraryApi.ts",
+      "symbol": "publishUserPrompts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/promptLibraryApi.ts",
+      "symbol": "beginUserPromptRequest"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/api/promptLibraryApi.ts",
+      "symbol": "acceptUserPromptList"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetSurfaceMigration.ts",
+      "symbol": "fetchUserPrompts"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/assets/assetSurfaceMigration.ts",
+      "symbol": "addUserPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+      "symbol": "addUserPrompt"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/promptLibrary/useUserPrompts.ts",
+      "symbol": "fetchUserPrompts"
+    }
+  ],
+  "door_reduction": {
+    "before": 17,
+    "after": 24,
+    "why_not": "门数没减，反而多了新模块自己的几扇：8 个渲染层写入口是不同的用户动作（提取、保存选中文字、选区存库、迁移、抽屉里的新建 / 编辑 / 删除 / 撤销），4 个主进程写入口是存储的 IPC 面，都必须各自存在；这一刀没有合并它们，而是让它们全部经过同一个出口。减的是持有者和发布点：列表从两份表示（hook 模块级 cached + hook 实例 state.items）收成一份，写这份列表的地方从两处（apply + loadUserPromptItems）收成一处（publishUserPrompts），由 acceptUserPromptList 一个出口喂它。前后数字都是 door-map 对同一批目标（存储文件、5 个 API 口、useUserPrompts、loadUserPromptItems）数的；after 里多出来的是新增符号的调用点。"
+  },
+  "generality_proof": "渲染层调桥「我的库」方法的地方全仓只有 promptLibraryApi.ts（守卫测试按语法树扫 src/ 生产代码，派生桥类型里全部 user* 方法，不靠手抄名单）；该文件里每个碰桥方法的函数都必须调 acceptUserPromptList，它是 publishUserPrompts 的唯一调用方（同样由守卫数）。所以不论入口是 hook、浏览器提取、保存选中文字、画布选区存库还是迁移，也不论发起时有没有 hook 挂着，写成功都发布整表，所有 useSyncExternalStore 订阅者当场更新。主进程这一侧，存储的写函数只有 promptLibraryIpc.ts 引用、存盘文件名只出现在存储和并排安装的启动前拷贝里（守卫同样会数）；出现第二个主进程写入者时守卫变红，逼着先加广播。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/api/promptLibraryApi.ts",
+      "symbol": "acceptUserPromptList",
+      "responsibility": "读口和 4 个写口收到的主进程整表的唯一出口：校验应答（ok 且 prompts 是数组，否则抛、不发布），映射后按发起序号发布给共享缓存。"
+    },
+    {
+      "path": "src/workbench/promptLibrary/userPromptList.ts",
+      "symbol": "publishUserPrompts",
+      "responsibility": "渲染层「我的库」整表的唯一持有者和唯一写口：丢掉晚到的旧应答，换上新整表，逐个（各自 try/catch）叫醒订阅者。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/browser/prompt/browserPromptExtractionRunner.ts",
+      "entry_point": "addUserPrompt",
+      "disposition": "enforced",
+      "evidence": "浏览器「提取提示词」直调 API 的 addUserPrompt（用户报的那条路）；写成功后经 acceptUserPromptList 发布，已挂载的抽屉当场更新（useUserPrompts.behavior.test.tsx 的 add 用例）；真窗口里由演练步骤 ③ 的硬断言守着（不重载窗口就要看到新条目，未修的 main 上红）。"
+    },
+    {
+      "path": "src/ui/browser/dialog/useBrowserDialogActions.ts",
+      "entry_point": "addUserPrompt",
+      "disposition": "enforced",
+      "evidence": "「保存选中文字」同样直调 addUserPrompt，走同一个出口；守卫保证它没有第二条路调桥。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx",
+      "entry_point": "addUserPrompt",
+      "disposition": "enforced",
+      "evidence": "画布「选区存为提示词」同样直调 addUserPrompt，走同一个出口。"
+    },
+    {
+      "path": "src/workbench/assets/assetSurfaceMigration.ts",
+      "entry_point": "migrateLegacyPromptCards",
+      "disposition": "enforced",
+      "evidence": "素材面迁移用 fetchUserPrompts 读、addUserPrompt 写，都经同一个出口；读口也发布，所以迁移跑完后缓存就是迁移后的整表。"
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+      "entry_point": "useUserPrompts().add/update/remove/restore",
+      "disposition": "enforced",
+      "evidence": "抽屉里经 hook 的 4 个写入口现在也只 await API 写口，列表随订阅更新（hook 不再有自己的 apply / 副本）；抽屉每次打开用 refreshOnOpen 重读一次。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+      "entry_point": "useUserPrompts(enabled)",
+      "disposition": "enforced",
+      "evidence": "生成框里的「提示词预设」列表是同一份订阅，写入后当场更新；缺省仍是缓存有就不读盘，点卡挂载 0 次读盘由 composerMountBudget.test.tsx 守着。"
+    },
+    {
+      "path": "electron/promptLibrary/promptLibraryIpc.ts",
+      "entry_point": "nomi:prompt-library:user-add / -update / -delete / -restore",
+      "disposition": "enforced",
+      "evidence": "主进程四个写通道是存储的唯一调用方，全部由渲染层 API 的四个写口触发；守卫测试保证存储的写函数只有这个文件引用，出现第二个就红。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新增的、不经 hook 的「存为提示词」入口，或将来的主进程写入者，都会复现同一个症状；这个病根已经在 10-24 的撤销那一串里以另一种面貌出现过（同一份库数据在多层各拼各的）。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs electron/promptLibrary/userPromptStore.ts src/workbench/promptLibrary/userPromptList.ts --write=publishUserPrompts,beginUserPromptRequest,acceptUserPromptList,addUserPrompt,updateUserPrompt,deleteUserPromptWithSnapshot,restoreUserPrompt,fetchUserPrompts --read=getUserPromptsSnapshot,hasLoadedUserPrompts,subscribeUserPrompts,loadUserPromptItems,useUserPrompts：确认写入口全部收口在 promptLibraryApi 的 4 个写函数，主进程只有 promptLibraryIpc 一个调用方。",
+      "全仓（src、electron、tests、scripts、evals）里搜桥的 userAdd / userUpdate / userDelete / userRestore：只有 promptLibraryApi.ts 调用。",
+      "全仓搜 userPromptStore：只有 promptLibraryIpc.ts 引用；electron/settings/sideBySideInstallSeed.ts 在并排安装时整份拷贝存盘文件，是启动前一次性，不算运行期写入者。",
+      "同类缓存（技能库）：已有主进程广播 + 渲染层总线，因为它有主进程写入者（Agent 的 author_skill）；提示词库今天没有，不重复造。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/api/promptLibraryApi.ts",
+    "invariant": "读口和 4 个写口收到的整表，只经 acceptUserPromptList 校验后发布进唯一的共享缓存；hook 只订阅。",
+    "failure_mode": "应答 ok:false、桥抛错、或 ok 但 prompts 不是数组：抛错、什么也不发布，缓存保持上一份已知的整表，调用方照常拿到报错；订阅者抛错只记渲染层日志，写照常成功。",
+    "exception_policy": "none",
+    "strategy": "把「写成功必发布整表」从各入口各自记得，改成 API 层唯一出口 + 唯一持有者模块；hook 里删掉模块缓存、实例 items 和 apply，改用 useSyncExternalStore 订阅。再用源码扫描守卫让第二个写入者（渲染层绕过 API 调桥、API 里新写口忘了发布、第二个发布方、主进程第二个存储写入者、直接写存盘文件）不能悄悄出现。",
+    "artifacts": [
+      "src/workbench/api/promptLibraryApi.ts",
+      "src/workbench/promptLibrary/userPromptList.ts",
+      "src/workbench/promptLibrary/useUserPrompts.ts",
+      "src/workbench/promptLibrary/userPromptDoors.guard.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/promptLibrary/userPromptDoors.guard.test.ts",
+    "src/workbench/promptLibrary/useUserPrompts.behavior.test.tsx",
+    "src/workbench/api/promptLibraryApi.test.ts",
+    "src/workbench/promptLibrary/userPromptList.test.ts",
+    "tests/ux/_browserExtractSteps.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/promptLibrary/userPromptDoors.guard.test.ts",
+    "src/workbench/promptLibrary/useUserPrompts.behavior.test.tsx",
+    "src/workbench/api/promptLibraryApi.test.ts",
+    "src/workbench/promptLibrary/userPromptList.test.ts",
+    "tests/ux/_browserExtractSteps.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有整个文件被删：旧的 hook 私有缓存（useUserPrompts.ts 里的模块级 cached、apply、实例 state.items）在原文件里同提交原地删除，不留回退、不留并行；半成品里的 setCachedUserPrompts / getCachedUserPrompts / subscribeToUserPromptChanges 从未提交过。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不变量由 Nomi 自己的渲染层模块决定；状态容器用仓库已有的 zustand（vanilla store），订阅用 React 自带的 useSyncExternalStore，没有新增依赖，也没有第三方版本约束。",
+    "exit_criteria": []
+  },
+  "migration": "无持久化格式变化：主进程存储和 IPC 一行没改，prompt-library-user.json 原样读写。只改渲染层缓存的归属和刷新时机；抽屉每次打开多一次 userList 读（本地内存读，毫秒级）。",
+  "residual_risks": [
+    "抽屉开着期间，如果将来主进程出现第二个写入者，它的写入要到下次打开抽屉才看见；今天没有这样的写入者，守卫会在它出现时变红，逼着先加主进程广播（技能库同款）。",
+    "真窗口只覆盖了浏览器「提取提示词」这一条入口：零花费演练 tests/ux/browser-extract-real.rehearsal.walk.mjs 的步骤 ③ 已改成硬断言（不重载窗口，抽屉里就要看到新条目；付费走查共用同一份步骤）。未修的 main 上这条断言红（库里确有那一条，抽屉里等满 60 秒也找不到），修后中英两遍都绿。主线上提交的演练证据（docs/evidence/2026-10-27-browser-extract-grant）仍是旧观察（entryShownWithoutReload: false），没有重写。",
+    "「保存选中文字」「画布选区存库」同症状只是读码推断，没有起窗口验证。",
+    "读口与写口应答乱序用发起序号兜住；主进程这几个通道今天是同步处理、按序应答，序号是保险，不是已经观察到的问题。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/promptLibrary/userPromptList.ts",
+    "tests": [
+      "src/workbench/promptLibrary/userPromptList.test.ts",
+      "src/workbench/promptLibrary/useUserPrompts.behavior.test.tsx",
+      "src/workbench/api/promptLibraryApi.test.ts"
+    ],
+    "why": "渲染层「我的库」整表的持有、发布和订阅都在这个模块；入口无论多少，写成功都经 API 出口发布到这里，hook 与所有消费方只读它。"
+  }
+}

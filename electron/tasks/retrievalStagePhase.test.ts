@@ -10,6 +10,7 @@ import type { Mapping, Model } from "../catalog/types";
 
 const executeProfileOperation = vi.hoisted(() => vi.fn());
 const localizeTaskAsset = vi.hoisted(() => vi.fn());
+const importRemoteAsset = vi.hoisted(() => vi.fn());
 const MODEL = { modelKey: "m-video", vendorKey: "relay", labelZh: "m", kind: "video", enabled: true, createdAt: "", updatedAt: "" } as Model;
 const QUERY_OP = { method: "GET", path: "/v1/tasks/{{providerMeta.task_id}}", response_mapping: { status: "status", video_url: "url" } };
 
@@ -28,8 +29,16 @@ vi.mock("../runtime", async () => {
     findTaskMapping: () => null,
   };
 });
+// 落地门（assets/localizeTaskAsset）用真的：只把它下面的落盘换成按剧本抛错。
+vi.mock("../assets/projectAssetStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../assets/projectAssetStore")>()),
+  importRemoteAsset: (...args: unknown[]) => importRemoteAsset(...args),
+}));
 
-const { fetchTaskResult, retrievalStageError } = await import("./taskResultQuery");
+const { fetchTaskResult } = await import("./taskResultQuery");
+const { retrievalStageError } = await import("./retrievalStageError");
+const { localizeTaskAsset: realLocalizeTaskAsset } = await import("../assets/localizeTaskAsset");
+const { answeredSubmissionFailure } = await import("../outboundDispatchEvidence");
 const { admitTask, taskCache } = await import("../runtime");
 const { VendorRequestError } = await import("../vendor/vendorHttp");
 const { matchNomiErrorCode, tagNomiError, NOMI_ERROR_ONLY_BEFORE_SUBMIT } = await import("../shared/nomiErrorCodes");
@@ -66,6 +75,7 @@ function queryRefusedByGuard(code: "outbound-blocked-submit" | "outbound-blocked
 beforeEach(() => {
   executeProfileOperation.mockReset();
   localizeTaskAsset.mockReset();
+  importRemoteAsset.mockReset();
 });
 
 describe("C1/C2：查询时被 Nomi 自己拦下——改挂取回阶段码，原码留在技术详情，不冒充服务商原话", () => {
@@ -112,11 +122,27 @@ describe("C1/C2：查询时被 Nomi 自己拦下——改挂取回阶段码，�
 });
 
 describe("C1：没有查询步的任务，下载产物失败也经同一个出口", () => {
-  it("localizeTaskAsset 抛无码错误 → retrieval-download", async () => {
+  // 挂码从「这里包一层」搬进了落地门自己（2026-10-28）：用真的落地门，只让它下面的落盘抛无码错误。
+  it("落地门下面抛无码错误 → retrieval-download（落地门挂码，出口原样放行）", async () => {
     admitPolling("task_noquery", false);
-    localizeTaskAsset.mockRejectedValue(new Error("socket hang up"));
+    localizeTaskAsset.mockImplementation(realLocalizeTaskAsset);
+    importRemoteAsset.mockRejectedValue(new Error("socket hang up"));
     const error = await fetchTaskResult({ taskId: "task_noquery" }).then(() => null, (caught: Error) => caught);
     expect(matchNomiErrorCode(error?.message ?? "")).toBe("retrieval-download");
+    expect(importRemoteAsset).toHaveBeenCalledTimes(1);
+    expect(error?.message).toContain("socket hang up");
+    expect(answeredSubmissionFailure(error)).toBe(true);
+  });
+
+  it("有查询步的任务：读到地址后落地失败 → retrieval-download（readResult 不再改挂第二层）", async () => {
+    admitPolling("task_query_land");
+    executeProfileOperation.mockResolvedValue({ request: {}, response: { status: "succeeded", url: "https://cdn.example.test/out.mp4" } });
+    importRemoteAsset.mockRejectedValue(new Error("Fetch failed: HTTP 403"));
+    const error = await fetchTaskResult({ taskId: "task_query_land" }).then(() => null, (caught: Error) => caught);
+    expect(matchNomiErrorCode(error?.message ?? "")).toBe("retrieval-download");
+    expect(importRemoteAsset).toHaveBeenCalledTimes(1);
+    expect(error?.message).toContain("HTTP 403");
+    expect(error?.message.match(/NOMI_ERR::/g)).toHaveLength(1);
   });
 });
 
@@ -146,6 +172,6 @@ describe("C3：码表给每个码登记阶段，出口只按这张表放行", ()
 
   it("提交前那一族一个不少", () => {
     const submit = Object.entries(NOMI_ERROR_ONLY_BEFORE_SUBMIT).filter(([, only]) => only).map(([code]) => code).sort();
-    expect(submit).toEqual(["asset-invalid", "asset-too-large", "asset-upload-failed", "model-config", "outbound-blocked-credential-origin", "outbound-blocked-submit", "reference-not-in-use", "submission-unknown"]);
+    expect(submit).toEqual(["aspect-ratio-unsupported", "asset-invalid", "asset-too-large", "asset-upload-failed", "model-config", "outbound-blocked-credential-origin", "outbound-blocked-submit", "reference-not-in-use", "submission-unknown"]);
   });
 });

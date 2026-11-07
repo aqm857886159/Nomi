@@ -25,8 +25,8 @@ import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } fr
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping'
 import { notify } from '../../ui/notificationPolicy'
 import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
-import { dispatchTimelineShortcut } from './timelineShortcuts'
-import { installShortcutSurfaceTracker } from '../shortcutSurface'
+import { dispatchTimelineShortcut, isTimelineShortcutsHelpKey } from './timelineShortcuts'
+import { installShortcutSurfaceTracker, shortcutSurfaceMayHandle } from '../shortcutSurface'
 import { groupTimelineTransitionFeedbackByTrack } from './timelineVisualFeedback'
 import { TimelineContextMenu, type TimelineContextTarget } from './TimelineContextMenu'
 import { TimelineShortcutsDialog } from './TimelineShortcutsDialog'
@@ -297,16 +297,16 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
 
   React.useEffect(() => {
     const onHelp = (event: KeyboardEvent) => {
-      // 与上面的 dispatchTimelineShortcut 同款去重：预览/生成两个 TimelinePanel 因
-      // keep-alive 同时挂载、各注册一个 window keydown。`?` 是 toggle——不去重会在
-      // 两个面板各翻转一次（开了又关，快捷键表按了像没反应）；Escape 幂等（各关各的
-      // 菜单/弹层，执行两次无副作用），不参与去重，否则第二面板的菜单就关不掉了。
-      if (event.key === '?' || (event.key === '/' && event.shiftKey)) {
+      if (!shortcutSurfaceMayHandle(panelRef.current)) return
+      // 与上面的 dispatchTimelineShortcut 同款去重：预览/生成两个 TimelinePanel 因 keep-alive 同时挂载、各注册一个 window keydown。
+      // 面只负责打开：帮助框是模态，开着时这里收不到键，再按 `?` 和 Esc 的关闭都归帮助框自己。
+      // Escape 幂等（各关各的菜单，执行两次无副作用），不参与去重，否则第二面板的菜单就关不掉了。
+      if (isTimelineShortcutsHelpKey(event)) {
         if (event.defaultPrevented) return
         event.preventDefault()
-        setShortcutsOpen((open) => !open)
+        setShortcutsOpen(true)
       }
-      if (event.key === 'Escape') { setContextMenu(null); setShortcutsOpen(false) }
+      if (event.key === 'Escape') setContextMenu(null)
     }
     window.addEventListener('keydown', onHelp)
     return () => window.removeEventListener('keydown', onHelp)

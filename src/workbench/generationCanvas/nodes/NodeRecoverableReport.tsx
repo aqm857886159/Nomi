@@ -14,7 +14,7 @@ import { CopyDetailsButton, ProviderMessageNote, TechnicalDetailsBlock, Technica
  *
  * 异步任务轮询超时但**上游可能仍在跑/已出片**：刻意不进红色错误桶（那会误导用户以为白花了钱），
  * 而是中性提示 + 「重新拉取结果」一键找回（query 非 generate，不扣费、不弹确认）。
- * 续查所需的 vendor/modelKey/kind/taskId 都在节点上（taskId 已落盘），主进程无状态重建查询，
+ * 续查身份来自节点的运行记录号；老记录才用 vendor/modelKey/kind/taskId 重建查询，
  * 故重启 App 后这个按钮照样能把片子拉回来。视觉与 NodeErrorReport 同骨架（铺满正文），但用中性纸底。
  *
  * 最后一次取回失败的原话（node.error）照失败卡的样子给出来：服务商原话 + 复制详情 + 技术详情（#1213）。
@@ -26,7 +26,7 @@ export function NodeRecoverableReport({
   onRecover,
   onDismiss,
 }: {
-  node: Pick<GenerationCanvasNode, 'runs' | 'error'>
+  node: Pick<GenerationCanvasNode, 'id' | 'runs' | 'error' | 'meta'>
   onRecover?: () => void
   onDismiss?: () => void
 }): JSX.Element {
@@ -58,7 +58,7 @@ export function NodeRecoverableReport({
   return (
     <div
       role="status"
-      aria-label={t('generationCommon.recoverable.aria')}
+      aria-label={t(copy.aria)}
       className={cn(
         'absolute inset-0 z-[5] flex flex-col rounded-nomi p-4',
         // 不透明纸底盖住棋盘格占位；细描边用中性 line（非 danger）——一眼是「等待中/可找回」不是「失败」。
@@ -71,11 +71,11 @@ export function NodeRecoverableReport({
           {t(copy.title)}
         </span>
       </div>
+      <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 flex-1 overflow-y-auto')}>
       <p className="mt-2 select-text cursor-text text-caption leading-relaxed text-nomi-ink-60">
         {t(copy.description)}
       </p>
 
-      <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 flex-1 overflow-y-auto')}>
         {report?.providerMessage ? <ProviderMessageNote text={report.providerMessage} /> : null}
       </div>
 

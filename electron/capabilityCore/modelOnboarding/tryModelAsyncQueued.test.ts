@@ -92,7 +92,7 @@ describe("nomi_try_model 遇到异步供应商", () => {
   });
 
   beforeEach(async () => {
-    vi.stubEnv("NOMI_SETTINGS_DIR", root);
+    vi.stubEnv("NOMI_SETTINGS_DIR", fs.mkdtempSync(path.join(root, "case-")));
     const docs = "https://docs.example-async.com/api";
     const ctx = { origin: { host: "claude" } } as never;
     const submitted = await dispatch("model.onboarding.setup", {

@@ -31,6 +31,10 @@ const FORBIDDEN_PATHS = [
   { re: /\.db$/, why: "数据库文件（可能是微信库）" },
   { re: /(^|\/)(all_)?keys?\.json$/, why: "取钥输出（含明文 db_key）" },
   { re: /wechat[-_]?export/i, why: "微信导出目录" },
+  // 执行线临时产物（2026-10-27）：Codex 线没有 Claude 会话那层 add -f 拦截 hook，这里是所有执行体都要过的一道。
+  { re: /(^|\/)\.tmp-pr-body\.md$/, why: "PR 正文草稿（留在工作树里给协调读，不进提交）" },
+  { re: /(^|\/)CODEX-REPORT\.md$/, why: "执行线临时报告（报告写进协调目录，不进仓库）" },
+  { re: /(^|\/)\.[^/]+-walk\//, why: "走查临时产物目录（要留的证据放 docs/evidence/）" },
 ];
 
 // ── 白名单：放行（代码/文档/模板，含正则模式或占位示例，非真数据）──
@@ -225,21 +229,30 @@ const maskSample = (s) => (s.length <= 12 ? `${s.slice(0, 2)}…` : `${s.slice(0
 const normalizeScanPath = (f) => String(f).replaceAll("\\", "/");
 const isAllowed = (f) => ALLOWLIST.some((re) => re.test(normalizeScanPath(f)));
 
-function listStaged() {
+/**
+ * 列不出文件不等于没有文件。2026-10-31 全仓清单越过缓冲上限，这里把错吞成 []，
+ * 门岗写着「扫 0 个，通过」放行了整个仓库。所以失败直接红，--all 扫到 0 个也红。
+ */
+function listOrFail(args, label) {
   try {
-    // `-z`：默认 quotePath 把非 ASCII 路径转义成 `"docs/\\344..."`，按该串读文件必然失败，
-    // 而读失败被下面的 catch 吞掉 —— 敏感数据扫描会**静默跳过**中文名的文件。
-    return gitPaths(["diff", "--cached", "--name-only", "--diff-filter=AM"]);
-  } catch {
-    return [];
+    // `-z`（gitPaths 自带）：默认 quotePath 把非 ASCII 路径转义成 `"docs/\\344..."`，按该串读文件必然失败，
+    // 而 readContent 的读失败会被吞掉 —— 敏感数据扫描会**静默跳过**中文名的文件。
+    return gitPaths(args);
+  } catch (error) {
+    console.error(`  🔴 安全门岗没有扫描：${label}列不出来（${error.message}）。这不算通过。`);
+    process.exit(1);
   }
 }
+function listStaged() {
+  return listOrFail(["diff", "--cached", "--name-only", "--diff-filter=AM"], "暂存文件");
+}
 function listAllTracked() {
-  try {
-    return gitPaths(["ls-files"]);
-  } catch {
-    return [];
+  const files = listOrFail(["ls-files"], "全部 tracked 文件");
+  if (files.length === 0) {
+    console.error("  🔴 安全门岗没有扫描：--all 一个文件都没列到。这不算通过。");
+    process.exit(1);
   }
+  return files;
 }
 /** 读内容：staged 模式读 index 里的版本（git show :path），否则读工作区。跳过二进制。 */
 function readContent(f, staged) {

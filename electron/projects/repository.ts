@@ -8,18 +8,20 @@ import path from "node:path";
 import { ensureExportDirs } from "../export/exportPaths";
 import { writeJsonFileAtomic } from "../jsonFile";
 import type { JsonRecord } from "../jsonUtils";
-import { PROJECT_FILE, ensureDir, getProjectsRoot, getWorkspaceRepositoryDeps, readJson } from "../runtimePaths";
+import { PROJECT_FILE, ensureDir, getProjectLocationState, getProjectsRoot, getWorkspaceRepositoryDeps, readJson } from "../runtimePaths";
+import { logWarn } from "../logging/logger";
 import {
   discoverLegacyProjectsOnce,
   isLegacyProjectSuppressed,
   suppressLegacyProjectRediscovery,
 } from "../workspace/legacyProjectMigration";
 import {
+  bindWorkspaceLocations,
   findRecentWorkspace,
-  rememberWorkspaces,
   removeWorkspaceReference,
 } from "../workspace/workspaceRegistry";
-import { resolveWorkspaceRelativePath } from "../workspace/workspacePaths";
+import { assertUserOwnedLocation } from "../workspace/workspaceLocationPolicy";
+import { resolveWorkspaceRelativePath, workspaceNomiDir } from "../workspace/workspacePaths";
 import { WorkspaceManifestLockBusyError } from "../workspace/workspaceManifestLock";
 import { moveProjectFolderToTrash } from "./projectTrash";
 import {
@@ -96,8 +98,15 @@ export function normalizeProjectRecord(input: unknown): ProjectRecord {
 
 export function legacyProjectDirById(projectId: string): string | null {
   const root = getProjectsRoot();
-  ensureDir(root);
-  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+  // 只找、不建：默认根不在就是找不到（「项目在哪」收敛单第 3 条）。以前这里先 ensureDir(默认根)，升级清掉安装目录后
+  // 素材库、媒体解析、readProject 任何一次查找都把空的默认根建回来，列表随后把整库灰卡当成「用户删了」摘掉。
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const projectDir = path.join(root, entry.name);
     if (isLegacyProjectSuppressed(projectDir)) continue;
@@ -144,34 +153,21 @@ export async function listProjects(): Promise<Array<Omit<ProjectRecord, "payload
   // 「发现」legacy 项目是对 registry **缺失项**的增量对账，不是每次启动把全库重读重注册：
   // discoverLegacyProjectsOnce 拿 settingsRoot 先跳过所有已注册目录（0 次 manifest 读），
   // 只对真正的新项目走无锁快照读；随后一次批量写 registry（而不是 N 次全量重写）。
+  // 登记的是扫到的目录本身；扫到的 id 已经绑在另一个还在的文件夹上（复制出来的副本）就跳过，原登记不动。
   const discovered = discoverLegacyProjectsOnce(deps.defaultProjectsRoot, { settingsRoot: deps.settingsRoot });
-  rememberWorkspaces(
+  const { conflicts } = bindWorkspaceLocations(
     deps.settingsRoot,
-    discovered.map((record) => ({
-      record,
-      origin: { source: "native", nativeRootPath: deps.defaultProjectsRoot } as const,
-    })),
+    discovered.map((found) => ({ ...found, origin: { source: "native", nativeRootPath: deps.defaultProjectsRoot } as const })),
   );
+  for (const conflict of conflicts) logWarn("workspace", "discovery-copy-skipped", { projectId: conflict.binding.id });
   // 列举只读项目、不删项目（N1，2026-10-22）：空白草稿回收曾挂在首次列举上，列举是异步的，
   // 期间排队等锁的保存会被它删掉。列表返回所有登记过的项目，不藏也不删（读面不做展示上的取舍）；
   // 删项目只有用户点删除这一扇门（check:read-path-writes 把 deleteWorkspaceProject 列为销毁门，读路径可达即红）。
+  // 列表不摘登记（「项目在哪」收敛单第 1 条，用户 2026-10-29 批准）：文件夹找不到的项目照出 missing 卡、一直留在库里，
+  // 直到用户自己移除或重新打开那个文件夹。「文件夹不在 = 用户删了」是错的前提——改名、挪走、升级清掉安装目录、
+  // 同步盘晚挂载都是文件夹不在；06-14 起按这个前提在这里摘登记，升级后关掉再开整库项目就没了。
   const projects = await listWorkspaceProjects(deps);
-  // 自愈对齐磁盘 ↔ registry:native 项目(Nomi 自管目录,~/Documents/Nomi Projects 内)
-  // 若文件夹已不存在 = 真删(本地盘不会临时消失),从 registry 摘除引用,不再当幽灵卡片展示。
-  // 防雪崩:仅当默认根本身仍存在时才清;根整体不可访问(被移走/同步中)则全部保留,等其回归。
-  // external「打开文件夹」绑定的 missing 一律保留——外部盘/目录可能临时卸载,回来即恢复。
-  const alive = projects.filter((project) => {
-    const entry = project.missing ? findRecentWorkspace(deps.settingsRoot, project.id) : null;
-    const nativeRootExists = Boolean(
-      entry?.source === "native" && entry.nativeRootPath && fs.existsSync(entry.nativeRootPath),
-    );
-    if (project.missing && project.source === "native" && nativeRootExists) {
-      removeWorkspaceReference(deps.settingsRoot, project.id);
-      return false;
-    }
-    return true;
-  });
-  return alive.sort((a, b) => b.updatedAt - a.updatedAt);
+  return projects.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 // 「新建项目」走这里：不让渲染层指定路径，由主进程在默认根（getProjectsRoot，
@@ -179,7 +175,11 @@ export async function listProjects(): Promise<Array<Omit<ProjectRecord, "payload
 // 初始化/注册/资源落盘逻辑。这样用户「新建项目」无需每次选文件夹也能立刻开工，
 // 而「打开文件夹」仍是显式选目录（见 NomiStudioApp 的两个入口）。
 export function createDefaultProject(input: unknown): ProjectRecord {
-  const root = getProjectsRoot();
+  const location = getProjectLocationState();
+  // 默认位置在 Nomi 自己的目录里（0.24.0 允许这样设）就拒绝新建，不静默改设置、不换目录：渲染层说清为什么、去设置换。
+  // 环境变量托管的位置不判（见 workspaceLocationPolicy 文件头）。
+  if (location.source !== "environment") assertUserOwnedLocation(location.path);
+  const root = location.path;
   ensureDir(root);
   const rawName =
     input && typeof input === "object" && !Array.isArray(input) ? (input as JsonRecord).name : undefined;
@@ -199,6 +199,7 @@ export function createDefaultProject(input: unknown): ProjectRecord {
 export function createProject(input: unknown): ProjectRecord {
   const rootPath = getInputRootPath(input);
   if (rootPath) {
+    assertUserOwnedLocation(rootPath);
     return createWorkspaceProject(
       { rootPath, record: input, origin: { source: "folder" } },
       getWorkspaceRepositoryDeps(),
@@ -242,28 +243,31 @@ export async function saveProject(projectId: string, input: unknown): Promise<Pr
   return record;
 }
 
-function readableWorkspaceDir(id: string, deps: ReturnType<typeof getWorkspaceRepositoryDeps>): string | null {
+/**
+ * 移除时要打「不再发现」标记的目录。登记的目录在就是它；登记的目录不在了（改名了）才按 id 在默认根里找。
+ * 目录在但读不出来（损坏）、或 `.nomi` 指到根外（越界）= null：不往里面写东西，下次启动的发现也只坏它自己。
+ */
+function folderToSuppress(id: string, deps: ReturnType<typeof getWorkspaceRepositoryDeps>): string | null {
   try {
-    return resolveWorkspaceProjectDir(id, deps);
+    const dir = resolveWorkspaceProjectDir(id, deps) ?? legacyProjectDirById(id);
+    if (dir) workspaceNomiDir(dir);
+    return dir;
   } catch {
     return null;
   }
 }
 
-/** 只从项目库解除登记，不碰盘上任何文件（「从项目库移除」）。 */
+/**
+ * 只从项目库解除登记，不碰项目内容（「从项目库移除」）。
+ * 要抑制下次启动的 legacy 重发现，否则它会自己回到库里：默认根内的项目（启动发现会扫默认根，改名了不抑制的话对账会把它接回来），
+ * 以及根目录还有旧版 project.json 的外部文件夹。
+ */
 function unbindProject(id: string): { id: string; deleted: false } {
   const deps = getWorkspaceRepositoryDeps();
-  if (findRecentWorkspace(deps.settingsRoot, id)) {
-    // 读得出来的目录要抑制下次启动的 legacy 重发现，否则它会自己回到库里：默认根内的项目（启动发现会扫默认根），
-    // 以及根目录还有旧版 project.json 的外部文件夹。读不出来的不往里写任何东西。
-    const workspaceDir = readableWorkspaceDir(id, deps); // 读不出来（越界 / 损坏）= null：不往那个目录里写任何东西
-    removeWorkspaceReference(deps.settingsRoot, id);
-    const insideDefaultRoot = workspaceDir !== null && path.resolve(workspaceDir).startsWith(`${path.resolve(deps.defaultProjectsRoot)}${path.sep}`);
-    if (workspaceDir && (insideDefaultRoot || fs.existsSync(path.join(workspaceDir, PROJECT_FILE)))) suppressLegacyProjectRediscovery(workspaceDir);
-    return { id, deleted: false };
-  }
-  const projectDir = legacyProjectDirById(id);
-  if (projectDir) suppressLegacyProjectRediscovery(projectDir);
+  const workspaceDir = folderToSuppress(id, deps);
+  if (findRecentWorkspace(deps.settingsRoot, id)) removeWorkspaceReference(deps.settingsRoot, id);
+  const insideDefaultRoot = workspaceDir !== null && path.resolve(workspaceDir).startsWith(`${path.resolve(deps.defaultProjectsRoot)}${path.sep}`);
+  if (workspaceDir && (insideDefaultRoot || fs.existsSync(path.join(workspaceDir, PROJECT_FILE)))) suppressLegacyProjectRediscovery(workspaceDir);
   return { id, deleted: false };
 }
 
@@ -272,8 +276,9 @@ function unbindProject(id: string): { id: string; deleted: false } {
  * 确认框按列表那一刻的卡片说话，这里在删除这一刻执行；两刻之间状态可能变了，所以这里**不自己判断该删多少**：
  *   · unbind：只解除登记，绝不删盘——哪怕此刻项目又读得出来了（V-plibrary2：灰卡确认「只解绑」后 .nomi 被挪回，
  *     旧写法在删除这一刻重读、读得出来就整目录删了）；
- *   · delete-files：此刻读不出来 = 和确认时对不上，拒绝，让界面刷新后重新确认；锁忙照常报忙。
+ *   · delete-files：清单此刻读不出来（读的时候抛错）= 和确认时对不上，拒绝，让界面刷新后重新确认；锁忙照常报忙。
  *     读得出来：项目文件夹进系统回收站（moveProjectFolderToTrash，⑭），进不了就原样报错、什么都不删。
+ *     文件夹此刻已经不在（删了、改名、盘没插，库页还没刷新）：没有东西可进回收站，只解除登记，回 deleted:false，界面如实说「只从项目库移除了」。
  */
 export async function deleteProject(projectId: string, intent: unknown): Promise<{ id: string; deleted: boolean }> {
   const id = String(projectId || "").trim();
@@ -302,12 +307,9 @@ export async function deleteProject(projectId: string, intent: unknown): Promise
     return result;
   }
 
-  const projectDir = legacyProjectDirById(id);
-  if (!projectDir) return { id, deleted: false };
-  if (fs.existsSync(path.join(projectDir, ".nomi", PROJECT_FILE))) {
-    suppressLegacyProjectRediscovery(projectDir);
-    return { id, deleted: false };
-  }
+  // 回 false 就一定摘了登记（projectDeleteFlow 按这个说话）。下面进回收站的只剩没有登记、根上只有旧版 project.json 的老格式项目。
+  const projectDir = findRecentWorkspace(deps.settingsRoot, id) ? null : legacyProjectDirById(id);
+  if (!projectDir || fs.existsSync(path.join(projectDir, ".nomi", PROJECT_FILE))) return unbindProject(id);
   const root = path.resolve(getProjectsRoot());
   const resolvedProjectDir = path.resolve(projectDir);
   const rootWithSep = `${root}${path.sep}`;

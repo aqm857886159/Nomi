@@ -1,3 +1,5 @@
+import { generationFailureActions } from '../../../observability/generationFailureActions'
+import { StoryboardFailureActions } from './StoryboardFrameActions'
 import { shotPresentation } from '../shotPresentation'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +38,7 @@ type Props = {
   /** 整张表共用的预览框（整片默认画幅的框，宽档尺寸；窄档在这里按行的档位缩）。行不自己算，算了就又不齐了。 */
   box: FrameMediaBox
   /** 结果态双击 → 放大预览（AssetPreviewDialog，编辑器统一挂）。 */
+  onRecover?: (() => void) | undefined
   onOpenPreview?: (() => void) | undefined
   selected?: boolean
   onSelect?: ((event: React.MouseEvent) => void) | undefined
@@ -46,6 +49,7 @@ export default function StoryboardShotFrame({
   exec,
   aspect,
   box,
+  onRecover,
   onOpenPreview,
   selected,
   onSelect,
@@ -165,24 +169,27 @@ export default function StoryboardShotFrame({
   }
 
   if (exec.status === 'failed') {
-    const failure = storyboardFailureCopy(exec.errorMessage)
+    const unknownResult = generationFailureActions(exec.errorMessage ?? '').primary === 'release-regenerate'
+    const failure = storyboardFailureCopy(exec.errorMessage, { ...exec.failedNode?.runs?.[0], productionRunId: exec.failedNode?.meta?.productionRunId as string | undefined })
     return column(
       'failed',
       <div
-        className="relative rounded-nomi overflow-hidden border border-workbench-danger bg-workbench-danger-soft flex flex-col items-center justify-center gap-1 p-1.5 text-center"
+        className={cn('relative rounded-nomi overflow-hidden border flex flex-col items-center justify-center gap-1 p-1.5 text-center', unknownResult ? 'border-nomi-line bg-nomi-paper' : 'border-workbench-danger bg-workbench-danger-soft')}
         style={mediaStyle}
         data-storyboard-frame-media={aspect || 'default'}
         data-storyboard-visual-box="true"
       >
         {renderResult('absolute inset-0 w-full h-full object-contain opacity-40', '')}
         {indexBadge(true)}
+        {unknownResult ? <IconClockSearch size={14} stroke={1.6} className="shrink-0 text-nomi-warning-ink" /> : null}
         <span
-          className="relative z-[1] text-micro text-workbench-danger leading-tight line-clamp-3"
+          className={cn('relative z-[1] text-micro leading-tight', unknownResult ? 'font-bold text-nomi-ink' : 'text-workbench-danger line-clamp-3')}
           title={failure.hint}
           data-storyboard-failure-reason="true"
         >
           {failure.reason}
         </span>
+        {unknownResult ? <StoryboardFailureActions message={exec.errorMessage} node={exec.failedNode ?? exec.node} /> : null}
       </div>,
     )
   }
@@ -207,6 +214,7 @@ export default function StoryboardShotFrame({
         >
           {t('storyboardEditor.frame.recoverable')}
         </span>
+        <StoryboardFailureActions node={exec.recoverableNode ?? exec.node} onRecover={onRecover} />
       </div>,
     )
   }

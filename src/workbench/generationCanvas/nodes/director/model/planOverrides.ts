@@ -9,6 +9,8 @@
  *        编译器升级后旧手改照样认得出、编译器的修复照样传下来。编译器不知道这里（结构守卫：planOverrides.guard.test.ts）。
  *        规则（方案 §6）：补丁**直接改到**的实体、且新编译真的改了那个属性 → 以新指令为准、丢弃该条并列出；其余照常重放；
  *        没被直接改到却变了的实体 → 列为连带变化。
+ *        `id` 与 `measurementSubject`（编译器记下的逐镜量测主体）不是手改面：不进指纹、不进覆盖层，重编译时由编译器重写；
+ *        否则失效记录被当手改反复重放，重编译救不回，回执还谎报「手改被替换」（复制换 id 归 directorProject.ts#remapSceneIds）。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { stableProjectAgentJson } from '../../../../../../electron/shared/legacyAgentJson'
@@ -25,6 +27,8 @@ const SCENE_SKIP = new Set(['id', 'objects', 'cameras', 'lights'])
 /** 走位类属性：人被拿东西挂进携带分组后，这几样住在分组上（compiler/stageRelations.ts#carryGroups）。 */
 const MOTION_PROPS = new Set(['position', 'rotation', 'motionTrajectory', 'trajectoryClips'])
 const CARRY_PREFIX = 'carry:'
+/** 不进指纹、不当手改的属性：id 是实体的键；measurementSubject 只归编译器（见文件头）。 */
+const NOT_HAND_ADJUSTABLE = new Set(['id', 'measurementSubject'])
 
 type Entity = DirectorObject | DirectorCamera | DirectorLight
 type EntityFingerprint = Readonly<Record<string, string>>
@@ -64,7 +68,7 @@ function entitiesOf(project: DirectorProject): Map<string, Record<string, unknow
 export function fingerprintDirectorProject(project: DirectorProject): DirectorCompiledBase {
   const entities: Record<string, EntityFingerprint> = {}
   for (const [key, entity] of entitiesOf(project))
-    entities[key] = Object.fromEntries(Object.entries(entity).filter(([prop]) => prop !== 'id').map(([prop, value]) => [prop, hashOf(value)]))
+    entities[key] = Object.fromEntries(Object.entries(entity).filter(([prop]) => !NOT_HAND_ADJUSTABLE.has(prop)).map(([prop, value]) => [prop, hashOf(value)]))
   return { v: VERSION, entities }
 }
 
@@ -85,7 +89,7 @@ export function deriveDirectorOverrides(base: DirectorCompiledBase, current: Dir
       continue
     }
     for (const prop of new Set([...Object.keys(fingerprint), ...Object.keys(entity)])) {
-      if (prop === 'id') continue
+      if (NOT_HAND_ADJUSTABLE.has(prop)) continue
       const value = entity[prop]
       if (hashOf(value) === (fingerprint[prop] ?? ABSENT)) continue
       overrides.push(value === undefined ? { kind: 'set', entity: key, prop, present: false } : { kind: 'set', entity: key, prop, present: true, value: clone(value) })

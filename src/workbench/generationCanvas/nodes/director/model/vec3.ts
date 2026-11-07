@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 ./directorTypes 的 Vec3
  * [OUTPUT]: 对外提供 vec3 纯数学：add/sub/scale/length/distance/normalize、degToRad/radToDeg、
- *           lookAtAngles（位置+目标 → yaw/pitch/roll）、forwardFromAngles、eulerXYZToMatrix、applyTransform、
+ *           lookAtAngles（位置+目标 → yaw/pitch/roll）、forwardFromAngles、rightFromYaw、eulerXYZToMatrix、applyTransform、
  *           rotateY、wrapDeg、clampPitch
  * [POS]: director/model 的零依赖向量层（不引 three，保证纯层可在 node 单测里跑）。
  *        角度约定：yaw 从 +Z 向 +X 转（度），pitch 正值为俯视，roll 绕视线；相机欧拉序 YXZ。
@@ -69,6 +69,12 @@ export function forwardFromAngles(yawDeg: number, pitchDeg: number): Vec3 {
   const yaw = yawDeg * DEG_TO_RAD
   const pitch = pitchDeg * DEG_TO_RAD
   return { x: Math.cos(pitch) * Math.sin(yaw), y: -Math.sin(pitch), z: Math.cos(pitch) * Math.cos(yaw) }
+}
+
+/** Horizontal screen-right basis: forward × world-up (yaw=0 looks +Z, right is -X). */
+export function rightFromYaw(yawDeg: number): Vec3 {
+  const yaw = yawDeg * DEG_TO_RAD
+  return { x: -Math.cos(yaw), y: 0, z: Math.sin(yaw) }
 }
 
 // 绕 Y 轴旋转（度）：(x, z) 平面上的旋转（正角把 +Z 转向 +X）

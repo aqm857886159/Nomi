@@ -1,3 +1,4 @@
+vi.mock('../../../../config/useModelOptions', () => ({ preloadModelOptions: async () => [{ value: 'MiniMax-H3', modelKey: 'MiniMax-H3', vendor: 'apimart', label: 'MiniMax-H3' }] }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolveArchetypeForModel } from '../../../../../electron/shared/modelArchetypes'
 import type { ArchetypeMode } from '../../../../../electron/shared/modelArchetypes/types'

@@ -1,0 +1,1422 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "ddddcc680",
+  "head": "ddddcc680111cde5de8a5d03fa0ab9e2736b453d",
+  "dirty": false,
+  "sourceTree": "644536342c97b572dd9ca97819fe0c142ede9ac3",
+  "date": "2026-10-30",
+  "runs": 5,
+  "results": [
+    {
+      "id": "relay-content-fetch-256m",
+      "metrics": {
+        "rssMiB": {
+          "runs": 5,
+          "median": 106,
+          "p95": 107.7
+        },
+        "heapUsedMiB": {
+          "runs": 5,
+          "median": 2.7,
+          "p95": 3.1
+        },
+        "externalMiB": {
+          "runs": 5,
+          "median": 79.5,
+          "p95": 87.6
+        },
+        "arrayBuffersMiB": {
+          "runs": 5,
+          "median": 79.4,
+          "p95": 87.5
+        },
+        "transferMs": {
+          "runs": 5,
+          "median": 212.5,
+          "p95": 297.7
+        },
+        "cancelMs": {
+          "runs": 5,
+          "median": 5.6,
+          "p95": 12.2
+        }
+      },
+      "samples": {
+        "rssMiB": [
+          94.828125,
+          105.984375,
+          101.234375,
+          107.71875,
+          107.453125
+        ],
+        "heapUsedMiB": [
+          3.15380859375,
+          2.7362899780273438,
+          2.4933700561523438,
+          2.2855682373046875,
+          2.7339859008789062
+        ],
+        "externalMiB": [
+          72.54064846038818,
+          79.49456882476807,
+          76.11956882476807,
+          87.60221195220947,
+          87.54592800140381
+        ],
+        "arrayBuffersMiB": [
+          65.32531356811523,
+          79.41044998168945,
+          76.03544998168945,
+          87.51809310913086,
+          87.45559310913086
+        ],
+        "transferMs": [
+          316.726125,
+          212.46875,
+          136.928583,
+          221.82712500000002,
+          155.8159159999999
+        ],
+        "cancelMs": [
+          6.1088750000001255,
+          5.61850000000004,
+          4.801208999999972,
+          13.703583999999978,
+          3.3137080000000196
+        ]
+      },
+      "budget": 160,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    },
+    {
+      "id": "relay-content-fetch-2g",
+      "metrics": {
+        "rssMiB": {
+          "runs": 5,
+          "median": 119,
+          "p95": 130.4
+        },
+        "referenceRssMiB": {
+          "runs": 5,
+          "median": 101.4,
+          "p95": 107.3
+        },
+        "heapUsedMiB": {
+          "runs": 5,
+          "median": 2.4,
+          "p95": 2.8
+        },
+        "externalMiB": {
+          "runs": 5,
+          "median": 89.6,
+          "p95": 91.3
+        },
+        "arrayBuffersMiB": {
+          "runs": 5,
+          "median": 89.5,
+          "p95": 91.2
+        },
+        "transferMs": {
+          "runs": 5,
+          "median": 1948.4,
+          "p95": 3369.5
+        },
+        "cancelMs": {
+          "runs": 5,
+          "median": 4.3,
+          "p95": 26.4
+        }
+      },
+      "samples": {
+        "rssMiB": [
+          118.953125,
+          131.296875,
+          118.625,
+          115.84375,
+          126.78125
+        ],
+        "referenceRssMiB": [
+          87.859375,
+          99.609375,
+          101.421875,
+          103.03125,
+          108.359375
+        ],
+        "heapUsedMiB": [
+          1.3964691162109375,
+          2.172271728515625,
+          2.4129638671875,
+          2.8512725830078125,
+          2.5591888427734375
+        ],
+        "externalMiB": [
+          91.53971195220947,
+          86.53971195220947,
+          90.5047254562378,
+          89.620924949646,
+          85.51929473876953
+        ],
+        "arrayBuffersMiB": [
+          91.45559310913086,
+          86.45559310913086,
+          90.4203929901123,
+          89.53679084777832,
+          84.4975004196167
+        ],
+        "transferMs": [
+          1970.083541,
+          1726.219333,
+          1297.000166,
+          1948.4147500000001,
+          3719.410958
+        ],
+        "cancelMs": [
+          4.266708000000108,
+          3.991457999999966,
+          3.603290999999899,
+          31.866374999999607,
+          4.749625000000378
+        ]
+      },
+      "budget": 160,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    },
+    {
+      "id": "relay-content-fetch-4x256m",
+      "metrics": {
+        "memoryGrowthRatio": {
+          "runs": 5,
+          "median": 1.3,
+          "p95": 1.3
+        },
+        "rssMiB": {
+          "runs": 5,
+          "median": 142.9,
+          "p95": 151.7
+        },
+        "referenceRssMiB": {
+          "runs": 5,
+          "median": 107.8,
+          "p95": 113.5
+        },
+        "heapUsedMiB": {
+          "runs": 5,
+          "median": 3.7,
+          "p95": 4.4
+        },
+        "externalMiB": {
+          "runs": 5,
+          "median": 105.7,
+          "p95": 106.3
+        },
+        "arrayBuffersMiB": {
+          "runs": 5,
+          "median": 105.6,
+          "p95": 106.2
+        },
+        "transferMs": {
+          "runs": 5,
+          "median": 774.7,
+          "p95": 853
+        }
+      },
+      "samples": {
+        "memoryGrowthRatio": [
+          1.2590859030837005,
+          1.344988986784141,
+          1.2480726872246697,
+          1.3009361233480177,
+          1.1270649779735682
+        ],
+        "rssMiB": [
+          142.90625,
+          152.65625,
+          141.65625,
+          147.65625,
+          127.921875
+        ],
+        "referenceRssMiB": [
+          102.46875,
+          107.0625,
+          107.75,
+          114.546875,
+          109.25
+        ],
+        "heapUsedMiB": [
+          3.372955322265625,
+          4.433891296386719,
+          3.7330322265625,
+          3.195465087890625,
+          4.100563049316406
+        ],
+        "externalMiB": [
+          105.72112083435059,
+          106.06241989135742,
+          106.37491989135742,
+          104.09612083435059,
+          94.22733688354492
+        ],
+        "arrayBuffersMiB": [
+          105.63685703277588,
+          105.97814846038818,
+          106.29064846038818,
+          104.01184940338135,
+          94.13684177398682
+        ],
+        "transferMs": [
+          774.6871659999999,
+          869.8584589999999,
+          785.70575,
+          629.3044580000001,
+          642.7002080000001
+        ]
+      },
+      "budget": 2,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ],
+  "instrumentSamples": {
+    "relay-content-fetch-256m": [
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 0,
+        "clientPid": 52825,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 180.09375,
+            "peak": 274.921875,
+            "increase": 94.828125,
+            "afterHeadersIncrease": 0.3125
+          },
+          "heapUsed": {
+            "initial": 33.78492736816406,
+            "peak": 36.93873596191406,
+            "increase": 3.15380859375,
+            "afterHeadersIncrease": 0.12081146240234375
+          },
+          "external": {
+            "initial": 7.874210357666016,
+            "peak": 80.4148588180542,
+            "increase": 72.54064846038818,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.940272331237793,
+            "peak": 69.26558589935303,
+            "increase": 65.32531356811523,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 316.726125,
+        "cancelMs": 6.1088750000001255,
+        "mainByteCap": null,
+        "loadBefore": 4.765625,
+        "loadAfter": 4.765625,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 1,
+        "clientPid": 52840,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.109375,
+            "peak": 284.09375,
+            "increase": 105.984375,
+            "afterHeadersIncrease": 0.4375
+          },
+          "heapUsed": {
+            "initial": 37.924957275390625,
+            "peak": 40.66124725341797,
+            "increase": 2.7362899780273438,
+            "afterHeadersIncrease": 0.48838043212890625
+          },
+          "external": {
+            "initial": 7.914073944091797,
+            "peak": 87.40864276885986,
+            "increase": 79.49456882476807,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.980135917663574,
+            "peak": 83.39058589935303,
+            "increase": 79.41044998168945,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 212.46875,
+        "cancelMs": 5.61850000000004,
+        "mainByteCap": null,
+        "loadBefore": 4.765625,
+        "loadAfter": 4.765625,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 2,
+        "clientPid": 52843,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.75,
+            "peak": 279.984375,
+            "increase": 101.234375,
+            "afterHeadersIncrease": 0.328125
+          },
+          "heapUsed": {
+            "initial": 37.865196228027344,
+            "peak": 40.35856628417969,
+            "increase": 2.4933700561523438,
+            "afterHeadersIncrease": 0.1204833984375
+          },
+          "external": {
+            "initial": 7.914073944091797,
+            "peak": 84.03364276885986,
+            "increase": 76.11956882476807,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.9801435470581055,
+            "peak": 80.01559352874756,
+            "increase": 76.03544998168945,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 136.928583,
+        "cancelMs": 4.801208999999972,
+        "mainByteCap": null,
+        "loadBefore": 4.93505859375,
+        "loadAfter": 4.93505859375,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 3,
+        "clientPid": 52848,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.265625,
+            "peak": 285.984375,
+            "increase": 107.71875,
+            "afterHeadersIncrease": 0.34375
+          },
+          "heapUsed": {
+            "initial": 38.01862335205078,
+            "peak": 40.30419158935547,
+            "increase": 2.2855682373046875,
+            "afterHeadersIncrease": 0.12033843994140625
+          },
+          "external": {
+            "initial": 7.931430816650391,
+            "peak": 95.53364276885986,
+            "increase": 87.60221195220947,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.9974851608276367,
+            "peak": 91.5155782699585,
+            "increase": 87.51809310913086,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 221.82712500000002,
+        "cancelMs": 13.703583999999978,
+        "mainByteCap": null,
+        "loadBefore": 4.93505859375,
+        "loadAfter": 4.93505859375,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 4,
+        "clientPid": 52851,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.5,
+            "peak": 285.953125,
+            "increase": 107.453125,
+            "afterHeadersIncrease": 0.328125
+          },
+          "heapUsed": {
+            "initial": 38.104393005371094,
+            "peak": 40.83837890625,
+            "increase": 2.7339859008789062,
+            "afterHeadersIncrease": 0.120452880859375
+          },
+          "external": {
+            "initial": 7.931430816650391,
+            "peak": 95.4773588180542,
+            "increase": 87.54592800140381,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.997492790222168,
+            "peak": 91.45308589935303,
+            "increase": 87.45559310913086,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 155.8159159999999,
+        "cancelMs": 3.3137080000000196,
+        "mainByteCap": null,
+        "loadBefore": 4.93505859375,
+        "loadAfter": 4.93505859375,
+        "role": "measurement"
+      }
+    ],
+    "relay-content-fetch-2g": [
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 0,
+        "clientPid": 13142,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.171875,
+            "peak": 267.03125,
+            "increase": 87.859375,
+            "afterHeadersIncrease": 0.328125
+          },
+          "heapUsed": {
+            "initial": 41.59418487548828,
+            "peak": 43.47039031982422,
+            "increase": 1.8762054443359375,
+            "afterHeadersIncrease": 0.1204833984375
+          },
+          "external": {
+            "initial": 8.139280319213867,
+            "peak": 81.97114276885986,
+            "increase": 73.831862449646,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.205349922180176,
+            "peak": 77.45308589935303,
+            "increase": 73.24773597717285,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 361.477584,
+        "cancelMs": 6.633291999999983,
+        "mainByteCap": null,
+        "loadBefore": 7.88720703125,
+        "loadAfter": 7.88720703125,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 1,
+        "clientPid": 13155,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.9375,
+            "peak": 278.546875,
+            "increase": 99.609375,
+            "afterHeadersIncrease": 0.5
+          },
+          "heapUsed": {
+            "initial": 38.47703552246094,
+            "peak": 40.950347900390625,
+            "increase": 2.4733123779296875,
+            "afterHeadersIncrease": 0.6077957153320312
+          },
+          "external": {
+            "initial": 7.931430816650391,
+            "peak": 89.28364276885986,
+            "increase": 81.35221195220947,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.997492790222168,
+            "peak": 85.26558589935303,
+            "increase": 81.26809310913086,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 148.65545800000007,
+        "cancelMs": 3.9333330000000615,
+        "mainByteCap": null,
+        "loadBefore": 7.88720703125,
+        "loadAfter": 7.88720703125,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 2,
+        "clientPid": 13158,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.40625,
+            "peak": 279.828125,
+            "increase": 101.421875,
+            "afterHeadersIncrease": 0.375
+          },
+          "heapUsed": {
+            "initial": 41.478538513183594,
+            "peak": 44.452003479003906,
+            "increase": 2.9734649658203125,
+            "afterHeadersIncrease": 0.1204376220703125
+          },
+          "external": {
+            "initial": 8.111352920532227,
+            "peak": 91.4773588180542,
+            "increase": 83.36600589752197,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.177414894104004,
+            "peak": 77.32808589935303,
+            "increase": 73.15067100524902,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 277.119417,
+        "cancelMs": 7.1890840000000935,
+        "mainByteCap": null,
+        "loadBefore": 7.88720703125,
+        "loadAfter": 7.88720703125,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 3,
+        "clientPid": 13161,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.171875,
+            "peak": 282.203125,
+            "increase": 103.03125,
+            "afterHeadersIncrease": 0.34375
+          },
+          "heapUsed": {
+            "initial": 38.91935729980469,
+            "peak": 41.81785583496094,
+            "increase": 2.89849853515625,
+            "afterHeadersIncrease": 0.12033843994140625
+          },
+          "external": {
+            "initial": 7.931430816650391,
+            "peak": 87.78478908538818,
+            "increase": 79.8533582687378,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.997492790222168,
+            "peak": 79.26558589935303,
+            "increase": 75.26809310913086,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 156.35983299999998,
+        "cancelMs": 3.245541000000003,
+        "mainByteCap": null,
+        "loadBefore": 7.88720703125,
+        "loadAfter": 7.88720703125,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 4,
+        "clientPid": 13164,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.859375,
+            "peak": 287.21875,
+            "increase": 108.359375,
+            "afterHeadersIncrease": 0.34375
+          },
+          "heapUsed": {
+            "initial": 38.72804260253906,
+            "peak": 41.40228271484375,
+            "increase": 2.6742401123046875,
+            "afterHeadersIncrease": 0.6397247314453125
+          },
+          "external": {
+            "initial": 7.931430816650391,
+            "peak": 94.40864276885986,
+            "increase": 86.47721195220947,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.997500419616699,
+            "peak": 82.95309352874756,
+            "increase": 78.95559310913086,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 172.05712500000004,
+        "cancelMs": 3.971916999999962,
+        "mainByteCap": null,
+        "loadBefore": 7.8056640625,
+        "loadAfter": 7.8056640625,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 2147483648,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 0,
+        "clientPid": 13167,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.53125,
+            "peak": 298.484375,
+            "increase": 118.953125,
+            "afterHeadersIncrease": 0.359375
+          },
+          "heapUsed": {
+            "initial": 38.97368621826172,
+            "peak": 40.370155334472656,
+            "increase": 1.3964691162109375,
+            "afterHeadersIncrease": 0.120452880859375
+          },
+          "external": {
+            "initial": 7.931430816650391,
+            "peak": 99.47114276885986,
+            "increase": 91.53971195220947,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.997492790222168,
+            "peak": 95.45308589935303,
+            "increase": 91.45559310913086,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 1970.083541,
+        "cancelMs": 4.266708000000108,
+        "mainByteCap": null,
+        "loadBefore": 7.8056640625,
+        "loadAfter": 7.8056640625,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 2147483648,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 1,
+        "clientPid": 13171,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.078125,
+            "peak": 310.375,
+            "increase": 131.296875,
+            "afterHeadersIncrease": 0.359375
+          },
+          "heapUsed": {
+            "initial": 38.75257873535156,
+            "peak": 40.92485046386719,
+            "increase": 2.172271728515625,
+            "afterHeadersIncrease": 0.12033843994140625
+          },
+          "external": {
+            "initial": 7.931430816650391,
+            "peak": 94.47114276885986,
+            "increase": 86.53971195220947,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 3.997500419616699,
+            "peak": 90.45309352874756,
+            "increase": 86.45559310913086,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 1726.219333,
+        "cancelMs": 3.991457999999966,
+        "mainByteCap": null,
+        "loadBefore": 7.8056640625,
+        "loadAfter": 7.7421875,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 2147483648,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 2,
+        "clientPid": 13175,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 182.015625,
+            "peak": 300.640625,
+            "increase": 118.625,
+            "afterHeadersIncrease": 0.390625
+          },
+          "heapUsed": {
+            "initial": 52.119789123535156,
+            "peak": 54.532752990722656,
+            "increase": 2.4129638671875,
+            "afterHeadersIncrease": 0.12033843994140625
+          },
+          "external": {
+            "initial": 8.77891731262207,
+            "peak": 99.28364276885986,
+            "increase": 90.5047254562378,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.845192909240723,
+            "peak": 95.26558589935303,
+            "increase": 90.4203929901123,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 1297.000166,
+        "cancelMs": 3.603290999999899,
+        "mainByteCap": null,
+        "loadBefore": 7.7421875,
+        "loadAfter": 7.7421875,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 2147483648,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 3,
+        "clientPid": 13191,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.5625,
+            "peak": 294.40625,
+            "increase": 115.84375,
+            "afterHeadersIncrease": 0.34375
+          },
+          "heapUsed": {
+            "initial": 42.24988555908203,
+            "peak": 45.101158142089844,
+            "increase": 2.8512725830078125,
+            "afterHeadersIncrease": 0.1203460693359375
+          },
+          "external": {
+            "initial": 8.162717819213867,
+            "peak": 97.78364276885986,
+            "increase": 89.620924949646,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.228795051574707,
+            "peak": 93.76558589935303,
+            "increase": 89.53679084777832,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 1948.4147500000001,
+        "cancelMs": 31.866374999999607,
+        "mainByteCap": null,
+        "loadBefore": 7.7421875,
+        "loadAfter": 7.712890625,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 2147483648,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 4,
+        "clientPid": 13199,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.90625,
+            "peak": 306.6875,
+            "increase": 126.78125,
+            "afterHeadersIncrease": 0.390625
+          },
+          "heapUsed": {
+            "initial": 49.362579345703125,
+            "peak": 51.92176818847656,
+            "increase": 2.5591888427734375,
+            "afterHeadersIncrease": 0.12042999267578125
+          },
+          "external": {
+            "initial": 8.639348030090332,
+            "peak": 94.15864276885986,
+            "increase": 85.51929473876953,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.705570220947266,
+            "peak": 89.20307064056396,
+            "increase": 84.4975004196167,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 3719.410958,
+        "cancelMs": 4.749625000000378,
+        "mainByteCap": null,
+        "loadBefore": 7.712890625,
+        "loadAfter": 7.66748046875,
+        "role": "measurement"
+      }
+    ],
+    "relay-content-fetch-4x256m": [
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 0,
+        "clientPid": 62664,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 183.03125,
+            "peak": 285.5,
+            "increase": 102.46875,
+            "afterHeadersIncrease": 0.390625
+          },
+          "heapUsed": {
+            "initial": 52.47602844238281,
+            "peak": 55.08734893798828,
+            "increase": 2.6113204956054688,
+            "afterHeadersIncrease": 0.120452880859375
+          },
+          "external": {
+            "initial": 8.83360481262207,
+            "peak": 85.1023588180542,
+            "increase": 76.26875400543213,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.899903297424316,
+            "peak": 80.0780782699585,
+            "increase": 75.17817497253418,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 238.83004099999994,
+        "cancelMs": 5.8462919999999485,
+        "mainByteCap": null,
+        "loadBefore": 7.37646484375,
+        "loadAfter": 7.37646484375,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 1,
+        "clientPid": 62685,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 185.015625,
+            "peak": 292.078125,
+            "increase": 107.0625,
+            "afterHeadersIncrease": 0.421875
+          },
+          "heapUsed": {
+            "initial": 54.26277160644531,
+            "peak": 56.44550323486328,
+            "increase": 2.1827316284179688,
+            "afterHeadersIncrease": 0.441680908203125
+          },
+          "external": {
+            "initial": 8.953348159790039,
+            "peak": 90.3523588180542,
+            "increase": 81.39901065826416,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 5.019692420959473,
+            "peak": 86.32808589935303,
+            "increase": 81.30839347839355,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 199.77824999999996,
+        "cancelMs": 5.015917000000059,
+        "mainByteCap": null,
+        "loadBefore": 7.37646484375,
+        "loadAfter": 7.37646484375,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 2,
+        "clientPid": 62689,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 185.265625,
+            "peak": 293.015625,
+            "increase": 107.75,
+            "afterHeadersIncrease": 0.40625
+          },
+          "heapUsed": {
+            "initial": 55.10630798339844,
+            "peak": 58.237709045410156,
+            "increase": 3.1314010620117188,
+            "afterHeadersIncrease": 0.1203155517578125
+          },
+          "external": {
+            "initial": 9.043821334838867,
+            "peak": 91.3523588180542,
+            "increase": 82.30853748321533,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 5.110196113586426,
+            "peak": 87.32807064056396,
+            "increase": 82.21787452697754,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 134.35237500000005,
+        "cancelMs": 3.2297909999999774,
+        "mainByteCap": null,
+        "loadBefore": 7.37646484375,
+        "loadAfter": 7.37646484375,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 3,
+        "clientPid": 62696,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.609375,
+            "peak": 294.15625,
+            "increase": 114.546875,
+            "afterHeadersIncrease": 0.375
+          },
+          "heapUsed": {
+            "initial": 48.58100891113281,
+            "peak": 52.049224853515625,
+            "increase": 3.4682159423828125,
+            "afterHeadersIncrease": 0.12400054931640625
+          },
+          "external": {
+            "initial": 8.596222877502441,
+            "peak": 85.6648588180542,
+            "increase": 77.06863594055176,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.662437438964844,
+            "peak": 81.64058589935303,
+            "increase": 76.97814846038818,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 268.919666,
+        "cancelMs": 3.2184160000000475,
+        "mainByteCap": null,
+        "loadBefore": 7.3701171875,
+        "loadAfter": 7.3701171875,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-stream",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 1,
+        "producerMaxConcurrent": 1,
+        "receivedBytes": null,
+        "run": 4,
+        "clientPid": 62705,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.140625,
+            "peak": 288.390625,
+            "increase": 109.25,
+            "afterHeadersIncrease": 0.34375
+          },
+          "heapUsed": {
+            "initial": 48.239830017089844,
+            "peak": 51.04405212402344,
+            "increase": 2.8042221069335938,
+            "afterHeadersIncrease": 0.12042999267578125
+          },
+          "external": {
+            "initial": 8.580597877502441,
+            "peak": 89.78364276885986,
+            "increase": 81.20304489135742,
+            "afterHeadersIncrease": 0.12506103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.646812438964844,
+            "peak": 85.76558589935303,
+            "increase": 81.11877346038818,
+            "afterHeadersIncrease": 0.06252288818359375
+          }
+        },
+        "transferMs": 179.30441700000006,
+        "cancelMs": 4.095624999999927,
+        "mainByteCap": null,
+        "loadBefore": 7.3701171875,
+        "loadAfter": 7.3701171875,
+        "role": "reference"
+      },
+      {
+        "implementation": "relay-parallel",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 4,
+        "producerMaxConcurrent": 4,
+        "receivedBytes": 1073741824,
+        "run": 0,
+        "clientPid": 62714,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.703125,
+            "peak": 322.609375,
+            "increase": 142.90625,
+            "afterHeadersIncrease": 0.875
+          },
+          "heapUsed": {
+            "initial": 48.07337188720703,
+            "peak": 51.446327209472656,
+            "increase": 3.372955322265625,
+            "afterHeadersIncrease": 0.4122467041015625
+          },
+          "external": {
+            "initial": 8.562521934509277,
+            "peak": 114.28364276885986,
+            "increase": 105.72112083435059,
+            "afterHeadersIncrease": 0.68756103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.628728866577148,
+            "peak": 110.26558589935303,
+            "increase": 105.63685703277588,
+            "afterHeadersIncrease": 0.6250228881835938
+          }
+        },
+        "transferMs": 774.6871659999999,
+        "cancelMs": null,
+        "mainByteCap": null,
+        "loadBefore": 7.3701171875,
+        "loadAfter": 7.3701171875,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-parallel",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 4,
+        "producerMaxConcurrent": 4,
+        "receivedBytes": 1073741824,
+        "run": 1,
+        "clientPid": 62772,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.5625,
+            "peak": 331.21875,
+            "increase": 152.65625,
+            "afterHeadersIncrease": 2.71875
+          },
+          "heapUsed": {
+            "initial": 48.601097106933594,
+            "peak": 53.03498840332031,
+            "increase": 4.433891296386719,
+            "afterHeadersIncrease": 0.56378173828125
+          },
+          "external": {
+            "initial": 8.596222877502441,
+            "peak": 114.65864276885986,
+            "increase": 106.06241989135742,
+            "afterHeadersIncrease": 0.68756103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.662437438964844,
+            "peak": 110.64058589935303,
+            "increase": 105.97814846038818,
+            "afterHeadersIncrease": 0.6250228881835938
+          }
+        },
+        "transferMs": 869.8584589999999,
+        "cancelMs": null,
+        "mainByteCap": null,
+        "loadBefore": 7.3701171875,
+        "loadAfter": 7.3701171875,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-parallel",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 4,
+        "producerMaxConcurrent": 4,
+        "receivedBytes": 1073741824,
+        "run": 2,
+        "clientPid": 62776,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.40625,
+            "peak": 321.0625,
+            "increase": 141.65625,
+            "afterHeadersIncrease": 1.53125
+          },
+          "heapUsed": {
+            "initial": 48.62030792236328,
+            "peak": 52.35334014892578,
+            "increase": 3.7330322265625,
+            "afterHeadersIncrease": 0.4123077392578125
+          },
+          "external": {
+            "initial": 8.596222877502441,
+            "peak": 114.97114276885986,
+            "increase": 106.37491989135742,
+            "afterHeadersIncrease": 0.68756103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.662437438964844,
+            "peak": 110.95308589935303,
+            "increase": 106.29064846038818,
+            "afterHeadersIncrease": 0.6250228881835938
+          }
+        },
+        "transferMs": 785.70575,
+        "cancelMs": null,
+        "mainByteCap": null,
+        "loadBefore": 7.33056640625,
+        "loadAfter": 7.33056640625,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-parallel",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 4,
+        "producerMaxConcurrent": 4,
+        "receivedBytes": 1073741824,
+        "run": 3,
+        "clientPid": 62781,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 178.75,
+            "peak": 326.40625,
+            "increase": 147.65625,
+            "afterHeadersIncrease": 2.453125
+          },
+          "heapUsed": {
+            "initial": 48.275230407714844,
+            "peak": 51.47069549560547,
+            "increase": 3.195465087890625,
+            "afterHeadersIncrease": 0.412200927734375
+          },
+          "external": {
+            "initial": 8.562521934509277,
+            "peak": 112.65864276885986,
+            "increase": 104.09612083435059,
+            "afterHeadersIncrease": 0.68756103515625
+          },
+          "arrayBuffers": {
+            "initial": 4.62873649597168,
+            "peak": 108.64058589935303,
+            "increase": 104.01184940338135,
+            "afterHeadersIncrease": 0.6250228881835938
+          }
+        },
+        "transferMs": 629.3044580000001,
+        "cancelMs": null,
+        "mainByteCap": null,
+        "loadBefore": 7.33056640625,
+        "loadAfter": 7.33056640625,
+        "role": "measurement"
+      },
+      {
+        "implementation": "relay-parallel",
+        "phase": "warm-download",
+        "bytes": 268435456,
+        "concurrency": 4,
+        "producerMaxConcurrent": 4,
+        "receivedBytes": 1073741824,
+        "run": 4,
+        "clientPid": 62786,
+        "freshClient": true,
+        "warmupBytes": 1024,
+        "outcome": "downloaded",
+        "memoryMiB": {
+          "rss": {
+            "initial": 179.640625,
+            "peak": 307.5625,
+            "increase": 127.921875,
+            "afterHeadersIncrease": 2.34375
+          },
+          "heapUsed": {
+            "initial": 48.24266815185547,
+            "peak": 52.343231201171875,
+            "increase": 4.100563049316406,
+            "afterHeadersIncrease": 0.41237640380859375
+          },
+          "external": {
+            "initial": 8.562521934509277,
+            "peak": 102.7898588180542,
+            "increase": 94.22733688354492,
+            "afterHeadersIncrease": 0.6715888977050781
+          },
+          "arrayBuffers": {
+            "initial": 4.628728866577148,
+            "peak": 98.76557064056396,
+            "increase": 94.13684177398682,
+            "afterHeadersIncrease": 0.6090507507324219
+          }
+        },
+        "transferMs": 642.7002080000001,
+        "cancelMs": null,
+        "mainByteCap": null,
+        "loadBefore": 7.33056640625,
+        "loadAfter": 7.33056640625,
+        "role": "measurement"
+      }
+    ]
+  },
+  "scope": "Loopback HTTP transfer/write and function cancellation; no decode/publication or TLS",
+  "runtime": "v24.13.1"
+}

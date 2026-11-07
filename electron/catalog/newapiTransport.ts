@@ -441,3 +441,15 @@ export function newapiTransportFor(kind: "image" | "video" | "audio"): NewapiTra
     params: NEWAPI_STANDARD_IMAGE_PARAMS,
   };
 }
+
+/** Standard video protocol, selected only by explicit connection evidence. */
+export function openAiVideoMode(): { create: HttpOperation; query: HttpOperation; result: HttpOperation; statusMapping: Record<string, string[]> } {
+  return {
+    create: { method: "POST", path: "/v1/videos", multipart: { fields: {
+      model: "{{model.modelKey}}", prompt: "{{request.prompt}}", seconds: "{{request.duration}}", size: "{{request.size}}",
+    } }, response_mapping: { task_id: "id", status: "status" }, provider_meta_mapping: { task_id: "id" } },
+    query: { method: "GET", path: "/v1/videos/{{providerMeta.task_id}}", response_mapping: { status: "status" } },
+    result: { method: "GET", path: "/v1/videos/{{providerMeta.task_id}}/content", mediaResponse: { kind: "binary", contentType: "video/mp4" } },
+    statusMapping: { queued: ["queued"], running: ["in_progress"], succeeded: ["completed"], failed: ["failed"] },
+  };
+}

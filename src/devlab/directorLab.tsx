@@ -61,12 +61,15 @@ function DirectorLab(): JSX.Element {
     )
   }
   return (
-    <DirectorEditor
-      rawProject={project}
-      nodeTitle="Director Lab"
-      onClose={() => setOpen(false)}
-      onProjectChange={(next) => persist(next)}
-    />
+    // 导演台根铺满所在容器（产品里是生成页的画布格）：开发入口没有生成页，自己摆一格铺满窗口的。
+    <div className="fixed inset-0">
+      <DirectorEditor
+        rawProject={project}
+        nodeTitle="Director Lab"
+        onClose={() => setOpen(false)}
+        onProjectChange={(next) => persist(next)}
+      />
+    </div>
   )
 }
 

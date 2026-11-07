@@ -1,3 +1,4 @@
+import { canvasWindowInput } from '../../../shortcutSurface'
 /* eslint-disable react-hooks/exhaustive-deps -- Migrated Leafer canvas keeps imperative renderer state in refs (stable identities), intentionally omitted from dep arrays. */
 import { useCallback, useEffect } from 'react'
 import { getCanvasPointFromClient } from './lib/pointer'
@@ -350,14 +351,14 @@ export function useWhiteboardSelectionActions(
 
     // 延迟注册，跳过触发右键菜单的同一批 pointerdown 事件
     const timerId = setTimeout(() => {
-      window.addEventListener('pointerdown', closeContextMenu)
+      canvasWindowInput.addEventListener('pointerdown', closeContextMenu)
     }, 0)
-    window.addEventListener('keydown', handleKeyDown)
+    canvasWindowInput.addEventListener('keydown', handleKeyDown)
 
     return () => {
       clearTimeout(timerId)
-      window.removeEventListener('pointerdown', closeContextMenu)
-      window.removeEventListener('keydown', handleKeyDown)
+      canvasWindowInput.removeEventListener('pointerdown', closeContextMenu)
+      canvasWindowInput.removeEventListener('keydown', handleKeyDown)
     }
   }, [contextMenu])
 

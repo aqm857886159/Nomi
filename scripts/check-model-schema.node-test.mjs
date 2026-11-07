@@ -13,7 +13,9 @@ import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { laneToolCombinations, laneToolLedger, formatLaneToolLedger } from './check-model-schema.ts'
 import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_DEFERRED_TOOL_GROUPS } from '../electron/agentLane/laneToolCatalog.ts'
-import { LANE_CODING_TOOL_NAMES } from '../electron/agentLane/laneCodingTools.mts'
+import { LANE_CODING_TOOL_NAMES, loadPiCodingToolFactories } from '../electron/agentLane/laneCodingTools.mts'
+import { MCP_TOOL_RESOLVER } from '../electron/capabilityCore/mcpToolCatalog.ts'
+import { toModelVisibleSchema } from '../electron/agentLane/laneToolSchema.mts'
 import { evaluateLaneToolBudget, laneRequestToolDefinition, LANE_TOOL_REQUEST_TOOL_NAME } from '../electron/agentLane/laneToolGroups.mts'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
@@ -81,10 +83,19 @@ test('the gate prints a per-tool ledger sorted by size with both totals', async 
 const rules = await import(
   pathToFileURL(path.join(repoRoot, 'electron/shared/agentCapabilities/modelVisibleJsonSchema.ts')).href
 )
+const standardCheck = await import(
+  pathToFileURL(path.join(repoRoot, 'electron/capabilityCore/modelSchemaStandardCheck.ts')).href
+)
 
 function structural(schema) {
   const out = []
   rules.collectStructuralFailures(schema, '', out)
+  return out
+}
+
+function standard(schema) {
+  const out = []
+  standardCheck.collectStandardSchemaFailures(schema, '', out)
   return out
 }
 
@@ -93,6 +104,66 @@ function vendor(schema) {
   rules.collectVendorCompatibilityFailures(schema, '', out)
   return out
 }
+
+test('tuple shapes fail at every schema boundary, without scanning instance data or property names', () => {
+  const containers = [
+    (s) => s,
+    (s) => ({ type: 'object', properties: { nested: s } }),
+    (s) => ({ type: 'array', items: s }),
+    (s) => ({ type: 'object', anyOf: [s] }),
+    (s) => ({ definitions: { nested: s } }),
+    (s) => ({ $defs: { nested: s } }),
+    (s) => ({ type: 'object', additionalProperties: s }),
+    (s) => ({ patternProperties: { '^x': s } }),
+    (s) => ({ propertyNames: s }),
+    (s) => ({ allOf: [{ not: s }] }),
+  ]
+  for (const tuple of [{ type: 'array', items: [{ type: 'number' }] }, { type: 'array', items: [] },
+    { type: 'array', prefixItems: [{ type: 'number' }] }, { type: 'array', prefixItems: [] }]) {
+    for (const wrap of containers) {
+      assert.ok(standard(wrap(tuple)).length > 0, JSON.stringify(wrap(tuple)))
+    }
+  }
+  const data = { items: [], prefixItems: [], nested: { items: [{ const: 'data' }] } }
+  assert.deepEqual(vendor({ type: 'object', properties: {
+    items: { type: 'array', items: { type: 'number' } },
+    prefixItems: { type: 'array', items: { type: 'number' } },
+    example: { type: 'object', default: data, enum: [data], examples: [data] },
+  } }), [])
+  assert.deepEqual(vendor({ const: data }).filter((failure) => /tuple/.test(failure)), [])
+})
+
+test('tuple is converted when generating a tool; fixed homogeneous arrays retain their constraints', async () => {
+  const { z } = await import('zod')
+  assert.deepEqual(toModelVisibleSchema(z.object({ window: z.tuple([z.number(), z.number()]) }), { toolName: 'tuple_probe' }).properties.window.items, { type: 'number' })
+  const good = toModelVisibleSchema(z.object({ window: z.array(z.number()).length(2) }), { toolName: 'array_probe' })
+  assert.deepEqual(vendor(good), [])
+  assert.equal(good.properties.window.minItems, 2)
+  assert.equal(good.properties.window.maxItems, 2)
+})
+
+test('the complete production schema census accepts all 54 Agent and MCP entries', async () => {
+  const catalog = [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]
+  const factories = await loadPiCodingToolFactories()
+  const coding = Object.values(factories).map((factory) => factory('/nomi-schema-probe'))
+  const groups = [{ name: 'coding', toolNames: LANE_CODING_TOOL_NAMES.filter((name) => name !== 'read') },
+    ...[...new Set(catalog.map((tool) => tool.internalGroup).filter(Boolean))].map((name) => ({ name,
+      toolNames: catalog.filter((tool) => tool.internalGroup === name).map((tool) => tool.name) }))]
+  const request = laneRequestToolDefinition(groups)
+  const published = [
+    ...catalog.map((tool) => ({ name: `internal/${tool.name}`, schema: rules.toPublishedJsonSchema(tool.schema) })),
+    ...coding.map((tool) => ({ name: `internal/${tool.name}`, schema: tool.parameters })),
+    { name: `internal/${request.name}`, schema: request.parameters },
+    ...MCP_TOOL_RESOLVER.list().map((tool) => ({ name: `mcp/${tool.name}`, schema: tool.inputSchema })),
+  ]
+  assert.equal(published.length, 54)
+  assert.equal(new Set(published.map((tool) => tool.name)).size, published.length)
+  for (const tool of published) {
+    assert.deepEqual(vendor(tool.schema), [], tool.name)
+    assert.deepEqual(standard(tool.schema), [], tool.name)
+  }
+  for (const tool of catalog) assert.doesNotThrow(() => toModelVisibleSchema(tool.schema, { toolName: tool.name }))
+})
 
 test('empty schema {} 被抓到；显式的空对象不被误伤', () => {
   assert.equal(structural({}).length, 1, '`{}` 说的是「随便填」——这正是 canvas.write 0/18 的形状')
@@ -246,4 +317,112 @@ test('the official recursive person example keeps its local reference and reject
   assert.deepEqual(structural(published), [])
   assert.equal(structural({ ...published, properties: { ...published.properties, children: { type: 'array', items: {} } } }).length, 1)
   assert.equal(person.safeParse({ name: 'Parent', children: [{ name: 'Child', children: [{ name: 'Leaf' }] }] }).success, true)
+})
+
+
+test('standard whitelist rejects unsupported keywords and malformed supported shapes', () => {
+  for (const bad of [
+    { type: 'array', items: [{ type: 'number' }] }, { type: 'array', prefixItems: [{ type: 'number' }] },
+    { type: 'string', minLength: 1 }, { type: 'string', maxLength: 4 }, { default: 3 },
+    { propertyNames: { pattern: '^x' } }, { mystery: true }, { type: 'wat' }, { type: [] },
+    { required: 'x' }, { required: ['x', 'x'] }, { items: 3 }, { anyOf: [] },
+    { minItems: -1 }, { minItems: 1.5 }, { minimum: NaN }, { enum: [] },
+    { properties: [] }, { properties: { x: false } }, { $defs: { x: true } }, { enum: [NaN] }, { enum: [undefined] },
+    { $ref: '#/enum/0', enum: [{ type: 'string' }] }, { $ref: '#/properties', properties: { x: { type: 'string' } } },
+    { additionalProperties: 'yes' }, { description: 3 },
+    { $ref: '#/missing' }, { $ref: 'https://example.com/schema' },
+    { format: 'not-a-listed-format' }, { $schema: 'http://json-schema.org/draft-07/schema#' },
+  ]) assert.ok(standard(bad).length, JSON.stringify(bad))
+  const good = { type: 'object', properties: {
+    items: { type: 'array', items: { type: ['string', 'null'] }, minItems: 0, maxItems: 4 },
+    prefixItems: { anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'string', pattern: '^x', format: 'uuid' }] },
+    ref: { $ref: '#/$defs/number' },
+  }, $defs: { number: { type: 'number', minimum: 0, maximum: 4, multipleOf: 1 } },
+  additionalProperties: { type: 'boolean' }, required: ['items'], description: 'test' }
+  assert.deepEqual(standard(good), [])
+})
+
+test('generic projection preserves runtime Zod contracts and describes deferred constraints', async () => {
+  const { z } = await import('zod')
+  const source = z.object({
+    tuple: z.tuple([z.string().min(2).describe('original string'), z.number().positive()]),
+    keys: z.record(z.string().regex(/^a/), z.number()),
+    text: z.string().min(2).max(5).default('abc'),
+  })
+  const cases = [
+    [{ tuple: ['ok', 1], keys: { abc: 3 } }, true],
+    [{ tuple: ['ok', 1], keys: { abc: 3 }, text: 'abc' }, true],
+    [{ tuple: ['x', 1], keys: {} }, false], [{ tuple: [1, 'ok'], keys: {} }, false],
+    [{ tuple: ['ok', 0], keys: {} }, false], [{ tuple: ['ok', 1, 2], keys: {} }, false],
+    [{ tuple: ['ok', 1], keys: { bad: 2 } }, false],
+    [{ tuple: ['ok', 1], keys: {}, text: 'too-long' }, false],
+  ]
+  const resultOf = (input) => { const r = source.safeParse(input); return r.success ? { success: true, data: r.data } : { success: false, issues: r.error.issues } }
+  const before = cases.map(([input]) => resultOf(input))
+  const model = toModelVisibleSchema(source, { toolName: 'projection' })
+  assert.deepEqual(standard(model), [])
+  assert.deepEqual(cases.map(([input]) => resultOf(input)), before)
+  assert.deepEqual(before.map(r => r.success), cases.map(([,valid]) => valid))
+  assert.equal(source.parse(cases[0][0]).text, 'abc')
+  assert.equal(model.properties.tuple.minItems, 2)
+  assert.equal(model.properties.tuple.maxItems, 2)
+  assert.equal(model.properties.tuple.items.anyOf.length, 2)
+  assert.match(model.properties.tuple.description, /positions/)
+  assert.match(model.properties.keys.description, /propertyNames/)
+  assert.match(model.properties.text.description, /default/)
+  assert.match(model.properties.text.description, /minLength/)
+  assert.match(model.properties.tuple.items.anyOf[0].description, /original string/)
+  assert.equal(model.properties.keys.propertyNames, undefined)
+  assert.equal(model.properties.text.default, undefined)
+  assert.equal(model.$schema, undefined)
+})
+
+test('tuple relocation keeps recursive/local references valid and rest/empty tuples honest', async () => {
+  const { z } = await import('zod')
+  let recursive
+  recursive = z.lazy(() => z.object({ children: z.array(recursive).optional() }))
+  const source = z.object({ pair: z.tuple([recursive, z.string()]), rest: z.tuple([z.string()]).rest(z.number()), empty: z.tuple([]) })
+  const json = rules.toPublishedJsonSchema(source)
+  assert.deepEqual(standard(json), [])
+  assert.equal(json.properties.rest.minItems, 1)
+  assert.equal(json.properties.rest.maxItems, undefined)
+  assert.equal(json.properties.empty.maxItems, 0)
+  assert.equal(source.safeParse({ pair: [{ children: [{ children: [] }] }, 'ok'], rest: ['x', 1], empty: [] }).success, true)
+  assert.equal(source.safeParse({ pair: [{}, 'ok'], rest: ['x', 'bad'], empty: [] }).success, false)
+})
+
+test('the actual lane execution boundary rejects deferred constraints with structured errors', async () => {
+  const { z } = await import('zod')
+  const { createLaneTools, takeLaneToolFailure } = await import('../electron/agentLane/laneTools.mts')
+  let executions = 0
+  const [tool] = createLaneTools([{ name: 'runtime_probe', description: 'Validate the original input.', effect: 'read', execution: { timeoutMs: 1000 },
+    schema: z.object({ tuple: z.tuple([z.string().min(2), z.number()]), keys: z.record(z.string().regex(/^a/), z.string()) }),
+    examples: [], execute: async () => { executions++; return { ok: true, text: 'accepted' } },
+  }])
+  for (const [index, params] of [
+    { tuple: ['x', 1], keys: {} }, { tuple: [1, 'ok'], keys: {} }, { tuple: ['ok', 1], keys: { bad: 'value' } },
+  ].entries()) {
+    const id = `deferred-${index}`
+    await assert.rejects(tool.execute(id, params, undefined, undefined, undefined, { abortSignal: new AbortController().signal }))
+    const failure = takeLaneToolFailure(id)
+    assert.ok(failure?.code)
+    assert.ok(failure.issues?.length)
+  }
+  assert.equal(executions, 0)
+  await tool.execute('accepted', { tuple: ['ok', 1], keys: { abc: 'value' } }, undefined, undefined, undefined, { abortSignal: new AbortController().signal })
+  assert.equal(executions, 1)
+})
+
+
+test('official meta validator is reproducible and runs with string code generation disabled', async () => {
+  const { generateMetaValidator, outputFile } = await import('./gen-model-schema-meta-validator.mjs')
+  const { readFileSync } = await import('node:fs')
+  const vm = await import('node:vm')
+  const code = await generateMetaValidator()
+  assert.equal(readFileSync(outputFile, 'utf8'), code)
+  const module = { exports: {} }
+  const context = vm.createContext({ module, exports: module.exports }, { codeGeneration: { strings: false, wasm: false } })
+  vm.runInContext(code, context)
+  assert.equal(module.exports({ type: 'object', properties: { x: { type: 'string' } } }), true)
+  assert.equal(module.exports({ type: 'array', items: [{ type: 'number' }] }), false)
 })

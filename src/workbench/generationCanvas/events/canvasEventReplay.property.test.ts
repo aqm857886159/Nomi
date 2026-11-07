@@ -8,6 +8,10 @@ import { useGenerationCanvasStore, __resetGenerationCanvasHistoryForTests } from
 import { setCanvasEventSinkForTests, type CanvasShadowEvent } from './canvasEventEmitter'
 import { applyCanvasEvent, replayCanvasEvents } from './canvasEventReducer'
 
+import { normalizePayload } from '../../project/projectNormalize'
+import { createDefaultWorkbenchProjectPayload } from '../../project/projectRecordSchema'
+import { assertWorkbenchProjectMediaUrlsPersistable } from '../../project/projectMediaMigration'
+
 type Op =
   | { kind: 'add'; title: string; prompt: string; nodeKind: 'image' | 'video' | 'text' }
   | { kind: 'move'; pick: number; x: number; y: number }
@@ -272,6 +276,8 @@ describe('S5-a replay ≡ snapshot(属性测试,CI 安全网)', () => {
         for (const op of ops) applyOp(op)
         const state = useGenerationCanvasStore.getState()
         const projection = { nodes: state.nodes, edges: state.edges, groups: state.groups }
+        const payload = normalizePayload({ ...createDefaultWorkbenchProjectPayload(), generationCanvas: state.readDocumentSnapshot() })
+        assertWorkbenchProjectMediaUrlsPersistable({ id: 'replay', name: 'Replay', createdAt: 1, updatedAt: 1, version: 1, payload })
         const replayed = replayCanvasEvents(captured)
         expect(JSON.parse(JSON.stringify(replayed))).toEqual(JSON.parse(JSON.stringify(projection)))
       }),

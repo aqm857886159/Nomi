@@ -1,0 +1,76 @@
+{
+  "kind": "single-run-smoke-counters",
+  "notFormalBaseline": true,
+  "sourceCommit": "ac971de5cc390c206132ce04ee6c2a7b0571cd6f",
+  "note": "Exact counter fields from retained local raw samples. Snapshot path arrays are omitted here; their counts and all numeric values are retained. I60 predates the extra visibility/admission census, which I100 exercises.",
+  "samples": [
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 60,
+      "supplierQueries": 241,
+      "idleSeconds": 60.22,
+      "waiting": 12,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 9.099999904632568,
+      "load1AtStart": 9.27490234375,
+      "scale": "I60",
+      "runIndex": 0,
+      "mainBefore": {
+        "saves": 11,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 1,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 11,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 61,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106
+    },
+    {
+      "idleDraws": 0,
+      "idleSaveIPC30": 0,
+      "idleSnapshotWrites": 0,
+      "idleQueries": 59,
+      "supplierQueries": 236,
+      "idleSeconds": 60.083,
+      "waiting": 12,
+      "visible": 12,
+      "shaders": 0,
+      "minZoom": 0.6,
+      "reducedMotion": false,
+      "spinners": 0,
+      "animations": 0,
+      "p95": 9.200000047683716,
+      "load1AtStart": 9.44921875,
+      "scale": "I100",
+      "runIndex": 0,
+      "mainBefore": {
+        "saves": 12,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 1,
+        "revision": 11
+      },
+      "mainAfter": {
+        "saves": 12,
+        "snapshots": 106,
+        "submits": 1,
+        "queries": 60,
+        "revision": 11
+      },
+      "snapshotEventsCount": 0,
+      "snapshotInitializationCount": 106
+    }
+  ]
+}

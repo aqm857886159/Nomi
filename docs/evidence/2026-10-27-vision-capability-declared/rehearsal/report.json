@@ -1,0 +1,220 @@
+{
+  "script": "agent-image-input-real.rehearsal.walk.mjs",
+  "mode": "rehearsal（夹具大脑按请求体里的像素作答，不是模型分数）",
+  "startedAt": "2026-10-28T02:03:56.912Z",
+  "finishedAt": "2026-10-28T02:04:11.632Z",
+  "result": "passed",
+  "failure": null,
+  "failures": [],
+  "buildMarker": "Model does not accept image input:",
+  "model": "apimart/gpt-5-mini（地址重定向到本机夹具）",
+  "handTypedModel": {
+    "vendorKey": "apimart",
+    "modelKey": "gpt-5-mini",
+    "kind": "text",
+    "enabled": true,
+    "published": true,
+    "usable": true,
+    "metaKeys": [
+      "adapter"
+    ],
+    "declaredImageInput": null,
+    "selfCheck": {
+      "stage": "completed"
+    },
+    "imageInputTier": "unknown"
+  },
+  "asks": [
+    {
+      "id": "sees-code",
+      "name": "看得见",
+      "ask": "图里写的暗号是什么？只回暗号"
+    },
+    {
+      "id": "real-size",
+      "name": "真尺寸",
+      "ask": "用一句话说这张图里有什么"
+    }
+  ],
+  "metrics": {
+    "sawCodeWord": "第 1 轮：回答前缀 NOMI 对且 4 位数字按位置至少 3 位对 = 看见了；数字取 2–9 共 8 个，瞎猜概率 29/4096 ≈ 0.71%",
+    "realSizeOk": "第 2 轮：没走错误面（面板错误带 / 助手消息 stopReason=error）且回答非空 = 真实大小的图没被后端拒、没被截断",
+    "wireImagePart": "发出去的请求体里，带这一轮那句话的用户消息有图片部件（image_url / input_image / image），且没有「图片未发送」那句注"
+  },
+  "codeWord": "NOMI 2295",
+  "images": {
+    "code": {
+      "bytes": 3249,
+      "width": 1180,
+      "height": 260
+    },
+    "real": {
+      "bytes": 29703774,
+      "width": 3840,
+      "height": 2160,
+      "bitDepth": 16,
+      "colorType": 2,
+      "attachCapBytes": 31457280,
+      "source": "video-4k-hevc-10bit 第 5 秒抽一帧 → image-4k-png（登记表）"
+    }
+  },
+  "numbers": {
+    "rounds": 2,
+    "sawCodeWord": true,
+    "fullCodeEchoed": true,
+    "realSizeOk": true,
+    "realSizeDeniesImage": false,
+    "errorSurfaceRounds": 0,
+    "harnessErrors": 0
+  },
+  "hard": {
+    "checks": 3,
+    "failures": []
+  },
+  "gaugeProblems": [],
+  "rounds": [
+    {
+      "index": 1,
+      "id": "sees-code",
+      "name": "看得见",
+      "ask": "图里写的暗号是什么？只回暗号",
+      "startedAt": "2026-10-28T02:04:08.525Z",
+      "harnessError": null,
+      "shots": [
+        "04-sees-code-attached.png",
+        "05-sees-code-sent.png",
+        "06-sees-code-answered.png"
+      ],
+      "attached": {
+        "sourceBytes": 3249,
+        "landedBytes": 3249
+      },
+      "sendAttempts": 1,
+      "settle": {
+        "interventions": [],
+        "stoppedByWalk": false,
+        "errorBar": null,
+        "timedOut": false
+      },
+      "ms": 1321,
+      "sessions": 1,
+      "models": [
+        "apimart/gpt-5-mini"
+      ],
+      "attachmentClaims": 1,
+      "finalAnswer": "NOMI 2295",
+      "stopReason": "stop",
+      "errorMessage": null,
+      "toolCalls": [],
+      "usage": {
+        "input": 8,
+        "output": 7
+      },
+      "errorSurface": null,
+      "score": {
+        "saw": true,
+        "fullCodeEchoed": true,
+        "answerChars": 9
+      },
+      "wire": {
+        "source": "fixture",
+        "verdict": "image-in-request",
+        "requests": 1,
+        "images": [
+          {
+            "type": "image_url",
+            "mime": "image/png",
+            "bytes": 3249
+          }
+        ],
+        "droppedNote": false,
+        "why": null
+      }
+    },
+    {
+      "index": 2,
+      "id": "real-size",
+      "name": "真尺寸",
+      "ask": "用一句话说这张图里有什么",
+      "startedAt": "2026-10-28T02:04:09.847Z",
+      "harnessError": null,
+      "shots": [
+        "07-real-size-attached.png",
+        "08-real-size-sent.png",
+        "09-real-size-answered.png"
+      ],
+      "attached": {
+        "sourceBytes": 29703774,
+        "landedBytes": 29703774
+      },
+      "sendAttempts": 1,
+      "settle": {
+        "interventions": [],
+        "stoppedByWalk": false,
+        "errorBar": null,
+        "timedOut": false
+      },
+      "ms": 1608,
+      "sessions": 1,
+      "models": [
+        "apimart/gpt-5-mini"
+      ],
+      "attachmentClaims": 1,
+      "finalAnswer": "一张真实拍摄的画面，收到的图片是 29703774 字节。",
+      "stopReason": "stop",
+      "errorMessage": null,
+      "toolCalls": [],
+      "usage": {
+        "input": 8,
+        "output": 7
+      },
+      "errorSurface": null,
+      "score": {
+        "ok": true,
+        "answerChars": 29,
+        "deniesImage": false,
+        "why": null
+      },
+      "wire": {
+        "source": "fixture",
+        "verdict": "image-in-request",
+        "requests": 1,
+        "images": [
+          {
+            "type": "image_url",
+            "mime": "image/png",
+            "bytes": 29703774
+          }
+        ],
+        "droppedNote": false,
+        "why": null
+      }
+    }
+  ],
+  "screenshots": [
+    "01-model-hand-typed.png",
+    "02-model-self-check-running.png",
+    "03-model-self-check-done.png",
+    "04-sees-code-attached.png",
+    "05-sees-code-sent.png",
+    "06-sees-code-answered.png",
+    "07-real-size-attached.png",
+    "08-real-size-sent.png",
+    "09-real-size-answered.png"
+  ],
+  "brain": {
+    "text": {
+      "replies": 2,
+      "input": 16,
+      "output": 14,
+      "cacheRead": 6,
+      "cacheWrite": 0,
+      "models": {
+        "apimart/gpt-5-mini": 2
+      }
+    },
+    "mediaCalls": 0
+  },
+  "networkBlocked": [],
+  "walkOutputDir": ".tmp/pi-agent-image-input-rehearsal-development-1793153039275"
+}

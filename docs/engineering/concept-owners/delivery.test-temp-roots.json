@@ -1,5 +1,5 @@
 {
-  "name": "测试与走查的临时目录归属（唯一根、规范路径、退出时清理）",
+  "name": "测试与走查的临时目录归属（唯一根、规范路径、进程号归属与回收）",
   "subject": "delivery.test-temp-roots",
   "lifecycle": "delivery",
   "authority_kind": "writer",
@@ -22,10 +22,18 @@
     {
       "path": "tests/ux/_launchApp.mjs",
       "symbol": "registerTempRoot"
+    },
+    {
+      "path": "scripts/_test-temp.mjs",
+      "symbol": "reclaimAbandonedTestTemp"
+    },
+    {
+      "path": "scripts/pre-push-contracts.mjs",
+      "symbol": "terminateAndReclaim"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-08",
-  "notes": "合同 docs/fixes/2026-10-08-test-temp-cleanup.root-cause.json 与 2026-10-18-canonical-test-temp-roots：每次 Vitest 有且仅有一个自有根并在 teardown 后还原；每个隔离 Electron 启动在建任何子临时路径之前登记 profile 根；node:test 与独立脚本的系统临时根由 makeTempDir 发放，且都是 realpath 规范路径。"
+  "notes": "合同 docs/fixes/2026-10-08-test-temp-cleanup.root-cause.json 与 2026-10-18-canonical-test-temp-roots：每次 Vitest 有且仅有一个自有根并在 teardown 后还原；每个隔离 Electron 启动在建任何子临时路径之前登记 profile 根；node:test 与独立脚本的系统临时根由 makeTempDir 发放，且都是 realpath 规范路径。2026-10-28（合同 docs/fixes/2026-10-28-test-temp-owner-reclaim.root-cause.json）：makeTempDir 发放的目录名带创建者进程号（<前缀>-p<pid>-<随机>），创建者被 SIGKILL 后由下一个进程第一次分配（reclaimAbandonedTestTemp）或杀它的 runner（scripts/pre-push-contracts.mjs 的 terminateAndReclaim，等整棵进程树没了再收）按进程是否存活回收；退出钩子只是创建者自己的即时那一半。绕开分配口直接 mkdtemp(系统临时目录) 由 check:test-temp-static 按语法树拦，存量登记在 scripts/test-temp-bypass-baseline.json（只减不增）。"
 }

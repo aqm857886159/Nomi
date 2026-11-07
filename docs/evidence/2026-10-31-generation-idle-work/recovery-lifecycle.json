@@ -1,0 +1,125 @@
+{
+  "status": "unit-validated-runtime-pending",
+  "contractCommit": "0d91a3fa8",
+  "matrixCatalog": "tests/fixtures/generation-lifecycle-cases.json",
+  "matrix": {
+    "before": {
+      "total": 45,
+      "passed": 11,
+      "failed": 34,
+      "exit": 1
+    },
+    "after": {
+      "total": 46,
+      "passed": 46,
+      "failed": 0,
+      "exit": 0
+    },
+    "originalReportedRegressionsBefore": {
+      "tests": 2,
+      "failed": 2,
+      "exit": 1
+    },
+    "completedWriteCensusBeforeFastPath": {
+      "failed": 4,
+      "exit": 1,
+      "cause": "Ephemeral lease file was created even after peer completion; final path returns immutable receipt before acquiring ownership."
+    }
+  },
+  "probes": {
+    "recovery-mutation": {
+      "exit": 1,
+      "passed": 23,
+      "failed": 23,
+      "total": 46
+    },
+    "recovery-io-before-test": {
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "total": 46
+    },
+    "recovery-catalog-count": {
+      "exit": 0,
+      "passed": 47,
+      "failed": 0,
+      "total": 47
+    },
+    "restores": [
+      {
+        "path": "electron/productionRun/productionRunRuntimeEnvelope.ts",
+        "sha256": "92a0b5c0b0c7f72f9f913e4c750c9d8b032f9ed5eaad0bf4297a91853616477b",
+        "restored": true
+      },
+      {
+        "path": "electron/productionRun/productionGenerationSubmission.ts",
+        "sha256": "0dd6ced2abd5532a672f0e59d329974d7e3e3653436590d7269cf885a106f7d2",
+        "restored": true
+      },
+      {
+        "path": "tests/fixtures/generation-lifecycle-cases.json",
+        "sha256": "4412f14e8a74032e890b5f19ccd68a9f1487d1d701733c9cf76399a509fb03fe",
+        "restored": true
+      }
+    ]
+  },
+  "samePendingIO": {
+    "before": {
+      "reads": [
+        "<fixture>/.nomi/runs/op-1/events.ndjson",
+        "<fixture>/.nomi/runs/op-1/run.json",
+        "<fixture>/.nomi/runs/op-1/jobs/generation-op-1-5a166dd8a91e06f0/runtime-envelope.json",
+        "<fixture>/.nomi/runs/op-1/jobs/generation-op-1-5a166dd8a91e06f0/runtime-envelope.json"
+      ],
+      "opens": 0,
+      "snapshots": 0
+    },
+    "after": {
+      "reads": [
+        "<fixture>/.nomi/runs/op-1/events.ndjson",
+        "<fixture>/.nomi/runs/op-1/run.json",
+        "<fixture>/.nomi/runs/op-1/jobs/generation-op-1-5a166dd8a91e06f0/runtime-envelope.json",
+        "<fixture>/.nomi/runs/op-1/jobs/generation-op-1-5a166dd8a91e06f0/runtime-envelope.json"
+      ],
+      "opens": 0,
+      "snapshots": 0
+    },
+    "addedSynchronousReads": 0,
+    "addedWrites": 0
+  },
+  "doorCensus": {
+    "before": 27,
+    "after": 27,
+    "removed": "Two unguarded markMaterialized entries",
+    "replacement": "Two shared withMaterialization entries",
+    "processScope": "Electron main and independent stdio use the same filesystem observation/ownership boundary."
+  },
+  "runtime": {
+    "dualLocale": "pending",
+    "gates": "pending",
+    "prePush": "pending",
+    "exclusiveFiveRunsPerSceneBeforeAfter": "pending"
+  },
+  "unitBatch": {
+    "numTotalTests": 186,
+    "numPassedTests": 186,
+    "numFailedTests": 0
+  },
+  "build": {
+    "exit": 0,
+    "slot": "B",
+    "note": "Product code built successfully; final test helper type correction and matching-source rebuild remain pending."
+  },
+  "typecheck": {
+    "initial": {
+      "productionProjectsPassed": 4,
+      "newTestTypeErrors": 2,
+      "exit": 1
+    },
+    "retry": {
+      "exit": 0,
+      "projectsPassed": 5
+    }
+  },
+  "productCommit": "1fcc7ed0133638874d1e625fd3aa06d182636ee6"
+}

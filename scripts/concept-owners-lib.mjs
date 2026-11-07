@@ -9,7 +9,7 @@
 // 还是唯一的定义处，而且新合同里冒出来的边界一定进了账**。
 //
 // 本文件只放纯函数：输入是登记表、基线、扫描结果，输出是 findings。读文件、跑 git 都在 scan / check 两个文件里。
-import { reanchorResolver, splitSymbol } from './boundary-owners.mjs'
+import { boundaryIdentity, reanchorResolver, retiredBoundaries, splitSymbol } from './boundary-owners.mjs'
 import { CONCEPT_SUBJECT_PATTERN as SUBJECT_PATTERN } from './concept-registry-lib.mjs'
 import { IDENTITY_DIMENSIONS, isScannableSource, normalizePath, PRODUCTION_ROOTS, rootOf } from './concept-owners-scan.mjs'
 
@@ -561,14 +561,21 @@ function boundaryPathOf(file) {
  * （boundary-owners.mjs 的 reanchorResolver）核今天的锚，新锚照样必须是写接口；不是，报错写明「合同里的旧锚 → 台账里的新锚」。
  * 欠账照旧记在合同声明的那条边界上——冻结账（unregistered_boundaries）和台账都按它认，锚再挪一次身份也不变。
  *
+ * 边界退役了（台账 `retirements`）：那条不变量不再适用，也就不是谁的写接口，这里不报——**前提是退役有凭据**
+ * （retirementStands = boundary-owners.mjs 的 retirementHasProof 配上棘轮参照）：退役的是参照提交上确实声明过、主人当时确实在位的边界。
+ * 没凭据的退役（新合同声明的、从没存在过的符号，或符号根本不在声明的文件里）当它没写，照报未登记——这不是放行口。
+ * 主人其实还在的，check:boundary-owners 报「台账条目已经自己好了」；退役条目本身要写理由（readLedger 强制），台账只能手改。
+ * 调用方不给 retirementStands 就一条退役都不认（fail-closed）；没有参照可对的复验模式由调用方明说要全认。
+ *
  * 刻意**不**拿合同门表的每一扇写门判红：门表是「宁可多数一扇」的普查（R21.3），拿它判红会逼作者少数门，
  * 那正是门表要消灭的「我扫过了」。门表在这里只用来把合同归到它碰到的概念上（`--map` 打印）；
  * 「第二个写口」在活代码上判（evaluateOwnership / evaluateDoorPolicy），合同快照会过期，活代码不会。
  */
-export function evaluateContracts({ concepts, contracts, ledger, since = CONCEPT_OWNERS_SINCE }) {
+export function evaluateContracts({ concepts, contracts, ledger, retirementStands = () => false, since = CONCEPT_OWNERS_SINCE }) {
   const findings = []
   const mapping = []
   const reanchor = reanchorResolver(ledger)
+  const retired = retiredBoundaries(ledger)
   const apiEntries = concepts.flatMap((concept) => (concept.write_api ?? []).map((entry) => ({
     concept: concept.name,
     path: normalizePath(entry.path),
@@ -582,6 +589,8 @@ export function evaluateContracts({ concepts, contracts, ledger, since = CONCEPT
     const touched = new Set()
     for (const boundary of Array.isArray(contract?.shared_boundaries) ? contract.shared_boundaries : []) {
       if (!text(boundary?.path) || !text(boundary?.symbol)) continue
+      const retirement = retired.get(boundaryIdentity({ contract: file, path: boundary.path, symbol: boundary.symbol }))
+      if (retirement && retirementStands(retirement)) continue
       const anchor = reanchor.resolve({ contract: file, path: boundary.path, symbol: boundary.symbol })
       const anchorPath = boundaryPathOf(anchor.path)
       const missing = []
@@ -669,7 +678,7 @@ export function validateBaseline(baseline, { conceptsByName }) {
 
 // ─── 未登记的合同边界：冻结存量，只减不增（2026-10-06）────────────────────────
 // 受管合同里声明的共享边界还没登记成概念的写接口：存量债冻进基线（unregistered_boundaries），
-// 新增的直接红；登记或合同删除后基线里对应条目必须删（陈旧也红）。登记 owner 要人判断，机器补不了。
+// 新增的直接红；登记、退役或合同删除后基线里对应条目必须删（陈旧也红）。登记 owner 要人判断，机器补不了。
 
 export const boundaryKey = (entry) => `${entry.contract}|${normalizePath(entry.path)}|${entry.symbol}`
 
@@ -703,7 +712,7 @@ export function applyBoundaryBaseline({ baseline, findings }) {
   }
   for (const entry of baseline?.unregistered_boundaries ?? []) {
     if (live.has(boundaryKey(entry))) continue
-    out.push(finding('baseline-stale', { path: entry.path, symbol: entry.symbol, message: `unregistered_boundaries 里这一条已经登记或合同已删——从基线删掉（棘轮只减不增）：${boundaryKey(entry)}` }))
+    out.push(finding('baseline-stale', { path: entry.path, symbol: entry.symbol, message: `unregistered_boundaries 里这一条已经登记、退役或合同已删——从基线删掉（棘轮只减不增）：${boundaryKey(entry)}` }))
   }
   return out
 }

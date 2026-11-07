@@ -1,5 +1,5 @@
 // PR 正文判据库（2026-10-08）：设计卡格子 / 独立验收 / 逃逸账本转 fixed 须带 detected_by 合同 / 规则生效宽限 / 整体裁决。
-// 推送前（scripts/check-pr-judgement.mjs，pre-push 钩子经 scripts/pre-push-contracts.mjs 调，CI Contracts 同一个入口）
+// 推送前（scripts/check-pr-judgement.mjs，pre-push 钩子经 scripts/pre-push-contracts.mjs 调；CI 里 Contracts 判推送档、「PR Body」检查判合并档，同一个入口）
 // 与合并前扫描（scripts/merge-preflight.mjs）都调这一份——#1094 的形状：设计卡不是 ★ 格式、detected_by 写错，
 // 推送时放行、合并时才红，是因为两边各有一套口径。判据只此一处，两边同标准。
 // 路由 / 规则与门岗范围仍在 scripts/pr-judgement-lib.mjs（本模块在它之上叠设计卡等判据，并给一个总入口 evaluatePrBody）。
@@ -8,7 +8,7 @@ import { checkPrBoardClaims, parsePrBoardClaims } from './check-board-parity.mjs
 import { approvalCommand, boardApprovalSubject, describeBoardDiff, describeSuppressionGrowth, suppressionApprovalSubject, SUPPRESSIONS_FILE } from './lib/coordApprovals.mjs'
 import { pinScenarioPolicy } from './perf-scenarios-lib.mjs'
 import { localEvidenceInputs } from './lib/prEvidenceInputs.mjs'
-import { evaluatePrJudgement, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable } from './pr-judgement-lib.mjs'
+import { deriveUiVerification, evaluatePrJudgement, evaluateProcessTier, evidenceJudgementEnforced, extractSection, inferRoutes, loadRoutingTable, PROCESS_TIERS, processTieringEnforced, REAL_SCENE_SECTION, realSceneVerdict } from './pr-judgement-lib.mjs'
 
 /** 四类（花钱 / 长跑 / 可打断 / 新界面）——路由表里 pathRules.legacy 的那部分；files: [{ path, status }]，status 'A' = 新增。 */
 export function classifyChange(files, addedLines = '', table = undefined) {
@@ -53,17 +53,20 @@ const ENGLISH_HEADINGS = {
 export const englishHeadingHint = (body, heading) =>
   (ENGLISH_HEADINGS[heading]?.test(String(body || '')) ? `（正文里是英文标题，判据只认中文标题 \`## ${heading}\`，请改成中文）` : '')
 
-export function checkDesignCard(body, { fourClass }) {
-  const section = extractSection(body, '设计卡')
+/** short = 短档：卡可以写在 `## 短版设计卡`（也认 `## 设计卡`），格子要求同 ★ 5 格；非短档与原来逐字相同。 */
+export function checkDesignCard(body, { fourClass, short = false }) {
+  const shortSection = short ? extractSection(body, '短版设计卡') : null
+  const section = shortSection ?? extractSection(body, '设计卡')
+  const label = shortSection === null ? '设计卡' : '短版设计卡'
   const required = fourClass ? ALL_CELLS : STAR_CELLS
-  if (section === null) return { ok: false, lines: [`✖ PR 正文没有 \`## 设计卡\` 一节（${fourClass ? '四类，9 格' : '★ 格 1、2、3、4、9'}）${englishHeadingHint(body, '设计卡')}`] }
+  if (section === null) return { ok: false, lines: [`✖ PR 正文没有 \`## 设计卡\` 一节（${fourClass ? '四类，9 格' : '★ 格 1、2、3、4、9'}${short ? '；短档也可以写 `## 短版设计卡`' : ''}）${englishHeadingHint(body, '设计卡')}`] }
   const link = /https?:\/\/\S+|docs\/\S+\.md/.exec(section)
   const missing = required.filter((n) => !cellFilled(cellContent(section, n)))
-  if (missing.length === 0) return { ok: true, lines: [`✅ 设计卡：${required.length} 格都填了`] }
+  if (missing.length === 0) return { ok: true, lines: [`✅ ${label}：${required.length} 格都填了`] }
   if (link && missing.length === required.length) {
-    return { ok: true, lines: [`⚠ 设计卡只放了链接（${link[0]}），格子内容要人工到链接里核对（${required.join('、')}）`] }
+    return { ok: true, lines: [`⚠ ${label}只放了链接（${link[0]}），格子内容要人工到链接里核对（${required.join('、')}）`] }
   }
-  return { ok: false, lines: [`✖ 设计卡缺格：${missing.join('、')}（要求：${fourClass ? '四类 9 格全填' : '★ 格 1、2、3、4、9'}；确实不适用写「不适用：理由」）`] }
+  return { ok: false, lines: [`✖ ${label}缺格：${missing.join('、')}（要求：${fourClass ? '四类 9 格全填' : '★ 格 1、2、3、4、9'}；确实不适用写「不适用：理由」）`] }
 }
 
 /** 实现线编号：设计卡里的「线/负责人：X」或正文里的「实现线：X」。 */
@@ -73,11 +76,21 @@ export function implementationLine(body) {
 }
 
 /**
- * 判据跑在哪一步：'push'（推送前钩子）或 'merge'（CI 的 check:pr-judgement、合并前扫描）。
- * 独立验收的报告要等分支推上去、验收线跑完才有，推送时只能写「待出」——推送前只提醒，CI / 合并前照旧要链接。
- * CI 里一律按 'merge'：继承来的环境变量不能在那里放宽判据。
+ * 判据跑在哪一步：'push'（推送前钩子、Quality Gate 的 Contracts）或 'merge'（「PR Body」检查、合并前扫描）。
+ * 独立验收的报告要等分支推上去、验收线跑完才有，推送时只能写「待出」——推送档只提醒，合并档照旧要链接。
+ *
+ * 档位先认调用点写死的 `--stage=push|merge`（2026-11-07）：Contracts 写 `--stage=push`（只在推送时触发，正文改了它不知道，
+ * 判合并档就是第一次 CI 按构造必红），`.github/workflows/pr-body.yml` 写 `--stage=merge`（正文一改就重判）。
+ * 参数只给这一个进程，子进程不继承；写错的值报错，不猜。
+ * 没写参数时 CI 里一律按 'merge'（10-09）：继承来的环境变量不能在那里放宽判据。
  */
-export function resolveJudgementStage(env = process.env) {
+export function resolveJudgementStage(env = process.env, argv = []) {
+  const flags = argv.filter((arg) => String(arg).startsWith('--stage'))
+  if (flags.length > 0) {
+    const value = /^--stage=(push|merge)$/.exec(String(flags.at(-1)))?.[1]
+    if (!value) throw new Error(`判据档位参数写错了：${flags.at(-1)}（只认 --stage=push 或 --stage=merge）`)
+    return value
+  }
   if (env.CI) return 'merge'
   return env.NOMI_PR_JUDGEMENT_STAGE === 'push' ? 'push' : 'merge'
 }
@@ -124,7 +137,7 @@ export function checkIndependentAcceptance(body, { stage = 'merge', strict = fal
   let ok = true
   const report = ACCEPTANCE_LINK.exec(section)?.[0]?.trim() ?? null
   if (!report) {
-    if (stage === 'push') lines.push('⚠ 独立验收还没有报告链接：推送时允许（报告要推送后才有），CI 的 check:pr-judgement 与合并前扫描会一直红到补上链接')
+    if (stage === 'push') lines.push('⚠ 独立验收还没有报告链接：推送时允许（报告要推送后才有），「PR Body」检查与合并前扫描会一直红到补上链接（正文补上后它自动重判）')
     else {
       ok = false
       lines.push('✖ 独立验收没有带报告链接')
@@ -144,7 +157,7 @@ export function checkIndependentAcceptance(body, { stage = 'merge', strict = fal
   if (strict) {
     // 新增项：推送档只提醒，合并档判红
     const flag = (message) => {
-      if (stage === 'push') lines.push(`⚠ ${message}（推送时只提醒，CI / 合并前扫描要求）`)
+      if (stage === 'push') lines.push(`⚠ ${message}（推送档只提醒，「PR Body」检查与合并前扫描要求）`)
       else { ok = false; lines.push(`✖ ${message}`) }
     }
     const first = /(?:报告首行|报告第一行|结论原文)\s*[:：]\s*(.+)/.exec(section)?.[1]
@@ -263,7 +276,7 @@ export function checkSuppressionContracts({ strict = false, suppressions = undef
  */
 const PRODUCTION_TSX = /^src\/(?!devlab\/).*\.tsx$/
 const TEST_TSX = /(?:\.(?:test|spec)\.tsx$|(?:^|\/)__tests__\/)/
-export function checkBoardClaim(body, { inferred, files = [], strict = false, table = undefined, boards = null, baseBoards = null, approvals = null } = {}) {
+export function checkBoardClaim(body, { inferred, files = [], strict = false, claimsRequired = true, table = undefined, boards = null, baseBoards = null, approvals = null } = {}) {
   const claims = parsePrBoardClaims(body)
   const lines = []
   let ok = true
@@ -287,7 +300,8 @@ export function checkBoardClaim(body, { inferred, files = [], strict = false, ta
   const contracts = checkBoardContracts({ strict, boards, baseBoards, approvals })
   lines.push(...contracts.lines)
   ok = ok && contracts.ok
-  if (!strict) return { ok, lines }
+  // claimsRequired=false（短档）：只免「改了界面要认领清单元素或写例外」；上面的认领核对和清单合同的批准照常
+  if (!strict || !claimsRequired) return { ok, lines }
   const touchesUi = (inferred?.categories ?? []).some((category) => category.id === 'ui')
   if (!touchesUi) return { ok, lines }
   if (claims.length) return { ok, lines }
@@ -367,7 +381,29 @@ export function reviewedContracts(files, fetchHead, { hasCommit = () => false } 
   })
 }
 
-export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = [], settled = [], { stage = 'merge', reviewed = [] } = {}) {
+/** 真实场景复现这条规则的生效时刻：比它早开的 PR 没机会照新要求写，只提醒不判红。 */
+export const REAL_SCENE_RULE_EFFECTIVE_AT = '2026-11-02T00:00:00Z'
+
+/**
+ * 用户发现的问题转 fixed：用户那个场景要真实复现和确认过。评审、走查、CI 发现的没有「用户的流程」可写，不要求。
+ * 这里只查答没答；走得全不全、准不准由另一条线对照用户原话判。推送时凭据多半还没有（真付费在验收之后跑），只提醒。
+ */
+function checkRealSceneReplay(body, { stage, createdAt, enforce }) {
+  const verdict = realSceneVerdict(extractSection(body, REAL_SCENE_SECTION))
+  if (verdict.unverified) return { ok: true, lines: [`⚠ 真实场景复现有没做的（${verdict.unverified.join('；')}）：这一条不算已解决，发版前要对账`] }
+  if (verdict.ok) return { ok: true, lines: ['✅ 真实场景复现：五行都答了，修前修后有凭据（走得全不全、准不准由另一条线对照用户原话判）'] }
+  const grandfathered = !enforce && Boolean(createdAt) && new Date(createdAt) < new Date(REAL_SCENE_RULE_EFFECTIVE_AT)
+  const soft = stage === 'push' || grandfathered
+  return {
+    ok: soft,
+    lines: [
+      `${soft ? '⚠' : '✖'} 这个 PR 修的是用户发现的问题，用户那个场景要真实复现和确认过，\`## ${REAL_SCENE_SECTION}\`：${verdict.reason}`,
+      '  → 五行：用户的流程（用户当时怎么走的，出处）/ 我走的（走了哪些地方，从用户流程推）/ 差别（和用户那次差在哪、模拟了什么，没有写「无」）/ 修前（看到什么 + 凭据）/ 修后（同样的步骤结果 + 凭据）；缺真实资源在修前、修后写「未验证：原因」',
+    ],
+  }
+}
+
+export function checkEscapeContract(body, contracts, transitions = [], ledgerIds = [], settled = [], { stage = 'merge', reviewed = [], createdAt = null, enforce = false } = {}) {
   const withField = contracts.filter((contract) => ['user', 'post-release', 'walkthrough', 'ci', 'review'].includes(contract.detected_by))
   const userFound = contracts.filter((contract) => ['user', 'post-release'].includes(contract.detected_by))
   const mentioned = ledgerIds.filter((id) => String(body || '').includes(id) && !transitions.includes(id))
@@ -383,14 +419,15 @@ export function checkEscapeContract(body, contracts, transitions = [], ledgerIds
       return { applicable: true, ok: true, lines: [`· 修订已结账的根因合同（${userFound.map((contract) => contract.file).join('、')}）：对应逃逸账本条目在 base 已是 fixed，不要求再转换`, ...hint] }
     }
     if (stage === 'push' && unsettled.every((contract) => contract.added && reviewed.includes(contract.file))) {
-      return { applicable: true, ok: true, lines: [`⚠ 新增用户根因合同已有 reviewed 账本、真实提交和类级检查（${unsettled.map((contract) => contract.file).join('、')}）：首次推送允许待结账；CI / 合并前仍要求 fixed 与真实 PR 号`, ...hint] }
+      return { applicable: true, ok: true, lines: [`⚠ 新增用户根因合同已有 reviewed 账本、真实提交和类级检查（${unsettled.map((contract) => contract.file).join('、')}）：推送档允许待结账；「PR Body」检查与合并前扫描仍要求 fixed 与真实 PR 号`, ...hint] }
     }
     return { applicable: true, ok: false, lines: [`✖ 根因合同声明 detected_by 为用户 / 发版后发现（${unsettled.map((contract) => contract.file).join('、')}），但本 PR 没有把对应的逃逸账本条目（tests/ux/full-walk/escapeLedger/）转成 fixed——用户发现的问题要进账本并带类级检查结账`] }
   }
   if (withField.length === 0) {
     return { applicable: true, ok: false, lines: [`✖ 本 PR 把逃逸账本条目 ${transitions.join('、')} 转成 fixed，但没带含 detected_by 的根因合同（docs/fixes/*.root-cause.json）`] }
   }
-  return { applicable: true, ok: true, lines: [`✅ 逃逸账本 ${transitions.join('、')} → fixed：带了含 detected_by 的合同（${withField.map((contract) => contract.file).join('、')}）`, ...hint] }
+  const realScene = userFound.length > 0 ? checkRealSceneReplay(body, { stage, createdAt, enforce }) : { ok: true, lines: [] }
+  return { applicable: true, ok: realScene.ok, lines: [...realScene.lines, `✅ 逃逸账本 ${transitions.join('、')} → fixed：带了含 detected_by 的合同（${withField.map((contract) => contract.file).join('、')}）`, ...hint] }
 }
 
 /**
@@ -423,7 +460,7 @@ export function checkDeferredPromises(body, { stage = 'merge', createdAt = null,
   return {
     ok: soft,
     lines: [
-      `${head} PR 正文里有没落实的承诺（「后续提交 / 等 … 合入后」这类），每一条要标「已完成 <提交号>」或「移交 <#PR / 待办编号 / docs 路径>」：${grandfathered ? '（规则生效前开的 PR，只警告）' : stage === 'push' ? '（推送时只警告，合并前扫描判红）' : ''}`,
+      `${head} PR 正文里有没落实的承诺（「后续提交 / 等 … 合入后」这类），每一条要标「已完成 <提交号>」或「移交 <#PR / 待办编号 / docs 路径>」：${grandfathered ? '（规则生效前开的 PR，只警告）' : stage === 'push' ? '（推送档只警告，「PR Body」检查与合并前扫描判红）' : ''}`,
       ...offending.map((line) => `    - ${line}`),
     ],
   }
@@ -439,11 +476,12 @@ export function isGrandfathered({ createdAt, effectiveAt = RULES_EFFECTIVE_AT })
 }
 
 /** 正文判据的逐行输出与是否判红；renderReport（合并前）和推送前各自加抬头 / 结论。 */
-export function renderBodyLines({ classification, design, acceptance, escape, promises = { ok: true, lines: [] }, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, board = { ok: true, lines: [] }, perfPolicy = { ok: true, lines: [] }, suppressions = { ok: true, lines: [] }, grandfathered = false }) {
+export function renderBodyLines({ classification, processTier = null, design, acceptance, escape, promises = { ok: true, lines: [] }, scope = { ok: true, lines: [] }, routing = { blocking: false, lines: [], ok: true }, board = { ok: true, lines: [] }, perfPolicy = { ok: true, lines: [] }, suppressions = { ok: true, lines: [] }, grandfathered = false }) {
   const lines = []
   lines.push(classification.fourClass
     ? `· 四类：命中（${classification.classes.join('、')}）——${classification.hits.slice(0, 5).map((hit) => hit.path).join('、')}${classification.hits.length > 5 ? ' …' : ''}`
     : '· 四类：未命中，只查设计卡 ★ 格')
+  if (processTier) lines.push(...processTier.lines)
   const soften = (list) => (grandfathered ? list.map((line) => line.replace(/^✖/, '⚠')) : list)
   lines.push(...soften(design.lines))
   if (classification.fourClass) lines.push(...soften(acceptance.lines))
@@ -476,9 +514,11 @@ export const renderReport = ({ pr, ...rest }) => mergeReport(pr, renderBodyLines
  *   files: [{ path, status }]（A / M / D 或 added / modified / removed）；addedByFile: Map(路径 → 新增行)；
  *   contracts / ledger（transitions、ids、removed、settledContracts）见 checkEscapeContract / ledgerChanges；
  *   createdAt: PR 创建时间（拿不到 = 不宽限，fail-closed）；enforce: 假设规则已生效（回放用）；
- *   paidStrict: 合并前扫描传 true——花钱类的 spend-paid-sample 按严格口径判（pr-judgement-lib 的 paidSampleVerdict），CI / 推送前不传。
+ *   paidStrict: 合并前扫描传 true——花钱类的 spend-paid-sample 按严格口径判（pr-judgement-lib 的 paidSampleVerdict），CI / 推送前不传；
+ *   uiVerification: 短档声明的界面核实结果（测试注入；不传就用 evidence 里的 base / head 拍板图清单现算，且只有声明短档的 PR 才会去取）。
+ *   返回里的 processTier = 流程档位（严 ≡ 四类 classification.fourClass；其余分短 / 标准，见 pr-judgement-lib 的 evaluateProcessTier）。
  */
-export function evaluatePrBody({ body, files, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge', scenarios = null, table = undefined, paidStrict = false, evidence = undefined }) {
+export function evaluatePrBody({ body, files, addedLines = '', addedByFile = null, packageRemovedLines = [], contracts = [], ledger = {}, createdAt = null, enforce = false, stage = 'merge', scenarios = null, table = undefined, paidStrict = false, evidence = undefined, uiVerification = null }) {
   const normalized = files.map((file) => ({ ...file, status: file.status === 'added' ? 'A' : file.status }))
   const withAdded = addedByFile ? normalized.map((file) => ({ ...file, added: addedByFile.get(file.path) ?? '' })) : normalized
   const classification = classifyChange(withAdded, addedLines, table)
@@ -502,18 +542,31 @@ export function evaluatePrBody({ body, files, addedLines = '', addedByFile = nul
     paidStrict,
     readRaw: inputs.readRaw ?? null,
   })
+  // 流程档位。严 ≡ 现行四类：直接用上面那次 inferRoutes 的结论（classification），和下面 9 格 / 独立验收是同一个判断，不另算。
+  const processTier = evaluateProcessTier({
+    body,
+    files: normalized,
+    inferred: classification,
+    ledgerTransitions: ledger.transitions ?? [],
+    uiVerification: () => uiVerification ?? deriveUiVerification({ files: normalized, baseBoards: inputs.baseBoards, headBoards: inputs.boards }),
+    shortAllowed: processTieringEnforced(createdAt, enforce),
+  })
+  const short = processTier.tier === PROCESS_TIERS.SHORT
   const result = renderBodyLines({
     classification,
-    design: checkDesignCard(body, classification),
+    processTier,
+    design: checkDesignCard(body, { fourClass: classification.fourClass, short }),
     acceptance: checkIndependentAcceptance(body, { stage, strict: strictEvidence, headSha: inputs.headSha ?? null, readReport: inputs.readReport, headRelation: inputs.headRelation }),
-    escape: checkEscapeContract(body, contracts, ledger.transitions ?? [], ledger.ids ?? [], ledger.settledContracts ?? [], { stage, reviewed: ledger.preparedContracts ?? [] }),
+    escape: checkEscapeContract(body, contracts, ledger.transitions ?? [], ledger.ids ?? [], ledger.settledContracts ?? [], { stage, reviewed: ledger.preparedContracts ?? [], createdAt, enforce }),
     promises: checkDeferredPromises(body, { stage, createdAt, enforce }),
     scope: judgement.scope,
-    routing: judgement.routing,
-    board: checkBoardClaim(body, { inferred: judgement.inferred, files: normalized, strict: strictEvidence, table: policy, boards: inputs.boards ?? null, baseBoards: inputs.baseBoards ?? null, approvals: inputs.approvals ?? null }),
+    // 短档不查功能分类 / 验收证据：由声明与 base / head 界面清单核实替代
+    routing: short ? { ok: true, blocking: false, lines: ['· 功能分类 / 验收证据：短档不要求（由声明与 base/head 界面清单核实覆盖）'], gaps: [], categories: [] } : judgement.routing,
+    // 清单合同的批准看真实 diff，不分档位；短档只免「改了界面要认领或写例外」
+    board: checkBoardClaim(body, { inferred: judgement.inferred, files: normalized, strict: strictEvidence, claimsRequired: !short, table: policy, boards: inputs.boards ?? null, baseBoards: inputs.baseBoards ?? null, approvals: inputs.approvals ?? null }),
     perfPolicy: { ok: !pinned.blocked, lines: pinned.lines },
     suppressions: checkSuppressionContracts({ strict: strictEvidence, suppressions: inputs.suppressions, baseSuppressions: inputs.baseSuppressions, approvals: inputs.approvals ?? null }),
     grandfathered: !enforce && isGrandfathered({ createdAt }),
   })
-  return { ...result, classification, judgement }
+  return { ...result, classification, judgement, processTier }
 }

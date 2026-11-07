@@ -13,9 +13,9 @@ import { fileURLToPath } from 'node:url'
 
 const NODES_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)))
 
-// director/ 是独立的全屏 3D 导演台：小节点卡片本身没有滚动区（只有 overflow-hidden/-visible），
-// 打开后的编辑器整个走 `全屏壳（portal + FULLSCREEN_Z_INDEX）`（见 director/CLAUDE.md），
-// portal 目标不在 `.react-flow__pane` 的 DOM 子树内——wheel 原生冒泡够不到 pane 的监听器，
+// director/ 是独立的 3D 导演台：小节点卡片本身没有滚动区（只有 overflow-hidden/-visible），
+// 打开后的编辑器经 GenerationPageLayer 挂进生成页「画布那一格」（见 director/CLAUDE.md、generation/pageLayer.tsx），
+// 它是 `.react-flow__pane` 所在容器的同级节点而不是后代——wheel 原生冒泡够不到 pane 的监听器，
 // 不属于这一类问题，扫描直接跳过整个目录。
 const EXCLUDED_DIRS = new Set(['director'])
 

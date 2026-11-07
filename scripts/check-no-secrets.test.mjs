@@ -202,6 +202,17 @@ describe("路径白名单对非凭证规则仍然有效（没被这次改动误�
   });
 });
 
+describe("执行线临时产物进不了提交（2026-10-27：一条线把 PR 正文草稿强制加进了提交）", () => {
+  it.each([".tmp-pr-body.md", "docs/.tmp-pr-body.md", "CODEX-REPORT.md", ".relay-fallback-walk/a.png", "tests/ux/.x-walk/log.json"])("%s 拦住", (rel) => {
+    const r = scanContent(rel, "草稿\n");
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("[禁止路径]");
+  });
+  it.each(["docs/plan/2026-10-27-tmp-pr-body.md", "docs/CODEX-REPORT-notes.md", "tests/ux/onboarding.walk.mjs", "docs/evidence/x-walk/a.png"])("%s 不误报", (rel) => {
+    expect(scanContent(rel, "草稿\n").code).toBe(0);
+  });
+});
+
 // 2026-09-03 删掉了这里的「--all 全绿」用例。
 //
 // 它跑的是 `node scripts/check-no-secrets.mjs --all`——与 package.json 的 `check:secrets`
@@ -226,6 +237,47 @@ describe("全仓兜底", () => {
 // ── 私有待办编号：只查新增的行 ──────────────────────────────────────────
 // 老文件里约 130 处历史编号不追溯；pre-commit 与 CI 两条路径用同一条规则，都只看新增行。
 // 编号在运行时拼（本文件自己也会被门岗扫，源码里不许有字面量编号）。
+describe("列不出文件不算通过（2026-10-31：门岗写着「扫 0 个，通过」放行了整个仓库）", () => {
+  const scanIn = (cwd, ...args) => {
+    try {
+      const stdout = execFileSync("node", [SCANNER, ...args], { encoding: "utf8", cwd, stdio: ["ignore", "pipe", "pipe"] });
+      return { code: 0, out: stdout };
+    } catch (e) {
+      return { code: e.status ?? 1, out: `${e.stdout ?? ""}${e.stderr ?? ""}` };
+    }
+  };
+  const outside = makeTempDir("nomi-secret-gate-norepo-");
+  const empty = makeTempDir("nomi-secret-gate-empty-");
+  execFileSync("git", ["init", "-q"], { cwd: empty });
+  afterAll(() => {
+    fs.rmSync(outside, { recursive: true, force: true });
+    fs.rmSync(empty, { recursive: true, force: true });
+  });
+
+  it("--all：git 报错就红，说清没有扫描", () => {
+    const r = scanIn(outside, "--all");
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("没有扫描");
+    expect(r.out).not.toContain("安全门岗通过");
+  });
+
+  it("staged：git 报错也红", () => {
+    const r = scanIn(outside);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("没有扫描");
+  });
+
+  it("--all：一个文件都没列到也红", () => {
+    const r = scanIn(empty, "--all");
+    expect(r.code).toBe(1);
+    expect(r.out).toContain("一个文件都没列到");
+  });
+
+  it("staged：确实没有暂存文件，照常通过", () => {
+    expect(scanIn(empty).code).toBe(0);
+  });
+});
+
 describe("私有待办编号（只查新增行）", () => {
   const todoId = (area, n) => ["T", area, String(n)].join("-");
   const OLD = todoId("AG", 41);

@@ -1,0 +1,64 @@
+// 验收线探针：用 v0.24.0 的真实生产函数（真 service、真 store、真 promote）落一份旧目录，写到 fixtures。
+import fs from "node:fs";
+import path from "node:path";
+import { describe, it, vi } from "vitest";
+
+let userDataRoot = process.env.V_REL_ROOT as string;
+vi.mock("electron", () => ({
+  app: { getPath: () => userDataRoot, getAppPath: () => process.cwd() },
+  safeStorage: {
+    isEncryptionAvailable: () => true,
+    encryptString: (value: string) => Buffer.from(value),
+    decryptString: (value: Buffer) => value.toString(),
+  },
+}));
+
+import { readCatalog, upsertModelCatalogVendorApiKey } from "../catalog/catalogStore";
+import { ProviderAdapterService } from "./service";
+import { defaultCatalog } from "./serviceCatalog";
+import { ProviderAdapterStore } from "./store";
+import { buildOpenAiCompatibleDraft } from "./builtinOpenAiCompatibleDraft";
+
+const now = "2026-10-20T00:00:00.000Z";
+type M = { modelKey: string; labelZh: string; kind: "image" | "video" | "audio" | "text" };
+
+async function connect(name: string, baseUrl: string, models: M[], runId: string) {
+  const draft = buildOpenAiCompatibleDraft({ baseUrl, authType: "bearer", providerKind: "openai-compatible", models } as never);
+  const adapter = new ProviderAdapterService(new ProviderAdapterStore(path.join(userDataRoot, "provider-adapters.json")), {
+    catalog: defaultCatalog,
+    schedule: () => {},
+    discover: async () => ({ sources: [{ url: `${new URL(baseUrl).origin}/docs`, text: "API reference" }], corpus: "API reference" }),
+    resolveLanguageModels: () => [{} as never],
+    compile: async () => ({ draft, failures: [] }),
+    verify: async ({ mode }: { mode: { taskKind: string } }) => ({ ok: true, taskKind: mode.taskKind }),
+    now: () => now,
+    id: () => runId,
+  } as never);
+  const started = await adapter.start({
+    vendorName: name, baseUrl, apiKey: "sk-v-relay-fake", authType: "bearer", providerKind: "openai-compatible",
+    models,
+    certification: { contractDigest: "a".repeat(64), idempotencyKey: `idempotency-${runId}`, remoteIdempotency: "unknown" },
+  } as never);
+  await adapter.executeRun(started.id);
+  await adapter.awaitTerminalWrites();
+  adapter.stopWatchdog?.();
+  return adapter.getRun(started.id);
+}
+
+describe("rel gen", () => {
+  it("writes", async () => {
+    const run1 = await connect("Relay One", "http://127.0.0.1:39017/v1", (process.env.V_MODELS ? JSON.parse(process.env.V_MODELS) : null) || [
+      { modelKey: "gpt-image-2", labelZh: "GPT Image 2", kind: "image" },
+      { modelKey: "opaque-image-x", labelZh: "Opaque Image", kind: "image" },
+      { modelKey: "veo3.1-fast", labelZh: "Veo 3.1 Fast", kind: "video" },
+      { modelKey: "seedance-2", labelZh: "Seedance 2", kind: "video" },
+      { modelKey: "opaque-video-x", labelZh: "Opaque Video", kind: "video" },
+      { modelKey: "doubao-seedance-2-0-260128", labelZh: "Seedance 2.0", kind: "video" },
+    ], "run-rel-1");
+    console.log("RUN1", JSON.stringify({ stage: run1?.stage, error: run1?.error, models: run1?.models?.map((m) => [m.modelKey, m.modes.map((x) => [x.taskKind, x.state])]) }));
+    const state = readCatalog();
+    console.log("VERSION", state.version, "vendors", state.vendors.filter((v) => !v.builtin).map((v) => [v.key, v.enabled]));
+    for (const m of state.models.filter((m) => m.vendorKey.includes("relay"))) console.log("MODEL", m.vendorKey, m.modelKey, m.kind, m.enabled, JSON.stringify(Object.keys((m.meta as object) || {})), JSON.stringify((m.meta as Record<string, unknown>).adapter));
+    for (const r of state.mappings.filter((m) => m.vendorKey.includes("relay"))) console.log("MAP", r.modelKey, r.taskKind, r.enabled, r.create?.path);
+  });
+});

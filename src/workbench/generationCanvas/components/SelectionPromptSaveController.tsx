@@ -1,8 +1,10 @@
+import { canvasDocumentInput } from '../../shortcutSurface'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { IconX } from '@tabler/icons-react'
 import { DecisionBar, NomiLogoMark } from '../../../design'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { addUserPrompt, type PromptMediaType, type PromptReferenceImage } from '../../api/promptLibraryApi'
 import { notify } from '../../../ui/notificationPolicy'
 import type { TranslationKey } from '../../../i18n/translationKey'
@@ -70,6 +72,7 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
   const [toolbar, setToolbar] = React.useState<SelectionToolbarState | null>(null)
   const [saveError, setSaveError] = React.useState('')
   const [draft, setDraft] = React.useState<DraftState | null>(null)
+  useModalInputLayer(Boolean(draft))
   const draftRevision = React.useRef(0)
   const [saving, setSaving] = React.useState(false)
 
@@ -111,13 +114,13 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
     const scheduleUpdate = (): void => {
       window.setTimeout(updateFromSelection, 0)
     }
-    document.addEventListener('pointerup', scheduleUpdate, true)
-    document.addEventListener('keyup', scheduleUpdate, true)
-    document.addEventListener('selectionchange', scheduleUpdate)
+    canvasDocumentInput.addEventListener('pointerup', scheduleUpdate, true)
+    canvasDocumentInput.addEventListener('keyup', scheduleUpdate, true)
+    canvasDocumentInput.addEventListener('selectionchange', scheduleUpdate)
     return () => {
-      document.removeEventListener('pointerup', scheduleUpdate, true)
-      document.removeEventListener('keyup', scheduleUpdate, true)
-      document.removeEventListener('selectionchange', scheduleUpdate)
+      canvasDocumentInput.removeEventListener('pointerup', scheduleUpdate, true)
+      canvasDocumentInput.removeEventListener('keyup', scheduleUpdate, true)
+      canvasDocumentInput.removeEventListener('selectionchange', scheduleUpdate)
     }
   }, [disabled, draft, nodeById])
 

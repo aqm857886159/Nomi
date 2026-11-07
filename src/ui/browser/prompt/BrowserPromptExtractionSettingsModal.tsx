@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { IconFolderPlus, IconTrash, IconX } from '../../../vendor/tablerIcons'
 import { cn } from '../../../utils/cn'
 import { DecisionBar } from '../../../design'
+import { useModalInputLayer } from '../../../design/modalInputLayer'
 import { BROWSER_PROMPT_EXTRACTION_MODE_LABEL_KEYS, type BrowserPromptExtractionMode } from './browserPromptExtraction'
 import { TOOL_BUTTON_CLASS } from '../popover/browserAssetPopoverConstants'
 import type { BrowserPromptExtractionTemplate, BrowserPromptExtractionTemplateSettings } from '../popover/browserAssetPopoverTypes'
@@ -58,6 +59,7 @@ export function BrowserPromptExtractionSettingsModal({
   onSave,
   onClose,
 }: BrowserPromptExtractionSettingsModalProps): JSX.Element {
+  useModalInputLayer(true)
   const { t } = useTranslation()
   const [draft, setDraft] = React.useState(() => normalizeBrowserPromptExtractionTemplateSettings(settings))
   const [mode, setMode] = React.useState<BrowserPromptExtractionMode>('replicate')

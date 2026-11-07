@@ -1,0 +1,80 @@
+{
+  "tag": "v0.24.0",
+  "commit": "fe9064e7e36a7c5f265fc21652ec0bc45c4fe695",
+  "builder": "electron/feedback/feedbackReport.ts",
+  "method": "Every internal source loaded with git show v0.24.0:<path>; original builder executed with each unchanged catalog fixture and synthetic runtime/log inputs. No payload fields edited after building.",
+  "sources": [
+    {
+      "path": "electron/diagnostics/catalogRedaction.ts",
+      "sha256": "28a2c3968915a05daf573d96c7271fd83e32e6f58582e13468a90a25f3ea8fa8"
+    },
+    {
+      "path": "electron/feedback/feedbackReport.ts",
+      "sha256": "3fa6beec5c3157f947239356ba9b2450208fb57b966c79a1be685e3968fba61a"
+    },
+    {
+      "path": "electron/logging/diskSafeFailure.ts",
+      "sha256": "b7babc455525590870c84d58b11e6cffa52890dd23543dd36cbbc10c6e89cb66"
+    },
+    {
+      "path": "electron/logging/redact.ts",
+      "sha256": "14d9b4b1336dd299694b0a6086acd7658569e84ccab1700cbbdba35efdaa6a08"
+    },
+    {
+      "path": "electron/shared/agentLane/laneAssistantFault.ts",
+      "sha256": "d59d45099ffb09ab631ae78df60896195eb31889028d36c84f19f79ce8dcd43d"
+    },
+    {
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "sha256": "90f83e057965c8761424aa15424613b4450fb2864a499bab8745c3363ac3f494"
+    },
+    {
+      "path": "electron/shared/contracts/feedback.ts",
+      "sha256": "687fff0abe8eeacc2197930296de9ca587788827229bdfa13e8a4df9cedbf746"
+    },
+    {
+      "path": "electron/shared/contracts/ipcInvokeFailure.ts",
+      "sha256": "9fd22c55bbcdbb9a7938ada8da6e2f905967c085866dc95d67ad73b559e69e43"
+    },
+    {
+      "path": "electron/shared/contracts/perfTelemetry.ts",
+      "sha256": "4e12aef55df1036c15d3b2736293fb1285422ee03f4994664addd6a46568fb1b"
+    },
+    {
+      "path": "electron/telemetry/trajectoryProjection.ts",
+      "sha256": "68df2c9518a4ce00b68bad8ead131980be46453712c42ef5151da2ff0096b732"
+    }
+  ],
+  "catalogs": [
+    {
+      "input": "tests/fixtures/old-user-data/catalogs/v0.20.0-wizard/model-catalog.json",
+      "inputSha256": "240789c1795ac4d1e2a4d9358eefd03a92237a9f89f5a41ffc37169596957191",
+      "output": "v0.20.0-wizard.json",
+      "outputSha256": "e4d32a8a055d04e400d9934da58a9f102426820307e54014e849077ad02f7ed6"
+    },
+    {
+      "input": "tests/fixtures/old-user-data/catalogs/v0.24.0-declared-card/model-catalog.json",
+      "inputSha256": "b8ebd4866091388b62e49e57a9cd6870da2cabb9aae20a0cfac42d24579bd05e",
+      "output": "v0.24.0-declared-card.json",
+      "outputSha256": "8e76c1ed27848e8668df4a196a22ce0b172e4c179c4f6f3bfcd94802b326196d"
+    },
+    {
+      "input": "tests/fixtures/old-user-data/catalogs/v0.24.0-native-wire/model-catalog.json",
+      "inputSha256": "9b93bb3c578f8742e3689df928db40ac9db5dfa4afa02174d8dff67b9d16174d",
+      "output": "v0.24.0-native-wire.json",
+      "outputSha256": "a8d3b38c4cc6dd50235d76919a4a2c05268a9934325041a5063d82f299398df2"
+    },
+    {
+      "input": "tests/fixtures/old-user-data/catalogs/v0.24.0-wizard/model-catalog.json",
+      "inputSha256": "1171267aff7535831719191d2681a10e71bc265528b807f1196cf2e76068921b",
+      "output": "v0.24.0-wizard.json",
+      "outputSha256": "2a99820bb60284e1f4d10ebe619c4b1e961a04d4bff285371f5bc9c906ea4208"
+    },
+    {
+      "input": "tests/fixtures/old-user-data/catalogs/v0.24.0-wizard-audio/model-catalog.json",
+      "inputSha256": "e3737571b75d34fdbd325a2408cd0d9f1f276e7c387607d98315f680b35aee9b",
+      "output": "v0.24.0-wizard-audio.json",
+      "outputSha256": "b022ebb110a48dd31c0a527e91460167762d798738a14d3f5f47cf5e91064dc4"
+    }
+  ]
+}

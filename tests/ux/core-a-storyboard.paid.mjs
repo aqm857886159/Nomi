@@ -17,7 +17,7 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { prepareIsolation, createBlankProject, readProjectPayload } from '../../evals/lib/isoApp.mjs'
 import { cheapVideoNodeProblems } from './_agentVideoPaid.mjs'
-import { PRICE_LINE, SPEND_DIALOG, assertPaidRunAllowed, spendReceipt, watchSpendDialogs } from './_paidRun.mjs'
+import { DEFAULT_PAID_BRAIN, PRICE_LINE, SPEND_DIALOG, assertPaidRunAllowed, spendReceipt, watchSpendDialogs } from './_paidRun.mjs'
 import { realNomiProfile, removeRealCredentials, seedRealCredentials } from './_realProfile.mjs'
 import { AGENT_PANEL, DOCUMENT, chooseAssistantModel, expandResidentPanel, sendCreation, waitForV4TurnIdle, stopRuntimeApp } from './agent-runtime-walk-support.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
@@ -50,9 +50,9 @@ if (resumed) {
 // without changing prices, enabling models, or substituting provider endpoints.
 if (!resumed) assert.ok(fs.readFileSync(realNomiProfile().catalogPath).equals(fs.readFileSync(path.join(iso.settingsDir, 'model-catalog.json'))))
 const catalog = JSON.parse(fs.readFileSync(path.join(iso.settingsDir, 'model-catalog.json'), 'utf8'))
-const textModel = catalog.models.find(model => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.2' && model.enabled)
+const textModel = catalog.models.find(model => model.vendorKey === 'apimart' && model.modelKey === DEFAULT_PAID_BRAIN.modelKey && model.enabled)
 const imageModel = catalog.models.find(model => model.vendorKey === 'apimart' && model.modelKey === 'z-image-turbo' && model.enabled)
-assert.ok(textModel && imageModel, 'Configured apimart deepseek-v3.2 and z-image-turbo must both be enabled')
+assert.ok(textModel && imageModel, `Configured apimart ${DEFAULT_PAID_BRAIN.modelKey} and z-image-turbo must both be enabled`)
 const outputDir = path.resolve(values['output-dir'] || path.join(repoRoot, '.tmp', `core-a-storyboard-paid-${Date.now()}`))
 fs.mkdirSync(outputDir, { recursive: true })
 const report = { outputDir, tempRoot, mode: values.packaged ? 'packaged' : 'source-build', startedAt: new Date().toISOString(), launches: [], rounds: [], screenshots: [], results: [], platform: process.platform, windows: 'unverified', agentCost: 'unknown' }
@@ -421,7 +421,7 @@ try {
     await win.keyboard.press('Escape')
     const chosen = await win.evaluate(() => JSON.parse(localStorage.getItem('nomi.assistantModel') || 'null'))
     assert.equal(chosen?.vendorKey, 'apimart', 'UI must select the authorized provider')
-    assert.equal(chosen?.modelKey, 'deepseek-v3.2')
+    assert.equal(chosen?.modelKey, DEFAULT_PAID_BRAIN.modelKey)
     const requests = [
       '请读取当前文稿，创建一个恰好两镜的分镜方案草稿。每镜都是纯图片，taskKind=text_to_image，均使用已配置 apimart 的 z-image-turbo。不要视频、首帧、参考图或参考卡。不执行生成、不报价、不请求付费；只创建这一个两镜分镜草稿，完成后停止。',
       '上一轮尚未产生可选的两镜方案。请继续同一个任务：将当前文稿拆成恰好两镜图片分镜草稿，均使用 apimart/z-image-turbo，text_to_image，不要首帧或参考图。只创建草稿，不执行生成或付费。',

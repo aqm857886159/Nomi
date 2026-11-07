@@ -32,6 +32,7 @@
 - `AnchoredPopover` —— 锚点浮层（2 个文件）。⚠️ 全仓浮层定位实有四套，它不是唯一的那套，见该文件注释。
 - `Tooltip` / `TooltipTrigger` / `TooltipContent` / `TooltipProvider` —— Radix tooltip 换肤。
 - `BodyPortal`、`NOMI_OVERLAY_Z_INDEX` / `hasOpenDialogAbove`（`overlayLayers.ts`）、`useOverlayEscape`。
+- `useModalInputLayer`（`modalInputLayer.ts`）—— 模态开着时工作区面不接键盘、粘贴、指针手势。`DesignModal` 已自带；手写模态必须调一次（只盖一块的传 `covers`），漏了 `modalInputLayerCensus.test.ts` 会红。
 
 **品牌身份** `identity.tsx` / `NomiIdentityIcon.tsx`
 - `NomiWordmark` / `NomiLogoMark` / `NomiBrand` / `NomiLoadingMark` / `NomiStepper` —— 品牌不变量的唯一真相源，禁止手画 svg 或手写 `No<span>m</span>i`。

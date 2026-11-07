@@ -76,7 +76,7 @@ export function workingTreeSource(repoRoot) {
     if (known !== null) return known
     try {
       const deleted = new Set(gitPaths(['ls-files', '--deleted'], { cwd: repoRoot }))
-      const files = gitPaths(['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: repoRoot, maxBuffer: 256 * 1024 * 1024 })
+      const files = gitPaths(['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: repoRoot })
         .filter((file) => !deleted.has(file))
       known = { files: new Set(files), directories: directoriesOf(files) }
     } catch {
@@ -137,7 +137,7 @@ export function gitRefSource(repoRoot, ref) {
   const verify = spawnSync('git', ['rev-parse', '--verify', `${ref}^{commit}`], { cwd: repoRoot, encoding: 'utf8' })
   if (verify.status !== 0) throw new Error(`读不到提交 ${ref}：${verify.stderr.trim()}`)
   const commit = verify.stdout.trim()
-  const all = gitPaths(['ls-tree', '-r', '--name-only', commit], { cwd: repoRoot, maxBuffer: 256 * 1024 * 1024 })
+  const all = gitPaths(['ls-tree', '-r', '--name-only', commit], { cwd: repoRoot })
   const files = new Set(all)
   const directories = directoriesOf(all)
   const cache = new Map()

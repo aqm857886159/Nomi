@@ -8,6 +8,7 @@ import {
   type CanvasShadowEvent,
 } from '../../../src/workbench/generationCanvas/events/canvasEventEmitter'
 import { createProjectSessionTestHarness } from '../../../src/workbench/project/projectSessionTestHarness'
+import { workspaceInputAttributes } from '../../../src/workbench/shortcutSurface'
 
 const session = createProjectSessionTestHarness()
 await session.open('original-project')
@@ -82,7 +83,10 @@ function Harness() {
     </div>
   )
 }
-const root = createRoot(document.querySelector('#root')!)
+const host = document.querySelector('#root')!
+for (const [name, value] of Object.entries(workspaceInputAttributes(true))) host.setAttribute(name, value)
+host.setAttribute('data-shortcut-surface', 'canvas')
+const root = createRoot(host)
 root.render(<Harness />)
 Object.assign(window, {
   selectionDragFixture: {

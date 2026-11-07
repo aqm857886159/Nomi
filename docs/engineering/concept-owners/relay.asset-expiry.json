@@ -1,0 +1,31 @@
+{
+  "name": "Relay 桶内素材的列桶、过期判定与占用口径（assetPages 唯一列桶点，assetExpiryMs 唯一过期判定，usageSnapshot 计桶内全部字节）",
+  "subject": "relay.asset-expiry",
+  "lifecycle": "materialized-artifact",
+  "authority_kind": "decision",
+  "trust_domain": "site",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "workers/nomi-asset-relay/src/index.mjs",
+    "symbol": "assetExpiryMs"
+  },
+  "write_api": [
+    {
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "assetPages"
+    },
+    {
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "assetExpiryMs"
+    },
+    {
+      "path": "workers/nomi-asset-relay/src/index.mjs",
+      "symbol": "usageSnapshot"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-31",
+  "notes": "合同 docs/fixes/2026-10-31-asset-relay-expiry-cleanup.root-cause.json：Relay 列桶只经 assetPages（固定 assets/ 前缀、页大小、include customMetadata），「已过期」只由 assetExpiryMs 判定（usageSnapshot、cleanup、readAsset 共用；没有可用 expiresAt 的对象永不删除），容量统计计桶内全部字节；批量清理 cleanup 是这三者的调用方（名字太通用，不登记为写接口）（已过期未删的也算，因为 R2 按存储计费）。tests/asset-relay/worker.node-test.mjs 的源码普查守着「别处再冒出第二个列桶点」。"
+}

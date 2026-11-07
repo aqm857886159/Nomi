@@ -1,0 +1,37 @@
+{
+  "id": "FB-20261029-director-layer-trap",
+  "since": "2026-10-29",
+  "source": "用户 2026-10-29 原话：「2.导演台 我打开以后 画布右侧还有漏出」；「点入导演台之后呢？然后我点其他页面我都出不去了。我点创作也出不去，预览也出不去。」；在对比里选了「收进生成页（推荐）」",
+  "category": "interaction-semantics",
+  "problem": "打开导演台后，Agent 为浮窗时画布右侧还露出一条可点的真画布（用户项目 608px）；点顶栏「创作」「预览」页面在导演层底下切、导演台不走，左栏整块被盖住点不到，用户「出不去」；小球形态下 Agent 小球被导演层盖住。导演台是挂在 body 上的 fixed 全屏层，自己算位置、靠节点本地 state 管生命周期；全景查看器同形。门岗只认字面量 fixed inset-0，导演层写的 fixed inset-x-0 漏网。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑫"
+  ],
+  "useCases": [
+    "打开导演台，一边和右边的 Agent 说话改它，一边切去创作页看文稿、再切回来导演台还是刚才的样子（Agent 停靠 / 浮窗 / 小球三种形态，中英）"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "fixedInPr": 1377,
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-29-director-layer-in-page.direction-check.md",
+    "docs/plan/2026-10-29-director-layer-in-page.md",
+    "docs/fixes/2026-10-29-director-layer-in-page.root-cause.json",
+    "src/workbench/pageLayerCensus.test.ts",
+    "src/ui/app-shell/windowChrome.test.ts",
+    "tests/ux/director-layer-in-page.walk.mjs"
+  ],
+  "completionCommits": [
+    "e01163f28f069747b9ff175936c042078bd15e9b",
+    "3f78e2e065be24708c72bb6990a7a761138a2565",
+    "78d328504273a7216641f783b09fa5d30c96ec68",
+    "cbc8173a0fa07b7ac84680a3469ba791c5816784"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-29-director-layer-in-page.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/pageLayerCensus.test.ts"
+  }
+}

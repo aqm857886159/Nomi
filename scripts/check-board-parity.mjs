@@ -44,6 +44,25 @@ export const PRIOR_ART_MIN_ITEMS = 3
 const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0
 
 /**
+ * 对账 PR base/head 的界面清单。清单取不到或两边都没有清单时返回 unknown：
+ * 没有证据不能把“没看到变化”当成“确定没变化”。判据层只消费这个结果，
+ * 不在另一处复制 board manifest 的比较口径。
+ */
+export function compareBoardManifests(base, head) {
+  if (!base || !head || typeof base !== 'object' || typeof head !== 'object') {
+    return { known: false, changed: null, reason: '取不到 base/head 拍板图清单' }
+  }
+  const baseNames = Object.keys(base).filter((name) => base[name] && !base[name].ambiguous)
+  const headNames = Object.keys(head).filter((name) => head[name] && !head[name].ambiguous)
+  if (!baseNames.length || !headNames.length) {
+    return { known: false, changed: null, reason: 'base/head 没有可对账的拍板图清单' }
+  }
+  const normalize = (manifests) => Object.fromEntries(Object.keys(manifests).sort().map((name) => [name, manifests[name]]))
+  const changed = JSON.stringify(normalize(base)) !== JSON.stringify(normalize(head))
+  return { known: true, changed, reason: changed ? 'base/head 拍板图清单有差异' : 'base/head 拍板图清单无差异' }
+}
+
+/**
  * R9：先查别人。日期 ≥ PRIOR_ART_REQUIRED_FROM 的板必须有 ≥3 项 {url, takeaway, decisionImpact}。纯函数、可测。
  */
 export function checkPriorArt({ board, manifest, date }) {

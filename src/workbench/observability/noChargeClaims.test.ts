@@ -40,7 +40,9 @@ describe('失败文案目录里不谈钱', () => {
 
   it.each(['zh-CN', 'en'] as const)('%s：目录里没有任何谈钱的说法（扣钱 / 扣费 / charged / charge again…）', (language) => {
     const offenders = leaves(catalog(language)).filter((leaf) => MONEY_TALK.test(leaf.text)).map((leaf) => `${leaf.path}: ${leaf.text.slice(0, 80)}`)
-    expect(offenders).toEqual([])
+    // 用户11-02批准只在未结束请求上直说可能扣费；其它类别仍不谈钱。
+    const reason = catalog(language).submissionUnknown.reason
+    expect(offenders.sort()).toEqual(['submissionUnknown.reason', 'nodeInFlight.reason', 'shotClaimed.needsReconcile.reason'].map(key => `${key}: ${reason}`).sort())
   })
 
   it('探针活着：宽一档的判据看得见「再扣一次钱」「charges you again」', () => {
@@ -49,7 +51,7 @@ describe('失败文案目录里不谈钱', () => {
 
   it.each(['zh-CN', 'en'] as const)('%s：没出门的那几类改说「请求还没发出去」这个事实', (language) => {
     const fact = language === 'en' ? /never called|Nothing was sent|never left your machine|left your machine/i : /没被请求到|还没发出去|没有离开你的电脑/
-    for (const key of ['assetUploadFailed', 'assetInvalid', 'outboundBlockedSubmit', 'outboundBlockedCredentialOrigin'] as const) {
+    for (const key of ['assetUploadFailed', 'assetInvalid', 'aspectRatioUnsupported', 'outboundBlockedSubmit', 'outboundBlockedCredentialOrigin'] as const) {
       expect(leaves((catalog(language) as Record<string, unknown>)[key]).some((leaf) => fact.test(leaf.text)), `${language}.${key}`).toBe(true)
     }
   })

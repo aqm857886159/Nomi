@@ -40,7 +40,7 @@ describe('Vite dependency pre-bundling', () => {
     const KNOWN_OK_RAW_IN_DEV = new Set([
       '@fontsource-variable/fraunces', '@fontsource-variable/inter', '@imgly/background-removal', '@mantine/hooks',
       '@radix-ui/react-dropdown-menu', '@radix-ui/react-focus-scope', '@radix-ui/react-tooltip', '@sparkjsdev/spark',
-      '@streamdown/cjk', '@streamdown/code', '@tabler/icons-react', '@tiptap/pm', '@xyflow/react', 'fflate', 'img-fx',
+      '@streamdown/cjk', '@streamdown/code', '@tabler/icons-react', '@tiptap/pm', '@xyflow/react', 'fflate',
       'immer', 'js-yaml', 'marked', 'onnxruntime-web', 'perfect-freehand', 'react-resizable-panels',
     ])
     const leaked = [...new Set([...specs].filter((spec) => !spec.startsWith('node:')).map(pkgOf))]

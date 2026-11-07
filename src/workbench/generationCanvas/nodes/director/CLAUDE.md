@@ -6,8 +6,8 @@
 > 依赖方向：panels/timeline/scene → model；model 不 import React/THREE；panels/inspector 可调 timeline/timelineCommands（命令层零 React）。产物只存资产句柄。
 > 成员清单
 > useMobilePreview.ts: 复用 captureFrame 与认证手机桥发送最长480px监视帧；单帧在途/大小上限/迟到帧丢弃，录制状态只回桌面真相
-> DirectorNode.tsx: 画布节点卡片（顶层节点组件，注册于 nodes/registry.ts）：统计/入连摘要 + 连线引用列表（全景节点 → 全景；资产节点按后缀分泼溅/模型）+ 打开按钮 + 「发送到画布」落成 Image / Video 节点并连 reference 边；节点 meta.directorProject 的唯一读写点；关闭即落盘
-> DirectorEditor.tsx: 全屏壳（portal + role=dialog + FULLSCREEN_Z_INDEX + Windows 让开自绘窗口栏，顶偏移取 ui/app-shell/windowChrome 的 currentFullscreenOverlayTopOffset —— 那条 32px 是系统拖拽带，盖住它顶部控件整条点不动、窗口控件也埋在下面，见 docs/fixes/2026-09-04-fullscreen-overlay-windows-windowbar.root-cause.json）：创建/注入 store、注入连线引用（LinkedAssetsContext）与产物动作（OutputsContext）、持有角色放置与画框两个创建模式并经 CreationModeContext 下发（视口要指针路由与 ghost、顶栏「＋添加」要发起，只调一次 hook）、悬浮顶栏五簇（panels/topbar）压在视口 / 时间轴 / 右栏嵌套分栏之上、退出确认、2s 空闲自动保存、Esc 归属（捕获期监听，壳根节点会 stopPropagation：模式 → 清工具 + 清全部选中→ 退 POV → 退出确认）；本机偏好（scene/viewSettings 读写）喂给视口，设置 / 帮助对话框挂在壳上
+> DirectorNode.tsx: 画布节点卡片（顶层节点组件，注册于 nodes/registry.ts）：统计/入连摘要 + 连线引用列表（全景节点 → 全景；资产节点按后缀分泼溅/模型）+ 打开按钮（`open` 本地 state，编辑器经 GenerationPageLayer 挂进生成页那一格）+ 「发送到画布」落成 Image / Video 节点并连 reference 边；节点 meta.directorProject 的唯一读写点；关闭即落盘
+> DirectorEditor.tsx: 导演台页面根（2026-10-29 起是生成页里的一块：根 size-full 铺满所在容器，由 DirectorNode 经 generation/pageLayer 的 GenerationPageLayer 挂进画布那一格；版面归 GenerationWorkspace 的网格，这里不读 Agent 形态也不算偏移，不再有 portal / FULLSCREEN_Z_INDEX / 顶偏移——页格本来就在顶栏之下，Windows 那条 32px 拖拽带的场景由构造保证，见 docs/fixes/2026-09-04-fullscreen-overlay-windows-windowbar.root-cause.json；藏着（切页 / 列表视图，useGenerationPageLayerActive 为假）时 Esc 监听摘掉、暗色锁释放、录制中的运镜放弃，快捷键 / 视口漫游 / 3D 渲染循环在各自的家里跟着停）：创建/注入 store、注入连线引用（LinkedAssetsContext）与产物动作（OutputsContext）、持有角色放置与画框两个创建模式并经 CreationModeContext 下发（视口要指针路由与 ghost、顶栏「＋添加」要发起，只调一次 hook）、悬浮顶栏五簇（panels/topbar）压在视口 / 时间轴 / 右栏嵌套分栏之上、退出确认、2s 空闲自动保存、Esc 归属（捕获期监听，壳根节点会 stopPropagation：模式 → 清工具 + 清全部选中→ 退 POV → 退出确认）；本机偏好（scene/viewSettings 读写）喂给视口，设置 / 帮助对话框挂在壳上
 > DirectorViewShell.tsx: 导演台的默认面「导演视图」（2026-10-16 起 3D-BOX 是唯一的导演台）：顶栏 [← 工程名 · 镜头 N] [导演 | 精修] [撤销 重做][出成片 ▾]（顶栏件取 panels/topbar/shellChrome）+ 视口（小窗左下说正在播哪一镜）+ 只读镜头条
 > DirectorRefineShell.tsx: 精修「选中才出」布局（导演台的「精修」面）：视口满宽 + RefineTopBar + 选中才出的 ContextCard + 左侧资产库抽屉 + 原时间轴
 > DirectorEditorContext.ts: DirectorStoreContext + useDirectorStore(selector) / useDirectorStoreApi()
@@ -29,6 +29,6 @@
 > scene/: three / R3F 世界（画布、相机、实体、gizmo、描边、拾取、创建模式、标签、播放求值），见 scene/CLAUDE.md
 > panels/: DOM 面板（顶栏五簇 topbar/ 是唯一常驻控件条，2026-09-09 收掉了视口左缘创建栏 / 底中底栏 / 右下显示模式三条，见 docs/plan/2026-09-09-director-chrome-five-clusters.md；右栏大纲/资产库/检查器、字段原语、分栏、浮层），见 panels/CLAUDE.md
 > timeline/: 片段时间轴，见 timeline/CLAUDE.md
-> 开发入口: 仓库根 director-lab.html → src/devlab/directorLab.tsx（仅 dev，脱离画布挂全屏壳）
+> 开发入口: 仓库根 director-lab.html → src/devlab/directorLab.tsx（仅 dev，脱离画布、自己摆一格铺满窗口的容器挂编辑器）
 > 法则: 成员完整·一行一文件·父级链接·技术词前置
 > [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

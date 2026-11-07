@@ -1,0 +1,32 @@
+{
+  "name": "项目可编辑草稿的存读形状",
+  "subject": "project.editable-draft-persistence",
+  "lifecycle": "project-data",
+  "authority_kind": "schema",
+  "trust_domain": "shared",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+    "symbol": "storyboardDraftPlanSchema"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/storyboard/storyboardPlanSchema.ts",
+      "symbol": "storyboardDraftPlanSchema"
+    },
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePayload"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/project/projectRecordSchema.ts",
+    "src/workbench/project/projectNormalize.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts"
+  ],
+  "parity_test": "src/workbench/project/editorPersistability.property.test.ts",
+  "since": "2026-10-30",
+  "notes": "草稿 schema 拥有可存结构；normalizePayload 只是同一形状的存盘、读盘与旧键迁移入口，不再拥有内容必填规则。严格模型/Agent schema 只从草稿 extend 内容约束，不是第二份持久化 owner。"
+}

@@ -94,7 +94,9 @@ export async function seedUserRelayConnection(
   const { vendorKey } = registerProviderConnection({ rawInput: connection, catalog: defaultCatalog, now: () => now });
   const runId = `run-parity-relay-${vendorKey}`;
   defaultCatalog.stage({ ...connection, vendorKey, runId });
-  const draft = buildOpenAiCompatibleDraft({ baseUrl, authType: "bearer", providerKind: "openai-compatible", models: selected });
+  // 视频协议要显式声明：没有声明就没有通道，这一行进不了清单，格子对中转视频就是空转。
+  const mediaProtocols = selected.some((model) => model.kind === "video") ? (["openai-videos-v1"] as const) : undefined;
+  const draft = buildOpenAiCompatibleDraft({ baseUrl, authType: "bearer", providerKind: "openai-compatible", models: selected, ...(mediaProtocols ? { mediaProtocols: [...mediaProtocols] } : {}) });
   const verifiedModes = draft.models.flatMap((model) => model.modes.map((mode) => ({ modelKey: model.modelKey, taskKind: mode.taskKind })));
   const result = defaultCatalog.promote({
     run: {

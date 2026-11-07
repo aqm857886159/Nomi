@@ -1,11 +1,10 @@
-import { getDesktopBridge } from '../../desktop/bridge'
+import { trashProjectFiles } from './assetFileDeletion'
 import { logRendererError } from '../../desktop/rendererLog'
 import { readLocalProjectAsync, saveLocalProject } from '../library/localProjectStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
-import type { AssetRef } from './assetTypes'
-import { applyAssetResultDeletion, countRemovedResults, planAssetDeletion, type ProjectFileTarget } from './assetResultDeletion'
+import { applyAssetResultDeletion, countRemovedResults, planAssetDeletion, type ProjectFileTarget, type AssetDeletionRequest } from './assetResultDeletion'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import type { NodeResultLifecyclePatch } from '../generationCanvas/model/nodeResultLifecycle'
 import { isProjectExecutionContextCurrent, type ProjectExecutionContext } from '../project/projectCanvasReadSurface'
@@ -66,10 +65,8 @@ function rollbackAppliedPatches(
 
 /** 文件当场进系统回收站（没有撤销步可挂的删除：关闭的项目，或画布上本来就没有要摘的结果）。 */
 async function trashProjectFile(target: ProjectFileTarget): Promise<Pick<DeleteAssetResultOutcome, 'deletedFileCount' | 'failedFileCount'>> {
-  const deleteFiles = getDesktopBridge()?.workspace?.deleteFiles
-  if (!deleteFiles) return { deletedFileCount: 0, failedFileCount: 1 }
   try {
-    const result = await deleteFiles({ projectId: target.projectId, relativePaths: [target.relativePath] })
+    const result = await trashProjectFiles(target.projectId, [target.relativePath])
     return { deletedFileCount: result.deletedCount, failedFileCount: result.failedCount }
   } catch (error) {
     logRendererError('asset-file-trash-failed', error)
@@ -86,7 +83,7 @@ async function trashProjectFile(target: ProjectFileTarget): Promise<Pick<DeleteA
  * - 文件还被别处用着：留着，计入 keptInUseCount，由调用方告诉用户。
  */
 async function deleteAssetResultUnlocked(
-  asset: AssetRef,
+  asset: AssetDeletionRequest,
   loaded: ProjectExecutionContext | null,
 ): Promise<DeleteAssetResultOutcome> {
   const loadedProjectId = loaded ? loaded.binding.projectId : null
@@ -159,10 +156,15 @@ async function deleteAssetResultUnlocked(
 
 /** loaded：发起删除那一刻签发的已加载项目（没有打开的项目 = null）；不再缺省读取「当前项目」。 */
 export function deleteAssetResult(
-  asset: AssetRef,
+  asset: AssetDeletionRequest,
   loaded: ProjectExecutionContext | null,
+  assertAuthority?: () => void,
 ): Promise<DeleteAssetResultOutcome> {
   const projectId = asset.origin.source === 'project' ? asset.origin.projectId : loaded?.binding.projectId
-  if (!projectId) return deleteAssetResultUnlocked(asset, loaded)
-  return serializeProjectDeletion(projectId, () => deleteAssetResultUnlocked(asset, loaded))
+  const execute = () => {
+    assertAuthority?.()
+    return deleteAssetResultUnlocked(asset, loaded)
+  }
+  if (!projectId) return execute()
+  return serializeProjectDeletion(projectId, execute)
 }

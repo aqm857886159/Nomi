@@ -1,0 +1,6 @@
+{"commandId":"generation.seal:canvas-old-post:v1:a84160d2b44d305d24c95666f1f5cab656afd0a9be9c34123f845202f44b7b37","expectedRevision":0,"resultRevision":1,"eventCursors":[2]}
+{"commandId":"canvas-shot-decide:generation-authorization:canvas-old-post:v1:n1:1aa63b08-c324-4b3f-a63b-72b7b3b41f4b","expectedRevision":1,"resultRevision":2,"eventCursors":[3]}
+{"commandId":"generation.runtime:canvas-old-post:job-bind:generation-canvas-old-post-a84160d2b44d305d","expectedRevision":2,"resultRevision":3,"eventCursors":[4]}
+{"commandId":"canvas-old-post:generation-canvas-old-post-a84160d2b44d305d:1:budget:reserve","expectedRevision":3,"resultRevision":4,"eventCursors":[5]}
+{"commandId":"canvas-old-post:generation-canvas-old-post-a84160d2b44d305d:1:submit-intent","expectedRevision":4,"resultRevision":5,"eventCursors":[6]}
+{"commandId":"canvas-old-post:generation-canvas-old-post-a84160d2b44d305d:1:submitting","expectedRevision":5,"resultRevision":6,"eventCursors":[7]}

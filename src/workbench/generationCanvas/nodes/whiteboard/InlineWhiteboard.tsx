@@ -18,7 +18,7 @@ import { readWhiteboardState, serializeWhiteboardState, whiteboardDraftIdentity 
 import { whiteboardCanvasDimensions, whiteboardHasVisibleContent, whiteboardRasterStateKey } from './whiteboardRasterState'
 import { getCanvasDimensions } from './lib/canvas'
 import { useNodeAttachedPanel } from '../nodeAttachedPanel'
-import { closeWhiteboard, registerWhiteboardFinish } from './whiteboardSession'
+import { registerWhiteboardFinish } from './whiteboardSession'
 import { computeMediaMetaPatch, mediaNodeSize, resolveNodeVisualSize } from '../nodeSizing'
 import i18n from '../../../../i18n'
 
@@ -74,6 +74,7 @@ export default function InlineWhiteboard({
     : initialState ? serializeWhiteboardState(initialState) : null }))
   const draftIdentityRef = React.useRef(sourceNode ? whiteboardDraftIdentity(sourceNode) : `board:${nodeId}`)
   const lastDraftRef = React.useRef('')
+  const pendingDraftRef = React.useRef<WhiteboardState | null>(null)
   const draftTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [initialDimensions] = React.useState(() => initialState?.canvasDimensions ?? getCanvasDimensions(initialState?.activeRatio ?? initialImage?.aspectRatio ?? '16:9', 1280))
   const hostScaleRef = React.useRef(sourceNode ? resolveNodeVisualSize(sourceNode).width / initialDimensions.width : 1)
@@ -95,6 +96,7 @@ export default function InlineWhiteboard({
       if (lastDraftRef.current === signature) return serializedState
       lastDraftRef.current = signature
       const latest = useGenerationCanvasStore.getState().nodes.find((node) => node.id === nodeId)
+      if (!latest) return null
       updateNode(nodeId, {
         meta: {
           ...(latest?.meta || {}),
@@ -108,13 +110,20 @@ export default function InlineWhiteboard({
     [nodeId, projectLifetime, savedStateRef, updateNode],
   )
 
-  const scheduleDraft = React.useCallback(() => {
+  const flushDraft = React.useCallback(() => {
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
-    draftTimerRef.current = setTimeout(() => { draftTimerRef.current = null; persistWhiteboardState() }, 250)
+    draftTimerRef.current = null
+    const draft = pendingDraftRef.current
+    pendingDraftRef.current = null
+    if (draft) persistWhiteboardState(draft)
   }, [persistWhiteboardState])
-  React.useEffect(() => () => {
-    if (draftTimerRef.current) { clearTimeout(draftTimerRef.current); persistWhiteboardState() }
-  }, [persistWhiteboardState])
+  const scheduleDraft = React.useCallback(() => {
+    // React detaches child handles before passive cleanup. Capture while the document is still mounted.
+    pendingDraftRef.current = drawingRef.current?.getState() ?? null
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    draftTimerRef.current = setTimeout(flushDraft, 250)
+  }, [flushDraft])
+  React.useEffect(() => flushDraft, [flushDraft])
 
   const resizeBoard = React.useCallback((dimensions: { width: number; height: number }) => {
     if (projectLifetime?.signal.aborted) return
@@ -228,7 +237,6 @@ export default function InlineWhiteboard({
   }, [nodeId, onClose, persistWhiteboardState, reportFeedback, saveImageWhiteboardSnapshot, t])
 
   React.useEffect(() => registerWhiteboardFinish(handleClose), [handleClose])
-  React.useEffect(() => () => closeWhiteboard(nodeId), [nodeId])
 
   const handleCreateScreenshotNode = React.useCallback(async () => {
     if (screenshotBusy) return null

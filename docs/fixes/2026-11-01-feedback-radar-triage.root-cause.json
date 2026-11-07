@@ -1,0 +1,158 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-01-feedback-radar-triage",
+  "problem_type": "New user feedback could slip through the daily radar with nothing noticing",
+  "symptom": "A 10-30 report was never recorded. A 10-31 report arrived at 11:51Z and the report file generated at 22:45Z said 0 new, and the same overwrite happened on 10-29.",
+  "direct_cause": "reports/<UTC date>.md was overwritten by a second run on the same day. The hook kept only the last 14 output lines, and since the version health block was added they were all that block, so the new count and the report path never reached a session. The new count clears for the whole machine on whichever run sees it first.",
+  "class_root": "The radar could only say what is new in this run. Nothing recorded which reports nobody had handled, so being seen once counted as being handled.",
+  "affected_population": [
+    "Every in-app report since the version health block was added on 10-29",
+    "The coordinating session, which read the hook summary as the whole answer"
+  ],
+  "scope_paths": [
+    "scripts/intake-radar.mjs",
+    "scripts/daily-radar-session.mjs",
+    "scripts/lib/intake-radar/inbox.mjs",
+    "scripts/lib/intake-radar/aggregate.mjs",
+    "scripts/lib/intake-radar/render.mjs",
+    "scripts/lib/intake-radar/store.mjs"
+  ],
+  "entry_points": [
+    "pnpm run intake:radar by hand",
+    "The SessionStart hook in its fresh, cached, failed and exit 1 branches",
+    "pnpm run intake:radar -- --triaged, the only way a row leaves the inbox"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://linear.app/docs/triage",
+      "checked_at": "2026-11-01",
+      "purpose": "Items from outside enter a triage inbox and leave only by a decision. The inbox here follows that model: a report leaves only with a named to-do."
+    }
+  ],
+  "invariants": [
+    "Every report in the cache has a row in the inbox, including unreadable files and reports seen before the inbox existed.",
+    "A row leaves only through --triaged or --triaged-through with --todo; running the radar never clears one.",
+    "Each session reads the inbox fresh, in every hook branch, and a missing or broken inbox is never reported as zero.",
+    "No report overwrites another, even twice in one second.",
+    "The new count, the triage count and the report path stay in the last lines of the terminal summary, however long the health block grows.",
+    "A report delivered several times counts as one in statistics and in the inbox."
+  ],
+  "doors": [
+    { "kind": "read", "path": "scripts/daily-radar-session.mjs", "symbol": "readInbox" },
+    { "kind": "read", "path": "scripts/daily-radar-session.mjs", "symbol": "untriagedItems" },
+    { "kind": "read", "path": "scripts/intake-radar.mjs", "symbol": "readInbox" },
+    { "kind": "write", "path": "scripts/intake-radar.mjs", "symbol": "reconcileInbox" },
+    { "kind": "write", "path": "scripts/intake-radar.mjs", "symbol": "writeInbox" },
+    { "kind": "write", "path": "scripts/intake-radar.mjs", "symbol": "writeReport" },
+    { "kind": "write", "path": "scripts/intake-radar.mjs", "symbol": "triageInbox" },
+    { "kind": "read", "path": "scripts/lib/intake-radar/aggregate.mjs", "symbol": "untriagedItems" },
+    { "kind": "write", "path": "scripts/lib/intake-radar/inbox.mjs", "symbol": "untriagedItems" },
+    { "kind": "read", "path": "scripts/lib/intake-radar/render.mjs", "symbol": "triage" },
+    { "kind": "write", "path": "scripts/lib/intake-radar/store.mjs", "symbol": "writeReport" }
+  ],
+  "door_reduction": {
+    "before": 3,
+    "after": 11,
+    "why_not": "The doors are new because the state is new: one inbox with one writer path for entering and one for leaving. The hook reads it for the session line, the report reads it for the triage section, and the CLI writes it. They read one file instead of copying a count into a summary."
+  },
+  "generality_proof": "A report enters the inbox from the cache contents, without looking at seenKeys, so no ordering between machines, sessions or runs can skip it. It leaves only by a command that names a to-do, so nothing can clear it by accident. The hook reads the file on every session, so all its branches report the same current number. The branch list in the hook test holds every way a session can start.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/lib/intake-radar/inbox.mjs",
+      "symbol": "reconcileInbox",
+      "responsibility": "Everything in the cache that is not on the inbox gets a row; existing rows are never changed by a run."
+    },
+    {
+      "path": "scripts/lib/intake-radar/inbox.mjs",
+      "symbol": "triageInbox",
+      "responsibility": "The only way a row leaves, all or nothing, with a named to-do."
+    },
+    {
+      "path": "scripts/daily-radar-session.mjs",
+      "symbol": "triageLine",
+      "responsibility": "The current answer to how many reports nobody has handled, read at each session."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/intake-radar.mjs",
+      "entry_point": "run",
+      "disposition": "enforced",
+      "evidence": "Writes the inbox before the report and before state, also when version health exits 1; intake-radar.node-test.mjs runs two reports on one day and the exit 1 path."
+    },
+    {
+      "path": "scripts/daily-radar-session.mjs",
+      "entry_point": "runDailyRadar",
+      "disposition": "enforced",
+      "evidence": "All branches splice the same line in; the test walks each branch, and another test passes the real terminal summary through the hook's cut with the longest health block."
+    },
+    {
+      "path": "scripts/model-radar.ts",
+      "entry_point": "main",
+      "disposition": "not-affected",
+      "evidence": "Reports a diff against a snapshot that only --update-baseline moves, so being seen does not consume anything. It has no user reports to lose."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any second run in a day and any session opened first on any machine consumed the new count, and it already happened on 10-29, 10-30 and 10-31.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs reconcileInbox triageInbox untriagedItems readInbox writeInbox writeReport --roots=scripts: the inbox doors and two unrelated writeReport functions in other scripts",
+      "daily-radar.json on the coordinator's machine: the stored summary did not contain the new count line",
+      "Report files of 10-29 and 10-31: seenAt earlier than the file time, with new equal to 0"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/lib/intake-radar/inbox.mjs",
+    "invariant": "A report stays on the inbox from the run that sees it until a command names the to-do it went into.",
+    "failure_mode": "An unknown id, a missing --todo or a broken inbox exits 1 and changes nothing. A broken inbox rebuilds from the cache on the next run, so at worst a report is triaged twice, and the report says so.",
+    "exception_policy": "none",
+    "strategy": "A separate ledger answers who has been handled, and the existing count keeps answering what is new in this run. The summary keeps the decision lines last, and the hook reads the ledger live.",
+    "artifacts": [
+      "scripts/lib/intake-radar/inbox.mjs",
+      "scripts/daily-radar-session.mjs",
+      "scripts/daily-radar-session.node-test.mjs",
+      "scripts/intake-radar.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/intake-radar.node-test.mjs",
+    "scripts/daily-radar-session.node-test.mjs",
+    "scripts/lib/intake-radar/inbox.node-test.mjs",
+    "scripts/lib/intake-radar/aggregate.node-test.mjs",
+    "scripts/lib/intake-radar/store.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/daily-radar-session.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/lib/intake-radar/store.mjs"
+    ],
+    "rationale": "The date-only report name that allowed overwriting is gone. Old report files stay on disk unread, as a record. The state file keeps answering what is new."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "A JSON ledger in the cache directory written by temp file and rename; no package is involved.",
+    "exit_criteria": []
+  },
+  "migration": "The first run on an old cache puts every cached report on the inbox, keeping the first seen time from state.json, and shows them as untriaged: the coordinator clears the backlog once with --triaged-through and a note. Old report files are left as they are.",
+  "residual_risks": [
+    "The inbox lives on one machine's cache. Another machine that has never run the radar reports the inbox as not built yet, and never as zero.",
+    "The hook still labels exit 1 from a version health stop as not checked, so that session reruns the radar. The triage line is still right; the wrong label is a separate fix.",
+    "Triage is a person's decision, so reports can stay on the inbox as long as nobody decides. The count keeps showing them."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-01",
+  "invariant_owner_layer": {
+    "layer": "scripts/lib/intake-radar/inbox.mjs",
+    "tests": [
+      "scripts/lib/intake-radar/inbox.node-test.mjs",
+      "scripts/intake-radar.node-test.mjs",
+      "scripts/daily-radar-session.node-test.mjs"
+    ]
+  }
+}

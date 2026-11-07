@@ -8,6 +8,16 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { PanoramaScreenshot } from './PanoramaViewer'
 import { computeMediaMetaPatch, mediaNodeSize } from './nodeSizing'
 
+export function usePanoramaFullscreenTrigger() {
+  const ref = React.useRef<(() => void) | null>(null)
+  return {
+    ref,
+    onEnterFullscreen: (trigger: (() => void) | null) => {
+      ref.current = trigger
+    },
+  }
+}
+
 /**
  * 全景节点的两个回调（上传换图 / 视口截图建节点）从 BaseGenerationNode 抽出（R9 防巨壳）。
  * 逻辑、依赖数组逐字不动；store action 在 hook 内自订阅（selector 返回稳定引用，不引入额外 rerender）。

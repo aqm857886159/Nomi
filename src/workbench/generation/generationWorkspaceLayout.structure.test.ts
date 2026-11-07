@@ -95,3 +95,26 @@ describe('时间轴收起 = 工作面底边窄条', () => {
     expect(source).not.toContain('timelineHandlePlacement')
   })
 })
+
+/**
+ * 页内全屏层的挂载点（2026-10-29，导演台收进生成页；设计卡 docs/plan/2026-10-29-director-layer-in-page.md ★2）。
+ * 守的不变量：挂载点由 GenerationWorkspace 提供并命名、**唯一一处**——就是「画布那一格」（workbench-generation__canvas），
+ * 而且「看得见」= 生成页是当前页 && 画布视图（列表视图开着时画布那一格是被藏起来的，挂在里面的导演台跟着藏）。
+ * 层在 Agent 小球 / 浮窗层（z-[60]）之下，所以 Agent 不管停靠、浮窗还是小球都不被盖——这条关系写在 pageLayer.tsx 的层级里，这里钉住挂载点这一头。
+ */
+describe('页内全屏层的挂载点 = 画布那一格', () => {
+  it('画布那一格登记为挂载点元素（ref 回调写进 state，不按 class 名在 DOM 里查）', () => {
+    expect(source).toContain("<div ref={setPageLayerHost} className={cn('workbench-generation__canvas'")
+    expect(source).toContain('React.useState<HTMLDivElement | null>(null)')
+  })
+
+  it('这一格「看得见」= 外壳传来的槽位 active && 不是列表视图，经 Provider 下发', () => {
+    expect(source).toContain('active: active && !listOpen')
+    expect(source).toContain('<GenerationPageLayerProvider value={pageLayer}>')
+  })
+
+  it('GenerationWorkspace 不自己读 workspaceMode / Agent 形态来摆页内层（版面归网格，可见性归外壳传来的 active）', () => {
+    expect(source).not.toContain('workspaceMode')
+    expect(source).not.toContain('useEffectiveAgentForm')
+  })
+})

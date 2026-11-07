@@ -1,6 +1,6 @@
 import i18n from '../../../../i18n'
 import { withoutIpcInvokeWrapper } from '../../../../../electron/shared/contracts/ipcInvokeFailure'
-import { classifyGenerationError } from '../../../observability/classifyError'
+import { generationFailureActions, type FailureRun } from '../../../observability/generationFailureActions'
 
 export type StoryboardFailureCopy = {
   /** 画面格里那一行：失败的原因（与画布节点错误卡同一个分类器、同一份词表）。 */
@@ -19,13 +19,13 @@ export type StoryboardFailureCopy = {
  * 用户不知道为什么、也不知道能不能重试（V-1042 第 22 张截图）。这里不另写一套判据：原因和动作都出自
  * `classifyGenerationError`（画布节点错误卡用的同一个），画面格只是换一个更窄的地方说同一句话。
  */
-export function storyboardFailureCopy(errorMessage: string | null | undefined): StoryboardFailureCopy {
-  const report = classifyGenerationError(String(errorMessage || ''))
+export function storyboardFailureCopy(errorMessage: string | null | undefined, run?: FailureRun): StoryboardFailureCopy {
+  const report = generationFailureActions(String(errorMessage || ''), run)
   const detail = technicalDetail(report.raw)
   return {
     reason: report.reason,
     hint: detail ? `${report.hint}\n\n${i18n.t('generationCommon.error.technicalDetails')}${String(i18n.language).startsWith('zh') ? '：' : ': '}${detail}` : report.hint,
-    canRetry: report.primary !== 'reconcile' && report.primary !== 'view-task',
+    canRetry: report.canRetry,
   }
 }
 

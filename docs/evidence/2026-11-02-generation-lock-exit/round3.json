@@ -1,0 +1,228 @@
+{
+  "round": 3,
+  "sourceCommit": "1f009eb6f77a17638cbd82970713908ead9ce82e",
+  "status": "partial",
+  "counterexamples": [
+    {
+      "name": "receipt-ignored",
+      "file": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "aad77f3c4cd61217d85a8253738575eb66ad449a656ec8a258f3e66c3766bb8d",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "receipt-not-checked",
+      "file": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "exit": 1,
+      "failed": 3,
+      "sha": "aad77f3c4cd61217d85a8253738575eb66ad449a656ec8a258f3e66c3766bb8d",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "receipt-not-human",
+      "file": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "aad77f3c4cd61217d85a8253738575eb66ad449a656ec8a258f3e66c3766bb8d",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "batch-not-filtered",
+      "file": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "60c3fbd21149c8fe06656c777a6966aba720c42a857ec5bf9e3ee3427b801436",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "orphan-not-converged",
+      "file": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "aad77f3c4cd61217d85a8253738575eb66ad449a656ec8a258f3e66c3766bb8d",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "live-post-is-orphan",
+      "file": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "aad77f3c4cd61217d85a8253738575eb66ad449a656ec8a258f3e66c3766bb8d",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "record-before-confirm",
+      "file": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "575d5ac14a8818815a14788a93226984dc5f7b88330c8f3c5a776faf0b77b47b",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "notice-not-classified",
+      "file": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "60c3fbd21149c8fe06656c777a6966aba720c42a857ec5bf9e3ee3427b801436",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "ownership-before-await",
+      "file": "src/workbench/generationCanvas/components/batchPlanPreview.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "60c3fbd21149c8fe06656c777a6966aba720c42a857ec5bf9e3ee3427b801436",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "projection-writes-record",
+      "file": "src/workbench/production/releaseUnknownSubmission.ts",
+      "exit": 1,
+      "failed": 2,
+      "sha": "3c4cd94573204971c63e74494d0f206579de20d10c2db17a4568a3b915ecff18",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "same-intent-is-refusal",
+      "file": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "d1b800054006b655225e5b241bdf0c2c42fb101a1624613c54ec963013bce7d5",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "released-run-reclaims",
+      "file": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "aad77f3c4cd61217d85a8253738575eb66ad449a656ec8a258f3e66c3766bb8d",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "released-run-no-observer",
+      "file": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "aad77f3c4cd61217d85a8253738575eb66ad449a656ec8a258f3e66c3766bb8d",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "late-timeline",
+      "file": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "575d5ac14a8818815a14788a93226984dc5f7b88330c8f3c5a776faf0b77b47b",
+      "caught": true,
+      "byteRestored": true
+    },
+    {
+      "name": "free-query-without-run",
+      "file": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "exit": 1,
+      "failed": 1,
+      "sha": "25e15a96dbad5290fb0afc82c5c382ec8c0a9a6667d7a0e9cb8e79b0cb06d36d",
+      "caught": true,
+      "byteRestored": true
+    }
+  ],
+  "stopped": [
+    {
+      "item": "F1 sigkill window acceptance",
+      "attempts": 3,
+      "cause": [
+        "hidden popover locator",
+        "wait shorter than fake POST delay",
+        "nonexistent continue translation key"
+      ],
+      "behaviorVerified": "Restarted canvas/storyboard/list and pre-confirmation POST counts; confirmed resend not reached in this mode."
+    },
+    {
+      "item": "final verification",
+      "cause": "disk below 10GiB",
+      "availableGiB": 8.783966064453125,
+      "queuedProcessesTerminated": true
+    }
+  ],
+  "before": {
+    "commit": "ec1348ca4b887364bda73c1d67b5b598cbcf80bc",
+    "errorCode": "node_generation_in_flight",
+    "status": "failed",
+    "log": "round3-before.log"
+  },
+  "checks": {
+    "prepushSecond": {
+      "status": "partial",
+      "passed": [
+        "related tests 807",
+        "75 scan guard files",
+        "typecheck",
+        "controls",
+        "test waits",
+        "copy literals"
+      ],
+      "remaining": "unused fixture helper removed; lint changed passed afterwards"
+    },
+    "latestBuild": {
+      "exit": 0,
+      "sourceCommit": "1f009eb6f77a17638cbd82970713908ead9ce82e",
+      "log": "r3-build-recovery.log"
+    },
+    "latestClassSlices": [
+      {
+        "name": "projection and replay",
+        "passed": 54
+      },
+      {
+        "name": "preview acknowledgement",
+        "passed": 1
+      },
+      {
+        "name": "late timeline result",
+        "passed": 1
+      },
+      {
+        "name": "free-query identity",
+        "passed": 4
+      }
+    ],
+    "prJudgement": {
+      "exit": 1,
+      "causes": [
+        "raw perf receipt is not yet committed",
+        "queue scenario measurement remains pending; baseline edits prohibited"
+      ]
+    },
+    "finalRelatedTypesGoldenConceptRootPrepush": "not run: disk stop while waiting for global gate"
+  },
+  "unverified": [
+    "paid live provider",
+    "Windows",
+    "independent acceptance",
+    "complete extended free rehearsal"
+  ],
+  "after": {
+    "status": "partial",
+    "qualifiedPaidReceipt": false,
+    "reason": "sigkill mode stopped after three helper failures; never retried a fourth time"
+  },
+  "screenshots": {
+    "trackedCount": 34,
+    "replacement": "not completed before disk stop",
+    "latestRecoverableFooter": "not visually verified",
+    "earlierWindowCloseBothLanguages": "reviewed, earlier source"
+  }
+}

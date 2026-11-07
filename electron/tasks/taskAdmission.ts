@@ -37,8 +37,14 @@ export function classifyTaskCacheMiss(
   };
 }
 
-/** `classifyTaskCacheMiss` 产出的 raw 形状判别：查询方（如 `nomi_read target=task`）据此区分「真结果」与「没得查」。 */
-export function isTaskCacheMissRaw(raw: unknown): raw is { code: "task_unknown" | "task_tracking_lost"; taskId: string } {
-  const code = (raw as { code?: unknown } | null)?.code;
-  return code === "task_unknown" || code === "task_tracking_lost";
+/**
+ * 「Nomi 这一次没法去问供应商」的 raw 判别（本机查不了，不是查了之后的结论）：
+ * - task_unknown / task_tracking_lost：工作缓存没了，也重建不出这次查询（`classifyTaskCacheMiss`）；
+ * - model_unresolvable：模型 / 供应商被关或删了、Key 没了，解不出能执行的模型（`executeTaskQuery`）。
+ * 这几种供应商都没被问到，所以结果上的 `status: "failed"` 不是供应商说的失败。
+ * 查询方（`nomi_read target=task`、画布传输的 `query`）据此区分「真结果」与「没得查」。
+ */
+export function isLocalQueryBlockedRaw(raw: unknown): raw is { code: "task_unknown" | "task_tracking_lost" | "model_unresolvable"; taskId: string } {
+  const { code, taskId } = (raw ?? {}) as { code?: unknown; taskId?: unknown };
+  return typeof taskId === "string" && (code === "task_unknown" || code === "task_tracking_lost" || code === "model_unresolvable");
 }

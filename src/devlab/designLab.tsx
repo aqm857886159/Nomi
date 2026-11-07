@@ -21,6 +21,7 @@
 // 必须是第一条 import：按屏钉死窗口平台，要赶在 NomiAppBar / WindowControls 模块求值之前（见文件内注释）。
 import './designLab/labPlatform'
 import React, { type JSX } from 'react'
+import { workspaceInputAttributes } from '../workbench/shortcutSurface'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter/wght.css'
 import '@fontsource-variable/fraunces/wght.css'
@@ -242,6 +243,9 @@ primeNomiColorScheme()
 
 const container = document.getElementById('design-lab-root')
 if (!container) throw new Error('design lab root missing')
+// The standalone fixture stage is an explicit active host, including frame-only previews.
+for (const [name, value] of Object.entries(workspaceInputAttributes(true))) container.setAttribute(name, value)
+container.setAttribute('data-shortcut-surface', 'canvas')
 // 刻意不套 StrictMode：它会 mount→cleanup→mount 双跑一遍 effect，把实验室灌进
 // projection store 的夹具在第二次挂载前清掉，面板于是渲染成空态——一张骗人的「面板是空的」基线。
 // StrictMode 的价值是逼出副作用不纯，那属于生产壳的测试，不属于这台取景台。

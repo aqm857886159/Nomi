@@ -1,7 +1,7 @@
 // 「查结果」第 1 道的判据：先证明会红（每一类违例各一条真实形状），再证明不误报（整本中英词典 + 常见正常句子）。
 import { describe, expect, it } from 'vitest'
 
-import { activeDebt, compileExemptions, findLeaks, NON_MONEY_KEYS, NOT_MONEY, PRICE_WORDING } from './outcomeText.mjs'
+import { activeDebt, CHARGE_RISK_DISCLOSURE_KEYS, compileExemptions, findLeaks, NON_MONEY_KEYS, NOT_MONEY, PRICE_WORDING } from './outcomeText.mjs'
 import { loadDictionaries } from './invariants.mjs'
 
 const kinds = (text) => findLeaks(text).map((leak) => leak.kind)
@@ -34,7 +34,7 @@ describe('词表对着真实词典核对（被检对象从词典生成，不手�
   const dictionaries = loadDictionaries()
   const flat = (node, prefix = '') => Object.entries(node).flatMap(([key, value]) => (typeof value === 'string' ? [[`${prefix}${key}`, value]] : value && typeof value === 'object' ? flat(value, `${prefix}${key}.`) : []))
   const find = (locale, suffix) => flat(dictionaries[locale]).filter(([key]) => key.endsWith(suffix)).map(([, value]) => value)
-  const registered = new Set([...Object.keys(NOT_MONEY), ...NON_MONEY_KEYS])
+  const registered = new Set([...Object.keys(NOT_MONEY), ...NON_MONEY_KEYS, ...CHARGE_RISK_DISCLOSURE_KEYS])
   const isFixtureKey = (key) => /(^|\.)fixture[A-Z]/.test(key)
 
   it('整本中英词典：价格 / 不谈钱词表只命中登记在案的例外键（设计实验室夹具除外）', () => {

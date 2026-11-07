@@ -199,13 +199,13 @@ function engineATransport(origin: string): CanvasTransport {
 }
 
 /** 渲染层会拿到的那句话：真 IPC 守卫把错误编成结构化标记，再交给真分类器。 */
-async function surfaceOf(work: Promise<unknown>): Promise<{ kind: string; reason: string; primary: string; message: string }> {
+async function surfaceOf(work: Promise<unknown>): Promise<{ kind: string; reason: string; primary: string; secondary: string | null; message: string }> {
   try {
     await runTaskIpcGuard({}, async () => work);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const report = classifyGenerationError(message);
-    return { kind: report.kind, reason: report.reason, primary: report.primary, message };
+    return { kind: report.kind, reason: report.reason, primary: report.primary, secondary: report.secondary, message };
   }
   throw new Error("expected the attempt to fail");
 }
@@ -256,7 +256,8 @@ describe.each(ENTRIES)("入口：$label", (entry) => {
       expect(job?.status, "说不清：结果未知，进对账").toBe("submission_unknown");
       expect(jobMayHaveReachedProvider(job!), "可能已到过供应商").toBe(true);
       expect(surface.kind, "失败面：可能已被收下、先核对").toBe(kind.face);
-      expect(surface.primary, "失败面不给一键重试").toBe("reconcile");
+      expect(surface.primary, "结果不明只经确认条再发").toBe("release-regenerate");
+      expect(surface.secondary).toBe("reconcile");
       // 重试（换不换模型都一样）：被认领拒成 needs_reconcile，供应商一笔都没多收。
       const retry = fx.submit(node, "rr-2", "林薇，短发风衣", entry.extras("img-model"));
       await expect(retry).rejects.toMatchObject({ code: "production_shot_claimed", reason: "needs_reconcile" });

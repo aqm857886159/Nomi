@@ -1,3 +1,5 @@
+import { cancelCanvasInputGestures, workspaceInputAttributes } from '../shortcutSurface'
+import { cancelCanvasDraggingWithin } from '../generationCanvas/components/canvasDraggingFlag'
 import { AssistantPane } from '../AssistantPane'
 import { assistantPaneWidth } from '../assistantWidthBounds'
 import React, { type JSX } from 'react'
@@ -17,12 +19,19 @@ const TimelinePanel = lazyWithChunkBoundary(
 )
 import { useGenerationViewStore } from './list/generationViewStore'
 import { NodePointerReturnDock } from '../ai/pointer/NodePointerReturnDock'
+import { GenerationPageLayerProvider, observeGenerationPageLayerNodes, type GenerationPageLayerState } from './pageLayerContext'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 
 const loadGenerationListView = () => import('./list/GenerationListView').then((module) => ({ default: module.GenerationListView }))
 const GenerationListView = lazyWithChunkBoundary('i18n:generationList.aria', loadGenerationListView)
 
 type GenerationWorkspaceProps = {
   canvas: React.ReactNode
+  /**
+   * 生成页此刻是不是当前页（外壳槽位的 active，隐藏是外壳自己知道的事）。「页内全屏层」（导演台 / 全景查看器，见 pageLayer.tsx）
+   * 靠它决定看不看得见、要不要停键盘监听和 3D 渲染循环——它们自己不许去读 workspaceMode。
+   */
+  active: boolean
   aiCollapsed?: boolean
   agentDockRef?: React.Ref<HTMLDivElement>
   /**
@@ -50,6 +59,7 @@ const ASSISTANT_LAYOUT_SPRING = {
  */
 export default function GenerationWorkspace({
   canvas,
+  active,
   aiCollapsed = false,
   agentDockRef,
   agentLayerRef,
@@ -65,6 +75,20 @@ export default function GenerationWorkspace({
   // 「画布 | 列表」：画布始终挂着（落地宿主跟着它常驻、视口不重算），列表开着时画布只是不可见、不可交互。
   const generationView = useGenerationViewStore((state) => state.view)
   const listOpen = generationView === 'list'
+  // 页内全屏层的挂载点 = 画布那一格（下面 workbench-generation__canvas）。「看得见」= 生成页是当前页 && 画布视图：
+  // 列表开着时画布那一格是被藏起来的，挂在它里面的导演台跟着藏（切回画布还在），不留第二个「出不去」。
+  const [pageLayerHost, setPageLayerHost] = React.useState<HTMLDivElement | null>(null)
+  const pageLayer = React.useMemo<GenerationPageLayerState>(
+    () => ({ host: pageLayerHost, active: active && !listOpen }),
+    [active, listOpen, pageLayerHost],
+  )
+  React.useEffect(() => {
+    if (!active || listOpen) {
+      cancelCanvasDraggingWithin(pageLayerHost)
+      cancelCanvasInputGestures()
+    }
+  }, [active, listOpen, pageLayerHost])
+  React.useEffect(() => observeGenerationPageLayerNodes(useGenerationCanvasStore), [])
   // 列表块在生成页挂好后趁空闲先拉一下：第一次点「列表」不再等块下载 + 解析（200 节点实测的一部分）。
   React.useEffect(() => {
     const idle = (window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number; cancelIdleCallback?: (handle: number) => void })
@@ -87,6 +111,7 @@ export default function GenerationWorkspace({
   }
 
   return (
+    <GenerationPageLayerProvider value={pageLayer}>
     <motion.section
       className={cn(
         'workbench-generation',
@@ -110,13 +135,13 @@ export default function GenerationWorkspace({
           'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft',
         )}
       >
-        <div className={cn('workbench-generation__canvas', 'relative min-h-0 min-w-0 flex-1 overflow-hidden')}>
+        <div ref={setPageLayerHost} className={cn('workbench-generation__canvas', 'relative min-h-0 min-w-0 flex-1 overflow-hidden')}>
           {/* 「画布 | 列表」：画布始终挂着（落地宿主跟着它常驻、视口不重算），列表开着时画布只是不可见、不可交互。 */}
-          <div className={cn('absolute inset-0', listOpen && 'invisible [content-visibility:hidden]')} inert={listOpen} data-generation-canvas-surface>
+          <div {...workspaceInputAttributes(active && !listOpen)} className={cn('absolute inset-0', listOpen && 'invisible [content-visibility:hidden]')} inert={listOpen} data-generation-canvas-surface>
             {canvas}
           </div>
           {listOpen ? (
-            <div className="absolute inset-0 z-[8]">
+            <div className="absolute inset-0 z-[8]" data-shortcut-surface="generation-list">
               <React.Suspense fallback={null}>
                 <GenerationListView />
               </React.Suspense>
@@ -166,5 +191,6 @@ export default function GenerationWorkspace({
         )}
       </div>
     </motion.section>
+    </GenerationPageLayerProvider>
   )
 }

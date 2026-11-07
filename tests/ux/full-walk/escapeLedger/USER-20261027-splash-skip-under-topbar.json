@@ -1,0 +1,38 @@
+{
+  "id": "USER-20261027-splash-skip-under-topbar",
+  "since": "2026-10-27",
+  "source": "用户 2026-10-27：第一次打开 Nomi，开机动画右上角「跳过」被顶栏压住，点上去落在顶栏的「全局操作」，动画不关，只能等它自己放完；中英都一样。",
+  "category": "interaction-semantics",
+  "problem": "开屏 fixed z-[60]，顶栏 Mantine AppShell 默认 z-index 100，整条顶栏画在开屏上面，「跳过」被压住点不到；40px 顶栏同时是系统拖拽带 / Windows 原生三键区，「跳过」又有 12px 落在带里（Windows 一支按代码推算，未实测）。约 27 个走查靠 dismissSplashIfPresent 的 DOM 兜底点掉它，所以三周来一直是绿的。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "首次启动点「跳过」进项目库（中英）"
+  ],
+  "fullWalkJourneys": [],
+  "status": "fixed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-10-27-splash-skip-under-topbar.md",
+    "docs/fixes/2026-10-27-splash-skip-under-topbar.root-cause.json",
+    "src/ui/app-shell/windowChrome.test.ts",
+    "scripts/lib/overlayZScan.mjs",
+    "scripts/overlayZScan.test.mjs",
+    "tests/ux/first-launch-system-locale.walk.mjs"
+  ],
+  "completionCommits": [
+    "ade679ea15e4ef805cfc55cf58e9260ebf3ab14f",
+    "ce20ff220c21a4a7e9f06033e46cda5db58e2bcf",
+    "80cadee62f0f7de308c960cccb0938b124a6c4f6",
+    "9fa2577e9872d61b2990bb8d0d6b543b2925b8e9",
+    "3d66087fd43df25159b061d39286eaf3cbc35202",
+    "5a4347f53e68acc99372af38e38036696032dca4",
+    "651f8b1dcf54473646cbf5f03ac23d9853b06f99"
+  ],
+  "rootCauseContract": "docs/fixes/2026-10-27-splash-skip-under-topbar.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/ui/app-shell/windowChrome.test.ts"
+  },
+  "fixedInPr": 1361
+}

@@ -12,8 +12,8 @@
 //   ③ **账本记的是同一个数**：画布那一镜的单镜 Run 冻住的授权信封里 `price.maximum` = 目录那一行的价，未知计数是 0；
 //   ④ 产物真的落回草稿那一刻建的那个节点，卡收起来；
 //   ⑤ 英文一样（EN 串长 1.5-2 倍，截断只有眼睛看得出）；
-//   ⑥ 两张一起摆：「2 张 / 2 images」在动作行左边、和主按钮同一行、一行放得下；主按钮「全部生成（2）」不带金额。中英各拍一张。
-import { expect, expectAbsent, proveProbe } from './_assert.mjs'
+//   ⑥ 两张一起摆：主按钮「全部生成（2）」不带金额，动作行只有取消和主按钮，主按钮的文字占一行（数行盒，不看盒子高度）。中英各拍一张。
+import { expect, expectAbsent, proveProbe, textLineBoxes } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR } from './agent-runtime-fixture.mjs'
 import {
@@ -34,14 +34,24 @@ const teacups = (lines) => (tag) => lines.map((line, index) => ({
   candidate: { providerId: FIXTURE_APIMART_VENDOR, modelId: FIXTURE_APIMART_MODEL }, parameters: {},
 }))
 
-/** 有价这一档的卡此刻摆着什么（动作行左边那一格、主按钮），以及两者是不是同一行、有没有折行。 */
-async function pricedRow(card) {
+/**
+ * 有价这一档的卡此刻摆着什么（主按钮写什么、动作行有几格），以及主按钮的文字占几行。
+ * 「一行」直接数文字的行盒，不看盒子高度：按钮高度由 `h-7` 写死、折行时也不变（`< 24` 是它还是 22px 时写的，换尺寸就红；
+ * 「与取消钮等高」依赖那一行是 `items-center`，换了对齐就恒真）。`tag` 标这一组是哪一张卡，四组实测记进 report.json。
+ */
+async function pricedRow(card, tag) {
   const primary = card.locator(CARD_PRIMARY)
-  const [primaryBox, actions] = [await primary.boundingBox(), card.locator('[data-v4-block="card-actions"] > *').count()]
+  const actionCells = card.locator('[data-v4-block="card-actions"] > *')
+  const box = await primary.boundingBox()
+  const cancelBox = await actionCells.first().boundingBox()
+  const actions = await actionCells.count()
+  const lineBoxes = await textLineBoxes(primary)
+  // 中文单张 / 两张、英文单张 / 两张四组：宽、高（连同旁边取消钮的高）、行盒数留在报告里，下次是「看得见在变」而不是「某天突然红」。
+  ;(walk.report.pricedRows ??= []).push({ tag, lineBoxes, primaryWidth: box?.width, primaryHeight: box?.height, cancelHeight: cancelBox?.height, actions })
   return {
     primary: ((await primary.textContent()) ?? '').replace('⏎', '').trim(),
     actionCount: actions,
-    oneLine: (primaryBox?.height ?? 99) < 24,
+    lineBoxes,
   }
 }
 
@@ -49,11 +59,11 @@ async function pricedRow(card) {
 async function twoShotPricedCard(walk, win, locale, lines) {
   const two = await present(walk, win, { locale, kind: 'image', shots: teacups(lines) })
   await pointerAway(win)
-  const row = await pricedRow(two.card)
+  const row = await pricedRow(two.card, `${locale} two`)
   expect(row.primary, `${locale}：主按钮「全部生成（2）」`).toBe(primaryLabel(locale, { count: 2, kind: 'image' }))
   expect(row.primary, `${locale}：动作行不出金额`).not.toMatch(MONEY)
   expect(row.actionCount, `${locale}：动作行只保留取消和主按钮`).toBe(2)
-  expect(row.oneLine, `${locale}：主按钮一行放得下，不折行`).toBe(true)
+  expect(row.lineBoxes, `${locale}：主按钮的文字占一行，不折行`).toBe(1)
   const file = await walk.snap(`priced-two-shots-${locale}`)
   await two.card.screenshot({ path: file.replace(/\.png$/, '-card.png') })
   await closeSpendCard(two.card, `${locale}：看完关掉两张的卡`)
@@ -73,7 +83,7 @@ try {
   const cardProbe = await proveProbe(card, '有价的付费卡摆在介入槽里')
   // 新卡算不出价时整行不印（没有「暂时算不出价格」那一格可找）：有价这一档要证的是那一格真的在。
   await pointerAway(win)
-  const single = await pricedRow(card)
+  const single = await pricedRow(card, 'zh-CN single')
   expect(single.primary, '单张的主按钮是「生成」').toBe(primaryLabel('zh-CN', { count: 1, kind: 'image', single: true }))
   expect(await card.innerText(), '卡上不出金额').not.toMatch(MONEY)
   expect(walk.fixture.images, '卡还没按之前，一次供应商生成都没发生').toHaveLength(0)
@@ -114,7 +124,7 @@ try {
   await win.reload()
   const en = await present(walk, win, { locale: 'en', kind: 'image', shots: teacups(['A celadon teacup in slanting morning light']) })
   await pointerAway(win)
-  const enRow = await pricedRow(en.card)
+  const enRow = await pricedRow(en.card, 'en single')
   expect(enRow.primary, 'EN：Generate').toBe(primaryLabel('en', { count: 1, kind: 'image', single: true }))
   expect(await en.card.innerText(), 'EN：卡上不出金额').not.toMatch(MONEY)
   await walk.snap('priced-card-en')

@@ -96,7 +96,7 @@ export function HelpDialog({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <DesignModal opened={open} onClose={onClose} title={t('director.help.title')} size="xl" centered>
-      <div className="flex flex-col gap-3" data-nomi-escape-layer="director-help" data-testid="director-help-dialog">
+      <div className="flex flex-col gap-3" data-testid="director-help-dialog">
         <p className="text-caption text-nomi-ink-60">{t('director.help.scopeHint')}</p>
         <div className="grid grid-cols-2 gap-x-5 gap-y-4 md:grid-cols-4">
           <Column title={t('director.help.colTools')} rows={hotkeyRows(TOOL_ROWS)} />

@@ -1,0 +1,1073 @@
+{
+  "board": "AgentPersona",
+  "extractor": "board-extract@1",
+  "source": "preview/AgentPersona.html",
+  "sourceSha256": "e0ff26e4c7696e2924d8989d5fbace9c8383a9eb3afb0be915c7a21a017fa8e2",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-main",
+      "kind": "box",
+      "tag": "main",
+      "text": "",
+      "bbox": [
+        0,
+        0,
+        1280,
+        3591
+      ],
+      "region": "root"
+    },
+    {
+      "id": "002-div-G去框第15版静态拼页八",
+      "kind": "text",
+      "tag": "div",
+      "text": "G · 去框 · 第 15 版 · 静态拼页：八种样子和悬停一屏看完",
+      "bbox": [
+        40,
+        40,
+        1200,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-h1-Agent形象五个状态三",
+      "kind": "text",
+      "tag": "h1",
+      "text": "Agent 形象：五个状态、三个变体、悬停",
+      "bbox": [
+        40,
+        71,
+        1200,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-p-每种样子一行第一格放大看",
+      "kind": "text",
+      "tag": "p",
+      "text": "每种样子一行：第一格放大看形（4.5 倍），后三格是实际尺寸 44px，依次压在浅色画布、深色画面、暗色模式上。静态页里",
+      "bbox": [
+        40,
+        125,
+        1100,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "005-span-放大看形",
+      "kind": "text",
+      "tag": "span",
+      "text": "放大看形",
+      "bbox": [
+        284,
+        161,
+        300,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "006-span-实际尺寸44px浅色画布",
+      "kind": "text",
+      "tag": "span",
+      "text": "实际尺寸 44px · 浅色画布",
+      "bbox": [
+        596,
+        161,
+        200,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "007-span-压在深色画面上",
+      "kind": "text",
+      "tag": "span",
+      "text": "压在深色画面上",
+      "bbox": [
+        808,
+        161,
+        200,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "008-span-暗色模式",
+      "kind": "text",
+      "tag": "span",
+      "text": "暗色模式",
+      "bbox": [
+        1020,
+        161,
+        200,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-div-五个状态",
+      "kind": "text",
+      "tag": "div",
+      "text": "五个状态",
+      "bbox": [
+        40,
+        202,
+        1200,
+        18
+      ],
+      "region": "root"
+    },
+    {
+      "id": "010-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        234,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "011-b-空闲",
+      "kind": "text",
+      "tag": "b",
+      "text": "空闲",
+      "bbox": [
+        52,
+        246,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "012-span-不动约20秒眨一下眼就是",
+      "kind": "text",
+      "tag": "span",
+      "text": "不动，约 20 秒眨一下眼；就是 logo，只是 N 换成两只眼",
+      "bbox": [
+        52,
+        273,
+        220,
+        42
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        500,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-b-在跑",
+      "kind": "text",
+      "tag": "b",
+      "text": "在跑",
+      "bbox": [
+        52,
+        512,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-span-变圆蓝弧绕着转眼睛低头扫",
+      "kind": "text",
+      "tag": "span",
+      "text": "变圆，蓝弧绕着转，眼睛低头扫（静态页停在第一帧）",
+      "bbox": [
+        52,
+        539,
+        220,
+        42
+      ],
+      "region": "root"
+    },
+    {
+      "id": "016-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        766,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "017-b-等你确认",
+      "kind": "text",
+      "tag": "b",
+      "text": "等你确认",
+      "bbox": [
+        52,
+        778,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "018-span-长成带字的琥珀胶囊右缘不",
+      "kind": "text",
+      "tag": "span",
+      "text": "长成带字的琥珀胶囊，右缘不动往左长",
+      "bbox": [
+        52,
+        805,
+        220,
+        42
+      ],
+      "region": "root"
+    },
+    {
+      "id": "019-span-等你确认2",
+      "kind": "text",
+      "tag": "span",
+      "text": "等你确认 2",
+      "bbox": [
+        421,
+        884,
+        110,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "020-span-等你确认2",
+      "kind": "text",
+      "tag": "span",
+      "text": "等你确认 2",
+      "bbox": [
+        694,
+        961,
+        67,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "021-span-等你确认2",
+      "kind": "text",
+      "tag": "span",
+      "text": "等你确认 2",
+      "bbox": [
+        906,
+        961,
+        67,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "022-span-等你确认2",
+      "kind": "text",
+      "tag": "span",
+      "text": "等你确认 2",
+      "bbox": [
+        1118,
+        961,
+        67,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "023-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        1032,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "024-b-刚做完",
+      "kind": "text",
+      "tag": "b",
+      "text": "刚做完",
+      "bbox": [
+        52,
+        1044,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "025-span-轻跳一下眯眼笑停24秒",
+      "kind": "text",
+      "tag": "span",
+      "text": "轻跳一下、眯眼笑，停 2.4 秒",
+      "bbox": [
+        52,
+        1071,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "026-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        1298,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "027-b-出错",
+      "kind": "text",
+      "tag": "b",
+      "text": "出错",
+      "bbox": [
+        52,
+        1310,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "028-span-歪倒眼神塌下右上一颗红点",
+      "kind": "text",
+      "tag": "span",
+      "text": "歪倒、眼神塌下，右上一颗红点",
+      "bbox": [
+        52,
+        1337,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "029-div-三个变体各挂在一个基本状",
+      "kind": "text",
+      "tag": "div",
+      "text": "三个变体（各挂在一个基本状态底下）",
+      "bbox": [
+        40,
+        1574,
+        1200,
+        18
+      ],
+      "region": "root"
+    },
+    {
+      "id": "030-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        1606,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "031-b-有新消息",
+      "kind": "text",
+      "tag": "b",
+      "text": "有新消息",
+      "bbox": [
+        52,
+        1618,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "032-span-空闲的变体加一颗蓝点眼睛",
+      "kind": "text",
+      "tag": "span",
+      "text": "空闲的变体：加一颗蓝点，眼睛往屏幕里看，挂到你点开为止",
+      "bbox": [
+        52,
+        1645,
+        220,
+        42
+      ],
+      "region": "root"
+    },
+    {
+      "id": "033-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        1872,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "034-b-长任务",
+      "kind": "text",
+      "tag": "b",
+      "text": "长任务",
+      "bbox": [
+        52,
+        1884,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "035-span-在跑的变体多一圈底轨蓝弧",
+      "kind": "text",
+      "tag": "span",
+      "text": "在跑的变体：多一圈底轨，蓝弧按镜头数增长、不转，眼睛半眯（图上是第 5/8 镜）",
+      "bbox": [
+        52,
+        1911,
+        220,
+        62
+      ],
+      "region": "root"
+    },
+    {
+      "id": "036-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        381,
+        1924,
+        162,
+        162
+      ],
+      "region": "root",
+      "iconOf": "033-section"
+    },
+    {
+      "id": "037-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        732,
+        2058,
+        36,
+        36
+      ],
+      "region": "root",
+      "iconOf": "033-section"
+    },
+    {
+      "id": "038-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        944,
+        2058,
+        36,
+        36
+      ],
+      "region": "root",
+      "iconOf": "033-section"
+    },
+    {
+      "id": "039-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1156,
+        2058,
+        36,
+        36
+      ],
+      "region": "root",
+      "iconOf": "033-section"
+    },
+    {
+      "id": "040-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        2138,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "041-b-先连模型",
+      "kind": "text",
+      "tag": "b",
+      "text": "先连模型",
+      "bbox": [
+        52,
+        2150,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "042-span-等你确认的变体同一个胶囊",
+      "kind": "text",
+      "tag": "span",
+      "text": "等你确认的变体：同一个胶囊，只换字",
+      "bbox": [
+        52,
+        2177,
+        220,
+        42
+      ],
+      "region": "root"
+    },
+    {
+      "id": "043-span-先连一个模型",
+      "kind": "text",
+      "tag": "span",
+      "text": "先连一个模型",
+      "bbox": [
+        397,
+        2256,
+        133,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "044-span-先连一个模型",
+      "kind": "text",
+      "tag": "span",
+      "text": "先连一个模型",
+      "bbox": [
+        679,
+        2333,
+        81,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "045-span-先连一个模型",
+      "kind": "text",
+      "tag": "span",
+      "text": "先连一个模型",
+      "bbox": [
+        891,
+        2333,
+        81,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "046-span-先连一个模型",
+      "kind": "text",
+      "tag": "span",
+      "text": "先连一个模型",
+      "bbox": [
+        1103,
+        2333,
+        81,
+        19
+      ],
+      "region": "root"
+    },
+    {
+      "id": "047-div-悬停鼠标离小球约160p",
+      "kind": "text",
+      "tag": "div",
+      "text": "悬停（鼠标离小球约 160px 以内）",
+      "bbox": [
+        40,
+        2414,
+        1200,
+        18
+      ],
+      "region": "root"
+    },
+    {
+      "id": "048-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        2446,
+        1200,
+        252
+      ],
+      "region": "root"
+    },
+    {
+      "id": "049-b-眼睛跟着看",
+      "kind": "text",
+      "tag": "b",
+      "text": "眼睛跟着看",
+      "bbox": [
+        52,
+        2458,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "050-span-鼠标在左上方时眼睛往左上",
+      "kind": "text",
+      "tag": "span",
+      "text": "鼠标在左上方时眼睛往左上看；离远了不动，减弱动效时不跟",
+      "bbox": [
+        52,
+        2485,
+        220,
+        42
+      ],
+      "region": "root"
+    },
+    {
+      "id": "051-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        2712,
+        1200,
+        284
+      ],
+      "region": "root"
+    },
+    {
+      "id": "052-b-移到身上",
+      "kind": "text",
+      "tag": "b",
+      "text": "移到身上",
+      "bbox": [
+        52,
+        2724,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "053-span-抬眼冒一行说明就是现在小",
+      "kind": "text",
+      "tag": "span",
+      "text": "抬眼，冒一行说明：就是现在小球的 tooltip 那句话",
+      "bbox": [
+        52,
+        2751,
+        220,
+        42
+      ],
+      "region": "root"
+    },
+    {
+      "id": "054-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        417,
+        2734,
+        136,
+        34
+      ],
+      "region": "root"
+    },
+    {
+      "id": "055-span-NomiJ打开",
+      "kind": "text",
+      "tag": "span",
+      "text": "Nomi · ⌘J 打开",
+      "bbox": [
+        429,
+        2740,
+        112,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "056-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        663,
+        2894,
+        107,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "057-span-NomiJ打开",
+      "kind": "text",
+      "tag": "span",
+      "text": "Nomi · ⌘J 打开",
+      "bbox": [
+        672,
+        2898,
+        89,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "058-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        875,
+        2894,
+        107,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "059-span-NomiJ打开",
+      "kind": "text",
+      "tag": "span",
+      "text": "Nomi · ⌘J 打开",
+      "bbox": [
+        884,
+        2898,
+        89,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "060-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        1087,
+        2894,
+        107,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "061-span-NomiJ打开",
+      "kind": "text",
+      "tag": "span",
+      "text": "Nomi · ⌘J 打开",
+      "bbox": [
+        1096,
+        2898,
+        89,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "062-section",
+      "kind": "box",
+      "tag": "section",
+      "text": "",
+      "bbox": [
+        40,
+        3010,
+        1200,
+        284
+      ],
+      "region": "root"
+    },
+    {
+      "id": "063-b-长任务时悬停",
+      "kind": "text",
+      "tag": "b",
+      "text": "长任务时悬停",
+      "bbox": [
+        52,
+        3022,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "064-span-说明里报到第几镜不报预计",
+      "kind": "text",
+      "tag": "span",
+      "text": "说明里报到第几镜，不报预计时间",
+      "bbox": [
+        52,
+        3049,
+        220,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "065-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        381,
+        3094,
+        162,
+        162
+      ],
+      "region": "root",
+      "iconOf": "062-section"
+    },
+    {
+      "id": "066-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        386,
+        3032,
+        167,
+        34
+      ],
+      "region": "root"
+    },
+    {
+      "id": "067-span-生成视频第58镜",
+      "kind": "text",
+      "tag": "span",
+      "text": "生成视频 · 第 5/8 镜",
+      "bbox": [
+        398,
+        3038,
+        143,
+        21
+      ],
+      "region": "root"
+    },
+    {
+      "id": "068-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        732,
+        3228,
+        36,
+        36
+      ],
+      "region": "root",
+      "iconOf": "062-section"
+    },
+    {
+      "id": "069-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        638,
+        3192,
+        132,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "070-span-生成视频第58镜",
+      "kind": "text",
+      "tag": "span",
+      "text": "生成视频 · 第 5/8 镜",
+      "bbox": [
+        647,
+        3196,
+        114,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "071-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        944,
+        3228,
+        36,
+        36
+      ],
+      "region": "root",
+      "iconOf": "062-section"
+    },
+    {
+      "id": "072-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        850,
+        3192,
+        132,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "073-span-生成视频第58镜",
+      "kind": "text",
+      "tag": "span",
+      "text": "生成视频 · 第 5/8 镜",
+      "bbox": [
+        859,
+        3196,
+        114,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "074-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        1156,
+        3228,
+        36,
+        36
+      ],
+      "region": "root",
+      "iconOf": "062-section"
+    },
+    {
+      "id": "075-div",
+      "kind": "box",
+      "tag": "div",
+      "text": "",
+      "bbox": [
+        1062,
+        3192,
+        132,
+        26
+      ],
+      "region": "root"
+    },
+    {
+      "id": "076-span-生成视频第58镜",
+      "kind": "text",
+      "tag": "span",
+      "text": "生成视频 · 第 5/8 镜",
+      "bbox": [
+        1071,
+        3196,
+        114,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "077-p-外形和logo同一块底色",
+      "kind": "text",
+      "tag": "p",
+      "text": "外形：和 logo 同一块底色（--nomi-logo-ground）、同一个圆角比例（边长的 25%），干活时再变圆。",
+      "bbox": [
+        40,
+        3318,
+        594,
+        70
+      ],
+      "region": "root"
+    },
+    {
+      "id": "078-p-眼睛宽为边长的15高30",
+      "kind": "text",
+      "tag": "p",
+      "text": "眼睛：宽为边长的 15%、高 30%，上沿距顶 30%，左沿在 28% 和 56%；恒为白色，和 logo 的笔画一样。",
+      "bbox": [
+        646,
+        3318,
+        594,
+        70
+      ],
+      "region": "root"
+    },
+    {
+      "id": "079-p-形变任意两个状态之间连续",
+      "kind": "text",
+      "tag": "p",
+      "text": "形变：任意两个状态之间连续变形 0.55 秒、cubic-bezier(.16,1,.3,1)，是设计系统新增的「形变」",
+      "bbox": [
+        40,
+        3400,
+        594,
+        70
+      ],
+      "region": "root"
+    },
+    {
+      "id": "080-p-暗色和深色画面身体加一圈",
+      "kind": "text",
+      "tag": "p",
+      "text": "暗色和深色画面：身体加一圈 1px 浅描边，免得被背景吃掉；暗色下身体颜色以设计系统 token 为准。",
+      "bbox": [
+        646,
+        3400,
+        594,
+        70
+      ],
+      "region": "root"
+    },
+    {
+      "id": "081-p-只换脸不换行为点一下打开",
+      "kind": "text",
+      "tag": "p",
+      "text": "只换脸，不换行为：点一下打开面板、拖动挪位置并记住、右键切浮窗 / 停靠、⌘J、从不自己弹开，全部照旧。",
+      "bbox": [
+        40,
+        3482,
+        594,
+        70
+      ],
+      "region": "root"
+    }
+  ]
+}

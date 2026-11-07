@@ -159,6 +159,39 @@ function recordAllowed(target, init, responsePromise) {
   })
 }
 
+/**
+ * 走查要让「请求已经写出去、回执还没回来」这个窗口真实出现，并且真付费和零费演练走同一段（夹具里压着只有演练有）：
+ * NOMI_WALK_HOLD_RESPONSE = { method, pathSuffix, releaseFile }，命中的请求照常发出、供应商照常收到，只是回执压在这里，
+ * 直到 releaseFile 出现才交给 App。不改请求、不丢回执、不多发；每压一次记一笔 response-held。没设 = 一个字不变。
+ */
+const HOLD_RESPONSE = (() => {
+  try {
+    const parsed = JSON.parse(process.env.NOMI_WALK_HOLD_RESPONSE || 'null')
+    return parsed && parsed.method && parsed.pathSuffix && parsed.releaseFile ? parsed : null
+  } catch {
+    return null
+  }
+})()
+
+function holdResponse(target, init, responsePromise) {
+  if (!HOLD_RESPONSE || String((init && init.method) || 'GET').toUpperCase() !== HOLD_RESPONSE.method) return responsePromise
+  let pathname
+  try {
+    pathname = new URL(String(target)).pathname
+  } catch {
+    return responsePromise
+  }
+  if (!pathname.endsWith(HOLD_RESPONSE.pathSuffix) || fs.existsSync(HOLD_RESPONSE.releaseFile)) return responsePromise
+  note({ kind: 'response-held', via: 'fetch', url: redact(target), host: hostOf(target) })
+  return responsePromise.then((response) => new Promise((resolve) => {
+    const waitForRelease = () => {
+      if (fs.existsSync(HOLD_RESPONSE.releaseFile)) resolve(response)
+      else setTimeout(waitForRelease, 50)
+    }
+    waitForRelease()
+  }))
+}
+
 const layers = []
 
 const realFetch = globalThis.fetch
@@ -177,7 +210,7 @@ if (typeof realFetch === 'function') {
       )
       return Promise.reject(Object.assign(new TypeError('fetch failed (blocked by walkthrough network guard)'), { cause }))
     }
-    return recordAllowed(target, init, realFetch.call(this, input, init))
+    return holdResponse(target, init, recordAllowed(target, init, realFetch.call(this, input, init)))
   }
   layers.push('fetch')
 }

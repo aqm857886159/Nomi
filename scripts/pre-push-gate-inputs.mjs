@@ -20,14 +20,15 @@ const SOURCE_EXTS = ['ts', 'tsx', 'mts', 'cts']
  * 给「登记类核对」用：触发条件是「新增 / 改动被登记对象」，不能只是核对自己的输入。
  */
 export const GATE_INPUTS = Object.freeze({
-  // check-design-tokens.mjs：src 的 ts/tsx（禁用值扫描），以及 src / electron / tailwind.config.ts 的 ts tsx css mjs（color-mix 色相漂移扫描）
-  'check:tokens': { roots: ['src', 'electron'], exts: [...SOURCE_EXTS, 'css', 'mjs'], files: ['tailwind.config.ts'], entries: ['scripts/check-design-tokens.mjs'] },
+  // check-design-tokens.mjs：src 的 ts/tsx（禁用值扫描），以及 src / electron / tailwind.config.ts 的 ts tsx css mjs（color-mix 色相漂移扫描）；
+  // 第 9 类（手写数字层级）还读基线 scripts/overlay-z-baseline.json（扫描器 scripts/lib/overlayZScan.mjs 在入口脚本的相对 import 闭包里）
+  'check:tokens': { roots: ['src', 'electron'], exts: [...SOURCE_EXTS, 'css', 'mjs'], files: ['tailwind.config.ts', 'scripts/overlay-z-baseline.json'], entries: ['scripts/check-design-tokens.mjs'] },
   // check-vocabularies-scan.mjs：src / electron 下的 ts tsx mts cts；基线 scripts/vocabularies-baseline.json
   'check:vocabularies': { roots: ['src', 'electron'], exts: SOURCE_EXTS, files: ['scripts/vocabularies-baseline.json'], entries: ['scripts/check-vocabularies.mjs'] },
   // check-control-contract.mjs：src 下的 .tsx（不含测试）；文案存量 scripts/control-copy-baseline.json
   'check:controls': { roots: ['src'], exts: ['tsx'], files: ['scripts/control-copy-baseline.json'], entries: ['scripts/check-control-contract.mjs'] },
-  // check-test-temp-static.node-test.mjs：scripts 与 tests 下的 mjs / js / ts 测试与走查
-  'test:temp-helper': { roots: ['scripts', 'tests'], exts: ['mjs', 'js', 'cjs', 'ts'], files: [], entries: ['scripts/check-test-temp-static.node-test.mjs'] },
+  // check-test-temp-static.node-test.mjs + _test-temp.node-test.mjs：scripts 与 tests 下全部 JS / TS 源码（systemTempScan 按语法树扫，含 .cjs / .mts / .cts / .tsx / .jsx）；存量基线 scripts/test-temp-bypass-baseline.json
+  'test:temp-helper': { roots: ['scripts', 'tests'], exts: ['mjs', 'js', 'cjs', 'ts', 'mts', 'cts', 'tsx', 'jsx'], files: ['scripts/test-temp-bypass-baseline.json'], entries: ['scripts/check-test-temp-static.node-test.mjs', 'scripts/_test-temp.node-test.mjs'] },
   // check-test-copy-literals.mjs：src electron scripts tests evals packages 下的测试 / 走查文件，加词典（src/i18n、electron/desktopStrings 在这些根里）
   'check:test-copy-literals': { roots: ['src', 'electron', 'scripts', 'tests', 'evals', 'packages'], exts: [...SOURCE_EXTS, 'js', 'mjs', 'cjs', 'json'], files: [], entries: ['scripts/check-test-copy-literals.mjs'] },
   // check-control-contract.test.mjs：规则红绿证明，只依赖规则脚本本身
@@ -42,8 +43,8 @@ export const GATE_INPUTS = Object.freeze({
   'check:heavy-path': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/heavy-path-baseline.json'], entries: ['scripts/check-heavy-path.mjs'] },
   // check-builtin-vendor-literals.mjs：ROOTS = electron、src，扩展名 ts / tsx
   'check:builtin-vendor-literals': { roots: ['electron','src'], exts: ['ts','tsx'], files: [], entries: ['scripts/check-builtin-vendor-literals.mjs'] },
-  // check-read-path-writes.mjs：src / electron 的 ts / tsx（AST）
-  'check:read-path-writes': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/read-path-writes-baseline.json'], entries: ['scripts/check-read-path-writes.mjs'] },
+  // check-read-path-writes.mjs：src / electron 的 ts / tsx（AST）；反例测试 check-read-path-writes.node-test.mjs 读真实的 electron/projects/repository.ts
+  'check:read-path-writes': { roots: ['src','electron'], exts: ['ts','tsx'], files: ['scripts/read-path-writes-baseline.json'], entries: ['scripts/check-read-path-writes.mjs', 'scripts/check-read-path-writes.node-test.mjs'] },
   // check-batch-machines.mjs：src / electron 下非测试 ts 源
   'check:batch-machines': { roots: ['src','electron'], exts: ['ts','tsx','mts','cts'], files: ['scripts/batch-machines-baseline.json'], entries: ['scripts/check-batch-machines.mjs'] },
   // check-capability-lifecycle.mjs：组件 useEffect 发布 vs 非组件写入，扫 ts / tsx

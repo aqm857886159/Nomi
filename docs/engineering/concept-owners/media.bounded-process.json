@@ -1,0 +1,23 @@
+{
+  "name": "媒体子进程的有界运行（中止信号、超时、输出上限、退出收尾）",
+  "subject": "media.bounded-process",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/export/mediaProbe.ts",
+    "symbol": "runBoundedProcess"
+  },
+  "write_api": [
+    {
+      "path": "electron/export/mediaProbe.ts",
+      "symbol": "runBoundedProcess"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [],
+  "since": "2026-10-27",
+  "notes": "合同 docs/fixes/2026-10-27-import-transcode-hogs-and-orphans.root-cause.json，方向检查 docs/engineering/direction-checks/2026-10-27-ffmpeg-process-owner.md：主进程起 ffmpeg / ffprobe 走 runBoundedProcess（中止信号跟着请求走、有超时、stderr 按模式限量：默认超上限就杀，长跑转码用 tail 只留尾部、不按输出量杀）。预览派生与导入转码已经接上；其余直接启动由结构扫描 scripts/check-import-ffmpeg-owner.test.mjs 冻结成名单，只减不增。"
+}

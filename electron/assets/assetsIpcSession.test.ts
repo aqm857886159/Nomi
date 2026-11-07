@@ -23,7 +23,9 @@ beforeEach(() => { vi.clearAllMocks(); mocks.handlers.clear() })
 
 describe('interactive asset IPC publication authority', () => {
   const binding = { projectId: 'a', immutableProjectUuid: '11111111-1111-4111-8111-111111111111', projectGeneration: 1 }
-  const event = { sender: {}, senderFrame: {} } as IpcMainInvokeEvent
+  // 导入经中立的在途请求登记：sender 要有窗口的样子（生产里 event.sender 永远是 WebContents）。
+  const sender = { id: 1, isDestroyed: () => false, once: () => undefined, removeListener: () => undefined }
+  const event = { sender, senderFrame: {} } as unknown as IpcMainInvokeEvent
 
   it.each(['nomi:assets:import-file', 'nomi:assets:import-native-file'])('preserves real admission reasons in the wire reply: %s', async channel => {
     registerAssetsIpc(createProjectInteractionCapture({} as CanvasReadSurfaceIpcCapture, () => undefined))
