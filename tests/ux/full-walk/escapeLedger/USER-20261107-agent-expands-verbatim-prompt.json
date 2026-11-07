@@ -8,7 +8,8 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1431,
   "manualReview": "reviewed",
   "rootCauseContract": "docs/fixes/2026-11-07-agent-verbatim-prompt.root-cause.json",
   "classCheck": {
@@ -18,10 +19,11 @@
   "evidence": [
     "docs/plan/2026-11-07-agent-verbatim-prompt.md",
     "electron/harness/context/verbatimPromptRule.test.ts",
-    "tests/ux/verbatim-prompt-judges.test.mjs"
+    "tests/ux/verbatim-prompt-judges.test.mjs",
+    "docs/evidence/2026-11-07-agent-verbatim-prompt/real-model-before-after.md"
   ],
   "completionCommits": [
     "a861ea844"
   ],
-  "notes": "已修：身份层加规则，起草工具说明与生成区规划技能加适用条件。真模型逐字率 / 该扩写时扩写率未验证（协调在修前修后各跑一遍 tests/ux/agent-verbatim-prompt-real-model.walk.mjs），PR 号出来后由协调转 fixed（补 fixedInPr 与 completionCommits=a861ea844e18c6597d6ae87c11424199df427dbc）；结账依据是结构性预防（全量扫描 + 身份层规则），真模型效果 unverified。"
+  "notes": "已修：身份层加规则，起草工具说明与生成区规划技能加适用条件。真模型（DeepSeek V4 Flash，14 句用例表，修前 / 修后同条件各一遍）：逐字率 3/7 → 7/7，该扩写时扩写率 7/7 → 7/7，用户原话那一例（V1）修前没落提示词、修后逐字；见 docs/evidence/2026-11-07-agent-verbatim-prompt/real-model-before-after.md。结账依据：结构性预防（全量扫描 + 身份层规则）+ 真模型修前修后对照。"
 }
