@@ -66,8 +66,13 @@ export function relayModelOption(win, modelKey, label) {
   return win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: win.getByText(new RegExp(`^(?:${names.join('|')})$`)) })
 }
 
-/** Shared free/paid segment: select the declared model, prepare one video (or image, `kind: 'image'`), stop before generate. */
-export async function prepareRelayVideo({ win, newProject, model, capture, kind = 'video' }) {
+/**
+ * Shared free/paid segment: select the declared model, prepare one video (or image, `kind: 'image'`), stop before generate.
+ * `beforeModelPick({ nodeId, node, projectId, projectRoot })` runs after the composer is open and before the model menu:
+ * the menu lists models by the node's current mode (no reference = text mode), so a model without a text mode only
+ * shows up after a creator has put a reference in.
+ */
+export async function prepareRelayVideo({ win, newProject, model, capture, kind = 'video', beforeModelPick }) {
   const { projectId, projectRoot } = await newProject()
   await openCanvas(win)
   await collapseAgentPanel(win)
@@ -89,6 +94,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
     if (await textMode.isVisible().catch(() => false)) await textMode.click()
   }
   await exposeComposer()
+  if (beforeModelPick) await beforeModelPick({ nodeId: id, node, projectId, projectRoot })
   const projection = await win.evaluate(async (want) => {
     const rows = await window.nomiDesktop.modelCatalog.listModels({})
     const row = rows.find((r) => r.vendorKey === want.vendorKey && r.modelKey === want.modelKey)

@@ -20,6 +20,17 @@ describe('付费抽检样本表 · catalog-media-rest-real.paid.mjs', () => {
     })
   }
 
+  // 生成框按节点当前方式列型号：没放参考 = 文生 / 文生图。没有文字那条 mapping 的型号，不先放参考就挑不到（11-08 演练实测：
+  // Vidu Q4 不在菜单里）。所以 referencesFirst 必须和目录一致，而且这种样本必须带参考。
+  for (const [modelKey, sample] of Object.entries(MEDIA_REST_SAMPLES)) {
+    it(`${modelKey}：先放参考再挑型号（referencesFirst）和目录里有没有文字那条 mapping 一致`, () => {
+      const textKind = sample.kind === 'image' ? 'text_to_image' : 'text_to_video'
+      const hasText = (declared(sample.kind, modelKey)?.mappings ?? []).some((mapping) => mapping.taskKind === textKind)
+      expect(Boolean(sample.referencesFirst), `${modelKey} ${hasText ? '有' : '没有'} ${textKind}`).toBe(!hasText)
+      if (sample.referencesFirst) expect(sample.references?.length, `${modelKey} 先放参考，就得有参考`).toBeGreaterThan(0)
+    })
+  }
+
   const withMode = Object.entries(MEDIA_REST_SAMPLES).filter(([, sample]) => sample.modeId)
   for (const [modelKey, sample] of withMode) {
     it(`${modelKey}：要切的「${sample.modeId}」在参数面板「生成方式」里，中英两轨都叫样本写的那个名字`, () => {
@@ -75,6 +86,15 @@ describe('付费抽检样本表 · catalog-media-rest-real.paid.mjs', () => {
 
   it('不在表里的型号花钱之前就拒跑', () => {
     expect(() => mediaRestSampleFor('not-a-sample')).toThrow(/不在付费抽检样本表里/)
-    expect(mediaRestSampleFor('viduq4-preview')).toBe(MEDIA_REST_SAMPLES['viduq4-preview'])
+    expect(mediaRestSampleFor('gemini-omni-1.2-flash-ext')).toBe(MEDIA_REST_SAMPLES['gemini-omni-1.2-flash-ext'])
+  })
+
+  it('挂起的样本真付费拒跑、写明原因；零花费演练（includeHeld）照走', () => {
+    const held = Object.entries(MEDIA_REST_SAMPLES).filter(([, sample]) => sample.hold)
+    expect(held.map(([key]) => key)).toEqual(['viduq4-preview'])
+    for (const [key, sample] of held) {
+      expect(() => mediaRestSampleFor(key)).toThrow(/挂起，花钱之前拒跑：.*双键/)
+      expect(mediaRestSampleFor(key, { includeHeld: true })).toBe(sample)
+    }
   })
 })

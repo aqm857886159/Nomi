@@ -3,7 +3,7 @@
 // 计划文件（NOMI_MEDIA_REST_PAID_PLAN，JSON，放在仓库外）：{ "modelKey": "pixverse-v6" }，型号必须在样本表（_catalogMediaRestSamples.mjs）里。
 // 样本表 = 每家一条「公开价最低的当前基础档」（价格见 PR 报告；价格只做挑样本的依据，不写进声明）。
 // 凭据、出网名单、构建检查、回执全部由 openPaidWalk 负责，本脚本不接触 key。
-// 走的是真界面：选型号 → 默认参数可见 →（带方式 / 参考的样本）参数面板切方式、「+」上传合成参考图 → 点生成 → 花钱确认 → 等产物落地；
+// 走的是真界面：选型号 → 默认参数可见 →（带方式 / 参考的样本）参数面板切方式、「+」上传合成参考图（没有文生的型号先放图再选型号）→ 点生成 → 花钱确认 → 等产物落地；
 // 请求体由网络闸账本核对（只看字段集合，不记 key）。
 // 注意：走查按该型号的**默认参数**生成（不改时长 / 清晰度），实际花费看花钱确认框里的数。
 // NOMI_MEDIA_REST_FREE_ONLY=1 时在点生成之前停下（零花费演练：选型号、默认参数可见、方式与参考放好、请求还没发）。
@@ -14,7 +14,7 @@ import path from 'node:path'
 import { expect } from './_assert.mjs'
 import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { createRelayProject, prepareRelayVideo, generateRelayVideo } from './_relayVideoWalk.mjs'
-import { chooseSampleMode, mediaRestSampleFor, uploadSampleReferences, writeSampleReferenceFiles } from './_catalogMediaRestSamples.mjs'
+import { assertSampleReferencesInPlace, chooseSampleMode, mediaRestSampleFor, uploadSampleReferences, writeSampleReferenceFiles } from './_catalogMediaRestSamples.mjs'
 
 const SCRIPT = 'catalog-media-rest-real.paid.mjs'
 
@@ -37,11 +37,16 @@ try {
   ;({ win } = await walk.start({ first: true }))
   await paid.lockToAuthorizedModels(win)
   const capture = (tag) => walk.snap(`media-rest-${tag}`)
-  const prepared = await prepareRelayVideo({ win, newProject: () => createRelayProject(walk, win), model, capture, kind: sample.kind })
-  // 带方式 / 参考的样本：经参数面板切方式，再经「+」真上传合成图（点生成之前，一分钱没花）。
-  await chooseSampleMode({ win, prepared, sample, capture })
+  // 带方式 / 参考的样本：经参数面板切方式、经「+」真上传合成图（点生成之前，一分钱没花）。
+  // 没有文生的型号（referencesFirst）先放参考再挑型号：生成框按节点当前方式列型号，不先放图菜单里没有它。
   const files = writeSampleReferenceFiles(sample, path.join(walk.outputDir, 'references'))
-  await uploadSampleReferences({ win, prepared, sample, files, capture })
+  const prepared = await prepareRelayVideo({
+    win, newProject: () => createRelayProject(walk, win), model, capture, kind: sample.kind,
+    ...(sample.referencesFirst ? { beforeModelPick: (early) => uploadSampleReferences({ win, prepared: early, sample, files }) } : {}),
+  })
+  await chooseSampleMode({ win, prepared, sample, capture })
+  if (!sample.referencesFirst) await uploadSampleReferences({ win, prepared, sample, files })
+  await assertSampleReferencesInPlace({ win, prepared, sample, capture })
   walk.report.freeSegment = { prepared: true, model: plan.modelKey, kind: sample.kind, nodeId: prepared.nodeId, modeId: sample.modeId ?? null, references: (sample.references ?? []).map((item) => item.slot) }
   if (process.env.NOMI_MEDIA_REST_FREE_ONLY === '1') {
     walk.report.stoppedBeforeGeneration = true

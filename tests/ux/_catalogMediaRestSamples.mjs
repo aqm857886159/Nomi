@@ -44,10 +44,16 @@ export const MEDIA_REST_SAMPLES = Object.freeze({
     buildMarkers: ['(Scenario 3'],
   },
   // 参考生 · 1 张图 · 16:9 · 720p · 5 秒，预计 $0.0912 × 5 ≈ $0.46。验：1 张也按参考（role reference_image），不被当成图生。
+  // referencesFirst：这个型号没有文生，生成框按节点当前方式列型号（没放参考 = 文生），不先放参考，型号菜单里就没有它。
+  // 真人也是这么走的：先「+」放图，再挑型号、切方式。样本测试按目录核：没有文字那条 mapping 的型号必须写它。
+  // hold：11-08 零花费演练（真窗口 + 本机夹具）里，请求体除了 image_with_roles 还多带了一份同图的 image_urls
+  // （taskParams 的 headless 投影认不出角色数组里的地址）。两个键同时在时官方按哪个走，页上没写；按 image_urls 走就是
+  // 1 张图生，花钱验不出 ③。main 上同样有（证据与复盘归「生成请求链」复盘），修好再跑。
   'viduq4-preview': {
-    kind: 'video', modeId: 'ref', modeLabelKey: 'generationCommon.composerB3.modeReference',
+    kind: 'video', modeId: 'ref', modeLabelKey: 'generationCommon.composerB3.modeReference', referencesFirst: true,
     references: [{ slot: 'image_ref', file: 'ref.png' }],
     buildMarkers: ['Reference-to-video with a single image'],
+    hold: '请求体双键，等修（同一张图既在 image_urls、又在 image_with_roles）',
   },
 })
 
@@ -60,12 +66,16 @@ export const MEDIA_REST_PENDING_SAMPLES = Object.freeze({
   },
 })
 
-/** 计划里的型号 → 样本；不在表里或只登记未写脚本的，花钱之前就抛。 */
-export function mediaRestSampleFor(modelKey) {
+/**
+ * 计划里的型号 → 样本；不在表里或只登记未写脚本的，花钱之前就抛。
+ * 挂起（hold）的样本真付费也拒跑；零花费演练（includeHeld）照走，用来复核修好了没有。
+ */
+export function mediaRestSampleFor(modelKey, { includeHeld = false } = {}) {
   const pending = MEDIA_REST_PENDING_SAMPLES[modelKey]
   if (pending) throw new Error(`样本 ${modelKey}（${pending.route}）只登记、没有脚本：${pending.status}`)
   const sample = MEDIA_REST_SAMPLES[modelKey]
   if (!sample) throw new Error(`型号 ${modelKey} 不在付费抽检样本表里（只测每家最便宜的当前基础档，一次一条）`)
+  if (sample.hold && !includeHeld) throw new Error(`样本 ${modelKey} 挂起，花钱之前拒跑：${sample.hold}`)
   return sample
 }
 
@@ -109,24 +119,39 @@ export function writeSampleReferenceFiles(sample, directory) {
 }
 
 /**
- * 经生成框「+」→ 选择器 → 上传，一张一张真放进去（首尾帧：「+」落到第一个空格，先首帧后尾帧；参考：进参考数组）。
- * 每放一张，参考行里的小图 +1 才放下一张。
+ * 经生成框「+」→ 选择器 → 上传，一张一张真放进去（首尾帧：「+」落到第一个空格，先首帧后尾帧；参考：进参考数组；
+ * 文生方式下：接成画布输入，节点换成图生）。每放一张，生成框里的小图 +1 才放下一张。`referencesFirst` 的样本在挑型号之前调它（prepareRelayVideo 的 beforeModelPick）。
  */
-export async function uploadSampleReferences({ win, prepared, sample, files, capture }) {
+export async function uploadSampleReferences({ win, prepared, sample, files }) {
   const references = sample.references ?? []
   if (!references.length) return
   const composer = composerOf(win, prepared.nodeId)
-  const tiles = composer.locator('[data-reference-row] [data-asset-tile]')
+  const tiles = composer.locator('[data-asset-tile]')
   for (const reference of references) {
     const before = await tiles.count()
-    await clickOrFail(composer.locator('[data-reference-add-entry]').first(), `生成框参考行的「+」（放 ${reference.slot}）`)
+    // 有参考行时「+」是参考行那一个；文生方式下没有参考行，「+」是生成框的输入入口（放进来的图接成画布输入，节点随之换成图生）。
+    const rowAdd = composer.locator('[data-reference-add-entry]').first()
+    const add = (await rowAdd.count()) ? rowAdd : composer.locator('[data-asset-add-tile]').first()
+    await clickOrFail(add, `生成框的「+」（放 ${reference.slot}）`)
     const picker = win.locator(PICKER).first()
     await expectVisible(picker, `「+」打开选择器（放 ${reference.slot}）`)
     await picker.locator('input[type="file"]').setInputFiles(files[reference.file])
-    await expect.poll(() => tiles.count(), { message: `上传 ${reference.file} 后参考行小图 +1`, timeout: stationTimeout({ operations: 2 }) }).toBe(before + 1)
+    await expect.poll(() => tiles.count(), { message: `上传 ${reference.file} 后生成框里的小图 +1`, timeout: stationTimeout({ operations: 2 }) }).toBe(before + 1)
     if (await win.locator(PICKER).first().isVisible().catch(() => false)) await win.keyboard.press('Escape')
     await expectHidden(win.locator(PICKER).first(), '选择器收起', stationTimeout({ operations: 1 }))
   }
+}
+
+/**
+ * 点生成之前：参考都还在、落在样本那一档的位置上（先放参考再切方式的样本，切完图不能丢）。不成立就抛，一分钱没花。
+ */
+export async function assertSampleReferencesInPlace({ win, prepared, sample, capture }) {
+  const references = sample.references ?? []
+  if (!references.length) return
+  const composer = composerOf(win, prepared.nodeId)
+  await expect.poll(() => composer.locator('[data-asset-tile]').count(), {
+    message: `点生成之前生成框里正好 ${references.length} 张参考（${sample.modeId ?? '默认方式'}）`, timeout: stationTimeout({ operations: 1 }),
+  }).toBe(references.length)
   if (sample.modeId === 'firstlast') {
     const filled = await composer.locator('[data-asset-slot] [data-asset-tile]').count()
     expect(filled, '首帧、尾帧两格都放上了图').toBe(2)
