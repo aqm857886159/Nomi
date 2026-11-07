@@ -24,7 +24,8 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
         'workbench-creation relative',
         'w-full h-full min-w-0 min-h-0',
         'bg-nomi-chrome',
-        'grid',
+        // 行模板必须写（隐式 auto 行会被内容最小高撑过窗口；四个工作区根网格同一条，见 workspaceRootGrid.structure.test.ts）。
+        'grid grid-rows-[minmax(0,1fr)]',
       )}
       style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? `minmax(0,1fr) ${assistantPaneWidth(width)}px` : 'minmax(0,1fr)' }}
       aria-label={t('creationAi.workspace.aria')}

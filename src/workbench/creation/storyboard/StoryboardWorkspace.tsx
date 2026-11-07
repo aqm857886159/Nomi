@@ -41,7 +41,7 @@ export default function StoryboardWorkspace({ projectId, aiCollapsed = false, ag
   if (plan) {
     return (
       <section
-        className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
+        className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid grid-rows-[minmax(0,1fr)] min-h-0 bg-nomi-chrome', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
         style={{ '--storyboard-assistant-width': aiCollapsed ? '0px' : `${assistantPaneWidth(assistantWidth)}px` } as React.CSSProperties}
         aria-label={t('workspace.storyboard')}
       >
@@ -55,7 +55,7 @@ export default function StoryboardWorkspace({ projectId, aiCollapsed = false, ag
 
   return (
     <section
-      className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
+      className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid grid-rows-[minmax(0,1fr)] min-h-0 bg-nomi-chrome', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
       style={{ '--storyboard-assistant-width': aiCollapsed ? '0px' : `${assistantPaneWidth(assistantWidth)}px` } as React.CSSProperties}
       aria-label={t('workspace.storyboard')}
     >
