@@ -1,5 +1,7 @@
 # 方向检查：AnchoredPopover 的焦点管理缺口（RW）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 触发：`src/design/AnchoredPopover.tsx` 14 天内已有 2 个 fix（bc45ad4b3 react19 类型、879aa9156 表结构），本次是第 3 个（V-1039 评审的键盘回归）。按 `docs/engineering/direction-check-template.md` 写。
 > 来源是逃逸账本的修复：结账挂的类级检查 = 铁律 ⑫（`tests/ux/full-walk/catalog.mjs`），键盘合同由 `tests/ux/storyboard-popover-keyboard.test.mjs` 遍历四个 Portal 弹层。
 

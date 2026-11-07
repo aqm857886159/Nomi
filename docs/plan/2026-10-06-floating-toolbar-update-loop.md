@@ -1,5 +1,7 @@
 # 节点浮条无限更新把整块画布带崩（React #185）· 设计卡 + 方向检查
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：浮条测量一步到位 + 画布浮层缩放只认 React Flow　　线/负责人：L-crash　　类别：[其他]（bug 修复；路径规则会推出「新界面 / 画布」两类，见下）
 
 根因合同：[`docs/fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json`](../fixes/2026-10-06-floating-toolbar-update-loop.root-cause.json)

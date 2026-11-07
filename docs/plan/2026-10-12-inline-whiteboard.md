@@ -1,5 +1,7 @@
 # Inline whiteboard — approved implementation card
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 Implementation line: inline-whiteboard-editor. Independent line: whiteboard-independent-review. Categories: new interface, interruptible local editing, canvas, data format. Approval: user said “去实现吧” and “弄好提交pr” on 2026-10-12 after the centered compact exploration.
 
 | Card | Decision and evidence |

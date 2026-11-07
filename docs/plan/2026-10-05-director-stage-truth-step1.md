@@ -1,5 +1,7 @@
 # 导演编译器第一步：空间事实收成一份（设计卡）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 来源：`docs/plan/2026-10-05-director-compiler-root-cause.md` 选项 ② 里的 ① 部分。不改计划契约（`DirectorPlan` schema、`stage_shot` / `director.write`）。
 > 线：L-stage1。类别：其他（不碰花钱 / 长跑 / 可打断 / 新界面；有渲染截图对比）。
 

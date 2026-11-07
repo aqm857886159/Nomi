@@ -1,5 +1,7 @@
 # 设计卡：下架调不通的 deepseek-v3.2；Agent 认得出「模型不存在」；第一道闸用完整模型身份
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：目录退役死模型 + Agent 上游失败走统一载荷 + headless 第一闸完整身份
 线/负责人：I-catalog-dead-model-and-identity（Mac，Claude）· 分支 `fix/catalog-dead-model-and-identity`
 类别：[花钱][长跑（路径推出：`electron/catalog/taskParams.ts` 命中 `task`）][其他：Agent 行为]

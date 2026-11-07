@@ -1,5 +1,7 @@
 # 设计卡：测试与走查的临时目录按「创建者进程号」归属，进程被杀后有人收
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ```
 改动名：test-tmp-pid-reclaim   线/负责人：I-test-tmp-leak（Mac，Claude Sonnet，实现线）   类别：[其他]（测试 / 门岗基础设施；不碰 electron/、src/）
 ```

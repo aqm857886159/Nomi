@@ -8,6 +8,8 @@ approved_in: 协调会话转达用户「按推荐走方案 A」
 
 # 花钱卡「确认」与「×」的仲裁器：类根因复盘 + 设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > **用户 2026-10-10 拍板：方案 A「换」**——按 operation 的统一仲裁器，所有写入口只能从它进；删掉 discard 绕过队列的特例和分散的 pending 再读 / settled 等待。这一刀是待办「付费卡改状态机」的第一刀。
 > 触发：`node scripts/fix-churn.mjs electron/capabilityCore/appIntegrationSpendConfirm.ts` 命中（近 14 天 8 个 fix，这一刀第 9 个；同概念 11 个 fix，这一刀第 12 个）。
 > 来源：走查 `agent-spend-stop-midway` 在 CI 上偶发红（`agent-runtime-walk-support` 等不到 generate 工具结果），诊断见协调会话 R-flake-spendstop。

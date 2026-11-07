@@ -1,5 +1,7 @@
 # 应用内更新提醒（实现卡）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 线：I-update。拍板：用户 2026-10-08（更新提醒画布三点按推荐）；样张分支 design/update-reminder（devlab「update-reminder」屏，已并入本分支，格子改为渲染生产组件）。
 
 ## 三问

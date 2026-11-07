@@ -1,5 +1,7 @@
 # 空节点：浏览时认类型，单选时给下一步
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 负责人：I-node-guidance；独立普查/验收：V-node-guidance。类别：用户可见界面。用户已于 2026-10-11 批准沿用 Nomi 现有设计系统的探索图，并要求「去实现吧，考虑各种节点类型等等」。批准源保存在 `docs/design/boards/2026-10-11/source/ContextualEmptyNodes.html`，它只是 exploration；合同是同目录 board 清单及下面的状态矩阵。
 
 | 设计卡 | 结论与证据 |

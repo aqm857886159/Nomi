@@ -1,5 +1,7 @@
 # 所有建边入口统一走同一道校验（I-edgecheck）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 > 来源：Codex 对 #1137 的复审 2（`R-review-1137-re.md` 末尾「复审 2」）：MCP / headless 写画布能写出 视频 / 声音 → 文本；粘贴、拖动复制原样搬运非法边。main 上的老问题（以前 图片 → 文本 也一样）。
 > 方向检查：`docs/engineering/direction-checks/2026-10-10-edge-validation-all-entries.md`。
 

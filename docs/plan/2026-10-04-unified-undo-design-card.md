@@ -1,5 +1,7 @@
 # 统一撤销设计卡
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 改动名：3D-BOX 段 U 统一撤销　线/负责人：`feat/agent-canvas-undo`　类别：其他
 
 | 格 | 结论 | 证据 |
