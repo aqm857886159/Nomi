@@ -22,7 +22,22 @@
 1. 授权名单原来只放 Agent 大脑，隔离副本里样本型号被关掉，下拉里选不到 → 名单加上要测的那个型号（`f232c0042`）。
 2. 内置型号在下拉里显示的是显示名（「GPT Image 2.6 Flare」），走查按内部编号精确找 → 改成编号或显示名任一完全一致（`dcffccd4a`）。
 
+## 真付费抽检（2026-11-08，第二轮「按官方文档对齐」之后）
+
+- 构建：本分支开发构建，HEAD `3b9589aa5`；产物带修复标记（Ext `(Scenario 3`、Grok `Do not add this header while continuing`），没有就拒跑。
+- 隔离同上；每条先跑零花费演练（`NOMI_MEDIA_REST_FREE_ONLY=1`，付费 0 次），过了再真跑一次，不重试。
+- 路径：画布真窗口，和真人顺序一样，先放参考再挑型号、点生成、等落地。
+
+| 型号 | 方式 | 参数 | 结果 | 付费次数 | 预计花费（APIMart 公开价） |
+|---|---|---|---|---|---|
+| `gemini-omni-1.2-flash-ext` | 首尾帧（首帧、尾帧两格都放上） | 16:9 · 720p · 10s | passed：任务 `task_01M6VH6TD7N7SJZN0C201E1Y2J` 成功，10.03 秒成片落进项目和素材库 | 1 | ≈ $0.24 |
+| `grok-imagine-image-2.0` | 文生图 | 自动 · 1K | passed：任务 `task_01M6VHCWWVJR37HPSZYBSMR5AW` 成功；不带 `X-APIMart-Response-Version` 头提交被接受，按 `data[0].task_id` 取到任务号，图落进项目 | 1 | ≈ $0.048 |
+
+- 供应商没回实际扣费（`providerCost: null`），花费按公开价估，以 APIMart 账单为准。
+- 截图在 `paid-20261108/`，协调亲眼看过：`ext-firstlast-references-before-generate.png`（点生成前两格都在）、`ext-firstlast-landed.png`、`grok-image-landed.png`。
+- `viduq4-preview` 参考生没跑：请求体双键（`image_urls` 和 `image_with_roles` 同时在），真付费拒跑，等生成请求链改造里「参考放置收成一个函数」那一片修好再跑。
+
 ## 没验证的
 
-- 真付费：由协调先跑最便宜的一条看实际花费，再定其余。
+- Vidu Q4 单图参考的真付费（双键，见上）。
 - Windows、打包版没跑。
