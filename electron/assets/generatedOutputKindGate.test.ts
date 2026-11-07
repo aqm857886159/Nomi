@@ -23,7 +23,8 @@ vi.mock("../projects/repository", async (importOriginal) => ({
   resolveProjectRelativePath: (_projectId: string, relativePath: string) => path.join(projectRoot, relativePath),
 }));
 
-const { copyAssetFile, importRemoteAsset, writeGeneratedAsset, writeGeneratedDeterministicAsset } = await import("./projectAssetStore");
+const projectAssetStore = await import("./projectAssetStore");
+const { copyAssetFile, importRemoteAsset, writeGeneratedAsset, writeGeneratedDeterministicAsset } = projectAssetStore;
 const { importLocalFile } = await import("./localFileImport");
 type Stored = { data?: { relativePath?: string; contentType?: string } };
 const fixture = (name: string) => fs.readFileSync(path.join(__dirname, "../providerAdapter/__fixtures__/certification-media", name));
@@ -129,9 +130,8 @@ describe("落盘关口：字节不是任务要的那一类就不收（retrieval-
     await expect(copyAssetFile("project-1", source, "tts.wav", "audio/wav", { kind: "generated" }, "audio")).resolves.toMatchObject({ data: { contentType: "audio/wav" } });
     await expect(copyAssetFile("project-1", source, "voice.wav", "audio/wav", { kind: "upload" }, null)).resolves.toMatchObject({ data: { contentType: "audio/wav" } });
 
-    const store = await import("./projectAssetStore");
     // @ts-expect-error storeAssetBytes (kind as data, expected kind nullable) stays inside the asset module
-    expect(store.storeAssetBytes).toBeUndefined();
+    expect(projectAssetStore.storeAssetBytes).toBeUndefined();
     const runtimeReexport = (runtime: typeof import("../runtime")) =>
       // @ts-expect-error and runtime does not re-export it either
       runtime.storeAssetBytes;

@@ -23,7 +23,7 @@ import {
 import type { JsonRecord } from "../jsonUtils";
 import { logWarn } from "../logging/logger";
 import { projectDirById } from "../projects/repository";
-import { contentTypeFromStoredFile } from "./projectAssetStore";
+import { contentTypeFromStoredFile } from "./storedAssetFile";
 import { attachStoredAssetPreview, createStoredAssetPreview, discardPreparedPreview, type AssetPreviewOptions, type StoredAssetPreview } from "./assetPreview";
 import { createAssetImportProgressReporter, type AssetCopyProgress } from "./assetImportProgress";
 import type { ProjectBinding } from "../shared/projectBinding";

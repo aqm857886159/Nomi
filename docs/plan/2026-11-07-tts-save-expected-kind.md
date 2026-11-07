@@ -26,7 +26,7 @@
 - [Parse, don't validate（Alexis King）](https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/) · 在边界上检查一次，并用类型表达不变量，让非法状态写不出来 · **改了**修法：原来想在 audioTaskRunner 两处补上 `expectedKind`（沿原方向修）；改成让用户文件的门在类型上不收生成产物，远程取回的门在类型上要求生成产物带期望类型。下一个调用者漏写时编译就不过，不用等付费之后的运行时检查。
 - `electron/runtime.ts`（修前）里给文件流视频写的拒绝：`if (mapping.result?.mediaResponse && !projectId) throw new Error("Video file results require a project…")` · 2026-10 已经给「结果只能是文件的视频」定过「没项目先拒」 · **确认了**方向。这次把它和同步配音并进同一个判据 `resultOnlyLandsAsProjectFile`，同提交删掉那句只给视频写的英文。
 
-出口：`electron/runtime.ts`（修前）文件流视频「没项目先拒」· 别人怎么让人继续：先打开项目再生成，拒绝不留锁、不留半截单子，点一次重新生成就能继续 · **确认了**这次新增的两处拒绝走同样的出口：tasks:run / 画布报「请先打开一个项目再生成」；try_model 回 `needs_input`，`nextAction` 让宿主请用户到打开的项目画布上去试。两处都不开试用单、不铸令牌，没有要释放的东西。
+出口：electron/runtime.ts:311（修前，main 745b3c5b4）文件流视频「没项目先拒」· 别人怎么让人继续：先打开项目再生成，拒绝不留锁、不留半截单子，点一次重新生成就能继续 · **确认了**这次新增的两处拒绝走同样的出口：tasks:run / 画布报「请先打开一个项目再生成」；try_model 回 `needs_input`，`nextAction` 让宿主请用户到打开的项目画布上去试。两处都不开试用单、不铸令牌，没有要释放的东西。
 
 ## ★1 用户怎么用
 
