@@ -22,7 +22,10 @@ import {
   archetypeVariantForModelId,
   canonicalArchetypeVariantId,
   combineChannelForMode,
+  combineRoleForSlot,
+  REFERENCE_ROLE_FOR_KIND,
   resolveArchetypeForModel,
+  slotJoinsCombine,
   resolveArchetypeVariant,
   specializeArchetypeForVariant,
 } from '../../../../../electron/shared/modelArchetypes'
@@ -541,21 +544,8 @@ const DEFAULT_AS_ARRAY: Record<ArchetypeReferenceSlotKind, boolean> = {
   video_ref: true,
   audio_ref: true,
 }
-/** 角色数组合并（combineSlotsInto）时 slot.kind → 缺省 role；slot.roleName 可覆盖。
- *  单一真相源：role 默认派生自 kind，避免 role 与 kind 两条平行真相源（P1）。 */
-/**
- * 方舟 content 项的 role 取值单一真相源。五个值全部来自官方字段表
- * （`content[].role`：first_frame / last_frame / reference_image / reference_video / reference_audio）。
- * video_ref / audio_ref 两条以前漏了 —— 图片参考带 role、参考视频/音频裸奔，属于半接
- * （2026-07-31 拿到中转交付文档逐项对账时抓出）。
- */
-const DEFAULT_ROLE_FOR_KIND: Partial<Record<ArchetypeReferenceSlotKind, string>> = {
-  first_frame: 'first_frame',
-  last_frame: 'last_frame',
-  image_ref: 'reference_image',
-  video_ref: 'reference_video',
-  audio_ref: 'reference_audio',
-}
+// 槽种 → 供应商角色词的表只有一份，住在 electron/shared/videoCapabilities/referenceChannels.ts
+// （REFERENCE_ROLE_FOR_KIND / combineRoleForSlot），Run 路与这里同吃。
 
 /** 构造层产出的通用 input 值：标量 / 数组 / 角色对象数组（combineSlotsInto）。模板引擎原样透传。 */
 type ArchetypeInputValue =
@@ -608,11 +598,11 @@ function volcengineImageContentItem(url: string, role: string): Record<string, u
 
 function volcengineContentItem(inputKey: string, url: string): Record<string, unknown> | null {
   if (inputKey === 'volcengine_first_image_content')
-    return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.first_frame ?? 'first_frame')
+    return volcengineImageContentItem(url, REFERENCE_ROLE_FOR_KIND.first_frame ?? 'first_frame')
   if (inputKey === 'volcengine_first_role_image_content')
-    return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.first_frame ?? 'first_frame')
+    return volcengineImageContentItem(url, REFERENCE_ROLE_FOR_KIND.first_frame ?? 'first_frame')
   if (inputKey === 'volcengine_last_role_image_content')
-    return volcengineImageContentItem(url, DEFAULT_ROLE_FOR_KIND.last_frame ?? 'last_frame')
+    return volcengineImageContentItem(url, REFERENCE_ROLE_FOR_KIND.last_frame ?? 'last_frame')
   return null
 }
 
@@ -721,13 +711,13 @@ export function buildArchetypeInputParams(
       const capped = mergeOrderedReferenceImageUrls(edgeList, metaList, slot.max)
       if (capped.length) {
         if (inputKey === 'volcengine_image_contents') {
-          const role = DEFAULT_ROLE_FOR_KIND.image_ref ?? 'reference_image'
+          const role = REFERENCE_ROLE_FOR_KIND.image_ref ?? 'reference_image'
           out[inputKey] = capped.map((url) => volcengineImageContentItem(url, role))
         } else if (inputKey === 'volcengine_video_contents') {
-          const role = DEFAULT_ROLE_FOR_KIND.video_ref ?? 'reference_video'
+          const role = REFERENCE_ROLE_FOR_KIND.video_ref ?? 'reference_video'
           out[inputKey] = capped.map((url) => ({ type: 'video_url', video_url: { url }, role }))
         } else if (inputKey === 'volcengine_audio_contents') {
-          const role = DEFAULT_ROLE_FOR_KIND.audio_ref ?? 'reference_audio'
+          const role = REFERENCE_ROLE_FOR_KIND.audio_ref ?? 'reference_audio'
           out[inputKey] = capped.map((url) => ({ type: 'audio_url', audio_url: { url }, role }))
         } else if (!slotAsArray(slot) && slot.max === 1) {
           // 声明 asArray:false 的单容量数组路由槽（Agnes i2v 的 image）→ 发**单图字符串**，声明说话算话。
@@ -756,7 +746,8 @@ export function buildArchetypeInputParams(
     }
   }
   // 角色数组合并（通用原语）：把本模式有值的槽 → [{url, role}] 落在 combineSlotsInto.key，删被合并的
-  // 扁平键（M2 互斥）。role = slot.roleName ?? 由 kind 派生（单源）。键名来自档案声明，不写死/不 if-vendor。
+  // 扁平键（M2 互斥）。哪些槽并进去、各带什么 role 由 shared 的 slotJoinsCombine / combineRoleForSlot 回答（与 Run 路同一份）。
+  // 键名来自档案声明，不写死/不 if-vendor。
   // 必须在此构造层拼好整个数组——模板引擎丢得掉 undefined 键/元素，但丢不掉 {url:undefined} 对象（坑）。
   const combineChannel = combineChannelForMode(mode)
   if (combineChannel) {
@@ -765,8 +756,8 @@ export function buildArchetypeInputParams(
     const combinedFlat: string[] = []
     const combinedRoles: Array<{ url: string; role: string }> = []
     for (const slot of mode.slots) {
-      const role = slot.roleName ?? DEFAULT_ROLE_FOR_KIND[slot.kind]
-      if (!flat && !role) continue
+      if (!slotJoinsCombine(mode, slot)) continue
+      const role = combineRoleForSlot(slot)
       const inputKey = slotInputKey(slot)
       const value = out[inputKey]
       const push = (url: string) => {

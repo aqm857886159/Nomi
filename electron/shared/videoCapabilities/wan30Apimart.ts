@@ -16,7 +16,7 @@ import type { ModelArchetype } from "./types";
 // 首帧、也可解释成参考图）。歧义交给上游猜 = 用户拿到的片子形态不可预期，故按模式显式钉死。
 //
 // **首/尾帧走 image_with_roles**：combineSlotsInto 通用原语，role 由 slot.kind 派生
-// （first_frame → "first_frame"、last_frame → "last_frame"，见 archetypeMeta 的 DEFAULT_ROLE_FOR_KIND），
+// （first_frame → "first_frame"、last_frame → "last_frame"，见 referenceChannels.ts 的 REFERENCE_ROLE_FOR_KIND），
 // 与官方 role 取值逐字相同，不需要 roleName 覆盖。
 //
 // 本轮**不接** file_url（文档参考）与 link_url（网页参考），理由同 kie 侧，

@@ -4,9 +4,10 @@ import { bodyReferencedParamKeys, consumedCanonicalKeys } from "../catalog/param
 import type { Mapping } from "../catalog/types";
 import { productionGenerationPayloadHash } from "../productionRun/productionGenerationAuthorization";
 import { ApimartGenerationProviderError } from "./apimartGenerationErrors";
-import type { ReferenceCombineChannel } from "../shared/videoCapabilities/referenceChannels";
+import { combineRoleForContractReference, type ReferenceCombineChannel } from "../shared/videoCapabilities/referenceChannels";
 import { APIMART_REFERENCE_PARAMETER_ALIASES } from "../shared/modelArchetypes/referenceKeys";
 import { comparableReferenceUrl } from "../catalog/outboundReferenceUrl";
+import { tagNomiError } from "../shared/nomiErrorCodes";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -218,13 +219,18 @@ export function projectReferenceUrls(
     const channels = new Set((mapping ? bodyReferencedParamKeys(mapping.create.body) : []).map(key => PROJECTION_KEYS[key] || key));
     const snapshot: Record<string, unknown> = {};
     const append = (key: string, value: unknown) => { (snapshot[key] ??= []); (snapshot[key] as unknown[]).push(value); };
-    const combined: Array<{ url: string; role?: string }> = [];
+    // 合并进角色数组的那几条：role 是**线上角色词**（按这一档模式的槽声明翻，与画布路同一张表），
+    // 不是合同角色词——合同的 reference / character 线上叫 reference_image；顺序按槽的声明顺序（与画布路同序）。
+    const combined: Array<{ url: string; role: string; order: number }> = [];
     for (const reference of input.references) {
       const url = input.referenceUrls[spendReferenceKey(reference)];
       if (!isProviderUrl(url)) throw new ApimartGenerationProviderError("Approved reference URL is unavailable");
-      if (reference.kind === "video") append("videoUrls", url);
+      const combineSlot = combineKey ? combineRoleForContractReference(combineChannel ?? null, reference) : null;
+      if (combineSlot) combined.push({ url, role: combineSlot.role, order: combineSlot.order });
+      else if (reference.kind === "video") append("videoUrls", url);
       else if (reference.kind === "audio") append("audioUrls", url);
-      else if (combineKey) combined.push({ url, ...(reference.role ? { role: reference.role } : {}) });
+      // 这一档合并里没有收这种参考的槽：明着拒，不带着合同角色词错发（机器码 reference-not-in-use，错误卡认码，见 referenceResidueGuard）。
+      else if (combineKey) throw new ApimartGenerationProviderError(tagNomiError("reference-not-in-use", `Request rejected before sending: the current mode has no reference slot for role ${reference.role ?? "reference"} (${reference.kind ?? "image"}). Nothing was sent to the provider.`));
       else if (reference.role === "first_frame" && channels.has("first_frame_image")) snapshot.firstFrameImage = url;
       else if (reference.role === "last_frame" && channels.has("last_frame_image")) snapshot.lastFrameImage = url;
       else if (reference.role === "first_frame" || reference.role === "last_frame") throw new ApimartGenerationProviderError(`catalog mapping has unsupported reference role: ${reference.role}`);
@@ -242,7 +248,7 @@ export function projectReferenceUrls(
       }
       if (!referenceValuePresent(existing)) parameters[targetKey] = structuredClone(value);
     };
-    if (combineKey) merge(combineKey, combined);
+    if (combineKey) merge(combineKey, [...combined].sort((a, b) => a.order - b.order).map(({ url, role }) => ({ url, role })));
     for (const [sourceKey, value] of Object.entries(snapshot)) merge(PROJECTION_KEYS[sourceKey], value);
   }
   const projected = { ...input, parameters };
