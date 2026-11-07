@@ -3,10 +3,10 @@
 import { require as tsxRequire } from 'tsx/cjs/api'
 import { openPaidWalk } from './_paidRun.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
-import { clickOrFail, expect } from './_assert.mjs'
+import { clickOrFail } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
-const { CATALOG_LATEST_SAMPLES, runCatalogLatestSamples } = tsxRequire('./catalogLatestSamples.ts', import.meta.url)
+const { CATALOG_LATEST_SAMPLES, runCatalogLatestSamples, settleSampleTask } = tsxRequire('./catalogLatestSamples.ts', import.meta.url)
 const paid = await openPaidWalk('catalog-latest-real.paid.mjs', 'catalog-latest-real',
   CATALOG_LATEST_SAMPLES.map(({ modelKey }) => ({ vendorKey: 'apimart', modelKey })), {
     env: { ...process.env, [ENV_KEY_VAR]: '' },
@@ -31,15 +31,9 @@ try {
     if (sample.kind !== 'chat') {
       await clickOrFail(win.locator('[data-spend-confirm-action="confirm"]'), `Approve ${sample.family} once`)
     }
-    let result = await pending
-    if (!['succeeded', 'failed'].includes(result.status)) {
-      await expect.poll(async () => {
-        result = await win.evaluate((input) => window.nomiDesktop.tasks.result(input), {
-          vendor: 'apimart', taskId: result.id, taskKind: sample.kind, modelKey: sample.modelKey, prompt: request.prompt,
-        })
-        return result.status
-      }, { timeout: stationTimeout({ operations: 8 }), intervals: [3000] }).toMatch(/^(succeeded|failed)$/)
-    }
+    const result = await settleSampleTask(await pending, (taskId) => win.evaluate((input) => window.nomiDesktop.tasks.result(input), {
+      vendor: 'apimart', taskId, taskKind: sample.kind, modelKey: sample.modelKey, prompt: request.prompt,
+    }), { timeoutMs: stationTimeout({ operations: 8 }), intervalMs: 3000 })
     await walk.snap(`sample-${sample.modelKey}`)
     return { status: result.status, taskId: result.id, assets: result.assets, raw: result.raw }
   })

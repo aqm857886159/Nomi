@@ -14,7 +14,7 @@ import { applyHeadlessParamDefaults, taskTemplateParams } from './taskParams';
 import { applyBuiltinSeeds } from './seedBuiltins';
 import { curatedCatalogLifecycle } from './seedModelIdentity';
 import { selectTaskMapping, type CatalogState, type HttpOperation } from './types';
-import { runCatalogLatestSamples } from '../../tests/ux/catalogLatestSamples';
+import { runCatalogLatestSamples, settleSampleTask } from '../../tests/ux/catalogLatestSamples';
 
 const VERSIONS = ['v6', 'v6-wild', 'v6-mini'];
 const BRAINS = ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna',
@@ -52,6 +52,25 @@ describe('APIMart audio official field contracts and request previews', () => {
       return { status: 'succeeded' };
     });
     expect(results).toHaveLength(15);
+  });
+
+  it('follows an accepted order through the bridge shapes: run gives the task, result wraps it as { vendor, result }', async () => {
+    const asked: string[] = [];
+    let polls = 0;
+    const settled = await settleSampleTask({ id: 'T1', status: 'queued' }, async taskId => {
+      asked.push(taskId);
+      polls += 1;
+      return { vendor: 'apimart', result: { id: 'T1', status: polls < 2 ? 'running' : 'succeeded', assets: [] } };
+    }, { timeoutMs: 1000, intervalMs: 1 });
+    expect(settled.status).toBe('succeeded');
+    expect(asked).toEqual(['T1', 'T1']);
+  });
+
+  it('stops before asking the vendor when an accepted order has no task id', async () => {
+    const asked: string[] = [];
+    await expect(settleSampleTask({ status: 'queued' }, async taskId => { asked.push(taskId); return {}; },
+      { timeoutMs: 1000, intervalMs: 1 })).rejects.toThrow(/no task id/);
+    expect(asked).toEqual([]);
   });
 
   it('checks every declared version against independently recorded official wire fields', () => {

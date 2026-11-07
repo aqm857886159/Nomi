@@ -15,6 +15,38 @@ export const CATALOG_LATEST_SAMPLES = [
 
 export type CatalogLatestSample = (typeof CATALOG_LATEST_SAMPLES)[number];
 
+export type SampleTaskResult = { id?: string; status: string; assets?: unknown; raw?: unknown };
+
+/** The bridge answers in two shapes: `tasks.run` gives the task itself, `tasks.result` wraps it as `{ vendor, result }`. */
+export function taskResultOf(response: unknown): SampleTaskResult {
+  const wrapped = (response as { result?: unknown } | null)?.result;
+  const result = (wrapped && typeof wrapped === 'object' ? wrapped : response) as SampleTaskResult | null;
+  assert.ok(result && typeof result.status === 'string', 'task response carries no status');
+  return result;
+}
+
+/**
+ * Follow one accepted order to its end. Every query names the id the submit returned, so a missing id stops
+ * here instead of asking the vendor for an empty task. Querying never places a new order.
+ */
+export async function settleSampleTask(
+  submitted: unknown,
+  query: (taskId: string) => Promise<unknown>,
+  { timeoutMs, intervalMs }: { timeoutMs: number; intervalMs: number },
+): Promise<SampleTaskResult> {
+  const first = taskResultOf(submitted);
+  if (first.status === 'succeeded' || first.status === 'failed') return first;
+  const taskId = first.id?.trim();
+  assert.ok(taskId, `accepted order has no task id (status=${first.status}); stop, do not resubmit`);
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+    const latest = taskResultOf(await query(taskId));
+    if (latest.status === 'succeeded' || latest.status === 'failed') return { ...latest, id: latest.id || taskId };
+    assert.ok(Date.now() < deadline, `task ${taskId} still ${latest.status} after ${timeoutMs}ms`);
+  }
+}
+
 /** Both runners submit once per sample and stop on the first failure. Querying an accepted task is not a new order. */
 export async function runCatalogLatestSamples(invoke: (sample: CatalogLatestSample) => Promise<{ status: string }>) {
   const results = [];
