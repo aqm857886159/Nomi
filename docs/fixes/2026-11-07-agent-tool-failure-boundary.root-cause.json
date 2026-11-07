@@ -1,0 +1,307 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-07-agent-tool-failure-boundary",
+  "problem_type": "Agent 工具失败绕过熔断与统一格式器：pi 的立即结果跳过 before_tool / after_tool，失败正文和面板信封各自生成",
+  "symptom": "用户原话「经常出现什么参数不对 重试等问题」：Agent 起草镜头时同一个参数一错再错、反复重试；模型读到的是 pi 默认正文「- shots.0: must not have additional properties」加整份入参回显，或一整段 Zod issue JSON，或只有中文散文没有字段；面板只显示「参数不合法」，说不出哪个字段、该填什么。",
+  "direct_cause": "pi-agent-core 0.85.1 的 prepareToolCall（dist/harness/execution/tools.js:24-34）在 prepareArguments / validateToolArguments 抛错时直接合成 immediateError，before_tool 的拦截（tools.js:39）同样是立即结果；两者都跳过 after_tool，而熔断（laneRepeatedFailure）只在 after_tool 记数、只在 before_tool 拦截，所以形状错、工具准备步骤的拒收、before_tool 准备步骤的领域拒收连发多少次计数器都是 0；立即结果没有 details，面板拿不到信封，只能按英文正文猜（旧的 residentToolDisplay.ts）。另外 applyCanvasToolCall 对已经过校验的入参又 parse 一次并吞掉字段错。",
+  "class_root": "工具失败没有一个边界：入参失败有四条生成路（pi 默认正文、laneArgumentFailure 的 Zod 包装、准入散文、画布写的二次校验），计数只挂在 pi 会跳过的那两个钩子上，面板文案按正文猜而不是按码查。任何一条新的失败路（新工具、新校验层、新的立即结果）都会再次绕过计数和格式器。",
+  "migration": "旧转录不改存储格式：投影层对 2026-11-07 之前 pi 默认正文（Validation failed for tool \"X\": 不带码）按同一份入参重推同一份清单（laneToolInputBoundary.failureOf）；重推不出来的只显示码对应的中文 / 英文，没有 zh 条目的码不显示。旧格式器 laneArgumentFailure.ts、面板按英文猜的 residentToolDisplay.ts、applyCanvasToolCall 的第二次校验、after_tool 里「第 5 次终止」都在本次删掉，无并行版。",
+  "affected_population": [
+    "所有用 Agent 面板起草镜头 / 写画布 / 发起生成的用户，任何模型（内置、本机、自建中转）",
+    "所有经 lane 注册的工具：目录里的动词、编码工具、原生工具（入参边界包的是注册表里的全部工具）",
+    "旧转录：升级前写下的 pi 默认拒收正文在面板里重新显示"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneToolInputBoundary.mts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneTools.mts",
+    "electron/agentLane/laneRepeatedFailure.mts",
+    "electron/shared/agentLane/laneToolContract.ts",
+    "electron/shared/agentLane/toolInputIssues.ts",
+    "electron/shared/agentLane/laneToolFailureEnvelope.ts",
+    "electron/shared/agentLane/laneProjection.ts",
+    "src/workbench/ai/lane/laneToolFailureText.ts"
+  ],
+  "entry_points": [
+    "pi prepareToolCall → tool.prepareArguments（electron/agentLane/laneToolInputBoundary.mts:160 包上的那一层）：形状校验与工具自己的准备步骤",
+    "before_tool 准备步骤（electron/agentLane/laneHost.mts:455 rejectPreparation）：契约 Zod parse 与桌面端口的领域拒收",
+    "after_tool 执行层失败（electron/agentLane/laneHost.mts:524，第 3 次的 stopNote 在 :543）",
+    "投影层读信封（electron/shared/agentLane/laneProjection.ts:344 laneToolFailureOf；立即结果按入参重推 laneToolInputBoundary.mts:182 failureOf）",
+    "面板文案（src/workbench/ai/v4/useAgentPanelV4Data.ts:239-240 laneToolFailureSummary / laneToolFailureDetail）"
+  ],
+  "invariants": [
+    "任何一次工具失败，模型读到的正文由 toolArgumentsRejected / renderLaneToolFailure 生成：首行带码，每个出错字段一行「字段: 该填什么」（合法值 / 近似键 / 期望类型 / 范围之一）",
+    "pi 的立即结果（形状错、工具准备步骤拒收、before_tool 准备步骤拒收）与执行层失败记进同一个熔断：同工具同错第 3 次正文带「停」，第 4 次起在入参边界直接拦下，用户下一句话前不再执行",
+    "面板只按码和字段清单出字（zh / en 同表）；没有 zh 条目的码不显示",
+    "边界不改写模型给的键：错的键被拒并点名近似键，不悄悄改成对的"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "createLaneToolInputBoundary"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "renderLaneToolFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "toolArgumentsRejected"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "laneToolPublicFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "laneToolPublicFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "toolArgumentsRejected"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "renderLaneToolFailure"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneToolContract.ts",
+      "symbol": "renderToolInputIssue"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneToolContract.ts",
+      "symbol": "toolArgumentsRejected"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "laneToolFailureOf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "laneToolFailureOf"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "laneToolFailureSummary"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "laneToolFailureDetail"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneToolFailureEnvelope.ts",
+      "symbol": "LANE_TOOL_OWN_FAILURE_CODE_LIST"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneToolFailureText.ts",
+      "symbol": "LANE_TOOL_OWN_FAILURE_CODE_LIST"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "createLaneRepeatedFailureTracker"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneRepeatedFailure.mts",
+      "symbol": "LANE_REPEATED_FAILURE_BLOCK"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "issuesFromTypeBox"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "issuesFromZod"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "issuesFromZod"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "issuesFromParameterRejection"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/laneToolContract.ts",
+      "symbol": "issuesFromZod"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/agentLane/toolInputIssues.ts",
+      "symbol": "renderToolInputIssue"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneToolFailureText.ts",
+      "symbol": "laneToolIssueText"
+    }
+  ],
+  "door_reduction": {
+    "before": 27,
+    "after": 24
+  },
+  "regression_tests": [
+    "electron/agentLane/laneToolInputBoundary.test.ts",
+    "electron/agentLane/laneRepeatedFailure.test.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.test.ts",
+    "electron/shared/agentLane/laneFailureFromDecision.test.ts",
+    "electron/telemetry/agentToolFailureTelemetry.test.ts",
+    "src/workbench/ai/lane/laneToolFailureText.test.ts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.singleParse.test.ts",
+    "tests/agent-runtime/lane-tool-contract.test.mts"
+  ],
+  "residual_risks": [
+    "模型无视拦截、一直调同一个工具：被拦的调用不执行、不花生成的钱，但每次都多一次模型请求；宿主的请求上限（maxModelRequests，默认不设）只在 before_tool 判，立即结果绕过它，截不断这个循环（laneToolInputBoundary.test.ts 里 it.fails 钉住）。硬停（连续不听就像用户点「停止」一样中止这一轮）作为后续一刀单独立项。",
+    "before_tool 里另外三种拦截不计数：要换界面（surface_authority_denied）、没有权限（toolAccessDenial）、审批闸的用户拒绝 / 取消——前两种模型改不了参数，第三种是用户的决定。",
+    "before_tool 准备步骤的领域拒收（异步、有状态）面板信封没法按入参重推：模型正文和熔断已接上，面板仍按正文显示；文稿写那一支抛的是普通 Error('capability_unsupported')，不是 LaneDomainFailure，仍原样再抛、不计数。",
+    "pi 找不到工具名时的立即结果（tools.js:22「Tool \"X\" is unavailable」）没有工具可包，不计数。",
+    "准入层有三种拒收还没有结构化字段事实（模型不在目录、引用了不存在的 id、图像模型发视频任务）：正文是准入原句，信封有码没有字段；时长的字段路径是 durationSec（相对镜头，不是 shots.N）；准入正文里散文与字段行有一行重复。",
+    "MCP 出口（外部 Agent）的 describeSchemaIssues 散文未改；外部客户端没有 Nomi 的熔断。"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/earendil-works/pi",
+      "checked_at": "2026-11-07",
+      "purpose": "packages/agent 0.85.1 已发布构建 dist/harness/execution/tools.js：prepareToolCall 在 prepareArguments / validateToolArguments 抛错时、applyBeforeToolDecision 在 block 时都走 immediateError，跳过 before_tool / after_tool；prepareArguments 是校验之前唯一的官方口子；before_request 只能改 streamOptions。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "机制不依赖某个工具或某个供应商：任何注册工具的入参只要过不了 pi 的校验或在准备步骤被拒，就是一条跳过钩子的立即结果；模型越弱、参数越大（12 镜起草）越常见。新工具、新校验层都会落进同一条路。",
+    "same_class_scan": [
+      "node_modules/@earendil-works/pi-agent-core/dist/harness/execution/tools.js:22,33,39,52 —— immediateError 的全部调用点：找不到工具、准备 / 校验抛错、before_tool block、改参后重校验",
+      "electron/agentLane/laneHost.mts:429-500 —— before_tool 的全部 block 来源：请求上限、surface_authority_denied、toolAccessDenial、准备步骤（Zod / LaneDomainFailure / 其它）、审批闸",
+      "electron/agentLane/laneExtendedDesktopPorts.ts:127 rejectPreparation、electron/agentLane/laneDesktopTools.ts:177 toolLifecycle.prepare —— 桌面端口准备步骤抛出的失败",
+      "grep 'prepareArguments' electron/agentLane electron/shared/agentLane —— 工具自己的准备步骤（draft_shots 的比例、arrange_canvas / make_artifact 的 rejectGeneratingNodes、导演台摆镜）",
+      "grep 'safeParse\\|\\.parse(' src/workbench/generationCanvas/agent —— applyCanvasToolCall 的第二次校验（已删）",
+      "grep 'describeSchemaIssues' electron —— 准入散文（generationTransportAdapters.ts:125），字段事实已并入同一份清单"
+    ]
+  },
+  "generality_proof": "边界按 pi 的结构放，不按工具放：入参边界包的是 lane 注册表里的每一个工具的 prepareArguments（pi 校验之前唯一的官方口子），所以任何工具的形状错与准备步骤拒收都先经过它；before_tool 的准备步骤只有一个 catch，Zod 与领域拒收都交给同一个 rejectPreparation；执行层失败只有 after_tool 一处。三处都调用同一个 reject()：同一个格式器（toolArgumentsRejected / renderLaneToolFailure，清单来自 toolInputIssues 的三个适配器）、同一个熔断、同一个遥测出口。面板只认信封的码和字段，不读正文。新增工具自动被包、自动计数，不需要登记。",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "createLaneToolInputBoundary",
+      "responsibility": "pi 的全部入参立即失败（形状校验、工具自己的准备步骤、before_tool 准备步骤）走一个出口：先判墙、再生成同一份正文、记进同一个熔断、报遥测；立即结果的面板信封按入参重推。"
+    },
+    {
+      "path": "electron/shared/agentLane/toolInputIssues.ts",
+      "symbol": "renderToolInputIssue",
+      "responsibility": "TypeBox、Zod、准入三种来源归一成同一份字段清单，每条一行「字段: 该填什么」。"
+    },
+    {
+      "path": "electron/shared/agentLane/laneToolContract.ts",
+      "symbol": "toolArgumentsRejected",
+      "responsibility": "拒收正文与公开信封（laneToolPublicFailure）的唯一构造器：首行带码，附对的例子。"
+    },
+    {
+      "path": "src/workbench/ai/lane/laneToolFailureText.ts",
+      "symbol": "laneToolFailureSummary",
+      "responsibility": "面板只按码与字段清单查 zh / en 文案，没有 zh 条目的码不显示，不按英文正文猜。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "entry_point": "wrap",
+      "disposition": "enforced",
+      "evidence": "包上的 prepareArguments 先判墙、再跑工具自己的准备步骤、再用 pi 的 validateToolArguments 判；拒收走 reject()。laneToolInputBoundary.test.ts 的 25 条错写与「同错 ×6」「准备步骤拒收 ×4」逐条钉住。"
+    },
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "entry_point": "before_tool",
+      "disposition": "enforced",
+      "evidence": "准备步骤的 catch 交给 rejectPreparation：ZodError 与 LaneDomainFailure 都走 reject()，block 正文第 3 次带「停」。laneToolInputBoundary.test.ts「before_tool 里准备那一步的领域拒收」与 laneExtendedDesktopPorts.test.ts C17 钉住。"
+    },
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "entry_point": "after_tool",
+      "disposition": "enforced",
+      "evidence": "执行层失败记进同一个熔断，第 3 次当场在正文末尾带上同一句「停」；laneToolInputBoundary.test.ts「准入层拒收 ×6」钉住。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "applyCanvasToolCall",
+      "disposition": "enforced",
+      "evidence": "对已过契约 parse 的入参再 parse 一次并吞掉字段错的那一步已删；applyCanvasToolCall.singleParse.test.ts 证明删前删后对同一批入参结论等价。"
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "entry_point": "describeSchemaIssues",
+      "disposition": "not-affected",
+      "evidence": "它只产出准入层的散文；lane 这一侧的字段事实已由 issuesFromParameterRejection 并入同一份清单（laneFailureFromDecision.test.ts）。MCP 出口给外部 Agent，不经过 lane 的熔断，不在本类的计数问题里。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneToolInputBoundary.mts",
+    "invariant": "lane 注册的每一个工具，入参立即失败与准备步骤拒收都经过同一个 reject()：同一个格式器、同一个熔断、同一个遥测。",
+    "failure_mode": "同工具同错第 3 次正文带「停」，第 4 次起在入参边界直接拦下（tool_retry_stopped），用户下一句话前不执行；认不出的异常原样再抛，不猜。",
+    "exception_policy": "none",
+    "strategy": "边界包在 pi 校验之前唯一的官方口子上，按注册表全包，新工具不需要登记就被覆盖。",
+    "artifacts": [
+      "electron/agentLane/laneToolInputBoundary.mts",
+      "electron/agentLane/laneHost.mts",
+      "electron/shared/agentLane/laneToolContract.ts",
+      "electron/shared/agentLane/toolInputIssues.ts",
+      "electron/agentLane/laneToolInputBoundary.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/agentLane/laneToolInputBoundary.test.ts",
+    "src/workbench/ai/lane/laneToolFailureText.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/agentLane/laneArgumentFailure.ts",
+      "src/workbench/ai/resident/residentToolDisplay.ts",
+      "src/workbench/ai/resident/residentToolDisplay.test.ts",
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "electron/agentLane/laneHost.mts"
+    ],
+    "rationale": "旧格式器 laneArgumentFailure.ts（Zod 包装的第二份正文）、面板按英文正文猜的 residentToolDisplay.ts、applyCanvasToolCall 里吞字段的第二次校验、laneHost after_tool 里「第 5 次终止」都在本次删掉；新路是唯一的一条。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@earendil-works/pi-agent-core 0.85.1",
+    "target": "pi 让入参校验失败与 before_tool 拦截的结果也经过宿主钩子（或带上 details）的版本",
+    "rationale": "立即结果跳过钩子是 pi 的设计；不改依赖源码，只用它留的 prepareArguments 官方口子。",
+    "exit_criteria": [
+      "pi 的立即结果经过 after_tool 或提供等价钩子：删掉 prepareArguments 的包装，计数移到那个钩子",
+      "pi 的立即结果带 details：删掉 failureOf 的按入参重推"
+    ]
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-07",
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneToolInputBoundary.mts",
+    "tests": [
+      "electron/agentLane/laneToolInputBoundary.test.ts"
+    ],
+    "why": "lane 的入参边界是 pi 立即失败唯一经过的那一层：它拥有「一份正文、一个熔断、一个遥测出口」这条不变量，特征测试过真 lane。"
+  }
+}

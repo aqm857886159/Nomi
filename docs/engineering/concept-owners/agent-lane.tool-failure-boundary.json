@@ -1,0 +1,32 @@
+{
+  "name": "Agent 工具失败的一个边界（模型读的拒收正文、面板信封、同错连发的熔断计数）",
+  "subject": "agent-lane.tool-failure-boundary",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/agentLane/laneToolInputBoundary.mts",
+    "symbol": "createLaneToolInputBoundary"
+  },
+  "write_api": [
+    {
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "createLaneToolInputBoundary"
+    },
+    {
+      "path": "electron/shared/agentLane/laneToolContract.ts",
+      "symbol": "toolArgumentsRejected"
+    },
+    {
+      "path": "electron/shared/agentLane/toolInputIssues.ts",
+      "symbol": "renderToolInputIssue"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/agentLane/laneToolInputBoundary.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-07",
+  "notes": "合同 docs/fixes/2026-11-07-agent-tool-failure-boundary.root-cause.json。用户原话「经常出现什么参数不对 重试等问题」。pi 的立即结果（prepareArguments / validateToolArguments 抛错、before_tool 的拦截）跳过 after_tool，熔断以前只挂在钩子上、一次都数不到。现在 lane 注册的每个工具的 prepareArguments 都被 createLaneToolInputBoundary 包一层（先判墙、再跑工具自己的准备步骤、再用 pi 自己的校验器判），before_tool 准备步骤的 Zod 与 LaneDomainFailure 交给同一个 rejectPreparation，执行层失败在 laneHost 的 after_tool 记进同一个熔断。正文只由 toolArgumentsRejected / renderLaneToolFailure 生成，字段清单只由 toolInputIssues 的三个适配器（TypeBox / Zod / 准入）归一、renderToolInputIssue 一行一条。旧的 laneArgumentFailure.ts、applyCanvasToolCall 的第二次校验、after_tool 的「第 5 次终止」已删。"
+}
