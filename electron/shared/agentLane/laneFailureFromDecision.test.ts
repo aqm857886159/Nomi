@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { isBareCodeMessage, laneFailureFromDecision } from "./laneFailureFromDecision";
+import { issuesFromParameterRejection } from "./toolInputIssues";
+import { laneToolFailureToRpc, renderLaneToolFailure } from "./laneToolContract";
 
 describe("传输判决 → 模型看得懂的失败", () => {
   it('C18: generation failure ignores raw provider text and forbids repayment before reconciliation', () => {
@@ -131,5 +133,22 @@ describe("传输判决 → 模型看得懂的失败", () => {
     expect(failure.code).toBe("capability_execution_failed");
     expect(failure.message).not.toBe(failure.code);
     expect(failure.nextAction).toBe("Read the canvas again before retrying.");
+  });
+
+  // 2026-11-07：准入层的字段事实（ParameterRejection）进同一份清单——模型在那句话下面读到同一个格式器写的字段行，
+  // 公开信封里有字段与合法值（面板说「哪个字段 · 该填什么」），顶层 allowed 就是撞满转提问时的选项。
+  it("准入拒收带着字段事实：同一个格式器写字段行，信封带字段与合法值", () => {
+    const issues = issuesFromParameterRejection({ code: "parameter_not_in_enum", path: "parameters.resolution", allowedValues: ["480p", "720p"], allowedKeys: ["duration", "resolution"] });
+    const failure = laneFailureFromDecision({
+      toolName: "draft_shots", code: "generation_input_invalid", admission: "parameter_not_in_enum",
+      message: "参数 parameters.resolution 的取值 4k 不在合法取值里。", issues,
+      fallbackCode: "capability_execution_failed", nextAction: "Read state again.",
+    });
+    expect(failure.issues).toBe(issues);
+    expect(failure.allowed).toEqual(["480p", "720p"]);
+    const text = renderLaneToolFailure(failure);
+    expect(text).toContain("  - parameters.resolution: value is not allowed. Use one of: 480p, 720p.");
+    expect(text.match(/480p, 720p/g)).toHaveLength(1);
+    expect(laneToolFailureToRpc(failure)).toMatchObject({ code: "generation_input_invalid", allowed: ["480p", "720p"], issues: [{ path: "parameters.resolution", kind: "not_allowed", allowed: ["480p", "720p"] }] });
   });
 });

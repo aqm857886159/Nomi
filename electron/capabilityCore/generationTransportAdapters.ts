@@ -8,6 +8,7 @@ import { z } from "zod";
 import { logWarn } from "../logging/logger";
 import { GENERATION_ARGUMENT_REFUSAL, refuseToModel, safeTransportFailure } from "./transportFailure";
 import { ContractCompilationError } from "./executionContract";
+import { issuesFromParameterRejection } from "../shared/agentLane/toolInputIssues";
 import type { RuntimeToolCall, RuntimeToolDecision } from "../shared/agentCapabilities/transportContracts";
 import { GENERATION_METHODS, GENERATION_METHOD_NAMES, isGenerationMethodName, type GenerationMethodName } from "../shared/agentCapabilities/generation";
 import { generationPlanInputSchema, generationStatusInputSchema } from "../shared/agentCapabilities/generationPlanSchemas";
@@ -156,6 +157,7 @@ function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }
     ownMessage: (value) => (value instanceof ContractCompilationError || value instanceof GenerationScopeRefusal ? value.message : undefined),
     // 粗码 `generation_input_invalid` 说不清是哪一种拒绝；具体码（unknown_parameter……）随失败带出去，lane 据它给按码的下一步。
     admission: (value) => (value instanceof ContractCompilationError ? value.rejection?.code : undefined),
+    issues: (value) => (value instanceof ContractCompilationError && value.rejection ? issuesFromParameterRejection(value.rejection) : undefined),
     // 收敛成码挡住的应当只有**供应商 / 凭据的原始文本**。连我们自己 schema 的字段级理由一起抹掉，
     // 模型拿到的就是一个说不出拒了什么的裸码，于是同一份载荷原样重试到回合超时——那正是
     // 2026-09-18 那份根因合同修掉的失效方式（`generation_input_invalid — shots.0.prompt: Required`）。

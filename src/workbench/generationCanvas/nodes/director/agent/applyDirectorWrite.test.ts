@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { DirectorWriteInput } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
+import { directorWriteSemanticInputSchema, type DirectorWriteInput } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
 import { applyProposalBatch } from '../../../agent/proposalTxn'
 import { applyCompensationOps } from '../../../agent/proposalUndo'
 import { generationCanvasTools } from '../../../agent/generationCanvasTools'
@@ -34,7 +34,7 @@ function videoShot(): string {
 }
 
 async function run(input: DirectorWriteInput) {
-  const outcome = await applyProposalBatch([{ toolCallId: 'call-1', toolName: input.operation, effectiveArgs: input as unknown as Record<string, unknown> }])
+  const outcome = await applyProposalBatch([{ toolCallId: 'call-1', toolName: input.operation, effectiveArgs: directorWriteSemanticInputSchema.parse(input) as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error(`aborted: ${outcome.reason}`)
   return { result: outcome.results[0] as DirectorWriteDomainResult, compensation: outcome.compensation }
 }

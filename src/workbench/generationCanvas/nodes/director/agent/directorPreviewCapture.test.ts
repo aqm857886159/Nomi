@@ -8,6 +8,7 @@ import { useGenerationCanvasStore } from '../../../store/generationCanvasStore'
 import { directorPreviewSpendBlock, readDirectorPreview } from '../model/directorPreviewState'
 import type { DirectorWriteDomainResult } from './applyDirectorWrite'
 import { applyPreviewCaptured, markPreviewFailed, previewCapturePlan } from './directorPreviewCapture'
+import { directorWriteSemanticInputSchema } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
 
 function resetCanvas() {
   const state = useGenerationCanvasStore.getState()
@@ -29,7 +30,7 @@ const PLAN = {
 async function staged() {
   // seedance-2 有 video_ref 槽：预演应挂成参考视频。
   const [shot] = generationCanvasTools.create_nodes([{ kind: 'video', title: '镜头 1', prompt: '书房对话', position: { x: 0, y: 0 }, meta: { archetype: { id: 'seedance-2-apimart', modeId: 't2v' } } }])
-  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: { operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN } as unknown as Record<string, unknown> }])
+  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: directorWriteSemanticInputSchema.parse({ operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN }) as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error('stage failed')
   const result = outcome.results[0] as Extract<DirectorWriteDomainResult, { applied: true }>
   return { shotId: shot.id, directorNodeId: result.directorNodeId, revision: result.revision, proposalId: outcome.proposalId }

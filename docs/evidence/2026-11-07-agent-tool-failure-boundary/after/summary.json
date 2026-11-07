@@ -1,0 +1,15 @@
+{
+  "name": "tool-failure-boundary-after",
+  "mode": "development",
+  "paidCalls": 0,
+  "textRequests": 4,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "passed",
+  "electron": "43.4.1",
+  "screenshots": [
+    "01-after-01-zh-failure-row.png",
+    "02-after-02-zh-failure-expanded.png",
+    "03-after-03-en-failure-row.png"
+  ]
+}
