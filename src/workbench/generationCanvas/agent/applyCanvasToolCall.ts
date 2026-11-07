@@ -32,10 +32,9 @@ import type { CameraSpeed } from '../nodes/director/agent/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { canvasWriteSemanticInputSchema } from '../../../../electron/shared/agentCapabilities/canvasWrite'
-import { directorWriteSemanticInputSchema, isDirectorWriteOperation } from '../../../../electron/shared/agentCapabilities/directorWrite'
+import { isDirectorWriteOperation, type DirectorWriteInput } from '../../../../electron/shared/agentCapabilities/directorWrite'
 import { registerCanvasToolClientId, resolveCanvasToolNodeId } from './clientIdRegistry'
-import { previewStoryboardPatchShots } from './storyboardPatchShots'
+import { previewStoryboardPatchShots, type StoryboardPatchShotsInput } from './storyboardPatchShots'
 import { deliverAgentArtifactToAsset, isTextDeliverableFileType } from './deliverAgentArtifact'
 import i18n from '../../../i18n'
 export { resetClientIdRegistry, resolveCanvasToolNodeId } from './clientIdRegistry'
@@ -255,12 +254,13 @@ export async function applyCanvasToolCall(
   }
 
   // 3D-BOX（director.write）：领域执行体住导演台目录，这里只认路。
+  // 入参在进来之前已经按**同一个 schema** 校验过（`canvasWriteTarget.ts` 交给 `applyProposalBatch` 的就是
+  // `parsed.data`），这里不再校验第二次（2026-11-07）。原来那一道失败只抛一句「参数无效」，把 Zod 说的字段全吞了；
+  // 而它对自己的输出恒等，本来就失败不了。等价证明：`applyCanvasToolCall.singleParse.test.ts`。
   if (isDirectorWriteOperation(operation)) {
-    const parsed = directorWriteSemanticInputSchema.safeParse(record)
-    if (!parsed.success) throw Object.assign(new Error('stage_shot 参数无效。'), { code: 'capability_input_invalid' })
     const { applyDirectorWrite } = await import('../nodes/director/agent/applyDirectorWrite')
     assertWritable()
-    return applyDirectorWrite(parsed.data, { inCtx, resolveNodeId, ...(gesture?.proposalId ? { proposalId: gesture.proposalId } : {}) })
+    return applyDirectorWrite(record as DirectorWriteInput, { inCtx, resolveNodeId, ...(gesture?.proposalId ? { proposalId: gesture.proposalId } : {}) })
   }
 
   if (toolName === 'nomi_canvas_plan' && operation === 'patch_shots') {
@@ -273,11 +273,8 @@ export async function applyCanvasToolCall(
         code: 'capability_target_stale',
       })
     }
-    const parsed = canvasWriteSemanticInputSchema.safeParse(record)
-    if (!parsed.success || parsed.data.operation !== 'patch_shots') {
-      throw Object.assign(new Error('分镜修改参数无效。'), { code: 'capability_input_invalid' })
-    }
-    const preview = previewStoryboardPatchShots(targetDesign.plan, parsed.data)
+    // 同上：已按同一个 schema 校验过，`operation === 'patch_shots'` 由上面的分支条件保证。
+    const preview = previewStoryboardPatchShots(targetDesign.plan, record as StoryboardPatchShotsInput)
     const targetStoryboardId = storyboardId
       ?? store.activeStoryboardId
       ?? store.storyboardDesignsByDocumentId[targetDocumentId]?.[0]?.id

@@ -32,6 +32,7 @@
 // 判据不是「看起来像不像内部信息」，是**谁写的这句话**——后者有单一答案，前者没有。
 import type { RuntimeToolDecision } from "../shared/agentCapabilities/transportContracts";
 import { GENERATION_INPUT_INVALID_CODE } from "../shared/agentCapabilities/admissionRejectionHints";
+import type { ToolInputIssue } from "../shared/agentLane/toolInputIssues";
 
 export type TransportFailure = Extract<RuntimeToolDecision, { ok: false }>;
 
@@ -65,6 +66,11 @@ export type SafeTransportFailureOptions = Readonly<{
   detail?: (error: unknown) => string | undefined;
   /** 准入层拒绝的具体码（`ParameterRejectionCode`）：`code` 是放行表里的粗码，这一格才说清哪一种。 */
   admission?: (error: unknown) => string | undefined;
+  /**
+   * 准入层拒绝的**字段事实**（哪个字段、合法值 / 近似键 / 范围），收成和形状校验同一份清单（`toolInputIssues`）。
+   * 面板按它说「哪个字段 · 该填什么」，熔断按它的字段路径认墙；正文仍是 `ownMessage` 那句我们自己写的话。
+   */
+  issues?: (error: unknown) => readonly ToolInputIssue[] | undefined;
   /** 结构化 reason（媒体导入那一族）。 */
   reason?: (error: unknown) => TransportFailure["reason"] | undefined;
   /** 本路对**落到兜底码**这件事的留痕（兜底盖住的也可能是我们自己的缺陷）。 */
@@ -98,7 +104,11 @@ export function safeTransportFailure(error: unknown, options: SafeTransportFailu
       : code;
   const reason = options.reason?.(error);
   const admission = options.admission?.(error);
-  return { ok: false, code, message, ...(reason ? { reason } : {}), ...(admission ? { admission } : {}) };
+  const issues = options.issues?.(error);
+  return {
+    ok: false, code, message,
+    ...(reason ? { reason } : {}), ...(admission ? { admission } : {}), ...(issues && issues.length > 0 ? { issues } : {}),
+  };
 }
 
 /**

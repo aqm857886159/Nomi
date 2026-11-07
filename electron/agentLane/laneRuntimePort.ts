@@ -12,7 +12,7 @@
 import type {
   LaneApprovalDecision, LaneAttachmentResolver, LaneHandle, LanePendingApproval, LaneProjection, LaneSkillIndexEntry, LaneTaskFacts, LaneWorkspaceHandle,
 } from '../shared/agentLane/laneContracts'
-import { LaneDomainFailure } from '../shared/agentLane/laneToolContract'
+import { LaneDomainFailure, laneFailureOfThrown } from '../shared/agentLane/laneToolContract'
 import type { LaneToolEffect, LaneToolFailureShape, LaneToolNextAction, LaneToolSpec } from '../shared/agentLane/laneToolContract'
 import type { RuntimeToolCall } from '../shared/agentCapabilities/transportContracts'
 import type { LaneComposerContext, LaneInputMessage } from '../shared/agentLane/laneDesktopContracts'
@@ -101,7 +101,10 @@ export function bindLaneTool(
       try {
         return await execute(args, context)
       } catch (cause) {
-        if (cause instanceof LaneDomainFailure) return { ok: false, failure: cause.failure }
+        // 领域写好的失败，以及契约 parse 抛出的 ZodError（动词 → 契约语义输入那一步）——后者原来落进下面的兜底，
+        // 模型读到的是 `could not complete: [ { "code": "invalid_type", … } ]` 这一整段 JSON。
+        const known = laneFailureOfThrown(spec.name, cause)
+        if (known) return { ok: false, failure: known }
         // 中断不是失败：它是用户按了停，兜成一条「下一步怎么做」反而会让模型接着试。
         if (context.signal.aborted) throw cause
         return {
@@ -246,7 +249,23 @@ export interface OpenLaneOptions {
   watchdog?: { firstResponseMs?: number; firstTokenMs?: number; idleMs?: number }
   /** 一个回合最多几次模型请求。**缺省不设**（见 `LANE_MAX_MODEL_REQUESTS` 的注释）；设了才拦。 */
   limits?: { maxModelRequests?: number; contextTokenBudget?: number }
+  /**
+   * 每一次工具失败（入参被拒、执行失败、被熔断拦下）报给宿主一次——桌面装配层拿它发匿名遥测。
+   * 只有工具名、码、第几次、是否已拦下：**不带入参、不带正文、不带用户文字**。
+   */
+  onToolFailure?: (event: LaneToolFailureEvent) => void
 }
+
+/** 一次工具失败交给宿主的事实。见 `OpenLaneOptions.onToolFailure`。 */
+export type LaneToolFailureEvent = Readonly<{
+  toolName: string
+  /** 失败码；执行里抛出、没有信封的那种记 `unknown`。 */
+  code: string
+  /** 同一堵墙连着撞到第几次（`laneRepeatedFailure` 的计数）。 */
+  attempt: number
+  /** 这一次之后，这个工具本轮是否已被熔断拦下。 */
+  breakerTripped: boolean
+}>
 
 /** `productionRunId` → 领域投影出的那一份事实。解不出来返回 `undefined`，**不返回空对象**。 */
 export type LaneTaskFactsResolver = (productionRunId: string) => LaneTaskFacts | undefined

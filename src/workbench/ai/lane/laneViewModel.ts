@@ -60,9 +60,8 @@ export interface LaneViewModelLabels {
   /**
    * 失败 → 面板该印的那段字。
    *
-   * `failure` 在时按 `code` 查本地词条（C5 的正路）；缺席（旧转录、信封没挂上）才退回
-   * 按正文猜——那条老路只认得出 schema 校验一种，认不出就返回 undefined，由调用方决定。
-   * **两条路都不许把模型正文当文案印出去**：那段字是英文、第三人称、还带 `Next:` 指令。
+   * `failure` 在时按 `code` 查本地词条（C5 的正路）；缺席（冷读的旧转录、原生工具抛的错）返回 undefined。
+   * **不许把模型正文当文案印出去**：那段字是英文、第三人称、还带 `Next:` 指令。
    */
   toolFailure(text: string, failure?: LaneToolPublicFailure): string | undefined
   /**
@@ -461,11 +460,9 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
           // C5：失败时展开体印的是**由 code 派生的本地文案 + 结构化字段**，不是模型收到的那段
           // 英文散文。原来这里对成功/失败一视同仁地印 `part.text`，于是中文界面上出现
           // `The current target could not accept this action (surface_port_stale). Next: …`
-          // （审计 §5 / B03 截图）。信封缺席的旧转录退回 `toolFailure` 的正文猜法，仍不印原文。
+          // （审计 §5 / B03 截图）。信封缺席就不印展开体，仍不印原文。
           output: part.isError
-            ? (part.failure
-              ? redactResidentSensitiveText(labels.toolFailureDetail(part.failure))
-              : labels.toolFailure(part.text) && redactResidentSensitiveText(labels.toolFailure(part.text)!)) || undefined
+            ? (part.failure ? redactResidentSensitiveText(labels.toolFailureDetail(part.failure)) : undefined)
             // 成功的回包是给模型读的（英文、带 `User sees:`、可能带 id / JSON），**不进展开体**：「做了什么」
             // 由这一行的 label + summary 说，撤销钮在行尾；排查去转录 / 轨迹看原文。
             : undefined },
