@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { extractProviderCostActual, type ProviderCostActual } from '../../electron/vendor/cost';
+import { runSamplesWithReceipts, type SampleReceipt } from './sampleReceipts';
 
 // One current candidate per family, chosen from the checked public short-request prices.
 export const CATALOG_LATEST_SAMPLES = [
@@ -46,21 +48,32 @@ export async function settleSampleTask(
   }
 }
 
+/** 实际扣费：读产品自己的那一份（electron/vendor/cost.ts，APIMart = `data.credits_cost`）。没有就是「不知道」，不写 0。 */
+export function actualChargeOf(raw: unknown): ProviderCostActual | null {
+  return extractProviderCostActual('apimart', raw) ?? null;
+}
+
+export type CatalogSampleOutcome = { status: string } & Record<string, unknown>;
+
 /**
  * Both runners submit once per sample and stop on the first failure. Querying an accepted task is not a new order.
  * `from` resumes a paid run at one sample: samples before it already succeeded in a recorded run and are not paid for again.
+ * Every sample leaves a receipt (task id, status, actual charge) through `record` the moment it ends, the failed one
+ * included, so a stop never loses the receipts before it (see sampleReceipts.ts).
  */
 export async function runCatalogLatestSamples(
-  invoke: (sample: CatalogLatestSample) => Promise<{ status: string }>,
-  { from }: { from?: string } = {},
-) {
-  const start = from ? CATALOG_LATEST_SAMPLES.findIndex(sample => sample.modelKey === from) : 0;
-  assert.ok(start >= 0, `unknown resume sample: ${from}`);
-  const results = [];
-  for (const sample of CATALOG_LATEST_SAMPLES.slice(start)) {
-    const result = await invoke(sample);
-    assert.equal(result.status, 'succeeded', `${sample.family}: stop; do not retry this order`);
-    results.push({ modelKey: sample.modelKey, ...result });
+  invoke: (sample: CatalogLatestSample, note: (fields: Record<string, unknown>) => void) => Promise<CatalogSampleOutcome>,
+  { from, record }: { from?: string; record?: (receipt: SampleReceipt, all: readonly SampleReceipt[]) => void | Promise<void> } = {},
+): Promise<SampleReceipt[]> {
+  const { receipts, stoppedAt } = await runSamplesWithReceipts(CATALOG_LATEST_SAMPLES, { keyOf: sample => sample.modelKey, onFailure: 'stop', from, record },
+    async (sample, note) => {
+      const outcome = await invoke(sample, note);
+      return outcome.status === 'succeeded'
+        ? { ...outcome, ok: true }
+        : { ...outcome, ok: false, error: `${sample.family}: ${outcome.status}` };
+    });
+  if (stoppedAt) {
+    throw Object.assign(new Error(`${stoppedAt.key}: stop; do not retry this order (${stoppedAt.error ?? 'failed'})`), { receipts });
   }
-  return results;
+  return receipts;
 }

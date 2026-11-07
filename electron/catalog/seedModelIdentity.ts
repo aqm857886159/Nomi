@@ -176,7 +176,7 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   "gemini-4-argon",
   "gemini-3.8-flash",
   "deepseek-v4.1-flash",
-  "qwen3.8-max-0902",
+  "qwen3.8-max",
   "qwen3.8-flash",
   "qwen3.8-27b",
   "qwen3.8-2.4t-a95b",

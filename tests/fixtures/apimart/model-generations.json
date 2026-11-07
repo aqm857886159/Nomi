@@ -35,7 +35,7 @@
       "gpt-6-astra", "gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-luna",
       "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5.1",
       "gemini-4-argon", "deepseek-v4-pro",
-      "qwen3.8-max-0902", "qwen3.8-flash", "qwen3.8-27b", "qwen3.8-2.4t-a95b",
+      "qwen3.8-max", "qwen3.8-flash", "qwen3.8-27b", "qwen3.8-2.4t-a95b",
       "glm-5.3", "glm-5.3-flash", "kimi-k3", "grok-4.7", "minimax-m3", "step-3.7-flash",
       "flowmusic-lyria-3.5"
     ],
