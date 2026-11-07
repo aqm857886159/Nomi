@@ -1,5 +1,5 @@
 import { AssistantPane } from '../AssistantPane'
-import { assistantPaneWidth } from '../assistantWidthBounds'
+import { assistantDockColumns } from '../assistantWidthBounds'
 import { useWorkbenchStore } from '../workbenchStore'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,7 +26,7 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
         'bg-nomi-chrome',
         'grid',
       )}
-      style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? `minmax(0,1fr) ${assistantPaneWidth(width)}px` : 'minmax(0,1fr)' }}
+      style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? assistantDockColumns(width) : 'minmax(0,1fr)' }}
       aria-label={t('creationAi.workspace.aria')}
     >
       <div className="min-w-0 min-h-0 flex flex-col">

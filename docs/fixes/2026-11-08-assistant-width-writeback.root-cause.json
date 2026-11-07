@@ -1,0 +1,228 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-08-assistant-width-writeback",
+  "problem_type": "A display-time clamp of the Agent dock width (window too narrow) was written back into the saved width the user dragged, so narrowing the window silently changed the project file",
+  "symptom": "用户 2026-11-07：「在我缩小的时候，我发现nomi都无法缩到一半…」。调研线真截图（R-window-narrow §2.3）：把 Nomi 停靠栏拖到 450，窗口缩到 1100 再拉回 1440，面板只剩 340；缩得更窄过的项目被写成 300，拉回来还是 300。窗口每变一次大小，项目都被标脏、落一次盘。",
+  "direct_cause": "WorkbenchShell.tsx:278-287 的 resize 监听在窗口变窄时调 setAssistantWidth(视口上限) 写存档；写入咽喉 clampEditingPanelLayout（panelLayout.ts:194）也按 window.innerWidth 钳 assistantWidth，于是它的 4 个上游——Agent layout.write、打开项目还原、预览页开合栏、预览页拖左栏 / 属性栏 / 时间轴后的同步——在窄窗里也顺手把 Agent 宽写小并 bump persistRevision。",
+  "class_root": "「视口钳过的宽度」（显示值）和「用户拖出来的宽度」（意图）共用同一个存档字段 editingPanelLayout.assistantWidth，而写这个字段的口把视口也算进了钳：派生值被当意图写回。同类前科 c97089ff7（11-05 预览页侧栏）只修了侧栏那一份，这一份当时被判成「不属于本类」（2026-11-04-preview-narrow-panels 合同的 residual_risks 与 same_class_entry_points）。测试钉在纯函数 clampAssistantWidth 上，没有一条走过 store 的写入口。",
+  "affected_population": [
+    "所有改过窗口宽、窗口窄过 1360 的用户（13–14 寸笔记本默认窗口即命中），四个工作区共用这一份宽度，中英两轨相同",
+    "老项目里已经被写成 300 / 340 的 Agent 宽：和亲手选 300 的分不出来，本次不迁移，只是以后不再写回",
+    "Windows 同一套布局代码（未实测）"
+  ],
+  "scope_paths": [
+    "src/workbench/assistantWidthBounds.ts",
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/preview/panelLayout.ts",
+    "src/workbench/AssistantPane.tsx",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+    "src/workbench/generation/GenerationWorkspace.tsx",
+    "src/workbench/preview/PreviewWorkspace.tsx"
+  ],
+  "entry_points": [
+    "窗口改尺寸：原 WorkbenchShell resize 监听 → setAssistantWidth（已删）",
+    "Agent layout.write：capabilityApplyHandler.ts → setEditingPanelLayout → clampEditingPanelLayout",
+    "打开项目还原：workbenchProjectSession.ts restoreWorkbenchProjectPayload → setEditingPanelLayout(…, false) → clampEditingPanelLayout",
+    "预览页开合栏：PreviewWorkspace.tsx setEditingPanelLayout({ visibility }) → clampEditingPanelLayout",
+    "预览页拖左栏 / 属性栏 / 时间轴后同步：PreviewWorkspace.tsx syncSize → syncEditingPanelSize → clampEditingPanelLayout",
+    "人亲手拖 / 按键：AssistantPane → setAssistantWidth → syncEditingPanelSize（保留视口上限，手柄跟手）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/CSS/minmax",
+      "checked_at": "2026-11-08",
+      "purpose": "Grid 轨道 minmax(min, max)：容器放不下时非弹性轨道只长到放得下为止、弹性轨道吃剩下的——「放得下就是存的宽、放不下就让」交给浏览器，不需要 resize 监听"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.w3.org/TR/css-grid-1/#algo-grow-tracks",
+      "checked_at": "2026-11-08",
+      "purpose": "轨道尺寸算法：先按 base size 保底，再把剩余空间分给非弹性轨道直到 growth limit，最后分给 fr 轨道——对应「内容先保底 684，停靠栏吃剩下的，不超过存的宽」"
+    }
+  ],
+  "invariants": [
+    "窗口宽变化从不改存下的 Agent 宽，也不 bump persistRevision；拉宽回来面板就是用户原来拖的宽",
+    "写入咽喉 clampEditingPanelLayout 只夹静态界 300–600，不读窗口；经它的 4 个上游在任何窗口宽下都不把 Agent 宽写小",
+    "只有人亲手拖 / 按方向键（setAssistantWidth）按当下视口收上限，且从看到的宽起步，手柄不跳",
+    "四个工作区停靠时的两列只出自 assistantDockColumns / assistantDockColumnsAnimated：内容先保底 684，停靠栏放不下就让到 308，按容器真实宽度让"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/assistantWidthBounds.ts",
+      "symbol": "normalizeAssistantWidth"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/panelLayout.ts",
+      "symbol": "normalizeAssistantWidth"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "clampEditingPanelLayout"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/AssistantPane.tsx",
+      "symbol": "setAssistantWidth"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "useEffectiveAgentForm"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/CreationWorkspace.tsx",
+      "symbol": "assistantDockColumns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+      "symbol": "assistantDockColumns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "assistantDockColumns"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "assistantDockColumnsAnimated"
+    }
+  ],
+  "door_reduction": {
+    "before": 10,
+    "after": 9,
+    "why_not": "改前 10 扇 = 这 9 处 + WorkbenchShell 的 resize 监听（setAssistantWidth 写口，已删）。按「读窗口宽去写 Agent 宽」口径：改前 3 扇（resize 监听、写入咽喉 clampEditingPanelLayout 背着的 4 个上游、手拖 setAssistantWidth），改后只剩手拖 1 扇。WorkbenchShell 留下的是读这一页此刻的形态（停靠才给停靠栏那一列），不读也不写宽。显示侧四个工作区各一处引用是 4 个不同的网格宿主，不合并；它们只引用同一个函数，不再各拼一份公式。"
+  },
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/assistantWidthBounds.ts",
+    "tests": [
+      "src/workbench/preview/assistantWidthWriteback.test.ts",
+      "src/workbench/assistantWidthBounds.test.ts"
+    ]
+  },
+  "generality_proof": "存档侧：写 assistantWidth 的路径只有两条——经 clampEditingPanelLayout（所有 setEditingPanelLayout / syncEditingPanelSize 调用方）和 replaceLayout（预设 / 重置 / ⌘Z，写的是预设值或旧值）。前者现在只用 normalizeAssistantWidth（静态界），结构测试禁止 panelLayout.ts / editingPanelLayoutSlice.ts 出现 window.innerWidth 与 clampAssistantWidth，所以以后再加任何经咽喉的上游都写不进窗口值。store 层测试把窗口设成 700，逐个调 4 个上游读 assistantWidth / persistRevision；把咽喉改回按窗口钳时 6 条变红（2026-11-08 反例跑过）。显示侧：四个工作区的两列只出自 assistantDockColumns*，结构测试禁止再拼「minmax(0,1fr) + 存的宽」；让步由 Grid 按容器真实宽度算，与窗口、抽屉开合、哪一页无关。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/assistantWidthBounds.ts",
+      "symbol": "normalizeAssistantWidth",
+      "responsibility": "存档里的 Agent 宽只认静态界 300–600，不看窗口"
+    },
+    {
+      "path": "src/workbench/assistantWidthBounds.ts",
+      "symbol": "assistantDockColumns",
+      "responsibility": "停靠时工作区网格两列的唯一出处：内容先保底，停靠栏放不下就让，宽回来自己放回"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "entry_point": "resize 监听 clampToViewport",
+      "disposition": "enforced",
+      "evidence": "整段删掉；结构测试禁止 WorkbenchShell 再出现 assistantWidthMaxFor / setAssistantWidth"
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "Agent layout.write",
+      "disposition": "enforced",
+      "evidence": "assistantWidthWriteback.test.ts 两条：只改别的栏时 Agent 宽原样；给 520 存 520、给 900 存 600（静态界），窗口 700"
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "entry_point": "restoreWorkbenchProjectPayload",
+      "disposition": "enforced",
+      "evidence": "窗口 700 还原存着 450 的项目，读回 450，落盘物里的布局逐字节等于存的那份"
+    },
+    {
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "entry_point": "开合栏 setEditingPanelLayout({ visibility })",
+      "disposition": "enforced",
+      "evidence": "窗口 700 收起左栏，Agent 宽原样"
+    },
+    {
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "entry_point": "拖栏后同步 syncEditingPanelSize",
+      "disposition": "enforced",
+      "evidence": "窗口 700 依次同步左栏 / 属性栏 / 时间轴，Agent 宽原样；没变化的同步不 bump"
+    },
+    {
+      "path": "src/workbench/AssistantPane.tsx",
+      "entry_point": "手拖 / 方向键",
+      "disposition": "enforced",
+      "evidence": "保留视口上限（1100 宽拖到 500 → 340）；起点改取看到的宽（停靠栏那一格的真实宽 − 8），被让过时手柄不跳"
+    },
+    {
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "entry_point": "左栏抽屉宽",
+      "disposition": "enforced",
+      "evidence": "同类：窄窗里抽屉显示宽用 CSS min() 钳到「窗口 − 232」，存的抽屉宽不改；拖拽 / 按键从看到的宽起步（同一 PR 的 drawer.clamp 提交）"
+    },
+    {
+      "path": "src/ui/app-shell/shell/agentFormStore.ts",
+      "entry_point": "窄窗档（停靠 → 小球）",
+      "disposition": "enforced",
+      "evidence": "同类：窄窗档只是派生，存下的形态不改；agentFormNarrowTier.test.ts 700↔1100 来回三次 localStorage 逐字节不变"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一类第 2 次出现（c97089ff7 预览页侧栏是第 1 次）：任何「放不下就钳」的显示规则，只要钳过的值经共用的写口进存档，窗口一变就会回来。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs setAssistantWidth：改后只剩 AssistantPane 一扇（改前还有 WorkbenchShell）",
+      "node scripts/door-map.mjs clampEditingPanelLayout：editingPanelLayoutSlice.ts:195 / :242 两处出现，背着 4 个上游，现在不读窗口",
+      "rg \"window.innerWidth\" src/workbench/preview/panelLayout.ts src/workbench/preview/editingPanelLayoutSlice.ts：0 处（结构测试守）",
+      "rg \"innerWidth\" src/workbench/workbenchStore.ts：只剩 setAssistantWidth 手拖这一处",
+      "electron/shared/agentCapabilities/layout.ts:20 Agent 契约 min(320) 与界面下限 300 不一致：不写窗口值，不属本类，单独记"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/assistantWidthBounds.ts",
+    "invariant": "存档侧只认静态界（normalizeAssistantWidth），写入咽喉不读窗口；显示侧让步只交给 Grid（assistantDockColumns*）；读视口的只剩人亲手拖这一扇",
+    "failure_mode": "咽喉再读窗口 → assistantWidthWriteback.test.ts 的 store 层 5 条与结构 1 条变红；WorkbenchShell 再监听窗口改宽 → 结构测试红；某个工作区再自己拼两列 → 结构测试红",
+    "exception_policy": "none",
+    "strategy": "删掉 resize 监听；写入咽喉换成静态界；显示让步改交 CSS Grid minmax 按容器真实宽度算；手拖起点取看到的宽",
+    "artifacts": [
+      "src/workbench/assistantWidthBounds.ts",
+      "src/workbench/preview/panelLayout.ts",
+      "src/workbench/preview/assistantWidthWriteback.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/preview/assistantWidthWriteback.test.ts",
+    "src/workbench/assistantWidthBounds.test.ts",
+    "src/workbench/generation/generationWorkspaceLayout.structure.test.ts",
+    "tests/ux/preview-narrow-panels.walk.mjs",
+    "src/ui/app-shell/shell/agentFormNarrowTier.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/preview/assistantWidthWriteback.test.ts",
+    "src/ui/app-shell/shell/agentFormNarrowTier.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/WorkbenchShell.tsx"
+    ],
+    "rationale": "同提交删掉 WorkbenchShell 的 resize 监听与 assistantWidthMaxFor 引用；四个工作区各自拼的「minmax(0,1fr) + 存的宽 px」与分镜页的 --storyboard-assistant-width 变量换成同一个函数。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只用 CSS Grid 标准能力（minmax / min()），不引新依赖。",
+    "exit_criteria": []
+  },
+  "migration": "不迁移（用户 2026-11-08 拍板「都按推荐」）：已经被写成 300 / 340 的项目和亲手选 300 的分不出来，猜错的代价（把别人手选的改掉）比留着的代价（自己拖一下）大。存档格式不变，旧项目照常读；顶栏「布局」菜单的「重置」把宽回到 390，写进更新说明。",
+  "residual_risks": [
+    "Windows 未实测；同一套布局代码，与平台无关。",
+    "窄窗档里停靠收成小球会经形态 effect 翻一下 visibility.assistant 投影（与 dockSuppressed 一直以来的行为相同），来回拖结束时布局逐字节不变，但跨阈值那一下会触发一次自动存盘；把「显示投影」和「落盘意图」拆开是后续单独一题。",
+    "Agent 契约 layout.ts min(320) 与界面下限 300 不一致，单独记。"
+  ]
+}

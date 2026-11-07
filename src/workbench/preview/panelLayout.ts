@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ASSISTANT_WIDTH_MIN, ASSISTANT_WIDTH_MAX, clampAssistantWidth } from '../assistantWidthBounds'
+import { ASSISTANT_WIDTH_MIN, ASSISTANT_WIDTH_MAX, normalizeAssistantWidth } from '../assistantWidthBounds'
 export type EditingPanelPreset = 'default' | 'focus' | 'result' | 'portrait' | 'custom'
 
 export type EditingPanelVisibility = {
@@ -191,7 +191,9 @@ export function clampEditingPanelLayout(layout: EditingPanelLayout): EditingPane
     ...layout,
     sourceWidth: clamp(layout.sourceWidth, EDITING_PANEL_BOUNDS.source),
     inspectorWidth: clamp(layout.inspectorWidth, EDITING_PANEL_BOUNDS.inspector),
-    assistantWidth: clampAssistantWidth(layout.assistantWidth, typeof window === 'undefined' ? 0 : window.innerWidth),
+    // 写入咽喉不读窗口：窗口大小只影响显示（Grid 让步，assistantDockColumns），存的宽只有人亲手拖才变
+    // （方向检查 docs/engineering/direction-checks/2026-11-08-workbench-shell-width-writeback.md 选项 2a）。
+    assistantWidth: normalizeAssistantWidth(layout.assistantWidth),
     timelineHeight: clamp(layout.timelineHeight, EDITING_PANEL_BOUNDS.timeline),
     visibility: { ...layout.visibility },
   }

@@ -6,7 +6,7 @@ import { cn } from '../../../utils/cn'
 import { DesignEmptyState, WorkbenchButton } from '../../../design'
 import { useWorkbenchStore } from '../../workbenchStore'
 import StoryboardPlanEditor from './StoryboardPlanEditor'
-import { assistantPaneWidth } from '../../assistantWidthBounds'
+import { assistantDockColumns } from '../../assistantWidthBounds'
 
 /**
  * 分镜独立工作区（v5 C3）：storyboard 模式的唯一挂载点，分镜表全宽（§3.7 删 1264 上限）、
@@ -41,8 +41,8 @@ export default function StoryboardWorkspace({ projectId, aiCollapsed = false, ag
   if (plan) {
     return (
       <section
-        className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
-        style={{ '--storyboard-assistant-width': aiCollapsed ? '0px' : `${assistantPaneWidth(assistantWidth)}px` } as React.CSSProperties}
+        className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome')}
+        style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? assistantDockColumns(assistantWidth) : 'minmax(0,1fr)' }}
         aria-label={t('workspace.storyboard')}
       >
         <div className="min-w-0 min-h-0 overflow-hidden">
@@ -55,8 +55,8 @@ export default function StoryboardWorkspace({ projectId, aiCollapsed = false, ag
 
   return (
     <section
-      className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome', agentDockRef && !aiCollapsed ? 'grid-cols-[minmax(0,1fr)_var(--storyboard-assistant-width)]' : 'grid-cols-[minmax(0,1fr)]')}
-      style={{ '--storyboard-assistant-width': aiCollapsed ? '0px' : `${assistantPaneWidth(assistantWidth)}px` } as React.CSSProperties}
+      className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome')}
+      style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? assistantDockColumns(assistantWidth) : 'minmax(0,1fr)' }}
       aria-label={t('workspace.storyboard')}
     >
       <div className="relative grid min-h-0 min-w-0 place-items-center rounded-panel bg-nomi-paper ring-1 ring-nomi-line-soft">

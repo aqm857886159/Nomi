@@ -248,9 +248,10 @@ async function runLocale(locale) {
     await expectRow('1440 关 Nomi', [300, 830, 240], [BOARD.row1440Closed])
     await shot('1440-nomi-closed')
     await ensureAgentPanelOpen(win, 'reopen Nomi', { form: 'dock' })
-    // 1100 时外壳把超限的 Nomi 宽从 390 钳到 340（WorkbenchShell「窄窗只收上限」，09-01 定稿），回到 1440 不会自己放回去：
-    // 舞台 1022，两栏都放得下（300 + 240，预览 482）。
-    await expectRow('1440 重新开 Nomi（Nomi 已被钳到 340）', [300, 482, 240])
+    // 1100 时 Nomi 只是**显示**让到 340（Grid 让步），存的 390 一个字节没改（方向检查 2026-11-08 选项 2a，用户拍板「都按推荐」）：
+    // 回到 1440 面板回到 390，舞台和一开始「1440 开 Nomi」一样。
+    await expectRow('1440 重新开 Nomi（Nomi 宽回到 390）', [292, 480, 200])
+    check('1440 重新开 Nomi：存的 Nomi 宽仍是 390', (await readIntent()).assistantWidth === 390, `实际 ${(await readIntent()).assistantWidth}`)
     await expectIntent('开关 Nomi 之后', defaults)
 
     // ── 只有用户亲手拖才写回 ──

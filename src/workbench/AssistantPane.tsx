@@ -1,7 +1,7 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
-import { ASSISTANT_PANE_GUTTER, ASSISTANT_WIDTH_MIN, assistantWidthMaxFor } from './assistantWidthBounds'
+import { ASSISTANT_PANE_GUTTER, ASSISTANT_WIDTH_MIN, assistantWidthMaxFor, clampAssistantWidth } from './assistantWidthBounds'
 import { useWorkbenchStore } from './workbenchStore'
 
 /**
@@ -12,6 +12,9 @@ import { useWorkbenchStore } from './workbenchStore'
  * 小球 / 浮窗时（collapsed）这一格让出来、什么都不挂——面板摆到哪由外壳决定。
  *
  * `className` 是**外壳给的落位**，不是装饰：落在哪一格网格由宿主写明（见 GenerationWorkspace 的注释）。
+ *
+ * 放不下时网格让这一格窄于存的宽（assistantDockColumns，不写存档）。所以拖 / 按键从**看到的**宽起步，
+ * 不从存的宽起步——否则被让过的那一下，手柄一碰就跳到存的宽。
  */
 export function AssistantPane({ dockRef, collapsed = false, className }: {
   dockRef?: React.Ref<HTMLDivElement>; collapsed?: boolean; className?: string
@@ -21,6 +24,10 @@ export function AssistantPane({ dockRef, collapsed = false, className }: {
   const setWidth = useWorkbenchStore(state => state.setAssistantWidth)
   const drag = React.useRef<{ x: number; width: number } | null>(null)
   const [dragging, setDragging] = React.useState(false)
+  const shownWidth = (handle: HTMLElement): number => {
+    const pane = handle.parentElement?.getBoundingClientRect().width
+    return pane ? Math.round(pane - ASSISTANT_PANE_GUTTER) : width
+  }
   const finish = (event: React.PointerEvent<HTMLDivElement>): void => {
     drag.current = null
     setDragging(false)
@@ -31,14 +38,14 @@ export function AssistantPane({ dockRef, collapsed = false, className }: {
     <div
       role="separator" tabIndex={0} aria-orientation="vertical"
       aria-label={t('generationCommon.workspace.resizeAssistant')}
-      aria-valuemin={ASSISTANT_WIDTH_MIN} aria-valuemax={assistantWidthMaxFor(typeof window === 'undefined' ? 0 : window.innerWidth)} aria-valuenow={width}
+      aria-valuemin={ASSISTANT_WIDTH_MIN} aria-valuemax={assistantWidthMaxFor(typeof window === 'undefined' ? 0 : window.innerWidth)} aria-valuenow={clampAssistantWidth(width, typeof window === 'undefined' ? 0 : window.innerWidth)}
       className="group absolute inset-y-0 left-0 z-10 flex cursor-col-resize touch-none items-center justify-center focus-visible:outline-none"
       style={{ width: ASSISTANT_PANE_GUTTER }}
-      onPointerDown={event => { drag.current = { x: event.clientX, width }; setDragging(true); event.currentTarget.setPointerCapture(event.pointerId) }}
+      onPointerDown={event => { drag.current = { x: event.clientX, width: shownWidth(event.currentTarget) }; setDragging(true); event.currentTarget.setPointerCapture(event.pointerId) }}
       onPointerMove={event => { if (drag.current) setWidth(drag.current.width + drag.current.x - event.clientX) }}
       onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={() => { drag.current = null; setDragging(false) }}
       onKeyDown={event => {
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); setWidth(width + (event.key === 'ArrowLeft' ? 10 : -10)) }
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); setWidth(shownWidth(event.currentTarget) + (event.key === 'ArrowLeft' ? 10 : -10)) }
         if (event.key === 'Home') { event.preventDefault(); setWidth(ASSISTANT_WIDTH_MIN) }
         if (event.key === 'End') { event.preventDefault(); setWidth(assistantWidthMaxFor(window.innerWidth)) }
       }}

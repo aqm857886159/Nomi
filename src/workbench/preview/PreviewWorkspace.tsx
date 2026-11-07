@@ -1,6 +1,6 @@
 import { workspaceInputSurfaceIsActive } from '../shortcutSurface'
 import { AssistantPane } from '../AssistantPane'
-import { assistantPaneWidth } from '../assistantWidthBounds'
+import { assistantDockColumns } from '../assistantWidthBounds'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Group, Panel, Separator, useGroupRef, usePanelRef, type GroupImperativeHandle, type Layout, type LayoutChangedMeta } from 'react-resizable-panels'
@@ -208,7 +208,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
       aria-label={t('workspace.preview')}
     >
       <div className="grid h-full w-full min-w-0" id="editing-surface-root"
-        style={{ gridTemplateColumns: assistantVisible ? `minmax(0,1fr) ${assistantPaneWidth(layout.assistantWidth)}px` : 'minmax(0,1fr)' }}>
+        style={{ gridTemplateColumns: assistantVisible ? assistantDockColumns(layout.assistantWidth) : 'minmax(0,1fr)' }}>
         <div className="min-h-0 min-w-0 overflow-hidden rounded-panel bg-[var(--workbench-bg)] ring-1 ring-nomi-line-soft" id="editing-surface-main">
           <Group orientation="vertical" className="h-full" id="editing-surface-left" groupRef={columnGroupRef} elementRef={columnElementRef} onLayoutChanged={onColumnLayoutChanged}>
             <Panel id={COLUMN_PANEL.stage} minSize={EDITING_PANEL_BOUNDS.stage.min}>
