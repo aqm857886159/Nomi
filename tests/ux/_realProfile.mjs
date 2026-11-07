@@ -99,7 +99,19 @@ export function readRealCatalog(profile = realNomiProfile()) {
 }
 
 /**
- * 把真实目录里**点名的几行**（连同它们的供应商、凭据密文、任务映射）装进一份已存在的隔离目录，
+ * 真实目录被**这个构建**升级之后的样子，只在内存里算，原库一个字节不动。
+ * App 首启会对目录跑一遍内置种子（electron/catalog/catalogStore.ts 的 ensureBuiltinModelSeeds）：
+ * 新版本新加的内置模型连同任务映射，就是这样到老用户手上的。只读原库的话，这个构建新加的模型
+ * 在用户升级之前永远抽不到（2026-11-07：新加的音频模型付费抽检，一分钱没花就停在「真实目录里没有」）。
+ */
+function upgradedByThisBuild(source) {
+  const { require: tsxRequire } = require('tsx/cjs/api')
+  const { applyBuiltinSeeds } = tsxRequire('../../electron/catalog/seedBuiltins.ts', import.meta.url)
+  return applyBuiltinSeeds(structuredClone(source), new Date().toISOString()).state
+}
+
+/**
+ * 把真实目录（按这个构建升级之后的样子）里**点名的几行**（连同它们的供应商、凭据密文、任务映射）装进一份已存在的隔离目录，
  * 并把凭据钥匙带进隔离 userData。同类的其余生成模型一律收起并停用，「新建卡片默认模型」设成被授权的那个：
  * 模型 / 用户在这一场里点谁，都只能点到被授权的那几个，花销可预期（付费走查在花钱前仍逐项核对落点）。
  *
@@ -108,7 +120,9 @@ export function readRealCatalog(profile = realNomiProfile()) {
  * 返回装进去的每一行 `{ vendorKey, modelKey, kind, labelZh }`（走查按真名去选模型，不手抄标签）。
  */
 export function seedRealModels({ settingsDir, userDataDir, models, profile = realNomiProfile() }) {
+  // 供应商与 key 密文只认原库；模型行与任务映射认「被这个构建升级之后」的目录（用户升级后看到的就是它）。
   const source = readRealCatalog(profile)
+  const upgraded = upgradedByThisBuild(source)
   const file = path.join(settingsDir, REAL_CATALOG_FILE)
   const catalog = JSON.parse(fs.readFileSync(file, 'utf8'))
   const now = new Date().toISOString()
@@ -120,9 +134,9 @@ export function seedRealModels({ settingsDir, userDataDir, models, profile = rea
     const credential = source.apiKeysByVendor?.[want.vendorKey]
     if (!vendor) throw new Error(`真实目录里没有供应商 ${want.vendorKey}（${profile.catalogPath}）`)
     if (credential?.enc !== 'safeStorage') throw new Error(`${want.vendorKey} 的凭据不是 safeStorage 密文——明文 key 本仓 fail-closed`)
-    const row = source.models?.find((entry) => entry.vendorKey === want.vendorKey && entry.modelKey === want.modelKey)
-    if (!row) throw new Error(`真实目录里没有 ${identity}`)
-    const mappings = (source.mappings ?? []).filter((entry) => entry.vendorKey === want.vendorKey && entry.modelKey === want.modelKey)
+    const row = upgraded.models?.find((entry) => entry.vendorKey === want.vendorKey && entry.modelKey === want.modelKey)
+    if (!row) throw new Error(`真实目录里没有 ${identity}，这个构建的内置目录里也没有`)
+    const mappings = (upgraded.mappings ?? []).filter((entry) => entry.vendorKey === want.vendorKey && entry.modelKey === want.modelKey)
     if (row.kind !== 'text' && mappings.length === 0) throw new Error(`真实目录里没有 ${identity} 的任务映射`)
     if (!catalog.vendors.some((entry) => entry.key === vendor.key)) catalog.vendors.push({ ...vendor, enabled: true })
     catalog.apiKeysByVendor = { ...catalog.apiKeysByVendor, [want.vendorKey]: credential }
