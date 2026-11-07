@@ -258,7 +258,9 @@ export function AgentPanelV4Composer({
           又允许浏览器把 scrollLeft 推到 17px 且用户拖不回来，助手正文、工具收据、
           头部头像左边全被**永久**裁掉。让模型钮成为那个会缩的（`min-w-0` + 名字 truncate），
           这一行就再也宽不过面板。 */}
-      <V4Row as="div" className="h-10 min-w-0 shrink-0 px-1 pb-2 pt-1">
+      {/* 这一行自己是尺寸容器：面板窄到 < 320（行内容宽 < 286）时「Skill」只留图标（悬停出字），模型钮保底 64 宽、
+          露模型名的省略形式（WindowNarrow 板 composer.tight）。按内容量，不看窗口宽。 */}
+      <V4Row as="div" className="h-10 min-w-0 shrink-0 px-1 pb-2 pt-1 [container-type:inline-size]">
         {onAddReference ? <AssetReferenceButton onClick={onAddReference} iconOnly /> : null}
 
         <button
@@ -278,7 +280,7 @@ export function AgentPanelV4Composer({
           aria-expanded={openPopover === 'model'}
           title={modelLabel ?? undefined}
           style={{ maxWidth: MODEL_TRIGGER_WIDTH }}
-          className="h-7 min-w-0 shrink whitespace-nowrap rounded-nomi-sm px-1 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05"
+          className="h-7 min-w-16 shrink whitespace-nowrap rounded-nomi-sm px-1 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05"
           data-v4-control="model"
         >
           <span className="min-w-0 truncate">{modelLabel ? compactModelLabel(modelLabel) : t('agentPanelV4.model')}</span>
@@ -295,9 +297,11 @@ export function AgentPanelV4Composer({
           )}
           data-v4-control="skill"
           aria-pressed={skillSelected}
+          aria-label={t('agentPanelV4.skill')}
+          title={t('agentPanelV4.skill')}
         >
           <IconPackage size={14} />
-          {t('agentPanelV4.skill')}
+          <span className="[@container_(max-width:285px)]:hidden">{t('agentPanelV4.skill')}</span>
         </V4Row>
 
         {/* 2026-09-10 走查反馈：权限+发送两钮会跟着模型名长度左右漂——定稿本就画了
