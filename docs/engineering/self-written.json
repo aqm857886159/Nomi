@@ -1662,7 +1662,8 @@
       "id": "canvas-undo-journal-write-boundary",
       "capability": "画布撤销日志（会话日志前缀重放）与写边界（动作分层、整写统一提交口、提议写入的接管）",
       "status": "under-review",
-      "reviewBy": "2026-11-06",
+      "reviewBy": "2026-12-06",
+      "renewed": [{ "on": "2026-11-07", "from": "2026-11-06", "reason": "镜头结果归属那次改动只在写边界的动作分层表里把删掉的 withdrawNodeRun 换成 applyRunOutcome，没碰撤销日志与整写提交口的设计；撤销栈改 Immer 反向补丁的评估（方向检查 §6 接入 B）还没有线去做，下不了结论。只能续这一次，到期前必须出结论。" }],
       "paths": [
         "src/workbench/generationCanvas/events/canvasUndoJournal.ts",
         "src/workbench/generationCanvas/events/canvasWriteBoundary.ts",
