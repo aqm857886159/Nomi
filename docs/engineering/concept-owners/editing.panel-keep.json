@@ -1,0 +1,25 @@
+{
+  "name": "预览页放不下两栏时留哪一栏（editingPanelKeep）",
+  "subject": "editing.panel-keep",
+  "lifecycle": "session",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+    "symbol": "keepAfterLayoutChange"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/preview/editingPanelLayoutSlice.ts",
+      "symbol": "keepAfterLayoutChange"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/preview/PreviewWorkspace.tsx"
+  ],
+  "since": "2026-11-05",
+  "notes": "会话态、不落盘，默认左栏（2026-11-04 拍板「先收属性」）。改侧栏开合的每个入口（点收起条、布局菜单、⌘Z、Agent layout.write、拖开、切左栏 tab）都经 keepAfterLayoutChange 定它；另外只有拖宽某一栏（keepEditingPanel）和整份换回默认（预设 / 恢复默认 / 打开项目）会改。2026-11-05 ⌘Z 曾自己还原开合、漏改它，撤销重开的属性栏在 1280 宽仍是收起条。"
+}
