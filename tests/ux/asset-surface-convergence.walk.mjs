@@ -8,6 +8,7 @@
 // 用法: pnpm build && node tests/ux/asset-surface-convergence.walk.mjs
 // 判据=断言 + 截图（tests/ux/shots/asset-surface-convergence/）人眼过。
 import { launchNomiApp } from './_launchApp.mjs'
+import { expectAbsent, proveProbe } from './_assert.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -96,7 +97,10 @@ try {
   }
 
   // —— ① 唯一门（库页）——
-  check('库页无素材盒按钮', (await win.locator('button[aria-label="打开素材盒"]').count()) === 0)
+  // 阳性对照：同一页上同类的按钮探针必须测得到东西（库页已渲染、不是白屏），否则「没有」是空话。
+  const libraryProof = await proveProbe(win.locator('button[aria-label]'), '库页上能探到带 aria-label 的按钮')
+  await expectAbsent(win.locator('button[aria-label="打开素材盒"]'), { provenBy: libraryProof })
+  check('库页无素材盒按钮', true)
   await snap(win, '01-library-page-no-assetbox')
 
   // —— 进项目（studio 挂载触发迁移器）——
@@ -112,7 +116,9 @@ try {
   check('进入项目', /projectId=/.test(win.url()), win.url().slice(-32))
 
   // —— ① 唯一门（studio 顶栏）——
-  check('顶栏无素材盒按钮', (await win.locator('button[aria-label="打开素材盒"]').count()) === 0)
+  const studioProof = await proveProbe(win.locator('button[aria-label]'), '项目页上能探到带 aria-label 的按钮')
+  await expectAbsent(win.locator('button[aria-label="打开素材盒"]'), { provenBy: studioProof })
+  check('顶栏无素材盒按钮', true)
   await snap(win, '02-studio-topbar-no-assetbox')
 
   // 迁移器启动即跑（IPC 往返），稍候
