@@ -120,18 +120,18 @@ Mac 合同与回环可验；Windows/真付费/真实供应商/中英真窗口/�
 | gemini-3.5-flash | 是 | 1.5 / 9 / 0.15（Google 官方价），读图 | 1.2 / 7.2 / 无缓存价，读图保留 | 价目接口；读图 = 2026-08-12 带图真调用 |
 | qwen3.8-max-0902 | 否 | 价目表别名 | 改名 qwen3.8-max（价不变） | 官方 Qwen 页的拼法 |
 | claude-opus-5-5 / claude-sonnet-5-5 / claude-haiku-5-5 / claude-fable-5.1 / gemini-4-argon / gemini-3.8-flash | 否 | 读图 | 去掉读图（价不变） | 读图只有协议页，没有一手依据 |
-| 其余 14 条新加的 | 否 | 来源写总价目表 | 数不变，来源改成逐个价目接口 | 价目接口 |
+| 其余 13 条新加的 | 否 | 来源写总价目表 | 数不变，来源改成逐个价目接口 | 价目接口 |
 | deepseek-v3.1-terminus | 是 | 无价 | 不动（价目接口查不到它；2026-08-21 探针调通过） | 本文件头记录 |
 | MiniMax-H3-Context-IR | 是 | 无价 | 不动（提示词增强专用） | Context-IR 页 |
 
-删 0。每条声明的 `evidence` 写明协议页、价目接口、是否已真跑（新加的 22 条都是「未」）；读图声明必须带 `evidence.imageInput`，契约测试守。
+删 0。每条声明的 `evidence` 写明协议页、价目接口、是否已真跑（新加的 21 条都是「未」，Context-IR 也是）；读图声明必须带 `evidence.imageInput`，契约测试守。
 
 老用户（升级后看到的）：deepseek-v4-pro、deepseek-v4-flash、gemini-3.5-flash 三行的价整份换成价目接口的有效值、来源改成价目接口（种子对账按价目漂移整份替换，`apimartLatestContracts.test.ts` 用 v0.24.1 真实旧目录回放断言）；v4-flash 输入 / 输出变便宜、缓存读取变贵；gemini-3.5-flash 输入 / 输出变便宜，缓存命中的 token 不再按缓存价算（接口没有缓存价，按输入价估，宁可高估）；读图照旧。terminus、Context-IR 不变。改名和去读图的都是 #1436 新加的，没有老用户。
 
 两个脚本（协调跑；先在专用工作树 `pnpm build`，Nomi 关掉）：
 - 列表对账（零花费）：`NOMI_SPEND_OK=1 node tests/ux/apimart-text-list-real.paid.mjs` → `text-list.md`：「声明了、列表没有」「列表最新一代、没声明」、读图事实。演练 `node tests/ux/apimart-text-list.rehearsal.walk.mjs`。
-- 一问一个（付费，约 24 + 7 次很短的调用）：`NOMI_SPEND_OK=1 node tests/ux/apimart-text-brains-real.paid.mjs`；续跑 `NOMI_TEXT_BRAINS_FROM=<id 或 id#image>`；读图候选 `NOMI_TEXT_IMAGE_CANDIDATES`（缺省 = 上面去掉读图的 7 个）。走 Agent 主进程大脑路（single-shot），不走任务通道；每个只问一次、不重试、失败接着问；回执一条一落（`brains.jsonl`）。演练 `tests/ux/apimart-text-brains.rehearsal.walk.mjs`。
+- 一问一个（付费，25 个大脑各一问 + 7 个读图候选各一问，共 32 次很短的调用）：`NOMI_SPEND_OK=1 node tests/ux/apimart-text-brains-real.paid.mjs`；续跑 `NOMI_TEXT_BRAINS_FROM=<id 或 id#image>`；读图候选 `NOMI_TEXT_IMAGE_CANDIDATES`（缺省 = 上面去掉读图的 7 个）。走 Agent 主进程大脑路（single-shot），不走任务通道；每个只问一次、不重试、失败接着问；回执一条一落（`brains.jsonl`）。演练 `tests/ux/apimart-text-brains.rehearsal.walk.mjs`。
 
 合入前：协调跑一问一个，调不通的在本 PR 里删（新加的，无老用户）；terminus 调不通记进 retire 待办，本 PR 不动 `seedBuiltins.ts`；带图读出暗号的再加回读图声明（带 `evidence.imageInput`）。
 
-未验证：22 条新加的文字大脑一条都没真调用过；7 条读图候选没带图真调用过；列表对账没对真列表跑过（只有演练）；gemini-3.5-flash 无缓存价是接口现状，APIMart 实际怎么计缓存命中不知道。
+未验证：21 条新加的文字大脑一条都没真调用过；7 条读图候选没带图真调用过；列表对账没对真列表跑过（只有演练）；gemini-3.5-flash 无缓存价是接口现状，APIMart 实际怎么计缓存命中不知道。
