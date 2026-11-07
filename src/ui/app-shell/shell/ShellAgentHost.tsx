@@ -79,13 +79,8 @@ function focusComposerSoon(): void {
   let frames = 0
   const tick = () => {
     const input = document.querySelector<HTMLTextAreaElement>('#project-agent-resident textarea')
-    // 小球形态时面板整棵挪在看不见的容器里，输入框一直「找得到」：要等它真的摆进浮窗 / 停靠栏（有盒子）再聚焦，
-    // 否则第一帧 focus() 落空、焦点留在原处（窄窗小球按 ⌘J 就是这样）。
-    if (input && input.getClientRects().length > 0) {
-      input.focus()
-      return
-    }
-    if (frames++ < 20) window.requestAnimationFrame(tick)
+    if (input) input.focus()
+    else if (frames++ < 20) window.requestAnimationFrame(tick)
   }
   window.requestAnimationFrame(tick)
 }
