@@ -27,6 +27,8 @@ import {
 const SCRIPT = 'anchor-outbound-real.paid.mjs'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const EXPECT_BEFORE = process.argv.includes('--expect-before')
+// 走查启动器只认 --packaged，自己的开关读完就拿掉（同 generation-list-generate-all.paid.mjs）。
+if (EXPECT_BEFORE) process.argv.splice(process.argv.indexOf('--expect-before'), 1)
 const EVIDENCE_DIR = path.join(REPO_ROOT, 'docs/evidence/2026-11-07-anchor-outbound/paid', EXPECT_BEFORE ? 'before' : 'after')
 const API_HOST = 'api.apimart.ai'
 

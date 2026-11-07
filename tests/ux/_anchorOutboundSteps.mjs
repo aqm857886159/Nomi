@@ -146,6 +146,25 @@ async function openAnchorCard({ win, locale }) {
 }
 
 /**
+ * 隔离副本收尾时会删掉，图要在那之前留到走查输出目录：画风对不对（写实还是插画）只能看图本身，改前 / 改后两张由协调并排看。
+ * 只从项目文件里读落地地址（nomi-local://asset/<项目>/…），按项目根解析，逃出项目根就不拷。没有落地图返回 null。
+ */
+async function keepLandedImage(win, seeded, outputDir) {
+  const nodes = (await readProject(win, seeded.projectId)).payload.generationCanvas.nodes ?? []
+  const match = JSON.stringify(nodes).match(/nomi-local:\/\/asset\/[^"\\\s]+\.(?:png|jpe?g|webp)/i)
+  if (!match) return null
+  const [ownerId, ...parts] = new URL(match[0]).pathname.slice(1).split('/').map(decodeURIComponent)
+  if (ownerId !== seeded.projectId) return null
+  const root = fs.realpathSync(seeded.projectRoot)
+  const filePath = fs.realpathSync(path.resolve(root, ...parts))
+  const relative = path.relative(root, filePath)
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null
+  const keptAt = path.join(outputDir, `anchor-image${path.extname(filePath).toLowerCase()}`)
+  fs.copyFileSync(filePath, keptAt)
+  return { file: path.basename(keptAt), bytes: fs.statSync(keptAt).size } // 只记文件名：证据摘要进仓库，不带本机路径
+}
+
+/**
  * 整条旅程（用户 10-29 那条路）：开项目 → 创作区打开方案 → 点参考卡「生成」→ 等这一次生成走到结局 → 核请求；
  * 再切英文界面各截一张（不再花钱）。
  * expectBefore = true 时（改前构建的对照记录）不因请求里没有描述而失败，只把读数写进证据。
@@ -168,6 +187,7 @@ export async function runAnchorOutboundJourney({ paid, evidence, observe, expect
   }
   await expect.poll(async () => (await latestRun())?.status ?? 'unsubmitted', { message: '这一次生成走到结局', timeout: stationTimeout({ turns: 2 }) }).toMatch(/^(success|error|failed|recoverable|cancelled)$/)
   evidence.runStatus = (await latestRun())?.status ?? null
+  evidence.keptImage = await keepLandedImage(win, seeded, walk.report.outputDir)
   await walk.snap('anchor-card-landed-zh')
   const judged = judgeAnchorSend(observe().slice(offset))
   evidence.wire = judged.summary
