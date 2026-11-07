@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import Ajv from 'ajv'
 
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
 import { BLOCK_EVENTS_FILE, BLOCK_EVENTS_SCHEMA, blockEventsPath, readBlockEvents, recordBlockEvent } from './lib/blockEvents.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -17,8 +18,8 @@ const validate = new Ajv({ allErrors: true, strict: true }).compile(JSON.parse(f
 const assertValid = (record) => assert.ok(validate(record), JSON.stringify(validate.errors))
 
 function tempRepo(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'block-events-'))
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const dir = makeTempDir('block-events-')
+  t.after(() => cleanupTestTemp(dir))
   const git = (args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
   git(['init', '-q', '-b', 'fix/some-branch'])
   git(['config', 'user.email', 't@example.com'])
@@ -61,7 +62,7 @@ test('schema rejects records that drifted from the writer', () => {
     { ...good, at: '2026-11-07 01:02:03' },
     { ...good, extra: 1 },
     { ...good, runner: 'ci' },
-    (({ codeChanged, ...rest }) => rest)(good),
+    Object.fromEntries(Object.entries(good).filter(([key]) => key !== 'codeChanged')),
   ]) assert.equal(validate(bad), false, JSON.stringify(bad))
 })
 
@@ -100,8 +101,8 @@ test('both local entries record at their blocking exit (structural)', () => {
 })
 
 test('a deliberately red gate in the full suite appends one schema-valid line (real run-gates-contracts process)', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'block-events-e2e-'))
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const dir = makeTempDir('block-events-e2e-')
+  t.after(() => cleanupTestTemp(dir))
   const file = path.join(dir, 'events.jsonl')
   // check:pr-judgement 拿到一份空正文（NOMI_PR_BODY=''）= 设计卡都没有 → 红；这是真门岗、真汇总出口
   const result = spawnSync(process.execPath, [path.join(repoRoot, 'scripts/run-gates-contracts.mjs'), 'check:pr-judgement'], {

@@ -23,6 +23,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { blockEventsPath, readBlockEvents } from './lib/blockEvents.mjs'
+import { splitNulPaths } from './lib/gitPaths.mjs'
 import { execGhReadSync } from './lib/transientRetry.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -34,7 +35,7 @@ const FAILED = new Set(['failure', 'timed_out', 'cancelled', 'startup_failure'])
 
 /** Actions 日志每行开头的时间戳（job 日志首行还带 BOM）。 */
 export function stripLogPrefix(line) {
-  return String(line).replace(/^﻿?\d{4}-\d\d-\d\dT[\d:.]+Z ?/, '')
+  return String(line).replace(/^\uFEFF?\d{4}-\d\d-\d\dT[\d:.]+Z ?/, '')
 }
 
 /**
@@ -84,7 +85,8 @@ export function codeChangedBetween(git, redHead, greenHead) {
   try {
     const commits = git(['rev-list', '--first-parent', '--no-merges', `${redHead}..${greenHead}`]).split('\n').filter(Boolean)
     for (const commit of commits) {
-      const files = git(['show', '--name-only', '--format=', commit]).split('\n').filter(Boolean)
+      // -z：非 ASCII 路径按原样拿（默认 core.quotePath 会转义成 "docs/\344..."，分桶就错了）
+      const files = splitNulPaths(git(['show', '-z', '--name-only', '--format=', commit]))
       if (files.some((file) => codeBucket(file) === 'code')) return true
     }
     return false

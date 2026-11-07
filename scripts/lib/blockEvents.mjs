@@ -61,7 +61,7 @@ export function recordBlockEvent({ stage, gates, durationMs = null, cwd = proces
 
 /** 读记录文件：坏行跳过并计数（手改过、写到一半断电），不让一行坏数据拖垮整张表。文件不存在 = 空。 */
 export function readBlockEvents(file, readFile = (name) => fs.readFileSync(name, 'utf8')) {
-  let text = ''
+  let text
   try { text = readFile(file) } catch (error) {
     if (error?.code === 'ENOENT') return { records: [], malformed: 0 }
     throw error

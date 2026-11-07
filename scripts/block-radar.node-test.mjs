@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
 import { BODY_GATE, classifyRed, codeBucket, codeChangedBetween, collectRedRounds, main, nextGreenHead, parseContractsSummary, stripLogPrefix, summarize } from './block-radar.mjs'
 import { runGateSuite } from './run-gates-contracts.mjs'
 
@@ -103,8 +103,8 @@ test('red rounds include the failures hidden behind a rerun; push and cancelled 
 })
 
 test('codeChanged: commits between the red head and the next green head on the branch, by path bucket', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'block-radar-'))
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const dir = makeTempDir('block-radar-')
+  t.after(() => cleanupTestTemp(dir))
   const git = (args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
   git(['init', '-q', '-b', 'main'])
   git(['config', 'user.email', 't@example.com'])
@@ -134,8 +134,8 @@ test('codeChanged: commits between the red head and the next green head on the b
 })
 
 test('main: windowed run list, attempts and logs cached by run id, only read-only gh calls', (t) => {
-  const cache = fs.mkdtempSync(path.join(os.tmpdir(), 'block-radar-cache-'))
-  t.after(() => fs.rmSync(cache, { recursive: true, force: true }))
+  const cache = makeTempDir('block-radar-cache-')
+  t.after(() => cleanupTestTemp(cache))
   const calls = []
   const runs = [...RUNS, { databaseId: 6, attempt: 1, conclusion: 'failure', event: 'pull_request', headBranch: 'fix/late', headSha: 'z', createdAt: '2026-11-09T00:00:00Z', status: 'completed' }].map((run) => ({ status: 'completed', ...run }))
   const gh = (args) => {
