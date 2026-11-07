@@ -4,7 +4,7 @@
 # 一升级 5 个项目全没了，回收站里也没有。修法（build/installer.nsh + 构建时生成的安装器清单）只能在真 Windows 上验：
 # 开发机 macOS 能验编译，但不能运行 Windows 注册表、文件占用、静默安装时的对话框。windows-latest 有真 NTFS、真 NSIS、真注册表。
 #
-# 旧版用 GitHub Release v0.24.0 的安装包（事故那一版），按同一个 Release 的 SHA256SUMS.txt 校验，不用自建的模拟包。
+# 旧版默认用 GitHub Release v0.24.0 的安装包（事故那一版；手动触发可用 old_version 指定 0.23.x / 0.22.x，验直接升到最新），按同一个 Release 的 SHA256SUMS.txt 校验，不用自建的模拟包。
 # 场景登记在 tests/installer/scenarios.mjs，执行器是 tests/installer/windows-installer-scenarios.mjs；
 # tests/installer/installerScenarios.test.mjs（默认 vitest 车道）核对本文件跑全部场景、不带 --only、反例开着。
 #
@@ -26,6 +26,12 @@ on:
       - tests/installer/**
       - .github/workflows/win-installer.yml
   workflow_dispatch:
+    inputs:
+      old_version:
+        description: '升级起点的旧版本号（x.y.z，需有对应 GitHub Release，含 Nomi-win-x64.exe 与 SHA256SUMS.txt）。只在手动触发时可改；推送与发版硬门没有这个输入，永远是 0.24.0。'
+        required: false
+        default: '0.24.0'
+        type: string
   workflow_call:
 
 permissions:
@@ -41,6 +47,9 @@ jobs:
     name: Windows installer scenarios
     runs-on: windows-2025
     timeout-minutes: 150
+    env:
+      # 旧版本号只在这里定一次：手动触发取输入，推送与发版硬门（workflow_call，无此输入）回落到 0.24.0。
+      OLD_VERSION: ${{ inputs.old_version || '0.24.0' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,7 +82,7 @@ jobs:
       - name: Package the Windows installer
         run: pnpm exec electron-builder --win nsis --x64 --publish never
 
-      - name: Download the v0.24.0 installer
+      - name: Download the old release installer
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,7 +90,7 @@ jobs:
           $dir = Join-Path $env:RUNNER_TEMP 'nomi-old'
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           foreach ($attempt in 1..5) {
-            gh release download v0.24.0 --repo $env:GITHUB_REPOSITORY --pattern Nomi-win-x64.exe --pattern SHA256SUMS.txt --dir $dir --clobber
+            gh release download "v$env:OLD_VERSION" --repo $env:GITHUB_REPOSITORY --pattern Nomi-win-x64.exe --pattern SHA256SUMS.txt --dir $dir --clobber
             if ($LASTEXITCODE -eq 0) { exit 0 }
             Write-Host "download attempt $attempt failed, retrying"
             Start-Sleep -Seconds (15 * $attempt)
@@ -95,6 +104,7 @@ jobs:
           node tests/installer/windows-installer-scenarios.mjs
           --old "$env:RUNNER_TEMP\nomi-old\Nomi-win-x64.exe"
           --old-sums "$env:RUNNER_TEMP\nomi-old\SHA256SUMS.txt"
+          --old-version "$env:OLD_VERSION"
           --new release\Nomi-win-x64.exe
           --manifest .tmp\installer-manifest\Nomi-x64.json
           --unpacked release\win-unpacked

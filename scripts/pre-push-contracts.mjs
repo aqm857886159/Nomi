@@ -25,6 +25,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { reclaimAbandonedTestTemp } from './_test-temp.mjs'
+import { recordBlockEvent } from './lib/blockEvents.mjs'
 import { resolvePullRequestBody } from './lib/prBody.mjs'
 import { killProcessTree, processTreeSpawnOptions } from './lib/processTree.mjs'
 import { implementationFiles, touchesGateInputs } from './pre-push-gate-inputs.mjs'
@@ -34,6 +35,8 @@ import { SCAN_GUARDS, SCAN_GUARDS_GATE, touchesScanGuard } from './pre-push-scan
 import { classifyValidationPolicy } from './validation-policy.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+/** 这一次被拦在哪一档、哪几道（main 一路填，命令行入口在阻断出口写一条本机记录，见 scripts/lib/blockEvents.mjs）。 */
+const blockContext = { stage: 'quick', gates: [] }
 
 /** 同时跑几个门岗：mjs-parse 自己就开 8 个子进程，再叠太多反而更慢。 */
 export const CONCURRENCY = Math.min(6, Math.max(3, os.availableParallelism() - 2))
@@ -474,6 +477,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   const shaped = argv.length === 2 && argv.every((arg) => arg !== '' && !arg.startsWith('-'))
   // 光有两个参数不算钩子（谁都能伪造）：必须同时见到分发器设的内部标记，才读 stdin、才走 ref 判定；否则一律按当前 HEAD 检查、不读 stdin
   const hooked = shaped && process.env.NOMI_GIT_HOOK_DISPATCH === 'pre-push'
+  blockContext.stage = hooked ? 'push' : 'quick'
   const bad = shaped ? [] : argv.filter((arg) => arg !== '--list')
   if (bad.length > 0) {
     console.error(`[pre-push] 不接受参数：${bad.map((arg) => JSON.stringify(arg)).join('、')}（只有 --list，或 git 钩子传入的 <remote名> <url>；要单独重跑某道门岗请直接 pnpm run check:xxx）`)
@@ -497,6 +501,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   }
   if (decision.blocked) {
     console.error(`[pre-push] BLOCKED：${decision.blocked}`)
+    blockContext.gates = ['pre-push:push-refs']
     return 1
   }
 
@@ -561,6 +566,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
     if (!pr.available && (pr.required || !hooked)) {
       // 指定了来源却读不了 / gh 超时，或手动重跑却拿不到正文：明确报错退出，不能当「查过了」
       console.error(`[pre-push] BLOCKED：取不到 PR 正文：${pr.reason}。手动跑请给 NOMI_PR_BODY 或 NOMI_PR_BODY_FILE，或先写好 .tmp-pr-body.md`)
+      blockContext.gates = bodyGates
       return 1
     }
     if (!pr.available) {
@@ -569,7 +575,7 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
       console.error(`[pre-push] PR 正文取自 ${pr.source}`)
       for (const name of bodyGates) {
         const script = name === 'check:prior-art' ? 'scripts/check-prior-art.mjs' : 'scripts/check-pr-judgement.mjs'
-        // 推送这一步：独立验收的报告链接还不可能有，pr-judgement 只提醒（CI 照旧要），见 resolveJudgementStage。
+        // 推送这一步：独立验收的报告链接还不可能有，pr-judgement 只提醒；合并档由 GitHub 上的「PR Body」检查判（.github/workflows/pr-body.yml），见 resolveJudgementStage。
         tasks.push(async () => ({ name, ...(await runNode([path.join(repoRoot, script), '--pr'], { NOMI_PR_BODY: pr.body, NOMI_PR_JUDGEMENT_STAGE: 'push' }, { name })) }))
       }
     }
@@ -579,11 +585,13 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
   const outcome = await runWithDeadline(tasks, CONCURRENCY, hookTimeoutMs)
   if (outcome.timedOut) {
     console.error(`[pre-push] BLOCKED：整个钩子超过 ${hookTimeoutMs / 1000} 秒仍未结束，已终止。仍在跑：${outcome.stillRunning.join('、') || '（无）'}${reclaimNote(outcome)}`)
+    blockContext.gates = ['pre-push:timeout', ...outcome.stillRunning.map((entry) => entry.replace(/（\d+s）$/, ''))]
     return 1
   }
   const results = outcome.results
   const { text, failed } = formatSummary(results)
   console.error(text)
+  blockContext.gates = failed.map((result) => result.name)
   const ciOnlyCount = CI_ONLY.reduce((total, group) => total + group.gates.length, 0)
   const partial = Object.entries(PARTIAL_LOCAL).map(([gate, { by }]) => `${gate}（本机只跑了 ${by}）`).join('、')
   console.error(`[pre-push] 共 ${((Date.now() - started) / 1000).toFixed(1)}s；${SLOW_GATES_NOTE}`)
@@ -592,5 +600,9 @@ export async function main(argv = process.argv.slice(2), { stdinText = null, hoo
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().then((code) => { process.exitCode = code })
+  // 返回 1 = 被门岗拦下，留一条本机记录（2 是参数 / 清单写错，不算被拦）。CI 里不写；写不成只警告，退出码不变。
+  main().then((code) => {
+    if (code === 1) recordBlockEvent({ stage: blockContext.stage, gates: blockContext.gates.length ? blockContext.gates : ['pre-push'], durationMs: process.uptime() * 1000, cwd: repoRoot })
+    process.exitCode = code
+  })
 }

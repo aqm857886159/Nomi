@@ -1,0 +1,296 @@
+{
+ "board": "PreviewNarrowPanels",
+ "approvedOn": "2026-11-04",
+ "stage": "built",
+ "approval": {
+  "quote": "先收属性",
+  "date": "2026-11-04",
+  "source": "用户原话（协调会话转述；Q2–Q4 协调按默认定）",
+  "canvas": "https://claude.ai/artifact/7GS3EXDGtMrK86Bu6csVSF",
+  "canvasVersion": "拍板时画布的 Q1 推荐是先收左栏，用户定为先收属性；拍板后把规则页改成已定版本（Q1 已定、规则 3、宽度对照表换成拍板数字、去掉内部编号），修后截图换成实现后的真包截图。入库的是改后的规则页"
+ },
+ "visualReview": "协调会话 2026-11-04 对过画布规则页与修前修后截图，Q1 交用户拍板（先收属性），其余按默认。实现后真包（打包产物）中英截图由实现线逐张看过：1280 开 Nomi 左栏 300 可读、空态正常折行、「收起」一行；1440 / 1100 数字对上；属性栏 200 宽时四种选中态没有被裁的读数。",
+ "designCard": "docs/plan/2026-11-04-preview-narrow-panels.md",
+ "sourceBoundary": "板源 = Claude Design 画布「规则与拍板」画板的原样副本（source/PreviewNarrowPanels.dc.html；画布里叫 Main.dc.html，入库改成板名，好让板源哈希盖住它）+ 画布索引公开版（source/canvas.json：只留这张画板；修前修后截图画板是真 App 截图，图不进仓库，看画布或走查 tests/ux/preview-narrow-panels.walk.mjs 现拍）。preview/PreviewNarrowPanels.html 是去掉画布外壳（运行时脚本）的静态页；候选由 node scripts/board-extract.mjs --dir 本目录 --board PreviewNarrowPanels 抽出。",
+ "designIntent": "窄窗下预览页两侧栏只有两种样子：可读宽度或 32px 收起条。窗口与 Nomi 的变化只影响这一刻怎么摆，不改用户存下的开合与栏宽；两栏放不下先收属性，点哪条收起条就开哪边。",
+ "artboards": [
+  "PreviewNarrowPanels"
+ ],
+ "walk": "pnpm run build && node tests/ux/preview-narrow-panels.walk.mjs（打包产物：NOMI_WALK_APP=release/mac-arm64/Nomi.app/Contents/MacOS/Nomi）",
+ "priorArt": [
+  {
+   "url": "https://developer.apple.com/documentation/appkit/nssplitviewitem/cancollapsefromwindowresize",
+   "takeaway": "macOS 分栏：侧栏随窗口变窄自动收起、变宽自动回来，不改用户设定。",
+   "decisionImpact": "确认了规则 2：窗口变化不写存档、变宽自己回来。先收哪边没照搬（它的侧栏是导航），按预览页主活定为先收属性（Q1 用户拍板）。"
+  },
+  {
+   "url": "https://github.com/microsoft/vscode/pull/1029",
+   "takeaway": "VS Code：侧栏挤到最窄时按钮被裁掉，没有任何提示。",
+   "decisionImpact": "确认了规则 1：宁可收成收起条，也不在不够宽的列里硬画；并把「栏里没有东西越出栏边」写进走查。"
+  },
+  {
+   "url": "https://github.com/bvaughn/react-resizable-panels",
+   "takeaway": "react-resizable-panels v4：库只改尺寸不管内容；onLayoutChanged 的 isUserInteraction 只在用户拖分隔条 / 按键时为 true；preserve-pixel-size 让面板在容器变化时保住像素宽。",
+   "decisionImpact": "改了：写回只认 isUserInteraction，删掉 syncing 屏蔽与 onResize 写回；两侧栏 preserve-pixel-size，差额给预览。"
+  },
+  {
+   "url": "https://dev.obsidianstats.com/plugins/obsidian-hide-sidebars-when-narrow",
+   "takeaway": "Obsidian 插件：窗口低于阈值隐藏侧栏，变宽恢复。",
+   "decisionImpact": "确认了：自动收起不写回存档。"
+  }
+ ],
+ "decisions": [
+  {
+   "id": "Q1",
+   "text": "两栏放不下先收属性，左栏「镜头 / 素材」留着。",
+   "source": "用户 2026-11-04（原话「先收属性」，协调转述）"
+  },
+  {
+   "id": "Q2",
+   "text": "点收起条但没地方放：打开它，另一边让成收起条。",
+   "source": "协调 2026-11-04 代定（按默认）"
+  },
+  {
+   "id": "Q3",
+   "text": "点开的那边放不下时预览可从 480 让到 400（只在 1100–1170 宽开着 Nomi 时发生）。",
+   "source": "协调 2026-11-04 代定（按默认）"
+  },
+  {
+   "id": "Q4",
+   "text": "开关 Nomi、改窗口宽时左右栏保持用户定的宽度，差额给预览。",
+   "source": "协调 2026-11-04 代定（按默认）"
+  }
+ ],
+ "elements": [
+  {
+   "id": "rule.readable-or-rail",
+   "label": "规则 1：侧栏要么可读宽度（左 ≥ 240、属性 ≥ 200）要么 32px 收起条，展开内容不挤进窄列；收起条 / 收起 / 标签 / 空态样子不变",
+   "candidates": [
+    "008-li-侧栏要么有可读宽度左栏2",
+    "061-li-收起条收起标签栏空态文案"
+   ],
+   "states": [
+    "narrow",
+    "zh-en",
+    "selected",
+    "empty"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/rule.readable-or-rail"
+  },
+  {
+   "id": "rule.window-change-keeps-intent",
+   "label": "规则 2 / Q4：窗口变宽变窄、开关 Nomi 不改存下的开合与栏宽，差额给预览，变宽自己回来；Agent layout.read/write 读写的仍是意图；老项目不迁移",
+   "candidates": [
+    "009-li-窗口变窄打开Nomi不算",
+    "025-strong-Q4",
+    "026-span-开关Nomi改窗口宽时左",
+    "027-span-今天会按比例撑宽并存下属",
+    "028-strong-已定按默认是差额给预览",
+    "063-li-Agent的layout",
+    "064-li-老项目里存的布局原样读不"
+   ],
+   "states": [
+    "narrow",
+    "zh-en"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/rule.window-change-keeps-intent"
+  },
+  {
+   "id": "rule.collapse-inspector-first",
+   "label": "规则 3 / Q1：两栏都开时预览 ≥ 480，放不下先把属性收成条，左栏「镜头 / 素材」留着",
+   "candidates": [
+    "010-li-两边都开时预览至少留48",
+    "013-strong-Q1",
+    "014-span-两边放不下先收哪边",
+    "015-span-预览页的主活是把镜头拖进",
+    "016-strong-已定先收属性用户原话先收"
+   ],
+   "states": [
+    "narrow",
+    "zh-en"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/rule.collapse-inspector-first"
+  },
+  {
+   "id": "rule.rail-click-swaps",
+   "label": "规则 4 / Q2 Q3：点收起条一定有用——点哪边开哪边、另一边让成条；点开的那边一直开着，必要时预览让到 400",
+   "candidates": [
+    "011-li-点收起条一定有用点哪边开",
+    "017-strong-Q2",
+    "018-span-点收起条但没地方放",
+    "019-span-不这样的话1280开着N",
+    "020-strong-已定按默认打开它另一边让",
+    "021-strong-Q3",
+    "022-span-你点开的那边放不下时预览",
+    "023-span-只在窗口11001170",
+    "024-strong-已定按默认可以"
+   ],
+   "states": [
+    "narrow",
+    "zh-en"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/rule.rail-click-swaps"
+  },
+  {
+   "id": "rule.drag-writes-back",
+   "label": "不变：布局菜单开关与预设、⌘Z 撤销、拖分隔条收起 / 展开 / 改宽照旧；只有亲手拖才写回存档",
+   "candidates": [
+    "062-li-顶栏布局菜单的开关和预设"
+   ],
+   "states": [
+    "narrow",
+    "zh-en"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/rule.drag-writes-back"
+  },
+  {
+   "id": "row.1280-nomi-open",
+   "label": "1280 · Nomi 开：300 / 480 / 收起条；点属性收起条后 收起条 / 540 / 240",
+   "candidates": [
+    "034-span-1280Nomi开",
+    "036-span-300480收起条",
+    "037-span-收起条540240"
+   ],
+   "states": [
+    "narrow",
+    "zh-en",
+    "empty"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/row.1280-nomi-open"
+  },
+  {
+   "id": "row.1280-nomi-closed",
+   "label": "1280 · Nomi 关：300 / 670 / 240",
+   "candidates": [
+    "038-span-1280Nomi关",
+    "040-span-300670240",
+    "041-span"
+   ],
+   "states": [
+    "zh-en"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/row.1280-nomi-closed"
+  },
+  {
+   "id": "row.1440-nomi-open",
+   "label": "1440 · Nomi 开：292 / 480 / 200",
+   "candidates": [
+    "042-span-1440Nomi开",
+    "044-span-292480200",
+    "045-span"
+   ],
+   "states": [
+    "narrow",
+    "zh-en",
+    "selected"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/row.1440-nomi-open"
+  },
+  {
+   "id": "row.1440-nomi-closed",
+   "label": "1440 · Nomi 关：300 / 830 / 240",
+   "candidates": [
+    "046-span-1440Nomi关",
+    "048-span-300830240",
+    "049-span"
+   ],
+   "states": [
+    "zh-en"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/row.1440-nomi-closed"
+  },
+  {
+   "id": "row.1100-nomi-open",
+   "label": "1100 · Nomi 开：240 / 410 / 收起条；点属性收起条后 收起条 / 450 / 200",
+   "candidates": [
+    "050-span-1100Nomi开",
+    "052-span-240410收起条",
+    "053-span-收起条450200"
+   ],
+   "states": [
+    "narrow",
+    "zh-en"
+   ],
+   "status": "implemented",
+   "assertion": "board:PreviewNarrowPanels/row.1100-nomi-open"
+  }
+ ],
+ "decor": [
+  "001-p-预览页修bug带可见改动",
+  "002-h1-窗口窄时预览页左栏不再被",
+  "003-h2-今天发生了什么",
+  "004-p-1280宽Nomi开着中",
+  "005-p-同一类的另两处关掉Nom",
+  "006-p-根子栏画成展开还是收起条",
+  "007-h2-修后四条规则",
+  "012-h2-拍板结果",
+  "029-h2-宽度对照左栏预览属性px",
+  "030-strong-窗口",
+  "031-strong-今天",
+  "032-strong-修后",
+  "033-strong-点属性收起条后",
+  "035-span-32竖排480300",
+  "039-span-240550420",
+  "043-span-240480252",
+  "047-span-338677355",
+  "051-span-两栏都收着时收起条460",
+  "054-p-修后截图是实现后的真Ap",
+  "055-h2-先查别人",
+  "056-li-macOSNSSplit",
+  "057-li-VSCode1029侧栏",
+  "058-li-reactresizab",
+  "059-li-Obsidian窗口窄时",
+  "060-h2-不变的"
+ ],
+ "functionCensus": [
+  {
+   "function": "点左栏收起条展开「镜头 / 素材」",
+   "before": "PreviewSourcePanel 收起条 → toggleEditingPanel('source')；1280 开 Nomi 时点了不展开",
+   "after": "rule.rail-click-swaps"
+  },
+  {
+   "function": "左栏底部「‹ 收起」",
+   "before": "PreviewSourcePanel → toggleEditingPanel('source')",
+   "after": "rule.readable-or-rail"
+  },
+  {
+   "function": "点属性收起条展开 / 属性头部收起",
+   "before": "PreviewInspector onToggleCollapsed → toggleEditingPanel('inspector')",
+   "after": "rule.rail-click-swaps"
+  },
+  {
+   "function": "拖分隔条改宽、拖成收起条、从收起条拖开",
+   "before": "onResize 不分来源一律写回存档",
+   "after": "rule.drag-writes-back"
+  },
+  {
+   "function": "顶栏「布局」菜单开关与预设、⌘Z 撤销布局",
+   "before": "EditingLayoutMenu / undoEditingPanelLayout",
+   "after": "rule.drag-writes-back"
+  },
+  {
+   "function": "Agent layout.read / layout.write",
+   "before": "读写 editingPanelLayout",
+   "after": "rule.window-change-keeps-intent"
+  },
+  {
+   "function": "切左栏 tab、时间轴空轨右键「从素材库添加…」",
+   "before": "openPreviewSourceTab 打开左栏",
+   "after": "rule.collapse-inspector-first"
+  },
+  {
+   "function": "时间轴高度拖动",
+   "before": "onResize 写回（窗口变矮也写）",
+   "after": "rule.window-change-keeps-intent"
+  }
+ ]
+}
