@@ -80,7 +80,8 @@ Object.assign(window, { textOwnership: {
         raw: { choices: [{ message: { content: 'NEW' } }] },
       }),
     })
-    useGenerationCanvasStore.getState().addNodeResult(text.id, result)
+    // Same as the run controller: a result lands with the number of the run that produced it.
+    useGenerationCanvasStore.getState().addNodeResult(text.id, result, undefined, 'approved-text-run')
     beforeApplyRevision = useGenerationCanvasStore.getState().persistRevision
   },
   reopen() {
