@@ -112,7 +112,9 @@ export function collectRedRounds({ runs, attemptConclusion, jobs, log }) {
       const contracts = jobList.find((job) => job.name === CONTRACTS_JOB && FAILED.has(job.conclusion))
       const summary = contracts ? parseContractsSummary(log(contracts.id)) : null
       const gates = summary ? summary.gates : contracts ? null : []
-      rounds.push({ runId: run.databaseId, attempt: n, final, branch: run.headBranch, head: run.headSha, at: run.createdAt, failedJobs, gates, ...classifyRed({ failedJobs, gates }) })
+      // 没有哪个 job 真失败、只是被取消（没分到机器、被手动取消）：PR 上照样是红的、要人重跑，但不是哪道门岗拦的，单列
+      const cancelledOnly = !jobList.some((job) => job.name !== QUALITY_GATE_WORKFLOW && FAILED.has(job.conclusion) && job.conclusion !== 'cancelled')
+      rounds.push({ runId: run.databaseId, attempt: n, final, branch: run.headBranch, head: run.headSha, at: run.createdAt, failedJobs, gates, cancelledOnly, ...classifyRed({ failedJobs, gates }) })
     }
   }
   return rounds
@@ -126,6 +128,7 @@ export function summarize(rounds) {
     redRounds: rounds.length,
     finalReds: count((round) => round.final),
     hiddenReds: count((round) => !round.final),
+    cancelledOnly: count((round) => round.cancelledOnly),
     bodyClass: count((round) => round.bodyClass),
     bodyOnly: count((round) => round.bodyOnly),
     codeChanged: { yes: count((round) => round.codeChanged === true), no: count((round) => round.codeChanged === false), unknown: count((round) => round.codeChanged == null) },
@@ -182,7 +185,7 @@ export function main(argv = process.argv.slice(2), { eventsFile = undefined, gh 
     return 0
   }
   out(`被拦雷达 · ${repoName} · ${since} → ${untilIso}（Quality Gate，PR 上）`)
-  out(`  红的轮次 ${summary.redRounds}（最终失败 ${summary.finalReds} + 重跑之前失败 ${summary.hiddenReds}）`)
+  out(`  红的轮次 ${summary.redRounds}（最终失败 ${summary.finalReds} + 重跑之前失败 ${summary.hiddenReds}；其中没有 job 真失败、只是被取消的 ${summary.cancelledOnly}）`)
   out(`  带正文判据（${BODY_GATE} 红）${summary.bodyClass}；只有正文（只有 Contracts 红、且只有 ${BODY_GATE}）${summary.bodyOnly}`)
   out(`  红完改了代码 ${summary.codeChanged.yes} / 没改 ${summary.codeChanged.no} / 算不出 ${summary.codeChanged.unknown}（「只有正文」里改了代码的 ${summary.bodyOnlyCodeChanged}）`)
   out('  按门岗（Contracts 里红的；一轮可以算进几道）：')
