@@ -43,7 +43,8 @@ const sample = SAMPLES[plan.modelKey]
 if (!sample) throw new Error(`型号 ${plan.modelKey} 不在付费抽检样本表里（只测每家最便宜的当前基础档，一次一条）`)
 const model = { vendorKey: 'apimart', modelKey: plan.modelKey }
 
-const paid = await openPaidWalk(SCRIPT, 'catalog-media-rest-real', [DEFAULT_PAID_BRAIN], { env: { ...process.env } })
+// 授权名单 = Agent 大脑 + 这次要测的那一个型号：只授权大脑时，隔离副本里样本型号被关掉，下拉里根本选不到（11-07 演练实测）。
+const paid = await openPaidWalk(SCRIPT, 'catalog-media-rest-real', [DEFAULT_PAID_BRAIN, model], { env: { ...process.env } })
 const { walk } = paid
 let failure
 let win
