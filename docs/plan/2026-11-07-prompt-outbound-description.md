@@ -58,7 +58,7 @@
 | 5 | 变异：把 `anchorIdentityBody` 改回「有 static 就丢 description」，矩阵里至少若干条变红 | 实现线在报告贴红的条数 |
 | 6 | 例外表闭合：矩阵里每个例外都带逃逸账本条目 id 与序号；新增例外没登记就红 | 同上 |
 | 7 | 既有对等测试不退步 | `pnpm exec vitest run src/workbench/creation/storyboard/exec/shotOutbound.parity.test.ts src/workbench/generationCanvas/agent/storyboardPlan.test.ts` |
-| 8 | 付费走查免费演练过，产物含修复标记；真付费由协调跑一次（同输入改前 / 改后各一张） | `node tests/ux/anchor-outbound-real.rehearsal.walk.mjs` / 付费档由协调 |
+| 8 | 付费走查免费演练过，产物带修复标记；演练和真付费都走用户 10-29 那条路：创作区打开分镜方案 → 点参考卡「生成参考卡「叶秋」」（`StoryboardPlanEditor` → `generateAnchorCard` 建卡）→ 读发往供应商的请求；真付费由协调跑一次（同输入改前 / 改后各一张） | `node tests/ux/anchor-outbound-real.rehearsal.walk.mjs` / 付费档由协调 |
 
 **反例（这一类会从哪回来）**
 
@@ -70,7 +70,8 @@
 
 **回滚**：revert 本 PR 的修复提交即可，数据形状没变，已落画布的卡不受影响。
 
-**真实场景复现**：用户 10-29 在创作区一路生成叶秋定妆卡，出了插画风、提示词里看不到风格词。我这边：按 Agent 起草的真实形状（description 含风格 + staticFeatures）编出提示词；修前确认提示词里没有 description（风格词消失），修后出现。与用户那次的差别：没有用户原项目和最终出站请求，无法证明他那次的风格词就在 description 里；生图结果的画风因果未验证，由协调的一次对比付费走查补。
+**真实场景复现**：用户 10-29 在创作区一路生成叶秋定妆卡，出了插画风、提示词里看不到风格词。我这边走同一条界面路径：往隔离资料里预埋一份分镜方案（角色参考卡 description 含「写实电影质感、35mm 胶片颗粒、不要插画风」，另带 staticFeatures / dynamicFeatures，形状照 Agent 起草落盘后的样子）→ 真人手势开项目、进创作区、打开方案、展开参考卡区 → 点「生成参考卡「叶秋」」（zh / en 各截图）→ 只读供应商那头收到的请求。修前（merge-base 构建，`--expect-before`）请求里没有风格词，修后有。旧做法（把构建产物算出的提示词贴进图片节点的框再点生成）已删，它绕开了创作区的建卡那一步。
+与用户那次还差在哪：①没有用户原项目，方案是预埋的固定形状，不是 Agent 当场起草（起草那一步没走，也就没证明 Agent 真会把风格写进 description，只证明「写进去了就会发出去」）；②预埋的卡直接指定了被授权的图片模型，没走用户那次的模型选择；③没有用户当时的最终出站请求，无法证明他那次的风格词就在 description 里；④生图结果的画风因果未验证，由协调的一次改前 / 改后对比付费走查补。
 
 **独立验收**：本卡归花钱类，合并前另一条线独立验收（PR 正文 `## 独立验收` 写报告链接与线编号）。
 
