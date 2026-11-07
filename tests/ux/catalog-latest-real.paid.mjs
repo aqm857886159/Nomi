@@ -16,11 +16,17 @@ const { walk } = paid
 let failure
 try {
   const { win } = await walk.start({ first: true })
-  await walk.newProject()
+  const opened = await walk.newProject()
+  // Synchronous audio (TTS) stores its bytes in the project, so every request names the project like the canvas does.
+  const projectId = opened?.projectId ?? walk.report.projectId
+  if (!projectId) throw new Error('paid samples need an open project')
+  // Resume after a recorded run instead of paying again for samples that already succeeded.
+  const from = process.env.NOMI_CATALOG_LATEST_FROM || undefined
+  walk.report.resumedFrom = from ?? null
   walk.report.samples = await runCatalogLatestSamples(async (sample) => {
     const nodeId = `catalog-sample-${sample.modelKey}`
     const request = { kind: sample.kind, prompt: sample.kind === 'chat' ? 'Reply with OK.' : 'A soft bell.',
-      extras: { modelKey: sample.modelKey, ...sample.params, maxRetries: 0, nodeId } }
+      extras: { modelKey: sample.modelKey, ...sample.params, maxRetries: 0, nodeId, projectId } }
     if (sample.kind !== 'chat') {
       const { grantId } = await win.evaluate((id) => window.nomiDesktop.tasks.grantSpend({ nodeIds: [id], maxAttemptsPerNode: 1 }), nodeId)
       request.extras.grantId = grantId
@@ -36,7 +42,7 @@ try {
     }), { timeoutMs: stationTimeout({ operations: 8 }), intervalMs: 3000 })
     await walk.snap(`sample-${sample.modelKey}`)
     return { status: result.status, taskId: result.id, assets: result.assets, raw: result.raw }
-  })
+  }, { from })
 } catch (error) {
   failure = error
   process.exitCode = 1

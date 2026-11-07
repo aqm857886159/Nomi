@@ -47,10 +47,18 @@ export async function settleSampleTask(
   }
 }
 
-/** Both runners submit once per sample and stop on the first failure. Querying an accepted task is not a new order. */
-export async function runCatalogLatestSamples(invoke: (sample: CatalogLatestSample) => Promise<{ status: string }>) {
+/**
+ * Both runners submit once per sample and stop on the first failure. Querying an accepted task is not a new order.
+ * `from` resumes a paid run at one sample: samples before it already succeeded in a recorded run and are not paid for again.
+ */
+export async function runCatalogLatestSamples(
+  invoke: (sample: CatalogLatestSample) => Promise<{ status: string }>,
+  { from }: { from?: string } = {},
+) {
+  const start = from ? CATALOG_LATEST_SAMPLES.findIndex(sample => sample.modelKey === from) : 0;
+  assert.ok(start >= 0, `unknown resume sample: ${from}`);
   const results = [];
-  for (const sample of CATALOG_LATEST_SAMPLES) {
+  for (const sample of CATALOG_LATEST_SAMPLES.slice(start)) {
     const result = await invoke(sample);
     assert.equal(result.status, 'succeeded', `${sample.family}: stop; do not retry this order`);
     results.push({ modelKey: sample.modelKey, ...result });

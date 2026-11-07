@@ -14,7 +14,7 @@ import { applyHeadlessParamDefaults, taskTemplateParams } from './taskParams';
 import { applyBuiltinSeeds } from './seedBuiltins';
 import { curatedCatalogLifecycle } from './seedModelIdentity';
 import { selectTaskMapping, type CatalogState, type HttpOperation } from './types';
-import { runCatalogLatestSamples, settleSampleTask } from '../../tests/ux/catalogLatestSamples';
+import { CATALOG_LATEST_SAMPLES, runCatalogLatestSamples, settleSampleTask } from '../../tests/ux/catalogLatestSamples';
 
 const VERSIONS = ['v6', 'v6-wild', 'v6-mini'];
 const BRAINS = ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna',
@@ -52,6 +52,19 @@ describe('APIMart audio official field contracts and request previews', () => {
       return { status: 'succeeded' };
     });
     expect(results).toHaveLength(14);
+  });
+
+  it('resumes a paid run at one sample without re-submitting the ones before it, and refuses an unknown resume point', async () => {
+    const submitted: string[] = [];
+    const results = await runCatalogLatestSamples(async sample => {
+      submitted.push(sample.modelKey);
+      return { status: 'succeeded' };
+    }, { from: 'nomi-audio' });
+    const resumeAt = CATALOG_LATEST_SAMPLES.findIndex(sample => sample.modelKey === 'nomi-audio');
+    expect(submitted).toEqual(CATALOG_LATEST_SAMPLES.slice(resumeAt).map(sample => sample.modelKey));
+    expect(submitted).not.toContain('suno-v6-mini');
+    expect(results).toHaveLength(CATALOG_LATEST_SAMPLES.length - resumeAt);
+    await expect(runCatalogLatestSamples(async () => ({ status: 'succeeded' }), { from: 'suno-v5.5' })).rejects.toThrow(/unknown resume sample/);
   });
 
   it('follows an accepted order through the bridge shapes: run gives the task, result wraps it as { vendor, result }', async () => {
