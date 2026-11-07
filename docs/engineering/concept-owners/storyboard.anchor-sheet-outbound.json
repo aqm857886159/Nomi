@@ -1,0 +1,26 @@
+{
+  "name": "参考卡发出去什么（提示词正文 = 描述框里的字）",
+  "subject": "storyboard.anchor-sheet-outbound",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+    "symbol": "buildAnchorSheetPrompt"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/storyboard/storyboardPromptCompiler.ts",
+      "symbol": "buildAnchorSheetPrompt"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts"
+  ],
+  "since": "2026-11-07",
+  "notes": "合同 docs/fixes/2026-11-07-prompt-outbound-description.root-cause.json：参考卡（定妆卡）出站提示词的正文就是描述框里的原文（trim 后），风格词写在框里就一定发出去；结构化特征不再追加，只在描述为空的旧草稿上退回它们。和 storyboard.shot-outbound 是同一条「所见即所发」规则在参考卡上的家：分镜一镜走 compileShotOutbound，参考卡走这里，两处都不许在调用方另拼字。还没守住的出站差异登记在逃逸账本条目的序号 2–9，各自被 outboundContract.test.ts 钉住。"
+}
