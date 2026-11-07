@@ -20,7 +20,10 @@
     "electron/catalog/oldUserDubbingLandsAfterUpgrade.test.ts",
     "实现线 I-tts-save-expected-kind：修前矩阵 9 格同步配音全部在落盘关口红（generated_output_expected_kind_required），没项目的格子各发出 1 个请求；修后全绿、没项目 0 个请求。协调开 PR 后填 fixedInPr、转 fixed；真付费回放 tests/ux/tts-save-expected-kind-real.paid.mjs 由协调跑一次。"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "da261bfea",
+    "eebdcaa2b"
+  ],
   "rootCauseContract": "docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json",
   "classCheck": {
     "kind": "matrix",
