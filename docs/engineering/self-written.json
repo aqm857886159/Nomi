@@ -935,6 +935,39 @@
       "revisitWhen": "pi 提供 shouldStopAfterTurn 之外的连续失败止损原语时"
     },
     {
+      "id": "lane-tool-input-boundary",
+      "capability": "工具入参失败的唯一边界：TypeBox / Zod / 准入三种报错归一成一份字段清单，给模型的正文（哪个字段、该填什么、一个对的例子）与面板信封同出一处，pi 的立即失败接进连续同错止损",
+      "status": "justified",
+      "paths": [
+        "electron/agentLane/laneToolInputBoundary.mts",
+        "electron/shared/agentLane/toolInputIssues.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "pi 的 validateToolArguments（在用：判通不通过只用这一把尺子；它只给一段文本，并把收到的参数整份回显）",
+          "source": "node_modules/@earendil-works/pi-ai/dist/utils/validation.js:280"
+        },
+        {
+          "name": "pi 的 prepareToolCall：prepareArguments / 校验抛错与 before_tool 拦截都成立即结果、跳过 after_tool（包 prepareArguments 是它留给工具的官方口子）",
+          "source": "node_modules/@earendil-works/pi-agent-core/dist/harness/execution/tools.js:25"
+        },
+        {
+          "name": "TypeBox 编译校验器的结构化错误（在用：Compile().Errors() 的 keyword / instancePath / params）",
+          "source": "node_modules/typebox/build/compile/validator.d.mts:22"
+        },
+        {
+          "name": "Vercel AI SDK repairToolCall / InvalidToolInputError（框架只抛结构化错误，修复与话术由应用自写）",
+          "source": "https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling"
+        },
+        {
+          "name": "MCP SEP-1303：入参校验失败作为工具执行错误回到模型上下文（确认拒收照旧当工具结果回给模型）",
+          "source": "https://modelcontextprotocol.io/seps/1303-input-validation-errors-as-tool-execution-errors.md"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：第三种报错来源是按镜头的模型参数准入（这个模型收哪些参数、哪一档），错一次再发就可能重付一次生成的钱；pi 和 TypeBox 只管形状，准入层与契约层的说法、计数规则（同错三次就停、用户一句话清零）和面板 zh / en 信封是我们的。判通不通过只用 pi 自己的校验器，结构化错误只用 TypeBox 自己的，这里只写归一与说法。",
+      "revisitWhen": "pi 的校验抛出结构化错误（而不是一段文本），或立即结果也经过 after_tool 时：届时删掉 piVerdict 的文本解析与熔断在入参边界的那一侧"
+    },
+    {
       "id": "lane-tool-surface",
       "capability": "能力契约 → pi 工具面：模型可见 schema 的唯一生成点、三条描述通道的渲染、延迟工具组、动词传输",
       "status": "justified",

@@ -36,7 +36,12 @@ import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 /** 参数被拒：pi 的 ajv、宿主准入码、宿主 zod 的字段级拒绝。与走查里那把尺子逐字相同。 */
 const ARG_REJECTED = /Validation failed for tool|capability_input_invalid|generation_input_invalid|Unrecognized key\(s\)|must be (array|string|number|object)|Required/i
 
-/** 熔断的「同一堵墙」判据，与 `electron/agentLane/laneRepeatedFailure.mts` 逐字相同。 */
+/**
+ * 「同一堵墙」的粗尺子：工具名 + 失败正文首行。生产熔断（`electron/agentLane/laneRepeatedFailure.mts`
+ * 的 `laneWallKey`）自 2026-11-07 起按「工具 + 失败码 + 出错字段路径」认墙，比这把细：不同字段的形状错
+ * 首行相同，这里算一堵、生产算两堵。故意不跟改——修前 / 修后要用同一把尺子比；被熔断拦下的调用正文以
+ * `<tool> was not run (tool_retry_stopped)` 开头，这里归 `domain_failed`，要单独数时按这个码筛。
+ */
 function wallKey(name, resultText) {
   return `${name} ${String(resultText).split('\n', 1)[0]}`
 }
