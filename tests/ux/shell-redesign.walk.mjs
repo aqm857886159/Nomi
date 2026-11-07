@@ -22,7 +22,7 @@ import {
   AGENT_PANEL, backToLibrary, canvasAddBar, canvasFitViewButton, canvasToggleFrameTool, canvasViewOption, canvasZoomPercent, canvasZoomStep,
   closeCanvasViewOptions, openCanvasViewOptions, canvasResetView, canvasSetZoomPercent,
 } from './_shell.mjs'
-import { CANVAS_PANEL, COMPOSER_INPUT, expectComposerFocused, expectComposerText } from './agent-runtime-walk-support.mjs'
+import { CANVAS_PANEL, COMPOSER_INPUT, clearComposerText, expectComposerFocused, expectComposerText } from './agent-runtime-walk-support.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, 'shots/shell-redesign')
@@ -471,8 +471,7 @@ try {
     await win.keyboard.press('ControlOrMeta+J')
     await expectComposerFocused(win, CANVAS_PANEL, '开着时再按 Mod+J，焦点离开了 Agent 输入框', stationTimeout())
     await expectComposerText(input, typed, '开着时再按 Mod+J，输入框里的字变了')
-    await input.fill('')
-    await expectComposerText(input, '', '清空 Agent 输入框没清掉')
+    await clearComposerText(input)
     await win.keyboard.press('Control+\\')
     await expect(win.locator('[data-agent-ball]'), 'Ctrl+\\ 没把浮窗收成小球').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
     const ballProof = await proveProbe(win.locator('[data-agent-ball]'), '切停靠前小球确实在')

@@ -132,6 +132,16 @@ export async function expectComposerText(input, text, message) {
   await expect.poll(() => composerText(input), { message, timeout: DEFAULT_TIMEOUT_MS }).toBe(text)
 }
 /**
+ * 清空 Agent 输入框 / 富文本编辑器：聚焦后全选再删，和真人清法一样（快捷键按平台取，ControlOrMeta）。
+ * 不要对它们 `.fill('')`：Playwright 的 fill 只在 DOM 里选中全部，ProseMirror 自己的选区可能还停在句末，删除被吞、
+ * 原句留着（#1359 验收红在这，时灵时不灵，main 上也复现）。门岗：check-walkthroughs 的 composer-input-read 拦这种写法。
+ */
+export async function clearComposerText(input) {
+  await input.press('ControlOrMeta+A')
+  await input.press('Backspace')
+  await expectComposerText(input, '', '清空 Agent 输入框没清掉')
+}
+/**
  * 焦点在 `scope` 这块面板的 Agent 输入框里：按 composer 自己的锚点 + 富文本编辑器（contenteditable）判，不按标签名——
  * 输入框换过形态（textarea → PromptEditor），按 TEXTAREA 判的走查从那天起每晚红（docs/fixes/2026-10-27-agent-composer-focus.root-cause.json）。
  */
