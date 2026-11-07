@@ -140,6 +140,9 @@ function renderNoScriptDownload(content) {
   return `<noscript><section class="download-fallback" id="download-options"><div class="wrap"><h2>${escapeText(content.download.title)}</h2><p>${escapeText(content.download.description)}</p><div class="download-options">${renderDownloadOptions(content)}</div>${renderMacInstallGuide(content)}</div></section></noscript>`
 }
 
+// Tripo 联盟计划（走 impact.com）的站点归属验证：它抓首页 <head> 找这一行，原样照抄、不能改写法。
+const IMPACT_SITE_VERIFICATION = `<meta name='impact-site-verification' value='0000cd66-6785-40fa-969f-40fb56143c8d'>`
+
 /**
  * 一整页。`pageKey` 管顶栏高亮与 body class；`alternateHref` 是另一种语言的同一页（语言切换与页脚都用它）。
  * `home` 为真才带首页独有的三样：语言自动跳转脚本、维护者微信弹窗、功能段片段播放。
@@ -153,7 +156,7 @@ export function renderDocument({ locale, pageKey, runtimeFacts, metadata, css, m
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 ${renderMetadata(metadata)}
-${home ? `<script>${localeBootstrapJs()}</script>\n` : ''}<link rel="icon" type="image/svg+xml" href="/assets/nomi-logo.svg" />
+${home ? `${IMPACT_SITE_VERIFICATION}\n` : ''}${home ? `<script>${localeBootstrapJs()}</script>\n` : ''}<link rel="icon" type="image/svg+xml" href="/assets/nomi-logo.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" />
