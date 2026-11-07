@@ -31,57 +31,107 @@ export type ApimartTextModel = {
   free?: true;
 };
 
-/**
- * 价目取值的两条纪律（2026-09-07 定，落成注释是因为下一个填价的人会碰到同样的岔路）：
- *
- * ① **峰谷两价取高的那个。** DeepSeek 自 2026-08-16 起分时计价（峰：UTC 周一至周五
- *    01:00–04:00 与 06:00–10:00；其余为谷），而 pi 的 `Model.cost` 只有一个平价、没有时间维度
- *    （`pi-ai/dist/types.d.ts:712-715` 的 tiers 是按输入量分档，不是按时段）。二选一时取峰价：
- *    宁可高估也不低估——面板上一个偏高的金额只是保守，一个偏低的金额会让用户按它做决定。
- * ② **中转价查不到就记一手价。** APIMart 是中转，用户实际付的是 APIMart 的价，但它的公开文档
- *    （`https://docs.apimart.ai/en/api-reference/texts/general/chat-completions`，2026-09-07 实查）
- *    只列模型名、不列单价。所以这里记的是**模型一手厂商**的官网价，量级对得上、逐分未必对得上——
- *    这条限制写在这里，不许把它当成账单。
- */
-const DEEPSEEK_PRICING_SOURCE = { url: "https://api-docs.deepseek.com/quick_start/pricing/", checkedAt: "2026-09-07" } as const;
+// Public APIMart prices checked 2026-11-07. The current tokenPricing shape has one rate,
+// so use the highest published tier (including cache lifetime) rather than underquoting long requests.
+// These are conservative estimates; membership, time discounts and the task receipt remain authoritative.
+const APIMART_PRICING_SOURCE = { url: "https://api.apimart.ai/api/pricing/models/all", checkedAt: "2026-11-07" } as const;
 
-/**
- * apimart 的 curated 文本模型（单源）。DeepSeek IDs 来自 2026-08-21
- * 的 authenticated `/v1/models?expand=category&category=chat` 返回，并通过 chat + tool-call 探针。
- *
- * - `deepseek-v4-pro`：默认大脑，思考型纯文本与工具调用的主控入口。
- * - `deepseek-v4-flash`：低延迟回退，纯文本与工具调用。
- * - `deepseek-v3.1-terminus`：V3.1 终版文本与工具调用回退。
- *
- * `deepseek-v3.2` 2026-10-27 下架：APIMart 的 `/v1/models` 仍列着它，调用却确定性 404 `model_not_found`
- * （10-18 付费走查实录）。退役清单与存量迁移见 seedBuiltins.ts 的 `RETIRED_APIMART_TEXT_MODEL_KEYS`。
- * - `gemini-3.5-flash`：**看得见的那个**。图进文字出（image_to_prompt）走它——浏览器「画面复刻/画面风格」
- *   提取、以及视频拆解读帧，都需要一个能读图的文本模型；deepseek 读不了图。
- *
- * R5 实测对账（2026-08-12，真 key 打 https://api.apimart.ai）：
- *   ✅ `gemini-3.5-flash` 在 OpenAI 兼容 `/v1/chat/completions` 上活着，且认 OpenAI 式
- *      `content:[{type:"image_url",image_url:{url:"data:image/jpeg;base64,…"}}]` 多模态 part
- *      → 无需新通道，直接吃现成的文本任务执行器（electron/textTaskRunner.ts；图片经 modelImageInput 内联）。
- *   ❌ `gemini-3.0-flash` / `gemini-3-flash` 均 503 不可用——**别写这两个 id**（官方文档
- *      https://docs.apimart.ai/en/api-reference/texts/gemini/quickstart.md 列的是 3.5-flash / 3.1-pro-preview
- *      / 3-pro-preview / 2.5-pro；images 分区那些 "Gemini 3.1 Flash / Nano banana2" 是**生图**模型，别混）。
- *   ⚠️ 它是**思考型**模型：实测回「可用」两个字就烧掉 47 completion_tokens（先 thinking 再吐正文）。
- *      maxTokens 给小了 → 正文为空 + finishReason='length'，看着像"模型不行"其实是我们自己截断的
- *      （文本任务把 finishReason 带回调用方，能分清这两种空）。调用方按整段输出预算给足，别照文本模型的老经验给 200。
- *      单镜分镜提取实测：1178 token 进（图片占 1058）/ 1160 出 / 10.4s。
- */
+// Vision declarations: APIMart Claude family page and DeepSeek V4.1 Flash vision section, checked 2026-11-07.
 export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
   {
-    modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro",
-    // 峰价：cache miss 输入 $1.32 / 输出 $3.96 / cache hit $0.044（谷价为其一半）。
-    tokenPricing: { inputPerMTokUsd: 1.32, outputPerMTokUsd: 3.96, cacheReadPerMTokUsd: 0.044,
-      source: DEEPSEEK_PRICING_SOURCE },
+    modelKey: "gpt-6-astra", labelZh: "GPT-6 Astra",
+    tokenPricing: { inputPerMTokUsd: 16.0, outputPerMTokUsd: 60.0, cacheReadPerMTokUsd: 1.6, cacheWritePerMTokUsd: 40.0, source: APIMART_PRICING_SOURCE },
   },
+  {
+    modelKey: "gpt-6.1-sol", labelZh: "GPT-6.1 Sol",
+    tokenPricing: { inputPerMTokUsd: 3.2, outputPerMTokUsd: 12.0, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 8.0, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "gpt-6.1-terra", labelZh: "GPT-6.1 Terra",
+    tokenPricing: { inputPerMTokUsd: 1.6, outputPerMTokUsd: 6.0, cacheReadPerMTokUsd: 0.08, cacheWritePerMTokUsd: 4.0, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "gpt-6-luna", labelZh: "GPT-6 Luna",
+    tokenPricing: { inputPerMTokUsd: 0.16, outputPerMTokUsd: 0.6, cacheReadPerMTokUsd: 0.016, cacheWritePerMTokUsd: 0.4, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "claude-opus-5-5", labelZh: "Claude Opus 5.5", meta: { supportsImageInput: true },
+    tokenPricing: { inputPerMTokUsd: 3.2, outputPerMTokUsd: 16, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 6.4, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "claude-sonnet-5-5", labelZh: "Claude Sonnet 5.5", meta: { supportsImageInput: true },
+    tokenPricing: { inputPerMTokUsd: 1.6, outputPerMTokUsd: 8, cacheReadPerMTokUsd: 0.16, cacheWritePerMTokUsd: 3.2, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "claude-haiku-5-5", labelZh: "Claude Haiku 5.5", meta: { supportsImageInput: true },
+    tokenPricing: { inputPerMTokUsd: 0.4, outputPerMTokUsd: 2.0, cacheReadPerMTokUsd: 0.04, cacheWritePerMTokUsd: 0.8, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "claude-fable-5.1", labelZh: "Claude Fable 5.1", meta: { supportsImageInput: true },
+    tokenPricing: { inputPerMTokUsd: 8, outputPerMTokUsd: 40, cacheReadPerMTokUsd: 0.2, cacheWritePerMTokUsd: 16, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "gemini-4-argon", labelZh: "Gemini 4 Argon", meta: { supportsImageInput: true },
+    tokenPricing: { inputPerMTokUsd: 1.6, outputPerMTokUsd: 8, cacheReadPerMTokUsd: 0.08, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "gemini-3.8-flash", labelZh: "Gemini 3.8 Flash", meta: { supportsImageInput: true },
+    tokenPricing: { inputPerMTokUsd: 0.6, outputPerMTokUsd: 3, cacheReadPerMTokUsd: 0.06, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro",
+    tokenPricing: { inputPerMTokUsd: 1.0285712, outputPerMTokUsd: 3.0857144, cacheReadPerMTokUsd: 0.0514284, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "deepseek-v4.1-flash", labelZh: "DeepSeek V4.1 Flash", meta: { supportsImageInput: true },
+    tokenPricing: { inputPerMTokUsd: 0.2285712, outputPerMTokUsd: 0.9142856, cacheReadPerMTokUsd: 0.0114284, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "qwen3.8-max-0902", labelZh: "Qwen 3.8 Max 0902",
+    tokenPricing: { inputPerMTokUsd: 1.3714288, outputPerMTokUsd: 4.1142856, cacheReadPerMTokUsd: 0.1714288, cacheWritePerMTokUsd: 1.7142856, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "qwen3.8-flash", labelZh: "Qwen 3.8 Flash",
+    tokenPricing: { inputPerMTokUsd: 0.0914288, outputPerMTokUsd: 0.3085712, cacheReadPerMTokUsd: 0.0114288, cacheWritePerMTokUsd: 0.1428568, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "qwen3.8-27b", labelZh: "Qwen 3.8 27B",
+    tokenPricing: { inputPerMTokUsd: 0.3428568, outputPerMTokUsd: 1.3714288, cacheReadPerMTokUsd: 0.0685712, cacheWritePerMTokUsd: 0.4285712, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "qwen3.8-2.4t-a95b", labelZh: "Qwen 3.8 2.4T A95B",
+    tokenPricing: { inputPerMTokUsd: 1.3714288, outputPerMTokUsd: 4.1142856, cacheReadPerMTokUsd: 0.1714288, cacheWritePerMTokUsd: 1.7142856, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "glm-5.3", labelZh: "GLM 5.3",
+    tokenPricing: { inputPerMTokUsd: 1.12, outputPerMTokUsd: 3.52, cacheReadPerMTokUsd: 0.208, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "glm-5.3-flash", labelZh: "GLM 5.3 Flash",
+    tokenPricing: { inputPerMTokUsd: 0.06, outputPerMTokUsd: 0.2, cacheReadPerMTokUsd: 0.012, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "kimi-k3", labelZh: "Kimi K3",
+    tokenPricing: { inputPerMTokUsd: 2.4, outputPerMTokUsd: 12, cacheReadPerMTokUsd: 0.24, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "grok-4.7", labelZh: "Grok 4.7",
+    tokenPricing: { inputPerMTokUsd: 3.2, outputPerMTokUsd: 9.6, cacheReadPerMTokUsd: 0.8, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "minimax-m3", labelZh: "MiniMax M3",
+    tokenPricing: { inputPerMTokUsd: 0.24, outputPerMTokUsd: 0.96, source: APIMART_PRICING_SOURCE },
+  },
+  {
+    modelKey: "step-3.7-flash", labelZh: "Step 3.7 Flash",
+    tokenPricing: { inputPerMTokUsd: 0.15424, outputPerMTokUsd: 0.92544, source: APIMART_PRICING_SOURCE },
+  },
+  // Saved legacy identities remain executable; lifecycle policy only changes recommendation order.
   {
     modelKey: "deepseek-v4-flash", labelZh: "DeepSeek V4 Flash",
     // 峰价：cache miss 输入 $0.44 / 输出 $1.32 / cache hit $0.014（谷价为其一半）。
     tokenPricing: { inputPerMTokUsd: 0.44, outputPerMTokUsd: 1.32, cacheReadPerMTokUsd: 0.014,
-      source: DEEPSEEK_PRICING_SOURCE },
+      source: { url: "https://api-docs.deepseek.com/quick_start/pricing/", checkedAt: "2026-09-07" } },
   },
   // V3.1-terminus **故意留白**：2026-09-07 实查 DeepSeek 官方定价页，表里只有 v4-flash / v4-pro /
   // v4-flash-vision-exp 三行，V3 系列一个字都没有。查不到就不填——

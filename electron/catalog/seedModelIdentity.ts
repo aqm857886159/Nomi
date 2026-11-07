@@ -159,9 +159,36 @@ export const CANONICAL_MODEL_IDS: Record<string, string> = {
  * table keyed by exact upstream model id also makes a future radar update auditable.
  */
 const FLAGSHIP_MODEL_KEYS = new Set([
+  "suno-v6",
+  "suno-v6-wild",
+  "suno-v6-mini",
+  "suno-sounds-v6",
+  "suno-sounds-v6-wild",
+  "suno-sounds-v6-mini",
+  "gpt-6-astra",
+  "gpt-6.1-sol",
+  "gpt-6.1-terra",
+  "gpt-6-luna",
+  "claude-opus-5-5",
+  "claude-sonnet-5-5",
+  "claude-haiku-5-5",
+  "claude-fable-5.1",
+  "gemini-4-argon",
+  "gemini-3.8-flash",
+  "deepseek-v4.1-flash",
+  "qwen3.8-max-0902",
+  "qwen3.8-flash",
+  "qwen3.8-27b",
+  "qwen3.8-2.4t-a95b",
+  "glm-5.3",
+  "glm-5.3-flash",
+  "kimi-k3",
+  "grok-4.7",
+  "minimax-m3",
+  "step-3.7-flash",
+
   // Current text and multimodal leaders.
   "deepseek-v4-pro",
-  "gemini-3.5-flash",
   // Current image leaders.
   "gpt-image-2-text-to-image",
   "gpt-image-2-image-to-image",
@@ -199,9 +226,6 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   // Current 3D leader already available through the aggregate route.
   "hunyuan3d-v3.1",
   "google/gemini-omni-flash-1-1",
-  "suno-v5.5",
-  "suno-sounds-v5.5",
-  "suno-sounds-v5-5",
   "flowmusic-lyria-3.5",
   "speech-2.8-hd",
   "eleven_v3",
@@ -262,6 +286,11 @@ const VALUE_MODEL_KEYS = new Set([
   "speech-2.8-turbo",
 ]);
 
+// 分档规则（用户 2026-11-07 拍板：「最新代和旧一代的都可以接」）：每个模型家族的**最新一代**进旗舰 / 性价比，
+// **上一代**留在陪跑（或性价比），照常出现在新节点的选择里；只有**比上一代更老**的才进下面这张退役表
+// （收进「更多」、排在最后，旧项目里已选的照常显示和执行）。Suno v6 是最新、v5.5 是上一代，
+// DeepSeek V4.1 Flash 最新、V4 Flash 上一代，Gemini 3.8 Flash 最新、3.5 Flash 上一代，所以这几个不在表里。
+// 契约见 `electron/catalog/apimartLatestContracts.test.ts` 与 `tests/fixtures/apimart/model-generations*.json`。
 const LEGACY_MODEL_KEYS = new Set([
   "happyhorse",
   "happyhorse_1_0",

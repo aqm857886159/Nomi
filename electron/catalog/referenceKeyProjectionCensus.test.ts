@@ -29,7 +29,8 @@ function seededContext(mapping: ReturnType<typeof seededMapping>) {
 describe("reference-key projection census — declared reference behavior", () => {
   it("has no false positives in real seeded creation bodies", () => {
     const census = buildReferenceKeyCensus();
-    expect(census.summary.seededMappings).toBe(246);
+    // 2026-11-07 +6：APIMart Suno V6 三档的歌曲和音效（没有参考图键，所以分类行数不变）。
+    expect(census.summary.seededMappings).toBe(252);
     expect(census.summary.rowsWithClassifiedKeys).toBe(124);
     expect(census.summary.falsePositiveRows).toBe(0);
     expect(census.summary.falsePositiveKeys).toBe(0);
