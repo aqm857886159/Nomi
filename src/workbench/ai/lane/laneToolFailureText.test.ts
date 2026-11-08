@@ -1,24 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { enAgentToolFailure, zhAgentToolFailure } from '../../../i18n/locales/agentToolFailure'
-import { enAgentPanelV4, zhAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
 import { laneToolFailureOf, type LaneToolPublicFailure } from '../../../../electron/shared/agentLane/laneToolFailureEnvelope'
 import { GENERATION_PROBLEM_CODE_LIST, type GenerationProblem } from '../../../../electron/shared/generationProblem'
 import { laneToolFailureDetail, laneToolFailureSummary } from './laneToolFailureText'
 
 // 用真词典插值（不是 key 回显）：钉住的是创作者真正读到的那句话由哪几块拼成，zh / en 两轨。
 // 期望值也按键从词典取（`check:test-copy-literals`：测试里不抄文案）。
-function translatorOf(dictionary: Record<string, string>, panel: Record<string, unknown>) {
+function translatorOf(dictionary: Record<string, string>) {
   return (key: string, options?: Record<string, unknown>): string => {
-    // 指路那一行借用模型菜单上真实的行名（「图片默认」），不在失败词典里抄第二份。
-    const panelKey = key.startsWith('agentPanelV4.') ? key.slice('agentPanelV4.'.length) : undefined
-    const template = panelKey ? (panel[panelKey] as string | undefined) : dictionary[key.replace(/^agentToolFailure\./, '')]
+    const template = dictionary[key.replace(/^agentToolFailure\./, '')]
     if (template === undefined) throw new Error(`missing key ${key}`)
     return template.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(options?.[name] ?? `{{${name}}}`))
   }
 }
 const tracks = [
-  { name: 'zh', t: translatorOf(zhAgentToolFailure, zhAgentPanelV4) },
-  { name: 'en', t: translatorOf(enAgentToolFailure, enAgentPanelV4) },
+  { name: 'zh', t: translatorOf(zhAgentToolFailure) },
+  { name: 'en', t: translatorOf(enAgentToolFailure) },
 ] as const
 
 const unknownField: LaneToolPublicFailure = {
@@ -131,13 +128,13 @@ describe.each(tracks)('起草被拒说原因，不说笼统那句（$name）', (
     expect(laneToolFailureDetail(t, failure)).not.toContain('doubao')
   })
 
-  it('反例 2：没点名也没有能用的默认 → 说缺哪一类默认，展开体指到模型菜单上那一行', () => {
+  it('反例 2：没点名也没有能用的默认 → 说缺哪一类默认，展开体指到模型菜单', () => {
     const image = rejected({ code: 'no_default_model', field: 'candidate.modelId', media: 'image', next: 'set_default_model' })
     const video = rejected({ code: 'no_default_model', media: 'video', next: 'set_default_model' })
     expect(laneToolFailureSummary(t, image)).toBe(k('problemNoDefaultImage'))
     expect(laneToolFailureSummary(t, video)).toBe(k('problemNoDefaultVideo'))
-    expect(laneToolFailureDetail(t, image).split('\n')).toEqual([k('problemNoDefaultImage'), k('problemPickDefault', { slot: t('agentPanelV4.imageDefault') })])
-    expect(laneToolFailureDetail(t, video).split('\n')[1]).toBe(k('problemPickDefault', { slot: t('agentPanelV4.videoDefault') }))
+    expect(laneToolFailureDetail(t, image).split('\n')).toEqual([k('problemNoDefaultImage'), k('problemPickDefault')])
+    expect(laneToolFailureDetail(t, video).split('\n')[1]).toBe(k('problemPickDefault'))
   })
 
   it('反例 3：参考超量 → 说上限，不说「这个模型不接受这组参数」', () => {

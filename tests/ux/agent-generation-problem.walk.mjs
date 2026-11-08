@@ -16,13 +16,14 @@
 //
 // 参考超量（reference_over_capacity）**真走不到**：生产的起草路径今天没有一处在起草时按模式上限拒参考
 // （注册表清单的 `assetInputSchema.references` 不带 max，`admitPlanCandidate` 那条检查在生产里走不到），
-// 超量要到提交那一步才由供应商适配器拒。所以修后那一场最后加一张**夹具图**：关掉 App，把 A 那一回合
+// 超量要到提交那一步才由供应商适配器拒。所以修前 / 修后最后各加一组**夹具图**：关掉 App，把 A 那一回合
 // 写进 lane 转录的失败信封里的原因改写成「参考最多 4 个」，冷启动重开，让真面板照转录渲染。文件名和画面
-// 都标「夹具」——它证的是面板读到这个原因时说什么，不证生产会抛它（那一条由单测证）。
+// 都标「夹具 / FIXTURE」——它证的是面板读到这个原因时说什么，不证生产会抛它（那一条由单测证）。
 //
-// 用法：GENPROBLEM_REPLAY=before node tests/ux/agent-generation-problem.walk.mjs   （合入基点的构建上）
+// 用法：GENPROBLEM_REPLAY=before node tests/ux/agent-generation-problem.walk.mjs   （最新 main 的构建上）
 //       node tests/ux/agent-generation-problem.walk.mjs                            （修后，缺省）
 import fs from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { clickOrFail, expect, proveProbe } from './_assert.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
@@ -45,6 +46,13 @@ import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 const MODE = process.env.GENPROBLEM_REPLAY === 'before' ? 'before' : 'after'
 const TOOL_GROUP = '[data-v4-block="tool-group"]'
 const TOOL_RECEIPT = '[data-v4-block="tool"]'
+
+function recordSecurityAgents(stage) {
+  if (process.platform !== 'darwin') return
+  const result = spawnSync('pgrep', ['-x', 'SecurityAgent'], { encoding: 'utf8' })
+  expect([0, 1], 'SecurityAgent 进程检查成功').toContain(result.status)
+  console.log(`[security-agent] ${stage}: ${result.stdout.trim() || 'none'}`)
+}
 
 const CASES = [
   {
@@ -100,9 +108,11 @@ const toolText = (body, id) => (body.messages ?? [])
 
 // 起 App 的子进程用假主目录：宿主配置、~ 下的一切都不碰用户真实资料。
 const fakeHome = makeTempDir('nomi-pi-generation-problem-home-')
+recordSecurityAgents('before fixture encryption')
 const walk = await createRuntimeWalk(`generation-problem-${MODE}`, { generationProvider: 'apimart', env: { HOME: fakeHome } })
 let failure
 try {
+  recordSecurityAgents('before first app launch')
   let { win } = await walk.start({ first: true })
   const { projectId, projectRoot, name } = await walk.newProject()
   await openCanvas(win)
@@ -137,9 +147,20 @@ try {
     await expect(panel.locator(ASSISTANT_MESSAGE).last()).toContainText(item.done.split('：', 1)[0])
     const row = panel.locator(TOOL_GROUP).or(panel.locator(`${TOOL_RECEIPT}[data-status="output-error"]`)).last()
     await proveProbe(row, `${item.key} 的失败行`)
-    // 修前（合入基点）三种拒收都是同一句笼统话；修后每种说自己的原因。文案从词典按键取，不在走查里抄一份。
+    // 修前（最新 main）三种拒收都是同一句笼统话；修后每种说自己的原因。文案从词典按键取，不在走查里抄一份。
     await expect(row).toContainText(uiText('zh-CN', MODE === 'before' ? 'agentToolFailure.generation_input_invalid' : item.panelKey))
+    await clickOrFail(row.locator(':scope > summary'), `${item.key}：展开失败详情`)
+    if (MODE === 'after' && item.key === 'no_default_model') {
+      await expect(row).toContainText(uiText('zh-CN', 'agentToolFailure.problemPickDefault'))
+    }
     await walk.snap(`${MODE}-0${index + 1}-zh-${item.key}`)
+    await switchAppLocale(win, 'en')
+    await expect(row).toContainText(uiText('en', MODE === 'before' ? 'agentToolFailure.generation_input_invalid' : item.panelKey))
+    if (MODE === 'after' && item.key === 'no_default_model') {
+      await expect(row).toContainText(uiText('en', 'agentToolFailure.problemPickDefault'))
+    }
+    await walk.snap(`${MODE}-0${index + 1}-en-${item.key}`)
+    await switchAppLocale(win, 'zh-CN')
   }
 
   const nodes = (await readProject(win, projectId)).payload.generationCanvas.nodes
@@ -177,17 +198,8 @@ try {
     }
   }
 
-  // 英文同一态（EN 串更长，截断只有眼睛看得出）：从设置里切语言，像真人那样。
-  await switchAppLocale(win, 'en')
-  const enRows = panel.locator(`${TOOL_RECEIPT}, ${TOOL_GROUP}`)
-  for (const item of CASES) {
-    await expect(enRows.filter({ hasText: uiText('en', MODE === 'before' ? 'agentToolFailure.generation_input_invalid' : item.panelKey) }).first(),
-      `${item.key}：英文界面同一句`).toBeVisible()
-  }
-  await walk.snap(`${MODE}-04-en-all-rows`)
-
-  if (MODE === 'after') {
-    // 夹具图（见文件头）：只改写 A 那一回合信封里的原因，别的一个字节不动；改写前后各核一次。
+  {
+    // 夹具图（见文件头）：只改写 A 那一回合信封里的原因，读回真实面板；修前忽略新增的 problem。
     await switchAppLocale(win, 'zh-CN')
     await walk.stopApp()
     const target = callId('unknown_model')
@@ -200,15 +212,16 @@ try {
       const transaction = JSON.parse(line)
       const entries = Array.isArray(transaction) ? transaction : [transaction]
       const entry = entries.find(item => item.type === 'message' && item.message?.role === 'toolResult'
-        && item.message.toolCallId === target && item.message.details?.failure?.problem?.code === 'unknown_model')
+        && item.message.toolCallId === target && item.message.details?.failure?.code === 'generation_input_invalid')
       if (!entry) return line
       entry.message.details.failure.problem = { code: 'reference_over_capacity', field: 'references', max: 4, next: 'reduce_references', retryable: true, charged: false }
       rewritten += 1
       return JSON.stringify(transaction)
     })
-    expect(rewritten, '转录里恰好一条 unknown_model 信封被改写成参考超量').toBe(1)
+    expect(rewritten, '转录里恰好一条拒收信封被改写成参考超量').toBe(1)
     fs.writeFileSync(sessions[0].path, lines.join('\n'))
 
+    recordSecurityAgents('before cold app launch')
     ;({ win } = await walk.start())
     const card = win.locator('[data-project-card="true"]').filter({ hasText: name })
     await expect(card).toBeVisible()
@@ -218,7 +231,9 @@ try {
     await openCanvas(win)
     const reopened = win.locator(CANVAS_PANEL)
     await expect(reopened, '冷启动后画布面板回到同一段对话').toContainText(CASES[0].done.split('：', 1)[0])
-    const fixtureRow = reopened.locator(`${TOOL_RECEIPT}, ${TOOL_GROUP}`).filter({ hasText: uiTextWith('zh-CN', 'agentToolFailure.problemReferenceOverCapacity', { max: 4 }) })
+    const fixtureRow = reopened.locator(`${TOOL_RECEIPT}, ${TOOL_GROUP}`).filter({ hasText: MODE === 'before'
+      ? uiText('zh-CN', 'agentToolFailure.generation_input_invalid')
+      : uiTextWith('zh-CN', 'agentToolFailure.problemReferenceOverCapacity', { max: 4 }) }).first()
     await proveProbe(fixtureRow.first(), '夹具：参考超量的失败行')
     const stamp = (text) => win.evaluate((label) => {
       document.querySelector('[data-walk-fixture-stamp]')?.remove()
@@ -229,13 +244,17 @@ try {
         padding: '4px 10px', background: '#b42318', color: '#fff', font: '600 12px system-ui', borderRadius: '4px' })
       document.body.appendChild(badge)
     }, text)
-    await stamp('夹具：转录里的原因被改写成「参考最多 4 个」，生产起草走不到这一条')
-    await walk.snap('after-05-zh-FIXTURE-reference_over_capacity')
+    await fixtureRow.scrollIntoViewIfNeeded()
+    await stamp('夹具 / FIXTURE：转录注入参考上限 4 个，非真实超量')
+    await walk.snap(`${MODE}-04-zh-FIXTURE-reference_over_capacity`)
     await switchAppLocale(win, 'en')
-    await expect(reopened.locator(`${TOOL_RECEIPT}, ${TOOL_GROUP}`)
-      .filter({ hasText: uiTextWith('en', 'agentToolFailure.problemReferenceOverCapacity', { max: 4 }) }).first(), '夹具：英文界面同一句').toBeVisible()
-    await stamp('FIXTURE: the reason in the transcript was rewritten to "at most 4 references"; production drafting never raises it')
-    await walk.snap('after-06-en-FIXTURE-reference_over_capacity')
+    const enFixtureRow = reopened.locator(`${TOOL_RECEIPT}, ${TOOL_GROUP}`).filter({ hasText: MODE === 'before'
+      ? uiText('en', 'agentToolFailure.generation_input_invalid')
+      : uiTextWith('en', 'agentToolFailure.problemReferenceOverCapacity', { max: 4 }) }).first()
+    await expect(enFixtureRow, '夹具：英文界面同一句').toBeVisible()
+    await enFixtureRow.scrollIntoViewIfNeeded()
+    await stamp('FIXTURE: transcript injected with a 4-reference cap; not a real overflow')
+    await walk.snap(`${MODE}-04-en-FIXTURE-reference_over_capacity`)
   }
 } catch (error) {
   failure = error

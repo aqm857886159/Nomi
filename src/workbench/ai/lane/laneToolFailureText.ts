@@ -171,8 +171,7 @@ function problemSentence(t: Translate, problem: GenerationProblem): string | und
 /** 展开体里原因句下面那一行：可选值，或该去哪儿改（只有用户自己能改的那一种才指路）。 */
 function problemDetailLines(t: Translate, problem: GenerationProblem): string[] {
   if (problem.code === 'no_default_model') {
-    const slot = problem.media === 'video' ? t('agentPanelV4.videoDefault') : t('agentPanelV4.imageDefault')
-    return [t('agentToolFailure.problemPickDefault', { slot })]
+    return [t('agentToolFailure.problemPickDefault')]
   }
   if ((problem.code === 'ratio_not_in_mode' || problem.code === 'reference_role_not_in_mode') && problem.allowed?.length) {
     return [t('agentToolFailure.allowedValues', { values: shortValuesText(t, problem.allowed) })]
