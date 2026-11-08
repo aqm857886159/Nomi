@@ -57,6 +57,8 @@ walk.fixture.respond({
   match: () => true,
   reply: (body) => {
     const marker = turnMarker(body)
+    walk.report.fixtureTurns ??= []
+    walk.report.fixtureTurns.push({ marker, mode: replyMode })
     return replyMode === 'stream'
       ? { type: 'stream', text: streamReply(marker), chunkChars: STREAM_CHUNK_CHARS, intervalMs: STREAM_INTERVAL_MS }
       : { type: 'text', text: longReply(marker) }
@@ -69,7 +71,8 @@ try {
   await walk.newProject()
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
   // 最小窗：面板只剩四百多像素高，几轮长回答才真的溢出（大窗里装得下，滚动位置恒 0，检查都是恒真式）。
-  walk.report.window = await walk.resizeWindow(1100, 720)
+  await walk.resizeWindow(1100, 720)
+  walk.report.window = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
   const panel = win.locator(CREATION_PANEL)
   const flow = win.locator(FLOW)
   const geometry = () => flow.evaluate((node) => ({
@@ -246,6 +249,10 @@ try {
     localStorage.setItem('nomi:locale:v1', 'zh-CN')
     localStorage.setItem('nomi-color-scheme', 'light')
   })
+  await win.reload()
+  await expandResidentPanel(win)
+  await expect(panel.locator(USER_BUBBLE).filter({ hasText: 'CF-B-' }).first()).toBeAttached({ timeout: 30_000 })
+  await expect(win.locator('html')).toHaveAttribute('data-mantine-color-scheme', 'light')
   await round('zh', 'zh-light')
 
   // 英文 · 暗色：只重载渲染层，同一个项目、同两条对话。重载 = 面板重新挂载：落点也要在底。
@@ -255,6 +262,7 @@ try {
   })
   await win.reload()
   await expandResidentPanel(win)
+  await expect(win.locator('html')).toHaveAttribute('data-mantine-color-scheme', 'dark')
   await expect(panel.locator(USER_BUBBLE).first()).toBeAttached({ timeout: 30_000 })
   const reloaded = await landing()
   record('en-dark', 'reload-lands-at-bottom', landedAtBottom(reloaded), reloaded)
@@ -270,6 +278,7 @@ try {
     }, { locale, scheme })
     await win.reload()
     await expandResidentPanel(win)
+    await expect(win.locator('html')).toHaveAttribute('data-mantine-color-scheme', scheme)
     await expect(panel.locator(USER_BUBBLE).first()).toBeAttached({ timeout: 30_000 })
     await win.waitForTimeout(500)
     await wheel(-900)
