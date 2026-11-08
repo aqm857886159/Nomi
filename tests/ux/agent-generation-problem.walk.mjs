@@ -2,9 +2,9 @@
 // 真实场景复现（2026-11-08）：用户原话「很多时候我们参数不合法什么的，没有最后有一个错误码，或者说分析码
 // 以及下一步该怎么办这些东西」；截图里 Agent 面板那一行是「起草镜头卡 ⊘2 这一步没做成（generation_input_invalid）」。
 //
-// 现场：用户在画布面板里让 Agent 起草镜头，Agent 点名的模型 / 比例宿主收不了，被拒。修之前面板对**所有**这类拒收
-// 都只说同一句「这个模型不接受这组参数，这一步没有执行。」——点名的模型不存在、真没配默认模型、比例不在这个模式里，
-// 用户看到的是同一句话，分不出该去哪儿改。模型那边更糟：点名的 id 不存在时它读到「没有配置可用的图片模型」，
+// 现场：用户在画布面板里让 Agent 起草镜头，Agent 点名的模型 / 比例宿主收不了，被拒。修之前，点名的模型不存在
+// 和真没配默认模型，都说「这个模型不接受这组参数，这一步没有执行。」；比例错误另有字段行，但展开体仍用笼统句。
+// 模型那边更糟：点名的 id 不存在时它读到「没有配置可用的图片模型」，
 // 于是去劝用户「先去设置里选默认模型」（39 题轨迹里 9 次）。
 //
 // 这条走查按真人的手法走（一个窗口、只点界面、对话模型从下拉里选），零额度：对话模型是 loopback 夹具，
@@ -147,7 +147,7 @@ try {
     await expect(panel.locator(ASSISTANT_MESSAGE).last()).toContainText(item.done.split('：', 1)[0])
     const row = panel.locator(TOOL_GROUP).or(panel.locator(`${TOOL_RECEIPT}[data-status="output-error"]`)).last()
     await proveProbe(row, `${item.key} 的失败行`)
-    // 修前（最新 main）三种拒收都是同一句笼统话；修后每种说自己的原因。文案从词典按键取，不在走查里抄一份。
+    // 修前展开体仍含笼统句（比例错误另有字段提示）；修后按原因说。文案从词典按键取。
     await expect(row).toContainText(uiText('zh-CN', MODE === 'before' ? 'agentToolFailure.generation_input_invalid' : item.panelKey))
     await clickOrFail(row.locator(':scope > summary'), `${item.key}：展开失败详情`)
     if (MODE === 'after' && item.key === 'no_default_model') {
