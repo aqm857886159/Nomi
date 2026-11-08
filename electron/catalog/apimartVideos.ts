@@ -40,16 +40,14 @@ function videoCreateOp(bodyFields: Record<string, unknown>, modelRef = "{{model.
   };
 }
 
-// i2v「比例由图自动决定」→ 档案该模式仍显示比例控件（与 t2v 共享 params），但 apimart i2v body 不发它。
-// 用 drops 把这层「故意不发」显式声明（铁律不变量要求：每个 canonical 参数要么被 codec 覆盖、要么明示 drop），
-// 行为与迁移前完全一致，只是从「静默丢弃」变「明示不支持」。
-const dropParamMap = (keys: string[]): ParamMap => ({ drops: keys, rules: [] });
-
 // 变体合并模型用：body model = 档案当前变体的 modelKey（{{request.params.model}}）。
 const VARIANT_MODEL_REF = "{{request.params.model}}";
 
 // 通用 snake 参数引用（值取自档案控件/槽，键 = 各模型 apimart 字段名）。
 const ASPECT = "{{request.params.aspect_ratio}}";
+// 「不选就不发」的比例（官方明说不要发 auto：选「自动」经 omitAuto 不产出改名后的键，body 引用它、整键丢弃）。
+const ASPECT_OPTIONAL = "{{request.params.aspect_ratio_wire}}";
+const OPTIONAL_ASPECT_PARAM_MAP: ParamMap = { rules: [{ wire: "aspect_ratio_wire", fromMany: ["aspect_ratio"], transform: "omitAuto" }] };
 const SIZE = "{{request.params.size}}";
 const RESOLUTION = "{{request.params.resolution}}";
 const QUALITY = "{{request.params.quality}}";
@@ -61,6 +59,7 @@ const IMAGE_URLS = "{{request.params.image_urls}}"; // image_ref 槽 inputKey=im
 const VIDEO_URLS = "{{request.params.video_urls}}"; // seedance 全能参考 video_ref 槽 inputKey=video_urls
 const AUDIO_URLS = "{{request.params.audio_urls}}"; // seedance 全能参考 audio_ref 槽 inputKey=audio_urls
 const FIRST_FRAME_IMAGE = "{{request.params.first_frame_image}}"; // hailuo first_frame 槽 inputKey=first_frame_image
+const LAST_FRAME_IMAGE = "{{request.params.last_frame_image}}"; // 尾帧槽 inputKey=last_frame_image
 const SEED = "{{request.params.seed}}"; // 可选种子（无默认 → 未填则模板丢弃）
 const RETURN_LAST_FRAME = "{{request.params.return_last_frame}}"; // Seedance 2.5 独有：返回尾帧图
 const NEGATIVE_PROMPT = "{{request.params.negative_prompt}}"; // 负向提示词（可选，未填则丢弃）
@@ -105,16 +104,18 @@ function videoModel(p: {
   i2vBody?: Record<string, unknown>;
   /** i2v 模式「故意不发」的 canonical 参数（比例由图自动决定）。明示 drop 满足铁律不变量，行为不变。 */
   i2vDrops?: string[];
+  /** 两个方式共用的参数翻译（如「不选就不发」的比例）；i2v 同时有 i2vDrops 时 drops 并入。 */
+  paramMap?: ParamMap;
 }): ApimartVideoModel {
   const idKey = p.idKey ?? p.archetypeId;
   const mappings: ApimartVideoModel["mappings"] = [];
   if (p.t2vBody) {
-    const create = videoCreateOp(p.t2vBody, p.modelRef);
+    const create = videoCreateOp(p.t2vBody, p.modelRef, p.paramMap);
     if (p.requestTransform) create.request_transform = p.requestTransform;
     mappings.push({ id: `seed-apimart-${idKey}-text_to_video`, taskKind: "text_to_video", name: `${p.labelZh} · 文生视频`, create });
   }
   if (p.i2vBody) {
-    const create = videoCreateOp(p.i2vBody, p.modelRef, p.i2vDrops?.length ? dropParamMap(p.i2vDrops) : undefined);
+    const create = videoCreateOp(p.i2vBody, p.modelRef, p.i2vDrops?.length ? { ...(p.paramMap ?? { rules: [] }), drops: p.i2vDrops } : p.paramMap);
     if (p.requestTransform) create.request_transform = p.requestTransform;
     mappings.push({ id: `seed-apimart-${idKey}-image_to_video`, taskKind: "image_to_video", name: `${p.labelZh} · 图生视频`, create });
   }
@@ -226,6 +227,92 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     requestTransform: "apimart-omni-flash-ext-contract",
     t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION },
     i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS, generation_type: GENERATION_TYPE },
+  }),
+  // ── 2026-11-07 最新代补齐（各自照 docs.apimart.ai 当日官方页对账）──
+  // 可灵 4.0：永远带声音、无 mode；图生 = 首帧（first_frame_image）+ 可选尾帧，比例跟随首帧（i2v 不声明比例）。可灵 3.0 是上一代。
+  videoModel({
+    modelKey: "kling-v4", labelZh: "可灵 4.0", archetypeId: "kling-v4",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
+    i2vBody: { resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE },
+  }),
+  // Grok Imagine Video 1.5 官方通道：字段名 resolution / aspect_ratio（Ext 那条叫 quality / size），图生只发 image_urls。
+  videoModel({
+    modelKey: "grok-imagine-video-1.5", labelZh: "Grok Imagine Video 1.5 官方", archetypeId: "grok-imagine-video-1.5-official",
+    t2vBody: { aspect_ratio: ASPECT_OPTIONAL, resolution: RESOLUTION, duration: DURATION },
+    i2vBody: { resolution: RESOLUTION, duration: DURATION, image_urls: IMAGE_URLS },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
+  }),
+  // PixVerse V6：比例字段 size；单图 image_urls，首尾帧 first_frame_image + last_frame_image（互斥由模式投影保证）。
+  videoModel({
+    modelKey: "pixverse-v6", labelZh: "PixVerse V6", archetypeId: "pixverse-v6",
+    t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, audio: AUDIO },
+    i2vBody: { resolution: RESOLUTION, duration: DURATION, audio: AUDIO, image_urls: IMAGE_URLS, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE },
+  }),
+  // PixVerse V6 Max：比例字段 aspect_ratio；图生刚好 1 张。
+  videoModel({
+    modelKey: "pixverse-v6-max", labelZh: "PixVerse V6 Max", archetypeId: "pixverse-v6-max",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO },
+    i2vBody: { resolution: RESOLUTION, duration: DURATION, audio: AUDIO, image_urls: IMAGE_URLS },
+  }),
+  // Muse Video Ext：时长 / 清晰度 / 声音官方都固定，比例没选就不发。
+  videoModel({
+    modelKey: "muse-video-ext", labelZh: "Muse Video", archetypeId: "muse-video-ext",
+    t2vBody: { aspect_ratio: ASPECT_OPTIONAL },
+    i2vBody: { aspect_ratio: ASPECT_OPTIONAL, image_urls: IMAGE_URLS },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
+  }),
+  // FLUX 3 Video：resolution 取 hd / fhd；图生关键帧 1–10 张。
+  videoModel({
+    modelKey: "flux-3-video", labelZh: "FLUX 3 Video", archetypeId: "flux-3-video",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO },
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO, image_urls: IMAGE_URLS },
+  }),
+  // Wan 3.0 Prime：官方写明与 wan3.0-video 参数逐字相同 → body 形状直接共用同一份。
+  videoModel({
+    modelKey: "wan3.0-video-prime", labelZh: "Wan 3.0 Prime", archetypeId: "wan-3.0-prime-apimart",
+    t2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, audio: AUDIO, watermark: WATERMARK, seed: SEED },
+    i2vBody: { size: SIZE, resolution: RESOLUTION, duration: DURATION, audio: AUDIO, watermark: WATERMARK, seed: SEED, generation_type: GENERATION_TYPE, image_urls: IMAGE_URLS, image_with_roles: IMAGE_WITH_ROLES, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS },
+  }),
+  // Veo 3.1 官方通道（按秒计费）：首帧 first_frame_image 必填、尾帧可选；generate_audio 默认关。
+  videoModel({
+    modelKey: "veo3.1-fast-official", labelZh: "Veo 3.1 Fast 官方", archetypeId: "veo3.1-fast-official",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, generate_audio: GEN_AUDIO },
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, generate_audio: GEN_AUDIO, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE },
+  }),
+  videoModel({
+    modelKey: "veo3.1-quality-official", labelZh: "Veo 3.1 Quality 官方", archetypeId: "veo3.1-quality-official",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, generate_audio: GEN_AUDIO },
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, generate_audio: GEN_AUDIO, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE },
+  }),
+  // Vidu Q3 Pro / Turbo：1 张图生、2 张首尾帧，有图时不发比例（官方禁止同时发）。
+  videoModel({
+    modelKey: "viduq3-pro", labelZh: "Vidu Q3 Pro", archetypeId: "viduq3-pro",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO },
+    i2vBody: { resolution: RESOLUTION, duration: DURATION, audio: AUDIO, image_urls: IMAGE_URLS },
+  }),
+  videoModel({
+    modelKey: "viduq3-turbo", labelZh: "Vidu Q3 Turbo", archetypeId: "viduq3-turbo",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO },
+    i2vBody: { resolution: RESOLUTION, duration: DURATION, audio: AUDIO, image_urls: IMAGE_URLS },
+  }),
+  // Vidu Q4 预览版：没有文生；图生走 first_frame_image，参考生走 image_with_roles（[{url, role:'reference_image'}]，
+  // 模式的 combineSlotsInto 组装）+ aspect_ratio。官方：只给 1 张、不带角色时按图生视频走，所以参考生不能发扁平的 image_urls；
+  // 两个模式共用一条 mapping，互斥由模式投影保证。image_urls 只留给没有模式的 headless 调用（官方：1 张 = 图生，2–15 张 = 参考生）。
+  videoModel({
+    modelKey: "viduq4-preview", labelZh: "Vidu Q4 预览版", archetypeId: "viduq4-preview",
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, audio: AUDIO, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS, image_with_roles: IMAGE_WITH_ROLES },
+  }),
+  // Gemini Omni 1.2：两条通道都有首帧 / 首尾帧 / 多图参考；多图参考发 omni_reference_task_type=reference（mode.fixedParams 注入）。
+  // 比例只有 16:9 / 9:16（官方没有 auto），每种模式照发。视频编辑 / 续写（video_urls）不声明。Omni 1.1（Omni-Flash-Ext）是上一代，保留可选。
+  videoModel({
+    modelKey: "gemini-omni-1.2-flash", labelZh: "Gemini Omni 1.2 Flash", archetypeId: "gemini-omni-1.2-flash",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
+  }),
+  videoModel({
+    modelKey: "gemini-omni-1.2-flash-ext", labelZh: "Gemini Omni 1.2 Flash Ext", archetypeId: "gemini-omni-1.2-flash-ext",
+    t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
+    i2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE, image_urls: IMAGE_URLS, omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
   }),
   {
     modelKey: "MiniMax-H3-Regeneration",

@@ -1,3 +1,4 @@
+import { APIMART_REFERENCE_PARAMETER_ALIASES } from "../shared/modelArchetypes/referenceKeys";
 import { bodyReferencedParamKeys } from "../catalog/paramTranslate";
 
 /**
@@ -18,8 +19,10 @@ export function mirrorApimartReferenceParameterAliases(
       parameters[target] = structuredClone(parameters[source]);
     }
   };
-  mirror("input_urls", "image_urls");
-  mirror("image_urls", "input_urls");
+  for (const aliases of [APIMART_REFERENCE_PARAMETER_ALIASES.image_urls, APIMART_REFERENCE_PARAMETER_ALIASES.video_urls, APIMART_REFERENCE_PARAMETER_ALIASES.audio_urls]) {
+    const source = aliases.find((key) => present(parameters[key]));
+    if (source) for (const target of aliases) mirror(target, source);
+  }
   mirror("first_frame_image", "first_frame_url");
   mirror("first_frame_url", "first_frame_image");
   mirror("last_frame_image", "last_frame_url");

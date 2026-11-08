@@ -1,0 +1,199 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-07-audio-wire-fields",
+  "problem_type": "Declaration wire field names drift from the upstream contract",
+  "symptom": "Suno Sounds sends sound_type/sound_tempo/sound_key instead of type/bpm/key.",
+  "direct_cause": "Canonical parameter keys were copied as JSON property names.",
+  "class_root": "Wire keys were not checked against independent official endpoint field contracts.",
+  "affected_population": [
+    "Existing Suno Sounds nodes and every newly declared version",
+    "Other audio endpoint templates added from canonical controls"
+  ],
+  "scope_paths": [
+    "electron/catalog/apimartAudios.ts",
+    "electron/catalog/apimartTexts.ts",
+    "electron/catalog/archetypeIdentifiers.generated.ts",
+    "electron/catalog/archetypeModes.generated.ts",
+    "electron/catalog/archetypeWireDefaults.audio.generated.ts",
+    "electron/catalog/seedModelIdentity.ts"
+  ],
+  "entry_points": [
+    "APIMART_AUDIO_MODELS to seedBuiltins to requestPipeline",
+    "APIMART_AUDIO_MODELS to apimartModelHealth",
+    "Provider catalog census found this contract mismatch; the task relays the review finding, not a first-person production incident."
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/audios/suno/sounds.md",
+      "checked_at": "2026-11-07",
+      "purpose": "Allowed JSON fields and ranges for every sounds version."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/texts/general/chat-completions.md",
+      "checked_at": "2026-11-07",
+      "purpose": "Current text declarations share the existing Chat request and response boundary."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://api.apimart.ai/api/pricing/models/all",
+      "checked_at": "2026-11-07",
+      "purpose": "Exact text IDs and conservative current token prices."
+    }
+  ],
+  "invariants": [
+    "Canonical saved controls remain stable; wire property names follow the endpoint contract.",
+    "All versions share one typed sounds body and the common endpoint class test."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/catalog/apimartAudios.ts",
+      "symbol": "ApimartAudioModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/apimartModelHealth.ts",
+      "symbol": "APIMART_AUDIO_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "APIMART_AUDIO_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/apimartTexts.ts",
+      "symbol": "ApimartTextModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/apimartTexts.ts",
+      "symbol": "ApimartTextMapping"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "APIMART_TEXT_MAPPINGS"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/catalogLiveness/states/01-listing.tsx",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/apimartModelIds.ts",
+      "symbol": "CANONICAL_MODEL_IDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "CANONICAL_MODEL_IDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/seedModelIdentity.ts",
+      "symbol": "CatalogLifecycle"
+    },
+    {
+      "kind": "read",
+      "path": "src/config/modelIdentity.ts",
+      "symbol": "CatalogLifecycle"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "curatedCatalogLifecycle"
+    },
+    {
+      "kind": "write",
+      "path": "src/devlab/designLab/catalogLiveness/states/01-listing.tsx",
+      "symbol": "curatedCatalogLifecycle"
+    }
+  ],
+  "door_reduction": {
+    "before": 14,
+    "after": 14,
+    "why_not": "The catalog declarations, shared seed reconciliation, health inventory, identity normalization and design projection are existing distinct readers; their public shapes are unchanged."
+  },
+  "generality_proof": "All sounds versions use the same constrained body declaration; independent field fixtures check music, sounds, TTS and Lyria and a non-Suno mutation proves the class check rejects drift.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/apimartAudios.ts",
+      "symbol": "SUNO_SOUNDS_BODY",
+      "responsibility": "Single typed wire body for saved and current sounds versions."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/apimartAudios.ts",
+      "entry_point": "suno-sounds-v5.5 and current sounds declarations",
+      "disposition": "enforced",
+      "evidence": "All versions refer to SUNO_SOUNDS_BODY."
+    },
+    {
+      "path": "electron/catalog/apimartAudios.ts",
+      "entry_point": "TTS_CREATE and Lyria declaration",
+      "disposition": "not-affected",
+      "evidence": "Their wire fields match independently fetched official contracts and are checked by the same field-set test."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "A new version or endpoint can repeat a canonical/wire naming mismatch.",
+    "same_class_scan": [
+      "rg sound_type/sound_tempo/sound_key electron/shared/modelArchetypes and electron/catalog",
+      "Inspected TTS_CREATE, Lyria and kieSunoAudio declarations; canonical and wire names have different owners."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/apimartAudios.ts",
+    "invariant": "Every Suno sounds version has only official JSON keys.",
+    "failure_mode": "Typed declaration rejects wrong keys at compile time and endpoint contract matrix fails validation.",
+    "exception_policy": "none",
+    "strategy": "Reuse one constrained wire body; preserve stored canonical controls.",
+    "artifacts": [
+      "electron/catalog/apimartAudios.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/apimartLatestContracts.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/apimartLatestContracts.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/apimartAudios.ts"
+    ],
+    "rationale": "Removed old sound_* wire properties; canonical controls remain compatible."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Plain declaration data; no third-party runtime change.",
+    "exit_criteria": []
+  },
+  "migration": "Same existing model key and mapping id reconcile in place with corrected wire properties; new V6 keys never overwrite saved nodes.",
+  "residual_risks": [
+    "Official V6 endpoints do not enumerate V5.5 support; retained legacy requests require coordinator live verification.",
+    "Only first audio result is consumed by existing D operation."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-07",
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/apimartAudios.ts",
+    "tests": [
+      "electron/catalog/apimartLatestContracts.test.ts"
+    ],
+    "why": "The declaration owns wire property names; the shared request builder only renders them."
+  }
+}

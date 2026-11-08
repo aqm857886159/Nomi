@@ -60,6 +60,14 @@ const SIZE = "{{request.params.size}}";
 const RESOLUTION = "{{request.params.resolution}}";
 const QUALITY = "{{request.params.quality}}"; // GPT Image 2.5 专属质量档（kie 那四个端点没有这个字段）
 const BACKGROUND = "{{request.params.background}}"; // 透明/不透明/自动
+const ASPECT_RATIO = "{{request.params.aspect_ratio}}";
+// 「不选就不发」的比例：官方明说不要发 auto：生成框选「自动」，经 omitAuto 不产出改名后的键，body 引用它、整键丢弃。
+const ASPECT_RATIO_OPTIONAL = "{{request.params.aspect_ratio_wire}}";
+const OPTIONAL_ASPECT_PARAM_MAP: ParamMap = { rules: [{ wire: "aspect_ratio_wire", fromMany: ["aspect_ratio"], transform: "omitAuto" }] };
+const GROUNDING = "{{request.params.grounding}}"; // FLUX 3 联网检索（布尔）
+const OUTPUT_FORMAT = "{{request.params.output_format}}";
+const STEPS = "{{request.params.steps}}";
+const SEED = "{{request.params.seed}}"; // 可选种子（无默认 → 未填则模板丢弃）
 const NEGATIVE_PROMPT = "{{request.params.negative_prompt}}"; // 负向提示词（可选，未填则丢弃）
 const IMAGE_URLS = "{{request.params.image_urls}}"; // 改图模式的输入图数组（档案 slot inputKey=image_urls）
 
@@ -163,6 +171,83 @@ export const APIMART_IMAGE_MODELS: ApimartImageModel[] = [
     t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
     editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
     paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
+  }),
+  // GPT Image 2.6 Flare（2026-11-07 照 docs.apimart.ai gpt-image-2.6/generation.md）：形状同 2.5，2.5 保留为上一代。
+  imageModel({
+    modelKey: "gpt-image-2.6-flare", labelZh: "GPT Image 2.6 Flare", archetypeId: "gpt-image-2.6-flare",
+    t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
+    editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
+    paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
+  }),
+  // GPT Image 2.6 Sunburst（2026-11-07 照 docs.apimart.ai gpt-image-2.6/generation.md）：形状同 2.5，2.5 保留为上一代。
+  imageModel({
+    modelKey: "gpt-image-2.6-sunburst", labelZh: "GPT Image 2.6 Sunburst", archetypeId: "gpt-image-2.6-sunburst",
+    t2iBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND },
+    editBody: { size: SIZE, resolution: RESOLUTION, quality: QUALITY, background: BACKGROUND, image_urls: "{{request.params.input_urls}}" },
+    paramMap: GPT_IMAGE_25_APIMART_PARAM_MAP,
+  }),
+  // ── 2026-11-07 最新代补齐（各自照 docs.apimart.ai 当日官方页对账；单 model id 双模式，给 image_urls 即改图）──
+  // Nano Banana 2.1：official（token 计费，n 1–4）/ Ext（逐张计费，n 只能 1）；Nano Banana 2 是上一代，保留可选。
+  imageModel({
+    modelKey: "gemini-nano-banana-2.1", labelZh: "Nano Banana 2.1", archetypeId: "gemini-nano-banana-2.1",
+    t2iBody: { size: SIZE, resolution: RESOLUTION },
+    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS },
+  }),
+  imageModel({
+    modelKey: "gemini-nano-banana-2.1-ext", labelZh: "Nano Banana 2.1 Ext", archetypeId: "gemini-nano-banana-2.1-ext",
+    t2iBody: { size: SIZE, resolution: RESOLUTION },
+    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS },
+  }),
+  // Nano Banana Lite（Gemini 3.1 最便宜档）：只出 1K，不发 resolution；ratio 字段 size。
+  imageModel({
+    modelKey: "gemini-3.1-flash-lite-image", labelZh: "Nano Banana Lite", archetypeId: "gemini-3.1-flash-lite-image",
+    t2iBody: { size: SIZE },
+    editBody: { size: SIZE, image_urls: IMAGE_URLS },
+  }),
+  imageModel({
+    modelKey: "gemini-3.1-flash-lite-image-ext", labelZh: "Nano Banana Lite Ext", archetypeId: "gemini-3.1-flash-lite-image-ext",
+    t2iBody: { size: SIZE },
+    editBody: { size: SIZE, image_urls: IMAGE_URLS },
+  }),
+  // FLUX 3：字段名 aspect_ratio（官方 size 只是它的兼容别名，二选一，只发一个）；标准版带 grounding，Klein 带 steps / seed / output_format。
+  imageModel({
+    modelKey: "flux-3-image", labelZh: "FLUX 3", archetypeId: "flux-3-image",
+    t2iBody: { aspect_ratio: ASPECT_RATIO, resolution: RESOLUTION, grounding: GROUNDING },
+    editBody: { aspect_ratio: ASPECT_RATIO, resolution: RESOLUTION, grounding: GROUNDING, image_urls: IMAGE_URLS },
+  }),
+  imageModel({
+    modelKey: "flux-3-image-klein", labelZh: "FLUX 3 Klein", archetypeId: "flux-3-image-klein",
+    t2iBody: { aspect_ratio: ASPECT_RATIO, resolution: RESOLUTION, output_format: OUTPUT_FORMAT, steps: STEPS, seed: SEED },
+    editBody: { aspect_ratio: ASPECT_RATIO, resolution: RESOLUTION, output_format: OUTPUT_FORMAT, steps: STEPS, seed: SEED, image_urls: IMAGE_URLS },
+  }),
+  // Grok Imagine Image 2.0 官方通道：quality 只在文生图发（官方：带 image_urls 时不能发）。
+  imageModel({
+    modelKey: "grok-imagine-image-2.0", labelZh: "Grok Imagine Image 2.0 官方", archetypeId: "grok-imagine-image-2.0-official",
+    t2iBody: { aspect_ratio: ASPECT_RATIO, resolution: RESOLUTION, quality: QUALITY },
+    editBody: { aspect_ratio: ASPECT_RATIO, resolution: RESOLUTION, image_urls: IMAGE_URLS },
+  }),
+  imageModel({
+    modelKey: "hy-image-v3.5-preview", labelZh: "混元图像 3.5", archetypeId: "hy-image-v3.5-preview",
+    t2iBody: { size: SIZE, resolution: RESOLUTION },
+    editBody: { size: SIZE, resolution: RESOLUTION, image_urls: IMAGE_URLS },
+  }),
+  // Muse Image Ext：比例没选就不发（官方不收 auto，也不收 resolution）。
+  imageModel({
+    modelKey: "muse-image-ext", labelZh: "Muse Image", archetypeId: "muse-image-ext",
+    t2iBody: { aspect_ratio: ASPECT_RATIO_OPTIONAL },
+    editBody: { aspect_ratio: ASPECT_RATIO_OPTIONAL, image_urls: IMAGE_URLS },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
+  }),
+  // 万相 2.7 图像：改图比例跟随最后一张输入图，所以改图 body 不发 size。
+  imageModel({
+    modelKey: "wan2.7-image", labelZh: "万相 2.7 图像", archetypeId: "wan2.7-image",
+    t2iBody: { size: SIZE, resolution: RESOLUTION },
+    editBody: { resolution: RESOLUTION, image_urls: IMAGE_URLS },
+  }),
+  imageModel({
+    modelKey: "wan2.7-image-pro", labelZh: "万相 2.7 图像 Pro", archetypeId: "wan2.7-image-pro",
+    t2iBody: { size: SIZE, resolution: RESOLUTION },
+    editBody: { resolution: RESOLUTION, image_urls: IMAGE_URLS },
   }),
   // Gemini 3 Pro Image（2026-09-18 照 docs.apimart.ai gemini-3-pro/generation.md 对账）：
   // 复用已有档案 `gemini-image-3-pro`（原只有 Runway 一条线，见 runwayNativeImage.ts 文件头的
