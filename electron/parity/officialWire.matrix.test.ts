@@ -15,6 +15,7 @@
  *
  * 已知红格在 officialWire.known-red.json，按结构化原因及出现次数双向冻结：
  * 表里有但这格其实绿了，同样判红——修好一格就必须同提交把它从表里删掉。
+ * fixtureGaps 单列“无官方夹具”的模型模式，原因同样双向冻结；这些格子没量过。
  * 本片只加测试，不改生产代码。
  *
  * 双键探针（预测 P1：带 first/last 帧或角色的模式，画布路会把同一张图既放 image_urls 又放 image_with_roles）扩到全部模式的结果：
@@ -54,6 +55,7 @@ import knownRedTable from "./officialWire.known-red.json";
 import { ASSERTIONS, judgeBody, judgePaths, isRefused, reasonSignatures, type Fact, type ModeFact, type ModelFixture, type Violation, type Wire } from "../../tests/parity/officialWireJudge";
 type KnownRed = {
   repros: Record<string, string>;
+  fixtureGaps: Array<{ modelMode: string; reason: Record<string, unknown> }>;
   cells: Array<{ cell: string; assertion: string; repro: number | string; reason: Record<string, unknown> }>;
 };
 
@@ -61,6 +63,7 @@ type KnownRed = {
 const fixtureModules = import.meta.glob<{ default: ModelFixture }>("../../tests/fixtures/vendor-official/apimart/*.json", { eager: true });
 const fixtures = new Map<string, ModelFixture>(Object.values(fixtureModules).map((m) => [m.default.modelKey, m.default] as const));
 const knownRed = knownRedTable as KnownRed;
+const missingFixtureReason = { key: "fixture", kind: "无官方夹具" };
 
 const REF = "https://assets.example.com/ref/";
 const refUrl = (i: number) => `${REF}img-${i}.png`;
@@ -168,7 +171,7 @@ async function runCatalog(entry: ReturnType<typeof buildCells>[number]): Promise
 
 function judgeCell(entry: ReturnType<typeof buildCells>[number], canvas: Wire, run: Wire): Violation[] {
   const fx = fixtures.get(entry.cell.modelKey)?.modes[entry.cell.modeId];
-  if (!fx) return [{ assertion: "officialKeys", reason: { key: "fixture" }, detail: "没有官方夹具" }];
+  if (!fx) return [{ assertion: "officialKeys", reason: missingFixtureReason, detail: "无官方夹具：没量过" }];
   const out: Violation[] = [];
   for (const [label, wire] of [["画布", canvas], ["Run", run]] as const) {
     if (isRefused(wire)) continue;
@@ -185,17 +188,18 @@ const redByCell = new Map<string, typeof knownRed.cells>();
 for (const r of knownRed.cells) redByCell.set(r.cell, [...(redByCell.get(r.cell) ?? []), r]);
 
 describe("官方字段矩阵：夹具", () => {
-  it("每个内置 APIMart 图片/视频模型和每个原型模式都有官方夹具，夹具里没有多余模式", () => {
+  it("每个内置 APIMart 图片/视频模型模式的官方夹具或缺口登记逐项相符，夹具里没有多余模式", () => {
     const wanted = new Map<string, Set<string>>();
     for (const { cell } of cells) wanted.set(cell.modelKey, (wanted.get(cell.modelKey) ?? new Set()).add(cell.modeId));
-    const missing: string[] = [];
+    const missing: KnownRed["fixtureGaps"] = [];
     for (const [model, modes] of wanted) {
       const fx = fixtures.get(model);
-      for (const m of modes) if (!fx?.modes[m]) missing.push(`${model}/${m}`);
+      for (const m of modes) if (!fx?.modes[m]) missing.push({ modelMode: `${model}|${m}`, reason: missingFixtureReason });
     }
     const extra: string[] = [];
     for (const [model, fx] of fixtures) for (const m of Object.keys(fx.modes)) if (!wanted.get(model)?.has(m)) extra.push(`${model}/${m}`);
-    expect({ missing, extra }).toEqual({ missing: [], extra: [] });
+    const byMode = (a: KnownRed["fixtureGaps"][number], b: KnownRed["fixtureGaps"][number]) => a.modelMode.localeCompare(b.modelMode);
+    expect({ missing: missing.sort(byMode), extra }).toEqual({ missing: [...knownRed.fixtureGaps].sort(byMode), extra: [] });
   });
 
   it("每条官方事实都有官方页地址、抓取日期和原句", () => {
@@ -248,12 +252,14 @@ describe("官方字段矩阵：夹具", () => {
 
 describe("官方字段矩阵：模型 × 模式 × 两条路 × 参考图数", () => {
   for (const entry of cells) {
-    it(entry.cell.id, async () => {
+    const gap = knownRed.fixtureGaps.find((g) => g.modelMode === `${entry.cell.modelKey}|${entry.cell.modeId}`);
+    it(entry.cell.id + (gap ? "（无官方夹具：没量过）" : ""), async () => {
       const canvas = await runCanvas(entry);
       const run = await runCatalog(entry);
       const violations = judgeCell(entry, canvas, run);
       if (dumpPath) dump.push({ cell: entry.cell.id, violations, canvas, run });
-      expect(reasonSignatures(violations), `known-red 原因特征必须逐项相符；消失、新增或同名换因都要更新经复核的登记\n${violations.map((v) => `${v.assertion}: ${v.detail}`).join("\n")}`).toEqual(reasonSignatures(redByCell.get(entry.cell.id) ?? []));
+      const expected = [...(redByCell.get(entry.cell.id) ?? []), ...(gap ? [{ assertion: "officialKeys", reason: gap.reason }] : [])];
+      expect(reasonSignatures(violations), `known-red 原因特征必须逐项相符；消失、新增或同名换因都要更新经复核的登记\n${violations.map((v) => `${v.assertion}: ${v.detail}`).join("\n")}`).toEqual(reasonSignatures(expected));
     }, 60_000);
   }
 });

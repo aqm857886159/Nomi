@@ -7,702 +7,433 @@
     "5a": "模式判别值/默认值丢失：参考意图被 generation_type=frame 解读成帧族，含连带的帧容量错误",
     "5b": "参考投影/准入拒发，原因待确认：Gemini 3 Pro 的 Run 路报参考图发不出，画布路发出"
   },
-  "cells": [
+  "cells": [],
+  "fixtureGaps": [
     {
-      "cell": "gpt-image-2|i2i|n=16",
-      "assertion": "countCap",
-      "repro": 4,
+      "modelMode": "flux-3-image-klein|i2i",
       "reason": {
-        "path": "canvas",
-        "key": "image_urls",
-        "count": 16,
-        "max": 15
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "gpt-image-2|i2i|n=16",
-      "assertion": "countCap",
-      "repro": 4,
+      "modelMode": "flux-3-image-klein|t2i",
       "reason": {
-        "path": "run",
-        "key": "image_urls",
-        "count": 16,
-        "max": 15
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "gemini-3-pro-image-preview|i2i|n=1",
-      "assertion": "samePath",
-      "repro": "5b",
+      "modelMode": "flux-3-image|i2i",
       "reason": {
-        "refused": "run",
-        "failure": {
-          "code": "apimart_provider_error",
-          "kind": "reference_projection_refusal",
-          "media": "image"
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "gemini-3-pro-image-preview|i2i|n=14",
-      "assertion": "samePath",
-      "repro": "5b",
+      "modelMode": "flux-3-image|t2i",
       "reason": {
-        "refused": "run",
-        "failure": {
-          "code": "apimart_provider_error",
-          "kind": "reference_projection_refusal",
-          "media": "image"
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "veo3.1-fast|frame|n=1",
-      "assertion": "samePath",
-      "repro": 2,
+      "modelMode": "flux-3-video|i2v",
       "reason": {
-        "refused": "run",
-        "failure": {
-          "code": "apimart_provider_error",
-          "kind": "unsupported_reference_role",
-          "role": "first_frame"
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "veo3.1-fast|frame|n=2",
-      "assertion": "samePath",
-      "repro": 2,
+      "modelMode": "flux-3-video|t2v",
       "reason": {
-        "refused": "run",
-        "failure": {
-          "code": "apimart_provider_error",
-          "kind": "unsupported_reference_role",
-          "role": "first_frame"
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.0|firstlast|n=1",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "gemini-3.1-flash-lite-image-ext|i2i",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.0|firstlast|n=1",
-      "assertion": "exclusivePairs",
-      "repro": 3,
+      "modelMode": "gemini-3.1-flash-lite-image-ext|t2i",
       "reason": {
-        "path": "canvas",
-        "a": [
-          "image_urls"
-        ],
-        "b": [
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.0|firstlast|n=1",
-      "assertion": "samePath",
-      "repro": 3,
+      "modelMode": "gemini-3.1-flash-lite-image|i2i",
       "reason": {
-        "differences": {
-          "image_urls": {
-            "canvas": [
-              "https://assets.example.com/ref/img-1.png"
-            ],
-            "run": null
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.0|firstlast|n=2",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "gemini-3.1-flash-lite-image|t2i",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.0|firstlast|n=2",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "gemini-nano-banana-2.1-ext|i2i",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-2.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.0|firstlast|n=2",
-      "assertion": "exclusivePairs",
-      "repro": 3,
+      "modelMode": "gemini-nano-banana-2.1-ext|t2i",
       "reason": {
-        "path": "canvas",
-        "a": [
-          "image_urls"
-        ],
-        "b": [
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.0|firstlast|n=2",
-      "assertion": "samePath",
-      "repro": 3,
+      "modelMode": "gemini-nano-banana-2.1|i2i",
       "reason": {
-        "differences": {
-          "image_urls": {
-            "canvas": [
-              "https://assets.example.com/ref/img-1.png",
-              "https://assets.example.com/ref/img-2.png"
-            ],
-            "run": null
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|first|n=1",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "gemini-nano-banana-2.1|t2i",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|first|n=1",
-      "assertion": "modeMeaning",
-      "repro": 3,
+      "modelMode": "gemini-omni-1.2-flash-ext|firstlast",
       "reason": {
-        "path": "canvas",
-        "key": "image_urls",
-        "role": "reference_image",
-        "expected": [
-          "first_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|first|n=1",
-      "assertion": "samePath",
-      "repro": 3,
+      "modelMode": "gemini-omni-1.2-flash-ext|i2v",
       "reason": {
-        "differences": {
-          "image_urls": {
-            "canvas": [
-              "https://assets.example.com/ref/img-1.png"
-            ],
-            "run": null
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|firstlast|n=1",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "gemini-omni-1.2-flash-ext|reference",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|firstlast|n=1",
-      "assertion": "modeMeaning",
-      "repro": 3,
+      "modelMode": "gemini-omni-1.2-flash-ext|t2v",
       "reason": {
-        "path": "canvas",
-        "key": "image_urls",
-        "role": "reference_image",
-        "expected": [
-          "first_frame",
-          "last_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|firstlast|n=1",
-      "assertion": "samePath",
-      "repro": 3,
+      "modelMode": "gemini-omni-1.2-flash|firstlast",
       "reason": {
-        "differences": {
-          "image_urls": {
-            "canvas": [
-              "https://assets.example.com/ref/img-1.png"
-            ],
-            "run": null
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|firstlast|n=2",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "gemini-omni-1.2-flash|i2v",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|firstlast|n=2",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "gemini-omni-1.2-flash|reference",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-2.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|firstlast|n=2",
-      "assertion": "modeMeaning",
-      "repro": 3,
+      "modelMode": "gemini-omni-1.2-flash|t2v",
       "reason": {
-        "path": "canvas",
-        "key": "image_urls",
-        "role": "reference_image",
-        "expected": [
-          "first_frame",
-          "last_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|firstlast|n=2",
-      "assertion": "modeMeaning",
-      "repro": 3,
+      "modelMode": "gpt-image-2.6-flare|i2i",
       "reason": {
-        "path": "canvas",
-        "key": "image_urls",
-        "role": "reference_image",
-        "expected": [
-          "first_frame",
-          "last_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "doubao-seedance-2.5|firstlast|n=2",
-      "assertion": "samePath",
-      "repro": 1,
+      "modelMode": "gpt-image-2.6-flare|t2i",
       "reason": {
-        "refused": "run",
-        "failure": {
-          "code": "apimart_provider_error",
-          "kind": "reference_capacity",
-          "max": 1
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=1",
-      "assertion": "officialKeys",
-      "repro": 3,
+      "modelMode": "gpt-image-2.6-sunburst|i2i",
       "reason": {
-        "path": "canvas",
-        "key": "image_urls"
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=1",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "gpt-image-2.6-sunburst|t2i",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=1",
-      "assertion": "roleEnum",
-      "repro": 2,
+      "modelMode": "grok-imagine-image-2.0|i2i",
       "reason": {
-        "path": "run",
-        "key": "image_with_roles",
-        "role": "reference",
-        "allowed": [
-          "reference_image",
-          "first_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=1",
-      "assertion": "samePath",
-      "repro": 3,
+      "modelMode": "grok-imagine-image-2.0|t2i",
       "reason": {
-        "differences": {
-          "image_urls": {
-            "canvas": [
-              "https://assets.example.com/ref/img-1.png"
-            ],
-            "run": null
-          },
-          "image_with_roles": {
-            "canvas": [
-              {
-                "url": "https://assets.example.com/ref/img-1.png",
-                "role": "reference_image"
-              }
-            ],
-            "run": [
-              {
-                "url": "https://assets.example.com/ref/img-1.png",
-                "role": "reference"
-              }
-            ]
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=5",
-      "assertion": "roleEnum",
-      "repro": 2,
+      "modelMode": "grok-imagine-video-1.5|i2v",
       "reason": {
-        "path": "run",
-        "key": "image_with_roles",
-        "role": "reference",
-        "allowed": [
-          "reference_image",
-          "first_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=5",
-      "assertion": "roleEnum",
-      "repro": 2,
+      "modelMode": "grok-imagine-video-1.5|t2v",
       "reason": {
-        "path": "run",
-        "key": "image_with_roles",
-        "role": "reference",
-        "allowed": [
-          "reference_image",
-          "first_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=5",
-      "assertion": "roleEnum",
-      "repro": 2,
+      "modelMode": "hy-image-v3.5-preview|i2i",
       "reason": {
-        "path": "run",
-        "key": "image_with_roles",
-        "role": "reference",
-        "allowed": [
-          "reference_image",
-          "first_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=5",
-      "assertion": "roleEnum",
-      "repro": 2,
+      "modelMode": "hy-image-v3.5-preview|t2i",
       "reason": {
-        "path": "run",
-        "key": "image_with_roles",
-        "role": "reference",
-        "allowed": [
-          "reference_image",
-          "first_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=5",
-      "assertion": "roleEnum",
-      "repro": 2,
+      "modelMode": "kling-v4|i2v",
       "reason": {
-        "path": "run",
-        "key": "image_with_roles",
-        "role": "reference",
-        "allowed": [
-          "reference_image",
-          "first_frame"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan2.7|ref|n=5",
-      "assertion": "samePath",
-      "repro": 1,
+      "modelMode": "kling-v4|t2v",
       "reason": {
-        "refused": "canvas",
-        "failure": {
-          "code": "Error",
-          "kind": "reference_capacity",
-          "max": 2
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|first|n=1",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "muse-image-ext|i2i",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|first|n=1",
-      "assertion": "countCap",
-      "repro": 3,
+      "modelMode": "muse-image-ext|t2i",
       "reason": {
-        "path": "canvas",
-        "role": "first_frame",
-        "count": 2,
-        "max": 1
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|first|n=1",
-      "assertion": "samePath",
-      "repro": 3,
+      "modelMode": "muse-video-ext|i2v",
       "reason": {
-        "differences": {
-          "image_urls": {
-            "canvas": [
-              "https://assets.example.com/ref/img-1.png"
-            ],
-            "run": null
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|firstlast|n=1",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "muse-video-ext|t2v",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|firstlast|n=1",
-      "assertion": "countCap",
-      "repro": 3,
+      "modelMode": "pixverse-v6-max|i2v",
       "reason": {
-        "path": "canvas",
-        "role": "first_frame",
-        "count": 2,
-        "max": 1
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|firstlast|n=1",
-      "assertion": "samePath",
-      "repro": 3,
+      "modelMode": "pixverse-v6-max|t2v",
       "reason": {
-        "differences": {
-          "image_urls": {
-            "canvas": [
-              "https://assets.example.com/ref/img-1.png"
-            ],
-            "run": null
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|firstlast|n=2",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "pixverse-v6|firstlast",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-1.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|firstlast|n=2",
-      "assertion": "oneKeyPerUrl",
-      "repro": 3,
+      "modelMode": "pixverse-v6|i2v",
       "reason": {
-        "path": "canvas",
-        "url": "https://assets.example.com/ref/img-2.png",
-        "keys": [
-          "image_urls",
-          "image_with_roles"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|firstlast|n=2",
-      "assertion": "countCap",
-      "repro": 3,
+      "modelMode": "pixverse-v6|t2v",
       "reason": {
-        "path": "canvas",
-        "role": "first_frame",
-        "count": 2,
-        "max": 1
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|firstlast|n=2",
-      "assertion": "countCap",
-      "repro": 3,
+      "modelMode": "veo3.1-fast-official|i2v",
       "reason": {
-        "path": "canvas",
-        "role": "last_frame",
-        "count": 2,
-        "max": 1
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|firstlast|n=2",
-      "assertion": "samePath",
-      "repro": 1,
+      "modelMode": "veo3.1-fast-official|t2v",
       "reason": {
-        "refused": "run",
-        "failure": {
-          "code": "apimart_provider_error",
-          "kind": "reference_capacity",
-          "max": 1
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|ref|n=1",
-      "assertion": "modeMeaning",
-      "repro": "5a",
+      "modelMode": "veo3.1-quality-official|i2v",
       "reason": {
-        "path": "run",
-        "key": "image_urls",
-        "role": "first_frame",
-        "expected": [
-          "reference_image",
-          "reference_video",
-          "reference_audio",
-          "file",
-          "link"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|ref|n=1",
-      "assertion": "samePath",
-      "repro": "5a",
+      "modelMode": "veo3.1-quality-official|t2v",
       "reason": {
-        "differences": {
-          "generation_type": {
-            "canvas": "reference",
-            "run": "frame"
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|ref|n=10",
-      "assertion": "countCap",
-      "repro": "5a",
+      "modelMode": "viduq3-pro|i2v",
       "reason": {
-        "path": "run",
-        "key": "image_urls",
-        "count": 10,
-        "max": 2
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|ref|n=10",
-      "assertion": "modeMeaning",
-      "repro": "5a",
+      "modelMode": "viduq3-pro|t2v",
       "reason": {
-        "path": "run",
-        "key": "image_urls",
-        "role": "first_frame",
-        "expected": [
-          "reference_image",
-          "reference_video",
-          "reference_audio",
-          "file",
-          "link"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|ref|n=10",
-      "assertion": "modeMeaning",
-      "repro": "5a",
+      "modelMode": "viduq3-turbo|i2v",
       "reason": {
-        "path": "run",
-        "key": "image_urls",
-        "role": "last_frame",
-        "expected": [
-          "reference_image",
-          "reference_video",
-          "reference_audio",
-          "file",
-          "link"
-        ]
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     },
     {
-      "cell": "wan3.0-video|ref|n=10",
-      "assertion": "samePath",
-      "repro": "5a",
+      "modelMode": "viduq3-turbo|t2v",
       "reason": {
-        "differences": {
-          "generation_type": {
-            "canvas": "reference",
-            "run": "frame"
-          }
-        }
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "viduq4-preview|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "viduq4-preview|ref",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan2.7-image-pro|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan2.7-image-pro|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan2.7-image|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan2.7-image|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan3.0-video-prime|first",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan3.0-video-prime|firstlast",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan3.0-video-prime|ref",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan3.0-video-prime|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
       }
     }
   ]
