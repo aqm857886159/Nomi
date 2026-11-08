@@ -5,7 +5,7 @@
 // 槽 / candidate 带不带角色参考 / 时长估计。全是纯函数（吃 candidate + 候选快照，零副作用、零 provider 调用），
 // preview/gate/多镜密封都靠它当单一真相源。mcpGenerationTools.ts 与 mcpGenerationMultiShot.ts 单向 import。
 
-import { GENERATION_ARGUMENT_REFUSAL, refuseToModel } from "./transportFailure";
+import { refuseArgument, refuseGeneration } from "./transportFailure";
 import { ContractCompilationError, type ExecutionContractCompileOptions, type PlanCandidate } from "./executionContract";
 import type { ParameterField } from "./moduleManifest";
 import type { ResolvedModule } from "./moduleRegistry";
@@ -154,6 +154,7 @@ export function videoCandidateForPlan(candidate: PlanCandidate, candidates: read
       `变体 ${requested} 不属于 ${candidate.providerId}/${candidate.modelId}。`
       + `该模型的变体：${allowedVariantIds.length ? allowedVariantIds.join("、") : "（这个模型没有变体，请不要传 variantId）"}。`,
       { code: "unknown_variant", path: "variantId", allowedVariantIds },
+      { code: "parameter_not_allowed", field: "variantId", allowed: allowedVariantIds, detail: "unknown variant" },
     );
   }
   // 付费卡与画布问的是同一个函数、同一组输入（variantId + 模型名）。以前这里拿目录模型名反推，
@@ -186,7 +187,10 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
   const requestedModeId = typeof candidate.modeId === "string" ? candidate.modeId.trim() : "";
   if (requestedModeId) {
     const mode = modes.find((item) => normalizedMode(item.id) === normalizedMode(requestedModeId));
-    if (!mode) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Unknown video mode: ${candidate.modeId}. Allowed for this model: ${modes.map((item) => item.id).join(", ")}.`);
+    if (!mode) {
+      refuseGeneration({ code: "mode_not_in_model", field: "modeId", model: `${candidate.providerId}/${candidate.modelId}`,
+        value: requestedModeId, allowed: modes.map((item) => item.id) });
+    }
     const requestedTransport = normalizedTaskKind(candidate.mode);
     // 传输键只许经 owner 算（`modeTransport.ts` 自己写着 "Callers **must** route through this helper"）。
     // 手写 `mode.transportTaskKind` 会漏掉 vendor 特化那一轴，于是**按 owner 算出传输键的调用方反而被拒**。
@@ -196,9 +200,9 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
       // 「Video mode omni is a **undefined** mode」——一句想帮忙的话把 undefined 递给了模型。
       // 说得出种类就说，说不出就只说哪两样对不上，绝不插值一个不存在的值。
       const kind = modeTransport.trim();
-      refuseToModel(GENERATION_ARGUMENT_REFUSAL, kind
+      refuseArgument(kind
         ? `Video mode ${candidate.modeId} is a ${kind} mode, but this shot asks for ${candidate.mode}. Set taskKind to ${kind}, or drop modeId and let Nomi pick.`
-        : `Video mode ${candidate.modeId} does not go with taskKind ${candidate.mode} on this model. Drop taskKind (the mode already decides it), or drop modeId and let Nomi pick.`);
+        : `Video mode ${candidate.modeId} does not go with taskKind ${candidate.mode} on this model. Drop taskKind (the mode already decides it), or drop modeId and let Nomi pick.`, { field: "taskKind" });
     }
     return mode;
   }
@@ -207,7 +211,10 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
   if (byId) return byId;
   const byTask = modes.filter((item) => normalizedTaskKind(item.transportTaskKind) === normalizedTaskKind(candidate.mode));
   if (byTask.length === 1) return byTask[0]!;
-  if (byTask.length === 0) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `This model cannot do ${candidate.mode}. It supports: ${modes.map((item) => (item.transportTaskKind ? `${item.id} (${item.transportTaskKind})` : item.id)).join(", ")}.`);
+  if (byTask.length === 0) {
+    refuseGeneration({ code: "mode_not_in_model", field: "taskKind", model: `${candidate.providerId}/${candidate.modelId}`,
+      value: candidate.mode, allowed: modes.map((item) => (item.transportTaskKind ? `${item.id} (${item.transportTaskKind})` : item.id)) });
+  }
 
   // Legacy drafts may not have modeId. Use the same recommendation facts as
   // preview, but only among modes that actually share this transport task.
@@ -223,7 +230,8 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
   const declaredDefault = modes.find((mode) => normalizedMode(mode.id) === normalizedMode(videoCandidate.archetype.defaultModeId)
     && byTask.includes(mode));
   if (declaredDefault) return declaredDefault;
-  refuseToModel(GENERATION_ARGUMENT_REFUSAL, `${candidate.mode} has several modes on this model; set modeId to one of: ${byTask.map((item) => item.id).join(", ")}.`);
+  refuseArgument(`${candidate.mode} has several modes on this model; set modeId to one of: ${byTask.map((item) => item.id).join(", ")}.`,
+    { field: "modeId", allowed: byTask.map((item) => item.id) });
 }
 
 export function normalizeVideoCandidate(candidate: PlanCandidate, candidates: readonly VideoModelCandidate[] | undefined): PlanCandidate {
