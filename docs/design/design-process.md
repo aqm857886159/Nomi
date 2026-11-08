@@ -1,10 +1,12 @@
-# Nomi 设计工作法 v1
+# Nomi 设计工作法 v1.2
 
-原始 Page：https://cursor.com/canvas/store-00762119-eb30-452e-aa01-a97199c2c1d7/6f161e79-710e-4bc3-956d-4e7678cba62c
+来源 Page：https://cursor.com/canvas/store-00762119-eb30-452e-aa01-a97199c2c1d7/6f161e79-710e-4bc3-956d-4e7678cba62c
 
-导出日期：2026-11-09，Asia/Taipei。本文完整导出该 Page 当前正文；下文“本轮”“现在”等状态指原 Page 编写时的研究快照。当前交付为文档 PR 准备，不代表已审阅产品代码或实施方案。入库后以本 Markdown 为维护主版本，原 Page 保留为来源快照；不要求双份维护。
+完整内容导出日期：2026-11-09（Asia/Taipei）。仓库 Markdown 后续作为维护主版本；本导出保留 Page 全部章节。
 
 从大量参考收敛原创方向，再用完整状态、统一组件与真实测试把品质落地。供后续产品审阅与团队迭代；不是已经验证的 Nomi 改造方案。
+
+与仓库既有规范的关系：页面从想法做到可交付，仍以 [`docs/design/page-design-process.md`](page-design-process.md) 的七道闸为准，含其中的「视觉稿先行」。本文是补充的参考研究、交互状态契约和验收摘录，不替代那七道闸，也不另开第八道闸。第 4 节的九段顺序只供研究时对照；第 5、8、11、12 节的状态、验收和 motion 契约，只在七闸之内使用。入库时只读了这份流程文档来加这一句，没有审阅产品代码、界面或定位。
 
 ## 目录
 
@@ -18,16 +20,17 @@
 - [8. 质量门槛与验证](#quality)
 - [9. 一个闭环的试点路线](#pilot)
 - [10. 来源与下一步](#sources)
+- [11. 开源交互参考与集成门槛](#opensource)
+- [12. X 核心证据与 motion 契约](#xmotion)
 
 <a id="scope"></a>
 
 ## 1. 目标与证据边界
 
-> **把顶尖变成工作标准，而不是效果保证**
->
-> 清晰的产品识别、任务效率、交互完整、一致性、可访问性和性能必须同时成立。漂亮截图和 AI 自评分不能证明这些目标已经实现。
+**把顶尖变成工作标准，而不是效果保证**
+清晰的产品识别、任务效率、交互完整、一致性、可访问性和性能必须同时成立。漂亮截图和 AI 自评分不能证明这些目标已经实现。
 
-版本日期：2026 年 11 月 9 日，Asia/Taipei。已研究 kaolti 原创设计案例、四个公开资源站，以及 W3C 与 web.dev 官方资料。本页给出默认方法、产物与退出条件；实际设计方向仍需产品证据支持。
+版本日期：2026 年 11 月 9 日，Asia/Taipei；v1.2 合并开源研究与新一轮 X 证据、三条二手视频核对。已研究 kaolti、四个公开资源站、W3C 与 web.dev，并核实十个公开项目、深读其中七个的 README/LICENSE/官方资料。本页给出默认方法、产物与退出条件；实际设计方向仍需产品证据支持。
 
 | 证据 | 当前状态 |
 | --- | --- |
@@ -85,6 +88,8 @@ Scrolltide 已公开官方 MCP 文档：年付/终身可授权搜索与获取覆
 
 ## 4. 端到端工作流程
 
+下面是参考研究里的工作顺序，不是页面七闸的替代。用户可见界面仍走 [`page-design-process.md`](page-design-process.md)。
+
 | 阶段与负责人 | 动作 / 输出 | 下一阶段门槛 |
 | --- | --- | --- |
 | 1 任务 brief · 产品决定，AI 起草 | 现状、用户目标、失败成本、范围与非目标；确定成功/回退条件 | 一项可观察的问题，不是泛称高级感 |
@@ -126,7 +131,7 @@ Scrolltide 已公开官方 MCP 文档：年付/终身可授权搜索与获取覆
 
 ## 6. 视觉与动效统一
 
-唯一规范源记录：语义色彩（内容/表面/边界/焦点/状态）、字体角色、间距与密度、层级、形状、图标、内容措辞、组件 variants、响应式规则和动效类别。先盘点后复用；新页面必须声明使用的规范版本与例外。
+在本仓库里，设计系统规范源仍是 `docs/design/nomi-design-system.md`，不由本文另立一套 token。一份规范源应记下：语义色彩（内容/表面/边界/焦点/状态）、字体角色、间距与密度、层级、形状、图标、内容措辞、组件 variants、响应式规则和动效类别。先盘点后复用；新页面必须声明使用的规范版本与例外。
 
 | 动效类别 | 允许目的 / 默认边界 |
 | --- | --- |
@@ -139,7 +144,7 @@ Scrolltide 已公开官方 MCP 文档：年付/终身可授权搜索与获取覆
 
 拒绝动画的条件：不能解释状态；遮住内容或改变点击目标；增加等待；频繁打断工作；无法响应反向操作；没有减少动效路径；影响对比度/焦点；真实设备性能退化。删去后任务更清楚，就删去。
 
-工程在平台确认后制定资源、主线程、渲染与能耗预算；Web 指标只用于 Web，原生应用另定平台指标。组件目录或可运行状态展台可采用现有工具；不因本方案强装 Storybook、Playwright、Three.js 或任何框架。
+工程在平台确认后制定资源、主线程、渲染与能耗预算；Web 指标只用于 Web，原生应用另定平台指标。组件目录或可运行状态展台沿用仓库里已有的工具；不因本方案额外安装 Storybook、Playwright、Three.js 或任何框架。
 
 <a id="prompts"></a>
 
@@ -208,7 +213,7 @@ Scrolltide 已公开官方 MCP 文档：年付/终身可授权搜索与获取覆
 
 | 现在可做 | 等待后续证据/授权 |
 | --- | --- |
-| 维护本页、复用已验证公开链接、整理任务与状态模板 | Nomi 产品与仓库审阅：此前未启动，本轮不重试 |
+| 维护本页、复用已验证公开链接、整理任务与状态模板 | Nomi 产品代码、界面与定位未审阅。阅读页面七闸文档只为交叉引用，不算产品审阅 |
 | 用通用内容讨论基线与机制取舍，不声称产品适配 | Refero 登录授权后才使用连接器；不访问其网站旁路 |
 | 以许可允许的链接与原创观察建立参考索引 | 任何付费资料获取、安装工具、代码修改或发布均不由本页自动启动 |
 
@@ -230,4 +235,121 @@ Scrolltide 已公开官方 MCP 文档：年付/终身可授权搜索与获取覆
 - [kaolti · 指标切换与山体原帖](https://x.com/kaolti/status/2115124301061898265)
 - [kaolti · 交互式预览的交付方式](https://x.com/kaolti/status/2116157482066190678)
 
-下一安全动作：在后续允许产品审阅时，先把现有资料映射到第 2 节简报和第 9 节试点规则，确定一个闭环再开设计。Refero 授权不阻止当前规范使用，但其内容不能被假装为已读。本轮只交付可迭代设计流程，不修改仓库、不提交、不启动自动化，也不改已交付研究 ZIP。
+下一安全动作：先将本规范与开源研究补充交给文档 PR 协调者；后续产品审阅另行推进，把真实资料映射到第 2 节简报和第 9 节试点规则。Refero 仍等待授权。本研究执行者未访问 Nomi、未提交代码、未安装依赖、未启动自动化，也不改原已交付 ZIP。后续入库的 Markdown 作为维护主版本，本 Page 保留研究出处。
+
+<a id="opensource"></a>
+
+## 11. 开源交互参考与集成门槛
+
+新增研究：2026 年 11 月 9 日，Asia/Taipei。通过 GitHub 内置工具有限读取公开仓库元数据、README、LICENSE，再读官方网页；未克隆、运行或深挖实现，未验证性能与实际交互。可看 ≠ 可复用 ≠ 可生产；默认不新增运行时依赖。
+
+### 核心发现：transitions.dev 不是整库 MIT
+
+Jakubantalik/transitions.dev 由 Jakub Antalik 维护，官网为 https://transitions.dev/ 。README 定位为可复制 CSS 交互片段及 agent skills；现在首页还包含 Agent、Builder 与付费内容。README 的 12 条表、18 条文件说明与官网 43+ 口径不同，不能把展示数字当成公开免费片段库存。
+
+LICENSE 将 transitions/skills 设为自定义许可：允许个人/商业成品使用和修改，但禁止把集合重新发布为竞争动效库；CLI、agent、Refine、build 等工具目录为 MIT。网站设计、标志与品牌保留权利。Pro/企业使用、模板销售、自动化 Agent 的方案条款需分别核对，不能从工具 MIT 推导所有服务免费开放。默认只做机制参考；获准复用具体免费片段前再次锁定版本与许可。
+
+README 声明 CSS 变量、命名空间及减少动效保护；部分片段有 React，生成式 reveal 有独立运行时，Refine 有本地 relay 与脚本注入。它们不是同一种接入成本。评分类工具衡量自己的规则，不证明用户体验；不得把模拟生成 reveal 伪装成真实任务进度。本轮未执行任何安装命令或启用代码扫描/自动修复。
+
+| 深入项目 / 层次 | 许可、声明栈与条件化选择 |
+| --- | --- |
+| Transitions.dev / 机制配方 | 自定义片段/skills 许可 + 工具 MIT；CSS/可选 React。适合先借鉴状态切换；不整库搬运，不默认安装 agent。 |
+| Motion / 动画运行时 | 仓库 MIT；JavaScript、React、Vue。复杂编排可候选；Motion+ 示例、UI 和付费 API 不因核心开源而自动开放。普通 CSS 足够则不引入。 |
+| AutoAnimate / DOM 布局过渡 | MIT；JS 与多个框架适配。用于直接子节点增删/移动；官方指出 flex-grow 等布局限制。自动动画不替代焦点与删除后恢复。 |
+| Radix Primitives / 行为基础 | MIT；React 无样式 primitives。React 项目可评估键盘/焦点底层；不是品牌皮肤，不为动效替换已可靠组件。 |
+| React Aria / 行为与国际化 | adobe/react-spectrum 仓库 Apache-2.0；React 无样式组件/hooks。适合复杂交互条件；不是必须采用 Adobe 视觉。与 Radix 先择既有兼容方案，不双套管理同一控件。 |
+| Playwright / 验证层 | Apache-2.0；浏览器测试，JS/TS 及其他语言接口。不进入产品运行时；可做触屏/减少动效/失败模拟，不能代替真机、读屏与真实用户测试。不因本文安装或替换仓库里已有的测试工具。 |
+| Open Props / token 参考 | MIT；CSS variables，可提供 JSON/JS。适合研究分级命名与缓动；映射到现有语义 token，不整套替换颜色、reset 与节奏。 |
+
+以上七个均实际读取 README、LICENSE 和官方资料。MIT 复用保留版权与许可声明；Apache-2.0 还需按分发情形保留相关 NOTICE、标示修改。仓库代码许可不自动覆盖第三方示例素材、网站品牌、付费服务或传递依赖；具体资产仍单独核查。
+
+维护线索（GitHub pushed_at，均为 Asia/Taipei UTC+8，不等于发布或质量认证）：Transitions.dev 11/08 19:03；Motion 11/08 22:12；AutoAnimate 11/08 00:55；Radix 10/15 05:52；React Spectrum 11/07 09:04；Playwright 11/09 01:10；Open Props 10/12 07:53，年份均为 2026，仓库均未归档。
+
+补充筛查三项：Anime.js（元数据 MIT，动画引擎）、Lenis（元数据 MIT，平滑滚动），仅在编排或滚动确有需求时再深读许可和文档；Animate.css 实读 LICENSE 为 Hippocratic 2.1，含用途限制，不列为普通宽松开源依赖，元数据最近推送为 2024 年。十项不是十个库一起安装。
+
+### 接入已有流程，而不是另造一套
+
+这里的「已有流程」指 [`page-design-process.md`](page-design-process.md) 的七闸。下面五步说明参考怎样进闸，不是另一条页面流水线。不因本文安装或替换仓库里已有的测试工具。
+
+1. **任务 → 机制检索**：用组件 + 起止状态 + 输入方式 + 约束检索：modal open close focus restore；text state swap reduced motion；list reorder preserve identity；pending success cancel。先找行为基础，再找表现配方。
+2. **证据卡 → 参考包**：新增 owner/repo、规范化 URL、采集日、路径、tag/SHA、许可范围、维护线索、已观察/仅声明、依赖与状态。按仓库+路径+版本+机制去重；未锁版本只可作为候选。参考包只有链接、原创观察与决策，不自动夹带代码或付费素材。
+3. **隔离原型 → token 映射**：经允许后在隔离演示中比较无动效基线和一个机制；先用现有技术。映射来源变量到产品语义 token，保留键盘/焦点/取消逻辑，不混入演示布局和品牌。未审查外部 skill、脚本及网络行为前不安装。
+4. **验证 → 实现包**：复测快速反向、取消竞态、卸载、长内容、触屏、键盘、减少动效和低性能设备；记录包体/主线程/布局与真实性能。实现包才包含获准片段、固定版本、许可/NOTICE 记录、差异说明、测试与移除方案。
+5. **人审 → 再评估入库**：产品确认语义，设计确认调性，工程确认兼容/依赖成本，许可负责人确认分发范围；门槛不通过回到参考层。批准后才进入现有组件目录，不能把多个框架示例直接拼贴。
+
+新增决策门：参考可读门（来源真、版本和证据范围清楚）→ 复用许可门（具体路径/资产允许、无付费越界）→ 原型适配门（产品状态与 token 一致）→ 生产门（测试、性能、维护人、回退齐备）。所有门都有记录，README 的承诺不算实测通过。
+
+### 两个可执行但尚未启动的试点
+
+试点 A：通用“提交输入 → 等待 → 成功/错误/取消”。只借鉴 transitions.dev 的 text states swap 或 spinner-to-check 语义，默认纯 CSS/现有能力；输出状态表、一个中性原型、变量映射与反向/减少动效测试。成功动画只由真实完成信号触发，不能为了展示延迟结果。任务是否属于 Nomi 待产品审阅确认。
+
+试点 B：通用“弹层打开 → 操作 → 关闭”。先复用既有可访问弹层，React 且确有缺口时才比较 Radix 与 React Aria；使用同一表现方案验证 Escape、焦点返回、触屏、连续开关和滚动。Playwright 可作为后续测试工具候选，不在本轮安装。退出条件是完整状态无回归，而非工具得分变高。
+
+- [Transitions.dev · 仓库、README 与 LICENSE](https://github.com/Jakubantalik/transitions.dev)
+- [Transitions.dev · 完整条款](https://transitions.dev/terms.html)
+- [Motion · 开源核心仓库](https://github.com/motiondivision/motion)
+- [Motion · JavaScript 官方文档](https://motion.dev/docs/quick-start)
+- [AutoAnimate · 仓库](https://github.com/formkit/auto-animate)
+- [AutoAnimate · 官方行为与限制](https://auto-animate.formkit.com/)
+- [Radix · 仓库](https://github.com/radix-ui/primitives)
+- [Radix · 官方介绍](https://www.radix-ui.com/primitives/docs/overview/introduction)
+- [React Spectrum / Aria · 仓库](https://github.com/adobe/react-spectrum)
+- [React Aria · 官方文档](https://react-spectrum.adobe.com/react-aria/index.html)
+- [Playwright · 仓库](https://github.com/microsoft/playwright)
+- [Playwright · 环境与减少动效模拟](https://playwright.dev/docs/emulation)
+- [Open Props · 仓库](https://github.com/argyleink/open-props)
+- [Open Props · 官方 token 文档](https://open-props.style/)
+- [Anime.js · 仅初筛](https://github.com/juliangarnier/anime)
+- [Lenis · 仅初筛](https://github.com/darkroomengineering/lenis)
+- [Animate.css · 特殊许可初筛](https://github.com/animate-css/animate.css)
+
+Nomi 栈、产品性格、现有依赖与实际任务仍未知；Refero 仍未授权。当前结论是资料与接入路径可研究，不是选型批准或生产适配认证。详细比较与许可来源见 [open-source-interaction-research.md](open-source-interaction-research.md)。入库后以仓库 Markdown 为维护主版本。
+
+<a id="xmotion"></a>
+
+## 12. X 核心证据与 motion 契约
+
+本轮 X 研究由独立研究流完成：15 次检索返回 104 条，按 post_id 去重 102 条，精选 12 条，不含旧 kaolti 十条；深读 11 份官方/原作者资料。精选帖经内置 X 工具再次回查，发布时间转 Asia/Taipei。统计描述研究范围，不代表相关案例数量、设计效果或全面覆盖。
+
+本节录像结果属于 secondary video-analysis observations，由协调研究流回传，本 Page 整合者未独立运行案例或检查代码。它们比作者宣传多一层可见时序证据，但不是运行测试；不据录像推定栈、60fps、spring 参数或 OS 联动。完整十二张证据卡、检索方法和媒体核对见 [docs/research/x-motion/](../research/x-motion/research.md)。旧 kaolti 数据不改。
+
+| 核心来源 | 观察与明确边界 |
+| --- | --- |
+| Motion：减少动效替代 | 用户主动点设置/魔法棒选择 Adapt for reduced motion；正常版方块水平位移，替代版起点淡出、目标淡入。未展示系统主动警告或 OS 设置联动；作者关于缺失提示的文字声明不能算录像证实。 |
+| Weston Ruter：页面对照 | Before 点击出现白屏闪烁；After 黑色侧导航和顶部工具栏稳定，主内容区 cross-fade。录像未展示慢网设置、中断或显式等待，不由此断言 SPA、慢网验证或动画解决网络等待。 |
+| Nil：照片交互 | 点击照片放大居中、邻居平移、标题上移；View/Close 随指针变化。无法确定中途反向，未展示键盘/触摸/减少动效。隐藏系统光标不作为默认生产方案。 |
+| Emil：先删后增强 | 原帖提出 remove → improve → performance。采用它作为评审顺序建议，不声称已运行其 skills 或证明对 Nomi 有效。 |
+
+### 把参考转成每条操作的 motion 契约
+
+固定字段：任务目标｜起始/目标业务状态｜即时反馈与真实完成信号｜动效用途与频率｜pointer/触屏/键盘触发｜是否中断及策略｜焦点进入/退出与播报｜来源去向｜慢网/失败/返回/取消/撤销｜减少动效等价方案｜语义 token 与参数理由｜来源版本/许可/证据范围｜可运行用例与回退。缺项列未知，不用演示填补。
+
+先判必要性：删除无信息价值、打断高频任务的效果 → 改善保留的反馈 → 验证性能。AI 先交状态和契约，再交无装饰基线与单机制增强版；可加真实长内容、异常数据种子与小调参面板。每条团队规则保留理由、例外、来源和测试，不把作者个人参数变成通用标准。
+
+中断策略必须具体选择：保持当前值/速度重新定向、跳到终态、停止显示、回滚业务，是不同承诺。直接拖动跟随输入与放手后收敛也要分开；焦点、遮罩与主体不能各自落入冲突状态。可取消视觉动画不等于取消远端业务。
+
+### View Transition 与 spring 不可互换
+
+本轮官方文档核对：View Transition 使用快照过渡，存在同文档与跨文档路径，不能从录像认定其中一种。same-document 文档说明新过渡使旧过渡跳到终态，skipTransition 不跳过 DOM 更新；ready 等动画失败不应误报业务失败。长异步更新可能冻结视图，应将合适的数据获取放在过渡启动前，并在真实加载阶段提供反馈。
+
+spring 的连续重新定向与保留速度是某些运行时/配置的具体能力，不是所有 spring 名称或所有 CSS 都自动保证。Motion 的 Svelte 文档描述当前值/速度保留，但不代表 Nomi 使用 Svelte，也不证明任意示例支持中断。按目标浏览器/框架做特性检测、回退和 A→B→A 快速反向测试。
+
+### 加到试点与验收的固定产物
+
+1. **试点前：一张契约而非一段特效**：在第 9/11 节选定的一个任务中，标清中断方式、输入方式、焦点和减少动效。设计选机制，工程确认实际 API 约束；默认仍不增加依赖。
+2. **试点中：两版与边界证据**：同任务同数据比较基线/增强；覆盖慢网、失败、连点、反向、触屏、键盘、减少动效。录屏标明触发与环境；未实际设置慢网就不能把它写成慢网测试。
+3. **试点后：再归并规范**：记录任务完成、错误恢复、可操作等待、打扰感和性能；无实测数字就写未测。只把通过的机制归并组件与语义 token；工具评分和点赞量都不代替结果。
+
+- [Motion · reduced-motion 原帖](https://x.com/motiondotdev/status/2112906836173300065)
+- [Weston Ruter · 页面对照原帖](https://x.com/westonruter/status/2114089753452937464)
+- [Nil · 照片交互原帖](https://x.com/Nil_phy_dreamer/status/2116435252318961852)
+- [Emil · 先删后增强原帖](https://x.com/emilkowalski/status/2116583281332503038)
+- [Motion · 减少动效官方文档](https://motion.dev/docs/react-accessibility)
+- [Motion · Svelte 能力与限制](https://motion.dev/docs/svelte)
+- [Chrome · View Transition 模型](https://developer.chrome.com/docs/web-platform/view-transitions)
+- [Chrome · same-document 行为与异步限制](https://developer.chrome.com/docs/web-platform/view-transitions/same-document)
+- [Emil · 不必要的动画](https://emilkowal.ski/ui/you-dont-need-animations)
+- [Emil · 把审美转为有理由的规则](https://emilkowal.ski/ui/agents-with-taste)
+
+入库交叉引用：本研究执行者写到这里时尚未阅读 `docs/design/page-design-process.md`。入库时已按仓库治理补上关系——七闸仍是页面交付流程，本文第 12 节的 motion 契约只作补充，不替代七闸，也不另开第八道闸。这不是产品审阅。Nomi 定位、栈、组件仍未验证，Refero 仍待授权；本轮无产品代码修改、依赖安装或自动化。
+
