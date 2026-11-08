@@ -292,6 +292,7 @@
 | [marketing-gsap-seo.md](marketing-gsap-seo.md) | 落地页 GSAP 轻量动画 + SEO 修补 | ⛔ |
 | [2026-08-14-community-qr-refresh.md](2026-08-14-community-qr-refresh.md) | 用户群二维码刷新（版本化缓存文件名，同步 README 与中英文官网） | |
 | [2026-09-03-seo-community-surface-alignment.md](2026-09-03-seo-community-surface-alignment.md) | 社区入口对齐 GitHub Discussions + 落地页改用无 .html 干净路由 | ✅ |
+| [2026-11-08-discoverability.md](2026-11-08-discoverability.md) | README 首屏与首页 title 改成品类定位；About/topics 只留下待办 | 🚧 |
 
 ## 版本执行 / 交接（跨主题）
 

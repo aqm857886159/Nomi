@@ -8,19 +8,19 @@
 </p>
 
 <p align="center">
-  <strong>Nomi is an open-source, local-first AI video studio.</strong><br />
-  Tell its agent what you want to make. It plans the shots, generates keyframes and video, and lays them on your timeline —<br />
-  with the models <em>you</em> connect, at the price <em>your provider</em> charges.
+  <strong>Nomi is an open-source, local-first AI video studio for macOS and Windows.</strong><br />
+  Plan a storyboard, generate clips with the model APIs or local ComfyUI you connect, and edit them on a timeline.<br />
+  No Nomi account.
 </p>
 
 <p align="center">
+  简体中文：开源、本地优先的 AI 视频工作台，无需 Nomi 账号。完整说明见 <a href="README.zh-CN.md">README.zh-CN.md</a>。
+</p>
+
+<p align="center">
+  <a href="#watch-the-film"><b>Watch the film</b></a> ·
   <a href="#download"><b>Download</b></a> ·
-  <a href="https://nomiaqm.com/en/">Website</a> ·
-  <a href="https://atomgit.com/aqm857886159/Nomi">AtomGit mirror</a> ·
-  <a href="#watch-the-film">Watch the 90-second film</a> ·
-  <a href="https://nomiaqm.com/en/quickstart">Quick start</a> ·
-  <a href="docs/integrate-with-your-agent-en.md">Let your AI connect it</a> ·
-  <a href="#community">Community</a> ·
+  <a href="#quick-start"><b>Quick start</b></a> ·
   <a href="README.zh-CN.md">简体中文</a>
 </p>
 
@@ -30,66 +30,11 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-1a1816" alt="License" /></a>
 </p>
 
-## Sponsors
-
-Sponsors help keep Nomi free and open source. A sponsor never becomes a default or a built-in route: you connect only what you choose, with your own key, and pay them directly at their price. [Want to appear here?](#community)
-
-<table>
-<tr>
-<td width="128" align="center"><a href="https://gway.dev/sign-up?aff=8j8f"><img src="docs/media/sponsors/gway-logo.png" alt="Gway" width="96" /></a></td>
-<td><b><a href="https://gway.dev/sign-up?aff=8j8f">Gway</a></b> — an API platform focused on AI video and multi-image reference generation: Seedance 2.0 / 2.5, Wan 3, MiniMax and other mainstream models, OpenAI-compatible, pay-as-you-go. Nomi has no built-in preset for it yet; click <b>Let AI connect it for me</b> and Claude Code or Codex wires it in with your key. Thanks to Gway for sponsoring Nomi! <i>(The Gway links carry a referral code.)</i></td>
-</tr>
-</table>
-
-## Why Nomi
-
-Relays, official APIs, ComfyUI, and local models are cheap. Commercial AI video products often run the very same models and charge several times more.
-
-Nomi gives you a pro-grade workflow on top of **your own** models. You pay your provider directly, at their price. Even the agent runs on the model you pick — no subscription, no markup.
-
 ## Watch the film
 
 [![Watch the 90-second Nomi 0.22 film](marketing/assets/promo-0.22/film-poster-en.jpg)](https://github.com/aqm857886159/Nomi/blob/main/marketing/assets/video/nomi-0.22-film.mp4)
 
-Every screen in the film is Nomi's real UI, and every image and clip in it was generated with Nomi.
-
-## What you can do
-
-### Just ask — the agent works on your canvas
-
-<img src="marketing/assets/promo-0.22/still-agent.jpg" alt="The Nomi agent turning one request into four keyframes on the canvas" width="100%" />
-
-Describe the film you want. The agent reads your canvas, splits the story into shots, generates keyframes, turns them into video, and arranges the timeline. Everything it makes lands on the canvas, where you can see it and change it.
-
-You decide how much it asks: **Ask each step**, **Auto-edit** (paid generation still asks), or **Full auto**.
-
-### Direct every shot
-
-<img src="marketing/assets/promo-0.22/still-storyboard.jpg" alt="Storyboard with all four shots generated and the character reference card locked" width="100%" />
-
-The storyboard puts each shot on one row — prompt, first frame, model, duration. Lock a reference card for a character or a place, and every shot that uses it keeps the same face.
-
-### A 3D director you can hold in your hand
-
-<img src="marketing/assets/promo-0.22/still-director.jpg" alt="The 3D director with the phone viewfinder page" width="100%" />
-
-Pose characters, place cameras, and use your phone as the viewfinder. The frames you capture go straight back onto the canvas.
-
-### Any model, per shot
-
-<img src="marketing/assets/promo-0.22/still-model.jpg" alt="The same video card generated again with a different model" width="100%" />
-
-Seedance, Kling, Wan, Hailuo, Nano Banana, GPT Image and more — through APIMart, Kie.ai, Volcengine, ModelScope, a Dreamina membership, any OpenAI-compatible relay, or your local ComfyUI. Swap the model on a single shot and generate another take.
-
-### New model today, in Nomi today
-
-When a new model ships, click **Let AI connect it for me** and let Claude Code or Codex wire it in. It looks up the endpoint, parameters and model IDs, has you paste your key on Nomi's own page (the assistant never sees it), runs one real test, and lists the model once it works.
-
-### Yours
-
-A project is a plain folder on your disk: canvas, storyboard, timeline, every generated file, and the exported film. No account. Nothing is sent by default; anonymous usage statistics are opt-in (Settings → Privacy & diagnostics) and can be turned off any time. The code is AGPL-3.0.
-
-**Next up: AI editing.** Nomi is heading toward one studio for everything you make with AI — come build it with us.
+This film was recorded on Nomi 0.22. Every screen is the real 0.22 interface, and every image and clip in it was generated with Nomi. It is not a capture of the current release. Use the download links below for the latest build. This repository does not include a newer film.
 
 ## Download
 
@@ -134,12 +79,68 @@ The installer has no Authenticode signature. In the SmartScreen prompt, choose *
 
 More: [quick start](https://nomiaqm.com/en/quickstart) · [connect your first model (English)](docs/guide/model-connection-en.md) · [user guide](docs/user-guide.md) · [providers](docs/provider-integration.md) · [CLI + MCP](docs/guide/capability-core-cli-mcp.md)
 
+## Why Nomi
+
+You connect the models yourself: a relay, an official API, ComfyUI, or a local model. Nomi does not add a subscription and does not resell inference. You pay that provider directly, at their price. The agent runs on a model you pick, too.
+
+## What you can do
+
+### Just ask — the agent works on your canvas
+
+<img src="marketing/assets/promo-0.22/still-agent.jpg" alt="The Nomi agent turning one request into four keyframes on the canvas" width="100%" />
+
+Describe the film you want. The agent reads your canvas, splits the story into shots, generates keyframes, turns them into video, and arranges the timeline. Everything it makes lands on the canvas, where you can see it and change it.
+
+You decide how much it asks: **Ask each step**, **Auto-edit** (paid generation still asks), or **Full auto**.
+
+### Direct every shot
+
+<img src="marketing/assets/promo-0.22/still-storyboard.jpg" alt="Storyboard with all four shots generated and the character reference card locked" width="100%" />
+
+The storyboard puts each shot on one row — prompt, first frame, model, duration. Lock a reference card for a character or a place, and every shot that uses it keeps the same face.
+
+### A 3D director you can hold in your hand
+
+<img src="marketing/assets/promo-0.22/still-director.jpg" alt="The 3D director with the phone viewfinder page" width="100%" />
+
+Pose characters, place cameras, and use your phone as the viewfinder. The frames you capture go straight back onto the canvas.
+
+### Any model, per shot
+
+<img src="marketing/assets/promo-0.22/still-model.jpg" alt="The same video card generated again with a different model" width="100%" />
+
+Seedance, Kling, Wan, Hailuo, Nano Banana, GPT Image and more — through APIMart, Kie.ai, Volcengine, ModelScope, a Dreamina membership, any OpenAI-compatible relay, or your local ComfyUI. Swap the model on a single shot and generate another take.
+
+### New model today, in Nomi today
+
+When a new model ships, click **Let AI connect it for me** and let Claude Code or Codex wire it in. It looks up the endpoint, parameters and model IDs, has you paste your key on Nomi's own page (the assistant never sees it), runs one real test, and lists the model once it works.
+
+### Yours
+
+A project is a plain folder on your disk: canvas, storyboard, timeline, every generated file, and the exported film. No Nomi account. Anonymous usage statistics stay off unless you opt in under Settings → Privacy & diagnostics, and you can turn them off later. A packaged build also checks for updates. When you generate, Nomi sends that request to the provider you connected. The code is AGPL-3.0.
+
+**Next up: AI editing.** Nomi is heading toward one studio for everything you make with AI — come build it with us.
+
+## Sponsors
+
+Sponsors help keep Nomi free and open source. A sponsor never becomes a default or a built-in route: you connect only what you choose, with your own key, and pay them directly at their price. [Want to appear here?](#community)
+
+<table>
+<tr>
+<td width="128" align="center"><a href="https://gway.dev/sign-up?aff=8j8f"><img src="docs/media/sponsors/gway-logo.png" alt="Gway" width="96" /></a></td>
+<td><b><a href="https://gway.dev/sign-up?aff=8j8f">Gway</a></b> — an API platform focused on AI video and multi-image reference generation: Seedance 2.0 / 2.5, Wan 3, MiniMax and other mainstream models, OpenAI-compatible, pay-as-you-go. Nomi has no built-in preset for it yet; click <b>Let AI connect it for me</b> and Claude Code or Codex wires it in with your key. Thanks to Gway for sponsoring Nomi! <i>(The Gway links carry a referral code.)</i></td>
+</tr>
+</table>
+
 ## Use Nomi from your own agent
 
-Nomi ships an MCP server with 24 MCP tools, so Claude Code, Codex, or Cursor can drive it — generate, arrange, and edit — while reusing the credits that come with your agent subscription. See [Let your AI connect Nomi](docs/integrate-with-your-agent-en.md).
+Nomi ships an MCP server, so Claude Code, Codex, or Cursor can drive it — generate, arrange, and edit. Image and video generation is still billed by the provider you connect, not by Nomi. See [Let your AI connect Nomi](docs/integrate-with-your-agent-en.md).
 
 ## Community
 
+- Website: [nomiaqm.com/en](https://nomiaqm.com/en/)
+- AtomGit mirror: [atomgit.com/aqm857886159/Nomi](https://atomgit.com/aqm857886159/Nomi)
+- Let your AI connect it: [docs/integrate-with-your-agent-en.md](docs/integrate-with-your-agent-en.md)
 - Questions, workflows, what's next: [GitHub Discussions](https://github.com/aqm857886159/Nomi/discussions)
 - Bugs and feature requests: [GitHub Issues](https://github.com/aqm857886159/Nomi/issues)
 - Release notes and short demos: [X / Twitter](https://x.com/sdf297417627618) · [Bilibili](https://www.bilibili.com/video/BV1Lf8b6nEjf/)
