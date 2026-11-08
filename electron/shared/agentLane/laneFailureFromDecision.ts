@@ -18,6 +18,7 @@ import { verbMaySubmitGeneration, type VerbEffect, type VerbNextAction } from ".
 import type { LaneToolFailureShape } from "./laneToolContract";
 import type { ToolInputIssue } from "./toolInputIssues";
 import { DRAFT_REFUSAL_NEXT_ACTION_EN, GENERATION_INPUT_INVALID_CODE, admissionNextActionEn, isAdmissionRejectionCode } from "../agentCapabilities/admissionRejectionHints";
+import { GENERATION_PROBLEM_NEXT_ACTION_EN, type GenerationProblem } from "../generationProblem";
 
 /**
  * 工具名 → 它自己声明的 `effect / nextAction`。**从动词声明现取**，不在这里复述一份工具名单——
@@ -67,6 +68,8 @@ export function laneFailureFromDecision(input: {
   submissionStarted?: boolean | undefined;
   /** 准入层拒绝的字段事实（传输层随失败带来，`RuntimeToolDecision.issues`）：和形状校验同一份清单。 */
   issues?: readonly ToolInputIssue[] | undefined;
+  /** 起草期被拒的闭合原因（传输层随失败带来，`RuntimeToolDecision.problem`）。 */
+  problem?: GenerationProblem | undefined;
 }): LaneToolFailureShape {
   // 「提交结果可能未知」只有在真的可能有一笔到过供应商时才说（铁律 4）。账本说一笔都没有：兜底码按事实读成「没开始」，
   // 回给模型和面板的都是「没发出去、没花钱」。缺席（读不到账本）照旧按可能到过说。
@@ -90,9 +93,14 @@ export function laneFailureFromDecision(input: {
   if (safeAdvice) return { code, ...safeAdvice };
   // 起草阶段的拒绝（什么都没提交）：按码给下一步，不套「提交状态不明」那句通用话——后者会让 Agent 停在一张报错卡上。
   // 表只有一份（`admissionRejectionHints.ts`），对外 MCP 读的是同一张。
-  const draftNextAction = isAdmissionRejectionCode(input.admission)
+  // 闭合原因说得出下一步（换最近的模型 / 用合法值 / 去掉这一格……）时按它说；`fix_field` 那一档仍按字段码的表说。
+  const problem = code === GENERATION_INPUT_INVALID_CODE ? input.problem : undefined;
+  const problemNextAction = problem?.next && problem.next !== "fix_field"
+    ? `Nothing was submitted and nothing was charged. ${GENERATION_PROBLEM_NEXT_ACTION_EN[problem.next]}`
+    : undefined;
+  const draftNextAction = problemNextAction ?? (isAdmissionRejectionCode(input.admission)
     ? admissionNextActionEn(input.admission)
-    : code === GENERATION_INPUT_INVALID_CODE ? DRAFT_REFUSAL_NEXT_ACTION_EN : undefined;
+    : code === GENERATION_INPUT_INVALID_CODE ? DRAFT_REFUSAL_NEXT_ACTION_EN : undefined);
   const detail = isBareCodeMessage(input.message, input.code) ? "" : ` ${(input.message ?? "").trim()}`;
   const message = input.advice?.message
     ?? `${input.toolName} could not complete the requested action (${code}).${detail}`;
@@ -107,5 +115,6 @@ export function laneFailureFromDecision(input: {
     ...(input.reason ? { reason: input.reason as LaneToolFailureShape["reason"] } : {}),
     ...(issues ? { issues } : {}),
     ...(allowed ? { allowed } : {}),
+    ...(problem ? { problem } : {}),
   };
 }

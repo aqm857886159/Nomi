@@ -244,6 +244,8 @@ export function TikhubConnectorCard(): JSX.Element {
               <div className="flex flex-wrap gap-2">
                 <input
                   type="password"
+                  // 深链（没配 key → 去设置）进来时光标放这儿：来这一节就是为了填它（settingsSectionFocus）。
+                  data-settings-section-focus=""
                   aria-label={t('settings.ai.tikhub.keyAria')}
                   placeholder={t('settings.ai.tikhub.keyPlaceholder')}
                   value={keyDraft}
