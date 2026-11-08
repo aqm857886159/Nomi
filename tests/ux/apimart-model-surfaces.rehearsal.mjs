@@ -28,6 +28,10 @@ const server = http.createServer((req, res) => {
     payload = model === 'seedance-2.0-mini' ? { success: true, data: {
       model_name: model, billing_type: 'per_second', membership: { category: 'video' },
       resolution_enabled: true, resolution_paid_prices: { '720P': 0.039, '480P': 0.02 },
+    } } : model === 'gpt-image-2.6-flare' ? { success: true, data: {
+      model_name: model, membership: { category: 'image' }, billing_type: 'tiered_token',
+      precharge_billing_type: 'size_quality_token_formula', pricing: { unit: 'usd_per_million_tokens' },
+      size_quality_paid_prices: { '1:1': { medium: 0.034776 } },
     } } : { success: false }
   } else { res.statusCode = 404; payload = { success: false } }
   res.setHeader('Content-Type', 'application/json')
@@ -151,6 +155,26 @@ try {
         } else {
           await expect(send).not.toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
         }
+      }
+      if (!perfFile) {
+        await addCanvasNode(win, 'image')
+        const imageComposer = win.locator('[data-composer-host="canvas"]:visible').last()
+        const imagePicker = imageComposer.getByRole('button', { name: uiText(locale, 'generationCommon.parameters.model'), exact: true })
+        await imagePicker.click()
+        await search.fill('Flare')
+        await menu.getByRole('option').filter({ hasText: 'GPT Image 2.6 Flare' }).click()
+        const imageSend = imageComposer.locator('[data-bar-segment="generate"]')
+        await expect(imageSend).toHaveAttribute('aria-description', uiText(locale, 'onboardingProviders.account.priceUnknown'))
+        await imageComposer.locator('[data-parameter-summary]').click()
+        const size = win.locator('[data-agent-parameter-control="size"]').first()
+        await size.getByText('1:1', { exact: true }).click()
+        await win.keyboard.press('Escape')
+        await expect(imageSend, 'board:ModelSurfaces/cost.send-pill').toHaveText(/0[.,]35/, { timeout: 10000 })
+        await expect(imageSend).toHaveAttribute('data-price-source', /model=gpt-image-2.6-flare/)
+        await expect(imageSend).toHaveAttribute('aria-description', /token/i)
+        await expect(imageSend.locator('..')).toHaveAttribute('title', /0[.,]035/)
+        await screenshotSettled(win, { path: path.join(output, locale + '-output-estimate.png') })
+        results.push({ locale, model: 'gpt-image-2.6-flare', outputEstimate: await imageSend.getAttribute('aria-description') })
       }
     } finally { await app.close(); fs.rmSync(root, { recursive: true, force: true }) }
   }

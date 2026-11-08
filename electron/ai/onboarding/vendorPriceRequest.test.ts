@@ -29,17 +29,19 @@ describe('public price preview uses the selected production mapping', () => {
   })
 })
 
-it('derives explicit image quality and size from the outgoing body, preserving unknown sizes', () => {
+it('projects the shipped GPT Image 2.6 Flare mapping for an explicit output size', () => {
   const catalog = seeded()
-  const mapping = catalog.mappings.find(m => m.vendorKey === 'apimart' && m.modelKey === 'gpt-image-2' && m.taskKind === 'text_to_image')!
-  mapping.create!.body = { model: 'gpt-image-2.6-flare', size: '1:1', resolution: '1K', quality: 'medium' }
-  const request: VendorPriceRequest = {
-    vendorKey: 'apimart',
-    request: { kind: 'text_to_image', prompt: '', extras: { modelKey: 'gpt-image-2' } },
+  const request: VendorPriceRequest = { vendorKey: 'apimart', request: {
+    kind: 'text_to_image', prompt: 'A calico cat on a windowsill',
+    extras: { modelKey: 'gpt-image-2.6-flare', archetype: { id: 'gpt-image-2.6-flare', modeId: 't2i' },
+      archetypeInput: { size: '1:1', resolution: '1K', quality: 'medium', background: 'auto' } },
+  } }
+  expect(priceQueryFromRequest(request, catalog)).toMatchObject({ kind: 'image', modelId: 'gpt-image-2.6-flare',
+    size: '1:1', resolution: '1k', quality: 'medium', count: 1 })
+  const mapping = catalog.mappings.find(m => m.vendorKey === 'apimart' && m.modelKey === 'gpt-image-2.6-flare' && m.taskKind === 'text_to_image')!
+  const body = mapping.create!.body as Record<string, unknown>
+  for (const extra of [{ background: 'transparent' }, { image_urls: ['reference.png'] }]) {
+    mapping.create!.body = { ...body, ...extra }
+    expect(priceQueryFromRequest(request, catalog)).toBeNull()
   }
-  expect(priceQueryFromRequest(request, catalog)).toMatchObject({
-    kind: 'image', modelId: 'gpt-image-2.6-flare', size: '1:1', resolution: '1K', quality: 'medium', count: 1,
-  })
-  mapping.create!.body = { model: 'gpt-image-2.6-flare', image_urls: ['reference.png'] }
-  expect(priceQueryFromRequest(request, catalog)).toBeNull()
 })

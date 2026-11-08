@@ -28,14 +28,14 @@ export function priceQueryFromRequest(payload: VendorPriceRequest, catalog: Cata
   const transform = mapping.create.request_transform
   if (transform && transform !== 'apimart-canonical-model-id') return null
   try {
-    const extras = applyHeadlessParamDefaults(request.extras, modelReferenceSelection(vendorKey, model, request.kind), mapping.create.defaultParams, mapping.create.body)
+    const extras = applyHeadlessParamDefaults(request.extras, modelReferenceSelection(vendorKey, model, request.kind, modeId), mapping.create.defaultParams, mapping.create.body)
     const rendered = buildProfileHttpRequest({ vendor, model, operation: mapping.create, apiKey: '', request: { ...request, extras } })
     const url = new URL(rendered.url)
     if (rendered.method !== 'POST' || url.origin !== new URL(vendor.baseUrlHint || '').origin
         || url.pathname !== (kind === 'image' ? '/v1/images/generations' : '/v1/videos/generations')) return null
     const body = transform ? normalizeApimartCanonicalModelId(rendered.body) : rendered.body
     if (!isJsonRecord(body) || typeof body.model !== 'string' || !body.model.trim()) return null
-    if (Object.keys(body).some(key => !PRICE_FIELDS.has(key))) return null
+    if (Object.keys(body).some(key => !PRICE_FIELDS.has(key) && !(key === 'background' && kind === 'image' && body.background === 'auto'))) return null
     const count = Number(body.n ?? body.count ?? 1)
     if (!Number.isSafeInteger(count) || count < 1) return null
     const durationSec = body.duration == null ? undefined : Number(body.duration)
