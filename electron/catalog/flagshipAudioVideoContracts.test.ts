@@ -77,9 +77,9 @@ describe("2026-08 flagship media contracts", () => {
     expect(JSON.stringify(mappings)).not.toContain("gemini-omni-flash-preview");
   });
 
-  it("seeds APIMart Suno V5.5, Suno Sounds and Lyria with the shared async lifecycle", () => {
+  it("seeds current APIMart Suno, Suno Sounds and Lyria with the shared async lifecycle", () => {
     const state = applyBuiltinSeeds(emptyCatalog(), "2026-08-30T00:00:00.000Z").state;
-    const keys = ["suno-v5.5", "suno-sounds-v5.5", "flowmusic-lyria-3.5"];
+    const keys = ["suno-v6", "suno-sounds-v6", "flowmusic-lyria-3.5"];
     for (const modelKey of keys) {
       expect(state.models.find((item) => item.vendorKey === "apimart" && item.modelKey === modelKey))
         .toMatchObject({ kind: "audio", meta: { catalogLifecycle: "flagship" } });
