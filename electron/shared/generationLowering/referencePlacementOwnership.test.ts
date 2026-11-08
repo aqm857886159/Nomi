@@ -1,20 +1,20 @@
 /**
- * 结构守卫：参考放进请求体的哪个键，只有 `shared/generationLowering/` 能写。
+ * 结构守卫：参考放进请求体的哪个键，只有 `lowerGenerationIntent.ts` 能写。
  *
  * S3（2026-11-08）之前同一件事有三份拼法（画布渲染层按槽写键、headless 按键名猜族、Run 按合同角色词查表再镜像别名），
  * 三份各自演化，同一张图同一个模式两条路发出去不一样。现在三个入口只把手上的东西说成意图，放置只在降级函数里。
  * 这里守两件事：
  *  1. 删掉的那几份拼法的名字不许回来（换个文件再抄一份也算）；
- *  2. 生产代码里，`generationLowering/` 以外的地方不许**静态写**参考键（`x.image_urls = …` / `x["first_frame_image"] = …`）。
+ *  2. 生产代码里，唯一主人以外不许静态写参考键；同目录也不许按变量键赋值，防止再藏一份拼法。
  *     键表是 shared 的通用参考键全集（`GENERIC_REFERENCE_KEYS`，由声明推导，加档案、加槽自动进表）。
  *     例外逐个登记理由：标准输入键（调用方 → 降级函数的中间形状）、键名同名但不是请求参数的、
  *     以及还没收进来的渲染后供应商改形（点名在册，不许再加）。
  *
- * 不拦的：按变量键写（`out[inputKey] = …`）静态看不出写的是不是参考键——这一类靠「删掉的名字不许回来」
- * 和官方字段矩阵（`electron/parity/officialWire.matrix.test.ts`，两条路逐格比请求体）兜。
+ * 目录外变量键写入无法在这里判定其领域；三个真实入口另由 loweringConsumers.test.ts 守住消费结果。
  */
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { GENERIC_REFERENCE_KEYS } from "../modelArchetypes/referenceKeys";
 
@@ -140,7 +140,7 @@ function staticReferenceKeyWrites(files: ReadonlyArray<{ rel: string; source: st
   const write = new RegExp(`(?:\\.(${alternation})\\b|\\[\\s*["'\`](${alternation})["'\`]\\s*\\])\\s*(?:\\?\\?=|=(?!=))`, "g");
   const hits: string[] = [];
   for (const { rel, source } of files) {
-    if (rel.startsWith(LOWERING_DIR)) continue;
+    if (rel === path.join(LOWERING_DIR, "lowerGenerationIntent.ts")) continue;
     const allowed = STANDARD_INPUT_WRITERS[rel.split(path.sep).join("/")] ?? {};
     stripComments(source).split("\n").forEach((line, index) => {
       for (const match of line.matchAll(write)) {
@@ -148,11 +148,24 @@ function staticReferenceKeyWrites(files: ReadonlyArray<{ rel: string; source: st
         if (!allowed[key]) hits.push(`${rel}:${index + 1}: ${key} ← ${line.trim()}`);
       }
     });
+    if (rel.startsWith(LOWERING_DIR + path.sep)) {
+      const file = ts.createSourceFile(rel, source, ts.ScriptTarget.Latest, true);
+      const visit = (node: ts.Node): void => {
+        if (ts.isBinaryExpression(node) && ts.isElementAccessExpression(node.left)
+          && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+          && !ts.isStringLiteralLike(node.left.argumentExpression)) {
+          const line = file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1;
+          hits.push(`${rel}:${line}: 变量键写入 ← ${node.getText(file)}`);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(file);
+    }
   }
   return hits;
 }
 
-describe("参考放置只有一个主人（shared/generationLowering）", () => {
+describe("参考放置只有一个主人（lowerGenerationIntent.ts）", () => {
   const files = productionSources().map((rel) => ({ rel, source: fs.readFileSync(path.join(repoRoot, rel), "utf8") }));
 
   it("删掉的旧拼法不许回来（electron / src 生产与测试代码都查，注释里也不许）", () => {
@@ -167,7 +180,7 @@ describe("参考放置只有一个主人（shared/generationLowering）", () => 
     expect(retiredNameHits(withTests)).toEqual([]);
   });
 
-  it("generationLowering 以外的生产代码不静态写参考键（标准输入键的造型逐个登记理由）", () => {
+  it("唯一主人以外不静态写参考键，同目录也不许变量键赋值（标准输入键的造型逐个登记理由）", () => {
     expect(staticReferenceKeyWrites(files)).toEqual([]);
   });
 
@@ -195,5 +208,12 @@ describe("参考放置只有一个主人（shared/generationLowering）", () => 
     }];
     expect(retiredNameHits(planted)).toHaveLength(1);
     expect(staticReferenceKeyWrites(planted)).toHaveLength(2);
+  });
+
+  it("同目录也不许另开写口：静态键和变量键都拒绝，唯一主人不误报", () => {
+    const source = 'out.image_urls = urls;\nout[key] = value;\nout[key] ??= value;';
+    expect(staticReferenceKeyWrites([{ rel: path.join(LOWERING_DIR, "anotherWriter.ts"), source }])).toHaveLength(3);
+    expect(staticReferenceKeyWrites([{ rel: path.join(LOWERING_DIR, "lowerGenerationIntent.ts"), source }])).toEqual([]);
+    expect(staticReferenceKeyWrites([{ rel: path.join(LOWERING_DIR, "declaration.ts"), source: 'const keys = ["image_urls"];\nconst value = out[key];' }])).toEqual([]);
   });
 });

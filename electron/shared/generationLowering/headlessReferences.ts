@@ -88,7 +88,7 @@ export function lowerHeadlessReferences(
   }
   const pool = (urls: readonly string[]) => urls.filter((url) => !consumed.has(url));
 
-  const chosen: Partial<Record<ReferenceFamily, { key: string; list: boolean; max?: number }>> = {};
+  const chosen = new Map<ReferenceFamily, { key: string; list: boolean; max?: number }>();
   for (const key of bodyKeys) {
     if (used.has(key)) continue;
     const declaration = referenceKeyCapacityDeclarationFor(key, context);
@@ -98,17 +98,16 @@ export function lowerHeadlessReferences(
     if (pool(sources.carried[declaration.family]).length === 0) continue;
     if (key === "reference_images" && sources.standardAggregateCarried) continue;
     if (sources.occupied(key)) continue;
-    const current = chosen[declaration.family];
+    const current = chosen.get(declaration.family);
     if (!current || (shape === "list" && !current.list)) {
-      chosen[declaration.family] = { key, list: shape === "list", ...(declaration.max === undefined ? {} : { max: declaration.max }) };
+      chosen.set(declaration.family, { key, list: shape === "list", ...(declaration.max === undefined ? {} : { max: declaration.max }) });
     }
   }
 
-  for (const family of Object.keys(chosen) as ReferenceFamily[]) {
+  for (const [family, target] of chosen) {
     const placed = sources.placedByCanvas[family];
     const hasDistinctFlatSource = pool(sources.flat[family]).some((url) => !placed.includes(url));
     if (placed.length > 0 && !hasDistinctFlatSource) continue;
-    const target = chosen[family]!;
     const urls = pool(sources.carried[family]);
     const slot = slots.length;
     // 单值位只放第一张（沿用 firstReferenceImage 的优先级）；张数上限仍按全部携带的数（超了就拒，不静默截）。

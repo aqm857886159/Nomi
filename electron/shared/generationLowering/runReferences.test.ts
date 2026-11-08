@@ -4,28 +4,33 @@
  *    官方 image_urls 是 string[]）；
  *  · 合并槽单槽超量不在这一步拒（Run 路历来按族数，见 assertResolvedReferences）。
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SEEDANCE_2_APIMART_ARCHETYPE } from "../videoCapabilities/seedanceApimart";
-import { placeApprovedRunReferences, standardizeExplicitRunReferences } from "./runReferences";
+import { lowerGenerationIntent } from "./lowerGenerationIntent";
+import { placeApprovedRunReferences, runReferenceGroupOf, standardizeExplicitRunReferences } from "./runReferences";
+
+vi.mock("./lowerGenerationIntent", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./lowerGenerationIntent")>();
+  return { ...original, lowerGenerationIntent: vi.fn(original.lowerGenerationIntent) };
+});
+afterEach(() => vi.mocked(lowerGenerationIntent).mockClear());
 
 const imageUrlsBody = { model: "m", image_urls: "{{request.params.image_urls}}" };
 
 describe("placeApprovedRunReferences", () => {
-  it("合同参考图落进 body 读的 image_urls，按数组发", () => {
-    const placed = placeApprovedRunReferences({}, [{ url: "https://cdn.example/a.png", kind: "image", role: "reference" }], imageUrlsBody, null);
-    expect(placed.parameters).toEqual({ image_urls: ["https://cdn.example/a.png"] });
-    expect(placed.placedKeys).toEqual(["image_urls"]);
-  });
-
-  it("body 读同一参考位的几种写法，每一种都放（与 body 读到的写法一一对应）", () => {
-    const body = { image_urls: "{{request.params.image_urls}}", imageUrls: "{{request.params.imageUrls}}" };
+  it.each([
+    ["body 读一个键", imageUrlsBody, ["image_urls"]],
+    ["body 读同组全部写法", { image_urls: "{{request.params.image_urls}}", imageUrls: "{{request.params.imageUrls}}" }, ["image_urls", "imageUrls"]],
+    ["body 不读同组键", { model: "m", prompt: "{{request.prompt}}" }, []],
+  ])("%s：只交数组原值和同组匹配声明，消费降级结果", (_name, body, readKeys) => {
     const placed = placeApprovedRunReferences({}, [{ url: "https://cdn.example/a.png", kind: "image" }], body, null);
-    expect(placed.parameters).toEqual({ image_urls: ["https://cdn.example/a.png"], imageUrls: ["https://cdn.example/a.png"] });
-  });
-
-  it("body 一个同组写法都不读 → 落进组的标准写法 image_urls（以前那张表写的就是它，之后由闸门拒，报错称呼不变）", () => {
-    const placed = placeApprovedRunReferences({}, [{ url: "https://cdn.example/a.png", kind: "image" }], { model: "m", prompt: "{{request.prompt}}" }, null);
-    expect(placed.parameters).toEqual({ image_urls: ["https://cdn.example/a.png"] });
+    expect(lowerGenerationIntent).toHaveBeenCalledWith(
+      { slots: [], combine: null, joinsCombine: [] },
+      { references: [], preservedReferences: [{ kind: "image_ref", value: ["https://cdn.example/a.png"], keys: runReferenceGroupOf("referenceImageUrls"), readKeys, selection: "all-read-or-first" }] },
+    );
+    const lowered = vi.mocked(lowerGenerationIntent).mock.results[0]!.value;
+    expect(placed.parameters).toEqual(lowered.bodyParams);
+    expect(placed.placedKeys).toEqual(Object.keys(lowered.bodyParams));
   });
 
   it("显式参数里写死的地址与授权时封存的不一致 → 拒", () => {

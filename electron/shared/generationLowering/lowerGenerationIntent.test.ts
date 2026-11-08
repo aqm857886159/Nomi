@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { MODEL_ARCHETYPES } from "../modelArchetypes";
 import { SEEDANCE_2_APIMART_ARCHETYPE } from "../videoCapabilities/seedanceApimart";
 import { declarationForMode } from "./declarationForMode";
-import { lowerGenerationIntent, type GenerationDeclaration } from "./lowerGenerationIntent";
+import { lowerGenerationIntent, type GenerationDeclaration, type PreservedReferenceIntent } from "./lowerGenerationIntent";
 
 function modeOf(id: string) {
   const mode = SEEDANCE_2_APIMART_ARCHETYPE.modes.find((candidate) => candidate.id === id);
@@ -21,6 +21,39 @@ function occurrences(bodyParams: Record<string, unknown>, url: string): number {
 }
 
 describe("lowerGenerationIntent", () => {
+  it.each([
+    ["全部匹配，按声明顺序", ["imageUrls", "image_urls"], "all-read-or-first", ["image_urls", "imageUrls"]],
+    ["没有匹配，组首键", [], "all-read-or-first", ["image_urls"]],
+    ["首个匹配", ["imageUrls", "image_urls"], "first-read", ["image_urls"]],
+    ["没有匹配，不另放角色数组", [], "first-read", []],
+  ] as const)("原值参考的落键只在这里决定：%s", (_name, readKeys, selection, expectedKeys) => {
+    const value = ["https://cdn.example/a.png", "https://cdn.example/a.png"];
+    const lowered = lowerGenerationIntent({ slots: [], combine: null, joinsCombine: [] }, {
+      references: [],
+      preservedReferences: [{ kind: "image_ref", value, keys: ["image_urls", "imageUrls"], readKeys, selection }],
+    });
+    expect(Object.keys(lowered.bodyParams)).toEqual(expectedKeys);
+    for (const key of expectedKeys) {
+      expect(lowered.bodyParams[key]).toEqual(value);
+      expect(lowered.bodyParams[key]).not.toBe(value);
+    }
+    expect(lowered.problems).toEqual([]);
+  });
+
+  it.each([
+    { value: "https://cdn.example/a.png" },
+    { value: ["https://cdn.example/a.png"] },
+    { value: [{ url: "https://cdn.example/a.png", role: "character" }] },
+  ])(
+    "原值参考保留单值 / 数组 / 角色数组形状：$value", ({ value }) => {
+      const reference: PreservedReferenceIntent = { kind: "image_ref", value, keys: ["image_urls"], readKeys: [], selection: "all-read-or-first" };
+      const lowered = lowerGenerationIntent({ slots: [], combine: null, joinsCombine: [] }, {
+        references: [], preservedReferences: [reference, { ...reference, value: "later value" }],
+      });
+      expect(lowered.bodyParams).toEqual({ image_urls: value });
+    },
+  );
+
   it("合并槽：Seedance 2.0 首尾帧只发 image_with_roles，role 只用官方枚举，每张图只出现一次", () => {
     const lowered = lowerGenerationIntent(declarationForMode(modeOf("firstlast")), {
       references: [{ url: "https://cdn.example/first.png", slot: 0 }, { url: "https://cdn.example/last.png", slot: 1 }],

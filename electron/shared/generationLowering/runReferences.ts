@@ -1,13 +1,9 @@
 /**
  * Run 路（引擎 B）的参考：合同里的参考与显式参考参数 → 降级函数的意图。
  *
- * 以前这里是第三份拼法：一张写死的「合同角色 → 线上键」表，一张参数别名表的参考那一半，再把值镜像进 body
- * 读的所有别名键。现在只做两件事：
- *  · 有档案模式、且这条 body 读那个合并键 → 每条参考落进模式里的哪个槽，交给 `lowerGenerationIntent`
- *    （与画布同一份 `declarationForMode`）；
- *  · 其余 → 说成 headless 也认的标准输入键（参考图 / 首帧 / 尾帧 / 参考视频 / 参考音频），之后由
- *    `headlessReferences.ts` 按 body 推出的声明、同一个降级函数放进 body 真读的键。
- * 键归哪一族、什么形状、是不是首尾帧，只读 shared 的键声明表（`referenceKeys.ts`），不认键名、不认供应商。
+ * 合同参考和显式参数都只声明用途、候选组、匹配规则与原值形状；由 `lowerGenerationIntent` 唯一选键。
+ * Run 只检查授权地址冲突、保留既有值并消费降级结果，不再直接放置参考。
+ * 键归哪一族、什么形状、是不是首尾帧，只读 shared 的键声明表（`referenceKeys.ts`），不认供应商。
  */
 import { bodyReferencedParamKeys } from "../../catalog/paramTranslate";
 import {
@@ -21,7 +17,7 @@ import {
 } from "../modelArchetypes/referenceKeys";
 import type { ArchetypeMode, ArchetypeReferenceSlotKind } from "../videoCapabilities/types";
 import { declarationForMode } from "./declarationForMode";
-import { lowerGenerationIntent, type IntentReference } from "./lowerGenerationIntent";
+import { lowerGenerationIntent, type IntentReference, type PreservedReferenceIntent } from "./lowerGenerationIntent";
 
 /** 标准输入键（`referenceInputParams` 认得、会归一成 headless 的携带参考）。 */
 const STANDARD_LIST_KEY: Readonly<Record<ReferenceFamily, string>> = {
@@ -88,16 +84,6 @@ function isStandardListKey(key: string): boolean {
   return Object.values(STANDARD_LIST_KEY).includes(key);
 }
 
-/**
- * URL 数组参考位在这条 body 上的落点：body 读的同组写法（全部、按组内顺序）；一个都不读 → 组的标准写法
- * （image_urls / video_urls / audio_urls，以前那张表写的就是它；之后由闸门按「发不出」或「参数不支持」拒，报错里的称呼不变）。
- */
-function listTargetsFor(key: string, bodyKeys: readonly string[]): readonly string[] {
-  const read = new Set(bodyKeys);
-  const members = (runReferenceGroupOf(key) ?? []).filter((candidate) => read.has(candidate));
-  return members.length ? members : [runReferenceGroupHead(key)];
-}
-
 function present(value: unknown): boolean {
   return value !== undefined && value !== null && value !== "" && !(Array.isArray(value) && value.length === 0);
 }
@@ -125,7 +111,7 @@ function slotKindForContractReference(reference: { kind?: string; role?: string 
 export type ApprovedRunReference = Readonly<{ url: string; kind?: string; role?: string }>;
 
 /**
- * 授权时封存的参考 → 参数。合并槽那一档交给降级函数（同画布一份声明），其余说成标准输入键，交给 headless 放。
+ * 授权时封存的参考 → 意图 → 降级结果。数组形状和重复项保持原样，全部同组目标 / 空 body 组首键由降级函数决定。
  * 返回新参数与这一步写下的键（调用方报「参数不支持」时按参考位称呼它们）。
  */
 export function placeApprovedRunReferences(
@@ -164,30 +150,29 @@ export function placeApprovedRunReferences(
       throw new RunReferenceError(`catalog mapping has unsupported reference role: ${reference.role}`, "unsupported-role", { role: reference.role });
     } else append(STANDARD_LIST_KEY.image, reference.url);
   }
-  const merge = (target: string, value: unknown): void => {
-    // 空通道就是没有，不是一个可选的线上值。
-    if (!present(value)) return;
-    const group = runReferenceGroupOf(target) ?? [target];
-    const existing = group.map((key) => out[key]).find(present);
-    // 合同里显式写死的 URL 与授权时封存的那一份不一致 = 批准的是 A、要发出去的是 B。拒。
+  const preservedReferences: PreservedReferenceIntent[] = [...snapshot].map(([key, value]) => ({
+    kind: slotKindForContractReference({ kind: referenceKeyDeclarationFor(key)?.family, role: referenceFrameKindFor(key) ?? undefined }),
+    value,
+    keys: isStandardListKey(key) ? runReferenceGroupOf(key) ?? [key] : [key],
+    readKeys: bodyKeys,
+    selection: "all-read-or-first",
+  }));
+  // 张数仍由 Run 的 assertResolvedReferences 按族核；这里不增加单槽超量拒发或模式固定参数。
+  const lowered = lowerGenerationIntent(
+    declaration ? { ...declaration, fixedParams: undefined } : { slots: [], combine: null, joinsCombine: [] },
+    { references: combined, preservedReferences },
+  );
+  const entries = Object.entries(lowered.bodyParams).filter(([key, value]) => {
+    const group = runReferenceGroupOf(key) ?? [key];
+    const existing = group.map((candidate) => out[candidate]).find(present);
+    // 合同写死的 URL 与授权时封存的不一致 = 批准 A、要发 B。拒。
     if (present(existing) && JSON.stringify(existing) !== JSON.stringify(value)) {
       throw new RunReferenceError("catalog reference URL projection conflicts with canonical parameters", "conflict");
     }
-    // URL 数组：body 读这个参考位的哪几种写法，就原样（数组）放进哪几个；一个都不读 → 组的标准写法（之后由闸门拒）。
-    // 不交给 headless 按单值位降级：单值位那一档是 headless 的放法，Run 路历来按数组发（官方矩阵逐字节核过）。
-    const targets = isStandardListKey(target) ? listTargetsFor(target, bodyKeys) : [target];
-    if (present(existing) && targets.length === 1 && targets[0] === target) return;
-    for (const key of targets) {
-      if (present(out[key])) continue;
-      out[key] = structuredClone(value);
-      placedKeys.push(key);
-    }
-  };
-  if (combine && mode && declaration && combined.length) {
-    // 张数不在这里拒：Run 路历来按族数（调用方 assertResolvedReferences），单槽超量的 problem 不改这条路的行为。
-    merge(combine.key, lowerGenerationIntent(declaration, { references: combined }).bodyParams[combine.key]);
-  }
-  for (const [key, value] of snapshot) merge(key, value);
+    return !present(out[key]);
+  });
+  Object.assign(out, Object.fromEntries(entries));
+  placedKeys.push(...entries.map(([key]) => key));
   return { parameters: out, placedKeys };
 }
 
@@ -208,16 +193,25 @@ export function runReferenceParameterAccepted(key: string, mappingKeys: Readonly
 export function standardizeExplicitRunReferences(parameters: Record<string, unknown>, bodyKeys: readonly string[]): Record<string, unknown> {
   const out = structuredClone(parameters);
   const read = new Set(bodyKeys);
+  const preservedReferences: PreservedReferenceIntent[] = [];
   for (const [key, value] of Object.entries(parameters)) {
     const group = runReferenceGroupOf(key);
     if (!group || read.has(key) || TRANSLATED.has(key) || !present(value)) continue;
     const frame = referenceFrameKindFor(key);
     const declaration = referenceKeyDeclarationFor(key)!;
     const shape = referenceKeyShapeFor(key, declaration.multiImage);
-    const targets = frame ? [STANDARD_FRAME_KEY[frame]]
-      : shape === "role-objects" ? group.filter((candidate) => read.has(candidate)).slice(0, 1)
-        : listTargetsFor(STANDARD_LIST_KEY[declaration.family], bodyKeys);
-    for (const target of targets) if (!present(out[target])) out[target] = structuredClone(value);
+    preservedReferences.push({
+      kind: slotKindForContractReference({ kind: declaration.family, role: frame ?? undefined }),
+      value,
+      keys: frame ? [STANDARD_FRAME_KEY[frame]] : shape === "role-objects" ? group
+        : runReferenceGroupOf(STANDARD_LIST_KEY[declaration.family]) ?? [STANDARD_LIST_KEY[declaration.family]],
+      readKeys: frame ? [] : bodyKeys,
+      selection: shape === "role-objects" && !frame ? "first-read" : "all-read-or-first",
+    });
   }
-  return out;
+  const lowered = lowerGenerationIntent(
+    { slots: [], combine: null, joinsCombine: [] },
+    { references: [], preservedReferences },
+  );
+  return Object.assign(out, Object.fromEntries(Object.entries(lowered.bodyParams).filter(([key]) => !present(out[key]))));
 }

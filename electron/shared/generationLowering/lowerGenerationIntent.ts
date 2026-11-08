@@ -41,7 +41,19 @@ export type GenerationDeclaration = Readonly<{
 /** 一条参考意图：地址 + 它落进声明里的第几个槽。 */
 export type IntentReference = Readonly<{ url: string; slot: number }>;
 
-export type GenerationIntent = Readonly<{ references: readonly IntentReference[] }>;
+/** Run 的既有参考值：形状、重复项和角色对象原样保留，候选组的落键仍由降级函数决定。 */
+export type PreservedReferenceIntent = Readonly<{
+  kind: ArchetypeReferenceSlotKind;
+  value: unknown;
+  keys: readonly string[];
+  readKeys: readonly string[];
+  selection: "all-read-or-first" | "first-read";
+}>;
+
+export type GenerationIntent = Readonly<{
+  references: readonly IntentReference[];
+  preservedReferences?: readonly PreservedReferenceIntent[];
+}>;
 
 export type LoweringProblem =
   | Readonly<{ code: "reference_over_capacity"; slot: number; kind: ArchetypeReferenceSlotKind; max: number; count: number }>
@@ -149,6 +161,14 @@ export function lowerGenerationIntent(declaration: GenerationDeclaration, intent
     }
     const combined = encodeCombined(channel, entries);
     if (combined.length) out[channel.key] = combined;
+  }
+  for (const reference of intent.preservedReferences ?? []) {
+    const read = reference.keys.filter((key) => reference.readKeys.includes(key));
+    const targets = reference.selection === "first-read" ? read.slice(0, 1)
+      : read.length ? read : reference.keys.slice(0, 1);
+    for (const key of targets) {
+      if (!Object.prototype.hasOwnProperty.call(out, key)) out[key] = structuredClone(reference.value);
+    }
   }
   for (const [key, value] of Object.entries(declaration.fixedParams ?? {})) out[key] = value;
   return { bodyParams: out, problems };
