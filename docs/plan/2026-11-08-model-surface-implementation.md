@@ -2,9 +2,15 @@
 
 以 11-07 已拍板的 ModelSurfaces 板为准。设计记录见现有 #1416 与板上 M1、M2、M4。资金显示采用批准的 D1c 决策：APIMart 积分为主，美元为辅，账户余额、Key 限额、估算、实扣各有出处。原图的数值只用于排版。
 
-★0 先查：APIMart [Key 额度](https://docs.apimart.ai/en/api-reference/account/token-balance.md)用 unlimited_quota 区分 Key 不设上限与账户余额。[账户接口](https://docs.apimart.ai/en/api-reference/account/user-balance.md)直接给 remain_credits；未知保持空。[用量](https://docs.apimart.ai/en/api-reference/account/usage.md)用成功计费请求汇总近七天消费。已拍板板上把这三项同列，旧版普通连接行混合认证、余额与启用状态。
+## ★0 先查别人
 
-★1. 创作者打开设置能分清账户余额、Key 限额和近七天消费；画布选择型号能看到其在当前连接的能力，调整参数时估价及时更新。量具为实际设置与画布的中英真窗、独立预置响应及出站请求计数。
+APIMart [Key 额度](https://docs.apimart.ai/en/api-reference/account/token-balance.md)用 unlimited_quota 区分 Key 不设上限与账户余额。[账户接口](https://docs.apimart.ai/en/api-reference/account/user-balance.md)直接给 remain_credits；未知保持空。[用量](https://docs.apimart.ai/en/api-reference/account/usage.md)用成功计费请求汇总近七天消费。已拍板板上把这三项同列，旧版普通连接行混合认证、余额与启用状态。
+
+出口：[APIMart Key 额度](https://docs.apimart.ai/en/api-reference/account/token-balance.md) · 用户可在账户余额与 Key 剩余额度之间识别限制来源 · 确认零余额提供刷新与充值，非零差额保留已有发送和授权入口。
+
+## ★1 创作者结果
+
+创作者打开设置能分清账户余额、Key 限额和近七天消费；画布选择型号能看到其在当前连接的能力，调整参数时估价及时更新。量具为实际设置与画布的中英真窗、独立预置响应及出站请求计数。
 ★2. 主进程持有凭据；账户事实和报价由现有目录确认连接和最终出站参数，再以只读接口查询。画布和 Agent 消费同一份生效型号与参数。
 ★3. 复用供应商凭据探测、目录选择器、已有任务请求构造、HTTP 模板和工作台 token；更新现存入口避免出现第二份目录、报价或余额。
 ★4. 读取账户仅发 GET。未知、不可达、零与不设上限各自呈现；读失败仍可管理连接。只有受用户花费审批保护的原始生成入口能够创建任务。

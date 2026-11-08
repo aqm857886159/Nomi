@@ -54,6 +54,12 @@ try {
         'nomi-onboarding-checklist:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen' },
     }
     fs.mkdirSync(options.projectsDir, { recursive: true })
+    // Exercise both a new catalog and the neutral snapshot written by the real 0.24.1 store.
+    const previousCatalog = locale === 'en' && !perfFile
+    if (previousCatalog) {
+      const snapshot = new URL('../fixtures/old-user-data/curated/v0.24.1-apimart/model-catalog.json', import.meta.url)
+      fs.copyFileSync(snapshot, path.join(settingsDir, 'model-catalog.json'))
+    }
     await seedSavedFixtureCredentials(options, ['apimart'])
     const { app, win } = await launchNomiApp(options)
     try {
@@ -121,7 +127,7 @@ try {
       await expect(send, 'board:ModelSurfaces/cost.hover').toHaveAttribute('aria-description', /1[.,]95/)
       await expect(send.locator('..')).toHaveAttribute('title', /0[.,]195/)
       await screenshotSettled(win, { path: path.join(output, locale + '-public-estimate.png') })
-      results.push({ locale, quote: await send.innerText() })
+      results.push({ locale, catalog: previousCatalog ? 'v0.24.1-apimart' : 'fresh', quote: await send.innerText() })
       for (const state of ['low', 'empty', 'valid']) {
         accountMode = state
         await openSettings(win, { tab: 'models' })
