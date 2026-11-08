@@ -23,16 +23,12 @@ import { makeTempDir } from './_test-temp.mjs'
 //      点「换个模型」换成 Seedance 2.5 后参数面板正常。
 //
 // 用法：pnpm build 后 node scripts/model-identity-walkthrough.mjs
-import { spawnSync } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { currentCatalogVersion, launchNomiApp, withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from '../tests/ux/_launchApp.mjs'
+import { currentCatalogVersion, encryptFixtureKey, launchNomiApp } from '../tests/ux/_launchApp.mjs'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.model-identity-walk')
 fs.rmSync(outDir, { recursive: true, force: true })
@@ -65,14 +61,7 @@ const expectThat = (condition, message) => (condition ? pass(message) : fail(mes
 
 // ── 夹具 ─────────────────────────────────────────────────────────────────────
 function encryptPlaceholderKey() {
-  const script = path.join(repoRoot, 'tests', 'ux', '_encryptFixtureKey.cjs')
-  const result = spawnSync(require('electron'), withLinuxSyntheticCredentialStorage(withLinuxNoSandbox([script, 'nomi-walk-placeholder']), true), {
-    cwd: repoRoot,
-    env: { ...process.env, NOMI_E2E: '1', NOMI_APP_NAME: 'nomi', NOMI_ELECTRON_USER_DATA_DIR: userDataDir, NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1' },
-    encoding: 'utf8',
-  })
-  if (result.status !== 0 || !result.stdout.trim()) throw new Error(`占位钥匙加密失败：${result.stderr || result.stdout}`)
-  return result.stdout.trim()
+  return encryptFixtureKey({ rootDir: repoRoot, userDataDir, appName: 'nomi', plaintext: 'nomi-walk-placeholder' })
 }
 
 async function writeCatalog() {

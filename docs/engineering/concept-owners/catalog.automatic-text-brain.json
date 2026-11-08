@@ -1,0 +1,24 @@
+{
+  "name": "没有显式偏好时同一供应商的普通文字模型顺序",
+  "subject": "catalog.automatic-text-brain",
+  "lifecycle": "catalog",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/ai/textBrainResolver.ts",
+    "symbol": "rankAutomaticTextModels"
+  },
+  "write_api": [
+    {
+      "path": "electron/ai/textBrainResolver.ts",
+      "symbol": "rankAutomaticTextModels"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/catalog/apimartLatestContracts.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-08",
+  "notes": "selectTextModelCandidates 先核可用性；只有无图、无偏好时按普通文字优先级在同一供应商的候选位置内排序。新装和旧目录均验；跨供应商、显式偏好和图像另有各自选择路径。"
+}

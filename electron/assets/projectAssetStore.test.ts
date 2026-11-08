@@ -331,7 +331,7 @@ describe("writeAsset canonical media filename", () => {
 describe('existing project media attachment receipts', () => {
   it('returns the canonical original identity and full receipt for a local reference', async () => {
     const stored = await writeAsset('project-1', Buffer.from('original'), 'portrait.png', 'image/png', { kind: 'upload' }) as { id: string; data: { url: string } }
-    const receipt = await importRemoteAsset({ projectId: 'project-1', url: stored.data.url, expectedKind: null }) as { id: string; data: { size: number; contentHash: string } }
+    const receipt = await importRemoteAsset({ projectId: 'project-1', url: stored.data.url, kind: 'upload', expectedKind: null }) as { id: string; data: { size: number; contentHash: string } }
     expect(receipt.id).toBe(stored.id)
     expect(receipt.data.size).toBe(8)
     expect(receipt.data.contentHash).toMatch(/^[a-f0-9]{64}$/)

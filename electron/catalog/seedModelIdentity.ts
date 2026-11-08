@@ -147,6 +147,8 @@ export const CANONICAL_MODEL_IDS: Record<string, string> = {
   // Muse Image 是 Meta 的模型（Meta Superintelligence Labs，2026-07-07 发布，出处见 runwayNativeImage.ts），
   // Runway 只是转售渠道 → 写模型本身的身份，不写「runway muse image」。
   "muse_image": "muse image",
+  // APIMart 的 Muse Image Ext 和 Runway 的 muse_image 是同一个模型的两条接入线：组里有渠道行，这一行也要显式写身份。
+  "muse-image-ext": "muse image",
   "suno-v5-5": "suno v5.5",
   "suno-v5.5": "suno v5.5",
   "suno-sounds-v5-5": "suno sounds v5.5",
@@ -159,9 +161,36 @@ export const CANONICAL_MODEL_IDS: Record<string, string> = {
  * table keyed by exact upstream model id also makes a future radar update auditable.
  */
 const FLAGSHIP_MODEL_KEYS = new Set([
+  "suno-v6",
+  "suno-v6-wild",
+  "suno-v6-mini",
+  "suno-sounds-v6",
+  "suno-sounds-v6-wild",
+  "suno-sounds-v6-mini",
+  "gpt-6-astra",
+  "gpt-6.1-sol",
+  "gpt-6.1-terra",
+  "gpt-6-luna",
+  "claude-opus-5-5",
+  "claude-sonnet-5-5",
+  "claude-haiku-5-5",
+  "claude-fable-5.1",
+  "gemini-4-argon",
+  "gemini-3.8-flash",
+  "deepseek-v4.1-flash",
+  "qwen3.8-max",
+  "qwen3.8-flash",
+  "qwen3.8-27b",
+  "qwen3.8-2.4t-a95b",
+  "glm-5.3",
+  "glm-5.3-flash",
+  "kimi-k3",
+  "grok-4.7",
+  "minimax-m3",
+  "step-3.7-flash",
+
   // Current text and multimodal leaders.
   "deepseek-v4-pro",
-  "gemini-3.5-flash",
   // Current image leaders.
   "gpt-image-2-text-to-image",
   "gpt-image-2-image-to-image",
@@ -170,10 +199,14 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   "gpt-image-2-5-sunburst-text-to-image",
   "gpt-image-2.5-flare",
   "gpt-image-2.5-sunburst",
+  // 2.6 是这一家最新一代（只有 APIMart 提供）：用户 2026-11-07「最新一代和上一代都给新节点用」，推荐排序不排在上一代后面。
+  "gpt-image-2.6-flare",
+  "gpt-image-2.6-sunburst",
   // 与已在旗舰名单里的 Runway 行 `gemini_image3_pro` / `grok_imagine_image_2` 是同一个模型的另一条接入线，
   // 不跟着标就会出现「同一款经 Runway 是旗舰、经 APIMart 是陪跑」的自相矛盾分档。
   "gemini-3-pro-image-preview",
   "grok-imagine-2.0-ext",
+  "muse-image-ext",
   "nano-banana-2",
   "gemini-3.1-flash-image-preview",
   "seedream/5-pro-text-to-image",
@@ -199,9 +232,6 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   // Current 3D leader already available through the aggregate route.
   "hunyuan3d-v3.1",
   "google/gemini-omni-flash-1-1",
-  "suno-v5.5",
-  "suno-sounds-v5.5",
-  "suno-sounds-v5-5",
   "flowmusic-lyria-3.5",
   "speech-2.8-hd",
   "eleven_v3",
@@ -262,32 +292,22 @@ const VALUE_MODEL_KEYS = new Set([
   "speech-2.8-turbo",
 ]);
 
+// 分档规则（用户 2026-11-07 拍板：「最新代和旧一代的都可以接」）：每个模型家族的**最新一代**进旗舰 / 性价比，
+// **上一代**留在陪跑（或性价比），照常出现在新节点的选择里；只有**比上一代更老**的才进下面这张退役表
+// （收进「更多」、排在最后，旧项目里已选的照常显示和执行）。Suno v6 是最新、v5.5 是上一代，
+// DeepSeek V4.1 Flash 最新、V4 Flash 上一代，Gemini 3.8 Flash 最新、3.5 Flash 上一代，所以这几个不在表里。
+// 契约见 `electron/catalog/apimartLatestContracts.test.ts` 与 `tests/fixtures/apimart/model-generations*.json`。
 const LEGACY_MODEL_KEYS = new Set([
-  "happyhorse",
-  "happyhorse_1_0",
-  "seedream",
-  "doubao-seedream-4.5",
-  "doubao-seedream-4-5-251128",
   "doubao-seedream-4-0-250828",
-  "seedream-v4.5",
   "nano-banana",
   "gemini-2.5-flash-image-preview",
   "rhart-image-v1",
   "gemini_2.5_flash",
-  "bytedance/seedance-2",
-  "doubao-seedance-2.0",
-  "doubao-seedance-2-0-260128",
-  "bytedance/seedance-2.0-global",
   "agnes-2.0-flash",
   "agnes-image-2.0-flash",
   "agnes-video-v2.0",
   "meshy6",
   "deepseek-v3.1-terminus",
-  "qwen-image-2.0",
-  "rh-qwen-image-2.0",
-  "wan2.7",
-  "rh-wan-2.7",
-  "Omni-Flash-Ext",
   "nomi-audio",
 ]);
 

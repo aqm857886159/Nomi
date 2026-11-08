@@ -16,8 +16,14 @@ function CatalogStage(): JSX.Element {
   const [closed, setClosed] = React.useState(false)
   const [models, setModels] = React.useState(() => {
     seedVendorHealthSnapshotForTests('apimart|https://api.apimart.ai', { vendorKey: 'apimart', state: 'reachable', checkedAt: 0 })
-    const rows: Model[] = APIMART_TEXT_MODELS.map((model) => ({ ...model, vendorKey: 'apimart', kind: 'text', enabled: true,
-      meta: { ...model.meta, catalogLifecycle: curatedCatalogLifecycle(model.modelKey) }, createdAt: '2026-09-08', updatedAt: '2026-09-08' }))
+    // v0.24.1 目录中的五个文本型号。只取这组角色，仍用生产声明，以免新型号改变旁注与删除的样张。
+    const sampleKeys = ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v3.1-terminus', 'gemini-3.5-flash', 'MiniMax-H3-Context-IR']
+    const rows: Model[] = sampleKeys.map(modelKey => {
+      const model = APIMART_TEXT_MODELS.find(row => row.modelKey === modelKey)
+      if (!model) throw new Error(`catalog-liveness sample missing: ${modelKey}`)
+      return { ...model, vendorKey: 'apimart', kind: 'text', enabled: true,
+        meta: { ...model.meta, catalogLifecycle: curatedCatalogLifecycle(modelKey) }, createdAt: '2026-09-08', updatedAt: '2026-09-08' }
+    })
     const list = rows.filter((model) => model.modelKey !== 'deepseek-v4-flash').map((model) => model.modelKey)
     const patches = modelListReconciliation(rows, 'apimart', { ok: true, models: list, statuses: [200] })
     return rows.map((model) => ({ ...model, ...patches.find((patch) => patch.modelKey === model.modelKey) }))
