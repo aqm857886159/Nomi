@@ -14,7 +14,7 @@ import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
 import { extractProviderCostActual, type ProviderCostActual } from "./vendor/cost";
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
-import { localizeTaskAsset } from "./assets/localizeTaskAsset";
+import { localizeTaskAsset, localizeTaskAssets } from "./assets/localizeTaskAsset";
 export { localizeTaskAsset };
 import { localizedTaskAssetFileName } from "./assets/localizedAsset";
 import { authHeaders as buildAuthHeaders, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline"; import { vendorAuthSpec } from "./catalog/vendorAuthSpec";
@@ -437,10 +437,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   }
   const type: "image" | "video" | "audio" | "model3d" =
     wantedKind === "audio" ? "audio" : wantedKind === "model3d" ? "model3d" : "image";
-  const assets: TaskResult["assets"] = [];
-  for (const assetUrl of assetUrls) {
-    assets.push(projectId ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl));
-  }
+  const assets: TaskResult["assets"] = await localizeTaskAssets(projectId, assetUrls, type, nodeId, vendor);
   const actualCost = extractProviderCostActual(vendor.key, providerResponse);
   const provenance = buildTaskProvenance({ vendor, model, request, vendorRequestId: upstreamTaskId, actualCost });
   traceVendorCompleted(projectId, { runId: upstreamTaskId, nodeId, status: "succeeded", assetCount: assets.length, ...(actualCost ? { cost: actualCost } : {}) });

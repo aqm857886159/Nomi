@@ -1,4 +1,4 @@
-import { catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
+import { artifactFromMaterializationReceipt, type GenerationMaterializationReceipt, catchUpJobToArtifact, GenerationMaterializationUnsupportedError, GenerationMaterializationError, GenerationOutputRetrievalFailedError, deterministicRetrievalFailure, classifyProviderStatus, isPendingProviderStatus, isSuccessfulProviderStatus, isFailedProviderStatus, type GenerationSubmissionMaterializeResult } from "./productionGenerationMaterialization";
 import { readGenerationExecution } from "./productionGenerationHistory";
 import path from "node:path";
 
@@ -113,7 +113,7 @@ export type ProductionGenerationSubmissionDependencies = {
     output: GenerationProviderOutput;
     /** 这份产物在这一单全部产物里的序号（从 0 起）：同一单的第几份，产物号按它派生。 */
     outputIndex: number;
-  }) => Promise<Pick<ProductionArtifact, "artifactId" | "kind" | "contentHash" | "projectRelativePath" | "thumbnailRelativePath" | "previewState" | "width" | "height">>;
+  }) => Promise<GenerationMaterializationReceipt>;
 };
 
 function requiredRun(repository: ProductionRunRepository, projectId: string, runId: string): ProductionRun {
@@ -590,15 +590,9 @@ export function createProductionGenerationSubmission(deps: ProductionGenerationS
           const readyAfterWait = readyArtifacts(current);
           if (readyAfterWait.length >= outputs.length) return settleWithArtifacts(readyAfterWait, complete);
           if (readyAfterWait.length > outputIndex) continue;
-          const artifactId = typeof receipt.artifactId === "string" ? receipt.artifactId.trim() : "";
-          const contentHash = typeof receipt.contentHash === "string" ? receipt.contentHash.trim() : "";
-          const projectRelativePath = typeof receipt.projectRelativePath === "string" ? receipt.projectRelativePath.trim() : "";
-          if (!artifactId || !contentHash || !projectRelativePath) throw new GenerationMaterializationError("Asset store returned an incomplete materialization receipt");
+          const artifact = artifactFromMaterializationReceipt(receipt, jobId, now());
           // 同一份文件（上游回了两条同一地址）只落一份账。
-          if (readyAfterWait.some((artifact) => artifact.artifactId === artifactId)) continue;
-          const artifact: ProductionArtifact = { artifactId, stageId: "generate", jobId, kind: receipt.kind, status: "ready", source: "external-mcp", contentHash, projectRelativePath,
-            ...(receipt.thumbnailRelativePath ? { thumbnailRelativePath: receipt.thumbnailRelativePath } : {}), ...(receipt.previewState ? { previewState: receipt.previewState } : {}),
-            ...(receipt.width && receipt.height ? { width: receipt.width, height: receipt.height } : {}), createdAt: now() };
+          if (readyAfterWait.some((landed) => landed.artifactId === artifact.artifactId)) continue;
           current = command(current, "artifact.add", { artifact }, `materialize-artifact:${artifact.artifactId}`);
         }
         return settleWithArtifacts(readyArtifacts(requiredRun(deps.repository, input.projectId, input.operationId)), complete);

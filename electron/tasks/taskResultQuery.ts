@@ -8,7 +8,7 @@ import { readCatalog } from "../catalog/catalogStore";
 import { desktopT } from "../i18n";
 import { classifyTaskCacheMiss, wasTaskAdmitted } from "./taskAdmission";
 import { taskFailureMessageFromResponse } from "./responseParsing";
-import { unlocalizedTaskAsset } from "./unlocalizedTaskAsset";
+import { localizeTaskAssets } from "../assets/localizeTaskAsset";
 import { traceVendorCompleted } from "../events/vendorCallTrace";
 import { extractProviderCostActual } from "../vendor/cost";
 import { rememberTaskResult } from "../vendor/fingerprintCache";
@@ -22,7 +22,6 @@ import {
   executeProfileOperation,
   findExecutableModel,
   findTaskMapping,
-  localizeTaskAsset,
 } from "../runtime";
 import { logWarn } from "../logging/logger";
 import { retrievalStageError } from "./retrievalStageError";
@@ -312,12 +311,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
     // vendor 提示必须带上：本地 ComfyUI 的产物 URL 是私网 /view，缺它 hardenedFetch 会按 SSRF 拒下载。
     const vendorHint = readCatalog().vendors.find((item) => item.key === cached.vendor);
     // 落地失败由落地门自己挂取回阶段码（同一个 retrievalStageError），这里不再包一层。一笔给几份就落几份。
-    const assets: TaskResult["assets"] = [];
-    for (const assetUrl of assetUrls) {
-      assets.push(cached.projectId
-        ? await localizeTaskAsset(cached.projectId, assetUrl, type, cached.nodeId, vendorHint)
-        : unlocalizedTaskAsset(type, assetUrl));
-    }
+    const assets: TaskResult["assets"] = await localizeTaskAssets(cached.projectId, assetUrls, type, cached.nodeId, vendorHint);
     taskCache.delete(taskId);
     const lateResult: TaskResult = { id: taskId, kind: cached.request.kind, status: "succeeded", assets, raw: cached.raw };
     rememberTaskResult(cached.projectId || "", cached.fingerprint, lateResult);

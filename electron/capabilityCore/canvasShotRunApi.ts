@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { canvasProviderId } from "./canvasTransportProvider";
+import { canvasProviderId, isCanvasProviderId } from "./canvasTransportProvider";
+import type { createGenerationOutputMaterializer } from "./generationOutputMaterializer";
 import type { PlanCandidate } from "./executionContract";
 import type { GenerationProviderOutput } from "./generationRuntimeAdapter";
 import type { AutomationPolicy, ProductionArtifact } from "../productionRun/productionRunTypes";
@@ -123,6 +124,13 @@ export function canvasLocalArtifactReceipt(input: {
     contentHash,
     projectRelativePath: relative,
   };
+}
+
+/** 提交出口的「交回的产物怎么记进 Run」：画布那台的本地文件只记账（上面这个），别的交给通用物化。 */
+export function canvasAwareOutputMaterializer(projectRoot: string, generic: Pick<ReturnType<typeof createGenerationOutputMaterializer>, "materialize">) {
+  return async (input: { projectId: string; providerTaskId: string; output: GenerationProviderOutput; outputIndex: number; job: { provider: string } }) =>
+    (isCanvasProviderId(input.job.provider) && canvasLocalArtifactReceipt({ projectId: input.projectId, projectRoot, providerTaskId: input.providerTaskId, output: input.output, outputIndex: input.outputIndex }))
+    || generic.materialize({ projectId: input.projectId, providerTaskId: input.providerTaskId, output: input.output, providerId: input.job.provider });
 }
 
 /** 一个画布节点这一次生成的候选：冻进合同的就是渲染层拼好的那一份请求（`parameters = { vendor, request }`）。 */

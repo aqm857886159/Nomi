@@ -570,6 +570,16 @@
         "symbol": "settleWithArtifacts"
       },
       "reason": "2026-11-09 一次运行给几份就留几份（docs/fixes/2026-11-09-multi-result-landing.root-cause.json，用户 11-09 拍板「按结构」）：一个 job 可以有多份产物，收尾从带一份改成带这个 job 的全部产物，改名 settleWithArtifacts，旧名同提交删除；概念登记 docs/engineering/concept-owners/production.generation-observation-lifecycle.json 的写口跟着改。10-31 合同的不变量「已有产物时收尾只走这一处，先补 job 再收信封」不变；N=1 时行为与编号逐字不变。守它的测试：electron/productionRun/productionGenerationMultiOutput.test.ts、electron/productionRun/productionGenerationLifecycle.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-08-30-generation-executor-lifecycle.root-cause.json",
+      "path": "electron/tasks/assetUrlExtract.ts",
+      "symbol": "extractAssetUrl",
+      "anchor": {
+        "path": "electron/tasks/assetUrlExtract.ts",
+        "symbol": "extractAssetUrls"
+      },
+      "reason": "2026-11-09 读供应商结果读全集（docs/fixes/2026-11-09-multi-result-landing.root-cause.json，用户 11-09 拍板「按结构」）：一次生成可以回几份，没声明映射时的兜底提取从「第一组非空结果里的第一条」改成回那一组的全部地址，改名 extractAssetUrls，旧名同提交删除（聊天回话的 extractChatImageUrl 同样改成 extractChatImageUrls）。08-30 合同的不变量「图 / 视频 / 音频 / 3D 地址都经这一处与供应商无关的提取」不变；只有一条地址时结果逐字不变。守它的测试：electron/tasks/assetUrlExtract.test.ts、electron/catalog/multiOutputMapping.test.ts。"
     }
   ],
   "retirements": [

@@ -3,8 +3,8 @@
   "entries": {
     "electron/runtime.ts": {
       "kind": "legacy",
-      "max": 660,
-      "reason": "…→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 526（2026-08-30 runtime lifecycle cleanup）→ 519（2026-09-01 actual-cost 接线时把两处终态 trace 收成单行，净瘦身）→ 490（2026-09-17 TaskRequest/CachedTask 抽到 electron/taskTypes.ts）→ 486（2026-09-21 合并 ① 按门岗提示拧紧）→ 482（2026-10-16 #1213 结果读取收进 tasks/taskResultReading）→ 479（同日 V-1213：无 mapping 兜底也走唯一读法，删 extractAssetUrl 再导出）；格式化口径 665 → 660（2026-11-07 配音落盘修复：只给文件流视频写的那句拒绝并进 tasks/projectFileResult 的判据）",
+      "max": 657,
+      "reason": "…→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 526（2026-08-30 runtime lifecycle cleanup）→ 519（2026-09-01 actual-cost 接线时把两处终态 trace 收成单行，净瘦身）→ 490（2026-09-17 TaskRequest/CachedTask 抽到 electron/taskTypes.ts）→ 486（2026-09-21 合并 ① 按门岗提示拧紧）→ 482（2026-10-16 #1213 结果读取收进 tasks/taskResultReading）→ 479（同日 V-1213：无 mapping 兜底也走唯一读法，删 extractAssetUrl 再导出）；格式化口径 665 → 660（2026-11-07 配音落盘修复：只给文件流视频写的那句拒绝并进 tasks/projectFileResult 的判据） → 657（2026-11-09 一次出几份：逐份落地收成 assets/localizeTaskAsset 的 localizeTaskAssets，续查那一跳共用）",
       "topDeclarations": [
         {
           "name": "runTask",
@@ -90,8 +90,8 @@
     },
     "electron/productionRun/productionRunDriverOps.ts": {
       "kind": "frozen",
-      "max": 1141,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 1130,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 1130（2026-11-09 一次出几份：产物号 artifactIdentifierForJob 和按序号派生的号原样收进 productionArtifactIdentity，行为不变）",
       "topDeclarations": [
         {
           "name": "createDriverOps",
@@ -375,8 +375,8 @@
     },
     "electron/productionRun/productionGenerationSubmission.ts": {
       "kind": "frozen",
-      "max": 772,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-10-31：结果回执、取回错误、provider状态分组和把job补到产物原样收进productionGenerationMaterialization，行为不变）→ 772（2026-11-01：执行绑定的构造原样收进productionGenerationBinding，腾出位置给模型拒绝参考链接的记账，行为不变）",
+      "max": 755,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆 → 838（2026-10-31：结果回执、取回错误、provider状态分组和把job补到产物原样收进productionGenerationMaterialization，行为不变）→ 772（2026-11-01：执行绑定的构造原样收进productionGenerationBinding，腾出位置给模型拒绝参考链接的记账，行为不变） → 755（2026-11-09 一次出几份：回执 → 产物原样收进 productionGenerationMaterialization 的 artifactFromMaterializationReceipt，行为不变）",
       "topDeclarations": [
         {
           "name": "createProductionGenerationSubmission",

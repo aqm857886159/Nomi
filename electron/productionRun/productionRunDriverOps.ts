@@ -14,14 +14,7 @@ import type { ProductionRun } from './productionRunTypes'
 import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
 import { logError } from '../logging/logger'
 import { isCanvasPreviewState } from '../shared/canvas/canvasMediaPreview'
-
-/** Job ids intentionally contain a namespace separator (`job:run:node`), but artifact ids are
- * public deep-link identifiers. Keep the mapping stable, collision-resistant, and URL-safe. */
-export function artifactIdentifierForJob(jobId: string): string {
-  const base = jobId.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 96) || 'job'
-  const suffix = crypto.createHash('sha256').update(jobId).digest('hex').slice(0, 10)
-  return `artifact-job-${base}-${suffix}`
-}
+import { artifactIdentifierForOutput } from './productionArtifactIdentity'
 
 export type DriverOpsDeps = {
   repository: Pick<ProductionRunRepository, 'execute' | 'read'>
@@ -611,7 +604,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
           const rawPreviewState = asset.previewState
           const previewState = isCanvasPreviewState(rawPreviewState) ? rawPreviewState : undefined
           const kind = asset.type === 'video' ? 'video' : asset.type === 'audio' ? 'audio' : 'image'
-          const artifactId = index === 0 ? artifactIdentifierForJob(jobId) : `${artifactIdentifierForJob(jobId)}-${index + 1}`
+          const artifactId = artifactIdentifierForOutput(jobId, index)
           current = executeInternal(projectId, runId, current, 'artifact.add', {
             artifact: { artifactId, stageId: job.stageId, jobId, kind, status: 'adopted', projectRelativePath: relativePath!, ...(thumbnailRelativePath && thumbnailRelativePath !== relativePath ? { thumbnailRelativePath } : {}), ...(previewState ? { previewState } : {}), createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() },
           }, `reconcile-${jobId}-artifact-${current.revision}`).run
