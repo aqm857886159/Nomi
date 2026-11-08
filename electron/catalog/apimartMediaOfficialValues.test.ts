@@ -17,9 +17,9 @@ const RATIOS_7 = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"];
 const FLUX3_RATIOS = ["21:9", "2:1", "16:9", "3:2", "7:5", "4:3", "5:4", "1:1", "4:5", "3:4", "5:7", "2:3", "9:16", "1:2", "9:21", "auto"];
 const FLUX3_RES = ["768sq", "1k", "1.5k", "2k", "4k"];
 // GPT Image 2.6：size 15 档比例 + auto（官方页 gpt-image-2.6/generation）。
-const GPT26_SIZES = ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "21:9", "9:21", "3:1", "1:3"];
+const GPT_IMAGE_RATIOS = ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "21:9", "9:21", "3:1", "1:3"];
 const GPT26: Official = {
-  size: GPT26_SIZES,
+  size: GPT_IMAGE_RATIOS,
   resolution: ["1k", "2k", "4k"],
   quality: ["low", "medium", "high", "xhigh", "max", "auto"],
   background: ["transparent", "opaque", "auto"],
@@ -48,6 +48,8 @@ const OMNI12: Official = { aspect_ratio: ["16:9", "9:16"], resolution: ["360p", 
 /** archetypeId → 官方取值（控件 key → 取值集合或数值范围；布尔开关不在表里）。 */
 export const OFFICIAL_VALUES: Record<string, Official> = {
   // ── 图片 ──
+  // gpt-image-2/generation: 15 ratios + auto, 1k / 2k / 4k; the shared control presents uppercase tiers.
+  "gpt-image-2": { aspect_ratio: GPT_IMAGE_RATIOS, resolution: ["1K", "2K", "4K"] },
   "gpt-image-2.6-flare": GPT26,
   "gpt-image-2.6-sunburst": GPT26,
   "gemini-nano-banana-2.1": NB21,
