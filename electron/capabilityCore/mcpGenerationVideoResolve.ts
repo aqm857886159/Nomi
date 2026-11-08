@@ -191,19 +191,6 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
       refuseGeneration({ code: "mode_not_in_model", field: "modeId", model: `${candidate.providerId}/${candidate.modelId}`,
         value: requestedModeId, allowed: modes.map((item) => item.id) });
     }
-    const requestedTransport = normalizedTaskKind(candidate.mode);
-    // 传输键只许经 owner 算（`modeTransport.ts` 自己写着 "Callers **must** route through this helper"）。
-    // 手写 `mode.transportTaskKind` 会漏掉 vendor 特化那一轴，于是**按 owner 算出传输键的调用方反而被拒**。
-    const modeTransport = normalizedTaskKind(modeTransportFor(mode, videoCandidate.archetype, videoCandidate.provider));
-    if (requestedTransport && requestedTransport !== normalizedMode(mode.id) && requestedTransport !== modeTransport) {
-      // 有的档案算不出传输种类（那就是它的默认）。2026-09-22 run3 里这句话因此印成了
-      // 「Video mode omni is a **undefined** mode」——一句想帮忙的话把 undefined 递给了模型。
-      // 说得出种类就说，说不出就只说哪两样对不上，绝不插值一个不存在的值。
-      const kind = modeTransport.trim();
-      refuseArgument(kind
-        ? `Video mode ${candidate.modeId} is a ${kind} mode, but this shot asks for ${candidate.mode}. Set taskKind to ${kind}, or drop modeId and let Nomi pick.`
-        : `Video mode ${candidate.modeId} does not go with taskKind ${candidate.mode} on this model. Drop taskKind (the mode already decides it), or drop modeId and let Nomi pick.`, { field: "taskKind" });
-    }
     return mode;
   }
 
