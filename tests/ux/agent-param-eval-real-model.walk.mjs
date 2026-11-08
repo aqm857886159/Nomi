@@ -17,13 +17,13 @@ import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // ── 每题一个新项目 ──
 // 题与题互不干扰：每题开一个全新的空白项目，按 `fixture` 搭起始态（文稿 / 素材 / 固定草稿存储夹具）。
-// 草稿前提直接用本评测的固定原生存储夹具，关闭项目后写入、重开后读回，不经过模型。
+// 草稿前提直接用本评测的固定原生存储夹具，在渲染层首次打开前写入、打开后读回，不经过模型。
 // 干跑接本机假文本模型，真实发送测试话术并用 look_at_canvas 核对前提；分数仍不代表产品质量。
 //
 // ── 跑法（花钱：只有大脑模型的文字费，由协调跑）──
 //   pnpm run build
 //   NOMI_SPEND_OK=1 node tests/ux/agent-param-eval-real-model.walk.mjs --model "<在线大脑模型展示名>" --label base [--only P01,P02] [--limit 10]
-//   node tests/ux/agent-param-eval-real-model.walk.mjs --dry-run      # 不连模型、不要凭据：验起 App / 所有起始态 / 假模型进入测试段 / 写轨迹文件
+//   node tests/ux/agent-param-eval-real-model.walk.mjs --dry-run      # 不连真实模型、不用真实凭据：验起 App / 所有起始态 / 假模型进入测试段 / 写轨迹文件
 // 产物：artifacts/agent-param-eval/<label>/（被忽略）：report.json、summary.json、trajectories/<题号>.jsonl、<题号>.outcome.json
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
@@ -38,7 +38,7 @@ import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 import { closeNomiApp, launchNomiApp } from './_launchApp.mjs'
 import { readAlignedCalls } from './askback-trajectory.mjs'
 import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
-import { seedDraftFixture } from './agent-param-eval-fixtures.mjs'
+import { draftFixture, seedDraftFixture } from './agent-param-eval-fixtures.mjs'
 import { createCardDriver } from './agent-param-eval-cards.mjs'
 import { lastAssistantText, taskTrajectory, readCanvasSummary, readRunJsons } from './agent-param-eval-collect.mjs'
 import { formatSummary, judgeTask, planShotsFromRuns, summarize } from './agent-param-eval-judge.mjs'
@@ -123,15 +123,30 @@ try {
   const assetFiles = TASKS.some((task) => task.fixture === 'assets') ? makeAssetFiles() : []
 
   /** 回到项目库，开一个全新的空白项目，返回它的目录（用「新出现的目录」认，不靠位置）。 */
-  async function openFreshProject() {
+  async function openFreshProject(task) {
     await leaveProjectIfOpen(win, 'back to library before a fresh project')
+    if (task.fixture.startsWith('drafts')) {
+      // 复用 project-save-draft-contract 的原生建项入口；新项目从未挂载，不会有退出保存覆盖夹具。
+      const { nodes } = draftFixture(Number(task.fixture.slice(6)))
+      const record = await win.evaluate(({ id, nodes }) => window.nomiDesktop.projects.create({
+        name: `Parameter fixture ${id}`, version: 2,
+        payload: { workbenchDocument: null, timeline: null,
+          generationCanvas: { nodes, edges: [], groups: [], selectedNodeIds: [] } },
+      }), { id: task.id, nodes })
+      const projectDir = await win.evaluate((id) => window.nomiDesktop.projects.read(id).lastKnownRootPath, record.id)
+      if (!projectDir || !path.resolve(projectDir).startsWith(path.resolve(iso.projectsDir) + path.sep)) throw new Error('Fixture project is outside isolation')
+      const seeded = seedDraftFixture(projectDir, Number(task.fixture.slice(6)))
+      await win.reload()
+      await win.locator(`[data-project-card="true"][data-project-id="${record.id}"]`).click({ timeout: stationTimeout({ operations: 2 }) })
+      return { projectDir, seeded }
+    }
     const known = new Set(fs.existsSync(iso.projectsDir) ? fs.readdirSync(iso.projectsDir) : [])
     await newProjectEntry(win).click({ timeout: stationTimeout({ operations: 2 }) })
     const deadline = Date.now() + stationTimeout({ operations: 2 })
     while (Date.now() < deadline) {
       const fresh = fs.readdirSync(iso.projectsDir).filter((name) => !known.has(name)
         && fs.existsSync(path.join(iso.projectsDir, name, '.nomi', 'project.json')))
-      if (fresh.length === 1) return path.join(iso.projectsDir, fresh[0])
+      if (fresh.length === 1) return { projectDir: path.join(iso.projectsDir, fresh[0]) }
       await win.waitForTimeout(300)
     }
     throw new Error('新建项目超时：项目目录未落盘')
@@ -206,7 +221,8 @@ try {
     let projectDir
     try {
       if (task.fixtureUnavailable) throw Object.assign(new Error(task.fixtureUnavailable), { setup: true })
-      projectDir = await openFreshProject()
+      let seeded
+      ;({ projectDir, seeded } = await openFreshProject(task))
       await answerTelemetryConsentIfShown()
       // ── 起始态 ──
       if (task.fixture === 'assets') {
@@ -216,13 +232,6 @@ try {
       if (task.fixture === 'script') {
         row.scriptTyped = await writeScript()
         if (!row.scriptTyped) throw Object.assign(new Error('文稿没敲进编辑器'), { setup: true })
-      }
-      // 前提写入时项目必须关闭，否则渲染层保存会覆盖夹具。
-      let seeded
-      if (task.fixture.startsWith('drafts')) {
-        await leaveProjectIfOpen(win, 'close isolated project before fixture write')
-        seeded = seedDraftFixture(projectDir, Number(task.fixture.slice(6)))
-        await win.locator(`[data-project-card="true"][data-project-id="${seeded.projectId}"]`).click({ timeout: stationTimeout({ operations: 2 }) })
       }
       await switchWorkspace(win, 'generation', '切到生成区')
       await win.waitForTimeout(POLL_MS)
@@ -238,7 +247,9 @@ try {
       if (DRY_RUN) {
         const probe = readAlignedCalls(projectDir).find((call) => call.name === 'look_at_canvas' && call.hasResult && !call.isError)
         row.testStageEntered = Boolean(probe)
-        row.dryRunOk = !turn.timedOut && Boolean(probe) && (seeded?.nodeIds ?? []).every((id) => probe.resultText.includes(id))
+        row.dryRunOk = !turn.timedOut && Boolean(probe)
+          && (!seeded || probe.resultText.includes(seeded.runId))
+          && (seeded?.nodeIds ?? []).every((id) => probe.resultText.includes(id))
         if (!row.dryRunOk) throw new Error('假模型没有读到测试段的完整起始态')
       }
       row.cardsAnswered = turn.cardsAnswered
@@ -283,7 +294,7 @@ try {
   }
   report.summary = summarize(results.filter((item) => !unscorable.includes(item.id)), unscorable, BANK.tasks)
   fs.writeFileSync(path.join(outputDir, 'summary.json'), JSON.stringify(report.summary, null, 2))
-  console.log(`\n${DRY_RUN ? '（干跑：没连模型，下面的数是假模型探针的底数，不是产品结论）\n' : ''}${formatSummary(report.summary)}`)
+  console.log(`\n${DRY_RUN ? '（干跑：仅本机假模型，下面的数是假模型探针的底数，不是产品结论）\n' : ''}${formatSummary(report.summary)}`)
   await win.screenshot({ path: path.join(outputDir, 'last-screen.png') }).catch(() => {})
 } catch (error) {
   failure = error

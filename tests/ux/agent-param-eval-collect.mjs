@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { laneMessageText, laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
-import { annotateRetries, readAlignedCalls } from './askback-trajectory.mjs'
+import { annotateRetries } from './askback-trajectory.mjs'
 
 /** 读原生 run 快照；尚无快照的固定夹具读事件日志末态（坏文件记名字）。 */
 export function readRunJsons(projectDir) {

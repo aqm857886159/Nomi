@@ -6,12 +6,9 @@ import { fileURLToPath } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const source = JSON.parse(fs.readFileSync(path.join(here, 'agent-param-eval-fixtures/draft-run.json'), 'utf8'))
 
-export function seedDraftFixture(projectDir, count) {
+export function draftFixture(count) {
   if (![1, 3, 6].includes(count)) throw new Error('Unknown draft fixture size')
-  const file = path.join(projectDir, '.nomi/project.json')
-  const project = JSON.parse(fs.readFileSync(file, 'utf8'))
   const run = structuredClone(source)
-  run.projectId = project.id
   run.generationPlan.shots = run.generationPlan.shots.slice(0, count)
   const nodes = run.generationPlan.shots.map((shot, index) => ({
     id: shot.nodeId, kind: 'video', categoryId: 'shots', title: shot.title, prompt: shot.candidate.prompt,
@@ -20,12 +17,15 @@ export function seedDraftFixture(projectDir, count) {
     meta: { modelKey: shot.candidate.modelId, modelVendor: shot.candidate.providerId,
       ...shot.candidate.parameters, productionRunId: run.runId, productionShotId: shot.shotId,
       productionCandidateId: shot.candidate.candidateId, productionCandidateRevision: 1,
-      productionCandidateModelKey: shot.candidate.modelId, productionCandidateModelVendor: shot.candidate.providerId,
-      productionCandidateIntent: shot.candidate.mode },
+      productionCandidateModelKey: shot.candidate.modelId, productionCandidateModelVendor: shot.candidate.providerId },
   }))
-  project.payload.generationCanvas = { nodes, edges: [], groups: [], selectedNodeIds: [] }
-  project.revision += 1
-  fs.writeFileSync(file, JSON.stringify(project, null, 2))
+  return { run, nodes }
+}
+
+export function seedDraftFixture(projectDir, count) {
+  const { run, nodes } = draftFixture(count)
+  const project = JSON.parse(fs.readFileSync(path.join(projectDir, '.nomi/project.json'), 'utf8'))
+  run.projectId = project.id
   const dir = path.join(projectDir, '.nomi/runs', run.runId)
   fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(path.join(dir, 'events.ndjson'), JSON.stringify({
