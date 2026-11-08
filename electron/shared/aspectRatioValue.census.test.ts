@@ -53,14 +53,14 @@ describe("全目录普查（档案 × 变体 × 供应商分层 × 模式）", (
   // 2026-11-07 +1：Gemini Omni 1.2 Flash Ext 按官方页补上首尾帧（有比例控件）。
   // 2026-11-07 +56 个组合（剩余 11 个图片与 14 个视频档案的各模式 × 供应商分层）：其中 44 个有比例控件、12 个没有（改图 / 图生里比例跟随输入图）。
   // 2026-10-06 +2：Topaz 图片放大、Recraft 清晰放大各一个 upscale 组合（放大没有比例控件，归进下面「没有比例选择」）。
-  it("总数与「有比例控件」的数和验收线对得上：399 个组合，按共享判据 280 个有比例控件", () => {
-    expect(combos).toHaveLength(399);
+  it("总数与「有比例控件」的数和验收线对得上：405 个组合，按共享判据 280 个有比例控件", () => {
+    expect(combos).toHaveLength(405);
     expect(combos.filter((combo) => combo.controls.some((control) => optionsAreAspectRatios(control.options)))).toHaveLength(280);
   });
 
-  it("宿主翻译多认 13 个（Runway 上带「自动 + 分辨率档」的 Wan 3.0 / Seedream 5 Pro / Grok Imagine 图像），106 个没有比例选择，没有一个组合有两个比例控件", () => {
+  it("宿主翻译多认 13 个（Runway 上带「自动 + 分辨率档」的 Wan 3.0 / Seedream 5 Pro / Grok Imagine 图像），112 个没有比例选择，没有一个组合有两个比例控件", () => {
     const outcomes = combos.map((combo) => resolveAspectRatioChoice("16:9", combo.controls));
-    expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "no_ratio_control")).toHaveLength(106);
+    expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "no_ratio_control")).toHaveLength(112);
     expect(outcomes.filter((outcome) => !outcome.ok && outcome.reason === "ambiguous")).toHaveLength(0);
   });
 

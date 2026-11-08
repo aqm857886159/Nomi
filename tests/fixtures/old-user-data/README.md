@@ -66,3 +66,7 @@ pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 生成器是 `generators/zzLockExitGen.ts.txt`，复制到旧版导出的 `electron/capabilityCore/zzLockExitGen.test.ts`，设 `NOMI_OLD_RUN_OUT` 为输出目录、`NOMI_OLD_RUN_COMMIT` 为导出提交的完整 SHA，使用该导出的 vitest 运行。源码导出包含根目录 tsconfig、electron、src、scripts、tests/setup、tests/stubs，依赖可链接已有目录。只拷实际落盘的 `.nomi`；不包含活锁和任何用户资料，凭据机构仅使用测试假值。
 
 `runs/v0.24.0-canvas-interrupted` 同样由上述 v0.24.0 源码运行 `generators/zzLockExitInterruptedGen.ts.txt` 生成：真实 POST 尚未回复时保存 Run，旧版第二次提交产生实际 `node_generation_in_flight`，由旧版画布 store 写进 `node.json`。未手写 Run/节点形状，复制时排除活锁。F10 回放在 `electron/capabilityCore/canvasOpenRuns.test.ts`：打开后成为结果不明；真人放行不发 POST，新的生成意图恰发一次。
+
+## 内置目录声明快照（`curated/`）
+
+`curated/v0.24.1-apimart` 由 `fb169414c1778e88bca35beacc0da9c54cb313d4` 的 `ensureBuiltinModelSeeds` 经真实目录写入函数落盘，再仅投影 APIMart 行，行内容未手写。没有凭据。生成器 `generators/zzCatalogSnapshot.ts.txt` 需要显式临时设置目录；`provenance.json` 记录来源。`apimartLatestContracts.test.ts` 对账每个旧身份、用户设置和旧音频映射。它证明目录兼容，不能替代真实旧作品的供应商执行验证。

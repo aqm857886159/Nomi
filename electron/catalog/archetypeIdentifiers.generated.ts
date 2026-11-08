@@ -388,6 +388,24 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "suno-sounds-v5.5",
     "suno-sounds-v5-5"
   ],
+  "suno-v6": [
+    "suno-v6"
+  ],
+  "suno-sfx-v6": [
+    "suno-sounds-v6"
+  ],
+  "suno-v6-wild": [
+    "suno-v6-wild"
+  ],
+  "suno-sfx-v6-wild": [
+    "suno-sounds-v6-wild"
+  ],
+  "suno-v6-mini": [
+    "suno-v6-mini"
+  ],
+  "suno-sfx-v6-mini": [
+    "suno-sounds-v6-mini"
+  ],
   "lyria-3.5": [
     "flowmusic-lyria-3.5"
   ],

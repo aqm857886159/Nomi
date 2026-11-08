@@ -71,6 +71,42 @@ export const ARCHETYPE_MODE_MANIFEST_AUDIO: Record<string, { defaultModeId: stri
       "sfx": "text_to_audio"
     }
   },
+  "suno-v6": {
+    "defaultModeId": "music",
+    "modes": {
+      "music": "text_to_audio"
+    }
+  },
+  "suno-sfx-v6": {
+    "defaultModeId": "sfx",
+    "modes": {
+      "sfx": "text_to_audio"
+    }
+  },
+  "suno-v6-wild": {
+    "defaultModeId": "music",
+    "modes": {
+      "music": "text_to_audio"
+    }
+  },
+  "suno-sfx-v6-wild": {
+    "defaultModeId": "sfx",
+    "modes": {
+      "sfx": "text_to_audio"
+    }
+  },
+  "suno-v6-mini": {
+    "defaultModeId": "music",
+    "modes": {
+      "music": "text_to_audio"
+    }
+  },
+  "suno-sfx-v6-mini": {
+    "defaultModeId": "sfx",
+    "modes": {
+      "sfx": "text_to_audio"
+    }
+  },
   "lyria-3.5": {
     "defaultModeId": "music",
     "modes": {

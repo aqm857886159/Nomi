@@ -63,6 +63,15 @@ function asyncMusicCreate(path: string, body: Record<string, unknown>): HttpOper
   };
 }
 
+// Keep saved canonical controls stable; JSON property names belong to the endpoint contract.
+const SUNO_SOUNDS_BODY = {
+  model: "suno",
+  prompt: "{{request.prompt}}",
+  type: "{{request.params.sound_type}}",
+  bpm: "{{request.params.sound_tempo}}",
+  key: "{{request.params.sound_key}}",
+} satisfies Record<"model" | "prompt" | "type" | "bpm" | "key", string>;
+
 // 配音 TTS：input=台词/旁白（prompt），voice/speed 取自档案参数，response_format 固定 wav
 // （未压缩、Chromium <audio> 必能播；doc 默认值亦为 wav）。
 const TTS_CREATE: HttpOperation = {
@@ -147,17 +156,124 @@ export const APIMART_AUDIO_MODELS: ApimartAudioModel[] = [
         taskKind: "text_to_audio",
         name: "Suno Sounds V5.5 · 音效生成",
         create: asyncMusicCreate("/v1/music/generations/sounds", {
-          model: "suno",
+          ...SUNO_SOUNDS_BODY,
           version: "v5.5",
-          prompt: "{{request.prompt}}",
-          sound_type: "{{request.params.sound_type}}",
-          sound_tempo: "{{request.params.sound_tempo}}",
-          sound_key: "{{request.params.sound_key}}",
         }),
         query: APIMART_MUSIC_QUERY,
         statusMapping: APIMART_MUSIC_STATUS,
       },
     ],
+  },
+  {
+    modelKey: "suno-v6",
+    labelZh: "Suno V6",
+    archetypeId: "suno-v6",
+    kind: "audio",
+    mappings: [{
+      id: "seed-apimart-suno-v6-text_to_audio",
+      taskKind: "text_to_audio",
+      name: "Suno V6",
+      create: asyncMusicCreate("/v1/music/generations", {
+          model: "suno",
+          version: "v6",
+          custom: false,
+          prompt: "{{request.prompt}}",
+          instrumental: "{{request.params.instrumental}}",
+      }),
+      query: APIMART_MUSIC_QUERY,
+      statusMapping: APIMART_MUSIC_STATUS,
+    }],
+  },
+  {
+    modelKey: "suno-sounds-v6",
+    labelZh: "Suno Sounds V6",
+    archetypeId: "suno-sfx-v6",
+    kind: "audio",
+    mappings: [{
+      id: "seed-apimart-suno-sounds-v6-text_to_audio",
+      taskKind: "text_to_audio",
+      name: "Suno Sounds V6",
+      create: asyncMusicCreate("/v1/music/generations/sounds", {
+          ...SUNO_SOUNDS_BODY,
+          version: "v6",
+      }),
+      query: APIMART_MUSIC_QUERY,
+      statusMapping: APIMART_MUSIC_STATUS,
+    }],
+  },
+  {
+    modelKey: "suno-v6-wild",
+    labelZh: "Suno V6 WILD",
+    archetypeId: "suno-v6-wild",
+    kind: "audio",
+    mappings: [{
+      id: "seed-apimart-suno-v6-wild-text_to_audio",
+      taskKind: "text_to_audio",
+      name: "Suno V6 WILD",
+      create: asyncMusicCreate("/v1/music/generations", {
+          model: "suno",
+          version: "v6-wild",
+          custom: false,
+          prompt: "{{request.prompt}}",
+          instrumental: "{{request.params.instrumental}}",
+      }),
+      query: APIMART_MUSIC_QUERY,
+      statusMapping: APIMART_MUSIC_STATUS,
+    }],
+  },
+  {
+    modelKey: "suno-sounds-v6-wild",
+    labelZh: "Suno Sounds V6 WILD",
+    archetypeId: "suno-sfx-v6-wild",
+    kind: "audio",
+    mappings: [{
+      id: "seed-apimart-suno-sounds-v6-wild-text_to_audio",
+      taskKind: "text_to_audio",
+      name: "Suno Sounds V6 WILD",
+      create: asyncMusicCreate("/v1/music/generations/sounds", {
+          ...SUNO_SOUNDS_BODY,
+          version: "v6-wild",
+      }),
+      query: APIMART_MUSIC_QUERY,
+      statusMapping: APIMART_MUSIC_STATUS,
+    }],
+  },
+  {
+    modelKey: "suno-v6-mini",
+    labelZh: "Suno V6 MINI",
+    archetypeId: "suno-v6-mini",
+    kind: "audio",
+    mappings: [{
+      id: "seed-apimart-suno-v6-mini-text_to_audio",
+      taskKind: "text_to_audio",
+      name: "Suno V6 MINI",
+      create: asyncMusicCreate("/v1/music/generations", {
+          model: "suno",
+          version: "v6-mini",
+          custom: false,
+          prompt: "{{request.prompt}}",
+          instrumental: "{{request.params.instrumental}}",
+      }),
+      query: APIMART_MUSIC_QUERY,
+      statusMapping: APIMART_MUSIC_STATUS,
+    }],
+  },
+  {
+    modelKey: "suno-sounds-v6-mini",
+    labelZh: "Suno Sounds V6 MINI",
+    archetypeId: "suno-sfx-v6-mini",
+    kind: "audio",
+    mappings: [{
+      id: "seed-apimart-suno-sounds-v6-mini-text_to_audio",
+      taskKind: "text_to_audio",
+      name: "Suno Sounds V6 MINI",
+      create: asyncMusicCreate("/v1/music/generations/sounds", {
+          ...SUNO_SOUNDS_BODY,
+          version: "v6-mini",
+      }),
+      query: APIMART_MUSIC_QUERY,
+      statusMapping: APIMART_MUSIC_STATUS,
+    }],
   },
   {
     modelKey: "flowmusic-lyria-3.5",

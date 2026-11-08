@@ -29,7 +29,7 @@ function seededContext(mapping: ReturnType<typeof seededMapping>) {
 describe("reference-key projection census — declared reference behavior", () => {
   it("has no false positives in real seeded creation bodies", () => {
     const census = buildReferenceKeyCensus();
-    expect(census.summary.seededMappings).toBe(299); // 2026-11-07 +49：剩余图片 11 个（各文生 + 改图）与视频 14 个（文生 + 图生，Vidu Q4 预览版只有图生）
+    expect(census.summary.seededMappings).toBe(305); // Suno V6 音乐/音效 +6（无参考键），媒体 +49：剩余图片 11 个（各文生 + 改图）与视频 14 个（文生 + 图生，Vidu Q4 预览版只有图生）
     expect(census.summary.rowsWithClassifiedKeys).toBe(151);
     expect(census.summary.falsePositiveRows).toBe(0);
     expect(census.summary.falsePositiveKeys).toBe(0);

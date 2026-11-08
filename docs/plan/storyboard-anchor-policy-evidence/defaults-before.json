@@ -1209,11 +1209,59 @@
     "image": {},
     "video": {}
   },
+  "suno-v6-mini/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6-mini/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6-wild/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6-wild/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6/kie": {
+    "image": {},
+    "video": {}
+  },
   "suno-v5.5/apimart": {
     "image": {},
     "video": {}
   },
   "suno-sfx-v5.5/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6-mini/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6-mini/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6-wild/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6-wild/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6/kie": {
     "image": {},
     "video": {}
   },
