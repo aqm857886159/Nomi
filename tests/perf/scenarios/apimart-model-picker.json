@@ -1,0 +1,13 @@
+{
+  "id": "apimart-model-picker",
+  "feature": "真实画布打开模型选择器，搜索当前连接支持的型号、看到对应能力",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": ["--instrument", "tests/ux/apimart-model-surfaces.rehearsal.mjs", "--"],
+  "scale": "启动带 APIMart 内置目录的独立 Electron 工作台，视频节点中选择模型。预热 1 轮后复测 5 次，模型与余额的供应商响应仅走回环服务器。",
+  "metrics": ["response"],
+  "budget": 150,
+  "p95Budget": 200,
+  "group": "模型账户与生成画布",
+  "budgetStatus": "proposed",
+  "budgetBasis": "从 Playwright 指针点击到搜索结果可见，包含点击和键入两个 UI 动作及自动化等待。两动作合计目标中位 150ms，p95 200ms。"
+}

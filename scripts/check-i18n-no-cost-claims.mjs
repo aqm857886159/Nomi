@@ -59,6 +59,13 @@ export const POSITIVE_SPEND_CLAIMS = Object.freeze({
  */
 export const COST_LABEL_EXACT = Object.freeze({
   'runtime.capability.generationGateCost': Object.freeze({ 'zh-CN': '费用', en: 'Cost' }),
+  // Approved APIMart account and public-rate display. Each key admits only this wording.
+  'onboardingProviders.account.credits': Object.freeze({ 'zh-CN': '{{value}} 积分', en: '{{value}} credits' }),
+  'onboardingProviders.account.billing': Object.freeze({ 'zh-CN': '去充值', en: 'Top up' }),
+  'onboardingProviders.account.estimate': Object.freeze({ 'zh-CN': '预计 {{value}} 积分 · APIMart 公开默认价', en: 'Estimated {{value}} credits · public APIMart rate' }),
+  'onboardingProviders.account.outputEstimate': Object.freeze({ 'zh-CN': '仅输出约 {{value}} 积分 · 实际按 token 结算', en: 'Output estimate: {{value}} credits · Billed by actual tokens' }),
+  'onboardingProviders.account.priceUnknown': Object.freeze({ 'zh-CN': '本次价格未知', en: 'Price unavailable' }),
+  'onboardingProviders.account.shortfall': Object.freeze({ 'zh-CN': '低于公开估价 {{value}} 积分', en: '{{value}} credits below the public estimate' }),
 })
 
 /**

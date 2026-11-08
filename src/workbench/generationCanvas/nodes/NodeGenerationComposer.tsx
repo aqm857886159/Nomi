@@ -1,3 +1,6 @@
+import { useNodePricePreview } from '../spend/useNodePricePreview'
+import { useVendorAccountFacts } from '../../../ui/onboarding/useVendorAccountFacts'
+import { apimartBillingUrl, formatCreditValue } from '../../common/apimartAccountDisplay'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -125,7 +128,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
     if (feedbackOwnerRef.current !== node.id) { onFeedback(message); return }
     notify({ identity: `NodeGenerationComposer:${node.id}`, reason: 'interaction', message, level: 'inline', present: setFeedback })
   }, [node.id, onFeedback])
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // 不钉在画布节点下沿（列表详情）：外层是普通内容流里的一个 div，不绝对定位、不随画布拖动隐身。
   const inFlow = host !== 'canvas'
   // 写口（见 nodeWriteAccess）：默认写画布 store；这张卡往下把它包一层只读闸再交给参考区 / @ 引用 / 拖放。
@@ -147,6 +150,16 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   // 模型清单（可疑点 f）：整张生成框只算这一份，往下交给三份参数控件，不再各算一遍。
   const modelOptionsState = useGenerationModelOptionsState(node.kind, requiredMode)
   const modelOptions = modelOptionsState.options
+  const { quote, vendorKey: quoteVendor } = useNodePricePreview(node, graph)
+  const { facts, refresh: refreshBalance } = useVendorAccountFacts(quote ? quoteVendor : undefined)
+  const limits = facts?.keyState === 'valid'
+    ? [facts.accountCredits, facts.keyUnlimited ? null : facts.keyCredits].filter((n): n is number => n !== null)
+    : []
+  const shortfall = quote && quote.basis !== 'output-estimate' && limits.length ? Math.max(0, quote.credits - Math.min(...limits)) : 0
+  const zeroBalance = shortfall > 0 && limits.includes(0) && facts !== null && Date.now() - facts.checkedAt < 30_000
+  const quoteLabel = quote ? t(quote.basis === 'output-estimate' ? 'onboardingProviders.account.outputEstimate' : 'onboardingProviders.account.estimate', {
+    value: formatCreditValue(quote.credits, i18n.language),
+  }) : quoteVendor ? t('onboardingProviders.account.priceUnknown') : undefined
   // 渠道 mapping 同理：内存里那一份（composerResidentData 启动后载入），三份控件共用一个读取器。
   const readMappings = useVendorMappingsReader()
   const selectedModelAddress = nodeSelectedModelAddress(node.meta || {})
@@ -505,20 +518,31 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                 onClick={() => requestDirectorPreviewRender(rerenderDirectorNodeId)}
               />
             ) : null}
-            <span title={title} style={{ display: 'contents' }}>
+            <span title={disabledReason ?? quoteLabel ?? title} style={{ display: 'contents' }}>
               {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮。
                   右半边由上面那根 flex-1 撑开：生成钮永远在底栏最右 = 卡片右下角（卡宽恒定 → 屏幕位置锁死）。 */}
               <button
                 type="button"
                 data-bar-segment="generate"
-                className={GENERATE_BUTTON_CLASS}
-                aria-label={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
+                className={cn(GENERATE_BUTTON_CLASS, quoteVendor && !isGenerating && !hasPendingRefs && '!w-auto min-w-8 gap-1 px-2')}
+                data-price-source={quote?.source}
+                aria-description={quoteLabel}
+                aria-label={zeroBalance && !isGenerating && !hasPendingRefs ? t('onboardingProviders.account.billing') : hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
                 disabled={!canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null}
-                onClick={handleGenerate}
+                onClick={zeroBalance && !isGenerating && !hasPendingRefs
+                  ? (event) => {
+                    if (Date.now() - facts!.checkedAt >= 30_000) { void handleGenerate(event); return }
+                    event.stopPropagation()
+                    window.open(apimartBillingUrl(i18n.language), '_blank', 'noopener,noreferrer')
+                  }
+                  : handleGenerate}
               >
+                {quoteVendor && !isGenerating && !hasPendingRefs ? <span className="whitespace-nowrap text-micro">{zeroBalance ? t('onboardingProviders.account.billing') : quote ? (quote.basis === 'output-estimate' ? '≈' : '') + formatCreditValue(quote.credits, i18n.language) : '—'}</span> : null}
                 {isGenerating ? '···' : <IconArrowUp size={ICON_TIERS.tool.size} stroke={ICON_TIERS.tool.stroke} aria-hidden />}
               </button>
             </span>
+            {zeroBalance && !isGenerating && !hasPendingRefs && <WorkbenchIconButton icon={<IconRefresh />} label={t('onboardingProviders.account.refresh')} size="sm" onClick={refreshBalance} />}
+            {shortfall > 0 && !isGenerating && !hasPendingRefs && <span className="text-micro text-nomi-ink-60">{t('onboardingProviders.account.shortfall', { value: formatCreditValue(shortfall, i18n.language) })}</span>}
             </>
           )
         })()}

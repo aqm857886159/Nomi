@@ -37,6 +37,8 @@ export type NomiSelectOption = {
   /** 选项右侧附加文字（如价格、模板/通用），在对勾左边。 */
   trailing?: string
   trailingTone?: NomiSelectTone
+  /** Capability labels for the effective model connection. */
+  details?: () => readonly string[]
   /**
    * 行尾供应商 chip：同名模型折成一行后，「这一行能走哪几家」就靠它表达（第一个=当前生效那家）。
    *
@@ -274,6 +276,7 @@ export function NomiSelect({
           {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
           {visibleOptions.map((option) => {
             const isSel = option.value === value
+            const details = combobox.dropdownOpened ? option.details?.() : undefined
             return (
               <Combobox.Option value={option.value} key={option.value} disabled={option.disabled} active={isSel} title={option.label}>
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
@@ -290,6 +293,11 @@ export function NomiSelect({
                     className={cn('min-w-0 flex-1 text-caption', searchable ? 'whitespace-normal break-all py-1' : 'truncate', isSel ? 'text-nomi-ink font-semibold' : 'text-nomi-ink-80')}
                   >
                     {option.label}
+                    {details?.length ? (
+                      <span className="mt-1 flex flex-wrap gap-1 text-micro font-normal text-nomi-ink-60">
+                        {details.map(detail => <span key={detail} data-model-capability className="rounded-pill bg-nomi-ink-05 px-1">{detail}</span>)}
+                      </span>
+                    ) : null}
                   </span>
                   {option.trailing ? (
                     // max-w + truncate：trailing 是附注（厂商名/价格），不许反客为主挤压 label
