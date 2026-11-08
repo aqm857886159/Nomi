@@ -260,8 +260,6 @@ describe('every text declaration names where it comes from', () => {
       }
       const proOff = { ...current, models: models.map(row => row.vendorKey === 'apimart' && row.modelKey === 'deepseek-v4-pro' ? { ...row, enabled: false } : row) };
       expect(selectTextModelCandidates(proOff, undefined, false, availability)[0]?.model.modelKey).toBe('deepseek-v4-flash');
-      const keys = text.map(row => row.model.modelKey);
-      expect(keys.indexOf('deepseek-v3.1-terminus')).toBeGreaterThan(keys.indexOf('gpt-6-astra'));
     }
   });
 
@@ -299,7 +297,7 @@ describe('current brains and old catalog compatibility', () => {
   it('declares exactly the current candidates without adding MiMo or changing old identities', () => {
     for (const key of BRAINS) expect(APIMART_TEXT_MODELS.find(row => row.modelKey === key), key).toBeDefined();
     expect(APIMART_TEXT_MODELS.some(row => row.modelKey.startsWith('mimo-'))).toBe(false);
-    for (const key of ['deepseek-v4-flash', 'gemini-3.5-flash', 'deepseek-v3.1-terminus']) {
+    for (const key of ['deepseek-v4-flash', 'gemini-3.5-flash']) {
       expect(APIMART_TEXT_MODELS.find(row => row.modelKey === key)).toBeDefined();
     }
   });
@@ -309,6 +307,15 @@ describe('current brains and old catalog compatibility', () => {
     const original = JSON.parse(fs.readFileSync(new URL('model-catalog.json', root), 'utf8')) as CatalogState;
     const before = structuredClone(original);
     const { state } = applyBuiltinSeeds(original, '2026-11-07');
+    const removedTextModels = before.models.filter(row => row.vendorKey === 'apimart' && row.kind === 'text'
+      && !APIMART_TEXT_MODELS.some(current => current.modelKey === row.modelKey));
+    expect(removedTextModels).toHaveLength(1);
+    state.apiKeysByVendor = { apimart: { vendorKey: 'apimart', apiKey: 'fixture-only', enc: 'plain', enabled: true, createdAt: '', updatedAt: '' } };
+    const availability = createCatalogAvailability(state, () => 'ok');
+    for (const preference of removedTextModels) {
+      expect(selectTextModelCandidates(state, preference, false, availability)[0]?.model.modelKey).toBe(preference.modelKey);
+    }
+    expect(selectTextModelCandidates(state, undefined, false, availability)[0]?.model.modelKey).toBe('deepseek-v4-pro');
     for (const row of before.models) {
       expect(state.models.find(next => next.vendorKey === row.vendorKey && next.modelKey === row.modelKey))
         .toMatchObject({ enabled: row.enabled, labelZh: row.labelZh, modelKey: row.modelKey, createdAt: row.createdAt });
@@ -330,7 +337,6 @@ describe('current brains and old catalog compatibility', () => {
     }
     expect(state.models.find(row => row.modelKey === 'gemini-3.5-flash')?.tokenPricing?.cacheReadPerMTokUsd).toBeUndefined();
     expect(state.models.find(row => row.modelKey === 'gemini-3.5-flash')?.meta).toMatchObject({ supportsImageInput: true });
-    expect(state.models.find(row => row.modelKey === 'deepseek-v3.1-terminus')?.tokenPricing).toBeUndefined();
     expect(applyBuiltinSeeds(state, '2026-11-08').changed).toBe(false);
   });
 });

@@ -325,7 +325,6 @@ describe("applyBuiltinSeeds", () => {
     const brainKeys = [
       "deepseek-v4-pro",
       "deepseek-v4-flash",
-      "deepseek-v3.1-terminus",
     ];
     for (const modelKey of brainKeys) {
       const brain = state.models.find((m) => m.vendorKey === "apimart" && m.modelKey === modelKey);
@@ -341,7 +340,7 @@ describe("applyBuiltinSeeds", () => {
     const { state } = applyBuiltinSeeds(emptyCatalog(), NOW);
     expect(state.models.find((model) => model.vendorKey === "apimart" && model.modelKey === "deepseek-v3.2")).toBeUndefined();
     // 下架只摘这一条：同族在售的与默认大脑原样在。
-    for (const modelKey of ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v3.1-terminus", "gemini-3.5-flash"]) {
+    for (const modelKey of ["deepseek-v4-pro", "deepseek-v4-flash", "gemini-3.5-flash"]) {
       expect(state.models.find((model) => model.vendorKey === "apimart" && model.modelKey === modelKey), modelKey)
         .toMatchObject({ kind: "text", enabled: true });
     }
