@@ -560,6 +560,16 @@
         "symbol": "storedAssetFileParts"
       },
       "reason": "2026-11-07 配音落盘修复那一轮（docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json）：projectAssetStore.ts 到了文件体积冻结线，按职责把「落盘文件的类型与位置」整块拆到 electron/assets/storedAssetFile.ts（effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath，函数体逐字不变，只是导出）。09-26 合同的不变量「落盘文件名的唯一裁法：扩展名按字节嗅出的内容类型定、只截主干」不变：writeAsset / copyAssetFile / moveAssetFile / 生成产物发布仍然只经 uniqueAssetPath → storedAssetFileParts 这一处取名。守它的测试：electron/assets/projectAssetStore.test.ts（长供应商名不带扩展名 → .mp4，copyAssetFile 与 moveAssetFile 两个入口）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "settleWithArtifact",
+      "anchor": {
+        "path": "electron/productionRun/productionGenerationSubmission.ts",
+        "symbol": "settleWithArtifacts"
+      },
+      "reason": "2026-11-09 一次运行给几份就留几份（docs/fixes/2026-11-09-multi-result-landing.root-cause.json，用户 11-09 拍板「按结构」）：一个 job 可以有多份产物，收尾从带一份改成带这个 job 的全部产物，改名 settleWithArtifacts，旧名同提交删除；概念登记 docs/engineering/concept-owners/production.generation-observation-lifecycle.json 的写口跟着改。10-31 合同的不变量「已有产物时收尾只走这一处，先补 job 再收信封」不变；N=1 时行为与编号逐字不变。守它的测试：electron/productionRun/productionGenerationMultiOutput.test.ts、electron/productionRun/productionGenerationLifecycle.test.ts。"
     }
   ],
   "retirements": [

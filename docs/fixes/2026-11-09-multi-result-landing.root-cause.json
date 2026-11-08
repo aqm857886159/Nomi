@@ -1,0 +1,297 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-multi-result-landing",
+  "problem_type": "A run that returns several media outputs is collapsed to one at every landing boundary instead of accounting each output to the run",
+  "symptom": "A creator sets the image count to 2 or 4 on a model that supports it (n / batch_size / output_count), pays for all of them, and the shot shows one image with one version; the other images are on disk but nowhere in the project. Through Agent production the same request stops as needs attention ('Single-shot generation returned more than one output'): paid, and not one image lands.",
+  "direct_cause": "The main process saves every output, but each landing boundary keeps one: the renderer parse (normalizeCatalogTaskResult) took the first asset, the canvas transport (canvasTransportProvider.materialize) passed only the first asset to the submission exit, the submission exit (productionGenerationSubmission.materialize) failed any extraction with more than one output, the canvas replay / poll answer (readyArtifact / resultFromArtifact) rebuilt one asset from the ledger, the production landing projection (buildMaterializeShotsPayload) found the first artifact of the job, reconciliation adopted assets[0], and the renderer landing input carried a single result.",
+  "class_root": "'One run produces one result' was an unstated assumption repeated at seven boundaries in both processes, with no shared type saying a run owns a list of results. Each layer chose its own 'first' and nothing forced the next layer to accept more, so any model that returns several outputs silently lost the rest wherever the first collapse happened.",
+  "migration": "No persisted format change. Ledger: a job may now own several artifacts; the first keeps today's id and every further one derives its id from the same provider task with an index suffix, so N=1 ledgers and ids are byte-identical. Canvas: each output becomes one version of the shot with result id `${node}-${task}` for the first and `-k` after, all accounted to the same run record. Old projects and ledgers that already hold one artifact keep one (the lost outputs were never recorded, so there is nothing to backfill). Deleted in the same commit: normalizeCatalogTaskResult, readyArtifact / resultFromArtifact, the 'exactly one output' rule, the first-asset picks in the canvas transport, landing projection and reconciliation, and the single `result` field of the landing input.",
+  "affected_population": [
+    "Canvas image / video / audio / 3D nodes generated with a count above 1 (newapi n, Higgsfield batch_size, Runway output_count)",
+    "Agent production Runs whose provider returns more than one output for a shot",
+    "Canvas single-shot Run replay, poll after reopen and the settled bell (ledger read back to the renderer)",
+    "Retrieval recovery of a canvas run that produced several outputs",
+    "Reconciliation of a submission-unknown job whose provider later reports several assets"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/capability/multiShotCanvasLanding.ts",
+    "electron/capabilityCore/canvasTransportProvider.ts",
+    "electron/capabilityCore/canvasShotResult.ts",
+    "electron/capabilityCore/canvasShotRunApi.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/appIntegrationCanvasShot.ts",
+    "electron/capabilityCore/canvasShotSettledBell.ts",
+    "electron/productionRun/productionGenerationSubmission.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "electron/productionRun/productionRunDriverOps.ts",
+    "src/workbench/generationCanvas/runner/imageActions.ts",
+    "src/workbench/generationCanvas/runner/videoActions.ts",
+    "src/workbench/generationCanvas/runner/audioActions.ts",
+    "src/workbench/generationCanvas/runner/model3dActions.ts",
+    "src/workbench/generationCanvas/runner/textActions.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts runCatalogGenerationTask (canvas image / video / audio / 3D)",
+    "src/workbench/generationCanvas/runner/generationRunController.ts runGenerationNode (delivers each result with the run id)",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts recoverNodeResult (free retrieval)",
+    "src/workbench/capability/multiShotCanvasLanding.ts materializeShots / attachShotResult (Agent production landing, held outcomes)",
+    "electron/capabilityCore/canvasTransportProvider.ts materialize (canvas single-shot Run extraction)",
+    "electron/productionRun/productionGenerationSubmission.ts materialize (the one submission exit that books artifacts)",
+    "electron/capabilityCore/appIntegrationCanvasShot.ts replay / pollRun (ledger read back to the renderer)",
+    "electron/capabilityCore/canvasShotSettledBell.ts hasOutcomeToLand",
+    "electron/productionRun/multiShotCanvasLanding.ts buildMaterializeShotsPayload",
+    "electron/productionRun/productionRunDriverOps.ts driveReconciliation"
+  ],
+  "invariants": [
+    "A run that returns N media outputs books N artifacts on its job and lands N versions on the shot, in provider order; nothing in between picks one.",
+    "Every version from one run is accounted to that run's record id; the record ends as success and points at the newest version, which is the current image unless a newer run already succeeded.",
+    "Landing is idempotent per output: re-entering the submission exit, replaying the same run record id or re-projecting the same ledger adds no artifact, no file and no version, and never calls the provider again.",
+    "With N=1 every id, file and record is exactly what it was before."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+      "symbol": "normalizeCatalogTaskResults"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+      "symbol": "normalizeCatalogTaskResults"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "symbol": "normalizeCatalogTaskResults"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/imageActions.ts",
+      "symbol": "runCatalogGenerationTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/videoActions.ts",
+      "symbol": "runCatalogGenerationTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/audioActions.ts",
+      "symbol": "runCatalogGenerationTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/model3dActions.ts",
+      "symbol": "runCatalogGenerationTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/textActions.ts",
+      "symbol": "runCatalogGenerationTask"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+      "symbol": "GenerationNodeResults"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "deliverOwnOutcome"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "symbol": "attachShotResult"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasTransportProvider.ts",
+      "symbol": "materialize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "materializeOutput"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/canvasShotRunApi.ts",
+      "symbol": "canvasLocalArtifactReceipt"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "canvasLocalArtifactReceipt"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotResult.ts",
+      "symbol": "readyArtifacts"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "symbol": "resultFromArtifacts"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/canvasShotSettledBell.ts",
+      "symbol": "readyArtifacts"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "buildMaterializeShotsPayload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunDriverOps.ts",
+      "symbol": "driveReconciliation"
+    }
+  ],
+  "door_reduction": {
+    "before": 20,
+    "after": 20,
+    "why_not": "Same doors before and after: every place a run's results pass on the way from the provider to the shot, in both processes (renderer parse and per-kind actions, executor contract, controller delivery, production landing; canvas transport, submission exit, canvas receipt, ledger read-back, settled bell, landing projection, reconciliation). They cannot be merged because they sit in two processes and each owns a different source (canvas run, retrieval, ledger replay, Agent production, reconciliation). What changed is that none of them decides the count any more: seven first-only picks were deleted (renderer parse, canvas transport, the exactly-one-output rule, ledger read-back, landing projection, reconciliation, the single landing result field) and all of them now pass one shape, a non-empty list accounted by run id."
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/multiResultLanding.test.ts",
+    "src/workbench/capability/multiShotCanvasLanding.multiResult.test.ts",
+    "electron/capabilityCore/canvasShotMultiOutput.test.ts",
+    "electron/productionRun/productionGenerationMultiOutput.test.ts",
+    "electron/productionRun/multiShotCanvasLanding.test.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskResultParse.test.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.projectIdentity.test.ts"
+  ],
+  "residual_risks": [
+    "Agent production timeline assembly and review still pick one artifact per job (the first); the other outputs are on the shot's version history but not offered there.",
+    "If fetching output k>0 fails deterministically, the job parks as needs attention with the outputs already booked kept; retrieval recovery fills the rest.",
+    "Ledgers and projects written before this change that lost outputs stay at one artifact; the lost files are on disk but not recorded, so there is nothing to backfill.",
+    "The single-shot settle in appIntegration still anchors on the first artifact id (unchanged behaviour; it only marks the run settled).",
+    "Real paid n=2 run not executed by this line (no real provider or key); the coordinator runs it once."
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.openai.com/docs/api-reference/images/create",
+      "checked_at": "2026-11-09",
+      "purpose": "n images per request come back as data[], all products of that one request, no primary image."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://replicate.com/docs/reference/http#predictions.get",
+      "checked_at": "2026-11-09",
+      "purpose": "Multi-output models return output as an array; callers accept the array."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.comfy.org/development/comfyui-server/comms_routes",
+      "checked_at": "2026-11-09",
+      "purpose": "One prompt id owns an images[] list per output node; each image is its own file under the same task."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same 'take the first' assumption was written independently at seven boundaries across both processes; fixing one (the renderer parse) would have left the Agent path failing outright and the replay answer rebuilding one asset.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs normalizeCatalogTaskResults readyArtifacts resultFromArtifacts: 6 caller doors after; the doors field lists every landing boundary in both processes (20), each read in code",
+      "git grep at the base commit for 'assets?.[0]|assets[0]|outputs[0]|outputs.length !== 1|readyArtifact|resultFromArtifact|normalizeCatalogTaskResult' under electron and src: 7 landing boundaries, 0 after; remaining hits are the MCP preview thumbnail (one preview image by design), ComfyUI workflow output-node detection and a design-lab layout",
+      "Audio / 3D / video canvas actions go through the same normalizeCatalogTaskResults and the same controller loop"
+    ]
+  },
+  "generality_proof": "Every canvas media kind lands through normalizeCatalogTaskResults and the controller loop that delivers each result with the run id through nodeRunOutcomePatch; every main-process booking goes through the one submission exit that books each output by index; every ledger read-back (replay, poll, settled bell, landing projection) reads the job's full artifact list. The matrix drives 1 / 2 / 4 outputs through the real controller and executor (canvas) and the real submission exit (Run), plus a same-run-record replay cell.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+      "symbol": "normalizeCatalogTaskResults",
+      "responsibility": "Task result to a non-empty list of node results, one per media output, ids derived from the task id."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationSubmission.ts",
+      "symbol": "settleWithArtifacts",
+      "responsibility": "The only exit that settles a job with its outputs: the submission exit books each provider output as an artifact by index (idempotent on re-entry) and settles only with the full list."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "runGenerationNode",
+      "disposition": "enforced",
+      "evidence": "Delivers every result with run.id; multiResultLanding.test.ts 1 / 2 / 4, two runs on one shot, and same-run-record replay."
+    },
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "materializeShots",
+      "disposition": "enforced",
+      "evidence": "Lands every result of the shot with the job's run record id; multiShotCanvasLanding.multiResult.test.ts 1 / 2 / 4, rework, deleted node + undo."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationCanvasShot.ts",
+      "entry_point": "replay / pollRun",
+      "disposition": "enforced",
+      "evidence": "Answers with every artifact of the job; canvasShotMultiOutput.test.ts sync replay and poll-after-settle cells, provider executes stay 1."
+    },
+    {
+      "path": "electron/productionRun/productionRunDriverOps.ts",
+      "entry_point": "driveReconciliation",
+      "disposition": "enforced",
+      "evidence": "Adopts every reported local asset with index-derived artifact ids; any non-local asset parks the job as before."
+    },
+    {
+      "path": "electron/capabilityCore/mcpPreviewImage.ts",
+      "entry_point": "pickThumbnailSourceUrl",
+      "disposition": "not-affected",
+      "evidence": "Picks one preview thumbnail for an MCP reply; it does not land or book results."
+    }
+  ],
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+    "invariant": "A run's results are a non-empty list (GenerationNodeResults); every executor returns the list and the controller delivers each one by run id.",
+    "failure_mode": "A layer that reintroduces 'the first result' no longer type-checks against the list-shaped executor and landing contracts, and the 2 / 4 cells of the canvas and Run matrices turn red.",
+    "exception_policy": "none",
+    "strategy": "Delete every first-only pick, make the result shape a non-empty list from the parse up to delivery and from the submission exit up to the landing projection, and account each item by the run's record id.",
+    "artifacts": [
+      "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+      "src/workbench/generationCanvas/runner/generationNodeExecutor.ts",
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "electron/productionRun/productionGenerationSubmission.ts",
+      "src/workbench/generationCanvas/runner/multiResultLanding.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/multiResultLanding.test.ts",
+    "electron/productionRun/productionGenerationMultiOutput.test.ts",
+    "electron/capabilityCore/canvasShotMultiOutput.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+      "electron/capabilityCore/canvasShotResult.ts",
+      "electron/productionRun/productionGenerationSubmission.ts"
+    ],
+    "rationale": "Deleted inside these files in the implementation commit: normalizeCatalogTaskResult (first asset), readyArtifact / resultFromArtifact (one artifact), the 'exactly one output' failure. The landing input's single result field and the first-asset picks in the transport, projection and reconciliation are replaced in place. Nothing persisted changes shape."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is added or changed.",
+    "exit_criteria": []
+  },
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/runner/catalogTaskResultParse.ts",
+    "tests": [
+      "src/workbench/generationCanvas/runner/multiResultLanding.test.ts",
+      "electron/productionRun/productionGenerationMultiOutput.test.ts"
+    ],
+    "why": "The parse is the earliest renderer boundary that knows how many outputs a run has; the submission exit is its main-process counterpart. Both now produce the full list and the single accounting rule (nodeRunOutcomePatch by run id) lands each item."
+  }
+}

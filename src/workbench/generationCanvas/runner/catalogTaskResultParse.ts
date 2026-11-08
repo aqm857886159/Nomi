@@ -94,63 +94,72 @@ function readDurationSeconds(asset: { durationSeconds?: unknown } | null | undef
   return asFiniteNumber(asset?.durationSeconds)
 }
 
-export function normalizeCatalogTaskResult(
+/** 一次运行落下的全部结果：至少一个，按上游交回的顺序（最后一个是最新的版本）。 */
+export type GenerationNodeResults = readonly [GenerationNodeResult, ...GenerationNodeResult[]]
+
+/**
+ * 任务结果 → 这次运行要落到节点上的结果。**每份带地址的媒体产物各一个结果**（一次出几张就是几张，
+ * 都进这一镜的版本历史），不挑类型、不取第一个；文本任务是一个文本结果。
+ * 结果号：第一份 `${节点}-${任务号}`，第 k 份再加 `-k`——同一次运行的几张共用任务号，各有自己的号。
+ */
+export function normalizeCatalogTaskResults(
   result: TaskResultDto,
   node: GenerationCanvasNode,
   onMediaDimensions?: (dimensions: MediaDimensions) => void,
-): GenerationNodeResult {
+): GenerationNodeResults {
   if (result.status === 'failed') {
     throw new Error(describeTaskFailure(result))
   }
-  // C5: 文本任务没有 asset，文本在 raw 里。单独成支，不走下面的图片/视频 asset 逻辑。
+  const baseId = `${node.id}-${result.id || Date.now()}`
+  const createdAt = Date.now()
+  const provenance = extractProvenanceFromTaskResult(result)
+  // C5: 文本任务没有 asset，文本在 raw 里。单独成支，不走下面的媒体 asset 逻辑。
   if (TEXT_TASK_KINDS.has(result.kind)) {
     const text = extractTextFromChatRaw(result.raw)
     if (!text) throw new Error(i18n.t('generationCommon.error.noText'))
-    const provenance = extractProvenanceFromTaskResult(result)
-    return {
-      id: `${node.id}-${result.id || Date.now()}`,
+    return [{
+      id: baseId,
       type: 'text',
       text,
       model: selectedModelKey(node) || undefined,
       taskId: result.id,
       taskKind: 'text',
       raw: result.raw,
-      createdAt: Date.now(),
+      createdAt,
       ...(provenance ? { provenance } : {}),
-    }
+    }]
   }
   const inferredType = generationTypeForTask(result.kind)
-  // Prefer actual asset type over taskKind inference — if the API returns a video asset, show video
-  const firstVideoAsset = result.assets.find((item) => item.type === 'video' && asTrimmedString(item.url))
-  const firstImageAsset = result.assets.find((item) => item.type === 'image' && asTrimmedString(item.url))
-  const firstAudioAsset = result.assets.find((item) => item.type === 'audio' && asTrimmedString(item.url))
-  const asset = firstVideoAsset || firstImageAsset || firstAudioAsset || result.assets.find((item) => asTrimmedString(item.url))
+  const assets = result.assets.filter((item) => asTrimmedString(item.url))
   // 上游说成了却没有产物：不是生成失败，是「读结果」这一步没成（#1213 原则 1）——带阶段码，落「可找回」。
-  if (!asset) throw new Error(tagNomiError('retrieval-parse', i18n.t(inferredType === 'video' ? 'generationCommon.error.noVideoUrl' : inferredType === 'audio' ? 'generationCommon.error.noAudio' : 'generationCommon.error.noImageUrl')))
-  const type = (asset.type === 'video' || asset.type === 'image' || asset.type === 'audio') ? asset.type : inferredType
-  if (type === 'image' || type === 'video') {
-    const dimensions = readMediaDimensions(asset.width, asset.height)
-    if (dimensions) onMediaDimensions?.(dimensions)
-  }
-  // E11: propagate provenance from electron TaskResult into the node result.
-  const provenance = extractProvenanceFromTaskResult(result)
-  return {
-    id: `${node.id}-${result.id || Date.now()}`,
-    type,
-    url: asset.url,
-    // 预览两栏只走落盘回执的那一个投影（小图 + 事实）；旧缓存结果里 thumbnailUrl = url 的形状在这里就被拒掉。
-    ...canvasPreviewFieldsFromReceipt(type, asset, asset.url),
-    ...(asset.providerUrl ? { providerUrl: asset.providerUrl } : {}),
-    model: selectedModelKey(node) || undefined,
-    durationSeconds: type === 'video' ? readDurationSeconds(asset) : undefined,
-    taskId: result.id,
-    taskKind: type,
-    assetId: asset.assetId || undefined,
-    assetRefId: asset.assetRefId || undefined,
-    raw: result.raw,
-    createdAt: Date.now(),
-    ...(provenance ? { provenance } : {}),
-  }
+  if (!assets.length) throw new Error(tagNomiError('retrieval-parse', i18n.t(inferredType === 'video' ? 'generationCommon.error.noVideoUrl' : inferredType === 'audio' ? 'generationCommon.error.noAudio' : 'generationCommon.error.noImageUrl')))
+  const [first, ...rest] = assets.map((asset, index): GenerationNodeResult => {
+    // 产物自己说是什么就用什么（API 回了视频就显示视频），没说才按任务类型推。
+    const type: GenerationResultType = (asset.type === 'video' || asset.type === 'image' || asset.type === 'audio') ? asset.type : inferredType
+    if (type === 'image' || type === 'video') {
+      const dimensions = readMediaDimensions(asset.width, asset.height)
+      if (dimensions) onMediaDimensions?.(dimensions)
+    }
+    return {
+      id: index === 0 ? baseId : `${baseId}-${index + 1}`,
+      type,
+      url: asset.url,
+      // 预览两栏只走落盘回执的那一个投影（小图 + 事实）；旧缓存结果里 thumbnailUrl = url 的形状在这里就被拒掉。
+      ...canvasPreviewFieldsFromReceipt(type, asset, asset.url),
+      ...(asset.providerUrl ? { providerUrl: asset.providerUrl } : {}),
+      model: selectedModelKey(node) || undefined,
+      durationSeconds: type === 'video' ? readDurationSeconds(asset) : undefined,
+      taskId: result.id,
+      taskKind: type,
+      assetId: asset.assetId || undefined,
+      assetRefId: asset.assetRefId || undefined,
+      raw: result.raw,
+      createdAt,
+      // E11: propagate provenance from electron TaskResult into the node result.
+      ...(provenance ? { provenance } : {}),
+    }
+  })
+  return [first!, ...rest]
 }
 
 /**

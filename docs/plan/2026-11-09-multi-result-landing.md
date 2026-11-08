@@ -32,7 +32,9 @@
 | 付了几张就有几张 → 版本条数 = 张数 → 比例 100%（矩阵每格） | `src/workbench/generationCanvas/runner/multiResultLanding.test.ts`（画布路 1 / 2 / 4 张） |
 | 每张挂这次的运行号 → 每张结果的任务号 = 这次运行记录的任务号、这次运行记录落成成功且指向当前那张 → 比例 100% | 同上 |
 | 不重复落盘、不重复下单 → 落盘文件数 = 张数、供应商请求数 = 1 → 比例 100% | 主进程 `electron/capabilityCore/canvasShotMultiOutput.test.ts`（画布单镜 Run 1 / 2 / 4 张）、`electron/productionRun/productionGenerationMultiOutput.test.ts`（Agent 制作 Run 1 / 2 / 4 张） |
-| Run 那条路一镜 N 张都落到节点 | `src/workbench/capability/multiShotCanvasLanding.multiResult.test.ts` |
+| Run 那条路一镜 N 张都落到节点 | `src/workbench/capability/multiShotCanvasLanding.multiResult.test.ts`、主进程投影 `electron/productionRun/multiShotCanvasLanding.test.ts` |
+| 重新取回 N 张都落 | `src/workbench/generationCanvas/runner/recoverTaskActions.projectIdentity.test.ts`（1 / 2 / 4） |
+| 同一运行记录号重放：回 N 份、供应商请求 0 | `multiResultLanding.test.ts` 重放格、`canvasShotMultiOutput.test.ts` 同步格 |
 | 张数 = 1 和今天一模一样 | 上面几个文件的 1 张格 + 现有 `shotResultOwnership.test.ts` 22 格不改断言照绿 |
 | 真付费 n=2 | 未验证：协调跑一次（见报告） |
 
@@ -67,6 +69,9 @@
 - **D2 账本一笔多份。** 提交出口对每份产物各落一条账（产物号按序号派生，重进时按号补齐缺的那几份，不重复落盘）；回话、落画布投影、对账都读这笔作业的全部产物。
 - **D3 投递。** 同一次运行的每张都按这次的运行记录号经 `deliverRunOutcome` 投（复用唯一合并规则），按上游顺序；最后一张是最新版本、成为当前图。运行函数返回的是成为当前图的那张（时间轴据它对账）。
 - **D4 自动另存。** 开着「自动另存」时每张都另存（以前只存第一张）。
+- **D5 Agent 制作那条路也按号。** 落画布投影这一镜带上全部结果，外加这笔作业的运行记录号（`runRecordId`）；渲染层每张都带这个号落（和画布路同一条合并规则）。以前不带号，只结掉「在跑的制作记录」：第一张把记录结成成功、后面几张不再记到这条记录上，记录指向第一张、当前图却是最后一张。
+- **D6 提交出口每次都取一遍产物清单、按序号补齐。** 账上已有 k 份、上游交回 N 份：只落第 k+1…N 份（产物号按序号派生，第一份和今天一字不差），崩在两份之间重进时只补缺的；上游清单读不出来时账上已有的照收。对账（`driveReconciliation`）上游报几份本机文件就收几份，有一份不是本机文件就整笔停成「需要处理」（和今天一样）。
+- **D7 重放只改读法。** 画布单镜 Run 的重放 / 再查（`appIntegrationCanvasShot` 的 replay / pollRun）和收尾铃从账上读「这笔作业的全部产物」而不是第一份；提交、重放的控制流、判据、分支一字不动（协调 11-09 批准，条件见 PR 正文）。这是「结果归谁」的读法，不是重放逻辑：同一个运行记录号重放时回的还是账上那几份，供应商请求数仍是 0。
 
 ## ★3 一致与复用
 
@@ -126,6 +131,7 @@
 7. 反例：同一镜两次运行各 2 张，两次的结果各归各的运行记录（任务号不串），后一次的最新那张是当前图。
 8. 这一类还会从哪回来：新的媒体落地入口（配音 / 音乐走同一个 `normalizeCatalogTaskResults`；批量出图走同一个控制器；Agent 走同一个提交出口）——矩阵覆盖画布、Run 两条，音频格单测一格。
 9. `pnpm run typecheck`、相关单测全绿；推送前快检通过。
+10. 重放格（协调 11-09 加）：同一个运行记录号重放（第一次的回话在路上丢了、渲染层按可重试再交）→ 回 N 份、版本历史 N 条、只有一条运行记录、重放时供应商请求数 0。渲染层 `multiResultLanding.test.ts` 1 / 2 / 4，主进程 `canvasShotMultiOutput.test.ts` 同步格的第二次交（`vendor.executes` 仍是 1）。
 
 **回滚：** revert 本 PR 的实现提交（单个提交，渲染层与主进程同提交）。
 

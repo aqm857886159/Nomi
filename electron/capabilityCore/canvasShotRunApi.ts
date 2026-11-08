@@ -93,6 +93,8 @@ export function canvasLocalArtifactReceipt(input: {
   projectRoot: string;
   providerTaskId: string;
   output: GenerationProviderOutput;
+  /** 这一单的第几份产物（从 0 起）：第一份号不变，第 k 份加 `-k`，同一单的几份各有自己的号。 */
+  outputIndex: number;
 }): Pick<ProductionArtifact, "artifactId" | "kind" | "contentHash" | "projectRelativePath"> | null {
   const prefix = `nomi-local://asset/${encodeURIComponent(input.projectId)}/`;
   if (!input.output.url.startsWith(prefix)) return null;
@@ -114,7 +116,9 @@ export function canvasLocalArtifactReceipt(input: {
   relative = path.relative(root, absolute).split(path.sep).join("/");
   const contentHash = crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
   return {
-    artifactId: `canvas-artifact-${input.providerTaskId}`.slice(0, 160),
+    artifactId: input.outputIndex > 0
+      ? `${`canvas-artifact-${input.providerTaskId}`.slice(0, 150)}-${input.outputIndex + 1}`
+      : `canvas-artifact-${input.providerTaskId}`.slice(0, 160),
     kind: input.output.kind,
     contentHash,
     projectRelativePath: relative,

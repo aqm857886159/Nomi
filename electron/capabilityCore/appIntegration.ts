@@ -257,8 +257,8 @@ export async function startCapabilityCore(
       intentMacKey: ensureCapabilitySigningKey('generation-intent'),
       providers: input.providers,
       // 画布那台交回来的产物已经落在项目里：记进 Run，不再下载一次；不是本地地址的走通用物化。
-      materializeOutput: async ({ projectId, providerTaskId, output, job }) => (isCanvasProviderId(job.provider)
-        && canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output }))
+      materializeOutput: async ({ projectId, providerTaskId, output, outputIndex, job }) => (isCanvasProviderId(job.provider)
+        && canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output, outputIndex }))
         || outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
     })
     type SubmittableRun = {

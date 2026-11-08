@@ -4,7 +4,7 @@ import {
   isRateLimitedPollError,
   isSlowLaneBackend,
   nextPollDelayMs,
-  normalizeCatalogTaskResult,
+  normalizeCatalogTaskResults,
   resolvePollBudget,
   resolvePollIntervalMs,
   runCatalogGenerationTask,
@@ -40,9 +40,9 @@ function chatResult(raw: unknown, status: TaskResultDto['status'] = 'succeeded')
   return { id: 'task-1', kind: 'chat', status, assets: [], raw }
 }
 
-describe('normalizeCatalogTaskResult — C5 text branch', () => {
+describe('normalizeCatalogTaskResults — C5 text branch', () => {
   it('extracts OpenAI choices[0].message.content', () => {
-    const result = normalizeCatalogTaskResult(chatResult({ choices: [{ message: { content: '  你好世界  ' } }] }), textNode())
+    const [result] = normalizeCatalogTaskResults(chatResult({ choices: [{ message: { content: '  你好世界  ' } }] }), textNode())
     expect(result.type).toBe('text')
     expect(result.text).toBe('你好世界')
     expect(result.url).toBeUndefined()
@@ -51,7 +51,7 @@ describe('normalizeCatalogTaskResult — C5 text branch', () => {
   })
 
   it('extracts OpenAI message.content as array of parts', () => {
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       chatResult({ choices: [{ message: { content: [{ type: 'text', text: 'foo' }, { type: 'text', text: 'bar' }] } }] }),
       textNode(),
     )
@@ -59,18 +59,18 @@ describe('normalizeCatalogTaskResult — C5 text branch', () => {
   })
 
   it('falls back to Anthropic-style content[].text', () => {
-    const result = normalizeCatalogTaskResult(chatResult({ content: [{ type: 'text', text: 'claude says hi' }] }), textNode())
+    const [result] = normalizeCatalogTaskResults(chatResult({ content: [{ type: 'text', text: 'claude says hi' }] }), textNode())
     expect(result.text).toBe('claude says hi')
   })
 
   it('throws when the chat response carries no text', () => {
-    expect(() => normalizeCatalogTaskResult(chatResult({ choices: [{ message: { content: '' } }] }), textNode())).toThrow(
+    expect(() => normalizeCatalogTaskResults(chatResult({ choices: [{ message: { content: '' } }] }), textNode())).toThrow(
       /没有返回文本/,
     )
   })
 
   it('throws on a failed text task', () => {
-    expect(() => normalizeCatalogTaskResult(chatResult({ error: 'boom' }, 'failed'), textNode())).toThrow()
+    expect(() => normalizeCatalogTaskResults(chatResult({ error: 'boom' }, 'failed'), textNode())).toThrow()
   })
 })
 
@@ -515,7 +515,7 @@ describe('runCatalogGenerationTask — ComfyUI 提交时序与 prompt UUID', () 
     const watched: Array<Record<string, unknown>> = []
     stubComfyBridge(events, watched)
 
-    const result = await runCatalogGenerationTask(comfyNode, { projectTarget: TEST_TARGET,
+    const [result] = await runCatalogGenerationTask(comfyNode, { projectTarget: TEST_TARGET,
       runTask: async (_vendor, request) => {
         events.push('run')
         const promptId = String(request.extras?.comfyPromptId || '')
@@ -621,7 +621,7 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
   it('轮询期一次网络抖动 → 免费重试查询、付费 runTask 只调一次、最终拿到结果', async () => {
     let submitCount = 0
     let fetchCount = 0
-    const result = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
+    const [result] = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
       runTask: async (_v, req) => { submitCount += 1; return { id: 'up-1', kind: req.kind, status: 'queued' as const, assets: [], raw: {} } },
       fetchTaskResult: async () => {
         fetchCount += 1
@@ -681,7 +681,7 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
       }) as unknown as typeof globalThis.setTimeout)
     try {
       let fetchCount = 0
-      const result = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
+      const [result] = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
         runTask: async (_v, req) => ({ id: 'up-3', kind: req.kind, status: 'queued' as const, assets: [], raw: {} }),
         fetchTaskResult: async () => {
           fetchCount += 1
@@ -792,9 +792,9 @@ describe('buildCatalogTaskRequest — idempotencyKey 穿透到 request.extras', 
   })
 })
 
-describe('normalizeCatalogTaskResult — image path unaffected', () => {
+describe('normalizeCatalogTaskResults — image path unaffected', () => {
   it('still returns an image result from an asset', () => {
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       { id: 't2', kind: 'text_to_image', status: 'succeeded', assets: [{ type: 'image', url: 'https://x/y.png' }], raw: {} },
       imageNode(),
     )
@@ -803,10 +803,10 @@ describe('normalizeCatalogTaskResult — image path unaffected', () => {
   })
 })
 
-describe('normalizeCatalogTaskResult — generated video duration', () => {
+describe('normalizeCatalogTaskResults — generated video duration', () => {
   it('uses localized asset duration before the canvas metadata fallback', () => {
     const node = generatedVideoNode()
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       {
         id: 't-video',
         kind: 'text_to_video',
@@ -822,7 +822,7 @@ describe('normalizeCatalogTaskResult — generated video duration', () => {
 
   it('does not freeze a previous video metadata duration into a newly generated result', () => {
     const node = generatedVideoNode()
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       {
         id: 't-video',
         kind: 'text_to_video',
@@ -960,7 +960,7 @@ describe('接入即验证（零额度）：每个档案/模式声明的参考槽
   }
 })
 
-describe('normalizeCatalogTaskResult — 终态失败抛出的是上游真原因（2026-07-30 用户真机回归）', () => {
+describe('normalizeCatalogTaskResults — 终态失败抛出的是上游真原因（2026-07-30 用户真机回归）', () => {
   function failed(extra: Partial<TaskResultDto>): TaskResultDto {
     return {
       id: 'task_01KYRKKK35KCAASMFC7ND2PR6P',
@@ -973,20 +973,20 @@ describe('normalizeCatalogTaskResult — 终态失败抛出的是上游真原因
   }
 
   it('用主进程给的一等字段 error，而不是「模型任务执行失败」', () => {
-    expect(() => normalizeCatalogTaskResult(failed({ error: 'Requested entity was not found.' }), imageNode())).toThrow(
+    expect(() => normalizeCatalogTaskResults(failed({ error: 'Requested entity was not found.' }), imageNode())).toThrow(
       /Requested entity was not found\./,
     )
   })
 
   it('taskId / kind 仍带在后缀里（支持排查用）', () => {
-    expect(() => normalizeCatalogTaskResult(failed({ error: 'boom' }), imageNode())).toThrow(
+    expect(() => normalizeCatalogTaskResults(failed({ error: 'boom' }), imageNode())).toThrow(
       /taskId=task_01KYRKKK35KCAASMFC7ND2PR6P, kind=text_to_image/,
     )
   })
 
   it('主进程也扒不出原因时才落兜底文案（不编造）', () => {
     expect(() =>
-      normalizeCatalogTaskResult(failed({ raw: { data: { status: 'failed' } } }), imageNode()),
+      normalizeCatalogTaskResults(failed({ raw: { data: { status: 'failed' } } }), imageNode()),
     ).toThrow(/模型任务执行失败/)
   })
 })
