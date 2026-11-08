@@ -158,7 +158,7 @@ export type AssertReferencesResolvable = (projectId: string, references: Readonl
  * 仍然硬要 `candidate`，于是 lane 上的 `draft_shots` 一到多镜就被 zod 以 `Required` 拒掉——同一份镜头描述，
  * 一个镜收、两个镜拒。这里把那条不对称删掉，而不是再长一台合成器（P1）。
  *
- * `semantic` 不注入时行为仍然安全：显式 candidate 照常过，缺候选的镜头拿到人话「没有配置可用的模型」，
+ * `semantic` 不注入时行为仍然安全：显式 candidate 照常过，缺候选的镜头拿到带原因的拒收（`no_default_model`），
  * 而不是 zod 的 `Required`。
  *
  * 走同一台合成器还带来第二件事（2026-09-18 另一份根因合同的原话）：它「显式身份不借用默认模型的 mode」
