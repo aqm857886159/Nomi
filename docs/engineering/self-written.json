@@ -2347,6 +2347,40 @@
       ],
       "whyNotIntegrated": "自写的只有领域归因，不是通用能力：停顿要挂到 Nomi 的页面、生成状态和节点数档位上，这些只有 Nomi 的渲染层知道；行形状是封闭枚举（路径 / 提示词没有位置可进），用来守住「不含内容」的承诺。直方图用 Node 标准接口、滚动用仓内唯一的日志写手，都不自写。",
       "revisitWhen": "出现可直接接入的、带产品场景归因且只落本机的主进程卡顿记录方案时重新评估"
+    },
+    {
+      "id": "model-surface-account-quote",
+      "capability": "模型面按当前连接读取账户/Key/用量事实，把画布节点最终出站请求投影成公开估价，并区分零额度、估价短差与原生成批准",
+      "status": "justified",
+      "plan": "docs/plan/2026-11-09-model-surfaces-pr-body.md",
+      "paths": [
+        "electron/ai/onboarding/vendorAccountFacts.ts",
+        "electron/ai/onboarding/vendorPricePreview.ts",
+        "electron/ai/onboarding/vendorPriceRequest.ts",
+        "src/ui/onboarding/useVendorAccountFacts.ts",
+        "src/workbench/common/apimartAccountDisplay.ts",
+        "src/workbench/generationCanvas/spend/useNodePricePreview.ts"
+      ],
+      "alternativesChecked": [
+        {
+          "name": "既有供应商凭据目标与 appFetch：账户读取直接复用 resolveVendorReadTarget 和 appFetch；不另写凭据解密、代理或 HTTP 传输",
+          "source": "electron/ai/onboarding/vendorAccountFacts.ts:1"
+        },
+        {
+          "name": "既有目录请求构造：priceQueryFromRequest 复用 selectTaskMapping、applyHeadlessParamDefaults、buildProfileHttpRequest，只从真实请求投影价格规格，不另建一份型号/参数目录",
+          "source": "electron/ai/onboarding/vendorPriceRequest.ts:1"
+        },
+        {
+          "name": "React 生命周期与现有货币格式化：订阅直接用 React.useEffect；美元显示复用 formatMoney 的 Intl.NumberFormat，不自建状态管理或货币格式器",
+          "source": "src/ui/onboarding/useVendorAccountFacts.ts:12"
+        },
+        {
+          "name": "平台货币格式化由既有 formatMoney 持有，账户显示只选择有来源的数值及精度",
+          "source": "src/workbench/ai/v4/formatMoney.ts:16"
+        }
+      ],
+      "whyNotIntegrated": "领域约束：只有 Nomi 的节点、参考关系、变体映射和最终出站请求能决定这次镜头的公开价是否可估；账户额度、有限 Key 额度与仅输出估价的可信程度又决定画布显示充值还是保留原生成批准。通用的网络、凭据目标、HTTP 模板、React 生命周期和货币格式化都复用现有实现；这六个模块只连接这些领域事实，不拥有第二份目录、凭据或付费授权。",
+      "revisitWhen": "账户事实与最终请求报价迁入统一的模型连接领域 owner，或既有请求构造器直接提供同形只读报价投影时，合并这些适配并删除重复入口；不得用独立估价结果替代生成批准。"
     }
   ]
 }
