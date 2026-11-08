@@ -422,8 +422,8 @@ const noProjectResponder = (cell: Cell | ScriptCell) => ("bytes" in cell ? bytes
 
 describe.each([
   ...noProjectCells().map((cell) => ({ ...cell, pending: false })),
-  ...[...scriptSaveCells(), ...processCells()].map((cell) => ({ ...cell, name: `${cell.name}（凭据待复验）`, pending: true })),
-])("没项目：$name 零生成请求 / 进程、一分钱不扣", (cell) => {
+  ...[...scriptSaveCells(), ...processCells()].map((cell) => ({ ...cell, pending: true })),
+])("没项目（凭据待复验=$pending）：$name 零生成请求 / 进程、一分钱不扣", (cell) => {
   beforeEach(() => {
     if (cell.pending) catalog().apiKeysByVendor[cell.vendorKey].verificationPending = true;
   });
