@@ -1,3 +1,5 @@
+import console from 'node:console'
+import { URL } from 'node:url'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
 import { pages, features } from './catalog.mjs'

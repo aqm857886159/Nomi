@@ -1,3 +1,4 @@
+const { document, location, URLSearchParams, clearTimeout, setTimeout } = globalThis
 import { pages, features, phases } from './catalog.mjs'
 import { productView } from './views.mjs'
 
