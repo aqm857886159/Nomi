@@ -1,0 +1,709 @@
+{
+  "repros": {
+    "1": "家族上限当成了模型上限：只因为同族别的模型每槽最多 N 张，就拒收官方允许的张数（「最多收 N张」），且画布和 Run 两条路拒的不一样",
+    "2": "角色意图未正确投影：线上角色词不在官方枚举，或有 first/last 角色意图却投不成官方平数组而拒发",
+    "3": "同一参考图重复进入多个键，或多出模式不接受的参考键/语义；重复帧角色引起的容量错误保留在同一原因下。并非所有双图片键都被官方声明互斥",
+    "4": "超过官方张数上限：产品一槽放行的张数比官方页写的上限多",
+    "5a": "模式判别值/默认值丢失：参考意图被 generation_type=frame 解读成帧族，含连带的帧容量错误",
+    "5b": "参考投影/准入拒发，原因待确认：Gemini 3 Pro 的 Run 路报参考图发不出，画布路发出"
+  },
+  "cells": [
+    {
+      "cell": "gpt-image-2|i2i|n=16",
+      "assertion": "countCap",
+      "repro": 4,
+      "reason": {
+        "path": "canvas",
+        "key": "image_urls",
+        "count": 16,
+        "max": 15
+      }
+    },
+    {
+      "cell": "gpt-image-2|i2i|n=16",
+      "assertion": "countCap",
+      "repro": 4,
+      "reason": {
+        "path": "run",
+        "key": "image_urls",
+        "count": 16,
+        "max": 15
+      }
+    },
+    {
+      "cell": "gemini-3-pro-image-preview|i2i|n=1",
+      "assertion": "samePath",
+      "repro": "5b",
+      "reason": {
+        "refused": "run",
+        "failure": {
+          "code": "apimart_provider_error",
+          "kind": "reference_projection_refusal",
+          "media": "image"
+        }
+      }
+    },
+    {
+      "cell": "gemini-3-pro-image-preview|i2i|n=14",
+      "assertion": "samePath",
+      "repro": "5b",
+      "reason": {
+        "refused": "run",
+        "failure": {
+          "code": "apimart_provider_error",
+          "kind": "reference_projection_refusal",
+          "media": "image"
+        }
+      }
+    },
+    {
+      "cell": "veo3.1-fast|frame|n=1",
+      "assertion": "samePath",
+      "repro": 2,
+      "reason": {
+        "refused": "run",
+        "failure": {
+          "code": "apimart_provider_error",
+          "kind": "unsupported_reference_role",
+          "role": "first_frame"
+        }
+      }
+    },
+    {
+      "cell": "veo3.1-fast|frame|n=2",
+      "assertion": "samePath",
+      "repro": 2,
+      "reason": {
+        "refused": "run",
+        "failure": {
+          "code": "apimart_provider_error",
+          "kind": "unsupported_reference_role",
+          "role": "first_frame"
+        }
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.0|firstlast|n=1",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.0|firstlast|n=1",
+      "assertion": "exclusivePairs",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "a": [
+          "image_urls"
+        ],
+        "b": [
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.0|firstlast|n=1",
+      "assertion": "samePath",
+      "repro": 3,
+      "reason": {
+        "differences": {
+          "image_urls": {
+            "canvas": [
+              "https://assets.example.com/ref/img-1.png"
+            ],
+            "run": null
+          }
+        }
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.0|firstlast|n=2",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.0|firstlast|n=2",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-2.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.0|firstlast|n=2",
+      "assertion": "exclusivePairs",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "a": [
+          "image_urls"
+        ],
+        "b": [
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.0|firstlast|n=2",
+      "assertion": "samePath",
+      "repro": 3,
+      "reason": {
+        "differences": {
+          "image_urls": {
+            "canvas": [
+              "https://assets.example.com/ref/img-1.png",
+              "https://assets.example.com/ref/img-2.png"
+            ],
+            "run": null
+          }
+        }
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|first|n=1",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|first|n=1",
+      "assertion": "modeMeaning",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "key": "image_urls",
+        "role": "reference_image",
+        "expected": [
+          "first_frame"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|first|n=1",
+      "assertion": "samePath",
+      "repro": 3,
+      "reason": {
+        "differences": {
+          "image_urls": {
+            "canvas": [
+              "https://assets.example.com/ref/img-1.png"
+            ],
+            "run": null
+          }
+        }
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|firstlast|n=1",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|firstlast|n=1",
+      "assertion": "modeMeaning",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "key": "image_urls",
+        "role": "reference_image",
+        "expected": [
+          "first_frame",
+          "last_frame"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|firstlast|n=1",
+      "assertion": "samePath",
+      "repro": 3,
+      "reason": {
+        "differences": {
+          "image_urls": {
+            "canvas": [
+              "https://assets.example.com/ref/img-1.png"
+            ],
+            "run": null
+          }
+        }
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|firstlast|n=2",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|firstlast|n=2",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-2.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|firstlast|n=2",
+      "assertion": "modeMeaning",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "key": "image_urls",
+        "role": "reference_image",
+        "expected": [
+          "first_frame",
+          "last_frame"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|firstlast|n=2",
+      "assertion": "modeMeaning",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "key": "image_urls",
+        "role": "reference_image",
+        "expected": [
+          "first_frame",
+          "last_frame"
+        ]
+      }
+    },
+    {
+      "cell": "doubao-seedance-2.5|firstlast|n=2",
+      "assertion": "samePath",
+      "repro": 1,
+      "reason": {
+        "refused": "run",
+        "failure": {
+          "code": "apimart_provider_error",
+          "kind": "reference_capacity",
+          "max": 1
+        }
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=1",
+      "assertion": "officialKeys",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "key": "image_urls"
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=1",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=1",
+      "assertion": "roleEnum",
+      "repro": 2,
+      "reason": {
+        "path": "run",
+        "key": "image_with_roles",
+        "role": "reference",
+        "allowed": [
+          "reference_image",
+          "first_frame"
+        ]
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=1",
+      "assertion": "samePath",
+      "repro": 3,
+      "reason": {
+        "differences": {
+          "image_urls": {
+            "canvas": [
+              "https://assets.example.com/ref/img-1.png"
+            ],
+            "run": null
+          },
+          "image_with_roles": {
+            "canvas": [
+              {
+                "url": "https://assets.example.com/ref/img-1.png",
+                "role": "reference_image"
+              }
+            ],
+            "run": [
+              {
+                "url": "https://assets.example.com/ref/img-1.png",
+                "role": "reference"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=5",
+      "assertion": "roleEnum",
+      "repro": 2,
+      "reason": {
+        "path": "run",
+        "key": "image_with_roles",
+        "role": "reference",
+        "allowed": [
+          "reference_image",
+          "first_frame"
+        ]
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=5",
+      "assertion": "roleEnum",
+      "repro": 2,
+      "reason": {
+        "path": "run",
+        "key": "image_with_roles",
+        "role": "reference",
+        "allowed": [
+          "reference_image",
+          "first_frame"
+        ]
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=5",
+      "assertion": "roleEnum",
+      "repro": 2,
+      "reason": {
+        "path": "run",
+        "key": "image_with_roles",
+        "role": "reference",
+        "allowed": [
+          "reference_image",
+          "first_frame"
+        ]
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=5",
+      "assertion": "roleEnum",
+      "repro": 2,
+      "reason": {
+        "path": "run",
+        "key": "image_with_roles",
+        "role": "reference",
+        "allowed": [
+          "reference_image",
+          "first_frame"
+        ]
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=5",
+      "assertion": "roleEnum",
+      "repro": 2,
+      "reason": {
+        "path": "run",
+        "key": "image_with_roles",
+        "role": "reference",
+        "allowed": [
+          "reference_image",
+          "first_frame"
+        ]
+      }
+    },
+    {
+      "cell": "wan2.7|ref|n=5",
+      "assertion": "samePath",
+      "repro": 1,
+      "reason": {
+        "refused": "canvas",
+        "failure": {
+          "code": "Error",
+          "kind": "reference_capacity",
+          "max": 2
+        }
+      }
+    },
+    {
+      "cell": "wan3.0-video|first|n=1",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "wan3.0-video|first|n=1",
+      "assertion": "countCap",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "role": "first_frame",
+        "count": 2,
+        "max": 1
+      }
+    },
+    {
+      "cell": "wan3.0-video|first|n=1",
+      "assertion": "samePath",
+      "repro": 3,
+      "reason": {
+        "differences": {
+          "image_urls": {
+            "canvas": [
+              "https://assets.example.com/ref/img-1.png"
+            ],
+            "run": null
+          }
+        }
+      }
+    },
+    {
+      "cell": "wan3.0-video|firstlast|n=1",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "wan3.0-video|firstlast|n=1",
+      "assertion": "countCap",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "role": "first_frame",
+        "count": 2,
+        "max": 1
+      }
+    },
+    {
+      "cell": "wan3.0-video|firstlast|n=1",
+      "assertion": "samePath",
+      "repro": 3,
+      "reason": {
+        "differences": {
+          "image_urls": {
+            "canvas": [
+              "https://assets.example.com/ref/img-1.png"
+            ],
+            "run": null
+          }
+        }
+      }
+    },
+    {
+      "cell": "wan3.0-video|firstlast|n=2",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-1.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "wan3.0-video|firstlast|n=2",
+      "assertion": "oneKeyPerUrl",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "url": "https://assets.example.com/ref/img-2.png",
+        "keys": [
+          "image_urls",
+          "image_with_roles"
+        ]
+      }
+    },
+    {
+      "cell": "wan3.0-video|firstlast|n=2",
+      "assertion": "countCap",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "role": "first_frame",
+        "count": 2,
+        "max": 1
+      }
+    },
+    {
+      "cell": "wan3.0-video|firstlast|n=2",
+      "assertion": "countCap",
+      "repro": 3,
+      "reason": {
+        "path": "canvas",
+        "role": "last_frame",
+        "count": 2,
+        "max": 1
+      }
+    },
+    {
+      "cell": "wan3.0-video|firstlast|n=2",
+      "assertion": "samePath",
+      "repro": 1,
+      "reason": {
+        "refused": "run",
+        "failure": {
+          "code": "apimart_provider_error",
+          "kind": "reference_capacity",
+          "max": 1
+        }
+      }
+    },
+    {
+      "cell": "wan3.0-video|ref|n=1",
+      "assertion": "modeMeaning",
+      "repro": "5a",
+      "reason": {
+        "path": "run",
+        "key": "image_urls",
+        "role": "first_frame",
+        "expected": [
+          "reference_image",
+          "reference_video",
+          "reference_audio",
+          "file",
+          "link"
+        ]
+      }
+    },
+    {
+      "cell": "wan3.0-video|ref|n=1",
+      "assertion": "samePath",
+      "repro": "5a",
+      "reason": {
+        "differences": {
+          "generation_type": {
+            "canvas": "reference",
+            "run": "frame"
+          }
+        }
+      }
+    },
+    {
+      "cell": "wan3.0-video|ref|n=10",
+      "assertion": "countCap",
+      "repro": "5a",
+      "reason": {
+        "path": "run",
+        "key": "image_urls",
+        "count": 10,
+        "max": 2
+      }
+    },
+    {
+      "cell": "wan3.0-video|ref|n=10",
+      "assertion": "modeMeaning",
+      "repro": "5a",
+      "reason": {
+        "path": "run",
+        "key": "image_urls",
+        "role": "first_frame",
+        "expected": [
+          "reference_image",
+          "reference_video",
+          "reference_audio",
+          "file",
+          "link"
+        ]
+      }
+    },
+    {
+      "cell": "wan3.0-video|ref|n=10",
+      "assertion": "modeMeaning",
+      "repro": "5a",
+      "reason": {
+        "path": "run",
+        "key": "image_urls",
+        "role": "last_frame",
+        "expected": [
+          "reference_image",
+          "reference_video",
+          "reference_audio",
+          "file",
+          "link"
+        ]
+      }
+    },
+    {
+      "cell": "wan3.0-video|ref|n=10",
+      "assertion": "samePath",
+      "repro": "5a",
+      "reason": {
+        "differences": {
+          "generation_type": {
+            "canvas": "reference",
+            "run": "frame"
+          }
+        }
+      }
+    }
+  ]
+}
