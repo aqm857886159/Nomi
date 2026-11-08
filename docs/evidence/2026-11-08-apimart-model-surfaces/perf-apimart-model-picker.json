@@ -1,0 +1,27 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "742f73422",
+  "head": "742f734226623722ffc94628d841f04d4641105f",
+  "dirty": true,
+  "sourceTree": "090326b65a2a15c2b250948ab9719c176bb6ab5f",
+  "date": "2026-11-08",
+  "runs": 5,
+  "results": [
+    {
+      "id": "apimart-model-picker",
+      "metrics": {
+        "response": {
+          "runs": 0,
+          "median": null,
+          "p95": null
+        }
+      },
+      "samples": {},
+      "budget": 150,
+      "verdict": {
+        "status": "no-data",
+        "note": "没采到数据"
+      }
+    }
+  ]
+}

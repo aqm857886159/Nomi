@@ -20,7 +20,7 @@
 | ★4 全状态 | 无凭据引导连接；加载不猜金额；成功显示有来源事实；失败/部分成功保留各自未知及管理/刷新；取消中由原生成体系负责；过期充值点击只刷新；能力不可用可经空搜索进入已展开的 AI 接入。文案覆盖中英。 |
 | 5 中途与动作 | 账户/报价读取中关窗不创建媒体，重开重读；断网只使事实未知；换 Key/端点忽略旧返回；连点合并读取；已渲染充值跨过期后只刷新，绝不落入生成。原生成取消/回执仍由既有任务授权体系负责。 |
 | 6 外部失败 | 账户和用量仅 GET，经主进程凭据与重定向策略；公开价 GET 无凭据且限制 origin；缺字段、无价、不可达均保持未知。真实供应商字段/单位本轮未核验。 |
-| ★7 性能 | 新增设置读取、选择器搜索、变体/参数报价；量具覆盖完整 APIMart 内置目录的视频节点，冒烟配置为 1 轮预热后 1 次采样，本轮未执行。场景 apimart-model-picker；两次 UI 动作合计预算中位 150ms / p95 200ms；待协调写基线。大规模画布和账户读取性能无独立数字，unverified。 |
+| ★7 性能 | 新增设置读取、选择器搜索、变体/参数报价；量具覆盖完整 APIMart 内置目录的视频节点；本轮配置为 1 轮预热后 5 次采样，但因 noisy 拒收，未得到有效性能数字。场景 apimart-model-picker；两次 UI 动作合计预算中位 150ms / p95 200ms；待协调写基线。大规模画布和账户读取性能无独立数字，unverified。 |
 | 8 真实条件 | 量具配置为 Mac 开发版、合成 Key + 本机回环、中文新目录/英文 v0.24.1 旧目录和账户窄窗；当前合流头演练未验证：前轮触发磁盘停点后未执行，本轮只修正文与登记。Windows、打包版、真实账户、真付费、全键盘和完整深暗主题也未验证。 |
 | ★9 验收与回滚 | 验收清单为账户未知/零/无限、换连接失序、固定/输出估价、过期充值点击、旧目录、空搜索、GPT2.6 真实模板投影及媒体 0；当前合流头上述检查未验证：未执行演练。最终头由另一条线独立验收；本稿不代签。回滚通过 revert 本分支功能提交，保留用户项目与连接资料。 |
 
@@ -84,7 +84,7 @@
 - 场景：`apimart-model-picker`。
 - 预算：中位 150ms / p95 200ms；budgetStatus 为 proposed。
 - 基线：待协调写基线。
-- 未验证：当前合流头尚未执行性能冒烟；本轮只修正文与登记，不编造数字。有效基线待协调跑。
+- 本轮使用 --id apimart-model-picker --runs 5 --measure-only 运行；因 noisy 被拒收，结果 no-data，有效样本 0，无可填的中位数或 p95。未写基线、未改预算。失败记录：docs/evidence/2026-11-08-apimart-model-surfaces/perf-apimart-model-picker.json。
 
 ## 验收证据
 
@@ -94,11 +94,11 @@
 - ui-ai-walk：未验证：无真实账户和真实生成任务。
 - ui-screens：未验证：当前合流头演练尚未执行，无本轮中英截图。
 - ui-task-scorecard：未验证：本轮任务未包含完整体验成绩单。
-- spend-walks：未验证：当前合流头未执行 tests/ux/apimart-model-surfaces.rehearsal.mjs，无新收据。
+- spend-walks：未验证：完整中英演练未执行；本轮仅执行性能模式的英文 fresh 目录回环，不能代替完整走查。
 - spend-paid-sample：未验证：本轮禁止真实账户接口及花费，后续协调验真实估价/回执/余额。
 - spend-fault-injection：未验证：当前合流头未跑 electron/ai/onboarding/vendorAccountFacts.test.ts、electron/ai/onboarding/vendorPricePreview.test.ts 和演练中的未知账户状态。
-- perf-scenario：未验证：基线待协调跑。
-- upgrade-path：未验证：英文量具采用 tests/fixtures/old-user-data/curated/v0.24.1-apimart/model-catalog.json，当前合流头未执行。
+- perf-scenario：未验证：apimart-model-picker 已按 5 次运行，但量具因 noisy 拒收；有效样本 0，中位数与 p95 均为 null，预算保持中位 150ms / p95 200ms。
+- upgrade-path：不适用：本分支未改项目文件、设置、钥匙串条目名、目录缓存或迁移的持久化形状；上述存储 schema/写入路径的 origin/main...HEAD diff 无改动。accountFacts 只加入编译期 VendorSeed，seedVendor 显式写入原字段且不拷贝它（electron/catalog/seedBuiltins.ts:467）；新账户/报价缓存仅为进程 Map（electron/ai/onboarding/vendorAccountFacts.ts:11、electron/ai/onboarding/vendorPricePreview.ts:10）；新增设置导航值仅在 React.useState（src/ui/onboarding/OnboardingDrawer.tsx:74、src/workbench/settings/useSettingsDialogController.ts:34）。
 - agent-intent-eval：未验证：本轮未跑真实模型意图评测，未测首次做对率。
 - run-e2e-chain：未验证：本轮未执行关窗、重启、断网后的完整任务恢复与防重复扣费链。
 
