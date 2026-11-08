@@ -69,7 +69,7 @@ export const VIDU_Q4_PREVIEW_ARCHETYPE: ModelArchetype = {
     covers:
       "POST /v1/videos/generations，model `viduq4-preview`（无文生）；图生 first_frame_image 刚好 1 张；" +
       "参考生 1–15 张参考图且 prompt 必填，走 image_with_roles 每张 role=reference_image" +
-      "(官方：只有 1 张、没有参考音频时必须显式写 role reference_image，否则按图生视频；示例「Reference-to-video with a single image」)；" +
+      "(官方：只有 1 张、没有参考音频时必须显式写 role reference_image，否则按图生视频；图组限量依据「counts are added together」；示例「Reference-to-video with a single image」)；" +
       "aspect_ratio 1:1|9:16|16:9|3:4|4:3(默认 16:9) 仅参考生有效；duration 3–16 整数(默认 5)；resolution 540p|720p(默认)|1080p|2K|4K；" +
       "audio 布尔(默认 true，有无声音同价)；不声明 audio_urls / audio_url / size / seed。",
   }],

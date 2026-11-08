@@ -14,7 +14,7 @@ import path from 'node:path'
 import { expect } from './_assert.mjs'
 import { openPaidWalk, DEFAULT_PAID_BRAIN } from './_paidRun.mjs'
 import { createRelayProject, prepareRelayVideo, generateRelayVideo } from './_relayVideoWalk.mjs'
-import { assertSampleReferencesInPlace, chooseSampleMode, mediaRestSampleFor, uploadSampleReferences, writeSampleReferenceFiles } from './_catalogMediaRestSamples.mjs'
+import { assertSampleReferencesInPlace, chooseSampleMode, mediaRestSampleFor, viduSampleWireReceipt, uploadSampleReferences, writeSampleReferenceFiles } from './_catalogMediaRestSamples.mjs'
 
 const SCRIPT = 'catalog-media-rest-real.paid.mjs'
 
@@ -28,6 +28,7 @@ const model = { vendorKey: 'apimart', modelKey: plan.modelKey }
 const paid = await openPaidWalk(SCRIPT, 'catalog-media-rest-real', [DEFAULT_PAID_BRAIN, model], {
   env: { ...process.env },
   hostedUploads: Boolean(sample.references?.length),
+  recordAllowedBodies: plan.modelKey === 'viduq4-preview',
   ...(sample.buildMarkers ? { buildMarkers: sample.buildMarkers } : {}),
 })
 const { walk } = paid
@@ -52,6 +53,7 @@ try {
     walk.report.stoppedBeforeGeneration = true
   } else {
     walk.report.landed = await generateRelayVideo({ win, prepared, capture, kind: sample.kind })
+    if (plan.modelKey === 'viduq4-preview') walk.report.sampleWire = viduSampleWireReceipt(paid.readAllowedRequests())
     fs.copyFileSync(walk.report.landed.media.filePath, path.join(walk.outputDir, `landed${path.extname(walk.report.landed.media.filePath)}`))
     expect(walk.report.landed.media.filePath, 'a local file landed').toBeTruthy()
   }

@@ -44,6 +44,8 @@ export type ArchetypeReferenceSlot = {
   min: number;
   /** Absent when the provider has not published a reference count limit. */
   max?: number;
+  /** A provider may accept fewer inputs than the model itself. */
+  vendorMax?: Readonly<Record<string, number>>;
   inputKey?: string;
   asArray?: boolean;
   characterIndexed?: boolean;

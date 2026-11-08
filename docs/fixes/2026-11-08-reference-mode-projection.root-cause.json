@@ -19,7 +19,12 @@
     "electron/capabilityCore/apimartGenerationProjection.ts",
     "electron/shared/videoCapabilities/index.ts",
     "electron/shared/modelArchetypes/index.ts",
-    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts"
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+    "electron/capabilityCore/apimartGenerationReferenceAliases.ts",
+    "electron/shared/videoCapabilities/types.ts",
+    "electron/shared/modelArchetypes/types.ts",
+    "electron/shared/modelArchetypes/gptImage2.ts",
+    "electron/shared/videoCapabilities/viduNew.ts"
   ],
   "entry_points": [
     "画布 runTask",
@@ -31,6 +36,30 @@
       "url": "https://docs.apimart.ai/en/api-reference/videos/vidu-q4-preview/generation.md",
       "checked_at": "2026-11-08",
       "purpose": "两个字段的张数合计不超过 15，验证角色通道和超量反例。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2/generation.md",
+      "checked_at": "2026-11-08",
+      "purpose": "APIMart 至多 15 张。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/images/gemini-3-pro/generation.md",
+      "checked_at": "2026-11-08",
+      "purpose": "图像数组最多 14 张。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation.md",
+      "checked_at": "2026-11-08",
+      "purpose": "generation_type 决定首尾与参考的含义。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation.md",
+      "checked_at": "2026-11-08",
+      "purpose": "generation_type 为 reference 时支持 10 张；frame 时最多 2 张。"
     }
   ],
   "invariants": [
@@ -40,21 +69,46 @@
   "doors": [
     {
       "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProjection.ts",
+      "symbol": "lowerCombinedReferences"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "mirrorApimartReferenceParameterAliases"
+    },
+    {
+      "kind": "write",
       "path": "electron/capabilityCore/apimartGenerationProvider.ts",
       "symbol": "applyHeadlessParamDefaults"
     },
     {
       "kind": "write",
+      "path": "electron/catalog/referenceReachability.ts",
+      "symbol": "referenceKeyCapacityDeclarationFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "referenceKeyCapacityDeclarationFor"
+    },
+    {
+      "kind": "write",
       "path": "electron/runtime.ts",
       "symbol": "applyHeadlessParamDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "lowerCombinedReferences"
     }
   ],
   "door_reduction": {
-    "before": 2,
-    "after": 2,
-    "why_not": "画布和制作运行分别拥有正常提交入口，但都把模型、选中模式与参考交给同一主进程判据。"
+    "before": 6,
+    "after": 7,
+    "why_not": "原有提交入口仍负责授权和运行。主进程模型容量判据与参考键映射继续服务目录展示和两条提交入口，记录直接文件/符号对，不增加提交路径。"
   },
-  "generality_proof": "两条实际生成提交进入同一个有模式身份的容量与参考投影函数，适用于任何声明角色数组或多模式的模型。",
+  "generality_proof": "两条实际生成提交进入同一个有模式身份的容量与参考投影函数，适用于任何声明角色数组或多模式的模型。 模式固定参数来自选中的档案而非同一 taskKind 的首个模式；别名只写 mapping 实际消费的键，供应商有较低上限时仍从同一个槽推导最终容量。",
   "shared_boundaries": [
     {
       "path": "electron/catalog/taskParams.ts",
@@ -91,7 +145,9 @@
     "reason": "同一模板有两个以上参考通道的内置模型都会遇到。",
     "same_class_scan": [
       "Vidu Q4, Wan 2.7、3.0、Seedance 2.0 和 2.5 的真实档案。",
-      "scripts/door-map.mjs applyHeadlessParamDefaults：2 写门。"
+      "scripts/door-map.mjs applyHeadlessParamDefaults：2 写门。",
+      "node scripts/door-map.mjs applyHeadlessParamDefaults lowerCombinedReferences referenceKeyCapacityDeclarationFor mirrorApimartReferenceParameterAliases。",
+      "26 个型号、60 种模式、125 组参考输入的官方事实矩阵。"
     ]
   },
   "prevention": {
@@ -103,16 +159,10 @@
     "strategy": "在任务模板之前根据所选模式的声明计算容量和已分配的 URL。",
     "artifacts": [
       "electron/catalog/taskParams.ts",
-      "electron/capabilityCore/apimartGenerationProvider.ts",
-      "electron/runtime.ts",
       "electron/shared/modelArchetypes/referenceKeys.ts",
-      "electron/catalog/parameterReferenceContract.ts",
-      "electron/catalog/modelCatalogListing.ts",
       "electron/shared/videoCapabilities/referenceChannels.ts",
-      "electron/capabilityCore/apimartGenerationProjection.ts",
-      "electron/shared/videoCapabilities/index.ts",
       "electron/shared/modelArchetypes/index.ts",
-      "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts"
+      "electron/capabilityCore/apimartGenerationReferenceAliases.ts"
     ]
   },
   "regression_tests": [
@@ -137,7 +187,8 @@
   },
   "migration": "无持久化变化；旧项目原有 modeId 直接消费，缺省仍按已支持的上下文解析。",
   "residual_risks": [
-    "真窗与付费样本由协调核验。"
+    "实际供应商对视频的完整性依赖真实付费样本。真窗回环和线上付款分别记。",
+    "0.23.2/0.24.0 的性能走查夹具是同一项目快照。原媒体字节不随仓库分发，验证时将地址映射成捕获器使用的合成地址。"
   ],
   "detected_by": "review",
   "recurrence_check_on": "2026-11-22",

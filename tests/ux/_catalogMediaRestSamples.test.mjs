@@ -7,7 +7,7 @@ import { getArchetypeById } from '../../electron/shared/modelArchetypes/index.ts
 import { archetypeModeChoices } from '../../src/workbench/generationCanvas/nodes/controls/channelModeReach.ts'
 import { modePresentationTexts, presentGenerationModes } from '../../src/workbench/generationCanvas/nodes/controls/generationModePresentation.ts'
 import { UI_LOCALES, uiTextWith } from './full-walk/invariants.mjs'
-import { MEDIA_REST_PENDING_SAMPLES, MEDIA_REST_SAMPLES, mediaRestSampleFor, sampleModeRadioName } from './_catalogMediaRestSamples.mjs'
+import { MEDIA_REST_PENDING_SAMPLES, MEDIA_REST_SAMPLES, mediaRestSampleFor, viduSampleWireReceipt, sampleModeRadioName } from './_catalogMediaRestSamples.mjs'
 
 const declared = (kind, modelKey) => (kind === 'image' ? APIMART_IMAGE_MODELS : APIMART_VIDEO_MODELS).find((model) => model.modelKey === modelKey)
 const archetypeOf = (kind, modelKey) => getArchetypeById(declared(kind, modelKey)?.archetypeId ?? '')
@@ -89,12 +89,15 @@ describe('付费抽检样本表 · catalog-media-rest-real.paid.mjs', () => {
     expect(mediaRestSampleFor('gemini-omni-1.2-flash-ext')).toBe(MEDIA_REST_SAMPLES['gemini-omni-1.2-flash-ext'])
   })
 
-  it('挂起的样本真付费拒跑、写明原因；零花费演练（includeHeld）照走', () => {
-    const held = Object.entries(MEDIA_REST_SAMPLES).filter(([, sample]) => sample.hold)
-    expect(held.map(([key]) => key)).toEqual(['viduq4-preview'])
-    for (const [key, sample] of held) {
-      expect(() => mediaRestSampleFor(key)).toThrow(/挂起，花钱之前拒跑：.*双键/)
-      expect(mediaRestSampleFor(key, { includeHeld: true })).toBe(sample)
+  it('Vidu 样本要求一条明确角色且没有额外参考键的提交', () => {
+    expect(mediaRestSampleFor('viduq4-preview')).toBe(MEDIA_REST_SAMPLES['viduq4-preview'])
+    const url = 'https://assets.example.com/ref.png'
+    const body = {model:'viduq4-preview', image_with_roles:[{url,role:'reference_image'}]}
+    const entry = (data) => ({kind:'allowed-request', method:'POST', url:'https://api.apimart.ai/v1/videos/generations', body:{text: JSON.stringify(data)}})
+    expect(viduSampleWireReceipt([entry(body)]).roles).toEqual(['reference_image'])
+    for (const other of [{image_urls:[url]}, {first_frame_image:url}, {image_with_roles:[{url,role:'first_frame'}]}]) {
+      expect(() => viduSampleWireReceipt([entry({...body,...other})])).toThrow(/单图参考/)
     }
+    expect(() => viduSampleWireReceipt([entry(body), entry(body)])).toThrow(/一条完整/)
   })
 })

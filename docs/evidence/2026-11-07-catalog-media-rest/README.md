@@ -35,7 +35,7 @@
 
 - 供应商没回实际扣费（`providerCost: null`），花费按公开价估，以 APIMart 账单为准。
 - 截图在 `paid-20261108/`，协调亲眼看过：`ext-firstlast-references-before-generate.png`（点生成前两格都在）、`ext-firstlast-landed.png`、`grok-image-landed.png`。
-- `viduq4-preview` 参考生没跑：请求体双键（`image_urls` 和 `image_with_roles` 同时在），真付费拒跑，等生成请求链改造里「参考放置收成一个函数」那一片修好再跑。
+- `viduq4-preview` 参考生没跑：请求体双键（`image_urls` 和 `image_with_roles` 同时在），当时真付费拒跑。11-08 已修，画布与 Agent 的 Mac 真窗回环走查各见一次角色数组且无第二个参考键。付费抽检已恢复可执行，真实供应商样本另计。
 
 ## 没验证的
 

@@ -46,14 +46,10 @@ export const MEDIA_REST_SAMPLES = Object.freeze({
   // 参考生 · 1 张图 · 16:9 · 720p · 5 秒，预计 $0.0912 × 5 ≈ $0.46。验：1 张也按参考（role reference_image），不被当成图生。
   // referencesFirst：这个型号没有文生，生成框按节点当前方式列型号（没放参考 = 文生），不先放参考，型号菜单里就没有它。
   // 真人也是这么走的：先「+」放图，再挑型号、切方式。样本测试按目录核：没有文字那条 mapping 的型号必须写它。
-  // hold：11-08 零花费演练（真窗口 + 本机夹具）里，请求体除了 image_with_roles 还多带了一份同图的 image_urls
-  // （taskParams 的 headless 投影认不出角色数组里的地址）。两个键同时在时官方按哪个走，页上没写；按 image_urls 走就是
-  // 1 张图生，花钱验不出 ③。main 上同样有（证据与复盘归「生成请求链」复盘），修好再跑。
   'viduq4-preview': {
     kind: 'video', modeId: 'ref', modeLabelKey: 'generationCommon.composerB3.modeReference', referencesFirst: true,
     references: [{ slot: 'image_ref', file: 'ref.png' }],
-    buildMarkers: ['Reference-to-video with a single image'],
-    hold: '请求体双键，等修（同一张图既在 image_urls、又在 image_with_roles）',
+    buildMarkers: ['counts are added together'],
   },
 })
 
@@ -68,15 +64,27 @@ export const MEDIA_REST_PENDING_SAMPLES = Object.freeze({
 
 /**
  * 计划里的型号 → 样本；不在表里或只登记未写脚本的，花钱之前就抛。
- * 挂起（hold）的样本真付费也拒跑；零花费演练（includeHeld）照走，用来复核修好了没有。
  */
-export function mediaRestSampleFor(modelKey, { includeHeld = false } = {}) {
+export function mediaRestSampleFor(modelKey) {
   const pending = MEDIA_REST_PENDING_SAMPLES[modelKey]
   if (pending) throw new Error(`样本 ${modelKey}（${pending.route}）只登记、没有脚本：${pending.status}`)
   const sample = MEDIA_REST_SAMPLES[modelKey]
   if (!sample) throw new Error(`型号 ${modelKey} 不在付费抽检样本表里（只测每家最便宜的当前基础档，一次一条）`)
-  if (sample.hold && !includeHeld) throw new Error(`样本 ${modelKey} 挂起，花钱之前拒跑：${sample.hold}`)
   return sample
+}
+
+/** Return field and role evidence only; uploaded URLs do not belong in the receipt. */
+export function viduSampleWireReceipt(entries) {
+  const creates = entries.filter(entry => entry.kind === 'allowed-request' && entry.method === 'POST'
+    && new URL(entry.url).pathname === '/v1/videos/generations')
+  if (creates.length !== 1 || creates[0].body?.truncated) throw new Error('Vidu 样本需要一条完整的视频提交记录')
+  const body = JSON.parse(creates[0].body?.text ?? 'null')
+  if (body?.model !== 'viduq4-preview' || !Array.isArray(body.image_with_roles) || body.image_with_roles.length !== 1
+    || body.image_with_roles[0]?.role !== 'reference_image' || !body.image_with_roles[0]?.url
+    || Object.hasOwn(body, 'image_urls') || Object.hasOwn(body, 'first_frame_image')) {
+    throw new Error('Vidu 单图参考必须只出现一次，使用 reference_image 角色，不能出现扁平或首帧键')
+  }
+  return { creates: creates.length, fields: Object.keys(body).sort(), roles: body.image_with_roles.map(item => item.role) }
 }
 
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

@@ -6,6 +6,7 @@
 // params 的坑，都只在"真实参数构建"里暴露，埋在 2500 行 runtime 里既测不到也容易回归。
 import { assertDeclaredCapabilityForTask } from "../shared/modelAvailability";
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
+import { resolveArchetypeForModel } from "../shared/modelArchetypes";
 import { referenceInputParams } from "./archetypeInput";
 import { ARCHETYPE_WIRE_DEFAULTS, ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
 import { bodyReferencedParamKeys } from "./paramTranslate";
@@ -149,14 +150,32 @@ export function applyHeadlessParamDefaults(
   const declaredArchetype = isJsonRecord(selected.modelMeta) ? selected.modelMeta.archetypeId : undefined;
   const archetypeId = typeof declaredArchetype === "string" && declaredArchetype ? declaredArchetype : undefined;
   const perKind = archetypeId ? ARCHETYPE_WIRE_DEFAULTS[archetypeId]?.[taskKind] : undefined;
-  const archetypeDefaults = perKind ? (perKind[vendorKey] ?? perKind["*"]) : undefined;
+  const primaryDefaults = perKind?.[vendorKey] ?? perKind?.["*"];
+  const archetype = selected.modeId ? resolveArchetypeForModel({
+    modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
+  }) : null;
+  const mode = archetype?.modes.find((candidate) => candidate.id === selected.modeId);
+  // A task kind shares tunable defaults. Its primary mode's fixed fields cannot select a different mode.
+  const archetypeDefaults = mode && primaryDefaults ? { ...primaryDefaults } : primaryDefaults;
+  if (archetype && mode && archetypeDefaults) {
+    for (const candidate of archetype.modes) {
+      for (const key of Object.keys(candidate.fixedParams ?? {})) {
+        if (!mode.params.some((control) => control.key === key)) delete archetypeDefaults[key];
+      }
+    }
+  }
   // extras.size 是比例形（调用方 aspect_ratio 铺来的）、但本模式的 size 是像素语义 → 剥掉，让档案像素默认接管。
   // 只针对「比例形的 caller size」，UI 路自己填的真实像素 size 不受影响（它不匹配 RATIO_VALUE_RE）。
   const guarded = extras && typeof extras.size === "string" && RATIO_VALUE_RE.test(extras.size.trim())
     && !sizeDefaultIsRatioSemantic(archetypeId, taskKind, archetypeDefaults, mappingDefaults)
     ? (() => { const { size: _dropped, ...rest } = extras; return rest; })()
     : extras;
-  const withDefaults = applyWireDefaults(applyWireDefaults(guarded, archetypeDefaults), mappingDefaults);
+  const defaulted = applyWireDefaults(applyWireDefaults(guarded, archetypeDefaults), mappingDefaults);
+  // Saved nodes can still carry the previous mode's transport discriminator in either parameter bag.
+  const withDefaults = mode && mode.fixedParams ? {
+    ...defaulted, ...mode.fixedParams,
+    ...(isJsonRecord(defaulted?.archetypeInput) ? { archetypeInput: { ...defaulted.archetypeInput, ...mode.fixedParams } } : {}),
+  } : defaulted;
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
   const projected = projectReferencesOntoBodyKeys(withDefaults, createBody, selected);

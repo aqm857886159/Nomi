@@ -26,6 +26,7 @@ import { createGenerationNode } from "../../src/workbench/generationCanvas/model
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
 import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog, type FetchCapture } from "./generationParityTestUtils";
+import { getArchetypeById, specializeArchetypeForVendor } from "../shared/modelArchetypes";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 
 const REF_A = "https://assets.example.com/docs-align/a.png";
@@ -60,8 +61,8 @@ async function videoBody(modelId: string, modeId: string | undefined, refs: Arra
   return record.request.body as Record<string, unknown>;
 }
 
-async function canvasBody(modelKey: string, archetypeId: string, modeId: string, urls: string[]) {
-  const node = createGenerationNode({ id: "parity-video", kind: "video", prompt: "人物转身" });
+async function canvasBody(modelKey: string, archetypeId: string, modeId: string, urls: string[], kind: "image" | "video" = "video") {
+  const node = createGenerationNode({ id: "parity-node", kind, prompt: "人物转身" });
   node.meta = { modelKey, modelVendor: "apimart", vendor: "apimart", archetype: { id: archetypeId, modeId }, referenceImageUrls: urls };
   const request = buildCatalogTaskRequest(node, { references: resolveGenerationReferences(node, { nodes: [node], edges: [] }) }).request;
   const record = await driveEngineA(capture, { vendorKey: "apimart", kind: request.kind, prompt: request.prompt, extras: request.extras ?? {} });
@@ -70,6 +71,15 @@ async function canvasBody(modelKey: string, archetypeId: string, modeId: string,
 }
 
 describe("画布生成和 Agent 运行在实际出站边界遵守选中模式的参考槽", () => {
+  it("GPT Image 2 的 APIMart 限 15；同一个老档案在 KIE 保留 16", () => {
+    const archetype = getArchetypeById("gpt-image-2")!;
+    const max = (vendorKey: string) => specializeArchetypeForVendor(archetype, vendorKey)
+      .modes.find(({id}) => id === "i2i")!.slots[0]!.max;
+    expect(max("apimart")).toBe(15);
+    expect(max("kie")).toBe(16);
+    expect(archetype.modes.find(({id}) => id === "i2i")!.slots[0]!.max).toBe(16);
+  });
+
   it.each([1, 8, 15, 16])("Vidu Q4 参考 %i 张，每张只发一次", async (count) => {
     const urls = Array.from({ length: count }, (_, i) => `https://assets.example.com/q4/${i}.png`);
     const expected = urls.slice(0, 15).map((url) => ({ url, role: "reference_image" }));
@@ -108,7 +118,41 @@ describe("画布生成和 Agent 运行在实际出站边界遵守选中模式的
     const run = await videoBody("veo3.1-fast", "frame", [{ url: REF_B, role: "last_frame" }, { url: REF_A, role: "first_frame" }]);
     for (const body of [canvas, run]) {
       expect(body.image_urls).toEqual([REF_A, REF_B]);
+      expect(body.generation_type).toBe("frame");
       expect(body).not.toHaveProperty("image_with_roles");
+    }
+  });
+
+  it.each([1, 10])("Wan 3.0 参考 %i 张按 reference 方式提交", async (n) => {
+    const urls = Array.from({ length: n }, (_, i) => `https://assets.example.com/wan/${i}.png`);
+    const canvas = await canvasBody("wan3.0-video", "wan-3.0-apimart", "ref", urls);
+    const run = await videoBody("wan3.0-video", "ref", urls.map((url) => ({ url, role: "reference" })), { generation_type: "frame" });
+    for (const body of [canvas, run]) {
+      expect(body.image_urls).toEqual(urls);
+      expect(body.generation_type).toBe("reference");
+      expect(body).not.toHaveProperty("image_with_roles");
+    }
+  });
+
+  it.each([
+    ["gemini-3-pro-image-preview", "gemini-image-3-pro", 1],
+    ["gemini-3-pro-image-preview", "gemini-image-3-pro", 14],
+    ["gpt-image-2", "gpt-image-2", 16],
+  ] as const)("%s %s 改图 %i 张按所选渠道承载", async (model, archetype, n) => {
+    const urls = Array.from({ length: n }, (_, i) => `https://assets.example.com/edit/${i}.png`);
+    const canvas = await canvasBody(model, archetype, "i2i", urls, "image");
+    expect(canvas.image_urls).toEqual(urls.slice(0, 15));
+    const references = urls.map((url, index) => ({ assetId: url, contentHash: `edit-${index}`, version: 1, kind: "image" as const, role: "reference" as const }));
+    capture.reset();
+    const run = await driveEngineB(capture, {
+      vendorKey: "apimart", modelId: model, mode: "image_edit", prompt: "改图", parameters: {},
+      references, referenceUrls: Object.fromEntries(references.map((ref) => [spendReferenceKey(ref), ref.assetId])),
+    });
+    if (n === 16) {
+      expect(capture.calls).toHaveLength(0);
+      expect(run.failure?.message).toMatch(/15/);
+    } else {
+      expect(run.request?.body, JSON.stringify(run.failure)).toMatchObject({ image_urls: urls });
     }
   });
 

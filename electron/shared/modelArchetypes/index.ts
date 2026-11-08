@@ -241,18 +241,22 @@ function resolveBaseArchetype(model: ArchetypeModelLike): ModelArchetype | null 
 
 /**
  * B 档案分层（用户拍板 2026-06-07）：把档案的 modes.params 替换成该供应商的覆盖版（mode.vendorParams[vendorKey]）。
- * 身份/能力形状（id/family/label/modes 结构/slots）不变——只 params 这层分供应商（P4）。
- * 无 vendorKey、或没有任何模式为该供应商声明 vendorParams → 原样返回（绝大多数情况，零开销）。
+ * 身份/能力形状（id/family/label/modes/槽种）不变；通道可以收紧单槽容量。
+ * 无 vendorKey、或没有为该供应商声明参数/容量覆盖 → 原样返回（绝大多数情况，零开销）。
  */
 export function specializeArchetypeForVendor(archetype: ModelArchetype, vendorKey: string | null | undefined): ModelArchetype {
   const key = typeof vendorKey === "string" ? vendorKey.trim() : "";
   if (!key) return archetype;
-  if (!archetype.modes.some((m) => m.vendorParams && m.vendorParams[key])) return archetype;
+  if (!archetype.modes.some((mode) => mode.vendorParams?.[key] || mode.slots.some((slot) => slot.vendorMax?.[key] !== undefined))) return archetype;
   return {
     ...archetype,
     modes: archetype.modes.map((m) => {
       const vp = m.vendorParams?.[key];
-      return vp ? { ...m, params: vp } : m;
+      const slots = m.slots.map((slot) => {
+        const max = slot.vendorMax?.[key];
+        return max === undefined ? slot : { ...slot, max };
+      });
+      return { ...m, slots, params: vp ?? m.params };
     }),
   };
 }
