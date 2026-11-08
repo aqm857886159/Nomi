@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { makeTempDir } from '../../scripts/_test-temp.mjs'
+import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 // 「Agent 写参数对不对、被拒后重试几次」——**真模型、真应用**的整机走查（R-agent-quality-025 §6 第 11 类的 B 轻量版）。
 //
 // ── 它补的是哪一格 ──
@@ -22,18 +22,19 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // ── 跑法（花钱：只有大脑模型的文字费，由协调跑）──
 //   pnpm run build
-//   node tests/ux/agent-param-eval-real-model.walk.mjs --model "<在线大脑模型展示名>" --label base [--only P01,P02] [--limit 10]
+//   NOMI_SPEND_OK=1 node tests/ux/agent-param-eval-real-model.walk.mjs --model "<在线大脑模型展示名>" --label base [--only P01,P02] [--limit 10]
 //   node tests/ux/agent-param-eval-real-model.walk.mjs --dry-run      # 不连模型、不要凭据：只验起 App / 读题 / 搭三种起始态 / 写轨迹文件
 // 产物：artifacts/agent-param-eval/<label>/（被忽略）：report.json、summary.json、trajectories/<题号>.jsonl、<题号>.outcome.json
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import ffmpeg from '@ffmpeg-installer/ffmpeg'
 
+import { assertPaidRunAllowed } from './_paidRun.mjs'
+import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 import { closeNomiApp, launchNomiApp } from './_launchApp.mjs'
 import { readAlignedCalls } from './askback-trajectory.mjs'
 import { createCardDriver } from './agent-param-eval-cards.mjs'
@@ -73,8 +74,7 @@ if (values.limit) TASKS = TASKS.slice(0, Number(values.limit))
 
 const { prepareIsolation, dismissSplashIfPresent } = await import(pathToFileURL(path.join(repoRoot, 'evals/lib/isoApp.mjs')).href)
 // 干跑不要凭据（requireCatalog:false = App 自带目录的干净 profile）；真跑拷本机真实 catalog 与钥匙（密文，不经手明文）。
-const isoDir = path.join(os.tmpdir(), `agent-param-eval-${Date.now()}`)
-const iso = prepareIsolation(isoDir, { requireCatalog: !DRY_RUN })
+const isoDir = makeTempDir('agent-param-eval-')
 const mediaTmp = makeTempDir('agent-param-eval-media-')
 
 /** 素材库起始态要的三个文件：ffmpeg 现生成，不依赖私有素材。文件名就是素材在库里的名字（题里用的叫法）。 */
@@ -99,8 +99,11 @@ const report = {
 const results = []
 const unscorable = []
 
-let app, win, failure
+let app, win, failure, guard
 try {
+  // This instrument copies the real catalog even if the shell also has an environment key.
+  if (!DRY_RUN) guard = assertPaidRunAllowed('agent-param-eval-real-model.walk.mjs', { ...process.env, [ENV_KEY_VAR]: '' })
+  const iso = prepareIsolation(isoDir, { requireCatalog: !DRY_RUN })
   ;({ app, win } = await launchNomiApp({ name: 'agent-param-eval', userDataDir: iso.chromiumDir,
     projectsDir: iso.projectsDir, settingsDir: iso.settingsDir, capabilityDir: iso.capabilityDir, hostConfigDir: iso.hostConfigDir }))
   await dismissSplashIfPresent(win)
@@ -273,11 +276,18 @@ try {
   report.error = error instanceof Error ? error.stack : String(error)
   if (win) await win.screenshot({ path: path.join(outputDir, 'failure.png') }).catch(() => {})
 } finally {
-  report.endedAt = new Date().toISOString()
-  fs.writeFileSync(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2))
-  console.log(`report → ${pathToFileURL(path.join(outputDir, 'report.json')).href}`)
-  if (app) await closeNomiApp(app).catch(() => {})
-  fs.rmSync(mediaTmp, { recursive: true, force: true })
-  fs.rmSync(isoDir, { recursive: true, force: true })
+  try {
+    if (app) await closeNomiApp(app)
+  } finally {
+    cleanupTestTemp(isoDir)
+    cleanupTestTemp(mediaTmp)
+    if (guard) {
+      guard.assertRealProfileUntouched()
+      report.realProfileUntouched = true
+    }
+    report.endedAt = new Date().toISOString()
+    fs.writeFileSync(path.join(outputDir, 'report.json'), JSON.stringify(report, null, 2))
+    console.log(`report → ${pathToFileURL(path.join(outputDir, 'report.json')).href}`)
+  }
   if (failure) console.error(failure)
 }
