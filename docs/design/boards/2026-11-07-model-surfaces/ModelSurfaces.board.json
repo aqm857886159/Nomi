@@ -373,7 +373,7 @@
         "383-span-用量与单价",
         "384-svg"
       ],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "S1 设置账户卡"
     },
     {
@@ -398,7 +398,7 @@
         "238-svg",
         "325-svg"
       ],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "S1 设置账户卡"
     },
     {
@@ -492,7 +492,7 @@
         "1451-div-用AI帮我接入别家",
         "1452-svg"
       ],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "S1 设置账户卡"
     },
     {
@@ -803,8 +803,9 @@
         "1043-span-搜模型",
         "1169-span-搜模型"
       ],
-      "status": "missing",
-      "owner": "S2 画布模型选择器"
+      "status": "implemented",
+      "owner": "S2 画布模型选择器",
+      "assertion": "board:ModelSurfaces/picker.search"
     },
     {
       "id": "picker.row",
@@ -1159,7 +1160,7 @@
         "1659-span-Style",
         "1660-svg"
       ],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "S2 画布模型选择器"
     },
     {
@@ -1481,8 +1482,9 @@
         "1621-svg",
         "1622-svg"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "implemented",
+      "owner": "S3 生成前估价与费用回执",
+      "assertion": "board:ModelSurfaces/cost.send-pill"
     },
     {
       "id": "cost.hover",
@@ -1497,8 +1499,9 @@
       "candidates": [
         "1249-div-这次约035积分0035"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "implemented",
+      "owner": "S3 生成前估价与费用回执",
+      "assertion": "board:ModelSurfaces/cost.hover"
     },
     {
       "id": "cost.low-balance",
@@ -1518,8 +1521,9 @@
         "1265-span-去充值",
         "1266-svg"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "implemented",
+      "owner": "S3 生成前估价与费用回执",
+      "assertion": "board:ModelSurfaces/cost.low-balance"
     },
     {
       "id": "cost.batch-card",
