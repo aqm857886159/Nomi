@@ -1,0 +1,35 @@
+{
+  "modelKey": "kling-3.0-turbo",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/kling-3.0-turbo/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "without one it uses text-to-video.",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/kling-3.0-turbo/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"kling-3.0-turbo\",\n  \"prompt\": \"A corgi running on the beach, cinematic, golden-hour light\",\n  \"aspect_ratio\": \"16:9\",\n  \"resolution\": \"1080p\",\n  \"duration\": 5\n}"
+          }
+        ]
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/kling-3.0-turbo/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Supports an image URL or Base64."
+        }
+      }
+    }
+  }
+}
