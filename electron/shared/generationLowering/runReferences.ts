@@ -150,12 +150,22 @@ export function placeApprovedRunReferences(
       throw new RunReferenceError(`catalog mapping has unsupported reference role: ${reference.role}`, "unsupported-role", { role: reference.role });
     } else append(STANDARD_LIST_KEY.image, reference.url);
   }
+  const assertCompatible = (key: string, value: unknown): boolean => {
+    const group = runReferenceGroupOf(key) ?? [key];
+    const existing = group.map((candidate) => out[candidate]).find(present);
+    // 合同写死的 URL 与授权时封存的不一致 = 批准 A、要发 B。拒。
+    if (present(existing) && JSON.stringify(existing) !== JSON.stringify(value)) {
+      throw new RunReferenceError("catalog reference URL projection conflicts with canonical parameters", "conflict");
+    }
+    return present(existing);
+  };
   const preservedReferences: PreservedReferenceIntent[] = [...snapshot].map(([key, value]) => ({
     kind: slotKindForContractReference({ kind: referenceKeyDeclarationFor(key)?.family, role: referenceFrameKindFor(key) ?? undefined }),
     value,
     keys: isStandardListKey(key) ? runReferenceGroupOf(key) ?? [key] : [key],
     readKeys: bodyKeys,
     selection: "all-read-or-first",
+    retainExistingGroupAt: assertCompatible(key, value) ? key : undefined,
   }));
   // 张数仍由 Run 的 assertResolvedReferences 按族核；这里不增加单槽超量拒发或模式固定参数。
   const lowered = lowerGenerationIntent(
@@ -163,12 +173,7 @@ export function placeApprovedRunReferences(
     { references: combined, preservedReferences },
   );
   const entries = Object.entries(lowered.bodyParams).filter(([key, value]) => {
-    const group = runReferenceGroupOf(key) ?? [key];
-    const existing = group.map((candidate) => out[candidate]).find(present);
-    // 合同写死的 URL 与授权时封存的不一致 = 批准 A、要发 B。拒。
-    if (present(existing) && JSON.stringify(existing) !== JSON.stringify(value)) {
-      throw new RunReferenceError("catalog reference URL projection conflicts with canonical parameters", "conflict");
-    }
+    assertCompatible(key, value);
     return !present(out[key]);
   });
   Object.assign(out, Object.fromEntries(entries));

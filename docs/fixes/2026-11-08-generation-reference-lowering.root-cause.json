@@ -158,7 +158,7 @@
     "after": 20,
     "why_not": "door-map 重新扫描三个入口与下一跳及声明读者，共 20 扇。三个入口所在进程不同，画布、headless、Run（含显式参数）必须保留，但都只交意图并消费 lowerGenerationIntent 的全部结果。placeRunReferences / placeApprovedRunReferences / standardizeExplicitRunReferences 是 Run 的验证与输入适配门，lowerHeadlessReferences 是 body 声明适配门；combineChannelForBody / loweringInputKey / loweringAsArray / DEFAULT_LOWERING_INPUT_KEY / RUN_PATH_REFERENCE_KEYS 是声明读取，GENERIC_REFERENCE_KEYS / DEFAULT_SLOT_INPUT_KEY 是模板参数、出站地址、可达性、画布请求的既有读者，均不决定参考落键。真正选键写值只有 lowerGenerationIntent.ts；Run 的 listTargetsFor 和两处变量键赋值删除。"
   },
-  "generality_proof": "画布、headless、Run 非合并参考和显式参数都通过 loweringConsumers.test.ts 对真实入口施加 image_urls 返回落点变异，结果必须一起变化。参考用途、原值形状、候选组和匹配策略是意图，真正选键并写值只在 lowerGenerationIntent。结构守卫只放行该文件，其它同目录文件的静态参考键 / AST 变量键赋值均拒绝；headless 的声明集合改用 Map，避免非请求体声明赋值需要例外。全部内置档案类测试与官方字段矩阵继续锁定单图单键及请求体。",
+  "generality_proof": "画布、headless、Run 非合并参考和显式参数都通过 loweringConsumers.test.ts 对真实入口施加 image_urls 返回落点变异，结果必须一起变化。参考用途、原值形状、候选组和匹配策略是意图，真正选键并写值只在 lowerGenerationIntent。结构守卫只放行该文件，其它同目录文件的静态参考键 / AST 变量键赋值均拒绝；headless 的声明集合改用 Map，避免非请求体声明赋值需要例外。全部内置档案类测试与官方字段矩阵继续锁定单图单键及请求体。 同组已有值且 body 唯一落点是标准输入键时，retainExistingGroupAt 把旧版不补第二份的行为交给降级函数；Run 的图片 / 首帧回归用例与降级函数的单键 / 多键类用例锁定此边界，冲突校验仍在降级前执行。",
   "shared_boundaries": [
     {
       "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",

@@ -48,6 +48,8 @@ export type PreservedReferenceIntent = Readonly<{
   keys: readonly string[];
   readKeys: readonly string[];
   selection: "all-read-or-first" | "first-read";
+  /** 已有同组值时，唯一落点若是这个标准输入键，就沿用既有值，不补第二份。 */
+  retainExistingGroupAt?: string;
 }>;
 
 export type GenerationIntent = Readonly<{
@@ -166,6 +168,7 @@ export function lowerGenerationIntent(declaration: GenerationDeclaration, intent
     const read = reference.keys.filter((key) => reference.readKeys.includes(key));
     const targets = reference.selection === "first-read" ? read.slice(0, 1)
       : read.length ? read : reference.keys.slice(0, 1);
+    if (targets.length === 1 && targets[0] === reference.retainExistingGroupAt) continue;
     for (const key of targets) {
       if (!Object.prototype.hasOwnProperty.call(out, key)) out[key] = structuredClone(reference.value);
     }

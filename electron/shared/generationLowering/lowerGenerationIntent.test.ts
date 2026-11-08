@@ -22,6 +22,17 @@ function occurrences(bodyParams: Record<string, unknown>, url: string): number {
 
 describe("lowerGenerationIntent", () => {
   it.each([
+    [["image_urls"], []],
+    [["imageUrls"], ["imageUrls"]],
+    [["image_urls", "imageUrls"], ["image_urls", "imageUrls"]],
+  ])("已有同组值只抑制声明的单一标准输入落点：%j", (keys, expected) => {
+    const lowered = lowerGenerationIntent({ slots: [], combine: null, joinsCombine: [] }, {
+      references: [], preservedReferences: [{ kind: "image_ref", value: ["a.png"], keys, readKeys: keys, selection: "all-read-or-first", retainExistingGroupAt: "image_urls" }],
+    });
+    expect(Object.keys(lowered.bodyParams)).toEqual(expected);
+  });
+
+  it.each([
     ["全部匹配，按声明顺序", ["imageUrls", "image_urls"], "all-read-or-first", ["image_urls", "imageUrls"]],
     ["没有匹配，组首键", [], "all-read-or-first", ["image_urls"]],
     ["首个匹配", ["imageUrls", "image_urls"], "first-read", ["image_urls"]],

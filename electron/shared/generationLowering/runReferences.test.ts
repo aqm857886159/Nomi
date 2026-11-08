@@ -42,6 +42,15 @@ describe("placeApprovedRunReferences", () => {
     )).toThrow(/conflicts with canonical parameters/);
   });
 
+  it.each([
+    ["referenceImageUrls", { imageUrls: ["https://cdn.example/a.png"] }, "reference"],
+    ["first_frame_url", { firstFrameImage: "https://cdn.example/a.png" }, "first_frame"],
+  ])("已有同组值且 body 只读标准输入 %s：沿用既有值，不再补第二份", (key, parameters, role) => {
+    const placed = placeApprovedRunReferences(parameters, [{ url: "https://cdn.example/a.png", kind: "image", role }], { ref: `{{request.params.${key}}}` }, null);
+    expect(placed.parameters).toEqual(parameters);
+    expect(placed.placedKeys).toEqual([]);
+  });
+
   it("合并槽单槽超量不在这一步拒：两张首帧都进 image_with_roles", () => {
     const mode = SEEDANCE_2_APIMART_ARCHETYPE.modes.find((candidate) => candidate.id === "firstlast")!;
     const body = { image_with_roles: "{{request.params.image_with_roles}}" };
