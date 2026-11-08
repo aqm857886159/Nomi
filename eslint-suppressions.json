@@ -635,11 +635,6 @@
       "count": 1
     }
   },
-  "scripts/model-identity-walkthrough.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "scripts/model-panel-shot.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1

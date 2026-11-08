@@ -28,7 +28,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from './_launchApp.mjs'
+import { withLinuxNoSandbox, withSyntheticCredentialStorage } from './_launchApp.mjs'
 import { assertFreshBuild } from '../../scripts/package-build-stamp.mjs'
 export { packagedMcpRuntime } from './_packagedMcpRuntime.mjs'
 
@@ -277,13 +277,12 @@ export function spawnMcpStdioClient({
   if (!runtime) assertBuilt()
   const selectedRuntime = runtime || {
     command: require('electron'),
-    args: withLinuxSyntheticCredentialStorage(
-      withLinuxNoSandbox([repoRoot, '--disable-gpu']), syntheticCredentialStorage,
-    ),
+    args: withLinuxNoSandbox([repoRoot, '--disable-gpu']),
     cwd: repoRoot,
     env: {},
   }
-  const child = spawn(selectedRuntime.command, selectedRuntime.args, {
+  // 合成后端开关对开发版和打包版 runtime 一视同仁，从同一个出口取（见 _launchApp.mjs）。
+  const child = spawn(selectedRuntime.command, withSyntheticCredentialStorage(selectedRuntime.args, syntheticCredentialStorage), {
     cwd: selectedRuntime.cwd || repoRoot,
     env: {
       ...process.env,

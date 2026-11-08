@@ -29,6 +29,17 @@ const APP_NAME = require('../../package.json').name
 /** 资料目录不在默认位置时（多用户 / 自定义 userData）的唯一覆盖口。 */
 export const REAL_PROFILE_ENV = 'NOMI_REAL_PROFILE_USER_DATA'
 export const REAL_CATALOG_FILE = 'model-catalog.json'
+/**
+ * 隔离目录里落下的「这里装着用户真凭据的副本」标记（seedReal* 写、removeRealCredentials 删）。
+ * 启动器（_launchApp.mjs）看到它就不给 App 套合成凭据后端：密文是真钥匙串加的，换后端必解不开；
+ * 也因此「真资料那条路不带 mock」不靠每条付费走查记得传 false。
+ */
+export const REAL_CREDENTIAL_MARKER = '.nomi-real-credential-copy'
+
+function markRealCredentialCopy(dir) {
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(path.join(dir, REAL_CREDENTIAL_MARKER), 'real credential copy: do not use the synthetic credential backend\n')
+}
 
 /**
  * 真实资料目录在哪、凭据由哪几份文件组成。纯函数（平台 / env / home 可注入），三平台同一份判据：
@@ -59,7 +70,7 @@ function requireFile(file, why) {
 
 /** 把凭据钥匙（Windows 的 Local State）按字节拷进隔离 userData。必须在被测 App 起来**之前**。 */
 export function seedRealCredentialStore(userDataDir, profile = realNomiProfile()) {
-  fs.mkdirSync(userDataDir, { recursive: true })
+  markRealCredentialCopy(userDataDir)
   for (const name of profile.credentialStoreFiles) {
     const from = path.join(profile.userDataDir, name)
     requireFile(from, '没有它，拷过去的 key 密文在这台机器上解不开')
@@ -71,7 +82,7 @@ export function seedRealCredentialStore(userDataDir, profile = realNomiProfile()
 /** 整份真实目录 + 凭据钥匙进隔离副本（隔离 settings 放目录、隔离 userData 放钥匙）。 */
 export function seedRealCredentials({ settingsDir, userDataDir, profile = realNomiProfile() }) {
   requireFile(profile.catalogPath, '被测 App 需要这台机器上已配好的模型与 key')
-  fs.mkdirSync(settingsDir, { recursive: true })
+  markRealCredentialCopy(settingsDir)
   fs.copyFileSync(profile.catalogPath, path.join(settingsDir, REAL_CATALOG_FILE))
   return { catalog: REAL_CATALOG_FILE, credentialStore: seedRealCredentialStore(userDataDir, profile) }
 }
@@ -88,7 +99,11 @@ export function removeRealCredentials({ settingsDir, userDataDir, profile = real
   const catalogFamily = fs.existsSync(settingsDir)
     ? fs.readdirSync(settingsDir).filter((name) => name.startsWith('model-catalog') && name.endsWith('.json')).map((name) => path.join(settingsDir, name))
     : []
-  const files = [...catalogFamily, ...profile.credentialStoreFiles.map((name) => path.join(userDataDir, name))]
+  const files = [
+    ...catalogFamily,
+    ...profile.credentialStoreFiles.map((name) => path.join(userDataDir, name)),
+    path.join(settingsDir, REAL_CREDENTIAL_MARKER), path.join(userDataDir, REAL_CREDENTIAL_MARKER),
+  ]
   for (const file of files) fs.rmSync(file, { force: true })
   return files.every((file) => !fs.existsSync(file))
 }
@@ -154,6 +169,7 @@ export function seedRealModels({ settingsDir, userDataDir, models, profile = rea
     model.published = false
     model.enabled = false
   }
+  markRealCredentialCopy(settingsDir)
   fs.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`)
   // 「新建卡片默认模型」就是被授权的那一个（用户在设置里就是这么设的；electron/settings/generationModelDefaultsContract.ts）。
   // 缺了它，新卡按「池子里第一个健康的」挑——App 首启补进来的内置同类模型也在池子里，挑中谁不由走查说了算。
