@@ -210,3 +210,17 @@ describe('评分口径回归', () => {
     expect(judgeTask({ task: t, calls: [ok('ask_user'), ok('draft_shots')], shotsAfter: [missing] }).failed.join()).toContain('写入后读回')
   })
 })
+
+
+describe('模型依赖分组', () => {
+  it('目录、默认模型与独立题分开统计，缺失题保留在所属组', () => {
+    const results = [judgeTask({ task: task('P05'), calls: [] }), judgeTask({ task: task('P13'), calls: [] }), judgeTask({ task: task('P37'), calls: [ok('list_models')] })]
+    const s = summarize(results, ['P29', 'P33'], BANK.tasks)
+    expect(s.byModelDependency.catalog.taskIds).toEqual(['P05'])
+    expect(s.byModelDependency.defaultModel.taskIds).toEqual(['P13'])
+    expect(s.byModelDependency.defaultModel.unscorableTasks).toEqual(['P29', 'P33'])
+    expect(s.byModelDependency.independent.turnSuccessRate).toMatchObject({ passed: 1, total: 1 })
+    expect(s.retryMeasure).toBe('tool-and-first-error-line/v1')
+    expect(formatSummary(s)).toContain('模型依赖 defaultModel')
+  })
+})

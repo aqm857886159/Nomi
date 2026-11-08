@@ -281,6 +281,7 @@ export function summarize(results, unscorable = [], tasks = []) {
   const ratio = (a, b) => (b === 0 ? null : a / b)
   const familyOf = new Map(tasks.map((t) => [t.id, t.family]))
   const catalogDependent = new Set(tasks.filter((t) => t.catalogDependent).map((t) => t.id))
+  const defaultDependent = new Set(tasks.filter((t) => t.defaultModelDependent).map((t) => t.id))
   const byFamily = {}
   for (const r of results) {
     const family = familyOf.get(r.id) ?? '?'
@@ -289,8 +290,24 @@ export function summarize(results, unscorable = [], tasks = []) {
     if (r.passed) byFamily[family].passed += 1
   }
   const withoutCatalog = results.filter((r) => !catalogDependent.has(r.id))
+  const byModelDependency = {}
+  for (const [group, accepts] of Object.entries({
+    catalog: (id) => catalogDependent.has(id),
+    defaultModel: (id) => defaultDependent.has(id),
+    independent: (id) => !catalogDependent.has(id) && !defaultDependent.has(id),
+  })) {
+    const subset = results.filter((r) => accepts(r.id))
+    const accepted = subset.reduce((sum, r) => sum + r.writeAccepted, 0)
+    const total = subset.reduce((sum, r) => sum + r.writeCalls, 0)
+    const passed = subset.filter((r) => r.passed).length
+    byModelDependency[group] = { taskIds: subset.map((r) => r.id), unscorableTasks: unscorable.filter(accepts),
+      toolWriteRate: { accepted, total, value: ratio(accepted, total) },
+      turnSuccessRate: { passed, total: subset.length, value: ratio(passed, subset.length) } }
+  }
   return {
     scoredTasks: n,
+    retryMeasure: 'tool-and-first-error-line/v1',
+    byModelDependency,
     unscorableTasks: unscorable,
     toolWriteRate: { value: ratio(accepted, writes), accepted, total: writes },
     turnSuccessRate: { value: ratio(results.filter((r) => r.passed).length, n), passed: results.filter((r) => r.passed).length, total: n },
@@ -309,6 +326,7 @@ export function formatSummary(summary) {
     `平均重试数   ${summary.avgRetries.value === null ? 'n/a' : summary.avgRetries.value.toFixed(2)}  (共 ${summary.avgRetries.total} 次，单题最多 ${summary.avgRetries.max})`,
     `同一错误连发≥3次的题  ${summary.sameErrorBurst3Tasks.length} 题 ${summary.sameErrorBurst3Tasks.join(',')}`,
     `不可判（起始态没搭起来） ${summary.unscorableTasks.length} 题 ${summary.unscorableTasks.join(',')}`,
+    ...Object.entries(summary.byModelDependency).map(([group, v]) => `  模型依赖 ${group}: ${v.turnSuccessRate.passed}/${v.turnSuccessRate.total} 题；写入 ${v.toolWriteRate.accepted}/${v.toolWriteRate.total}；不可评 ${v.unscorableTasks.join(',') || '无'}`),
     ...Object.entries(summary.byFamily).map(([family, v]) => `  ${family}: ${v.passed}/${v.tasks}`),
   ].join('\n')
 }
