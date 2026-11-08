@@ -18,3 +18,15 @@ node tests/ux/apimart-model-surfaces.rehearsal.mjs
 [隔离网络收据](receipt.json) · [设计卡与逐元素差异](../../plan/2026-11-08-model-surface-implementation.md)
 
 未验证 Windows、真实充值及会员实扣。按输出 token 估价和零余额的价格类别矩阵由单测另行覆盖。
+
+## 可点击目标对账
+
+| 拍板出处 | 生产组件 / 状态 | 角色和名称 | 动作 | 界面及副作用 | 走查锚点 | 证据 |
+|---|---|---|---|---|---|---|
+| M1 账户卡 | ModelAccountCard，读取成功 / 未知 | button，刷新账户 | 刷新 | 更新该连接的 Key、额度及 7 天消费，只发 GET | settings.account-card | 中英账户截图及 receipt.json |
+| M2 搜索 | NomiSelect，有结果 | textbox，搜索选项；option，Seedance | 输入型号并选择 | 当前节点切换型号，浮层收起 | picker.search、picker.row | 中英 model-picker |
+| M2 空结果 | NomiSelect，无匹配 | button，用 AI 帮我接入 | 点击 | 打开设置中同一个 AI 接入区，展开并聚焦 | picker.search | 双语正式走查断言 details[open] |
+| M4 估价 | NodeGenerationComposer，正常 / 未知 | button，生成；描述读出积分和来源 | 选 Mini、5 秒、720p，悬停 | 得到发送前估价，未创建报价授权和订单 | cost.send-pill、cost.hover | 中英 public-estimate |
+| M4 零余额 | NodeGenerationComposer，零余额 | button，去充值；button，刷新账户 | 模拟余额刚过期再点击去充值 | 本次点击只刷新，外部生成调用 0 次；非零差额保留发送 | cost.low-balance | 中英 zero-balance、receipt.json |
+
+未通过首次独验的两项，以及实施线与真人量具的区别，见[体验成绩单](model-surfaces.scorecard.md)。
