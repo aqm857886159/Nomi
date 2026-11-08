@@ -118,7 +118,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
     batchIds.forEach((batchId) => useGenerationQueueStore.getState().cancelBatchRemaining(batchId))
   }
   // 失败重试：只对失败的重建依赖波次 → 走既有轻确认、新开一份出价（不绕付费闸），成功的不重付。
-  const failedRows = done.filter((row): row is TaskCenterRow => row.kind === 'generation' && row.outcome === 'error' && !row.recoverable)
+  const failedRows = done.filter((row): row is TaskCenterRow => row.kind === 'generation' && row.action?.kind === 'retry_generation')
   const retryAllFailed = () => {
     const state = useGenerationCanvasStore.getState()
     void confirmAndRunPlan(
@@ -231,6 +231,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
 
         <TaskCenterSummaryBar
           summary={summary}
+          retryableFailedCount={failedRows.length}
           onRetryAllFailed={failedRows.length > 0 ? retryAllFailed : undefined}
           onCancelAll={cancelAllQueued}
           onResume={() => summary.pausedBatchId && useGenerationQueueStore.getState().resumeBatch(summary.pausedBatchId)}
@@ -298,12 +299,14 @@ function SectionHeader({ group, icon, label, count, note }: { group: TaskCenterG
 
 function TaskCenterSummaryBar({
   summary,
+  retryableFailedCount,
   onCancelAll,
   onRetryAllFailed,
   onResume,
   onCancelPaused,
 }: {
   summary: ReturnType<typeof buildTaskCenterView>['summary']
+  retryableFailedCount: number
   onCancelAll: () => void
   onRetryAllFailed?: () => void
   onResume: () => void
@@ -340,7 +343,7 @@ function TaskCenterSummaryBar({
       {summary.cancellable > 0 ? (
         <SummaryAction label={t('taskCenter.cancelQueued', { count: summary.cancellable })} onClick={onCancelAll} />
       ) : summary.running === 0 && summary.failed > 0 && onRetryAllFailed ? (
-        <SummaryAction label={t('taskCenter.retryFailed', { count: summary.failed })} onClick={onRetryAllFailed} />
+        <SummaryAction label={t('taskCenter.retryFailed', { count: retryableFailedCount })} onClick={onRetryAllFailed} />
       ) : null}
     </div>
   )

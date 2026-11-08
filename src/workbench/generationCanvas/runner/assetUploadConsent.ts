@@ -1,3 +1,7 @@
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { resolveGenerationReferences } from './generationReferenceResolver'
+import type { HostingDisclosure } from '../spend/spendConfirm'
+import i18n from '../../../i18n'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { isVendorOfBuiltin } from '../../../../electron/shared/builtinVendorIdentity'
@@ -86,4 +90,58 @@ export async function resolveAssetUploadConsent(
   if (kie?.enabled && (kie.authType === 'none' || kie.hasApiKey)) return { allowed: true, needsConfirmation: false, remember }
   if (policy === 'allow') return { allowed: true, needsConfirmation: false, remember }
   return { allowed: true, needsConfirmation: true, remember }
+}
+
+export async function buildConsentNode(node: GenerationCanvasNode): Promise<Pick<GenerationCanvasNode, 'meta' | 'references'>> {
+  const resolved = resolveGenerationReferences(node, { nodes: [node], edges: [] })
+  return {
+    ...node,
+    references: [
+      ...(node.references || []),
+      ...resolved.referenceImages,
+      ...resolved.referenceVideos,
+      ...resolved.referenceAudios,
+      ...(resolved.firstFrameUrl ? [resolved.firstFrameUrl] : []),
+      ...(resolved.lastFrameUrl ? [resolved.lastFrameUrl] : []),
+      ...(resolved.relayFromVideoUrl ? [resolved.relayFromVideoUrl] : []),
+    ],
+  }
+}
+
+/** The existing single-node hosting disclosure, shared by the consent owner. */
+export function hostingDisclosureForResolution(resolution: AssetUploadConsentResolution): { allowed: boolean; disclosure?: HostingDisclosure } {
+  if (!resolution.allowed) return { allowed: false }
+  if (!resolution.needsConfirmation) return { allowed: true }
+  return { allowed: true, disclosure: {
+    message: i18n.t('generationCommon.spendHostingDisclosure.message'),
+    rememberLabel: i18n.t('generationCommon.spendHostingDisclosure.remember'),
+    onRemember: resolution.remember,
+  } }
+}
+
+/**
+ * 给**自主路径**（外部 agent / MCP 能力）解析托管同意——这些路径没有人坐在屏幕前，
+ * 弹卡等于把整条自动化挂死在一个没人点的对话框上。
+ *
+ * 判据完全复用同一个 resolveAssetUploadConsent，不另立一套语义：
+ * - 策略 deny → 抛 AssetUploadConsentCancelledError，这次生成不发（诚实失败，理由回给调用方）；
+ * - 还需要问一次（策略 ask + 有本地素材 + KIE 没配）→ 同样**拒发**。自动化不能替用户
+ *   默默把素材传到公共托管上；把「去设置里配 KIE，或把托管策略改成允许」这句人话回给
+ *   agent，由它转达。这是 D4「缺口明着标」：宁可这一次不跑，也不偷偷上传。
+ * - 其余 → 'allow' / 'not-needed'，照常跑。
+ */
+export async function resolveAutonomousUploadConsent(
+  nodeId: string,
+): Promise<'allow' | 'not-needed'> {
+  const state = useGenerationCanvasStore.getState()
+  const node = state.nodes.find((candidate) => candidate.id === nodeId)
+  if (!node) return 'not-needed'
+  const consentNode = await buildConsentNode(node)
+  if (!hasLocalAssetReference(consentNode)) return 'not-needed'
+  const resolution = await resolveAssetUploadConsent(consentNode)
+  if (!resolution.allowed) throw new AssetUploadConsentCancelledError()
+  if (resolution.needsConfirmation) {
+    throw new Error(i18n.t('generationCommon.spendHostingDisclosure.autonomousBlocked'))
+  }
+  return 'allow'
 }

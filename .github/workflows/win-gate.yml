@@ -6,7 +6,7 @@
 #   Windows 234 / mac 53——**82% 的用户跑在一个从没验过的 Electron 大版本上**。
 #
 #   根因不是「那轮忘了验」，是 `quality-gate.yml` 里压根没有 Windows job：
-#   只有 ubuntu-latest（跑走查）和 macos-latest（只打包、不走查）。开发机是 macOS，
+#   只有 Linux（跑走查）和 macOS（只打包、不走查）。开发机是 macOS，
 #   于是 win32 是个结构性盲区——不补 CI，下次任何平台敏感的改动会原样再漏一遍。
 #
 # 为什么是 workflow_dispatch 而不是挂 push：
@@ -34,7 +34,7 @@ concurrency:
 jobs:
   win-walkthrough:
     name: Windows Walkthrough
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -80,7 +80,7 @@ jobs:
 
   win-package:
     name: Windows NSIS Package
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4

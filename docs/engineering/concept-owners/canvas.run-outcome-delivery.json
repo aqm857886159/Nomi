@@ -22,6 +22,18 @@
     {
       "path": "src/workbench/generationCanvas/store/nodeRunOutcome.ts",
       "symbol": "outcomeError"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNode"
+    },
+    {
+      "path": "src/workbench/production/releaseUnknownSubmission.ts",
+      "symbol": "synchronizeCanvasOpenRuns"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/runOwnOutcomes.ts",
+      "symbol": "createRunOwnOutcomes"
     }
   ],
   "forbidden_derivations": [],
@@ -34,5 +46,5 @@
     "src/workbench/generationCanvas/videoDepth/startVideoDepthDerivation.ts"
   ],
   "since": "2026-10-07",
-  "notes": "运行的结局（开始 / 进度 / 结果 / 文本定稿 / 状态）投到运行所属项目的唯一入口：项目在前台写 store，不在前台写盘。前台但节点已被删（删节点不取消上游任务，钱已花）：除进度外的结局经 store.holdRunOutcome 按 nodeId 暂存在 store（heldNodeOutcomes），任何一扇门（撤销、放回节点、外部写）把节点带回来时由画布写边界统一提交口落上去。合同 docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json、docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json。 #1213：结局带的原因由 nodeRunOutcome.outcomeError 一处决定——失败要有原因、可找回保留传进来的取回失败原话、纯超时不编。"
+  "notes": "运行的结局（开始 / 进度 / 结果 / 文本定稿 / 状态）投到运行所属项目的唯一入口：项目在前台写 store，不在前台写盘。前台但节点已被删（删节点不取消上游任务，钱已花）：除进度外的结局经 store.holdRunOutcome 按 nodeId 暂存在 store（heldNodeOutcomes），任何一扇门（撤销、放回节点、外部写）把节点带回来时由画布写边界统一提交口落上去。合同 docs/fixes/2026-10-07-deleted-node-keeps-arriving-outcome.root-cause.json、docs/fixes/2026-10-07-canvas-write-boundary.root-cause.json。 #1213：结局带的原因由 nodeRunOutcome.outcomeError 一处决定——失败要有原因、可找回保留传进来的取回失败原话、纯超时不编。 合同 docs/fixes/2026-11-02-generation-lock-exit.root-cause.json：runGenerationNode 是提交咽喉，取消同节点旧排队出价，按失败分类结算刹车和模型健康。 第3轮用户批准删锁：人确认具体未结束Run后再发；机器跳过，连点按同意图去重。查询canvasOpenRuns与准入同源，孤儿规则与制作共用，确认状态/投影按节点共享；canvas.node-submit-in-flight已退役，本轮不复活。 恢复投影只修改节点展示，原runs保留，不能复用会改运行记录的通用状态结算。 第4轮按获批样张：未知结果与普通失败保持分类区别；风险确认归spend.confirmation-requirement，取消不放行，专用确认store及浮层已删除。 第4轮完整门岗：恢复投影调用者只报resultUnknown事实，error/recoverable映射留在既有setNodeRecoveryPresentation动作，不另立状态词表；原Run不改。 合同 docs/fixes/2026-11-07-shot-result-ownership.root-cause.json：付费运行的身份归主进程准入（createRunOwnOutcomes 从 runGenerationNode 拆出，准入之后才写记录），每个结局按运行记录号收账；交给主进程观察者的那一笔收尾后主进程摇 canvas.run-settled，渲染层 recoverTaskActions.landObservedCanvasRun 按这一笔自己的号经 deliverRunOutcome 投。"
 }

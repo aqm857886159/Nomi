@@ -1,9 +1,10 @@
-import { fetchWorkbenchTaskResultByVendor, pollCanvasShotRun, type TaskResultDto } from '../../api/taskApi'
+import { fetchWorkbenchTaskResultByVendor, pollCanvasShotRun, releaseCanvasShotRun, type TaskResultDto } from '../../api/taskApi'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import type { ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
-import type { GenerationNodeRunRecord } from '../model/generationCanvasTypes'
-import { deliverRunOutcome, isRunTargetLoaded as isTargetLoaded, type RunProjectTarget } from './runProjectDelivery'
+import type { GenerationCanvasNode, GenerationNodeRunRecord } from '../model/generationCanvasTypes'
+import { deliverRunOutcome, isRunTargetLoaded as isTargetLoaded, readRunGraph, type RunProjectTarget } from './runProjectDelivery'
+import type { CanvasShotSettledNotice } from '../../../../electron/shared/canvas/canvasShotSettled'
 import { localizeRemoteResultUrl } from './resultAssetLocalization'
 import { narrateProgress } from '../../observability/narrate'
 import { resolveGenerationReferences } from './generationReferenceResolver'
@@ -36,7 +37,7 @@ function buildRecoverPayload(nodeId: string): { taskId: string; vendor: string; 
   if (!node) return null
   const taskId = asTrimmedString(node.runs?.[0]?.taskId) || asTrimmedString(node.progress?.taskId)
   const vendor = selectedVendor(node)
-  if (!taskId || !vendor) return null
+  if ((!taskId && !node.runs?.[0]?.id) || !vendor) return null
   // 用同一套 reference 解析还原原始 granular kind（image_to_video vs text_to_video…），
   // 让主进程 findTaskMapping 命中与首发同一个 query 桶。
   const references = resolveGenerationReferences(node, { nodes: state.nodes, edges: state.edges })
@@ -116,6 +117,7 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
       // 单镜 Run 路交出去的这一次：经它的 Run 查（主进程记下这一次查询，出片就记进 Run）；旧运行记录没有 Run，照旧路查。
       const query = async () => {
         const viaRun = runId ? await pollCanvasShotRun({ projectId: target.projectId, runRecordId: runId }) : null
+        if (!viaRun && !payload.taskId) throw new Error(i18n.t('generationCommon.recoverable.missingTask'))
         return viaRun ? { vendor: payload.vendor, result: viaRun } : fetchWorkbenchTaskResultByVendor({
           taskId: payload.taskId,
           vendor: payload.vendor,
@@ -131,17 +133,17 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
       if (isTerminalTaskStatus(current.status)) break
       if (Date.now() - startedAt > RECOVER_POLL_TIMEOUT_MS) {
         // 仍没出来 → 退回可找回态，按钮重现，稍后可再拉。
-        await deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: tagNomiError('retrieval-timeout', i18n.t('generationCommon.recoverable.stillUpstream')) })
+        await deliverRunOutcome(target, id, { kind: 'status', runId, status: 'recoverable', error: tagNomiError('retrieval-timeout', i18n.t('generationCommon.recoverable.stillUpstream')) })
         return
       }
       // 进度只给前台看：原项目不在画布上时不写（那是别的项目的 store），也不为一句进度去写盘。
       if (isTargetLoaded(target)) {
-        useGenerationCanvasStore.getState().setNodeProgress(id, {
+        await deliverRunOutcome(target, id, { kind: 'progress', runId, progress: {
           runId,
           phase: 'still-generating',
           message: narrateProgress('still-generating', { elapsedMs: Date.now() - startedAt }),
           taskId: payload.taskId,
-        })
+        } })
       }
       await delay(RECOVER_POLL_INTERVAL_MS)
     }
@@ -149,26 +151,51 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
     // 网络/查询本身报错 → 退回可找回态（不是真失败），让用户能再点。
     // 走 describeOpaqueFailure 而不是自己写一句「拉取结果失败」：这条路径正是出站被拦最常落地的地方，
     // 而那条错误的价值全在它的机器码和「钱没丢、去确认代理」那句人话上——一句同义反复会把它盖掉。
-    await deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: describeOpaqueFailure(error) })
+    await deliverRunOutcome(target, id, { kind: 'status', runId, status: 'recoverable', error: describeOpaqueFailure(error) })
     return
   }
 
-  if (!current) return
+  if (current) await landRetrievedResult(target, node, runId, current)
+}
+
+/**
+ * 查到终态的那一份结果落回它自己那一条运行记录（「重新取回」与观察者收尾后的摇铃共用这一段）：
+ * 出片规范化、落地进任务所属项目、按号投；失败按取回阶段码落可找回或失败。
+ */
+async function landRetrievedResult(target: RunProjectTarget, node: GenerationCanvasNode, runId: string | undefined, current: TaskResultDto): Promise<void> {
+  const id = node.id
   try {
     let mediaDimensions: MediaDimensions | undefined
     const onMediaDimensions = (dimensions: MediaDimensions) => { mediaDimensions = dimensions }
     const normalized = normalizeCatalogTaskResult(current, node, onMediaDimensions)
     // 结构闸（找回路径）：找回本身就发生在 CDN 快过期的时刻，此处尤其要把临时 URL 落地——落进任务所属项目。
     const localized = await localizeRemoteResultUrl(normalized, target.projectId, id, onMediaDimensions)
-    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', result: localized, ...(mediaDimensions ? { mediaDimensions } : {}) })
+    const landedInOpenProject = await deliverRunOutcome(target, id, { kind: 'result', runId, result: localized, ...(mediaDimensions ? { mediaDimensions } : {}) })
     if (landedInOpenProject) await persistActiveWorkbenchProjectNow().catch(() => {})
   } catch (error) {
     // 终态是 failed（normalizeCatalogTaskResult 对 failed 抛错）→ 这才是真失败，落 error 桶。
     // 「结果取回」族（上游说成了却没地址等，带 retrieval-* 码）不是失败：留在可找回（#1213 原则 1）。
     const message = describeOpaqueFailure(error)
     const status = isRetrievalStageCode(matchNomiErrorCode(message)) ? 'recoverable' : 'error'
-    await deliverRunOutcome(target, id, { kind: 'status', status, error: message })
+    await deliverRunOutcome(target, id, { kind: 'status', runId, status, error: message })
   }
+}
+
+/**
+ * 交给主进程观察者的那一笔收尾了（主进程摇 `canvas.run-settled`）：按这一次自己的运行记录号取回，进这一镜的同一本账——
+ * 原项目在前台写画布，不在前台写它的盘上副本；比它新的那次已成功就只进版本历史（nodeRunOutcome 判，这里不判）。
+ * 主进程照 Run 账本回话，不联网不花钱。这一条已经成功（渲染层自己等到过）或节点 / 记录已不在：什么都不做。
+ */
+export async function landObservedCanvasRun(notice: CanvasShotSettledNotice): Promise<void> {
+  const target: RunProjectTarget = { projectId: notice.projectId, immutableProjectUuid: notice.immutableProjectUuid, projectGeneration: notice.projectGeneration }
+  const node = (await readRunGraph(target))?.nodes.find((candidate) => candidate.id === notice.nodeId)
+  const record = node?.runs?.find((run) => run.id === notice.runRecordId)
+  if (!node || !record || record.status === 'success') return
+  const current = await pollCanvasShotRun({ projectId: target.projectId, runRecordId: record.id })
+  if (!current) return
+  // 又被放回查询了（不该发生：只在有结局时才摇）：交回观察者，它收尾时会再摇。
+  if (!isTerminalTaskStatus(current.status)) return releaseCanvasShotRun({ projectId: target.projectId, runRecordId: record.id })
+  await landRetrievedResult(target, node, record.id, current)
 }
 
 /**

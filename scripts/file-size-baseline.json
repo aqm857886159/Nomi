@@ -280,7 +280,7 @@
     },
     "electron/agentLane/laneHost.mts": {
       "kind": "frozen",
-      "max": 919,
+      "max": 917,
       "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {
@@ -337,7 +337,7 @@
     },
     "src/workbench/ai/resident/residentToolDisplay.ts": {
       "kind": "frozen",
-      "max": 898,
+      "max": 828,
       "reason": "新口径落地时已超线，冻结，按职责逐步拆",
       "topDeclarations": [
         {

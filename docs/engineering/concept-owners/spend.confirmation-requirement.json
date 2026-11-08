@@ -22,14 +22,19 @@
     {
       "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
       "symbol": "confirmStoryboardPlanBatch"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "confirmGenerationResend"
     }
   ],
   "forbidden_derivations": [],
   "allowed_consumers": [
     "src/workbench/generationCanvas/runner/generationRunController.ts",
     "src/workbench/generationCanvas/components/batchPlanPreview.ts",
-    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts"
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/production/useProductionStatus.ts"
   ],
   "since": "2026-09-25",
-  "notes": "2026-09-25 用户拍板：用户自己点的单个生成不弹窗；只有 Agent 发起 / 一下跑 ≥2 个 / 首次匿名托管告知 才弹。2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」：现在所有模型都走中转、各家价格不一，Nomi 不计算价格，判据不看金额、也不显示价格（原「≥10 点」门槛、「拿不到报价就问」与 ↑ 旁点数已删）。唯一判据是这个纯函数，confirmGenerationSpend 是它唯一的调用处；各入口（↑、重试、分镜行、Ctrl+Enter、批量）只报事实（initiator、份数），不各判各的。不弹时照样向主进程要报价、凭 quoteId 铸令牌（electron/spendGrant.ts 的花钱闸不变）。Agent 面板付费卡是另一个宿主，带 Run 的档位判据归 electron/shared/agentCapabilities/directGenerationBrakes.ts#spendDecisionByPolicy（档位那一半仍是 capabilityApprovalPolicy.ts#spendDecidedByPolicy；2026-10-12 起三档收成两档，见 agent.direct-generation-brakes）。 2026-10-16：分镜方案整批生成原来直接调 requestConfirm 绕过本 owner（真付费验收发现「直接生成」档对文稿方案不起作用），改经 confirmStoryboardPlanBatch（行为不变：每批都问，它同时是勾选清单）；eslint.config.mjs 的 no-restricted-properties 拦新的 requestConfirm 调用者，允许表只放展示主进程决定的几处与 E2E 桥。文稿方案的档位代答与两个刹车的结构解见 docs/plan/2026-10-16-manuscript-plan-own-run.md。"
+  "notes": "2026-09-25 用户拍板：用户自己点的单个生成不弹窗；只有 Agent 发起 / 一下跑 ≥2 个 / 首次匿名托管告知 才弹。2026-09-26 用户拍板「先把价格这个维度隐藏掉，等后续官方上线再说」：现在所有模型都走中转、各家价格不一，Nomi 不计算价格，判据不看金额、也不显示价格（原「≥10 点」门槛、「拿不到报价就问」与 ↑ 旁点数已删）。唯一判据是这个纯函数，confirmGenerationSpend 是它唯一的调用处；各入口（↑、重试、分镜行、Ctrl+Enter、批量）只报事实（initiator、份数），不各判各的。不弹时照样向主进程要报价、凭 quoteId 铸令牌（electron/spendGrant.ts 的花钱闸不变）。Agent 面板付费卡是另一个宿主，带 Run 的档位判据归 electron/shared/agentCapabilities/directGenerationBrakes.ts#spendDecisionByPolicy（档位那一半仍是 capabilityApprovalPolicy.ts#spendDecidedByPolicy；2026-10-12 起三档收成两档，见 agent.direct-generation-brakes）。 2026-10-16：分镜方案整批生成原来直接调 requestConfirm 绕过本 owner（真付费验收发现「直接生成」档对文稿方案不起作用），改经 confirmStoryboardPlanBatch（行为不变：每批都问，它同时是勾选清单）；eslint.config.mjs 的 no-restricted-properties 拦新的 requestConfirm 调用者，允许表只放展示主进程决定的几处与 E2E 桥。文稿方案的档位代答与两个刹车的结构解见 docs/plan/2026-10-16-manuscript-plan-own-run.md。 第4轮用户按拍板图批准：重发未知/未结束请求统一走confirmGenerationResend，人必须在同一张卡确认风险，托管告知放在此卡。正常单张判据不变。"
 }

@@ -1,5 +1,5 @@
+import { markInterruptedSingleShotUnknown } from './singleShotRunLifecycle'
 import crypto from 'node:crypto'
-import { tagNomiError } from '../shared/nomiErrorCodes'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -635,21 +635,9 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
             // 已经拿到任务号的（polling 等）仍由 ProductionGenerationSubmission 的恢复路径接手。
             if (job.status === 'submitting' && !job.providerTaskId) {
               try {
-                current = executeInternal(safeProjectId, current.runId, current, 'job.status', {
-                  jobId: job.jobId,
-                  status: 'submission_unknown',
-                  patch: { errorCode: 'submission_unknown_restart', errorMessage: tagNomiError('submission-unknown', 'Nomi was closed while the request was being sent') },
-                }, `recovery-${current.runId}-${job.jobId}-submit-unknown`).run
-                const reservationId: string = `${current.runId}:${job.jobId}:${job.attempt}`
-                if (repository.readBudgetLedger(safeProjectId, current.runId).reservations[reservationId]?.status === 'reserved') {
-                  current = executeInternal(safeProjectId, current.runId, current, 'budget.entry', {
-                    entry: { billingEntryId: `${reservationId}:mark-unsettled`, kind: 'mark_unsettled', reservationId, occurredAt: new Date().toISOString() },
-                  }, `recovery-${current.runId}-${job.jobId}-unsettled`).run
-                }
+                current = markInterruptedSingleShotUnknown(repository, safeProjectId, current.runId) ?? current
                 changedUnknown = true
-              } catch {
-                // A concurrent command may have already settled this job.
-              }
+              } catch { /* A concurrent command may have already settled this job. */ }
             }
             continue
           }

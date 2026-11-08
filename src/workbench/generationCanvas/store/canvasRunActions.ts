@@ -1,11 +1,10 @@
 import type { GenerationNodeRunRecord } from '../model/generationCanvasTypes'
-import { nodeProgressChangesRecovery, nodeRunOutcomePatch, type LandedNodeOutcome } from './nodeRunOutcome'
+import { nodeProgressChangesRecovery, nodeRunOutcomePatch, projectNodeDisplay, type LandedNodeOutcome } from './nodeRunOutcome'
 import { createRunId } from './canvasIds'
 import { bumpPersistRevision } from './canvasGuards'
 import { getRunDurationSeconds, mergeRunRecord } from './runRecordHelpers'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import type { CanvasRunActions, CanvasSliceCreator } from './canvasStoreTypes'
-import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 
 // S5-a3 run 域记账 = 终态收敛:setNodeProgress(每 1.5s 轮询 tick)不入日志(§4.3 瞬态),
 // 终态 action 发后态整节点(canvas.node.run-updated)——内部时间戳逻辑再复杂,后态都构造性精确;
@@ -16,16 +15,38 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     const node = get().nodes.find((candidate) => candidate.id === nodeId)
     if (node) emitCanvasGesture([{ type: 'canvas.node.run-updated', payload: { node, ...(landed ? { landed } : {}) } }], { source: 'runtime' })
   }
-  return {
-  setNodeStatus: (nodeId, status, error) => {
+  // 一次运行的结局（结果 / 定稿之外）都从这一个口进：按自己的运行记录号收账，显示从记录算（nodeRunOutcome）。
+  const applyRunOutcome: CanvasRunActions['applyRunOutcome'] = (nodeId, outcome) => {
+    let changed = false
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return
-      Object.assign(node, nodeRunOutcomePatch(node, { kind: 'status', status, error }))
+      const patch = nodeRunOutcomePatch(node, outcome)
+      if (Object.keys(patch).length === 0) return
+      const durable = outcome.kind !== 'progress' || nodeProgressChangesRecovery(node, patch)
+      Object.assign(node, patch)
+      changed = true
+      if (durable) bumpPersistRevision(state)
+    })
+    // 进度是瞬态（S5-a3：轮询 tick 不入日志）；其余结局发后态整节点。
+    if (changed && outcome.kind !== 'progress') emitRunUpdated(nodeId)
+  }
+  return {
+  setNodeRecoveryPresentation: (nodeId, resultUnknown, error) => {
+    set((state) => {
+      const node = state.nodes.find((candidate) => candidate.id === nodeId)
+      if (!node) return
+      node.status = resultUnknown ? 'error' : 'recoverable'
+      node.error = error
+      node.progress = undefined
       bumpPersistRevision(state)
     })
     emitRunUpdated(nodeId)
   },
+  setNodeStatus: (nodeId, status, error) => {
+    applyRunOutcome(nodeId, { kind: 'status', status, error })
+  },
+  applyRunOutcome: (nodeId, outcome) => applyRunOutcome(nodeId, outcome),
   // 收起失败卡（2026-08-24 用户反馈：「下面是生了视频的，有这个报错窗口在，就一直看不了原本的视频」）。
   // 失败卡是 absolute inset-0 铺满正文的**遮罩**，节点的 result 一直好端端在下面——错误态只是把它挡住了。
   // 所以「关掉」不是删数据，而是把节点放回它本来的样子：有产物 → success（片子露出来），没有 → idle。
@@ -41,14 +62,7 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     emitRunUpdated(nodeId)
   },
   setNodeProgress: (nodeId, progress) => {
-    set((state) => {
-      const node = state.nodes.find((candidate) => candidate.id === nodeId)
-      if (!node) return
-      const patch = nodeRunOutcomePatch(node, { kind: 'progress', progress })
-      const durable = nodeProgressChangesRecovery(node, patch)
-      Object.assign(node, patch)
-      if (durable) bumpPersistRevision(state)
-    })
+    applyRunOutcome(nodeId, { kind: 'progress', progress })
   },
   appendNodeRun: (nodeId, run) => {
     const now = Date.now()
@@ -62,13 +76,7 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
       ...nextRun,
       durationSeconds: getRunDurationSeconds(nextRun),
     }
-    set((state) => {
-      const node = state.nodes.find((candidate) => candidate.id === nodeId)
-      if (!node) return
-      Object.assign(node, nodeRunOutcomePatch(node, { kind: 'run-started', run: normalizedRun }))
-      bumpPersistRevision(state)
-    })
-    emitRunUpdated(nodeId)
+    applyRunOutcome(nodeId, { kind: 'run-started', run: normalizedRun })
     return normalizedRun
   },
   trackNodeRun: (nodeId, runId, patch) => {
@@ -78,19 +86,16 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
       const runIndex = (node.runs || []).findIndex((entry) => entry.id === runId)
       if (runIndex < 0) return
       const nextRuns = [...(node.runs || [])]
-      const nextRun = mergeRunRecord(nextRuns[runIndex], patch)
-      nextRuns[runIndex] = nextRun
-      const isLatestRun = runIndex === 0
-      node.status = isLatestRun ? (nextRun.status === 'cancelled' ? 'idle' : nextRun.status) : node.status
-      node.error = isLatestRun && nextRun.status === 'error' ? nextRun.error || describeOpaqueFailure(null) : undefined
-      node.progress = isLatestRun ? nextRun.progress : node.progress
+      nextRuns[runIndex] = mergeRunRecord(nextRuns[runIndex], patch)
+      // 显示从记录算（D5），不再只在「改的是第一条」时跟着动。
+      Object.assign(node, projectNodeDisplay(node, nextRuns))
       node.runs = nextRuns
       bumpPersistRevision(state)
     })
     emitRunUpdated(nodeId)
   },
-  addNodeResult: (nodeId, result, mediaDimensions) => {
-    const outcome: LandedNodeOutcome = { kind: 'result', result, ...(mediaDimensions ? { mediaDimensions } : {}) }
+  addNodeResult: (nodeId, result, mediaDimensions, runId) => {
+    const outcome: LandedNodeOutcome = { kind: 'result', result, ...(mediaDimensions ? { mediaDimensions } : {}), ...(runId ? { runId } : {}) }
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return

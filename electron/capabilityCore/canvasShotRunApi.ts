@@ -1,6 +1,13 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { canvasProviderId } from "./canvasTransportProvider";
+import type { PlanCandidate } from "./executionContract";
+import type { GenerationProviderOutput } from "./generationRuntimeAdapter";
+import type { AutomationPolicy, ProductionArtifact } from "../productionRun/productionRunTypes";
 import { queuedHandOversOfClosedPresentations } from "../shared/productionGenerationPresentation";
 import type { ProductionRun } from "../productionRun/productionRunTypes";
-import type { CanvasConsentShot, CanvasShotRuns, CanvasShotSubmitInput } from "./appIntegrationCanvasShot";
+import type { CanvasConsentShot, CanvasShotRuns, CanvasShotSubmitInput, CanvasShotRequest } from "./appIntegrationCanvasShot";
 
 let active: CanvasShotRuns | null = null;
 
@@ -38,6 +45,11 @@ export function pollCanvasShot(input: {
   return activeRuns().poll(input);
 }
 
+/** 仓库每一次耐久变化（appIntegration 的事件旁路）：交给观察者的那一笔收尾了就摇渲染层去收。 */
+export function followCanvasShotChange(run: ProductionRun): void {
+  active?.followRunChange(run);
+}
+
 export function releaseCanvasShot(input: { projectId: string; runRecordId: string }): void {
   active?.release(input);
 }
@@ -66,4 +78,77 @@ export function withdrawQueuedHandOversImpl(run: ProductionRun): void {
 
 export function releaseCanvasShotSender(senderId: number): void {
   active?.releaseSender(senderId);
+}
+
+export function canvasOpenRuns(input: { projectId: string; nodeId?: string }): ReturnType<CanvasShotRuns["canvasOpenRuns"]> {
+  return activeRuns().canvasOpenRuns(input);
+}
+
+/**
+ * 画布那台交回来的产物已经由它自己落进项目（`localizeTaskAsset`，nomi-local://）：这里只把那份文件记进 Run，
+ * 不再下载一次。不是本地地址的交给通用物化（与目录执行器同一条）。
+ */
+export function canvasLocalArtifactReceipt(input: {
+  projectId: string;
+  projectRoot: string;
+  providerTaskId: string;
+  output: GenerationProviderOutput;
+}): Pick<ProductionArtifact, "artifactId" | "kind" | "contentHash" | "projectRelativePath"> | null {
+  const prefix = `nomi-local://asset/${encodeURIComponent(input.projectId)}/`;
+  if (!input.output.url.startsWith(prefix)) return null;
+  let relative: string;
+  try {
+    relative = input.output.url.slice(prefix.length).split("/").map(decodeURIComponent).join("/");
+  } catch {
+    return null;
+  }
+  const root = path.resolve(input.projectRoot);
+  const absolute = path.resolve(root, relative);
+  if (
+    !relative ||
+    !absolute.startsWith(`${root}${path.sep}`) ||
+    !fs.existsSync(absolute) ||
+    !fs.statSync(absolute).isFile()
+  )
+    return null;
+  relative = path.relative(root, absolute).split(path.sep).join("/");
+  const contentHash = crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
+  return {
+    artifactId: `canvas-artifact-${input.providerTaskId}`.slice(0, 160),
+    kind: input.output.kind,
+    contentHash,
+    projectRelativePath: relative,
+  };
+}
+
+/** 一个画布节点这一次生成的候选：冻进合同的就是渲染层拼好的那一份请求（`parameters = { vendor, request }`）。 */
+export function canvasCandidate(
+  runId: string,
+  vendor: string,
+  modelKey: string,
+  request: CanvasShotRequest | null,
+  kind: string,
+  revision: number,
+): PlanCandidate {
+  return {
+    candidateId: `${runId}-shot`,
+    revision,
+    moduleId: "generation.canvas",
+    providerId: canvasProviderId(vendor),
+    modelId: modelKey,
+    mode: kind,
+    prompt: request?.prompt ?? "",
+    parameters: { vendor, request },
+    references: [],
+  };
+}
+
+export function canvasPolicy(providerId: string, modelKey: string): Partial<AutomationPolicy> {
+  return {
+    trustedHosts: ["canvas"],
+    allowedProviders: [providerId],
+    allowedModels: [modelKey],
+    maxSpend: null,
+    maxAttemptsPerJob: 1,
+  };
 }

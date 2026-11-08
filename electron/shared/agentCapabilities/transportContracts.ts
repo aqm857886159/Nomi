@@ -12,6 +12,7 @@
 // 旧通路一行逻辑不改（P1：不是第二份定义，是同一份换了住址）。
 import type { MediaImportRejection } from '../contracts/mediaImportPolicy'
 import type { ZodTypeAny } from 'zod'
+import type { ToolInputIssue } from '../agentLane/toolInputIssues'
 
 export interface RuntimeToolDescriptor {
   name: string
@@ -38,7 +39,9 @@ export type RuntimeToolDecision =
   | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown>; silent?: boolean; proposalId?: string; approvalScope?: 'once' | 'session' | 'always' }
   | { ok: false; message?: string; code?: string; reason?: MediaImportRejection['reason']; denied?: boolean; /** 准入层拒绝的具体码（`unknown_parameter` 等）：lane 据它给按码的下一步，而不是一句通用话。 */ admission?: string
     /** 宿主账本的事实：这次调用落到的那份计划有没有一笔可能到过供应商。`false` = 一笔都没有、没花钱；缺席 = 不知道（按可能到过说）。 */
-    submissionStarted?: boolean }
+    submissionStarted?: boolean
+    /** 准入层拒绝的字段事实（`toolInputIssues` 那一份清单）：lane 把它挂进失败信封，面板和熔断都读它。 */
+    issues?: readonly ToolInputIssue[] }
 
 export interface RuntimeToolCallRecord extends RuntimeToolCall {
   status: 'ok' | 'denied' | 'cancelled' | 'error'

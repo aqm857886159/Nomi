@@ -262,7 +262,7 @@ describe('production run view', () => {
     expect(buildProductionRunView(value, now)).toMatchObject({
       tone: 'danger',
       titleKey: 'generationCommon.production.status.submissionUnknown',
-      // 没有任务号：Nomi 没法核对，用户去服务商后台看完才有「我核对过了，重新生成」；并给出时间 / 模型 / 服务商供比对。
+      // 没有任务号：Nomi 没法核对，用户确认可能再扣费后可再发一次；并给出时间 / 模型 / 服务商供比对。
       primaryAction: 'release-unknown',
       targetId: 'job-1',
       unknownJob: { provider: value.jobs[0].provider, model: value.jobs[0].model, at: value.jobs[0].updatedAt },

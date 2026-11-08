@@ -1,0 +1,25 @@
+{
+  "id": "workbench-list-queue-settle",
+  "feature": "约190张列表卡，20个真实队列条目连续结算到标签更新并过两帧",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "L",
+    "--scenarios",
+    "list-queue-settle",
+    "--warmup",
+    "1"
+  ],
+  "scale": "96图+96视频节点，约190张列表卡；20队列条目",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 100,
+  "budgetStatus": "proposed",
+  "budgetBasis": "本次设计卡★7，沿用操作到可见反馈≤100ms；记录长任务而不改变其既有口径。",
+  "measurement": {
+    "state": "pending",
+    "reason": "实现线只量真数字，不更新协调所有的性能基线。"
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "status": "passed",
+  "report": {
+    "checks": {
+      "A1": true,
+      "B1": true,
+      "B4": true,
+      "B5": true
+    },
+    "screenshots": [
+      "tests/ux/shots/generation-lock-exit/zh-CN-eight-confirm.png",
+      "tests/ux/shots/generation-lock-exit/zh-CN-eight-refusals-others-running.png",
+      "tests/ux/shots/generation-lock-exit/zh-CN-eight-single-retry-running.png",
+      "tests/ux/shots/generation-lock-exit/zh-CN-eight-settled-no-brake.png"
+    ],
+    "eightHttpReceipts": [
+      {
+        "sequence": 1,
+        "model": "gpt-image-2",
+        "prompt": "明信片 1，窗边一本书",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false
+      },
+      {
+        "sequence": 2,
+        "model": "gpt-image-2",
+        "prompt": "明信片 2，窗边一本书",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false
+      },
+      {
+        "sequence": 3,
+        "model": "gpt-image-2",
+        "prompt": "明信片 3，窗边一本书",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false
+      },
+      {
+        "sequence": 4,
+        "model": "gpt-image-2",
+        "prompt": "明信片 4，窗边一本书",
+        "referenceCount": 0,
+        "forwarded": true,
+        "rejected": false,
+        "dropped": false
+      },
+      {
+        "sequence": 5,
+        "model": "gpt-image-2",
+        "prompt": "明信片 5，窗边一本书",
+        "referenceCount": 0,
+        "forwarded": false,
+        "rejected": true,
+        "dropped": false
+      },
+      {
+        "sequence": 6,
+        "model": "gpt-image-2",
+        "prompt": "明信片 6，窗边一本书",
+        "referenceCount": 0,
+        "forwarded": false,
+        "rejected": true,
+        "dropped": false
+      },
+      {
+        "sequence": 7,
+        "model": "gpt-image-2",
+        "prompt": "明信片 7，窗边一本书",
+        "referenceCount": 0,
+        "forwarded": false,
+        "rejected": true,
+        "dropped": false
+      },
+      {
+        "sequence": 8,
+        "model": "gpt-image-2",
+        "prompt": "明信片 8，窗边一本书",
+        "referenceCount": 0,
+        "forwarded": false,
+        "rejected": true,
+        "dropped": false
+      }
+    ]
+  },
+  "requests": [
+    {
+      "sequence": 1,
+      "model": "gpt-image-2",
+      "prompt": "明信片 1，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false
+    },
+    {
+      "sequence": 2,
+      "model": "gpt-image-2",
+      "prompt": "明信片 2，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false
+    },
+    {
+      "sequence": 3,
+      "model": "gpt-image-2",
+      "prompt": "明信片 3，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false
+    },
+    {
+      "sequence": 4,
+      "model": "gpt-image-2",
+      "prompt": "明信片 4，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false
+    },
+    {
+      "sequence": 5,
+      "model": "gpt-image-2",
+      "prompt": "明信片 5，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 6,
+      "model": "gpt-image-2",
+      "prompt": "明信片 6，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 7,
+      "model": "gpt-image-2",
+      "prompt": "明信片 7，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 8,
+      "model": "gpt-image-2",
+      "prompt": "明信片 8，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": false,
+      "rejected": true,
+      "dropped": false
+    },
+    {
+      "sequence": 9,
+      "model": "gpt-image-2",
+      "prompt": "明信片 5，窗边一本书",
+      "referenceCount": 0,
+      "forwarded": true,
+      "rejected": false,
+      "dropped": false
+    }
+  ]
+}

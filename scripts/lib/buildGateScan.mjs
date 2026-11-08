@@ -15,8 +15,6 @@ const GATED = /\b(assertFreshBuild|assertBuilt|launchNomiApp|verifyBuild)\b/
  * 起 / 加载构建产物的一律不许进这里。
  */
 export const NON_BUILD_SPAWNERS = {
-  'tests/ux/agent-runtime-fixture.mjs': '只跑 _encryptFixtureKey.cjs 生成 safeStorage 夹具密文，不加载 dist-electron',
-  'tests/ux/_mcpL2Fixture.mjs': '只跑 _encryptFixtureKey.cjs 生成 safeStorage 夹具密文，不加载 dist-electron',
   'tests/network/run-proxy-cold.mjs': '只跑自带的 proxy-cold-main.cjs，文件头声明不碰 dist-electron',
 }
 

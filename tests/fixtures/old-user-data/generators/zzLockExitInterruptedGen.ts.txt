@@ -1,0 +1,27 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { it, expect, vi } from 'vitest'
+import { CANVAS_TEST_PROJECT, setupCanvasShots } from './canvasShotTestUtils'
+import { canvasRunIdFor } from '../productionRun/canvasShotRunIndex'
+import { useGenerationCanvasStore } from '../../src/workbench/generationCanvas/store/generationCanvasStore'
+
+it('the old release writes an interrupted POST Run and its actual refused node error', async () => {
+  const h = setupCanvasShots()
+  const store = useGenerationCanvasStore.getState()
+  const node = store.addNode({ kind: 'image', prompt: 'old user image' })
+  store.appendNodeRun(node.id, { id: 'old-post', status: 'running', projectId: CANVAS_TEST_PROJECT })
+  h.vendor.answer = () => new Promise(() => undefined)
+  void h.submit(node.id, 'old-post')
+  await vi.waitFor(() => expect(h.vendor.executes).toHaveLength(1))
+  const run = h.repository.read(CANVAS_TEST_PROJECT, canvasRunIdFor('old-post'))!
+  expect(run.jobs[0].status).toBe('submitting')
+  expect(run.jobs[0].providerTaskId).toBeFalsy()
+  const error = await h.submit(node.id, 'old-refused').catch(error => error as Error)
+  expect(String(error)).toContain('node_generation_in_flight')
+  store.setNodeStatus(node.id, 'error', (error as Error).message)
+  const out = process.env.NOMI_OLD_RUN_OUT!
+  fs.mkdirSync(out, { recursive: true })
+  fs.cpSync(path.join(h.root, '.nomi'), path.join(out, '.nomi'), { recursive: true, filter: source => !['run.lock', 'run.lock.epoch'].includes(path.basename(source)) })
+  fs.writeFileSync(path.join(out, 'node.json'), JSON.stringify(useGenerationCanvasStore.getState().nodes.find(value => value.id === node.id), null, 2))
+  fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ release: 'v0.24.0', recordedFrom: process.env.NOMI_OLD_RUN_COMMIT, projectId: CANVAS_TEST_PROJECT, nodeId: node.id, runRecordId: 'old-post', runId: run.runId, errorFrom: 'createCanvasShotRuns.submit; node written by setNodeStatus' }, null, 2))
+})

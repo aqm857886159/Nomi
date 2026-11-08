@@ -1,3 +1,4 @@
+import { createProductionRunService } from '../productionRun/productionRunService'
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -201,17 +202,17 @@ describe("批量卡：一张卡一份授权，盖住卡上列出的镜", () => {
   // 先落节点、再发请求（架构③）之后，画布单节点 Run 以来源节点为落点（origin.nodeId）。升级前那一版建的批量确认草稿没记它：
   // 不发、按「没交」收尾，但不能悄悄没了——画布那一镜如实说「升级后这批没有发出，需要重新确认」（协调会话 10-09）。
   it("升级前留下的批量确认（没记来源节点）：不发、收回出价，并带着「升级后没有发出」的码回给画布", async () => {
-    const { repository, vendor, consent, submit } = setup();
+    const { repository, service, vendor, consent, submit } = setup();
     consent([{ nodeId: "node-a", runRecordId: "run-a" }]);
     const runId = canvasRunIdFor("run-a");
-    // 模拟上一版写下的 Run：origin 里没有 nodeId。
+    // 模拟上一版写下的 Run：origin 里没有 nodeId（提交和生产一样经服务那份带事件旁路的仓库读）。
     const read = repository.read.bind(repository);
-    repository.read = ((projectId: string, id: string) => {
+    service.repository.read = ((projectId: string, id: string) => {
       const run = read(projectId, id);
       if (!run || id !== runId) return run;
       const { nodeId: _dropped, ...origin } = run.origin;
       return { ...run, origin };
-    }) as typeof repository.read;
+    }) as typeof service.repository.read;
 
     await expect(submit("node-a", "run-a")).rejects.toMatchObject({ code: "canvas_consent_predates_upgrade" });
 
@@ -569,3 +570,52 @@ describe("反例：答过了就不重发、不判「没发出去」（X8、X9）
     expectAnsweredButNotLanded(harness, "run-node-a-1", thrown, "retrieval-download");
   });
 });
+
+
+it('C2: the host identifies the original unknown Run after another click is refused and after restart', async () => {
+  const h = setup()
+  h.vendor.answer = async () => { throw new Error('acme create failed: socket hang up') }
+  await expect(h.submit('node-a', 'original')).rejects.toBeInstanceOf(SubmissionReceiptUnknownError)
+  await expect(h.submit('node-a', 'refused')).rejects.toMatchObject({ code: 'production_shot_claimed' })
+  const original = runOf(h.repository, 'original')!
+  expect(h.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([{ runId: original.runId, jobId: original.jobs[0].jobId, reason: 'needs_reconcile', hasTaskId: false, nodeId: 'node-a' }])
+  expect(h.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: 'other' })).toEqual([])
+  const restarted = setup({ root: h.root })
+  expect(restarted.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: 'node-a' })).toEqual([{ runId: original.runId, jobId: original.jobs[0].jobId, reason: 'needs_reconcile', hasTaskId: false, nodeId: 'node-a' }])
+  expect(h.vendor.executes).toHaveLength(1)
+})
+
+it('C7: v0.24.0 persisted unknown Run is found, survives a refused click, releases and submits once after upgrade', async () => {
+  const snapshot = path.resolve('tests/fixtures/old-user-data/runs/v0.24.0-canvas-unknown')
+  const manifest = JSON.parse(fs.readFileSync(path.join(snapshot, 'manifest.json'), 'utf8'))
+  expect(manifest.recordedFrom).toBe('9f3bb3c575058156690c0663a6c88a0b28dfa2a2')
+  const fx = setup()
+  fs.cpSync(path.join(snapshot, '.nomi'), path.join(fx.root, '.nomi'), { recursive: true })
+  const query = () => fx.runs.canvasOpenRuns({ projectId: PROJECT, nodeId: manifest.nodeId })
+  const before = fx.repository.read(PROJECT, manifest.runId)!
+  expect(before.jobs[0].status).toBe('submission_unknown')
+  expect(query()).toEqual([{ runId: manifest.runId, jobId: before.jobs[0].jobId, reason: 'needs_reconcile', hasTaskId: false, nodeId: manifest.nodeId }])
+  await expect(fx.submit(manifest.nodeId, 'upgrade-refused')).rejects.toMatchObject({ reason: 'needs_reconcile' })
+  expect(fx.vendor.executes).toHaveLength(0)
+  expect(query()).toEqual([{ runId: manifest.runId, jobId: before.jobs[0].jobId, reason: 'needs_reconcile', hasTaskId: false, nodeId: manifest.nodeId }])
+  const service = createProductionRunService({ repository: fx.repository, projectRootResolver: () => fx.root })
+  await service.command(PROJECT, manifest.runId, { commandId: 'upgrade-release', expectedRevision: before.revision,
+    type: 'job.reconcile', payload: { jobId: before.jobs[0].jobId, outcome: 'user_checked_abandon' }, humanGesture: true, issuedAt: '2026-11-02T00:00:00.000Z' })
+  expect(query()).toEqual([])
+  expect(fx.vendor.executes).toHaveLength(0)
+  await expect(fx.submit(manifest.nodeId, 'upgrade-new-intent')).resolves.toMatchObject({ status: 'succeeded' })
+  expect(fx.vendor.executes).toHaveLength(1)
+})
+
+it('in-flight refusal then restart: the accepted original task is handed to observation and can finish without another POST', async () => {
+  const h = setup()
+  h.vendor.answer = queued('accepted-before-restart')
+  await h.submit('node-a', 'original-before-restart')
+  await expect(h.submit('node-a', 'refused-before-restart')).rejects.toMatchObject({ code: 'node_generation_in_flight' })
+  const restarted = setup({ root: h.root })
+  restarted.runs.recoverOrphans(PROJECT)
+  expect(restarted.observed).toEqual([[PROJECT, canvasRunIdFor('original-before-restart')]])
+  await expect(restarted.runs.poll({ projectId: PROJECT, runRecordId: 'original-before-restart', senderId: 7 })).resolves.toMatchObject({ status: 'succeeded' })
+  expect(runOf(restarted.repository, 'original-before-restart')?.status).toBe('completed')
+  expect(h.vendor.executes.length + restarted.vendor.executes.length).toBe(1)
+})

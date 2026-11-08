@@ -56,7 +56,7 @@ const { readLabStates, readCalibration, baselineDirFor, pendingApprovalScreens, 
 const { triageLabRun, collectDiffImages, formatLabFailure } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/failureTriage.mjs')).href)
 const { inspectLabPort, formatForeignHolder } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/labServer.mjs')).href)
 const { LAB_ORIGIN, LAB_RESULTS_DIR } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/playwright.config.mjs')).href)
-const { currentRunnerIdentity, decideVisualMode, describeRunner, isCiEnvironment } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/visualMode.mjs')).href)
+const { currentRunnerIdentity, decideVisualMode, describeRunner, isCiEnvironment, visualVerdict } = await import(pathToFileURL(path.join(repoRoot, 'tests/ux/design-lab/visualMode.mjs')).href)
 
 const screenFlagIndex = process.argv.indexOf('--screen')
 const requestedScreenArg = screenFlagIndex >= 0 ? process.argv[screenFlagIndex + 1] : undefined
@@ -311,7 +311,7 @@ if (visualMode === 'advisory') {
   console.log(`↷ 本机（${describeRunner(runnerIdentity)}）不是基准机（CI 的 ${describeRunner(calibration.calibratedRunner)}）：照样比对并报告差异，但不阻断，以 CI 为准。`)
 }
 if (visualMode === 'runner-drift') {
-  console.log(`⚠️  这台 CI 机器（${describeRunner(runnerIdentity)}）与基准机（${describeRunner(calibration.calibratedRunner)}）不一致：照样比对并产出新图，本次一定判红。`)
+  console.log(`⚠️  这台 CI 机器（${describeRunner(runnerIdentity)}）与录基线的机器（${describeRunner(calibration.calibratedRunner)}）版本不同：照样比对，只按像素判红绿。`)
 }
 
 // 起跑前先问端口归属：这一口要是被别的 worktree 占着，跑出来的每一张图都是别人分支的 UI。
@@ -359,17 +359,21 @@ if (runStatus !== 0) {
     exitCode: runStatus,
   })
   console.error(formatLabFailure(triage, { resultsDir: LAB_RESULTS_DIR, origin: LAB_ORIGIN }))
-  if (visualMode === 'advisory') {
-    console.log('\n↷ 以上是本机参考结果，不阻断；合并以 CI 的 Design Lab (macOS) 为准。')
-    process.exit(0)
-  }
-  process.exit(1)
 }
-if (visualMode === 'runner-drift') {
+const verdict = visualVerdict({ mode: visualMode, pixelsPassed: runStatus === 0 })
+if (verdict.kind === 'advisory-mismatch') {
+  console.log('\n↷ 以上是本机参考结果，不阻断；合并以 CI 的 Design Lab (macOS) 为准。')
+}
+if (verdict.kind === 'mismatch-other-runner') {
   console.error(
-    `\n❌ 像素都在容差内，但基准机身份还没更新成这台机器（${describeRunner(runnerIdentity)}）。\n` +
-    '   跑 pnpm run design-lab:accept -- --run <这次运行号>，它会把 calibration.json 的 calibratedRunner 改成这台机器。',
+    `\n   这台机器（${describeRunner(runnerIdentity)}）不是录基线的那台（${describeRunner(calibration.calibratedRunner)}）：` +
+    '如果差异图里只是字形 / 抗锯齿变了、界面没改，是镜像换了系统字体——确认后跑 pnpm run design-lab:accept -- --run <这次运行号> 重录。',
   )
-  process.exit(1)
 }
-console.log(visualMode === 'advisory' ? '\n✅ 本机比对全部相符（参考结果，以 CI 为准）' : '\n✅ 视觉基线全绿')
+if (verdict.kind === 'pass-other-runner') {
+  console.log(`\n✅ 视觉基线全绿（这台 ${describeRunner(runnerIdentity)} 与录基线的 ${describeRunner(calibration.calibratedRunner)} 版本不同，像素都在容差内，不用重录）`)
+}
+if (verdict.kind === 'pass') {
+  console.log(visualMode === 'advisory' ? '\n✅ 本机比对全部相符（参考结果，以 CI 为准）' : '\n✅ 视觉基线全绿')
+}
+process.exit(verdict.exitCode)

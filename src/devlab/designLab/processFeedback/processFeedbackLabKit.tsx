@@ -97,7 +97,8 @@ export function ProcessFeedbackStage(fixture: ProcessFixture): JSX.Element {
       const stage = (event as CustomEvent<ProcessFixture['stage']>).detail
       const store = useGenerationCanvasStore.getState()
       if (stage === 'saved') {
-        store.addNodeResult(PF_NODE_ID, { id: 'pf-completed', type: 'image', url: '/fixtures/process-feedback-result.svg', createdAt: Date.now() })
+        // 和生产控制器一样带上这一次运行的号（generationRunController 落结果一律带 run.id）。
+        store.addNodeResult(PF_NODE_ID, { id: 'pf-completed', type: 'image', url: '/fixtures/process-feedback-result.svg', createdAt: Date.now() }, undefined, 'pf-run')
         useGenerationQueueStore.getState().markSettled(batchId.current, PF_NODE_ID, 'success')
       }
       else if (stage === 'failed') {

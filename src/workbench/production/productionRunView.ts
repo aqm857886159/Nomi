@@ -160,7 +160,7 @@ export function buildProductionRunView(
       .map((skill) => [`${skill.name}\u0000${skill.version}`, skill]),
   ).values()]
   // 内置客户端名单只认注册表（此前这里手抄了一份，pi/workbuddy 发起的制作会把 i18n key 原文渲染出来）。
-  const originHost = run.origin.host === 'nomi' || isBuiltinMcpClient(run.origin.host)
+  const originHost = run.origin.host === 'nomi' || run.origin.host === 'canvas' || isBuiltinMcpClient(run.origin.host)
     ? run.origin.host
     : (isBuiltinMcpClient(run.origin.actorId) ? run.origin.actorId : 'external')
   // Older durable Runs could reach the terminal status before direction/build stage bookkeeping
@@ -178,7 +178,7 @@ export function buildProductionRunView(
     playbookLabelKey: productionPlaybookLabelKey(run.playbook.name),
     controls: [] as ProductionRunControl[],
     // 谁发起的谁决定：nomi 自主发起时没有 CLI 可用，门在 Nomi 是主路径。
-    decisionHome: (originHost === 'nomi' ? 'nomi' : 'origin') as ProductionDecisionHome,
+    decisionHome: (originHost === 'nomi' || originHost === 'canvas' ? 'nomi' : 'origin') as ProductionDecisionHome,
     originHost,
     preview: latestSafePreview(run.artifacts),
     details: {
@@ -197,7 +197,7 @@ export function buildProductionRunView(
       tone: 'danger',
       titleKey: 'generationCommon.production.status.submissionUnknown',
       descriptionKey: 'generationCommon.production.description.submissionUnknown',
-      // 没拿到任务号 = Nomi 没法跟踪、只能让用户去服务商后台核对；核对完才有「我核对过了，重新生成」。有任务号仍走原来的对账。
+      // 没拿到任务号 = Nomi 没法跟踪、只能让用户去服务商后台核对；核对完才有「再发一次」。有任务号仍走原来的对账。
       primaryAction: unknown.providerTaskId ? 'reconcile' : 'release-unknown',
       targetId: unknown.jobId,
       // 给用户拿去和服务商后台比对的三项：提交时间、模型、服务商。

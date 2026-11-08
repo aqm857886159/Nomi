@@ -149,13 +149,17 @@ export type CanvasGraphActions = {
 }
 
 export type CanvasRunActions = {
+  setNodeRecoveryPresentation: (nodeId: string, resultUnknown: boolean, error?: string) => void
   setNodeStatus: (nodeId: string, status: GenerationNodeStatus, error?: string) => void
   /** 收起失败卡：有旧产物 → 回 success（露出下面那条片子），没有 → 回 idle。错误原文仍留在 runs 里。 */
   dismissNodeError: (nodeId: string) => void
   setNodeProgress: (nodeId: string, progress?: NodeProgressInput) => void
+  /** 一次运行的结局（结果 / 定稿之外：开始、乐观的排队中、被拒、进度、状态）：按运行记录号收账，显示从记录算。 */
+  applyRunOutcome: (nodeId: string, outcome: Exclude<import('./nodeRunOutcome').NodeRunOutcome, { kind: 'result' | 'content' }>) => void
   appendNodeRun: (nodeId: string, run: NodeRunRecordInput) => GenerationNodeRunRecord
   trackNodeRun: (nodeId: string, runId: string, patch: NodeRunRecordPatch) => void
-  addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions) => void
+  /** runId = 交出这张图的那次运行（按号结掉它自己的记录）；不带 = 制作投影 / 演示等不属于画布运行的落地。 */
+  addNodeResult: (nodeId: string, result: GenerationNodeResult, mediaDimensions?: MediaDimensions, runId?: string) => void
   /** 文本生成定稿落地（与 addNodeResult 同为落地：不进撤销，撤销 / 重做也不撤掉它）。 */
   landNodeContent: (nodeId: string, contentJson: TiptapDocJson, runId?: string) => void
   /** 结局到达时节点不在（生成中被删了）：按 nodeId 暂存，任何一扇门把节点带回来时由统一提交口落上去。 */

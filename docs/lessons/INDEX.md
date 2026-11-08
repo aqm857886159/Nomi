@@ -150,7 +150,7 @@
 
 - [探针判不了的不能当失败，同一个决定写在两处时第二处会把第一处撤销](inconclusive-probe-is-not-a-failure-and-a-second-shortcut-undoes-the-decision.md) — 给「发之前先试一下」类的决定加探测、缓存或回退时；一个二选一的判断散在好几个函数里都读同一个标志时；测试里的探针要出网时
 - [附件只用假读取函数测过等于没测，「看过」不等于「有人管」](attachment-proved-with-fake-reader-and-seen-is-not-handled.md) — 给发出机器的包加附件时；清单或同意页写了「带上 X」时；写看一次就清零的「新增 N 条」时；摘要只留最后几行时；用户点过发送的东西要排队时
-- [安全封闭要同时设计人工出口，否则一处坏记录就是永久锁死](fail-closed-needs-a-human-exit.md) — 给花钱或不可逆动作加「读不出来就拒绝」、身份是固定路径、回执里写 `allowedActions` 时
+- [安全封闭要同时设计人工出口，否则一处坏记录就是永久锁死](fail-closed-needs-a-human-exit.md) — 给花钱或不可逆动作加「读不出来就拒绝」、身份是固定路径、回执里写 `allowedActions` 时；设计前答设计卡 ★0 的出口这一问，验收真走出口动作
 - [程序自己的簿记不许冒充「用户留下的事实」](program-bookkeeping-must-not-pose-as-user-facts.md) — 一个判断「有时生效、有时不生效」、换条路径复现结果就变时读；先数它读的每个事实的全部写口，挡掉同步回声 / 挂载 / 默认值兜底
 - [只在 Mac 上测，就是让 82% 的用户替我们测](mac-only-testing-ships-windows-blind.md) — 发版前；Windows 用户报卡死/点了没反应/保存或导入失败而 Mac 复现不了；「只在 Windows 红」的测试想当噪音跳过时。附同日五个 Windows 专属问题的机制对照表与「用 Electron 自带 Node 判红绿」
 - [手拼 `file://` 判断「我是不是入口」，Windows 上门岗静默零输出、退出码 0](main-guard-hand-built-file-url-is-silent-on-windows.md) — ✅ 已由 `check:main-guard` 接管；Windows 上某个门岗/脚本一行不打印就退出 0 时先读；入口判断只写 `pathToFileURL(process.argv[1]).href`
@@ -186,6 +186,8 @@
 
 ## E. 产品判断与对外表达
 
+- [先想方向，再想修法](think-direction-before-the-fix.md) — 拿出修法之前、修了一轮还没好时；沿原方向修、换一种做法、干脆不要它，各要依据
+- [修 bug 时长出来的界面也要先出图](visible-change-in-a-fix-needs-a-picture.md) — 修 bug 时加了确认、提示或新状态；准备写「布局沿用」或看自己截图说「符合」的时候
 - [分镜表 = 画布节点的表格表示版](shot-table-is-a-projection-of-canvas-nodes.md) — 不是落画布前的临时物；两半列各有各的 derive 来源
 - [参考槽：声明上限不是有效上限，锚→槽是语义绑定](nomi-reference-slots-are-already-declarative.md) — 别渲染 `slot.max`、别按下标推语义、Agent 建完只能改 prompt（结构本身见 `ARCHITECTURE-NOW.md`）
 - [批量产出要逐步冒出来 + 自动编组](batch-output-appears-progressively-and-grouped.md) — 一个动作产出多个节点时的既定交互

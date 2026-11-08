@@ -262,8 +262,9 @@ export type DesktopBridge = DesktopMediaBridge &
     run: (payload: unknown) => Promise<unknown>
     result: (payload: unknown) => Promise<unknown>
     /** 画布单节点 ↑ 的唯一付费口（单镜 Run）：交 / 查 / 不再等。旧 preload 没有 → 可选。 */
-    canvasSubmit?: (payload: { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: unknown }) => Promise<unknown>
+    canvasSubmit?: (payload: { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: unknown; acknowledgedOpenRuns?: string[] }) => Promise<unknown>
     canvasPoll?: (payload: { projectId: string; runRecordId: string }) => Promise<unknown>
+    canvasOpenRuns?: (payload: { projectId: string; nodeId?: string }) => Promise<Array<{ runId: string; jobId?: string; reason: 'in_flight' | 'needs_reconcile'; hasTaskId: boolean; nodeId: string }>>
     canvasRelease?: (payload: { projectId: string; runRecordId: string }) => Promise<void>
     canvasConsent?: (payload: { projectId: string; shots: Array<{ nodeId: string; runRecordId: string; vendor: string; modelKey: string; kind: string; production?: { runId: string; shotId: string } }> }) => Promise<{ runIds: string[] }>
     canvasWithdraw?: (payload: { projectId: string; runRecordIds: string[]; by: 'removed' | 'user_closed' | 'stopped' }) => Promise<void>

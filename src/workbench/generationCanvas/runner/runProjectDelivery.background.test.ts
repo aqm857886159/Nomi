@@ -27,7 +27,8 @@ vi.mock('../../library/localProjectStore', () => ({
     return record
   }),
 }))
-vi.mock('../../api/taskApi', () => ({ mintSpendGrant: vi.fn(async () => 'grant'), releaseCanvasShotRun: vi.fn(async () => undefined) }))
+vi.mock('../../api/taskApi', () => ({
+  canvasOpenRuns: vi.fn(async () => []), mintSpendGrant: vi.fn(async () => 'grant'), releaseCanvasShotRun: vi.fn(async () => undefined) }))
 vi.mock('../../../desktop/bridge', () => ({
   getDesktopBridge: () => ({ projects: {
     applyCanvasNodePatch: async ({ projectId, nodeId, patch }: { projectId: string; nodeId: string; patch: Record<string, unknown> }) => {
@@ -155,7 +156,7 @@ it.each([false, true])('does not submit a node deleted during author validation 
   const executor = vi.fn(async (): Promise<GenerationNodeResult> => ({ id: 'forbidden-result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }))
   const run = runGenerationNode(node.id, {
     target, assetUploadConsent: 'not-needed', executor,
-    assertAuthorCurrent: async () => { checking.resolve(); await resume.promise },
+    assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); checking.resolve(); await resume.promise },
   })
   const rejected = expect(run).rejects.toThrow('node not found')
   await checking.promise
@@ -190,7 +191,7 @@ it.each([0, 1])('batch validates author target before every wave (allowed attemp
   const executor = vi.fn(async (): Promise<GenerationNodeResult> => ({ id: 'result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }))
   const outcome = await runGenerationNodesByPlan({ waves: ids.map(id => [id]), blocked: [], edgesUsed: [] }, {
     target, assetUploadConsent: 'not-needed', executor,
-    assertAuthorCurrent: async () => { if (executor.mock.calls.length >= allowed) throw new Error('storyboard_content_conflict') },
+    assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); if (executor.mock.calls.length >= allowed) throw new Error('storyboard_content_conflict') },
   })
   expect(executor).toHaveBeenCalledTimes(allowed)
   expect(outcome.failures.map(item => item.nodeId)).toEqual(ids.slice(allowed))
@@ -313,6 +314,20 @@ describe('节点落可找回：渲染层不再等这一笔，交给主进程观�
     await expect(deliverRunOutcome(target, id, { kind: 'status', status: 'recoverable', error: 'timed out' })).resolves.toBe(true)
     expect(released.mock.calls).toEqual([[{ projectId: 'project-a', runRecordId: 'run-latest' }]])
     expect(statusAtRelease).toBe('recoverable')
+  })
+
+  it('放手的是这一次运行：确认再发后新那单排在最前，旧那单按自己的号报可找回，放手的是旧那单', async () => {
+    // 用户确认「再发一次」时旧那单还在轮询：新那单准入后成了 runs[0]，旧那单随后超时。
+    // 这里要是读 runs[0]，交给观察者的就是新那单，旧那单付了钱的图永远回不来。
+    const target = await session.open('project-a')
+    const store = useGenerationCanvasStore.getState()
+    const node = store.addNode({ kind: 'image' })
+    store.appendNodeRun(node.id, { id: 'run-old', status: 'running', projectId: 'project-a', taskId: 'task-old' })
+    store.appendNodeRun(node.id, { id: 'run-new', status: 'running', projectId: 'project-a', taskId: 'task-new' })
+    expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === node.id)?.runs?.[0]?.id).toBe('run-new')
+    await deliverRunOutcome(target, node.id, { kind: 'status', status: 'recoverable', error: 'timed out', runId: 'run-old' })
+    expect(released.mock.calls).toEqual([[{ projectId: 'project-a', runRecordId: 'run-old' }]])
+    expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === node.id)?.runs?.find((run) => run.id === 'run-new')?.status).toBe('running')
   })
 
   it.each(['idle', 'running', 'error', 'success'] as const)('落成 %s 不放手', async (status) => {

@@ -1,0 +1,8 @@
+{"commandId":"generation.seal:canvas-old-click:v1:7bdb41b3fb53b710ef547d4967b957fc2c1b6513b81ebe29cf747b7a3dbcfaf8","expectedRevision":0,"resultRevision":1,"eventCursors":[2]}
+{"commandId":"canvas-shot-decide:generation-authorization:canvas-old-click:v1:n1:61bd22a0-9a0b-4251-8ddb-13e5194a8b01","expectedRevision":1,"resultRevision":2,"eventCursors":[3]}
+{"commandId":"generation.runtime:canvas-old-click:job-bind:generation-canvas-old-click-7bdb41b3fb53b710","expectedRevision":2,"resultRevision":3,"eventCursors":[4]}
+{"commandId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1:budget:reserve","expectedRevision":3,"resultRevision":4,"eventCursors":[5]}
+{"commandId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1:submit-intent","expectedRevision":4,"resultRevision":5,"eventCursors":[6]}
+{"commandId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1:submitting","expectedRevision":5,"resultRevision":6,"eventCursors":[7]}
+{"commandId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1:submission-unknown","expectedRevision":6,"resultRevision":7,"eventCursors":[8]}
+{"commandId":"canvas-old-click:generation-canvas-old-click-7bdb41b3fb53b710:1:budget:mark-unsettled","expectedRevision":7,"resultRevision":8,"eventCursors":[9]}

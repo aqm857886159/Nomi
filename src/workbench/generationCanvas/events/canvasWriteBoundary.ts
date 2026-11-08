@@ -35,7 +35,7 @@ export const CANVAS_ACTION_LAYERS = {
   setGroupColor: 'edit', arrangeGroup: 'edit', setGroupCollapsed: 'edit',
   ungroup: 'edit', ungroupGroups: 'edit', deleteGroup: 'edit', moveNodeToGroup: 'edit',
   removeNodeFromGroup: 'edit', reorderGroup: 'edit',
-  setNodeStatus: 'fact:run', dismissNodeError: 'fact:run', setNodeProgress: 'fact:run', appendNodeRun: 'fact:run',
+  setNodeRecoveryPresentation: 'fact:run', applyRunOutcome: 'fact:run', setNodeStatus: 'fact:run', dismissNodeError: 'fact:run', setNodeProgress: 'fact:run', appendNodeRun: 'fact:run',
   trackNodeRun: 'fact:run', holdRunOutcome: 'fact:run', addNodeResult: 'fact:landing', landNodeContent: 'fact:landing',
   restoreSnapshot: 'document', applyEventTail: 'document', undo: 'document', redo: 'document',
   applyExternalGraph: 'document', restoreGraph: 'document', restoreNodeFields: 'document',

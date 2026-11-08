@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "entries": [
+    {
+      "version": 2,
+      "revision": 5,
+      "journalId": "promotion-run-rel-1",
+      "runId": "run-rel-1",
+      "lineageRootVendorKey": "local-39017",
+      "leaseToken": "532560dc-a2f8-4c24-9bf1-bb8504d2e49a",
+      "proposedRevisionId": "adapter-revision-09959cca7239d5739f4b",
+      "contractDigest": "e406df76f0af39b670310ce80b18fb32cb65dd7b3ec03b707c31d887dc07ddff",
+      "verifiedModes": [
+        {
+          "modelKey": "opaque-image-x",
+          "taskKind": "text_to_image"
+        },
+        {
+          "modelKey": "opaque-image-x",
+          "taskKind": "image_edit"
+        },
+        {
+          "modelKey": "gpt-image-2",
+          "taskKind": "text_to_image"
+        },
+        {
+          "modelKey": "gpt-image-2",
+          "taskKind": "image_edit"
+        }
+      ],
+      "childRunRef": {
+        "runId": "run-rel-1",
+        "revisionDigest": "09959cca7239d5739f4b28445c9c35e8635140616da15058b27651fd5894d55f"
+      },
+      "state": "committed",
+      "createdAt": "2026-10-20T00:00:00.000Z",
+      "updatedAt": "2026-10-20T00:00:00.000Z",
+      "terminalStage": "partial",
+      "runFinalizedAt": "2026-10-20T00:00:00.000Z"
+    }
+  ],
+  "tombstones": [],
+  "archives": []
+}

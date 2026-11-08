@@ -1,3 +1,4 @@
+import type { RunGenerationNodesBatchResult } from './generationRunOutcome'
 // 依赖波次的执行层：把 `DependencyWavePlan` 按波次交给既有的 `runGenerationNodesBatch`，
 // 上游失败就显式挡住下游（不裸跑、不死等）。
 //
@@ -12,7 +13,6 @@ import type { DependencyWavePlan } from './dependencyWaves'
 import {
   runGenerationNodesBatch,
   type RunGenerationNodesBatchOptions,
-  type RunGenerationNodesBatchResult,
 } from './generationRunController'
 
 /** Execute dependency waves through the original batch runner; failed upstreams block downstreams.
@@ -23,6 +23,7 @@ export async function runGenerationNodesByPlan(
 ): Promise<RunGenerationNodesBatchResult> {
   const successes: RunGenerationNodesBatchResult['successes'] = []
   const failures: RunGenerationNodesBatchResult['failures'] = []
+  const skipped: string[] = []
   // Register all waves and blocked nodes together so queued work remains visible in the task center.
   const batchId = useGenerationQueueStore
     .getState()
@@ -64,6 +65,7 @@ export async function runGenerationNodesByPlan(
       // 上游本批失败 → 下游显式失败(不裸跑、不死等),其余照常并行。
       const runnable: string[] = []
       for (const nodeId of wave) {
+        if ((internalDeps.get(nodeId) ?? []).some(dep => skipped.includes(dep))) { await waitNode(nodeId); continue }
         const failedDep = (internalDeps.get(nodeId) ?? []).find((dep) => failedIds.has(dep))
         if (failedDep) {
           failedIds.add(nodeId)
@@ -77,12 +79,13 @@ export async function runGenerationNodesByPlan(
       if (runnable.length === 0) continue
       const result = await runGenerationNodesBatch(runnable, runOptions)
       successes.push(...result.successes)
+      skipped.push(...result.skipped)
       for (const failure of result.failures) {
         failedIds.add(failure.nodeId)
         failures.push(failure)
       }
     }
-    return { totalCount: plan.waves.flat().length + plan.blocked.length, successes, failures }
+    return { totalCount: plan.waves.flat().length + plan.blocked.length, successes, failures, skipped }
   } catch (error) {
     for (const entry of useGenerationQueueStore.getState().entries.filter(item => item.batchId === batchId && item.state === 'queued')) {
       useGenerationQueueStore.getState().markSettled(batchId, entry.nodeId, 'error', {

@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "本机门岗阻断记录（$(git rev-parse --git-common-dir)/nomi-block-events.jsonl 的一行）",
+  "description": "写入方：scripts/lib/blockEvents.mjs 的 recordBlockEvent（推送前快检 / 钩子、整套门岗的阻断出口）。读取方：scripts/block-radar.mjs。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["at", "stage", "gates", "branch", "head", "runner", "durationMs", "codeChanged"],
+  "properties": {
+    "at": { "type": "string", "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(\\.\\d+)?Z$", "description": "阻断那一刻（UTC）" },
+    "stage": { "enum": ["quick", "push", "gates"], "description": "quick = 手动跑推送前快检；push = git push 触发的钩子；gates = 整套门岗" },
+    "gates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 }, "description": "这一次红了的门岗名（阻断性的）" },
+    "branch": { "type": ["string", "null"], "description": "当时的分支；分离头指针为 null" },
+    "head": { "type": "string", "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$", "description": "当时的 HEAD" },
+    "runner": { "const": "local" },
+    "durationMs": { "type": ["integer", "null"], "minimum": 0, "description": "这一轮从启动到出结论的耗时" },
+    "codeChanged": { "type": ["boolean", "null"], "description": "写入时恒为 null；block-radar 读的时候算：这次红的 head 到同一分支下一次绿的 head 之间有没有改代码" }
+  }
+}

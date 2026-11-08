@@ -10,7 +10,7 @@ import { cancelComfyCandidateTest, failComfyCandidateEnvelope, runComfyCandidate
 import { registerQuitDrain } from "../quitTeardown";
 
 type RuntimeLoader = () => Promise<typeof import("../runtime")>;
-type CanvasShotCore = Pick<typeof import("../capabilityCore/appIntegration"), "consentCanvasShots" | "submitCanvasShot" | "pollCanvasShot" | "releaseCanvasShot" | "withdrawCanvasShots" | "releaseCanvasShotSender">;
+type CanvasShotCore = Pick<typeof import("../capabilityCore/appIntegration"), "canvasOpenRuns" | "consentCanvasShots" | "submitCanvasShot" | "pollCanvasShot" | "releaseCanvasShot" | "withdrawCanvasShots" | "releaseCanvasShotSender">;
 type CoreLoader = () => Promise<CanvasShotCore>;
 
 const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
@@ -82,7 +82,7 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
   ipcMain.handle("nomi:tasks:canvas-submit", (event, payload) => {
     assertTrustedSender(event);
     trackOwner(event.sender);
-    const raw = (payload || {}) as { projectId?: unknown; nodeId?: unknown; runRecordId?: unknown; vendor?: unknown; request?: unknown };
+    const raw = (payload || {}) as { projectId?: unknown; nodeId?: unknown; runRecordId?: unknown; vendor?: unknown; request?: unknown; acknowledgedOpenRuns?: unknown };
     const request = raw.request as { kind?: unknown; prompt?: unknown; extras?: Record<string, unknown> } | undefined;
     const projectId = str(raw.projectId);
     const nodeId = str(raw.nodeId);
@@ -95,6 +95,7 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
     const gesture = { webContentsId: event.sender.id, frameId: event.senderFrame?.routingId ?? 0, origin: event.senderFrame?.origin ?? "" };
     return runTaskIpcGuard({ request }, async () => withTaskOwner(event.sender.id, async () => (await loadCore()).submitCanvasShot({
       projectId, nodeId, runRecordId, vendor, request: request as never, gesture, senderId: event.sender.id,
+      ...(Array.isArray(raw.acknowledgedOpenRuns) ? { acknowledgedOpenRuns: raw.acknowledgedOpenRuns.filter((id): id is string => typeof id === "string") } : {}),
     })));
   });
   ipcMain.handle("nomi:tasks:canvas-poll", (event, payload) => {
@@ -104,6 +105,14 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader, loadCo
     const runRecordId = str(raw.runRecordId);
     if (!projectId || !runRecordId) throw new Error("canvas generation poll is invalid");
     return runTaskIpcGuard(payload, async () => withTaskOwner(event.sender.id, async () => (await loadCore()).pollCanvasShot({ projectId, runRecordId, senderId: event.sender.id })));
+  });
+  ipcMain.handle("nomi:tasks:canvas-open-runs", async (event, payload) => {
+    assertTrustedSender(event);
+    const raw = (payload || {}) as { projectId?: unknown; nodeId?: unknown };
+    const projectId = str(raw.projectId);
+    const nodeId = str(raw.nodeId);
+    if (!projectId) throw new Error("canvas open run query is invalid");
+    return (await loadCore()).canvasOpenRuns({ projectId, ...(nodeId ? { nodeId } : {}) });
   });
   ipcMain.handle("nomi:tasks:canvas-release", async (event, payload) => {
     assertTrustedSender(event);

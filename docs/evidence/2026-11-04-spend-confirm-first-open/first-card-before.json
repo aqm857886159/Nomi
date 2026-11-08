@@ -1,0 +1,31 @@
+{
+  "build": "lazy-loaded card (same mount code as main before this change)",
+  "platform": "darwin arm64, zh-CN, production renderer build, isolated profile",
+  "method": "each run is a fresh app launch; time from requesting a spend confirmation to the card visible plus one frame; second = another request in the same session",
+  "runs": 5,
+  "firstMedian": 305.7000002861023,
+  "firstMax": 307.30000019073486,
+  "secondMedian": 4.099999904632568,
+  "results": [
+    {
+      "first": 307.30000019073486,
+      "second": 5.599999904632568
+    },
+    {
+      "first": 305.69999980926514,
+      "second": 6
+    },
+    {
+      "first": 304.90000009536743,
+      "second": 4.099999904632568
+    },
+    {
+      "first": 307.30000019073486,
+      "second": 3.9000000953674316
+    },
+    {
+      "first": 305.7000002861023,
+      "second": 4.099999904632568
+    }
+  ]
+}

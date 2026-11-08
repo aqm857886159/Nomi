@@ -1,3 +1,4 @@
+import { paidNodeLedger } from '../generationCanvas/spend/spendConfirm'
 // 「这几镜交给画布，哪几镜本机就能判定发不出去」——Agent 付费卡（出卡前、渲染时）与交接那一步
 // （`production.hand-over-shots`，开同意前）读同一个判据（D2 第③步，债 a）。
 //
@@ -16,7 +17,7 @@
 import type { GenerationHandOverFailure } from '../../desktop/productionRunBridgeTypes'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { selectedModelKey, selectedVendor } from '../generationCanvas/runner/catalogTaskResolve'
-import { generationNodeInputsReady, paidNodeLedger, unmetReferenceDependencyForNode } from '../generationCanvas/runner/generationRunController'
+import { generationNodeInputsReady, unmetReferenceDependencyForNode } from '../generationCanvas/runner/generationRunController'
 import { promptRequiredForNode } from '../generationCanvas/runner/promptRequirement'
 import { buildDependencyWaves, type DependencyWavePlan } from '../generationCanvas/runner/dependencyWaves'
 import { directorPreviewSpendBlock } from '../generationCanvas/nodes/director/model/directorPreviewState'

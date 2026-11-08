@@ -12,6 +12,7 @@ import { readDirectorPreview } from '../generationCanvas/nodes/director/model/di
 import { normalizeDirectorProject } from '../generationCanvas/nodes/director/model/directorProject'
 import { canRunGenerationNode } from '../generationCanvas/runner/generationRunController'
 import { directorPreviewBlocksOp } from './directorPreviewBlocksOp'
+import { directorWriteSemanticInputSchema } from '../../../electron/shared/agentCapabilities/directorWrite'
 
 const PLAN = {
   scene: { environment: 'day', template: 'room', tags: ['书房'] },
@@ -29,7 +30,7 @@ const node = (id: string) => useGenerationCanvasStore.getState().nodes.find((can
 
 async function stagedAndRendered() {
   const [shot] = generationCanvasTools.create_nodes([{ kind: 'video', title: 'shot-a', prompt: 'p', position: { x: 0, y: 0 }, meta: { archetype: { id: 'seedance-2-apimart', modeId: 't2v' } } }])
-  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: { operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN } as unknown as Record<string, unknown> }])
+  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: directorWriteSemanticInputSchema.parse({ operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN }) as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error('stage failed')
   const directorNodeId = (outcome.results[0] as Extract<DirectorWriteDomainResult, { applied: true }>).directorNodeId
   render(directorNodeId, 'nomi-local://asset/p/preview-1.mp4')

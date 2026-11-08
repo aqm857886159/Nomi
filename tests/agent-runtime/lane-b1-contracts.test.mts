@@ -58,7 +58,9 @@ test('C26 · replay the first human failure and show a valid candidate example',
   const lane = await f.openLane({ ...f.options, tools: createExtendedLaneTools({ execute: async () => { throw new Error('Invalid call must not execute'); } }) });
   await lane.execute({ kind: 'prompt', text: '试拍' });
   const body = JSON.stringify(f.http.requests.at(-1)?.body);
-  assert.match(body, /应长这样/);
+  // 2026-11-07：形状错在入参边界就说清哪个字段、该填什么，并带一个对的例子（不再在投影层补「应长这样」）。
+  assert.match(body, /tool_arguments_invalid/);
+  assert.match(body, /Example of a valid call: /);
   assert.ok(plan().examples.some(e => (e.arguments.shots as Array<{ taskKind?: string; candidate?: unknown }>)?.some(s => s.taskKind && s.candidate)));
   for (const e of plan().examples) assert.equal(plan().schema.safeParse(e.arguments).success, true);
 });

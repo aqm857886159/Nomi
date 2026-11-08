@@ -37,24 +37,22 @@ export function whenRunTargetLoaded(target: RunProjectTarget, apply: () => void)
   return true
 }
 
-/** true = 结局写进了正打开的原项目画布（节点已不在则只暂存记账、返回 false）。 */
+/**
+ * true = 结局写进了正打开的原项目画布（节点已不在则只暂存记账、返回 false）。
+ * 每个结局带着自己的运行记录号原样交给 store，由 nodeRunOutcome 按号收账——这里不判「是不是最新那次」。
+ */
 function applyToStore(nodeId: string, outcome: NodeRunOutcome): boolean {
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find(candidate => candidate.id === nodeId)
   if (!node) {
-    // 节点在生成中被删了（删节点不取消上游任务，钱已花）：结局暂存，撤销把节点带回来时落上去。进度是瞬态，不记。
+    // 节点在生成中被删了（删节点不取消上游任务，钱已花）：结局暂存，撤销把节点带回来时落上去。进度、乐观的「排队中」是瞬态，不记。
     if (outcome.kind === 'content') store.holdRunOutcome(nodeId, { kind: 'content', contentJson: outcome.contentJson })
-    else if (outcome.kind !== 'progress') store.holdRunOutcome(nodeId, outcome)
+    else if (outcome.kind !== 'progress' && outcome.kind !== 'attempt-started') store.holdRunOutcome(nodeId, outcome)
     return false
   }
-  if (outcome.kind === 'result') {
-    if (outcome.mediaDimensions) store.addNodeResult(nodeId, outcome.result, outcome.mediaDimensions)
-    else store.addNodeResult(nodeId, outcome.result)
-  }
-  else if (outcome.kind === 'status') store.setNodeStatus(nodeId, outcome.status, outcome.error)
-  else if (outcome.kind === 'run-started') store.appendNodeRun(nodeId, outcome.run)
+  if (outcome.kind === 'result') store.addNodeResult(nodeId, outcome.result, outcome.mediaDimensions, outcome.runId)
   else if (outcome.kind === 'content') store.landNodeContent(nodeId, outcome.contentJson, outcome.runId)
-  else store.setNodeProgress(nodeId, outcome.progress)
+  else store.applyRunOutcome(nodeId, outcome)
   return true
 }
 
@@ -99,13 +97,14 @@ function serializeDiskDelivery<T>(projectId: string, operation: () => Promise<T>
 /**
  * 节点落可找回 = 渲染层不再等这一笔了，交给主进程观察者接着查。不交的话 Run 一直算在生成，
  * 「标记失败」之后也重试不了；窗口关了或项目重开时主进程自己会接手，这里管的是窗口一直开着的那段。
- * 查到的结果先落进项目，节点上点一下「重新取回」即现，不联网不花钱。
+ * 观察者查到结局（出片或确定失败）先落进 Run，再摇渲染层按这一次的号收回这一镜（recoverTaskActions.landObservedCanvasRun），不联网不花钱。
  * 所有经投递落可找回的路（轮询到期、取回族错误、点重新取回等满时限或查询抛错）都走这里，所以只写这一处。
  * 放手失败不影响落可找回：重开项目还会接手。没有 Run 的旧记录，主进程什么也不做。
  */
-async function handRunToObserver(target: RunProjectTarget, nodeId: string): Promise<void> {
+async function handRunToObserver(target: RunProjectTarget, nodeId: string, runId: string | undefined): Promise<void> {
   try {
-    const runRecordId = (await readRunGraph(target))?.nodes.find((node) => node.id === nodeId)?.runs?.[0]?.id
+    // 放手的是这一次自己的号；不带号的旧路（取回、手动标记）才看最新那条记录。
+    const runRecordId = runId ?? (await readRunGraph(target))?.nodes.find((node) => node.id === nodeId)?.runs?.[0]?.id
     if (runRecordId) await releaseCanvasShotRun({ projectId: target.projectId, runRecordId })
   } catch {
     // 见上：放手失败不影响落可找回，这一笔已经落了。
@@ -119,7 +118,7 @@ async function handRunToObserver(target: RunProjectTarget, nodeId: string): Prom
 export async function deliverRunOutcome(target: RunProjectTarget, nodeId: string, outcome: NodeRunOutcome): Promise<boolean> {
   const landed = await deliverToOriginalProject(target, nodeId, outcome)
   // 落完再放手：观察者要是先落了结果，不能再被这一笔可找回盖掉。
-  if (outcome.kind === 'status' && outcome.status === 'recoverable') await handRunToObserver(target, nodeId)
+  if (outcome.kind === 'status' && outcome.status === 'recoverable') await handRunToObserver(target, nodeId, outcome.runId)
   return landed
 }
 
@@ -134,6 +133,7 @@ async function deliverToOriginalProject(target: RunProjectTarget, nodeId: string
     const node = canvas?.nodes.find((candidate) => candidate.id === nodeId)
     if (!record || !canvas || !node) return false
     const patch = nodeRunOutcomePatch(node, outcome)
+    if (Object.keys(patch).length === 0) return false
     if (outcome.kind === 'progress' && !nodeProgressChangesRecovery(node, patch)) return false
     const applyPatch = getDesktopBridge()?.projects.applyCanvasNodePatch
     if (!applyPatch) throw new Error('project_canvas_write_port_unavailable')
@@ -147,16 +147,16 @@ async function deliverToOriginalProject(target: RunProjectTarget, nodeId: string
  * Results produced by this approved plan are dependencies, so their changing output is allowed.
  * Parameter keys come from the same model declaration as the original parameter bar/payment card.
  */
-export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (graph: RunGraph, executingNodeId: string) => void {
+export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (graph: RunGraph, executingNodeId: string, runId?: string) => void {
   const ids = new Set(nodeIds)
   const initial = useGenerationCanvasStore.getState()
   const initialOutputs = new Map(initial.nodes.filter(node => ids.has(node.id)).map(node => [node.id, { result: node.result, history: node.history, contentJson: node.contentJson }]))
   const approvedRuns = new Map<string, string>()
   const initialTextNodes = new Map(initial.nodes.filter(node => ids.has(node.id) && node.kind === 'text').map(node => [node.id, node]))
-  const token = (graph: RunGraph): string => {
+  const token = (graph: RunGraph, executingNodeId: string): string => {
     const nodes = graph.nodes.map(node => ids.has(node.id) ? { ...node, ...initialOutputs.get(node.id) } : node)
     const edges = graph.edges.filter(edge => ids.has(edge.target))
-    return stableProjectAgentJson(JSON.parse(JSON.stringify(nodeIds.map(id => {
+    return stableProjectAgentJson(JSON.parse(JSON.stringify([executingNodeId].map(id => {
       const found = nodes.find(node => node.id === id)
       if (!found) throw new Error('node not found')
       const archetype = archetypeForNode(found)
@@ -180,12 +180,13 @@ export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (gr
       }
     }))))
   }
-  const expected = token({ nodes: initial.nodes, edges: initial.edges })
-  return (graph, executingNodeId) => {
-    if (token(graph) !== expected) throw new Error('generation_input_changed')
+  const expected = new Map(nodeIds.map(id => [id, token({ nodes: initial.nodes, edges: initial.edges }, id)]))
+  // 「正在跑的是哪次」由运行自己报号（D9）：花钱的那次在主进程准入之前不在运行记录里，不能拿第一条记录顶。
+  return (graph, executingNodeId, runId) => {
+    if (token(graph, executingNodeId) !== expected.get(executingNodeId)) throw new Error('generation_input_changed')
     const originalText = initialTextNodes.get(executingNodeId)
     const executing = graph.nodes.find(node => node.id === executingNodeId)!
-    const executingRun = executing.runs?.[0]
+    const executingRun = runId ? executing.runs?.find(run => run.id === runId) : executing.runs?.[0]
     const ownStreamingDocument = executingRun && executingRun.id === approvedRuns.get(executingNodeId)
       && executingRun.status !== 'success' && executingRun.textDocumentDigest
       && textDocumentDigest(executing.contentJson) === executingRun.textDocumentDigest
@@ -197,8 +198,10 @@ export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (gr
     for (const sourceId of new Set(graph.edges.filter(edge => edge.target === executingNodeId && ids.has(edge.source)).map(edge => edge.source))) {
       const source = graph.nodes.find(node => node.id === sourceId)!
       const approvedRun = approvedRuns.get(sourceId)
+      // 上游「这次批准的那次运行」按号找它自己的记录，不看第一条。
+      const run = approvedRun ? source.runs?.find(entry => entry.id === approvedRun) : undefined
       const outputAllowed = approvedRun
-        ? source.runs?.[0]?.id === approvedRun && source.runs[0].resultId === source.result?.id
+        ? Boolean(run) && run!.resultId === source.result?.id
         : stableProjectAgentJson(source.result ?? null) === stableProjectAgentJson(initialOutputs.get(sourceId)?.result ?? null)
       const originalSource = initialTextNodes.get(sourceId)
       if (originalSource) {
@@ -206,16 +209,16 @@ export function captureApprovedGenerationInputs(nodeIds: readonly string[]): (gr
         const sameInitialResult = source.result?.id === originalSource.result?.id
         // Before a text result is applied, only the approved original body may be consumed.
         // Completed append/replace or editor selection applications seal their actual body digest.
-        const initialStillInUse = approvedRun && source.runs?.[0]?.id === approvedRun && source.runs[0].status !== 'success' && sameInitialResult
-        const run = source.runs?.[0]
-        const sealedByApprovedRun = approvedRun && run?.id === approvedRun && run.textDocumentDigest
+        const initialStillInUse = run && run.status !== 'success' && sameInitialResult
+        const sealedByApprovedRun = run && run.textDocumentDigest
           && (run.status !== 'success' || outputAllowed)
         const documentAllowed = sealedByApprovedRun
-          ? textDocumentDigest(source.contentJson) === run.textDocumentDigest
+          ? textDocumentDigest(source.contentJson) === run!.textDocumentDigest
           : unchangedDocument && (outputAllowed || initialStillInUse)
         if (!documentAllowed) throw new Error('generation_input_changed')
       } else if (!outputAllowed) throw new Error('generation_input_changed')
     }
-    if (executingRun) approvedRuns.set(executingNodeId, executingRun.id)
+    const approvedId = runId ?? executingRun?.id
+    if (approvedId) approvedRuns.set(executingNodeId, approvedId)
   }
 }

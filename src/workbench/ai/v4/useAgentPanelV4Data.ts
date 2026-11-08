@@ -9,7 +9,7 @@ import { laneClient } from '../lane/laneClient'
 import { providerFailureText } from '../lane/laneCommandFailure'
 import { useLogUnclassifiedProviderFailures } from './useLogUnclassifiedProviderFailures'
 import { laneInterventionSource, laneViewModel } from '../lane/laneViewModel'
-import { humanizeToolFailure, readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
+import { readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { laneToolFailureDetail, laneToolFailureSummary } from '../lane/laneToolFailureText'
 import { projectV4Intervention } from './agentPanelV4Intervention'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -234,9 +234,9 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const view = React.useMemo(() => laneViewModel(snapshot.active, {
     toolLabel: toolDisplayCache.label,
     toolSummary: toolDisplayCache.summary,
-    // C5：有结构化信封就按 `code` 查本地词条；没有（旧转录）才退回按正文猜。
-    // **两条路都不再 `?? text`**——那个兜底正是把模型收到的英文散文印给用户的那一行。
-    toolFailure: (text, failure) => (failure ? laneToolFailureSummary(t, failure) : humanizeToolFailure(t, text)),
+    // C5：有结构化信封就按 `code` 查本地词条；没有就不说——**不按正文猜**（2026-11-07 删掉了那条正则老路：
+    // 入参失败的信封现在由宿主按入参重推，正文猜法只剩认错的份）。也不 `?? text`：那是模型读的英文散文。
+    toolFailure: (_text, failure) => (failure ? laneToolFailureSummary(t, failure) : undefined),
     toolFailureDetail: (failure) => laneToolFailureDetail(t, failure),
     assistantFailure: (text, facts) => providerFailureText(text, t, facts),
     assistantRecovered: t('agentPanelV4.errorRecovered'),

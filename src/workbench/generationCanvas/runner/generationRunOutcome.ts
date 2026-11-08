@@ -1,3 +1,4 @@
+import type { GenerationNodeResult } from '../model/generationCanvasTypes'
 // 「用户在那张花钱确认框上到底做了什么」——**渲染层这一侧的那一格**。
 //
 // ── 它为什么必须存在 ──
@@ -52,4 +53,11 @@ export function generateUserDecisionOfRunOutcome(outcome: GenerationRunOutcome):
   if (outcome === 'started') return { outcome: 'approved' }
   if (outcome === 'declined') return { outcome: 'declined' }
   return undefined
+}
+
+export type RunGenerationNodesBatchResult = {
+  totalCount: number
+  skipped: string[]
+  successes: Array<{ nodeId: string; result: GenerationNodeResult }>
+  failures: Array<{ nodeId: string; error: Error }>
 }

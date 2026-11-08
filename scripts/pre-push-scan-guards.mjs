@@ -42,6 +42,10 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/catalog/referenceLinkDelivery.matrix.test.ts', roots: ['tests/fixtures/old-user-data/assets'], exts: '*' },
   // 和 catalogs、assets 两行同形：每个版本新增一份真老用户数据（旧版本落盘的项目库），新目录推送前就跑老用户这组，不是到 CI 才红（<2 秒）。
   { file: 'electron/projects/projectLocation.oldUser.test.ts', roots: ['tests/fixtures/old-user-data/projects'], exts: '*' },
+  // 付费确认卡和它的挂载点只许静态引入：遍历 src 找按需 import 它们的文件（<1 秒）。
+  { file: 'src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx', roots: ['src'] },
+  // 2026-11-07：applyCanvasToolCall 删掉第二次校验的等价证明——applyProposalBatch 与带变量工具名的调用者只有登记的那几个；遍历 src（<2 秒）。
+  { file: 'src/workbench/generationCanvas/agent/applyCanvasToolCall.singleParse.test.ts', roots: ['src'] },
   // ── electron/ 全树（遍历 electron 找违规文件）──
   { file: 'scripts/lib/buildInputRefScan.test.mjs', roots: ['src', 'electron'], files: ['vite.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'scripts/build-tailwind.mjs', 'scripts/build-electron.mjs', 'scripts/write-intake-config.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/package-build-stamp.mjs'] }, // 构建源码不许引用构建戳排除的路径（NON_INPUTS）；遍历 src + electron（<1 秒）
   { file: 'tests/system/async-signature-migration.test.mjs', roots: ['tests', 'electron', 'src', 'scripts'] }, // V-plibrary F3：同步改异步的函数，调用方（含 tests / 脚本）都要 await；遍历四个目录的源码（<1 秒）

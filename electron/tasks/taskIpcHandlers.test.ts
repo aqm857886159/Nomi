@@ -204,3 +204,18 @@ describe("canvas batch consent and withdrawal", () => {
     ]);
   });
 });
+
+
+it('open canvas Run lookup validates payload and trusted sender before reading occupancy', async () => {
+  vi.resetAllMocks(); mocks.handlers.clear()
+  const canvasOpenRuns = vi.fn(() => [{ runId: 'original', jobId: 'job' }])
+  registerTaskIpcHandlers(async () => ({}) as unknown as Runtime, async () => ({ canvasOpenRuns }) as never)
+  await expect(call('canvas-open-runs', sender(54), { projectId: 'p', nodeId: 'n' })).resolves.toEqual([{ runId: 'original', jobId: 'job' }])
+  expect(canvasOpenRuns).toHaveBeenCalledWith({ projectId: 'p', nodeId: 'n' })
+  await expect(call('canvas-open-runs', sender(54), { projectId: 'p' })).resolves.toEqual([{ runId: 'original', jobId: 'job' }])
+  expect(canvasOpenRuns).toHaveBeenLastCalledWith({ projectId: 'p' })
+  await expect(call('canvas-open-runs', sender(54), {})).rejects.toThrow('invalid')
+  mocks.guard.mockImplementation(() => { throw new Error('untrusted') })
+  await expect(call('canvas-open-runs', sender(54), { projectId: 'p', nodeId: 'n' })).rejects.toThrow('untrusted')
+  expect(canvasOpenRuns).toHaveBeenCalledTimes(2)
+})

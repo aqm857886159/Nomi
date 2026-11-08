@@ -337,7 +337,7 @@ const OFF_CANVAS_SCENARIOS = new Set(['document-typing', 'creation-ai-rewrite-re
  */
 const WORKING_ZOOM_SCENARIOS = new Set(['select-composer'])
 /** 工作台场景带进样本的数（主数 responseMs / mainRoundTripMaxMs，其余只看）。 */
-const WORKBENCH_SAMPLE_KEYS = ['idleDraws', 'idleSaveIPC30', 'idleSnapshotWrites', 'idleQueries', 'supplierQueries', 'idleSeconds', 'waiting', 'spinners', 'animations', 'responseMs', 'firstFeedbackMs', 'coldResponseMs', 'storeWrites', 'mainRoundTripMaxMs', 'mainRoundTripP95Ms', 'keyMaxMs', 'toCreation', 'toPreview', 'toGeneration', 'toList', 'toCanvas', 'generating', 'streamedCharsDuringPan', 'keys', 'paragraphs', 'created', 'playheadTravelPx', 'panMovedPx', 'openMs', 'drawMs', 'selectedChars', 'mediaRequests', 'remoteMediaRequests', 'mountedMedia', 'mountedCards', 'visibleCards', 'matchedCards', 'scrolledPx', 'hoverResponseMs', 'clickResponseMs', 'focusSettledMs']
+const WORKBENCH_SAMPLE_KEYS = ['idleDraws', 'idleSaveIPC30', 'idleSnapshotWrites', 'idleQueries', 'supplierQueries', 'idleSeconds', 'waiting', 'spinners', 'animations', 'responseMs', 'firstFeedbackMs', 'coldResponseMs', 'storeWrites', 'mainRoundTripMaxMs', 'mainRoundTripP95Ms', 'keyMaxMs', 'toCreation', 'toPreview', 'toGeneration', 'toList', 'toCanvas', 'generating', 'streamedCharsDuringPan', 'keys', 'paragraphs', 'created', 'playheadTravelPx', 'panMovedPx', 'openMs', 'drawMs', 'selectedChars', 'mediaRequests', 'remoteMediaRequests', 'mountedMedia', 'mountedCards', 'visibleCards', 'matchedCards', 'queueSettled', 'listCards', 'scrolledPx', 'hoverResponseMs', 'clickResponseMs', 'focusSettledMs']
 /** 场景结果里带进样本的数：工作台场景的 + 远看密集的缺块率（farDense.mjs）。 */
 const SCENARIO_SAMPLE_KEYS = [...WORKBENCH_SAMPLE_KEYS, ...FAR_DENSE_SAMPLE_KEYS]
 

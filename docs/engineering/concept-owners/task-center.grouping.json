@@ -18,6 +18,10 @@
     {
       "path": "src/workbench/taskCenter/taskCenterEntries.ts",
       "symbol": "summarizeTaskCenterRows"
+    },
+    {
+      "path": "src/workbench/taskCenter/taskCenterEntries.ts",
+      "symbol": "buildTaskCenterView"
     }
   ],
   "forbidden_derivations": [],
@@ -31,5 +35,5 @@
     "src/workbench/taskCenter/TaskCenterButton.tsx"
   ],
   "since": "2026-09-25",
-  "notes": "一个任务落在「进行中 / 等你处理 / 排队中 / 已完成」哪一组。每种任务只有一个映射投进来（生成：taskCenterEntries.generationRowState；制作：productionRunView 的 STATUS_GROUP 与各分支的 group；导出：buildExportJobTaskRows）；汇总与排序只有 summarizeTaskCenterRows / orderTaskCenterRows。分组名只有 taskCenter.groups.* 一套，区段标题和制作卡状态签共用。组件里再按状态自己分组 = 第二个 owner。"
+  "notes": "一个任务落在「进行中 / 等你处理 / 排队中 / 已完成」哪一组。每种任务只有一个映射投进来（生成：taskCenterEntries.generationRowState；制作：productionRunView 的 STATUS_GROUP 与各分支的 group；导出：buildExportJobTaskRows）；汇总与排序只有 summarizeTaskCenterRows / orderTaskCenterRows。分组名只有 taskCenter.groups.* 一套，区段标题和制作卡状态签共用。组件里再按状态自己分组 = 第二个 owner。 合同 docs/fixes/2026-11-02-generation-lock-exit.root-cause.json：历史行重试和顶部重试集合都读共享判据，结果不明只留人工出口。"
 }
