@@ -52,7 +52,7 @@
 
 ### ★1b 连带界面
 
-- Agent 面板失败行（`tool_retry_stopped` 那句）：旧文案「同一处连着填错了 3 次，这一轮不再重试，它会直接问你。」/「It got the same field wrong 3 times … will ask you instead.」是错的（这一轮已经没有下一次请求，它不会再问你）。改为：zh「同一步连着失败 3 次后它还在重试，这一轮先停在这里，这一步没有执行。你回一句话，它就能接着做。」；en「It kept retrying a step that had failed 3 times in a row, so this turn stopped here and the step did not run. Reply and it can carry on.」。只改词条文字，不改布局；截图未验证（见 ★9）。
+- Agent 面板失败行（`tool_retry_stopped` 那句）：旧文案「同一处连着填错了 3 次，这一轮不再重试，它会直接问你。」/「It got the same field wrong 3 times … will ask you instead.」是错的（这一轮已经没有下一次请求，它不会再问你）。改为：zh「同一步连着失败 3 次后它还在重试，这一轮先停在这里，这一步没有执行。你回一句话，它就能接着做。」；en「It kept retrying a step that had failed 3 times in a row, so this turn stopped here and the step did not run. Reply and it can carry on.」。只改词条文字，不改布局；截图见 ★9。
 - 模型读的正文：第 3 次失败那句改成数「自上次成功以来连败几次」并说清再发的后果；停点那句不再承诺「现在总结」。
 - 运行状态：这一轮结束后面板不再显示在跑；已成功的工具结果都在。
 
@@ -133,7 +133,7 @@
 | 用户再说一句话 | 清零，工具照常执行 | 同文件；`lane-resilience`「streak is cleared」 |
 | 已知代价：每次错一个不同字段、第 4 次才对 | 第 4 次被停（钉住代价） | 同文件「已知代价」；「三处错分属三层」钉住直接原因 |
 | **真模型：参数评测三道「第 4 次才写对」的题** | 修后在 3 次以内写对；写不对说明拒收正文还不够清楚，算到根因修复账上，**不放宽止损**；这三题 3 次内写对之前本改动不合并 | 协调跑参数评测走查 `--only` 这三题（报告里给命令）；本线 `unverified` |
-| 面板文案截图 zh / en | 新句子显示正确 | `unverified`（本线不起 Electron） |
+| 面板文案截图 zh / en | 新句子显示正确 | `docs/evidence/2026-11-09-agent-turn-budget/zh-tool-retry-stopped.png`、`en-tool-retry-stopped.png` |
 
 旧 oracle 改了的原因：修前测试钉的「10 个错误 11 次请求」「上限 5 也 11 次」和 `it.fails` 描述的是 bug（无尽空转），新数字描述的是合同（有限纠正机会之后明确停下）。
 
@@ -160,3 +160,5 @@
 实现 HEAD `6ee0469cdfb2f1b2df9eac3a7c0d3351817fa2f3`：类型检查 5 份全过；点名 5 文件 97/97；整个 lane 相关 vitest 290 条通过、1 条跳过；agent-runtime 513/513。均为本轮实际运行结果。
 
 原参数失败走查：中英轨均通过，3 次拒收后收尾，本机文字夹具请求 4 次、媒体请求 0；收据 `docs/evidence/2026-11-09-agent-turn-budget/boundary-summary.json`。
+
+停止行最小复现：夹具无视第三次失败提示再发一次；4 次调用后结束、没有第 5 次模型请求、0 节点、0 媒体请求；zh/en 两张真实 App 截图见 `docs/evidence/2026-11-09-agent-turn-budget/`。
