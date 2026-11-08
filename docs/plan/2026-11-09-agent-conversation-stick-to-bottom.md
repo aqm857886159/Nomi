@@ -14,6 +14,10 @@
 
 ## 协调已定（事后报用户）
 
+2026-11-09 收尾授权：本 PR 仅交对话跟随和回到最新按钮；发送即回显拆到计划 D3-11，热点读侧先由独立线复盘再交用户拍板，不改 `useAgentPanelV4Data.ts`。发送时恢复滚动跟随仍在本 PR；输入到气泡上屏的性能欠账单独跟踪，不以新增回显状态补它。
+
+协调授权本线在安静窗口为新增 chat 场景量本分支 5 次、写基线并去掉 pending，超预算登记 D3-11 欠账，预算不变；main 只作修前对照，不移用数字。画布流式平移保留既有 Windows 基线，本分支实测与 main 对比≤20%，跨机器判定单列限制。逃逸账本保持 candidate，真实 PR 编号取得后由协调结账。
+
 1. 切换对话总落到底；收起 / 展开仍按 09-01 §11.2 还原到原位。
 2. 人正往上翻着时发送：回到底。
 3. 加「回到最新」按钮（单元素档：生产组件搭、清单、zh/en × 亮暗截图交协调，用户看过才合）。
@@ -160,7 +164,7 @@
 1. 新增 / 改动的用户操作：按回车发送（到自己那句看得见）；流式时跟随；往上翻；点「回到最新」；长对话里滚动。
 2. 最坏规模：当前对话 1000 条历史（发送）；500 条混合消息（Markdown 标题、列表、代码块）全部加载后滚动；CPU 降速 4 倍。
 3. 预算：发送到看见 p50 ≤100ms、p95 ≤150ms；滚动帧间隔 p95 ≤16.7ms、>50ms 长任务 0 个；流式平移画布不比 main 差（`canvas-pan-while-agent-streaming` 预算 33ms）。
-4. 场景（`tests/perf/scenarios/`，量具 `tests/perf/canvas-scale-bench.mjs` 的工作台场景，旧版对话走产品自己的迁移进当前对话）：`chat-send-visible`（100 条）、`chat-send-visible-10`、`chat-send-visible-1000`、`chat-scroll-500`、`chat-scroll-500-cpu4x`；新登记为待测，main 与修后数字见 PR 正文，基线由协调写。
+4. 场景（`tests/perf/scenarios/`，量具 `tests/perf/canvas-scale-bench.mjs` 的工作台场景，旧版对话走产品自己的迁移进当前对话）：`chat-send-visible`（100 条）、`chat-send-visible-10`、`chat-send-visible-1000`、`chat-scroll-500`、`chat-scroll-500-cpu4x`；按本页收尾授权由本线量本分支并写基线，main 与修后数字见 PR 正文。
 
 ## 8 真实条件
 
@@ -190,7 +194,7 @@
 6. 点「回到最新」：≤24px，之后 600ms 仍 ≤70px（接着跟）；按钮消失。
 7. 往上翻 1500px 发送：自己那句出现时、回答落地时都 ≤24px。
 8. 「加载更早」：翻到顶加载一页旧消息，读的那一行不跳（现有单测 + 500 条场景里一页页加载）。
-9. 发送到看见：`chat-send-visible*` 三档 p50 ≤100ms（超了记下，第 4 步才做回显）。
+9. 发送到看见：`chat-send-visible*` 三档保留 p50≤100ms 预算，按收尾授权将存量超预算登记 D3-11 欠账，本 PR 相对 main 不差>20%；发送即回显不在本 PR。
 10. `canvas-pan-while-agent-streaming` 修后不比 main 差（中位数差 ≤20%）。
 11. 删干净：`git grep -n "atBottomRef\|residentTranscriptScroll\|flowScrollMemoryFor" -- src` 为空；`self-written.json` 里不再指向死文件（改成 `resident/*Scroll*` 的拦）；`pnpm run check:framework-boundary` 绿。
 

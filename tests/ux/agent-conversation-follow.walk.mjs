@@ -147,6 +147,7 @@ try {
     await switchThread(locale, 'CF-B-')
     const toB = await landing()
     record(label, 'switch-A-to-B-lands-at-bottom', landedAtBottom(toB), toB)
+    await shot(`${label}-switch-to-B`)
     // 离开 B 时人正翻在半路：切回 A 仍要落到底（不把 B 的「我在读」带过去）。
     await wheel(-1200)
     const leftB = await geometry()
@@ -232,6 +233,7 @@ try {
       record(label, 'jump-latest-returns-to-bottom-and-keeps-following', afterJump.gap <= AT_BOTTOM_PX && stillFollowing.gap <= FOLLOW_SLACK_PX,
         { afterJump: afterJump.gap, after600ms: stillFollowing.gap })
       record(label, 'jump-latest-hides-after-click', !(await jumpVisible()), {})
+      await shot(`${label}-after-jump-to-latest`)
     } else {
       record(label, 'jump-latest-returns-to-bottom-and-keeps-following', false, { reason: '没有「回到最新」按钮' })
     }
