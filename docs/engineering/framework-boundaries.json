@@ -22,7 +22,8 @@
       "@xyflow/react",
       "ai",
       "@mantine/core",
-      "@anthropic-ai/sandbox-runtime"
+      "@anthropic-ai/sandbox-runtime",
+      "use-stick-to-bottom"
     ]
   },
   "advisory": {
@@ -1277,6 +1278,43 @@
               "id": "own-egress-proxy",
               "pattern": "socks5|mitm[-_]?ca",
               "why": "出网过滤是这个包用 SOCKS/HTTP 代理 + MITM CA 实现的；另起一个代理不但重复，两个代理还会互相打架，症状是网络时通时不通。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "use-stick-to-bottom",
+      "packages": [
+        "use-stick-to-bottom"
+      ],
+      "version": "1.1.6",
+      "fourColumnTable": "docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md",
+      "why": "Agent 对话流的「跟到底」：按内容高度跟、人往上翻就松开、离底不远重新贴上。自写的按条目数跟随在切换对话和流式长字时跟丢（2026-11-08 用户反馈），换成聊天界面通用的这一套。",
+      "referenceConformance": {
+        "doc": "docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md",
+        "upstreamVersion": "1.1.6",
+        "verifiedAt": "2026-11-09",
+        "layers": [
+          "转录渲染",
+          "观测与测试"
+        ],
+        "note": "对照 AI SDK Elements 的 Conversation（同一个库包成的聊天流组件）；只用 hook，滚动层和行容器是我们自己的 div。"
+      },
+      "capabilities": [
+        {
+          "id": "stick-to-bottom",
+          "provides": "useStickToBottom(): ResizeObserver 盯内容层高度，贴着底时内容长高就滚到底；滚轮向上 / 往上滚 / 选字时松开；离底 70px 内重新贴上；scrollToBottom() / stopScroll() / isAtBottom",
+          "evidence": "https://github.com/samdenty/use-stick-to-bottom/blob/main/src/useStickToBottom.ts; node_modules/use-stick-to-bottom/dist/useStickToBottom.js:41",
+          "scope": [
+            "src/workbench/ai/v4/",
+            "src/workbench/ai/resident/"
+          ],
+          "forbidden": [
+            {
+              "id": "hand-rolled-follow-bottom",
+              "pattern": "scrollTop\\s*=\\s*[A-Za-z_.?]*scrollHeight|scrollTo\\(\\{\\s*top:\\s*[A-Za-z_.?]*scrollHeight",
+              "why": "把 scrollTop 直接设成 scrollHeight 就是再写一份跟到底：它只在写的那一刻对，内容之后长高（流式吐字、图片晚到、卡片展开）就跟丢，也分不清人是不是正往上翻着读。要回到底调库的 scrollToBottom()。"
             }
           ]
         }

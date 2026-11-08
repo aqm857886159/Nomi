@@ -517,7 +517,7 @@
       "path": "src/workbench/ai/resident/",
       "reason": "常驻 Agent 的领域显示：提案、镜头参考、时间轴选择、工具文案、镜头校验反馈",
       "exclude": [
-        "src/workbench/ai/resident/residentTranscriptScroll*"
+        "src/workbench/ai/resident/*Scroll*"
       ]
     },
     {

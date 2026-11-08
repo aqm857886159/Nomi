@@ -11,7 +11,10 @@ import { CANVAS_PANEL, THINKING_LINE, TOOL_RECEIPT, ASSISTANT_MESSAGE, V4_FLOW,
 // while its overflowing text paints over every neighbouring message (the original bug).
 export async function flowOverlaps(flow) {
   return flow.evaluate((root) => {
-    const rows = [...root.children]
+    // 对话流 = 滚动层 > 行容器（跟到底量的是行容器的高度）；逐行比的是行容器的直接子节点。
+    const list = root.querySelector(':scope > [data-v4-flow-rows="true"]')
+    if (!list) throw new Error('对话流里找不到行容器 [data-v4-flow-rows]——结构改了，这条重叠检查要跟着改，否则只剩一行可比、永远是绿的')
+    const rows = [...list.children]
     const visible = (node) => node.checkVisibility({ checkVisibilityCSS: true })
     const boxes = rows.map((row) => {
       const rects = [row.getBoundingClientRect()]

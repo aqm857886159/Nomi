@@ -38,7 +38,7 @@
 |---|---|---|
 | [use-stick-to-bottom](https://github.com/samdenty/use-stick-to-bottom)（1.1.6，MIT，零依赖，源码 `src/useStickToBottom.ts`） | 内容外包一层，`ResizeObserver` 盯内容高度：贴着底时内容长高就滚到底；人往上滚（滚轮向上、拖滚动条往上、选中文字）立刻松开；离底 70px 内自己重新贴上；`scrollToBottom()` 显式回底；`isAtBottom` 给「回到最新」按钮用 | **改了**：不再修自写的「按条目数跟随」，换成按内容高度跟；**确认了**：发送时显式调 `scrollToBottom()`，不靠状态去猜 |
 | [AI SDK Elements · Conversation](https://elements.ai-sdk.dev/components/conversation) | 聊天流组件直接包 `StickToBottom`，自带「不在底部时出现」的回到底部按钮 | **确认了**：「回到最新」只在不在底部时出现，点了回到底并继续跟；我们只要库的 hook，按钮用自己的 `IconButton` |
-| 方向报告（协调交接区）里核对过的开源聊天实现：按话题持久化滚动位置的那一家（`useTopicScrollPersist`，538 行） | 每个话题记锚点 id + 偏移，回来时等列表高度静止 150ms、最多 1000ms 再跳 | **改了**：切换对话不还原到半路，一律落到底（用户原话要的是「到最下面」，还原半路要 500 多行且异步到达会抖）；按线程 16 条的滚动记忆删掉，只留收起 / 展开那一份 |
+| 方向报告（协调交接区）里核对过的开源聊天实现：按话题持久化滚动位置的那一家（`useTopicScrollPersist`，538 行） | 每个话题记锚点 id + 偏移，回来时等列表高度静止 150ms、最多 1000ms 再跳 | **改了**：切换对话不还原到半路，一律落到底（用户原话要的是「到最下面」，还原半路要 500 多行且异步到达会抖）；按线程 16 条的滚动记忆整个删掉（收起不卸载面板，位置由面板自己在收起那一刻记下） |
 | `docs/plan/2026-09-27-agent-panel-long-conversation-freeze.md`（09-27 长对话卡死的治理） | 用 memo 和缓存让流式更新只重画变了的行 | **确认了**：这一轮不做虚拟化，先用 500 条量具看帧时，不达标先试 `content-visibility` |
 | [MDN · ResizeObserver](https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver) | 元素尺寸变化时回调，按帧合并 | **确认了**：库的观察点是内容层，需要在滚动容器里多包一层内容 `div`（不改卡片本身） |
 
@@ -59,7 +59,7 @@
 
 不做什么：不还原「每条对话上次读到哪」（切换一律到底）；不做虚拟化；不做发送即回显（第 1 步量出 p50 > 100ms 才做）；不改起草卡、批准卡、指向元素这些我们自己的卡。
 
-已知坑：收起是把面板 DOM 挪进一个隐藏容器（不卸载），隐藏时内容高度变 0，库会以为「变矮了、重新贴底」——展开时要按收起前存下的位置还原；「加载更早」把旧消息插在上面，人此刻没贴底，锚点照旧写滚动位置，贴着底时不写（库自己管）。
+已知坑：收起是把面板 DOM 挪进一个隐藏容器（不卸载；`ShellAgentHost` 的 reverse portal），隐藏时内容高度变 0，库会以为「变矮了、重新贴底」，浏览器也把滚动位置清零——展开时要按收起前那一刻的位置还原（main 上那份按线程的记忆只在切线程时才触发，收起展开根本没用上它）；「加载更早」把旧消息插在上面，人此刻没贴底，锚点照旧写滚动位置，贴着底时不写（库自己管）。
 
 真实任务（假模型、隔离资料，免费）：
 - A、B 两条各 5 轮长回答的对话，A→B→A 来回切，离开 B 时翻在半路。
@@ -85,18 +85,38 @@
 ## ★2 谁说了算
 
 - 「对话流此刻贴不贴底、滚动到哪」→ 唯一 owner：`use-stick-to-bottom` 的 hook（在 `AgentPanelV4Panel` 里调用一次）。只有它写滚动位置，例外两处，都在同一个组件里：「加载更早」的锚点（人没贴底时才写）、收起 / 展开还原（展开那一刻写一次）。
-- 收起 / 展开那一份位置：`agentPanelV4ScrollMemory.ts` 收成按面一份（不再按线程）；由 `ProjectAgentResidentShell` 传入，只有对话流读写。
+- 收起 / 展开那一份位置：面板自己记。收起成小球、换停靠 / 浮窗都只是把同一棵面板的 DOM 挪地方（不卸载），所以位置不用活在面板外面；面板给滚动容器挂一个 `ResizeObserver`，高度变 0 那一刻冻住「最后一次滚到哪、在不在跟着底」，回来时照它还原。`agentPanelV4ScrollMemory.ts`（按线程 16 条）整个删掉。同一个观察点也管「对话流这块变矮」（输入框长高、介入槽冒出来）：跟着底的人照样看得见最后一行。
 - 同一份事实存几份：1（库的状态）。原来的 `atBottomRef` 和按条目数跟随的 effect 删掉。
-- 意图走显式事件：发送 = composer 的 `onSubmit` 包一层调 `scrollToBottom()`；切换对话 = 线程 id 变化时调 `scrollToBottom('instant')`；不靠「条目数变了」猜。
-- 门表：`node scripts/door-map.mjs AgentPanelV4Panel`、`node scripts/door-map.mjs flowScrollMemoryFor`（入口：`ProjectAgentResidentShell` 一处）。
+- 意图走显式事件：发送 = composer 的 `onSubmit` 包一层调 `scrollToBottom()`；切换对话 = 宿主给的 `conversationKey`（项目 + 面 + 线程）变化时调 `scrollToBottom('instant')`；不靠「条目数变了」猜。
+- 门表：`node scripts/door-map.mjs AgentPanelV4Panel`、`node scripts/door-map.mjs flowScrollMemoryFor`（入口：`ProjectAgentResidentShell` 一处，随模块一起删）。
 
 ## ★3 一致与复用
 
 - 以前定过什么：09-01 §11.2「收起 / 展开回到原处」（还算数，保留）；09-27 长对话卡死治理（memo + 缓存，还算数，不动）；`residentTranscriptScroll.ts` 是更早一版常驻面板的贴底判断，现在没人调用（`self-written.json` 里登记成排除项），死代码。
 - 三条路：沿原方向修（再补「高度变了也跟」「切线程清记忆」两刀，第三处补丁，自写跟随会继续长）／换做法（接 `use-stick-to-bottom`，聊天界面通用做法，按内容高度跟、人往上滚就松开）／删掉（不自动跟，人自己滚——用户原话就是不要这个）。选换做法：用户 11-09 原话要「找一个牛逼的方案直接挪过来」，方向报告核对过这个库就是通用做法，且能和我们的「加载更早」、收起还原相处。
-- 复用：库的 hook；按钮用现有 `IconButton`（`src/design/primitives`）+ 现有图标 + token；不新增全局 CSS、不新增 tsx 文件。
+- 复用：库的 hook；按钮用现有 `WorkbenchIconButton`（`src/design/actions.tsx`）+ 词典里已有的 `IconArrowDown` + token；不新增全局 CSS、不新增 tsx 文件。
 - 第二份定义：删掉自写贴底判断（`atBottomRef`、跟随 effect、`residentTranscriptScroll.ts`）后没有第二份。
-- 登记：新依赖进 `docs/engineering/framework-boundaries.json`；`self-written.json` 删掉 `residentTranscriptScroll*` 排除项。
+- 登记：新依赖进 `docs/engineering/framework-boundaries.json`（四列表和逐层对照见下一节；禁写规则：v4 面板与常驻目录里不许再出现「把 scrollTop 设成 scrollHeight」这种自写贴底）；`self-written.json` 的排除项从指向死文件的 `residentTranscriptScroll*` 改成 `resident/*Scroll*`（死文件删了，但「常驻目录里新写的滚动跟随是通用代码、要登记」这道拦还要在：`check-self-written` 的用例 `residentTranscriptScrollV2.ts` 照旧报）。
+
+### 四列表（use-stick-to-bottom 1.1.6，2026-11-09 读的发布包 `dist/useStickToBottom.js`）
+
+| 它提供 | 我们用了 | 我们另写了 | 我们拆散了 |
+|---|---|---|---|
+| `useStickToBottom()`：`scrollRef` / `contentRef` 两个回调 ref，`ResizeObserver` 盯内容层高度，贴着底时长高就滚到底 | 对话流滚动层 + 内层行容器（`AgentPanelV4Panel.tsx`），`initial` / `resize` 都是 `instant` | 无 | 无 |
+| 往上滚 / 滚轮向上 / 按着鼠标选字 → 松开跟随；离底 70px 内重新贴上 | 原样用 | 无 | 无 |
+| `scrollToBottom()` / `stopScroll()` / `isAtBottom` | 发送、切换对话、点「回到最新」调 `scrollToBottom('instant')`；按钮读 `isAtBottom` | 收起 / 换挂点还原（库没有「DOM 被挪走又挪回来」这件事）：滚动层的 `ResizeObserver` 里冻住位置、回来时 `stopScroll()` + 写回原位，或 `scrollToBottom()` | 无 |
+| `<StickToBottom>` 组件（包好的两层 div + context） | 没用 | 无 | 只用 hook：滚动层和行容器是我们自己的 div，卡片和面板结构不动 |
+| 弹簧动画 | 没用（`instant`） | 无 | 流式 12 字一帧时弹簧会和吐字抢帧 |
+| 「加载更早」 | 库不管 | 锚点钉位（原有，`asyncReadIdentity.test.ts` 守）；跟着底时不钉，交给库 | 无 |
+
+### 参考实现逐层对照
+
+参考实现：[AI SDK Elements · Conversation](https://elements.ai-sdk.dev/components/conversation)（包 `StickToBottom` 的聊天流组件）。只对照和这件事有关的两层。
+
+| 层 | 它怎么做 | 我们怎么做 | 判定 | 若没想到补在哪个阶段前 |
+|---|---|---|---|---|
+| 转录渲染 | `<Conversation>` = `StickToBottom`，内容放 `StickToBottom.Content`，`initial="smooth" resize="smooth"`；`ConversationScrollButton` 在不贴底时出现，点了 `scrollToBottom()` | 同一个库的 hook；`instant`；「回到最新」同样只在不贴底时出现 | 一致（动画有意不同：流式吐字快，弹簧会抢帧） | 不适用：已想到 |
+| 观测与测试 | 上游无端到端用例 | 走查 `agent-conversation-follow.walk.mjs`（切换、收起展开、流式、往上翻、按钮、发送）+ 5 个性能场景 + 分页钉位单测 | 一致，增加领域回归 | 不适用：已想到 |
 
 ## ★4 全状态
 
@@ -170,7 +190,7 @@
 8. 「加载更早」：翻到顶加载一页旧消息，读的那一行不跳（现有单测 + 500 条场景里一页页加载）。
 9. 发送到看见：`chat-send-visible*` 三档 p50 ≤100ms（超了记下，第 4 步才做回显）。
 10. `canvas-pan-while-agent-streaming` 修后不比 main 差（中位数差 ≤20%）。
-11. 删干净：`git grep -n "atBottomRef\|residentTranscriptScroll"` 为空；`self-written.json` 里没有它的排除项。
+11. 删干净：`git grep -n "atBottomRef\|residentTranscriptScroll\|flowScrollMemoryFor" -- src` 为空；`self-written.json` 里不再指向死文件（改成 `resident/*Scroll*` 的拦）；`pnpm run check:framework-boundary` 绿。
 
 反例（这一类会从哪些入口、形状、边界回来）：
 
