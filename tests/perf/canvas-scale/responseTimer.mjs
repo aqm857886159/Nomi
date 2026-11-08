@@ -150,6 +150,20 @@ const INSTALL_SOURCE = `(() => {
         && document.querySelectorAll('[data-rewrite-add]').length > 0
         && document.querySelectorAll('[data-rewrite-action]').length === 2
     },
+    // Agent 对话：带 marker 的那句用户气泡出现在对话流的可见区里（在 DOM 里但被滚在视口外不算「看见」）。
+    chatBubbleVisible({ flow, marker }) {
+      const container = document.querySelector(flow)
+      if (!container) return false
+      const bubbles = container.querySelectorAll('[data-v4-block="user"]')
+      for (let index = bubbles.length - 1; index >= 0; index -= 1) {
+        const bubble = bubbles[index]
+        if (!bubble.textContent.includes(marker)) continue
+        const box = bubble.getBoundingClientRect()
+        const view = container.getBoundingClientRect()
+        return box.height > 0 && box.bottom > view.top && box.top < view.bottom
+      }
+      return false
+    },
     // 切文稿：顶栏文稿切换钮写着目标标题，编辑器里是那份文稿的正文（marker 是正文里的标记句）。
     documentShown({ title, marker }) {
       const switcher = document.querySelector('[data-creation-document-switcher]')

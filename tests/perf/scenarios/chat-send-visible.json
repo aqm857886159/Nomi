@@ -1,0 +1,26 @@
+{
+  "id": "chat-send-visible",
+  "feature": "创作页 Agent 面板，当前对话已有 100 条历史（旧版对话迁进来）：输入框写好一句按回车，到自己那句气泡出现在对话流可见区再过两帧",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "E10",
+    "--scenarios",
+    "chat-send-visible",
+    "--warmup",
+    "1"
+  ],
+  "scale": "对话历史 100 条（用户 / 回答交替）；本机假模型立刻回一句",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 100,
+  "group": "⑫ Agent 对话",
+  "budgetStatus": "proposed",
+  "budgetBasis": "设计卡 docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md ★7：按回车到自己那句气泡出现在对话流可见区，仓库默认「操作到可见反馈 ≤100ms，p95 ≤150ms」（RAIL / Nielsen 100ms 即时感）；超了才做发送即回显",
+  "measurement": {
+    "state": "pending",
+    "reason": "新登记：实现线已用 --measure-only 在 main 与修后各量 5 次（数字和原始结果见 PR 正文），基线待协调安静窗口写"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "chat-scroll-500-cpu4x",
+  "feature": "创作页 Agent 面板，当前对话 500 条历史（回答里混标题、列表、代码块）全部加载出来后，5 秒从顶匀速滚到底：帧间隔 p95 与长任务；被测窗口里 CPU 降速 4 倍（模拟弱机器）",
+  "script": "tests/perf/canvas-scale-bench.mjs",
+  "args": [
+    "--scales",
+    "E10",
+    "--scenarios",
+    "chat-scroll-500-cpu4x",
+    "--warmup",
+    "1"
+  ],
+  "scale": "对话历史 500 条，回答混 Markdown 标题 / 列表 / 代码块；CPU 降速 4 倍",
+  "metrics": [
+    "frameGapP95",
+    "longTasks"
+  ],
+  "budget": 16.7,
+  "group": "⑫ Agent 对话",
+  "budgetStatus": "proposed",
+  "budgetBasis": "设计卡 docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md ★7：5 秒从顶滚到底，帧间隔 p95 ≤16.7ms（60Hz 一帧）、>50ms 长任务 0 个；不达标先试 content-visibility，再考虑虚拟化（本轮不做虚拟化，先量）",
+  "measurement": {
+    "state": "pending",
+    "reason": "新登记：实现线已用 --measure-only 在 main 与修后各量 5 次（数字和原始结果见 PR 正文），基线待协调安静窗口写"
+  }
+}
