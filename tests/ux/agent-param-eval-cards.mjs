@@ -3,7 +3,7 @@
 // 题库只量「参数写没写对、重试几次」，不出片、不删东西，所以：
 //   · 提问卡    → 点第一颗选项（没有选项就打一句「你定就好」）。每张都答，量得到「答完之后还往下做吗」；
 //   · 报价卡    → 取消（× 再「拒绝」）。**绝不点确认**——点了就是真花钱；
-//   · 不可逆审批卡（delete_from_canvas） → 拒绝；
+//   · 删除 / 撤销审批卡 → 按本题显式声明；未声明拒绝并标记；
 //   · 应用级设置模态（模型调 start_model_setup 弹的） → 点关闭；
 //   · 画布的花钱确认框 / 分镜批量预览 → 取消。
 // 答过什么记进 `cardsAnswered`，judge 的「停在付费确认卡」靠它。
@@ -17,11 +17,19 @@ import { COMPOSER, COMPOSER_INPUT } from './agent-runtime-walk-support.mjs'
 /** 轮询间隔：每圈都重新观察卡 / 回合状态，这不是「操作完成」的信号。 */
 const POLL_MS = 1000
 
+/** 只接受题库对删除/撤销的声明，花钱和未知工具永远不自动批准。 */
+export function approvalDecision(task, toolName) {
+  const declared = task?.approvals?.[toolName]
+  const allowed = ['delete_from_canvas', 'undo'].includes(toolName)
+  return { decision: allowed && declared === 'approve' ? 'approve' : 'decline',
+    declared: allowed && ['approve', 'decline'].includes(declared) }
+}
+
 export function createCardDriver({ win, panel, outputDir }) {
   const card = (kind) => win.locator(`${panel} [data-v4-block="intervention"][data-kind="${kind}"]`)
   const questionCard = card('question')
   const spendCard = card('spend')
-  const irreversibleCard = card('approval-irreversible')
+  const approvalCard = win.locator(`${panel} [data-v4-block="intervention"][data-kind="approval-irreversible"], ${panel} [data-v4-block="intervention"][data-kind="approval-reversible"]`).first()
   const running = win.locator(`${panel} ${COMPOSER}[data-mode="running"]`)
   const tap = { timeout: stationTimeout({ operations: 1 }) }
   let blockedShotTaken = false
@@ -66,7 +74,7 @@ export function createCardDriver({ win, panel, outputDir }) {
    * 发出去之后一直答卡，直到这一回合的 composer 回到 idle。返回 { cardsAnswered, timedOut }。
    * 超时只是安全上限，不是完成条件；撞上了如实记 timedOut，这一题的轨迹照常读。
    */
-  async function driveTurn(label) {
+  async function driveTurn(label, { task, pendingTool = () => undefined } = {}) {
     const cardsAnswered = []
     await running.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).catch(() => {})
     const deadline = Date.now() + stationTimeout({ turns: 3 })
@@ -96,9 +104,12 @@ export function createCardDriver({ win, panel, outputDir }) {
         await win.waitForTimeout(POLL_MS)
         continue
       }
-      if (await irreversibleCard.count() > 0) {
-        await rejectIntervention(irreversibleCard)
-        cardsAnswered.push('approval-irreversible:declined')
+      if (await approvalCard.count() > 0) {
+        const tool = pendingTool() ?? 'unknown'
+        const policy = approvalDecision(task, tool)
+        if (policy.decision === 'approve') await approvalCard.locator('[data-v4-control="confirm"]').click(tap)
+        else await rejectIntervention(approvalCard)
+        cardsAnswered.push(`approval:${tool}:${policy.decision}:${policy.declared ? 'declared' : 'unspecified'}`)
         await win.waitForTimeout(POLL_MS)
         continue
       }

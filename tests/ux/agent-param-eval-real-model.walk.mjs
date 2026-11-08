@@ -186,14 +186,14 @@ try {
   const cards = createCardDriver({ win, panel: CANVAS_PANEL, outputDir })
 
   /** 在生成面板发一句话并答卡直到回合走完。 */
-  async function say(text, label) {
+  async function say(text, label, task, projectDir) {
     const blocked = await cards.ensureComposerUsable()
     if (blocked === -1) throw new Error('这一句发出前 composer 就不可用（连按 Esc 也没解除）——仪器故障，不是产品结论')
     const input = win.locator(`${CANVAS_PANEL} ${COMPOSER_INPUT}`)
     await input.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) })
     await input.fill(text)
     await win.locator(`${CANVAS_PANEL} ${COMPOSER_SEND}`).click({ timeout: stationTimeout({ operations: 2 }) })
-    const turn = await cards.driveTurn(label)
+    const turn = await cards.driveTurn(label, { task, pendingTool: () => readAlignedCalls(projectDir).findLast((call) => !call.hasResult)?.name })
     await win.waitForTimeout(POLL_MS)
     return turn
   }
@@ -233,7 +233,7 @@ try {
       }
       await pickModel()
       // ── 被测的那句话 ──
-      const turn = await say(task.say, task.id)
+      const turn = await say(task.say, task.id, task, projectDir)
       if (DRY_RUN) {
         const probe = readAlignedCalls(projectDir).find((call) => call.name === 'look_at_canvas' && call.hasResult && !call.isError)
         row.testStageEntered = Boolean(probe)

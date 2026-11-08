@@ -43,7 +43,7 @@
       "say": "用 Seedance 2.0 做一条 6 秒的视频，不要声音，720p，先别生成。",
       "expect": { "firstWrite": ["draft_shots", "list_models"], "noGenerate": true, "retryMax": 1,
         "plan": { "count": 1, "each": { "modelLike": "seedance", "params": [ { "kind": "duration", "value": 6, "honest": true }, { "kind": "audio", "value": false }, { "kind": "resolution", "value": "720p", "honest": true } ] } } } },
-    { "id": "P06", "lang": "en", "family": "single", "fixture": "empty", "catalogDependent": true,
+    { "id": "P06", "approvals": { "delete_from_canvas": "approve" }, "lang": "en", "family": "single", "fixture": "empty", "catalogDependent": true,
       "say": "Use the fast variant of the video model, no audio, 4k. Draft only.",
       "expect": { "firstWrite": ["draft_shots", "list_models"], "noGenerate": true, "retryMax": 2,
         "readback": { "variantLike": "fast", "params": [ { "kind": "audio", "value": false }, { "kind": "resolution", "value": "4k" } ] },
@@ -180,7 +180,7 @@
     { "id": "P38", "lang": "en", "family": "read_only", "fixture": "empty",
       "say": "Which aspect ratios can the default video model do? Don't make anything yet.",
       "expect": { "firstWrite": "none", "mustCall": ["list_models"], "retryMax": 0 } },
-    { "id": "P39", "lang": "en", "family": "edit", "fixture": "drafts1", "note": "撤销取自上一次写入的回执 changeId，不编造",
+    { "id": "P39", "approvals": { "undo": "approve", "delete_from_canvas": "approve" }, "lang": "en", "family": "edit", "fixture": "drafts1", "note": "撤销取自上一次写入的回执 changeId，不编造",
       "say": "Undo that last change.",
       "expect": { "firstWrite": ["undo", "look_at_canvas"], "mustCallAccepted": ["undo"], "retryMax": 1 } }
   ],
@@ -188,7 +188,7 @@
     { "idea": "换模型后参数跟随（把这个视频换成另一个模型、时长不变）", "why": "要求目录里至少有两个可互换的视频模型；题库跑在用户自己的目录上，目录里有几个模型跑前不可知，判不了「另一个」对不对。需要固定目录夹具（改产品代码或新增合成目录）后才能进库。" },
     { "idea": "按展示名选 APIMart 新模型（gpt-image-2 等）、按参考数量能力筛模型", "why": "同上，依赖目录里恰好有这些模型；先要「只读目录」量具（list_models 结果快照）再出题。" },
     { "idea": "改已有白模预演（两个角色靠近些、路人朝镜头走）", "why": "起始态要一份真预演；用 prelude 搭要先让模型过 stage_shot，失败率本身就是被测量，起始态不稳。" },
-    { "idea": "删除再重建（delete_from_canvas 后 draft_shots）", "why": "不可逆审批卡跑器永远拒绝，拒绝后该怎么收尾没有判对定义；需用户拍板「拒绝后期望行为」。" },
+    { "idea": "删除再重建（delete_from_canvas 后 draft_shots）", "why": "单独的删除重建题尚无逐项成功定义；已有题可显式声明 approvals，未声明的删除或撤销卡仍拒绝并记 unspecified。" },
     { "idea": "节点 id 与素材 id 混用（图片节点改用视频模型让它动起来）", "why": "起始态要一张带产物的图片节点，种它要改画布持久格式夹具；本线不改产品代码。" }
   ]
 }
