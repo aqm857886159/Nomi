@@ -49,7 +49,7 @@ export type CombineRoleSlot = { kind: ArchetypeReferenceSlotKind; role: string }
 
 /**
  * 合并槽：本模式的参考槽序列化进**同一个** body 键。`flat` = 纯 URL 数组，否则 `[{url, role}]`。
- * `roleSlots`：非 flat 时真正并进去的槽（声明顺序、带线上 role）；`combineSlotsInto.kinds` 声明了的，
+ * `roleSlots`：真正并进去的槽（声明顺序；扁平通道只消费位置，不发送 role）；`combineSlotsInto.kinds` 声明了的，
  * 只并这几种，其余槽留在自己的扁平键上。
  */
 export type ReferenceCombineChannel = { key: string; flat: boolean; roleSlots: readonly CombineRoleSlot[] } | null;
@@ -74,11 +74,21 @@ export function combineChannelForMode(
   const key = typeof declared?.key === "string" ? declared.key.trim() : "";
   if (!mode || !key) return null;
   const flat = declared?.flat === true;
-  const roleSlots = flat ? [] : (mode.slots ?? []).flatMap((slot) => {
+  const roleSlots = (mode.slots ?? []).flatMap((slot) => {
     const role = combineRoleForSlot(slot);
-    return role && slotJoinsCombine(mode, slot) ? [{ kind: slot.kind, role }] : [];
+    return slotJoinsCombine(mode, slot) ? [{ kind: slot.kind, role: role ?? "" }] : [];
   });
   return { key, flat, roleSlots };
+}
+
+/** Encode one channel in declared slot order, preserving the order of references within each slot. */
+export function lowerCombinedReferences(
+  channel: NonNullable<ReferenceCombineChannel>,
+  entries: ReadonlyArray<{ order: number; url: string }>,
+): string[] | Array<{ url: string; role: string }> {
+  const ordered = [...entries].sort((a, b) => a.order - b.order);
+  return channel.flat ? ordered.map(({ url }) => url)
+    : ordered.map(({ order, url }) => ({ url, role: channel.roleSlots[order]!.role }));
 }
 
 /**
@@ -90,7 +100,7 @@ export function combineRoleForContractReference(
   channel: ReferenceCombineChannel,
   reference: { kind?: string; role?: string },
 ): { role: string; order: number } | null {
-  if (!channel || channel.flat) return null;
+  if (!channel) return null;
   const kind: ArchetypeReferenceSlotKind = reference.kind === "video" ? "video_ref"
     : reference.kind === "audio" ? "audio_ref"
       : reference.role === "first_frame" ? "first_frame"

@@ -530,44 +530,29 @@ export function reachableModeSuggestion(
  * 本次携带的参考 URL，按族分组、保序去重（image 内首/尾帧排前，同 carriedReferences 口径）。
  * 真相源 = referenceInputParams(extras)——headless 路的 referenceImages/firstFrameUrl/… 都归一到它。
  */
-function carriedReferenceUrlsByFamily(extras: JsonRecord,
-  selected?: ParameterReferenceSelection): Record<ReferenceFamily, string[]> {
+function referenceUrlsByFamily(params: JsonRecord): Record<ReferenceFamily, string[]> {
   const out: Record<ReferenceFamily, string[]> = { image: [], video: [], audio: [] };
-  const walk = (key: string, value: unknown): void => {
+  const walk = (family: ReferenceFamily | null, value: unknown): void => {
     if (typeof value === "string") {
       const url = value.trim();
-      if (!url || !REF_URL_RE.test(url)) return;
-      const family = classifyReferenceKey(key);
-      if (family && !out[family].includes(url)) out[family].push(url);
-      return;
+      if (family && REF_URL_RE.test(url) && !out[family].includes(url)) out[family].push(url);
+    } else if (Array.isArray(value)) {
+      for (const item of value) walk(family, item);
+    } else if (isJsonRecord(value)) {
+      // The url inside a role object belongs to its declared carrier, just like a bare array item.
+      for (const [key, item] of Object.entries(value)) walk(classifyReferenceKey(key) ?? family, item);
     }
-    if (Array.isArray(value)) for (const item of value) walk(key, item);
-    else if (value && typeof value === "object") for (const [k, v] of Object.entries(value)) walk(k, v);
   };
-  const exactComfyContract = comfyReferenceContract(extras, selected);
-  if (!exactComfyContract) {
-    for (const [key, value] of Object.entries(referenceInputParams(extras, selected))) walk(key, value);
-  }
-  for (const reference of declaredComfyReferences(extras, selected)) {
-    if (!out[reference.family].includes(reference.url)) out[reference.family].push(reference.url);
-  }
+  walk(null, params);
   return out;
 }
 
-function archetypeReferenceUrlsByFamily(extras: JsonRecord): Record<ReferenceFamily, string[]> {
-  const out: Record<ReferenceFamily, string[]> = { image: [], video: [], audio: [] };
-  const walk = (key: string, value: unknown): void => {
-    if (typeof value === "string") {
-      const url = value.trim();
-      const family = classifyReferenceKey(key);
-      if (url && REF_URL_RE.test(url) && family && !out[family].includes(url)) out[family].push(url);
-      return;
-    }
-    if (Array.isArray(value)) for (const item of value) walk(key, item);
-    else if (value && typeof value === "object") for (const [nestedKey, nestedValue] of Object.entries(value)) walk(nestedKey, nestedValue);
-  };
-  if (isJsonRecord(extras.archetypeInput)) {
-    for (const [key, value] of Object.entries(extras.archetypeInput)) walk(key, value);
+function carriedReferenceUrlsByFamily(extras: JsonRecord,
+  selected?: ParameterReferenceSelection): Record<ReferenceFamily, string[]> {
+  const exactComfy = comfyReferenceContract(extras, selected);
+  const out = referenceUrlsByFamily(exactComfy ? {} : referenceInputParams(extras, selected));
+  for (const reference of declaredComfyReferences(extras, selected)) {
+    if (!out[reference.family].includes(reference.url)) out[reference.family].push(reference.url);
   }
   return out;
 }
@@ -623,7 +608,8 @@ export function projectReferencesOntoBodyKeys(
   const flatSource = { ...src };
   delete flatSource.archetypeInput;
   const flatByFamily = carriedReferenceUrlsByFamily(flatSource, selected);
-  const archetypeByFamily = archetypeReferenceUrlsByFamily(src);
+  const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
+  const archetypeByFamily = referenceUrlsByFamily(archetypeInput);
   if (byFamily.image.length === 0 && byFamily.video.length === 0 && byFamily.audio.length === 0) return {};
 
   const hasNonEmpty = (value: unknown): boolean =>
@@ -632,8 +618,6 @@ export function projectReferencesOntoBodyKeys(
       (Array.isArray(value) && value.length > 0) ||
       (typeof value !== "string" && !Array.isArray(value))
     );
-
-  const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
 
   // ── 帧意图优先 ────────────────────────────────────────────────────────────
   // 调用方写 `firstFrameUrl` 是明确表态「这张是首帧」，不是"一张随便的参考图"。

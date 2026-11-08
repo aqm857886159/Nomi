@@ -22,7 +22,7 @@ import {
   archetypeVariantForModelId,
   canonicalArchetypeVariantId,
   combineChannelForMode,
-  combineRoleForSlot,
+  lowerCombinedReferences,
   REFERENCE_ROLE_FOR_KIND,
   resolveArchetypeForModel,
   slotJoinsCombine,
@@ -751,27 +751,19 @@ export function buildArchetypeInputParams(
   // 必须在此构造层拼好整个数组——模板引擎丢得掉 undefined 键/元素，但丢不掉 {url:undefined} 对象（坑）。
   const combineChannel = combineChannelForMode(mode)
   if (combineChannel) {
-    const flat = combineChannel.flat
-    // 扁平模式（Veo 首尾帧）：有序 string[]，[0]=首 [1]=尾。非扁平（Seedance）：[{url,role}]。
-    const combinedFlat: string[] = []
-    const combinedRoles: Array<{ url: string; role: string }> = []
+    const entries: Array<{ order: number; url: string }> = []
+    let order = 0
     for (const slot of mode.slots) {
       if (!slotJoinsCombine(mode, slot)) continue
-      const role = combineRoleForSlot(slot)
       const inputKey = slotInputKey(slot)
       const value = out[inputKey]
-      const push = (url: string) => {
-        if (flat) combinedFlat.push(url)
-        else combinedRoles.push({ url, role: role as string })
+      for (const url of Array.isArray(value) ? value : [value]) {
+        if (typeof url === 'string') entries.push({ order, url })
       }
-      if (typeof value === 'string') push(value)
-      else if (Array.isArray(value))
-        value.forEach((item) => {
-          if (typeof item === 'string') push(item)
-        })
       delete out[inputKey]
+      order++
     }
-    const combined = flat ? combinedFlat : combinedRoles
+    const combined = lowerCombinedReferences(combineChannel, entries)
     if (combined.length) out[combineChannel.key] = combined
   }
   // 模式级固定 body 参数（generation_type 等不需用户选的常量），键不与槽/参数冲突。

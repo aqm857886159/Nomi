@@ -22,7 +22,10 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   requestRenderer: async (operation: string) => { throw new Error(`付费路径不该走带超时的桥: ${operation}`); },
 }));
 
-import { driveEngineB, installFetchCapture, seedParityCatalog, type FetchCapture } from "./generationParityTestUtils";
+import { createGenerationNode } from "../../src/workbench/generationCanvas/model/graphOps";
+import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
+import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
+import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog, type FetchCapture } from "./generationParityTestUtils";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 
 const REF_A = "https://assets.example.com/docs-align/a.png";
@@ -56,6 +59,68 @@ async function videoBody(modelId: string, modeId: string | undefined, refs: Arra
   if (!record.request) throw new Error(`没有出站报文: ${JSON.stringify(record.failure)}`);
   return record.request.body as Record<string, unknown>;
 }
+
+async function canvasBody(modelKey: string, archetypeId: string, modeId: string, urls: string[]) {
+  const node = createGenerationNode({ id: "parity-video", kind: "video", prompt: "人物转身" });
+  node.meta = { modelKey, modelVendor: "apimart", vendor: "apimart", archetype: { id: archetypeId, modeId }, referenceImageUrls: urls };
+  const request = buildCatalogTaskRequest(node, { references: resolveGenerationReferences(node, { nodes: [node], edges: [] }) }).request;
+  const record = await driveEngineA(capture, { vendorKey: "apimart", kind: request.kind, prompt: request.prompt, extras: request.extras ?? {} });
+  expect(record.request, JSON.stringify(record.failure)).toBeTruthy();
+  return record.request!.body as Record<string, unknown>;
+}
+
+describe("画布生成和 Agent 运行在实际出站边界遵守选中模式的参考槽", () => {
+  it.each([1, 8, 15, 16])("Vidu Q4 参考 %i 张，每张只发一次", async (count) => {
+    const urls = Array.from({ length: count }, (_, i) => `https://assets.example.com/q4/${i}.png`);
+    const expected = urls.slice(0, 15).map((url) => ({ url, role: "reference_image" }));
+    const canvas = await canvasBody("viduq4-preview", "viduq4-preview", "ref", urls);
+    expect(canvas.image_with_roles).toEqual(expected);
+    expect(canvas).not.toHaveProperty("image_urls");
+    expect(canvas).not.toHaveProperty("first_frame_image");
+    const run = videoBody("viduq4-preview", "ref", urls.map((url) => ({ url, role: "reference" })));
+    if (count > 15) {
+      await expect(run).rejects.toThrow(/15/);
+      expect(capture.calls).toHaveLength(0);
+    } else {
+      const body = await run;
+      expect(body.image_with_roles).toEqual(expected);
+      expect(body).not.toHaveProperty("image_urls");
+      expect(body).not.toHaveProperty("first_frame_image");
+    }
+  });
+
+  it.each([
+    ["doubao-seedance-2.0", "seedance-2-apimart"],
+    ["doubao-seedance-2.5", "seedance-2.5-apimart"],
+    ["wan3.0-video", "wan-3.0-apimart"],
+  ])("%s 的首尾帧各占一个角色，次序一致", async (model, archetype) => {
+    const refs = [{ url: REF_A, role: "first_frame" }, { url: REF_B, role: "last_frame" }] as const;
+    const canvas = await canvasBody(model, archetype, "firstlast", [REF_A, REF_B]);
+    const run = await videoBody(model, "firstlast", [...refs]);
+    for (const body of [canvas, run]) {
+      expect(body.image_with_roles).toEqual(refs);
+      expect(body).not.toHaveProperty("image_urls");
+    }
+  });
+
+  it("Veo 的扁平首尾槽按声明排序，Agent 合同的输入顺序可以相反", async () => {
+    const canvas = await canvasBody("veo3.1-fast", "veo-3.1", "frame", [REF_A, REF_B]);
+    const run = await videoBody("veo3.1-fast", "frame", [{ url: REF_B, role: "last_frame" }, { url: REF_A, role: "first_frame" }]);
+    for (const body of [canvas, run]) {
+      expect(body.image_urls).toEqual([REF_A, REF_B]);
+      expect(body).not.toHaveProperty("image_with_roles");
+    }
+  });
+
+  it("Wan 2.7 单张参考携带线上角色，两个入口均不回填首帧", async () => {
+    const canvas = await canvasBody("wan2.7", "wan-2.7", "ref", [REF_A]);
+    const run = await videoBody("wan2.7", "ref", [{ url: REF_A, role: "reference" }]);
+    for (const body of [canvas, run]) {
+      expect(body.image_with_roles).toEqual([{ url: REF_A, role: "reference_image" }]);
+      expect(body).not.toHaveProperty("image_urls");
+    }
+  });
+});
 
 describe("Vidu Q4 预览版参考生：1 张图也按参考，不在背后换成图生", () => {
   it("参考生 1 张 → image_with_roles 一条 role=reference_image，不发 image_urls / first_frame_image", async () => {

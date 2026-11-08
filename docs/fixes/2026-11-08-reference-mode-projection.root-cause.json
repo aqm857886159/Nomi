@@ -1,0 +1,151 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-08-reference-mode-projection",
+  "problem_type": "reference_mode_placement",
+  "symptom": "画布 Vidu Q4 的图同时出现在角色数组和扁平键；Agent 部分双帧被错误限为一张。",
+  "direct_cause": "对象里的 url 字段丢失了外层载体的媒体类型；参考上限取了相同 taskKind 的首个模式。",
+  "class_root": "主进程投影和容量边界没有保住上游明确的模式及已分配参考的身份。",
+  "affected_population": [
+    "使用角色参考图、首帧和尾帧的画布创作者，以及通过 Agent 或 Production Run 提交相同模式的创作者。"
+  ],
+  "scope_paths": [
+    "electron/catalog/taskParams.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/runtime.ts",
+    "electron/shared/modelArchetypes/referenceKeys.ts",
+    "electron/catalog/parameterReferenceContract.ts",
+    "electron/catalog/modelCatalogListing.ts",
+    "electron/shared/videoCapabilities/referenceChannels.ts",
+    "electron/capabilityCore/apimartGenerationProjection.ts",
+    "electron/shared/videoCapabilities/index.ts",
+    "electron/shared/modelArchetypes/index.ts",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts"
+  ],
+  "entry_points": [
+    "画布 runTask",
+    "Production Run / Agent projectionRequest"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/videos/vidu-q4-preview/generation.md",
+      "checked_at": "2026-11-08",
+      "purpose": "两个字段的张数合计不超过 15，验证角色通道和超量反例。"
+    }
+  ],
+  "invariants": [
+    "选择同一模式时，画布和运行入口只发送一份按模式角色排序的图。",
+    "无模式的旧请求与无档案中转仍可用。"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "applyHeadlessParamDefaults"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "applyHeadlessParamDefaults"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 2,
+    "why_not": "画布和制作运行分别拥有正常提交入口，但都把模型、选中模式与参考交给同一主进程判据。"
+  },
+  "generality_proof": "两条实际生成提交进入同一个有模式身份的容量与参考投影函数，适用于任何声明角色数组或多模式的模型。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "applyHeadlessParamDefaults",
+      "responsibility": "已声明参考不会作为缺省输入重新放入互斥键。"
+    },
+    {
+      "path": "electron/shared/modelArchetypes/referenceKeys.ts",
+      "symbol": "referenceKeyCapacityDeclarationFor",
+      "responsibility": "使用选中模式的容量。"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/referenceChannels.ts",
+      "symbol": "lowerCombinedReferences",
+      "responsibility": "两条入口按档案槽顺序和角色拼出唯一合并数组。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "entry_point": "projectionRequest",
+      "disposition": "enforced",
+      "evidence": "回归测试经此入口捕获发给供应商的最终请求。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "runTask",
+      "disposition": "enforced",
+      "evidence": "回归测试经此入口捕获发给供应商的最终请求。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一模板有两个以上参考通道的内置模型都会遇到。",
+    "same_class_scan": [
+      "Vidu Q4, Wan 2.7、3.0、Seedance 2.0 和 2.5 的真实档案。",
+      "scripts/door-map.mjs applyHeadlessParamDefaults：2 写门。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/taskParams.ts",
+    "invariant": "模式容量正确，已分配的参考在最终请求出现一次。",
+    "failure_mode": "本地拦下超量运行，零请求发出。",
+    "exception_policy": "none",
+    "strategy": "在任务模板之前根据所选模式的声明计算容量和已分配的 URL。",
+    "artifacts": [
+      "electron/catalog/taskParams.ts",
+      "electron/capabilityCore/apimartGenerationProvider.ts",
+      "electron/runtime.ts",
+      "electron/shared/modelArchetypes/referenceKeys.ts",
+      "electron/catalog/parameterReferenceContract.ts",
+      "electron/catalog/modelCatalogListing.ts",
+      "electron/shared/videoCapabilities/referenceChannels.ts",
+      "electron/capabilityCore/apimartGenerationProjection.ts",
+      "electron/shared/videoCapabilities/index.ts",
+      "electron/shared/modelArchetypes/index.ts",
+      "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/parity/apimartDocsAlignRunPath.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/parity/apimartDocsAlignRunPath.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/taskParams.ts",
+      "electron/capabilityCore/apimartGenerationProjection.ts",
+      "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts"
+    ],
+    "rationale": "删除无法保留对象载体所属媒体类型的重复遍历。；删除画布和 Run 各自组装角色数组的逻辑。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "选中模式、槽位和模板都在本地领域代码内。",
+    "exit_criteria": []
+  },
+  "migration": "无持久化变化；旧项目原有 modeId 直接消费，缺省仍按已支持的上下文解析。",
+  "residual_risks": [
+    "真窗与付费样本由协调核验。"
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-11-22",
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/taskParams.ts",
+    "tests": [
+      "electron/parity/apimartDocsAlignRunPath.test.ts"
+    ],
+    "why": "主进程合并请求与目录默认值，在提交之前统一检查模式与参考键。"
+  }
+}

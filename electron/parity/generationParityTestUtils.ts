@@ -10,6 +10,7 @@
  *              （Agent 付款卡、提交执行计划、`nomi_start_generation`、全自动 / 批量 Run）
  * 出站在 `globalThis.fetch` 这一层捕获——两台都经过它，所以捕获点对两边是同一个。
  */
+import { setSubmitOutboundDepsForTests } from "../vendor/vendorOutboundGuard";
 import type { CatalogState } from "../catalog/types";
 import { redactAuthorization, type OutboundRecord } from "./outboundRecord";
 
@@ -36,6 +37,12 @@ const DEFAULT_RESPONSE = () => ({
 /** 在 `globalThis.fetch` 上装一个记录器。所有出站（两台发动机、四条鉴权路）都从这里过。 */
 export function installFetchCapture(): FetchCapture {
   const original = globalThis.fetch;
+  // The transport is captured locally; a workstation proxy must not decide whether it is reached.
+  setSubmitOutboundDepsForTests({
+    resolve: async () => [{ address: "93.184.216.34", family: 4 }],
+    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
+    isApplicationProxyActive: () => false,
+  });
   const calls: CapturedCall[] = [];
   let responder = DEFAULT_RESPONSE as (call: CapturedCall) => { status: number; payload: unknown };
   const impl = async (input: unknown, init: RequestInit = {}): Promise<Response> => {

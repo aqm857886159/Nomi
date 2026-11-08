@@ -4,7 +4,7 @@ import type { ModelArchetype } from "./types";
 // Muse Image Ext（APIMart 官方页 docs.apimart.ai/en/api-reference/images/muse-image-ext/generation.md，2026-11-07 核）。
 // 单张 WebP，尺寸由模型定，清晰度档不可选（官方：不要发非空 resolution）；参考图最多 9 张，合计原始大小 ≤11 MiB。
 // 比例官方 7 档；**不选就不发**：文生图默认 1:1，带参考图时跟随参考图构图；官方明写不要发 "auto"。
-// 所以比例控件没有 auto 项也没有默认值，没选 = 请求里没有这个字段。
+// 界面默认「自动」；模板的 omitAuto 省略比例字段，供应商自己选构图。
 // 不声明：size（兼容别名）/ n（只能 1）/ language / webhook。
 
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));

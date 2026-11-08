@@ -49,8 +49,6 @@ const CASES: Case[] = [...APIMART_VIDEO_MODELS, ...APIMART_IMAGE_MODELS].flatMap
     .map((mode) => ({ modelKey: model.modelKey, archetypeId: archetype.id, mode }));
 });
 
-const KNOWN_RUN_PATH_CAPACITY_GAP = new Set(["doubao-seedance-2.5/firstlast", "wan3.0-video/firstlast", "wan3.0-video-prime/firstlast"]);
-
 let capture: FetchCapture;
 
 beforeAll(async () => {
@@ -102,19 +100,6 @@ describe("角色数组合并：画布路与 Run 路发出的 image_with_roles �
   });
 
   for (const item of CASES) {
-    const id = `${item.modelKey}/${item.mode.id}`;
-    // 已知、与角色无关的另一处缺口：Run 路的图片张数上限按模型取、不按模式，首尾帧两张图在投影之前就被
-    // 「最多收 1 张图片参考」拒掉（主线现状，计划 A4h 另派线修）。这几格钉住「现在被拒」这件事：那个缺口修好后这里会红，
-    // 届时把它们从名单里删掉、走下面的正常格。角色对齐用「只给首帧」那一格照样核。
-    if (KNOWN_RUN_PATH_CAPACITY_GAP.has(id)) {
-      it(`${item.modelKey} · ${item.mode.id}（只给首帧）`, async () => {
-        await expectSameRoles(item, { ...materialsFor(item.mode), lastFrameUrl: null });
-      });
-      it(`${item.modelKey} · ${item.mode.id}（首尾两张：已知被张数上限拒）`, async () => {
-        await expect(runPathBody(item, materialsFor(item.mode))).rejects.toThrow(/最多收 1\s*张图片参考/);
-      });
-      continue;
-    }
     it(`${item.modelKey} · ${item.mode.id}`, async () => {
       await expectSameRoles(item, materialsFor(item.mode));
     });
