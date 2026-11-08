@@ -47,3 +47,9 @@
 | `NOMI_SPEND_OK=0 node tests/ux/apimart-text-brains.rehearsal.walk.mjs` | 4 个文字样本、2 个读图样本逐项落回执。夹具的 404 和看不到图两种结果均按失败记录。中途续跑只发剩余 3 个样本，每条在各轮只请求一次。随后保留 GPT-6 Astra 可用，Agent 不指定模型的两笔请求依次到达 DeepSeek V4 Pro、停用 Pro 后的 V4 Flash。 |
 
 每次运行输出 `.tmp/pi-apimart-text-{list,brains}-rehearsal-development-<时间戳>/report.json`；同目录保留列表表格、行快照或 Agent 逐条回执。两场演练验证开发版走到本机对端的行为；历史供应商抽检结果见上表。
+
+### Design Lab 目录活性场景
+
+这对亮暗截图验「供应商清单里暂时没有它」的旁注、用户开关与删除。场景原先读全量生产声明，目录扩充后可用模型数从 5 变成 26，新增标签占了几行，缺失型号仍可见。改为用有生成出处的 v0.24.1 旧目录五个文本模型重放同一个缺失场景；实际新装和升级的全量目录继续由 `apimartLatestContracts.test.ts` 验证。
+
+`node tests/ux/design-lab-catalog-liveness.walk.mjs` 的明、暗两场都验证了缺失旁注、用户开关初值保留、手动关再开、展开「更多」以及删除该行。两格与同机 `d0155e8ac` 实拍逐像素相同。Mac 本机比仓库原 golden 仍有差异，两张 golden 均保留。

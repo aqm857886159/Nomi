@@ -1,6 +1,5 @@
 import React, { type JSX } from 'react'
-import { APIMART_TEXT_MODELS } from '../../../../../electron/catalog/apimartTexts'
-import { curatedCatalogLifecycle } from '../../../../../electron/catalog/seedModelIdentity'
+import demoCatalog from '../../../../../tests/fixtures/old-user-data/curated/v0.24.1-apimart/model-catalog.json'
 import { modelListReconciliation } from '../../../../../electron/catalog/modelListReconcile'
 import type { Model } from '../../../../../electron/catalog/types'
 import { getLocalizedKnownVendors } from '../../../../config/knownVendors'
@@ -16,8 +15,8 @@ function CatalogStage(): JSX.Element {
   const [closed, setClosed] = React.useState(false)
   const [models, setModels] = React.useState(() => {
     seedVendorHealthSnapshotForTests('apimart|https://api.apimart.ai', { vendorKey: 'apimart', state: 'reachable', checkedAt: 0 })
-    const rows: Model[] = APIMART_TEXT_MODELS.map((model) => ({ ...model, vendorKey: 'apimart', kind: 'text', enabled: true,
-      meta: { ...model.meta, catalogLifecycle: curatedCatalogLifecycle(model.modelKey) }, createdAt: '2026-09-08', updatedAt: '2026-09-08' }))
+    // 这两格验证旧目录里一个型号被上游撤下时的旁注、手动启用和删除。用同一份五行旧目录重放。
+    const rows = demoCatalog.models.filter(model => model.vendorKey === 'apimart' && model.kind === 'text') as Model[]
     const list = rows.filter((model) => model.modelKey !== 'deepseek-v4-flash').map((model) => model.modelKey)
     const patches = modelListReconciliation(rows, 'apimart', { ok: true, models: list, statuses: [200] })
     return rows.map((model) => ({ ...model, ...patches.find((patch) => patch.modelKey === model.modelKey) }))
