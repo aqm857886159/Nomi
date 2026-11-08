@@ -1,13 +1,13 @@
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { require as tsxRequire } from 'tsx/cjs/api'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage, currentCatalogVersion } from './_launchApp.mjs'
+import { encryptFixtureKey as encryptSyntheticKey, currentCatalogVersion } from './_launchApp.mjs'
 
 const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -104,19 +104,7 @@ export async function startFakeApimartServer({ pendingPolls = 0 } = {}) {
 }
 
 export function encryptFixtureKey(userDataDir) {
-  const script = path.join(repoRoot, 'tests/ux/_encryptFixtureKey.cjs')
-  const result = spawnSync(require('electron'), withLinuxSyntheticCredentialStorage(
-    withLinuxNoSandbox([script, FIXTURE_API_KEY]), true,
-  ), {
-    cwd: repoRoot,
-    env: {
-      ...process.env, NOMI_E2E: '1', NOMI_APP_NAME: 'Nomi', NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
-      NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1',
-    },
-    encoding: 'utf8',
-  })
-  if (result.status !== 0 || !result.stdout.trim()) throw new Error(`safeStorage fixture key failed: ${result.stderr || result.stdout}`)
-  return result.stdout.trim()
+  return encryptSyntheticKey({ rootDir: repoRoot, userDataDir, appName: 'Nomi', plaintext: FIXTURE_API_KEY })
 }
 
 export function writeFakeApimartCatalog(settingsDir, userDataDir, _origin = '', { withKey = true } = {}) {
