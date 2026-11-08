@@ -14,7 +14,7 @@ describe('按题意答审批卡', () => {
   it.each(['approve', 'decline', undefined])('真实 driver 分支按 %s 操作并记录声明状态', async (decision) => {
     const clicks = []
     let present = true
-    const absent = { first() { return this }, isVisible: async () => false, count: async () => 0, waitFor: async () => {} }
+    const absent = { filter() { return this }, first() { return this }, isVisible: async () => false, count: async () => 0, waitFor: async () => {} }
     const approval = {
       first() { return this }, count: async () => present ? 1 : 0,
       locator: (selector) => ({ isVisible: async () => true, click: async () => { clicks.push(selector); present = false } }),
