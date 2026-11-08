@@ -7,7 +7,7 @@ vi.mock("../../appFetch", () => ({ appFetch: vi.fn() }));
 vi.mock("./vendorHealth", () => ({ resolveVendorReadTarget: vi.fn() }));
 
 const target = {
-  baseUrl: "https://api.apimart.ai", providerKind: "openai" as const, headers: { Authorization: "Bearer fixture" },
+  baseUrl: "https://api.apimart.ai", providerKind: "openai-compatible" as const, headers: { Authorization: "Bearer fixture" },
   query: {}, fingerprint: "fixture",
 };
 let generation = 0;
