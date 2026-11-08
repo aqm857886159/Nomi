@@ -316,6 +316,20 @@ describe('节点落可找回：渲染层不再等这一笔，交给主进程观�
     expect(statusAtRelease).toBe('recoverable')
   })
 
+  it('放手的是这一次运行：确认再发后新那单排在最前，旧那单按自己的号报可找回，放手的是旧那单', async () => {
+    // 用户确认「再发一次」时旧那单还在轮询：新那单准入后成了 runs[0]，旧那单随后超时。
+    // 这里要是读 runs[0]，交给观察者的就是新那单，旧那单付了钱的图永远回不来。
+    const target = await session.open('project-a')
+    const store = useGenerationCanvasStore.getState()
+    const node = store.addNode({ kind: 'image' })
+    store.appendNodeRun(node.id, { id: 'run-old', status: 'running', projectId: 'project-a', taskId: 'task-old' })
+    store.appendNodeRun(node.id, { id: 'run-new', status: 'running', projectId: 'project-a', taskId: 'task-new' })
+    expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === node.id)?.runs?.[0]?.id).toBe('run-new')
+    await deliverRunOutcome(target, node.id, { kind: 'status', status: 'recoverable', error: 'timed out', runId: 'run-old' })
+    expect(released.mock.calls).toEqual([[{ projectId: 'project-a', runRecordId: 'run-old' }]])
+    expect(useGenerationCanvasStore.getState().nodes.find((item) => item.id === node.id)?.runs?.find((run) => run.id === 'run-new')?.status).toBe('running')
+  })
+
   it.each(['idle', 'running', 'error', 'success'] as const)('落成 %s 不放手', async (status) => {
     const target = await session.open('project-a')
     await deliverRunOutcome(target, nodeWithTwoRuns(), { kind: 'status', status, ...(status === 'error' ? { error: 'failed' } : {}) })

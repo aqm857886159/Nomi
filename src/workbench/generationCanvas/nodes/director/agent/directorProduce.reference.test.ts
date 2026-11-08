@@ -22,6 +22,7 @@ import type { DirectorWriteDomainResult } from './applyDirectorWrite'
 import { applyPreviewCaptured, previewCapturePlan, requestDirectorPreviewRender } from './directorPreviewCapture'
 import { prepareProduceFromPreview } from './directorProduce'
 import { previewAttachReconcileKey, startPreviewAttachReconciler } from './previewAttachReconciler'
+import { directorWriteSemanticInputSchema } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
 
 const PLAN = {
   scene: { environment: 'day', template: 'room', tags: ['书房'] },
@@ -47,7 +48,7 @@ const projectOf = (id: string): DirectorProject => normalizeDirectorProject(node
 
 async function stagedWith(meta: Record<string, unknown>) {
   const shot = generationCanvasTools.create_nodes([{ kind: 'video', title: '镜头 1', prompt: '书房对话', position: { x: 0, y: 0 }, meta }])[0]
-  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: { operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN } as unknown as Record<string, unknown> }])
+  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: directorWriteSemanticInputSchema.parse({ operation: 'create_director_plan', shotNodeId: shot.id, plan: PLAN }) as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error('stage failed')
   const result = outcome.results[0] as Extract<DirectorWriteDomainResult, { applied: true }>
   return { shotId: shot.id, directorNodeId: result.directorNodeId }

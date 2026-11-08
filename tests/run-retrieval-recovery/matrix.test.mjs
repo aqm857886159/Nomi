@@ -209,6 +209,8 @@ function createHost({ project, projectRoot, row }, crash, { forgetSubmitResult =
   const runs = createCanvasShotRuns({
     service, readProject: () => ({ id: project.id, ...identity, revision: 3 }), resolveProjectRoot: () => projectRoot, receipts, providers: () => providers, buildSubmission,
     previewBlock: async () => null, quote: () => ({ known: false }), observe: (submission, projectId, runId) => drivers.observeSingleShotRun(submission, projectId, runId),
+    // 摇渲染层在这里直接算接住（这份矩阵测的是渲染层自己的找回路）；收观察者那一笔的两半各有测试（canvasShotSettledBell.test.ts、shotResultOwnership.test.ts）。
+    notifySettled: async () => undefined,
   })
   const host = {
     repository, service, runs, drivers,
@@ -412,8 +414,10 @@ describe('任务号还在就只取回：矩阵', () => {
       const artifact = run.artifacts.find((value) => value.status === 'ready')
       expect(artifact?.projectRelativePath).toBeTruthy()
       expect(fs.existsSync(path.join(prepared.projectRoot, artifact.projectRelativePath))).toBe(true)
-      // 打开项目时会清掉已经收尾的标记：这个节点不再被这一笔锁着。
+      // 打开项目时会清掉已经收尾的标记：这个节点立刻不再被这一笔锁着；观察者收的那一笔要等渲染层接住铃才删盘上标记。
       host.runs.recoverOrphans(prepared.project.id)
+      expect(host.runs.canvasOpenRuns({ projectId: prepared.project.id })).toEqual([])
+      await new Promise((resolve) => setTimeout(resolve, 0))
       expect(openCanvasRuns(prepared.projectRoot)).toEqual([])
       expect(run.artifacts.filter((value) => value.status === 'ready')).toHaveLength(1)
     }

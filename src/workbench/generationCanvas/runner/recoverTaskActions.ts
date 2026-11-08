@@ -1,9 +1,10 @@
-import { fetchWorkbenchTaskResultByVendor, pollCanvasShotRun, type TaskResultDto } from '../../api/taskApi'
+import { fetchWorkbenchTaskResultByVendor, pollCanvasShotRun, releaseCanvasShotRun, type TaskResultDto } from '../../api/taskApi'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { persistActiveWorkbenchProjectNow } from '../../project/workbenchProjectSession'
 import type { ProjectExecutionContext } from '../../project/projectCanvasReadSurface'
-import type { GenerationNodeRunRecord } from '../model/generationCanvasTypes'
-import { deliverRunOutcome, isRunTargetLoaded as isTargetLoaded, type RunProjectTarget } from './runProjectDelivery'
+import type { GenerationCanvasNode, GenerationNodeRunRecord } from '../model/generationCanvasTypes'
+import { deliverRunOutcome, isRunTargetLoaded as isTargetLoaded, readRunGraph, type RunProjectTarget } from './runProjectDelivery'
+import type { CanvasShotSettledNotice } from '../../../../electron/shared/canvas/canvasShotSettled'
 import { localizeRemoteResultUrl } from './resultAssetLocalization'
 import { narrateProgress } from '../../observability/narrate'
 import { resolveGenerationReferences } from './generationReferenceResolver'
@@ -154,7 +155,15 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
     return
   }
 
-  if (!current) return
+  if (current) await landRetrievedResult(target, node, runId, current)
+}
+
+/**
+ * 查到终态的那一份结果落回它自己那一条运行记录（「重新取回」与观察者收尾后的摇铃共用这一段）：
+ * 出片规范化、落地进任务所属项目、按号投；失败按取回阶段码落可找回或失败。
+ */
+async function landRetrievedResult(target: RunProjectTarget, node: GenerationCanvasNode, runId: string | undefined, current: TaskResultDto): Promise<void> {
+  const id = node.id
   try {
     let mediaDimensions: MediaDimensions | undefined
     const onMediaDimensions = (dimensions: MediaDimensions) => { mediaDimensions = dimensions }
@@ -170,6 +179,23 @@ export async function recoverNodeResult(nodeId: string, project: ProjectExecutio
     const status = isRetrievalStageCode(matchNomiErrorCode(message)) ? 'recoverable' : 'error'
     await deliverRunOutcome(target, id, { kind: 'status', runId, status, error: message })
   }
+}
+
+/**
+ * 交给主进程观察者的那一笔收尾了（主进程摇 `canvas.run-settled`）：按这一次自己的运行记录号取回，进这一镜的同一本账——
+ * 原项目在前台写画布，不在前台写它的盘上副本；比它新的那次已成功就只进版本历史（nodeRunOutcome 判，这里不判）。
+ * 主进程照 Run 账本回话，不联网不花钱。这一条已经成功（渲染层自己等到过）或节点 / 记录已不在：什么都不做。
+ */
+export async function landObservedCanvasRun(notice: CanvasShotSettledNotice): Promise<void> {
+  const target: RunProjectTarget = { projectId: notice.projectId, immutableProjectUuid: notice.immutableProjectUuid, projectGeneration: notice.projectGeneration }
+  const node = (await readRunGraph(target))?.nodes.find((candidate) => candidate.id === notice.nodeId)
+  const record = node?.runs?.find((run) => run.id === notice.runRecordId)
+  if (!node || !record || record.status === 'success') return
+  const current = await pollCanvasShotRun({ projectId: target.projectId, runRecordId: record.id })
+  if (!current) return
+  // 又被放回查询了（不该发生：只在有结局时才摇）：交回观察者，它收尾时会再摇。
+  if (!isTerminalTaskStatus(current.status)) return releaseCanvasShotRun({ projectId: target.projectId, runRecordId: record.id })
+  await landRetrievedResult(target, node, record.id, current)
 }
 
 /**

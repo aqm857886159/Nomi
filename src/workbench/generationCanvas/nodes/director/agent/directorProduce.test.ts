@@ -20,6 +20,7 @@ import type { DirectorWriteDomainResult } from './applyDirectorWrite'
 import { CAMERA_MOVE_ATTACHED_URL_KEY } from './attachCameraMoveToTarget'
 import { applyPreviewCaptured, previewCapturePlan } from './directorPreviewCapture'
 import { prepareProduceFromPreview } from './directorProduce'
+import { directorWriteSemanticInputSchema } from '../../../../../../electron/shared/agentCapabilities/directorWrite'
 
 const PLAN = {
   scene: { environment: 'day', template: 'room', tags: ['书房'] },
@@ -43,7 +44,7 @@ async function staged(withShot: boolean) {
   const shot = withShot
     ? generationCanvasTools.create_nodes([{ kind: 'video', title: '镜头 1', prompt: '书房对话', position: { x: 0, y: 0 }, meta: { archetype: { id: 'seedance-2-apimart', modeId: 't2v' } } }])[0]
     : undefined
-  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: { operation: 'create_director_plan', ...(shot ? { shotNodeId: shot.id } : {}), plan: PLAN } as unknown as Record<string, unknown> }])
+  const outcome = await applyProposalBatch([{ toolCallId: 'c1', toolName: 'create_director_plan', effectiveArgs: directorWriteSemanticInputSchema.parse({ operation: 'create_director_plan', ...(shot ? { shotNodeId: shot.id } : {}), plan: PLAN }) as unknown as Record<string, unknown> }])
   if (outcome.status !== 'committed') throw new Error('stage failed')
   const result = outcome.results[0] as Extract<DirectorWriteDomainResult, { applied: true }>
   return { shotId: shot?.id, directorNodeId: result.directorNodeId, revision: result.revision }

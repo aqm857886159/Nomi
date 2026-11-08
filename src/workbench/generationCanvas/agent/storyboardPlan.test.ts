@@ -485,13 +485,20 @@ describe('W2 圣经字段（static/dynamic 落 meta + 卡片 prompt 分区）', 
     expect(hero).not.toHaveProperty('dynamicFeatures')
   })
 
-  it('buildAnchorSheetPrompt 有 static/dynamic 时用「身份特征/服装与状态」分区（身份先锁、可变层另起）', () => {
+  it('buildAnchorSheetPrompt 有 static/dynamic 时正文仍是 description（框里的字），不追加结构化行', () => {
     const p = buildAnchorSheetPrompt(BIBLE_PLAN.anchors[0])
-    expect(p).toContain('身份特征（跨镜保持一致）：鹅蛋脸、左眉一颗痣')
-    expect(p).toContain('服装与状态：红色校服 / 雨夜披深蓝雨衣')
+    expect(p).toContain('齐肩黑发，红色校服')
+    expect(p).not.toContain('鹅蛋脸')
+    expect(p).not.toContain('身份特征（跨镜保持一致）')
     // 仍是角色定妆卡骨架（多视图/身份锁没丢）。
     expect(p).toContain('Character reference sheet')
     expect(p).toContain('full-body front A-pose')
+  })
+
+  it('buildAnchorSheetPrompt description 为空的旧草稿：退回 static/dynamic 分区（与升级前逐字相同）', () => {
+    const p = buildAnchorSheetPrompt({ ...BIBLE_PLAN.anchors[0], description: '' })
+    expect(p).toContain('身份特征（跨镜保持一致）：鹅蛋脸、左眉一颗痣')
+    expect(p).toContain('服装与状态：红色校服 / 雨夜披深蓝雨衣')
   })
 
   it('buildAnchorSheetPrompt 无 static/dynamic 时退化到 description（旧行为不变）', () => {

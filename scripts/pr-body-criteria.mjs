@@ -1,5 +1,5 @@
 // PR 正文判据库（2026-10-08）：设计卡格子 / 独立验收 / 逃逸账本转 fixed 须带 detected_by 合同 / 规则生效宽限 / 整体裁决。
-// 推送前（scripts/check-pr-judgement.mjs，pre-push 钩子经 scripts/pre-push-contracts.mjs 调，CI Contracts 同一个入口）
+// 推送前（scripts/check-pr-judgement.mjs，pre-push 钩子经 scripts/pre-push-contracts.mjs 调；CI 里 Contracts 判推送档、「PR Body」检查判合并档，同一个入口）
 // 与合并前扫描（scripts/merge-preflight.mjs）都调这一份——#1094 的形状：设计卡不是 ★ 格式、detected_by 写错，
 // 推送时放行、合并时才红，是因为两边各有一套口径。判据只此一处，两边同标准。
 // 路由 / 规则与门岗范围仍在 scripts/pr-judgement-lib.mjs（本模块在它之上叠设计卡等判据，并给一个总入口 evaluatePrBody）。
@@ -76,11 +76,21 @@ export function implementationLine(body) {
 }
 
 /**
- * 判据跑在哪一步：'push'（推送前钩子）或 'merge'（CI 的 check:pr-judgement、合并前扫描）。
- * 独立验收的报告要等分支推上去、验收线跑完才有，推送时只能写「待出」——推送前只提醒，CI / 合并前照旧要链接。
- * CI 里一律按 'merge'：继承来的环境变量不能在那里放宽判据。
+ * 判据跑在哪一步：'push'（推送前钩子、Quality Gate 的 Contracts）或 'merge'（「PR Body」检查、合并前扫描）。
+ * 独立验收的报告要等分支推上去、验收线跑完才有，推送时只能写「待出」——推送档只提醒，合并档照旧要链接。
+ *
+ * 档位先认调用点写死的 `--stage=push|merge`（2026-11-07）：Contracts 写 `--stage=push`（只在推送时触发，正文改了它不知道，
+ * 判合并档就是第一次 CI 按构造必红），`.github/workflows/pr-body.yml` 写 `--stage=merge`（正文一改就重判）。
+ * 参数只给这一个进程，子进程不继承；写错的值报错，不猜。
+ * 没写参数时 CI 里一律按 'merge'（10-09）：继承来的环境变量不能在那里放宽判据。
  */
-export function resolveJudgementStage(env = process.env) {
+export function resolveJudgementStage(env = process.env, argv = []) {
+  const flags = argv.filter((arg) => String(arg).startsWith('--stage'))
+  if (flags.length > 0) {
+    const value = /^--stage=(push|merge)$/.exec(String(flags.at(-1)))?.[1]
+    if (!value) throw new Error(`判据档位参数写错了：${flags.at(-1)}（只认 --stage=push 或 --stage=merge）`)
+    return value
+  }
   if (env.CI) return 'merge'
   return env.NOMI_PR_JUDGEMENT_STAGE === 'push' ? 'push' : 'merge'
 }
@@ -127,7 +137,7 @@ export function checkIndependentAcceptance(body, { stage = 'merge', strict = fal
   let ok = true
   const report = ACCEPTANCE_LINK.exec(section)?.[0]?.trim() ?? null
   if (!report) {
-    if (stage === 'push') lines.push('⚠ 独立验收还没有报告链接：推送时允许（报告要推送后才有），CI 的 check:pr-judgement 与合并前扫描会一直红到补上链接')
+    if (stage === 'push') lines.push('⚠ 独立验收还没有报告链接：推送时允许（报告要推送后才有），「PR Body」检查与合并前扫描会一直红到补上链接（正文补上后它自动重判）')
     else {
       ok = false
       lines.push('✖ 独立验收没有带报告链接')
@@ -147,7 +157,7 @@ export function checkIndependentAcceptance(body, { stage = 'merge', strict = fal
   if (strict) {
     // 新增项：推送档只提醒，合并档判红
     const flag = (message) => {
-      if (stage === 'push') lines.push(`⚠ ${message}（推送时只提醒，CI / 合并前扫描要求）`)
+      if (stage === 'push') lines.push(`⚠ ${message}（推送档只提醒，「PR Body」检查与合并前扫描要求）`)
       else { ok = false; lines.push(`✖ ${message}`) }
     }
     const first = /(?:报告首行|报告第一行|结论原文)\s*[:：]\s*(.+)/.exec(section)?.[1]
@@ -409,7 +419,7 @@ export function checkEscapeContract(body, contracts, transitions = [], ledgerIds
       return { applicable: true, ok: true, lines: [`· 修订已结账的根因合同（${userFound.map((contract) => contract.file).join('、')}）：对应逃逸账本条目在 base 已是 fixed，不要求再转换`, ...hint] }
     }
     if (stage === 'push' && unsettled.every((contract) => contract.added && reviewed.includes(contract.file))) {
-      return { applicable: true, ok: true, lines: [`⚠ 新增用户根因合同已有 reviewed 账本、真实提交和类级检查（${unsettled.map((contract) => contract.file).join('、')}）：首次推送允许待结账；CI / 合并前仍要求 fixed 与真实 PR 号`, ...hint] }
+      return { applicable: true, ok: true, lines: [`⚠ 新增用户根因合同已有 reviewed 账本、真实提交和类级检查（${unsettled.map((contract) => contract.file).join('、')}）：推送档允许待结账；「PR Body」检查与合并前扫描仍要求 fixed 与真实 PR 号`, ...hint] }
     }
     return { applicable: true, ok: false, lines: [`✖ 根因合同声明 detected_by 为用户 / 发版后发现（${unsettled.map((contract) => contract.file).join('、')}），但本 PR 没有把对应的逃逸账本条目（tests/ux/full-walk/escapeLedger/）转成 fixed——用户发现的问题要进账本并带类级检查结账`] }
   }
@@ -450,7 +460,7 @@ export function checkDeferredPromises(body, { stage = 'merge', createdAt = null,
   return {
     ok: soft,
     lines: [
-      `${head} PR 正文里有没落实的承诺（「后续提交 / 等 … 合入后」这类），每一条要标「已完成 <提交号>」或「移交 <#PR / 待办编号 / docs 路径>」：${grandfathered ? '（规则生效前开的 PR，只警告）' : stage === 'push' ? '（推送时只警告，合并前扫描判红）' : ''}`,
+      `${head} PR 正文里有没落实的承诺（「后续提交 / 等 … 合入后」这类），每一条要标「已完成 <提交号>」或「移交 <#PR / 待办编号 / docs 路径>」：${grandfathered ? '（规则生效前开的 PR，只警告）' : stage === 'push' ? '（推送档只警告，「PR Body」检查与合并前扫描判红）' : ''}`,
       ...offending.map((line) => `    - ${line}`),
     ],
   }

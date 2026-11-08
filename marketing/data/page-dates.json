@@ -1,7 +1,7 @@
 {
   "/": {
-    "hash": "b38e7968f8d3b194",
-    "date": "2026-11-06"
+    "hash": "94efa6b1a433f339",
+    "date": "2026-11-07"
   },
   "/docs": {
     "hash": "f091bde3519cf124",
@@ -28,8 +28,8 @@
     "date": "2026-10-28"
   },
   "/en/": {
-    "hash": "5ccda3b29c1560b2",
-    "date": "2026-11-06"
+    "hash": "094fa45eabc2017f",
+    "date": "2026-11-07"
   },
   "/en/docs": {
     "hash": "abb1dd18e307eb86",
@@ -424,8 +424,8 @@
     "date": "2026-10-24"
   },
   "/en/skills/workbench-generation": {
-    "hash": "9f70f63b2c242ae6",
-    "date": "2026-10-24"
+    "hash": "d5eaf968f6fb79ba",
+    "date": "2026-11-07"
   },
   "/en/skills/workbench-storyboard-planner": {
     "hash": "861d8ce5d9fafccc",
@@ -844,8 +844,8 @@
     "date": "2026-10-24"
   },
   "/skills/workbench-generation": {
-    "hash": "d58a5bb575f33ce2",
-    "date": "2026-10-24"
+    "hash": "6e4dba2df6bafff6",
+    "date": "2026-11-07"
   },
   "/skills/workbench-storyboard-planner": {
     "hash": "c2fbeaff66902706",
