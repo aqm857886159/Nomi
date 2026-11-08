@@ -281,3 +281,60 @@ describe('反例：模型无视拦截，一直调同一个工具', () => {
     expect(capped.results.at(-1)!.text).toMatch(/reached its 5-model-request limit/)
   }, 60_000)
 })
+
+// ── 现状（2026-11-09 钉住，未修）：一回合到底发了几次模型请求 ──
+// 假模型脚本逐字回放写好的调用（每个调用一次请求，最后一句 done 再一次），所以「脚本走完」= 10 个调用 + 1 = 11 次请求。
+// 宿主的回合上限（`limits.maxModelRequests`）在 `before_request` 计数、只在 `before_tool` 判；凡是在那之前就有了结果的
+// 调用——pi 的形状校验、工具自己的准备步骤、入参边界上已经立起来的墙——都是 pi 的立即结果（写死 `terminate: false`），
+// 上限看不见，回合照样往下请求模型。下面每条的数字就是现状；修好那天这些数字会变，连同上面那条 `it.fails` 一起改。
+const LIMIT_SENTENCE = /model-request limit/
+
+describe('现状：宿主设上限 5 时，一回合的模型请求数（修前）', () => {
+  it('对照：全部执行成功时守得住，5 次；第 5 次请求里的调用被拦下、回合结束', async () => {
+    const { requests, results, drafted } = await runLane([Array(10).fill({ shots: [shot()] })], { maxModelRequests: 5 })
+    expect(requests).toBe(5)
+    expect(drafted).toBe(4)
+    expect(results.at(-1)!.text).toMatch(/reached its 5-model-request limit/)
+  }, 60_000)
+
+  it('同一个形状错 ×10：11 次，上限一次没说话（形状错是立即结果，到不了 before_tool）', async () => {
+    const { requests, results } = await runLane([Array(10).fill(WRONG_SHAPE)], { maxModelRequests: 5 })
+    expect(requests).toBe(11)
+    expect(results.some((result) => LIMIT_SENTENCE.test(result.text))).toBe(false)
+  }, 60_000)
+
+  it('准入错 ×3 后墙立起来：之后形状对的调用也绕过上限，11 次', async () => {
+    const { requests, results } = await runLane([Array(10).fill(WRONG_VALUE)], { maxModelRequests: 5 })
+    expect(requests).toBe(11)
+    // 前 3 次走过 before_tool（那时还没到 5），第 4 次起在入参边界被墙拦下——墙判在上限之前。
+    expect(results.slice(3).every((result) => result.text.startsWith(STOPPED_HEAD))).toBe(true)
+    expect(results.some((result) => LIMIT_SENTENCE.test(result.text))).toBe(false)
+  }, 60_000)
+
+  it('每次换一个错字段 ×10：熔断一次不跳、上限也不拦，11 次', async () => {
+    const distinct = 'abcdefghij'.split('').map((key) => ({ shots: [shot({ [`bogus_${key}`]: 1 })] }))
+    const { requests, results } = await runLane([distinct], { maxModelRequests: 5 })
+    expect(requests).toBe(11)
+    expect(results.some((result) => result.text.startsWith(STOPPED_HEAD) || LIMIT_SENTENCE.test(result.text))).toBe(false)
+  }, 60_000)
+})
+
+describe('现状：生产缺省（不设上限）', () => {
+  it('同错 3 次后模型无视「这一轮别再发」：之后每次都不执行，但回合不结束，脚本走完 11 次', async () => {
+    const { requests, results, drafted } = await runLane([[...Array(3).fill(WRONG_SHAPE), ...Array(7).fill({ shots: [shot()] })]])
+    expect(requests).toBe(11)
+    expect(results.slice(3).every((result) => result.text.startsWith(STOPPED_HEAD))).toBe(true)
+    expect(drafted).toBe(0)
+  }, 60_000)
+
+  it('反例：起草 → 改参数 → 再起草，每步都成功，不被拦（不设上限、上限 5 都一样）', async () => {
+    const steps = [{ shots: [shot()] }, { shots: [params({ duration: 6, resolution: '720p', generate_audio: false })] },
+      { shots: [shot({ title: '纸船 · 第二版' })] }]
+    for (const options of [{}, { maxModelRequests: 5 }]) {
+      const { requests, results, drafted } = await runLane([steps], options)
+      expect(drafted).toBe(3)
+      expect(requests).toBe(4)
+      expect(results.some((result) => result.isError)).toBe(false)
+    }
+  }, 60_000)
+})
