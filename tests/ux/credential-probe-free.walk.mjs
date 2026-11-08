@@ -61,8 +61,8 @@ try {
     capabilityDir: profile.capabilityDir,
     env: { NODE_ENV: 'production', NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: fixtureOrigin },
     args: ['--no-proxy-server', '--disable-gpu'],
-    // 这把 key 是合成的占位串，不是秘密；Linux CI 没有桌面钥匙串，显式选用隔离的
-    // 合成凭据存储（见 _launchApp.mjs 的 withLinuxSyntheticCredentialStorage）。
+    // 这把 key 是合成的占位串，不是秘密；显式选用隔离的合成凭据存储
+    // （按平台选后端，见 _launchApp.mjs 的 syntheticCredentialBackendArgs）。
     syntheticCredentialStorage: true,
     settleMs: 0,
   })
