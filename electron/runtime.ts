@@ -39,7 +39,7 @@ import {
 } from "./projects/repository";
 // 公共 API：main.ts 仍从 "./runtime" 消费这些 —— re-export 保持其 import 不变。
 export { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject };
-export { copyAssetFile, copyProjectAsset, importRemoteAsset, listProjectAssets, moveAssetFile, storeAssetBytes, writeAsset, writeGeneratedAsset } from "./assets/projectAssetStore";
+export { copyAssetFile, copyProjectAsset, importRemoteAsset, listProjectAssets, moveAssetFile, writeAsset, writeGeneratedAsset } from "./assets/projectAssetStore";
 // localizedTaskAssetFileName 已抽到 ./assets/localizedAsset（规则 9/12 减负 giant shell）；re-export 保持既有 import（含 runtime.assets.test）不变。
 export { localizedTaskAssetFileName };
 /**
@@ -63,6 +63,7 @@ import { resolveCustomCallExecution } from "./catalog/customCallMode";
 import { certifyTaskOutputAndSettleComfyCandidate, materializeCertifiedComfyAssets, resolveComfyCandidateExecution } from "./catalog/comfyuiCandidateLifecycle";
 import { TOKEN_ADMISSION, type TaskAdmission } from "./tasks/taskSpend"; // runTask 缺省走令牌路；画布单镜 Run 传 RUN_APPROVED_ADMISSION
 import { desktopT } from "./i18n";
+import { resultOnlyLandsAsProjectFile, usesSynchronousAudioRunner } from "./tasks/projectFileResult";
 export type {
   AiSdkProviderKind,
   BillingModelKind,
@@ -174,11 +175,6 @@ export { billingKindForTaskKind } from "./catalog/types";
 export function findTaskMapping(vendorKey: string, taskKind: ProfileKind, modelKey?: string, modeId?: string): Mapping | null {
   // 按 (vendor, taskKind, modelKey) 选——同 vendor 下两模型共用一个 taskKind 但请求形状不同时（如 HappyHorse 与 Kling 都 text_to_video），靠 modelKey 精确路由，不再「第一个赢、另一个套错模板」。
   return selectTaskMapping(readCatalog().mappings, vendorKey, taskKind, modelKey, modeId);
-}
-
-/** Audio with a query operation is an asynchronous generation task, not a synchronous TTS/STT response. */
-export function usesSynchronousAudioRunner(wantedKind: BillingModelKind, mapping?: Mapping | null): boolean {
-  return wantedKind === "audio" && !mapping?.query;
 }
 
 export { buildProfileHttpRequest };
@@ -293,7 +289,7 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   const effectiveVendorKey = vendor.key;
   const mapping = stagedCandidate?.mapping || findTaskMapping(effectiveVendorKey, kind, modelKey, modeId);
   // 这一次选中连接的完整身份：第一闸（缺参兜底 + 参考投影的容量拒发）与第三闸（imageEditGuardError）同一份。
-  const referenceSelection = modelReferenceSelection(effectiveVendorKey, model as Model, kind);
+  const referenceSelection = modelReferenceSelection(effectiveVendorKey, model as Model, kind, modeId);
   request.extras = applyHeadlessParamDefaults(assertNoReferenceResidueBeforeSend(request.extras, `${modelKey}/${modeId || "-"}`), referenceSelection, mapping?.create?.defaultParams, mapping?.create?.body);
   // A5：@ 内联参考在发出去之前投影成 @image1/@video1。判据与注释住 taskParams（引擎 A 只有这一个出口）。
   request.prompt = projectOutboundPrompt(request.prompt, request.extras);
@@ -303,12 +299,13 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   if (guardError) throw new Error(guardError);
   if (customCallScript)
     return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset, spendGate: admission.spendGate });
+  // 结果只能写成项目文件（同步配音 / 文件流视频）：没有项目号就在付费闸之前拒——不发请求、不扣令牌（projectFileResult）。
+  if (!projectId && resultOnlyLandsAsProjectFile(kind, mapping)) throw new Error(desktopT("tasks.resultNeedsProject"));
   if (usesSynchronousAudioRunner(wantedKind, mapping)) {
     await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
   }
   if (mapping) {
-    if (mapping.result?.mediaResponse && !projectId) throw new Error("Video file results require a project before generation can be submitted.");
     await validateProfileRequestBeforeSpend({ vendor, model, apiKey, request, operation: mapping.create });
     const uploadCatalog = readCatalog();
     if (!mapping.create.multipart && !mapping.create.process) {

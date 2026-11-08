@@ -207,6 +207,12 @@ export function secondsToMilliseconds(values: Array<string | undefined>): number
   return Math.round(seconds * 1000);
 }
 
+/** 选了「自动」（或空）= 这个字段不发，由供应商按素材 / 自身默认决定；其余原样。供官方明说「不要发 auto」的比例用。 */
+function omitAuto(values: Array<string | undefined>): string | undefined {
+  const value = (values[0] ?? "").trim();
+  return value === "" || value.toLowerCase() === "auto" ? undefined : value;
+}
+
 /** 命名转换注册表。新增一种转换在此登记，op 用其 id 引用。值转换可返回 string 或 number
  *  （number 用于严格类型的 wire 字段,如 AGNES Go 后端的 int width/height/num_frames）。 */
 export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>, taskKind?: string) => string | number | boolean | undefined> = {
@@ -215,6 +221,7 @@ export const PARAM_TRANSFORMS: Record<string, (values: Array<string | undefined>
   toLowerCase,
   toUpperCase,
   toString,
+  omitAuto,
   agnesVideoWidth,
   agnesVideoHeight,
   agnesVideoNumFrames,

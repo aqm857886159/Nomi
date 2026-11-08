@@ -74,6 +74,21 @@ describe("Nomi text brain resolver", () => {
     expect(resolver.selectTextModelCandidates(state).map((candidate) => candidate.model.modelKey)).toEqual(["chat-1", "chat-2", "vision", "preview"]);
   });
 
+  it("keeps each vendor's slots and plain-chat precedence while ranking its ordinary defaults", () => {
+    const state = catalog({ vendors: [freeVendor("custom"), freeVendor("ranked")], models: [
+      model("custom", "first"),
+      model("ranked", "new"),
+      model("custom", "second"),
+      model("ranked", "backup", { meta: { autoTextPriority: 1 } }),
+      model("ranked", "primary", { meta: { autoTextPriority: 2 } }),
+      model("ranked", "preview", { meta: { autoTextPriority: 3 } }),
+      model("ranked", "disabled", { enabled: false, meta: { autoTextPriority: 4 } }),
+    ] });
+    expect(resolver.selectTextModelCandidates(state).map(({ model }) => model.modelKey))
+      .toEqual(["first", "primary", "second", "backup", "new", "preview"]);
+    expect(resolver.selectTextModelCandidates(state, { modelKey: "new" })[0].model.modelKey).toBe("new");
+  });
+
   it("prioritizes image capability for rich input, but a user preference still wins", () => {
     const state = catalog({ vendors: [freeVendor("a")], models: [model("a", "plain", { meta: { supportsImageInput: false } }), model("a", "vision", { meta: { supportsImageInput: true } })] });
     expect(resolver.selectTextModelCandidates(state, undefined, true)[0].model.modelKey).toBe("vision");
