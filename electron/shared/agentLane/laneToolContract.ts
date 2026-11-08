@@ -40,6 +40,7 @@ export { verbMutates as laneToolMutates, verbBillable as laneToolBillable, appro
 import type { ModelFacingToolExample as LaneToolExample, ModelFacingToolSpec as LaneToolSpec } from "../agentCapabilities/modelFacingTools";
 import { issuesFromZod, publicToolInputIssues, renderToolInputIssue, zodIssuesOfError, type ToolInputIssue } from "./toolInputIssues";
 import type { LaneToolPublicFailure } from "./laneToolFailureEnvelope";
+import type { GenerationProblem } from "../generationProblem";
 
 /**
  * 「一个工具最多允许跑多久」的 lane 侧叫法与预算常量。**同一份定义的别名**，理由与数字
@@ -84,6 +85,8 @@ export interface LaneToolFailureShape {
    * 没有静默转发、没有兜底）。模型读到后自己改用它。
    */
   readonly useInstead?: string;
+  /** 生成起草期被拒的闭合原因（`generationProblem.ts`）。公开信封里原样带出去：它只有码和目录事实，没有收到的值。 */
+  readonly problem?: GenerationProblem;
 }
 
 /** 一个例子塞进拒收信的上限：再长就不是「照着改」，是又一份要读的说明书。 */
@@ -194,6 +197,7 @@ export function laneToolPublicFailure(failure: LaneToolFailureShape): LaneToolPu
     ...(failure.allowed ? { allowed: failure.allowed } : {}),
     ...(failure.issues ? { issues: publicToolInputIssues(failure.issues) } : {}),
     ...(failure.useInstead ? { useInstead: failure.useInstead } : {}),
+    ...(failure.problem ? { problem: failure.problem } : {}),
   };
 }
 
@@ -213,6 +217,7 @@ export function laneToolFailureToRpc(failure: LaneToolFailureShape): Readonly<Re
     ...(failure.allowed ? { allowed: failure.allowed } : {}),
     ...(failure.issues ? { issues: publicToolInputIssues(failure.issues) } : {}),
     ...(failure.useInstead ? { useInstead: failure.useInstead } : {}),
+    ...(failure.problem ? { problem: failure.problem } : {}),
   };
 }
 

@@ -12,6 +12,7 @@
 // 印给用户就是名实不一（英文、第三人称、还带着 `Next:` 这种只对模型成立的指令）。
 import type { LaneToolPublicFailure, LaneToolPublicIssue } from '../../../../electron/shared/agentLane/laneToolFailureEnvelope'
 import { LANE_TOOL_OWN_FAILURE_CODE_LIST } from '../../../../electron/shared/agentLane/laneToolFailureEnvelope'
+import type { GenerationProblem } from '../../../../electron/shared/generationProblem'
 import {
   CAPABILITY_TRANSPORT_VERIFICATION_ERROR_CODE_LIST,
   SURFACE_PORT_WIRE_ERROR_CODE_LIST,
@@ -126,8 +127,64 @@ export function laneToolIssueText(t: Translate, issue: LaneToolPublicIssue): str
   }
 }
 
+/** 原因句里列值最多几个，再多就「等」（用户 11-07「字有点多」）。 */
+const PROBLEM_VALUES_SHOWN = 4
+
+function shortValuesText(t: Translate, values: readonly string[]): string {
+  const shown = values.slice(0, PROBLEM_VALUES_SHOWN).join(t('agentToolFailure.listSeparator'))
+  return values.length > PROBLEM_VALUES_SHOWN ? t('agentToolFailure.listMore', { values: shown }) : shown
+}
+
+/**
+ * 起草被拒的闭合原因（`generationProblem.ts`）→ 一句话。码在抛出那一刻定好，这里只查词条，不猜散文。
+ *
+ * `parameter_not_allowed` 返回 `undefined`：它没有比「哪个字段 · 该填什么」更准的话，照旧走下面的字段那条。
+ * 0.24 及以前的信封没有 `problem`，根本进不来这里——老转录一个字都不变。
+ * `switch` 穷尽码表：码表加一个码而这里没有那一句，类型检查就红。
+ */
+function problemSentence(t: Translate, problem: GenerationProblem): string | undefined {
+  switch (problem.code) {
+    case 'unknown_model':
+      // 这是 Agent 自己点错了名，它会自己换（最接近的那个只写进它读的正文）；用户不需要看一串模型 id。
+      return t('agentToolFailure.problemUnknownModel')
+    case 'no_default_model':
+      return problem.media === 'video' ? t('agentToolFailure.problemNoDefaultVideo') : t('agentToolFailure.problemNoDefaultImage')
+    case 'mode_not_in_model':
+      return t('agentToolFailure.problemModeNotInModel')
+    case 'ratio_not_in_mode':
+      return problem.allowed?.length ? t('agentToolFailure.problemRatioNotOffered') : t('agentToolFailure.problemRatioNone')
+    case 'duration_not_in_mode':
+      if (problem.min !== undefined && problem.max !== undefined) return t('agentToolFailure.problemDurationRange', { min: problem.min, max: problem.max })
+      if (problem.allowed?.length) return t('agentToolFailure.problemDurationValues', { values: shortValuesText(t, problem.allowed) })
+      if (problem.min !== undefined) return t('agentToolFailure.problemDurationAtLeast', { min: problem.min })
+      if (problem.max !== undefined) return t('agentToolFailure.problemDurationAtMost', { max: problem.max })
+      return t('agentToolFailure.problemDurationNone')
+    case 'reference_over_capacity':
+      return problem.max !== undefined ? t('agentToolFailure.problemReferenceOverCapacity', { max: problem.max }) : undefined
+    case 'reference_role_not_in_mode':
+      return t('agentToolFailure.problemReferenceRole')
+    case 'parameter_not_allowed':
+      return undefined
+  }
+}
+
+/** 展开体里原因句下面那一行：可选值，或该去哪儿改（只有用户自己能改的那一种才指路）。 */
+function problemDetailLines(t: Translate, problem: GenerationProblem): string[] {
+  if (problem.code === 'no_default_model') {
+    const slot = problem.media === 'video' ? t('agentPanelV4.videoDefault') : t('agentPanelV4.imageDefault')
+    return [t('agentToolFailure.problemPickDefault', { slot })]
+  }
+  if ((problem.code === 'ratio_not_in_mode' || problem.code === 'reference_role_not_in_mode') && problem.allowed?.length) {
+    return [t('agentToolFailure.allowedValues', { values: shortValuesText(t, problem.allowed) })]
+  }
+  return []
+}
+
 /** 行尾摘要：一句话，不带结构化细节（展开体才摆细节）。 */
 export function laneToolFailureSummary(t: Translate, failure: LaneToolPublicFailure): string {
+  // 起草被拒、且抛出时就定了原因：说原因（「没有这个模型」「时长要在 4–15 秒之间」），不说「不接受这组参数」。
+  const reason = failure.problem ? problemSentence(t, failure.problem) : undefined
+  if (reason) return reason
   // 入参没填对、且信封里有出错字段：行尾直接说第一处「哪个字段 · 该填什么」，不说「参数不合法」。
   const first = failure.issues?.[0]
   if (first && (failure.code === 'tool_arguments_invalid' || failure.code === 'generation_input_invalid')) {
@@ -147,6 +204,9 @@ export function laneToolFailureSummary(t: Translate, failure: LaneToolPublicFail
  * 用户文稿正文、素材路径都可能在参数里）。
  */
 export function laneToolFailureDetail(t: Translate, failure: LaneToolPublicFailure): string {
+  // 有闭合原因时，原因句 + 它自己的那一行就是全部：字段行说的是同一件事，再印一遍只会更长。
+  const reason = failure.problem ? problemSentence(t, failure.problem) : undefined
+  if (reason && failure.problem) return [reason, ...problemDetailLines(t, failure.problem)].join('\n')
   const key = AGENT_TOOL_FAILURE_TEXT_KEY[failure.code as keyof typeof AGENT_TOOL_FAILURE_TEXT_KEY]
   const lines = [key ? t(key) : t('agentToolFailure.unknown')]
   for (const issue of (failure.issues ?? []).slice(0, 6)) lines.push(laneToolIssueText(t, issue))

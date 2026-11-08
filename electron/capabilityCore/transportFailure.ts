@@ -27,32 +27,42 @@
 //
 // 供应商 / 凭据的原始文本**永远**不许到模型那里（`generationTransportAdapters.test.ts` 的 C18
 // 「synthetic secrets never become public failures」逐字守着这条）。所以分两档：
-//   · 我们**有意**拒绝一次调用 → `ModelFacingRefusal`，message 是我们自己写的，原样交给模型；
+//   · 我们**有意**拒绝一次生成调用 → `GenerationRefusal`，带闭合原因（`generationProblem.ts`），正文由原因生成，原样交给模型；
 //   · 其它任何异常（TypeError、供应商抛的、上游库抛的）→ 只给码，一个字的正文都不带。
 // 判据不是「看起来像不像内部信息」，是**谁写的这句话**——后者有单一答案，前者没有。
 import type { RuntimeToolDecision } from "../shared/agentCapabilities/transportContracts";
 import { GENERATION_INPUT_INVALID_CODE } from "../shared/agentCapabilities/admissionRejectionHints";
 import type { ToolInputIssue } from "../shared/agentLane/toolInputIssues";
+import {
+  generationProblemFrom,
+  generationProblemModelText,
+  type GenerationProblem,
+  type GenerationProblemInput,
+} from "../shared/generationProblem";
 
 export type TransportFailure = Extract<RuntimeToolDecision, { ok: false }>;
 
 /**
- * 我们**有意**拒绝这次调用时抛的错：`message` 是我们自己写的一句可行动的话，因此可以原样给模型看。
+ * 我们**有意**拒绝一次生成调用时抛的错：带一个闭合原因（`GenerationProblem`），给模型读的正文由原因和事实生成。
+ *
+ * 2026-11-08 之前这里是 `refuseToModel(code, message)`：只收一句散文。于是「点名的模型不存在」和「真没配默认模型」
+ * 写成了同一句话，面板和遥测也只能拿到一个粗码。现在构造器**只收原因**——写一条不带原因的拒收，类型上写不出来。
  *
  * 别拿它包供应商/上游的异常——那一档走 `safeTransportFailure` 的兜底，只给码。
  */
-export class ModelFacingRefusal extends Error {
-  readonly code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "ModelFacingRefusal";
-    this.code = code;
+export class GenerationRefusal extends Error {
+  readonly code = GENERATION_INPUT_INVALID_CODE;
+  readonly problem: GenerationProblem;
+  constructor(input: GenerationProblemInput) {
+    super(generationProblemModelText(input));
+    this.name = "GenerationRefusal";
+    this.problem = generationProblemFrom(input);
   }
 }
 
-/** 抛一条模型读得懂的拒绝。`code` 必须是本 adapter 放行表里的码，否则它会被收敛成兜底码。 */
-export function refuseToModel(code: string, message: string): never {
-  throw new ModelFacingRefusal(code, message);
+/** 抛一条带闭合原因的生成拒收。码恒为 `generation_input_invalid`，原因在 `problem` 里。 */
+export function refuseGeneration(input: GenerationProblemInput): never {
+  throw new GenerationRefusal(input);
 }
 
 export type SafeTransportFailureOptions = Readonly<{
@@ -75,8 +85,10 @@ export type SafeTransportFailureOptions = Readonly<{
   reason?: (error: unknown) => TransportFailure["reason"] | undefined;
   /** 本路对**落到兜底码**这件事的留痕（兜底盖住的也可能是我们自己的缺陷）。 */
   onFallback?: (rawCode: string | undefined, error: unknown) => void;
-  /** 我们自己写的、可以原样送出的正文（`ModelFacingRefusal` 之外的既有错误类）。 */
+  /** 我们自己写的、可以原样送出的正文（`GenerationRefusal` 之外的既有错误类）。 */
   ownMessage?: (error: unknown) => string | undefined;
+  /** 生成拒收的闭合原因（`GenerationRefusal` 自带；本路认得的其它错误类由这里给）。 */
+  problem?: (error: unknown, code: string) => GenerationProblem | undefined;
 }>;
 
 function rawCodeOf(error: unknown): string | undefined {
@@ -97,7 +109,7 @@ export function safeTransportFailure(error: unknown, options: SafeTransportFailu
   const code = options.classify?.(error)
     ?? (raw && options.allowedCodes.has(raw) ? raw : options.fallbackCode);
   if (code === options.fallbackCode) options.onFallback?.(raw, error);
-  const own = error instanceof ModelFacingRefusal ? error.message : options.ownMessage?.(error);
+  const own = error instanceof GenerationRefusal ? error.message : options.ownMessage?.(error);
   const detail = options.detail?.(error);
   const message = own && own.trim() ? own.trim()
     : detail && detail.trim() ? `${code} — ${detail.trim()}`
@@ -105,9 +117,11 @@ export function safeTransportFailure(error: unknown, options: SafeTransportFailu
   const reason = options.reason?.(error);
   const admission = options.admission?.(error);
   const issues = options.issues?.(error);
+  const problem = error instanceof GenerationRefusal && code === error.code ? error.problem : options.problem?.(error, code);
   return {
     ok: false, code, message,
     ...(reason ? { reason } : {}), ...(admission ? { admission } : {}), ...(issues && issues.length > 0 ? { issues } : {}),
+    ...(problem ? { problem } : {}),
   };
 }
 
@@ -115,7 +129,6 @@ export function safeTransportFailure(error: unknown, options: SafeTransportFailu
  * 生成域「模型写的入参我们收不了」那一档的码。
  *
  * 它本来就在这条路的放行表里（`GENERATION_PUBLIC_FAILURE_CODES`），2026-09-22 起同时承载域里
- * **有意**抛出的拒绝：一次 `refuseToModel(GENERATION_ARGUMENT_REFUSAL, "…")` 写清「哪个字段不行、
- * 该改成什么」，模型读到的就是那句话，而不是兜底的「提交结果可能未知」。
+ * **有意**抛出的拒绝；2026-11-08 起那一档一律带闭合原因（`refuseGeneration`），粗码只说「起草期被拒」。
  */
 export const GENERATION_ARGUMENT_REFUSAL = GENERATION_INPUT_INVALID_CODE;

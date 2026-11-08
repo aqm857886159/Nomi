@@ -1,4 +1,4 @@
-import { GENERATION_ARGUMENT_REFUSAL, refuseToModel } from "./transportFailure";
+import { refuseGeneration } from "./transportFailure";
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../shared/storyboard/storyboardPlan';
 import { appendStoryboardSubjects, nextStoryboardSubjectIds, StoryboardSubjectIdentityError, type AppendedStoryboardSubject } from '../shared/storyboard/storyboardSubjectIdentity';
 import { generationTaskReference } from '../shared/agentCapabilities/taskReference';
@@ -115,13 +115,13 @@ const SHOT_ROLES = new Set(["anchor", "shot"]);
  */
 function shotEnvelope(raw: Record<string, unknown>, index: number, assignedId: string): GenerationShotEnvelope {
   const shotId = assignedId;
-  if (!/^[A-Za-z0-9._:-]{1,120}$/.test(shotId)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Invalid shot id at ${index}`);
+  if (!/^[A-Za-z0-9._:-]{1,120}$/.test(shotId)) refuseGeneration({ code: "parameter_not_allowed", detail: `Invalid shot id at ${index}` });
   const role = raw.role;
-  if (role !== undefined && !SHOT_ROLES.has(String(role))) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Invalid shot role at ${index}`);
+  if (role !== undefined && !SHOT_ROLES.has(String(role))) refuseGeneration({ code: "parameter_not_allowed", detail: `Invalid shot role at ${index}` });
   const included = raw.included;
-  if (included !== undefined && typeof included !== "boolean") refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Invalid shot included flag at ${index}`);
+  if (included !== undefined && typeof included !== "boolean") refuseGeneration({ code: "parameter_not_allowed", detail: `Invalid shot included flag at ${index}` });
   const rawTitle = typeof raw.title === "string" ? raw.title.trim() : "";
-  if (rawTitle.length > 120) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Shot title at ${index} is longer than 120 characters`);
+  if (rawTitle.length > 120) refuseGeneration({ code: "parameter_not_allowed", detail: `Shot title at ${index} is longer than 120 characters` });
   return {
     shotId,
     ...(role === undefined ? {} : { role: role as "anchor" | "shot" }),
@@ -195,10 +195,10 @@ export function draftShotFromPlan(
 export function draftShotFromStoryboard(draft: StoryboardShotDraft, index: number, assignedId: string, defaults: () => { moduleId: string; providerId: string; modelId: string; mode: string; modeId?: string }, parsers: MultiShotCandidateParsers): GenerationOperationDraftShot {
   const raw = draft as Record<string, unknown>;
   const env = shotEnvelope(raw, index, assignedId);
-  if (typeof draft.prompt !== "string" || !draft.prompt.trim()) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Storyboard shot ${index} needs a prompt`);
+  if (typeof draft.prompt !== "string" || !draft.prompt.trim()) refuseGeneration({ code: "parameter_not_allowed", detail: `Storyboard shot ${index} needs a prompt` });
   if (draft.durationSeconds !== undefined
     && (!Number.isFinite(draft.durationSeconds) || draft.durationSeconds <= 0)) {
-    refuseToModel(GENERATION_ARGUMENT_REFUSAL, `Storyboard shot ${index} has an invalid duration`);
+    refuseGeneration({ code: "parameter_not_allowed", detail: `Storyboard shot ${index} has an invalid duration` });
   }
   // Resolve module/provider/model/mode defaults lazily — only when the planner left a field unset, so a
   // fully-specified board never requires a configured video model just to build defaults it won't use.
@@ -289,7 +289,7 @@ function hostAssignedSubjectIds(raw: readonly unknown[]): string[] {
   try {
     return nextStoryboardSubjectIds({ anchors: [], shots: [] }, incoming);
   } catch (error) {
-    if (error instanceof StoryboardSubjectIdentityError) refuseToModel(GENERATION_ARGUMENT_REFUSAL, error.message);
+    if (error instanceof StoryboardSubjectIdentityError) refuseGeneration({ code: "parameter_not_allowed", detail: error.message });
     throw error;
   }
 }
@@ -308,10 +308,10 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
     const configured = deps.defaultModelForTaskKind?.(taskKind);
     if (configured) return configured;
     if (!deps.allowRegistryFallback) {
-      refuseToModel(GENERATION_ARGUMENT_REFUSAL, "没有配置该任务的默认视频模型，请先在设置中选择模型或在计划中指定模型");
+      refuseGeneration({ code: "no_default_model", field: "modelId", media: "video" });
     }
     const first = deps.videoModelCandidates?.[0];
-    if (!first) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "没有可用的视频模型，无法从剧本自动拟镜（请先在 Nomi 配置一个视频模型）");
+    if (!first) refuseGeneration({ code: "no_default_model", field: "modelId", media: "video" });
     const selectedMode = deps.effectiveVideoModes(first).find((item) => item.transportTaskKind === taskKind)
       ?? deps.effectiveVideoModes(first)[0];
     const mode = selectedMode?.transportTaskKind ?? "image-to-video";
@@ -331,7 +331,7 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
   ): Promise<GenerationOperationDraftShot[] | undefined> => {
     let shots: GenerationOperationDraftShot[];
     if (Array.isArray(params.shots)) {
-      if (params.shots.length === 0) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "多镜生成需要至少一个镜头");
+      if (params.shots.length === 0) refuseGeneration({ code: "parameter_not_allowed", detail: "多镜生成需要至少一个镜头" });
       const ids = hostAssignedSubjectIds(params.shots);
       shots = params.shots.map((shot, index) => draftShotFromPlan(shot, index, ids[index], deps.parsers, {
         ...(deps.defaultModelForTaskKind ? { defaultModelForTaskKind: deps.defaultModelForTaskKind } : {}),
@@ -349,8 +349,8 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
       const scriptText = typeof params.scriptText === "string"
         ? params.scriptText.trim()
         : typeof params.prompt === "string" ? params.prompt.trim() : "";
-      if (!scriptText) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "剧本文本为空，无法拟镜");
-      if (!deps.planStoryboard) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "当前未启用「剧本自动拟镜」，请改为直接提供逐镜计划（shots）");
+      if (!scriptText) refuseGeneration({ code: "parameter_not_allowed", detail: "剧本文本为空，无法拟镜" });
+      if (!deps.planStoryboard) refuseGeneration({ code: "parameter_not_allowed", detail: "当前未启用「剧本自动拟镜」，请改为直接提供逐镜计划（shots）" });
       const longForm = typeof params.scriptText !== "string" && isLongFormGenerationRequest(params);
       const targetDurationSeconds = requestedVideoDurationSeconds(params);
       const board = await deps.planStoryboard({
@@ -359,9 +359,9 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
         ...(longForm ? { minimumShots: 2 } : {}),
         ...(targetDurationSeconds !== undefined ? { targetDurationSeconds } : {}),
       });
-      if (!board || !Array.isArray(board.shots) || board.shots.length === 0) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "拟镜没有产出任何镜头，请检查剧本内容");
+      if (!board || !Array.isArray(board.shots) || board.shots.length === 0) refuseGeneration({ code: "parameter_not_allowed", detail: "拟镜没有产出任何镜头，请检查剧本内容" });
       if (longForm && board.shots.length < 2) {
-        refuseToModel(GENERATION_ARGUMENT_REFUSAL, "长视频请求必须先拆成至少两个镜头；请让 Agent 重新拟定剧本和分镜");
+        refuseGeneration({ code: "parameter_not_allowed", detail: "长视频请求必须先拆成至少两个镜头；请让 Agent 重新拟定剧本和分镜" });
       }
       if (targetDurationSeconds !== undefined) {
         const durations = board.shots
@@ -369,7 +369,7 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
           .map((shot) => shot.durationSeconds ?? shot.parameters?.duration ?? shot.parameters?.durationSeconds);
         const plannedDuration = durations.reduce((sum, value) => sum + (typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0), 0);
         if (durations.length === 0 || durations.some((value) => typeof value !== "number" || !Number.isFinite(value) || value <= 0) || plannedDuration < targetDurationSeconds) {
-          refuseToModel(GENERATION_ARGUMENT_REFUSAL, `拟镜未覆盖目标时长 ${targetDurationSeconds} 秒；每个视频镜头必须带有效 duration`);
+          refuseGeneration({ code: "parameter_not_allowed", detail: `拟镜未覆盖目标时长 ${targetDurationSeconds} 秒；每个视频镜头必须带有效 duration` });
         }
       }
       // A natural-language multi-shot request can still carry the same model,
@@ -394,7 +394,7 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
       const sharedReferences = params.references === undefined
         ? undefined
         : (() => {
-          if (!Array.isArray(params.references)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "references must be an array");
+          if (!Array.isArray(params.references)) refuseGeneration({ code: "parameter_not_allowed", detail: "references must be an array" });
           return params.references;
         })();
       const inheritedParameters = targetDurationSeconds === undefined
@@ -612,8 +612,8 @@ export async function patchStoryboardAuthoring(current: {sourceDocumentId?:strin
   resolveReferences:(projectId:string,value:unknown)=>PlanCandidate['references'],
   resolveUrl:((projectId:string,reference:PlanCandidate['references'][number])=>string) | undefined,
   request?: RequestRenderer): Promise<void> {
-  if (!current.sourceDocumentId || typeof params.shotId!=='string') refuseToModel(GENERATION_ARGUMENT_REFUSAL, 'This storyboard revision needs the shotId of the shot you are changing. To add a new shot to this plan instead, give it a title and leave shotId out.');
-  if (!params.patch || typeof params.patch!=='object' || Array.isArray(params.patch)) refuseToModel(GENERATION_ARGUMENT_REFUSAL, 'patch must be an object holding the fields you are changing.');
+  if (!current.sourceDocumentId || typeof params.shotId!=='string') refuseGeneration({ code: "parameter_not_allowed", detail: 'This storyboard revision needs the shotId of the shot you are changing. To add a new shot to this plan instead, give it a title and leave shotId out.' });
+  if (!params.patch || typeof params.patch!=='object' || Array.isArray(params.patch)) refuseGeneration({ code: "parameter_not_allowed", detail: 'patch must be an object holding the fields you are changing.' });
   if (!request) throw new Error('storyboard_renderer_required');
   const patch=params.patch as Record<string,unknown>;
   const references:Record<string,Array<{url:string}>> | undefined=patch.references===undefined ? undefined : {};
@@ -625,7 +625,7 @@ export async function patchStoryboardAuthoring(current: {sourceDocumentId?:strin
   const reply = await request('storyboard.patch-design',
     {projectId,documentId:current.sourceDocumentId,designId,shotId:params.shotId,patch,...(references ? {references} : {})},
     STORYBOARD_RENDERER_TIMEOUT_MS) as {status?:unknown;shotId?:unknown;shots?:unknown;anchorHoldsShotNumber?:unknown} | null;
-  if (reply?.status==='shot-not-found') refuseToModel(GENERATION_ARGUMENT_REFUSAL, shotNotFoundMessage(String(params.shotId), reply));
+  if (reply?.status==='shot-not-found') refuseGeneration({ code: "parameter_not_allowed", detail: shotNotFoundMessage(String(params.shotId), reply) });
   if (!reply || reply.status!=='saved' || reply.shotId!==params.shotId) throw new Error('storyboard_design_save_rejected');
 }
 
