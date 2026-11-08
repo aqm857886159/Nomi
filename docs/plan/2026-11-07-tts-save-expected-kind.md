@@ -58,7 +58,7 @@
 **指标**
 - 主指标：同步回字节的音频任务带项目号时，落成项目音频文件的比例。目标 100%（内置目录每一格 × 每种响应形状）。量具：`electron/tasks/syncBytesResultLandsInProject.test.ts`，修前 0/9，修后 9/9。
 - 护栏指标：没项目时「发出请求 / 扣令牌 / 弹付费卡」的比例。目标 0%，覆盖三个入口 × 10 格。量具：同一矩阵的「没项目」组。
-- 质量指标：真供应商字节过真关口的比例。量具：`tests/ux/tts-save-expected-kind-real.paid.mjs`（协调跑一次）。在那之前未验证：缺真付费样本。
+- 质量指标：真供应商字节过真关口的比例。量具：`tests/ux/tts-save-expected-kind-real.paid.mjs`（协调跑一次）。11-08 真供应商样本已通过，运行号与读回结果见本文「花钱走查」。
 
 ### ★1b 连带界面
 - 画布节点、tasks:run 回执（没项目时）：zh「这个模型的结果只能存成项目里的文件，请先打开一个项目再生成。这次的请求没有发出。」en「This model's result can only be saved as a file in a project. Open a project first, then generate. This request was not sent.」（`electron/desktopStrings.ts` 的 `tasks.resultNeedsProject`）。只说请求没发出，不谈钱（界面不写扣没扣费的断言）。
@@ -147,7 +147,7 @@
 
 ## 8 真实条件
 
-- 真付费：unverified。由协调跑一次 `tests/ux/tts-save-expected-kind-real.paid.mjs`（APIMart nomi-audio 一条）。
+- 真付费：11-08 APIMart nomi-audio 一条成功，项目内音频通过解码。
 - 英文界面：拒绝文案有 en 一轨，`check:i18n` 守。界面截图 unverified（这次没改界面布局）。
 - Windows：unverified（不改路径拼接，落盘关口沿用现有实现）。
 - 干净安装、老用户：老用户用真实 v0.24.0 目录回放（`oldUserDubbingLandsAfterUpgrade.test.ts`）。
@@ -187,6 +187,11 @@
 **反例 → 结果 → 证据**：见报告 `/Users/aoqimin/Nomi-coord/Nomi-service/coord-handoff/reports/I-tts-save-expected-kind.md` 的「自检与反例」一节；第 1 轮修补（类型收紧）的反例见 `/Users/aoqimin/Nomi-coord/Nomi-service/coord-handoff/reports/I-tts-save-r2.md`。
 
 **花钱走查**
+
+2026-11-08 在 Mac 开发构建中新建隔离项目，用 `nomi-audio` 配音「海风轻拂。」。第一次走查在发请求前失败，Playwright 渲染进程读不到脚本里的模型常量，等待确认的代码吞掉了异常。免费 Electron 演练复现了相同失败。免费和付费现共用同一份跨进程参数、确认、落盘和解码步骤；若提交提前被拒，直接报告该错误。
+
+- 免费回环：42 个矩阵/旧数据断言通过；真窗点确认后，本机服务恰收一次配音请求，项目文件 17,718 字节，解码时长 0.20 秒。
+- 真实调用：经确认发出一条配音；任务 `task-4f9acd4f-435d-45e8-b934-6a47f2655a99` 成功，核实项目所有权和实际路径后读回 127,244 字节，解码时长 2.65 秒。原资料指纹一致，凭据副本已移除。这次没有实扣金额收据。
 - 免费演练：`tests/ux/tts-save-expected-kind-real.rehearsal.walk.mjs`。
 - 产物标记字面量：`local_file_import_refuses_generated_output`。
 - 在专用工作树里跑（openPaidWalk 会核产物比源码新、带标记，否则拒跑）。
