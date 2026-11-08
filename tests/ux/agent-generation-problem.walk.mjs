@@ -51,7 +51,7 @@ const CASES = [
     key: 'unknown_model',
     // 面板只说「没有这个模型」，不给最接近的 id（那是 Agent 写错了，它自己换）；模型正文说「不在目录里 + 最接近的那个」。
     panelKey: 'agentToolFailure.problemUnknownModel',
-    modelReads: /volcengine\/doubao-seedream-5-0-pro is not in the model catalog; the closest one is apimart\/doubao-seedream-5-0-pro/,
+    modelReads: /volcengine\/doubao-seedream-5-0-pro is not in the model catalog; the closest one is ([^\s/]+)\/([^\s]+?)\. Name/,
     ask: 'GENPROB_UNKNOWN：用 Seedream 5.0 Pro 起草一镜「窗台橘猫」海报，先不生成。',
     done: 'GENPROB_UNKNOWN_DONE：这一镜没起草成。',
     shot: {
@@ -167,6 +167,12 @@ try {
     for (const item of CASES) {
       expect(seen[item.key], `${item.key}：模型读到的是真原因`).toMatch(item.modelReads)
       // 2026-11-08 的真实故障：点名的模型不存在时，模型读到「没有配置可用的图片模型」，转头去劝用户配默认模型。
+      if (item.key === 'unknown_model') {
+        const [, vendorKey, modelKey] = seen[item.key].match(item.modelReads)
+        const catalog = await win.evaluate(() => window.nomiDesktop.modelCatalog.listModels({ kind: 'image' }))
+        expect(catalog.some(row => row.vendorKey === vendorKey && row.modelKey === modelKey),
+          '推荐给 Agent 的型号确实在这个窗口的目录中').toBe(true)
+      }
       if (item.key !== 'no_default_model') expect(seen[item.key], `${item.key}：不说没配默认模型`).not.toMatch(/没有配置可用|has no default/)
     }
   }
@@ -191,13 +197,14 @@ try {
     let rewritten = 0
     const lines = fs.readFileSync(sessions[0].path, 'utf8').split('\n').map((line) => {
       if (!line.includes(target)) return line
-      const entry = JSON.parse(line)
-      const failure = entry.type === 'message' && entry.message?.role === 'toolResult' && entry.message.toolCallId === target
-        ? entry.message.details?.failure : undefined
-      if (failure?.problem?.code !== 'unknown_model') return line
-      failure.problem = { code: 'reference_over_capacity', field: 'references', max: 4, next: 'reduce_references', retryable: true, charged: false }
+      const transaction = JSON.parse(line)
+      const entries = Array.isArray(transaction) ? transaction : [transaction]
+      const entry = entries.find(item => item.type === 'message' && item.message?.role === 'toolResult'
+        && item.message.toolCallId === target && item.message.details?.failure?.problem?.code === 'unknown_model')
+      if (!entry) return line
+      entry.message.details.failure.problem = { code: 'reference_over_capacity', field: 'references', max: 4, next: 'reduce_references', retryable: true, charged: false }
       rewritten += 1
-      return JSON.stringify(entry)
+      return JSON.stringify(transaction)
     })
     expect(rewritten, '转录里恰好一条 unknown_model 信封被改写成参考超量').toBe(1)
     fs.writeFileSync(sessions[0].path, lines.join('\n'))
