@@ -54,6 +54,12 @@ export const APIMART_VENDOR_SEED = {
     cost: "free" as const,
     source: { url: "https://docs.apimart.ai/en/api-reference/account/token-balance.md", checkedAt: "2026-09-22" },
   },
+  // https://docs.apimart.ai/en/api-reference/account/{user-balance,usage}
+  accountFacts: {
+    alternateOrigins: ["https://api.apib.ai"],
+    accountPath: "/v1/user/balance",
+    usagePath: "/v1/usage",
+  },
 } as const;
 
 /** apimart 的 status 动词 → 我们的归一态（与 kie 不同：apimart 用 pending/processing/completed/...）。 */
