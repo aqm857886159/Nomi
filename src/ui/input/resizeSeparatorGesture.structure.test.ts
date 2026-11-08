@@ -12,6 +12,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { stripComments } from '../../../scripts/lib/colorMixHue.mjs'
 
 const SRC = path.resolve(__dirname, '../..')
 const rel = (file: string): string => path.relative(path.resolve(SRC, '..'), file).split(path.sep).join('/')
@@ -62,7 +63,7 @@ type Separator = { file: string; line: number; claims: boolean | null }
 function scanSeparators(): Separator[] {
   const result: Separator[] = []
   for (const full of sourceFiles(SRC)) {
-    const text = fs.readFileSync(full, 'utf8')
+    const text = stripComments(fs.readFileSync(full, 'utf8'))
     if (!text.includes('separator') || !text.includes('onPointerDown')) continue
     const file = ts.createSourceFile(full, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
     const functions = localFunctions(file)
