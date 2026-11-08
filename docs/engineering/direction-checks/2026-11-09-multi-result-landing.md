@@ -87,7 +87,10 @@ B 最集中。这一次「一笔给四张只留一张」本身不在这 26 个�
 
 复盘时的特征测试在仓库外、以旧行为为预期，绿不代表修好；实现线把它们按「每次应留 4 份」的判据改写进仓库，在修复前的代码上先红：
 
-- 渲染层四份落地（画布 / 批量 / 配音 / 音乐、同运行编号不冲突）：`src/workbench/generationCanvas/runner/multiResultLanding.test.ts`
+- 渲染层四份落地（张数 0 / 1 / 2 / 4 × 图 / 视频 / 音频——配音、音乐都走音频这条 × 画布 / 批量，同运行编号不冲突、两次运行同一组地址不被并掉）：`src/workbench/generationCanvas/runner/multiResultLanding.test.ts`
+- 两次运行倒序到达、交给观察者的旧运行带回四份、v0.24.0 真实节点：`src/workbench/generationCanvas/runner/multiResultOwnership.test.ts`
+- 两跳通道不重复下载、第 2 张下载失败后再取回：`electron/tasks/multiOutputQueryResultHop.test.ts`
+- 老用户目录（v0.24.1 向导）升级后四张进项目：`electron/catalog/oldUserMultiImageAfterUpgrade.test.ts`
 - 主进程画布提交、账本、重放四份：`electron/capabilityCore/canvasShotMultiOutput.test.ts`
 - Agent 共用制作提交口四份、第一份落盘不算完成：`electron/productionRun/productionGenerationMultiOutput.test.ts`
 - 四份账本的 Agent → 画布投影：`src/workbench/capability/multiShotCanvasLanding.multiResult.test.ts`

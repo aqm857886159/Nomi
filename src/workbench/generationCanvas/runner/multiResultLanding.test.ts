@@ -4,14 +4,14 @@
 // 走真实的控制器（confirmAndRunNode）+ 真实的执行器（generationNodeExecutor → runCatalogGenerationTask → 归一），
 // 只在渲染层 ↔ 主进程那条边上换成假的（taskApi：交 / 查）。以前归一那一步只取第一份产物：付 N 张、看到 1 张。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { confirmAndRunNode, runGenerationNode } from './generationRunController'
+import { confirmAndRunNode, runGenerationNode, runGenerationNodesBatch } from './generationRunController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from '../../project/projectSessionTestHarness'
 import type { ProjectBinding } from '../../../../electron/shared/projectBinding'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
-import type { TaskRequestDto, TaskResultDto } from '../../api/taskApi'
+import type { TaskAssetDto, TaskRequestDto, TaskResultDto } from '../../api/taskApi'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 type SubmitInput = { projectId: string; nodeId: string; runRecordId: string; vendor: string; request: TaskRequestDto }
@@ -70,6 +70,13 @@ function ledgerWithLostAnswer(count: number, taskId: string) {
   return provider
 }
 
+/** 主进程交回这几份产物（种类、地址由格子定；同一个地址出现在两次运行里时用）。 */
+function answersWithAssets(taskId: string, assets: TaskAssetDto[]) {
+  calls.submit.mockImplementationOnce(async (input: SubmitInput): Promise<TaskResultDto> => ({
+    id: taskId, kind: input.request.kind, status: 'succeeded', raw: {}, assets,
+  }))
+}
+
 let session: ProjectSessionTestHarness
 let target: ProjectBinding
 beforeEach(async () => {
@@ -87,6 +94,11 @@ afterEach(() => { session.dispose(); vi.restoreAllMocks() })
 function addImageNode(): string {
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'a red cube' })
   useGenerationCanvasStore.getState().updateNode(node.id, { meta: { modelKey: 'img-model', modelVendor: 'acme', vendor: 'acme', n: 4 } })
+  return node.id
+}
+function addNodeOf(kind: 'image' | 'video' | 'audio'): string {
+  const node = useGenerationCanvasStore.getState().addNode({ kind, prompt: 'a red cube' })
+  useGenerationCanvasStore.getState().updateNode(node.id, { meta: { modelKey: `${kind}-model`, modelVendor: 'acme', vendor: 'acme', n: 4 } })
   return node.id
 }
 const nodeOf = (id: string): GenerationCanvasNode => useGenerationCanvasStore.getState().nodes.find((node) => node.id === id)!
@@ -149,5 +161,71 @@ describe('画布 ↑ 一次出 N 张', () => {
     expect(node.runs).toHaveLength(1)
     expect(node.runs?.[0]).toMatchObject({ id: submissions[0], status: 'success', resultId: versions(node).at(-1)!.id })
     expect(node.result?.id).toBe(versions(node).at(-1)!.id)
+  })
+})
+
+// 复盘 §6 的矩阵：张数 0 / 1 / 2 / 4 × 媒体种类（图 / 视频 / 音频——配音、音乐都走音频这条）× 入口（画布生成、批量生成）。
+// 判据只有一条：上游给几份有效产物就留几份，都归这次运行，当前选中是最后一份；0 份不是成功。
+const KINDS = [
+  { kind: 'image', ext: 'png' },
+  { kind: 'video', ext: 'mp4' },
+  { kind: 'audio', ext: 'mp3' },
+] as const
+const ENTRIES = ['canvas', 'batch'] as const
+const MATRIX = KINDS.flatMap(({ kind, ext }) => ENTRIES.flatMap((entry) => [0, 1, 2, 4].map((count) => ({ kind, ext, entry, count }))))
+
+async function runThrough(entry: typeof ENTRIES[number], id: string): Promise<void> {
+  if (entry === 'canvas') {
+    await confirmAndRunNode(id, { initiator: 'user' })
+    return
+  }
+  await runGenerationNodesBatch([id], { target, assetUploadConsent: 'allow', retry: { maxAttempts: 1 }, canvasRunRecordIds: new Map([[id, `batch-${id}`]]) })
+}
+
+describe('画布 ↑ 张数 × 媒体种类 × 入口', () => {
+  it.each(MATRIX)('$kind · $entry · 上游给 $count 份', async ({ kind, ext, entry, count }) => {
+    const id = addNodeOf(kind)
+    answersWithAssets('task-m', Array.from({ length: count }, (_, index) => ({ type: kind, url: `nomi-local://asset/project-a/task-m-${index + 1}.${ext}` })))
+
+    await runThrough(entry, id)
+
+    const node = nodeOf(id)
+    const history = versions(node)
+    expect(calls.submit).toHaveBeenCalledOnce()
+    if (count === 0) {
+      // 上游说成了却一份都读不出：不是成功，没有版本，这次的运行记录也不指向任何结果（落「可找回」，照旧）。
+      expect(history).toHaveLength(0)
+      expect(node.result).toBeFalsy()
+      expect(node.status).not.toBe('success')
+      expect(node.runs?.[0]?.status).not.toBe('success')
+      expect(node.runs?.[0]?.resultId).toBeUndefined()
+      return
+    }
+    expect(history.map((entry) => [entry.type, entry.url])).toEqual(Array.from({ length: count }, (_, index) => [kind, `nomi-local://asset/project-a/task-m-${index + 1}.${ext}`]))
+    expect(new Set(history.map((entry) => entry.id)).size).toBe(count)
+    expect(history.every((entry) => entry.taskId === 'task-m')).toBe(true)
+    expect(node.runs).toHaveLength(1)
+    expect(node.runs?.[0]).toMatchObject({ status: 'success', resultId: history.at(-1)!.id })
+    expect(node.result?.id).toBe(history.at(-1)!.id)
+  })
+})
+
+describe('画布 ↑ 身份不靠地址', () => {
+  it('两次运行回了同一组地址（中转把同一张占位图回给不同任务）：各是各的产物，两次运行各收各的，一份都不被并掉', async () => {
+    const id = addImageNode()
+    const same: TaskAssetDto[] = [1, 2].map((index) => ({ type: 'image', url: `nomi-local://asset/project-a/shared-${index}.png` }))
+    answersWithAssets('task-a', same)
+    await confirmAndRunNode(id, { initiator: 'user' })
+    answersWithAssets('task-b', same)
+    await confirmAndRunNode(id, { initiator: 'user' })
+
+    const node = nodeOf(id)
+    expect(versions(node).map((entry) => [entry.id, entry.taskId])).toEqual([
+      [`${id}-task-a`, 'task-a'], [`${id}-task-a-2`, 'task-a'], [`${id}-task-b`, 'task-b'], [`${id}-task-b-2`, 'task-b'],
+    ])
+    const byTask = new Map(node.runs!.map((run) => [run.taskId, run]))
+    expect(byTask.get('task-a')).toMatchObject({ status: 'success', resultId: `${id}-task-a-2` })
+    expect(byTask.get('task-b')).toMatchObject({ status: 'success', resultId: `${id}-task-b-2` })
+    expect(node.result?.id).toBe(`${id}-task-b-2`)
   })
 })

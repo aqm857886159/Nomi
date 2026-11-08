@@ -66,7 +66,7 @@ function runnerFor(root: string, repository: ReturnType<typeof setup>["repositor
     materializeOutput,
     now: () => "2026-11-09T00:04:00.000Z",
   });
-  return { runner, submit, query, materializeOutput };
+  return { runner, submit, query, materialize, materializeOutput };
 }
 
 const generatedFiles = (root: string) => fs.existsSync(path.join(root, "assets", "generated")) ? fs.readdirSync(path.join(root, "assets", "generated")).sort() : [];
@@ -108,6 +108,33 @@ describe("一单出 N 张：每一份各落一条账", () => {
     // 第 1 份只落过一次；第 2 份第一次崩了、重进补上；第 3 份重进时落。
     expect(materializeOutput.mock.calls.map(([call]) => call.outputIndex)).toEqual([0, 1, 1, 2]);
     expect(generatedFiles(root)).toEqual(["out-1.png", "out-2.png", "out-3.png"]);
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("两次取产物清单之间上游换了签名链接：身份按序号认，不按地址——已落的不重落，缺的按新链接补，一共还是四份", async () => {
+    const { root, repository } = setup();
+    const { runner, submit, materializeOutput, materialize } = runnerFor(root, repository, 4, 1);
+    let round = 0;
+    materialize.mockImplementation(async () => {
+      round += 1;
+      return { outputs: Array.from({ length: 4 }, (_, index) => ({ kind: "image" as const, url: `https://cdn.example/out-${index + 1}.png?sig=round-${round}` })) };
+    });
+    const input = { projectId: "project-1", operationId: "op-1" };
+    await runner.start({ ...input, admission: await landedAdmission(repository, "project-1", "op-1") });
+    await runner.poll(input);
+    await expect(runner.materialize(input)).rejects.toThrow("process crashed mid-landing");
+    await expect(runner.materialize(input)).resolves.toMatchObject({ artifactId: "asset-1", nextAction: "completed" });
+
+    const run = repository.read("project-1", "op-1")!;
+    expect(run.artifacts.map((artifact) => artifact.artifactId)).toEqual(["asset-1", "asset-2", "asset-3", "asset-4"]);
+    expect(materializeOutput.mock.calls.map(([call]) => [call.outputIndex, call.output.url])).toEqual([
+      [0, "https://cdn.example/out-1.png?sig=round-1"],
+      [1, "https://cdn.example/out-2.png?sig=round-1"],
+      [1, "https://cdn.example/out-2.png?sig=round-2"],
+      [2, "https://cdn.example/out-3.png?sig=round-2"],
+      [3, "https://cdn.example/out-4.png?sig=round-2"],
+    ]);
+    expect(generatedFiles(root)).toHaveLength(4);
     expect(submit).toHaveBeenCalledTimes(1);
   });
 });
