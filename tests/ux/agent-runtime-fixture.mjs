@@ -1,12 +1,11 @@
 // Only the remote vendor is synthetic. Walks still use the real SDK, IPC, renderer and storage.
-import { spawnSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import http from 'node:http'
 import path from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
 
-import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from './_launchApp.mjs'
+import { encryptFixtureKey } from './_launchApp.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -178,28 +177,8 @@ function imageMapping(taskKind, vendorKey = FIXTURE_VENDOR) {
  * 仓库目录，app 名就是 package.json 的 `nomi`；`--packaged` 那档是 `Nomi`。传错只会得到
  * `locked`（不是 `ok`），所以这里由调用方按真实启动形态给。
  */
-function withLinuxHeadless(args, platform = process.platform) {
-  const normalized = [...args]
-  if (platform === 'linux' && !normalized.includes('--headless')) normalized.push('--headless')
-  return normalized
-}
-
 function encryptApimartKey({ rootDir, userDataDir, appName }) {
-  const script = path.join(rootDir, 'tests/ux/_encryptFixtureKey.cjs')
-  const result = spawnSync(require('electron'), withLinuxSyntheticCredentialStorage(
-    withLinuxHeadless(withLinuxNoSandbox([script, FIXTURE_APIMART_API_KEY])), true,
-  ), {
-    cwd: rootDir,
-    env: {
-      ...process.env, NOMI_E2E: '1', NOMI_APP_NAME: appName,
-      NOMI_ELECTRON_USER_DATA_DIR: userDataDir, NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1',
-    },
-    encoding: 'utf8',
-  })
-  if (result.status !== 0 || !result.stdout.trim()) {
-    throw new Error(`safeStorage fixture key failed: ${result.stderr || result.stdout}`)
-  }
-  return result.stdout.trim()
+  return encryptFixtureKey({ rootDir, userDataDir, appName, plaintext: FIXTURE_APIMART_API_KEY })
 }
 
 /**
