@@ -1,6 +1,6 @@
 # 模式与比例的单一事实源
 
-类别：其他；纯修复，不增加界面、操作或执行能力。实现只删重复比较、扩充已有比例解析、替换消费者的解析和维护走查判据。四笔独立提交；本卡在实现前确定。
+类别：其他；纯修复，不增加界面、操作或执行能力。实现只删重复比较、扩充已有比例解析、替换消费者的解析和维护走查判据。三笔产品提交；本卡在实现前确定，按协调收窄更新。
 
 ## ★1 用户怎么用
 
@@ -14,21 +14,21 @@
 
 ## ★2 谁说了算
 
-模式事实 owner：`videoModeForPlan`；传输种类 owner：`modeTransportFor`。给 modeId 时不再比较第二份 taskKind。比例解析和宽高 owner：`electron/shared/aspectRatioValue.ts`；四处消费者删自己的正则，只读共享导出，所有尺寸策略原样保留。
+模式事实 owner：`videoModeForPlan`；传输种类 owner：`modeTransportFor`。给 modeId 时不再比较第二份 taskKind。比例解析和宽高 owner：`electron/shared/aspectRatioValue.ts`；本刀仅扩充 owner，消费者的解析收口另列。
 
 `door-map` 主链 13 扇/20 处：mcpGenerationVideoResolve 的 videoModeForPlan；generationPlanPatch 与 mcpGenerationTools 的 normalizeAuthoredCandidate；semanticAspectRatio 与 aspectRatioValue 的 resolveAspectRatioChoice；aspectRatioValue 自读 parse/normalize；generationListMediaFacts、nodes/aspectRatio、parameterControlModel、NodeParameterControls、videoAspectSeed 读 parse/normalize。相同 owner 的多个读者不能合并为一个业务入口。
 
 向上一跳：应用内 Agent 与外部 MCP 经 generationTransportAdapters / mcpGenerationTools 进入同一个 normalizeAuthoredCandidate；草稿补丁经 generationPlanPatch；Run 契约编译经 videoCompileOptions/videoModeForPlan。检索未找到另一处拿作者 taskKind 拒绝已选合法视频模式的比较；映射查找的 taskKind/modeId 是路由匹配，不是作者冲突拒收。
 
-范围外重复事实现已授权替换：paramTranslate、runwayImage、runwayRatio、archetypeMeta；另设扫描守卫，唯一例外为 shotFrameGeometry，原因见 ★3。守卫登记 scripts/pre-push-scan-guards.mjs。
+不在本刀：比例解析收口 + 守卫另列。扫描涉及 9 个文件，其中 taskParams.ts 是正在由另一 PR 修改的热点，避免在此刀重叠；四个原授权消费者与分镜几何都不改。
 
 ## ★3 一致与复用
 
-方向来源：`docs/engineering/direction-checks/2026-11-08-generation-request-chain.md`；共享 owner 的原决策：`docs/plan/2026-10-05-agent-aspect-ratio-semantic.md`。保留创作者模式/画幅，三条路中选择删除重复比较、替换解析；不新增供应商分支，不新增尺寸策略或依赖。
+方向来源：`docs/engineering/direction-checks/2026-11-08-generation-request-chain.md`；共享 owner 的原决策：`docs/plan/2026-10-05-agent-aspect-ratio-semantic.md`。保留创作者模式/画幅，三条路中选择删除重复比较、扩充已有 owner 的像素写法；不新增供应商分支，不新增尺寸策略或依赖。
 
-解析与规范化共享一条正则，认冒号与 x/×/*，不认 slash 或单个小数。公开导出已有 widthHeightOf，避免消费者再次拆字符串；normalize 保留冒号/具名的原行为，将像素分隔符规范化为冒号宽高。纯冒号目标按同一比例匹配到已有合法选项；像素目标仍优先精确匹配，多个像素档仍按当前/默认同档规则，不猜尺寸。
+数字解析只有一条正则。`readAspectRatioGeometry` 读冒号、命名档与 WxH/W×H/W*H；`normalizeAspectRatioToWH` / `parseAspectRatioValue` 保留界面合同，像素串不作比例 chip、不进比例组，画布调用方不改。宿主 `resolveAspectRatioGeometryChoice` 只保留几何完全一致的合法选项，复用既有同档选择后返回原始供应商值；无完全一致值则拒并列出原始合法值，绝不选近似档。
 
-分镜例外：现役 propose_storyboard_plan、规划模型 schema、外部 JSON、旧工程读取接受 16/9 和 1.78；离线生产边界重放两值均保留，现有预览为 240×135，owner 返回 null。写入边界统一前不删其读法；owner 不扩此两种格式，shotFrameGeometry.ts 不改，守卫只放行这一项。
+分镜例外：现役 propose_storyboard_plan、规划模型 schema、外部 JSON、旧工程读取接受 16/9 和 1.78；离线生产边界重放两值均保留，现有预览为 240×135，owner 返回 null。写入边界统一前不删其读法；owner 不扩此两种格式，shotFrameGeometry.ts 不改，守卫草稿已拆出，不在本刀。
 
 ### 外部规范对齐（核对日期 2026-11-09）
 
@@ -41,6 +41,8 @@
 
 ## ★4 全状态
 
+有意改变：创作者说16:9，模型只有像素档时，宿主选几何完全一致的对应档（如Agnes 2.0的1280x720），不再仅因size是像素串就拒；没有完全一致值仍拒并列合法值。不把1344:768当作16:9。画布的旧展示、排序、控件去重、meta写回与census 280/112不变。
+
 空：未指定比例时原样保留。加载/取消中/过期：解析是同步纯函数，不增加状态。成功：模式定种类、比例落到合法原值。失败：未知模式、非法比例、同档不明仍走既有拒收。部分成功：本层原子解析，不新增部分写入。能力不可用：无比例控件仍报告原原因和合法下一步。中文/英文既有出口复用，未新增词条。
 
 ## ★9 动手前验收合同
@@ -50,11 +52,17 @@
 3. 2560x1440、2560×1440、2560*1440：owner 解析相同；火山 Seedream 精确合法 size 原样保留；只收冒号的模型落 16:9。十二个历史 Seedream 比例拒收逐条重放。
 4. abcx、0x720、2560x、零/负数等非法形状不认且宿主拒收；冒号、全角冒号、说明后缀和 portrait_4_3 不变。slash/decimal owner 不认。
 5. 当前/默认像素同档与 several_sizes 行为保留；多个档位不自动跨档。合法选项外不任意写像素。
-6. 消费者只换解析；朝向、像素积预算、取整、合法枚举、非法输入策略、旧迁移有限性验证不变。已有相关全目录测试通过；officialWire 在 owner 修改前、修改后、消费者替换后三份 dump 逐格比较，第三步必须零差异，否则停。
-7. 扫描守卫修前抓到四个文件（共多份正则），只放行 owner 和协调明确的分镜几何文件；媒体真实宽高相除与像素输出拼装不误报；出现第二个所需例外即停。
+6. 消费者均不改。owner 修改后 officialWire 与画布参数面板/meta 相关现有测试必须全绿，请求体与基线逐格零差异；有差异或画布测试红则不提交 owner，停下列差异和做法代价。
+7. 不在本刀：比例解析收口 + 守卫另列。守卫原稿、误报反例与 9 文件15处扫描结果离线封存，不提交；仓库仍有多份解析的限制明示。
 8. 默认模型从本次隔离目录及其默认设置读取，不依赖固定模型 id；换序不变、移除固定 id 后随目录选择；发送前卡不算，发送后读取节点付费卡；判据纯函数单测，付费脚本不跑。
 9. typecheck、改到文件所在目录全部单测、officialWire、pre-push-contracts 与正文预检完成；真实上游/付费/39 题未验证，正文明确标注。
 
 ## 已知限制
 
 分镜方案里写成 16/9 / 1.78 的比例，画布与生成侧的 owner 不认；分镜写入边界统一成冒号写法另列。
+
+仓库里另有 9 个文件各自解析比例，收口与扫描守卫另列。
+
+## 已批准的职责拆分与验证
+
+此前未区分几何与界面分类的试验有七条画布红灯，未提交。协调批准职责拆分后，现有画布回归与census原断言恢复；宿主几何匹配按上面新合同执行。officialWire 249格/498路与基线零差异。③整体拆出；④独立维护走查判据。
