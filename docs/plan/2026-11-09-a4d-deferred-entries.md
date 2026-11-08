@@ -20,7 +20,7 @@
 
 - 上一刀复盘第 6 节「换一种做法」② · 「一个函数判出『结果只能是项目文件』，runTask、自定义调用、进程类、try_model 都在 spendGate 前问它」，并写明「自定义调用脚本若交回与任务种类不同的字节，改后会被关口拒（这是对的，但行为会变）」 · **确认了**方向：判据只有 `resultOnlyLandsAsProjectFile` 一处，自定义调用和进程类并进去，不另写第二份；try_model 也问同一份。
 - `electron/catalog/customCallContract.ts:77`（Agent 写脚本时读的合同）· 「上游只给字节、不给地址时，调 `saveFile(bytes, 'mp4')`，把它返回的东西 return」 · **确认了**「脚本里调 saveFile」就是这类模型的声明：Agent 被教成这样写，所以判据看脚本有没有用到 `saveFile`，不新增声明字段（新增字段是模型可见 schema，按任务书不在本次）。
-- [OpenAI Videos 下载内容](https://developers.openai.com/api/reference/resources/videos/methods/download_content) · `GET /videos/{video_id}/content` 直接回视频字节（「Download the generated video bytes」），没有地址可以先交回；该接口所属模型 2026-09-24 已下线，但「只给字节流」的形状通用（customCallRunner 注释里点名的 Stability v2beta 同形） · **确认了**脚本 saveFile 那类结果和同步配音同一类：没项目就没地方放，只能在发请求之前拒。
+- [OpenAI Videos 下载内容](https://developers.openai.com/api/reference/resources/videos/methods/download_content) · `GET /videos/{video_id}/content` 直接回视频字节（「Download the generated video bytes」），没有地址可以先交回；该接口所属模型 2026-09-24 已下线，但「只给字节流」的形状通用（customCallRunner 注释里点名的 Stability v2beta 同形） · **确认了**脚本 saveFile 那类结果和同步配音同一类：没项目就没地方放，只能在发生成请求之前拒。
 - [Cloudflare Workers 绑定](https://developers.cloudflare.com/workers/runtime-apis/bindings/) · 脚本要用的外部资源（如 R2 存储桶）先在配置里声明绑定，代码只经 `env` 拿到它，「绑定既是权限也是 API」 · **改了**修法：原想让 saveFile 在没项目时到运行中再报错（沿原方向修），改成跑脚本之前就看它要不要「存文件」这个能力，缺项目就不让它开跑——和「先声明、再执行」同一个思路。
 - `docs/research/2026-09-01-dreamina-cli-v1417-matrix.md:133`（即梦 CLI 实抓）· `query_result --submit_id=<id>`（可选 `--download_dir`）把结果下到本地目录 · **确认了**进程类的结果是本机文件：Codex 本机生图只在本机目录留图（`codexCli.ts` 的 `latestGeneratedImageForThread`），Antigravity 回的是字节（`antigravityImageOperation.ts` 只经 `writeDeterministicAsset` 落盘），即梦下到本机目录。三种都只能写进项目，所以判据按「声明了进程」整类判，不按哪一家判。Antigravity 的映射不在内置种子里，连上、自检过后由 `syncAntigravityCatalog` 投影进目录，矩阵用同一个投影函数取它。
 
@@ -36,7 +36,7 @@
 4. 字节经生成产物关口（暂存 → 按任务种类解码校验 → 原子发布）进入项目 `assets/`，记成生成产物，期望类型 = 任务种类（视频任务就是视频）。
 5. 节点显示结果，可以拖进时间轴。
 
-没开项目（Agent 的 tasks:run、Agent 的 try_model）：发请求、扣令牌、弹付费卡之前就拒，说清要先打开项目。
+没项目时，三入口零生成请求、零进程、不核销令牌、不弹卡；连接处于待复验时，仅允许先发一次免费的凭据复验请求（GET 模型列表），再拒「先打开项目」。凭据已验过时所有 HTTP 方法均为零。
 
 **不做什么**
 - 不改付费闸、批准方式、模型可见 schema，不加新文案。
@@ -45,6 +45,7 @@
 - 不改进程类「单个文件导入失败不阻断其余结果」那条（下载目录里可能同时有封面图，拒一个就丢整单，见已知坑）。
 
 **已知坑**
+- 连接待复验时会先做一次免费凭据复验，再拒；顺序问题归 runtime.ts 热点另行复盘。
 - 判据看脚本里有没有 `saveFile` 这个名字，不分析脚本逻辑：脚本里只在注释里提到 saveFile、或者有时 return 地址有时存文件，没开项目时也会被拒（多拒，不多花）。反过来，故意不写这个名字去调宿主函数的脚本，判据看不出来，会在花钱之后落盘时失败（Agent 按合同写的脚本不会这样）。
 - 进程类不管有没有远端地址都按「只能写进项目」判：即梦以前没项目时还能交回远端地址，现在没项目直接拒。画布永远带项目，受影响的只有 Agent 在没开项目时调即梦。
 - 进程类下载目录里有不是该种类的文件（如视频任务里的封面图）时，那个文件照旧跳过、其余结果照常落盘（原逻辑，不改）。
@@ -57,12 +58,12 @@
 
 **指标**
 - 主指标：脚本 saveFile / 进程本地文件在有项目时落成项目生成产物、类型 = 任务种类的比例。目标 100%。量具：`electron/tasks/syncBytesResultLandsInProject.test.ts` 新增的「有项目」格（脚本配音、脚本视频、进程本地下载）。
-- 护栏指标：没项目时「发出请求 / 起本机进程 / 扣令牌 / 弹付费卡 / try_model 开单」的比例。目标 0%。量具：同一矩阵的「没项目」组（脚本 saveFile 两格 + 内置目录里每一条进程声明 × 三个入口）。
+- 护栏指标：没项目时「发出生成请求 / 起本机进程 / 扣令牌 / 弹付费卡 / try_model 开单」的比例。目标 0%。量具：同一矩阵的「没项目」组（脚本 saveFile 两格 + 内置目录里每一条进程声明 × 三个入口）。
 - 护栏指标 2：没用 saveFile 的脚本没开项目时照常跑（不多拒）。量具：同一矩阵「脚本只回地址」格 + `electron/runtime.customCall.test.ts` 现有的无项目用例。
 - 质量指标：真上游字节过真关口。未验证：缺量具（本次不花钱，协调跑一次，见 ★9 花钱走查）。
 
 ### ★1b 连带界面
-- 没项目时的拒绝沿用已有的 `tasks.resultNeedsProject`（zh「这个模型的结果只能存成项目里的文件，请先打开一个项目再生成。这次的请求没有发出。」/ en 同义），不新增文案。
+- 没项目时的拒绝沿用已有的 `tasks.resultNeedsProject`（zh「这个模型的结果只能存成项目里的文件，请先打开一个项目再生成。这次的请求没有发出。」/ en 同义），不新增文案；这里的“请求”指生成请求，待复验时允许先发免费模型列表 GET。
 - try_model 沿用已有的 `needs_input` 回执（message、nextAction 原样）。
 - 脚本存的字节不是任务种类时，沿用生成产物关口已有的拒绝（`generated_output…`），节点照旧报失败。
 - 成功时的节点、素材库不变：多出一个生成产物。
@@ -123,7 +124,7 @@
 
 | 状态 | 停 | 关窗 | 断网 | 重启 | 连点 |
 |---|---|---|---|---|---|
-| 没项目被拒 | 没东西可停 · 不扣 · 回执是拒绝原因 | 同左 | 同左（请求 / 进程没发出） | 同左 | 每次都同样被拒，不扣，不弹卡 |
+| 没项目被拒 | 没东西可停 · 不扣 · 回执是拒绝原因 | 同左 | 凭据已验时同左；待复验时可能先报凭据错误或等待探测超时，生成请求 / 进程仍未发出 | 同左 | 每次都同样被拒，不扣，不弹卡 |
 | 有项目、脚本 / 进程在跑 | 沿用现有取消 · 供应商可能已计费 · 节点失败回执 | 同左 | 请求失败 · 供应商结算 · 节点失败回执 | 进程类续查照旧（带项目） | 令牌一节点一次（spendGrant，不变） |
 | 有项目、落盘中 | 关口暂存清掉，不留半截文件（不变） | 同左 | 不涉及 | 暂存下次启动清理（不变） | 同上 |
 | 没项目的进程类续查（升级前留下的） | — | — | — | 续查报「请先打开项目」，不静默丢文件 | 同样被拒 |
@@ -151,6 +152,8 @@
 
 ## ★9 验收与回滚
 
+本轮只补测试与文档，不改产品代码。连接待复验时会先做一次免费凭据复验，再拒；顺序问题归 runtime.ts 热点另行复盘。
+
 **真实场景复现**
 - 用户的流程（来自上一刀独立验收登记的同类延后，不是用户报的单）：① Agent 接只回字节的中转模型，脚本 `saveFile`，在没开项目时 try_model / tasks:run；② Agent 没开项目时调即梦 / Codex / Antigravity。
 - 我走的：同一条主进程路径（tasks:run 令牌路、画布 Run 路、try_model → runTask → 自定义调用分流 / 进程分流 → 关口）。本机回环假服务回真音频 / 视频字节；即梦 CLI 换成合成输出（指向真 MP4 夹具）；Codex / Antigravity 的进程执行换成计数桩（不起真进程）；关口是真的。
@@ -163,11 +166,15 @@
   - 进程执行器：三种解析器项目号为空时都照跑。
 - 修后：见下面的验收清单。
 
+**本轮收据**：原矩阵 130/130、pending 新格 0/0（矩阵合计 130/130）；相关 37 个测试文件、373/373 通过；pnpm run typecheck 通过。
+
+**本轮合同**：没项目时，三入口零生成请求、零进程、不核销令牌、不弹卡；连接处于待复验时，仅允许先发一次免费的凭据复验请求（GET 模型列表），再拒「先打开项目」。凭据已验过时所有 HTTP 方法均为零。
+
 **验收清单**（验收线只核这份）
 1. `npx vitest run electron/tasks/syncBytesResultLandsInProject.test.ts`：全绿。
    - 有项目：脚本配音、脚本视频、进程本地下载三格各 1 次请求 / 进程、成功、项目 `assets/` 多一个文件、`.meta` 的 kind 是 generated、资产类型 = 任务种类。
    - 脚本把图片字节存进视频任务：被关口拒，项目里不多文件。
-   - 没项目：脚本 saveFile 两格 + 目录里每一条进程声明（内置的即梦、Codex，加上 Antigravity 连上后由 `antigravityImageMappings` 投影进来的两条），tasks:run 令牌路、画布 Run 路 0 请求 / 0 进程，令牌原样留着，不弹卡；try_model 回 `needs_input`，不开单、不铸令牌。上游照常回真字节，拒绝只能来自「没项目不发」。
+   - 没项目：脚本 saveFile 两格 + 目录里每一条进程声明（内置的即梦、Codex，加上 Antigravity 连上后由 `antigravityImageMappings` 投影进来的两条），tasks:run 令牌路、画布 Run 路零生成请求 / 零进程，令牌原样留着，不弹卡；try_model 回 `needs_input`，不开单、不铸令牌。凭据已验时断言所有 HTTP 方法零请求；新增 verificationPending 形状（两种 saveFile 脚本 + 全部进程声明 × 三入口），仅豁免模型列表精确路径的 GET，最多一次，其余所有 HTTP 方法 / 路径均为零。try_model 在复验前拒，仍为全部方法零请求。上游照常回真字节，不能靠坏响应掩盖生成请求。
    - 没项目、脚本只回地址：照常跑，1 个请求、成功（不多拒）。
 2. `npx vitest run electron/catalog/processOperation.test.ts`：没项目号时三种 parser 都不起进程、直接拒。
 3. `npx vitest run electron/runtime.customCall.test.ts electron/catalog/customCallTextAndFile.test.ts electron/catalog/codexCli.test.ts electron/catalog/upgradeKeepsWorkingModels.test.ts electron/catalog/oldUserDubbingLandsAfterUpgrade.test.ts electron/assets/generatedOutputKindGate.test.ts electron/audioTaskRunner.test.ts electron/runtime.asyncAudio.test.ts` 以及 Antigravity / 即梦 / try_model / 参考链接投递相关的用例（`runtime.antigravity*`、`antigravityWriteGuard`、`dreaminaCli`、`tryModel*`、`referenceLinkDelivery.matrix`、`taskIpcHandlers`、`runtime.provider-adapter`、`relayConformance*`）：全绿。

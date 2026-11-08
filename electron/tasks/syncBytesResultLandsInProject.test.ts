@@ -7,8 +7,8 @@
 //     （NEWAPI_AUDIO_TTS_OP）、没有声明映射时的缺省 /v1/audio/speech；以及同一判据下的「视频结果是文件流」。
 //   · 有项目：本机回环假服务按声明回真音频字节（WAV / MP3、二进制 / JSON hex / NDJSON base64），
 //     落盘走 generatedAssetStaging 的真校验（ffmpeg 解码），读回文件核类型。
-//   · 没项目：三个入口（tasks:run 令牌路、画布单镜 Run 路、Agent 的 try_model）都在发请求之前拒——
-//     一个请求都不发、令牌不扣、不弹付费卡、try_model 不开单。
+//   · 没项目：三个入口（tasks:run 令牌路、画布单镜 Run 路、Agent 的 try_model）都在发生成请求之前拒——
+//     零生成请求、令牌不扣、不弹付费卡、try_model 不开单；待复验凭据仅允许一次 GET 模型列表。
 //   · 同一类的另两处入口（2026-11-09，计划表 A4d）：自定义调用脚本用 saveFile 存字节、进程类（即梦 CLI、
 //     Codex 本机生图、Antigravity）的本地文件。有项目 → 走同一道生成产物关口、期望类型 = 任务种类；
 //     没项目 → 和上面一样在付费前拒。进程声明从内置目录枚举；「请求数」把本机进程也算进去。
@@ -41,6 +41,7 @@ vi.mock("electron", () => ({
   app: { getPath: () => settingsRoot, getAppPath: () => process.cwd(), isPackaged: false },
   safeStorage: { isEncryptionAvailable: () => false },
   webContents: { getAllWebContents: () => [] },
+  BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { on: () => undefined, handle: () => undefined, removeHandler: () => undefined },
 }));
 vi.mock("../projects/repository", async (importOriginal) => ({
@@ -81,6 +82,11 @@ vi.mock("../catalog/processOperation", async (importOriginal) => {
 vi.mock("../catalog/catalogStore", async (importOriginal) => ({
   ...await importOriginal<typeof import("../catalog/catalogStore")>(),
   readCatalog: () => structuredClone(catalog()),
+  mutateCatalog: (fn: Parameters<typeof import("../catalog/catalogStore").mutateCatalog>[0]) => fn({} as never, catalog()),
+}));
+vi.mock("../catalog/secrets", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../catalog/secrets")>(),
+  decryptStoredApiKeyRecord: () => "synthetic-key",
 }));
 vi.mock("../catalog/executableModel", async (importOriginal) => ({
   ...await importOriginal<typeof import("../catalog/executableModel")>(),
@@ -228,6 +234,11 @@ beforeAll(async () => {
     req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => {
       wire.push({ method: String(req.method), url: String(req.url), body: Buffer.concat(chunks).toString("utf8") });
+      if (req.method === "GET" && req.url === "/models") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ data: [{ id: "synthetic-model" }] }));
+        return;
+      }
       responder(res);
     });
   });
@@ -246,12 +257,13 @@ beforeEach(() => {
   processRuns.length = 0;
   cards.length = 0;
   __resetSpendGrantsForTests();
+  cachedCatalog = null;
 });
 
 function payload(cell: Pick<Cell, "vendorKey" | "modelKey" | "taskKind">, extras: Record<string, unknown>) {
   return { vendor: cell.vendorKey, request: { kind: cell.taskKind, prompt: "海风轻拂，旁白开始。", extras: { modelKey: cell.modelKey, nodeId: "node-1", ...extras } } };
 }
-/** 「请求数」= 发出的 HTTP 请求 + 起的本机进程（两者都可能扣钱 / 扣积分）。 */
+/** 有项目用例的生成次数（POST + 本机进程）；无项目断言另数全部 HTTP 方法。 */
 const posts = () => wire.filter((row) => row.method === "POST").length + processRuns.length;
 const publishedAudio = () => {
   const dir = path.join(projectRoot, "assets");
@@ -408,22 +420,39 @@ const noProjectPayload = (cell: Cell, extras: Record<string, unknown>) =>
   payload(cell, NEEDS_REFERENCE.has(cell.taskKind) ? { referenceImages: ["https://cdn.example.com/reference.png"], ...extras } : extras);
 const noProjectResponder = (cell: Cell | ScriptCell) => ("bytes" in cell ? bytesResponder(cell.bytes) : (res: http.ServerResponse) => respond(cell.create, res));
 
-describe.each(noProjectCells())("没项目：$name 一个请求 / 进程都不发、一分钱不扣", (cell) => {
-  it("tasks:run（令牌路）：发请求前拒，令牌原样留着，不弹付费卡", async () => {
+describe.each([
+  ...noProjectCells().map((cell) => ({ ...cell, pending: false })),
+  ...[...scriptSaveCells(), ...processCells()].map((cell) => ({ ...cell, name: `${cell.name}（凭据待复验）`, pending: true })),
+])("没项目：$name 零生成请求 / 进程、一分钱不扣", (cell) => {
+  beforeEach(() => {
+    if (cell.pending) catalog().apiKeysByVendor[cell.vendorKey].verificationPending = true;
+  });
+
+  function expectNoGeneration(tryModelEntry = false) {
+    // 只豁免模型列表的 GET；生成 GET、其他 HTTP 方法和重试都不能混进来。
+    expect(wire.filter((row) => !(cell.pending && row.method === "GET" && row.url === "/models"))).toEqual([]);
+    expect(wire.length).toBeLessThanOrEqual(cell.pending && !tryModelEntry ? 1 : 0);
+    if (cell.pending && !tryModelEntry && cell.vendorKey === "script-relay") expect(wire).toHaveLength(1);
+    expect(processRuns).toEqual([]);
+    expect(cards).toEqual([]);
+  }
+
+  it("tasks:run（令牌路）：发生成请求前拒，令牌原样留着，不弹付费卡", async () => {
     responder = noProjectResponder(cell);
     const grantId = mintSpendGrant({ nodeIds: ["node-1"], maxAttemptsPerNode: 1 });
     const error = await runTask(noProjectPayload(cell, { grantId }), TOKEN_ADMISSION).then(() => null, (caught: Error) => caught);
     expect(error, "must refuse").toBeInstanceOf(Error);
     expect(error!.message).toMatch(/项目|project/i);
-    expect(posts()).toBe(0);
+    expectNoGeneration();
     expect(__spendGrantCountForTests(), "the spend token was not consumed").toBe(1);
     expect(cards).toEqual([]);
   });
 
-  it("画布单镜（Run 已批准）：发请求前拒", async () => {
+  it("画布单镜（Run 已批准）：发生成请求前拒", async () => {
     responder = noProjectResponder(cell);
     await expect(runTask(noProjectPayload(cell, {}), RUN_APPROVED_ADMISSION)).rejects.toThrow(/项目|project/i);
-    expect(posts()).toBe(0);
+    expectNoGeneration();
+    expect(__spendGrantCountForTests()).toBe(0);
   });
 
   it("Agent 的 try_model：回 needs_input，不开单、不铸令牌、不弹卡、不发请求", async () => {
@@ -435,7 +464,7 @@ describe.each(noProjectCells())("没项目：$name 一个请求 / 进程都不�
     // try_model 只试「声明了映射」的模式；没有映射的那格它本来就在更早一步回 not_found——同样一个请求都不发。
     expect((result as { code?: string }).code).toBe(cell.create ? "needs_input" : "not_found");
     if (cell.create) expect((result as { message?: string }).message).toMatch(/project/i);
-    expect(posts()).toBe(0);
+    expectNoGeneration(true);
     expect(__spendGrantCountForTests()).toBe(0);
     expect(cards).toEqual([]);
     expect(fs.existsSync(intents) ? fs.readdirSync(intents, { recursive: true }).length : 0, "no trial order was opened").toBe(filesBefore);

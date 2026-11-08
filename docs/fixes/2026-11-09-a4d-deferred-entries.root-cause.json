@@ -39,7 +39,7 @@
       "kind": "official-doc",
       "url": "https://developers.openai.com/api/reference/resources/videos/methods/download_content",
       "checked_at": "2026-11-09",
-      "purpose": "GET /videos/{video_id}/content 直接回视频字节，没有地址可以先交回：确认脚本 saveFile 那类结果和同步配音是同一类，没项目就没地方放，只能在发请求之前拒"
+      "purpose": "GET /videos/{video_id}/content 直接回视频字节，没有地址可以先交回：确认脚本 saveFile 那类结果和同步配音是同一类，没项目就没地方放，只能在发生成请求之前拒"
     },
     {
       "kind": "official-doc",
@@ -49,7 +49,7 @@
     }
   ],
   "invariants": [
-    "结果只能写成项目文件（脚本 saveFile、本机进程、同步配音、文件流视频）时，没项目号就在付费闸之前拒：不发请求、不起进程、不核销令牌。",
+    "结果只能写成项目文件（脚本 saveFile、本机进程、同步配音、文件流视频）时，没项目号就在付费闸之前拒：不发生成请求、不起进程、不核销令牌、不弹卡；凭据已验过时所有 HTTP 方法零请求，待复验时仅允许最多一次免费 GET 模型列表。",
     "脚本 saveFile 的字节只经 writeGeneratedAsset 落盘，期望类型只看任务种类，不信脚本给的后缀和 content-type。",
     "进程执行器自己也拒没有项目号的调用；有项目时沿原执行与批准路线，不新增重试、fallback、文案或模型可见 schema。"
   ],
@@ -145,7 +145,7 @@
     "after": 17,
     "why_not": "删掉的一扇：runtime 把同步 writeAsset 注入给自定义调用（customCallDispatch 的 input.writeAsset 同提交删除，saveFile 改走 writeGeneratedAsset，门从「绕开关口」换到关口上）。不合并的：writeGeneratedAsset 的写门是各个领域生产者（配音、截图、视频变换、自定义脚本），本来就该各自调同一个关口；processOperation / codexCli / antigravityImageOperation 的 writeAsset 是 runtime 注入的形参名，注入的正是 writeGeneratedAsset / writeGeneratedDeterministicAsset，不是第二条写路；判据的两扇门（runTask、tryModel）是两个不同的发起入口，只能各问一次同一个判据；进程执行器只有 runtime 一个调用者。"
   },
-  "generality_proof": "判据按形状判、不按供应商：脚本里出现 saveFile（Agent 的脚本合同只教这一个名字）、映射在提交或查询任一步声明了本机进程，加上原有的同步回字节音频与文件流视频。矩阵用内置目录真种子枚举每一条进程声明（即梦、Codex），加上 Antigravity 连上后由同一个投影函数生成的两条，再加脚本存配音 / 存视频、脚本只回地址三格；每格断言没项目 0 请求、0 进程、令牌原样，有项目落成 kind=generated 的项目文件，脚本把图片字节存成视频被关口拒且不多文件。",
+  "generality_proof": "判据按形状判、不按供应商：脚本里出现 saveFile（Agent 的脚本合同只教这一个名字）、映射在提交或查询任一步声明了本机进程，加上原有的同步回字节音频与文件流视频。矩阵用内置目录真种子枚举每一条进程声明（即梦、Codex），加上 Antigravity 连上后由同一个投影函数生成的两条，再加脚本存配音 / 存视频、脚本只回地址三格；每格断言没项目 0 生成请求、0 进程、令牌原样，有项目落成 kind=generated 的项目文件，脚本把图片字节存成视频被关口拒且不多文件。 本轮矩阵加入 verificationPending：两种 saveFile 脚本与全部进程声明 × 三入口，数所有 HTTP 方法；已验凭据不豁免任何请求，待复验仅允许模型列表精确路径的一次 GET，try_model 仍全部方法零请求。",
   "shared_boundaries": [
     {
       "path": "electron/tasks/projectFileResult.ts",
@@ -168,7 +168,7 @@
       "path": "electron/catalog/customCallDispatch.ts",
       "entry_point": "runCustomCallTask → saveFile",
       "disposition": "enforced",
-      "evidence": "runTask 在自定义分流之前问判据（脚本含 saveFile 即算），没项目在付费闸前拒；saveFile 改调 writeGeneratedAsset（kind generated，期望类型 = 任务种类），runtime 注入的同步 writeAsset 同提交删除。矩阵：有项目两格落成 generated 文件，图片字节存成视频被拒，没项目 0 请求、令牌原样。"
+      "evidence": "runTask 在自定义分流之前问判据（脚本含 saveFile 即算），没项目在付费闸前拒；saveFile 改调 writeGeneratedAsset（kind generated，期望类型 = 任务种类），runtime 注入的同步 writeAsset 同提交删除。矩阵：有项目两格落成 generated 文件，图片字节存成视频被拒，没项目 0 生成请求、令牌原样。"
     },
     {
       "path": "electron/catalog/processOperation.ts",
@@ -192,7 +192,7 @@
       "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
       "entry_point": "tryModel",
       "disposition": "enforced",
-      "evidence": "用 runTask 同一个 resolveCustomCallExecution 拿到这次会跑的脚本，再问同一个判据：存文件的脚本、本机进程在开单、弹卡之前回 needs_input；矩阵每格 0 请求、不铸令牌、不弹卡。"
+      "evidence": "用 runTask 同一个 resolveCustomCallExecution 拿到这次会跑的脚本，再问同一个判据：存文件的脚本、本机进程在开单、弹卡之前回 needs_input；矩阵每格 0 生成请求、不铸令牌、不弹卡。"
     },
     {
       "path": "electron/catalog/catalogCommit.ts",
@@ -221,7 +221,7 @@
     "kind": "centralized-boundary",
     "enforcement_path": "electron/tasks/projectFileResult.ts",
     "invariant": "所有发起入口在付费前问同一个判据；判据的脚本参数必填（漏传编译不过）；进程执行器入口自己拒没项目号；脚本 saveFile 只有生成产物关口一条落盘路。",
-    "failure_mode": "没项目沿已有 tasks.resultNeedsProject 文案拒（Agent 端 needs_input），0 请求、0 进程、令牌不核销；字节与任务种类不符沿已有生成产物关口拒，不发布文件。",
+    "failure_mode": "没项目沿已有 tasks.resultNeedsProject 文案拒（Agent 端 needs_input），0 生成请求、0 进程、令牌不核销；字节与任务种类不符沿已有生成产物关口拒，不发布文件。",
     "exception_policy": "none",
     "strategy": "判据扩到脚本 saveFile 与进程声明并前移到自定义分流之前；saveFile 换成共享落盘关口；执行器入口加同一道拒；删掉同步写入注入、没项目跳过导入、Codex 交裸路径三处旧路。",
     "artifacts": [
@@ -258,6 +258,7 @@
   },
   "migration": "不迁移目录、项目或模型。升级后：有项目的入口行为不变（脚本 saveFile 的文件 meta 记 kind generated，旧文件仍是 video / audio / image，读取照旧）；没项目号还在跑的旧本机进程任务，续查时改为明确拒（原来即梦会静默丢文件、Codex 交裸路径），历史丢失的产物和费用无法恢复。",
   "residual_risks": [
+    "连接待复验时会先做一次免费凭据复验，再拒；顺序问题归 runtime.ts 热点另行复盘。 探测网络或鉴权异常时，用户可能先看到凭据错误或等待探测超时；本 PR 不保证立即提示打开项目。",
     "判据按脚本里有没有 saveFile 这个名字判：绕开它、直接调沙箱宿主内部函数的脚本看不出来（Agent 的脚本合同只教 saveFile）；只在注释里提到 saveFile 的脚本没项目时会被多拒，不会多花。",
     "Agent 试跑（try_model）改用 runTask 同一个脚本解析：只回地址的自定义音频脚本，以前被映射形状误判成「只能写文件」而不让试，现在可以试（放宽，按真实结果去向判）。",
     "真实供应商、真实即梦 / Codex / Antigravity 进程、付费卡真实界面未验证（unverified），本机假服务与进程替身不能替代。",
