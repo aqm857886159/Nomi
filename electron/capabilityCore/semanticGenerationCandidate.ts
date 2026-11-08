@@ -1,7 +1,7 @@
 import { transportTaskKindForModeId } from "../shared/videoCapabilities";
 import { resolveShotTaskKind, type ShotTaskKindRefusal } from "../shared/generationShotKind";
 import { modelKindForTaskKind } from "../shared/capabilityModeManifest";
-import { refuseGeneration } from "./transportFailure";
+import { refuseArgument, refuseGeneration } from "./transportFailure";
 import { closestKey } from "../shared/agentLane/toolInputIssues";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import type { PlanCandidate } from "./executionContract";
@@ -119,7 +119,7 @@ function isTaskKind(value: unknown): value is GenerationDefaultTaskKind {
 
 function record(value: unknown, label: string): Record<string, unknown> {
   if (value === undefined) return {};
-  if (!value || typeof value !== "object" || Array.isArray(value)) refuseGeneration({ code: "parameter_not_allowed", detail: `${label} must be an object` });
+  if (!value || typeof value !== "object" || Array.isArray(value)) refuseArgument(`${label} must be an object`);
   return { ...(value as Record<string, unknown>) };
 }
 
@@ -148,21 +148,21 @@ export function pinAssetReference(item: unknown, resolve?: ResolveAssetReference
     return kind ? { ...reference, kind } : reference;
   }
   const assetId = text(reference.assetId);
-  if (!assetId) refuseGeneration({ code: "parameter_not_allowed", field: "references", detail: "参考素材需要 assetId（来自 look_at_media）" });
+  if (!assetId) refuseArgument("参考素材需要 assetId（来自 look_at_media）", { field: "references" });
   const identity = resolve?.(assetId);
   if (!identity) {
     // 模型最常见的两种错法，分开说：给了一个**镜头 id**（说明书曾经说这里收镜头 id，见 writeVerbs 的
     // `references`），和给了一个**根本不在库里的 assetId**。两种的下一步不一样，合成一句话等于两种都没说清。
-    refuseGeneration({ code: "parameter_not_allowed", field: "references", detail: /^(gen-v2-|shot-)/.test(assetId)
+    refuseArgument(/^(gen-v2-|shot-)/.test(assetId)
       ? `${assetId} 看起来是画布上的一个镜头/节点 id，不是素材库里的文件。references 只收 look_at_media 给出的 assetId；要复用另一镜的形象，把它写进 storyboard.anchorIds。`
-      : `参考素材 ${assetId} 不在这个项目的素材库里，请先用 look_at_media 找到它的 assetId` });
+      : `参考素材 ${assetId} 不在这个项目的素材库里，请先用 look_at_media 找到它的 assetId`, { field: "references" });
   }
   return { ...reference, contentHash: identity.contentHash, version: identity.version, ...(identity.kind ? { kind: identity.kind } : {}) };
 }
 
 function references(value: unknown, resolve?: ResolveAssetReferenceIdentity): unknown[] {
   if (value === undefined) return [];
-  if (!Array.isArray(value)) refuseGeneration({ code: "parameter_not_allowed", field: "references", detail: "references must be an array of asset ids." });
+  if (!Array.isArray(value)) refuseArgument("references must be an array of asset ids.", { field: "references" });
   return value.map((item) => pinAssetReference(item, resolve));
 }
 
@@ -173,7 +173,7 @@ function references(value: unknown, resolve?: ResolveAssetReferenceIdentity): un
 function explicitTaskKind(params: SemanticGenerationCandidateParams): GenerationDefaultTaskKind | undefined {
   const explicit = params.taskKind;
   if (explicit !== undefined) {
-    if (!isTaskKind(explicit)) refuseGeneration({ code: "parameter_not_allowed", detail: "taskKind must be text_to_image, image_edit, text_to_video or image_to_video" });
+    if (!isTaskKind(explicit)) refuseArgument("taskKind must be text_to_image, image_edit, text_to_video or image_to_video");
     return explicit;
   }
   const mode = normalized(params.mode);
@@ -271,13 +271,12 @@ function refuseShotTaskKind(refusal: ShotTaskKindRefusal, deps: Pick<SemanticGen
     case "kind_unspecified":
       // 点了名却定不出种类 = 目录里没有这个模型（有的话它的模式就定了种类）。
       if (modelId) return refuseUnknownModel(deps.registry, modelId, providerId);
-      return refuseGeneration({ code: "parameter_not_allowed", field: "taskKind",
-        detail: `Say what this shot makes: set taskKind (${TASK_KINDS_TEXT}), or name a model from list_models. Nomi does not guess it from the prompt.` });
+      return refuseArgument(`Say what this shot makes: set taskKind (${TASK_KINDS_TEXT}), or name a model from list_models. Nomi does not guess it from the prompt.`, { field: "taskKind" });
     case "model_cannot_do":
       return refuseCannotDo(modelLabel(providerId, modelId), refusal.requested ?? "images or videos", refusal.declared);
     case "model_ambiguous":
-      return refuseGeneration({ code: "parameter_not_allowed", field: "taskKind", allowed: refusal.supported,
-        detail: `Model ${modelId} makes both images and videos; set taskKind to one of: ${refusal.supported.join(", ")}.` });
+      return refuseArgument(`Model ${modelId} makes both images and videos; set taskKind to one of: ${refusal.supported.join(", ")}.`,
+        { field: "taskKind", allowed: refusal.supported });
   }
 }
 
@@ -323,7 +322,7 @@ export function admitShotIdentity(
   role?: string,
 ): void {
   if (role === "anchor" && modelKindForTaskKind(candidate.mode) !== "image") {
-    refuseGeneration({ code: "parameter_not_allowed", field: "role", detail: `A reference card (role "anchor") must be an image: it fixes how a character or place looks. This one is ${candidate.mode}. Name an image model for it, or make it a normal shot.` });
+    refuseArgument(`A reference card (role "anchor") must be an image: it fixes how a character or place looks. This one is ${candidate.mode}. Name an image model for it, or make it a normal shot.`, { field: "role" });
   }
   try {
     registry.resolve({ moduleId: candidate.moduleId, providerId: candidate.providerId, modelId: candidate.modelId, mode: candidate.mode });
@@ -335,7 +334,7 @@ export function admitShotIdentity(
       refuseCannotDo(`${candidate.providerId}/${candidate.modelId}`, candidate.mode, declared);
     }
     // 模型做得了这一种，目录却对不上（模块 / 拼法）：照目录的原话说，别说成「做不了」。
-    refuseGeneration({ code: "parameter_not_allowed", field: "mode", allowed: declared, detail: `${error.message}. Model ${candidate.modelId} declares: ${declared.join(", ")}.` });
+    refuseArgument(`${error.message}. Model ${candidate.modelId} declares: ${declared.join(", ")}.`, { field: "mode", allowed: declared });
   }
 }
 
@@ -445,7 +444,7 @@ export function semanticCandidateFromParams(deps: SemanticGenerationCandidateDep
       : { ...explicit, references: references(explicit.references, deps.resolveAssetReferenceIdentity) });
   }
   const prompt = text(deps.params.prompt);
-  if (!prompt) refuseGeneration({ code: "parameter_not_allowed", detail: "prompt is required when candidate is omitted" });
+  if (!prompt) refuseArgument("prompt is required when candidate is omitted");
 
   const taskKind = shotTaskKind(deps);
   const configured = deps.defaultModelForTaskKind?.(taskKind);

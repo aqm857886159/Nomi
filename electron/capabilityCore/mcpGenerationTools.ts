@@ -1,4 +1,4 @@
-import { refuseGeneration } from "./transportFailure";
+import { refuseArgument } from "./transportFailure";
 import { pinAssetReference, type AssetReferenceIdentity } from "./semanticGenerationCandidate";
 import { presentStoryboardAuthoring, patchStoryboardAuthoring, addShotsGuidance } from './mcpGenerationMultiShot';
 import { createDocumentPlanAuthoring } from './generationDocumentPlan';
@@ -175,7 +175,7 @@ export type GenerationPlanningHandlerDependencies = {
 };
 
 function record(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) refuseGeneration({ code: "parameter_not_allowed", detail: `${label} must be an object.` });
+  if (!value || typeof value !== "object" || Array.isArray(value)) refuseArgument(`${label} must be an object.`);
   return value as Record<string, unknown>;
 }
 
@@ -263,7 +263,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
 
   /** patch 入口的参考素材身份补齐。与 create 那条同一个解析器，只是调用点不同。 */
   const resolvePatchReferences = (projectId: string, value: unknown): PlanCandidate["references"] => {
-    if (!Array.isArray(value)) refuseGeneration({ code: "parameter_not_allowed", detail: "references must be an array of asset ids." });
+    if (!Array.isArray(value)) refuseArgument("references must be an array of asset ids.");
     // 补完身份后过一次候选自己的 schema：钉住的形状是执行契约签名的那一份，不能只靠类型断言说它齐了。
     return generationCandidateSchema.shape.references.parse(
       value.map((item) => pinReference(projectId, item, deps.resolveAssetReferenceIdentity)),
@@ -544,9 +544,9 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     const storedLeftovers = normalizedDraft.clearedParameters;
     if (input.capability === "extend") {
       // 在一份已有的文稿方案后面补镜头 / 参考卡（「再加两镜」）。只有文稿方案有「补」：画布草稿改一镜带 shotId，另起一份不带 operationId。
-      if (!current.sourceDocumentId) refuseGeneration({ code: "parameter_not_allowed", detail: "Adding shots works on a storyboard plan saved on a document. This is a canvas draft: change one of its shots with its shotId, or start a new draft without operationId." });
+      if (!current.sourceDocumentId) refuseArgument("Adding shots works on a storyboard plan saved on a document. This is a canvas draft: change one of its shots with its shotId, or start a new draft without operationId.");
       const shots = await admitDraftShots(capturedProjectId, { shots: params.shots }, deps.createDraftScope?.().registry ?? deps.registry);
-      if (!shots) refuseGeneration({ code: "parameter_not_allowed", detail: "Adding to a plan needs the new shots." });
+      if (!shots) refuseArgument("Adding to a plan needs the new shots.");
       return extendedReceipt(current, shots);
     }
     if (input.capability === "present") {
@@ -578,7 +578,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       // 第一镜的镜像，拿它当基准会把别的镜的模型/模式当成「变了」）。缺省 = 顶层候选（单镜草稿，逐字不变）。
       const shotId = typeof params.shotId === "string" && params.shotId.trim() ? params.shotId.trim() : undefined;
       const targetShot = shotId ? current.shots?.find((shot) => shot.shotId === shotId) : undefined;
-      if (shotId && !targetShot) refuseGeneration({ code: "parameter_not_allowed", detail: `Generation shot not found: ${shotId}. Read the draft again and copy a shotId it actually lists.` });
+      if (shotId && !targetShot) refuseArgument(`Generation shot not found: ${shotId}. Read the draft again and copy a shotId it actually lists.`);
       const baseCandidate = targetShot?.candidate ?? current.candidate;
       const { normalizedPatch, changeset } = resolvePlanPatch({
         baseCandidate, userPatch, registry: deps.registry, videoModelCandidates: deps.videoModelCandidates,
@@ -623,7 +623,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       };
     }
     if (input.capability === "gate_request") {
-      if (current.sourceDocumentId) refuseGeneration({ code: "parameter_not_allowed", detail: "This draft came from a storyboard; use the original storyboard confirmation instead of requesting a gate here." });
+      if (current.sourceDocumentId) refuseArgument("This draft came from a storyboard; use the original storyboard confirmation instead of requesting a gate here.");
       // 逐镜（2026-09-30）：这一次封哪几镜——点到的那几镜；不点名 = 最近一张卡上还没定、也还没封的（2026-10-27，一镜不剩就拒）。
       // 一次没点完、盖着别的镜的那份等人授权先撤掉（只解封它盖着的镜），再按这一次的范围封（`resolveGateScope`）。
       let base = current;
@@ -731,7 +731,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
       // 单镜只发一次：已提交就是观察。多镜每点一次批一份（2026-09-30 逐镜）：已在跑的计划又批了一镜，要再推一下调度器——
       // 它只派有任务、批过的镜，同一镜不会派两次，所以重放也只是观察。
       if (current.state === "submitted" && !current.shots?.length) return { operation: current, taskRef: generationTaskReference(operationId), operationId, nextAction: "observe" };
-      if ((current.state !== "sealed" && current.state !== "submitted") || !current.contract || current.authorization?.status !== "approved") refuseGeneration({ code: "parameter_not_allowed", detail: "Confirm the generation plan before starting: the user has not approved this draft yet." });
+      if ((current.state !== "sealed" && current.state !== "submitted") || !current.contract || current.authorization?.status !== "approved") refuseArgument("Confirm the generation plan before starting: the user has not approved this draft yet.");
       return deps.start?.(current, input.lease) ?? { operationId, state: current.state, nextAction: "provider_not_configured" };
     }
     // 宿主内部用（不在任何模型可见的方法表里）：问这句话的那个回合没了 → 收回这一次出价，计划留着。
@@ -743,7 +743,7 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     if (input.capability === "cancel") return { operation: await deps.operations.cancel(input.lease.projectId, operationId, now()), nextAction: "create" };
     if (input.capability === "reconcile") {
       const outcome = params.outcome === "found" || params.outcome === "not_found" ? params.outcome : null;
-      if (!outcome) refuseGeneration({ code: "parameter_not_allowed", detail: "Reconciliation needs an outcome: pass \"found\" or \"not_found\"." });
+      if (!outcome) refuseArgument("Reconciliation needs an outcome: pass \"found\" or \"not_found\".");
       return deps.reconcile?.(current, outcome, input.lease) ?? { operationId, outcome, nextAction: outcome === "found" ? "observe" : "manual_review" };
     }
     if (input.capability === "read" || input.capability === "events" || input.capability === "steer") {

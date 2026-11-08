@@ -6,7 +6,7 @@ import { GenerationProviderCapabilityError, GenerationProviderObservationError, 
 import { ProductionGenerationAuthorizationError } from '../productionRun/productionGenerationAuthorization';
 import { z } from "zod";
 import { logWarn } from "../logging/logger";
-import { GENERATION_ARGUMENT_REFUSAL, refuseGeneration, safeTransportFailure } from "./transportFailure";
+import { GENERATION_ARGUMENT_REFUSAL, refuseArgument, safeTransportFailure } from "./transportFailure";
 import { ContractCompilationError } from "./executionContract";
 import { issuesFromParameterRejection } from "../shared/agentLane/toolInputIssues";
 import { generationProblemFrom, type GenerationProblem } from "../shared/generationProblem";
@@ -559,10 +559,10 @@ export function createPiGenerationTransportAdapter(
           || (typeof args.operationId === 'string'
             && !storyboardTarget.plans.some((plan) => plan.id === args.operationId)
             && draftedFromDocument.get(args.operationId) !== storyboardTarget.sourceDocumentId))) {
-          refuseGeneration({ code: "parameter_not_allowed", detail: 'That plan is not one of the storyboard plans this request covers. Use an operationId the request names, or omit it to start a new draft.' });
+          refuseArgument('That plan is not one of the storyboard plans this request covers. Use an operationId the request names, or omit it to start a new draft.');
         }
         if (canonicalCall.toolName === GATE_TOOL) {
-          if (storyboardTarget?.shotIds) refuseGeneration({ code: "parameter_not_allowed", detail: "This storyboard selection is confirmed through its own card; do not request a separate generation gate for it." });
+          if (storyboardTarget?.shotIds) refuseArgument("This storyboard selection is confirmed through its own card; do not request a separate generation gate for it.");
           const result = await requestGate(args, currentLease, signal);
           const denied = result && typeof result === "object" && (result as { nextAction?: unknown }).nextAction === "revise";
           return denied
@@ -572,12 +572,12 @@ export function createPiGenerationTransportAdapter(
         const capability = isGenerationMethodName(canonicalCall.toolName) ? CAPABILITY_BY_METHOD[canonicalCall.toolName] : undefined;
         if (!capability) throw Object.assign(new Error("generation_input_invalid"), { code: "generation_input_invalid" });
         if (storyboardTarget?.shotIds) {
-          if (capability === 'plan' && (typeof args.shotId !== 'string' || !storyboardTarget.shotIds.includes(args.shotId))) refuseGeneration({ code: "parameter_not_allowed", detail: `This request covers only these shots: ${storyboardTarget.shotIds.join(', ')}. Name one of them in shotId.` });
+          if (capability === 'plan' && (typeof args.shotId !== 'string' || !storyboardTarget.shotIds.includes(args.shotId))) refuseArgument(`This request covers only these shots: ${storyboardTarget.shotIds.join(', ')}. Name one of them in shotId.`);
           // 用户的选择就是这一次的范围（没有出价账）：不点名 = 选中的全部，点名只认选中的；规则与 generate 是同一条。
           if (capability === 'present') args.shotIds = resolveUndecidedGenerationShotScope({ door: 'present', planShotIds: storyboardTarget.shotIds, requested: args.shotIds, currentOffer: NO_CURRENT_OFFER, offerable: storyboardTarget.shotIds });
           // The selection names its plan, so a call that addresses a different one is refused
           // rather than silently retargeted.
-          if ((capability === 'plan' || capability === 'present') && args.operationId !== storyboardTarget.designId) refuseGeneration({ code: "parameter_not_allowed", detail: `This request is about plan ${storyboardTarget.designId}. Use that operationId.` });
+          if ((capability === 'plan' || capability === 'present') && args.operationId !== storyboardTarget.designId) refuseArgument(`This request is about plan ${storyboardTarget.designId}. Use that operationId.`);
         }
         // operationId is required by every non-create descriptor. Parsing it
         // here keeps malformed model calls out of the durable operation store.

@@ -5,7 +5,7 @@
 // 槽 / candidate 带不带角色参考 / 时长估计。全是纯函数（吃 candidate + 候选快照，零副作用、零 provider 调用），
 // preview/gate/多镜密封都靠它当单一真相源。mcpGenerationTools.ts 与 mcpGenerationMultiShot.ts 单向 import。
 
-import { refuseGeneration } from "./transportFailure";
+import { refuseArgument, refuseGeneration } from "./transportFailure";
 import { ContractCompilationError, type ExecutionContractCompileOptions, type PlanCandidate } from "./executionContract";
 import type { ParameterField } from "./moduleManifest";
 import type { ResolvedModule } from "./moduleRegistry";
@@ -200,9 +200,9 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
       // 「Video mode omni is a **undefined** mode」——一句想帮忙的话把 undefined 递给了模型。
       // 说得出种类就说，说不出就只说哪两样对不上，绝不插值一个不存在的值。
       const kind = modeTransport.trim();
-      refuseGeneration({ code: "parameter_not_allowed", field: "taskKind", detail: kind
+      refuseArgument(kind
         ? `Video mode ${candidate.modeId} is a ${kind} mode, but this shot asks for ${candidate.mode}. Set taskKind to ${kind}, or drop modeId and let Nomi pick.`
-        : `Video mode ${candidate.modeId} does not go with taskKind ${candidate.mode} on this model. Drop taskKind (the mode already decides it), or drop modeId and let Nomi pick.` });
+        : `Video mode ${candidate.modeId} does not go with taskKind ${candidate.mode} on this model. Drop taskKind (the mode already decides it), or drop modeId and let Nomi pick.`, { field: "taskKind" });
     }
     return mode;
   }
@@ -230,8 +230,8 @@ export function videoModeForPlan(candidate: PlanCandidate, videoCandidate: Video
   const declaredDefault = modes.find((mode) => normalizedMode(mode.id) === normalizedMode(videoCandidate.archetype.defaultModeId)
     && byTask.includes(mode));
   if (declaredDefault) return declaredDefault;
-  refuseGeneration({ code: "parameter_not_allowed", field: "modeId", allowed: byTask.map((item) => item.id),
-    detail: `${candidate.mode} has several modes on this model; set modeId to one of: ${byTask.map((item) => item.id).join(", ")}.` });
+  refuseArgument(`${candidate.mode} has several modes on this model; set modeId to one of: ${byTask.map((item) => item.id).join(", ")}.`,
+    { field: "modeId", allowed: byTask.map((item) => item.id) });
 }
 
 export function normalizeVideoCandidate(candidate: PlanCandidate, candidates: readonly VideoModelCandidate[] | undefined): PlanCandidate {

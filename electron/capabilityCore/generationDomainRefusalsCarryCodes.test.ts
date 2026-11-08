@@ -9,7 +9,7 @@
 // 一句模型改一次就能对的话，住在**第三份**没人管的 `throw new Error(...)` 里。
 //
 // 一份一份地找是抓不完的：这一族的特征是「不报错、只是少说了一句」。所以判据换成源码级：
-// 生成域的文件里出现 `throw new Error(`，要么改成 `refuseGeneration({ code, ... })`（带闭合原因码，`generationProblem.ts`），要么**在下面这张表里
+// 生成域的文件里出现 `throw new Error(`，要么改成 `refuseGeneration({ code, ... })`（带闭合原因码，`generationProblem.ts`；调用形状不对的用简写 `refuseArgument`），要么**在下面这张表里
 // 写清它为什么不是模型能修的东西**。表只减不增。
 //
 // ── 判据为什么是源码扫描，不是行为测试 ──
@@ -77,7 +77,7 @@ describe('生成域里每一次有意的拒绝都带码', () => {
     expect(
       offenders,
       '这一句会被 adapter 的兜底吃掉，模型只会收到一个说不出拒了什么的码。'
-        + '改成 refuseGeneration({ code: "<generationProblem.ts 里的闭合码>", ...事实 })——码表里没有对应的就用 parameter_not_allowed + detail；'
+        + '改成 refuseGeneration({ code: "<generationProblem.ts 里的闭合码>", ...事实 })——码表里没有对应的（调用形状不对）就用 refuseArgument(detail, { field })；'
         + '如果它本来就不是模型能修的东西，把理由写进 NOT_A_MODEL_REFUSAL。',
     ).toEqual([])
   })

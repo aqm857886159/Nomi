@@ -65,6 +65,14 @@ export function refuseGeneration(input: GenerationProblemInput): never {
   throw new GenerationRefusal(input);
 }
 
+/**
+ * 结构性拒收（调用的形状不对：缺一格、类型不对、这一步还没到）= `parameter_not_allowed`。八个码里只有它收散文：
+ * `detail` 就是给模型读的正文。其余七个原因走 `refuseGeneration`，正文由事实生成。
+ */
+export function refuseArgument(detail: string, where: Pick<GenerationProblem, "field" | "allowed"> = {}): never {
+  return refuseGeneration({ code: "parameter_not_allowed", ...where, detail });
+}
+
 export type SafeTransportFailureOptions = Readonly<{
   /** 这条传输路允许送到模型那里的码（`CAPABILITY_TRANSPORT_PUBLIC_ERROR_CODES` + 本路自有的几个）。 */
   allowedCodes: ReadonlySet<string>;
