@@ -4,7 +4,7 @@ The run shape comes from the real six-shot draft captured by this evaluation (P3
 
 Canvas node shape and project payload follow `tests/ux/fixtures/journey-project-fixture.mjs`. Seeding occurs only while the isolated project is closed, then the project is reopened and the fake brain reads the nodes through `look_at_canvas`.
 
-These fixtures replace every model-authored draft prelude. Append tasks keep the original canvas-draft context; whether the product supports appending there remains a measured product result. A seeded draft does not invent a reversible write receipt for the undo task.
+These fixtures replace every model-authored draft prelude. Append tasks keep the original canvas-draft context; whether the product supports appending there remains a measured product result. A seeded draft does not invent a reversible write receipt for the undo task. P39 is explicitly unscorable until a native reversible transaction fixture and its conversation receipt exist; a missing fixture must not become an Agent failure. This does not change offline scoring of the original baseline, whose real prelude is still available.
 
 ## Scoring and comparison
 

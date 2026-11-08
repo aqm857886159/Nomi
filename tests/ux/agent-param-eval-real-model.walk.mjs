@@ -205,6 +205,7 @@ try {
     const started = Date.now()
     let projectDir
     try {
+      if (task.fixtureUnavailable) throw Object.assign(new Error(task.fixtureUnavailable), { setup: true })
       projectDir = await openFreshProject()
       await answerTelemetryConsentIfShown()
       // ── 起始态 ──

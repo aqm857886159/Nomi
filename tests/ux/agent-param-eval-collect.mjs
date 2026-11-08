@@ -5,7 +5,7 @@ import path from 'node:path'
 import { laneMessageText, laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { annotateRetries, readAlignedCalls } from './askback-trajectory.mjs'
 
-/** `.nomi/runs/<runId>/run.json` 全部读出来（坏文件跳过并记名字）。 */
+/** 读原生 run 快照；尚无快照的固定夹具读事件日志末态（坏文件记名字）。 */
 export function readRunJsons(projectDir) {
   const root = path.join(projectDir, '.nomi', 'runs')
   const runs = []

@@ -180,7 +180,7 @@
     { "id": "P38", "lang": "en", "family": "read_only", "fixture": "empty",
       "say": "Which aspect ratios can the default video model do? Don't make anything yet.",
       "expect": { "firstWrite": "none", "mustCall": ["list_models"], "retryMax": 0 } },
-    { "id": "P39", "approvals": { "undo": "approve", "delete_from_canvas": "approve" }, "lang": "en", "family": "edit", "fixture": "drafts1", "note": "撤销取自上一次写入的回执 changeId，不编造",
+    { "id": "P39", "fixtureUnavailable": "固定草稿没有可撤销写回执和对应会话历史，不能公平评判撤销；需补原生可撤销事务夹具。", "approvals": { "undo": "approve", "delete_from_canvas": "approve" }, "lang": "en", "family": "edit", "fixture": "drafts1", "note": "撤销取自上一次写入的回执 changeId，不编造",
       "say": "Undo that last change.",
       "expect": { "firstWrite": ["undo", "look_at_canvas"], "mustCallAccepted": ["undo"], "retryMax": 1 } }
   ],

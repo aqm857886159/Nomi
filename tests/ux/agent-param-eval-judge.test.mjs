@@ -156,7 +156,7 @@ describe('汇总：三个数怎么算', () => {
 })
 
 describe('题库自检', () => {
-  it('≥30 条、id 唯一、中英各半、fixture 与预演台词齐全、每题有 say 和 expect', () => {
+  it('≥30 条、id 唯一、中英各半、固定夹具登记齐全、每题有 say 和 expect', () => {
     expect(BANK.tasks.length).toBeGreaterThanOrEqual(30)
     expect(new Set(BANK.tasks.map((t) => t.id)).size).toBe(BANK.tasks.length)
     const zh = BANK.tasks.filter((t) => t.lang === 'zh').length
@@ -176,6 +176,7 @@ describe('题库自检', () => {
     expect(BANK.script.split('\n').filter(Boolean)).toHaveLength(6)
   })
   it('登记了暂不可测的题和原因', () => {
+    expect(task('P39').fixtureUnavailable).toContain('可撤销')
     expect(BANK.untestable.length).toBeGreaterThan(0)
     for (const item of BANK.untestable) expect(item.why.length).toBeGreaterThan(10)
   })
