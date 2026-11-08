@@ -68,6 +68,11 @@ walk.fixture.respond({
 let failure
 try {
   const { win } = await walk.start({ first: true })
+  await win.evaluate(() => {
+    localStorage.setItem('nomi:locale:v1', 'zh-CN')
+    localStorage.setItem('nomi-color-scheme', 'light')
+  })
+  await win.reload()
   await walk.newProject()
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
   // 最小窗：面板只剩四百多像素高，几轮长回答才真的溢出（大窗里装得下，滚动位置恒 0，检查都是恒真式）。
@@ -122,6 +127,9 @@ try {
 
   // ── 种两条长对话：A、B 各 5 轮 ───────────────────────────────────────────
   for (let turn = 1; turn <= TURNS_PER_THREAD; turn += 1) await sendTurn(`CF-A-${turn}`)
+  await wheel(-900)
+  walk.report.leftThreadA = await geometry()
+  if (walk.report.leftThreadA.gap < 300) throw new Error('离开 A 前没有真的往上翻，切回落点检查缺少阅读位置这个前提')
   await newConversation(win, CREATION_PANEL)
   await expect(panel.locator(USER_BUBBLE)).toHaveCount(0)
   for (let turn = 1; turn <= TURNS_PER_THREAD; turn += 1) await sendTurn(`CF-B-${turn}`)
@@ -245,15 +253,8 @@ try {
       { gapBeforeSend: upBeforeSend.gap, afterBubble: bubbleSeen.gap, afterReply: replySeen.gap })
   }
 
-  await win.evaluate(() => {
-    localStorage.setItem('nomi:locale:v1', 'zh-CN')
-    localStorage.setItem('nomi-color-scheme', 'light')
-  })
-  await win.reload()
-  await expandResidentPanel(win)
-  await expect(panel.locator(USER_BUBBLE).filter({ hasText: 'CF-B-' }).first()).toBeAttached({ timeout: 30_000 })
   await expect(win.locator('html')).toHaveAttribute('data-mantine-color-scheme', 'light')
-  await round('zh', 'zh-light')
+  await round('zh-CN', 'zh-light')
 
   // 英文 · 暗色：只重载渲染层，同一个项目、同两条对话。重载 = 面板重新挂载：落点也要在底。
   await win.evaluate(() => {
@@ -261,6 +262,7 @@ try {
     localStorage.setItem('nomi-color-scheme', 'dark')
   })
   await win.reload()
+  await clickOrFail(win.getByRole('button', { name: uiText('en', 'workspace.creationTab'), exact: true }), '切回创作区')
   await expandResidentPanel(win)
   await expect(win.locator('html')).toHaveAttribute('data-mantine-color-scheme', 'dark')
   await expect(panel.locator(USER_BUBBLE).first()).toBeAttached({ timeout: 30_000 })
@@ -277,6 +279,7 @@ try {
       localStorage.setItem('nomi-color-scheme', nextScheme)
     }, { locale, scheme })
     await win.reload()
+    await clickOrFail(win.getByRole('button', { name: uiText(locale, 'workspace.creationTab'), exact: true }), '切回创作区')
     await expandResidentPanel(win)
     await expect(win.locator('html')).toHaveAttribute('data-mantine-color-scheme', scheme)
     await expect(panel.locator(USER_BUBBLE).first()).toBeAttached({ timeout: 30_000 })

@@ -1,10 +1,11 @@
 // Real Electron + native lane + loopback SSE: reasoning is never status metadata.
 import assert from 'node:assert/strict'
-import { expect, expectAbsent, proveProbe } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, THINKING_LINE, TOOL_RECEIPT, ASSISTANT_MESSAGE, V4_FLOW,
-  chooseAssistantModel, createRuntimeWalk, hasToolResult, openCanvas, recorded, sendCanvas,
+  chooseAssistantModel, createRuntimeWalk, expandResidentPanel, hasToolResult, openCanvas, recorded, sendCanvas,
   waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
 
 // Measure painted text as well as row boxes: a fixed-height row can have disjoint boxes
@@ -41,7 +42,9 @@ export async function flowOverlaps(flow) {
 
 const reasoning = 'I should inspect the canvas, verify the existing nodes, and only then explain the result. '.repeat(12)
 const reply = '已读取画布和时间轴，检查已经完成。\n\n画布目前没有镜头节点，可以先从文稿中整理分镜，再继续制作。'
+const locale = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
 const walk = await createRuntimeWalk('thinking-overlap')
+walk.report.locale = locale
 let failure
 try {
   let { win } = await walk.start({ first: true })
@@ -49,6 +52,13 @@ try {
   walk.report.viewport = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
   assert.equal(walk.report.viewport.width, 1440)
   const project = await walk.newProject()
+  await win.evaluate(({ locale, scheme }) => {
+    localStorage.setItem('nomi:locale:v1', locale)
+    localStorage.setItem('nomi-color-scheme', scheme)
+  }, { locale, scheme: locale === 'en' ? 'dark' : 'light' })
+  await win.reload()
+  await clickOrFail(win.getByRole('button', { name: uiText(locale, 'workspace.creationTab'), exact: true }), '切回创作区')
+  await expandResidentPanel(win)
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
   await openCanvas(win)
   const panel = win.locator(CANVAS_PANEL)
@@ -86,7 +96,7 @@ try {
   walk.report.overlaps = { early, streaming, complete }
   assert.deepEqual({ early, streaming, complete }, { early: [], streaming: [], complete: [] }, 'message layers must not overlap')
   // Prove the same detector rejects an injected row collision, then restore exactly.
-  const user = flow.locator(':scope > *').first()
+  const user = flow.locator(':scope > [data-v4-flow-rows] > *').first()
   const originalStyle = await user.getAttribute('style')
   await user.evaluate((node) => { node.style.transform = 'translateY(40px)' })
   walk.report.injectedOverlap = await flowOverlaps(flow)
@@ -112,7 +122,7 @@ try {
   const card = win.locator('[data-project-card="true"]').filter({ hasText: project.name }).first()
   await expect(card).toBeVisible()
   await card.hover()
-  await card.getByRole('button', { name: /继续创作/ }).click()
+  await card.getByRole('button', { name: uiText(locale, 'library.continueCreating'), exact: true }).click()
   const restored = win.locator(CANVAS_PANEL)
   await expect(restored.locator(`${THINKING_LINE} details`)).toHaveCount(2)
   await expect(restored.locator(ASSISTANT_MESSAGE)).toContainText('检查结束')
