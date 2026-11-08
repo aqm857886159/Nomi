@@ -3,8 +3,8 @@
   "entries": {
     "electron/runtime.ts": {
       "kind": "legacy",
-      "max": 665,
-      "reason": "…→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 526（2026-08-30 runtime lifecycle cleanup）→ 519（2026-09-01 actual-cost 接线时把两处终态 trace 收成单行，净瘦身）→ 490（2026-09-17 TaskRequest/CachedTask 抽到 electron/taskTypes.ts）→ 486（2026-09-21 合并 ① 按门岗提示拧紧）→ 482（2026-10-16 #1213 结果读取收进 tasks/taskResultReading）→ 479（同日 V-1213：无 mapping 兜底也走唯一读法，删 extractAssetUrl 再导出）",
+      "max": 660,
+      "reason": "…→ 531（2026-08-27 pi 运行切换移除旧 Agent 再导出）→ 530（2026-08-28 onboarding facade cleanup）→ 526（2026-08-30 runtime lifecycle cleanup）→ 519（2026-09-01 actual-cost 接线时把两处终态 trace 收成单行，净瘦身）→ 490（2026-09-17 TaskRequest/CachedTask 抽到 electron/taskTypes.ts）→ 486（2026-09-21 合并 ① 按门岗提示拧紧）→ 482（2026-10-16 #1213 结果读取收进 tasks/taskResultReading）→ 479（同日 V-1213：无 mapping 兜底也走唯一读法，删 extractAssetUrl 再导出）；格式化口径 665 → 660（2026-11-07 配音落盘修复：只给文件流视频写的那句拒绝并进 tasks/projectFileResult 的判据）",
       "topDeclarations": [
         {
           "name": "runTask",
@@ -318,8 +318,8 @@
     },
     "electron/assets/projectAssetStore.ts": {
       "kind": "frozen",
-      "max": 910,
-      "reason": "新口径落地时已超线，冻结，按职责逐步拆",
+      "max": 886,
+      "reason": "新口径落地时已超线，冻结，按职责逐步拆；910 → 886（2026-11-07 配音落盘修复那一轮：落盘文件的类型与位置——effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath——拆到 assets/storedAssetFile.ts，删别名 stableStoredAssetId）",
       "topDeclarations": [
         {
           "name": "importRemoteAssetToStore",

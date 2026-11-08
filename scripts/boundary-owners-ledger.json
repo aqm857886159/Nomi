@@ -550,6 +550,16 @@
         "symbol": "bindWorkspaceLocations"
       },
       "reason": "2026-10-29「项目在哪」收敛单第一刀（docs/fixes/2026-10-29-project-location-owner.root-cause.json，用户 10-29 批准「按推荐方向修」）：批量登记 rememberWorkspaces 换成 bindWorkspaceLocations，入参从项目记录换成 { id, name, rootPath, origin? }（rootPath 必填，不再抄清单里的 lastKnownRootPath），旧名同提交删除；概念登记 docs/engineering/concept-owners/project.location.json 把它列为「项目在哪」的唯一写口之一。09-03 合同的不变量「批量登记一把锁、一次读、一次写，与单条登记共用一个合并函数」不变：bindWorkspaceLocations 与单条 bindWorkspaceLocation 共用 mergeWorkspaceBinding，锁 withRegistryLock 与排序沿用。语义上新增两点：同一 id 还绑在一个装着它的文件夹上，这一条跳过、原登记不动（不变量 ⑤）；位置变了（改名 / 挪走后重开、启动对账接回）时来源跟着新位置，位置没变时已冻结的来源优先。守它的测试：electron/workspace/workspaceRegistry.test.ts、electron/workspace/workspaceRegistry.concurrency.test.ts、electron/projects/projectLocation.matrix.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-26-asset-name-keeps-extension.root-cause.json",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "storedAssetFileParts",
+      "anchor": {
+        "path": "electron/assets/storedAssetFile.ts",
+        "symbol": "storedAssetFileParts"
+      },
+      "reason": "2026-11-07 配音落盘修复那一轮（docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json）：projectAssetStore.ts 到了文件体积冻结线，按职责把「落盘文件的类型与位置」整块拆到 electron/assets/storedAssetFile.ts（effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath，函数体逐字不变，只是导出）。09-26 合同的不变量「落盘文件名的唯一裁法：扩展名按字节嗅出的内容类型定、只截主干」不变：writeAsset / copyAssetFile / moveAssetFile / 生成产物发布仍然只经 uniqueAssetPath → storedAssetFileParts 这一处取名。守它的测试：electron/assets/projectAssetStore.test.ts（长供应商名不带扩展名 → .mp4，copyAssetFile 与 moveAssetFile 两个入口）。"
     }
   ],
   "retirements": [
