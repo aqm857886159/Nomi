@@ -37,9 +37,9 @@ import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 const ARG_REJECTED = /Validation failed for tool|capability_input_invalid|generation_input_invalid|Unrecognized key\(s\)|must be (array|string|number|object)|Required/i
 
 /**
- * 「同一堵墙」的粗尺子：工具名 + 失败正文首行。生产熔断（`electron/agentLane/laneRepeatedFailure.mts`
- * 的 `laneWallKey`）自 2026-11-07 起按「工具 + 失败码 + 出错字段路径」认墙，比这把细：不同字段的形状错
- * 首行相同，这里算一堵、生产算两堵。故意不跟改——修前 / 修后要用同一把尺子比；被熔断拦下的调用正文以
+ * 「同一堵墙」的粗尺子：工具名 + 失败正文首行。生产熔断（`electron/agentLane/laneRepeatedFailure.mts`）
+ * 自 2026-11-09 起只按工具计「自上次成功以来连败几次」，码和字段只留作诊断，比这把粗：换一个错字段在这里
+ * 可能算另一堵、生产照样算进同一串。故意不跟改——修前 / 修后要用同一把尺子比；停点那一次的正文以
  * `<tool> was not run (tool_retry_stopped)` 开头，这里归 `domain_failed`，要单独数时按这个码筛。
  */
 function wallKey(name, resultText) {

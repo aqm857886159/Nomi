@@ -75,7 +75,8 @@ function oneTurn() {
   // 和 openLane 一样：每条 lane 新建工具描述 → pi 工具（createLaneTools，TypeBox 参数在这一步生成）→ 熔断和边界。
   const descriptors = createExtendedLaneTools({ execute: noop }).filter((tool) => tool.name === 'draft_shots')
   const failures = createLaneRepeatedFailureTracker()
-  const boundary = createLaneToolInputBoundary({ failures, specs: descriptors })
+  let over = false
+  const boundary = createLaneToolInputBoundary({ failures, specs: descriptors, turn: { isOver: () => over, end: () => { over = true } } })
   const [tool] = boundary.wrap(createLaneTools(descriptors))
   if (!tool) throw new Error('draft_shots is not in the extended lane tools')
   const calls = turnCalls()
@@ -84,7 +85,7 @@ function oneTurn() {
   for (const args of calls) {
     try {
       tool.prepareArguments(args)
-      failures.note(tool.name, false, '')
+      failures.note(tool.name, false)
     } catch (error) {
       rejected.push({ args, text: error instanceof Error ? error.message : String(error) })
     }
