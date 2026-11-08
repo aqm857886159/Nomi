@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
-import { judgeBody, judgePaths, reasonSignatures, type ModelFixture, type Violation } from "./officialWire.judge";
+import { judgeBody, judgePaths, reasonSignatures, type ModelFixture, type Violation } from "../../tests/parity/officialWireJudge";
 
 const modules = import.meta.glob<{ default: ModelFixture }>("../../tests/fixtures/vendor-official/apimart/*.json", { eager: true });
 const fixtures = new Map(Object.values(modules).map((m) => [m.default.modelKey, m.default]));

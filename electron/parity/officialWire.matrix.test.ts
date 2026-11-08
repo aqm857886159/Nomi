@@ -51,7 +51,7 @@ import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog } fr
 
 import knownRedTable from "./officialWire.known-red.json";
 
-import { ASSERTIONS, judgeBody, judgePaths, isRefused, reasonSignatures, type Fact, type ModeFact, type ModelFixture, type Violation, type Wire } from "./officialWire.judge";
+import { ASSERTIONS, judgeBody, judgePaths, isRefused, reasonSignatures, type Fact, type ModeFact, type ModelFixture, type Violation, type Wire } from "../../tests/parity/officialWireJudge";
 type KnownRed = {
   repros: Record<string, string>;
   cells: Array<{ cell: string; assertion: string; repro: number | string; reason: Record<string, unknown> }>;
