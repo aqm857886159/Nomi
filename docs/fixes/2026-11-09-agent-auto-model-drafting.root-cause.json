@@ -22,7 +22,7 @@
     "Single and multi-shot no_default_model refusals"
   ],
   "external_sources": [],
-  "internal_only_reason": "The user explicitly chose Agent selection while preserving host refusal and spend approval; this is an internal ownership rule, not third-party runtime behavior.",
+  "internal_only_reason": "The user explicitly chose Agent selection while preserving host refusal and spend approval; this is an internal ownership rule, not third-party runtime behavior. The Auto-select edge was identified during implementation review; the user then chose the product behavior recorded in docs/plan/2026-11-09-agent-auto-model-drafting.md. The original host refusal was an intentional safety boundary, which remains unchanged.",
   "invariants": [
     "Only the live resolver answer may assert absence of a usable saved default.",
     "Without a default, the Agent must explicitly name an available model and report its display name.",
@@ -163,7 +163,7 @@
     "Real model compliance is unverified: this round explicitly forbids live models.",
     "A scripted fixture proves tool and panel behavior, not autonomous model selection."
   ],
-  "detected_by": "user",
+  "detected_by": "review",
   "recurrence_check_on": "2026-12-09",
   "invariant_owner_layer": {
     "layer": "electron/agentLane/laneModelContext.ts",
