@@ -14,14 +14,17 @@
 //   C no_default_model  —— 镜头没点名模型，用户也没存默认图片模型。
 // 每种一回合：夹具模型发一次 draft_shots，读到拒收就收尾（不重试），面板留一行失败行。
 //
-// 参考超量（reference_over_capacity）这里**不走**：生产的起草路径今天没有一处在起草时按模式上限拒参考
+// 参考超量（reference_over_capacity）**真走不到**：生产的起草路径今天没有一处在起草时按模式上限拒参考
 // （注册表清单的 `assetInputSchema.references` 不带 max，`admitPlanCandidate` 那条检查在生产里走不到），
-// 超量要到提交那一步才由供应商适配器拒。它的面板文案由单测 + 夹具渲染证，见 PR 正文。
+// 超量要到提交那一步才由供应商适配器拒。所以修后那一场最后加一张**夹具图**：关掉 App，把 A 那一回合
+// 写进 lane 转录的失败信封里的原因改写成「参考最多 4 个」，冷启动重开，让真面板照转录渲染。文件名和画面
+// 都标「夹具」——它证的是面板读到这个原因时说什么，不证生产会抛它（那一条由单测证）。
 //
 // 用法：GENPROBLEM_REPLAY=before node tests/ux/agent-generation-problem.walk.mjs   （合入基点的构建上）
 //       node tests/ux/agent-generation-problem.walk.mjs                            （修后，缺省）
+import fs from 'node:fs'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-import { expect, proveProbe } from './_assert.mjs'
+import { clickOrFail, expect, proveProbe } from './_assert.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 import {
@@ -37,7 +40,7 @@ import {
   waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
 import { switchAppLocale } from './_permissionTiersPaidSteps.mjs'
-import { uiText } from './full-walk/invariants.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 
 const MODE = process.env.GENPROBLEM_REPLAY === 'before' ? 'before' : 'after'
 const TOOL_GROUP = '[data-v4-block="tool-group"]'
@@ -100,8 +103,8 @@ const fakeHome = makeTempDir('nomi-pi-generation-problem-home-')
 const walk = await createRuntimeWalk(`generation-problem-${MODE}`, { generationProvider: 'apimart', env: { HOME: fakeHome } })
 let failure
 try {
-  const { win } = await walk.start({ first: true })
-  const { projectId, projectRoot } = await walk.newProject()
+  let { win } = await walk.start({ first: true })
+  const { projectId, projectRoot, name } = await walk.newProject()
   await openCanvas(win)
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, CANVAS_PANEL)
   const consent = win.getByRole('button', { name: '不分享', exact: true }).first()
@@ -176,6 +179,57 @@ try {
       `${item.key}：英文界面同一句`).toBeVisible()
   }
   await walk.snap(`${MODE}-04-en-all-rows`)
+
+  if (MODE === 'after') {
+    // 夹具图（见文件头）：只改写 A 那一回合信封里的原因，别的一个字节不动；改写前后各核一次。
+    await switchAppLocale(win, 'zh-CN')
+    await walk.stopApp()
+    const target = callId('unknown_model')
+    const sessions = readLaneTranscripts(projectRoot).filter((session) => laneMessages(session)
+      .some((message) => message.role === 'toolResult' && message.toolCallId === target))
+    expect(sessions, `${target} 只写在一份 lane 转录里`).toHaveLength(1)
+    let rewritten = 0
+    const lines = fs.readFileSync(sessions[0].path, 'utf8').split('\n').map((line) => {
+      if (!line.includes(target)) return line
+      const entry = JSON.parse(line)
+      const failure = entry.type === 'message' && entry.message?.role === 'toolResult' && entry.message.toolCallId === target
+        ? entry.message.details?.failure : undefined
+      if (failure?.problem?.code !== 'unknown_model') return line
+      failure.problem = { code: 'reference_over_capacity', field: 'references', max: 4, next: 'reduce_references', retryable: true, charged: false }
+      rewritten += 1
+      return JSON.stringify(entry)
+    })
+    expect(rewritten, '转录里恰好一条 unknown_model 信封被改写成参考超量').toBe(1)
+    fs.writeFileSync(sessions[0].path, lines.join('\n'))
+
+    ;({ win } = await walk.start())
+    const card = win.locator('[data-project-card="true"]').filter({ hasText: name })
+    await expect(card).toBeVisible()
+    await card.hover()
+    await clickOrFail(card.getByRole('button', { name: /继续创作/ }), '冷启动重开这个临时项目')
+    await win.waitForFunction((id) => location.href.includes(`projectId=${encodeURIComponent(id)}`), projectId)
+    await openCanvas(win)
+    const reopened = win.locator(CANVAS_PANEL)
+    await expect(reopened, '冷启动后画布面板回到同一段对话').toContainText(CASES[0].done.split('：', 1)[0])
+    const fixtureRow = reopened.locator(`${TOOL_RECEIPT}, ${TOOL_GROUP}`).filter({ hasText: uiTextWith('zh-CN', 'agentToolFailure.problemReferenceOverCapacity', { max: 4 }) })
+    await proveProbe(fixtureRow.first(), '夹具：参考超量的失败行')
+    const stamp = (text) => win.evaluate((label) => {
+      document.querySelector('[data-walk-fixture-stamp]')?.remove()
+      const badge = document.createElement('div')
+      badge.setAttribute('data-walk-fixture-stamp', '')
+      badge.textContent = label
+      Object.assign(badge.style, { position: 'fixed', top: '8px', left: '50%', transform: 'translateX(-50%)', zIndex: '2147483647',
+        padding: '4px 10px', background: '#b42318', color: '#fff', font: '600 12px system-ui', borderRadius: '4px' })
+      document.body.appendChild(badge)
+    }, text)
+    await stamp('夹具：转录里的原因被改写成「参考最多 4 个」，生产起草走不到这一条')
+    await walk.snap('after-05-zh-FIXTURE-reference_over_capacity')
+    await switchAppLocale(win, 'en')
+    await expect(reopened.locator(`${TOOL_RECEIPT}, ${TOOL_GROUP}`)
+      .filter({ hasText: uiTextWith('en', 'agentToolFailure.problemReferenceOverCapacity', { max: 4 }) }).first(), '夹具：英文界面同一句').toBeVisible()
+    await stamp('FIXTURE: the reason in the transcript was rewritten to "at most 4 references"; production drafting never raises it')
+    await walk.snap('after-06-en-FIXTURE-reference_over_capacity')
+  }
 } catch (error) {
   failure = error
 }
