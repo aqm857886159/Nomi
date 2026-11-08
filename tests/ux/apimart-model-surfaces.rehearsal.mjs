@@ -119,6 +119,7 @@ try {
       const send = win.locator('[data-bar-segment="generate"]').first()
       await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('data-price-source', /api\/pricing\/model/, { timeout: 10000 })
       await expect(send, 'board:ModelSurfaces/cost.hover').toHaveAttribute('aria-description', /1[.,]95/)
+      await expect(send.locator('..')).toHaveAttribute('title', /0[.,]195/)
       await screenshotSettled(win, { path: path.join(output, locale + '-public-estimate.png') })
       results.push({ locale, quote: await send.innerText() })
       for (const state of ['low', 'empty', 'valid']) {

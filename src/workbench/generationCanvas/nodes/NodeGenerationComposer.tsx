@@ -1,6 +1,6 @@
 import { useNodePricePreview } from '../spend/useNodePricePreview'
 import { useVendorAccountFacts } from '../../../ui/onboarding/useVendorAccountFacts'
-import { apimartBillingUrl, apimartUsd, formatCreditValue, priceBalanceStatus } from '../../common/apimartAccountDisplay'
+import { apimartBillingUrl, formatCreditValue, priceBalanceStatus, publicEstimateUsd } from '../../common/apimartAccountDisplay'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -155,7 +155,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const { zero: zeroBalance, estimatedGap: shortfall } = priceBalanceStatus(quote, facts, Date.now())
   const quoteLabel = quote ? t(quote.basis === 'output-estimate' ? 'onboardingProviders.account.outputEstimate' : 'onboardingProviders.account.estimate', {
     value: formatCreditValue(quote.credits, i18n.language),
-    usd: apimartUsd(quote.usd, i18n.language),
+    usd: publicEstimateUsd(quote, i18n.language),
   }) : quoteVendor ? t('onboardingProviders.account.priceUnknown') : undefined
   // 渠道 mapping 同理：内存里那一份（composerResidentData 启动后载入），三份控件共用一个读取器。
   const readMappings = useVendorMappingsReader()
