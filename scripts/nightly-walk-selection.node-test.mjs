@@ -63,7 +63,7 @@ test('夜跑清单就是工作流跑的那份：CLI 输出 = nightlyWalkInventor
 /** _realProfile.mjs 里会读、拷或删用户真实资料的导出。 */
 const REAL_DATA_DOORS = ['realNomiProfile', 'readRealCatalog', 'seedRealCredentials', 'seedRealCredentialStore', 'seedRealModels', 'realProfileFingerprint', 'removeRealCredentials']
 /** _realProfile.mjs 里不碰资料的导出：常量，和「真 Nomi 在不在跑」的进程探测。 */
-const REAL_PROFILE_NO_DATA = ['REAL_PROFILE_ENV', 'REAL_CATALOG_FILE', 'realNomiIsRunning', 'realNomiProcessesAlive']
+const REAL_PROFILE_NO_DATA = ['REAL_PROFILE_ENV', 'REAL_CATALOG_FILE', 'REAL_CREDENTIAL_MARKER', 'realNomiIsRunning', 'realNomiProcessesAlive']
 
 function exportedNames(text, fileName) {
   const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
