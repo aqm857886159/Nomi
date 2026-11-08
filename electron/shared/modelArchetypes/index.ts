@@ -13,6 +13,14 @@ import { MESHY6_ARCHETYPE } from "./meshy6";
 import { RUNNINGHUB_IMAGE_ARCHETYPES } from "./runninghubImageArchetypes";
 import { GPT_IMAGE_2_ARCHETYPE } from "./gptImage2";
 import { GPT_IMAGE_25_FLARE_ARCHETYPE, GPT_IMAGE_25_SUNBURST_ARCHETYPE } from "./gptImage25";
+import { GPT_IMAGE_26_FLARE_ARCHETYPE, GPT_IMAGE_26_SUNBURST_ARCHETYPE } from "./gptImage26";
+import { NANO_BANANA_21_ARCHETYPE, NANO_BANANA_21_EXT_ARCHETYPE } from "./nanoBanana21";
+import { NANO_BANANA_LITE_ARCHETYPE, NANO_BANANA_LITE_EXT_ARCHETYPE } from "./nanoBananaLite";
+import { FLUX_3_IMAGE_ARCHETYPE, FLUX_3_IMAGE_KLEIN_ARCHETYPE } from "./flux3";
+import { GROK_IMAGINE_IMAGE_20_OFFICIAL_ARCHETYPE } from "./grokImageOfficial";
+import { HY_IMAGE_V35_ARCHETYPE } from "./hunyuanImage35";
+import { MUSE_IMAGE_EXT_ARCHETYPE } from "./museImage";
+import { WAN_27_IMAGE_ARCHETYPE, WAN_27_IMAGE_PRO_ARCHETYPE } from "./wan27Image";
 import { SEEDREAM_ARCHETYPE } from "./seedream";
 import { NANO_BANANA_ARCHETYPE } from "./nanoBanana";
 import { NANO_BANANA_2_ARCHETYPE, NANO_BANANA_2_LITE_ARCHETYPE } from "./nanoBanana2";
@@ -61,7 +69,7 @@ export { installModelNameSourceLookup, isModelNameSource, modelNameSourceFor, sc
 export type { ModelNameSource, ModelNameSourceLookup } from "./modelNameSource";
 
 export type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ArchetypeExpressionChannel, ArchetypeIntent, ArchetypeTransportTaskKind, ModelArchetypeVariant } from "./types";
-export { combineChannelForMode, modeTransportFor, recommendVideoGeneration } from "../videoCapabilities";
+export { combineChannelForMode, lowerCombinedReferences, combineRoleForSlot, modeTransportFor, recommendVideoGeneration, REFERENCE_ROLE_FOR_KIND, slotJoinsCombine } from "../videoCapabilities";
 export type { ReferenceCombineChannel } from "../videoCapabilities";
 export type {
   VideoGenerationRecommendation,
@@ -96,7 +104,7 @@ export type { CustomCapabilityContractV1, CustomCapabilityModeV1 } from "./custo
  */
 export const MODEL_ARCHETYPES: readonly ModelArchetype[] = [
   ...sourceBackedVideoProfiles(),
-  MINIMAX_MUSIC_3_ARCHETYPE, MINIMAX_SPEECH_28_ARCHETYPE, ELEVEN_V3_ARCHETYPE, ELEVEN_MULTILINGUAL_V2_ARCHETYPE, ELEVEN_MUSIC_V2_ARCHETYPE, ELEVEN_SFX_V2_ARCHETYPE, ELEVEN_SCRIBE_V2_ARCHETYPE, MESHY_7_ARCHETYPE, ...RUNWAY_NATIVE_IMAGE_ARCHETYPES, RUNWAY_SEED_AUDIO_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, KIE_SEEDREAM_5_PRO_ARCHETYPE, KIE_SEEDREAM_5_LITE_ARCHETYPE, NANO_BANANA_2_ARCHETYPE, NANO_BANANA_2_LITE_ARCHETYPE, NANO_BANANA_ARCHETYPE, FLUX_2_PRO_ARCHETYPE, QWEN_IMAGE_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SEEDREAM_5_PRO_ARCHETYPE, AUDIO_ARCHETYPE, SUNO_V55_ARCHETYPE, SUNO_SFX_V55_ARCHETYPE, ...SUNO_V6_ARCHETYPES, LYRIA_35_ARCHETYPE, DOUBAO_TTS_ARCHETYPE, SEED_TTS_ARCHETYPE, MODELSCOPE_IMAGE_ARCHETYPE, MODELSCOPE_IMAGE_EDIT_ARCHETYPE, SEEDREAM_VOLCENGINE_ARCHETYPE, SEEDREAM_VOLCENGINE_5_PRO_ARCHETYPE, DREAMINA_IMAGE_ARCHETYPE, DREAMINA_UPSCALE_ARCHETYPE, TOPAZ_IMAGE_UPSCALE_ARCHETYPE, RECRAFT_CRISP_UPSCALE_ARCHETYPE, CODEX_IMAGEGEN_ARCHETYPE, ANTIGRAVITY_IMAGE_ARCHETYPE, HUNYUAN3D_ARCHETYPE, HITEM3D_ARCHETYPE, MESHY6_ARCHETYPE, ...RUNNINGHUB_IMAGE_ARCHETYPES, AGNES_IMAGE_ARCHETYPE, AGNES_IMAGE_21_ARCHETYPE, LOCAL_SPEECH_ARCHETYPE, HIGGSFIELD_SOUL_2_ARCHETYPE, HIGGSFIELD_SOUL_CINEMA_ARCHETYPE, GPT_IMAGE_25_FLARE_ARCHETYPE, GPT_IMAGE_25_SUNBURST_ARCHETYPE, IMAGEN_4_FAST_ARCHETYPE, IMAGEN_4_ULTRA_ARCHETYPE,
+  MINIMAX_MUSIC_3_ARCHETYPE, MINIMAX_SPEECH_28_ARCHETYPE, ELEVEN_V3_ARCHETYPE, ELEVEN_MULTILINGUAL_V2_ARCHETYPE, ELEVEN_MUSIC_V2_ARCHETYPE, ELEVEN_SFX_V2_ARCHETYPE, ELEVEN_SCRIBE_V2_ARCHETYPE, MESHY_7_ARCHETYPE, ...RUNWAY_NATIVE_IMAGE_ARCHETYPES, RUNWAY_SEED_AUDIO_ARCHETYPE, GPT_IMAGE_2_ARCHETYPE, SEEDREAM_ARCHETYPE, KIE_SEEDREAM_5_PRO_ARCHETYPE, KIE_SEEDREAM_5_LITE_ARCHETYPE, NANO_BANANA_2_ARCHETYPE, NANO_BANANA_2_LITE_ARCHETYPE, NANO_BANANA_ARCHETYPE, FLUX_2_PRO_ARCHETYPE, QWEN_IMAGE_3_ARCHETYPE, QWEN_IMAGE_ARCHETYPE, IMAGEN_4_ARCHETYPE, Z_IMAGE_ARCHETYPE, SEEDREAM_5_PRO_ARCHETYPE, AUDIO_ARCHETYPE, SUNO_V55_ARCHETYPE, SUNO_SFX_V55_ARCHETYPE, ...SUNO_V6_ARCHETYPES, LYRIA_35_ARCHETYPE, DOUBAO_TTS_ARCHETYPE, SEED_TTS_ARCHETYPE, MODELSCOPE_IMAGE_ARCHETYPE, MODELSCOPE_IMAGE_EDIT_ARCHETYPE, SEEDREAM_VOLCENGINE_ARCHETYPE, SEEDREAM_VOLCENGINE_5_PRO_ARCHETYPE, DREAMINA_IMAGE_ARCHETYPE, DREAMINA_UPSCALE_ARCHETYPE, TOPAZ_IMAGE_UPSCALE_ARCHETYPE, RECRAFT_CRISP_UPSCALE_ARCHETYPE, CODEX_IMAGEGEN_ARCHETYPE, ANTIGRAVITY_IMAGE_ARCHETYPE, HUNYUAN3D_ARCHETYPE, HITEM3D_ARCHETYPE, MESHY6_ARCHETYPE, ...RUNNINGHUB_IMAGE_ARCHETYPES, AGNES_IMAGE_ARCHETYPE, AGNES_IMAGE_21_ARCHETYPE, LOCAL_SPEECH_ARCHETYPE, HIGGSFIELD_SOUL_2_ARCHETYPE, HIGGSFIELD_SOUL_CINEMA_ARCHETYPE, GPT_IMAGE_25_FLARE_ARCHETYPE, GPT_IMAGE_25_SUNBURST_ARCHETYPE, GPT_IMAGE_26_FLARE_ARCHETYPE, GPT_IMAGE_26_SUNBURST_ARCHETYPE, NANO_BANANA_21_ARCHETYPE, NANO_BANANA_21_EXT_ARCHETYPE, NANO_BANANA_LITE_ARCHETYPE, NANO_BANANA_LITE_EXT_ARCHETYPE, FLUX_3_IMAGE_ARCHETYPE, FLUX_3_IMAGE_KLEIN_ARCHETYPE, GROK_IMAGINE_IMAGE_20_OFFICIAL_ARCHETYPE, HY_IMAGE_V35_ARCHETYPE, MUSE_IMAGE_EXT_ARCHETYPE, WAN_27_IMAGE_ARCHETYPE, WAN_27_IMAGE_PRO_ARCHETYPE, IMAGEN_4_FAST_ARCHETYPE, IMAGEN_4_ULTRA_ARCHETYPE,
 ];
 
 /** 按 id 取档案。 */
@@ -233,18 +241,22 @@ function resolveBaseArchetype(model: ArchetypeModelLike): ModelArchetype | null 
 
 /**
  * B 档案分层（用户拍板 2026-06-07）：把档案的 modes.params 替换成该供应商的覆盖版（mode.vendorParams[vendorKey]）。
- * 身份/能力形状（id/family/label/modes 结构/slots）不变——只 params 这层分供应商（P4）。
- * 无 vendorKey、或没有任何模式为该供应商声明 vendorParams → 原样返回（绝大多数情况，零开销）。
+ * 身份/能力形状（id/family/label/modes/槽种）不变；通道可以收紧单槽容量。
+ * 无 vendorKey、或没有为该供应商声明参数/容量覆盖 → 原样返回（绝大多数情况，零开销）。
  */
 export function specializeArchetypeForVendor(archetype: ModelArchetype, vendorKey: string | null | undefined): ModelArchetype {
   const key = typeof vendorKey === "string" ? vendorKey.trim() : "";
   if (!key) return archetype;
-  if (!archetype.modes.some((m) => m.vendorParams && m.vendorParams[key])) return archetype;
+  if (!archetype.modes.some((mode) => mode.vendorParams?.[key] || mode.slots.some((slot) => slot.vendorMax?.[key] !== undefined))) return archetype;
   return {
     ...archetype,
     modes: archetype.modes.map((m) => {
       const vp = m.vendorParams?.[key];
-      return vp ? { ...m, params: vp } : m;
+      const slots = m.slots.map((slot) => {
+        const max = slot.vendorMax?.[key];
+        return max === undefined ? slot : { ...slot, max };
+      });
+      return { ...m, slots, params: vp ?? m.params };
     }),
   };
 }

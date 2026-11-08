@@ -34,6 +34,7 @@ export type ReferenceModelContext = Readonly<{
   modelMeta?: unknown;
   archetypeId?: string | null;
   taskKind?: string;
+  modeId?: string;
 }>;
 
 export type ReferenceKeyCapacityDeclaration = ReferenceKeyDeclaration & Readonly<{
@@ -288,8 +289,9 @@ export function referenceKeyCapacityDeclarationFor(
   if (!normalized) return null;
   const archetype = archetypeForContext(context);
   if (archetype) {
-    for (const mode of archetype.modes) {
-      if (!modeMatchesTaskKind(mode, context?.taskKind)) continue;
+    const selectedMode = archetype.modes.find((mode) => mode.id === context?.modeId);
+    for (const mode of selectedMode ? [selectedMode] : archetype.modes) {
+      if (!selectedMode && !modeMatchesTaskKind(mode, context?.taskKind)) continue;
       const declaration = modelDeclarationForModeKey(mode, normalized);
       if (declaration) return declaration;
     }

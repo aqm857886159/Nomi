@@ -98,7 +98,7 @@ describe('托管地址按 WHATWG 形状对号', () => {
       { kind: 'allowed-response', seq: 1, text: JSON.stringify({ data: { url: remoteFirst } }) },
       { kind: 'allowed-request', seq: 2, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/uploads/images', body: { form: [{ fileName: 'last.png' }] } },
       { kind: 'allowed-response', seq: 2, text: JSON.stringify({ data: { url: remoteLast } }) },
-      { kind: 'allowed-request', seq: 3, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: JSON.stringify({ image_urls: [new URL(remoteFirst).href, new URL(remoteLast).href] }) } },
+      { kind: 'allowed-request', seq: 3, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: JSON.stringify({ image_with_roles: [{ role: "first_frame", url: new URL(remoteFirst).href }, { role: "last_frame", url: new URL(remoteLast).href }] }) } },
     ]
     const verdict = judgeReferenceWire(entries, { host: HOST, firstFile: 'first ref.png', lastFile: 'last.png', referenceFiles: [], localUrlOf: () => '' })
     expect(verdict.problems).toEqual([])
@@ -120,7 +120,7 @@ describe('托管地址按 WHATWG 形状对号', () => {
       { kind: 'allowed-response', seq: 1, text: JSON.stringify({ data: { url: firstRemote } }).replaceAll('/', '\\/') },
       { kind: 'allowed-request', seq: 2, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/uploads/images', body: { form: [{ fileName: lastFile }] } },
       { kind: 'allowed-response', seq: 2, text: JSON.stringify({ data: { url: lastRemote } }).replaceAll('/', '\\/') },
-      { kind: 'allowed-request', seq: 3, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: JSON.stringify({ image_urls: [new URL(firstRemote).href, new URL(lastRemote).href] }) } },
+      { kind: 'allowed-request', seq: 3, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: JSON.stringify({ image_with_roles: [{role: "first_frame", url: new URL(firstRemote).href},{role: "last_frame", url: new URL(lastRemote).href}] }) } },
     ]
     const verdict = judgeReferenceWire(entries, { host: HOST, firstFile: file, lastFile, referenceFiles: [] })
     expect(verdict.problems).toEqual([])
@@ -139,7 +139,7 @@ describe('托管地址按 WHATWG 形状对号', () => {
       { kind: 'allowed-response', seq: 1, text: JSON.stringify({ data: { url: firstRemote } }) },
       { kind: 'allowed-request', seq: 2, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/uploads/images', body: { form: [{ fileName: lastFile }] } },
       { kind: 'allowed-response', seq: 2, text: JSON.stringify({ data: { url: lastRemote } }) },
-      { kind: 'allowed-request', seq: 3, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: JSON.stringify({ image_urls: [new URL(firstRemote).href, new URL(lastRemote).href] }) } },
+      { kind: 'allowed-request', seq: 3, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: JSON.stringify({ image_with_roles: [{role: "first_frame", url: new URL(firstRemote).href},{role: "last_frame", url: new URL(lastRemote).href}] }) } },
     ]
     const verdict = judgeReferenceWire(entries, { host: HOST, firstFile: file, lastFile, referenceFiles: [] })
     expect(verdict.problems).toEqual([])
@@ -159,7 +159,7 @@ describe('托管地址按 WHATWG 形状对号', () => {
       { kind: 'allowed-response', seq: 1, text: responseText(firstRemote) },
       { kind: 'allowed-request', seq: 2, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/uploads/images', body: { form: [{ fileName: lastFile }] } },
       { kind: 'allowed-response', seq: 2, text: responseText(lastRemote) },
-      { kind: 'allowed-request', seq: 3, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: JSON.stringify({ image_urls: [new URL(firstRemote).href, new URL(lastRemote).href] }) } },
+      { kind: 'allowed-request', seq: 3, host: HOST, method: 'POST', url: 'https://api.apimart.ai/v1/videos/generations', body: { text: JSON.stringify({ image_with_roles: [{role: "first_frame", url: new URL(firstRemote).href},{role: "last_frame", url: new URL(lastRemote).href}] }) } },
     ]
     expect(judgeReferenceWire(entries, { host: HOST, firstFile: file, lastFile, referenceFiles: [] }).problems).toEqual([])
   })
@@ -181,20 +181,30 @@ async function ledgerFor(node, { uploads = ['first.png', 'last.png'], mutateBody
 }
 
 describe('真付费样本的判定：用真 runTask 渲染的 APIMart 首尾帧请求体', () => {
-  it('修后：image_urls 和 image_with_roles 各带一遍首尾帧（4 处出现），去重后恰好 first.png、last.png → 判过', async () => {
+  it('首帧和尾帧按角色各发一次 → 判过', async () => {
     const { entries, body } = await ledgerFor(sceneNode())
-    expect(body.image_urls?.length).toBe(2)
+    expect(body).not.toHaveProperty("image_urls")
     expect(Array.isArray(body.image_with_roles)).toBe(true)
     const verdict = judgeReferenceWire(entries, SCENE)
-    expect(verdict.summary.imageUrlOccurrences).toBe(4)
+    expect(verdict.summary.imageUrlOccurrences).toBe(2)
     expect(verdict.summary.imagesInBody.map((entry) => entry.file).sort()).toEqual(['first.png', 'last.png'])
     expect(verdict.problems).toEqual([])
+  })
+
+  it('同一对首尾帧又被放入扁平键，或首尾角色错位，均判失败', async () => {
+    for (const mutateBody of [
+      body => ({ ...body, image_urls: body.image_with_roles.map(item => item.url) }),
+      body => ({ ...body, image_with_roles: [...body.image_with_roles].reverse() }),
+    ]) {
+      const { entries } = await ledgerFor(sceneNode(), { mutateBody })
+      expect(judgeReferenceWire(entries, SCENE).problems.join('、')).toMatch(/各出现一次|角色和文件顺序/)
+    }
   })
 
   it('修前的形状（残留参考混进 image_urls）→ 判红，并点名', async () => {
     const { entries } = await ledgerFor(sceneNode(), {
       uploads: ['first.png', 'last.png', ...REFERENCE_FILES],
-      mutateBody: (body) => ({ ...body, image_urls: [...body.image_urls, ...REFERENCE_FILES.map(hosted)] }),
+      mutateBody: (body) => ({ ...body, image_urls: REFERENCE_FILES.map(hosted) }),
     })
     const verdict = judgeReferenceWire(entries, SCENE)
     expect(verdict.problems.join('\n')).toMatch(/残留参考出现在请求体里/)
@@ -224,7 +234,7 @@ describe('B3 规范形节点（付费脚本切到首尾帧之后）：花钱前�
     const node = b3SceneNode()
     expect(firstLastSceneProblems(node.meta, B3_SCENE)).toEqual([])
     const { entries, body } = await ledgerFor(node)
-    expect(body.image_urls?.length).toBe(2)
+    expect(body).not.toHaveProperty("image_urls")
     expect(Array.isArray(body.image_with_roles)).toBe(true)
     const verdict = judgeReferenceWire(entries, B3_SCENE)
     expect(verdict.summary.imagesInBody.map((entry) => entry.file).sort()).toEqual(['first.png', 'last.png'])
