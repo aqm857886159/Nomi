@@ -12,10 +12,8 @@ import { ARCHETYPE_WIRE_DEFAULTS, ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archet
 import { bodyReferencedParamKeys } from "./paramTranslate";
 import { hasMentions, numberPromptReferences, projectPromptForSend } from "../shared/storyboard/promptMentions";
 import { assertReferenceCapacity, bodyReferenceSupport, classifyReferenceKey, referenceUrlCount, type ModelModeBody, type ReferenceFamily } from "./referenceReachability";
-import {
-  DERIVED_REFERENCE_CARRIER_KEYS,
-  referenceKeyCapacityDeclarationFor,
-} from "../shared/modelArchetypes/referenceKeys";
+import { referenceKeyCapacityDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
+import { lowerHeadlessReferences } from "../shared/generationLowering/headlessReferences";
 import { chatImageParts, jsonImageEditInput } from "./referenceCarrierShapes";
 import { readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "./parameterReferenceContract";
 import { resolveWireModel, WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
@@ -129,7 +127,7 @@ function sizeDefaultIsRatioSemantic(
  * archetypeId+taskKind 桥接自 src/config，vendorParams 覆盖优先、回退通用 "*"；补 duration(int)/
  * 比例/清晰度/voice/size）；② mapping 级 defaultParams（仅非档案派生的兜底）；③ **参考键形态投影**
  * （createBody 给了才做，W1d）——把携带的参考投影到 body 真读的键（image_urls/first_frame_image…），
- * 见 projectReferencesOntoBodyKeys。逻辑收口在此 → runtime 一行调用，不喂巨壳。
+ * 见 headlessReferenceOverlay（放置交给 shared/generationLowering 的唯一降级函数）。逻辑收口在此 → runtime 一行调用，不喂巨壳。
  *
  * 附一道 `size` 别名闸（见 sizeDefaultIsRatioSemantic）：调用方比例铺进的 `size` 仅当该模式 size 默认是比例形时
  * 才保留，否则剥掉，免得把只说像素的目标（火山 seedream 等）的 size 覆写成 "16:9" 发出废请求。
@@ -178,7 +176,7 @@ export function applyHeadlessParamDefaults(
   } : defaulted;
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
-  const projected = projectReferencesOntoBodyKeys(withDefaults, createBody, selected);
+  const projected = headlessReferenceOverlay(withDefaults, createBody, selected);
   return Object.keys(projected).length ? { ...(withDefaults || {}), ...projected } : withDefaults;
 }
 
@@ -287,35 +285,6 @@ function numericWireParam(value: unknown): number | string | undefined {
 // 参考值的 URL 形状（http/nomi-local/data/blob/绝对路径）。护栏判定只认它——archetypeInput 里还混着
 // model enum（如 "gpt-image-2-image-to-image"）和 fixedParams 常量，按「有任意值」判会误报有参考。
 const REF_URL_RE = /^(https?:\/\/|nomi-local:\/\/|data:|blob:|\/)/i;
-
-// 「对象形态」参考键：值必须是 [{url, role}] / content 项对象数组（渲染层 archetypeInput 才构造得对），
-// 不能塞 plain URL。projectReferencesOntoBodyKeys 跳过它们走 plain 键（image_urls 等），对象键留空由模板丢。
-const OBJECT_SHAPE_REF_KEY = /with_roles|_contents\b|_content\b/i;
-
-// 数组形态键：复数 URL 键（image_urls / video_urls / audio_urls / input_urls / reference_*_urls / *_images / *_paths）。
-// 声明表的 multiImage 只表达媒体键的数组形态；video/audio 复数键也由同一声明补齐 → 塞数组不塞单串。
-const ARRAY_SHAPE_REF_KEY = /_urls$|urls$|images$|audios$|videos$|_paths$|paths$/i;
-
-/**
- * 帧槽：**归一后的标准来源键** ↔ **body 侧帧键的判据**。
- *
- * 为什么需要它（2026-08-27 真机 422 的根因）：`referenceInputParams` 把调用方的 `firstFrameUrl`
- * 归一成 `first_frame_url`，**帧意图是保留着的**；但 `carriedReferenceUrlsByFamily` 会把同族的
- * URL 拍平成一个列表，意图在那一步丢了。于是下游「每族优先数组键」的启发式把首帧塞进了
- * `reference_image_urls`——对 Wan 3.0 这种「首/尾帧与 reference_* 官方硬互斥」的模型，
- * 结果是 body 里两族键同时出现，kie 直接 422。
- *
- * 注意 `first_frame` / `last_frame` 两条判据互不包含（不能只用 /frame/），否则尾帧会被首帧规则先吞。
- */
-const FRAME_SLOTS: ReadonlyArray<{ sourceKey: string; bodyKeyRe: RegExp }> = [
-  { sourceKey: "first_frame_url", bodyKeyRe: /first_frame/i },
-  { sourceKey: "last_frame_url", bodyKeyRe: /last_frame/i },
-];
-
-/** 往这个 body 参考键投影时该塞数组还是单串：多图键（multiImage）或复数 URL 键 → 数组；否则单串（首帧/单图聚合位）。 */
-function refKeyWantsArray(key: string, multiImage: boolean): boolean {
-  return multiImage || ARRAY_SHAPE_REF_KEY.test(key);
-}
 
 function containsRefUrl(value: unknown): boolean {
   if (typeof value === "string") return REF_URL_RE.test(value.trim());
@@ -577,45 +546,22 @@ function carriedReferenceUrlsByFamily(extras: JsonRecord,
 }
 
 /**
- * **headless/MCP 参考键形态投影**（纯函数，W1d 根因修复，见
- * docs/plan/2026-08-20-w1d-reference-mode-alignment.md）：把携带的参考投影到**这条 body 真实读的参考键**上。
+ * headless / MCP 的参考读法（W1d 起的「body 读哪个键就放哪个键」）：读出这次携带了哪些参考、哪张明确是首 / 尾帧、
+ * 哪些键已经有值，然后交给**唯一的降级函数**放（`shared/generationLowering/headlessReferences.ts` 按 body 推声明，
+ * `lowerGenerationIntent` 放）。这里不挑键、不定形状、不写值——S3（2026-11-08）把这里原来的第三份拼法收走了。
  *
- * 根因：渲染层用 buildArchetypeInputParams 把参考按档案 slot inputKey 投影成 body 读的键（image_urls /
- * first_frame_image …），headless 没有这一步——参考只落在标准键 reference_images，body 读的却是 image_urls
- * → 第三闸判「发不出」、护栏诚实拒绝，图生图/图生视频整条走不通（L3 三跑现场）。
+ * 先跑一圈「显式值的张数上限」：引擎 B 与 MCP 显式参数把参考直接写进 body 键（image_urls…），不经携带字段，
+ * 也要在出网前按模型声明数清（2026-10-27）。
  *
- * 投影判据**与护栏同一套**（P1）：目标键 = bodyReferencedParamKeys(createBody) 里被共享声明表
- * 判为参考载体的键；按族匹配（image 键收图参考、video 收视频、audio 收音频）；多值键（image_urls/input_urls…）
- * 收整组、单值键（first_frame_image/单图聚合位）收首张（沿用 firstReferenceImage 优先级）。
- *
- * 两条边界（headless 无档案模式语义，必须自守）：
- *  · **每族至多填一个键**——headless 的 references 是**扁平列表**（无「这张是首帧、那张是角色图」的槽区分），
- *    同族多个 body 键（如 image_urls + first_frame_image）全填会把同一批 URL 重复塞进互斥键。**优先多值键**
- *    （扁平列表的天然去处），无多值键才退单值键（首帧/单图聚合位）。渲染层靠边 mode 区分槽，headless 靠这条。
- *    ⚠️ **例外：首/尾帧不是「扁平列表」**——调用方写 `firstFrameUrl` 就是明确表态「这张是首帧」，
- *    这份意图必须一路送到 body 的 first_frame_url，见下面「帧意图优先」。
- *  · **跳过对象形态键**（image_with_roles / *_contents）——它们要的是 [{url, role}] 对象，plain URL 塞进去既错
- *    形状又与 image_urls 互斥（seedance SEEDANCE_I2V_BODY 正是此例）。这些键只有渲染层 archetypeInput 才构造得对，
- *    headless 走 plain 键即可，对象键留空由模板引擎自动丢（= 该模型的「plain 参考」模式）。
- *
- * **既有值优先**：该键在 extras 里已有非空值（渲染层已填 archetypeInput，或调用方显式给）→ 跳过 → 渲染层路径逐字节 no-op。
- * **不 hardcode 任何 vendor 键名**——键从 body 反推。nomi-local:// 由 runtime 的 localizeAssetsForVendor 兜（本函数只搬 URL）。
- *
- * @returns 仅**新填**的键（overlay）；无可填 → 空对象。调用方 `{ ...extras, ...overlay }` 并入即可。
+ * @returns 仅**新放**的键（overlay）；无可放 → 空对象。调用方 `{ ...extras, ...overlay }` 并入即可。
  */
-export function projectReferencesOntoBodyKeys(
+export function headlessReferenceOverlay(
   extras: Record<string, unknown> | undefined,
   createBody: unknown,
   selected?: ParameterReferenceSelection,
 ): Record<string, unknown> {
   const src = extras || {};
-  const bodyKeys = bodyReferencedParamKeys(createBody);
-
-  // A declared model limit is a pre-send contract. Check existing explicit values as
-  // well as projected values so the headless path never silently trims a caller's input.
-  // 这一圈在「没有可投影的参考就返回」**之前**跑（2026-10-27）：引擎 B 与 MCP 显式参数把参考直接写进 body 键
-  // （image_urls…），不经 referenceImages 这类携带字段；放在提前返回之后，这些显式值就一张都没被数过。
-  for (const key of bodyKeys) {
+  for (const key of bodyReferencedParamKeys(createBody)) {
     const detail = referenceKeyCapacityDeclarationFor(key, selected);
     if (!detail || detail.max === undefined) continue;
     // Renderer-produced archetypeInput is already capped by the shared slot writer;
@@ -623,89 +569,31 @@ export function projectReferencesOntoBodyKeys(
     assertReferenceCapacity(detail.family, detail.max, referenceUrlCount(src[key]));
   }
 
-  const byFamily = carriedReferenceUrlsByFamily(src, selected);
   const flatSource = { ...src };
   delete flatSource.archetypeInput;
-  const flatByFamily = carriedReferenceUrlsByFamily(flatSource, selected);
   const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
-  const archetypeByFamily = referenceUrlsByFamily(archetypeInput);
-  if (byFamily.image.length === 0 && byFamily.video.length === 0 && byFamily.audio.length === 0) return {};
-
   const hasNonEmpty = (value: unknown): boolean =>
     value !== null && typeof value !== "undefined" && (
       (typeof value === "string" && value.trim() !== "") ||
       (Array.isArray(value) && value.length > 0) ||
       (typeof value !== "string" && !Array.isArray(value))
     );
-
-  // ── 帧意图优先 ────────────────────────────────────────────────────────────
-  // 调用方写 `firstFrameUrl` 是明确表态「这张是首帧」，不是"一张随便的参考图"。
-  // 若这条 body 有对应的帧键，就**直接投到帧键**，并把该 URL 从族池里**取走**——
-  // 取走是关键：族池空了，下面的数组候选就不会再把同一张图塞进 reference_image_urls，
-  // 于是「首帧 + 参考数组」这对互斥键不可能被我们**同时**发出去（Wan 3.0 的 422 根因）。
-  //
-  // body 没有帧键时（如 Wan 2.7 / HappyHorse 用 image_urls 兼作首帧位）不消费，
-  // 首帧照旧落进数组候选——老行为逐字节不变。
-  const frameOverlay: Record<string, unknown> = {};
-  const consumed = new Set<string>();
   const normalized = referenceInputParams(src, selected);
-  for (const { sourceKey, bodyKeyRe } of FRAME_SLOTS) {
-    const url = typeof normalized[sourceKey] === "string" ? (normalized[sourceKey] as string).trim() : "";
-    if (!url) continue;
-    const target = bodyKeys.find(
-      (key) =>
-        bodyKeyRe.test(key) &&
-        !OBJECT_SHAPE_REF_KEY.test(key) &&
-        referenceKeyCapacityDeclarationFor(key, selected) &&
-        !hasNonEmpty(src[key]) &&
-        !hasNonEmpty(archetypeInput[key]),
-    );
-    if (!target) continue;
-    frameOverlay[target] = url;
-    consumed.add(url);
-  }
-  if (consumed.size > 0) {
-    for (const family of Object.keys(byFamily) as ReferenceFamily[]) {
-      byFamily[family] = byFamily[family].filter((url) => !consumed.has(url));
-      flatByFamily[family] = flatByFamily[family].filter((url) => !consumed.has(url));
-    }
-  }
-
-  // 先按族归拢 body 里可填的 plain 参考键（跳过对象形态键），每族选一个目标：优先数组键（扁平列表天然去处）。
-  const candidateByFamily: Partial<Record<ReferenceFamily, { key: string; wantsArray: boolean; max?: number }>> = {};
-  for (const key of bodyKeys) {
-    if (frameOverlay[key] !== undefined) continue; // 已被帧意图占用
-    const detail = referenceKeyCapacityDeclarationFor(key, selected);
-    if (!detail) continue; // 非参考载体键（size/duration/seed…）不碰。
-    if (OBJECT_SHAPE_REF_KEY.test(key)) continue; // 对象形态键（image_with_roles/*_contents）headless 不填，留空由模板丢。
-    if (DERIVED_REFERENCE_CARRIER_KEYS.has(key)) continue; // 派生载体（chat 图片项 / JSON 改图）由 taskTemplateParams 从标准参考输入现造，不填。
-    if (byFamily[detail.family].length === 0) continue; // 没有这个族的参考可填。
-    // referenceImages → reference_images is already the standard non-Comfy aggregate path. Do not persist a
-    // derived duplicate into extras before async preflight; other wire-key projections keep their existing policy.
-    if (key === "reference_images" && Array.isArray(src.referenceImages)) continue;
-    if (hasNonEmpty(src[key]) || hasNonEmpty(archetypeInput[key])) continue; // 既有值优先（渲染层 archetypeInput / 调用方显式）→ 不覆盖。
-    const wantsArray = refKeyWantsArray(key, detail.multiImage);
-    const current = candidateByFamily[detail.family];
-    // 每族至多一个：优先数组键（扁平参考列表的天然去处）；已有数组候选则不再被单值键替换。
-    if (!current || (wantsArray && !current.wantsArray)) {
-      candidateByFamily[detail.family] = { key, wantsArray, max: detail.max };
-    }
-  }
-
-  const overlay: Record<string, unknown> = { ...frameOverlay };
-  for (const family of Object.keys(candidateByFamily) as ReferenceFamily[]) {
-    // Renderer-produced archetypeInput is authoritative. Only project a second key when a
-    // distinct flat source exists; that deliberately preserves mixed-input detection.
-    const nested = archetypeByFamily[family];
-    const hasDistinctFlatSource = flatByFamily[family].some((url) => !nested.includes(url));
-    if (nested.length > 0 && !hasDistinctFlatSource) continue;
-    const cand = candidateByFamily[family]!;
-    const urls = byFamily[family];
-    if (cand.max !== undefined) assertReferenceCapacity(family, cand.max, urls.length);
-    // 数组键塞整组、单值键塞首张（严格端点对 image:string 期待单串，塞数组会 400——沿用 asArray 声明的教训）。
-    overlay[cand.key] = cand.wantsArray ? [...urls] : urls[0];
-  }
-  return overlay;
+  const frameUrl = (key: string): string | undefined =>
+    typeof normalized[key] === "string" && (normalized[key] as string).trim() ? (normalized[key] as string).trim() : undefined;
+  const firstFrame = frameUrl("first_frame_url");
+  const lastFrame = frameUrl("last_frame_url");
+  const lowered = lowerHeadlessReferences(createBody, {
+    carried: carriedReferenceUrlsByFamily(src, selected),
+    flat: carriedReferenceUrlsByFamily(flatSource, selected),
+    placedByCanvas: referenceUrlsByFamily(archetypeInput),
+    frames: { ...(firstFrame ? { first_frame: firstFrame } : {}), ...(lastFrame ? { last_frame: lastFrame } : {}) },
+    occupied: (key) => hasNonEmpty(src[key]) || hasNonEmpty(archetypeInput[key]),
+    standardAggregateCarried: Array.isArray(src.referenceImages),
+  }, selected);
+  const problem = lowered.problems[0];
+  if (problem) assertReferenceCapacity(problem.family, problem.max, problem.count);
+  return lowered.bodyParams;
 }
 
 /**

@@ -32,17 +32,18 @@ import { extractTaskId as extractTaskIdShared } from "../ai/requestPipeline";
 import type { TaskRequest } from "../runtime";
 import "../catalog/apimartMinimaxH3";
 import { applyRequestTransformSync, validateRequestTransformSync } from "../tasks/requestTransforms";
-import { mirrorApimartReferenceParameterAliases } from "./apimartGenerationReferenceAliases";
 import { productionFixtureBaseOrigin } from "../shared/productionRunE2eFixtureGate";
 import {
   assertReferenceParameters,
   assertReferencesReachBody,
   normalizeParameters,
-  projectReferenceUrls,
+  placeRunReferences,
   resolvedReferenceUrls,
   sameJson,
 } from "./apimartGenerationProjection";
-import { referenceCombineChannelFor } from "../shared/videoCapabilities/referenceChannels";
+import { archetypeModeForModel, referenceCombineChannelFor } from "../shared/videoCapabilities/referenceChannels";
+import { standardizeExplicitRunReferences } from "../shared/generationLowering/runReferences";
+import { bodyReferencedParamKeys } from "../catalog/paramTranslate";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { ApimartGenerationProviderError as CatalogGenerationProviderError } from "./apimartGenerationErrors";
 import { catalogFingerprint } from "./apimartGenerationIdentity";
@@ -252,16 +253,20 @@ function projectionRequest(
   vendorKey: string,
 ): { body: JsonRecord; request: TaskRequest } {
   if (!input.prompt || !input.prompt.trim()) throw new CatalogGenerationProviderError(`${vendorKey} prompt is required`);
-  // 参考图落哪条通道由**用户选的档案模式**回答（与渲染层合并槽同一个 owner），不由 body 猜。
-  const combineChannel = referenceCombineChannelFor({
+  // 参考图落哪条通道由**用户选的档案模式**回答（与画布同一份声明、同一个降级函数），不由 body 猜；
+  // 没有模式可读的，说成标准输入键，交给 applyHeadlessParamDefaults 里同一个降级函数按 body 推出的声明放。
+  const createBody = selection.mapping.create.body;
+  const modeIdentity = {
     meta: selection.model.meta,
     kind: selection.model.kind,
     ...(input.modeId ? { modeId: input.modeId } : {}),
-    createBody: selection.mapping.create.body,
-  });
-  const projected = projectReferenceUrls(input, selection.mapping, combineChannel);
-  const parameters = normalizeParameters(projected.parameters, selection.mapping);
-  mirrorApimartReferenceParameterAliases(parameters, selection.mapping.create.body, sameJson);
+  };
+  const combineKey = referenceCombineChannelFor({ ...modeIdentity, createBody })?.key ?? null;
+  const projected = placeRunReferences(input, createBody, archetypeModeForModel(modeIdentity), combineKey);
+  const parameters = standardizeExplicitRunReferences(
+    normalizeParameters(projected.parameters, selection.mapping, projected.placedReferenceKeys),
+    bodyReferencedParamKeys(createBody),
+  );
   const archetypeId = selection.model.meta && typeof selection.model.meta === "object" && !Array.isArray(selection.model.meta)
     ? (selection.model.meta as Record<string, unknown>).archetypeId
     : undefined;

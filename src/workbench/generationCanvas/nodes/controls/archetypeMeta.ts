@@ -21,11 +21,7 @@ import {
   archetypeBaseModelKey,
   archetypeVariantForModelId,
   canonicalArchetypeVariantId,
-  combineChannelForMode,
-  lowerCombinedReferences,
-  REFERENCE_ROLE_FOR_KIND,
   resolveArchetypeForModel,
-  slotJoinsCombine,
   resolveArchetypeVariant,
   specializeArchetypeForVariant,
 } from '../../../../../electron/shared/modelArchetypes'
@@ -35,12 +31,13 @@ import { isImageUploadSlot, listPlacementInputs, normalizeReferenceListMeta, pla
 import { readArchetypeArray } from './archetypeArrayValues'
 export { appendArchetypeArrayValue, archetypeArrayWrite, readArchetypeArray, readArchetypeArrayForWrite, type ArchetypeArrayAppend } from './archetypeArrayValues'
 import {
-  DEFAULT_SLOT_INPUT_KEY,
   modeSlotReach,
   wireReferencedParamKeys,
   type SlotReach,
 } from '../../../../../electron/catalog/referenceReachability'
 export { archetypeModeParams, archetypeModeSourceVideoSlot, localizeModelParameterControl } from './archetypeModePresentation'
+import { lowerGenerationIntent, loweringAsArray, type IntentReference } from '../../../../../electron/shared/generationLowering/lowerGenerationIntent'
+import { declarationForMode } from '../../../../../electron/shared/generationLowering/declarationForMode'
 
 export { resolveArchetypeForModel }
 export type { ModelArchetype, ArchetypeMode, ModelArchetypeVariant }
@@ -533,27 +530,8 @@ const SINGLE_SLOT_META_KEY: Partial<Record<ArchetypeReferenceSlotKind, string>> 
   source_video: 'sourceVideoUrl',
 }
 
-// 缺省 API 输入键（模型契约，供应商无关）的**单一真相源**在 electron/catalog/referenceReachability——
-// 渲染层（发送构造）与 electron 侧（渠道承载力判定 + 第三闸）必须同一张表，否则「UI 以为发得出、
-// 闸门判发不出」会再次分家（本轮修的正是这类）。slot.inputKey 仍可逐槽覆盖。
-const DEFAULT_AS_ARRAY: Record<ArchetypeReferenceSlotKind, boolean> = {
-  first_frame: false,
-  last_frame: false,
-  source_video: false,
-  image_ref: true,
-  video_ref: true,
-  audio_ref: true,
-}
-// 槽种 → 供应商角色词的表只有一份，住在 electron/shared/videoCapabilities/referenceChannels.ts
-// （REFERENCE_ROLE_FOR_KIND / combineRoleForSlot），Run 路与这里同吃。
-
-/** 构造层产出的通用 input 值：标量 / 数组 / 角色对象数组（combineSlotsInto）。模板引擎原样透传。 */
-type ArchetypeInputValue =
-  | string
-  | Record<string, unknown>
-  | string[]
-  | Array<{ url: string; role: string }>
-  | Array<Record<string, unknown>>
+// 参考放进哪个键、什么形状、带什么 role：只有 electron/shared/generationLowering/lowerGenerationIntent.ts 回答
+// （画布路、主进程 headless 路、Run 路同一个函数）。这里只负责把画布上的东西说成「每个槽收哪些地址」。
 
 /** 一个声明槽在 meta 里的存储形态（单一真相源：槽→存储键 的知识只在这里）。无存储映射 → null。 */
 export type ReferenceSlotStorage = { metaKey: string; isArray: boolean }
@@ -565,16 +543,12 @@ export function referenceSlotStorage(slot: { kind: ArchetypeReferenceSlotKind })
   return null
 }
 
-function slotInputKey(slot: { kind: ArchetypeReferenceSlotKind; inputKey?: string }): string {
-  return slot.inputKey ?? DEFAULT_SLOT_INPUT_KEY[slot.kind]
-}
 /**
- * 「这个槽是一格还是一袋」的**唯一判据**（P1）：声明的 `asArray` 优先，缺省按 kind 推（DEFAULT_AS_ARRAY）。
- * 从前分镜行另有一份写死的 `NAMED_FRAME_SLOT_KINDS` 集合与这里并列——两份真相源今天恰好一致、
- * 明天任一档案写 `asArray` 覆盖就分家。任何「单槽 vs 数组槽」的分叉都必须问这个函数。
+ * 「这个槽是一格还是一袋」的**唯一判据**（P1）：声明的 `asArray` 优先，缺省按 kind 推——判据住在降级函数旁边
+ * （loweringAsArray），发出去的形状与界面上的一格 / 一袋同一个答案。任何「单槽 vs 数组槽」的分叉都必须问这个函数。
  */
 export function slotAsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean }): boolean {
-  return slot.asArray ?? DEFAULT_AS_ARRAY[slot.kind]
+  return loweringAsArray(slot)
 }
 
 /** 单帧槽收哪种媒体（数组槽由 ARRAY_SLOT_ROUTE 给）。首/尾帧收图、源视频收视频。 */
@@ -590,20 +564,6 @@ const SINGLE_SLOT_ACCEPT: Partial<Record<ArchetypeReferenceSlotKind, 'image' | '
  */
 export function referenceSlotAccept(kind: ArchetypeReferenceSlotKind): 'image' | 'video' | 'audio' {
   return ARRAY_SLOT_ROUTE[kind]?.accept ?? SINGLE_SLOT_ACCEPT[kind] ?? 'image'
-}
-
-function volcengineImageContentItem(url: string, role: string): Record<string, unknown> {
-  return { type: 'image_url', image_url: { url }, role }
-}
-
-function volcengineContentItem(inputKey: string, url: string): Record<string, unknown> | null {
-  if (inputKey === 'volcengine_first_image_content')
-    return volcengineImageContentItem(url, REFERENCE_ROLE_FOR_KIND.first_frame ?? 'first_frame')
-  if (inputKey === 'volcengine_first_role_image_content')
-    return volcengineImageContentItem(url, REFERENCE_ROLE_FOR_KIND.first_frame ?? 'first_frame')
-  if (inputKey === 'volcengine_last_role_image_content')
-    return volcengineImageContentItem(url, REFERENCE_ROLE_FOR_KIND.last_frame ?? 'last_frame')
-  return null
 }
 
 /**
@@ -690,14 +650,12 @@ export function buildArchetypeInputParams(
     firstFrameUrl?: string | null
     lastFrameUrl?: string | null
   },
-): Record<string, ArchetypeInputValue> {
+): Record<string, unknown> {
   const mode = currentArchetypeMode(archetype, meta)
-  const out: Record<string, ArchetypeInputValue> = {}
+  const intent: IntentReference[] = []
   // 上传图落哪个槽：和参考行同一个函数（uploadPlacementForMode → placeUploadedImages），列表里用不上的图不进来。
   const placement = uploadPlacementForMode(meta, mode, references)
   for (const [slotIndex, slot] of mode.slots.entries()) {
-    const inputKey = slotInputKey(slot)
-    const asArray = slotAsArray(slot)
     const arr = ARRAY_SLOT_ROUTE[slot.kind]
     if (arr) {
       // 画布边产出的实时参考图 + 手动拖入的 meta 数组，经 mergeOrderedReferenceImageUrls 单源合并：
@@ -708,27 +666,7 @@ export function buildArchetypeInputParams(
       // 按槽资产类型喂对应的连线参考（B4：video_ref/audio_ref 槽此前只收 meta 上传，连线的视频/音频被丢）。
       // 这条规则与判定侧 hasArchetypeArrayReferences 共用同一个函数，别在这里就地展开成 ternary。
       const edgeList = edgeListForArraySlotAccept(arr.accept, references)
-      const capped = mergeOrderedReferenceImageUrls(edgeList, metaList, slot.max)
-      if (capped.length) {
-        if (inputKey === 'volcengine_image_contents') {
-          const role = REFERENCE_ROLE_FOR_KIND.image_ref ?? 'reference_image'
-          out[inputKey] = capped.map((url) => volcengineImageContentItem(url, role))
-        } else if (inputKey === 'volcengine_video_contents') {
-          const role = REFERENCE_ROLE_FOR_KIND.video_ref ?? 'reference_video'
-          out[inputKey] = capped.map((url) => ({ type: 'video_url', video_url: { url }, role }))
-        } else if (inputKey === 'volcengine_audio_contents') {
-          const role = REFERENCE_ROLE_FOR_KIND.audio_ref ?? 'reference_audio'
-          out[inputKey] = capped.map((url) => ({ type: 'audio_url', audio_url: { url }, role }))
-        } else if (!slotAsArray(slot) && slot.max === 1) {
-          // 声明 asArray:false 的单容量数组路由槽（Agnes i2v 的 image）→ 发**单图字符串**，声明说话算话。
-          // 旧实现无视 asArray 恒发数组 → Agnes Go 后端 Alias.image(string) 解析失败，Windows 用户
-          // 只能手改 asar 把模板打成 image.0 顶着（2026-07-06 群反馈实锤）。修在构造层而非各家模板：
-          // 声明层的 asArray 从此对数组路由槽也生效，同类档案不再逐个踩。
-          out[inputKey] = capped[0]
-        } else {
-          out[inputKey] = capped
-        }
-      }
+      for (const url of mergeOrderedReferenceImageUrls(edgeList, metaList, slot.max)) intent.push({ url, slot: slotIndex })
       continue
     }
     const metaKey = SINGLE_SLOT_META_KEY[slot.kind]
@@ -741,34 +679,9 @@ export function buildArchetypeInputParams(
       ? placement.bySlot[slotIndex]![0] ?? ''
       : typeof meta[metaKey] === 'string' ? (meta[metaKey] as string).trim() : ''
     const raw = typeof fromRef === 'string' && fromRef.trim() ? fromRef.trim() : uploaded
-    if (raw) {
-      out[inputKey] = volcengineContentItem(inputKey, raw) ?? (asArray ? [raw] : raw)
-    }
+    if (raw) intent.push({ url: raw, slot: slotIndex })
   }
-  // 角色数组合并（通用原语）：把本模式有值的槽 → [{url, role}] 落在 combineSlotsInto.key，删被合并的
-  // 扁平键（M2 互斥）。哪些槽并进去、各带什么 role 由 shared 的 slotJoinsCombine / combineRoleForSlot 回答（与 Run 路同一份）。
-  // 键名来自档案声明，不写死/不 if-vendor。
-  // 必须在此构造层拼好整个数组——模板引擎丢得掉 undefined 键/元素，但丢不掉 {url:undefined} 对象（坑）。
-  const combineChannel = combineChannelForMode(mode)
-  if (combineChannel) {
-    const entries: Array<{ order: number; url: string }> = []
-    let order = 0
-    for (const slot of mode.slots) {
-      if (!slotJoinsCombine(mode, slot)) continue
-      const inputKey = slotInputKey(slot)
-      const value = out[inputKey]
-      for (const url of Array.isArray(value) ? value : [value]) {
-        if (typeof url === 'string') entries.push({ order, url })
-      }
-      delete out[inputKey]
-      order++
-    }
-    const combined = lowerCombinedReferences(combineChannel, entries)
-    if (combined.length) out[combineChannel.key] = combined
-  }
-  // 模式级固定 body 参数（generation_type 等不需用户选的常量），键不与槽/参数冲突。
-  if (mode.fixedParams) {
-    for (const [key, value] of Object.entries(mode.fixedParams)) out[key] = value
-  }
-  return out
+  // 放进哪个键、单图还是数组、火山 content 项、角色数组合并、模式固定参数：全部由共享降级函数按声明回答。
+  // 画布这边已经按槽上限截过，降级不会再报超量。
+  return { ...lowerGenerationIntent(declarationForMode(mode), { references: intent }).bodyParams }
 }

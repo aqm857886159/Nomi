@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyHeadlessParamDefaults, hasImageEditReferences, taskTemplateParams, firstReferenceImage, projectReferencesOntoBodyKeys, unreachableReferenceLabels, imageEditGuardError, NO_MAPPING_FALLBACK_BODY } from "./taskParams";
+import { applyHeadlessParamDefaults, hasImageEditReferences, taskTemplateParams, firstReferenceImage, headlessReferenceOverlay, unreachableReferenceLabels, imageEditGuardError, NO_MAPPING_FALLBACK_BODY } from "./taskParams";
 import { referenceKeyDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { modelReferenceSelection } from "./modelCatalogListing";
 import { desktopT } from "../desktopStrings";
@@ -48,7 +48,7 @@ describe("applyHeadlessParamDefaults — 自写能力合同容量（第一闸收
   it("带上限 8 的自写合同，headless 给 9 张参考：第一闸在出网前拒，与投影边界（第三闸同一份身份）说同一句", () => {
     let boundary = "";
     try {
-      projectReferencesOntoBodyKeys({ referenceImages: references(9) }, body, selected);
+      headlessReferenceOverlay({ referenceImages: references(9) }, body, selected);
     } catch (error) {
       boundary = (error as Error).message;
     }
@@ -327,7 +327,7 @@ describe("hasImageEditReferences — L3 诚实护栏判定（图生图/图生视
     );
     const body = { image: "{{request.params.comfy_image_1}}" };
     expect(unreachableReferenceLabels({ extras }, body)).toEqual([]);
-    expect(projectReferencesOntoBodyKeys(extras, { image_urls: "{{request.params.image_urls}}" })).toEqual({});
+    expect(headlessReferenceOverlay(extras, { image_urls: "{{request.params.image_urls}}" })).toEqual({});
   });
   it("Comfy video 参数、失效声明和任意字符串参数都不冒充 image 参考", () => {
     expect(hasImageEditReferences({ extras: declaredExtras(
@@ -379,7 +379,7 @@ describe("hasImageEditReferences — L3 诚实护栏判定（图生图/图生视
 
 // W1d：headless/MCP 参考键形态投影（把 referenceImages 投影到 body 真读的 image_urls / first_frame_image…）。
 // 现场：docs/audit/2026-08-19-l3-w1-shot-verify/run.json——参考落 reference_images、body 读 image_urls → 全被护栏拒。
-describe("projectReferencesOntoBodyKeys — headless 参考键形态投影（W1d 根因修复）", () => {
+describe("headlessReferenceOverlay — headless 参考键形态投影（W1d 根因修复）", () => {
   // seedream/gemini 改图真实 seed body：读 image_urls（数组）。
   const editBody = { model: "{{model.modelKey}}", size: "{{request.params.size}}", image_urls: "{{request.params.image_urls}}" };
   // seedance i2v 真实 seed body：image_urls 与 image_with_roles 互斥同存。
@@ -391,7 +391,7 @@ describe("projectReferencesOntoBodyKeys — headless 参考键形态投影（W1d
 
   it("referenceImages 投影到 image_urls（数组键塞整组）→ 护栏放行", () => {
     const extras = { referenceImages: ["nomi-local://asset/p/a.jpg", "nomi-local://asset/p/b.jpg"] };
-    const overlay = projectReferencesOntoBodyKeys(extras, editBody);
+    const overlay = headlessReferenceOverlay(extras, editBody);
     expect(overlay).toEqual({ image_urls: ["nomi-local://asset/p/a.jpg", "nomi-local://asset/p/b.jpg"] });
     // 投影后 body 读得到参考 → 第三闸不再判「参考图发不出」。
     const merged = { ...extras, ...overlay };
@@ -400,39 +400,39 @@ describe("projectReferencesOntoBodyKeys — headless 参考键形态投影（W1d
   });
 
   it("单图字符串键（first_frame_image）塞首张、不塞数组（严格端点期待 string）", () => {
-    const overlay = projectReferencesOntoBodyKeys({ referenceImages: ["nomi-local://a.jpg", "nomi-local://b.jpg"] }, klingI2v);
+    const overlay = headlessReferenceOverlay({ referenceImages: ["nomi-local://a.jpg", "nomi-local://b.jpg"] }, klingI2v);
     expect(overlay).toEqual({ first_frame_image: "nomi-local://a.jpg" });
   });
 
   it("互斥的对象形态键（image_with_roles）不填——只填 plain image_urls，避免既错形状又互斥", () => {
-    const overlay = projectReferencesOntoBodyKeys({ referenceImages: ["nomi-local://a.jpg", "nomi-local://b.jpg"] }, seedanceI2v);
+    const overlay = headlessReferenceOverlay({ referenceImages: ["nomi-local://a.jpg", "nomi-local://b.jpg"] }, seedanceI2v);
     expect(overlay).toEqual({ image_urls: ["nomi-local://a.jpg", "nomi-local://b.jpg"] });
     expect(overlay).not.toHaveProperty("image_with_roles");
   });
 
   it("同族多键（image_urls 数组 + first_frame_image 单值）只填一个：优先数组键（扁平列表天然去处）", () => {
     const happyhorse = { first_frame_image: "{{request.params.first_frame_image}}", image_urls: "{{request.params.image_urls}}" };
-    const overlay = projectReferencesOntoBodyKeys({ referenceImages: ["nomi-local://a.jpg", "nomi-local://b.jpg"] }, happyhorse);
+    const overlay = headlessReferenceOverlay({ referenceImages: ["nomi-local://a.jpg", "nomi-local://b.jpg"] }, happyhorse);
     expect(overlay).toEqual({ image_urls: ["nomi-local://a.jpg", "nomi-local://b.jpg"] });
   });
 
   it("image + video 两族各填自己的 plain 复数键（都塞数组）", () => {
-    const overlay = projectReferencesOntoBodyKeys({ referenceImages: ["nomi-local://a.jpg"], referenceVideoUrls: ["nomi-local://v.mp4"] }, seedanceI2v);
+    const overlay = headlessReferenceOverlay({ referenceImages: ["nomi-local://a.jpg"], referenceVideoUrls: ["nomi-local://v.mp4"] }, seedanceI2v);
     expect(overlay).toEqual({ image_urls: ["nomi-local://a.jpg"], video_urls: ["nomi-local://v.mp4"] });
   });
 
   it("纯文生 body（无参考键）→ 投影 no-op（行为逐字节不变）", () => {
-    expect(projectReferencesOntoBodyKeys({ referenceImages: ["nomi-local://a.jpg"] }, t2iBody)).toEqual({});
+    expect(headlessReferenceOverlay({ referenceImages: ["nomi-local://a.jpg"] }, t2iBody)).toEqual({});
   });
 
   it("既有值优先：extras 已填 image_urls（渲染层 archetypeInput 或调用方显式）→ 不覆盖（渲染层路径 no-op）", () => {
-    const overlay = projectReferencesOntoBodyKeys({ referenceImages: ["nomi-local://new.jpg"], image_urls: ["https://cdn/preset.jpg"] }, editBody);
+    const overlay = headlessReferenceOverlay({ referenceImages: ["nomi-local://new.jpg"], image_urls: ["https://cdn/preset.jpg"] }, editBody);
     expect(overlay).toEqual({});
   });
 
   it("无任何携带参考 → 空对象（零开销）", () => {
-    expect(projectReferencesOntoBodyKeys({}, editBody)).toEqual({});
-    expect(projectReferencesOntoBodyKeys(undefined, editBody)).toEqual({});
+    expect(headlessReferenceOverlay({}, editBody)).toEqual({});
+    expect(headlessReferenceOverlay(undefined, editBody)).toEqual({});
   });
 });
 
@@ -449,7 +449,7 @@ describe("declared numeric and negative controls", () => {
   });
 });
 
-describe("projectReferencesOntoBodyKeys — 帧意图优先（2026-08-27 真机 422 的回归）", () => {
+describe("headlessReferenceOverlay — 帧意图优先（2026-08-27 真机 422 的回归）", () => {
   // Wan 3.0（kie）真实 seed body：**同时**声明帧键与参考数组键，而官方规定两族硬互斥。
   const wan30Body = {
     model: "{{request.params.model}}",
@@ -470,7 +470,7 @@ describe("projectReferencesOntoBodyKeys — 帧意图优先（2026-08-27 真机 
   // "first_frame_url / last_frame_url and reference_*_urls are mutually exclusive"。
   // 只有渲染层（按选中模式构造 archetypeInput）躲过了，headless/MCP/agent 提交全中。
   it("扁平 firstFrameUrl 只落帧键，**绝不**同时填参考数组键", () => {
-    const overlay = projectReferencesOntoBodyKeys({ firstFrameUrl: FIRST }, wan30Body);
+    const overlay = headlessReferenceOverlay({ firstFrameUrl: FIRST }, wan30Body);
     expect(overlay).toEqual({ first_frame_url: FIRST });
     // 负例对照：数组键一旦回来就红——这正是 422 的直接成因。
     expect(overlay).not.toHaveProperty("reference_image_urls");
@@ -478,24 +478,24 @@ describe("projectReferencesOntoBodyKeys — 帧意图优先（2026-08-27 真机 
   });
 
   it("首尾帧各归各位，仍不碰参考数组", () => {
-    const overlay = projectReferencesOntoBodyKeys({ firstFrameUrl: FIRST, lastFrameUrl: LAST }, wan30Body);
+    const overlay = headlessReferenceOverlay({ firstFrameUrl: FIRST, lastFrameUrl: LAST }, wan30Body);
     expect(overlay).toEqual({ first_frame_url: FIRST, last_frame_url: LAST });
     expect(overlay).not.toHaveProperty("reference_image_urls");
   });
 
   it("只给参考图列表时照旧走数组键（没把这条路修死）", () => {
-    const overlay = projectReferencesOntoBodyKeys({ referenceImageUrls: ["https://x/a.png", "https://x/b.png"] }, wan30Body);
+    const overlay = headlessReferenceOverlay({ referenceImageUrls: ["https://x/a.png", "https://x/b.png"] }, wan30Body);
     expect(overlay).toEqual({ reference_image_urls: ["https://x/a.png", "https://x/b.png"] });
   });
 
   it("调用方**自己**同时给了首帧与参考图 → 各归各位（这个组合是他要的，不是我们造的）", () => {
     // 我们只保证不**发明**互斥组合；调用方显式要的组合照发，由上游按自己的规则裁决。
-    const overlay = projectReferencesOntoBodyKeys({ firstFrameUrl: FIRST, referenceImageUrls: ["https://x/a.png"] }, wan30Body);
+    const overlay = headlessReferenceOverlay({ firstFrameUrl: FIRST, referenceImageUrls: ["https://x/a.png"] }, wan30Body);
     expect(overlay).toEqual({ first_frame_url: FIRST, reference_image_urls: ["https://x/a.png"] });
   });
 
   it("UI 路逐字节 no-op（archetypeInput 权威，短路投影）", () => {
-    const overlay = projectReferencesOntoBodyKeys(
+    const overlay = headlessReferenceOverlay(
       { firstFrameUrl: FIRST, archetypeInput: { first_frame_url: FIRST } },
       wan30Body,
     );
@@ -505,14 +505,14 @@ describe("projectReferencesOntoBodyKeys — 帧意图优先（2026-08-27 真机 
   it("body **没有**帧键时，首帧照旧落进数组键（Wan 2.7 / HappyHorse 用 image_urls 兼作首帧位）", () => {
     // 这条守的是「别把修复做过头」：帧意图优先只在 body 真有帧键时生效。
     const wan27Body = { model: "m", image_urls: "{{request.params.image_urls}}" };
-    expect(projectReferencesOntoBodyKeys({ firstFrameUrl: FIRST }, wan27Body)).toEqual({ image_urls: [FIRST] });
+    expect(headlessReferenceOverlay({ firstFrameUrl: FIRST }, wan27Body)).toEqual({ image_urls: [FIRST] });
   });
 
   it("控制开关键不是帧载体：return_last_frame 不许接走首帧", () => {
     // seedance 的 return_last_frame（返回尾帧图的布尔开关）名字里有 frame，但它是开关不是载体。
     // 误判会让首帧落到一个布尔位上，真正的图一张都发不出去。
     const body = { image_urls: "{{request.params.image_urls}}", return_last_frame: "{{request.params.return_last_frame}}" };
-    const overlay = projectReferencesOntoBodyKeys({ firstFrameUrl: FIRST }, body);
+    const overlay = headlessReferenceOverlay({ firstFrameUrl: FIRST }, body);
     expect(overlay).toEqual({ image_urls: [FIRST] });
     expect(overlay).not.toHaveProperty("return_last_frame");
   });
@@ -549,7 +549,7 @@ describe("投影不变量：全体内置 mapping 都不许同时发出帧键与�
       if (frameKeys.length === 0 || arrayKeys.length === 0) continue;
       covered += 1;
 
-      const overlay = projectReferencesOntoBodyKeys({ firstFrameUrl: FRAME_URL }, body);
+      const overlay = headlessReferenceOverlay({ firstFrameUrl: FRAME_URL }, body);
       const filledFrame = frameKeys.filter((k) => overlay[k] !== undefined);
       const filledArray = arrayKeys.filter((k) => overlay[k] !== undefined);
       if (filledFrame.length > 0 && filledArray.length > 0) {
@@ -654,7 +654,7 @@ describe("声明驱动的 headless 拒发", () => {
   ])("%s：只给参考图照发，headless 投影不往派生载体里填", (_name, body) => {
     const extras = { referenceImages: ["https://cdn.example.com/ref.png"] };
     expect(imageEditGuardError("image_edit", { extras }, true, "中转改图模型", body)).toBeNull();
-    expect(projectReferencesOntoBodyKeys(extras, body)).toEqual({});
+    expect(headlessReferenceOverlay(extras, body)).toEqual({});
   });
 
   it.each([
@@ -676,7 +676,7 @@ describe("声明驱动的 headless 拒发", () => {
 
   it("显式写了非通用参数名的调用不被 headless 投影路径改写", () => {
     const body = { prompt: "{{request.prompt}}", custom_reference: "{{request.params.custom_reference}}" };
-    expect(projectReferencesOntoBodyKeys({ custom_reference: "https://cdn.example.com/ref.png" }, body)).toEqual({});
+    expect(headlessReferenceOverlay({ custom_reference: "https://cdn.example.com/ref.png" }, body)).toEqual({});
     expect(imageEditGuardError(
       "text_to_image",
       { extras: { custom_reference: "https://cdn.example.com/ref.png" } },
