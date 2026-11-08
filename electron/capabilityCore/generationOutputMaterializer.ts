@@ -138,7 +138,7 @@ function fileNameFor(output: GenerationProviderOutput): string {
   if (output.fileName?.trim()) return output.fileName.trim();
   // data: URL 没有文件名。`new URL(dataUrl).pathname` 能解析成功，它的 basename 是 base64 正文里最后一个 `/`
   // 之后的那一截（或整段 `png;base64,…`）——以前这里拿它当文件名。长度与扩展名交给落盘边界
-  // （projectAssetStore.storedAssetFileParts：扩展名按字节定、只截主干），这里只负责别拿正文当名字。
+  // （assets/storedAssetFile 的 storedAssetFileParts：扩展名按字节定、只截主干），这里只负责别拿正文当名字。
   if (!output.url.startsWith("data:")) {
     try {
       const candidate = path.basename(new URL(output.url).pathname);

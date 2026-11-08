@@ -1,0 +1,35 @@
+{
+  "modelKey": "gpt-image-2",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "OpenAI Images compatible protocol, supports text-to-image / image-to-image",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"gpt-image-2\",\n  \"prompt\": \"A ginger cat sitting on a windowsill watching the sunset, watercolor style\"\n}"
+          }
+        ]
+      }
+    },
+    "i2i": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 15,
+          "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Up to 15 reference images"
+        }
+      }
+    }
+  }
+}

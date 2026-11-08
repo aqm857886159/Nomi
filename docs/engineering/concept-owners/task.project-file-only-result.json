@@ -1,0 +1,24 @@
+{
+  "name": "结果只能写成项目文件的任务：没项目就不发请求、不花钱",
+  "subject": "task.project-file-only-result",
+  "lifecycle": "spend-authority",
+  "authority_kind": "decision",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/tasks/projectFileResult.ts",
+    "symbol": "resultOnlyLandsAsProjectFile"
+  },
+  "write_api": [
+    {
+      "path": "electron/tasks/projectFileResult.ts",
+      "symbol": "resultOnlyLandsAsProjectFile"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/tasks/syncBytesResultLandsInProject.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-07",
+  "notes": "合同 docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json：大多数任务的结果是一个地址，没项目就把地址原样交回；同步回字节的音频（配音 / 音乐 / 音效，不含转写）和声明文件流结果的视频（mapping.result.mediaResponse）没有地址可交，只能写进项目。这两类没有项目号时在付费闸之前拒：runTask（画布、tasks:run）与 Agent 的 nomi_try_model 都只问 resultOnlyLandsAsProjectFile，原来只给文件流视频写在 runtime.ts 的那句拒绝同提交删除。还没接的同类入口：自定义调用脚本的 saveFile（customCallDispatch）和进程类的本地下载（processOperation），见合同 residual_risks，由计划表 A4d 排。"
+}

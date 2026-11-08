@@ -1,0 +1,184 @@
+{
+  "modelKey": "wan2.7",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Automatically routed based on parameters: Text-to-Video / Image-to-Video (first frame, first-last frame, video continuation)",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"wan2.7\",\n  \"prompt\": \"A coastal road at sunset, slow-motion camera push-in, cinematic feel\"\n}"
+          }
+        ]
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 2,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "2 images: first-last frame to video (1st = first frame, 2nd = last frame)",
+          "meaning": {
+            "roles": [
+              "first_frame",
+              "last_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "2 images: first-last frame to video (1st = first frame, 2nd = last frame)"
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": null,
+          "roles": [
+            "first_frame",
+            "last_frame"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "role (string): image role, first_frame / last_frame, default first_frame",
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "role (string): image role, first_frame / last_frame, default first_frame"
+          },
+          "defaultRole": {
+            "value": "first_frame",
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "role (string): image role, first_frame / last_frame, default first_frame"
+          }
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "image_urls"
+          ],
+          "b": [
+            "image_with_roles"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Use either this or image_with_roles"
+        },
+        {
+          "a": [
+            "image_urls",
+            "image_with_roles"
+          ],
+          "b": [
+            "audio_url"
+          ],
+          "enforced": false,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "audio_url conflicts with video_urls, image_urls, and image_with_roles; they cannot be provided at the same time"
+        }
+      ],
+      "oneImage": {
+        "key": "image_urls",
+        "meaning": "first_frame",
+        "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "1 image: first-frame to video"
+      },
+      "documentConflict": "Official audio mutual-exclusion prose conflicts with the image + driving audio example; server behavior unverified."
+    },
+    "ref": {
+      "wireModel": "wan2.7-r2v",
+      "referenceKeys": {
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": 5,
+          "roles": [
+            "reference_image",
+            "first_frame"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image array with roles; at least one of this and video_urls must be provided",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image - reference image (default)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame - specified first frame (when provided, size is ignored and the aspect ratio follows the first-frame image)"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "Reference video URL array, up to 5 videos (total images + videos ≤ 5)"
+            }
+          ],
+          "children": {
+            "reference_voice": {
+              "shape": "string",
+              "max": 1,
+              "exercised": false,
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_voice (string, optional): voice sample audio URL for that reference character, used to control the character's voice in the generated video",
+              "countsAsInput": false
+            }
+          },
+          "defaultRole": {
+            "value": "reference_image",
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "reference_image - reference image (default)"
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference video URL array, up to 5 videos (total images + videos ≤ 5)"
+        }
+      },
+      "jointCaps": [
+        {
+          "keys": [
+            "image_with_roles",
+            "video_urls"
+          ],
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference video URL array, up to 5 videos (total images + videos ≤ 5)"
+        }
+      ],
+      "requires": [
+        {
+          "when": [],
+          "anyOf": [
+            "image_with_roles",
+            "video_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "At least one of this and image_with_roles must be provided"
+        }
+      ]
+    }
+  }
+}
