@@ -203,6 +203,50 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
   "agnes-video-2.5-flash": [
     "agnes-video-2.5-flash"
   ],
+  "kling-v4": [
+    "kling-v4",
+    "kling-4.0"
+  ],
+  "grok-imagine-video-1.5-official": [
+    "grok-imagine-video-1.5"
+  ],
+  "pixverse-v6": [
+    "pixverse-v6"
+  ],
+  "pixverse-v6-max": [
+    "pixverse-v6-max"
+  ],
+  "flux-3-video": [
+    "flux-3-video"
+  ],
+  "muse-video-ext": [
+    "muse-video-ext"
+  ],
+  "wan-3.0-prime-apimart": [
+    "wan3.0-video-prime",
+    "wan3-0-video-prime"
+  ],
+  "veo3.1-fast-official": [
+    "veo3.1-fast-official"
+  ],
+  "veo3.1-quality-official": [
+    "veo3.1-quality-official"
+  ],
+  "viduq3-pro": [
+    "viduq3-pro"
+  ],
+  "viduq3-turbo": [
+    "viduq3-turbo"
+  ],
+  "viduq4-preview": [
+    "viduq4-preview"
+  ],
+  "gemini-omni-1.2-flash": [
+    "gemini-omni-1.2-flash"
+  ],
+  "gemini-omni-1.2-flash-ext": [
+    "gemini-omni-1.2-flash-ext"
+  ],
   "minimax-music-3": [
     "minimax/music-3",
     "music-3"
@@ -344,6 +388,24 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "suno-sounds-v5.5",
     "suno-sounds-v5-5"
   ],
+  "suno-v6": [
+    "suno-v6"
+  ],
+  "suno-sfx-v6": [
+    "suno-sounds-v6"
+  ],
+  "suno-v6-wild": [
+    "suno-v6-wild"
+  ],
+  "suno-sfx-v6-wild": [
+    "suno-sounds-v6-wild"
+  ],
+  "suno-v6-mini": [
+    "suno-v6-mini"
+  ],
+  "suno-sfx-v6-mini": [
+    "suno-sounds-v6-mini"
+  ],
   "lyria-3.5": [
     "flowmusic-lyria-3.5"
   ],
@@ -467,6 +529,45 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "gpt-image-2.5-sunburst",
     "gpt-image-2-5-sunburst-text-to-image",
     "gpt-image-2-5-sunburst-image-to-image"
+  ],
+  "gpt-image-2.6-flare": [
+    "gpt-image-2.6-flare"
+  ],
+  "gpt-image-2.6-sunburst": [
+    "gpt-image-2.6-sunburst"
+  ],
+  "gemini-nano-banana-2.1": [
+    "gemini-nano-banana-2.1"
+  ],
+  "gemini-nano-banana-2.1-ext": [
+    "gemini-nano-banana-2.1-ext"
+  ],
+  "gemini-3.1-flash-lite-image": [
+    "gemini-3.1-flash-lite-image"
+  ],
+  "gemini-3.1-flash-lite-image-ext": [
+    "gemini-3.1-flash-lite-image-ext"
+  ],
+  "flux-3-image": [
+    "flux-3-image"
+  ],
+  "flux-3-image-klein": [
+    "flux-3-image-klein"
+  ],
+  "grok-imagine-image-2.0-official": [
+    "grok-imagine-image-2.0"
+  ],
+  "hy-image-v3.5-preview": [
+    "hy-image-v3.5-preview"
+  ],
+  "muse-image-ext": [
+    "muse-image-ext"
+  ],
+  "wan2.7-image": [
+    "wan2.7-image"
+  ],
+  "wan2.7-image-pro": [
+    "wan2.7-image-pro"
   ],
   "imagen-4-fast": [
     "google/imagen4-fast",

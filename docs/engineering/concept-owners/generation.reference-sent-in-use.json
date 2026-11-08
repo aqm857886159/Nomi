@@ -12,6 +12,10 @@
   },
   "write_api": [
     {
+      "path": "electron/shared/videoCapabilities/referenceChannels.ts",
+      "symbol": "lowerCombinedReferences"
+    },
+    {
       "path": "src/workbench/generationCanvas/nodes/controls/referenceList.ts",
       "symbol": "placeUploadedImages"
     },
