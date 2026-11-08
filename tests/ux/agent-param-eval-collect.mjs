@@ -14,8 +14,16 @@ export function readRunJsons(projectDir) {
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue
     const file = path.join(root, entry.name, 'run.json')
-    if (!fs.existsSync(file)) continue
-    try { runs.push(JSON.parse(fs.readFileSync(file, 'utf8'))) } catch { unreadable.push(entry.name) }
+    const events = path.join(root, entry.name, 'events.ndjson')
+    if (!fs.existsSync(file) && !fs.existsSync(events)) continue
+    try {
+      if (fs.existsSync(file)) runs.push(JSON.parse(fs.readFileSync(file, 'utf8')))
+      else {
+        const last = fs.readFileSync(events, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse).at(-1)
+        if (!last?.payload?.run) throw new Error('Missing run in event journal')
+        runs.push(last.payload.run)
+      }
+    } catch { unreadable.push(entry.name) }
   }
   return { runs, unreadable }
 }

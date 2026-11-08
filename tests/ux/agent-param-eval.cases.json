@@ -6,14 +6,9 @@
     "empty": "空项目，空画布，无文稿，无素材",
     "script": "创作页已写入 6 个场景的文稿（`script`），画布空",
     "assets": "素材库有 3 个素材：图片『小林』、图片『便利店』、8 秒视频『跑步素材』（跑器用 ffmpeg 现生成，不依赖私有素材）；画布空",
-    "drafts1": "先由 Agent 起草 1 个视频镜头（5 秒、16:9），再测本题；用 prelude 句子搭",
-    "drafts3": "先由 Agent 起草 3 个视频镜头（各 5 秒、16:9），再测本题",
-    "drafts6": "先由 Agent 起草 6 个视频镜头（各 5 秒、16:9），再测本题"
-  },
-  "preludes": {
-    "drafts1": { "expectShots": 1, "zh": "起草一个视频镜头：一只橘猫坐在窗台上，16:9，5 秒。只起草，先别生成。", "en": "Draft one video shot: an orange cat sitting on a windowsill, 16:9, 5 seconds. Draft only, do not generate yet." },
-    "drafts3": { "expectShots": 3, "zh": "起草 3 个视频镜头，镜1：清晨的街道；镜2：警察追着犯人跑；镜3：路人站在旁边看。每镜 5 秒，16:9。只起草，先别生成。", "en": "Draft 3 video shots. Shot 1: an empty street at dawn. Shot 2: a cop chasing a thief. Shot 3: a pedestrian watching from the side. 5 seconds each, 16:9. Draft only, do not generate yet." },
-    "drafts6": { "expectShots": 6, "zh": "起草 6 个视频镜头：1 清晨街道，2 早点铺开门，3 小女孩跑过巷口，4 买包子，5 挤上公交车，6 车窗外的晨光。每镜 5 秒，16:9。只起草，先别生成。", "en": "Draft 6 video shots: 1 dawn street, 2 breakfast shop opening, 3 a girl running past the alley, 4 buying buns, 5 squeezing onto a bus, 6 morning light outside the window. 5 seconds each, 16:9. Draft only, do not generate yet." }
+    "drafts1": "固定存储夹具：1 个视频镜头，5 秒、16:9",
+    "drafts3": "固定存储夹具：3 个视频镜头，各 5 秒、16:9",
+    "drafts6": "固定存储夹具：6 个视频镜头，各 5 秒、16:9"
   },
   "families": {
     "single": "单参数：比例 / 时长 / 张数 / 分辨率 / 指定模型与开关",

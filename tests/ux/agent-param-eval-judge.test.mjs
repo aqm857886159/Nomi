@@ -167,7 +167,7 @@ describe('题库自检', () => {
       expect(BANK.families[t.family], `${t.id} family`).toBeTruthy()
       expect(t.say.length).toBeGreaterThan(3)
       expect(t.expect, `${t.id} expect`).toBeTruthy()
-      if (t.fixture.startsWith('drafts')) expect(BANK.preludes[t.fixture][t.lang], `${t.id} prelude`).toBeTruthy()
+      if (t.fixture.startsWith('drafts')) expect([1, 3, 6]).toContain(Number(t.fixture.slice(6)))
       // 题目语言与用户说法的语言一致（含中文字符 = zh）
       expect(/[一-鿿]/.test(t.say.replace(/小林|便利店/g, ''))).toBe(t.lang === 'zh')
     }

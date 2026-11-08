@@ -16,14 +16,14 @@ import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 //   ④ 钱          生成一律停在付费确认卡，跑器只点「取消」——整场只花大脑模型的文字费用，零生成额度。
 //
 // ── 每题一个新项目 ──
-// 题与题互不干扰：每题开一个全新的空白项目，按 `fixture` 搭起始态（文稿 / 素材 / 先让 Agent 起草 N 镜）。
-// 「先起草 N 镜」是 prelude（预演句）：改已有镜头必须有真草稿，而草稿只能由 draft_shots 造出来（look_at_canvas
-// 不给种下的普通节点 operationId）。预演没搭到期望镜头数的题记「不可判」，不进分母，不当成产品结论。
+// 题与题互不干扰：每题开一个全新的空白项目，按 `fixture` 搭起始态（文稿 / 素材 / 固定草稿存储夹具）。
+// 草稿前提直接用本评测的固定原生存储夹具，关闭项目后写入、重开后读回，不经过模型。
+// 干跑接本机假文本模型，真实发送测试话术并用 look_at_canvas 核对前提；分数仍不代表产品质量。
 //
 // ── 跑法（花钱：只有大脑模型的文字费，由协调跑）──
 //   pnpm run build
 //   NOMI_SPEND_OK=1 node tests/ux/agent-param-eval-real-model.walk.mjs --model "<在线大脑模型展示名>" --label base [--only P01,P02] [--limit 10]
-//   node tests/ux/agent-param-eval-real-model.walk.mjs --dry-run      # 不连模型、不要凭据：只验起 App / 读题 / 搭三种起始态 / 写轨迹文件
+//   node tests/ux/agent-param-eval-real-model.walk.mjs --dry-run      # 不连模型、不要凭据：验起 App / 所有起始态 / 假模型进入测试段 / 写轨迹文件
 // 产物：artifacts/agent-param-eval/<label>/（被忽略）：report.json、summary.json、trajectories/<题号>.jsonl、<题号>.outcome.json
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
@@ -37,6 +37,8 @@ import { assertPaidRunAllowed } from './_paidRun.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 import { closeNomiApp, launchNomiApp } from './_launchApp.mjs'
 import { readAlignedCalls } from './askback-trajectory.mjs'
+import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
+import { seedDraftFixture } from './agent-param-eval-fixtures.mjs'
 import { createCardDriver } from './agent-param-eval-cards.mjs'
 import { lastAssistantText, taskTrajectory, readCanvasSummary, readRunJsons } from './agent-param-eval-collect.mjs'
 import { formatSummary, judgeTask, planShotsFromRuns, summarize } from './agent-param-eval-judge.mjs'
@@ -99,13 +101,24 @@ const report = {
 const results = []
 const unscorable = []
 
-let app, win, failure, guard
+let app, win, failure, guard, fakeModel
 try {
   // This instrument copies the real catalog even if the shell also has an environment key.
   if (!DRY_RUN) guard = assertPaidRunAllowed('agent-param-eval-real-model.walk.mjs', { ...process.env, [ENV_KEY_VAR]: '' })
   const iso = prepareIsolation(isoDir, { requireCatalog: !DRY_RUN })
+  if (DRY_RUN) {
+    fakeModel = await createAgentRuntimeFixture({ rootDir: repoRoot, settingsDir: iso.settingsDir })
+    fakeModel.respond({ label: 'parameter harness test-stage probe', match: () => true, reply: (body) => {
+      const lastUser = body.messages.findLastIndex((message) => message.role === 'user')
+      const sawCanvas = body.messages.slice(lastUser + 1).some((message) => message.role === 'tool')
+      return sawCanvas ? { type: 'text', text: 'Harness test stage reached.' }
+        : { type: 'tool', id: 'param-dry-canvas', name: 'look_at_canvas', args: {} }
+    } })
+  }
   ;({ app, win } = await launchNomiApp({ name: 'agent-param-eval', userDataDir: iso.chromiumDir,
-    projectsDir: iso.projectsDir, settingsDir: iso.settingsDir, capabilityDir: iso.capabilityDir, hostConfigDir: iso.hostConfigDir }))
+    projectsDir: iso.projectsDir, settingsDir: iso.settingsDir, capabilityDir: iso.capabilityDir, hostConfigDir: iso.hostConfigDir,
+    ...(DRY_RUN ? { mainRequire: [path.join(repoRoot, 'scripts/walkthrough-network-guard.cjs')],
+      env: { NOMI_TEST_NETWORK_GUARD: '1', NOMI_WALK_ALLOW_ORIGINS: '' } } : {}) }))
   await dismissSplashIfPresent(win)
   const assetFiles = TASKS.some((task) => task.fixture === 'assets') ? makeAssetFiles() : []
 
@@ -165,7 +178,7 @@ try {
     await win.locator(`${CANVAS_PANEL} ${COMPOSER_MODEL}`).click({ timeout: stationTimeout({ operations: 2 }) })
     await win.locator(`${CANVAS_PANEL} ${MODEL_POPOVER} [data-v4-model-row]`).first().locator('button').first().click({ timeout: stationTimeout({ operations: 2 }) })
     const option = win.locator('[data-nomi-select-dropdown] [data-nomi-select-option-label]')
-      .filter({ hasText: new RegExp(escapeForRegExp(MODEL_LABEL)) }).first()
+      .filter({ hasText: new RegExp(escapeForRegExp(DRY_RUN ? FIXTURE_TEXT_MODEL_LABEL : MODEL_LABEL)) }).first()
     await option.click({ timeout: stationTimeout({ operations: 2 }) })
     await win.waitForTimeout(800)
   }
@@ -203,36 +216,30 @@ try {
         row.scriptTyped = await writeScript()
         if (!row.scriptTyped) throw Object.assign(new Error('文稿没敲进编辑器'), { setup: true })
       }
+      // 前提写入时项目必须关闭，否则渲染层保存会覆盖夹具。
+      let seeded
+      if (task.fixture.startsWith('drafts')) {
+        await leaveProjectIfOpen(win, 'close isolated project before fixture write')
+        seeded = seedDraftFixture(projectDir, Number(task.fixture.slice(6)))
+        await win.locator(`[data-project-card="true"][data-project-id="${seeded.projectId}"]`).click({ timeout: stationTimeout({ operations: 2 }) })
+      }
       await switchWorkspace(win, 'generation', '切到生成区')
       await win.waitForTimeout(POLL_MS)
-      if (DRY_RUN) {
-        // 干跑：到这里起始态已搭好（空 / 文稿 / 素材）。不选模型、不发话。确认面板和输入框在。
-        await expandResidentPanel(win)
-        row.composerUsable = (await cards.ensureComposerUsable()) !== -1
-        row.dryRunOk = row.composerUsable
-        report.cases.push(row)
-        const empty = judgeTask({ task, calls: [], shotsBefore: [], shotsAfter: shotsOf(projectDir), finalText: '' })
-        results.push(empty)
-        writeOutcome(task, projectDir, { turns: [], judged: empty })
-        console.log(`${task.id} [dry-run] fixture=${task.fixture} composer=${row.composerUsable}`)
-        continue
+      const shotsBefore = shotsOf(projectDir).filter((shot) => shot.included && shot.role !== 'anchor')
+      const preludeCalls = 0
+      row.fixtureShots = shotsBefore.length
+      if (seeded && shotsBefore.length !== seeded.nodeIds.length) {
+        throw Object.assign(new Error('固定草稿夹具读回数量不符'), { setup: true })
       }
       await pickModel()
-      // ── 预演：先让 Agent 起草 N 镜，量「改已有镜头」要的起始态 ──
-      let shotsBefore = []
-      let preludeCalls = 0
-      if (task.fixture.startsWith('drafts')) {
-        const prelude = BANK.preludes[task.fixture]
-        row.prelude = await say(prelude[task.lang], `${task.id}-prelude`)
-        shotsBefore = shotsOf(projectDir).filter((shot) => shot.included)
-        preludeCalls = readAlignedCalls(projectDir).length
-        row.preludeShots = shotsBefore.length
-        if (shotsBefore.length !== prelude.expectShots) {
-          throw Object.assign(new Error(`预演只搭出 ${shotsBefore.length}/${prelude.expectShots} 镜`), { setup: true })
-        }
-      }
       // ── 被测的那句话 ──
       const turn = await say(task.say, task.id)
+      if (DRY_RUN) {
+        const probe = readAlignedCalls(projectDir).find((call) => call.name === 'look_at_canvas' && call.hasResult && !call.isError)
+        row.testStageEntered = Boolean(probe)
+        row.dryRunOk = !turn.timedOut && Boolean(probe) && (seeded?.nodeIds ?? []).every((id) => probe.resultText.includes(id))
+        if (!row.dryRunOk) throw new Error('假模型没有读到测试段的完整起始态')
+      }
       row.cardsAnswered = turn.cardsAnswered
       row.timedOut = turn.timedOut
       const finalText = lastAssistantText(projectDir)
@@ -268,7 +275,7 @@ try {
 
   report.summary = summarize(results.filter((item) => !unscorable.includes(item.id)), unscorable, BANK.tasks)
   fs.writeFileSync(path.join(outputDir, 'summary.json'), JSON.stringify(report.summary, null, 2))
-  console.log(`\n${DRY_RUN ? '（干跑：没连模型，下面的数是空轨迹的底数，不是产品结论）\n' : ''}${formatSummary(report.summary)}`)
+  console.log(`\n${DRY_RUN ? '（干跑：没连模型，下面的数是假模型探针的底数，不是产品结论）\n' : ''}${formatSummary(report.summary)}`)
   await win.screenshot({ path: path.join(outputDir, 'last-screen.png') }).catch(() => {})
 } catch (error) {
   failure = error
@@ -279,6 +286,7 @@ try {
   try {
     if (app) await closeNomiApp(app)
   } finally {
+    if (fakeModel) { fakeModel.assertClean(); await fakeModel.close() }
     cleanupTestTemp(isoDir)
     cleanupTestTemp(mediaTmp)
     if (guard) {
