@@ -9,13 +9,14 @@ vi.mock("../../catalog/catalogStore", () => ({ readCatalog: vi.fn() }));
 const q: VendorPriceQuery = { vendorKey: "apimart", kind: "video", modelId: "doubao-seedance-2.0-mini",
   referenceCount: 0, hasVideoInput: false, durationSec: 5, count: 1, resolution: "720p" };
 const data = { model_name: q.modelId, membership: { category: "video" }, billing_type: "per_second", resolution_enabled: true,
-  resolution_paid_prices: { "720P": 0.039, "720P-input": 0.024 } };
+  resolution_paid_prices: { "720P": 0.0390344, "720P-input": 0.02376 } };
 const quote = (d: Record<string, unknown> = data, input = q, list: unknown = null) =>
   publicPriceFor(input, { success: true, data: d }, list, "official");
 
 describe("read-only public media price", () => {
   it("prices the exact resolution and output duration, refusing an unproved base or a reference surcharge", () => {
-    expect(quote()).toEqual({ usd: 0.195, credits: 1.9500000000000002, source: "official" });
+    expect(quote()?.usd).toBeCloseTo(0.195172, 9);
+    expect(quote()?.credits).toBeCloseTo(1.95172, 9);
     for (const patch of [{ modelId: "other" }, { count: 0 }, { durationSec: 0 }, { resolution: "4K" },
       { resolution: undefined }, { referenceCount: 1 }, { hasVideoInput: true }, { hasVideoInput: undefined }])
       expect(quote(data, { ...q, ...patch })).toBeNull();
@@ -40,7 +41,7 @@ describe("read-only public media price", () => {
       return Response.json({ success: true, data });
     });
     const [a, b] = await Promise.all([readVendorPricePreview(q), readVendorPricePreview(q)]);
-    expect(a?.usd).toBeCloseTo(0.195); expect(b).toEqual(a); expect(appFetch).toHaveBeenCalledTimes(1);
+    expect(a?.usd).toBeCloseTo(0.195172, 9); expect(b).toEqual(a); expect(appFetch).toHaveBeenCalledTimes(1);
     connection("https://relay.example/v1");
     expect(await readVendorPricePreview(q)).toBeNull(); expect(appFetch).toHaveBeenCalledTimes(1);
   });
