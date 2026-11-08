@@ -147,6 +147,8 @@ export const CANONICAL_MODEL_IDS: Record<string, string> = {
   // Muse Image 是 Meta 的模型（Meta Superintelligence Labs，2026-07-07 发布，出处见 runwayNativeImage.ts），
   // Runway 只是转售渠道 → 写模型本身的身份，不写「runway muse image」。
   "muse_image": "muse image",
+  // APIMart 的 Muse Image Ext 和 Runway 的 muse_image 是同一个模型的两条接入线：组里有渠道行，这一行也要显式写身份。
+  "muse-image-ext": "muse image",
   "suno-v5-5": "suno v5.5",
   "suno-v5.5": "suno v5.5",
   "suno-sounds-v5-5": "suno sounds v5.5",
@@ -197,10 +199,14 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   "gpt-image-2-5-sunburst-text-to-image",
   "gpt-image-2.5-flare",
   "gpt-image-2.5-sunburst",
+  // 2.6 是这一家最新一代（只有 APIMart 提供）：用户 2026-11-07「最新一代和上一代都给新节点用」，推荐排序不排在上一代后面。
+  "gpt-image-2.6-flare",
+  "gpt-image-2.6-sunburst",
   // 与已在旗舰名单里的 Runway 行 `gemini_image3_pro` / `grok_imagine_image_2` 是同一个模型的另一条接入线，
   // 不跟着标就会出现「同一款经 Runway 是旗舰、经 APIMart 是陪跑」的自相矛盾分档。
   "gemini-3-pro-image-preview",
   "grok-imagine-2.0-ext",
+  "muse-image-ext",
   "nano-banana-2",
   "gemini-3.1-flash-image-preview",
   "seedream/5-pro-text-to-image",
@@ -292,31 +298,16 @@ const VALUE_MODEL_KEYS = new Set([
 // DeepSeek V4.1 Flash 最新、V4 Flash 上一代，Gemini 3.8 Flash 最新、3.5 Flash 上一代，所以这几个不在表里。
 // 契约见 `electron/catalog/apimartLatestContracts.test.ts` 与 `tests/fixtures/apimart/model-generations*.json`。
 const LEGACY_MODEL_KEYS = new Set([
-  "happyhorse",
-  "happyhorse_1_0",
-  "seedream",
-  "doubao-seedream-4.5",
-  "doubao-seedream-4-5-251128",
   "doubao-seedream-4-0-250828",
-  "seedream-v4.5",
   "nano-banana",
   "gemini-2.5-flash-image-preview",
   "rhart-image-v1",
   "gemini_2.5_flash",
-  "bytedance/seedance-2",
-  "doubao-seedance-2.0",
-  "doubao-seedance-2-0-260128",
-  "bytedance/seedance-2.0-global",
   "agnes-2.0-flash",
   "agnes-image-2.0-flash",
   "agnes-video-v2.0",
   "meshy6",
   "deepseek-v3.1-terminus",
-  "qwen-image-2.0",
-  "rh-qwen-image-2.0",
-  "wan2.7",
-  "rh-wan-2.7",
-  "Omni-Flash-Ext",
   "nomi-audio",
 ]);
 

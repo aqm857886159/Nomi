@@ -68,3 +68,4 @@ jobs:
             electron/catalog/archetypeWireDefaults.*.generated.ts
             electron/catalog/archetypeIdentifiers.generated.ts
             electron/catalog/archetypeModes.generated.ts
+            electron/catalog/archetypeModes.*.generated.ts

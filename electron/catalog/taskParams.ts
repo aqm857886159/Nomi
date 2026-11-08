@@ -6,6 +6,7 @@
 // params 的坑，都只在"真实参数构建"里暴露，埋在 2500 行 runtime 里既测不到也容易回归。
 import { assertDeclaredCapabilityForTask } from "../shared/modelAvailability";
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
+import { resolveArchetypeForModel } from "../shared/modelArchetypes";
 import { referenceInputParams } from "./archetypeInput";
 import { ARCHETYPE_WIRE_DEFAULTS, ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
 import { bodyReferencedParamKeys } from "./paramTranslate";
@@ -149,14 +150,32 @@ export function applyHeadlessParamDefaults(
   const declaredArchetype = isJsonRecord(selected.modelMeta) ? selected.modelMeta.archetypeId : undefined;
   const archetypeId = typeof declaredArchetype === "string" && declaredArchetype ? declaredArchetype : undefined;
   const perKind = archetypeId ? ARCHETYPE_WIRE_DEFAULTS[archetypeId]?.[taskKind] : undefined;
-  const archetypeDefaults = perKind ? (perKind[vendorKey] ?? perKind["*"]) : undefined;
+  const primaryDefaults = perKind?.[vendorKey] ?? perKind?.["*"];
+  const archetype = selected.modeId ? resolveArchetypeForModel({
+    modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
+  }) : null;
+  const mode = archetype?.modes.find((candidate) => candidate.id === selected.modeId);
+  // A task kind shares tunable defaults. Its primary mode's fixed fields cannot select a different mode.
+  const archetypeDefaults = mode && primaryDefaults ? { ...primaryDefaults } : primaryDefaults;
+  if (archetype && mode && archetypeDefaults) {
+    for (const candidate of archetype.modes) {
+      for (const key of Object.keys(candidate.fixedParams ?? {})) {
+        if (!mode.params.some((control) => control.key === key)) delete archetypeDefaults[key];
+      }
+    }
+  }
   // extras.size 是比例形（调用方 aspect_ratio 铺来的）、但本模式的 size 是像素语义 → 剥掉，让档案像素默认接管。
   // 只针对「比例形的 caller size」，UI 路自己填的真实像素 size 不受影响（它不匹配 RATIO_VALUE_RE）。
   const guarded = extras && typeof extras.size === "string" && RATIO_VALUE_RE.test(extras.size.trim())
     && !sizeDefaultIsRatioSemantic(archetypeId, taskKind, archetypeDefaults, mappingDefaults)
     ? (() => { const { size: _dropped, ...rest } = extras; return rest; })()
     : extras;
-  const withDefaults = applyWireDefaults(applyWireDefaults(guarded, archetypeDefaults), mappingDefaults);
+  const defaulted = applyWireDefaults(applyWireDefaults(guarded, archetypeDefaults), mappingDefaults);
+  // Saved nodes can still carry the previous mode's transport discriminator in either parameter bag.
+  const withDefaults = mode && mode.fixedParams ? {
+    ...defaulted, ...mode.fixedParams,
+    ...(isJsonRecord(defaulted?.archetypeInput) ? { archetypeInput: { ...defaulted.archetypeInput, ...mode.fixedParams } } : {}),
+  } : defaulted;
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
   const projected = projectReferencesOntoBodyKeys(withDefaults, createBody, selected);
@@ -208,7 +227,7 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
     width: request.width,
     height: request.height,
     seed: request.seed ?? numericWireParam(extras.seed),
-    steps: request.steps,
+    steps: request.steps ?? numericWireParam(extras.steps),
     cfgScale: request.cfgScale,
     cfg_scale: request.cfgScale,
     negative_prompt: request.negativePrompt ?? extras.negative_prompt,
@@ -530,44 +549,29 @@ export function reachableModeSuggestion(
  * 本次携带的参考 URL，按族分组、保序去重（image 内首/尾帧排前，同 carriedReferences 口径）。
  * 真相源 = referenceInputParams(extras)——headless 路的 referenceImages/firstFrameUrl/… 都归一到它。
  */
-function carriedReferenceUrlsByFamily(extras: JsonRecord,
-  selected?: ParameterReferenceSelection): Record<ReferenceFamily, string[]> {
+function referenceUrlsByFamily(params: JsonRecord): Record<ReferenceFamily, string[]> {
   const out: Record<ReferenceFamily, string[]> = { image: [], video: [], audio: [] };
-  const walk = (key: string, value: unknown): void => {
+  const walk = (family: ReferenceFamily | null, value: unknown): void => {
     if (typeof value === "string") {
       const url = value.trim();
-      if (!url || !REF_URL_RE.test(url)) return;
-      const family = classifyReferenceKey(key);
-      if (family && !out[family].includes(url)) out[family].push(url);
-      return;
+      if (family && REF_URL_RE.test(url) && !out[family].includes(url)) out[family].push(url);
+    } else if (Array.isArray(value)) {
+      for (const item of value) walk(family, item);
+    } else if (isJsonRecord(value)) {
+      // The url inside a role object belongs to its declared carrier, just like a bare array item.
+      for (const [key, item] of Object.entries(value)) walk(classifyReferenceKey(key) ?? family, item);
     }
-    if (Array.isArray(value)) for (const item of value) walk(key, item);
-    else if (value && typeof value === "object") for (const [k, v] of Object.entries(value)) walk(k, v);
   };
-  const exactComfyContract = comfyReferenceContract(extras, selected);
-  if (!exactComfyContract) {
-    for (const [key, value] of Object.entries(referenceInputParams(extras, selected))) walk(key, value);
-  }
-  for (const reference of declaredComfyReferences(extras, selected)) {
-    if (!out[reference.family].includes(reference.url)) out[reference.family].push(reference.url);
-  }
+  walk(null, params);
   return out;
 }
 
-function archetypeReferenceUrlsByFamily(extras: JsonRecord): Record<ReferenceFamily, string[]> {
-  const out: Record<ReferenceFamily, string[]> = { image: [], video: [], audio: [] };
-  const walk = (key: string, value: unknown): void => {
-    if (typeof value === "string") {
-      const url = value.trim();
-      const family = classifyReferenceKey(key);
-      if (url && REF_URL_RE.test(url) && family && !out[family].includes(url)) out[family].push(url);
-      return;
-    }
-    if (Array.isArray(value)) for (const item of value) walk(key, item);
-    else if (value && typeof value === "object") for (const [nestedKey, nestedValue] of Object.entries(value)) walk(nestedKey, nestedValue);
-  };
-  if (isJsonRecord(extras.archetypeInput)) {
-    for (const [key, value] of Object.entries(extras.archetypeInput)) walk(key, value);
+function carriedReferenceUrlsByFamily(extras: JsonRecord,
+  selected?: ParameterReferenceSelection): Record<ReferenceFamily, string[]> {
+  const exactComfy = comfyReferenceContract(extras, selected);
+  const out = referenceUrlsByFamily(exactComfy ? {} : referenceInputParams(extras, selected));
+  for (const reference of declaredComfyReferences(extras, selected)) {
+    if (!out[reference.family].includes(reference.url)) out[reference.family].push(reference.url);
   }
   return out;
 }
@@ -623,7 +627,8 @@ export function projectReferencesOntoBodyKeys(
   const flatSource = { ...src };
   delete flatSource.archetypeInput;
   const flatByFamily = carriedReferenceUrlsByFamily(flatSource, selected);
-  const archetypeByFamily = archetypeReferenceUrlsByFamily(src);
+  const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
+  const archetypeByFamily = referenceUrlsByFamily(archetypeInput);
   if (byFamily.image.length === 0 && byFamily.video.length === 0 && byFamily.audio.length === 0) return {};
 
   const hasNonEmpty = (value: unknown): boolean =>
@@ -632,8 +637,6 @@ export function projectReferencesOntoBodyKeys(
       (Array.isArray(value) && value.length > 0) ||
       (typeof value !== "string" && !Array.isArray(value))
     );
-
-  const archetypeInput = isJsonRecord(src.archetypeInput) ? src.archetypeInput : {};
 
   // ── 帧意图优先 ────────────────────────────────────────────────────────────
   // 调用方写 `firstFrameUrl` 是明确表态「这张是首帧」，不是"一张随便的参考图"。

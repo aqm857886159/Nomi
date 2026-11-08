@@ -68,7 +68,7 @@ describe("参考通道由档案模式决定（NEW-1）", () => {
       kind: "video",
       modeId: "first",
       createBody: SEEDANCE_I2V_BODY,
-    })).toEqual({ key: "image_with_roles", flat: false });
+    })).toEqual({ key: "image_with_roles", flat: false, roleSlots: [{ kind: "first_frame", role: "first_frame" }] });
   });
 
   it("纯函数：同一条 body，模式换成全能参考 → 不合并（扁平族键）", () => {
@@ -99,7 +99,7 @@ describe("参考通道由档案模式决定（NEW-1）", () => {
 
   it("纯函数：合并槽是唯一读点（flat 声明照样带出来）", () => {
     expect(combineChannelForMode({ combineSlotsInto: { key: "image_urls", flat: true } }))
-      .toEqual({ key: "image_urls", flat: true });
+      .toEqual({ key: "image_urls", flat: true, roleSlots: [] });
     expect(combineChannelForMode({})).toBeNull();
   });
 
