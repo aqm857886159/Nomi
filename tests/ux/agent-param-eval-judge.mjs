@@ -2,7 +2,7 @@
 // 不起 App、不读盘、不连模型，所以能被阳性 / 阴性对照单测夹住（agent-param-eval-judge.test.mjs）。
 //
 // 一把尺子只有一个家：
-//   · 「参数被拒」「同一堵墙撞第几次」直接用 askback-trajectory.mjs 的 annotateRetries（与生产熔断同判据）；
+//   · 「参数被拒」「同一堵墙撞第几次」直接用 askback-trajectory.mjs 的 annotateRetries（固定首行粗尺，与生产按码和字段路径的细尺不同；前后比较不换尺）；
 //   · 「草稿计划」从 App 落盘的 `.nomi/runs/*/run.json` 的 generationPlan 读（宿主准入后的真相，不信 Agent 自述）。
 //
 // 参数键别名（ALIASES）是按目录常见写法猜的，不同模型的键名不同。某类题全红时先看结果里的
@@ -88,6 +88,7 @@ export function planShotsFromRun(runJson) {
     return {
       runId: run.runId ?? plan.operationId ?? null,
       shotId: row.shotId ?? null,
+      role: row.role ?? null,
       title: row.title ?? candidate.title ?? null,
       prompt: String(candidate.prompt ?? ''),
       modelId: candidate.modelId ?? null,
@@ -134,7 +135,7 @@ function judgeShotSpec(each, shot, ctx, label) {
   }
   if (each.promptVerbatim !== undefined) out.push(check(`${label}:提示词逐字`, norm(shot.prompt) === norm(each.promptVerbatim), `实际「${shot.prompt}」`))
   if (each.promptContainsAll) {
-    const missing = each.promptContainsAll.filter((word) => !shot.prompt.toLowerCase().includes(word.toLowerCase()))
+    const missing = each.promptContainsAll.filter((words) => ![words].flat().some((word) => shot.prompt.toLowerCase().includes(word.toLowerCase())))
     out.push(check(`${label}:提示词保留要素`, missing.length === 0, missing.length ? `缺 ${missing.join(',')}` : undefined))
   }
   if (each.promptLongerThan !== undefined) out.push(check(`${label}:按要求润色（比原文长）`, shot.prompt.length > each.promptLongerThan, `长度 ${shot.prompt.length}`))
@@ -156,11 +157,11 @@ function judgeShotSpec(each, shot, ctx, label) {
 export function judgeTask({ task, calls, finalText = '', shotsBefore = [], shotsAfter = [], cardsAnswered = [] }) {
   const expect = task.expect ?? {}
   const annotated = annotateRetries(calls.map((call) => ({
-    toolCallId: call.toolCallId ?? call.id, name: call.name, args: call.args, isError: call.isError === true,
-    resultText: call.resultText ?? call.text ?? '', hasResult: true,
+    toolCallId: call.toolCallId ?? call.id, name: call.name, args: call.args, isError: call.isError !== false || call.hasResult === false,
+    resultText: call.resultText ?? call.text ?? '', hasResult: call.hasResult !== false,
   })))
   const writes = annotated.filter((call) => WRITE_TOOLS.has(call.name))
-  const writesAccepted = writes.filter((call) => call.errorKind !== 'arg_rejected')
+  const writesAccepted = writes.filter((call) => !call.isError)
   // 重试：同一工具、上一次调用被拒后的再次调用。
   let retries = 0
   const lastRejected = new Map()
@@ -195,7 +196,7 @@ export function judgeTask({ task, calls, finalText = '', shotsBefore = [], shots
   const resolvedByAsk = askedUser
   const plan = expect.plan
   if (plan) {
-    const included = shotsAfter.filter((shot) => shot.included)
+    const included = shotsAfter.filter((shot) => shot.included && shot.role !== 'anchor')
     if (plan.count !== undefined) {
       const okCount = included.length === plan.count
       checks.push(check(`镜头数=${plan.count}`, okCount || (resolvedByAsk && included.length === 0), `实际 ${included.length}`))
@@ -210,6 +211,15 @@ export function judgeTask({ task, calls, finalText = '', shotsBefore = [], shots
     if (plan.each) {
       if (!included.length && !resolvedByAsk) checks.push(check('有草稿可核', false, '没有任何镜头落下来，也没转问'))
       included.forEach((shot, index) => checks.push(...judgeShotSpec(plan.each, shot, ctx, `镜${index + 1}`)))
+    }
+  }
+
+  // 工具接受与要求落盘分开：此断言不允许提问或正文解释掩盖静默丢字段。
+  if (expect.readback && writesAccepted.some((call) => call.name === 'draft_shots')) {
+    const included = shotsAfter.filter((shot) => shot.included && shot.role !== 'anchor')
+    checks.push(check('写入后读回:有草稿', included.length > 0))
+    for (const [index, shot] of included.entries()) {
+      checks.push(...judgeShotSpec(expect.readback, shot, { askedUser: false, finalText: '' }, `写入后读回:镜${index + 1}`))
     }
   }
 

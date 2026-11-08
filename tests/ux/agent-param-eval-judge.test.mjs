@@ -180,3 +180,33 @@ describe('题库自检', () => {
     for (const item of BANK.untestable) expect(item.why.length).toBeGreaterThan(10)
   })
 })
+
+
+describe('评分口径回归', () => {
+  it.each(['host refused', 'tool_retry_stopped', 'The user declined this action.', ZOD_REJECT])('错误结果不能算写入接受：%s', (text) => {
+    expect(judgeTask({ task: task('P01'), calls: [bad('draft_shots', text)] }).writeAccepted).toBe(0)
+  })
+  it('无结果的调用不能算接受', () => {
+    expect(judgeTask({ task: task('P01'), calls: [{ name: 'draft_shots', isError: false, hasResult: false }] }).writeAccepted).toBe(0)
+  })
+  it('计数和逐镜要求排除锚点', () => {
+    const shots = [shot({ role: 'anchor', parameters: { duration: 1 } }), shot({ parameters: { duration: 8 } })]
+    expect(judgeTask({ task: task('P01'), calls: [ok('draft_shots')], shotsAfter: shots }).passed).toBe(true)
+  })
+  it('归一保留锚点角色', () => {
+    expect(planShotsFromRun({ generationPlan: { shots: [{ role: 'anchor', candidate: {} }] } })[0].role).toBe('anchor')
+  })
+  it('润色按实际语言的同义要素判断', () => {
+    expect(judgeTask({ task: task('P14'), calls: [ok('draft_shots')], shotsAfter: [shot({ prompt: '一个男人在雨中缓步行走，霓虹倒影映亮街面，镜头缓慢推进，电影般的光影。' })] }).passed).toBe(true)
+    expect(judgeTask({ task: task('P14'), calls: [ok('draft_shots')], shotsAfter: [shot({ prompt: '一个男人在夜晚缓步行走，霓虹倒影映亮街面，镜头缓慢推进，电影般的光影。' })] }).passed).toBe(false)
+  })
+  it.each(['variantId', 'audio', 'resolution'])('写入成功也必须读回 %s，提问不能掩盖静默丢值', (field) => {
+    const t = task('P06')
+    const good = shot({ variantId: 'fast', parameters: { generate_audio: false, resolution: '4k' } })
+    expect(judgeTask({ task: t, calls: [ok('draft_shots')], shotsAfter: [good] }).passed).toBe(true)
+    const missing = structuredClone(good)
+    if (field === 'variantId') missing.variantId = null
+    else delete missing.parameters[field === 'audio' ? 'generate_audio' : field]
+    expect(judgeTask({ task: t, calls: [ok('ask_user'), ok('draft_shots')], shotsAfter: [missing] }).failed.join()).toContain('写入后读回')
+  })
+})

@@ -51,6 +51,7 @@
     { "id": "P06", "lang": "en", "family": "single", "fixture": "empty", "catalogDependent": true,
       "say": "Use the fast variant of the video model, no audio, 4k. Draft only.",
       "expect": { "firstWrite": ["draft_shots", "list_models"], "noGenerate": true, "retryMax": 2,
+        "readback": { "variantLike": "fast", "params": [ { "kind": "audio", "value": false }, { "kind": "resolution", "value": "4k" } ] },
         "plan": { "count": 1, "each": { "variantLike": "fast", "params": [ { "kind": "audio", "value": false }, { "kind": "resolution", "value": "4k", "honest": true } ] } } } },
 
     { "id": "P07", "lang": "zh", "family": "boundary", "fixture": "empty",
@@ -85,7 +86,7 @@
     { "id": "P14", "lang": "en", "family": "verbatim", "fixture": "empty", "note": "阳性对照：用户明确要润色时可以扩写，但不许丢要素",
       "say": "Draft a shot and polish my prompt to make it more cinematic: \"a man walks in rain\". Don't generate.",
       "expect": { "firstWrite": ["draft_shots"], "noGenerate": true, "retryMax": 1,
-        "plan": { "count": 1, "each": { "promptContainsAll": ["man", "walk", "rain"], "promptLongerThan": 22 } } } },
+        "plan": { "count": 1, "each": { "promptContainsAll": [["man", "男人", "男子", "男性"], ["walk", "走", "行走", "步行"], ["rain", "雨"]], "promptLongerThan": 22 } } } },
 
     { "id": "P15", "lang": "zh", "family": "script_batch", "fixture": "script",
       "say": "把文稿拆成分镜，每个场景一镜，都用 16:9、5 秒，先别生成。",

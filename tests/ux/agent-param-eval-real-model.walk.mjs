@@ -38,7 +38,7 @@ import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 import { closeNomiApp, launchNomiApp } from './_launchApp.mjs'
 import { readAlignedCalls } from './askback-trajectory.mjs'
 import { createCardDriver } from './agent-param-eval-cards.mjs'
-import { lastAssistantText, readAnnotatedCalls, readCanvasSummary, readRunJsons } from './agent-param-eval-collect.mjs'
+import { lastAssistantText, taskTrajectory, readCanvasSummary, readRunJsons } from './agent-param-eval-collect.mjs'
 import { formatSummary, judgeTask, planShotsFromRuns, summarize } from './agent-param-eval-judge.mjs'
 import {
   CANVAS_PANEL, COMPOSER_INPUT, COMPOSER_MODEL, COMPOSER_SEND, DOCUMENT, MODEL_POPOVER, escapeForRegExp, expandResidentPanel,
@@ -256,9 +256,9 @@ try {
 
   function writeOutcome(task, projectDir, extra) {
     // 轨迹（每次调用的入参 / 返回原文 / 第几次重试）+ 草稿计划 + 画布概况，一题一份，留给人复核与后续优化。
-    const calls = readAnnotatedCalls(projectDir)
+    const calls = taskTrajectory(task, readAlignedCalls(projectDir), extra.preludeCalls ?? 0)
     fs.writeFileSync(path.join(outputDir, 'trajectories', `${task.id}.jsonl`),
-      calls.map((call, index) => JSON.stringify({ caseId: task.id, userSays: index === 0 ? task.say : undefined, ...call })).join('\n') + (calls.length ? '\n' : ''))
+      calls.map((call) => JSON.stringify(call)).join('\n') + (calls.length ? '\n' : ''))
     const { runs, unreadable } = readRunJsons(projectDir)
     fs.writeFileSync(path.join(outputDir, `${task.id}.outcome.json`), JSON.stringify({
       id: task.id, say: task.say, ...extra,

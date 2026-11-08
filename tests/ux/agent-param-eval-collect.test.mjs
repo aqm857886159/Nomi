@@ -4,7 +4,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-import { readCanvasSummary, readRunJsons } from './agent-param-eval-collect.mjs'
+import { readCanvasSummary, readRunJsons, taskTrajectory } from './agent-param-eval-collect.mjs'
 import { planShotsFromRuns } from './agent-param-eval-judge.mjs'
 
 describe('取证读口', () => {
@@ -31,5 +31,17 @@ describe('取证读口', () => {
     fs.mkdirSync(path.join(dir, '.nomi'), { recursive: true })
     fs.writeFileSync(path.join(dir, '.nomi', 'project.json'), JSON.stringify({ payload: { generationCanvas: { nodes: [{ id: 'n1', kind: 'video', title: 't', prompt: 'p', status: 'idle', meta: { a: 1 } }] } } }))
     expect(readCanvasSummary(dir).nodes).toEqual([{ id: 'n1', kind: 'video', title: 't', prompt: 'p', status: 'idle', metaKeys: ['a'] }])
+  })
+})
+
+
+describe('测试段与预演段取证', () => {
+  it('测试话术只挂测试首调用、重试也从测试段重新算', () => {
+    const calls = Array.from({ length: 4 }, (_, i) => ({ name: 'draft_shots', toolCallId: `c${i}`, isError: true, resultText: 'same error' }))
+    const rows = taskTrajectory({ id: 'case', say: 'test instruction' }, calls, 2)
+    expect(rows.map((r) => r.phase)).toEqual(['prelude', 'prelude', 'test', 'test'])
+    expect(rows.map((r) => r.userSays)).toEqual([undefined, undefined, 'test instruction', undefined])
+    expect(rows.map((r) => r.attempt)).toEqual([1, 2, 1, 2])
+    expect(taskTrajectory({ id: 'case', say: 'test' }, [], 0)).toEqual([])
   })
 })

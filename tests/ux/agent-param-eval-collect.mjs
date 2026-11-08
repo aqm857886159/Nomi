@@ -46,3 +46,12 @@ export function lastAssistantText(projectDir) {
 export function readAnnotatedCalls(projectDir) {
   return annotateRetries(readAlignedCalls(projectDir))
 }
+
+
+/** 先切段再标重试，避免预演错误污染测试；userSays 只挂在测试段第一调用。 */
+export function taskTrajectory(task, calls, preludeCalls = 0) {
+  return [
+    ...annotateRetries(calls.slice(0, preludeCalls)).map((call) => ({ ...call, caseId: task.id, phase: 'prelude' })),
+    ...annotateRetries(calls.slice(preludeCalls)).map((call, index) => ({ ...call, caseId: task.id, phase: 'test', ...(index === 0 ? { userSays: task.say } : {}) })),
+  ]
+}
