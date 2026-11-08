@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { applyBuiltinSeeds } from "../catalog/seedBuiltins";
 import type { CatalogState } from "../catalog/types";
@@ -15,13 +15,13 @@ const readiness = Object.fromEntries(state.vendors.map((vendor) => [vendor.key, 
   capabilities: { submitIdempotency: false, query: false, reconcile: false, cancel: false },
 }]));
 
-function createProbeRuntime() {
+const createProbeRuntime = vi.fn(() => {
   return createLiveGenerationRuntime({
     catalogReader: () => state,
     bootstrap: () => ({ providers: [], readinessByProvider: readiness }),
     registry: (current, currentReadiness) => createCatalogModuleRegistry(current, { readinessByProvider: currentReadiness }),
   });
-}
+});
 
 function realCatalogCandidates(): ResolveRequest[] {
   const registry = createCatalogModuleRegistry(state, { readinessByProvider: readiness });
@@ -55,11 +55,14 @@ function resolveBatch(candidates: readonly ResolveRequest[], freshRegistry: bool
 describe("real built-in catalog resolution compatibility", () => {
   it("compares fresh-registry and explicit-scope 33-shot paths byte-for-byte", () => {
     const candidates = realCatalogCandidates();
+    // Each fresh-registry shot is independent, so prefixes share the same reference results.
+    const oldPath = resolveBatch(candidates, true);
     for (const count of [8, 16, 33]) {
-      const oldPath = resolveBatch(candidates.slice(0, count), true);
       const newPath = resolveBatch(candidates.slice(0, count), false);
-      expect(Buffer.from(JSON.stringify(oldPath))).toEqual(Buffer.from(JSON.stringify(newPath)));
+      expect(Buffer.from(JSON.stringify(oldPath.slice(0, count)))).toEqual(Buffer.from(JSON.stringify(newPath)));
     }
+
+    expect(createProbeRuntime).toHaveBeenCalledTimes(36);
 
     // The original synthetic fixture remains the byte-level compatibility anchor.
     expect(readFileSync(new URL("./fixtures/live-generation-runtime.baseline-33.json", import.meta.url), "utf8")).toContain("generation.single-shot");
