@@ -27,7 +27,7 @@ const walk = await createRuntimeWalk('apimart-text-brains-rehearsal', { generati
 let failure
 try {
   walk.fixture.respond({
-    label: 'text brains, one ask each', match: (body) => BRAINS.includes(body?.model),
+    label: 'text brains, one ask each', match: (body) => BRAINS.includes(body?.model) || body?.model === 'deepseek-v4-flash',
     reply: (body) => {
       if (body.model === BROKEN) return { type: 'http-error', status: 404, json: { error: { message: 'model_not_found', code: 'model_not_found' } } }
       const turn = userTurnWith(body, ASK_CODE)
@@ -86,7 +86,29 @@ try {
 
   // 回执和报告里没有那把 key
   expect(fs.readFileSync(receiptsFile, 'utf8').includes(FIXTURE_APIMART_API_KEY)).toBe(false)
+  // ⑥ 没指定大脑时，真实 Agent 发给哪一个模型。仅启用 APIMart；GPT 保持可用，以免靠关掉它让测试通过。
+  await win.evaluate(async () => {
+    for (const row of await window.nomiDesktop.modelCatalog.listModels({ kind: 'text' })) {
+      if (row.vendorKey !== 'apimart' && row.enabled) {
+        await window.nomiDesktop.modelCatalog.upsertModel({ vendorKey: row.vendorKey, modelKey: row.modelKey, enabled: false })
+      }
+    }
+  })
+  await lockSpendToModels(win, ['gpt-6-astra', 'deepseek-v4-pro', 'deepseek-v4-flash'].map(modelKey => ({ vendorKey: 'apimart', modelKey })))
+  const beforeAuto = walk.fixture.requests.length
+  for (const expected of ['deepseek-v4-pro', 'deepseek-v4-flash']) {
+    if (expected === 'deepseek-v4-flash') await win.evaluate(() =>
+      window.nomiDesktop.modelCatalog.upsertModel({ vendorKey: 'apimart', modelKey: 'deepseek-v4-pro', enabled: false }))
+    const response = await win.evaluate(input => window.nomiDesktop.agentLane.send(input), {
+      kind: 'single-shot', requestId: `auto-text-${expected}`, projectId, featureKey: 'catalog-text-check',
+      prompt: TEXT_ASK, context: { approvalPolicy: { mode: 'request' } },
+    })
+    expect(response.ok).toBe(true)
+    expect(response.singleShot.model.modelId).toBe(expected)
+  }
+  walk.report.automaticTextRequests = walk.fixture.requests.slice(beforeAuto).map(record => record.body.model)
+  expect(walk.report.automaticTextRequests).toEqual(['deepseek-v4-pro', 'deepseek-v4-flash'])
   expect(JSON.stringify(walk.report).includes(FIXTURE_APIMART_API_KEY)).toBe(false)
-  walk.report.verified = ['one-request-per-brain', 'failure-recorded-and-continues', 'image-reaches-request', 'receipt-per-sample', 'resume-from', 'fixture-key-only']
+  walk.report.verified = ['one-request-per-brain', 'failure-recorded-and-continues', 'image-reaches-request', 'receipt-per-sample', 'resume-from', 'fixture-key-only', 'automatic-text-primary-and-backup']
 } catch (error) { failure = error; process.exitCode = 1 }
 finally { await walk.finish(failure) }

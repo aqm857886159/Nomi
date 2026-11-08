@@ -18,18 +18,26 @@ import { BALANCE_ROUTE, CHAT_LIST_ROUTE, apimartOriginOf, readUsedBalance, recon
 
 const { APIMART_TEXT_MODELS } = tsxRequire('../../electron/catalog/apimartTexts.ts', import.meta.url)
 
-const OMITTED = ['deepseek-v3.1-terminus', 'MiniMax-H3-Context-IR']
-const EXTRA = [
-  { id: 'gpt-6.2-luna', category: 'chat', capability_tags: ['Text'] },
-  { id: 'gpt-5-mini', category: 'chat', capability_tags: ['Text'] },
-  { id: 'text-embedding-9', category: 'chat', capability_tags: ['Embedding'] },
+// 供应商响应独立于本地目录。Opus 选用已有带图回执的真实声明，其余是演练专用的
+// 对照样本，故意覆盖单方声明、双方都不声明、缺行和更新代际。
+const opus = APIMART_TEXT_MODELS.find((model) => model.modelKey === 'claude-opus-5-5')
+expect(opus, '目录保留实测能读图的 Opus').toBeDefined()
+const declared = [
+  opus,
+  { modelKey: 'sample-1-provider-vision' },
+  { modelKey: 'sample-1-local-vision', meta: { supportsImageInput: true } },
+  { modelKey: 'sample-1-text' },
+  { modelKey: 'sample-1-missing' },
+  { modelKey: 'sample-1-refiner', meta: { promptRefineOnly: true } },
 ]
 const LIST = [
-  ...APIMART_TEXT_MODELS.filter((model) => !OMITTED.includes(model.modelKey)).map((model) => ({
-    id: model.modelKey, object: 'model', owned_by: 'apimart', category: 'chat',
-    capability_tags: model.modelKey === 'claude-opus-5-5' ? ['Text', 'Vision'] : ['Text'],
-  })),
-  ...EXTRA,
+  { id: 'claude-opus-5-5', category: 'chat', capability_tags: ['Text', 'Vision'] },
+  { id: 'sample-1-provider-vision', category: 'chat', capability_tags: ['Text', 'Vision'] },
+  { id: 'sample-1-local-vision', category: 'chat', capability_tags: ['Text'] },
+  { id: 'sample-1-text', category: 'chat', capability_tags: ['Text'] },
+  { id: 'sample-2-latest', category: 'chat', capability_tags: ['Text'] },
+  { id: 'sample-0-older', category: 'chat', capability_tags: ['Text'] },
+  { id: 'text-embedding-9', category: 'chat', capability_tags: ['Embedding'] },
 ]
 
 const seen = []
@@ -51,18 +59,21 @@ try {
   // ① 真跑那一路读出来的对端
   expect(apimartOriginOf(walk.settingsDir)).toBe('https://api.apimart.ai')
   expect(await readUsedBalance(app, { settingsDir: walk.settingsDir, origin: fakeOrigin })).toEqual({ usedBalance: 1.5, remainBalance: 10 })
-  const result = await reconcileTextList({ app, settingsDir: walk.settingsDir, origin: fakeOrigin, declared: APIMART_TEXT_MODELS, outputDir: walk.outputDir })
+  const result = await reconcileTextList({ app, settingsDir: walk.settingsDir, origin: fakeOrigin, declared, outputDir: walk.outputDir })
   walk.report.textList = { ...result, markdown: undefined, rows: undefined }
   // ② 路由与鉴权
   expect(seen.map((entry) => entry.url)).toEqual([BALANCE_ROUTE, CHAT_LIST_ROUTE])
   expect(seen.every((entry) => entry.keyMatches)).toBe(true)
   // ③ 两张表 + 读图事实
-  expect(result.declaredButMissing.map((row) => row.modelKey)).toEqual(OMITTED)
-  expect(result.newestUndeclared.map((row) => row.id)).toEqual(['gpt-6.2-luna'])
-  expect(result.visionNotClaimed).toEqual(['claude-opus-5-5'])
-  expect(result.imageClaimWithoutVision).toEqual(['gemini-3.5-flash'])
+  expect(result.declaredButMissing).toEqual([
+    { modelKey: 'sample-1-missing', promptRefineOnly: false },
+    { modelKey: 'sample-1-refiner', promptRefineOnly: true },
+  ])
+  expect(result.newestUndeclared.map((row) => row.id)).toEqual(['sample-2-latest'])
+  expect(result.visionNotClaimed).toEqual(['sample-1-provider-vision'])
+  expect(result.imageClaimWithoutVision).toEqual(['sample-1-local-vision'])
   const markdown = fs.readFileSync(path.join(walk.outputDir, 'text-list.md'), 'utf8')
-  expect(markdown).toContain('| gpt | 6.2 | gpt-6.2-luna | Text |')
+  expect(markdown).toContain('| sample | 2 | sample-2-latest | Text |')
   // ④ 列表拿不到 → 判红（对端回 401：假服务认不出 key 时就这样）
   const wrongKey = await app.evaluate(async ({ app: mainApp }, url) => {
     const { appFetch } = process.mainModule.require(`${mainApp.getAppPath()}/dist-electron/appFetch.js`)
@@ -70,7 +81,7 @@ try {
   }, `${fakeOrigin}${CHAT_LIST_ROUTE}`)
   expect(wrongKey).toBe(401)
   let refused = null
-  try { await reconcileTextList({ app, settingsDir: walk.settingsDir, origin: `${fakeOrigin}/missing`, declared: APIMART_TEXT_MODELS, outputDir: walk.outputDir }) }
+  try { await reconcileTextList({ app, settingsDir: walk.settingsDir, origin: `${fakeOrigin}/missing`, declared, outputDir: walk.outputDir }) }
   catch (error) { refused = String(error.message) }
   expect(refused).toContain('模型列表没拿到：HTTP 404')
   for (const file of ['text-list.md', 'text-list.rows.json']) {

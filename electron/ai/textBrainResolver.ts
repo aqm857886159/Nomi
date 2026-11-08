@@ -13,6 +13,26 @@ function autoTextModelPenalty(model: Model): number {
   return AUTO_TEXT_MODEL_DEPRIORITIZE.test(`${model.modelKey} ${model.modelAlias ?? ""}`) ? 1 : 0;
 }
 
+function autoTextPriority(model: Model): number {
+  const priority = (model.meta as { autoTextPriority?: unknown } | undefined)?.autoTextPriority;
+  return typeof priority === "number" && Number.isFinite(priority) ? priority : 0;
+}
+
+function rankAutomaticTextModels(models: Model[]): Model[] {
+  const ordered = [...models].sort((a, b) => autoTextModelPenalty(a) - autoTextModelPenalty(b));
+  // 各家的默认和后备只占自己原有的位置，不能因为某家加了默认声明就抢走另一家的首选。
+  const byVendor = new Map<string, Model[]>();
+  for (const model of ordered) {
+    const rows = byVendor.get(model.vendorKey);
+    if (rows) rows.push(model);
+    else byVendor.set(model.vendorKey, [model]);
+  }
+  for (const rows of byVendor.values()) {
+    rows.sort((a, b) => autoTextModelPenalty(a) - autoTextModelPenalty(b) || autoTextPriority(b) - autoTextPriority(a)).reverse();
+  }
+  return ordered.map(model => byVendor.get(model.vendorKey)!.pop()!);
+}
+
 // 带图选型：能 > 不知道 > 不能（判据只认声明，见 agentUserContent.modelImageInputSupport）；同档保持目录序。
 // 只分「能 / 其余」两档时，内置纯文本种子（不能）会排在没声明的自配行（不知道）前面。
 const IMAGE_INPUT_RANK: Record<ImageInputSupport, number> = { supported: 2, unknown: 1, unsupported: 0 };
@@ -167,7 +187,7 @@ export function selectTextModelCandidates(
     ? [...texts].sort((a, b) => preferenceRank(b) - preferenceRank(a))
     : preferImageInput
       ? [...texts].sort((a, b) => (imageInputRank(b) - imageInputRank(a)) || (autoImageReaderRank(b) - autoImageReaderRank(a)))
-      : [...texts].sort((a, b) => autoTextModelPenalty(a) - autoTextModelPenalty(b));
+      : rankAutomaticTextModels(texts);
   return ordered.flatMap((model) => {
     const vendor = state.vendors.find((item) => item.key === model.vendorKey && item.enabled);
     return vendor ? [{ vendor, model }] : [];

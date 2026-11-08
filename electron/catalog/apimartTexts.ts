@@ -187,7 +187,7 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
     evidence: asked("gemini-3.8-flash", undefined, "sawImage"),
   },
   {
-    modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro",
+    modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro", meta: { autoTextPriority: 2 },
     tokenPricing: { inputPerMTokUsd: 1.0285712, outputPerMTokUsd: 3.0857144, cacheReadPerMTokUsd: 0.1028568, source: pricingSource("deepseek-v4-pro") },
     evidence: { protocolDoc: CHAT_PROTOCOL_DOC, modelDoc: CHAT_PROTOCOL_DOC, pricingApi: apimartTextPricingApi("deepseek-v4-pro"), liveCall: DEEPSEEK_PROBED_0821 },
   },
@@ -248,7 +248,7 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
   },
   // Saved legacy identities remain executable; lifecycle policy only changes recommendation order.
   {
-    modelKey: "deepseek-v4-flash", labelZh: "DeepSeek V4 Flash",
+    modelKey: "deepseek-v4-flash", labelZh: "DeepSeek V4 Flash", meta: { autoTextPriority: 1 },
     // 2026-11-07 起记 APIMart 价（以前记 DeepSeek 官网峰价 0.44 / 1.32 / 缓存读 0.014）。
     tokenPricing: { inputPerMTokUsd: 0.3428568, outputPerMTokUsd: 1.0285712, cacheReadPerMTokUsd: 0.0342856, source: pricingSource("deepseek-v4-flash") },
     evidence: { protocolDoc: CHAT_PROTOCOL_DOC, modelDoc: CHAT_PROTOCOL_DOC, pricingApi: apimartTextPricingApi("deepseek-v4-flash"), liveCall: DEEPSEEK_PROBED_0821 },
@@ -258,7 +258,7 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
   // 查不到就不填——编一个「大概和 flash 差不多」的数字，面板上会印出一个看起来很确定的金额。
   // 它在运行时落到「花费不可知」那一态。
   {
-    modelKey: "deepseek-v3.1-terminus", labelZh: "DeepSeek V3.1 Terminus",
+    modelKey: "deepseek-v3.1-terminus", labelZh: "DeepSeek V3.1 Terminus", meta: { autoTextPriority: -1 },
     evidence: { protocolDoc: CHAT_PROTOCOL_DOC, pricingApi: apimartTextPricingApi("deepseek-v3.1-terminus"), liveCall: DEEPSEEK_PROBED_0821 },
   },
   {

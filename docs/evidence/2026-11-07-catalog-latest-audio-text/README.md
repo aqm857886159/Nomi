@@ -15,7 +15,7 @@
 | Lyria 3.5（`flowmusic-lyria-3.5`） | 成功 | |
 | Suno V5.5（`suno-v5.5`） | 上游拒单，没扣钱 | HTTP 400「Suno 旧版本 "v5.5" 已下线，请将 version 改为 v6、v6-wild 或 v6-mini。」本 PR 去掉这条样本，退役另开 PR |
 | 配音（`nomi-audio`，speech） | 请求发出、扣了钱，存盘失败 | 第 1 次：脚本没带项目号（已修，`199b99ae5`）。第 2 次：落盘关口拒（`generated_output_expected_kind_required`），这是 main 自 10-17 起就有的问题，和本 PR 无关，单独修复后再验 |
-| 10 个文字大脑 | 未验证 | 走任务通道第一条就被花钱授权拦下。创作者用文字模型走的是 Agent，不走这条通道，所以从本脚本删掉，改在 Agent 大脑选择那一片从真实 Agent 界面各发一句来验 |
+| 文字大脑 | 11-08 Agent 通道实测，23 个文字样本、7 个读图样本成功 | 11-07 音频任务脚本首个文字样本被授权拦下。随后按 Agent 主进程实际路径“一问一个”：Fable 文字和读图均为 HTTP 402；旧 V3.1 Terminus 为 HTTP 503。成功样本中有 20 个新声明的文字型号、6 个新声明的读图型号。[逐模型历史记录](../../plan/2026-11-07-catalog-audio-text.md#一问一个结果2026-11-08) |
 
 **「成功」凭什么**：脚本对每条样本都要按任务号查到 `succeeded` 才往下走，失败当场停。按旧样本顺序（V6 Mini → V5.5 → 音效 → Lyria → 配音），各轮停在哪：
 - 第 2 次下单那一轮停在 V5.5：说明 V6 Mini 那一条已 `succeeded`。
@@ -25,7 +25,7 @@
 - 脚本没把逐条任务号和回执写进报告。中途失败时整轮结果一起丢，所以这里拿不出逐条任务号，只能凭「走到了下一条」推断。下一轮修：每条样本跑完立刻把任务号、状态、实扣写进报告，失败也保留前面的。
 - 原来放在 `paid/` 的三张截图是同一张空白窗口，证明不了任何一条样本，已删。
 
-## 花了多少（按 APIMart 公开价估，以账单为准）
+## 11-07 音频抽检花费（按 APIMart 公开价估，以账单为准）
 
 | 项 | 单价 | 次数 | 小计 |
 |---|---|---|---|
@@ -36,3 +36,14 @@
 | 合计 | | | **约 $0.23** |
 
 价格来源：`GET https://api.apimart.ai/api/pricing/model?model=suno` / `flowmusic` / `gpt-4o-mini-tts` 的 `*_paid_prices`，2026-11-07 查。
+
+## 11-08 macOS 开发版免费复核
+
+两场演练均使用临时资料、夹具凭据和本机 HTTP 服务，公网放行名单为空。两份报告均记录 `paidCalls: 0`、`unexpected: []`。
+
+| 命令 | 结果 |
+|---|---|
+| `NOMI_SPEND_OK=0 node tests/ux/apimart-text-list.rehearsal.walk.mjs` | 已验证目录来源、路由、鉴权、拒绝空表、报告无凭据以及读图的四种组合。修前把已验证的 Opus 当成未声明读图而报红；修后让供应商夹具独立于生产声明，改掉 Opus 的本地读图标记仍会报红。 |
+| `NOMI_SPEND_OK=0 node tests/ux/apimart-text-brains.rehearsal.walk.mjs` | 4 个文字样本、2 个读图样本逐项落回执。夹具的 404 和看不到图两种结果均按失败记录。中途续跑只发剩余 3 个样本，每条在各轮只请求一次。随后保留 GPT-6 Astra 可用，Agent 不指定模型的两笔请求依次到达 DeepSeek V4 Pro、停用 Pro 后的 V4 Flash。 |
+
+每次运行输出 `.tmp/pi-apimart-text-{list,brains}-rehearsal-development-<时间戳>/report.json`；同目录保留列表表格、行快照或 Agent 逐条回执。两场演练验证开发版走到本机对端的行为；历史供应商抽检结果见上表。

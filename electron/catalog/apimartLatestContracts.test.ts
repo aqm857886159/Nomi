@@ -12,6 +12,7 @@ import { APIMART_AUDIO_MODELS } from './apimartAudios';
 import { APIMART_TEXT_MODELS, apimartTextPricingApi } from './apimartTexts';
 import { applyHeadlessParamDefaults, taskTemplateParams } from './taskParams';
 import { applyBuiltinSeeds } from './seedBuiltins';
+import { createCatalogAvailability } from './catalogModelAvailability';
 import { selectTextModelCandidates } from '../ai/textBrainResolver';
 import { curatedCatalogLifecycle } from './seedModelIdentity';
 import { selectTaskMapping, type CatalogState, type HttpOperation } from './types';
@@ -239,14 +240,28 @@ describe('every text declaration names where it comes from', () => {
     expect(seededReaders.map(row => row.modelKey).sort()).toEqual([...['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'gemini-4-argon', 'gemini-3.8-flash', 'deepseek-v4.1-flash', 'gemini-3.5-flash']].sort());
   });
 
-  it('more readers do not move the automatic image reader: new and upgraded catalogs both still pick gemini-3.5-flash', () => {
-    const everyRowUsable = { of: () => ({ usable: true }) } as unknown as Parameters<typeof selectTextModelCandidates>[3];
-    const fresh = applyBuiltinSeeds({ version: 11, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, '2026-11-08').state;
+  it.each(['fresh', 'v0.24.1'])('%s keeps automatic text and image choices when only APIMart is available', (installation) => {
     const root = new URL('../../tests/fixtures/old-user-data/curated/v0.24.1-apimart/', import.meta.url);
-    const upgraded = applyBuiltinSeeds(JSON.parse(fs.readFileSync(new URL('model-catalog.json', root), 'utf8')) as CatalogState, '2026-11-08').state;
-    for (const state of [fresh, upgraded]) {
-      const first = selectTextModelCandidates(state, undefined, true, everyRowUsable)[0];
-      expect(first?.model.modelKey).toBe('gemini-3.5-flash');
+    const base: CatalogState = installation === 'fresh'
+      ? { version: 11, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }
+      : JSON.parse(fs.readFileSync(new URL('model-catalog.json', root), 'utf8'));
+    const { state } = applyBuiltinSeeds(base, '2026-11-08');
+    state.vendors = state.vendors.map(vendor => ({ ...vendor, enabled: vendor.key === 'apimart' }));
+    state.apiKeysByVendor = { apimart: { vendorKey: 'apimart', apiKey: 'fixture-only', enc: 'plain', enabled: true, createdAt: '', updatedAt: '' } };
+    const availability = createCatalogAvailability(state, () => 'ok');
+    for (const models of [state.models, [...state.models].reverse()]) {
+      const current = { ...state, models };
+      const text = selectTextModelCandidates(current, undefined, false, availability);
+      expect(text.slice(0, 2).map(row => row.model.modelKey)).toEqual(['deepseek-v4-pro', 'deepseek-v4-flash']);
+      expect(selectTextModelCandidates(current, undefined, true, availability)[0]?.model.modelKey).toBe('gemini-3.5-flash');
+      const preference = { vendorKey: 'apimart', modelKey: 'gpt-6-astra' };
+      for (const withImage of [false, true]) {
+        expect(selectTextModelCandidates(current, preference, withImage, availability).map(row => row.model.modelKey)).toEqual(['gpt-6-astra']);
+      }
+      const proOff = { ...current, models: models.map(row => row.vendorKey === 'apimart' && row.modelKey === 'deepseek-v4-pro' ? { ...row, enabled: false } : row) };
+      expect(selectTextModelCandidates(proOff, undefined, false, availability)[0]?.model.modelKey).toBe('deepseek-v4-flash');
+      const keys = text.map(row => row.model.modelKey);
+      expect(keys.indexOf('deepseek-v3.1-terminus')).toBeGreaterThan(keys.indexOf('gpt-6-astra'));
     }
   });
 
