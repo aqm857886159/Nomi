@@ -80,7 +80,6 @@ async function runLane(turns: ReadonlyArray<readonly unknown[]>, options: {
     execute: async (call, signal) => { executed += 1; return adapter.tryExecute(verbToTransportCall(call)!.call, signal) as never },
   }).filter((tool) => tool.name === 'draft_shots')
   let id = 0
-  let lane: LaneHandle | undefined
   const replies: FixtureReply[] = turns.flatMap((items) => [
     ...items.filter((item) => item !== CLOSED).map((item) => ({ type: 'tool' as const,
       calls: (item instanceof Batch ? item.calls : [['draft_shots', item] as const])
@@ -97,7 +96,7 @@ async function runLane(turns: ReadonlyArray<readonly unknown[]>, options: {
   const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-tool-input-boundary-'))
   cleanups.push(() => fs.rmSync(projectDir, { recursive: true, force: true }))
   const events: LaneToolFailureEvent[] = []
-  lane = await openLane({ fetch: globalThis.fetch, projectDir,
+  const lane: LaneHandle = await openLane({ fetch: globalThis.fetch, projectDir,
     model: { kind: 'openai-compatible', providerId: 'fixture', modelId: 'fixture', baseURL: http.baseURL, authType: 'api-key', apiKey: 'fixture' },
     systemPrompt: 'Tool input boundary fixture.', tools, onToolFailure: (event) => events.push(event),
     ...(options.maxModelRequests ? { limits: { maxModelRequests: options.maxModelRequests } } : {}),
