@@ -121,6 +121,48 @@ export const ARCHETYPE_WIRE_DEFAULTS_AUDIO: Record<string, Record<string, Record
       }
     }
   },
+  "suno-v6": {
+    "text_to_audio": {
+      "*": {
+        "instrumental": false
+      }
+    }
+  },
+  "suno-sfx-v6": {
+    "text_to_audio": {
+      "*": {
+        "sound_type": "one-shot"
+      }
+    }
+  },
+  "suno-v6-wild": {
+    "text_to_audio": {
+      "*": {
+        "instrumental": false
+      }
+    }
+  },
+  "suno-sfx-v6-wild": {
+    "text_to_audio": {
+      "*": {
+        "sound_type": "one-shot"
+      }
+    }
+  },
+  "suno-v6-mini": {
+    "text_to_audio": {
+      "*": {
+        "instrumental": false
+      }
+    }
+  },
+  "suno-sfx-v6-mini": {
+    "text_to_audio": {
+      "*": {
+        "sound_type": "one-shot"
+      }
+    }
+  },
   "lyria-3.5": {
     "text_to_audio": {
       "*": {
