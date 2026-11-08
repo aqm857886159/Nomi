@@ -1,6 +1,6 @@
 import { useNodePricePreview } from '../spend/useNodePricePreview'
 import { useVendorAccountFacts } from '../../../ui/onboarding/useVendorAccountFacts'
-import { apimartBillingUrl, formatCreditValue } from '../../common/apimartAccountDisplay'
+import { apimartBillingUrl, formatCreditValue, priceBalanceStatus } from '../../common/apimartAccountDisplay'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -152,11 +152,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const modelOptions = modelOptionsState.options
   const { quote, vendorKey: quoteVendor } = useNodePricePreview(node, graph)
   const { facts, refresh: refreshBalance } = useVendorAccountFacts(quote ? quoteVendor : undefined)
-  const limits = facts?.keyState === 'valid'
-    ? [facts.accountCredits, facts.keyUnlimited ? null : facts.keyCredits].filter((n): n is number => n !== null)
-    : []
-  const shortfall = quote && quote.basis !== 'output-estimate' && limits.length ? Math.max(0, quote.credits - Math.min(...limits)) : 0
-  const zeroBalance = shortfall > 0 && limits.includes(0) && facts !== null && Date.now() - facts.checkedAt < 30_000
+  const { zero: zeroBalance, estimatedGap: shortfall } = priceBalanceStatus(quote, facts, Date.now())
   const quoteLabel = quote ? t(quote.basis === 'output-estimate' ? 'onboardingProviders.account.outputEstimate' : 'onboardingProviders.account.estimate', {
     value: formatCreditValue(quote.credits, i18n.language),
   }) : quoteVendor ? t('onboardingProviders.account.priceUnknown') : undefined
@@ -190,6 +186,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   // 有则「生成」不裸跑，转而排依赖波次（参考先生成→本节点后生成）走批量确认条。
   const pendingRefKey = React.useMemo(() => collectUngeneratedReferenceAncestors(node.id, graph).join(','), [node.id, graph])
   const hasPendingRefs = pendingRefKey.length > 0
+  const billingAction = zeroBalance && !isGenerating && !hasPendingRefs
   // 视频缺参考本会禁用「生成」；但若缺的是「连了线、只是还没生成」的上游 → 仍可点（去备齐），不禁用。
   const canGenerateNow = canGenerate || hasPendingRefs
   const productionBinding = productionMetaOf(node)
@@ -527,12 +524,12 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                 className={cn(GENERATE_BUTTON_CLASS, quoteVendor && !isGenerating && !hasPendingRefs && '!w-auto min-w-8 gap-1 px-2')}
                 data-price-source={quote?.source}
                 aria-description={quoteLabel}
-                aria-label={zeroBalance && !isGenerating && !hasPendingRefs ? t('onboardingProviders.account.billing') : hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
-                disabled={!canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null}
-                onClick={zeroBalance && !isGenerating && !hasPendingRefs
+                aria-label={billingAction ? t('onboardingProviders.account.billing') : hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
+                disabled={!billingAction && (!canGenerateNow || productionClaimBlocked || directorPreviewBlock !== null)}
+                onClick={billingAction
                   ? (event) => {
-                    if (Date.now() - facts!.checkedAt >= 30_000) { void handleGenerate(event); return }
                     event.stopPropagation()
+                    if (!priceBalanceStatus(quote, facts, Date.now()).zero) { refreshBalance(); return }
                     window.open(apimartBillingUrl(i18n.language), '_blank', 'noopener,noreferrer')
                   }
                   : handleGenerate}
@@ -541,12 +538,16 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                 {isGenerating ? '···' : <IconArrowUp size={ICON_TIERS.tool.size} stroke={ICON_TIERS.tool.stroke} aria-hidden />}
               </button>
             </span>
-            {zeroBalance && !isGenerating && !hasPendingRefs && <WorkbenchIconButton icon={<IconRefresh />} label={t('onboardingProviders.account.refresh')} size="sm" onClick={refreshBalance} />}
-            {shortfall > 0 && !isGenerating && !hasPendingRefs && <span className="text-micro text-nomi-ink-60">{t('onboardingProviders.account.shortfall', { value: formatCreditValue(shortfall, i18n.language) })}</span>}
             </>
           )
         })()}
       </div>}
+      {!isGenerating && !hasPendingRefs && (zeroBalance || shortfall > 0) && (
+        <div role="status" className="flex shrink-0 items-center justify-end gap-1 px-3 py-1 text-micro text-nomi-ink-60">
+          {zeroBalance ? t('onboardingProviders.account.zero') : t('onboardingProviders.account.shortfall', { value: formatCreditValue(shortfall, i18n.language) })}
+          {zeroBalance && <WorkbenchIconButton icon={<IconRefresh />} label={t('onboardingProviders.account.refresh')} size="sm" onClick={refreshBalance} />}
+        </div>
+      )}
       </div>
       {isDragOver ? (
         <div

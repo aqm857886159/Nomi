@@ -25,6 +25,7 @@ export const zhOnboardingProviders = {
     counts: 'APIMart · 图片 {{image}} · 视频 {{video}} · 声音 {{audio}} · 文字 {{text}}',
     estimate: '预计 {{value}} 积分 · APIMart 公开默认价',
     priceUnknown: '本次价格未知',
+    zero: '账户或 Key 的可用额度为零',
     shortfall: '低于公开估价 {{value}} 积分',
   },
   splash: {
@@ -1348,6 +1349,7 @@ export const enOnboardingProviders = {
     counts: 'APIMart · Images {{image}} · Video {{video}} · Audio {{audio}} · Text {{text}}',
     estimate: 'Estimated {{value}} credits · public APIMart rate',
     priceUnknown: 'Price unavailable',
+    zero: 'No balance available on this account or key',
     shortfall: '{{value}} credits below the public estimate',
   },
   splash: {

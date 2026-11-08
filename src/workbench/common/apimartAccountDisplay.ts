@@ -1,4 +1,5 @@
 import type { VendorAccountFacts } from '../../../electron/shared/contracts/vendorAccountFacts'
+import type { VendorPricePreview } from '../../../electron/shared/contracts/vendorPricePreview'
 import { formatMoney } from '../ai/v4/formatMoney'
 
 export function apimartBillingUrl(locale: string): string {
@@ -16,4 +17,15 @@ export function accountBalanceUsd(snapshot: VendorAccountFacts | null, locale: s
   if (balance == null) return null
   const usd = balance / 10
   return usd > 0 && usd < 0.01 ? '<' + formatMoney(locale, 'USD', 0.01) : formatMoney(locale, 'USD', usd)
+}
+
+export function priceBalanceStatus(quote: VendorPricePreview | null, snapshot: VendorAccountFacts | null, now: number) {
+  if (!quote || !snapshot || quote.credits <= 0 || snapshot.keyState !== 'valid' || now - snapshot.checkedAt >= 30_000) {
+    return { zero: false, estimatedGap: 0 }
+  }
+  const limits = [snapshot.accountCredits, snapshot.keyUnlimited ? null : snapshot.keyCredits].filter((n): n is number => n !== null)
+  return {
+    zero: limits.includes(0),
+    estimatedGap: quote.basis === 'output-estimate' || !limits.length ? 0 : Math.max(0, quote.credits - Math.min(...limits)),
+  }
 }

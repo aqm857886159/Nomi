@@ -123,6 +123,16 @@ try {
         if (state === 'empty') {
           await expect(send, 'board:ModelSurfaces/cost.low-balance').toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
           await screenshotSettled(win, { path: path.join(output, locale + '-zero-balance.png') })
+          await expect(send).toBeEnabled()
+          const priorBalanceReads = calls.filter(call => call.path === '/v1/user/balance').length
+          // A button painted as billing can expire between render and click. Its click must only refresh.
+          await send.evaluate(button => {
+            const realNow = Date.now
+            Date.now = () => realNow() + 31_000
+            try { button.click() } finally { Date.now = realNow }
+          })
+          await expect.poll(() => calls.filter(call => call.path === '/v1/user/balance').length).toBeGreaterThan(priorBalanceReads)
+          assert.equal(calls.filter(call => call.method !== 'GET').length, 0)
         } else {
           await expect(send).not.toHaveAccessibleName(uiText(locale, 'onboardingProviders.account.billing'))
         }
