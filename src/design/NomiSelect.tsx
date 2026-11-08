@@ -84,6 +84,7 @@ export type NomiSelectProps = {
   className?: string
   /** Long/model-file enums use a searchable, wrapping list; short selectors keep their compact layout. */
   searchable?: boolean
+  emptySearchAction?: { label: string; onSelect: () => void }
   /** Nested floating panels own their portal so outside-click handling and scrolling stay correct. */
   portalTarget?: React.RefObject<HTMLElement | null>
   /**
@@ -148,6 +149,7 @@ export function NomiSelect({
   title,
   className,
   searchable = false,
+  emptySearchAction,
   portalTarget,
   dropdownAlign = 'start',
   footerAction,
@@ -273,7 +275,17 @@ export function NomiSelect({
             portalTarget 指回节点自身 DOM，而不是 document.body）——挂了就必须挡住滚轮被画布
             当缩放吃掉；没挂进画布时这两个 class 谁也不认，纯粹无操作。 */}
         <Combobox.Options className="nowheel nodrag max-h-[240px] overflow-auto">
-          {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
+          {visibleOptions.length === 0 ? (
+            <Combobox.Empty>
+              {t('common.noMatchingOptions')}
+              {query && emptySearchAction ? (
+                <button type="button" className="block w-full text-caption text-nomi-accent" onClick={() => {
+                  combobox.closeDropdown()
+                  emptySearchAction.onSelect()
+                }}>{emptySearchAction.label}</button>
+              ) : null}
+            </Combobox.Empty>
+          ) : null}
           {visibleOptions.map((option) => {
             const isSel = option.value === value
             const details = combobox.dropdownOpened ? option.details?.() : undefined

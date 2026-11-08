@@ -335,6 +335,7 @@ function availableHint(connection: ModelSettingsHomeConnection, t: ReturnType<ty
 }
 
 export function ModelSettingsHome({
+  assistedRequest,
   connections,
   availableConnections,
   mappings,
@@ -354,6 +355,7 @@ export function ModelSettingsHome({
   onImported,
 }: {
   connections: ModelSettingsHomeConnection[]
+  assistedRequest?: number
   availableConnections: ModelSettingsHomeConnection[]
   mappings: readonly Mapping[]
   loaded: boolean
@@ -380,6 +382,14 @@ export function ModelSettingsHome({
   const [morePlatformsOpen, setMorePlatformsOpen] = React.useState(false)
   const [otherWaysOpen, setOtherWaysOpen] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
+  const assistedRef = React.useRef<HTMLDetailsElement>(null)
+  React.useEffect(() => {
+    const section = assistedRef.current
+    if (!assistedRequest || !section) return
+    section.open = true
+    section.querySelector('summary')?.focus({ preventScroll: true })
+    section.scrollIntoView({ block: 'nearest' })
+  }, [assistedRequest, loaded])
   // 各行探完把结果报上来（探测本身仍归每行的 useVendorHealth，这里只收结论，不第二次探）。
   const [unreachableKeys, setUnreachableKeys] = React.useState<ReadonlySet<string>>(() => new Set())
   const handleHealthChange = React.useCallback((vendorKey: string, unreachable: boolean) => {
@@ -569,7 +579,7 @@ export function ModelSettingsHome({
             {accountConnections.map(connection => (
               <ModelAccountCard key={connection.vendorKey} connection={connection} connected={connections.includes(connection)} />
             ))}
-            <details className="mt-4 rounded-nomi border border-nomi-line px-3 py-2" data-model-home-assisted>
+            <details ref={assistedRef} className="mt-4 rounded-nomi border border-nomi-line px-3 py-2" data-model-home-assisted>
               <summary className="cursor-pointer list-none">
                 <span className="flex items-center gap-2 text-caption font-medium text-nomi-ink"><IconPlugConnected size={16} aria-hidden />{t('onboardingProviders.account.aiSetup')}<IconChevronRight size={14} className="ml-auto" aria-hidden /></span>
                 <span className="ml-6 block text-micro text-nomi-ink-60">{t('onboardingProviders.account.aiHint')}</span>

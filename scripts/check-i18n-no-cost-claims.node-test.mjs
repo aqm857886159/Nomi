@@ -141,7 +141,7 @@ test('已知局限（其它键）：正则扫描是启发式，这三种写法�
 })
 
 test('only evidenced APIMart quote wording is admitted on the approved display', () => {
-  const known = { onboardingProviders: { account: { estimate: '预计 {{value}} 积分 · APIMart 公开默认价' } } }
+  const known = { onboardingProviders: { account: { estimate: '预计 {{value}} 积分（{{usd}}）· APIMart 公开默认价，最终按实际用量结算' } } }
   assert.equal(scanDictionaries(dict(known)).hits.length, 0)
   assert.equal(scanDictionaries(dict({ onboardingProviders: { account: { estimate: '本次免费' } } })).hits.length, 1)
   assert.equal(scanDictionaries(dict({ arbitrary: known.onboardingProviders.account })).hits.length, 1)

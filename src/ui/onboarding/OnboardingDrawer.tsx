@@ -87,7 +87,11 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   const openPage = React.useCallback((next: Exclude<ModelSettingsPage, { type: 'home' }>) => {
     setNavigation((current) => openModelSettingsPage(current, next))
   }, [])
-  useModelPageRequest(pageRequest, openPage)
+  const openRequestedPage = React.useCallback((target: ModelSettingsPage) => {
+    if (target.type === 'home') setNavigation({ stack: [target] })
+    else openPage(target)
+  }, [openPage])
+  useModelPageRequest(pageRequest, openRequestedPage)
   const goBack = React.useCallback(() => setNavigation((current) => backModelSettingsPage(current)), [])
   useModelSettingsPageFocus(page, goBack)
   const openWizard = React.useCallback(
@@ -749,6 +753,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   }
   return (
     <ModelSettingsHome
+      assistedRequest={page.type === 'home' ? page.assistedRequest : undefined}
       connections={homeConnections}
       availableConnections={availableHomeConnections}
       mappings={mappings}

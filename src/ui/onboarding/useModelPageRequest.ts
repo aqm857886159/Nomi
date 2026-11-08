@@ -9,16 +9,18 @@ import type { ModelSettingsPage } from './modelSettingsNavigation'
  * modelsMounted），若只看 vendorKey，用户返回首页后再点一次「去配置」就什么都不会发生——
  * 请求值没变，effect 不再跑。token 每次点击都换，于是连点也每次都重新打开。
  */
-export type ModelPageRequest = { vendorKey: string; token: number } | null
+export type ModelPageRequest = { vendorKey: string; token: number } | { section: 'model-assistance'; token: number } | null
 
 export function useModelPageRequest(
   request: ModelPageRequest,
-  openPage: (next: Exclude<ModelSettingsPage, { type: 'home' }>) => void,
+  openPage: (next: ModelSettingsPage) => void,
 ): void {
   const handledToken = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (!request || handledToken.current === request.token) return
     handledToken.current = request.token
-    openPage({ type: 'platformConnect', vendorKey: request.vendorKey })
+    openPage('vendorKey' in request
+      ? { type: 'platformConnect', vendorKey: request.vendorKey }
+      : { type: 'home', assistedRequest: request.token })
   }, [request, openPage])
 }

@@ -1,6 +1,6 @@
 import { useNodePricePreview } from '../spend/useNodePricePreview'
 import { useVendorAccountFacts } from '../../../ui/onboarding/useVendorAccountFacts'
-import { apimartBillingUrl, formatCreditValue, priceBalanceStatus } from '../../common/apimartAccountDisplay'
+import { apimartBillingUrl, apimartUsd, formatCreditValue, priceBalanceStatus } from '../../common/apimartAccountDisplay'
 import { notify } from '../../../ui/notificationPolicy'
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -45,7 +45,7 @@ import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
 import { ComposerAnchor } from './composerAnchor'
 import { ConnectedTextChips } from './ConnectedTextChips'
 import TextNodeComposer from './TextNodeComposer'
-import { IconArrowUp, IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconRefresh } from '@tabler/icons-react'
+import { IconArrowUp, IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconCoin, IconRefresh } from '@tabler/icons-react'
 import { ReferenceNamesContext, resolveReferenceInfos } from '../../assets/referenceNames'
 import { mentionUrlsInOrder } from '../../assets/promptMentions'
 import { peekAllProjectAssets } from '../../assets/useAllProjectAssets'
@@ -155,6 +155,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
   const { zero: zeroBalance, estimatedGap: shortfall } = priceBalanceStatus(quote, facts, Date.now())
   const quoteLabel = quote ? t(quote.basis === 'output-estimate' ? 'onboardingProviders.account.outputEstimate' : 'onboardingProviders.account.estimate', {
     value: formatCreditValue(quote.credits, i18n.language),
+    usd: apimartUsd(quote.usd, i18n.language),
   }) : quoteVendor ? t('onboardingProviders.account.priceUnknown') : undefined
   // 渠道 mapping 同理：内存里那一份（composerResidentData 启动后载入），三份控件共用一个读取器。
   const readMappings = useVendorMappingsReader()
@@ -515,7 +516,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                 onClick={() => requestDirectorPreviewRender(rerenderDirectorNodeId)}
               />
             ) : null}
-            <span title={disabledReason ?? quoteLabel ?? title} style={{ display: 'contents' }}>
+            <span title={[disabledReason, quoteLabel].filter(Boolean).join(' · ') || title} style={{ display: 'contents' }}>
               {/* 原生 button：避开 WorkbenchButton(Mantine)对 radius/bg 的覆盖,确保样张 v4 的深色圆形主行动钮。
                   右半边由上面那根 flex-1 撑开：生成钮永远在底栏最右 = 卡片右下角（卡宽恒定 → 屏幕位置锁死）。 */}
               <button
@@ -534,7 +535,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
                   }
                   : handleGenerate}
               >
-                {quoteVendor && !isGenerating && !hasPendingRefs ? <span className="whitespace-nowrap text-micro">{zeroBalance ? t('onboardingProviders.account.billing') : quote ? (quote.basis === 'output-estimate' ? '≈' : '') + formatCreditValue(quote.credits, i18n.language) : '—'}</span> : null}
+                {quoteVendor && !isGenerating && !hasPendingRefs ? <span className="inline-flex items-center gap-1 whitespace-nowrap text-micro">{quote && !zeroBalance && <IconCoin size={13} aria-hidden />}{zeroBalance ? t('onboardingProviders.account.billing') : quote ? (quote.basis === 'output-estimate' ? '≈' : '') + formatCreditValue(quote.credits, i18n.language) : '—'}</span> : null}
                 {isGenerating ? '···' : <IconArrowUp size={ICON_TIERS.tool.size} stroke={ICON_TIERS.tool.stroke} aria-hidden />}
               </button>
             </span>

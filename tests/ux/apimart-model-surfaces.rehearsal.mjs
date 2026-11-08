@@ -99,6 +99,14 @@ try {
       await picker.click({ timeout: 15000 })
       const menu = win.locator('[data-nomi-select-dropdown]:visible').first()
       const search = menu.locator('input').first()
+      if (!perfFile) {
+        await expect(search).toBeFocused()
+        await search.fill('nomi-no-such-model')
+        await menu.getByRole('button', { name: uiText(locale, 'onboardingProviders.account.aiSetup') }).click()
+        await expect(win.locator('details[data-model-home-assisted][open]'), 'board:ModelSurfaces/picker.search').toBeVisible()
+        await closeSettings(win)
+        await picker.click()
+      }
       await search.fill('seedance')
       const row = menu.getByRole('option').filter({ hasText: 'Seedance 2.0' }).first()
       await expect(row, 'board:ModelSurfaces/picker.search').toBeVisible()

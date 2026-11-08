@@ -455,6 +455,10 @@ export default function InlineParameterBar({
         <NomiSelect
           ariaLabel={t('generationCommon.parameters.model')}
           searchable
+          emptySearchAction={{
+            label: t('onboardingProviders.account.aiSetup'),
+            onSelect: () => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models', section: 'model-assistance' } })),
+          }}
           placeholder={t('generationCommon.parameters.selectModel')}
           triggerMaxWidth={wrap ? 260 : summaryWidth === undefined ? 200 : 150}
           className={modelChipClass}

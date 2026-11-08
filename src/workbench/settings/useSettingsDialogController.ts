@@ -39,6 +39,9 @@ export function useSettingsDialogController() {
     setInitialSection(section)
     const vendorKey = typeof detail?.vendorKey === 'string' ? detail.vendorKey.trim() : ''
     if (vendorKey) setModelPageRequest((current) => ({ vendorKey, token: (current?.token ?? 0) + 1 }))
+    else if (detail?.section === 'model-assistance') {
+      setModelPageRequest((current) => ({ section: 'model-assistance', token: (current?.token ?? 0) + 1 }))
+    }
     setOpened(true)
   }, [])
 
