@@ -53,8 +53,10 @@ describe("read-only account information", () => {
   it("keeps authentication rejection distinct from a transient read failure", async () => {
     serve(new Response(null, { status: 401 }), { success: false }, { success: false });
     expect((await readVendorAccountFacts("apimart"))?.keyState).toBe("invalid");
-    serve(new Response(null, { status: 503 }), { success: false }, { success: false });
-    expect((await readVendorAccountFacts("apimart", true))?.keyState).toBe("unknown");
+    for (const status of [403, 503]) {
+      serve(new Response(null, { status }), { success: false }, { success: false });
+      expect((await readVendorAccountFacts("apimart", true))?.keyState).toBe("unknown");
+    }
   });
 
   it("never requests credits from a user's relay and discards responses after a key changes", async () => {

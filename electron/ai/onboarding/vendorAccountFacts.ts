@@ -43,7 +43,7 @@ async function readSnapshot(vendorKey: string, target: Target, keyUrl: URL, acco
   const total = isJsonRecord(usage.data?.data) && isJsonRecord(usage.data.data.total) ? usage.data.data.total : null;
   return {
     vendorKey, checkedAt: Date.now(),
-    keyState: key.data ? "valid" : key.status === 401 || key.status === 403 ? "invalid" : "unknown",
+    keyState: key.data ? "valid" : key.status === 401 ? "invalid" : "unknown",
     accountCredits: nonnegative(account.data?.remain_credits),
     keyCredits: nonnegative(key.data?.remain_credits),
     keyUnlimited: key.data?.unlimited_quota === true,
