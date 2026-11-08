@@ -176,6 +176,9 @@ try {
     await win.waitForTimeout(500)
     const bottomExpand = await geometry()
     record(label, 'collapse-expand-at-bottom-stays-at-bottom', bottomExpand.gap <= AT_BOTTOM_PX, bottomExpand)
+    // 收起还原的失败不能污染下一项：用真实滚轮重新建立流式跟随的底部前提。
+    await wheel(100_000)
+    await expect.poll(async () => (await geometry()).gap, { message: '流式检查开始前未回到底部' }).toBeLessThanOrEqual(AT_BOTTOM_PX)
     record(label, 'jump-latest-hidden-at-bottom', !(await jumpVisible()), {})
 
     // ③ 流式跟随：停在底部，假模型吐约 3000 字；每帧采样距底多少。

@@ -148,7 +148,8 @@
   "residual_risks": [
     "Real-provider user journey is unverified: only loopback fixtures are authorized.",
     "Dock/float moves with exactly unchanged geometry may not trigger restoration.",
-    "Main/fixed walkthrough and performance measurements are pending execution."
+    "Main matrix completed with 9 green / 18 red, but this branch UI matrix and performance remain unverified.",
+    "Main send-visible p50 is 103.5ms at 100 items and 111.2ms at 1000 items; the required optimistic echo is not implemented because the planned projection boundary triggers the project hot-fix direction-review rule."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-12-09",
