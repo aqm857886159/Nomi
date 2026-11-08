@@ -21,20 +21,93 @@
  */
 import { bodyReferencedParamKeys } from "../../catalog/paramTranslate";
 import { parseCustomCapabilityContract } from "../customCapabilityContract";
-import type { ArchetypeMode, ModelArchetype } from "./types";
+import type { ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ModelArchetype } from "./types";
 import { sourceBackedVideoProfiles } from "./registry";
 
-/** 合并槽：本模式的全部参考槽序列化进**同一个** body 键。`flat` = 纯 URL 数组，否则 `[{url, role}]`。 */
-export type ReferenceCombineChannel = { key: string; flat: boolean } | null;
+/**
+ * 参考槽种 → 供应商角色词的**唯一表**。画布路（`archetypeMeta.ts buildArchetypeInputParams`）和
+ * Run 路（`apimartGenerationProjection.ts projectReferenceUrls`）都从这里取。
+ * 五个值来自方舟 content[].role 官方字段表（first_frame / last_frame / reference_image / reference_video / reference_audio）。
+ * 2026-11-07 从渲染层搬来：以前这张表只在渲染层有，Run 路把合同角色词（reference / character）直接
+ * 当线上角色发，Wan 2.7 角色参考经 MCP / ProductionRun 发出 role "reference"，官方要 "reference_image"。
+ */
+export const REFERENCE_ROLE_FOR_KIND: Readonly<Partial<Record<ArchetypeReferenceSlotKind, string>>> = {
+  first_frame: "first_frame",
+  last_frame: "last_frame",
+  image_ref: "reference_image",
+  video_ref: "reference_video",
+  audio_ref: "reference_audio",
+};
+
+/** 槽进角色数组时的线上 role：`slot.roleName` 覆盖，缺省按槽种派生；undefined = 这个槽种没有角色词。 */
+export function combineRoleForSlot(slot: Pick<ArchetypeReferenceSlot, "kind" | "roleName">): string | undefined {
+  return slot.roleName ?? REFERENCE_ROLE_FOR_KIND[slot.kind];
+}
+
+/** 参与合并的一个槽（按模式里的声明顺序）：它的槽种与线上 role。 */
+export type CombineRoleSlot = { kind: ArchetypeReferenceSlotKind; role: string };
+
+/**
+ * 合并槽：本模式的参考槽序列化进**同一个** body 键。`flat` = 纯 URL 数组，否则 `[{url, role}]`。
+ * `roleSlots`：真正并进去的槽（声明顺序；扁平通道只消费位置，不发送 role）；`combineSlotsInto.kinds` 声明了的，
+ * 只并这几种，其余槽留在自己的扁平键上。
+ */
+export type ReferenceCombineChannel = { key: string; flat: boolean; roleSlots: readonly CombineRoleSlot[] } | null;
+
+type CombineModeShape = Pick<ArchetypeMode, "combineSlotsInto"> & {
+  slots?: ReadonlyArray<Pick<ArchetypeReferenceSlot, "kind" | "roleName">>;
+};
+
+/** 这个槽在本模式的合并里吗（flat 不看角色；非 flat 要有角色词；声明了 kinds 的只收那几种）。 */
+export function slotJoinsCombine(mode: CombineModeShape, slot: Pick<ArchetypeReferenceSlot, "kind" | "roleName">): boolean {
+  const declared = mode.combineSlotsInto;
+  if (!declared) return false;
+  if (declared.kinds && !declared.kinds.includes(slot.kind)) return false;
+  return declared.flat === true || Boolean(combineRoleForSlot(slot));
+}
 
 /** 模式声明的合并槽（唯一读点；别在别处展开 `mode.combineSlotsInto`）。 */
 export function combineChannelForMode(
-  mode: Pick<ArchetypeMode, "combineSlotsInto"> | null | undefined,
+  mode: CombineModeShape | null | undefined,
 ): ReferenceCombineChannel {
   const declared = mode?.combineSlotsInto;
   const key = typeof declared?.key === "string" ? declared.key.trim() : "";
-  if (!key) return null;
-  return { key, flat: declared?.flat === true };
+  if (!mode || !key) return null;
+  const flat = declared?.flat === true;
+  const roleSlots = (mode.slots ?? []).flatMap((slot) => {
+    const role = combineRoleForSlot(slot);
+    return slotJoinsCombine(mode, slot) ? [{ kind: slot.kind, role: role ?? "" }] : [];
+  });
+  return { key, flat, roleSlots };
+}
+
+/** Encode one channel in declared slot order, preserving the order of references within each slot. */
+export function lowerCombinedReferences(
+  channel: NonNullable<ReferenceCombineChannel>,
+  entries: ReadonlyArray<{ order: number; url: string }>,
+): string[] | Array<{ url: string; role: string }> {
+  const ordered = [...entries].sort((a, b) => a.order - b.order);
+  return channel.flat ? ordered.map(({ url }) => url)
+    : ordered.map(({ order, url }) => ({ url, role: channel.roleSlots[order]!.role }));
+}
+
+/**
+ * Run 路：合同里的一条参考（素材种类 + 合同角色词）该落进哪个参与合并的槽、带哪个线上 role。
+ * 合同角色词不是线上角色词：reference / character 都是图片参考槽，线上要发 reference_image。
+ * 返回 null = 这一档模式的合并里没有收这种参考的槽（调用方决定走扁平键还是拒发）。
+ */
+export function combineRoleForContractReference(
+  channel: ReferenceCombineChannel,
+  reference: { kind?: string; role?: string },
+): { role: string; order: number } | null {
+  if (!channel) return null;
+  const kind: ArchetypeReferenceSlotKind = reference.kind === "video" ? "video_ref"
+    : reference.kind === "audio" ? "audio_ref"
+      : reference.role === "first_frame" ? "first_frame"
+        : reference.role === "last_frame" ? "last_frame"
+          : "image_ref";
+  const order = channel.roleSlots.findIndex((slot) => slot.kind === kind);
+  return order < 0 ? null : { role: channel.roleSlots[order]!.role, order };
 }
 
 function record(value: unknown): Record<string, unknown> | null {

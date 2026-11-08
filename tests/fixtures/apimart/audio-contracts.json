@@ -1,0 +1,65 @@
+{
+  "music": {
+    "url": "https://docs.apimart.ai/en/api-reference/audios/suno/generation.md",
+    "checkedAt": "2026-11-07",
+    "fields": [
+      "model",
+      "custom",
+      "instrumental",
+      "version",
+      "custom_model_id",
+      "prompt",
+      "title",
+      "style",
+      "negative_tags",
+      "auto_lyrics",
+      "persona_id",
+      "vocal_gender",
+      "style_weight",
+      "weirdness_constraint",
+      "audio_weight",
+      "variety",
+      "max_mode",
+      "audio_format",
+      "duration"
+    ]
+  },
+  "sounds": {
+    "url": "https://docs.apimart.ai/en/api-reference/audios/suno/sounds.md",
+    "checkedAt": "2026-11-07",
+    "fields": [
+      "model",
+      "version",
+      "prompt",
+      "type",
+      "bpm",
+      "key",
+      "audio_format"
+    ]
+  },
+  "tts": {
+    "url": "https://docs.apimart.ai/en/api-reference/audios/tts.md",
+    "checkedAt": "2026-11-07",
+    "fields": [
+      "model",
+      "input",
+      "voice",
+      "response_format",
+      "speed"
+    ]
+  },
+  "lyria": {
+    "url": "https://docs.apimart.ai/en/api-reference/audios/flow-music/music-lyria-3-5.md",
+    "checkedAt": "2026-11-07",
+    "fields": [
+      "model",
+      "version",
+      "sound_prompt",
+      "lyrics",
+      "title",
+      "bpm",
+      "length",
+      "seed"
+    ]
+  }
+}

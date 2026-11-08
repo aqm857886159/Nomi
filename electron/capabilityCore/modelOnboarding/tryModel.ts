@@ -16,6 +16,7 @@ import { sanitizedAdapterJson, redactAdapterSecrets } from "../../providerAdapte
 import type { FetchTaskResultFn, RunTaskFn } from "../core";
 import { pollTaskToTerminal } from "../pollTaskToTerminal";
 import { isTerminalTaskStatus } from "../../shared/taskStatus";
+import { resultOnlyLandsAsProjectFile } from "../../tasks/projectFileResult";
 import { billableRequests, noBlast, unverified, type OnboardingFailure, type OnboardingResult } from "./envelope";
 
 /**
@@ -144,11 +145,22 @@ export async function tryModel(
       nextAction: "Send the card with action=submit_declaration first; nomi_read target=onboarding_kit has the schema and two examples.",
     };
   }
-  if (!selectTaskMapping(catalog.mappings, vendorKey, taskKind, modelKey)) {
+  const mapping = selectTaskMapping(catalog.mappings, vendorKey, taskKind, modelKey);
+  if (!mapping) {
     return {
       ok: false, code: "not_found",
       message: `${modelKey} has no enabled ${taskKind} mode on ${vendorKey}. Declared modes: ${declaredKinds.join(", ") || "none"}.`,
       nextAction: "Pass one of the declared taskKinds, or add that mode to the card and submit it again.",
+    };
+  }
+  // 试跑不在任何项目里。结果只能写成项目文件的模式（配音 / 音乐 / 音效、文件流视频）在开单、问人之前就说清楚：
+  // 发出去钱就花了、结果没处放（2026-11-07）。判据与 runtime.runTask 发请求前那道同一处（tasks/projectFileResult）。
+  if (resultOnlyLandsAsProjectFile(taskKind, mapping)) {
+    return {
+      ok: false, code: "needs_input",
+      message: `${modelKey} returns its ${taskKind} result as a file that can only be saved inside a Nomi project, and a model trial runs outside any project. No request was sent.`,
+      needs: ["an open Nomi project"],
+      nextAction: "Do not retry nomi_try_model for this mode. Tell the user that trying this model has to happen inside a project: ask them to open a project in Nomi and generate from a node on that project's canvas.",
     };
   }
   if (!catalog.apiKeysByVendor[vendorKey]?.apiKey) {
