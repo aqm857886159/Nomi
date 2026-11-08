@@ -73,17 +73,12 @@
     "after": 7,
     "why_not": "WorkbenchShell and the lab host must mount the resident host; the three design-lab fixtures and resident shell must render the shared panel. All call the same panel scroll boundary rather than implementing their own follow policy."
   },
-  "generality_proof": "Every production surface renders ProjectAgentResidentShell and then AgentPanelV4Panel. The library follows actual content-height changes regardless of row kind or provider, while explicit conversation identity and submit/jump actions restore latest intent.",
+  "generality_proof": "Every production surface renders ProjectAgentResidentShell and then AgentPanelV4Panel. The shell supplies project/surface/thread identity as an input, not a second scroll owner. Only the shared panel binds library follow state and domain restoration; content-height following is independent of row kind or provider.",
   "shared_boundaries": [
     {
       "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
       "symbol": "AgentPanelV4Panel",
       "responsibility": "Bind the library scroll/content refs and all explicit follow and restoration events."
-    },
-    {
-      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
-      "symbol": "ProjectAgentResidentShell",
-      "responsibility": "Supply project/surface/thread identity to the single panel."
     }
   ],
   "same_class_entry_points": [

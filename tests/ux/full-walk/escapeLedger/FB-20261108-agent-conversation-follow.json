@@ -1,0 +1,25 @@
+{
+  "id": "FB-20261108-agent-conversation-follow",
+  "since": "2026-11-09",
+  "source": "用户 2026-11-08：切换 Agent 对话后要手动滚到最下面；发送时最新内容不可见，回答增长时没有自动跟随。",
+  "category": "interaction-semantics",
+  "problem": "长对话切换、上翻后发送和流式增长没有共享的跟随意图与几何 owner，用户需要反复手动滚动才能看到最新消息。",
+  "existingInvariants": [
+    6
+  ],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "evidence": [
+    "docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md：保留上翻阅读、收起还原，切换和发送总回最新。",
+    "tests/ux/agent-conversation-follow.walk.mjs：双语言对话切换、收起展开、流式、上翻、发送和回到最新矩阵；真实 Electron 验证尚待完成。",
+    "use-stick-to-bottom 1.1.6 已替换通用跟随逻辑，旧记忆与闲置滚动策略已删除；尚无 PR 号与独立验收，保持未结账。"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-11-09-agent-conversation-stick-to-bottom.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/agent-conversation-follow.walk.mjs"
+  }
+}
