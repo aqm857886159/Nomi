@@ -232,6 +232,7 @@ export type DesktopOnboardingBridge = {
    * 必须走这条而不是 testConnection——后者要调用方手上有明文 key。
    * force = 用户点了「重新检查」，跳过新鲜期缓存。
    */
+  vendorPricePreview: (payload: import("../../electron/shared/contracts/vendorPricePreview").VendorPriceRequest) => Promise<import("../../electron/shared/contracts/vendorPricePreview").VendorPricePreview | null>
   vendorAccountFacts: (payload: { vendorKey: string; force?: boolean }) => Promise<import("../../electron/shared/contracts/vendorAccountFacts").VendorAccountFacts | null>
   vendorHealth: (payload: { vendorKey: string; force?: boolean }) => Promise<VendorHealth>
 }

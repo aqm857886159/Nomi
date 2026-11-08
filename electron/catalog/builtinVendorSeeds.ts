@@ -77,7 +77,7 @@ export type VendorSeed = {
    */
   credentialProbe?: ProbeDeclaration & { cost?: "free" | "paid" };
   /** Read-only account API; eligibility is limited to the official service origins. */
-  accountFacts?: { alternateOrigins: readonly string[]; accountPath: string; usagePath: string };
+  accountFacts?: { alternateOrigins: readonly string[]; accountPath: string; usagePath: string; publicPricesPath: string; modelPricePath: string };
   /**
    * 该家的 key 该拿什么当判据（**种子声明，不是按路由猜**）。
    *

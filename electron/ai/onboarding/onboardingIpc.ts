@@ -1,3 +1,6 @@
+import { priceQueryFromRequest } from './vendorPriceRequest';
+import { readCatalog } from '../../catalog/catalogStore';
+import { readVendorPricePreview } from "./vendorPricePreview";
 import { readVendorAccountFacts } from "./vendorAccountFacts";
 import { ipcMain } from "electron";
 import { upsertRendererCatalogVendorApiKey } from "../../catalog/rendererCatalogMutation";
@@ -44,6 +47,11 @@ export function registerOnboardingIpc(): void {
 
   // 供应商连接健康：模型面板每次打开时按家自查「现在能不能用」。凭证由主进程自取——
   // renderer 只有 hasApiKey 布尔，这也是旧实现「只在粘贴 key 那一刻能测」的根因。
+  ipcMain.handle("nomi:onboarding:vendor-price-preview", (event, payload) => {
+    assertTrustedSender(event);
+    const query = priceQueryFromRequest(payload, readCatalog());
+    return query ? readVendorPricePreview(query) : null;
+  });
   ipcMain.handle("nomi:onboarding:vendor-account-facts", (event, payload: { vendorKey?: unknown; force?: boolean }) => {
     assertTrustedSender(event);
     if (typeof payload?.vendorKey !== "string") return null;

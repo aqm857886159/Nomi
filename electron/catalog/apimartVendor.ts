@@ -59,6 +59,8 @@ export const APIMART_VENDOR_SEED = {
     alternateOrigins: ["https://api.apib.ai"],
     accountPath: "/v1/user/balance",
     usagePath: "/v1/usage",
+    publicPricesPath: "/api/pricing/models/all",
+    modelPricePath: "/api/pricing/model",
   },
 } as const;
 
