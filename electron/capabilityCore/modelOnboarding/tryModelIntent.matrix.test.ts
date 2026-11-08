@@ -79,7 +79,7 @@ describe("model trial intent class matrix", () => {
   const quarantine = (intentId: string, generation = 1) => path.join(claimDir(intentId), "quarantine", `r${generation}`);
   const argsFor = (): Arguments => ({ vendorKey, modelKey: registry.models[0].modelKey, taskKind: registry.models[0].taskKind, prompt: "apple", params: {} });
   const scope = () => ["model-trial", vendorKey, registry.models[0].modelKey];
-  const deps = (extra: Partial<TryModelDeps> = {}): TryModelDeps => ({ runTask, pollTimeoutMs: 2000, approvalPolicy: () => ({ mode: "direct" }), ...extra });
+  const deps = (extra: Partial<TryModelDeps> = {}): TryModelDeps => ({ runTask, approvalPolicy: () => ({ mode: "direct" }), ...extra });
   async function trial(input: Arguments, extra: Partial<TryModelDeps> = {}): Promise<Result> {
     const result: unknown = await tryModel(deps(extra), input);
     assertTrialResult(result);
@@ -182,9 +182,10 @@ describe("model trial intent class matrix", () => {
     return results.map((result) => result.out!);
   }
   async function freshSettings() {
+    vi.useRealTimers();
     settings = fs.mkdtempSync(path.join(root, "case-"));
     vi.stubEnv("NOMI_SETTINGS_DIR", settings);
-    creates = 0; queries = 0; confirmations = 0; cards = []; pollStatus = "queued";
+    initial = "queued"; creates = 0; queries = 0; confirmations = 0; cards = []; pollStatus = "queued";
     setRendererTarget(null);
     const docs = "https://example.invalid/trial-contract";
     const configured = await dispatch("model.onboarding.setup", { action: "submit_declaration", name: "Intent matrix",
@@ -201,6 +202,8 @@ describe("model trial intent class matrix", () => {
     vendorKey = configured.vendorKey;
     const keyed = await dispatch("model.onboarding.setup", { action: "set_key", vendorKey, apiKey: "matrix-fake-key" }, { origin: { host: "claude" } } as never) as { ok: boolean };
     expect(keyed.ok).toBe(true);
+    // Provider I/O decides these rows; the product's submit budget has its own fake-clock tests.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   }
 
   beforeAll(async () => {
@@ -234,7 +237,7 @@ describe("model trial intent class matrix", () => {
   });
 
   beforeEach(async () => { await freshSettings(); });
-  afterEach(() => { setRendererTarget(null); });
+  afterEach(() => { setRendererTarget(null); vi.useRealTimers(); });
   afterAll(async () => {
     vi.unstubAllEnvs();
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -471,7 +474,7 @@ describe("model trial intent class matrix", () => {
           const first = await trial(args);
           const lock = path.join(claimDir(first.submission.intentId), "claim.lock");
           liveLease(lock);
-          const result = await trial({ ...args, newAttemptOf: first.submission.attemptId }, { pollTimeoutMs: 100 });
+          const result = await trial({ ...args, newAttemptOf: first.submission.attemptId }, { pollTimeoutMs: 0 });
           expect(result.code).toBe("claim_unavailable");
           expireLease(lock);
           return { result, args };
@@ -644,7 +647,7 @@ describe("model trial intent class matrix", () => {
         const { intentId, before, orders } = await badRecord();
         const lock = path.join(claimDir(intentId), "claim.lock");
         liveLease(lock);
-        const unavailable = await tryModel(deps({ pollTimeoutMs: 100 }), { ...argsFor(), newAttemptOf: "unreadable-r0" }) as unknown as Result;
+        const unavailable = await tryModel(deps({ pollTimeoutMs: 0 }), { ...argsFor(), newAttemptOf: "unreadable-r0" }) as unknown as Result;
         expect(unavailable.code, JSON.stringify(unavailable)).toBe("claim_unavailable");
         expect(unavailable.message).toMatch(/sent nothing/);
         expect(creates).toBe(orders);
@@ -659,7 +662,7 @@ describe("model trial intent class matrix", () => {
         const lock = path.join(runDir(intentId), "repository.lock");
         liveLease(lock);
         const held = treeOf(runDir(intentId));
-        const unavailable = await trial({ ...argsFor(), newAttemptOf: "unreadable-r0" }, { pollTimeoutMs: 100 });
+        const unavailable = await trial({ ...argsFor(), newAttemptOf: "unreadable-r0" }, { pollTimeoutMs: 0 });
         expect(unavailable.code, JSON.stringify(unavailable)).toBe("claim_unavailable");
         expect(unavailable.submission.recordDamage, "the old receipt comes along, it does not stand in for this failure").toBe("journal_unreadable");
         expect(creates).toBe(orders);
@@ -809,7 +812,7 @@ describe("model trial intent class matrix", () => {
   });
 
   // The mode is read at every attempt, so it can change between an order the provider refused and its safe retry.
-  it.each(registry.policyFlips)("policy flip $id: $label", async (row) => {
+  async function policyFlip(row: PolicyFlip) {
     initial = "rejected";
     if (row.first === "request") answerCards(true);
     const refused = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.first }) });
@@ -819,10 +822,19 @@ describe("model trial intent class matrix", () => {
     setRendererTarget(null);
     if (row.windowOpen) answerCards(false);
     confirmations = 0;
-    const retried = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.second }), pollTimeoutMs: 100 });
+    const retried = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.second }) });
     expect(code(retried), JSON.stringify(retried)).toBe(row.code);
     expect({ cards: confirmations, creates }).toEqual({ cards: row.cards, creates: row.creates });
-    expect(frozenRequest(retried.submission.intentId, "attempt-2").spendDecidedBy).toBe(row.decidedBy);
+    const decidedBy = frozenRequest(retried.submission.intentId, "attempt-2").spendDecidedBy;
+    expect(decidedBy).toBe(row.decidedBy);
+    return { first: code(refused), second: code(retried), cards: confirmations, creates, decidedBy };
+  }
+  it.each(registry.policyFlips)("policy flip $id: $label", policyFlip, 30_000);
+  it("the same policy flip has the same result in a fresh retry cell", async () => {
+    const row = registry.policyFlips.find(({ id }) => id === "auto-then-auto")!;
+    const first = await policyFlip(row);
+    await freshSettings();
+    expect(await policyFlip(row)).toEqual(first);
   }, 30_000);
 
   it("the shared layer's own refusal needs no provider: a safe-failure budget is durable across processes", async () => {
