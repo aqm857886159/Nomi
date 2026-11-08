@@ -3,12 +3,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { RAW_INPUT_LIMIT_MS, RAW_INPUT_METHODS, RawInputStallError, boundRawInput } from './_rawInputBound.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
-const here = path.dirname(new URL(import.meta.url).pathname)
+const here = path.dirname(fileURLToPath(import.meta.url))
 const never = () => new Promise(() => {})
 
 function fakePage(impl = () => Promise.resolve('done')) {
