@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { copyAssetFile, storeAssetBytes, writeAsset } from "../runtime";
+import { copyAssetFile, writeAsset } from "../runtime";
 import { canonicalAssetFileName, extensionFromMime, localAssetUrl } from "./assetPaths";
 import { mediaKindFromContentType, mediaKindFromExtension, resolveContentType } from "./mediaTypes";
 import {
@@ -23,12 +23,12 @@ import {
 import type { JsonRecord } from "../jsonUtils";
 import { logWarn } from "../logging/logger";
 import { projectDirById } from "../projects/repository";
-import { contentTypeFromStoredFile } from "./projectAssetStore";
+import { contentTypeFromStoredFile } from "./storedAssetFile";
 import { attachStoredAssetPreview, createStoredAssetPreview, discardPreparedPreview, type AssetPreviewOptions, type StoredAssetPreview } from "./assetPreview";
 import { createAssetImportProgressReporter, type AssetCopyProgress } from "./assetImportProgress";
 import type { ProjectBinding } from "../shared/projectBinding";
 import { captureAssetWriteContext, type AssetWriteContext } from "./assetWriteContext";
-import { localizedAssetTypeOf } from "./localizedAsset";
+import { checkedUserAssetKind, type CheckedUserAssetKind, type NotGeneratedKind } from "./generatedAssetStaging";
 
 function bytesFromPayload(value: unknown): Buffer {
   if (value instanceof ArrayBuffer) return Buffer.from(value);
@@ -38,6 +38,15 @@ function bytesFromPayload(value: unknown): Buffer {
 }
 
 type ImportLocalFileOptions = { allowSourcePath?: boolean; assertCurrent?: () => void; signal?: AbortSignal };
+
+/**
+ * 用户的文件进项目（上传 / 导入 / 粘贴拖入 / MCP import_asset）。**不收生成产物**：生成产物要说清「该是哪一类」、
+ * 走 generatedAssetStaging 的校验门（projectAssetStore.writeGeneratedAsset），这扇门既不问也不该问。
+ * kind 写出 "generated"、或随手一个 string 编译不过；渲染层经 IPC 来的载荷不过类型系统，importLocalFile 入口
+ * 用 checkedUserAssetKind 在运行时再拒一次。kind 不写即 upload，所以这里 kind 可选：载荷是带索引签名的 JsonRecord
+ * 展开时类型挡不住，只剩入口那道运行时拒（见根因合同 residual_risks）。
+ */
+export type LocalFileImportPayload<K extends string = string> = JsonRecord & { projectId: string; kind?: NotGeneratedKind<K>; expectedKind?: never };
 
 /** 准入闸挡下时抛这个：调用方要把 rejection 里的数字讲给用户听，不许退化成一句「过大」。 */
 export class MediaImportRejectedError extends Error {
@@ -143,6 +152,7 @@ async function prepareNativeImportFeedback(
 
 async function importNativeSourcePath(
   raw: JsonRecord,
+  kind: CheckedUserAssetKind,
   sourcePath: string,
   projectId: string,
   fileName: string,
@@ -171,11 +181,10 @@ async function importNativeSourcePath(
   // 只能判 `container:unknown` 一律转码，本机能不能原生播就白探了（实测：同一段 10s HEVC，
   // 粘贴进来 <2s 原样落盘，走文件选择器却要转十几秒）。
   const storedName = canonicalAssetFileName(fileName, effectiveContentType);
-  const baseMeta = { kind: raw.kind || "upload", originalName: raw.fileName || null };
-  // 只有声明成生成产物的导入才用得上：它该是哪一类由调用方说，落盘关口按字节核（见 projectAssetStore.storeAssetBytes）。
-  const expectedKind = localizedAssetTypeOf(raw.expectedKind);
+  const baseMeta = { kind, originalName: raw.fileName || null };
+  // 第二个 null：这扇门只收用户文件（kind 已在入口核过不是生成产物），没有「该是哪一类」要核。
   if (!effectiveContentType.startsWith("video/")) {
-    return copyAssetFile(projectId, sourcePath, storedName, effectiveContentType, baseMeta, expectedKind, context, feedback);
+    return copyAssetFile(projectId, sourcePath, storedName, effectiveContentType, baseMeta, null, context, feedback);
   }
 
   // 临时目录交给转码那一侧建和删：整段登记在导入转码的在途表里，退出排空等它连目录一起删完。
@@ -190,39 +199,41 @@ async function importNativeSourcePath(
         return await copyAssetFile(projectId, transcoded.outputPath, playableMp4FileName(storedName), "video/mp4", {
           ...baseMeta,
           playbackNormalizedFrom: transcoded.reason,
-        }, expectedKind, context, feedback);
+        }, null, context, feedback);
       }
     } catch (error) {
       if (scopedSignal.aborted || isVideoNormalizationCancelled(error)) throw error;
       logWarn("assets", "video-normalize-failed-import-original-file", undefined, error);
     }
     context.assertCurrent();
-    return await copyAssetFile(projectId, sourcePath, storedName, effectiveContentType, baseMeta, expectedKind, context, feedback);
+    return await copyAssetFile(projectId, sourcePath, storedName, effectiveContentType, baseMeta, null, context, feedback);
   });
 }
 
-export async function importLocalFile(payload: unknown, options: ImportLocalFileOptions = {}): Promise<unknown> {
+export async function importLocalFile<K extends string = string>(payload: LocalFileImportPayload<K>, options: ImportLocalFileOptions = {}): Promise<unknown> {
   const raw = payload as JsonRecord;
   const projectId = String(raw.projectId || "").trim();
   if (!projectId) throw new Error("projectId is required");
+  // 渲染层载荷不过类型系统：kind 在这里解析一次，是生成产物就当场拒；往下只用解析出来的值。
+  const kind = checkedUserAssetKind(raw.kind, "upload", "local_file_import_refuses_generated_output");
   const context = await captureAssetWriteContext(projectId, raw.projectBinding as ProjectBinding | undefined, options.assertCurrent);
   const hintedContentType = String(raw.contentType || "application/octet-stream");
   const sourcePath = options.allowSourcePath ? String(raw.sourcePath || "").trim() : "";
   // 画布预览（图片缩略 / 视频 poster）在落盘边界统一派生：本地导入与生成结果本地化走同一扇门。
   // 原生路径那条已经在拷贝前先派生过一帧并沿路认领，这里不会再派生第二次。
   return attachStoredAssetPreview(
-    await importLocalFileToStore(raw, projectId, sourcePath, hintedContentType, context, options.signal),
+    await importLocalFileToStore(raw, kind, projectId, sourcePath, hintedContentType, context, options.signal),
     undefined,
     options.signal ? { signal: options.signal } : undefined,
   );
 }
 
-async function importLocalFileToStore(raw: JsonRecord, projectId: string, sourcePath: string, hintedContentType: string, context: AssetWriteContext, signal?: AbortSignal): Promise<unknown> {
+async function importLocalFileToStore(raw: JsonRecord, kind: CheckedUserAssetKind, projectId: string, sourcePath: string, hintedContentType: string, context: AssetWriteContext, signal?: AbortSignal): Promise<unknown> {
   if (sourcePath) {
     const rawName = String(raw.fileName || path.basename(sourcePath) || `asset-${Date.now()}.bin`);
     const feedback = await prepareNativeImportFeedback(raw, sourcePath, projectId, hintedContentType, signal);
     try {
-      return await importNativeSourcePath(raw, sourcePath, projectId, rawName, hintedContentType, context, feedback, signal);
+      return await importNativeSourcePath(raw, kind, sourcePath, projectId, rawName, hintedContentType, context, feedback, signal);
     } catch (error) {
       discardPreparedPreview(await feedback.preparedPreview);
       throw error;
@@ -251,17 +262,17 @@ async function importLocalFileToStore(raw: JsonRecord, projectId: string, source
   reporter?.report(bytes.length, bytes.length);
   reporter?.finalize();
   context.assertCurrent();
-  return storeAssetBytes(
+  // 用户的东西走同步写入边界 writeAsset（它本身也拒生成产物）；生成产物的字节只走 writeGeneratedAsset。
+  return writeAsset(
     projectId,
     normalized?.bytes ?? bytes,
     normalized?.fileName ?? fileName,
     normalized?.contentType ?? contentType,
     {
-      kind: raw.kind || "upload",
+      kind,
       originalName: raw.fileName || null,
       ...(normalized?.playbackNormalizedFrom ? { playbackNormalizedFrom: normalized.playbackNormalizedFrom } : {}),
     },
-    localizedAssetTypeOf(raw.expectedKind),
     context,
   );
 }

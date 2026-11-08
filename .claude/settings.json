@@ -45,6 +45,15 @@
             "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/edit-time-reminder.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 提示型 hook 缺失（本次不阻断，但你少了一层提醒）：scripts/claude-hooks/edit-time-reminder.sh（分支停在没有它的旧提交？先并上 origin/main）\" >&2; exit 1; }; exec bash \"$h\"'"
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/dispatch-brief-gate.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 提示型 hook 缺失（本次不阻断，但你少了一层提醒）：scripts/claude-hooks/dispatch-brief-gate.sh（分支停在没有它的旧提交？先并上 origin/main）\" >&2; exit 1; }; exec bash \"$h\"'"
+          }
+        ]
       }
     ],
     "Stop": [

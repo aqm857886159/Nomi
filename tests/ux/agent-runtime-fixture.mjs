@@ -424,6 +424,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
   const images = []
   /** 视频生成的 create 请求（apimart `/v1/videos/generations`）。 */
   const videos = []
+  const speeches = []
   /** APIMart 参考图上传（`/v1/uploads/images`），每笔带 multipart 里的文件名（uploadFileNames）。 */
   const uploads = []
   let uploadSequence = 0
@@ -604,6 +605,13 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       jsonResponse(response, 200, { code: 200, data: [{ status: 'submitted', task_id: taskId }] })
       return
     }
+    if (apimartMode && record.path === '/v1/audio/speech') {
+      speeches.push(record)
+      const sample = await readFile(path.join(rootDir, 'electron/providerAdapter/__fixtures__/certification-media/valid.wav'))
+      response.writeHead(200, { 'Content-Type': 'audio/wav' })
+      response.end(sample)
+      return
+    }
     if (apimartMode && record.path === '/v1/videos/generations') {
       const behavior = mediaBehavior?.({ kind: 'video', body: record.body, index: videos.indexOf(record) }) ?? null
       record.behavior = behavior
@@ -716,7 +724,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     })
     await writeFile(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`, { flag: 'wx' })
     return {
-      baseURL, requests, images, videos, uploads, unexpected, modelListProbes, balanceProbes, close, generationProvider,
+      baseURL, requests, images, videos, speeches, uploads, unexpected, modelListProbes, balanceProbes, close, generationProvider,
       /** 已受理的 apimart 图片任务先停在 `processing`（true），放开后下一次轮询照常出图（false）。 */
       holdTasks(on) { holdTasks = Boolean(on) },
       /** 参考图 multipart 上传收到完整请求后停住；由走查显式 release，禁止固定毫秒数掩盖上传窗口。 */

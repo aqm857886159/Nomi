@@ -1,0 +1,205 @@
+{
+  "modelKey": "veo3.1-fast",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports multiple generation modes including text-to-video and image-to-video",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint."
+      }
+    },
+    "reference": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum 3 images",
+          "meaning": {
+            "roles": [],
+            "cases": [
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "frame"
+                },
+                "roles": [
+                  "first_frame",
+                  "last_frame"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "frame - Frame-to-video (FL mode)"
+              },
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "reference"
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "reference - Reference image-to-video"
+              },
+              {
+                "when": {
+                  "key": "image_urls",
+                  "count": 2
+                },
+                "roles": [
+                  "first_frame",
+                  "last_frame"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "2 images for frame-to-video"
+              },
+              {
+                "when": {
+                  "key": "image_urls",
+                  "count": 3
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "3 images for reference image-to-video"
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "If not specified, defaults based on image count: 2 images for frame-to-video, 3 images for reference image-to-video"
+          }
+        }
+      },
+      "intent": {
+        "roles": [
+          "reference_image"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "reference - Reference image-to-video"
+      },
+      "discriminators": [
+        {
+          "key": "generation_type",
+          "values": [
+            "frame",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Supported types:"
+        }
+      ],
+      "unverified": "Only fast variant covered. Omitted generation_type with one image, frame-specific hard cap, quality/lite variants are unverified."
+    },
+    "frame": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum 3 images",
+          "meaning": {
+            "roles": [],
+            "cases": [
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "frame"
+                },
+                "roles": [
+                  "first_frame",
+                  "last_frame"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "frame - Frame-to-video (FL mode)"
+              },
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "reference"
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "reference - Reference image-to-video"
+              },
+              {
+                "when": {
+                  "key": "image_urls",
+                  "count": 2
+                },
+                "roles": [
+                  "first_frame",
+                  "last_frame"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "2 images for frame-to-video"
+              },
+              {
+                "when": {
+                  "key": "image_urls",
+                  "count": 3
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "3 images for reference image-to-video"
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "If not specified, defaults based on image count: 2 images for frame-to-video, 3 images for reference image-to-video"
+          }
+        }
+      },
+      "oneImage": {
+        "key": "image_urls",
+        "meaning": "first_frame",
+        "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "For frame-to-video mode: first image is the start frame, second image is the end frame"
+      },
+      "intent": {
+        "roles": [
+          "first_frame",
+          "last_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "frame - Frame-to-video (FL mode)"
+      },
+      "discriminators": [
+        {
+          "key": "generation_type",
+          "values": [
+            "frame",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Supported types:"
+        }
+      ],
+      "unverified": "Only fast variant covered. Omitted generation_type with one image, frame-specific hard cap, quality/lite variants are unverified."
+    }
+  }
+}
