@@ -26,8 +26,20 @@ export function publicPriceFor(query: VendorPriceQuery, detail: unknown, imageLi
   if (!isJsonRecord(detail) || detail.success !== true || !isJsonRecord(detail.data)) return null;
   const d = detail.data;
   if (d.model_name !== query.modelId || !isJsonRecord(d.membership) || d.membership.category !== query.kind
-      || d.billing_tiers || d.precharge_billing_type || d.token_price) return null;
+      || d.billing_tiers) return null;
   const video = query.kind === "video";
+  if (!video && d.precharge_billing_type === "size_quality_token_formula" && d.billing_type === "tiered_token"
+      && isJsonRecord(d.pricing) && d.pricing.unit === "usd_per_million_tokens" && isJsonRecord(d.size_quality_paid_prices)) {
+    // An explicit fixed output size/quality has an official token estimate. Input and actual billed tokens are unknown.
+    if (!query.size || !query.quality || !query.resolution || query.size === "auto" || query.quality === "auto") return null;
+    const resolution = query.resolution.toLowerCase();
+    const tier = d.size_quality_paid_prices[query.size + (resolution === "1k" ? "" : "@" + resolution)];
+    const estimate = isJsonRecord(tier) ? tier[query.quality] : null;
+    if (typeof estimate !== "number" || estimate <= 0 || !Number.isFinite(estimate * query.count * 10)) return null;
+    const usd = estimate * query.count;
+    return { source, usd, credits: usd * 10, basis: "output-estimate" };
+  }
+  if (d.precharge_billing_type || d.token_price) return null;
   if (video && d.billing_type !== "per_second") return null;
   if (!video) {
     // The single-model endpoint omits the unit for fixed image prices; require an explicit per-image unit from the official listing.

@@ -14,4 +14,10 @@
 8. 不生成媒体。官方响应回放覆盖无 Key、零余额、无限制、部分不可读、切换连接。价格与任务实际费用分开核验。
 ★9. 核对 M1 账户与 Key 分离，M2 上限、标签与当前目录一致，M4 只有有来源的估价才显示数值；中英和窄窗可操作，旧连接仍可管理；拒收、取消和仅看价格的流程生成提交数为零。上线状态以实际独立收据为准。
 
-**价格判据。** [总价目](https://api.apimart.ai/api/pricing/models/all)验证按张的计价单位，[单型号价目](https://api.apimart.ai/api/pricing/model?model=doubao-seedance-2.0-mini)验证最终出站 ID 和规格。用公开折后价，未冒充会员实扣；积分 = USD × 10（[官方用量说明](https://docs.apimart.ai/en/api-reference/account/usage.md)）。例如接口 720P 的 0.0390344 USD/秒 × 5 秒为 0.195172 USD。按 token、按输入时长、输入额外收费或分档未明时继续显示未知；这次仅展示价格，不生成花费凭据。旧预算点的单位来自本地配置，不拿来比较账户余额。
+**价格判据。** [总价目](https://api.apimart.ai/api/pricing/models/all)验证按张的计价单位，[单型号价目](https://api.apimart.ai/api/pricing/model?model=doubao-seedance-2.0-mini)验证最终出站 ID 和规格。用公开折后价，未冒充会员实扣；积分 = USD × 10（[官方用量说明](https://docs.apimart.ai/en/api-reference/account/usage.md)）。例如接口 720P 的 0.0390344 USD/秒 × 5 秒为 0.195172 USD。按 token 但明确公布固定规格的输出估价时，注明仅估输出、实扣按 token；其余按输入时长、输入额外收费或分档未明时继续显示未知；这次仅展示价格，不生成花费凭据。旧预算点的单位来自本地配置，不拿来比较账户余额。
+
+## R0 价格与额度
+
+设置页的美元值只能由主进程读取的 APIMart 账户积分快照换算。发送按钮的估价必须来自当前连接、最终模型 ID、输出规格及份数都匹配的 APIMart 公开价。来源缺失时保留未知。会员实际价格可能更低，普通余额低于公开估价仍可走原审批。账户或有限 Key 明确为零时给充值入口及刷新。
+
+核对窗口请运行 `node tests/ux/apimart-model-surfaces.rehearsal.mjs`。脚本使用临时项目、合成 Key 和回环 HTTP 服务，检查同一窗口里已知、未知、零余额，切换画布型号、档位与估价。每次运行在 `.tmp/model-surface-rehearsal` 留下中英截图和 GET 收据。
