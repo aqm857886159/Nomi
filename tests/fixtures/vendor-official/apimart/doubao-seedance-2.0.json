@@ -1,0 +1,137 @@
+{
+  "modelKey": "doubao-seedance-2.0",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-video, image-to-video (first frame/last frame)"
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum of 9 reference images"
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": null,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image array with roles, supports specifying first frame/last frame"
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "image_urls"
+          ],
+          "b": [
+            "image_with_roles"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "image_urls and image_with_roles cannot be used simultaneously"
+        }
+      ]
+    },
+    "omni": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum of 9 reference images"
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": null,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image array with roles, supports specifying first frame/last frame"
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum of 3 reference videos, 1.8s < total duration < 15.2s"
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum of 3 reference audio files, total duration must be 15s or less"
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "image_urls"
+          ],
+          "b": [
+            "image_with_roles"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "image_urls and image_with_roles cannot be used simultaneously"
+        }
+      ]
+    },
+    "firstlast": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum of 9 reference images"
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": null,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image array with roles, supports specifying first frame/last frame"
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "image_urls"
+          ],
+          "b": [
+            "image_with_roles"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "image_urls and image_with_roles cannot be used simultaneously"
+        }
+      ]
+    }
+  }
+}

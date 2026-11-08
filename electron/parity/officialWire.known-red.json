@@ -1,0 +1,166 @@
+{
+ "repros": {
+  "1": "家族上限当成了模型上限：只因为同族别的模型每槽最多 N 张，就拒收官方允许的张数（「最多收 N张」），且画布和 Run 两条路拒的不一样",
+  "2": "角色词不是官方枚举：参考图的 role 发成了 reference / 平台内部词，而不是官方的 reference_image 等；或 Run 路直接报「unsupported reference role」",
+  "3": "一张图占两个键：同一张参考图同时放进 image_urls 和 image_with_roles（官方说二选一），或多带了该模式官方页没有的键",
+  "4": "超过官方张数上限：产品一槽放行的张数比官方页写的上限多",
+  "5": "两条路对同一模式的取值不同：Run 路发 generation_type 不对，或 Run 路把这个模式当成「发不出参考图」直接拒绝，而画布能发"
+ },
+ "cells": [
+  {
+   "cell": "gpt-image-2|i2i|n=16",
+   "assertion": "countCap",
+   "repro": 4
+  },
+  {
+   "cell": "gemini-3-pro-image-preview|i2i|n=1",
+   "assertion": "samePath",
+   "repro": 5
+  },
+  {
+   "cell": "gemini-3-pro-image-preview|i2i|n=14",
+   "assertion": "samePath",
+   "repro": 5
+  },
+  {
+   "cell": "veo3.1-fast|frame|n=1",
+   "assertion": "samePath",
+   "repro": 2
+  },
+  {
+   "cell": "veo3.1-fast|frame|n=2",
+   "assertion": "samePath",
+   "repro": 2
+  },
+  {
+   "cell": "doubao-seedance-2.0|firstlast|n=1",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.0|firstlast|n=1",
+   "assertion": "exclusivePairs",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.0|firstlast|n=1",
+   "assertion": "samePath",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.0|firstlast|n=2",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.0|firstlast|n=2",
+   "assertion": "exclusivePairs",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.0|firstlast|n=2",
+   "assertion": "samePath",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.5|first|n=1",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.5|first|n=1",
+   "assertion": "samePath",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.5|firstlast|n=1",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.5|firstlast|n=1",
+   "assertion": "samePath",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.5|firstlast|n=2",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "doubao-seedance-2.5|firstlast|n=2",
+   "assertion": "samePath",
+   "repro": 1
+  },
+  {
+   "cell": "wan2.7|ref|n=1",
+   "assertion": "officialKeys",
+   "repro": 3
+  },
+  {
+   "cell": "wan2.7|ref|n=1",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "wan2.7|ref|n=1",
+   "assertion": "roleEnum",
+   "repro": 2
+  },
+  {
+   "cell": "wan2.7|ref|n=1",
+   "assertion": "samePath",
+   "repro": 3
+  },
+  {
+   "cell": "wan2.7|ref|n=5",
+   "assertion": "roleEnum",
+   "repro": 2
+  },
+  {
+   "cell": "wan2.7|ref|n=5",
+   "assertion": "samePath",
+   "repro": 1
+  },
+  {
+   "cell": "wan3.0-video|first|n=1",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "wan3.0-video|first|n=1",
+   "assertion": "samePath",
+   "repro": 3
+  },
+  {
+   "cell": "wan3.0-video|firstlast|n=1",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "wan3.0-video|firstlast|n=1",
+   "assertion": "samePath",
+   "repro": 3
+  },
+  {
+   "cell": "wan3.0-video|firstlast|n=2",
+   "assertion": "oneKeyPerUrl",
+   "repro": 3
+  },
+  {
+   "cell": "wan3.0-video|firstlast|n=2",
+   "assertion": "samePath",
+   "repro": 1
+  },
+  {
+   "cell": "wan3.0-video|ref|n=1",
+   "assertion": "samePath",
+   "repro": 5
+  },
+  {
+   "cell": "wan3.0-video|ref|n=10",
+   "assertion": "samePath",
+   "repro": 5
+  }
+ ]
+}

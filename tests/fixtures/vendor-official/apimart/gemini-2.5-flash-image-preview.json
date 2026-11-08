@@ -1,0 +1,26 @@
+{
+  "modelKey": "gemini-2.5-flash-image-preview",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/gemini-2.5-flash/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Fast generation speed, optimized for quick image creation"
+      }
+    },
+    "edit": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 14,
+          "source": "https://docs.apimart.ai/en/api-reference/images/gemini-2.5-flash/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Limit: Maximum 14 images"
+        }
+      }
+    }
+  }
+}

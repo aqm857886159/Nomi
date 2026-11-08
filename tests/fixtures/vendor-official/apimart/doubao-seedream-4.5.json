@@ -1,0 +1,27 @@
+{
+  "modelKey": "doubao-seedream-4.5",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/seedream-4.5/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports multiple generation modes including text-to-image, image-to-image, and image editing"
+      }
+    },
+    "edit": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": null,
+          "maxPlusN": 15,
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-4.5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "The number of reference images in image_urls + the final number of images specified by n must be ≤ 15."
+        }
+      }
+    }
+  }
+}

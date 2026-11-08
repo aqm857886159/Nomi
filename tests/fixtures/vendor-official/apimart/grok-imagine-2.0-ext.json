@@ -1,0 +1,24 @@
+{
+  "modelKey": "grok-imagine-2.0-ext",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/grok-imagine-2.0-ext/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Async text-to-image; poll with task_id"
+      }
+    },
+    "i2i": {
+      "why": "这一页明说不支持图生图，目录里也没有这条通路",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/grok-imagine-2.0-ext/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "URL output only; no image-to-image / streaming"
+      }
+    }
+  }
+}

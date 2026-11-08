@@ -1,0 +1,26 @@
+{
+  "modelKey": "MiniMax-Hailuo-2.3",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-hailuo-2.3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-video, image-to-video (first frame image)"
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-hailuo-2.3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When provided, this image will be used as the starting frame of the video"
+        }
+      }
+    }
+  }
+}

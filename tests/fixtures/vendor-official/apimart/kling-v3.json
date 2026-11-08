@@ -1,0 +1,33 @@
+{
+  "modelKey": "kling-v3",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-video, image-to-video (first frame/first-last frame control)"
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 2,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum 2 images supported"
+        }
+      },
+      "oneImage": {
+        "key": "image_urls",
+        "meaning": "first_frame",
+        "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Pass 1 image: used as first frame"
+      }
+    }
+  }
+}

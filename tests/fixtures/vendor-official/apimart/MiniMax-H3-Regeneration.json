@@ -1,0 +1,15 @@
+{
+  "modelKey": "MiniMax-H3-Regeneration",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "regenerate": {
+      "why": "重生成只认 source_task_id，不带参考图",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/regeneration",
+        "fetchedAt": "2026-11-08",
+        "quote": "Prefer source_task_id only; the platform auto-fills prompt, media, and source video"
+      }
+    }
+  }
+}

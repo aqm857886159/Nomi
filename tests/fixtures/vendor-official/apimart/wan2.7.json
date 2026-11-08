@@ -1,0 +1,80 @@
+{
+  "modelKey": "wan2.7",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Automatically routed based on parameters: Text-to-Video / Image-to-Video (first frame, first-last frame, video continuation)"
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 2,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "2 images: first-last frame to video (1st = first frame, 2nd = last frame)"
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": null,
+          "roles": [
+            "first_frame",
+            "last_frame"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "role (string): image role, first_frame / last_frame, default first_frame"
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "image_urls"
+          ],
+          "b": [
+            "image_with_roles"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Use either this or image_with_roles"
+        }
+      ],
+      "oneImage": {
+        "key": "image_urls",
+        "meaning": "first_frame",
+        "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "1 image: first-frame to video"
+      }
+    },
+    "ref": {
+      "wireModel": "wan2.7-r2v",
+      "referenceKeys": {
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": 5,
+          "roles": [
+            "reference_image",
+            "first_frame"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference video URL array, up to 5 videos (total images + videos ≤ 5)"
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan2.7-r2v/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference video URL array, up to 5 videos (total images + videos ≤ 5)"
+        }
+      }
+    }
+  }
+}

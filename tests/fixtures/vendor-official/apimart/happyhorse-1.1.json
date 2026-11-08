@@ -1,0 +1,77 @@
+{
+  "modelKey": "happyhorse-1.1",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Auto-routes by parameters: T2V (prompt only) / I2V (first_frame_image) / R2V (image_urls)"
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First-frame image, triggers I2V (Image-to-Video)."
+        },
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image array (R2V mode): 1–9 images, used as subject/style references to generate a new scene"
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "first_frame_image"
+          ],
+          "b": [
+            "image_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Mutual exclusion rules: the two media fields (first_frame_image / image_urls) are mutually exclusive."
+        }
+      ]
+    },
+    "ref": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First-frame image, triggers I2V (Image-to-Video)."
+        },
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Image array (R2V mode): 1–9 images, used as subject/style references to generate a new scene"
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "first_frame_image"
+          ],
+          "b": [
+            "image_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Mutual exclusion rules: the two media fields (first_frame_image / image_urls) are mutually exclusive."
+        }
+      ]
+    }
+  }
+}

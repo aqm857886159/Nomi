@@ -1,0 +1,44 @@
+{
+  "modelKey": "veo3.1-fast",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports multiple generation modes including text-to-video and image-to-video"
+      }
+    },
+    "reference": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum 3 images"
+        }
+      }
+    },
+    "frame": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum 3 images"
+        }
+      },
+      "oneImage": {
+        "key": "image_urls",
+        "meaning": "first_frame",
+        "source": "https://docs.apimart.ai/en/api-reference/videos/veo3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "For frame-to-video mode: first image is the start frame, second image is the end frame"
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "modelKey": "gemini-3-pro-image-preview",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/gemini-3-pro/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "High-quality image generation, professional-grade image creation"
+      }
+    },
+    "i2i": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 14,
+          "source": "https://docs.apimart.ai/en/api-reference/images/gemini-3-pro/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Limit: Maximum 14 images"
+        }
+      }
+    }
+  }
+}

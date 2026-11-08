@@ -1,0 +1,26 @@
+{
+  "modelKey": "Omni-Flash-Ext",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports Text-to-Video, single-image Image-to-Video, reference video, and 3-reference-image fusion"
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference mode. image_urls can contain 1 or 3 images, used as reference images."
+        }
+      }
+    }
+  }
+}

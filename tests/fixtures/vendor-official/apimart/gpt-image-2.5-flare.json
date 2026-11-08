@@ -1,0 +1,26 @@
+{
+  "modelKey": "gpt-image-2.5-flare",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2.5/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-image and image editing with up to 16 reference images"
+      }
+    },
+    "i2i": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 16,
+          "source": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2.5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Up to 16 images are accepted"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "modelKey": "gemini-3.1-flash-image-preview",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/gemini-3.1-flash/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-image and image-to-image, up to 4K resolution output"
+      }
+    },
+    "edit": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 14,
+          "source": "https://docs.apimart.ai/en/api-reference/images/gemini-3.1-flash/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum 14 reference images"
+        }
+      }
+    }
+  }
+}

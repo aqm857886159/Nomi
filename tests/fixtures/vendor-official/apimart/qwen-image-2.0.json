@@ -1,0 +1,27 @@
+{
+  "modelKey": "qwen-image-2.0",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/qwen-image/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-image, image-to-image and other generation modes"
+      }
+    },
+    "edit": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": null,
+          "source": "https://docs.apimart.ai/en/api-reference/images/qwen-image/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference image URL array (image-to-image mode)"
+        }
+      },
+      "maxUnpublished": true
+    }
+  }
+}

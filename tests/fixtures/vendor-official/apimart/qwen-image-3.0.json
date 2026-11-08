@@ -1,0 +1,26 @@
+{
+  "modelKey": "qwen-image-3.0",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/qwen-image-3.0/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-image and image-to-image (1-3 reference images for editing)"
+      }
+    },
+    "edit": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/images/qwen-image-3.0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference image URL array (image-to-image / editing), 1-3 images"
+        }
+      }
+    }
+  }
+}

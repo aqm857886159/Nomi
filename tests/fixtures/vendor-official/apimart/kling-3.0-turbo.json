@@ -1,0 +1,26 @@
+{
+  "modelKey": "kling-3.0-turbo",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/kling-3.0-turbo/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Supports text-to-video and image-to-video (first-frame control)"
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/kling-3.0-turbo/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Supports an image URL or Base64."
+        }
+      }
+    }
+  }
+}
