@@ -1,22 +1,22 @@
 # 模式与比例的单一事实源
 
-类别：其他；纯修复，不增加界面、操作或执行能力。实现只删重复比较、扩充已有比例解析、替换消费者的解析和维护走查判据。三笔产品提交；本卡在实现前确定，按协调收窄更新。
+类别：其他；纯修复，不增加界面、操作或执行能力。实现只删重复比较、扩充已有比例解析和维护走查判据。三笔实施提交；本卡在实现前确定，按协调收窄更新。
 
 ## ★1 用户怎么用
 
 当创作者指定模式或画幅时，要让草稿、授权与请求保留这个意图。流程：说出目标 → Agent 从目录选模型与模式 → 宿主按模式定种类 → 语义比例落到真实参数 → 查看草稿/确认卡 → 授权后提交。真实任务：首尾帧生视频；火山 Seedream 2560×1440；只收冒号比例的模型生成 16:9。
 
-指标及量具：指定模式冲突拒收率，`mcpGenerationVideoResolve.test.ts` 重放十个历史形状，目标 0/10；Seedream 比例拒收率，`semanticAspectRatio.test.ts` 重放十二个历史形状，目标 0/12；请求体变化率，`officialWire.matrix.test.ts` 的 NOMI_OFFICIAL_WIRE_DUMP 逐格 JSON 对比，替换消费者后目标 0%；默认模型判据，`agent-default-model-real.test.mjs` 换序/删除反例与发送时序测试，目标全通过。真实模型遵从与 39 题评测未验证，由协调另跑。
+指标及量具：指定模式冲突拒收率，`mcpGenerationVideoResolve.test.ts` 重放十个历史形状，目标 0/10；Seedream 比例拒收率，`semanticAspectRatio.test.ts` 重放十二个历史形状，目标 0/12；请求体变化率，`officialWire.matrix.test.ts` 的 NOMI_OFFICIAL_WIRE_DUMP 逐格 JSON 对比，owner职责拆分后目标 0%；默认模型判据，`agent-default-model-real.test.mjs` 换序/删除反例与发送时序测试，目标全通过。真实模型遵从与 39 题评测未验证，由协调另跑。
 
 ★1b：现有 Agent 拒收出口中删掉 modeId 与 taskKind 冲突的两句英文；未知模式仍走原有问题码。其他界面文案不变。比例 owner 的消费者包含画布控件；本线不另做 Seedream 可见界面改版。
 
-★1c：不迁移或重写存量工程。旧草稿无 modeId 时保留 byId/byTask/推荐逻辑。旧节点迁移只换宽高解析，迁移条件、有限正数验证、既有显式比例优先保留。分镜几何保持自己的 slash/decimal 读取合同。
+★1c：不迁移或重写存量工程。旧草稿无 modeId 时保留 byId/byTask/推荐逻辑。旧节点迁移代码、条件、验证及既有显式比例优先均不改。分镜几何保持自己的 slash/decimal 读取合同。
 
 ## ★2 谁说了算
 
 模式事实 owner：`videoModeForPlan`；传输种类 owner：`modeTransportFor`。给 modeId 时不再比较第二份 taskKind。比例解析和宽高 owner：`electron/shared/aspectRatioValue.ts`；本刀仅扩充 owner，消费者的解析收口另列。
 
-`door-map` 主链 13 扇/20 处：mcpGenerationVideoResolve 的 videoModeForPlan；generationPlanPatch 与 mcpGenerationTools 的 normalizeAuthoredCandidate；semanticAspectRatio 与 aspectRatioValue 的 resolveAspectRatioChoice；aspectRatioValue 自读 parse/normalize；generationListMediaFacts、nodes/aspectRatio、parameterControlModel、NodeParameterControls、videoAspectSeed 读 parse/normalize。相同 owner 的多个读者不能合并为一个业务入口。
+`door-map` 主链修前13扇/20处，修后13扇/25处：mcpGenerationVideoResolve 的 videoModeForPlan；generationPlanPatch 与 mcpGenerationTools 的 normalizeAuthoredCandidate；semanticAspectRatio 的 resolveAspectRatioGeometryChoice、aspectRatioValue 的 resolveAspectRatioChoice / readAspectRatioGeometry；aspectRatioValue 自读 parse/normalize；generationListMediaFacts、nodes/aspectRatio、parameterControlModel、NodeParameterControls、videoAspectSeed 读 parse/normalize。相同 owner 的多个读者不能合并为一个业务入口。
 
 向上一跳：应用内 Agent 与外部 MCP 经 generationTransportAdapters / mcpGenerationTools 进入同一个 normalizeAuthoredCandidate；草稿补丁经 generationPlanPatch；Run 契约编译经 videoCompileOptions/videoModeForPlan。检索未找到另一处拿作者 taskKind 拒绝已选合法视频模式的比较；映射查找的 taskKind/modeId 是路由匹配，不是作者冲突拒收。
 
@@ -51,7 +51,7 @@
 2. 未给 modeId、只给 taskKind：byId/byTask 与推荐照旧；没有有效模式仍拒。
 3. 2560x1440、2560×1440、2560*1440：owner 解析相同；火山 Seedream 精确合法 size 原样保留；只收冒号的模型落 16:9。十二个历史 Seedream 比例拒收逐条重放。
 4. abcx、0x720、2560x、零/负数等非法形状不认且宿主拒收；冒号、全角冒号、说明后缀和 portrait_4_3 不变。slash/decimal owner 不认。
-5. 当前/默认像素同档与 several_sizes 行为保留；多个档位不自动跨档。合法选项外不任意写像素。
+5. 当前/默认像素同档与 several_sizes 行为保留；多个完全一致档位仍按原同档规则选择；只有一个完全一致档位时沿用原唯一候选规则，可与默认分辨率不同。合法选项外不任意写像素。
 6. 消费者均不改。owner 修改后 officialWire 与画布参数面板/meta 相关现有测试必须全绿，请求体与基线逐格零差异；有差异或画布测试红则不提交 owner，停下列差异和做法代价。
 7. 不在本刀：比例解析收口 + 守卫另列。守卫原稿、误报反例与 9 文件15处扫描结果离线封存，不提交；仓库仍有多份解析的限制明示。
 8. 默认模型从本次隔离目录及其默认设置读取，不依赖固定模型 id；换序不变、移除固定 id 后随目录选择；发送前卡不算，发送后读取节点付费卡；判据纯函数单测，付费脚本不跑。
