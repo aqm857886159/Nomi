@@ -31,8 +31,8 @@ import { flowItemGenerations } from '../pointer/generationReceiptFacts'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
 import { AGENT_HEADER_COMPACT_WIDTH, AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from '../../../ui/app-shell/shell/agentPanelHeaderSlot'
-import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
-import { IconDots } from '@tabler/icons-react'
+import { WorkbenchIconButton, WorkbenchMenu, type WorkbenchMenuNode } from '../../../design'
+import { IconArrowDown, IconDots } from '@tabler/icons-react'
 import type { V4QuestionReply } from './agentPanelV4Question'
 import { useV4Labels } from './agentPanelV4Labels'
 import type { ResidentSurface } from '../resident/residentShellDisplay'
@@ -447,6 +447,17 @@ export function AgentPanelV4Panel({
             {flowTail}
           </div>
         </div>
+        {/* 往上翻着读时才出现（ConversationJumpToLatest 板）：点一下回到最新一条并接着跟；回到底就消失。 */}
+        {stick.isAtBottom ? null : (
+          <WorkbenchIconButton
+            size="sm"
+            icon={<IconArrowDown />}
+            label={t('agentPanelV4.jumpToLatest')}
+            onClick={() => void scrollToBottom('instant')}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-nomi-line bg-nomi-paper text-nomi-ink-60 shadow-nomi-sm hover:bg-nomi-paper hover:text-nomi-ink"
+            data-v4-control="jump-latest"
+          />
+        )}
       </div>
       {slot ? (
         <div className="shrink-0 px-2.5 pb-2">
