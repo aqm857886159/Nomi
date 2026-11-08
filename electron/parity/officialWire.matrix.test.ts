@@ -20,10 +20,9 @@
  * 在 745b3c5b4 上，画布路双键的格子是 Seedance 2.0 首尾帧（1/2 张）、Seedance 2.5 首帧和首尾帧（1 张；2 张因 Run 路拒发先红在复现 1）、
  * Wan 3.0 首帧和首尾帧（1 张；2 张同理）、Wan 2.7 参考（1 张）；其余模式没有双键。这就是 known-red 里复现 3 的出处。
  */
+/// <reference types="vite/client" />
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { writeFileSync } from "node:fs";
 
 vi.mock("electron", async () => {
   const nodeFs = await import("node:fs");
@@ -49,9 +48,7 @@ import { resolveGenerationReferences } from "../../src/workbench/generationCanva
 import { placeUploadedImages } from "../../src/workbench/generationCanvas/nodes/controls/referenceList";
 import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog } from "./generationParityTestUtils";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const FIXTURE_DIR = path.resolve(HERE, "../../tests/fixtures/vendor-official/apimart");
-const KNOWN_RED_FILE = path.resolve(HERE, "officialWire.known-red.json");
+import knownRedTable from "./officialWire.known-red.json";
 
 type Fact = { source: string; fetchedAt: string; quote: string };
 type KeyFact = Fact & { shape: string; max: number | null; maxPlusN?: number; roles?: string[] };
@@ -73,15 +70,10 @@ type KnownRed = {
 const ASSERTIONS = ["officialKeys", "oneKeyPerUrl", "exclusivePairs", "roleEnum", "countCap", "samePath"] as const;
 type AssertionName = (typeof ASSERTIONS)[number];
 
-const fixtures = new Map<string, ModelFixture>(
-  readdirSync(FIXTURE_DIR)
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => {
-      const doc = JSON.parse(readFileSync(path.join(FIXTURE_DIR, f), "utf8")) as ModelFixture;
-      return [doc.modelKey, doc] as const;
-    }),
-);
-const knownRed = JSON.parse(readFileSync(KNOWN_RED_FILE, "utf8")) as KnownRed;
+// 官方夹具目录：tests/fixtures/vendor-official/apimart/*.json（新增夹具文件自动进来）。
+const fixtureModules = import.meta.glob<{ default: ModelFixture }>("../../tests/fixtures/vendor-official/apimart/*.json", { eager: true });
+const fixtures = new Map<string, ModelFixture>(Object.values(fixtureModules).map((m) => [m.default.modelKey, m.default] as const));
+const knownRed = knownRedTable as KnownRed;
 
 const REF_KEY_RE = /^(image_urls|image_with_roles|first_frame_image|last_frame_image|video_urls|audio_urls|input_urls|image|images|mask(_.*)?|reference_.*|ref_.*)$/;
 const REF = "https://assets.example.com/ref/";
@@ -167,6 +159,9 @@ function judgeBody(body: Record<string, unknown>, mode: ModeFact, n: number): Vi
   return out;
 }
 
+type Archetype = ReturnType<typeof specializeArchetypeForVendor>;
+type Mode = Archetype["modes"][number];
+
 type Cell = {
   id: string;
   modelKey: string;
@@ -177,7 +172,7 @@ type Cell = {
 };
 
 function buildCells() {
-  const cells: Array<{ cell: Cell; row: (typeof catalog.models)[number]; mode: any; archetype: any }> = [];
+  const cells: Array<{ cell: Cell; row: (typeof catalog.models)[number]; mode: Mode; archetype: Archetype }> = [];
   const rows = catalog.models.filter((m) => m.vendorKey === "apimart" && (m.kind === "video" || m.kind === "image"));
   for (const row of rows) {
     const archId = videoArchetypeIdFromMeta(row.meta) ?? (row.meta as { archetypeId?: string } | null)?.archetypeId;
