@@ -158,3 +158,5 @@
 ## 拆分后回归收据
 
 实现 HEAD `6ee0469cdfb2f1b2df9eac3a7c0d3351817fa2f3`：类型检查 5 份全过；点名 5 文件 97/97；整个 lane 相关 vitest 290 条通过、1 条跳过；agent-runtime 513/513。均为本轮实际运行结果。
+
+原参数失败走查：中英轨均通过，3 次拒收后收尾，本机文字夹具请求 4 次、媒体请求 0；收据 `docs/evidence/2026-11-09-agent-turn-budget/boundary-summary.json`。

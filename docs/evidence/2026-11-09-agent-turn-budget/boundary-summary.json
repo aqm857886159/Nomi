@@ -1,0 +1,14 @@
+{
+  "implementationHead": "6ee0469cdfb2f1b2df9eac3a7c0d3351817fa2f3",
+  "result": "passed",
+  "textRequests": 4,
+  "imageRequests": 0,
+  "paidCalls": 0,
+  "toolCalls": 3,
+  "nodes": 0,
+  "screenshots": [
+    "boundary-zh-row.png",
+    "boundary-zh-expanded.png",
+    "boundary-en-row.png"
+  ]
+}
