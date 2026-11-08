@@ -12,6 +12,10 @@
   },
   "write_api": [
     {
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "applyHeadlessParamDefaults"
+    },
+    {
       "path": "electron/shared/modelArchetypes/referenceKeys.ts",
       "symbol": "referenceKeyCapacityDeclarationFor"
     },
