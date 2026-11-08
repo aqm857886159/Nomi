@@ -8,7 +8,16 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/videos/grok-imagine/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "High-quality AI video generation, supports text-to-video and image-to-video"
+        "quote": "High-quality AI video generation, supports text-to-video and image-to-video",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/grok-imagine/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"grok-imagine-1.5-video-ext\",\n  \"prompt\": \"A dog running on the beach, sunny weather, slow motion\",\n  \"size\": \"16:9\",\n  \"duration\": 6\n}"
+          }
+        ]
       }
     },
     "i2v": {

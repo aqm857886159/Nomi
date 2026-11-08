@@ -8,7 +8,16 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "Supports Text-to-Video, single-image Image-to-Video, reference video, and 3-reference-image fusion"
+        "quote": "Supports Text-to-Video, single-image Image-to-Video, reference video, and 3-reference-image fusion",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"gemini-omni-1.1-flash-ext\",\n  \"prompt\": \"a beautiful sunset over the ocean with seagulls flying\",\n  \"duration\": 6,\n  \"resolution\": \"720p\",\n  \"aspect_ratio\": \"16:9\"\n}"
+          }
+        ]
       }
     },
     "i2v": {
@@ -18,8 +27,95 @@
           "max": 3,
           "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
           "fetchedAt": "2026-11-08",
-          "quote": "Reference mode. image_urls can contain 1 or 3 images, used as reference images."
+          "quote": "Reference mode. image_urls can contain 1 or 3 images, used as reference images.",
+          "allowedCounts": {
+            "values": [
+              1,
+              3
+            ],
+            "cases": [
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "frame"
+                },
+                "values": [
+                  1
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "generation_type is frame: only 1 image can be uploaded."
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "You can omit it, provide 1 image, or provide 3 images, depending on generation_type:"
+          },
+          "meaning": {
+            "roles": [
+              "first_frame"
+            ],
+            "cases": [
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "reference"
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "Reference mode. image_urls can contain 1 or 3 images, used as reference images."
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "1 image: single-image Image-to-Video"
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 1,
+          "exercised": false,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference video URL array. You can omit it or provide 1 reference video."
         }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "video_urls"
+          ],
+          "b": [
+            "duration"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "video_urls and duration cannot be passed at the same time."
+        }
+      ],
+      "discriminators": [
+        {
+          "key": "generation_type",
+          "values": [
+            "frame",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Generation type, used to specify how the images are used."
+        }
+      ],
+      "intent": {
+        "roles": [
+          "first_frame",
+          "reference_image"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/omni-flash-ext/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "single-image Image-to-Video, reference video, and 3-reference-image fusion"
       }
     }
   }

@@ -8,7 +8,16 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/images/qwen-image/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "Supports text-to-image, image-to-image and other generation modes"
+        "quote": "Supports text-to-image, image-to-image and other generation modes",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/images/qwen-image/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"qwen-image-2.0\",\n  \"prompt\": \"A cute orange cat napping in the sunshine\"\n}"
+          }
+        ]
       }
     },
     "edit": {
@@ -23,5 +32,6 @@
       },
       "maxUnpublished": true
     }
-  }
+  },
+  "scope": "Official documentation does not publish the input image count limit. Capacity is unverified."
 }

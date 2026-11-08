@@ -8,7 +8,9 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/images/gemini-3-pro/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "High-quality image generation, professional-grade image creation"
+        "quote": "For text-to-image, when size is auto, the default is 1:1 or 16:9; for image-to-image, the aspect ratio follows the upstream response.",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint."
       }
     },
     "i2i": {

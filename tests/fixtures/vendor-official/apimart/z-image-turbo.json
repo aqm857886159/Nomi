@@ -8,7 +8,9 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/images/z-image-turbo/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "Lightweight and fast image generation, supports Chinese and English"
+        "quote": "Basic Text-to-Image (minimal request)",
+        "evidenceLevel": "documentation-omission",
+        "interpretation": "This page does not document direct reference inputs; does not establish server rejection."
       }
     }
   }

@@ -8,7 +8,16 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "Supports text-to-image, single-image-to-image, and multi-reference image-to-image (up to 10 reference images)"
+        "quote": "Supports text-to-image, single-image-to-image, and multi-reference image-to-image (up to 10 reference images)",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-0-pro/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"seedream-5-0-pro\",\n  \"prompt\": \"Cyberpunk city night scene, neon reflections on wet streets\",\n  \"resolution\": \"2K\",\n  \"size\": \"2:1\",\n  \"output_format\": \"png\"\n}"
+          }
+        ]
       }
     },
     "edit": {
@@ -22,5 +31,6 @@
         }
       }
     }
-  }
+  },
+  "scope": "background transparency and layer_decomposition input constraints are not exercised by this matrix; no claim of complete conditional input coverage."
 }

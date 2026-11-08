@@ -8,7 +8,16 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-hailuo-2.3/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "Supports text-to-video, image-to-video (first frame image)"
+        "quote": "Supports text-to-video, image-to-video (first frame image)",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-hailuo-2.3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"MiniMax-Hailuo-2.3\",\n  \"prompt\": \"[推进]A cat running in the garden, camera slowly pushing in for a close-up\"\n}"
+          }
+        ]
       }
     },
     "i2v": {

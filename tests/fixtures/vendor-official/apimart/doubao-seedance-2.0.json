@@ -8,7 +8,16 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "Supports text-to-video, image-to-video (first frame/last frame)"
+        "quote": "Supports text-to-video, image-to-video (first frame/last frame)",
+        "evidenceLevel": "text-only-example",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"seedance-2.0\",\n  \"prompt\": \"A kitten yawning at the camera\",\n  \"resolution\": \"720p\",\n  \"size\": \"16:9\",\n  \"duration\": 5,\n  \"seed\": 42,\n  \"generate_audio\": true\n}"
+          }
+        ]
       }
     },
     "i2v": {
@@ -30,7 +39,32 @@
           ],
           "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
           "fetchedAt": "2026-11-08",
-          "quote": "Image array with roles, supports specifying first frame/last frame"
+          "quote": "Image array with roles, supports specifying first frame/last frame",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame - First frame image, used as the video's starting frame"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame - Last frame image, used as the video's ending frame"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image - Reference portrait image (used with Asset URL)"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Image role"
+          }
         }
       },
       "exclusive": [
@@ -44,6 +78,34 @@
           "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
           "fetchedAt": "2026-11-08",
           "quote": "image_urls and image_with_roles cannot be used simultaneously"
+        },
+        {
+          "a": [
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "video_urls",
+            "audio_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When using first/last frame images, video_urls and audio_urls are not available"
+        }
+      ],
+      "requires": [
+        {
+          "when": [
+            "audio_urls"
+          ],
+          "anyOf": [
+            "image_urls",
+            "role:reference_image",
+            "video_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference audio must be used together with reference images or reference videos"
         }
       ]
     },
@@ -66,7 +128,32 @@
           ],
           "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
           "fetchedAt": "2026-11-08",
-          "quote": "Image array with roles, supports specifying first frame/last frame"
+          "quote": "Image array with roles, supports specifying first frame/last frame",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame - First frame image, used as the video's starting frame"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame - Last frame image, used as the video's ending frame"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image - Reference portrait image (used with Asset URL)"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Image role"
+          }
         },
         "video_urls": {
           "shape": "string[]",
@@ -94,6 +181,34 @@
           "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
           "fetchedAt": "2026-11-08",
           "quote": "image_urls and image_with_roles cannot be used simultaneously"
+        },
+        {
+          "a": [
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "video_urls",
+            "audio_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When using first/last frame images, video_urls and audio_urls are not available"
+        }
+      ],
+      "requires": [
+        {
+          "when": [
+            "audio_urls"
+          ],
+          "anyOf": [
+            "image_urls",
+            "role:reference_image",
+            "video_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference audio must be used together with reference images or reference videos"
         }
       ]
     },
@@ -116,7 +231,32 @@
           ],
           "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
           "fetchedAt": "2026-11-08",
-          "quote": "Image array with roles, supports specifying first frame/last frame"
+          "quote": "Image array with roles, supports specifying first frame/last frame",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "first_frame - First frame image, used as the video's starting frame"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "last_frame - Last frame image, used as the video's ending frame"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference_image - Reference portrait image (used with Asset URL)"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Image role"
+          }
         }
       },
       "exclusive": [
@@ -130,6 +270,34 @@
           "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
           "fetchedAt": "2026-11-08",
           "quote": "image_urls and image_with_roles cannot be used simultaneously"
+        },
+        {
+          "a": [
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "video_urls",
+            "audio_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When using first/last frame images, video_urls and audio_urls are not available"
+        }
+      ],
+      "requires": [
+        {
+          "when": [
+            "audio_urls"
+          ],
+          "anyOf": [
+            "image_urls",
+            "role:reference_image",
+            "video_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference audio must be used together with reference images or reference videos"
         }
       ]
     }

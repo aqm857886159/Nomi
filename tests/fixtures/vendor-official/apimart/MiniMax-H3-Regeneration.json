@@ -8,7 +8,9 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/regeneration",
         "fetchedAt": "2026-11-08",
-        "quote": "Prefer source_task_id only; the platform auto-fills prompt, media, and source video"
+        "quote": "Prefer source_task_id only; the platform auto-fills prompt, media, and source video",
+        "evidenceLevel": "documentation-omission",
+        "interpretation": "This page does not document direct reference inputs; does not establish server rejection."
       }
     }
   }

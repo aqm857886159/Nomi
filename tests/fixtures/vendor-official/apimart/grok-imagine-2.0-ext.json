@@ -8,7 +8,9 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/images/grok-imagine-2.0-ext/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "Async text-to-image; poll with task_id"
+        "quote": "image_urls / image_with_roles | 400 invalid_image_input",
+        "evidenceLevel": "explicit-rejection",
+        "interpretation": "Endpoint explicitly rejects reference images."
       }
     },
     "i2i": {
@@ -17,7 +19,9 @@
       "noReference": {
         "source": "https://docs.apimart.ai/en/api-reference/images/grok-imagine-2.0-ext/generation",
         "fetchedAt": "2026-11-08",
-        "quote": "URL output only; no image-to-image / streaming"
+        "quote": "image_urls / image_with_roles | 400 invalid_image_input",
+        "evidenceLevel": "explicit-rejection",
+        "interpretation": "Endpoint explicitly rejects reference images."
       }
     }
   }

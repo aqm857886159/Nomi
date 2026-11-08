@@ -4,15 +4,16 @@
  *
  * 标尺：tests/fixtures/vendor-official/apimart/<modelKey>.json（每条事实带官方原句 quote、来源页 source、抓取日 fetchedAt）。
  * 矩阵：每个内置 APIMart 图片/视频模型 × 原型模式 × 两条路 × 参考图数 {0, 1, 每槽上限合计}。
- * 六条断言：
+ * 官方协议断言：
  *   officialKeys    参考相关的键都是官方文档里有的键，参考图没被悄悄丢掉
  *   oneKeyPerUrl    同一张参考图只出现在一个键里
  *   exclusivePairs  官方说互斥的两组键不同时出现
  *   roleEnum        image_with_roles 里的 role 取值在官方枚举内
  *   countCap        每个键的张数不超过官方上限（含「张数 + n ≤ 15」这类联合上限）
+ *   shape / modeMeaning / dependencies  字段形状、模式语义及依赖
  *   samePath        画布和 Run 两条路发出的请求体一致（同拒也算一致）
  *
- * 今天红的格子写在 officialWire.known-red.json（只许减不许增）：
+ * 已知红格在 officialWire.known-red.json，按结构化原因及出现次数双向冻结：
  * 表里有但这格其实绿了，同样判红——修好一格就必须同提交把它从表里删掉。
  * 本片只加测试，不改生产代码。
  *
@@ -50,115 +51,22 @@ import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog } fr
 
 import knownRedTable from "./officialWire.known-red.json";
 
-type Fact = { source: string; fetchedAt: string; quote: string };
-type KeyFact = Fact & { shape: string; max: number | null; maxPlusN?: number; roles?: string[] };
-type ModeFact = {
-  why?: string;
-  noReference?: Fact;
-  referenceKeys: Record<string, KeyFact>;
-  exclusive?: Array<Fact & { a: string[]; b: string[] }>;
-  oneImage?: Fact & { key: string; meaning: string };
-  wireModel?: string;
-  maxUnpublished?: boolean;
-};
-type ModelFixture = { modelKey: string; fetchedAt: string; modes: Record<string, ModeFact> };
+import { ASSERTIONS, judgeBody, judgePaths, isRefused, reasonSignatures, type Fact, type ModeFact, type ModelFixture, type Violation, type Wire } from "./officialWire.judge";
 type KnownRed = {
   repros: Record<string, string>;
-  cells: Array<{ cell: string; assertion: string; repro: number }>;
+  cells: Array<{ cell: string; assertion: string; repro: number | string; reason: Record<string, unknown> }>;
 };
-
-const ASSERTIONS = ["officialKeys", "oneKeyPerUrl", "exclusivePairs", "roleEnum", "countCap", "samePath"] as const;
-type AssertionName = (typeof ASSERTIONS)[number];
 
 // 官方夹具目录：tests/fixtures/vendor-official/apimart/*.json（新增夹具文件自动进来）。
 const fixtureModules = import.meta.glob<{ default: ModelFixture }>("../../tests/fixtures/vendor-official/apimart/*.json", { eager: true });
 const fixtures = new Map<string, ModelFixture>(Object.values(fixtureModules).map((m) => [m.default.modelKey, m.default] as const));
 const knownRed = knownRedTable as KnownRed;
 
-const REF_KEY_RE = /^(image_urls|image_with_roles|first_frame_image|last_frame_image|video_urls|audio_urls|input_urls|image|images|mask(_.*)?|reference_.*|ref_.*)$/;
 const REF = "https://assets.example.com/ref/";
 const refUrl = (i: number) => `${REF}img-${i}.png`;
-
 const capture = installFetchCapture();
 const catalog = await seedParityCatalog(["apimart"]);
 afterAll(() => capture.restore());
-
-type Wire = Record<string, unknown> | string | null | undefined;
-const isRefused = (w: Wire): boolean => !(w && typeof w === "object" && "model" in w);
-
-/** 一个键里装了哪些参考图 URL（按出现顺序）。 */
-function urlsOfKey(value: unknown): string[] {
-  if (typeof value === "string") return [value];
-  if (!Array.isArray(value)) return [];
-  return value.map((v) => (typeof v === "string" ? v : (v as { url?: string })?.url)).filter((u): u is string => typeof u === "string");
-}
-
-type Violation = { assertion: AssertionName; detail: string };
-
-function judgeBody(body: Record<string, unknown>, mode: ModeFact, n: number): Violation[] {
-  const out: Violation[] = [];
-  const present = Object.keys(body).filter((k) => REF_KEY_RE.test(k) && urlsOfKey(body[k]).length + (Array.isArray(body[k]) ? 0 : 1) > 0);
-  const official = mode.referenceKeys;
-
-  // 1 officialKeys
-  for (const k of present) {
-    if (!(k in official)) out.push({ assertion: "officialKeys", detail: `发了官方页没有的参考键 ${k}` });
-  }
-  if (mode.wireModel && body.model !== mode.wireModel) {
-    out.push({ assertion: "officialKeys", detail: `官方页要求 model=${mode.wireModel}，实发 ${String(body.model)}` });
-  }
-  const placed = new Set(present.flatMap((k) => urlsOfKey(body[k])));
-  const officialTotal = Object.values(official).reduce((s, f) => s + (f.max ?? 99), 0);
-  if (Object.keys(official).length > 0 && n > 0 && placed.size < Math.min(n, officialTotal)) {
-    out.push({ assertion: "officialKeys", detail: `${n} 张参考图只带出 ${placed.size} 张` });
-  }
-  if (mode.oneImage && n === 1 && !urlsOfKey(body[mode.oneImage.key]).includes(refUrl(1))) {
-    out.push({ assertion: "officialKeys", detail: `官方页说单图走 ${mode.oneImage.key}，实际不在里面` });
-  }
-
-  // 2 oneKeyPerUrl
-  const seen = new Map<string, string[]>();
-  for (const k of present) for (const u of urlsOfKey(body[k])) seen.set(u, [...(seen.get(u) ?? []), k]);
-  for (const [u, keys] of seen) {
-    if (keys.length > 1) out.push({ assertion: "oneKeyPerUrl", detail: `${u.replace(REF, "")} 同时出现在 ${keys.join(" + ")}` });
-  }
-
-  // 3 exclusivePairs
-  for (const pair of mode.exclusive ?? []) {
-    const hitA = pair.a.filter((k) => present.includes(k));
-    const hitB = pair.b.filter((k) => present.includes(k));
-    if (hitA.length && hitB.length) {
-      out.push({ assertion: "exclusivePairs", detail: `官方说互斥的 ${hitA.join(",")} 与 ${hitB.join(",")} 同时出现` });
-    }
-  }
-
-  // 4 roleEnum
-  for (const k of present) {
-    const fact = official[k];
-    if (!fact?.roles || !Array.isArray(body[k])) continue;
-    for (const item of body[k] as Array<{ role?: string }>) {
-      if (item && typeof item === "object" && !fact.roles.includes(String(item.role))) {
-        out.push({ assertion: "roleEnum", detail: `role「${String(item.role)}」不在官方枚举 ${fact.roles.join("/")}` });
-      }
-    }
-  }
-
-  // 5 countCap
-  for (const k of present) {
-    const fact = official[k];
-    if (!fact) continue;
-    const count = urlsOfKey(body[k]).length;
-    if (fact.max !== null && count > fact.max) out.push({ assertion: "countCap", detail: `${k} 发了 ${count} 张，官方上限 ${fact.max}` });
-    if (fact.maxPlusN !== undefined) {
-      const wantedImages = typeof body.n === "number" ? body.n : 1;
-      if (count + wantedImages > fact.maxPlusN) {
-        out.push({ assertion: "countCap", detail: `${k} ${count} 张 + n=${wantedImages} 超过官方联合上限 ${fact.maxPlusN}` });
-      }
-    }
-  }
-  return out;
-}
-
 type Archetype = ReturnType<typeof specializeArchetypeForVendor>;
 type Mode = Archetype["modes"][number];
 
@@ -260,30 +168,21 @@ async function runCatalog(entry: ReturnType<typeof buildCells>[number]): Promise
 
 function judgeCell(entry: ReturnType<typeof buildCells>[number], canvas: Wire, run: Wire): Violation[] {
   const fx = fixtures.get(entry.cell.modelKey)?.modes[entry.cell.modeId];
-  if (!fx) return [{ assertion: "officialKeys", detail: "没有官方夹具" }];
+  if (!fx) return [{ assertion: "officialKeys", reason: { key: "fixture" }, detail: "没有官方夹具" }];
   const out: Violation[] = [];
   for (const [label, wire] of [["画布", canvas], ["Run", run]] as const) {
     if (isRefused(wire)) continue;
-    out.push(...judgeBody(wire as Record<string, unknown>, fx.noReference ? { referenceKeys: {} } : fx, entry.cell.n).map((v) => ({ ...v, detail: `${label}：${v.detail}` })));
+    out.push(...judgeBody(wire as Record<string, unknown>, fx.noReference ? { referenceKeys: {} } : fx, entry.cell.n).map((v) => ({ ...v, reason: { path: label === "画布" ? "canvas" : "run", ...v.reason }, detail: `${label}：${v.detail}` })));
   }
-  const refusedC = isRefused(canvas);
-  const refusedR = isRefused(run);
-  if (refusedC !== refusedR) {
-    out.push({ assertion: "samePath", detail: `${refusedC ? "画布拒发" : "Run 拒发"}，另一条路发出去了` });
-  } else if (!refusedC && JSON.stringify(canvas) !== JSON.stringify(run)) {
-    const c = canvas as Record<string, unknown>;
-    const r = run as Record<string, unknown>;
-    const diff = [...new Set([...Object.keys(c), ...Object.keys(r)])].filter((k) => JSON.stringify(c[k]) !== JSON.stringify(r[k]));
-    out.push({ assertion: "samePath", detail: `两条路请求体不同：${diff.join(", ")}` });
-  }
+  out.push(...judgePaths(canvas, run));
   return out;
 }
 
 const cells = buildCells();
 const dumpPath = process.env.NOMI_OFFICIAL_WIRE_DUMP;
-const dump: Array<{ cell: string; violations: Violation[] }> = [];
-const redByCell = new Map<string, string[]>();
-for (const r of knownRed.cells) redByCell.set(r.cell, [...(redByCell.get(r.cell) ?? []), r.assertion]);
+const dump: Array<{ cell: string; violations: Violation[]; canvas: Wire; run: Wire }> = [];
+const redByCell = new Map<string, typeof knownRed.cells>();
+for (const r of knownRed.cells) redByCell.set(r.cell, [...(redByCell.get(r.cell) ?? []), r]);
 
 describe("官方字段矩阵：夹具", () => {
   it("每个内置 APIMart 图片/视频模型和每个原型模式都有官方夹具，夹具里没有多余模式", () => {
@@ -301,25 +200,31 @@ describe("官方字段矩阵：夹具", () => {
 
   it("每条官方事实都有官方页地址、抓取日期和原句", () => {
     const bad: string[] = [];
-    const check = (where: string, f: Partial<Fact> | undefined) => {
-      if (!f || !/^https:\/\/docs\.apimart\.ai\//.test(f.source ?? "") || !/^\d{4}-\d{2}-\d{2}$/.test(f.fetchedAt ?? "") || !(f.quote ?? "").trim()) bad.push(where);
+    const factProperties = new Set(["noReference", "meaning", "aliases", "allowedCounts", "requiredFields", "intent", "oneImage", "outputCountKeys", "defaultRole", "advisory"]);
+    const factArrays = new Set(["exclusive", "requires", "jointCaps", "roleCaps", "discriminators", "cases", "evidence"]);
+    const check = (where: string, value: unknown, required = false): void => {
+      if (!value || typeof value !== "object") return;
+      if (required || "quote" in value) {
+        const f = value as Fact;
+        if (!/^https:\/\/docs\.apimart\.ai\//.test(f.source ?? "") || !/^\d{4}-\d{2}-\d{2}$/.test(f.fetchedAt ?? "") || !(f.quote ?? "").trim()) bad.push(where);
+      }
+      for (const [k, v] of Object.entries(value)) {
+        if ((k === "referenceKeys" || k === "children") && v && typeof v === "object") {
+          for (const [name, f] of Object.entries(v)) check(`${where}/${k}/${name}`, f, true);
+        } else if (factArrays.has(k) && Array.isArray(v)) v.forEach((f, i) => check(`${where}/${k}/${i}`, f, true));
+        else check(`${where}/${k}`, v, factProperties.has(k));
+      }
     };
     for (const fx of fixtures.values()) {
-      for (const [modeId, mode] of Object.entries(fx.modes)) {
-        const base = `${fx.modelKey}/${modeId}`;
-        if (mode.noReference) check(`${base}/noReference`, mode.noReference);
-        else if (Object.keys(mode.referenceKeys).length === 0) bad.push(`${base}: 既无参考键也没声明不带参考`);
-        for (const [k, f] of Object.entries(mode.referenceKeys)) check(`${base}/${k}`, f);
-        (mode.exclusive ?? []).forEach((f, i) => check(`${base}/exclusive[${i}]`, f));
-        if (mode.oneImage) check(`${base}/oneImage`, mode.oneImage);
-      }
+      check(fx.modelKey, fx);
+      for (const [modeId, mode] of Object.entries(fx.modes)) if (!mode.noReference && Object.keys(mode.referenceKeys).length === 0) bad.push(`${fx.modelKey}/${modeId}: 既无参考键也没声明不带参考`);
     }
     expect(bad).toEqual([]);
   });
 
-  it("known-red 表里每条的复现编号都登记过，且不指向不存在的格子", () => {
+  it("known-red 表里每条的复现编号都登记过，且有原因特征、不指向不存在的格子", () => {
     const ids = new Set(cells.map((c) => c.cell.id));
-    const bad = knownRed.cells.filter((r) => !knownRed.repros[String(r.repro)] || !ids.has(r.cell) || !(ASSERTIONS as readonly string[]).includes(r.assertion));
+    const bad = knownRed.cells.filter((r) => !knownRed.repros[String(r.repro)] || !ids.has(r.cell) || !(ASSERTIONS as readonly string[]).includes(r.assertion) || !r.reason || Object.keys(r.reason).length === 0);
     expect(bad).toEqual([]);
   });
 
@@ -347,14 +252,8 @@ describe("官方字段矩阵：模型 × 模式 × 两条路 × 参考图数", (
       const canvas = await runCanvas(entry);
       const run = await runCatalog(entry);
       const violations = judgeCell(entry, canvas, run);
-      if (dumpPath) dump.push({ cell: entry.cell.id, violations });
-      const actual = [...new Set(violations.map((v) => v.assertion))].sort();
-      const expected = [...new Set(redByCell.get(entry.cell.id) ?? [])].sort();
-      if (expected.length === 0) {
-        expect(violations, "这格应该绿；红的原因见 detail").toEqual([]);
-      } else {
-        expect(actual, `known-red 登记的红断言和实际不一致（修好了就从 officialWire.known-red.json 删掉；多红了不许新增）\n${violations.map((v) => `${v.assertion}: ${v.detail}`).join("\n")}`).toEqual(expected);
-      }
+      if (dumpPath) dump.push({ cell: entry.cell.id, violations, canvas, run });
+      expect(reasonSignatures(violations), `known-red 原因特征必须逐项相符；消失、新增或同名换因都要更新经复核的登记\n${violations.map((v) => `${v.assertion}: ${v.detail}`).join("\n")}`).toEqual(reasonSignatures(redByCell.get(entry.cell.id) ?? []));
     }, 60_000);
   }
 });
