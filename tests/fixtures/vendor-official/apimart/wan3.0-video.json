@@ -1,0 +1,800 @@
+{
+  "modelKey": "wan3.0-video",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Text-to-video | prompt only",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"wan3.0-video\",\n  \"prompt\": \"A kitten runs across a moonlit rooftop, neon lights of the city flicker in the distance, cinematic quality, smooth camera move.\",\n  \"resolution\": \"720P\",\n  \"size\": \"16:9\",\n  \"duration\": 5\n}"
+          }
+        ]
+      }
+    },
+    "first": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First / last frame | ≤ 1 each",
+          "meaning": {
+            "roles": [
+              "first_frame",
+              "last_frame"
+            ],
+            "cases": [
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "reference"
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If generation_type is set → use it (frame / reference)",
+                "max": 10
+              },
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "frame"
+                },
+                "roles": [
+                  "first_frame",
+                  "last_frame"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If generation_type is set → use it (frame / reference)",
+                "max": 2
+              },
+              {
+                "when": {
+                  "anyPresent": [
+                    "video_urls",
+                    "audio_urls",
+                    "audio_url",
+                    "file_url",
+                    "link_url"
+                  ]
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "Else if the request already has reference-family inputs (video_urls / audio_urls / audio_url / file_url / link_url) → treat as reference_image",
+                "max": 10
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Else → frame family: first item first_frame, second last_frame (same as wan2.7)",
+            "max": 2
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": 1,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "role: first_frame / last_frame / reference_image (common aliases accepted)",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "First / last frame | ≤ 1 each"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "Reference images | ≤ 10"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "role: first_frame / last_frame / reference_image (common aliases accepted)"
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference videos, up to 5 clips; each 1–15s, total ≤ 15s",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference family"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference audio, up to 5 clips; each 1–15s, total ≤ 15s",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference family"
+          }
+        },
+        "audio_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Single reference audio (single-value form of audio_urls)"
+          },
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Single reference audio (single-value form of audio_urls)"
+        },
+        "file_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "file"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference document URL, at most 1."
+          },
+          "exercised": false,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference document URL, at most 1."
+        },
+        "link_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "link"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Public web page URL, at most 1."
+          },
+          "exercised": false,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Public web page URL, at most 1."
+        }
+      },
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First / last frame | ≤ 1 each"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First / last frame | ≤ 1 each"
+        },
+        {
+          "role": "reference_image",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference images | ≤ 10"
+        }
+      ],
+      "exclusive": [
+        {
+          "a": [
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "role:reference_image",
+            "video_urls",
+            "audio_urls",
+            "audio_url",
+            "file_url",
+            "link_url"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Media belongs to one of two families and must not be mixed"
+        },
+        {
+          "a": [
+            "file_url"
+          ],
+          "b": [
+            "link_url"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Cannot be combined with link_url."
+        }
+      ],
+      "intent": {
+        "roles": [
+          "first_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Strict first / last frame of the video"
+      },
+      "discriminators": [
+        {
+          "key": "generation_type",
+          "values": [
+            "frame",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "frame — first/last frame family",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference — reference family"
+            }
+          ]
+        }
+      ]
+    },
+    "firstlast": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 2,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First / last frame | ≤ 1 each",
+          "meaning": {
+            "roles": [
+              "first_frame",
+              "last_frame"
+            ],
+            "cases": [
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "reference"
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If generation_type is set → use it (frame / reference)",
+                "max": 10
+              },
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "frame"
+                },
+                "roles": [
+                  "first_frame",
+                  "last_frame"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If generation_type is set → use it (frame / reference)",
+                "max": 2
+              },
+              {
+                "when": {
+                  "anyPresent": [
+                    "video_urls",
+                    "audio_urls",
+                    "audio_url",
+                    "file_url",
+                    "link_url"
+                  ]
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "Else if the request already has reference-family inputs (video_urls / audio_urls / audio_url / file_url / link_url) → treat as reference_image",
+                "max": 10
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Else → frame family: first item first_frame, second last_frame (same as wan2.7)",
+            "max": 2
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": 2,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "role: first_frame / last_frame / reference_image (common aliases accepted)",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "First / last frame | ≤ 1 each"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "Reference images | ≤ 10"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "role: first_frame / last_frame / reference_image (common aliases accepted)"
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference videos, up to 5 clips; each 1–15s, total ≤ 15s",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference family"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference audio, up to 5 clips; each 1–15s, total ≤ 15s",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference family"
+          }
+        },
+        "audio_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Single reference audio (single-value form of audio_urls)"
+          },
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Single reference audio (single-value form of audio_urls)"
+        },
+        "file_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "file"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference document URL, at most 1."
+          },
+          "exercised": false,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference document URL, at most 1."
+        },
+        "link_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "link"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Public web page URL, at most 1."
+          },
+          "exercised": false,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Public web page URL, at most 1."
+        }
+      },
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First / last frame | ≤ 1 each"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First / last frame | ≤ 1 each"
+        },
+        {
+          "role": "reference_image",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference images | ≤ 10"
+        }
+      ],
+      "exclusive": [
+        {
+          "a": [
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "role:reference_image",
+            "video_urls",
+            "audio_urls",
+            "audio_url",
+            "file_url",
+            "link_url"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Media belongs to one of two families and must not be mixed"
+        },
+        {
+          "a": [
+            "file_url"
+          ],
+          "b": [
+            "link_url"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Cannot be combined with link_url."
+        }
+      ],
+      "intent": {
+        "roles": [
+          "first_frame",
+          "last_frame"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Strict first / last frame of the video"
+      },
+      "discriminators": [
+        {
+          "key": "generation_type",
+          "values": [
+            "frame",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "frame — first/last frame family",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference — reference family"
+            }
+          ]
+        }
+      ]
+    },
+    "ref": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference images | ≤ 10",
+          "meaning": {
+            "roles": [
+              "first_frame",
+              "last_frame"
+            ],
+            "cases": [
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "reference"
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If generation_type is set → use it (frame / reference)",
+                "max": 10
+              },
+              {
+                "when": {
+                  "key": "generation_type",
+                  "equals": "frame"
+                },
+                "roles": [
+                  "first_frame",
+                  "last_frame"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "If generation_type is set → use it (frame / reference)",
+                "max": 2
+              },
+              {
+                "when": {
+                  "anyPresent": [
+                    "video_urls",
+                    "audio_urls",
+                    "audio_url",
+                    "file_url",
+                    "link_url"
+                  ]
+                },
+                "roles": [
+                  "reference_image"
+                ],
+                "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+                "fetchedAt": "2026-11-08",
+                "quote": "Else if the request already has reference-family inputs (video_urls / audio_urls / audio_url / file_url / link_url) → treat as reference_image",
+                "max": 10
+              }
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Else → frame family: first item first_frame, second last_frame (same as wan2.7)",
+            "max": 2
+          }
+        },
+        "image_with_roles": {
+          "shape": "role-array",
+          "max": 10,
+          "roles": [
+            "first_frame",
+            "last_frame",
+            "reference_image"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "role: first_frame / last_frame / reference_image (common aliases accepted)",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "First / last frame | ≤ 1 each"
+            },
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "Reference images | ≤ 10"
+            }
+          ],
+          "meaning": {
+            "roles": [
+              "$role"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "role: first_frame / last_frame / reference_image (common aliases accepted)"
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference videos, up to 5 clips; each 1–15s, total ≤ 15s",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference family"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 5,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference audio, up to 5 clips; each 1–15s, total ≤ 15s",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference family"
+          }
+        },
+        "audio_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Single reference audio (single-value form of audio_urls)"
+          },
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Single reference audio (single-value form of audio_urls)"
+        },
+        "file_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "file"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference document URL, at most 1."
+          },
+          "exercised": false,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference document URL, at most 1."
+        },
+        "link_url": {
+          "shape": "string",
+          "max": 1,
+          "meaning": {
+            "roles": [
+              "link"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Public web page URL, at most 1."
+          },
+          "exercised": false,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Public web page URL, at most 1."
+        }
+      },
+      "roleCaps": [
+        {
+          "role": "first_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First / last frame | ≤ 1 each"
+        },
+        {
+          "role": "last_frame",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "First / last frame | ≤ 1 each"
+        },
+        {
+          "role": "reference_image",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference images | ≤ 10"
+        }
+      ],
+      "exclusive": [
+        {
+          "a": [
+            "role:first_frame",
+            "role:last_frame"
+          ],
+          "b": [
+            "role:reference_image",
+            "video_urls",
+            "audio_urls",
+            "audio_url",
+            "file_url",
+            "link_url"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Media belongs to one of two families and must not be mixed"
+        },
+        {
+          "a": [
+            "file_url"
+          ],
+          "b": [
+            "link_url"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Cannot be combined with link_url."
+        }
+      ],
+      "intent": {
+        "roles": [
+          "reference_image",
+          "reference_video",
+          "reference_audio",
+          "file",
+          "link"
+        ],
+        "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Reference family | reference_image, reference_video, reference_audio, file, link | Model interprets content freely"
+      },
+      "discriminators": [
+        {
+          "key": "generation_type",
+          "values": [
+            "frame",
+            "reference"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "frame — first/last frame family",
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/wan3.0-video/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "reference — reference family"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
