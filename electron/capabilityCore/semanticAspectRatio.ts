@@ -60,6 +60,7 @@ export function projectSemanticAspectRatio(
         `${model} cannot make ${requested.trim()} in this mode. Its ratio choices (parameter ${choice.key}): `
         + `${choice.allowedValues.map(display).join(", ")}. Pick one of them, or ask the user.`,
         { code: "parameter_not_in_enum", path, allowedValues: choice.allowedValues.filter(isPrimitive), allowedKeys },
+        { code: "ratio_not_in_mode", field: path, model, value: requested.trim(), allowed: choice.allowedValues.filter(isPrimitive).map(String) },
       );
     }
     if (choice.reason === "ambiguous") {
@@ -73,6 +74,7 @@ export function projectSemanticAspectRatio(
       `${model} has no frame-ratio choice in this mode (it may follow the input image, or size the frame in pixels). `
       + `Leave aspectRatio out${allowedKeys.length ? `; if one of its parameters (${allowedKeys.join(", ")}) is what you mean, set that one in parameters` : ""}.`,
       { code: "unknown_parameter", path, allowedKeys },
+      { code: "ratio_not_in_mode", field: path, model, value: requested.trim() },
     );
   }
   // 同一件事写了两处、说法不一样：模型面的 aspectRatio 与 parameters 里那个真实键。替它挑一个就是替用户花钱。

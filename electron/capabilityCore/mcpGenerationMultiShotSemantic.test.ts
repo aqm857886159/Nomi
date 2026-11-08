@@ -81,7 +81,7 @@ describe("多镜 plan 入口 · 语义镜（动词交出来的那种形状）", 
 
   it("阳性对照：既没点名也没默认，照旧诚实拒绝——不按目录行序替用户挑一个花钱", async () => {
     await expect(helpers().resolveCreateShots("project-1", { shots: [{ prompt: "一只猫", taskKind: "text_to_image" }] }))
-      .rejects.toThrow(/没有配置可用的图片模型/);
+      .rejects.toThrow(/No image model was named and the user has no default image model/);
   });
 
   it("阳性对照：不注入编译口时，`plan` 入口对语义镜的行为一字不变（外部契约的旧路径）", () => {
