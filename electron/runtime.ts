@@ -419,10 +419,10 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
       extras: request.extras,
     },
   );
-  const assetUrl = readTaskResponse({ response: providerResponse, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(wantedKind) }).assetUrls[0] ?? ""; // 无 mapping 兜底提交也走唯一读法
+  const assetUrls = readTaskResponse({ response: providerResponse, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(wantedKind) }).assetUrls; // 无 mapping 兜底提交也走唯一读法
   const upstreamTaskId = extractTaskIdShared(providerResponse) || taskId;
   traceVendorRequested(projectId, { runId: upstreamTaskId, nodeId, recipe: fallbackRecipe });
-  if (!assetUrl) {
+  if (!assetUrls.length) {
     admitTask(upstreamTaskId, {
       vendor: vendorKey,
       request,
@@ -437,16 +437,18 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   }
   const type: "image" | "video" | "audio" | "model3d" =
     wantedKind === "audio" ? "audio" : wantedKind === "model3d" ? "model3d" : "image";
-  const asset: TaskResult["assets"][number] = projectId
-    ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl);
+  const assets: TaskResult["assets"] = [];
+  for (const assetUrl of assetUrls) {
+    assets.push(projectId ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl));
+  }
   const actualCost = extractProviderCostActual(vendor.key, providerResponse);
   const provenance = buildTaskProvenance({ vendor, model, request, vendorRequestId: upstreamTaskId, actualCost });
-  traceVendorCompleted(projectId, { runId: upstreamTaskId, nodeId, status: "succeeded", assetCount: 1, ...(actualCost ? { cost: actualCost } : {}) });
+  traceVendorCompleted(projectId, { runId: upstreamTaskId, nodeId, status: "succeeded", assetCount: assets.length, ...(actualCost ? { cost: actualCost } : {}) });
   const finalResult: TaskResult = {
     id: upstreamTaskId,
     kind,
     status: "succeeded",
-    assets: [asset],
+    assets,
     raw: providerResponse,
     provenance,
   };
