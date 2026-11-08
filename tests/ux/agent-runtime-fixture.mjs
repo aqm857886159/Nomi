@@ -1,13 +1,11 @@
 // Only the remote vendor is synthetic. Walks still use the real SDK, IPC, renderer and storage.
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import http from 'node:http'
 import path from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
 
 import { encryptFixtureKey } from './_launchApp.mjs'
 
-const require = createRequire(import.meta.url)
 
 /**
  * 「供应商说成功、给的字节却有毛病」的两种样本（全功能走查用）。它们对「坏」的定义必须和宿主的落地判据是同一个

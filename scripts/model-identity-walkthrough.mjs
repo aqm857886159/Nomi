@@ -25,13 +25,10 @@ import { makeTempDir } from './_test-temp.mjs'
 // 用法：pnpm build 后 node scripts/model-identity-walkthrough.mjs
 import crypto from 'node:crypto'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { currentCatalogVersion, encryptFixtureKey, launchNomiApp } from '../tests/ux/_launchApp.mjs'
 
-const require = createRequire(import.meta.url)
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = path.join(repoRoot, '.model-identity-walk')
 fs.rmSync(outDir, { recursive: true, force: true })
