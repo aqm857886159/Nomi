@@ -62,7 +62,7 @@
 
 ## ★2 谁说了算
 
-- 「这一轮该不该停」唯一 owner：`laneHost.mts` 的 `before_request` 钩子（按 runId 记请求数和 `turn.over`）；执行手段只有 pi `requestAbort` 一处（`door-map requestAbort`：1 扇写门）。
+- 「这一轮该不该停」唯一 owner：`laneTurnBudget.mts` 的 `before_request` 钩子（按 runId 记请求数和 `turn.over`）；宿主只装配，执行手段只有 pi `requestAbort` 一处（`door-map requestAbort`：1 扇写门）。
 - 「这个工具连败几次」唯一 owner：`laneRepeatedFailure.mts`（按工具名一份，`door-map createLaneRepeatedFailureTracker`：1 扇写门，宿主创建）；写入只经入参边界的 `settle`（入参拒收 + 宿主 `after_tool`）和宿主 `tool_end`（只记未注册的工具名）。
 - 「宣布到此结束」：入参边界拿到 `turn.end()`，只能宣布、不能自己停；停只在请求入口发生。
 - 修前：预算在 `before_request` 计、`before_tool` 判（两处，后者被立即结果绕过）+ 墙按「码 + 字段」分桶；修后判断只剩请求入口一处，计数只认工具。
@@ -138,6 +138,14 @@
 旧 oracle 改了的原因：修前测试钉的「10 个错误 11 次请求」「上限 5 也 11 次」和 `it.fails` 描述的是 bug（无尽空转），新数字描述的是合同（有限纠正机会之后明确停下）。
 
 回滚：revert 本 PR 的提交即可（无数据迁移、无格式变化）。
+
+### 职责拆分验收（实现前）
+
+- ★1：保住上述请求数、停点、下一句话续问与排队输入；量具为原有 97 条特征测试、整个 lane 目录与 agent-runtime 套件。此次不改计数、文案或数据格式。
+- ★2：回合状态、请求入口判断、未知工具熔断和未消费输入回排整体迁到 `laneTurnBudget.mts`；连败计数仍只归既有 tracker，宿主不保留平行判断。
+- ★3：沿原方向压行数会继续混职责；重写会改行为；选择删掉宿主内的整块实现，只调用新模块，复用 pi 的公开取消和队列 API。
+- ★4：全状态沿用本卡，老用户转录、失败码和 UI 均不变；不新增保护、默认值或异常分支。
+- ★9：`laneHost.mts` 冻结口径不超过 917 行；`door-map requestAbort` 仍只有一处回合止损；typecheck、lane 相关测试、原 5 文件 97 条、agent-runtime 513 条、原走查 zh/en 与停止行 zh/en 截图、推送前快检和正文六项预检均核验。反例沿用本卡全成功、混合批次、未知工具、续问与未消费输入。回滚仅撤销搬家提交。
 
 ## 真实场景复现
 
