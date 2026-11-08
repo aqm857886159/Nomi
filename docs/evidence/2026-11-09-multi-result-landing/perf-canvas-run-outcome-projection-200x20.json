@@ -1,0 +1,24 @@
+{
+  "scope": "200 nodes x 20 run records; one progress + one result per node per round (projectionMs), then restart convergence of all nodes (convergeMs); pure computation through the real nodeRunOutcomePatch / convergeStuckMidFlightNodes",
+  "date": "2026-11-08T22:05:54.431Z",
+  "machine": "darwin arm64 Apple M5",
+  "node": "v24.13.1",
+  "noisy": true,
+  "runs": 5,
+  "metrics": {
+    "projectionMs": [
+      0.57,
+      0.49,
+      0.52,
+      0.55,
+      0.48
+    ],
+    "convergeMs": [
+      0.11,
+      0.11,
+      0.13,
+      0.11,
+      0.11
+    ]
+  }
+}
