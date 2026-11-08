@@ -256,17 +256,12 @@ function projectionRequest(
   // 参考图落哪条通道由**用户选的档案模式**回答（与画布同一份声明、同一个降级函数），不由 body 猜；
   // 没有模式可读的，说成标准输入键，交给 applyHeadlessParamDefaults 里同一个降级函数按 body 推出的声明放。
   const createBody = selection.mapping.create.body;
-  const modeIdentity = {
-    meta: selection.model.meta,
-    kind: selection.model.kind,
-    ...(input.modeId ? { modeId: input.modeId } : {}),
-  };
+  const { meta, kind } = selection.model;
+  const modeIdentity = { meta, kind, ...(input.modeId ? { modeId: input.modeId } : {}) };
   const combineKey = referenceCombineChannelFor({ ...modeIdentity, createBody })?.key ?? null;
   const projected = placeRunReferences(input, createBody, archetypeModeForModel(modeIdentity), combineKey);
-  const parameters = standardizeExplicitRunReferences(
-    normalizeParameters(projected.parameters, selection.mapping, projected.placedReferenceKeys),
-    bodyReferencedParamKeys(createBody),
-  );
+  const placed = normalizeParameters(projected.parameters, selection.mapping, projected.placedReferenceKeys);
+  const parameters = standardizeExplicitRunReferences(placed, bodyReferencedParamKeys(createBody));
   const archetypeId = selection.model.meta && typeof selection.model.meta === "object" && !Array.isArray(selection.model.meta)
     ? (selection.model.meta as Record<string, unknown>).archetypeId
     : undefined;

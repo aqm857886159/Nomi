@@ -12,10 +12,6 @@
   },
   "write_api": [
     {
-      "path": "electron/shared/videoCapabilities/referenceChannels.ts",
-      "symbol": "lowerCombinedReferences"
-    },
-    {
       "path": "src/workbench/generationCanvas/nodes/controls/referenceList.ts",
       "symbol": "placeUploadedImages"
     },
@@ -51,5 +47,5 @@
   "forbidden_derivations": [],
   "allowed_consumers": [],
   "since": "2026-10-22",
-  "notes": "#1269 参考图结构重写（合同 docs/fixes/2026-10-22-composer-reference-list-single-owner.root-cause.json）后的唯一主人：placeUploadedImages——节点那一份有序参考列表（readReferenceList）+ 当前档案方式 + 连线占位 → 各槽的上传图与「未用到」。参考行经 resolveReferencePlacement、发送经 uploadPlacementForMode 调它，界面标的 = 发出去的。热修 #1279（合同 docs/fixes/2026-10-22-reference-leak-hotfix.root-cause.json）留下的三个符号各归：① buildReferenceExtras 只做请求组装——值全部取自 uploadPlacementForMode / orderedSentMediaReferenceUrls，不再自己判断在不在用；② GENERIC_REFERENCE_KEYS 只回答「哪些键算参考键」（请求组装先把整张表置 undefined、主进程拒发按它查），不是第二份在用判断；③ stripReferenceResidue（只剥）删掉，换成 findReferenceResidue（只找不改）+ electron/tasks/referenceResidueGuard.ts 的 assertNoReferenceResidueBeforeSend（协调 10-22 定）：渲染层契约被绕过时在发出前拒，不再静默剥。钉它的测试：src/workbench/generationCanvas/runner/referenceSentWithinInUse.property.test.ts（原 #1269 的特征测试已并入）。 2026-10-23（#1269 条件 2，用户拍板 A）：GENERIC_REFERENCE_KEYS 不再手写，由声明推导——主进程翻译读的标准输入键 ∪ 各档案各方式的槽 inputKey 与合并键 ∪ APIMart 引擎 B 的参考别名（APIMART_REFERENCE_PARAMETER_ALIASES，同模块）∪ 档案的 headlessReferenceKeys；findReferenceResidue 递归收值（对象形也认，role / type 除外）。完整性由同一性质测试里的「请求体实际读的参考键」普查守（内置目录每条请求体读的键都要能归类）。"
+  "notes": "#1269 参考图结构重写（合同 docs/fixes/2026-10-22-composer-reference-list-single-owner.root-cause.json）后的唯一主人：placeUploadedImages——节点那一份有序参考列表（readReferenceList）+ 当前档案方式 + 连线占位 → 各槽的上传图与「未用到」。参考行经 resolveReferencePlacement、发送经 uploadPlacementForMode 调它，界面标的 = 发出去的。热修 #1279（合同 docs/fixes/2026-10-22-reference-leak-hotfix.root-cause.json）留下的三个符号各归：① buildReferenceExtras 只做请求组装——值全部取自 uploadPlacementForMode / orderedSentMediaReferenceUrls，不再自己判断在不在用；② GENERIC_REFERENCE_KEYS 只回答「哪些键算参考键」（请求组装先把整张表置 undefined、主进程拒发按它查），不是第二份在用判断；③ stripReferenceResidue（只剥）删掉，换成 findReferenceResidue（只找不改）+ electron/tasks/referenceResidueGuard.ts 的 assertNoReferenceResidueBeforeSend（协调 10-22 定）：渲染层契约被绕过时在发出前拒，不再静默剥。钉它的测试：src/workbench/generationCanvas/runner/referenceSentWithinInUse.property.test.ts（原 #1269 的特征测试已并入）。 2026-10-23（#1269 条件 2，用户拍板 A）：GENERIC_REFERENCE_KEYS 不再手写，由声明推导——主进程翻译读的标准输入键 ∪ 各档案各方式的槽 inputKey 与合并键 ∪ APIMart 引擎 B 的参考别名（APIMART_REFERENCE_PARAMETER_ALIASES，同模块）∪ 档案的 headlessReferenceKeys；findReferenceResidue 递归收值（对象形也认，role / type 除外）。完整性由同一性质测试里的「请求体实际读的参考键」普查守（内置目录每条请求体读的键都要能归类）。 2026-11-08（参考放置收成一个降级函数，合同 docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：合并数组的拼法 lowerCombinedReferences 并进唯一的降级函数 lowerGenerationIntent（画布、headless、ProductionRun 三条路都经它放），它登记在 generation.headless-reference-key-projection 名下、不在本概念的写接口里：它只把调用方交来的、已判定在用的参考放进键，不判断在不在用；APIMart 引擎 B 的参考别名表（APIMART_REFERENCE_PARAMETER_ALIASES）与别名镜像整份删除；「界面在用的 = 发出去的」这条规则与主人 placeUploadedImages 不变，官方字段矩阵改前改后请求体逐字节相同。"
 }

@@ -34,6 +34,10 @@
     {
       "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
       "symbol": "lowerGenerationIntent"
+    },
+    {
+      "path": "electron/shared/generationLowering/runReferences.ts",
+      "symbol": "placeApprovedRunReferences"
     }
   ],
   "forbidden_derivations": [
