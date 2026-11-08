@@ -54,7 +54,7 @@ describe("generationProblem：起草被拒的闭合原因", () => {
     expect(generationProblemFrom({ code: "ratio_not_in_mode", model: "volcengine/doubao-seedream-4-5-251128", value: "1:1" }).next).toBe("drop_field");
     expect(generationProblemFrom(SAMPLES.duration_not_in_mode).next).toBe("use_allowed_value");
     expect(generationProblemFrom({ code: "duration_not_in_mode", model: "apimart/veo3.1-fast", value: 8 }).next).toBe("drop_field");
-    expect(generationProblemFrom(SAMPLES.no_default_model).next).toBe("set_default_model");
+    expect(generationProblemFrom(SAMPLES.no_default_model).next).toBe("pick_from_list_models");
     expect(generationProblemFrom(SAMPLES.reference_over_capacity).next).toBe("reduce_references");
     expect(generationProblemFrom(SAMPLES.parameter_not_allowed).next).toBe("fix_field");
   });
@@ -82,6 +82,17 @@ describe("generationProblem：起草被拒的闭合原因", () => {
     expect(text).toContain("apimart/doubao-seedream-5-0-pro");
     expect(text).not.toMatch(/no default|has no default|没有配置可用/i);
     expect(generationProblemModelText(SAMPLES.no_default_model)).toMatch(/No image model was named and the user has no default image model/);
+  });
+
+  it.each(["image", "video"] as const)("无默认 %s：正文和 Next 都要求 Agent 点名重试并报告显示名", (media) => {
+    const input = { code: "no_default_model", media } as const;
+    const next = generationProblemFrom(input).next!;
+    for (const text of [generationProblemModelText(input), GENERATION_PROBLEM_NEXT_ACTION_EN[next as Exclude<typeof next, "fix_field">]]) {
+      expect(text).toContain("list_models");
+      expect(text).toContain("modelId");
+      expect(text).toContain("display name");
+      expect(text).not.toMatch(/ask the user|settings|pick a default/i);
+    }
   });
 
   it("读回不信任：形状不对的格丢掉，码不在表里整份不要（老转录、被改坏的转录都可能出现）", () => {

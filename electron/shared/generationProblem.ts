@@ -54,7 +54,7 @@ export function isGenerationProblemCode(value: unknown): value is GenerationProb
 export const GENERATION_PROBLEM_NEXT_LIST = [
   "use_nearest_model",
   "pick_from_list_models",
-  "set_default_model",
+  "set_default_model", // 旧转录仍可读；新拒收一律指向目录点名。
   "use_allowed_value",
   "drop_field",
   "reduce_references",
@@ -115,7 +115,7 @@ export type GenerationProblemInput =
 function nextFor(input: GenerationProblemInput): GenerationProblemNext {
   switch (input.code) {
     case "unknown_model": return input.nearest ? "use_nearest_model" : "pick_from_list_models";
-    case "no_default_model": return "set_default_model";
+    case "no_default_model": return "pick_from_list_models";
     case "mode_not_in_model": return input.allowed?.length ? "use_allowed_value" : "pick_from_list_models";
     case "ratio_not_in_mode": return input.allowed?.length ? "use_allowed_value" : "drop_field";
     case "duration_not_in_mode":
@@ -160,8 +160,7 @@ export function generationProblemModelText(input: GenerationProblemInput): strin
     case "no_default_model": {
       const kind = input.media === "video" ? "video" : "image";
       return `No ${kind} model was named and the user has no default ${kind} model. `
-        + "Name one in this call (candidate: { providerId, modelId }, from list_models), "
-        + `or ask the user to pick a default ${kind} model.`;
+        + PICK_MODEL_ACTION_EN;
     }
     case "mode_not_in_model":
       return `${input.model ? `Model ${input.model}` : "This model"} cannot do ${input.value ?? "this mode"}.`
@@ -194,11 +193,13 @@ export function generationProblemModelText(input: GenerationProblemInput): strin
   }
 }
 
+const PICK_MODEL_ACTION_EN = "Call list_models, choose an available model, explicitly name its modelId (and providerId as listed) in the draft, and retry the same tool. Tell the user which model you chose using its display name from the catalog, not its ids.";
+
 /** 给模型读的 `Next:`，按动作词表出。`fix_field` 不在这里——它沿用准入层按字段码给的那句。 */
 export const GENERATION_PROBLEM_NEXT_ACTION_EN: Readonly<Record<Exclude<GenerationProblemNext, "fix_field">, string>> = {
   use_nearest_model: "Call the same tool again with the closest model named above, if it is what the user meant; otherwise ask the user.",
-  pick_from_list_models: "Call list_models, name a model from it exactly as listed, and call the same tool again.",
-  set_default_model: "Name a model from list_models in this call, or ask the user to choose a default model in settings.",
+  pick_from_list_models: PICK_MODEL_ACTION_EN,
+  set_default_model: PICK_MODEL_ACTION_EN,
   use_allowed_value: "Use one of the allowed values listed above and call the same tool again.",
   drop_field: "Leave that field out and call the same tool again.",
   reduce_references: "Send fewer references (at most the limit above) and call the same tool again.",

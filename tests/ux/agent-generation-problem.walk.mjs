@@ -12,7 +12,7 @@
 //   A unknown_model    —— candidate 点名 `volcengine` + `doubao-seedream-5-0-pro`（不带日期后缀；P07 原样）；
 //   B ratio_not_in_mode —— Z-Image Turbo 要 21:9（它的比例档里没有 21:9）；
 //   C no_default_model  —— 镜头没点名模型，用户也没存默认图片模型。
-// 每种一回合：夹具模型发一次 draft_shots，读到拒收就收尾（不重试），面板留一行失败行。
+// 每种拒收一回合；修后再跑自动选时脚本模型显式点名的成功回合。它证明链路，不证明真实模型会选。
 //
 // 参考超量（reference_over_capacity）**真走不到**：生产的起草路径今天没有一处在起草时按模式上限拒参考
 // （注册表清单的 `assetInputSchema.references` 不带 max，`admitPlanCandidate` 那条检查在生产里走不到），
@@ -27,10 +27,12 @@ import { spawnSync } from 'node:child_process'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { clickOrFail, expect, proveProbe } from './_assert.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
-import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
+import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   ASSISTANT_MESSAGE,
   CANVAS_PANEL,
+  COMPOSER_MODEL,
+  MODEL_POPOVER,
   chooseAssistantModel,
   createRuntimeWalk,
   hasToolResult,
@@ -92,6 +94,8 @@ const CASES = [
     },
   },
 ]
+const AUTOPICK_ASK = 'GENPROB_AUTOPICK：用你认为合适的模型起草一镜「雪夜木屋」，只起草，不生成。'
+const AUTOPICK_DONE = '我选了 Z-Image Turbo，已起草「雪夜木屋」，还没有生成。'
 const callId = (key) => `genprob-${key}`
 
 const lastUserText = (body) => {
@@ -123,12 +127,27 @@ try {
 
   // 夹具模型的策略：按**最后一条用户消息**认是哪一回合；没读到拒收就发一次 draft_shots，读到了就收尾。
   const seen = {}
+  let finishAutopick
+  const autopicked = new Promise(resolve => { finishAutopick = resolve })
   const settles = {}
   const settled = Object.fromEntries(CASES.map((item) => [item.key, new Promise((resolve) => { settles[item.key] = resolve })]))
   walk.fixture.respond({
-    label: 'scripted model: one draft_shots per turn, end the turn on the refusal',
-    match: (body) => CASES.some((item) => lastUserText(body).includes(item.ask)),
+    label: 'scripted model: one draft_shots per turn, then report refusal or the chosen display name',
+    match: (body) => CASES.some((item) => lastUserText(body).includes(item.ask)) || lastUserText(body).includes(AUTOPICK_ASK),
     reply: (body) => {
+      if (lastUserText(body).includes(AUTOPICK_ASK)) {
+        const id = 'genprob-autopick'
+        if (hasToolResult(body, id)) {
+          seen.autopick = toolText(body, id)
+          finishAutopick(true)
+          return { type: 'text', text: AUTOPICK_DONE }
+        }
+        expect(flattenRequestText(body), '实时提示已要求 Agent 点名并报显示名').toContain('必须在 modelId 里点名一个具体模型')
+        return { type: 'tool', id, name: 'draft_shots', args: { shots: [{
+          title: '雪夜木屋', taskKind: 'text_to_image', prompt: '夜晚细雪，木屋窗户透出暖黄色灯光，四周是松树林。',
+          candidate: { providerId: 'apimart', modelId: 'z-image-turbo' },
+        }] } }
+      }
       const item = CASES.find((candidate) => lastUserText(body).includes(candidate.ask))
       const id = callId(item.key)
       if (hasToolResult(body, id)) {
@@ -151,13 +170,13 @@ try {
     await expect(row).toContainText(uiText('zh-CN', MODE === 'before' ? 'agentToolFailure.generation_input_invalid' : item.panelKey))
     await clickOrFail(row.locator(':scope > summary'), `${item.key}：展开失败详情`)
     if (MODE === 'after' && item.key === 'no_default_model') {
-      await expect(row).toContainText(uiText('zh-CN', 'agentToolFailure.problemPickDefault'))
+      await expect(row).not.toContainText('在模型菜单选一个具体模型')
     }
     await walk.snap(`${MODE}-0${index + 1}-zh-${item.key}`)
     await switchAppLocale(win, 'en')
     await expect(row).toContainText(uiText('en', MODE === 'before' ? 'agentToolFailure.generation_input_invalid' : item.panelKey))
     if (MODE === 'after' && item.key === 'no_default_model') {
-      await expect(row).toContainText(uiText('en', 'agentToolFailure.problemPickDefault'))
+      await expect(row).not.toContainText('Pick a specific model in the model menu')
     }
     await walk.snap(`${MODE}-0${index + 1}-en-${item.key}`)
     await switchAppLocale(win, 'zh-CN')
@@ -196,6 +215,28 @@ try {
       }
       if (item.key !== 'no_default_model') expect(seen[item.key], `${item.key}：不说没配默认模型`).not.toMatch(/没有配置可用|has no default/)
     }
+  }
+
+  if (MODE === 'after') {
+    await clickOrFail(panel.locator(COMPOSER_MODEL), '核实图片默认仍是自动选')
+    await expect(panel.locator(`${MODEL_POPOVER} [data-v4-model-row="图片默认"]`)).toContainText(uiText('zh-CN', 'agentPanelV4.modelAuto'))
+    await win.keyboard.press('Escape')
+    await sendCanvas(win, AUTOPICK_ASK)
+    await recorded(autopicked, '脚本 Agent 点名后读到起草结果', 120_000)
+    await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, settledBy: panel.locator(ASSISTANT_MESSAGE).last() })
+    await expect(panel.locator(ASSISTANT_MESSAGE).last()).toContainText(AUTOPICK_DONE)
+    const afterNodes = (await readProject(win, projectId)).payload.generationCanvas.nodes
+    expect(afterNodes, '只建一张草稿卡').toHaveLength(1)
+    expect(afterNodes[0].meta).toMatchObject({ modelKey: 'z-image-turbo' })
+    const node = win.locator(`.react-flow__node[data-id="${afterNodes[0].id}"]`)
+    await clickOrFail(node, '查看 Agent 点名模型的原卡')
+    await expect(win.locator('[data-bar-segment="model-params"]')).toContainText('Z-Image Turbo')
+    await clickOrFail(panel.locator(COMPOSER_MODEL), '展示自动选仍未被修改')
+    await expect(panel.locator(`${MODEL_POPOVER} [data-v4-model-row="图片默认"]`)).toContainText(uiText('zh-CN', 'agentPanelV4.modelAuto'))
+    await walk.snap('after-05-zh-autopick-explicit-model')
+    await win.keyboard.press('Escape')
+    expect(walk.fixture.images, '点名成功仍没有生成请求').toHaveLength(0)
+    walk.report.autopick = { scripted: true, modelId: afterNodes[0].meta.modelKey, nodes: afterNodes.length, imageRequests: 0, realModel: 'unverified' }
   }
 
   {

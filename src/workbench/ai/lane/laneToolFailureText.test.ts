@@ -97,7 +97,7 @@ describe.each(tracks)('起草被拒说原因，不说笼统那句（$name）', (
   it('除 parameter_not_allowed 外每个码都有自己那一句，没有一句是笼统话', () => {
     const samples: Record<GenerationProblem['code'], LaneToolPublicFailure> = {
       unknown_model: rejected({ code: 'unknown_model', field: 'candidate.modelId', nearest: 'apimart/doubao-seedream-5-0-pro', next: 'use_nearest_model' }),
-      no_default_model: rejected({ code: 'no_default_model', media: 'image', next: 'set_default_model' }),
+      no_default_model: rejected({ code: 'no_default_model', media: 'image', next: 'pick_from_list_models' }),
       mode_not_in_model: rejected({ code: 'mode_not_in_model', allowed: ['text_to_video', 'image_to_video'], next: 'use_allowed_value' }),
       ratio_not_in_mode: rejected({ code: 'ratio_not_in_mode', field: 'aspectRatio', allowed: ['1:1', '16:9'], next: 'use_allowed_value' }),
       duration_not_in_mode: rejected({ code: 'duration_not_in_mode', field: 'durationSec', min: 4, max: 15, next: 'use_allowed_value' }),
@@ -128,13 +128,13 @@ describe.each(tracks)('起草被拒说原因，不说笼统那句（$name）', (
     expect(laneToolFailureDetail(t, failure)).not.toContain('doubao')
   })
 
-  it('反例 2：没点名也没有能用的默认 → 说缺哪一类默认，展开体指到模型菜单', () => {
-    const image = rejected({ code: 'no_default_model', field: 'candidate.modelId', media: 'image', next: 'set_default_model' })
-    const video = rejected({ code: 'no_default_model', media: 'video', next: 'set_default_model' })
+  it('反例 2：没点名也没有能用的默认 → 只说原因，不让创作者再去模型菜单', () => {
+    const image = rejected({ code: 'no_default_model', field: 'candidate.modelId', media: 'image', next: 'pick_from_list_models' })
+    const video = rejected({ code: 'no_default_model', media: 'video', next: 'pick_from_list_models' })
     expect(laneToolFailureSummary(t, image)).toBe(k('problemNoDefaultImage'))
     expect(laneToolFailureSummary(t, video)).toBe(k('problemNoDefaultVideo'))
-    expect(laneToolFailureDetail(t, image).split('\n')).toEqual([k('problemNoDefaultImage'), k('problemPickDefault')])
-    expect(laneToolFailureDetail(t, video).split('\n')[1]).toBe(k('problemPickDefault'))
+    expect(laneToolFailureDetail(t, image)).toBe(k('problemNoDefaultImage'))
+    expect(laneToolFailureDetail(t, video)).toBe(k('problemNoDefaultVideo'))
   })
 
   it('反例 3：参考超量 → 说上限，不说「这个模型不接受这组参数」', () => {

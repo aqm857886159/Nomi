@@ -1,0 +1,177 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-agent-auto-model-drafting",
+  "problem_type": "Missing default availability in the Agent context redirects model choice back to the creator",
+  "symptom": "With Auto select, drafting without modelId refuses and the panel sends the creator to the model menu.",
+  "direct_cause": "The shared model index omitted missing defaults, while the refusal Next and panel delegated model selection to the user.",
+  "class_root": "The Agent-facing default projection did not distinguish known absence from an unread preference and did not assign explicit model choice to the Agent.",
+  "affected_population": [
+    "Image and video drafting with no usable saved default",
+    "Partially configured defaults",
+    "Live context versus catalog deltas and historical compaction"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneModelContext.ts",
+    "electron/shared/generationProblem.ts",
+    "src/workbench/ai/lane/laneToolFailureText.ts",
+    "src/i18n/locales/agentToolFailure.ts"
+  ],
+  "entry_points": [
+    "laneHost live model index with resolver defaults",
+    "Catalog delta and compaction index without defaults",
+    "Single and multi-shot no_default_model refusals"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The user explicitly chose Agent selection while preserving host refusal and spend approval; this is an internal ownership rule, not third-party runtime behavior.",
+  "invariants": [
+    "Only the live resolver answer may assert absence of a usable saved default.",
+    "Without a default, the Agent must explicitly name an available model and report its display name.",
+    "The host still refuses omitted identity and never chooses by catalog order.",
+    "The failure panel reports the reason without sending creators to the model menu."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "formatLaneModelIndex"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "formatLaneModelIndex"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelContext.ts",
+      "symbol": "formatLaneModelIndex"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/generationProblem.ts",
+      "symbol": "nextFor"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/lane/laneToolFailureText.ts",
+      "symbol": "problemSentence"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/transportFailure.ts",
+      "symbol": "generationProblemModelText"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "symbol": "laneToolFailureDetail"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "readLaneDeclaredDefaults"
+    }
+  ],
+  "door_reduction": {
+    "before": 8,
+    "after": 8,
+    "why_not": "laneHost projects live authority; laneContextBudget projects historical context; laneModelContext projects catalog deltas. All three must remain, using the same formatter; the latter two omit defaults and must not invent absence. The resolver reader keeps settings interpretation centralized; problem text and Next share the problem projection; both panel summary/detail share problemSentence and useAgentPanelV4Data consumes detail. Each is an existing layer boundary, not a second model selector."
+  },
+  "generality_proof": "A single formatter covers all four task kinds and keeps unknown defaults distinct from known missing ones; all refusal throw sites share the same problem-text and Next projection. Host admission and approval remain unchanged.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneModelContext.ts",
+      "symbol": "formatLaneModelIndex",
+      "responsibility": "Project live defaults or missing-default guidance from the same resolver result without asserting absence for unread contexts."
+    },
+    {
+      "path": "electron/shared/generationProblem.ts",
+      "symbol": "generationProblemModelText",
+      "responsibility": "Give every no_default_model refusal an executable explicit-model retry."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "entry_point": "formatLaneModelIndex",
+      "disposition": "enforced",
+      "evidence": "Live transform_context supplies options.modelDefaults() from readLaneDeclaredDefaults."
+    },
+    {
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "entry_point": "formatLaneModelIndex",
+      "disposition": "enforced",
+      "evidence": "Historical compaction supplies no defaults; tests require no false absence."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationMultiShot.ts",
+      "entry_point": "createMultiShotCreateHelpers",
+      "disposition": "enforced",
+      "evidence": "Both no_default_model throw sites use refuseGeneration and the shared model text and Next."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any task kind without a usable default and every future run can encounter the same omission.",
+    "same_class_scan": [
+      "door-map formatLaneModelIndex: three files",
+      "door-map readLaneDeclaredDefaults: laneDesktopRuntime only",
+      "door-map refuseGeneration: four files/eight calls; repository search no_default_model finds three direct throw sites",
+      "list_models and declaredDefaultDeviations contain catalog facts and deviation facts respectively, not a second default interpreter"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneModelContext.ts",
+    "invariant": "Known missing defaults always carry explicit Agent model-selection guidance; unread defaults never claim absence.",
+    "failure_mode": "No explicit model and no usable default still refuses with no_default_model and charged=false.",
+    "exception_policy": "none",
+    "strategy": "Replace silent missing-default omission with task-indexed guidance in the existing shared projection; delete the old panel instruction.",
+    "artifacts": [
+      "electron/agentLane/laneModelContext.ts",
+      "electron/shared/generationProblem.ts",
+      "src/workbench/ai/lane/laneToolFailureText.ts",
+      "src/i18n/locales/agentToolFailure.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneModelContext.test.ts",
+    "electron/shared/generationProblem.test.ts",
+    "electron/capabilityCore/generationProblemCodes.test.ts",
+    "src/workbench/ai/lane/laneToolFailureText.test.ts",
+    "tests/ux/agent-generation-problem.walk.mjs",
+    "electron/capabilityCore/mcpGenerationTools.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/agentLane/laneModelContext.test.ts",
+    "electron/capabilityCore/generationProblemCodes.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/lane/laneToolFailureText.ts",
+      "src/i18n/locales/agentToolFailure.ts"
+    ],
+    "rationale": "Remove the panel menu instruction and both locale keys; retain existing refusal admission and historical next decoding."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency or runtime change; only existing domain projections.",
+    "exit_criteria": []
+  },
+  "migration": "No saved data or schema changes; saved defaults still resolve through the same owner. Existing historical next values remain readable.",
+  "residual_risks": [
+    "Real model compliance is unverified: this round explicitly forbids live models.",
+    "A scripted fixture proves tool and panel behavior, not autonomous model selection."
+  ],
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneModelContext.ts",
+    "tests": [
+      "electron/agentLane/laneModelContext.test.ts",
+      "electron/shared/generationProblem.test.ts",
+      "electron/capabilityCore/mcpGenerationTools.test.ts"
+    ],
+    "why": "The live resolver result is projected once for all task kinds; unread contexts cannot assert absence, and admission plus retry text stay at the existing shared generation boundary."
+  }
+}

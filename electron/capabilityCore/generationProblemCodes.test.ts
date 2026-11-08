@@ -94,12 +94,14 @@ describe("unknown_model：点了名的模型不在目录里", () => {
 
 describe("no_default_model：没点名，也没有能用的默认", () => {
   // 反例 2：镜头没点名模型，用户也没存默认图片模型。
-  it("图片镜头 → no_default_model / image，下一步指到默认模型", () => {
+  it("图片镜头 → no_default_model / image，下一步让 Agent 点名重试", () => {
     const { problem, message } = refusal(() => semanticCandidateFromParams({
       operationId: "op-p04", params: { prompt: "雪夜木屋", taskKind: "text_to_image" }, candidateFrom: parse, registry,
     }));
-    expect(problem).toMatchObject({ code: "no_default_model", media: "image", next: "set_default_model" });
+    expect(problem).toMatchObject({ code: "no_default_model", media: "image", next: "pick_from_list_models", charged: false });
     expect(message).toMatch(/No image model was named and the user has no default image model/);
+    expect(message).not.toMatch(/ask the user|settings/);
+    expect(message).toContain("display name");
   });
 
   it("视频镜头 → media 是 video", () => {
