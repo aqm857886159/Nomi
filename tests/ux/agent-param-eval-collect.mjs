@@ -50,12 +50,6 @@ export function lastAssistantText(projectDir) {
   return last
 }
 
-/** 一个项目目录里的全部调用，已标好重试序号。 */
-export function readAnnotatedCalls(projectDir) {
-  return annotateRetries(readAlignedCalls(projectDir))
-}
-
-
 /** 先切段再标重试，避免预演错误污染测试；userSays 只挂在测试段第一调用。 */
 export function taskTrajectory(task, calls, preludeCalls = 0) {
   return [

@@ -273,6 +273,13 @@ try {
     }, null, 2))
   }
 
+  if (fakeModel) {
+    fakeModel.assertClean()
+    report.fakeModelRequests = fakeModel.requests.length
+    report.mediaRequests = fakeModel.images.length + fakeModel.videos.length + fakeModel.speeches.length
+    report.dryRunOk = report.cases.length === TASKS.length && report.cases.every((row) => row.dryRunOk) && report.mediaRequests === 0
+    if (!report.dryRunOk) process.exitCode = 1
+  }
   report.summary = summarize(results.filter((item) => !unscorable.includes(item.id)), unscorable, BANK.tasks)
   fs.writeFileSync(path.join(outputDir, 'summary.json'), JSON.stringify(report.summary, null, 2))
   console.log(`\n${DRY_RUN ? '（干跑：没连模型，下面的数是假模型探针的底数，不是产品结论）\n' : ''}${formatSummary(report.summary)}`)
@@ -286,7 +293,7 @@ try {
   try {
     if (app) await closeNomiApp(app)
   } finally {
-    if (fakeModel) { fakeModel.assertClean(); await fakeModel.close() }
+    if (fakeModel) await fakeModel.close()
     cleanupTestTemp(isoDir)
     cleanupTestTemp(mediaTmp)
     if (guard) {
