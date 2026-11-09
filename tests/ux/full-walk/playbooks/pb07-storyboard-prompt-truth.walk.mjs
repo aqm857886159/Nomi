@@ -80,6 +80,27 @@ const pb = await startPlaybook({
   }),
 })
 const { smoke, fixture, monitor } = pb
+// 夹具作者内容沿用监视器已有标记；固定界面文案里仍有中文时不标整棵子树。
+await smoke.win.evaluate((values) => {
+  const residue = (value) => values.reduce((rest, text) => rest.split(text).join(''), value)
+  const mark = () => {
+    document.querySelectorAll('[data-user-content="pb07-fixture"]').forEach(element => element.removeAttribute('data-user-content'))
+    for (const element of document.querySelectorAll('span, p, button[title], [aria-label]')) {
+      const own = [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('')
+        + ['title', 'aria-label'].map(attr => element.getAttribute(attr) || '').join(' ')
+      if (!/[㐀-鿿]/.test(own) || /[㐀-鿿]/.test(residue(own))) continue
+      const subtree = element.textContent + [...element.querySelectorAll('[title], [aria-label]')]
+        .map(child => `${child.getAttribute('title') || ''} ${child.getAttribute('aria-label') || ''}`).join(' ')
+      if (!/[㐀-鿿]/.test(residue(subtree))) element.setAttribute('data-user-content', 'pb07-fixture')
+    }
+  }
+  new MutationObserver(mark).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'aria-label'] })
+  mark()
+}, [...new Set([
+  ...makePlan('').shots.map(entry => entry.prompt),
+  ...anchors.flatMap(anchor => [anchor.name, anchor.description]),
+  DRAGON, HERO_STATIC, '远景', '，清晨的海边，一只白鸟掠过水面', '巨龙走查', '巨龙', '定妆', '一场关于龙与人的故事。',
+])].sort((a, b) => b.length - a.length))
 const win = () => smoke.win
 const editor = () => win().locator('[data-storyboard-editor="true"]:visible')
 const rowPrompt = (index) => editor().locator(`[data-storyboard-row="${index}"] [data-storyboard-prompt-block] [contenteditable="true"]`).first()
