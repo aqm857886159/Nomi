@@ -61,6 +61,15 @@ export function assertNativeMediaCapability(kind: 'audio' | 'video', modalities:
   if (!modalities?.includes(kind)) throw new NativeMediaInputError('unsupported', { file: fileName, media: kind });
 }
 
+/** Validate the selected transport before a caller allocates or reads an original. */
+export function assertNativeMediaProtocol(mimeType: string, protocol: string, fileName: string): void {
+  const kind = nativeMediaKind(mimeType);
+  if (!kind || protocol === 'google-generative-ai') return;
+  if ((protocol === 'openai-compatible' || protocol === 'openai-completions') && kind === 'audio'
+    && ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3'].includes(mimeType.toLowerCase().split(';', 1)[0].trim())) return;
+  throw new NativeMediaInputError('unsupported', { file: fileName, media: mimeType });
+}
+
 export function validateNativeFileBytes(bytes: Uint8Array, mimeType: string, fileName: string): void {
   mimeType = mimeType.toLowerCase().split(';', 1)[0].trim();
   const kind = nativeMediaKind(mimeType);

@@ -96,6 +96,7 @@ export function createDesktopLaneInput(input: {
         supportsPdfInput: selected.kind !== 'openai-compatible' && modelSupportsPdfInput(model.modelKey, model.modelAlias, model.meta),
         supportsAudioInput: modelSupportsOriginalMedia(model, 'audio'),
         supportsVideoInput: modelSupportsOriginalMedia(model, 'video'),
+        protocol: selected.kind,
         mediaBudget,
         budgetPrefix: String(projectionIndex++),
         resolveBytes: (url, options) => readNomiLocalAsset(url, options)?.bytes ?? null,

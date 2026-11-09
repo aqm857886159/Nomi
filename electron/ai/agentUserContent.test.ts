@@ -204,6 +204,14 @@ describe('original media reference identity', () => {
       ] })).rejects.toMatchObject({ code: 'unsupported' });
     expect(resolveBytes).not.toHaveBeenCalled();
   });
+  it('fails before reading bytes when video is declared but the chosen protocol cannot carry it', async () => {
+    const resolveBytes = vi.fn(mediaBytes);
+    await expect(buildAgentUserContent({ prompt: 'Watch', imageInput: 'supported', supportsPdfInput: false,
+      supportsVideoInput: true, protocol: 'openai-compatible', resolveBytes, extractText: async () => null, attachments: [
+        { assetId: 'video', url: 'nomi-local://v', contentType: 'video/mp4', fileName: 'scene.mp4', kind: 'file' },
+      ] })).rejects.toMatchObject({ code: 'unsupported' });
+    expect(resolveBytes).not.toHaveBeenCalled();
+  });
   it('honors cancellation before accessing an original', async () => {
     const controller = new AbortController();
     controller.abort();

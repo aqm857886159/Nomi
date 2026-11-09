@@ -16,7 +16,7 @@ import { createModels } from '@earendil-works/pi-ai';
 import { createNomiProvider, prewarmProviderProtocols } from './laneModelProvider.mjs';
 import { LANE_STREAM_WATCHDOG, MODEL_CALL_CEILING_MS } from './laneProviderGuard.mjs';
 import { MODEL_CALL_CEILING_ERROR, type CallModelOnce, type ModelCallOptions, type ModelCallResult, type PrewarmModelCall } from '../shared/agentLane/modelCallPort.js';
-import { assertNativeFileCapability, bindNativeFile, rewriteNativeFilePayload, NativeMediaInputError, NativeMediaBudget } from '../ai/nativeFilePayload.js';
+import { assertNativeFileCapability, assertNativeMediaProtocol, bindNativeFile, rewriteNativeFilePayload, NativeMediaInputError, NativeMediaBudget } from '../ai/nativeFilePayload.js';
 
 export type { ModelCallOptions, ModelCallResult } from '../shared/agentLane/modelCallPort.js';
 
@@ -37,6 +37,7 @@ export const callModelOnce: CallModelOnce = async (options: ModelCallOptions): P
   const content = typeof options.content === 'string' ? options.content : options.content.map((part, index) => {
     if (part.type !== 'file') return part;
     assertNativeFileCapability(part, options.model.inputModalities);
+    assertNativeMediaProtocol(part.mimeType, options.model.kind, part.fileName);
     const padding = part.data.endsWith('==') ? 2 : part.data.endsWith('=') ? 1 : 0;
     budget.reserve(String(index), Math.floor(part.data.length / 4) * 3 - padding);
     const file = bindNativeFile(part);

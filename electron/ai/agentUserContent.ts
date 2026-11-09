@@ -2,7 +2,7 @@ import { mediaKindFromContentType } from '../assets/mediaTypes'
 import { builtinCatalogModelKeys } from '../catalog/seedBuiltins'
 import type { Model } from '../catalog/types'
 import { mentionUrlsInOrder, numberPromptReferences, projectPromptForSend } from '../shared/storyboard/promptMentions'
-import { nativeMediaKind, validateNativeFileBytes, MAX_NATIVE_FILE_BYTES, NativeMediaInputError, NativeMediaBudget } from './nativeFilePayload'
+import { nativeMediaKind, validateNativeFileBytes, MAX_NATIVE_FILE_BYTES, NativeMediaInputError, NativeMediaBudget, assertNativeMediaProtocol } from './nativeFilePayload'
 // 把「文字 prompt + 待发附件」拼成 Vercel AI SDK 的 user message content。
 // 纯函数（字节读取由 resolveBytes 回调注入），便于单测。
 // 图片 → image part（只有「不能读图」才不发）；PDF → file part（按模型能力门控）；其它文档 → 计数提示（S4 抽文本接手）。
@@ -89,6 +89,7 @@ export async function buildAgentUserContent(params: {
   supportsPdfInput: boolean
   supportsAudioInput?: boolean
   supportsVideoInput?: boolean
+  protocol?: string
   signal?: AbortSignal
   mediaBudget?: NativeMediaBudget
   budgetPrefix?: string
@@ -119,6 +120,7 @@ export async function buildAgentUserContent(params: {
       if (!(kind === 'audio' ? params.supportsAudioInput : params.supportsVideoInput)) {
         throw new NativeMediaInputError('unsupported', { file: att.fileName, media: kind })
       }
+      if (params.protocol) assertNativeMediaProtocol(att.contentType, params.protocol, att.fileName)
       const budgetKey = `${params.budgetPrefix ?? 'input'}:${index}:${att.assetId}`
       if (att.sizeBytes !== undefined) mediaBudget.reserve(budgetKey, att.sizeBytes)
       const available = Math.min(MAX_NATIVE_FILE_BYTES, mediaBudget.remainingBytes(budgetKey))

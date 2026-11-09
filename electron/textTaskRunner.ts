@@ -21,7 +21,7 @@ import { desktopT } from "./i18n";
 import { billingKindForTaskKind, findExecutableModelForTask, type TaskRequest, type TaskResult } from "./runtime";
 import type { Model, Vendor } from "./catalog/types";
 import { readNomiLocalAsset } from './assets/localAssetFile';
-import { assertNativeMediaCapability, bindNativeFile, MAX_NATIVE_FILE_BYTES, nativeMediaKind, NativeMediaInputError, NativeMediaBudget } from './ai/nativeFilePayload';
+import { assertNativeMediaCapability, assertNativeMediaProtocol, bindNativeFile, MAX_NATIVE_FILE_BYTES, nativeMediaKind, NativeMediaInputError, NativeMediaBudget } from './ai/nativeFilePayload';
 import type { NativeFileContent } from './shared/agentLane/nativeModelInput';
 import type { NomiModelConfig } from './shared/agentLane/laneModelConfig';
 
@@ -69,6 +69,7 @@ function originalMediaContent(request: TaskRequest, config: NomiModelConfig, sig
     if (values === undefined) continue;
     if (!Array.isArray(values)) throw new NativeMediaInputError('unreadable', { file: field });
     if (values.length) assertNativeMediaCapability(kind, config.inputModalities, field);
+    if (values.length && kind === 'video') assertNativeMediaProtocol('video/mp4', config.kind, field);
     for (const [index, url] of values.entries()) {
       signal?.throwIfAborted();
       if (typeof url !== 'string' || !url.startsWith('nomi-local://asset/')) throw new NativeMediaInputError('unreadable', { file: field });
