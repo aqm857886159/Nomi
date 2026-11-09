@@ -170,13 +170,19 @@ export function injectedDeadlineWaitLines(source, file) {
   const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
   let fake = false
   let restored = false
+  const positiveLiteral = node => ts.isNumericLiteral(node) && Number(node.text.replaceAll('_', '')) > 0
   const visit = node => {
     if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text)
-      && ts.isNumericLiteral(node.initializer) && Number(node.initializer.text.replaceAll('_', '')) > 0) {
+      && positiveLiteral(node.initializer)) {
       lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
     }
     if (ts.isParameter(node) && ts.isIdentifier(node.name) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text)
-      && node.initializer && ts.isNumericLiteral(node.initializer) && Number(node.initializer.text.replaceAll('_', '')) > 0) {
+      && node.initializer && positiveLiteral(node.initializer)) {
+      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && ts.isPropertyAccessExpression(node.left) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.left.name.text)
+      && positiveLiteral(node.right)) {
       lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
     }
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
