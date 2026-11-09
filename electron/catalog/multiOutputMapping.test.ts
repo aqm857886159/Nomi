@@ -136,6 +136,9 @@ function expectFourRead(row: PathRow) {
   const response = responseForPath(row.expression, four);
   const reading = readTaskResponse({ response, responseMapping: row.mapping, statusMapping: undefined, wantedKind: row.kind });
   expect(reading.assetUrls, `${row.where} ${row.vendor} ${row.stage} ${row.key}=${row.expression}`).toEqual(four);
+  const engineB = readMaterializationOutputs(response, { responseMapping: row.mapping }, row.kind, new Set());
+  expect(engineB.map((output) => output.url), `engine B: ${row.where} ${row.vendor} ${row.stage} ${row.key}=${row.expression}`).toEqual(four);
+  expect(new Set(engineB.map((output) => output.providerOutputId)).size, "engine B provider output ids must be unique").toBe(four.length);
 }
 
 describe("按目录枚举：内置目录每一条产物路径，一笔四份都读出四份", () => {
