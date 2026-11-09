@@ -1,0 +1,171 @@
+{
+  "name": "storyboard-r3-after",
+  "mode": "development",
+  "tempRoot": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p19242-l7smfY",
+  "outputDir": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips/.tmp/pi-storyboard-r3-after-development-1794210361774",
+  "launches": [
+    {
+      "packaged": false,
+      "appPath": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips",
+      "userData": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p19242-l7smfY/user-data",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 19377
+    }
+  ],
+  "screenshots": [
+    "/Users/aoqimin/Nomi-coord/tmp/V-storyboard-strips-verify/after-zh-CN-light-top.png",
+    "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips/docs/evidence/2026-11-09-storyboard-premerge/after-zh-CN-light-tail.png",
+    "/Users/aoqimin/Nomi-coord/tmp/V-storyboard-strips-verify/after-zh-CN-dark-top.png",
+    "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips/docs/evidence/2026-11-09-storyboard-premerge/after-zh-CN-dark-tail.png",
+    "/Users/aoqimin/Nomi-coord/tmp/V-storyboard-strips-verify/after-en-light-top.png",
+    "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips/docs/evidence/2026-11-09-storyboard-premerge/after-en-light-tail.png",
+    "/Users/aoqimin/Nomi-coord/tmp/V-storyboard-strips-verify/after-en-dark-top.png",
+    "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips/docs/evidence/2026-11-09-storyboard-premerge/after-en-dark-tail.png"
+  ],
+  "paidCalls": 0,
+  "build": {
+    "head": "716f437455db8d2ad77841aae7500a9ba7dd811f",
+    "fingerprint": {
+      "tree": "fd6aeb3f3c3df5f304696e4b968db8ea59530c6f"
+    },
+    "renderer": {
+      "version": 2,
+      "tree": "fd6aeb3f3c3df5f304696e4b968db8ea59530c6f"
+    },
+    "electron": {
+      "version": 2,
+      "tree": "fd6aeb3f3c3df5f304696e4b968db8ea59530c6f"
+    }
+  },
+  "projectId": "project-1794210366009-bxd7j9",
+  "projectRoot": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p19242-l7smfY/projects/未命名项目 11_09 15_46-mw8yiypp-de0f1448",
+  "visual": [
+    {
+      "locale": "zh-CN",
+      "scheme": "light",
+      "row": {
+        "x": 405.9375,
+        "y": 354,
+        "width": 133.09375,
+        "height": 28
+      },
+      "toolbar": {
+        "x": 426.875,
+        "y": 505,
+        "width": 298.25,
+        "height": 42
+      },
+      "footer": {
+        "x": 978,
+        "y": 670,
+        "width": 98,
+        "height": 32
+      },
+      "ball": {
+        "x": 1032,
+        "y": 652,
+        "width": 44,
+        "height": 44
+      },
+      "padding": 80,
+      "lastRowClears": true,
+      "ballOverlapsFooter": true
+    },
+    {
+      "locale": "zh-CN",
+      "scheme": "dark",
+      "row": {
+        "x": 405.9375,
+        "y": 354,
+        "width": 133.09375,
+        "height": 28
+      },
+      "toolbar": {
+        "x": 426.875,
+        "y": 505,
+        "width": 298.25,
+        "height": 42
+      },
+      "footer": {
+        "x": 978,
+        "y": 670,
+        "width": 98,
+        "height": 32
+      },
+      "ball": {
+        "x": 1032,
+        "y": 652,
+        "width": 44,
+        "height": 44
+      },
+      "padding": 80,
+      "lastRowClears": true,
+      "ballOverlapsFooter": true
+    },
+    {
+      "locale": "en",
+      "scheme": "light",
+      "row": {
+        "x": 405.9375,
+        "y": 354,
+        "width": 179.359375,
+        "height": 28
+      },
+      "toolbar": {
+        "x": 386.3203125,
+        "y": 505,
+        "width": 379.3515625,
+        "height": 42
+      },
+      "footer": {
+        "x": 904.9296875,
+        "y": 670,
+        "width": 171.0703125,
+        "height": 32
+      },
+      "ball": {
+        "x": 1032,
+        "y": 652,
+        "width": 44,
+        "height": 44
+      },
+      "padding": 80,
+      "lastRowClears": true,
+      "ballOverlapsFooter": true
+    },
+    {
+      "locale": "en",
+      "scheme": "dark",
+      "row": {
+        "x": 405.9375,
+        "y": 354,
+        "width": 179.359375,
+        "height": 28
+      },
+      "toolbar": {
+        "x": 386.3203125,
+        "y": 505,
+        "width": 379.3515625,
+        "height": 42
+      },
+      "footer": {
+        "x": 904.9296875,
+        "y": 670,
+        "width": 171.0703125,
+        "height": 32
+      },
+      "ball": {
+        "x": 1032,
+        "y": 652,
+        "width": 44,
+        "height": 44
+      },
+      "padding": 80,
+      "lastRowClears": true,
+      "ballOverlapsFooter": true
+    }
+  ],
+  "backgroundFixtureCalls": [],
+  "result": "passed"
+}
