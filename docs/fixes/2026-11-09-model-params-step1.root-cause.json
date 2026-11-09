@@ -81,7 +81,7 @@
     "after": 8,
     "why_not": "同一组符号（resolveModelParams/isParamValueAllowed/clampToRange）在main有3扇直接门，收口后有8扇。增加的是6个调用面到共享政策层的边；各用户动作/数据形状必须保留，不把删除4份政策实现冒称为物理门减少。拟镜、审阅、Agent落地、模型、模式/变体、既有默认API都委托同一主人。"
   },
-  "generality_proof": "同一控件集合在共享函数中按明确政策处理。四处旧规整循环/实现删除，模式与变体、Agent与分镜投影、所有画布换模型消费者均通过既有入口得到同一结果。第2–4步尚未把合法值写入与防绕行变成强制合同，本步不声称类缺陷已解决。",
+  "generality_proof": "同一控件集合在共享函数中按明确政策处理。四处旧规整循环/实现删除，模式与变体、Agent与分镜投影、所有画布换模型消费者均通过既有入口得到同一结果。第2–4步尚未把合法值写入与防绕行变成强制合同，本步不声称类缺陷已解决。 tests/model-params/contracts.test.mjs 是逃逸账本引用的全目录类尺子；本步保持红33/绿6，只提供未解决缺口的监测，不作为结账收据。",
   "shared_boundaries": [
     {
       "path": "electron/shared/videoCapabilities/resolveModelParams.ts",
