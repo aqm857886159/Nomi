@@ -10,7 +10,7 @@ app.whenReady().then(() => {
   // exit(0) 跳过了这一步——密钥没写下来，被测 App 用同一个 user-data 目录永远解不开，apimart/higgsfield
   // 夹具的模型在 Windows 上一律 credential_locked（2026-09-26 实测：目录里连 Local State 都没有）。
   app.quit()
-}).catch((error) => {
+}).catch(() => {
   process.stderr.write('safeStorage fixture encryption failed; see credential-storage diagnostics\n')
   app.exit(1)
 })

@@ -14,4 +14,4 @@ const instance = await launchNomiApp({
   capabilityDir: process.env.NOMI_CAPABILITY_DIR,
 })
 for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, async () => { await instance.close(); process.exit(0) })
-instance.app.process().once('exit', (code) => { process.exitCode = code || 0 })
+instance.app.process().once('exit', (code) => { process.exitCode = code ?? 1 })

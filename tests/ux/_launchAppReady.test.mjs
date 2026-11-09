@@ -304,3 +304,20 @@ describe('credential MCP assembly matrix', () => {
     expect(() => prepareCredentialSource({ ...sourceDirs(), isolate: true, args: [], platform: 'linux', env })).toThrow(/conflict/)
   })
 })
+
+
+test.each([[0, null, 0], [1, null, 1], [null, 'SIGKILL', 1]])('packaged credential owner preserves child exit %j / %j', async (code, signal, expected) => {
+  const child = new EventEmitter()
+  const launch = vi.fn(async () => ({ close: vi.fn(), app: { process: () => child } }))
+  const processDouble = {
+    argv: ['node', 'bootstrap', '/fixture/Nomi', '--disable-gpu'],
+    env: { NOMI_ELECTRON_USER_DATA_DIR: '/fixture/user-data', NOMI_SETTINGS_DIR: '/fixture/settings', NOMI_PROJECTS_DIR: '/fixture/projects', NOMI_CAPABILITY_DIR: '/fixture/capability', ELECTRON_RUN_AS_NODE: '1' },
+    once: vi.fn(), exit: vi.fn(),
+  }
+  const codeUnderTest = fs.readFileSync(new URL('_packagedCredentialOwner.mjs', import.meta.url), 'utf8').replace(/^import .*$/gm, '')
+  await vm.runInNewContext(`(async () => { ${codeUnderTest} })()`, { path, process: processDouble, launchNomiApp: launch })
+  expect(launch.mock.calls[0][0]).toMatchObject({ executablePath: '/fixture/Nomi', args: ['--disable-gpu'], waitForWindow: false, userDataDir: '/fixture/user-data' })
+  expect(launch.mock.calls[0][0].env).not.toHaveProperty('ELECTRON_RUN_AS_NODE')
+  child.emit('exit', code, signal)
+  expect(processDouble.exitCode).toBe(expected)
+})
