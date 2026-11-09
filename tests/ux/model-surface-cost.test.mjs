@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-import { costError, createModelCostProxy, MODEL_COST } from './_modelSurfaceCostSupport.mjs'
+import { assertModelCostRehearsal, costError, createModelCostProxy, MODEL_COST, stepsHash } from './_modelSurfaceCostSupport.mjs'
 
 describe('one image cost sample boundary', () => {
   it('forwards at most one matching POST, even after a failed attempt, and rejects other models/endpoints', async () => {
@@ -47,6 +47,21 @@ describe('one image cost sample boundary', () => {
       const expired = spawnSync(process.execPath, [entry], { env: { ...env, NOMI_MODEL_COST_REHEARSAL_RECEIPT: file }, encoding: 'utf8' })
       expect(expired.status).not.toBe(0)
       expect(expired.stderr).toContain('receipt expired')
+    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+  })
+
+  it('refuses a fresh receipt whose shared steps changed after the rehearsal', () => {
+    const root = makeTempDir('nomi-cost-steps-')
+    try {
+      const file = path.join(root, 'receipt.json')
+      const receipt = (hash) => ({ status: 'passed', finishedAt: new Date().toISOString(), stepsHash: hash, model: MODEL_COST,
+        commit: 'f'.repeat(40), results: ['en', 'zh-CN'].map(locale => ({ locale, checks: { ok: true } })) })
+      fs.writeFileSync(file, JSON.stringify(receipt('bad')))
+      expect(() => assertModelCostRehearsal(file)).toThrow('Shared steps changed after rehearsal')
+      fs.writeFileSync(file, JSON.stringify(receipt(stepsHash())))
+      let message = ''
+      try { assertModelCostRehearsal(file) } catch (error) { message = String(error?.message ?? error) }
+      expect(message).not.toContain('Shared steps changed after rehearsal')
     } finally { fs.rmSync(root, { recursive: true, force: true }) }
   })
 })
