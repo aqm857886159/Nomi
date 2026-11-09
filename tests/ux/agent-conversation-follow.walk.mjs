@@ -20,6 +20,7 @@ import {
   chooseAssistantModel, createRuntimeWalk, expandResidentPanel, newConversation, sendCreation, waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const FLOW = `${CREATION_PANEL} ${V4_FLOW}`
 const JUMP = `${CREATION_PANEL} [data-v4-control="jump-latest"]`
@@ -111,7 +112,7 @@ try {
     const inactive = classes.findIndex((name) => !name.includes('bg-nomi-accent-soft'))
     if (inactive < 0) throw new Error(`会话列表里两行都高亮着：${JSON.stringify(classes)}`)
     await clickOrFail(rows.nth(inactive).locator('button').first(), `切到 ${toMarkerPrefix} 那条对话`)
-    await expect(panel.locator(USER_BUBBLE).filter({ hasText: toMarkerPrefix }).first()).toBeAttached({ timeout: 30_000 })
+    await expect(panel.locator(USER_BUBBLE).filter({ hasText: toMarkerPrefix }).first()).toBeAttached({ timeout: stationTimeout({ operations: 2 }) })
   }
   /** 切换之后 0 / 250 / 1000ms 三个时刻距底多少。 */
   const landing = async () => {
@@ -196,9 +197,9 @@ try {
       requestAnimationFrame(tick)
     })
     await sendCreation(win, `${marker}：把这场戏拆成五十个镜头`)
-    await expect(win.locator(RUNNING)).toBeVisible({ timeout: 20_000 })
+    await expect(win.locator(RUNNING)).toBeVisible({ timeout: stationTimeout() })
     const streaming = panel.locator(ASSISTANT_MESSAGE).nth(assistantBefore)
-    await expect.poll(async () => (await streaming.textContent().catch(() => ''))?.length ?? 0, { message: '流式正文迟迟没开始吐', timeout: 30_000 }).toBeGreaterThan(400)
+    await expect.poll(async () => (await streaming.textContent().catch(() => ''))?.length ?? 0, { message: '流式正文迟迟没开始吐', timeout: stationTimeout({ operations: 2 }) }).toBeGreaterThan(400)
     const followSamples = await win.evaluate(() => window.__cfFollow.samples.slice())
     // 吐到一半：人往上翻 600px，接下来的 20 帧不许把他拽走，「回到最新」要出现。
     await wheel(-600)
@@ -237,7 +238,7 @@ try {
     } else {
       record(label, 'jump-latest-returns-to-bottom-and-keeps-following', false, { reason: '没有「回到最新」按钮' })
     }
-    await expect(win.locator(RUNNING)).toBeHidden({ timeout: 60_000 })
+    await expect(win.locator(RUNNING)).toBeHidden({ timeout: stationTimeout({ operations: 4 }) })
     await win.waitForTimeout(300)
     const streamEnd = await geometry()
     record(label, 'streaming-ends-at-bottom', streamEnd.gap <= AT_BOTTOM_PX, streamEnd)
@@ -248,7 +249,7 @@ try {
     const sendMarker = `CF-A-${label}-send`
     replyMode = 'text'
     await sendCreation(win, `${sendMarker}：再补一段`)
-    await expect(panel.locator(USER_BUBBLE).filter({ hasText: sendMarker })).toBeAttached({ timeout: 20_000 })
+    await expect(panel.locator(USER_BUBBLE).filter({ hasText: sendMarker })).toBeAttached({ timeout: stationTimeout() })
     await win.waitForTimeout(300)
     const bubbleSeen = await geometry()
     await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: panel.locator(ASSISTANT_MESSAGE).filter({ hasText: `${sendMarker} 第 8 段` }).last() })
@@ -270,7 +271,7 @@ try {
   await clickOrFail(win.getByRole('button', { name: uiText('en', 'workspace.creationTab'), exact: true }), '切回创作区')
   await expandResidentPanel(win)
   await expect(win.locator('html')).toHaveAttribute('data-mantine-color-scheme', 'dark')
-  await expect(panel.locator(USER_BUBBLE).first()).toBeAttached({ timeout: 30_000 })
+  await expect(panel.locator(USER_BUBBLE).first()).toBeAttached({ timeout: stationTimeout({ operations: 2 }) })
   const reloaded = await landing()
   record('en-dark', 'reload-lands-at-bottom', landedAtBottom(reloaded), reloaded)
   // 当前是 A；round 先切到 A 要求在 B，先切一次 B。
@@ -287,7 +288,7 @@ try {
     await clickOrFail(win.getByRole('button', { name: uiText(locale, 'workspace.creationTab'), exact: true }), '切回创作区')
     await expandResidentPanel(win)
     await expect(win.locator('html')).toHaveAttribute('data-mantine-color-scheme', scheme)
-    await expect(panel.locator(USER_BUBBLE).first()).toBeAttached({ timeout: 30_000 })
+    await expect(panel.locator(USER_BUBBLE).first()).toBeAttached({ timeout: stationTimeout({ operations: 2 }) })
     await win.waitForTimeout(500)
     await wheel(-900)
     const shown = await jumpVisible()
