@@ -814,29 +814,29 @@ describe("model trial intent class matrix", () => {
   });
 
   // The mode is read at every attempt, so it can change between an order the provider refused and its safe retry.
-  async function policyFlip(row: PolicyFlip) {
+  async function policyFlip(row: PolicyFlip, extra: Partial<TryModelDeps> = {}) {
     initial = "rejected";
     if (row.first === "request") answerCards(true);
-    const refused = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.first }) });
+    const refused = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.first }), ...extra });
     expect(code(refused), JSON.stringify(refused)).toBe("provider_failed");
     expect(creates, "the provider refused the one order").toBe(1);
     initial = "queued";
     setRendererTarget(null);
     if (row.windowOpen) answerCards(false);
     confirmations = 0;
-    const retried = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.second }) });
+    const retried = await trial(argsFor(), { approvalPolicy: () => ({ mode: row.second }), ...extra });
     expect(code(retried), JSON.stringify(retried)).toBe(row.code);
     expect({ cards: confirmations, creates }).toEqual({ cards: row.cards, creates: row.creates });
     const decidedBy = frozenRequest(retried.submission.intentId, "attempt-2").spendDecidedBy;
     expect(decidedBy).toBe(row.decidedBy);
     return { first: code(refused), second: code(retried), cards: confirmations, creates, decidedBy };
   }
-  it.each(registry.policyFlips)("policy flip $id: $label", policyFlip, 30_000);
+  it.each(registry.policyFlips)("policy flip $id: $label", (row) => policyFlip(row), 30_000);
   it("the same policy flip has the same result in a fresh retry cell", async () => {
     const row = registry.policyFlips.find(({ id }) => id === "auto-then-auto")!;
-    const first = await policyFlip(row);
+    const first = await policyFlip(row, { pollTimeoutMs: 0 });
     await freshSettings();
-    expect(await policyFlip(row)).toEqual(first);
+    expect(await policyFlip(row, { pollTimeoutMs: 0 })).toEqual(first);
   }, 30_000);
 
   it("the shared layer's own refusal needs no provider: a safe-failure budget is durable across processes", async () => {
