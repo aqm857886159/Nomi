@@ -5,7 +5,16 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import test from 'node:test'
-import { builtArtifactImportLines, asyncWaitForFunctionLines, collectTestFiles, unownedLaneCleanupLines } from './check-test-waits.mjs'
+import { builtArtifactImportLines, asyncWaitForFunctionLines, collectTestFiles, intentMatrixRealWaitLines, unownedLaneCleanupLines } from './check-test-waits.mjs'
+
+test('intent matrix rejects real submit budgets and requires fake timer teardown', () => {
+  const file = 'electron/capabilityCore/modelOnboarding/tryModelIntent.matrix.test.ts'
+  const withClock = 'vi.useFakeTimers();\nvi.useRealTimers();\n'
+  assert.deepEqual([...intentMatrixRealWaitLines(`${withClock}trial(args, { pollTimeoutMs: 100 });`, file)], [2])
+  assert.deepEqual([...intentMatrixRealWaitLines(`${withClock}trial(args, { pollTimeoutMs: 0 });`, file)], [])
+  assert.deepEqual([...intentMatrixRealWaitLines('trial(args, { pollTimeoutMs: 0 });', file)], [0])
+  assert.deepEqual([...intentMatrixRealWaitLines('trial(args, { pollTimeoutMs: 100 });', 'electron/other.test.ts')], [])
+})
 
 test('lane cleanup rejects rm-first hooks and separate or unawaited close hooks', () => {
   const source = [

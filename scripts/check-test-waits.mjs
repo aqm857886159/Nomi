@@ -163,7 +163,36 @@ export function builtArtifactImportLines(source, file) {
   return lines
 }
 
+// This matrix tests provider and money-gate outcomes, not the production submit deadline.
+export function intentMatrixRealWaitLines(source, file) {
+  const lines = new Set()
+  if (!file.replaceAll('\\', '/').endsWith('/tryModelIntent.matrix.test.ts')) return lines
+  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+  let fake = false
+  let restored = false
+  const visit = node => {
+    if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && node.name.text === 'pollTimeoutMs'
+      && ts.isNumericLiteral(node.initializer) && Number(node.initializer.text.replaceAll('_', '')) > 0) {
+      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
+    }
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+      && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === 'vi') {
+      if (node.expression.name.text === 'useFakeTimers') fake = true
+      if (node.expression.name.text === 'useRealTimers') restored = true
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(parsed)
+  if (!fake || !restored) lines.add(0)
+  return lines
+}
+
 const RULES = [
+  {
+    id: 'intent-matrix-real-wait',
+    label: '试跑意图矩阵须用假时钟并清理；非零 pollTimeoutMs 会拿 CI 负载判供应商结果',
+    test: (_line, context) => context.intentMatrixRealWaitLines.has(context.lineIndex),
+  },
   {
     id: 'built-artifact-test-import',
     label: '测试模块必须从源码加载，禁止 import dist/ 或 dist-electron/',
@@ -361,6 +390,7 @@ export function main() {
     stationHits.push(...stationWaitHits(raw, stationFile).map(hit => ({ ...hit, file: stationFile })))
     const source = stripComments(raw)
     const context = { clockDeltaNames: collectClockDeltaNames(source), spiesOnFsRead: FS_READ_SPY.test(source), asyncWaitLines: asyncWaitForFunctionLines(raw, file),
+      intentMatrixRealWaitLines: intentMatrixRealWaitLines(raw, stationFile),
       builtArtifactImportLines: builtArtifactImportLines(raw, path.relative(repoRoot, file).replaceAll(path.sep, '/')),
       unownedLaneCleanupLines: unownedLaneCleanupLines(raw, path.relative(repoRoot, file).replaceAll(path.sep, '/')) }
     const unitTest = /\.test\.(tsx?|mts|cts|mjs)$/.test(file)
