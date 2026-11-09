@@ -107,9 +107,9 @@ test('cache paths, version keys and same-platform restore prefixes match the act
   assert.equal(builderCache.with['restore-keys'].trim(), 'builder-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron-builder }}-\nbuilder-v1-${{ runner.os }}-${{ runner.arch }}-')
   assert.throws(() => prepare(action, lock.replace('      electron-builder:', '      missing-electron-builder:')), /electron-builder/)
   assert.throws(() => prepare(action, lock.replace('      electron:', '      missing-electron:')), /electron/)
-  assert.throws(() => prepare(action, lock.replace(/(      electron:\n        specifier: [^\n]+\n        version: )[^\n]+/, '$143x4x1')), /electron/)
+  assert.throws(() => prepare(action, lock.replace(/( {6}electron:\n {8}specifier: [^\n]+\n {8}version: )[^\n]+/, '$143x4x1')), /electron/)
   assert.equal(prepare(action, lock.replaceAll('\n', '\r\n')).output.electron, dependencies.electron.version)
-  const changedVersion = lock.replace(/(      electron:\n        specifier: [^\n]+\n        version: )[^\n]+/, '$199.0.0')
+  const changedVersion = lock.replace(/( {6}electron:\n {8}specifier: [^\n]+\n {8}version: )[^\n]+/, '$199.0.0')
   assert.equal(prepare(action, changedVersion).output.electron, '99.0.0')
 })
 
