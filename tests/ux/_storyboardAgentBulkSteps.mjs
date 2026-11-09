@@ -1,6 +1,6 @@
 import { uiText } from './full-walk/invariants.mjs'
 import { expect } from './_assert.mjs'
-import { ensureAgentPanelOpen } from './_shell.mjs'
+import { collapseAgentPanel, ensureAgentPanelOpen } from './_shell.mjs'
 import { chooseAssistantModel, COMPOSER_INPUT, COMPOSER_PERMISSION, permissionTier, readProject, STORYBOARD_PANEL, waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
 
 // One journey for the real brain and its local rehearsal; neither path authorizes generation.
@@ -28,9 +28,14 @@ export async function runStoryboardAgentBulk({ walk, brainLabel, imageLabel, bef
   }
   await expect.poll(async () => (await readPlan())?.plan.shots.map(shot => shot.shotKind), { message: 'All three image choices must reach the persisted plan before handoff' }).toEqual(['image', 'image', 'image'])
   const before = await readPlan()
+  await collapseAgentPanel(win, 'Before selected storyboard handoff')
   await editor.locator('[data-storyboard-agent-handoff="selection"]').click()
   await ensureAgentPanelOpen(win, '分镜交接面板')
   const panel = win.locator(STORYBOARD_PANEL)
+  await expect(panel.locator(COMPOSER_INPUT)).toBeFocused()
+  const panelBefore = await panel.boundingBox()
+  await editor.locator('[data-storyboard-agent-handoff="selection"]').click()
+  expect(await panel.boundingBox(), 'An already open Agent panel must keep its position and size').toEqual(panelBefore)
   await expect(panel.locator(COMPOSER_INPUT)).toBeFocused()
   await chooseAssistantModel(win, brainLabel, STORYBOARD_PANEL)
   await panel.locator(COMPOSER_PERMISSION).click()
