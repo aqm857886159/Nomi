@@ -20,7 +20,7 @@ import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from '../../agent-runtime-fixture
 import { findCanvasBlankPoint, findNodeHitPoint } from '../../_canvasHit.mjs'
 import { clickNodeGenerate, SPEND_DIALOG } from '../actions.mjs'
 import { startPlaybook } from '../launch.mjs'
-import { openStoryboardEditor } from '../../_creationResourceTree.mjs'
+import { ensureCreationResourceTree, openStoryboardEditor } from '../../_creationResourceTree.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 
@@ -102,9 +102,10 @@ try {
   await monitor.step('打开项目（从项目库）', () => smoke.openProject(), { surfaces: ['*'], critical: true })
   await monitor.step('切到创作页，从侧栏点开这份分镜方案', async () => {
     await clickOrFail(win().locator('.nomi-stepper__step[data-mode="creation"]').first(), '顶栏「创作」')
+    await ensureCreationResourceTree(win(), 'PB07打开分镜方案')
     const item = win().locator(`[data-storyboard-id="${DESIGN}"]`).first()
     await expect(item, '侧栏里有这份分镜方案').toBeVisible({ timeout: stationTimeout() })
-    await clickOrFail(item, '侧栏选中分镜方案')
+    await openStoryboardEditor(win(), DESIGN, '侧栏选中分镜方案')
     await expect(editor(), '分镜编辑器出现').toBeVisible({ timeout: stationTimeout() })
     await expect(editor().locator('[data-storyboard-row]'), '六镜').toHaveCount(6, { timeout: stationTimeout() })
   }, { surfaces: ['*'], critical: true })
