@@ -104,7 +104,7 @@ describe('model settings home', () => {
     expect(home).toContain('data-model-home-advanced')
     expect(home.indexOf('data-model-home-adapted-platforms')).toBeLessThan(home.indexOf('data-model-home-other-methods'))
     expect(home.indexOf('data-model-home-other-methods')).toBeLessThan(home.indexOf('data-model-home-advanced'))
-    expect(home).toContain("const showSearch = hasConnections &&")
+    expect(home).toContain('const showSearch = otherConnections.length >= 4')
     expect(home).toContain('data-model-home-task-strip')
     expect(home).not.toContain("kind: 'api' | 'local' | 'account' | 'assistant'")
   })

@@ -228,6 +228,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
         status?: number;
         error?: string;
       }>,
+    vendorPricePreview: (payload: import("./shared/contracts/vendorPricePreview").VendorPriceRequest) =>
+      ipcRenderer.invoke("nomi:onboarding:vendor-price-preview", payload) as Promise<import("./shared/contracts/vendorPricePreview").VendorPricePreview | null>,
+    vendorAccountFacts: (payload: { vendorKey: string; force?: boolean }) =>
+      ipcRenderer.invoke("nomi:onboarding:vendor-account-facts", payload) as Promise<import("./shared/contracts/vendorAccountFacts").VendorAccountFacts | null>,
     vendorHealth: (payload: unknown) =>
       ipcRenderer.invoke("nomi:onboarding:vendor-health", payload) as Promise<{
         vendorKey: string;

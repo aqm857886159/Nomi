@@ -1,6 +1,6 @@
 import React from 'react'
 
-import type { ModelSettingsPage } from './modelSettingsNavigation'
+import { currentModelSettingsPage, openModelSettingsPage, type ModelSettingsNavigation, type ModelSettingsPage } from './modelSettingsNavigation'
 
 /**
  * 外部（今天只有设置页「素材上传通道」卡）要求模型工作区直接落到某一家的接入页。
@@ -9,16 +9,24 @@ import type { ModelSettingsPage } from './modelSettingsNavigation'
  * modelsMounted），若只看 vendorKey，用户返回首页后再点一次「去配置」就什么都不会发生——
  * 请求值没变，effect 不再跑。token 每次点击都换，于是连点也每次都重新打开。
  */
-export type ModelPageRequest = { vendorKey: string; token: number } | null
+export type ModelPageRequest = { vendorKey: string; token: number } | { section: 'model-assistance'; token: number } | null
 
 export function useModelPageRequest(
   request: ModelPageRequest,
-  openPage: (next: Exclude<ModelSettingsPage, { type: 'home' }>) => void,
-): void {
+  navigation: ModelSettingsNavigation,
+  setNavigation: React.Dispatch<React.SetStateAction<ModelSettingsNavigation>>,
+) {
+  const openPage = React.useCallback((next: Exclude<ModelSettingsPage, { type: 'home' }>) => {
+    setNavigation(current => openModelSettingsPage(current, next))
+  }, [setNavigation])
   const handledToken = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (!request || handledToken.current === request.token) return
     handledToken.current = request.token
-    openPage({ type: 'platformConnect', vendorKey: request.vendorKey })
-  }, [request, openPage])
+    setNavigation(current => 'vendorKey' in request
+      ? openModelSettingsPage(current, { type: 'platformConnect', vendorKey: request.vendorKey })
+      : { stack: [{ type: 'home', assistedRequest: request.token }] })
+  }, [request, setNavigation])
+  const page = currentModelSettingsPage(navigation)
+  return { openPage, assistedRequest: page.type === 'home' ? page.assistedRequest : undefined }
 }

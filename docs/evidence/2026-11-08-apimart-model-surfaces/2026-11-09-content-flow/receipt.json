@@ -1,0 +1,366 @@
+{
+  "results": [
+    {
+      "locale": "zh-CN",
+      "catalog": "fresh",
+      "quote": "1.95"
+    },
+    {
+      "locale": "zh-CN",
+      "model": "gpt-image-2.6-flare",
+      "outputEstimate": "仅输出约 0.35 积分（$0.035）· 实际按 token 结算"
+    },
+    {
+      "locale": "en",
+      "catalog": "v0.24.1-apimart",
+      "quote": "1.95"
+    },
+    {
+      "locale": "en",
+      "model": "gpt-image-2.6-flare",
+      "outputEstimate": "Output estimate 0.35 credits ($0.035) · billed by actual tokens"
+    }
+  ],
+  "absenceControls": [
+    {
+      "locale": "zh-CN",
+      "visibleDropdownRejectedAbsence": true,
+      "escapedDropdownAbsent": true
+    },
+    {
+      "locale": "en",
+      "visibleDropdownRejectedAbsence": true,
+      "escapedDropdownAbsent": true
+    }
+  ],
+  "settingsRows": [
+    {
+      "locale": "zh-CN",
+      "scheme": "light",
+      "account": {
+        "text": "已连接",
+        "gap": 6,
+        "centerOffset": 0
+      },
+      "folds": [
+        {
+          "text": "用 AI 帮我接入",
+          "gap": 6,
+          "centerOffset": 0,
+          "hintOffset": 0
+        },
+        {
+          "text": "其他接入方式",
+          "gap": 6,
+          "centerOffset": 0,
+          "hintOffset": 0
+        }
+      ]
+    },
+    {
+      "locale": "zh-CN",
+      "scheme": "dark",
+      "account": {
+        "text": "已连接",
+        "gap": 6,
+        "centerOffset": 0
+      },
+      "folds": [
+        {
+          "text": "用 AI 帮我接入",
+          "gap": 6,
+          "centerOffset": 0,
+          "hintOffset": 0
+        },
+        {
+          "text": "其他接入方式",
+          "gap": 6,
+          "centerOffset": 0,
+          "hintOffset": 0
+        }
+      ]
+    },
+    {
+      "locale": "en",
+      "scheme": "light",
+      "account": {
+        "text": "Connected",
+        "gap": 6,
+        "centerOffset": 0
+      },
+      "folds": [
+        {
+          "text": "Connect with AI",
+          "gap": 6,
+          "centerOffset": 0,
+          "hintOffset": 0
+        },
+        {
+          "text": "Other connection methods",
+          "gap": 6,
+          "centerOffset": 0,
+          "hintOffset": 0
+        }
+      ]
+    }
+  ],
+  "reads": [
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/models"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/models/all"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/models"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/models/all"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    }
+  ],
+  "generationSubmissions": 0
+}

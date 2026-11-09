@@ -171,6 +171,8 @@ export function buildModelSelectOptions(
   isAiling: AilingProbe,
   orderedVendorKeys: readonly string[] = [],
   preference?: ModelBoxPreferenceSettings | null,
+  optionDetails?: (option: ModelOption) => readonly string[],
+  current?: { value: string; vendor: string | null },
 ): NomiSelectOption[] {
   // 空 = 一家都没接入（catalog 层的 keepUsableModelRows 只放行现在真能用的行），不是「碰巧没模型」。
   if (deduped.length === 0) return [connectVendorOption()]
@@ -199,7 +201,9 @@ export function buildModelSelectOptions(
           active: index === activeIndex,
         }))
       : undefined
+    const described = current && providers.find(p => p.option.value === current.value && p.vendor === current.vendor) || uniqueProviders[activeIndex]
     if (!isModelAiling(m, isAiling)) return {
+      ...(optionDetails && described ? { details: () => optionDetails(described.option) } : {}),
       more: modelCatalogLifecycle(m) === 'legacy',
       value: m.canonicalId,
       label: modelDisplayLabel(m),
@@ -417,6 +421,7 @@ export function useDedupedModelSelect(
   value: string,
   onChange: (value: string, vendor?: string) => void,
   vendor?: string | null,
+  optionDetails?: (option: ModelOption) => readonly string[],
 ): DedupedModelSelectView {
   const deduped = React.useMemo(() => dedupeModelOptions([...modelOptions]), [modelOptions])
   const orderedVendorKeys = useVendorPreferenceOrder()
@@ -445,9 +450,9 @@ export function useDedupedModelSelect(
   )
 
   const modelOptionsView = React.useMemo<NomiSelectOption[]>(
-    () => buildModelSelectOptions(deduped, isModelRecentlyAiling, orderedVendorKeys, preference),
+    () => buildModelSelectOptions(deduped, isModelRecentlyAiling, orderedVendorKeys, preference, optionDetails, { value, vendor: effectiveVendor }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算 trailing 文案
-    [deduped, i18n.language, orderedVendorKeys, preference],
+    [deduped, i18n.language, orderedVendorKeys, preference, optionDetails, value, effectiveVendor],
   )
 
   const onModelPick = React.useCallback(

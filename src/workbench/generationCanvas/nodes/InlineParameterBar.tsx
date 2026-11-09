@@ -28,11 +28,16 @@ import {
   ParameterOptionGroup,
   ParameterPanelGroup,
 } from './controls/ParameterControlBody'
+import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
+import { currentArchetypeMode, currentArchetypeVariant } from './controls/archetypeMeta'
+import { archetypeModeChoices } from './controls/channelModeReach'
+import { readModeChannelBody, type VendorMappingsReader } from './controls/useChannelCreateBody'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
+  readMappings?: VendorMappingsReader
   /** Batch surfaces can provide the shared model picker beside this bar. */
   hideModel?: boolean
   /** `status` 可选：老调用方（分镜批量等）只给 message；缺它时按「非加载中」处理，保持旧行为。 */
@@ -114,6 +119,7 @@ function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>
 
 export default function InlineParameterBar({
   modelOptions,
+  readMappings,
   hideModel = false,
   modelCatalogStatus,
   renderedControls,
@@ -137,11 +143,35 @@ export default function InlineParameterBar({
 }: InlineParameterBarProps): JSX.Element {
   const { t } = useTranslation()
   // 去重选择 view-model（hook 必须在任何早返回前调用）。
+  const optionDetails = React.useCallback((option: ModelOption): string[] => {
+    const vendor = option.vendor
+    if (!readMappings || !vendor) return []
+    const base = resolveArchetypeForOption(option)
+    if (!base) return []
+    const state = option.value === selectedModelOption?.value && option.vendor === selectedModelOption.vendor ? meta : {}
+    const effective = specializeArchetypeForVariant(base, currentArchetypeVariant(base, state)?.id)
+    const available = archetypeModeChoices(effective, mode => {
+      const kind = modeTransportFor(mode, effective, vendor)
+      return kind ? readModeChannelBody(vendor, option.value, kind, mode.id, readMappings) ?? null : null
+    })
+    const selected = currentArchetypeMode(effective, state)
+    const labels = available.map(mode => mode.vendorTerm)
+    if (available.some(mode => mode.id === selected.id)) {
+      const resolutions = selected.params.find(param => param.key === 'resolution')?.options ?? []
+      const ranked = resolutions.map(item => {
+        const match = /^(\d+(?:\.\d+)?)(p|k)$/i.exec(String(item.value))
+        return match ? { label: item.label, rank: Number(match[1]) * (match[2].toLowerCase() === 'k' ? 1024 : 1) } : null
+      }).filter(item => item !== null).sort((a, b) => b.rank - a.rank)
+      if (ranked[0]) labels.unshift(ranked[0].label)
+    }
+    return [...new Set(labels)].slice(0, 4)
+  }, [meta, readMappings, selectedModelOption])
   const modelSelect = useDedupedModelSelect(
     modelOptions,
     selectedModelOption?.value || '',
     onModelChange,
     selectedModelOption?.vendor,
+    optionDetails,
   )
 
   // 摘要 pill 文本：各参数当前值串接（16:9 · 1080p · 5 · 音频）。面板装**全部**参数（pill 不占走任何一个）。
@@ -424,6 +454,11 @@ export default function InlineParameterBar({
       {!hideModel ? (
         <NomiSelect
           ariaLabel={t('generationCommon.parameters.model')}
+          searchable
+          emptySearchAction={{
+            label: t('onboardingProviders.account.aiSetup'),
+            onSelect: () => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models', section: 'model-assistance' } })),
+          }}
           placeholder={t('generationCommon.parameters.selectModel')}
           triggerMaxWidth={wrap ? 260 : summaryWidth === undefined ? 200 : 150}
           className={modelChipClass}

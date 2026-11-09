@@ -2129,6 +2129,15 @@
       ],
       "reason": "诊断包清单里卡顿时间线的三态：recorded 有记录、none-this-session 监视器在跑但本次没记到、monitor-not-running 监视器没运行。只由诊断包组包函数按监视器状态和盘上读回的行数推出，写进清单给收包的人读；没有别的状态机用这三个词，无处可复用，也不会有第二个写入方。",
       "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsStallTimeline/property:state/type-union"
+    },
+    {
+      "members": [
+        "invalid",
+        "unknown",
+        "valid"
+      ],
+      "reason": "VendorAccountFacts.keyState 是现有主进程只读账户事实 DTO 的唯一 Key 验证结论：valid 仅表示免费凭据探测成功，invalid 仅表示明确鉴权拒绝，unknown 表示读取未确认；renderer 直接消费此合同。已查注册表，无同义三态 owner；现有 decoded/invalid/unsupported 是文件解包结果，directory/invalid/missing 是租约目录探测，VendorHealthState 的 reachable/unreachable/unsupported 则描述连接可达性，均不能替代 Key 鉴权证据。",
+      "site": "electron/shared/contracts/vendorAccountFacts.ts::type:VendorAccountFacts/property:keyState/type-union"
     }
   ],
   "debt": [

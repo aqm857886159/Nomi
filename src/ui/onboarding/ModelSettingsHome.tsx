@@ -1,4 +1,5 @@
 import React, { type JSX } from 'react'
+import { isLegacyCatalogMeta } from '../../config/modelIdentity'
 import { builtinVendorKeyOfKey } from '../../../electron/shared/builtinVendorIdentity'
 import {
   IconChevronDown,
@@ -16,6 +17,7 @@ import type { Mapping } from '../../../electron/catalog/types'
 import { DesignButton, DesignSearchInput, NomiLoadingMark, StatusBadge, VendorLogoImage } from '../../design'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { cn } from '../../utils/cn'
+import { ModelAccountCard } from './ModelAccountCard'
 import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
 import type { ChipModel } from './ModelChipGroups'
 import { useVendorHealth } from './useVendorHealth'
@@ -333,6 +335,7 @@ function availableHint(connection: ModelSettingsHomeConnection, t: ReturnType<ty
 }
 
 export function ModelSettingsHome({
+  assistedRequest,
   connections,
   availableConnections,
   mappings,
@@ -352,6 +355,7 @@ export function ModelSettingsHome({
   onImported,
 }: {
   connections: ModelSettingsHomeConnection[]
+  assistedRequest?: number
   availableConnections: ModelSettingsHomeConnection[]
   mappings: readonly Mapping[]
   loaded: boolean
@@ -378,6 +382,14 @@ export function ModelSettingsHome({
   const [morePlatformsOpen, setMorePlatformsOpen] = React.useState(false)
   const [otherWaysOpen, setOtherWaysOpen] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
+  const assistedRef = React.useRef<HTMLDetailsElement>(null)
+  React.useEffect(() => {
+    const section = assistedRef.current
+    if (!assistedRequest || !section) return
+    section.open = true
+    section.querySelector('summary')?.focus({ preventScroll: true })
+    section.scrollIntoView({ block: 'nearest' })
+  }, [assistedRequest, loaded])
   // 各行探完把结果报上来（探测本身仍归每行的 useVendorHealth，这里只收结论，不第二次探）。
   const [unreachableKeys, setUnreachableKeys] = React.useState<ReadonlySet<string>>(() => new Set())
   const handleHealthChange = React.useCallback((vendorKey: string, unreachable: boolean) => {
@@ -389,24 +401,27 @@ export function ModelSettingsHome({
       return next
     })
   }, [])
-  const allModels = connections.flatMap((connection) => connection.models)
-  const statuses = allModels.map((model) => resolveModelHomeStatus(model, mappings))
-  const needsSetupCount = statuses.filter((status) => status === 'needsSetup' || status === 'failed').length
-  const readyCount = statuses.filter((status) => status === 'ready' || status === 'verified').length
-  const hasConnections = connections.length > 0
-  const showSearch = hasConnections && (connections.length >= 4 || allModels.length >= 8)
+  const isApimart = (c: ModelSettingsHomeConnection) => builtinVendorKeyOfKey(c.vendorKey) === 'apimart'
+  const accountConnections = [...connections, ...availableConnections].filter(isApimart)
+  const otherConnections = connections.filter(c => !isApimart(c))
+  const allModels = otherConnections.flatMap(connection => connection.models)
+  const statuses = allModels.map(model => resolveModelHomeStatus(model, mappings))
+  const needsSetupCount = statuses.filter(status => status === 'needsSetup' || status === 'failed').length
+  const readyCount = statuses.filter(status => status === 'ready' || status === 'verified').length
+  const hasConnections = otherConnections.length > 0
+  const showSearch = otherConnections.length >= 4
   const hasAttention = taskCount > 0 || needsSetupCount > 0
-
-  const adaptedAvailable = availableConnections.filter((connection) => connection.kind === 'api')
-  const primaryPlatforms = ['apimart', 'kie']
-    .map((vendorKey) => adaptedAvailable.find((connection) => connection.vendorKey === vendorKey))
-    .filter((connection): connection is ModelSettingsHomeConnection => Boolean(connection))
-  const otherAdapted = adaptedAvailable.filter((connection) => !['apimart', 'kie'].includes(connection.vendorKey))
-  const otherAvailable = availableConnections.filter((connection) => connection.kind !== 'api')
-
-  const titleAside = hasConnections
-    ? t('onboardingProviders.drawer.home.subtitle', { connections: connections.length, models: allModels.length })
-    : t('onboardingProviders.drawer.home.emptySubtitle')
+  const otherAdapted = availableConnections.filter(c => c.kind === 'api' && !isApimart(c))
+  const otherAvailable = availableConnections.filter(connection => connection.kind !== 'api')
+  const accountModels = accountConnections[0]?.models.filter(model =>
+    !isLegacyCatalogMeta(model.meta) && !(typeof model.meta === 'object' && model.meta !== null && 'promptRefineOnly' in model.meta && model.meta.promptRefineOnly),
+  ) ?? []
+  const titleAside = accountModels.length ? t('onboardingProviders.account.counts', {
+    image: accountModels.filter(m => m.kind === 'image').length,
+    video: accountModels.filter(m => m.kind === 'video').length,
+    audio: accountModels.filter(m => m.kind === 'audio').length,
+    text: accountModels.filter(m => m.kind === 'text').length,
+  }) : t('onboardingProviders.drawer.home.emptySubtitle')
 
   // 「连不上」压倒模型统计：一家都通不了的时候，标题写「24 个可使用」是在骗人（与行内红字打架）。
   const unreachableAside = unreachableKeys.size > 0
@@ -415,7 +430,7 @@ export function ModelSettingsHome({
   const connectedSection = hasConnections ? (
     <section className="mt-5" data-model-home-connected>
       <SectionHeading
-        title={t('onboardingProviders.drawer.home.connected')}
+        title={t('onboardingProviders.account.previous')}
         aside={unreachableAside ?? (hasAttention
           // 「可使用」的口径必须和每个连接行里那句一样（`summary.ready`）——同一个 i18n key
           // 在页头算一份、在行里算另一份，就是同屏两个答案。停用的、正在跑的都不算「可使用」。
@@ -423,7 +438,7 @@ export function ModelSettingsHome({
           : t('onboardingProviders.drawer.home.readyCount', { count: readyCount }))}
       />
       <ConnectedRows
-        connections={connections}
+        connections={otherConnections}
         mappings={mappings}
         search={search}
         onHealthChange={handleHealthChange}
@@ -431,23 +446,9 @@ export function ModelSettingsHome({
     </section>
   ) : null
 
-  const adaptedSection = primaryPlatforms.length > 0 || otherAdapted.length > 0 ? (
-    <section className="mt-5" data-model-home-adapted-platforms>
-      <SectionHeading
-        title={hasConnections ? t('onboardingProviders.drawer.home.addServices') : t('onboardingProviders.drawer.home.adaptedPlatforms')}
-        aside={primaryPlatforms.length > 0 ? t('onboardingProviders.drawer.home.firstTwoKeyOnly') : undefined}
-      />
+  const adaptedSection = otherAdapted.length > 0 ? (
+    <section className="mt-3" data-model-home-adapted-platforms>
       <RowGroup>
-        {primaryPlatforms.map((connection) => (
-          <AvailableConnectionRow
-            key={connection.vendorKey}
-            connection={connection}
-            title={hasConnections ? t('onboardingProviders.drawer.home.connectPlatform', { name: translateModelDisplayText(connection.name) }) : undefined}
-            hint={availableHint(connection, t)}
-            badge={builtinVendorKeyOfKey(connection.vendorKey) === 'apimart' ? t('onboardingProviders.drawer.home.recommended') : undefined}
-            end={t('onboardingProviders.drawer.home.fillKey')}
-          />
-        ))}
         {otherAdapted.length > 0 ? (
           <>
             <ActionRow
@@ -575,9 +576,16 @@ export function ModelSettingsHome({
 
             {/* 「用 AI 帮我接入」：想接模型的人一定会到这一屏，所以入口就放在这一屏的最上面
                 （搜索框正下方）。它不是一个模型家，也不接 MCP——只把「跟助手说什么」交到手上。 */}
-            <section className="mt-4" data-model-home-assisted>
+            {accountConnections.map(connection => (
+              <ModelAccountCard key={connection.vendorKey} connection={connection} connected={connections.includes(connection)} />
+            ))}
+            <details ref={assistedRef} className="mt-4 rounded-nomi border border-nomi-line px-3 py-2" data-model-home-assisted>
+              <summary className="cursor-pointer list-none">
+                <span className="flex items-center gap-2 text-caption font-medium text-nomi-ink"><IconPlugConnected size={16} aria-hidden /><span className="inline-flex items-center gap-1.5"><span>{t('onboardingProviders.account.aiSetup')}</span><IconChevronRight size={14} className="shrink-0" aria-hidden /></span></span>
+                <span className="ml-6 block text-micro text-nomi-ink-60">{t('onboardingProviders.account.aiHint')}</span>
+              </summary>
               <AiAssistedOnboardingSection />
-            </section>
+            </details>
 
             {taskCount > 0 && taskContent ? (
               <section className="mt-4" data-model-home-task-strip>
@@ -591,9 +599,14 @@ export function ModelSettingsHome({
 
             {diagnostic ? <div className="mt-4">{diagnostic}</div> : null}
 
-            {connectedSection}
-            {adaptedSection}
-            {otherMethodsSection}
+            <details className="mt-3 rounded-nomi border border-nomi-line px-3 py-2" data-model-home-other-connections>
+              <summary className="cursor-pointer list-none">
+                <span className="flex items-center gap-2 text-caption font-medium text-nomi-ink"><IconServerBolt size={16} aria-hidden /><span className="inline-flex items-center gap-1.5"><span>{t('onboardingProviders.drawer.home.otherMethods')}</span><IconChevronRight size={14} className="shrink-0" aria-hidden /></span></span>
+                <span className="ml-6 block text-micro text-nomi-ink-60">{t('onboardingProviders.account.otherHint')}</span>
+              </summary>
+              {connectedSection}
+              {adaptedSection}
+              {otherMethodsSection}
 
             {/* 数据源：抖音/TikTok 分享链接 → 无水印素材（BYO-key connector）。独立成组因为它产出的是
                 「素材数据」不是「可调用模型」——归进模型家清单会错配（P4）。这是它在设置区的唯一家。 */}
@@ -623,6 +636,7 @@ export function ModelSettingsHome({
               </RowGroup>
             </section>
 
+            </details>
             {showSearch && search.trim() && !connections.some((connection) => (
               connection.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) ||
               connection.models.some((model) => `${model.labelZh} ${model.modelKey}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))

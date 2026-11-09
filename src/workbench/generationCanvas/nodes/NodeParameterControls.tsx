@@ -569,6 +569,7 @@ export default function NodeParameterControls({
     })
     return (
       <InlineParameterBar
+        readMappings={readMappings}
         modelOptions={modelOptions}
         modelCatalogStatus={modelCatalogStatus}
         renderedControls={panelRenderedControls}

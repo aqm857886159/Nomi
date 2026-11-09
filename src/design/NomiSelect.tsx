@@ -37,6 +37,8 @@ export type NomiSelectOption = {
   /** 选项右侧附加文字（如价格、模板/通用），在对勾左边。 */
   trailing?: string
   trailingTone?: NomiSelectTone
+  /** Capability labels for the effective model connection. */
+  details?: () => readonly string[]
   /**
    * 行尾供应商 chip：同名模型折成一行后，「这一行能走哪几家」就靠它表达（第一个=当前生效那家）。
    *
@@ -82,6 +84,7 @@ export type NomiSelectProps = {
   className?: string
   /** Long/model-file enums use a searchable, wrapping list; short selectors keep their compact layout. */
   searchable?: boolean
+  emptySearchAction?: { label: string; onSelect: () => void }
   /** Nested floating panels own their portal so outside-click handling and scrolling stay correct. */
   portalTarget?: React.RefObject<HTMLElement | null>
   /**
@@ -146,6 +149,7 @@ export function NomiSelect({
   title,
   className,
   searchable = false,
+  emptySearchAction,
   portalTarget,
   dropdownAlign = 'start',
   footerAction,
@@ -271,9 +275,20 @@ export function NomiSelect({
             portalTarget 指回节点自身 DOM，而不是 document.body）——挂了就必须挡住滚轮被画布
             当缩放吃掉；没挂进画布时这两个 class 谁也不认，纯粹无操作。 */}
         <Combobox.Options className="nowheel nodrag max-h-[240px] overflow-auto">
-          {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
+          {visibleOptions.length === 0 ? (
+            <Combobox.Empty>
+              {t('common.noMatchingOptions')}
+              {query && emptySearchAction ? (
+                <button type="button" className="block w-full text-caption text-nomi-accent" onClick={() => {
+                  combobox.closeDropdown()
+                  emptySearchAction.onSelect()
+                }}>{emptySearchAction.label}</button>
+              ) : null}
+            </Combobox.Empty>
+          ) : null}
           {visibleOptions.map((option) => {
             const isSel = option.value === value
+            const details = combobox.dropdownOpened ? option.details?.() : undefined
             return (
               <Combobox.Option value={option.value} key={option.value} disabled={option.disabled} active={isSel} title={option.label}>
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
@@ -290,6 +305,11 @@ export function NomiSelect({
                     className={cn('min-w-0 flex-1 text-caption', searchable ? 'whitespace-normal break-all py-1' : 'truncate', isSel ? 'text-nomi-ink font-semibold' : 'text-nomi-ink-80')}
                   >
                     {option.label}
+                    {details?.length ? (
+                      <span className="mt-1 flex flex-wrap gap-1 text-micro font-normal text-nomi-ink-60">
+                        {details.map(detail => <span key={detail} data-model-capability className="rounded-pill bg-nomi-ink-05 px-1">{detail}</span>)}
+                      </span>
+                    ) : null}
                   </span>
                   {option.trailing ? (
                     // max-w + truncate：trailing 是附注（厂商名/价格），不许反客为主挤压 label

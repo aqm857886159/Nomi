@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-10-08-credential-offline-visible.root-cause.json",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "resolveTarget",
+      "anchor": {
+        "path": "electron/ai/onboarding/vendorHealth.ts",
+        "symbol": "resolveVendorReadTarget"
+      },
+      "reason": "模型账户读面复用供应商凭据目标时，同一函数从 resolveTarget 改名并导出为 resolveVendorReadTarget；原合同的待复验可探测、非待复验已禁用凭据不可探测不变量仍由这个函数持有。保留历史合同快照，只记录真实符号改锚；概念登记的 write_api 同步新名，没有并行主人。"
+    },
+    {
       "contract": "docs/fixes/2026-09-10-c09-readable-focus.root-cause.json",
       "path": "src/workbench/generationCanvas/reactFlow/focusViewportRecovery.ts",
       "symbol": "resolveCanvasFocusZoom",

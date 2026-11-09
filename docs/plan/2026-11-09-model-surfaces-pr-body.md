@@ -1,0 +1,137 @@
+## 做了什么 / 为什么
+
+创作者在设置中区分 APIMart 账户余额、Key 额度和近七天消费，在画布搜索当前连接支持的型号，并查看与最终出站参数匹配的发送前公开估价。本次只交付 M1/M2/M4 有限增量，仍需最终头独立验收；模型选择性能已完成 5 次有效测量。
+
+## 设计卡
+
+类别：花钱 + 新界面 + 数据格式 + Agent 行为 + 长跑 / 可打断。原设计卡：[模型账户、选择器与发送前估价](docs/plan/2026-11-08-model-surface-implementation.md)。拍板清单：[ModelSurfaces](docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json)。
+
+★0 先查别人：
+- [Key 额度](https://docs.apimart.ai/en/api-reference/account/token-balance.md) · unlimited_quota 区分不设 Key 上限 · 确认不把无限 Key 数值槽当余额零。
+- [账户余额](https://docs.apimart.ai/en/api-reference/account/user-balance.md) · remain_credits 独立于 Key 额度 · 确认三栏分别呈现，未知不补零。
+- [用量](https://docs.apimart.ai/en/api-reference/account/usage.md) · 账户汇总消费与成功请求单独统计 · 确认近七天消费不充当单次生成实扣。
+- 出口：[Key 额度](https://docs.apimart.ai/en/api-reference/account/token-balance.md) · 区分账户与 Key 的额度来源 · 确认有效零余额可刷新/充值；非零公开估价短差只提示，原发送和批准入口保留。
+
+| 格 | 决定与证据 |
+| --- | --- |
+| ★1 用户结果 | 设置→模型页→核账户/Key/用量→回画布→搜索型号→选变体→看估价；量具为 apimart-model-surfaces.rehearsal.mjs 的中英窗口、旧目录和 GET/媒体计数。真实账户、真实生成与实扣均 unverified；主指标为演练完成率，护栏为媒体创建 0。连带界面限账户卡和画布；Agent/批量批准维持原入口。旧项目型号、连接及偏好保留，英文用真实 v0.24.1 目录快照演练。 |
+| ★2 唯一事实 | 主进程 vendorAccountFacts / vendorPricePreview 持有账户与报价；报价使用既有最终任务请求投影，renderer 只消费当前连接与参数对应结果。凭据可用性唯一 owner 仍是 credentialRecordCounts；本次只将凭据登记的读入口名跟随 resolveVendorReadTarget，无新增主人。 |
+| ★3 复用与取舍 | 复用已有供应商凭据、appFetch、目录选择器和任务模板；沿已批 M1/M2/M4 方向收口；共享 priceBalanceStatus 已实现，不另起资金体系，不删充值态。方向记录见下。 |
+| ★4 全状态 | 无凭据引导连接；加载不猜金额；成功显示有来源事实；失败/部分成功保留各自未知及管理/刷新；取消中由原生成体系负责；过期充值点击只刷新；能力不可用可经空搜索进入已展开的 AI 接入。文案覆盖中英。出站核对：账户 GET /v1/balance、/v1/user/balance、/v1/usage 只允许种子 baseUrl/alternateOrigins 声明的 api.apimart.ai / api.apib.ai，且拒绝 URL 用户信息和非根/v1 路径，用户中转地址不读。凭据来自 resolveVendorReadTarget，appFetch 复用 credentialRedirectPolicy 拒绝带鉴权头的跳转，不把 Key 跟随到别处；公开价格 /api/pricing/model 与 /api/pricing/models/all 使用同一 origin 白名单，无凭据并显式 redirect:error。 价格规格先由 priceQueryFromRequest 用空 Key 调 buildProfileHttpRequest 在内存投影实际 POST 报文，只返回有限 VendorPriceQuery；该构造器不发请求，生成报文/headers/query 不进入价格传输。图片与视频链的回归测试核对真正出站只有上述公开 GET、无 headers/body/Key，不能把投影构造误称为 GET。网络/超时/非成功/字段缺失只使对应事实为 null、Key 为 unknown（明确 401 才 invalid）或不报价，不生成、不重试扣费。两个 test.ts 的 appFetch 是 vi.mock 替身，无真实出口。登记 scripts/outbound-policy-baseline.json 的四个精确 importer，不改网络策略。布局按用户 2026-11-09 决定：刷新/更多及两处展开箭头紧跟文字，gap-1.5，不沿用样张贴右。 |
+| 5 中途与动作 | 账户/报价读取中关窗不创建媒体，重开重读；断网只使事实未知；换 Key/端点忽略旧返回；连点合并读取；已渲染充值跨过期后只刷新，绝不落入生成。原生成取消/回执仍由既有任务授权体系负责。 |
+| 6 外部失败 | 账户和用量仅 GET，经主进程凭据与重定向策略；公开价 GET 无凭据且限制 origin；缺字段、无价、不可达均保持未知。真实供应商字段/单位本轮未核验。 |
+| ★7 性能 | 新增设置读取、选择器搜索、变体/参数报价；量具覆盖完整 APIMart 内置目录的视频节点；场景 apimart-model-picker 配置为 1 轮预热后 5 次采样，协调安静窗口有效测量中位 28.5ms / p95 30.6ms，verdict ok；两次 UI 动作合计预算中位 150ms / p95 200ms，未改预算。大规模画布和账户读取性能无独立数字，unverified。 |
+| 8 真实条件 | 量具配置为 Mac 开发版、合成 Key + 本机回环、中文新目录/英文 v0.24.1 旧目录和账户窄窗；本轮已用合成 Key + 本机回环通过中文新目录/英文 v0.24.1 旧目录免费演练，媒体创建 0。截图已读；内容视口固定为 1280×933，真实窄窗仍未验证。Windows、打包版、真实账户、真付费、全键盘和完整深暗主题也未验证。 |
+| ★9 验收与回滚 | 验收清单为账户未知/零/无限、换连接失序、固定/输出估价、过期充值点击、旧目录、空搜索、GPT2.6 真实模板投影及媒体 0；本轮免费演练通过未知/零/无限、固定/输出报价、过期充值、旧目录、空搜索、GPT2.6 投影和媒体 0；换连接失序由指定单测验证，真实换 Key 流程未走查。上述结果不代替真实供应商、真实生成与实扣验证。最终头由另一条线独立验收；本稿不代签。回滚通过 revert 本分支功能提交，保留用户项目与连接资料。 |
+
+### 数据格式、Agent 与打断边界
+
+- 数据格式：本分支在内置供应商种子声明账户只读路径；没有增加持久化项目迁移。既有型号、档位和连接资料保留；量具是 `tests/ux/apimart-model-surfaces.rehearsal.mjs` 的真实 v0.24.1 目录快照。英文真实 v0.24.1 目录快照本轮已演练通过；未验证：保存重开和退回旧版尚未走查。
+- Agent 行为：路径命中 `src/workbench/ai/v4/formatMoney.ts`，变更为现有 Intl 货币格式器增加可选精度，调用方没给精度时仍用原默认值；没有新增 Agent 工具或更改工具授权。未验证：未运行意图评测，不能报告首次做对率。
+- 长跑 / 可打断：账户 GET 使用 12 秒超时、公开价 GET 使用 8 秒超时；React 卸载移除监听、取消待发的报价计时器并忽略旧响应。主进程已发出的只读请求到超时或完成结束；没有新增媒体任务写入口。未验证：断网、关窗、重启的完整任务回执链没有本轮实测。
+
+| 状态 | 停止 | 关窗 | 断网 | 重启 | 连点 |
+| --- | --- | --- | --- | --- | --- |
+| 账户/报价读取中 | 无独立取消钮；只读请求以超时/完成结束 | 卸载清监听并忽略响应，主进程请求继续至超时/完成 | 读取失败呈未知 | 重新读取，不持久化旧读数 | 主进程合并在途账户读取；报价输入只采当前身份 |
+| 已知账户/报价 | 不创建媒体任务 | 不写生成回执 | 刷新失败后不能推断新余额 | 重新读取 | 相同输入消费缓存；原生成按钮仍经原批准 |
+| 未知/部分不可读 | 保留未知，可管理连接/刷新 | 不把未知改成零 | 保留未知 | 重新读取 | 只刷新，不由未知结果建立资金硬闸 |
+| 已渲染充值但快照过期 | 原按钮动作固定 | 关闭后重新读取 | 本次只刷新，失败保持未知 | 不恢复旧充值快照 | 不进入生成，需界面重新显示生成后另点 |
+| 既有生成中/取消中 | 原 Run/授权体系处理，未验证：本轮未走链 | 未验证：未走查原任务回执 | 未验证：未走查恢复和防重发 | 未验证：未走查保存重开 | 未验证：未重测原生成防重入 |
+
+本次新读面不创建媒体；实际生成的花费和回执归原 Run/授权体系，上表未验证项不能外推成“不重复扣费”结论。
+
+### 功能分类
+- [x] 新界面 / 改交互
+- [x] 花钱
+- [x] 新增功能 / 性能
+- [x] 大数据量 / 画布 / 长列表
+- [x] 数据格式
+- [x] Agent 行为
+- [x] 长跑 / 可打断
+
+## 拍板图
+
+- ModelSurfaces: picker.search
+- ModelSurfaces: cost.send-pill
+- ModelSurfaces: cost.hover
+- ModelSurfaces: cost.low-balance
+
+清单为 `docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json`。上述四项在清单中为 implemented，当前合流头独验仍未完成。账户卡、账户菜单、AI 接入行及选择器能力行在清单中为 in-progress，本 PR 只覆盖其设计卡列出的有限增量，不认领整项完成；其余完整板件见后续片。
+
+## 碰到的规则与门岗
+
+- `scripts/check-i18n-no-cost-claims.mjs`：本意改动，限定放行已批准账户/公开估价的六个精确双语键值；未扩大任意金额文案通配。
+- `scripts/check-i18n-no-cost-claims.node-test.mjs`：本意改动，覆盖批准键值可通过、同键“免费”及任意键复用报价文字仍被拒绝。
+- `docs/engineering/concept-owners/catalog.credential-availability.json`：登记的 write_api 从旧名 resolveTarget 跟随真实定义 resolveVendorReadTarget，credentialRecordCounts 唯一 owner 不变。
+- `scripts/boundary-owners-ledger.json`：历史根因合同保留原快照，通过已有 reanchored 机制将 resolveTarget 指向同文件的 resolveVendorReadTarget；不修改合同、门岗或产品代码。
+- `docs/engineering/self-written.json`：用 model-surface-account-quote 精确认领六个领域适配模块，不扩大 domainRoots；领域约束与复用查证见“先查别人”。
+- `scripts/outbound-policy-baseline.json`：精确登记两个已在上层限制供应商 origin 的只读模块及其 vi.mock 测试；四问核对见设计卡 ★4，不放宽策略。
+- `scripts/generation-entrances-ledger.json`：登记 vendorPriceRequest.ts::buildProfileHttpRequest 的单个调用为纯内存估价投影，沿用既有非生成入口 reason；下游只发公开价 GET、不带 Key、不生成，测试见 vendorPricePreview.test.ts；不改门岗判据、矩阵或 landingExceptions。
+- `scripts/file-size-baseline.json`：OnboardingDrawer 的导航职责移入既有 hook 后，将冻结上限由 847 下调到 839，不上调。
+- `scripts/vocabularies-baseline.json`：登记已有 VendorAccountFacts.keyState 合同的三个验证结论；查无同义已注册 owner，不另写并行状态。
+- `docs/plan/2026-11-09-model-settings-content-flow-direction-check.md`：仅目录热点命中、文件本身未命中的换/删布局；记录本轮用户决定、协调指派和既有目录例外的适用边界，不冒称已做独立复盘。
+
+## 先查别人
+
+- `electron/ai/onboarding/vendorHealth.ts:78` · 现有 resolveVendorReadTarget 持有连接凭据和指纹；账户读面直接复用它 · 确认登记跟随真实符号，不新增凭据主人。
+- `electron/ai/onboarding/vendorPriceRequest.ts:1` · 现有 selectTaskMapping、applyHeadlessParamDefaults 和 buildProfileHttpRequest 渲染最终出站报文 · 确认估价只投影 Nomi 实际任务请求，不平行维护型号/参数目录。
+- `electron/appFetch.ts:20` · 项目已有统一 fetch 传输 · 确认账户与价格读取复用它，不新造 HTTP 或代理层。
+- `src/workbench/ai/v4/formatMoney.ts:16` · 货币格式器使用 Intl.NumberFormat；订阅用 `src/ui/onboarding/useVendorAccountFacts.ts:12` 的 React.useEffect · 确认只写 Nomi 的连接身份、最终规格、金额来源和画布批准语义适配，不另造格式器或状态框架。
+
+自写登记 model-surface-account-quote 的领域约束：只有 Nomi 的节点、参考关系、变体映射和最终出站请求能决定镜头公开价是否可估；账户与有限 Key 的有效额度、固定/输出估价的确定程度决定画布充值或原生成批准动作。通用能力均复用上述已有边界。六个模块没有第二份目录、凭据或付费授权 owner；只更新登记，不改产品代码。
+
+## 系统改进
+
+[方向记录](docs/plan/2026-11-08-price-balance-direction-check.md)采用共享 priceBalanceStatus，独立区分已核实零余额与公开估价短差。已渲染充值按钮的动作固定，30 秒后点击只刷新；输出估价不计算确定短差。账户与报价复用当前连接身份，旧响应不得覆盖新输入。确定性测试覆盖账户/有限 Key 零值、无限、未知、过期、固定价/输出估价；Electron 回环检查媒体创建为零。本轮只补上述三处内容流布局，不改变账户/报价/生成或按钮处理器。
+
+本轮生成入口补证见 [公开估价投影登记设计卡](docs/plan/2026-11-09-public-price-generation-entrance.md)：原门岗已拦住漏登记的纯构造调用；补一条精确 reason，并以真实内置图片/视频映射验证投影与固定只读传输的分界。不改产品代码或出站策略。
+
+## 性能
+
+- 场景：`apimart-model-picker`。
+- 预算：中位 150ms / p95 200ms；budgetStatus 为 proposed。
+- 有效测量：协调在安静窗口使用 --id apimart-model-picker --runs 5 --measure-only 运行，exit 0、verdict ok；response 5 次有效样本，中位 28.5ms / p95 30.6ms。原始样本与统计值已经核对。
+- 本次未重跑性能；经协调委托，已将该测量按现有格式写入场景 baseline，commit 按委托填登记时 HEAD；原始报告保留实际测量头。未改预算。原始结果：docs/evidence/2026-11-08-apimart-model-surfaces/perf-apimart-model-picker.json。
+
+## 验收证据
+
+- ui-mockup：docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json
+- ui-click-census：未验证：完整板件按钮普查未执行；本轮有限增量中英免费演练已通过。
+- ui-capability-unavailable：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/README.md
+- ui-ai-walk：未验证：无真实账户和真实生成任务。
+- ui-screens：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-content-flow/README.md
+- ui-task-scorecard：未验证：本轮任务未包含完整体验成绩单。
+- spend-walks：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/receipt.json
+- spend-paid-sample：运行号 1794205291727（协调 11-09 真付费，报告 reports/P-1462-paid-sample.md）：1 次生成 POST（GPT Image 2.5 Flare，1:3 · 1K · low，代理上限 1），发送前估价 0.01344 积分，实扣 0.014 积分，误差 4.2%；按钮显示「≈0.01」是两位小数取整。凭据走真实资料副本，跑完已删。
+- spend-fault-injection：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/README.md
+- perf-scenario：apimart-model-picker 中位数 28.5 / p95 30.6 / 预算 150 / 原始结果 docs/evidence/2026-11-08-apimart-model-surfaces/perf-apimart-model-picker.json
+- upgrade-path：不适用：本分支未改项目文件、设置、钥匙串条目名、目录缓存或迁移的持久化形状；上述存储 schema/写入路径的 origin/main...HEAD diff 无改动。accountFacts 只加入编译期 VendorSeed，seedVendor 显式写入原字段且不拷贝它（electron/catalog/seedBuiltins.ts:467）；新账户/报价缓存仅为进程 Map（electron/ai/onboarding/vendorAccountFacts.ts:11、electron/ai/onboarding/vendorPricePreview.ts:10）；新增设置导航值仅在 React.useState（src/ui/onboarding/OnboardingDrawer.tsx:74、src/workbench/settings/useSettingsDialogController.ts:34）。
+- agent-intent-eval：未验证：本轮未跑真实模型意图评测，未测首次做对率。
+- run-e2e-chain：未验证：本轮未执行关窗、重启、断网后的完整任务恢复与防重复扣费链。
+
+## 后续片
+
+- 完整接入引导：统一入口来源、粘 Key 四项检查、错误分支、返回原稿、首屏大页与邀请码。
+- M1 完整管理、旧连接提示、按型号用量与单价页。
+- M2 参数合并芯片、独立草稿/上线行、旧型号置顶提示。
+- M4 多镜确认卡、生成后预计/实扣、来源详情和上游充值失败动作。
+- 真实账户字段/单位、真实零余额、真实输出估价→回执实扣→余额变化与误差。
+- 最终头独立验收；完整模型接入流程尚未完成。
+
+## 已知限制
+
+- 付费那次只授权一个型号，选择前即默认选中它，所以那一次不能独立证明「搜索后点选」生效；免费演练里选择前是另一个型号，能证明点选有效（独立验收问题 2，低）。
+用户 2026-11-09 的行布局决定已实现，三处不再待定；旧预览图保留，其三处贴右布局由清单的新决定覆盖。三张中英暗设置页截图及几何收据见本轮验收证据。账户卡和接入行的其他清单内容仍为 in-progress/missing，不认领整项完成。真实窄窗、真实账户/付费、Windows 和独立验收仍未验证。
+
+## 本轮门岗收口
+
+导航职责归入现有 hook 并将抽屉冻结上限 847→839；等待使用既有条件/预算；Key 三态登记原 DTO owner；不存在断言用运行时探针证明；经协调委托登记既有性能测量基线；四个只读 appFetch importer 的目的地依据见 ★4。中英免费演练 64 GET / 媒体创建 0、12 图已读，截图限制见证据说明。用户 2026-11-09 已定：照设计系统行布局，不照旧样张贴右；刷新/更多跟随账户名和连接状态，两处展开箭头跟随标题，使用现有 gap-1.5。三处 ml-auto 已删除，tokens 回到原上限内；清单注明新决定，不改门岗、上限或样张。
+
+## 独立验收
+
+- 验收线：V-model-surfaces-cost-delta
+- 报告：协调目录 reports/V-model-surfaces-cost-delta.md
+- 报告首行：V-model-surfaces-cost-delta：通过——估价对实扣增量可信，数字和截图对得上，钱闸和代理代码无漏洞；问题 1（步骤哈希闸无测试守）已由 8ce362e60 补测试并复核通过，问题 2（付费那次选型号被默认选中掩盖）记已知限制。
+- 验收 HEAD：8ce362e6074b3a36006209268d6a0d1b779d9ebc
+- 实现线：I-model-surfaces-takeover
+- 此前整体验收：V-model-surfaces-final（HEAD 891ff302c，有条件通过：真实费用误差待验——已由本次真付费补上；完整板件和 Windows 仍未验证，见已知限制）。

@@ -1,0 +1,247 @@
+{
+  "results": [
+    {
+      "locale": "zh-CN",
+      "quote": "1.95"
+    },
+    {
+      "locale": "en",
+      "quote": "1.95"
+    }
+  ],
+  "reads": [
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/models"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/models"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pricing/model"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/usage"
+    }
+  ],
+  "generationSubmissions": 0
+}

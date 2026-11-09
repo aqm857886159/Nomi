@@ -162,6 +162,11 @@
       "id": "D-account-default",
       "text": "菜单里的更换 Key 留到下一轮。",
       "source": "协调交接 ★46 的默认项。"
+    },
+    {
+      "id": "D-content-flow-20261109",
+      "text": "账户卡刷新/更多及两处接入行展开箭头紧跟文字，使用现有 gap-1.5；不沿用旧样张贴右，不提高门岗上限。",
+      "source": "用户 2026-11-09 定：照设计系统行布局，不照样张贴右。旧样张不重画，本条覆盖上述三处布局。"
     }
   ],
   "constraints": [
@@ -238,7 +243,7 @@
     {
       "id": "settings.account-card",
       "artboard": "Main",
-      "label": "APIMart 账户卡：卡头名字 + 已连接 + Key 尾号，刷新图标 + ⋯；三格余额（积分为主、美元为辅，去充值 ↗ 跟在美元后）· Key 额度 · 近 7 天花费与次数（用量与单价 › 跟在次数后）；不放供应商标、不放会员行；读不到写「暂时读不到 · 重试」不写 0；三格宽度按各自内容分（余下平分），每格的次级行不折行（r5：英文「41 runs · Usage & prices」曾被挤成上下两行）",
+      "label": "APIMart 账户卡：卡头名字 + 已连接 + Key 尾号，刷新图标 + ⋯；三格余额（积分为主、美元为辅，去充值 ↗ 跟在美元后）· Key 额度 · 近 7 天花费与次数（用量与单价 › 跟在次数后）；不放供应商标、不放会员行；读不到写「暂时读不到 · 重试」不写 0；三格宽度按各自内容分（余下平分），每格的次级行不折行（r5：英文「41 runs · Usage & prices」曾被挤成上下两行）；刷新 / 更多动作紧跟卡头 APIMart 名称和已连接状态文字，gap-1.5，不推到右边缘。用户 2026-11-09 定：照设计系统行布局，不照样张贴右。",
       "change": "changed",
       "states": [
         "loading",
@@ -373,7 +378,7 @@
         "383-span-用量与单价",
         "384-svg"
       ],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "S1 设置账户卡"
     },
     {
@@ -398,7 +403,7 @@
         "238-svg",
         "325-svg"
       ],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "S1 设置账户卡"
     },
     {
@@ -454,7 +459,7 @@
     {
       "id": "settings.ai-onboard-row",
       "artboard": "Main",
-      "label": "一行「用 AI 帮我接入」：展开选宿主（WorkBuddy / Codex / Claude Code / 其它）+ 复制指引；接 APIMart 以外的模型走这里",
+      "label": "一行「用 AI 帮我接入」：展开选宿主（WorkBuddy / Codex / Claude Code / 其它）+ 复制指引；接 APIMart 以外的模型走这里；展开箭头紧跟「用 AI 帮我接入」标题文字，gap-1.5；左侧图标与副标题缩进保持原样。用户 2026-11-09 定：照设计系统行布局，不照样张贴右。",
       "change": "changed",
       "states": [
         "hover",
@@ -492,7 +497,7 @@
         "1451-div-用AI帮我接入别家",
         "1452-svg"
       ],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "S1 设置账户卡"
     },
     {
@@ -530,8 +535,8 @@
     {
       "id": "settings.other-ways.misc",
       "artboard": "Main",
-      "label": "「其他接入方式」里的数据源（TikHub）· 网络 · 导入 / 导出配置 · 我已有调用脚本，原样搬入",
-      "change": "unchanged",
+      "label": "「其他接入方式」里的数据源（TikHub）· 网络 · 导入 / 导出配置 · 我已有调用脚本，原样搬入；父行「其他接入方式」的展开箭头紧跟标题文字，gap-1.5；左侧图标与副标题缩进保持原样。用户 2026-11-09 定：照设计系统行布局，不照样张贴右。",
+      "change": "changed",
       "states": [
         "dark",
         "zh-en"
@@ -803,8 +808,9 @@
         "1043-span-搜模型",
         "1169-span-搜模型"
       ],
-      "status": "missing",
-      "owner": "S2 画布模型选择器"
+      "status": "implemented",
+      "owner": "S2 画布模型选择器",
+      "assertion": "board:ModelSurfaces/picker.search"
     },
     {
       "id": "picker.row",
@@ -1159,7 +1165,7 @@
         "1659-span-Style",
         "1660-svg"
       ],
-      "status": "missing",
+      "status": "in-progress",
       "owner": "S2 画布模型选择器"
     },
     {
@@ -1481,8 +1487,9 @@
         "1621-svg",
         "1622-svg"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "implemented",
+      "owner": "S3 生成前估价与费用回执",
+      "assertion": "board:ModelSurfaces/cost.send-pill"
     },
     {
       "id": "cost.hover",
@@ -1497,8 +1504,9 @@
       "candidates": [
         "1249-div-这次约035积分0035"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "implemented",
+      "owner": "S3 生成前估价与费用回执",
+      "assertion": "board:ModelSurfaces/cost.hover"
     },
     {
       "id": "cost.low-balance",
@@ -1518,8 +1526,9 @@
         "1265-span-去充值",
         "1266-svg"
       ],
-      "status": "missing",
-      "owner": "S3 生成前估价与费用回执"
+      "status": "implemented",
+      "owner": "S3 生成前估价与费用回执",
+      "assertion": "board:ModelSurfaces/cost.low-balance"
     },
     {
       "id": "cost.batch-card",
