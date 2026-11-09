@@ -102,7 +102,7 @@
 - ui-screens：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-content-flow/README.md
 - ui-task-scorecard：未验证：本轮任务未包含完整体验成绩单。
 - spend-walks：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/receipt.json
-- spend-paid-sample：未验证：本轮禁止真实账户接口及花费，后续协调验真实估价/回执/余额。
+- spend-paid-sample：待协调真付费：入口 tests/ux/apimart-model-surfaces-cost.paid.mjs
 - spend-fault-injection：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/README.md
 - perf-scenario：apimart-model-picker 中位数 28.5 / p95 30.6 / 预算 150 / 原始结果 docs/evidence/2026-11-08-apimart-model-surfaces/perf-apimart-model-picker.json
 - upgrade-path：不适用：本分支未改项目文件、设置、钥匙串条目名、目录缓存或迁移的持久化形状；上述存储 schema/写入路径的 origin/main...HEAD diff 无改动。accountFacts 只加入编译期 VendorSeed，seedVendor 显式写入原字段且不拷贝它（electron/catalog/seedBuiltins.ts:467）；新账户/报价缓存仅为进程 Map（electron/ai/onboarding/vendorAccountFacts.ts:11、electron/ai/onboarding/vendorPricePreview.ts:10）；新增设置导航值仅在 React.useState（src/ui/onboarding/OnboardingDrawer.tsx:74、src/workbench/settings/useSettingsDialogController.ts:34）。
