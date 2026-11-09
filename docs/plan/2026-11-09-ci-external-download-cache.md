@@ -26,3 +26,13 @@ CI 安装前统一恢复 Electron 与 Playwright Chromium 二进制缓存，避�
 
 ## 验证
 待本地验证后回填。真实 CI 缓存写入、命中和网络日志待协调推送及重跑。
+
+## 11-09 续跑设计补充（范围上限 20）
+
+- 授权：补概念 owner、SCAN_GUARDS 与正文点名，另把打包和 installer 编译测试的工具链缓存收进本动作；不改版本、源或测试重试。
+- ★0：https://github.com/electron-userland/electron-builder/blob/master/website/docs/troubleshooting.md · 官方要求持久化 ELECTRON_BUILDER_CACHE；三平台默认分别为 macOS ~/Library/Caches/electron-builder、Windows %LOCALAPPDATA%/electron-builder/Cache、Linux ~/.cache/electron-builder（尊重 XDG_CACHE_HOME） · 确认用绝对路径 runner.temp/nomi-electron-builder-cache，缓存整个工具链目录；当前 26.15.3 的 app-builder-lib/out/util/electronGet.js#getCacheDirectory 实查相同，不把 next 文档当锁定版本的源码。
+- ★1：保住 NSIS 非法指令反例真正到达编译器、Mac 打包不重复下载已缓存工具；量具仍为工作流结构测试及真实 CI 日志，实际 CI 待协调。
+- ★2：同一复合动作拥有三种缓存；概念登记收 action.yml#runs；SCAN_GUARDS 收工作流、动作、package.json 和 lockfile。现批次仅支持 Vitest，因此以同表分 node/Vitest 两个批次，测试守住不漏跑、不交叉、不吞失败。
+- ★3：沿已有缓存边界补 builder，换源不选、删除编译器不选；不复制第二份安装逻辑。builder key 含系统、架构、锁定 builder 版本和 workflow/job，前缀回退可先复用同平台内容后保存该任务的完整工具集，避免某个打包目标先存不完整缓存后永久命中同 key。
+- ★4：builder 开关仅在实际打包/单测任务开启；冷缓存照常下载、热缓存照常编译、下载失败保留错误；无重试。其余状态沿原卡。
+- ★9：新增验收：所有直接 electron-builder、package.json 打包别名、完整/相关单测入口在执行前启用 builder 缓存；Unit 全分片统一开启；环境、缓存路径、版本 key 和同平台回退一致。动手前反例：逐个去掉 9 个任务的 builder 开关→红、还原→绿；错 builder 环境/path/key/前缀→红；删除 owner 或扫描登记→对应检查红；把 node 批次送去 Vitest 或漏入口→结构测试红；node 批次执行已知失败夹具必须返回非 0。原 12 条缓存反例继续适用。快检槽 A 等到运行完，不取消；正文六项全 0。总文件预计 19，不推送。
