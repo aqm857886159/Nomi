@@ -3,7 +3,7 @@
   "id": "2026-11-03-storyboard-per-shot-controls",
   "problem_type": "Duplicated storyboard configuration scopes and invisible handoff",
   "symptom": "Redundant storyboard configuration scopes; selected-shot handoff must reveal the composer and retain the named design and shots through lane admission.",
-  "direct_cause": "Global/selection parameter writers coexist with per-shot writers; the send boundary constructs storyboardTarget only on creation while the storyboard panel sends from storyboard.",
+  "direct_cause": "Global/selection parameter writers coexist with per-shot writers; the send boundary constructs storyboardTarget only on creation while the storyboard panel sends from storyboard. Per-shot explicit model changes clear params but keep the previous durationSec instead of the new model defaults; the scroll container does not reserve space below its sticky selection toolbar.",
   "class_root": "Creative decisions lack one scope owner, and explicit storyboard references are not captured consistently across the two document-backed authoring surfaces.",
   "affected_population": [
     "All storyboard plans, image and video rows, stored keyframe drafts and multi-provider models"
@@ -33,7 +33,9 @@
     "Changing model preserves vendor identity and changes shot kind only for an explicit model from the other catalog.",
     "Disabled keyframe drafts are retained but never projected or compiled as active keyframes.",
     "Film aspect remains one project setting and does not rewrite row overrides.",
-    "Creation and storyboard sends capture selected stable shot ids and their named design at the same renderer send boundary; foreign-plan references remain rejected."
+    "Creation and storyboard sends capture selected stable shot ids and their named design at the same renderer send boundary; foreign-plan references remain rejected.",
+    "Explicit image-to-video and video-to-video choices reset video duration through the existing canvas model-control defaults.",
+    "At maximum storyboard scroll, the last row parameter text remains above the selection toolbar."
   ],
   "doors": [
     {
@@ -260,12 +262,37 @@
       "kind": "write",
       "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
       "symbol": "projectShotNode"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts",
+      "symbol": "defaultPatchForControls"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "symbol": "defaultPatchForControls"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardComposerParams.tsx",
+      "symbol": "storyboardComposerControls"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/storyboard/storyboardBulkAspectOptions.ts",
+      "symbol": "storyboardComposerControls"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+      "symbol": "StoryboardPlanEditor"
     }
   ],
   "door_reduction": {
-    "before": 45,
-    "after": 45,
-    "why_not": "Compilation, projection, runtime status and persistence are separate necessary readers; unrelated animation keyframe readers remain unaffected. UI model writers are removed while the row/anchor model owner and existing shell reveal paths remain. Storyboard target consumers are distinct lane admission, lane projection, tool execution and proposal write boundaries; only the shared renderer producer decides whether the current authoring surface captures a target. The projectShotNode scan completes previously omitted existing projection callers; this declaration-only correction adds no production entry."
+    "before": 50,
+    "after": 50,
+    "why_not": "Compilation, projection, runtime status and persistence are separate necessary readers; unrelated animation keyframe readers remain unaffected. UI model writers are removed while the row/anchor model owner and existing shell reveal paths remain. Storyboard target consumers are distinct lane admission, lane projection, tool execution and proposal write boundaries; only the shared renderer producer decides whether the current authoring surface captures a target. The projectShotNode scan completes previously omitted existing projection callers; this declaration-only correction adds no production entry. Canvas auto-selection and explicit change require their existing separate callers; the same defaultPatchForControls owner supplies values to both and the storyboard. Anchor choices have no shot duration. Composer rendering and aspect candidate intersection must remain readers. StoryboardWorkspace is the existing editor host."
   },
   "generality_proof": "Delete bulk and selection parameter writer components and props. Reuse the paired model identity writer for every explicit row model. Disabled keyframe reads are checked at compiler, resolver and projection boundaries, regardless of how the draft was persisted. Both authoring surfaces use the same target capture, existing reference identity check, source document preconditions and lane admission; there is no handoff-specific transport or main-process validation exception.",
   "shared_boundaries": [
@@ -283,6 +310,11 @@
       "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
       "symbol": "useAgentPanelV4Actions",
       "responsibility": "Capture named storyboard plan and selected shots for both creation and storyboard panels before asynchronous admission."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "symbol": "StoryboardPlanEditor",
+      "responsibility": "Reserve scroll clearance so sticky selection actions never permanently obscure the final row."
     }
   ],
   "same_class_entry_points": [
@@ -313,7 +345,9 @@
       "node scripts/door-map.mjs planModelSelection",
       "node scripts/door-map.mjs setProjectAgentDockCollapsed",
       "rg keyframe src electron, including projection, compilation, schema and persistence readers",
-      "node scripts/door-map.mjs storyboardTarget; independently trace creation and storyboard host sends, laneDesktopInput and lane projection; generation and preview retain their own target kinds."
+      "node scripts/door-map.mjs storyboardTarget; independently trace creation and storyboard host sends, laneDesktopInput and lane projection; generation and preview retain their own target kinds.",
+      "node scripts/door-map.mjs defaultPatchForControls; trace explicit buildNodeModelChangePatch and useNodeModelAutoSelect.",
+      "node scripts/door-map.mjs planModelSelection storyboardComposerControls StoryboardPlanEditor; trace same-kind and cross-kind shot picks and anchor picks."
     ]
   },
   "prevention": {
@@ -326,7 +360,8 @@
     "artifacts": [
       "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
       "src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx",
-      "src/workbench/ai/v4/useAgentPanelV4Actions.ts"
+      "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx"
     ]
   },
   "regression_tests": [
@@ -335,7 +370,8 @@
     "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts",
     "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
     "src/workbench/ai/v4/useAgentPanelV4Actions.test.ts",
-    "tests/ux/_storyboardAgentBulkSteps.mjs"
+    "tests/ux/_storyboardAgentBulkSteps.mjs",
+    "tests/ux/storyboard-confirm-selection.walk.mjs"
   ],
   "class_regression_tests": [
     "tests/ux/storyboard-only-what-works.test.mjs",
@@ -343,7 +379,8 @@
     "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts",
     "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
     "src/workbench/ai/v4/useAgentPanelV4Actions.test.ts",
-    "tests/ux/_storyboardAgentBulkSteps.mjs"
+    "tests/ux/_storyboardAgentBulkSteps.mjs",
+    "tests/ux/storyboard-confirm-selection.walk.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
