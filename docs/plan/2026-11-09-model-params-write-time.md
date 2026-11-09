@@ -146,9 +146,9 @@
 | 老项目变体归一 | `normalizeArchetypeVariantMeta` | 第 3 步只读漂移检查 |
 | 目录/声明卡更新、模型下线 | 当前无参数漂移标记 | `open` 列；第 3/4 步 |
 | 分镜单镜/参考卡/整片/框选模型 | `planModelSelection`，四个文件五处调点 | `storyboard-model`；锚也要同函数 |
-| 类型与首帧开关 | `shotKindPatch` / `applyShotKindToAll`；单镜上层也调用整片函数 | `storyboard-kind` / `first-frame` |
+| 类型与首帧开关 | `shotKindPatch` / `applyShotKindToAll`；现有整片类型选择器调用 applyShotKindToAll | `storyboard-kind` / `first-frame` |
 | 分镜模式 | `shotRow/ShotComposerBar.tsx:onModeChange` | `storyboard-mode` |
-| **参考条独立换模式** | `shotRow/StoryboardShotRow.tsx:onSwitchMode` 只写 modeId | 研究报告未分列；`storyboard-reference-mode` |
+| **参考条独立换模式** | `shotRow/StoryboardShotRow.tsx:onSwitchMode` 只写 modeId | 研究报告未分列；`storyboard-reference-mode`（真实行回调） |
 | 手改时长、批量时长 | `ShotComposerBar.tsx:onChange` → `updateShotAt`；`applyDurationToAll` | `storyboard-duration`；批量第 2 步 |
 | 分镜显示/落画布 | `exec/storyboardProjection.ts:projectShotNode` | 第 1/3 步；duration 覆盖默认 |
 | Agent 建节点/落画布 | `agent/plannedNodeMeta.ts:buildPlannedNodeMeta` | `agent-node` |
@@ -202,11 +202,11 @@ Mac/本地目录与纯函数：第 0 步执行。Windows、英文界面、最小
 
 ### 第 0 步（本次执行）
 
-- C1 参数列登记 `tests/model-params/README.md`，列为 legal / explanation / open；每个入口恰三格。每格聚合全部样本，有一例失败即红；`it.fails` 固定已知红格，修好即去 `.fails`，不得动态吞异常/自动把新红当已知。
+- C1 参数列登记 `tests/model-params/README.md`，列为 legal / explanation / open；当前登记 13 个入口，每个入口恰三格。每格聚合全部样本，有一例失败即红；`it.fails` 固定已知红格，修好即去 `.fails`，不得动态吞异常/自动把新红当已知。固定已知红格集合是静态登记，夹具异常由普通测试独立硬拦。
 - 模型两两/模式两两/变体两两、图片↔视频、上下限/全选项与 3/5/8/12/20 可点数；调用真实产品函数/真实 UI 回调，不在测试中代写产品逻辑。
 - 绿格反例 M0：临时改坏 `plannedNodeMeta` 的合法参数校验，使非法数值被写入 → `agent-node/legal` 必红；逐字节还原 → 绿。临时变异不提交、七热点最终零差异。
 - 红格反例 M1：`storyboard-model/legal` 去 `.fails` → 必红，恢复 `.fails` → 绿；证明量的是现存缺陷。
-- 模块加载/夹具/目录缺失先用普通测试硬断言，不许 `it.fails` 因 import/throw 误过；打开列同时断言对象与隔离文件不变，不拿测试自算标记充当产品标记。
+- 模块加载/夹具/目录缺失先用普通测试硬断言，不许 `it.fails` 因 import/throw 误过；打开列经过 normalizeRecord 后分别读取真画布参数条、分镜策略/行警示、Agent generation read 回执；同时断言对象与隔离文件不变并统计 operation store patch，不拿测试自算标记充当产品标记。
 - 跑尺子、typecheck、排锁快检、正文预检六项，结果写实现报告；同一检查连红三次停。
 
 ### 第 1 步验收合同（未实施，未来执行）
