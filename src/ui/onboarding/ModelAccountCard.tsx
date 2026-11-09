@@ -16,10 +16,10 @@ export function ModelAccountCard({ connection, connected }: { connection: ModelS
   const account = facts?.accountCredits
   return (
     <section data-model-account={connection.vendorKey} className="mt-3 rounded-nomi border border-nomi-line bg-nomi-paper px-3 py-2.5">
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-1.5">
         <span className="min-w-0 truncate text-body-sm font-semibold text-nomi-ink">{connection.name}</span>
         {connected && <StatusBadge tone={facts?.keyState === 'valid' ? 'success' : facts?.keyState === 'invalid' ? 'warning' : 'neutral'}>{facts?.keyState === 'valid' ? t('onboardingProviders.account.connected') : facts?.keyState === 'invalid' ? t('onboardingProviders.account.invalid') : t('onboardingProviders.account.saved')}</StatusBadge>}
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {connected ? <>
             <WorkbenchIconButton icon={<IconRefresh />} size="sm" label={t('onboardingProviders.account.refresh')} onClick={refresh} />
             <WorkbenchIconButton icon={<IconAdjustmentsHorizontal />} size="sm" label={t('onboardingProviders.account.manage')} data-model-home-connection={connection.vendorKey} onClick={connection.onOpen} />

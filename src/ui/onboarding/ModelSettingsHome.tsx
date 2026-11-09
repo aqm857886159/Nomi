@@ -581,7 +581,7 @@ export function ModelSettingsHome({
             ))}
             <details ref={assistedRef} className="mt-4 rounded-nomi border border-nomi-line px-3 py-2" data-model-home-assisted>
               <summary className="cursor-pointer list-none">
-                <span className="flex items-center gap-2 text-caption font-medium text-nomi-ink"><IconPlugConnected size={16} aria-hidden />{t('onboardingProviders.account.aiSetup')}<IconChevronRight size={14} className="ml-auto" aria-hidden /></span>
+                <span className="flex items-center gap-2 text-caption font-medium text-nomi-ink"><IconPlugConnected size={16} aria-hidden /><span className="inline-flex items-center gap-1.5"><span>{t('onboardingProviders.account.aiSetup')}</span><IconChevronRight size={14} className="shrink-0" aria-hidden /></span></span>
                 <span className="ml-6 block text-micro text-nomi-ink-60">{t('onboardingProviders.account.aiHint')}</span>
               </summary>
               <AiAssistedOnboardingSection />
@@ -601,7 +601,7 @@ export function ModelSettingsHome({
 
             <details className="mt-3 rounded-nomi border border-nomi-line px-3 py-2" data-model-home-other-connections>
               <summary className="cursor-pointer list-none">
-                <span className="flex items-center gap-2 text-caption font-medium text-nomi-ink"><IconServerBolt size={16} aria-hidden />{t('onboardingProviders.drawer.home.otherMethods')}<IconChevronRight size={14} className="ml-auto" aria-hidden /></span>
+                <span className="flex items-center gap-2 text-caption font-medium text-nomi-ink"><IconServerBolt size={16} aria-hidden /><span className="inline-flex items-center gap-1.5"><span>{t('onboardingProviders.drawer.home.otherMethods')}</span><IconChevronRight size={14} className="shrink-0" aria-hidden /></span></span>
                 <span className="ml-6 block text-micro text-nomi-ink-60">{t('onboardingProviders.account.otherHint')}</span>
               </summary>
               {connectedSection}
