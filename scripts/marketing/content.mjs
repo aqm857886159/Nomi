@@ -38,8 +38,8 @@ const zhCN = {
   htmlLang: 'zh-CN',
   ogLocale: 'zh_CN',
   meta: {
-    title: 'Nomi — 商业级体验，模型按原价',
-    description: '开源、本地优先的 AI 视频工作台。Agent 替你拆镜头、出关键帧、做视频、排进时间轴；用的是你自己接的模型，按供应商原价付钱，连 Agent 也不订阅、不加价。',
+    title: 'Nomi — 开源、本地优先的 AI 视频工作台',
+    description: '开源、本地优先的 AI 视频工作台，适用于 macOS 与 Windows。排分镜，用你自己的模型 API 或本地 ComfyUI 生成片段，再在时间轴上剪辑。无需 Nomi 账号。',
     imageAlt: 'Nomi：对话出片，模型按原价',
   },
   nav: {
@@ -218,8 +218,8 @@ const english = {
   htmlLang: 'en',
   ogLocale: 'en_US',
   meta: {
-    title: 'Nomi — Pro-grade AI video. Models at their real price.',
-    description: 'Open-source, local-first AI video studio: an agent turns your story into shots, keyframes and video on models you connect, at provider price. No subscription.',
+    title: 'Nomi — Open-source, local-first AI video studio',
+    description: 'Open-source, local-first AI video studio for macOS and Windows. Plan storyboards, generate with your own model APIs or ComfyUI, edit on a timeline. No account.',
     imageAlt: 'Nomi: pro-grade AI video, models at their real price',
   },
   nav: {
