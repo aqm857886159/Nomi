@@ -1,5 +1,5 @@
 {
-  "name": "分隔条按下即认领浏览器手势",
+  "name": "尺寸与位置把手按下认领浏览器手势",
   "subject": "ui.resize-separator-gesture",
   "lifecycle": "live-interaction",
   "authority_kind": "gateway",
@@ -22,6 +22,14 @@
     {
       "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
       "symbol": "TimelineResizeHandle"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+      "symbol": "PipViewport"
+    },
+    {
+      "path": "src/ui/onboarding/workflowPage/WorkflowGraphCanvas.tsx",
+      "symbol": "WorkflowGraphCanvas"
     }
   ],
   "forbidden_derivations": [],
@@ -31,8 +39,10 @@
     "src/workbench/creation/CreationWorkspace.tsx",
     "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
     "src/workbench/generation/GenerationWorkspace.tsx",
-    "src/workbench/preview/PreviewWorkspace.tsx"
+    "src/workbench/preview/PreviewWorkspace.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+    "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx"
   ],
   "since": "2026-11-09",
-  "notes": "本概念只管 separator 的 pointerdown 先取消浏览器默认内容拖动；三种共享组件是不同布局面的入口，尺寸数值、钳制和持久化仍归原 owner。原生 preventDefault 是共同边界，不另写 helper。全 src 结构测试同时核对已有 EditorSplit 和 TimelineTextTrack 的同一约束，不限这三个登记入口。根因合同 docs/fixes/2026-11-09-resize-separator-gesture.root-cause.json。"
+  "notes": "原三个分隔条 owner 不变；本轮把 PiP 缩放/标题移动与工作流图空白平移统一换成相同 pointerdown.preventDefault 写法，不另写 helper。工作流主键和交互控件早退在认领之前保留。守卫按 resize/grab/move 光标与捕获/onMove 会话识别，不按 role 或路径白名单。跨文件/库托管/外置 CSS/非 pointerdown 明列边界；几何、钳制和持久化仍归原 owner。根因合同 docs/fixes/2026-11-09-resize-separator-gesture.root-cause.json。"
 }
