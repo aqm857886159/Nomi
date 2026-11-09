@@ -45,6 +45,8 @@ vi.mock('../../../generationCanvas/agent/applyCanvasToolCall', () => ({
 
 const facts: Record<string, unknown> = {}
 const imageResult = (id: string): GenerationNodeResult => ({ id: 'result-' + id + '-' + Math.random(), type: 'image', url: 'https://fixture.invalid/' + id + '.png', createdAt: 1 })
+/** 执行器一次交回这一镜的全部结果（这里一张）。 */
+const imageRun = (id: string) => [imageResult(id)] as const
 const plan = (shots = 2): StoryboardPlan => ({
   title: 'Lock', anchors: [{ id: 'actor', name: 'Actor', kind: 'character', carrier: 'visual', description: 'Actor' }],
   shots: Array.from({ length: shots }, (_, i) => i + 1).map(index => ({ index, shotId: `shot-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: `Actor walks ${index}` })),
@@ -86,7 +88,7 @@ function holdAnchors() {
   const hold = deferred()
   calls.execute.mockImplementation(async (node: GenerationCanvasNode) => {
     if (node.meta?.anchorId) await hold.promise
-    return imageResult(node.id)
+    return imageRun(node.id)
   })
   return () => hold.resolve()
 }
@@ -121,7 +123,7 @@ describe('T8 上锁标记（正确形状）', () => {
   it('T8a 主节点上锁、没有结果：行状态、上不上卡、发不发、有没有提示', async () => {
     const current = plan(); seed(current); anchorDone()
     const frozen = addShot('shot-2', { frozen: FROZEN })
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const rows = rowsOf(current)
     const outcome = await editor(current).runBatch(); await quiet()
     facts.T8a = { outcome, rowStatus: rows.find(r => r.shot.shotId === 'shot-2')!.exec.status, onCard: confirmCards[0]?.planRows?.some(r => r.id === 'shot:shot-2'), sends: sendsOf(frozen.id), s1: sends('shot-1'), notified: notified().filter(n => n.message) }
@@ -130,7 +132,7 @@ describe('T8 上锁标记（正确形状）', () => {
     const current = plan(); seed(current); anchorDone()
     const frozen = addShot('shot-2', { frozen: FROZEN })
     store().appendNodeRun(frozen.id, { id: 'r', status: 'success' }); store().addNodeResult(frozen.id, imageResult('x'))
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const rows = rowsOf(current)
     await editor(current).runBatch(); await quiet()
     facts.T8b = { rowStatus: rows.find(r => r.shot.shotId === 'shot-2')!.exec.status, runnable: deriveStoryboardBatch(rows).runnable.map(r => r.shot.shotId), onCard: confirmCards[0]?.planRows?.some(r => r.id === 'shot:shot-2'), sends: sendsOf(frozen.id) }
@@ -140,7 +142,7 @@ describe('T8 上锁标记（正确形状）', () => {
     const current = plan(); current.shots[1] = { ...current.shots[1], shotKind: 'video', keyframe: { enabled: true } }; seed(current); anchorDone()
     const main = addShot('shot-2'), key = addShot('shot-2', { storyboardKeyframe: true, frozen: FROZEN })
     store().appendNodeRun(key.id, { id: 'kr', status: 'success' }); store().addNodeResult(key.id, imageResult('k'))
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const rows = rowsOf(current)
     const outcome = await editor(current).runBatch(); await quiet()
     facts.T8c = { outcome, rowStatus: rows.find(r => r.shot.shotId === 'shot-2')!.exec.status, onCard: confirmCards[0]?.planRows?.some(r => r.id === 'shot:shot-2'), main: sendsOf(main.id), key: sendsOf(key.id), notified: notified().filter(n => n.message) }
@@ -152,7 +154,7 @@ describe('T9 选中入口', () => {
     const current = plan(); current.shots[1] = { ...current.shots[1], prompt: 'Changed after lock' }; seed(current); anchorDone()
     const frozen = addShot('shot-2', { frozen: FROZEN }); store().updateNode(frozen.id, { prompt: 'Locked prompt' })
     store().appendNodeRun(frozen.id, { id: 'r', status: 'success' }); store().addNodeResult(frozen.id, imageResult('x'))
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const selected = rowsOf(current).filter(r => r.shot.shotId === 'shot-2')
     const before = nodes().find(n => n.id === frozen.id)!
     const outcome = await runSelected(current, selected); await quiet()
@@ -164,7 +166,7 @@ describe('T9 选中入口', () => {
     const current = plan(); seed(current); anchorDone()
     const done = addShot('shot-2')
     store().appendNodeRun(done.id, { id: 'r', status: 'success' }); store().addNodeResult(done.id, imageResult('x'))
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const selected = rowsOf(current).filter(r => r.shot.shotId === 'shot-2')
     const outcome = await runSelected(current, selected); await quiet()
     facts.T9b = { rowStatus: selected[0].exec.status, outcome, cards: confirmCards.length, onCard: confirmCards[0]?.planRows?.map(r => r.id), sends: sendsOf(done.id), failures: [...failures] }
@@ -177,8 +179,8 @@ describe('H-E2 拒绝之后点「重试失败的 N 个」', () => {
     const hold = deferred(), single = deferred()
     let shot2Calls = 0
     calls.execute.mockImplementation(async (node: GenerationCanvasNode) => {
-      if (node.meta?.shotId === 'shot-2') { shot2Calls += 1; if (shot2Calls === 1) { await single.promise; return imageResult(node.id) } if (shot2Calls === 2) throw refusal() }
-      return imageResult(node.id)
+      if (node.meta?.shotId === 'shot-2') { shot2Calls += 1; if (shot2Calls === 1) { await single.promise; return imageRun(node.id) } if (shot2Calls === 2) throw refusal() }
+      return imageRun(node.id)
     })
     let consents = 0
     calls.consent.mockImplementation(async (input: { shots: Array<{ runRecordId: string }> }) => { consents += 1; if (consents === 2) await hold.promise; return input.shots.map(shot => `canvas-${shot.runRecordId}`) })

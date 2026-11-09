@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { canvasProviderId } from "./canvasTransportProvider";
+import { canvasProviderId, isCanvasProviderId } from "./canvasTransportProvider";
+import type { createGenerationOutputMaterializer } from "./generationOutputMaterializer";
 import type { PlanCandidate } from "./executionContract";
 import type { GenerationProviderOutput } from "./generationRuntimeAdapter";
 import type { AutomationPolicy, ProductionArtifact } from "../productionRun/productionRunTypes";
@@ -93,6 +94,8 @@ export function canvasLocalArtifactReceipt(input: {
   projectRoot: string;
   providerTaskId: string;
   output: GenerationProviderOutput;
+  /** 这一单的第几份产物（从 0 起）：第一份号不变，第 k 份加 `-k`，同一单的几份各有自己的号。 */
+  outputIndex: number;
 }): Pick<ProductionArtifact, "artifactId" | "kind" | "contentHash" | "projectRelativePath"> | null {
   const prefix = `nomi-local://asset/${encodeURIComponent(input.projectId)}/`;
   if (!input.output.url.startsWith(prefix)) return null;
@@ -114,11 +117,20 @@ export function canvasLocalArtifactReceipt(input: {
   relative = path.relative(root, absolute).split(path.sep).join("/");
   const contentHash = crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
   return {
-    artifactId: `canvas-artifact-${input.providerTaskId}`.slice(0, 160),
+    artifactId: input.outputIndex > 0
+      ? `${`canvas-artifact-${input.providerTaskId}`.slice(0, 150)}-${input.outputIndex + 1}`
+      : `canvas-artifact-${input.providerTaskId}`.slice(0, 160),
     kind: input.output.kind,
     contentHash,
     projectRelativePath: relative,
   };
+}
+
+/** 提交出口的「交回的产物怎么记进 Run」：画布那台的本地文件只记账（上面这个），别的交给通用物化。 */
+export function canvasAwareOutputMaterializer(projectRoot: string, generic: Pick<ReturnType<typeof createGenerationOutputMaterializer>, "materialize">) {
+  return async (input: { projectId: string; providerTaskId: string; output: GenerationProviderOutput; outputIndex: number; job: { provider: string } }) =>
+    (isCanvasProviderId(input.job.provider) && canvasLocalArtifactReceipt({ projectId: input.projectId, projectRoot, providerTaskId: input.providerTaskId, output: input.output, outputIndex: input.outputIndex }))
+    || generic.materialize({ projectId: input.projectId, providerTaskId: input.providerTaskId, output: input.output, providerId: input.job.provider });
 }
 
 /** 一个画布节点这一次生成的候选：冻进合同的就是渲染层拼好的那一份请求（`parameters = { vendor, request }`）。 */

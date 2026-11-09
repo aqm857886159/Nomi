@@ -32,7 +32,7 @@ import {
   canvasLastResult,
   type CanvasTaskResult,
 } from "./canvasTransportProvider";
-import { blockingReason, failedResult, latestJob, readyArtifact, resultFromArtifact } from "./canvasShotResult";
+import { blockingReason, failedResult, latestJob, readyArtifacts, resultFromArtifacts } from "./canvasShotResult";
 import { createCanvasShotSettledBell } from "./canvasShotSettledBell";
 import type { CanvasShotSettledNotice } from "../shared/canvas/canvasShotSettled";
 import { freezeCanvasExecutionContract, type PlanCandidate } from "./executionContract";
@@ -536,8 +536,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     if (!job) throw coded(`node_generation_in_flight: ${run.runId}`, "node_generation_in_flight", "in_flight");
     if (job.status === "submission_unknown" || job.status === "reconciling")
       throw new Error(tagNomiError("submission-unknown", job.errorMessage || "The previous request got no result"));
-    const artifact = readyArtifact(run, job);
-    if (artifact) return resultFromArtifact(run, job, artifact, kind);
+    const [artifact, ...more] = readyArtifacts(run, job);
+    if (artifact) return resultFromArtifacts(run, job, [artifact, ...more], kind);
     if (job.status === "needs_attention") return failedResult(job, kind);
     if (job.providerTaskId) return { id: job.providerTaskId, kind, status: "queued", assets: [], raw: {} };
     throw coded(`node_generation_in_flight: ${run.runId}`, "node_generation_in_flight", "in_flight");
@@ -559,7 +559,7 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
       job = latestJob(run) ?? job;
       if (run.origin.nodeId) markCanvasRunOpen(projectRoot, runId, run.origin.nodeId);
     }
-    const existing = readyArtifact(run, job);
+    const [existing] = readyArtifacts(run, job);
     if (existing) {
       // 产物已在账上，job 没跟上（崩在落地中途）：交给提交出口补齐，下面才收得了尾。
       if (!["ready", "adopted"].includes(job.status)) {
@@ -571,8 +571,10 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
           logWarn("production-run", "canvas-shot-finish-landing-failed", { runId }, error);
         }
       }
-      settle(projectId, projectRoot, runId, job, existing.artifactId);
-      return resultFromArtifact(run, job, existing, kind);
+      // 补齐之后再读一遍：一次出几张，回话里就是这笔作业落进账的那几张。
+      const [first, ...more] = readyArtifacts(run, job);
+      settle(projectId, projectRoot, runId, job, (first ?? existing).artifactId);
+      return resultFromArtifacts(run, job, first ? [first, ...more] : [existing], kind);
     }
     if (job.status === "needs_attention") {
       settle(projectId, projectRoot, runId, job);
@@ -615,8 +617,8 @@ export function createCanvasShotRuns(deps: CanvasShotDeps) {
     }
     run = repository().read(projectId, runId) ?? run;
     job = latestJob(run) ?? job;
-    const artifact = readyArtifact(run, job);
-    return last ?? (artifact ? resultFromArtifact(run, job, artifact, kind) : failedResult(job, kind));
+    const [artifact, ...more] = readyArtifacts(run, job);
+    return last ?? (artifact ? resultFromArtifacts(run, job, [artifact, ...more], kind) : failedResult(job, kind));
   }
 
   /**
