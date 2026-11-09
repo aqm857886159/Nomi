@@ -1,7 +1,6 @@
 import { formatLaneModelDelta } from "./laneModelContext"
 import { formatStoryboardRequestTarget } from '../shared/agentCapabilities/generationInvocationContext'
 import { agentModelEntrySchema } from "../shared/agentCapabilities/availableModelsSchema"
-import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import type { Model } from '../catalog/types'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
@@ -11,8 +10,8 @@ import { AGENT_CONTEXT_SNAPSHOT_VERSION, formatAgentContextSnapshot } from '../s
 import { resolveProjectAgentAttachmentClaims } from '../assets/projectAssetStore'
 import { readNomiLocalAsset } from '../assets/localAssetFile'
 import { extractTextFromLocalAsset } from '../files/extractText'
-import { buildAgentUserContent, projectAgentPromptForSend, modelImageInputSupport, modelSupportsPdfInput } from '../ai/agentUserContent'
-import { rewritePdfPayload, type NativePdf } from '../ai/nativePdfPayload'
+import { buildAgentUserContent, projectAgentPromptForSend, modelImageInputSupport, modelSupportsPdfInput, modelSupportsOriginalMedia } from '../ai/agentUserContent'
+import { bindNativeFile, rewriteNativeFilePayload, NativeMediaInputError, NativeMediaBudget, type NativeFile } from '../ai/nativeFilePayload'
 
 const text = z.string().max(128 * 1024)
 const intentSchema = z.object({
@@ -62,7 +61,9 @@ export function createDesktopLaneInput(input: {
   prepare(context: LaneComposerContext): Promise<LaneComposerContext>
   model(): { model: Model; kind: string } | undefined
 }): NonNullable<OpenLaneOptions['input']> {
-  const pdfs = new Map<string, NativePdf>()
+  const files = new Map<string, NativeFile>()
+  let mediaBudget = new NativeMediaBudget()
+  let projectionIndex = 0
   return {
     capture: input.capture,
     prepare: (context) => {
@@ -76,7 +77,8 @@ export function createDesktopLaneInput(input: {
       resolveProjectAgentAttachmentClaims(input.projectId, context.attachments ?? [])
       return input.prepare(context)
     },
-    activate: (context) => { pdfs.clear(); input.activate(context) },
+    activate: (context) => { files.clear(); mediaBudget = new NativeMediaBudget(); projectionIndex = 0; input.activate(context) },
+    beginProjection: () => { files.clear(); mediaBudget = new NativeMediaBudget(); projectionIndex = 0 },
     providerContent: async (message, previous) => {
       const selected = input.model()
       if (!selected) throw new Error('Model is not configured')
@@ -84,6 +86,7 @@ export function createDesktopLaneInput(input: {
       const attachments = refs.flatMap((ref) => ref.display ? [{
         assetId: ref.assetId, url: ref.display.url, contentType: ref.display.contentType,
         fileName: ref.display.fileName, kind: ref.display.kind,
+        sizeBytes: ref.display.sizeBytes,
       }] : [])
       const { model } = selected
       const content = await buildAgentUserContent({
@@ -91,7 +94,11 @@ export function createDesktopLaneInput(input: {
         attachments,
         imageInput: modelImageInputSupport(model),
         supportsPdfInput: selected.kind !== 'openai-compatible' && modelSupportsPdfInput(model.modelKey, model.modelAlias, model.meta),
-        resolveBytes: (url) => readNomiLocalAsset(url)?.bytes ?? null,
+        supportsAudioInput: modelSupportsOriginalMedia(model, 'audio'),
+        supportsVideoInput: modelSupportsOriginalMedia(model, 'video'),
+        mediaBudget,
+        budgetPrefix: String(projectionIndex++),
+        resolveBytes: (url, options) => readNomiLocalAsset(url, options)?.bytes ?? null,
         extractText: (attachment) => extractTextFromLocalAsset(attachment.url, attachment.contentType, attachment.fileName),
       })
       if (typeof content === 'string') return content
@@ -99,19 +106,15 @@ export function createDesktopLaneInput(input: {
         if (part.type === 'text') return part
         if (part.type === 'image') return { type: 'image' as const,
           data: Buffer.from(part.image).toString('base64'), mimeType: part.mimeType ?? 'image/png' }
-        const data = Buffer.from(part.data).toString('base64')
-        const marker = `[nomi-pdf:${createHash('sha256').update(part.data).digest('hex')}]`
-        pdfs.set(marker, { marker, fileName: part.fileName, data })
-        return { type: 'text' as const, text: marker }
+        const file = bindNativeFile({ type: 'file', data: Buffer.from(part.data).toString('base64'), mimeType: part.mimeType, fileName: part.fileName })
+        files.set(file.marker, file)
+        return { type: 'text' as const, text: file.marker }
       })
     },
     rewritePayload: (payload, api) => {
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Invalid provider payload')
-      // 模型怪癖（modelProfiles）已在 createNomiProvider 的 onPayload 里套过（唯一一处），这里只管 PDF。
-      const rewritten = rewritePdfPayload(payload, api, [...pdfs.values()])
-      if ([...pdfs.keys()].some((marker) => !rewritten.applied.has(marker))) {
-        throw new Error('Native PDF was not preserved by the provider payload adapter')
-      }
+      const rewritten = rewriteNativeFilePayload(payload, api, [...files.values()])
+      if ([...files.keys()].some(marker => !rewritten.applied.has(marker))) throw new NativeMediaInputError('unbound')
       return rewritten.payload
     },
   }

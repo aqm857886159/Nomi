@@ -20,6 +20,10 @@ import { firstString, trim } from "./jsonUtils";
 import { desktopT } from "./i18n";
 import { billingKindForTaskKind, findExecutableModelForTask, type TaskRequest, type TaskResult } from "./runtime";
 import type { Model, Vendor } from "./catalog/types";
+import { readNomiLocalAsset } from './assets/localAssetFile';
+import { assertNativeMediaCapability, bindNativeFile, MAX_NATIVE_FILE_BYTES, nativeMediaKind, NativeMediaInputError, NativeMediaBudget } from './ai/nativeFilePayload';
+import type { NativeFileContent } from './shared/agentLane/nativeModelInput';
+import type { NomiModelConfig } from './shared/agentLane/laneModelConfig';
 
 /**
  * 文本任务缺省的重试次数（流开始之前的 408/409/429/5xx/连不上）。迁移前是 ai@4 的 SDK 默认 2 次；
@@ -56,6 +60,33 @@ async function imageContent(urls: readonly string[], signal: AbortSignal | undef
   return images;
 }
 
+/** Text tasks receive the exact same project-owned originals as Agent attachments. */
+function originalMediaContent(request: TaskRequest, config: NomiModelConfig, signal?: AbortSignal): NativeFileContent[] {
+  const files: NativeFileContent[] = [];
+  const budget = new NativeMediaBudget();
+  for (const [field, kind] of [['referenceAudioUrls', 'audio'], ['referenceVideoUrls', 'video']] as const) {
+    const values = request.extras?.[field];
+    if (values === undefined) continue;
+    if (!Array.isArray(values)) throw new NativeMediaInputError('unreadable', { file: field });
+    if (values.length) assertNativeMediaCapability(kind, config.inputModalities, field);
+    for (const [index, url] of values.entries()) {
+      signal?.throwIfAborted();
+      if (typeof url !== 'string' || !url.startsWith('nomi-local://asset/')) throw new NativeMediaInputError('unreadable', { file: field });
+      const key = `${field}:${index}`;
+      const available = Math.min(MAX_NATIVE_FILE_BYTES, budget.remainingBytes(key));
+      if (available <= 0) throw new NativeMediaInputError('tooLarge');
+      const file = readNomiLocalAsset(url, { maxBytes: available });
+      if (!file?.bytes.length) throw new NativeMediaInputError('unreadable', { file: field });
+      if (nativeMediaKind(file.contentType) !== kind) throw new NativeMediaInputError('invalidType', { file: file.fileName, mimeType: file.contentType });
+      budget.reserve(key, file.bytes.length);
+      const part: NativeFileContent = { type: 'file', fileName: file.fileName, mimeType: file.contentType, data: Buffer.from(file.bytes).toString('base64') };
+      bindNativeFile(part);
+      files.push(part);
+    }
+  }
+  return files;
+}
+
 // 文本任务的执行收口（单一真相）：runTask（收集最终）与 runTextTaskStream（逐字流式）
 // 共用这一份——resolve 之后只差「传不传 onDelta / abortSignal」。
 export async function executeTextTask(input: {
@@ -90,6 +121,12 @@ export async function executeTextTask(input: {
   });
 
   if (input.vendor.key === ANTIGRAVITY_VENDOR_KEY) {
+    if (['referenceAudioUrls', 'referenceVideoUrls'].some(field => {
+      const value = input.request.extras?.[field];
+      return Array.isArray(value) ? value.length > 0 : value !== undefined;
+    })) {
+      throw new NativeMediaInputError('unsupported', { file: '', media: 'audio/video' });
+    }
     const result = await runAntigravityTask({ prompt: input.request.prompt, model: input.model.modelKey,
       imageUrls, signal, onDelta: input.onDelta });
     return { ...succeeded(result.text, "stop"), raw: { choices: [{ message: { role: "assistant", content: result.text } }], usage: result.usage } };
@@ -99,6 +136,7 @@ export async function executeTextTask(input: {
   const prompt = sanitizeForBroadCompat(input.request.prompt);
   const images = await imageContent(imageUrls, signal);
   const config = nomiModelConfigFor(input.vendor, input.model, input.apiKey);
+  const originalMedia = originalMediaContent(input.request, config, signal);
   const transport = modelCallTransport({ modelId: config.modelId, knownSecrets: [input.apiKey] });
   const failure = (error: unknown, errorMessage?: string) => modelCallFailure({
     vendorKey: input.vendor.key, error, ...(errorMessage === undefined ? {} : { errorMessage }),
@@ -108,7 +146,7 @@ export async function executeTextTask(input: {
     result = await callModelOnce({
       model: config,
       fetch: transport.fetch,
-      content: images.length ? [{ type: "text", text: prompt }, ...images] : prompt,
+      content: images.length || originalMedia.length ? [{ type: "text", text: prompt }, ...images, ...originalMedia] : prompt,
       temperature: Number.isFinite(temperatureValue) ? temperatureValue : DEFAULT_TEXT_TASK_TEMPERATURE,
       ...(Number.isFinite(maxTokensValue) && maxTokensValue > 0 ? { maxTokens: maxTokensValue } : {}),
       maxRetries,

@@ -279,7 +279,9 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const { harness } = await AgentHarness.create<undefined>({
     session, models, model, systemPrompt, tools,
     compaction: laneCompactionSettings(model.contextWindow, options.limits?.contextTokenBudget),
-    toProviderMessages: async (messages) => convertToLlm(await Promise.all(messages.map(async (message, index) => {
+    toProviderMessages: async (messages) => {
+      options.input?.beginProjection?.();
+      return convertToLlm(await Promise.all(messages.map(async (message, index) => {
       if (!isLaneInputMessage(message)) return message;
       if (!options.input) throw new Error('This lane cannot resolve its recorded input context.');
       const source = message.context.continueFromEntryId && message.context.retryFromEntryId
@@ -291,7 +293,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       return { role: 'user' as const, content: reference === undefined ? content
         : appendLaneContinuation(content, laneContinuationText(await session.getEntry(reference, context))),
       timestamp: message.timestamp };
-    }))),
+      })));
+    },
     activeToolNames: [...activeToolNames],
     toolExecution: 'sequential',
     // **一次只吃一句**（G-24）。pi 的默认是 `"all"`（`harness/runtime/harness.js:44-45`）：

@@ -16,6 +16,7 @@ import { createModels } from '@earendil-works/pi-ai';
 import { createNomiProvider, prewarmProviderProtocols } from './laneModelProvider.mjs';
 import { LANE_STREAM_WATCHDOG, MODEL_CALL_CEILING_MS } from './laneProviderGuard.mjs';
 import { MODEL_CALL_CEILING_ERROR, type CallModelOnce, type ModelCallOptions, type ModelCallResult, type PrewarmModelCall } from '../shared/agentLane/modelCallPort.js';
+import { assertNativeFileCapability, bindNativeFile, rewriteNativeFilePayload, NativeMediaInputError, NativeMediaBudget } from '../ai/nativeFilePayload.js';
 
 export type { ModelCallOptions, ModelCallResult } from '../shared/agentLane/modelCallPort.js';
 
@@ -31,20 +32,36 @@ export const callModelOnce: CallModelOnce = async (options: ModelCallOptions): P
   options.signal?.throwIfAborted();
   const ceiling = options.signal ? undefined : AbortSignal.timeout(MODEL_CALL_CEILING_MS);
   const signal = options.signal ?? ceiling!;
+  const files = new Map<string, ReturnType<typeof bindNativeFile>>();
+  const budget = new NativeMediaBudget();
+  const content = typeof options.content === 'string' ? options.content : options.content.map((part, index) => {
+    if (part.type !== 'file') return part;
+    assertNativeFileCapability(part, options.model.inputModalities);
+    const padding = part.data.endsWith('==') ? 2 : part.data.endsWith('=') ? 1 : 0;
+    budget.reserve(String(index), Math.floor(part.data.length / 4) * 3 - padding);
+    const file = bindNativeFile(part);
+    files.set(file.marker, file);
+    return { type: 'text' as const, text: file.marker };
+  });
   const { provider, model, credentials, pricingBasis } = await createNomiProvider(options.model, options.fetch, LANE_STREAM_WATCHDOG);
   const models = createModels({ credentials });
   models.setProvider(provider);
   signal.throwIfAborted();
   const stream = models.streamSimple(model, {
     ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
-    messages: [{ role: 'user', content: options.content, timestamp: Date.now() }],
+    messages: [{ role: 'user', content, timestamp: Date.now() }],
     tools: [],
   }, {
     signal,
     ...(options.temperature === undefined ? {} : { temperature: options.temperature }),
     ...(options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens }),
     ...(options.maxRetries === undefined ? {} : { maxRetries: options.maxRetries }),
-    ...(options.onPayload ? { onPayload: (payload: unknown) => options.onPayload!(payload, model.api) } : {}),
+    ...((options.onPayload || files.size) ? { onPayload: async (payload: unknown) => {
+      const customized = options.onPayload ? await options.onPayload(payload, model.api) : payload;
+      const result = rewriteNativeFilePayload(customized, model.api, [...files.values()]);
+      if ([...files.keys()].some(marker => !result.applied.has(marker))) throw new NativeMediaInputError('unbound');
+      return result.payload;
+    } } : {}),
   });
   if (options.onEvent) for await (const event of stream) options.onEvent(event);
   const message = await stream.result();

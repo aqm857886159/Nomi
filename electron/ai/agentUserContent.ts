@@ -2,6 +2,7 @@ import { mediaKindFromContentType } from '../assets/mediaTypes'
 import { builtinCatalogModelKeys } from '../catalog/seedBuiltins'
 import type { Model } from '../catalog/types'
 import { mentionUrlsInOrder, numberPromptReferences, projectPromptForSend } from '../shared/storyboard/promptMentions'
+import { nativeMediaKind, validateNativeFileBytes, MAX_NATIVE_FILE_BYTES, NativeMediaInputError, NativeMediaBudget } from './nativeFilePayload'
 // 把「文字 prompt + 待发附件」拼成 Vercel AI SDK 的 user message content。
 // 纯函数（字节读取由 resolveBytes 回调注入），便于单测。
 // 图片 → image part（只有「不能读图」才不发）；PDF → file part（按模型能力门控）；其它文档 → 计数提示（S4 抽文本接手）。
@@ -13,6 +14,7 @@ export type AgentUserAttachment = {
   contentType: string
   fileName: string
   kind: 'image' | 'file'
+  sizeBytes?: number
 }
 
 type TextPart = { type: 'text'; text: string }
@@ -56,6 +58,10 @@ export function modelSupportsPdfInput(modelKey: string, modelAlias: string | nul
   return PDF_INPUT_MODEL_RE.test(`${modelKey || ''} ${modelAlias || ''}`.toLowerCase())
 }
 
+export function modelSupportsOriginalMedia(model: Pick<Model, 'meta'>, kind: 'audio' | 'video'): boolean {
+  return metaFlag(model.meta, kind === 'audio' ? 'supportsAudioInput' : 'supportsVideoInput') === true
+}
+
 function isPdf(attachment: AgentUserAttachment): boolean {
   return attachment.contentType.toLowerCase().includes('pdf') || attachment.fileName.toLowerCase().endsWith('.pdf')
 }
@@ -81,28 +87,48 @@ export async function buildAgentUserContent(params: {
   /** 由 `modelImageInputSupport` 给出；只有「不能」才不发图。 */
   imageInput: ImageInputSupport
   supportsPdfInput: boolean
-  resolveBytes: (url: string) => Uint8Array | null
+  supportsAudioInput?: boolean
+  supportsVideoInput?: boolean
+  signal?: AbortSignal
+  mediaBudget?: NativeMediaBudget
+  budgetPrefix?: string
+  resolveBytes: (url: string, options?: { maxBytes?: number }) => Uint8Array | null
   /** 文档（docx/xlsx/csv/txt/md）抽文本，注入 prompt（任何文本模型可用）。 */
   extractText: (attachment: AgentUserAttachment) => Promise<string | null>
 }): Promise<AgentUserContent> {
-  const { prompt, attachments = [], imageInput, supportsPdfInput, resolveBytes, extractText } = params
+  const { prompt, attachments = [], imageInput, supportsPdfInput, resolveBytes, extractText, signal } = params
+  signal?.throwIfAborted()
   if (!attachments.length) return prompt
 
   const mediaAttachments = mediaReferences(attachments)
   const ordered = numberPromptReferences(mediaAttachments)
   const references = mediaAttachments.map(({attachment:att},index) => ({ reference:`@${ordered[index].kind}${ordered[index].index}`, assetId: att.assetId, name: att.fileName, contentType: att.contentType }))
-  const referenceBlock = references.length ? `\n\n[Selected original media references]\n${JSON.stringify(references)}\nThese assetIds identify the exact user-selected originals. Reuse them as generation references when requested. Video/audio have not been watched or listened to: look_at_media reads technical facts only; do not invent their visible or audible content.` : ''
+  const referenceBlock = references.length ? `\n\n[Selected original media references]\n${JSON.stringify(references)}\nThese assetIds identify the exact user-selected originals. Reuse them as generation references when requested. Attached audio/video originals are included as native input. The look_at_media tool reads technical facts only.` : ''
   const mediaParts: Array<ImagePart | FilePart> = []
+  const mediaBudget = params.mediaBudget ?? new NativeMediaBudget()
   const docBlocks: string[] = []
   let droppedImages = 0
   let droppedPdfs = 0
   let failedDocs = 0
 
-  for (const att of attachments) {
-    if (/^(video|audio)\//.test(att.contentType)) {
-      // Lane supports text/images. Preserve executable original references rather
-      // than silently trying to extract an audiovisual file as a document.
+  for (const [index, att] of attachments.entries()) {
+    signal?.throwIfAborted()
+    const kind = nativeMediaKind(att.contentType)
+    if (kind) {
       if (!att.assetId) throw new Error('project_agent_attachment_invalid')
+      if (!(kind === 'audio' ? params.supportsAudioInput : params.supportsVideoInput)) {
+        throw new NativeMediaInputError('unsupported', { file: att.fileName, media: kind })
+      }
+      const budgetKey = `${params.budgetPrefix ?? 'input'}:${index}:${att.assetId}`
+      if (att.sizeBytes !== undefined) mediaBudget.reserve(budgetKey, att.sizeBytes)
+      const available = Math.min(MAX_NATIVE_FILE_BYTES, mediaBudget.remainingBytes(budgetKey))
+      if (available <= 0) throw new NativeMediaInputError('tooLarge')
+      const bytes = resolveBytes(att.url, { maxBytes: available })
+      if (!bytes?.length) throw new NativeMediaInputError('unreadable', { file: att.fileName })
+      mediaBudget.reserve(budgetKey, bytes.length)
+      if (bytes.length > MAX_NATIVE_FILE_BYTES) throw new NativeMediaInputError('tooLarge')
+      validateNativeFileBytes(bytes, att.contentType, att.fileName)
+      mediaParts.push({ type: 'file', data: bytes, mimeType: att.contentType, fileName: att.fileName })
       continue
     }
     if (att.kind === 'image') {
@@ -122,6 +148,7 @@ export async function buildAgentUserContent(params: {
       else failedDocs += 1
     }
   }
+  signal?.throwIfAborted()
 
   const notes: string[] = []
   if (droppedImages > 0) {

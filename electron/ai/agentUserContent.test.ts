@@ -11,6 +11,9 @@ import {
 } from "./agentUserContent";
 
 const bytes = (): Uint8Array => new Uint8Array([1, 2, 3]);
+const audioBytes = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVEfmt '), Buffer.alloc(32)]);
+const videoBytes = Buffer.concat([Buffer.from([0, 0, 0, 16]), Buffer.from('ftypisom'), Buffer.alloc(4)]);
+const mediaBytes = (url: string): Uint8Array => url.endsWith('.mp4') || url.endsWith('/v') ? videoBytes : url.endsWith('.wav') || url.endsWith('/a') ? audioBytes : bytes();
 const row = (vendorKey: string, modelKey: string, overrides: Partial<Model> = {}): Model =>
   ({ vendorKey, modelKey, labelZh: modelKey, kind: "text", enabled: true, createdAt: "", updatedAt: "", ...overrides });
 
@@ -193,15 +196,44 @@ describe("buildAgentUserContent", () => {
 
 
 describe('original media reference identity', () => {
-  it('carries video/audio ids for generation reuse without claiming to analyze their content', async () => {
+  it('fails before reading bytes when audio/video capability is absent', async () => {
+    const resolveBytes = vi.fn(mediaBytes);
+    await expect(buildAgentUserContent({ prompt: 'Listen', imageInput: 'supported', supportsPdfInput: false,
+      resolveBytes, extractText: async () => null, attachments: [
+        { assetId: 'sound', url: 'nomi-local://a', contentType: 'audio/wav', fileName: 'voice.wav', kind: 'file' },
+      ] })).rejects.toMatchObject({ code: 'unsupported' });
+    expect(resolveBytes).not.toHaveBeenCalled();
+  });
+  it('honors cancellation before accessing an original', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const resolveBytes = vi.fn(mediaBytes);
+    await expect(buildAgentUserContent({ prompt: 'Listen', imageInput: 'supported', supportsPdfInput: false,
+      supportsAudioInput: true, signal: controller.signal, resolveBytes, extractText: async () => null, attachments: [
+        { assetId: 'sound', url: 'nomi-local://a', contentType: 'audio/wav', fileName: 'voice.wav', kind: 'file' },
+      ] })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(resolveBytes).not.toHaveBeenCalled();
+  });
+  it('rejects an aggregate oversized attachment set using metadata before the second read', async () => {
+    const resolveBytes = vi.fn(() => audioBytes);
+    const attachments = ['one', 'two'].map(assetId => ({ assetId, url: `nomi-local://${assetId}`,
+      fileName: `${assetId}.wav`, contentType: 'audio/wav', kind: 'file' as const, sizeBytes: 16 * 1024 * 1024 }));
+    await expect(buildAgentUserContent({ prompt: 'Listen', imageInput: 'supported', supportsPdfInput: false,
+      supportsAudioInput: true, resolveBytes, extractText: async () => null, attachments })).rejects.toMatchObject({ code: 'tooLarge' });
+    expect(resolveBytes).toHaveBeenCalledTimes(0);
+  });
+  it('sends original video/audio bytes and retains their stable generation identities', async () => {
     const extractText = vi.fn(async () => null)
-    const content = await buildAgentUserContent({ prompt: 'Use these references', imageInput: 'supported', supportsPdfInput: true, resolveBytes: bytes, extractText, attachments: [
+    const content = await buildAgentUserContent({ prompt: 'Use these references', imageInput: 'supported', supportsPdfInput: true, supportsAudioInput: true, supportsVideoInput: true, resolveBytes: mediaBytes, extractText, attachments: [
       { assetId: 'asset-video', url: 'nomi-local://v', contentType: 'video/mp4', fileName: 'take.mp4', kind: 'file' },
       { assetId: 'asset-audio', url: 'nomi-local://a', contentType: 'audio/wav', fileName: 'rain.wav', kind: 'file' },
     ] })
-    expect(content).toContain('asset-video')
-    expect(content).toContain('asset-audio')
-    expect(content).toContain('not been watched or listened to')
+    expect(JSON.stringify(content)).toContain('asset-video')
+    expect(JSON.stringify(content)).toContain('asset-audio')
+    expect(content).toEqual(expect.arrayContaining([
+      { type: 'file', data: videoBytes, mimeType: 'video/mp4', fileName: 'take.mp4' },
+      { type: 'file', data: audioBytes, mimeType: 'audio/wav', fileName: 'rain.wav' },
+    ]))
     expect(extractText).not.toHaveBeenCalled()
   })
   it('retains an executable image identity even for a text-only model', async () => {
@@ -223,7 +255,7 @@ describe('Agent inline reference projection', () => {
     const raw = `${encodeMention(attachments[2].url)} change background; ${encodeMention(attachments[0].url)} keep the face.\n${encodeMention(attachments[1].url)} animate to ${encodeMention(attachments[3].url)}; keep ${encodeMention(attachments[2].url)}.`
     const prompt = projectAgentPromptForSend(raw,attachments)
     expect(prompt).toBe('@image2 change background; @image1 keep the face.\n@video1 animate to @audio1; keep @image2.')
-    const content = await buildAgentUserContent({ prompt,attachments,imageInput:'supported',supportsPdfInput:false,resolveBytes:bytes,extractText:async()=>null })
+    const content = await buildAgentUserContent({ prompt,attachments,imageInput:'supported',supportsAudioInput:true,supportsVideoInput:true,supportsPdfInput:false,resolveBytes:mediaBytes,extractText:async()=>null })
     const text = (content as {type:string;text:string}[])[0].text
     const manifest = JSON.parse(text.split('[Selected original media references]\n')[1].split('\n')[0])
     expect(manifest.map((item:{reference:string;assetId:string})=>[item.reference,item.assetId])).toEqual([
@@ -234,13 +266,13 @@ describe('Agent inline reference projection', () => {
   const MEDIA_REFERENCE_MATRIX = attachments.flatMap(attachment => (['supported', 'unknown', 'unsupported'] as const).map(imageInput => ({ attachment, imageInput })))
   it.each(MEDIA_REFERENCE_MATRIX)('keeps $attachment.fileName canonical identity with vision=$imageInput', async ({attachment,imageInput}) => {
     const prompt = projectAgentPromptForSend(encodeMention(attachment.url), [attachment])
-    const content = await buildAgentUserContent({ prompt, attachments:[attachment], imageInput, supportsPdfInput:false, resolveBytes:bytes, extractText:async()=>null })
+    const content = await buildAgentUserContent({ prompt, attachments:[attachment], imageInput, supportsAudioInput:true,supportsVideoInput:true,supportsPdfInput:false, resolveBytes:mediaBytes, extractText:async()=>null })
     const text = typeof content === 'string' ? content : (content[0] as {text:string}).text
     const manifest = JSON.parse(text.split('[Selected original media references]\n')[1].split('\n')[0])
     expect(manifest).toHaveLength(1)
     expect(manifest[0]).toMatchObject({assetId:attachment.assetId,name:attachment.fileName,contentType:attachment.contentType})
     if (attachment.kind === 'image') expect(typeof content !== 'string' && content.some(part=>part.type==='image')).toBe(imageInput !== 'unsupported')
-    if (attachment.contentType.startsWith('video/') || attachment.contentType.startsWith('audio/')) expect(text).toContain('have not been watched or listened to')
+    if (attachment.contentType.startsWith('video/') || attachment.contentType.startsWith('audio/')) expect((content as {type:string}[]).filter(item=>item.type==='file')).toHaveLength(1)
   })
   it('refuses a pasted marker without a canonical attachment instead of silently dropping it', () => {
     expect(()=>projectAgentPromptForSend(encodeMention('nomi-local://p/missing.png'),attachments)).toThrow('project_agent_attachment_invalid')

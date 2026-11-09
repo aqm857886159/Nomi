@@ -3,12 +3,13 @@
 // 岛那边的实现以它为类型，桥这边以它为签名——哪天不再结构兼容，编译在两侧当场红。
 import type { Api, AssistantMessage, AssistantMessageEvent, ImageContent, Model, TextContent } from '@earendil-works/pi-ai'
 import type { NomiModelConfig, NomiPricingBasis } from './laneModelConfig'
+import type { NativeFileContent } from './nativeModelInput'
 
 export interface ModelCallOptions {
   model: NomiModelConfig
   fetch: typeof globalThis.fetch
   systemPrompt?: string
-  content: string | Array<TextContent | ImageContent>
+  content: string | Array<TextContent | ImageContent | NativeFileContent>
   temperature?: number
   /** 调用方明确要的输出上限；不给就按模型配置（`createNomiProvider` 的 onPayload 决定发不发）。 */
   maxTokens?: number

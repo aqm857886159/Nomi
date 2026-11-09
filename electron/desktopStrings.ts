@@ -14,6 +14,11 @@ import { getDesktopLocale, type DesktopLocale } from "./desktopLocale";
 // 导出只为门岗读（scripts/check-test-copy-literals.mjs：测试不许手抄这里的文案）；运行时取词仍只走 desktopT。
 export const desktopTranslations = {
   "zh-CN": {
+    "nativeMedia.unsupported": "当前模型或接口不支持原生接收 {{media}}：{{file}}。请改用支持该输入的模型或移除此附件。",
+    "nativeMedia.unreadable": "无法读取原始媒体：{{file}}。请重新添加文件后再发送。",
+    "nativeMedia.invalidType": "媒体内容与声明的 MIME 类型不符：{{file}}（{{mimeType}}）。请重新导入原文件。",
+    "nativeMedia.tooLarge": "原始媒体和对话历史的请求总大小超过 20 MiB。请使用较短的原始片段或在新对话中发送。",
+    "nativeMedia.unbound": "对话中的媒体引用已失效。请重新添加原始附件后再发送。",
     "agent.legacySummary": "旧版摘要：",
     "agent.legacyUnverifiedTool": "旧版工具结果未验证。",
     "credential.invalid": "密钥验证失败，请检查密钥和权限后重试。",
@@ -246,6 +251,11 @@ export const desktopTranslations = {
     "customCall.emptyScript": "脚本为空——先写点内容或让 AI 生成",
   },
   en: {
+    "nativeMedia.unsupported": "The selected model or protocol does not support native {{media}} input: {{file}}. Choose a capable model or remove this attachment.",
+    "nativeMedia.unreadable": "The original media could not be read: {{file}}. Attach the file again before sending.",
+    "nativeMedia.invalidType": "The media bytes do not match the declared MIME type: {{file}} ({{mimeType}}). Import the original file again.",
+    "nativeMedia.tooLarge": "The original media and conversation history exceed the 20 MiB request limit. Use a shorter original clip or send it in a new conversation.",
+    "nativeMedia.unbound": "A media reference in this conversation is no longer available. Attach the original file again before sending.",
     "agent.legacySummary": "Legacy summary: ",
     "agent.legacyUnverifiedTool": "Legacy tool outcome is unverified.",
     "credential.invalid": "Key validation failed. Check the key and permissions, then retry.",
