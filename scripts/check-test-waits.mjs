@@ -163,16 +163,20 @@ export function builtArtifactImportLines(source, file) {
   return lines
 }
 
-// This matrix tests provider and money-gate outcomes, not the production submit deadline.
-export function intentMatrixRealWaitLines(source, file) {
+// Poll/query budget injection in unit tests must use a controlled clock, regardless of the test's filename.
+export function injectedDeadlineWaitLines(source, file) {
   const lines = new Set()
-  if (!file.replaceAll('\\', '/').endsWith('/tryModelIntent.matrix.test.ts')) return lines
+  if (!/\.(?:test|spec|node-test)\.[cm]?[jt]sx?$/.test(file)) return lines
   const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
   let fake = false
   let restored = false
   const visit = node => {
-    if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && node.name.text === 'pollTimeoutMs'
+    if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text)
       && ts.isNumericLiteral(node.initializer) && Number(node.initializer.text.replaceAll('_', '')) > 0) {
+      lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
+    }
+    if (ts.isParameter(node) && ts.isIdentifier(node.name) && ['pollTimeoutMs', 'queryBudgetMs'].includes(node.name.text)
+      && node.initializer && ts.isNumericLiteral(node.initializer) && Number(node.initializer.text.replaceAll('_', '')) > 0) {
       lines.add(parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line)
     }
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
@@ -183,8 +187,7 @@ export function intentMatrixRealWaitLines(source, file) {
     ts.forEachChild(node, visit)
   }
   visit(parsed)
-  if (!fake || !restored) lines.add(0)
-  return lines
+  return fake && restored ? new Set() : lines
 }
 
 // Unit perf files own deterministic work/results; real timing belongs to tests/perf.
@@ -216,9 +219,9 @@ export function unitPerformanceProbeLines(source, file) {
 
 const RULES = [
   {
-    id: 'intent-matrix-real-wait',
-    label: '试跑意图矩阵须用假时钟并清理；非零 pollTimeoutMs 会拿 CI 负载判供应商结果',
-    test: (_line, context) => context.intentMatrixRealWaitLines.has(context.lineIndex),
+    id: 'injected-deadline-real-wait',
+    label: '单元测试注入非零试跑/查询预算时须启用并还原假时钟，不能拿 CI 负载判假接口结果',
+    test: (_line, context) => context.injectedDeadlineWaitLines.has(context.lineIndex),
   },
   {
     id: 'unit-performance-probe',
@@ -422,14 +425,14 @@ export function main() {
     stationHits.push(...stationWaitHits(raw, stationFile).map(hit => ({ ...hit, file: stationFile })))
     const source = stripComments(raw)
     const context = { unitPerformanceLines: unitPerformanceProbeLines(raw, stationFile), clockDeltaNames: collectClockDeltaNames(source), spiesOnFsRead: FS_READ_SPY.test(source), asyncWaitLines: asyncWaitForFunctionLines(raw, file),
-      intentMatrixRealWaitLines: intentMatrixRealWaitLines(raw, stationFile),
+      injectedDeadlineWaitLines: injectedDeadlineWaitLines(raw, stationFile),
       builtArtifactImportLines: builtArtifactImportLines(raw, path.relative(repoRoot, file).replaceAll(path.sep, '/')),
       unownedLaneCleanupLines: unownedLaneCleanupLines(raw, path.relative(repoRoot, file).replaceAll(path.sep, '/')) }
     const unitTest = /\.test\.(tsx?|mts|cts|mjs)$/.test(file)
     source.split('\n').forEach((line, i) => {
       context.lineIndex = i
       for (const rule of RULES) {
-        if (!unitTest && !['async-waitforfunction-predicate', 'unowned-lane-directory-cleanup', 'built-artifact-test-import', 'unit-performance-probe'].includes(rule.id)) continue
+        if (!unitTest && !['async-waitforfunction-predicate', 'unowned-lane-directory-cleanup', 'built-artifact-test-import', 'unit-performance-probe', 'injected-deadline-real-wait'].includes(rule.id)) continue
         if (rule.test(line, context)) hits.push({ rule, file, line: i + 1, text: line.trim().slice(0, 120) })
       }
     })
