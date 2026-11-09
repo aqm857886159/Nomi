@@ -2,12 +2,17 @@ import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
 import { createRequire } from 'node:module'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
+import { spawnMcpStdioClient } from './_mcpJourney.mjs'
+import * as launcher from './_launchApp.mjs'
 import { _electron as electron } from 'playwright'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, QUIET_WALK_MODULE, decideSyntheticCredentialStorage, encryptFixtureKey, syntheticCredentialBackendArgs } from './_launchApp.mjs'
+
+vi.mock('node:child_process', async (importOriginal) => ({ ...await importOriginal(), spawn: vi.fn() }))
 
 vi.mock('../../scripts/package-build-stamp.mjs', () => ({ assertFreshBuild: vi.fn() }))
 vi.mock('../../scripts/electron-build-artifacts.mjs', () => ({ assertElectronBuildArtifacts: vi.fn() }))
@@ -16,6 +21,8 @@ vi.mock('../../scripts/ensure-electron-signature.mjs', () => ({ ensureElectronSi
 afterEach(() => vi.restoreAllMocks())
 
 const require = createRequire(import.meta.url)
+const CREDENTIAL_STORAGE_MODULE = launcher.CREDENTIAL_STORAGE_MODULE || new URL('_credentialStorage.cjs', import.meta.url).pathname
+const { prepareCredentialSource } = launcher
 const coreRequire = createRequire(require.resolve('playwright'))
 const corePackage = coreRequire.resolve('playwright-core/package.json')
 
@@ -28,7 +35,7 @@ test.each([undefined, require('electron')])('开发构建保留官方 ready load
   })).rejects.toThrow('captured launch options')
   const options = launch.mock.calls[0][0]
   expect(options).not.toHaveProperty('executablePath')
-  expect(options.args.slice(0, 5)).toEqual(['-r', path.join(path.dirname(QUIET_WALK_MODULE), '_playwrightReady.cjs'), '-r', QUIET_WALK_MODULE, '.'])
+  expect(options.args.slice(0, 7)).toEqual(['-r', path.join(path.dirname(QUIET_WALK_MODULE), '_playwrightReady.cjs'), '-r', CREDENTIAL_STORAGE_MODULE, '-r', QUIET_WALK_MODULE, '.'])
   expect(options.timeout).toBe(60_000)
   expect(createRequire(corePackage)('electron/index.js')).toBe(require('electron'))
 })
@@ -72,22 +79,25 @@ test('已安装的官方 loader 在握手前拦住 ready / whenReady，保留 ma
 
 
 test.each([
-  [[], {}],
-  [['--password-store=basic'], { 'password-store': 'basic' }],
-  [['--use-mock-keychain'], { 'use-mock-keychain': '' }],
-  [['--use-mock-keychain', '--password-store=basic'], { 'use-mock-keychain': '', 'password-store': 'basic' }],
-  [['--password-store=gnome-libsecret'], { 'password-store': 'gnome-libsecret' }],
-  [['--password-store=basic', '--password-store=kwallet6'], { 'password-store': 'kwallet6' }],
-])('ready 适配器保留调用方的凭据后端选择（%j）', (args, expected) => {
+  ['real', [], {}],
+  ['synthetic', ['--password-store=basic'], { 'password-store': 'basic' }],
+  ['synthetic', ['--use-mock-keychain'], { 'use-mock-keychain': '' }],
+  ['real', ['--password-store=gnome-libsecret'], { 'password-store': 'gnome-libsecret' }],
+])('ready 适配器消费来源合同（%s %j）', (mode, args, expected) => {
   const switches = new Map([['use-mock-keychain', ''], ['password-store', 'basic']])
-  vm.runInNewContext(fs.readFileSync(path.join(path.dirname(QUIET_WALK_MODULE), '_playwrightReady.cjs'), 'utf8'), {
-    module: { require: () => ({ app: { commandLine: {
-      removeSwitch: (name) => switches.delete(name),
-      appendSwitch: (name, value) => switches.set(name, value),
-    } } }) },
-    process: { argv: ['electron', '.', ...args] },
+  const app = new EventEmitter()
+  app.isReady = () => false
+  app.commandLine = { removeSwitch: (name) => switches.delete(name), appendSwitch: (name, value) => switches.set(name, value) }
+  const context = {
+    module: { require: () => ({ app }) },
+    require: () => vm.runInNewContext(fs.readFileSync(CREDENTIAL_STORAGE_MODULE, 'utf8'), {
+      require: () => ({ app, safeStorage: {}, ipcMain: { handle: vi.fn() } }),
+      process: { platform: 'linux', env: { NOMI_WALK_CREDENTIAL_SOURCE: mode, NOMI_WALK_CREDENTIAL_ARGS: JSON.stringify(args) } },
+    }),
+    process: { argv: ['electron', '.'] },
     __playwright_run: () => {},
-  })
+  }
+  vm.runInNewContext(fs.readFileSync(new URL('_playwrightReady.cjs', import.meta.url), 'utf8'), context)
   expect(Object.fromEntries(switches)).toEqual(expected)
 })
 
@@ -189,7 +199,7 @@ function runtimeStorage(platform, mode = 'synthetic', availableAfterInit = true)
   }
   const logs = []
   const ipcMain = { handle: (channel, handler) => handlers.set(channel, handler) }
-  const context = { require: (id) => id === 'electron' ? { app, safeStorage, ipcMain } : require(id), module: { exports: {} }, process: { platform, env: { NOMI_WALK_CREDENTIAL_SOURCE: mode }, stderr: { write: (line) => logs.push(line) } }, Buffer }
+  const context = { require: (id) => id === 'electron' ? { app, safeStorage, ipcMain } : require(id), module: { exports: {} }, process: { platform, env: { NOMI_WALK_CREDENTIAL_SOURCE: mode, NOMI_WALK_CREDENTIAL_ARGS: JSON.stringify(mode === 'synthetic' ? syntheticCredentialBackendArgs(platform) : []) }, stderr: { write: (line) => logs.push(line) } }, Buffer }
   vm.runInNewContext(fs.readFileSync(new URL('_credentialStorage.cjs', import.meta.url), 'utf8'), context)
   return { app, safeStorage, ipcMain, handlers, logs }
 }
@@ -232,19 +242,65 @@ test('credential cross-process identity decrypts in both directions on the actua
   const consumer = path.join(dirs.tempRoot, 'consume.cjs')
   const runtime = path.join(path.dirname(QUIET_WALK_MODULE), '_credentialStorage.cjs')
   fs.writeFileSync(consumer, `const { app, safeStorage } = require('electron')
-require(${JSON.stringify(runtime)})
 app.setName('nomi')
 app.setPath('userData', process.env.NOMI_ELECTRON_USER_DATA_DIR)
+require(${JSON.stringify(path.join(path.dirname(QUIET_WALK_MODULE), '_quietWalk.cjs'))})
+require(${JSON.stringify(runtime)})
 app.whenReady().then(() => {
   if (safeStorage.decryptString(Buffer.from(process.env.FIXTURE_CIPHER, 'base64')) !== ${JSON.stringify(marker)}) throw new Error('identity mismatch')
   process.stdout.write(safeStorage.encryptString(${JSON.stringify(marker)}).toString('base64'))
   app.quit()
 }).catch(() => { process.stderr.write('cross-process decryption failed'); app.exit(1) })
 `)
-  const env = { ...process.env, NOMI_E2E: '1', NOMI_ELECTRON_USER_DATA_DIR: dirs.userDataDir, NOMI_WALK_CREDENTIAL_SOURCE: 'synthetic', FIXTURE_CIPHER: encrypted }
+  const env = { ...process.env, NOMI_E2E: '1', NOMI_ELECTRON_USER_DATA_DIR: dirs.userDataDir, NOMI_WALK_CREDENTIAL_SOURCE: 'synthetic', NOMI_WALK_CREDENTIAL_ARGS: JSON.stringify(syntheticCredentialBackendArgs()), FIXTURE_CIPHER: encrypted }
   delete env.ELECTRON_RUN_AS_NODE
   const first = spawnSync(require('electron'), [consumer, ...syntheticCredentialBackendArgs()], { env, encoding: 'utf8', timeout: 20_000 })
   expect(first.status, first.stderr).toBe(0)
   const second = spawnSync(require('electron'), [consumer, ...syntheticCredentialBackendArgs()], { env: { ...env, FIXTURE_CIPHER: first.stdout.trim() }, encoding: 'utf8', timeout: 20_000 })
   expect(second.status, second.stderr).toBe(0)
 }, 45_000)
+
+
+describe('credential MCP assembly matrix', () => {
+  test.each(platforms.flatMap((platform) => [...shapes, 'real-marker'].flatMap((shape) => [false, true].map((packaged) => [platform, shape, packaged]))))('%s / %s / packaged=%s uses the claimed source', (platform, shape, packaged) => {
+    const dirs = sourceDirs(shape === 'real-marker' ? 'safeStorage' : shape, shape === 'real-marker')
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+    Object.defineProperty(process, 'platform', { value: platform })
+    const child = new EventEmitter()
+    child.stdout = new PassThrough()
+    child.stdin = new PassThrough()
+    spawn.mockReturnValueOnce(child)
+    try {
+      spawnMcpStdioClient({ ...dirs, projectsDir: path.join(dirs.tempRoot, 'projects'), capabilityDir: path.join(dirs.tempRoot, 'capability'), runtime: {
+        command: '/fixture/electron', args: [packaged ? '/fixture/mcpNodeLauncher.js' : '.'],
+        env: packaged ? { ELECTRON_RUN_AS_NODE: '1', NOMI_MCP_APP_COMMAND: '/fixture/Nomi', NOMI_MCP_APP_ARGS: '["--disable-gpu"]' } : {},
+      } })
+      const [, args, options] = spawn.mock.calls.at(-1)
+      const expected = shape === 'real-marker' ? 'real' : 'synthetic'
+      expect(options.env.NOMI_WALK_CREDENTIAL_SOURCE).toBe(expected)
+      expect(options.env.NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE).toBe(expected === 'synthetic' ? '1' : '')
+      if (packaged) {
+        const ownerArgs = JSON.parse(options.env.NOMI_MCP_APP_ARGS)
+        expect(ownerArgs[0]).toMatch(/_packagedCredentialOwner.mjs$/)
+        expect(ownerArgs.slice(1)).toEqual(['/fixture/Nomi', '--disable-gpu'])
+        expect(options.env.NOMI_MCP_APP_COMMAND).toBe(process.execPath)
+      } else {
+        expect(args.slice(0, 2)).toEqual(['-r', CREDENTIAL_STORAGE_MODULE])
+        expect(args.filter((arg) => /^--(password-store|use-mock-keychain)\b/.test(arg))).toEqual(expected === 'synthetic' ? syntheticCredentialBackendArgs(platform) : [])
+      }
+    } finally {
+      child.stdout.destroy()
+      child.stdin.destroy()
+      Object.defineProperty(process, 'platform', descriptor)
+    }
+  })
+  test.each([
+    { NOMI_WALK_CREDENTIAL_SOURCE: 'real' },
+    { NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '' },
+    { NOMI_WALK_CREDENTIAL_ARGS: '[]' },
+    { NOMI_ELECTRON_USER_DATA_DIR: '/fixture/another-profile' },
+    { NOMI_SETTINGS_DIR: '/fixture/another-settings' },
+  ])('source or profile override %j fails closed', (env) => {
+    expect(() => prepareCredentialSource({ ...sourceDirs(), isolate: true, args: [], platform: 'linux', env })).toThrow(/conflict/)
+  })
+})
