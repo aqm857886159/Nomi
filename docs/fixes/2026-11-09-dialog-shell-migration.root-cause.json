@@ -281,9 +281,9 @@
     "Linux and Windows runtime screenshots are unverified.",
     "No paid generation is run; amount, selection and paid callbacks are unchanged.",
     "The exact original settings Save flow is still unidentified. Seven migration fixtures measured 1 clipped family before and 0 after; the original three Mac cases were 0 before and after. Representative onboarding save states are not a real credential-save or provider validation receipt.",
-    "29 new lab states lack calibrated CI macOS visual baselines. Independent acceptance and escape-ledger linking are assigned to coordination after PR creation; this line does not fabricate either receipt."
+    "29 new lab states lack calibrated CI macOS visual baselines until the first CI Design Lab run is accepted. The problem was found by the nightly feedback-delivery walkthrough (#076), not reported by a user, so no escape-ledger entry applies; independent acceptance is assigned by coordination."
   ],
-  "detected_by": "user",
+  "detected_by": "walkthrough",
   "recurrence_check_on": "2026-12-09",
   "invariant_owner_layer": {
     "layer": "src/design/overlays.tsx",
