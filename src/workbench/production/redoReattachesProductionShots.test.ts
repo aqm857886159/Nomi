@@ -35,7 +35,7 @@ async function landBatch(): Promise<string[]> {
     runId: RUN_ID,
     shots: [1, 2, 3, 4].map((index) => ({
       shotId: `shot-${index}`, kind: 'image' as const, prompt: `镜头 ${index}`,
-      ...(index === 1 ? { result: { id: 'production-job-shot-1', type: 'image' as const, url: 'nomi-local://shot-1.png', createdAt: 1 } } : {}),
+      ...(index === 1 ? { results: [{ id: 'production-job-shot-1', type: 'image' as const, url: 'nomi-local://shot-1.png', createdAt: 1 }] } : {}),
     })),
   })
   return result.bindings.map((binding) => binding.nodeId)

@@ -11,8 +11,9 @@ import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from 
 import { useSpendConfirmStore } from '../spend/spendConfirm'
 import { confirmAndRunPlan } from '../components/batchPlanPreview'
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
-import type { GenerationNodeResult, TiptapDocJson } from '../model/generationCanvasTypes'
+import type { TiptapDocJson } from '../model/generationCanvasTypes'
 import type { GenerationNodeExecutor } from './generationNodeExecutor'
+import type { GenerationNodeResults } from './catalogTaskResultParse'
 import { createDefaultWorkbenchProjectPayload, type WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 
 const calls = vi.hoisted(() => ({ execute: vi.fn(), disk: new Map<string, WorkbenchProjectRecordV1>(), confirm: vi.fn(), mint: vi.fn(), consent: vi.fn() }))
@@ -69,11 +70,11 @@ it.each(['prompt', 'references', 'model', 'parameter'] as const)('rejects a late
   const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'first approved shot' })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved original shot' })
   useGenerationCanvasStore.getState().updateNode(node.id, { meta: { modelKey: 'gpt-image-2', modelVendor: 'kie', aspect_ratio: '1:1' } })
-  calls.execute.mockImplementation(async (running: { id: string }): Promise<GenerationNodeResult> => {
+  calls.execute.mockImplementation(async (running: { id: string }): Promise<GenerationNodeResults> => {
     if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().updateNode(node.id,
       field === 'prompt' ? { prompt: 'changed after approval' } : field === 'references' ? { references: ['nomi-local://asset/changed.png'] }
         : { meta: { modelKey: field === 'model' ? 'other-model' : 'gpt-image-2', modelVendor: 'kie', aspect_ratio: field === 'parameter' ? '16:9' : '1:1' } })
-    return { id: `result-${running.id}`, type: 'image', url: 'nomi-local://asset/a/result.png', createdAt: 1 }
+    return [{ id: `result-${running.id}`, type: 'image', url: 'nomi-local://asset/a/result.png', createdAt: 1 }]
   })
   await confirmAndRunPlan(twoWavePlan(first.id, node.id), { initiator: 'user' as const })
   expect(calls.execute).toHaveBeenCalledOnce()
@@ -97,7 +98,7 @@ it.each(['first-frame-video', 'batch'] as const)('original plan confirmation con
       await session.open('project-b')
       useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
     }
-    return { id: `result-${node.id}`, type: node.kind, url: 'nomi-local://asset/a/result.png', createdAt: 1 }
+    return [{ id: `result-${node.id}`, type: node.kind, url: 'nomi-local://asset/a/result.png', createdAt: 1 }]
   })
   await confirmAndRunPlan({ waves: [[first.id], [second.id]], edgesUsed: [], blocked: [] }, {
     initiator: 'user' as const, assertCurrent: async () => interaction.assertCurrent(), assertAuthorCurrent: async () => {},
@@ -150,11 +151,11 @@ it.each(['author', 'node', 'prompt'] as const)('the original plan confirmation r
     expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true)
     if (executingNodeId === node.id && !authorCurrent) throw new Error('storyboard_content_conflict')
   }
-  calls.execute.mockImplementation(async (): Promise<GenerationNodeResult> => {
+  calls.execute.mockImplementation(async (): Promise<GenerationNodeResults> => {
     if (changed === 'author') authorCurrent = false
     else if (changed === 'prompt') useGenerationCanvasStore.getState().updateNode(node.id, { prompt: 'edited after approval' })
     else useGenerationCanvasStore.getState().deleteNode(node.id)
-    return { id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
+    return [{ id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }]
   })
   await confirmAndRunPlan({ waves: [[first.id], [node.id, unrelated.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const, assertCurrent: async () => {}, assertAuthorCurrent }).catch(() => undefined)
   expect(calls.execute).toHaveBeenCalledTimes(2)
@@ -166,9 +167,9 @@ it('permits result history and measured preview changes without changing approve
   await session.open('project-a')
   const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'first approved shot' })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved shot' })
-  calls.execute.mockImplementation(async (running: { id: string }): Promise<GenerationNodeResult> => {
+  calls.execute.mockImplementation(async (running: { id: string }): Promise<GenerationNodeResults> => {
     if (running.id === first.id) useGenerationCanvasStore.getState().updateNode(node.id, { size: { width: 250, height: 180 }, meta: { previewHeight: 180, intrinsicWidth: 640, intrinsicHeight: 480 } })
-    return { id: `result-${running.id}`, type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
+    return [{ id: `result-${running.id}`, type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }]
   })
   await confirmAndRunPlan(twoWavePlan(first.id, node.id), { initiator: 'user' as const })
   expect(calls.execute).toHaveBeenCalledTimes(2)
@@ -182,9 +183,9 @@ it('rejects a later-wave node whose existing upstream asset changed after approv
   const first = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'first approved shot' })
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'approved shot' })
   useGenerationCanvasStore.getState().connectNodes(reference.id, node.id, 'reference')
-  calls.execute.mockImplementation(async (): Promise<GenerationNodeResult> => {
+  calls.execute.mockImplementation(async (): Promise<GenerationNodeResults> => {
     useGenerationCanvasStore.getState().addNodeResult(reference.id, { id: 'reference-2', type: 'image', url: 'nomi-local://asset/ref2.png', createdAt: 2 })
-    return { id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }
+    return [{ id: 'first-result', type: 'image', url: 'nomi-local://asset/first.png', createdAt: 1 }]
   })
   await confirmAndRunPlan(twoWavePlan(first.id, node.id), { initiator: 'user' as const })
   expect(calls.execute).toHaveBeenCalledOnce()
@@ -197,7 +198,7 @@ it('rejects a manual history selection on a first frame produced by the same app
   useGenerationCanvasStore.getState().addNodeResult(first.id, { id: 'old-frame', type: 'image', url: 'nomi-local://asset/old.png', createdAt: 1 })
   const second = useGenerationCanvasStore.getState().addNode({ kind: 'video', prompt: 'video' })
   useGenerationCanvasStore.getState().connectNodes(first.id, second.id, 'first_frame')
-  calls.execute.mockImplementation(async node => ({ id: `new-${node.id}`, type: node.kind, url: 'nomi-local://asset/new.png', createdAt: 2 }))
+  calls.execute.mockImplementation(async node => [{ id: `new-${node.id}`, type: node.kind, url: 'nomi-local://asset/new.png', createdAt: 2 }])
   const assertAuthorCurrent = async () => {
     if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().setNodeMainResult(first.id, 'old-frame')
   }
@@ -216,7 +217,7 @@ it('a node edited while the batch card opens its consents must not execute the u
     useGenerationCanvasStore.getState().updateNode(input.shots[0].nodeId, { prompt: 'changed DURING consent' })
     return input.shots.map((shot) => `canvas-${shot.runRecordId}`)
   })
-  calls.execute.mockImplementation(async (executed) => ({ id: 'generated-' + executed.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }))
+  calls.execute.mockImplementation(async (executed) => [{ id: 'generated-' + executed.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }])
   await confirmAndRunPlan({ waves: [[node.id, other.id]], edgesUsed: [], blocked: [] }, { initiator: 'user' as const })
   expect(calls.execute.mock.calls.map(([executed]) => executed.prompt)).not.toContain('changed DURING consent')
 })
@@ -227,7 +228,7 @@ it('planned text manual draft edit must not replace approved connected prompt', 
   const doc = (text: string): TiptapDocJson => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
   useGenerationCanvasStore.getState().updateNode(text.id, { contentJson: doc('original') })
   useGenerationCanvasStore.getState().connectNodes(text.id, image.id, 'reference')
-  calls.execute.mockImplementation(async node => ({ id: 'new-' + node.id, type: node.kind, text: 'approved generated output', url: 'nomi-local://asset/a.png', createdAt: 1 }))
+  calls.execute.mockImplementation(async node => [{ id: 'new-' + node.id, type: node.kind, text: 'approved generated output', url: 'nomi-local://asset/a.png', createdAt: 1 }])
   const assertAuthorCurrent = async () => {
     if (calls.execute.mock.calls.length === 1) useGenerationCanvasStore.getState().updateNode(text.id, { contentJson: doc('MANUAL UNAPPROVED DRAFT') })
   }
@@ -249,7 +250,7 @@ it.each(['contentJson', 'textGenMode', 'textGenSelection'] as const)('text %s ch
     useGenerationCanvasStore.getState().updateNode(text.id, field === 'contentJson' ? { contentJson: doc('UNAPPROVED CONTENT') } : { meta: { textGenMode: field === 'textGenMode' ? 'replace' : 'rewrite', textGenSelection: field === 'textGenSelection' ? 'UNAPPROVED SELECTION' : 'approved selection' } })
     return true
   })
-  calls.execute.mockImplementation(async () => ({ id: 'generated', type: 'text', text: 'output', createdAt: 1 }))
+  calls.execute.mockImplementation(async () => [{ id: 'generated', type: 'text', text: 'output', createdAt: 1 }])
   await confirmAndRunNode(text.id, { initiator: 'agent' })
   expect(calls.execute).not.toHaveBeenCalled()
 })
@@ -263,7 +264,7 @@ it.each(['append', 'replace'] as const)('original generateText %s output is seal
   useGenerationCanvasStore.getState().connectNodes(text.id, image.id, 'reference')
   calls.execute.mockImplementation(async (node, context) => {
     if (node.kind === 'text') return generateText(node, { projectTarget: context.projectTarget, runTask: async () => ({ id: 'text-task', kind: 'chat', status: 'succeeded', assets: [], raw: { choices: [{ message: { content: 'generated output' } }] } }) })
-    return { id: 'new-' + node.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }
+    return [{ id: 'new-' + node.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }]
   })
   await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), { initiator: 'user' as const, concurrency: 1 })
   expect(calls.execute).toHaveBeenCalledTimes(2)
@@ -311,7 +312,7 @@ it('same-wave image admission during original text content delivery accepts legi
   const assertAuthorCurrent = async () => { guardCount += 1; if (guardCount === 2) await contentChanged }
   calls.execute.mockImplementation(async (node, context) => {
     if (node.kind === 'text') return generateText(node, { projectTarget: context.projectTarget, runTask: async () => ({ id: 'text-task', kind: 'chat', status: 'succeeded', assets: [], raw: { choices: [{ message: { content: 'generated output' } }] } }) })
-    return { id: 'new-' + node.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }
+    return [{ id: 'new-' + node.id, type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }]
   })
   try {
     await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), { initiator: 'user' as const, concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent })
@@ -343,7 +344,7 @@ it('same-wave downstream accepts the actual streaming body atomically sealed by 
     })
     expect(projectConnectedTextInputs(node, context).map((input) => input.text)).toEqual(['streamed chunk'])
     releaseImage()
-    return { id: 'image-result', type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }
+    return [{ id: 'image-result', type: 'image', url: 'nomi-local://asset/a.png', createdAt: 1 }]
   })
   await confirmAndRunPlan(buildDependencyWaves([text.id, image.id], useGenerationCanvasStore.getState()), {
     initiator: 'user' as const, concurrency: 2, assertCurrent: async () => {}, assertAuthorCurrent,

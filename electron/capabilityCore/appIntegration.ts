@@ -1,4 +1,4 @@
-import { canvasLocalArtifactReceipt } from "./canvasShotRunApi";
+import { canvasAwareOutputMaterializer } from "./canvasShotRunApi";
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
 import { parseDirectorPreviewBlockReply } from "../shared/director/directorPreviewStatus";
 // 能力核 · app 集成（见 docs/plan/2026-06-20-capability-core-headless-exposure.md §S4）。
@@ -72,7 +72,7 @@ import { installPendingSpendActions, pendingSpendDependencies, readInstalledPend
 import { createCanvasShotRuns, followCanvasShotChange, installCanvasShotRuns, withdrawQueuedHandOvers } from './appIntegrationCanvasShot'
 import { CANVAS_SHOT_SETTLED_OP } from '../shared/canvas/canvasShotSettled'
 import { createCanvasHandOver } from './canvasHandOver'
-import { canvasTransportProviders, isCanvasProviderId, lazyCanvasTransport } from './canvasTransportProvider'
+import { canvasTransportProviders, lazyCanvasTransport } from './canvasTransportProvider'
 import { quoteSpendLine } from '../spendQuote'
 import { createGenerationReferenceScopeGuard } from './generationReferenceScope'
 export { canvasOpenRuns, consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
@@ -257,9 +257,7 @@ export async function startCapabilityCore(
       intentMacKey: ensureCapabilitySigningKey('generation-intent'),
       providers: input.providers,
       // 画布那台交回来的产物已经落在项目里：记进 Run，不再下载一次；不是本地地址的走通用物化。
-      materializeOutput: async ({ projectId, providerTaskId, output, job }) => (isCanvasProviderId(job.provider)
-        && canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output }))
-        || outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
+      materializeOutput: canvasAwareOutputMaterializer(input.projectRoot, outputMaterializer),
     })
     type SubmittableRun = {
       projectId: string
