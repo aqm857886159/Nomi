@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
-import { uiText } from './full-walk/invariants.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, THINKING_LINE, TOOL_RECEIPT, ASSISTANT_MESSAGE, V4_FLOW,
   chooseAssistantModel, createRuntimeWalk, expandResidentPanel, hasToolResult, openCanvas, recorded, sendCanvas,
@@ -105,6 +105,8 @@ try {
   // C77 (4ba92ef52): one process disclosure; agentPanelV4Collapse.test.ts “C77 process thinking projection”.
   // eab64daa2 only renamed a tool: its product projection was already 1, but this walk retained the pre-C77 count.
   await expect(panel.locator(`${THINKING_LINE} details`)).toHaveCount(1)
+  // b4c918b72 approved default-closed processes; cdd2cceef resets on settle (agentPanelV4Form.test.ts, B2c process contract).
+  await clickOrFail(panel.getByText(uiTextWith(locale, 'agentPanelV4.processSummary', { count: 2 }), { exact: true }), '展开完成过程')
   for (const detail of await panel.locator(`${THINKING_LINE} details`).all()) {
     await expect(detail).not.toHaveAttribute('open', '')
     await detail.locator('summary').click()
