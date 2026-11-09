@@ -26,7 +26,7 @@ import {
 } from "../modelArchetypes/referenceKeys";
 import type { ArchetypeReferenceSlotKind } from "../videoCapabilities/types";
 import { slotBinding } from "./declarationForMode";
-import { lowerGenerationIntent, type IntentReference, type ReferenceBinding } from "./lowerGenerationIntent";
+import { lowerGenerationIntent, type IntentReference, type LoweredGeneration, type ReferenceBinding } from "./lowerGenerationIntent";
 
 type FamilyUrls = Readonly<Record<ReferenceFamily, readonly string[]>>;
 
@@ -55,15 +55,21 @@ const ARRAY_KIND_FOR_FAMILY: Readonly<Record<ReferenceFamily, ArchetypeReference
 };
 const FAMILIES: readonly ReferenceFamily[] = ["image", "video", "audio"];
 
+/** 什么都不放的产物（没有携带参考、或张数超了要拒）：同一个解析器产出，并入是空操作。 */
+function nothingPlaced(): LoweredGeneration {
+  return lowerGenerationIntent({ bindings: [], readKeys: [] }, { references: [] });
+}
+
 /**
- * 按 body 推声明并降级。返回新放的参数（调用方并进 extras），和超过声明张数的问题（调用方在花钱前拒）。
+ * 按 body 推声明并降级。返回解析产物（调用方经 `withLoweredReferences` 并进 extras），
+ * 和超过声明张数的问题（调用方在花钱前拒）。
  */
 export function lowerHeadlessReferences(
   createBody: unknown,
   sources: HeadlessReferenceSources,
   context?: ReferenceModelContext,
-): { bodyParams: Record<string, unknown>; problems: readonly HeadlessCapacityProblem[] } {
-  if (FAMILIES.every((family) => sources.carried[family].length === 0)) return { bodyParams: {}, problems: [] };
+): { lowered: LoweredGeneration; problems: readonly HeadlessCapacityProblem[] } {
+  if (FAMILIES.every((family) => sources.carried[family].length === 0)) return { lowered: nothingPlaced(), problems: [] };
   const bodyKeys = bodyReferencedParamKeys(createBody);
   const bindings: ReferenceBinding[] = [];
   const intent: IntentReference[] = [];
@@ -111,12 +117,12 @@ export function lowerHeadlessReferences(
     const binding = bindings.length;
     // 单值位只放第一张（沿用 firstReferenceImage 的优先级）；张数上限仍按全部携带的数（超了就拒，不静默截）。
     if (target.max !== undefined && urls.length > target.max) {
-      return { bodyParams: {}, problems: [{ family, max: target.max, count: urls.length }] };
+      return { lowered: nothingPlaced(), problems: [{ family, max: target.max, count: urls.length }] };
     }
     // 推出来的位不带 max（上限上面已按全部携带的数核过），解析写入不会再报超量。
     bindings.push(slotBinding({ kind: ARRAY_KIND_FOR_FAMILY[family], inputKey: target.key, asArray: target.list }));
     for (const url of target.list ? urls : urls.slice(0, 1)) intent.push({ binding, value: url });
   }
 
-  return { bodyParams: lowerGenerationIntent({ bindings, readKeys: bodyKeys }, { references: intent }).bodyParams, problems: [] };
+  return { lowered: lowerGenerationIntent({ bindings, readKeys: bodyKeys }, { references: intent }), problems: [] };
 }

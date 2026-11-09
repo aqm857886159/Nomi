@@ -44,9 +44,10 @@ describe("lowerGenerationIntent · 目标", () => {
       only({ kind: "image_ref", target: { select, keys: LIST_GROUP }, encoding: { shape: "url-list" } }, readKeys),
       { references: [{ binding: 0, value: A }, { binding: 0, value: A }] },
     );
-    expect(lowered.bodyParams).toEqual(Object.fromEntries(expectedKeys.map((key) => [key, [A, A]])));
+    expect(lowered.snapshot()).toEqual(Object.fromEntries(expectedKeys.map((key) => [key, [A, A]])));
     // 每个键各一份，不共用同一个数组对象。
-    if (expectedKeys.length === 2) expect(lowered.bodyParams.image_urls).not.toBe(lowered.bodyParams.imageUrls);
+    const placed = lowered.snapshot();
+    if (expectedKeys.length === 2) expect(placed.image_urls).not.toBe(placed.imageUrls);
     expect(lowered.problems).toEqual([]);
   });
 
@@ -60,7 +61,7 @@ describe("lowerGenerationIntent · 目标", () => {
       ],
       readKeys: [],
     }, { references: [{ binding: 2, value: B }, { binding: 1, value: A }, { binding: 0, value: A }, { binding: 3, value: B }] });
-    expect(Object.entries(lowered.bodyParams)).toEqual([["image", B], ["extra", [B]]]);
+    expect(Object.entries(lowered.snapshot())).toEqual([["image", B], ["extra", [B]]]);
   });
 });
 
@@ -81,7 +82,7 @@ describe("lowerGenerationIntent · 编码", () => {
       only({ kind: "image_ref", target: { select: "declared", key: "k" }, encoding }),
       { references: [A, ` ${B} `, "", A].map((value) => ({ binding: 0, value })) },
     );
-    expect(lowered.bodyParams).toEqual({ k: expected });
+    expect(lowered.snapshot()).toEqual({ k: expected });
   });
 
   it("角色对象：地址带合并槽的 role；调用方给的对象原样（键序、role 不改）", () => {
@@ -93,9 +94,9 @@ describe("lowerGenerationIntent · 编码", () => {
       ],
       readKeys: ["roles2"],
     }, { references: [{ binding: 1, value: given }, { binding: 0, value: A }] });
-    expect(lowered.bodyParams).toEqual({ roles: [{ url: A, role: "first_frame" }], roles2: [{ role: "character", url: B }] });
-    expect(Object.keys((lowered.bodyParams.roles2 as Array<Record<string, unknown>>)[0]!)).toEqual(["role", "url"]);
-    expect((lowered.bodyParams.roles2 as unknown[])[0]).not.toBe(given);
+    expect(lowered.snapshot()).toEqual({ roles: [{ url: A, role: "first_frame" }], roles2: [{ role: "character", url: B }] });
+    expect(Object.keys((lowered.snapshot().roles2 as Array<Record<string, unknown>>)[0]!)).toEqual(["role", "url"]);
+    expect((lowered.snapshot().roles2 as unknown[])[0]).not.toBe(given);
   });
 });
 
@@ -114,7 +115,7 @@ describe("lowerGenerationIntent · 已有参数", () => {
       { references: [{ binding: 0, value: A }] },
       { referenceImageUrls: [A] },
     );
-    expect(Object.keys(lowered.bodyParams)).toEqual(expectedKeys);
+    expect(Object.keys(lowered.snapshot())).toEqual(expectedKeys);
     expect(lowered.problems).toEqual([]);
   });
 
@@ -124,7 +125,7 @@ describe("lowerGenerationIntent · 已有参数", () => {
       { references: [{ binding: 0, value: A }] },
       { image_urls: [B] },
     );
-    expect(lowered).toEqual({ bodyParams: { imageUrls: [A] }, problems: [] });
+    expect({ bodyParams: lowered.snapshot(), problems: lowered.problems }).toEqual({ bodyParams: { imageUrls: [A] }, problems: [] });
   });
 
   it.each([[[]], [["imageUrls"]]])("授权地址冲突 → problem（含沿用那条路；body 读 %j）", (readKeys) => {
@@ -143,7 +144,7 @@ describe("lowerGenerationIntent · 档案模式", () => {
       references: [{ binding: 0, value: "https://cdn.example/first.png" }, { binding: 1, value: "https://cdn.example/last.png" }],
     });
     expect(lowered.problems).toEqual([]);
-    expect(lowered.bodyParams).toEqual({
+    expect(lowered.snapshot()).toEqual({
       image_with_roles: [
         { url: "https://cdn.example/first.png", role: "first_frame" },
         { url: "https://cdn.example/last.png", role: "last_frame" },
@@ -155,7 +156,7 @@ describe("lowerGenerationIntent · 档案模式", () => {
     const urls = [A, B, "https://cdn.example/c.png"];
     const lowered = lowerGenerationIntent(declarationForMode(modeOf("omni")), { references: urls.map((value) => ({ binding: 0, value })) });
     expect(lowered.problems).toEqual([]);
-    expect(lowered.bodyParams).toEqual({ image_urls: urls });
+    expect(lowered.snapshot()).toEqual({ image_urls: urls });
   });
 
   it("超过绑定的张数是 problem，不静默截断、不另找一个键", () => {
@@ -171,17 +172,17 @@ describe("lowerGenerationIntent · 档案模式", () => {
       references: [{ binding: 0, value: A }, { binding: 0, value: B }],
     });
     expect(lowered.problems).toEqual([{ code: "reference_over_capacity", binding: 0, kind: "first_frame", max: 1, count: 2 }]);
-    expect(lowered.bodyParams).toEqual({ image_with_roles: [{ url: A, role: "first_frame" }, { url: B, role: "first_frame" }] });
+    expect(lowered.snapshot()).toEqual({ image_with_roles: [{ url: A, role: "first_frame" }, { url: B, role: "first_frame" }] });
   });
 
   it("同一张图给两次就是两条：去重是调用方的事", () => {
     const lowered = lowerGenerationIntent(declarationForMode(modeOf("omni")), { references: [{ binding: 0, value: A }, { binding: 0, value: A }] });
-    expect(lowered.bodyParams).toEqual({ image_urls: [A, A] });
+    expect(lowered.snapshot()).toEqual({ image_urls: [A, A] });
   });
 
   it("指向不存在的绑定是 problem", () => {
     const lowered = lowerGenerationIntent({ bindings: [], readKeys: [] }, { references: [{ binding: 3, value: A }] });
-    expect(lowered).toEqual({ bodyParams: {}, problems: [{ code: "reference_binding_unknown", binding: 3 }] });
+    expect({ bodyParams: lowered.snapshot(), problems: lowered.problems }).toEqual({ bodyParams: {}, problems: [{ code: "reference_binding_unknown", binding: 3 }] });
   });
 
   it("全部内置档案的每一档模式：每个槽放一张不同的图，每张图在请求参数里正好出现一次", () => {
@@ -192,7 +193,7 @@ describe("lowerGenerationIntent · 档案模式", () => {
         const references = mode.slots.map((_, binding) => ({ binding, value: `https://cdn.example/${archetype.id}/${mode.id}/${binding}.png` }));
         const lowered = lowerGenerationIntent(declarationForMode(mode), { references });
         for (const reference of references) {
-          const count = occurrences(lowered.bodyParams, reference.value);
+          const count = occurrences(lowered.snapshot(), reference.value);
           if (count !== 1) misplaced.push(`${archetype.id}/${mode.id} 槽 ${reference.binding}（${mode.slots[reference.binding]!.kind}）出现 ${count} 次`);
         }
       }

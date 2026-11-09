@@ -1,5 +1,5 @@
 /**
- * S3 防回潮的结构合同（替掉旧的静态写键扫描 `staticReferenceKeyWrites`）：
+ * S3 防回潮的结构合同（替掉旧的静态写键扫描与例外登记表）：
  *   · 参考装配入口（`withLoweredReferences`）只认解析器产出的不透明产物；
  *   · 发送入口（`sendProfileJson`）只认装配主人（`profileHttpRequest.ts`）封存的请求体；
  *   · 两边对外都只给独立快照，改快照、展开克隆、断言、反序列化、assign 都拿不到资格。
@@ -204,8 +204,17 @@ describe("发送入口只认装配主人封存的请求体", () => {
 });
 
 describe("导出面性质：没有任何导出能把裸 Record 变成有资格的产物（不导出 seal(rawRecord)）", () => {
-  const exportsOf = (moduleRecord: Record<string, unknown>) =>
-    Object.entries(moduleRecord).filter((entry): entry is [string, (...args: unknown[]) => unknown] => typeof entry[1] === "function");
+  type Callable = (...args: unknown[]) => unknown;
+  /** 每个函数导出，加上导出类身上的静态函数（`static seal()` 也算一扇门）。 */
+  const exportsOf = (moduleRecord: Record<string, unknown>): Array<[string, Callable, unknown]> =>
+    Object.entries(moduleRecord).flatMap(([name, value]): Array<[string, Callable, unknown]> => {
+      if (typeof value !== "function") return [];
+      const statics = Object.getOwnPropertyNames(value)
+        .map((key) => [key, Reflect.get(value, key)] as const)
+        .filter((entry): entry is readonly [string, Callable] => typeof entry[1] === "function")
+        .map(([key, member]): [string, Callable, unknown] => [`${name}.${key}`, member, value]);
+      return [[name, value as Callable, undefined], ...statics];
+    });
 
   async function settle(call: () => unknown): Promise<unknown> {
     try {
@@ -228,9 +237,9 @@ describe("导出面性质：没有任何导出能把裸 Record 变成有资格�
     it(`${label} 的每个函数导出喂裸 Record 都拿不到带种子的产物`, async () => {
       const raw = (): Record<string, unknown> => ({ image_urls: [PLANTED], body: { image_urls: [PLANTED] } });
       const leaking: string[] = [];
-      for (const [name, fn] of exportsOf(moduleRecord as Record<string, unknown>)) {
+      for (const [name, fn, owner] of exportsOf(moduleRecord as Record<string, unknown>)) {
         for (const args of [[raw()], [raw(), raw()], [undefined, raw()]]) {
-          const result = await settle(() => fn(...args));
+          const result = await settle(() => Reflect.apply(fn, owner, args));
           if (carriesPlanted(result)) leaking.push(name);
           const constructed = await settle(() => Reflect.construct(fn, args));
           if (carriesPlanted(constructed)) leaking.push(`new ${name}`);

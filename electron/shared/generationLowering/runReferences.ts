@@ -18,7 +18,7 @@ import {
 } from "../modelArchetypes/referenceKeys";
 import type { ArchetypeMode, ArchetypeReferenceSlotKind } from "../videoCapabilities/types";
 import { combineForMode, declarationForMode } from "./declarationForMode";
-import { lowerGenerationIntent, type IntentReference, type ReferenceBinding } from "./lowerGenerationIntent";
+import { lowerGenerationIntent, withLoweredReferences, type IntentReference, type ReferenceBinding } from "./lowerGenerationIntent";
 
 /** 标准输入键（`referenceInputParams` 认得、会归一成 headless 的携带参考）。 */
 const STANDARD_LIST_KEY: Readonly<Record<ReferenceFamily, string>> = {
@@ -188,7 +188,7 @@ export function placeApprovedRunReferences(
   if (lowered.problems.some(({ code }) => code === "reference_conflicts_existing")) {
     throw new RunReferenceError("catalog reference URL projection conflicts with canonical parameters", "conflict");
   }
-  return { parameters: { ...structuredClone(parameters), ...lowered.bodyParams }, placedKeys: Object.keys(lowered.bodyParams) };
+  return { parameters: withLoweredReferences(structuredClone(parameters), lowered), placedKeys: lowered.placedKeys };
 }
 
 /**
@@ -231,5 +231,5 @@ export function standardizeExplicitRunReferences(parameters: Record<string, unkn
     { references: intent },
     parameters,
   );
-  return { ...structuredClone(parameters), ...lowered.bodyParams };
+  return withLoweredReferences(structuredClone(parameters), lowered);
 }

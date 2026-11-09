@@ -10,7 +10,7 @@
 import type { GenerationProvider, GenerationProviderRequestInputV1 } from "./generationRuntimeAdapter";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { appFetch } from "../appFetch";
-import { requestJson, VendorRequestError } from "../vendor/vendorHttp";
+import { VendorRequestError } from "../vendor/vendorHttp";
 import { readMaterializationOutputs } from "./apimartGenerationOutputs";
 import { expectedMediaKind, readProviderStatusWord, requestEchoUrls } from "../tasks/taskResultReading";
 import { productionGenerationPayloadHash } from "../productionRun/productionGenerationAuthorization";
@@ -21,7 +21,7 @@ import { isCertificationOwnedConnection } from "../catalog/certificationOwnershi
 import { billingKindForTaskKind, selectTaskMapping } from "../catalog/types";
 import type { BillingModelKind, CatalogState, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "../catalog/types";
 import { derivePublishedExecution } from "../shared/modelPublication";
-import { buildProfileHttpRequest } from "../catalog/profileHttpRequest";
+import { buildProfileHttpRequest, profileBodySnapshot, sendProfileJson, transformProfileBodySync, type ProfileRequestBody } from "../catalog/profileHttpRequest";
 import { applyHeadlessParamDefaults, imageEditGuardError } from "../catalog/taskParams";
 import { modelReferenceSelection } from "../catalog/modelCatalogListing";
 import { resolveCustomCallExecution } from "../catalog/customCallMode";
@@ -31,7 +31,6 @@ import { firstMappedString, providerMetaFromResponse, taskFailureMessageFromResp
 import { extractTaskId as extractTaskIdShared } from "../ai/requestPipeline";
 import type { TaskRequest } from "../runtime";
 import "../catalog/apimartMinimaxH3";
-import { applyRequestTransformSync, validateRequestTransformSync } from "../tasks/requestTransforms";
 import { productionFixtureBaseOrigin } from "../shared/productionRunE2eFixtureGate";
 import {
   assertReferenceParameters,
@@ -251,7 +250,7 @@ function projectionRequest(
   input: GenerationProviderRequestInputV1,
   selection: CatalogSelection,
   vendorKey: string,
-): { body: JsonRecord; request: TaskRequest } {
+): { body: JsonRecord; sealed: ProfileRequestBody; request: TaskRequest } {
   if (!input.prompt || !input.prompt.trim()) throw new CatalogGenerationProviderError(`${vendorKey} prompt is required`);
   // 参考图落哪条通道由**用户选的档案模式**回答（与画布同一份声明、同一个降级函数），不由 body 猜；
   // 没有模式可读的，说成标准输入键，交给 applyHeadlessParamDefaults 里同一个降级函数按 body 推出的声明放。
@@ -325,13 +324,15 @@ function projectionRequest(
   } catch {
     throw new CatalogGenerationProviderError(`${vendorKey} catalog mapping cannot render: ${selection.mapping.id}`);
   }
-  const body = record(built.body, vendorKey, "catalog request");
-  assertNoProjectionCredential(body, vendorKey);
-  const transformed = applyCatalogRequestTransform(body, selection, vendorKey, request);
+  assertNoProjectionCredential(record(built.body, vendorKey, "catalog request"), vendorKey);
+  // 批准的、发出去的是同一份封存体：这里返回的 `body` 只是它的独立副本（拿去算批准哈希、过门岗），
+  // `sealed` 留在本进程里，提交时按哈希 + 目录身份取回再发。
+  const sealed = applyCatalogRequestTransform(built.sealed, selection, vendorKey, request);
+  const transformed = record(profileBodySnapshot(sealed), vendorKey, "transformed catalog request");
   assertNoProjectionCredential(transformed, vendorKey);
   assertReferenceParameters(transformed);
   assertReferencesReachBody(input, defaulted, transformed);
-  return { body: transformed, request };
+  return { body: transformed, sealed, request };
 }
 
 function transformRequestContext(input: GenerationProviderRequestInputV1, vendorKey: string): TaskRequest {
@@ -361,12 +362,12 @@ function assertNoProjectionCredential(body: JsonRecord, vendorKey: string): void
  * approving a Promise or bypassing a model-specific guard.
  */
 function applyCatalogRequestTransform(
-  body: JsonRecord,
+  body: ProfileRequestBody,
   selection: CatalogSelection,
   vendorKey: string,
   request?: TaskRequest,
   options: { requireStable?: boolean } = {},
-): JsonRecord {
+): ProfileRequestBody {
   const name = selection.mapping.create.request_transform;
   if (!name) return body;
   const context = {
@@ -374,9 +375,9 @@ function applyCatalogRequestTransform(
     request,
   };
   try {
-    validateRequestTransformSync(name, body, context);
-    const transformed = record(applyRequestTransformSync(name, body, context), vendorKey, "transformed catalog request");
-    if (options.requireStable && !sameJson(body, transformed)) {
+    const transformed = transformProfileBodySync(name, body, context);
+    const after = record(profileBodySnapshot(transformed), vendorKey, "transformed catalog request");
+    if (options.requireStable && !sameJson(profileBodySnapshot(body), after)) {
       throw new CatalogGenerationProviderError(`${vendorKey} request transform changed the approved payload; rebuild the request`);
     }
     return transformed;
@@ -437,11 +438,14 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   // hash and require it again at submit. This also makes a restart fail closed
   // instead of guessing an endpoint from model names or body fields.
   const preparedByPayloadHash = new Map<string, PreparedRequest[]>();
-  const projectionCache = new Map<string, { inputHash: string; body: JsonRecord; prepared: PreparedRequest; request: TaskRequest }>();
+  const projectionCache = new Map<string, { inputHash: string; body: JsonRecord; sealed: ProfileRequestBody; prepared: PreparedRequest; request: TaskRequest }>();
   const requestByPreparedKey = new Map<string, TaskRequest>();
+  /** 批准哈希 + 目录身份 → 封存体。提交只发这里取回的那一份；调用方递回来的 body 只用来对哈希。 */
+  const sealedByPrepared = new Map<string, ProfileRequestBody>();
   /** providerTaskId → 它是用哪个模型 / 哪一档模式提交的。轮询要靠它找回那条 mapping 的 query op。 */
   const selectionByTaskId = new Map<string, { modelKey: string; taskKind: ProfileKind; echoUrls: ReadonlySet<string> }>();
   const preparedKey = (prepared: PreparedRequest): string => `${prepared.modelKey}|${prepared.mappingId}|${prepared.taskKind}|${prepared.fingerprint}`;
+  const sealedKey = (hash: string, prepared: PreparedRequest): string => `${hash}|${preparedKey(prepared)}`;
 
   const select = (modelKey: string, taskKind: ProfileKind): CatalogSelection =>
     selectCatalogSelection(catalogReader, vendorKey, extractVendorExtraHeaders, modelKey, taskKind);
@@ -475,22 +479,12 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     vendor: Vendor,
     apiKey: string,
     built: { method: string; url: string; headers: Record<string, string>; query: Record<string, unknown> },
-    body: unknown,
+    body: ProfileRequestBody | undefined,
     context: string,
   ): Promise<JsonRecord> => {
-    const method = built.method.toUpperCase();
+    const transport = { method: built.method.toUpperCase(), url: built.url, headers: built.headers, query: built.query };
     try {
-      const payload = await requestJson(
-        networkVendor(vendor),
-        apiKey,
-        method,
-        built.url,
-        built.headers,
-        built.query,
-        body,
-        undefined,
-        { fetchImpl, logicalSuccessCodes: [0, 200] },
-      );
+      const payload = await sendProfileJson(networkVendor(vendor), apiKey, transport, body, undefined, { fetchImpl, logicalSuccessCodes: [0, 200] });
       return record(payload, vendorKey, "");
     } catch (error: unknown) {
       if (error instanceof VendorRequestError) {
@@ -583,16 +577,20 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     requestInput?: GenerationProviderRequestInputV1,
   ) => {
     const preparedBody = record(providerRequest, vendorKey, "submit");
+    // 调用方递回来的 body 只用来找回批准时封存的那一份（哈希 + 目录身份），发出去的永远是封存体。
+    const approved = sealedByPrepared.get(sealedKey(productionGenerationPayloadHash(preparedBody), prepared));
+    if (!approved) throw new CatalogGenerationProviderError(`${vendorKey} sealed catalog identity is missing; rebuild the request before submission`);
     // Re-run the same pure transform immediately before the network request as
     // defense-in-depth.  H3 normalization is idempotent; any deterministic
     // transform that cannot run synchronously is rejected by the shared bridge.
-    const body = applyCatalogRequestTransform(
-      preparedBody,
+    const sealed = applyCatalogRequestTransform(
+      approved,
       selection,
       vendorKey,
       requestInput ? transformRequestContext(requestInput, vendorKey) : undefined,
       { requireStable: true },
     );
+    const body = record(profileBodySnapshot(sealed), vendorKey, "submit");
     assertNoProjectionCredential(body, vendorKey);
     assertReferenceParameters(body);
     const rendered = requestByPreparedKey.get(preparedKey(prepared));
@@ -601,7 +599,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     const built = renderOperation(selection, selection.mapping.create, rendered, {}, apiKey);
     // **发的是封存过的那份 body**（用户批准的就是它），传输层（method/url/headers/query）
     // 才是这一刻按真 key 现渲染的。两者分开，正是「批准的是 A、发出去的是 B」的反面。
-    const payload = await send(selection.vendor, apiKey, built, body, `${selection.endpoint} submission`);
+    const payload = await send(selection.vendor, apiKey, built, sealed, `${selection.endpoint} submission`);
     const createMapping = isJsonRecord(selection.mapping.create.response_mapping) ? selection.mapping.create.response_mapping : null;
     const metaMapping = isJsonRecord(selection.mapping.create.provider_meta_mapping) ? selection.mapping.create.provider_meta_mapping : null;
     // 任务编号从**声明**里取（与引擎 A 的 `buildProfileTaskResult` 同一条链），
@@ -628,12 +626,14 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     return { providerTaskId: taskId.trim(), raw: payload };
   };
 
-  const rememberPrepared = (body: JsonRecord, prepared: PreparedRequest, request: TaskRequest): void => {
+  const rememberPrepared = (body: JsonRecord, sealed: ProfileRequestBody, prepared: PreparedRequest, request: TaskRequest): void => {
     const hash = productionGenerationPayloadHash(body);
     const entries = preparedByPayloadHash.get(hash) ?? [];
     if (!entries.some((entry) => sameJson(entry, prepared))) entries.push(prepared);
     preparedByPayloadHash.set(hash, entries);
     requestByPreparedKey.set(preparedKey(prepared), request);
+    sealedByPrepared.delete(sealedKey(hash, prepared));
+    sealedByPrepared.set(sealedKey(hash, prepared), sealed);
     // Keep the in-memory seal bounded; durable ProductionRun callers must
     // rebuild with a fresh catalog identity after a process restart.
     while (preparedByPayloadHash.size > 256) {
@@ -645,6 +645,11 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
       const oldest = requestByPreparedKey.keys().next().value;
       if (typeof oldest !== "string") break;
       requestByPreparedKey.delete(oldest);
+    }
+    while (sealedByPrepared.size > 256) {
+      const oldest = sealedByPrepared.keys().next().value;
+      if (typeof oldest !== "string") break;
+      sealedByPrepared.delete(oldest);
     }
   };
 
@@ -688,18 +693,18 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
       const { key, hash } = inputCacheKey(input);
       const cached = projectionCache.get(key);
       if (cached && cached.inputHash === hash && cached.prepared.fingerprint === selection.fingerprint) {
-        rememberPrepared(cached.body, cached.prepared, cached.request);
+        rememberPrepared(cached.body, cached.sealed, cached.prepared, cached.request);
         return structuredClone(cached.body);
       }
-      const { body, request } = projectionRequest(input, selection, vendorKey);
+      const { body, sealed, request } = projectionRequest(input, selection, vendorKey);
       const prepared = preparedForSelection(selection);
-      projectionCache.set(key, { inputHash: hash, body: structuredClone(body), prepared, request });
+      projectionCache.set(key, { inputHash: hash, body: structuredClone(body), sealed, prepared, request });
       while (projectionCache.size > 128) {
         const oldest = projectionCache.keys().next().value;
         if (typeof oldest !== "string") break;
         projectionCache.delete(oldest);
       }
-      rememberPrepared(body, prepared, request);
+      rememberPrepared(body, sealed, prepared, request);
       return body;
     },
     async submit(providerRequest) {

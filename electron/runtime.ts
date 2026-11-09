@@ -6,10 +6,9 @@ import { assertNoReferencesOutsideSubmit, stageSubmitsReferences } from "./catal
 import { assetIngestionResolver, assetLocalizationOptions, localizeForSend } from "./catalog/assetTransportRuntime";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "./assets/localAssetFile";
 import { writeGeneratedAsset, writeGeneratedDeterministicAsset } from "./assets/projectAssetStore";
-import { endpoint } from "./vendorEndpoint";
-import { requestJson, requestMultipart, vendorResponseLimitForKind } from "./vendor/vendorHttp";
+import { requestMultipart, vendorResponseLimitForKind } from "./vendor/vendorHttp";
 import { runMultipartProfileOperation } from "./catalog/multipartOperation";
-import { templateContext, buildProfileHttpRequest, validateProfileRequestBeforeSpend } from "./catalog/profileHttpRequest";
+import { templateContext, buildProfileHttpRequest, sendNoMappingImageFallback, sendProfileJson, transformProfileBody, validateProfileRequestBeforeSpend } from "./catalog/profileHttpRequest";
 import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
 import { extractProviderCostActual, type ProviderCostActual } from "./vendor/cost";
@@ -17,13 +16,12 @@ import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallT
 import { localizeTaskAsset } from "./assets/localizeTaskAsset";
 export { localizeTaskAsset };
 import { localizedTaskAssetFileName } from "./assets/localizedAsset";
-import { authHeaders as buildAuthHeaders, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline"; import { vendorAuthSpec } from "./catalog/vendorAuthSpec";
+import { extractTaskId as extractTaskIdShared } from "./ai/requestPipeline";
 import { assertCanonicalAntigravityOperation, executeProcessOperation, prepareAntigravityCreateOperation } from "./catalog/processOperation"; import type { AntigravityProcessStage } from "./catalog/antigravityCatalog";
 import { executeTextTask } from "./textTaskRunner";
 import { runAudioTask } from "./audioTaskRunner";
 import { firstString, trim, type JsonRecord } from "./jsonUtils";
 import { taskFailureMessageFromResponse } from "./tasks/responseParsing"; import { expectedMediaKind, readTaskResponse, requestEchoUrls } from "./tasks/taskResultReading";
-import { applyRequestTransform } from "./tasks/requestTransforms";
 import { taskCache } from "./tasks/taskCache";
 import { tagNomiError } from "./shared/nomiErrorCodes";
 export { taskCache, hasInFlightTasks } from "./tasks/taskCache";
@@ -50,9 +48,9 @@ export { localizedTaskAssetFileName };
  * 顺手就能改坏「生产发哪条 op」。2026-09-11 删付费验证时它立刻炸了，所以在这里各自定义（P1）。
  */
 export type ProfileOperationStage = AntigravityProcessStage | "result";
-// 任务执行复用 catalog 状态（readCatalog + extractVendorExtraHeaders 纯函数）；
+// 任务执行复用 catalog 状态（readCatalog）；
 // catalogStore 反向复用本文件任务引擎 → 运行期循环引用（CommonJS 安全）。
-import { extractVendorExtraHeaders, readCatalog } from "./catalog/catalogStore";
+import { readCatalog } from "./catalog/catalogStore";
 import { unlocalizedTaskAsset } from "./tasks/unlocalizedTaskAsset";
 import type { BillingModelKind, HttpOperation, Mapping, Model, ProfileKind, Vendor } from "./catalog/types";
 import { billingKindForTaskKind, selectTaskMapping } from "./catalog/types";
@@ -167,7 +165,6 @@ export function admitTask(id: string, entry: CachedTask): void {
 // 可执行模型解析下沉到 catalog/executableModel（R12 净减）；re-export 保住 textTaskRunner/taskResultQuery 既有 import 面。
 export { findExecutableModel, findExecutableModelForTask } from "./catalog/executableModel";
 import { findExecutableModel } from "./catalog/executableModel";
-import { noMappingWireModel } from "./shared/modelArchetypes/wireModelIdentity";
 
 // billingKindForTaskKind 下沉到 catalog/types（R12 净减）；re-export 保住既有消费方 import 面。
 export { billingKindForTaskKind } from "./catalog/types";
@@ -221,9 +218,10 @@ export async function executeProfileOperation(input: {
   const effectiveInput = localized.uploaded > 0 ? { ...input, request: { ...input.request, extras: localized.value as TaskRequest["extras"] } } : input;
   const built = assertNoReferencesOutsideSubmit(input.stage, buildProfileHttpRequest(effectiveInput));
   if (mediaResponseHandler) return mediaResponseHandler(built);
-  const body = await applyRequestTransform(input.operation.request_transform, built.body, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId), request: input.request });
+  // 变换拿封存体的私有副本、产出重新封存；出网只认封存体（profileHttpRequest 是装配主人）。
+  const body = await transformProfileBody(input.operation.request_transform, built.sealed, { baseUrl: String(input.vendor.baseUrlHint || ""), promptId: trim(input.request.extras?.comfyPromptId), request: input.request });
   const { vendor, apiKey } = effectiveInput;
-  const response = await requestJson(vendor, apiKey, built.method, built.url, built.headers, built.query, body, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) });
+  const response = await sendProfileJson(vendor, apiKey, built, body, input.signal, { maxResponseBytes: vendorResponseLimitForKind(input.model.kind) });
   return { response, request: built.preview };
 }
 /** Normalize an upstream response into the shared TaskResult contract. */
@@ -391,7 +389,6 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
 
   // Machine code, not only the wording: the canvas wraps pre-network failures as submission_not_sent and the card classifier reads that first.
   if (wantedKind === "video") throw new Error(tagNomiError("model-config", "Model is not configured: no declared video route for this mode. Provide a documented create/query/result declaration before generating."));
-  const suffix = "/v1/images/generations";
   const fallbackRecipe = buildNormalizedRecipe({ vendor, model, request });
   const fallbackFingerprint = recipeFingerprint(fallbackRecipe);
   const fallbackHit = readCachedTaskResult({
@@ -402,23 +399,8 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   });
   if (fallbackHit) return fallbackHit as TaskResult;
   await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
-  const fallbackExtraHeaders = extractVendorExtraHeaders(vendor);
-  const fallbackHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...buildAuthHeaders(vendorAuthSpec(vendor), apiKey),
-    ...(fallbackExtraHeaders || {}),
-  };
-  const providerResponse = await requestJson(vendor, apiKey, "POST", endpoint(vendor, suffix), fallbackHeaders, {},
-    { // 键形状由 taskParams.NO_MAPPING_FALLBACK_BODY 声明并被测试钉死（两处必须同构）。
-      model: noMappingWireModel(model, request), // 线上模型名只问 owner（wireModelIdentity）
-      prompt: request.prompt,
-      size: request.width && request.height ? `${request.width}x${request.height}` : undefined,
-      seed: request.seed,
-      n: 1,
-      response_format: "url",
-      extras: request.extras,
-    },
-  );
+  // 键形状由 taskParams.NO_MAPPING_FALLBACK_BODY 声明并被测试钉死（两处必须同构）；体在装配主人里按固定形状组装。
+  const providerResponse = await sendNoMappingImageFallback({ vendor, model, apiKey, request });
   const assetUrl = readTaskResponse({ response: providerResponse, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(wantedKind) }).assetUrls[0] ?? ""; // 无 mapping 兜底提交也走唯一读法
   const upstreamTaskId = extractTaskIdShared(providerResponse) || taskId;
   traceVendorRequested(projectId, { runId: upstreamTaskId, nodeId, recipe: fallbackRecipe });

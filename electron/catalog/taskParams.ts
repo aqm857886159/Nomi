@@ -14,6 +14,7 @@ import { hasMentions, numberPromptReferences, projectPromptForSend } from "../sh
 import { assertReferenceCapacity, bodyReferenceSupport, classifyReferenceKey, referenceUrlCount, type ModelModeBody, type ReferenceFamily } from "./referenceReachability";
 import { referenceKeyCapacityDeclarationFor } from "../shared/modelArchetypes/referenceKeys";
 import { lowerHeadlessReferences } from "../shared/generationLowering/headlessReferences";
+import { withLoweredReferences, type LoweredGeneration } from "../shared/generationLowering/lowerGenerationIntent";
 import { chatImageParts, jsonImageEditInput } from "./referenceCarrierShapes";
 import { readSelectedComfyReferenceContract, type ParameterReferenceSelection } from "./parameterReferenceContract";
 import { resolveWireModel, WIRE_MODEL_PARAM } from "../shared/modelArchetypes/wireModelIdentity";
@@ -176,8 +177,8 @@ export function applyHeadlessParamDefaults(
   } : defaulted;
   // ③ 参考键形态投影（既有值优先 → 渲染层已填 archetypeInput 时 no-op）。在缺参兜底之后做，看到的是合并后的 extras。
   if (typeof createBody === "undefined") return withDefaults;
-  const projected = headlessReferenceOverlay(withDefaults, createBody, selected);
-  return Object.keys(projected).length ? { ...(withDefaults || {}), ...projected } : withDefaults;
+  const projected = headlessReferenceLowering(withDefaults, createBody, selected);
+  return projected.placedKeys.length ? withLoweredReferences(withDefaults || {}, projected) : withDefaults;
 }
 
 export function taskTemplateParams(request: TaskParamsInput, selected?: ParameterReferenceSelection): JsonRecord {
@@ -553,13 +554,23 @@ function carriedReferenceUrlsByFamily(extras: JsonRecord,
  * 先跑一圈「显式值的张数上限」：引擎 B 与 MCP 显式参数把参考直接写进 body 键（image_urls…），不经携带字段，
  * 也要在出网前按模型声明数清（2026-10-27）。
  *
- * @returns 仅**新放**的键（overlay）；无可放 → 空对象。调用方 `{ ...extras, ...overlay }` 并入即可。
+ * @returns 仅**新放**的键（overlay）的冻结快照；无可放 → 空对象。只读：给测试、说明与盘点看；
+ * 要并进请求参数走 `applyHeadlessParamDefaults`（它拿的是解析产物本身，经 `withLoweredReferences` 并入）。
  */
 export function headlessReferenceOverlay(
   extras: Record<string, unknown> | undefined,
   createBody: unknown,
   selected?: ParameterReferenceSelection,
-): Record<string, unknown> {
+): Readonly<Record<string, unknown>> {
+  return headlessReferenceLowering(extras, createBody, selected).snapshot();
+}
+
+/** headless 参考的解析产物（`headlessReferenceOverlay` 的读法 + 唯一的降级函数）；超量在这里出网前拒。 */
+function headlessReferenceLowering(
+  extras: Record<string, unknown> | undefined,
+  createBody: unknown,
+  selected?: ParameterReferenceSelection,
+): LoweredGeneration {
   const src = extras || {};
   for (const key of bodyReferencedParamKeys(createBody)) {
     const detail = referenceKeyCapacityDeclarationFor(key, selected);
@@ -593,7 +604,7 @@ export function headlessReferenceOverlay(
   }, selected);
   const problem = lowered.problems[0];
   if (problem) assertReferenceCapacity(problem.family, problem.max, problem.count);
-  return lowered.bodyParams;
+  return lowered.lowered;
 }
 
 /**

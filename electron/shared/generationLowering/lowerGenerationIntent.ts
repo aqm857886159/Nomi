@@ -24,6 +24,12 @@
  *
  * 张数超过绑定的 `max`、指向不存在的绑定，也是 problem：不静默截断、不另找一个键。
  * 纯函数、同步：不读盘、不读目录、不认供应商名。
+ *
+ * ── 产物是不透明的 ────────────────────────────────────────────────────────────────
+ * 返回的 `LoweredGeneration` 把参数放在 `#params` 里，没有可写的参数袋：并进调用方参数只有 `withLoweredReferences`
+ * 一个口（只认真产物，裸 Record / 改过的快照 / 展开克隆 / 断言 / 反序列化一律带原因拒），给人看只有冻结的独立快照
+ * `snapshot()`。不导出把任意 Record 盖成产物的函数——那样新入口先挑键再盖章就穿过去了。谁能 import 本模块的值
+ * 由 `eslint.config.mjs` 的 reference-lowering-owner 名单管（方向检查 `2026-11-09-reference-assembly-boundary.md`）。
  */
 import type { ArchetypeReferenceSlotKind } from "../videoCapabilities/types";
 
@@ -77,7 +83,69 @@ export type LoweringProblem =
   | Readonly<{ code: "reference_binding_unknown"; binding: number }>
   | Readonly<{ code: "reference_conflicts_existing"; key: string }>;
 
-export type LoweredGeneration = Readonly<{ bodyParams: Record<string, unknown>; problems: readonly LoweringProblem[] }>;
+/** 拿一个不是解析器产出的东西去并入：带原因拒，不静默当空。 */
+export class LoweringProvenanceError extends Error {
+  constructor(reason: string) {
+    super(`reference parameters must come from lowerGenerationIntent: ${reason}`);
+    this.name = "LoweringProvenanceError";
+  }
+}
+
+// 模块私有的铸造凭证：构造器拿不到它就拒（TypeScript 的 private constructor 只管编译期）。
+const MINT: unique symbol = Symbol("lowerGenerationIntent.mint");
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
+  }
+  return value;
+}
+
+// 铸造与取参只住在类的静态块里、赋给这两个模块私有变量：类上没有公开的 mint，模块也不导出它们。
+let mintLowered: (params: Record<string, unknown>, problems: readonly LoweringProblem[]) => LoweredGeneration;
+let paramsOfLowered: (candidate: unknown) => Record<string, unknown>;
+
+/** 解析产物：参数私有（`#params`），对外只有张数 / 冲突问题、放了哪些键、冻结的独立快照。 */
+export class LoweredGeneration {
+  readonly #params: Readonly<Record<string, unknown>>;
+  readonly problems: readonly LoweringProblem[];
+  readonly placedKeys: readonly string[];
+
+  private constructor(mint: typeof MINT, params: Record<string, unknown>, problems: readonly LoweringProblem[]) {
+    if (mint !== MINT) throw new LoweringProvenanceError("the product can only be minted by the resolver");
+    this.#params = deepFreeze(structuredClone(params));
+    this.problems = deepFreeze([...problems]);
+    this.placedKeys = Object.freeze(Object.keys(params));
+    Object.freeze(this);
+  }
+
+  static {
+    mintLowered = (params, problems) => new LoweredGeneration(MINT, params, problems);
+    paramsOfLowered = (candidate) => {
+      if (!candidate || typeof candidate !== "object" || !(#params in candidate)) {
+        throw new LoweringProvenanceError("got a plain object, a snapshot, a clone or a deserialized copy instead of a resolver product");
+      }
+      if (Reflect.ownKeys(candidate).some((key) => key !== "problems" && key !== "placedKeys")) {
+        throw new LoweringProvenanceError("the product carries fields the resolver did not write");
+      }
+      return structuredClone(candidate.#params) as Record<string, unknown>;
+    };
+  }
+
+  /** 独立、深冻结的只读快照（renderer 预览、测试、问题说明用）；改它不影响产物，也拿它并不进去。 */
+  snapshot(): Readonly<Record<string, unknown>> {
+    return deepFreeze(structuredClone(this.#params));
+  }
+}
+
+/**
+ * **参考装配入口**：把解析产物并进调用方手上的参数（同名键产物优先，与以前的 `{ ...base, ...bodyParams }` 一样）。
+ * 只认真产物；`base` 是调用方自己的普通参数（metadata、显式参数），原样浅拷贝。
+ */
+export function withLoweredReferences(base: Readonly<Record<string, unknown>>, lowered: LoweredGeneration): Record<string, unknown> {
+  return { ...base, ...paramsOfLowered(lowered) };
+}
 
 type Entry = Readonly<{ value: ReferenceValue; role?: string }>;
 
@@ -128,7 +196,7 @@ function targetKeys(target: BindingTarget, readKeys: readonly string[]): readonl
 }
 
 /**
- * 意图 → 请求参数。有 problem 时 `bodyParams` 仍按规则给出（方便调用方说清楚是哪一格），
+ * 意图 → 解析产物。有 problem 时参数仍按规则给出（方便调用方说清楚是哪一格），
  * 但调用方**不许**拿它去发：problem 非空就在花钱之前拒（Run 的张数另由它自己按族核）。
  */
 export function lowerGenerationIntent(
@@ -198,5 +266,5 @@ export function lowerGenerationIntent(
     for (const key of keys) write(key, encode(binding.encoding, entriesOf(index)), true);
   }
   for (const [key, value] of Object.entries(declaration.fixedParams ?? {})) out[key] = value;
-  return { bodyParams: out, problems };
+  return mintLowered(out, problems);
 }

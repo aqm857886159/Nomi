@@ -650,7 +650,7 @@ export function buildArchetypeInputParams(
     firstFrameUrl?: string | null
     lastFrameUrl?: string | null
   },
-): Record<string, unknown> {
+): Readonly<Record<string, unknown>> {
   const mode = currentArchetypeMode(archetype, meta)
   const intent: IntentReference[] = []
   // 上传图落哪个槽：和参考行同一个函数（uploadPlacementForMode → placeUploadedImages），列表里用不上的图不进来。
@@ -682,6 +682,6 @@ export function buildArchetypeInputParams(
     if (raw) intent.push({ binding: slotIndex, value: raw })
   }
   // 放进哪个键、单图还是数组、火山 content 项、角色数组合并、模式固定参数：全部由共享解析写入过程按绑定回答（绑定序 = 槽序）。
-  // 画布这边已经按槽上限截过，降级不会再报超量。
-  return { ...lowerGenerationIntent(declarationForMode(mode), { references: intent }).bodyParams }
+  // 画布这边已经按槽上限截过，降级不会再报超量。renderer 只拿解析产物的独立冻结快照（跨 IPC 本来就只剩普通数据）。
+  return lowerGenerationIntent(declarationForMode(mode), { references: intent }).snapshot()
 }
