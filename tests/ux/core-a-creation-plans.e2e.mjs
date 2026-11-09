@@ -85,6 +85,7 @@ try {
     const expand=win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
     if(await expand.isVisible())await expand.click()
     await win.locator(`[data-document-row="${documentId}"] button[data-document-id="${documentId}"]`).click()
+    await win.locator('[data-shell-drawer="docs"]').waitFor({ state: 'hidden', timeout: stationTimeout() })
     await ensureCreationResourceTree(win, '选中文稿后（抽屉选中即收）')
     await expect(win.locator(`[data-storyboard-id][data-document-id="${documentId}"]`)).toHaveCount(2)
   }
@@ -114,6 +115,8 @@ try {
     const expandTree = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
     if (await expandTree.isVisible()) await expandTree.click()
     await win.locator(`[data-document-row="${id.startsWith('a') ? 'a' : 'b'}"] button[data-document-id]`).click()
+    // Selection closes the drawer in an effect; finish closing before reopening it.
+    await win.locator('[data-shell-drawer="docs"]').waitFor({ state: 'hidden', timeout: stationTimeout() })
     await openStoryboardEditor(win, ids[id])
     // Preserve the already approved editor contract: being able to edit a
     // textarea in a replacement form is not storyboard feature parity.
@@ -130,6 +133,7 @@ try {
   const expandForEdit = win.locator('[data-shell-rail-item="docs"][aria-pressed="false"]')
   if (await expandForEdit.isVisible()) await expandForEdit.click()
   await win.locator('[data-document-row="a"] button[data-document-id]').click()
+  await win.locator('[data-shell-drawer="docs"]').waitFor({ state: 'hidden', timeout: stationTimeout() })
   await openStoryboardEditor(win, ids.a1)
   const originalFields=structuredClone((await designById(win,ids.a1)).plan.shots[0])
   const editor = win.locator('[data-storyboard-editor="true"]')
