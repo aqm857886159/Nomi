@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // 派工书检查（省 token 与方向检查在派工那一步的执行点）：协调会话发任务书前跑一遍。
 //   node scripts/check-dispatch-brief.mjs <任务书.md>
-// 查七件事：① 写了范围；② 写了不碰清单；③ 写了停点（做到哪就停）；④ 若是修补第 3 轮及以上，必须引用方向检查复盘文档；⑤ 讲到模型可见工具改动，必须引用模型可见工具必读清单；
+// 基础七项：① 写了范围；② 写了不碰清单；③ 写了停点（做到哪就停）；④ 若是修补第 3 轮及以上，必须引用方向检查复盘文档；⑤ 讲到模型可见工具改动，必须引用模型可见工具必读清单；
 // ⑥ 实现线任务书要有一行「删掉：选 / 不选，理由」（P5 三条路里的「删掉」，只写在规则里时会被跳过）；⑦ 删东西不许写成「全仓搜到就删」，范围按归属列文件。
+// 另查实现任务自验的反例红绿合同（明确纯测试 / 文档 / 配置任务可免）。
 // 只看有没有写，不判写得好不好；退出码 1 = 缺项（派工前补齐）。纯文本匹配，不调模型。
 import fs from 'node:fs'
 import path from 'node:path'
@@ -24,6 +25,20 @@ const DELETE_ANSWER = /^\s*[-*]?\s*\**删掉\**\s*[：:]\s*\S/m
 // 形状 = 先搜（grep / 全仓 / 搜到 / 所有出现）再对搜到的「逐处 / 都 / 就」删。核对用的「全仓 grep 指向已删文件」和点名文件里删条目都不算。
 const WHOLE_REPO_DELETE = /(grep|全仓|整个仓库|搜到|所有出现)[^\n。]{0,40}(逐处|每一?处|全部|都|就)\s*(删|改或删)/i
 
+
+// 豁免必须独占声明行，正文举例或「纯文档 + 代码」不算。
+const CHECK_ONLY = /^\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:(?:任务类型|类别|声明|范围)\s*[：:]\s*)?(?:纯|只改)(?:测试|文档|配置)(?:\s*[/、+与和]\s*(?:纯)?(?:测试|文档|配置))*[。；\s]*$/m
+const COUNTEREXAMPLE_CONTRACT = [/设计卡/, /★\s*9/, /每条/, /反例/, /改坏[^。\n]*红/, /还原[^。\n]*绿/, /日志[^。\n]*报告/]
+
+function briefSection(text, name) {
+  const lines = text.split(/\r?\n/)
+  const start = lines.findIndex((line) => new RegExp(`^\\s*(?:#{1,6}\\s*)?${name}(?:[：:（(\\s]|$)`, 'i').test(line))
+  if (start < 0) return ''
+  const level = lines[start].match(/^\s*(#+)/)?.[1].length ?? 6
+  const end = lines.findIndex((line, i) => i > start && /^#{1,6}\s/.test(line) && line.match(/^#+/)[0].length <= level)
+  return lines.slice(start, end < 0 ? undefined : end).join('\n')
+}
+
 export function roundNumber(text) {
   const m = ROUND.exec(text)
   if (!m) return 0
@@ -44,6 +59,10 @@ export function checkDispatchBrief(text, { implementation = false } = {}) {
   if (n >= 3 && !REVIEW_REF.test(text)) problems.push(`这是第 ${n} 轮修补：同一处第 3 轮就停，改派类根因复盘（docs/engineering/direction-check-template.md），任务书里要引用复盘文档`)
   if (MODEL_FACING_TOOL_CHANGE.test(text) && !MODEL_FACING_TOOL_CHECKLIST.test(text)) problems.push('讲到模型可见工具改动：任务书必须引用 docs/engineering/model-facing-tool-checklist.md（先调研再动代码）')
   if (implementation && !DELETE_ANSWER.test(text)) problems.push('缺「删掉：」一行：先答这件事能不能直接删（选 / 不选，加一句理由），再写怎么修或怎么做（CLAUDE.md P5 三条路）')
+  const selfCheck = briefSection(text, '自验')
+  if (implementation && !CHECK_ONLY.test(text) && !COUNTEREXAMPLE_CONTRACT.every((re) => re.test(selfCheck))) {
+    problems.push('缺反例红绿：自验必须要求「设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告」；仅明确声明纯测试 / 纯文档 / 纯配置任务可豁免')
+  }
   // 「」引号里、代码块里的是举例（讲反面例子、测试样本），不是指令。
   const instructions = text.replace(/```[\s\S]*?```/g, '').replace(/「[^」\n]*」/g, '')
   const wide = WHOLE_REPO_DELETE.exec(instructions)

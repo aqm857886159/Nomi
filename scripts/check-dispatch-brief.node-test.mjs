@@ -8,7 +8,9 @@ import { makeTempDir } from './_test-temp.mjs'
 import * as checker from './check-dispatch-brief.mjs'
 import { checkDispatchBrief, roundNumber } from './check-dispatch-brief.mjs'
 
-const GOOD = '范围：只改 src/a。不碰：%APPDATA%。停点：样张出来就停。'
+const SELF_CHECK = '\n## 自验\n设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告。'
+
+const GOOD = '范围：只改 src/a。不碰：%APPDATA%。停点：完成就停。'
 
 describe('派工书检查', () => {
   test('只写范围、不碰清单、停点即可通过', () => assert.deepEqual(checkDispatchBrief(GOOD), []))
@@ -53,7 +55,7 @@ describe('删除决策与归属范围', () => {
   })
   for (const answer of ['选，移除无用入口', '不选，保留必要能力']) {
     test(`实现线有删掉答案可通过：${answer}`, () => {
-      assert.deepEqual(checkDispatchBrief(`${GOOD}\n删掉：${answer}`, { implementation: true }), [])
+      assert.deepEqual(checkDispatchBrief(`${GOOD}\n删掉：${answer}${SELF_CHECK}`, { implementation: true }), [])
     })
   }
   test('非实现线不要求删掉答案', () => {
@@ -121,7 +123,7 @@ describe('Claude 派线执行点', () => {
     assert.equal(result.stderr.match(/派工书检查：/g)?.length, 1)
   })
   test('引用齐全任务书时放行', () => {
-    const result = runHook(`读任务书 ${writeBrief(`${GOOD}\n删掉：不选，保留必要能力。`)}`)
+    const result = runHook(`读任务书 ${writeBrief(`${GOOD}\n删掉：不选，保留必要能力。${SELF_CHECK}`)}`)
     assert.equal(result.error, undefined)
     assert.equal(result.status, 0)
   })
@@ -131,5 +133,37 @@ describe('Claude 派线执行点', () => {
   test('引用不存在任务书时放行', () => {
     const file = path.join(makeTempDir('dispatch-brief'), 'briefs', 'x', 'I-missing.md')
     assert.equal(runHook(`读任务书 ${file}`).status, 0)
+  })
+})
+
+const IMPLEMENTATION = { implementation: true }
+const IMPLEMENTATION_GOOD = `${GOOD}\n删掉：不选，保留必要能力。`
+
+describe('反例红绿前移', () => {
+  test('实现任务缺自验要求时拦截并解释补法', () => {
+    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD, IMPLEMENTATION).join(), /自验.*设计卡.*★9.*每条反例.*改坏.*红.*还原.*绿.*日志.*报告/)
+  })
+  test('要求齐全时通过；非实现任务不强制红绿合同', () => {
+    assert.deepEqual(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK, IMPLEMENTATION), [])
+    assert.deepEqual(checkDispatchBrief(GOOD), [])
+  })
+  for (const missing of ['★9', '每条', '反例', '改坏', '红', '还原', '绿', '日志', '报告']) {
+    test(`自验缺 ${missing} 时不通过`, () => {
+      assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK.replace(missing, ''), IMPLEMENTATION).join(), /缺反例红绿/)
+    })
+  }
+  test('自验外写同样要求不算自验合同', () => {
+    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + SELF_CHECK.replace('## 自验', '## 说明'), IMPLEMENTATION).join(), /缺反例红绿/)
+    assert.match(checkDispatchBrief(IMPLEMENTATION_GOOD + '\n## 自验\n跑测试\n## 报告' + SELF_CHECK.split('\n').slice(2).join('\n'), IMPLEMENTATION).join(), /缺反例红绿/)
+  })
+  for (const declaration of ['纯测试', '纯文档', '纯配置', '任务类型：纯测试 / 文档 / 配置', '范围：只改测试、文档']) {
+    test(`明确声明可以豁免：${declaration}`, () => {
+      assert.deepEqual(checkDispatchBrief(`${IMPLEMENTATION_GOOD}\n${declaration}`, IMPLEMENTATION), [])
+    })
+  }
+  test('提到纯文档或混合代码任务不能冒充豁免', () => {
+    for (const declaration of ['参考纯文档任务的写法', '纯文档 + 代码', '范围：只改 src/a.ts，另补纯测试']) {
+      assert.match(checkDispatchBrief(`${IMPLEMENTATION_GOOD}\n${declaration}`, IMPLEMENTATION).join(), /缺反例红绿/)
+    }
   })
 })
