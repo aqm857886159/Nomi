@@ -140,11 +140,10 @@
   "residual_risks": [
     "No live issue writes or workflow dispatch permitted; actual GitHub roundtrip remains unverified."
   ],
-  "detected_by": "audit",
+  "detected_by": "review",
   "recurrence_check_on": "2026-12-09",
   "invariant_owner_layer": {
-    "layer": "reporting",
-    "path": "scripts/nightly-walk-summary.mjs",
+    "layer": "scripts/nightly-walk-summary.mjs",
     "tests": [
       "scripts/nightly-walk-summary.node-test.mjs"
     ]
