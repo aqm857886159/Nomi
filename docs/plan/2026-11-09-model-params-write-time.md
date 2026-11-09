@@ -232,7 +232,7 @@ Mac/本地目录与纯函数：第 0 步执行。Windows、英文界面、最小
 ## 第 1 步实施卡（I-model-params-step1）
 
 ★1 保住用户结果：全入口存值/请求不变。量具为冻结 C1 39格逐项读数、官方 wire 的498份 body逐字节比较；本步不运行付费模型，真实问题闭环未验证。
-★2 唯一主人 electron/shared/resolveModelParams.ts。调用范围：buildNodeModelChangePatch、archetypeMeta 的 mode/variant、plannedNodeMeta（含分镜投影）、planResolver、确定性拟镜。参数面板保留旧目录键编解码，规整与默认铺值由共享函数裁决；concept登记 pending，不假称第4步已收口。
+★2 唯一主人 electron/shared/videoCapabilities/resolveModelParams.ts。调用范围：buildNodeModelChangePatch、archetypeMeta 的 mode/variant、plannedNodeMeta（含分镜投影）、planResolver、确定性拟镜。参数面板保留旧目录键编解码，规整与默认铺值由共享函数裁决；concept登记 pending，不假称第4步已收口。
 ★3 按研究报告路2，按谁写的值分「人手 / Agent / 发送复查」政策，显式保留全重置、只修下拉、静默回默认、钳值说明。拟镜范围政策仍4–15，本步不读模型改变分配。
 ★4 无新增界面、文案、存储、发送复查；失败与空值语义维持现状，无迁移、打开不写。
 5 同步纯函数，无新增长跑或中断状态。
