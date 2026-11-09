@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
+import { makeTempDir, cleanupTestTemp } from './_test-temp.mjs'
 
 const script =
   process.env.NOMI_MAIN_FOLLOW_SCRIPT || fileURLToPath(new URL('./main-checkout-follow.mjs', import.meta.url))
 const git = (cwd, ...args) =>
   execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 function fixture(t) {
-  const dir = mkdtempSync(path.join(process.env.NOMI_TEST_TMPDIR || tmpdir(), 'main-follow-'))
-  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const dir = makeTempDir('main-follow-')
+  t.after(() => cleanupTestTemp(dir))
   const origin = path.join(dir, 'origin.git'),
     seed = path.join(dir, 'seed'),
     main = path.join(dir, 'main')
