@@ -167,3 +167,68 @@ describe('反例红绿前移', () => {
     }
   })
 })
+
+function churnRepo() {
+  const root = makeTempDir('dispatch-churn')
+  const git = (...args) => {
+    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: path.join(root, 'no-global-config'), GIT_CONFIG_NOSYSTEM: '1' } })
+    assert.equal(result.status, 0, result.stderr)
+    return result.stdout.trim()
+  }
+  git('init', '-q')
+  git('config', 'user.email', 'test@example.invalid')
+  git('config', 'user.name', 'test')
+  git('config', 'core.hooksPath', path.join(root, 'no-hooks'))
+  const put = (file, value) => {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+    fs.writeFileSync(path.join(root, file), value)
+  }
+  const commit = (subject) => { git('add', '.'); git('commit', '-qm', subject) }
+  put('src/feature/hot.ts', 'export const value = 0\n')
+  put('src/feature/neighbor.ts', 'export const neighbor = 0\n')
+  put('src/cold/cold.ts', 'export const cold = 0\n')
+  commit('chore: initial sources')
+  put('src/feature/hot.ts', 'export const value = 1\n'); commit('fix: first repair')
+  put('src/feature/hot.ts', 'export const value = 2\n'); commit('fix: second repair')
+  const ref = git('rev-parse', 'HEAD')
+  git('update-ref', 'refs/remotes/origin/main', ref)
+  return { root, ref, git, put, commit }
+}
+
+const CHURN = churnRepo()
+const scopeBrief = (files) => `${IMPLEMENTATION_GOOD}${SELF_CHECK}\n## 范围\n${files.map((f) => `- \`${f}\``).join('\n')}\n## 不碰清单\n其它文件。`
+const DIRECTION_REF = '\n先读 docs/engineering/direction-checks/approved.md。'
+
+describe('碰热点先方向检查', () => {
+  test('真实 Git 热点缺方向文档时拦截，补引用通过', () => {
+    const text = scopeBrief(['src/feature/hot.ts'])
+    assert.match(checkDispatchBrief(text, { ...IMPLEMENTATION, root: CHURN.root }).join(), /src\/feature\/hot\.ts[\s\S]*先派独立方向检查/)
+    assert.deepEqual(checkDispatchBrief(text + DIRECTION_REF, { ...IMPLEMENTATION, root: CHURN.root }), [])
+    assert.match(checkDispatchBrief(text + '\n已做方向检查', { ...IMPLEMENTATION, root: CHURN.root }).join(), /先派独立方向检查/)
+  })
+  test('真实 Git 冷文件通过，目录热点提示不拦', () => {
+    const warnings = []
+    assert.deepEqual(checkDispatchBrief(scopeBrief(['src/cold/cold.ts']), { ...IMPLEMENTATION, root: CHURN.root, warnings }), [])
+    assert.equal(warnings.length, 0)
+    assert.deepEqual(checkDispatchBrief(scopeBrief(['src/feature/neighbor.ts']), { ...IMPLEMENTATION, root: CHURN.root, warnings }), [])
+    assert.match(warnings.join(), /仅提示.*目录[\s\S]*src\/feature\/neighbor\.ts/)
+  })
+  test('固定 ref 不受后续修复提交影响', () => {
+    CHURN.put('src/cold/cold.ts', 'export const cold = 1\n'); CHURN.commit('fix: later cold repair')
+    CHURN.put('src/cold/cold.ts', 'export const cold = 2\n'); CHURN.commit('fix: another later cold repair')
+    const text = scopeBrief(['src/cold/cold.ts'])
+    assert.deepEqual(checkDispatchBrief(text, { ...IMPLEMENTATION, root: CHURN.root, ref: CHURN.ref }), [])
+    assert.match(checkDispatchBrief(text, { ...IMPLEMENTATION, root: CHURN.root, ref: 'HEAD' }).join(), /先派独立方向检查/)
+  })
+  test('范围外路径、绝对路径、目录、不存在文件不送热点检查', () => {
+    const text = scopeBrief(['src/feature/missing.ts', 'src/feature/', path.join(CHURN.root, 'src/feature/hot.ts'), '../src/feature/hot.ts']) + '\n## 报告\n`src/feature/hot.ts`'
+    assert.deepEqual(checkDispatchBrief(text, { ...IMPLEMENTATION, root: CHURN.root }), [])
+  })
+  test('概念热点只提示，复用计数器登记', () => {
+    CHURN.put('docs/engineering/concept-owners/_meta.json', '{}')
+    CHURN.put('docs/engineering/concept-owners/dispatch.test.json', JSON.stringify({ subject: 'dispatch.test', name: '跨文件概念', owner: { path: 'src/feature/hot.ts' }, write_api: [{ path: 'src/cold/cold.ts' }] }))
+    const warnings = []
+    assert.deepEqual(checkDispatchBrief(scopeBrief(['src/cold/cold.ts']), { ...IMPLEMENTATION, root: CHURN.root, warnings }), [])
+    assert.match(warnings.join(), /仅提示[\s\S]*跨文件概念/)
+  })
+})

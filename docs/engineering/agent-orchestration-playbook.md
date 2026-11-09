@@ -515,7 +515,7 @@ node scripts/research/tikhub-search.mjs \
 
 | 层 | 做什么 |
 |---|---|
-| 派工 | 派修复前 `node scripts/fix-churn.mjs <路径>`；命中、「第 N 轮」N≥3、或同一 PR 验收第二次不通过，就改派复盘（§2） |
+| 派工 | 发任务前 `node scripts/check-dispatch-brief.mjs <任务书>` 自动取「范围」节反引号中的已存在仓库文件，以 `origin/main` 调用 `fix-churn.mjs` 的共享 `findHotspots`（CLI 尚无 `--ref`）；文件本身命中且未引用 `docs/engineering/direction-checks/*.md` 时拦截，先派独立方向检查；仅目录 / 概念 / 自写登记命中提示不拦（P1 例外仍须满足换或删、不新增分支的条件，由协调判断）；「第 N 轮」N≥3、或同一 PR 验收第二次不通过，照旧改派复盘（§2） |
 | git commit-msg | `scripts/check-direction-trailer.mjs`：fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`；按内容判，没有环境变量开关；revert 与 merge 不拦 |
 | CI | `quality-gate.yml` contracts 里只警告：列出热点 fix 却没带 trailer 的提交（兜 `--no-verify`） |
 | Claude 编辑 | `edit-time-reminder` 调同一个计数器，提醒不拦 |

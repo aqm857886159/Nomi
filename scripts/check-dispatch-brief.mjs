@@ -3,11 +3,14 @@
 //   node scripts/check-dispatch-brief.mjs <任务书.md>
 // 基础七项：① 写了范围；② 写了不碰清单；③ 写了停点（做到哪就停）；④ 若是修补第 3 轮及以上，必须引用方向检查复盘文档；⑤ 讲到模型可见工具改动，必须引用模型可见工具必读清单；
 // ⑥ 实现线任务书要有一行「删掉：选 / 不选，理由」（P5 三条路里的「删掉」，只写在规则里时会被跳过）；⑦ 删东西不许写成「全仓搜到就删」，范围按归属列文件。
-// 另查实现任务自验的反例红绿合同（明确纯测试 / 文档 / 配置任务可免）。
+// 另查范围内存在文件的热点（复用原计数器；文件热点缺方向文档拦，目录 / 概念只提示）和实现任务自验的反例红绿合同（明确纯测试 / 文档 / 配置任务可免）。
 // 只看有没有写，不判写得好不好；退出码 1 = 缺项（派工前补齐）。纯文本匹配，不调模型。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { directionMessage, findHotspots } from './fix-churn.mjs'
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 const CHECKS = [
   { key: '范围', re: /范围|scope|只(许)?改|仅改/i, hint: '写清改哪些文件 / 概念（范围）' },
@@ -32,7 +35,9 @@ const COUNTEREXAMPLE_CONTRACT = [/设计卡/, /★\s*9/, /每条/, /反例/, /�
 
 function briefSection(text, name) {
   const lines = text.split(/\r?\n/)
-  const start = lines.findIndex((line) => new RegExp(`^\\s*(?:#{1,6}\\s*)?${name}(?:[：:（(\\s]|$)`, 'i').test(line))
+  const matches = (line) => new RegExp(`^\\s*(?:#{1,6}\\s*)?(?:${name})(?:[：:（(\\s]|$)`, 'i').test(line)
+  let start = lines.findIndex((line) => /^\s*#{1,6}\s/.test(line) && matches(line))
+  if (start < 0) start = lines.findIndex(matches)
   if (start < 0) return ''
   const level = lines[start].match(/^\s*(#+)/)?.[1].length ?? 6
   const end = lines.findIndex((line, i) => i > start && /^#{1,6}\s/.test(line) && line.match(/^#+/)[0].length <= level)
@@ -51,8 +56,8 @@ export function isImplementationBrief(text, file = '') {
   return /^I-/.test(path.basename(file)) || /实现线/.test(text.split('\n', 1)[0])
 }
 
-/** 纯判断：返回缺项说明数组（空 = 通过）。 */
-export function checkDispatchBrief(text, { implementation = false } = {}) {
+/** 返回缺项说明数组（空 = 通过）；热点只读 Git，提示写入 warnings。 */
+export function checkDispatchBrief(text, { implementation = false, root = REPO_ROOT, ref = 'origin/main', warnings = [] } = {}) {
   const problems = []
   for (const c of CHECKS) if (!c.re.test(text)) problems.push(`缺${c.key}：${c.hint}`)
   const n = roundNumber(text)
@@ -62,6 +67,16 @@ export function checkDispatchBrief(text, { implementation = false } = {}) {
   const selfCheck = briefSection(text, '自验')
   if (implementation && !CHECK_ONLY.test(text) && !COUNTEREXAMPLE_CONTRACT.every((re) => re.test(selfCheck))) {
     problems.push('缺反例红绿：自验必须要求「设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告」；仅明确声明纯测试 / 纯文档 / 纯配置任务可豁免')
+  }
+  const scope = briefSection(text, '范围|scope')
+  const files = [...new Set([...scope.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]))].filter((file) =>
+    !path.isAbsolute(file) && !file.split(/[\\/]/).includes('..') && fs.existsSync(path.join(root, file)) && fs.statSync(path.join(root, file)).isFile())
+  const hits = files.length ? findHotspots(root, files, { ref }) : []
+  const fileHits = hits.filter((hit) => !hit.unit && hit.reasons.some((reason) => !reason.startsWith('目录 ')))
+  const advisory = hits.filter((hit) => !fileHits.includes(hit))
+  if (advisory.length) warnings.push(`仅提示（目录 / 概念热点，不拦）：\n${advisory.map((hit) => `${hit.path}：${hit.reasons.join('；')}`).join('\n')}`)
+  if (fileHits.length && !/docs\/engineering\/direction-checks\/[^\s`#)]+\.md(?:#[^\s`)]*)?/.test(text)) {
+    problems.push(`${directionMessage(fileHits)}\n先派独立方向检查，并在任务书引用 docs/engineering/direction-checks/ 下的方向检查文档`)
   }
   // 「」引号里、代码块里的是举例（讲反面例子、测试样本），不是指令。
   const instructions = text.replace(/```[\s\S]*?```/g, '').replace(/「[^」\n]*」/g, '')
@@ -74,7 +89,9 @@ function main() {
   const file = process.argv[2]
   if (!file || !fs.existsSync(file)) { console.error('用法：node scripts/check-dispatch-brief.mjs <任务书.md>'); return 2 }
   const text = fs.readFileSync(file, 'utf8')
-  const problems = checkDispatchBrief(text, { implementation: isImplementationBrief(text, file) })
+  const warnings = []
+  const problems = checkDispatchBrief(text, { implementation: isImplementationBrief(text, file), warnings })
+  for (const warning of warnings) console.warn(warning)
   if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、删不删、删除范围齐全，第 3 轮复盘引用与模型可见工具清单检查通过。'); return 0 }
   console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
   return 1
