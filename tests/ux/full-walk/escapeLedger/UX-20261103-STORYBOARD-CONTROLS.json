@@ -13,12 +13,25 @@
     "S2"
   ],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "reviewed",
+  "manualReview": "reviewed",
   "evidence": [
     "docs/plan/2026-11-02-storyboard-only-what-works.md",
     "docs/fixes/2026-11-03-storyboard-per-shot-controls.root-cause.json",
-    "tests/ux/storyboard-only-what-works.test.mjs"
+    "tests/ux/storyboard-only-what-works.test.mjs",
+    "docs/evidence/2026-11-09-storyboard-premerge/README.md",
+    "docs/evidence/2026-11-09-storyboard-premerge/app-receipt.json",
+    "docs/evidence/2026-11-09-storyboard-strips/replay-receipt.json",
+    "Reviewed for first push: approved control removal and exact selected-shot handoff have structural/class evidence. This is not a merged or fully resolved receipt; Agent draft_shots still fails with generation_operation_not_found and is tracked separately."
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "f9489e888d399594bd2ca79f344cad51301a87bc",
+    "228ca124de921652646d9386a0c3fd95f4a8f44f",
+    "eae307b8885833f23e2e1634fb81e9921214e3ac"
+  ],
+  "rootCauseContract": "docs/fixes/2026-11-03-storyboard-per-shot-controls.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/ux/storyboard-only-what-works.test.mjs"
+  }
 }
