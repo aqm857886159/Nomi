@@ -9,6 +9,10 @@
 //
 // 每条检查都记下来、不在第一条红上停：修之前在 main 上跑，要看清哪几条红（证明复现了用户说的），
 // 修之后同一条走查全绿。和用户那次的差别：用户用的是真模型，这里是本机假模型按固定节奏吐字。
+// 协调2026-11-09测试策略：每帧≤70px；唯一例外是本帧高度突增>70px且下一帧≤70px。
+// 连续两帧超限仍红；保留全部原帧、原窗口和>20帧要求，逐次记录例外帧号/增高/落后/下一帧落后。
+// 原因：库instant经ResizeObserver→rAF，允许突增当帧调度间隙，不允许持续落后。
+// 查证：docs/evidence/2026-11-09-agent-conversation-follow-branch/instant-config-investigation.md
 //
 // 拍板图断言：board:ConversationJumpToLatest/button（按钮出现 / 隐藏、文案、点了回到底并继续跟）。
 import fs from 'node:fs'
@@ -21,12 +25,12 @@ import {
 } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { FOLLOW_SLACK_PX, judgeConversationFollow } from './_conversationFollow.mjs'
 
 const FLOW = `${CREATION_PANEL} ${V4_FLOW}`
 const JUMP = `${CREATION_PANEL} [data-v4-control="jump-latest"]`
 const RUNNING = `${CREATION_PANEL} ${COMPOSER}[data-mode="running"]`
 const AT_BOTTOM_PX = 24
-const FOLLOW_SLACK_PX = 70
 const TURNS_PER_THREAD = 5
 const PARAGRAPH = '雨夜的街道上霓虹倒映在积水里，主角撑伞穿过人群，镜头从背后跟上，脚步声和雨声叠在一起，远处的电车灯一闪而过。'
 const STREAM_CHUNK_CHARS = 12
@@ -43,6 +47,7 @@ function streamReply(marker) {
 
 const walk = await createRuntimeWalk('agent-conversation-follow')
 const checks = []
+const followFrames = {}
 const record = (round, check, pass, detail) => {
   checks.push({ round, check, pass: Boolean(pass), detail })
   console.log(`${pass ? 'PASS' : 'FAIL'} [${round}] ${check} ${JSON.stringify(detail)}`)
@@ -193,7 +198,8 @@ try {
       const samples = []
       window.__cfFollow = { samples, stop: false }
       const tick = () => {
-        samples.push(node.scrollHeight - node.scrollTop - node.clientHeight)
+        const scrollHeight = node.scrollHeight
+        samples.push({ scrollHeight, gap: scrollHeight - node.scrollTop - node.clientHeight })
         if (!window.__cfFollow.stop) requestAnimationFrame(tick)
       }
       requestAnimationFrame(tick)
@@ -211,9 +217,9 @@ try {
     const afterChunks = await geometry()
     const charsAfter = (await streaming.textContent())?.length ?? 0
     await win.evaluate(() => { window.__cfFollow.stop = true })
-    const maxGap = Math.max(...followSamples)
-    record(label, 'streaming-follows-while-at-bottom', followSamples.length > 20 && maxGap <= FOLLOW_SLACK_PX,
-      { frames: followSamples.length, maxGap: Math.round(maxGap) })
+    followFrames[label] = followSamples
+    const { pass, ...followDetail } = judgeConversationFollow(followSamples)
+    record(label, 'streaming-follows-while-at-bottom', pass, followDetail)
     record(label, 'scrolled-up-reader-is-not-dragged', charsAfter - charsAtScroll >= 100 && Math.abs(afterChunks.top - scrolledUp.top) <= 1,
       { before: scrolledUp.top, after: afterChunks.top, gapAfterScroll: scrolledUp.gap, streamedChars: charsAfter - charsAtScroll })
     const jumpShown = await jumpVisible()
@@ -309,5 +315,6 @@ try {
   failure = error
   process.exitCode = 1
 } finally {
+  fs.writeFileSync(path.join(walk.outputDir, 'follow-frames.json'), JSON.stringify(followFrames, null, 1))
   await walk.finish(failure)
 }
