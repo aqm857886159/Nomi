@@ -19,7 +19,7 @@ import { dirOfMetaUrl } from '../../scripts/lib/repoPaths.mjs'
 import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, COLLAPSED_DOCK, COMPOSER_INPUT, COMPOSER_SEND, PREVIEW_PANEL, TOOL_RECEIPT, USER_BUBBLE,
-  ASSISTANT_MESSAGE, chooseAssistantModel, hasToolResult, recorded, expectComposerText } from './agent-runtime-walk-support.mjs'
+  ASSISTANT_MESSAGE, chooseAssistantModel, hasToolResult, recorded, expectComposerText, expectComposerFocused } from './agent-runtime-walk-support.mjs'
 
 const here = dirOfMetaUrl(import.meta.url)
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-form-switch-state')
@@ -160,10 +160,13 @@ try {
   await ball.click({ button: 'right' })
   await clickOrFail(win.getByRole('menuitem', { name: /浮窗/ }).first(), '小球右键 → 浮窗')
   await expect(win.locator('[data-agent-float="preview"]'), '没变成浮窗').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  // 小球右键「浮窗」也是打开 Agent 的一扇门：打开后光标就在输入框里（#1359）。
+  await expectComposerFocused(win, PREVIEW_PANEL, '小球右键 → 浮窗后焦点不在 Agent 输入框', stationTimeout())
   await expectPanelStateKept('浮窗')
   await snap('03-float')
   await clickOrFail(win.locator('[data-agent-float="preview"] [data-agent-form-to="dock"]'), '浮窗 → 停靠')
   await expect(win.locator('[data-shell-agent-layer][data-agent-form="dock"]'), '没回到停靠').toBeAttached({ timeout: DEFAULT_TIMEOUT_MS })
+  await expectComposerFocused(win, PREVIEW_PANEL, '浮窗 → 停靠后焦点不在 Agent 输入框', stationTimeout())
   await expectPanelStateKept('回到停靠')
 
   // ④ 展开计划卡：第 2 行仍是取消状态（勾选没被悄悄勾回来）。
