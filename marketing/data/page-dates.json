@@ -68,12 +68,12 @@
     "date": "2026-11-07"
   },
   "/en/models/agnes-video-2-5": {
-    "hash": "a65b6f3441263c9b",
-    "date": "2026-10-24"
+    "hash": "153651ec49493e47",
+    "date": "2026-11-09"
   },
   "/en/models/dop": {
-    "hash": "51c3ce6011b4028e",
-    "date": "2026-10-24"
+    "hash": "b9022e1d527f6461",
+    "date": "2026-11-09"
   },
   "/en/models/flux-1-krea": {
     "hash": "bade0e7549126d1b",
@@ -92,8 +92,8 @@
     "date": "2026-10-24"
   },
   "/en/models/gemini-omni-1-1-flash": {
-    "hash": "07399cfef3e4f4eb",
-    "date": "2026-10-24"
+    "hash": "83fa63cd82efdc57",
+    "date": "2026-11-09"
   },
   "/en/models/gpt-image-2": {
     "hash": "5d8b43678eae7b19",
@@ -108,20 +108,20 @@
     "date": "2026-10-24"
   },
   "/en/models/grok-imagine-1-5": {
-    "hash": "2227a9b03422a1bd",
-    "date": "2026-11-07"
+    "hash": "390ee38ba202ba1b",
+    "date": "2026-11-09"
   },
   "/en/models/grok-imagine-image-2": {
     "hash": "667db91fe67eebbc",
     "date": "2026-10-24"
   },
   "/en/models/hailuo-2-3": {
-    "hash": "9b34eab7fed56bc1",
-    "date": "2026-10-24"
+    "hash": "1ae19dd65ba0840c",
+    "date": "2026-11-09"
   },
   "/en/models/happyhorse-1-1": {
-    "hash": "e6167cec2eb93fe8",
-    "date": "2026-11-07"
+    "hash": "65b240b4dd48289c",
+    "date": "2026-11-09"
   },
   "/en/models/imagen-4-fast": {
     "hash": "477cab12e9d1a67f",
@@ -132,20 +132,20 @@
     "date": "2026-10-24"
   },
   "/en/models/kling-3-0": {
-    "hash": "6c874fe0c1be075e",
-    "date": "2026-10-24"
+    "hash": "8c1d07d916abdf68",
+    "date": "2026-11-09"
   },
   "/en/models/kling-3-0-turbo": {
-    "hash": "b44e4eea1464a0a7",
-    "date": "2026-10-24"
+    "hash": "129b85ef6f6fb7a8",
+    "date": "2026-11-09"
   },
   "/en/models/minimax-h3": {
-    "hash": "eb06a8d8d7ef2753",
-    "date": "2026-10-24"
+    "hash": "a9016660c5a5bc01",
+    "date": "2026-11-09"
   },
   "/en/models/minimax-h3-max": {
-    "hash": "2135855b6cf08653",
-    "date": "2026-10-24"
+    "hash": "4aa53c835956d87b",
+    "date": "2026-11-09"
   },
   "/en/models/muse-image": {
     "hash": "bb430c48502d6600",
@@ -168,20 +168,20 @@
     "date": "2026-11-07"
   },
   "/en/models/runway-gen-4-5": {
-    "hash": "823916b4edcf8436",
-    "date": "2026-10-24"
+    "hash": "854ba78611d2a1e0",
+    "date": "2026-11-09"
   },
   "/en/models/runway-gen-4-image": {
     "hash": "a55284c2bacd008e",
     "date": "2026-10-24"
   },
   "/en/models/runway-gen-4-turbo": {
-    "hash": "96b93aaa44a94fdb",
-    "date": "2026-10-24"
+    "hash": "2a9ef421a80b747c",
+    "date": "2026-11-09"
   },
   "/en/models/seedance-2-5": {
-    "hash": "463077c671d84200",
-    "date": "2026-10-24"
+    "hash": "33bd0ad82948576f",
+    "date": "2026-11-09"
   },
   "/en/models/seedream-5-0-lite": {
     "hash": "511e3a5818969269",
@@ -200,16 +200,16 @@
     "date": "2026-10-24"
   },
   "/en/models/veo-3-1": {
-    "hash": "9364988a36f64f11",
-    "date": "2026-10-24"
+    "hash": "a05fad231f403de2",
+    "date": "2026-11-09"
   },
   "/en/models/vidu-q3": {
-    "hash": "b16f6ee16cd5376d",
-    "date": "2026-10-24"
+    "hash": "61af3dfe2aba165d",
+    "date": "2026-11-09"
   },
   "/en/models/wan-3-0": {
-    "hash": "1fe9e0c254db2b57",
-    "date": "2026-10-24"
+    "hash": "1e4d49299a7fe250",
+    "date": "2026-11-09"
   },
   "/en/models/z-image": {
     "hash": "5d3b5b304264fdbc",
@@ -280,8 +280,8 @@
     "date": "2026-11-06"
   },
   "/en/skills": {
-    "hash": "f643e2ffbac68a60",
-    "date": "2026-10-24"
+    "hash": "438c25f2b588e74f",
+    "date": "2026-11-09"
   },
   "/en/skills/brand-promo": {
     "hash": "3c757639e78900c1",
@@ -351,53 +351,57 @@
     "hash": "f362b2c8f28f88f9",
     "date": "2026-10-24"
   },
+  "/en/skills/director-3dbox": {
+    "hash": "a6fa2f328324b144",
+    "date": "2026-11-09"
+  },
   "/en/skills/director-action": {
-    "hash": "3e834116d12353fe",
-    "date": "2026-10-24"
+    "hash": "124fc5389c46817c",
+    "date": "2026-11-09"
   },
   "/en/skills/director-art-design": {
-    "hash": "4c494e6bfc05751f",
-    "date": "2026-10-24"
+    "hash": "318319a7fcef7a14",
+    "date": "2026-11-09"
   },
   "/en/skills/director-cinematography": {
-    "hash": "110a355d8dffee4d",
-    "date": "2026-10-24"
+    "hash": "eb52c61776bd1562",
+    "date": "2026-11-09"
   },
   "/en/skills/director-consistency": {
-    "hash": "556f376fa1035ed8",
-    "date": "2026-10-24"
+    "hash": "fa5f734457590aa3",
+    "date": "2026-11-09"
   },
   "/en/skills/director-guzhuang": {
-    "hash": "4d13f6c849544a33",
-    "date": "2026-10-24"
+    "hash": "1a28e7d368d34c00",
+    "date": "2026-11-09"
   },
   "/en/skills/director-keyframe-review": {
-    "hash": "094d96819233f67d",
-    "date": "2026-10-24"
+    "hash": "ea5bda87008bc916",
+    "date": "2026-11-09"
   },
   "/en/skills/director-performance": {
-    "hash": "7f1c31865616149f",
-    "date": "2026-10-24"
+    "hash": "310f36393a28aae6",
+    "date": "2026-11-09"
   },
   "/en/skills/director-shot-translation": {
-    "hash": "4024e45fd698037c",
-    "date": "2026-10-24"
+    "hash": "b3691382ceb7cc6a",
+    "date": "2026-11-09"
   },
   "/en/skills/director-sound": {
-    "hash": "6028d4b50e3208d6",
-    "date": "2026-10-24"
+    "hash": "6d4fe8dd64a434df",
+    "date": "2026-11-09"
   },
   "/en/skills/director-staging": {
-    "hash": "ef1ba7ca6881053e",
-    "date": "2026-10-24"
+    "hash": "dd1d264d8dcefd33",
+    "date": "2026-11-09"
   },
   "/en/skills/director-style-otomo-wright": {
-    "hash": "b4605e0f05f1330f",
-    "date": "2026-10-24"
+    "hash": "4cf0403460a3dabe",
+    "date": "2026-11-09"
   },
   "/en/skills/director-transitions": {
-    "hash": "46bcfac3c0641d06",
-    "date": "2026-10-24"
+    "hash": "f813971e21eb94f0",
+    "date": "2026-11-09"
   },
   "/en/skills/drama-short": {
     "hash": "fccfb14c73fc6970",
@@ -488,12 +492,12 @@
     "date": "2026-11-07"
   },
   "/models/agnes-video-2-5": {
-    "hash": "cffdfb5be76d37ca",
-    "date": "2026-10-24"
+    "hash": "0f9548abbf882c2b",
+    "date": "2026-11-09"
   },
   "/models/dop": {
-    "hash": "a905d94844ae4aee",
-    "date": "2026-10-24"
+    "hash": "989b49e9165ce687",
+    "date": "2026-11-09"
   },
   "/models/flux-1-krea": {
     "hash": "73e1009982c94175",
@@ -512,8 +516,8 @@
     "date": "2026-10-24"
   },
   "/models/gemini-omni-1-1-flash": {
-    "hash": "7fdfbc0d5fcebab3",
-    "date": "2026-10-24"
+    "hash": "24003dd0f1b526cb",
+    "date": "2026-11-09"
   },
   "/models/gpt-image-2": {
     "hash": "11c706c92786c29e",
@@ -528,20 +532,20 @@
     "date": "2026-10-24"
   },
   "/models/grok-imagine-1-5": {
-    "hash": "56d6075539cc1cb8",
-    "date": "2026-11-07"
+    "hash": "ba38a57fd419f201",
+    "date": "2026-11-09"
   },
   "/models/grok-imagine-image-2": {
     "hash": "fff9d1651628e612",
     "date": "2026-10-24"
   },
   "/models/hailuo-2-3": {
-    "hash": "3dcb0b092f910e2b",
-    "date": "2026-10-24"
+    "hash": "0142cf4af575cda9",
+    "date": "2026-11-09"
   },
   "/models/happyhorse-1-1": {
-    "hash": "92420057cb1b1fb5",
-    "date": "2026-11-07"
+    "hash": "ba29d8a4b125e932",
+    "date": "2026-11-09"
   },
   "/models/imagen-4-fast": {
     "hash": "cbe2c15e5c3ca1fe",
@@ -552,20 +556,20 @@
     "date": "2026-10-24"
   },
   "/models/kling-3-0": {
-    "hash": "67a9f480dc41d007",
-    "date": "2026-10-24"
+    "hash": "e871f28a765207bc",
+    "date": "2026-11-09"
   },
   "/models/kling-3-0-turbo": {
-    "hash": "133d17827002f86a",
-    "date": "2026-10-24"
+    "hash": "e8271e5c4c8717f0",
+    "date": "2026-11-09"
   },
   "/models/minimax-h3": {
-    "hash": "ec130a46d5141904",
-    "date": "2026-10-24"
+    "hash": "da1074716cbd6d4b",
+    "date": "2026-11-09"
   },
   "/models/minimax-h3-max": {
-    "hash": "9d05f5d8f07e1863",
-    "date": "2026-10-24"
+    "hash": "34232998f2430cee",
+    "date": "2026-11-09"
   },
   "/models/muse-image": {
     "hash": "6c756d736c741c4c",
@@ -588,20 +592,20 @@
     "date": "2026-11-07"
   },
   "/models/runway-gen-4-5": {
-    "hash": "54976a8e412e9375",
-    "date": "2026-10-24"
+    "hash": "41e5edc32e35fe7c",
+    "date": "2026-11-09"
   },
   "/models/runway-gen-4-image": {
     "hash": "88cf861a53ad8f10",
     "date": "2026-10-24"
   },
   "/models/runway-gen-4-turbo": {
-    "hash": "86cfcac90b174de8",
-    "date": "2026-10-24"
+    "hash": "8ee2d6fc7c45f6ce",
+    "date": "2026-11-09"
   },
   "/models/seedance-2-5": {
-    "hash": "6b49e2f9cb1843bc",
-    "date": "2026-10-24"
+    "hash": "f00e4e782af475a4",
+    "date": "2026-11-09"
   },
   "/models/seedream-5-0-lite": {
     "hash": "ac57af8636a473a3",
@@ -620,16 +624,16 @@
     "date": "2026-10-24"
   },
   "/models/veo-3-1": {
-    "hash": "e220dd53e73c068d",
-    "date": "2026-10-24"
+    "hash": "db955441cd289023",
+    "date": "2026-11-09"
   },
   "/models/vidu-q3": {
-    "hash": "7c73dd5e51edda6e",
-    "date": "2026-10-24"
+    "hash": "c5f8be142d46760e",
+    "date": "2026-11-09"
   },
   "/models/wan-3-0": {
-    "hash": "b59913ee83f6afef",
-    "date": "2026-10-24"
+    "hash": "6c16593414f4ee40",
+    "date": "2026-11-09"
   },
   "/models/z-image": {
     "hash": "ad05cb234b675a83",
@@ -700,8 +704,8 @@
     "date": "2026-11-06"
   },
   "/skills": {
-    "hash": "46e1e95f1f68edb6",
-    "date": "2026-10-24"
+    "hash": "cd510f1de81bf39e",
+    "date": "2026-11-09"
   },
   "/skills/brand-promo": {
     "hash": "f6bc314a7cc78924",
@@ -771,53 +775,57 @@
     "hash": "69a66536a49b9ce0",
     "date": "2026-10-24"
   },
+  "/skills/director-3dbox": {
+    "hash": "0137f7911cfd98b8",
+    "date": "2026-11-09"
+  },
   "/skills/director-action": {
-    "hash": "6bf29e32ca875aa0",
-    "date": "2026-10-24"
+    "hash": "123c0101730b98a2",
+    "date": "2026-11-09"
   },
   "/skills/director-art-design": {
-    "hash": "e32fc6574d56a8eb",
-    "date": "2026-10-24"
+    "hash": "6fce6c7e773a8567",
+    "date": "2026-11-09"
   },
   "/skills/director-cinematography": {
-    "hash": "4a12a27cda596d2c",
-    "date": "2026-10-24"
+    "hash": "0901be777ccd35e1",
+    "date": "2026-11-09"
   },
   "/skills/director-consistency": {
-    "hash": "3f979b0ea395f2c6",
-    "date": "2026-10-24"
+    "hash": "1c7eeeea72a963c0",
+    "date": "2026-11-09"
   },
   "/skills/director-guzhuang": {
-    "hash": "723b3ba6192f7dde",
-    "date": "2026-10-24"
+    "hash": "47a5c75138896f06",
+    "date": "2026-11-09"
   },
   "/skills/director-keyframe-review": {
-    "hash": "92b3f81ffd3de4ae",
-    "date": "2026-10-24"
+    "hash": "aed994412c894cc8",
+    "date": "2026-11-09"
   },
   "/skills/director-performance": {
-    "hash": "63a9d852a92c0612",
-    "date": "2026-10-24"
+    "hash": "108c228cfaf37408",
+    "date": "2026-11-09"
   },
   "/skills/director-shot-translation": {
-    "hash": "b99bdd386d5ecfd1",
-    "date": "2026-10-24"
+    "hash": "0628926525865076",
+    "date": "2026-11-09"
   },
   "/skills/director-sound": {
-    "hash": "92f60b8d35130933",
-    "date": "2026-10-24"
+    "hash": "8763435a2feb3b4b",
+    "date": "2026-11-09"
   },
   "/skills/director-staging": {
-    "hash": "38964bedf492b759",
-    "date": "2026-10-24"
+    "hash": "595fcc8f4f9c30f3",
+    "date": "2026-11-09"
   },
   "/skills/director-style-otomo-wright": {
-    "hash": "0381a621a7c6a975",
-    "date": "2026-10-24"
+    "hash": "9e869e0ab3ea4a27",
+    "date": "2026-11-09"
   },
   "/skills/director-transitions": {
-    "hash": "dc55aed175994c93",
-    "date": "2026-10-24"
+    "hash": "6937f5ad4b6b7a53",
+    "date": "2026-11-09"
   },
   "/skills/drama-short": {
     "hash": "51b1bb658cbca2cb",

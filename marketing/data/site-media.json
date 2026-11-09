@@ -136,6 +136,14 @@
     }
   },
   {
+    "source": "skills/director-3dbox/assets/cover.png",
+    "sourceHash": "1b7fe20043108853",
+    "files": {
+      "640": "/assets/library/director-3dbox-640.webp",
+      "1280": "/assets/library/director-3dbox-1280.webp"
+    }
+  },
+  {
     "source": "skills/director-action/assets/cover.png",
     "sourceHash": "1e21c744863b884b",
     "files": {
