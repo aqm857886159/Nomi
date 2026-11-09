@@ -7,7 +7,8 @@ import { once } from 'node:events'
 import { expect } from '@playwright/test'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
-import { screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { addCanvasNode, closeSettings, newProjectEntry, openSettings, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
@@ -68,7 +69,7 @@ try {
     const { app, win } = await launchNomiApp(options)
     try {
       await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1220, 840))
-      await newProjectEntry(win).click({ timeout: 20000 })
+      await clickOrFail(newProjectEntry(win), 'new project')
       await openSettings(win, { tab: 'models' })
       const card = win.locator('[data-model-account="apimart"]').first()
       await expect(card, 'board:ModelSurfaces/settings.account-card').toContainText('52.3')
@@ -94,7 +95,7 @@ try {
       await addCanvasNode(win, 'video')
       const picker = win.getByRole('button', { name: uiText(locale, 'generationCommon.parameters.model'), exact: true }).first()
       if (perfFile) {
-        await picker.waitFor({ state: 'visible', timeout: 15000 })
+        await expectVisible(picker, 'model picker is ready')
         for (let run = -1; run < runs; run++) {
           const start = performance.now()
           await picker.click()
@@ -106,7 +107,7 @@ try {
           await expect(dropdown).toHaveCount(0)
         }
       }
-      await picker.click({ timeout: 15000 })
+      await clickOrFail(picker, 'open model picker')
       const menu = win.locator('[data-nomi-select-dropdown]:visible').first()
       const search = menu.locator('input').first()
       if (!perfFile) {
@@ -127,7 +128,7 @@ try {
       await variant.click()
       await win.getByRole('option').filter({ hasText: 'Mini' }).first().click()
       const send = win.locator('[data-bar-segment="generate"]').first()
-      await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('data-price-source', /api\/pricing\/model/, { timeout: 10000 })
+      await expect(send, 'board:ModelSurfaces/cost.send-pill').toHaveAttribute('data-price-source', /api\/pricing\/model/, { timeout: stationTimeout() })
       await expect(send, 'board:ModelSurfaces/cost.hover').toHaveAttribute('aria-description', /1[.,]95/)
       await expect(send.locator('..')).toHaveAttribute('title', /0[.,]195/)
       await screenshotSettled(win, { path: path.join(output, locale + '-public-estimate.png') })
@@ -169,7 +170,7 @@ try {
         const size = win.locator('[data-agent-parameter-control="size"]').first()
         await size.getByText('1:1', { exact: true }).click()
         await win.keyboard.press('Escape')
-        await expect(imageSend, 'board:ModelSurfaces/cost.send-pill').toHaveText(/0[.,]35/, { timeout: 10000 })
+        await expect(imageSend, 'board:ModelSurfaces/cost.send-pill').toHaveText(/0[.,]35/, { timeout: stationTimeout() })
         await expect(imageSend).toHaveAttribute('data-price-source', /model=gpt-image-2.6-flare/)
         await expect(imageSend).toHaveAttribute('aria-description', /token/i)
         await expect(imageSend.locator('..')).toHaveAttribute('title', /0[.,]035/)
