@@ -54,4 +54,14 @@ describe("主窗口在场守卫（issue #62）", () => {
     await ensureMainWindow();
     expect(createWindow).toHaveBeenCalledTimes(2);
   });
+
+  it("特征（今天）：主窗藏着或最小化时，activate 什么都不做（方向检查 §8.3 症状一）", async () => {
+    const hidden = { isVisible: () => false, isMinimized: () => true, show: vi.fn(), restore: vi.fn(), focus: vi.fn() };
+    windows = [hidden];
+    const createWindow = vi.fn(async () => ({}));
+    await createMainWindowGuard({ createWindow, onWindowReady: vi.fn() })();
+    expect(createWindow).not.toHaveBeenCalled();
+    expect(hidden.show).not.toHaveBeenCalled();
+    expect(hidden.restore).not.toHaveBeenCalled();
+  });
 });

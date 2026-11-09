@@ -84,4 +84,14 @@ describe("production run desktop lifecycle · 单实例再次启动", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("another Nomi instance is already using this profile"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("NOMI_ELECTRON_USER_DATA_DIR"));
   });
+
+  it("特征（今天）：第一扇窗是辅助窗时，second-instance 亮的是辅助窗，不是主窗", () => {
+    const helper = fakeWindow();
+    const main = fakeWindow(true);
+    windows = [helper, main];
+    const { secondInstance } = install();
+    secondInstance();
+    expect(helper.show).toHaveBeenCalled();
+    expect(main.show).not.toHaveBeenCalled();
+  });
 });
