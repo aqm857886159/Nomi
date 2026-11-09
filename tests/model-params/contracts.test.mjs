@@ -1,6 +1,7 @@
 // Executable known gaps. it.fails asserts the intended invariant; remove .fails only after repair.
 import fs from 'node:fs'
 import path from 'node:path'
+import process from 'node:process'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { setCatalogRowLookup } from '../../electron/capabilityCore/modelAdmissionSchema.ts'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
