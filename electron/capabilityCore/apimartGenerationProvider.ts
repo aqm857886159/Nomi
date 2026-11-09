@@ -101,6 +101,9 @@ type PreparedRequest = Readonly<{
   fingerprint: string;
 }>;
 
+/** 一次批准：拿去算哈希的副本、封存体（提交时发的就是它）、目录身份、渲染用的请求。 */
+type Approval = { body: JsonRecord; sealed: ProfileRequestBody; prepared: PreparedRequest; request: TaskRequest };
+
 /** Explicit semantic aliases; unknown modes cannot fall through to a paid endpoint. */
 const MODE_TO_TASK_KIND: Record<string, ProfileKind> = {
   text_to_image: "text_to_image",
@@ -438,7 +441,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   // hash and require it again at submit. This also makes a restart fail closed
   // instead of guessing an endpoint from model names or body fields.
   const preparedByPayloadHash = new Map<string, PreparedRequest[]>();
-  const projectionCache = new Map<string, { inputHash: string; body: JsonRecord; sealed: ProfileRequestBody; prepared: PreparedRequest; request: TaskRequest }>();
+  const projectionCache = new Map<string, Approval & { inputHash: string }>();
   const requestByPreparedKey = new Map<string, TaskRequest>();
   /** 批准哈希 + 目录身份 → 封存体。提交只发这里取回的那一份；调用方递回来的 body 只用来对哈希。 */
   const sealedByPrepared = new Map<string, ProfileRequestBody>();
@@ -446,6 +449,9 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
   const selectionByTaskId = new Map<string, { modelKey: string; taskKind: ProfileKind; echoUrls: ReadonlySet<string> }>();
   const preparedKey = (prepared: PreparedRequest): string => `${prepared.modelKey}|${prepared.mappingId}|${prepared.taskKind}|${prepared.fingerprint}`;
   const sealedKey = (hash: string, prepared: PreparedRequest): string => `${hash}|${preparedKey(prepared)}`;
+  /** 批准时的哈希 / 目录身份 / 封存体任何一样不在（重启、换了 body、被淘汰）：一律要求重建，不猜。 */
+  const sealMissing = (): CatalogGenerationProviderError =>
+    new CatalogGenerationProviderError(`${vendorKey} sealed catalog identity is missing; rebuild the request before submission`);
 
   const select = (modelKey: string, taskKind: ProfileKind): CatalogSelection =>
     selectCatalogSelection(catalogReader, vendorKey, extractVendorExtraHeaders, modelKey, taskKind);
@@ -482,9 +488,9 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     body: ProfileRequestBody | undefined,
     context: string,
   ): Promise<JsonRecord> => {
-    const transport = { method: built.method.toUpperCase(), url: built.url, headers: built.headers, query: built.query };
     try {
-      const payload = await sendProfileJson(networkVendor(vendor), apiKey, transport, body, undefined, { fetchImpl, logicalSuccessCodes: [0, 200] });
+      // 方法名大小写由 requestJson 统一归一（与改动前的 toUpperCase 同一结果）。
+      const payload = await sendProfileJson(networkVendor(vendor), apiKey, built, body, undefined, { fetchImpl, logicalSuccessCodes: [0, 200] });
       return record(payload, vendorKey, "");
     } catch (error: unknown) {
       if (error instanceof VendorRequestError) {
@@ -579,7 +585,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     const preparedBody = record(providerRequest, vendorKey, "submit");
     // 调用方递回来的 body 只用来找回批准时封存的那一份（哈希 + 目录身份），发出去的永远是封存体。
     const approved = sealedByPrepared.get(sealedKey(productionGenerationPayloadHash(preparedBody), prepared));
-    if (!approved) throw new CatalogGenerationProviderError(`${vendorKey} sealed catalog identity is missing; rebuild the request before submission`);
+    if (!approved) throw sealMissing();
     // Re-run the same pure transform immediately before the network request as
     // defense-in-depth.  H3 normalization is idempotent; any deterministic
     // transform that cannot run synchronously is rejected by the shared bridge.
@@ -594,7 +600,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     assertNoProjectionCredential(body, vendorKey);
     assertReferenceParameters(body);
     const rendered = requestByPreparedKey.get(preparedKey(prepared));
-    if (!rendered) throw new CatalogGenerationProviderError(`${vendorKey} sealed catalog identity is missing; rebuild the request before submission`);
+    if (!rendered) throw sealMissing();
     const apiKey = requireApiKey();
     const built = renderOperation(selection, selection.mapping.create, rendered, {}, apiKey);
     // **发的是封存过的那份 body**（用户批准的就是它），传输层（method/url/headers/query）
@@ -626,7 +632,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     return { providerTaskId: taskId.trim(), raw: payload };
   };
 
-  const rememberPrepared = (body: JsonRecord, sealed: ProfileRequestBody, prepared: PreparedRequest, request: TaskRequest): void => {
+  const rememberPrepared = ({ body, sealed, prepared, request }: Approval): void => {
     const hash = productionGenerationPayloadHash(body);
     const entries = preparedByPayloadHash.get(hash) ?? [];
     if (!entries.some((entry) => sameJson(entry, prepared))) entries.push(prepared);
@@ -693,7 +699,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
       const { key, hash } = inputCacheKey(input);
       const cached = projectionCache.get(key);
       if (cached && cached.inputHash === hash && cached.prepared.fingerprint === selection.fingerprint) {
-        rememberPrepared(cached.body, cached.sealed, cached.prepared, cached.request);
+        rememberPrepared(cached);
         return structuredClone(cached.body);
       }
       const { body, sealed, request } = projectionRequest(input, selection, vendorKey);
@@ -704,15 +710,13 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
         if (typeof oldest !== "string") break;
         projectionCache.delete(oldest);
       }
-      rememberPrepared(body, sealed, prepared, request);
+      rememberPrepared({ body, sealed, prepared, request });
       return body;
     },
     async submit(providerRequest) {
       const body = record(providerRequest, vendorKey, "submit");
       const entries = preparedByPayloadHash.get(productionGenerationPayloadHash(body));
-      if (!entries || entries.length !== 1) {
-        throw new CatalogGenerationProviderError(`${vendorKey} sealed catalog identity is missing; rebuild the request before submission`);
-      }
+      if (!entries || entries.length !== 1) throw sealMissing();
       const prepared = entries[0];
       const selection = select(prepared.modelKey, prepared.taskKind);
       if (!findPrepared(entries, selection)) {
@@ -723,9 +727,7 @@ export function createCatalogGenerationProvider(options: CatalogGenerationProvid
     async submitWithContext(providerRequest, _idempotencyKey, input) {
       const body = record(providerRequest, vendorKey, "submit");
       const entries = preparedByPayloadHash.get(productionGenerationPayloadHash(body));
-      if (!entries || entries.length === 0) {
-        throw new CatalogGenerationProviderError(`${vendorKey} sealed catalog identity is missing; rebuild the request before submission`);
-      }
+      if (!entries || entries.length === 0) throw sealMissing();
       if (input.providerId !== vendorKey) throw new CatalogGenerationProviderError(`${vendorKey} provider identity does not match the request`);
       const taskKind = taskKindForMode(input.mode, vendorKey);
       const selection = select(input.modelId, taskKind);
