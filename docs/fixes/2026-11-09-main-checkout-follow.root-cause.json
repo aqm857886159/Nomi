@@ -1,0 +1,97 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-main-checkout-follow",
+  "problem_type": "Session hooks drift when the primary checkout stays stale",
+  "symptom": "Claude sessions keep loading old main-checkout hooks and obsolete validation reminders.",
+  "direct_cause": "The primary main checkout was left behind origin/main with local generated edits.",
+  "class_root": "SessionStart has no shared boundary that follows a clean primary main checkout or reports why it cannot.",
+  "affected_population": [
+    "Primary checkout sessions after upstream updates",
+    "Sessions with tracked or untracked local work, topic branches, divergent history or unavailable remotes"
+  ],
+  "scope_paths": ["scripts/main-checkout-follow.mjs", "scripts/claude-hooks/handoff-read.sh"],
+  "entry_points": ["Versioned SessionStart handoff-read hook", "Direct CLI invocation of main-checkout-follow.mjs"],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal checkout ownership policy explicitly specified in the task brief; Git CLI already supplies ff-only and locking.",
+  "invariants": [
+    "Only the primary checkout root on clean main may fast-forward.",
+    "Linked worktrees and user edits never change.",
+    "Offline, contention and divergence warn and return success.",
+    "Dependency changes only request installation."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/main-checkout-follow.mjs",
+      "symbol": "followMainCheckout"
+    }
+  ],
+  "door_reduction": {
+    "before": 0,
+    "after": 1,
+    "why_not": "One new shared CLI boundary owns advancement; SessionStart invokes it instead of maintaining a second implementation."
+  },
+  "generality_proof": "Root identity, branch and full porcelain status guard every invocation before fetch and are rechecked before ff-only merge; Git rejects divergence and concurrent locks.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/main-checkout-follow.mjs",
+      "symbol": "followMainCheckout",
+      "responsibility": "Own checkout eligibility, fetch timeout, ff-only mutation and nonblocking warnings."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/claude-hooks/handoff-read.sh",
+      "entry_point": "SessionStart",
+      "disposition": "enforced",
+      "evidence": "Existing registered hook invokes the shared CLI before reading a handoff card."
+    },
+    {
+      "path": "scripts/daily-radar-session.mjs",
+      "entry_point": "runSession",
+      "disposition": "not-affected",
+      "evidence": "Current code already stores machine-level radar results outside the checkout; no new tracked writes."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every upstream update or later local edit can recreate stale hooks without a SessionStart boundary.",
+    "same_class_scan": [
+      "rg handoff-read SessionStart daily-radar.sh scripts .claude/settings.json",
+      "Read model-radar.ts RESULT_DIR and writeSnapshot; runSession door map and hook writer review."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/main-checkout-follow.mjs",
+    "invariant": "Only a clean primary main checkout advances by Git ff-only.",
+    "failure_mode": "Keep checkout unchanged and emit one visible warning; session exits 0.",
+    "exception_policy": "none",
+    "strategy": "SessionStart invokes Git eligibility and advancement at one boundary, independent of human recall.",
+    "artifacts": ["scripts/main-checkout-follow.mjs", "scripts/claude-hooks/handoff-read.sh"]
+  },
+  "regression_tests": ["scripts/main-checkout-follow.node-test.mjs"],
+  "class_regression_tests": ["scripts/main-checkout-follow.node-test.mjs"],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "There was no automatic update implementation; existing handoff reading remains the same owner."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Only installed Node builtins and Git CLI are used; no package API or dependency upgrade.",
+    "exit_criteria": []
+  },
+  "migration": "Manual main checkout advancement preserves the original binary patch and untracked files; no user project or model-data migration.",
+  "residual_risks": [
+    "Real daily-radar and handoff-write hooks are read-only reviewed because the task excludes keys and real state writes.",
+    "Preserved untracked main-checkout research files intentionally make auto-follow warn until their owner clears them."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "scripts/main-checkout-follow.mjs",
+    "tests": ["scripts/main-checkout-follow.node-test.mjs"],
+    "why": "The SessionStart CLI enforces primary checkout identity and Git advancement in one tested boundary."
+  }
+}

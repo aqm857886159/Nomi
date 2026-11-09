@@ -19,5 +19,5 @@
 - 直接原因：主仓停留在旧 HEAD；三个跟踪改动挡住更新。
 - 类根因：开场没有检查并维护主仓版本的不变量，脏状态也无醒目反馈。
 - 边界：只在主工作区根目录、main、完整工作区干净、origin/main 可 ff 时改 Git；再次检查分支与工作区防并发变化，失败退出 0，Git 自己管理锁。
-- 影响范围：handoff-read.sh、一个无依赖 Node 脚本、真实 Git 夹具测试、根因合同；注册和其它钩子保持既有链路。
+- 影响范围：handoff-read.sh、一个无依赖 Node 脚本、真实 Git 夹具测试、根因合同、现有 check:claude-hooks 测试命令；注册和其它钩子保持既有链路。
 - 写入点审计：scripts/model-radar.ts 的 RESULT_DIR 写 intake 缓存/model-radar；writeSnapshot 仅 --update-baseline，需人确认；handoff-write 写 .claude/handoff，工程数缓存写被忽略的 .claude/eng-metrics-cache.json，self-check 写被忽略的命中日志；这些不产生跟踪改动。主仓三个未跟踪旧产物不得删除，仍会被自动跟进的脏检查明确报出。
