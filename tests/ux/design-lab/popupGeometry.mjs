@@ -52,7 +52,20 @@ export function probePopupGeometry() {
   }
   // 普通弹层可能铺满视口；真正会被裁的是里面的对话框与决定按钮，不能只量 Portal 根。
   const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(visible)
-  const decisions = new Set(dialogs.flatMap(dialog => [...dialog.querySelectorAll('[data-decision-bar] button, footer button, [data-design-modal-actions] button, [data-settings-close]')].filter(visible)))
+  const decisions = new Set(dialogs.flatMap(dialog => [...dialog.querySelectorAll('[data-decision-bar] button, footer button, [data-design-modal-actions] button, [data-settings-close], .mantine-Modal-close')].filter(visible)))
+  // 工作区不迁普通弹窗；取景显式点名它真实的标题 / 操作区，不把正文列表滚动当裁切。
+  const workspaces = [...document.querySelectorAll('[data-dialog-census-workspace]')]
+  const workspaceControls = new Set()
+  for (const expected of document.querySelectorAll('[data-dialog-census-expects]')) {
+    const selector = expected.getAttribute('data-dialog-census-expects')
+    if (!selector || ![...document.querySelectorAll(selector)].some(visible)) violations.push({ rule: 'dialog-missing', selector })
+  }
+  for (const workspace of [...workspaces, ...document.querySelectorAll('[data-dialog-census-actions]')]) {
+    const selector = workspace.getAttribute('data-dialog-census-workspace') || workspace.getAttribute('data-dialog-census-actions')
+    const controls = selector ? [...document.querySelectorAll(selector)].filter(visible) : []
+    if (!controls.length) violations.push({ rule: 'dialog-workspace-controls-missing', selector })
+    for (const control of controls) { if (workspaces.includes(workspace)) workspaceControls.add(control); decisions.add(control) }
+  }
   for (const dialog of dialogs) {
     const r = dialog.getBoundingClientRect()
     if (r.left < -EPS || r.top < -EPS || r.right > innerWidth + EPS || r.bottom > innerHeight + EPS) {
@@ -70,5 +83,5 @@ export function probePopupGeometry() {
     }
     if (clip) violations.push({ rule: 'dialog-decision-clipped', action: name(action), actionBox: box(r) })
   }
-  return { triggers: triggers.length, layers: layers.length, dialogs: dialogs.length, decisions: decisions.size, violations }
+  return { triggers: triggers.length, layers: layers.length, dialogs: dialogs.length, decisions: decisions.size, workspaces: workspaces.length, workspaceControls: workspaceControls.size, violations }
 }

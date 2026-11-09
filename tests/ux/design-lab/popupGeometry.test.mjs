@@ -42,6 +42,11 @@ describe('弹窗决定栏几何普查', () => {
     fixture({ parentBottom: 600, overflowY: 'visible' })
     expect(probePopupGeometry().violations).toEqual([])
   })
+  it('工作区必须实际量到操作控件，空结果不能记为完整', () => {
+    fixture()
+    vi.stubGlobal('document', { body: { children: [] }, querySelectorAll: selector => selector === '[data-dialog-census-workspace]' ? [{ getAttribute: () => 'header button' }] : [] })
+    expect(probePopupGeometry()).toMatchObject({ workspaces: 1, workspaceControls: 0, violations: [{ rule: 'dialog-workspace-controls-missing', selector: 'header button' }] })
+  })
   it('最小窗口档直接消费主进程同一份尺寸，不另抄数值', () => {
     const main = fs.readFileSync('electron/main.ts', 'utf8')
     const census = fs.readFileSync('tests/ux/design-lab/popupGeometry.census.mjs', 'utf8')

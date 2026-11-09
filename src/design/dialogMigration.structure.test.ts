@@ -6,6 +6,10 @@ const migrations = [
   ['src/workbench/settings/SettingsDialog.tsx', null],
   ['src/workbench/skillLibrary/SkillDetail.tsx', 'data-skill-detail-add-to-chat'],
   ['src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx', 'primaryLabel'],
+  ['src/workbench/onboarding/HandbookPanel.tsx', null],
+  ['src/workbench/timeline/TimelineShortcutsDialog.tsx', null],
+  ['src/ui/app-shell/UpdateDialog.tsx', 'onRetry'],
+  ['src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx', 'saveDraft'],
 ] as const
 
 describe('阶段②：弹窗高度与决定栏只有一个 owner', () => {
@@ -20,12 +24,13 @@ describe('阶段②：弹窗高度与决定栏只有一个 owner', () => {
       }
       visit(ast)
       expect(modals).toHaveLength(1)
-      expect(source).not.toMatch(/createPortal|<Portal|fixed inset|(?:100(?:s|d)?vh|40vh)/)
+      expect(source).not.toMatch(/<Portal|fixed inset|(?:100(?:s|d)?vh|40vh)/)
+      if (!file.includes('SelectionPrompt')) expect(source).not.toContain('createPortal')
       if (decision) {
         const actions = modals[0].openingElement.attributes.properties.find(p => ts.isJsxAttribute(p) && p.name.getText(ast) === 'actions')
         expect(actions?.getText(ast)).toContain(decision)
         expect(modals[0].children.map(child => child.getText(ast)).join('')).not.toContain(decision)
-      } else {
+      } else if (file.includes('settings/SettingsDialog')) {
         expect(source).toContain('closeOnEscape={false}')
         expect(source).toContain('getSettingsEscapeOwnership(dialog, event.target)')
         expect(source).toContain("[data-model-settings-page]:not([data-model-settings-page=\"home\"])")

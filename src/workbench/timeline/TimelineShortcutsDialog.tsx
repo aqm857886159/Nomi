@@ -9,7 +9,7 @@ import { isTimelineShortcutsHelpKey } from './timelineShortcuts'
  * 抽成组件是为了让**设计实验室**能单独取景它（`screens/editing/`），而不是为了复用——
  * 它今天只有一个调用者，抽出去的同时那段内联 JSX 已删（P1：不留并行版）。
  *
- * DOM 结构、`role="dialog"` / `aria-label`、条目顺序与文案一字未改：
+ * 外壳改用 DesignModal；dialog 的可访问名称、条目顺序与文案保持：
  * 走查 `tests/ux/editing-real-user-pass.walk.mjs` 第 8 步按 `getByRole('dialog', { name: '快捷键' })`
  * 和面板上写的键位逐条对账，改这里的措辞会当场把那条走查判红。
  */

@@ -47,6 +47,31 @@ const EXPECTED = {
   'ps-20-settings-dialog': { assertion: 'board:DialogDecisionBar/settings.shell', selector: '[data-settings-dialog]', text: '设置', min: { w: 600, h: 300 } },
   'ps-21-skill-dialog': { assertion: 'board:DialogDecisionBar/skill.actions', selector: '[data-skill-detail]', text: '放进对话', min: { w: 600, h: 300 } },
   'ps-22-extraction-dialog': { assertion: 'board:DialogDecisionBar/extraction.actions', selector: '[data-nomi-prompt-extraction-settings-dialog]', text: '保存', min: { w: 600, h: 300 } },
+  'ps-23-handbook-dialog': { assertion: 'board:DialogDecisionBar/handbook.shell', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-24-shortcuts-dialog': { assertion: 'board:DialogDecisionBar/shortcuts.shell', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-25-update-dialog': { assertion: 'board:DialogDecisionBar/update.actions', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-26-selection-dialog': { assertion: 'board:DialogDecisionBar/selection.actions', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-27-confirm-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-28-feedback-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-29-custom-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-30-model-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-31-onboarding-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-32-agent-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-33-action-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-34-help-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-35-mobile-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-36-director-settings-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-37-spend-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-38-workflow-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-39-prompt-dialog': { selector: '[data-prompt-preview]', min: { w: 200, h: 100 } },
+  'ps-40-media-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-41-asset-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-42-comfy-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-43-crop-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-44-shotcut-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-45-splash-dialog': { selector: '[data-splash-skip]', min: { w: 20, h: 20 } },
+  'ps-46-journey-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
+  'ps-47-browser-dialog': { selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-12-table': null,
   'ps-13-pagination': null,
   'ps-14-identity': null,
@@ -84,7 +109,7 @@ await walkDesignLabScreen({
     }
 
     const marker = expected.assertion || state.id
-    const layer = page.locator(expected.selector).filter({ hasText: expected.text, visible: true })
+    const layer = page.locator(expected.selector).filter({ ...(expected.text ? { hasText: expected.text } : {}), visible: true })
     const count = await layer.count()
     if (count !== 1) {
       record(`${marker} 应当有 1 个可见的浮层（${expected.selector} 含「${expected.text}」），实际 ${count} 个`

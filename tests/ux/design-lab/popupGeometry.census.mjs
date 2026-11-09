@@ -92,6 +92,10 @@ try {
       const page = await context.newPage()
       await page.goto(`${ORIGIN}/design-lab.html?screen=${screen}&frame=1&state=${state.id}&locale=${profile.locale}`, { timeout: PER_STATE_MS, waitUntil: 'domcontentloaded' })
       await page.waitForFunction(() => window.__designLabReady === true, null, { timeout: PER_STATE_MS })
+      await page.waitForFunction(() => {
+        const expected = document.querySelector('[data-dialog-census-expects]')?.getAttribute('data-dialog-census-expects')
+        return !expected || [...document.querySelectorAll(expected)].some(el => el.getBoundingClientRect().height > 0)
+      }, null, { timeout: PER_STATE_MS })
       await page.waitForTimeout(150) // Radix 定位在就绪后的下一帧落位
       return await page.evaluate(probePopupGeometry)
     } finally {
@@ -116,7 +120,7 @@ try {
     for (const violation of result.violations) failures.push(`${label} ${violation.rule} ${JSON.stringify(violation)}`)
     console.log(`  ${result.violations.length ? '✗' : '✓'} ${label}（触发钮 ${result.triggers}、浮层 ${result.layers}、模态窗 ${result.dialogs}、决定按钮 ${result.decisions}）`)
     // 最小窗口档只为弹窗追加；普通菜单 / 无弹窗的 3D 场景不重复启动两次。
-    if (profile.id === 'regular' && result.dialogs === 0) break
+    if (profile.id === 'regular' && result.dialogs === 0 && result.workspaces === 0) break
   }
 } finally {
   await browser.close()
