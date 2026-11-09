@@ -149,7 +149,7 @@
     "Real-provider user journey is unverified: only loopback fixtures are authorized.",
     "Dock/float moves with exactly unchanged geometry may not trigger restoration.",
     "Main matrix completed with 9 green / 18 red, but this branch UI matrix and performance remain unverified.",
-    "Send-visible performance debt and optimistic echo are explicitly split to D3-11 by coordinator; the hot projection reader is outside this PR. Main p50 is 103.5ms at 100 items and 111.2ms at 1000 items; branch samples are pending the authorized quiet-window baseline run."
+    "Send-visible performance debt and optimistic echo are explicitly split to D3-11 by coordinator; the hot projection reader is outside this PR. Five authorized branch baselines are recorded. Same-lock send medians differ from main by 7.96/10.99/15.24 percent. Two unchanged 70px follow-walk checks still fail during the initial user-bubble mount before a new assistant response appears; sampled gaps after the new response appears are at most 49px. No predicate or generic scrolling fallback was changed; complete quick validation and independent acceptance remain unverified."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-12-09",
