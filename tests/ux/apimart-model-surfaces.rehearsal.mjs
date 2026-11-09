@@ -7,7 +7,7 @@ import { once } from 'node:events'
 import { expect } from '@playwright/test'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
-import { clickOrFail, expectVisible, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { addCanvasNode, closeSettings, newProjectEntry, openSettings, switchWorkspace } from './_shell.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -42,6 +42,7 @@ server.listen(0, '127.0.0.1')
 await once(server, 'listening')
 const origin = 'http://127.0.0.1:' + server.address().port
 const results = []
+const absenceControls = []
 const perfFile = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : undefined
 const runs = Number(process.argv[process.argv.indexOf('--runs') + 1]) || 5
 const pickerResponseMs = []
@@ -103,14 +104,23 @@ try {
           await dropdown.locator('input').fill('seedance')
           await expect(dropdown.getByRole('option').filter({ hasText: 'Seedance' }).first()).toBeVisible()
           if (run >= 0) pickerResponseMs.push(performance.now() - start)
+          const dropdownProof = await proveProbe(dropdown, 'opened model dropdown')
           await win.keyboard.press('Escape')
-          await expect(dropdown).toHaveCount(0)
+          await expectAbsent(dropdown, { provenBy: dropdownProof, message: 'Escape closes the model dropdown' })
         }
       }
       await clickOrFail(picker, 'open model picker')
       const menu = win.locator('[data-nomi-select-dropdown]:visible').first()
       const search = menu.locator('input').first()
       if (!perfFile) {
+        const dropdownProof = await proveProbe(menu, 'opened model dropdown before Escape')
+        // Negative control: the original absence assertion must fail while this real dropdown is open.
+        await assert.rejects(() => expect(menu).toHaveCount(0, { timeout: stationTimeout() }), error =>
+          /Expected:.*0/.test(error.message) && /Received:.*1/.test(error.message))
+        await win.keyboard.press('Escape')
+        await expectAbsent(menu, { provenBy: dropdownProof, message: 'Escape closes the proven dropdown' })
+        absenceControls.push({ locale, visibleDropdownRejectedAbsence: true, escapedDropdownAbsent: true })
+        await clickOrFail(picker, 'reopen model picker after Escape')
         await expect(search).toBeFocused()
         await search.fill('nomi-no-such-model')
         await menu.getByRole('button', { name: uiText(locale, 'onboardingProviders.account.aiSetup') }).click()
@@ -184,5 +194,5 @@ try {
   if (perfFile) {
     fs.writeFileSync(perfFile, JSON.stringify({ runs, noisy: os.loadavg()[0] >= 10, metrics: { response: pickerResponseMs } }))
   }
-  fs.writeFileSync(path.join(output, 'receipt.json'), JSON.stringify({ results, reads: calls, generationSubmissions: 0 }, null, 2))
+  fs.writeFileSync(path.join(output, 'receipt.json'), JSON.stringify({ results, absenceControls, reads: calls, generationSubmissions: 0 }, null, 2))
 } finally { server.close() }

@@ -21,12 +21,12 @@
 | 5 中途与动作 | 账户/报价读取中关窗不创建媒体，重开重读；断网只使事实未知；换 Key/端点忽略旧返回；连点合并读取；已渲染充值跨过期后只刷新，绝不落入生成。原生成取消/回执仍由既有任务授权体系负责。 |
 | 6 外部失败 | 账户和用量仅 GET，经主进程凭据与重定向策略；公开价 GET 无凭据且限制 origin；缺字段、无价、不可达均保持未知。真实供应商字段/单位本轮未核验。 |
 | ★7 性能 | 新增设置读取、选择器搜索、变体/参数报价；量具覆盖完整 APIMart 内置目录的视频节点；场景 apimart-model-picker 配置为 1 轮预热后 5 次采样，协调安静窗口有效测量中位 28.5ms / p95 30.6ms，verdict ok；两次 UI 动作合计预算中位 150ms / p95 200ms，未改预算。大规模画布和账户读取性能无独立数字，unverified。 |
-| 8 真实条件 | 量具配置为 Mac 开发版、合成 Key + 本机回环、中文新目录/英文 v0.24.1 旧目录和账户窄窗；当前合流头演练未验证：前轮触发磁盘停点后未执行，本轮只修正文与登记。Windows、打包版、真实账户、真付费、全键盘和完整深暗主题也未验证。 |
-| ★9 验收与回滚 | 验收清单为账户未知/零/无限、换连接失序、固定/输出估价、过期充值点击、旧目录、空搜索、GPT2.6 真实模板投影及媒体 0；当前合流头上述检查未验证：未执行演练。最终头由另一条线独立验收；本稿不代签。回滚通过 revert 本分支功能提交，保留用户项目与连接资料。 |
+| 8 真实条件 | 量具配置为 Mac 开发版、合成 Key + 本机回环、中文新目录/英文 v0.24.1 旧目录和账户窄窗；本轮已用合成 Key + 本机回环通过中文新目录/英文 v0.24.1 旧目录免费演练，媒体创建 0。截图已读；内容视口固定为 1280×933，真实窄窗仍未验证。Windows、打包版、真实账户、真付费、全键盘和完整深暗主题也未验证。 |
+| ★9 验收与回滚 | 验收清单为账户未知/零/无限、换连接失序、固定/输出估价、过期充值点击、旧目录、空搜索、GPT2.6 真实模板投影及媒体 0；本轮免费演练通过未知/零/无限、固定/输出报价、过期充值、旧目录、空搜索、GPT2.6 投影和媒体 0；换连接失序由指定单测验证，真实换 Key 流程未走查。上述结果不代替真实供应商、真实生成与实扣验证。最终头由另一条线独立验收；本稿不代签。回滚通过 revert 本分支功能提交，保留用户项目与连接资料。 |
 
 ### 数据格式、Agent 与打断边界
 
-- 数据格式：本分支在内置供应商种子声明账户只读路径；没有增加持久化项目迁移。既有型号、档位和连接资料保留；量具是 `tests/ux/apimart-model-surfaces.rehearsal.mjs` 的真实 v0.24.1 目录快照。未验证：当前合流头旧目录、保存重开和退回旧版均未走查。
+- 数据格式：本分支在内置供应商种子声明账户只读路径；没有增加持久化项目迁移。既有型号、档位和连接资料保留；量具是 `tests/ux/apimart-model-surfaces.rehearsal.mjs` 的真实 v0.24.1 目录快照。英文真实 v0.24.1 目录快照本轮已演练通过；未验证：保存重开和退回旧版尚未走查。
 - Agent 行为：路径命中 `src/workbench/ai/v4/formatMoney.ts`，变更为现有 Intl 货币格式器增加可选精度，调用方没给精度时仍用原默认值；没有新增 Agent 工具或更改工具授权。未验证：未运行意图评测，不能报告首次做对率。
 - 长跑 / 可打断：账户 GET 使用 12 秒超时、公开价 GET 使用 8 秒超时；React 卸载移除监听、取消待发的报价计时器并忽略旧响应。主进程已发出的只读请求到超时或完成结束；没有新增媒体任务写入口。未验证：断网、关窗、重启的完整任务回执链没有本轮实测。
 
@@ -92,14 +92,14 @@
 ## 验收证据
 
 - ui-mockup：docs/design/boards/2026-11-07-model-surfaces/ModelSurfaces.board.json
-- ui-click-census：未验证：当前合流头未执行有限增量免费演练和完整板件按钮普查。
-- ui-capability-unavailable：未验证：tests/ux/apimart-model-surfaces.rehearsal.mjs 已有空搜索→AI 接入和账户不可读→刷新量具，但当前合流头未执行。
+- ui-click-census：未验证：完整板件按钮普查未执行；本轮有限增量中英免费演练已通过。
+- ui-capability-unavailable：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/README.md
 - ui-ai-walk：未验证：无真实账户和真实生成任务。
-- ui-screens：未验证：当前合流头演练尚未执行，无本轮中英截图。
+- ui-screens：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/README.md
 - ui-task-scorecard：未验证：本轮任务未包含完整体验成绩单。
-- spend-walks：未验证：完整中英演练未执行；本轮仅执行性能模式的英文 fresh 目录回环，不能代替完整走查。
+- spend-walks：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/receipt.json
 - spend-paid-sample：未验证：本轮禁止真实账户接口及花费，后续协调验真实估价/回执/余额。
-- spend-fault-injection：未验证：当前合流头未跑 electron/ai/onboarding/vendorAccountFacts.test.ts、electron/ai/onboarding/vendorPricePreview.test.ts 和演练中的未知账户状态。
+- spend-fault-injection：docs/evidence/2026-11-08-apimart-model-surfaces/2026-11-09-rehearsal/README.md
 - perf-scenario：apimart-model-picker 中位数 28.5 / p95 30.6 / 预算 150 / 原始结果 docs/evidence/2026-11-08-apimart-model-surfaces/perf-apimart-model-picker.json
 - upgrade-path：不适用：本分支未改项目文件、设置、钥匙串条目名、目录缓存或迁移的持久化形状；上述存储 schema/写入路径的 origin/main...HEAD diff 无改动。accountFacts 只加入编译期 VendorSeed，seedVendor 显式写入原字段且不拷贝它（electron/catalog/seedBuiltins.ts:467）；新账户/报价缓存仅为进程 Map（electron/ai/onboarding/vendorAccountFacts.ts:11、electron/ai/onboarding/vendorPricePreview.ts:10）；新增设置导航值仅在 React.useState（src/ui/onboarding/OnboardingDrawer.tsx:74、src/workbench/settings/useSettingsDialogController.ts:34）。
 - agent-intent-eval：未验证：本轮未跑真实模型意图评测，未测首次做对率。
@@ -113,6 +113,10 @@
 - M4 多镜确认卡、生成后预计/实扣、来源详情和上游充值失败动作。
 - 真实账户字段/单位、真实零余额、真实输出估价→回执实扣→余额变化与误差。
 - 最终头独立验收；完整模型接入流程尚未完成。
+
+## 本轮门岗收口
+
+导航职责归入现有 hook 并将抽屉冻结上限 847→839；等待使用既有条件/预算；Key 三态登记原 DTO owner；不存在断言用运行时探针证明；经协调委托登记既有性能测量基线；四个只读 appFetch importer 的目的地依据见 ★4。中英免费演练 64 GET / 媒体创建 0、12 图已读，截图限制见证据说明。第 3 项待用户定：三处 ml-auto 原样，check:tokens 的两行贴边错误不在本轮修复范围；不修改门岗或策略。
 
 ## 独立验收
 
