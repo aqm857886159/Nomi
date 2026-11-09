@@ -40,7 +40,7 @@ describe('buildMaterializeShotsPayload', () => {
     const payload = buildMaterializeShotsPayload(r, { projectRoot: '/tmp/x', planName: '雨夜便利店' })
     expect(payload).not.toBeNull()
     expect(payload!.shots.map((s) => s.shotId)).toEqual(['a1', 's1', 's2'])
-    expect(payload!.shots.every((s) => s.result === undefined)).toBe(true)
+    expect(payload!.shots.every((s) => s.results === undefined)).toBe(true)
     expect(payload!.materializationOperationId).toBe(canvasLandingOperationId('run-1'))
     expect(payload!.planName).toBe('雨夜便利店')
     // 组名由渲染层按 i18n 拼；主进程不再发任何面向用户的文案（英文用户不该看到中文组名）。
@@ -61,8 +61,8 @@ describe('buildMaterializeShotsPayload', () => {
     const r = run([shot('s1', { role: 'shot' })], jobs, artifacts)
     const payload = buildMaterializeShotsPayload(r, { projectRoot })
     const s1 = payload!.shots.find((s) => s.shotId === 's1')
-    expect(s1?.result?.url.startsWith('nomi-local://')).toBe(true)
-    expect(s1?.result?.type).toBe('video')
+    expect(s1?.results?.[0]?.url.startsWith('nomi-local://')).toBe(true)
+    expect(s1?.results?.[0]?.type).toBe('video')
     expect(s1?.mediaDimensions).toEqual({ width: 1920, height: 1080 })
     fs.rmSync(projectRoot, { recursive: true, force: true })
   })
@@ -111,7 +111,7 @@ describe('buildMaterializeShotsPayload', () => {
 
     const payload = buildMaterializeShotsPayload(single, { projectRoot })
     expect(payload?.shots[0]?.shotId).toBe('cat')
-    expect(payload?.shots[0]?.result?.url.startsWith('nomi-local://')).toBe(true)
+    expect(payload?.shots[0]?.results?.[0]?.url.startsWith('nomi-local://')).toBe(true)
     fs.rmSync(projectRoot, { recursive: true, force: true })
   })
 })
@@ -185,7 +185,7 @@ describe('buildMaterializeShotsPayload projects each shot\'s run state onto its 
       const payload = buildMaterializeShotsPayload(run([shot('s1')], [job('s1', 'ready')], artifacts), { projectRoot })
       const s1 = payload!.shots[0]
       expect(s1.generation).toBeUndefined()
-      expect(s1.result).toEqual({
+      expect(s1.results?.[0]).toEqual({
         id: 'production-job-s1', type: 'video',
         // 视频节点的 url 是**视频本身**，封面走 thumbnailUrl（以前两者都指向封面，而且 5 分钟后失效）。
         url: `nomi-local://asset/proj-1/${rel}`,
@@ -203,6 +203,29 @@ describe('buildMaterializeShotsPayload projects each shot\'s run state onto its 
     single.generationPlan = { ...single.generationPlan!, candidate: shot('cat').candidate, shots: undefined }
     const payload = buildMaterializeShotsPayload(single, { projectRoot: null })
     expect(payload!.shots[0].generation).toMatchObject({ state: 'running', runRecordId: 'production-job-ignored' })
+  })
+
+  // 一次出 N 张（张数 1–4）：这一镜那笔作业账上有几份产物，投给画布的就有几份，按落账顺序，都挂这笔作业的运行记录号。
+  // 以前这里 `find` 第一份：付 N 张、画布上只落 1 张。设计卡 docs/plan/2026-11-09-multi-result-landing.md ★9 第 3 条。
+  it.each([1, 2, 4])('一镜 %i 份产物：results 有 N 份（号由运行记录号派生、第 k 份加 -k），运行记录号 = 这笔作业的，同一份账投两次一模一样', (count) => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-landing-multi-'))
+    try {
+      const artifacts: ProductionArtifact[] = Array.from({ length: count }, (_, index) => {
+        const rel = `assets/generated/materialized/image-${index + 1}.png`
+        fs.mkdirSync(path.dirname(path.join(projectRoot, rel)), { recursive: true })
+        fs.writeFileSync(path.join(projectRoot, rel), `png-${index + 1}`)
+        return { artifactId: `art-${index + 1}`, stageId: 'generate', jobId: 'job-s1', kind: 'image', status: 'ready', version: 1, projectRelativePath: rel, createdAt: NOW }
+      })
+      const project = () => buildMaterializeShotsPayload(run([shot('s1')], [job('s1', 'ready')], artifacts), { projectRoot })!.shots[0]!
+      const s1 = project()
+      expect(s1.generation).toBeUndefined()
+      expect(s1.runRecordId).toBe('production-job-s1')
+      expect(s1.results?.map((result) => result.id)).toEqual(Array.from({ length: count }, (_, index) => index === 0 ? 'production-job-s1' : `production-job-s1-${index + 1}`))
+      expect(s1.results?.map((result) => result.url)).toEqual(Array.from({ length: count }, (_, index) => `nomi-local://asset/proj-1/assets/generated/materialized/image-${index + 1}.png`))
+      expect(project()).toEqual(s1)
+    } finally {
+      fs.rmSync(projectRoot, { recursive: true, force: true })
+    }
   })
 
   // 「这一镜在不在画布上」只有画布文档说了算；Run 的 canvasDetached 只是一次上报留下的记录，它可能是错的
@@ -226,7 +249,7 @@ describe('buildMaterializeShotsPayload projects each shot\'s run state onto its 
       const stuck = { ...run([shot('s1', { canvasDetached: true })], jobs, artifacts), status: 'needs_attention' as const }
       const s1 = buildMaterializeShotsPayload(stuck, { projectRoot })!.shots[0]
       expect(s1).toMatchObject({ shotId: 's1', existingOnly: true })
-      expect(s1.result?.url).toBe(`nomi-local://asset/proj-1/${rel}`)
+      expect(s1.results?.[0]?.url).toBe(`nomi-local://asset/proj-1/${rel}`)
     } finally {
       fs.rmSync(projectRoot, { recursive: true, force: true })
     }

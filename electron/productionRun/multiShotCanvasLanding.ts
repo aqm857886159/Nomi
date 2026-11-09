@@ -35,6 +35,9 @@ export type MaterializeShotGenerationWire =
   | { state: "recoverable"; runRecordId: string; startedAt: number; message?: string }
   | { state: "ended" };
 
+/** 一镜落到节点上的一份结果（跨 RPC 序列化形状）。 */
+export type MaterializeShotResultWire = { id: string; type: "image" | "video"; url: string; createdAt: number; thumbnailUrl?: string; previewState?: CanvasPreviewState; providerUrl?: string; model?: string };
+
 /** 渲染层 materialize-shots 载荷里的一镜（与渲染层 MaterializeShotInput 对齐，跨 RPC 序列化形状）。 */
 export type MaterializeShotWire = {
   shotId: string;
@@ -43,9 +46,12 @@ export type MaterializeShotWire = {
   title?: string;
   prompt?: string;
   candidate?: MaterializeShotCandidateWire;
-  result?: { id: string; type: "image" | "video"; url: string; createdAt: number; thumbnailUrl?: string; previewState?: CanvasPreviewState; providerUrl?: string; model?: string };
+  /** 这一镜那笔作业账上的每一份产物（一次出几张就有几张，按落账顺序）。 */
+  results?: MaterializeShotResultWire[];
+  /** 带 results 时：这些结果归哪条节点运行记录（这笔作业的运行记录号）。每份都按这个号结账，和画布单镜同一条归属规则。 */
+  runRecordId?: string;
   mediaDimensions?: { width: number; height: number };
-  /** 没有 result 时，这一镜在节点上的运行状态（见 MaterializeShotGenerationWire）。 */
+  /** 没有 results 时，这一镜在节点上的运行状态（见 MaterializeShotGenerationWire）。 */
   generation?: MaterializeShotGenerationWire;
   /**
    * 这一镜在 Run 里记着 `canvasDetached`（有人上报过它的节点被拿走了）：**只许动画布上已有的节点**，绝不新建。
@@ -104,7 +110,7 @@ function shotGeneration(run: ProductionRun, shotId: string): MaterializeShotGene
 export function materializeShotsSignature(payload: MaterializeShotsWirePayload): string {
   return JSON.stringify(payload.shots.map((shot) => [
     shot.shotId,
-    shot.result?.id ?? null,
+    shot.results?.map((result) => result.id) ?? null,
     shot.mediaDimensions ? [shot.mediaDimensions.width, shot.mediaDimensions.height] : null,
     shot.generation ? [shot.generation.state, "runRecordId" in shot.generation ? shot.generation.runRecordId : null] : null,
     shot.candidate?.revision ?? null,
@@ -231,8 +237,8 @@ function shotKind(shot: ProductionGenerationShot): GenerationShotKind {
 
 /**
  * 从 Run 投影出 materialize-shots 载荷。投影完整草稿；included 仅表示当前付费范围，不能删除未选镜头。
- * 已完成（ready/adopted）且有本地 artifact 的镜带上 result（打开项目补齐时一并回填；确认即落时通常还没有）。
- * 没有 result 的镜带上 `generation`（它在节点上此刻该挂的运行状态）。
+ * 已完成（ready/adopted）且有本地 artifact 的镜带上 results（这笔作业的每一份产物；打开项目补齐时一并回填；确认即落时通常还没有）。
+ * 没有 results 的镜带上 `generation`（它在节点上此刻该挂的运行状态）。
  * planName = 计划名（渲染层据它拼分镜组名与分镜表标题）。projectRoot 用于核验产物文件真的在项目里。
  *
  * 记了 `canvasDetached` 的镜照样投影，但标 `existingOnly`：补齐 / 跟随都不许把删掉的节点复活（撤销事实优先），
@@ -263,46 +269,52 @@ export function buildMaterializeShotsPayload(
     const resolvedShotId = shotId || singleShotId;
     if (resolvedShotId && (job.status === "ready" || job.status === "adopted")) jobByShot.set(resolvedShotId, job.jobId);
   }
-  const resultByShot = new Map<string, MaterializeShotWire["result"]>();
+  const resultsByShot = new Map<string, MaterializeShotResultWire[]>();
   const dimensionsByShot = new Map<string, { width: number; height: number }>();
   if (deps.projectRoot) {
     for (const [shotId, jobId] of jobByShot.entries()) {
-      const artifact = run.artifacts.find((candidate) => candidate.jobId === jobId && (candidate.kind === "image" || candidate.kind === "video") && (candidate.status === "ready" || candidate.status === "adopted"));
-      const mediaPath = safeProjectRelativePath(artifact?.projectRelativePath);
-      if (!artifact || !mediaPath) continue;
-      try {
-        // 文件真的在项目里（拒越界 / 符号链接 / 缺失）才投。
-        resolveOwnedArtifactFile(deps.projectRoot, mediaPath);
-        const posterPath = safeProjectRelativePath(artifact.thumbnailRelativePath);
-        const createdAt = Date.parse(artifact.createdAt);
-        const type = artifact.kind === "image" ? "image" : "video";
-        // 节点结果用素材库那条**永久**地址（与普通生成落地的 nomi-local://asset 同一种）。
-        // 以前这里用的是 production-preview 签名链：5 分钟过期，而且优先指向缩略图——
-        // 视频节点的 result.url 是一张封面图，过 5 分钟连封面也打不开。
-        const url = localAssetUrl(run.projectId, mediaPath);
-        // 预览两栏只走落盘回执的那一个投影：小图 + 事实；旧产物没有事实时只带独立小图（由打开后补预览补齐）。
-        const preview = canvasPreviewFieldsFromReceipt(type, {
-          thumbnailUrl: posterPath ? localAssetUrl(run.projectId, posterPath) : undefined,
-          previewState: artifact.previewState,
-        }, url);
-        resultByShot.set(shotId, {
-          id: productionRunRecordId(jobId),
-          type,
-          url,
-          ...preview,
-          // 用产物自己的时刻：同一份产物每次投影都是同一个结果（幂等），「已保存」回执也不会在重开项目时再冒一次。
-          createdAt: Number.isFinite(createdAt) ? createdAt : 0,
-        });
-        if (artifact.width && artifact.height) dimensionsByShot.set(shotId, { width: artifact.width, height: artifact.height });
-      } catch {
-        // 文件缺失/越界 → 跳过这镜的 result（占位仍落，只是没回填），不阻断整批。
+      // 这笔作业账上的每一份产物都投（一次出几张就几张，按落账顺序）；结果号由运行记录号派生，第 k 份加 `-k`。
+      const artifacts = run.artifacts.filter((candidate) => candidate.jobId === jobId && (candidate.kind === "image" || candidate.kind === "video") && (candidate.status === "ready" || candidate.status === "adopted"));
+      const results: MaterializeShotResultWire[] = [];
+      for (const [index, artifact] of artifacts.entries()) {
+        const mediaPath = safeProjectRelativePath(artifact.projectRelativePath);
+        if (!mediaPath) continue;
+        try {
+          // 文件真的在项目里（拒越界 / 符号链接 / 缺失）才投。
+          resolveOwnedArtifactFile(deps.projectRoot, mediaPath);
+          const posterPath = safeProjectRelativePath(artifact.thumbnailRelativePath);
+          const createdAt = Date.parse(artifact.createdAt);
+          const type = artifact.kind === "image" ? "image" : "video";
+          // 节点结果用素材库那条**永久**地址（与普通生成落地的 nomi-local://asset 同一种）。
+          // 以前这里用的是 production-preview 签名链：5 分钟过期，而且优先指向缩略图——
+          // 视频节点的 result.url 是一张封面图，过 5 分钟连封面也打不开。
+          const url = localAssetUrl(run.projectId, mediaPath);
+          // 预览两栏只走落盘回执的那一个投影：小图 + 事实；旧产物没有事实时只带独立小图（由打开后补预览补齐）。
+          const preview = canvasPreviewFieldsFromReceipt(type, {
+            thumbnailUrl: posterPath ? localAssetUrl(run.projectId, posterPath) : undefined,
+            previewState: artifact.previewState,
+          }, url);
+          const recordId = productionRunRecordId(jobId);
+          results.push({
+            id: index === 0 ? recordId : `${recordId}-${index + 1}`,
+            type,
+            url,
+            ...preview,
+            // 用产物自己的时刻：同一份产物每次投影都是同一个结果（幂等），「已保存」回执也不会在重开项目时再冒一次。
+            createdAt: Number.isFinite(createdAt) ? createdAt : 0,
+          });
+          if (artifact.width && artifact.height) dimensionsByShot.set(shotId, { width: artifact.width, height: artifact.height });
+        } catch {
+          // 文件缺失/越界 → 跳过这一份（占位仍落，其余照投），不阻断整批。
+        }
       }
+      if (results.length) resultsByShot.set(shotId, results);
     }
   }
 
   const shots: MaterializeShotWire[] = sourceShots.map((shot) => {
-    const result = resultByShot.get(shot.shotId);
-    const generation = result ? undefined : shotGeneration(run, shot.shotId);
+    const results = resultsByShot.get(shot.shotId);
+    const generation = results ? undefined : shotGeneration(run, shot.shotId);
     return {
       shotId: shot.shotId,
       ...(shot.role ? { role: shot.role } : {}),
@@ -311,8 +323,8 @@ export function buildMaterializeShotsPayload(
       ...(shotLabel(shot) ? { title: shotLabel(shot) } : {}),
       prompt: shot.candidate?.prompt ?? "",
       ...(shot.candidate ? { candidate: candidateWire(shot.candidate, { projectId: run.projectId, ...(deps.resolveReferenceUrl ? { resolveReferenceUrl: deps.resolveReferenceUrl } : {}) }) } : {}),
-      ...(result ? { result } : {}),
-      ...(result && dimensionsByShot.get(shot.shotId) ? { mediaDimensions: dimensionsByShot.get(shot.shotId) } : {}),
+      ...(results ? { results, runRecordId: productionRunRecordId(jobByShot.get(shot.shotId)!) } : {}),
+      ...(results && dimensionsByShot.get(shot.shotId) ? { mediaDimensions: dimensionsByShot.get(shot.shotId) } : {}),
       ...(generation ? { generation } : {}),
       ...(shot.canvasDetached ? { existingOnly: true as const } : {}),
       ...(shot.nodeId ? { nodeId: shot.nodeId } : {}),
