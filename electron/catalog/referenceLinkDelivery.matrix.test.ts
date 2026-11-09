@@ -546,7 +546,7 @@ describe("入口：三个发送入口，窗内链接失效 → 发出去的是�
       vendor, model, apiKey: "sk-test", customConfig: {}, script: "return {}", taskKind: "image_edit",
       request: { kind: "image_edit", prompt: "keep the boat", extras: { modelKey: model.modelKey, referenceImages: [reference()] } },
       kind: "image_edit", wantedKind: "image", projectId: "p", nodeId: "n", grantId: "g", taskId: "t",
-      spendGate: vi.fn(async () => undefined) as never, writeAsset: vi.fn(), localizeTaskAsset: vi.fn(),
+      spendGate: vi.fn(async () => undefined) as never, localizeTaskAsset: vi.fn(),
     } as unknown as Parameters<typeof runCustomCallTask>[0]);
     const params = JSON.stringify(customCall.runScript.mock.calls[0][0].params);
     expect(params).toMatch(new RegExp(`${origin}/uploaded/\\d+\\.png`));
