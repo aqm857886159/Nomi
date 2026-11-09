@@ -1,4 +1,5 @@
 import { nowIso } from "../jsonUtils";
+import { isAiSdkProviderKind } from '../shared/contracts/modelAccessCapabilities';
 import type { AiSdkProviderKind, CatalogState, Vendor } from "./types";
 
 function record(value: unknown): Record<string, unknown> {
@@ -6,7 +7,7 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 function normalizeProviderKind(value: unknown): AiSdkProviderKind {
-  return value === "anthropic" || value === "openai-compatible" || value === "openai-responses"
+  return isAiSdkProviderKind(value)
     ? value
     : "openai-compatible";
 }

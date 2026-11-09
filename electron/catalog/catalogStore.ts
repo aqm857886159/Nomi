@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { isAiSdkProviderKind } from '../shared/contracts/modelAccessCapabilities';
 import { deepFreeze, findNonHeaderSafeChar, isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { sanitizeName } from "../projects/repository";
 import { configReadFailure, quarantineUnreadableConfigFile, writeConfigFileAtomic } from "../configFileStore";
@@ -190,7 +191,7 @@ export function normalizeProviderKind(
   value: unknown,
   fallback: AiSdkProviderKind = "openai-compatible",
 ): AiSdkProviderKind {
-  return value === "anthropic" || value === "openai-compatible" || value === "openai-responses" ? value : fallback;
+  return isAiSdkProviderKind(value) ? value : fallback;
 }
 function filterByParams<
   T extends { vendorKey?: string; kind?: BillingModelKind; enabled?: boolean; taskKind?: ProfileKind },

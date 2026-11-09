@@ -4,6 +4,7 @@
 // 是另一个职责，而且它有自己的对手戏（providerAdapter 的编译器与校验器）。放在一起会让那份
 // 被当作安全边界评审的文件继续膨胀，也让这条规则看起来像状态机的一个分支而不是一条独立不变量。
 import { canHostPublicDocs } from "../providerAdapter/docsDiscovery";
+import { AI_SDK_PROVIDER_KINDS } from '../shared/contracts/modelAccessCapabilities';
 import { draftFromSuppliedContract, parseAdapterSuppliedContract } from "../providerAdapter/agentCompileRequest";
 import type { ProviderAdapterDraft, ProviderAdapterModelSelection } from "../providerAdapter/types";
 import type { AdapterAuthType } from "../providerAdapter/types";
@@ -26,7 +27,7 @@ export type IntegrationCompileRequest = {
 import { proposalRejected } from "./integrationProposalValidation";
 
 const MAX_ADAPTER_DRAFT_TEXT = 512 * 1024;
-const ADAPTER_PROVIDER_KINDS = new Set(["openai-compatible", "anthropic", "openai-responses"]);
+const ADAPTER_PROVIDER_KINDS = new Set<string>(AI_SDK_PROVIDER_KINDS);
 
 
 /**

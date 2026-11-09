@@ -25,6 +25,7 @@ import { createExplicitProxyDispatcher } from "../../systemProxy";
 import { desktopT } from "../../desktopStrings";
 import { isRedirectRefusal, safeNetworkUrl } from "../../networkErrorDetails";
 import type { Dispatcher } from "undici";
+import { googleGenerativeBaseUrl } from '../../shared/textModelInput';
 export type { ModelListFailureKind } from "./modelListResponse";
 
 function redirectRefusalMessage(location: string | null, from: URL): string {
@@ -92,7 +93,9 @@ export function buildAuthHeaders(
   auth?: VendorAuthSpec,
 ): Record<string, string> {
   const spec: VendorAuthSpec = auth
-    ?? (providerKind === "anthropic" ? { authType: "x-api-key", headerName: "x-api-key" } : { authType: "bearer" });
+    ?? (providerKind === "anthropic" ? { authType: "x-api-key", headerName: "x-api-key" }
+      : providerKind === 'google-generative-ai' ? { authType: 'x-api-key', headerName: 'x-goog-api-key' }
+      : { authType: "bearer" });
   return mergeHeadersCaseInsensitive(
     {
       ...(providerKind === "anthropic" ? { "anthropic-version": "2023-06-01" } : {}),
@@ -130,7 +133,7 @@ export function buildModelListRequests(input: {
   query?: Record<string, string>;
 }): BuiltRequest[] {
   const { providerKind, baseUrl } = input;
-  const base = new URL(baseUrl);
+  const base = new URL(providerKind === 'google-generative-ai' ? googleGenerativeBaseUrl(baseUrl) : baseUrl);
   if (!/^https?:$/.test(base.protocol) || base.username || base.password) throw new Error("Invalid API address");
   base.hash = "";
   const baseQuery = Object.fromEntries(base.searchParams);
@@ -138,6 +141,7 @@ export function buildModelListRequests(input: {
   const path = base.pathname.replace(/\/+$/, "");
   const versioned = /\/v\d+(?:[a-z]+\d*)?$/i.test(path);
   const paths = /\/models$/i.test(path) ? ["/models"] : versioned ? ["/models"]
+    : providerKind === 'google-generative-ai' ? ['/models']
     : providerKind === "anthropic" ? ["/v1/models"] : ["/models", "/v1/models"];
   return paths.map((operationPath) => {
     const built = buildHttpRequest({
@@ -257,10 +261,11 @@ export async function fetchModelList(
       for (const id of page.models) models.add(id);
       for (const descriptor of page.descriptors || []) descriptors.set(descriptor.id, descriptor);
       let next: URL | undefined;
-      if (page.next || page.afterId) {
+      if (page.next || page.afterId || page.pageToken) {
         try {
           next = page.next ? new URL(page.next, url) : new URL(url);
           if (page.afterId) next.searchParams.set("after_id", page.afterId);
+          if (page.pageToken) next.searchParams.set('pageToken', page.pageToken);
           const candidateUrl = new URL(candidate.url);
           if (next.origin !== candidateUrl.origin || next.pathname !== candidateUrl.pathname || next.username || next.password || next.hash) {
             return remember(failure("invalid_response", "Unsafe model-list pagination link", res.status));

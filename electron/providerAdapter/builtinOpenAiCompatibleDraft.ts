@@ -48,6 +48,12 @@ const ANTHROPIC_CHAT_OP: HttpOperation = {
   },
 };
 
+const GOOGLE_NATIVE_CHAT_OP: HttpOperation = {
+  method: 'POST', path: '/models/{{model.modelKey}}:generateContent',
+  headers: { 'Content-Type': 'application/json' },
+  body: { contents: [{ role: 'user', parts: [{ text: '{{request.prompt}}' }] }] },
+};
+
 type ParamControl = ReturnType<typeof newapiTransportFor>["params"][number];
 type DraftParameters = NonNullable<AdapterModelDraft["parameters"]>;
 
@@ -118,8 +124,14 @@ function modesForKind(
   // 照 OpenAI 那份发过去只会 404 → 验证卡在 testing 直到 90s 超时，界面报「没有能力通过验证」，
   // 而连接检查本身是通的（那条路自己拼对了 /v1/messages）。2026-08-28 用户接 Claude 实测。
   if (kind === "text") {
-    const operation = providerKind === "anthropic" ? ANTHROPIC_CHAT_OP : OPENAI_COMPATIBLE_CHAT_OP;
-    return [{ taskKind: "chat", create: auth(operation), ...noSources }];
+    const operation = providerKind === "anthropic" ? ANTHROPIC_CHAT_OP
+      : providerKind === 'google-generative-ai' ? GOOGLE_NATIVE_CHAT_OP : OPENAI_COMPATIBLE_CHAT_OP;
+    const create = auth(operation);
+    if (providerKind === 'google-generative-ai' && authType === 'x-api-key') {
+      delete create.headers?.['x-api-key'];
+      create.headers = { ...create.headers, 'x-goog-api-key': '{{user_api_key}}' };
+    }
+    return [{ taskKind: "chat", create, ...noSources }];
   }
   if (kind === "video") {
     if (new Set(mediaProtocols).size > 1) throw new Error("Multiple video protocols require an explicit model declaration; no default route is selected.");

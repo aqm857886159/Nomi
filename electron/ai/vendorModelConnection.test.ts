@@ -12,6 +12,14 @@ const model: Model = { modelKey: 'key', modelAlias: ' alias ', vendorKey: 'relay
   enabled: true, kind: 'text', createdAt: '', updatedAt: '' };
 
 describe('shared model connection identity', () => {
+  it('overrides only the selected text model protocol on a mixed relay', () => {
+    const relay = vendor({ providerKind: 'openai-compatible', baseUrlHint: 'https://relay.test/gateway/v1' })
+    const omni = { ...model, meta: { textProviderKind: 'google-generative-ai', supportsAudioInput: true, supportsVideoInput: true } }
+    expect(nomiModelConfigFor(relay, omni, 'key')).toMatchObject({ kind: 'google-generative-ai', baseURL: 'https://relay.test/gateway/v1beta', inputModalities: ['text', 'image', 'audio', 'video'] })
+    expect(nomiModelConfigFor(relay, model, 'key')).toMatchObject({ kind: 'openai-compatible', baseURL: 'https://relay.test/gateway/v1', inputModalities: ['text', 'image'] })
+    expect(relay.providerKind).toBe('openai-compatible')
+    expect(vendorModelConnection(relay, { ...omni, kind: 'image' }, 'key').kind).toBe('openai-compatible')
+  });
   it('normalizes model alias and the default Anthropic URL', () => {
     expect(vendorModelConnection(vendor({ providerKind: 'anthropic', baseUrlHint: '  ' }), model, 'key'))
       .toMatchObject({ kind: 'anthropic', baseURL: 'https://api.anthropic.com/v1', modelId: 'alias' });

@@ -2,6 +2,7 @@ import { extractVendorExtraHeaders, normalizeProviderKind } from '../catalog/cat
 import type { Model, Vendor } from '../catalog/types';
 import type { NomiModelConfig } from '../shared/agentLane/laneModelConfig';
 import { modelContextWindow } from '../shared/modelContextWindow';
+import { googleGenerativeBaseUrl, textModelInputSettings } from '../shared/textModelInput';
 
 function resolveSdkBaseUrl(vendor: Vendor): string {
   const base = (vendor.baseUrlHint || '').trim().replace(/\/+$/, '');
@@ -31,13 +32,16 @@ export function anthropicBaseUrl(baseURL: string): string {
 
 /** Catalog connection rules shared by every model call (Agent lane, text tasks, adapter compiler). */
 export function vendorModelConnection(vendor: Vendor, model: Model, apiKey: string) {
-  const kind = normalizeProviderKind(vendor.providerKind);
+  const settings = textModelInputSettings(model.meta);
+  const kind = model.kind !== 'text' || settings.providerKind === 'inherit' ? normalizeProviderKind(vendor.providerKind) : settings.providerKind;
   const headers = extractVendorExtraHeaders(vendor);
   return {
     kind,
     baseURL: kind === 'anthropic'
       ? anthropicBaseUrl((vendor.baseUrlHint || '').trim() || 'https://api.anthropic.com/v1')
-      : resolveSdkBaseUrl(vendor),
+      : kind === 'google-generative-ai'
+        ? googleGenerativeBaseUrl((vendor.baseUrlHint || '').trim() || 'https://generativelanguage.googleapis.com/v1beta')
+        : resolveSdkBaseUrl(vendor),
     apiKey,
     authType: vendor.authType,
     modelId: (model.modelAlias || model.modelKey).trim(),
@@ -53,8 +57,10 @@ export function nomiModelConfigFor(vendor: Vendor, model: Model, apiKey: string)
   const connection = vendorModelConnection(vendor, model, apiKey);
   const contextWindow = modelContextWindow(model.meta, connection.modelId);
   const maxOutputTokens = (model.meta as Record<string, unknown> | undefined)?.maxOutputTokens;
+  const inputs = textModelInputSettings(model.meta);
   return {
     ...connection, providerId: vendor.key, authType: vendor.authType === 'none' ? 'none' : 'api-key',
+    inputModalities: ['text', ...(inputs.image !== false ? ['image' as const] : []), ...(inputs.audio ? ['audio' as const] : []), ...(inputs.video ? ['video' as const] : [])],
     ...(contextWindow === undefined ? {} : { contextWindow }),
     ...(typeof maxOutputTokens === 'number' && Number.isFinite(maxOutputTokens) && maxOutputTokens >= 1
       ? { maxOutputTokens: Math.floor(maxOutputTokens) } : {}),

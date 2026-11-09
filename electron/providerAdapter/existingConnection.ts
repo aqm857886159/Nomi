@@ -1,4 +1,5 @@
 import type { ApiKeyRecord } from "../catalog/secrets";
+import { isAiSdkProviderKind } from '../shared/contracts/modelAccessCapabilities';
 import type {
   AiSdkProviderKind,
   BillingModelKind,
@@ -132,7 +133,7 @@ const TERMINAL_RUN_STAGES = new Set<ProviderAdapterRun["stage"]>([
 ]);
 
 function providerKind(value: Vendor["providerKind"]): AiSdkProviderKind {
-  return value === "anthropic" || value === "openai-responses" ? value : "openai-compatible";
+  return isAiSdkProviderKind(value) ? value : "openai-compatible";
 }
 
 function extraHeaders(vendor: Vendor): Record<string, string> | undefined {

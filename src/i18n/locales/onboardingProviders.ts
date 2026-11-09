@@ -160,7 +160,11 @@ export const zhOnboardingProviders = {
       requestUnknown: '尚未设置',
       openInput: '设置 {{name}} 的输入与生成方式',
       openRequest: '设置 {{name}} 的请求方式',
-      textNotApplicable: '文本模型不使用图片、视频或音频素材槽；它的文本调用方式由连接和调用脚本管理。',
+      textNotApplicable: '此模型尚未提供可编辑的生成方式。',
+      nativeInputHint: '按供应商文档选择模型支持的原始媒体输入。不支持的输入会明确报错，不会自动转写、抽帧或生成概要。',
+      textProtocol: '文本接口',
+      inheritProtocol: '使用连接的接口',
+      nativeInput: { text: '文本', image: '图片输入', audio: '原始音频输入', video: '原始视频输入' },
       intent: {
         text: '纯文本生成',
         single: '单素材参考',
@@ -1457,8 +1461,11 @@ export const enOnboardingProviders = {
       requestUnknown: 'Not configured',
       openInput: 'Set inputs and generation for {{name}}',
       openRequest: 'Set the request method for {{name}}',
-      textNotApplicable:
-        'Text models do not use image, video, or audio input slots. Manage their text call behavior through the connection and call script.',
+      textNotApplicable: 'This model has no editable generation modes.',
+      nativeInputHint: 'Declare original media inputs supported by the provider. Unsupported inputs fail explicitly instead of being transcribed, sampled into frames, or summarized.',
+      textProtocol: 'Text API',
+      inheritProtocol: 'Use connection API',
+      nativeInput: { text: 'Text', image: 'Image input', audio: 'Original audio input', video: 'Original video input' },
       intent: {
         text: 'Prompt only',
         single: 'Single reference',

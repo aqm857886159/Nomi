@@ -101,7 +101,11 @@ export const REFERENCE_TASK_KINDS: readonly DeclaredReferenceProfileKind[] = PRO
   (kind) => PROFILE_KIND_REFERENCE_CHANNEL[kind] === 'declared',
 ) as readonly DeclaredReferenceProfileKind[]
 
-export const AI_SDK_PROVIDER_KINDS = ['openai-compatible', 'anthropic', 'openai-responses'] as const
+export const AI_SDK_PROVIDER_KINDS = ['openai-compatible', 'anthropic', 'openai-responses', 'google-generative-ai'] as const
+
+export function isAiSdkProviderKind(value: unknown): value is (typeof AI_SDK_PROVIDER_KINDS)[number] {
+  return AI_SDK_PROVIDER_KINDS.some((kind) => kind === value)
+}
 export const VENDOR_AUTH_TYPES = ['none', 'bearer', 'x-api-key', 'query'] as const
 export const ASSET_MEDIA_KINDS = ['image', 'video', 'audio'] as const
 

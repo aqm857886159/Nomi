@@ -8,7 +8,10 @@ import {
   resolveArchetypeForModel,
 } from '../../../electron/shared/modelArchetypes'
 import { getDesktopBridge } from '../../desktop/bridge'
-import { confirmDialog, DesignButton } from '../../design'
+import { confirmDialog, DesignButton, DesignSwitch, NomiSelect } from '../../design'
+import { replaceTextModelInputSettings, textModelInputSettings, type TextModelInputSettings } from '../../../electron/shared/textModelInput'
+import { PROVIDER_KINDS } from '../../desktop/providerKind'
+import { PROVIDER_KIND_LABEL } from './onboardingProviderKindLabels'
 import type { ChipModel } from './ModelChipGroups'
 import { ModelSettingsPageHeader } from './ModelSettingsWorkspacePages'
 import { CapabilityModeEditor } from './CapabilityModeEditor'
@@ -61,6 +64,8 @@ export function ModelCapabilityEditor({
     defaultModeLabel: t('onboardingProviders.workspace.capability.editor.initialModeName'),
   }) : null, [archetype, customContract, model, t])
   const [draft, setDraft] = React.useState<CapabilityContractDraft | null>(makeDraft)
+  const [textSettings, setTextSettings] = React.useState(() => textModelInputSettings(model?.meta))
+  const initialTextSettingsRef = React.useRef(JSON.stringify(textSettings))
   const [errors, setErrors] = React.useState<Record<string, CapabilityDraftErrorCode>>({})
   const [saveError, setSaveError] = React.useState('')
   const [activeModeIndex, setActiveModeIndex] = React.useState<number | null>(null)
@@ -71,10 +76,13 @@ export function ModelCapabilityEditor({
     const next = makeDraft()
     setDraft(next)
     initialDraftRef.current = serializedDraft(next)
+    const nextText = textModelInputSettings(model?.meta)
+    setTextSettings(nextText)
+    initialTextSettingsRef.current = JSON.stringify(nextText)
     setErrors({})
     setSaveError('')
     setActiveModeIndex(null)
-  }, [makeDraft])
+  }, [makeDraft, model?.meta])
 
   const focusFirstError = React.useCallback((nextErrors: Record<string, CapabilityDraftErrorCode>) => {
     const firstPath = Object.keys(nextErrors).find((path) => path !== 'form')
@@ -94,12 +102,12 @@ export function ModelCapabilityEditor({
   }, [])
 
   const save = React.useCallback(async () => {
-    if (!model || !draft) return
-    const validation = validateCapabilityContractDraft(draft)
-    setErrors(validation.errors)
+    if (!model) return
+    const validation = draft ? validateCapabilityContractDraft(draft) : null
+    setErrors(validation?.errors ?? {})
     setSaveError('')
-    if (!validation.contract) {
-      focusFirstError(validation.errors)
+    if (model.kind !== 'text' && !validation?.contract) {
+      if (validation) focusFirstError(validation.errors)
       return
     }
     const bridge = getDesktopBridge()
@@ -110,10 +118,10 @@ export function ModelCapabilityEditor({
     try {
       const latest = await currentModelMeta(model)
       if (!latest.found) throw new Error(t('onboardingProviders.workspace.modelMissing'))
-      const meta = replaceCustomCapabilityContractMeta(latest.meta, {
-        customCapabilityContract: validation.contract,
-      })
-      bridge.modelCatalog.upsertModel({
+      const meta = model.kind === 'text'
+        ? replaceTextModelInputSettings(latest.meta, textSettings)
+        : replaceCustomCapabilityContractMeta(latest.meta, { customCapabilityContract: validation!.contract! })
+      await bridge.modelCatalog.upsertModel({
         vendorKey: model.vendorKey,
         modelKey: model.modelKey,
         ...(enableAfterSave ? { enabled: true } : {}),
@@ -126,7 +134,7 @@ export function ModelCapabilityEditor({
         message: error instanceof Error ? error.message : String(error),
       }))
     }
-  }, [draft, enableAfterSave, focusFirstError, model, onBack, onSaved, t])
+  }, [draft, enableAfterSave, focusFirstError, model, onBack, onSaved, t, textSettings])
 
   const requestBack = React.useCallback(async () => {
     if (activeModeIndex !== null) {
@@ -137,7 +145,7 @@ export function ModelCapabilityEditor({
       })
       return
     }
-    if (serializedDraft(draft) === initialDraftRef.current) {
+    if (serializedDraft(draft) === initialDraftRef.current && JSON.stringify(textSettings) === initialTextSettingsRef.current) {
       onBack()
       return
     }
@@ -148,7 +156,7 @@ export function ModelCapabilityEditor({
       danger: true,
     })
     if (discard) onBack()
-  }, [activeModeIndex, draft, onBack, t])
+  }, [activeModeIndex, draft, onBack, t, textSettings])
 
   const clearCustomContract = React.useCallback(async () => {
     if (!model || !customContract) return
@@ -234,7 +242,7 @@ export function ModelCapabilityEditor({
   }, [draft, t])
 
   const title = model?.labelZh || model?.modelKey || t('onboardingProviders.workspace.capability.editor.title')
-  const dirty = serializedDraft(draft) !== initialDraftRef.current
+  const dirty = serializedDraft(draft) !== initialDraftRef.current || JSON.stringify(textSettings) !== initialTextSettingsRef.current
   const activeMode = activeModeIndex === null ? undefined : draft?.modes[activeModeIndex]
   return (
     <div
@@ -251,7 +259,7 @@ export function ModelCapabilityEditor({
         subtitle={model ? activeMode ? `${activeMode.displayName || activeMode.id} / ${title}` : `${title} / ${vendorName}` : undefined}
         backLabel={t('common.back')}
         onBack={() => { void requestBack() }}
-        actions={draft ? (
+        actions={draft || model?.kind === 'text' ? (
           <DesignButton
             variant="filled"
             onClick={save}
@@ -268,6 +276,33 @@ export function ModelCapabilityEditor({
       <div className="mx-auto w-full max-w-[800px] flex-1 overflow-y-auto p-4 sm:p-5">
         {!model ? (
           <div className="text-caption text-nomi-ink-60">{t('onboardingProviders.workspace.modelMissing')}</div>
+        ) : model.kind === 'text' ? (
+          <section className="space-y-4" data-native-text-input-settings>
+            <p className="text-caption text-nomi-ink-60">{t('onboardingProviders.workspace.capability.nativeInputHint')}</p>
+            <NomiSelect
+              leadingLabel={t('onboardingProviders.workspace.capability.textProtocol')}
+              ariaLabel={t('onboardingProviders.workspace.capability.textProtocol')}
+              value={textSettings.providerKind}
+              options={[{ value: 'inherit', label: t('onboardingProviders.workspace.capability.inheritProtocol') },
+                ...PROVIDER_KINDS.map((value) => ({ value, label: PROVIDER_KIND_LABEL[value] }))]}
+              onChange={(value) => setTextSettings((current) => ({ ...current, providerKind: (value || 'inherit') as TextModelInputSettings['providerKind'] }))}
+            />
+            {([
+              ['image', 'onboardingProviders.workspace.capability.nativeInput.image'],
+              ['audio', 'onboardingProviders.workspace.capability.nativeInput.audio'],
+              ['video', 'onboardingProviders.workspace.capability.nativeInput.video'],
+            ] as const).map(([kind, labelKey]) => (
+              <div key={kind} className="flex items-center justify-between gap-4 border-b border-nomi-line py-3">
+                <span className="text-body-sm text-nomi-ink">{t(labelKey)}</span>
+                <DesignSwitch
+                  aria-label={t(labelKey)}
+                  checked={textSettings[kind] === true}
+                  onChange={(event) => { const checked = event.currentTarget.checked; setTextSettings((current) => ({ ...current, [kind]: checked })) }}
+                />
+              </div>
+            ))}
+            {saveError ? <p role="alert" className="text-caption text-workbench-danger">{saveError}</p> : null}
+          </section>
         ) : !draft ? (
           <>
             <div className="border-l-2 border-nomi-line bg-nomi-ink-05 px-3 py-2 text-caption leading-relaxed text-nomi-ink-60">

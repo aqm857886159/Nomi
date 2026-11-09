@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { isAiSdkProviderKind } from '../shared/contracts/modelAccessCapabilities';
 import type { AdapterAuthType } from "./types";
 import type { ProviderAdapterRegisterInput } from "./service";
 import {
@@ -37,7 +38,7 @@ function adapterConnectionInput(payload: unknown): ProviderAdapterRegisterInput 
     apiKey: String(raw.apiKey || "").trim(),
     authType: authType === "none" || authType === "x-api-key" || authType === "query" ? authType : "bearer",
     providerKind:
-      raw.providerKind === "anthropic" || raw.providerKind === "openai-responses"
+      isAiSdkProviderKind(raw.providerKind)
         ? raw.providerKind
         : "openai-compatible",
     ...(typeof raw.authHeader === "string" ? { authHeader: raw.authHeader } : {}),

@@ -12,7 +12,7 @@ type LiveConfig = {
   sourceVendorKey: string;
   vendorName: string;
   baseUrl: string;
-  providerKind?: "openai-compatible" | "openai-responses" | "anthropic";
+  providerKind?: import('../catalog/types').AiSdkProviderKind;
   models: Array<{ modelKey: string; labelZh?: string; kind: BillingModelKind }>;
   maxMs?: number;
   quit?: boolean;
@@ -90,7 +90,8 @@ export async function runLiveProviderAdapterHarnessFromEnv(service: ConnectionCe
         vendorName: config.vendorName,
         baseUrl: config.baseUrl,
         apiKey: sourceKey,
-        authType: config.providerKind === "anthropic" ? "x-api-key" : "bearer",
+        authType: config.providerKind === "anthropic" || config.providerKind === 'google-generative-ai' ? "x-api-key" : "bearer",
+        ...(config.providerKind === 'google-generative-ai' ? { authHeader: 'x-goog-api-key' } : {}),
         providerKind: config.providerKind || "openai-compatible",
         models: config.models,
       },

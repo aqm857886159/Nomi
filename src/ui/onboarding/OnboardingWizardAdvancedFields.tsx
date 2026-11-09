@@ -141,6 +141,7 @@ export function OnboardingWizardAdvancedFields({
                   { label: 'Chat Completions', value: 'openai-compatible' },
                   { label: 'Responses', value: 'openai-responses' },
                   { label: 'Anthropic', value: 'anthropic' },
+                  { label: 'Gemini native', value: 'google-generative-ai' },
                 ]}
                 fullWidth
               />

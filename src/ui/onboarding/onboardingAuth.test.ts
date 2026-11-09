@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { isOnboardingApiKeyReady, resolveOnboardingAuth } from './onboardingAuth'
 
 describe('model onboarding authentication', () => {
+  it('uses a named Google native key header', () => {
+    expect(resolveOnboardingAuth('google-generative-ai', ' google-key ', false)).toEqual({ apiKey: 'google-key', authType: 'x-api-key', authHeader: 'x-goog-api-key' })
+  })
   it('uses no authentication and discards any stale key for a keyless gateway', () => {
     expect(resolveOnboardingAuth('openai-compatible', 'stale-key', true)).toEqual({
       apiKey: '',
