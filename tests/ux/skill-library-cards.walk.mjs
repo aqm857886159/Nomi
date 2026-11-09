@@ -3,7 +3,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { COMPOSER_SKILL, SKILL_POPOVER } from './agent-runtime-walk-support.mjs'
+import { COMPOSER_SKILL, SKILL_POPOVER, clearComposerText } from './agent-runtime-walk-support.mjs'
 import { newProjectEntry, openRailDrawer } from './_shell.mjs'
 const output = path.resolve('docs/design/verification/2026-09-09-skill-library')
 fs.mkdirSync(output, { recursive: true })
@@ -69,7 +69,7 @@ try {
   const editor = page.locator('.generation-canvas-v2-node__composer [contenteditable="true"]').first()
   await expect(editor, '放上画布后新节点没带上效果正文').not.toHaveText('')
   await expect(page.locator('[data-node-effect-chips="empty"]'), '有正文时不该出空节点推荐').toHaveCount(0)
-  await editor.fill('')
+  await clearComposerText(editor)
   await expect(page.locator('[data-node-effect-chips="empty"] [data-effect-chip]')).toHaveCount(4)
   const chipsProof = await proveProbe(page.locator('[data-effect-chip]'), '空节点四个常用效果')
   await page.screenshot({ path: path.join(output, '04-node-empty.png') })

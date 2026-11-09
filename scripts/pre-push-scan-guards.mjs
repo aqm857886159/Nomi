@@ -82,6 +82,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/skills/skillFrontmatter.test.ts', roots: ['skills'], exts: '*' }, // 4 秒
   { file: 'electron/catalog/curatedVideoSharedContracts.test.ts', all: true, exts: '*' }, // git grep 全仓找「已知缺口」豁免记号（docs/ 除外）；记号可以出现在任何文件里
   // ── src/ 全树 ──
+  { file: 'src/ui/input/resizeSeparatorGesture.structure.test.ts', roots: SRC }, // 每个拖拽分隔条按下即认领手势（<2 秒）
   { file: 'src/bundleAssetUrlBoundary.test.ts', roots: SRC },
   { file: 'src/workbench/generationCanvas/canvasPreviewDoors.test.ts', roots: ['src', 'electron'] }, // 画布预览入口普查：遍历 src 与 electron 生产代码（9 秒）
   { file: 'src/workbench/generationCanvas/components/lightweightFallbackCensus.test.ts', roots: ['src/workbench'] }, // 兜底节点必须带 loading：遍历 workbench 找 fallback=<LightweightGenerationNode>（<1 秒）
@@ -105,6 +106,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/build-tailwind.test.ts', roots: SRC, exts: [...CODE_EXTS, 'css', 'html'], files: ['tailwind.config.ts'] }, // 跑一次 tailwind content 扫描（12 秒）
   { file: 'scripts/canvas-store-subscriptions.test.mjs', roots: SRC, files: ['eslint.config.mjs'] }, // 画布 nodes / edges 整表订阅存量冻结：遍历 src 按语法树数处数（11 秒）
   { file: 'scripts/ui-money-format.test.mjs', roots: SRC, files: ['eslint.config.mjs', 'scripts/fixtures/ui-money/ProductionDetails.before.tsx.txt'] }, // 界面不印金额的出口名单只减不增：遍历 src 按语法树数处数（Mac 本机单跑约 5–7 秒）
+  { file: 'scripts/focus-by-tag-lookup.test.mjs', roots: ['src', 'tests/ux', 'evals'], files: ['eslint.config.mjs', 'scripts/fixtures/focus-by-tag-lookup/ShellAgentHost.before.tsx.txt'] }, // 按输入框实现找它再聚焦（src）/ 走查按标签名判焦点（tests/ux、evals）的出口名单只减不增：遍历三处按语法树数处数（Mac 本机门岗满载时单跑约 8 秒）
   { file: 'evals/journeys/journeyContracts.test.ts', roots: ['evals/journeys'], files: ['tests/ux/real-media-fixtures.json'] }, // 旅程读了真素材就必须声明 realMedia（CI 不选它）：遍历 evals/journeys 的旅程源码对全集断言，id 对登记表
   { file: 'src/workbench/project/projectActionIssuance.contract.test.ts', roots: ['src', 'electron'] }, // 13 秒
   { file: 'src/assets/vendor-logos/vendorLogos.test.ts', roots: ['src/assets/vendor-logos', 'src/config', 'src/design', 'src/ui', 'src/workbench'] },

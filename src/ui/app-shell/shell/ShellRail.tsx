@@ -145,6 +145,9 @@ function DrawerResizeHandle({ item, width }: { item: ShellDrawerItem; width: num
       tabIndex={0}
       className="group absolute inset-y-0 right-0 z-10 flex w-2.5 cursor-col-resize touch-none items-center justify-center"
       onPointerDown={(event) => {
+        // 按下即认领这次手势：把手跟着指针走，按下那一点很快露出抽屉内容（示例图、链接、选区），
+        // 不认领的话浏览器会把它当成原生拖图 / 拖选区，抢走指针、拖宽半截停住（resizeSeparatorGesture.structure.test.ts）。
+        event.preventDefault()
         drag.current = { startX: event.clientX, startW: width }
         event.currentTarget.setPointerCapture(event.pointerId)
         setDragging(true)
