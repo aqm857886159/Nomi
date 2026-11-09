@@ -2,9 +2,9 @@
   "schema_version": 3,
   "id": "2026-11-03-storyboard-per-shot-controls",
   "problem_type": "Duplicated storyboard configuration scopes and invisible handoff",
-  "symptom": "Redundant global and selection controls; Agent handoff attaches references without revealing the composer.",
-  "direct_cause": "Global/selection parameter writers coexist with per-shot writers; handoff only writes references.",
-  "class_root": "A creative decision has multiple UI owners and an explicit handoff has no reveal/focus boundary.",
+  "symptom": "Redundant storyboard configuration scopes; selected-shot handoff must reveal the composer and retain the named design and shots through lane admission.",
+  "direct_cause": "Global/selection parameter writers coexist with per-shot writers; the send boundary constructs storyboardTarget only on creation while the storyboard panel sends from storyboard.",
+  "class_root": "Creative decisions lack one scope owner, and explicit storyboard references are not captured consistently across the two document-backed authoring surfaces.",
   "affected_population": [
     "All storyboard plans, image and video rows, stored keyframe drafts and multi-provider models"
   ],
@@ -17,7 +17,8 @@
     "electron/shared/storyboard/storyboardPromptCompiler.ts",
     "electron/shared/storyboard/storyboardShotScope.ts",
     "src/workbench/common/useDedupedModelSelect.ts",
-    "src/workbench/ai/residentComposerFocus.ts"
+    "src/workbench/ai/residentComposerFocus.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.ts"
   ],
   "entry_points": [
     "Per-shot model picker",
@@ -31,7 +32,8 @@
     "Selection only hands off or deletes shots.",
     "Changing model preserves vendor identity and changes shot kind only for an explicit model from the other catalog.",
     "Disabled keyframe drafts are retained but never projected or compiled as active keyframes.",
-    "Film aspect remains one project setting and does not rewrite row overrides."
+    "Film aspect remains one project setting and does not rewrite row overrides.",
+    "Creation and storyboard sends capture selected stable shot ids and their named design at the same renderer send boundary; foreign-plan references remain rejected."
   ],
   "doors": [
     {
@@ -203,14 +205,54 @@
       "kind": "write",
       "path": "src/workbench/taskCenter/TaskCenterButton.tsx",
       "symbol": "setProjectAgentDockCollapsed"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "storyboardTarget"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "storyboardTarget"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "symbol": "storyboardTarget"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpGenerationTools.ts",
+      "symbol": "storyboardTarget"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "storyboardTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "symbol": "storyboardTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "symbol": "storyboardTarget"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/agent/proposalTxn.ts",
+      "symbol": "storyboardTarget"
     }
   ],
   "door_reduction": {
-    "before": 33,
-    "after": 34,
-    "why_not": "Compilation, projection, runtime status and persistence are separate necessary readers; unrelated animation keyframe readers remain unaffected. UI model writers are removed while the row/anchor model owner and existing shell reveal paths remain."
+    "before": 42,
+    "after": 42,
+    "why_not": "Compilation, projection, runtime status and persistence are separate necessary readers; unrelated animation keyframe readers remain unaffected. UI model writers are removed while the row/anchor model owner and existing shell reveal paths remain. Storyboard target consumers are distinct lane admission, lane projection, tool execution and proposal write boundaries; only the shared renderer producer decides whether the current authoring surface captures a target."
   },
-  "generality_proof": "Delete bulk and selection parameter writer components and props. Reuse the paired model identity writer for every explicit row model. Disabled keyframe reads are checked at compiler, resolver and projection boundaries, regardless of how the draft was persisted.",
+  "generality_proof": "Delete bulk and selection parameter writer components and props. Reuse the paired model identity writer for every explicit row model. Disabled keyframe reads are checked at compiler, resolver and projection boundaries, regardless of how the draft was persisted. Both authoring surfaces use the same target capture, existing reference identity check, source document preconditions and lane admission; there is no handoff-specific transport or main-process validation exception.",
   "shared_boundaries": [
     {
       "path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
@@ -221,6 +263,11 @@
       "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
       "symbol": "projectStoryboardDesign",
       "responsibility": "Do not project a retained disabled keyframe."
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "symbol": "useAgentPanelV4Actions",
+      "responsibility": "Capture named storyboard plan and selected shots for both creation and storyboard panels before asynchronous admission."
     }
   ],
   "same_class_entry_points": [
@@ -235,6 +282,12 @@
       "entry_point": "projectStoryboardDesign",
       "disposition": "enforced",
       "evidence": "Explicit plan edits must skip disabled keyframe drafts."
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "entry_point": "useAgentPanelV4Actions",
+      "disposition": "enforced",
+      "evidence": "Creation and storyboard panels invoke the same send callback; one and three selected stable references are covered on both surfaces."
     }
   ],
   "recurrence": {
@@ -244,32 +297,38 @@
       "node scripts/door-map.mjs keyframe",
       "node scripts/door-map.mjs planModelSelection",
       "node scripts/door-map.mjs setProjectAgentDockCollapsed",
-      "rg keyframe src electron, including projection, compilation, schema and persistence readers"
+      "rg keyframe src electron, including projection, compilation, schema and persistence readers",
+      "node scripts/door-map.mjs storyboardTarget; independently trace creation and storyboard host sends, laneDesktopInput and lane projection; generation and preview retain their own target kinds."
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
-    "invariant": "Only the per-shot composer chooses a row model and preserves its provider identity.",
+    "invariant": "Only the per-shot composer chooses a row model and preserves its provider identity. Selected storyboard references pass through one send-time producer on either document-backed authoring surface.",
     "failure_mode": "No bulk writer remains; explicit cross-kind choices update type and model in one patch.",
     "exception_policy": "none",
     "strategy": "Delete duplicate UI writers; keep one paired model selection operation.",
     "artifacts": [
       "src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx",
-      "src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx"
+      "src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx",
+      "src/workbench/ai/v4/useAgentPanelV4Actions.ts"
     ]
   },
   "regression_tests": [
     "tests/ux/storyboard-only-what-works.test.mjs",
     "src/workbench/creation/storyboard/storyboardModelVendorIdentity.test.ts",
     "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts",
-    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts"
+    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.test.ts",
+    "tests/ux/_storyboardAgentBulkSteps.mjs"
   ],
   "class_regression_tests": [
     "tests/ux/storyboard-only-what-works.test.mjs",
     "src/workbench/creation/storyboard/storyboardModelVendorIdentity.test.ts",
     "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts",
-    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts"
+    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.test.ts",
+    "tests/ux/_storyboardAgentBulkSteps.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -289,8 +348,8 @@
   },
   "migration": "No stored field is removed or migrated; skip state was local only. Disabled keyframe objects retain authored prompts. Explicit conversion to image keeps existing destructive type-switch semantics.",
   "residual_risks": [
-    "Real-model Agent bulk edit and independent acceptance are coordinator-owned; implementation runs the free rehearsal only.",
-    "The existing Agent admission only captures storyboardTarget on the creation surface. Bulk editing from the storyboard surface is stopped for coordinator review; tools are outside this task."
+    "Real-model Agent bulk editing and independent acceptance remain coordinator-owned; implementation runs only local-service rehearsal.",
+    "Historical fixture libraries contain no storyboard or real JPG result required for the packaged upgrade journey."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-03",

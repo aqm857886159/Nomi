@@ -62,7 +62,7 @@ vi.mock('../../generationCanvas/store/generationCanvasStore', () => ({ useGenera
 vi.mock('../../generationCanvas/agent/proposalUndo', () => ({ getCommittedProposal: () => fixture.record, runProposalUndo: fixture.undo }))
 vi.mock('../../generationCanvas/agent/canvasSystemPrompt', () => ({ buildStaticAgentSystemPrompt: () => 'generation domain prompt' }))
 
-function mountActions(surface: 'creation' | 'generation' = 'generation') {
+function mountActions(surface: 'creation' | 'generation' | 'storyboard' = 'generation') {
   let actions!: AgentPanelV4Actions
   function Consumer() {
     actions = useAgentPanelV4Actions(surface, { snapshot: { workspaceId: 'workspace-a', lanes: [{ laneName: 'main', sessionId: 'session-main' }], active: { lane: 'main', queues: [{ entryId: 'queued-1' }] } } } as unknown as AgentPanelV4Data)
@@ -591,4 +591,48 @@ it('keeps canonical media still referenced by a draft edited before the send ACK
   expect(fixture.say.mock.calls[1][2].attachments).toEqual([{assetId:'asset-a',version:1}])
   expect(fixture.state.projectAgentDraft).toBe('')
   expect(fixture.state.projectAgentAttachments).toEqual([])
+})
+
+
+describe('selected storyboard send targets on both authoring surfaces', () => {
+  for (const surface of ['creation', 'storyboard'] as const) {
+    it.each([1, 3])(`${surface} sends exactly %i selected stable shot ids and their named design`, async count => {
+      const { buildStoryboardReference } = await import('../resident/residentReferences')
+      fixture.state.storyboardDesignsByDocumentId = { 'doc-1': [{ id: 'selected-plan', title: 'Selected' }, { id: 'other-plan', title: 'Other' }] }
+      fixture.state.activeStoryboardId = 'selected-plan'
+      const shotIds = Array.from({ length: count }, (_, index) => `selected-${index + 1}`)
+      fixture.state.projectAgentReferences = shotIds.map((shotId, index) => buildStoryboardReference('shot', index + 1, shotId, 'selected', {
+        documentId: 'doc-1', designId: 'selected-plan', shotId,
+      }))
+      fixture.say.mockResolvedValue({ ok: true })
+      try {
+        expect(await mountActions(surface).send('edit these shots')).toBe(true)
+        const context = fixture.say.mock.calls[0][2]
+        expect(context.storyboardTarget).toMatchObject({ projectId: 'project-a', sourceDocumentId: 'doc-1', designId: 'selected-plan' })
+        expect(context.storyboardTarget.shotIds).toEqual(shotIds)
+        expect(context.storyboardTarget.plans).toEqual([{ id: 'selected-plan', title: 'Selected' }, { id: 'other-plan', title: 'Other' }])
+      } finally {
+        fixture.state.activeStoryboardId = null
+        fixture.state.storyboardDesignsByDocumentId = {}
+        fixture.state.projectAgentReferences = []
+      }
+    })
+    it(`${surface} refuses selected chips after switching to another plan`, async () => {
+      const { buildStoryboardReference } = await import('../resident/residentReferences')
+      fixture.state.storyboardDesignsByDocumentId = { 'doc-1': [{ id: 'selected-plan', title: 'Selected' }, { id: 'other-plan', title: 'Other' }] }
+      fixture.state.activeStoryboardId = 'other-plan'
+      fixture.state.projectAgentReferences = [buildStoryboardReference('shot', 1, 'Selected shot', 'selected', {
+        documentId: 'doc-1', designId: 'selected-plan', shotId: 'selected-1',
+      })]
+      fixture.say.mockResolvedValue({ ok: true })
+      try {
+        expect(await mountActions(surface).send('edit these shots')).toBe(false)
+        expect(fixture.say).not.toHaveBeenCalled()
+      } finally {
+        fixture.state.activeStoryboardId = null
+        fixture.state.storyboardDesignsByDocumentId = {}
+        fixture.state.projectAgentReferences = []
+      }
+    })
+  }
 })
