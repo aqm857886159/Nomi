@@ -8,11 +8,22 @@ import { load } from 'js-yaml'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const actionPath = '.github/actions/cache-external-downloads'
-const protectedEnv = ['electron_config_cache', 'ELECTRON_CACHE', 'PLAYWRIGHT_BROWSERS_PATH']
+const protectedEnv = ['electron_config_cache', 'ELECTRON_CACHE', 'PLAYWRIGHT_BROWSERS_PATH', 'ELECTRON_BUILDER_CACHE']
 const workflows = fs.readdirSync(path.join(root, '.github/workflows'))
   .filter(name => /\.ya?ml$/.test(name))
   .map(name => [name, load(fs.readFileSync(path.join(root, '.github/workflows', name), 'utf8'))])
 const lock = fs.readFileSync(path.join(root, 'pnpm-lock.yaml'), 'utf8')
+const scripts = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts
+
+function callsBuilder(command, seen = new Set()) {
+  if (/(?:^|\s)electron-builder(?:\s|$)|scripts\/(?:vitest-fair-share|test-focused|run-gates-tests)\.mjs\b/.test(command)) return true
+  for (const [, name] of command.matchAll(/\bpnpm\s+(?:run\s+)?([\w:-]+)/g)) {
+    if (!scripts[name] || seen.has(name)) continue
+    seen.add(name)
+    if (callsBuilder(scripts[name], seen)) return true
+  }
+  return false
+}
 
 test('every dependency/browser install restores the shared cache first without overriding its environment', () => {
   let installs = 0
@@ -20,7 +31,8 @@ test('every dependency/browser install restores the shared cache first without o
     for (const [id, job] of Object.entries(workflow.jobs ?? {})) {
       const steps = job.steps ?? []
       for (const [index, step] of steps.entries()) {
-        if (!/\bpnpm\s+(?:install|i)\b|ci-install-chromium\.sh|playwright\s+install\b/.test(step.run ?? '')) continue
+        const builder = callsBuilder(step.run ?? '')
+        if (!builder && !/\bpnpm\s+(?:install|i)\b|ci-install-chromium\.sh|playwright\s+install\b/.test(step.run ?? '')) continue
         installs++
         const label = `${file}#${id}: ${step.run}`
         const cacheIndex = steps.findIndex(candidate => candidate.uses === `./${actionPath}`)
@@ -31,6 +43,7 @@ test('every dependency/browser install restores the shared cache first without o
         if (/ci-install-chromium\.sh|playwright\s+install\b/.test(step.run)) {
           assert.equal(cache.with?.playwright, 'true', `${label}: browser cache must be enabled`)
         }
+        if (builder) assert.equal(cache.with?.builder, 'true', `${label}: builder cache must be enabled`)
         for (const owner of [workflow, job, ...steps]) {
           for (const key of protectedEnv) assert.equal(owner.env?.[key], undefined, `${label}: overridden ${key}`)
         }
@@ -64,15 +77,18 @@ function prepare(action, lockSource = lock) {
 test('cache paths, version keys and same-platform restore prefixes match the actual downloader environment', () => {
   const action = load(fs.readFileSync(path.join(root, actionPath, 'action.yml'), 'utf8'))
   assert.equal(action.runs.using, 'composite')
-  assert.equal(action.runs.steps.length, 3)
+  assert.equal(action.runs.steps.length, 4)
   assert.equal(action.inputs.playwright.default, 'false')
+  assert.equal(action.inputs.builder.default, 'false')
   const { env, output } = prepare(action)
   assert.equal(env.electron_config_cache, '/runner/temp/nomi-electron-cache')
   assert.equal(env.ELECTRON_CACHE, env.electron_config_cache)
   assert.equal(env.PLAYWRIGHT_BROWSERS_PATH, '/runner/temp/nomi-playwright-cache')
+  assert.equal(env.ELECTRON_BUILDER_CACHE, '/runner/temp/nomi-electron-builder-cache')
   const dependencies = load(lock).importers['.'].devDependencies
   assert.equal(output.electron, dependencies.electron.version)
   assert.equal(output.playwright, dependencies.playwright.version)
+  assert.equal(output['electron-builder'], dependencies['electron-builder'].version.split('(')[0])
   for (const [index, kind, variable] of [[1, 'electron', 'electron_config_cache'], [2, 'playwright', 'PLAYWRIGHT_BROWSERS_PATH']]) {
     const cache = action.runs.steps[index]
     assert.match(cache.uses, /^actions\/cache@v[45]$/)
@@ -82,6 +98,14 @@ test('cache paths, version keys and same-platform restore prefixes match the act
     assert.equal(cache.with.key, `${kind}-v1-\${{ runner.os }}-\${{ runner.arch }}-\${{ steps.versions.outputs.${kind} }}`)
     assert.equal(cache.with['restore-keys'].trim(), `${kind}-v1-\${{ runner.os }}-\${{ runner.arch }}-`)
   }
+  const builderCache = action.runs.steps[3]
+  assert.equal(builderCache.uses, 'actions/cache@v4')
+  assert.equal(builderCache.if, "inputs.builder == 'true'")
+  assert.equal(builderCache['continue-on-error'], undefined)
+  assert.equal(builderCache.with.path, '${{ env.ELECTRON_BUILDER_CACHE }}')
+  assert.equal(builderCache.with.key, 'builder-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron-builder }}-${{ github.workflow }}-${{ github.job }}')
+  assert.equal(builderCache.with['restore-keys'].trim(), 'builder-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron-builder }}-\nbuilder-v1-${{ runner.os }}-${{ runner.arch }}-')
+  assert.throws(() => prepare(action, lock.replace('      electron-builder:', '      missing-electron-builder:')), /electron-builder/)
   assert.throws(() => prepare(action, lock.replace('      electron:', '      missing-electron:')), /electron/)
   assert.throws(() => prepare(action, lock.replace(/(      electron:\n        specifier: [^\n]+\n        version: )[^\n]+/, '$143x4x1')), /electron/)
   assert.equal(prepare(action, lock.replaceAll('\n', '\r\n')).output.electron, dependencies.electron.version)

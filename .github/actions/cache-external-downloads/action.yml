@@ -1,8 +1,11 @@
 name: Cache external binary downloads
-description: Restore Electron and Playwright downloads before installing dependencies
+description: Restore Electron, Playwright and electron-builder binary downloads
 inputs:
   playwright:
     description: This job installs Playwright browsers
+    default: 'false'
+  builder:
+    description: This job packages apps or compiles installers
     default: 'false'
 runs:
   using: composite
@@ -14,13 +17,13 @@ runs:
         node <<'NODE'
         const fs = require('node:fs')
         const lock = fs.readFileSync('pnpm-lock.yaml', 'utf8')
-        for (const name of ['electron', 'playwright']) {
-          const matches = [...lock.matchAll(new RegExp(String.raw`^      ${name}:\r?\n        specifier: [^\n]+\r?\n        version: ([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)\r?$`, 'gm'))]
+        for (const name of ['electron', 'playwright', 'electron-builder']) {
+          const matches = [...lock.matchAll(new RegExp(String.raw`^      ${name}:\r?\n        specifier: [^\n]+\r?\n        version: ([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)(?:\([^\r\n]*\))?\r?$`, 'gm'))]
           if (matches.length !== 1) throw new Error(`Expected one resolved ${name} version in pnpm-lock.yaml`)
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${matches[0][1]}\n`)
         }
         const electronCache = `${process.env.RUNNER_TEMP}/nomi-electron-cache`
-        fs.appendFileSync(process.env.GITHUB_ENV, `electron_config_cache=${electronCache}\nELECTRON_CACHE=${electronCache}\nPLAYWRIGHT_BROWSERS_PATH=${process.env.RUNNER_TEMP}/nomi-playwright-cache\n`)
+        fs.appendFileSync(process.env.GITHUB_ENV, `electron_config_cache=${electronCache}\nELECTRON_CACHE=${electronCache}\nPLAYWRIGHT_BROWSERS_PATH=${process.env.RUNNER_TEMP}/nomi-playwright-cache\nELECTRON_BUILDER_CACHE=${process.env.RUNNER_TEMP}/nomi-electron-builder-cache\n`)
         NODE
     - name: Cache Electron downloads
       uses: actions/cache@v4
@@ -37,3 +40,12 @@ runs:
         key: playwright-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.playwright }}
         restore-keys: |
           playwright-v1-${{ runner.os }}-${{ runner.arch }}-
+    - name: Cache electron-builder toolchains
+      if: inputs.builder == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.ELECTRON_BUILDER_CACHE }}
+        key: builder-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron-builder }}-${{ github.workflow }}-${{ github.job }}
+        restore-keys: |
+          builder-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron-builder }}-
+          builder-v1-${{ runner.os }}-${{ runner.arch }}-

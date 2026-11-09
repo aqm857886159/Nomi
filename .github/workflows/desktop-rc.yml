@@ -50,6 +50,7 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/cache-external-downloads
         with:
+          builder: 'true'
           playwright: 'true'
       - run: pnpm install --frozen-lockfile
       - name: Install Chromium for release validation browser tests
@@ -134,6 +135,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - uses: ./.github/actions/cache-external-downloads
+        with:
+          builder: 'true'
       - run: pnpm install --frozen-lockfile --force
       # 反馈回路的出厂配置（W-01）。烤进 dist-electron/intake-config.json，随 app.asar 出厂。
       # 令牌是**发布令牌**不是密钥：它随包发出去、解包就能拿到；接收端只能写不能读/列/删。
@@ -195,6 +198,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - uses: ./.github/actions/cache-external-downloads
+        with:
+          builder: 'true'
       - run: pnpm install --frozen-lockfile
       # 反馈回路的出厂配置（W-01）。烤进 dist-electron/intake-config.json，随 app.asar 出厂。
       # 令牌是**发布令牌**不是密钥：它随包发出去、解包就能拿到；接收端只能写不能读/列/删。

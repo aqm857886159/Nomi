@@ -62,6 +62,8 @@ jobs:
           cache: pnpm
 
       - uses: ./.github/actions/cache-external-downloads
+        with:
+          builder: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 

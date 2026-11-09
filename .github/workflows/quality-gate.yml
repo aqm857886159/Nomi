@@ -152,6 +152,7 @@ jobs:
           cache: pnpm
       - uses: ./.github/actions/cache-external-downloads
         with:
+          builder: 'true'
           playwright: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -512,6 +513,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - uses: ./.github/actions/cache-external-downloads
+        with:
+          builder: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build
