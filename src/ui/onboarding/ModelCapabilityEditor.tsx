@@ -14,6 +14,7 @@ import { PROVIDER_KINDS } from '../../desktop/providerKind'
 import { PROVIDER_KIND_LABEL } from './onboardingProviderKindLabels'
 import type { ChipModel } from './ModelChipGroups'
 import { ModelSettingsPageHeader } from './ModelSettingsWorkspacePages'
+import { V4Row } from '../../workbench/ai/v4/AgentPanelV4Row'
 import { CapabilityModeEditor } from './CapabilityModeEditor'
 import {
   createCapabilityContractDraft,
@@ -292,14 +293,14 @@ export function ModelCapabilityEditor({
               ['audio', 'onboardingProviders.workspace.capability.nativeInput.audio'],
               ['video', 'onboardingProviders.workspace.capability.nativeInput.video'],
             ] as const).map(([kind, labelKey]) => (
-              <div key={kind} className="flex items-center justify-between gap-4 border-b border-nomi-line py-3">
+              <V4Row key={kind} className="gap-4 border-b border-nomi-line py-3">
                 <span className="text-body-sm text-nomi-ink">{t(labelKey)}</span>
                 <DesignSwitch
                   aria-label={t(labelKey)}
                   checked={textSettings[kind] === true}
                   onChange={(event) => { const checked = event.currentTarget.checked; setTextSettings((current) => ({ ...current, [kind]: checked })) }}
                 />
-              </div>
+              </V4Row>
             ))}
             {saveError ? <p role="alert" className="text-caption text-workbench-danger">{saveError}</p> : null}
           </section>

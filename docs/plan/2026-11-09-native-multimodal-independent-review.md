@@ -1,7 +1,25 @@
+已独立复核下述工作区快照：7 个目标测试文件、41 项测试通过，未发现尚未处理的代码阻断项；发布仍应保持 DRAFT，不能据此宣称完整任务已验收。
+
 # Native multimodal input: independent review
 
 Reviewer: `native_input_acceptance` (independent of the input, transport and configuration implementation agents).
-Reviewed on Windows on 2026-11-09. Integrated production commit: `2da3ba2578154fe1362267e2dfc78fd3ad15cd28`; the root integration test and validation documentation were still uncommitted during this review.
+
+验收线：`native_input_acceptance`。
+
+验收 HEAD：`93244c70c86452aafd4364f4f62531b70e200d12`。This is the actual HEAD read immediately before the refreshed tests on Windows on 2026-11-09, not a claim that the working tree was clean or that a later publication commit was audited.
+
+The following six paths had uncommitted changes when the tests ran; their diffs were inspected as part of this refreshed acceptance snapshot:
+
+- `docs/plan/2026-11-09-native-multimodal-input.md`
+- `electron/agentLane/laneHost.mts`
+- `electron/catalog/catalogStore.ts`
+- `electron/providerAdapter/liveHarness.ts`
+- `src/ui/onboarding/ModelCapabilityEditor.nativeInput.test.tsx`
+- `src/ui/onboarding/ModelCapabilityEditor.tsx`
+
+This report is the seventh modified path after this documentation-only update. The reviewed production maintenance changes consolidate imports/an inferred return type and preserve the same auth selection, while the UI change reuses `V4Row`; the UI test replaces untyped mock props with explicit types. The test run includes those working-tree changes. A subsequent commit will have a different SHA and must not be described as this report's reviewed HEAD without separate verification.
+
+The final status read also showed the newly created, untracked `docs/plan/2026-11-09-native-multimodal-publish-checks.md`. That publication note appeared after the test-start snapshot and is outside this independent code/test review.
 
 Scope: verify that selected original audio/video bytes reach the model alongside text/images, that invalid inputs fail before dispatch, and that follow-up/history, protocol configuration and existing transport controls remain meaningful. This report does not declare the complete feature delivered.
 
@@ -15,7 +33,7 @@ pnpm exec vitest run electron/agentLane/nativeMultimodal.integration.test.ts ele
 git diff --check
 ```
 
-Observed final test result at 17:25:42 local time: **7 test files passed, 41 tests passed**, duration 3.49 seconds. `git diff --check` exited 0 without output.
+Observed refreshed result at **2026-11-09 18:08:07 Asia/Shanghai**: **7 test files passed, 41 tests passed**, duration 5.22 seconds (tests 1.49 seconds). `git diff --check` exited 0 without output. The earlier acceptance run at 17:25:42 also passed 41 tests; the result stated here is the rerun after the configuration and media-maintenance follow-ups finished.
 
 The checks exercise the production model-call boundary and real SDK serializers using injected local transports. The integrated mixed-input test also exercises the real AgentHarness and its payload hooks, then sends a follow-up and checks that the original image/audio/video payloads remain present. They validate request fidelity, not the semantic quality of a remote model's understanding.
 
@@ -58,12 +76,18 @@ The ordinary compaction path serializes projected messages to text and therefore
 - Provider File API uploads, remote file lifecycle/expiry handling and upload-reference reuse are not implemented in this feature slice. Large videos must be shortened or rejected explicitly.
 - Retaining original attachment claims preserves native analysis across follow-ups, but long conversations can accumulate enough media to hit the request limit. The explicit recovery is a shorter original or a new conversation; no automatic transcription/summary substitute is claimed.
 - Allowed media formats still depend on the selected protocol and provider. Native video requires the Google native route in this implementation; the OpenAI-compatible audio route is limited to its supported audio shapes/formats.
-- These tests do not establish successful remote Gemini/relay interpretation of a real recording. **Root's actual live-provider test is pending and must be recorded separately.**
-- Packaged Electron interaction and real Chinese/English interface screenshots were not performed by this review. **Root's UI validation is pending and must be recorded separately.** Component state/save tests are not substitutes for those checks.
+- These tests do not establish successful remote Gemini/relay interpretation of a non-synthetic recording. Root separately recorded one successful original PNG/WAV/MP4 request in `native-input-live-result.json`; its near-silent diagnostic audio explicitly does not establish speech-recognition quality. The reviewer did not make or independently rerun that remote call. **A non-synthetic live understanding test remains pending and must be recorded separately.**
+- Root separately records development-build Chinese/English screenshots and a repeatable UI walk. This reviewer did not perform those interactions or independently inspect the screenshots in this refresh. Component state/save tests are not substitutes for UI acceptance, and the required approved UI design board remains pending.
 - The final performance JSON was inspected and reported its bounded preparation scenario under the proposed budget; the reviewer did not independently rerun that performance scenario and does not treat it as a packaged UI responsiveness measurement.
+
+## Publication status
+
+Keep the publication **DRAFT**. This review passes the scoped implementation/request-fidelity checks, but it does not close the pending approved UI design board or the separate non-synthetic live-provider acceptance.
+
+The root validation log also records unrelated failures in unchanged Windows/environment-sensitive tests (`codexCli.test.ts`, `multiOutputMapping.test.ts`, `operationLedger.test.ts`, `certificationMedia.test.ts`). This reviewer has not independently rerun that broad directory suite. Those results must remain visible in publication evidence and must not be described as an entirely green repository-wide run. Draft publication does not waive those gates or imply merge approval.
 
 ## Review disposition
 
-No remaining confirmed blocker was found in the reviewed code and request-boundary tests after the listed corrections. This is an independent implementation/request-fidelity review, not a claim that live-provider or packaged-UI validation has completed.
+No remaining confirmed blocker was found in the reviewed code and request-boundary tests after the listed corrections and the refreshed 41-test run. This is an independent implementation/request-fidelity review of the exact HEAD-plus-dirty snapshot above, not a claim that live-provider, approved-UI or repository-wide validation has completed.
 
 The reviewer made no production-code changes, invoked no paid model requests and used no computer-use automation. Only this documentation file was written at the coordinator's request.

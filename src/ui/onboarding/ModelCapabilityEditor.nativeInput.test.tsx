@@ -3,8 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createReactTestRenderer } from '../../workbench/ai/v4/testReactRenderer'
 import { ModelCapabilityEditor } from './ModelCapabilityEditor'
 
+type SwitchProps = { 'aria-label': string; onChange: (event: { currentTarget: { checked: boolean } }) => void }
+type SelectProps = { ariaLabel: string; onChange: (value: string) => void }
+type ButtonProps = { 'aria-label'?: string; onClick: () => Promise<void> }
+
 const seen = vi.hoisted(() => ({
-  controls: new Map<string, Record<string, any>>(),
+  switches: new Map<string, SwitchProps>(),
+  selects: new Map<string, SelectProps>(),
   save: undefined as undefined | (() => Promise<void>),
   list: vi.fn(),
   upsert: vi.fn(),
@@ -14,14 +19,14 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: seen.t }) }))
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: () => ({ modelCatalog: { listModels: seen.list, upsertModel: seen.upsert } }) }))
 vi.mock('../../design', () => ({
   confirmDialog: vi.fn(),
-  DesignButton: (props: Record<string, any>) => { if (props['aria-label']?.endsWith('editor.save')) seen.save = props.onClick; return null },
-  DesignSwitch: (props: Record<string, any>) => { seen.controls.set(props['aria-label'], props); return null },
-  NomiSelect: (props: Record<string, any>) => { seen.controls.set(props.ariaLabel, props); return null },
+  DesignButton: (props: ButtonProps) => { if (props['aria-label']?.endsWith('editor.save')) seen.save = props.onClick; return null },
+  DesignSwitch: (props: SwitchProps) => { seen.switches.set(props['aria-label'], props); return null },
+  NomiSelect: (props: SelectProps) => { seen.selects.set(props.ariaLabel, props); return null },
 }))
 vi.mock('./ModelSettingsWorkspacePages', () => ({ ModelSettingsPageHeader: ({ actions }: { actions: React.ReactNode }) => <>{actions}</> }))
 
 describe('native text input capability editor', () => {
-  afterEach(() => { seen.controls.clear(); seen.save = undefined; vi.clearAllMocks() })
+  afterEach(() => { seen.switches.clear(); seen.selects.clear(); seen.save = undefined; vi.clearAllMocks() })
 
   it('saves all declared media and a model-local protocol without discarding current metadata', async () => {
     const renderer = createReactTestRenderer()
@@ -33,10 +38,10 @@ describe('native text input capability editor', () => {
     renderer.render(<ModelCapabilityEditor model={model} vendorName="Relay" onBack={back} onSaved={saved} />)
     renderer.flushPassiveEffects()
     for (const kind of ['audio', 'video']) {
-      seen.controls.get(`onboardingProviders.workspace.capability.nativeInput.${kind}`)!.onChange({ currentTarget: { checked: true } })
+      seen.switches.get(`onboardingProviders.workspace.capability.nativeInput.${kind}`)!.onChange({ currentTarget: { checked: true } })
       renderer.flushPassiveEffects()
     }
-    seen.controls.get('onboardingProviders.workspace.capability.textProtocol')!.onChange('google-generative-ai')
+    seen.selects.get('onboardingProviders.workspace.capability.textProtocol')!.onChange('google-generative-ai')
     renderer.flushPassiveEffects()
     await seen.save!()
     expect(seen.upsert).toHaveBeenCalledWith({ vendorKey: 'mixed-relay', modelKey: 'user-named-model', meta: {

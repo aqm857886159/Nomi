@@ -9,7 +9,7 @@ Categories: new feature, Agent behavior, long-running/cancellable model requests
 - https://ai.google.dev/gemini-api/docs/openai — input_audio is supported by the compatibility API; retain explicit protocol capability checks instead of assuming all compatible servers support video.
 - https://github.com/googleapis/js-genai — HttpOptions.fetch in 2.32.0 allows the existing Nomi transport; patch the pinned pi adapter to pass it rather than replace the streaming engine.
 - https://ai.google.dev/gemini-api/docs/files — file references have provider scope/lifetime; initial implementation uses bounded inline originals and fails with an actionable limit error instead of silently summarizing.
-- Exit: existing AbortSignal and provider failure surface remain authoritative; cancel aborts the active upload/request, unsupported or oversized input can be removed or a capable model selected and submitted again.
+- 出口：https://ai.google.dev/gemini-api/docs/files · 大文件由供应商 File API 上传后继续请求，内联请求受大小限制 · 本次保留既有取消与失败入口，用户可以移除超限媒体或切换支持的模型重试；尚未实现 File API 时明确报错，不以概要替代。
 
 ## ★1 User outcome
 

@@ -2,7 +2,7 @@ import { app } from "electron";
 import { writeJsonFileAtomic } from "../jsonFile";
 import { readCatalog } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
-import type { BillingModelKind } from "../catalog/types";
+import type { AiSdkProviderKind, BillingModelKind } from "../catalog/types";
 import type { ProviderAdapterRun } from "./types";
 import type { ConnectionCertificationService } from "../integrationCertification/service";
 import { redactAdapterSecrets } from "./redaction";
@@ -12,7 +12,7 @@ type LiveConfig = {
   sourceVendorKey: string;
   vendorName: string;
   baseUrl: string;
-  providerKind?: import('../catalog/types').AiSdkProviderKind;
+  providerKind?: AiSdkProviderKind;
   models: Array<{ modelKey: string; labelZh?: string; kind: BillingModelKind }>;
   maxMs?: number;
   quit?: boolean;
@@ -90,8 +90,7 @@ export async function runLiveProviderAdapterHarnessFromEnv(service: ConnectionCe
         vendorName: config.vendorName,
         baseUrl: config.baseUrl,
         apiKey: sourceKey,
-        authType: config.providerKind === "anthropic" || config.providerKind === 'google-generative-ai' ? "x-api-key" : "bearer",
-        ...(config.providerKind === 'google-generative-ai' ? { authHeader: 'x-goog-api-key' } : {}),
+        ...(config.providerKind === 'google-generative-ai' ? { authType: 'x-api-key', authHeader: 'x-goog-api-key' } : { authType: config.providerKind === 'anthropic' ? 'x-api-key' : 'bearer' }),
         providerKind: config.providerKind || "openai-compatible",
         models: config.models,
       },

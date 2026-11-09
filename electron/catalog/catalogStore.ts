@@ -190,7 +190,7 @@ function normalizeEnabled(value: unknown, fallback = true): boolean {
 export function normalizeProviderKind(
   value: unknown,
   fallback: AiSdkProviderKind = "openai-compatible",
-): AiSdkProviderKind {
+) {
   return isAiSdkProviderKind(value) ? value : fallback;
 }
 function filterByParams<

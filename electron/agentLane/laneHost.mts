@@ -6,7 +6,7 @@ import { attachLaneTrace } from './laneTraceRecorder.mjs';
 import { logWarn } from '../logging/logger.js';
 import { capabilityContractById } from '../shared/agentCapabilities/registry.js';
 import { modelToolCapabilityId } from '../shared/agentCapabilities/modelFacingTools.js';
-import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts.js';
+import type { LaneComposerContext, LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { LANE_LEGACY_NOTE, LANE_LEGACY_TOOLS_NOTE, laneLegacyFacts } from '../shared/agentLane/laneLegacyNote.js';
 import { findLaneReceiptAuthority } from './laneReceiptAuthority.mjs';
@@ -31,7 +31,6 @@ import { configureLaneContextBudget, laneCompactionSettings } from './laneContex
 import { formatLaneModelIndex } from './laneModelContext.js';
 import { convertToLlm } from '@earendil-works/pi-agent-core';
 import { draftInputFromMessage, isLaneInputMessage } from '../shared/agentLane/laneInputMessage.js';
-import type { LaneInputMessage } from '../shared/agentLane/laneDesktopContracts.js';
 import { AgentHarness, reduceLaneSnapshot, type AgentLane, type LaneSnapshot } from '@earendil-works/pi-agent-core';
 import { BACKGROUND_CONTEXT, awaitWithContext, type Context } from '@earendil-works/pi-agent-core/harness/context';
 import { createModels, getSupportedThinkingLevels, isContextOverflow, isRetryableAssistantError } from '@earendil-works/pi-ai';
@@ -275,9 +274,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     closingForRun = composeClosing();
     return promptForRun;
   };
-  const systemPrompt = promptForRun;
   const { harness } = await AgentHarness.create<undefined>({
-    session, models, model, systemPrompt, tools,
+    session, models, model, systemPrompt: promptForRun, tools,
     compaction: laneCompactionSettings(model.contextWindow, options.limits?.contextTokenBudget),
     toProviderMessages: async (messages) => {
       options.input?.beginProjection?.();
