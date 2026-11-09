@@ -11,8 +11,12 @@ overrides:
   '@earendil-works/pi-coding-agent': 0.85.1
   '@earendil-works/pi-telemetry': 0.85.1
   '@earendil-works/pi-tui': 0.85.1
+  '@google/genai': 2.32.0
 
 patchedDependencies:
+  '@earendil-works/pi-ai@0.85.1':
+    hash: 673616c4371835b7a10aebd9992634d3d2ca9f6d4ec6f10bb26811a8c65fb6d9
+    path: patches/@earendil-works__pi-ai@0.85.1.patch
   playwright-core@1.60.0:
     hash: 50fa230a1646acb5b2b24132532d75f19eeee84a502698e512ae767086a24dd3
     path: patches/playwright-core@1.60.0.patch
@@ -29,7 +33,7 @@ importers:
         version: 0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
       '@earendil-works/pi-ai':
         specifier: 0.85.1
-        version: 0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
+        version: 0.85.1(patch_hash=673616c4371835b7a10aebd9992634d3d2ca9f6d4ec6f10bb26811a8c65fb6d9)(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
       '@earendil-works/pi-coding-agent':
         specifier: 0.85.1
         version: 0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
@@ -1348,8 +1352,8 @@ packages:
   '@gar/promisify@1.1.3':
     resolution: {integrity: sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==}
 
-  '@google/genai@1.52.0':
-    resolution: {integrity: sha512-gwSvbpiN/17O9TbsqSsE/OzZcpv5Fo4RQjdngGgogtuB9RsyJ8ZHhX5KjHj1bp5N9snN2eK8LDGXSaWW2hof8Q==}
+  '@google/genai@2.32.0':
+    resolution: {integrity: sha512-60c79uXpR0a47bmGqDxbXEBuQUalNmwo5mx5kqb91jIW4FoqpsLSt86DeVhRhtH5+s/16Wqxt3sXzFQn2U1OHQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       '@modelcontextprotocol/sdk': ^1.25.2
@@ -7446,7 +7450,7 @@ snapshots:
   '@earendil-works/pi-agent-core@0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)':
     dependencies:
       '@earendil-works/chord': 0.85.1
-      '@earendil-works/pi-ai': 0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
+      '@earendil-works/pi-ai': 0.85.1(patch_hash=673616c4371835b7a10aebd9992634d3d2ca9f6d4ec6f10bb26811a8c65fb6d9)(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
       '@earendil-works/pi-telemetry': 0.85.1
       diff: 8.0.4
       ignore: 7.0.5
@@ -7460,12 +7464,12 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)':
+  '@earendil-works/pi-ai@0.85.1(patch_hash=673616c4371835b7a10aebd9992634d3d2ca9f6d4ec6f10bb26811a8c65fb6d9)(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)':
     dependencies:
       '@anthropic-ai/sdk': 0.123.0(zod@3.25.76)
       '@aws-sdk/client-bedrock-runtime': 3.1048.0
       '@earendil-works/pi-telemetry': 0.85.1
-      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))
+      '@google/genai': 2.32.0(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))
       '@smithy/node-http-handler': 4.7.3
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
@@ -7484,7 +7488,7 @@ snapshots:
     dependencies:
       '@earendil-works/chord': 0.85.1
       '@earendil-works/pi-agent-core': 0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
-      '@earendil-works/pi-ai': 0.85.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
+      '@earendil-works/pi-ai': 0.85.1(patch_hash=673616c4371835b7a10aebd9992634d3d2ca9f6d4ec6f10bb26811a8c65fb6d9)(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.21.3)(zod@3.25.76)
       '@earendil-works/pi-tui': 0.85.1
       '@silvia-odwyer/photon-node': 0.3.4
       chalk: 5.6.2
@@ -8030,7 +8034,7 @@ snapshots:
 
   '@gar/promisify@1.1.3': {}
 
-  '@google/genai@1.52.0(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))':
+  '@google/genai@2.32.0(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))':
     dependencies:
       google-auth-library: 10.9.1
       p-retry: 4.6.2

@@ -1,0 +1,31 @@
+diff --git a/dist/api/google-generative-ai.js b/dist/api/google-generative-ai.js
+index e5db9352c61629ab16158b78ee3a6bbd96bf1a9b..28b1e71ae39b41e1b80e92ca8f73c5f5f6657b0d 100644
+--- a/dist/api/google-generative-ai.js
++++ b/dist/api/google-generative-ai.js
+@@ -30,14 +30,11 @@ export const stream = (model, context, options) => {
+             timestamp: Date.now(),
+         };
+         try {
+-            if (options?.fetch && options.fetch !== globalThis.fetch) {
+-                throw new Error("Custom fetch is not supported by the Google Generative AI adapter");
+-            }
+             const apiKey = options?.apiKey;
+             if (!apiKey) {
+                 throw new Error(`No API key for provider: ${model.provider}`);
+             }
+-            const client = createClient(model, apiKey, options?.headers);
++            const client = createClient(model, apiKey, options?.headers, options?.fetch);
+             let params = buildParams(model, context, options);
+             const nextParams = await options?.onPayload?.(params, model);
+             if (nextParams !== undefined) {
+@@ -261,8 +258,8 @@ export const streamSimple = (model, context, options) => {
+         },
+     });
+ };
+-function createClient(model, apiKey, optionsHeaders) {
+-    const httpOptions = {};
++function createClient(model, apiKey, optionsHeaders, fetch) {
++    const httpOptions = { ...(fetch ? { fetch } : {}) };
+     if (model.baseUrl) {
+         httpOptions.baseUrl = model.baseUrl;
+         httpOptions.apiVersion = ""; // baseUrl already includes version path, don't append

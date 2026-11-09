@@ -10,6 +10,7 @@ import { createAssistantMessageEventStream, createProvider, InMemoryCredentialSt
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
+import { googleGenerativeAIApi } from '@earendil-works/pi-ai/api/google-generative-ai.lazy';
 import { z } from 'zod';
 import type { NomiModelConfig, NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 import { LANE_VENDOR_FAILURE_DIAGNOSTIC } from '../shared/agentLane/laneAssistantFault.js';
@@ -19,13 +20,14 @@ import { observeModelFetch, type ModelCallRecorder } from '../ai/modelCallFetch.
 import { modelCallFailure } from '../ai/runtimeVendorError.js';
 import { describeAgentError } from '../ai/agentError.js';
 import { logWarn } from '../logging/logger.js';
+import { assertNativeRequestBodySize } from '../ai/nativeFilePayload.js';
 
 export type { NomiStreamGuard } from './laneProviderGuard.mjs';
 
 export type { NomiModelConfig, NomiPricingBasis } from '../shared/agentLane/laneModelConfig.js';
 
 export const modelConfigSchema = z.object({
-  kind: z.enum(['openai-compatible', 'openai-responses', 'anthropic']),
+  kind: z.enum(['openai-compatible', 'openai-responses', 'anthropic', 'google-generative-ai']),
   providerId: z.string().min(1).refine((value) => value === value.trim(), 'providerId must be exact'),
   modelId: z.string().min(1).refine((value) => value === value.trim(), 'modelId must be exact'),
   baseURL: z.string().url().refine((value) => /^https?:\/\//.test(value), 'HTTP model endpoint required'),
@@ -44,6 +46,7 @@ export const modelConfigSchema = z.object({
   free: z.literal(true).optional(),
   reasoning: z.boolean().optional(),
   thinkingLevelMap: z.record(z.string().nullable()).optional(),
+  inputModalities: z.array(z.enum(['text', 'image', 'audio', 'video'])).optional(),
 }).superRefine((model, ctx) => {
   // 一个模型不能既有价目又声明免费：那样「花费」这一行有两个互相矛盾的答案，
   // 而下游必须在两者之间挑一个——挑哪个都是我们在替用户猜。
@@ -65,7 +68,33 @@ const protocols = {
   'openai-compatible': { api: 'openai-completions', streams: openAICompletionsApi },
   'openai-responses': { api: 'openai-responses', streams: openAIResponsesApi },
   anthropic: { api: 'anthropic-messages', streams: anthropicMessagesApi },
+  'google-generative-ai': { api: 'google-generative-ai', streams: googleGenerativeAIApi },
 } as const;
+
+/** Google concatenates its method suffix to baseUrl, so gateway queries ride fetch instead. */
+function sdkBaseUrl(config: NomiModelConfig): string {
+  if (config.kind !== 'google-generative-ai') return config.baseURL.replace(/\/+$/, '');
+  const url = new URL(config.baseURL);
+  url.search = '';
+  url.hash = '';
+  return url.toString().replace(/\/+$/, '');
+}
+
+function googleFetch(baseURL: string, fetchRequest: NonNullable<StreamOptions['fetch']>) {
+  const base = new URL(baseURL);
+  const prefix = `${base.pathname.replace(/\/+$/, '')}/models/`;
+  const send: NonNullable<StreamOptions['fetch']> = (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    if (url.origin !== base.origin || !url.pathname.startsWith(prefix)) throw new Error('Unexpected Google SDK endpoint');
+    if (typeof init?.body === 'string') assertNativeRequestBodySize(init.body);
+    const sdkQueryNames = new Set(url.searchParams.keys());
+    for (const [key, value] of base.searchParams) {
+      if (!sdkQueryNames.has(key)) url.searchParams.append(key, value);
+    }
+    return fetchRequest(input instanceof Request ? new Request(url, input) : url, init);
+  };
+  return send;
+}
 
 function anthropicFetch(baseURL: string, fetchRequest: NonNullable<StreamOptions['fetch']>) {
   const base = new URL(baseURL);
@@ -97,6 +126,7 @@ export async function prewarmProviderProtocols(protocols: readonly NomiModelConf
     'openai-compatible': () => import('@earendil-works/pi-ai/api/openai-completions'),
     'openai-responses': () => import('@earendil-works/pi-ai/api/openai-responses'),
     anthropic: () => import('@earendil-works/pi-ai/api/anthropic-messages'),
+    'google-generative-ai': () => import('@earendil-works/pi-ai/api/google-generative-ai'),
   } satisfies Record<NomiModelConfig['kind'], () => Promise<unknown>>;
   const yieldToMain = () => new Promise<void>((resolve) => setImmediate(resolve));
   for (const protocol of new Set(protocols)) {
@@ -178,10 +208,11 @@ function modelCost(config: NomiModelConfig): Model<Api>['cost'] {
  */
 export function createNomiModelDescriptor(config: NomiModelConfig): Model<Api> {
   const protocol = protocols[config.kind];
-  const baseUrl = config.baseURL.replace(/\/+$/, '');
+  const baseUrl = sdkBaseUrl(config);
   const model: Model<Api> = {
     provider: config.providerId, id: config.modelId, name: config.modelId,
-    api: protocol.api, baseUrl, reasoning: config.reasoning ?? false, input: ['text', 'image'],
+    api: protocol.api, baseUrl, reasoning: config.reasoning ?? false,
+    input: config.inputModalities?.filter((kind): kind is 'text' | 'image' => kind === 'text' || kind === 'image') ?? ['text', 'image'],
     // 契约层不认识 pi 的 `ThinkingLevelMap`（它是 `Partial<Record<ModelThinkingLevel, …>>`），
     // 键的合法性由 pi 自己在 `getSupportedThinkingLevels` 里过滤：认不出的键被忽略、
     // 值为 null 的档被剔掉。这里只负责原样递过去，不在两侧各维护一份档位清单。
@@ -203,7 +234,7 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
     await credentials.modify(config.providerId, async () => ({ type: 'api_key', key: config.apiKey }));
   }
   const protocol = protocols[config.kind];
-  const baseUrl = config.baseURL.replace(/\/+$/, '');
+  const baseUrl = sdkBaseUrl(config);
   const model = createNomiModelDescriptor(config);
   const headers: ProviderHeaders = { ...config.headers };
   if (config.authType === 'none') {
@@ -219,23 +250,30 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
     // NOT a credential: the public null header suppression removes it on wire.
     ...(config.authType === 'none' ? { apiKey: 'nomi-keyless-constructor-only' } : {}),
     headers: { ...options?.headers, ...headers },
-    fetch: config.kind === 'anthropic' ? anthropicFetch(baseUrl, fetch) : fetch,
+    fetch: config.kind === 'anthropic' ? anthropicFetch(baseUrl, fetch)
+      : config.kind === 'google-generative-ai' ? googleFetch(config.baseURL, fetch) : fetch,
     onPayload: async (payload: unknown, selected: Model<Api>) => {
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
         throw new Error('Expected a provider request object');
       }
       const body = { ...payload } as Record<string, unknown>;
-      delete body.max_tokens;
-      delete body.max_completion_tokens;
-      delete body.max_output_tokens;
       const cap = options?.maxTokens ?? config.maxOutputTokens ?? (config.kind === 'anthropic' ? 4096 : undefined);
-      if (cap !== undefined) {
-        body[config.kind === 'openai-responses' ? 'max_output_tokens' : 'max_tokens'] = cap;
+      if (config.kind === 'google-generative-ai') {
+        const generation = { ...(body.config as Record<string, unknown> | undefined) };
+        delete generation.maxOutputTokens;
+        if (cap !== undefined) generation.maxOutputTokens = cap;
+        if (config.temperature !== undefined) generation.temperature = config.temperature;
+        body.config = generation;
+      } else {
+        delete body.max_tokens;
+        delete body.max_completion_tokens;
+        delete body.max_output_tokens;
+        if (cap !== undefined) body[config.kind === 'openai-responses' ? 'max_output_tokens' : 'max_tokens'] = cap;
+        if (config.temperature !== undefined) body.temperature = config.temperature;
       }
-      if (config.temperature !== undefined) body.temperature = config.temperature;
       // 模型怪癖（o1/o3 只收 temperature 1、kimi 的 enable_thinking…）只在这一处套：lane、文本任务、编译器同一份请求体规矩。
       // 过去 lane 在自己的 rewritePayload 里套、文本任务在 ai@4 的 fetch 包装里套，两份。Anthropic 那条协议不吃这些字段。
-      const profiled = config.kind === 'anthropic' ? body : applyProfileToRequestBody(body, getModelProfile(config.modelId));
+      const profiled = config.kind === 'anthropic' || config.kind === 'google-generative-ai' ? body : applyProfileToRequestBody(body, getModelProfile(config.modelId));
       return (await options?.onPayload?.(profiled, selected)) ?? profiled;
     },
   });

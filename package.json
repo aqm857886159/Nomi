@@ -528,7 +528,8 @@
       "@earendil-works/pi-ai": "0.85.1",
       "@earendil-works/pi-coding-agent": "0.85.1",
       "@earendil-works/pi-telemetry": "0.85.1",
-      "@earendil-works/pi-tui": "0.85.1"
+      "@earendil-works/pi-tui": "0.85.1",
+      "@google/genai": "2.32.0"
     },
     "onlyBuiltDependencies": [
       "electron",
@@ -547,7 +548,8 @@
       "@ffprobe-installer/darwin-arm64"
     ],
     "patchedDependencies": {
-      "playwright-core@1.60.0": "patches/playwright-core@1.60.0.patch"
+      "playwright-core@1.60.0": "patches/playwright-core@1.60.0.patch",
+      "@earendil-works/pi-ai@0.85.1": "patches/@earendil-works__pi-ai@0.85.1.patch"
     }
   }
 }
