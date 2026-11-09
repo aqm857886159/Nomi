@@ -219,7 +219,7 @@ const english = {
   ogLocale: 'en_US',
   meta: {
     title: 'Nomi — Open-source, local-first AI video studio',
-    description: 'Open-source, local-first AI video studio for macOS and Windows. Plan storyboards, generate clips with your own model APIs or local ComfyUI, and edit them on a timeline. No Nomi account.',
+    description: 'Open-source, local-first AI video studio for macOS and Windows. Plan storyboards, generate with your own model APIs or ComfyUI, edit on a timeline. No account.',
     imageAlt: 'Nomi: pro-grade AI video, models at their real price',
   },
   nav: {
