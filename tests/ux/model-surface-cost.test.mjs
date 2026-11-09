@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
 import { assertModelCostRehearsal, costError, createModelCostProxy, MODEL_COST, stepsHash } from './_modelSurfaceCostSupport.mjs'
 
@@ -55,7 +55,8 @@ describe('one image cost sample boundary', () => {
     try {
       const file = path.join(root, 'receipt.json')
       const receipt = (hash) => ({ status: 'passed', finishedAt: new Date().toISOString(), stepsHash: hash, model: MODEL_COST,
-        commit: 'f'.repeat(40), results: ['en', 'zh-CN'].map(locale => ({ locale, checks: { ok: true } })) })
+        // A real local commit: a made-up one makes a partial clone fetch it from the network.
+        commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), results: ['en', 'zh-CN'].map(locale => ({ locale, checks: { ok: true } })) })
       fs.writeFileSync(file, JSON.stringify(receipt('bad')))
       expect(() => assertModelCostRehearsal(file)).toThrow('Shared steps changed after rehearsal')
       fs.writeFileSync(file, JSON.stringify(receipt(stepsHash())))
