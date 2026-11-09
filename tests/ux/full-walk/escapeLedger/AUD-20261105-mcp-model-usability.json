@@ -1,0 +1,26 @@
+{
+  "id": "AUD-20261105-mcp-model-usability",
+  "since": "2026-11-05",
+  "source": "External AI model-list review and draft #1388.",
+  "category": "claims-and-outcomes",
+  "problem": "The result text and count recommend configured models even when the same row says usable=false.",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [
+    "Choose a usable model from the external AI model list."
+  ],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "manualReview": "pending",
+  "evidence": [
+    "docs/plan/2026-11-05-mcp-model-usability.md",
+    "docs/fixes/2026-11-05-mcp-model-usability.root-cause.json",
+    "electron/capabilityCore/mcpToolResults.test.ts"
+  ],
+  "completionCommits": [],
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/capabilityCore/mcpToolResults.test.ts"
+  },
+  "rootCauseContract": "docs/fixes/2026-11-05-mcp-model-usability.root-cause.json"
+}

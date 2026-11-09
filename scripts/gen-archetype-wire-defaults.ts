@@ -205,10 +205,33 @@ const KIND_SLUG: Record<string, string> = {
  * 门岗会一次次被同一件事顶红。按 kind 分片后每片各自增长，且分组语义与代码其它处一致。
  * （同样理由，身份表早已单独成文件——见 renderIdentifiersFile。）
  */
-export function renderWireDefaultShards(defaults: WireDefaults): Array<{ file: string; content: string }> {
+/** 每片最多的 JSON 行数：低于文件体积门岗的黄牌（650），一片装不下就顺序续片（video2、video3 ...）。 */
+const SHARD_MAX_LINES = 600;
+
+/** 把一张 id→值 的表按 JSON 行数顺序切片；条目顺序保持，切点只看累计行数，所以结果可复现。 */
+function chunkByLines<T>(table: Record<string, T>): Array<Record<string, T>> {
+  const chunks: Array<Record<string, T>> = [];
+  let current: Record<string, T> = {};
+  let lines = 0;
+  for (const [id, value] of Object.entries(table)) {
+    const size = JSON.stringify({ [id]: value }, null, 2).split("\n").length - 2;
+    if (lines > 0 && lines + size > SHARD_MAX_LINES) {
+      chunks.push(current);
+      current = {};
+      lines = 0;
+    }
+    current[id] = value;
+    lines += size;
+  }
+  if (Object.keys(current).length > 0) chunks.push(current);
+  return chunks;
+}
+
+/** 按 kind 分组，每组再按行数续片：kind 的第一片叫 `image`，第二片 `image2`……。 */
+function shardSlugs<T>(table: Record<string, T>): Array<{ slug: string; body: Record<string, T> }> {
   const kindById = archetypeKindById();
-  const byKind: Record<string, WireDefaults> = {};
-  for (const [archetypeId, value] of Object.entries(defaults)) {
+  const byKind: Record<string, Record<string, T>> = {};
+  for (const [archetypeId, value] of Object.entries(table)) {
     const slug = KIND_SLUG[kindById[archetypeId]] ?? "other";
     byKind[slug] = byKind[slug] ?? {};
     byKind[slug][archetypeId] = value;
@@ -216,12 +239,25 @@ export function renderWireDefaultShards(defaults: WireDefaults): Array<{ file: s
   return Object.keys(KIND_SLUG)
     .concat("other")
     .filter((slug) => byKind[slug])
-    .map((slug) => ({
-      file: `archetypeWireDefaults.${slug}.generated.ts`,
-      content:
-        `${BANNER}// 档案参数默认值桥接（${slug} 分片）。合并出口在 archetypeWireDefaults.generated.ts。\n` +
-        `export const ARCHETYPE_WIRE_DEFAULTS_${slug.toUpperCase()}: Record<string, Record<string, Record<string, Record<string, unknown>>>> = ${JSON.stringify(byKind[slug], null, 2)};\n`,
-    }));
+    .flatMap((slug) => chunkByLines(byKind[slug]).map((body, index) => ({ slug: index === 0 ? slug : `${slug}${index + 1}`, body })));
+}
+
+/**
+ * 默认值表**按档案 kind 分片**生成，再由 barrel 合并；一个 kind 装不下 600 行时顺序续片。
+ *
+ * 为什么不写成一个文件：它随档案数单调增长，2026-08-26 接火山 Seedream 5.0 pro + Seedance 2.5 时
+ * 顶破了 800 行巨壳门岗（R12）。把它塞进白名单等于给一个**每加一个模型就再涨一截**的文件开永久口子，
+ * 门岗会一次次被同一件事顶红。按 kind 分片后每片各自增长，且分组语义与代码其它处一致；
+ * 单个 kind 也涨到装不下时（视频档案 2026-11-07 超 850 行）由生成器自动续片，不再靠人手拆。
+ * （同样理由，身份表早已单独成文件——见 renderIdentifiersFile。）
+ */
+export function renderWireDefaultShards(defaults: WireDefaults): Array<{ file: string; content: string }> {
+  return shardSlugs(defaults).map(({ slug, body }) => ({
+    file: `archetypeWireDefaults.${slug}.generated.ts`,
+    content:
+      `${BANNER}// 档案参数默认值桥接（${slug} 分片）。合并出口在 archetypeWireDefaults.generated.ts。\n` +
+      `export const ARCHETYPE_WIRE_DEFAULTS_${slug.toUpperCase()}: Record<string, Record<string, Record<string, Record<string, unknown>>>> = ${JSON.stringify(body, null, 2)};\n`,
+  }));
 }
 
 /** 合并出口（消费方 import 路径不变）。 */
@@ -250,10 +286,26 @@ export function renderIdentifiersFile(identifiers: Record<string, string[]>): st
   );
 }
 
+/** 模式清单同样按 kind 分片（`archetypeModes.<slug>.generated.ts`），出口 archetypeModes.generated.ts 合并。 */
+export function renderModesShards(manifest: ModeManifest): Array<{ file: string; content: string }> {
+  return shardSlugs(manifest).map(({ slug, body }) => ({
+    file: `archetypeModes.${slug}.generated.ts`,
+    content:
+      `${BANNER}// 档案模式桥接（${slug} 分片）。合并出口在 archetypeModes.generated.ts。\n` +
+      `export const ARCHETYPE_MODE_MANIFEST_${slug.toUpperCase()}: Record<string, { defaultModeId: string; modes: Record<string, string> }> = ${JSON.stringify(body, null, 2)};\n`,
+  }));
+}
+
 export function renderModesFile(manifest: ModeManifest): string {
+  const shards = renderModesShards(manifest).map((s) => s.file.replace(/\.ts$/, ""));
+  const names = shards.map((f) => `ARCHETYPE_MODE_MANIFEST_${f.split(".")[1].toUpperCase()}`);
   return (
     `${BANNER}// 档案模式桥接：主进程只据此校验 modeId/taskKind；完整输入能力仍以 renderer 档案为真相源。\n` +
-    `export const ARCHETYPE_MODE_MANIFEST: Record<string, { defaultModeId: string; modes: Record<string, string> }> = ${JSON.stringify(manifest, null, 2)};\n`
+    `// 表体按 kind 分片（各 *.generated.ts），此处合并 —— 分片是为了不让单文件随档案数顶破 800 行巨壳门岗。\n` +
+    shards.map((file, i) => `import { ${names[i]} } from "./${file}";\n`).join("") +
+    `\nexport const ARCHETYPE_MODE_MANIFEST: Record<string, ${"{ defaultModeId: string; modes: Record<string, string> }"}> = {\n` +
+    names.map((n) => `  ...${n},\n`).join("") +
+    `};\n`
   );
 }
 
@@ -267,6 +319,7 @@ if (isMain) {
     ...renderWireDefaultShards(wireDefaults),
     { file: "archetypeWireDefaults.generated.ts", content: renderGeneratedFile(wireDefaults, buildArchetypeSizeRatioSemantic()) },
     { file: "archetypeIdentifiers.generated.ts", content: renderIdentifiersFile(buildArchetypeIdentifierPatterns()) },
+    ...renderModesShards(buildArchetypeModeManifest()),
     { file: "archetypeModes.generated.ts", content: renderModesFile(buildArchetypeModeManifest()) },
   ];
   if (process.argv.includes("--check")) {

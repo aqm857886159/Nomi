@@ -2,7 +2,9 @@
   "version": 1,
   "exclusions": [
     { "path": "tests/ux/agent-askback-real-model.walk.mjs", "category": "B", "reason": "requires private real-media fixtures and live model credentials" },
+    { "path": "tests/ux/agent-verbatim-prompt-real-model.walk.mjs", "category": "B", "reason": "requires live model credentials (real text model, coordinator runs it before and after the fix)" },
     { "path": "tests/ux/agent-image-input-real.rehearsal.walk.mjs", "category": "B", "reason": "requires private real-media fixtures (NOMI_REAL_MEDIA_DIR): round 2 attaches a frame cut from the registered 4K video" },
+    { "path": "tests/ux/agent-param-eval-real-model.walk.mjs", "category": "B", "reason": "requires live model credentials and a paid brain-model run (generation stays at the spend card; --dry-run needs no model but is a manual instrument check)" },
     { "path": "tests/ux/agent-runtime-provider.walk.mjs", "category": "B", "reason": "explicit live paid evaluation requiring a packaged macOS app and credentials" },
     { "path": "tests/ux/agent-runtime-video-export.walk.mjs", "category": "B", "reason": "requires the developer machine's external ffmpeg binary" },
     { "path": "tests/ux/agent-storyboard-real-model.walk.mjs", "category": "B", "reason": "requires private real-media fixtures and live model credentials" },

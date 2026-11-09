@@ -1,4 +1,4 @@
-import { canvasLocalArtifactReceipt } from "./canvasShotRunApi";
+import { canvasAwareOutputMaterializer } from "./canvasShotRunApi";
 import { readAgentApprovalPolicy } from '../settings/agentApprovalPolicySettings'
 import { parseDirectorPreviewBlockReply } from "../shared/director/directorPreviewStatus";
 // 能力核 · app 集成（见 docs/plan/2026-06-20-capability-core-headless-exposure.md §S4）。
@@ -69,9 +69,10 @@ import { createGenerationProviderBootstrap } from './generationProviderBootstrap
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
 import { installPendingSpendActions, pendingSpendDependencies, readInstalledPendingSpend } from './appIntegrationSpendConfirm'
-import { createCanvasShotRuns, installCanvasShotRuns, withdrawQueuedHandOvers } from './appIntegrationCanvasShot'
+import { createCanvasShotRuns, followCanvasShotChange, installCanvasShotRuns, withdrawQueuedHandOvers } from './appIntegrationCanvasShot'
+import { CANVAS_SHOT_SETTLED_OP } from '../shared/canvas/canvasShotSettled'
 import { createCanvasHandOver } from './canvasHandOver'
-import { canvasTransportProviders, isCanvasProviderId, lazyCanvasTransport } from './canvasTransportProvider'
+import { canvasTransportProviders, lazyCanvasTransport } from './canvasTransportProvider'
 import { quoteSpendLine } from '../spendQuote'
 import { createGenerationReferenceScopeGuard } from './generationReferenceScope'
 export { canvasOpenRuns, consentCanvasShots, submitCanvasShot, pollCanvasShot, releaseCanvasShot, withdrawCanvasShots, releaseCanvasShotSender } from './appIntegrationCanvasShot'
@@ -236,9 +237,10 @@ export async function startCapabilityCore(
     // 画布节点跟着 Run 走：每一次耐久变化（派发 / 受理 / 出片落盘 / 失败 / 停）都经过仓库 execute 的事件旁路，
     // 跟随者据此把「生成中 / 结果 / 失败」写进节点自己的运行记录——与普通生成同一份状态、同一套画法。
     // 它取代了以前只在「出片」那一下投递结果的专用通道（一件事一个 owner：Run → 画布只有落地这一条路）。
-    // 同一个订阅里收排队的交接：Agent 那一次出价从哪条路关的（取消 / 停 / 打字 / 重启清扫 / 被顶掉），交给画布、还没轮到的那几镜都当场收回同意。
+    // 同一个订阅里收排队的交接：Agent 那一次出价从哪条路关的（取消 / 停 / 打字 / 重启清扫 / 被顶掉），交给画布、还没轮到的那几镜都当场收回同意；
+    // 画布单镜交给观察者的那一笔收尾了，也在这里摇渲染层按号去收（画布单镜 Run 不走上面的落地）。
     unsubscribeRunChanges?.()
-    unsubscribeRunChanges = subscribeProductionRunChanges((run) => { canvasLanding.followRunChange(run); withdrawQueuedHandOvers(run) })
+    unsubscribeRunChanges = subscribeProductionRunChanges((run) => { canvasLanding.followRunChange(run); withdrawQueuedHandOvers(run); followCanvasShotChange(run) })
     // P4 S4/S5：构造一个 Run 的提交门面（submission）。lease 身份（immutableProjectUuid/projectGeneration）
     // 从工作区记录读——**耐久 binding 已冻住这些值**，恢复时无需新 lease。provider 集合按所有镜头合同和已有 job 推导。
     // 返回 null = provider 未配置 / 工程根不可达（调用方跳过，不驱动）。start 与恢复调度共用同一门槛（P1）。
@@ -255,9 +257,7 @@ export async function startCapabilityCore(
       intentMacKey: ensureCapabilitySigningKey('generation-intent'),
       providers: input.providers,
       // 画布那台交回来的产物已经落在项目里：记进 Run，不再下载一次；不是本地地址的走通用物化。
-      materializeOutput: async ({ projectId, providerTaskId, output, job }) => (isCanvasProviderId(job.provider)
-        && canvasLocalArtifactReceipt({ projectId, projectRoot: input.projectRoot, providerTaskId, output }))
-        || outputMaterializer.materialize({ projectId, providerTaskId, output, providerId: job.provider }),
+      materializeOutput: canvasAwareOutputMaterializer(input.projectRoot, outputMaterializer),
     })
     type SubmittableRun = {
       projectId: string
@@ -328,6 +328,7 @@ export async function startCapabilityCore(
       previewBlock: async (projectId, nodeId) => parseDirectorPreviewBlockReply(await requestRenderer('director.preview-blocks', { projectId, nodeIds: [nodeId] }, 10_000)),
       quote: (input) => { const amount = quoteSpendLine(input).amount; return amount === null ? { known: false } : { known: true, amount } },
       observe: observeSingleShotRun,
+      notifySettled: (notice) => requestRenderer(CANVAS_SHOT_SETTLED_OP, notice, 60_000),
     })
     installCanvasShotRuns(canvasShots)
     // 付费卡上点「生成」与「直接生成」档的策略共用这一台：把 Agent 那一次出价里的几镜交给画布（逐镜走上面那条画布单节点提交）。

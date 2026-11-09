@@ -1,7 +1,7 @@
 {
   "/": {
-    "hash": "9c7ac9ab7cb9cae9",
-    "date": "2026-10-27"
+    "hash": "94efa6b1a433f339",
+    "date": "2026-11-07"
   },
   "/docs": {
     "hash": "f091bde3519cf124",
@@ -28,8 +28,8 @@
     "date": "2026-10-28"
   },
   "/en/": {
-    "hash": "39696d5f1d7cafe6",
-    "date": "2026-10-27"
+    "hash": "094fa45eabc2017f",
+    "date": "2026-11-07"
   },
   "/en/docs": {
     "hash": "abb1dd18e307eb86",
@@ -60,12 +60,12 @@
     "date": "2026-10-24"
   },
   "/en/models": {
-    "hash": "c66c76da2482b023",
-    "date": "2026-10-24"
+    "hash": "5173ce63c909b72d",
+    "date": "2026-11-07"
   },
   "/en/models/agnes-image-2-1": {
-    "hash": "657977b7dea3344a",
-    "date": "2026-10-24"
+    "hash": "03e5d965866a0f1e",
+    "date": "2026-11-07"
   },
   "/en/models/agnes-video-2-5": {
     "hash": "a65b6f3441263c9b",
@@ -108,8 +108,8 @@
     "date": "2026-10-24"
   },
   "/en/models/grok-imagine-1-5": {
-    "hash": "9bafd199596a5818",
-    "date": "2026-10-24"
+    "hash": "2227a9b03422a1bd",
+    "date": "2026-11-07"
   },
   "/en/models/grok-imagine-image-2": {
     "hash": "667db91fe67eebbc",
@@ -120,8 +120,8 @@
     "date": "2026-10-24"
   },
   "/en/models/happyhorse-1-1": {
-    "hash": "85dc7079846dfbdd",
-    "date": "2026-10-24"
+    "hash": "e6167cec2eb93fe8",
+    "date": "2026-11-07"
   },
   "/en/models/imagen-4-fast": {
     "hash": "477cab12e9d1a67f",
@@ -148,8 +148,8 @@
     "date": "2026-10-24"
   },
   "/en/models/muse-image": {
-    "hash": "869f1a34f6487dde",
-    "date": "2026-10-24"
+    "hash": "bb430c48502d6600",
+    "date": "2026-11-07"
   },
   "/en/models/nano-banana-2": {
     "hash": "ccf9d6f120ba9cf4",
@@ -164,8 +164,8 @@
     "date": "2026-10-24"
   },
   "/en/models/qwen-image-3-0": {
-    "hash": "18056e025ccfb582",
-    "date": "2026-10-24"
+    "hash": "a91e8236d60488f8",
+    "date": "2026-11-07"
   },
   "/en/models/runway-gen-4-5": {
     "hash": "823916b4edcf8436",
@@ -188,8 +188,8 @@
     "date": "2026-10-24"
   },
   "/en/models/seedream-5-0-pro": {
-    "hash": "ba1553e60a5afb54",
-    "date": "2026-10-24"
+    "hash": "22fae3a467624512",
+    "date": "2026-11-07"
   },
   "/en/models/soul-2": {
     "hash": "948158fb002b5666",
@@ -216,8 +216,8 @@
     "date": "2026-10-24"
   },
   "/en/models/z-image-turbo": {
-    "hash": "f0b7e23016914bb8",
-    "date": "2026-10-24"
+    "hash": "aa156e387a5c20ba",
+    "date": "2026-11-07"
   },
   "/en/prompts": {
     "hash": "d9a4eebc56dcc0bd",
@@ -276,8 +276,8 @@
     "date": "2026-10-24"
   },
   "/en/quickstart": {
-    "hash": "460e6c38394aa097",
-    "date": "2026-10-28"
+    "hash": "d761a38ff19335c9",
+    "date": "2026-11-06"
   },
   "/en/skills": {
     "hash": "f643e2ffbac68a60",
@@ -424,8 +424,8 @@
     "date": "2026-10-24"
   },
   "/en/skills/workbench-generation": {
-    "hash": "9f70f63b2c242ae6",
-    "date": "2026-10-24"
+    "hash": "d5eaf968f6fb79ba",
+    "date": "2026-11-07"
   },
   "/en/skills/workbench-storyboard-planner": {
     "hash": "861d8ce5d9fafccc",
@@ -480,12 +480,12 @@
     "date": "2026-10-24"
   },
   "/models": {
-    "hash": "4c5a99f66c56d0b7",
-    "date": "2026-10-24"
+    "hash": "2eec394bda4b7a02",
+    "date": "2026-11-07"
   },
   "/models/agnes-image-2-1": {
-    "hash": "ea800bcaa9f89625",
-    "date": "2026-10-24"
+    "hash": "a8c124a9c7901e6f",
+    "date": "2026-11-07"
   },
   "/models/agnes-video-2-5": {
     "hash": "cffdfb5be76d37ca",
@@ -528,8 +528,8 @@
     "date": "2026-10-24"
   },
   "/models/grok-imagine-1-5": {
-    "hash": "3364b4c5aa512fcb",
-    "date": "2026-10-24"
+    "hash": "56d6075539cc1cb8",
+    "date": "2026-11-07"
   },
   "/models/grok-imagine-image-2": {
     "hash": "fff9d1651628e612",
@@ -540,8 +540,8 @@
     "date": "2026-10-24"
   },
   "/models/happyhorse-1-1": {
-    "hash": "435b2dce464f7292",
-    "date": "2026-10-24"
+    "hash": "92420057cb1b1fb5",
+    "date": "2026-11-07"
   },
   "/models/imagen-4-fast": {
     "hash": "cbe2c15e5c3ca1fe",
@@ -568,8 +568,8 @@
     "date": "2026-10-24"
   },
   "/models/muse-image": {
-    "hash": "7bc3e9e4e3ebd8f8",
-    "date": "2026-10-24"
+    "hash": "6c756d736c741c4c",
+    "date": "2026-11-07"
   },
   "/models/nano-banana-2": {
     "hash": "11ce855040f90496",
@@ -584,8 +584,8 @@
     "date": "2026-10-24"
   },
   "/models/qwen-image-3-0": {
-    "hash": "3991ac0a809d9a2d",
-    "date": "2026-10-24"
+    "hash": "f0d20c7ab7633778",
+    "date": "2026-11-07"
   },
   "/models/runway-gen-4-5": {
     "hash": "54976a8e412e9375",
@@ -608,8 +608,8 @@
     "date": "2026-10-24"
   },
   "/models/seedream-5-0-pro": {
-    "hash": "633e9f7cddd7dd5c",
-    "date": "2026-10-24"
+    "hash": "67ec26d35ee23ec7",
+    "date": "2026-11-07"
   },
   "/models/soul-2": {
     "hash": "9ac4046513eb51e5",
@@ -636,8 +636,8 @@
     "date": "2026-10-24"
   },
   "/models/z-image-turbo": {
-    "hash": "72fff2221a73538f",
-    "date": "2026-10-24"
+    "hash": "14e79c7fdd97ec07",
+    "date": "2026-11-07"
   },
   "/prompts": {
     "hash": "d6e8498315f819b9",
@@ -696,8 +696,8 @@
     "date": "2026-10-24"
   },
   "/quickstart": {
-    "hash": "7616ea3733edb2f3",
-    "date": "2026-10-28"
+    "hash": "527f964df0193bd1",
+    "date": "2026-11-06"
   },
   "/skills": {
     "hash": "46e1e95f1f68edb6",
@@ -844,8 +844,8 @@
     "date": "2026-10-24"
   },
   "/skills/workbench-generation": {
-    "hash": "d58a5bb575f33ce2",
-    "date": "2026-10-24"
+    "hash": "6e4dba2df6bafff6",
+    "date": "2026-11-07"
   },
   "/skills/workbench-storyboard-planner": {
     "hash": "c2fbeaff66902706",

@@ -1,0 +1,178 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-08-auto-text-brain-order",
+  "problem_type": "Catalog insertions silently change automatic paid text model selection.",
+  "symptom": "A fresh APIMart-only catalog selects GPT-6 Astra for plain text instead of DeepSeek V4 Pro. Disabling Pro also bypasses V4 Flash.",
+  "direct_cause": "The generic text penalty ties current chat rows; stable sorting then follows the seed or persisted insertion order.",
+  "class_root": "The declared plain-text default and backup were represented only by row position.",
+  "affected_population": [
+    "APIMart fresh and upgraded catalogs and disabled model rows",
+    "Automatic Agent and text-node selection; explicit vendor/model identities and automatic image choice are separate inputs."
+  ],
+  "scope_paths": [
+    "electron/catalog/apimartTexts.ts",
+    "electron/ai/textBrainResolver.ts"
+  ],
+  "entry_points": [
+    "Agent chooseTextModel",
+    "Default/readiness and follow-Agent text node selection via selectTextModelCandidates"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Catalog positioning and the chosen defaults are Nomi product policy; recorded in apimartTexts before this PR and the design card.",
+  "invariants": [
+    "Availability is filtered first. Explicit preference and image ranking retain their own policies. Plain text priorities have vendor-local scope."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/ai/textBrainResolver.test.ts",
+      "symbol": "selectTextModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/textBrainResolver.ts",
+      "symbol": "selectTextModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/apimartLatestContracts.test.ts",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/apimartLatestContracts.test.ts",
+      "symbol": "selectTextModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/apimartTexts.ts",
+      "symbol": "ApimartTextModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/catalogLiveness/states/01-listing.tsx",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/modelAvailabilityAgreement.test.ts",
+      "symbol": "selectTextModelCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/_paidEnvKey.mjs",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/_paidEnvKey.test.mjs",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/apimart-text-brains-real.paid.mjs",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/apimart-text-list-real.paid.mjs",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/apimart-text-list.rehearsal.walk.mjs",
+      "symbol": "APIMART_TEXT_MODELS"
+    },
+    {
+      "kind": "read",
+      "path": "tests/ux/pr720-apimart-key.walk.mjs",
+      "symbol": "APIMART_TEXT_MODELS"
+    }
+  ],
+  "door_reduction": {
+    "before": 14,
+    "after": 14,
+    "why_not": "These are callers and tests of one resolver; all consume the same sorting policy."
+  },
+  "generality_proof": "Vendor-local priorities select the declared text primary and backup across permutations without reordering independent vendors. Unmarked ordinary models retain stable order.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/textBrainResolver.ts",
+      "symbol": "rankAutomaticTextModels",
+      "responsibility": "Orders automatic plain-text candidates in vendor-local slots; the common resolver calls it only with usable models and no explicit preference."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/textBrainResolver.ts",
+      "entry_point": "chooseTextModel",
+      "disposition": "enforced",
+      "evidence": "Delegates all candidate selection to selectTextModelCandidates."
+    },
+    {
+      "path": "electron/ai/textBrainResolver.ts",
+      "entry_point": "resolveTextBrainKeys / resolveTextBrainStatus",
+      "disposition": "enforced",
+      "evidence": "Configured default and follow-Agent paths call selectTextModelCandidates."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every catalog insertion and every pre-existing row ordering can change the winner.",
+    "same_class_scan": [
+      "Checked Agent lane chooseTextModel, configured default, follow-Agent path and readiness agreement.",
+      "Checked renderer useAgentPanelV4Data; it keeps no implicit model when the preference is empty."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/textBrainResolver.ts",
+    "invariant": "Only usable plain-text candidates from the same vendor can exchange priority.",
+    "failure_mode": "An unavailable preferred row remains excluded; explicit unavailable identities fail using the existing resolver contract.",
+    "exception_policy": "none",
+    "strategy": "Read the declared ordinary-text rank at the shared automatic resolver after availability and outside explicit/image paths.",
+    "artifacts": [
+      "electron/ai/textBrainResolver.ts",
+      "electron/catalog/apimartTexts.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/ai/textBrainResolver.test.ts",
+    "electron/catalog/apimartLatestContracts.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/ai/textBrainResolver.test.ts",
+    "electron/catalog/apimartLatestContracts.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/textBrainResolver.ts"
+    ],
+    "rationale": "Unqualified raw order as the sole tie breaker for ordinary automatic text is replaced. Unmarked models retain stable order."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The resolver and seed policy are internal product decisions.",
+    "exit_criteria": []
+  },
+  "migration": "Existing seed reconciliation adds code-owned metadata to the same model keys without toggling enabled state or changing user preferences.",
+  "residual_risks": [
+    "No cloud billing or provider retest; regression checks derive the selected identity locally."
+  ],
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-08",
+  "invariant_owner_layer": {
+    "layer": "electron/ai/textBrainResolver.ts",
+    "tests": [
+      "electron/ai/textBrainResolver.test.ts",
+      "electron/catalog/apimartLatestContracts.test.ts"
+    ],
+    "why": "Both the shared resolver and full fresh/upgrade catalog selections exercise the ordering invariant."
+  }
+}

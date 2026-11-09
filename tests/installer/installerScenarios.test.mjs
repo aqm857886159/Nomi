@@ -3,7 +3,7 @@
 // 真装真升真卸只能在 .github/workflows/win-installer.yml 的 Windows 作业里跑；这里在默认 vitest 车道（任何平台）守住
 // 「那个作业量的东西还是对的」：
 //   · 任务书点名的每个覆盖面都有场景认领，场景登记 ↔ 执行器 ↔ 设计卡 ★9 表一一对应；
-//   · 工作流在 windows-latest 上跑全部场景、反例开着、不带 --only，旧版是 v0.24.0；
+//   · 工作流在 Windows 机器上跑全部场景、反例开着、不带 --only，旧版是 v0.24.0；
 //   · 它是发版硬门：desktop-rc.yml 恰好一个作业无条件调用它、finalize 依赖它，desktop-release.yml 只晋级 success 的候选版；
 //   · 执行器种「默认位置」用户数据的地方，还是应用代码里新项目的默认位置（「文档」\Nomi Projects）；
 //   · build/installer.nsh 没有 `RMDir /r`、4 个钩子都在，常量和 scenarios.mjs 逐字一致，引入的清单路径就是生成器写的路径；
@@ -21,7 +21,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { registerInstallerCompileTests } from '../../scripts/packaging/installer-compile.cases.mjs'
 import { cleanupTestTemp, makeTempDir } from '../../scripts/_test-temp.mjs'
 import { COUNTEREXAMPLES, DEFAULT_PROJECTS_FOLDER, MARKER_VALUE_NAME, REQUIRED_COVERAGE, SCENARIOS } from './scenarios.mjs'
-import { OLD_VERSION, SCENARIO_RUNNERS, applyMutation } from './windows-installer-scenarios.mjs'
+import { DEFAULT_OLD_VERSION, SCENARIO_RUNNERS, applyMutation, parseOldVersion } from './windows-installer-scenarios.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const require = createRequire(import.meta.url)
@@ -175,20 +175,27 @@ function workflowProblems(text) {
   const problems = []
   const workflow = yaml.load(text)
   const jobs = Object.values(workflow.jobs ?? {})
-  const steps = jobs.filter((job) => job['runs-on'] === 'windows-latest').flatMap((job) => job.steps ?? [])
+  const steps = jobs.filter((job) => /^windows-/.test(String(job['runs-on']))).flatMap((job) => job.steps ?? [])
   const runner = steps.filter((step) => typeof step.run === 'string' && step.run.includes('tests/installer/windows-installer-scenarios.mjs'))
-  if (runner.length !== 1) problems.push(`expected one windows-latest step running the scenario runner, found ${runner.length}`)
+  if (runner.length !== 1) problems.push(`expected one Windows-runner step running the scenario runner, found ${runner.length}`)
   for (const step of runner) {
     if (!/(^|\s)--counterexamples(\s|$)/.test(step.run)) problems.push('the runner step does not pass --counterexamples')
     if (/(^|\s)--only(\s|=|$)/.test(step.run)) problems.push('the runner step passes --only (every scenario must run)')
-    for (const flag of ['--old', '--old-sums', '--new', '--manifest', '--unpacked', '--work', '--report']) {
+    for (const flag of ['--old', '--old-sums', '--old-version', '--new', '--manifest', '--unpacked', '--work', '--report']) {
       if (!new RegExp(`(^|\\s)${flag}\\s`).test(step.run)) problems.push(`the runner step is missing ${flag}`)
     }
   }
-  if (!steps.some((step) => typeof step.run === 'string' && step.run.includes(`gh release download v${OLD_VERSION} `))) {
-    problems.push(`no step downloads the v${OLD_VERSION} release installer`)
+  // 旧版本号只有一个来源：作业环境变量 OLD_VERSION = 手动输入，否则默认值；下载的 tag 和传给执行器的版本都读它。
+  const jobEnv = jobs.filter((job) => /^windows-/.test(String(job['runs-on']))).map((job) => job.env?.OLD_VERSION)
+  if (jobEnv.length !== 1 || jobEnv[0] !== `\${{ inputs.old_version || '${DEFAULT_OLD_VERSION}' }}`) problems.push(`the job env OLD_VERSION must be inputs.old_version falling back to ${DEFAULT_OLD_VERSION} (push and release-gate runs have no input)`)
+  if (!steps.some((step) => typeof step.run === 'string' && step.run.includes('gh release download "v$env:OLD_VERSION" '))) {
+    problems.push('no step downloads the old release installer by v$env:OLD_VERSION')
   }
+  if (!runner.every((step) => step.run.includes('--old-version "$env:OLD_VERSION"'))) problems.push('the runner step does not pass --old-version "$env:OLD_VERSION"')
   const triggers = workflow.on ?? {}
+  const dispatchDefault = triggers.workflow_dispatch?.inputs?.old_version?.default
+  if (dispatchDefault !== DEFAULT_OLD_VERSION) problems.push(`workflow_dispatch input old_version default must be ${DEFAULT_OLD_VERSION}, got ${dispatchDefault}`)
+  if (triggers.workflow_call && typeof triggers.workflow_call === 'object' && triggers.workflow_call.inputs?.old_version) problems.push('workflow_call must not take old_version (the release gate always runs the default)')
   if (!('workflow_dispatch' in triggers)) problems.push('workflow_dispatch trigger missing')
   if (!('workflow_call' in triggers)) problems.push(`workflow_call trigger missing (${RC_WORKFLOW} calls this workflow as a release gate)`)
   const paths = triggers.push?.paths ?? []
@@ -206,6 +213,7 @@ function releaseGateProblems(text) {
   const callers = Object.entries(jobs).filter(([, job]) => job.uses === CALLED_AS)
   if (callers.length !== 1) problems.push(`expected one ${RC_WORKFLOW} job calling ${CALLED_AS}, found ${callers.length}`)
   for (const [id, job] of callers) {
+    if (job.with !== undefined) problems.push(`the ${id} job passes inputs (${Object.keys(job.with)}); the release gate must run the default old version`)
     if (job.if !== undefined) problems.push(`the ${id} job has a condition (${job.if}); the release gate must run on every candidate`)
     if (![].concat(jobs.finalize?.needs ?? []).includes(id)) problems.push(`finalize does not need ${id}, so a red installer run would not stop the candidate`)
   }
@@ -237,7 +245,7 @@ describe('installer scenario registry', () => {
 })
 
 describe('Windows installer workflow', () => {
-  it('runs every scenario and the counterexamples on windows-latest against the v0.24.0 release, on pushes that touch the installer', () => {
+  it('runs every scenario and the counterexamples on a Windows runner against the v0.24.0 release by default (any older version by manual dispatch), on pushes that touch the installer', () => {
     expect(workflowProblems(read(WORKFLOW))).toEqual([])
   })
 
@@ -256,10 +264,21 @@ describe('Windows installer workflow', () => {
     const text = read(WORKFLOW)
     expect(workflowProblems(text.replaceAll('--counterexamples', '--counterexamples --only old-to-new-user-folder'))).toContain('the runner step passes --only (every scenario must run)')
     expect(workflowProblems(text.replaceAll('--counterexamples', ''))).toContain('the runner step does not pass --counterexamples')
-    expect(workflowProblems(text.replaceAll('runs-on: windows-latest', 'runs-on: ubuntu-latest'))).toContain('expected one windows-latest step running the scenario runner, found 0')
+    expect(workflowProblems(text.replaceAll('runs-on: windows-2025', 'runs-on: ubuntu-24.04'))).toContain('expected one Windows-runner step running the scenario runner, found 0')
     expect(workflowProblems(text.replaceAll('      - tests/installer/**\n', ''))).toContain('push.paths does not cover tests/installer/scenarios.mjs')
-    expect(workflowProblems(text.replaceAll(`v${OLD_VERSION} `, 'v0.23.9 '))).toContain(`no step downloads the v${OLD_VERSION} release installer`)
+    expect(workflowProblems(text.replaceAll('gh release download "v$env:OLD_VERSION" ', 'gh release download v0.23.9 '))).toContain('no step downloads the old release installer by v$env:OLD_VERSION')
+    expect(workflowProblems(text.replaceAll("inputs.old_version || '0.24.0'", "inputs.old_version || '0.23.9'"))).toContain(`the job env OLD_VERSION must be inputs.old_version falling back to ${DEFAULT_OLD_VERSION} (push and release-gate runs have no input)`)
+    expect(workflowProblems(text.replaceAll("default: '0.24.0'", "default: '0.23.2'"))).toContain(`workflow_dispatch input old_version default must be ${DEFAULT_OLD_VERSION}, got 0.23.2`)
+    expect(workflowProblems(text.replaceAll('          --old-version "$env:OLD_VERSION"\n', ''))).toContain('the runner step does not pass --old-version "$env:OLD_VERSION"')
     expect(workflowProblems(text.replace('  workflow_call:\n', ''))).toContain(`workflow_call trigger missing (${RC_WORKFLOW} calls this workflow as a release gate)`)
+  })
+
+  it('parses --old-version: default 0.24.0, x.y.z accepted, anything else is an error', () => {
+    expect(DEFAULT_OLD_VERSION).toBe('0.24.0')
+    expect(parseOldVersion(undefined)).toBe('0.24.0')
+    expect(parseOldVersion('0.23.2')).toBe('0.23.2')
+    expect(parseOldVersion('0.22.5')).toBe('0.22.5')
+    for (const bad of ['v0.23.2', '0.23', '0.23.2-rc1', '', '0.23.2; rm', 'latest', true]) expect(() => parseOldVersion(bad)).toThrow(/--old-version/)
   })
 
   it('is a release gate: the release candidate runs it unconditionally, finalize waits for it, and only a successful candidate is promoted', () => {

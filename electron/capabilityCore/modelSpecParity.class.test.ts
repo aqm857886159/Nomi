@@ -10,9 +10,9 @@ import { describe, expect, it } from "vitest";
 
 import { applyBuiltinSeeds } from "../catalog/seedBuiltins";
 import { agentModelEntriesFromCatalog } from "../catalog/agentModelEntriesFromCatalog";
-import { getArchetypeById, specializeArchetypeForVendor } from "../shared/modelArchetypes";
+import { getArchetypeById, resolveArchetypeForModel, resolveArchetypeVariant, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../shared/modelArchetypes";
 import { createLaneModelRead } from "../agentLane/laneModelRead.mjs";
-import { findModelEntry, modelSpecDetail, modelSpecRow, vendorsCarrying } from "../shared/agentCapabilities/modelSpecProjection";
+import { findModelEntry, modelSpecDetail, modelSpecRow, vendorsCarrying, type ModelSpecDetail } from "../shared/agentCapabilities/modelSpecProjection";
 import { catalogAvailabilityFor, requireModelSpecDetail } from "./modelSpecRead";
 
 const state = applyBuiltinSeeds(
@@ -183,6 +183,49 @@ describe("model spec parity across the two model faces", () => {
     expect((detail.variants as unknown[]).length).toBeGreaterThan(0);
     const thin = mcpThin().find((row) => row.modelId === withVariants!.modelId);
     expect(thin?.variantIds?.length).toBeGreaterThan(0);
+  });
+
+  it("reports Seedance Fast limits in the same detail the model uses to draft", async () => {
+    const response = await laneCall({ modelId: "doubao-seedance-2.0", vendor: "apimart" });
+    const detail = response.model as ModelSpecDetail;
+    expect(detail.defaultVariantId).toBe("fast");
+    const baseResolution = detail.modes.find((mode) => mode.modeId === "t2v")?.params.find((param) => param.key === "resolution");
+    expect(baseResolution?.options?.map((item) => item.value)).toEqual(["480p", "720p"]);
+    for (const variantId of ["standard", "fast", "mini"]) {
+      const variant = detail.variants?.find((item) => item.id === variantId);
+      expect(variant).toBeDefined();
+      const resolution = variant?.parameterOverridesByMode?.t2v?.resolution ?? baseResolution;
+      const allowed = variantId === "standard" ? ["480p", "720p", "1080p", "4k"] : ["480p", "720p"];
+      expect(resolution?.options?.map((item) => item.value)).toEqual(allowed);
+    }
+  });
+
+  it("every published variant’s detail reconstructs its admission controls", () => {
+    let checked = 0;
+    for (const row of state.models) {
+      const detail = mcpDetail(row.modelKey, row.vendorKey);
+      if (!detail) continue;
+      const base = resolveArchetypeForModel({ modelKey: row.modelKey, modelAlias: row.modelAlias, vendorKey: row.vendorKey, meta: row.meta });
+      if (!base?.variants?.length) {
+        expect(detail.variants).toBeUndefined();
+        continue;
+      }
+      expect(detail.defaultVariantId).toBe(resolveArchetypeVariant(base, { modelId: row.modelKey })?.id);
+      for (const variant of detail.variants ?? []) {
+        const active = specializeArchetypeForVariant(base, variant.id);
+        for (const mode of detail.modes) {
+          const declared = Object.fromEntries(mode.params.map((param) => [param.key, param]));
+          for (const [key, value] of Object.entries(variant.parameterOverridesByMode?.[mode.modeId] ?? {})) {
+            if (value === null) delete declared[key];
+            else declared[key] = value;
+          }
+          const actual = active.modes.find((item) => item.id === mode.modeId)!.params;
+          expect(declared, `${row.vendorKey}/${row.modelKey}/${variant.id}/${mode.modeId}`).toEqual(Object.fromEntries(actual.map((param) => [param.key, param])));
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(20);
   });
 
   it("refuses an unknown modelId with a way forward, on the lane face too", async () => {

@@ -1,9 +1,10 @@
 import { isPerfSummaryProps, type PerfSummaryProps } from '../shared/contracts/perfTelemetry'
 import { TELEMETRY_ERROR_TYPE_PATTERN, TELEMETRY_RESULT_VALUES, type CapabilitySlot, type DurationBucket, type TelemetryResult } from '../shared/contracts/telemetry'
+import { isGenerationProblemCode, type GenerationProblemCode } from '../shared/generationProblem'
 
 export type { CapabilitySlot, DurationBucket }
 export const TELEMETRY_SCHEMA_VERSION = 1 as const
-export const TELEMETRY_EVENT_NAMES = ['app.started', 'feature.used', 'generation.completed', 'export.completed', 'update.action', 'agent.turn.completed', 'perf.session.summary'] as const
+export const TELEMETRY_EVENT_NAMES = ['app.started', 'feature.used', 'generation.completed', 'export.completed', 'update.action', 'agent.turn.completed', 'agent.tool.failed', 'perf.session.summary'] as const
 export type TelemetryEventName = typeof TELEMETRY_EVENT_NAMES[number]
 /**
  * 告知范围的版本号。用户在设置页 / 同意卡上看到并同意的是哪一版文字，就记哪一版。
@@ -21,6 +22,8 @@ export const TELEMETRY_EVENT_MIN_SCOPE: Record<TelemetryEventName, TelemetryScop
   'export.completed': 1,
   'update.action': 1,
   'agent.turn.completed': 1,
+  // 范围 1 的「失败类别、Agent 工具轨迹」：工具名与失败码都是我们自己写的标识符，没有用户的一个字。
+  'agent.tool.failed': 1,
   'perf.session.summary': 2,
 }
 export type AttemptCountBucket = '1' | '2-3' | '4+'
@@ -39,6 +42,18 @@ export type ToolCallBucket = '0' | '1-3' | '4+'
  * 它回答的是「接自建中转的人回合成功率是不是更低」，而那不需要知道是哪一家。
  */
 export type ModelClass = 'builtin' | 'custom' | 'local'
+/**
+ * 一次 Agent 工具调用失败（2026-11-07）。回答的是「哪个工具、哪种失败、第几次、熔断拦没拦」——
+ * 用户反馈「经常参数不合法 然后重试」，线上要能数出来这件事是不是变少了。
+ * 只有标识符：工具名是这条 lane 注册过的名字（否则 `other`），失败码是我们自己的码；不带入参、不带正文。
+ *
+ * `reason`（2026-11-08，可选第 6 格）：起草期被拒的**闭合原因**（`generationProblem.ts` 的码表，如 `unknown_model`）。
+ * 粗码 `generation_input_invalid` 数不出「点名的模型不存在」和「没配默认模型」各几次；这一格数得出。
+ * 仍在告知范围 1 的「失败类别」里：只能是码表里的值，校验拒收表外的任何字符串。
+ */
+export type AgentToolFailedProps = { toolName: string; failureCode: string; attempt: 1 | 2 | 3 | 4 | 5; breakerTripped: boolean; modelClass: ModelClass; reason?: GenerationProblemCode }
+/** 工具名与失败码的形状：小写标识符。用户写的话（含空格、中文、大写、标点）过不了这一道。 */
+export const TELEMETRY_IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]{0,47}$/
 
 export type TelemetryProps =
   | { eventName: 'app.started'; props: { appMajor: number; appMinor: number; osFamily: 'macos' | 'windows' | 'linux' | 'other'; locale: 'zh-CN' | 'en' } }
@@ -47,6 +62,7 @@ export type TelemetryProps =
   | { eventName: 'export.completed'; props: { format: ExportFormat; durationBucket: DurationBucket; result: TelemetryResult } }
   | { eventName: 'update.action'; props: { action: UpdateAction; result: TelemetryResult; reason?: UpdateFailureReason } }
   | { eventName: 'agent.turn.completed'; props: { result: TelemetryResult; toolCallBucket: ToolCallBucket; modelClass: ModelClass } }
+  | { eventName: 'agent.tool.failed'; props: AgentToolFailedProps }
   | { eventName: 'perf.session.summary'; props: PerfSummaryProps }
 
 export type TelemetryEnvelope = {
@@ -116,6 +132,13 @@ function hasUpdateKeys(props: Record<string, unknown>): boolean {
   return hasExactKeys(props, ['action', 'result', 'reason']) && props.result === 'failure' && UPDATE_REASON_SET.has(props.reason as UpdateFailureReason)
 }
 
+/** reason 是可选的第 6 格：只许是闭合原因码表里的值（旧队列里没有 reason 的事件照旧合法）。 */
+function hasAgentToolFailedKeys(props: Record<string, unknown>): boolean {
+  const base = ['toolName', 'failureCode', 'attempt', 'breakerTripped', 'modelClass']
+  if (!('reason' in props)) return hasExactKeys(props, base)
+  return hasExactKeys(props, [...base, 'reason']) && isGenerationProblemCode(props.reason)
+}
+
 /**
  * 「这个进程是谁启动的」——以启动事实为准，不靠猜：tests/ux/_launchApp.mjs 是走查 / 评测唯一的
  * 启动器，它钉死 NOMI_E2E=1（真实资料副本跑的付费测试也走它）。普通用户的 App 不会有这个变量。
@@ -134,6 +157,11 @@ export function isTelemetryProps(value: unknown, eventName: TelemetryEventName):
   if (eventName === 'export.completed') return hasExactKeys(props, ['format', 'durationBucket', 'result']) && EXPORT_SET.has(props.format as ExportFormat) && DURATION_SET.has(props.durationBucket as DurationBucket) && RESULT_SET.has(props.result as TelemetryResult)
   if (eventName === 'update.action') return hasUpdateKeys(props) && UPDATE_SET.has(props.action as UpdateAction) && RESULT_SET.has(props.result as TelemetryResult)
   if (eventName === 'agent.turn.completed') return hasExactKeys(props, ['result', 'toolCallBucket', 'modelClass']) && RESULT_SET.has(props.result as TelemetryResult) && TOOL_CALL_SET.has(props.toolCallBucket as ToolCallBucket) && MODEL_CLASS_SET.has(props.modelClass as ModelClass)
+  if (eventName === 'agent.tool.failed') return hasAgentToolFailedKeys(props)
+    && typeof props.toolName === 'string' && TELEMETRY_IDENTIFIER_PATTERN.test(props.toolName)
+    && typeof props.failureCode === 'string' && TELEMETRY_IDENTIFIER_PATTERN.test(props.failureCode)
+    && Number.isInteger(props.attempt) && (props.attempt as number) >= 1 && (props.attempt as number) <= 5
+    && typeof props.breakerTripped === 'boolean' && MODEL_CLASS_SET.has(props.modelClass as ModelClass)
   if (eventName === 'perf.session.summary') return isPerfSummaryProps(props)
   return false
 }

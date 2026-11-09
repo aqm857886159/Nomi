@@ -7,19 +7,18 @@ import { cleanupTestTemp, makeTempDir, registerTestTemp } from '../../scripts/_t
 //   1) 少 NOMI_E2E_ALLOW_MULTI_INSTANCE=1
 //      → 用户本机 Nomi.app 在跑时 requestSingleInstanceLock() 拿不到锁，新实例主动让出并退出
 //        （electron/main.ts:74-75）。窗口永不出现。
-//   2) 少 NOMI_E2E=1
-//      → COOP/COEP cross-origin isolation 不关，Playwright 的 CDP target 握手直接卡死
-//        （electron/main.ts:684-689 注释已写明）。连不上。
+//   2) 开发构建显式传 executablePath
+//      → Playwright 不注入 ready loader；跨源隔离下首窗可能抢在 CDP 握手前导航，连不上。
 //
-// 所以这里做两件事：把那套必需 env **钉死**（调用方覆盖不掉），以及在起不来时抛一条**说人话**
-// 的错——带上主进程 stderr 尾巴，别让人再对着静默超时猜。
+// 所以这里统一隔离环境，并让开发构建走 Playwright 的官方 ready 屏障；起不来时带上主进程
+// stderr 尾巴，别让人再对着静默超时猜。
 //
 // 用法：
 //   import { launchNomiApp } from './_launchApp.mjs'
 //   const { app, win, projectsDir } = await launchNomiApp({ name: 'my-walk' })
 import { _electron as electron } from 'playwright'
 import { require as tsxRequire } from 'tsx/cjs/api'
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import net from 'node:net'
 import os from 'node:os'
@@ -28,6 +27,8 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { ensureElectronSignature } from '../../scripts/ensure-electron-signature.mjs'
 import { installFeelObserver } from './_feel-observer.mjs'
+import { boundRawInput } from './_rawInputBound.mjs'
+import { REAL_CREDENTIAL_MARKER } from './_realProfile.mjs'
 import { assertElectronBuildArtifacts } from '../../scripts/electron-build-artifacts.mjs'
 import { assertFreshBuild } from '../../scripts/package-build-stamp.mjs'
 import { registerWalkProcess } from './_walkInstances.mjs'
@@ -527,24 +528,58 @@ export function withLinuxNoSandbox(args, platform = process.platform) {
 }
 
 /**
- * Synthetic credentials used by isolated UI fixtures are deliberately not
- * secrets. Linux CI has no desktop keyring, so Electron's normal safeStorage
- * backend is unavailable there. Opted-in fixtures use Chromium's basic test
- * backend; real-profile and real-provider journeys never receive this flag.
+ * 隔离走查的合成凭据用哪个后端：这里是唯一一处，按平台定。
+ *
+ * 隔离资料里的 key 是非秘密的测试占位值，不该碰这台机器的系统钥匙串：
+ *   · macOS：Chromium 的 --use-mock-keychain（进程内固定口令，跨进程稳定）。不带的话，开发版会去读登录钥匙串里的
+ *     「<app 名> Safe Storage」——要么弹 SecurityAgent 窗卡死无人值守的走查，要么（开发态 app 名 nomi 与已装稳定版
+ *     同名）读到用户真钥匙。
+ *   · Linux：--password-store=basic（CI 没有桌面钥匙环）。
+ *   · Windows：不加（DPAPI 按用户，不弹窗）。
+ * 夹具加密密文的那次 spawn（encryptFixtureKey）和被测 App 的启动都从这里取开关：加密用 A、解密用 B 就是
+ * `credential_locked`，所以结构上只留这一个出口。真资料（_realProfile 拷进来的用户凭据）一律不用合成后端：
+ * 密文是真钥匙串加的，换后端就解不开——它们靠目录里的 REAL_CREDENTIAL_MARKER 被识别。
  */
-export function withLinuxSyntheticCredentialStorage(args, enabled, platform = process.platform) {
-  const normalized = [...args]
-  if (!enabled || platform !== 'linux') return normalized
+export function syntheticCredentialBackendArgs(platform = process.platform) {
+  if (platform === 'linux') return ['--password-store=basic']
+  if (platform === 'darwin') return ['--use-mock-keychain']
+  return []
+}
 
-  const configuredBackend = normalized.find((arg) => arg.startsWith('--password-store='))
-  if (configuredBackend && configuredBackend !== '--password-store=basic') {
-    throw new Error(`synthetic credential storage conflicts with ${configuredBackend}`)
-  }
-  if (!configuredBackend) normalized.push('--password-store=basic')
+/** 给启动参数补上合成后端开关；调用方已经选了别的后端就报错，不静默覆盖。enabled 为假原样返回（真资料 / 真付费）。 */
+export function withSyntheticCredentialStorage(args, enabled, platform = process.platform) {
+  const normalized = [...args]
+  const wanted = syntheticCredentialBackendArgs(platform)
+  if (!enabled || wanted.length === 0) return normalized
+  const foreign = normalized.find((arg) => /^--(password-store|use-mock-keychain)\b/.test(arg) && !wanted.includes(arg))
+  if (foreign) throw new Error(`synthetic credential storage conflicts with ${foreign}`)
+  for (const arg of wanted) if (!normalized.includes(arg)) normalized.push(arg)
   return normalized
 }
 
+/** 目录里有没有 _realProfile 落下的「这里装着用户真凭据」标记。 */
+export function hasRealCredentialMarker(...dirs) {
+  return dirs.some((dir) => dir && fs.existsSync(path.join(dir, REAL_CREDENTIAL_MARKER)))
+}
+
+/**
+ * 这次隔离启动用不用合成后端。
+ *   · 目录里有真凭据标记：一律不用；调用方还显式要求用就报错（真密文换后端必解不开）。
+ *   · 调用方显式声明：照办（core-smoke 的 profile-copy 显式 false）。
+ *   · 没声明：macOS 上隔离启动一律用，不靠每条走查记得 opt-in；其它平台沿用「盘上 catalog 有 safeStorage 密文才用」。
+ */
+export function decideSyntheticCredentialStorage({ explicit, isolate, userDataDir, settingsDir, platform = process.platform }) {
+  if (isolate && hasRealCredentialMarker(userDataDir, settingsDir)) {
+    if (explicit === true) throw new Error('syntheticCredentialStorage: true 与目录里的真实凭据副本冲突（真钥匙串加密的密文换后端就解不开）')
+    return false
+  }
+  if (explicit !== undefined && explicit !== null) return Boolean(explicit)
+  if (!isolate) return false
+  return platform === 'darwin' ? true : isolatedCatalogHasSafeStorageCredentials(settingsDir)
+}
+
 export async function configureSyntheticCredentialStorage(app, enabled, platform = process.platform) {
+  // Linux 的 basic 后端还要在 App 里把 safeStorage 切成内存口令；macOS 靠启动开关已经够了。
   if (!enabled || platform !== 'linux') return false
   const available = await app.evaluate(({ safeStorage }) => {
     safeStorage.setUsePlainTextEncryption(true)
@@ -554,6 +589,28 @@ export async function configureSyntheticCredentialStorage(app, enabled, platform
     throw new Error('Linux synthetic credential storage could not initialize an in-memory safeStorage key')
   }
   return true
+}
+
+/**
+ * 用被测 App 同一套合成后端，把占位 key 加密成 safeStorage 密文（「夹具先加密、再起 App」那一类的唯一入口）。
+ * `appName` 是加密身份（NOMI_APP_NAME）；mock 后端下与它无关，仍照给，保持两边一致。
+ */
+export function encryptFixtureKey({ rootDir = repoRoot, userDataDir, appName, plaintext, platform = process.platform, spawn = spawnSync }) {
+  const script = path.join(rootDir, 'tests/ux/_encryptFixtureKey.cjs')
+  const base = withLinuxNoSandbox([script, String(plaintext)], platform)
+  if (platform === 'linux' && !base.includes('--headless')) base.push('--headless')
+  const result = spawn(require('electron'), withSyntheticCredentialStorage(base, true, platform), {
+    cwd: rootDir,
+    env: {
+      ...process.env, NOMI_E2E: '1', NOMI_APP_NAME: appName,
+      NOMI_ELECTRON_USER_DATA_DIR: userDataDir, NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1',
+    },
+    encoding: 'utf8',
+  })
+  if (result.status !== 0 || !String(result.stdout ?? '').trim()) {
+    throw new Error(`safeStorage fixture key failed: ${result.stderr || result.stdout}`)
+  }
+  return String(result.stdout).trim()
 }
 
 /** Electron 43's packaged Chromium rejects Playwright's DevTools WebSocket
@@ -594,6 +651,16 @@ export function withPackagedPlaywrightOrigin(args, isPackaged) {
  * @returns {Promise<{app: import('playwright').ElectronApplication, win: import('playwright').Page,
  *   tempRoot: string, userDataDir: string, settingsDir: string, projectsDir: string, hostConfigDir: string | null, close: () => Promise<void>}>}
  */
+/**
+ * 走查窗口的仪表只从这一处装：首个窗口和之后弹出的窗口走同一个函数，不会一个有、一个没有。
+ * · 原始输入（鼠标 / 键盘 / 触屏）套站点预算上限——Playwright 这些方法不收 timeout，挂住就是外层 900 秒、后面全站没收据；
+ * · 体感观察器（截图后扫一遍体感问题）。
+ */
+export function instrumentWalkWindow(page, name) {
+  boundRawInput(page, { label: name })
+  return installFeelObserver(page, { name })
+}
+
 export async function launchNomiApp(options = {}) {
   const {
     name = 'nomi-walk',
@@ -663,8 +730,9 @@ export async function launchNomiApp(options = {}) {
   if (isolate) prepareIsolatedCatalog(settingsDir, { testedCatalogVersion: options.testedCatalogVersion })
   // 显式声明优先（core-smoke 的 profile-copy 刻意传 false：那份 catalog 是用户真实钥匙串加密的）；
   // 没声明时由盘上的 catalog 决定，见 isolatedCatalogHasSafeStorageCredentials。
-  const syntheticCredentialStorage = options.syntheticCredentialStorage
-    ?? (isolate ? isolatedCatalogHasSafeStorageCredentials(settingsDir) : false)
+  const syntheticCredentialStorage = decideSyntheticCredentialStorage({
+    explicit: options.syntheticCredentialStorage, isolate, userDataDir, settingsDir,
+  })
 
   // 主入口之前要加载的模块：开发版拼成 `-r` 对；打包版不认 `-r`，改走调试口（见 requireBeforePackagedMain）。
   const preMainArgs = [
@@ -679,10 +747,11 @@ export async function launchNomiApp(options = {}) {
     : null
 
   const launchOptions = {
-    executablePath,
-    args: withLinuxNoSandbox(withLinuxSyntheticCredentialStorage(
+    // 开发版省略路径才能让 Playwright 前置官方 ready loader；打包版自带入口，仍显式选择二进制。
+    ...(!isDevElectron ? { executablePath } : {}),
+    args: withLinuxNoSandbox(withSyntheticCredentialStorage(
       withPackagedPlaywrightOrigin([
-        ...(isDevElectron ? preMainArgs : []),
+        ...(isDevElectron ? ['-r', path.join(repoRoot, 'tests/ux/_playwrightReady.cjs'), ...preMainArgs] : []),
         ...(packagedPreMain ? [`--inspect-brk=127.0.0.1:${packagedPreMain.port}`] : []),
         ...(isDevElectron ? ['.'] : []),
         ...(userDataDir ? [`--user-data-dir=${userDataDir}`] : []),
@@ -801,9 +870,9 @@ export async function launchNomiApp(options = {}) {
       }
     }
     if (settleMs > 0) await win.waitForTimeout(settleMs)
-    installFeelObserver(win, { name })
+    instrumentWalkWindow(win, name)
     let nextWindow = 1
-    app.on('window', (page) => installFeelObserver(page, { name: `${name}-window-${++nextWindow}` }))
+    app.on('window', (page) => instrumentWalkWindow(page, `${name}-window-${++nextWindow}`))
   }
 
   try {

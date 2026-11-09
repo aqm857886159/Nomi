@@ -1,3 +1,4 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -104,11 +105,15 @@ export async function approvedUnknownResultCardJourney(input) {
     const posts = proxy.records.length; fixture.holdTasks(false); await surface.getByRole('button', { name: t('generationCommon.production.runAction.retry-retrieval'), exact: true }).click(); await expect.poll(async () => (await nodes()).find(n => n.id === waiting.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success'); assert.equal(proxy.records.length, posts)
     await storyboard(unknown.id)
     // board:UnknownResultCard/notice.skipped
+    const noticeStartedAt = Date.now()
     await page.evaluate(ids => { void window.__nomiConfirmAndRunPlan({waves:[ids],edgesUsed:[],blocked:[]},{initiator:'user'}) }, [unknown.id, waiting.id])
-    await expect(page.getByText(t('generationCommon.batchPlan.openRunsSkipped').replace('{{count}}', '1'), { exact: true })).toBeVisible(); if (locale === 'zh-CN') await shot('NoticeStoryboard')
+    // The batch settles before its notice; wait on the station budget like the interrupted walk and record how long it took.
+    await expect(page.getByText(t('generationCommon.batchPlan.openRunsSkipped').replace('{{count}}', '1'), { exact: true }).first()).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+    report.noticeVisibleMs = Date.now() - noticeStartedAt
+    if (locale === 'zh-CN') await shot('NoticeStoryboard')
     // board:UnknownResultCard/other-failures.red — real provider refusal remains a failure.
     await expect.poll(async () => (await nodes()).find(n => n.id === waiting.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
-    const ordinary = (await nodes()).find(n => n.id === waiting.id); proxy.setLimit(0); await canvas(ordinary.id); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click(); if (await dialog.isVisible()) await dialog.locator('[data-spend-confirm-action="confirm"]').click(); await expect.poll(async () => (await nodes()).find(n => n.id === ordinary.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error'); await expect(page.locator(`[data-node-id="${ordinary.id}"] [role="alert"]`)).toBeVisible()
+    const ordinary = (await nodes()).find(n => n.id === waiting.id); proxy.setLimit(0); await canvas(ordinary.id); await page.locator('[data-composer-host="canvas"] [data-bar-segment="generate"]').click(); await confirmLockExitSpend(page, report, { shot, until: async () => (await nodes()).find(n => n.id === ordinary.id)?.status === 'error' }); await expect.poll(async () => (await nodes()).find(n => n.id === ordinary.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('error'); await expect(page.locator(`[data-node-id="${ordinary.id}"] [role="alert"]`)).toBeVisible()
     report.checks.completed = true; return report
   } catch (error) { error.report = report; throw error }
 }

@@ -13,7 +13,7 @@
 // baseUrl 裸（不带 /v1），op.path 自带 /v1（与 apimart/modelscope 同约定，避 joinUrl 双前缀）。
 //
 // 真实 vendor 字段细微差异（尤其视频轮询结果 url 路径文档没给全）由 runtime 的**防御式
-// extractAssetUrl**（试 11 种路径含 data[0].url / videos[0].url / result.video_url）兜底 +
+// extractAssetUrls**（试 11 种路径含 data[].url / videos[].url / result.video_url）兜底 +
 // issue reporter 跑 tests/transport-spike/newapi.mjs 探测确认。
 
 import type { HttpOperation, ProfileKind } from "./types";
@@ -65,7 +65,7 @@ export const NEWAPI_VIDEO_PARAM_MAP: ParamMap = {
   rules: [{ wire: "size", fromMany: ["aspect_ratio", "resolution"], transform: "ratioResToOpenAiSize" }],
 };
 
-// ── 图片：同步 create（无 query；create 返回即结果，buildProfileTaskResult 用 extractAssetUrl 取 data[0].url）──
+// ── 图片：同步 create（无 query；create 返回即结果，buildProfileTaskResult 按 data[*].url 取全部）──
 export const NEWAPI_IMAGE_CREATE_OP: HttpOperation = {
   method: "POST",
   path: "/v1/images/generations",
@@ -86,7 +86,7 @@ export const NEWAPI_IMAGE_CREATE_OP: HttpOperation = {
 // ── 图片：图生图/改图（image_edit）走 chat/completions 多模态 ──────────────────────────────
 // 通用中转的图生图**主力口径**（R5 核 apiyi/laozhang/七牛 等 nano-banana 中转文档）：gemini/nano-banana
 // 系图生图走 /v1/chat/completions，参考图在 messages[].content[] 的 {type:"image_url",image_url:{url}}，
-// 出图是 base64 塞在 choices[0].message.content（extractChatImageUrl 兜底解析）。这条纯 URL-in-JSON，
+// 出图是 base64 塞在 choices[].message.content（extractChatImageUrls 兜底解析）。这条纯 URL-in-JSON，
 // 贴 Nomi 架构。content 是 [静态 text 项, 变长 image_url 项数组]——后者用整 token 引用 chat_image_parts
 // （taskParams 建），renderTemplateValue 的数组摊平特性把它铺平进 content。
 // 边界：gpt-image/DALL·E 的 /v1/images/edits 是 multipart 二进制上传，与 URL 架构冲突，本期不接（诚实标出）。
@@ -108,7 +108,7 @@ export const NEWAPI_IMAGE_EDIT_OP: HttpOperation = {
     stream: false,
   },
   // 结构化路径优先（部分中转 message.images:[{url}]）；markdown/字符串/数组内联 base64 由 runtime 的
-  // extractAssetUrl → extractChatImageUrl 兜底。刻意不把 message.content 直接当 image_url（会把整段 markdown
+  // extractAssetUrls → extractChatImageUrls 兜底（数字下标读整张列表，n 个 choice 都取）。刻意不把 message.content 直接当 image_url（会把整段 markdown
   // 误当 URL 污染结果）。
   response_mapping: { image_url: "choices.0.message.images.0.url" },
 };

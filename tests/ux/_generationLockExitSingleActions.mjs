@@ -1,10 +1,11 @@
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { expect } from '@playwright/test'
 import { readProject, openCanvas } from './agent-runtime-walk-support.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
-import { switchGenerationView, collapseAgentPanel, switchWorkspace, closeRailDrawer, canvasFitView, canvasSetZoomPercent, canvasZoomPercent } from './_shell.mjs'
+import { switchGenerationView, collapseAgentPanel, switchWorkspace, closeRailDrawer, canvasFitView, canvasZoomSlider, closeCanvasViewOptions, canvasZoomPercent } from './_shell.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import { prepareLockExitStoryboard } from './_generationLockExitSteps.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -18,7 +19,7 @@ export async function singleActionsLockExitJourney(input) {
   const nodes = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
   const dialog = page.locator('[data-spend-confirm-dialog]')
   const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-single-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
-  const confirm = async () => { await expect(dialog).toBeVisible(); await dialog.locator('[data-spend-confirm-action="confirm"]').click() }
+  const confirm = async () => { await expect(dialog).toBeVisible(); await confirmLockExitSpend(page, report, { shot }) }
   const canvas = async () => { await switchWorkspace(page, 'generation'); await switchGenerationView(page, 'canvas'); await collapseAgentPanel(page); await page.waitForFunction(() => Boolean(window.__nomiCanvasStore)) }
   try {
     const design = await prepareLockExitStoryboard(input)
@@ -47,7 +48,16 @@ export async function singleActionsLockExitJourney(input) {
     const blank = await findCanvasBlankPoint(page); assert.ok(blank); await page.mouse.click(blank.x, blank.y)
     await canvasFitView(page)
     try {
-      await canvasSetZoomPercent(page, 30)
+      await waitForVisualQuiescence(page)
+      const slider = await canvasZoomSlider(page)
+      await slider.press('Home')
+      await expect.poll(() => canvasZoomPercent(page)).toBe(20)
+      // The range is controlled by the viewport; the next key must use its committed value.
+      for (let percent = 21; percent <= 30; percent++) {
+        await slider.press('ArrowRight')
+        await expect.poll(() => canvasZoomPercent(page)).toBe(percent)
+      }
+      await closeCanvasViewOptions(page)
       await expect.poll(() => canvasZoomPercent(page)).toBe(30)
       const rect = await page.locator('.generation-canvas-v2__stage').evaluate(stage => {
         const r = stage.getBoundingClientRect()
@@ -65,6 +75,8 @@ export async function singleActionsLockExitJourney(input) {
     }
     const afterSelectionBlank = await findCanvasBlankPoint(page); assert.ok(afterSelectionBlank); await page.mouse.click(afterSelectionBlank.x, afterSelectionBlank.y)
     await page.locator('[data-frame-generate-all]').first().click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]')).toHaveCount(5)
     for (const checkbox of await dialog.locator('input[type="checkbox"]').all()) if (!(await checkbox.isDisabled())) await checkbox.check()
     assert.equal(await dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').count(), 5)
     const cancelledAt = proxy.records.length
@@ -73,6 +85,8 @@ export async function singleActionsLockExitJourney(input) {
     await expect(dialog).not.toBeVisible(); assert.equal(proxy.records.length, cancelledAt)
     report.checks.batchCancel = true
     await page.locator('[data-frame-generate-all]').first().click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]')).toHaveCount(5)
     for (const checkbox of await dialog.locator('input[type="checkbox"]').all()) if (!(await checkbox.isDisabled())) await checkbox.check()
     await confirm()
     await expect.poll(async () => (await nodes()).filter(n => n.status === 'error').length, { timeout: stationTimeout({ operations: 5 }) }).toBe(4)
@@ -86,8 +100,7 @@ export async function singleActionsLockExitJourney(input) {
       const surface = surfaces[i], target = shots[i], scope = await navigate(surface, target), before = proxy.records.length
       const label = surface === 'storyboard' ? t('storyboardEditor.frame.retryHint') : t('generationCommon.observability.action.retry.main')
       await scope.getByRole('button', { name: label, exact: true }).dblclick()
-      await expect(dialog).not.toBeVisible()
-      await expect.poll(async () => (await nodes()).find(n => n.id === target.node.id)?.status, { timeout: stationTimeout({ operations: 5 }) }).toBe('success')
+      await confirmLockExitSpend(page, report, { shot, until: async () => (await nodes()).find(n => n.id === target.node.id)?.status === 'success' })
       assert.equal(proxy.records.length, before + 1, `E3/${surface}: a double-click retries exactly once`)
       await shot(`${surface}-retried`); report.checks[`E3/${surface}`] = true
       if (i === 0) {
@@ -105,7 +118,11 @@ export async function singleActionsLockExitJourney(input) {
     await canvas(); const queueBlank = await findCanvasBlankPoint(page); assert.ok(queueBlank); await page.mouse.click(queueBlank.x, queueBlank.y); await canvasFitView(page); await waitForVisualQuiescence(page)
     await page.evaluate(() => window.__nomiSetBatchConcurrency(1)); fixture.holdTasks(true)
     await page.locator('[data-frame-generate-all]').first().click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]')).toHaveCount(5)
     for (const checkbox of await dialog.locator('input[type="checkbox"]').all()) if (!(await checkbox.isDisabled())) await checkbox.check()
+    report.queuedSelected = await dialog.locator('[data-v4-block="plan-rows"] input[type="checkbox"]:checked').count()
+    assert.equal(report.queuedSelected, 5, 'The queued wave must include all five selected rows')
     const queuedStart = proxy.records.length
     await confirm(); await expect.poll(() => proxy.records.length).toBe(queuedStart + 1)
     const beforeQueuedGroupClick = proxy.records.length
@@ -120,8 +137,7 @@ export async function singleActionsLockExitJourney(input) {
       await shot(`${surface}-queued`)
       if (surface === 'storyboard') await scope.getByRole('button', { name: t('storyboardEditor.frame.regenerate'), exact: true }).click()
       else await page.locator(surface === 'list' ? '[data-inspector-composer] [data-bar-segment="generate"]' : '[data-composer-host="canvas"]:visible [data-bar-segment="generate"]').click()
-      await expect(dialog).not.toBeVisible()
-      await expect.poll(() => proxy.records.length).toBe(before + 1)
+      await confirmLockExitSpend(page, report, { shot, until: () => proxy.records.length === before + 1 })
       report.checks[`E4/${surface}`] = true
     }
     fixture.holdTasks(false)
@@ -142,8 +158,7 @@ export async function spendChangeLockExitJourney(input) {
   const nodes = async () => (await readProject(page, projectId)).payload.generationCanvas.nodes
   const shot = async name => { await waitForVisualQuiescence(page); fs.mkdirSync(screenshotDir, { recursive: true }); const file = path.join(screenshotDir, `${locale}-a11-${name}.png`); await page.screenshot({ path: file }); report.screenshots.push(file) }
   const confirm = async () => {
-    if (await dialog.locator('[data-hosting-remember] input').isVisible()) await dialog.locator('[data-hosting-remember] input').check()
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
   }
   try {
     const design = await prepareLockExitStoryboard(input)

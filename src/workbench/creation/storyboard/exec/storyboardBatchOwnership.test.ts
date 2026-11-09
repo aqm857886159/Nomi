@@ -43,6 +43,8 @@ vi.mock('../../../generationCanvas/agent/applyCanvasToolCall', () => ({
 }))
 
 const imageResult = (id: string): GenerationNodeResult => ({ id: 'result-' + id + '-' + Math.random(), type: 'image', url: 'https://fixture.invalid/' + id + '.png', createdAt: 1 })
+/** 执行器一次交回这一镜的全部结果（这里一张）。 */
+const imageRun = (id: string) => [imageResult(id)] as const
 const plan = (): StoryboardPlan => ({
   title: 'Lock', anchors: [{ id: 'actor', name: 'Actor', kind: 'character', carrier: 'visual', description: 'Actor' }],
   shots: [1, 2].map(index => ({ index, shotId: `shot-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: `Actor walks ${index}` })),
@@ -80,7 +82,7 @@ function holdAnchors() {
   const hold = new Promise<void>(resolve => { release = resolve })
   calls.execute.mockImplementation(async (node: GenerationCanvasNode) => {
     if (node.meta?.anchorId) await hold
-    return imageResult(node.id)
+    return imageRun(node.id)
   })
   return release
 }
@@ -192,7 +194,7 @@ it.each(entries.flatMap(entry => endings.map(ending => ({ entry, ending }))))('B
       if (ending === 'error') throw new Error('429 concurrency limit exceeded')
       if (ending === 'recoverable') throw new RecoverableTimeoutError({ taskId: 'accepted', vendor: 'fixture', taskKind: 'text_to_image', modelKey: 'fixture-image' })
     }
-    return imageResult(node.id)
+    return imageRun(node.id)
   })
   const ui = editor(current), batch = ui.runBatch()
   await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledTimes(1))
@@ -218,7 +220,8 @@ it.each(entries.flatMap(entry => endings.map(ending => ({ entry, ending }))))('B
   if (single) await single
   await vi.waitFor(() => expect(Object.values(useGenerationQueueStore.getState().batches).every(b => b.finishedAt)).toBe(true))
   expect(sends('shot-2')).toBe(1)
-  expect(nodeOfShot('shot-2').runs?.map(r => r.id)).toEqual(owned.runs?.map(r => r.id))
+  // 还在跑的那次（running）主进程准入回执到了才进运行记录（归属规则 D1），所以多出的只能是它自己那一条；批次一条也不加。
+  expect((nodeOfShot('shot-2').runs ?? []).map(r => r.id).slice(ending === 'running' ? 1 : 0)).toEqual((owned.runs ?? []).map(r => r.id))
   if (ending !== 'running') expect(nodeOfShot('shot-2').result).toEqual(owned.result)
   if (ending === 'locked') expect(isAnchorFrozen(nodeOfShot('shot-2'))).toBe(true)
   expect(failures).toEqual([])

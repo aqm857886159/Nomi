@@ -4,7 +4,7 @@ import path from 'node:path'
 import { expect, clickOrFail } from '../_assert.mjs'
 import { openSystemPromptEditor } from '../_systemPromptEditor.mjs'
 import { DOCUMENT, CREATION_PANEL, COMPOSER_INPUT, COMPOSER_SEND, INTERVENTION_CONFIRM, APPROVAL_CARD,
-  openCanvas, sendCreation, hasToolResult } from '../agent-runtime-walk-support.mjs'
+  openCanvas, sendCreation, hasToolResult, clearComposerText } from '../agent-runtime-walk-support.mjs'
 import { FIXTURE_IMAGE_MODEL } from '../agent-runtime-fixture.mjs'
 import { shots } from './c0-fixture.mjs'
 import { repairStoryboard } from './sweep-repair.mjs'
@@ -25,7 +25,7 @@ export async function runSurface({ walk, win, input, fixture, realText, director
   if (surface === 'agent-panel' || surface === 'storyboard') {
     await station('agent', '真实 UI 发起工具回合并得到领域结果', async () => {
       if (!input.text) {
-        await win.locator(`${CREATION_PANEL} ${COMPOSER_INPUT}`).fill('')
+        await clearComposerText(win.locator(`${CREATION_PANEL} ${COMPOSER_INPUT}`))
         await expect(win.locator(`${CREATION_PANEL} ${COMPOSER_SEND}`)).toBeDisabled()
         return
       }

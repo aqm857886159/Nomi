@@ -42,14 +42,29 @@ export function describeRunner(identity) {
  * 这一趟视觉道怎么跑：
  * - `skip-platform`：不是 macOS，不比像素（字体栅格化不同，红的是平台不是设计）；
  * - `strict`：CI 上、机器与基准机一致，不符就红；
- * - `runner-drift`：CI 上、机器与基准机不一致（镜像升级或首次登记），照样比对产出新图，但必须红，
- *   让人用 design-lab:accept 取回新图并更新基准机身份；
+ * - `runner-drift`：CI 上、机器与基准机不一致（镜像升级或首次登记），照样比对、产出新图，判法同 strict，
+ *   只是不符时多说一句「是镜像换了」；
  * - `advisory`：本机 Mac，比对并报告差异，不阻断——本机不是基准机，以 CI 为准。
  */
 export function decideVisualMode({ identity, calibrated, ci }) {
   if (identity.platform !== 'darwin') return 'skip-platform'
   if (!ci) return 'advisory'
   return sameRunner(identity, calibrated) ? 'strict' : 'runner-drift'
+}
+
+/**
+ * 跑完以后红不红（2026-11-06）。只看像素，不看机器版本号。
+ *
+ * 以前 `runner-drift` 哪怕像素全在容差内也判红，要人重录、改 calibratedRunner。GitHub 换 macOS 小版本
+ * 是分批的，换代那几天同一个 `macos-26` 标签下 26.6 和 26.7 混着派活：基准机写哪个版本，另一半 PR
+ * 都红，改登记也救不回来（11-06 两种机器上 154 张全在容差内，PR 照红）。原方案（docs/plan/
+ * 2026-10-18-design-lab-macos-ci.md「残留风险」）要的是「版本不符且像素不符时，说清是镜像漂移、需要重录」，
+ * 不是像素对了也拦。基准机登记仍留着：它说明基线是哪台机器录的，不符时用来点破原因。
+ */
+export function visualVerdict({ mode, pixelsPassed }) {
+  if (pixelsPassed) return { exitCode: 0, kind: mode === 'runner-drift' ? 'pass-other-runner' : 'pass' }
+  if (mode === 'advisory') return { exitCode: 0, kind: 'advisory-mismatch' }
+  return { exitCode: 1, kind: mode === 'runner-drift' ? 'mismatch-other-runner' : 'mismatch' }
 }
 
 export function isCiEnvironment(env = process.env) {

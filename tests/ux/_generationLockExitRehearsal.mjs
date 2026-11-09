@@ -1,3 +1,6 @@
+import assert from 'node:assert/strict'
+import { startUploadRelay } from './full-walk/uploadRelay.mjs'
+import { LOCK_EXIT_JOURNEY_CONDITIONS, applyLockExitJourneyConditions, assertLockExitHostingReceipt } from './_generationLockExitHosting.mjs'
 import { execFileSync } from 'node:child_process'
 import { stationTimeout } from './_station-budget.mjs'
 import fs from 'node:fs'
@@ -6,9 +9,9 @@ import { expect } from '@playwright/test'
 import { registerTestTemp } from '../../scripts/_test-temp.mjs'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { newProjectEntry } from './_shell.mjs'
-import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR, FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
-import { createGenerationLockExitProxy } from './_generationLockExitProxy.mjs'
-import { generationLockExitJourney } from './_generationLockExitSteps.mjs'
+import { createAgentRuntimeFixture, FIXTURE_APIMART_API_KEY, FIXTURE_APIMART_MODEL, FIXTURE_APIMART_VENDOR } from './agent-runtime-fixture.mjs'
+import { createLockExitJourneyProxy } from './_generationLockExitProxy.mjs'
+import { generationLockExitJourney, lockExitFixtureInput } from './_generationLockExitSteps.mjs'
 
 export async function runLockExitRehearsal(locale = 'zh-CN', journey = generationLockExitJourney) {
   const root = process.cwd()
@@ -23,13 +26,16 @@ export async function runLockExitRehearsal(locale = 'zh-CN', journey = generatio
   const userDataDir = path.join(tempRoot, 'user-data')
   const projectsDir = path.join(tempRoot, 'projects')
   const fixture = await createAgentRuntimeFixture({ rootDir: root, settingsDir, userDataDir, appName: 'nomi', generationProvider: 'apimart' })
-  const proxy = await createGenerationLockExitProxy({ target: fixture.baseURL, imageModel: FIXTURE_APIMART_MODEL, fakeDelayMs: 2500 })
+  // Inline supplier outputs have local bytes without a reusable remote URL, so reference sends must upload.
+  if (LOCK_EXIT_JOURNEY_CONDITIONS.localReferenceUpload) fixture.setMediaBehavior(() => ({ inlineResult: true }))
+  const relay = await startUploadRelay()
+  const proxy = await createLockExitJourneyProxy({ target: fixture.baseURL, imageModel: FIXTURE_APIMART_MODEL })
   let app, page, project
   const launch = async () => {
     const started = await launchNomiApp({ name: 'generation-lock-exit', tempRoot, settingsDir, userDataDir, projectsDir, settleMs: 0, viewportSize: { width: 1280, height: 860 },
       mainRequire: [path.join(root, 'scripts/walkthrough-network-guard.cjs'), path.join(root, 'tests/ux/_quietWalk.cjs')],
-      env: { NOMI_TEST_NETWORK_GUARD: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_FIXTURE_BASE_URL: proxy.origin,
-        NOMI_E2E_FIXTURE_API_KEY: FIXTURE_APIMART_API_KEY, NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: [fixture.baseURL, proxy.origin].join(','),
+      env: { ...relay.env, NOMI_WALK_ALLOW_ORIGINS: '', NOMI_TEST_NETWORK_GUARD: '1', NOMI_E2E_PRODUCTION_FIXTURE: '1', NOMI_E2E_FIXTURE_BASE_URL: proxy.origin,
+        NOMI_E2E_FIXTURE_API_KEY: FIXTURE_APIMART_API_KEY, NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: [fixture.baseURL, proxy.origin, new URL(relay.env.NOMI_ASSET_RELAY_URL).origin].join(','),
         NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: proxy.origin }, { from: fixture.baseURL, to: proxy.origin }]) },
       initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' }, args: ['--no-proxy-server'] })
     app = started.app; page = started.win
@@ -39,19 +45,30 @@ export async function runLockExitRehearsal(locale = 'zh-CN', journey = generatio
   let failure, report
   try {
     await launch()
+    await applyLockExitJourneyConditions(page)
+    await page.evaluate(async ({ vendorKey, endpoint }) => {
+      const catalog = window.nomiDesktop.modelCatalog
+      const vendor = (await catalog.listVendors()).find(row => row.key === vendorKey)
+      await catalog.upsertVendor({ ...vendor, assetIngestion: { strategy: 'upload-multipart', endpoint, urlPath: 'url', accepts: ['image'], visibility: 'public-anonymous', ttlSeconds: 72 * 60 * 60 } })
+    }, { vendorKey: FIXTURE_APIMART_VENDOR, endpoint: relay.env.NOMI_ASSET_RELAY_URL })
     await newProjectEntry(page).click()
     await expect(page.locator('.tiptap[contenteditable="true"]').first()).toBeVisible()
     const projectId = await page.evaluate(() => new URL(location.href).searchParams.get('projectId') ?? new URLSearchParams(location.hash.split('?')[1] ?? '').get('projectId'))
     project = (await page.evaluate(() => window.nomiDesktop.projects.listAsync())).find(value => value.id === projectId)
-    report = await journey({ page, projectId, proxy, fixture, model: { vendorKey: FIXTURE_APIMART_VENDOR, modelKey: FIXTURE_APIMART_MODEL }, textLabel: FIXTURE_TEXT_MODEL_LABEL, locale,
+    report = await journey({ page, ...lockExitFixtureInput({ projectId }, fixture), proxy, model: { vendorKey: FIXTURE_APIMART_VENDOR, modelKey: FIXTURE_APIMART_MODEL }, locale,
       screenshotDir: process.env.NOMI_LOCK_EXIT_SHOTS || path.join(root, 'tests/ux/shots/generation-lock-exit'),
       restart: async () => { await closeNomiApp(app); app = null; await launch(); await page.locator('[data-project-card]', { hasText: project.name }).first().click(); return page } })
-    if (journey === generationLockExitJourney) execFileSync('git', ['diff', '--quiet', commit, '--', 'src', 'electron'])
+    if (journey === generationLockExitJourney) {
+      report.uploads = structuredClone(relay.uploads)
+      assertLockExitHostingReceipt({ report })
+      assert.ok(report.uploads.length > 0, 'References must reach the loopback upload relay')
+      execFileSync('git', ['diff', '--quiet', commit, '--', 'src', 'electron'])
+    }
   } catch (error) { report = error.report; failure = error; process.exitCode = 1; console.error(error) }
   finally {
     if (page && failure) await page.screenshot({ path: path.join(out, `${locale}-FAIL.png`) }).catch(() => {})
     if (app) await closeNomiApp(app).catch(() => {})
-    await proxy.close(); await fixture.close()
+    await proxy.close(); await fixture.close(); await relay.close()
     if (!failure && journey === generationLockExitJourney) {
       report.openRunStages = []
       const cases = [

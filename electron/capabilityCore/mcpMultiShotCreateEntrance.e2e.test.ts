@@ -458,7 +458,7 @@ describe("P4 S6.5 — lane draft_shots：镜头只给语义字段、不给 candi
       await expect(handler({ capability: "create", lease, params: lanePlanParams([
         { shotId: "shot-1", role: "shot", prompt: "雨夜推门", taskKind: "image_to_video" },
         { shotId: "shot-2", role: "shot", prompt: "货架对视", taskKind: "image_to_video" },
-      ]) })).rejects.toThrow(/没有配置可用的视频模型/);
+      ]) })).rejects.toThrow(/No video model was named and the user has no default video model/);
     } finally {
       await vendor.close();
     }

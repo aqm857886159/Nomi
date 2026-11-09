@@ -1,14 +1,11 @@
 // Only the remote vendor is synthetic. Walks still use the real SDK, IPC, renderer and storage.
-import { spawnSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import http from 'node:http'
 import path from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
 
-import { withLinuxNoSandbox, withLinuxSyntheticCredentialStorage } from './_launchApp.mjs'
+import { encryptFixtureKey } from './_launchApp.mjs'
 
-const require = createRequire(import.meta.url)
 
 /**
  * 「供应商说成功、给的字节却有毛病」的两种样本（全功能走查用）。它们对「坏」的定义必须和宿主的落地判据是同一个
@@ -178,28 +175,8 @@ function imageMapping(taskKind, vendorKey = FIXTURE_VENDOR) {
  * 仓库目录，app 名就是 package.json 的 `nomi`；`--packaged` 那档是 `Nomi`。传错只会得到
  * `locked`（不是 `ok`），所以这里由调用方按真实启动形态给。
  */
-function withLinuxHeadless(args, platform = process.platform) {
-  const normalized = [...args]
-  if (platform === 'linux' && !normalized.includes('--headless')) normalized.push('--headless')
-  return normalized
-}
-
 function encryptApimartKey({ rootDir, userDataDir, appName }) {
-  const script = path.join(rootDir, 'tests/ux/_encryptFixtureKey.cjs')
-  const result = spawnSync(require('electron'), withLinuxSyntheticCredentialStorage(
-    withLinuxHeadless(withLinuxNoSandbox([script, FIXTURE_APIMART_API_KEY])), true,
-  ), {
-    cwd: rootDir,
-    env: {
-      ...process.env, NOMI_E2E: '1', NOMI_APP_NAME: appName,
-      NOMI_ELECTRON_USER_DATA_DIR: userDataDir, NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1',
-    },
-    encoding: 'utf8',
-  })
-  if (result.status !== 0 || !result.stdout.trim()) {
-    throw new Error(`safeStorage fixture key failed: ${result.stderr || result.stdout}`)
-  }
-  return result.stdout.trim()
+  return encryptFixtureKey({ rootDir, userDataDir, appName, plaintext: FIXTURE_APIMART_API_KEY })
 }
 
 /**
@@ -447,6 +424,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
   const images = []
   /** 视频生成的 create 请求（apimart `/v1/videos/generations`）。 */
   const videos = []
+  const speeches = []
   /** APIMart 参考图上传（`/v1/uploads/images`），每笔带 multipart 里的文件名（uploadFileNames）。 */
   const uploads = []
   let uploadSequence = 0
@@ -472,6 +450,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
    * releaseVideos 的事，一件事只有一个开关。
    * `({ kind: 'image'|'video', body, index }) => undefined | { reject: { status, json } } | { fail: { message } } | { corruptResult: true } | { trailingBytesResult: true }`
    *   · reject：受理那一步就回错（没有任务号）；
+   *   · inlineResult：图片任务回内联字节，落盘后没有可复用的供应商链接，参考图必须真实上传。
    *   · fail：受理成功、轮询回 failed（apimart 形状）/ 同步那一档直接回 500；
    *   · corruptResult：受理、出图都「成功」，给的图却是读不出来的字节（JPEG 魔数 + 随机字节；apimart 异步档与回环同步档都认）；
    *   · trailingBytesResult：出图「成功」，给的是一张完整的 PNG、IEND 之后带了尾数据（回环同步档认）——宿主应当照常落地。
@@ -549,7 +528,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       if (holdTasks) { jsonResponse(response, 200, { code: 200, data: { id: taskQuery[1], status: 'processing' } }); return }
       jsonResponse(response, 200, { code: 200, data: {
         id: taskQuery[1], status: 'completed',
-        result: { images: [{ id: taskQuery[1], url: [`${fixtureOrigin}/fixture/${task.behavior?.corruptResult ? 'corrupt' : 'image'}.jpg`], filename: 'fixture.jpg' }] },
+        result: { images: [{ id: taskQuery[1], url: [task.behavior?.inlineResult ? `data:image/jpeg;base64,${imageBytes.toString('base64')}` : `${fixtureOrigin}/fixture/${task.behavior?.corruptResult ? 'corrupt' : 'image'}.jpg`], filename: 'fixture.jpg' }] },
       } })
       return
     }
@@ -624,6 +603,13 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
       // 受理时刻（回了任务号）：走查拿它和宿主批下那一刻对出「批准 → 受理」的耗时。
       record.acceptedAt = Date.now()
       jsonResponse(response, 200, { code: 200, data: [{ status: 'submitted', task_id: taskId }] })
+      return
+    }
+    if (apimartMode && record.path === '/v1/audio/speech') {
+      speeches.push(record)
+      const sample = await readFile(path.join(rootDir, 'electron/providerAdapter/__fixtures__/certification-media/valid.wav'))
+      response.writeHead(200, { 'Content-Type': 'audio/wav' })
+      response.end(sample)
       return
     }
     if (apimartMode && record.path === '/v1/videos/generations') {
@@ -738,7 +724,7 @@ export async function createAgentRuntimeFixture({ rootDir, settingsDir, generati
     })
     await writeFile(path.join(settingsDir, 'model-catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`, { flag: 'wx' })
     return {
-      baseURL, requests, images, videos, uploads, unexpected, modelListProbes, balanceProbes, close, generationProvider,
+      baseURL, requests, images, videos, speeches, uploads, unexpected, modelListProbes, balanceProbes, close, generationProvider,
       /** 已受理的 apimart 图片任务先停在 `processing`（true），放开后下一次轮询照常出图（false）。 */
       holdTasks(on) { holdTasks = Boolean(on) },
       /** 参考图 multipart 上传收到完整请求后停住；由走查显式 release，禁止固定毫秒数掩盖上传窗口。 */

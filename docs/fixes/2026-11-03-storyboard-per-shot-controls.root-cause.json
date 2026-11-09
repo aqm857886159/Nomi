@@ -17,7 +17,7 @@
     "electron/shared/storyboard/storyboardPromptCompiler.ts",
     "electron/shared/storyboard/storyboardShotScope.ts",
     "src/workbench/common/useDedupedModelSelect.ts",
-    "src/workbench/ai/resident/focusComposerSoon.ts"
+    "src/workbench/ai/residentComposerFocus.ts"
   ],
   "entry_points": [
     "Per-shot model picker",
@@ -167,7 +167,7 @@
     {
       "kind": "write",
       "path": "src/ui/app-shell/shell/ShellAgentHost.tsx",
-      "symbol": "focusComposerSoon"
+      "symbol": "requestResidentComposerFocus"
     },
     {
       "kind": "write",
@@ -192,7 +192,7 @@
     {
       "kind": "write",
       "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
-      "symbol": "focusComposerSoon"
+      "symbol": "requestResidentComposerFocus"
     },
     {
       "kind": "write",

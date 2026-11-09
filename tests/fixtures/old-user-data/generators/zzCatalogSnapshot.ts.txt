@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { it, vi } from 'vitest';
+const out = path.resolve('tests/fixtures/old-user-data/curated/v0.24.1-apimart');
+const settings = String(process.env.NOMI_CATALOG_SNAPSHOT_SETTINGS);
+vi.mock('electron', () => ({ app: { getPath: () => settings, getAppPath: () => process.cwd(), isPackaged: false }, ipcMain: { on() {}, handle() {} }, safeStorage: { isEncryptionAvailable: () => false } }));
+it('records the unchanged release catalog through its real disk writer', async () => {
+  vi.stubEnv('NOMI_SETTINGS_DIR', settings);
+  const { ensureBuiltinModelSeeds } = await import('./catalogStore');
+  ensureBuiltinModelSeeds();
+  fs.mkdirSync(out, { recursive: true });
+  const state = JSON.parse(fs.readFileSync(path.join(settings, 'model-catalog.json'), 'utf8'));
+  state.vendors = state.vendors.filter((v: {key: string}) => v.key === 'apimart');
+  state.models = state.models.filter((m: {vendorKey: string}) => m.vendorKey === 'apimart');
+  state.mappings = state.mappings.filter((m: {vendorKey: string}) => m.vendorKey === 'apimart');
+  fs.writeFileSync(path.join(out, 'model-catalog.json'), JSON.stringify(state, null, 2) + '\n');
+  fs.writeFileSync(path.join(out, 'provenance.json'), JSON.stringify({ version: '0.24.1', recordedFrom: 'fb169414c1778e88bca35beacc0da9c54cb313d4', writer: 'catalogStore.ensureBuiltinModelSeeds', projection: 'apimart rows only; no credentials; rows unchanged' }, null, 2) + '\n');
+});

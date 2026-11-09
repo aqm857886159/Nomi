@@ -1,6 +1,6 @@
 {
-  "status": "second round implemented locally; B6 and golden regression repaired; independent reacceptance and paid run pending",
-  "network": "fake providers only; guarded isolated Electron; no paid execution",
+  "status": "Historical free verification retained; paidRun2 and paidRun3 failed; paidRun4 passed; independent reacceptance pending",
+  "network": "Historical sections use fake providers; paidRun2/3/4 use real image generation and a local fixture text model in an isolated macOS development App",
   "sourceCommit": "b985edee62c68768ec6c4ce41eeb03bbd050cadf",
   "walks": [
     {
@@ -3453,5 +3453,163 @@
     "workingTreeAfterTests": "clean; subsequent commit changes evidence metadata only",
     "prJudgementExit": 0,
     "prJudgementParserTests": 29
+  },
+  "paidRun2": {
+    "commit": "9d3ad70fbce4de96730c571fdaa01f61a7399662",
+    "startedAt": "2026-11-05T11:58:13.357Z",
+    "timeBasis": "Run artifact creation timestamp",
+    "environment": "macOS isolated Electron development build",
+    "models": {
+      "image": {
+        "label": "图片模型",
+        "execution": "real-provider"
+      },
+      "text": {
+        "label": "文本模型",
+        "execution": "fixture; this run does not verify real text generation"
+      }
+    },
+    "status": "partial",
+    "walkResult": "failed",
+    "exitCode": 1,
+    "observed": {
+      "successfulAssetImages": 2,
+      "successfulShotImages": 2,
+      "successfulImagesTotal": 4,
+      "discardedReplies": 1,
+      "unknownResultShots": 1,
+      "concurrencyRefusals": 0,
+      "imageCalls": 5,
+      "unknownResultCopy": "上一次没等到结果，可能已经扣费",
+      "visibleRecoveryActions": [
+        "再发一次",
+        "查看任务"
+      ],
+      "recoveryActionsExecuted": false,
+      "billingCost": null
+    },
+    "failure": {
+      "type": "AssertionError [ERR_ASSERTION]",
+      "message": "First batch must contain both refusal and discarded reply",
+      "cause": "The three shot requests were not simultaneously in flight under real-provider timing; the proxy concurrency limit did not trigger"
+    },
+    "conclusion": "Four real images completed and the discarded-reply shot exposed the intended recovery exits. The full paid journey failed its initial mixed-outcome assertion; visible recovery controls do not prove a completed recovery journey.",
+    "concurrencyRefusalCoverage": {
+      "realProviderRun": "not triggered; unverified",
+      "freeRehearsal": "covered by the passed free rehearsal on the same commit",
+      "mechanism": "The proxy rejects before sending a request to the provider; a real provider is not required to validate that refusal"
+    },
+    "freeRehearsal": {
+      "commit": "9d3ad70fbce4de96730c571fdaa01f61a7399662",
+      "status": "passed",
+      "stages": [
+        "storyboard",
+        "canvas",
+        "list",
+        "restart"
+      ],
+      "interruptionCoverage": "Coordinator confirmed window-close, sigkill, reload, retrieve and resend passed"
+    },
+    "decision": {
+      "thirdPaidAttempt": "will not run",
+      "testChanges": "none; preserve the failed assertion",
+      "followUp": "Separate paid timing assumptions from deterministic proxy-refusal coverage"
+    },
+    "unverified": [
+      "Concurrency refusal was not triggered in this real-provider run; covered by the free rehearsal instead",
+      "Recovery after clicking resend or view-task, and the remaining canvas/list/restart paid stages were not reached",
+      "Actual charge and cost for the discarded reply were not confirmed",
+      "Real text generation, Windows and packaged-build behavior were not verified by this run",
+      "Independent acceptance after the main merge is pending"
+    ],
+    "screenshots": [
+      "docs/evidence/2026-11-02-generation-lock-exit/paid-run2-storyboard-unknown.png"
+    ]
+  },
+  "paidRun3": {
+    "commit": "52f4b601bcc9f0134027cd154425f307eb9f4b22",
+    "status": "failed",
+    "exitCode": 1,
+    "models": [
+      "图片模型",
+      "文本模型（本机假模型）"
+    ],
+    "failure": {
+      "message": "expect(locator).not.toBeVisible() failed: [data-spend-confirm-dialog] remained visible",
+      "cause": "重试镜 02 的真实路径需要上传参考图，正确弹出带托管告知的花钱确认卡；旧测试错误断言不弹卡，免费演练当时不需要托管，未覆盖这一前提。"
+    },
+    "conclusion": "测试假设错，产品行为对",
+    "followUp": "后续提交统一演练与付费的托管条件和确认步骤，付费入口拒收缺少托管告知的演练收据。"
+  },
+  "paidRun4": {
+    "commit": "8116ea8e657540968480f5aa94bf9ba686d3f44d",
+    "startedAt": "2026-11-06T05:50:56.832Z",
+    "timeBasis": "Run artifact creation timestamp (UTC)",
+    "environment": "macOS isolated Electron development build",
+    "locale": "zh-CN",
+    "models": [
+      "图片模型",
+      "文本模型（本机假模型）"
+    ],
+    "status": "passed",
+    "exitCode": 0,
+    "stages": [
+      "storyboard",
+      "canvas",
+      "list",
+      "restart"
+    ],
+    "observed": {
+      "imageRequests": 15,
+      "realImageCalls": 12,
+      "successfulReturnedImages": 9,
+      "interruptedReplies": 3,
+      "simulatedRefusalsBeforeForwarding": 3,
+      "realUpstreamErrors": 0,
+      "countBasis": "Count each proxy.requests entry once: 15 = 9 returned successes + 3 deliberately discarded replies + 3 simulated refusals; real forwarded calls = 12. All 12 forwarded responses had upstreamStatus 200. spend.media has 9 ready and 6 error records and is not a count of real calls.",
+      "hostingDisclosureCount": 1,
+      "idle": {
+        "elapsedMs": 302038,
+        "longestRelevantTimerMs": 300000,
+        "stable": true
+      },
+      "maxUnresponsiveMs": 182,
+      "restart": {
+        "shotsRetained": true,
+        "visibleShotCount": 3,
+        "versionsRetained": true,
+        "visibleVersionLabel": "镜 02：第 3 版 · 共 3 版",
+        "scope": "Restart stage passed across canvas/list/storyboard; the final screenshot shows all three shots and three versions of shot 02. No separate exhaustive comparison of every shot version was recorded."
+      },
+      "providerCostAllNull": true,
+      "billingCost": "实扣未取回：未知"
+    },
+    "faultInjection": "并发拒绝和丢弃已受理回复由测试代理注入；不代表真实服务发生并发拒绝或故障。",
+    "freeRehearsal": {
+      "commit": "8116ea8e657540968480f5aa94bf9ba686d3f44d",
+      "locales": [
+        "zh-CN",
+        "en"
+      ],
+      "status": "passed",
+      "hostingDisclosureCountByLocale": {
+        "zh-CN": 1,
+        "en": 1
+      }
+    },
+    "unverified": [
+      "英文付费未跑，由同提交英文免费演练覆盖",
+      "Windows 未跑",
+      "打包版未跑",
+      "真实文本模型未跑",
+      "实扣未取回：未知",
+      "真付费通过后的窄范围独立复验待出"
+    ],
+    "knownGap": "批量确认缺托管告知，参考图请求早于托管同意；另有待办，不在本 PR。",
+    "screenshots": [
+      "docs/evidence/2026-11-02-generation-lock-exit/paid-run4-hosting-disclosure.png",
+      "docs/evidence/2026-11-02-generation-lock-exit/paid-run4-canvas-released.png",
+      "docs/evidence/2026-11-02-generation-lock-exit/paid-run4-restart-released.png"
+    ]
   }
 }

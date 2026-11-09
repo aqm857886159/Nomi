@@ -1,8 +1,8 @@
-import type { GenerationCanvasNode, GenerationNodeResult, TiptapDocJson } from '../model/generationCanvasTypes'
+import type { GenerationCanvasNode, TiptapDocJson } from '../model/generationCanvasTypes'
 import i18n from '../../../i18n'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { markdownToTiptapContent } from '../../creation/markdownToTiptap'
-import { runCatalogGenerationTask, type CatalogTaskRunOptions } from './catalogTaskActions'
+import { runCatalogGenerationTask, type CatalogTaskRunOptions, type GenerationNodeResults } from './catalogTaskActions'
 import { nodeRunOutcomePatch } from '../store/nodeRunOutcome'
 import { deliverRunOutcome, whenRunTargetLoaded } from './runProjectDelivery'
 import { docToPlainText, getTextGenMode, textDocumentDigest, type TextGenMode } from './textGenerationDocument'
@@ -18,7 +18,7 @@ export type GenerateTextOptions = CatalogTaskRunOptions
 export async function generateText(
   node: GenerationCanvasNode,
   options: GenerateTextOptions,
-): Promise<GenerationNodeResult> {
+): Promise<GenerationNodeResults> {
   const runId = node.runs?.[0]?.id
   const userPrompt = (node.prompt || '').trim()
   const docText = docToPlainText(node.contentJson)
@@ -55,12 +55,14 @@ export async function generateText(
         whenRunTargetLoaded(target, () => writeStreamingDraft(node.id, buildStreamingDoc(mode, baseContent, streamBuffer), runId))
       }
 
-  const result = await runCatalogGenerationTask(
+  const results = await runCatalogGenerationTask(
     { ...node, prompt, meta: await withFollowedAgentModel(node.meta) },
     { ...options, ...(onTextDelta ? { onTextDelta } : {}) },
   )
+  // 文本任务恒为一个文本结果（normalizeCatalogTaskResults 的文本支）。
+  const [result] = results
   const text = (result.text || '').trim()
-  if (!text) return result
+  if (!text) return results
 
   if (mode === 'rewrite') {
     // 让节点内编辑器替换当前选区（见 TextDocumentNode 的 apply effect）。选区只存在于打开着的编辑器里；
@@ -71,7 +73,7 @@ export async function generateText(
     const contentJson = buildStreamingDoc(mode, baseContent, text)
     if (contentJson) await deliverRunOutcome(target, node.id, { kind: 'content', contentJson, runId })
   }
-  return result
+  return results
 }
 
 /**

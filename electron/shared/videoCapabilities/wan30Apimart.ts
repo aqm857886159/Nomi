@@ -16,7 +16,7 @@ import type { ModelArchetype } from "./types";
 // 首帧、也可解释成参考图）。歧义交给上游猜 = 用户拿到的片子形态不可预期，故按模式显式钉死。
 //
 // **首/尾帧走 image_with_roles**：combineSlotsInto 通用原语，role 由 slot.kind 派生
-// （first_frame → "first_frame"、last_frame → "last_frame"，见 archetypeMeta 的 DEFAULT_ROLE_FOR_KIND），
+// （first_frame → "first_frame"、last_frame → "last_frame"，见 referenceChannels.ts 的 REFERENCE_ROLE_FOR_KIND），
 // 与官方 role 取值逐字相同，不需要 roleName 覆盖。
 //
 // 本轮**不接** file_url（文档参考）与 link_url（网页参考），理由同 kie 侧，
@@ -147,4 +147,13 @@ export const WAN_3_0_APIMART_ARCHETYPE: ModelArchetype = {
       params: BASE_PARAMS,
     },
   ],
+};
+
+// Wan 3.0 Prime（同一官方页，2026-11-07 核）：model `wan3.0-video-prime`，官方写明与 `wan3.0-video` 参数、模式逐字相同，
+// 只是另一档（更贵，质量 / 速度差别文档未明说）。所以直接复用 Wan 3.0 的模式表，只换 id / 名称 / 判别串。
+export const WAN_3_0_PRIME_APIMART_ARCHETYPE: ModelArchetype = {
+  ...WAN_3_0_APIMART_ARCHETYPE,
+  id: "wan-3.0-prime-apimart",
+  label: "Wan 3.0 Prime",
+  identifierPatterns: ["wan3.0-video-prime", "wan3-0-video-prime"],
 };

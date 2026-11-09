@@ -1,0 +1,49 @@
+{
+  "script": "anchor-outbound-real.paid.mjs",
+  "mode": "paid",
+  "variant": "before",
+  "startedAt": "2026-11-07T05:21:18.806Z",
+  "model": "apimart/gemini-3.1-flash-image-preview",
+  "runStatus": "success",
+  "keptImage": {
+    "file": "anchor-image.jpg",
+    "bytes": 433855
+  },
+  "wire": {
+    "createRequests": 1,
+    "sentContainsDescription": false,
+    "missingStyleWords": [
+      "写实电影质感",
+      "35mm 胶片颗粒",
+      "不要插画风"
+    ],
+    "sentContainsStructuredFeatures": true,
+    "promptChars": 555
+  },
+  "problems": [
+    "发出去的提示词不含描述框里的字",
+    "画风词没发出去：写实电影质感、35mm 胶片颗粒、不要插画风",
+    "发出去的提示词带了结构化特征那一段（不该追加）"
+  ],
+  "verified": [],
+  "finishedAt": "2026-11-07T05:21:52.040Z",
+  "paidCalls": 1,
+  "spend": [
+    {
+      "taskId": "task_01M6T790A838FEZY5D0578JS4C",
+      "status": "ready",
+      "model": "gemini-3.1-flash-image-preview",
+      "vendor": "apimart"
+    }
+  ],
+  "providerTaskIds": [
+    "task_01M6T790A838FEZY5D0578JS4C"
+  ],
+  "networkAllowlist": [
+    "https://api.apimart.ai",
+    "*.getapib.org"
+  ],
+  "networkBlocked": [],
+  "walkOutputDir": ".tmp/pi-anchor-outbound-development-1794028878793",
+  "failure": null
+}

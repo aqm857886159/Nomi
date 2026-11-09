@@ -3,6 +3,13 @@ import http from 'node:http'
 import https from 'node:https'
 import { gunzipSync, inflateSync, brotliDecompressSync } from 'node:zlib'
 
+// Fast provider receipts must be held so the journey can reach the concurrency limit.
+export const LOCK_EXIT_JOURNEY_REPLY_HOLD_MS = 2500
+
+export function createLockExitJourneyProxy({ target, imageModel, maxImages }) {
+  return createGenerationLockExitProxy({ target, imageModel, maxImages, fakeDelayMs: LOCK_EXIT_JOURNEY_REPLY_HOLD_MS })
+}
+
 /** Test-only fault boundary: forward bytes unchanged, reject concurrency, or discard one accepted reply. */
 export async function createGenerationLockExitProxy({ target, imageModel, fakeDelayMs = 0, maxImages = 14 }) {
   const records = []
@@ -21,7 +28,7 @@ export async function createGenerationLockExitProxy({ target, imageModel, fakeDe
       try { parsed = JSON.parse(body.toString()) } catch { res.writeHead(400).end(); return }
       if (parsed.model !== imageModel || records.filter(r => r.forwarded).length >= maxImages) { res.writeHead(403).end(); return }
       const references = parsed.image ?? parsed.images ?? parsed.image_urls
-      record = { sequence: records.length + 1, model: parsed.model, resolution: parsed.resolution, prompt: redact(parsed.prompt), referenceCount: Array.isArray(references) ? references.length : references ? 1 : 0, forwarded: false, rejected: active >= limit, dropped: false }
+      record = { at: Date.now(), sequence: records.length + 1, model: parsed.model, resolution: parsed.resolution, prompt: redact(parsed.prompt), referenceCount: Array.isArray(references) ? references.length : references ? 1 : 0, forwarded: false, rejected: active >= limit, dropped: false }
       records.push(record)
       if (record.rejected) { res.writeHead(429, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'concurrency limit exceeded; too many simultaneous requests' } })); return }
       active++

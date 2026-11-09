@@ -1,0 +1,267 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-a4d-deferred-entries",
+  "problem_type": "结果只能写成项目文件的执行路，没项目时先花钱、生成字节绕过落盘关口",
+  "symptom": "自定义调用脚本用 saveFile 存字节：没项目时付费闸先放行、请求发出去才在写盘时失败，有项目时字节不经解码校验、按任务种类直接记账（脚本把图片字节存成 .mp4 也当视频落盘）。本机进程（即梦 CLI、Codex 本机生图、Antigravity）没项目时照样起进程：即梦跑完把下到本机的文件静默丢掉，Codex 交回一个临时目录里的裸路径，Antigravity 跑完才在落盘时失败。",
+  "direct_cause": "runtime.runTask 里自定义调用的分流在「没项目就拒」那道判据之前，判据也不认脚本 saveFile 和进程声明；saveFile 调的是 runtime 注入的同步 writeAsset（不带期望类型、不经暂存解码）；进程执行器没项目号时跳过导入、继续跑。",
+  "class_root": "「结果只能写成项目文件」的共享判据（tasks/projectFileResult）和生成产物落盘关口（writeGeneratedAsset）没有覆盖全部执行路：脚本接管传输的那条、本机进程那条各自绕开。2026-11-07 修配音时登记为同类延后。",
+  "detected_by": "review",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "electron/tasks/projectFileResult.ts",
+    "tests": [
+      "electron/tasks/syncBytesResultLandsInProject.test.ts",
+      "electron/catalog/processOperation.test.ts"
+    ]
+  },
+  "structural_ticket": null,
+  "affected_population": [
+    "Agent 接出来的自定义调用模型，上游只回字节流、脚本用 saveFile 存（配音、视频、图片都可能）",
+    "即梦 CLI、Codex 本机生图、Antigravity 生图：在没有项目的入口发起（Agent 的 tasks:run、续查没项目号的旧任务）"
+  ],
+  "scope_paths": [
+    "electron/runtime.ts",
+    "electron/tasks/projectFileResult.ts",
+    "electron/catalog/customCallDispatch.ts",
+    "electron/catalog/processOperation.ts",
+    "electron/catalog/codexCli.ts",
+    "electron/capabilityCore/modelOnboarding/tryModel.ts",
+    "electron/assets/projectAssetStore.ts"
+  ],
+  "entry_points": [
+    "tasks:run / 画布单镜 → runTask → runCustomCallTask → 脚本 saveFile",
+    "tasks:run / 画布单镜 → runTask → executeProfileOperation → executeProcessOperation（即梦 / Codex / Antigravity）",
+    "续查 → taskResultQuery → executeProfileOperation → executeProcessOperation",
+    "Agent 的 nomi_try_model → tryModel → resultOnlyLandsAsProjectFile"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/reference/resources/videos/methods/download_content",
+      "checked_at": "2026-11-09",
+      "purpose": "GET /videos/{video_id}/content 直接回视频字节，没有地址可以先交回：确认脚本 saveFile 那类结果和同步配音是同一类，没项目就没地方放，只能在发生成请求之前拒"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.cloudflare.com/workers/runtime-apis/bindings/",
+      "checked_at": "2026-11-09",
+      "purpose": "脚本要用的外部能力先声明绑定、代码只经 env 拿到：改成跑脚本之前就看它要不要「存文件」这个能力，缺项目就不让它开跑，而不是跑到 saveFile 才报错"
+    }
+  ],
+  "invariants": [
+    "结果只能写成项目文件（脚本 saveFile、本机进程、同步配音、文件流视频）时，没项目号就在付费闸之前拒：不发生成请求、不起进程、不核销令牌、不弹卡；凭据已验过时所有 HTTP 方法零请求，待复验时仅允许最多一次免费 GET 模型列表。",
+    "脚本 saveFile 的字节只经 writeGeneratedAsset 落盘，期望类型只看任务种类，不信脚本给的后缀和 content-type。",
+    "进程执行器自己也拒没有项目号的调用；有项目时沿原执行与批准路线，不新增重试、fallback、文案或模型可见 schema。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/screenshot/screenshotHotkey.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/depthVideoJob.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/extractVideoFrame.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/framesToVideo.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/trimVideo.ts",
+      "symbol": "writeGeneratedAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/processOperation.ts",
+      "symbol": "writeAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/codexCli.ts",
+      "symbol": "writeAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/antigravityImageOperation.ts",
+      "symbol": "writeAsset"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "executeProcessOperation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "resultOnlyLandsAsProjectFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "resultOnlyLandsAsProjectFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "usesSynchronousAudioRunner"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/projectFileResult.ts",
+      "symbol": "usesSynchronousAudioRunner"
+    }
+  ],
+  "door_reduction": {
+    "before": 18,
+    "after": 17,
+    "why_not": "删掉的一扇：runtime 把同步 writeAsset 注入给自定义调用（customCallDispatch 的 input.writeAsset 同提交删除，saveFile 改走 writeGeneratedAsset，门从「绕开关口」换到关口上）。不合并的：writeGeneratedAsset 的写门是各个领域生产者（配音、截图、视频变换、自定义脚本），本来就该各自调同一个关口；processOperation / codexCli / antigravityImageOperation 的 writeAsset 是 runtime 注入的形参名，注入的正是 writeGeneratedAsset / writeGeneratedDeterministicAsset，不是第二条写路；判据的两扇门（runTask、tryModel）是两个不同的发起入口，只能各问一次同一个判据；进程执行器只有 runtime 一个调用者。"
+  },
+  "generality_proof": "判据按形状判、不按供应商：脚本里出现 saveFile（Agent 的脚本合同只教这一个名字）、映射在提交或查询任一步声明了本机进程，加上原有的同步回字节音频与文件流视频。矩阵用内置目录真种子枚举每一条进程声明（即梦、Codex），加上 Antigravity 连上后由同一个投影函数生成的两条，再加脚本存配音 / 存视频、脚本只回地址三格；每格断言没项目 0 生成请求、0 进程、令牌原样，有项目落成 kind=generated 的项目文件，脚本把图片字节存成视频被关口拒且不多文件。 本轮矩阵加入 verificationPending：两种 saveFile 脚本与全部进程声明 × 三入口，数所有 HTTP 方法；已验凭据不豁免任何请求，待复验仅允许模型列表精确路径的一次 GET，try_model 仍全部方法零请求。",
+  "shared_boundaries": [
+    {
+      "path": "electron/tasks/projectFileResult.ts",
+      "symbol": "resultOnlyLandsAsProjectFile",
+      "responsibility": "所有发起入口共用的「结果只能写成项目文件吗」判据；第三个参数必填，调用方必须说清这次是不是脚本接管了传输。"
+    },
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "symbol": "writeGeneratedAsset",
+      "responsibility": "带期望类型的生成产物：暂存、按类型解码校验、原子发布。"
+    },
+    {
+      "path": "electron/catalog/processOperation.ts",
+      "symbol": "executeProcessOperation",
+      "responsibility": "三种本机进程解析器的唯一执行入口；没有项目号不起进程。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/customCallDispatch.ts",
+      "entry_point": "runCustomCallTask → saveFile",
+      "disposition": "enforced",
+      "evidence": "runTask 在自定义分流之前问判据（脚本含 saveFile 即算），没项目在付费闸前拒；saveFile 改调 writeGeneratedAsset（kind generated，期望类型 = 任务种类），runtime 注入的同步 writeAsset 同提交删除。矩阵：有项目两格落成 generated 文件，图片字节存成视频被拒，没项目 0 生成请求、令牌原样。"
+    },
+    {
+      "path": "electron/catalog/processOperation.ts",
+      "entry_point": "executeProcessOperation",
+      "disposition": "enforced",
+      "evidence": "runTask 判据认进程声明（提交或查询任一步），没项目在付费闸前拒；执行器入口再拒一次（兜住续查等其余调用者），原「没项目号就跳过导入」的条件同提交删除。processOperation.test：三种解析器提交、查询都在起进程之前拒。"
+    },
+    {
+      "path": "electron/catalog/codexCli.ts",
+      "entry_point": "importCodexImageOnce",
+      "disposition": "enforced",
+      "evidence": "执行器没项目号不起进程，这里一定有项目；原来没项目时把临时目录里的裸路径当结果交回的分支同提交删除，只剩经 writeGeneratedAsset（image）写进项目一条路。"
+    },
+    {
+      "path": "electron/catalog/antigravityImageOperation.ts",
+      "entry_point": "executeAntigravityImageOperation",
+      "disposition": "enforced",
+      "evidence": "经 executeProcessOperation 进来，没项目在起进程之前拒（原来跑完才在落盘时失败）；有项目照旧经 writeGeneratedDeterministicAsset（image）。processOperation.test 的 Antigravity 组新增没项目提交 / 查询都拒、本机任务和写盘都没被调用。"
+    },
+    {
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "entry_point": "tryModel",
+      "disposition": "enforced",
+      "evidence": "用 runTask 同一个 resolveCustomCallExecution 拿到这次会跑的脚本，再问同一个判据：存文件的脚本、本机进程在开单、弹卡之前回 needs_input；矩阵每格 0 生成请求、不铸令牌、不弹卡。"
+    },
+    {
+      "path": "electron/catalog/catalogCommit.ts",
+      "entry_point": "testModelCatalogMapping（execute: true）",
+      "disposition": "enforced",
+      "evidence": "映射测试请求不带项目号；进程声明经 executeProfileOperation → executeProcessOperation，在执行器入口被拒、不起进程。渲染层没有界面调用它（只有 desktopClient 的导出）。"
+    },
+    {
+      "path": "electron/catalog/customCallIpc.ts",
+      "entry_point": "脚本试跑预览的 saveFile",
+      "disposition": "not-affected",
+      "evidence": "试跑预览把字节拼成 data URL 交回界面，不写项目文件（customCallTextAndFile.test 锁住）。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "第三次出现同类：2026-11-07 同步配音、文件流视频；这次脚本 saveFile 与本机进程。新的执行路（新的脚本宿主函数、新的进程解析器）还能再绕开判据。",
+    "same_class_scan": [
+      "door-map writeAsset：修前 11 扇 13 处，修后 9 扇 11 处；去掉的是 runtime 注入与 customCallDispatch。剩下的 localFileImport、onboarding 演示素材是用户 / 内置文件，projectAssetStore 是关口内部，generationOutputMaterializer 是回调类型，processOperation / codexCli / antigravityImageOperation 是注入了生成关口的形参。",
+      "door-map writeGeneratedAsset：修前 8 扇，修后 9 扇（customCallDispatch 换到关口上）。",
+      "door-map resultOnlyLandsAsProjectFile：2 扇（runtime、tryModel），都带上第三个参数。",
+      "door-map executeProcessOperation：1 扇（runtime.executeProfileOperation），其调用者 runTask 提交、taskResultQuery 续查、catalogCommit 映射测试都经执行器入口那道拒。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/tasks/projectFileResult.ts",
+    "invariant": "所有发起入口在付费前问同一个判据；判据的脚本参数必填（漏传编译不过）；进程执行器入口自己拒没项目号；脚本 saveFile 只有生成产物关口一条落盘路。",
+    "failure_mode": "没项目沿已有 tasks.resultNeedsProject 文案拒（Agent 端 needs_input），0 生成请求、0 进程、令牌不核销；字节与任务种类不符沿已有生成产物关口拒，不发布文件。",
+    "exception_policy": "none",
+    "strategy": "判据扩到脚本 saveFile 与进程声明并前移到自定义分流之前；saveFile 换成共享落盘关口；执行器入口加同一道拒；删掉同步写入注入、没项目跳过导入、Codex 交裸路径三处旧路。",
+    "artifacts": [
+      "electron/tasks/projectFileResult.ts",
+      "electron/runtime.ts",
+      "electron/catalog/customCallDispatch.ts",
+      "electron/catalog/processOperation.ts",
+      "electron/catalog/codexCli.ts",
+      "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "electron/tasks/syncBytesResultLandsInProject.test.ts",
+      "electron/catalog/processOperation.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/tasks/syncBytesResultLandsInProject.test.ts",
+    "electron/catalog/processOperation.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/tasks/syncBytesResultLandsInProject.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/customCallDispatch.ts",
+      "electron/catalog/processOperation.ts",
+      "electron/catalog/codexCli.ts"
+    ],
+    "rationale": "同提交删除：customCallDispatch 的 writeAsset 注入字段与 saveFile 里的同步写入；processOperation 里「有项目号才导入」的条件；codexCli 没项目时交回临时目录裸路径的分支。不留并行版本、不留 fallback。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "复用现有落盘关口、脚本沙箱与进程执行器，不引入、不升级第三方依赖。",
+    "exit_criteria": []
+  },
+  "migration": "不迁移目录、项目或模型。升级后：有项目的入口行为不变（脚本 saveFile 的文件 meta 记 kind generated，旧文件仍是 video / audio / image，读取照旧）；没项目号还在跑的旧本机进程任务，续查时改为明确拒（原来即梦会静默丢文件、Codex 交裸路径），历史丢失的产物和费用无法恢复。",
+  "residual_risks": [
+    "连接待复验时会先做一次免费凭据复验，再拒；顺序问题归 runtime.ts 热点另行复盘。 探测网络或鉴权异常时，用户可能先看到凭据错误或等待探测超时；本 PR 不保证立即提示打开项目。",
+    "判据按脚本里有没有 saveFile 这个名字判：绕开它、直接调沙箱宿主内部函数的脚本看不出来（Agent 的脚本合同只教 saveFile）；只在注释里提到 saveFile 的脚本没项目时会被多拒，不会多花。",
+    "Agent 试跑（try_model）改用 runTask 同一个脚本解析：只回地址的自定义音频脚本，以前被映射形状误判成「只能写文件」而不让试，现在可以试（放宽，按真实结果去向判）。",
+    "真实供应商、真实即梦 / Codex / Antigravity 进程、付费卡真实界面未验证（unverified），本机假服务与进程替身不能替代。",
+    "外部 Agent 当场试听配音（try_model 试配音）的产品方向不在本次范围。"
+  ]
+}

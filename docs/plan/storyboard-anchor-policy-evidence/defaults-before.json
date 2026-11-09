@@ -890,6 +890,42 @@
     },
     "video": {}
   },
+  "gpt-image-2.6-flare/kie": {
+    "image": {
+      "modelKey": "gpt-image-2.6-flare",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gpt-image-2.6-flare/apimart": {
+    "image": {
+      "modelKey": "gpt-image-2.6-flare",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gpt-image-2.6-sunburst/kie": {
+    "image": {
+      "modelKey": "gpt-image-2.6-sunburst",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gpt-image-2.6-sunburst/apimart": {
+    "image": {
+      "modelKey": "gpt-image-2.6-sunburst",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
   "seedream/kie": {
     "image": {
       "modelKey": "seedream",
@@ -1173,11 +1209,59 @@
     "image": {},
     "video": {}
   },
+  "suno-v6-mini/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6-mini/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6-wild/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6-wild/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-v6/kie": {
+    "image": {},
+    "video": {}
+  },
   "suno-v5.5/apimart": {
     "image": {},
     "video": {}
   },
   "suno-sfx-v5.5/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6-mini/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6-mini/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6-wild/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6-wild/kie": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6/apimart": {
+    "image": {},
+    "video": {}
+  },
+  "suno-sfx-v6/kie": {
     "image": {},
     "video": {}
   },
@@ -1556,6 +1640,428 @@
       "modelVendor": "apimart",
       "modeId": "upscale",
       "refModeId": "upscale"
+    },
+    "video": {}
+  },
+  "kling-v4/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "kling-v4",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "kling-v4/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "kling-v4",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "grok-imagine-video-1.5-official/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "grok-imagine-video-1.5",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "grok-imagine-video-1.5-official/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "grok-imagine-video-1.5",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "pixverse-v6/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "pixverse-v6",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "pixverse-v6/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "pixverse-v6",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "pixverse-v6-max/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "pixverse-v6-max",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "pixverse-v6-max/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "pixverse-v6-max",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "flux-3-video/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "flux-3-video",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "flux-3-video/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "flux-3-video",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "muse-video-ext/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "muse-video-ext",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "muse-video-ext/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "muse-video-ext",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "wan-3.0-prime-apimart/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "wan3.0-video-prime",
+      "modelVendor": "kie",
+      "modeId": "first"
+    }
+  },
+  "wan-3.0-prime-apimart/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "wan3.0-video-prime",
+      "modelVendor": "apimart",
+      "modeId": "first"
+    }
+  },
+  "veo3.1-fast-official/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "veo3.1-fast-official",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "veo3.1-fast-official/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "veo3.1-fast-official",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "veo3.1-quality-official/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "veo3.1-quality-official",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "veo3.1-quality-official/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "veo3.1-quality-official",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "viduq3-pro/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "viduq3-pro",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "viduq3-pro/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "viduq3-pro",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "viduq3-turbo/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "viduq3-turbo",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "viduq3-turbo/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "viduq3-turbo",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "viduq4-preview/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "viduq4-preview",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "viduq4-preview/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "viduq4-preview",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "gemini-omni-1.2-flash/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "gemini-omni-1.2-flash",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "gemini-omni-1.2-flash/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "gemini-omni-1.2-flash",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "gemini-omni-1.2-flash-ext/kie": {
+    "image": {},
+    "video": {
+      "modelKey": "gemini-omni-1.2-flash-ext",
+      "modelVendor": "kie",
+      "modeId": "i2v"
+    }
+  },
+  "gemini-omni-1.2-flash-ext/apimart": {
+    "image": {},
+    "video": {
+      "modelKey": "gemini-omni-1.2-flash-ext",
+      "modelVendor": "apimart",
+      "modeId": "i2v"
+    }
+  },
+  "gemini-nano-banana-2.1/kie": {
+    "image": {
+      "modelKey": "gemini-nano-banana-2.1",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gemini-nano-banana-2.1/apimart": {
+    "image": {
+      "modelKey": "gemini-nano-banana-2.1",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gemini-nano-banana-2.1-ext/kie": {
+    "image": {
+      "modelKey": "gemini-nano-banana-2.1-ext",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gemini-nano-banana-2.1-ext/apimart": {
+    "image": {
+      "modelKey": "gemini-nano-banana-2.1-ext",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gemini-3.1-flash-lite-image/kie": {
+    "image": {
+      "modelKey": "gemini-3.1-flash-lite-image",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gemini-3.1-flash-lite-image/apimart": {
+    "image": {
+      "modelKey": "gemini-3.1-flash-lite-image",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gemini-3.1-flash-lite-image-ext/kie": {
+    "image": {
+      "modelKey": "gemini-3.1-flash-lite-image-ext",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "gemini-3.1-flash-lite-image-ext/apimart": {
+    "image": {
+      "modelKey": "gemini-3.1-flash-lite-image-ext",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "flux-3-image/kie": {
+    "image": {
+      "modelKey": "flux-3-image",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "flux-3-image/apimart": {
+    "image": {
+      "modelKey": "flux-3-image",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "flux-3-image-klein/kie": {
+    "image": {
+      "modelKey": "flux-3-image-klein",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "flux-3-image-klein/apimart": {
+    "image": {
+      "modelKey": "flux-3-image-klein",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "grok-imagine-image-2.0-official/kie": {
+    "image": {
+      "modelKey": "grok-imagine-image-2.0",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "grok-imagine-image-2.0-official/apimart": {
+    "image": {
+      "modelKey": "grok-imagine-image-2.0",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "hy-image-v3.5-preview/kie": {
+    "image": {
+      "modelKey": "hy-image-v3.5-preview",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "hy-image-v3.5-preview/apimart": {
+    "image": {
+      "modelKey": "hy-image-v3.5-preview",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "muse-image-ext/kie": {
+    "image": {
+      "modelKey": "muse-image-ext",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "muse-image-ext/apimart": {
+    "image": {
+      "modelKey": "muse-image-ext",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "wan2.7-image/kie": {
+    "image": {
+      "modelKey": "wan2.7-image",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "wan2.7-image/apimart": {
+    "image": {
+      "modelKey": "wan2.7-image",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "wan2.7-image-pro/kie": {
+    "image": {
+      "modelKey": "wan2.7-image-pro",
+      "modelVendor": "kie",
+      "modeId": "t2i",
+      "refModeId": "i2i"
+    },
+    "video": {}
+  },
+  "wan2.7-image-pro/apimart": {
+    "image": {
+      "modelKey": "wan2.7-image-pro",
+      "modelVendor": "apimart",
+      "modeId": "t2i",
+      "refModeId": "i2i"
     },
     "video": {}
   },

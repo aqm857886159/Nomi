@@ -1,7 +1,7 @@
 {
   "round": 4,
   "sourceCommit": "b0654d0155c72603f757801912bc771992138e36",
-  "status": "partial",
+  "status": "final-free",
   "counterexamples": [
     {
       "name": "bypass-spend",
@@ -93,5 +93,123 @@
     "paid live model",
     "Windows",
     "independent acceptance"
-  ]
+  ],
+  "final": {
+    "productSource": "a5387c33b",
+    "rule": "A walk counts as passed only when its own receipt says passed; exit 1 caused only by the foreground guard is not a failure.",
+    "walks": {
+      "asset-six": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "en-g6": {
+        "status": "failed",
+        "commit": "61e44843e"
+      },
+      "en-g7": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "en-reload": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "en-seam": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "en-warm-resend": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "en-warm-retrieve": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "en-window-close": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "http-eight": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "matrix": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "reviewer-window-adapted": {
+        "status": "finished",
+        "commit": "61e44843e"
+      },
+      "three-pages": {
+        "status": "failed",
+        "commit": "61e44843e"
+      },
+      "zh-CN-g6": {
+        "status": "failed",
+        "commit": "61e44843e"
+      },
+      "zh-CN-g7": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "zh-CN-reload": {
+        "status": "passed",
+        "commit": "92ba23d70"
+      },
+      "zh-CN-seam": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "zh-CN-warm-resend": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "zh-CN-warm-retrieve": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "zh-CN-window-close": {
+        "status": "passed",
+        "commit": "92ba23d70"
+      },
+      "zh-CN-g6-real-batch": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "zh-CN-three-pages": {
+        "status": "passed",
+        "commit": "a5387c33b"
+      },
+      "zh-CN-approved-card": {
+        "status": "passed",
+        "commit": "a5387c33b"
+      },
+      "en-g6-real-batch": {
+        "status": "passed",
+        "commit": "61e44843e"
+      },
+      "en-three-pages": {
+        "status": "passed",
+        "commit": "a5387c33b"
+      },
+      "en-approved-card": {
+        "status": "passed",
+        "commit": "a5387c33b"
+      }
+    },
+    "replaced": {
+      "g6": "The first G6 walk expected the hosting checkbox without a first-hosting precondition (precondition error). The real storyboard batch version passed in both languages.",
+      "three-pages": "The 18:06 failure measured the old expectation; the corrected palette check passed on the final source.",
+      "approved-card": "The skipped-batch notice appears when the batch settles (4.6 s zh, 5.1 s en with the fixture), so the 5 s default wait was flaky; the walk now waits on the station budget and records the time."
+    },
+    "copyDecisions": "User 2026-11-03: keep the approved possible-charge sentences (exact-value allowance for five keys) and shorten the secondary action to 查看任务 / View task.",
+    "notRun": [
+      "paid live model",
+      "Windows",
+      "independent acceptance",
+      "force-kill restart (two attempts used in round 4)"
+    ]
+  }
 }

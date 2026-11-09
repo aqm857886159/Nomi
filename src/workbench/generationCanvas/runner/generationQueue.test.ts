@@ -70,7 +70,7 @@ describe('生成队列外化', () => {
         // 第一波跑的时候，第二波必须已经在队列里挂着「queued」——这正是用户以前看不见的那部分。
         const queued = useGenerationQueueStore.getState().entries.filter((entry) => entry.state === 'queued')
         seenQueuedInSecondWave = Math.max(seenQueuedInSecondWave, queued.length)
-        return fakeResult('ok')
+        return [fakeResult('ok')] as const
       },
     })
     expect(seenQueuedInSecondWave).toBeGreaterThanOrEqual(2)
@@ -90,7 +90,7 @@ describe('生成队列外化', () => {
           const batchId = useGenerationQueueStore.getState().entries[0]?.batchId
           if (batchId) useGenerationQueueStore.getState().cancelBatchRemaining(batchId)
         }
-        return fakeResult(node.id)
+        return [fakeResult(node.id)] as const
       },
     })
     await runPromise
@@ -154,7 +154,7 @@ describe('生成队列外化', () => {
     const result = await runGenerationNodesBatch([id], { target: projectTarget,
       assetUploadConsent: 'not-needed',
       concurrency: 1,
-      executor: async () => fakeResult(id),
+      executor: async () => [fakeResult(id)] as const,
     })
 
     expect(result.successes).toHaveLength(1)
@@ -171,7 +171,7 @@ describe('生成队列外化', () => {
       concurrency: 3,
       executor: async (node) => {
         executed.push(node.id)
-        return fakeResult(node.id)
+        return [fakeResult(node.id)] as const
       },
     })
     expect(executed).toHaveLength(3)
@@ -201,7 +201,7 @@ describe('生成队列外化', () => {
     it('unfrozen-anchor 被拦的镜头 → 留 idle（不画红错误卡）、不进 failures', async () => {
       const [shotId] = addImageNodes(1)
       const plan = planWithBlocked([], [{ nodeId: shotId, reason: 'unfrozen-anchor', detail: '在等参考卡「便利店」定妆——在卡上点「定妆」' }])
-      const result = await runGenerationNodesByPlan(plan, { target: projectTarget, assetUploadConsent: 'not-needed', executor: async () => fakeResult('x') })
+      const result = await runGenerationNodesByPlan(plan, { target: projectTarget, assetUploadConsent: 'not-needed', executor: async () => [fakeResult('x')] as const })
       const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === shotId)
       expect(node?.status ?? 'idle').toBe('idle') // 不是 'error'——等待态去红
       expect(node?.error).toBeFalsy()
@@ -211,7 +211,7 @@ describe('生成队列外化', () => {
     it('missing-upstream 同样走等待桶（留 idle，不进 failures）', async () => {
       const [shotId] = addImageNodes(1)
       const plan = planWithBlocked([], [{ nodeId: shotId, reason: 'missing-upstream', detail: '上游「前置镜」还没有生成结果' }])
-      const result = await runGenerationNodesByPlan(plan, { target: projectTarget, assetUploadConsent: 'not-needed', executor: async () => fakeResult('x') })
+      const result = await runGenerationNodesByPlan(plan, { target: projectTarget, assetUploadConsent: 'not-needed', executor: async () => [fakeResult('x')] as const })
       const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === shotId)
       expect(node?.status ?? 'idle').toBe('idle')
       expect(result.failures.map((f) => f.nodeId)).not.toContain(shotId)
@@ -220,7 +220,7 @@ describe('生成队列外化', () => {
     it('cycle（结构错误）仍走失败桶（红 error + 进 failures，可单独处理）', async () => {
       const [shotId] = addImageNodes(1)
       const plan = planWithBlocked([], [{ nodeId: shotId, reason: 'cycle', detail: '与其他节点构成循环引用' }])
-      const result = await runGenerationNodesByPlan(plan, { target: projectTarget, assetUploadConsent: 'not-needed', executor: async () => fakeResult('x') })
+      const result = await runGenerationNodesByPlan(plan, { target: projectTarget, assetUploadConsent: 'not-needed', executor: async () => [fakeResult('x')] as const })
       const node = useGenerationCanvasStore.getState().nodes.find((n) => n.id === shotId)
       expect(node?.status).toBe('error')
       expect(result.failures.map((f) => f.nodeId)).toContain(shotId)

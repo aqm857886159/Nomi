@@ -13,6 +13,7 @@
 | `catalogs/v0.24.0-native-wire` | 0.24.0 | 先 `zzRelGen` 接 6 个模型，再在它的输出上跑 `generators/zzRelNative.ts.txt`（开机体检 `upgradeRelayModelsToNativeWire` 把其中一个视频行切到原生报文） | 上一份的 5 个，加一个带档案和原生报文的视频行 |
 | `catalogs/v0.24.0-declared-card` | 0.24.0 | 在 0.24.0 的导出里跑 `generators/zzRelDeclared.ts.txt`：用真实的 `registerDeclaredProvider` 登记一张 AI 交的声明卡 | 视频 1，`card.json` 是登记它的那张卡（升级后重交卡用） |
 | `catalogs/v0.24.0-wizard-audio` | 0.24.0 | `zzRelGen`，模型表换成音频 2 + 文本 1（`V_MODELS` 环境变量） | 音频 2、文本 1；带认证日志文件（`integration-certification/`）和备份，都是旧版本真实落下来的，原样保留 |
+| `catalogs/v0.24.1-wizard` | 0.24.1（目录格式 13） | 在 0.24.1 的导出里跑 `zzRelGen`（`V_MODELS` 给的模型表与 v0.24.0-wizard 一致） | 图片 2 已接通，一个图片模型的图生图是 multipart 上传；视频 3 没接通——0.24.1 起连接向导不再替没声明协议的视频模型猜路由，这就是 0.24.1 用户这样接出来的真实样子，原样保留禁用与失败状态；带认证日志和备份，原样保留 |
 
 每份目录的 `expected.json` 是**从主线录的**，不是手写的：里面写着它录自哪个主线提交（`recordedFrom`）、读完目录后盘上的目录版本和留下的备份文件（`diskVersionAfterRead`、`backupFiles`），以及每个模型的 `listed`、`published`，和每个已发布模式发出的那一个请求（`modes.<taskKind>.request`，地址换成 `{{origin}}`，multipart 的边界去掉）。`v0.24.0-wizard/expected.hand-written-half-contract.json` 是同一份目录加「手写了半份能力合同」（只写文生，路由还有图生）那一格。
 
@@ -65,3 +66,7 @@ pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 生成器是 `generators/zzLockExitGen.ts.txt`，复制到旧版导出的 `electron/capabilityCore/zzLockExitGen.test.ts`，设 `NOMI_OLD_RUN_OUT` 为输出目录、`NOMI_OLD_RUN_COMMIT` 为导出提交的完整 SHA，使用该导出的 vitest 运行。源码导出包含根目录 tsconfig、electron、src、scripts、tests/setup、tests/stubs，依赖可链接已有目录。只拷实际落盘的 `.nomi`；不包含活锁和任何用户资料，凭据机构仅使用测试假值。
 
 `runs/v0.24.0-canvas-interrupted` 同样由上述 v0.24.0 源码运行 `generators/zzLockExitInterruptedGen.ts.txt` 生成：真实 POST 尚未回复时保存 Run，旧版第二次提交产生实际 `node_generation_in_flight`，由旧版画布 store 写进 `node.json`。未手写 Run/节点形状，复制时排除活锁。F10 回放在 `electron/capabilityCore/canvasOpenRuns.test.ts`：打开后成为结果不明；真人放行不发 POST，新的生成意图恰发一次。
+
+## 内置目录声明快照（`curated/`）
+
+`curated/v0.24.1-apimart` 由 `fb169414c1778e88bca35beacc0da9c54cb313d4` 的 `ensureBuiltinModelSeeds` 经真实目录写入函数落盘，再仅投影 APIMart 行，行内容未手写。没有凭据。生成器 `generators/zzCatalogSnapshot.ts.txt` 需要显式临时设置目录；`provenance.json` 记录来源。`apimartLatestContracts.test.ts` 对账每个旧身份、用户设置和旧音频映射。它证明目录兼容，不能替代真实旧作品的供应商执行验证。

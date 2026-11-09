@@ -48,6 +48,8 @@ vi.mock('../../../generationCanvas/agent/applyCanvasToolCall', () => ({
 
 const facts: Record<string, unknown> = {}
 const imageResult = (id: string): GenerationNodeResult => ({ id: 'result-' + id + '-' + Math.random(), type: 'image', url: 'https://fixture.invalid/' + id + '.png', createdAt: 1 })
+/** 执行器一次交回这一镜的全部结果（这里一张）。 */
+const imageRun = (id: string) => [imageResult(id)] as const
 const plan = (shots = 2): StoryboardPlan => ({
   title: 'Lock', anchors: [{ id: 'actor', name: 'Actor', kind: 'character', carrier: 'visual', description: 'Actor' }],
   shots: Array.from({ length: shots }, (_, i) => i + 1).map(index => ({ index, shotId: `shot-${index}`, shotKind: 'image' as const, durationSec: 2, anchorIds: ['actor'], prompt: `Actor walks ${index}` })),
@@ -92,7 +94,7 @@ function holdAnchors() {
   const hold = deferred()
   calls.execute.mockImplementation(async (node: GenerationCanvasNode) => {
     if (node.meta?.anchorId) await hold.promise
-    return imageResult(node.id)
+    return imageRun(node.id)
   })
   return () => hold.resolve()
 }
@@ -183,7 +185,7 @@ describe('二-3 记 run 号在第一张卡关闭之后', () => {
   it('T2a 卡开着，这一镜单发并跑完：确认后不得再发', async () => {
     const current = plan(); seed(current)
     const cards = heldCards()
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const ui = editor(current), batch = ui.runBatch()
     await vi.waitFor(() => expect(cards.length).toBe(1))
     await ui.clickRow('shot-2')
@@ -196,7 +198,7 @@ describe('二-3 记 run 号在第一张卡关闭之后', () => {
   it('T2p 同一轮点行又点整批（prep 重叠，行的 await 还没走完卡就开了）：确认后不得再发', async () => {
     const current = plan(); seed(current)
     const cards = heldCards()
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const ui = editor(current)
     const single = ui.clickRow('shot-2'), batch = ui.runBatch()
     await vi.waitFor(() => expect(cards.length).toBe(1))
@@ -210,7 +212,7 @@ describe('二-3 记 run 号在第一张卡关闭之后', () => {
   it('T2q 两张卡排队：A 卡（Agent 只发这一镜）确认跑完后再确认 B 卡（Agent 整批）：这一镜不得再发', async () => {
     const current = plan(); seed(current)
     const cards = heldCards()
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const placed = addShot('shot-2')
     const single = confirmAndRunNode(placed.id, { initiator: 'agent' })
     await vi.waitFor(() => expect(cards.length).toBe(1))
@@ -241,7 +243,7 @@ describe('二-3 记 run 号在第一张卡关闭之后', () => {
   it('T12 卡开着，这张资产卡单发并跑完：确认后资产不得再发', async () => {
     const current = plan(); seed(current)
     const cards = heldCards()
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const ui = editor(current), batch = ui.runBatch()
     await vi.waitFor(() => expect(cards.length).toBe(1))
     await ui.clickAnchor()
@@ -254,7 +256,7 @@ describe('二-3 记 run 号在第一张卡关闭之后', () => {
   it('T12b 过滤到入队的缝：资产波的 consent 卡住时单发资产并跑完：资产不得再发', async () => {
     const current = plan(); seed(current)
     const hold = deferred()
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     let consents = 0
     calls.consent.mockImplementation(async (input: { shots: Array<{ runRecordId: string }> }) => { consents += 1; if (consents === 1) await hold.promise; return input.shots.map(shot => `canvas-${shot.runRecordId}`) })
     const ui = editor(current), batch = ui.runBatch()
@@ -326,8 +328,8 @@ describe('二-5 过滤之后到入队之间的缝', () => {
     const single = deferred()
     let shot2Calls = 0
     calls.execute.mockImplementation(async (node: GenerationCanvasNode) => {
-      if (node.meta?.shotId === 'shot-2') { shot2Calls += 1; if (shot2Calls === 1) { await single.promise; return imageResult(node.id) } throw refusal() }
-      return imageResult(node.id)
+      if (node.meta?.shotId === 'shot-2') { shot2Calls += 1; if (shot2Calls === 1) { await single.promise; return imageRun(node.id) } throw refusal() }
+      return imageRun(node.id)
     })
     let consents = 0
     calls.consent.mockImplementation(async (input: { shots: Array<{ runRecordId: string }> }) => { consents += 1; if (consents === 2) await hold.promise; return input.shots.map(shot => `canvas-${shot.runRecordId}`) })
@@ -413,7 +415,7 @@ describe('二-6 吞掉本该发的镜', () => {
     calls.execute.mockImplementation(async (node: GenerationCanvasNode) => {
       if (node.meta?.anchorId) await hold.promise
       if (node.meta?.shotId === 'shot-2') await single.promise
-      return imageResult(node.id)
+      return imageRun(node.id)
     })
     const ui = editor(current), batch = ui.runBatch()
     await vi.waitFor(() => expect(calls.execute).toHaveBeenCalledTimes(1))
@@ -429,7 +431,7 @@ describe('二-6 吞掉本该发的镜', () => {
   it('T11 资产单发在跑时点整批：镜头发不发、带不带参考', async () => {
     const current = plan(); seed(current)
     const hold = deferred()
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => { if (node.meta?.anchorId) await hold.promise; return imageResult(node.id) })
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => { if (node.meta?.anchorId) await hold.promise; return imageRun(node.id) })
     const ui = editor(current)
     const single = ui.clickAnchor()
     await vi.waitFor(() => expect(assetSends()).toBe(1))
@@ -499,10 +501,10 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     calls.execute.mockImplementation(async (node: GenerationCanvasNode, ctx: typeof r1Ctx) => {
       if (node.meta?.shotId === 'shot-2') {
         shot2Calls += 1
-        if (shot2Calls === 1) { r1Ctx = ctx; ctx.onProgress?.({ phase: 'running', message: 'running', taskId: 'task-1' }); await r1.promise; return imageResult(node.id) }
+        if (shot2Calls === 1) { r1Ctx = ctx; ctx.onProgress?.({ phase: 'running', message: 'running', taskId: 'task-1' }); await r1.promise; return imageRun(node.id) }
         throw refusal()
       }
-      return imageResult(node.id)
+      return imageRun(node.id)
     })
     const first = confirmAndRunNode(placed.id, { initiator: 'user' })
     await vi.waitFor(() => expect(shot2Calls).toBe(1))
@@ -522,7 +524,7 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     const rowStatus = rowsOf(current).find(r => r.shot.shotId === 'shot-2')!.exec.status
     const hold = deferred()
     const original = calls.execute.getMockImplementation()!
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode, ctx: never) => { if (node.meta?.anchorId) await hold.promise; return node.meta?.shotId === 'shot-2' && shot2Calls() >= 2 ? (calls.execute.mock.calls.length, imageResult(node.id)) : original(node, ctx) })
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode, ctx: never) => { if (node.meta?.anchorId) await hold.promise; return node.meta?.shotId === 'shot-2' && shot2Calls() >= 2 ? (calls.execute.mock.calls.length, imageRun(node.id)) : original(node, ctx) })
     const ui = editor(current), batch = ui.runBatch()
     await vi.waitFor(() => expect(assetSends()).toBe(1))
     r1.resolve(); await first
@@ -538,8 +540,8 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     let shot2Calls = 0
     const r1 = deferred()
     calls.execute.mockImplementation(async (node: GenerationCanvasNode) => {
-      if (node.meta?.shotId === 'shot-2') { shot2Calls += 1; if (shot2Calls === 1) { await r1.promise; return imageResult(node.id) } await r2.promise; throw refusal() }
-      return imageResult(node.id)
+      if (node.meta?.shotId === 'shot-2') { shot2Calls += 1; if (shot2Calls === 1) { await r1.promise; return imageRun(node.id) } await r2.promise; throw refusal() }
+      return imageRun(node.id)
     })
     const first = confirmAndRunNode(placed.id, { initiator: 'user' })
     await vi.waitFor(() => expect(shot2Calls).toBe(1))
@@ -572,12 +574,13 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     let shot2Calls = 0
     calls.execute.mockImplementation(async (node: GenerationCanvasNode, ctx: { canvasRun?: { runRecordId: string } }) => {
       shot2Calls += 1
-      if (shot2Calls === 1) { facts.I3r1 = ctx.canvasRun?.runRecordId ?? null; await r1.promise; return imageResult(node.id) }
+      if (shot2Calls === 1) { facts.I3r1 = ctx.canvasRun?.runRecordId ?? null; await r1.promise; return imageRun(node.id) }
       throw refusal()
     })
     const first = confirmAndRunNode(placed.id, { initiator: 'user' })
     await vi.waitFor(() => expect(shot2Calls).toBe(1))
-    const r1Id = nodes().find(n => n.id === placed.id)!.runs?.[0]?.id
+    // R1 的号由它自己报（执行器拿到的运行记录号）：花钱的那次在主进程准入之前不在运行记录里（归属规则 D1）。
+    const r1Id = facts.I3r1
     await confirmAndRunNode(placed.id, { initiator: 'user' })
     r1.reject(new RecoverableTimeoutError({ taskId: 'accepted', vendor: 'fixture', taskKind: 'text_to_image', modelKey: 'fixture-image' }))
     await first
@@ -593,7 +596,7 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     const refusedNode = addShot('shot-1'), ok = addShot('shot-2')
     const anchor = store().addNode({ kind: 'image', prompt: 'actor', meta: { storyboardDesignId: 'design', anchorId: 'actor' } })
     store().appendNodeRun(anchor.id, { id: 'done', status: 'success' }); store().addNodeResult(anchor.id, imageResult('a'))
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => { if (node.id === refusedNode.id) throw refusal(); return imageResult(node.id) })
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => { if (node.id === refusedNode.id) throw refusal(); return imageRun(node.id) })
     await editor(current).runBatch(); await quiet()
     const note = notified()
     const sendsBefore = sendsOf(refusedNode.id)
@@ -607,7 +610,7 @@ describe('在途拒绝卡的出路（要 R1 的渲染层 worker 还活着）', (
     const frozen = addShot('shot-2', { frozen: true })
     const anchor = store().addNode({ kind: 'image', prompt: 'actor', meta: { storyboardDesignId: 'design', anchorId: 'actor' } })
     store().appendNodeRun(anchor.id, { id: 'done', status: 'success' }); store().addNodeResult(anchor.id, imageResult('a'))
-    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageResult(node.id))
+    calls.execute.mockImplementation(async (node: GenerationCanvasNode) => imageRun(node.id))
     const rows = rowsOf(current)
     await editor(current).runBatch(); await quiet()
     facts.T8 = { rowStatus: rows.find(r => r.shot.shotId === 'shot-2')!.exec.status, onCard: confirmCards[0]?.planRows?.some(r => r.id === 'shot:shot-2'), sends: sendsOf(frozen.id), notified: notified(), anchorCards: deriveAnchorCardRuntimes({ plan: current, designId: 'design', nodes: nodes() }).length }

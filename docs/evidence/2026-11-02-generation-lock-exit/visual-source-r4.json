@@ -1,5 +1,5 @@
 {
-  "laterSource": "3610b9aba",
+  "laterSource": "a5387c33b",
   "unchangedVisualFiles": [
     {
       "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
@@ -33,8 +33,8 @@
     },
     {
       "path": "src/workbench/creation/storyboard/shotRow/StoryboardFrameActions.tsx",
-      "captureBlob": "29501e14d3a93ce0beca2258da607f9f54c6044d",
-      "finalBlob": "29501e14d3a93ce0beca2258da607f9f54c6044d"
+      "captureBlob": "5862ba438d96dc9eadc76f5bee9f8d5400f761ff",
+      "finalBlob": "5862ba438d96dc9eadc76f5bee9f8d5400f761ff"
     },
     {
       "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
@@ -48,82 +48,83 @@
     },
     {
       "path": "src/i18n/locales/generationCommon.ts",
-      "captureBlob": "be1b9b8de29a472283d00b117a590836987c8d70",
-      "finalBlob": "be1b9b8de29a472283d00b117a590836987c8d70"
+      "captureBlob": "81df756091a271e608b3a32459e319a4edcaf253",
+      "finalBlob": "81df756091a271e608b3a32459e319a4edcaf253"
     }
   ],
-  "finalRestartCaptureCommit": "fef539149",
-  "darkAndWaitingCaptureCommit": "b0654d015",
+  "finalRestartCaptureCommit": "a5387c33b",
+  "darkAndWaitingCaptureCommit": "a5387c33b",
   "screenshots": [
     {
       "name": "ConfirmCanvas.png",
-      "sha256": "75afa60e90668155040e18c1e6e38d366a1ec88bf3a10b9b00e6902bddf43011",
-      "captureCommit": "fef539149"
+      "sha256": "26cc57f2cb01042d93216f6e89f9dffed0c8bbf217ae80b4907889b0addc49bf",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "ConfirmList.png",
-      "sha256": "f4711f1d393821a62c1993869355786d20c5d66936bd12d712042e2f94b63eb8",
-      "captureCommit": "fef539149"
+      "sha256": "3a1f6b7b0dbd4dfce91f302d98435e8f8cd1f86bb4e6804275068eca3f384053",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "ConfirmStoryboard.png",
-      "sha256": "de2e2ed08bb47cd3500e55bb5149327be23d611ed439b3f629224c0d8b75f12f",
-      "captureCommit": "fef539149"
+      "sha256": "b8419a859475fdc04279076c64ad58adf3c7955aadddb51bda96051966e66f52",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "EnDarkCanvas.png",
-      "sha256": "8e805897d6ad32d66ac1a6cd28de4c46e6b53c60c8e15814c34e3030c605b969",
-      "captureCommit": "b0654d015"
+      "sha256": "203616b9330c84be16e6e264f924d12e427740fdf9f4629b8c6160d2c4414741",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "EnDarkConfirm.png",
-      "sha256": "98c99d38b40f3d754701d99096fc757cddead803c4bf0e772d0e145d3cccf536",
-      "captureCommit": "b0654d015"
+      "sha256": "2ac26377a66edec32fa048833cb644241c244604e511c99bfcb1823d724b76f0",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "EnLightList.png",
-      "sha256": "ccc4cbddc875fdd9be3994ba87c6c8e2e3983cc9d92737b5d69e0f271289eec6",
-      "captureCommit": "b0654d015"
+      "sha256": "746bec6842905d61d67ad67371ff7c4ae47852b3759f0535c6b337ee022f4f59",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "NoticeStoryboard.png",
-      "sha256": "d6157085cc0d3f6731afbb5b2609caf47bb07868c4d7456f6cb81c71185f026b",
-      "captureCommit": "fef539149"
+      "sha256": "626ce49a6bbc6ef0c4a301d4ef8402082ae5a63110f81194b474b09c58ba572f",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "RestartCanvas.png",
-      "sha256": "2e136e46db2478bd0e6273074c2129d6cbe7c493464a07b538d62ccd062e492e",
-      "captureCommit": "fef539149"
+      "sha256": "0eff8002dc3271c70ad8c2bfb535e3507537c93b46dde921a6aeb6be9d40ba34",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "RestartList.png",
-      "sha256": "808020038f6f65029e8f8a73de9959012442cf39521529d8a3401d42febe4d5d",
-      "captureCommit": "fef539149"
+      "sha256": "9ef595718746da15e9c2abc4ab0d52d7caadf7adf120d72385a73de3d5ab9e70",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "RestartStoryboard.png",
-      "sha256": "35f33c4a22c311da1afb08b49e113270c727de8177a74b0501d64b225bba2692",
-      "captureCommit": "fef539149"
+      "sha256": "29dc526f1d7b9910cf6096913e63ea98e24c5f94a7f612d007393c905ff773b0",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "WaitingCanvasConfirm.png",
-      "sha256": "68ebf7c04eb38e760637ee20302bee8551347dd8bd68f3d07413e3d5c5608fc4",
-      "captureCommit": "b0654d015"
+      "sha256": "53888824abdc411be9909897034d385c2bf302be34b9190842b94210763a09c0",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "WaitingStoryboard.png",
-      "sha256": "bb3430b6d873fa2a0285262fc460db0a7a4057c5c588bc27ec60c1f0948f36f1",
-      "captureCommit": "b0654d015"
+      "sha256": "b340b707069cdcd7f4dcc4b146c603b297fe9b5ddb75b895c071525b589ffd0d",
+      "captureCommit": "a5387c33b"
     },
     {
       "name": "ZhDarkStoryboard.png",
-      "sha256": "5e6c04b5717e4488bd5d4c65c6c2554aaf7561d383c84a6f1fca35a3d160f9e5",
-      "captureCommit": "b0654d015"
+      "sha256": "16ae1e6901c179ade5edeb689d93e87b926669b8672b0c806f0c517ad5142e91",
+      "captureCommit": "a5387c33b"
     }
   ],
   "reviewed": true,
   "differences": [
     "English narrow canvas footer wraps beyond the card, while the approved preview fits it inside; retained under the explicit footer compression exclusion.",
-    "The retained English footer says Report Issue, while the preview says Report a problem; other failure copy was left unchanged as required."
+    "The retained English footer says Report Issue, while the preview says Report a problem; other failure copy was left unchanged as required.",
+    "Secondary action now reads 查看任务 / View task (user decision 2026-11-03, board D6); being shorter, it sits on the same row as the primary button on canvas and list, so the footer moves up one row compared with the preview."
   ]
 }

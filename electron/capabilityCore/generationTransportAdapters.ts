@@ -6,8 +6,10 @@ import { GenerationProviderCapabilityError, GenerationProviderObservationError, 
 import { ProductionGenerationAuthorizationError } from '../productionRun/productionGenerationAuthorization';
 import { z } from "zod";
 import { logWarn } from "../logging/logger";
-import { GENERATION_ARGUMENT_REFUSAL, refuseToModel, safeTransportFailure } from "./transportFailure";
+import { GENERATION_ARGUMENT_REFUSAL, refuseArgument, safeTransportFailure } from "./transportFailure";
 import { ContractCompilationError } from "./executionContract";
+import { issuesFromParameterRejection } from "../shared/agentLane/toolInputIssues";
+import { generationProblemFrom, type GenerationProblem } from "../shared/generationProblem";
 import type { RuntimeToolCall, RuntimeToolDecision } from "../shared/agentCapabilities/transportContracts";
 import { GENERATION_METHODS, GENERATION_METHOD_NAMES, isGenerationMethodName, type GenerationMethodName } from "../shared/agentCapabilities/generation";
 import { generationPlanInputSchema, generationStatusInputSchema } from "../shared/agentCapabilities/generationPlanSchemas";
@@ -128,7 +130,7 @@ export function describeSchemaIssues(issues: readonly GenerationSchemaIssue[]): 
 /**
  * 这条路放行的码。除了传输那一族共有的，生成域自己还有五个。
  * `generation_input_invalid` 是「模型写的入参我们收不了」那一档——2026-09-22 起它也承载
- * 域里**有意**抛出的拒绝（`ModelFacingRefusal`），正文原样到模型。
+ * 域里**有意**抛出的拒绝（`GenerationRefusal`），正文原样到模型；2026-11-08 起每一条都带闭合原因（`problem`）。
  */
 const GENERATION_PUBLIC_FAILURE_CODES: ReadonlySet<string> = new Set([
   'generation_input_invalid', 'generation_cancelled', 'project_binding_stale',
@@ -149,20 +151,36 @@ function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }
         : value instanceof ProductionGenerationAuthorizationError || value instanceof GenerationRuntimeBindingError
           ? value.code
           // 参数 / 合同准入的拒绝（参数不在档里、模式不收时长、比例翻不了……）是**我们自己写的**、带合法值的话，
-          // 和 `refuseToModel` 是同一档。以前它不在这里，落进兜底码：Agent 只收到一个裸的 generation_not_started，
+          // 和 `refuseGeneration` 是同一档。以前它不在这里，落进兜底码：Agent 只收到一个裸的 generation_not_started，
           // 说不出拒了什么，于是同一份参数原样重试（铁律 ⑩ 宿主矩阵首跑抓到）。
           : value instanceof ContractCompilationError ? GENERATION_ARGUMENT_REFUSAL : undefined,
     // 范围拒绝（`GenerationScopeRefusal`：不点名一镜不剩 / 点名不成立）同一档：正文是我们写给模型的，逐镜说状态、给下一步。
     ownMessage: (value) => (value instanceof ContractCompilationError || value instanceof GenerationScopeRefusal ? value.message : undefined),
     // 粗码 `generation_input_invalid` 说不清是哪一种拒绝；具体码（unknown_parameter……）随失败带出去，lane 据它给按码的下一步。
     admission: (value) => (value instanceof ContractCompilationError ? value.rejection?.code : undefined),
+    issues: (value) => (value instanceof ContractCompilationError && value.rejection ? issuesFromParameterRejection(value.rejection) : undefined),
     // 收敛成码挡住的应当只有**供应商 / 凭据的原始文本**。连我们自己 schema 的字段级理由一起抹掉，
     // 模型拿到的就是一个说不出拒了什么的裸码，于是同一份载荷原样重试到回合超时——那正是
     // 2026-09-18 那份根因合同修掉的失效方式（`generation_input_invalid — shots.0.prompt: Required`）。
     detail: (value) => { const issues = schemaIssuesOf(value); return issues.length ? describeSchemaIssues(issues) : undefined },
     // 兜底码盖住的也可能是我们自己的缺陷（TypeError 这类）。不留痕 = 把 bug 洗成产品结论。
     onFallback: (rawCode, value) => logWarn("capability", "generation-transport-failed", { rawCode }, value),
+    problem: (value, code) => (code === GENERATION_ARGUMENT_REFUSAL ? refusalProblem(value) : undefined),
   });
+}
+
+/**
+ * 起草期被拒的闭合原因。`GenerationRefusal` 自带（`safeTransportFailure` 直接取）；这里补其余几类：
+ * 合同准入（比例 / 时长 / 参考超量在抛出时就定了码）、范围拒绝、自家 schema 的形状拒收。
+ * 认不出专门码的一律 `parameter_not_allowed` + 出错那一格——**`generation_input_invalid` 没有一条不带原因出去**，
+ * 面板因此不必再用一句兜底话盖住所有情形。
+ */
+function refusalProblem(value: unknown): GenerationProblem {
+  if (value instanceof ContractCompilationError && value.problem) return value.problem;
+  const field = value instanceof ContractCompilationError ? value.rejection?.path
+    : value instanceof GenerationScopeRefusal ? "shotIds"
+      : schemaIssuesOf(value)[0]?.path;
+  return generationProblemFrom({ code: "parameter_not_allowed", ...(field ? { field } : {}), detail: "" });
 }
 
 /**
@@ -541,10 +559,10 @@ export function createPiGenerationTransportAdapter(
           || (typeof args.operationId === 'string'
             && !storyboardTarget.plans.some((plan) => plan.id === args.operationId)
             && draftedFromDocument.get(args.operationId) !== storyboardTarget.sourceDocumentId))) {
-          refuseToModel(GENERATION_ARGUMENT_REFUSAL, 'That plan is not one of the storyboard plans this request covers. Use an operationId the request names, or omit it to start a new draft.');
+          refuseArgument('That plan is not one of the storyboard plans this request covers. Use an operationId the request names, or omit it to start a new draft.');
         }
         if (canonicalCall.toolName === GATE_TOOL) {
-          if (storyboardTarget?.shotIds) refuseToModel(GENERATION_ARGUMENT_REFUSAL, "This storyboard selection is confirmed through its own card; do not request a separate generation gate for it.");
+          if (storyboardTarget?.shotIds) refuseArgument("This storyboard selection is confirmed through its own card; do not request a separate generation gate for it.");
           const result = await requestGate(args, currentLease, signal);
           const denied = result && typeof result === "object" && (result as { nextAction?: unknown }).nextAction === "revise";
           return denied
@@ -554,12 +572,12 @@ export function createPiGenerationTransportAdapter(
         const capability = isGenerationMethodName(canonicalCall.toolName) ? CAPABILITY_BY_METHOD[canonicalCall.toolName] : undefined;
         if (!capability) throw Object.assign(new Error("generation_input_invalid"), { code: "generation_input_invalid" });
         if (storyboardTarget?.shotIds) {
-          if (capability === 'plan' && (typeof args.shotId !== 'string' || !storyboardTarget.shotIds.includes(args.shotId))) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `This request covers only these shots: ${storyboardTarget.shotIds.join(', ')}. Name one of them in shotId.`);
+          if (capability === 'plan' && (typeof args.shotId !== 'string' || !storyboardTarget.shotIds.includes(args.shotId))) refuseArgument(`This request covers only these shots: ${storyboardTarget.shotIds.join(', ')}. Name one of them in shotId.`);
           // 用户的选择就是这一次的范围（没有出价账）：不点名 = 选中的全部，点名只认选中的；规则与 generate 是同一条。
           if (capability === 'present') args.shotIds = resolveUndecidedGenerationShotScope({ door: 'present', planShotIds: storyboardTarget.shotIds, requested: args.shotIds, currentOffer: NO_CURRENT_OFFER, offerable: storyboardTarget.shotIds });
           // The selection names its plan, so a call that addresses a different one is refused
           // rather than silently retargeted.
-          if ((capability === 'plan' || capability === 'present') && args.operationId !== storyboardTarget.designId) refuseToModel(GENERATION_ARGUMENT_REFUSAL, `This request is about plan ${storyboardTarget.designId}. Use that operationId.`);
+          if ((capability === 'plan' || capability === 'present') && args.operationId !== storyboardTarget.designId) refuseArgument(`This request is about plan ${storyboardTarget.designId}. Use that operationId.`);
         }
         // operationId is required by every non-create descriptor. Parsing it
         // here keeps malformed model calls out of the durable operation store.

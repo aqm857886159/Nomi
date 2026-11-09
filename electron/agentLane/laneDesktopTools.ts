@@ -59,6 +59,10 @@ function resultOf(decision: RuntimeToolDecision | null, toolName: string): unkno
       toolName,
       code: decision?.code,
       message: decision?.message,
+      // 准入码与字段事实两个出口一起带（2026-11-07）：只在一个出口带，就是 09-18 那个「兄弟出口没跟上」的形状。
+      admission: decision?.admission,
+      issues: decision?.issues,
+      problem: decision?.problem,
       ...(decision && typeof decision.submissionStarted === 'boolean' ? { submissionStarted: decision.submissionStarted } : {}),
       fallbackCode: 'capability_unsupported',
       ...(advice ? { advice } : {}),

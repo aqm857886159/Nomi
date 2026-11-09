@@ -73,7 +73,8 @@ const ARRIVALS: readonly Arrival[] = [
     name: 'generation result',
     nodeId: IMAGE,
     start: async () => { await deliverRunOutcome(TARGET, IMAGE, { kind: 'run-started', run: { id: 'run-a', status: 'running', startedAt: 10, updatedAt: 10 } }) },
-    arrive: () => deliverRunOutcome(TARGET, IMAGE, { kind: 'result', result: LANDED }),
+    // 结果带着交出它的那次运行的号（控制器交回的结果都带号）；不带号的结果按归属规则只结掉制作记录（docs/plan/2026-11-07-shot-result-ownership.md D6）。
+    arrive: () => deliverRunOutcome(TARGET, IMAGE, { kind: 'result', result: LANDED, runId: 'run-a' }),
     assertLanded: (landed) => {
       expect(landed?.result?.id).toBe('r-landed')
       expect(landed?.history?.map((entry) => entry.id)).toEqual(['r-landed'])
@@ -88,7 +89,7 @@ const ARRIVALS: readonly Arrival[] = [
     // 真实流程：generateText 先落定稿，runGenerationNode 再投递文本结果收尾（状态收成 success）。
     arrive: async () => {
       await deliverRunOutcome(TARGET, TEXT, { kind: 'content', contentJson: DOC, runId: 'run-t' })
-      return deliverRunOutcome(TARGET, TEXT, { kind: 'result', result: { id: 'r-text', type: 'text', text: 'paid text', createdAt: 3 } })
+      return deliverRunOutcome(TARGET, TEXT, { kind: 'result', result: { id: 'r-text', type: 'text', text: 'paid text', createdAt: 3 }, runId: 'run-t' })
     },
     assertLanded: (landed) => {
       expect(landed?.contentJson).toEqual(DOC)

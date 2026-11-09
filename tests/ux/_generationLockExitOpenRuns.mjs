@@ -8,6 +8,7 @@ import { openStoryboardEditor } from './_creationResourceTree.mjs'
 import { canvasFitView, collapseAgentPanel, closeRailDrawer, switchWorkspace, switchGenerationView } from './_shell.mjs'
 import { waitForVisualQuiescence } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 
 /** The reviewer's real slow-provider route, with the approved cancel/retrieve/send-again expectations. */
@@ -88,7 +89,7 @@ export async function lateResultOpenRunsJourney(input, resend = false) {
     host = await canvas()
     if (resend) {
       await arrow(host).click()
-      await page.locator('[data-spend-confirm-dialog]:visible').getByRole('button', { name: text('generationCommon.observability.action.releaseRegenerate.main'), exact: true }).click()
+      await confirmLockExitSpend(page, report, { shot, context: 'late-resend' })
       await expect.poll(() => proxy.records.length).toBe(2)
       await expect.poll(async () => (await current())?.runs?.[0]?.taskId).toBeTruthy()
       await expect.poll(async () => (await current())?.runs?.[0]?.taskId).not.toBe(originalTask)

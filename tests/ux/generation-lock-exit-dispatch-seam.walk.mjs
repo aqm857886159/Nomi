@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
 // 验收线提供的回归走查：真窗 + 假服务商。第一张卡确认，资产在跑；最后一张资产出图的那一刻 + delay 毫秒，
 // 点最后一镜行上的「生成」。批量那一发排在同批前面的镜后面（并发 1 或 ≥7 镜时的真实形状），这一镜发几次？
 // 用法：node t4-seam.walk.mjs <delayMs> [concurrency]，从工作树目录运行。
@@ -31,8 +32,7 @@ async function t4Seam(input) {
     report.targetPrompt = target.prompt
     fixture.holdTasks(true)
     await page.locator('[data-storyboard-batch]').click(); await expect(dialog).toBeVisible()
-    if (await dialog.locator('[data-hosting-remember] input').isVisible()) await dialog.locator('[data-hosting-remember] input').check()
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+    await confirmLockExitSpend(page, report, { shot })
     await expect.poll(() => proxy.records.length).toBe(1)
     await page.evaluate(({ index, shotId, delay }) => {
       const log = window.__vLog = { delay, assetsDoneAt: null, rowClickedAt: null, firstShotNodeAt: null, firstEntryForShotAt: null, targetEntryAt: null, targetBusyAt: null, targetRunningAt: null, rowButtonState: null }

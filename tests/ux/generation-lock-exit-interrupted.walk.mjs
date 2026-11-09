@@ -6,6 +6,8 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { confirmLockExitSpend } from './_generationLockExitHosting.mjs'
+
 const ROOT = process.cwd()
 const { expect } = await import(`${ROOT}/node_modules/@playwright/test/index.mjs`)
 const { stationTimeout } = await import(`${ROOT}/tests/ux/_station-budget.mjs`)
@@ -165,7 +167,7 @@ try {
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('checkbox', { name: design.plan.anchors.find(value => value.id === asset.meta.anchorId).name, exact: true })).toHaveCount(0)
   await expect(dialog.getByRole('checkbox')).toHaveCount(4)
-  await dialog.locator('[data-spend-confirm-action="confirm"]').click()
+  await confirmLockExitSpend(page, report, { shot, context: 'batch-interrupted' })
   await expect.poll(() => proxy.records.length).toBe(2)
   await expect.poll(async () => page.locator('[data-place-storyboard]').isEnabled(), { timeout: stationTimeout({ operations: 4 }) }).toBe(true)
   expect(proxy.records.filter(record => record.prompt.includes(design.plan.shots[0].prompt.slice(0, 8))).length).toBe(0)
@@ -174,19 +176,13 @@ try {
   await shot('batch-skipped-notice')
 
   await canvas(asset.id); await clickGenerateOnCanvas(); await shot('confirm-canvas')
-  await page.locator('[data-spend-confirm-action="confirm"]').last().click()
+  await confirmLockExitSpend(page, report, { shot, context: 'interrupted-resend' })
   await expect.poll(() => proxy.records.length).toBe(3)
   await expect.poll(async () => (await nodes()).find(n => n.id === asset.id)?.status, { timeout: stationTimeout({ operations: 4 }) }).toBe('success')
   await snap('resent-success'); await shot('resent-success')
   await openStoryboardEditor(page, design.id);await closeRailDrawer(page, 'docs');await collapseAgentPanel(page)
   await page.locator('[data-storyboard-batch]').click();await expect(dialog).toBeVisible()
-  await dialog.locator('[data-spend-confirm-action="confirm"]').click()
-  await expect.poll(async () => proxy.records.length === 6 || await dialog.locator('[data-hosting-remember]').isVisible(), { timeout: stationTimeout({ operations: 5 }) }).toBe(true)
-  if (await dialog.locator('[data-hosting-remember]').isVisible()) {
-    await dialog.locator('[data-hosting-remember] input').check()
-    await dialog.locator('[data-spend-confirm-action="confirm"]').click()
-  }
-  await expect.poll(async () => (await nodes()).filter(node => node.result).length, { timeout: stationTimeout({ operations: 6 }) }).toBe(5)
+  await confirmLockExitSpend(page, report, { shot, context: 'batch-resumed', until: async () => (await nodes()).filter(node => node.result).length === 5 })
   expect(proxy.records.length).toBe(6)
   await shot('batch-resumed-all-results')
   }

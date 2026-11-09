@@ -79,7 +79,7 @@ describe('MCP generation draft schema parity', () => {
       //
       // parity 因此更强了，不是更弱：lane 这条路发布的正文现在**逐字等于**外部入口抛出来的那一句，
       // 两边连措辞都不再有分歧。真正要守的「不泄露」由 `transportFailure` 的另一条轴保证：
-      // 只有我们有意抛的 `ModelFacingRefusal` 才带正文，别人抛的一个字都不带
+      // 只有我们有意抛的 `GenerationRefusal` 才带正文，别人抛的一个字都不带
       // （阳性对照在 `generationDomainRefusalReachesModel.test.ts`）。
       expect(laneResult).toMatchObject({ ok: false, code: 'generation_input_invalid' })
       expect((laneResult as { message?: string }).message).toBe((refusedExternally as Error).message)

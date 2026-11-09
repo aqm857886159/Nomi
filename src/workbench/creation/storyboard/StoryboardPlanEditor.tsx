@@ -24,7 +24,7 @@ import { isEmptyStoryboardPlan, stableShotId, type StoryboardPlan } from '../../
 import { planDefaultAspect } from '../../generationCanvas/agent/storyboardShotScope'
 import StoryboardAnchorZone from './anchorZone/StoryboardAnchorZone'
 import StoryboardFilmAspect from './StoryboardFilmAspect'
-import { focusComposerSoon } from '../../ai/resident/focusComposerSoon'
+import { requestResidentComposerFocus } from '../../ai/residentComposerFocus'
 import StoryboardShotTable from './StoryboardShotTable'
 import {
   deriveAnchorCardRuntimes,
@@ -415,7 +415,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       )),
     ])
     useWorkbenchStore.getState().setProjectAgentDockCollapsed(false)
-    focusComposerSoon()
+    requestResidentComposerFocus()
   }
   const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
