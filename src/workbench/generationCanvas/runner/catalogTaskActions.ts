@@ -36,7 +36,7 @@ import {
   uniqueStrings,
 } from './catalogTaskResolve'
 import { promptRequiredForNode } from './promptRequirement'
-import { normalizeCatalogTaskResult } from './catalogTaskResultParse'
+import { normalizeCatalogTaskResults, type GenerationNodeResults } from './catalogTaskResultParse'
 import { localizeRemoteResultUrl } from './resultAssetLocalization'
 import {
   LocalTaskCancelledError,
@@ -67,7 +67,7 @@ import { isTerminalTaskStatus } from '../../../../electron/shared/taskStatus'
 // catalogTaskResultParse（raw/asset/failure/provenance 解析），但 catalogTaskActions
 // 对外公共导出面保持不变，外部 import 路径无需改动。
 export type { CatalogTaskActionOptions, CatalogTaskRunOptions } from './catalogTaskResolve'
-export { normalizeCatalogTaskResult } from './catalogTaskResultParse'
+export { normalizeCatalogTaskResults, type GenerationNodeResults } from './catalogTaskResultParse'
 
 // 任务已提交(付费已发生)后，查结果连续失败多久就放弃轮询、落「可找回」态（不重发，给「重新拉取」入口）。
 // 短于此 = 网络抖动，免费重试查询；长于此 = 上游/网络持续不可达，没必要干等到硬超时(视频 20min)空耗。
@@ -523,7 +523,7 @@ async function waitForCatalogTaskResult(
 export function runCatalogGenerationTask(
   node: GenerationCanvasNode,
   options: CatalogTaskRunOptions,
-): Promise<GenerationNodeResult> {
+): Promise<GenerationNodeResults> {
   // 这次运行的阶段时钟：每一次报进度都经过它（含主进程「开始落地」的广播），
   // 每一个等主进程的 await 都照它设时限（generationPhaseDeadline）。
   const clock = createPhaseClock()
@@ -542,7 +542,7 @@ async function runCatalogGenerationTaskWithFeedback(
   node: GenerationCanvasNode,
   options: CatalogTaskRunOptions,
   clock: PhaseClock,
-): Promise<GenerationNodeResult> {
+): Promise<GenerationNodeResults> {
   const projectId = options.projectTarget.projectId
   // 服务商受理的回执（taskId）。拿到之前阶段到期只能诚实失败；拿到之后到期落「可找回」（免费重新拉取）。
   let receipt: RecoverableTimeoutDetail | null = null
@@ -603,7 +603,7 @@ async function runCatalogGenerationTaskWithFeedback(
       stopListening()
     }
     report('finalizing', streamed.id)
-    return normalizeCatalogTaskResult(streamed, executableNode, options.onMediaDimensions)
+    return normalizeCatalogTaskResults(streamed, executableNode, options.onMediaDimensions)
   }
 
   const runTask = options.runTask || (options.canvasRun ? canvasRunSubmitter(executableNode.id, options.canvasRun.runRecordId, options.canvasRun.acknowledgedOpenRuns) : runWorkbenchTaskByVendor)
@@ -665,8 +665,10 @@ async function runCatalogGenerationTaskWithFeedback(
     if (watchedPromptId) unwatchComfyuiProgress(watchedPromptId)
   }
   report('finalizing', initialResult.id)
-  const normalized = normalizeCatalogTaskResult(finalResult, executableNode, options.onMediaDimensions)
-  // 结构闸：主进程漏本地化时，按运行提交时固定的项目补一次本地化，绝不让厂商临时 URL 落进节点
+  const [first, ...rest] = normalizeCatalogTaskResults(finalResult, executableNode, options.onMediaDimensions)
+  // 结构闸：主进程漏本地化时，按运行提交时固定的项目补一次本地化（每张都补），绝不让厂商临时 URL 落进节点
   // → 隔天过期播不了。切项目后结果仍落原项目。主进程已落地时这里判为非 http，零开销 no-op。
-  return awaitWithinPhase(localizeRemoteResultUrl(normalized, projectId, executableNode.id, options.onMediaDimensions), guard)
+  const localize = (result: GenerationNodeResult) => localizeRemoteResultUrl(result, projectId, executableNode.id, options.onMediaDimensions)
+  const [localizedFirst, ...localizedRest] = await awaitWithinPhase(Promise.all([localize(first), ...rest.map(localize)]), guard)
+  return [localizedFirst!, ...localizedRest]
 }

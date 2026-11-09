@@ -27,7 +27,7 @@ const add = (meta?: Record<string, unknown>) => {
 }
 beforeEach(async () => {
  vi.clearAllMocks(); calls.hosting.mockResolvedValue({allowed:true,needsConfirmation:false}); calls.poll.mockReset(); calls.open.mockReset().mockResolvedValue([])
- calls.execute.mockReset().mockImplementation(async node => ({ id: 'result-' + node.id, type: 'image', url: 'https://fixture.invalid/image.png', createdAt: 1 }))
+ calls.execute.mockReset().mockImplementation(async node => [{ id: 'result-' + node.id, type: 'image', url: 'https://fixture.invalid/image.png', createdAt: 1 }])
  calls.consent.mockReset().mockImplementation(async ({ shots }) => shots.map((shot: { runRecordId: string }) => 'canvas-' + shot.runRecordId))
  session = createProjectSessionTestHarness(); await session.open('project-a')
  store().restoreSnapshot({ nodes: [], edges: [], groups: [], selectedNodeIds: [] })
@@ -105,7 +105,7 @@ it('F4: late result after acknowledged resend changes neither the current card n
  calls.open.mockResolvedValue([{ nodeId: id, runId: 'old-host-run', reason: 'in_flight', hasTaskId: true }])
  await confirmAndRunNode(id, { initiator: 'user', resend: true })
  const current = store().nodes.find(node => node.id === id)!.result!
- finish({ id: 'late-old-result', type: 'image', url: 'https://fixture.invalid/old.png', createdAt: 1 })
+ finish([{ id: 'late-old-result', type: 'image', url: 'https://fixture.invalid/old.png', createdAt: 1 }])
  await old
  expect(store().nodes.find(node => node.id === id)?.result?.id).toBe(current.id)
  expect(timeline.mock.calls.map(([, result]) => result?.id)).toEqual([current.id])

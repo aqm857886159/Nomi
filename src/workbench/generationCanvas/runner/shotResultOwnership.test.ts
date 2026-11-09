@@ -9,6 +9,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
 import type { GenerationNodeExecutorContext } from './generationNodeExecutor'
+import type { GenerationNodeResults } from './catalogTaskResultParse'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 
 const calls = vi.hoisted(() => ({ execute: vi.fn(), open: vi.fn(), confirm: vi.fn(), poll: vi.fn(), disk: new Map<string, unknown>() }))
@@ -92,8 +93,8 @@ beforeEach(async () => {
   vi.clearAllMocks()
   calls.disk.clear()
   attempts = []
-  calls.execute.mockReset().mockImplementation((_node: GenerationCanvasNode, ctx: GenerationNodeExecutorContext) => new Promise<GenerationNodeResult>((resolve, reject) => {
-    attempts.push({ runId: String(ctx.idempotencyKey), ctx, resolve, reject })
+  calls.execute.mockReset().mockImplementation((_node: GenerationCanvasNode, ctx: GenerationNodeExecutorContext) => new Promise<GenerationNodeResults>((resolve, reject) => {
+    attempts.push({ runId: String(ctx.idempotencyKey), ctx, resolve: (result) => resolve([result]), reject })
   }))
   calls.open.mockReset().mockResolvedValue([])
   calls.poll.mockReset().mockResolvedValue(null)

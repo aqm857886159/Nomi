@@ -19,6 +19,7 @@ import { canvasOpenRuns, releaseCanvasShotRun, withdrawCanvasShots } from '../..
 import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
+import type { GenerationNodeResults } from './catalogTaskResultParse'
 import { classifyGenerationError, isOpenGenerationRefusal } from '../../observability/classifyError'
 import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
@@ -221,7 +222,7 @@ export async function runGenerationNode(
     const executor = options.executor ?? generationNodeExecutor
     const maxAttempts = normalizeRetryAttempts(options.retry?.maxAttempts)
     const baseDelayMs = normalizeBaseDelayMs(options.retry?.baseDelayMs)
-  let result: GenerationNodeResult | null = null
+  let results: GenerationNodeResults | null = null
   let mediaDimensions: MediaDimensions | undefined
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const savedGraph = await readRunGraph(target)
@@ -242,7 +243,7 @@ export async function runGenerationNode(
       // Streaming output is not input to another attempt of the same text run.
       const executionNode = node.kind === 'text' ? { ...node, contentJson: initialNode.contentJson } : node
       try {
-        result = await executor(executionNode, {
+        results = await executor(executionNode, {
           nodes: state.nodes,
           edges: state.edges,
           projectTarget: target,
@@ -281,21 +282,28 @@ export async function runGenerationNode(
     }
     const deliveryFailure = await own.drained()
     if (deliveryFailure) throw deliveryFailure
-    if (!result) throw new Error(describeOpaqueFailure(null))
-    const landedInOpenProject = await deliverOwnOutcome({ kind: 'result', result, runId: run.id, ...(mediaDimensions ? { mediaDimensions } : {}) })
-    // 自动另存（集中设置页开启时）：新生成的图/视频静默复制一份到用户目录。fire-and-forget——不 await
-    // （不拖慢生成收尾）、失败不冒泡（best-effort 全在主进程侧，关着/没设目录/失败都静默）。只对新生成，
-    // 找回(recoverTaskActions)不触发、避免重复另存。
-    if ((result.type === 'image' || result.type === 'video') && (result.url || '').trim()) {
-      const title = (initialNode.title || '').trim()
-      void getDesktopBridge()
-        ?.assets?.autoSave?.({ url: result.url as string, suggestedName: title || undefined })
-        .catch(() => undefined)
+    if (!results) throw new Error(describeOpaqueFailure(null))
+    // 一次运行交回几张就落几张：每张都按这次的运行记录号投（同一个合并规则），按上游顺序，最后一张是最新的版本。
+    let landedInOpenProject = false
+    for (const result of results) {
+      landedInOpenProject = await deliverOwnOutcome({ kind: 'result', result, runId: run.id, ...(mediaDimensions ? { mediaDimensions } : {}) })
+    }
+    const title = (initialNode.title || '').trim()
+    for (const result of results) {
+      // 自动另存（集中设置页开启时）：新生成的图/视频静默复制一份到用户目录（每张都存）。fire-and-forget——不 await
+      // （不拖慢生成收尾）、失败不冒泡（best-effort 全在主进程侧，关着/没设目录/失败都静默）。只对新生成，
+      // 找回(recoverTaskActions)不触发、避免重复另存。
+      if ((result.type === 'image' || result.type === 'video') && (result.url || '').trim()) {
+        void getDesktopBridge()
+          ?.assets?.autoSave?.({ url: result.url as string, suggestedName: title || undefined })
+          .catch(() => undefined)
+      }
     }
     if (landedInOpenProject) recordNodeModelSuccess(run.attempt)
     useGenerationQueueStore.getState().markSettled(batchId, id, 'success')
     if (landedInOpenProject) await persistActiveWorkbenchProjectNow().catch(() => {})
-    return result
+    // 返回这次最新的那张（成为当前图的就是它，时间轴据它对账）。
+    return results[results.length - 1]!
   } catch (caughtError: unknown) {
     const error = (await own.drained()) ?? caughtError
     runFailure = error

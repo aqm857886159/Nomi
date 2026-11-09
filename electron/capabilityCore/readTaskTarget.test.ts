@@ -9,7 +9,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dispatch } from "./dispatcher";
 import { tryModel } from "./modelOnboarding/tryModel";
@@ -124,7 +124,10 @@ describe("nomi_read target=task", () => {
     vendorKey = submitted.vendorKey;
     const keyed = await dispatch("model.onboarding.setup", { action: "set_key", vendorKey, apiKey: "relay-test-key" }, ctx) as { ok: boolean };
     expect(keyed.ok).toBe(true);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   });
+
+  afterEach(() => vi.useRealTimers());
 
   afterAll(async () => {
     vi.stubEnv("NOMI_SETTINGS_DIR", undefined);
@@ -135,7 +138,7 @@ describe("nomi_read target=task", () => {
   /** 真 tryModel 提交一单，等不到终态 → 返回任务号。 */
   async function submitPending(): Promise<string> {
     const tried = await tryModel({
-      runTask, fetchTaskResult, pollIntervalMs: 10, pollTimeoutMs: 2_000, // 这一格同时是「提交那一步」的预算：200ms 在满载下装不下一次本地提交，会回 submission_unknown 而不是 still_processing
+      runTask, fetchTaskResult, pollTimeoutMs: 0,
       approvalPolicy: () => ({ mode: "direct" }),
     }, { vendorKey, modelKey: "readtask-paint", prompt: "apple" }) as { code?: string; taskId?: string; nextAction?: string };
     expect(tried.code).toBe("still_processing");
@@ -264,7 +267,9 @@ describe("nomi_read target=task", () => {
   });
 
   it("供应商查询卡死：在预算内返回 query_failed，说明任务不受影响、别重提交", async () => {
-    const out = await readTask({ fetchTaskResult: () => new Promise<never>(() => undefined), queryBudgetMs: 50 }, { taskId: "job-hang" });
+    const pending = readTask({ fetchTaskResult: () => new Promise<never>(() => undefined), queryBudgetMs: 50 }, { taskId: "job-hang" });
+    await vi.advanceTimersByTimeAsync(50);
+    const out = await pending;
     expect(out.state).toBe("query_failed");
     expect(out.nextAction).toMatch(/do not submit/i);
   });

@@ -9,7 +9,7 @@
  * 摇没接住（没有窗口 / 渲染层报错）：盘上「没收尾」标记留着，打开项目时再摇；接住了才删标记。每个进程里一笔只成功摇一次。
  * 渲染层收它走和收自己等到的结局同一本账（按号进这一镜的运行记录），这里不判节点上该显示哪一张。
  */
-import { blockingReason, latestJob, readyArtifact } from "./canvasShotResult";
+import { blockingReason, latestJob, readyArtifacts } from "./canvasShotResult";
 import { isCanvasRunId, CANVAS_RUN_PREFIX, markCanvasRunSettled } from "../productionRun/canvasShotRunIndex";
 import type { GenerationAuthorizationProjectIdentity } from "../productionRun/prepareProductionGenerationAuthorization";
 import type { ProductionRun } from "../productionRun/productionRunTypes";
@@ -25,7 +25,7 @@ export type CanvasShotSettledBellDeps = {
 /** 有了渲染层该收的结局：出片落进了 Run，或确定失败（不是「只差取回」）。 */
 function hasOutcomeToLand(run: ProductionRun | null): run is ProductionRun {
   const job = run && !blockingReason(run) ? latestJob(run) : undefined;
-  return Boolean(run && job && (readyArtifact(run, job) || (job.status === "needs_attention" && !jobAwaitsRetrieval(job))));
+  return Boolean(run && job && (readyArtifacts(run, job).length > 0 || (job.status === "needs_attention" && !jobAwaitsRetrieval(job))));
 }
 
 export function createCanvasShotSettledBell(deps: CanvasShotSettledBellDeps) {
