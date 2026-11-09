@@ -171,13 +171,9 @@
     "tests/ux/_rawInputBound.test.mjs"
   ],
   "legacy_paths": {
-    "status": "removed",
-    "removed_paths": [
-      "src/ui/app-shell/shell/ShellRail.tsx",
-      "src/workbench/AssistantPane.tsx",
-      "src/workbench/timeline/TimelineResizeHandle.tsx"
-    ],
-    "rationale": "三处只捕获指针而允许原生拖动的旧行为已在同一修复分支替换；没有并行版或 fallback。"
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次仅补充尺寸/位置把手普查与入口登记，没有删除产品路径。原三处分隔条的未认领行为已由先前合入的修复移除，不能在本次 diff 再申报 removed；画中画与额外入口尚未修改。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
