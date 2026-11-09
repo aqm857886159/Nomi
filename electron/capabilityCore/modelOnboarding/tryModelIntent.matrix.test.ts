@@ -497,7 +497,9 @@ describe("model trial intent class matrix", () => {
           expect(read.state, JSON.stringify(read)).toBe("succeeded");
           // A finished order is already known; only one still running has anything to ask.
           if (!result.ok) expect(queries, "the query really asked the provider").toBeGreaterThan(asked);
-          const observed = await trial(args, { fetchTaskResult, pollIntervalMs: 10 });
+          const observing = trial(args, { fetchTaskResult, pollIntervalMs: 0 });
+          await vi.advanceTimersByTimeAsync(0);
+          const observed = await observing;
           expect(code(observed), JSON.stringify(observed)).toBe("succeeded");
           expect(code(await restartedTrial(args)), "the same query after a restart").toBe("succeeded");
           expect(creates, "querying never creates").toBe(orders);
