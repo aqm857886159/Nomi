@@ -2,10 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import { appFetch } from "../../appFetch";
 import { readCatalog } from "../../catalog/catalogStore";
 import { publicPriceFor, readVendorPricePreview } from "./vendorPricePreview";
-import type { VendorPriceQuery } from "../../shared/contracts/vendorPricePreview";
+import type { VendorPriceQuery, VendorPriceRequest } from "../../shared/contracts/vendorPricePreview";
+import { applyBuiltinSeeds } from "../../catalog/seedBuiltins";
+import { priceQueryFromRequest } from "./vendorPriceRequest";
 
 vi.mock("../../appFetch", () => ({ appFetch: vi.fn() }));
-vi.mock("../../catalog/catalogStore", () => ({ readCatalog: vi.fn() }));
+vi.mock("../../catalog/catalogStore", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../../catalog/catalogStore")>(), readCatalog: vi.fn(),
+}));
 const q: VendorPriceQuery = { vendorKey: "apimart", kind: "video", modelId: "doubao-seedance-2.0-mini",
   referenceCount: 0, hasVideoInput: false, durationSec: 5, count: 1, resolution: "720p" };
 const data = { model_name: q.modelId, membership: { category: "video" }, billing_type: "per_second", resolution_enabled: true,
@@ -55,5 +59,63 @@ describe("read-only public media price", () => {
     expect(a?.usd).toBeCloseTo(0.195172, 9); expect(b).toEqual(a); expect(appFetch).toHaveBeenCalledTimes(1);
     connection("https://relay.example/v1");
     expect(await readVendorPricePreview(q)).toBeNull(); expect(appFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["image", "video"] as const)("projects a real %s create mapping without dispatching it or forwarding credentials", async (kind) => {
+    const catalog = applyBuiltinSeeds({ version: 3, vendors: [], models: [], mappings: [], apiKeysByVendor: {} }, "2026-11-09T00:00:00Z").state;
+    const secret = "synthetic-price-test-key";
+    catalog.apiKeysByVendor.apimart = { vendorKey: "apimart", apiKey: secret, enc: "plain", enabled: true, createdAt: "", updatedAt: "" };
+    const request: VendorPriceRequest = { vendorKey: "apimart", request: {
+      kind: kind === "image" ? "text_to_image" : "text_to_video", prompt: "local projection only",
+      extras: kind === "image" ? {
+        modelKey: "gpt-image-2.6-flare", archetype: { id: "gpt-image-2.6-flare", modeId: "t2i" },
+        archetypeInput: { size: "1:1", resolution: "1K", quality: "medium", background: "auto" },
+      } : {
+        modelKey: "doubao-seedance-2.0", archetype: { id: "seedance-2-apimart", modeId: "t2v", variantId: "mini" },
+        archetypeInput: { resolution: "720p", duration: 5, generate_audio: false },
+      },
+    } };
+    const mapping = catalog.mappings.find(m => m.vendorKey === request.vendorKey && m.modelKey === request.request.extras?.modelKey && m.taskKind === request.request.kind)!;
+    expect(mapping.create?.method).toBe("POST");
+    mapping.create!.headers = { Authorization: `Bearer ${secret}` };
+    mapping.create!.query = { api_key: secret };
+    vi.mocked(readCatalog).mockReturnValue(catalog);
+    vi.mocked(appFetch).mockClear();
+    const nativeFetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("unexpected native transport"));
+    try {
+      const projected = priceQueryFromRequest(request, catalog);
+      expect(projected).toMatchObject({ kind, count: 1, referenceCount: 0 });
+      expect(projected).not.toHaveProperty("url");
+      expect(projected).not.toHaveProperty("headers");
+      expect(projected).not.toHaveProperty("body");
+      expect(JSON.stringify(projected)).not.toContain(secret);
+      expect(appFetch).not.toHaveBeenCalled();
+      vi.mocked(appFetch).mockImplementation(async (input, init) => {
+        const url = new URL(String(input));
+        expect(url.origin).toBe("https://api.apimart.ai");
+        expect(["/api/pricing/model", "/api/pricing/models/all"]).toContain(url.pathname);
+        expect(init?.method).toBe("GET");
+        expect(init?.headers).toBeUndefined();
+        expect(init?.body).toBeUndefined();
+        expect(init?.redirect).toBe("error");
+        expect(JSON.stringify([input, init])).not.toContain(secret);
+        expect([...url.searchParams.keys()]).toEqual(url.pathname.endsWith("/all") ? [] : ["model"]);
+        return Response.json({ success: true, data: url.pathname.endsWith("/all")
+          ? { models: { image: [{ id: projected!.modelId, specification: "image", fixed_prices: { unit: "usd_per_image" } }] } }
+          : { model_name: projected!.modelId, membership: { category: kind }, billing_type: kind === "video" ? "per_second" : "per_image", paid_price: 0.01 } });
+      });
+      expect(await readVendorPricePreview(projected!)).not.toBeNull();
+      expect(appFetch).toHaveBeenCalledTimes(kind === "image" ? 2 : 1);
+      expect(nativeFetch).not.toHaveBeenCalled();
+      const reads = vi.mocked(appFetch).mock.calls.length;
+      mapping.create!.method = "GET";
+      expect(priceQueryFromRequest(request, catalog)).toBeNull();
+      mapping.create!.method = "POST";
+      mapping.create!.path = "https://elsewhere.example/v1/images/generations";
+      expect(priceQueryFromRequest(request, catalog)).toBeNull();
+      expect(appFetch).toHaveBeenCalledTimes(reads);
+    } finally {
+      nativeFetch.mockRestore();
+    }
   });
 });
