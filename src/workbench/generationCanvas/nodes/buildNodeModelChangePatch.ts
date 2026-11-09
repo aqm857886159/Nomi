@@ -1,3 +1,4 @@
+import { resolveModelParams } from '../../../../electron/shared/videoCapabilities/resolveModelParams'
 import type { ModelOption } from '../../../config/models'
 import { findModelOptionByIdentifier } from '../adapters/modelOptionsAdapter'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
@@ -8,9 +9,9 @@ import { resolveReferencePlacement } from '../runner/referenceSlots'
 import { replaceCustomCapabilityContractMeta } from '../../../../electron/shared/modelArchetypes'
 import {
   buildModelControls,
-  defaultPatchForControls,
+  modelParamControls,
   nodeSelectedModelAddress,
-  removePreviousControlParams,
+  controlStoredKeys,
 } from './controls/parameterControlModel'
 import { applyArchetypeModeSwitch, currentArchetypeMode } from './controls/archetypeMeta'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
@@ -26,12 +27,6 @@ export type BuildNodeModelChangePatchInput = {
   vendor?: string
 }
 
-export type NodeModelChangeSet = {
-  retained: Array<{ key: string; value: unknown }>
-  removed: Array<{ key: string; value: unknown }>
-  changedDefaults: Array<{ key: string; from: unknown; to: unknown }>
-}
-
 /** Single source of truth for both the per-node picker and bulk model changes. */
 export function buildNodeModelChangePatch({
   node,
@@ -40,7 +35,7 @@ export function buildNodeModelChangePatch({
   modelOptions,
   value,
   vendor,
-}: BuildNodeModelChangePatchInput): { meta: Record<string, unknown>; changeset: NodeModelChangeSet } {
+}: BuildNodeModelChangePatchInput): { meta: Record<string, unknown> } {
   // 旧数据（按槽存的首 / 尾帧键）先按**换模型前**看得见的顺序落成规范的一份参考列表：之后列表就不再动了。
   const previousArchetype = archetypeForNode(node)
   const currentMeta = (previousArchetype
@@ -57,22 +52,10 @@ export function buildNodeModelChangePatch({
   const isVideoLike = isVideoLikeGenerationNodeKind(node.kind)
   const previousControls = resolveRenderedControls(currentOption, currentMeta, isImageLike, isVideoLike)
   const controls = buildModelControls(nextOption?.meta, isImageLike, isVideoLike)
-  const defaultPatch = defaultPatchForControls(controls)
-  const previousKeys = new Set(previousControls.map((control) => control.key))
-  const nextKeys = new Set(controls.map((control) => control.key))
-  const changeset: NodeModelChangeSet = {
-    retained: [...nextKeys]
-      .filter((key) => previousKeys.has(key) && Object.prototype.hasOwnProperty.call(currentMeta, key)
-        && (!Object.prototype.hasOwnProperty.call(defaultPatch, key) || Object.is(currentMeta[key], defaultPatch[key])))
-      .map((key) => ({ key, value: currentMeta[key] })),
-    removed: [...previousKeys]
-      .filter((key) => !nextKeys.has(key) && Object.prototype.hasOwnProperty.call(currentMeta, key))
-      .map((key) => ({ key, value: currentMeta[key] })),
-    changedDefaults: [...nextKeys]
-      .filter((key) => Object.prototype.hasOwnProperty.call(defaultPatch, key)
-        && (!Object.prototype.hasOwnProperty.call(currentMeta, key) || !Object.is(currentMeta[key], defaultPatch[key])))
-      .map((key) => ({ key, from: currentMeta[key], to: defaultPatch[key] })),
-  }
+  const resolved = resolveModelParams({
+    controls: modelParamControls(controls), intent: {}, previousParams: currentMeta,
+    policy: { author: '人手', invalid: '全重置默认', removeKeys: previousControls.flatMap(controlStoredKeys) },
+  })
   const nextArchetype = resolveArchetypeForOption(nextOption)
   // 换模型 = 重铺全部默认值（比例也在内，不让「明确选过」），默认值只问唯一出处。
   const aspectPatch = isVideoLike
@@ -80,7 +63,7 @@ export function buildNodeModelChangePatch({
     : {}
 
   const baseMeta = replaceCustomCapabilityContractMeta(
-    removePreviousControlParams(currentMeta, previousControls),
+    resolved.params,
     nextOption?.meta,
   )
   let nextMeta: Record<string, unknown> = {
@@ -90,7 +73,6 @@ export function buildNodeModelChangePatch({
     modelVendor: nextOption?.vendor || null,
     vendor: nextOption?.vendor || null,
     modelLabel: nextOption?.label || value || null,
-    ...defaultPatch,
     ...aspectPatch,
     ...(isVideoLike
       ? { videoModel: nextOption?.value || value || null, videoModelVendor: nextOption?.vendor || null }
@@ -115,7 +97,7 @@ export function buildNodeModelChangePatch({
     }
   }
 
-  return { meta: nextMeta, changeset }
+  return { meta: nextMeta }
 }
 
 /** 节点参考列表里每张图在**当前**方式下的用途（首帧 / 尾帧 / 参考；未用到按参考），换模型时拿来挑新方式。 */
