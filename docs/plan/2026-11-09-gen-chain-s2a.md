@@ -72,3 +72,9 @@
 同样种子目录与宿主链下，Seedream4.5的16:9意图实际落成草稿parameters.size=2560x1440，节点meta.size同值；来源是共享owner的resolveAspectRatioGeometryChoice精确匹配与既有同档选择。观察辅助原用界面parseAspectRatioValue，排除了像素串。方案选择观察器改读readAspectRatioGeometry，不改产品分类合同、不新增正则；ratio-pixel-x改land并精确核草稿像素几何。现有十档仅有1:1、4:3、3:4、16:9、9:16，补21:9拒收并核原始合法值。
 
 ★9补充：草稿/节点尺寸必须2560x1440且几何等于所说16:9；无21:9必须拒并列合法像素值；卡片仍按生产nodePointerSummaryFacts读口核对，禁止用节点尺寸替代卡片读口掩盖缺失。完整原始observation还显示card.aspect=null；若改观察器后只剩card.aspectRatio:dropped，属于卡片真实读口缺失，须按范围外产品代码停点上报。界面比例分类与owner不改。
+
+## 卡片显示几何的授权收口
+
+热点量具fix-churn --ref origin/main src/workbench/ai/pointer/nodePointerFace.ts未命中热点。只改最靠近卡片的nodePointerSummaryFacts：改读共享readAspectRatioGeometry与共享meta键清单，不动写入、控件分类或画布调用方。冒号像素族现有格式是宽:高原数值，不约分；x像素串同样显示2560:1440，冒号串仍1280:720。三条路选择只换卡片显示读口；扩大界面分类会破坏既有控件合同，改第二处读口没有必要。
+
+★1量具补充：nodePointerFace同目录与铁律矩阵核卡片读口，隔离App免费假模型截图核中英摘要文字。★4：像素档模型现在接住比例（以前拒收），卡片补印宽高比例；其他卡片状态、时长和分辨率读法不变。★9：x/×/*与冒号、命名档、非法值、键优先序；Seedream16:9草稿2560x1440且卡片读口显示2560:1440；21:9仍拒并列合法像素值；铁律整目录、owner同目录、读口同目录、typecheck、快检与正文预检。截图中英各一张，与Runway冒号像素卡对照，不从节点猜卡片读口。
