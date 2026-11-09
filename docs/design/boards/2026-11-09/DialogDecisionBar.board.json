@@ -1,0 +1,90 @@
+{
+  "board": "DialogDecisionBar",
+  "approvedOn": "2026-11-09",
+  "stage": "built",
+  "approval": "用户阶段①看过反馈卡、花钱确认和模型设置详情的修前修后图后回复：认可，不加线。阶段②任务授权：同一种变化（按钮挪进底部按钮排、标准遮罩和标题栏）可以直接做。具体三处的中英亮暗配对图已交本地报告，未声称用户另看过这三处。",
+  "sourceBoundary": "Bug 修复的真实组件普查清单，不是新画的 Claude Design 界面，不建虚假的板源与候选。样式合同来自阶段①已认可的规则 A；这里只记录三个获授权的同类迁移。截图与全量未迁项清单在交接报告；不把截图当成 CI 视觉基线。",
+  "designCard": "docs/plan/2026-11-09-min-window-dialog-clip.md",
+  "priorArt": [
+    {
+      "url": "https://mantine.dev/core/modal/",
+      "takeaway": "阶段①已查：Mantine Modal 统一计算可用高度，标题固定。",
+      "decisionImpact": "确认保留已安装外壳，只迁移调用者，不再复制高度。"
+    },
+    {
+      "url": "https://atlassian.design/components/modal-dialog/examples",
+      "takeaway": "阶段①已查：body 滚动时 header/footer 固定。",
+      "decisionImpact": "确认决定按钮只放 actions 插槽。"
+    },
+    {
+      "url": "https://github.com/microsoft/fluentui/blob/master/packages/react-components/react-dialog/library/src/components/DialogBody/useDialogBodyStyles.styles.ts",
+      "takeaway": "阶段①已查：对话框可用高度与正文滚动由统一布局负责。",
+      "decisionImpact": "确认删除消费方 viewport 魔数，保留原有控件和回调。"
+    }
+  ],
+  "elements": [
+    {
+      "id": "settings.shell",
+      "label": "设置保留侧栏、关闭和 Esc 下钻，外壳管理高度",
+      "candidates": [],
+      "status": "implemented",
+      "states": [
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "assertion": "board:DialogDecisionBar/settings.shell",
+      "stateEvidence": "三处生产组件，中英亮暗配对截图；popupGeometry 最小窗口中英档；设置另有隔离 Electron 两轨。"
+    },
+    {
+      "id": "skill.actions",
+      "label": "技能详情标题不滚，删除 / 导出 / 放进对话在固定底栏",
+      "candidates": [],
+      "status": "implemented",
+      "states": [
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "assertion": "board:DialogDecisionBar/skill.actions",
+      "stateEvidence": "三处生产组件，中英亮暗配对截图；popupGeometry 最小窗口中英档；设置另有隔离 Electron 两轨。"
+    },
+    {
+      "id": "extraction.actions",
+      "label": "提取设置原有取消 / 保存 / 恢复默认在固定底栏",
+      "candidates": [],
+      "status": "implemented",
+      "states": [
+        "narrow",
+        "long-text",
+        "zh-en",
+        "dark"
+      ],
+      "assertion": "board:DialogDecisionBar/extraction.actions",
+      "stateEvidence": "三处生产组件，中英亮暗配对截图；popupGeometry 最小窗口中英档；设置另有隔离 Electron 两轨。"
+    }
+  ],
+  "decor": [],
+  "functionCensus": [
+    {
+      "function": "设置入口、六页签、关闭与 Esc",
+      "before": "原有控件与回调",
+      "after": "settings.shell",
+      "disposition": "kept；只迁标准外壳 / 决定栏"
+    },
+    {
+      "function": "技能内容、删除、导出和放进对话",
+      "before": "原有控件与回调",
+      "after": "skill.actions",
+      "disposition": "kept；只迁标准外壳 / 决定栏"
+    },
+    {
+      "function": "模板编辑、新建、删除、恢复默认、取消和保存",
+      "before": "原有控件与回调",
+      "after": "extraction.actions",
+      "disposition": "kept；只迁标准外壳 / 决定栏"
+    }
+  ]
+}

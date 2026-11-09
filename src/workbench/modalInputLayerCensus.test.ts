@@ -93,7 +93,6 @@ function modalShapedFiles(sources: readonly SourceEntry[]): string[] {
 const LAYER_HOSTS: Readonly<Record<string, 'window' | 'canvas-cell'>> = {
   'src/ui/app-shell/UpdateDialog.tsx': 'window',
   'src/ui/browser/dialog/NomiBrowserDialogView.tsx': 'window',
-  'src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx': 'window',
   'src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx': 'window',
   'src/workbench/assets/AssetPreviewDialog.tsx': 'window',
   'src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx': 'canvas-cell',
@@ -105,7 +104,6 @@ const LAYER_HOSTS: Readonly<Record<string, 'window' | 'canvas-cell'>> = {
   'src/workbench/onboarding/JourneyTourController.tsx': 'window',
   'src/workbench/onboarding/SplashIntro.tsx': 'window',
   'src/workbench/promptLibrary/PromptPreviewOverlay.tsx': 'window',
-  'src/workbench/settings/SettingsDialog.tsx': 'window',
   'src/workbench/timeline/TimelineShortcutsDialog.tsx': 'window',
 }
 
@@ -134,7 +132,7 @@ describe('模态输入层普查：模态的宿主', () => {
   const shaped = modalShapedFiles(SOURCES)
 
   it('普查对象非空：扫得到已知的模态写法（判据不能在空集合上恒真）', () => {
-    expect(shaped).toEqual(expect.arrayContaining(['src/workbench/settings/SettingsDialog.tsx', 'src/workbench/assets/AssetPreviewDialog.tsx', 'src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx']))
+    expect(shaped).toEqual(expect.arrayContaining(['src/ui/app-shell/UpdateDialog.tsx', 'src/workbench/assets/AssetPreviewDialog.tsx', 'src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx']))
   })
 
   it('每个长得像模态的文件都已分类：要么登记了输入层，要么写清了为什么不算', () => {

@@ -44,9 +44,9 @@ const EXPECTED = {
   'ps-10-tooltip': { selector: '[data-radix-popper-content-wrapper]', text: '正在导出', min: { w: 120, h: 16 } },
   // 标题走的是 Mantine Modal 的 header（在 surface 之外），所以这里认的是正文那句话。
   'ps-11-confirm-dialog': { selector: '[data-confirm-dialog-surface]', text: '删除后画布上的连线', min: { w: 260, h: 40 } },
-  'ps-20-settings-dialog': { selector: '[data-settings-dialog]', text: '设置', min: { w: 600, h: 300 } },
-  'ps-21-skill-dialog': { selector: '[data-skill-detail]', text: '放进对话', min: { w: 600, h: 300 } },
-  'ps-22-extraction-dialog': { selector: '[data-nomi-prompt-extraction-settings-dialog]', text: '保存', min: { w: 600, h: 300 } },
+  'ps-20-settings-dialog': { assertion: 'board:DialogDecisionBar/settings.shell', selector: '[data-settings-dialog]', text: '设置', min: { w: 600, h: 300 } },
+  'ps-21-skill-dialog': { assertion: 'board:DialogDecisionBar/skill.actions', selector: '[data-skill-detail]', text: '放进对话', min: { w: 600, h: 300 } },
+  'ps-22-extraction-dialog': { assertion: 'board:DialogDecisionBar/extraction.actions', selector: '[data-nomi-prompt-extraction-settings-dialog]', text: '保存', min: { w: 600, h: 300 } },
   'ps-12-table': null,
   'ps-13-pagination': null,
   'ps-14-identity': null,
@@ -83,10 +83,11 @@ await walkDesignLabScreen({
       return
     }
 
+    const marker = expected.assertion || state.id
     const layer = page.locator(expected.selector).filter({ hasText: expected.text, visible: true })
     const count = await layer.count()
     if (count !== 1) {
-      record(`${state.id} 应当有 1 个可见的浮层（${expected.selector} 含「${expected.text}」），实际 ${count} 个`
+      record(`${marker} 应当有 1 个可见的浮层（${expected.selector} 含「${expected.text}」），实际 ${count} 个`
         + '——浮层没打开的话，capture=viewport 截回来是一张空舞台，看起来和正常图一样')
       return
     }
@@ -101,11 +102,11 @@ await walkDesignLabScreen({
       }
     })
     if (geometry.w < expected.min.w || geometry.h < expected.min.h) {
-      record(`${state.id} 的浮层只有 ${geometry.w}×${geometry.h}（许诺 ≥ ${expected.min.w}×${expected.min.h}）`
+      record(`${marker} 的浮层只有 ${geometry.w}×${geometry.h}（许诺 ≥ ${expected.min.w}×${expected.min.h}）`
         + '——有壳没内容，拍板时看不出它长什么样')
     }
     if (geometry.outside) {
-      record(`${state.id} 的浮层整个落在视口外——整屏截图里一片空白，和「没打开」在图上分不出来`)
+      record(`${marker} 的浮层整个落在视口外——整屏截图里一片空白，和「没打开」在图上分不出来`)
     }
   },
 })
