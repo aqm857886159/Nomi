@@ -25,6 +25,11 @@ describe('弹窗决定栏几何普查', () => {
     fixture()
     expect(probePopupGeometry()).toMatchObject({ dialogs: 1, decisions: 1, violations: [] })
   })
+  it('没有弹窗的状态返回零，普查据此不追加两个最小窗口档', () => {
+    fixture()
+    vi.stubGlobal('document', { body: { children: [] }, querySelectorAll: () => [] })
+    expect(probePopupGeometry()).toMatchObject({ dialogs: 0, decisions: 0, violations: [] })
+  })
   it('决定栏被滚动祖先裁掉时红，即使仍在视口里', () => {
     fixture({ parentBottom: 600, overflowY: 'auto' })
     expect(probePopupGeometry().violations).toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'dialog-decision-clipped' })]))

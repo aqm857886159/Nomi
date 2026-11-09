@@ -64,6 +64,7 @@ const vite = spawn(process.execPath, [path.join(REPO_ROOT, 'node_modules/vite/bi
 vite.stderr?.on('data', (chunk) => process.stderr.write(`[vite] ${chunk}`))
 
 const failures = []
+let measuredProfiles = 0
 const browser = await chromium.launch()
 try {
   // 冷启动预热：第一次加载要等 vite 预打包整张模块图。
@@ -99,6 +100,7 @@ try {
   }
   for (const { screen, state } of targets) for (const profile of PROFILES) {
     const label = `${screen}/${state.id}/${profile.id}`
+    measuredProfiles += 1
     let result = null
     let lastError = null
     for (let attempt = 0; attempt < 2 && !result; attempt += 1) {
@@ -113,6 +115,8 @@ try {
     if (profile.id !== 'regular') result.violations = result.violations.filter(violation => violation.rule.startsWith('dialog-'))
     for (const violation of result.violations) failures.push(`${label} ${violation.rule} ${JSON.stringify(violation)}`)
     console.log(`  ${result.violations.length ? '✗' : '✓'} ${label}（触发钮 ${result.triggers}、浮层 ${result.layers}、模态窗 ${result.dialogs}、决定按钮 ${result.decisions}）`)
+    // 最小窗口档只为弹窗追加；普通菜单 / 无弹窗的 3D 场景不重复启动两次。
+    if (profile.id === 'regular' && result.dialogs === 0) break
   }
 } finally {
   await browser.close()
@@ -124,4 +128,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`   · ${failure}`)
   process.exit(1)
 }
-console.log(`\n✅ 弹层几何普查：${targets.length} 格 × ${PROFILES.length} 档，浮层都不压自己的触发钮和那一排工具条、整块在窗口里`)
+console.log(`\n✅ 弹层几何普查：${targets.length} 格、${measuredProfiles} 次测量（弹窗追加最小窗口中英档），浮层都不压自己的触发钮和那一排工具条、整块在窗口里`)
