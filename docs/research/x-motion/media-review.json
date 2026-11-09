@@ -1,0 +1,80 @@
+[
+  {
+    "post_url": "https://x.com/motiondotdev/status/2112906836173300065",
+    "post_id": "2112906836173300065",
+    "duration_seconds": 22.05,
+    "media_url": "https://video.twimg.com/amplify_video/2112905862817673216/vid/avc1/960x720/6eM2sEGLTOrywRpn.mp4",
+    "questions": "是否实际演示缺少reduced-motion替代的警告？正常与减少动效版保留了哪些反馈？不以录像证明OS设置联动。",
+    "viewed": false,
+    "downloaded": true,
+    "bytes": 613009,
+    "local_file_excluded": true,
+    "collection_status_note": "原始 viewed=false/downloaded=true 是采集时状态；没有将本机文件打包。",
+    "review_status": "secondary_video_analysis_completed",
+    "secondary_video_analysis_observations": {
+      "evidence_label": "secondary video-analysis observations",
+      "provenance": "协调研究流回传；非运行测试",
+      "observed": [
+        "用户主动点设置/魔法棒选择 Adapt for reduced motion。",
+        "正常版方块水平位移；替代版起点淡出、目标淡入。"
+      ],
+      "not_demonstrated": [
+        "未展示系统主动警告。",
+        "未展示 OS 设置联动。"
+      ],
+      "correction": "作者的缺失提示机制属于文字声明；录像只证实主动选择替代方案，不能据此证明自动检测或无障碍合规。"
+    }
+  },
+  {
+    "post_url": "https://x.com/westonruter/status/2114089753452937464",
+    "post_id": "2114089753452937464",
+    "duration_seconds": 45.0,
+    "media_url": "https://video.twimg.com/amplify_video/2114087908215013376/vid/avc1/1346x720/GnfLYgA2Bch2FRQc.mp4?tag=14",
+    "questions": "对照中哪些导航元素保持稳定？减少cross-fade具体出现在哪里？慢网时有无空白或假完成？未演示中断则标未演示。",
+    "viewed": false,
+    "downloaded": true,
+    "bytes": 3420059,
+    "local_file_excluded": true,
+    "collection_status_note": "原始 viewed=false/downloaded=true 是采集时状态；没有将本机文件打包。",
+    "review_status": "secondary_video_analysis_completed",
+    "secondary_video_analysis_observations": {
+      "evidence_label": "secondary video-analysis observations",
+      "provenance": "协调研究流回传；非运行测试",
+      "observed": [
+        "Before 点击出现白屏闪烁。",
+        "After 黑色侧导航和顶部工具栏保持稳定，只有主内容区 cross-fade。"
+      ],
+      "not_demonstrated": [
+        "未展示慢网设置。",
+        "未展示中断或显式等待状态。"
+      ],
+      "correction": "原帖的 Slow 4G 是作者声明，不能算本次独立慢网验证；不据录像断言 SPA 或动画本身解决网络等待。"
+    }
+  },
+  {
+    "post_url": "https://x.com/Nil_phy_dreamer/status/2116435252318961852",
+    "post_id": "2116435252318961852",
+    "duration_seconds": 13.166,
+    "media_url": "https://video.twimg.com/amplify_video/2116162908027502592/vid/avc1/1412x720/uFSKkR9JKRAs0Xh_.mp4",
+    "questions": "是否实际在展开途中关闭/反向？照片、邻居与光标是否同源协调？是否展示键盘、触摸、reduced-motion，未出现不要推断。",
+    "viewed": false,
+    "downloaded": true,
+    "bytes": 943456,
+    "local_file_excluded": true,
+    "collection_status_note": "原始 viewed=false/downloaded=true 是采集时状态；没有将本机文件打包。",
+    "review_status": "secondary_video_analysis_completed",
+    "secondary_video_analysis_observations": {
+      "evidence_label": "secondary video-analysis observations",
+      "provenance": "协调研究流回传；非运行测试",
+      "observed": [
+        "点击照片放大居中，邻居平移，标题上移。",
+        "View/Close 随指针变化。"
+      ],
+      "not_demonstrated": [
+        "无法确定动画中途反向。",
+        "未展示键盘、触摸或 reduced-motion。"
+      ],
+      "correction": "可中断 spring、多输入、60fps 等仍是未验证作者声明；不能由录像确定实现栈或 spring 参数。隐藏系统光标不推广为默认生产方案。"
+    }
+  }
+]
