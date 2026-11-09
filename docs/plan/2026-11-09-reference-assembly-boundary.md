@@ -29,7 +29,7 @@
 已知坑：`TaskRequest.extras` 与 Run 参数在列名单的流水线模块里仍是普通 Record；多部分表单 / CLI / 音频线缆不在 JSON 封存之内。
 
 真实任务（量具）：
-- 249 格 × 双引擎 498 份正常请求体 → `electron/parity/officialWire.matrix.test.ts`（`NOMI_OFFICIAL_WIRE_DUMP`）对 `/Users/aoqimin/Nomi-coord/tmp/V-gen-chain-s3-lowering/wire-base.json`：主指标 bodyDiff = 0、violationDiff = 0。
+- 249 格 × 双引擎 498 份正常请求体 → `electron/parity/officialWire.matrix.test.ts`（`NOMI_OFFICIAL_WIRE_DUMP`）对 #1452 验收线 V-gen-chain-s3-lowering 留存的基线导出 `wire-base.json`：主指标 bodyDiff = 0、violationDiff = 0。
 - 7 份真实旧目录逐模型 POST 体不变 → `electron/catalog/upgradeKeepsWorkingModels.test.ts` 等 3 个旧用户文件全绿。
 - 免费演练 `tests/ux/composer-b3-reference-paid.rehearsal.walk.mjs`（回环、假 key、零花费）一次通过。
 护栏指标：生成相关测试集失败数 0；`pnpm run lint` 新规则误报 0（量具：`eslint .` 全仓）。
