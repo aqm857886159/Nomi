@@ -25,7 +25,7 @@ try {
     // Loopback fixture only; the production APIMart mapping/bootstrap remains the one under test.
     const fixture = await createAgentRuntimeFixture({ rootDir: process.cwd(), settingsDir, userDataDir, appName: 'nomi', generationProvider: 'apimart' })
     fixture.setMediaBehavior(() => ({ inlineResult: true }))
-    let app, proxy
+    let app, page, proxy
     try {
       const price = JSON.parse(fs.readFileSync(new URL('../fixtures/model-surfaces-cost/public-price.json', import.meta.url)))
       proxy = await createModelCostProxy(fixture.baseURL, { reply: (req, url, records) => {
@@ -41,7 +41,7 @@ try {
         env: { NOMI_TEST_NETWORK_REDIRECTS: JSON.stringify([{ from: 'https://api.apimart.ai', to: proxy.origin }]), NOMI_LAB_TRUSTED_PRIVATE_ORIGINS: [fixture.baseURL, proxy.origin].join(',') },
         initialLocalStorage: { 'nomi:locale:v1': locale, 'nomi-color-scheme': 'light', 'nomi:splash:v1': 'seen', 'nomi:journey-tour:v1': 'seen', 'nomi:canvas-gesture-hint:v1': 'seen', __nomiE2E: '1' } }
       const started = await launchNomiApp(options); app = started.app
-      const page = started.win
+      page = started.win
       await page.evaluate(model => window.nomiDesktop.modelCatalog.upsertModel({ vendorKey: model.vendorKey, modelKey: model.modelKey, enabled: true, published: true }), MODEL_COST)
       await lockSpendToModels(page, [MODEL_COST])
       await newProjectEntry(page).click()
@@ -50,6 +50,16 @@ try {
       const report = await modelSurfaceCostSteps({ page, projectId, proxy, locale, screenshotDir: output })
       assert(Math.abs(report.actual.credits - 0.015) < 1e-9, 'Known loopback debit must be recovered')
       receipt.results.push(report)
+    } catch (error) {
+      receipt.requests = proxy?.records
+      if (page && !page.isClosed()) {
+        try {
+          receipt.failureScreenshot = path.join(output, `${locale}-FAIL.png`)
+          await page.screenshot({ path: receipt.failureScreenshot })
+          receipt.pickerDiagnostics = await page.locator('[data-nomi-select-dropdown]').evaluateAll(elements => elements.map(el => ({ visible: Boolean(el.getClientRects().length), text: el.textContent })))
+        } catch (captureError) { receipt.captureError = captureError.message }
+      }
+      throw error
     } finally { if (app) await app.close(); if (proxy) await proxy.close(); await fixture.close(); fs.rmSync(root, { recursive: true, force: true }) }
   }
   receipt.status = 'passed'

@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { expect, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
+import { expect, screenshotSettled } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { addCanvasNode, canvasFitView, closeSettings, collapseAgentPanel, openSettings, switchWorkspace } from './_shell.mjs'
+import { addCanvasNode, canvasZoomPercent, canvasZoomStep, closeSettings, collapseAgentPanel, openSettings, switchWorkspace } from './_shell.mjs'
 import { readProject } from './agent-runtime-walk-support.mjs'
 import { uiText } from './full-walk/invariants.mjs'
 import { MODEL_COST, costError } from './_modelSurfaceCostSupport.mjs'
+import { CANVAS_STAGE_SELECTOR } from './_canvasHit.mjs'
 
 // Docs checked 2026-11-09:
 // https://docs.apimart.ai/en/api-reference/account/{user-balance,token-balance,usage}.md
@@ -47,13 +48,26 @@ export async function modelSurfaceCostSteps({ page, projectId, proxy, locale, sc
     await switchWorkspace(page, 'generation')
     await collapseAgentPanel(page)
     await addCanvasNode(page, 'image')
-    await waitForVisualQuiescence(page)
     const composer = page.locator('[data-composer-host="canvas"]:visible').first()
-    // Both launchers authorize just this image model. Verify the app's selected value before spending.
-    const modelPicker = composer.getByRole('button', { name: text('generationCommon.parameters.model'), exact: true })
-    await expect(modelPicker).toContainText(MODEL_COST.label, { timeout: stationTimeout({ operations: 3 }) })
-    report.selectedModelLabel = await modelPicker.innerText()
     await composer.locator('[data-node-composer-prompt] [contenteditable="true"]').fill('A single blue circle on white paper.')
+    const modelPicker = composer.getByRole('button', { name: text('generationCommon.parameters.model'), exact: true })
+    report.phase = 'model-search'
+    report.modelBeforeSelection = await modelPicker.innerText()
+    await expect(modelPicker).toBeVisible()
+    await modelPicker.click()
+    const menu = page.locator('[data-nomi-select-dropdown]:visible').first()
+    await expect(menu).toBeVisible({ timeout: stationTimeout({ operations: 2 }) })
+    const search = menu.getByRole('textbox', { name: text('common.searchOptions'), exact: true })
+    await expect(search).toBeVisible()
+    await search.fill(MODEL_COST.label)
+    const option = menu.getByRole('option').filter({ hasText: MODEL_COST.label }).first()
+    await expect(option).toBeVisible()
+    await option.click()
+    await expect(modelPicker).toContainText(MODEL_COST.label, { timeout: stationTimeout({ operations: 3 }) })
+    await expect.poll(async () => (await readProject(page, projectId)).payload.generationCanvas.nodes.find(n => n.kind === 'image')?.meta)
+      .toMatchObject({ modelVendor: MODEL_COST.vendorKey, modelKey: MODEL_COST.modelKey })
+    report.selectedModelLabel = await modelPicker.innerText()
+    report.phase = 'specification'
     await composer.locator('[data-parameter-summary]').click()
     for (const [key, value] of [['size', MODEL_COST.size], ['resolution', MODEL_COST.resolution], ['quality', MODEL_COST.quality]]) {
       const control = page.locator(`[data-agent-parameter-control="${key}"]`).first()
@@ -61,7 +75,28 @@ export async function modelSurfaceCostSteps({ page, projectId, proxy, locale, sc
       await control.getByText(value, { exact: true }).click()
     }
     await page.keyboard.press('Escape')
-    await canvasFitView(page)
+    for (let step = 0; step < 8 && await canvasZoomPercent(page) > 50; step++) {
+      const previous = await canvasZoomPercent(page)
+      await canvasZoomStep(page, 'out', 'frame the estimate below a tall image node')
+      await expect.poll(() => canvasZoomPercent(page)).toBeLessThan(previous)
+    }
+    await expect.poll(() => canvasZoomPercent(page)).toBeLessThanOrEqual(50)
+    const canvasBounds = await page.locator(CANVAS_STAGE_SELECTOR).boundingBox()
+    assert(canvasBounds, 'Canvas must be visible before framing the estimate')
+    const composerFits = async () => {
+      const bounds = await composer.boundingBox()
+      return Boolean(bounds && bounds.x >= canvasBounds.x && bounds.y >= canvasBounds.y
+        && bounds.x + bounds.width <= canvasBounds.x + canvasBounds.width
+        && bounds.y + bounds.height <= canvasBounds.y + canvasBounds.height)
+    }
+    for (let step = 0; step < 6 && !await composerFits(); step++) {
+      const previous = await canvasZoomPercent(page)
+      await canvasZoomStep(page, 'out', 'keep the whole estimate composer in view')
+      await expect.poll(() => canvasZoomPercent(page)).toBeLessThan(previous)
+    }
+    await expect.poll(composerFits).toBe(true)
+    await expect(composer).toBeInViewport({ ratio: 1 })
+    report.canvasZoomPercent = await canvasZoomPercent(page)
     console.info(`[model-cost] ${locale}: before-send-estimate`)
     const send = composer.locator('[data-bar-segment="generate"]')
     await expect(send).toHaveAttribute('data-price-source', /model=gpt-image-2.5-flare/, { timeout })
