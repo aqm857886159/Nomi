@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildCatalogTaskRequest,
   isRateLimitedPollError,
@@ -554,6 +554,8 @@ describe('runCatalogGenerationTask — ComfyUI 提交时序与 prompt UUID', () 
 })
 
 describe('runCatalogGenerationTask — 轮询硬超时抛 RecoverableTimeoutError（可找回，非普通失败）', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
   const videoNode: GenerationCanvasNode = {
     id: 'v1', kind: 'video', title: '', position: { x: 0, y: 0 }, prompt: '一只猫跑过草地',
     meta: { modelKey: 'vid', vendor: 'asyncv' },
@@ -562,15 +564,17 @@ describe('runCatalogGenerationTask — 轮询硬超时抛 RecoverableTimeoutErro
   it('超时抛 RecoverableTimeoutError，detail 带 taskId/vendor/taskKind，且软超时后回报 still-generating', async () => {
     const { isRecoverableTimeoutError } = await import('./recoverableTimeout')
     const phases: string[] = []
-    const error = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
+    const pending = runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
       // 首发拿到 taskId、非终态 → 进轮询
       runTask: async (_v, req) => ({ id: 'up-task-9', kind: req.kind, status: 'queued' as const, assets: [], raw: {} }),
       // 始终非终态 → 必定走到硬超时
       fetchTaskResult: async () => ({ vendor: 'asyncv', result: { id: 'up-task-9', kind: 'text_to_video' as const, status: 'queued' as const, assets: [], raw: {} } }),
       pollIntervalMs: 1,
-      pollTimeoutMs: 4, // soft=hard=4ms（覆盖时收敛），几个 tick 即超时
+      pollTimeoutMs: 4,
       onProgress: (p) => { if (p.phase) phases.push(p.phase) },
     }).catch((e) => e)
+    await vi.advanceTimersByTimeAsync(6)
+    const error = await pending
 
     expect(isRecoverableTimeoutError(error)).toBe(true)
     if (!isRecoverableTimeoutError(error)) throw error
@@ -613,6 +617,8 @@ describe('runCatalogGenerationTask — confirmed local cancellation wins over po
 // runGenerationNode 重试循环——那会重新 runTask 二次扣费(单确认最多 ×3/节点、批量再乘)。
 // 查结果是免费的：抖动就免费重试查询；持续失败 → 落 RecoverableTimeoutError(可找回，不重发)。
 describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付费任务（钱安全回归）', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
   const videoNode: GenerationCanvasNode = {
     id: 'v1', kind: 'video', title: '', position: { x: 0, y: 0 }, prompt: '一只猫跑过草地',
     meta: { modelKey: 'vid', vendor: 'asyncv' },
@@ -621,7 +627,7 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
   it('轮询期一次网络抖动 → 免费重试查询、付费 runTask 只调一次、最终拿到结果', async () => {
     let submitCount = 0
     let fetchCount = 0
-    const result = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
+    const pending = runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
       runTask: async (_v, req) => { submitCount += 1; return { id: 'up-1', kind: req.kind, status: 'queued' as const, assets: [], raw: {} } },
       fetchTaskResult: async () => {
         fetchCount += 1
@@ -629,8 +635,10 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
         return { vendor: 'asyncv', result: { id: 'up-1', kind: 'text_to_video' as const, status: 'succeeded' as const, assets: [{ type: 'video' as const, url: 'https://x/out.mp4' }], raw: {} } }
       },
       pollIntervalMs: 1,
-      pollTimeoutMs: 5000, // 充足，确保走的是「重试查询」而非「超时」路径
+      pollTimeoutMs: 5000,
     })
+    await vi.advanceTimersByTimeAsync(10)
+    const result = await pending
     expect(submitCount).toBe(1) // ★绝不二次提交付费任务
     expect(result.url).toBe('https://x/out.mp4')
   })
@@ -638,12 +646,14 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
   it('轮询持续失败 → 落 RecoverableTimeoutError（可找回，非重发），runTask 仍只一次', async () => {
     const { isRecoverableTimeoutError } = await import('./recoverableTimeout')
     let submitCount = 0
-    const error = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
+    const pending = runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
       runTask: async (_v, req) => { submitCount += 1; return { id: 'up-2', kind: req.kind, status: 'queued' as const, assets: [], raw: {} } },
       fetchTaskResult: async () => { throw new TypeError('Failed to fetch') }, // 查结果一直失败
       pollIntervalMs: 1,
-      pollTimeoutMs: 4, // hard=4ms → 几个 tick 即落 recoverable，不重发
+      pollTimeoutMs: 4,
     }).catch((e) => e)
+    await vi.advanceTimersByTimeAsync(6)
+    const error = await pending
     expect(isRecoverableTimeoutError(error)).toBe(true)
     expect(submitCount).toBe(1) // ★持续失败也绝不二次提交
   })
@@ -654,12 +664,14 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
     const { isRecoverableTimeoutError } = await import('./recoverableTimeout')
     for (const code of ['outbound-blocked-submit', 'asset-upload-failed']) {
       let submitCount = 0
-      const error = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
+      const pending = runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
         runTask: async (_v, req) => { submitCount += 1; return { id: 'up-pre', kind: req.kind, status: 'queued' as const, assets: [], raw: {} } },
         fetchTaskResult: async () => { throw new Error(`NOMI_ERR::${code}:: 还没请求这次选的服务商`) },
         pollIntervalMs: 1,
         pollTimeoutMs: 4,
       }).catch((e) => e)
+      await vi.advanceTimersByTimeAsync(6)
+      const error = await pending
       expect(isRecoverableTimeoutError(error), code).toBe(true)
       expect(submitCount, code).toBe(1)
     }
@@ -681,7 +693,7 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
       }) as unknown as typeof globalThis.setTimeout)
     try {
       let fetchCount = 0
-      const result = await runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
+      const pending = runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
         runTask: async (_v, req) => ({ id: 'up-3', kind: req.kind, status: 'queued' as const, assets: [], raw: {} }),
         fetchTaskResult: async () => {
           fetchCount += 1
@@ -693,6 +705,8 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
         pollRandom: () => 0.5, // 抖动系数恒为 1，只看退避倍数
         pollTimeoutMs: 5000,
       })
+      await vi.runAllTimersAsync()
+      const result = await pending
       // 100 → 撞 429 → 200 → 再撞 429 → 400 → 普通抖动(复位) → 100
       expect(waits.slice(0, 4)).toEqual([100, 200, 400, 100])
       expect(result.url).toBe('https://x/o.mp4')
