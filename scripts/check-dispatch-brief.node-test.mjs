@@ -213,6 +213,10 @@ describe('碰热点先方向检查', () => {
     assert.deepEqual(checkDispatchBrief(scopeBrief(['src/feature/neighbor.ts']), { ...IMPLEMENTATION, root: CHURN.root, warnings }), [])
     assert.match(warnings.join(), /仅提示.*目录[\s\S]*src\/feature\/neighbor\.ts/)
   })
+  test('范围节内明确不在范围的文件不送热点检查', () => {
+    const text = scopeBrief(['src/cold/cold.ts']).replace('\n## 不碰清单', '\n不在范围：`src/feature/hot.ts`\n## 不碰清单')
+    assert.deepEqual(checkDispatchBrief(text, { ...IMPLEMENTATION, root: CHURN.root }), [])
+  })
   test('固定 ref 不受后续修复提交影响', () => {
     CHURN.put('src/cold/cold.ts', 'export const cold = 1\n'); CHURN.commit('fix: later cold repair')
     CHURN.put('src/cold/cold.ts', 'export const cold = 2\n'); CHURN.commit('fix: another later cold repair')
@@ -230,5 +234,40 @@ describe('碰热点先方向检查', () => {
     const warnings = []
     assert.deepEqual(checkDispatchBrief(scopeBrief(['src/cold/cold.ts']), { ...IMPLEMENTATION, root: CHURN.root, warnings }), [])
     assert.match(warnings.join(), /仅提示[\s\S]*跨文件概念/)
+  })
+})
+
+const DESIGN_REF = '\n先读 docs/design/nomi-design-system.md#1。'
+describe('界面先对设计系统', () => {
+  for (const trigger of ['界面', '样张', '拍板']) {
+    test(`正文提到${trigger}，缺引用拦截，补章节引用通过`, () => {
+      assert.match(checkDispatchBrief(`${GOOD} ${trigger}`).join(), /缺设计系统引用.*docs\/design\/nomi-design-system\.md/)
+      assert.deepEqual(checkDispatchBrief(`${GOOD} ${trigger}${DESIGN_REF}`), [])
+    })
+  }
+  test('范围里的 src tsx 文件要求设计系统引用，即使还未建文件', () => {
+    const text = scopeBrief(['src/ui/NewPanel.tsx'])
+    assert.match(checkDispatchBrief(text, IMPLEMENTATION).join(), /缺设计系统引用/)
+    assert.deepEqual(checkDispatchBrief(text + DESIGN_REF, IMPLEMENTATION), [])
+  })
+  test('非界面文件、范围以外的 tsx 不误拦', () => {
+    assert.deepEqual(checkDispatchBrief(scopeBrief(['src/logic.ts', 'electron/Window.tsx', 'src/ui/Panel.test.tsx']) + '\n## 说明\n`src/ui/Panel.tsx`', IMPLEMENTATION), [])
+  })
+  test('流程里的用户拍板和明确不在范围的界面不误拦', () => {
+    assert.deepEqual(checkDispatchBrief(`${GOOD}\n用户拍板：删掉无用目录。\n不在范围：界面文案。`), [])
+    assert.match(checkDispatchBrief(`${GOOD} 用户拍板界面样张。`).join(), /缺设计系统引用/)
+  })
+  test('CLI 和 Claude 钩子都拦实现任务缺反例红绿与设计引用', () => {
+    const file = writeBrief(`${IMPLEMENTATION_GOOD}\n调整界面。`)
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL('./check-dispatch-brief.mjs', import.meta.url)), file], { encoding: 'utf8' })
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /缺反例红绿/)
+    assert.match(result.stderr, /缺设计系统引用/)
+    const hooked = runHook(`读任务书 ${file}`)
+    assert.equal(hooked.status, 2)
+    assert.match(hooked.stderr, /缺反例红绿/)
+    assert.match(hooked.stderr, /缺设计系统引用/)
+    fs.writeFileSync(file, `${IMPLEMENTATION_GOOD}\n调整界面。${SELF_CHECK}${DESIGN_REF}`)
+    assert.equal(runHook(`读任务书 ${file}`).status, 0)
   })
 })

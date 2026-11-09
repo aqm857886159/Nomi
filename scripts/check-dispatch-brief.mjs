@@ -4,7 +4,7 @@
 // 基础七项：① 写了范围；② 写了不碰清单；③ 写了停点（做到哪就停）；④ 若是修补第 3 轮及以上，必须引用方向检查复盘文档；⑤ 讲到模型可见工具改动，必须引用模型可见工具必读清单；
 // ⑥ 实现线任务书要有一行「删掉：选 / 不选，理由」（P5 三条路里的「删掉」，只写在规则里时会被跳过）；⑦ 删东西不许写成「全仓搜到就删」，范围按归属列文件。
 // 另查范围内存在文件的热点（复用原计数器；文件热点缺方向文档拦，目录 / 概念只提示）和实现任务自验的反例红绿合同（明确纯测试 / 文档 / 配置任务可免）。
-// 只看有没有写，不判写得好不好；退出码 1 = 缺项（派工前补齐）。纯文本匹配，不调模型。
+// 界面任务还须引用设计系统。声明用关键词判，热点只读 Git，不调模型；退出码 1 = 缺项（派工前补齐）。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -68,8 +68,14 @@ export function checkDispatchBrief(text, { implementation = false, root = REPO_R
   if (implementation && !CHECK_ONLY.test(text) && !COUNTEREXAMPLE_CONTRACT.every((re) => re.test(selfCheck))) {
     problems.push('缺反例红绿：自验必须要求「设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告」；仅明确声明纯测试 / 纯文档 / 纯配置任务可豁免')
   }
-  const scope = briefSection(text, '范围|scope')
-  const files = [...new Set([...scope.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]))].filter((file) =>
+  const scope = briefSection(text, '范围|scope').split(/^\s*(?:不在范围|范围外)[：:]/m, 1)[0]
+  // 流程批准不是界面拍板，明确排除的界面也不触发设计要求。
+  const interfaceText = text.replace(/^\s*(?:不在范围|范围外)[：:][^\n]*/gm, '').replace(/[^。\n]*用户[^。\n]*拍板[^。\n]*/g, (sentence) => /界面|样张|拍板图/.test(sentence) ? sentence : '')
+  const scopedPaths = [...new Set([...scope.matchAll(/`([^`\n]+)`/g)].map((m) => m[1]))]
+  if ((/界面|样张|拍板/.test(interfaceText) || scopedPaths.some((file) => /^src\/.+\.tsx$/.test(file) && !/\.(test|spec)\.tsx$/.test(file))) && !/docs\/design\/nomi-design-system\.md(?:#[^\s`)]*)?/.test(text)) {
+    problems.push('缺设计系统引用：范围含 src/ 下 .tsx 界面文件或正文提到界面 / 样张 / 拍板时，必须引用 docs/design/nomi-design-system.md（可带章节）')
+  }
+  const files = scopedPaths.filter((file) =>
     !path.isAbsolute(file) && !file.split(/[\\/]/).includes('..') && fs.existsSync(path.join(root, file)) && fs.statSync(path.join(root, file)).isFile())
   const hits = files.length ? findHotspots(root, files, { ref }) : []
   const fileHits = hits.filter((hit) => !hit.unit && hit.reasons.some((reason) => !reason.startsWith('目录 ')))
@@ -92,7 +98,7 @@ function main() {
   const warnings = []
   const problems = checkDispatchBrief(text, { implementation: isImplementationBrief(text, file), warnings })
   for (const warning of warnings) console.warn(warning)
-  if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、删不删、删除范围齐全，第 3 轮复盘引用与模型可见工具清单检查通过。'); return 0 }
+  if (!problems.length) { console.log('派工书检查：范围、不碰清单、停点、删不删、删除范围齐全，第 3 轮复盘、模型可见工具清单、反例红绿、热点方向检查与设计系统引用检查通过。'); return 0 }
   console.error(`派工书检查：${problems.length} 项缺失\n${problems.map((p) => `  · ${p}`).join('\n')}`)
   return 1
 }
