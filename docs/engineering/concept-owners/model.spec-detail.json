@@ -1,0 +1,27 @@
+{
+  "name": "Agent 与 MCP 的单模型参数详情",
+  "subject": "model.spec-detail",
+  "lifecycle": "projection",
+  "authority_kind": "projection",
+  "trust_domain": "shared",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/agentCapabilities/modelSpecProjection.ts",
+    "symbol": "modelSpecDetail"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/agentCapabilities/modelSpecProjection.ts",
+      "symbol": "modelSpecDetail"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/capabilityCore/modelSpecParity.class.test.ts",
+  "allowed_consumers": [
+    "electron/agentLane/laneModelRead.mts",
+    "electron/capabilityCore/modelSpecRead.ts"
+  ],
+  "since": "2026-11-08",
+  "notes": "从单个目录条目投影完整模型说明。模式参数属于实际默认变体；其它已发布变体只列相对默认的参数变化。型号取值沿用档案与准入的变体解析，薄名单继续只列身份与能力。"
+}
