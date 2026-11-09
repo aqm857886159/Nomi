@@ -3,8 +3,7 @@ import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { IconX } from '@tabler/icons-react'
-import { DecisionBar, NomiLogoMark } from '../../../design'
-import { useModalInputLayer } from '../../../design/modalInputLayer'
+import { DecisionBar, DesignModal, NomiLogoMark } from '../../../design'
 import { addUserPrompt, type PromptMediaType, type PromptReferenceImage } from '../../api/promptLibraryApi'
 import { notify } from '../../../ui/notificationPolicy'
 import type { TranslationKey } from '../../../i18n/translationKey'
@@ -72,7 +71,6 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
   const [toolbar, setToolbar] = React.useState<SelectionToolbarState | null>(null)
   const [saveError, setSaveError] = React.useState('')
   const [draft, setDraft] = React.useState<DraftState | null>(null)
-  useModalInputLayer(Boolean(draft))
   const draftRevision = React.useRef(0)
   const [saving, setSaving] = React.useState(false)
 
@@ -192,28 +190,28 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
         </button>
       ) : null}
       {draft ? (
-        <div
-          data-selection-prompt-ui="true"
-          className="fixed inset-0 z-[101] grid place-items-center bg-black/20"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) closeDraft()
-          }}
+        <DesignModal opened onClose={closeDraft} centered size={560} zIndex={101}
+          trapFocus={false} returnFocus={false} closeOnEscape={false}
+          contentAttributes={{ 'data-selection-prompt-ui': 'true' }}
+          onPointerDown={(event) => event.stopPropagation()}
+          closeButtonProps={{ disabled: saving, 'aria-label': t('common.close') }}
+          title={<span className="flex items-center gap-2.5 text-body font-semibold text-nomi-ink">
+            <NomiLogoMark size={22} />{t('generationCommon.savePrompt.title')}
+          </span>}
+          actions={
+              <DecisionBar
+                className="pt-1"
+                size="md"
+                cancelLabel={t('generationCommon.savePrompt.cancel')}
+                onCancel={closeDraft}
+                cancelDisabled={saving}
+                primaryLabel={t('generationCommon.savePrompt.save')}
+                onPrimary={saveDraft}
+                primaryDisabled={saving || !draft.text.trim()}
+              />
+          }
         >
-          <section
-            className="flex max-h-[min(680px,calc(100vh-48px))] w-[min(560px,calc(100vw-40px))] flex-col overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-lg"
-            aria-label={t('generationCommon.savePrompt.title')}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-nomi-line-soft px-5">
-              <div className="flex items-center gap-2.5 text-body font-semibold text-nomi-ink">
-                <NomiLogoMark size={22} />
-                {t('generationCommon.savePrompt.title')}
-              </div>
-              <button type="button" className="grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink" onClick={closeDraft} disabled={saving}>
-                <IconX size={17} stroke={1.8} aria-hidden />
-              </button>
-            </header>
-            <div className="grid min-h-0 gap-4 overflow-y-auto p-5">
+            <div className="grid gap-4">
               {draft.referenceImages.length > 0 ? (
                 <div className="relative overflow-hidden rounded-nomi-sm bg-nomi-bg">
                   <img src={draft.referenceImages[0].url} alt="" className="block aspect-video max-h-56 w-full object-cover" />
@@ -253,19 +251,8 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
                 />
               </label>
               {saveError ? <p role="status" className="m-0 text-caption text-nomi-danger">{saveError}</p> : null}
-              <DecisionBar
-                className="pt-1"
-                size="md"
-                cancelLabel={t('generationCommon.savePrompt.cancel')}
-                onCancel={closeDraft}
-                cancelDisabled={saving}
-                primaryLabel={t('generationCommon.savePrompt.save')}
-                onPrimary={saveDraft}
-                primaryDisabled={saving || !draft.text.trim()}
-              />
             </div>
-          </section>
-        </div>
+        </DesignModal>
       ) : null}
     </>,
     document.body,
