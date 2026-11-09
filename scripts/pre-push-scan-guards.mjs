@@ -34,12 +34,15 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
+  { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。
   // Reviewed response JSON is data, but changes must still run the status contract in the normal batch.
   { file: 'tests/relay-onboarding/profile-statuses.test.mjs', roots: ['tests/relay-onboarding/fixtures/relay-profile-responses'], exts: '*' },
   // Each release adds a real old catalog here; a new directory must run the upgrade matrix before the push, not first in CI (under 5 s).
   { file: 'electron/catalog/upgradeKeepsWorkingModels.test.ts', roots: ['tests/fixtures/old-user-data/catalogs'], exts: '*' },
   // The matrix reads the real old generated asset (+ its .meta) a past release wrote; a new directory must run the old-user rows before the push (under 10 s).
   { file: 'electron/catalog/referenceLinkDelivery.matrix.test.ts', roots: ['tests/fixtures/old-user-data/assets'], exts: '*' },
+  // 2026-11-09：一次出几份就读出几份——每份旧目录（向导存下的、旧内置）造四份假响应都要读出四份；新加一份旧目录推送前就跑（<5 秒）。
+  { file: 'electron/catalog/multiOutputMapping.test.ts', roots: ['tests/fixtures/old-user-data/catalogs', 'tests/fixtures/old-user-data/curated'], exts: '*' },
   // 和 catalogs、assets 两行同形：每个版本新增一份真老用户数据（旧版本落盘的项目库），新目录推送前就跑老用户这组，不是到 CI 才红（<2 秒）。
   { file: 'electron/projects/projectLocation.oldUser.test.ts', roots: ['tests/fixtures/old-user-data/projects'], exts: '*' },
   // 付费确认卡和它的挂载点只许静态引入：遍历 src 找按需 import 它们的文件（<1 秒）。
@@ -82,6 +85,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/skills/skillFrontmatter.test.ts', roots: ['skills'], exts: '*' }, // 4 秒
   { file: 'electron/catalog/curatedVideoSharedContracts.test.ts', all: true, exts: '*' }, // git grep 全仓找「已知缺口」豁免记号（docs/ 除外）；记号可以出现在任何文件里
   // ── src/ 全树 ──
+  { file: 'src/ui/input/resizeSeparatorGesture.structure.test.ts', roots: SRC }, // 每个拖拽分隔条按下即认领手势（<2 秒）
   { file: 'src/bundleAssetUrlBoundary.test.ts', roots: SRC },
   { file: 'src/workbench/generationCanvas/canvasPreviewDoors.test.ts', roots: ['src', 'electron'] }, // 画布预览入口普查：遍历 src 与 electron 生产代码（9 秒）
   { file: 'src/workbench/generationCanvas/components/lightweightFallbackCensus.test.ts', roots: ['src/workbench'] }, // 兜底节点必须带 loading：遍历 workbench 找 fallback=<LightweightGenerationNode>（<1 秒）
@@ -105,6 +109,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/build-tailwind.test.ts', roots: SRC, exts: [...CODE_EXTS, 'css', 'html'], files: ['tailwind.config.ts'] }, // 跑一次 tailwind content 扫描（12 秒）
   { file: 'scripts/canvas-store-subscriptions.test.mjs', roots: SRC, files: ['eslint.config.mjs'] }, // 画布 nodes / edges 整表订阅存量冻结：遍历 src 按语法树数处数（11 秒）
   { file: 'scripts/ui-money-format.test.mjs', roots: SRC, files: ['eslint.config.mjs', 'scripts/fixtures/ui-money/ProductionDetails.before.tsx.txt'] }, // 界面不印金额的出口名单只减不增：遍历 src 按语法树数处数（Mac 本机单跑约 5–7 秒）
+  { file: 'scripts/focus-by-tag-lookup.test.mjs', roots: ['src', 'tests/ux', 'evals'], files: ['eslint.config.mjs', 'scripts/fixtures/focus-by-tag-lookup/ShellAgentHost.before.tsx.txt'] }, // 按输入框实现找它再聚焦（src）/ 走查按标签名判焦点（tests/ux、evals）的出口名单只减不增：遍历三处按语法树数处数（Mac 本机门岗满载时单跑约 8 秒）
   { file: 'evals/journeys/journeyContracts.test.ts', roots: ['evals/journeys'], files: ['tests/ux/real-media-fixtures.json'] }, // 旅程读了真素材就必须声明 realMedia（CI 不选它）：遍历 evals/journeys 的旅程源码对全集断言，id 对登记表
   { file: 'src/workbench/project/projectActionIssuance.contract.test.ts', roots: ['src', 'electron'] }, // 13 秒
   { file: 'src/assets/vendor-logos/vendorLogos.test.ts', roots: ['src/assets/vendor-logos', 'src/config', 'src/design', 'src/ui', 'src/workbench'] },
@@ -231,7 +236,7 @@ export function scanGuardProblems({ root, testFiles, scanTests, gateScripts, gat
   for (const group of ciOnly) if (!group.reason || String(group.reason).length < 12) problems.push(`SCAN_GUARD_CI_ONLY：${group.files.join('、')} 缺理由`)
   for (const [file, reason] of Object.entries(notScans)) if (!reason || String(reason).length < 8) problems.push(`NOT_SOURCE_SCANS：${file} 缺理由`)
   for (const guard of guards) {
-    if (/\.node-test\.[cm]?[jt]s$/.test(guard.file)) problems.push(`SCAN_GUARDS：${guard.file} 是 node:test 文件，批量门岗目前只跑 vitest；要登记 node:test 守卫先给 SCAN_TESTS 加 node 批`)
+    if (/\.node-test\.[cm]?[jt]s$/.test(guard.file) && !scanTests.has(guard.file)) problems.push(`SCAN_GUARDS：${guard.file} 是 node:test 文件，必须登记到 SCAN_TESTS 的 node 批`)
     if (!guard.all && !(guard.roots?.length) && !(guard.files?.length) && !guard.match) problems.push(`SCAN_GUARDS：${guard.file} 没写它扫哪些目录（roots / files / match / all）`)
   }
   // 未登记：识别为扫描型、又没有任何去处

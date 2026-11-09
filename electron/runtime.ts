@@ -5,7 +5,7 @@ import { assertLocalAssetTransportReady } from "./catalog/assetLocalization";
 import { assertNoReferencesOutsideSubmit, stageSubmitsReferences } from "./catalog/referenceStage";
 import { assetIngestionResolver, assetLocalizationOptions, localizeForSend } from "./catalog/assetTransportRuntime";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "./assets/localAssetFile";
-import { writeAsset, writeGeneratedAsset, writeGeneratedDeterministicAsset } from "./assets/projectAssetStore";
+import { writeGeneratedAsset, writeGeneratedDeterministicAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
 import { requestJson, requestMultipart, vendorResponseLimitForKind } from "./vendor/vendorHttp";
 import { runMultipartProfileOperation } from "./catalog/multipartOperation";
@@ -14,7 +14,7 @@ import { chatImageFallbackOperation } from "./catalog/imageRouteFallback";
 import { buildNormalizedRecipe, buildTaskProvenance } from "./vendor/provenance";
 import { extractProviderCostActual, type ProviderCostActual } from "./vendor/cost";
 import { traceVendorCompleted, traceVendorRequested } from "./events/vendorCallTrace";
-import { localizeTaskAsset } from "./assets/localizeTaskAsset";
+import { localizeTaskAsset, localizeTaskAssets } from "./assets/localizeTaskAsset";
 export { localizeTaskAsset };
 import { localizedTaskAssetFileName } from "./assets/localizedAsset";
 import { authHeaders as buildAuthHeaders, extractTaskId as extractTaskIdShared } from "./ai/requestPipeline"; import { vendorAuthSpec } from "./catalog/vendorAuthSpec";
@@ -295,12 +295,12 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   request.prompt = projectOutboundPrompt(request.prompt, request.extras);
   const customCall = resolveCustomCallExecution(model as Model, request, mapping);
   const customCallScript = customCall?.script || "";
+  // 结果只能写成项目文件（脚本 saveFile、本机进程、同步配音、文件流视频）：没有项目号就在付费闸之前拒——不发请求、不起进程、不扣令牌（projectFileResult）。
+  if (!projectId && resultOnlyLandsAsProjectFile(kind, mapping, customCallScript)) throw new Error(desktopT("tasks.resultNeedsProject"));
   const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias, model.meta), referenceSelection);
   if (guardError) throw new Error(guardError);
   if (customCallScript)
-    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset, spendGate: admission.spendGate });
-  // 结果只能写成项目文件（同步配音 / 文件流视频）：没有项目号就在付费闸之前拒——不发请求、不扣令牌（projectFileResult）。
-  if (!projectId && resultOnlyLandsAsProjectFile(kind, mapping)) throw new Error(desktopT("tasks.resultNeedsProject"));
+    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, spendGate: admission.spendGate });
   if (usesSynchronousAudioRunner(wantedKind, mapping)) {
     await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });
@@ -419,10 +419,10 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
       extras: request.extras,
     },
   );
-  const assetUrl = readTaskResponse({ response: providerResponse, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(wantedKind) }).assetUrls[0] ?? ""; // 无 mapping 兜底提交也走唯一读法
+  const assetUrls = readTaskResponse({ response: providerResponse, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(wantedKind) }).assetUrls; // 无 mapping 兜底提交也走唯一读法
   const upstreamTaskId = extractTaskIdShared(providerResponse) || taskId;
   traceVendorRequested(projectId, { runId: upstreamTaskId, nodeId, recipe: fallbackRecipe });
-  if (!assetUrl) {
+  if (!assetUrls.length) {
     admitTask(upstreamTaskId, {
       vendor: vendorKey,
       request,
@@ -437,16 +437,15 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   }
   const type: "image" | "video" | "audio" | "model3d" =
     wantedKind === "audio" ? "audio" : wantedKind === "model3d" ? "model3d" : "image";
-  const asset: TaskResult["assets"][number] = projectId
-    ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl);
+  const assets: TaskResult["assets"] = await localizeTaskAssets(projectId, assetUrls, type, nodeId, vendor);
   const actualCost = extractProviderCostActual(vendor.key, providerResponse);
   const provenance = buildTaskProvenance({ vendor, model, request, vendorRequestId: upstreamTaskId, actualCost });
-  traceVendorCompleted(projectId, { runId: upstreamTaskId, nodeId, status: "succeeded", assetCount: 1, ...(actualCost ? { cost: actualCost } : {}) });
+  traceVendorCompleted(projectId, { runId: upstreamTaskId, nodeId, status: "succeeded", assetCount: assets.length, ...(actualCost ? { cost: actualCost } : {}) });
   const finalResult: TaskResult = {
     id: upstreamTaskId,
     kind,
     status: "succeeded",
-    assets: [asset],
+    assets,
     raw: providerResponse,
     provenance,
   };

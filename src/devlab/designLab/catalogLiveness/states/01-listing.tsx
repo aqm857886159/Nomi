@@ -16,8 +16,8 @@ function CatalogStage(): JSX.Element {
   const [closed, setClosed] = React.useState(false)
   const [models, setModels] = React.useState(() => {
     seedVendorHealthSnapshotForTests('apimart|https://api.apimart.ai', { vendorKey: 'apimart', state: 'reachable', checkedAt: 0 })
-    // v0.24.1 目录中的五个文本型号。只取这组角色，仍用生产声明，以免新型号改变旁注与删除的样张。
-    const sampleKeys = ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v3.1-terminus', 'gemini-3.5-flash', 'MiniMax-H3-Context-IR']
+    // v0.24.1 目录中的四个文本型号。只取这组角色，仍用生产声明，以免新型号改变旁注与删除的样张。
+    const sampleKeys = ['deepseek-v4-pro', 'deepseek-v4-flash', 'gemini-3.5-flash', 'MiniMax-H3-Context-IR']
     const rows: Model[] = sampleKeys.map(modelKey => {
       const model = APIMART_TEXT_MODELS.find(row => row.modelKey === modelKey)
       if (!model) throw new Error(`catalog-liveness sample missing: ${modelKey}`)

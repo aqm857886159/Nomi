@@ -9,6 +9,7 @@ import { importRemoteAsset } from "./projectAssetStore";
 import { broadcastAssetLocalizationStarted } from "./assetEvents";
 import { localizedTaskAssetFileName, probeLocalizedDurationSeconds } from "./localizedAsset";
 import { canvasPreviewFieldsFromReceipt } from "../shared/canvas/canvasMediaPreview";
+import { unlocalizedTaskAsset } from "../tasks/unlocalizedTaskAsset";
 
 type LocalizedTaskAssetType = "image" | "video" | "audio" | "model3d";
 
@@ -102,3 +103,15 @@ export async function localizeTaskAsset(
   };
 }
 
+
+/** 一笔交回几份就落几份：按上游顺序一份一份过落地门（哪份失败就停在哪份）；没有项目身份时照旧给不落盘的形状。 */
+export async function localizeTaskAssets(
+  projectId: string | null | undefined,
+  assetUrls: readonly string[],
+  type: LocalizedTaskAssetType,
+  nodeId?: string, vendor?: Pick<Vendor, "key" | "baseUrlHint" | "network">,
+) {
+  const assets: Array<Awaited<ReturnType<typeof localizeTaskAsset>> | ReturnType<typeof unlocalizedTaskAsset>> = [];
+  for (const assetUrl of assetUrls) assets.push(projectId ? await localizeTaskAsset(projectId, assetUrl, type, nodeId, vendor) : unlocalizedTaskAsset(type, assetUrl));
+  return assets;
+}

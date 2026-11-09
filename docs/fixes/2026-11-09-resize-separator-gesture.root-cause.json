@@ -1,0 +1,544 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-resize-separator-gesture",
+  "problem_type": "自定义尺寸把手未在 pointerdown 认领手势，字面 role 普查漏掉无 role 把手",
+  "symptom": "提示词库抽屉拖宽时半截停住；示例图未加载时，自动走查的 mouse.move 等不到拖动拦截事件，直到外层 900 秒超时。 独立验收发现画中画右下角尺寸把手无同一道防护，且无 separator role 而漏过旧守卫；真实原生拖动是否发生以对照收据为准。",
+  "direct_cause": "分隔条随指针移动，浏览器按按下坐标重新寻找拖动源时命中刚露出的图片；未取消 pointerdown 默认行为，原生拖动接走指针。未加载图片触发 dragstart 又撤回，Playwright 等不到 dragIntercepted。",
+  "class_root": "指针捕获不取消默认内容拖动；以字面无障碍 role 代替真实尺寸手势的识别，使无 role 的把手漏过结构检查。",
+  "affected_population": [
+    "抽屉内容有图片、链接或选区的用户",
+    "Agent 面板及时间轴分隔条附近存在可原生拖动内容的用户",
+    "使用共享 Electron 启动器的原始输入走查"
+  ],
+  "scope_paths": [
+    "src/ui/app-shell/shell/ShellRail.tsx",
+    "src/workbench/AssistantPane.tsx",
+    "src/workbench/timeline/TimelineResizeHandle.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+    "src/ui/onboarding/workflowPage/WorkflowGraphCanvas.tsx"
+  ],
+  "entry_points": [
+    "WorkbenchShell → ShellRail → DrawerResizeHandle",
+    "CreationWorkspace / StoryboardWorkspace / GenerationWorkspace / PreviewWorkspace → AssistantPane",
+    "GenerationWorkspace → TimelineResizeHandle",
+    "DirectorViewport → PipViewport.beginResize",
+    "PipViewport.beginDrag → 画中画标题移动",
+    "ComfyuiWorkflowSettingsPage → WorkflowGraphCanvas.onPointerDown → 空白起手平移"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "手势归属是本应用的内部交互契约；仓库内 EditorSplit 和 TimelineTextTrack 已使用同一 preventDefault 写法，静态类测试检查全部分隔条。浏览器和 Playwright 诊断源码证据保留在实现报告，不据此变更依赖。",
+  "invariants": [
+    "具有 resize/grab/move 光标且本地 pointerdown 实现发起 setPointerCapture 或 onMove 拖动会话的自定义尺寸把手，按下处理必须 preventDefault；不依赖 role。跨文件委托、库托管、外置 CSS 与非 pointerdown 的边界单列，不能宣称已被本守卫覆盖。",
+    "分隔条键盘操作、尺寸钳制和双击复位保持可用；指针拖动保留原焦点。",
+    "共享启动器给首窗及后续窗口的 mouse、keyboard、touchscreen 装入站点预算，原始输入挂住时在 30 秒内定位调用处；显式 delay 另按 API 语义计入。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/processFeedback/processFeedbackLabKit.tsx",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "DrawerResizeHandle"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "setDrawerWidth"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/browser/dialog/NomiBrowserDialog.tsx",
+      "symbol": "NomiBrowserDialogView"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/browser/popover/NomiBrowserAssetPopover.tsx",
+      "symbol": "BrowserAssetPopoverView"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/browser/window/useBrowserAssetPopoverWindow.ts",
+      "symbol": "useResizableFloatingWindow"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+      "symbol": "WorkflowGraphCanvas"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/AssistantPane.tsx",
+      "symbol": "setAssistantWidth"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "ShellAgentHost"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "ShellRail"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "setAssistantWidth"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/adoption/adoptionTypes.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/CreationWorkspace.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/export/renderManifest.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/export/timelineWebmExport.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "TimelinePanel"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "TimelineResizeHandle"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/model/buildClipFromGenerationNode.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "ImageCropGridOverlay"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "symbol": "useNodeDragResize"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "ClipNodeTimeline"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/generationCanvas/nodes/ClipNode.tsx",
+      "symbol": "useNodeDragResize"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/clipNodeDragModel.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/clipNodeExport.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/clipNodeModel.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/clipNodeSequence.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/clipNodeTimelineLayout.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorRefineShell.tsx",
+      "symbol": "EditorSplit"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+      "symbol": "PipViewport"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/versionCards/NodeVersionCardsHost.tsx",
+      "symbol": "NodeVersionGrid"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/player/timelinePlayback.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "SplitHandle"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "TimelinePanel"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/TimelinePreview.tsx",
+      "symbol": "OverlaySelectionBox"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/TimelinePreview.tsx",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/TimelineTransitionLayer.tsx",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/inspector/ClipTransitionFields.tsx",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/usePreviewBgmPlayback.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/usePreviewVideoPlayheadSync.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/project/projectMediaMigration.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineClip.tsx",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "TimelineTextTrack"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "setTimelinePanelHeight"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "timelineResizeKeyboardHeight"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineSeamHandle.tsx",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/TimelineTrack.tsx",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/addAssetToTimeline.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/agent/mediaToolCall.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/buildClipFromAssetRef.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/buildGenerationNodeTimelineClip.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/clipAudio.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/framingTarget.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/kernel/timelineKernel.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineClipPreview.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineDropFeedback.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineEdit.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineMath.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelinePlaybackUrl.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineTransition.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineTypes.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/timeline/timelineVisualFeedback.ts",
+      "symbol": "TimelineClip"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/workbenchStore.ts",
+      "symbol": "TimelineClip"
+    }
+  ],
+  "door_reduction": {
+    "before": 66,
+    "after": 66,
+    "why_not": "不删除独立的布局职责：抽屉、四工作区 Agent、时间轴高度/字幕/播放头、导演台分栏与 PiP、裁切与预览叠加层、节点宿主、浏览器窗口和库托管分栏分别承载不同几何/时长状态。前次状态 setter 门及本次组件读写门均按 file+symbol 去重；多挂载保持共用实现，只替换按下归属与扫描判据。 补扫 TimelineClip 的保守输出含同名类型读取，不把66个候选冒充66个真实拖动把手；保留原始机器输出以便复核，实际界面组数按设计卡入口表。"
+  },
+  "generality_proof": "三个行为入口均在原有主键/可交互目标保护之后、捕获指针或修改拖动状态之前调用同一个 DOM preventDefault 写法；不按路径、内容、语言或加载状态设例外。守卫删除 literal role 判据，按尺寸/移动光标与捕获/onMove 会话识别 owner；main 字节精确列出三处红，修后全部绿。字幕主体移动及左右尺寸逐个认领，原有漏认/误报反例保留。跨文件、库托管和非 pointerdown 形状的边界仍明确列出。",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "DrawerResizeHandle",
+      "responsibility": "所有抽屉共用的 pointerdown 手势归属。"
+    },
+    {
+      "path": "src/workbench/AssistantPane.tsx",
+      "symbol": "AssistantPane",
+      "responsibility": "四个工作区共用的 Agent 停靠栏拖宽归属。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "TimelineResizeHandle",
+      "responsibility": "生成页时间轴拖高归属；复用 store 的尺寸钳制。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+      "symbol": "PipViewport",
+      "responsibility": "精修/导演画中画共用缩放边界及精修标题移动，原主键检查后先取消默认动作。"
+    },
+    {
+      "path": "src/ui/onboarding/workflowPage/WorkflowGraphCanvas.tsx",
+      "symbol": "WorkflowGraphCanvas",
+      "responsibility": "只读工作流图的空白拖动边界；保留主键与交互控件早退后再认领。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "entry_point": "DrawerResizeHandle",
+      "disposition": "enforced",
+      "evidence": "六种抽屉共用的把手，pointerdown 先 preventDefault。"
+    },
+    {
+      "path": "src/workbench/AssistantPane.tsx",
+      "entry_point": "AssistantPane",
+      "disposition": "enforced",
+      "evidence": "所有工作区的 Agent 停靠栏，pointerdown 先 preventDefault。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "entry_point": "TimelineResizeHandle",
+      "disposition": "enforced",
+      "evidence": "时间轴高度把手，pointerdown 先 preventDefault。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineTextTrack.tsx",
+      "entry_point": "beginResize",
+      "disposition": "enforced",
+      "evidence": "字幕左右分隔条已通过 beginDrag 认领；结构测试逐个扫描。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/EditorSplit.tsx",
+      "entry_point": "onPointerDown",
+      "disposition": "enforced",
+      "evidence": "导演台分隔条已有 preventDefault；结构测试扫描同一路径。"
+    },
+    {
+      "path": "src/ui/browser/dialog/NomiBrowserDialogView.tsx",
+      "entry_point": "handleDockResizeStart",
+      "disposition": "not-affected",
+      "evidence": "跨文件转发到 NomiBrowserDialog，既有 preventDefault；本地 owner 静态扫描不作通过收据。"
+    },
+    {
+      "path": "src/ui/browser/popover/BrowserAssetPopoverView.tsx",
+      "entry_point": "startResize",
+      "disposition": "not-affected",
+      "evidence": "经 useBrowserAssetPopoverWindow 到 useResizableFloatingWindow，已有 preventDefault；纯委托边界。"
+    },
+    {
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "entry_point": "SplitHandle",
+      "disposition": "not-affected",
+      "evidence": "Separator 由既有 react-resizable-panels 托管，本地 onGrab 仅通知，不拥有拖动。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+      "entry_point": "handleResizePointerDown",
+      "disposition": "not-affected",
+      "evidence": "useNodeDragResize 既有 preventDefault，React Flow 托管时退出；跨文件 hook。"
+    },
+    {
+      "path": "src/workbench/preview/OverlaySelectionBox.tsx",
+      "entry_point": "beginHandleScale",
+      "disposition": "not-affected",
+      "evidence": "本地尺寸会话已有 preventDefault，新判据识别。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/render/ImageCropGridOverlay.tsx",
+      "entry_point": "beginDrag",
+      "disposition": "not-affected",
+      "evidence": "本地工厂返回 pointerdown 已有 preventDefault，新判据识别四角和行列。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+      "entry_point": "beginResize",
+      "disposition": "enforced",
+      "evidence": "原 capture/width 路径加既有 preventDefault，main 红/修后绿。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+      "entry_point": "beginDrag",
+      "disposition": "enforced",
+      "evidence": "原 capture/left/bottom 路径加既有 preventDefault，不改布局存储。"
+    },
+    {
+      "path": "src/ui/onboarding/workflowPage/WorkflowGraphCanvas.tsx",
+      "entry_point": "onPointerDown",
+      "disposition": "enforced",
+      "evidence": "主键和 interactive closest 早退保持原样，其后先 preventDefault 再写拖动状态和捕获。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "图、链接、选区均可在分隔条移动后露出；抽屉、Agent、时间轴三种入口都缺失同一约束。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs DrawerResizeHandle AssistantPane TimelineResizeHandle EditorSplit TimelineTextTrack SplitHandle useResizableFloatingWindow useNodeDragResize PipViewport OverlaySelectionBox ImageCropGridOverlay NomiBrowserDialogView BrowserAssetPopoverView ShellAgentHost GenerationCanvasReactFlowNodes：18个组件读写门，23处引用；并入前次状态写入口后见 doors。",
+      "rg cursor-.*resize、onPointerDown、setPointerCapture：与独立验收15行入口表逐项对齐，14组（字幕左右分两行）。",
+      "结构扫描全 src TSX：同文件常量/工厂/useCallback 展开，resize 光标 + pointerdown + 本地捕获或 onMove 会话；委托/库托管单列。",
+      "补扫 ClipNodeTimeline TimelineClip TimelinePanel NodeVersionGrid：新判据同时识别既有时长/播放头把手，消费门见 doors；不是新增产品修复范围。",
+      "node scripts/door-map.mjs WorkflowGraphCanvas：位置抓取新增普查入口；未授权修改，保留缺口。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+    "invariant": "本地尺寸/位置拖动 owner 在有效 pointerdown 最早共享入口取消默认内容拖动；交互控件不起手的既有规则先执行。",
+    "failure_mode": "原生图片/链接/选区不能接管已认领手势；新增遗漏由结构守卫列出并阻断，不按路径排除。",
+    "exception_policy": "none",
+    "strategy": "三入口统一换成已合入分隔条的 preventDefault 写法；删除仅捕获而未认领的旧行为，保留主键/空白起手保护、尺寸钳制及存储，不加 helper 或特例。",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+      "src/ui/onboarding/workflowPage/WorkflowGraphCanvas.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/input/resizeSeparatorGesture.structure.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/ui/input/resizeSeparatorGesture.structure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx",
+      "src/ui/onboarding/workflowPage/WorkflowGraphCanvas.tsx"
+    ],
+    "rationale": "本轮实际替换两文件内三处只捕获但允许浏览器默认拖动的行为；不再申报先前合入修复的三个文件为本轮删除。没有并行实现或 fallback。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "产品约束直接由 DOM pointerdown.preventDefault 负责，不依赖特定浏览器或 Playwright 版本；不改依赖。走查等待缺口在共享启动器以既有站点预算封住。",
+    "exit_criteria": []
+  },
+  "migration": "不改项目、模型或设置格式；原尺寸 setter、布局边界、入口及持久化字段保持原样，不需要存量迁移。",
+  "residual_risks": [
+    "自动走查使用隔离资料和夹具，不能当作用户真实窗口录屏；已加载图片对照与全量结果以实际运行收据为准。",
+    "preventDefault 会保留原焦点，Agent 面板拖宽与 #1359 涉及同一焦点概念，需独立验收。",
+    "原始输入上限只覆盖共享 Electron 启动器，不覆盖浏览器启动器、connectOverCDP 或 evaluate。",
+    "结构守卫依赖可静态识别的光标、捕获/onMove 会话；跨文件回调、库托管、外置 CSS、HTML5 drag、mouse/touch 入口仍非本扫描完整覆盖。",
+    "真实图片/视频帧条件及原始图片变异对照以本轮 Electron 收据为准；无法搭建的场景必须保留未验证，不能由结构绿测替代。"
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "src/ui/input",
+    "tests": [
+      "src/ui/input/resizeSeparatorGesture.structure.test.ts"
+    ]
+  }
+}

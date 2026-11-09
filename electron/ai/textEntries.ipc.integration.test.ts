@@ -147,7 +147,7 @@ describe("#1 文本节点续写：真 IPC", () => {
     const node = rewriteNode();
     const store = useGenerationCanvasStore.getState();
     store.updateNode(node.id, { meta: { ...(node.meta || {}), textGenMode: "append", textGenSelection: "" } });
-    const result = await generateText(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)!, { projectTarget });
+    const [result] = await generateText(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)!, { projectTarget });
     expect(result.text).toBe("第二段接着写。");
     expect(ipc.invoked).toContain("nomi:tasks:text:stream");
     expect(ipc.invoked).not.toContain("nomi:tasks:run");
@@ -170,7 +170,7 @@ describe("#2 文本节点改写选区：真 IPC + 真准入", () => {
   it("拿到改写结果、交编辑器一次性替换选区；走文本流式门，不走付费令牌闸", async () => {
     script = () => reply.thinkThenText(2, 20, "他慢慢展开纸条。");
     const node = rewriteNode();
-    const result = await generateText(node, { projectTarget });
+    const [result] = await generateText(node, { projectTarget });
     expect(result.text).toBe("他慢慢展开纸条。");
     expect(pendingApply(node.id)).toBe(result.id);
     expect(upstream.requests).toHaveLength(1);

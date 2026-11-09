@@ -1031,11 +1031,6 @@
       "count": 1
     }
   },
-  "tests/ux/agent-default-model-real.paid.mjs": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/ux/agent-domain-owners.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
