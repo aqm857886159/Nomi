@@ -107,7 +107,7 @@ try {
     await expect(item, '侧栏里有这份分镜方案').toBeVisible({ timeout: stationTimeout() })
     await openStoryboardEditor(win(), DESIGN, '侧栏选中分镜方案')
     await expect(editor(), '分镜编辑器出现').toBeVisible({ timeout: stationTimeout() })
-    await expect(editor().locator('[data-storyboard-row]'), '六镜').toHaveCount(6, { timeout: stationTimeout() })
+    await expect(editor().locator('[data-storyboard-rows]'), '六镜').toHaveAttribute('data-storyboard-row-count', '6', { timeout: stationTimeout() })
   }, { surfaces: ['*'], critical: true })
   await monitor.screenshot('01-storyboard-initial')
 
