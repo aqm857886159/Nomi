@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IconArrowUp, IconLoader2 } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import type { ModelOption } from '../../../../config/models'
-import { defaultPatchForControls, type DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
-import { resolveRenderedControls } from '../../../generationCanvas/nodes/nodeModelArchetype'
+import type { DynamicModelControl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC, planModelSelection, shotKindPatch, shotTypeOf, type PlanShotPatch } from '../../../generationCanvas/agent/storyboardPlanEdits'
@@ -86,10 +85,7 @@ export default function ShotComposerBar({
           onModelChange={(value, vendor) => {
             const selected = modelOptions?.find(option => option.value === value && (!vendor || option.vendor === vendor))
             const nextKind = selected?.kind === 'image' ? 'image' : selected?.kind === 'video' ? 'video' : undefined
-            const defaults = defaultPatchForControls(resolveRenderedControls(selected ?? null, {}, nextKind === 'image', nextKind === 'video'))
-            onUpdate({ ...(value && nextKind && nextKind !== (isImageShot ? 'image' : 'video') ? shotKindPatch(shot, nextKind) : {}), ...planModelSelection(value, vendor),
-              ...(nextKind === 'video' && typeof defaults.duration === 'number' ? { durationSec: defaults.duration } : {}),
-            })
+            onUpdate({ ...(value && nextKind && nextKind !== (isImageShot ? 'image' : 'video') ? shotKindPatch(shot, nextKind) : {}), ...planModelSelection(value, vendor) })
           }}
           onModeChange={(modeId) => onUpdate({ modeId, params: undefined })}
           onChange={(change) => {

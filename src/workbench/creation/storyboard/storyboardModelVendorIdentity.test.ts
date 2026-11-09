@@ -100,15 +100,6 @@ describe('① 镜头卡底栏：选 APIMart 那条 → 镜头的 (modelKey, mode
     expect(onUpdate.mock.calls[0]![0]).toMatchObject({ shotKind: 'video', modelKey: video.value, modelVendor: video.vendor, durationSec: 3 })
   })
 
-  it.each(['image', 'video'] as const)('%s to video resets duration through the canvas model defaults', kind => {
-    const video: ModelOption = { value: 'doubao-seedance-2.0', label: 'Video defaults', modelKey: 'doubao-seedance-2.0', kind: 'video', vendor: 'apimart' }
-    const { select, onUpdate } = renderBar(imageShot({ shotKind: kind, durationSec: 3, params: { duration: 3, resolution: 'old' } }), [...OPTIONS, video])
-    select.onChange(select.options.find(option => option.label === video.label)!.value)
-    const patch = onUpdate.mock.calls[0]![0]
-    expect({ ...imageShot({ shotKind: kind }), ...patch }).toMatchObject({ shotKind: 'video', durationSec: 5 })
-    expect(patch.params).toBeUndefined()
-  })
-
   it('default model preserves the video kind and its keyframe draft', () => {
     const original = imageShot({ shotKind: 'video', keyframe: { enabled: true, prompt: 'keep keyframe' } })
     const { select, onUpdate } = renderBar(original)
