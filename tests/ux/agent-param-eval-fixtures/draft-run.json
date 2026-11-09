@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "runId": "op-param-fixture",
+  "projectId": "param-fixture",
+  "revision": 0,
+  "status": "draft",
+  "stageId": "generate",
+  "playbook": {
+    "name": "generation.single-shot",
+    "version": "1.0.0"
+  },
+  "origin": {
+    "host": "nomi",
+    "actorId": "project-agent-host"
+  },
+  "policy": {
+    "trustedHosts": [
+      "nomi"
+    ],
+    "allowedProviders": [
+      "volcengine"
+    ],
+    "allowedModels": [
+      "doubao-seedance-2-0-260128"
+    ],
+    "maxSpend": null,
+    "maxAttemptsPerJob": 3,
+    "minimizeUploads": true,
+    "trustLevel": "key_confirm"
+  },
+  "budget": {
+    "currency": "CNY",
+    "authorized": 0,
+    "reserved": 0,
+    "actual": 0,
+    "unsettled": 0,
+    "unknownInFlight": 0
+  },
+  "planVersion": 1,
+  "snapshotCursor": 1,
+  "stages": [
+    {
+      "stageId": "generate",
+      "title": "Generate",
+      "status": "pending",
+      "order": 0
+    },
+    {
+      "stageId": "qa",
+      "title": "QA",
+      "status": "pending",
+      "order": 1
+    },
+    {
+      "stageId": "assemble",
+      "title": "Assemble",
+      "status": "pending",
+      "order": 2
+    },
+    {
+      "stageId": "export",
+      "title": "Export",
+      "status": "pending",
+      "order": 3
+    }
+  ],
+  "gates": [],
+  "jobs": [],
+  "artifacts": [],
+  "generationPlan": {
+    "operationId": "op-param-fixture",
+    "state": "draft",
+    "candidate": {
+      "candidateId": "cand-shot-1",
+      "revision": 1,
+      "moduleId": "generation.single-shot",
+      "providerId": "volcengine",
+      "modelId": "doubao-seedance-2-0-260128",
+      "mode": "text_to_video",
+      "prompt": "清晨的街道",
+      "parameters": {
+        "ratio": "16:9",
+        "duration": 5
+      },
+      "references": [],
+      "modeId": "t2v"
+    },
+    "shots": [
+      {
+        "shotId": "shot-1",
+        "title": "镜1",
+        "candidate": {
+          "candidateId": "cand-shot-1",
+          "revision": 1,
+          "moduleId": "generation.single-shot",
+          "providerId": "volcengine",
+          "modelId": "doubao-seedance-2-0-260128",
+          "mode": "text_to_video",
+          "prompt": "清晨的街道",
+          "parameters": {
+            "ratio": "16:9",
+            "duration": 5
+          },
+          "references": [],
+          "modeId": "t2v"
+        },
+        "updatedAt": "2026-11-08T00:00:00.000Z",
+        "nodeId": "param-node-1"
+      },
+      {
+        "shotId": "shot-2",
+        "title": "镜2",
+        "candidate": {
+          "candidateId": "cand-shot-2",
+          "revision": 1,
+          "moduleId": "generation.single-shot",
+          "providerId": "volcengine",
+          "modelId": "doubao-seedance-2-0-260128",
+          "mode": "text_to_video",
+          "prompt": "警察追着犯人跑",
+          "parameters": {
+            "ratio": "16:9",
+            "duration": 5
+          },
+          "references": [],
+          "modeId": "t2v"
+        },
+        "updatedAt": "2026-11-08T00:00:00.000Z",
+        "nodeId": "param-node-2"
+      },
+      {
+        "shotId": "shot-3",
+        "title": "镜3",
+        "candidate": {
+          "candidateId": "cand-shot-3",
+          "revision": 1,
+          "moduleId": "generation.single-shot",
+          "providerId": "volcengine",
+          "modelId": "doubao-seedance-2-0-260128",
+          "mode": "text_to_video",
+          "prompt": "路人站在旁边看",
+          "parameters": {
+            "ratio": "16:9",
+            "duration": 5
+          },
+          "references": [],
+          "modeId": "t2v"
+        },
+        "updatedAt": "2026-11-08T00:00:00.000Z",
+        "nodeId": "param-node-3"
+      },
+      {
+        "shotId": "shot-4",
+        "title": "镜4",
+        "candidate": {
+          "candidateId": "cand-shot-4",
+          "revision": 1,
+          "moduleId": "generation.single-shot",
+          "providerId": "volcengine",
+          "modelId": "doubao-seedance-2-0-260128",
+          "mode": "text_to_video",
+          "prompt": "买包子",
+          "parameters": {
+            "ratio": "16:9",
+            "duration": 5
+          },
+          "references": [],
+          "modeId": "t2v"
+        },
+        "updatedAt": "2026-11-08T00:00:00.000Z",
+        "nodeId": "param-node-4"
+      },
+      {
+        "shotId": "shot-5",
+        "title": "镜5",
+        "candidate": {
+          "candidateId": "cand-shot-5",
+          "revision": 1,
+          "moduleId": "generation.single-shot",
+          "providerId": "volcengine",
+          "modelId": "doubao-seedance-2-0-260128",
+          "mode": "text_to_video",
+          "prompt": "挤上公交车",
+          "parameters": {
+            "ratio": "16:9",
+            "duration": 5
+          },
+          "references": [],
+          "modeId": "t2v"
+        },
+        "updatedAt": "2026-11-08T00:00:00.000Z",
+        "nodeId": "param-node-5"
+      },
+      {
+        "shotId": "shot-6",
+        "title": "镜6",
+        "candidate": {
+          "candidateId": "cand-shot-6",
+          "revision": 1,
+          "moduleId": "generation.single-shot",
+          "providerId": "volcengine",
+          "modelId": "doubao-seedance-2-0-260128",
+          "mode": "text_to_video",
+          "prompt": "车窗外的晨光",
+          "parameters": {
+            "ratio": "16:9",
+            "duration": 5
+          },
+          "references": [],
+          "modeId": "t2v"
+        },
+        "updatedAt": "2026-11-08T00:00:00.000Z",
+        "nodeId": "param-node-6"
+      }
+    ],
+    "updatedAt": "2026-11-08T00:00:00.000Z",
+    "presentations": []
+  },
+  "createdAt": "2026-11-08T00:00:00.000Z",
+  "updatedAt": "2026-11-08T00:00:00.000Z"
+}
