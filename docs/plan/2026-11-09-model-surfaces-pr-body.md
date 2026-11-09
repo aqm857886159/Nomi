@@ -17,7 +17,7 @@
 | ★1 用户结果 | 设置→模型页→核账户/Key/用量→回画布→搜索型号→选变体→看估价；量具为 apimart-model-surfaces.rehearsal.mjs 的中英窗口、旧目录和 GET/媒体计数。真实账户、真实生成与实扣均 unverified；主指标为演练完成率，护栏为媒体创建 0。连带界面限账户卡和画布；Agent/批量批准维持原入口。旧项目型号、连接及偏好保留，英文用真实 v0.24.1 目录快照演练。 |
 | ★2 唯一事实 | 主进程 vendorAccountFacts / vendorPricePreview 持有账户与报价；报价使用既有最终任务请求投影，renderer 只消费当前连接与参数对应结果。凭据可用性唯一 owner 仍是 credentialRecordCounts；本次只将凭据登记的读入口名跟随 resolveVendorReadTarget，无新增主人。 |
 | ★3 复用与取舍 | 复用已有供应商凭据、appFetch、目录选择器和任务模板；沿已批 M1/M2/M4 方向收口；共享 priceBalanceStatus 已实现，不另起资金体系，不删充值态。方向记录见下。 |
-| ★4 全状态 | 无凭据引导连接；加载不猜金额；成功显示有来源事实；失败/部分成功保留各自未知及管理/刷新；取消中由原生成体系负责；过期充值点击只刷新；能力不可用可经空搜索进入已展开的 AI 接入。文案覆盖中英。出站核对：账户 GET /v1/balance、/v1/user/balance、/v1/usage 只允许种子 baseUrl/alternateOrigins 声明的 api.apimart.ai / api.apib.ai，且拒绝 URL 用户信息和非根/v1 路径，用户中转地址不读。凭据来自 resolveVendorReadTarget，appFetch 复用 credentialRedirectPolicy 拒绝带鉴权头的跳转，不把 Key 跟随到别处；公开价格 /api/pricing/model 与 /api/pricing/models/all 使用同一 origin 白名单，无凭据并显式 redirect:error。网络/超时/非成功/字段缺失只使对应事实为 null、Key 为 unknown（明确 401 才 invalid）或不报价，不生成、不重试扣费。两个 test.ts 的 appFetch 是 vi.mock 替身，无真实出口。登记 scripts/outbound-policy-baseline.json 的四个精确 importer，不改网络策略。布局按用户 2026-11-09 决定：刷新/更多及两处展开箭头紧跟文字，gap-1.5，不沿用样张贴右。 |
+| ★4 全状态 | 无凭据引导连接；加载不猜金额；成功显示有来源事实；失败/部分成功保留各自未知及管理/刷新；取消中由原生成体系负责；过期充值点击只刷新；能力不可用可经空搜索进入已展开的 AI 接入。文案覆盖中英。出站核对：账户 GET /v1/balance、/v1/user/balance、/v1/usage 只允许种子 baseUrl/alternateOrigins 声明的 api.apimart.ai / api.apib.ai，且拒绝 URL 用户信息和非根/v1 路径，用户中转地址不读。凭据来自 resolveVendorReadTarget，appFetch 复用 credentialRedirectPolicy 拒绝带鉴权头的跳转，不把 Key 跟随到别处；公开价格 /api/pricing/model 与 /api/pricing/models/all 使用同一 origin 白名单，无凭据并显式 redirect:error。 价格规格先由 priceQueryFromRequest 用空 Key 调 buildProfileHttpRequest 在内存投影实际 POST 报文，只返回有限 VendorPriceQuery；该构造器不发请求，生成报文/headers/query 不进入价格传输。图片与视频链的回归测试核对真正出站只有上述公开 GET、无 headers/body/Key，不能把投影构造误称为 GET。网络/超时/非成功/字段缺失只使对应事实为 null、Key 为 unknown（明确 401 才 invalid）或不报价，不生成、不重试扣费。两个 test.ts 的 appFetch 是 vi.mock 替身，无真实出口。登记 scripts/outbound-policy-baseline.json 的四个精确 importer，不改网络策略。布局按用户 2026-11-09 决定：刷新/更多及两处展开箭头紧跟文字，gap-1.5，不沿用样张贴右。 |
 | 5 中途与动作 | 账户/报价读取中关窗不创建媒体，重开重读；断网只使事实未知；换 Key/端点忽略旧返回；连点合并读取；已渲染充值跨过期后只刷新，绝不落入生成。原生成取消/回执仍由既有任务授权体系负责。 |
 | 6 外部失败 | 账户和用量仅 GET，经主进程凭据与重定向策略；公开价 GET 无凭据且限制 origin；缺字段、无价、不可达均保持未知。真实供应商字段/单位本轮未核验。 |
 | ★7 性能 | 新增设置读取、选择器搜索、变体/参数报价；量具覆盖完整 APIMart 内置目录的视频节点；场景 apimart-model-picker 配置为 1 轮预热后 5 次采样，协调安静窗口有效测量中位 28.5ms / p95 30.6ms，verdict ok；两次 UI 动作合计预算中位 150ms / p95 200ms，未改预算。大规模画布和账户读取性能无独立数字，unverified。 |
@@ -66,6 +66,7 @@
 - `scripts/boundary-owners-ledger.json`：历史根因合同保留原快照，通过已有 reanchored 机制将 resolveTarget 指向同文件的 resolveVendorReadTarget；不修改合同、门岗或产品代码。
 - `docs/engineering/self-written.json`：用 model-surface-account-quote 精确认领六个领域适配模块，不扩大 domainRoots；领域约束与复用查证见“先查别人”。
 - `scripts/outbound-policy-baseline.json`：精确登记两个已在上层限制供应商 origin 的只读模块及其 vi.mock 测试；四问核对见设计卡 ★4，不放宽策略。
+- `scripts/generation-entrances-ledger.json`：登记 vendorPriceRequest.ts::buildProfileHttpRequest 的单个调用为纯内存估价投影，沿用既有非生成入口 reason；下游只发公开价 GET、不带 Key、不生成，测试见 vendorPricePreview.test.ts；不改门岗判据、矩阵或 landingExceptions。
 - `scripts/file-size-baseline.json`：OnboardingDrawer 的导航职责移入既有 hook 后，将冻结上限由 847 下调到 839，不上调。
 - `scripts/vocabularies-baseline.json`：登记已有 VendorAccountFacts.keyState 合同的三个验证结论；查无同义已注册 owner，不另写并行状态。
 - `docs/plan/2026-11-09-model-settings-content-flow-direction-check.md`：仅目录热点命中、文件本身未命中的换/删布局；记录本轮用户决定、协调指派和既有目录例外的适用边界，不冒称已做独立复盘。
@@ -82,6 +83,8 @@
 ## 系统改进
 
 [方向记录](docs/plan/2026-11-08-price-balance-direction-check.md)采用共享 priceBalanceStatus，独立区分已核实零余额与公开估价短差。已渲染充值按钮的动作固定，30 秒后点击只刷新；输出估价不计算确定短差。账户与报价复用当前连接身份，旧响应不得覆盖新输入。确定性测试覆盖账户/有限 Key 零值、无限、未知、过期、固定价/输出估价；Electron 回环检查媒体创建为零。本轮只补上述三处内容流布局，不改变账户/报价/生成或按钮处理器。
+
+本轮生成入口补证见 [公开估价投影登记设计卡](docs/plan/2026-11-09-public-price-generation-entrance.md)：原门岗已拦住漏登记的纯构造调用；补一条精确 reason，并以真实内置图片/视频映射验证投影与固定只读传输的分界。不改产品代码或出站策略。
 
 ## 性能
 
