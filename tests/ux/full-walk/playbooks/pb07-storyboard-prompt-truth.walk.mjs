@@ -81,30 +81,6 @@ const pb = await startPlaybook({
   }),
 })
 const { smoke, fixture, monitor, locale } = pb
-// 夹具作者内容沿用监视器已有标记；固定界面文案里仍有中文时不标整棵子树。
-await smoke.win.evaluate((values) => {
-  const residue = (value) => values.reduce((rest, text) => rest.split(text).join(''), value)
-  const mark = () => {
-    const targets = new Set()
-    for (const element of document.querySelectorAll('span, p, button[title], [aria-label]')) {
-      const own = [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('')
-        + ['title', 'aria-label'].map(attr => element.getAttribute(attr) || '').join(' ')
-      if (!/[㐀-鿿]/.test(own) || /[㐀-鿿]/.test(residue(own))) continue
-      const target = element.closest('[contenteditable="true"]') ?? element
-      const subtree = target.textContent + [target, ...target.querySelectorAll('[title], [aria-label]')]
-        .map(child => `${child.getAttribute('title') || ''} ${child.getAttribute('aria-label') || ''}`).join(' ')
-      if (!/[㐀-鿿]/.test(residue(subtree))) targets.add(target)
-    }
-    document.querySelectorAll('[data-user-content="pb07-fixture"]').forEach(element => { if (!targets.has(element)) element.removeAttribute('data-user-content') })
-    targets.forEach(element => { if (!element.hasAttribute('data-user-content')) element.setAttribute('data-user-content', 'pb07-fixture') })
-  }
-  new MutationObserver(mark).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'aria-label'] })
-  mark()
-}, [...new Set([
-  ...makePlan('').shots.map(entry => entry.prompt),
-  ...anchors.flatMap(anchor => [anchor.name, anchor.description]),
-  DRAGON, HERO_STATIC, '远景', '，清晨的海边，一只白鸟掠过水面', '巨龙走查', '巨龙', '定妆', '一场关于龙与人的故事。',
-])].sort((a, b) => b.length - a.length))
 const win = () => smoke.win
 const editor = () => win().locator('[data-storyboard-editor="true"]:visible')
 const rowPrompt = (index) => editor().locator(`[data-storyboard-row="${index}"] [data-storyboard-prompt-block] [contenteditable="true"]`).first()
@@ -124,6 +100,30 @@ async function rewritePrompt(index, text) {
 
 let harnessError = null
 try {
+  // 夹具作者内容沿用监视器已有标记；固定界面文案里仍有中文时不标整棵子树。
+  await smoke.win.evaluate((values) => {
+    const residue = (value) => values.reduce((rest, text) => rest.split(text).join(''), value)
+    const mark = () => {
+      const targets = new Set()
+      for (const element of document.querySelectorAll('span, p, button[title], [aria-label]')) {
+        const own = [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('')
+          + ['title', 'aria-label'].map(attr => element.getAttribute(attr) || '').join(' ')
+        if (!/[㐀-鿿]/.test(own) || /[㐀-鿿]/.test(residue(own))) continue
+        const target = element.closest('[contenteditable="true"]') ?? element
+        const subtree = target.textContent + [target, ...target.querySelectorAll('[title], [aria-label]')]
+          .map(child => `${child.getAttribute('title') || ''} ${child.getAttribute('aria-label') || ''}`).join(' ')
+        if (!/[㐀-鿿]/.test(residue(subtree))) targets.add(target)
+      }
+      document.querySelectorAll('[data-user-content="pb07-fixture"]').forEach(element => { if (!targets.has(element)) element.removeAttribute('data-user-content') })
+      targets.forEach(element => { if (!element.hasAttribute('data-user-content')) element.setAttribute('data-user-content', 'pb07-fixture') })
+    }
+    new MutationObserver(mark).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'aria-label'] })
+    mark()
+  }, [...new Set([
+    ...makePlan('').shots.map(entry => entry.prompt),
+    ...anchors.flatMap(anchor => [anchor.name, anchor.description]),
+    DRAGON, HERO_STATIC, '远景', '，清晨的海边，一只白鸟掠过水面', '巨龙走查', '巨龙', '定妆', '一场关于龙与人的故事。',
+  ])].sort((a, b) => b.length - a.length))
   await monitor.step('打开项目（从项目库）', () => smoke.openProject(), { surfaces: ['*'], critical: true })
   await monitor.step('切到创作页，从侧栏点开这份分镜方案', async () => {
     await clickOrFail(win().locator('.nomi-stepper__step[data-mode="creation"]').first(), '顶栏「创作」')
