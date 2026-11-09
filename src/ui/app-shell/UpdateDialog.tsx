@@ -13,11 +13,9 @@ import {
   IconPackage,
   IconRefresh,
   IconShieldCheck,
-  IconX,
 } from '@tabler/icons-react'
-import { DecisionBar, DesignProgress, useOverlayEscape, WorkbenchButton, WorkbenchIconButton } from '../../design'
+import { DecisionBar, DesignModal, DesignProgress, useOverlayEscape, WorkbenchButton } from '../../design'
 import { dialogDigest, type LocaleDigest, type UpdaterErrorReason, type UpdaterErrorStage } from '../../../electron/shared/updateReminder'
-import { useModalInputLayer } from '../../design/modalInputLayer'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useUpdateStore } from './updateStore'
 import { useRunningTaskCount } from './useRunningTaskCount'
@@ -156,15 +154,12 @@ export function UpdateDialogCard({
   ]
 
   return (
-    <section
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="update-dialog-title"
-      data-update-dialog={view}
-      className="w-[30rem] max-w-full rounded-nomi-lg border border-nomi-line bg-nomi-paper p-5 text-nomi-ink shadow-nomi-lg"
-    >
-      <header className="flex items-start gap-3">
+    <DesignModal opened onClose={onClose ?? noop} centered size={480} zIndex={130}
+      withinPortal={false} closeOnClickOutside={false} closeOnEscape={false} trapFocus={false} returnFocus={false}
+      closeButtonProps={{ 'aria-label': t('common.close') }}
+      contentAttributes={{ 'data-update-dialog': view, 'data-updater-dialog': 'true' }}
+      title={
+      <span className="flex items-start gap-3">
         <span
           className={view === 'failed'
             ? 'grid size-9 shrink-0 place-items-center rounded-full bg-workbench-danger-soft text-workbench-danger'
@@ -173,12 +168,52 @@ export function UpdateDialogCard({
         >
           <HeaderIcon size={18} stroke={1.8} />
         </span>
-        <div className="min-w-0 flex-1">
-          <h2 id="update-dialog-title" className="m-0 text-title font-semibold text-nomi-ink">{title}</h2>
-          {subtitle ? <p className="m-0 mt-1 text-body-sm text-nomi-ink-60">{subtitle}</p> : null}
-        </div>
-        <WorkbenchIconButton size="sm" label={t('common.close')} icon={<IconX size={16} stroke={1.8} />} onClick={onClose} className="border-0 bg-transparent" />
-      </header>
+        <span className="min-w-0 flex-1">
+          <span id="update-dialog-title" className="block m-0 text-title font-semibold text-nomi-ink">{title}</span>
+          {subtitle ? <span className="block mt-1 text-body-sm text-nomi-ink-60">{subtitle}</span> : null}
+        </span>
+      </span>
+      }
+      actions={
+      <footer>
+        {view === 'available' ? (
+          <DecisionBar
+            leading={releaseUrl ? <FullNotesLink href={releaseUrl} /> : undefined}
+            cancelLabel={t('common.later')}
+            onCancel={onClose}
+            primaryLabel={canAutoInstall ? t('updateReminder.dialog.download') : t('updateReminder.dialog.goDownload')}
+            onPrimary={(canAutoInstall ? onDownload : onOpenDownload) ?? noop}
+          />
+        ) : view === 'downloading' ? (
+          <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
+        ) : view === 'ready' ? (
+          blocked
+            ? <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
+            : <DecisionBar cancelLabel={t('common.later')} onCancel={onClose} primaryLabel={t('updateReminder.dialog.restart')} onPrimary={onInstall ?? noop} />
+        ) : view === 'failed' ? (
+          installBlocked
+            ? <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
+            : <DecisionBar cancelLabel={t('common.later')} onCancel={onClose} primaryLabel={t('common.retry')} onPrimary={onRetry ?? noop} />
+        ) : (
+          <DecisionBar
+            leading={(
+              <WorkbenchButton size="sm" className="border-0 bg-transparent px-0 text-nomi-ink-60 hover:bg-transparent hover:text-nomi-ink" onClick={onOpenDownload}>
+                {t('updateReminder.dialog.reopenDownload')}
+              </WorkbenchButton>
+            )}
+            primaryLabel={t('runtime.design.gotIt')}
+            onPrimary={onClose ?? noop}
+          />
+        )}
+      </footer>
+      }
+    >
+      <div ref={(element) => {
+        const dialog = element?.closest<HTMLElement>('[role="dialog"]') ?? null
+        if (typeof dialogRef === 'function') dialogRef(dialog)
+        else if (dialogRef) dialogRef.current = dialog
+      }}>
+
 
       {view === 'available' ? (
         <>
@@ -244,38 +279,8 @@ export function UpdateDialogCard({
         </ol>
       ) : null}
 
-      <footer className="mt-5">
-        {view === 'available' ? (
-          <DecisionBar
-            leading={releaseUrl ? <FullNotesLink href={releaseUrl} /> : undefined}
-            cancelLabel={t('common.later')}
-            onCancel={onClose}
-            primaryLabel={canAutoInstall ? t('updateReminder.dialog.download') : t('updateReminder.dialog.goDownload')}
-            onPrimary={(canAutoInstall ? onDownload : onOpenDownload) ?? noop}
-          />
-        ) : view === 'downloading' ? (
-          <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
-        ) : view === 'ready' ? (
-          blocked
-            ? <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
-            : <DecisionBar cancelLabel={t('common.later')} onCancel={onClose} primaryLabel={t('updateReminder.dialog.restart')} onPrimary={onInstall ?? noop} />
-        ) : view === 'failed' ? (
-          installBlocked
-            ? <DecisionBar primaryLabel={t('runtime.design.gotIt')} onPrimary={onClose ?? noop} />
-            : <DecisionBar cancelLabel={t('common.later')} onCancel={onClose} primaryLabel={t('common.retry')} onPrimary={onRetry ?? noop} />
-        ) : (
-          <DecisionBar
-            leading={(
-              <WorkbenchButton size="sm" className="border-0 bg-transparent px-0 text-nomi-ink-60 hover:bg-transparent hover:text-nomi-ink" onClick={onOpenDownload}>
-                {t('updateReminder.dialog.reopenDownload')}
-              </WorkbenchButton>
-            )}
-            primaryLabel={t('runtime.design.gotIt')}
-            onPrimary={onClose ?? noop}
-          />
-        )}
-      </footer>
-    </section>
+      </div>
+    </DesignModal>
   )
 }
 
@@ -293,11 +298,9 @@ export function UpdateDialog(): JSX.Element | null {
   const visible = view !== null
   // Esc = 右上角「关闭」（更新提示是可推迟的，不是不可逆动作），让位规则走共用原语。
   useOverlayEscape(dialogRef, visible, updater.closeDialog)
-  useModalInputLayer(visible && Boolean(updater.latestVersion))
   if (!view || !updater.latestVersion) return null
 
   return (
-    <div className="fixed inset-0 z-[130] grid place-items-center bg-nomi-ink/20 p-4" role="presentation" data-updater-dialog="true">
       <UpdateDialogCard
         dialogRef={dialogRef}
         view={view}
@@ -318,6 +321,5 @@ export function UpdateDialog(): JSX.Element | null {
         onInstall={updater.install}
         onRetry={updater.retry}
       />
-    </div>
   )
 }
