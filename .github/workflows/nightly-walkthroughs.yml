@@ -35,6 +35,9 @@ jobs:
         env:
           BATCH: ${{ matrix.batch }}
         run: node scripts/nightly-walk-summary.mjs --manifest nightly-walks "$BATCH"
+      - uses: ./.github/actions/cache-external-downloads
+        with:
+          playwright: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Chromium
@@ -111,6 +114,9 @@ jobs:
         env:
           BATCH: packaged-mac
         run: node scripts/nightly-walk-summary.mjs --manifest nightly-walks "$BATCH"
+      - uses: ./.github/actions/cache-external-downloads
+        with:
+          builder: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build
