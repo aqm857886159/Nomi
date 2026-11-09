@@ -383,7 +383,7 @@
       "src/workbench/creation/storyboard/storyboardBulkParamScope.ts",
       "src/workbench/common/BulkModelPicker.tsx"
     ],
-    "rationale": "The approved per-shot workflow replaces redundant configuration; film aspect is moved with unchanged persistence."
+    "rationale": "The approved per-shot workflow replaces redundant configuration; film aspect is moved with unchanged persistence. The incomplete storyboard:shot:N reference constructor is removed; both editor interactions must supply document, design and shot to the canonical factory."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -392,12 +392,12 @@
   },
   "migration": "No stored field is removed or migrated; skip state was local only. Disabled keyframe objects retain authored prompts. Explicit conversion to image keeps existing destructive type-switch semantics.",
   "residual_risks": [
-    "Real-model Agent bulk editing and independent acceptance remain coordinator-owned; implementation runs only local-service rehearsal.",
-    "Historical fixture libraries contain no storyboard or real JPG result required for the packaged upgrade journey.",
-    "The post-change isolated Electron rehearsal failed before any lane user projection and showed a generic send failure. Unit target capture passes, but the complete handoff is not verified.",
-    "The cross-kind Electron probe selected a video model but the existing 3-second duration was below its 4-second minimum, so no video POST was observed.",
-    "At the complete App minimum viewport the selection toolbar overlaps parameter text and the Agent ball overlaps the footer generate button; screenshots are evidence of this remaining limitation.",
-    "The third consecutive rehearsal failure triggered the execution stop. Performance, final push checks, packaged upgrade, golden path and remaining localized walks were not run."
+    "Real-model Agent bulk editing and independent acceptance remain unverified; the implementation uses a controlled local model fixture only.",
+    "Upgrade awaits genuine previous-version storyboard data; no packaged upgrade receipt was produced.",
+    "The round-three lane user projection contains the exact design and shot-1/shot-2/shot-3. The later draft_shots calls fail three times with generation_operation_not_found, and the rehearsal fails waiting for the composer running state. Bulk editing is not verified.",
+    "The main-branch complete App type-to-video/model selection probe retains 3 seconds, below the chosen model minimum, and sends zero video POSTs. Cross-surface model-parameter replacement is outside this repair.",
+    "Scroll-tail clearance is unit-tested in both locales/themes with a red/green mutation, but the post-fix complete App minimum-window walkthrough was not reached. The Agent ball overlaps the footer on the main comparison too.",
+    "The task stop after the third nonzero rehearsal prevented the remaining walks, full mutation replay, performance, typecheck and final push/body checks. No additional retry was run."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-03",

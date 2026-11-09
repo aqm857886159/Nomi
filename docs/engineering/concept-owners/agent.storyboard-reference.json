@@ -1,0 +1,27 @@
+{
+  "name": "交给 Agent 的分镜引用身份",
+  "subject": "agent.storyboard-reference",
+  "lifecycle": "author",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/resident/residentReferences.ts",
+    "symbol": "buildStoryboardReference"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/resident/residentReferences.ts",
+      "symbol": "buildStoryboardReference"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/resident/residentReferences.test.ts",
+  "allowed_consumers": [
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.ts"
+  ],
+  "since": "2026-11-09",
+  "notes": "行选择与选中交接必须携带文稿、方案及 stableShotId 的同一份身份；工厂不再允许缺少方案身份的旧式引用。镜头身份算法仍归 storyboard.subject-identity，发送目标及准入仍归原发送边界与主进程。"
+}

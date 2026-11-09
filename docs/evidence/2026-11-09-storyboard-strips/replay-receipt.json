@@ -20,5 +20,69 @@
     "assertion": "Expected lane user projection count > 0; received 0",
     "observedUIError": "发送失败，请检查后重试。"
   },
-  "acceptance": "The end-to-end handoff remains unverified; these receipts do not establish resolution."
+  "acceptance": "Not ready for integration: canonical references now reach the lane, but the complete selected-shot editing rehearsal still fails. Earlier-round receipts are retained as history.",
+  "round3": {
+    "conditions": "Isolated Electron App and controlled local model fixture; no original user data or paid model. Renderer and main-process IPC observations preserve the original handlers.",
+    "before": {
+      "result": "failed",
+      "runId": "pi-storyboard-agent-bulk-rehearsal-development-1794208412467",
+      "sourceReportSha256": "94b94dbfb51182682f5f6ed5be46026b251ad82d26dc799c097a4c49f9cea9b8",
+      "code": "storyboard_reference_target_stale",
+      "laneErrorCode": null,
+      "mainRejectedCommands": 0,
+      "mainProcessUserProjectionObserved": false
+    },
+    "after": {
+      "result": "failed",
+      "runId": "pi-storyboard-agent-bulk-rehearsal-development-1794208988535",
+      "sourceReportSha256": "07e7a020ad65dbb27e9631e918c07e11f989959e1fdf3ff90794041d0fd7ad22",
+      "mainProcessUserProjectionObserved": true,
+      "storyboardTarget": {
+        "projectId": "project-1794208992075-t42f89",
+        "sourceDocumentId": "doc-85e3a8aa-4d1f-4f8b-82de-b15c841beb22",
+        "sourceDocumentRevision": 1794208992520,
+        "sourceDocumentContentHash": "fnv1a-811c9dc5",
+        "targetKind": "storyboard",
+        "plans": [
+          {
+            "id": "starter-doc-85e3a8aa-4d1f-4f8b-82de-b15c841beb22",
+            "title": ""
+          },
+          {
+            "id": "storyboard-48e84695-cd13-4ccb-bda3-2008cd416f99",
+            "title": "Selected storyboard edit rehearsal"
+          }
+        ],
+        "designId": "storyboard-48e84695-cd13-4ccb-bda3-2008cd416f99",
+        "shotIds": [
+          "shot-1",
+          "shot-2",
+          "shot-3"
+        ],
+        "requestId": "f80e69af-d5c4-43b2-92dc-3dde5a189ad1"
+      },
+      "mainRejectedCommands": 0,
+      "toolFailureCode": "generation_operation_not_found",
+      "failedDraftShotCalls": 3,
+      "assertion": "The running-composer start state was not observed. Three draft_shots tool failures are present in the main log; the original storyboard remains image rows in FAIL.png. No successful bulk edit is established."
+    },
+    "mainComparison": {
+      "commit": "bc87110a6838c98a7ccfa7ac40ac2ddf38e540b2",
+      "runId": "pi-storyboard-r3-main-development-1794208782658",
+      "sourceReportSha256": "f3c7d645464d899839d165943868ec71448a93d860aa178d9d0ea038658bf113",
+      "videoModelSelected": true,
+      "durationSec": 3,
+      "warning": "Shorter than the model allows in one shot",
+      "videoPosts": 0,
+      "minimumWindowAgentBallOverlapsFooter": true
+    },
+    "regression": {
+      "referenceAndSendTests": 61,
+      "legacyReferenceMutationFailedTests": 13,
+      "restoredPassedTests": 61,
+      "scrollClearanceMutationFailedTests": 4,
+      "restoredScrollClearancePassedTests": 4
+    },
+    "remaining": "The third nonzero invocation of the same rehearsal triggered the task stop. Full App post-fix minimum-window screenshots, remaining localized walks, full acceptance mutations, performance, typecheck and final push/body checks were not executed. Upgrade waits for genuine previous-version storyboard data; real-model and independent acceptance remain unverified."
+  }
 }
