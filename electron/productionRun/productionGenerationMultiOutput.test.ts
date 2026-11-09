@@ -3,12 +3,22 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const assetRoot = vi.hoisted(() => ({ dir: "" }));
+vi.mock("../projects/repository", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../projects/repository")>(),
+  projectDirById: () => assetRoot.dir,
+}));
+
 // 一单出几张（张数 n / batch_size / output_count）：提交出口按序号给每一份各落一条账，一次下单、一次扣费。
 // 设计卡 docs/plan/2026-11-09-multi-result-landing.md ★9 第 3、5、6 条。
 // 以前这里只收「恰好一份」：上游交回两张，整单停成「需要处理」，钱花了、一张也落不进来。
 
 import { compileExecutionContract, type PlanCandidate } from "../capabilityCore/executionContract";
 import type { GenerationProviderOutput } from "../capabilityCore/generationRuntimeAdapter";
+import { createGenerationOutputMaterializer } from "../capabilityCore/generationOutputMaterializer";
+import { readMaterializationOutputs } from "../capabilityCore/apimartGenerationOutputs";
+import { writeGeneratedDeterministicAsset } from "../assets/projectAssetStore";
+import { writeWorkspaceManifest } from "../workspace/workspaceManifest";
 import { createModuleRegistry } from "../capabilityCore/moduleRegistry";
 import { createProductionGenerationSubmission } from "./productionGenerationSubmission";
 import { sealAndApproveProductionGeneration } from "./productionGenerationAuthorizationTestUtils";
@@ -28,6 +38,9 @@ const registry = createModuleRegistry([{
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-multi-output-"));
   roots.push(root);
+  assetRoot.dir = root;
+  writeWorkspaceManifest(root, { id: "project-1", name: "project", version: 2, createdAt: 1, updatedAt: 1, savedAt: 1, revision: 0,
+    immutableProjectUuid: "11111111-1111-4111-8111-111111111111", projectGeneration: 1, payload: {} });
   const repository = createProductionRunRepository({
     projectDirResolver: (projectId) => projectId === "project-1" ? root : null,
     now: () => "2026-11-09T00:00:00.000Z",
@@ -44,21 +57,35 @@ function setup() {
   return { root, repository };
 }
 
-const outputsOf = (count: number): GenerationProviderOutput[] => Array.from({ length: count }, (_, index) => ({ kind: "image", url: `https://cdn.example/out-${index + 1}.png` }));
+const outputsOf = (count: number, round?: number): GenerationProviderOutput[] => readMaterializationOutputs(
+  { data: Array.from({ length: count }, (_, index) => ({ url: `https://cdn.example/out-${index + 1}.png${round ? `?sig=round-${round}` : ""}` })) },
+  { responseMapping: { image_url: "data[*].url" } }, "image", new Set(),
+);
 
-function runnerFor(root: string, repository: ReturnType<typeof setup>["repository"], count: number, failOnce?: number) {
+function runnerFor(root: string, repository: ReturnType<typeof setup>["repository"], count: number, failOnce?: number, crashAfterWrite = false) {
   const submit = vi.fn(async () => ({ providerTaskId: "provider-task-multi" }));
   const query = vi.fn(async () => ({ status: "completed", raw: { opaque: true } }));
   const materialize = vi.fn(async () => ({ outputs: outputsOf(count) }));
   let failed = false;
-  /** 落盘：每份一个文件（真写进项目目录，数得出几个文件）。`failOnce` 那一份第一次落盘时进程「崩了」。 */
-  const materializeOutput = vi.fn(async (input: { output: GenerationProviderOutput; outputIndex: number }) => {
-    if (input.outputIndex === failOnce && !failed) { failed = true; throw new Error("process crashed mid-landing"); }
-    const relative = `assets/generated/out-${input.outputIndex + 1}.png`;
-    fs.mkdirSync(path.join(root, "assets", "generated"), { recursive: true });
-    fs.writeFileSync(path.join(root, relative), input.output.url);
-    return { artifactId: `asset-${input.outputIndex + 1}`, kind: "image" as const, contentHash: String(input.outputIndex + 1).repeat(64), projectRelativePath: relative };
+  let writes = 0;
+  const bytes = fs.readFileSync(new URL("../providerAdapter/__fixtures__/certification-media/valid.png", import.meta.url));
+  const writeAsset = vi.fn(async (...args: Parameters<typeof writeGeneratedDeterministicAsset>) => {
+    const stored = await writeGeneratedDeterministicAsset(...args);
+    writes += 1;
+    // 真文件已发布，但物化回执还没有交回提交出口。
+    if (crashAfterWrite && failOnce !== undefined && writes === failOnce + 1 && !failed) { failed = true; throw new Error("process crashed mid-landing"); }
+    return stored;
   });
+  const materializer = createGenerationOutputMaterializer({
+    resolveVendor: () => undefined,
+    fetchOutput: vi.fn(async (url) => {
+      if (!crashAfterWrite && failOnce !== undefined && new URL(url).pathname === `/out-${failOnce + 1}.png` && !failed) { failed = true; throw new Error("process crashed mid-landing"); }
+      return { bytes, contentType: "image/png", status: 200, finalUrl: url, truncated: false };
+    }),
+    writeAsset,
+    attachPreview: async (stored) => stored,
+  });
+  const materializeOutput = vi.fn((input: { projectId: string; providerTaskId: string; output: GenerationProviderOutput; outputIndex: number }) => materializer.materialize(input));
   const runner = createProductionGenerationSubmission({
     repository, beforeDispatch: () => undefined, projectRoot: root, immutableProjectUuid: "project-uuid-1", projectGeneration: 1, intentMacKey: "test-intent-key",
     provider: { providerId: "fixture-provider", capabilities: { submitIdempotency: false, query: true, reconcile: true, cancel: false, materialize: true },
@@ -69,7 +96,8 @@ function runnerFor(root: string, repository: ReturnType<typeof setup>["repositor
   return { runner, submit, query, materialize, materializeOutput };
 }
 
-const generatedFiles = (root: string) => fs.existsSync(path.join(root, "assets", "generated")) ? fs.readdirSync(path.join(root, "assets", "generated")).sort() : [];
+const generatedDir = (root: string) => path.join(root, "assets", "generated", "materialized");
+const generatedFiles = (root: string) => fs.existsSync(generatedDir(root)) ? fs.readdirSync(generatedDir(root)).filter((name) => name.endsWith(".png")).sort() : [];
 
 describe("一单出 N 张：每一份各落一条账", () => {
   it.each([1, 2, 4])("N=%i：一次下单，账上 N 份产物（按序号派生的号），盘上 N 个文件，重进不再落", async (count) => {
@@ -78,13 +106,17 @@ describe("一单出 N 张：每一份各落一条账", () => {
     const input = { projectId: "project-1", operationId: "op-1" };
     await runner.start({ ...input, admission: await landedAdmission(repository, "project-1", "op-1") });
     await runner.poll(input);
-    await expect(runner.materialize(input)).resolves.toMatchObject({ artifactId: "asset-1", nextAction: "completed" });
-    await expect(runner.materialize(input)).resolves.toMatchObject({ artifactId: "asset-1", nextAction: "completed" });
+    const first = await runner.materialize(input);
+    expect(first).toMatchObject({ artifactId: expect.any(String), nextAction: "completed" });
+    await expect(runner.materialize(input)).resolves.toEqual(first);
 
     const run = repository.read("project-1", "op-1")!;
     const jobId = run.jobs[0]!.jobId;
     expect(run.jobs).toEqual([expect.objectContaining({ status: "ready" })]);
-    expect(run.artifacts.filter((artifact) => artifact.jobId === jobId).map((artifact) => artifact.artifactId)).toEqual(Array.from({ length: count }, (_, index) => `asset-${index + 1}`));
+    const artifacts = run.artifacts.filter((artifact) => artifact.jobId === jobId);
+    expect(artifacts).toHaveLength(count);
+    expect(new Set(artifacts.map((artifact) => artifact.artifactId)).size).toBe(count);
+    expect(artifacts[0]!.artifactId).toBe(first.artifactId);
     expect(generatedFiles(root)).toHaveLength(count);
     expect(submit).toHaveBeenCalledTimes(1);
     expect(materializeOutput.mock.calls.map(([call]) => call.outputIndex)).toEqual(Array.from({ length: count }, (_, index) => index));
@@ -98,35 +130,48 @@ describe("一单出 N 张：每一份各落一条账", () => {
     await runner.poll(input);
     await expect(runner.materialize(input)).rejects.toThrow("process crashed mid-landing");
     const half = repository.read("project-1", "op-1")!;
-    expect(half.artifacts.map((artifact) => artifact.artifactId)).toEqual(["asset-1"]);
+    expect(half.artifacts).toHaveLength(1);
     expect(half.jobs[0]!.status).not.toBe("ready");
 
-    await expect(runner.materialize(input)).resolves.toMatchObject({ artifactId: "asset-1", nextAction: "completed" });
+    await expect(runner.materialize(input)).resolves.toMatchObject({ artifactId: half.artifacts[0]!.artifactId, nextAction: "completed" });
     const run = repository.read("project-1", "op-1")!;
-    expect(run.artifacts.map((artifact) => artifact.artifactId)).toEqual(["asset-1", "asset-2", "asset-3"]);
+    expect(run.artifacts).toHaveLength(3);
+    expect(new Set(run.artifacts.map((artifact) => artifact.artifactId)).size).toBe(3);
     expect(run.jobs[0]!.status).toBe("ready");
     // 第 1 份只落过一次；第 2 份第一次崩了、重进补上；第 3 份重进时落。
     expect(materializeOutput.mock.calls.map(([call]) => call.outputIndex)).toEqual([0, 1, 1, 2]);
-    expect(generatedFiles(root)).toEqual(["out-1.png", "out-2.png", "out-3.png"]);
+    expect(generatedFiles(root)).toHaveLength(3);
     expect(submit).toHaveBeenCalledTimes(1);
   });
 
-  it("两次取产物清单之间上游换了签名链接：身份按序号认，不按地址——已落的不重落，缺的按新链接补，一共还是四份", async () => {
+  it.each([false, true])("两次取产物清单之间上游换了签名链接（文件已落但回执未记=%s）：真实物化按序号认、不重落，一共还是四份", async (crashAfterWrite) => {
     const { root, repository } = setup();
-    const { runner, submit, materializeOutput, materialize } = runnerFor(root, repository, 4, 1);
+    const { runner, submit, materializeOutput, materialize } = runnerFor(root, repository, 4, 1, crashAfterWrite);
     let round = 0;
     materialize.mockImplementation(async () => {
       round += 1;
-      return { outputs: Array.from({ length: 4 }, (_, index) => ({ kind: "image" as const, url: `https://cdn.example/out-${index + 1}.png?sig=round-${round}` })) };
+      return { outputs: outputsOf(4, round) };
     });
     const input = { projectId: "project-1", operationId: "op-1" };
     await runner.start({ ...input, admission: await landedAdmission(repository, "project-1", "op-1") });
     await runner.poll(input);
     await expect(runner.materialize(input)).rejects.toThrow("process crashed mid-landing");
-    await expect(runner.materialize(input)).resolves.toMatchObject({ artifactId: "asset-1", nextAction: "completed" });
+    const half = repository.read("project-1", "op-1")!;
+    expect(half.artifacts).toHaveLength(1);
+    expect(half.jobs[0]!.status).not.toBe("ready");
+    const landed = generatedFiles(root).map((name) => ({ name, stat: fs.statSync(path.join(generatedDir(root), name)) }));
+    expect(landed).toHaveLength(crashAfterWrite ? 2 : 1);
+    await expect(runner.materialize(input)).resolves.toMatchObject({ artifactId: half.artifacts[0]!.artifactId, nextAction: "completed" });
 
     const run = repository.read("project-1", "op-1")!;
-    expect(run.artifacts.map((artifact) => artifact.artifactId)).toEqual(["asset-1", "asset-2", "asset-3", "asset-4"]);
+    expect(run.artifacts).toHaveLength(4);
+    expect(new Set(run.artifacts.map((artifact) => artifact.artifactId)).size).toBe(4);
+    expect(run.jobs[0]!.status).toBe("ready");
+    for (const { name, stat } of landed) {
+      expect(run.artifacts.map((artifact) => path.basename(artifact.projectRelativePath!))).toContain(name);
+      const current = fs.statSync(path.join(generatedDir(root), name));
+      expect([current.ino, current.mtimeMs]).toEqual([stat.ino, stat.mtimeMs]);
+    }
     expect(materializeOutput.mock.calls.map(([call]) => [call.outputIndex, call.output.url])).toEqual([
       [0, "https://cdn.example/out-1.png?sig=round-1"],
       [1, "https://cdn.example/out-2.png?sig=round-1"],
