@@ -528,13 +528,13 @@ it('captures stable shot references against the plan they name and refuses chips
   const {buildStoryboardReference}=await import('../resident/residentReferences')
   fixture.state.storyboardDesignsByDocumentId={'doc-1':[{id:'plan-a',title:'A'},{id:'plan-b',title:'B'}]}
   fixture.state.activeStoryboardId='plan-a'
-  fixture.state.projectAgentReferences=[buildStoryboardReference('shot',1,'Shot 1','selected',{documentId:'doc-1',designId:'plan-a',shotId:'stable-id'})]
+  fixture.state.projectAgentReferences=[buildStoryboardReference('Shot 1',{documentId:'doc-1',designId:'plan-a',shot:{index:1,shotId:'stable-id'}})]
   fixture.say.mockResolvedValue({ok:true})
   const actions=mountActions('creation')
   expect(await actions.send('edit selected')).toBe(true)
   expect(fixture.say.mock.calls[0][2].storyboardTarget.shotIds).toEqual(['stable-id'])
   expect(fixture.say.mock.calls[0][2].storyboardTarget.designId).toBe('plan-a')
-  fixture.state.projectAgentReferences=[buildStoryboardReference('shot',1,'Shot 1','selected',{documentId:'doc-1',designId:'plan-a',shotId:'stable-id'})]
+  fixture.state.projectAgentReferences=[buildStoryboardReference('Shot 1',{documentId:'doc-1',designId:'plan-a',shot:{index:1,shotId:'stable-id'}})]
   fixture.state.activeStoryboardId='plan-b'
   expect(await actions.send('edit selected')).toBe(false)
   expect(fixture.say).toHaveBeenCalledTimes(1)
@@ -545,8 +545,8 @@ it('ACK consumes only captured storyboard references, preserving a newer selecti
   const {buildStoryboardReference}=await import('../resident/residentReferences')
   fixture.state.storyboardDesignsByDocumentId={'doc-1':[{id:'plan-a',title:'A'}]}
   fixture.state.activeStoryboardId='plan-a'
-  const old=buildStoryboardReference('shot',1,'old','selected',{documentId:'doc-1',designId:'plan-a',shotId:'old'})
-  const newer=buildStoryboardReference('shot',2,'new','selected',{documentId:'doc-1',designId:'plan-a',shotId:'new'})
+  const old=buildStoryboardReference('old',{documentId:'doc-1',designId:'plan-a',shot:{index:1,shotId:'old'}})
+  const newer=buildStoryboardReference('new',{documentId:'doc-1',designId:'plan-a',shot:{index:2,shotId:'new'}})
   fixture.state.projectAgentReferences=[old]
   let finish!:(value:{ok:boolean})=>void
   fixture.say.mockImplementation(()=>new Promise(resolve=>{finish=resolve}))
@@ -596,13 +596,35 @@ it('keeps canonical media still referenced by a draft edited before the send ACK
 
 describe('selected storyboard send targets on both authoring surfaces', () => {
   for (const surface of ['creation', 'storyboard'] as const) {
+    it.each([1, 3])(`${surface} admits %i manually created shots without raw shotId`, async count => {
+      const { buildStoryboardReference } = await import('../resident/residentReferences')
+      fixture.state.storyboardDesignsByDocumentId = { 'doc-1': [{ id: 'manual-plan', title: 'Manual' }] }
+      fixture.state.activeStoryboardId = 'manual-plan'
+      fixture.state.projectAgentReferences = Array.from({ length: count }, (_, index) => buildStoryboardReference(`Shot ${index + 1}`, {
+        documentId: 'doc-1', designId: 'manual-plan', shot: { index: index + 1 },
+      }))
+      fixture.say.mockResolvedValue({ ok: true })
+      try {
+        expect(await mountActions(surface).send('edit these manual shots')).toBe(true)
+        const context = fixture.say.mock.calls[0][2]
+        expect(context.target).toMatchObject({ kind: 'document', documentId: 'doc-1' })
+        expect(context.storyboardTarget).toMatchObject({ sourceDocumentId: context.documentId,
+          sourceDocumentRevision: context.preconditions.document.revision,
+          sourceDocumentContentHash: context.preconditions.document.contentHash,
+          designId: 'manual-plan', shotIds: Array.from({ length: count }, (_, index) => `shot-${index + 1}`) })
+      } finally {
+        fixture.state.activeStoryboardId = null
+        fixture.state.storyboardDesignsByDocumentId = {}
+        fixture.state.projectAgentReferences = []
+      }
+    })
     it.each([1, 3])(`${surface} sends exactly %i selected stable shot ids and their named design`, async count => {
       const { buildStoryboardReference } = await import('../resident/residentReferences')
       fixture.state.storyboardDesignsByDocumentId = { 'doc-1': [{ id: 'selected-plan', title: 'Selected' }, { id: 'other-plan', title: 'Other' }] }
       fixture.state.activeStoryboardId = 'selected-plan'
       const shotIds = Array.from({ length: count }, (_, index) => `selected-${index + 1}`)
-      fixture.state.projectAgentReferences = shotIds.map((shotId, index) => buildStoryboardReference('shot', index + 1, shotId, 'selected', {
-        documentId: 'doc-1', designId: 'selected-plan', shotId,
+      fixture.state.projectAgentReferences = shotIds.map((shotId, index) => buildStoryboardReference(shotId, {
+        documentId: 'doc-1', designId: 'selected-plan', shot: { index: index + 1, shotId },
       }))
       fixture.say.mockResolvedValue({ ok: true })
       try {
@@ -621,8 +643,8 @@ describe('selected storyboard send targets on both authoring surfaces', () => {
       const { buildStoryboardReference } = await import('../resident/residentReferences')
       fixture.state.storyboardDesignsByDocumentId = { 'doc-1': [{ id: 'selected-plan', title: 'Selected' }, { id: 'other-plan', title: 'Other' }] }
       fixture.state.activeStoryboardId = 'other-plan'
-      fixture.state.projectAgentReferences = [buildStoryboardReference('shot', 1, 'Selected shot', 'selected', {
-        documentId: 'doc-1', designId: 'selected-plan', shotId: 'selected-1',
+      fixture.state.projectAgentReferences = [buildStoryboardReference('Selected shot', {
+        documentId: 'doc-1', designId: 'selected-plan', shot: { index: 1, shotId: 'selected-1' },
       })]
       fixture.say.mockResolvedValue({ ok: true })
       try {

@@ -174,3 +174,17 @@ Mac 隔离资料、中文/英文、亮/暗、最小窗口、真实旧版本数�
 - ★3：删过的 BulkModelPicker 不应留在消费者账；新增两条声明只登记已有生产边界，不加第二套实现。投影边界对齐已有 09-30 出站合同和 projectShotNode 的 enabled 检查，不改绘图/生成逻辑。
 - ★4：不改任何运行时状态、界面、文案、数据格式或主进程校验；现有发送失败、时长限制与遮挡仍如实保留。
 - ★9：预检修前 concept-owners=1（4 处）；修后复验概念/根因门岗及同一条协调预检。candidate→fixed、性能数字和真实旧项目凭据不造假；越界项列入报告，未全部归零就不声称预检通过。回滚本次独立本地提交即可。
+
+## 第 3 轮执行前：稳定引用与可滚达内容
+
+真实复现：手建三镜 → 勾三镜 → 交给 Agent → 发送；渲染层及主进程日志记录 `storyboard_reference_target_stale`，lane IPC 没收到发送命令。不是主进程准入拒绝。手建镜头允许省略 shotId；领域身份 owner 的 stableShotId 已将它解释为 shot-N，引用工厂却另造 storyboard:shot:N，随后发送处拒绝这份缺少方案身份的引用。
+
+★1：保住原方案及恰好选中的镜头；手建与 Agent 建镜都能送入既有 lane，改视频和竖屏后仍不触发生成。量具：residentReferences.test.ts、useAgentPanelV4Actions.test.ts、storyboard-agent-bulk-real.rehearsal.walk.mjs。完整 App 1100×720 的最后一镜可滚到浮条上方，量具为最小窗真实截图及 storyboard-only-what-works.test.mjs。
+
+★2：镜头身份继续归 storyboardSubjectIdentity.stableShotId；共享 buildStoryboardReference 工厂接收镜头而非让调用者自选身份编码。两处编辑器交接调用统一经过该工厂，发送处与 lane 校验不放宽；只删除不完整的旧引用构造路径。
+
+★3：沿原方向补两处 raw shotId 条件会继续允许另一个调用者造旧引用；换成必带方案身份的共享工厂并复用 stableShotId（选）；删交接违背批准的多镜修改路径。已有原话、控件删除与模型切换研究的边界仍有效。模型参数本轮不修，主线同流程核对。
+
+★4：缺失 shotId 由现有身份 owner 归一；跨方案引用仍拒；无镜头不交接；发送失败仍保留原输入和错误。滚动过程中浮条可叠内容，但末镜必须能滚出；主线也有的悬浮球覆盖另记限制，不改样子。
+
+★9：手建镜头不写 shotId 的一镜/三镜在 creation、storyboard 两面均须获得稳定 shot-N，主进程准入合同不放宽。反例：工厂改回旧式编码 → 引用/发送合同红 → 恢复绿；去掉滚动底部留白 → 四档高度断言红 → 恢复绿；原 14 条反例复跑。旧版本分镜夹具等待协调提供，不以合成数据充升级证据。源码和测试改动可分别 revert；独立验收仍由另一条线执行。

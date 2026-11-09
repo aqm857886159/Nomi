@@ -365,7 +365,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
 
   const execCtx = { documentId: activeDocumentId, designId, plan }
   const onStoryboardShotSelect = (shot: StoryboardPlan['shots'][number]): void => {
-    const reference = buildStoryboardReference('shot', shot.index, t('storyboardEditor.row.selectAria', { index: shot.index }), 'selected shot', shot.shotId ? {documentId:activeDocumentId,designId,shotId:shot.shotId} : undefined)
+    const reference = buildStoryboardReference(t('storyboardEditor.row.selectAria', { index: shot.index }), {documentId:activeDocumentId,designId,shot})
     setProjectAgentReferences((current) => [
       ...current.filter((item) => !isStoryboardReference(item)),
       reference,
@@ -407,11 +407,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     setProjectAgentReferences((current) => [
       ...current.filter((item) => !isStoryboardReference(item)),
       ...runtimes.map((runtime) => buildStoryboardReference(
-        'shot',
-        runtime.shot.index,
         t('storyboardEditor.row.selectAria', { index: runtime.shot.index }),
-        'agent handoff',
-        runtime.shot.shotId ? {documentId:activeDocumentId,designId,shotId:runtime.shot.shotId} : undefined,
+        {documentId:activeDocumentId,designId,shot:runtime.shot},
       )),
     ])
     useWorkbenchStore.getState().setProjectAgentDockCollapsed(false)
