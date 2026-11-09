@@ -84,15 +84,18 @@ const { smoke, fixture, monitor } = pb
 await smoke.win.evaluate((values) => {
   const residue = (value) => values.reduce((rest, text) => rest.split(text).join(''), value)
   const mark = () => {
-    document.querySelectorAll('[data-user-content="pb07-fixture"]').forEach(element => element.removeAttribute('data-user-content'))
+    const targets = new Set()
     for (const element of document.querySelectorAll('span, p, button[title], [aria-label]')) {
       const own = [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('')
         + ['title', 'aria-label'].map(attr => element.getAttribute(attr) || '').join(' ')
       if (!/[㐀-鿿]/.test(own) || /[㐀-鿿]/.test(residue(own))) continue
-      const subtree = element.textContent + [...element.querySelectorAll('[title], [aria-label]')]
+      const target = element.closest('[contenteditable="true"]') ?? element
+      const subtree = target.textContent + [target, ...target.querySelectorAll('[title], [aria-label]')]
         .map(child => `${child.getAttribute('title') || ''} ${child.getAttribute('aria-label') || ''}`).join(' ')
-      if (!/[㐀-鿿]/.test(residue(subtree))) element.setAttribute('data-user-content', 'pb07-fixture')
+      if (!/[㐀-鿿]/.test(residue(subtree))) targets.add(target)
     }
+    document.querySelectorAll('[data-user-content="pb07-fixture"]').forEach(element => { if (!targets.has(element)) element.removeAttribute('data-user-content') })
+    targets.forEach(element => { if (!element.hasAttribute('data-user-content')) element.setAttribute('data-user-content', 'pb07-fixture') })
   }
   new MutationObserver(mark).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'aria-label'] })
   mark()
