@@ -102,7 +102,9 @@ try {
   walk.report.injectedOverlap = await flowOverlaps(flow)
   assert.ok(walk.report.injectedOverlap.length > 0, 'injected overlap must fail the detector')
   await user.evaluate((node, style) => style === null ? node.removeAttribute('style') : node.setAttribute('style', style), originalStyle)
-  await expect(panel.locator(`${THINKING_LINE} details`)).toHaveCount(2)
+  // C77 (4ba92ef52): one process disclosure; agentPanelV4Collapse.test.ts “C77 process thinking projection”.
+  // eab64daa2 only renamed a tool: its product projection was already 1, but this walk retained the pre-C77 count.
+  await expect(panel.locator(`${THINKING_LINE} details`)).toHaveCount(1)
   for (const detail of await panel.locator(`${THINKING_LINE} details`).all()) {
     await expect(detail).not.toHaveAttribute('open', '')
     await detail.locator('summary').click()
@@ -124,7 +126,8 @@ try {
   await card.hover()
   await card.getByRole('button', { name: uiText(locale, 'library.continueCreating'), exact: true }).click()
   const restored = win.locator(CANVAS_PANEL)
-  await expect(restored.locator(`${THINKING_LINE} details`)).toHaveCount(2)
+  // Cold replay shares the C77 one-disclosure projection above, with both reasoning bodies retained.
+  await expect(restored.locator(`${THINKING_LINE} details`)).toHaveCount(1)
   await expect(restored.locator(ASSISTANT_MESSAGE)).toContainText('检查结束')
   walk.report.restoredOverlaps = await flowOverlaps(restored.locator(V4_FLOW))
   assert.deepEqual(walk.report.restoredOverlaps, [])
