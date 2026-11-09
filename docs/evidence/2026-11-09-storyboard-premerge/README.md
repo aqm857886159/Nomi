@@ -37,3 +37,9 @@ core首跑在文稿树重开时失败，四份方案已真实建立，failure.pn
 | en | 9:16 / 16:9 | 9:16 / 16:9，各一次 | 1 shots with an overridden aspect stay as they are；1 shots run a model that does not take the film aspect; they follow its own size or reference image |
 
 两张本轮额外截图已逐张亲眼查看，提示可见，行参数区分别为9:16/16:9；完整原始报告运行号 `storyboard-film-scope-proof-development-1794214729675`，SHA256 `0ec9b7f94027592058d2c0408ede520553d51a0745d9defed4bb001b16aec75a`。原始报告、临时探针、两张截图和命令路径在协调验收报告中。首跑在重载尚未完成时直接读取plan抛TypeError；补真实项目界面就绪和持久化等待后通过，未改业务断言或加retry。
+
+### audit 选择器复核（验证脚本，不改产品）
+
+保住的结果：P7 清掉选择后，P9 仍在原第4镜验证生成结果。原脚本把浮条最后一颗按钮当清除选择，实际为删除，导致4镜变3镜、P9找不到第4行；这是测试动作定位错，不是产品删除失效。只把这个定位器换成双语精确可访问名「取消选择 / Clear selection」，其余点击、等待、观察和断言不变。三种办法中选择精确名称定位；保留位置会继续误删，改产品排列或跳过P9都会改变验收对象，因此不选。调用面以 rg 核过，本行是 audit 唯一的浮条 last()；不扩改其它走查或共享组件。首跑日志与 observations 保留在本线临时证据目录，后续中英重跑结果按报告交付。
+
+复验结果：中文206.4秒、英文134.0秒（均含排锁），exit0、11个phase均errors={}。两语各4次本地图片请求、0视频请求、真实供应商出网记录为空；取消批量前后节点0→0，引用chip双击预览/移除、锚结果回绑及4镜保留已观察。1100×690审计补图中浮条完整、无横向溢出，两语33-min-window-selected-row.png均亲眼查看。此审计补图不替代上方1100×720四档合同截图。边界：预设锚失败未发生，heroFailedBeforeRetry=false，因此不认失败重试验证；useAsMenu/rowMenuItems为空不算动作覆盖。日志/observations均在本线resume2证据，单文件ESLint通过。

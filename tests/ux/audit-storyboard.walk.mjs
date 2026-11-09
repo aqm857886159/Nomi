@@ -295,7 +295,7 @@ try {
     await snap('20-toolbar-only-visible-at-bottom')
     await scrollTo(0)
     // 清掉选中与跳过，免得影响后面的步骤
-    await win().locator('[data-storyboard-selection-toolbar] button').last().click().catch(() => {})
+    await win().locator('[data-storyboard-selection-toolbar]').getByRole('button', { name: t('取消选择', 'Clear selection'), exact: true }).click().catch(() => {})
     await row(2).locator('input[type="checkbox"]').click()
     await settle(400)
   })
