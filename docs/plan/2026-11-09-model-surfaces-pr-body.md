@@ -17,7 +17,7 @@
 | ★1 用户结果 | 设置→模型页→核账户/Key/用量→回画布→搜索型号→选变体→看估价；量具为 apimart-model-surfaces.rehearsal.mjs 的中英窗口、旧目录和 GET/媒体计数。真实账户、真实生成与实扣均 unverified；主指标为演练完成率，护栏为媒体创建 0。连带界面限账户卡和画布；Agent/批量批准维持原入口。旧项目型号、连接及偏好保留，英文用真实 v0.24.1 目录快照演练。 |
 | ★2 唯一事实 | 主进程 vendorAccountFacts / vendorPricePreview 持有账户与报价；报价使用既有最终任务请求投影，renderer 只消费当前连接与参数对应结果。凭据可用性唯一 owner 仍是 credentialRecordCounts；本次只将凭据登记的读入口名跟随 resolveVendorReadTarget，无新增主人。 |
 | ★3 复用与取舍 | 复用已有供应商凭据、appFetch、目录选择器和任务模板；沿已批 M1/M2/M4 方向收口；共享 priceBalanceStatus 已实现，不另起资金体系，不删充值态。方向记录见下。 |
-| ★4 全状态 | 无凭据引导连接；加载不猜金额；成功显示有来源事实；失败/部分成功保留各自未知及管理/刷新；取消中由原生成体系负责；过期充值点击只刷新；能力不可用可经空搜索进入已展开的 AI 接入。文案覆盖中英。 |
+| ★4 全状态 | 无凭据引导连接；加载不猜金额；成功显示有来源事实；失败/部分成功保留各自未知及管理/刷新；取消中由原生成体系负责；过期充值点击只刷新；能力不可用可经空搜索进入已展开的 AI 接入。文案覆盖中英。出站核对：账户 GET /v1/balance、/v1/user/balance、/v1/usage 只允许种子 baseUrl/alternateOrigins 声明的 api.apimart.ai / api.apib.ai，且拒绝 URL 用户信息和非根/v1 路径，用户中转地址不读。凭据来自 resolveVendorReadTarget，appFetch 复用 credentialRedirectPolicy 拒绝带鉴权头的跳转，不把 Key 跟随到别处；公开价格 /api/pricing/model 与 /api/pricing/models/all 使用同一 origin 白名单，无凭据并显式 redirect:error。网络/超时/非成功/字段缺失只使对应事实为 null、Key 为 unknown（明确 401 才 invalid）或不报价，不生成、不重试扣费。两个 test.ts 的 appFetch 是 vi.mock 替身，无真实出口。登记 scripts/outbound-policy-baseline.json 的四个精确 importer，不改网络策略。 |
 | 5 中途与动作 | 账户/报价读取中关窗不创建媒体，重开重读；断网只使事实未知；换 Key/端点忽略旧返回；连点合并读取；已渲染充值跨过期后只刷新，绝不落入生成。原生成取消/回执仍由既有任务授权体系负责。 |
 | 6 外部失败 | 账户和用量仅 GET，经主进程凭据与重定向策略；公开价 GET 无凭据且限制 origin；缺字段、无价、不可达均保持未知。真实供应商字段/单位本轮未核验。 |
 | ★7 性能 | 新增设置读取、选择器搜索、变体/参数报价；量具覆盖完整 APIMart 内置目录的视频节点；场景 apimart-model-picker 配置为 1 轮预热后 5 次采样，协调安静窗口有效测量中位 28.5ms / p95 30.6ms，verdict ok；两次 UI 动作合计预算中位 150ms / p95 200ms，未改预算。大规模画布和账户读取性能无独立数字，unverified。 |
@@ -65,6 +65,9 @@
 - `docs/engineering/concept-owners/catalog.credential-availability.json`：登记的 write_api 从旧名 resolveTarget 跟随真实定义 resolveVendorReadTarget，credentialRecordCounts 唯一 owner 不变。
 - `scripts/boundary-owners-ledger.json`：历史根因合同保留原快照，通过已有 reanchored 机制将 resolveTarget 指向同文件的 resolveVendorReadTarget；不修改合同、门岗或产品代码。
 - `docs/engineering/self-written.json`：用 model-surface-account-quote 精确认领六个领域适配模块，不扩大 domainRoots；领域约束与复用查证见“先查别人”。
+- `scripts/outbound-policy-baseline.json`：精确登记两个已在上层限制供应商 origin 的只读模块及其 vi.mock 测试；四问核对见设计卡 ★4，不放宽策略。
+- `scripts/file-size-baseline.json`：OnboardingDrawer 的导航职责移入既有 hook 后，将冻结上限由 847 下调到 844，不上调。
+- `scripts/vocabularies-baseline.json`：登记已有 VendorAccountFacts.keyState 合同的三个验证结论；查无同义已注册 owner，不另写并行状态。
 
 ## 先查别人
 
@@ -84,7 +87,7 @@
 - 场景：`apimart-model-picker`。
 - 预算：中位 150ms / p95 200ms；budgetStatus 为 proposed。
 - 有效测量：协调在安静窗口使用 --id apimart-model-picker --runs 5 --measure-only 运行，exit 0、verdict ok；response 5 次有效样本，中位 28.5ms / p95 30.6ms。原始样本与统计值已经核对。
-- 本次只量不写，未更新场景登记的 baseline，未改预算。原始结果：docs/evidence/2026-11-08-apimart-model-surfaces/perf-apimart-model-picker.json。
+- 本次未重跑性能；经协调委托，已将该测量按现有格式写入场景 baseline，commit 按委托填登记时 HEAD；原始报告保留实际测量头。未改预算。原始结果：docs/evidence/2026-11-08-apimart-model-surfaces/perf-apimart-model-picker.json。
 
 ## 验收证据
 
@@ -109,7 +112,7 @@
 - M2 参数合并芯片、独立草稿/上线行、旧型号置顶提示。
 - M4 多镜确认卡、生成后预计/实扣、来源详情和上游充值失败动作。
 - 真实账户字段/单位、真实零余额、真实输出估价→回执实扣→余额变化与误差。
-- 场景登记 baseline 的更新和最终头独立验收；完整模型接入流程尚未完成。
+- 最终头独立验收；完整模型接入流程尚未完成。
 
 ## 独立验收
 
