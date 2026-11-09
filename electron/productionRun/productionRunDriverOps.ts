@@ -14,14 +14,7 @@ import type { ProductionRun } from './productionRunTypes'
 import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
 import { logError } from '../logging/logger'
 import { isCanvasPreviewState } from '../shared/canvas/canvasMediaPreview'
-
-/** Job ids intentionally contain a namespace separator (`job:run:node`), but artifact ids are
- * public deep-link identifiers. Keep the mapping stable, collision-resistant, and URL-safe. */
-export function artifactIdentifierForJob(jobId: string): string {
-  const base = jobId.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 96) || 'job'
-  const suffix = crypto.createHash('sha256').update(jobId).digest('hex').slice(0, 10)
-  return `artifact-job-${base}-${suffix}`
-}
+import { artifactIdentifierForOutput } from './productionArtifactIdentity'
 
 export type DriverOpsDeps = {
   repository: Pick<ProductionRunRepository, 'execute' | 'read'>
@@ -598,20 +591,24 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
         for (const nextStatus of ['downloading', 'validating_technical', 'validating_content'] as const) {
           current = executeInternal(projectId, runId, current, 'job.status', { jobId, status: nextStatus }, `reconcile-${jobId}-${nextStatus}-${current.revision}`).run
         }
-        const asset = result.assets?.[0]
-        const relativePath = localAssetPath(projectId, asset?.url)
-        const thumbnailRelativePath = localAssetPath(projectId, asset?.thumbnailUrl)
-        const rawPreviewState = asset?.previewState
-        const previewState = isCanvasPreviewState(rawPreviewState) ? rawPreviewState : undefined
-        if (!asset?.url || !relativePath) {
+        // 这一单交回的每一份产物各落一份账（一次出几张就几张，按上游顺序）；有一份不在本地项目里就不收，停成需要处理。
+        const assets = (result.assets ?? []).filter((asset) => Boolean(asset?.url))
+        const landed = assets.map((asset) => ({ asset, relativePath: localAssetPath(projectId, asset.url) }))
+        if (!landed.length || landed.some((entry) => !entry.relativePath)) {
           executeInternal(projectId, runId, current, 'job.status', { jobId, status: 'needs_attention', patch: { errorCode: 'reconcile_asset_not_local', errorMessage: '对账找到了任务，但结果尚未落入本地项目' } }, `reconcile-${jobId}-asset-${current.revision}`)
           return
         }
         current = executeInternal(projectId, runId, current, 'job.status', { jobId, status: 'ready' }, `reconcile-${jobId}-ready-${current.revision}`).run
-        const kind = asset.type === 'video' ? 'video' : asset.type === 'audio' ? 'audio' : 'image'
-        current = executeInternal(projectId, runId, current, 'artifact.add', {
-          artifact: { artifactId: artifactIdentifierForJob(jobId), stageId: job.stageId, jobId, kind, status: 'adopted', projectRelativePath: relativePath, ...(thumbnailRelativePath && thumbnailRelativePath !== relativePath ? { thumbnailRelativePath } : {}), ...(previewState ? { previewState } : {}), createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() },
-        }, `reconcile-${jobId}-artifact-${current.revision}`).run
+        for (const [index, { asset, relativePath }] of landed.entries()) {
+          const thumbnailRelativePath = localAssetPath(projectId, asset.thumbnailUrl)
+          const rawPreviewState = asset.previewState
+          const previewState = isCanvasPreviewState(rawPreviewState) ? rawPreviewState : undefined
+          const kind = asset.type === 'video' ? 'video' : asset.type === 'audio' ? 'audio' : 'image'
+          const artifactId = artifactIdentifierForOutput(jobId, index)
+          current = executeInternal(projectId, runId, current, 'artifact.add', {
+            artifact: { artifactId, stageId: job.stageId, jobId, kind, status: 'adopted', projectRelativePath: relativePath!, ...(thumbnailRelativePath && thumbnailRelativePath !== relativePath ? { thumbnailRelativePath } : {}), ...(previewState ? { previewState } : {}), createdAt: new Date().toISOString(), adoptedAt: new Date().toISOString() },
+          }, `reconcile-${jobId}-artifact-${current.revision}`).run
+        }
         current = executeInternal(projectId, runId, current, 'job.status', { jobId, status: 'adopted' }, `reconcile-${jobId}-adopted-${current.revision}`).run
         if (current.status === 'needs_attention') {
           current = executeInternal(projectId, runId, current, 'run.status', { status: 'running' }, `reconcile-${runId}-resume-${current.revision}`).run

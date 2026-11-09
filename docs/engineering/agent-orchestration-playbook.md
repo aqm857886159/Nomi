@@ -515,7 +515,7 @@ node scripts/research/tikhub-search.mjs \
 
 | 层 | 做什么 |
 |---|---|
-| 派工 | 派修复前 `node scripts/fix-churn.mjs <路径>`；命中、「第 N 轮」N≥3、或同一 PR 验收第二次不通过，就改派复盘（§2） |
+| 派工 | 发任务前 `node scripts/check-dispatch-brief.mjs <任务书>` 自动取「范围」节反引号中的已存在仓库文件，以 `origin/main` 调用 `fix-churn.mjs` 的共享 `findHotspots`（CLI 尚无 `--ref`）；文件本身命中且未引用 `docs/engineering/direction-checks/*.md` 时拦截，先派独立方向检查；仅目录 / 概念 / 自写登记命中提示不拦（P1 例外仍须满足换或删、不新增分支的条件，由协调判断）；「第 N 轮」N≥3、或同一 PR 验收第二次不通过，照旧改派复盘（§2） |
 | git commit-msg | `scripts/check-direction-trailer.mjs`：fix 提交碰热点必须带 `Direction-Check: <复盘文档路径>`；按内容判，没有环境变量开关；revert 与 merge 不拦 |
 | CI | `quality-gate.yml` contracts 里只警告：列出热点 fix 却没带 trailer 的提交（兜 `--no-verify`） |
 | Claude 编辑 | `edit-time-reminder` 调同一个计数器，提醒不拦 |
@@ -525,7 +525,7 @@ node scripts/research/tikhub-search.mjs \
 1. 派活前先数轮次，同一处第 3 轮就停，改派复盘。这条本身最省。
 2. 协调会话不读大文件全文：先看大小和标题，再按段读；读子 agent 的结论，不读它的过程。
 3. 子 agent 同时最多 3 个（含续跑），默认 Sonnet；只有根因未定、碰花钱边界、结构改动才用 Opus；子 agent 不再派子 agent。
-4. 任务书写清范围、不碰清单、停点（例如「样张出来就停」），交货报告要短。发之前跑 `node scripts/check-dispatch-brief.mjs <任务书>`（只查有没有写，纯文本匹配）；实现线先答「删掉：选 / 不选，理由」，删除范围按归属列文件，禁止「全仓搜到就删」。
+4. 任务书写清范围、不碰清单、停点（例如「样张出来就停」），交货报告要短。发之前跑 `node scripts/check-dispatch-brief.mjs <任务书>`（声明用关键词匹配，热点只读 Git）；实现线先答「删掉：选 / 不选，理由」，删除范围按归属列文件，禁止「全仓搜到就删」；「自验」必须要求「设计卡 ★9 每条反例改坏 → 红、还原 → 绿，日志进报告」。只有独占一行明确声明「纯测试 / 纯文档 / 纯配置」或「范围：只改测试、文档、配置」才豁免反例合同，混合代码任务与正文提及不算。范围含 `src/` 下 `.tsx` 文件（含待建文件，不含 test / spec 测试）或正文提到「界面 / 样张 / 拍板」，必须引用 `docs/design/nomi-design-system.md`（可带章节）；明确不在范围的界面和仅表示流程批准的「用户拍板」不触发。
 5. 确定性的活（雷达、扫描、收据、统计）用脚本跑，不交给模型。
 6. 长输出落文件，只看摘要；同一文件不反复读。
 7. 卡住 3 次就停下报告，不硬磨。

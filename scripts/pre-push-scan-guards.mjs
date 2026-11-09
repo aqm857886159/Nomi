@@ -40,6 +40,8 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/catalog/upgradeKeepsWorkingModels.test.ts', roots: ['tests/fixtures/old-user-data/catalogs'], exts: '*' },
   // The matrix reads the real old generated asset (+ its .meta) a past release wrote; a new directory must run the old-user rows before the push (under 10 s).
   { file: 'electron/catalog/referenceLinkDelivery.matrix.test.ts', roots: ['tests/fixtures/old-user-data/assets'], exts: '*' },
+  // 2026-11-09：一次出几份就读出几份——每份旧目录（向导存下的、旧内置）造四份假响应都要读出四份；新加一份旧目录推送前就跑（<5 秒）。
+  { file: 'electron/catalog/multiOutputMapping.test.ts', roots: ['tests/fixtures/old-user-data/catalogs', 'tests/fixtures/old-user-data/curated'], exts: '*' },
   // 和 catalogs、assets 两行同形：每个版本新增一份真老用户数据（旧版本落盘的项目库），新目录推送前就跑老用户这组，不是到 CI 才红（<2 秒）。
   { file: 'electron/projects/projectLocation.oldUser.test.ts', roots: ['tests/fixtures/old-user-data/projects'], exts: '*' },
   // 付费确认卡和它的挂载点只许静态引入：遍历 src 找按需 import 它们的文件（<1 秒）。
