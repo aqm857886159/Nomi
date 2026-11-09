@@ -1,5 +1,5 @@
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
-import { OUTPUT_RETRIEVAL_FAILED, type ProductionRun } from "./productionRunTypes";
+import { OUTPUT_RETRIEVAL_FAILED, type ProductionArtifact, type ProductionRun } from "./productionRunTypes";
 
 export type GenerationSubmissionMaterializeResult = {
   operationId: string;
@@ -92,4 +92,18 @@ export function catchUpJobToArtifact(
   const behind = current.jobs.find((candidate) => candidate.jobId === jobId)!;
   if (behind.status === "needs_attention") current = command(current, "job.status", { jobId, status: "polling", patch: { errorCode: "", errorMessage: "" } }, `materialize-job-resume:${jobId}:${current.revision}`);
   if (behind.status === "needs_attention" || behind.status === "provider_accepted" || behind.status === "polling") command(current, "job.status", { jobId, status: "ready", patch: { lastPollAt: behind.lastPollAt } }, `materialize-job:${jobId}`);
+}
+
+/** 落地门交回的回执（一份产物落盘后的事实）。 */
+export type GenerationMaterializationReceipt = Pick<ProductionArtifact, "artifactId" | "kind" | "contentHash" | "projectRelativePath" | "thumbnailRelativePath" | "previewState" | "width" | "height">;
+
+/** 回执 → 账上一份 ready 产物；缺号、缺内容哈希、缺项目内路径的回执不收。 */
+export function artifactFromMaterializationReceipt(receipt: GenerationMaterializationReceipt, jobId: string, createdAt: string): ProductionArtifact {
+  const artifactId = typeof receipt.artifactId === "string" ? receipt.artifactId.trim() : "";
+  const contentHash = typeof receipt.contentHash === "string" ? receipt.contentHash.trim() : "";
+  const projectRelativePath = typeof receipt.projectRelativePath === "string" ? receipt.projectRelativePath.trim() : "";
+  if (!artifactId || !contentHash || !projectRelativePath) throw new GenerationMaterializationError("Asset store returned an incomplete materialization receipt");
+  return { artifactId, stageId: "generate", jobId, kind: receipt.kind, status: "ready", source: "external-mcp", contentHash, projectRelativePath,
+    ...(receipt.thumbnailRelativePath ? { thumbnailRelativePath: receipt.thumbnailRelativePath } : {}), ...(receipt.previewState ? { previewState: receipt.previewState } : {}),
+    ...(receipt.width && receipt.height ? { width: receipt.width, height: receipt.height } : {}), createdAt };
 }

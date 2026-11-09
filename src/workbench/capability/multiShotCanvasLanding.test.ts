@@ -58,9 +58,9 @@ describe('materializeShots preserves the reading viewport on existing content', 
   it.each(['replay', 'result'] as const)('%s on existing shots does not issue a navigation request', async mode => {
     const initial = await land()
     const beforeFit = useWorkbenchStore.getState().canvasFitNonce
-    const items = mode === 'result' ? shots.map(shot => ({ ...shot, result: {
+    const items = mode === 'result' ? shots.map(shot => ({ ...shot, results: [{
       id: `result-${shot.shotId}`, type: 'image' as const, url: `nomi-local://test/${shot.shotId}.png`, createdAt: 1,
-    } })) : shots
+    }] })) : shots
     await land(items)
     if (mode === 'result') {
       expect(useGenerationCanvasStore.getState().nodes.find(node => node.id === initial.bindings[0].nodeId)?.result?.url)
@@ -251,7 +251,7 @@ it('reported case (S1-5): a shot the Run believes detached lands its result on t
   const result = { id: 'production-job-1', type: 'image' as const, url: 'nomi-local://asset/p/shot-1.jpg', createdAt: 2 }
 
   const healed = await materializeShots({ runId: 's15', materializationOperationId: op,
-    shots: [{ shotId: 'shot-1', kind: 'image', prompt: '渔港清晨', existingOnly: true, result }] })
+    shots: [{ shotId: 'shot-1', kind: 'image', prompt: '渔港清晨', existingOnly: true, results: [result], runRecordId: 'production-job-1' }] })
 
   expect(healed.bindings).toEqual([expect.objectContaining({ shotId: 'shot-1', nodeId })])
   const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)!
@@ -290,7 +290,7 @@ it.each(['same', 'switch', 'reopen'] as const)('model-await landing keeps the ca
   const landing = materializeShots({ projectId: 'project-a', materializationOperationId: operation,
     shots: [1, 2].map(index => ({ shotId: `shot-${index}`, prompt: 'new-author-text',
       candidate: { candidateId: `candidate-${index}`, revision: 2, modelKey: 'model' },
-      result: { id: `result-${index}`, type: 'video' as const, url: 'nomi-local://fixture/result.mp4', createdAt: 1 } })) })
+      results: [{ id: `result-${index}`, type: 'video' as const, url: 'nomi-local://fixture/result.mp4', createdAt: 1 }] })) })
   await paused.entered
   if (change !== 'same') {
     await landingProject.open('project-b')
@@ -358,7 +358,7 @@ it('reported case (S1-5): the open-project reconcile that arrives before this wi
   landingProject.close() // 回到项目库 → 再打开：画布已从磁盘装好，主进程已提交，这个窗口还没认下回执
 
   const landing = materializeShots({ projectId: 'project-a', runId: 's15-open', materializationOperationId: op,
-    shots: [{ shotId: 'shot-1', kind: 'image', existingOnly: true, result: { id: 'production-job-1', type: 'image', url: 'nomi-local://asset/p/s15.jpg', createdAt: 2 } }] })
+    shots: [{ shotId: 'shot-1', kind: 'image', existingOnly: true, results: [{ id: 'production-job-1', type: 'image', url: 'nomi-local://asset/p/s15.jpg', createdAt: 2 }] }] })
   await landingProject.open('project-a')
 
   await expect(landing).resolves.toMatchObject({ bindings: [expect.objectContaining({ shotId: 'shot-1', nodeId })] })
@@ -405,7 +405,7 @@ describe('materializeShots writes each shot\'s run state into the node itself', 
     expect(node(id).status).toBe('running')
     expect(node(id).runs?.[0]).toMatchObject({ id: 'production-job-1', status: 'running' })
 
-    await land({ result: { id: 'production-job-1', type: 'video', url: 'nomi-local://asset/p/v.mp4', createdAt: 2_000 }, mediaDimensions: { width: 1920, height: 1080 } }, true)
+    await land({ results: [{ id: 'production-job-1', type: 'video', url: 'nomi-local://asset/p/v.mp4', createdAt: 2_000 }], mediaDimensions: { width: 1920, height: 1080 } }, true)
     expect(node(id).status).toBe('success')
     expect(node(id).result?.url).toBe('nomi-local://asset/p/v.mp4')
     expect(node(id).meta).toMatchObject({ videoWidth: 1920, videoHeight: 1080, videoAspectRatio: 16 / 9 })
@@ -461,10 +461,10 @@ describe('materializeShots writes each shot\'s run state into the node itself', 
 
   it('同一份产物只回填一次：用户切回别的版本之后，下一次跟随不把制作那一版硬塞回当前结果', async () => {
     const result = { id: 'production-job-1', type: 'video' as const, url: 'nomi-local://asset/p/v.mp4', createdAt: 2_000 }
-    const { bindings } = await land({ result })
+    const { bindings } = await land({ results: [result] })
     const id = bindings[0].nodeId
     useGenerationCanvasStore.getState().addNodeResult(id, { id: 'manual-2', type: 'video', url: 'nomi-local://asset/p/v2.mp4', createdAt: 3_000 })
-    await land({ result }, true)
+    await land({ results: [result] }, true)
     expect(node(id).result?.id).toBe('manual-2')
   })
 

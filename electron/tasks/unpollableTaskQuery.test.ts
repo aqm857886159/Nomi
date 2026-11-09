@@ -92,7 +92,7 @@ describe("无 query op 的任务：轮询立刻拿到诚实终态，不再永远
   });
 
   it("无 mapping 的 fallback 受理（runtime.ts:505）同样终态——它注定永远查不出结果", async () => {
-    // fallback 正是在 extractAssetUrl 为空时才受理的，故轮询再算一次必然还是空。
+    // fallback 正是在 extractAssetUrls 为空时才受理的，故轮询再算一次必然还是空。
     await seedPendingTask("task-fallback", { id: "up-1", state: "??" });
 
     const polled = await fetchTaskResult({ taskId: "task-fallback" });
