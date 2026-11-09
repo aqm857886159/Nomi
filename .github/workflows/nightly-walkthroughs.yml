@@ -31,6 +31,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: Record selected manifest and batch sentinel
+        env:
+          BATCH: ${{ matrix.batch }}
+        run: node scripts/nightly-walk-summary.mjs --manifest nightly-walks "$BATCH"
       - uses: ./.github/actions/cache-external-downloads
         with:
           playwright: 'true'
@@ -74,6 +78,12 @@ jobs:
             if [ "$status" -ne 0 ]; then failed=1; fi
           done
           exit "$failed"
+      - name: Record batch conclusion
+        if: always()
+        env:
+          BATCH: ${{ matrix.batch }}
+          BATCH_RESULT: ${{ job.status }}
+        run: node scripts/nightly-walk-summary.mjs --finish nightly-walks "$BATCH"
       - name: Upload nightly batch evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -100,6 +110,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: Record selected manifest and batch sentinel
+        env:
+          BATCH: packaged-mac
+        run: node scripts/nightly-walk-summary.mjs --manifest nightly-walks "$BATCH"
       - uses: ./.github/actions/cache-external-downloads
         with:
           builder: 'true'
@@ -122,6 +136,12 @@ jobs:
           printf '%s\t%s\t%s\t%s\n' "tests/ux/packaged-mcp-smoke.e2e.mjs" "$status" "$((ended - started))" "$log" > nightly-walks/results-packaged-mac.tsv
           tail -n 60 "$log"
           exit "$status"
+      - name: Record batch conclusion
+        if: always()
+        env:
+          BATCH: packaged-mac
+          BATCH_RESULT: ${{ job.status }}
+        run: node scripts/nightly-walk-summary.mjs --finish nightly-walks "$BATCH"
       - name: Upload packaged smoke evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -143,6 +163,7 @@ jobs:
         with:
           node-version: 24
       - uses: actions/download-artifact@v7
+        continue-on-error: true
         with:
           pattern: nightly-walks-*
           path: nightly-results
@@ -151,6 +172,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          NIGHTLY_NEEDS: ${{ toJSON(needs) }}
         run: node scripts/nightly-walk-summary.mjs nightly-results nightly-summary.md
       - name: Upload nightly summary
         if: always()
