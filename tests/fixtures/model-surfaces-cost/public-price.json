@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "data": {
+    "model_name": "gpt-image-2.5-flare",
+    "billing_type": "tiered_token",
+    "precharge_billing_type": "size_quality_token_formula",
+    "membership": {
+      "category": "image"
+    },
+    "pricing": {
+      "unit": "usd_per_million_tokens"
+    },
+    "size_quality_paid_prices": {
+      "1:3": {
+        "low": 0.001344
+      }
+    }
+  }
+}
