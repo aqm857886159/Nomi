@@ -55,19 +55,42 @@ test('clean behind main follows the remote', (t) => {
   assert.equal(git(f.main, 'rev-parse', 'HEAD'), after)
   assert.match(output(r), /已跟上/)
 })
-for (const tracked of [true, false])
-  test(`dirty ${tracked ? 'tracked' : 'untracked'} checkout stays untouched with filenames`, (t) => {
-    const f = fixture(t)
-    f.advance()
-    const file = tracked ? 'README.md' : 'local.txt'
-    writeFileSync(path.join(f.main, file), 'local changes\n')
-    const r = run(f.main)
-    assert.equal(r.status, 0, output(r))
-    assert.equal(git(f.main, 'rev-parse', 'HEAD'), f.before)
-    assert.equal(readFileSync(path.join(f.main, file), 'utf8'), 'local changes\n')
-    assert.match(output(r), /落后 1/)
-    assert.ok(output(r).includes(file), output(r))
-  })
+test('dirty tracked checkout stays untouched with filenames', (t) => {
+  const f = fixture(t)
+  f.advance()
+  const file = 'README.md'
+  writeFileSync(path.join(f.main, file), 'local changes\n')
+  const r = run(f.main)
+  assert.equal(r.status, 0, output(r))
+  assert.equal(git(f.main, 'rev-parse', 'HEAD'), f.before)
+  assert.equal(readFileSync(path.join(f.main, file), 'utf8'), 'local changes\n')
+  assert.match(output(r), /落后 1/)
+  assert.ok(output(r).includes(file), output(r))
+})
+test('untracked non-conflicting file still follows main', (t) => {
+  const f = fixture(t),
+    after = f.advance()
+  const file = 'local note.txt'
+  writeFileSync(path.join(f.main, file), 'local changes\n')
+  const r = run(f.main)
+  assert.equal(r.status, 0, output(r))
+  assert.equal(git(f.main, 'rev-parse', 'HEAD'), after)
+  assert.equal(readFileSync(path.join(f.main, file), 'utf8'), 'local changes\n')
+  assert.match(output(r), /已跟上/)
+})
+test('untracked upstream collision refuses and names the file', (t) => {
+  const f = fixture(t),
+    file = 'remote collision.txt'
+  f.advance(file)
+  writeFileSync(path.join(f.main, file), 'local changes\n')
+  const r = run(f.main)
+  assert.equal(r.status, 0, output(r))
+  assert.equal(git(f.main, 'rev-parse', 'HEAD'), f.before)
+  assert.equal(readFileSync(path.join(f.main, file), 'utf8'), 'local changes\n')
+  assert.match(output(r), /⚠️.*无法快进/)
+  assert.ok(output(r).includes(file), output(r))
+  assert.equal(output(r).trim().split('\n').length, 1)
+})
 test('non-main branch stays untouched with warning', (t) => {
   const f = fixture(t)
   f.advance()

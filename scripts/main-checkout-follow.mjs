@@ -30,7 +30,7 @@ export function followMainCheckout(root) {
   }
   const blocked = () => {
     const branch = read('symbolic-ref', '--short', 'HEAD') || 'detached HEAD'
-    const status = git('status', '--porcelain=v1', '--untracked-files=all')
+    const status = git('status', '--porcelain=v1', '--untracked-files=no')
     if (status.status !== 0) return warn('无法检查工作区，未更新')
     if (branch !== 'main') return warn(`当前分支 ${branch}，未更新`, status.stdout)
     if (status.stdout.trim()) return warn('工作区不干净，未更新', status.stdout)
@@ -45,7 +45,7 @@ export function followMainCheckout(root) {
   if (afterFetchBlock) return afterFetchBlock
   const before = read('rev-parse', 'HEAD')
   const merged = git('merge', '--ff-only', 'origin/main')
-  if (merged.status !== 0) return warn('无法快进或 Git 锁占用，未更新；请核对本地分支差异和锁')
+  if (merged.status !== 0) return warn('无法快进或 Git 锁占用，未更新；请核对本地分支差异和锁', merged.stderr || '')
   const after = read('rev-parse', 'HEAD')
   if (after === before) return ''
   const dependenciesChanged = read('diff', '--name-only', before, after, '--', 'pnpm-lock.yaml')

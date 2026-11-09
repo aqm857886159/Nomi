@@ -3,7 +3,7 @@
   "id": "2026-11-09-main-checkout-follow",
   "problem_type": "Session hooks drift when the primary checkout stays stale",
   "symptom": "Claude sessions keep loading old main-checkout hooks and obsolete validation reminders.",
-  "direct_cause": "The primary main checkout was left behind origin/main with local generated edits.",
+  "direct_cause": "The primary main checkout was left behind origin/main with local generated edits. The initial follow hook also treated harmless untracked files as dirty, skipping every future update.",
   "class_root": "SessionStart has no shared boundary that follows a clean primary main checkout or reports why it cannot.",
   "affected_population": [
     "Primary checkout sessions after upstream updates",
@@ -14,7 +14,7 @@
   "external_sources": [],
   "internal_only_reason": "This is an internal checkout ownership policy explicitly specified in the task brief; Git CLI already supplies ff-only and locking.",
   "invariants": [
-    "Only the primary checkout root on clean main may fast-forward.",
+    "Only the primary checkout root on main with no tracked edits may fast-forward; Git rejects untracked path collisions.",
     "Linked worktrees and user edits never change.",
     "Offline, contention and divergence warn and return success.",
     "Dependency changes only request installation."
@@ -31,7 +31,7 @@
     "after": 1,
     "why_not": "One new shared CLI boundary owns advancement; SessionStart invokes it instead of maintaining a second implementation."
   },
-  "generality_proof": "Root identity, branch and full porcelain status guard every invocation before fetch and are rechecked before ff-only merge; Git rejects divergence and concurrent locks.",
+  "generality_proof": "Root identity, branch and tracked-only porcelain status guard every invocation before fetch and are rechecked before ff-only merge; Git owns untracked collision detection, divergence and concurrent locks; its refusal diagnostics stay visible.",
   "shared_boundaries": [
     {
       "path": "scripts/main-checkout-follow.mjs",
@@ -64,7 +64,7 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "scripts/main-checkout-follow.mjs",
-    "invariant": "Only a clean primary main checkout advances by Git ff-only.",
+    "invariant": "Only a primary main checkout without tracked edits advances by Git ff-only; nonconflicting untracked files survive and blocking paths appear in the refusal warning.",
     "failure_mode": "Keep checkout unchanged and emit one visible warning; session exits 0.",
     "exception_policy": "none",
     "strategy": "SessionStart invokes Git eligibility and advancement at one boundary, independent of human recall.",
@@ -85,7 +85,7 @@
   "migration": "Manual main checkout advancement preserves the original binary patch and untracked files; no user project or model-data migration.",
   "residual_risks": [
     "Real daily-radar and handoff-write hooks are read-only reviewed because the task excludes keys and real state writes.",
-    "Preserved untracked main-checkout research files intentionally make auto-follow warn until their owner clears them."
+    "Untracked files are preserved; actual upstream path collisions prevent fast-forward and are named in the Git refusal warning."
   ],
   "detected_by": "review",
   "recurrence_check_on": "2026-12-09",
