@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { spawn, spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
@@ -10,7 +11,7 @@ import * as launcher from './_launchApp.mjs'
 import { _electron as electron } from 'playwright'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { makeTempDir } from '../../scripts/_test-temp.mjs'
-import { launchNomiApp, QUIET_WALK_MODULE, decideSyntheticCredentialStorage, encryptFixtureKey, syntheticCredentialBackendArgs } from './_launchApp.mjs'
+import { launchNomiApp, QUIET_WALK_MODULE, decideSyntheticCredentialStorage, encryptFixtureKey, syntheticCredentialBackendArgs, quietElectronSpawn } from './_launchApp.mjs'
 
 vi.mock('node:child_process', async (importOriginal) => ({ ...await importOriginal(), spawn: vi.fn() }))
 
@@ -21,7 +22,7 @@ vi.mock('../../scripts/ensure-electron-signature.mjs', () => ({ ensureElectronSi
 afterEach(() => vi.restoreAllMocks())
 
 const require = createRequire(import.meta.url)
-const CREDENTIAL_STORAGE_MODULE = launcher.CREDENTIAL_STORAGE_MODULE || new URL('_credentialStorage.cjs', import.meta.url).pathname
+const CREDENTIAL_STORAGE_MODULE = launcher.CREDENTIAL_STORAGE_MODULE || fileURLToPath(new URL('_credentialStorage.cjs', import.meta.url))
 const { prepareCredentialSource } = launcher
 const coreRequire = createRequire(require.resolve('playwright'))
 const corePackage = coreRequire.resolve('playwright-core/package.json')
@@ -244,7 +245,6 @@ test('credential cross-process identity decrypts in both directions on the actua
   fs.writeFileSync(consumer, `const { app, safeStorage } = require('electron')
 app.setName('nomi')
 app.setPath('userData', process.env.NOMI_ELECTRON_USER_DATA_DIR)
-require(${JSON.stringify(path.join(path.dirname(QUIET_WALK_MODULE), '_quietWalk.cjs'))})
 require(${JSON.stringify(runtime)})
 app.whenReady().then(() => {
   if (safeStorage.decryptString(Buffer.from(process.env.FIXTURE_CIPHER, 'base64')) !== ${JSON.stringify(marker)}) throw new Error('identity mismatch')
@@ -254,9 +254,11 @@ app.whenReady().then(() => {
 `)
   const env = { ...process.env, NOMI_E2E: '1', NOMI_ELECTRON_USER_DATA_DIR: dirs.userDataDir, NOMI_WALK_CREDENTIAL_SOURCE: 'synthetic', NOMI_WALK_CREDENTIAL_ARGS: JSON.stringify(syntheticCredentialBackendArgs()), FIXTURE_CIPHER: encrypted }
   delete env.ELECTRON_RUN_AS_NODE
-  const first = spawnSync(require('electron'), [consumer, ...syntheticCredentialBackendArgs()], { env, encoding: 'utf8', timeout: 20_000 })
+  const firstSpec = quietElectronSpawn([consumer, ...syntheticCredentialBackendArgs()], { env, encoding: 'utf8', timeout: 20_000 })
+  const first = spawnSync(firstSpec.command, firstSpec.args, firstSpec.options)
   expect(first.status, first.stderr).toBe(0)
-  const second = spawnSync(require('electron'), [consumer, ...syntheticCredentialBackendArgs()], { env: { ...env, FIXTURE_CIPHER: first.stdout.trim() }, encoding: 'utf8', timeout: 20_000 })
+  const secondSpec = quietElectronSpawn([consumer, ...syntheticCredentialBackendArgs()], { env: { ...env, FIXTURE_CIPHER: first.stdout.trim() }, encoding: 'utf8', timeout: 20_000 })
+  const second = spawnSync(secondSpec.command, secondSpec.args, secondSpec.options)
   expect(second.status, second.stderr).toBe(0)
 }, 45_000)
 
