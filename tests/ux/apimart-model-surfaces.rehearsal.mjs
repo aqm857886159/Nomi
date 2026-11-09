@@ -43,6 +43,31 @@ await once(server, 'listening')
 const origin = 'http://127.0.0.1:' + server.address().port
 const results = []
 const absenceControls = []
+const settingsRows = []
+async function recordSettingsRows(win, locale, scheme) {
+  const rows = await win.evaluate(() => {
+    const header = document.querySelector('[data-model-account="apimart"]').firstElementChild
+    const actions = header.lastElementChild
+    const label = actions.previousElementSibling
+    const measure = (text, control) => {
+      const a = text.getBoundingClientRect(), b = control.getBoundingClientRect()
+      return { text: text.textContent, gap: b.left - a.right, centerOffset: (b.top + b.bottom - a.top - a.bottom) / 2 }
+    }
+    const folds = ['[data-model-home-assisted]', '[data-model-home-other-connections]'].map(selector => {
+      const summary = document.querySelector(selector).querySelector('summary')
+      const group = summary.firstElementChild.lastElementChild
+      const title = group.firstElementChild
+      return { ...measure(title, group.lastElementChild), hintOffset: title.getBoundingClientRect().left - summary.lastElementChild.getBoundingClientRect().left }
+    })
+    return { account: measure(label, actions), folds }
+  })
+  for (const row of [rows.account, ...rows.folds]) {
+    assert(Math.abs(row.gap - 6) < 0.5, 'Secondary controls use gap-1.5 after their text')
+    assert(Math.abs(row.centerOffset) < 0.5, 'Secondary controls share the text row center')
+  }
+  for (const row of rows.folds) assert(Math.abs(row.hintOffset) < 0.5, 'Disclosure titles align with their hint text')
+  settingsRows.push({ locale, scheme, ...rows })
+}
 const perfFile = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : undefined
 const runs = Number(process.argv[process.argv.indexOf('--runs') + 1]) || 5
 const pickerResponseMs = []
@@ -76,7 +101,20 @@ try {
       await expect(card, 'board:ModelSurfaces/settings.account-card').toContainText('52.3')
       await expect(card).toContainText('19.6')
       await expect(card).toContainText(uiText(locale, 'onboardingProviders.account.unlimited'))
+      if (!perfFile) await recordSettingsRows(win, locale, 'light')
       await screenshotSettled(win, { path: path.join(output, locale + '-account.png') })
+      if (!perfFile && locale === 'zh-CN') {
+        const general = await openSettings(win, { tab: 'general' })
+        await clickOrFail(general.getByRole('button', { name: uiText(locale, 'theme.switchToDark'), exact: true }), 'switch to dark theme')
+        await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark')
+        await openSettings(win, { tab: 'models' })
+        await recordSettingsRows(win, locale, 'dark')
+        await screenshotSettled(win, { path: path.join(output, 'zh-CN-account-dark.png') })
+        await openSettings(win, { tab: 'general' })
+        await clickOrFail(general.getByRole('button', { name: uiText(locale, 'theme.switchToLight'), exact: true }), 'restore light theme')
+        await expect(win.locator('html')).toHaveAttribute('data-theme', 'light')
+        await openSettings(win, { tab: 'models' })
+      }
       await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 700))
       const bounds = await card.evaluate(el => [el.scrollWidth, el.clientWidth])
       assert(bounds[0] <= bounds[1] + 1, 'Account contents fit narrow settings')
@@ -194,5 +232,5 @@ try {
   if (perfFile) {
     fs.writeFileSync(perfFile, JSON.stringify({ runs, noisy: os.loadavg()[0] >= 10, metrics: { response: pickerResponseMs } }))
   }
-  fs.writeFileSync(path.join(output, 'receipt.json'), JSON.stringify({ results, absenceControls, reads: calls, generationSubmissions: 0 }, null, 2))
+  fs.writeFileSync(path.join(output, 'receipt.json'), JSON.stringify({ results, absenceControls, settingsRows, reads: calls, generationSubmissions: 0 }, null, 2))
 } finally { server.close() }
