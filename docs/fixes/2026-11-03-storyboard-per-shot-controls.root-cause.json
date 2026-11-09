@@ -349,7 +349,11 @@
   "migration": "No stored field is removed or migrated; skip state was local only. Disabled keyframe objects retain authored prompts. Explicit conversion to image keeps existing destructive type-switch semantics.",
   "residual_risks": [
     "Real-model Agent bulk editing and independent acceptance remain coordinator-owned; implementation runs only local-service rehearsal.",
-    "Historical fixture libraries contain no storyboard or real JPG result required for the packaged upgrade journey."
+    "Historical fixture libraries contain no storyboard or real JPG result required for the packaged upgrade journey.",
+    "The post-change isolated Electron rehearsal failed before any lane user projection and showed a generic send failure. Unit target capture passes, but the complete handoff is not verified.",
+    "The cross-kind Electron probe selected a video model but the existing 3-second duration was below its 4-second minimum, so no video POST was observed.",
+    "At the complete App minimum viewport the selection toolbar overlaps parameter text and the Agent ball overlaps the footer generate button; screenshots are evidence of this remaining limitation.",
+    "The third consecutive rehearsal failure triggered the execution stop. Performance, final push checks, packaged upgrade, golden path and remaining localized walks were not run."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-03",
