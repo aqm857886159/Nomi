@@ -27,9 +27,9 @@ const SOURCE_B5 = 'docs/plan/2026-10-06-storyboard-batch-select.md#B5b'
 const SOURCE_B7 = 'docs/plan/2026-10-06-storyboard-batch-select.md#B7'
 const ROW = 'src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx:169'
 const BAR = 'src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx:45'
-const BULK = 'src/workbench/creation/storyboard/StoryboardFilmAspect.tsx:55'
+const BULK = 'src/workbench/creation/storyboard/StoryboardFilmAspect.tsx:32'
 const CARD = 'src/workbench/ai/v4/AgentPanelV4Cards.tsx:208'
-const FOOTER = 'src/workbench/creation/storyboard/StoryboardPlanEditor.tsx:693'
+const FOOTER = 'src/workbench/creation/storyboard/StoryboardPlanEditor.tsx:630'
 
 export const BATCH_STATES: readonly LabState[] = [
   // ───── B2 ─────
