@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import path from 'node:path'
 import http from 'node:http'
 import https from 'node:https'
 import { createHash } from 'node:crypto'
