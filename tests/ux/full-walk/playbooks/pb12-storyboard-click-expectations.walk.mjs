@@ -14,7 +14,6 @@ import { stationTimeout } from '../../_station-budget.mjs'
 import { ensureCreationResourceTree, openStoryboardEditor } from '../../_creationResourceTree.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from '../../agent-runtime-fixture.mjs'
 import { STORYBOARD_CLICK_TARGETS } from '../catalog.mjs'
-import { uiText } from '../invariants.mjs'
 import { readPlaybookEnvironment, startPlaybook } from '../launch.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
@@ -53,7 +52,7 @@ const pb = await startPlaybook({
     },
   }),
 })
-const { smoke, fixture, monitor, locale } = pb
+const { smoke, fixture, monitor } = pb
 const win = () => smoke.win
 const editor = () => win().locator('[data-storyboard-editor="true"]:visible')
 const row = (index) => editor().locator(`[data-storyboard-row="${index}"]`)
@@ -219,16 +218,17 @@ try {
   await monitor.checkClickTarget(targetOf('sb-param-duration'), {
     observe: readPage,
     act: async () => {
-      const trigger = row(2).locator(`[data-storyboard-composer-bar] [aria-label="${uiText(locale, 'storyboardEditor.row.stayHint')}"]`).first()
+      const trigger = row(2).locator('[data-storyboard-composer-bar] [data-parameter-summary]').first()
       await clickOrFail(trigger, '第 2 镜底栏的时长格')
-      const dropdown = win().locator('[data-nomi-select-dropdown]:visible').last()
+      const dropdown = win().locator('[data-agent-parameter-control="__storyboard_stay_seconds"]:visible').last()
       await expect(dropdown, '时长下拉展开了').toBeVisible({ timeout: stationTimeout() })
-      const options = dropdown.locator('[role="option"]')
+      const options = dropdown.locator('[role="radio"]')
       const labels = await options.allInnerTexts()
       const index = labels.findIndex((label) => /\d/.test(label) && Number(label.match(/\d+/)?.[0]) !== 4)
       if (index < 0) throw new Error(`时长下拉里没有 4 秒以外的选项：${labels.join(' / ')}`)
       picked = { label: labels[index].trim(), seconds: Number(labels[index].match(/\d+/)[0]) }
       await options.nth(index).click()
+      await win().keyboard.press('Escape')
       // 等它落盘（自动保存有节拍）；等不到就按落盘里的真实值判，不在这里放水。
       await expect.poll(async () => (await readPage()).saved.find((entry) => entry.index === 2)?.durationSec, { timeout: stationTimeout() }).toBe(picked.seconds).catch(() => undefined)
     },
