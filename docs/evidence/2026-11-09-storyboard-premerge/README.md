@@ -26,3 +26,14 @@
 core首跑在文稿树重开时失败，四份方案已真实建立，failure.png中抽屉关闭。ShellRail.tsx 的 selectionKey effect 在文稿/方案/模式变化后收抽屉；core在点文稿后立即重开，抢在该effect之前。沿既有流程等待抽屉真正关闭（选）；改共享打开helper会把不发生选择变化的入口也绑到关闭条件，删打开验证会丢原编辑器验收。只在三处确实发生selectionKey变化的文稿切换后，加现有共享预算的hidden等待，原断言不变，不改ShellRail或任何产品代码。依赖决策：not-applicable。症状日志、源码与截图在协调验收报告；这是获准的走查等待修正，不作为产品问题已解决的凭据。
 
 同一条core走查原先在第10项后因重开抽屉失败，补等待后18项全部通过（含中文流程、英文冷启动恢复）。原断言逐字保留；见本线续验报告的core-creation与core-creation-after-wait原始日志。
+
+## ★9 第6条：双语完整App与请求取证
+
+在HEAD `64cefcdff1ef3c079212a152d7a9d927b7a47d13`、构建树 `774debc5a56bfdc4d0fe0babf83e107074133efa` 的完整隔离App里，真人下拉把整片从1:1切成9:16；保留一镜显式16:9覆盖，另放一镜使用不支持画幅的档案。仅远端为本机夹具，renderer、store、materialize、runner和请求映射均走生产路径；未使用真实模型/付费服务，夹具图片本身不用于证明真实成片像素比例。
+
+| 语言 | 继承镜 / 覆盖镜的显示属性 | 实际POST的aspect_ratio | 两类提示 |
+| --- | --- | --- | --- |
+| zh-CN | 9:16 / 16:9 | 9:16 / 16:9，各一次 | 已覆盖画幅的 1 镜不跟着变；1 镜的模型不吃整片画幅，按它自己的尺寸或参考图走 |
+| en | 9:16 / 16:9 | 9:16 / 16:9，各一次 | 1 shots with an overridden aspect stay as they are；1 shots run a model that does not take the film aspect; they follow its own size or reference image |
+
+两张本轮额外截图已逐张亲眼查看，提示可见，行参数区分别为9:16/16:9；完整原始报告运行号 `storyboard-film-scope-proof-development-1794214729675`，SHA256 `0ec9b7f94027592058d2c0408ede520553d51a0745d9defed4bb001b16aec75a`。原始报告、临时探针、两张截图和命令路径在协调验收报告中。首跑在重载尚未完成时直接读取plan抛TypeError；补真实项目界面就绪和持久化等待后通过，未改业务断言或加retry。
