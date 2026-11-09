@@ -1,0 +1,152 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-nightly-summary-closure",
+  "problem_type": "Partial nightly evidence mistaken for recovery; first failure state overwritten",
+  "symptom": "11-04 four failed installation batches plus one exit0 produced a recovery comment; 11-08 only 190 of 380 results appeared.",
+  "direct_cause": "Report consumed TSV only, inferred passes by subtraction, and overwrote the issue without reading prior state.",
+  "class_root": "The report boundary has no explicit expected population, batch provenance or persisted per-walk transition invariant.",
+  "affected_population": [
+    "Every nightly matrix batch, packaged smoke and subsequent issue update"
+  ],
+  "scope_paths": [
+    "scripts/nightly-walk-summary.mjs",
+    ".github/workflows/nightly-walkthroughs.yml"
+  ],
+  "entry_points": [
+    "Linux matrix artifacts",
+    "macOS packaged-smoke artifacts",
+    "issue body from the previous report"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/contexts",
+      "checked_at": "2026-11-09",
+      "purpose": "needs job result is aggregated, not per-matrix evidence"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-jobs",
+      "checked_at": "2026-11-09",
+      "purpose": "always runs the report after failed dependencies"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/expressions#tojson",
+      "checked_at": "2026-11-09",
+      "purpose": "toJSON transports needs without shell interpolation"
+    }
+  ],
+  "invariants": [
+    "Only explicit exit0 is green; exit125 and absent/invalid/duplicate results cannot erase a known red.",
+    "Recovery requires all expected current-SHA batch evidence, successful needs, no missing, skipped, failed or unknown state.",
+    "Only new observed red transitions yield one consolidated comment; first activation records stock without inventing first-red history."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "summarizeRows"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "updateIssue"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/nightly-walk-summary.node-test.mjs",
+      "symbol": "summarizeRows"
+    },
+    {
+      "kind": "write",
+      "path": "scripts/nightly-walk-summary.node-test.mjs",
+      "symbol": "updateIssue"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 4,
+    "why_not": "The summary CLI owns ingestion and issue persistence; its node tests independently exercise both exports. They share one implementation and must remain separate callers."
+  },
+  "generality_proof": "One summary boundary validates expected inventory and provenance for Linux and packaged smoke, then merges only explicit observed green/red into the same persisted ledger.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "summarizeRows",
+      "responsibility": "Validate complete expected evidence and separate green, skipped, missing and failed."
+    },
+    {
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "updateIssue",
+      "responsibility": "Read and validate the previous ledger before merging observed per-walk transitions."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/nightly-walkthroughs.yml",
+      "entry_point": "jobs.walks",
+      "disposition": "enforced",
+      "evidence": "Each matrix batch records a manifest before dependency installation and final sentinel even after failure."
+    },
+    {
+      "path": ".github/workflows/nightly-walkthroughs.yml",
+      "entry_point": "jobs.packaged-mac",
+      "disposition": "enforced",
+      "evidence": "Packaged smoke records the same manifest/sentinel protocol and remains independently counted."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same subtraction and empty-failure recovery path executes on every incomplete nightly run.",
+    "same_class_scan": [
+      "rg nightly-walk-summary summarizeRows classifyRow readRows updateIssue scripts tests .github docs/fixes",
+      "door-map summarizeRows updateIssue --roots=scripts,.github/workflows --include-tests",
+      "Checked prior 7add33774 direction check and current workflow report, Linux matrix and packaged smoke producers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/nightly-walk-summary.mjs",
+    "invariant": "No recovery or green status can be inferred from missing, skipped, malformed or untrusted evidence.",
+    "failure_mode": "Render infrastructure failure/unknown and retain previously known red; invalid persisted state never implies recovery.",
+    "exception_policy": "none",
+    "strategy": "Replace subtraction/default-product/overwrite with explicit completeness validation and persisted observed-state transitions.",
+    "artifacts": [
+      "scripts/nightly-walk-summary.mjs",
+      ".github/workflows/nightly-walkthroughs.yml"
+    ]
+  },
+  "regression_tests": [
+    "scripts/nightly-walk-summary.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/nightly-walk-summary.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/nightly-walk-summary.mjs",
+      ".github/workflows/nightly-walkthroughs.yml"
+    ],
+    "rationale": "Remove implicit-product classification, subtraction-based pass count, unconditional empty-failure recovery and daily overwrite without merging."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Reuse existing Node APIs, gh wrappers and Actions; no dependency change controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "Missing legacy state initializes observed reds as stock with unknown first-red provenance. Malformed state is visibly unknown; never reconstruct invented history.",
+  "residual_risks": [
+    "No live issue writes or workflow dispatch permitted; actual GitHub roundtrip remains unverified."
+  ],
+  "detected_by": "audit",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "reporting",
+    "path": "scripts/nightly-walk-summary.mjs",
+    "tests": [
+      "scripts/nightly-walk-summary.node-test.mjs"
+    ]
+  }
+}
