@@ -37,6 +37,7 @@
 |---|---|---|---|
 | `projects/v0.24.0-library` | 0.24.0（清单带 `immutableProjectUuid`、`projectGeneration`） | 在 0.24.0 的导出里跑 `generators/zzProjectLibraryGen.ts.txt` | `userData/`（登记与默认位置设置）+ 三个项目：建在当时默认位置「文稿/Nomi Projects」里的、打开过的别处文件夹、建在应用数据目录下面的（默认位置最终停在那里，那时的版本没有任何拦截）；`manifest.json` 记着各项目的 id、文件夹、角色 |
 | `projects/v0.20.0-library` | 0.20.0（清单没有上面那两个字段） | 同上，在 0.20.0 的导出里跑 | 同上 |
+| `projects/v0.24.1-storyboard` | 0.24.1（源码提交见 manifest.json） | 在 v0.24.1 导出里跑 `generators/zzStoryboardGen.ts.txt`，真实编辑 store → normalizePayload → createProject/saveProject | 两镜、5/8秒、模型供应商、9:16整片与16:9逐镜覆盖、场、参考锚/绑定、首帧开关和草稿；由 `electron/projects/storyboard.oldUser.test.ts` 走真实读取和 hydration，核对不写项目盘 |
 
 绝对路径落盘后统一换成占位符 `__OLD_USER_ROOT__`，测试把目录拷到临时位置时换回来，仓库里的文件从不被改动。生成器不带两样东西：锁文件（临时物），和同步基线 `workspace-sync-baseline.json`——它存的是清单内容的哈希，而清单里写着这台机器的绝对路径，换了根目录就对不上，只会在项目库里凭空报"另一台电脑改过"；基线只是缓存，缺了是正常状态。
 
@@ -70,3 +71,9 @@ pnpm exec vitest run electron/projects/projectLocation.oldUser.test.ts
 ## 内置目录声明快照（`curated/`）
 
 `curated/v0.24.1-apimart` 由 `fb169414c1778e88bca35beacc0da9c54cb313d4` 的 `ensureBuiltinModelSeeds` 经真实目录写入函数落盘，再仅投影 APIMart 行，行内容未手写。没有凭据。生成器 `generators/zzCatalogSnapshot.ts.txt` 需要显式临时设置目录；`provenance.json` 记录来源。`apimartLatestContracts.test.ts` 对账每个旧身份、用户设置和旧音频映射。它证明目录兼容，不能替代真实旧作品的供应商执行验证。
+
+### 分镜夹具生成与升级复验
+
+把 `generators/zzStoryboardGen.ts.txt` 复制到 v0.24.1 导出的 `electron/projects/zzStoryboardGen.test.ts`。设 `V_OUT` 为临时产物目录，`V_SOURCE_REPO` 为含 v0.24.1 tag 的仓库，运行该文件；输出的 `.nomi` 由旧版自己的函数落盘，只有根路径换成占位符。`manifest.json` 记录版本、来源提交、身份及编辑输入。地址为 example.invalid，不发送请求、不含凭据。
+
+升级测试：`pnpm exec vitest run electron/projects/storyboard.oldUser.test.ts`。把夹具拷到临时目录后经真实主进程项目读取、renderer repository、hydration/service/store 打开；比较每镜与参考，项目文件字节和 mtime 不变，保存入口零调用。删除一个 durationSec 应红，恢复后绿。

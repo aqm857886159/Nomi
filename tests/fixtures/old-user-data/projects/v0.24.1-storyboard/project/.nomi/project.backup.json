@@ -1,0 +1,227 @@
+{
+  "id": "workspace-94d5cd32-629d-42be-affa-d23789741659",
+  "name": "v0.24.1 storyboard",
+  "version": 2,
+  "createdAt": 1794210709797,
+  "updatedAt": 1794210709797,
+  "savedAt": 1794210709797,
+  "revision": 0,
+  "immutableProjectUuid": "aeb92f7a-874c-457a-a415-3a8ddf8a6c55",
+  "projectGeneration": 1,
+  "lastKnownRootPath": "__OLD_USER_ROOT__/projects/v0.24.1 storyboard-mw8yqbz6-df4bf340",
+  "payload": {
+    "workbenchDocuments": [
+      {
+        "id": "doc-58b1d80c-da70-4c80-892c-f6de3775917b",
+        "version": 1,
+        "title": "",
+        "contentJson": {
+          "type": "doc",
+          "content": []
+        },
+        "updatedAt": 1794210709280
+      },
+      {
+        "id": "doc-4ee70cc3-a825-45bf-94af-974262914c35",
+        "version": 1,
+        "title": "Old bookshop script",
+        "contentJson": {
+          "type": "doc",
+          "content": []
+        },
+        "updatedAt": 1794210709791
+      }
+    ],
+    "activeDocumentId": "doc-4ee70cc3-a825-45bf-94af-974262914c35",
+    "timeline": {
+      "version": 1,
+      "fps": 30,
+      "scale": 1,
+      "playheadFrame": 0,
+      "tracks": [
+        {
+          "id": "imageTrack",
+          "type": "image",
+          "label": "图片轨",
+          "clips": []
+        },
+        {
+          "id": "videoTrack",
+          "type": "video",
+          "label": "视频轨",
+          "clips": []
+        },
+        {
+          "id": "audioTrack",
+          "type": "audio",
+          "label": "音频轨",
+          "clips": []
+        }
+      ],
+      "textClips": []
+    },
+    "generationCanvas": {
+      "nodes": [],
+      "edges": [],
+      "selectedNodeIds": [],
+      "groups": [],
+      "workflowTemplates": []
+    },
+    "categories": [
+      {
+        "id": "shots",
+        "name": "分镜",
+        "icon": "🎬",
+        "iconName": "IconLayoutRows",
+        "defaultNodeRenderKind": "shot-frame",
+        "order": 1,
+        "isBuiltin": true
+      },
+      {
+        "id": "cast",
+        "name": "角色",
+        "icon": "👥",
+        "iconName": "IconUser",
+        "defaultNodeRenderKind": "character-card",
+        "order": 2,
+        "isBuiltin": true
+      },
+      {
+        "id": "scene",
+        "name": "场景",
+        "icon": "🌍",
+        "iconName": "IconPhoto",
+        "defaultNodeRenderKind": "scene-card",
+        "order": 3,
+        "isBuiltin": true
+      },
+      {
+        "id": "prop",
+        "name": "道具",
+        "icon": "🧰",
+        "iconName": "IconBox",
+        "defaultNodeRenderKind": "prop-card",
+        "order": 4,
+        "isBuiltin": true
+      },
+      {
+        "id": "audio",
+        "name": "声音",
+        "icon": "🎵",
+        "iconName": "IconChartBar",
+        "defaultNodeRenderKind": "audio-strip",
+        "order": 5,
+        "isBuiltin": true
+      }
+    ],
+    "generationCanvasLastSeq": 0,
+    "editingPanelLayout": {
+      "sourceWidth": 300,
+      "inspectorWidth": 240,
+      "assistantWidth": 390,
+      "timelineHeight": 260,
+      "visibility": {
+        "source": true,
+        "inspector": true,
+        "assistant": true
+      },
+      "preset": "default"
+    },
+    "storyboardDesignsByDocumentId": {
+      "doc-4ee70cc3-a825-45bf-94af-974262914c35": [
+        {
+          "id": "storyboard-c6f3b649-003c-4fc4-99ed-c664f7ecf98b",
+          "documentId": "doc-4ee70cc3-a825-45bf-94af-974262914c35",
+          "title": "Old bookshop storyboard",
+          "plan": {
+            "title": "Old bookshop storyboard",
+            "anchors": [
+              {
+                "id": "anchor-1",
+                "kind": "character",
+                "name": "Reader",
+                "description": "Reader in a blue coat",
+                "carrier": "visual",
+                "scope": "selective",
+                "referenceUrl": "https://example.invalid/old-reader.png",
+                "referenceKind": "image"
+              }
+            ],
+            "shots": [
+              {
+                "index": 1,
+                "shotId": "shot-1",
+                "sceneId": "scene-1",
+                "shotKind": "video",
+                "durationSec": 5,
+                "anchorIds": [
+                  "anchor-1"
+                ],
+                "referenceBindings": {
+                  "image_ref": [
+                    {
+                      "url": "https://example.invalid/old-reader.png",
+                      "name": "Old reader",
+                      "anchorId": "anchor-1"
+                    }
+                  ]
+                },
+                "prompt": "Old shot 1",
+                "modelKey": "doubao-seedance-2.0",
+                "modelVendor": "apimart",
+                "params": {
+                  "aspect_ratio": "16:9"
+                },
+                "keyframe": {
+                  "enabled": true,
+                  "prompt": "Keep this authored first frame"
+                }
+              },
+              {
+                "index": 2,
+                "shotId": "shot-2",
+                "sceneId": "scene-1",
+                "shotKind": "video",
+                "durationSec": 8,
+                "anchorIds": [
+                  "anchor-1"
+                ],
+                "referenceBindings": {
+                  "image_ref": [
+                    {
+                      "url": "https://example.invalid/old-reader.png",
+                      "name": "Old reader",
+                      "anchorId": "anchor-1"
+                    }
+                  ]
+                },
+                "prompt": "Old shot 2",
+                "modelKey": "doubao-seedance-2.0",
+                "modelVendor": "apimart",
+                "params": {
+                  "aspect_ratio": "9:16"
+                },
+                "keyframe": {
+                  "enabled": false,
+                  "prompt": "Keep this authored first frame"
+                }
+              }
+            ],
+            "scenes": [
+              {
+                "id": "scene-1",
+                "title": "Bookshop"
+              }
+            ],
+            "aspectRatio": "9:16"
+          },
+          "committed": false,
+          "status": "draft",
+          "sourceDocumentUpdatedAt": 1794210709791,
+          "createdAt": 1794210709792,
+          "updatedAt": 1794210709792
+        }
+      ]
+    }
+  }
+}
