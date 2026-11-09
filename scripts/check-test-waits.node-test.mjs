@@ -5,7 +5,20 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import test from 'node:test'
-import { builtArtifactImportLines, asyncWaitForFunctionLines, collectTestFiles, unownedLaneCleanupLines } from './check-test-waits.mjs'
+import { builtArtifactImportLines, asyncWaitForFunctionLines, collectTestFiles, injectedDeadlineWaitLines, unownedLaneCleanupLines } from './check-test-waits.mjs'
+
+test('injected product deadlines reject real clocks across unit test paths', () => {
+  const withClock = 'vi.useFakeTimers();\nvi.useRealTimers();\n'
+  assert.deepEqual([...injectedDeadlineWaitLines('trial(args, { pollTimeoutMs: 100 });', 'electron/other.test.ts')], [0])
+  assert.deepEqual([...injectedDeadlineWaitLines('readTask({ queryBudgetMs: 50 });', 'src/other.spec.ts')], [0])
+  assert.deepEqual([...injectedDeadlineWaitLines('function run(pollTimeoutMs = 5000) {}', 'tests/another.test.ts')], [0])
+  assert.deepEqual([...injectedDeadlineWaitLines('deps.pollTimeoutMs = 5000;', 'tests/another.test.ts')], [0])
+  assert.deepEqual([...injectedDeadlineWaitLines('trial(args, { pollTimeoutMs: 0 });', 'electron/other.test.ts')], [])
+  assert.deepEqual([...injectedDeadlineWaitLines(`${withClock}trial(args, { pollTimeoutMs: 100 });`, 'electron/other.test.ts')], [])
+  assert.deepEqual([...injectedDeadlineWaitLines('vi.useFakeTimers(); trial(args, { pollTimeoutMs: 100 });', 'electron/other.test.ts')], [0])
+  assert.deepEqual([...injectedDeadlineWaitLines('trial(args, { pollTimeoutMs: 100 });', 'electron/model.ts')], [])
+  assert.deepEqual([...injectedDeadlineWaitLines('const defaults = { pollTimeoutMs: 100 };', 'src/runner.ts')], [])
+})
 
 test('lane cleanup rejects rm-first hooks and separate or unawaited close hooks', () => {
   const source = [
