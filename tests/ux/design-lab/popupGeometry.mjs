@@ -50,5 +50,25 @@ export function probePopupGeometry() {
       else if (row && overlap(r, row)) violations.push({ rule: 'popup-covers-toolbar-row', trigger: name(trigger), layer: name(layer), rowBox: box(row), layerBox: box(r) })
     }
   }
-  return { triggers: triggers.length, layers: layers.length, violations }
+  // 普通弹层可能铺满视口；真正会被裁的是里面的对话框与决定按钮，不能只量 Portal 根。
+  const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(visible)
+  const decisions = new Set(dialogs.flatMap(dialog => [...dialog.querySelectorAll('[data-decision-bar] button, footer button, [data-design-modal-actions] button, [data-settings-close]')].filter(visible)))
+  for (const dialog of dialogs) {
+    const r = dialog.getBoundingClientRect()
+    if (r.left < -EPS || r.top < -EPS || r.right > innerWidth + EPS || r.bottom > innerHeight + EPS) {
+      violations.push({ rule: 'dialog-out-of-viewport', dialog: name(dialog), dialogBox: box(r), viewport: box(viewport) })
+    }
+  }
+  for (const action of decisions) {
+    const r = action.getBoundingClientRect()
+    let clip = r.left < -EPS || r.top < -EPS || r.right > innerWidth + EPS || r.bottom > innerHeight + EPS
+    for (let parent = action.parentElement; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent)
+      const pr = parent.getBoundingClientRect()
+      if (/(auto|hidden|scroll|clip)/.test(style.overflowY) && (r.top < pr.top - EPS || r.bottom > pr.bottom + EPS)) clip = true
+      if (/(auto|hidden|scroll|clip)/.test(style.overflowX) && (r.left < pr.left - EPS || r.right > pr.right + EPS)) clip = true
+    }
+    if (clip) violations.push({ rule: 'dialog-decision-clipped', action: name(action), actionBox: box(r) })
+  }
+  return { triggers: triggers.length, layers: layers.length, dialogs: dialogs.length, decisions: decisions.size, violations }
 }

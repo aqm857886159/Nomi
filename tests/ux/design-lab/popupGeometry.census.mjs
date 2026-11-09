@@ -11,6 +11,7 @@
 import { chromium } from 'playwright'
 import { spawn, spawnSync } from 'node:child_process'
 import path from 'node:path'
+import fs from 'node:fs'
 import { REPO_ROOT } from './labStates.mjs'
 import { listMeasurableTargets, listViewportTargets, staleUnmeasurableKeys, UNMEASURABLE } from './popupGeometryTargets.mjs'
 import { censusCellsForShard, parseShardArg } from '../../../scripts/lib/e2eShardPlan.mjs'
@@ -28,6 +29,12 @@ const ONLY_SCREEN = process.env.SCREEN || ''
 // 导演台两屏按真机窗口内容区取景（同 design-lab.visual.spec.mjs）。
 const DIRECTOR_SCREENS = new Set(['director-3dbox', 'director-refine'])
 const VIEWPORT = { width: 1440, height: 1000 }
+const minimum = JSON.parse(fs.readFileSync(new URL('../../../electron/shared/mainWindowSize.json', import.meta.url), 'utf8'))
+const PROFILES = [
+  { id: 'regular', viewport: VIEWPORT, locale: 'zh-CN' },
+  { id: 'minimum-zh', viewport: { width: minimum.minWidth, height: minimum.minHeight }, locale: 'zh-CN' },
+  { id: 'minimum-en', viewport: { width: minimum.minWidth, height: minimum.minHeight }, locale: 'en' },
+]
 
 const staleExemptions = staleUnmeasurableKeys()
 if (staleExemptions.length) throw new Error(`弹层几何普查的豁免指向不存在的格（改名或删了，把豁免一起删掉）：${staleExemptions.join('、')}`)
@@ -74,14 +81,15 @@ try {
     await warm.close()
   }
   // 一格量一次；渲染超时（导演台那几格是 WebGL，慢机器上偶尔超时）重来一次，再不行算失败（不放过）。
-  const measure = async (screen, state) => {
+  const measure = async (screen, state, profile) => {
     const context = await browser.newContext({
-      viewport: DIRECTOR_SCREENS.has(screen) ? { width: 1280, height: 933 } : VIEWPORT,
+      viewport: profile.id === 'regular' && DIRECTOR_SCREENS.has(screen) ? { width: 1280, height: 933 } : profile.viewport,
       colorScheme: 'light',
     })
     try {
+      await context.addInitScript(locale => localStorage.setItem('nomi:locale:v1', locale), profile.locale)
       const page = await context.newPage()
-      await page.goto(`${ORIGIN}/design-lab.html?screen=${screen}&frame=1&state=${state.id}`, { timeout: PER_STATE_MS, waitUntil: 'domcontentloaded' })
+      await page.goto(`${ORIGIN}/design-lab.html?screen=${screen}&frame=1&state=${state.id}&locale=${profile.locale}`, { timeout: PER_STATE_MS, waitUntil: 'domcontentloaded' })
       await page.waitForFunction(() => window.__designLabReady === true, null, { timeout: PER_STATE_MS })
       await page.waitForTimeout(150) // Radix 定位在就绪后的下一帧落位
       return await page.evaluate(probePopupGeometry)
@@ -89,12 +97,12 @@ try {
       await context.close()
     }
   }
-  for (const { screen, state } of targets) {
-    const label = `${screen}/${state.id}`
+  for (const { screen, state } of targets) for (const profile of PROFILES) {
+    const label = `${screen}/${state.id}/${profile.id}`
     let result = null
     let lastError = null
     for (let attempt = 0; attempt < 2 && !result; attempt += 1) {
-      try { result = await measure(screen, state) } catch (error) { lastError = error }
+      try { result = await measure(screen, state, profile) } catch (error) { lastError = error }
     }
     if (!result) {
       failures.push(`${label} 渲染失败（试了两次）：${String(lastError).split(/\r?\n/)[0]}`)
@@ -102,8 +110,9 @@ try {
       continue
     }
     if (result.layers === 0) console.log(`  · ${label}：没有打开的浮层（这一格整屏截的理由是别的）`)
+    if (profile.id !== 'regular') result.violations = result.violations.filter(violation => violation.rule.startsWith('dialog-'))
     for (const violation of result.violations) failures.push(`${label} ${violation.rule} ${JSON.stringify(violation)}`)
-    console.log(`  ${result.violations.length ? '✗' : '✓'} ${label}（触发钮 ${result.triggers}、浮层 ${result.layers}）`)
+    console.log(`  ${result.violations.length ? '✗' : '✓'} ${label}（触发钮 ${result.triggers}、浮层 ${result.layers}、模态窗 ${result.dialogs}、决定按钮 ${result.decisions}）`)
   }
 } finally {
   await browser.close()
@@ -115,4 +124,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`   · ${failure}`)
   process.exit(1)
 }
-console.log(`\n✅ 弹层几何普查：${targets.length} 格，浮层都不压自己的触发钮和那一排工具条、整块在窗口里`)
+console.log(`\n✅ 弹层几何普查：${targets.length} 格 × ${PROFILES.length} 档，浮层都不压自己的触发钮和那一排工具条、整块在窗口里`)

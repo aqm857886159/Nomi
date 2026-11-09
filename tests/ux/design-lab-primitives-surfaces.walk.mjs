@@ -44,6 +44,9 @@ const EXPECTED = {
   'ps-10-tooltip': { selector: '[data-radix-popper-content-wrapper]', text: '正在导出', min: { w: 120, h: 16 } },
   // 标题走的是 Mantine Modal 的 header（在 surface 之外），所以这里认的是正文那句话。
   'ps-11-confirm-dialog': { selector: '[data-confirm-dialog-surface]', text: '删除后画布上的连线', min: { w: 260, h: 40 } },
+  'ps-20-settings-dialog': { selector: '[data-settings-dialog]', text: '设置', min: { w: 600, h: 300 } },
+  'ps-21-skill-dialog': { selector: '[data-skill-detail]', text: '放进对话', min: { w: 600, h: 300 } },
+  'ps-22-extraction-dialog': { selector: '[data-nomi-prompt-extraction-settings-dialog]', text: '保存', min: { w: 600, h: 300 } },
   'ps-12-table': null,
   'ps-13-pagination': null,
   'ps-14-identity': null,
