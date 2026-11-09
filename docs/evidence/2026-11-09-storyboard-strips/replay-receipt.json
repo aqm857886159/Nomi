@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "walk": "tests/ux/storyboard-agent-bulk-real.rehearsal.walk.mjs",
+  "conditions": "Isolated Electron App and local model fixture; not the original user project or a paid model. Historical execution receipts only; no new execution in this metadata correction.",
+  "before": {
+    "productChangeCommit": "32e369a80b5f13601b9c4116043131c7f38c1885",
+    "result": "failed",
+    "mainProcessUserProjectionObserved": true,
+    "storyboardInput": {},
+    "paidCalls": 0,
+    "sourceReportSha256": "a8854f53fb523df43ff32a33e309f66896b5997978b88bbdcc35949050ae8722",
+    "assertion": "storyboardTarget was undefined in the received user projection"
+  },
+  "after": {
+    "productChangeCommit": "25e03a96410851119fa0e9fc0dddf130a5da9b47",
+    "result": "failed",
+    "mainProcessUserProjectionObserved": false,
+    "paidCalls": 0,
+    "sourceReportSha256": "b7ee71bcabb7f451e4825c743a85b9d6cc5ac7ecfe58bd95d618141d1fef1afd",
+    "assertion": "Expected lane user projection count > 0; received 0",
+    "observedUIError": "发送失败，请检查后重试。"
+  },
+  "acceptance": "The end-to-end handoff remains unverified; these receipts do not establish resolution."
+}

@@ -1,0 +1,26 @@
+{
+  "name": "创作与分镜面发送时捕获的明确方案与镜头目标",
+  "subject": "agent.storyboard-send-target",
+  "lifecycle": "author",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "value-object",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+    "symbol": "useAgentPanelV4Actions"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "symbol": "useAgentPanelV4Actions"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/workbench/ai/v4/useAgentPanelV4Actions.test.ts",
+  "allowed_consumers": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx"
+  ],
+  "since": "2026-11-09",
+  "notes": "根因合同 2026-11-03-storyboard-per-shot-controls：两个文稿工作面共用此 send 回调，同步捕获文稿前提、当前方案与稳定镜头引用后再异步准入；引用校验沿用 storyboardShotIdsForTarget。这里只登记渲染层意图构造，不替代主进程校验或 lane 投影，也不表示完整 App 发送已经验收通过。"
+}
