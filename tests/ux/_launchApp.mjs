@@ -559,7 +559,7 @@ export function decideSyntheticCredentialStorage({ explicit, isolate, userDataDi
   try { fs.writeFileSync(file, mode, { flag: 'wx' }) }
   catch (error) {
     if (error.code !== 'EEXIST') throw error
-    if (fs.readFileSync(file, 'utf8') !== mode) throw new Error('credential source / 来源 changed after profile claim; recreate the fixture without rewriting its credentials')
+    if (fs.readFileSync(file, 'utf8') !== mode) throw new Error('credential source / 来源 changed after profile claim; recreate the fixture without rewriting its credentials', { cause: error })
   }
   return synthetic
 }

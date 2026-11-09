@@ -1,4 +1,4 @@
-const { app, safeStorage, ipcMain } = require('electron')
+const { app, safeStorage, ipcMain } = module.require('electron')
 
 const mode = process.env.NOMI_WALK_CREDENTIAL_SOURCE
 if (mode !== 'synthetic' && mode !== 'real') throw new Error('Missing or invalid walk credential source')

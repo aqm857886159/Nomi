@@ -89,11 +89,10 @@ test.each([
   app.isReady = () => false
   app.commandLine = { removeSwitch: (name) => switches.delete(name), appendSwitch: (name, value) => switches.set(name, value) }
   const context = {
-    module: { require: () => ({ app }) },
-    require: () => vm.runInNewContext(fs.readFileSync(CREDENTIAL_STORAGE_MODULE, 'utf8'), {
-      require: () => ({ app, safeStorage: {}, ipcMain: { handle: vi.fn() } }),
+    module: { require: () => vm.runInNewContext(fs.readFileSync(CREDENTIAL_STORAGE_MODULE, 'utf8'), {
+      module: { require: () => ({ app, safeStorage: {}, ipcMain: { handle: vi.fn() } }) },
       process: { platform: 'linux', env: { NOMI_WALK_CREDENTIAL_SOURCE: mode, NOMI_WALK_CREDENTIAL_ARGS: JSON.stringify(args) } },
-    }),
+    }) },
     process: { argv: ['electron', '.'] },
     __playwright_run: () => {},
   }
@@ -199,7 +198,8 @@ function runtimeStorage(platform, mode = 'synthetic', availableAfterInit = true)
   }
   const logs = []
   const ipcMain = { handle: (channel, handler) => handlers.set(channel, handler) }
-  const context = { require: (id) => id === 'electron' ? { app, safeStorage, ipcMain } : require(id), module: { exports: {} }, process: { platform, env: { NOMI_WALK_CREDENTIAL_SOURCE: mode, NOMI_WALK_CREDENTIAL_ARGS: JSON.stringify(mode === 'synthetic' ? syntheticCredentialBackendArgs(platform) : []) }, stderr: { write: (line) => logs.push(line) } }, Buffer }
+  const runtimeRequire = (id) => id === 'electron' ? { app, safeStorage, ipcMain } : require(id)
+  const context = { require: runtimeRequire, module: { exports: {}, require: runtimeRequire }, process: { platform, env: { NOMI_WALK_CREDENTIAL_SOURCE: mode, NOMI_WALK_CREDENTIAL_ARGS: JSON.stringify(mode === 'synthetic' ? syntheticCredentialBackendArgs(platform) : []) }, stderr: { write: (line) => logs.push(line) } }, Buffer }
   vm.runInNewContext(fs.readFileSync(new URL('_credentialStorage.cjs', import.meta.url), 'utf8'), context)
   return { app, safeStorage, ipcMain, handlers, logs }
 }

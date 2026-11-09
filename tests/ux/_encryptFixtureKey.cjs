@@ -1,5 +1,5 @@
 const { app, safeStorage } = require('electron')
-require('./_credentialStorage.cjs')
+module.require('./_credentialStorage.cjs')
 
 app.setName(String(process.env.NOMI_APP_NAME || 'Nomi'))
 app.setPath('userData', process.env.NOMI_ELECTRON_USER_DATA_DIR)
