@@ -184,7 +184,7 @@ const EXTRA_CONTROLS: Readonly<Record<string, string>> = {
   'director-settings': '[data-testid="director-settings-dialog"] > div:last-child button',
 }
 function LocalizedDialog({ kind }: { kind: string }): JSX.Element {
-  const locale = (new URLSearchParams(window.location.search).get('locale') || import.meta.env.VITE_DIALOG_CENSUS_LOCALE) === 'en' ? 'en' : 'zh-CN'
+  const locale = (new URLSearchParams(window.location.search).get('locale') || (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_DIALOG_CENSUS_LOCALE) === 'en' ? 'en' : 'zh-CN'
   return <LabLocaleGate locale={locale}>
     <span data-dialog-census-expects={kind === 'prompt' ? '[data-prompt-preview]' : kind === 'splash' ? '[data-splash-skip]' : '[role="dialog"]'} />
     {EXTRA_CONTROLS[kind] ? <span data-dialog-census-actions={EXTRA_CONTROLS[kind]} /> : null}
