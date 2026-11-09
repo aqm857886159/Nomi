@@ -588,24 +588,44 @@ test('扫描型守卫：仓库里每个「遍历源码并对全集断言」的�
 
 test('扫描型守卫登记：每条的测试文件、扫描目录、固定文件真实存在（改名或挪目录后这里红，不会悄悄不跑）；批量门岗按改动只带该带的', () => {
   const batch = SCAN_TESTS.find((scan) => scan.name === SCAN_GUARDS_GATE)
+  const nodeBatch = SCAN_TESTS.find((scan) => scan.name === 'test:node-scan-guards')
   assert.ok(batch && typeof batch.argvFor === 'function', 'SCAN_TESTS 里缺批量门岗 test:scan-guards')
-  assert.deepEqual(batch.argvFor(null).slice(2).filter((arg) => !arg.startsWith('--')), SCAN_GUARDS.map((guard) => guard.file), '算不出改动 = 全部守卫都跑')
+  assert.ok(nodeBatch && typeof nodeBatch.argvFor === 'function', 'node:test 守卫需要独立批次')
+  assert.deepEqual(nodeBatch.argv.slice(0, 2), ['--import=tsx', '--test'])
+  assert.deepEqual([...batch.argvFor(null), ...nodeBatch.argvFor(null)].filter((arg) => SCAN_GUARDS.some((guard) => guard.file === arg)).sort(), SCAN_GUARDS.map((guard) => guard.file).sort(), '算不出改动 = 每个守卫恰好跑一次')
   // 扫描耗时跟着机器负载走：批量必须带放宽的用例超时，否则满载时假红（2026-10-10 #1128 推送被 30 秒默认超时拦过一次）
   for (const argv of [batch.argv, batch.argvFor(null)]) {
     const timeout = argv.find((arg) => arg.startsWith('--testTimeout='))
     assert.ok(timeout && Number(timeout.split('=')[1]) >= 120000, '批量门岗没带放宽的 --testTimeout（≥ 120 秒）')
   }
   for (const guard of SCAN_GUARDS) {
+    const owner = /\.node-test\.[cm]?[jt]s$/.test(guard.file) ? nodeBatch : batch
+    const other = owner === batch ? nodeBatch : batch
     assert.ok(fs.existsSync(path.join(repoRoot, guard.file)), `${guard.file} 不存在`)
     for (const dir of guard.roots ?? []) assert.ok(fs.existsSync(path.join(repoRoot, dir)), `${guard.file} 登记的扫描目录 ${dir} 不存在`)
     for (const file of guard.files ?? []) assert.ok(fs.existsSync(path.join(repoRoot, file)), `${guard.file} 登记的固定文件 ${file} 不存在`)
-    assert.ok(batch.argv.includes(guard.file), `批量门岗的入口里没有 ${guard.file}`)
-    assert.ok(selectGates([guard.file]).includes(SCAN_GUARDS_GATE), `改了守卫测试自己应选中批量门岗：${guard.file}`)
-    assert.ok(batch.argvFor([guard.file]).includes(guard.file), `改了守卫测试自己，批量里要带上它：${guard.file}`)
+    assert.ok(owner.argv.includes(guard.file), `批量门岗的入口里没有 ${guard.file}`)
+    assert.ok(!other.argv.includes(guard.file), `守卫不能交给另一种 runner：${guard.file}`)
+    assert.ok(selectGates([guard.file]).includes(owner.name), `改了守卫测试自己应选中批量门岗：${guard.file}`)
+    assert.ok(owner.argvFor([guard.file]).includes(guard.file), `改了守卫测试自己，批量里要带上它：${guard.file}`)
   }
   assert.equal(new Set(SCAN_GUARDS.map((guard) => guard.file)).size, SCAN_GUARDS.length, '同一个守卫登记了两次')
   for (const group of SCAN_GUARD_CI_ONLY) for (const file of group.files) assert.ok(fs.existsSync(path.join(repoRoot, file)), `${file} 不存在`)
   for (const file of [...Object.keys(SCAN_GUARD_COVERED_BY_GATE), ...Object.keys(NOT_SOURCE_SCANS)]) assert.ok(fs.existsSync(path.join(repoRoot, file)), `${file} 不存在`)
+})
+
+test('node 守卫批次覆盖新增工作流与动作，真实失败不能吞掉', async () => {
+  const batch = SCAN_TESTS.find((scan) => scan.name === 'test:node-scan-guards')
+  assert.ok(batch, '必须存在 node 守卫批次')
+  const guard = 'scripts/ci-external-download-cache.node-test.mjs'
+  for (const file of ['.github/workflows/new.yml', '.github/workflows/new.yaml', '.github/actions/cache-external-downloads/action.yml', 'package.json', 'pnpm-lock.yaml']) {
+    assert.ok(selectGates([file]).includes(batch.name), file)
+    assert.ok(batch.argvFor([file]).includes(guard), file)
+  }
+  const work = fixtureRepo({ 'red.node-test.mjs': "import test from 'node:test'; import assert from 'node:assert/strict'; test('red', () => assert.fail('node-guard-failed'))" })
+  const result = await isolatedRun([...batch.argv.slice(0, 2), path.join(work, 'red.node-test.mjs')], { NODE_TEST_CONTEXT: undefined }, { timeoutMs: 15000 })
+  assert.notEqual(result.status, 0)
+  assert.match(result.output, /node-guard-failed/)
 })
 
 test('扫描型守卫的选择规则：改到它扫的目录里的代码就跑；别的目录、非代码扩展名、纯文档不跑；exts 星号 = 任意扩展名；all = 除 docs 外任何改动', () => {
@@ -753,7 +773,8 @@ test('回归：今天漏掉的 4 个守卫——对应的违规改动现在会�
   assert.ok(!selectGates(['docs/engineering/x.md']).includes(SCAN_GUARDS_GATE))
   assert.ok(!scanGuardsToRun(['marketing/index.html']).some((item) => item.file === 'electron/offLedgerEgress.structure.test.ts'))
   assert.ok(!scanGuardsToRun(['src/ui/A.tsx']).some((item) => item.file === 'electron/offLedgerEgress.structure.test.ts'), '只改 src 不该带只扫 electron 的守卫')
-  assert.ok(selectGates(null).includes(SCAN_GUARDS_GATE) && scanGuardsToRun(null).length === SCAN_GUARDS.length, '算不出改动 = 全跑')
+  assert.ok(selectGates(null).includes(SCAN_GUARDS_GATE) && selectGates(null).includes('test:node-scan-guards'), '算不出改动 = 两个 runner 都跑')
+  assert.equal(scanGuardsToRun(null).length + scanGuardsToRun(null, true).length, SCAN_GUARDS.length, '算不出改动 = 两个 runner 合计全跑')
 })
 
 test('批量守卫红了：失败输出只回放最后 25 行，所以红的守卫测试文件要在输出末尾逐个点名，并给出只重跑它们的命令', () => {
