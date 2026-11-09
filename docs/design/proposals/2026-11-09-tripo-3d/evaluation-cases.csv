@@ -1,0 +1,13 @@
+case_id,category,input_asset_sha256,input_license,provider,geometry_model,texture_model,parameters,attempts,task_status,glb_valid,offline_reopen,geometry_score,silhouette_score,texture_score,cleanup_minutes,task_seconds,usable,reviewer,notes
+prop-01,hard_surface,,,,,,,,,,,,,,,,,,not_run
+prop-02,hard_surface,,,,,,,,,,,,,,,,,,not_run
+prop-03,hard_surface,,,,,,,,,,,,,,,,,,not_run
+prop-04,hard_surface,,,,,,,,,,,,,,,,,,not_run
+organic-01,organic,,,,,,,,,,,,,,,,,,not_run
+organic-02,organic,,,,,,,,,,,,,,,,,,not_run
+organic-03,organic,,,,,,,,,,,,,,,,,,not_run
+organic-04,organic,,,,,,,,,,,,,,,,,,not_run
+statue-01,static_character,,,,,,,,,,,,,,,,,,not_run
+statue-02,static_character,,,,,,,,,,,,,,,,,,not_run
+statue-03,static_character,,,,,,,,,,,,,,,,,,not_run
+statue-04,static_character,,,,,,,,,,,,,,,,,,not_run
