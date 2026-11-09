@@ -831,7 +831,7 @@ describe("model trial intent class matrix", () => {
     expect(decidedBy).toBe(row.decidedBy);
     return { first: code(refused), second: code(retried), cards: confirmations, creates, decidedBy };
   }
-  it.each(registry.policyFlips)("policy flip $id: $label", (row) => policyFlip(row), 30_000);
+  it.each(registry.policyFlips)("policy flip $id: $label", async (row) => { await policyFlip(row); }, 30_000);
   it("the same policy flip has the same result in a fresh retry cell", async () => {
     const row = registry.policyFlips.find(({ id }) => id === "auto-then-auto")!;
     const first = await policyFlip(row, { pollTimeoutMs: 0 });
