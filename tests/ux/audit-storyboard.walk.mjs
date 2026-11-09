@@ -19,6 +19,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { stationTimeout } from './_station-budget.mjs'
 import { openStoryboardEditor } from './_creationResourceTree.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 process.env.NOMI_WALK_UNPRICED_MODEL = '1'
 const locale = process.env.NOMI_AUDIT_LOCALE === 'en' ? 'en' : 'zh-CN'
@@ -295,7 +296,7 @@ try {
     await snap('20-toolbar-only-visible-at-bottom')
     await scrollTo(0)
     // 清掉选中与跳过，免得影响后面的步骤
-    await win().locator('[data-storyboard-selection-toolbar]').getByRole('button', { name: t('取消选择', 'Clear selection'), exact: true }).click().catch(() => {})
+    await win().locator('[data-storyboard-selection-toolbar]').getByRole('button', { name: uiText(locale, 'storyboardEditor.selection.clear'), exact: true }).click().catch(() => {})
     await row(2).locator('input[type="checkbox"]').click()
     await settle(400)
   })
