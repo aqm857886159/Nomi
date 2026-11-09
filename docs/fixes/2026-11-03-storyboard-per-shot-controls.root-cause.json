@@ -397,7 +397,8 @@
     "The round-three lane user projection contains the exact design and shot-1/shot-2/shot-3. The later draft_shots calls fail three times with generation_operation_not_found, and the rehearsal fails waiting for the composer running state. Bulk editing is not verified.",
     "The main-branch complete App type-to-video/model selection probe retains 3 seconds, below the chosen model minimum, and sends zero video POSTs. Cross-surface model-parameter replacement is outside this repair.",
     "Scroll-tail clearance is unit-tested in both locales/themes with a red/green mutation, but the post-fix complete App minimum-window walkthrough was not reached. The Agent ball overlaps the footer on the main comparison too.",
-    "The task stop after the third nonzero rehearsal prevented the remaining walks, full mutation replay, performance, typecheck and final push/body checks. No additional retry was run."
+    "The task stop after the third nonzero rehearsal prevented the remaining walks, full mutation replay, typecheck and final push/body checks. No additional retry was run.",
+    "A later evidence-only run measured storyboard-plan-open on the unchanged source tree: five samples, response median 379.6ms / p95 396.8ms against 1000ms, verdict ok. One sample contained one long task; this does not establish zero long tasks, complete Agent editing or upgrade acceptance."
   ],
   "detected_by": "user",
   "recurrence_check_on": "2026-11-03",

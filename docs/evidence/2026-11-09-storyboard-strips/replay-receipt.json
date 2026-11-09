@@ -84,5 +84,25 @@
       "restoredScrollClearancePassedTests": 4
     },
     "remaining": "The third nonzero invocation of the same rehearsal triggered the task stop. Full App post-fix minimum-window screenshots, remaining localized walks, full acceptance mutations, performance, typecheck and final push/body checks were not executed. Upgrade waits for genuine previous-version storyboard data; real-model and independent acceptance remain unverified."
+  },
+  "precheckFollowup": {
+    "kind": "performance-evidence-only",
+    "sourceHead": "efbf82b8c38940bda66dcfa1accbb1157a2718e4",
+    "sourceTree": "cc798e3fc723f4f83b22db370050fa57db0b83fc",
+    "dirty": false,
+    "rawResult": "docs/evidence/2026-11-09-storyboard-strips/perf-storyboard-plan-open.json",
+    "runs": 5,
+    "responseMedianMs": 379.6,
+    "responseP95Ms": 396.8,
+    "budgetMs": 1000,
+    "verdict": "ok",
+    "longTaskSamples": [
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    "remaining": "The ledger must remain candidate and genuine previous-version storyboard upgrade is coordinator-owned; neither is satisfied by this performance run. No Agent rehearsal retry or upgrade execution was performed."
   }
 }
