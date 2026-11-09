@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { bindNativeFile, rewriteNativeFilePayload, MAX_NATIVE_REQUEST_BYTES, NativeMediaInputError, NativeMediaBudget } from './nativeFilePayload';
+import { bindNativeFile, rewriteNativeFilePayload, MAX_NATIVE_REQUEST_BYTES, NativeMediaInputError, NativeMediaBudget, assertNoUnresolvedNativeFiles } from './nativeFilePayload';
 
 const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVEfmt '), Buffer.alloc(32)]);
 const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 16]), Buffer.from('ftypisom'), Buffer.alloc(4)]);
 const file = (mimeType: string, data: Buffer, fileName: string) => bindNativeFile({ type: 'file', mimeType, data: data.toString('base64'), fileName });
 
 describe('native original media request boundary', () => {
+  it('rejects reserved markers at the provider boundary even if a plugin swallowed the rewrite failure', () => {
+    expect(() => assertNoUnresolvedNativeFiles({ contents: [{ role: 'user', parts: [{ text: '[nomi-native-file:failed]' }] }] }, 'google-generative-ai'))
+      .toThrow(NativeMediaInputError);
+    expect(() => assertNoUnresolvedNativeFiles({ messages: [{ role: 'user', content: '[nomi-pdf:failed]' }] }, 'anthropic-messages'))
+      .toThrow(NativeMediaInputError);
+    expect(() => assertNoUnresolvedNativeFiles({ contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'audio/wav', data: wav.toString('base64') } }] }] }, 'google-generative-ai'))
+      .not.toThrow();
+  });
   it('reserves the encoded size before reading another original', () => {
     const budget = new NativeMediaBudget();
     budget.reserve('first', 10 * 1024 * 1024);

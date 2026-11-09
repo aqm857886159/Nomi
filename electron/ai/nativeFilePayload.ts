@@ -29,6 +29,12 @@ export function assertNativeRequestBodySize(body: string): void {
   if (Buffer.byteLength(body, 'utf8') > MAX_NATIVE_REQUEST_BYTES) throw new NativeMediaInputError('tooLarge');
 }
 
+/** Provider-owned final invariant: a plugin hook must never turn a failed rewrite into a send. */
+export function assertNoUnresolvedNativeFiles(payload: unknown, _api: string): void {
+  const body = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  if (body?.includes('[nomi-native-file:') || body?.includes('[nomi-pdf:')) throw new NativeMediaInputError('unbound');
+}
+
 export class NativeMediaInputError extends Error {
   constructor(readonly code: 'unsupported' | 'unreadable' | 'invalidType' | 'tooLarge' | 'unbound', details: Record<string, string> = {}) {
     super(desktopT(`nativeMedia.${code}`, details));
