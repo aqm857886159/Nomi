@@ -20,7 +20,7 @@ import { observeModelFetch, type ModelCallRecorder } from '../ai/modelCallFetch.
 import { modelCallFailure } from '../ai/runtimeVendorError.js';
 import { describeAgentError } from '../ai/agentError.js';
 import { logWarn } from '../logging/logger.js';
-import { assertNativeRequestBodySize } from '../ai/nativeFilePayload.js';
+import { assertNativeRequestBodySize, assertNoUnresolvedNativeFiles } from '../ai/nativeFilePayload.js';
 
 export type { NomiStreamGuard } from './laneProviderGuard.mjs';
 
@@ -274,7 +274,11 @@ export async function createNomiProvider(input: NomiModelConfig, fetchRequest: t
       // 模型怪癖（o1/o3 只收 temperature 1、kimi 的 enable_thinking…）只在这一处套：lane、文本任务、编译器同一份请求体规矩。
       // 过去 lane 在自己的 rewritePayload 里套、文本任务在 ai@4 的 fetch 包装里套，两份。Anthropic 那条协议不吃这些字段。
       const profiled = config.kind === 'anthropic' || config.kind === 'google-generative-ai' ? body : applyProfileToRequestBody(body, getModelProfile(config.modelId));
-      return (await options?.onPayload?.(profiled, selected)) ?? profiled;
+      const rewritten = (await options?.onPayload?.(profiled, selected)) ?? profiled;
+      // Harness hooks report exceptions and retain their original payload. The
+      // provider boundary must still refuse unresolved main-owned file handles.
+      assertNoUnresolvedNativeFiles(rewritten, protocol.api);
+      return rewritten;
     },
   });
   // 每一次调用一份留证（最后那次尝试的事实 + 这次真正发出去的秘密）：失败收场时按它铸结构化载荷（withVendorFailure）。

@@ -5,6 +5,9 @@ import type { NomiModelConfig } from '../shared/agentLane/laneModelConfig';
 import { laneVendorFailureText } from '../shared/agentLane/laneAssistantFault';
 import { parseVendorErrorFromMessage } from '../../src/workbench/generationCanvas/runner/vendorErrorIpc';
 import { MAX_NATIVE_REQUEST_BYTES } from '../ai/nativeFilePayload';
+import { AgentHarness } from '@earendil-works/pi-agent-core';
+import { MemorySessionRepo } from '@earendil-works/pi-agent-core/harness/session';
+import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 
 const config = (extra: Partial<NomiModelConfig> = {}): NomiModelConfig => ({
   kind: 'google-generative-ai', providerId: 'relay', modelId: 'gemini-4-argon',
@@ -25,6 +28,24 @@ async function streamWith(fetch: typeof globalThis.fetch, ctx = context(), extra
 }
 
 describe('Google native transport uses the shared Nomi provider boundary', () => {
+  it.each(['google-generative-ai', 'openai-compatible', 'openai-responses', 'anthropic'] as const)(
+    '%s: rejects an unresolved file handle even when the actual harness swallows its rewrite hook error', async (kind) => {
+      const fetch = vi.fn<typeof globalThis.fetch>(async () => sse([{ text: 'Must not be sent.' }]));
+      const runtime = await createNomiProvider(config({ kind }), fetch);
+      const models = createModels({ credentials: runtime.credentials });
+      models.setProvider(runtime.provider);
+      const session = await new MemorySessionRepo().create({}, BACKGROUND_CONTEXT);
+      const { harness } = await AgentHarness.create({ session, models, model: runtime.model, tools: [] }, BACKGROUND_CONTEXT);
+      harness.hooks.on('before_payload', () => { throw new Error('Native media rewrite refused'); });
+      try {
+        const lane = await harness.lane('main', BACKGROUND_CONTEXT);
+        await lane.prompt('[nomi-native-file:' + 'a'.repeat(64) + ']', undefined, BACKGROUND_CONTEXT);
+        expect(fetch).not.toHaveBeenCalled();
+      } finally {
+        await harness.close(BACKGROUND_CONTEXT);
+      }
+    },
+  );
   it('sends the exact model and configured prefix through the injected fetch, with native options', async () => {
     const calls: Array<{ url: string; body: Record<string, unknown>; headers: Headers }> = [];
     const fetch: typeof globalThis.fetch = async (input, init) => {
