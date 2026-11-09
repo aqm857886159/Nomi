@@ -66,3 +66,9 @@
 ## 已批准的职责拆分与验证
 
 此前未区分几何与界面分类的试验有七条画布红灯，未提交。协调批准职责拆分后，现有画布回归与census原断言恢复；宿主几何匹配按上面新合同执行。officialWire 249格/498路与基线零差异。③整体拆出；④独立维护走查判据。
+
+## 铁律⑩像素档观察核对
+
+同样种子目录与宿主链下，Seedream4.5的16:9意图实际落成草稿parameters.size=2560x1440，节点meta.size同值；来源是共享owner的resolveAspectRatioGeometryChoice精确匹配与既有同档选择。观察辅助原用界面parseAspectRatioValue，排除了像素串。方案选择观察器改读readAspectRatioGeometry，不改产品分类合同、不新增正则；ratio-pixel-x改land并精确核草稿像素几何。现有十档仅有1:1、4:3、3:4、16:9、9:16，补21:9拒收并核原始合法值。
+
+★9补充：草稿/节点尺寸必须2560x1440且几何等于所说16:9；无21:9必须拒并列合法像素值；卡片仍按生产nodePointerSummaryFacts读口核对，禁止用节点尺寸替代卡片读口掩盖缺失。完整原始observation还显示card.aspect=null；若改观察器后只剩card.aspectRatio:dropped，属于卡片真实读口缺失，须按范围外产品代码停点上报。界面比例分类与owner不改。
