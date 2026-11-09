@@ -4,7 +4,7 @@ CI 安装前统一恢复 Electron 与 Playwright Chromium 二进制缓存，避�
 ## ★0 先查别人
 - https://www.electronjs.org/docs/latest/tutorial/installation#cache · 官方缓存默认位置为 Linux `~/.cache/electron`（或 XDG 缓存）、macOS `~/Library/Caches/electron`、Windows `%LOCALAPPDATA%/electron/Cache`；支持 `electron_config_cache` · 确认用这个变量固定安装器实际读取的缓存目录；同时设置 `ELECTRON_CACHE` 为同一路径供打包阶段消费。
 - https://github.com/electron/get/blob/v3.1.0/src/GotDownloader.ts · lockfile 对应 @electron/get 3.1.0 把 downloadOptions 交给 got，支持其 retry/timeout 选项；进度条的 timeout 不是请求超时；Electron install.js 没有把这些选项作为环境变量传入 · 确认此次不动安装器、不新增整次安装重试，避免叠加或伪称已有退避；没有查到官方推荐重试整个安装器的依据。
-- https://github.com/actions/cache#usage · key 精确匹配，restore-keys 按有序前缀回退，成功任务结束时写入 · 确认 key 按 runner 系统、架构和 lockfile 解析出的版本分隔，旧版本回退只复用有效文件；缓存命中也照常执行安装和身份校验。
+- https://github.com/actions/cache#usage · key 精确匹配，restore-keys 按有序前缀回退，成功任务结束时写入 · 确认 key 按 runner 系统、架构和 lockfile 解析出的版本分隔，旧版本回退只复用有效文件；缓存命中也照常执行安装和身份校验；浏览器缓存仅在 6 个实际安装浏览器的 job 开启，避免空目录保存警告与空缓存抢占。
 - https://github.com/electron-userland/electron-builder/blob/master/.github/workflows/test.yaml · 大型 Electron 工程按平台缓存 Electron，key 包含 Electron 版本，Linux/macOS/Windows 使用各自缓存目录 · 确认共享动作覆盖全部平台及全部安装入口，而非只改本次红灯任务。
 - https://playwright.dev/docs/ci#caching-browsers · 官方不推荐为提速缓存浏览器，恢复耗时可能接近下载；允许按 Playwright 版本缓存浏览器目录，Linux 系统依赖不能缓存 · 本次目标是下载可用性，确认增加浏览器缓存但保留 install-deps 与安装脚本，不跳过安装步骤。
 
@@ -13,7 +13,7 @@ CI 安装前统一恢复 Electron 与 Playwright Chromium 二进制缓存，避�
 - ★2：唯一 owner 为 `.github/actions/cache-external-downloads/action.yml`；24 个 pnpm 安装入口和 6 个 Chromium 入口消费同一组 job 环境；`node scripts/door-map.mjs scripts/install-electron-runtime.mjs --roots=scripts` 只覆盖 JS，YAML/shell 全量入口用 `git grep` 和结构测试补齐。
 - ★3：任务书已定不删 Electron、不放宽门岗；沿原方向补 actions/cache，换镜像不在授权内，删除运行时会破坏真实验收；复用现有安装器、校验和与 Chromium 脚本，不添加重试、依赖或第二个安装入口。
 - ★4：空缓存正常下载；加载时恢复；成功照常校验；失败保留原始报错；取消由 Actions 终止；过期用同平台前缀回退后补缺版本；上游不可用且缓存缺失仍失败，协调待服务恢复重跑，不绕过门岗。
-- ★9：动手前验收清单：所有 24 个 pnpm 入口安装前无条件调用共享动作；6 个浏览器入口缓存路径一致；版本确从 lockfile 取；系统/架构隔离、旧版本前缀回退；缓存命中不跳安装；Contracts 自动跑结构测试；逐条反例改坏→红、按字节还原→绿：删任一缓存步骤、步骤挪到安装后、加条件跳过、改错缓存目录环境变量、改错 cache path/key/restore-keys、覆盖消费者 env、漏新 job、破坏 lockfile 版本；不加重试所以三次失败反例不适用；真实 CI 首轮保存/重跑命中和无 Electron Releases 下载均待协调；回滚本分支提交。
+- ★9：动手前验收清单：所有 24 个 pnpm 入口安装前无条件调用共享动作；6 个浏览器入口显式开启浏览器缓存且路径一致；版本确从 lockfile 取；系统/架构隔离、旧版本前缀回退；缓存命中不跳安装；Contracts 自动跑结构测试；逐条反例改坏→红、按字节还原→绿：删任一缓存步骤、步骤挪到安装后、加条件跳过、改错缓存目录环境变量、改错 cache path/key/restore-keys、覆盖消费者 env、漏新 job、破坏 lockfile 版本、漏浏览器缓存开关；不加重试所以三次失败反例不适用；真实 CI 首轮保存/重跑命中和无 Electron Releases 下载均待协调；回滚本分支提交。
 
 ## 系统改进
 - 症状：多个 CI 任务在 Electron ZIP 返回 504 时一起失败。直接原因：pnpm store 不含 Electron 外部二进制。类根因：CI 没有一个统一、可检查的外部二进制缓存边界。

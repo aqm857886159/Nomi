@@ -1,0 +1,39 @@
+name: Cache external binary downloads
+description: Restore Electron and Playwright downloads before installing dependencies
+inputs:
+  playwright:
+    description: This job installs Playwright browsers
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Read locked versions and set downloader cache paths
+      id: versions
+      shell: bash
+      run: |
+        node <<'NODE'
+        const fs = require('node:fs')
+        const lock = fs.readFileSync('pnpm-lock.yaml', 'utf8')
+        for (const name of ['electron', 'playwright']) {
+          const matches = [...lock.matchAll(new RegExp(String.raw`^      ${name}:\r?\n        specifier: [^\n]+\r?\n        version: ([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)\r?$`, 'gm'))]
+          if (matches.length !== 1) throw new Error(`Expected one resolved ${name} version in pnpm-lock.yaml`)
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${matches[0][1]}\n`)
+        }
+        const electronCache = `${process.env.RUNNER_TEMP}/nomi-electron-cache`
+        fs.appendFileSync(process.env.GITHUB_ENV, `electron_config_cache=${electronCache}\nELECTRON_CACHE=${electronCache}\nPLAYWRIGHT_BROWSERS_PATH=${process.env.RUNNER_TEMP}/nomi-playwright-cache\n`)
+        NODE
+    - name: Cache Electron downloads
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.electron_config_cache }}
+        key: electron-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron }}
+        restore-keys: |
+          electron-v1-${{ runner.os }}-${{ runner.arch }}-
+    - name: Cache Playwright browsers
+      if: inputs.playwright == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+        key: playwright-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.playwright }}
+        restore-keys: |
+          playwright-v1-${{ runner.os }}-${{ runner.arch }}-

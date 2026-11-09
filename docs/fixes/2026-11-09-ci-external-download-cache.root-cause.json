@@ -1,0 +1,166 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-ci-external-download-cache",
+  "problem_type": "CI external binary downloads lack persistent cache ownership",
+  "symptom": "Multiple Linux and macOS jobs failed installing Electron 43.4.1 with HTTP 504 after merges #1457 and #1463.",
+  "direct_cause": "setup-node caches the pnpm store but not Electron ZIPs downloaded by postinstall.",
+  "class_root": "No shared pre-install boundary restores external binary caches or prevents new jobs omitting them.",
+  "affected_population": [
+    "All CI dependency-install jobs on Linux, macOS and Windows",
+    "Playwright Chromium install jobs"
+  ],
+  "scope_paths": [
+    ".github/actions/cache-external-downloads/action.yml",
+    ".github/workflows/win-gate.yml",
+    ".github/workflows/full-experience-run.yml",
+    ".github/workflows/desktop-release.yml",
+    ".github/workflows/quality-gate.yml",
+    ".github/workflows/nightly-walkthroughs.yml",
+    ".github/workflows/site-data-sync.yml",
+    ".github/workflows/win-installer.yml",
+    ".github/workflows/archetype-autosync.yml",
+    ".github/workflows/desktop-rc.yml",
+    ".github/workflows/win-invalid-state-probe.yml",
+    ".github/workflows/desktop-preview.yml"
+  ],
+  "entry_points": [
+    "24 pnpm install job definitions (22 run scripts; two use --ignore-scripts)",
+    "6 Chromium installation job definitions"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/tutorial/installation#cache",
+      "checked_at": "2026-11-09",
+      "purpose": "Check cache override and default directories."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/electron/get/blob/v3.1.0/src/GotDownloader.ts",
+      "checked_at": "2026-11-09",
+      "purpose": "Check pinned downloader options; no added installer retry."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/actions/cache#usage",
+      "checked_at": "2026-11-09",
+      "purpose": "Check primary keys, prefix restore and successful-job save."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://playwright.dev/docs/ci#caching-browsers",
+      "checked_at": "2026-11-09",
+      "purpose": "Version browser caches and retain uncached OS dependency installation."
+    }
+  ],
+  "invariants": [
+    "Every dependency/browser install restores the shared cache first.",
+    "The actual downloader environment and cached paths agree.",
+    "Keys use runner OS, architecture and the resolved lockfile version; restore prefixes stay on the same OS and architecture.",
+    "Installation and checksum/identity validation always run, including cache hits."
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "scripts/install-electron-runtime.mjs",
+      "symbol": "ensureElectronRuntime"
+    }
+  ],
+  "door_reduction": {
+    "before": 1,
+    "after": 1
+  },
+  "generality_proof": "The same action sets job-wide cache paths on all platforms and all 24 install jobs. All six browser installers inherit the Playwright path. The all-workflow structural test rejects omitted, late or conditional cache steps and conflicting environment declarations. The JS door-map covers ensureElectronRuntime only; the YAML/shell entry census is enforced by the structural test.",
+  "shared_boundaries": [
+    {
+      "path": ".github/actions/cache-external-downloads/action.yml",
+      "symbol": "runs",
+      "responsibility": "Own job-wide external binary paths and versioned actions/cache restoration before installation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "contracts and unit pnpm install",
+      "disposition": "enforced",
+      "evidence": "Both restore the shared action first; unit also installs Chromium through the existing shell script."
+    },
+    {
+      "path": ".github/workflows/win-gate.yml",
+      "entry_point": "Windows dependency install jobs",
+      "disposition": "enforced",
+      "evidence": "Same action and lower-case electron_config_cache are exported through GITHUB_ENV for Windows."
+    },
+    {
+      "path": ".github/workflows/site-data-sync.yml",
+      "entry_point": "ignore-scripts dependency install",
+      "disposition": "enforced",
+      "evidence": "Still restores the action, so future postinstall enabling cannot silently omit the binary cache."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "An external outage reaches multiple operating systems and each future ephemeral runner.",
+    "same_class_scan": [
+      "git grep -n \"pnpm install\" -- .github: 24 run commands in 11 workflows, excluding one comment.",
+      "git grep -nE \"playwright install|ci-install-chromium|curl|wget|download|postinstall\" -- .github: six Chromium installs; release/artifact downloads occur after installation.",
+      "package.json pnpm.onlyBuiltDependencies permits electron, esbuild and platform ffmpeg/ffprobe packages; registry-packaged platform binaries stay in the pnpm store."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": ".github/actions/cache-external-downloads/action.yml",
+    "invariant": "All CI external binary consumers restore versioned cache before install and share exact downloader paths.",
+    "failure_mode": "Missing lockfile version fails preparation; missing or mismatched wiring fails Contracts. Cold-cache upstream failures remain visible.",
+    "exception_policy": "none",
+    "strategy": "One composite action owns paths and restore keys; an all-workflow node test in Contracts detects omissions without per-job allowlists.",
+    "artifacts": [
+      ".github/actions/cache-external-downloads/action.yml",
+      ".github/workflows/win-gate.yml",
+      ".github/workflows/full-experience-run.yml",
+      ".github/workflows/desktop-release.yml",
+      ".github/workflows/quality-gate.yml",
+      ".github/workflows/nightly-walkthroughs.yml",
+      ".github/workflows/site-data-sync.yml",
+      ".github/workflows/win-installer.yml",
+      ".github/workflows/archetype-autosync.yml",
+      ".github/workflows/desktop-rc.yml",
+      ".github/workflows/win-invalid-state-probe.yml",
+      ".github/workflows/desktop-preview.yml"
+    ]
+  },
+  "regression_tests": [
+    "scripts/ci-external-download-cache.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/ci-external-download-cache.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No alternate installer exists; existing install and identity validation remain the only runtime path."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "Electron 43.4.1 with @electron/get 3.1.0; Playwright 1.60.0",
+    "target": "Retain pinned versions while their cache APIs and checksums satisfy the action contract.",
+    "rationale": "This is missing CI cache ownership, not a dependency-version defect; version changes are outside the task.",
+    "exit_criteria": [
+      "When Electron changes installer/cache variable semantics, inspect the lockfile-selected installer and pass the path/key contract before updating this action.",
+      "When Playwright changes browser version or cache layout, prove the new lockfile key and effective PLAYWRIGHT_BROWSERS_PATH on a real runner."
+    ]
+  },
+  "migration": "No user data migration; initial runner caches are cold and save only after successful jobs.",
+  "residual_risks": [
+    "First cache seed and GitHub cache availability still depend on external infrastructure.",
+    "Actual CI save, subsequent cache hit and absence of Electron Releases download remain unverified until coordinator push/rerun."
+  ],
+  "invariant_owner_layer": {
+    "layer": ".github/actions/cache-external-downloads/action.yml",
+    "tests": [
+      "scripts/ci-external-download-cache.node-test.mjs"
+    ]
+  },
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-09"
+}

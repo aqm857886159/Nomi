@@ -109,8 +109,11 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: External download cache contract
+        run: node --test scripts/ci-external-download-cache.node-test.mjs
       - name: Static contracts, lint, and types
         run: pnpm run test:system:contracts
       - name: Autosync publication regression
@@ -147,6 +150,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
+        with:
+          playwright: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Chromium for browser integration tests
@@ -196,6 +202,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
+        with:
+          playwright: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Plan shard
@@ -349,6 +358,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build selected desktop surfaces once
@@ -395,6 +405,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build selected desktop surfaces once
@@ -457,6 +468,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build selected desktop surfaces once
@@ -499,6 +511,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build
@@ -527,6 +540,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
+        with:
+          playwright: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Chromium
