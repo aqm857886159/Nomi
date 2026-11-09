@@ -40,7 +40,7 @@
   "invariants": [
     "Only explicit exit0 is green; exit125 and absent/invalid/duplicate results cannot erase a known red.",
     "Recovery requires all expected current-SHA batch evidence, successful needs, no missing, skipped, failed or unknown state.",
-    "Only new observed red transitions yield one consolidated comment; first activation records stock without inventing first-red history."
+    "Only new observed red transitions yield one consolidated comment; failed delivery stays pending, and accepted comments are deduplicated by their receipt marker. First activation records stock without inventing first-red history."
   ],
   "doors": [
     {

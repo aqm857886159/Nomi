@@ -18,14 +18,17 @@ function evidence(rows, current = receipt()) {
   return { receipt: current, expectedBatches: batches, manifests: batches.map((b) => ({ ...b, ...current })), sentinels: batches.map((b) => ({ batch: b.batch, ...current, result: 'success' })), needs: { walks: { result: 'success' }, 'packaged-mac': { result: 'success' } } }
 }
 const summarize = (rows, options = evidence(rows)) => summarizeRows(rows, () => 'AssertionError: expected one, received zero', options)
-function fakeGh(body = '', exists = true) {
+function fakeGh(body = '', exists = true, acceptedComments = []) {
   const calls = []
   const run = (args) => {
     calls.push(args)
     if (args[1] === 'list') return JSON.stringify(exists ? [{ number: 1121, title: summary.ISSUE_TITLE }] : [])
-    if (args[1] === 'view') return JSON.stringify({ body })
+    if (args[1] === 'view') return JSON.stringify({ body, comments: acceptedComments.map((body) => ({ body })) })
     if (args[1] === 'edit' || args[1] === 'create') body = fs.readFileSync(args[args.indexOf('--body-file') + 1], 'utf8')
-    if (args[1] === 'comment') calls[calls.length - 1] = [...args, fs.readFileSync(args[args.indexOf('--body-file') + 1], 'utf8')]
+    if (args[1] === 'comment') {
+      const message = fs.readFileSync(args[args.indexOf('--body-file') + 1], 'utf8')
+      calls[calls.length - 1] = [...args, message]; acceptedComments.push(message)
+    }
     return ''
   }
   return { calls, run, get body() { return body }, get comments() { return calls.filter((a) => a[1] === 'comment').map((a) => a.at(-1)) } }
@@ -288,4 +291,29 @@ test('hundreds of receipt-bearing states fit the issue; write failures never sil
   const gh = fakeGh('human notes')
   assert.throws(() => updateIssue({ result: summarize([row('a.walk.mjs')]), repo: 'o/r', run(args) { if (args[1] === 'view') throw new Error('cannot read body'); return gh.run(args) } }), /cannot read body/)
   assert.equal(gh.calls.some((c) => ['edit', 'create', 'comment'].includes(c[1])), false)
+})
+
+test('comment failure retains first-red evidence for next run; accepted-but-uncertain comments are not duplicated', () => {
+  const green = publish([row('a.walk.mjs', 0)])
+  const redRows = [row('a.walk.mjs')]
+  for (const accepted of [false, true]) {
+    const transport = fakeGh(green.body)
+    assert.throws(() => updateIssue({ result: summarize(redRows, evidence(redRows, receipt('3', 'c'.repeat(40)))), repo: 'o/r', run(args) {
+      if (args[1] !== 'comment') return transport.run(args)
+      if (accepted) transport.run(args)
+      throw new Error('comment transport failed')
+    } }), /comment transport failed/)
+    const pending = summary.readState(transport.body).state
+    assert.ok(pending.pendingComment)
+    assert.equal(pending.walks['a.walk.mjs'].firstObservedRed.run, '3')
+    const next = fakeGh(transport.body, true, [...transport.comments])
+    updateIssue({ result: summarize(redRows, evidence(redRows, receipt('4', 'd'.repeat(40)))), repo: 'o/r', run: next.run })
+    assert.equal(next.comments.length, accepted ? 0 : 1)
+    if (!accepted) {
+      assert.match(next.comments[0], /run 3/)
+      assert.ok(next.comments[0].includes('c'.repeat(40)))
+    }
+    assert.equal(summary.readState(next.body).state.pendingComment, null)
+    assert.equal(summary.readState(next.body).state.walks['a.walk.mjs'].firstObservedRed.run, '3')
+  }
 })

@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { gzipSync, gunzipSync } from 'node:zlib'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { makeTempDir, cleanupTestTemp } from './_test-temp.mjs'
 import { BUILD_GATE_STATUS, BUILD_GATE_WALK } from './nightly-build-gate.mjs'
@@ -165,7 +166,7 @@ export function readState(body) {
     const envelope = JSON.parse(body.slice(begin + START.length, end).trim())
     if (envelope.version !== 1 || envelope.encoding !== 'gzip-base64' || typeof envelope.data !== 'string') throw new Error('invalid envelope')
     const state = JSON.parse(gunzipSync(Buffer.from(envelope.data, 'base64'), { maxOutputLength: 8 * 1024 * 1024 }).toString('utf8'))
-    if (state.version !== 1 || !state.walks || typeof state.walks !== 'object' || Array.isArray(state.walks) || typeof state.integrityComplete !== 'boolean' || typeof state.recovered !== 'boolean' || !validReceipt(state.latestRun)) throw new Error('invalid state')
+    if (state.version !== 1 || !state.walks || typeof state.walks !== 'object' || Array.isArray(state.walks) || typeof state.integrityComplete !== 'boolean' || typeof state.recovered !== 'boolean' || !validReceipt(state.latestRun) || !(state.pendingComment === null || (state.pendingComment && /^[a-f0-9]{64}$/.test(state.pendingComment.id) && typeof state.pendingComment.body === 'string'))) throw new Error('invalid state')
     for (const entry of Object.values(state.walks)) {
       if (!entry || !['red', 'green', 'unknown'].includes(entry.lastKnownStatus) || !(entry.firstObservedRed === null || validReceipt(entry.firstObservedRed)) || !(entry.lastGreen === null || validReceipt(entry.lastGreen)) || !Array.isArray(entry.episodes) || typeof entry.latestEvidenceRun !== 'string' || typeof entry.proposedOwner !== 'string' || !['green', 'red', 'skipped', 'missing'].includes(entry.lastObservedStatus)) throw new Error('invalid walk state')
       if (entry.episodes.some((episode) => !(episode.firstObservedRed === null || validReceipt(episode.firstObservedRed)) || !validReceipt(episode.resolved))) throw new Error('invalid episode')
@@ -221,7 +222,8 @@ export function updateIssue({ result, repo, run = gh }) {
   const existing = JSON.parse(run(['issue', 'list', '--repo', repo, '--state', 'open', '--search', `${ISSUE_TITLE} in:title`, '--json', 'number,title']))
   if (existing.length > 1) throw new Error('Multiple nightly issues; refusing to overwrite an ambiguous ledger')
   const issue = existing[0]
-  const oldBody = issue ? JSON.parse(run(['issue', 'view', String(issue.number), '--repo', repo, '--json', 'body'])).body : ''
+  const previousIssue = issue ? JSON.parse(run(['issue', 'view', String(issue.number), '--repo', repo, '--json', 'body,comments'])) : { body: '', comments: [] }
+  const oldBody = previousIssue.body
   if (typeof oldBody !== 'string') throw new Error('Unable to read nightly issue body')
   const prior = readState(oldBody)
   const { state, newRed, integrityRegressed, justRecovered } = mergeState(result, prior)
@@ -229,7 +231,7 @@ export function updateIssue({ result, repo, run = gh }) {
   const report = [REPORT_START, result.markdown, `状态账读取：${prior.status}；首次红 SHA 只表示首次观测，不表示致因提交。`,
     `本次新红 ${newRed.length}；仍记红 ${Object.values(state.walks).filter((w) => w.lastKnownStatus === 'red').length}。`,
     '| 走查 | 已知状态 | 首次观测红 SHA / run | 上次绿 SHA | 最近证据 run | 建议主人 |', '|---|---|---|---|---|---|',
-    ...Object.entries(state.walks).filter(([, e]) => e.lastKnownStatus === 'red').map(([w, e]) => `| ${cell(w)} | red | ${e.firstObservedRed ? `${e.firstObservedRed.sha} / ${e.firstObservedRed.run}` : 'unknown（存量）'} | ${e.lastGreen?.sha ?? 'unknown'} | ${e.latestEvidenceRun} | ${cell(e.proposedOwner)} |`), REPORT_END].join('\n')
+    ...Object.entries(state.walks).filter(([, e]) => e.lastKnownStatus === 'red').map(([w, e]) => `| ${cell(w)} | red | ${e.firstObservedRed ? `${e.firstObservedRed.sha.slice(0, 9)} / ${e.firstObservedRed.run}` : 'unknown（存量）'} | ${e.lastGreen?.sha.slice(0, 9) ?? 'unknown'} | ${e.latestEvidenceRun} | ${cell(e.proposedOwner)} |`), REPORT_END].join('\n')
   let preserved = oldBody
   if (oldBody.trim() && !oldBody.includes(REPORT_START)) preserved = `<details><summary>历史正文 / 人工备注（非本夜结论）</summary>\n\n${oldBody}\n\n</details>`
   if (prior.status === 'ok') preserved = preserved.slice(0, preserved.indexOf(START)) + preserved.slice(preserved.indexOf(END) + END.length)
@@ -237,15 +239,21 @@ export function updateIssue({ result, repo, run = gh }) {
   if (reportStart >= 0 && reportEnd > reportStart) preserved = preserved.slice(0, reportStart) + preserved.slice(reportEnd + REPORT_END.length)
   // Keep malformed original state as evidence outside the active block, without leaving duplicate markers.
   preserved = preserved.replaceAll(START, '<!-- invalid-nightly-state:start -->').replaceAll(END, '<!-- invalid-nightly-state:end -->')
-  const body = [report, stateBlock(state), preserved.trim()].filter(Boolean).join('\n\n')
-  if (body.length > 65000) throw new Error('Nightly issue body exceeds safe size; existing ledger left untouched')
   const comment = [
-    ...(newRed.length ? ['新增红项（首次观测点，不声明致因提交）：', ...newRed.map((e) => `- ${cell(e.walk)}：${e.baselineUnknown ? '首次观测红、基线未知；' : ''}${e.failureLine}；[日志 ${cell(e.log)}][logs]；首红 SHA ${e.firstObservedRed.sha} / [run ${e.firstObservedRed.run}][run] / ${e.firstObservedRed.time}；上次绿 SHA ${e.lastGreen?.sha ?? 'unknown'}；建议主人：${cell(e.proposedOwner)}`)] : []),
+    ...(newRed.length ? ['新增红项（首次观测点，不声明致因提交）：', ...newRed.map((e) => `- ${cell(e.walk)}：${e.baselineUnknown ? '首次观测红、基线未知；' : ''}${e.failureLine}；[日志 ${cell(e.log)}][logs-${e.firstObservedRed.run}-${e.firstObservedRed.attempt}]；首红 SHA ${e.firstObservedRed.sha} / [run ${e.firstObservedRed.run}][run-${e.firstObservedRed.run}] / ${e.firstObservedRed.time}；上次绿 SHA ${e.lastGreen?.sha ?? 'unknown'}；建议主人：${cell(e.proposedOwner)}`)] : []),
     ...(integrityRegressed ? [`完整性由 complete 变为 infrastructure failed/unknown：[run](${result.receipt.url})；${result.integrity.issues.map(cell).join('；')}`] : []),
     ...(justRecovered ? [`夜跑已恢复：${result.passed.length} 条明确通过，0 跳过，0 缺失，全部批次成功。[run](${result.receipt.url})`] : []),
   ]
-  if (newRed.length) comment.push(`\n[logs]: ${result.receipt.url}#artifacts`, `[run]: ${result.receipt.url}`)
-  const commentBody = comment.join('\n').replaceAll('@', '＠')
+  if (newRed.length) comment.push(`\n[logs-${result.receipt.run}-${result.receipt.attempt}]: ${result.receipt.url}#artifacts`, `[run-${result.receipt.run}]: ${result.receipt.url}`)
+  const currentComment = comment.join('\n').replaceAll('@', '＠')
+  const pending = prior.state?.pendingComment
+  if (pending && !Array.isArray(previousIssue.comments)) throw new Error('Cannot verify pending nightly comment receipt')
+  const alreadySent = pending && previousIssue.comments.some((entry) => typeof entry.body === 'string' && entry.body.includes(`<!-- nightly-notification:${pending.id} -->`))
+  const commentBody = [pending && !alreadySent ? pending.body : '', currentComment].filter(Boolean).join('\n\n')
+  state.pendingComment = commentBody ? { id: createHash('sha256').update(commentBody).digest('hex'), body: commentBody } : null
+  const renderBody = () => [report, stateBlock(state), preserved.trim()].filter(Boolean).join('\n\n')
+  const body = renderBody()
+  if (body.length > 65000) throw new Error('Nightly issue body exceeds safe size; existing ledger left untouched')
   if (commentBody.length > 65000) throw new Error('Nightly comment exceeds safe size; existing ledger left untouched')
   const temp = makeTempDir('nomi-nightly-body-')
   try {
@@ -253,8 +261,11 @@ export function updateIssue({ result, repo, run = gh }) {
     if (issue) run(['issue', 'edit', String(issue.number), '--repo', repo, '--title', title, '--body-file', bodyFile])
     else run(['issue', 'create', '--repo', repo, '--title', title, '--body-file', bodyFile])
     if (issue && commentBody) {
-      const commentFile = path.join(temp, 'comment.md'); fs.writeFileSync(commentFile, commentBody)
+      const commentFile = path.join(temp, 'comment.md'); fs.writeFileSync(commentFile, `${commentBody}\n\n<!-- nightly-notification:${state.pendingComment.id} -->`)
       run(['issue', 'comment', String(issue.number), '--repo', repo, '--body-file', commentFile])
+      state.pendingComment = null
+      fs.writeFileSync(bodyFile, renderBody())
+      run(['issue', 'edit', String(issue.number), '--repo', repo, '--title', title, '--body-file', bodyFile])
     }
   } finally { cleanupTestTemp(temp) }
   return { state, newRed }
