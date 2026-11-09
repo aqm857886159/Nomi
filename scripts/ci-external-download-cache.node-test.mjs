@@ -8,6 +8,8 @@ import { load } from 'js-yaml'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const actionPath = '.github/actions/cache-external-downloads'
+// actions/cache@v4 跑在已弃用的 Node 20 上，每个 job 留一条弃用注解，CI 注解门岗判红（#1469）。三个缓存步骤只认这一个 Node 24 主版本。
+const CACHE_ACTION = 'actions/cache@v6'
 const protectedEnv = ['electron_config_cache', 'ELECTRON_CACHE', 'PLAYWRIGHT_BROWSERS_PATH', 'ELECTRON_BUILDER_CACHE']
 const workflows = fs.readdirSync(path.join(root, '.github/workflows'))
   .filter(name => /\.ya?ml$/.test(name))
@@ -91,7 +93,7 @@ test('cache paths, version keys and same-platform restore prefixes match the act
   assert.equal(output['electron-builder'], dependencies['electron-builder'].version.split('(')[0])
   for (const [index, kind, variable] of [[1, 'electron', 'electron_config_cache'], [2, 'playwright', 'PLAYWRIGHT_BROWSERS_PATH']]) {
     const cache = action.runs.steps[index]
-    assert.match(cache.uses, /^actions\/cache@v[45]$/)
+    assert.equal(cache.uses, CACHE_ACTION)
     assert.equal(cache.if, kind === 'playwright' ? "inputs.playwright == 'true'" : undefined)
     assert.equal(cache['continue-on-error'], undefined)
     assert.equal(cache.with.path, `\${{ env.${variable} }}`)
@@ -99,7 +101,7 @@ test('cache paths, version keys and same-platform restore prefixes match the act
     assert.equal(cache.with['restore-keys'].trim(), `${kind}-v1-\${{ runner.os }}-\${{ runner.arch }}-`)
   }
   const builderCache = action.runs.steps[3]
-  assert.equal(builderCache.uses, 'actions/cache@v4')
+  assert.equal(builderCache.uses, CACHE_ACTION)
   assert.equal(builderCache.if, "inputs.builder == 'true'")
   assert.equal(builderCache['continue-on-error'], undefined)
   assert.equal(builderCache.with.path, '${{ env.ELECTRON_BUILDER_CACHE }}')

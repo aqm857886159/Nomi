@@ -26,7 +26,7 @@ runs:
         fs.appendFileSync(process.env.GITHUB_ENV, `electron_config_cache=${electronCache}\nELECTRON_CACHE=${electronCache}\nPLAYWRIGHT_BROWSERS_PATH=${process.env.RUNNER_TEMP}/nomi-playwright-cache\nELECTRON_BUILDER_CACHE=${process.env.RUNNER_TEMP}/nomi-electron-builder-cache\n`)
         NODE
     - name: Cache Electron downloads
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ env.electron_config_cache }}
         key: electron-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron }}
@@ -34,7 +34,7 @@ runs:
           electron-v1-${{ runner.os }}-${{ runner.arch }}-
     - name: Cache Playwright browsers
       if: inputs.playwright == 'true'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
         key: playwright-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.playwright }}
@@ -42,7 +42,7 @@ runs:
           playwright-v1-${{ runner.os }}-${{ runner.arch }}-
     - name: Cache electron-builder toolchains
       if: inputs.builder == 'true'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ env.ELECTRON_BUILDER_CACHE }}
         key: builder-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.electron-builder }}-${{ github.workflow }}-${{ github.job }}
