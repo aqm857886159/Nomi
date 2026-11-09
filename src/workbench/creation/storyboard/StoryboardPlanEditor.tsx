@@ -515,7 +515,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       {/* 分镜行按**这块**的可用宽度分档（容器查询），不按视口宽——Agent 面板开/关才是真正的变量，
           视口宽只是它的一个远因。`container-type:inline-size` 同时把"内容反过来撑宽容器"这条路堵死，
           于是上面那条 `grid-cols-1` 有了第二道保险。容器起名 `storyboard`，免得被别处的容器截胡。 */}
-      <div ref={scrollRef} className="overflow-y-auto px-4 py-4 flex flex-col gap-4 [container-name:storyboard] [container-type:inline-size]" data-storyboard-scroll="true">
+      <div ref={scrollRef} className="overflow-y-auto px-4 pt-4 pb-20 flex flex-col gap-4 [container-name:storyboard] [container-type:inline-size]" data-storyboard-scroll="true">
         {/* 执行计划审阅条（切片 3）：主进程同源 resolve 的合并/拆条建议 + 阻断问题，逐条采纳即改方案。
             同一份 resolve 结果还喂给表格行的行内警示（D1：摩擦在行上，提示就在行上）。 */}
         <StoryboardPlanStrategyPanel plan={plan} state={strategyState} onChange={setStoryboardPlan} />

@@ -104,3 +104,26 @@ for (const locale of ['zh-CN', 'en']) test(`keyframe toggle preserves authored v
     expect(after.keyframe).toMatchObject({ enabled: false, prompt: 'authored keyframe' })
   } finally { await page.close() }
 })
+
+for (const locale of ['zh-CN', 'en']) for (const scheme of ['light', 'dark']) test(`last row clears selection toolbar ${locale} ${scheme}`, async () => {
+  const page = await fixture.browser.newPage({ viewport: { width: 1100, height: 720 } })
+  try {
+    await page.goto(fixture.url(HARNESS, `?locale=${locale}&many`))
+    await page.addStyleTag({ content: freshTailwindCss() })
+    await page.addStyleTag({ url: '/src/styles/index.css' })
+    await page.evaluate(scheme => document.documentElement.setAttribute('data-mantine-color-scheme', scheme), scheme)
+    const editor = page.locator('[data-storyboard-editor]')
+    await editor.locator('input[data-storyboard-select="3"]').check()
+    await editor.locator('[data-storyboard-scroll]').evaluate(element => { element.scrollTop = element.scrollHeight })
+    const summary = editor.locator('[data-storyboard-row="3"] [data-parameter-summary]')
+    await expect(summary).toBeVisible()
+    const rowBox = await summary.boundingBox()
+    const toolbarBox = await editor.locator('[data-storyboard-selection-toolbar]').boundingBox()
+    const folder = path.resolve('tests/ux/shots/storyboard-only-what-works')
+    fs.mkdirSync(folder, { recursive: true })
+    await page.screenshot({ path: path.join(folder, `${locale}-${scheme}-scroll-clearance.png`) })
+    const clearance = await editor.locator('[data-storyboard-scroll]').evaluate(element => Number.parseFloat(getComputedStyle(element).paddingBottom))
+    expect(clearance, 'The scroll tail must reserve at least the actual toolbar height').toBeGreaterThanOrEqual(toolbarBox.height)
+    expect(rowBox.y + rowBox.height, 'The final parameter text must scroll fully above the sticky actions').toBeLessThanOrEqual(toolbarBox.y)
+  } finally { await page.close() }
+})
