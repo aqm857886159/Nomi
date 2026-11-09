@@ -36,40 +36,40 @@ const NAMED_RATIO_TO_WH: Readonly<Record<string, string>> = {
   landscape_21_9: "21:9",
 };
 
-// 「什么算 W:H」的单一真相。解析与规范化必须同进同退——两边各写一份正则，迟早一边认得的值另一边不认（曾如此）。
-// 允许可选的说明后缀：ComfyUI 工作流的比例枚举常写成 "16:9 (宽屏)" / "4:3（标准）"。
+// 数字几何只解析一次；界面比例与像素尺寸的分类不等于能不能读出宽高。
+// 可选说明后缀兼容 ComfyUI 的 "16:9 (宽屏)" / "4:3（标准）"。
 const ASPECT_RATIO_LABEL_RE = /\s*[（(][^）)]*[）)]$/;
-const ASPECT_RATIO_WH_RE = /^(\d+(?:\.\d+)?)\s*[:：]\s*(\d+(?:\.\d+)?)(?:\s*[（(][^）)]*[）)])?$/;
+const ASPECT_RATIO_WH_RE = /^(\d+(?:\.\d+)?)\s*([:：x×*])\s*(\d+(?:\.\d+)?)(?:\s*[（(][^）)]*[）)])?$/;
 
-/** 「自动」语义的选项（auto / adaptive / 自动 …）。比例组里它是一档，不是比例本身。 */
+/** 「自动」语义的选项：比例组里是一档，不是数字比例。 */
 const AUTO_OPTION_PATTERN = /^(auto|automatic|adaptive|自动|智能)$/i;
 
-/**
- * 把 "W:H" 比例字符串（或 named bucket）解析成数值宽高比（width / height）。
- * 不认识的值（"adaptive" / "auto" / "2K" / 空）→ null。支持中文冒号「：」与说明后缀。
- */
-export function parseAspectRatioValue(value: unknown): number | null {
+/** 宿主读取几何：比例、命名档、WxH/W×H/W*H；不替调用方决定显示或控件分组。 */
+export function readAspectRatioGeometry(value: unknown): WidthHeight | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  const match = trimmed.match(ASPECT_RATIO_WH_RE);
-  if (match) {
-    const width = Number(match[1]);
-    const height = Number(match[2]);
-    if (!(width > 0) || !(height > 0)) return null;
-    return width / height;
-  }
-  const mapped = NAMED_RATIO_TO_WH[trimmed];
-  return mapped ? parseAspectRatioValue(mapped) : null;
+  const match = (NAMED_RATIO_TO_WH[trimmed] ?? trimmed).match(ASPECT_RATIO_WH_RE);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[3]);
+  return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 ? { width, height } : null;
+}
+
+/** 界面比例的数值：像素串仍不参与比例 chip、排序与控件分组。 */
+export function parseAspectRatioValue(value: unknown): number | null {
+  const size = widthHeightOf(value);
+  return size ? size.width / size.height : null;
 }
 
 /**
- * 把任意比例值规范化为 "W:H" 字符串（只剥说明后缀、映射具名桶，冒号字面量不改）。
- * 不认识（"auto" / "2K" / 像素串 "448x1024"）→ null。
+ * 界面比例规范化：只剥说明后缀、映射具名桶，冒号字面量不改。
+ * 像素串仍返回 null：保护「尺寸显示成440」回归，不能把能读几何等同于比例展示。
  */
 export function normalizeAspectRatioToWH(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (ASPECT_RATIO_WH_RE.test(trimmed)) return trimmed.replace(ASPECT_RATIO_LABEL_RE, "").trim();
+  const match = trimmed.match(ASPECT_RATIO_WH_RE);
+  if (match && (match[2] === ":" || match[2] === "：")) return trimmed.replace(ASPECT_RATIO_LABEL_RE, "").trim();
   return NAMED_RATIO_TO_WH[trimmed] ?? null;
 }
 
@@ -152,11 +152,7 @@ const PIXEL_MIN_SIDE = 100;
 type WidthHeight = Readonly<{ width: number; height: number }>;
 
 function widthHeightOf(value: unknown): WidthHeight | null {
-  const match = normalizeAspectRatioToWH(value)?.match(/^(\d+(?:\.\d+)?)\s*[:：]\s*(\d+(?:\.\d+)?)$/);
-  if (!match) return null;
-  const width = Number(match[1]);
-  const height = Number(match[2]);
-  return width > 0 && height > 0 ? { width, height } : null;
+  return readAspectRatioGeometry(normalizeAspectRatioToWH(value));
 }
 
 const isPixelSize = (size: WidthHeight): boolean => Math.min(size.width, size.height) >= PIXEL_MIN_SIDE;
@@ -266,6 +262,45 @@ export function resolveAspectRatioChoice(
     return size !== null && isPixelSize(size) && drift(value) <= PIXEL_RATIO_TOLERANCE;
   });
   return sameRatio.length === 0 ? notOffered() : pickBySize(sameRatio, drift);
+}
+
+/** 宿主语义匹配：几何必须完全一致；复用既有同档选择，保留供应商原值。 */
+export function resolveAspectRatioGeometryChoice(
+  requested: string,
+  controls: readonly AspectRatioControlLike[],
+  current: Readonly<Record<string, unknown>> = {},
+): AspectRatioChoice {
+  const geometryValue = (value: unknown): unknown => {
+    const geometry = readAspectRatioGeometry(value);
+    return geometry ? `${geometry.width}:${geometry.height}` : value;
+  };
+  const projected = controls.map(control => ({ ...control,
+    defaultValue: geometryValue(control.defaultValue),
+    options: control.options.map(option => ({ ...option, value: geometryValue(option.value) })),
+  }));
+  const eligible = projected.filter(control => isRatioControl(control.options));
+  if (eligible.length === 0) return { ok: false, reason: "no_ratio_control" };
+  if (eligible.length > 1) return { ok: false, reason: "ambiguous", keys: eligible.map(control => control.key) };
+  const control = eligible[0]!;
+  const original = controls[projected.indexOf(control)]!;
+  const target = readAspectRatioGeometry(requested);
+  const matches = isAutoOptionValue(requested) ? control.options : control.options.filter(option => {
+    const size = readAspectRatioGeometry(option.value);
+    return target !== null && size !== null && size.width * target.height === target.width * size.height;
+  });
+  if (matches.length === 0) return { ok: false, reason: "not_offered", key: control.key,
+    allowedValues: original.options.map(option => option.value) };
+  const ratio = target === null ? undefined : matches.find(option => {
+    const size = readAspectRatioGeometry(option.value);
+    return size !== null && !isPixelSize(size);
+  });
+  if (ratio) return { ok: true, key: control.key, value: original.options[control.options.indexOf(ratio)]!.value };
+  const choice = resolveAspectRatioChoice(String(geometryValue(requested)), [{ ...control, options: matches }],
+    { ...current, [control.key]: geometryValue(current[control.key]) });
+  const restore = (value: unknown): unknown => original.options.find(option => Object.is(geometryValue(option.value), value))!.value;
+  if (choice.ok) return { ...choice, value: restore(choice.value) };
+  if (choice.reason === "several_sizes") return { ...choice, candidates: choice.candidates.map(restore) };
+  return choice.reason === "not_offered" ? { ...choice, allowedValues: original.options.map(option => option.value) } : choice;
 }
 
 /** 这个模式唯一的比例控件的键；没有、或不止一个 → undefined（不挑一个）。 */

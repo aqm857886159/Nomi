@@ -34,6 +34,9 @@ const registry = createModuleRegistry([{
       { modelId: "doubao-seedream-5-0-260128", modes: ["text_to_image"], parameterSchema: {}, capabilities },
       { modelId: "doubao-seedance-2-0-260128", modes: ["text_to_video", "image_to_video"], parameterSchema: {}, capabilities },
     ] },
+    { providerId: "kie", models: [
+      { modelId: "happyhorse", modes: ["image_to_video"], parameterSchema: {}, capabilities },
+    ] },
   ],
 }]);
 
@@ -141,8 +144,14 @@ describe("ratio_not_in_mode：这个模式出不了要的比例", () => {
     expect(problem?.allowed).not.toContain("21:9");
   });
 
-  it("volcengine doubao-seedream-5-0-260128 按像素出图、没有比例档 → ratio_not_in_mode，不带可选值，下一步是去掉比例", () => {
-    const { problem } = refusal(() => normalizeAuthoredCandidate(candidate("volcengine", "doubao-seedream-5-0-260128", "text_to_image", { aspectRatio: "3:4" }), registry, undefined));
+  it("火山 Seedream 的3:4有精确像素档 → 接受1728x2304", () => {
+    expect(normalizeAuthoredCandidate(candidate("volcengine", "doubao-seedream-5-0-260128", "text_to_image", { aspectRatio: "3:4" }), registry, undefined).parameters)
+      .toEqual({ size: "1728x2304" });
+  });
+
+  it("HappyHorse i2v没有比例控件 → ratio_not_in_mode，不带可选值，下一步是去掉比例", () => {
+    const videos = buildVideoModelCandidates([{ provider: "kie", modelKey: "happyhorse", label: "HappyHorse" }]);
+    const { problem } = refusal(() => normalizeAuthoredCandidate(candidate("kie", "happyhorse", "image_to_video", { aspectRatio: "3:4" }, { modeId: "i2v" }), registry, videos));
     expect(problem).toMatchObject({ code: "ratio_not_in_mode", field: "aspectRatio", next: "drop_field" });
     expect(problem).not.toHaveProperty("allowed");
   });

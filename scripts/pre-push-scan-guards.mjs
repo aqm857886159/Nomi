@@ -34,6 +34,7 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
+  { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。
   // Reviewed response JSON is data, but changes must still run the status contract in the normal batch.
   { file: 'tests/relay-onboarding/profile-statuses.test.mjs', roots: ['tests/relay-onboarding/fixtures/relay-profile-responses'], exts: '*' },
   // Each release adds a real old catalog here; a new directory must run the upgrade matrix before the push, not first in CI (under 5 s).
@@ -236,7 +237,7 @@ export function scanGuardProblems({ root, testFiles, scanTests, gateScripts, gat
   for (const group of ciOnly) if (!group.reason || String(group.reason).length < 12) problems.push(`SCAN_GUARD_CI_ONLY：${group.files.join('、')} 缺理由`)
   for (const [file, reason] of Object.entries(notScans)) if (!reason || String(reason).length < 8) problems.push(`NOT_SOURCE_SCANS：${file} 缺理由`)
   for (const guard of guards) {
-    if (/\.node-test\.[cm]?[jt]s$/.test(guard.file)) problems.push(`SCAN_GUARDS：${guard.file} 是 node:test 文件，批量门岗目前只跑 vitest；要登记 node:test 守卫先给 SCAN_TESTS 加 node 批`)
+    if (/\.node-test\.[cm]?[jt]s$/.test(guard.file) && !scanTests.has(guard.file)) problems.push(`SCAN_GUARDS：${guard.file} 是 node:test 文件，必须登记到 SCAN_TESTS 的 node 批`)
     if (!guard.all && !(guard.roots?.length) && !(guard.files?.length) && !guard.match) problems.push(`SCAN_GUARDS：${guard.file} 没写它扫哪些目录（roots / files / match / all）`)
   }
   // 未登记：识别为扫描型、又没有任何去处
