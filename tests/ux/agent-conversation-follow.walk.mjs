@@ -13,7 +13,7 @@
 // 拍板图断言：board:ConversationJumpToLatest/button（按钮出现 / 隐藏、文案、点了回到底并继续跟）。
 import fs from 'node:fs'
 import path from 'node:path'
-import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   ASSISTANT_MESSAGE, COLLAPSE_BUTTON, COLLAPSED_DOCK, COMPOSER, CREATION_PANEL, HISTORY_BUTTON, THREAD_MENU, USER_BUBBLE, V4_FLOW,
@@ -131,8 +131,10 @@ try {
   await wheel(-900)
   walk.report.leftThreadA = await geometry()
   if (walk.report.leftThreadA.gap < 300) throw new Error('离开 A 前没有真的往上翻，切回落点检查缺少阅读位置这个前提')
+  const userBubbles = panel.locator(USER_BUBBLE)
+  const userBubbleProof = await proveProbe(userBubbles, 'A 会话能找到已发送的用户消息')
   await newConversation(win, CREATION_PANEL)
-  await expect(panel.locator(USER_BUBBLE)).toHaveCount(0)
+  await expectAbsent(userBubbles, { provenBy: userBubbleProof, message: '新会话不带旧用户消息' })
   for (let turn = 1; turn <= TURNS_PER_THREAD; turn += 1) await sendTurn(`CF-B-${turn}`)
   const seeded = await geometry()
   walk.report.flowOverflowPx = seeded.height - seeded.client
