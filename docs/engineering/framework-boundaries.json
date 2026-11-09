@@ -439,9 +439,9 @@
                     "at": "electron/agentLane/laneModelProvider.mts:124"
                   },
                   "input": {
-                    "verdict": "constant",
-                    "value": "['text', 'image']",
-                    "reason": "这条通道只接文本与图片：音频/视频产物在 Nomi 走生成画布的产物链，不进模型对话的输入位（进了就等于把大文件塞进转录，冷恢复时要重放整段）。"
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneModelProvider.mts:215",
+                    "reason": "SDK 原生词表仍只认 text/image，由模型声明投影；原始音视频通过 Nomi 主进程素材绑定在请求载荷边界序列化，不把字节写入持久化转录。"
                   },
                   "cost": {
                     "verdict": "derived",

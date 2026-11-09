@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-09T09:44:35.898Z",
+  "results": [
+    {
+      "locale": "zh-CN",
+      "savedThroughProductionCatalog": true,
+      "screenshot": "zh-CN.png",
+      "text": "按供应商文档选择模型支持的原始媒体输入。不支持的输入会明确报错，不会自动转写、抽帧或生成概要。\n\n文本接口\nGemini native\n图片输入\n原始音频输入\n原始视频输入"
+    },
+    {
+      "locale": "en",
+      "savedThroughProductionCatalog": true,
+      "screenshot": "en.png",
+      "text": "Declare original media inputs supported by the provider. Unsupported inputs fail explicitly instead of being transcribed, sampled into frames, or summarized.\n\nText API\nGemini native\nImage input\nOriginal audio input\nOriginal video input"
+    }
+  ]
+}

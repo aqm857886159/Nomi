@@ -833,6 +833,18 @@
   ],
   "entries": [
     {
+      "id": "native-model-input-boundary",
+      "capability": "Bind Nomi-owned original media asset claims to transient provider payloads and declared per-model protocol/input settings",
+      "status": "justified",
+      "paths": ["electron/ai/nativeFilePayload.ts", "electron/shared/textModelInput.ts"],
+      "alternativesChecked": [
+        { "name": "pi-ai Google adapter handles streaming, reasoning signatures, tools and normal image conversion; it does not resolve Nomi project asset claims or enforce Nomi model-local input metadata", "source": "https://github.com/earendil-works/pi" },
+        { "name": "Google GenAI SDK handles native inlineData serialization and accepts custom fetch; use it rather than implement another HTTP or SSE engine", "source": "https://github.com/googleapis/js-genai" }
+      ],
+      "whyNotIntegrated": "Domain constraint: persisted Nomi project asset identities must be rehydrated only by the main process, remain out of conversation logs, and obey a mixed-relay model-local protocol/capability declaration. The SDK has no knowledge of those identities. Generic transport/streaming remains in pi and Google SDK; only Nomi's asset binding and bounded projection are implemented here.",
+      "revisitWhen": "Remove the marker projection if the shared pi content contract supports typed original files while preserving Nomi asset identity persistence and native transport validation."
+    },
+    {
       "id": "lane-approval-gate",
       "capability": "工具调用审批闸：在 before_tool 里停下等用户，四个动作、七种结局，关窗 / 切项目 / 按停止统一收尾",
       "status": "justified",

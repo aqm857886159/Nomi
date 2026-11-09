@@ -1,0 +1,3643 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-native-multimodal-input",
+  "problem_type": "Native model media capability is lost between project attachments and provider requests",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "electron/ai",
+    "tests": [
+      "electron/ai/nativeFilePayload.test.ts"
+    ]
+  },
+  "symptom": "Audio/video attachments reach a full-modality model as identity text rather than original media, despite the provider accepting native media.",
+  "direct_cause": "Agent skips audio/video bytes, model call content is text/image only, and provider assembly exposes no Google-native transport.",
+  "class_root": "The shared model input contract has no typed original media representation or capability-aware serialization boundary.",
+  "affected_population": [
+    "Agent users attaching audio or video",
+    "Single-shot text tasks with original audio/video references",
+    "Custom and mixed-relay model connections"
+  ],
+  "scope_paths": [
+    "electron/ai/",
+    "electron/agentLane/",
+    "electron/shared/agentLane/",
+    "electron/shared/contracts/modelAccessCapabilities.ts",
+    "electron/catalog/",
+    "electron/integrationCertification/",
+    "electron/providerAdapter/",
+    "src/ui/onboarding/",
+    "src/desktop/providerKind.ts",
+    "src/config/",
+    "electron/desktopStrings.ts",
+    "electron/textTaskRunner.ts",
+    "electron/shared/textModelInput.ts",
+    "src/i18n/locales/onboardingProviders.ts"
+  ],
+  "entry_points": [
+    "Ordinary Agent conversation attachments",
+    "callModelOnce single model call",
+    "Text task reference media",
+    "Custom model configuration and onboarding"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://ai.google.dev/api/generate-content",
+      "checked_at": "2026-11-09",
+      "purpose": "Native inline media parts and generation schema"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ai.google.dev/gemini-api/docs/openai",
+      "checked_at": "2026-11-09",
+      "purpose": "Audio input shape for compatible protocol"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/googleapis/js-genai",
+      "checked_at": "2026-11-09",
+      "purpose": "Supported custom fetch hook preserves Nomi network boundary"
+    }
+  ],
+  "invariants": [
+    "Declared original media arrives byte-for-byte in the supported provider request.",
+    "Unsupported, unreadable or over-limit media is rejected before dispatch, never summarized or silently omitted.",
+    "Persisted conversations contain original asset identities rather than inline media data.",
+    "Existing text/image/PDF and tool-call behavior retains the same owner boundaries."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneApprovalGate.ts",
+      "symbol": "LaneToolSpec"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneAskUserTool.ts",
+      "symbol": "LaneToolDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneAskUserTool.ts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "symbol": "LaneToolExecutionContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "symbol": "LaneToolDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneCodingTools.mts",
+      "symbol": "LaneToolEffect"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "LANE_CONTEXT_TOKEN_BUDGET"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "NativeFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "NativeMediaBudget"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "NativeMediaInputError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "RunLaneSingleShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "OpenDesktopLaneWorkspace"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDocumentTools.ts",
+      "symbol": "LaneToolExecutionContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneDocumentTools.ts",
+      "symbol": "LaneToolDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "LaneToolNextAction"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "LaneToolDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHistory.mts",
+      "symbol": "LaneHandle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHistory.mts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "LaneHandle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "LaneOrderObservation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "LaneHandleWithObservations"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "OpenLane"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "LANE_RETRY_POLICY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "LANE_MAX_MODEL_REQUESTS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "MODEL_CALL_CEILING_ERROR"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "CallModelOnce"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "ModelCallOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "ModelCallResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "bindNativeFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "NativeMediaBudget"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "NativeMediaInputError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "ModelCallCeilingError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "PrewarmModelCall"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "modelConfigSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "NomiModelConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "NomiStreamGuard"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "NomiPricingBasis"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneModelRead.mts",
+      "symbol": "LaneToolSpec"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneNativeApproval.ts",
+      "symbol": "LaneToolEffect"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneNativeAssembly.mts",
+      "symbol": "LaneToolEffect"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneNativeAssembly.mts",
+      "symbol": "NO_CATALOG_MODEL_AVAILABILITY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "OpenDesktopLaneWorkspace"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "RunLaneSingleShot"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "CallModelOnce"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "PrewarmModelCall"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/lanePromptSections.ts",
+      "symbol": "LaneToolSpec"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneProviderGuard.mts",
+      "symbol": "NomiStreamGuard"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRepeatedFailure.mts",
+      "symbol": "LANE_REPEATED_FAILURE_BLOCK"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolNextAction"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolFailureShape"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolSpec"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolExecutionContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolOutcome"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "NomiModelConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolPreflightHost"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneApprovalOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneTaskFactsResolver"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneToolFailureEvent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneHandle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneRuntimePort.ts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "symbol": "NomiModelConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneTimelineTools.ts",
+      "symbol": "LaneToolExecutionContext"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneTimelineTools.ts",
+      "symbol": "LaneToolDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneToolCatalog.ts",
+      "symbol": "LaneToolSpec"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "LaneToolFailureEvent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "LANE_REPEATED_FAILURE_BLOCK"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "LaneToolFailureShape"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneToolInputBoundary.mts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "LaneToolFailureShape"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneTools.mts",
+      "symbol": "LaneToolDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "NomiPricingBasis"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneTraceRecorder.mts",
+      "symbol": "NomiPricingBasis"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneWorkspace.mts",
+      "symbol": "OpenLaneOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/agentLane/laneWorkspace.mts",
+      "symbol": "LaneHandle"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "ImageInputSupport"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "AgentUserAttachment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "NativeMediaBudget"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "AgentUserContent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "NativeMediaInputError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "MAX_NATIVE_FILE_BYTES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/modelCallBridge.ts",
+      "symbol": "ModelCallPort"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/modelCallBridge.ts",
+      "symbol": "CallModelOnce"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/modelCallBridge.ts",
+      "symbol": "ModelProtocol"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "NativeFileContent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "MAX_NATIVE_REQUEST_BYTES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "NativeMediaInputError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "NativeInputModality"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "MAX_NATIVE_FILE_BYTES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "NativeFile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/nativePdfPayload.ts",
+      "symbol": "NativePdf"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "ModelListFailureKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "ModelListResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "ModelListDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/modelListResponse.ts",
+      "symbol": "ModelListDescriptor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/modelListResponse.ts",
+      "symbol": "ModelListFailureKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/modelListResponse.ts",
+      "symbol": "ModelListPage"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "readExtraHeaders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "readExtraHeaders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "ModelListFailureKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "MODEL_CALL_CEILING_ERROR"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/textBrainResolver.ts",
+      "symbol": "ImageInputSupport"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/textBrainResolver.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/textStreamIpc.ts",
+      "symbol": "ModelProtocol"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/textStreamIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/ai/vendorModelConnection.ts",
+      "symbol": "NomiModelConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assetTransportIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/apimartGenerationProvider.ts",
+      "symbol": "extractVendorExtraHeaders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/core.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationDefaultModelResolver.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/liveGenerationRuntime.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "listModelCatalogVendors"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/envelope.ts",
+      "symbol": "DeclaredRouteConflict"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/kit.ts",
+      "symbol": "adapterDraftSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/kitExamples.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+      "symbol": "DeclaredRouteConflictError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelOnboarding/tryModel.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/modelSpecRead.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/moduleCatalogBootstrap.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/productionReferenceUrls.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/usableVideoModelCandidates.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/antigravityCatalog.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "CatalogMutation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogFileAccess.ts",
+      "symbol": "ModelCatalogReadOnlyStatus"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "OnboardingAgent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "listOnboardingAgentCandidates"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "CustomCallConfigPublicEntry"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "CatalogImportConflict"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "CatalogImportResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "CatalogMutation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "AdapterModeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "symbol": "ProviderAdapterRevision"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "symbol": "CapabilityModelDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallDispatch.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallDraft.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "listModelCatalogCustomCallConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/customConfigStore.ts",
+      "symbol": "CustomCallConfigPublicEntry"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/executableModel.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/executableModel.ts",
+      "symbol": "listModelCatalogModels"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/modelListReconcile.ts",
+      "symbol": "ModelListResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/modelRetype.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/types.ts",
+      "symbol": "BILLING_MODEL_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/types.ts",
+      "symbol": "PROFILE_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/types.ts",
+      "symbol": "AI_SDK_PROVIDER_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/types.ts",
+      "symbol": "ASSET_MEDIA_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/types.ts",
+      "symbol": "VENDOR_AUTH_TYPES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "readExtraHeaders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/catalog/vendorAuthSpec.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/comfyuiProgressSocket.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/connectors/tikhubConnectorService.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/desktopStrings.ts",
+      "symbol": "desktopTranslations"
+    },
+    {
+      "kind": "read",
+      "path": "electron/desktopStrings.ts",
+      "symbol": "DesktopTranslationKey"
+    },
+    {
+      "kind": "read",
+      "path": "electron/events/secretsProvider.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/feedback/feedbackCatalog.ts",
+      "symbol": "VENDOR_AUTH_TYPES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/feedback/feedbackCatalog.ts",
+      "symbol": "AI_SDK_PROVIDER_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/credentialElicitationHttp.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "ExistingConnectionModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "HttpLocalRuntimeProbeInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "ExistingConnectionActions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "HttpConnectorPrimitives"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "HttpDiscoveryInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "ProviderAdapterRegisterInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "ProviderAdapterRegistration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "ExistingConnectionStartResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "HttpExistingCertificationStart"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/httpModelDiscovery.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationAdapterContract.ts",
+      "symbol": "AdapterAuthType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationAdapterContract.ts",
+      "symbol": "AI_SDK_PROVIDER_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationAdapterContract.ts",
+      "symbol": "IntegrationCompileRequest"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationAdapterContract.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationAdapterContract.ts",
+      "symbol": "ProviderAdapterModelSelection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "AdapterAuthType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "IntegrationCompileRequest"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "ProviderAdapterModelSelection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSessionRecord.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/integrationSessionRunView.ts",
+      "symbol": "AdapterModeState"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/providerAdapterCoordinator.ts",
+      "symbol": "ProviderAdapterConnectionInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/providerAdapterCoordinator.ts",
+      "symbol": "ProviderAdapterCertificationInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/providerAdapterCoordinator.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/providerAdapterCoordinator.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/providerAdapterCoordinator.ts",
+      "symbol": "ProviderAdapterRevision"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/service.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/service.ts",
+      "symbol": "HttpProviderConnector"
+    },
+    {
+      "kind": "read",
+      "path": "electron/integrationCertification/service.ts",
+      "symbol": "ProviderAdapterRegistration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "listModelCatalogVendors"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "listModelCatalogModels"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "listModelCatalogMappings"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "getModelCatalogHealth"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "deleteModelCatalogVendor"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "clearModelCatalogVendorApiKey"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "deleteModelCatalogModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "deleteModelCatalogModels"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "deleteModelCatalogMapping"
+    },
+    {
+      "kind": "read",
+      "path": "electron/main.ts",
+      "symbol": "exportModelCatalogPackage"
+    },
+    {
+      "kind": "read",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/productionRun/connectedModelScope.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/agentCompileRequest.ts",
+      "symbol": "adapterSuppliedContractSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/agentCompileRequest.ts",
+      "symbol": "AdapterSuppliedContract"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/agentCompileRequest.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "AdapterModelDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "AdapterAuthType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "AdapterMediaProtocol"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "AdapterModeDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/compiler.ts",
+      "symbol": "NomiModelConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/compiler.ts",
+      "symbol": "adapterModelContractSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/compiler.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/compiler.ts",
+      "symbol": "AdapterAuthType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/compiler.ts",
+      "symbol": "ProviderAdapterCompilation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/declarationCard.ts",
+      "symbol": "ASSET_MEDIA_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ExistingConnectionModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ExistingConnectionErrorCode"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ModelListFailureKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ExistingConnectionSummary"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "PublicProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ModelListResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ExistingConnectionAdapterStartInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ExistingConnectionListResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ExistingConnectionStartResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ExistingConnectionActionsDependencies"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "ExistingConnectionActions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/existingConnectionIpc.ts",
+      "symbol": "ExistingConnectionModel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/ipc.ts",
+      "symbol": "ProviderAdapterRegisterInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/ipc.ts",
+      "symbol": "AdapterAuthType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/liveHarness.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/liveHarness.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "AdapterModeDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "DeclaredMapping"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "AdapterModelDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "CapabilityModelDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "NEUTRAL_PARAMETER_ALIASES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "DeclaredModelProjection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "DeclaredRouteConflictReason"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "DeclaredRouteConflict"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "DeclaredReplacementInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "SettledDeclaredReplacement"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "DeclaredRouteConflictError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "AdapterModeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/registration.ts",
+      "symbol": "ProviderAdapterConnectionInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/registration.ts",
+      "symbol": "ProviderAdapterRegisterInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/registration.ts",
+      "symbol": "ProviderAdapterRegistration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/selfCheck.ts",
+      "symbol": "fetchModelList"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/selfCheck.ts",
+      "symbol": "readExtraHeaders"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/selfCheck.ts",
+      "symbol": "AdapterModeDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "ProviderAdapterCertificationInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "AdapterAuthType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "ProviderAdapterCompilation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "ProviderAdapterRegisterInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "ProviderAdapterRegistration"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "ProviderAdapterCompileFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "ProviderAdapterRegisterInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "ProviderAdapterConnectionInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "ProviderAdapterRevision"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "SettledDeclaredReplacement"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "symbol": "ProviderAdapterCompilation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "symbol": "AdapterRunStage"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "symbol": "ProviderAdapterRunInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "ProviderAdapterCompilation"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "ProviderAdapterCompileFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "AdapterModelDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "AdapterModeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceLanguageModels.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceRunLifecycle.ts",
+      "symbol": "AdapterModeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceRunLifecycle.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceRunLifecycle.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceRunLifecycle.ts",
+      "symbol": "ProviderAdapterRevision"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceVerificationResults.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceVerificationResults.ts",
+      "symbol": "ProviderAdapterCompileFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceVerificationResults.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/serviceVerificationResults.ts",
+      "symbol": "AdapterModeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/store.ts",
+      "symbol": "ProviderAdapterStoreState"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/store.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/store.ts",
+      "symbol": "AdapterModeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/store.ts",
+      "symbol": "ProviderAdapterRevision"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/store.ts",
+      "symbol": "ProviderAdapterRunInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/terminalGuarantee.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/terminalGuarantee.ts",
+      "symbol": "AdapterModeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterAuthType"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "ProviderAdapterModelSelection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "ProviderAdapterConnectionInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterModeDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterSourceEvidence"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterModelDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterCompileFailureReason"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "ProviderAdapterCompileFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterModeState"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterModeResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterRunStage"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "AdapterModelResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "ProviderAdapterRun"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "ProviderAdapterRevision"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/types.ts",
+      "symbol": "ProviderAdapterRunInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "PROFILE_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "AdapterModelDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "AI_SDK_PROVIDER_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "BILLING_MODEL_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "adapterSuppliedContractSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "ProviderAdapterDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "PROFILE_KIND_REFERENCE_CHANNEL"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "adapterDraftSchema"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/verifier.ts",
+      "symbol": "AdapterModeDraft"
+    },
+    {
+      "kind": "read",
+      "path": "electron/runtime.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/availableModelsSchema.ts",
+      "symbol": "BILLING_MODEL_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/availableModelsSchema.ts",
+      "symbol": "ARCHETYPE_REFERENCE_SLOT_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/directorStageShotFace.ts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneComposerIntent.ts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneToolNextAction"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "NomiModelConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneDesktopContracts.ts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneFailureFromDecision.ts",
+      "symbol": "LaneToolFailureShape"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "NomiPricingBasis"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneToolContract.ts",
+      "symbol": "LaneToolFailureShape"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneToolContract.ts",
+      "symbol": "LaneDomainFailure"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneToolContract.ts",
+      "symbol": "LaneToolSpec"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/laneToolNextAction.ts",
+      "symbol": "LaneToolNextAction"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/modelCallPort.ts",
+      "symbol": "NomiModelConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/modelCallPort.ts",
+      "symbol": "NativeFileContent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/modelCallPort.ts",
+      "symbol": "NomiPricingBasis"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/modelCallPort.ts",
+      "symbol": "ModelCallOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/modelCallPort.ts",
+      "symbol": "ModelCallResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/modelCallPort.ts",
+      "symbol": "ModelProtocol"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/modelCallPort.ts",
+      "symbol": "CallModelOnce"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/agentLane/modelCallPort.ts",
+      "symbol": "PrewarmModelCall"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "PROFILE_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "ProfileKindName"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "ProfileKindReferenceChannel"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "PROFILE_KIND_REFERENCE_CHANNEL"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "DeclaredReferenceProfileKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "AI_SDK_PROVIDER_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "VENDOR_AUTH_TYPES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "ASSET_INGESTION_STRATEGIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "ARCHETYPE_REFERENCE_SLOT_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_ENTRY_IDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "BILLING_MODEL_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_AUTH_CAPABILITIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_PROVIDER_CAPABILITIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_LIFECYCLES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_INGESTION_CAPABILITIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_SLOT_CAPABILITIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_OUTPUT_CAPABILITIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_RECOVERY_CAPABILITIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_MODE_SHAPE_CAPABILITIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_CAPABILITIES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "ModelAccessCapabilityDimension"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "MODEL_ACCESS_RESULT_PROOFS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/contracts/modelAccessCapabilities.ts",
+      "symbol": "ModelAccessRequiredProfile"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/textModelInput.ts",
+      "symbol": "AI_SDK_PROVIDER_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/textModelInput.ts",
+      "symbol": "TextProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/textModelInput.ts",
+      "symbol": "TextModelInputSettings"
+    },
+    {
+      "kind": "read",
+      "path": "electron/shared/vendorLineage.ts",
+      "symbol": "PROFILE_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "electron/spendQuote.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "NativeFileContent"
+    },
+    {
+      "kind": "read",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "NomiModelConfig"
+    },
+    {
+      "kind": "read",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "NativeMediaBudget"
+    },
+    {
+      "kind": "read",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "NativeMediaInputError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "MAX_NATIVE_FILE_BYTES"
+    },
+    {
+      "kind": "read",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "callModelOnce"
+    },
+    {
+      "kind": "read",
+      "path": "electron/video/deconstructVideo.ts",
+      "symbol": "readCatalog"
+    },
+    {
+      "kind": "read",
+      "path": "electron/video/deconstructVisionLeg.ts",
+      "symbol": "ImageInputSupport"
+    },
+    {
+      "kind": "read",
+      "path": "src/api/desktopClient.ts",
+      "symbol": "ProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/onboardingBridgeTypes.ts",
+      "symbol": "AdapterRunStage"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/onboardingBridgeTypes.ts",
+      "symbol": "ExistingConnectionErrorCode"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/onboardingBridgeTypes.ts",
+      "symbol": "ModelListFailureKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/onboardingBridgeTypes.ts",
+      "symbol": "ProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/desktop/providerKind.ts",
+      "symbol": "AI_SDK_PROVIDER_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "src/devlab/designLab/v4/laneDrivenFixtures.ts",
+      "symbol": "LaneToolNextAction"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/locales/onboardingProviders.ts",
+      "symbol": "zhOnboardingProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "zhOnboardingProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/i18n/resources.ts",
+      "symbol": "enOnboardingProviders"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/AdapterVerificationScreen.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/certificationFailureMessage.ts",
+      "symbol": "ExistingConnectionErrorCode"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CodexLocalImageCard.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ComfyuiLocalCard.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomCallEditor.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/CustomVendorCard.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/DreaminaMemberCard.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/FoldableModelCard.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
+      "symbol": "PROVIDER_KIND_LABEL"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
+      "symbol": "PROVIDER_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
+      "symbol": "TextModelInputSettings"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/modelCapabilityProjection.ts",
+      "symbol": "PROFILE_KINDS"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelCapabilitySummary.tsx",
+      "symbol": "PROVIDER_KIND_LABEL"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/modelDiscovery.ts",
+      "symbol": "ModelListFailureKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/ModelSettingsWorkspacePages.tsx",
+      "symbol": "ModelCapabilitySummary"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/onboardingAuth.ts",
+      "symbol": "ProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/onboardingAuth.ts",
+      "symbol": "OnboardingAuth"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingDrawer.tsx",
+      "symbol": "OnboardingWizard"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingDrawer.tsx",
+      "symbol": "ModelCapabilityEditor"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/onboardingProviderKindLabels.ts",
+      "symbol": "ProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "ProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "resolveOnboardingAuth"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "PROVIDER_PRESETS"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY_ONBOARDING"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "ProviderPresetGroups"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "OnboardingWizardAdvancedFields"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizardAdvancedFields.tsx",
+      "symbol": "PROVIDER_PRESETS"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizardAdvancedFields.tsx",
+      "symbol": "ProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/OnboardingWizardAdvancedFields.tsx",
+      "symbol": "PROVIDER_KIND_LABEL"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/providerPresets.ts",
+      "symbol": "ProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/providerPresets.ts",
+      "symbol": "ProviderPreset"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useOnboardingConnectionTest.ts",
+      "symbol": "ProviderKind"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/useOnboardingConnectionTest.ts",
+      "symbol": "PROVIDER_KIND_LABEL"
+    },
+    {
+      "kind": "read",
+      "path": "src/ui/onboarding/VendorOnboardCard.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneClient.ts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "LaneProjection"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "symbol": "MODEL_ACCESS_ENTRY"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneAskUserTool.ts",
+      "symbol": "bindLaneTool"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneCanvasTools.ts",
+      "symbol": "bindLaneTool"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "symbol": "laneCompactionSettings"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "buildAgentUserContent"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "projectAgentPromptForSend"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "modelImageInputSupport"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "modelSupportsPdfInput"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "modelSupportsOriginalMedia"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "bindNativeFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "symbol": "rewriteNativeFilePayload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "nomiModelConfigFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "parseLaneComposerContext"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "createDesktopLaneInput"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "runLaneSingleShot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "symbol": "bindLaneTool"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneDocumentTools.ts",
+      "symbol": "bindLaneTool"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneExtendedTools.ts",
+      "symbol": "bindLaneTool"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "createNomiProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "laneCompactionSettings"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "configureLaneContextBudget"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneLegacyImportLane.mts",
+      "symbol": "createNomiModelDescriptor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "assertNativeFileCapability"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "assertNativeMediaProtocol"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "bindNativeFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "createNomiProvider"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "rewriteNativeFilePayload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "prewarmProviderProtocols"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelCall.mts",
+      "symbol": "callModelOnce"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "assertNativeRequestBodySize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "createNomiModelDescriptor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "assertNoUnresolvedNativeFiles"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "runLaneSingleShot"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "callModelOnce"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneNativeLoader.cts",
+      "symbol": "prewarmModelCall"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "symbol": "callModelOnce"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneTimelineTools.ts",
+      "symbol": "bindLaneTool"
+    },
+    {
+      "kind": "write",
+      "path": "electron/agentLane/laneWorkspace.mts",
+      "symbol": "openLane"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "nativeMediaKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "assertNativeMediaProtocol"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/agentUserContent.ts",
+      "symbol": "validateNativeFileBytes"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/modelCallBridge.ts",
+      "symbol": "callModelOnce"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/modelCallBridge.ts",
+      "symbol": "prewarmModelCall"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "nativeMediaKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "assertNativeMediaCapability"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "validateNativeFileBytes"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "assertNativeRequestBodySize"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/nativePdfPayload.ts",
+      "symbol": "assertPdfProtocol"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/nativePdfPayload.ts",
+      "symbol": "rewriteNativeFilePayload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/nativePdfPayload.ts",
+      "symbol": "rewritePdfPayload"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "googleGenerativeBaseUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "buildModelListRequests"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "upstreamErrorText"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "describeNetworkErrorLazy"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/modelListProbe.ts",
+      "symbol": "parseModelListPage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/modelListResponse.ts",
+      "symbol": "parseModelListPage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "buildAuthHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "symbol": "fetchModelList"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "fetchModelList"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/runtimeVendorError.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/textBrainResolver.ts",
+      "symbol": "modelImageInputSupport"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/textStreamIpc.ts",
+      "symbol": "vendorModelConnection"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/textStreamIpc.ts",
+      "symbol": "prewarmModelCall"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/textStreamIpc.ts",
+      "symbol": "runTextTaskStream"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/vendorModelConnection.ts",
+      "symbol": "textModelInputSettings"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/vendorModelConnection.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/vendorModelConnection.ts",
+      "symbol": "extractVendorExtraHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/vendorModelConnection.ts",
+      "symbol": "anthropicBaseUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/vendorModelConnection.ts",
+      "symbol": "googleGenerativeBaseUrl"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/vendorModelConnection.ts",
+      "symbol": "vendorModelConnection"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/generatedMediaDecode.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audio/synchronousAudioResponse.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/media/browserMediaValidation.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/browser/media/browserViewMedia.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/host.ts",
+      "symbol": "ensureBuiltinModelSeeds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "upsertModelCatalogVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "upsertModelCatalogVendorApiKey"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "upsertModelCatalogModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "deleteModelCatalogModels"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/dispatch.ts",
+      "symbol": "deleteModelCatalogVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/modelOnboarding/submitDeclaration.ts",
+      "symbol": "validateProviderAdapterDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/antigravityCatalog.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/apimartHailuo23.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/apimartMinimaxH3.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/apimartModelIds.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/assetLocalization.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogMigrations.ts",
+      "symbol": "migrateRelayParamMaps"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogMigrations.ts",
+      "symbol": "migrateRelayImageEditCapability"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogMigrations.ts",
+      "symbol": "migrateRelayImageEditProtocols"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogMigrations.ts",
+      "symbol": "migrateRelayVideoImageToVideo"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "isAiSdkProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "extractVendorExtraHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "modelCatalogReadOnlyStatus"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "normalizedConnectionScope"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "invalidateVendorValidation"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "deleteModelCatalogModels"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiWorkflowImportStore.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/comfyuiWorkflowOutput.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallDraft.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallIpc.ts",
+      "symbol": "upsertModelCatalogCustomCallConfig"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/customCallRunner.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "assertNeutralDeclarationParameters"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "projectDeclaredModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "assertDeclaredReplacementOwnership"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/declaredProviderRegistration.ts",
+      "symbol": "capabilityFactDigest"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/dreaminaLoginIpc.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/kieGptImage25.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/modelRetype.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/outboundReferenceUrl.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/paramTranslate.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/processOperation.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/profileHttpRequest.ts",
+      "symbol": "extractVendorExtraHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/referenceReachability.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/referenceStage.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "upsertModelCatalogVendor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "upsertModelCatalogVendorApiKey"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "upsertModelCatalogModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "upsertModelCatalogMapping"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "importModelCatalogPackage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/runwayImage.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/runwayOfficial.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "buildAuthHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "fetchModelList"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/vendorValidationInvalidation.ts",
+      "symbol": "isAiSdkProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/vendorValidationInvalidation.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubConnectorService.ts",
+      "symbol": "upsertModelCatalogVendorApiKey"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubConnectorService.ts",
+      "symbol": "clearModelCatalogVendorApiKey"
+    },
+    {
+      "kind": "write",
+      "path": "electron/experience/experiencePolicy.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/exportAssetProbe.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/exportJobs.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/export/ffmpegRunner.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/credentialElicitationHttp.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/credentialElicitationRuntime.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/credentialElicitationRuntime.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "buildModelListRequests"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "createExistingConnectionActions"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "fetchModelList"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpModelDiscovery.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpModelDiscovery.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpModelDiscovery.ts",
+      "symbol": "extractVendorExtraHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "adapterDraftFromProposal"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "compileRequestFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localRuntime/localAiExternalProbe.ts",
+      "symbol": "parseModelListPage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localRuntime/localTextEndpoints.ts",
+      "symbol": "parseModelListResponse"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechErrors.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "registerOnboardingIpc"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "registerProviderAdapterIpc"
+    },
+    {
+      "kind": "write",
+      "path": "electron/main.ts",
+      "symbol": "ensureBuiltinModelSeeds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/networkOutboundMessage.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "ensureBuiltinModelSeeds"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "upsertModelCatalogVendorApiKey"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "buildOpenAiCompatibleDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/productionRun/productionRunDriverOps.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/userPromptStore.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/agentCompileRequest.ts",
+      "symbol": "validateProviderAdapterDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "buildOpenAiCompatibleDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "symbol": "assertAdapterModeInvariants"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/compiler.ts",
+      "symbol": "callModelOnce"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/compiler.ts",
+      "symbol": "validateProviderAdapterDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "isAiSdkProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/ipc.ts",
+      "symbol": "isAiSdkProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/ipc.ts",
+      "symbol": "runLiveProviderAdapterHarnessFromEnv"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/liveHarness.ts",
+      "symbol": "liveHarnessEnabled"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/liveHarness.ts",
+      "symbol": "liveHarnessIdempotencyKey"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/liveHarness.ts",
+      "symbol": "isLiveAdapterTerminalStage"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/liveHarness.ts",
+      "symbol": "liveAdapterSummary"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "mappingRowFromDeclaredMode"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "capabilityFactDigest"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "declaredWireFact"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/promotionMeta.ts",
+      "symbol": "projectDeclaredModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/service.ts",
+      "symbol": "builtinDraftForUndocumentedEndpoint"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "projectDeclaredModel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "assertDeclaredReplacementOwnership"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "normalizeProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "mutateCatalog"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "extractVendorExtraHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCatalog.ts",
+      "symbol": "adapterModelMetadataForPromotion"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "symbol": "validateProviderAdapterDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceFallback.ts",
+      "symbol": "buildOpenAiCompatibleDraft"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceLanguageModels.ts",
+      "symbol": "nomiModelConfigFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/serviceRunLifecycle.ts",
+      "symbol": "adapterRevisionDigest"
+    },
+    {
+      "kind": "write",
+      "path": "electron/providerAdapter/validator.ts",
+      "symbol": "assertAdapterModeInvariants"
+    },
+    {
+      "kind": "write",
+      "path": "electron/review/technicalCheck.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "executeTextTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "extractVendorExtraHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/runtime.ts",
+      "symbol": "buildAuthHeaders"
+    },
+    {
+      "kind": "write",
+      "path": "electron/shared/textModelInput.ts",
+      "symbol": "isAiSdkProviderKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/retrievalStageError.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskAdmission.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "assertNativeMediaCapability"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "assertNativeMediaProtocol"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "nativeMediaKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "bindNativeFile"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "nomiModelConfigFor"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "callModelOnce"
+    },
+    {
+      "kind": "write",
+      "path": "electron/textTaskRunner.ts",
+      "symbol": "executeTextTask"
+    },
+    {
+      "kind": "write",
+      "path": "electron/update/autoUpdater.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/deconstructVideo.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/deconstructVisionLeg.ts",
+      "symbol": "modelImageInputSupport"
+    },
+    {
+      "kind": "write",
+      "path": "electron/workspace/workspaceIpc.ts",
+      "symbol": "desktopT"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
+      "symbol": "textModelInputSettings"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ModelCapabilityEditor.tsx",
+      "symbol": "replaceTextModelInputSettings"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ModelCapabilitySummary.tsx",
+      "symbol": "textModelInputSettings"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ModelCatalogNotices.tsx",
+      "symbol": "exportModelCatalogPackage"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/ModelCatalogNotices.tsx",
+      "symbol": "importModelCatalogPackage"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/onboarding/OnboardingWizard.tsx",
+      "symbol": "isOnboardingApiKeyReady"
+    }
+  ],
+  "door_reduction": {
+    "before": 693,
+    "after": 693,
+    "why_not": "Existing Agent, one-shot, configuration, discovery and renderer surfaces remain distinct user entry points. The generated door map covers their shared input/capability/provider boundaries; none needs a second protocol implementation."
+  },
+  "generality_proof": "Capabilities are explicit model metadata, not model-name matching. Typed media, validation and payload rewriting are shared across Agent and one-shot callers and use protocol dispatch rather than relay-specific code.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/nativeFilePayload.ts",
+      "symbol": "rewriteNativeFilePayload",
+      "responsibility": "Original file payloads, protocol support and aggregate encoded-size validation"
+    },
+    {
+      "path": "electron/ai/vendorModelConnection.ts",
+      "symbol": "nomiModelConfigFor",
+      "responsibility": "Resolve per-model protocol and declared input modalities"
+    },
+    {
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "symbol": "createNomiProvider",
+      "responsibility": "Reuse provider stream and Nomi network/cancellation/error boundaries"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneDesktopInput.ts",
+      "entry_point": "createDesktopLaneInput",
+      "disposition": "enforced",
+      "evidence": "Original attached identities become typed media before provider serialization; history reconstructed from the same path."
+    },
+    {
+      "path": "electron/agentLane/laneModelCall.mts",
+      "entry_point": "callModelOnce",
+      "disposition": "enforced",
+      "evidence": "Native file input is bound and serialized through the same payload boundary."
+    },
+    {
+      "path": "electron/textTaskRunner.ts",
+      "entry_point": "executeTextTask",
+      "disposition": "enforced",
+      "evidence": "Single-shot original reference media is represented with the same typed input."
+    },
+    {
+      "path": "electron/agentLane/laneContextBudget.mts",
+      "entry_point": "configureLaneContextBudget",
+      "disposition": "enforced",
+      "evidence": "Original canonical attachment claims are retained across compaction and rehydrated after restart; text summaries do not replace originals."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every audio/video input to any full-modality custom model reaches these shared boundaries.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs buildAgentUserContent",
+      "node scripts/door-map.mjs createNomiProvider",
+      "rg audio/video nativePdfPayload modelCallPort textTaskRunner"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/nativeFilePayload.ts",
+    "invariant": "Every declared original media part is serialized or rejected explicitly before network dispatch.",
+    "failure_mode": "Typed error names unsupported/unreadable/over-limit media; no reference-only analysis fallback.",
+    "exception_policy": "none",
+    "strategy": "Shared typed content and payload encoder for native files; stable provider protocol contracts and explicit input capabilities.",
+    "artifacts": [
+      "electron/ai/nativeFilePayload.ts",
+      "electron/shared/agentLane/nativeModelInput.ts",
+      "electron/agentLane/laneModelProvider.mts"
+    ]
+  },
+  "regression_tests": [
+    "electron/ai/nativeFilePayload.test.ts",
+    "electron/ai/agentUserContent.test.ts",
+    "electron/textTaskNativeMedia.test.ts",
+    "electron/agentLane/laneGoogleTransport.test.ts",
+    "electron/agentLane/laneNativeMediaInput.test.ts",
+    "electron/agentLane/nativeMultimodal.integration.test.ts",
+    "electron/shared/textModelInput.test.ts",
+    "src/ui/onboarding/ModelCapabilityEditor.nativeInput.test.tsx"
+  ],
+  "class_regression_tests": [
+    "electron/ai/nativeFilePayload.test.ts",
+    "electron/ai/agentUserContent.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/ai/agentUserContent.ts"
+    ],
+    "rationale": "Remove audio/video skip-and-reference behavior for native input; existing PDF entry is delegated to the shared file serializer."
+  },
+  "dependency_lifecycle": {
+    "decision": "upgrade-now",
+    "current": "@google/genai 1.52.0 with pi-ai 0.85.1 rejecting custom fetch",
+    "target": "@google/genai 2.32.0 with narrowly patched pi-ai 0.85.1 Google fetch forwarding",
+    "rationale": "Reuse the mature SDK/stream/tool/history implementation and its supported fetch option instead of introducing an independent engine.",
+    "exit_criteria": [
+      "Remove pi patch when upstream forwards custom fetch; run native transport and tool/history tests against the replacement."
+    ]
+  },
+  "migration": "Additive optional model metadata. Existing connections retain saved protocol and image/PDF behavior; users select native protocol and explicitly declare audio/video input. Project asset identifiers remain unchanged.",
+  "residual_risks": [
+    "Real relay compatibility must be verified separately from loopback serialization.",
+    "Inline media is bounded to 20 MiB encoded request size; large provider-file upload is not implemented.",
+    "Google SDK minor upgrade and provider tool/thought replay require focused regression verification."
+  ]
+}

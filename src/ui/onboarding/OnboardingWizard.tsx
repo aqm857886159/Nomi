@@ -394,6 +394,7 @@ export function OnboardingWizard({
     effectiveBaseUrl,
     requestAuth.apiKey,
     requestAuth.authType,
+    requestAuth.authHeader,
     providerKind,
     buildHeadersObject,
     proxyUrl,

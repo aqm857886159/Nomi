@@ -1,0 +1,26 @@
+{
+  "id": "native-media-inline-14m",
+  "feature": "Prepare original audio/video input at the native model request boundary",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/native-media-input-bench.mjs",
+    "--"
+  ],
+  "scale": "8 MiB WAV plus 6 MiB MP4 originals, including base64 encoding, validation, hashing and aggregate request-size check",
+  "metrics": [
+    "transferMs"
+  ],
+  "budget": 100,
+  "budgetStatistic": "p95",
+  "budgetStatus": "proposed",
+  "budgetBasis": "Keep main-process local preparation below the existing 100 ms response budget; provider/network time excluded. This is bounded by the 20 MiB encoded request limit.",
+  "baseline": {
+    "median": 71.4,
+    "p95": 77,
+    "runs": 5,
+    "machine": "win32 x64 Intel(R) Core(TM) i5-14400 x16 / 32GB",
+    "date": "2026-11-09",
+    "commit": "9848a28f0"
+  }
+}
