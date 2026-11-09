@@ -145,6 +145,7 @@ function DialogStage({ kind }: { kind: string }): JSX.Element {
   if (['confirm', 'feedback', 'spend'].includes(kind)) return <HostStage kind={kind} />
   if (kind === 'custom') return <CustomCallEditor target={{ vendorKey: 'census', modelKey: 'census', label: 'Census', script: '' }} onClose={noop} onSaved={noop} />
   if (kind === 'model') return CATALOG_LIVENESS_STATES[0].render()
+  if (kind === 'onboarding-expanded') return <OpenSequence selectors={['[role="dialog"] details > summary']}><OnboardingWizard opened onClose={noop} initialPreset="newapi" /></OpenSequence>
   if (kind === 'onboarding') return <OnboardingWizard opened onClose={noop} initialPreset="newapi" />
   if (kind === 'agent') return <OpenSequence selectors={agentOpen}><ShellStage snapshot={emptyAgentSnapshot} /></OpenSequence>
   if (kind === 'action') return <ActionSelectModal open onClose={noop} onPick={noop} />
@@ -155,7 +156,7 @@ function DialogStage({ kind }: { kind: string }): JSX.Element {
   if (kind === 'prompt') return <><span data-dialog-census-workspace="[data-prompt-preview] button, [data-prompt-preview] a" /><PromptPreviewOverlay prompt={{ id: 'census', title: 'Census', prompt: 'A quiet forest.\n'.repeat(40), mediaUrl: selectionNode.result!.url!, mediaType: 'image', promptType: 'image', tags: [], source: '', sourceId: '', sourceUrl: '', origin: 'user' }} originRect={new DOMRect(100, 100, 200, 150)} onClose={noop} onAddToCanvas={noop} onEdit={noop} onDelete={noop} /></>
   if (kind === 'media' || kind === 'crop' || kind === 'shotcut') return <><span data-dialog-census-workspace="[role=dialog] button, [role=dialog] input" /><CanvasWorkspace kind={kind} /></>
   if (kind === 'asset') return <><span data-dialog-census-workspace="[role=dialog] button" /><AssetPreviewDialog asset={{ id: 'census', kind: 'image', name: 'Census', renderUrl: selectionNode.result!.url!, source: 'canvas', origin: { source: 'canvas', nodeId: 'census' } }} onClose={noop} /></>
-  if (kind === 'comfy') return <><span data-dialog-census-workspace="[data-comfyui-workflow-page] header button, [data-workflow-save]" /><ComfyWorkspace /></>
+  if (kind === 'comfy') return <><span data-dialog-census-workspace="[data-comfyui-workflow-page] button, [data-comfyui-workflow-page] input, [data-comfyui-workflow-page] textarea, [data-comfyui-workflow-page] select" /><ComfyWorkspace /></>
   if (kind === 'splash') return <><span data-dialog-census-workspace="[data-splash-skip]" /><SplashIntro onDone={noop} /></>
   if (kind === 'journey') return <><span data-dialog-census-workspace="[data-journey-tour=finale] button" /><JourneyWorkspace /></>
   if (kind === 'browser') return <><span data-dialog-census-workspace=".nomi-browser-dialog-root button, .nomi-browser-dialog-root input" /><BrowserWorkspace /></>
@@ -176,6 +177,7 @@ function DialogStage({ kind }: { kind: string }): JSX.Element {
 const EXTRA_CONTROLS: Readonly<Record<string, string>> = {
   model: '[data-model-settings-dialog] button',
   onboarding: '[role="dialog"] .mantine-Button-root',
+  'onboarding-expanded': '[role="dialog"] .mantine-Button-root',
   agent: '[data-system-prompt-editor] button, .mantine-Modal-close',
   action: '[role="dialog"] [data-design-modal-scroll] > div:last-child button',
   mobile: '[data-testid="director-mobile-dialog"] > div:last-child button',
@@ -392,5 +394,12 @@ export const DIALOG_STATES: readonly LabState[] = [
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
     mirrors: ['src/ui/browser/dialog/NomiBrowserDialogView.tsx:1'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="browser" />,
+  },
+  {
+    id: 'ps-48-onboarding-expanded-dialog',
+    name: '接入向导 · 展开高级设置',
+    source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 最小窗反向追查',
+    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:772'], coverage: 'shell', capture: 'viewport',
+    render: () => <LocalizedDialog kind="onboarding-expanded" />,
   },
 ]

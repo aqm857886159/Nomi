@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { probePopupGeometry } from './popupGeometry.mjs'
 
 // 几何判据只读浏览器给的矩形；这里分别固定视口、可见性和祖先裁切，验证判据边界。
-function fixture({ actionBottom = 640, parentBottom = 680, dialogBottom = 680, overflowY = 'hidden' } = {}) {
+function fixture({ actionBottom = 640, parentBottom = 680, dialogBottom = 680, overflowY = 'hidden', painted = true } = {}) {
   const rect = (bottom) => ({ left: 10, top: 20, right: 300, bottom, width: 290, height: bottom - 20 })
   const element = (bottom, children = [], parentElement = null) => ({
     parentElement, textContent: 'Save', tagName: 'DIV',
@@ -12,6 +12,7 @@ function fixture({ actionBottom = 640, parentBottom = 680, dialogBottom = 680, o
   })
   const parent = element(parentBottom)
   const action = element(actionBottom, [], parent)
+  action.checkVisibility = () => painted
   const dialog = element(dialogBottom, [action])
   vi.stubGlobal('innerWidth', 1100)
   vi.stubGlobal('innerHeight', 720)
@@ -33,6 +34,10 @@ describe('弹窗决定栏几何普查', () => {
   it('决定栏被滚动祖先裁掉时红，即使仍在视口里', () => {
     fixture({ parentBottom: 600, overflowY: 'auto' })
     expect(probePopupGeometry().violations).toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'dialog-decision-clipped' })]))
+  })
+  it('浏览器未绘制的折叠控件不算可见决定栏', () => {
+    fixture({ actionBottom: 900, painted: false })
+    expect(probePopupGeometry()).toMatchObject({ dialogs: 1, decisions: 0, violations: [] })
   })
   it('固定高度超出最小窗口时红', () => {
     fixture({ actionBottom: 900, parentBottom: 950, dialogBottom: 950 })

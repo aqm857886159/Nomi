@@ -18,6 +18,8 @@
 export function probePopupGeometry() {
   const EPS = 1
   const visible = (el) => {
+    // 原生 details 收起时，后代仍可有矩形；用浏览器的绘制可见性排除它们。
+    if (el.checkVisibility?.({ checkOpacity: true, checkVisibilityCSS: true }) === false) return false
     const rect = el.getBoundingClientRect()
     const style = getComputedStyle(el)
     return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && Number(style.opacity) > 0 && style.display !== 'none'
