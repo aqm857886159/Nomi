@@ -19,8 +19,12 @@
   "group": "⑫ Agent 对话",
   "budgetStatus": "proposed",
   "budgetBasis": "设计卡 docs/plan/2026-11-09-agent-conversation-stick-to-bottom.md ★7：5 秒从顶滚到底，帧间隔 p95 ≤16.7ms（60Hz 一帧）、>50ms 长任务 0 个；不达标先试 content-visibility，再考虑虚拟化（本轮不做虚拟化，先量）",
-  "measurement": {
-    "state": "pending",
-    "reason": "本分支安静窗口5次量测尚未完成；按协调授权量后写基线，main数字仅作修前对照"
+  "baseline": {
+    "median": 10.2,
+    "p95": 10.3,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-09",
+    "commit": "1ded6e7b5"
   }
 }
