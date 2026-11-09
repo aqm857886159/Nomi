@@ -11,6 +11,7 @@
 // 隔离资料目录，不连用户开着的 Nomi。
 import { clickOrFail, expect } from '../../_assert.mjs'
 import { stationTimeout } from '../../_station-budget.mjs'
+import { ensureCreationResourceTree, openStoryboardEditor } from '../../_creationResourceTree.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR } from '../../agent-runtime-fixture.mjs'
 import { STORYBOARD_CLICK_TARGETS } from '../catalog.mjs'
 import { uiText } from '../invariants.mjs'
@@ -136,9 +137,10 @@ try {
   await monitor.step('打开项目（从项目库）', () => smoke.openProject(), { surfaces: ['*'], critical: true })
   await monitor.step('切到创作页，从侧栏点开这份分镜方案', async () => {
     await clickOrFail(win().locator('.nomi-stepper__step[data-mode="creation"]').first(), '顶栏「创作」')
+    await ensureCreationResourceTree(win(), 'PB12打开分镜方案')
     const item = win().locator(`[data-storyboard-id="${DESIGN}"]`).first()
     await expect(item, '侧栏里有这份分镜方案').toBeVisible({ timeout: stationTimeout() })
-    await clickOrFail(item, '侧栏选中分镜方案')
+    await openStoryboardEditor(win(), DESIGN, '侧栏选中分镜方案')
     await expect(editor().locator('[data-storyboard-row]'), '三镜').toHaveCount(3, { timeout: stationTimeout() })
   }, { surfaces: ['*'], critical: true })
   await monitor.screenshot('01-storyboard-initial')
