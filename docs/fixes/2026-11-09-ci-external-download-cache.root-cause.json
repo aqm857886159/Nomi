@@ -2,12 +2,13 @@
   "schema_version": 3,
   "id": "2026-11-09-ci-external-download-cache",
   "problem_type": "CI external binary downloads lack persistent cache ownership",
-  "symptom": "Multiple Linux and macOS jobs failed installing Electron 43.4.1 with HTTP 504 after merges #1457 and #1463.",
-  "direct_cause": "setup-node caches the pnpm store but not Electron ZIPs downloaded by postinstall.",
+  "symptom": "Multiple Linux and macOS jobs failed installing Electron 43.4.1 with HTTP 504 after merges #1457 and #1463. The rerun still failed packaging macOS and compiling the installer guard because builder toolset downloads returned HTTP 504.",
+  "direct_cause": "setup-node caches the pnpm store but not Electron ZIPs downloaded by postinstall. Electron-builder also downloads NSIS and packaging toolsets outside the pnpm store.",
   "class_root": "No shared pre-install boundary restores external binary caches or prevents new jobs omitting them.",
   "affected_population": [
     "All CI dependency-install jobs on Linux, macOS and Windows",
-    "Playwright Chromium install jobs"
+    "Playwright Chromium install jobs",
+    "Eight packaging jobs, release validation gates and the Unit job (three full-mode shards) that compile installers"
   ],
   "scope_paths": [
     ".github/actions/cache-external-downloads/action.yml",
@@ -21,11 +22,14 @@
     ".github/workflows/archetype-autosync.yml",
     ".github/workflows/desktop-rc.yml",
     ".github/workflows/win-invalid-state-probe.yml",
-    ".github/workflows/desktop-preview.yml"
+    ".github/workflows/desktop-preview.yml",
+    "scripts/pre-push-contracts.mjs",
+    "scripts/pre-push-scan-guards.mjs"
   ],
   "entry_points": [
     "24 pnpm install job definitions (22 run scripts; two use --ignore-scripts)",
-    "6 Chromium installation job definitions"
+    "6 Chromium installation job definitions",
+    "10 builder-consuming job definitions: 8 packaging, 1 release validation and 1 Unit matrix (12 full-mode executions)"
   ],
   "external_sources": [
     {
@@ -51,13 +55,20 @@
       "url": "https://playwright.dev/docs/ci#caching-browsers",
       "checked_at": "2026-11-09",
       "purpose": "Version browser caches and retain uncached OS dependency installation."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/electron-userland/electron-builder/blob/master/website/docs/troubleshooting.md",
+      "checked_at": "2026-11-09",
+      "purpose": "Confirm ELECTRON_BUILDER_CACHE and all platform defaults; cross-check installed app-builder-lib 26.15.3 getCacheDirectory."
     }
   ],
   "invariants": [
     "Every dependency/browser install restores the shared cache first.",
     "The actual downloader environment and cached paths agree.",
     "Keys use runner OS, architecture and the resolved lockfile version; restore prefixes stay on the same OS and architecture.",
-    "Installation and checksum/identity validation always run, including cache hits."
+    "Installation and checksum/identity validation always run, including cache hits.",
+    "Every builder packaging or installer test job enables the shared builder cache before execution; the cache key separates workflow/job toolset populations."
   ],
   "doors": [
     {
@@ -70,7 +81,7 @@
     "before": 1,
     "after": 1
   },
-  "generality_proof": "The same action sets job-wide cache paths on all platforms and all 24 install jobs. All six browser installers inherit the Playwright path. The all-workflow structural test rejects omitted, late or conditional cache steps and conflicting environment declarations. The JS door-map covers ensureElectronRuntime only; the YAML/shell entry census is enforced by the structural test.",
+  "generality_proof": "The same action sets job-wide cache paths on all platforms and all 24 install jobs. All six browser installers inherit the Playwright path. The all-workflow structural test rejects omitted, late or conditional cache steps and conflicting environment declarations. The JS door-map covers ensureElectronRuntime only; the YAML/shell entry census is enforced by the structural test. All builder entry jobs are derived from workflow commands and package.json script aliases, including full/focused Unit tests. Their whole matrix inherits the builder cache. Workflow/job-specific primary keys prevent a partial target cache permanently claiming every target; same-platform prefixes still seed missing jobs. Release validation also enables builder caching because run-gates-tests can select the installer compile tests.",
   "shared_boundaries": [
     {
       "path": ".github/actions/cache-external-downloads/action.yml",
@@ -96,6 +107,12 @@
       "entry_point": "ignore-scripts dependency install",
       "disposition": "enforced",
       "evidence": "Still restores the action, so future postinstall enabling cannot silently omit the binary cache."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "mac-package and unit installer compilation",
+      "disposition": "enforced",
+      "evidence": "Both enable the same builder cache. Unit full-mode shards 1,2,3 and focused mode inherit it before any test selection."
     }
   ],
   "recurrence": {
@@ -104,7 +121,8 @@
     "same_class_scan": [
       "git grep -n \"pnpm install\" -- .github: 24 run commands in 11 workflows, excluding one comment.",
       "git grep -nE \"playwright install|ci-install-chromium|curl|wget|download|postinstall\" -- .github: six Chromium installs; release/artifact downloads occur after installation.",
-      "package.json pnpm.onlyBuiltDependencies permits electron, esbuild and platform ffmpeg/ffprobe packages; registry-packaged platform binaries stay in the pnpm store."
+      "package.json pnpm.onlyBuiltDependencies permits electron, esbuild and platform ffmpeg/ffprobe packages; registry-packaged platform binaries stay in the pnpm store.",
+      "git grep electron-builder, dist:mac:dir, test:unit:shard and test:system:focused in all workflows; trace package.json scripts plus scripts/packaging/installer-compile.cases.mjs build() calls."
     ]
   },
   "prevention": {
@@ -113,7 +131,7 @@
     "invariant": "All CI external binary consumers restore versioned cache before install and share exact downloader paths.",
     "failure_mode": "Missing lockfile version fails preparation; missing or mismatched wiring fails Contracts. Cold-cache upstream failures remain visible.",
     "exception_policy": "none",
-    "strategy": "One composite action owns paths and restore keys; an all-workflow node test in Contracts detects omissions without per-job allowlists.",
+    "strategy": "One composite action owns paths and restore keys; an all-workflow node test in Contracts detects omissions without per-job allowlists. Register the shared owner and the scanning test; split node:test from Vitest in the pre-push batches without exemptions.",
     "artifacts": [
       ".github/actions/cache-external-downloads/action.yml",
       ".github/workflows/win-gate.yml",
@@ -126,14 +144,18 @@
       ".github/workflows/archetype-autosync.yml",
       ".github/workflows/desktop-rc.yml",
       ".github/workflows/win-invalid-state-probe.yml",
-      ".github/workflows/desktop-preview.yml"
+      ".github/workflows/desktop-preview.yml",
+      "scripts/pre-push-contracts.mjs",
+      "scripts/pre-push-scan-guards.mjs"
     ]
   },
   "regression_tests": [
-    "scripts/ci-external-download-cache.node-test.mjs"
+    "scripts/ci-external-download-cache.node-test.mjs",
+    "scripts/pre-push-structure.node-test.mjs"
   ],
   "class_regression_tests": [
-    "scripts/ci-external-download-cache.node-test.mjs"
+    "scripts/ci-external-download-cache.node-test.mjs",
+    "scripts/pre-push-structure.node-test.mjs"
   ],
   "legacy_paths": {
     "status": "not-applicable",
@@ -142,12 +164,13 @@
   },
   "dependency_lifecycle": {
     "decision": "retain-with-exit",
-    "current": "Electron 43.4.1 with @electron/get 3.1.0; Playwright 1.60.0",
+    "current": "Electron 43.4.1 with @electron/get 3.1.0; Playwright 1.60.0; electron-builder/app-builder-lib 26.15.3",
     "target": "Retain pinned versions while their cache APIs and checksums satisfy the action contract.",
     "rationale": "This is missing CI cache ownership, not a dependency-version defect; version changes are outside the task.",
     "exit_criteria": [
       "When Electron changes installer/cache variable semantics, inspect the lockfile-selected installer and pass the path/key contract before updating this action.",
-      "When Playwright changes browser version or cache layout, prove the new lockfile key and effective PLAYWRIGHT_BROWSERS_PATH on a real runner."
+      "When Playwright changes browser version or cache layout, prove the new lockfile key and effective PLAYWRIGHT_BROWSERS_PATH on a real runner.",
+      "When electron-builder changes toolset cache layout, re-check ELECTRON_BUILDER_CACHE propagation and the real NSIS/package workflows before updating cache schema."
     ]
   },
   "migration": "No user data migration; initial runner caches are cold and save only after successful jobs.",
