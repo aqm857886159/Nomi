@@ -156,3 +156,37 @@ test('vi.waitFor with a literal timeout is caught only in electron/src tests', a
   assert.deepEqual(viWaitForLiteralTimeoutLines(source, 'tests/a.test.ts'), [])
   assert.deepEqual(viWaitForLiteralTimeoutLines(source, 'electron/a.ts'), [])
 })
+
+test('unit performance probes reject profiler imports and timing before aliases or sample reductions can hide them', async () => {
+  const { unitPerformanceProbeLines } = await import('./check-test-waits.mjs')
+  const source = [
+    'import inspector from "node:inspector";',
+    'const inspector = await import("inspector/promises");',
+    'const inspector = require("node:inspector");',
+    'import { performance as clock } from "node:perf_hooks";',
+    'const samples = [performance.now() - start];',
+    'const p95 = samples.sort()[9]; expect(p95).toBeLessThan(50);',
+    'const { elapsedMs } = measure();',
+    'globalThis.performance["now"]();',
+    'Date["now"]();',
+    'process.hrtime.bigint();',
+    'process.cpuUsage();',
+  ].join('\n')
+  assert.deepEqual([...unitPerformanceProbeLines(source, 'electron/example.performance.test.ts')], [0, 1, 2, 3, 4, 7, 8, 9, 10])
+  assert.deepEqual([...unitPerformanceProbeLines(source, 'src/example.test.ts')], [0, 1, 2])
+  assert.deepEqual([...unitPerformanceProbeLines(source, 'src/example.perf.spec.cjs')], [0, 1, 2, 3, 4, 7, 8, 9, 10])
+})
+
+test('unit performance ownership permits result/count assertions, fake timers, prose and dedicated benchmarks', async () => {
+  const { unitPerformanceProbeLines } = await import('./check-test-waits.mjs')
+  const source = [
+    '// performance.now(); import inspector from "node:inspector";',
+    'const example = "performance.now()";',
+    'expect(reads).toBeLessThan(2);',
+    'expect(result).toEqual(expected);',
+    'vi.advanceTimersByTime(500);',
+  ].join('\n')
+  assert.equal(unitPerformanceProbeLines(source, 'src/example.perf.test.ts').size, 0)
+  assert.equal(unitPerformanceProbeLines('performance.now(); require("node:inspector");', 'tests/perf/example.mjs').size, 0)
+  assert.equal(unitPerformanceProbeLines('performance.now();', 'electron/example.test.ts').size, 0)
+})

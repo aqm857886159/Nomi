@@ -17,6 +17,7 @@ import type { FetchTaskResultFn, RunTaskFn } from "../core";
 import { pollTaskToTerminal } from "../pollTaskToTerminal";
 import { isTerminalTaskStatus } from "../../shared/taskStatus";
 import { resultOnlyLandsAsProjectFile } from "../../tasks/projectFileResult";
+import { resolveCustomCallExecution } from "../../catalog/customCallMode";
 import { billableRequests, noBlast, unverified, type OnboardingFailure, type OnboardingResult } from "./envelope";
 
 /**
@@ -153,9 +154,13 @@ export async function tryModel(
       nextAction: "Pass one of the declared taskKinds, or add that mode to the card and submit it again.",
     };
   }
-  // 试跑不在任何项目里。结果只能写成项目文件的模式（配音 / 音乐 / 音效、文件流视频）在开单、问人之前就说清楚：
-  // 发出去钱就花了、结果没处放（2026-11-07）。判据与 runtime.runTask 发请求前那道同一处（tasks/projectFileResult）。
-  if (resultOnlyLandsAsProjectFile(taskKind, mapping)) {
+  const params = (args.params && typeof args.params === "object" && !Array.isArray(args.params))
+    ? (args.params as Record<string, unknown>) : {};
+  // 试跑不在任何项目里。结果只能写成项目文件的模式（配音 / 音乐 / 音效、文件流视频、脚本存文件、本机进程）在开单、
+  // 问人之前就说清楚：发出去钱就花了、结果没处放（2026-11-07）。判据与 runtime.runTask 发请求前那道同一处
+  // （tasks/projectFileResult）；走脚本的模型用 runTask 同一个解析函数拿到这次会跑的脚本。
+  const customCallScript = resolveCustomCallExecution(model, { kind: taskKind, prompt: "", extras: { ...params, modelKey } }, mapping)?.script;
+  if (resultOnlyLandsAsProjectFile(taskKind, mapping, customCallScript)) {
     return {
       ok: false, code: "needs_input",
       message: `${modelKey} returns its ${taskKind} result as a file that can only be saved inside a Nomi project, and a model trial runs outside any project. No request was sent.`,
@@ -173,8 +178,6 @@ export async function tryModel(
   }
 
   const startedAt = Date.now();
-  const params = (args.params && typeof args.params === "object" && !Array.isArray(args.params))
-    ? (args.params as Record<string, unknown>) : {};
   const budgetMs = Math.min(deps.pollTimeoutMs ?? TRY_MODEL_WAIT_BUDGET_MS, TRY_MODEL_WAIT_BUDGET_MS);
   let claimed: ReturnType<typeof intent.claim>;
   try {
