@@ -1,0 +1,1472 @@
+[
+  {
+    "dialog": "feedback-card",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/feedback-card-zh-CN-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 39,
+      "bottom": 681,
+      "height": 641
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "lastControl": {
+      "label": "发送",
+      "top": 614,
+      "bottom": 646,
+      "clippedBy": null,
+      "outOfViewport": false
+    },
+    "controlCount": 5
+  },
+  {
+    "dialog": "feedback-card-error-line",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/feedback-card-error-line-zh-CN-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 36,
+      "bottom": 684,
+      "height": 648
+    },
+    "rootOverflowPx": 41,
+    "clipped": [
+      {
+        "label": "发送",
+        "top": 658,
+        "bottom": 690,
+        "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+        "outOfViewport": false
+      }
+    ],
+    "lastControl": {
+      "label": "发送",
+      "top": 658,
+      "bottom": 690,
+      "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+      "outOfViewport": false
+    },
+    "controlCount": 5
+  },
+  {
+    "dialog": "spend-confirm-batch",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/spend-confirm-batch-zh-CN-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 165,
+      "bottom": 555,
+      "height": 390
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "镜 7 · 公交车灯由远及近",
+        "top": 502,
+        "bottom": 516,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "镜 8 · 车窗内侧：女孩落座",
+        "top": 530,
+        "bottom": 544,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "镜 9 · 窗外雨痕拉长",
+        "top": 558,
+        "bottom": 572,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "镜 10 · 男孩站在站台目送",
+        "top": 586,
+        "bottom": 600,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "镜 11 · 车尾灯消失在雨里",
+        "top": 614,
+        "bottom": 628,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "镜 12 · 片尾：空站台",
+        "top": 642,
+        "bottom": 656,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      }
+    ],
+    "lastControl": {
+      "label": "生成 14 项",
+      "top": 510,
+      "bottom": 538,
+      "clippedBy": null,
+      "outOfViewport": false
+    },
+    "controlCount": 17
+  },
+  {
+    "dialog": "settings-models",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/settings-models-zh-CN-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 80,
+      "bottom": 640,
+      "height": 560
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "接入 APIMart推荐一个 Key，接入预置文本、图片、视频与音频模型填写 K",
+        "top": 592,
+        "bottom": 646,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false
+      },
+      {
+        "label": "接入 Kie.ai一个 Key，接入预置图片与视频模型；上传通道也一并可用填写 ",
+        "top": 646,
+        "bottom": 701,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false
+      },
+      {
+        "label": "更多已适配平台Agnes AI、魔搭、火山方舟等查看全部",
+        "top": 701,
+        "bottom": 756,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "本地运行时与即梦会员不使用平台 API Key 的接入方式5 类",
+        "top": 804,
+        "bottom": 858,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "TikHub API Key",
+        "top": 993,
+        "bottom": 1025,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "保存",
+        "top": 995,
+        "bottom": 1023,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "我已有调用脚本高级自定义普通 HTTP 请求；模型输入项仍需单独设置",
+        "top": 1152,
+        "bottom": 1208,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "导出配置",
+        "top": 1217,
+        "bottom": 1245,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "导入配置",
+        "top": 1217,
+        "bottom": 1245,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "网络跟随系统",
+        "top": 1275,
+        "bottom": 1310,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      }
+    ],
+    "lastControl": {
+      "label": "网络跟随系统",
+      "top": 1275,
+      "bottom": 1310,
+      "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+      "outOfViewport": true
+    },
+    "controlCount": 22
+  },
+  {
+    "dialog": "confirm-dialog",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/confirm-dialog-zh-CN-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 293,
+      "bottom": 427,
+      "height": 134
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "lastControl": {
+      "label": "删除",
+      "top": 383,
+      "bottom": 411,
+      "clippedBy": null,
+      "outOfViewport": false
+    },
+    "controlCount": 3
+  },
+  {
+    "dialog": "feedback-card",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/feedback-card-en-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 39,
+      "bottom": 681,
+      "height": 641
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "lastControl": {
+      "label": "Send",
+      "top": 614,
+      "bottom": 646,
+      "clippedBy": null,
+      "outOfViewport": false
+    },
+    "controlCount": 5
+  },
+  {
+    "dialog": "feedback-card-error-line",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/feedback-card-error-line-en-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 36,
+      "bottom": 684,
+      "height": 648
+    },
+    "rootOverflowPx": 59,
+    "clipped": [
+      {
+        "label": "Send",
+        "top": 676,
+        "bottom": 708,
+        "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+        "outOfViewport": false
+      }
+    ],
+    "lastControl": {
+      "label": "Send",
+      "top": 676,
+      "bottom": 708,
+      "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+      "outOfViewport": false
+    },
+    "controlCount": 5
+  },
+  {
+    "dialog": "spend-confirm-batch",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/spend-confirm-batch-en-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 165,
+      "bottom": 555,
+      "height": 390
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "Shot 7 · Bus headlights approach from af",
+        "top": 502,
+        "bottom": 516,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "Shot 8 · Inside the window: the girl sit",
+        "top": 530,
+        "bottom": 544,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "Shot 9 · Rain streaks stretch across the",
+        "top": 558,
+        "bottom": 572,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "Shot 10 · The boy watches from the platf",
+        "top": 586,
+        "bottom": 600,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "Shot 11 · Tail lights fade into the rain",
+        "top": 614,
+        "bottom": 628,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      },
+      {
+        "label": "Shot 12 · Ending: the empty platform",
+        "top": 642,
+        "bottom": 656,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false
+      }
+    ],
+    "lastControl": {
+      "label": "Generate 14",
+      "top": 510,
+      "bottom": 538,
+      "clippedBy": null,
+      "outOfViewport": false
+    },
+    "controlCount": 17
+  },
+  {
+    "dialog": "settings-models",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/settings-models-en-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 80,
+      "bottom": 640,
+      "height": 560
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "Connect APIMartRecommendedOne key for pr",
+        "top": 610,
+        "bottom": 664,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false
+      },
+      {
+        "label": "Connect Kie.aiOne key for preset image a",
+        "top": 664,
+        "bottom": 719,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false
+      },
+      {
+        "label": "More adapted platformsAgnes AI, ModelSco",
+        "top": 719,
+        "bottom": 774,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "Local runtimes and Dreamina membershipCo",
+        "top": 822,
+        "bottom": 876,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "TikHub API key",
+        "top": 1030,
+        "bottom": 1062,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "Save",
+        "top": 1032,
+        "bottom": 1060,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "I already have a call scriptAdvancedCust",
+        "top": 1189,
+        "bottom": 1246,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "Export configuration",
+        "top": 1255,
+        "bottom": 1283,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "Import configuration",
+        "top": 1255,
+        "bottom": 1283,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      },
+      {
+        "label": "NetworkFollow system",
+        "top": 1330,
+        "bottom": 1365,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true
+      }
+    ],
+    "lastControl": {
+      "label": "NetworkFollow system",
+      "top": 1330,
+      "bottom": 1365,
+      "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+      "outOfViewport": true
+    },
+    "controlCount": 22
+  },
+  {
+    "dialog": "confirm-dialog",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/confirm-dialog-en-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 284,
+      "bottom": 436,
+      "height": 152
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "lastControl": {
+      "label": "Delete",
+      "top": 392,
+      "bottom": 420,
+      "clippedBy": null,
+      "outOfViewport": false
+    },
+    "controlCount": 3
+  },
+  {
+    "dialog": "feedback-card",
+    "locale": "en",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/feedback-card-en-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 39,
+      "bottom": 681,
+      "height": 641
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "lastControl": {
+      "label": "Send",
+      "top": 614,
+      "bottom": 646,
+      "clippedBy": null,
+      "outOfViewport": false
+    },
+    "controlCount": 5
+  },
+  {
+    "dialog": "feedback-card-error-line",
+    "locale": "en",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/feedback-card-error-line-en-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 36,
+      "bottom": 684,
+      "height": 648
+    },
+    "rootOverflowPx": 59,
+    "clipped": [
+      {
+        "label": "Send",
+        "top": 676,
+        "bottom": 708,
+        "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+        "outOfViewport": false
+      }
+    ],
+    "lastControl": {
+      "label": "Send",
+      "top": 676,
+      "bottom": 708,
+      "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+      "outOfViewport": false
+    },
+    "controlCount": 5
+  },
+  {
+    "dialog": "feedback-card",
+    "locale": "zh-CN",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/feedback-card-zh-CN-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 39,
+      "bottom": 681,
+      "height": 641
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "lastControl": {
+      "label": "发送",
+      "top": 614,
+      "bottom": 646,
+      "clippedBy": null,
+      "outOfViewport": false
+    },
+    "controlCount": 5
+  },
+  {
+    "dialog": "feedback-card-error-line",
+    "locale": "zh-CN",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/feedback-card-error-line-zh-CN-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 36,
+      "bottom": 684,
+      "height": 648
+    },
+    "rootOverflowPx": 41,
+    "clipped": [
+      {
+        "label": "发送",
+        "top": 658,
+        "bottom": 690,
+        "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+        "outOfViewport": false
+      }
+    ],
+    "lastControl": {
+      "label": "发送",
+      "top": 658,
+      "bottom": 690,
+      "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+      "outOfViewport": false
+    },
+    "controlCount": 5
+  },
+  {
+    "dialog": "spend-confirm-max",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/spend-confirm-max-zh-CN-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 43,
+      "bottom": 677,
+      "height": 634
+    },
+    "rootOverflowPx": 268,
+    "clipped": [
+      {
+        "label": "镜 7 · 公交车灯由远及近",
+        "top": 460,
+        "bottom": 474,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 8 · 车窗内侧：女孩落座",
+        "top": 488,
+        "bottom": 502,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 9 · 窗外雨痕拉长",
+        "top": 516,
+        "bottom": 530,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 10 · 男孩站在站台目送",
+        "top": 544,
+        "bottom": 558,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 11 · 车尾灯消失在雨里",
+        "top": 572,
+        "bottom": 586,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 12 · 片尾：空站台",
+        "top": 600,
+        "bottom": 614,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "方向 B · 暖色街灯橙黄路灯，湿地反光",
+        "top": 636,
+        "bottom": 691,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "方向 C · 黑白高反差，颗粒感",
+        "top": 697,
+        "bottom": 751,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "忽略",
+        "top": 900,
+        "bottom": 928,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": true
+      },
+      {
+        "label": "生成 14 项",
+        "top": 900,
+        "bottom": 928,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": true
+      }
+    ],
+    "decisionClipped": [
+      "忽略",
+      "生成 14 项"
+    ],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "生成 14 项",
+      "top": 900,
+      "bottom": 928,
+      "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+      "outOfViewport": true,
+      "decision": true
+    },
+    "controlCount": 21,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "model-settings-detail",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/model-settings-detail-zh-CN-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 40,
+      "bottom": 680,
+      "height": 640
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 0,
+    "lastControl": {
+      "label": "删除模型",
+      "top": 543,
+      "bottom": 587,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": false
+    },
+    "controlCount": 6,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "spend-confirm-max",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/spend-confirm-max-en-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 43,
+      "bottom": 677,
+      "height": 634
+    },
+    "rootOverflowPx": 345,
+    "clipped": [
+      {
+        "label": "Shot 7 · Bus headlights approach from af",
+        "top": 498,
+        "bottom": 512,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 8 · Inside the window: the girl sit",
+        "top": 526,
+        "bottom": 540,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 9 · Rain streaks stretch across the",
+        "top": 554,
+        "bottom": 568,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 10 · The boy watches from the platf",
+        "top": 582,
+        "bottom": 596,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 11 · Tail lights fade into the rain",
+        "top": 610,
+        "bottom": 624,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 12 · Ending: the empty platform",
+        "top": 638,
+        "bottom": 652,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Direction A · Cold rainy nightBlue-cyan ",
+        "top": 652,
+        "bottom": 707,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Direction B · Warm street lightsAmber la",
+        "top": 713,
+        "bottom": 767,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "Direction C · Black and whiteHigh contra",
+        "top": 773,
+        "bottom": 828,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "Ignore",
+        "top": 977,
+        "bottom": 1005,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": true
+      },
+      {
+        "label": "Generate 14",
+        "top": 977,
+        "bottom": 1005,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": true
+      }
+    ],
+    "decisionClipped": [
+      "Ignore",
+      "Generate 14"
+    ],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "Generate 14",
+      "top": 977,
+      "bottom": 1005,
+      "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+      "outOfViewport": true,
+      "decision": true
+    },
+    "controlCount": 21,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "model-settings-detail",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/model-settings-detail-en-light.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 40,
+      "bottom": 680,
+      "height": 640
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 0,
+    "lastControl": {
+      "label": "Delete model",
+      "top": 543,
+      "bottom": 587,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": false
+    },
+    "controlCount": 6,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "spend-confirm-batch",
+    "locale": "en",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/spend-confirm-batch-en-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 165,
+      "bottom": 555,
+      "height": 390
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "Shot 7 · Bus headlights approach from af",
+        "top": 502,
+        "bottom": 516,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 8 · Inside the window: the girl sit",
+        "top": 530,
+        "bottom": 544,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 9 · Rain streaks stretch across the",
+        "top": 558,
+        "bottom": 572,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 10 · The boy watches from the platf",
+        "top": 586,
+        "bottom": 600,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 11 · Tail lights fade into the rain",
+        "top": 614,
+        "bottom": 628,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 12 · Ending: the empty platform",
+        "top": 642,
+        "bottom": 656,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      }
+    ],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "Generate 14",
+      "top": 510,
+      "bottom": 538,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 17,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "spend-confirm-max",
+    "locale": "en",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/spend-confirm-max-en-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 43,
+      "bottom": 677,
+      "height": 634
+    },
+    "rootOverflowPx": 345,
+    "clipped": [
+      {
+        "label": "Shot 7 · Bus headlights approach from af",
+        "top": 498,
+        "bottom": 512,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 8 · Inside the window: the girl sit",
+        "top": 526,
+        "bottom": 540,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 9 · Rain streaks stretch across the",
+        "top": 554,
+        "bottom": 568,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 10 · The boy watches from the platf",
+        "top": 582,
+        "bottom": 596,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 11 · Tail lights fade into the rain",
+        "top": 610,
+        "bottom": 624,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 12 · Ending: the empty platform",
+        "top": 638,
+        "bottom": 652,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Direction A · Cold rainy nightBlue-cyan ",
+        "top": 652,
+        "bottom": 707,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Direction B · Warm street lightsAmber la",
+        "top": 713,
+        "bottom": 767,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "Direction C · Black and whiteHigh contra",
+        "top": 773,
+        "bottom": 828,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "Ignore",
+        "top": 977,
+        "bottom": 1005,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": true
+      },
+      {
+        "label": "Generate 14",
+        "top": 977,
+        "bottom": 1005,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": true
+      }
+    ],
+    "decisionClipped": [
+      "Ignore",
+      "Generate 14"
+    ],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "Generate 14",
+      "top": 977,
+      "bottom": 1005,
+      "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+      "outOfViewport": true,
+      "decision": true
+    },
+    "controlCount": 21,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "model-settings-detail",
+    "locale": "en",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/model-settings-detail-en-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 40,
+      "bottom": 680,
+      "height": 640
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 0,
+    "lastControl": {
+      "label": "Delete model",
+      "top": 543,
+      "bottom": 587,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": false
+    },
+    "controlCount": 6,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "spend-confirm-batch",
+    "locale": "zh-CN",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/spend-confirm-batch-zh-CN-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 165,
+      "bottom": 555,
+      "height": 390
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "镜 7 · 公交车灯由远及近",
+        "top": 502,
+        "bottom": 516,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 8 · 车窗内侧：女孩落座",
+        "top": 530,
+        "bottom": 544,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 9 · 窗外雨痕拉长",
+        "top": 558,
+        "bottom": 572,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 10 · 男孩站在站台目送",
+        "top": 586,
+        "bottom": 600,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 11 · 车尾灯消失在雨里",
+        "top": 614,
+        "bottom": 628,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 12 · 片尾：空站台",
+        "top": 642,
+        "bottom": 656,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      }
+    ],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "生成 14 项",
+      "top": 510,
+      "bottom": 538,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 17,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "spend-confirm-max",
+    "locale": "zh-CN",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/spend-confirm-max-zh-CN-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 43,
+      "bottom": 677,
+      "height": 634
+    },
+    "rootOverflowPx": 268,
+    "clipped": [
+      {
+        "label": "镜 7 · 公交车灯由远及近",
+        "top": 460,
+        "bottom": 474,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 8 · 车窗内侧：女孩落座",
+        "top": 488,
+        "bottom": 502,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 9 · 窗外雨痕拉长",
+        "top": 516,
+        "bottom": 530,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 10 · 男孩站在站台目送",
+        "top": 544,
+        "bottom": 558,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 11 · 车尾灯消失在雨里",
+        "top": 572,
+        "bottom": 586,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 12 · 片尾：空站台",
+        "top": 600,
+        "bottom": 614,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "方向 B · 暖色街灯橙黄路灯，湿地反光",
+        "top": 636,
+        "bottom": 691,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "方向 C · 黑白高反差，颗粒感",
+        "top": 697,
+        "bottom": 751,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "忽略",
+        "top": 900,
+        "bottom": 928,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": true
+      },
+      {
+        "label": "生成 14 项",
+        "top": 900,
+        "bottom": 928,
+        "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+        "outOfViewport": true,
+        "decision": true
+      }
+    ],
+    "decisionClipped": [
+      "忽略",
+      "生成 14 项"
+    ],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "生成 14 项",
+      "top": 900,
+      "bottom": 928,
+      "clippedBy": "div.outline-none.w-[380px].max-h-[88vh]",
+      "outOfViewport": true,
+      "decision": true
+    },
+    "controlCount": 21,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  },
+  {
+    "dialog": "model-settings-detail",
+    "locale": "zh-CN",
+    "scheme": "dark",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "docs/evidence/2026-11-09-min-window-dialog-clip/before/model-settings-detail-zh-CN-dark.png",
+    "found": true,
+    "viewport": {
+      "width": 1100,
+      "height": 720
+    },
+    "dialogBox": {
+      "top": 40,
+      "bottom": 680,
+      "height": 640
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 0,
+    "lastControl": {
+      "label": "删除模型",
+      "top": 543,
+      "bottom": 587,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": false
+    },
+    "controlCount": 6,
+    "source": "HEAD 版弹窗文件 + 还原成 Mantine 整块滚的外壳（反例构建 ce-run），不是 main 构建"
+  }
+]

@@ -1,0 +1,217 @@
+{
+  "what": "反例：DesignModal 滚动归属改回 Mantine 默认（中间那层 display:contents = 整块滚），反馈卡其余是修后代码",
+  "rows": [
+    {
+      "dialog": "feedback-card",
+      "locale": "zh-CN",
+      "scheme": "light",
+      "window": {
+        "minWidth": 1100,
+        "minHeight": 720
+      },
+      "file": "docs/evidence/2026-11-09-min-window-dialog-clip/counterexample/feedback-card-zh-CN-light.png",
+      "found": true,
+      "viewport": {
+        "width": 1100,
+        "height": 720
+      },
+      "dialogBox": {
+        "top": 41,
+        "bottom": 679,
+        "height": 637
+      },
+      "rootOverflowPx": 0,
+      "clipped": [],
+      "decisionClipped": [],
+      "decisionCount": 2,
+      "lastControl": {
+        "label": "发送",
+        "top": 631,
+        "bottom": 659,
+        "clippedBy": null,
+        "outOfViewport": false,
+        "decision": true
+      },
+      "controlCount": 6,
+      "note": {
+        "hittable": true,
+        "top": 568,
+        "bottom": 604
+      }
+    },
+    {
+      "dialog": "feedback-card-error-line",
+      "locale": "zh-CN",
+      "scheme": "light",
+      "window": {
+        "minWidth": 1100,
+        "minHeight": 720
+      },
+      "file": "docs/evidence/2026-11-09-min-window-dialog-clip/counterexample/feedback-card-error-line-zh-CN-light.png",
+      "found": true,
+      "viewport": {
+        "width": 1100,
+        "height": 720
+      },
+      "dialogBox": {
+        "top": 36,
+        "bottom": 684,
+        "height": 648
+      },
+      "rootOverflowPx": 37,
+      "clipped": [
+        {
+          "label": "取消",
+          "top": 673,
+          "bottom": 701,
+          "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+          "outOfViewport": false,
+          "decision": true
+        },
+        {
+          "label": "发送",
+          "top": 673,
+          "bottom": 701,
+          "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+          "outOfViewport": false,
+          "decision": true
+        }
+      ],
+      "decisionClipped": [
+        "取消",
+        "发送"
+      ],
+      "decisionCount": 2,
+      "lastControl": {
+        "label": "发送",
+        "top": 673,
+        "bottom": 701,
+        "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+        "outOfViewport": false,
+        "decision": true
+      },
+      "controlCount": 6,
+      "note": {
+        "hittable": true,
+        "top": 562,
+        "bottom": 598
+      }
+    },
+    {
+      "dialog": "feedback-card",
+      "locale": "en",
+      "scheme": "light",
+      "window": {
+        "minWidth": 1100,
+        "minHeight": 720
+      },
+      "file": "docs/evidence/2026-11-09-min-window-dialog-clip/counterexample/feedback-card-en-light.png",
+      "found": true,
+      "viewport": {
+        "width": 1100,
+        "height": 720
+      },
+      "dialogBox": {
+        "top": 36,
+        "bottom": 684,
+        "height": 648
+      },
+      "rootOverflowPx": 55,
+      "clipped": [
+        {
+          "label": "Cancel",
+          "top": 691,
+          "bottom": 719,
+          "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+          "outOfViewport": false,
+          "decision": true
+        },
+        {
+          "label": "Send",
+          "top": 691,
+          "bottom": 719,
+          "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+          "outOfViewport": false,
+          "decision": true
+        }
+      ],
+      "decisionClipped": [
+        "Cancel",
+        "Send"
+      ],
+      "decisionCount": 2,
+      "lastControl": {
+        "label": "Send",
+        "top": 691,
+        "bottom": 719,
+        "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+        "outOfViewport": false,
+        "decision": true
+      },
+      "controlCount": 6,
+      "note": {
+        "hittable": true,
+        "top": 628,
+        "bottom": 664
+      }
+    },
+    {
+      "dialog": "feedback-card-error-line",
+      "locale": "en",
+      "scheme": "light",
+      "window": {
+        "minWidth": 1100,
+        "minHeight": 720
+      },
+      "file": "docs/evidence/2026-11-09-min-window-dialog-clip/counterexample/feedback-card-error-line-en-light.png",
+      "found": true,
+      "viewport": {
+        "width": 1100,
+        "height": 720
+      },
+      "dialogBox": {
+        "top": 36,
+        "bottom": 684,
+        "height": 648
+      },
+      "rootOverflowPx": 121,
+      "clipped": [
+        {
+          "label": "Cancel",
+          "top": 702,
+          "bottom": 730,
+          "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+          "outOfViewport": true,
+          "decision": true
+        },
+        {
+          "label": "Send",
+          "top": 702,
+          "bottom": 730,
+          "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+          "outOfViewport": true,
+          "decision": true
+        }
+      ],
+      "decisionClipped": [
+        "Cancel",
+        "Send"
+      ],
+      "decisionCount": 2,
+      "lastControl": {
+        "label": "Send",
+        "top": 702,
+        "bottom": 730,
+        "clippedBy": "section.m_fd1ab0aa.m_54c44539.mantine-Modal-content",
+        "outOfViewport": true,
+        "decision": true
+      },
+      "controlCount": 6,
+      "note": {
+        "hittable": true,
+        "top": 573,
+        "bottom": 609
+      }
+    }
+  ]
+}
