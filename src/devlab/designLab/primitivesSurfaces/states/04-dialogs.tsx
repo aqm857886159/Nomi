@@ -1,4 +1,4 @@
-// 真组件的最小窗口取景；不装桌面桥，不读取用户资料，也不发生成请求。
+// 真组件的最小窗口取景；只用隔离只读夹具桥，不读取用户资料，也不发生成请求。
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SettingsDialog } from '../../../../workbench/settings/SettingsDialog'
@@ -89,7 +89,7 @@ function HostStage({ kind }: { kind: string }): JSX.Element {
   React.useEffect(() => {
     if (kind === 'confirm') void confirmDialog({ title: t('common.delete'), message: t('common.cancel'), confirmLabel: t('common.delete') })
     if (kind === 'feedback') window.dispatchEvent(new CustomEvent('nomi-open-feedback-share', { detail: {} }))
-    if (kind === 'spend') void useSpendConfirmStore.getState().requestConfirm({ title: t('generationCommon.savePrompt.title'), message: t('updateReminder.dialog.localData'), source: 'agent', kind: 'generation' })
+    if (kind === 'spend') void useSpendConfirmStore.getState().requestConfirm({ title: t('generationCommon.spend.resend.title.image'), message: t('generationCommon.spend.resend.unknown'), source: 'user', kind: 'generation' })
   }, [kind, t])
   if (kind === 'confirm') return <ConfirmDialogHost />
   if (kind === 'feedback') return <FeedbackShareHost />
@@ -184,7 +184,7 @@ const EXTRA_CONTROLS: Readonly<Record<string, string>> = {
   'director-settings': '[data-testid="director-settings-dialog"] > div:last-child button',
 }
 function LocalizedDialog({ kind }: { kind: string }): JSX.Element {
-  const locale = new URLSearchParams(window.location.search).get('locale') === 'en' ? 'en' : 'zh-CN'
+  const locale = (new URLSearchParams(window.location.search).get('locale') || import.meta.env.VITE_DIALOG_CENSUS_LOCALE) === 'en' ? 'en' : 'zh-CN'
   return <LabLocaleGate locale={locale}>
     <span data-dialog-census-expects={kind === 'prompt' ? '[data-prompt-preview]' : kind === 'splash' ? '[data-splash-skip]' : '[role="dialog"]'} />
     {EXTRA_CONTROLS[kind] ? <span data-dialog-census-actions={EXTRA_CONTROLS[kind]} /> : null}
@@ -197,7 +197,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-20-settings-dialog',
     name: '设置 · 最小窗口外壳',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 阶段②',
-    mirrors: ['src/workbench/settings/SettingsDialog.tsx:67'],
+    mirrors: ['src/workbench/settings/SettingsDialog.tsx:243'],
     coverage: 'shell',
     capture: 'viewport',
     render: () => <LocalizedDialog kind="settings" />,
@@ -206,7 +206,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-21-skill-dialog',
     name: '技能详情 · 长正文和决定栏',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 阶段②',
-    mirrors: ['src/workbench/skillLibrary/SkillDetail.tsx:15'],
+    mirrors: ['src/workbench/skillLibrary/SkillDetail.tsx:29'],
     coverage: 'shell',
     capture: 'viewport',
     render: () => <LocalizedDialog kind="skill" />,
@@ -215,7 +215,7 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-22-extraction-dialog',
     name: '提取设置 · 保存决定栏',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 阶段②',
-    mirrors: ['src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx:55'],
+    mirrors: ['src/ui/browser/prompt/BrowserPromptExtractionSettingsModal.tsx:119'],
     coverage: 'shell',
     capture: 'viewport',
     render: () => <LocalizedDialog kind="extraction" />,
@@ -224,180 +224,180 @@ export const DIALOG_STATES: readonly LabState[] = [
     id: 'ps-23-handbook-dialog',
     name: 'handbook · 最小窗口',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/onboarding/HandbookPanel.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/onboarding/HandbookPanel.tsx:91'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="handbook" />,
   },
   {
     id: 'ps-24-shortcuts-dialog',
     name: 'shortcuts · 最小窗口',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/timeline/TimelineShortcutsDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/timeline/TimelineShortcutsDialog.tsx:33'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="shortcuts" />,
   },
   {
     id: 'ps-25-update-dialog',
     name: 'update · 最小窗口',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/app-shell/UpdateDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/app-shell/UpdateDialog.tsx:157'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="update" />,
   },
   {
     id: 'ps-26-selection-dialog',
     name: 'selection · 最小窗口',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx:193'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="selection" />,
   },
   {
     id: 'ps-27-confirm-dialog',
     name: 'confirm · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/design/confirmDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/design/confirmDialog.tsx:73'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="confirm" />,
   },
   {
     id: 'ps-28-feedback-dialog',
     name: 'feedback · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/community/FeedbackShareHost.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/community/FeedbackShareHost.tsx:53'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="feedback" />,
   },
   {
     id: 'ps-29-custom-dialog',
     name: 'custom · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/onboarding/CustomCallEditor.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/CustomCallEditor.tsx:788'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="custom" />,
   },
   {
     id: 'ps-30-model-dialog',
     name: 'model · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/onboarding/ModelSettingsDetailDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/ModelSettingsDetailDialog.tsx:100'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="model" />,
   },
   {
     id: 'ps-31-onboarding-dialog',
     name: 'onboarding · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:772'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="onboarding" />,
   },
   {
     id: 'ps-32-agent-dialog',
     name: 'agent · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/ai/ProjectAgentResidentShell.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/ai/ProjectAgentResidentShell.tsx:647'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="agent" />,
   },
   {
     id: 'ps-33-action-dialog',
     name: 'action · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/nodes/director/panels/dialogs/ActionSelectModal.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/nodes/director/panels/dialogs/ActionSelectModal.tsx:42'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="action" />,
   },
   {
     id: 'ps-34-help-dialog',
     name: 'help · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/nodes/director/panels/dialogs/HelpDialog.tsx:98'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="help" />,
   },
   {
     id: 'ps-35-mobile-dialog',
     name: 'mobile · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx:66'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="mobile" />,
   },
   {
     id: 'ps-36-director-settings-dialog',
     name: 'director-settings · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/nodes/director/panels/dialogs/SettingsDialog.tsx:48'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="director-settings" />,
   },
   {
     id: 'ps-37-spend-dialog',
     name: 'spend · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx:124'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="spend" />,
   },
   {
     id: 'ps-38-workflow-dialog',
     name: 'workflow · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/library/WorkflowLibraryContent.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/library/WorkflowLibraryContent.tsx:192'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="workflow" />,
   },
   {
     id: 'ps-39-prompt-dialog',
     name: 'prompt · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/promptLibrary/PromptPreviewOverlay.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/promptLibrary/PromptPreviewOverlay.tsx:112'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="prompt" />,
   },
   {
     id: 'ps-40-media-dialog',
     name: 'media · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/nodes/NodeMediaPreviewDialog.tsx:94'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="media" />,
   },
   {
     id: 'ps-41-asset-dialog',
     name: 'asset · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/assets/AssetPreviewDialog.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/assets/AssetPreviewDialog.tsx:127'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="asset" />,
   },
   {
     id: 'ps-42-comfy-dialog',
     name: 'comfy · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx:360'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="comfy" />,
   },
   {
     id: 'ps-43-crop-dialog',
     name: 'crop · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx:117'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="crop" />,
   },
   {
     id: 'ps-44-shotcut-dialog',
     name: 'shotcut · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx:168'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="shotcut" />,
   },
   {
     id: 'ps-45-splash-dialog',
     name: 'splash · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/onboarding/SplashIntro.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/onboarding/SplashIntro.tsx:155'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="splash" />,
   },
   {
     id: 'ps-46-journey-dialog',
     name: 'journey · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/workbench/onboarding/JourneyTourController.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/workbench/onboarding/JourneyTourController.tsx:36'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="journey" />,
   },
   {
     id: 'ps-47-browser-dialog',
     name: 'browser · 最小窗口普查',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 协调续派',
-    mirrors: ['src/ui/browser/dialog/NomiBrowserDialogView.tsx:1'], coverage: 'shell', capture: 'viewport',
+    mirrors: ['src/ui/browser/dialog/NomiBrowserDialogView.tsx:130'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="browser" />,
   },
   {
     id: 'ps-48-onboarding-expanded-dialog',
-    name: '接入向导 · 展开高级设置',
+    name: '接入向导 · 连接诊断展开',
     source: 'docs/plan/2026-11-09-min-window-dialog-clip.md · 最小窗反向追查',
     mirrors: ['src/ui/onboarding/OnboardingWizard.tsx:772'], coverage: 'shell', capture: 'viewport',
     render: () => <LocalizedDialog kind="onboarding-expanded" />,

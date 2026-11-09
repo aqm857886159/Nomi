@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
+const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
 const migrations = [
   ['src/workbench/settings/SettingsDialog.tsx', null],
   ['src/workbench/skillLibrary/SkillDetail.tsx', 'data-skill-detail-add-to-chat'],
@@ -15,7 +17,7 @@ const migrations = [
 describe('阶段②：弹窗高度与决定栏只有一个 owner', () => {
   for (const [file, decision] of migrations) {
     it(`${file} 只用外壳，决定栏不在 children 中`, () => {
-      const source = fs.readFileSync(file, 'utf8')
+      const source = stripComments(fs.readFileSync(file, 'utf8'))
       const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
       const modals: ts.JsxElement[] = []
       const visit = (node: ts.Node): void => {
@@ -38,7 +40,7 @@ describe('阶段②：弹窗高度与决定栏只有一个 owner', () => {
     })
   }
   it('多镜清单不再叠一层 viewport 滚动区', () => {
-    const source = fs.readFileSync('src/workbench/generationCanvas/spend/MultiShotContractSummary.tsx', 'utf8')
+    const source = stripComments(fs.readFileSync('src/workbench/generationCanvas/spend/MultiShotContractSummary.tsx', 'utf8'))
     expect(source).not.toMatch(/max-h-\[40vh\]|overflow-y-auto/)
   })
 })

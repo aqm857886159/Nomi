@@ -17,6 +17,9 @@
 //
 // 用法：node tests/ux/design-lab-primitives-surfaces.walk.mjs （ONLY=ps-07-modal 只跑一个）
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
+import { uiText } from './full-walk/invariants.mjs'
+
+const dialogLocale = process.env.VITE_DIALOG_CENSUS_LOCALE === 'en' ? 'en' : 'zh-CN'
 
 /**
  * 每一格许诺自己开着哪个浮层。`null` = 这一格不该有任何浮层。
@@ -44,9 +47,9 @@ const EXPECTED = {
   'ps-10-tooltip': { selector: '[data-radix-popper-content-wrapper]', text: '正在导出', min: { w: 120, h: 16 } },
   // 标题走的是 Mantine Modal 的 header（在 surface 之外），所以这里认的是正文那句话。
   'ps-11-confirm-dialog': { selector: '[data-confirm-dialog-surface]', text: '删除后画布上的连线', min: { w: 260, h: 40 } },
-  'ps-20-settings-dialog': { assertion: 'board:DialogDecisionBar/settings.shell', selector: '[data-settings-dialog]', text: '设置', min: { w: 600, h: 300 } },
-  'ps-21-skill-dialog': { assertion: 'board:DialogDecisionBar/skill.actions', selector: '[data-skill-detail]', text: '放进对话', min: { w: 600, h: 300 } },
-  'ps-22-extraction-dialog': { assertion: 'board:DialogDecisionBar/extraction.actions', selector: '[data-nomi-prompt-extraction-settings-dialog]', text: '保存', min: { w: 600, h: 300 } },
+  'ps-20-settings-dialog': { assertion: 'board:DialogDecisionBar/settings.shell', selector: '[data-settings-dialog]', text: uiText(dialogLocale, 'settings.title'), min: { w: 600, h: 300 } },
+  'ps-21-skill-dialog': { assertion: 'board:DialogDecisionBar/skill.actions', selector: '[data-skill-detail]', text: uiText(dialogLocale, 'libraries.skill.addToChat'), min: { w: 600, h: 300 } },
+  'ps-22-extraction-dialog': { assertion: 'board:DialogDecisionBar/extraction.actions', selector: '[data-nomi-prompt-extraction-settings-dialog]', text: uiText(dialogLocale, 'browserAssets.extraction.save'), min: { w: 600, h: 300 } },
   'ps-23-handbook-dialog': { assertion: 'board:DialogDecisionBar/handbook.shell', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-24-shortcuts-dialog': { assertion: 'board:DialogDecisionBar/shortcuts.shell', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
   'ps-25-update-dialog': { assertion: 'board:DialogDecisionBar/update.actions', selector: '[role="dialog"]', min: { w: 200, h: 100 } },
