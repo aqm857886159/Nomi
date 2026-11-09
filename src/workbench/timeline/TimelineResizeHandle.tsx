@@ -24,6 +24,7 @@ export default function TimelineResizeHandle(): JSX.Element {
   const dragRef = React.useRef<{ startY: number; startHeight: number } | null>(null)
   const adjust = React.useCallback((next: number) => setHeight(next), [setHeight])
   const onPointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault() // 认领手势：按下点露出的内容不许变成原生拖图 / 拖选区（resizeSeparatorGesture.structure.test.ts）
     dragRef.current = { startY: event.clientY, startHeight: height }
     event.currentTarget.setPointerCapture(event.pointerId)
   }, [height])

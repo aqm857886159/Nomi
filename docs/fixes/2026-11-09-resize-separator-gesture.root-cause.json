@@ -1,0 +1,202 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-09-resize-separator-gesture",
+  "problem_type": "可拖分隔条未在 pointerdown 认领手势，原生内容拖动抢走指针",
+  "symptom": "提示词库抽屉拖宽时半截停住；示例图未加载时，自动走查的 mouse.move 等不到拖动拦截事件，直到外层 900 秒超时。",
+  "direct_cause": "分隔条随指针移动，浏览器按按下坐标重新寻找拖动源时命中刚露出的图片；未取消 pointerdown 默认行为，原生拖动接走指针。未加载图片触发 dragstart 又撤回，Playwright 等不到 dragIntercepted。",
+  "class_root": "指针捕获只约束后续事件接收方，不取消浏览器默认内容拖动；同类分隔条缺少按下即取消默认拖动的统一不变量。",
+  "affected_population": [
+    "抽屉内容有图片、链接或选区的用户",
+    "Agent 面板及时间轴分隔条附近存在可原生拖动内容的用户",
+    "使用共享 Electron 启动器的原始输入走查"
+  ],
+  "scope_paths": [
+    "src/ui/app-shell/shell/ShellRail.tsx",
+    "src/workbench/AssistantPane.tsx",
+    "src/workbench/timeline/TimelineResizeHandle.tsx"
+  ],
+  "entry_points": [
+    "WorkbenchShell → ShellRail → DrawerResizeHandle",
+    "CreationWorkspace / StoryboardWorkspace / GenerationWorkspace / PreviewWorkspace → AssistantPane",
+    "GenerationWorkspace → TimelineResizeHandle"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "手势归属是本应用的内部交互契约；仓库内 EditorSplit 和 TimelineTextTrack 已使用同一 preventDefault 写法，静态类测试检查全部分隔条。浏览器和 Playwright 诊断源码证据保留在实现报告，不据此变更依赖。",
+  "invariants": [
+    "每个 role=\"separator\" 且带 onPointerDown 的 JSX 均在该处理路径调用 preventDefault()，再沿既有指针捕获与尺寸 setter 更新。",
+    "分隔条键盘操作、尺寸钳制和双击复位保持可用；指针拖动保留原焦点。",
+    "共享启动器给首窗及后续窗口的 mouse、keyboard、touchscreen 装入站点预算，原始输入挂住时在 30 秒内定位调用处；显式 delay 另按 API 语义计入。"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/CreationWorkspace.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "symbol": "TimelineResizeHandle"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "ShellRail"
+    },
+    {
+      "kind": "write",
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "setDrawerWidth"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/AssistantPane.tsx",
+      "symbol": "setAssistantWidth"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "setTimelinePanelHeight"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "timelineResizeKeyboardHeight"
+    },
+    {
+      "kind": "write",
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "setAssistantWidth"
+    }
+  ],
+  "door_reduction": {
+    "before": 11,
+    "after": 11,
+    "why_not": "保留 WorkbenchShell 的抽屉挂载、四个工作区共用的 AssistantPane、GenerationWorkspace 唯一的 TimelineResizeHandle 和同文件键盘入口；尺寸 setter 的其他入口分别负责布局预设、侧栏开合及视口钳制，均不发起分隔条拖动。只修改 pointerdown 的手势归属，不删除这些独立布局职责。"
+  },
+  "generality_proof": "三个缺失的分隔条统一取消 pointerdown 默认行为，不按抽屉内容、模型或图片加载状态设分支；既有 EditorSplit 和 TimelineTextTrack 同样认领。结构测试扫描 src 全部带指针处理的 separator，不靠固定三文件白名单排除新入口；扫描测试登记到推送前全集守卫，新增分隔条也会触发。",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "DrawerResizeHandle",
+      "responsibility": "所有抽屉共用的 pointerdown 手势归属。"
+    },
+    {
+      "path": "src/workbench/AssistantPane.tsx",
+      "symbol": "AssistantPane",
+      "responsibility": "四个工作区共用的 Agent 停靠栏拖宽归属。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "TimelineResizeHandle",
+      "responsibility": "生成页时间轴拖高归属；复用 store 的尺寸钳制。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "entry_point": "DrawerResizeHandle",
+      "disposition": "enforced",
+      "evidence": "六种抽屉共用的把手，pointerdown 先 preventDefault。"
+    },
+    {
+      "path": "src/workbench/AssistantPane.tsx",
+      "entry_point": "AssistantPane",
+      "disposition": "enforced",
+      "evidence": "所有工作区的 Agent 停靠栏，pointerdown 先 preventDefault。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "entry_point": "TimelineResizeHandle",
+      "disposition": "enforced",
+      "evidence": "时间轴高度把手，pointerdown 先 preventDefault。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineTextTrack.tsx",
+      "entry_point": "beginResize",
+      "disposition": "enforced",
+      "evidence": "字幕左右分隔条已通过 beginDrag 认领；结构测试逐个扫描。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/EditorSplit.tsx",
+      "entry_point": "onPointerDown",
+      "disposition": "enforced",
+      "evidence": "导演台分隔条已有 preventDefault；结构测试扫描同一路径。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "图、链接、选区均可在分隔条移动后露出；抽屉、Agent、时间轴三种入口都缺失同一约束。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs src/ui/app-shell/shell/ShellRail.tsx src/workbench/AssistantPane.tsx src/workbench/timeline/TimelineResizeHandle.tsx",
+      "rg role=\"separator\" 与 onPointerDown：五个文件、六个 JSX 分隔条。",
+      "rg TimelineResizeHandle：唯一生产挂载为 GenerationWorkspace，另有键盘与布局结构测试。",
+      "结构测试遍历 src 全部 TSX，处理函数覆盖内联、同文件函数、useCallback 和一层同文件调用。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/app-shell/shell/ShellRail.tsx",
+    "invariant": "每种分隔条在其共享 pointerdown 边界认领手势，浏览器不能将它解释为相邻内容的原生拖动。",
+    "failure_mode": "默认原生拖动被取消；将来遗漏时全集结构测试失败，推送前守卫阻断。",
+    "exception_policy": "none",
+    "strategy": "删除三处未认领的旧路径，保留既有 pointer capture、尺寸边界和键盘路径；不对图片加载状态分支，不升级或绕开 Playwright。",
+    "artifacts": [
+      "src/ui/app-shell/shell/ShellRail.tsx",
+      "src/workbench/AssistantPane.tsx",
+      "src/workbench/timeline/TimelineResizeHandle.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/input/resizeSeparatorGesture.structure.test.ts",
+    "tests/ux/_rawInputBound.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/ui/input/resizeSeparatorGesture.structure.test.ts",
+    "tests/ux/_rawInputBound.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/ui/app-shell/shell/ShellRail.tsx",
+      "src/workbench/AssistantPane.tsx",
+      "src/workbench/timeline/TimelineResizeHandle.tsx"
+    ],
+    "rationale": "三处只捕获指针而允许原生拖动的旧行为已在同一修复分支替换；没有并行版或 fallback。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "产品约束直接由 DOM pointerdown.preventDefault 负责，不依赖特定浏览器或 Playwright 版本；不改依赖。走查等待缺口在共享启动器以既有站点预算封住。",
+    "exit_criteria": []
+  },
+  "migration": "不改项目、模型或设置格式；原尺寸 setter、布局边界、入口及持久化字段保持原样，不需要存量迁移。",
+  "residual_risks": [
+    "自动走查使用隔离资料和夹具，不能当作用户真实窗口录屏；已加载图片对照与全量结果以实际运行收据为准。",
+    "preventDefault 会保留原焦点，Agent 面板拖宽与 #1359 涉及同一焦点概念，需独立验收。",
+    "结构测试只覆盖 role=\"separator\" 且带 onPointerDown 的分隔条；非分隔条拖拽不在本次范围。",
+    "原始输入上限只覆盖共享 Electron 启动器，不覆盖浏览器启动器、connectOverCDP 或 evaluate。"
+  ],
+  "detected_by": "ci",
+  "recurrence_check_on": "2026-12-09",
+  "invariant_owner_layer": {
+    "layer": "src/ui/input",
+    "tests": [
+      "src/ui/input/resizeSeparatorGesture.structure.test.ts"
+    ]
+  }
+}

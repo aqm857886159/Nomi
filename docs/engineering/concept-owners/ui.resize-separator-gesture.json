@@ -1,0 +1,38 @@
+{
+  "name": "分隔条按下即认领浏览器手势",
+  "subject": "ui.resize-separator-gesture",
+  "lifecycle": "live-interaction",
+  "authority_kind": "gateway",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/ui/app-shell/shell/ShellRail.tsx",
+    "symbol": "DrawerResizeHandle"
+  },
+  "write_api": [
+    {
+      "path": "src/ui/app-shell/shell/ShellRail.tsx",
+      "symbol": "DrawerResizeHandle"
+    },
+    {
+      "path": "src/workbench/AssistantPane.tsx",
+      "symbol": "AssistantPane"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineResizeHandle.tsx",
+      "symbol": "TimelineResizeHandle"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "src/ui/input/resizeSeparatorGesture.structure.test.ts",
+  "allowed_consumers": [
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+    "src/workbench/generation/GenerationWorkspace.tsx",
+    "src/workbench/preview/PreviewWorkspace.tsx"
+  ],
+  "since": "2026-11-09",
+  "notes": "本概念只管 separator 的 pointerdown 先取消浏览器默认内容拖动；三种共享组件是不同布局面的入口，尺寸数值、钳制和持久化仍归原 owner。原生 preventDefault 是共同边界，不另写 helper。全 src 结构测试同时核对已有 EditorSplit 和 TimelineTextTrack 的同一约束，不限这三个登记入口。根因合同 docs/fixes/2026-11-09-resize-separator-gesture.root-cause.json。"
+}

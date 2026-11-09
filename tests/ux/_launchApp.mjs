@@ -27,6 +27,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { ensureElectronSignature } from '../../scripts/ensure-electron-signature.mjs'
 import { installFeelObserver } from './_feel-observer.mjs'
+import { boundRawInput } from './_rawInputBound.mjs'
 import { REAL_CREDENTIAL_MARKER } from './_realProfile.mjs'
 import { assertElectronBuildArtifacts } from '../../scripts/electron-build-artifacts.mjs'
 import { assertFreshBuild } from '../../scripts/package-build-stamp.mjs'
@@ -650,6 +651,16 @@ export function withPackagedPlaywrightOrigin(args, isPackaged) {
  * @returns {Promise<{app: import('playwright').ElectronApplication, win: import('playwright').Page,
  *   tempRoot: string, userDataDir: string, settingsDir: string, projectsDir: string, hostConfigDir: string | null, close: () => Promise<void>}>}
  */
+/**
+ * 走查窗口的仪表只从这一处装：首个窗口和之后弹出的窗口走同一个函数，不会一个有、一个没有。
+ * · 原始输入（鼠标 / 键盘 / 触屏）套站点预算上限——Playwright 这些方法不收 timeout，挂住就是外层 900 秒、后面全站没收据；
+ * · 体感观察器（截图后扫一遍体感问题）。
+ */
+export function instrumentWalkWindow(page, name) {
+  boundRawInput(page, { label: name })
+  return installFeelObserver(page, { name })
+}
+
 export async function launchNomiApp(options = {}) {
   const {
     name = 'nomi-walk',
@@ -859,9 +870,9 @@ export async function launchNomiApp(options = {}) {
       }
     }
     if (settleMs > 0) await win.waitForTimeout(settleMs)
-    installFeelObserver(win, { name })
+    instrumentWalkWindow(win, name)
     let nextWindow = 1
-    app.on('window', (page) => installFeelObserver(page, { name: `${name}-window-${++nextWindow}` }))
+    app.on('window', (page) => instrumentWalkWindow(page, `${name}-window-${++nextWindow}`))
   }
 
   try {
