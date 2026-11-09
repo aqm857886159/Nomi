@@ -1,6 +1,6 @@
 # 调研依据与现状
 
-调研开始：2026-11-09；APIMart范围复核：2026-11-10。**用户明确目前只用APIMart；本页接入证据只保留APIMart官方资料。** 没有模型试用结论，接口上线前重核。其他服务的API和能力不进入实施依据；产品操作参考与真实页面走查另见[interaction.md](interaction.md)，不能把界面先例当接口支持。
+调研开始：2026-11-09；APIMart范围复核：2026-11-10。**用户明确目前只用APIMart；本页接入证据只保留APIMart官方资料。** 没有模型试用结论，接口上线前重核。其他服务的API和能力不进入实施依据；产品操作参考与真实页面走查另见[tapnow-libtv-real.md](tapnow-libtv-real.md)与[interaction.md](interaction.md)，不能把界面先例当接口支持。
 
 ## APIMart 图片输入依据
 
