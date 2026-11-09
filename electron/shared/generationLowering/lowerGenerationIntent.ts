@@ -1,177 +1,201 @@
 /**
- * 参考放置的**唯一降级函数**：一份声明（这一档模式的参考槽）+ 一份意图（每条参考落进第几个槽）→ 请求参数。
+ * 参考放置的**唯一解析写入过程**：一份绑定声明 + 一份意图（每个值落进第几个绑定）→ 请求参数。
  *
  * ── 为什么只有这一个 ────────────────────────────────────────────────────────────────
- * 以前同一件事有三份拼法：画布路在渲染层按槽写键（`buildArchetypeInputParams`），
- * 主进程的 headless 路按 body 键名猜「族」再挑一个键（taskParams 里三条正则），
- * Run 路按合同角色词投到一张写死的键表、再把别名镜像一遍（引擎 B 的投影表 + 别名镜像）。
- * 三份各自演化，于是同一张图同一个模式两条路发出去不一样：双键、角色词不在官方枚举、
- * 按族封顶（官方字段矩阵的复现 1、2、3、5a）。现在三个入口都只做「把手上的东西说成意图」，
- * 放进哪个键、什么形状、带什么 role，只在这里按声明回答。
- * 收拢这一步不改任何一格请求体（官方字段矩阵改前改后逐字节相同）；那几格红的修法要改请求体，之后只改这里一处。
+ * S3（2026-11-08）把三个入口的三份拼法收进了这个函数，但函数里还留着两套表示：档案槽按槽种和 inputKey 选键、定形状；
+ * Run 的旧值却在意图里自带候选键、读键和选法，原值形状照搬。改槽的键或形状，旧值那条路纹丝不动——
+ * 同一个参考位两个主人（方向检查 `docs/engineering/direction-checks/2026-11-09-reference-placement-owner.md`）。
+ * 现在只有一种表示：**绑定**。档案槽、按 body 推出来的位、Run 的旧落点规则都事先编译成绑定（`declarationForMode.ts`、
+ * `headlessReferences.ts`、`runReferences.ts`），意图只说「这个值属于第几个绑定」；落哪个键、什么形状、已有值怎么办，
+ * 只在这里按绑定回答。
  *
- * ── 四条规则 ──────────────────────────────────────────────────────────────────────
- *  1. 每条参考按槽位表放进且只放进一个键（`slot.inputKey`，缺省按槽种）；
- *  2. 合并槽按 role 合成一个对象数组（`combine`，role 表见 referenceChannels），被合并的扁平键不再出现；
- *  3. 张数超过槽的 `max`、或指向不存在的槽，是 problem，不静默截断也不另找一个键；
- *  4. 模式的固定参数（`fixedParams`，如 generation_type）最后铺上，键不与槽冲突。
+ * ── 一个绑定 = 目标 + 编码 ─────────────────────────────────────────────────────────────
+ *  目标：`declared` 这份声明自己的键（档案槽 / 推出来的位，后写的同键盖先写的）；
+ *        `combined` 并进合并键（同一个键上的绑定按声明序拼成一个数组，自己的键不再出现）；
+ *        `every-read-or-head` 同组写法里 body 读到的全部写，一个都不读 → 组首键；
+ *        `first-read` 同组写法里 body 读到的第一个，一个都不读 → 不写。后两种只补空着的键。
+ *  编码：URL 数组（保序、保重复）、取第一张 / 最后一张的字符串、只装第一张的数组、角色对象、火山方舟 content 项。
+ *  写入顺序：声明键（按声明序）→ 合并键 → 兼容目标（按意图里第一次出现的顺序）→ 模式固定参数。
  *
- * 纯函数、同步：不读盘、不读目录、不认供应商名。声明从哪里来见 `declarationForMode.ts`。
+ * ── 已有参数 ──────────────────────────────────────────────────────────────────────
+ * 声明了 `existingValues` 时，第三个参数是调用方手上已有的参数：要写的键上已有值 → 不写（已有值优先）；
+ * 同一参考位（`positions` 的一组）上已有值、与要写的不同 → problem（授权地址冲突，调用方在发之前拒）。
+ * 绑定的 `keepGroupValueAt`：同一参考位已有值、唯一落点就是这个键 → 沿用既有值，不补第二份。
+ *
+ * 张数超过绑定的 `max`、指向不存在的绑定，也是 problem：不静默截断、不另找一个键。
+ * 纯函数、同步：不读盘、不读目录、不认供应商名。
  */
-import type { ArchetypeReferenceSlot, ArchetypeReferenceSlotKind } from "../videoCapabilities/types";
-import { REFERENCE_ROLE_FOR_KIND, type ReferenceCombineChannel } from "../videoCapabilities/referenceChannels";
-import { loweringAsArray, loweringInputKey } from "./slotInputKeys";
+import type { ArchetypeReferenceSlotKind } from "../videoCapabilities/types";
 
 export { DEFAULT_LOWERING_INPUT_KEY, loweringAsArray, loweringInputKey } from "./slotInputKeys";
 
-const ARRAY_SLOT_KINDS: ReadonlySet<ArchetypeReferenceSlotKind> = new Set(["image_ref", "video_ref", "audio_ref"]);
+export type BindingTarget =
+  | Readonly<{ select: "declared"; key: string }>
+  | Readonly<{ select: "combined"; key: string; role: string }>
+  | Readonly<{ select: "every-read-or-head"; keys: readonly string[] }>
+  | Readonly<{ select: "first-read"; keys: readonly string[] }>;
 
-/** 降级要读的槽字段（档案槽的子集；推导出来的声明也只填这些）。 */
-export type LoweringSlot = Pick<ArchetypeReferenceSlot, "kind" | "inputKey" | "asArray" | "max" | "roleName">;
+export type BindingEncoding =
+  | Readonly<{ shape: "url-list" }>
+  | Readonly<{ shape: "url"; pick: "first" | "last" }>
+  | Readonly<{ shape: "url-in-list" }>
+  | Readonly<{ shape: "role-objects" }>
+  | Readonly<{ shape: "content-items"; media: "image" | "video" | "audio"; role: string }>
+  | Readonly<{ shape: "content-item"; role: string }>;
 
-/** 一档模式的放置声明。`combine` 已经按「这条 body 读不读那个合并键」定好（见 declarationForMode）。 */
+export type ReferenceBinding = Readonly<{
+  /** 这个参考位收的是哪种参考（张数问题按它报；Run 按它认合同参考的去处）。 */
+  kind: ArchetypeReferenceSlotKind;
+  target: BindingTarget;
+  encoding: BindingEncoding;
+  max?: number;
+  keepGroupValueAt?: string;
+}>;
+
 export type GenerationDeclaration = Readonly<{
-  slots: readonly LoweringSlot[];
-  /** 与 `slots` 同序：这个槽是否并进 `combine`（声明顺序就是合并顺序）。 */
-  combine: ReferenceCombineChannel;
-  joinsCombine: readonly boolean[];
+  bindings: readonly ReferenceBinding[];
+  /** 这条 body 读的参数键（兼容目标按它选）；拿不到 body 的入口给空。 */
+  readKeys: readonly string[];
+  existingValues?: Readonly<{
+    /** 同一参考位的几种写法（不在任何一组里的键自成一组）。 */
+    positions: readonly (readonly string[])[];
+    onConflict: "reject" | "keep";
+  }>;
   fixedParams?: Readonly<Record<string, string>>;
 }>;
 
-/** 一条参考意图：地址 + 它落进声明里的第几个槽。 */
-export type IntentReference = Readonly<{ url: string; slot: number }>;
+/** 一个参考值：地址；或调用方给的角色对象（原样发，键序和 role 都不改）。 */
+export type ReferenceValue = string | Readonly<Record<string, unknown>>;
 
-/** Run 的既有参考值：形状、重复项和角色对象原样保留，候选组的落键仍由降级函数决定。 */
-export type PreservedReferenceIntent = Readonly<{
-  kind: ArchetypeReferenceSlotKind;
-  value: unknown;
-  keys: readonly string[];
-  readKeys: readonly string[];
-  selection: "all-read-or-first" | "first-read";
-  /** 已有同组值时，唯一落点若是这个标准输入键，就沿用既有值，不补第二份。 */
-  retainExistingGroupAt?: string;
-}>;
+/** 一条意图：值 + 它属于声明里的第几个绑定。 */
+export type IntentReference = Readonly<{ binding: number; value: ReferenceValue }>;
 
-export type GenerationIntent = Readonly<{
-  references: readonly IntentReference[];
-  preservedReferences?: readonly PreservedReferenceIntent[];
-}>;
+export type GenerationIntent = Readonly<{ references: readonly IntentReference[] }>;
 
 export type LoweringProblem =
-  | Readonly<{ code: "reference_over_capacity"; slot: number; kind: ArchetypeReferenceSlotKind; max: number; count: number }>
-  | Readonly<{ code: "reference_slot_unknown"; slot: number; url: string }>;
+  | Readonly<{ code: "reference_over_capacity"; binding: number; kind: ArchetypeReferenceSlotKind; max: number; count: number }>
+  | Readonly<{ code: "reference_binding_unknown"; binding: number }>
+  | Readonly<{ code: "reference_conflicts_existing"; key: string }>;
 
 export type LoweredGeneration = Readonly<{ bodyParams: Record<string, unknown>; problems: readonly LoweringProblem[] }>;
 
-// 火山方舟 content[] 的三种媒体项。键名就是声明里的 inputKey（seedanceVolcengine*.ts），不认供应商名。
-function volcengineImageItem(url: string, role: string): Record<string, unknown> {
+type Entry = Readonly<{ value: ReferenceValue; role?: string }>;
+
+function present(value: unknown): boolean {
+  return value !== undefined && value !== null && value !== "" && !(Array.isArray(value) && value.length === 0);
+}
+
+/** 地址去空白、空的不算；角色对象原样；别的不是参考值。 */
+function referenceValue(value: unknown): ReferenceValue | null {
+  if (typeof value === "string") return value.trim() || null;
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Readonly<Record<string, unknown>> : null;
+}
+
+// 火山方舟 content[] 的三种媒体项（键名就是声明里的 inputKey，见 declarationForMode）。
+function contentItem(media: "image" | "video" | "audio", url: string, role: string): Record<string, unknown> {
+  if (media === "video") return { type: "video_url", video_url: { url }, role };
+  if (media === "audio") return { type: "audio_url", audio_url: { url }, role };
   return { type: "image_url", image_url: { url }, role };
 }
 
-function volcengineArrayItems(inputKey: string, urls: readonly string[]): Array<Record<string, unknown>> | null {
-  if (inputKey === "volcengine_image_contents") {
-    const role = REFERENCE_ROLE_FOR_KIND.image_ref ?? "reference_image";
-    return urls.map((url) => volcengineImageItem(url, role));
+/** 编码：同一个绑定（或同一个合并键）收到的全部值 → 发出去的形状。没有可发的 → undefined。 */
+function encode(encoding: BindingEncoding, entries: readonly Entry[]): unknown {
+  const urls = entries.flatMap(({ value }) => typeof value === "string" ? [value] : []);
+  switch (encoding.shape) {
+    case "url-list":
+      return urls.length ? [...urls] : undefined;
+    case "url":
+      return encoding.pick === "last" ? urls[urls.length - 1] : urls[0];
+    case "url-in-list":
+      return urls.length ? [urls[0]] : undefined;
+    case "role-objects":
+      return entries.length
+        ? entries.map(({ value, role }) => typeof value === "string" ? { url: value, role } : structuredClone(value))
+        : undefined;
+    case "content-items":
+      return urls.length ? urls.map((url) => contentItem(encoding.media, url, encoding.role)) : undefined;
+    case "content-item":
+      return urls.length ? contentItem("image", urls[0]!, encoding.role) : undefined;
   }
-  if (inputKey === "volcengine_video_contents") {
-    const role = REFERENCE_ROLE_FOR_KIND.video_ref ?? "reference_video";
-    return urls.map((url) => ({ type: "video_url", video_url: { url }, role }));
-  }
-  if (inputKey === "volcengine_audio_contents") {
-    const role = REFERENCE_ROLE_FOR_KIND.audio_ref ?? "reference_audio";
-    return urls.map((url) => ({ type: "audio_url", audio_url: { url }, role }));
-  }
-  return null;
 }
 
-function volcengineSingleItem(inputKey: string, url: string): Record<string, unknown> | null {
-  if (inputKey === "volcengine_first_image_content" || inputKey === "volcengine_first_role_image_content") {
-    return volcengineImageItem(url, REFERENCE_ROLE_FOR_KIND.first_frame ?? "first_frame");
-  }
-  if (inputKey === "volcengine_last_role_image_content") {
-    return volcengineImageItem(url, REFERENCE_ROLE_FOR_KIND.last_frame ?? "last_frame");
-  }
-  return null;
-}
-
-/** 合并槽按声明顺序编码：扁平通道只要地址，角色通道每条带这一槽的线上 role。 */
-function encodeCombined(
-  channel: NonNullable<ReferenceCombineChannel>,
-  entries: ReadonlyArray<{ order: number; url: string }>,
-): string[] | Array<{ url: string; role: string }> {
-  const ordered = [...entries].sort((a, b) => a.order - b.order);
-  return channel.flat ? ordered.map(({ url }) => url)
-    : ordered.map(({ order, url }) => ({ url, role: channel.roleSlots[order]!.role }));
+/** 兼容目标落哪几个键。 */
+function targetKeys(target: BindingTarget, readKeys: readonly string[]): readonly string[] {
+  if (target.select === "declared" || target.select === "combined") return [target.key];
+  const read = target.keys.filter((key) => readKeys.includes(key));
+  if (target.select === "first-read") return read.slice(0, 1);
+  return read.length ? read : target.keys.slice(0, 1);
 }
 
 /**
- * 每个槽收到的地址：保序、去空白。不去重：同一张图给两次是调用方的事（画布合并连线与上传时已去重、
- * headless 的携带参考已去重），Run 路历来照原样发，降级不替谁改。
+ * 意图 → 请求参数。有 problem 时 `bodyParams` 仍按规则给出（方便调用方说清楚是哪一格），
+ * 但调用方**不许**拿它去发：problem 非空就在花钱之前拒（Run 的张数另由它自己按族核）。
  */
-function urlsBySlot(declaration: GenerationDeclaration, intent: GenerationIntent, problems: LoweringProblem[]): string[][] {
-  const bySlot = declaration.slots.map(() => [] as string[]);
-  for (const reference of intent.references) {
-    const url = typeof reference.url === "string" ? reference.url.trim() : "";
-    if (!url) continue;
-    const bucket = bySlot[reference.slot];
-    if (!bucket) {
-      problems.push({ code: "reference_slot_unknown", slot: reference.slot, url });
-      continue;
-    }
-    bucket.push(url);
-  }
-  return bySlot;
-}
-
-/**
- * 意图 → 请求参数（键 = 声明的 inputKey / 合并键 / 固定参数键）。有 problem 时 `bodyParams` 仍按规则给出
- * （方便调用方说清楚是哪一格），但调用方**不许**拿它去发：problem 非空就在花钱之前拒。
- */
-export function lowerGenerationIntent(declaration: GenerationDeclaration, intent: GenerationIntent): LoweredGeneration {
+export function lowerGenerationIntent(
+  declaration: GenerationDeclaration,
+  intent: GenerationIntent,
+  existing: Readonly<Record<string, unknown>> = {},
+): LoweredGeneration {
   const problems: LoweringProblem[] = [];
-  const bySlot = urlsBySlot(declaration, intent, problems);
-  const out: Record<string, unknown> = {};
-  for (const [index, slot] of declaration.slots.entries()) {
-    const urls = bySlot[index]!;
-    if (slot.max !== undefined && urls.length > slot.max) {
-      problems.push({ code: "reference_over_capacity", slot: index, kind: slot.kind, max: slot.max, count: urls.length });
-    }
-    if (!urls.length) continue;
-    const inputKey = loweringInputKey(slot);
-    if (ARRAY_SLOT_KINDS.has(slot.kind)) {
-      // 声明 asArray:false 的单值数组槽（Agnes i2v 的 image）发单图字符串：声明说话算话。没写 max 的单值槽
-      // （按 body 推出来的声明，见 headlessReferences）同样只放一张——调用方已经只给它一张。
-      out[inputKey] = volcengineArrayItems(inputKey, urls)
-        ?? (!loweringAsArray(slot) && (slot.max === undefined || slot.max === 1) ? urls[0] : [...urls]);
+  // 每个绑定收到的值；Map 的插入序 = 绑定在意图里第一次出现的顺序。
+  const received = new Map<number, ReferenceValue[]>();
+  for (const reference of intent.references) {
+    const value = referenceValue(reference.value);
+    if (value === null) continue;
+    if (!declaration.bindings[reference.binding]) {
+      problems.push({ code: "reference_binding_unknown", binding: reference.binding });
       continue;
     }
-    const url = urls[0]!;
-    out[inputKey] = volcengineSingleItem(inputKey, url) ?? (loweringAsArray(slot) ? [url] : url);
+    received.set(reference.binding, [...(received.get(reference.binding) ?? []), value]);
   }
-  // 角色数组合并：本模式有值的合并槽 → combine.key 上的一个数组；被合并的扁平键删掉（同一张图只进一个键）。
-  // 必须在这里拼好整个数组——模板引擎丢得掉 undefined 键，丢不掉 {url: undefined} 对象。
-  const channel = declaration.combine;
-  if (channel) {
-    const entries: Array<{ order: number; url: string }> = [];
-    let order = 0;
-    for (const [index, slot] of declaration.slots.entries()) {
-      if (!declaration.joinsCombine[index]) continue;
-      // 并进去的是这个槽收到的全部地址（单值槽超量照样记 problem，拒不拒由调用方定，这里不替它截）。
-      for (const url of bySlot[index]!) entries.push({ order, url });
-      delete out[loweringInputKey(slot)];
-      order++;
+  for (const [index, binding] of declaration.bindings.entries()) {
+    const count = received.get(index)?.length ?? 0;
+    if (binding.max !== undefined && count > binding.max) {
+      problems.push({ code: "reference_over_capacity", binding: index, kind: binding.kind, max: binding.max, count });
     }
-    const combined = encodeCombined(channel, entries);
-    if (combined.length) out[channel.key] = combined;
   }
-  for (const reference of intent.preservedReferences ?? []) {
-    const read = reference.keys.filter((key) => reference.readKeys.includes(key));
-    const targets = reference.selection === "first-read" ? read.slice(0, 1)
-      : read.length ? read : reference.keys.slice(0, 1);
-    if (targets.length === 1 && targets[0] === reference.retainExistingGroupAt) continue;
-    for (const key of targets) {
-      if (!Object.prototype.hasOwnProperty.call(out, key)) out[key] = structuredClone(reference.value);
+
+  const policy = declaration.existingValues;
+  const positionOf = (key: string): readonly string[] => policy?.positions.find((keys) => keys.includes(key)) ?? [key];
+  const existingAt = (key: string): unknown => positionOf(key).map((candidate) => existing[candidate]).find(present);
+  const conflicts = (key: string, value: unknown): void => {
+    const current = existingAt(key);
+    if (policy?.onConflict === "reject" && present(current) && JSON.stringify(current) !== JSON.stringify(value)) {
+      problems.push({ code: "reference_conflicts_existing", key });
     }
+  };
+  const out: Record<string, unknown> = {};
+  // 唯一的写入点。先核授权冲突（这一格不写也要核），再看：兼容目标（`fill`）只补这次还没写过的键；已有值优先。
+  const write = (key: string, value: unknown, fill: boolean): void => {
+    if (value === undefined) return;
+    conflicts(key, value);
+    if (fill && Object.prototype.hasOwnProperty.call(out, key)) return;
+    if (policy && present(existing[key])) return;
+    out[key] = value;
+  };
+  const entriesOf = (index: number, role?: string): Entry[] =>
+    (received.get(index) ?? []).map((value) => (role === undefined ? { value } : { value, role }));
+
+  for (const [index, binding] of declaration.bindings.entries()) {
+    if (binding.target.select === "declared" && received.has(index)) write(binding.target.key, encode(binding.encoding, entriesOf(index)), false);
+  }
+  // 合并键：同一个键上的绑定按声明序拼成一个数组（单值槽超量照样全部并进去，拒不拒由调用方定）。
+  const combinedKeys = [...new Set(declaration.bindings.flatMap(({ target }) => target.select === "combined" ? [target.key] : []))];
+  for (const key of combinedKeys) {
+    const members = [...declaration.bindings.entries()].filter(([, { target }]) => target.select === "combined" && target.key === key);
+    const entries = members.flatMap(([index, { target }]) => entriesOf(index, target.select === "combined" ? target.role : undefined));
+    if (entries.length) write(key, encode(members[0]![1].encoding, entries), false);
+  }
+  for (const index of received.keys()) {
+    const binding = declaration.bindings[index]!;
+    if (binding.target.select === "declared" || binding.target.select === "combined") continue;
+    const keys = targetKeys(binding.target, declaration.readKeys);
+    if (keys.length === 1 && keys[0] === binding.keepGroupValueAt && present(existingAt(keys[0]!))) {
+      conflicts(keys[0]!, encode(binding.encoding, entriesOf(index)));
+      continue;
+    }
+    // 每个键各编一份（不让两个键共用同一个数组对象）。
+    for (const key of keys) write(key, encode(binding.encoding, entriesOf(index)), true);
   }
   for (const [key, value] of Object.entries(declaration.fixedParams ?? {})) out[key] = value;
   return { bodyParams: out, problems };

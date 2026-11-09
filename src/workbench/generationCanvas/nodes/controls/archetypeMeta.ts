@@ -666,7 +666,7 @@ export function buildArchetypeInputParams(
       // 按槽资产类型喂对应的连线参考（B4：video_ref/audio_ref 槽此前只收 meta 上传，连线的视频/音频被丢）。
       // 这条规则与判定侧 hasArchetypeArrayReferences 共用同一个函数，别在这里就地展开成 ternary。
       const edgeList = edgeListForArraySlotAccept(arr.accept, references)
-      for (const url of mergeOrderedReferenceImageUrls(edgeList, metaList, slot.max)) intent.push({ url, slot: slotIndex })
+      for (const url of mergeOrderedReferenceImageUrls(edgeList, metaList, slot.max)) intent.push({ binding: slotIndex, value: url })
       continue
     }
     const metaKey = SINGLE_SLOT_META_KEY[slot.kind]
@@ -679,9 +679,9 @@ export function buildArchetypeInputParams(
       ? placement.bySlot[slotIndex]![0] ?? ''
       : typeof meta[metaKey] === 'string' ? (meta[metaKey] as string).trim() : ''
     const raw = typeof fromRef === 'string' && fromRef.trim() ? fromRef.trim() : uploaded
-    if (raw) intent.push({ url: raw, slot: slotIndex })
+    if (raw) intent.push({ binding: slotIndex, value: raw })
   }
-  // 放进哪个键、单图还是数组、火山 content 项、角色数组合并、模式固定参数：全部由共享降级函数按声明回答。
+  // 放进哪个键、单图还是数组、火山 content 项、角色数组合并、模式固定参数：全部由共享解析写入过程按绑定回答（绑定序 = 槽序）。
   // 画布这边已经按槽上限截过，降级不会再报超量。
   return { ...lowerGenerationIntent(declarationForMode(mode), { references: intent }).bodyParams }
 }

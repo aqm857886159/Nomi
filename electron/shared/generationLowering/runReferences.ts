@@ -1,8 +1,9 @@
 /**
- * Run 路（引擎 B）的参考：合同里的参考与显式参考参数 → 降级函数的意图。
+ * Run 路（引擎 B）的参考：合同里的参考与显式参考参数 → 绑定 + 意图，交给唯一的解析写入过程（`lowerGenerationIntent`）。
  *
- * 合同参考和显式参数都只声明用途、候选组、匹配规则与原值形状；由 `lowerGenerationIntent` 唯一选键。
- * Run 只检查授权地址冲突、保留既有值并消费降级结果，不再直接放置参考。
+ * 旧落点规则（同组写法 body 读到的全写、都不读写组首；首尾帧取最后一张；角色数组落 body 读的第一个写法；
+ * 已有值优先；授权地址冲突就拒）在这里写成**绑定声明**，与档案槽编译出来的绑定是同一种东西、走同一个写入过程。
+ * 这里只做两件事：把每条参考指到一个绑定（合同角色 / 素材种类 → 合并槽、旧落点，或明着拒），以及把冲突说成 Run 的错误。
  * 键归哪一族、什么形状、是不是首尾帧，只读 shared 的键声明表（`referenceKeys.ts`），不认供应商。
  */
 import { bodyReferencedParamKeys } from "../../catalog/paramTranslate";
@@ -16,8 +17,8 @@ import {
   type ReferenceFrameKind,
 } from "../modelArchetypes/referenceKeys";
 import type { ArchetypeMode, ArchetypeReferenceSlotKind } from "../videoCapabilities/types";
-import { declarationForMode } from "./declarationForMode";
-import { lowerGenerationIntent, type IntentReference, type PreservedReferenceIntent } from "./lowerGenerationIntent";
+import { combineForMode, declarationForMode } from "./declarationForMode";
+import { lowerGenerationIntent, type IntentReference, type ReferenceBinding } from "./lowerGenerationIntent";
 
 /** 标准输入键（`referenceInputParams` 认得、会归一成 headless 的携带参考）。 */
 const STANDARD_LIST_KEY: Readonly<Record<ReferenceFamily, string>> = {
@@ -80,10 +81,6 @@ export function isStandardRunReferenceKey(key: string): boolean {
   return Object.values(STANDARD_LIST_KEY).includes(key) || Object.values(STANDARD_FRAME_KEY).includes(key);
 }
 
-function isStandardListKey(key: string): boolean {
-  return Object.values(STANDARD_LIST_KEY).includes(key);
-}
-
 function present(value: unknown): boolean {
   return value !== undefined && value !== null && value !== "" && !(Array.isArray(value) && value.length === 0);
 }
@@ -110,8 +107,48 @@ function slotKindForContractReference(reference: { kind?: string; role?: string 
 
 export type ApprovedRunReference = Readonly<{ url: string; kind?: string; role?: string }>;
 
+const FAMILY_SLOT_KIND: Readonly<Record<ReferenceFamily, ArchetypeReferenceSlotKind>> = {
+  image: "image_ref",
+  video: "video_ref",
+  audio: "audio_ref",
+};
+
+/** 旧落点：一族一个参考位，body 读到的同组写法全写、都不读写组首；同一参考位已有值就沿用。 */
+function legacyListBinding(family: ReferenceFamily): ReferenceBinding {
+  const key = STANDARD_LIST_KEY[family];
+  return {
+    kind: FAMILY_SLOT_KIND[family],
+    target: { select: "every-read-or-head", keys: runReferenceGroupOf(key) ?? [key] },
+    encoding: { shape: "url-list" },
+    keepGroupValueAt: key,
+  };
+}
+
+/** 旧落点：首 / 尾帧放标准帧键（headless 再按 body 的帧位放），给了几张取最后一张。 */
+function legacyFrameBinding(frame: ReferenceFrameKind): ReferenceBinding {
+  const key = STANDARD_FRAME_KEY[frame];
+  return { kind: frame, target: { select: "every-read-or-head", keys: [key] }, encoding: { shape: "url", pick: "last" }, keepGroupValueAt: key };
+}
+
+const LEGACY_APPROVED_BINDINGS: readonly ReferenceBinding[] = [
+  legacyListBinding("image"),
+  legacyListBinding("video"),
+  legacyListBinding("audio"),
+  legacyFrameBinding("first_frame"),
+  legacyFrameBinding("last_frame"),
+];
+const LEGACY_IMAGE = 0;
+const LEGACY_VIDEO = 1;
+const LEGACY_AUDIO = 2;
+const LEGACY_FRAME: Readonly<Record<ReferenceFrameKind, number>> = { first_frame: 3, last_frame: 4 };
+
+/** 参考位分组 = 已有值与授权地址比对的单位。 */
+function referencePositions(): readonly (readonly string[])[] {
+  return runReferenceGroups().map(({ keys }) => keys);
+}
+
 /**
- * 授权时封存的参考 → 意图 → 降级结果。数组形状和重复项保持原样，全部同组目标 / 空 body 组首键由降级函数决定。
+ * 授权时封存的参考 → 意图（每条指到一个绑定）→ 解析写入。数组形状和重复项保持原样。
  * 返回新参数与这一步写下的键（调用方报「参数不支持」时按参考位称呼它们）。
  */
 export function placeApprovedRunReferences(
@@ -120,65 +157,38 @@ export function placeApprovedRunReferences(
   createBody: unknown,
   mode: ArchetypeMode | null,
 ): { parameters: Record<string, unknown>; placedKeys: readonly string[] } {
-  const out = structuredClone(parameters);
-  const placedKeys: string[] = [];
   const bodyKeys = bodyReferencedParamKeys(createBody);
-  const declaration = mode ? declarationForMode(mode, createBody) : null;
-  const combine = declaration?.combine ?? null;
+  const combine = mode ? combineForMode(mode, createBody) : null;
+  // 张数仍由 Run 的 assertResolvedReferences 按族核；这里不增加单槽超量拒发或模式固定参数。
+  const modeBindings = mode ? declarationForMode(mode, createBody).bindings : [];
+  const bindings = [...modeBindings, ...LEGACY_APPROVED_BINDINGS];
+  const legacy = (index: number): number => modeBindings.length + index;
   const bodyHasFrame = (frame: ReferenceFrameKind): boolean =>
     bodyKeys.some((key) => runReferenceGroupOf(key) === runReferenceGroupOf(STANDARD_FRAME_KEY[frame]));
-  const combined: IntentReference[] = [];
-  // 按第一次出现的顺序记（写参数的顺序就是之后逐键核对的顺序）。
-  const snapshot = new Map<string, string | string[]>();
-  const append = (key: string, url: string): void => {
-    const current = snapshot.get(key);
-    snapshot.set(key, Array.isArray(current) ? [...current, url] : [url]);
-  };
-  for (const reference of references) {
+  const intent: IntentReference[] = references.map((reference) => {
     const kind = slotKindForContractReference(reference);
-    const slot = combine && mode && declaration
-      ? mode.slots.findIndex((candidate, index) => candidate.kind === kind && declaration.joinsCombine[index])
-      : -1;
-    if (slot >= 0) combined.push({ url: reference.url, slot });
-    else if (reference.kind === "video") append(STANDARD_LIST_KEY.video, reference.url);
-    else if (reference.kind === "audio") append(STANDARD_LIST_KEY.audio, reference.url);
+    const combined = modeBindings.findIndex((binding) => binding.kind === kind && binding.target.select === "combined");
+    if (combined >= 0) return { binding: combined, value: reference.url };
+    if (reference.kind === "video") return { binding: legacy(LEGACY_VIDEO), value: reference.url };
+    if (reference.kind === "audio") return { binding: legacy(LEGACY_AUDIO), value: reference.url };
     // 这一档合并里没有收这种参考的槽：明着拒，不带着合同角色词错发。
-    else if (combine) throw new RunReferenceError("not-in-use", "not-in-use", { role: reference.role ?? "reference", kind: reference.kind ?? "image" });
-    else if ((reference.role === "first_frame" || reference.role === "last_frame") && bodyHasFrame(reference.role)) {
-      snapshot.set(STANDARD_FRAME_KEY[reference.role], reference.url);
-    } else if (reference.role === "first_frame" || reference.role === "last_frame") {
+    if (combine) throw new RunReferenceError("not-in-use", "not-in-use", { role: reference.role ?? "reference", kind: reference.kind ?? "image" });
+    if (reference.role === "first_frame" || reference.role === "last_frame") {
+      if (bodyHasFrame(reference.role)) return { binding: legacy(LEGACY_FRAME[reference.role]), value: reference.url };
       throw new RunReferenceError(`catalog mapping has unsupported reference role: ${reference.role}`, "unsupported-role", { role: reference.role });
-    } else append(STANDARD_LIST_KEY.image, reference.url);
-  }
-  const assertCompatible = (key: string, value: unknown): boolean => {
-    const group = runReferenceGroupOf(key) ?? [key];
-    const existing = group.map((candidate) => out[candidate]).find(present);
-    // 合同写死的 URL 与授权时封存的不一致 = 批准 A、要发 B。拒。
-    if (present(existing) && JSON.stringify(existing) !== JSON.stringify(value)) {
-      throw new RunReferenceError("catalog reference URL projection conflicts with canonical parameters", "conflict");
     }
-    return present(existing);
-  };
-  const preservedReferences: PreservedReferenceIntent[] = [...snapshot].map(([key, value]) => ({
-    kind: slotKindForContractReference({ kind: referenceKeyDeclarationFor(key)?.family, role: referenceFrameKindFor(key) ?? undefined }),
-    value,
-    keys: isStandardListKey(key) ? runReferenceGroupOf(key) ?? [key] : [key],
-    readKeys: bodyKeys,
-    selection: "all-read-or-first",
-    retainExistingGroupAt: assertCompatible(key, value) ? key : undefined,
-  }));
-  // 张数仍由 Run 的 assertResolvedReferences 按族核；这里不增加单槽超量拒发或模式固定参数。
-  const lowered = lowerGenerationIntent(
-    declaration ? { ...declaration, fixedParams: undefined } : { slots: [], combine: null, joinsCombine: [] },
-    { references: combined, preservedReferences },
-  );
-  const entries = Object.entries(lowered.bodyParams).filter(([key, value]) => {
-    assertCompatible(key, value);
-    return !present(out[key]);
+    return { binding: legacy(LEGACY_IMAGE), value: reference.url };
   });
-  Object.assign(out, Object.fromEntries(entries));
-  placedKeys.push(...entries.map(([key]) => key));
-  return { parameters: out, placedKeys };
+  const lowered = lowerGenerationIntent(
+    { bindings, readKeys: bodyKeys, existingValues: { positions: referencePositions(), onConflict: "reject" } },
+    { references: intent },
+    parameters,
+  );
+  // 合同写死的 URL 与授权时封存的不一致 = 批准 A、要发 B。拒。
+  if (lowered.problems.some(({ code }) => code === "reference_conflicts_existing")) {
+    throw new RunReferenceError("catalog reference URL projection conflicts with canonical parameters", "conflict");
+  }
+  return { parameters: { ...structuredClone(parameters), ...lowered.bodyParams }, placedKeys: Object.keys(lowered.bodyParams) };
 }
 
 /**
@@ -192,31 +202,34 @@ export function runReferenceParameterAccepted(key: string, mappingKeys: Readonly
 }
 
 /**
- * 显式参考参数里 body 不直接读的那些 → 首 / 尾帧 → 标准帧键（headless 按 body 的帧位放）；URL 数组 → body 读的同组写法
- * （都不读 → 组的标准写法）；角色数组 → body 读的同组写法。
+ * 显式参考参数的绑定：Run 路每个参考键一个（翻译键另有去处，不在这里）。首 / 尾帧 → 标准帧键（headless 按 body 的帧位放）；
+ * 角色数组 → body 读的第一个同组写法（都不读 → 不写）；URL 数组 → 这一族标准列表组里 body 读的全部写法（都不读 → 组首）。
  */
-export function standardizeExplicitRunReferences(parameters: Record<string, unknown>, bodyKeys: readonly string[]): Record<string, unknown> {
-  const out = structuredClone(parameters);
-  const read = new Set(bodyKeys);
-  const preservedReferences: PreservedReferenceIntent[] = [];
-  for (const [key, value] of Object.entries(parameters)) {
-    const group = runReferenceGroupOf(key);
-    if (!group || read.has(key) || TRANSLATED.has(key) || !present(value)) continue;
-    const frame = referenceFrameKindFor(key);
-    const declaration = referenceKeyDeclarationFor(key)!;
-    const shape = referenceKeyShapeFor(key, declaration.multiImage);
-    preservedReferences.push({
-      kind: slotKindForContractReference({ kind: declaration.family, role: frame ?? undefined }),
-      value,
-      keys: frame ? [STANDARD_FRAME_KEY[frame]] : shape === "role-objects" ? group
-        : runReferenceGroupOf(STANDARD_LIST_KEY[declaration.family]) ?? [STANDARD_LIST_KEY[declaration.family]],
-      readKeys: frame ? [] : bodyKeys,
-      selection: shape === "role-objects" && !frame ? "first-read" : "all-read-or-first",
-    });
+const EXPLICIT_BINDING_KEYS: readonly string[] = [...RUN_PATH_REFERENCE_KEYS].filter((key) => runReferenceGroupOf(key) && !TRANSLATED.has(key));
+const EXPLICIT_BINDINGS: readonly ReferenceBinding[] = EXPLICIT_BINDING_KEYS.map((key) => {
+  const frame = referenceFrameKindFor(key);
+  const declaration = referenceKeyDeclarationFor(key)!;
+  const kind = slotKindForContractReference({ kind: declaration.family, role: frame ?? undefined });
+  if (frame) return { kind, target: { select: "every-read-or-head", keys: [STANDARD_FRAME_KEY[frame]] }, encoding: { shape: "url", pick: "first" } };
+  if (referenceKeyShapeFor(key, declaration.multiImage) === "role-objects") {
+    return { kind, target: { select: "first-read", keys: runReferenceGroupOf(key)! }, encoding: { shape: "role-objects" } };
   }
+  const standard = STANDARD_LIST_KEY[declaration.family];
+  return { kind, target: { select: "every-read-or-head", keys: runReferenceGroupOf(standard) ?? [standard] }, encoding: { shape: "url-list" } };
+});
+
+/** 显式参考参数里 body 不直接读的那些 → 意图（数组拆成一条一项）→ 同一个解析写入过程；已有值优先，同一参考位先到先得。 */
+export function standardizeExplicitRunReferences(parameters: Record<string, unknown>, bodyKeys: readonly string[]): Record<string, unknown> {
+  const read = new Set(bodyKeys);
+  const intent: IntentReference[] = Object.entries(parameters).flatMap(([key, value]) => {
+    const binding = EXPLICIT_BINDING_KEYS.indexOf(key);
+    if (binding < 0 || read.has(key) || !present(value)) return [];
+    return (Array.isArray(value) ? value : [value]).map((item) => ({ binding, value: item as IntentReference["value"] }));
+  });
   const lowered = lowerGenerationIntent(
-    { slots: [], combine: null, joinsCombine: [] },
-    { references: [], preservedReferences },
+    { bindings: EXPLICIT_BINDINGS, readKeys: bodyKeys, existingValues: { positions: [], onConflict: "keep" } },
+    { references: intent },
+    parameters,
   );
-  return Object.assign(out, Object.fromEntries(Object.entries(lowered.bodyParams).filter(([key]) => !present(out[key]))));
+  return { ...structuredClone(parameters), ...lowered.bodyParams };
 }

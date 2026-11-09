@@ -3,14 +3,18 @@
  *
  * S3（2026-11-08）之前同一件事有三份拼法（画布渲染层按槽写键、headless 按键名猜族、Run 按合同角色词查表再镜像别名），
  * 三份各自演化，同一张图同一个模式两条路发出去不一样。现在三个入口只把手上的东西说成意图，放置只在降级函数里。
- * 这里守两件事：
- *  1. 删掉的那几份拼法的名字不许回来（换个文件再抄一份也算）；
+ * 11-09 又收掉函数里的第二套表示（Run 旧值在意图里自带候选键、读键、选法，原值形状照搬）：槽和旧落点规则都编译成
+ * 绑定，意图只剩「值 + 第几个绑定」。
+ * 这里守三件事：
+ *  1. 删掉的那几份拼法、那套旧值表示的名字不许回来（换个文件再抄一份也算）；
  *  2. 生产代码里，唯一主人以外不许静态写参考键；同目录也不许按变量键赋值，防止再藏一份拼法。
  *     键表是 shared 的通用参考键全集（`GENERIC_REFERENCE_KEYS`，由声明推导，加档案、加槽自动进表）。
  *     例外逐个登记理由：标准输入键（调用方 → 降级函数的中间形状）、键名同名但不是请求参数的、
- *     以及还没收进来的渲染后供应商改形（点名在册，不许再加）。
+ *     以及还没收进来的渲染后供应商改形（点名在册，不许再加）；
+ *  3. 意图的形状就是「绑定 + 值」：选哪个键、什么形状、已有值怎么办只能写在绑定里，意图里没地方再带一份。
  *
- * 目录外变量键写入无法在这里判定其领域；三个真实入口另由 loweringConsumers.test.ts 守住消费结果。
+ * 目录外变量键写入无法在这里判定其领域；三个真实入口共用同一份绑定，由 referenceBinding.contract.test.ts 的变异守
+ * （改一种目标策略或编码，用到它的入口一起红）。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -37,6 +41,12 @@ const RETIRED_ASSEMBLY_NAMES = [
   ["refKey", "WantsArray"],
   ["OBJECT_SHAPE", "_REF_KEY"],
   ["ARRAY_SHAPE", "_REF_KEY"],
+  // 11-09：Run 旧值的第二套表示（意图自带候选键、读键、选法）。
+  ["Preserved", "ReferenceIntent"],
+  ["preserved", "References"],
+  ["retainExisting", "GroupAt"],
+  ["joins", "Combine"],
+  ["reference_slot", "_unknown"],
 ].map((parts) => parts.join(""));
 /** 以前那张别名表的名字单独成词才算（接入套件里 `NEUTRAL_…` 开头的线缆名表是另一回事）。 */
 const RETIRED_EXACT_WORDS = [["PARAMETER", "_ALIASES"].join("")];
@@ -165,6 +175,23 @@ function staticReferenceKeyWrites(files: ReadonlyArray<{ rel: string; source: st
   return hits;
 }
 
+/** 两个意图类型的成员名（`Readonly<{…}>` 或 `{…}` 都认）。 */
+function intentShape(source: string): Record<string, string[]> {
+  const file = ts.createSourceFile("lowerGenerationIntent.ts", source, ts.ScriptTarget.Latest, true);
+  const shape: Record<string, string[]> = {};
+  const literalOf = (node: ts.TypeNode): ts.TypeLiteralNode | null => {
+    if (ts.isTypeLiteralNode(node)) return node;
+    if (ts.isTypeReferenceNode(node) && node.typeArguments?.length === 1) return literalOf(node.typeArguments[0]!);
+    return null;
+  };
+  file.forEachChild((node) => {
+    if (!ts.isTypeAliasDeclaration(node) || !["IntentReference", "GenerationIntent"].includes(node.name.text)) return;
+    const literal = literalOf(node.type);
+    Object.assign(shape, { [node.name.text]: literal ? literal.members.map((member) => member.name?.getText(file) ?? "?") : ["?"] });
+  });
+  return shape;
+}
+
 describe("参考放置只有一个主人（lowerGenerationIntent.ts）", () => {
   const files = productionSources().map((rel) => ({ rel, source: fs.readFileSync(path.join(repoRoot, rel), "utf8") }));
 
@@ -193,6 +220,18 @@ describe("参考放置只有一个主人（lowerGenerationIntent.ts）", () => {
       }
     }
     expect(stale).toEqual([]);
+  });
+
+  it("意图只有「绑定 + 值」：IntentReference 只有 binding / value，GenerationIntent 只有 references", () => {
+    expect(intentShape(fs.readFileSync(path.join(repoRoot, LOWERING_DIR, "lowerGenerationIntent.ts"), "utf8"))).toEqual({
+      IntentReference: ["binding", "value"],
+      GenerationIntent: ["references"],
+    });
+  });
+
+  it("意图形状守卫认得出夹带（反例：意图里再带候选键）", () => {
+    const planted = 'export type IntentReference = Readonly<{ binding: number; value: string; keys: string[] }>;\nexport type GenerationIntent = { references: IntentReference[]; extra?: unknown };';
+    expect(intentShape(planted)).toEqual({ IntentReference: ["binding", "value", "keys"], GenerationIntent: ["references", "extra"] });
   });
 
   it("守卫自己认得出旧拼法（反例：一行 Run 路别名镜像、一行按族写键）", () => {

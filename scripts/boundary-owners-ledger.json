@@ -589,7 +589,7 @@
         "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
         "symbol": "lowerGenerationIntent"
       },
-      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：合并数组的拼法从 referenceChannels.ts 挪进唯一的降级函数 lowerGenerationIntent（encodeCombined），画布、headless、ProductionRun 三条路都经它放；合并槽的 role 表 REFERENCE_ROLE_FOR_KIND 仍住 referenceChannels.ts，lowerCombinedReferences 同提交删除。11-08 合同的不变量「按档案槽顺序和角色拼出唯一合并数组」不变：档案槽的声明顺序就是合并顺序，被合并的扁平键不再出现，官方字段矩阵改前改后请求体逐字节相同。守它的测试：electron/shared/generationLowering/lowerGenerationIntent.test.ts（全部内置档案的全部模式「一张图只进一个键」）、electron/parity/apimartDocsAlignRunPath.test.ts、electron/parity/officialWire.matrix.test.ts。"
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：合并数组的拼法从 referenceChannels.ts 挪进唯一的降级函数 lowerGenerationIntent（11-09 起进合并的槽编译成 combined 绑定，由同一个解析写入过程按槽声明序拼），画布、headless、ProductionRun 三条路都经它放；合并槽的 role 表 REFERENCE_ROLE_FOR_KIND 仍住 referenceChannels.ts，lowerCombinedReferences 同提交删除。11-08 合同的不变量「按档案槽顺序和角色拼出唯一合并数组」不变：档案槽的声明顺序就是合并顺序，被合并的扁平键不再出现，官方字段矩阵改前改后请求体逐字节相同。守它的测试：electron/shared/generationLowering/lowerGenerationIntent.test.ts（全部内置档案的全部模式「一张图只进一个键」）、electron/parity/apimartDocsAlignRunPath.test.ts、electron/parity/officialWire.matrix.test.ts。"
     }
   ],
   "retirements": [

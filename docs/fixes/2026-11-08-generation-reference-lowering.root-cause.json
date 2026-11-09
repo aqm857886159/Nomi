@@ -5,7 +5,7 @@
   "problem_type": "参考放进请求体的哪个键有三份拼法（画布渲染层、主进程 headless、Run 路引擎 B），各自演化，同一张图同一个模式两条路发出去不一样；每次只修其中一份",
   "symptom": "官方字段矩阵（electron/parity/officialWire.matrix.test.ts）在 2026-11-08 冻结了 51 格已知红：双键（复现 3，30 格）、角色词不在官方枚举（复现 2）、按族封顶（复现 1）、模式判别值丢失（复现 5a）等，画布和 Run 两条路红的不一样。往前数，这一类已经按单份拼法修过至少四次：2026-09-21 Run 路按 body 猜通道（同一张参考图两条路进不同的键）、2026-10-22 渲染层线上键泄漏、2026-10-25 headless 按键名正则把参考投进控制字段、2026-11-08 早些时候 Run 路的合并槽另写一份。",
   "direct_cause": "画布路在渲染层 buildArchetypeInputParams 里按槽写线上键并另调一份合并编码；headless 路在 taskParams.projectReferencesOntoBodyKeys 里用三条键名正则（FRAME_SLOTS / OBJECT_SHAPE_REF_KEY / ARRAY_SHAPE_REF_KEY）猜族和形状；Run 路在 apimartGenerationProjection.projectReferenceUrls 里把合同角色词查一张写死的键表（PROJECTION_KEYS），再由 mirrorApimartReferenceParameterAliases 按参数别名表（PARAMETER_ALIASES 的参考那一半）镜像进 body 读的写法，合并槽另有 lowerCombinedReferences / combineRoleForContractReference 两份。三处对「这个参考位叫什么、什么形状、是不是首尾帧」各有一份答案。 独立验收发现残留：runReferences.ts 非合并参考经 listTargetsFor 自己选键并 out[key] 写值，显式参数路也按别名组直接写；目录级免扫允许同目录变量键写口绕过守卫。",
-  "class_root": "「参考 → 请求体键」这个决定没有唯一的主人：声明（档案模式的槽、键的族 / 形状 / 帧意图）在 shared，但把声明翻成请求参数的代码散在三条入口里，各自从不同的东西推（槽位表、body 键名、合同角色词 + 别名表）。任何一个修复只要碰得到其中一份就能合进去，另两份不会跟着变；也没有任何检查拦「第四份拼法」。",
+  "class_root": "「参考 → 请求体键」这个决定没有唯一的主人：声明（档案模式的槽、键的族 / 形状 / 帧意图）在 shared，但把声明翻成请求参数的代码散在三条入口里，各自从不同的东西推（槽位表、body 键名、合同角色词 + 别名表）。任何一个修复只要碰得到其中一份就能合进去，另两份不会跟着变；也没有任何检查拦「第四份拼法」。 11-08 收拢后函数里仍有两套表示：档案槽按槽种和 inputKey 选键定形状，Run 旧值却在意图里自带候选键、读键、选法，原值形状照搬——同一个参考位两个主人，改槽的键或形状，旧值那条路不跟着变（复验不通过的原因，见 docs/engineering/direction-checks/2026-11-09-reference-placement-owner.md）。",
   "affected_population": [
     "所有用参考图 / 参考视频 / 参考音频生成的人：画布节点、Agent / MCP 的 headless 任务、ProductionRun 的 Run 路三个入口",
     "内置 APIMart 图片 / 视频模型的每一档带参考的模式（官方字段矩阵 249 格），以及声明卡接入、没有档案、靠 body 模板读参考的中转模型"
@@ -46,10 +46,10 @@
     }
   ],
   "invariants": [
-    "参考放进请求体的哪个键、什么形状、带什么 role，只由 shared/generationLowering 的 lowerGenerationIntent 按声明回答；画布、headless、Run 三个入口只把手上的东西说成意图",
-    "模式槽参考按声明只进一个键：全部内置档案每档模式每槽放一张不同的图，每张图在结果中正好一次；Run 原值参考的既有重复别名行为必须显式声明全部匹配策略，不由调用方自行写键。",
+    "参考放进请求体的哪个键、什么形状、带什么 role，只由 shared/generationLowering 的 lowerGenerationIntent 按绑定声明回答；档案槽、按 body 推出来的位、Run 的旧落点规则都编译成同一种绑定，意图只带「值 + 第几个绑定」",
+    "模式槽参考按绑定只进一个键：全部内置档案每档模式每槽放一张不同的图，每张图在结果中正好一次；进合并的槽自己的键不与留在扁平键上的槽撞；Run 旧值的同组全部写法、组首、首个读到、已有值优先、授权冲突拒发都写在绑定里，不由调用方自行写键。",
     "收拢不改任何一格请求体：官方字段矩阵 249 格（画布、Run 两条路）改前改后逐字节相同；要改请求体的修法（复现 1、2、3、5a）之后只改降级函数一处",
-    "只有 lowerGenerationIntent.ts 可以在 generationLowering 内写请求参考键；同目录其它生产文件的变量键赋值也必须被守卫拒绝。三个入口均消费降级结果，变更结果落键时调用方必须跟着变。"
+    "只有 lowerGenerationIntent.ts 可以在 generationLowering 内写请求参考键；同目录其它生产文件的变量键赋值也必须被守卫拒绝。意图类型只有 binding / value。改公共解析器里的一种目标策略或编码，用到它的全部入口必须一起变（绑定合同变异）。"
   ],
   "doors": [
     {
@@ -158,22 +158,22 @@
     "after": 20,
     "why_not": "door-map 重新扫描三个入口与下一跳及声明读者，共 20 扇。三个入口所在进程不同，画布、headless、Run（含显式参数）必须保留，但都只交意图并消费 lowerGenerationIntent 的全部结果。placeRunReferences / placeApprovedRunReferences / standardizeExplicitRunReferences 是 Run 的验证与输入适配门，lowerHeadlessReferences 是 body 声明适配门；combineChannelForBody / loweringInputKey / loweringAsArray / DEFAULT_LOWERING_INPUT_KEY / RUN_PATH_REFERENCE_KEYS 是声明读取，GENERIC_REFERENCE_KEYS / DEFAULT_SLOT_INPUT_KEY 是模板参数、出站地址、可达性、画布请求的既有读者，均不决定参考落键。真正选键写值只有 lowerGenerationIntent.ts；Run 的 listTargetsFor 和两处变量键赋值删除。"
   },
-  "generality_proof": "画布、headless、Run 非合并参考和显式参数都通过 loweringConsumers.test.ts 对真实入口施加 image_urls 返回落点变异，结果必须一起变化。参考用途、原值形状、候选组和匹配策略是意图，真正选键并写值只在 lowerGenerationIntent。结构守卫只放行该文件，其它同目录文件的静态参考键 / AST 变量键赋值均拒绝；headless 的声明集合改用 Map，避免非请求体声明赋值需要例外。全部内置档案类测试与官方字段矩阵继续锁定单图单键及请求体。 同组已有值且 body 唯一落点是标准输入键时，retainExistingGroupAt 把旧版不补第二份的行为交给降级函数；Run 的图片 / 首帧回归用例与降级函数的单键 / 多键类用例锁定此边界，冲突校验仍在降级前执行。",
+  "generality_proof": "画布、headless、Run 授权参考、Run 显式参数四个入口共用同一份绑定合同（referenceBinding.contract.test.ts）：在公共解析器里单独改一种目标策略（同组全读 ↔ 组首、都不读时补组首）或一种编码（数组 ↔ 字符串、角色对象 ↔ 扁平地址），用到它的入口必须一起红；修前（两套表示）15 个预期红里 5 个不红，修后全红、恢复全绿。旧行为的字面量（Run 双别名、空 body 组首、重复、首尾帧后者为准、已有值优先、授权冲突、三种自写目录情形）钉在 referencePlacement.characterization.test.ts，换做法前后同一份期望。结构守卫只放行 lowerGenerationIntent.ts 写键，意图类型只许 binding / value，旧值表示的名字不许回来；全部内置档案类测试与官方字段矩阵继续锁定单图单键及请求体。",
   "shared_boundaries": [
     {
       "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
       "symbol": "lowerGenerationIntent",
-      "responsibility": "参考 → 请求参数的唯一降级函数：一份声明 + 一份意图 → bodyParams 与 problems；纯函数、不认供应商名。"
+      "responsibility": "参考 → 请求参数的唯一解析写入过程：一份绑定声明（目标 + 编码 + 已有值规则）+ 一份意图（值 + 第几个绑定）→ bodyParams 与 problems；纯函数、不认供应商名。"
     },
     {
       "path": "electron/shared/generationLowering/headlessReferences.ts",
       "symbol": "lowerHeadlessReferences",
-      "responsibility": "没有档案模式时按 body 推声明（只读 referenceKeys.ts 的显式族 / 形状 / 帧意图表），交给同一个降级函数。"
+      "responsibility": "没有档案模式时按 body 推参考位（只读 referenceKeys.ts 的显式族 / 形状 / 帧意图表），每个位用与档案槽同一个编译器（slotBinding）编成绑定，交给同一个解析写入过程。"
     },
     {
       "path": "electron/shared/generationLowering/runReferences.ts",
       "symbol": "placeApprovedRunReferences",
-      "responsibility": "Run 路只表达授权参考和显式参数的用途、原值形状、候选组和全部 / 首个匹配规则，统一交 lowerGenerationIntent；检查批准地址冲突，保留既有值并消费降级结果。"
+      "responsibility": "Run 路把旧落点规则写成绑定（同组全读或组首、首尾帧、角色数组首个读到、已有值优先、授权冲突拒），每条参考只指到一个绑定（或明着拒），交 lowerGenerationIntent；冲突说成 Run 的错误。"
     }
   ],
   "same_class_entry_points": [
@@ -193,7 +193,7 @@
       "path": "electron/capabilityCore/apimartGenerationProvider.ts",
       "entry_point": "projectionRequest（Run 路）",
       "disposition": "enforced",
-      "evidence": "placeApprovedRunReferences 和 standardizeExplicitRunReferences 都只交意图、消费降级结果；listTargetsFor 和两个直接写口删除。loweringConsumers.test.ts 的两个 Run 用例修前红、修后绿；498 份请求体逐字节不变。"
+      "evidence": "placeApprovedRunReferences 和 standardizeExplicitRunReferences 都只把参考指到绑定、合入解析结果；listTargetsFor、两个直接写口、意图里自带候选键的旧值表示（11-09）删除。绑定合同变异修前 Run 两入口 5 处不红、修后全红；498 份请求体逐字节不变。"
     },
     {
       "path": "src/ui/onboarding/customCallTestFixture.ts",
@@ -259,10 +259,10 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
-    "invariant": "参考放进请求体的哪个键、什么形状、带什么 role，只由 shared/generationLowering 的 lowerGenerationIntent 按声明回答；画布、headless、Run 三个入口只把手上的东西说成意图；只有 lowerGenerationIntent.ts 可以写参考键，目录内其它文件变量键写入亦拒绝。",
-    "failure_mode": "在别处再写一份放置（x.image_urls = …、x[\"first_frame_image\"] = …）或把删掉的名字抄回来 → referencePlacementOwnership.test.ts 红；某档模式的降级结果里一张图进了两个键 → lowerGenerationIntent.test.ts 红；两条路任何一格请求体变了 → 官方字段矩阵按 known-red 原因特征双向冻结，红。 同目录其它文件 out[key] = value 被所有权守卫拒绝；loweringConsumers.test.ts 改写降级返回 image_urls 落点后，画布、headless、Run（含显式参数）必须消费新落点。",
+    "invariant": "参考放进请求体的哪个键、什么形状、带什么 role，只由 shared/generationLowering 的 lowerGenerationIntent 按绑定声明回答；档案槽、按 body 推出来的位、Run 的旧落点规则都编译成同一种绑定，意图只带「值 + 第几个绑定」；只有 lowerGenerationIntent.ts 可以写参考键，目录内其它文件变量键写入亦拒绝。",
+    "failure_mode": "在别处再写一份放置（x.image_urls = …、x[\"first_frame_image\"] = …）、把删掉的名字抄回来、或在意图里再带候选键 → referencePlacementOwnership.test.ts 红；某档模式的结果里一张图进了两个键 → lowerGenerationIntent.test.ts 红；某个入口另有一份放置（改公共解析器的目标策略或编码它不跟着变）→ referenceBinding.contract.test.ts 的变异不红；两条路任何一格请求体变了 → 官方字段矩阵按 known-red 原因特征双向冻结，红。",
     "exception_policy": "none",
-    "strategy": "把三份拼法收成一个纯函数放在 shared，三个入口只交意图；用结构守卫拦第四份，用全档案类测试拦双键，用官方字段矩阵拦请求体漂移。",
+    "strategy": "把三份拼法和 Run 旧值的第二套表示都收成同一种绑定，放在 shared 的一个纯函数里解析写入；三个入口只交意图；用结构守卫拦第四份和意图夹带，用绑定合同变异拦入口另起炉灶，用全档案类测试拦双键，用官方字段矩阵拦请求体漂移。",
     "artifacts": [
       "electron/shared/generationLowering/lowerGenerationIntent.ts",
       "electron/shared/generationLowering/declarationForMode.ts",
@@ -270,8 +270,8 @@
       "electron/shared/generationLowering/runReferences.ts",
       "electron/shared/generationLowering/referencePlacementOwnership.test.ts",
       "electron/shared/generationLowering/lowerGenerationIntent.test.ts",
-      "electron/shared/generationLowering/runReferences.test.ts",
-      "electron/shared/generationLowering/loweringConsumers.test.ts"
+      "electron/shared/generationLowering/referencePlacement.characterization.test.ts",
+      "electron/shared/generationLowering/referenceBinding.contract.test.ts"
     ]
   },
   "regression_tests": [
@@ -280,14 +280,14 @@
     "electron/capabilityCore/generationProviderBootstrap.test.ts",
     "electron/catalog/taskParams.test.ts",
     "electron/catalog/referenceKeyProjectionCensus.test.ts",
-    "electron/shared/generationLowering/runReferences.test.ts",
-    "electron/shared/generationLowering/loweringConsumers.test.ts"
+    "electron/shared/generationLowering/referencePlacement.characterization.test.ts",
+    "electron/shared/generationLowering/referenceBinding.contract.test.ts"
   ],
   "class_regression_tests": [
     "electron/shared/generationLowering/referencePlacementOwnership.test.ts",
     "electron/shared/generationLowering/lowerGenerationIntent.test.ts",
-    "electron/shared/generationLowering/runReferences.test.ts",
-    "electron/shared/generationLowering/loweringConsumers.test.ts"
+    "electron/shared/generationLowering/referencePlacement.characterization.test.ts",
+    "electron/shared/generationLowering/referenceBinding.contract.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -299,7 +299,7 @@
       "electron/shared/videoCapabilities/referenceChannels.ts",
       "electron/shared/generationLowering/runReferences.ts"
     ],
-    "rationale": "别名镜像整个文件删除；projectReferenceUrls、PROJECTION_KEYS、参数别名表的参考那一半、projectReferencesOntoBodyKeys 与三条键名正则、APIMART_REFERENCE_PARAMETER_ALIASES、lowerCombinedReferences、combineRoleForContractReference 同提交删除，没有开关、没有回退。 复验后同提交删除 Run 的 listTargetsFor、非合并参考及显式参数两个直接写口，只有降级结果合入，没有兜底。"
+    "rationale": "别名镜像整个文件删除；projectReferenceUrls、PROJECTION_KEYS、参数别名表的参考那一半、projectReferencesOntoBodyKeys 与三条键名正则、APIMART_REFERENCE_PARAMETER_ALIASES、lowerCombinedReferences、combineRoleForContractReference 同提交删除，没有开关、没有回退。 复验后同提交删除 Run 的 listTargetsFor、非合并参考及显式参数两个直接写口，只有降级结果合入，没有兜底。 11-09 用户批准换做法后同提交删除意图里的旧值表示（PreservedReferenceIntent、preservedReferences、retainExistingGroupAt、按槽号的 joinsCombine 声明），旧落点规则改写成绑定，没有开关、没有回退。"
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
@@ -309,10 +309,11 @@
   "migration": "不用迁数据：请求体逐字节不变（官方字段矩阵 249 格、升级回放 tests/fixtures/old-user-data 的真实旧目录逐模式比 POST body），老项目、老模型、老设置升级后照常用，退回上一版也一样。",
   "residual_risks": [
     "固定 main 官方矩阵 253 项通过、known-red.cells 为 0；本轮只做结构收拢，不调整产品行为。后续若需改变请求体仍须单独评审，不由绿色结构测试推断官方一致性。",
-    "generationLowering 目录内的变量键赋值现已拦截；目录外通用变量键写入不作领域判断，三个真实入口由消费结果变异测试约束。",
+    "generationLowering 目录内的变量键赋值现已拦截；目录外通用变量键写入不作领域判断，四个入口由绑定合同的公共解析器变异约束（用到同一绑定的一起红）。",
     "没有夹具的 124 格只比了改前改后逐字节相同，没有官方原文核对；声明卡接入、没有档案的中转模型只有测试语料里的形状，真实用户自写的 body 形状没有全量核",
     "收拢时保留了几处与官方不一致的旧行为（Run 路首帧同时进 first_frame_url 与 image_urls 的双放、headless 对 input_image / image / reference_image 发单值而画布发数组），见报告；修它们会改请求体",
-    "渲染后的供应商改形（registerRequestTransform，11 个文件 17 个改形，其中 7 个文件会改参考键：fal、Runway（视频 / 图片）、Agnes、MiniMax（官方 / APIMart）、ComfyUI）是同一类的第二层放置，这次没收进降级函数；结构守卫只点名它们现有的静态写法，按变量键的改写拦不到"
+    "渲染后的供应商改形（registerRequestTransform，11 个文件 17 个改形，其中 7 个文件会改参考键：fal、Runway（视频 / 图片）、Agnes、MiniMax（官方 / APIMart）、ComfyUI）是同一类的第二层放置，这次没收进降级函数；结构守卫只点名它们现有的静态写法，按变量键的改写拦不到",
+    "自写模式里进合并的槽与留在扁平键上的槽用同一个 inputKey 时，旧写法会把扁平槽的值一起删掉、现在照发；内置档案由类测试证明没有这种撞键，自写目录未全量核。Run 显式参考参数按键声明的形状编码（列表位永远是数组），只有空别名遮住形状校验时才和旧的「原值照搬」不同。"
   ],
   "recurrence_check_on": "2026-12-08",
   "invariant_owner_layer": {
@@ -320,7 +321,7 @@
     "tests": [
       "electron/shared/generationLowering/lowerGenerationIntent.test.ts",
       "electron/shared/generationLowering/referencePlacementOwnership.test.ts",
-      "electron/shared/generationLowering/loweringConsumers.test.ts"
+      "electron/shared/generationLowering/referenceBinding.contract.test.ts"
     ],
     "why": "放置规则只住在降级函数里，三个入口都调它；守卫和类测试就挨着它。"
   }

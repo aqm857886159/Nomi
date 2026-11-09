@@ -11,6 +11,7 @@
  *  · 跳过对象形态键（角色数组 / content 项）与派生载体：它们只有拿得到模式的那一层才造得对；
  *  · 既有值优先：键上已经有值（调用方显式给，或画布已放好）→ 不碰；
  *  · 画布已经放好、且没有另外的平铺来源 → 这一族不再放第二个键。
+ * 推出来的每个位编译成一个绑定（`slotBinding`，与档案槽同一个编译器），写入交给同一个解析写入过程。
  *
  * 不读盘、不认供应商名。读「携带了哪些参考」是调用方的事（taskParams），这里只收读好的结果。
  */
@@ -24,7 +25,8 @@ import {
   type ReferenceModelContext,
 } from "../modelArchetypes/referenceKeys";
 import type { ArchetypeReferenceSlotKind } from "../videoCapabilities/types";
-import { lowerGenerationIntent, type IntentReference, type LoweringSlot } from "./lowerGenerationIntent";
+import { slotBinding } from "./declarationForMode";
+import { lowerGenerationIntent, type IntentReference, type ReferenceBinding } from "./lowerGenerationIntent";
 
 type FamilyUrls = Readonly<Record<ReferenceFamily, readonly string[]>>;
 
@@ -51,9 +53,6 @@ const ARRAY_KIND_FOR_FAMILY: Readonly<Record<ReferenceFamily, ArchetypeReference
   video: "video_ref",
   audio: "audio_ref",
 };
-const FAMILY_FOR_KIND: Readonly<Partial<Record<ArchetypeReferenceSlotKind, ReferenceFamily>>> = {
-  first_frame: "image", last_frame: "image", image_ref: "image", video_ref: "video", audio_ref: "audio",
-};
 const FAMILIES: readonly ReferenceFamily[] = ["image", "video", "audio"];
 
 /**
@@ -66,7 +65,7 @@ export function lowerHeadlessReferences(
 ): { bodyParams: Record<string, unknown>; problems: readonly HeadlessCapacityProblem[] } {
   if (FAMILIES.every((family) => sources.carried[family].length === 0)) return { bodyParams: {}, problems: [] };
   const bodyKeys = bodyReferencedParamKeys(createBody);
-  const slots: LoweringSlot[] = [];
+  const bindings: ReferenceBinding[] = [];
   const intent: IntentReference[] = [];
   const consumed = new Set<string>();
   const used = new Set<string>();
@@ -81,8 +80,8 @@ export function lowerHeadlessReferences(
       return shape !== "role-objects" && shape !== "content-items" && !sources.occupied(candidate);
     });
     if (!key) continue;
-    intent.push({ url, slot: slots.length });
-    slots.push({ kind: frame, inputKey: key, asArray: false });
+    intent.push({ binding: bindings.length, value: url });
+    bindings.push(slotBinding({ kind: frame, inputKey: key, asArray: false }));
     consumed.add(url);
     used.add(key);
   }
@@ -109,21 +108,15 @@ export function lowerHeadlessReferences(
     const hasDistinctFlatSource = pool(sources.flat[family]).some((url) => !placed.includes(url));
     if (placed.length > 0 && !hasDistinctFlatSource) continue;
     const urls = pool(sources.carried[family]);
-    const slot = slots.length;
+    const binding = bindings.length;
     // 单值位只放第一张（沿用 firstReferenceImage 的优先级）；张数上限仍按全部携带的数（超了就拒，不静默截）。
     if (target.max !== undefined && urls.length > target.max) {
       return { bodyParams: {}, problems: [{ family, max: target.max, count: urls.length }] };
     }
-    slots.push({ kind: ARRAY_KIND_FOR_FAMILY[family], inputKey: target.key, asArray: target.list });
-    for (const url of target.list ? urls : urls.slice(0, 1)) intent.push({ url, slot });
+    // 推出来的位不带 max（上限上面已按全部携带的数核过），解析写入不会再报超量。
+    bindings.push(slotBinding({ kind: ARRAY_KIND_FOR_FAMILY[family], inputKey: target.key, asArray: target.list }));
+    for (const url of target.list ? urls : urls.slice(0, 1)) intent.push({ binding, value: url });
   }
 
-  const lowered = lowerGenerationIntent(
-    { slots, combine: null, joinsCombine: slots.map(() => false) },
-    { references: intent },
-  );
-  const problems = lowered.problems.flatMap((problem) => problem.code === "reference_over_capacity"
-    ? [{ family: FAMILY_FOR_KIND[problem.kind] ?? "image", max: problem.max, count: problem.count }]
-    : []);
-  return { bodyParams: lowered.bodyParams, problems };
+  return { bodyParams: lowerGenerationIntent({ bindings, readKeys: bodyKeys }, { references: intent }).bodyParams, problems: [] };
 }
