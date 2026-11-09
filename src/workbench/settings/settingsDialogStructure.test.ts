@@ -220,12 +220,13 @@ describe('settings dialog structure', () => {
     expect(aboutSource).not.toContain("window.dispatchEvent(new CustomEvent('nomi-open-feedback-share'))")
   })
 
-  it('keeps the origin/main frame and sidebar for every settings tab', () => {
+  it('keeps the sidebar inside the shared height owner for every settings tab', () => {
     expect(settingsSource).toContain('data-settings-dialog')
-    expect(settingsSource).toContain('data-settings-tab={tab}')
-    expect(settingsSource).toContain('className="fixed inset-0 flex items-center justify-center bg-black/45 p-2 sm:p-6"')
-    expect(settingsSource).toContain('max-w-[760px]')
-    expect(settingsSource).toContain('sm:h-[min(560px,calc(100svh-48px))]')
+    expect(settingsSource).toContain("'data-settings-tab': tab")
+    expect(settingsSource).toContain('<DesignModal')
+    expect(settingsSource).not.toContain('<Portal>')
+    expect(settingsSource).toContain('size={760}')
+    expect(settingsSource).not.toContain('100svh')
     expect(settingsSource).toContain('sm:w-[196px]')
     expect(settingsSource).not.toContain('sm:max-w-[900px]')
     expect(settingsSource).not.toContain('sm:h-[min(540px')
