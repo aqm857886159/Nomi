@@ -66,7 +66,7 @@
 - `scripts/boundary-owners-ledger.json`：历史根因合同保留原快照，通过已有 reanchored 机制将 resolveTarget 指向同文件的 resolveVendorReadTarget；不修改合同、门岗或产品代码。
 - `docs/engineering/self-written.json`：用 model-surface-account-quote 精确认领六个领域适配模块，不扩大 domainRoots；领域约束与复用查证见“先查别人”。
 - `scripts/outbound-policy-baseline.json`：精确登记两个已在上层限制供应商 origin 的只读模块及其 vi.mock 测试；四问核对见设计卡 ★4，不放宽策略。
-- `scripts/file-size-baseline.json`：OnboardingDrawer 的导航职责移入既有 hook 后，将冻结上限由 847 下调到 844，不上调。
+- `scripts/file-size-baseline.json`：OnboardingDrawer 的导航职责移入既有 hook 后，将冻结上限由 847 下调到 839，不上调。
 - `scripts/vocabularies-baseline.json`：登记已有 VendorAccountFacts.keyState 合同的三个验证结论；查无同义已注册 owner，不另写并行状态。
 
 ## 先查别人

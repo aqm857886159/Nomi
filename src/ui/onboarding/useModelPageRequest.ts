@@ -1,6 +1,6 @@
 import React from 'react'
 
-import type { ModelSettingsPage } from './modelSettingsNavigation'
+import { currentModelSettingsPage, openModelSettingsPage, type ModelSettingsNavigation, type ModelSettingsPage } from './modelSettingsNavigation'
 
 /**
  * 外部（今天只有设置页「素材上传通道」卡）要求模型工作区直接落到某一家的接入页。
@@ -13,14 +13,20 @@ export type ModelPageRequest = { vendorKey: string; token: number } | { section:
 
 export function useModelPageRequest(
   request: ModelPageRequest,
-  openPage: (next: ModelSettingsPage) => void,
-): void {
+  navigation: ModelSettingsNavigation,
+  setNavigation: React.Dispatch<React.SetStateAction<ModelSettingsNavigation>>,
+) {
+  const openPage = React.useCallback((next: Exclude<ModelSettingsPage, { type: 'home' }>) => {
+    setNavigation(current => openModelSettingsPage(current, next))
+  }, [setNavigation])
   const handledToken = React.useRef<number | null>(null)
   React.useEffect(() => {
     if (!request || handledToken.current === request.token) return
     handledToken.current = request.token
-    openPage('vendorKey' in request
-      ? { type: 'platformConnect', vendorKey: request.vendorKey }
-      : { type: 'home', assistedRequest: request.token })
-  }, [request, openPage])
+    setNavigation(current => 'vendorKey' in request
+      ? openModelSettingsPage(current, { type: 'platformConnect', vendorKey: request.vendorKey })
+      : { stack: [{ type: 'home', assistedRequest: request.token }] })
+  }, [request, setNavigation])
+  const page = currentModelSettingsPage(navigation)
+  return { openPage, assistedRequest: page.type === 'home' ? page.assistedRequest : undefined }
 }
