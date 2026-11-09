@@ -1,16 +1,16 @@
 {
   "name": "storyboard-r3-after",
   "mode": "development",
-  "tempRoot": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p19242-l7smfY",
-  "outputDir": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips/.tmp/pi-storyboard-r3-after-development-1794210361774",
+  "tempRoot": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p53678-sglwOL",
+  "outputDir": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips/.tmp/pi-storyboard-r3-after-development-1794211807091",
   "launches": [
     {
       "packaged": false,
       "appPath": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/storyboard-strips",
-      "userData": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p19242-l7smfY/user-data",
+      "userData": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p53678-sglwOL/user-data",
       "node": "24.18.1",
       "electron": "43.4.1",
-      "pid": 19377
+      "pid": 53877
     }
   ],
   "screenshots": [
@@ -25,21 +25,21 @@
   ],
   "paidCalls": 0,
   "build": {
-    "head": "716f437455db8d2ad77841aae7500a9ba7dd811f",
+    "head": "32129be7e396a3a05461c91112cc1ce3b138a3f7",
     "fingerprint": {
-      "tree": "fd6aeb3f3c3df5f304696e4b968db8ea59530c6f"
+      "tree": "774debc5a56bfdc4d0fe0babf83e107074133efa"
     },
     "renderer": {
       "version": 2,
-      "tree": "fd6aeb3f3c3df5f304696e4b968db8ea59530c6f"
+      "tree": "774debc5a56bfdc4d0fe0babf83e107074133efa"
     },
     "electron": {
       "version": 2,
-      "tree": "fd6aeb3f3c3df5f304696e4b968db8ea59530c6f"
+      "tree": "774debc5a56bfdc4d0fe0babf83e107074133efa"
     }
   },
-  "projectId": "project-1794210366009-bxd7j9",
-  "projectRoot": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p19242-l7smfY/projects/未命名项目 11_09 15_46-mw8yiypp-de0f1448",
+  "projectId": "project-1794211811117-1k63sw",
+  "projectRoot": "/private/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-storyboard-r3-after-p53678-sglwOL/projects/未命名项目 11_09 16_10-mw8zdxrn-41682b38",
   "visual": [
     {
       "locale": "zh-CN",
