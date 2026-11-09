@@ -321,3 +321,19 @@ test.each([[0, null, 0], [1, null, 1], [null, 'SIGKILL', 1]])('packaged credenti
   child.emit('exit', code, signal)
   expect(processDouble.exitCode).toBe(expected)
 })
+
+
+test.each([
+  [undefined, '/fixture/user-data', /absolute executable/],
+  ['/fixture/Nomi', undefined, /isolated profile/],
+])('packaged credential owner rejects an incomplete launch contract', async (executablePath, userDataDir, message) => {
+  const launch = vi.fn(async () => ({ close: vi.fn(), app: { process: () => new EventEmitter() } }))
+  const processDouble = {
+    argv: ['node', 'bootstrap', executablePath],
+    env: { NOMI_ELECTRON_USER_DATA_DIR: userDataDir, NOMI_SETTINGS_DIR: '/fixture/settings', NOMI_PROJECTS_DIR: '/fixture/projects', NOMI_CAPABILITY_DIR: '/fixture/capability' },
+    once: vi.fn(),
+  }
+  const codeUnderTest = fs.readFileSync(new URL('_packagedCredentialOwner.mjs', import.meta.url), 'utf8').replace(/^import .*$/gm, '')
+  await expect(vm.runInNewContext(`(async () => { ${codeUnderTest} })()`, { path, process: processDouble, launchNomiApp: launch })).rejects.toThrow(message)
+  expect(launch).not.toHaveBeenCalled()
+})
