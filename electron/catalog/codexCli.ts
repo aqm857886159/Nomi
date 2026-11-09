@@ -295,23 +295,20 @@ function importCodexImage(record: CodexImageJobRecord, input: CodexImageQueryInp
 async function importCodexImageOnce(record: CodexImageJobRecord, input: CodexImageQueryInput): Promise<string[]> {
   if (record.localUrls.length) return record.localUrls;
   if (!record.imagePath || !existsSync(record.imagePath)) return [];
+  // 进程执行器没项目号就不起进程（processOperation），这里一定有项目：本机生图只经生成产物关口写进项目。
   const localUrls: string[] = [];
-  if (input.projectId) {
-    const threadPart = (record.threadId || record.jobId).slice(0, 8);
-    const fileName = `codex-image-${threadPart}${path.extname(record.imagePath) || ".png"}`;
-    const written = await input.writeAsset(
-      input.projectId,
-      readFileSync(record.imagePath),
-      fileName,
-      contentTypeFromPath(record.imagePath),
-      { kind: "generated", provider: "codex-local", originalPath: record.imagePath },
-      "image",
-    ) as { data?: { url?: string } };
-    const url = String(written.data?.url || "");
-    if (url) localUrls.push(url);
-  } else {
-    localUrls.push(record.imagePath);
-  }
+  const threadPart = (record.threadId || record.jobId).slice(0, 8);
+  const fileName = `codex-image-${threadPart}${path.extname(record.imagePath) || ".png"}`;
+  const written = await input.writeAsset(
+    input.projectId,
+    readFileSync(record.imagePath),
+    fileName,
+    contentTypeFromPath(record.imagePath),
+    { kind: "generated", provider: "codex-local", originalPath: record.imagePath },
+    "image",
+  ) as { data?: { url?: string } };
+  const url = String(written.data?.url || "");
+  if (url) localUrls.push(url);
   if (localUrls.length) patchJob(record.jobId, { localUrls });
   return localUrls;
 }
