@@ -5,7 +5,7 @@ import { assertLocalAssetTransportReady } from "./catalog/assetLocalization";
 import { assertNoReferencesOutsideSubmit, stageSubmitsReferences } from "./catalog/referenceStage";
 import { assetIngestionResolver, assetLocalizationOptions, localizeForSend } from "./catalog/assetTransportRuntime";
 import { readNomiLocalAsset, postJsonForAssetUpload, postMultipartForAssetUpload, putBinaryForAssetUpload } from "./assets/localAssetFile";
-import { writeAsset, writeGeneratedAsset, writeGeneratedDeterministicAsset } from "./assets/projectAssetStore";
+import { writeGeneratedAsset, writeGeneratedDeterministicAsset } from "./assets/projectAssetStore";
 import { endpoint } from "./vendorEndpoint";
 import { requestJson, requestMultipart, vendorResponseLimitForKind } from "./vendor/vendorHttp";
 import { runMultipartProfileOperation } from "./catalog/multipartOperation";
@@ -295,12 +295,12 @@ export async function runTask(payload: unknown, admission: TaskAdmission = TOKEN
   request.prompt = projectOutboundPrompt(request.prompt, request.extras);
   const customCall = resolveCustomCallExecution(model as Model, request, mapping);
   const customCallScript = customCall?.script || "";
+  // 结果只能写成项目文件（脚本 saveFile、本机进程、同步配音、文件流视频）：没有项目号就在付费闸之前拒——不发请求、不起进程、不扣令牌（projectFileResult）。
+  if (!projectId && resultOnlyLandsAsProjectFile(kind, mapping, customCallScript)) throw new Error(desktopT("tasks.resultNeedsProject"));
   const guardError = imageEditGuardError(kind, request, Boolean(mapping) || Boolean(customCallScript), model.labelZh || model.modelKey, customCallScript ? undefined : mapping?.create?.body, modelModeBodies(readCatalog().mappings, effectiveVendorKey, modelKey, (model as Model).modelAlias, model.meta), referenceSelection);
   if (guardError) throw new Error(guardError);
   if (customCallScript)
-    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, writeAsset, spendGate: admission.spendGate });
-  // 结果只能写成项目文件（同步配音 / 文件流视频）：没有项目号就在付费闸之前拒——不发请求、不扣令牌（projectFileResult）。
-  if (!projectId && resultOnlyLandsAsProjectFile(kind, mapping)) throw new Error(desktopT("tasks.resultNeedsProject"));
+    return runCustomCallTask({ vendor, model, apiKey, customConfig, script: customCallScript, taskKind: customCall!.taskKind, modeId: customCall!.modeId, operation: mapping?.create, request, kind, wantedKind, projectId, nodeId, grantId, taskId, localizeTaskAsset, spendGate: admission.spendGate });
   if (usesSynchronousAudioRunner(wantedKind, mapping)) {
     await admission.spendGate({ grantId, nodeId, projectId, vendorKey: vendor.key, modelKey: model.modelKey, parameters: request.extras });
     return runAudioTask({ vendor, model, apiKey, request, kind, taskId, projectId, nodeId, mapping });

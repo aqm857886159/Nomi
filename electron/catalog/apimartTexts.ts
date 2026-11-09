@@ -105,10 +105,6 @@ const asked = (modelKey: string, modelDoc?: string, sawImage?: "sawImage"): Apim
  *
  * - `deepseek-v4-pro`：默认大脑，思考型纯文本与工具调用的主控入口。
  * - `deepseek-v4-flash`：低延迟回退，纯文本与工具调用。
- * - `deepseek-v3.1-terminus`：V3.1 终版文本与工具调用回退。2026-11-07：文档和全量价目表都查不到它，
- *   单模型价目接口只回一条旧倍率价（像 `deepseek-v3.2` 那样的残留）；价格照旧留白。2026-11-08 一问一个
- *   （tests/ux/apimart-text-brains-real.paid.mjs）回 503 `model_not_found`，`/v1/models` 列表里也没有它：
- *   按退役处理，走 seedBuiltins 的退役清单（有老用户，要迁移，另开 PR，计划表登记）。
  *
  * `deepseek-v3.2` 2026-10-27 下架：APIMart 的 `/v1/models` 仍列着它，调用却确定性 404 `model_not_found`
  * （10-18 付费走查实录）。退役清单与存量迁移见 seedBuiltins.ts 的 `RETIRED_APIMART_TEXT_MODEL_KEYS`。
@@ -252,14 +248,6 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
     // 2026-11-07 起记 APIMart 价（以前记 DeepSeek 官网峰价 0.44 / 1.32 / 缓存读 0.014）。
     tokenPricing: { inputPerMTokUsd: 0.3428568, outputPerMTokUsd: 1.0285712, cacheReadPerMTokUsd: 0.0342856, source: pricingSource("deepseek-v4-flash") },
     evidence: { protocolDoc: CHAT_PROTOCOL_DOC, modelDoc: CHAT_PROTOCOL_DOC, pricingApi: apimartTextPricingApi("deepseek-v4-flash"), liveCall: DEEPSEEK_PROBED_0821 },
-  },
-  // V3.1-terminus **故意留白**：2026-09-07 实查 DeepSeek 官方定价页，表里只有 v4-flash / v4-pro /
-  // v4-flash-vision-exp 三行，V3 系列一个字都没有；2026-11-07 APIMart 全量价目表也没有它（见上面的注释）。
-  // 查不到就不填——编一个「大概和 flash 差不多」的数字，面板上会印出一个看起来很确定的金额。
-  // 它在运行时落到「花费不可知」那一态。
-  {
-    modelKey: "deepseek-v3.1-terminus", labelZh: "DeepSeek V3.1 Terminus", meta: { autoTextPriority: -1 },
-    evidence: { protocolDoc: CHAT_PROTOCOL_DOC, pricingApi: apimartTextPricingApi("deepseek-v3.1-terminus"), liveCall: DEEPSEEK_PROBED_0821 },
   },
   {
     modelKey: "gemini-3.5-flash", labelZh: "Gemini 3.5 Flash",

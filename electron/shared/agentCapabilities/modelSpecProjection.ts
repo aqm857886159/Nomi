@@ -16,7 +16,9 @@
 //
 // 为什么薄的那一档必须真薄：108 个模型的完整说明书是十万字量级，塞进每一回合就是把
 // 上下文烧光、把工具写对率拖垮。薄名单只留**选型需要的最少字段**，选定之后再查那一个。
-import type { AgentModelEntry } from "./availableModels";
+import type { AgentModelEntry, AgentModelVariant } from "./availableModels";
+import { getArchetypeById, resolveArchetypeVariant, specializeArchetypeForVariant, specializeArchetypeForVendor } from "../modelArchetypes";
+import type { ModelParameterControl } from "../videoCapabilities/types";
 
 /** 这个模型此刻能不能用——与 Nomi 自己界面里的下拉读的是同一个答案。 */
 export type ModelAvailabilityFacts = {
@@ -51,7 +53,8 @@ export type ModelSpecDetail = ModelSpecRow & {
   defaultModeId: string;
   defaultVariantId?: string;
   modes: AgentModelEntry["modes"];
-  variants?: AgentModelEntry["variants"];
+  /** Mode parameters are for the default variant. Apply these differences for a named variant. */
+  variants?: Array<AgentModelVariant & { parameterOverridesByMode?: Record<string, Record<string, ModelParameterControl | null>> }>;
 };
 
 const IMAGE_SLOTS = new Set(["image_ref", "first_frame", "last_frame"]);
@@ -87,15 +90,55 @@ export function modelSpecRow(entry: AgentModelEntry, availability?: ModelAvailab
   };
 }
 
+/** A variant may remove a control (null), add one, or narrow its allowed values. */
+function changedParameters(base: ModelParameterControl[], selected: ModelParameterControl[]): Record<string, ModelParameterControl | null> {
+  const changes: Record<string, ModelParameterControl | null> = {};
+  for (const control of selected) {
+    const previous = base.find((item) => item.key === control.key);
+    if (previous !== control && JSON.stringify(previous) !== JSON.stringify(control)) changes[control.key] = control;
+  }
+  for (const control of base) {
+    if (!selected.some((item) => item.key === control.key)) changes[control.key] = null;
+  }
+  return changes;
+}
+
+/** Thin lists and renderer callers keep their original entries. Specialize only the requested model. */
+function variantDetails(entry: AgentModelEntry): Pick<ModelSpecDetail, "modes" | "variants" | "defaultVariantId"> {
+  const unmodified = { modes: entry.modes, ...(entry.variants?.length ? { variants: entry.variants } : {}),
+    ...(entry.defaultVariantId ? { defaultVariantId: entry.defaultVariantId } : {}) };
+  if (!entry.variants?.length || !entry.archetypeId) return unmodified;
+  const base = getArchetypeById(entry.archetypeId);
+  if (!base) return unmodified; // User-declared models without a registered archetype own their supplied controls.
+  const scoped = specializeArchetypeForVendor(base, entry.vendor);
+  const defaultVariantId = resolveArchetypeVariant(scoped, { modelId: entry.modelId })?.id;
+  const defaultArchetype = specializeArchetypeForVariant(scoped, defaultVariantId);
+  const modes = entry.modes.map((mode) => {
+    const params = defaultArchetype.modes.find((item) => item.id === mode.modeId)?.params;
+    return params ? { ...mode, params } : mode;
+  });
+  const variants = entry.variants.map((variant) => {
+    if (variant.id === defaultVariantId) return variant;
+    const selected = specializeArchetypeForVariant(scoped, variant.id);
+    const byMode: Record<string, Record<string, ModelParameterControl | null>> = {};
+    for (const mode of modes) {
+      const params = selected.modes.find((item) => item.id === mode.modeId)?.params;
+      if (!params || params === mode.params) continue;
+      const changes = changedParameters(mode.params, params);
+      if (Object.keys(changes).length) byMode[mode.modeId] = changes;
+    }
+    return Object.keys(byMode).length ? { ...variant, parameterOverridesByMode: byMode } : variant;
+  });
+  return { modes, variants, defaultVariantId };
+}
+
 export function modelSpecDetail(entry: AgentModelEntry, availability?: ModelAvailabilityFacts): ModelSpecDetail {
   return {
     ...modelSpecRow(entry, availability),
     ...(entry.archetypeId ? { archetypeId: entry.archetypeId } : {}),
     modelAlias: entry.modelAlias,
     defaultModeId: entry.defaultModeId,
-    ...(entry.defaultVariantId ? { defaultVariantId: entry.defaultVariantId } : {}),
-    modes: entry.modes,
-    ...(entry.variants?.length ? { variants: entry.variants } : {}),
+    ...variantDetails(entry),
   };
 }
 
