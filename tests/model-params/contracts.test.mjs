@@ -9,7 +9,8 @@ import { models, cases, missing, identity, illegal, surface } from './corpus.mjs
 import { entrances } from './entrances.mjs'
 import { projectFixture, openProject, adjustmentEvidence, openOperation } from './observation.mjs'
 
-const measurements = []
+// Keyed by entrance/column: CI retries failing tests, and an it.fails body always fails, so a retry must overwrite its own row.
+const measurements = new Map()
 const infrastructureErrors = []
 const openedCache = new Map()
 let root
@@ -19,7 +20,7 @@ beforeAll(() => {
 })
 afterAll(() => {
   setCatalogRowLookup(undefined)
-  if (process.env.NOMI_MODEL_PARAMS_REPORT) fs.writeFileSync(process.env.NOMI_MODEL_PARAMS_REPORT, JSON.stringify({ models: models.length, measurements, infrastructureErrors, missing: [...new Map(missing.map(row => [JSON.stringify(row), row])).values()] }, null, 2))
+  if (process.env.NOMI_MODEL_PARAMS_REPORT) fs.writeFileSync(process.env.NOMI_MODEL_PARAMS_REPORT, JSON.stringify({ models: models.length, measurements: [...measurements.values()], infrastructureErrors, missing: [...new Map(missing.map(row => [JSON.stringify(row), row])).values()] }, null, 2))
   fs.rmSync(root, { recursive: true, force: true })
 })
 
@@ -31,7 +32,7 @@ function changes(test, output) {
 }
 function record(id, column, count, failures, example) {
   const row = { id, column, samples: count, failures, example }
-  measurements.push(row)
+  measurements.set(`${id}/${column}`, row)
   return row
 }
 function scan(entrance, column) {
@@ -138,5 +139,5 @@ describe('C1 parameters / catalog × entrance × three invariants', () => {
       expect(row.failures, JSON.stringify(row.example)).toBe(0)
     })
   }
-  it('has no infrastructure errors hidden by it.fails', () => { expect(infrastructureErrors).toEqual([]); expect(measurements).toHaveLength(entrances.length * 3); expect(measurements.every(row => row.samples > 0)).toBe(true) })
+  it('has no infrastructure errors hidden by it.fails', () => { expect(infrastructureErrors).toEqual([]); expect(measurements.size).toBe(entrances.length * 3); expect([...measurements.values()].every(row => row.samples > 0)).toBe(true) })
 })

@@ -129,8 +129,11 @@ describe("翻不了就当场拒，带合法值，绝不回落默认", () => {
     expect(error.rejection?.allowedValues).toContain("9:16");
   });
 
-  it("没有比例选择的模式拒：像素尺寸档（Agnes 2.0）、比例跟着输入图走的图生视频（可灵 image 模式）", () => {
-    expect(rejection(() => translate("agnes", "agnes-image-2.0-flash", "text_to_image", { aspectRatio: "16:9" })).code).toBe("unknown_parameter");
+  it("像素档只接受几何完全一致的比例；跟随首帧的模式仍拒", () => {
+    expect(translate("agnes", "agnes-image-2.0-flash", "text_to_image", { aspectRatio: "16:9" })).toEqual({ size: "1280x720" });
+    const unsupported = rejection(() => translate("agnes", "agnes-image-2.0-flash", "text_to_image", { aspectRatio: "21:9" }));
+    expect(unsupported.code).toBe("parameter_not_in_enum");
+    expect(unsupported.rejection?.allowedValues).toContain("1280x720");
     expect(rejection(() => translate("runninghub", "kling-v3.0-pro", "image_to_video", { aspectRatio: "16:9" })).code).toBe("unknown_parameter");
   });
 
@@ -179,13 +182,13 @@ describe("像素档（Runway 那一层：选项是 1280:720 这种像素串）�
     expect(translate("runway", "gen4_image", "text_to_image", { aspectRatio: "1:1" })).toEqual({ aspect_ratio: "1024:1024" });
   });
 
-  it("供应商取整的近似比例也算同一个比例（Gemini 图像 3 的 16:9 档是 1344:768）", () => {
-    expect(translate("runway", "gemini_image3_pro", "text_to_image", { aspectRatio: "16:9" })).toEqual({ aspect_ratio: "1344:768" });
+  it("宿主不把供应商取整近似当作完全一致（1344:768 不是 16:9）", () => {
+    expect(rejection(() => translate("runway", "gemini_image3_pro", "text_to_image", { aspectRatio: "16:9" })).code).toBe("parameter_not_in_enum");
   });
 
-  it("按长边分档的大图（gpt-image-2 默认 1920:1920、Seedream 5 Lite 默认 2048:2048）：取同面积那一档", () => {
+  it("大图只在几何完全一致的档里选择，不把2848:1600当成16:9", () => {
     expect(translate("runway", "gpt_image_2", "text_to_image", { aspectRatio: "16:9" })).toEqual({ aspect_ratio: "2560:1440" });
-    expect(translate("runway", "seedream5_lite", "text_to_image", { aspectRatio: "16:9" })).toEqual({ aspect_ratio: "2848:1600" });
+    expect(translate("runway", "seedream5_lite", "text_to_image", { aspectRatio: "16:9" })).toEqual({ aspect_ratio: "4096:2304" });
   });
 
   it("判不出要哪一档就拒并列出候选（像素档、没有默认值）——不随便挑一个", () => {
@@ -212,5 +215,34 @@ describe("改草稿那一扇门：落盘的是翻译之后的参数", () => {
     const base = candidate("apimart", "z-image-turbo", "text_to_image", {});
     expect(() => resolvePlanPatch({ baseCandidate: base, userPatch: { parameters: { aspectRatio: "21:9" } }, registry }))
       .toThrow(ContractCompilationError);
+  });
+});
+
+// 历史报告十二条 Seedream 比例拒收的边界形状；不是完整 Agent 回合重跑。
+describe("Seedream 历史比例拒收重放", () => {
+  it.each([
+    ["P03[5]", "doubao-seedream-5-0-260128", "9:16"],
+    ["P04[2]", "doubao-seedream-4-5-251128", "1:1"],
+    ["P15[3]", "doubao-seedream-4-5-251128", "9:16"],
+    ["P16[4]", "doubao-seedream-5-0-pro-260628", "16:9"],
+    ["P18[4]", "doubao-seedream-4-0-250828", "9:16"],
+    ["P23[7]", "doubao-seedream-4-5-251128", "16:9"],
+    ["P24[4]", "doubao-seedream-4-5-251128", "16:9"],
+    ["P25[3]", "doubao-seedream-5-0-260128", "16:9"],
+    ["P26[3]", "doubao-seedream-5-0-pro-260628", "16:9"],
+    ["P29[5]", "doubao-seedream-4-5-251128", "16:9"],
+    ["P31[4]", "doubao-seedream-4-5-251128", "16:9"],
+    ["P24[5]", "doubao-seedream-4-5-251128", "16:9"],
+  ])("%s %s %s 落到合法像素档", (_id, modelId, ratio) => {
+    const params = translate("volcengine", modelId!, "text_to_image", { aspectRatio: ratio });
+    expect(params.size).toMatch(/^\d+x\d+$/);
+    expect(params).not.toHaveProperty("aspectRatio");
+  });
+  it.each(["2560x1440", "2560×1440", "2560*1440"])("%s 在火山保留精确档，在 APIMart 落比例", value => {
+    expect(translate("volcengine", "doubao-seedream-4-5-251128", "text_to_image", { aspectRatio: value })).toEqual({ size: "2560x1440" });
+    expect(translate("apimart", "doubao-seedream-4.5", "text_to_image", { aspectRatio: value })).toEqual({ size: "16:9" });
+  });
+  it.each(["abcx", "0x720", "2560x"])("%s 宿主照旧拒收", value => {
+    expect(() => translate("volcengine", "doubao-seedream-4-5-251128", "text_to_image", { aspectRatio: value })).toThrow();
   });
 });

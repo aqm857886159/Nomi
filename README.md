@@ -7,8 +7,9 @@
   </a>
 </p>
 
+<h1 align="center">Nomi — open-source, local-first AI video studio</h1>
+
 <p align="center">
-  <strong>Nomi is an open-source, local-first AI video studio.</strong><br />
   Tell its agent what you want to make. It plans the shots, generates keyframes and video, and lays them on your timeline —<br />
   with the models <em>you</em> connect, at the price <em>your provider</em> charges.
 </p>
@@ -29,6 +30,18 @@
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1a1816" alt="Platform" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-1a1816" alt="License" /></a>
 </p>
+
+## At a glance
+
+- **What it is:** a desktop AI video studio. Its agent splits your story into shots, generates keyframes and video, and lays them on a real timeline you can edit and export as MP4.
+- **Platforms:** macOS (Apple Silicon and Intel) and Windows.
+- **Price:** Nomi itself is free. You connect your own models and pay the provider directly at their price; no Nomi account, subscription or markup.
+- **Models:** Seedance, Kling, Wan, Hailuo, Nano Banana, GPT Image and more, through APIMart, Kie.ai, Volcengine, ModelScope, a Dreamina membership, any OpenAI-compatible endpoint, or your local ComfyUI.
+- **Agents:** a built-in MCP server lets Claude Code, Codex or Cursor drive Nomi.
+- **Local-first:** projects, prompts and keys stay on your machine.
+- **License:** AGPL-3.0-only since 2026-08-01. Releases up to v0.18.1 were published under Apache-2.0 and keep that license.
+- **Latest version:** see [Releases](https://github.com/aqm857886159/Nomi/releases/latest).
+- **Name:** this Nomi is an AI video app. It is unrelated to the Nomi AI companion chatbot at nomi.ai.
 
 ## Sponsors
 

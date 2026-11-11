@@ -109,7 +109,7 @@ if hit_block completion '做完|修好|验收|走查|交付|给你看|可以合�
 fi
 # 修 bug（P2 全文在 docs/engineering/principles-detail.md）
 if hit_block root-cause 'bug|回归|根因|修复|崩|卡死|报错'; then
-  echo "【修根因 · P2】动生产代码前走 .agents/skills/root-cause-remediation：分清症状/直接原因/类根因，先 node scripts/door-map.mjs 数门，修在最早共享边界；同一处近 14 天第 3 个 fix → 先方向检查(RW)。全文 docs/engineering/principles-detail.md"
+  echo "【修根因 · P2】每个问题交三层：①这一次：动代码前走 .agents/skills/root-cause-remediation，分清症状/直接原因/类根因，door-map 数清入口，修在最早共享边界，这一类全写成测试；②从派工/设计/实现/验收/门岗/合并/发版/交接/值守选最早本该拦住的一步，指到文件并说清为什么没拦，「人没注意」不算；③改那一步：删掉 > 结构上做不出来 > 门岗自动拦 > 写字，文字没拦住不许再只加文字；这一例 + 另一条真实旧案验拦得住，不该拦的真实样本验不误伤，开单写死预测/量具/复查日，到期不达标重开升档；风险相称，一次性有证据写一行；修 bug PR 在「## 系统改进」交②③证据，用户问题进逃逸账本。同一处近 14 天第 3 个 fix → 先方向检查(RW)。全文 docs/engineering/rules.md#p2"
   echo ""
 fi
 # 方向检查（RW）：用户消息出现「第 N 轮 / 再修 / 又坏了 / 还是不对」这类反复修的信号
