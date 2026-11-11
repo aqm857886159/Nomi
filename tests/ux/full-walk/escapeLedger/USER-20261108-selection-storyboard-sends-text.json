@@ -1,0 +1,27 @@
+{
+  "id": "USER-20261108-selection-storyboard-sends-text",
+  "since": "2026-11-08",
+  "source": "用户反馈（2026-11-08）：「我在文本区域点击了，滑中句子，点击视频icon，然后为什么发送了文字，这个是个问题。」",
+  "category": "interaction-semantics",
+  "problem": "创作文档选区浮条第三颗胶片图标（「拆成镜头」）读作「视频」，点了却把选中的句子发进 Agent 对话；对话里的技能小签和「已载入技能」还印出原始 key workbench.storyboard.planner。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "candidate",
+  "rootCauseContract": "docs/fixes/2026-11-12-selection-storyboard-reads-as-video.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/creation/selectionActions.test.ts"
+  },
+  "evidence": [
+    "docs/plan/2026-11-09-text-selection-action.md",
+    "docs/design/boards/2026-11-12-selection-storyboard/SelectionStoryboard.board.json",
+    "docs/fixes/2026-11-12-skill-key-label-fork.root-cause.json",
+    "src/workbench/creation/selectionActions.test.ts",
+    "src/workbench/skillLibrary/skillDisplay.test.ts",
+    "tests/ux/creation-selection-actions.walk.mjs"
+  ],
+  "completionCommits": [],
+  "notes": "修法按用户 2026-11-12 选的样张 B：换分镜图标、挪到「AI 编辑」右边；技能名改走主进程同一份查找。PR 开出后由协调填 fixedInPr、转 fixed。"
+}
