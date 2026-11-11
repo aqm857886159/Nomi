@@ -85,7 +85,6 @@ export default function WorkbenchEditor(): JSX.Element {
   const workbenchDocuments = useWorkbenchStore((state) => state.workbenchDocuments)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
   const setWorkbenchDocument = useWorkbenchStore((state) => state.setWorkbenchDocument)
-  const setCreationSelectionText = useWorkbenchStore((state) => state.setCreationSelectionText)
   const storyboardPlannerLauncher = useWorkbenchStore((state) => state.storyboardPlannerLauncher)
   const [selectionState, setSelectionState] = React.useState({ text: '', version: 0 })
   const scrollRef = useTransientScrollingClass<HTMLDivElement>('workbench-scrollbar-visible')
@@ -124,15 +123,13 @@ export default function WorkbenchEditor(): JSX.Element {
         if (!current.text && !text.trim()) return current
         return { text, version: current.version + 1 }
       })
-      setCreationSelectionText(text)
     },
-    [setCreationSelectionText],
+    [],
   )
 
   const clearSelectionText = React.useCallback(() => {
     setSelectionState((current) => ({ text: '', version: current.version + 1 }))
-    setCreationSelectionText('')
-  }, [setCreationSelectionText])
+  }, [])
 
   const { editor, tools } = useNomiRichTextEditor({
     content: editorContent,
@@ -218,7 +215,7 @@ export default function WorkbenchEditor(): JSX.Element {
         editor={editor}
         selectedText={selectionState.text}
         selectionVersion={selectionState.version}
-        onStoryboard={storyboardPlannerLauncher ? () => storyboardPlannerLauncher(selectionState.text) : undefined}
+        launchStoryboard={storyboardPlannerLauncher}
         onCreated={clearSelectionText}
         onAiEdit={rewrite.controller ? () => { rewrite.controller?.open() } : undefined}
         hidden={rewrite.session !== null}

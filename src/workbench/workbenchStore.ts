@@ -110,7 +110,7 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   /** 删自定义分类（内置不可删）：其下节点改派回「分镜」、子组解散，不丢节点。 */
   deleteCategory: (id: string) => void
   rememberCategoryViewport: (categoryId: string, viewport: GraphViewport) => void
-  creationSelectionText: string; storyboardPlannerLauncher: ((displayPrompt?: string) => void) | null
+  storyboardPlannerLauncher: ((displayPrompt?: string) => void) | null
   creationAiModeId: string
   /**
    * 手动锁定的 active skill（覆盖 mode 推导的 skillKey）。null = 自动（用创作模式默认）。
@@ -161,7 +161,7 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   redoTimeline: () => void
   setWorkspaceMode: (mode: unknown) => void
   setAssistantWidth: (width: number) => void
-  setCreationSelectionText: (text: string) => void; setStoryboardPlannerLauncher: (launcher: ((displayPrompt?: string) => void) | null) => void
+  setStoryboardPlannerLauncher: (launcher: ((displayPrompt?: string) => void) | null) => void
   setCreationAiModeId: (modeId: string) => void
   setCreationActiveSkill: (skill: { key: string; contentHash?: string } | null) => void
   /** 请生成画布平滑 fit 一次；可显式切到并绑定目标分类。 */
@@ -308,7 +308,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       },
     }))
   },
-  creationSelectionText: '', storyboardPlannerLauncher: null,
+  storyboardPlannerLauncher: null,
   creationAiModeId: 'general',
   creationActiveSkill: null,
   canvasFitNonce: 0,
@@ -366,9 +366,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setAssistantWidth: (width) => get().syncEditingPanelSize({
     assistantWidth: clampAssistantWidth(width, typeof window === 'undefined' ? 0 : window.innerWidth),
   }),
-  setCreationSelectionText: (text) => {
-    set({ creationSelectionText: typeof text === 'string' ? text.trim() : '' })
-  },
   setStoryboardPlannerLauncher: (storyboardPlannerLauncher) => set({ storyboardPlannerLauncher }),
   setCreationAiModeId: (creationAiModeId) => {
     set({ creationAiModeId })
