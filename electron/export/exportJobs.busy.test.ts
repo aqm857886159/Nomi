@@ -98,7 +98,7 @@ describe("export busy matrix (one truth for close / idle exit / update install)"
     probeMediaMetadata.mockReturnValue(probe.promise);
     const started = jobs.startExportJob({ projectId: PROJECT_ID, manifest: manifest(), outputName: "out" });
     await vi.waitFor(() => expect(probeMediaMetadata).toHaveBeenCalled());
-    expect(jobs.activeExportCount()).toBe(0);
+    expect(jobs.activeExportCount()).toBe(1);
     probe.resolve(silentVideo);
     const { jobId } = await started;
     await jobs.cancelExportJob(await identity(), jobId);
@@ -109,7 +109,7 @@ describe("export busy matrix (one truth for close / idle exit / update install)"
     probeMediaMetadata.mockResolvedValue(silentVideo);
     const { jobId } = await jobs.startExportJob({ projectId: PROJECT_ID, manifest: manifest(), outputName: "out" });
     expect(["queued", "planning", "preparing"]).toContain(jobs.getExportJobStatus(await identity(), jobId).status);
-    expect(jobs.activeExportCount()).toBe(0);
+    expect(jobs.activeExportCount()).toBe(1);
     await jobs.cancelExportJob(await identity(), jobId);
   });
 

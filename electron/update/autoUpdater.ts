@@ -9,6 +9,7 @@ import { isAutomatedLaunch, type UpdateFailureReason } from "../telemetry/teleme
 import type { TelemetryResult } from "../shared/contracts/telemetry";
 import { AUTO_CHECK_FIRST_DELAY_MS, classifyUpdateError, createAutoCheckScheduler, createVersionNotifyGate, describeUpdateFailure } from "./autoCheck";
 import { hasInFlightProductionWork } from "../backgroundLaunch";
+import { markMainWindowQuitting } from "../mainWindowPresence";
 import { createInstallGate, type UpdaterInstaller } from "./installGate";
 import { createInstallOnQuit } from "./installOnQuit";
 import { createUpdateBusyGate } from "./updateBusyGate";
@@ -88,6 +89,11 @@ function installerSizeBytes(info: UpdateInfo): number | null {
 const UPDATE_BUSY_PROBE = "update-busy";
 const busySenders = new Set<number>();
 const busyGate = createUpdateBusyGate({ hasMainBusy: hasInFlightProductionWork });
+/**
+ * 「有活在跑」的唯一真相：主进程自己的活（任务缓存、制作 Run、本次运行建的导出）+ 渲染层上报的活。
+ * 关窗藏 / 退（mainWindowPresence）、后台冷启空闲退出、退出时装更新都读这一份，不另数。
+ */
+export const isProductionWorkBusy = (): boolean => busyGate.isBusyAtQuit();
 
 const installOnQuit = createInstallOnQuit({
   registerDrain: registerQuitDrain,
@@ -101,7 +107,8 @@ const installGate = createInstallGate({
     ? busyGate.isBusyForInstall(senderId ?? -1)
     // 退出时：读退出开始那一刻的快照（owner 在任何排空项之前读的）+ 现在的读数；别的排空项 abort 导出之后也不会读到 0。
     : (quitStartProbeResult(UPDATE_BUSY_PROBE) ?? false) || busyGate.isBusyAtQuit(),
-  markStarted: () => installOnQuit.markInstallStarted(),
+  // 调安装之前进入「退出中」：安装器先关窗、后发 before-quit，这期间来的叫回不建窗、不重开。
+  markStarted: () => { markMainWindowQuitting("update-install"); installOnQuit.markInstallStarted(); },
   markFailed: () => installOnQuit.markInstallFailed(),
   onAttempt: (_mode, outcome) => { if (outcome !== "busy") trackUpdate("install", outcome === "started" ? "success" : "failure"); },
 });
