@@ -159,6 +159,11 @@ describe("8 个叫回入口都只发意图（接线）", () => {
     const updater = fs.readFileSync(path.join(process.cwd(), "electron/update/autoUpdater.ts"), "utf8");
     expect(updater).toMatch(/export const isProductionWorkBusy = \(\): boolean => busyGate\.isBusyAtQuit\(\)/);
   });
+
+  it("更新安装在调安装之前先进退出中（installGate 的 markStarted 第一步，★9 第 9 条接线）", () => {
+    const updater = fs.readFileSync(path.join(process.cwd(), "electron/update/autoUpdater.ts"), "utf8");
+    expect(updater).toMatch(/markStarted:\s*\(\)\s*=>\s*\{\s*markMainWindowQuitting\("update-install"\);\s*installOnQuit\.markInstallStarted\(\);/);
+  });
 });
 
 describe("4 态叫回矩阵：每个入口 × absent / creating / open（可见、藏、最小化）/ closing / quitting", () => {

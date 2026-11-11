@@ -17,7 +17,7 @@ vi.mock("./logging/logger", () => ({ logInfo: vi.fn(), logWarn: vi.fn(), logErro
 
 import { installWindowCloseConfirmation } from "./windowCloseConfirmation";
 import { installQuitTeardown, isQuitRequested, resetQuitTeardownForTests } from "./quitTeardown";
-import { adoptMainWindow, installMainWindowOwner, mainWindowPhase, openMainWindow, resetMainWindowOwnerForTests } from "./mainWindowPresence";
+import { adoptMainWindow, installMainWindowOwner, mainWindowPhase, markMainWindowQuitting, openMainWindow, resetMainWindowOwnerForTests, revealMainWindow } from "./mainWindowPresence";
 
 class FakeWebContents extends EventEmitter {
   readonly send = vi.fn();
@@ -152,6 +152,23 @@ describe("window close confirmation", () => {
     answer(window, second, true);
     expect(app.quit).toHaveBeenCalledOnce();
     expect(window.destroyed).toBe(true);
+  });
+
+  it("「重启以更新」的关窗确认里点取消：不再算退出中，之后叫回照常亮出同一扇窗（★9 第 13 条）", async () => {
+    const { window } = await setup();
+    markMainWindowQuitting("update-install");
+    expect(mainWindowPhase()).toBe("quitting");
+    window.emit("close", { preventDefault: vi.fn() });
+    const requestId = requestIdAt(window);
+    answer(window, requestId, "ack");
+    answer(window, requestId, false);
+    expect(window.destroyed).toBe(false);
+    expect(mainWindowPhase()).toBe("open");
+    window.visible = false;
+    window.show.mockClear();
+    revealMainWindow("activate");
+    expect(window.show).toHaveBeenCalledOnce();
+    expect(window.visible).toBe(true);
   });
 
   it("macOS: a confirmed close while work is running hides the window instead of quitting (拍板 B)", async () => {
