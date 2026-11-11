@@ -1,0 +1,132 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-12-skill-key-label-fork",
+  "detected_by": "user",
+  "problem_type": "同一个技能 key 在主进程和界面各有一份查找，规则不一样：主进程认得的 key，界面认不得",
+  "symptom": "创作文档里选中一句、点浮条「拆成镜头」后，右侧对话气泡上的技能小签和回复头上的「已载入技能：」都印出原始 key `workbench.storyboard.planner`，不是技能库里的名字「分镜规划 / Storyboard planning」。技能本身照常注入，只有名字错。",
+  "direct_cause": "src/workbench/skillLibrary/skillDisplay.ts 的 skillLabelForKey 与 src/workbench/ai/v4/useAgentPanelV4Data.ts 的两处 `skills.find(skill => skill.name === key)` 只按 name 精确比；分镜启动器发的是点号 key，技能库里的 name 是短横线目录名 `workbench-storyboard-planner`。主进程 electron/skills/skillStore.ts 的 findSkillRecord 先比点号前缀、再归一后比 name / directoryName，所以认得。",
+  "class_root": "「这个 key 指哪个技能」是一个问题，却有两份实现：主进程一份按归一比，渲染层三处各自手写精确比。任何一个新入口发出主进程认得、但不和 name 逐字相同的 key（点号 key、大小写、目录名），界面上的名字就会退回成 key，且没有测试把两边对在一起。",
+  "migration": "不涉及存量数据：只改界面怎么把 key 翻成名字。旧消息里存的 key 不动，下次渲染时用同一份查找翻成名字。旧的渲染层精确比较三处在同一提交删掉。",
+  "affected_population": [
+    "从创作文档选区「拆成镜头」、分镜面板「拆成镜头」入口启动分镜规划的创作者（发点号 key）",
+    "以后任何用非 name 形式的 key 指定技能的入口"
+  ],
+  "scope_paths": [
+    "electron/shared/skillKey.ts",
+    "electron/skills/skillStore.ts",
+    "src/workbench/skillLibrary/",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts"
+  ],
+  "entry_points": [
+    "electron/skills/skillStore.ts findSkillRecord（主进程：这一轮注入哪份 SKILL.md）",
+    "src/workbench/skillLibrary/skillDisplay.ts skillLabelForKey（界面：气泡小签、已载入技能的名字）",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts skillMedia / liveChips（界面：技能封面、输入框里的技能小签）"
+  ],
+  "invariants": [
+    "主进程认得的技能 key，界面上一定显示同一个技能的库名字",
+    "key → 技能的查找全仓只有一份实现：electron/shared/skillKey.ts 的 findSkillRecord"
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/harness/context/agentContext.ts",
+      "symbol": "findSkillRecord"
+    },
+    {
+      "kind": "read",
+      "path": "electron/skills/skillExecutionEvidence.ts",
+      "symbol": "findSkillRecord"
+    },
+    {
+      "kind": "read",
+      "path": "src/workbench/skillLibrary/skillDisplay.ts",
+      "symbol": "findSkillRecord"
+    }
+  ],
+  "door_reduction": {
+    "before": 4,
+    "after": 3,
+    "why_not": "门表数的是调用方，不是实现：三扇门现在都调同一份 findSkillRecord（实现从两份减到一份，渲染层三处手写比较删掉）。主进程两处调用方各管一件事（注入技能、记执行凭据），界面一处翻名字，不需要再合并。"
+  },
+  "regression_tests": [
+    "src/workbench/skillLibrary/skillDisplay.test.ts",
+    "src/workbench/ai/lane/laneViewModel.test.ts"
+  ],
+  "residual_risks": [
+    "electron/shared 下的查找被渲染层直接引用；若以后有人在渲染层另写一份 `skills.find(x => x.name === key)`，skillDisplay.test.ts 的结构扫描会红，但扫描只认这一种写法"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "纯 Nomi 内部两份查找分叉，没有第三方库参与；依据是仓库里两份实现的代码和分镜启动器真发的 key。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "只要渲染层任何地方再按 name 精确比技能 key，换一种 key 形式的入口就会让名字退回 key。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs findSkillRecord → 主进程 agentContext.ts、skillExecutionEvidence.ts，界面 skillDisplay.ts",
+      "git grep -n \"skills.find\" src → 修前 skillDisplay.ts、useAgentPanelV4Data.ts 两处 name 精确比（已删）"
+    ]
+  },
+  "generality_proof": "修在 key → 技能这一个边界：主进程和渲染层都 import electron/shared/skillKey.ts 的 findSkillRecord，界面通过 skillForKey 拿到的技能和主进程注入的那份必然相同；skillDisplay.test.ts 用真 SKILL.md 对点号 key 和短横线 key 断言同一技能同一名字，并全仓扫描禁止渲染层再手写精确比。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/skillKey.ts",
+      "symbol": "findSkillRecord",
+      "responsibility": "一个技能 key 指技能库里的哪一个；主进程注入与界面显示共用。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/skillLibrary/skillDisplay.ts",
+      "entry_point": "skillLabelForKey",
+      "disposition": "enforced",
+      "evidence": "改成经 skillForKey → findSkillRecord；skillDisplay.test.ts 点号 / 短横线 key 都得「分镜规划」。"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "entry_point": "skillMedia / liveChips",
+      "disposition": "enforced",
+      "evidence": "两处 skills.find 换成 skillForKey；laneViewModel.test.ts 覆盖气泡小签与已载入技能两处。"
+    },
+    {
+      "path": "electron/skills/skillStore.ts",
+      "entry_point": "findExactSkillRecord",
+      "disposition": "not-affected",
+      "evidence": "这是「只认完全相同」的严格查找（技能管理里改名 / 删除用），故意不做前缀匹配；归一改用共享的 normalizeSkillLookupKey。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/skillKey.ts",
+    "invariant": "key → 技能只有一份查找，主进程与界面共用。",
+    "failure_mode": "渲染层再写一份按 name 精确比的查找，skillDisplay.test.ts 的结构扫描当场红；把共享查找改回精确比，点号 key 用例红（气泡和已载入技能两处）。",
+    "exception_policy": "none",
+    "strategy": "把主进程那份查找挪到 electron/shared，两边 import 同一个函数，删掉渲染层的手写比较。",
+    "artifacts": [
+      "electron/shared/skillKey.ts",
+      "src/workbench/skillLibrary/skillDisplay.ts",
+      "src/workbench/skillLibrary/skillDisplay.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/skillLibrary/skillDisplay.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/skills/skillStore.ts",
+      "src/workbench/ai/v4/useAgentPanelV4Data.ts"
+    ],
+    "rationale": "主进程本地的 normalizeSkillLookupKey / findSkillRecord 实现挪走（skillStore.ts 只转出共享那份）；渲染层两处 skills.find 精确比较同提交删掉。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只动 Nomi 自己的代码，没有第三方依赖。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-12-12",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/skillKey.ts",
+    "tests": [
+      "src/workbench/skillLibrary/skillDisplay.test.ts"
+    ]
+  }
+}
