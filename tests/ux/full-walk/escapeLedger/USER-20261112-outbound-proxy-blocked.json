@@ -8,7 +8,8 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1496,
   "manualReview": "reviewed",
   "evidence": [
     "docs/fixes/2026-11-13-outbound-address-layer-delete.root-cause.json",
@@ -17,7 +18,7 @@
     "electron/outboundNoAddressBlock.test.ts：198.18 / 127.0.0.1 / nas.lan / 192.168 的提交与取回都过；密钥绑别的 origin 仍在本机拦下；丙 4 / 丙 5 仍拒本机文档。把地址判据接回默认路径 → 红。",
     "未验证：Windows 真机（缺机器）；开着真代理的真实提交 / 取回闭环未跑（用回环假上游 + 真 Electron 代替）。"
   ],
-  "completionCommits": [],
+  "completionCommits": ["3c0e2022c"],
   "rootCauseContract": "docs/fixes/2026-11-13-outbound-address-layer-delete.root-cause.json",
   "classCheck": {
     "kind": "matrix",
