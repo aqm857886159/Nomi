@@ -282,8 +282,8 @@ export default function AssetReference({
     </div>
     </div>
       {tailContent ? (
-        // 整句不折、不缩（whitespace-nowrap + shrink-0）：放不下就整句换到下一行，ml-auto 让它靠右。
-        <span data-reference-tail="true" className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap text-caption text-nomi-ink-60">{tailContent}</span>
+        // 整句不折、不缩（whitespace-nowrap，按内容宽要位置、不收）：放不下就整句换到下一行；再吃满剩余宽、字靠右（justify-end）。
+        <span data-reference-tail="true" className="flex flex-[1_0_auto] items-center justify-end gap-1 whitespace-nowrap text-caption text-nomi-ink-60">{tailContent}</span>
       ) : null}
       {totalFull && capacityMessage ? <span className="basis-full text-micro text-nomi-ink-60" role="status">{capacityMessage}</span> : null}
     </div>
