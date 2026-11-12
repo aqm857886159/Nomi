@@ -1,0 +1,928 @@
+[
+  {
+    "model": "doubao-seedance-2.5",
+    "locale": "zh-CN",
+    "menuShot": "seedance-2.5-模型菜单-zh.png",
+    "modes": [
+      {
+        "modeId": "t2v",
+        "label": null,
+        "shots": [
+          "seedance-2.5-t2v-zh-面板.png",
+          "seedance-2.5-t2v-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 636,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "omni",
+        "label": "全能参考",
+        "shots": [
+          "seedance-2.5-omni-zh-面板.png",
+          "seedance-2.5-omni-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 636,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "edit",
+        "label": "视频编辑",
+        "shots": [
+          "seedance-2.5-edit-zh-面板.png",
+          "seedance-2.5-edit-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 464,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "extend",
+        "label": "视频续写",
+        "shots": [
+          "seedance-2.5-extend-zh-面板.png",
+          "seedance-2.5-extend-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 511,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "first",
+        "label": "首帧",
+        "shots": [
+          "seedance-2.5-first-zh-面板.png",
+          "seedance-2.5-first-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 511,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "firstlast",
+        "label": "首尾帧",
+        "shots": [
+          "seedance-2.5-firstlast-zh-面板.png",
+          "seedance-2.5-firstlast-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 511,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "omni+ref",
+        "label": "全能参考",
+        "shots": [
+          "seedance-2.5-omni-zh-面板-有参考图.png",
+          "seedance-2.5-omni-zh-面板-有参考图-2.png"
+        ],
+        "scrollers": [
+          "scrolled"
+        ],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "kling-v4-flash",
+    "locale": "zh-CN",
+    "menuShot": "kling-4.0-flash-模型菜单-zh.png",
+    "modes": [
+      {
+        "modeId": "t2v",
+        "label": null,
+        "shots": [
+          "kling-4.0-flash-t2v-zh-面板.png"
+        ],
+        "box": {
+          "x": 463,
+          "y": 417,
+          "width": 320,
+          "height": 221
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "ref",
+        "label": "全能参考",
+        "shots": [
+          "kling-4.0-flash-ref-zh-面板.png"
+        ],
+        "box": {
+          "x": 463,
+          "y": 417,
+          "width": 320,
+          "height": 221
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "edit",
+        "label": "视频编辑",
+        "shots": [
+          "kling-4.0-flash-edit-zh-面板.png"
+        ],
+        "box": {
+          "x": 463,
+          "y": 371,
+          "width": 320,
+          "height": 267
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "i2v",
+        "label": "首帧",
+        "shots": [
+          "kling-4.0-flash-i2v-zh-面板.png"
+        ],
+        "box": {
+          "x": 463,
+          "y": 496,
+          "width": 320,
+          "height": 142
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "extend",
+        "label": "视频续写",
+        "shots": [
+          "kling-4.0-flash-extend-zh-面板.png"
+        ],
+        "box": {
+          "x": 463,
+          "y": 496,
+          "width": 320,
+          "height": 142
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "ref+ref",
+        "label": "全能参考",
+        "shots": [
+          "kling-4.0-flash-ref-zh-面板-有参考图.png"
+        ],
+        "scrollers": [],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "MiniMax-H3-Max",
+    "locale": "zh-CN",
+    "menuShot": "minimax-h3-max-模型菜单-zh.png",
+    "modes": [
+      {
+        "modeId": "t2v",
+        "label": null,
+        "shots": [
+          "minimax-h3-max-t2v-zh-面板.png"
+        ],
+        "box": {
+          "x": 499,
+          "y": 322,
+          "width": 320,
+          "height": 316
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "ref",
+        "label": "参考",
+        "shots": [
+          "minimax-h3-max-ref-zh-面板.png"
+        ],
+        "box": {
+          "x": 499,
+          "y": 322,
+          "width": 320,
+          "height": 316
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "i2v",
+        "label": "首尾帧",
+        "shots": [
+          "minimax-h3-max-i2v-zh-面板.png"
+        ],
+        "box": {
+          "x": 499,
+          "y": 447,
+          "width": 320,
+          "height": 191
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "ref+ref",
+        "label": "参考",
+        "shots": [
+          "minimax-h3-max-ref-zh-面板-有参考图.png"
+        ],
+        "scrollers": [],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "seedream-5-5",
+    "locale": "zh-CN",
+    "menuShot": "seedream-5.5-模型菜单-zh.png",
+    "modes": [
+      {
+        "modeId": "t2i",
+        "label": null,
+        "shots": [
+          "seedream-5.5-t2i-zh-面板.png",
+          "seedream-5.5-t2i-zh-面板-2.png"
+        ],
+        "box": {
+          "x": 436,
+          "y": 279,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 518,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "edit",
+        "label": null,
+        "shots": [
+          "seedream-5.5-edit-zh-面板.png",
+          "seedream-5.5-edit-zh-面板-2.png"
+        ],
+        "scrollers": [
+          "scrolled"
+        ],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "doubao-seedream-5-0-pro",
+    "locale": "zh-CN",
+    "menuShot": "seedream-5.0-pro-模型菜单-zh.png",
+    "modes": [
+      {
+        "modeId": "t2i",
+        "label": null,
+        "shots": [
+          "seedream-5.0-pro-t2i-zh-面板.png"
+        ],
+        "box": {
+          "x": 458,
+          "y": 310,
+          "width": 320,
+          "height": 391
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "edit",
+        "label": null,
+        "shots": [
+          "seedream-5.0-pro-edit-zh-面板.png",
+          "seedream-5.0-pro-edit-zh-面板-2.png"
+        ],
+        "scrollers": [
+          "scrolled"
+        ],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "doubao-seedance-2.5",
+    "locale": "en",
+    "menuShot": "seedance-2.5-模型菜单-en.png",
+    "modes": [
+      {
+        "modeId": "t2v",
+        "label": null,
+        "shots": [
+          "seedance-2.5-t2v-en-面板.png",
+          "seedance-2.5-t2v-en-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 716,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "omni",
+        "label": "Omni reference",
+        "shots": [
+          "seedance-2.5-omni-en-面板.png",
+          "seedance-2.5-omni-en-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 716,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "edit",
+        "label": "Video editing",
+        "shots": [
+          "seedance-2.5-edit-en-面板.png",
+          "seedance-2.5-edit-en-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 544,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "extend",
+        "label": "Video extension",
+        "shots": [
+          "seedance-2.5-extend-en-面板.png",
+          "seedance-2.5-extend-en-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 591,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "first",
+        "label": "First frame",
+        "shots": [
+          "seedance-2.5-first-en-面板.png",
+          "seedance-2.5-first-en-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 591,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "firstlast",
+        "label": "First / Last",
+        "shots": [
+          "seedance-2.5-firstlast-en-面板.png",
+          "seedance-2.5-firstlast-en-面板-2.png"
+        ],
+        "box": {
+          "x": 482,
+          "y": 216,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 591,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "omni+ref",
+        "label": "Omni reference",
+        "shots": [
+          "seedance-2.5-omni-en-面板-有参考图.png",
+          "seedance-2.5-omni-en-面板-有参考图-2.png"
+        ],
+        "scrollers": [
+          "scrolled"
+        ],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "kling-v4-flash",
+    "locale": "en",
+    "menuShot": "kling-4.0-flash-模型菜单-en.png",
+    "modes": [
+      {
+        "modeId": "t2v",
+        "label": null,
+        "shots": [
+          "kling-4.0-flash-t2v-en-面板.png"
+        ],
+        "box": {
+          "x": 467,
+          "y": 337,
+          "width": 320,
+          "height": 301
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "ref",
+        "label": "Omni reference",
+        "shots": [
+          "kling-4.0-flash-ref-en-面板.png"
+        ],
+        "box": {
+          "x": 467,
+          "y": 337,
+          "width": 320,
+          "height": 301
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "edit",
+        "label": "Video editing",
+        "shots": [
+          "kling-4.0-flash-edit-en-面板.png"
+        ],
+        "box": {
+          "x": 467,
+          "y": 291,
+          "width": 320,
+          "height": 347
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "i2v",
+        "label": "First frame",
+        "shots": [
+          "kling-4.0-flash-i2v-en-面板.png"
+        ],
+        "box": {
+          "x": 467,
+          "y": 416,
+          "width": 320,
+          "height": 222
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "extend",
+        "label": "Video extension",
+        "shots": [
+          "kling-4.0-flash-extend-en-面板.png"
+        ],
+        "box": {
+          "x": 467,
+          "y": 416,
+          "width": 320,
+          "height": 222
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "ref+ref",
+        "label": "Omni reference",
+        "shots": [
+          "kling-4.0-flash-ref-en-面板-有参考图.png"
+        ],
+        "scrollers": [],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "MiniMax-H3-Max",
+    "locale": "en",
+    "menuShot": "minimax-h3-max-模型菜单-en.png",
+    "modes": [
+      {
+        "modeId": "t2v",
+        "label": null,
+        "shots": [
+          "minimax-h3-max-t2v-en-面板.png"
+        ],
+        "box": {
+          "x": 499,
+          "y": 290,
+          "width": 320,
+          "height": 348
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "ref",
+        "label": "Reference",
+        "shots": [
+          "minimax-h3-max-ref-en-面板.png"
+        ],
+        "box": {
+          "x": 499,
+          "y": 290,
+          "width": 320,
+          "height": 348
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "i2v",
+        "label": "First / Last",
+        "shots": [
+          "minimax-h3-max-i2v-en-面板.png"
+        ],
+        "box": {
+          "x": 499,
+          "y": 415,
+          "width": 320,
+          "height": 223
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "ref+ref",
+        "label": "Reference",
+        "shots": [
+          "minimax-h3-max-ref-en-面板-有参考图.png"
+        ],
+        "scrollers": [],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "seedream-5-5",
+    "locale": "en",
+    "menuShot": "seedream-5.5-模型菜单-en.png",
+    "modes": [
+      {
+        "modeId": "t2i",
+        "label": null,
+        "shots": [
+          "seedream-5.5-t2i-en-面板.png",
+          "seedream-5.5-t2i-en-面板-2.png"
+        ],
+        "box": {
+          "x": 436,
+          "y": 279,
+          "width": 320,
+          "height": 422
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [
+          {
+            "tag": "DIV",
+            "scrollHeight": 518,
+            "clientHeight": 420
+          }
+        ],
+        "outside": []
+      },
+      {
+        "modeId": "edit",
+        "label": null,
+        "shots": [
+          "seedream-5.5-edit-en-面板.png",
+          "seedream-5.5-edit-en-面板-2.png"
+        ],
+        "scrollers": [
+          "scrolled"
+        ],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  },
+  {
+    "model": "doubao-seedream-5-0-pro",
+    "locale": "en",
+    "menuShot": "seedream-5.0-pro-模型菜单-en.png",
+    "modes": [
+      {
+        "modeId": "t2i",
+        "label": null,
+        "shots": [
+          "seedream-5.0-pro-t2i-en-面板.png"
+        ],
+        "box": {
+          "x": 458,
+          "y": 310,
+          "width": 320,
+          "height": 391
+        },
+        "viewport": {
+          "width": 1280,
+          "height": 933
+        },
+        "clippedByViewport": false,
+        "scrollers": [],
+        "outside": []
+      },
+      {
+        "modeId": "edit",
+        "label": null,
+        "shots": [
+          "seedream-5.0-pro-edit-en-面板.png",
+          "seedream-5.0-pro-edit-en-面板-2.png"
+        ],
+        "scrollers": [
+          "scrolled"
+        ],
+        "outside": [],
+        "clippedByViewport": false
+      }
+    ]
+  }
+]

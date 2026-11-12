@@ -61,8 +61,8 @@ const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * The menu shows the row's display name: a declared relay row shows its id, a built-in row shows its label
  * (gpt-image-2.6-flare → 「GPT Image 2.6 Flare」), so an option matches either exactly.
  */
-export function relayModelOption(win, modelKey, label) {
-  const names = [...new Set([modelKey, label].filter(Boolean))].map(escapeRegExp)
+export function relayModelOption(win, modelKey, label, extraNames = []) {
+  const names = [...new Set([modelKey, label, ...extraNames].filter(Boolean))].map(escapeRegExp)
   return win.locator('[data-nomi-select-dropdown]:visible').getByRole('option').filter({ has: win.getByText(new RegExp(`^(?:${names.join('|')})$`)) })
 }
 
@@ -72,7 +72,7 @@ export function relayModelOption(win, modelKey, label) {
  * the menu lists models by the node's current mode (no reference = text mode), so a model without a text mode only
  * shows up after a creator has put a reference in.
  */
-export async function prepareRelayVideo({ win, newProject, model, capture, kind = 'video', beforeModelPick }) {
+export async function prepareRelayVideo({ win, newProject, model, capture, kind = 'video', beforeModelPick, extraOptionNames = [] }) {
   const { projectId, projectRoot } = await newProject()
   await openCanvas(win)
   await collapseAgentPanel(win)
@@ -105,7 +105,7 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
   await node.locator('[data-bar-segment="model-params"] button').first().click()
   await capture('model-menu')
   let neededReload = false
-  const option = () => relayModelOption(win, model.modelKey, projection?.label)
+  const option = () => relayModelOption(win, model.modelKey, projection?.label, extraOptionNames)
   if (!(await option().count())) {
     await capture('model-missing-before-reload')
     await win.keyboard.press('Escape')

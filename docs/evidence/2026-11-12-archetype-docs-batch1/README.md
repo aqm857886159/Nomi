@@ -1,0 +1,83 @@
+# 档案对文档第一批：真窗口免费演练截图（2026-11-12）
+
+- 走查：`tests/ux/archetype-docs-batch1-screens.walk.mjs`（免费：隔离资料 + 夹具凭据，APIMart 地址重定向到本机夹具，不出网、不点生成、不读 Key）。
+- 范围：Seedance 2.5、可灵 4.0 Flash、MiniMax H3-Max、Seedream 5.5、Seedream 5.0 Pro，中文 / 英文各一轮；新建项目 → 生成画布 → 加节点 → 打开模型菜单 → 选型号 → 打开参数面板，逐种方式切一遍。
+- 命名：`<模型>-<方式>-<zh|en>-<模型菜单|面板>[-有参考图][-2].png`；`-2` 是面板内容超过一屏、滚到底的第二张；`-有参考图` 是该方式放了一张合成参考图之后的面板（参考数下限为 0 的方式，没放参考时面板读到的是文生那一套参数）。
+- `facts.json`：每张图对应的方式、面板尺寸、有没有可滚动区、有没有控件越出面板框（全部为空）。
+- 方式编号：Seedance `t2v` 文生 / `omni` 全能参考 / `edit` 视频编辑 / `extend` 视频续写 / `first` 首帧 / `firstlast` 首尾帧；Flash `t2v` / `ref` 全能参考 / `edit` / `i2v` 首帧 / `extend`；H3-Max `t2v` / `ref` 参考 / `i2v` 首尾帧；图片 `t2i` 文生图 / `edit` 改图（放一张参考图后）。
+- 没覆盖：编辑 / 续写方式需要源视频，走查没有放视频，只截了它们的参数面板；各方式参考槽（参考图 / 视频 / 音频上限）不在参数面板里，在生成框，这批没有逐个核张数上限。
+
+## 文件清单（共 72 张）
+
+- `kling-4.0-flash-edit-en-面板.png`
+- `kling-4.0-flash-edit-zh-面板.png`
+- `kling-4.0-flash-extend-en-面板.png`
+- `kling-4.0-flash-extend-zh-面板.png`
+- `kling-4.0-flash-i2v-en-面板.png`
+- `kling-4.0-flash-i2v-zh-面板.png`
+- `kling-4.0-flash-ref-en-面板-有参考图.png`
+- `kling-4.0-flash-ref-en-面板.png`
+- `kling-4.0-flash-ref-zh-面板-有参考图.png`
+- `kling-4.0-flash-ref-zh-面板.png`
+- `kling-4.0-flash-t2v-en-面板.png`
+- `kling-4.0-flash-t2v-zh-面板.png`
+- `kling-4.0-flash-模型菜单-en.png`
+- `kling-4.0-flash-模型菜单-zh.png`
+- `minimax-h3-max-i2v-en-面板.png`
+- `minimax-h3-max-i2v-zh-面板.png`
+- `minimax-h3-max-ref-en-面板-有参考图.png`
+- `minimax-h3-max-ref-en-面板.png`
+- `minimax-h3-max-ref-zh-面板-有参考图.png`
+- `minimax-h3-max-ref-zh-面板.png`
+- `minimax-h3-max-t2v-en-面板.png`
+- `minimax-h3-max-t2v-zh-面板.png`
+- `minimax-h3-max-模型菜单-en.png`
+- `minimax-h3-max-模型菜单-zh.png`
+- `seedance-2.5-edit-en-面板-2.png`
+- `seedance-2.5-edit-en-面板.png`
+- `seedance-2.5-edit-zh-面板-2.png`
+- `seedance-2.5-edit-zh-面板.png`
+- `seedance-2.5-extend-en-面板-2.png`
+- `seedance-2.5-extend-en-面板.png`
+- `seedance-2.5-extend-zh-面板-2.png`
+- `seedance-2.5-extend-zh-面板.png`
+- `seedance-2.5-first-en-面板-2.png`
+- `seedance-2.5-first-en-面板.png`
+- `seedance-2.5-first-zh-面板-2.png`
+- `seedance-2.5-first-zh-面板.png`
+- `seedance-2.5-firstlast-en-面板-2.png`
+- `seedance-2.5-firstlast-en-面板.png`
+- `seedance-2.5-firstlast-zh-面板-2.png`
+- `seedance-2.5-firstlast-zh-面板.png`
+- `seedance-2.5-omni-en-面板-2.png`
+- `seedance-2.5-omni-en-面板-有参考图-2.png`
+- `seedance-2.5-omni-en-面板-有参考图.png`
+- `seedance-2.5-omni-en-面板.png`
+- `seedance-2.5-omni-zh-面板-2.png`
+- `seedance-2.5-omni-zh-面板-有参考图-2.png`
+- `seedance-2.5-omni-zh-面板-有参考图.png`
+- `seedance-2.5-omni-zh-面板.png`
+- `seedance-2.5-t2v-en-面板-2.png`
+- `seedance-2.5-t2v-en-面板.png`
+- `seedance-2.5-t2v-zh-面板-2.png`
+- `seedance-2.5-t2v-zh-面板.png`
+- `seedance-2.5-模型菜单-en.png`
+- `seedance-2.5-模型菜单-zh.png`
+- `seedream-5.0-pro-edit-en-面板-2.png`
+- `seedream-5.0-pro-edit-en-面板.png`
+- `seedream-5.0-pro-edit-zh-面板-2.png`
+- `seedream-5.0-pro-edit-zh-面板.png`
+- `seedream-5.0-pro-t2i-en-面板.png`
+- `seedream-5.0-pro-t2i-zh-面板.png`
+- `seedream-5.0-pro-模型菜单-en.png`
+- `seedream-5.0-pro-模型菜单-zh.png`
+- `seedream-5.5-edit-en-面板-2.png`
+- `seedream-5.5-edit-en-面板.png`
+- `seedream-5.5-edit-zh-面板-2.png`
+- `seedream-5.5-edit-zh-面板.png`
+- `seedream-5.5-t2i-en-面板-2.png`
+- `seedream-5.5-t2i-en-面板.png`
+- `seedream-5.5-t2i-zh-面板-2.png`
+- `seedream-5.5-t2i-zh-面板.png`
+- `seedream-5.5-模型菜单-en.png`
+- `seedream-5.5-模型菜单-zh.png`
