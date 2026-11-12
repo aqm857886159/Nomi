@@ -1,0 +1,27 @@
+{
+  "id": "app-reopen-confirm-exit",
+  "feature": "关窗确认后退出：从点「确认」到 Nomi 进程以 0 退出",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/app-reopen-bench.mjs",
+    "--",
+    "--op",
+    "confirm-exit"
+  ],
+  "scale": "1 个主窗口、隔离空资料、无进行中的导出 / 生成；真 Electron，先 pnpm run build；每次都重新启动一个进程",
+  "metrics": [
+    "response"
+  ],
+  "budget": 1000,
+  "budgetStatus": "proposed",
+  "budgetBasis": "点确认后用户要看到 Nomi 消失，1 秒内算「立刻」；本分支真机走查里约 200ms（空闲、无活）。有进行中的导出时是「藏窗后活干完自己退」，那一段由活的时长决定，不在本场景内。",
+  "baseline": {
+    "median": 171.8,
+    "p95": 185.8,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-12",
+    "commit": "621759578"
+  }
+}
