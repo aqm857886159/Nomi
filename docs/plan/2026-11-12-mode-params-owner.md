@@ -161,13 +161,13 @@ Mac 本地：尺子、官方请求体矩阵、升级测试、旧画布夹具。�
 清单：
 1. 尺子快照：`samplesWithLeaks` 0、`archetypesWithDefaultCarried` 0、`emptyDuration` 0/0；`noModeRecord`、`pathsDiffer` 与今天逐字相同（`NOMI_UPDATE_PARAMS_KEYS_SNAPSHOT=1` 重录，PR 里看差异只出现在这三项）。PR1 实测：run 路三项全 0（硬验收）；画布路剩 6 个 happyhorse「X → 编辑」样本、`pathsDiffer` 139 → 144（+5 是同一批样本），是尺子没跳过「画布换了方式」造成的量具假象，另案补尺子。
 2. `officialWire.matrix.test.ts` 498 份：474 份逐字节不变、24 份只多一个键（硬断言，见文末）；`upgradeKeepsWorkingModels.test.ts` 全绿，v0.24.0-wizard 的 `"duration":""` 仍在。
-3. `canvasModeOldUser.{characterization,target,rollback}` 全绿；另加一条：v0.24.1-mode-nodes 每个节点修前修后请求体差异表，消失的键全部属于「管辖内且本方式未声明」。
+3. `canvasModeOldUser.{characterization,target,rollback}` 全绿；另加一条表驱动测试 `src/workbench/generationCanvas/store/canvasModeOldUser.requestBody.test.ts`：v0.24.1-mode-nodes 25 个节点逐个对账修前录的请求体（`request-before-mode-params.json`，独立验收线在 origin/main facb9e5d7 上录的）——算不出请求的 11 个（没选模型）现在同样算不出；算得出的 14 个「不少键、值不变；多出的只许是本方式控件的默认值」。其中 6 个 nano-banana 与「主进程补完之后」逐键相同；另 8 个（seedance-2 六个、eleven-scribe-v2、hunyuan3d）目录里没有对应目录行、主进程那一步算不了，只比渲染层冻结的参数，主进程补完后的请求体 **unverified：缺目录行，量不了**。
 4. 主人单测：幂等（过两遍 = 过一遍）；不写回（输入对象冻结也不抛）；管辖外键原样；无默认值控件不出键；fixedParams 覆盖顺序（含 `archetypeInput` 子袋）。
 5. 一致性：同一节点，渲染层 `buildCatalogTaskRequest` 出的 extras 与主进程 `applyHeadlessParamDefaults` 出的 extras 在管辖键上相同（每个多方式档案各一例）。
 6. 普查：全部档案 × 方式，主人输出键 ⊆ 本方式声明 ∪ 管辖外；新档案入库即受这条约束。
-7. batch1 分支撤掉它的 taskParams diff 后，它自带的新模型请求体测试（报告称 21 条）在 PR1 之上全绿。
+7. batch1 分支撤掉它的 taskParams diff 后，它自带的新模型请求体测试（报告称 21 条）在 PR1 之上全绿。**没法验：对照分支 `feat/archetype-docs-batch1` 已不在远端**（独立验收和实现线都没验成），记 unverified。
 8. `modeWhenUnrecorded` 与生成脚本旧规则在全目录逐 (档案, 供应商, taskKind) 相同。
-9. 变体：Seedance fast 等收窄变体的节点，主进程默认值按变体特化；与今天有差异的列表交协调（不自行放行）。
+9. 变体：今天内置档案里**没有**哪个变体会改方式的键或缺省值（普查 0 处），所以光靠真档案，「主进程不用记着的 variantId」「干脆不传变体」两种改坏都红不起来。钉法是一个测试专用的变体夹具（`electron/parity/modeParamsVariantFixture.ts`：Seedance 2.0 APIMart 的 standard 变体文生缺省清晰度 1080p、不声明 generate_audio，默认变体 fast 是 720p 且声明），三条发送路各断言一次按变体出键：画布路、无界面路（`modeParamsSendPorts.test.ts`「变体夹具」）、Run provider 路（`apimartGenerationProvider.test.ts`「封进合同的变体到得了方式参数主人」；这一路以前没把 `input.variantId` 交给主人，本轮补上）。真档案的变体快照（130 格）照旧守「变体收窄引起的默认值差异 = 0」。
 10. typecheck、`check:concept-owners`、排锁快检、PR 正文预检六项；真付费一次（第 8 格）。
 反例（改坏 → 哪个检查红 → 还原 → 绿）：
 - R1 主人第 2 步不剥 → 第 1 条快照 leaks 回 34。
@@ -177,7 +177,8 @@ Mac 本地：尺子、官方请求体矩阵、升级测试、旧画布夹具。�
 - R5 档案请求缺 duration 又回 `""` → 第 4 条单测 + 第 7 条 batch1 编辑方式用例。
 - R6 主人把结果写回节点 → 第 4 条「不写回」+ 第 3 条「切回原方式值还在」。
 - R7 主进程忽略 `extras.archetype.modeId` 自己取默认方式 → 第 5 条一致性。
-- R8 主进程漏变体特化 → 第 9 条变体用例。
+- R8 主进程漏变体特化（不用记着的 variantId / 干脆不传变体 / Run provider 不把变体交给主人）→ 第 9 条变体夹具三条用例（3 / 3 / 1 条红）。
+- R15 管辖范围不收 fixedParams 键 → 主人单测「别的方式的判别键残留在节点上」（wan-3.0 的 generation_type、gemini-omni 的 omni_reference_task_type）。
 - R9 渲染层不调主人只靠主进程 → 第 5 条（冻结请求与发出体管辖键不同）。
 - R10 新档案某方式少声明一个它模板里用的键 → 第 6 条普查。
 - R11 调用方绕过主人自己读 `mode.params` 判键 → `check:concept-owners` 禁用写法。
@@ -256,7 +257,7 @@ runway text_to_video {"id":"happyhorse","modeId":"t2v"} duration= 5 aspect_ratio
 
 ### 变体（`modeParamsVariants.snapshot.json`，130 格）
 
-11 格和改前不同，由变体收窄引起的 0 格（单独一条断言）。8 格多一个键、和上面同口径（本方式自己的比例默认值）：`wan-3.0@kie` 的 standard / prime 两个变体的 ref（aspect_ratio = adaptive），`dreamina-seedance-2` 六个变体（fast、standard、vip、fast_vip、mini、v2_5）的 multimodal（ratio = 16:9；仓库里的即梦 CLI 帮助记录 `docs/research/2026-09-01-dreamina-cli-v1417-matrix.md` 写 multimodal2video 省略 ratio 默认 16:9，一致）。另 3 格（run 路 veo-3.1 image_to_video、dreamina text_to_video / image_to_video）只是键顺序变了（固定参数最后铺），值相同。
+130 格里 122 格键和值都相同（其中 104 格只是键顺序变了——固定参数最后铺；模板按键名取值，发出去的内容不变）、8 格多一个键；由变体收窄引起的差异 0 格（单独一条断言）。8 格多的键和上面同口径（本方式自己的比例默认值）：`wan-3.0@kie` 的 standard / prime 两个变体的 ref（aspect_ratio = adaptive），`dreamina-seedance-2` 六个变体（fast、standard、vip、fast_vip、mini、v2_5）的 multimodal（ratio = 16:9；仓库里的即梦 CLI 帮助记录 `docs/research/2026-09-01-dreamina-cli-v1417-matrix.md` 写 multimodal2video 省略 ratio 默认 16:9，一致）。
 
 ### 跨升级已批准的 Run
 
