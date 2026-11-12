@@ -25,7 +25,7 @@
 | 丙5 | `providerAdapter/providedDocs.ts`、`docsDiscovery.ts` | 不带 | 接入编译器喂给模型 | **不动**：同上 |
 | — | `catalog/multipartOperation.ts` `resolveReferenceMediaBytes`（appFetch 取参考图再上传） | 不带 | 供应商 | 今天就没有地址判断，不动，只记 |
 
-## ★0 先查别人
+## 先查别人（★0）
 
 - GitLab · 自建实例配了代理后 DNS 重绑保护误杀导入（https://gitlab.com/gitlab-org/gitlab/-/work_items/378267）· 有代理时整段跳过检查 · **确认了**「删」：连服务端产品在代理下都放弃按本机解析判。
 - Stripe smokescreen（https://github.com/stripe/smokescreen）· 把 SSRF 判据放进服务端出口代理 · **确认了**：这是多租户服务端的问题，桌面单用户软件没有那一层，也没有那种威胁模型。
