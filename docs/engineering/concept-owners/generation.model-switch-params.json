@@ -21,6 +21,7 @@
   "parity_test": "electron/shared/videoCapabilities/resolveModelParams.test.ts",
   "allowed_consumers": [
     "electron/capabilityCore/mcpStoryboardPlanner.ts",
+    "electron/shared/modelArchetypes/modeParams.ts",
     "electron/shared/videoCapabilities/planResolver.ts",
     "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
     "src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts",
@@ -28,5 +29,5 @@
     "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts"
   ],
   "since": "2026-11-09",
-  "notes": "第1步只统一政策实现，不改变今天的差异；合法性继续由paramConstraints提供，比例由aspectRatioValue提供。旧目录控件只做键编解码，defaultPatchForControls是委托共享主人的既有API。禁止绕开共享函数的门岗留第4步，不冒称已实现。"
+  "notes": "第1步只统一政策实现，不改变今天的差异；合法性继续由paramConstraints提供，比例由aspectRatioValue提供。旧目录控件只做键编解码，defaultPatchForControls是委托共享主人的既有API。禁止绕开共享函数的门岗留第4步，不冒称已实现。2026-11-12：clampParamsToMode 并入方式参数主人（generation.mode-params，electron/shared/modelArchetypes/modeParams.ts），读口随之搬家；archetypeMeta.ts 仍有别处调用故保留。"
 }
