@@ -1,12 +1,14 @@
 // 「这一次按哪种方式发」的唯一 owner（生成方式按输入现算，设计卡 docs/plan/2026-11-12-mode-from-inputs.md）。
 //
 // 方式不是存着的真相，是**这次实际放进来的东西**的函数：没放图就是文字生成，放了图就按图发；节点上存着的
-// modeId 只是「图怎么摆」的偏好。人手点过分段的偏好（chosenBy: 'human'）照用；来历不明的（老项目、机器写的）
-// 只有在它能把这次所有输入都收下时才用，否则按输入现算。
+// modeId 只是「图怎么摆」的偏好。人手点过分段的偏好（chosenBy: 'human'）是意图：照用；它有必填格没填时
+// 不许悄悄换成文字生成发出去（incompleteHumanLayout，不发）。来历不明的（老项目、机器写的）只有在它能把这次
+// 所有输入都收下时才用，否则按输入现算、悄悄走。
 //
 // 纯函数、同步、不认供应商名：主进程和渲染层都问它（渲染层只经 archetypeMeta.effectiveArchetypeMode 一个包装）。
 // 一次返回两样：mode = 这次发什么（发送、生成钮、任务种类、参数都读它）；layout = 图怎么摆（分段高亮、参考行格子、
-// 拖放落格、新连线语义读它）。两者只在 mode 一张输入都没收下时才可能不同（没放任何东西时照偏好摆两个空格、按文字发）。
+// 拖放落格、新连线语义读它）。两者只在两种情形不同：偏好来历不明且 mode 一张输入都没收下；人手版式只有可选格且
+// 什么都没放（照偏好摆空格、按文字发）。
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from './types'
 import { SLOT_ACCEPTS, type ReferenceAssetKind } from './anchorPolicy'
 
@@ -28,9 +30,13 @@ export type ModeForInputsResult = {
   layout: ArchetypeMode
   /**
    * ok：可以发；needsInput：档案没有文字生成、也没放能用的输入（设计卡 ★4 情况 a）；
-   * inputsNotAccepted：放了输入，但这个档案没有任何方式收得下（mode 是文字方式，输入不会被发出去）。
+   * inputsNotAccepted：放了输入，但这个档案没有任何方式收得下（mode 是文字方式，输入不会被发出去）；
+   * incompleteHumanLayout：人手选的版式有必填格没填（missing 是缺的格子）——不发；mode = layout = 人手版式
+   * （没有可发的方式，界面照今天：生成钮灰、沿用现有原因）。
    */
-  status: 'ok' | 'needsInput' | 'inputsNotAccepted'
+  status: 'ok' | 'needsInput' | 'inputsNotAccepted' | 'incompleteHumanLayout'
+  /** incompleteHumanLayout 时缺的必填格。 */
+  missing?: ArchetypeReferenceSlotKind[]
   /** 首尾帧版式下首帧空着、按文字发：firstFrameEmpty = 两格都空；onlyLastFrame = 只放了尾帧。 */
   notice?: 'firstFrameEmpty' | 'onlyLastFrame'
   /** mode 收下了几件输入（其余淡显「未用到」）。 */
@@ -127,9 +133,16 @@ export function modeForInputs(
 
   const layoutWhenEmpty = preferred ?? fallback
   const textMode = textModeOf(archetype, preferred)
+  const human = preference?.chosenBy === 'human' && preferred ? preferred : undefined
+  const incomplete = (mode: ArchetypeMode, fit: Fit): ModeForInputsResult => ({
+    mode, layout: mode, status: 'incompleteHumanLayout', taken: fit.taken,
+    missing: mode.slots.filter((slot, index) => fit.filled[index]! < slot.min).map((slot) => slot.kind),
+  })
 
   // ① 没放任何东西 → 文字生成；偏好只决定空格子怎么摆。
   if (inputs.length === 0) {
+    // 人手版式有必填格（首尾帧、首帧、改图）：是意图，不悄悄按文字发。
+    if (human && human.slots.some((slot) => slot.min > 0)) return incomplete(human, fitInputs(human, inputs, options))
     const notice = preferred && hasSlot(preferred, 'first_frame') && hasSlot(preferred, 'last_frame') && textMode ? 'firstFrameEmpty' as const : undefined
     if (textMode) return { mode: textMode, layout: preferred && preferred.slots.length ? preferred : textMode, status: 'ok', taken: 0, ...(notice ? { notice } : {}) }
     const runnable = (mode: ArchetypeMode) => mode.slots.every((slot) => slot.min === 0)
@@ -141,10 +154,12 @@ export function modeForInputs(
   const fits = new Map(archetype.modes.map((mode) => [mode.id, fitInputs(mode, inputs, options)] as const))
   const preferredFit = preferred ? fits.get(preferred.id)! : undefined
 
-  // ③ 首尾帧版式、首帧特意空着、只放了尾帧：档案声明首帧可空就照发首尾帧；否则按文字发（尾帧用不上）。
+  // ③ 首尾帧版式、首帧特意空着、只放了尾帧：档案声明首帧可空就照发首尾帧；人手选的不发（缺首帧）；
+  // 来历不明的按文字发（尾帧用不上，标「未用到」）。
   if (preferred && preferredFit && options.firstFrameEmpty && hasSlot(preferred, 'first_frame') && hasSlot(preferred, 'last_frame')
     && preferredFit.filledKinds.has('last_frame') && !preferredFit.filledKinds.has('first_frame')) {
     if (preferredFit.required) return { mode: preferred, layout: preferred, status: 'ok', taken: preferredFit.taken }
+    if (human) return incomplete(human, preferredFit)
     if (textMode) return { mode: textMode, layout: preferred, status: 'ok', notice: 'onlyLastFrame', taken: 0 }
   }
 
@@ -169,6 +184,18 @@ export function modeForInputs(
       best.fit.rankSum - fit.rankSum,
     ].find((value) => value !== 0) ?? 0
     if (order > 0) best = { mode, fit }
+  }
+  // 人手版式有必填格没填：只有「人手放的东西按同样的格子原样收下」的方式可以接（首尾帧只放了首帧 → 按首帧发）；
+  // 否则不发，不悄悄换成别的（尤其是文字生成）。
+  if (human && preferredFit && !preferredFit.required) {
+    let keeper: { mode: ArchetypeMode; fit: Fit } | null = null
+    for (const mode of archetype.modes) {
+      const fit = fits.get(mode.id)!
+      if (!fit.required || preferredFit.taken === 0 || fit.taken < preferredFit.taken || !agrees(fit)) continue
+      if (!keeper || fit.taken > keeper.fit.taken || (fit.taken === keeper.fit.taken && workflowClass(mode) < workflowClass(keeper.mode))) keeper = { mode, fit }
+    }
+    if (!keeper) return incomplete(human, preferredFit)
+    return { mode: keeper.mode, layout: keeper.mode, status: 'ok', taken: keeper.fit.taken }
   }
   if (best) return { mode: best.mode, layout: best.mode, status: 'ok', taken: best.fit.taken }
 

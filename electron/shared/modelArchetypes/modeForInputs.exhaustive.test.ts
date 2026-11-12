@@ -35,9 +35,12 @@ describe('modeForInputs 穷举（档案 × 存着的方式 × 输入）', () => 
     expect(cells.length).toBeGreaterThan(130 * 9 * 2)
   })
 
-  it('没有任何输入、档案有文字生成 → 按文字生成（声音档案除外：方式是人选的任务，照旧）', () => {
+  const humanRequires = (archetype: (typeof MODEL_ARCHETYPES)[number], preference: ModePreference) =>
+    preference.chosenBy === 'human' && Boolean(archetype.modes.find((mode) => mode.id === preference.modeId)?.slots.some((slot) => slot.min > 0))
+
+  it('没有任何输入、档案有文字生成 → 按文字生成（声音档案除外；人手选的版式有必填格时不发，见下）', () => {
     const wrong = cells.filter(({ archetype, preference, inputs }) => {
-      if (inputs.length || archetype.kind === 'audio' || !archetype.modes.some((mode) => mode.intent === 'text')) return false
+      if (inputs.length || archetype.kind === 'audio' || humanRequires(archetype, preference) || !archetype.modes.some((mode) => mode.intent === 'text')) return false
       return modeForInputs(archetype, inputs, preference).mode.intent !== 'text'
     }).map(({ archetype, preference }) => `${archetype.id}:${preference.modeId}/${preference.chosenBy}`)
     expect(wrong).toEqual([])
@@ -57,7 +60,7 @@ describe('modeForInputs 穷举（档案 × 存着的方式 × 输入）', () => 
     const wrong = cells.filter(({ archetype, preference, inputs }) => {
       if (!inputs.length || archetype.kind === 'audio') return false
       const result = modeForInputs(archetype, inputs, preference)
-      return result.status === 'inputsNotAccepted' && archetype.modes.some((mode) => acceptsAny(mode, inputs) && modeForInputs(archetype, inputs, { modeId: mode.id, chosenBy: 'human' }).taken > 0)
+      return result.status === 'inputsNotAccepted' && archetype.modes.some((mode) => acceptsAny(mode, inputs) && (() => { const r = modeForInputs(archetype, inputs, { modeId: mode.id, chosenBy: 'human' }); return r.status === 'ok' && r.taken > 0 })())
     }).map(({ archetype, preference, inputName }) => `${archetype.id}:${preference.modeId}/${inputName}`)
     expect(wrong).toEqual([])
   })
@@ -75,11 +78,38 @@ describe('modeForInputs 穷举（档案 × 存着的方式 × 输入）', () => 
     expect(wrong).toEqual([])
   })
 
-  it('layout 与 mode 不一致只出现在 mode 一张输入都没收下的情形', () => {
+  it('layout 与 mode 不一致只出现在：来历不明且一张都没收下；人手版式只有可选格且什么都没放', () => {
     const wrong = cells.filter(({ archetype, preference, inputs }) => {
       const result = modeForInputs(archetype, inputs, preference)
-      return result.layout.id !== result.mode.id && result.taken > 0
+      if (result.layout.id === result.mode.id) return false
+      const unknownNothingTaken = preference.chosenBy === 'unknown' && result.taken === 0
+      const humanOptionalEmpty = preference.chosenBy === 'human' && !inputs.length && !humanRequires(archetype, preference)
+      return !(unknownNothingTaken || humanOptionalEmpty)
+    }).map(({ archetype, preference, inputName }) => `${archetype.id}:${preference.modeId}/${preference.chosenBy}/${inputName}`)
+    expect(wrong).toEqual([])
+  })
+
+  it('人手版式有必填格没填 → 不悄悄换成文字生成发出去（incompleteHumanLayout，layout = mode = 人手版式）', () => {
+    const wrong = cells.filter(({ archetype, preference, inputs }) => {
+      if (archetype.kind === 'audio' || preference.chosenBy !== 'human') return false
+      const human = archetype.modes.find((mode) => mode.id === preference.modeId)
+      if (!human) return false
+      const result = modeForInputs(archetype, inputs, preference)
+      if (result.status === 'incompleteHumanLayout') return result.mode.id !== human.id || result.layout.id !== human.id || !result.missing?.length
+      // 发出去的话：人手版式本身收得下，或换成的方式原样收下了人手放进去的东西（不是文字生成）
+      if (result.status !== 'ok') return false
+      if (result.mode.id === human.id) return false
+      const humanFit = modeForInputs(archetype, inputs, { modeId: human.id, chosenBy: 'human' })
+      const humanRequired = human.slots.some((slot) => slot.min > 0)
+      return humanRequired && result.mode.intent === 'text' && humanFit.status !== 'ok'
     }).map(({ archetype, preference, inputName }) => `${archetype.id}:${preference.modeId}/${inputName}`)
+    expect(wrong).toEqual([])
+  })
+
+  it('来历不明的偏好永远不会得到 incompleteHumanLayout（按输入现算，悄悄走）', () => {
+    const wrong = cells.filter(({ preference, archetype, inputs }) => preference.chosenBy === 'unknown'
+      && modeForInputs(archetype, inputs, preference).status === 'incompleteHumanLayout')
+      .map(({ archetype, preference, inputName }) => `${archetype.id}:${preference.modeId}/${inputName}`)
     expect(wrong).toEqual([])
   })
 
@@ -112,14 +142,34 @@ describe('modeForInputs 拍板稿的几格', () => {
     expect(modeForInputs(seedance, INPUTS.oneImage!, { modeId: 'firstlast', chosenBy: 'human' }).mode.id).toBe('first')
   })
 
-  it('人手选首尾帧、什么都没放 → 按文字发，参考行照首尾帧摆两个空格', () => {
+  it('人手选首尾帧、两格都空 → 不发（不悄悄按文字生成），参考行照首尾帧摆', () => {
     const result = modeForInputs(seedance, [], { modeId: 'firstlast', chosenBy: 'human' })
+    expect([result.status, result.mode.id, result.layout.id, result.missing]).toEqual(['incompleteHumanLayout', 'firstlast', 'firstlast', ['first_frame', 'last_frame']])
+  })
+
+  it('来历不明的首尾帧、什么都没放 → 按文字发，参考行照首尾帧摆两个空格', () => {
+    const result = modeForInputs(seedance, [], { modeId: 'firstlast', chosenBy: 'unknown' })
     expect([result.mode.intent, result.layout.id, result.notice]).toEqual(['text', 'firstlast', 'firstFrameEmpty'])
   })
 
-  it('首帧特意空着、只放了尾帧、首帧必填 → 按文字发，尾帧不收（参考行照首尾帧摆）', () => {
+  it('人手选首尾帧、首帧特意空着、只放了尾帧、首帧必填 → 不发（缺首帧）', () => {
     const result = modeForInputs(seedance, INPUTS.oneImage!, { modeId: 'firstlast', chosenBy: 'human' }, { firstFrameEmpty: true })
+    expect([result.status, result.mode.id, result.missing]).toEqual(['incompleteHumanLayout', 'firstlast', ['first_frame']])
+  })
+
+  it('人手选首尾帧、连线只当尾帧、首帧必填 → 不发', () => {
+    const result = modeForInputs(seedance, INPUTS.onlyLastFrame!, { modeId: 'firstlast', chosenBy: 'human' })
+    expect([result.status, result.missing]).toEqual(['incompleteHumanLayout', ['first_frame']])
+  })
+
+  it('来历不明的首尾帧、首帧特意空着、只放了尾帧 → 按文字发，尾帧不收（参考行照首尾帧摆、尾帧「未用到」）', () => {
+    const result = modeForInputs(seedance, INPUTS.oneImage!, { modeId: 'firstlast', chosenBy: 'unknown' }, { firstFrameEmpty: true })
     expect([result.mode.intent, result.layout.id, result.notice, result.taken]).toEqual(['text', 'firstlast', 'onlyLastFrame', 0])
+  })
+
+  it('人手选「参考」（只有可选格）、一张没放 → 按文字发，可点', () => {
+    const result = modeForInputs(seedance, [], { modeId: 'omni', chosenBy: 'human' })
+    expect([result.mode.intent, result.status, result.layout.id]).toEqual(['text', 'ok', 'omni'])
   })
 
   it('首帧特意空着、只放了尾帧、档案声明首帧可空 → 照发首尾帧', () => {
