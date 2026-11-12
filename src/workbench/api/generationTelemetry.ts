@@ -59,6 +59,11 @@ const STAGE_OF_CODE: Partial<Record<NomiErrorCode, GenerationFailureStage>> = {
   'output-unreadable': 'land',
 }
 
+/** 解析原文的两个读口坏了也不抛：当没认出来。 */
+function orNull<T>(read: () => T | null | undefined): T | null {
+  try { return read() ?? null } catch { return null }
+}
+
 /** 上游回了状态码：按状态码分；只有同表的业务码（没有状态码）：按查表类别分（`shared/vendorFailure.categorizeVendorFailure`）。 */
 function statusFromStructured(structured: VendorErrorStructuredLite): GenerationUpstreamStatus {
   const http = structured.httpStatus
@@ -91,10 +96,8 @@ function statusFromStructured(structured: VendorErrorStructuredLite): Generation
  */
 export function generationFailureFacts(message: string | undefined, door: GenerationOutcomeDoor, errorType?: string): GenerationFailureFacts {
   const text = String(message ?? '')
-  let code: NomiErrorCode | null = null
-  let structured: VendorErrorStructuredLite | null = null
-  try { code = matchNomiErrorCode(text) } catch { code = null }
-  try { structured = parseVendorErrorFromMessage(text) } catch { structured = null }
+  const code: NomiErrorCode | null = orNull(() => matchNomiErrorCode(text))
+  const structured: VendorErrorStructuredLite | null = orNull(() => parseVendorErrorFromMessage(text))
   const doorStage: GenerationFailureStage = door === 'submit-threw' ? 'submit' : 'wait'
 
   if (code === 'submission-unknown') return { upstreamStatus: structured ? statusFromStructured(structured) : 'network', failureStage: 'submit' }
@@ -147,7 +150,7 @@ export function generationTrackPayload(input: {
   mode: GenerationMode
   timing: GenerationTiming
   door: GenerationOutcomeDoor
-  result: 'success' | 'failure'
+  result: Exclude<TelemetryResult, 'cancel'>
   errorType?: string
   failureMessage?: string
 }): GenerationTrackPayload {

@@ -2,12 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { getSettingsRoot } from '../settings/settingsRoot'
+import { registerQuitDrain } from '../quitTeardown'
 import { LAST_EXIT_VALUES, type LastExit } from '../shared/contracts/telemetry'
 
 // 「上一次是怎么结束的」——`app.started.lastExit` 的唯一来源（2026-11-13）。
 //
 // 一次会话的结局只有下一次启动才知道：本次启动先读上一次留下的标记，再把自己记成 running；
-// 会话里出了事就把标记改成出了什么事；正常退出（will-quit）且没出过事才改成 clean。
+// 会话里出了事就把标记改成出了什么事；正常退出（退出流程 `quitTeardown` 跑到这一步）且没出过事才改成 clean。
 // 进程被强退 / 断电 / 主进程直接崩掉 → 标记停在 running → 下次读到的就是 abnormal。
 // 一次会话里出过崩溃又正常退出的，记出过的那件事（问的是「这次会话有没有出事」，不是「最后一下怎么关的」）。
 //
@@ -31,6 +32,8 @@ export type SessionExitDeps = {
   process: Listenable
   /** 挂监听这一刻已经开着的窗口（启动事件是异步记的，主窗口可能先建好）。 */
   existingWindows?: readonly WindowLike[]
+  /** 正常退出时调一次 finish。生产里经退出流程唯一的主人 `quitTeardown` 登记（不自己订 will-quit）。 */
+  onQuit: (finish: () => void) => void
 }
 
 const RENDERER_REASON: Record<string, LastExit> = {
@@ -91,7 +94,7 @@ export function startSessionExitTracking(deps: SessionExitDeps): LastExit {
   }
   for (const win of deps.existingWindows ?? []) watchWindow(win)
   deps.app.on('browser-window-created', (_event, window) => watchWindow(window as WindowLike))
-  deps.app.on('will-quit', () => { if (!settled()) write('clean') })
+  deps.onQuit(() => { if (!settled()) write('clean') })
   return previous
 }
 
@@ -101,6 +104,14 @@ let started: LastExit | null = null
 export function startAppSessionExitTracking(input: { enabled: boolean; app: Listenable; existingWindows?: readonly WindowLike[] }): LastExit {
   if (started !== null) return started
   if (process.env.NOMI_MCP_STDIO === '1') return (started = 'unknown')
-  started = startSessionExitTracking({ enabled: input.enabled, markerPath: path.join(getSettingsRoot(), FILE), app: input.app, process, existingWindows: input.existingWindows })
+  started = startSessionExitTracking({
+    enabled: input.enabled, markerPath: path.join(getSettingsRoot(), FILE), app: input.app, process, existingWindows: input.existingWindows,
+    // 正常退出一条；系统关机 / 注销（Windows session-end、Linux shutdown）只跑 critical 那一条，也记成正常退出。
+    // 写一个几十字节的同步文件，不拖退出；写不了只影响下一次的这一格。
+    onQuit: (finish) => {
+      registerQuitDrain('telemetry-session-exit', finish, { required: false })
+      registerQuitDrain('telemetry-session-exit-critical', finish, { required: false, critical: true })
+    },
+  })
   return started
 }

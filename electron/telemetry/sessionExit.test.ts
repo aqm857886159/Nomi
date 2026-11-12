@@ -3,8 +3,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { EventEmitter } from 'node:events'
-import { afterEach, describe, expect, it } from 'vitest'
-import { lastExitOfRendererGone, startSessionExitTracking } from './sessionExit'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+const quitDrains = vi.hoisted(() => [] as Array<{ name: string; drain: () => void; options: { critical?: boolean } }>)
+vi.mock('../quitTeardown', () => ({ registerQuitDrain: (name: string, drain: () => void, options: { critical?: boolean } = {}) => { quitDrains.push({ name, drain, options }); return () => undefined } }))
+import { lastExitOfRendererGone, startAppSessionExitTracking, startSessionExitTracking } from './sessionExit'
 import { LAST_EXIT_VALUES } from '../shared/contracts/telemetry'
 
 const roots: string[] = []
@@ -13,9 +15,12 @@ afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursiv
 function session(markerPath: string, enabled = true, existingWindows: EventEmitter[] = []) {
   const app = new EventEmitter()
   const proc = new EventEmitter()
-  const lastExit = startSessionExitTracking({ enabled, markerPath, app, process: proc, existingWindows })
+  // 退出流程登记的 finish（生产里是 quitTeardown 的 drain）；quit() = 正常退出走到了这一步。
+  const finishers: Array<() => void> = []
+  const lastExit = startSessionExitTracking({ enabled, markerPath, app, process: proc, existingWindows, onQuit: (finish) => { finishers.push(finish) } })
   const marker = () => (fs.existsSync(markerPath) ? JSON.parse(fs.readFileSync(markerPath, 'utf8')) : null)
-  return { app, proc, lastExit, marker }
+  const quit = () => { for (const finish of finishers) finish() }
+  return { app, proc, lastExit, marker, quit, finishers }
 }
 function markerFile(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-session-exit-'))
@@ -29,11 +34,11 @@ describe('上一次是怎么结束的', () => {
     const first = session(file)
     expect(first.lastExit).toBe('unknown')
     expect(first.marker()).toEqual({ schemaVersion: 1, state: 'running' })
-    first.app.emit('will-quit')
+    first.quit()
     expect(session(file).lastExit).toBe('clean')
   })
 
-  it('进程被强退 / 断电（没走到 will-quit）→ 下次 abnormal', () => {
+  it('进程被强退 / 断电（没走到退出流程）→ 下次 abnormal', () => {
     const file = markerFile()
     session(file)
     expect(session(file).lastExit).toBe('abnormal')
@@ -43,7 +48,7 @@ describe('上一次是怎么结束的', () => {
     const file = markerFile()
     const s = session(file)
     s.app.emit('render-process-gone', {}, {}, { reason: 'oom', exitCode: 9 })
-    s.app.emit('will-quit')
+    s.quit()
     expect(session(file).lastExit).toBe('renderer-oom')
   })
 
@@ -69,7 +74,7 @@ describe('上一次是怎么结束的', () => {
     s2.app.emit('browser-window-created', {}, win)
     win.emit('unresponsive')
     win.emit('responsive')
-    s2.app.emit('will-quit')
+    s2.quit()
     expect(session(file2).lastExit).toBe('clean')
     void s
   })
@@ -80,7 +85,7 @@ describe('上一次是怎么结束的', () => {
     const win = new EventEmitter()
     s.app.emit('browser-window-created', {}, win)
     win.emit('unresponsive')
-    s.app.emit('will-quit')
+    s.quit()
     expect(session(file).lastExit).toBe('clean')
   })
 
@@ -107,7 +112,22 @@ describe('上一次是怎么结束的', () => {
     const off = session(file, false)
     expect(off.lastExit).toBe('unknown')
     expect(fs.existsSync(file)).toBe(false)
-    expect(off.app.listenerCount('will-quit')).toBe(0)
+    expect(off.finishers).toHaveLength(0)
     expect(off.proc.listenerCount('uncaughtExceptionMonitor')).toBe(0)
+  })
+
+  it('生产接线：正常退出与系统关机（critical）两条都经退出流程登记，跑哪条都记 clean', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-session-exit-'))
+    roots.push(root)
+    vi.stubEnv('NOMI_SETTINGS_DIR', root)
+    vi.stubEnv('NOMI_MCP_STDIO', '')
+    try {
+      expect(startAppSessionExitTracking({ enabled: true, app: new EventEmitter() })).toBe('unknown')
+      expect(quitDrains.map((d) => [d.name, Boolean(d.options.critical)])).toEqual([['telemetry-session-exit', false], ['telemetry-session-exit-critical', true]])
+      quitDrains[1].drain()
+      expect(JSON.parse(fs.readFileSync(path.join(root, 'telemetry-session-state.json'), 'utf8'))).toEqual({ schemaVersion: 1, state: 'clean' })
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })
