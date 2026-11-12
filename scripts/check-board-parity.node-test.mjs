@@ -8,6 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { BOARD_NAME, BOARD_STATES, checkBoardManifest, checkBoundarySheet, checkPriorArt, checkPrBoardClaims, checkSourceHash, findDatedBoards, loadManifests, parsePrBoardClaims, runBoardParity } from './check-board-parity.mjs'
+import { makeTempDir } from './_test-temp.mjs'
 import { BOARD_NAMES } from './board-extract.mjs'
 import { hashBoardSourceFiles } from './board-source-hash.mjs'
 
@@ -202,7 +203,7 @@ describe('R10 boundarySheet：2026-11-13 起的板必须带边界表（更早的
     assert.deepEqual(checkBoundarySheet({ board: 'Main', manifest: { approvedOn: '2026-11-12' }, boardNames: names }), [])
   })
   it('真跑：日期目录 2026-11-13 的板缺边界表 → 门岗红；2026-11-12 目录不红', async () => {
-    const root = fs.mkdtempSync(path.join(process.env.TMPDIR || process.env.TEMP || '.', 'bp-bsheet-'))
+    const root = makeTempDir('bp-bsheet-')
     const main = path.join(root, 'main-day'); fs.mkdirSync(main)
     for (const [day, name] of [['2026-11-12', 'Old'], ['2026-11-13', 'Fresh']]) {
       fs.mkdirSync(path.join(root, day))
