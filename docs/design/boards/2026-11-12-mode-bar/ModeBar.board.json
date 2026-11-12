@@ -1533,43 +1533,43 @@
   ],
   "boundarySheet": [
     {
-      "where": "参考那一行（图数最多）",
+      "where": "K1 · 参考那一行（图数最多）（样张 K1-max-count）",
       "max": "Seedance 2.5 全能参考：图 30 + 视频 10 + 音频 10 = 50 格",
       "source": "electron/shared/modelArchetypes 里 seedance-2.5 档案的参考槽上限",
       "layout": "图折行，最多露 3 行多一点（max-h-40），再多在区内滚；行尾那句话在滚动区外、钉住不跟着滚",
-      "board": "K1-max-count",
+      "board": "ModeBar",
       "element": "ref.tail.kind-count"
     },
     {
-      "where": "行尾那句话（最长）",
+      "where": "K2 · 行尾那句话（最长）（样张 K2-note-wraps-whole）",
       "max": "「放了 50 张，已改成 全能参考」/「4 images added, switched to Reference」",
       "source": "assetLibrary.refRow.switched 的中英文案 × 最大张数",
       "layout": "整句不折（nowrap、不缩）；和图放得下一行就在行尾，放不下整句换到图下面一行、靠右",
-      "board": "K2-note-wraps-whole",
+      "board": "ModeBar",
       "element": "ref.tail.switched"
     },
     {
-      "where": "模型放不下时的淡图",
+      "where": "K3 · 模型放不下时的淡图（样张 K3-model-limit-max）",
       "max": "30 张换到只收 2 张的可灵 4.0：28 张淡图",
       "source": "可灵 4.0 档案的图生视频上限 + 参考行上限 30",
       "layout": "淡图只变淡、不逐张写字；行尾一句「其余 28 张不会发」",
-      "board": "K3-model-limit-max",
+      "board": "ModeBar",
       "element": "ref.tile.not-sent"
     },
     {
-      "where": "底栏（最窄 560 宽的生成框）",
+      "where": "K4 · 底栏（最窄 560 宽的生成框）（样张 K4-bar-longest）",
       "max": "中文「Seedance 2.0 Fast + 全能参考 + 21:9 · 1080p · 15s」，英文「Seedance 2.0 Fast + First & last frame」",
       "source": "NODE_COMPOSER_WIDTH = 560；最长模型名 / 方式名 / 参数值来自模型目录与 i18n",
       "layout": "永远一行；让法顺序：① 参数那一格整值地退（比例 → 有声 → 清晰度 → 时长留到最后）→ ② 退到只剩时长还放不下，才让模型名末尾省略（title 写全名）；变体 / 方式 / 右边四颗永远不缩（2026-11-12 协调拍板，依据原则第 4 条「名字和影响花钱的最后让」）",
-      "board": "K4-bar-longest",
+      "board": "ModeBar",
       "element": "bar.params"
     },
     {
-      "where": "方式菜单的说明（最长）",
+      "where": "K5 · 方式菜单的说明（最长）（样张 K5-menu-longest-line）",
       "max": "放满 50 个输入时的置灰原因（中文约 30 字、英文约 60 字母）",
       "source": "modeMenuModel 的说明文案 × 最大输入数",
       "layout": "菜单最宽 340；说明最多两行、不截断、折行不留单个字（text-wrap: balance）",
-      "board": "K5-menu-longest-line",
+      "board": "ModeBar",
       "element": "mode.menu"
     }
   ],

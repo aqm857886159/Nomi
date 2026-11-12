@@ -149,7 +149,7 @@ try {
   const browserWindow = await app.browserWindow(win)
   await browserWindow.evaluate((target) => { target.setBounds({ x: 0, y: 0, width: 1600, height: 1050 }); target.center() })
 
-  await clickOrFail(newProjectEntry(win), uiText('zh', 'library.newBlankProject'))
+  await clickOrFail(newProjectEntry(win), uiText('zh-CN', 'library.newBlankProject'))
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '顶栏「生成」')
   await expectVisible(canvasAddBar(win), '生成画布工具栏出现')
   await scenario('zh', 'zh-CN')
