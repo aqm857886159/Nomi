@@ -1208,6 +1208,7 @@
         "electron/telemetry/",
         "electron/shared/contracts/perfTelemetry.ts",
         "electron/settings/telemetryIpc.ts",
+        "src/workbench/api/generationTelemetry.ts",
         "electron/feedback/",
         "infra/feedback-worker/"
       ],

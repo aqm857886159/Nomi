@@ -79,8 +79,8 @@ test('unknown/missing session IDs never fabricate independent failures', () => {
 })
 test('every secondary metric can stop; low samples and unknown results only disclose coverage', () => {
   for (const capability of ['image-edit','video']) assert.equal(health([...fixture(),...generation(24,10,10,capability),...generation(23,300,0,capability)]).stop,true)
-  for (const name of ['download','install','agent']) {
-    const events = [23,24].flatMap(v => Array.from({length:v === 24 ? 10 : 300},(_,i) => event(v,name === 'agent' ? 'agent.turn.completed' : 'update.action',{action:name,result:v === 24 ? 'failure' : 'success'},'2026-10-29',`s${i%2}`)))
+  for (const name of ['download','install']) {
+    const events = [23,24].flatMap(v => Array.from({length:v === 24 ? 10 : 300},(_,i) => event(v,'update.action',{action:name,result:v === 24 ? 'failure' : 'success'},'2026-10-29',`s${i%2}`)))
     assert.equal(health([...fixture(),...events]).stop,true)
   }
   const h = health([...fixture(),event(24,'generation.completed',{capability:'video',result:'unknown'})])
@@ -138,3 +138,12 @@ test('D3: local-refusal is excluded from generation failure rate and included in
   assert.equal(image(h).newer.n, 22)
   assert.equal(h.rows.find(r => r.key === 'local.image').newer.failure, 2)
 })
+test('local rejection reads upstreamStatus=not-sent exactly when present (no <1s guess)', () => {
+  const events = [...fixture(),...generation(24,20,20),...generation(23,300,300)]
+  for (const e of events.filter(e => e.props.result === 'failure')) Object.assign(e.props,{errorType:'network',durationBucket:'>5s'})
+  for (const e of events.filter(e => e.systemProps.appMinor === 24 && e.props.result === 'failure')) Object.assign(e.props,{upstreamStatus:'not-sent'})
+  const h = health(events); const r = h.rows.find(r => r.key === 'local.image')
+  assert.equal(r.newer.failure,20); assert.equal(r.older.failure,0); assert.equal(r.newer.unknown,0)
+  assert.doesNotMatch(renderVersionHealth(h), /仅major\.minor，不能精确比较补丁版/)
+})
+

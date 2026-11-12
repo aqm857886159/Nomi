@@ -57,14 +57,14 @@ describe('postIntake', () => {
 
   it('带 bearer、不带 cookie、路由拼在基址后面', async () => {
     const fetch = vi.fn(async () => new Response(JSON.stringify({ ok: true, ref: 'r1' }), { status: 200 }))
-    const result = await postIntake('/v1/trajectories', { turn: 1 }, { fetch: fetch as never, endpoint: 'https://intake.example', token: 'tok' })
+    const result = await postIntake('/v1/feedback', { summary: 'a' }, { fetch: fetch as never, endpoint: 'https://intake.example', token: 'tok' })
     expect(result).toEqual({ ref: 'r1' })
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe('https://intake.example/v1/trajectories')
+    expect(url).toBe('https://intake.example/v1/feedback')
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer tok')
     // 带 cookie 就等于给了一个跨请求可关联的身份，而我们对用户说的是「匿名」。
     expect(init.credentials).toBe('omit')
-    expect(init.body).toBe(JSON.stringify({ turn: 1 }))
+    expect(init.body).toBe(JSON.stringify({ summary: 'a' }))
   })
 
   it('反馈那条把编号带回来给用户引用', async () => {

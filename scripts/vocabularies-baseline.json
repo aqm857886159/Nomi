@@ -2149,6 +2149,54 @@
       ],
       "reason": "「这次按哪种方式发」的现算结果三态，唯一主人是 electron/shared/modelArchetypes/modeForInputs.ts：ok 是选出了能发的方式；needsInput 是选中的方式还缺必放的输入（生成钮灰、说缺什么）；inputsNotAccepted 是模型任何方式都收不下这些输入。底栏方式格、菜单置灰、参考行尾和请求体都读这一个结果，不各自判断。仓库里现有的发送可否判定（canRunGenerationNode 的原因码）回答的是「整节点能不能跑」，粒度和取值都不同，复用会把方式选择和跑不跑混成一件事。",
       "site": "electron/shared/modelArchetypes/modeForInputs.ts::type:ModeForInputsResult/property:status/type-union"
+    },
+    {
+      "members": [
+        "fetch",
+        "land",
+        "submit",
+        "wait"
+      ],
+      "reason": "遥测 generation.completed 的 failureStage：一次画布生成失败卡在提交 / 等待 / 取回 / 落地哪一段。是出站事件的闭合值（主进程白名单校验），回答「失败在哪一段」；不能复用生成节点状态或任务状态：那两张表说的是任务现在处于什么状态，这里只说失败发生的阶段，且取回 / 落地两段在任务状态里没有对应成员。",
+      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_FAILURE_STAGES/as-const"
+    },
+    {
+      "members": [
+        "1-5s",
+        "2-10m",
+        "30-120s",
+        "5-30s",
+        "gt-10m",
+        "lt-1s",
+        "none"
+      ],
+      "reason": "遥测 generation.completed 的 submitDuration / waitDuration 分档：提交、等待两段各自的耗时区间。不能复用总耗时的 DurationBucket（<1s / 1-5s / >5s）：视频等待常在分钟级，三档分不出；且要有 none 表示「同步任务没有等待段」。",
+      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_STAGE_DURATIONS/as-const"
+    },
+    {
+      "members": [
+        "auth",
+        "client-4xx",
+        "network",
+        "not-sent",
+        "ok",
+        "rate-limit",
+        "server-5xx",
+        "task-failed",
+        "timeout",
+        "unknown"
+      ],
+      "reason": "遥测 generation.completed 的 upstreamStatus：上游怎么答的（含「没发出去」和「受理后自己报失败」）。不能复用供应商失败类别（vendorFailure 的 category）：那张表是查表得来的业务类别，没有 ok / not-sent / task-failed，且这里按 HTTP 状态码优先归类；也不能复用 errorType 失败类别码（开放的标识符形状，不是闭合集合）。",
+      "site": "electron/shared/contracts/telemetry.ts::variable:GENERATION_UPSTREAM_STATUSES/as-const"
+    },
+    {
+      "members": [
+        "poll-terminal",
+        "submit-terminal",
+        "submit-threw"
+      ],
+      "reason": "渲染层生成统计推导的内部参数：结局是在哪扇门上看到的（提交抛错 / 提交即终态 / 轮询终态），只用来推失败阶段，不出门、不进事件。和任务状态不是一回事（同一终态可以从两扇门到达）。",
+      "site": "src/workbench/api/generationTelemetry.ts::type:GenerationOutcomeDoor/type-union"
     }
   ],
   "debt": [
