@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { BOARD_NAME, checkBoardManifest, checkPriorArt, checkPrBoardClaims, checkSourceHash, findDatedBoards, loadManifests, parsePrBoardClaims, runBoardParity } from './check-board-parity.mjs'
+import { BOARD_NAME, BOARD_STATES, checkBoardManifest, checkBoundarySheet, checkPriorArt, checkPrBoardClaims, checkSourceHash, findDatedBoards, loadManifests, parsePrBoardClaims, runBoardParity } from './check-board-parity.mjs'
 import { BOARD_NAMES } from './board-extract.mjs'
 import { hashBoardSourceFiles } from './board-source-hash.mjs'
 
@@ -165,6 +165,54 @@ describe('R9 priorArt：2026-10-19 起的板必须带 ≥3 项先例（更早的
     fs.rmSync(root, { recursive: true, force: true })
     assert.ok(errors.some((e) => /\[Fresh\].*priorArt/.test(e)), errors.join('\n'))
     assert.ok(!errors.some((e) => /\[Old\].*priorArt/.test(e)), errors.join('\n'))
+  })
+})
+
+describe('R10 boundarySheet：2026-11-13 起的板必须带边界表（更早的板不查，写了照样查）', () => {
+  const row = (over = {}) => ({ where: '参考图行', max: '30 张', source: '模型声明的参考上限', layout: '折行，超出在自己区域里滚', board: 'Main', element: 'topbar.title', ...over })
+  const names = ['Main']
+  const runSheet = (sheet, date = '2026-11-13') => checkBoundarySheet({ board: 'Main', manifest: { ...base(), ...(sheet === undefined ? {} : { boundarySheet: sheet }) }, date, boardNames: names })
+  it('正例：完整一行 → 绿', () => assert.deepEqual(runSheet([row()]), []))
+  it('正例：{ none: 原因 } → 绿', () => assert.deepEqual(runSheet({ none: '这一屏只有固定的两个按钮' }), []))
+  it('正例：状态词表里有 max-count，元素可以用它', () => {
+    assert.ok(BOARD_STATES.includes('max-count'))
+    const m = base()
+    m.elements[0].states = ['max-count']
+    assert.deepEqual(run(m), [])
+  })
+  it('反例：2026-11-13 的板缺 boundarySheet → 红', () => assert.match(runSheet(undefined).join('\n'), /必须有 boundarySheet/))
+  it('反例：空数组 → 红', () => assert.match(runSheet([]).join('\n'), /至少 1 行/))
+  it('反例：缺字段（六个字段各查一遍）→ 红', () => {
+    for (const field of ['where', 'max', 'source', 'layout', 'board', 'element']) {
+      assert.match(runSheet([row({ [field]: '  ' })]).join('\n'), new RegExp(`boundarySheet\\[0\\] 缺 ${field}`))
+    }
+  })
+  it('反例：板名不在同目录 → 红', () => assert.match(runSheet([row({ board: 'Nope' })]).join('\n'), /不是同目录里的板名/))
+  it('反例：元素 id 不在清单里 → 红', () => assert.match(runSheet([row({ element: 'ghost' })]).join('\n'), /不是本清单的元素 id/))
+  it('反例：none 为空 → 红', () => assert.match(runSheet({ none: '' }).join('\n'), /原因不能为空/))
+  it('反例：既不是数组也没有 none → 红', () => assert.match(runSheet({}).join('\n'), /原因不能为空/))
+  it('日期早（2026-11-12）没有 boundarySheet → 绿，不追溯', () => assert.deepEqual(runSheet(undefined, '2026-11-12'), []))
+  it('日期早但写错了照样红', () => assert.match(runSheet([row({ element: 'ghost' })], '2026-11-12').join('\n'), /不是本清单的元素 id/))
+  it('反例：目录名带后缀（2026-11-13-mode-bar）照样按开头的日期算 → 红；2026-11-12-mode-bar 不查', () => {
+    assert.match(runSheet(undefined, '2026-11-13-mode-bar').join('\n'), /必须有 boundarySheet/)
+    assert.deepEqual(runSheet(undefined, '2026-11-12-mode-bar'), [])
+  })
+  it('日期没给就看清单的 approvedOn', () => {
+    assert.match(checkBoundarySheet({ board: 'Main', manifest: { approvedOn: '2026-11-14' }, boardNames: names }).join('\n'), /必须有 boundarySheet/)
+    assert.deepEqual(checkBoundarySheet({ board: 'Main', manifest: { approvedOn: '2026-11-12' }, boardNames: names }), [])
+  })
+  it('真跑：日期目录 2026-11-13 的板缺边界表 → 门岗红；2026-11-12 目录不红', async () => {
+    const root = fs.mkdtempSync(path.join(process.env.TMPDIR || process.env.TEMP || '.', 'bp-bsheet-'))
+    const main = path.join(root, 'main-day'); fs.mkdirSync(main)
+    for (const [day, name] of [['2026-11-12', 'Old'], ['2026-11-13', 'Fresh']]) {
+      fs.mkdirSync(path.join(root, day))
+      const priorArt = [1, 2, 3].map((n) => ({ url: `https://example.com/${n}`, takeaway: 'a', decisionImpact: 'b' }))
+      fs.writeFileSync(path.join(root, day, `${name}.board.json`), JSON.stringify({ board: name, stage: 'built', priorArt, elements: [], decor: [], functionCensus: [] }))
+    }
+    const errors = await runBoardParity({ dir: main, root })
+    fs.rmSync(root, { recursive: true, force: true })
+    assert.ok(errors.some((e) => /\[Fresh\].*boundarySheet/.test(e)), errors.join('\n'))
+    assert.ok(!errors.some((e) => /\[Old\].*boundarySheet/.test(e)), errors.join('\n'))
   })
 })
 
