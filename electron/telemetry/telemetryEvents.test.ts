@@ -93,6 +93,24 @@ describe('app.started.lastExit 与 perf 汇总的主进程停顿', () => {
     expect(isTelemetryProps({ ...perf, nodes: '57' }, 'perf.session.summary')).toBe(false)
   })
 
+  it('mainStallCount 只许闭合档：文字、裸数字都拒', () => {
+    for (const bad of ['3', 3, 'a cat riding a bike', '/Users/me/a.png', '']) {
+      expect(isTelemetryProps({ ...perf, mainStallCount: bad }, 'perf.session.summary')).toBe(false)
+    }
+  })
+
+  it('submitDuration 只许闭合档：文字、裸数字都拒', () => {
+    for (const bad of ['1834', 1834, 'a cat riding a bike', '/Users/me/a.png', '']) {
+      expect(isTelemetryProps({ ...success, submitDuration: bad }, 'generation.completed')).toBe(false)
+    }
+  })
+
+  it('waitDuration 只许闭合档：文字、裸数字都拒', () => {
+    for (const bad of ['1834', 1834, 'a cat riding a bike', '/Users/me/a.png', '']) {
+      expect(isTelemetryProps({ ...success, waitDuration: bad }, 'generation.completed')).toBe(false)
+    }
+  })
+
   it('主进程停顿分档：监视器没在跑 = unknown；0 次 = none / 0', () => {
     expect([mainStallMaxBucket(null), mainStallMaxBucket(0), mainStallMaxBucket(99), mainStallMaxBucket(100), mainStallMaxBucket(250), mainStallMaxBucket(1000), mainStallMaxBucket(4999), mainStallMaxBucket(5000)])
       .toEqual(['unknown', 'none', 'none', '100-250', '250-1000', '1000-5000', '1000-5000', 'gt-5000'])

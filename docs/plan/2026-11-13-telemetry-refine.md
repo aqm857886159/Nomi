@@ -116,7 +116,7 @@
 
 | # | 检查 | 反例（改坏 → 应红） |
 |-|-|-|
-| 1 | 每个新字段只能是声明的枚举 / 分档 | 每个字段塞一段错误原文 / 一个路径 → 校验拒、事件不入队（每字段一条） |
+| 1 | 每个新字段只能是声明的枚举 / 分档 | 每个字段塞一段错误原文 / 一个路径 / 一个裸数字 → 校验拒、事件不入队（每字段一条，含 `mainStallCount`、`submitDuration`、`waitDuration`，第 2 轮补齐） |
 | 2 | 新增键不在白名单 → 拒 | 把 `hasExactKeys` 放宽成通配 → 测试红 |
 | 3 | 完整版本号在所有事件上 | 构造信封时去掉 `appPatch` → 红 |
 | 4 | 生成完成的每个发送口都带齐新字段（6 处调用逐个测） | 让其中一处少传 → 红 |
@@ -124,7 +124,7 @@
 | 6 | 上次退出：渲染进程死亡、主进程未清标记退出、正常退出三种，下次启动各自正确 | 删掉正常退出时写 clean → 红 |
 | 7 | 被删两个事件名、`attemptCountBucket`、轨迹队列类别：全仓 `git grep` 无残留（文档历史除外）；旧队列里带这些名字的条目被丢弃不报错 | 旧队列夹具读盘 → 只剩合法条目 |
 | 8 | 已开启的老设置文件（scopeVersion 2 / 缺 scopeVersion 两种旧形状）升级后不弹确认、新字段照发；没开启的什么都不发 | 把 TELEMETRY_SCOPE_VERSION 升到 3 → 红 |
-| 9 | 设置页说明列的每一类都能在事件定义里找到对应事件，反之亦然 | 删说明里一类 / 加一个事件不进说明 → 红 |
+| 9 | 设置页说明列的每一类都能在事件定义里找到对应事件，反之亦然；Agent 面板同意卡「收什么」一句不再提已删的功能使用、要提耗时和出错类别 | 删说明里一类 / 加一个事件不进说明 / 把同意卡那句改回「用了哪些功能」→ 红 |
 
 另：假上游回 401、回 500、连接超时各一次，贴最终入队的事件 JSON，里面不许出现任何自由文本。
 
@@ -157,6 +157,12 @@ systemProps 三例相同：{locale:zh-CN, osFamily:macos, appMajor:0, appMinor:2
 
 实现中的两处补充：
 - 分类器判成 `local-refusal` 但没有 Nomi 码的主进程结构化拒发（同节点在途、预演没好等）→ `not-sent` + `uncoded`（这些码还不是闭合表）。
-- 同意走查 `tests/ux/telemetry-consent.walk.mjs` 的假生成事件改成新形状（带 vendorKey，由主进程补 modelClass）。Agent 面板同意卡里「用了哪些功能」一句没改（不在本次范围，留给协调）。
+- 同意走查 `tests/ux/telemetry-consent.walk.mjs` 的假生成事件改成新形状（带 vendorKey，由主进程补 modelClass）。Agent 面板同意卡那句第 1 轮没改，第 2 轮已改成「成败、耗时、出错类别、界面卡不卡（分档）」（英文同），并有测试守着。
 
 回滚：revert 这一个提交；接收端不需要部署，雷达读旧形状照旧。
+
+### 第 2 轮补充（验收 V-telemetry-refine-pr1 的条件）
+
+- 补 3 条回归：`mainStallCount` / `submitDuration` / `waitDuration` 各塞文字、裸数字、路径、空串 → 拒。把对应集合校验删掉各红 1、还原绿。
+- 同意卡「收什么」一句：中「✓ 匿名分享：成败、耗时、出错类别、界面卡不卡（分档）」、英「✓ Shared anonymously: success or failure, durations, error categories, how smooth the app feels (in ranges)」。只改字，布局与按钮不动；已同意者的再确认版不动。
+- 设置页完整清单补三处少说：检查更新这一步成没成功；连续失败后是否被拦下（`breakerTripped`，说法里不出现这个词）；Agent 工具失败时的模型类别与原因分类。`telemetryClaims.test.ts` 的对账表同步改，删掉任一处说明即红。

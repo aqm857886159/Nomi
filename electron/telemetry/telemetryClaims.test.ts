@@ -57,11 +57,11 @@ describe('遥测告知口径', () => {
     },
     'update.action': {
       samples: [{ action: 'download', result: 'failure', reason: 'network' }],
-      fields: { action: ['更新下载、安装', 'update downloads and installs'], result: ['成没成功', 'succeeded'], reason: ['失败原因类别', 'failure reason category'] },
+      fields: { action: ['检查更新、下载、安装', 'update checks, downloads and installs'], result: ['成没成功', 'succeeded'], reason: ['失败原因类别', 'failure reason category'] },
     },
     'agent.tool.failed': {
       samples: [{ toolName: 'run_generation', failureCode: 'timeout', attempt: 2, breakerTripped: false, modelClass: 'builtin', reason: undefined }],
-      fields: { toolName: ['哪个工具', 'which tool'], failureCode: ['失败类别', 'failure category'], attempt: ['第几次重试', 'which retry'], breakerTripped: ['第几次重试', 'which retry'], modelClass: ['内置的还是自己接的', 'built in or one you connected'], reason: ['失败类别', 'failure category'] },
+      fields: { toolName: ['哪个工具', 'which tool'], failureCode: ['失败类别', 'failure category'], attempt: ['第几次重试', 'which retry'], breakerTripped: ['连续失败后是否被拦下', 'whether repeated failures got it blocked'], modelClass: ['内置的还是自己接的', 'built in or one you connected'], reason: ['失败类别和原因分类', 'the failure category and reason category'] },
     },
     'perf.session.summary': {
       samples: [{ interactionP75: '100-200', interactionP95: '200-500', longFramesPerMin: '1-3', longestFrame: '100-250', observedMinutes: '5-30', page: 'generation', nodes: '21-100', imageNodes: '1-20', generating: true, cpuCores: '9-16', memoryGb: '8plus', mainStallMax: '250-1000', mainStallCount: '1-3' }],
@@ -98,6 +98,11 @@ describe('遥测告知口径', () => {
     const en = [enSettings.general.telemetry.description, enSettings.general.telemetry.detail, enSettings.general.telemetry.statusConfigured].join('\n')
     for (const retired of ['功能使用', 'Agent 每一步', '轨迹']) expect(zh).not.toContain(retired)
     for (const retired of ['feature use', 'each Agent step', 'tool traces', 'traces']) expect(en).not.toContain(retired)
+    // Agent 面板同意卡里说「收什么」的那一句同理：已删的「功能使用」不许回来，耗时 / 出错类别要说。
+    expect(zhAgentPanelV4.consent.collects).not.toContain('功能')
+    expect(enAgentPanelV4.consent.collects).not.toContain('features')
+    for (const word of ['耗时', '出错类别']) expect(zhAgentPanelV4.consent.collects).toContain(word)
+    for (const word of ['durations', 'error categories']) expect(enAgentPanelV4.consent.collects).toContain(word)
   })
 
   it('说明里说不发的东西，没有任何一格装得下（格子都是闭合值或固定分类码）', () => {
