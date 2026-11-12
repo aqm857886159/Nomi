@@ -23,7 +23,6 @@
   "completionCommits": [
     "d636e9efd0994da58f9eecd952ebcbfbdb135325"
   ],
-  "rootCauseContract": "docs/fixes/2026-11-09-model-params-step1.root-cause.json",
   "classCheck": {
     "kind": "matrix",
     "file": "tests/model-params/contracts.test.mjs"
