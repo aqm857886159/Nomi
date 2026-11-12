@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { __canvasReceiptArtifactRereadsForTests } from "./canvasShotRunApi";
 
 // 落地回执用落地时算好的哈希（设计卡 docs/plan/2026-11-12-gen-landing-stall-cut1.md ★9 第 6 条）。
 // 画布那台把结果落进项目时（落地门 localizeTaskAsset → 资产库写盘）已经流式算过 sha256；以前记 Run 回执时
@@ -54,15 +55,12 @@ describe("落地回执取落地时算好的哈希，不再整读文件", () => {
       assets: await Promise.all([1, 2, 3, 4].map((index) => localizeTaskAsset(PROJECT, `https://cdn.vendor.test/out-${index}.png`, "image"))),
       raw: {},
     });
-    const assetsDir = path.join(harness.root, "assets");
-    const readFileSync = vi.spyOn(fs, "readFileSync");
+    const rereadsBefore = __canvasReceiptArtifactRereadsForTests();
 
     const result = await harness.submit("node-a", "run-a");
 
     expect(result.status).toBe("succeeded");
-    const artifactReads = readFileSync.mock.calls.filter(([file]) => typeof file === "string" && path.resolve(file).startsWith(`${assetsDir}${path.sep}landed-`));
-    expect(artifactReads).toHaveLength(0);
-    readFileSync.mockRestore();
+    expect(__canvasReceiptArtifactRereadsForTests() - rereadsBefore).toBe(0);
     const run = harness.repository.read(PROJECT, canvasRunIdFor("run-a"))!;
     expect(run.artifacts).toHaveLength(4);
     for (const artifact of run.artifacts)
@@ -72,7 +70,10 @@ describe("落地回执取落地时算好的哈希，不再整读文件", () => {
   it("没带哈希的产物（旧调用方）照旧现读现算，记下的仍是真实哈希", async () => {
     const harness = setupCanvasShots();
     roots.push(harness.root);
+    const rereadsBefore = __canvasReceiptArtifactRereadsForTests();
     const result = await harness.submit("node-a", "run-a");
+    // 阳性对照：没带哈希就真的现读一次，计数器必须涨 1。
+    expect(__canvasReceiptArtifactRereadsForTests() - rereadsBefore).toBe(1);
     expect(result.status).toBe("succeeded");
     const run = harness.repository.read(PROJECT, canvasRunIdFor("run-a"))!;
     expect(run.artifacts[0]!.contentHash).toBe(sha256(fs.readFileSync(path.join(harness.root, "assets", "out.png"))));

@@ -85,6 +85,16 @@ export function canvasOpenRuns(input: { projectId: string; nodeId?: string }): R
   return activeRuns().canvasOpenRuns(input);
 }
 
+/** 回执现读现算哈希的次数（只有没带哈希的旧调用方会走到；测试看它涨没涨，按 fd 读的 fs spy 会恒空）。 */
+let receiptArtifactRereads = 0;
+export function __canvasReceiptArtifactRereadsForTests(): number {
+  return receiptArtifactRereads;
+}
+function rehashLandedArtifact(absolute: string): string {
+  receiptArtifactRereads += 1;
+  return crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
+}
+
 /**
  * 画布那台交回来的产物已经由它自己落进项目（`localizeTaskAsset`，nomi-local://）：这里只把那份文件记进 Run，
  * 不再下载一次。不是本地地址的交给通用物化（与目录执行器同一条）。
@@ -117,7 +127,7 @@ export function canvasLocalArtifactReceipt(input: {
   )
     return null;
   relative = path.relative(root, absolute).split(path.sep).join("/");
-  const contentHash = input.output.contentHash ?? crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex");
+  const contentHash = input.output.contentHash ?? rehashLandedArtifact(absolute);
   return {
     artifactId: input.outputIndex > 0
       ? `${`canvas-artifact-${input.providerTaskId}`.slice(0, 150)}-${input.outputIndex + 1}`

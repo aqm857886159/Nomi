@@ -470,6 +470,11 @@ export async function deleteWorkspaceProject(
  */
 type ResolvedProjectDir = { rootPath: string; manifestStamp: string };
 const resolvedProjectDirs = new Map<string, ResolvedProjectDir>();
+/** 找目录时真去读项目文件的次数（测试看它涨没涨；按 fd 读的 fs spy 会恒空，不能拿它数）。 */
+let projectDirManifestReads = 0;
+export function __projectDirManifestReadsForTests(): number {
+  return projectDirManifestReads;
+}
 
 function resolvedProjectDirKey(projectId: string, deps: WorkspaceRepositoryDeps): string {
   return `${path.resolve(deps.settingsRoot)}\u0000${projectId}`;
@@ -501,6 +506,7 @@ export function resolveWorkspaceProjectDir(projectId: string, deps: WorkspaceRep
   const stamp = manifestStamp(entry.rootPath);
   const known = resolvedProjectDirs.get(key);
   if (known && stamp && known.rootPath === entry.rootPath && known.manifestStamp === stamp) return entry.rootPath;
+  projectDirManifestReads += 1;
   const manifest = readManifestOrMigrateLegacy(entry.rootPath);
   if (!manifest || manifest.id !== projectId) {
     resolvedProjectDirs.delete(key);

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  __projectDirManifestReadsForTests,
   createWorkspaceProject,
   deleteWorkspaceProject,
   removeWorkspaceProjectReference,
@@ -40,11 +41,10 @@ function deps(): WorkspaceRepositoryDeps {
   return { settingsRoot: makeTempDir("nomi-project-dir-settings-"), defaultProjectsRoot: makeTempDir("nomi-project-dir-default-") };
 }
 
-/** 数「读项目文件」：项目文件（.nomi/project.json）被 readFileSync 读了几次。 */
-function countManifestReads(rootPath: string): () => number {
-  const manifest = path.resolve(workspaceProjectFile(rootPath));
-  const spy = vi.spyOn(fs, "readFileSync");
-  return () => spy.mock.calls.filter(([file]) => typeof file === "string" && path.resolve(file) === manifest).length;
+/** 数「找目录时读项目文件」：用主人函数里的计数器（生产按 fd 读，按路径过滤 fs spy 会恒空）。 */
+function countManifestReads(): () => number {
+  const start = __projectDirManifestReadsForTests();
+  return () => __projectDirManifestReadsForTests() - start;
 }
 
 function rewriteRegistry(settingsRoot: string, map: (entry: { id: string; rootPath: string }) => { id: string; rootPath: string }): void {
@@ -58,11 +58,14 @@ describe("resolveWorkspaceProjectDir remembers the folder it already verified", 
     const root = makeTempDir();
     const repoDeps = deps();
     const created = createWorkspaceProject({ rootPath: root, record: { name: "Landing", payload: { scenes: [] } } }, repoDeps);
-    const reads = countManifestReads(root);
+    const reads = countManifestReads();
 
+    // 阳性对照：第一次没有凭据，计数器必须真涨 1（钉住「它真的会涨」）。
+    expect(resolveWorkspaceProjectDir(created.id, repoDeps)).toBe(path.resolve(root));
+    expect(reads()).toBe(1);
     for (let index = 0; index < 50; index += 1) expect(resolveWorkspaceProjectDir(created.id, repoDeps)).toBe(path.resolve(root));
 
-    expect(reads()).toBeLessThanOrEqual(1);
+    expect(reads()).toBe(1);
   });
 
   it("a save from this process keeps the remembered folder: the next resolution does not re-read the project file", async () => {
@@ -72,7 +75,7 @@ describe("resolveWorkspaceProjectDir remembers the folder it already verified", 
     expect(resolveWorkspaceProjectDir(created.id, repoDeps)).toBe(path.resolve(root));
 
     await saveWorkspaceProject(created.id, { name: "Saved", payload: { scenes: [1] } }, repoDeps);
-    const reads = countManifestReads(root);
+    const reads = countManifestReads();
     for (let index = 0; index < 10; index += 1) expect(resolveWorkspaceProjectDir(created.id, repoDeps)).toBe(path.resolve(root));
 
     expect(reads()).toBe(0);
@@ -183,7 +186,7 @@ describe("resolveWorkspaceProjectDir remembers the folder it already verified", 
 
     expect(resolveWorkspaceProjectDir(created.id, repoDeps)).toBe(path.resolve(root));
     expect(fs.existsSync(workspaceProjectFile(root))).toBe(true);
-    const reads = countManifestReads(root);
+    const reads = countManifestReads();
     resolveWorkspaceProjectDir(created.id, repoDeps);
     resolveWorkspaceProjectDir(created.id, repoDeps);
     resolveWorkspaceProjectDir(created.id, repoDeps);

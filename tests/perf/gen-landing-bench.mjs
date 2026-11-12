@@ -105,7 +105,7 @@ try {
   await card.waitFor({ timeout: 30_000 })
   await card.click()
   await page.waitForTimeout(1200)
-  const resume = page.locator('[data-project-card]', { hasText: fixture.record.name }).getByText('继续创作').first()
+  const resume = page.locator('[data-project-card]', { hasText: fixture.record.name }).getByText(uiText('zh-CN', 'library.continueCreating')).first()
   if (await resume.count().catch(() => 0)) await resume.click().catch(() => {})
   await page.locator('.generation-canvas-v2__stage').waitFor({ timeout: 60_000 })
   await page.waitForTimeout(4000)
