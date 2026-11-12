@@ -31,7 +31,8 @@ export const ARCHETYPE_MODE_MANIFEST_VIDEO: Record<string, { defaultModeId: stri
     "defaultModeId": "t2v",
     "modes": {
       "t2v": "text_to_video",
-      "i2v": "image_to_video"
+      "i2v": "image_to_video",
+      "ref": "image_to_video"
     }
   },
   "happyhorse": {
@@ -122,7 +123,9 @@ export const ARCHETYPE_MODE_MANIFEST_VIDEO: Record<string, { defaultModeId: stri
       "t2v": "text_to_video",
       "first": "image_to_video",
       "firstlast": "image_to_video",
-      "omni": "image_to_video"
+      "omni": "image_to_video",
+      "edit": "image_to_video",
+      "extend": "image_to_video"
     }
   },
   "seedance-2.5-runway": {
@@ -293,6 +296,16 @@ export const ARCHETYPE_MODE_MANIFEST_VIDEO: Record<string, { defaultModeId: stri
     "modes": {
       "t2v": "text_to_video",
       "i2v": "image_to_video"
+    }
+  },
+  "kling-v4-flash": {
+    "defaultModeId": "t2v",
+    "modes": {
+      "t2v": "text_to_video",
+      "i2v": "image_to_video",
+      "ref": "image_to_video",
+      "edit": "image_to_video",
+      "extend": "image_to_video"
     }
   },
   "grok-imagine-video-1.5-official": {

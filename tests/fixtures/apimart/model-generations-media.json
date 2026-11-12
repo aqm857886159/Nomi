@@ -11,7 +11,7 @@
     {
       "family": "seedream",
       "source": "docs/plan/2026-11-07-catalog-media.md",
-      "latest": ["seedream5_pro", "seedream5_lite", "doubao-seedream-5-0-260128", "doubao-seedream-5-0-pro"],
+      "latest": ["seedream5_pro", "seedream5_lite", "doubao-seedream-5-0-260128", "doubao-seedream-5-0-pro", "seedream-5-5"],
       "previous": ["seedream", "doubao-seedream-4.5", "doubao-seedream-4-5-251128", "seedream-v4.5"],
       "older": ["doubao-seedream-4-0-250828"]
     },
@@ -102,7 +102,7 @@
     {
       "family": "kling",
       "source": "docs/plan/2026-11-07-catalog-media-rest.md",
-      "latest": ["kling-v4"],
+      "latest": ["kling-v4", "kling-v4-flash"],
       "previous": ["kling-v3", "kling-3.0-turbo"],
       "older": []
     },
@@ -131,7 +131,7 @@
     {
       "family": "minimax-h3",
       "source": "docs/plan/2026-11-07-catalog-media-rest.md",
-      "latest": ["MiniMax-H3", "MiniMax-H3-Regeneration"],
+      "latest": ["MiniMax-H3", "MiniMax-H3-Regeneration", "MiniMax-H3-Max"],
       "previous": ["MiniMax-Hailuo-2.3"],
       "older": []
     },

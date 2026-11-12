@@ -74,10 +74,19 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "resolution": "768P",
         "duration": 5,
         "aspect_ratio": "16:9"
+      },
+      "apimart": {
+        "resolution": "768P",
+        "duration": 5,
+        "aspect_ratio": "16:9"
       }
     },
     "image_to_video": {
       "*": {
+        "resolution": "768P",
+        "duration": 5
+      },
+      "apimart": {
         "resolution": "768P",
         "duration": 5
       }
@@ -293,7 +302,10 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "resolution": "720p",
         "duration": 5,
         "generate_audio": true,
-        "return_last_frame": false
+        "return_last_frame": false,
+        "watermark": false,
+        "output_format": "mp4",
+        "nsfw_check": false
       }
     },
     "image_to_video": {
@@ -302,7 +314,10 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "resolution": "720p",
         "duration": 5,
         "generate_audio": true,
-        "return_last_frame": false
+        "return_last_frame": false,
+        "watermark": false,
+        "output_format": "mp4",
+        "nsfw_check": false
       }
     }
   },
@@ -571,20 +586,6 @@ export const ARCHETYPE_WIRE_DEFAULTS_VIDEO: Record<string, Record<string, Record
         "resolution": "720P",
         "duration": "5",
         "promptExtend": true
-      }
-    }
-  },
-  "rh-hailuo-2.3": {
-    "text_to_video": {
-      "*": {
-        "duration": "6",
-        "enablePromptExpansion": true
-      }
-    },
-    "image_to_video": {
-      "*": {
-        "duration": "6",
-        "enablePromptExpansion": true
       }
     }
   }

@@ -207,6 +207,10 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "kling-v4",
     "kling-4.0"
   ],
+  "kling-v4-flash": [
+    "kling-v4-flash",
+    "kling-4.0-flash"
+  ],
   "grok-imagine-video-1.5-official": [
     "grok-imagine-video-1.5"
   ],
@@ -376,6 +380,12 @@ export const ARCHETYPE_IDENTIFIER_PATTERNS: Record<string, string[]> = {
     "seedream-5-0-pro",
     "seedream-5.0-pro",
     "seedream5_pro"
+  ],
+  "seedream-5-5": [
+    "seedream-5-5",
+    "seedream-5.5",
+    "doubao-seedream-5-5",
+    "doubao-seedream-5.5"
   ],
   "nomi-audio": [
     "nomi-audio"

@@ -6,7 +6,7 @@
 // params 的坑，都只在"真实参数构建"里暴露，埋在 2500 行 runtime 里既测不到也容易回归。
 import { assertDeclaredCapabilityForTask } from "../shared/modelAvailability";
 import { firstString, isJsonRecord, type JsonRecord } from "../jsonUtils";
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { getArchetypeById, resolveArchetypeForModel, specializeArchetypeForVendor, type ModelArchetype } from "../shared/modelArchetypes";
 import { referenceInputParams } from "./archetypeInput";
 import { ARCHETYPE_WIRE_DEFAULTS, ARCHETYPE_SIZE_RATIO_SEMANTIC } from "./archetypeWireDefaults.generated";
 import { bodyReferencedParamKeys } from "./paramTranslate";
@@ -137,6 +137,23 @@ function sizeDefaultIsRatioSemantic(
  * 产出（2026-10-27）。以前这里只收散参数、往投影边界递一个只剩 `{ archetypeId }` 的缩减 meta：自写能力合同
  * （customCapabilityContract）声明的参考上限因此在第一闸读不到，headless 超量参考一路走到发送前才被别处拦或干脆发出去。
  */
+function pruneParamsOfOtherModes(
+  extras: Record<string, unknown> | undefined,
+  archetype: ModelArchetype,
+  mode: ModelArchetype["modes"][number],
+  vendorKey: string,
+): Record<string, unknown> | undefined {
+  if (!extras) return extras;
+  const specialized = specializeArchetypeForVendor(archetype, vendorKey);
+  const declaredHere = new Set(mode.params.map((control) => control.key));
+  const knownElsewhere = new Set(specialized.modes.flatMap((candidate) => candidate.params.map((control) => control.key)));
+  const stale = Object.keys(extras).filter((key) => knownElsewhere.has(key) && !declaredHere.has(key) && !(mode.fixedParams && key in mode.fixedParams));
+  if (!stale.length) return extras;
+  const rest = { ...extras };
+  for (const key of stale) delete rest[key];
+  return rest;
+}
+
 export function applyHeadlessParamDefaults(
   extras: Record<string, unknown> | undefined,
   selected: ParameterReferenceSelection & { readonly taskKind: string },
@@ -153,10 +170,17 @@ export function applyHeadlessParamDefaults(
   const archetype = selected.modeId ? resolveArchetypeForModel({
     modelKey: selected.modelKey, modelAlias: selected.modelAlias, vendorKey, meta: selected.modelMeta,
   }) : null;
-  const mode = archetype?.modes.find((candidate) => candidate.id === selected.modeId);
+  const mode = archetype ? specializeArchetypeForVendor(archetype, vendorKey).modes.find((candidate) => candidate.id === selected.modeId) : undefined;
   // A task kind shares tunable defaults. Its primary mode's fixed fields cannot select a different mode.
   const archetypeDefaults = mode && primaryDefaults ? { ...primaryDefaults } : primaryDefaults;
   if (archetype && mode && archetypeDefaults) {
+    // 默认值按任务类型（文生 / 图生…）整组桥接，同一任务类型下的几个方式共用；这一次选中的方式没声明的参数
+    // （如可灵 4.0 Flash 图生不收比例、Seedance 编辑不收时长），默认值不许替它补进请求（上游会 400）。
+    for (const key of Object.keys(archetypeDefaults)) {
+      const control = mode.params.find((candidate) => candidate.key === key);
+      // 这个方式没声明、或声明了但自己没有默认值（如编辑跟随源视频时长）：别的方式的默认值不能顶上来。
+      if (!control || control.defaultValue === undefined) delete archetypeDefaults[key];
+    }
     for (const candidate of archetype.modes) {
       for (const key of Object.keys(candidate.fixedParams ?? {})) {
         if (!mode.params.some((control) => control.key === key)) delete archetypeDefaults[key];
@@ -169,7 +193,11 @@ export function applyHeadlessParamDefaults(
     && !sizeDefaultIsRatioSemantic(archetypeId, taskKind, archetypeDefaults, mappingDefaults)
     ? (() => { const { size: _dropped, ...rest } = extras; return rest; })()
     : extras;
-  const defaulted = applyWireDefaults(applyWireDefaults(guarded, archetypeDefaults), mappingDefaults);
+  // 同一档案别的方式声明过、这一次选中的方式没声明的参数（用户在文生里选的比例，切到图生后还躺在节点上）：
+  // 不许发给上游（可灵 4.0 Flash 图生带比例直接 400，Seedance 编辑只认时长 -1）。只剔「档案里某个方式认得」的键，
+  // 档案之外的键（model、archetype、参考通道……）不动。两条出站路（画布 / Run）都经过这里，是同一道闸。
+  const pruned = archetype && mode ? pruneParamsOfOtherModes(guarded, archetype, mode, vendorKey) : guarded;
+  const defaulted = applyWireDefaults(applyWireDefaults(pruned, archetypeDefaults), mappingDefaults);
   // Saved nodes can still carry the previous mode's transport discriminator in either parameter bag.
   const withDefaults = mode && mode.fixedParams ? {
     ...defaulted, ...mode.fixedParams,
@@ -179,6 +207,20 @@ export function applyHeadlessParamDefaults(
   if (typeof createBody === "undefined") return withDefaults;
   const projected = headlessReferenceLowering(withDefaults, createBody, selected);
   return projected.placedKeys.length ? withLoweredReferences(withDefaults || {}, projected) : withDefaults;
+}
+
+/** 选中的方式要么没有时长控件，要么有但明写「没有默认值」（跟随源视频）；这时没填的时长不该变成 duration:""。 */
+function modeLeavesDurationUnset(extras: Record<string, unknown>, vendorKey: string | undefined): boolean {
+  const identity = extras.archetype;
+  if (!isJsonRecord(identity) || typeof identity.id !== "string" || typeof identity.modeId !== "string") return false;
+  const base = getArchetypeById(identity.id);
+  if (!base) return false;
+  const archetype = specializeArchetypeForVendor(base, vendorKey);
+  const durationOf = (mode: ModelArchetype["modes"][number]) => mode.params.find((control) => control.key === "duration");
+  const mode = archetype.modes.find((candidate) => candidate.id === identity.modeId);
+  if (!mode || !archetype.modes.some(durationOf)) return false;
+  const control = durationOf(mode);
+  return !control || control.defaultValue === undefined;
 }
 
 export function taskTemplateParams(request: TaskParamsInput, selected?: ParameterReferenceSelection): JsonRecord {
@@ -230,7 +272,9 @@ export function taskTemplateParams(request: TaskParamsInput, selected?: Paramete
     cfgScale: request.cfgScale,
     cfg_scale: request.cfgScale,
     negative_prompt: request.negativePrompt ?? extras.negative_prompt,
-    duration,
+    // 选中的方式没有时长控件、或明写没有默认值（Seedance 编辑只认 -1 由平台补、可灵编辑跟随源视频）：时长不进模板，整键丢弃，不发 duration:""。
+    // 其他方式 / 没认出档案的老请求维持原样（缺省 ""，旧版本存下来的模型报文逐字不变）。
+    duration: duration === "" && modeLeavesDurationUnset(extras, selected?.vendorKey) ? undefined : duration,
     ...(speed !== undefined ? { speed } : {}),
     // 空→undefined（不是 ""）：body 的 `image: "{{request.params.image_url}}"` 整 token 渲染时，
     // undefined 会被丢弃、"" 却会当空字段发出去（纯文生图/文生视频误带 image:"" 会被部分中转拒）。

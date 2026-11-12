@@ -1,0 +1,76 @@
+{
+  "modelKey": "MiniMax-H3-Max",
+  "fetchedAt": "2026-11-12",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+        "fetchedAt": "2026-11-12",
+        "quote": "| Text-to-video (T2V) | Only `prompt` and common fields | Generates from text |",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent: no image, video or audio assets."
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "first_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+          "fetchedAt": "2026-11-12",
+          "quote": "Public image URL used as the video's first frame."
+        },
+        "last_frame_image": {
+          "shape": "string",
+          "max": 1,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+          "fetchedAt": "2026-11-12",
+          "quote": "Public image URL used as the video's last frame. It can be used alone or together with `first_frame_image`."
+        }
+      }
+    },
+    "ref": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 9,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+          "fetchedAt": "2026-11-12",
+          "quote": "Together with reference images in `image_with_roles`, at most `9` images."
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+          "fetchedAt": "2026-11-12",
+          "quote": "At most `3` clips, each `2`–`15` seconds, with a combined reference-video duration of at most `15` seconds."
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 3,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+          "fetchedAt": "2026-11-12",
+          "quote": "At most `3` clips, each `2`–`15` seconds, with a combined reference-audio duration of at most `15` seconds."
+        }
+      },
+      "exclusive": [
+        {
+          "a": [
+            "first_frame_image",
+            "last_frame_image"
+          ],
+          "b": [
+            "image_urls",
+            "video_urls",
+            "audio_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/minimax-h3/max",
+          "fetchedAt": "2026-11-12",
+          "quote": "First/last-frame fields cannot be combined with reference media."
+        }
+      ]
+    }
+  }
+}

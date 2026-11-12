@@ -44,8 +44,46 @@ describe('Seedance 2.5 · apimart vs official docs', () => {
     expect(size?.defaultValue).toBe('adaptive')
   })
 
-  it('offers only the two resolutions the API accepts (1080p/2k/4k are rejected upstream)', () => {
-    expect(omni?.params.find((p) => p.key === 'resolution')?.options.map((o) => o.value)).toEqual(['480p', '720p'])
+  // 文档页（2026-11-12 取）原文：「Resolution supports 480p / 720p / 1080p」「(2.0’s 4k is not available on 2.5)」；
+  // 参数节：「Resolution — only: 480p / 720p (default) / 1080p. Unsupported values like 2k / 4k return a sync 400.」
+  // 8 月那版页面只写 480p / 720p，档案跟着只有两档；页面现已加上 1080p。每一种方式（含首帧 / 首尾帧）都带清晰度控件。
+  it('offers exactly 480p / 720p / 1080p, default 720p (2k / 4k are rejected upstream)', () => {
+    for (const mode of SEEDANCE_2_5_APIMART_ARCHETYPE.modes) {
+      const resolution = mode.params.find((p) => p.key === 'resolution')
+      expect(resolution?.options.map((o) => o.value), `${mode.id} 清晰度档位`).toEqual(['480p', '720p', '1080p'])
+      expect(resolution?.defaultValue, `${mode.id} 清晰度默认值`).toBe('720p')
+    }
+  })
+})
+
+// 文档页（2026-11-12 取）原文：
+//   「`edit` | Video edit | At least one item in `video_urls`; `size` must be `adaptive` (or omitted); `duration` must be `-1` (or omitted)」
+//   「`extend` | Video extend | At least one item in `video_urls`; `size` must be `adaptive` (or omitted)」
+//   「If `edit` omits `duration`, the platform sets it to `-1`.」「Output container: `mp4` (default) / `mov`」「watermark … Default `false`」
+describe('Seedance 2.5 · apimart whole-page alignment (edit / extend / watermark / output_format)', () => {
+  const mode = (id: string) => SEEDANCE_2_5_APIMART_ARCHETYPE.modes.find((m) => m.id === id)
+
+  it.each(['edit', 'extend'])('%s mode declares the sub-task type, adaptive size and a required source video', (id) => {
+    expect(mode(id)?.fixedParams?.omni_reference_task_type).toBe(id)
+    expect(mode(id)?.fixedParams?.size).toBe('adaptive')
+    expect(mode(id)?.params.some((p) => p.key === 'size')).toBe(false)
+    const video = mode(id)?.slots.find((s) => s.kind === 'video_ref')
+    expect(video?.min).toBe(1)
+    expect(video?.inputKey).toBe('video_urls')
+  })
+
+  it('edit mode has no duration control (platform fills -1); extend keeps 4-30 seconds', () => {
+    expect(mode('edit')?.params.some((p) => p.key === 'duration')).toBe(false)
+    const duration = mode('extend')?.params.find((p) => p.key === 'duration')
+    expect([duration?.min, duration?.max]).toEqual([4, 30])
+  })
+
+  it.each(['t2v', 'first', 'firstlast', 'omni', 'edit', 'extend'])('%s exposes watermark (default off) and output container mp4 / mov', (id) => {
+    const params = mode(id)?.params ?? []
+    expect(params.find((p) => p.key === 'watermark')?.defaultValue).toBe(false)
+    const format = params.find((p) => p.key === 'output_format')
+    expect(format?.options.map((o) => o.value)).toEqual(['mp4', 'mov'])
+    expect(format?.defaultValue).toBe('mp4')
   })
 })
 
@@ -62,8 +100,9 @@ describe('Seedance 2.5 identity routing', () => {
 
   // 同一个模型两条通道，能力形状必须一致——差的只该是字段名与供应商硬约束。
   it('keeps the same capability shape as the kie channel', () => {
+    // apimart 官方页多两个方式（视频编辑 / 续写，2026-11-12 整页对齐），kie 那条通道没有：kie 有的方式 apimart 都必须有。
     const modeIds = (a: typeof SEEDANCE_2_5_ARCHETYPE) => a.modes.map((m) => m.id).sort()
-    expect(modeIds(SEEDANCE_2_5_APIMART_ARCHETYPE)).toEqual(modeIds(SEEDANCE_2_5_ARCHETYPE))
+    expect(modeIds(SEEDANCE_2_5_APIMART_ARCHETYPE)).toEqual([...modeIds(SEEDANCE_2_5_ARCHETYPE), 'edit', 'extend'].sort())
 
     const kieOmni = SEEDANCE_2_5_ARCHETYPE.modes.find((m) => m.id === 'omni')
     const limit = (mode: typeof kieOmni, kind: string) => mode?.slots.find((s) => s.kind === kind)?.max

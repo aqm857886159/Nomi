@@ -423,6 +423,106 @@
         "fetchedAt": "2026-11-08",
         "quote": "For first/last frames use image_with_roles."
       }
+    },
+    "edit": {
+      "why": "edit 方式：omni_reference_task_type 声明子任务，源视频走 video_urls，参考图走 image_urls",
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 30,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 30 images",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference image URLs, all treated as reference_image."
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s (each clip 2~30s).",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        }
+      }
+    },
+    "extend": {
+      "why": "extend 方式：omni_reference_task_type 声明子任务，源视频走 video_urls，参考图走 image_urls",
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 30,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 30 images",
+          "meaning": {
+            "roles": [
+              "reference_image"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Reference image URLs, all treated as reference_image."
+          }
+        },
+        "video_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s (each clip 2~30s).",
+          "meaning": {
+            "roles": [
+              "reference_video"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        },
+        "audio_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Max 10; total duration ≤ 30s",
+          "meaning": {
+            "roles": [
+              "reference_audio"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "multimodal reference job"
+          }
+        }
+      }
     }
   }
 }

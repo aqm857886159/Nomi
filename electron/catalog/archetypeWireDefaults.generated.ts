@@ -91,6 +91,10 @@ export const ARCHETYPE_SIZE_RATIO_SEMANTIC: Record<string, Record<string, boolea
     "text_to_image": true,
     "image_edit": true
   },
+  "seedream-5-5": {
+    "text_to_image": true,
+    "image_edit": true
+  },
   "gpt-image-2.5-flare": {
     "text_to_image": true,
     "image_edit": true
