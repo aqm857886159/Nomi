@@ -8,15 +8,16 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1489,
   "manualReview": "reviewed",
   "evidence": [
     "electron/shared/modelArchetypes/modeForInputs.exhaustive.test.ts：全部档案 × 每个存着的方式 + 乱写的方式 × 9 种输入；把现算改回读存着的方式 → 红。",
     "src/workbench/generationCanvas/store/canvasModeNineStates.test.ts：方式格九种状态各一条，都从 modeForInputs 来。",
     "tests/ux/mode-bar.walk.mjs：底栏方式格真窗走查（中 / 英 / 暗），边界 K1–K5 先红后绿。",
-    "未验证：真付费闭环（由协调会话跑一次）；未推送、未开 PR、未合入，不能转 fixed。"
+    "未验证：真付费闭环（合并前由协调会话跑一次，结果写进 PR 正文）；修前那一幕没在 main 的真窗口里另走。"
   ],
-  "completionCommits": [],
+  "completionCommits": ["325237525", "bd2f0f11c", "f7ad465b0", "033a106f3"],
   "rootCauseContract": "docs/fixes/2026-11-12-mode-from-inputs.root-cause.json",
   "classCheck": {
     "kind": "matrix",
