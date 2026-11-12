@@ -58,7 +58,8 @@ import { getDesktopBridge } from '../desktop/bridge'
 import { toast } from '../ui/toast'
 import { logRendererError } from '../desktop/rendererLog'
 import { LaneCommandFailure, laneFailureText } from './ai/lane/laneCommandFailure'
-import { projectNotice, projectOperationFailureText, type UserText } from './project/projectOperationFailureText'
+import { projectNotice, projectOperationFailureText, projectPartialSaveText, type UserText } from './project/projectOperationFailureText'
+import { quarantineOfRecord } from './project/projectNormalize'
 import { useHasTextModel } from './library/useHasTextModel'
 import { SplashIntro } from './onboarding/SplashIntro'
 import { hasSeenSplash, markSplashSeen, hasSeenJourneyTour } from './onboarding/onboardingState'
@@ -589,6 +590,8 @@ export default function NomiStudioApp(): JSX.Element {
         canPersist: () => activeProjectIdRef.current === activeProject.id,
         onSaved: (saved) => {
           setFeedback((previous) => previous?.projectId === saved.id ? null : previous)
+          const held = quarantineOfRecord(saved)[0]
+          if (held) report(saved.id, projectPartialSaveText(t, { title: held.title, field: held.field }))
           if (activeProjectIdRef.current === activeProject.id) {
             setActiveProject(saved)
           } else {

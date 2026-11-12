@@ -28,6 +28,14 @@ export function projectNotice(t: TFunction, key: ProjectNoticeKey): UserText {
   return t(key) as UserText
 }
 
+/**
+ * 保存时只有一项被挡下（其余都存了）的那一句话：说清哪份分镜的哪一处。标题是用户自己的内容，只在这里进界面，不进日志。
+ * 这是保存状态位的唯一新增文案（2026-11-13 设计卡 D-main-thread-unblock ★9）。
+ */
+export function projectPartialSaveText(t: TFunction, where: { title?: string; field: string }): UserText {
+  return t('studio.projectPartialSave', { where: where.title ? `${where.title} · ${where.field}` : where.field }) as UserText
+}
+
 export type ProjectOperation = 'save' | 'delete' | 'revealFolder' | 'openWorkspace' | 'restore' | 'create' | 'createDemo'
 
 /** 项目位置被拒时，{{place}} 说的是 Nomi 自己的哪类目录（主进程判定：electron/workspace/workspaceLocationPolicy.ts）。 */

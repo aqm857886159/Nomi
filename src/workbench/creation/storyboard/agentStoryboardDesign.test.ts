@@ -167,3 +167,32 @@ describe('程序 / Agent 新建的方案不替用户打开', () => {
     expect(view().design).toBe(user.id)
   })
 })
+
+describe('a plan that cannot be saved is refused with field paths, and nothing changes', () => {
+  const nan = (): StoryboardPlan => ({ ...plan('Bad', 'A'), shots: [{ ...plan('Bad', 'A').shots[0], durationSec: Number.NaN }] })
+  it('upsert returns the rejected reply naming the field instead of a raw zod error', () => {
+    const reply = upsert('op-1', nan())
+    expect(reply).toMatchObject({ status: 'rejected' })
+    expect(JSON.stringify(reply)).toContain('shots[0].durationSec')
+    expect(designs()).toEqual([])
+  })
+  it('patch and extend name the field too and keep the saved version', () => {
+    upsert('op-1', plan('Plan', 'A'))
+    const before = designs()
+    const patched = patchAgentStoryboardDesign({ projectId: 'p', documentId: 'doc', designId: 'op-1', shotId: 'shot-1', patch: { storyboard: { durationSec: Number.NaN } } })
+    expect(patched).toMatchObject({ status: 'rejected' })
+    expect(JSON.stringify(patched)).toContain('shots[0].durationSec')
+    const extended = extendAgentStoryboardDesign({ projectId: 'p', documentId: 'doc', designId: 'op-1', subjects: [{ index: 0, shotId: 'pending', shotKind: 'image', durationSec: Number.NaN, anchorIds: [], prompt: 'C' }] })
+    expect(extended).toMatchObject({ status: 'rejected' })
+    expect(JSON.stringify(extended)).toContain('subjects[0].durationSec')
+    expect(designs()).toBe(before)
+  })
+  it('a design already holding an unsavable shot is refused by the setter, with the same path', () => {
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({ doc: [{ id: 'op-9', documentId: 'doc', title: 'Bad', plan: nan(), committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }] })
+    const before = designs()
+    const patched = patchAgentStoryboardDesign({ projectId: 'p', documentId: 'doc', designId: 'op-9', shotId: 'shot-1', patch: { prompt: 'B' } })
+    expect(patched).toMatchObject({ status: 'rejected' })
+    expect(JSON.stringify(patched)).toContain('shots[0].durationSec')
+    expect(designs()).toBe(before)
+  })
+})

@@ -8,6 +8,20 @@ import {
   type StoryboardDesign,
   type WorkbenchDocument,
 } from './workbenchTypes'
+import { storyboardDesignIssues } from './storyboardDesignSchema'
+import { logRendererWarn } from '../desktop/rendererLog'
+
+/**
+ * 存不下的方案**进不了 store**：写入口自己用草稿面（`storyboardDesignSchema`）校验，不过就不写、状态不变、返回 null。
+ * 记日志只记字段路径、不记内容。Agent 写口拿同一份校验回「哪个字段、要什么」（`agentStoryboardDesign` / `applyCanvasToolCall`）。
+ * 这样「一处不合格让整份项目存不下」的状态在 store 里写不出来，存盘口的逐项隔离只当兜底。
+ */
+export function designWritable(design: StoryboardDesign, door: string): boolean {
+  const issues = storyboardDesignIssues(design)
+  if (!issues.length) return true
+  logRendererWarn('storyboard-write-rejected', { door, issues: issues.map(issue => issue.path).join('; ') })
+  return false
+}
 
 /**
  * 谁发起了这次「新建方案」。**这是决定要不要替用户打开它的唯一输入**：
@@ -252,6 +266,7 @@ export const createWorkbenchDocumentSlice = (
     // 替换这个起手式，而是**再开一份**——那正是上一轮「每轮新开一份」的病。
     const nextPlan = source ? { ...plan, title } : plan
     const design = { ...createDesign(target, nextPlan, document.updatedAt, title), ...(identity ? { id: identity.id } : {}) }
+    if (!designWritable(design, 'addStoryboardDesign')) return null
     set((current) => ({
       storyboardDesignsByDocumentId: {
         ...current.storyboardDesignsByDocumentId,
@@ -306,6 +321,7 @@ export const createWorkbenchDocumentSlice = (
     })
   },
   restoreStoryboardDesign: (design, documentId, index) => {
+    if (!designWritable(design, 'restoreStoryboardDesign')) return
     set((state) => {
       const designs = state.storyboardDesignsByDocumentId[documentId] ?? []
       // 已经在了 = 这一笔撤过了，或者别人把同一个 id 写回来了。两种情况都不该再插一遍。
@@ -362,6 +378,7 @@ export const createWorkbenchDocumentSlice = (
             updatedAt: Date.now(),
           }
         : createDesign(target, storyboardPlan, sourceDocumentUpdatedAt)
+      if (!designWritable(nextDesign, 'setStoryboardPlan')) return state
       appliedDesign = nextDesign
       const nextDesigns = active ? designs.map((design) => (design.id === active.id ? nextDesign : design)) : [...designs, nextDesign]
       // 只有「这一笔新建了一份方案」才存在打开谁的问题；改已有方案不动用户正在看的那份。

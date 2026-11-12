@@ -230,6 +230,8 @@ export type DesktopBridge = DesktopMediaBridge &
     create: (record: unknown) => unknown
     read: (projectId: string) => unknown | null
     readAsync?: (projectId: string) => Promise<unknown | null>
+    /** 把被隔离那一项的原样内容留进项目自己的隔离区（`.nomi/quarantine/`）；写不进也不影响保存。 */
+    quarantineWrite?: (projectId: string, items: unknown) => Promise<{ written: number }>
     diagnose?: (projectId: string) => Promise<{ projectId: string; rootPath?: string; status: 'ok' | 'not-registered' | 'missing-folder' | 'missing-manifest' | 'corrupt-manifest' | 'id-mismatch'; recoverable: boolean; backupAvailable: boolean }>
     recover?: (projectId: string) => Promise<unknown>
     save: (projectId: string, record: unknown) => Promise<import("../../electron/shared/contracts/ipcResult").IpcResult<unknown, import("../../electron/shared/contracts/projectSaveFailure").ProjectSaveFailure>>

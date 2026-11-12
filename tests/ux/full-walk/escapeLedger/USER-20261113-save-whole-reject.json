@@ -1,0 +1,21 @@
+{
+  "id": "USER-20261113-save-whole-reject",
+  "since": "2026-11-13",
+  "source": "用户 2026-11-13：Windows 0.24.0 创作者 15 分钟内「项目保存失败」40 多次；「其他类似的拦截都可以思考到底有没有必要因为这些可能小概率发生的风险来做」。设计卡见 docs/plan/2026-11-13-save-no-lost-work.md。",
+  "category": "deletion-integrity",
+  "problem": "存盘口是唯一的校验点又是全有全无：一项分镜不合格，整份项目拒存，其余改动全部没存下。不合格的状态能被任何写口写进 store，等到存盘才发现。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "rootCauseContract": "docs/fixes/2026-11-13-save-item-quarantine.root-cause.json",
+  "evidence": [
+    "docs/engineering/direction-checks/2026-11-13-save-item-quarantine.md",
+    "src/workbench/workbenchDocumentSlice.storyboardGuard.test.ts",
+    "src/workbench/project/projectRepository.itemQuarantine.test.ts",
+    "tests/system/saveKillInFlight.test.mjs"
+  ],
+  "completionCommits": []
+}

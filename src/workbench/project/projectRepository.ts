@@ -26,10 +26,13 @@ import {
   removeStorageKey,
   writeJson,
 } from './projectStorage'
+import { writeQuarantineSidecar } from './projectQuarantineSidecar'
 import { readBackupIndex, rememberProjectBackup } from './projectBackup'
 import {
   createProjectRecord,
-  normalizePayload,
+  normalizePayloadWithQuarantine,
+  quarantineOfRecord,
+  rememberQuarantine,
   normalizeRecord,
   normalizeSummary,
   seedDocFromMarkdown,
@@ -226,8 +229,12 @@ export async function readLocalProjectAsync(projectId: string): Promise<Workbenc
   if (!id) return null
   const desktop = getDesktopBridge()
   if (desktop?.projects.readAsync) {
-    const record = await desktop.projects.readAsync(id)
-    return record ? normalizeRecord(normalizeSummary(record) || (record as WorkbenchProjectSummary), record) : null
+    const raw = await desktop.projects.readAsync(id)
+    if (!raw) return null
+    const opened = normalizeRecord(normalizeSummary(raw) || (raw as WorkbenchProjectSummary), raw)
+    // 盘上已有不合格的一项：项目照常打开，那一项原样留进隔离区（不改盘上的项目文件；下次保存时它自然被挡在外面）。
+    await writeQuarantineSidecar(id, quarantineOfRecord(opened))
+    return opened
   }
   return readLocalProject(id)
 }
@@ -250,8 +257,9 @@ export async function saveProjectRecord(
   // 原来同步 IPC 读回整份项目、再用完整 schema 校验一遍只为取 revision，每次在界面线程上卡 41–154ms。
   // 改为异步读（界面不等主进程读盘），版本号由 normalizeSummary 直接取。
   const existingRecord = desktop ? null : readJson(projectRecordKey(id))
+  const existingRaw = desktop ? await (desktop.projects.readAsync ? desktop.projects.readAsync(id) : desktop.projects.read(id)) : existingRecord
   const existing = desktop
-    ? normalizeSummary(await (desktop.projects.readAsync ? desktop.projects.readAsync(id) : desktop.projects.read(id)))
+    ? normalizeSummary(existingRaw)
     : readMergedProjectSummaries().find((item) => item.id === id)
   const existingRevision = existing?.revision ?? 0
   // 封面 = 本次保存内容的现场派生（媒体类型分流）。刻意不沿用 existing 旧封面：
@@ -268,7 +276,9 @@ export async function saveProjectRecord(
     ...(existing?.seedKey ? { seedKey: existing.seedKey } : {}),
     ...(cover.imageUrls.length ? { thumbnail: cover.imageUrls[0], thumbnailUrls: cover.imageUrls } : {}),
   }
-  const payload = normalizePayload(state)
+  // 单项不合格只隔离那一项（沿用盘上上一版里同 id 的那份），其余照存；骨架坏了才整份拒（projectNormalize）。
+  const normalized = normalizePayloadWithQuarantine(state, { previous: (existingRaw as { payload?: unknown } | null)?.payload })
+  const payload = normalized.payload
   const record: WorkbenchProjectRecordV1 = {
     ...summary,
     version: 1,
@@ -277,7 +287,10 @@ export async function saveProjectRecord(
   assertWorkbenchProjectMediaUrlsPersistable(record)
   if (desktop) {
     const { name: _ownedByRename, ...contentRecord } = record
-    return unwrapIpcResult(await desktop.projects.save(id, { ...contentRecord, ...(expectedBinding ? { expectedBinding } : {}) }), 'nomi:projects:save-async') as WorkbenchProjectRecordV1
+    const saved = unwrapIpcResult(await desktop.projects.save(id, { ...contentRecord, ...(expectedBinding ? { expectedBinding } : {}) }), 'nomi:projects:save-async') as WorkbenchProjectRecordV1
+    await writeQuarantineSidecar(id, normalized.quarantined)
+    rememberQuarantine(saved, normalized.quarantined)
+    return saved
   }
   if (expectedBinding) {
     const current = workbenchProjectRecordSchema.safeParse(existingRecord)
@@ -290,6 +303,7 @@ export async function saveProjectRecord(
   const nextIndex = [summary, ...readMergedProjectSummaries().filter((item) => item.id !== id)]
   writeJson(projectRecordKey(id), record)
   writeIndex(nextIndex)
+  rememberQuarantine(record, normalized.quarantined)
   return record
 }
 

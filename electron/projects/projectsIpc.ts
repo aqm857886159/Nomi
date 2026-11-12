@@ -11,6 +11,7 @@ import { assertTrustedSender } from "../ipcSenderGuard";
 import { projectDirById } from "./repository";
 import { measureProjectOpenMainStageSync } from "./projectOpenTimeline";
 import { applyCanvasNodePatch } from "./projectCanvasWrite";
+import { writeQuarantineItems } from "./projectQuarantine";
 import type { ProjectBinding } from "../shared/projectBinding";
 
 import { logError } from '../logging/logger'
@@ -95,6 +96,17 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
       const reason = projectSaveFailure(error, stage)
       logError('workspace', 'project-save-rejected', undefined, { channel: 'nomi:projects:save-async', reason: reason.kind, code: reason.code, errno: reason.errno, syscall: reason.syscall, stage: reason.stage })
       return { ok: false, error: 'project-save-failed', reason }
+    }
+  });
+  // 隔离区：保存时被挡下的那一项原样留一份（渲染层发来，主进程只往项目自己的 .nomi/quarantine 写，写失败不报错）。
+  ipcMain.handle("nomi:projects:quarantine-write", (event, projectId: unknown, items: unknown) => {
+    assertTrustedSender(event);
+    try {
+      const dir = typeof projectId === "string" && projectId ? projectDirById(projectId) : null;
+      return dir ? writeQuarantineItems(dir, items) : { written: 0 };
+    } catch (error) {
+      logError("workspace", "project-quarantine-write-failed", error);
+      return { written: 0 };
     }
   });
   ipcMain.handle("nomi:projects:apply-canvas-node-patch", (event, input: unknown) => {
