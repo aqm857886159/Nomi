@@ -8,7 +8,8 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1494,
   "manualReview": "reviewed",
   "evidence": [
     "electron/workspace/workspaceProjectDirResolution.test.ts：同一编号找 50 次目录项目文件最多读 1 次；四种失效与「项目文件被换成别的项目」都拿到新答案或 null。",
@@ -16,7 +17,7 @@
     "src/workbench/generationCanvas/runner/spendConfirmEtaAsync.test.ts：预计耗时走异步通道，卡出现时数字已在卡上，失败时和修前同步版一样给冷启动估计。",
     "tests/perf/scenarios/gen-landing-8-concurrent.json：三个计数之和硬预算 0。"
   ],
-  "completionCommits": [],
+  "completionCommits": ["3263fb62b"],
   "rootCauseContract": "docs/fixes/2026-11-12-gen-landing-sync-bookkeeping.root-cause.json",
   "classCheck": {
     "kind": "matrix",
