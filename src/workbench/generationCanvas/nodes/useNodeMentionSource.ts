@@ -17,6 +17,8 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { archetypeArrayWrite, readArchetypeArrayForWrite, referenceSlotStorage } from './controls/archetypeMeta'
 import { readParkedReferences, REFERENCE_LIST_KEY, withReferenceList } from './controls/referenceList'
 import { validateReferenceEdge } from '../agent/referenceEdgeCapability'
+import { addAssetUrlToNode } from './nodeAssetWrite'
+import { planNodeReferenceAdd } from '../model/nodeAssetDrop'
 import { MENTION_SLOT_BY_MEDIA, resolveMentionReference } from '../model/canvasReferenceConnection'
 import { buildMentionCandidates, currentReferenceMedia, currentReferenceUrls, planMentionInsert, type MentionMediaKind } from './mentionCandidates'
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
@@ -89,9 +91,17 @@ export function createMentionSelect(deps: MentionSelectDeps): (item: MentionSugg
     if (!resolved) return null
     const metaBefore = resolved.target.meta
     const edgeIdsBefore = new Set(useGenerationCanvasStore.getState().edges.map((edge) => edge.id))
+    const latest = access.latestNode(nodeId)
+    const graph = useGenerationCanvasStore.getState()
+    // 有档案的节点：和「+」、拖进来同一个入口落格（放进去之后现算方式）；落不下由下面的 finalIndexOrUndo 撤回并明说。
+    if (latest && planNodeReferenceAdd(latest, { nodes: graph.nodes, edges: graph.edges }, mediaKind)) {
+      addAssetUrlToNode(nodeId, mediaKind, url, access, { nodes: graph.nodes, edges: graph.edges })
+      return finalIndexOrUndo(url, mediaKind, metaBefore, edgeIdsBefore)
+    }
+    // 没有档案（自定义中转等）：没有方式可算，按通用参考列表放。
     const storage = referenceSlotStorage({ kind: MENTION_SLOT_BY_MEDIA[mediaKind] })
     if (!storage) return null
-    const meta = (access.latestNode(nodeId)?.meta || {}) as Record<string, unknown>
+    const meta = (latest?.meta || {}) as Record<string, unknown>
     const existing = readArchetypeArrayForWrite(meta, storage.metaKey)
     if (!existing.includes(url)) access.updateNode(nodeId, { meta: archetypeArrayWrite(meta, storage.metaKey, [...existing, url]) })
     // @ 了列表里「先放一边」的那张（旧工程残留）：用户点名要用它，放回在用；放不下由下面的 finalIndexOrUndo 撤回并明说。

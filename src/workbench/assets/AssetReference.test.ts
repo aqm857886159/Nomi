@@ -78,3 +78,24 @@ describe('first-frame tag on the array slot', () => {
     expect(render()).not.toContain('data-asset-tile-tag')
   })
 })
+
+describe('「+」由宿主的判据给类（addEntry）', () => {
+  const array: AssetSlot = { key: 'refs', label: 'References', accept: 'image', form: 'array', persistAsEdge: true, numbered: false, max: 30 }
+  const render = (accept: readonly ('image' | 'video' | 'audio')[], slots: AssetSlot[] = [array]) => renderToStaticMarkup(React.createElement(AssetReference, {
+    slots, valuesByKey: { refs: [] }, projectId: null, openSlotKey: '', uploadingSlotKey: '',
+    onTogglePicker: vi.fn(), onPick: vi.fn(), onUpload: vi.fn(), onRemove: vi.fn(), onPickOnCanvas: vi.fn(),
+    addEntry: { accept, onAsset: vi.fn(), onUpload: vi.fn() },
+  }))
+  it.each([
+    { name: '还能放：可点', accept: ['image', 'audio'] as const, enabled: true },
+    // 一类都放不下（模型到上限）：「+」还在、灰着、悬停写放满了（拍板图 K1 / 验收阻断 4 同一套），点不开选择器。
+    { name: '一类都放不下：灰着但还在', accept: [] as const, enabled: false },
+  ])('$name', ({ accept, enabled }) => {
+    const html = render(accept)
+    expect(html).toContain('data-reference-add-entry="true"')
+    expect(addEntryEnabled(html)).toBe(enabled)
+  })
+  it('文生视频（一格都没有）也有「+」：放什么由判据定', () => {
+    expect(addEntryEnabled(render(['image', 'video', 'audio'], []))).toBe(true)
+  })
+})

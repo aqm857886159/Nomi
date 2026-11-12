@@ -17,6 +17,18 @@ const video = MODEL_ARCHETYPES.filter((archetype) => archetype.kind === 'video')
 const LOCALES = ['zh-CN', 'en'] as const
 const tOf = (locale: string) => i18n.getFixedT(locale) as unknown as (key: string, values?: Record<string, unknown>) => string
 
+// 方式名与固定小字按词典键取（check:test-copy-literals）；带数的小字仍写原话，核的是插值结果。
+const M = 'generationCommon.modeMenu'
+const wordsOf = (locale: string) => {
+  const t = tOf(locale)
+  return {
+    T2V: t(`${M}.name.text`), I2V: t(`${M}.name.image`), FL: t(`${M}.name.firstLast`), REF: t(`${M}.name.reference`),
+    textOnly: t(`${M}.textOnly`), oneStart: t(`${M}.oneStart`), startOptionalEnd: t(`${M}.startOptionalEnd`),
+  }
+}
+const ZH = wordsOf('zh-CN')
+const EN = wordsOf('en')
+
 function keysOf(text: ModeMenuText): string[] {
   return [text.key, ...(text.list?.items.flatMap(keysOf) ?? []), ...(text.name && typeof text.name !== 'string' ? keysOf(text.name) : [])]
 }
@@ -98,14 +110,14 @@ describe('方式菜单穷举（视频档案 × 每种方式 × 0–4 张图）',
   it('样张 A / B / D 的原话（Seedance 2.5）', () => {
     const zh = tOf('zh-CN')
     const line = (inputName: string) => Object.fromEntries(cases.find((item) => item.archetype.id === 'seedance-2.5' && item.inputName === inputName)!.menu!.rows.map((row) => [modeRowName(zh, row), [renderModeMenuText(zh, row.description), row.disabled]]))
-    expect(line('none')).toEqual({ 文生视频: ['只用文字', false], 图生视频: ['先放 1 张图', true], 首尾帧: ['先放 2 张图', true], 全能参考: ['先放图、视频或音频', true] })
-    expect(line('one')).toMatchObject({ 文生视频: ['已放 1 张图，文生视频不带图', true], 图生视频: ['1 张图当开头', false], 全能参考: ['最多 30 张图、10 段视频、10 段音频', false] })
+    expect(line('none')).toEqual({ [ZH.T2V]: [ZH.textOnly, false], [ZH.I2V]: ['先放 1 张图', true], [ZH.FL]: ['先放 2 张图', true], [ZH.REF]: ['先放图、视频或音频', true] })
+    expect(line('one')).toMatchObject({ [ZH.T2V]: ['已放 1 张图，文生视频不带图', true], [ZH.I2V]: [ZH.oneStart, false], [ZH.REF]: ['最多 30 张图、10 段视频、10 段音频', false] })
     expect(line('three')).toEqual({
-      文生视频: ['已放 3 张图，文生视频不带图', true], 图生视频: ['已放 3 张，图生视频只用 1 张', true],
-      首尾帧: ['已放 3 张，首尾帧最多 2 张', true], 全能参考: ['最多 30 张图、10 段视频、10 段音频', false],
+      [ZH.T2V]: ['已放 3 张图，文生视频不带图', true], [ZH.I2V]: ['已放 3 张，图生视频只用 1 张', true],
+      [ZH.FL]: ['已放 3 张，首尾帧最多 2 张', true], [ZH.REF]: ['最多 30 张图、10 段视频、10 段音频', false],
     })
     // 连进一段参考视频：图生视频只能取它的尾帧当接力首帧——不算收下，灰掉报「用不上」；按全能参考发（2026-11-12）。
-    expect(line('video')).toMatchObject({ 图生视频: ['已放 1 件素材，这种方式一件也用不上', true], 全能参考: ['最多 30 张图、10 段视频、10 段音频', false] })
+    expect(line('video')).toMatchObject({ [ZH.I2V]: ['已放 1 件素材，这种方式一件也用不上', true], [ZH.REF]: ['最多 30 张图、10 段视频、10 段音频', false] })
   })
 
   // 2026-11-12 真 App 复现（tests/ux/mode-bar-replay.walk.mjs）：APIMart Seedance 2.0 的菜单里两行都叫「图生视频」、两行没图标。
@@ -143,16 +155,16 @@ describe('方式菜单穷举（视频档案 × 每种方式 × 0–4 张图）',
     const item = cases.find((candidate) => candidate.archetype.id === 'seedance-2-apimart' && candidate.inputName === 'one')!
     const zh = tOf('zh-CN')
     expect(item.menu!.rows.map((row) => [modeRowName(zh, row), row.kind, renderModeMenuText(zh, row.description)])).toEqual([
-      ['文生视频', 'text', '已放 1 张图，文生视频不带图'],
-      ['图生视频', 'image', '最多 9 张图'],
-      ['全能参考', 'reference', '最多 9 张图、3 段视频、3 段音频'],
-      ['首尾帧', 'firstLast', '开头 1 张，结尾可以不放'],
+      [ZH.T2V, 'text', '已放 1 张图，文生视频不带图'],
+      [ZH.I2V, 'image', '最多 9 张图'],
+      [ZH.REF, 'reference', '最多 9 张图、3 段视频、3 段音频'],
+      [ZH.FL, 'firstLast', ZH.startOptionalEnd],
     ])
-    expect(item.menu!.rows.map((row) => modeRowName(tOf('en'), row))).toEqual(['Text to video', 'Image to video', 'Reference', 'First & last frame'])
+    expect(item.menu!.rows.map((row) => modeRowName(tOf('en'), row))).toEqual([EN.T2V, EN.I2V, EN.REF, EN.FL])
   })
 
   it('可灵 4.0 只有两种：文生视频 / 图生视频（首尾帧并在图生视频里）', () => {
     const kling = cases.find((item) => item.archetype.id === 'kling-v4' && item.inputName === 'none')!
-    expect(kling.menu!.rows.map((row) => modeRowName(tOf('zh-CN'), row))).toEqual(['文生视频', '图生视频'])
+    expect(kling.menu!.rows.map((row) => modeRowName(tOf('zh-CN'), row))).toEqual([ZH.T2V, ZH.I2V])
   })
 })

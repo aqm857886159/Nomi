@@ -4,7 +4,6 @@ import {
   dropKindFromFile,
   dropKindFromNodeKind,
   dropKindFromWorkspaceKind,
-  findArraySlotForKind,
   resolveNodeArraySlots,
 } from './nodeAssetDrop'
 import type { GenerationCanvasNode } from './generationCanvasTypes'
@@ -46,7 +45,7 @@ describe('dropKindFromNodeKind — 画布节点种类 → 产物类型（连线�
   })
 })
 
-describe('resolveNodeArraySlots + findArraySlotForKind — 放进去之后现算的方式有哪些数组槽', () => {
+describe('resolveNodeArraySlots — 放进去之后现算的方式落哪一格', () => {
   const slotsOf = (meta: Record<string, unknown> | undefined, kind?: 'image' | 'video' | 'audio') => {
     const node = { id: 'n', kind: 'video', meta } as GenerationCanvasNode
     return resolveNodeArraySlots(node, { nodes: [node], edges: [] }, kind)
@@ -55,14 +54,12 @@ describe('resolveNodeArraySlots + findArraySlotForKind — 放进去之后现算
     const meta = { modelKey: 'seedance-2', archetype: { id: 'seedance-2', modeId: 'omni' } }
     const slots = slotsOf(meta)
     expect(slots.map((s) => s.accept)).toEqual(['image', 'video', 'audio'])
-    expect(findArraySlotForKind(slots, 'image')?.metaKey).toBe('referenceImageUrls')
-    expect(findArraySlotForKind(slots, 'video')?.metaKey).toBe('referenceVideoUrls')
+    expect(slots.map((s) => s.metaKey)).toEqual(['referenceImageUrls', 'referenceVideoUrls', 'referenceAudioUrls'])
   })
-  it('Seedance 偏好首帧：放一张图仍按首帧摆（无数组槽，图进首帧）；放视频首帧收不下 → 现算成收得下的那种，有视频槽', () => {
+  it('空节点放一张图 → 图生视频：落进节点那一份有序参考列表（按摆法进首帧），不说「放不下」；放视频 → 现算成收视频的那种', () => {
     const meta = { modelKey: 'seedance-2', archetype: { id: 'seedance-2', modeId: 'first' } }
-    expect(slotsOf(meta, 'image')).toEqual([])
-    expect(findArraySlotForKind(slotsOf(meta, 'image'), 'image')).toBeNull()
-    expect(findArraySlotForKind(slotsOf(meta, 'video'), 'video')?.metaKey).toBe('referenceVideoUrls')
+    expect(slotsOf(meta, 'image').map((s) => s.metaKey)).toEqual(['referenceImageUrls'])
+    expect(slotsOf(meta, 'video').map((s) => s.metaKey)).toEqual(['referenceVideoUrls'])
   })
   it('认不出的模型 → 无数组槽（[]，不接管拖入）', () => {
     expect(slotsOf({ modelKey: 'unknown/model' })).toEqual([])

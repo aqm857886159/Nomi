@@ -79,10 +79,16 @@ type AssetReferenceProps = {
   tail?: React.ReactNode
   /** 图那一行的滚动口样式（宿主定：最多露几行、往哪外扩）。那句话不在滚动口里。 */
   scrollClassName?: string
+  /**
+   * 「+」按「再放一件之后」现算（宿主问落格的那一个判据）：给了它，「+」选择器只给 accept 这几类、选了 / 上传了交给
+   * onAsset / onUpload 落格（落哪一格、换不换方式由宿主那个判据定），不再按当前方式的数组格分流；accept 为空 =「+」置灰（悬停说放满了，点不开选择器）。
+   * 不给 = 按当前方式的格加（没有方式可换的宿主）。
+   */
+  addEntry?: { accept: readonly AssetKind[]; onAsset: (asset: AssetRef) => void; onUpload: (file: File) => void }
 }
 
 // 合并后的数组参考行用这个伪 key 记展开状态。
-const MERGED_ARRAY_KEY = '__refs__'
+export const MERGED_ARRAY_KEY = '__refs__'
 
 function displayRef(url: string, kind: AssetKind, name: string): AssetRef {
   return { id: url, kind, name, renderUrl: url, source: 'project', origin: { source: 'project', projectId: '', relativePath: '' } }
@@ -97,7 +103,7 @@ function kindFromFile(file: File): AssetKind {
 export default function AssetReference({
   slots, remainingCapacity, capacityMessage, valuesByKey, occupiedByKey, projectId, openSlotKey, uploadingSlotKey,
   onTogglePicker, onPick, onUpload, onRemove, onInsertMention, onReorder, onBrowseAll, onPickOnCanvas, firstFrameSlotKey,
-  referenceInfos, unusedUrls, onRemoveUnused, parkedUrls, onUseParked, onSwapFrames, swapFramesDisabledReason, disabledReason, tail, scrollClassName,
+  referenceInfos, unusedUrls, onRemoveUnused, parkedUrls, onUseParked, onSwapFrames, swapFramesDisabledReason, disabledReason, tail, scrollClassName, addEntry,
 }: AssetReferenceProps): JSX.Element {
   const { t } = useTranslation()
   const dragRef = React.useRef<{ key: string; index: number } | null>(null)
@@ -134,7 +140,10 @@ export default function AssetReference({
     return !(typeof raw === 'string' && raw)
   })
   // 「+」：有数组槽 → 合并选择器；只有单帧槽 → 落到第一个空格。
-  const plusKey = arraySlots.length > 0 ? (arrayCanAdd ? MERGED_ARRAY_KEY : '') : firstEmptySingle?.key ?? ''
+  const plusKey = addEntry ? (addEntry.accept.length > 0 ? MERGED_ARRAY_KEY : '')
+    : arraySlots.length > 0 ? (arrayCanAdd ? MERGED_ARRAY_KEY : '') : firstEmptySingle?.key ?? ''
+  // 宿主给了判据（addEntry）：「+」一直在，一类都放不下时置灰、悬停说放满了（拍板图 K1 画的就是灰着的「+」），点不开选择器。
+  const showPlus = addEntry ? true : Boolean(plusKey) || disabled || arraySlots.length > 0 || labelSingles
   const infoOf = (url: string): ReferenceInfo | undefined => referenceInfos?.get(url)
   const sourceLabelOf = (info: ReferenceInfo | undefined): string | undefined => {
     if (!info) return undefined
@@ -162,7 +171,7 @@ export default function AssetReference({
           title={disabled ? disabledReason : totalFull ? capacityMessage : undefined}
           onClick={() => onPickOnCanvas?.(slots)} />
       </div>
-      {plusKey || disabled || arraySlots.length > 0 || labelSingles ? <div className="relative shrink-0">
+      {showPlus ? <div className="relative shrink-0">
         <AssetActionTile
           data-reference-add-entry="true"
           aria-label={t('assetLibrary.refRow.addMenu')}
@@ -177,12 +186,12 @@ export default function AssetReference({
           <AssetPickerPopover onClose={() => onTogglePicker(MERGED_ARRAY_KEY)}>
             <AssetPicker
               projectId={projectId}
-              accept={arrayAccepts}
-              uploading={arrayUploading}
-              onPick={(asset) => onPick(routeByKind(asset.kind), asset)}
-              onUpload={(file) => onUpload(routeByKind(kindFromFile(file)), file)}
+              accept={addEntry ? [...addEntry.accept] : arrayAccepts}
+              uploading={addEntry ? uploadingSlotKey === MERGED_ARRAY_KEY : arrayUploading}
+              onPick={(asset) => (addEntry ? addEntry.onAsset(asset) : onPick(routeByKind(asset.kind), asset))}
+              onUpload={(file) => (addEntry ? addEntry.onUpload(file) : onUpload(routeByKind(kindFromFile(file)), file))}
               onBrowseAll={onBrowseAll}
-              atLimitKinds={atLimitKinds}
+              atLimitKinds={addEntry ? [] : atLimitKinds}
             />
           </AssetPickerPopover>
         ) : null}

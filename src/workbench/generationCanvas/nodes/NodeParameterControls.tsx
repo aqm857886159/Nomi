@@ -46,7 +46,10 @@ import {
   shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
 import { createSlotFileUploads } from './controls/slotFileUploads'
-import { addToArraySlot, assignSlotSource, removeFromArray, removeUnusedReference, reorderArray, restoreParkedReference, setSlotUrl, swapFrameSlots, type ReferenceWriteContext } from './controls/referenceWrites'
+import { addAssetUrlToNode } from './nodeAssetWrite'
+import { addableReferenceKinds, type AssetDropKind } from '../model/nodeAssetDrop'
+import { pickCanvasInputFor } from '../quickActions/nodeInputActions'
+import { assignSlotSource, removeFromArray, removeUnusedReference, reorderArray, restoreParkedReference, setSlotUrl, frameSwapControl, type ReferenceWriteContext } from './controls/referenceWrites'
 import {
   type ArchetypeArraySlot,
   applyArchetypeVariantSwitch,
@@ -75,13 +78,12 @@ import {
 import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferencePlacement, firstFrameTaggedSlot } from '../runner/referenceSlots'
 import { useChannelCreateBodies, type VendorMappingsReader } from './controls/useChannelCreateBody'
-import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
-import { frameSwapKeepsSendable } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 import ModeBar from './controls/ModeBar'
-import { buildModeMenu, renderModeMenuText, modeRowName, type ModeDisplayKind } from './controls/modeMenuModel'
+import { buildModeMenu, modeRowName } from './controls/modeMenuModel'
+import { modeMenuOptions } from './controls/modeMenuOptions'
+import { composerAssetSlots } from './controls/composerAssetSlots'
 import { liveModeSwitchNotice } from '../store/canvasModeChoiceForget'
-import { IconCards, IconPhotoVideo, IconStack2, IconTypography } from '@tabler/icons-react'
 import { readModePreference } from './controls/modePreference'
 import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import { parameterChipOptions } from './primaryParameterChips'
@@ -123,7 +125,8 @@ export default function NodeParameterControls({
   const { t } = useTranslation()
   const { nodes, edges } = graph
   // 写入面由宿主接住（付费确认卡走它自己的草稿账本，确认前不碰画布）——见 nodeWriteAccess。
-  const { updateNode, latestNode, connectNodes: canConnect } = useNodeWriteAccess()
+  const writeAccess = useNodeWriteAccess()
+  const { updateNode, latestNode, connectNodes: canConnect } = writeAccess
   const storeConnectNodes = useGenerationCanvasStore((state) => state.connectNodes)
   const storeDisconnectEdge = useGenerationCanvasStore((state) => state.disconnectEdge)
   const meta = React.useMemo<Record<string, unknown>>(() => node.meta || {}, [node.meta])
@@ -301,16 +304,23 @@ export default function NodeParameterControls({
     node, archMode, getImageUrlSlots: () => imageUrlSlots, latestNode, updateNode, getLatestMeta, updateMeta,
     storeConnectNodes, storeDisconnectEdge, closeSlot: () => setOpenSlotKey(''), feedback: (key, values) => reportFeedback(t(key, values)),
   }
-  const handleArrayAdd = (slot: ArchetypeArraySlot, url: string) => addToArraySlot(writeCtx, slot, url)
+  // 生成框里加一件参考（「+」选择器 / 上传 / 点选的数组格）：和拖进来同一个入口 addAssetUrlToNode——落哪一格、
+  // 换不换方式都按「放进去之后」现算，「+」给哪几类也问它（addableReferenceKinds），不会「给了却放不下」。
+  const addReference = (kind: AssetKind, url: string) => {
+    const outcome = kind === 'image' || kind === 'video' || kind === 'audio' ? addAssetUrlToNode(node.id, kind, url, writeAccess, graph) : { status: 'no-slot' as const }
+    if (outcome.status === 'full') reportFeedback(t('generationCommon.node.assetDrop.full', { max: outcome.max, label: outcome.label }))
+    else if (outcome.status === 'no-slot') reportFeedback(t('generationCommon.node.assetDrop.noSlot'))
+    setOpenSlotKey('')
+  }
   const handleArrayRemove = (metaKey: string, index: number) => removeFromArray(writeCtx, metaKey, index)
   const handleSlotAssignment = (slot: ImageUrlSlot, newSourceNodeId: string) => assignSlotSource(writeCtx, slot, newSourceNodeId)
   const setSingleFrameUrlMeta = (slot: ImageUrlSlot, url: string) => setSlotUrl(writeCtx, slot, url)
   // 三个「本地文件 → 槽 url」入口共用一条导入路径（controls/slotFileUploads）。写入仍归这里：
-  // 数组走 handleArrayAdd 的唯一追加路径，单槽走 setSingleFrameUrlMeta 的断边+写 meta。
-  const { handleArrayUpload, handleSourceVideoUpload, handleSlotUpload } = createSlotFileUploads({
+  // 加参考走 addReference（与拖入同一入口），单槽走 setSingleFrameUrlMeta 的断边+写 meta。
+  const { handleReferenceUpload, handleSourceVideoUpload, handleSlotUpload } = createSlotFileUploads({
     nodeId: node.id,
     t,
-    onArrayAdd: handleArrayAdd,
+    onReferenceAdd: addReference,
     onSourceVideoUrl: (metaKey, url) => updateMeta({ [metaKey]: url }),
     onSingleFrameUrl: setSingleFrameUrlMeta,
     setUploadingArrayKey,
@@ -357,58 +367,11 @@ export default function NodeParameterControls({
   const sourceVideoSlot = archMode ? archetypeModeSourceVideoSlot(archMode) : null
   const showReferences = section === 'all' || section === 'references'
 
-  // ── P1 统一参考槽：声明式 AssetSlot 列表 + 当前值 + 三类回调（单帧连边 / 数组 meta / 源视频 meta，复用上面已验证的写入逻辑）──
-  const assetSlots: AssetSlot[] = [
-    ...imageUrlSlots.map(
-      (s): AssetSlot => ({
-        key: s.key,
-        // 唯一翻译点：档案路的槽标签在 archetypeModeSlots 里已翻过（对已是英文的再翻是 no-op，
-        // 查不到即原样返回），**启发式路（通用中转/ComfyUI 导入）此前根本没翻** → 英文用户在这个槽
-        // 上看到的是中文「参考图」。收在这里翻一次，两条路才真的一个口径。
-        label: translateModelDisplayText(s.label),
-        accept: s.mediaKind ?? 'image',
-        form: 'single',
-        persistAsEdge: true,
-        numbered: false,
-        max: 1,
-        // 尾帧可不填（档案里 last_frame 的 min = 0）：格下写「尾帧（可不填）」。
-        optional: s.group === 'last_frame' && Boolean(archMode?.slots.some((slot) => slot.kind === 'last_frame' && slot.min === 0)),
-      }),
-    ),
-    ...arraySlots.map(
-      (s): AssetSlot => ({
-        key: s.metaKey,
-        label: translateModelDisplayText(s.label),
-        accept: s.accept,
-        form: 'array',
-        persistAsEdge: false,
-        numbered: s.numbered,
-        max: s.max,
-        caption: s.caption,
-      }),
-    ),
-    ...(sourceVideoSlot
-      ? [
-          {
-            key: sourceVideoSlot.metaKey,
-            label: translateModelDisplayText(sourceVideoSlot.label),
-            accept: 'video',
-            form: 'single',
-            persistAsEdge: false,
-            numbered: false,
-            max: 1,
-          } as AssetSlot,
-        ]
-      : []),
-  ]
-    // 这条渠道压根发不出的槽：不显示。让用户连上一个「连了也不会进请求」的东西，才是真的坑。
-    .filter((slot) => slotReachByKey[slot.key] !== 'none')
-    // 只挤得进单图聚合位的槽：如实收成 1 张并说明白，别让用户放了 9 张以为都发得出去。
-    .map((slot) =>
-      slotReachByKey[slot.key] === 'single' && (slot.max === undefined || slot.max > 1)
-        ? { ...slot, max: 1, caption: t('generationCommon.parameters.channelSingleReferenceOnly') }
-        : slot,
-    )
+  // ── P1 统一参考槽：声明式 AssetSlot 列表（controls/composerAssetSlots，按渠道可达性收窄）──
+  const assetSlots: AssetSlot[] = composerAssetSlots({
+    imageUrlSlots, arraySlots, sourceVideoSlot, archMode, slotReachByKey,
+    singleReferenceCaption: t('generationCommon.parameters.channelSingleReferenceOnly'),
+  })
   // 档案节点：槽值统一由 resolveReferenceSlots（边 + 上传单一真相源）派生——这样连线参考在槽里
   // 真的看得见（根治「显示读 meta、生成读边」分裂导致的「连线没用」）。按存储键回填到 assetValuesByKey。
   // pending（连了边但源未生成/待抽帧）本片先不显示空位（占位态留 S4b）；非档案模型仍走旧启发式路径。
@@ -468,9 +431,7 @@ export default function NodeParameterControls({
 
   const handleAssetPick = (slot: AssetSlot, asset: AssetRef) => {
     if (slot.form === 'array') {
-      const arr = arraySlots.find((a) => a.metaKey === slot.key)
-      if (arr) handleArrayAdd(arr, asset.renderUrl)
-      setOpenSlotKey('')
+      addReference(asset.kind, asset.renderUrl)
       return
     }
     if (slot.persistAsEdge) {
@@ -488,8 +449,7 @@ export default function NodeParameterControls({
   }
   const handleAssetUpload = async (slot: AssetSlot, file: File) => {
     if (slot.form === 'array') {
-      const arr = arraySlots.find((a) => a.metaKey === slot.key)
-      if (arr) await handleArrayUpload(arr, file)
+      await handleReferenceUpload(file, slot.label)
       return
     }
     if (slot.persistAsEdge) {
@@ -580,13 +540,7 @@ export default function NodeParameterControls({
             heading: t('generationCommon.modeMenu.heading'),
             ariaLabel: t('generationCommon.modeMenu.heading'),
             onChange: handleModeSwitch,
-            options: modeMenu.rows.map((row) => ({
-              value: row.id,
-              label: modeRowName(t, row),
-              description: renderModeMenuText(t, row.description),
-              disabled: row.disabled,
-              ...(row.kind === 'other' ? {} : { glyph: <ModeGlyph kind={row.kind} /> }),
-            })),
+            options: modeMenuOptions(t, modeMenu.rows),
           },
         } : {})}
       />
@@ -617,7 +571,11 @@ export default function NodeParameterControls({
   ]) ?? (isImageLike || isVideoLike ? ['image' as AssetKind] : [])))
   // 模型任何方式都不收参考图（如只会文生图的模型）：参考行照样在，入口灰掉、悬停说原因（B3i）。
   const refsUnsupported = Boolean(effectiveArchetype) && (isImageLike || isVideoLike) && potentialReferenceKinds.length === 0
-  const inputReferenceEntry = !assetSlots.length && canConnect && potentialReferenceKinds.length
+  // 「+」给哪几类：问落格的同一个判据（放进去之后收得下、有对口的格），一类都没有 =「+」置灰、点不开。只有有方式可换的节点（档案 + 视频 / 图片）才这么算。
+  const addKinds: AssetDropKind[] | null = modeInputs ? addableReferenceKinds(node, graph) : null
+  // 视频节点的参考行一直在（文生视频也在）：「+」放进来什么，方式跟着现算——以前文生视频这里是建画布卡的旧入口，放不了音频。
+  const videoAddRow = isVideoLike && addKinds !== null && !refsUnsupported
+  const inputReferenceEntry = !assetSlots.length && !videoAddRow && canConnect && potentialReferenceKinds.length
     ? <NodeInputReferenceEntry nodeId={node.id} accept={potentialReferenceKinds} /> : null
 
   const { unusedUrls, parkedUrls, referenceInfos, arrayCount, arrayCounts, arrayFull } = computeReferenceRowModel({
@@ -626,20 +584,7 @@ export default function NodeParameterControls({
     fallbackName: (kind) => t(kind === 'video' ? 'assetLibrary.referenceVideo' : kind === 'audio' ? 'assetLibrary.referenceAudio' : 'assetLibrary.referenceImage'),
   })
 
-  const swapFirstSlot = imageUrlSlots.find((slot) => slot.group === 'first_frame')
-  const swapLastSlot = imageUrlSlots.find((slot) => slot.group === 'last_frame')
-  const slotFilled = (slot: ImageUrlSlot | undefined) => {
-    const value = slot ? assetValuesByKey[slot.key] : undefined
-    return (typeof value === 'string' && value.length > 0) || Boolean(slot && parameterAssignments.find((assignment) => assignment.slot.key === slot.key)?.edge)
-  }
-  // 对调后这个方式还发得出去 ⇄ 才可点（判据只看档案的槽必填声明，见 frameSwapKeepsSendable）。
-  const swapBlocked = archMode && swapFirstSlot && swapLastSlot ? !frameSwapKeepsSendable(archMode, { first: slotFilled(swapFirstSlot), last: slotFilled(swapLastSlot) }) : false
-  const handleSwapFrames = () => {
-    const first = swapFirstSlot
-    const last = swapLastSlot
-    if (swapBlocked) return
-    if (first && last) swapFrameSlots(writeCtx, first, last, assetValuesByKey, (slot) => parameterAssignments.find((assignment) => assignment.slot.key === slot.key)?.edge?.source)
-  }
+  const frameSwap = frameSwapControl(writeCtx, imageUrlSlots, assetValuesByKey, (slot) => parameterAssignments.find((assignment) => assignment.slot.key === slot.key)?.edge?.source)
 
   const guidanceNote = showModeGuidance && guidance ? (
     <NarrowedModeGuidanceNote
@@ -673,6 +618,7 @@ export default function NodeParameterControls({
   if (
     section === 'references' &&
     !refsUnsupported &&
+    !videoAddRow &&
     unusedUrls.length === 0 &&
     referencesSectionIsEmpty({
       hasImageUrlSlots: imageUrlSlots.length > 0,
@@ -686,7 +632,7 @@ export default function NodeParameterControls({
     return inputReferenceEntry
 
   const rootClassName = cn('generation-canvas-v2-node__ref-section', 'flex flex-col gap-1')
-  const hasReferenceRow = showReferences && (assetSlots.length > 0 || refsUnsupported || unusedUrls.length > 0)
+  const hasReferenceRow = showReferences && (assetSlots.length > 0 || refsUnsupported || unusedUrls.length > 0 || videoAddRow)
 
   return (
     <div className={rootClassName} aria-label={t('generationCommon.parameters.referencesAria')}>
@@ -711,6 +657,11 @@ export default function NodeParameterControls({
           onTogglePicker={(key) => setOpenSlotKey((prev) => (prev === key ? '' : key))}
           onPickOnCanvas={(slots) => {
             setOpenSlotKey('')
+            // 有方式可换、又握着连线权能：点中哪张卡就按画布连线那个判据接进来（放进去之后现算方式），不按现在这个方式的格挑。
+            if (addKinds && canConnect) {
+              cancelReferencePick.current = pickCanvasInputFor(node.id)
+              return
+            }
             cancelReferencePick.current = pickNodeSlotReference({
               nodeId: node.id, slots, valuesByKey: assetValuesByKey, occupiedByKey: arrayOccupiedByKey,
               remainingCapacity: archMode ? nodeReferenceCapacity(archMode, node, nodes, edges) : Infinity,
@@ -722,6 +673,11 @@ export default function NodeParameterControls({
             void handleAssetUpload(slot, file)
           }}
           onRemove={handleAssetRemove}
+          {...(addKinds ? { addEntry: {
+            accept: addKinds,
+            onAsset: (asset: AssetRef) => addReference(asset.kind, asset.renderUrl),
+            onUpload: (file: File) => { void handleReferenceUpload(file) },
+          } } : {})}
           onInsertMention={onInsertMention}
           onReorder={handleReorder}
           onBrowseAll={handleBrowseAll}
@@ -729,7 +685,7 @@ export default function NodeParameterControls({
           {...(referenceInfos ? { referenceInfos } : {})}
           unusedUrls={unusedUrls}
           onRemoveUnused={(url) => removeUnusedReference(writeCtx, url)} parkedUrls={parkedUrls} onUseParked={(url) => restoreParkedReference(writeCtx, url)}
-          {...(imageUrlSlots.length === 2 && imageUrlSlots[0]?.group === 'first_frame' && imageUrlSlots[1]?.group === 'last_frame' ? { onSwapFrames: handleSwapFrames, ...(swapBlocked ? { swapFramesDisabledReason: t('assetLibrary.refRow.swapFramesNeedsBoth') } : {}) } : {})}
+          {...(imageUrlSlots.length === 2 && imageUrlSlots[0]?.group === 'first_frame' && imageUrlSlots[1]?.group === 'last_frame' && frameSwap ? { onSwapFrames: frameSwap.swap, ...(frameSwap.blocked ? { swapFramesDisabledReason: t('assetLibrary.refRow.swapFramesNeedsBoth') } : {}) } : {})}
           {...(refsUnsupported ? { disabledReason: t('assetLibrary.refRow.disabledReason') } : {})}
           {...(tail ? { tail } : {})}
           // 图那一行最多露三行多一点（40px 格），更多在区内滚；滚动口向卡片边缘外扩（-mx-3 -mt-3 再用 px-3 pt-3 补回来）：
@@ -751,10 +707,4 @@ export default function NodeParameterControls({
       ) : null}
     </div>
   )
-}
-
-/** 方式的图标（§6 登记）：文生视频 / 图生视频 / 首尾帧 / 全能参考。 */
-function ModeGlyph({ kind }: { kind: Exclude<ModeDisplayKind, 'other'> }): JSX.Element {
-  const Icon = kind === 'text' ? IconTypography : kind === 'image' ? IconPhotoVideo : kind === 'firstLast' ? IconCards : IconStack2
-  return <Icon size={14} stroke={1.6} aria-hidden />
 }
