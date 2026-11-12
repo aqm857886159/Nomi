@@ -280,7 +280,7 @@ export function coarseAddressLabel(address: string): string {
 export type OutboundRouteKind = "direct" | "proxy";
 
 /** 这次出站是「花钱那一步」还是「拿东西那一步」——两者被拦时用户该做的事完全不同。 */
-export type OutboundStage = "submit" | "retrieval";
+export type OutboundStage = OutboundRefusalTelemetryProps["stage"];
 
 /** 代理路由的细分（遥测子码用）：应用级代理 / 这家供应商单配的代理。 */
 export type OutboundProxyKind = "application" | "provider";
