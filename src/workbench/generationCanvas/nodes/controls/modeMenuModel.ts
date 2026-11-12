@@ -213,10 +213,10 @@ export function renderModeMenuText(t: (key: string, values?: Record<string, unkn
   const name = text.name === undefined ? {} : { name: typeof text.name === 'string' ? text.name : renderModeMenuText(t, text.name) }
   if (!text.list) return t(text.key, { ...text.values, ...name })
   const parts = text.list.items.map((item) => renderModeMenuText(t, item))
-  const separator = t(`${KEY}.listSeparator`)
+  const separator = t('generationCommon.modeMenu.listSeparator')
   const joined = parts.length <= 1 || text.list.joiner === 'and'
     ? parts.join(separator)
-    : `${parts.slice(0, -1).join(separator)}${t(`${KEY}.listOr`)}${parts[parts.length - 1]}`
+    : `${parts.slice(0, -1).join(separator)}${t('generationCommon.modeMenu.listOr')}${parts[parts.length - 1]}`
   return t(text.key, { ...text.values, ...name, list: joined })
 }
 
