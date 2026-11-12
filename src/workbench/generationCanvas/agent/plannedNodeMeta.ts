@@ -4,7 +4,7 @@
 // modelKey 空时跑）就不会再自动补 vendor/label/默认参数——所以这里必须**自铺全**：
 // modelVendor / modelLabel / archetype.{id,modeId} / 该 mode 的默认参数，再用 agent 的合法参数覆盖。
 import type { AgentModelEntry } from "./availableModels";
-import { isParamValueAllowed } from "../../../../electron/shared/videoCapabilities/paramConstraints";
+import { resolveModelParams } from "../../../../electron/shared/videoCapabilities/resolveModelParams";
 import {
   canonicalArchetypeVariantId,
   resolveArchetypeForModel,
@@ -44,12 +44,6 @@ function entryArchetype(entry: AgentModelEntry): ModelArchetype | null {
     meta: { archetypeId: entry.archetypeId },
   });
 }
-
-// 单字段校验（跨字段互斥/依赖留二期）。**判据不在这里**：合法性的唯一 owner 是
-// `electron/shared/videoCapabilities/paramConstraints.isParamValueAllowed`（R14.1）。
-// 这里只保留本路径的**策略**：非法值丢弃、回落档案默认——落节点 meta 不能写进非法值。
-// （审阅面 planResolver 对同一判据的策略是「钳值 + 出结构化 issue」，故意不同，各自注释。）
-const isValidParamValue = isParamValueAllowed;
 
 /**
  * 模型清单索引：**同时**含 `vendor::modelKey` 与裸 `modelKey` 两种键。
@@ -159,14 +153,7 @@ export function buildPlannedNodeMeta(
   }
   if (!mode) return meta;
 
-  // 1) 铺 mode 默认参数
-  for (const control of mode.params) {
-    if (control.defaultValue !== undefined) meta[control.key] = control.defaultValue;
-  }
-  // 2) agent 的合法参数覆盖（非法值丢弃，保留默认）
-  //    比例意图（分镜的比例槽 `aspect_ratio` / 语义键 `aspectRatio`）先按这个模式的比例控件翻成真实键——
-  //    与宿主准入同一个判据（`electron/shared/aspectRatioValue.ts`）。以前这里只认同名控件：整片 16:9 落到
-  //    Z-Image（比例键叫 `size`）上被当未知键丢掉，节点是出厂 1:1。
+  // 比例翻到真实控件键，规整政策统一交给共享主人。
   const ratioControls = aspectRatioControlsOf(mode.params);
   const rawParams = placeAspectRatio(
     planned.params && typeof planned.params === "object" && !Array.isArray(planned.params)
@@ -177,18 +164,14 @@ export function buildPlannedNodeMeta(
   // 哪个控件是这个模式的比例控件按控件的选项判（与 placeAspectRatio 同一个判据），不按键名：
   // Agnes Video 2.5 的 `size` 是清晰度（720P / 960P / 2K），比例在 `aspect_ratio`。
   const ratioKey = aspectRatioControlKey(ratioControls);
-  for (const control of mode.params) {
-    const value = rawParams[control.key];
-    if (value === undefined) continue;
-    if (
-      (typeof value === "string" || typeof value === "number" || typeof value === "boolean") &&
-      isValidParamValue(control, value)
-    ) {
-      meta[control.key] = value;
-      // 起草方（Agent / 分镜）写了合法比例 = 明确选过：连线时视频比例的产品默认不改它（用户 2026-10-22 Q2 拍板）。
-      // 没写或写了非法值 → 档案默认、不打标记（Q1），连线时照常按输入铺默认。
-      if (control.key === ratioKey) meta[ASPECT_EXPLICIT_META_KEY] = true;
-    }
+  const resolved = resolveModelParams({
+    controls: mode.params, intent: {}, previousParams: rawParams,
+    policy: { author: 'Agent', invalid: '静默丢换默认' },
+  });
+  Object.assign(meta, resolved.params);
+  // 合法比例是明确选择；非法值回默认不能获得这个标记。
+  if (ratioKey && rawParams[ratioKey] !== undefined && !resolved.changes.some(change => change.key === ratioKey)) {
+    meta[ASPECT_EXPLICIT_META_KEY] = true;
   }
   return meta;
 }

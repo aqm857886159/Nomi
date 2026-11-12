@@ -1,0 +1,30 @@
+{
+  "id": "USER-20261109-model-params-write-time",
+  "since": "2026-11-09",
+  "source": "用户要求秒数在写入时就正确，换模型参数提前发现问题；方向见 docs/engineering/direction-checks/2026-11-09-model-params-write-time.md。",
+  "category": "parameter-contract",
+  "problem": "图片镜3秒换到最短4秒视频仍保留3；12秒切到上限10秒的模式仍可能照发。各入口不合法后的政策不同，调整与打开只读标记不完整。第1步只收口，不改变这些缺口。",
+  "existingInvariants": [],
+  "ironLaws": [
+    "⑩",
+    "⑪",
+    "⑫"
+  ],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "tests/model-params/contracts.test.mjs：第0步13入口×3列，红33/绿6；第1步保持39格全部读数不变，不是修复完成收据。",
+    "electron/shared/videoCapabilities/resolveModelParams.test.ts：共享政策单测；政策错配使agent-node/legal从绿变红，恢复回绿。",
+    "docs/plan/2026-11-09-model-params-write-time.md：第2–4步继续写入规整、只读漂移、发送保险、品牌类型与防绕行。",
+    "未验证：真实用户App/真实模型闭环；未推送、未开PR、未合入，不能转fixed。"
+  ],
+  "completionCommits": [
+    "d636e9efd0994da58f9eecd952ebcbfbdb135325"
+  ],
+  "classCheck": {
+    "kind": "matrix",
+    "file": "tests/model-params/contracts.test.mjs"
+  }
+}

@@ -178,6 +178,16 @@ function renderQuickstartMain(content, shared, version) {
 </section>`
 }
 
+const faqGraph = (faq, canonical) => ({
+  '@type': 'FAQPage',
+  '@id': `${canonical}#faq`,
+  mainEntity: faq.map((item) => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: { '@type': 'Answer', text: item.answer },
+  })),
+})
+
 function renderPage(locale, runtimeFacts, pageKey) {
   const content = contentByLocale[locale]
   if (!content) throw new Error(`Unknown marketing locale: ${locale}`)
@@ -187,6 +197,8 @@ function renderPage(locale, runtimeFacts, pageKey) {
     ogLocale: content.ogLocale,
     meta: pageKey === 'home' ? content.meta : content.quickstart.meta,
     alternates: { 'zh-CN': pagePath(pageKey, 'zh-CN'), en: pagePath(pageKey, 'en') },
+    // 快速上手页上看得见的「常见问题」，原样标成 FAQPage，方便搜索和 AI 按一问一答引用。
+    graph: pageKey === 'quickstart' ? [faqGraph(content.quickstart.faq, `${runtimeFacts.siteUrl}${pagePath(pageKey, locale)}`)] : [],
   }
   const main = pageKey === 'home'
     ? [renderHero(content, runtimeFacts), renderPrice(content), renderFeatures(content, runtimeFacts), renderOpen(content, runtimeFacts), renderCommunity(content, runtimeFacts)].join('\n')

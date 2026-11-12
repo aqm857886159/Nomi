@@ -1,3 +1,4 @@
+import { resolveModelParams } from '../../../../../electron/shared/videoCapabilities/resolveModelParams'
 // 内置「模型档案」与生成节点 UI 之间的桥（C2b）。
 //
 // 职责：把档案的 modes/slots/params（electron/shared/modelArchetypes，供应商无关）映射成节点 UI
@@ -12,7 +13,6 @@
 //
 // C2b 只处理首帧 / 尾帧两类 frame 槽，映射到现有 flat 传输键（firstFrameUrl/lastFrameUrl），
 // 传输层零改动。image_ref / video_ref / audio_ref（数组槽）在 C3 接入档案驱动的 input-builder。
-import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import {
   type ArchetypeMode,
   type ArchetypeReferenceSlotKind,
@@ -366,7 +366,7 @@ function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArche
  * 互斥不在这里发生——发生在 buildArchetypeInputParams（只发当前模式声明的槽键）。这样切回时照片还在。
  * variantId 跟随保留（切 mode 不动变体）；无变体档案则不写 variantId 键。
  *
- * ⚠️ 这里必须和 applyArchetypeVariantSwitch 一样调 clampMetaToModeParams —— **模式和变体一样会收窄参数**。
+ * ⚠️ 这里必须和 applyArchetypeVariantSwitch 一样调 resolveModelParams —— **模式和变体一样会收窄参数**。
  * 2026-08-26 走查实测：火山 Seedance 2.5 在「文生视频」选了 16:9，切到「首帧」（官方硬约束 ratio 只能
  * adaptive，档案已把选项收窄成一项）后，UI 上一个选中项都没有，而 meta 里那个 16:9 原封不动留着并照发
  * —— 正好触发档案注释说要防的 InvalidParameter.TaskTypeConstraint（任务已创建才异步报错、额度已排队）。
@@ -384,31 +384,8 @@ export function applyArchetypeModeSwitch(
   // 按当前变体特化后再取模式参数：变体与模式**都**可能收窄同一个 select，夹的必须是两层叠加后的选项集。
   const specialized = specializeArchetypeForVariant(archetype, variantId)
   const nextMode = specialized.modes.find((m) => m.id === nextModeId) ?? specialized.modes[0]
-  const clamped = nextMode ? clampMetaToModeParams(meta, nextMode.params) : meta
+  const clamped = nextMode ? resolveModelParams({ controls: nextMode.params, intent: {}, previousParams: meta, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params : meta
   return { ...clamped, archetype: { id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
-}
-
-/**
- * 把存量 meta 里「已不在新变体允许选项内」的 select 参数夹回该参数的 defaultValue（通用·按档案声明派生，
- * 不 hardcode 任何 key）。根治 D1：标准变体选了 4k → 切到「快速」变体（清晰度只剩 480/720）→ 存量 4k
- * 仍被发出 → 供应商 400/422。变体只收窄「选项」，本函数顺带收窄「已存的值」，让 UI 与发送一致。
- */
-function clampMetaToModeParams(
-  meta: Record<string, unknown>,
-  modeParams: ModelParameterControl[],
-): Record<string, unknown> {
-  let next = meta
-  for (const param of modeParams) {
-    if (param.type !== 'select' || !param.options || param.options.length === 0) continue
-    if (!(param.key in next)) continue
-    const allowed = param.options.map((o) => o.value)
-    if (allowed.includes(next[param.key] as string)) continue
-    // 存量值越界 → 回落该参数 defaultValue（无 default 则删键，由下游取档案默认）。
-    next = { ...next }
-    if (param.defaultValue !== undefined) next[param.key] = param.defaultValue
-    else delete next[param.key]
-  }
-  return next
 }
 
 /**
@@ -433,7 +410,7 @@ export function applyArchetypeVariantSwitch(
     specialized.modes.find((m) => m.id === modeId) ??
     specialized.modes.find((m) => m.id === specialized.defaultModeId) ??
     specialized.modes[0]
-  const clamped = mode ? clampMetaToModeParams(meta, mode.params) : meta
+  const clamped = mode ? resolveModelParams({ controls: mode.params, intent: {}, previousParams: meta, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params : meta
   return { ...clamped, archetype: { id: archetype.id, modeId, variantId: nextVariant.id } }
 }
 
