@@ -5,11 +5,11 @@
     "scheme": "light",
     "tail": {
       "text": "图 30 · 视频 10 · 音频 10，都放满了",
-      "left": 395.90625,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 192,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -76,11 +76,11 @@
     "scheme": "light",
     "tail": {
       "text": "放了 4 张，已改成全能参考",
-      "left": 441.515625,
+      "left": 342,
       "right": 588,
       "top": 270,
       "bottom": 288,
-      "w": 146,
+      "w": 246,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -147,11 +147,11 @@
     "scheme": "light",
     "tail": {
       "text": "放了 5 张，已改成全能参考",
-      "left": 441.828125,
+      "left": 390,
       "right": 588,
       "top": 270,
       "bottom": 288,
-      "w": 146,
+      "w": 198,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -218,11 +218,11 @@
     "scheme": "light",
     "tail": {
       "text": "参考图 12 张",
-      "left": 520.4375,
+      "left": 54,
       "right": 588,
       "top": 351,
       "bottom": 369,
-      "w": 68,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -289,11 +289,11 @@
     "scheme": "light",
     "tail": {
       "text": "放了 50 件，已改成全能参考",
-      "left": 434.265625,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 154,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -360,11 +360,11 @@
     "scheme": "light",
     "tail": {
       "text": "可灵 4.0 最多用 2 张，其余 28 张不会发",
-      "left": 371.625,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 216,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -431,11 +431,11 @@
     "scheme": "light",
     "tail": {
       "text": "参考图 2 张",
-      "left": 526,
+      "left": 246,
       "right": 588,
       "top": 270,
       "bottom": 288,
-      "w": 62,
+      "w": 342,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -507,11 +507,11 @@
     "scheme": "light",
     "tail": {
       "text": "参考图 2 张",
-      "left": 526,
+      "left": 246,
       "right": 588,
       "top": 225,
       "bottom": 243,
-      "w": 62,
+      "w": 342,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -649,11 +649,11 @@
     "scheme": "light",
     "tail": {
       "text": "图 30 · 视频 10 · 音频 10，都放满了",
-      "left": 395.90625,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 192,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -752,11 +752,11 @@
     "scheme": "light",
     "tail": {
       "text": "30 images · 10 videos · 10 audio, all full",
-      "left": 367.015625,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 221,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -823,11 +823,11 @@
     "scheme": "light",
     "tail": {
       "text": "4 images added, switched to Reference",
-      "left": 361.8125,
+      "left": 342,
       "right": 588,
       "top": 270,
       "bottom": 288,
-      "w": 226,
+      "w": 246,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -894,11 +894,11 @@
     "scheme": "light",
     "tail": {
       "text": "5 images added, switched to Reference",
-      "left": 362.125,
+      "left": 54,
       "right": 588,
       "top": 303,
       "bottom": 321,
-      "w": 226,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -965,11 +965,11 @@
     "scheme": "light",
     "tail": {
       "text": "12 references",
-      "left": 511.515625,
+      "left": 54,
       "right": 588,
       "top": 351,
       "bottom": 369,
-      "w": 76,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -1036,11 +1036,11 @@
     "scheme": "light",
     "tail": {
       "text": "50 inputs added, switched to Reference",
-      "left": 360.21875,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 228,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -1106,12 +1106,12 @@
     "lang": "en",
     "scheme": "light",
     "tail": {
-      "text": "可灵 4.0 takes up to 2; the other 28 won't be sent",
-      "left": 309.15625,
+      "text": "Kling 4.0 takes up to 2; the other 28 won't be sent",
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 279,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -1178,11 +1178,11 @@
     "scheme": "light",
     "tail": {
       "text": "2 references",
-      "left": 517.09375,
+      "left": 246,
       "right": 588,
       "top": 270,
       "bottom": 288,
-      "w": 71,
+      "w": 342,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -1254,11 +1254,11 @@
     "scheme": "light",
     "tail": {
       "text": "2 references",
-      "left": 517.09375,
+      "left": 246,
       "right": 588,
       "top": 225,
       "bottom": 243,
-      "w": 71,
+      "w": 342,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -1396,11 +1396,11 @@
     "scheme": "light",
     "tail": {
       "text": "30 images · 10 videos · 10 audio, all full",
-      "left": 367.015625,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 221,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -1499,11 +1499,11 @@
     "scheme": "dark",
     "tail": {
       "text": "图 30 · 视频 10 · 音频 10，都放满了",
-      "left": 395.90625,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 192,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false
@@ -1570,11 +1570,11 @@
     "scheme": "dark",
     "tail": {
       "text": "30 images · 10 videos · 10 audio, all full",
-      "left": 367.015625,
+      "left": 54,
       "right": 588,
       "top": 411,
       "bottom": 429,
-      "w": 221,
+      "w": 534,
       "h": 18,
       "lines": 1,
       "inScroll": false

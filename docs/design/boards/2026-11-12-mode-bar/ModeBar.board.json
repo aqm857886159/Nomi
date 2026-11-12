@@ -726,7 +726,7 @@
       "id": "bar.model.brand-icon",
       "label": "G · 底栏模型格里的品牌图标",
       "change": "new",
-      "status": "missing",
+      "status": "deferred",
       "owner": "下一刀：模型菜单与模型图标（协调另派）",
       "states": [
         "zh-en",
@@ -760,7 +760,11 @@
         "1105-svg",
         "1133-svg",
         "1178-svg"
-      ]
+      ],
+      "userDecision": {
+        "quote": "下一刀模型菜单做（样张 K6，用户 2026-11-12 已批）",
+        "date": "2026-11-12"
+      }
     },
     {
       "id": "bar.mode",
@@ -1473,7 +1477,7 @@
       "id": "model.menu",
       "label": "G · 模型菜单：每行品牌图标 + 名字 + 一句说明，右边走哪家；「变体」并进菜单各占一行",
       "change": "new",
-      "status": "missing",
+      "status": "deferred",
       "owner": "下一刀：模型菜单与模型图标（协调另派）",
       "states": [
         "selected",
@@ -1528,7 +1532,11 @@
         "483-svg",
         "484-span-隐藏模型",
         "485-span-16"
-      ]
+      ],
+      "userDecision": {
+        "quote": "下一刀模型菜单做（样张 K6，用户 2026-11-12 已批）",
+        "date": "2026-11-12"
+      }
     }
   ],
   "boundarySheet": [

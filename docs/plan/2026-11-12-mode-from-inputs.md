@@ -77,7 +77,7 @@
 | 输入减少 | 不跳回 | 重新算置灰 | 照常 | 可点 |
 | 输入删光 | 文生视频 | 同第一行 | 无 | 可点 |
 | 换模型 | 按上面规则重算 | 只列新模型的方式 | 照常 | 可点 |
-| 没有任何方式放得下 | 留在收得最多的 | 全部置灰并报数 | 「最多 N 张，多出的先移走」 | 灰，悬停写原因 |
+| 没有任何方式放得下全部 | 留在收得最多的 | 全部置灰并报数 | 「最多 N 张，多出的先移走」 | 收得下一部分就能发、多出的不发并在行尾说明；一件也收不下才灰 |
 | 图片节点 | 没有方式格 | — | 「参考图 N 张 · 按图改」 | 可点 |
 | 只有一种方式的模型 | 不显示方式格 | — | 照常 | 可点 |
 | 加载中（目录没载入） | 模型钮骨架，方式格等档案到了再算 | — | — | 不变 |
@@ -124,7 +124,7 @@
 1. 穷举 `modeForInputs.exhaustive.test.ts`：反例「把现算改回读存着的方式」→ 红。
 2. 九种状态 `canvasModeNineStates.test.ts`：反例「把自动换方式关掉」→ 红。
 3. 菜单置灰 `buildModeMenu` 测试：反例「置灰判断改成恒不置灰」→ 红。
-4. 请求体 `tests/ux/_referenceLeakWire.test.mjs`：反例「把『不会发』的图也发出去」→ 红。
+4. 请求体 `src/workbench/generationCanvas/runner/referenceSentWithinInUse.property.test.ts`：反例「把『不会发』的图也发出去」→ 红。
 5. 对调钮 `frameSwapKeepsSendable.exhaustive.test.ts`：每个有首尾帧方式的档案 × 只放首帧 / 只放尾帧 / 两张都放，断言「可点 ⇔ 对调后发得出去」；反例「恒可点」→ 38 条红。
 6. 结构：`modeTestHelpers` 进生产代码 → eslint 红。
 7. 走查：`tests/ux/mode-bar.walk.mjs`（板 A–J、K1–K5，中 / 英 / 暗）、`tests/ux/composer-b3.walk.mjs`（共享参考行的其它宿主与分镜行不变）；边界 K1–K5 先红后绿。

@@ -1,6 +1,6 @@
 {
   "id": "composer-open-params-refs-30",
-  "feature": "生成框 B3：参考行有 30 张图时，点参数摘要钮，参数面板（生成方式在顶部）出现",
+  "feature": "生成框 B3：参考行有 30 张图时，点参数摘要钮，参数面板出现（方式在底栏方式格，不在面板里）",
   "script": "tests/perf/composer-refs-bench.mjs",
   "args": [
     "--op",
