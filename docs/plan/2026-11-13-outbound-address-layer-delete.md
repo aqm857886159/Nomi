@@ -95,7 +95,7 @@ macOS 本机回环假上游 + 真 Electron（隔离资料目录）：见 PR「�
 | 11 | 丙类清单 | — | 报告列出 |
 | 12 | 老用户两种形状（见 ★1c） | 删掉 `RETIRED_CODES` 的映射 / 把 `outbound-blocked-submit` 映射到取回族码 | `retrievalRecoverable.test.ts`「老数据」组、`classifyGenerationError.test.ts`「老数据」组红 |
 
-回滚：revert 本分支的提交。真实场景复现：用户那次是开着真代理 + APIMart；本线用回环假上游 + 真 Electron，接入地址 `http://127.0.0.1:<port>`，修前（origin/main）提交被拦、修后提交与取回成片落画布。差别：没有真代理、没有 198.18 解析（由单测矩阵覆盖）。
+回滚：revert 本分支的提交。真实场景复现：用户那次是开着真代理 + APIMart；本线用回环假上游 + 真 Electron（无实验室例外）走了两遍：① 接入地址 `http://127.0.0.1:<port>`、成片也在同一 origin——修前修后都成功（main 上「连接自己的 origin」本来就放行，这一遍不是复现）；② 同一假上游把成片链接给成 `http://localhost:<port>`（与连接不同源的本机地址）——修前（origin/main）取不回、节点停在「可找回」，修后成片落画布。差别：没有真代理、没有 198.18 解析，用户那次的「提交前被拦」在真 Electron 里复现不了（要改系统 DNS / hosts，任务书不许），由单测矩阵 `outboundNoAddressBlock.test.ts` 覆盖。
 残余风险：恶意中转站可以借 Nomi 往局域网发一次不带密钥的请求（内容只留在本机项目）；丙 1-3 媒体取回同样不判地址（只有响应头类型白名单，音频 / 即梦收 octet-stream，无文件头校验）；丙 4 / 丙 5 待定（见报告）。
 
 ## 门岗 `check:outbound-policy`：保留、缩小
