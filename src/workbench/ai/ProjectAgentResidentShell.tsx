@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import { DesignModal } from '../../design'
 import { SystemPromptSection } from './systemPrompt/SystemPromptSection'
-import { STORYBOARD_PLANNER_SKILL } from '../generationCanvas/agent/storyboardLauncher'
+import { storyboardLaunchMessage } from '../generationCanvas/agent/storyboardLauncher'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useAgentReferenceMentions } from './resident/useAgentReferenceMentions'
 import { useComposerAttachments, COMPOSER_ATTACHMENT_ACCEPT } from './composer/useComposerAttachments'
@@ -316,13 +316,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // 免得一个隐藏的创作坞在之后接到点击。
   React.useEffect(() => {
     if (surface !== 'creation') return
+    // 这是用户亲手点「拆分镜」：挂分镜规划技能，结果方案照常替他打开（Agent 自己决定建的方案才不打开）。
     const launch = (displayPrompt?: string): void => {
-      void actions.send([t('agentResident.storyboardRequest'), displayPrompt].filter(Boolean).join('\n\n'), {
-        skillKey: STORYBOARD_PLANNER_SKILL.key,
-        // 这是用户亲手点「拆分镜」：结果方案照常替他打开（Agent 自己决定建的方案才不打开）。
-        openStoryboardResult: true,
-        ...(displayPrompt ? { displayText: displayPrompt } : {}),
-      })
+      const { text, options } = storyboardLaunchMessage(t('agentResident.storyboardRequest'), displayPrompt)
+      void actions.send(text, options)
     }
     setStoryboardPlannerLauncher(launch)
     return () => setStoryboardPlannerLauncher(null)

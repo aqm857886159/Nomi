@@ -1231,7 +1231,7 @@ showUndoToast({ message, onUndo, isUndoable, watchUndoable })
 | 中英互译提示词（选中段或整段，原地替换）| `IconLanguage` | 生成节点浮框 B 簇 `NodePromptTranslator`，在「优化」左边。词典里没有现成的：`IconWorld` 读成「联网/公开」、`IconAbc`/`IconLetterCase` 读成「大小写/字体」——「文/A」双字形是各家翻译按钮的通用图形，遮住文字也说得出是翻译 |
 | 你的项目和素材留在本机、这次操作不动它（一句保证，放在动作前的说明行里）| `IconShieldCheck` | 应用内更新弹窗 `UpdateDialog` 的「项目和素材都在你电脑上，更新只换 Nomi 本身」那一行（2026-10-09）。词典里没有现成的：`IconLock` 已是「自动化与权限 / 受限」的语义，在这里会读成「被锁住」；`IconFolder` 读成「文件夹入口」而不是「保证」；`IconCircleCheck` 只表状态完成，不表保护。|
 | 剪辑（取视频的一段，拖入点 / 出点）| `IconCut` | 视频节点浮条「剪辑」钮（样张 `video-node-next`，2026-10-09 待拍板）。与剪辑节点「分割片段」同一把刀：都是在时间轴上切 |
-| 拆解（把一条视频按镜头分开）| `IconLayoutRows` | 视频节点浮条「拆解▾」及其「按镜头拆」项（同上样张）。取分镜分类图标（§7 shots）：拆出来的产物就是分镜，不再用剪刀，免得和「剪辑」并排两把剪刀 |
+| 拆解（把一条视频按镜头分开）| `IconLayoutRows` | 视频节点浮条「拆解▾」及其「按镜头拆」项（同上样张）。取分镜分类图标（§7 shots）：拆出来的产物就是分镜，不再用剪刀，免得和「剪辑」并排两把剪刀；创作区选区浮条「拆成镜头」（2026-11-12 用户拍板样张 B，替掉读作「视频」的胶片 `IconMovie`，钮挪到「AI 编辑」右边，不和图片 / 视频排在「生成」组里） |
 | 指向的目标已不在画布上（聊天里的指向元素「已删除」，只在指向元素上有）| `IconLinkOff` | `NodePointer` 已删除态的圆托与 P2 行尾（NodePointer 板 `pointer.deleted`，2026-10-23 D2）。词典里没有现成的：`IconTrash` 是「删除」这个动作的按钮，放在一个不可点的状态上会读成「点了删掉」；断开的链才说得出「指着的那个东西没了」 |
 | 定位到画布上的那个节点（动作「去定位」与结果「已定位」同一个图形）| `IconFocus2` | 分镜行菜单「定位」（`StoryboardShotRow`，`storyboardEditor.rowMenu.locateInCanvas`：定位到画布上那一镜）；`NodePointer` 左上「已定位」小标与 P2 行尾（NodePointer 板 `pointer.located`，2026-10-23 D2；点过、画布定位过去的那一项，回到对话后仍标着）。同一个「定位」语义全仓一个图标，不另选：`IconPointer` 是鼠标点选、`IconTarget` 不在词典里；圆心一点的取景框说得出「对准了某个东西」 |
 

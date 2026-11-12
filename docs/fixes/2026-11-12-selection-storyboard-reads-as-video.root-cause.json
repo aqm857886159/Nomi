@@ -1,0 +1,121 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-12-selection-storyboard-reads-as-video",
+  "detected_by": "user",
+  "problem_type": "选区浮条上一颗钮的长相和它做的事对不上：图标读作「视频」，后果是把文字发进对话",
+  "symptom": "用户 2026-11-08：「我在文本区域点击了，滑中句子，点击视频icon，然后为什么发送了文字」。浮条「生成」组第三颗是胶片图标（「拆成镜头」），点了把选中的句子作为一条消息发进右侧 Agent 对话。",
+  "direct_cause": "src/workbench/creation/SelectionGeneratePopover.tsx 里「拆成镜头」用 IconMovie（胶片），和「生成图片」「生成视频」排在同一个「生成」组；它是唯一不建节点、而是发进对话的那颗。长相、位置、去处分在三处写：钮内联在浮条里，建节点走 createNodeFromSelection.ts，拆镜头走内联 onStoryboard。",
+  "class_root": "选区动作的「长什么样、排在哪组、点了去哪」没有一个家：每颗钮在浮条里各写一遍，分派有两条路。于是没有任何东西能看出「排在生成组的那颗其实不生成节点」，图标挑错也没人对得上去处。",
+  "migration": "不涉及存量数据：只改浮条的钮从哪张表画、点了走哪条分派。旧文件 createNodeFromSelection.ts 和无人读的 creationSelectionText 同提交删掉。",
+  "affected_population": [
+    "在创作文档里选中文字后用浮条生成图片 / 视频 / 拆成镜头的创作者"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/"
+  ],
+  "entry_points": [
+    "src/workbench/creation/SelectionGeneratePopover.tsx（浮条，唯一画钮的地方）",
+    "src/workbench/creation/selectionActions.ts runSelectionAction（唯一分派）"
+  ],
+  "invariants": [
+    "浮条上每颗选区动作钮都来自 SELECTION_ACTIONS 一张表，长相、组、去处在同一行",
+    "「生成」组里只有建画布节点的钮；交给 Agent 的放在「AI 编辑」那组",
+    "点钮只经 runSelectionAction 一条分派"
+  ],
+  "doors": [
+    {
+      "kind": "write",
+      "path": "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "symbol": "runSelectionAction"
+    }
+  ],
+  "door_reduction": {
+    "before": 2,
+    "after": 1
+  },
+  "regression_tests": [
+    "src/workbench/creation/selectionActions.test.ts"
+  ],
+  "residual_risks": [
+    "图标读不读得懂仍要靠人看：结构测试只钉住「拆成镜头」用 IconLayoutRows、表里没有 IconMovie；以后换别的图标，盲测仍要走设计系统语义图标表"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.nngroup.com/articles/icon-usability/",
+      "checked_at": "2026-11-12",
+      "purpose": "图标大多有歧义：确认胶片读作「视频」是图标选择问题，要换成语义表里已登记的图标"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "只要浮条里有人再内联一颗不经动作表的钮，或者把交给 Agent 的动作排进「生成」组，长相和去处又会对不上。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs createNodeFromSelection → 修前 1 扇（SelectionGeneratePopover.tsx handleCreate）；另一条是内联 onStoryboard",
+      "node scripts/door-map.mjs runSelectionAction → 修后 1 扇（SelectionGeneratePopover.tsx）"
+    ]
+  },
+  "generality_proof": "修在选区动作这一个边界：钮只能从 SELECTION_ACTIONS 按组画（selectionActionsIn），点了只能经 runSelectionAction；selectionActions.test.ts 用结构测试禁止浮条里直接调 addGenerationNode / launchStoryboard / setWorkspaceMode 或直接 import 图标，并断言「生成」组里全是建节点的去处。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/selectionActions.ts",
+      "symbol": "SELECTION_ACTIONS / runSelectionAction",
+      "responsibility": "选区动作长什么样、排哪组、点了去哪，以及唯一的分派。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "entry_point": "actionButton",
+      "disposition": "enforced",
+      "evidence": "钮按 selectionActionsIn(cluster) 画，点击经 runSelectionAction；结构测试钉住。"
+    },
+    {
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "entry_point": "SelectionGeneratePopover launchStoryboard",
+      "disposition": "enforced",
+      "evidence": "只把常驻 Agent 的分镜启动器传进去，不再自己写 creationSelectionText 或拼消息。"
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "storyboardPlannerLauncher",
+      "disposition": "not-affected",
+      "evidence": "启动器的消息由 storyboardLaunchMessage 一处拼，带技能 key；选区和分镜面板两个入口共用。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/selectionActions.ts",
+    "invariant": "选区动作的长相、组、去处只在一张表里，分派只有一条。",
+    "failure_mode": "浮条里另起一颗不经表的钮、或把 agent 去处的动作放进「生成」组，selectionActions.test.ts 红；设计实验室走查按真 DOM 从左到右核对组和图标，也红。",
+    "exception_policy": "none",
+    "strategy": "一张表加一条分派，浮条只按表画；看得见的换图标和挪位按用户拍板的样张 B。",
+    "artifacts": [
+      "src/workbench/creation/selectionActions.ts",
+      "src/workbench/creation/SelectionGeneratePopover.tsx",
+      "src/workbench/creation/selectionActions.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/creation/selectionActions.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/createNodeFromSelection.ts"
+    ],
+    "rationale": "旧的建节点分派文件和浮条里的内联拆镜头分派同提交删掉，没有并行版。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只动 Nomi 自己的代码。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-12-12",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/selectionActions.ts",
+    "tests": [
+      "src/workbench/creation/selectionActions.test.ts"
+    ]
+  }
+}
