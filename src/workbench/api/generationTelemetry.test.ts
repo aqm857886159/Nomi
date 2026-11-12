@@ -39,9 +39,9 @@ describe('失败三格：上游怎么答的 / 卡在哪一段 / 本机哪条规�
     }
   })
 
-  it('出网地址那一层的拒发不进闭合表（那一层正在删），只记 uncoded', () => {
-    expect(generationFailureFacts(tagNomiError('outbound-blocked-submit', 'x'), 'submit-threw').localRefusal).toBe('uncoded')
+  it('已删掉的出网地址码不在闭合表里', () => {
     expect(GENERATION_LOCAL_REFUSALS as readonly string[]).not.toContain('outbound-blocked-submit')
+    expect(GENERATION_LOCAL_REFUSALS as readonly string[]).not.toContain('outbound-blocked')
   })
 
   it('分类器判成 local-refusal 的主进程结构化拒发（没有 Nomi 码）也是没发出去，规则 uncoded', () => {

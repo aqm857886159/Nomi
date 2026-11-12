@@ -55,7 +55,6 @@ const STAGE_OF_CODE: Partial<Record<NomiErrorCode, GenerationFailureStage>> = {
   'retrieval-unavailable': 'wait',
   'retrieval-download': 'fetch',
   'output-retrieval-failed': 'fetch',
-  'outbound-blocked': 'fetch',
   'output-unreadable': 'land',
 }
 
