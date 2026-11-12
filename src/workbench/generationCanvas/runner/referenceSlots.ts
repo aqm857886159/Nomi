@@ -11,9 +11,9 @@ import { remainingReferenceCapacity } from '../../../../electron/shared/videoCap
 //   故 fills 即使 url 为 null 也保留，显示画「已连接·待生成」占位 → 不再「连线没用」。
 // - **来源判别**：每个 fill 标明来自边（带源节点 id + 语义）还是上传。
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
-import type { ArchetypeReferenceSlot, ArchetypeReferenceSlotKind } from '../../../../electron/shared/modelArchetypes'
-import { applyArchetypeModeSwitch, currentArchetypeMode, referenceSlotStorage } from '../nodes/controls/archetypeMeta'
-import { archetypeForNode, referenceAssetKindForNode, resolveTargetModeForEdge, SLOT_ACCEPTS, preferredSlotKinds, type ReferenceAssetKind } from '../agent/referenceEdgeCapability'
+import type { ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind } from '../../../../electron/shared/modelArchetypes'
+import { effectiveArchetypeMode, referenceSlotStorage } from '../nodes/controls/archetypeMeta'
+import { archetypeForNode, referenceAssetKindForNode, SLOT_ACCEPTS, preferredSlotKinds, type ReferenceAssetKind } from '../agent/referenceEdgeCapability'
 import { sortEdgesByOrder } from '../model/graphOps'
 import { asUrl, findNodeResultUrl } from './referenceUrl'
 import { isImageUploadSlot, listPlacementInputs, placeUploadedImages } from '../nodes/controls/referenceList'
@@ -135,6 +135,8 @@ export function resolveReferenceSlots(
 export type ReferencePlacementOptions = {
   /** 渠道只收得下更少时按槽收窄上限（参考行用：中转只有单图位）。不传按档案声明。 */
   capOf?: (slot: ArchetypeReferenceSlot) => number | undefined
+  /** 按这个摆法排（判断「再连一条进来放不放得下」时用连上之后现算的摆法）；不传 = 这张画布上现算的摆法。 */
+  layout?: ArchetypeMode
 }
 
 /**
@@ -150,7 +152,11 @@ export function resolveReferencePlacement(
   const archetype = archetypeForNode(target)
   if (!archetype) return { slots: [], unused: [], parked: [] }
   const meta = (target.meta || {}) as Record<string, unknown>
-  const mode = currentArchetypeMode(archetype, meta)
+  // 参考行按「图怎么摆」排（layout）。layout 与这次发的方式不一样，只出现在这次一张都没收下的时候（首尾帧版式空着、
+  // 或只放了尾帧被按文字发）：格子照版式显示，节点上的图一张都不落进去、全部淡显「未用到」——请求里也确实不带它们。
+  const resolution = options.layout ? null : effectiveArchetypeMode(archetype, target, { nodes, edges })
+  const mode = options.layout ?? resolution!.layout
+  const sendsNothing = Boolean(resolution && resolution.layout.id !== resolution.mode.id)
   const slots = mode.slots
   if (slots.length === 0) {
     const inputs = listPlacementInputs(meta, mode)
@@ -206,7 +212,7 @@ export function resolveReferencePlacement(
 
   // 2a) 视频 / 音频 / 源视频的上传：各住各的键，填剩余空位。
   slots.forEach((slot, slotIndex) => {
-    if (isImageUploadSlot(slot.kind)) return
+    if (sendsNothing || isImageUploadSlot(slot.kind)) return
     const storage = referenceSlotStorage(slot)
     if (!storage) return
     const raw = meta[storage.metaKey]
@@ -228,7 +234,7 @@ export function resolveReferencePlacement(
     countBySlot: positionsBySlot.map((row) => row.filter(Boolean).length),
     urls: occupiedUrls,
   }, {
-    totalBudget: mode.maxTotalReferences === undefined ? undefined : mode.maxTotalReferences - occupiedTotal,
+    totalBudget: sendsNothing ? 0 : mode.maxTotalReferences === undefined ? undefined : mode.maxTotalReferences - occupiedTotal,
     firstFrameEmpty: inputs.firstFrameEmpty,
     parked: inputs.parked,
     ...(options.capOf ? { capOf: (slotIndex: number) => options.capOf!(slots[slotIndex]!) } : {}),
@@ -338,12 +344,12 @@ export function canFitReferenceEdge(source: GenerationCanvasNode, target: Genera
   const archetype = archetypeForNode(target)
   const asset = referenceAssetKindForNode(source)
   if (!archetype || !asset) return true
-  const promoted = resolveTargetModeForEdge(source, target, semantic)
-  const effectiveTarget = promoted ? { ...target, meta: applyArchetypeModeSwitch(target.meta ?? {}, archetype, promoted) } : target
-  const mode = currentArchetypeMode(archetype, effectiveTarget.meta ?? {})
+  // 连上之后这一格按什么摆，由连上之后的输入现算（不再先把方式写进节点）；已有的东西按那个摆法排一遍再看有没有空位。
+  const pending: GenerationCanvasEdge = { id: `pending-${source.id}-${target.id}`, source: source.id, target: target.id, mode: semantic }
+  const mode = effectiveArchetypeMode(archetype, target, { nodes, edges: [...edges, pending] }).layout
   const candidates = edgeSlotCandidates(semantic, asset, mode.slots)
   if (!candidates.length) return false
-  const filled = resolveReferenceSlots(effectiveTarget, [...nodes], [...edges])
+  const filled = resolveReferencePlacement(target, [...nodes], [...edges], { layout: mode }).slots
   const hasRoom = candidates.some(({ slotIndex }) => {
     const slot = filled[slotIndex]!
     return slot.max === undefined || slot.fills.length < slot.max

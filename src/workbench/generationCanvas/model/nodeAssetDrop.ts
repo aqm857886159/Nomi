@@ -1,13 +1,14 @@
 // 拖入 / 连线 → 参考 的**纯**路由逻辑（无 React / 无 store / 无 toast，可单测）。
 // 职责：把「拖进来的东西的类型(image/video/audio)」映射出来，并据节点当前模型档案的当前模式，
 // 找到匹配该类型的数组参考槽。写入由 nodeAssetWrite 经 appendArchetypeArrayValue 单源完成。
-import type { GenerationNodeKind } from './generationCanvasTypes'
+import type { GenerationCanvasNode, GenerationNodeKind } from './generationCanvasTypes'
 import { mediaKindFromExtension } from '../../../../electron/assets/mediaTypes'
 import { isImageLikeGenerationNodeKind, isVideoLikeGenerationNodeKind } from './generationNodeKinds'
 import {
   type ArchetypeArraySlot,
   archetypeModeArraySlots,
-  currentArchetypeMode,
+  effectiveArchetypeModeWithUpload,
+  type ModeGraph,
   resolveArchetypeForModel,
 } from '../nodes/controls/archetypeMeta'
 
@@ -52,13 +53,19 @@ export function dropKindFromNodeKind(kind: GenerationNodeKind): AssetDropKind | 
   return null
 }
 
+const DROP_KINDS: readonly AssetDropKind[] = ['image', 'video', 'audio']
+
 /**
- * 节点当前模型档案 + 当前模式声明的数组参考槽（无档案 / 当前模式无数组槽 → []）。
- * 内置家之内供应商无关；自定义中转不套档案（vendor 门在 resolveArchetypeForModel）。从持久化的
- * node.meta 解析（单源真相）。
+ * 把一件 kind 放进这个节点之后，它按哪种摆法、有哪些数组参考槽（无档案 / 那个摆法无数组槽 → []）。
+ * 方式按「放进去之后的输入」现算（effectiveArchetypeModeWithUpload），不读存着的方式；不给 kind 就合并三种的槽
+ * （「这个节点收不收拖放」用）。内置家之内供应商无关；自定义中转不套档案（vendor 门在 resolveArchetypeForModel）。
  */
-export function resolveNodeArraySlots(meta: Record<string, unknown> | undefined): ArchetypeArraySlot[] {
-  const m = meta || {}
+export function resolveNodeArraySlots(
+  node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>,
+  graph: ModeGraph,
+  kind?: AssetDropKind,
+): ArchetypeArraySlot[] {
+  const m = (node.meta || {}) as Record<string, unknown>
   const archetype = resolveArchetypeForModel({
     modelKey: typeof m.modelKey === 'string' ? m.modelKey : undefined,
     modelAlias: typeof m.modelAlias === 'string' ? m.modelAlias : undefined,
@@ -66,7 +73,14 @@ export function resolveNodeArraySlots(meta: Record<string, unknown> | undefined)
     meta: m,
   })
   if (!archetype) return []
-  return archetypeModeArraySlots(currentArchetypeMode(archetype, m))
+  const slots: ArchetypeArraySlot[] = []
+  for (const asset of kind ? [kind] : DROP_KINDS) {
+    const layout = effectiveArchetypeModeWithUpload(archetype, node, graph, asset).layout
+    for (const slot of archetypeModeArraySlots(layout)) {
+      if (slot.accept === asset && !slots.some((existing) => existing.metaKey === slot.metaKey)) slots.push(slot)
+    }
+  }
+  return slots
 }
 
 /** 在数组槽列表里挑出 accept 匹配 kind 的那个（每模式每类型至多一个；无则 null）。 */

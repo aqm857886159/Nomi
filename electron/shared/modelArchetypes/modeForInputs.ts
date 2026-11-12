@@ -170,7 +170,7 @@ export function modeForInputs(
   }
 
   // 否则按输入挑：收下最多者胜；同样多时，和偏好落在同一种格子里的优先（手选首尾帧只放一张 → 按首帧发），
-  // 再按参考类 > 图参考 > 首帧类，再按格子对不对口，最后按档案声明顺序。
+  // 再按格子对不对口（输入自己的角色），再按参考类 > 图参考 > 首帧类，最后按档案声明顺序。
   const agrees = (fit: Fit) => Boolean(preferredFit && preferredFit.filledKinds.size > 0 && [...preferredFit.filledKinds].every((kind) => fit.filledKinds.has(kind)))
   let best: { mode: ArchetypeMode; fit: Fit } | null = null
   for (const mode of archetype.modes) {
@@ -180,8 +180,9 @@ export function modeForInputs(
     const order = [
       fit.taken - best.fit.taken,
       Number(agrees(fit)) - Number(agrees(best.fit)),
-      workflowClass(best.mode) - workflowClass(mode),
+      // 输入自己说了落哪种格子（首帧边就是首帧）先于方式的类别：一条首帧边不会被当成参考发。
       best.fit.rankSum - fit.rankSum,
+      workflowClass(best.mode) - workflowClass(mode),
     ].find((value) => value !== 0) ?? 0
     if (order > 0) best = { mode, fit }
   }

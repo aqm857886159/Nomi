@@ -18,7 +18,7 @@ import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNo
 import { getGenerationNodeDefinition, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import type { ArchetypeMode, ArchetypeReferenceSlotKind, ModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
-import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
+import { effectiveArchetypeMode, effectiveArchetypeModeWithUpload } from '../nodes/controls/archetypeMeta'
 import { SLOT_ACCEPTS, type ReferenceAssetKind } from '../../../../electron/shared/modelArchetypes/anchorPolicy'
 // 「这条边合不合法」的规则只有 electron/shared/canvas/edgeAdmission 一份（主进程 headless 写图也要过它）；这里只 re-export 给渲染层调用方。
 import { EDGE_MODE_SLOTS, archetypeForNode, isTextPromptEdge, referenceAssetKindForNode, validateReferenceEdge } from '../../../../electron/shared/canvas/edgeAdmission'
@@ -137,7 +137,7 @@ export function connectionCreateVerdictsForTarget<K extends GenerationNodeKind>(
 }
 
 /**
- * 手动连线时按**目标当前模式**挑边语义（mode）的单一真相源。地基收口（audit 2026-06-16 §1d）：
+ * 手动连线时按**目标此刻的摆法（layout）**挑边语义（mode）的单一真相源。地基收口（audit 2026-06-16 §1d）：
  * 数组参考槽（image_ref，characterIndexed，如 Seedance omni 的「角色参考」最多 9 张）现在也建有序边，
  * 故落它的边要用 `character_ref` 语义（按序对应 character1..N），而非首/尾帧——后者会污染 firstFrameUrl、
  * 触发尾帧接力误判，且在 omni 模式被 M2 互斥丢掉。
@@ -151,9 +151,10 @@ export function connectionCreateVerdictsForTarget<K extends GenerationNodeKind>(
 export function selectConnectionEdgeMode(
   source: GenerationCanvasNode,
   target: GenerationCanvasNode,
-  existingEdgesToTarget: readonly GenerationCanvasEdge[],
+  nodes: readonly GenerationCanvasNode[],
+  edges: readonly GenerationCanvasEdge[],
 ): GenerationCanvasEdgeMode {
-  if (referenceAssetKindForNode(source) === 'image' && target.kind === 'video') return preferredIncomingImageEdgeMode(target, existingEdgesToTarget)
+  if (referenceAssetKindForNode(source) === 'image' && target.kind === 'video') return preferredIncomingImageEdgeMode(target, nodes, edges)
   return 'reference'
 }
 
@@ -166,161 +167,38 @@ function edgeModeForArchetypeMode(mode: ArchetypeMode, existingEdgesToTarget: re
   return mode.slots.some((slot) => slot.kind === 'image_ref') ? 'reference' : 'first_frame'
 }
 
-const REFERENCE_WORKFLOW_INTENTS = ['reference', 'character', 'multimodal']
-
-/**
- * The one ranking of which workflow an incoming image lands in: the model's declared reference
- * workflows first, then other image-reference workflows, then first-frame workflows. Both the edge
- * vocabulary (`preferredIncomingImageEdgeMode`, before the edge exists) and the mode switch
- * (`resolveTargetModeForEdge`, after it exists) read this ranking; they differ only in what
- * "this mode can take it" means. Intents and slots come from the archetype, never a model id.
- */
-function preferredImageWorkflow(archetype: ModelArchetype, accepts: (mode: ArchetypeMode) => boolean): ArchetypeMode | undefined {
-  return archetype.modes.find((candidate) => REFERENCE_WORKFLOW_INTENTS.includes(String(candidate.intent)) && accepts(candidate))
-    ?? archetype.modes.find((candidate) => (
-      candidate.slots.some((slot) => slot.kind === 'image_ref')
-      && !['single', 'firstlast'].includes(String(candidate.intent))
-      && accepts(candidate)
-    ))
-    ?? archetype.modes.find((candidate) => candidate.slots.some((slot) => slot.kind === 'first_frame') && accepts(candidate))
-}
-
 const acceptsIncomingImage = (mode: ArchetypeMode): boolean => mode.slots.some((slot) => slot.kind === 'image_ref' || slot.kind === 'first_frame')
 
-function preferredIncomingImageEdgeMode(target: GenerationCanvasNode, existingEdgesToTarget: readonly GenerationCanvasEdge[]): GenerationCanvasEdgeMode {
+/**
+ * 一张图连进视频节点、边还没建时，这条边叫什么（首帧 / 尾帧 / 角色参考 / 参考）：按目标此刻的摆法（layout）；
+ * 此刻的摆法收不了图（文字生成），就按「连上之后」现算的摆法——方式不写进节点，发送时按输入现算。
+ */
+function preferredIncomingImageEdgeMode(
+  target: GenerationCanvasNode,
+  nodes: readonly GenerationCanvasNode[],
+  edges: readonly GenerationCanvasEdge[],
+): GenerationCanvasEdgeMode {
   const archetype = archetypeForNode(target)
   if (!archetype) return 'first_frame'
-  const currentMode = currentArchetypeMode(archetype, (target.meta || {}) as Record<string, unknown>)
-  if (acceptsIncomingImage(currentMode)) return edgeModeForArchetypeMode(currentMode, existingEdgesToTarget)
-  const preferred = preferredImageWorkflow(archetype, acceptsIncomingImage)
-  return preferred ? edgeModeForArchetypeMode(preferred, existingEdgesToTarget) : 'reference'
-}
-
-/**
- * 连线落地后，目标该切到哪个「生成方式」才能真正消费这条参考边。纯函数，可单测，单一真相源。
- *
- * 根因（2026-06-29）：节点「生成方式」(t2i/edit/i2v…) 是 `node.meta.archetype.modeId` 的**持久状态**，
- * 默认落在 defaultModeId（如 nano-banana 的 t2i 文生图，slots:[] 无参考槽）。connectToNode 过去只建边、
- * 从不回看目标模式 → 把一张图连进新图片节点，节点仍停在「文生图」，图无槽可落，逼用户手动切「改图」。
- *
- * 规则：目标**当前模式**已有能消费（该 edge mode + 该源资产）的槽 → null（不切，尊重当前/用户的选择）；
- * 否则在档案里找**第一个**能消费的模式，返回其 id（连线后切到它，如 t2i→edit 参考图）。
- * 都不行 / 无档案 / 源无可参考产物 → null（真不支持的边 validateReferenceEdge 已在前面拦掉）。
- * 全从档案的参考槽声明派生，不写死任何 model/mode 字符串（P4 通用，与 validateReferenceEdge 同口径）。
- */
-export function resolveTargetModeForEdge(
-  source: GenerationCanvasNode,
-  target: GenerationCanvasNode,
-  mode: GenerationCanvasEdgeMode | undefined,
-): string | null {
-  const asset = referenceAssetKindForNode(source)
-  if (!asset) return null
-  const archetype = archetypeForNode(target)
-  if (!archetype) return null
-  const currentMode = currentArchetypeMode(archetype, (target.meta || {}) as Record<string, unknown>)
-  const demand: ReferenceDemand = { slots: EDGE_MODE_SLOTS[mode ?? 'reference'], asset }
-  const rankOf = (candidate: ArchetypeMode): number =>
-    demand.slots.findIndex((kind) => SLOT_ACCEPTS[kind].includes(asset) && candidate.slots.some((slot) => slot.kind === kind))
-  // A newly connected image enters the same preferred workflow the edge vocabulary picked
-  // (one ranking, see preferredImageWorkflow), restricted to modes that can take this edge.
-  if (rankOf(currentMode) < 0) {
-    const preferred = preferredImageWorkflow(archetype, (candidate) => rankOf(candidate) >= 0)
-    if (preferred && preferred.id !== currentMode.id) return preferred.id
-  }
-  return resolveModeForReferenceDemand(archetype, (target.meta || {}) as Record<string, unknown>, [
-    demand,
-  ])
+  const existingEdgesToTarget = edges.filter((edge) => edge.target === target.id)
+  const layout = effectiveArchetypeMode(archetype, target, { nodes, edges }).layout
+  if (acceptsIncomingImage(layout)) return edgeModeForArchetypeMode(layout, existingEdgesToTarget)
+  const after = effectiveArchetypeModeWithUpload(archetype, target, { nodes, edges }, 'image').layout
+  return acceptsIncomingImage(after) ? edgeModeForArchetypeMode(after, existingEdgesToTarget) : 'reference'
 }
 
 /** 一条「挂在节点身上的参考需求」：它想落的槽种类集合 × 源资产类型。 */
 export type ReferenceDemand = { slots: readonly ArchetypeReferenceSlotKind[]; asset: ReferenceAssetKind }
 
 /**
- * 给定若干参考需求，当前模式该不该切、切到哪（resolveTargetModeForEdge 的多需求泛化，同一份语义）。
- * 当前模式已能消费**任一**需求 → null（尊重现状，与建边 auto-promote 的幂等口径一致）；
- * 一条都收不下 → 挑「能收下需求条数最多」的模式；档案没有任何模式能收 → null（真不支持）。
- */
-/**
- * 一条边（语义 × 源资产）可落的槽，**按偏好排好序**——落槽（referenceSlots.assignEdgeToSlot）与挑模式
- * （resolveModeForReferenceDemand）共用这一份顺序，不各写一张。
+ * 一条边（语义 × 源资产）可落的槽，**按偏好排好序**——落槽（referenceSlots.assignEdgeToSlot）与现算方式
+ * （modeForInputs 读的 EDGE_MODE_SLOTS）同一份顺序，不各写一张。
  */
 export function preferredSlotKinds(
   mode: GenerationCanvasEdgeMode | undefined,
   asset: ReferenceAssetKind,
 ): ArchetypeReferenceSlotKind[] {
   return EDGE_MODE_SLOTS[mode ?? 'reference'].filter((kind) => SLOT_ACCEPTS[kind].includes(asset))
-}
-
-export function resolveModeForReferenceDemand(
-  archetype: ModelArchetype,
-  meta: Record<string, unknown> | undefined,
-  demands: readonly ReferenceDemand[],
-): string | null {
-  if (!demands.length) return null
-  // 这个模式收这条需求时，用得上的最好的槽在需求的偏好顺序里排第几（收不下 = -1）。
-  const rankOf = (m: ArchetypeMode, d: ReferenceDemand): number =>
-    d.slots.findIndex((kind) => SLOT_ACCEPTS[kind].includes(d.asset) && m.slots.some((slot) => slot.kind === kind))
-  const currentMode = currentArchetypeMode(archetype, meta)
-  if (demands.some((d) => rankOf(currentMode, d) >= 0)) return null
-  // 收下的需求条数最多者胜；条数相同，按边的偏好顺序（EDGE_MODE_SLOTS）取槽更对口的——视频连进刚建的视频节点落「全能参考」
-  // （参考视频），而不是排在前面、只能拿它做首帧接力的「图生视频」（2026-09-24 用户拍板）。
-  let best: ArchetypeMode | null = null
-  let bestScore = 0
-  let bestRank = Infinity
-  for (const m of archetype.modes) {
-    const ranks = demands.map((d) => rankOf(m, d)).filter((rank) => rank >= 0)
-    const rank = ranks.reduce((sum, value) => sum + value, 0)
-    if (ranks.length > bestScore || (ranks.length === bestScore && ranks.length > 0 && rank < bestRank)) {
-      best = m
-      bestScore = ranks.length
-      bestRank = rank
-    }
-  }
-  return best && best.id !== currentMode.id ? best.id : null
-}
-
-/**
- * 按**活边**判断：目标节点当前「生成方式」收不收得下身上挂着的参考，收不下该切到哪。
- *
- * 根因（2026-07-28 群反馈「男的角色图生成出女的」）：建边时的 auto-promote 只覆盖「建边那一刻」，
- * 三条路够不到——①换模型（meta.archetype 失配落回新档案默认 t2i，边还挂着）②提示词库带参考图
- * ③auto-promote 上线前的存量边。停在 t2i 的节点在 buildArchetypeInputParams 的 M2 互斥里把参考
- * 整个丢掉、canRunGenerationNode 又对 t2i 提前放行 → 付费发出纯文生。此函数供提交咽喉/换模型处
- * reconcile 兜底（P2：让整类不再复发）。
- *
- * **只看活边，不看 meta 参考残值**：meta 参考值跨模式持久是拍板过的设计（切模式不清数据，怕丢上传），
- * 用户手动切走后残值不构成「要用参考」的意图；活边是画布上可见的连接，才是意图。
- * 文本 prompt 边（isTextPromptEdge）不是参考素材，不参与。
- */
-export function resolveModeForConnectedReferences(
-  target: GenerationCanvasNode,
-  nodes: readonly GenerationCanvasNode[],
-  edges: readonly GenerationCanvasEdge[],
-  /** 连线之外、同样要这次生成带上的参考（付费卡：画布占位节点自己参考槽里摆着的值）。 */
-  extra: readonly ReferenceDemand[] = [],
-): string | null {
-  const archetype = archetypeForNode(target)
-  if (!archetype || archetype.modes.length <= 1) return null
-  const demands: ReferenceDemand[] = [...extra]
-  for (const edge of edges) {
-    if (edge.target !== target.id) continue
-    const source = nodes.find((n) => n.id === edge.source)
-    if (!source || isTextPromptEdge(source, target, edge.mode)) continue
-    const asset = referenceAssetKindForNode(source)
-    if (!asset) continue
-    demands.push({ slots: EDGE_MODE_SLOTS[edge.mode ?? 'reference'], asset })
-  }
-  return resolveModeForReferenceDemand(archetype, (target.meta || {}) as Record<string, unknown>, demands)
-}
-
-/**
- * 输入没了，生成方式回到文生；参考 / 单图 / 改图才收回，首尾帧是用户在空节点上保留的意图。
- * 这是画布写口的纯判据，不依赖生成框是否挂载。
- */
-export function textModeToReturnTo(archetype: ModelArchetype, activeMode: ArchetypeMode, hasAnyInput: boolean): string | null {
-  if (hasAnyInput) return null
-  if (activeMode.intent !== 'character' && activeMode.intent !== 'single' && activeMode.intent !== 'edit') return null
-  return archetype.modes.find((mode) => mode.intent === 'text')?.id ?? null
 }
 
 /** 参考的用途 → 对应的连线语义（首 / 尾帧照名；角色、通用、音频都按通用参考，落哪一格由目标的槽位解析定）。 */

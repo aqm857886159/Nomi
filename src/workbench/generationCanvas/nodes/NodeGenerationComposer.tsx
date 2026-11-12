@@ -35,7 +35,7 @@ import {
   isVideoLikeGenerationNodeKind,
 } from '../model/generationNodeKinds'
 import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
-import { currentArchetypeMode } from './controls/archetypeMeta'
+import { effectiveArchetypeMode } from './controls/archetypeMeta'
 import { applyPromptReferenceImages } from './promptReferenceImages'
 import { useComposerPromptExpand } from './useComposerPromptExpand'
 import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
@@ -197,8 +197,9 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       vendorKey: typeof meta.modelVendor === 'string' ? meta.modelVendor : typeof meta.vendor === 'string' ? meta.vendor : null,
       meta,
     })
-    return archetype ? currentArchetypeMode(archetype, meta) : null
-  }, [isAudioKind, node.meta])
+    // 声音档案的方式是人选的任务、不按输入改：只问节点自己就够。
+    return archetype ? effectiveArchetypeMode(archetype, node, { nodes: [node], edges: [] }).mode : null
+  }, [isAudioKind, node])
   const audioIsTranscribe = audioMode?.transportTaskKind === 'transcribe'
   const hasPromptPickerButton = Boolean(nodeExecutionKind) && acceptsPrompt && !audioIsTranscribe
   const hasReferenceControls =

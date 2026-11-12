@@ -48,23 +48,21 @@ import { createSlotFileUploads } from './controls/slotFileUploads'
 import { addToArraySlot, assignSlotSource, removeFromArray, removeUnusedReference, reorderArray, restoreParkedReference, setSlotUrl, swapFrameSlots, type ReferenceWriteContext } from './controls/referenceWrites'
 import {
   type ArchetypeArraySlot,
-  applyArchetypeModeSwitch,
   applyArchetypeVariantSwitch,
+  applyHumanModeChoice,
   archetypeModeArraySlots,
   archetypeModeSlots,
   archetypeModeSourceVideoSlot,
   archetypeVariantChoices,
-  currentArchetypeMode,
   currentArchetypeVariant,
+  effectiveArchetypeMode,
   readArchetypeArray,
   referenceSlotStorage,
 } from './controls/archetypeMeta'
 import {
   archetypeModeChoices,
-  archetypeModeIsVisible,
   archetypeModeSlotReachByKey,
   archetypeVariantAxisIsLive,
-  fallbackVisibleModeId,
 } from './controls/channelModeReach'
 import {
   NARROWED_MODE_GUIDANCE_DISMISSED_META_KEY,
@@ -79,7 +77,7 @@ import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
 import ModeBar from './controls/ModeBar'
 import { modePresentationTexts, presentGenerationModes } from './controls/generationModePresentation'
-import { normalizeReferenceListMeta } from './controls/referenceList'
+import { readModePreference } from './controls/modePreference'
 import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import { parameterChipOptions } from './primaryParameterChips'
 import QuantitySelect from './controls/QuantitySelect'
@@ -145,11 +143,15 @@ export default function NodeParameterControls({
   const declaredVariantChoices = archetype ? archetypeVariantChoices(archetype) : []
   const activeVariantId = archetype ? currentArchetypeVariant(archetype, meta)?.id || '' : ''
   const effectiveArchetype = archetype ? specializeArchetypeForVariant(archetype, activeVariantId) : null
-  const archMode = effectiveArchetype ? currentArchetypeMode(effectiveArchetype, meta) : null
+  // 方式按这次的输入现算（modeForInputs，唯一 owner）：archMode = 图怎么摆（分段高亮、参考格子、容量）；
+  // sendMode = 这次发什么（参数、型号变体轴）。两者只在一张输入都没收下时不同。
+  const modeResolution = effectiveArchetype ? effectiveArchetypeMode(effectiveArchetype, node, graph) : null
+  const archMode = modeResolution?.layout ?? null
+  const sendMode = modeResolution?.mode ?? null
   // A point-pick belongs to the slot configuration that opened it.
   React.useEffect(() => () => cancelReferencePick.current?.(), [node.id, openProjectId, archMode?.id, node.meta, edges])
   const imageCatalogConfig = archetype ? null : buildEffectiveImageCatalogConfig(selectedModelOption?.meta)
-  const renderedControls = resolveRenderedControls(selectedModelOption, meta, isImageLike, isVideoLike)
+  const renderedControls = resolveRenderedControls(selectedModelOption, meta, isImageLike, isVideoLike, { node, graph })
 
   const modeBodySpecs = React.useMemo(
     () =>
@@ -166,7 +168,7 @@ export default function NodeParameterControls({
     modeBodySpecs, readMappings,
   )
   // （Runway 把 model 写死、且 veo3.1 / veo3.1_fast 本就是两个目录行）。惰性时整条不显示，别骗用户。
-  const variantChoices = archMode && !archetypeVariantAxisIsLive(modeBodies[archMode.id]) ? [] : declaredVariantChoices
+  const variantChoices = sendMode && !archetypeVariantAxisIsLive(modeBodies[sendMode.id]) ? [] : declaredVariantChoices
   // 槽级收窄仍只看**当前**模式的 body（口径不变）。三态里的 undefined/null 都落到「拿不到 body」→ 不收窄。
   const channelCreateBody = archMode ? (modeBodies[archMode.id]?.body ?? null) : null
   const slotReachByKey = React.useMemo(
@@ -191,18 +193,21 @@ export default function NodeParameterControls({
 
   const updateMeta = (patch: Record<string, unknown>, options?: CanvasMutationOptions) => {
     updateNode(node.id, {
-      meta: archMode ? normalizeConditionalParameters(archMode.params, { ...getLatestMeta(), ...patch }) : { ...getLatestMeta(), ...patch },
+      meta: sendMode ? normalizeConditionalParameters(sendMode.params, { ...getLatestMeta(), ...patch }) : { ...getLatestMeta(), ...patch },
     }, options)
   }
 
+  // 条件参数纠偏只在「这次发的就是节点存着的那个方式」时写：方式因为放了 / 删了图现算成别的时不写回
+  // （参数在发送时按现算方式收窄，删了图回到原来存的值）。
+  const sendModeIsStored = Boolean(sendMode && effectiveArchetype && readModePreference(effectiveArchetype, meta)?.modeId === sendMode.id)
   React.useEffect(() => {
-    if (!ownsDerivedWrites || !archMode) return
+    if (!ownsDerivedWrites || !sendMode || !sendModeIsStored) return
     const latest = getLatestMeta()
-    const next = normalizeConditionalParameters(archMode.params, latest)
+    const next = normalizeConditionalParameters(sendMode.params, latest)
     if (next !== latest) updateMeta(next, { history: false })
     // The effect only writes when a conditional selection is invalid.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archMode, meta, ownsDerivedWrites])
+  }, [sendMode, sendModeIsStored, meta, ownsDerivedWrites])
 
   const updateAspectRatioMeta = (patch: Record<string, unknown>, targetRatio: number | null) => {
     const latest = latestNode(node.id)
@@ -244,23 +249,6 @@ export default function NodeParameterControls({
   // （唯一出处 videoAspectSeed.ts）。这里以前有个挂载 effect 按它「纠正」比例——Agent 写的 9:16 一点开就变 16:9
   // （2026-10-22 R-d2-defaults #1），打开节点不是改参数的手势，2026-10-22 删除。
 
-  // 模式收窄的**选择安全**（U4）：收窄只改「显示哪几个」，节点 meta 里钉的 modeId 不会自己动。存量节点
-  // （或用户把模型换到另一家后）可能停在一个已经不显示的模式上——那时模式栏一个都不高亮，而发送路径仍按
-  // 那个看不见的模式投影槽，UI 与发送再次分家（正是本轮要根治的那类病）。这里把它写回 meta，让两边一致。
-  // history:false —— 这是系统纠偏，不是用户操作，不该占一格撤销。
-  const visibleModeIdSignature = archetype
-    ? archetype.modes.filter((mode) => archetypeModeIsVisible(mode, modeBodies[mode.id])).map((m) => m.id).join('|')
-    : ''
-  React.useEffect(() => {
-    if (!ownsDerivedWrites || !archetype) return
-    const visibleIds = visibleModeIdSignature ? visibleModeIdSignature.split('|') : []
-    const latest = getLatestMeta()
-    const next = fallbackVisibleModeId(archetype, latest, visibleIds)
-    if (!next) return
-    updateNode(node.id, { meta: applyArchetypeModeSwitch(latest, archetype, next) }, { history: false })
-    // getLatestMeta/updateNode 每渲染重建；触发时机只需「可见模式集 / 档案 / 节点」变化。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleModeIdSignature, archetype?.id, node.id, ownsDerivedWrites])
 
   if (!isGenerationNode) return null
 
@@ -289,13 +277,11 @@ export default function NodeParameterControls({
     updateMeta(patch)
   }
 
-  // 切生成方式：只改 modeId，参考列表不动（落槽 / 「未用到」由 resolveReferencePlacement 按新方式推导，往返一张不少）。
-  // 旧数据（按槽存的首 / 尾帧键）借这一笔按**切换前**看得见的顺序落成规范形；连线来的图是边，自己按槽落。
+  // 人手选摆法（分段 / 「改成首尾帧」提示 / 声音方式栏，只有这三扇门写偏好）：只记偏好和「人手选的」，参考列表、参数都不动
+  // （落槽 / 「未用到」由 resolveReferencePlacement 按现算的摆法推导，往返一张不少；参数在发送时按现算方式收窄）。
   const handleModeSwitch = (modeId: string) => {
     if (!archetype) return
-    const latest = getLatestMeta()
-    const normalized = normalizeReferenceListMeta(latest, archMode) ?? latest
-    updateNode(node.id, { meta: applyArchetypeModeSwitch(normalized, archetype, modeId) })
+    updateNode(node.id, { meta: applyHumanModeChoice(getLatestMeta(), archetype, modeId) })
     setOpenSlotKey('')
   }
 

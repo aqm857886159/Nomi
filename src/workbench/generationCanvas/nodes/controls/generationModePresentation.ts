@@ -4,14 +4,13 @@
 //   · 生成方式由输入决定：放了首尾帧两格就是首尾帧，放了参考就是参考；要切，在参数面板**顶部**切（现有组件原样）。
 //   · 永远没有「文生视频」：空的视频节点就是「参考」方式、没放参考就是文字生成——文生那个档案模式不出现在分段里。
 //   · 只在有两种以上带图方式时才出现这一组；模型只有首帧时那个方式叫「首帧」。
-//   · 图片节点没有这一组：没放图是文生图，放了图是参考 / 改图（模式随输入自己走，见 NodeParameterControls 里的收回逻辑）。
+//   · 图片节点没有这一组：没放图是文生图，放了图是参考 / 改图（方式在发送时按输入现算，见 modeForInputs）。
 //   · 声音 / 3D 暂保它们现有的模式栏（census AUD-01 / 3D-01：「补格后再定是否移参数，勿套视频两分法」）。
 //
 // 模式的真名（vendorTerm）仍是档案的事，这里只按 `intent`（档案跨模型统一的意图词）把标签收成三个人话词；
 // 认不出的（视频编辑等）照用档案真名。
 import type { ModelArchetype, ArchetypeMode } from '../../../../../electron/shared/modelArchetypes'
 import type { ArchetypeModeChoice } from './channelModeReach'
-export { textModeToReturnTo } from '../../agent/referenceEdgeCapability'
 
 export type PanelModeChoice = { id: string; label: string; /** 悬停的上限提示，只有「参考」有。 */ limitTip?: string }
 

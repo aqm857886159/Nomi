@@ -14,11 +14,10 @@ import type { TFunction } from 'i18next'
 import { useNodeWriteAccess, type NodeWriteAccess } from './nodeWriteAccess'
 import { useTranslation } from 'react-i18next'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { applyArchetypeModeSwitch, archetypeArrayWrite, currentArchetypeMode, readArchetypeArrayForWrite, referenceSlotStorage } from './controls/archetypeMeta'
+import { archetypeArrayWrite, readArchetypeArrayForWrite, referenceSlotStorage } from './controls/archetypeMeta'
 import { readParkedReferences, REFERENCE_LIST_KEY, withReferenceList } from './controls/referenceList'
-import { archetypeForNode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
+import { validateReferenceEdge } from '../agent/referenceEdgeCapability'
 import { MENTION_SLOT_BY_MEDIA, resolveMentionReference } from '../model/canvasReferenceConnection'
-import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { buildMentionCandidates, currentReferenceMedia, currentReferenceUrls, planMentionInsert, type MentionMediaKind } from './mentionCandidates'
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 import type { MentionSelection } from '../../assets/AssetMentionSuggestion'
@@ -55,7 +54,7 @@ export function createMentionSelect(deps: MentionSelectDeps): (item: MentionSugg
     const target = access.latestNode(nodeId)
     if (!target) return null
     const store = useGenerationCanvasStore.getState()
-    // @ 只有「参考」一种意思（resolveMentionReference）：先定落哪个参考槽、要不要切生成方式、放不放得下。
+    // @ 只有「参考」一种意思（resolveMentionReference）：先定落哪个参考槽、放不放得下（方式在发送时按输入现算，这里不切）。
     const route = resolveMentionReference(target, store.nodes, store.edges, mediaKind)
     if (!route.ok) {
       reportFeedback(route.reason === 'full'
@@ -66,14 +65,6 @@ export function createMentionSelect(deps: MentionSelectDeps): (item: MentionSugg
     return { target, route }
   }
 
-  const switchMode = (target: GenerationCanvasNode, switchToModeId: string | null | undefined): void => {
-    const archetype = switchToModeId ? archetypeForNode(target) : null
-    if (!archetype || !switchToModeId) return
-    const switched = applyArchetypeModeSwitch((target.meta || {}) as Record<string, unknown>, archetype, switchToModeId)
-    access.updateNode(nodeId, { meta: switched })
-    reportFeedback(t('connection.mentionModeSwitched', { mode: translateModelDisplayText(currentArchetypeMode(archetype, switched).vendorTerm) }))
-  }
-
   /** 建立完再问一次最终顺序——槽位排序不保证新来的排在最后（边按 order、上传只补空位）。没真落进槽 → 撤回、明说。 */
   const finalIndexOrUndo = (url: string, mediaKind: MentionMediaKind, metaBefore: GenerationCanvasNode['meta'], edgeIdsBefore: ReadonlySet<string>): number | null => {
     const after = useGenerationCanvasStore.getState()
@@ -82,7 +73,7 @@ export function createMentionSelect(deps: MentionSelectDeps): (item: MentionSugg
     const media = currentReferenceMedia(afterTarget, after.nodes, after.edges)
     const index = media.find((reference) => reference.url === url && reference.kind === mediaKind)?.index ?? -1
     if (index < 0) {
-      // 引用没真落进槽 → 不插 chip、明着说，并把这次建的边 / 上传 / 模式切换撤回，不在画布上留一条没用的线。
+      // 引用没真落进槽 → 不插 chip、明着说，并把这次建的边 / 上传撤回，不在画布上留一条没用的线。
       for (const edge of after.edges) if (!edgeIdsBefore.has(edge.id) && edge.target === nodeId) after.disconnectEdge(edge.id)
       access.updateNode(nodeId, { meta: metaBefore })
       reportFeedback(t('connection.referenceFull'))
@@ -98,7 +89,6 @@ export function createMentionSelect(deps: MentionSelectDeps): (item: MentionSugg
     if (!resolved) return null
     const metaBefore = resolved.target.meta
     const edgeIdsBefore = new Set(useGenerationCanvasStore.getState().edges.map((edge) => edge.id))
-    switchMode(resolved.target, resolved.route.switchToModeId)
     const storage = referenceSlotStorage({ kind: MENTION_SLOT_BY_MEDIA[mediaKind] })
     if (!storage) return null
     const meta = (access.latestNode(nodeId)?.meta || {}) as Record<string, unknown>
@@ -156,7 +146,6 @@ export function createMentionSelect(deps: MentionSelectDeps): (item: MentionSugg
     }
     const metaBefore = resolved.target.meta
     const edgeIdsBefore = new Set(store.edges.map((edge) => edge.id))
-    switchMode(resolved.target, resolved.route.switchToModeId)
     connectNodes(plan.sourceNodeId, nodeId, resolved.route.edgeMode)
     return finalIndexOrUndo(plan.url, plan.mediaKind, metaBefore, edgeIdsBefore)
   }

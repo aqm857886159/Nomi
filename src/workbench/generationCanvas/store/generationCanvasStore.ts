@@ -26,7 +26,6 @@ import { createCanvasDocumentActions, isCanvasHistoryReplay } from './canvasDocu
 import { reconcileTimelineForDeletedNodes } from './canvasTimelineBridge'
 import { appendAdmittedEdges, reportSkippedEdges, type AppendedEdges } from './canvasEdgeWrite'
 import { assertProductionCanvasProjectIdentity, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
-import { inputDerivationFieldsChanged, liveInputNodeIds, revertTargetModeForEmptyInputs } from './canvasConnectDerivations'
 
 export { __resetCanvasUndoJournalForTests as __resetGenerationCanvasHistoryForTests } from '../events/canvasUndoJournal'
 
@@ -222,27 +221,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   ...createCanvasRunActions(set, get, store),
   ...createCanvasDocumentActions(set, get, store),
 }))))
-
-// Mode is a persisted projection of the current graph inputs. Keeping this at
-// the store boundary covers edge/node writes, Agent edits, imports, recovery,
-// undo and redo even when no generation composer is mounted.
-let reconcilingInputModes = false
-useGenerationCanvasStore.subscribe((state, previous) => {
-  if (reconcilingInputModes || isCanvasHistoryReplay() || state.edges === previous.edges && !inputDerivationFieldsChanged(previous.nodes, state.nodes)) return
-  reconcilingInputModes = true
-  try {
-    const beforeLive = liveInputNodeIds(previous)
-    const afterLive = liveInputNodeIds(state)
-    for (const node of state.nodes) {
-      // Reconcile only the transition that removes the final input. A node that
-      // was already empty is caller-authored state (imports and planned work
-      // included) and must not be rewritten by this subscription.
-      if (beforeLive.has(node.id) && !afterLive.has(node.id)) revertTargetModeForEmptyInputs(state, node.id, false)
-    }
-  } finally {
-    reconcilingInputModes = false
-  }
-})
 
 /**
  * C1 寿命声明 + 释放（原来是 `releaseWorkbenchProjectSession.ts` 里那份 10/13 的手写清单）。

@@ -191,3 +191,11 @@ describe('modeForInputs 拍板稿的几格', () => {
     expect(modeForInputs(upscale, [], null).status).toBe('needsInput')
   })
 })
+
+describe('modeForInputs 输入自己的角色先于方式类别', () => {
+  it('来历不明的文生 + 一条首帧边 → 按首帧发（不被当成参考）', () => {
+    const seedance = MODEL_ARCHETYPES.find((archetype) => archetype.id === 'seedance-2')!
+    const result = modeForInputs(seedance, INPUTS.onlyFirstFrame!, { modeId: 't2v', chosenBy: 'unknown' })
+    expect(result.mode.id).toBe('first')
+  })
+})

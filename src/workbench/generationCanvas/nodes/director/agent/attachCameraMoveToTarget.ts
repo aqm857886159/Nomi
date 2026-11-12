@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 ../../../model/generationCanvasTypes 的 GenerationCanvasNode、../../../agent/referenceEdgeCapability（archetypeForNode / findVideoRefMode）、
- *          ../../controls/archetypeMeta（applyArchetypeModeSwitch / readArchetypeArray / orderedSentMediaReferenceUrls：实际发送的参考顺序）、
+ *          ../../controls/archetypeMeta（sendArchetypeMode / readArchetypeArray / orderedSentMediaReferenceUrls：现算方式与实际发送的参考顺序）、
  *          ../../../model/generationNodeKinds 的 isVideoLikeGenerationNodeKind、electron/shared/storyboard/promptMentions 的 encodeMention、
  *          ./cameraMoveVocab（CAMERA_MOVE_LABEL / CAMERA_MOVE_DESC）、../../../../../i18n
  * [OUTPUT]: 对外提供 CAMERA_MOVE_ATTACHED_URL_KEY、lastAttachedCameraMoveUrl（网址标记的只读口，只给删参考判断）、AttachCameraMoveOutcome、AttachCameraMoveContext、AttachPreviewDirective、computeAttachCameraMove
@@ -18,7 +18,7 @@ import { encodeMention } from '../../../../../../electron/shared/storyboard/prom
 import { archetypeForNode, findVideoRefMode } from '../../../agent/referenceEdgeCapability'
 import type { GenerationCanvasNode } from '../../../model/generationCanvasTypes'
 import { isVideoLikeGenerationNodeKind } from '../../../model/generationNodeKinds'
-import { applyArchetypeModeSwitch, orderedSentMediaReferenceUrls, readArchetypeArray } from '../../controls/archetypeMeta'
+import { orderedSentMediaReferenceUrls, readArchetypeArray, sendArchetypeMode } from '../../controls/archetypeMeta'
 import { CAMERA_MOVE_DESC, CAMERA_MOVE_LABEL } from './cameraMoveVocab'
 import type { CameraMove } from '../../../../../../electron/shared/director/vocab'
 import { clearDirectorPreviewDismissed } from './directorPreviewReferenceLifecycle'
@@ -165,24 +165,23 @@ export function computeAttachCameraMove(
   const archetype = archetypeForNode(target)
   const videoRef = findVideoRefMode(archetype)
   if (archetype && videoRef) {
-    // 切模式前先看旧模式是否设了首 / 尾帧、而目标（video_ref）模式没有该槽 → 会在投影时被静默丢弃
+    // 放进参考视频之后方式按输入现算（不再写方式进节点）；旧的首 / 尾帧在现算出的方式里没有格子 → 会在投影时被丢，要明说
     const hadFirstOrLast =
       (typeof meta.firstFrameUrl === 'string' && meta.firstFrameUrl.trim().length > 0) ||
       (typeof meta.lastFrameUrl === 'string' && meta.lastFrameUrl.trim().length > 0)
-    const switched = applyArchetypeModeSwitch(meta, archetype, videoRef.modeId)
-    const existing = readArchetypeArray(switched, videoRef.metaKey)
+    const existing = readArchetypeArray(meta, videoRef.metaKey)
     // 替换语义：上次那条（若与这次不同）剔掉；这次的若已在就**留在原位**（重复挂不挪位置），不在就追加；用户的其它参考视频一条不删
     const kept = existing.filter((item) => item !== prevAttached || item === url)
     const referenceVideoUrls = kept.includes(url) ? kept : [...kept, url]
-    const nextMeta = clearDirectorPreviewDismissed({ ...switched, [videoRef.metaKey]: referenceVideoUrls, [CAMERA_MOVE_ATTACHED_URL_KEY]: url })
+    const nextMeta = clearDirectorPreviewDismissed({ ...meta, [videoRef.metaKey]: referenceVideoUrls, [CAMERA_MOVE_ATTACHED_URL_KEY]: url })
     // 它在**实际发送**的参考视频列表里排第几：连线在前、上传在后、去重、按槽上限截断——和 buildArchetypeInputParams 同一个函数
-    const sentVideos = orderedSentMediaReferenceUrls(nextMeta, archetype, { video: context.edgeVideoUrls ?? [] }).filter((item) => item.kind === 'video')
+    const targetMode = sendArchetypeMode(archetype, { ...target, meta: nextMeta })
+    const sentVideos = orderedSentMediaReferenceUrls(nextMeta, targetMode, { video: context.edgeVideoUrls ?? [] }).filter((item) => item.kind === 'video')
     if (!sentVideos.some((item) => item.url === url)) {
       // 槽被用户的片占满：不删用户的任何参考（不靠删它们「修好」编号），预演退成文字兜底并明说
       return promptOnlyOutcome(target, meta, url, prevAttached, preview, move, i18n.t('director.agent.previewReferenceFull'))
     }
-    const targetMode = archetype.modes.find((mode) => mode.id === videoRef.modeId)
-    const targetHasFrameSlot = targetMode?.slots.some((slot) => slot.kind === 'first_frame' || slot.kind === 'last_frame') ?? false
+    const targetHasFrameSlot = targetMode.slots.some((slot) => slot.kind === 'first_frame' || slot.kind === 'last_frame')
     const rawPrompt = typeof target.prompt === 'string' ? target.prompt : ''
     const basePrompt = withoutVideoDirective(preview ? withoutPreviewLines(rawPrompt) : rawPrompt)
     const withVideo = `${basePrompt}${videoDirectiveLine(url)}`

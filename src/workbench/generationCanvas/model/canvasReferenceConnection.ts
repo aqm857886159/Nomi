@@ -1,9 +1,9 @@
-import { canFitReferenceEdge, resolveReferenceSlots } from '../runner/referenceSlots'
+import { canFitReferenceEdge, resolveReferencePlacement } from '../runner/referenceSlots'
 import type { ArchetypeReferenceSlotKind } from '../../../../electron/shared/modelArchetypes'
-import { applyArchetypeModeSwitch, currentArchetypeMode } from '../nodes/controls/archetypeMeta'
+import { effectiveArchetypeModeWithUpload } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from './generationCanvasTypes'
 import { acceptsParameterReferenceSource, nextParameterReferenceKey, readParameterReferenceSlots } from './parameterReferenceSlots'
-import { archetypeForNode, isTextPromptEdge, resolveModeForReferenceDemand, selectConnectionEdgeMode, validateReferenceEdge, type EdgeSkipReason } from '../agent/referenceEdgeCapability'
+import { archetypeForNode, isTextPromptEdge, selectConnectionEdgeMode, validateReferenceEdge, type EdgeSkipReason } from '../agent/referenceEdgeCapability'
 
 /** Manual, group and explicit-slot connections share declaration-based capacity and media validation. */
 export function resolveCanvasReferenceConnection(
@@ -23,7 +23,7 @@ export function resolveCanvasReferenceConnection(
     return { ok: true, mode: requestedMode ?? slot.group, targetParamKey: slot.key }
   }
   if (requestedKey) return { ok: false, reason: 'unsupported_reference' }
-  const mode = requestedMode ?? selectConnectionEdgeMode(source, target, edges.filter((edge) => edge.target === target.id))
+  const mode = requestedMode ?? selectConnectionEdgeMode(source, target, nodes, edges)
   const verdict = validateReferenceEdge(source, target, mode)
   if (!verdict.ok) return verdict
   const existing = edges.some((edge) => edge.source === source.id && edge.target === target.id && edge.mode === mode)
@@ -41,7 +41,7 @@ export const MENTION_SLOT_BY_MEDIA: Record<MentionMediaKind, ArchetypeReferenceS
 }
 
 export type MentionReferencePlan =
-  | { ok: true; switchToModeId: string | null; edgeMode: 'reference' | 'character_ref' }
+  | { ok: true; edgeMode: 'reference' | 'character_ref' }
   | { ok: false; reason: 'unsupported' | 'blocked_by_frame_edges' }
   | { ok: false; reason: 'full'; max: number }
 
@@ -53,9 +53,8 @@ export type MentionReferencePlan =
  * 于是图生视频里第 1、2 张 @ 成了首帧 / 尾帧边，@ 视频进了「待抽帧」的首帧槽、编号为空、chip 不出、边还留着。
  * 拖线（把手连线）的首尾帧规则不走这里、不变。
  *
- * - 当前生成方式有对应参考槽 → 不切；
- * - 没有 → 用 resolveModeForReferenceDemand 找一个有的切过去；节点已经连着首帧 / 尾帧边时不切
- *   （一切换那些边的含义就变了），交给用户自己切；
+ * - 落哪一格按「@ 进来之后的输入」现算摆法（不写方式进节点，方式在发送时按输入现算）；
+ * - 那个摆法没有对应参考槽：节点连着首帧 / 尾帧边 → 明说被首尾帧挡着；否则不支持；
  * - 放满了 → 明说上限，调用方不建边、不写上传。
  * 没有档案的节点（无模式可言）→ 落「参考」边，交给建边那一层的通用校验。
  */
@@ -67,25 +66,19 @@ export function resolveMentionReference(
 ): MentionReferencePlan {
   const slotKind = MENTION_SLOT_BY_MEDIA[mediaKind]
   const archetype = archetypeForNode(target)
-  if (!archetype) return { ok: true, switchToModeId: null, edgeMode: 'reference' }
-  const meta = (target.meta || {}) as Record<string, unknown>
-  let switchToModeId: string | null = null
-  if (!currentArchetypeMode(archetype, meta).slots.some((slot) => slot.kind === slotKind)) {
-    switchToModeId = resolveModeForReferenceDemand(archetype, meta, [{ slots: [slotKind], asset: mediaKind }])
-    if (!switchToModeId) return { ok: false, reason: 'unsupported' }
+  if (!archetype) return { ok: true, edgeMode: 'reference' }
+  const layout = effectiveArchetypeModeWithUpload(archetype, target, { nodes, edges }, mediaKind).layout
+  if (!layout.slots.some((slot) => slot.kind === slotKind)) {
     if (edges.some((edge) => edge.target === target.id && (edge.mode === 'first_frame' || edge.mode === 'last_frame'))) {
       return { ok: false, reason: 'blocked_by_frame_edges' }
     }
+    return { ok: false, reason: 'unsupported' }
   }
-  const effectiveTarget = switchToModeId
-    ? { ...target, meta: applyArchetypeModeSwitch(meta, archetype, switchToModeId) }
-    : target
-  const slot = resolveReferenceSlots(effectiveTarget, nodes as GenerationCanvasNode[], edges as GenerationCanvasEdge[])
+  const slot = resolveReferencePlacement(target, nodes as GenerationCanvasNode[], edges as GenerationCanvasEdge[], { layout }).slots
     .find((candidate) => candidate.slotKind === slotKind)
   if (!slot) return { ok: false, reason: 'unsupported' }
   if (slot.max !== undefined && slot.fills.length >= slot.max) return { ok: false, reason: 'full', max: slot.max }
   const characterIndexed = mediaKind === 'image'
-    && currentArchetypeMode(archetype, (effectiveTarget.meta || {}) as Record<string, unknown>).slots
-      .some((candidate) => candidate.kind === 'image_ref' && Boolean(candidate.characterIndexed))
-  return { ok: true, switchToModeId, edgeMode: characterIndexed ? 'character_ref' : 'reference' }
+    && layout.slots.some((candidate) => candidate.kind === 'image_ref' && Boolean(candidate.characterIndexed))
+  return { ok: true, edgeMode: characterIndexed ? 'character_ref' : 'reference' }
 }

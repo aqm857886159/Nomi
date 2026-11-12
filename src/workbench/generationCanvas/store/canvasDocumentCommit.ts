@@ -24,7 +24,7 @@ import { withLiveNodeFacts, withLiveRunState } from '../../../../electron/shared
 import { convergeDeconstructionNodes } from '../nodes/shotTable/deconstructionLifecycle'
 import type { GenerationCanvasEdge, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { bumpPersistRevision } from './canvasGuards'
-import { convergeStuckInputModes, deriveTargetAfterConnect } from './canvasConnectDerivations'
+import { deriveTargetAfterConnect } from './canvasConnectDerivations'
 import { clearClipboard } from './canvasClipboard'
 import { reportSkippedEdges } from './canvasEdgeWrite'
 import { reconcileTimelineForNodeSetChange, reconcileTimelineForRestoredNodes } from './canvasTimelineBridge'
@@ -205,7 +205,6 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           hasClipboard: false,
           ...getHistoryFlags(),
         })
-        convergeStuckInputModes(get())
         // genesis 事件不在这里发(S5-b-1):必须等 hydrate 尾部重放完成后由
         // workbenchProjectSession 以"含尾巴的后态"发,否则磁盘日志最终态会丢尾巴。
         return
@@ -220,7 +219,6 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         // 终态判定的 owner 只有一份，重放完再问它一次；已终态的表它原样返回，幂等（重启后拆解表卡在「进行中」就是这一下）。
         // 同一个坑的另一半：存盘时在跑的本机处理 / 生成节点，重放后也要再收口一次（只在装载时收口会被尾巴盖回去，永久 running）。
         set({ nodes: convergeStuckMidFlightNodes(convergeDeconstructionNodes(projection.nodes)), edges: projection.edges, groups: projection.groups })
-        convergeStuckInputModes(get())
         return
       }
       case 'rewind': {
