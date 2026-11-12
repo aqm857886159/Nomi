@@ -88,7 +88,7 @@ import { readModePreference } from './controls/modePreference'
 import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import { parameterChipOptions } from './primaryParameterChips'
 import QuantitySelect from './controls/QuantitySelect'
-import referenceRowTail from './controls/referenceRowTail'
+import referenceRowTail, { modelLimitNotice } from './controls/referenceRowTail'
 import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
@@ -599,10 +599,7 @@ export default function NodeParameterControls({
 
   // 行尾：模型自己放不下（任何方式都收不下全部）→ 报数；方式刚因为加多被换掉 → 「放了 N 张，已改成 X」；图片节点放了图 → 「按图改」。
   const inputCount = modeInputs?.inputs.length ?? 0
-  const takenCount = modeResolution?.taken ?? 0
-  const modelLimit = modeInputs && modeResolution?.status === 'ok' && takenCount > 0 && takenCount < inputCount
-    ? { model: selectedModelOption?.label || selectedModelOption?.value || '', max: takenCount, total: inputCount }
-    : null
+  const modelLimit = modeInputs ? modelLimitNotice(modelOptions, selectedModelOption, modeResolution, inputCount) : null
   const switchedRow = modeMenu && archMode ? modeMenu.rows.find((row) => row.id === archMode.id) : undefined
   const switchNoticeMeta = modeInputs && archMode ? liveModeSwitchNotice(meta, inputCount, archMode.id) : null
   const tail = referenceRowTail(t, {

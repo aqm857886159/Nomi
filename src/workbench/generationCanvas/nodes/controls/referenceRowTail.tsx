@@ -1,10 +1,18 @@
 import React from 'react'
+import type { ModelOption } from '../../../../config/models'
+import { modelOptionDisplayLabel } from '../../../common/useDedupedModelSelect'
 
 /** 方式刚被输入自动改掉（放多了、原来那种放不下）：行尾说一句「放了 N 张，已改成 X」。 */
 export type ModeSwitchNotice = { count: number; allImages: boolean; modeName: string }
 
 /** 模型自己放不下的几张（任何方式都收不下全部）：行尾报数「可灵 4.0 最多用 2 张，第 3 张不会发 / 其余 28 张不会发」。 */
 export type ModelLimitNotice = { model: string; max: number; total: number }
+
+/** 这次的方式收下了一部分（不是全部）才报数；模型名问底栏模型钮那一份，两种语言都和底栏逐字相同。 */
+export function modelLimitNotice(modelOptions: readonly ModelOption[], option: ModelOption | null, resolution: { status: string; taken: number } | null, total: number): ModelLimitNotice | null {
+  const taken = resolution?.taken ?? 0
+  return resolution?.status === 'ok' && taken > 0 && taken < total ? { model: modelOptionDisplayLabel(modelOptions, option), max: taken, total } : null
+}
 
 /**
  * 参考行行尾的一句 12px 小字（统一规则 5：不写解释句、不放彩色提示条；有后果且一眼可见的说明才写）。

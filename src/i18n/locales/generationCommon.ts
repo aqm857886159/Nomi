@@ -117,8 +117,8 @@ export const zhGenerationCommon = {
   // 空节点「试试」（2026-10-08 拍板 ③）：只搭结构（建好上下游空节点、切模式、聚焦提示词），不生成、不花钱。
   nodeTry: {
     label: '试试',
-    image: { text: '文字生图', reference: '参考图生图' },
-    video: { firstFrame: '图生视频', firstLast: '首尾帧', text: '文生视频' },
+    image: { reference: '参考图生图' },
+    video: { firstFrame: '图生视频', firstLast: '首尾帧' },
     status: { image: '还没生成', video: '还没生成', text: '还没有内容', clip: '还没有片段' },
     clip: { pick: '点选', library: '素材库', fromLibrary: '从素材库添加' },
   },
@@ -1907,8 +1907,8 @@ export const enGenerationCommon = {
   },
   nodeTry: {
     label: 'Try',
-    image: { text: 'Text to image', reference: 'Reference to image' },
-    video: { firstFrame: 'Image to video', firstLast: 'First & last frame', text: 'Text to video' },
+    image: { reference: 'Reference to image' },
+    video: { firstFrame: 'Image to video', firstLast: 'First & last frame' },
     status: { image: 'Not generated yet', video: 'Not generated yet', text: 'Nothing here yet', clip: 'No clips yet' },
     clip: { pick: 'Pick', library: 'Library', fromLibrary: 'Add from library' },
   },
