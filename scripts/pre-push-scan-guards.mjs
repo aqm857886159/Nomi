@@ -35,6 +35,8 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  */
 export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。
+  // 2026-11-12：模型能力表（docs/models/capabilities/*.md）与档案双向对账；新增一张表或改任一档案都要推送前就跑（<1 秒）。
+  { file: 'electron/shared/modelArchetypes/capabilityTables.contract.test.ts', roots: ['docs/models/capabilities', 'electron/shared/modelArchetypes', 'electron/shared/videoCapabilities'], exts: ['md', 'ts'] },
   // Reviewed response JSON is data, but changes must still run the status contract in the normal batch.
   { file: 'tests/relay-onboarding/profile-statuses.test.mjs', roots: ['tests/relay-onboarding/fixtures/relay-profile-responses'], exts: '*' },
   // Each release adds a real old catalog here; a new directory must run the upgrade matrix before the push, not first in CI (under 5 s).
