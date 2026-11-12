@@ -8,6 +8,7 @@ import { liveModeSwitchNotice } from './canvasModeChoiceForget'
 import { archetypeForNode } from '../agent/referenceEdgeCapability'
 import { applyHumanModeChoice, collectModeInputs, effectiveArchetypeMode } from '../nodes/controls/archetypeMeta'
 import { buildModeMenu } from '../nodes/controls/modeMenuModel'
+import { readModePreference } from '../nodes/controls/modePreference'
 import { archetypeModeChoices } from '../nodes/controls/channelModeReach'
 import { resolveReferencePlacement } from '../runner/referenceSlots'
 import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
@@ -154,6 +155,27 @@ describe('方式按输入现算 · 九种状态', () => {
     store().redo()
     expect(store().edges).toHaveLength(3)
     expect(resolved().mode.id).toBe('omni')
+  })
+
+  // 验收 C4（2026-11-12，低把握、未实跑）：「忘掉偏好」不进撤销栈（history: false），重做回来的那一态里偏好还在不在？
+  // 还在的话，重做之后删回 2 张，方式会跳回首尾帧，违反 ⑤「减少不跳回」。这条把整条 ⌘Z / ⇧⌘Z 路走一遍。
+  it('撤销 → 重做 → 删回 2 张：方式不跳回首尾帧（忘掉偏好和连第 3 张同进一个撤销步）', () => {
+    connect('a'); connect('b')
+    choose('firstlast')
+    expect(resolved().mode.id).toBe('firstlast')
+    store().startConnection('c', 'right')
+    expect(store().connectToNode('v', { mode: 'reference' })).toMatchObject({ ok: true })
+    expect(resolved().mode.id).toBe('omni')
+    store().undo()
+    expect(resolved().mode.id).toBe('firstlast')
+    store().redo()
+    expect(resolved().mode.id).toBe('omni')
+    // 重做回来的那一态里，放不下的首尾帧偏好已经忘掉了（不是靠之后再算一次补上）。
+    expect(readModePreference(archetypeForNode(node())!, node().meta as Record<string, unknown>)).toBeNull()
+    disconnect('c')
+    expect(store().edges).toHaveLength(2)
+    expect(resolved().mode.id).toBe('omni')
+    expect(notice()).toBeNull()
   })
 
   it('⑨ 图片节点：没有方式格（菜单只给视频节点算；图片放了图就是按图改）', () => {

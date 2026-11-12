@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import i18n from '../../../../i18n'
 import { getArchetypeById, specializeArchetypeForVariant, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import { archetypeModeById, archetypeModeModelEnum, type ResolvedReferenceValues } from './archetypeMeta'
 import { ARCHETYPE_WIRE_MODEL, resolveWireModel } from '../../../../../electron/shared/modelArchetypes/wireModelIdentity'
@@ -50,7 +51,7 @@ describe('archetype 档案 — Seedance 模式', () => {
       { id: 't2v', vendorTerm: '文生视频', hint: '纯文字描述生成视频，无需参考图' },
       { id: 'first', vendorTerm: '首帧', hint: '单张首帧图驱动生成' },
       { id: 'firstlast', vendorTerm: '首尾帧', hint: '首帧 + 尾帧，过渡更可控' },
-      { id: 'omni', vendorTerm: '全能参考', hint: '多模态参考；最多 9 角色 / 3 视频 / 3 音频' },
+      { id: 'omni', vendorTerm: (i18n.getFixedT('zh-CN') as unknown as (key: string) => string)('generationCommon.modeMenu.name.reference'), hint: '多模态参考；最多 9 角色 / 3 视频 / 3 音频' },
     ])
   })
 

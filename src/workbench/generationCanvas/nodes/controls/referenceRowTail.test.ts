@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import i18n from '../../../../i18n'
-import { referenceCountText } from './referenceRowTail'
+import { modelLimitNotice, referenceCountText } from './referenceRowTail'
+import type { ModelOption } from '../../../../config/models'
 
 // 行尾报数（边界样张 K1，用户 2026-11-12「按推荐做」）：只有图 →「参考图 N 张」；两种以上 →「图 30 · 视频 10 · 音频 10」。
 // 用真词典，不在测试里抄第二份文案。
@@ -32,5 +33,18 @@ describe('referenceCountText', () => {
   it('每种都到上限 → 末尾加「，都放满了」', () => {
     expect(referenceCountText(zh, { image: 30, video: 10, audio: 10 }, true)).toBe('图 30 · 视频 10 · 音频 10，都放满了')
     expect(referenceCountText(en, { image: 30, video: 10, audio: 10 }, true)).toBe('30 images · 10 videos · 10 audio, all full')
+  })
+})
+
+describe('modelLimitNotice — 方式只收下一部分才报数', () => {
+  const kling = { value: 'apimart:kling-4.0', label: '可灵 4.0', vendor: 'apimart', kind: 'video', meta: { canonicalModelId: 'kling-4.0' } } as unknown as ModelOption
+  it('收下 2 / 共 3 → 报数，模型名是底栏那一份', () => {
+    expect(modelLimitNotice([kling], kling, { status: 'ok', taken: 2 }, 3)).toMatchObject({ max: 2, total: 3 })
+  })
+  it('全收下、一件没收、或方式状态不是 ok → 不报', () => {
+    expect(modelLimitNotice([kling], kling, { status: 'ok', taken: 3 }, 3)).toBeNull()
+    expect(modelLimitNotice([kling], kling, { status: 'ok', taken: 0 }, 3)).toBeNull()
+    expect(modelLimitNotice([kling], kling, { status: 'blocked', taken: 2 }, 3)).toBeNull()
+    expect(modelLimitNotice([kling], kling, null, 3)).toBeNull()
   })
 })

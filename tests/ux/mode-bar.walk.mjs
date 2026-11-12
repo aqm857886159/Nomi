@@ -67,6 +67,7 @@ const FOOTER = `${CARD} [data-node-composer-footer]`
 const text = (page, selector) => page.evaluate((sel) => document.querySelector(sel)?.textContent?.trim() ?? null, selector)
 const count = (page, selector) => page.evaluate((sel) => document.querySelectorAll(sel).length, selector)
 const modeTrigger = (locale) => `${FOOTER} button[aria-label="${uiText(locale, 'generationCommon.modeMenu.heading')}"]`
+const CJK = /[\u3400-\u9fff]/
 const name = (locale, kind) => uiText(locale, `generationCommon.modeMenu.name.${kind}`)
 
 /** 打开着的方式菜单：小标题、每行（名字 / 说明 / 置灰 / 打勾）。 */
@@ -90,7 +91,16 @@ const readMenu = (page) => page.evaluate(() => {
 async function shot(page, state, file) {
   if (!WITH_EVIDENCE) return
   fs.mkdirSync(EVIDENCE_DIR, { recursive: true })
-  await page.locator(`[data-design-lab-shot="${state}"]`).screenshot({ path: path.join(EVIDENCE_DIR, `${file}.png`), animations: 'disabled' })
+  // 拍的范围 = 样张框 ∪ 打开着的下拉（菜单挂在 portal 上、会伸出样张框；只拍框会把菜单下半截切掉，K5 英文就被切过）。
+  const clip = await page.evaluate((sel) => {
+    const boxes = [document.querySelector(sel), ...document.querySelectorAll('[data-nomi-select-dropdown]')]
+      .filter(Boolean).map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0)
+    const left = Math.min(...boxes.map((r) => r.left)); const top = Math.min(...boxes.map((r) => r.top))
+    const right = Math.max(...boxes.map((r) => r.right)); const bottom = Math.max(...boxes.map((r) => r.bottom))
+    return { x: Math.max(0, left), y: Math.max(0, top), width: Math.min(window.innerWidth, right) - Math.max(0, left), height: Math.min(window.innerHeight, bottom) - Math.max(0, top), cut: bottom > window.innerHeight || right > window.innerWidth }
+  }, `[data-design-lab-shot="${state}"]`)
+  if (clip.cut) failures.push(`截图 ${file}：样张框或菜单伸出了视口，截不全`)
+  await page.screenshot({ path: path.join(EVIDENCE_DIR, `${file}.png`), clip: { x: clip.x, y: clip.y, width: clip.width, height: clip.height }, animations: 'disabled' })
 }
 
 const SAMPLE_STATES = process.env.BOUNDARY_ONLY === '1' ? [] : ['mb-a-no-input-menu', 'mb-b-one-image-menu', 'mb-c-first-last-params', 'mb-d-third-image', 'mb-d-third-image-menu', 'mb-f-kling-menu', 'mb-h-image-node', 'mb-i-remove-menu', 'mb-j-model-limit']
@@ -169,7 +179,9 @@ try {
           const notSent = await page.evaluate(() => [...document.querySelectorAll('[data-reference-unused]')].map((el) => ({ text: el.textContent?.trim() ?? '', dimmed: Boolean(el.querySelector('[data-asset-tile]')) && getComputedStyle(el.querySelector('[data-asset-tile]')).opacity !== '1' })))
           check(`board:ModeBar/ref.tile.not-sent · 只变淡、格下不写字 · ${tag}`, notSent.length === 1 && notSent.every((tile) => tile.text === ''), JSON.stringify(notSent))
           check(`board:ModeBar/ref.tiles · 可灵 4.0 放 3 张：两张进首尾帧、一张淡 · ${tag}`, (await count(page, '[data-reference-row] [data-asset-tile], [data-reference-row] [data-asset-slot]')) >= 3)
-          check(`board:ModeBar/ref.tail.model-limit · ${tag}`, tail === t('assetLibrary.refRow.modelLimitOne', { model: '可灵 4.0', max: 2, from: 3 }), tail)
+          // 句里的模型名 = 底栏模型钮上写的那个（英文界面不许混进中文模型名，验收 C1）。
+          const barModel = (await text(page, `${FOOTER} [data-bar-segment="model-params"] button`)) ?? ''
+          check(`board:ModeBar/ref.tail.model-limit · ${tag}`, Boolean(barModel) && tail === t('assetLibrary.refRow.modelLimitOne', { model: barModel, max: 2, from: 3 }) && (lang !== 'en' || !CJK.test(tail)), JSON.stringify({ tail, barModel }))
           const send = await page.evaluate(() => { const b = document.querySelector('[data-bar-segment="generate"]'); return b ? { disabled: b.hasAttribute('disabled') || b.getAttribute('aria-disabled') === 'true' } : null })
           check(`board:ModeBar/bar.send · 放不下照样能发 · ${tag}`, Boolean(send) && !send.disabled, JSON.stringify(send))
           check(`board:ModeBar/bar.mode · 可灵 4.0 留在图生视频 · ${tag}`, modeText === name(locale, 'image'), String(modeText))
@@ -265,7 +277,8 @@ try {
     }
     if (state === 'mb-k3-model-limit-max') {
       check(`board:ModeBar/ref.tile.not-sent · K3 28 张只变淡、不逐张写字 · ${tag}`, facts.unused.length === 28 && facts.unused.every((text) => text === ''), JSON.stringify(facts.unused.slice(0, 3)))
-      check(`board:ModeBar/ref.tail.model-limit · K3 其余 28 张不会发 · ${tag}`, facts.tail?.text === t('assetLibrary.refRow.modelLimitRange', { model: '可灵 4.0', max: 2, rest: 28 }), facts.tail?.text)
+      const barModel = (await text(page, `${FOOTER} [data-bar-segment="model-params"] button`)) ?? ''
+      check(`board:ModeBar/ref.tail.model-limit · K3 其余 28 张不会发、模型名和底栏同一个 · ${tag}`, Boolean(barModel) && facts.tail?.text === t('assetLibrary.refRow.modelLimitRange', { model: barModel, max: 2, rest: 28 }) && (lang !== 'en' || !CJK.test(facts.tail?.text ?? '')), JSON.stringify({ tail: facts.tail?.text, barModel }))
     }
     if (state.startsWith('mb-k4-')) {
       const s = facts.summary

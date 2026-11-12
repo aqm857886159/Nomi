@@ -15,7 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { DEFAULT_TIMEOUT_MS, expect, expectVisible, clickOrFail, screenshotSettled } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, expect, expectAbsent, expectVisible, clickOrFail, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasAddBar, newProjectEntry } from './_shell.mjs'
 import { closeModeMenu, modeName, openModeMenu, pickMode, readModeCell } from './_modeMenu.mjs'
 import { uiText } from './full-walk/invariants.mjs'
@@ -87,6 +87,11 @@ async function scenario(lang, locale) {
   // ① 文生视频的空节点：「+」在，给的类别里有音频；放一段音频 → 全能参考。
   await newSeedanceNode(locale)
   await expectVisible(plus(), '文生视频的空节点也有「+」')
+  // 空节点「试试」只列点了真有事、点完还成立的项（验收 2026-11-12 B：「文生视频」那项点了没反应，删掉）。
+  const tryProof = await proveProbe(win.locator('[data-node-try-recipe]'), '空节点上「试试」的项')
+  const tryIds = await win.locator('[data-node-try-recipe]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node-try-recipe')))
+  if (JSON.stringify(tryIds) !== JSON.stringify(['video.firstFrame', 'video.firstLast'])) throw new Error(`WALK FAIL: Seedance 空节点「试试」应只列首帧、首尾帧两项，实际 ${JSON.stringify(tryIds)}`)
+  record(`${lang} · 空节点「试试」只列 ${tryIds.join(' / ')}`)
   const empty = await openPlus(locale)
   if (!/audio/.test(empty.accept) || !/image/.test(empty.accept) || !/video/.test(empty.accept)) throw new Error(`WALK FAIL: 空节点「+」给的类别应含图 / 视频 / 音频，实际 accept=${empty.accept}`)
   record(`${lang} · 文生视频空节点「+」给图 / 视频 / 音频（accept=${empty.accept}）`)
@@ -124,6 +129,9 @@ async function scenario(lang, locale) {
   const tail = ((await composer.locator('[data-reference-tail-kind="mode-switched"]').first().textContent().catch(() => '')) ?? '').trim()
   if (!tail.includes(switched)) throw new Error(`WALK FAIL: 方式换成「${switched}」了，行尾却没说（行尾：「${tail}」）`)
   record(`${lang} · 图生视频再放一张 → 方式格「${switched}」（owner 现算），行尾「${tail}」，菜单里首尾帧可点`)
+  // 节点已经放了输入：「试试」里那几项点了要么接不上、要么接上就变了方式，一项都不列。
+  await expectAbsent(win.locator('[data-node-try-recipe]'), { provenBy: tryProof, message: '节点已放了两张图，「试试」不该还列着' })
+  record(`${lang} · 放了输入的节点不再列「试试」`)
   await shot(`${lang}-04-second-image-switched`)
 }
 

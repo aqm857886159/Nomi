@@ -27,6 +27,7 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { newProjectEntry } from './_shell.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 const repoRoot = process.cwd()
 const port = 5292
@@ -112,7 +113,7 @@ try {
   // 解析归一，必须点真实 tab 再断言选中，不能信注入值）。「全能参考」是 vendorTerm，多个视频档案
   // （seedance-2 / dreamina-seedance-2 / seedance-2-apimart…）各自独立声明这同一个人话标签，
   // 不是同一个 archetype id——tab 按文字找，不 hardcode 具体是哪个 archetype。
-  const omniTab = win.locator('button[aria-pressed]', { hasText: '全能参考' }).first()
+  const omniTab = win.locator('button[aria-pressed]', { hasText: uiText('zh-CN', 'generationCommon.modeMenu.name.reference') }).first()
   await clickOrFail(omniTab, '全能参考 模式 tab')
   await expect(omniTab, '点了「全能参考」但它没被选中——后面的断言就不是这个模式的现场了')
     .toHaveAttribute('aria-pressed', 'true', { timeout: DEFAULT_TIMEOUT_MS })

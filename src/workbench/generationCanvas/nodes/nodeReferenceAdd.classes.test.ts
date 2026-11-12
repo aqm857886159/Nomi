@@ -4,7 +4,10 @@ import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { addableReferenceKinds, type AssetDropKind } from '../model/nodeAssetDrop'
 import { addAssetUrlToNode } from './nodeAssetWrite'
-import { archetypeModeArraySlots, effectiveArchetypeMode, effectiveArchetypeModeWithUpload, resolveArchetypeForModel } from './controls/archetypeMeta'
+import { applyHumanModeChoice, archetypeModeArraySlots, collectModeInputs, effectiveArchetypeMode, effectiveArchetypeModeWithUpload, resolveArchetypeForModel, type ModeGraph } from './controls/archetypeMeta'
+import { FIRST_FRAME_EMPTY_KEY } from './controls/referenceList'
+import type { GenerationCanvasEdge } from '../model/generationCanvasTypes'
+import type { ModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { planReferenceProjection } from '../model/referenceInputSlots'
 import { resolveReferenceSlots } from '../runner/referenceSlots'
 
@@ -14,6 +17,8 @@ import { resolveReferenceSlots } from '../runner/referenceSlots'
 //   · 「+」说不能加的每一类，addAssetUrlToNode 真落不下（不写节点）；
 //   · 一类都放不下 =「+」置灰、点不开：至少有档案真的走到这一步（穷举不是空转）。
 // 同一组输入再走一遍付费卡回写那条（planReferenceProjection）：落到的格和算出的方式必须一样（防两份写入漂移）。
+// 起点除了「空节点 + 只上传」，还有 modeForInputs 会分叉的三种（验收 2026-11-12 点名 2）：手选了方式的节点、画布连进来一条首帧边
+// （带角色的输入）、首帧格特意空着（firstFrameEmpty）。这三种只跑默认渠道、不比两份写入（漂移清单只按「空节点」那一路钉）。
 
 const KINDS: readonly AssetDropKind[] = ['image', 'video', 'audio']
 const VENDORS = [undefined, 'apimart', 'kie', 'official'] as const
@@ -41,7 +46,16 @@ function memoryAccess(start: Node) {
   }
 }
 
-const graphOf = (node: Node) => ({ nodes: [node], edges: [] })
+/** 起点：在空节点上先摆好什么（节点 meta 改动 + 画布上连进来的上游节点和边）。 */
+type Start = { name: string; prepare: (node: Node, archetype: ModelArchetype) => Node; upstream: Node[]; edges: GenerationCanvasEdge[] }
+const UPSTREAM: Node = { id: 'up', kind: 'image', title: '', position: { x: 0, y: 0 }, meta: {}, result: { id: 'up-r', type: 'image', url: 'nomi-local://asset/p/up.png', createdAt: 1 } } as Node
+const PLAIN: Start = { name: '空节点', prepare: (node) => node, upstream: [], edges: [] }
+const FIRST_FRAME_EDGE: Start = { name: '连进来一条首帧边', prepare: (node) => node, upstream: [UPSTREAM], edges: [{ id: 'e-up', source: 'up', target: 'n', mode: 'first_frame' } as GenerationCanvasEdge] }
+const FIRST_FRAME_EMPTY: Start = { name: '首帧格特意空着', prepare: (node) => ({ ...node, meta: { ...node.meta, [FIRST_FRAME_EMPTY_KEY]: true } }), upstream: [], edges: [] }
+const humanChoice = (modeId: string): Start => ({ name: `手选了 ${modeId}`, prepare: (node, archetype) => ({ ...node, meta: applyHumanModeChoice(node.meta as Record<string, unknown>, archetype, modeId) }), upstream: [], edges: [] })
+
+let currentStart: Start = PLAIN
+const graphOf = (node: Node): ModeGraph => ({ nodes: [node, ...currentStart.upstream], edges: currentStart.edges })
 
 /** 节点上每一格此刻装着的上传（格 → 地址），比两条写入落到的格用。 */
 function filledSlots(node: Node): Record<string, string[]> {
@@ -55,13 +69,16 @@ function filledSlots(node: Node): Record<string, string[]> {
 
 type Cell = { label: string; counts: string; kind: AssetDropKind; problem: string }
 
-function walkArchetype(archetypeId: string, nodeKind: 'video' | 'image', vendor: string | undefined) {
+function walkArchetype(archetypeId: string, nodeKind: 'video' | 'image', vendor: string | undefined, start: Start = PLAIN) {
+  currentStart = start
   const failures: Cell[] = []
   const drift: Array<Cell & { driftClass: string }> = []
   let states = 0
   let reachedLimit = false
   const seen = new Set<string>()
-  const queue: Array<{ node: Node; counts: Record<AssetDropKind, number> }> = [{ node: nodeFor(archetypeId, nodeKind, vendor), counts: { image: 0, video: 0, audio: 0 } }]
+  const blank = nodeFor(archetypeId, nodeKind, vendor)
+  const startArchetype = resolveArchetypeForModel({ modelKey: archetypeId, vendorKey: vendor ?? null, meta: blank.meta })!
+  const queue: Array<{ node: Node; counts: Record<AssetDropKind, number> }> = [{ node: start.prepare(blank, startArchetype), counts: { image: 0, video: 0, audio: 0 } }]
   let serial = 0
   while (queue.length) {
     const { node, counts } = queue.shift()!
@@ -77,15 +94,18 @@ function walkArchetype(archetypeId: string, nodeKind: 'video' | 'image', vendor:
       const planned = effectiveArchetypeModeWithUpload(archetype, node, graphOf(node), kind)
       const { access, current } = memoryAccess(node)
       const outcome = addAssetUrlToNode(node.id, kind, url, access, graphOf(node))
-      const cell = (problem: string) => ({ label: `${archetypeId}${vendor ? `@${vendor}` : ''}`, counts: key, kind, problem })
+      const cell = (problem: string) => ({ label: `${archetypeId}${vendor ? `@${vendor}` : ''}${start === PLAIN ? '' : ` · ${start.name}`}`, counts: key, kind, problem })
       if (offered.includes(kind)) {
         if (outcome.status !== 'added') { failures.push(cell(`「+」给了，落格却是 ${outcome.status}`)); continue }
         const after = current()
         const landed = effectiveArchetypeMode(archetype, after, graphOf(after))
         if (landed.mode.id !== planned.mode.id) failures.push(cell(`落下后方式 ${landed.mode.id} ≠ 现算 ${planned.mode.id}`))
         if (landed.status !== 'ok') failures.push(cell(`落下后方式状态 ${landed.status}`))
+        // 收得下全部：画布连进来的、手放的，一件都不能被挤出去（连进来的首帧边也算在内）。
+        const inputCount = collectModeInputs(after, graphOf(after)).inputs.length
+        if (landed.taken !== inputCount) failures.push(cell(`落下后只收 ${landed.taken}/${inputCount} 件`))
         // 两份写入对照：付费卡回写同一件参考（用途按 schema 可缺；音频再试一次带上它自己的用途 'audio'），落到的格与算出的方式必须一样。
-        for (const role of kind === 'audio' ? (['audio', undefined] as const) : ([undefined] as const)) {
+        for (const role of start !== PLAIN ? [] : kind === 'audio' ? (['audio', undefined] as const) : ([undefined] as const)) {
           const projection = planReferenceProjection(node, [{ url, kind, ...(role ? { role } : {}) }], [node], [])
           const viaProjection = { ...node, meta: projection.meta ?? node.meta }
           const projMode = effectiveArchetypeMode(archetype, viaProjection, graphOf(viaProjection)).mode.id
@@ -139,9 +159,32 @@ describe('生成框「+」：给哪几类 ⇄ 真落得下（全部档案 × 渠
     expect(classes).toEqual(KNOWN_DRIFT_CLASSES)
   })
 
+  // 另三种起点（只默认渠道）：手选了方式（档案里每一种带格的方式各一遍）、连进来一条首帧边、首帧格特意空着。
+  const startCases = cases.filter((entry) => entry.vendor === undefined).flatMap((entry) => {
+    const archetype = MODEL_ARCHETYPES.find((candidate) => candidate.id === entry.id)!
+    const choices = archetype.modes.filter((mode) => mode.slots.length > 0).map((mode) => humanChoice(mode.id))
+    return [...choices, FIRST_FRAME_EDGE, ...(entry.kind === 'video' ? [FIRST_FRAME_EMPTY] : [])].map((start) => ({ entry, start }))
+  })
+  const startResults = startCases.map(({ entry, start }) => ({ entry, start, ...walkArchetype(entry.id, entry.kind, entry.vendor, start) }))
+
+  it('另三种起点不是空转：手选、首帧边、首帧空着都覆盖到，且各自真走出了状态', () => {
+    for (const prefix of ['手选了', '连进来一条首帧边', '首帧格特意空着']) {
+      const hit = startResults.filter((result) => result.start.name.startsWith(prefix))
+      expect(hit.length, prefix).toBeGreaterThan(0)
+      expect(hit.reduce((sum, result) => sum + result.states, 0), prefix).toBeGreaterThan(20)
+    }
+  })
+
+  for (const result of startResults) {
+    it(`${result.entry.id} · ${result.start.name}：「+」给的每一类都落得下、方式跟着现算；不给的都落不下`, () => {
+      expect(result.failures).toEqual([])
+    })
+  }
+
   it('空的视频节点：「+」给音频（文生视频也能直接放音频，放了就是全能参考）', () => {
     const seedance = cases.find((entry) => entry.id === 'seedance-2' && entry.vendor === 'apimart')!
     const node = nodeFor(seedance.id, 'video', seedance.vendor)
+    currentStart = PLAIN
     expect(addableReferenceKinds(node, graphOf(node))).toContain('audio')
   })
 })
