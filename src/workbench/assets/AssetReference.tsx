@@ -16,8 +16,11 @@ import type { ReferenceInfo } from './referenceNames'
 // 一行，在文字上方：
 //   [画布点选 40][+ 40]  小图 小图 小图 …………………………………… 参考图 N 张
 //   · 小图平时干净（没有序号、没有 ×）；悬停才出 ×，并出现名字 + 来源的小提示（见 AssetTile）。
-//   · 首尾帧方式：「首帧」「尾帧（可不填）」两格，名字在格下，中间一颗对调钮；别的方式里放的图淡显成「未用到」。
-//   · 行尾只放一句 12px 小字（参考图 N 张 / 歧义提示 / 用不上的说明），不放彩色提示条。
+//   · 首尾帧方式：「首帧」「尾帧（可不填）」两格，名字在格下，中间一颗对调钮。
+//   · 模型自己放不下的图只变淡，不逐张写字（边界样张 K3）；一句话在行尾说清。
+//   · 行尾那句话整句不折（K2）：图只有一行、整句放得下就在行尾；否则整句换到图下面单独一行、靠右。
+//     不量文字宽度：滚动口和那句话是同一个 flex-wrap 里的两件，滚动口按图一行的宽度要位置，放不下那句话就自然掉到下一行；
+//     那句话在滚动口外面，图再多（30 + 10 + 10）也钉在可视区里，不跟着图滚走（K1）。
 
 export type AssetSlot = {
   key: string
@@ -68,10 +71,14 @@ type AssetReferenceProps = {
   onUseParked?: (url: string) => void
   /** 首尾帧两格的对调（只有恰好两个单帧槽时才给）。 */
   onSwapFrames?: () => void
+  /** 对调后这个方式发不出去（另一格必填而现在是空的）：⇄ 置灰，悬停写这句原因。不传 = 可点。 */
+  swapFramesDisabledReason?: string
   /** 模型根本不收参考：入口灰掉、悬停说原因；已经连进来的图淡显。 */
   disabledReason?: string
-  /** 行尾那句 12px 小字。不传 = 只有「参考图 N 张」（数组里有图时）。 */
+  /** 行尾那句 12px 小字（报数 / 已改成 / 不会发），由宿主按方式现算。不传 = 没有。 */
   tail?: React.ReactNode
+  /** 图那一行的滚动口样式（宿主定：最多露几行、往哪外扩）。那句话不在滚动口里。 */
+  scrollClassName?: string
 }
 
 // 合并后的数组参考行用这个伪 key 记展开状态。
@@ -90,7 +97,7 @@ function kindFromFile(file: File): AssetKind {
 export default function AssetReference({
   slots, remainingCapacity, capacityMessage, valuesByKey, occupiedByKey, projectId, openSlotKey, uploadingSlotKey,
   onTogglePicker, onPick, onUpload, onRemove, onInsertMention, onReorder, onBrowseAll, onPickOnCanvas, firstFrameSlotKey,
-  referenceInfos, unusedUrls, onRemoveUnused, parkedUrls, onUseParked, onSwapFrames, disabledReason, tail,
+  referenceInfos, unusedUrls, onRemoveUnused, parkedUrls, onUseParked, onSwapFrames, swapFramesDisabledReason, disabledReason, tail, scrollClassName,
 }: AssetReferenceProps): JSX.Element {
   const { t } = useTranslation()
   const dragRef = React.useRef<{ key: string; index: number } | null>(null)
@@ -142,11 +149,13 @@ export default function AssetReference({
       ...(info?.fromEdge ? { tipText: t('assetLibrary.refRow.tipConnected', { name }), removeLabel: t('assetLibrary.refRow.disconnect') } : {}),
     }
   }
-  const countText = arrayTiles.length > 0 ? t('assetLibrary.refRow.count', { count: arrayTiles.length }) : ''
-  const tailContent = tail !== undefined ? tail : countText || null
+  const tailContent = tail ?? null
 
   return (
-    // 这一排所有格按顶对齐（items-start）；首尾帧的名字在格下面，所以只有那一排会比 40px 高。
+    <div data-reference-block="true" className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    {/* 滚动口按「图排成一行要多宽」要位置（flex: 0 1 auto），最多占满一整行；外扩 1.5rem 给悬停才出的 × 留地方。 */}
+    <div data-reference-scroll="true" className={cn('min-w-0 max-w-[calc(100%+1.5rem)] flex-[0_1_auto]', scrollClassName)}>
+    {/* 这一排所有格按顶对齐（items-start）；首尾帧的名字在格下面，所以只有那一排会比 40px 高。 */}
     <div data-reference-row="true" data-reference-row-disabled={disabled ? 'true' : undefined} className="flex min-h-10 flex-wrap items-start gap-2">
       <div className="relative shrink-0">
         <AssetReferenceButton disabled={disabled || Boolean(uploadingSlotKey)}
@@ -191,9 +200,11 @@ export default function AssetReference({
                 type="button"
                 data-reference-swap="true"
                 aria-label={t('assetLibrary.refRow.swapFrames')}
-                title={t('assetLibrary.refRow.swapFrames')}
+                title={swapFramesDisabledReason ?? t('assetLibrary.refRow.swapFrames')}
+                disabled={Boolean(swapFramesDisabledReason)}
+                data-reference-swap-disabled={swapFramesDisabledReason ? 'true' : undefined}
                 onClick={onSwapFrames}
-                className="mt-1.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-nomi-line bg-nomi-paper p-0 text-nomi-ink-80 hover:bg-nomi-ink-05"
+                className="mt-1.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-nomi-line bg-nomi-paper p-0 text-nomi-ink-80 hover:bg-nomi-ink-05 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-nomi-paper"
               >
                 <IconArrowsLeftRight size={ICON_TIERS.tool.size} stroke={ICON_TIERS.tool.stroke} aria-hidden />
               </button>
@@ -221,9 +232,11 @@ export default function AssetReference({
         )
       })}
 
-      {/* 数组参考:合并成一排小图（「+」已经是行首的工具钮）。没有序号、没有组标签。 */}
+      {/* 数组参考:合并成一排小图（「+」已经是行首的工具钮）。没有序号、没有组标签。
+          这一组不自成一块（display: contents）：小图直接接在「+」后面排、满了折行（边界样张 K1），
+          自成一块时放不下一行就整组掉到「+」下面，第一行只剩两颗工具钮。 */}
       {arraySlots.length > 0 ? (
-        <div data-asset-slot-group="array" className="flex flex-wrap items-center gap-2">
+        <div data-asset-slot-group="array" className="contents">
           {arrayTiles.map(({ slot, url, index }) => (
             <AssetTile
               key={`${slot.key}-${url}-${index}`}
@@ -251,21 +264,26 @@ export default function AssetReference({
           ))}
         </div>
       ) : null}
-      {/* 别的方式里放着、这个方式用不上的图：淡显，名字写「未用到」，切回去还在。旧工程里以前藏着的图（先放一边）也在这里：点一下用上。 */}
+      {/* 模型自己放不下的那几张：只变淡，不逐张写字（行尾一句话说清；生成照常能点，不挡路）。悬停写「名字 · 不会发」。
+          旧工程里以前藏着的图（先放一边）也在这里：悬停写「名字 · 没在用，点一下用上」，点一下放回在用。 */}
       {(unusedUrls ?? []).map((url) => {
         const unusedTile = tileProps(url, 'image', t('assetLibrary.referenceImage'))
         const usable = Boolean(onUseParked && parkedUrls?.has(url) && !disabled)
         return (
-        <div key={`unused-${url}`} data-reference-unused="true" data-reference-parked={parkedUrls?.has(url) ? 'true' : undefined} className="flex min-w-10 shrink-0 flex-col items-start gap-1">
+        <div key={`unused-${url}`} data-reference-unused="true" data-reference-parked={parkedUrls?.has(url) ? 'true' : undefined} className="flex min-w-10 shrink-0 flex-col items-start">
           <AssetTile {...unusedTile} dimmed
             {...(onRemoveUnused && !disabled ? { onRemove: () => onRemoveUnused(url) } : {})}
-            {...(usable ? { onClick: () => onUseParked!(url), tipText: t('assetLibrary.refRow.useParked', { name: unusedTile.asset.name }) } : {})} />
-          {disabled ? null : <span className="whitespace-nowrap text-caption leading-4 text-nomi-ink-60">{t('assetLibrary.refRow.unused')}</span>}
+            {...(usable
+              ? { onClick: () => onUseParked!(url), tipText: t('assetLibrary.refRow.useParked', { name: unusedTile.asset.name }) }
+              : disabled ? {} : { tipText: t('assetLibrary.refRow.notSentTip', { name: unusedTile.asset.name }) })} />
         </div>
         )
       })}
+    </div>
+    </div>
       {tailContent ? (
-        <span data-reference-tail="true" className="flex min-w-0 max-w-full flex-1 items-center justify-end gap-1 self-center text-caption text-nomi-ink-60">{tailContent}</span>
+        // 整句不折、不缩（whitespace-nowrap + shrink-0）：放不下就整句换到下一行，ml-auto 让它靠右。
+        <span data-reference-tail="true" className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap text-caption text-nomi-ink-60">{tailContent}</span>
       ) : null}
       {totalFull && capacityMessage ? <span className="basis-full text-micro text-nomi-ink-60" role="status">{capacityMessage}</span> : null}
     </div>

@@ -419,7 +419,7 @@
         "zh-en",
         "dark"
       ],
-      "note": "新增行为：必须交换真实边 / 上传来源，不能只换图（BOUND-05）",
+      "note": "新增行为：必须交换真实边 / 上传来源，不能只换图（BOUND-05）。【待用户点头的偏差，2026-11-12 协调定】对调后这个方式发不出去（另一格必填而现在是空的）时 ⇄ 置灰，悬停写「首帧必须放，放了两张才能对调」；判据只看档案槽的必填声明，首帧可不放的模型只放一张时仍可点。B3d 这一格因此和拍板图不同（拍板图上 ⇄ 可点）。改前 / 改后并排图：docs/evidence/2026-11-12-mode-bar/swap-before-after-zh.png、swap-before-after-en.png。用户不同意就改回。",
       "assertion": "board:ComposerB3/ref.slot.swap"
     },
     {

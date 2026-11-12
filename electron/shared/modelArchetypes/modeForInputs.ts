@@ -112,6 +112,18 @@ export function modeTakesAllInputs(mode: ArchetypeMode, inputs: readonly ModeInp
   return fit.required && fit.taken === inputs.length
 }
 
+/**
+ * 首尾帧「对调」点了之后这个方式还发不发得出去（⇄ 能不能点）。判据只看档案的槽必填声明：对调后首帧格装的是原来尾帧格的东西、
+ * 尾帧格装的是原来首帧格的东西，每个必填格（min ≥ 1）都得有东西。没有首帧 / 尾帧格的方式没有对调可言。
+ * 例：首帧必填、尾帧可不放，只放了首帧 → 对调后首帧空 → 不可点；首帧可不放的档案只放一张 → 可点。
+ */
+export function frameSwapKeepsSendable(mode: ArchetypeMode, filled: { first: boolean; last: boolean }): boolean {
+  const first = mode.slots.find((slot) => slot.kind === 'first_frame')
+  const last = mode.slots.find((slot) => slot.kind === 'last_frame')
+  if (!first || !last) return false
+  return (filled.last || first.min === 0) && (filled.first || last.min === 0)
+}
+
 /** 这个方式会把几段没明说是首帧的参考视频拿去当接力首帧（菜单行按「用不上」报数）。 */
 export function modeRelayedCount(mode: ArchetypeMode, inputs: readonly ModeInput[], options: ModeForInputsOptions = {}): number {
   return fitInputs(mode, inputs, options).relayed

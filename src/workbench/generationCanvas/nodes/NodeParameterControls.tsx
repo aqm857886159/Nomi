@@ -26,6 +26,7 @@ import {
 } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useNodeWriteAccess } from './nodeWriteAccess'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 import {
@@ -76,6 +77,7 @@ import { resolveReferencePlacement, firstFrameTaggedSlot } from '../runner/refer
 import { useChannelCreateBodies, type VendorMappingsReader } from './controls/useChannelCreateBody'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
+import { frameSwapKeepsSendable } from '../../../../electron/shared/modelArchetypes/modeForInputs'
 import ModeBar from './controls/ModeBar'
 import { buildModeMenu, renderModeMenuText, modeRowName, type ModeDisplayKind } from './controls/modeMenuModel'
 import { liveModeSwitchNotice } from '../store/canvasModeChoiceForget'
@@ -89,7 +91,7 @@ import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
 import InlineParameterBar from './InlineParameterBar'
-import { composerHeadlineSummary } from './composerHeadlineSummary'
+import { composerHeadlineParts } from './composerHeadlineSummary'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
 import { buildAspectRatioNodePatch } from './nodeSizing'
@@ -545,7 +547,8 @@ export default function NodeParameterControls({
     // 其余参数一个不少、仍在同一块弹层里。走 summaryOverride 这条**已有的**缝（导入工作流那支
     // 在用同一个入口），不新造第二条摘要通路。工作流的口径优先——它连「值串出来没人认得」
     // 这个更基本的问题都还没解决，轮不到再挑两个。
-    const summaryOverride = workflowSummary ?? composerHeadlineSummary({
+    // 摘要按整值给出（带退让顺序）：底栏挤时只退这一格、一个值不截半截（K4）。
+    const headlineParts = workflowSummary ? [] : composerHeadlineParts({
       isImageLike,
       isVideoLike,
       controls: panelRenderedControls,
@@ -553,6 +556,7 @@ export default function NodeParameterControls({
       formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
       autoLabel: t('generationCommon.parameters.auto'),
     })
+    const summaryOverride = workflowSummary ?? (headlineParts.length ? headlineParts.map((part) => part.text).join(' · ') : undefined)
     return (
       <InlineParameterBar
         modelOptions={modelOptions}
@@ -568,6 +572,7 @@ export default function NodeParameterControls({
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
         summaryOverride={summaryOverride}
+        {...(headlineParts.length ? { summaryParts: headlineParts } : {})}
         // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。
         {...(modeMenu ? {
           modeMenu: {
@@ -615,15 +620,24 @@ export default function NodeParameterControls({
   const inputReferenceEntry = !assetSlots.length && canConnect && potentialReferenceKinds.length
     ? <NodeInputReferenceEntry nodeId={node.id} accept={potentialReferenceKinds} /> : null
 
-  const { unusedUrls, parkedUrls, referenceInfos, arrayCount } = computeReferenceRowModel({
+  const { unusedUrls, parkedUrls, referenceInfos, arrayCount, arrayCounts, arrayFull } = computeReferenceRowModel({
     node, nodes, edges, meta, assetSlots, assetValuesByKey, arraySlots, showReferences,
     unusedUploads: referencePlacement.unused, parkedUploads: referencePlacement.parked,
     fallbackName: (kind) => t(kind === 'video' ? 'assetLibrary.referenceVideo' : kind === 'audio' ? 'assetLibrary.referenceAudio' : 'assetLibrary.referenceImage'),
   })
 
+  const swapFirstSlot = imageUrlSlots.find((slot) => slot.group === 'first_frame')
+  const swapLastSlot = imageUrlSlots.find((slot) => slot.group === 'last_frame')
+  const slotFilled = (slot: ImageUrlSlot | undefined) => {
+    const value = slot ? assetValuesByKey[slot.key] : undefined
+    return (typeof value === 'string' && value.length > 0) || Boolean(slot && parameterAssignments.find((assignment) => assignment.slot.key === slot.key)?.edge)
+  }
+  // 对调后这个方式还发得出去 ⇄ 才可点（判据只看档案的槽必填声明，见 frameSwapKeepsSendable）。
+  const swapBlocked = archMode && swapFirstSlot && swapLastSlot ? !frameSwapKeepsSendable(archMode, { first: slotFilled(swapFirstSlot), last: slotFilled(swapLastSlot) }) : false
   const handleSwapFrames = () => {
-    const first = imageUrlSlots.find((slot) => slot.group === 'first_frame')
-    const last = imageUrlSlots.find((slot) => slot.group === 'last_frame')
+    const first = swapFirstSlot
+    const last = swapLastSlot
+    if (swapBlocked) return
     if (first && last) swapFrameSlots(writeCtx, first, last, assetValuesByKey, (slot) => parameterAssignments.find((assignment) => assignment.slot.key === slot.key)?.edge?.source)
   }
 
@@ -647,7 +661,7 @@ export default function NodeParameterControls({
   const switchedRow = modeMenu && archMode ? modeMenu.rows.find((row) => row.id === archMode.id) : undefined
   const switchNoticeMeta = modeInputs && archMode ? liveModeSwitchNotice(meta, inputCount, archMode.id) : null
   const tail = referenceRowTail(t, {
-    refsUnsupported, unusedCount: unusedUrls.length, arrayCount, guidanceNote, modelLimit,
+    refsUnsupported, unusedCount: unusedUrls.length, counts: arrayCounts, full: arrayFull, guidanceNote, modelLimit,
     switchNotice: switchNoticeMeta && switchedRow
       ? { count: switchNoticeMeta.count, allImages: Boolean(modeInputs?.inputs.every((input) => input.asset === 'image')), modeName: modeRowName(t, switchedRow) }
       : null,
@@ -715,9 +729,12 @@ export default function NodeParameterControls({
           {...(referenceInfos ? { referenceInfos } : {})}
           unusedUrls={unusedUrls}
           onRemoveUnused={(url) => removeUnusedReference(writeCtx, url)} parkedUrls={parkedUrls} onUseParked={(url) => restoreParkedReference(writeCtx, url)}
-          {...(imageUrlSlots.length === 2 && imageUrlSlots[0]?.group === 'first_frame' && imageUrlSlots[1]?.group === 'last_frame' ? { onSwapFrames: handleSwapFrames } : {})}
+          {...(imageUrlSlots.length === 2 && imageUrlSlots[0]?.group === 'first_frame' && imageUrlSlots[1]?.group === 'last_frame' ? { onSwapFrames: handleSwapFrames, ...(swapBlocked ? { swapFramesDisabledReason: t('assetLibrary.refRow.swapFramesNeedsBoth') } : {}) } : {})}
           {...(refsUnsupported ? { disabledReason: t('assetLibrary.refRow.disabledReason') } : {})}
           {...(tail ? { tail } : {})}
+          // 图那一行最多露三行多一点（40px 格），更多在区内滚；滚动口向卡片边缘外扩（-mx-3 -mt-3 再用 px-3 pt-3 补回来）：
+          // 悬停才出的 × 挂在小图右上角外侧，不扩就被切掉。
+          scrollClassName={cn(NODE_SCROLL_REGION_CLASS_NAME, 'overflow-y-auto overscroll-contain -mx-3 -mt-3 max-h-40 px-3 pt-3')}
         />
       ) : null}
 

@@ -18,6 +18,7 @@ import {
   optionValue,
 } from './controls/parameterControlModel'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
+import { summaryFitCandidates } from './composerHeadlineSummary'
 import { modelVisibilityFooterAction, useDedupedModelSelect } from '../../common/useDedupedModelSelect'
 import {
   localizeAutoOption,
@@ -67,6 +68,12 @@ type InlineParameterBarProps = {
    * 不传 = 原样（画布一行、贴文字宽最宽 240）。
    */
   wrap?: boolean
+  /**
+   * 摘要的每个整值和退让顺序（画布节点传，见 composerHeadlineParts）。传了 = 底栏永远一行：
+   * 放不下时只退参数这一格，按 dropRank 从小到大整值地退（比例 → 有声 → 清晰度 → 时长，边界样张 K4），
+   * 模型 / 变体 / 方式和右边几颗钮都不缩，一个值不截半截。分镜行不传（它有自己的 summaryWidth / wrap）。
+   */
+  summaryParts?: readonly { text: string; dropRank: number }[]
   /**
    * 视频节点底栏的「方式」一格（模型 → 变体 → 方式 → 参数）：下拉，和模型菜单同一个浮层组件、同一个方向。
    * 只在模型有两种以上方式时传；画布节点用它，不再往参数面板里传 modeChoices。
@@ -133,6 +140,7 @@ export default function InlineParameterBar({
   summaryOverride,
   summaryWidth,
   wrap = false,
+  summaryParts,
   modeMenu,
   modeChoices,
   activeModeId = '',
@@ -151,10 +159,47 @@ export default function InlineParameterBar({
   )
 
   // 摘要 pill 文本：各参数当前值串接（16:9 · 1080p · 5 · 音频）。面板装**全部**参数（pill 不占走任何一个）。
-  const summaryText = summaryOverride || renderedControls
+  const fullSummaryText = summaryOverride || renderedControls
     .map((c) => summaryPart(c, meta, t('generationCommon.parameters.auto')))
     .filter(Boolean)
     .join(' · ')
+
+  // ── 底栏挤时摘要整值地退（K4）。量的是几档候选整颗钮的宽（藏着的量尺），不是截文字。 ──
+  const fitCandidates = !wrap && summaryParts?.length ? summaryFitCandidates(summaryParts) : null
+  const fitKey = fitCandidates ? fitCandidates.join('\n') : ''
+  const summarySlotRef = React.useRef<HTMLDivElement | null>(null)
+  const summaryRulerRef = React.useRef<HTMLDivElement | null>(null)
+  const barRef = React.useRef<HTMLDivElement | null>(null)
+  const identityRef = React.useRef<HTMLDivElement | null>(null)
+  const [fit, setFit] = React.useState<{ index: number; cramped: boolean }>({ index: 0, cramped: false })
+  React.useLayoutEffect(() => {
+    if (!fitKey) return
+    const bar = barRef.current
+    const identity = identityRef.current
+    const ruler = summaryRulerRef.current
+    if (!bar || !identity || !ruler) return
+    const pick = (): void => {
+      // 剩给摘要的宽 = 参数条宽 − 身份几格的「本来宽」− 间距。本来宽要把被省略号藏掉的那截加回来，
+      // 否则模型名一缩、算出来的剩余就变大，又退回不挤 → 来回跳。
+      const hidden = Array.from(identity.querySelectorAll<HTMLElement>('span')).reduce((sum, el) => sum + Math.max(0, el.scrollWidth - el.clientWidth), 0)
+      const gap = parseFloat(getComputedStyle(bar).columnGap) || 0
+      const room = bar.clientWidth - (identity.offsetWidth + hidden) - gap
+      const widths = Array.from(ruler.children).map((child) => (child as HTMLElement).offsetWidth)
+      const index = widths.findIndex((width) => width <= room)
+      const next = index < 0 ? { index: Math.max(0, widths.length - 1), cramped: true } : { index, cramped: false }
+      setFit((prev) => (prev.index === next.index && prev.cramped === next.cramped ? prev : next))
+    }
+    pick()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(pick)
+    observer.observe(bar)
+    observer.observe(identity)
+    return () => observer.disconnect()
+  }, [fitKey])
+  // 让法顺序（K4，2026-11-12 拍板）：参数那格整值退（比例 → 有声 → 清晰度 → 时长留到最后）→ 只剩时长还放不下，
+  // 才让模型名末尾省略（title 是全名）。变体、方式、右边几颗按钮永远不缩。
+  const fitCramped = Boolean(fitCandidates) && fit.cramped
+  const summaryText = fitCandidates ? fitCandidates[Math.min(fit.index, fitCandidates.length - 1)] ?? fullSummaryText : fullSummaryText
 
   // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
   // 打开时以触发器（pill / ⚙）中心定位一次，之后绝不跟随；
@@ -418,7 +463,7 @@ export default function InlineParameterBar({
   // 省略号、hover 的 title 是全名。变体是短枚举（「变体 5.0」），和分镜底栏的模式 / 时长同一条规则
   // （2026-10-06 前分镜旧底栏的让位表同一条规则：短枚举从不缩）——2026-09-21 走查：1100×720 英文下它被压到值区只剩
   // 5px，「Variant 5.0」读成「Variant E」，缩它省下的几像素换来的是一颗读不出的芯片。
-  const modelChipClass = wrap ? 'shrink-0' : undefined
+  const modelChipClass = wrap || (fitCandidates && !fitCramped) ? 'shrink-0' : undefined
   const variantChipClass = 'shrink-0'
   const identityRow = (
     // 2026-09-22 总合并裁决：身份两枚谁让宽由 **#834 的规则**说了算（只有模型 chip `shrink-0`，
@@ -426,7 +471,7 @@ export default function InlineParameterBar({
     // 它想修的「EN 下 Kling 3.0 压住 16:9」由 #834 的 `modelChipClass` / `variantChipClass`
     // 两条一起覆盖；本分支留下的是**判据**——参数条一行里相邻两颗控件不许相压
     // （`tests/ux/design-lab-ask-card-in-panel.walk.mjs` 的重叠断言，原样保留、照跑）。
-    <div className="flex min-w-0 items-center gap-1.5">
+    <div ref={identityRef} className={cn('flex items-center gap-1.5', fitCandidates && !fitCramped ? 'shrink-0' : 'min-w-0')}>
       {!hideModel ? (
         <NomiSelect
           ariaLabel={t('generationCommon.parameters.model')}
@@ -476,19 +521,20 @@ export default function InlineParameterBar({
       data-parameter-summary={pillText}
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}
-      title={pillText || t('generationCommon.parameters.generationParameters')}
+      title={(fitCandidates ? fullSummaryText : pillText) || t('generationCommon.parameters.generationParameters')}
+      data-parameter-summary-cramped={fitCandidates && fit.cramped ? 'true' : undefined}
       onClick={() => (panelOpen ? closePanel() : openPanel())}
       className={cn(
         'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
         // 贴文字宽（hug，分镜行）时允许收：行窄、字体宽（Linux / mac 字体比 Windows 宽）时先截断摘要文字，
         // 不把右端的「生成」挤出卡外（2026-10-06 #1042）。定宽的画布节点照旧不收。
-        summaryMaxWidth !== undefined ? 'shrink' : 'shrink-0',
+        fitCandidates ? 'shrink-0' : summaryMaxWidth !== undefined ? 'shrink' : 'shrink-0',
         'justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
         'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-ink-40',
       )}
-      style={summaryMaxWidth !== undefined ? { maxWidth: summaryMaxWidth } : { width: resolvedSummaryWidth }}
+      style={fitCandidates ? undefined : summaryMaxWidth !== undefined ? { maxWidth: summaryMaxWidth } : { width: resolvedSummaryWidth }}
     >
-      <span className="min-w-0 truncate" style={{ maxWidth: wrap ? 'none' : 240 }}>
+      <span className="min-w-0 truncate" style={{ maxWidth: wrap || fitCandidates ? 'none' : 240 }}>
         {pillText || t('generationCommon.parameters.parameters')}
       </span>
       <IconChevronDown
@@ -508,15 +554,32 @@ export default function InlineParameterBar({
 
   const bar = (
     <div
+      ref={barRef}
       className={cn(
         'generation-canvas-v2-node__params--parameters',
         'min-w-0',
         // 分镜行最窄一档（wrap）放不下就整颗换行；其余一行（画布节点长相不变）。
         cn('flex items-center', wrap ? 'flex-wrap gap-2' : 'gap-1.5'),
+        // 整值退让要知道「还剩多宽」：参数条吃满这一段，摘要槽吃满身份几格之后的剩余。
+        fitCandidates && 'flex-1',
       )}
     >
       <div className="contents">{identityRow}</div>
-      {summaryTrigger ? (
+      {summaryTrigger && fitCandidates ? (
+        <div ref={summarySlotRef} data-parameter-summary-slot="true" className={cn('relative flex items-center', fitCramped ? 'flex-none' : 'min-w-0 flex-1')}>
+          {summaryTrigger}
+          {/* 量尺：每一档候选画成一颗同样的钮，藏起来量宽；不占位、不可点、读屏不读。 */}
+          <div ref={summaryRulerRef} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 flex w-max flex-col items-start">
+            {fitCandidates.map((text) => (
+              <span key={text} className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-pill border pl-2.5 pr-2 text-caption">
+                {text}
+                <span className="shrink-0" style={{ width: ICON_TIERS.corner.size }} />
+              </span>
+            ))}
+          </div>
+          {panelPortal}
+        </div>
+      ) : summaryTrigger ? (
         <div className="min-w-0 contents">
           {summaryTrigger}
           {panelPortal}

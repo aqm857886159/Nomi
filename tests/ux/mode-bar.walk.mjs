@@ -4,7 +4,12 @@
 // 行尾那句话都是生产组件按唯一 owner modeForInputs 现算的；这里对每个拍板元素量一条用户看得见的事实，
 // 断言名 `board:ModeBar/<元素 id>` 与清单一一对应。每格中 / 英 × 明 / 暗各截一张，证据进 docs/evidence/2026-11-12-mode-bar/。
 //
-// 用法：node tests/ux/mode-bar.walk.mjs        （EVIDENCE=0 只跑断言不截图）
+// 后半段是边界走查（mb-k*，边界样张 K1–K5，用户 2026-11-12「按推荐做」），放到最多的数据上判四条（每格中 / 英各一遍）：
+//   ① 底栏相邻两颗不互相盖；② 没有东西出生成框；③ 行尾那句话、底栏每一格都只一行（不折、不截半个值）；
+//   ④ 放满 30 + 10 + 10 时那句话在可视区里（不在滚动口里、不跟着图滚走）。
+// 每条先红后绿证过：把实现拿掉，这几条变红（见报告）。量到的事实另写进 boundary.json。
+//
+// 用法：node tests/ux/mode-bar.walk.mjs        （EVIDENCE=0 只跑断言不截图；BOUNDARY_ONLY=1 只跑边界）
 import { stationTimeout } from './_station-budget.mjs'
 import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { chromium } from 'playwright'
@@ -88,7 +93,8 @@ async function shot(page, state, file) {
   await page.locator(`[data-design-lab-shot="${state}"]`).screenshot({ path: path.join(EVIDENCE_DIR, `${file}.png`), animations: 'disabled' })
 }
 
-const SAMPLE_STATES = ['mb-a-no-input-menu', 'mb-b-one-image-menu', 'mb-c-first-last-params', 'mb-d-third-image', 'mb-d-third-image-menu', 'mb-f-kling-menu', 'mb-h-image-node', 'mb-i-remove-menu', 'mb-j-model-limit']
+const SAMPLE_STATES = process.env.BOUNDARY_ONLY === '1' ? [] : ['mb-a-no-input-menu', 'mb-b-one-image-menu', 'mb-c-first-last-params', 'mb-d-third-image', 'mb-d-third-image-menu', 'mb-f-kling-menu', 'mb-h-image-node', 'mb-i-remove-menu', 'mb-j-model-limit']
+const BOUNDARY_STATES = ['mb-k1-omni-max', 'mb-k2-switched-four', 'mb-k2-switched-five', 'mb-k2-twelve', 'mb-k2-switched-max', 'mb-k3-model-limit-max', 'mb-k4-bar-common', 'mb-k4-bar-longest', 'mb-k4-bar-longest-firstlast', 'mb-k5-menu-longest']
 
 try {
   for (const [lang, locale] of LOCALES) {
@@ -158,7 +164,7 @@ try {
         }
         if (state === 'mb-j-model-limit') {
           const notSent = await page.evaluate(() => [...document.querySelectorAll('[data-reference-unused]')].map((el) => ({ text: el.textContent?.trim() ?? '', dimmed: Boolean(el.querySelector('[data-asset-tile]')) && getComputedStyle(el.querySelector('[data-asset-tile]')).opacity !== '1' })))
-          check(`board:ModeBar/ref.tile.not-sent · 变淡 · ${tag}`, notSent.length === 1 && notSent.every((tile) => tile.dimmed), JSON.stringify(notSent))
+          check(`board:ModeBar/ref.tile.not-sent · 只变淡、格下不写字 · ${tag}`, notSent.length === 1 && notSent.every((tile) => tile.text === ''), JSON.stringify(notSent))
           check(`board:ModeBar/ref.tiles · 可灵 4.0 放 3 张：两张进首尾帧、一张淡 · ${tag}`, (await count(page, '[data-reference-row] [data-asset-tile], [data-reference-row] [data-asset-slot]')) >= 3)
           check(`board:ModeBar/ref.tail.model-limit · ${tag}`, tail === t('assetLibrary.refRow.modelLimitOne', { model: '可灵 4.0', max: 2, from: 3 }), tail)
           const send = await page.evaluate(() => { const b = document.querySelector('[data-bar-segment="generate"]'); return b ? { disabled: b.hasAttribute('disabled') || b.getAttribute('aria-disabled') === 'true' } : null })
@@ -170,6 +176,120 @@ try {
       }
     }
   }
+
+  // ── 边界（K1–K5）：放到最多的数据上判四条 + 每张样张自己的那一条。每格中 / 英各一遍，K1 再加暗色。 ──
+  const boundary = []
+  const BOUNDARY_RUNS = [...LOCALES.flatMap(([lang, locale]) => BOUNDARY_STATES.map((state) => ({ state, lang, locale, scheme: 'light' }))), ...LOCALES.map(([lang, locale]) => ({ state: 'mb-k1-omni-max', lang, locale, scheme: 'dark' }))]
+  for (const { state, lang, locale, scheme } of BOUNDARY_RUNS) {
+    const tag = `${state} ${lang}-${scheme}`
+    const t = (key, values) => uiTextWith(locale, key, values)
+    const { page, context } = await open(state, { lang, scheme })
+    const facts = await page.evaluate(([cardSel, footerSel]) => {
+      const box = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: Math.round(r.width), h: Math.round(r.height) } }
+      const card = document.querySelector(cardSel)
+      const footer = document.querySelector(footerSel)
+      const scroll = document.querySelector('[data-reference-scroll]')
+      const tail = document.querySelector('[data-reference-tail]')
+      const block = document.querySelector('[data-reference-block]')
+      // 底栏一颗一颗：模型 / 变体 / 方式 / 参数 + 右边几颗（直接可见的按钮，不含量尺）。
+      const cells = footer ? [...footer.querySelectorAll('button')].filter((b) => !b.closest('[aria-hidden="true"]') && b.getBoundingClientRect().width > 0).map((b) => {
+        const r = b.getBoundingClientRect()
+        const spans = [...b.querySelectorAll('span')].filter((sp) => sp.getBoundingClientRect().width > 0)
+        return { label: b.getAttribute('aria-label') || b.textContent?.trim() || '', text: b.textContent?.trim() ?? '', left: r.left, right: r.right, top: r.top, bottom: r.bottom, h: Math.round(r.height), title: b.getAttribute('title') ?? '', clippedTexts: spans.filter((sp) => sp.scrollWidth > sp.clientWidth + 1).map((sp) => sp.textContent?.trim() ?? ''), clipped: b.scrollWidth > b.clientWidth + 1 || spans.some((sp) => sp.scrollWidth > sp.clientWidth + 1) }
+      }) : []
+      const lh = tail ? parseFloat(getComputedStyle(tail).lineHeight) || 16 : 16
+      const summary = footer?.querySelector('[data-parameter-summary]')
+      const dropdown = [...document.querySelectorAll('[data-nomi-select-dropdown]')].find((el) => el.getBoundingClientRect().width > 0) ?? null
+      const descriptions = dropdown ? [...dropdown.querySelectorAll('[data-nomi-select-option-description]')].map((d) => {
+        const dlh = parseFloat(getComputedStyle(d).lineHeight) || 14
+        const range = document.createRange(); range.selectNodeContents(d)
+        const lines = new Map()
+        for (const rect of range.getClientRects()) { if (rect.width < 1) continue; const key = Math.round(rect.top); lines.set(key, (lines.get(key) ?? 0) + rect.width) }
+        const widths = [...lines.entries()].sort((a, b) => a[0] - b[0]).map(([, w]) => w)
+        const fontSize = parseFloat(getComputedStyle(d).fontSize) || 11
+        return { text: d.textContent?.trim() ?? '', lines: Math.round(d.getBoundingClientRect().height / dlh), truncated: d.scrollWidth > d.clientWidth + 1 || d.scrollHeight > d.clientHeight + 1 || getComputedStyle(d).textOverflow === 'ellipsis', lastLineW: Math.round(widths.at(-1) ?? 0), fontSize }
+      }) : []
+      return {
+        card: box(card),
+        scroll: scroll ? { ...box(scroll), scrollHeight: scroll.scrollHeight, clientHeight: scroll.clientHeight } : null,
+        block: box(block),
+        tail: tail ? { text: tail.textContent?.trim() ?? '', ...box(tail), lines: Math.round(tail.getBoundingClientRect().height / lh), inScroll: Boolean(tail.closest('[data-reference-scroll]')) } : null,
+        tiles: document.querySelectorAll('[data-reference-row] [data-asset-tile]').length,
+        unused: [...document.querySelectorAll('[data-reference-unused]')].map((el) => el.textContent?.trim() ?? ''),
+        cells,
+        footerOverflow: footer ? footer.scrollWidth > footer.clientWidth + 1 : null,
+        summary: summary ? (() => {
+          // 只剩时长还放不下时差多少 px：量尺最后一档（只留时长）的宽 − 槽宽。
+          const slot = summary.closest('[data-parameter-summary-slot]')
+          const ruler = slot?.querySelector(':scope > [aria-hidden]')
+          const last = ruler?.lastElementChild instanceof HTMLElement ? ruler.lastElementChild.offsetWidth : null
+          return { text: summary.getAttribute('data-parameter-summary') ?? '', title: summary.getAttribute('title') ?? '', cramped: summary.getAttribute('data-parameter-summary-cramped') === 'true', slotW: slot ? slot.clientWidth : null, shortPx: slot && last !== null ? Math.max(0, last - slot.clientWidth) : null }
+        })() : null,
+        menu: dropdown ? { w: Math.round(dropdown.getBoundingClientRect().width), descriptions } : null,
+        viewport: { w: window.innerWidth, h: window.innerHeight },
+      }
+    }, [CARD, FOOTER])
+    const inside = (r) => Boolean(r && facts.card) && r.left >= facts.card.left - 0.5 && r.right <= facts.card.right + 0.5 && r.top >= facts.card.top - 0.5 && r.bottom <= facts.card.bottom + 0.5
+    // ① 相邻两颗不互相盖（按横向排序，后一颗的左缘不小于前一颗的右缘）。
+    const sorted = [...facts.cells].sort((a, b) => a.left - b.left)
+    const overlaps = sorted.slice(1).map((cell, index) => ({ a: sorted[index].label, b: cell.label, by: Math.round(sorted[index].right - cell.left) })).filter((pair) => pair.by > 0.5)
+    check(`边界 · 底栏相邻不互相盖 · ${tag}`, facts.cells.length >= 4 && overlaps.length === 0, JSON.stringify(overlaps))
+    // ② 没有东西出生成框：底栏每一颗、行尾那句话、图那一块都在卡片里；底栏自己不溢出。
+    const outside = [...facts.cells.filter((cell) => !inside(cell)).map((cell) => cell.label), ...(facts.tail && !inside(facts.tail) ? ['tail'] : [])]
+    check(`边界 · 没有东西出生成框 · ${tag}`, facts.cells.length >= 4 && outside.length === 0 && facts.footerOverflow === false, JSON.stringify({ outside, footerOverflow: facts.footerOverflow }))
+    // ③ 行尾那句话、底栏每一格都只一行，不截半个值。唯一例外是让法顺序的最后一步（2026-11-12 拍板）：
+    // 参数退到只剩时长还放不下时，模型名末尾省略——只许模型那一格，且 title 必须是全名。
+    const modelLabel = t('generationCommon.parameters.model')
+    const modelYields = (cell) => cell.label === modelLabel && Boolean(facts.summary?.cramped) && facts.summary.text.split(' · ').length === 1 && cell.title !== '' && cell.clippedTexts.length > 0 && cell.clippedTexts.every((text) => text === cell.title)
+    const multi = facts.cells.filter((cell) => cell.h > 32 || (cell.clipped && !modelYields(cell))).map((cell) => `${cell.label}(${cell.h}px${cell.clipped ? '，截了' : ''})`)
+    check(`边界 · 行尾和底栏每格都一行、不截 · ${tag}`, facts.cells.length >= 4 && multi.length === 0 && (!facts.tail || facts.tail.lines === 1), JSON.stringify({ multi, tailLines: facts.tail?.lines }))
+    // ④ 那句话在可视区里：不在滚动口里，整句在卡片里、在视口里。
+    if (facts.tail || state !== 'mb-k4-bar-longest-firstlast') {
+      check(`边界 · 行尾那句话在可视区里（不跟着图滚走） · ${tag}`, Boolean(facts.tail) && !facts.tail.inScroll && inside(facts.tail) && facts.tail.bottom <= facts.viewport.h && facts.tail.top >= 0, JSON.stringify(facts.tail))
+    }
+
+    if (state === 'mb-k1-omni-max') {
+      const expected = `${[t('assetLibrary.refRow.kindImage', { count: 30 }), t('assetLibrary.refRow.kindVideo', { count: 10 }), t('assetLibrary.refRow.kindAudio', { count: 10 })].join(' · ')}${t('assetLibrary.refRow.allFull')}`
+      check(`board:ModeBar/ref.tail.kind-count · 按类型报数、都放满了 · ${tag}`, facts.tail?.text === expected, `${facts.tail?.text} ≠ ${expected}`)
+      check(`边界 · K1 图多了在区内滚、那句话在滚动口下面 · ${tag}`, Boolean(facts.scroll) && facts.scroll.scrollHeight > facts.scroll.clientHeight + 1 && Boolean(facts.tail) && facts.tail.top >= facts.scroll.bottom - 1, JSON.stringify({ scroll: facts.scroll, tail: facts.tail }))
+    }
+    if (state === 'mb-k2-switched-four' || state === 'mb-k2-switched-five' || state === 'mb-k2-twelve' || state === 'mb-k2-switched-max') {
+      const below = Boolean(facts.tail && facts.scroll) && facts.tail.top >= facts.scroll.bottom - 1
+      const rightAligned = Boolean(facts.tail && facts.block) && Math.abs(facts.tail.right - facts.block.right) <= 1
+      // 放得下一行就在行尾（同一行），放不下整句掉到下一行、靠右——两种都必须靠右、都一行。
+      check(`board:ModeBar/ref.tail.count · K2 整句不折、靠右（${below ? '图下面一行' : '行尾'}） · ${tag}`, rightAligned && facts.tail.lines === 1, JSON.stringify({ tail: facts.tail, block: facts.block }))
+      if (state === 'mb-k2-twelve' || state === 'mb-k2-switched-max') check(`边界 · K2 图超过一行时那句话在图下面 · ${tag}`, below, JSON.stringify({ tail: facts.tail, scroll: facts.scroll }))
+    }
+    if (state === 'mb-k3-model-limit-max') {
+      check(`board:ModeBar/ref.tile.not-sent · K3 28 张只变淡、不逐张写字 · ${tag}`, facts.unused.length === 28 && facts.unused.every((text) => text === ''), JSON.stringify(facts.unused.slice(0, 3)))
+      check(`board:ModeBar/ref.tail.model-limit · K3 其余 28 张不会发 · ${tag}`, facts.tail?.text === t('assetLibrary.refRow.modelLimitRange', { model: '可灵 4.0', max: 2, rest: 28 }), facts.tail?.text)
+    }
+    if (state.startsWith('mb-k4-')) {
+      const s = facts.summary
+      // 摘要只能是全写的一个「整值后缀」：退掉的是前面的整值，不会出现半个值。
+      const fullParts = (s?.title ?? '').split(' · ')
+      const shownParts = (s?.text ?? '').split(' · ')
+      const wholeSuffix = Boolean(s) && shownParts.length >= 1 && shownParts.join(' · ') === fullParts.slice(fullParts.length - shownParts.length).join(' · ')
+      // 让法顺序：先参数整值退；退到只剩时长还放不下，才轮到模型名省略（cramped）。变体 / 方式 / 右边几颗永远不缩。
+      const yielded = facts.cells.filter((cell) => cell.clipped)
+      const orderOk = wholeSuffix && (!s.cramped || (shownParts.length === 1 && yielded.length > 0 && yielded.every(modelYields)))
+      check(`board:ModeBar/bar.params · K4 参数先整值退、只剩时长才让模型名省略 · ${tag}`, orderOk, JSON.stringify({ summary: s, yielded: yielded.map((cell) => ({ label: cell.label, title: cell.title, clippedTexts: cell.clippedTexts })) }))
+      if (state === 'mb-k4-bar-longest-firstlast' && lang === 'en') {
+        // 协调 2026-11-12 加的一条：英文 + 有变体的模型 + 最长方式名（First & last frame）——最挤的一格。
+        const model = facts.cells.find((cell) => cell.label === modelLabel)
+        check(`边界 · K4 英文最挤（变体 + First & last frame）不互相盖、不出框、模型名省略时 title 是全名 · ${tag}`, overlaps.length === 0 && outside.length === 0 && facts.footerOverflow === false && Boolean(model) && (!model.clipped || modelYields(model)), JSON.stringify({ overlaps, outside, footerOverflow: facts.footerOverflow, model }))
+      }
+    }
+    if (state === 'mb-k5-menu-longest') {
+      const m = facts.menu
+      const bad = (m?.descriptions ?? []).filter((d) => d.lines > 2 || d.truncated || (d.lines === 2 && d.lastLineW < d.fontSize * 1.8))
+      check(`board:ModeBar/mode.menu · K5 菜单最宽 340、说明最多两行、不截、不留单个字 · ${tag}`, Boolean(m) && m.w <= 340 && m.descriptions.length >= 2 && bad.length === 0, JSON.stringify({ w: m?.w, bad }))
+    }
+    boundary.push({ state, lang, scheme, tail: facts.tail, scroll: facts.scroll, summary: facts.summary, cells: facts.cells.map((cell) => ({ label: cell.label, text: cell.text, w: Math.round(cell.right - cell.left) })), menu: facts.menu })
+    await shot(page, state, `${state}-${lang}-${scheme}`)
+    await context.close()
+  }
+  if (WITH_EVIDENCE) fs.writeFileSync(path.join(EVIDENCE_DIR, 'boundary.json'), `${JSON.stringify(boundary, null, 2)}\n`)
 
   if (pageErrors.length) failures.push(`页面抛错 ${pageErrors.length} 条：${pageErrors.slice(0, 3).join(' | ')}`)
 } finally {

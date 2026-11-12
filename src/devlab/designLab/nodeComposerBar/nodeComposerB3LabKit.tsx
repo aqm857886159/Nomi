@@ -118,12 +118,16 @@ export type B3Scenario = {
   frames?: { first?: string; last?: string }
   /** 连进来的文字节点。 */
   textChip?: string
+  /** 连进来的视频 / 音频节点个数（边界：全能参考放满 10 段视频 + 10 段音频）。 */
+  edgeMedia?: { video?: number; audio?: number }
   /** 另有一家渠道提供同一个模型（B3o）。 */
   secondChannel?: boolean
   /** 渠道缺方式（B3p）：当前渠道只配了「参考」，发不出首帧 / 首尾帧。switch = 别家渠道能做（出换渠道的文字链接）；none = 谁都做不了。 */
   channelGap?: 'switch' | 'none'
   /** 打开后自动点一下的东西：参数面板 / 模型菜单 / 底栏方式菜单。 */
   open?: 'params' | 'model' | 'mode'
+  /** 参数值覆盖（边界 K4：21:9 · 1080p · 15s 这种最长的一串）。 */
+  params?: Record<string, unknown>
   /** 节点上留着的「放了 N 张，已改成 X」（输入变多、手选的方式放不下时 store 写的那条）。 */
   modeSwitchNotice?: { modeId: string; count: number }
   /** 失败态：整张错误卡盖住节点正文（E1d）。 */
@@ -150,6 +154,7 @@ function buildNodes(scenario: B3Scenario): { nodes: GenerationCanvasNode[]; edge
     ...(scenario.frames?.first ? { firstFrameUrl: refUrl(scenario.frames.first) } : {}),
     ...(scenario.frames?.last ? { lastFrameUrl: refUrl(scenario.frames.last) } : {}),
     ...(scenario.modeSwitchNotice ? { modeSwitchNotice: scenario.modeSwitchNotice } : {}),
+    ...scenario.params,
   }
   const target = {
     id: targetId,
@@ -177,11 +182,23 @@ function buildNodes(scenario: B3Scenario): { nodes: GenerationCanvasNode[]; edge
   const textNodes: GenerationCanvasNode[] = scenario.textChip
     ? [{ id: 'b3-text', kind: 'text', categoryId: 'shots', title: scenario.textChip, prompt: '', position: { x: -400, y: 500 }, size: { width: 120, height: 90 }, status: 'success', result: { id: 'b3-text-r', type: 'text', text: scenario.textChip, createdAt: 1 } } as GenerationCanvasNode]
     : []
+  const media: GenerationCanvasNode[] = (['video', 'audio'] as const).flatMap((kind) => Array.from({ length: scenario.edgeMedia?.[kind] ?? 0 }, (_, index) => ({
+    id: `b3-${kind}-${index}`,
+    kind,
+    categoryId: 'shots',
+    title: `${kind === 'video' ? '镜头' : '配乐'} ${index + 1}`,
+    prompt: '',
+    position: { x: -700, y: index * 140 },
+    size: { width: 120, height: 90 },
+    status: 'success',
+    result: { id: `b3-${kind}-${index}-r`, type: kind, url: `${window.location.origin}/lab-media/${kind}-${index}.${kind === 'video' ? 'mp4' : 'mp3'}`, ...(kind === 'video' ? { thumbnailUrl: refUrl(`海边傍晚#v${index}`) } : {}), createdAt: 1 },
+  } as GenerationCanvasNode)))
   const edges: GenerationCanvasEdge[] = [
+    ...media.map((node, index): GenerationCanvasEdge => ({ id: `b3-edge-${node.id}`, source: node.id, target: targetId, mode: 'reference', order: 50 + index })),
     ...(scenario.edgeRefs ?? []).map((ref, index): GenerationCanvasEdge => ({ id: `b3-edge-${index}`, source: `b3-src-${index}`, target: targetId, mode: ref.mode ?? 'reference', order: index })),
     ...textNodes.map((node): GenerationCanvasEdge => ({ id: 'b3-edge-text', source: node.id, target: targetId, order: 99 })),
   ]
-  return { nodes: [target, ...sources, ...textNodes], edges, targetId }
+  return { nodes: [target, ...sources, ...media, ...textNodes], edges, targetId }
 }
 
 /** 提示词里的引用：`@[asset:url]`，名字由生产的 ReferenceNamesContext 现算。 */

@@ -53,6 +53,11 @@ export function computeReferenceRowModel(args: {
       nodes, edges, library: peekAllProjectAssets(), fallbackName: args.fallbackName,
     })
     : undefined
-  const arrayCount = arraySlots.reduce((sum, slot) => sum + ((assetValuesByKey[slot.metaKey] as string[] | undefined) ?? []).filter(Boolean).length, 0)
-  return { unusedUrls, parkedUrls, referenceInfos, arrayCount }
+  // 行尾按类型报数（图 30 · 视频 10 · 音频 10）：视频、音频不再算进「参考图」。每种都到上限 = 都放满了。
+  const filled = arraySlots.map((slot) => ({ slot, count: ((assetValuesByKey[slot.metaKey] as string[] | undefined) ?? []).filter(Boolean).length }))
+  const arrayCounts = { image: 0, video: 0, audio: 0 }
+  for (const { slot, count } of filled) arrayCounts[slot.accept] += count
+  const arrayCount = arrayCounts.image + arrayCounts.video + arrayCounts.audio
+  const arrayFull = filled.length > 0 && filled.every(({ slot, count }) => slot.max !== undefined && count >= slot.max)
+  return { unusedUrls, parkedUrls, referenceInfos, arrayCount, arrayCounts, arrayFull }
 }

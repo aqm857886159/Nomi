@@ -222,7 +222,14 @@ try {
     check('board:ComposerB3/ref.slot.first', labels[0] === '首帧')
     check('board:ComposerB3/ref.slot.last', labels[1] === zh('assetLibrary.refRow.lastFrameOptional') || labels[1] === '尾帧', JSON.stringify(labels))
     const swapBefore = await page.evaluate(() => [...document.querySelectorAll('[data-asset-slot]')].map((el) => el.querySelector('[data-asset-tile]') ? 'filled' : 'empty'))
-    check('board:ComposerB3/ref.slot.swap', (await count(page, '[data-reference-swap]')) === 1 && swapBefore.join() === 'filled,empty', JSON.stringify(swapBefore))
+    // 协调 2026-11-12 拍板 A（待用户点头的偏差）：对调后这个方式发不出去时 ⇄ 置灰、悬停写原因。
+    // 这一格首帧必填、只放了首帧：对调后首帧空 → 置灰；点一下什么都不变，方式格仍是首尾帧。
+    const swap = await page.evaluate(() => { const el = document.querySelector('[data-reference-swap]'); return el ? { disabled: el.hasAttribute('disabled'), title: el.getAttribute('title') } : null })
+    check('board:ComposerB3/ref.slot.swap', (await count(page, '[data-reference-swap]')) === 1 && swapBefore.join() === 'filled,empty' && swap?.disabled === true && swap?.title === zh('assetLibrary.refRow.swapFramesNeedsBoth'), JSON.stringify({ swapBefore, swap }))
+    await shot(page, B3, 'b3d-video-first-last', 'B3d-swap-disabled-zh-light')
+    await page.locator('[data-reference-swap]').click({ force: true })
+    const swapAfter = await page.evaluate(() => [...document.querySelectorAll('[data-asset-slot]')].map((el) => (el.querySelector('[data-asset-tile]') ? 'filled' : 'empty')))
+    check('board:ComposerB3/ref.slot.swap.effect', swapAfter.join() === 'filled,empty' && /首尾帧/.test((await activeMode(page)) ?? ''), JSON.stringify({ swapAfter, mode: await activeMode(page) }))
     check('board:ComposerB3/compare.new-state', labels.length === 2 && (await count(page, '[data-reference-row] [data-reference-entry]')) === 1, 'B3k「新」：同一视频节点（首尾帧）的新排法 = 这一格')
     await shot(page, B3, 'b3d-video-first-last', 'B3d-zh-light')
     await context.close()

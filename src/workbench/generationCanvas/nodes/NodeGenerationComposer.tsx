@@ -371,10 +371,8 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
         </div>
       ) : null}
       {hasReferenceControls && !readOnly ? (
-        // 参考区最多露两行参考格（40px 格 × 2 + 间距），更多在区内滚；卡片定宽后一行放 11 格。
-        // 滚动口向卡片边缘外扩（-mx-3 -mt-3 再用 px-3 pt-3 补回来）：悬停才出的 × 挂在小图右上角外侧，不扩就被滚动口切掉。
-        // 以前这里的滚动口高度是按屏幕剩余空间逐帧现算的，那套随放置层一起删了。
-        <div data-node-composer-references className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 shrink-0 overflow-y-auto overscroll-contain', '-mx-3 -mt-3 max-h-40 px-3 pt-3')}>
+        // 参考区的滚动口在参考行里面（只包图那一行），行尾那句话在滚动口外面、图再多也钉在可视区里（边界样张 K1）。
+        <div data-node-composer-references className="min-h-0 shrink-0">
           <NodeParameterControls node={node} section="references" onInsertMention={insertMention} graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
         </div>
       ) : null}

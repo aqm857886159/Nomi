@@ -46,14 +46,15 @@ function controlDisplayValue(control: DynamicModelControl, meta: Record<string, 
   return localizeAutoOption(value, matched ? matched.label : value, autoLabel).text
 }
 
-export function composerHeadlineSummary({
-  isImageLike,
-  isVideoLike,
-  controls,
-  meta,
-  formatSeconds,
-  autoLabel,
-}: {
+/**
+ * 底栏挤的时候摘要按整值往回退，先退谁（边界样张 K4，用户 2026-11-12「按推荐做」）：比例 → 有声 → 清晰度 → 时长。
+ * 数小的先退；时长最后（它直接决定价格）。不在表里的值不进摘要。
+ */
+const HEADLINE_DROP_RANK: Record<string, number> = { aspect_ratio: 0, size: 0, ratio: 0, generate_audio: 1, audio: 1, resolution: 2, duration: 3 }
+
+export type HeadlinePart = { key: string; text: string; dropRank: number }
+
+type HeadlineInput = {
   isImageLike: boolean
   isVideoLike: boolean
   controls: readonly DynamicModelControl[]
@@ -62,21 +63,38 @@ export function composerHeadlineSummary({
   formatSeconds: (value: string) => string
   /** 「自动」档的本地化字样（`generationCommon.parameters.auto`）。 */
   autoLabel: string
-}): string | undefined {
+}
+
+export function composerHeadlineSummary(input: HeadlineInput): string | undefined {
+  const parts = composerHeadlineParts(input)
+  return parts.length ? parts.map((part) => part.text).join(' · ') : undefined
+}
+
+/** 摘要的每一个整值（带退让顺序）。底栏放不下时按 dropRank 从小到大整值地退，一个值不截半截。 */
+export function composerHeadlineParts({ isImageLike, isVideoLike, controls, meta, formatSeconds, autoLabel }: HeadlineInput): HeadlinePart[] {
   // 只有图和视频有拍板过的「那两个值」。声音 / 文本 / 3D 没定过，就别替它们挑——
   // 挑错两个比不挑更糟（用户会以为那就是全部）。
   const wanted = isVideoLike ? HEADLINE_KEYS.video : isImageLike ? HEADLINE_KEYS.image : null
-  if (!wanted) return undefined
+  if (!wanted) return []
   const parts = controls
     .filter((control) => (wanted as readonly string[]).includes(control.key))
     .sort((a, b) => (wanted as readonly string[]).indexOf(a.key) - (wanted as readonly string[]).indexOf(b.key))
     .map((control) => {
-      const text = controlDisplayValue(control, meta, autoLabel)
-      if (!text) return ''
+      const raw = controlDisplayValue(control, meta, autoLabel)
       // 时长补单位只在**纯数字**时做：档案里 duration 的选项标签有的是「5」、有的已经写成
       // 「5s」/「5 秒」。无条件套单位会渲出「5ss」——一条只在某些模型上才现形的假文案。
-      return control.key === 'duration' && /^\d+(\.\d+)?$/.test(text) ? formatSeconds(text) : text
+      const text = raw && control.key === 'duration' && /^\d+(\.\d+)?$/.test(raw) ? formatSeconds(raw) : raw
+      return { key: control.key, text, dropRank: HEADLINE_DROP_RANK[control.key] ?? 0 }
     })
-    .filter(Boolean)
-  return parts.length ? parts.join(' · ') : undefined
+    .filter((part) => part.text)
+  return parts
+}
+
+/** 摘要从全到简的几档：全部 → 去掉退让序最小的一批 → …，至少留一个值。 */
+export function summaryFitCandidates(parts: readonly { text: string; dropRank: number }[]): string[] {
+  if (!parts.length) return []
+  const ranks = [...new Set(parts.map((part) => part.dropRank))].sort((a, b) => a - b)
+  const out = [parts.map((part) => part.text).join(' · ')]
+  for (const rank of ranks.slice(0, -1)) out.push(parts.filter((part) => part.dropRank > rank).map((part) => part.text).join(' · '))
+  return out
 }

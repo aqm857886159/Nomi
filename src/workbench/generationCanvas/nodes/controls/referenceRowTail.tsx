@@ -10,11 +10,25 @@ export type ModelLimitNotice = { model: string; max: number; total: number }
  * 参考行行尾的一句 12px 小字（统一规则 5：不写解释句、不放彩色提示条；有后果且一眼可见的说明才写）。
  * 优先级：模型不收参考图 > 渠道指路 > 模型放不下（报数）> 方式刚被改掉 > 「参考图 N 张」（图片节点加「· 按图改」）。
  */
-export default function referenceRowTail(t: (key: string, values?: Record<string, unknown>) => string, { refsUnsupported, unusedCount, arrayCount, guidanceNote, modelLimit, switchNotice, imageEdit }: {
+/** 行尾报数：只有图 →「参考图 N 张」；有两种以上（或只有视频 / 音频）→「图 30 · 视频 10 · 音频 10」。每种都到上限再加「，都放满了」。 */
+export function referenceCountText(t: (key: string, values?: Record<string, unknown>) => string, counts: ReferenceKindCounts, full = false): string {
+  const kinds = (['image', 'video', 'audio'] as const).filter((kind) => counts[kind] > 0)
+  if (!kinds.length) return ''
+  const head = kinds.length === 1 && kinds[0] === 'image'
+    ? t('assetLibrary.refRow.count', { count: counts.image })
+    : kinds.map((kind) => t(kind === 'image' ? 'assetLibrary.refRow.kindImage' : kind === 'video' ? 'assetLibrary.refRow.kindVideo' : 'assetLibrary.refRow.kindAudio', { count: counts[kind] })).join(' · ')
+  return full ? `${head}${t('assetLibrary.refRow.allFull')}` : head
+}
+
+export type ReferenceKindCounts = { image: number; video: number; audio: number }
+
+export default function referenceRowTail(t: (key: string, values?: Record<string, unknown>) => string, { refsUnsupported, unusedCount, counts, full, guidanceNote, modelLimit, switchNotice, imageEdit }: {
   refsUnsupported: boolean
   unusedCount: number
-  /** 参考数组里放了几个。 */
-  arrayCount: number
+  /** 参考数组里各类型放了几个。 */
+  counts: ReferenceKindCounts
+  /** 每种都到上限。 */
+  full?: boolean
   guidanceNote: React.ReactNode
   modelLimit?: ModelLimitNotice | null
   switchNotice?: ModeSwitchNotice | null
@@ -23,7 +37,7 @@ export default function referenceRowTail(t: (key: string, values?: Record<string
 }): React.JSX.Element | undefined {
   const count = (n: number) => t('assetLibrary.refRow.count', { count: n })
   if (refsUnsupported) return unusedCount > 0 ? <span>{count(unusedCount)} · {t('assetLibrary.refRow.unsupportedNote')}</span> : undefined
-  const countLabel = arrayCount > 0 ? count(arrayCount) : ''
+  const countLabel = referenceCountText(t, counts, full)
   const countNode = countLabel ? <span>{countLabel}</span> : null
   if (guidanceNote) return <>{countNode}{guidanceNote}</>
   if (modelLimit && modelLimit.total > modelLimit.max) {
