@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "id": "2026-11-12-skill-key-label-fork",
-  "detected_by": "user",
+  "detected_by": "walkthrough",
   "problem_type": "同一个技能 key 在主进程和界面各有一份查找，规则不一样：主进程认得的 key，界面认不得",
   "symptom": "创作文档里选中一句、点浮条「拆成镜头」后，右侧对话气泡上的技能小签和回复头上的「已载入技能：」都印出原始 key `workbench.storyboard.planner`，不是技能库里的名字「分镜规划 / Storyboard planning」。技能本身照常注入，只有名字错。",
   "direct_cause": "src/workbench/skillLibrary/skillDisplay.ts 的 skillLabelForKey 与 src/workbench/ai/v4/useAgentPanelV4Data.ts 的两处 `skills.find(skill => skill.name === key)` 只按 name 精确比；分镜启动器发的是点号 key，技能库里的 name 是短横线目录名 `workbench-storyboard-planner`。主进程 electron/skills/skillStore.ts 的 findSkillRecord 先比点号前缀、再归一后比 name / directoryName，所以认得。",

@@ -8,7 +8,8 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "candidate",
+  "status": "reviewed",
+  "manualReview": "reviewed",
   "rootCauseContract": "docs/fixes/2026-11-12-selection-storyboard-reads-as-video.root-cause.json",
   "classCheck": {
     "kind": "matrix",
@@ -22,6 +23,9 @@
     "src/workbench/skillLibrary/skillDisplay.test.ts",
     "tests/ux/creation-selection-actions.walk.mjs"
   ],
-  "completionCommits": [],
+  "completionCommits": [
+    "8acd4bfb0c584543a14c47a2cdb6cb59b0bf90c1",
+    "c78c1e7b814849577c0a8386f2781ab6ed6a7788"
+  ],
   "notes": "修法按用户 2026-11-12 选的样张 B：换分镜图标、挪到「AI 编辑」右边；技能名改走主进程同一份查找。PR 开出后由协调填 fixedInPr、转 fixed。"
 }
