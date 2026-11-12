@@ -1,0 +1,57 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "22df46ad6",
+  "head": "22df46ad6d472ddd75a5ee66b7687deee9c4e102",
+  "dirty": true,
+  "sourceTree": "ec5058870a5fb7138a05f1efba985a2317b38180",
+  "date": "2026-11-08",
+  "runs": 5,
+  "results": [
+    {
+      "id": "chat-send-visible-1000",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 111.2,
+          "p95": 120.8
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          12.5,
+          13.2,
+          11.4,
+          14.8,
+          11.1
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [
+          121.7,
+          105.3,
+          111.2,
+          100.7,
+          117
+        ],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 100,
+      "verdict": {
+        "status": "over-budget",
+        "note": "中位数 111.2 > 预算 100"
+      }
+    }
+  ]
+}

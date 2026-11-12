@@ -170,6 +170,8 @@ function panelRenderer() {
 beforeEach(() => {
   // The composer measures itself; this host has no layout engine, so layout observers are inert.
   vi.stubGlobal('ResizeObserver', class { observe(): void {} unobserve(): void {} disconnect(): void {} })
+  // 跟到底（use-stick-to-bottom）在下一帧才滚；这里没有帧，也没有可滚的东西，帧回调就不排。
+  vi.stubGlobal('requestAnimationFrame', () => 0)
   runtime.t.mockClear()
   runtime.rowLabelsCalls = 0
   runtime.i18n.language = 'zh-CN'

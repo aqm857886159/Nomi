@@ -1,17 +1,21 @@
 // Real Electron + native lane + loopback SSE: reasoning is never status metadata.
 import assert from 'node:assert/strict'
-import { expect, expectAbsent, proveProbe } from './_assert.mjs'
+import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { laneMessages, readLaneTranscripts } from './agent-lane-observer.mjs'
+import { uiText, uiTextWith } from './full-walk/invariants.mjs'
 import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 import { CANVAS_PANEL, THINKING_LINE, TOOL_RECEIPT, ASSISTANT_MESSAGE, V4_FLOW,
-  chooseAssistantModel, createRuntimeWalk, hasToolResult, openCanvas, recorded, sendCanvas,
+  chooseAssistantModel, createRuntimeWalk, expandResidentPanel, hasToolResult, openCanvas, recorded, sendCanvas,
   waitForV4TurnIdle } from './agent-runtime-walk-support.mjs'
 
 // Measure painted text as well as row boxes: a fixed-height row can have disjoint boxes
 // while its overflowing text paints over every neighbouring message (the original bug).
 export async function flowOverlaps(flow) {
   return flow.evaluate((root) => {
-    const rows = [...root.children]
+    // 对话流 = 滚动层 > 行容器（跟到底量的是行容器的高度）；逐行比的是行容器的直接子节点。
+    const list = root.querySelector(':scope > [data-v4-flow-rows="true"]')
+    if (!list) throw new Error('对话流里找不到行容器 [data-v4-flow-rows]——结构改了，这条重叠检查要跟着改，否则只剩一行可比、永远是绿的')
+    const rows = [...list.children]
     const visible = (node) => node.checkVisibility({ checkVisibilityCSS: true })
     const boxes = rows.map((row) => {
       const rects = [row.getBoundingClientRect()]
@@ -38,7 +42,9 @@ export async function flowOverlaps(flow) {
 
 const reasoning = 'I should inspect the canvas, verify the existing nodes, and only then explain the result. '.repeat(12)
 const reply = '已读取画布和时间轴，检查已经完成。\n\n画布目前没有镜头节点，可以先从文稿中整理分镜，再继续制作。'
+const locale = process.env.NOMI_WALK_LOCALE === 'en' ? 'en' : 'zh-CN'
 const walk = await createRuntimeWalk('thinking-overlap')
+walk.report.locale = locale
 let failure
 try {
   let { win } = await walk.start({ first: true })
@@ -46,6 +52,13 @@ try {
   walk.report.viewport = await win.evaluate(() => ({ width: innerWidth, height: innerHeight }))
   assert.equal(walk.report.viewport.width, 1440)
   const project = await walk.newProject()
+  await win.evaluate(({ locale, scheme }) => {
+    localStorage.setItem('nomi:locale:v1', locale)
+    localStorage.setItem('nomi-color-scheme', scheme)
+  }, { locale, scheme: locale === 'en' ? 'dark' : 'light' })
+  await win.reload()
+  await clickOrFail(win.getByRole('button', { name: uiText(locale, 'workspace.creationTab'), exact: true }), '切回创作区')
+  await expandResidentPanel(win)
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
   await openCanvas(win)
   const panel = win.locator(CANVAS_PANEL)
@@ -83,13 +96,17 @@ try {
   walk.report.overlaps = { early, streaming, complete }
   assert.deepEqual({ early, streaming, complete }, { early: [], streaming: [], complete: [] }, 'message layers must not overlap')
   // Prove the same detector rejects an injected row collision, then restore exactly.
-  const user = flow.locator(':scope > *').first()
+  const user = flow.locator(':scope > [data-v4-flow-rows] > *').first()
   const originalStyle = await user.getAttribute('style')
   await user.evaluate((node) => { node.style.transform = 'translateY(40px)' })
   walk.report.injectedOverlap = await flowOverlaps(flow)
   assert.ok(walk.report.injectedOverlap.length > 0, 'injected overlap must fail the detector')
   await user.evaluate((node, style) => style === null ? node.removeAttribute('style') : node.setAttribute('style', style), originalStyle)
-  await expect(panel.locator(`${THINKING_LINE} details`)).toHaveCount(2)
+  // C77 (4ba92ef52): one process disclosure; agentPanelV4Collapse.test.ts “C77 process thinking projection”.
+  // eab64daa2 only renamed a tool: its product projection was already 1, but this walk retained the pre-C77 count.
+  await expect(panel.locator(`${THINKING_LINE} details`)).toHaveCount(1)
+  // b4c918b72 approved default-closed processes; cdd2cceef resets on settle (agentPanelV4Form.test.ts, B2c process contract).
+  await clickOrFail(panel.getByText(uiTextWith(locale, 'agentPanelV4.processSummary', { count: 2 }), { exact: true }), '展开完成过程')
   for (const detail of await panel.locator(`${THINKING_LINE} details`).all()) {
     await expect(detail).not.toHaveAttribute('open', '')
     await detail.locator('summary').click()
@@ -109,9 +126,10 @@ try {
   const card = win.locator('[data-project-card="true"]').filter({ hasText: project.name }).first()
   await expect(card).toBeVisible()
   await card.hover()
-  await card.getByRole('button', { name: /继续创作/ }).click()
+  await card.getByRole('button', { name: uiText(locale, 'library.continueCreating'), exact: true }).click()
   const restored = win.locator(CANVAS_PANEL)
-  await expect(restored.locator(`${THINKING_LINE} details`)).toHaveCount(2)
+  // Cold replay shares the C77 one-disclosure projection above, with both reasoning bodies retained.
+  await expect(restored.locator(`${THINKING_LINE} details`)).toHaveCount(1)
   await expect(restored.locator(ASSISTANT_MESSAGE)).toContainText('检查结束')
   walk.report.restoredOverlaps = await flowOverlaps(restored.locator(V4_FLOW))
   assert.deepEqual(walk.report.restoredOverlaps, [])

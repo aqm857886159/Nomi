@@ -1,0 +1,51 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "22df46ad6",
+  "head": "22df46ad6d472ddd75a5ee66b7687deee9c4e102",
+  "dirty": true,
+  "sourceTree": "ec5058870a5fb7138a05f1efba985a2317b38180",
+  "date": "2026-11-08",
+  "runs": 5,
+  "results": [
+    {
+      "id": "chat-scroll-500",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 9.6,
+          "p95": 10
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          9.9,
+          9.5,
+          10,
+          9.6,
+          9.6
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 16.7,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}
