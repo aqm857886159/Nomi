@@ -32,7 +32,6 @@ import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 const IMG_A = "https://assets.example.com/batch1/a.png";
 const IMG_B = "https://assets.example.com/batch1/b.png";
 const VID_A = "https://assets.example.com/batch1/a.mp4";
-const VID_B = "https://assets.example.com/batch1/b.mp4";
 const AUD_A = "https://assets.example.com/batch1/a.mp3";
 
 let capture: FetchCapture;
