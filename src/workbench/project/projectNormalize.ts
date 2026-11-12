@@ -14,7 +14,7 @@ import {
 } from './projectRecordSchema'
 import { normalizeCategories, projectCategorySchema } from './projectCategories'
 import { editingPanelLayoutSchema } from '../preview/panelLayout'
-import { issuesOfZodError, storyboardDesignSchema, type SchemaFieldIssue } from '../storyboardDesignSchema'
+import { issuesOfZodError, storyboardDesignSchema, type SchemaFieldIssue } from '../creation/storyboard/storyboardDesignSchema'
 import { storyboardDraftPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
 import { renumberStoryboardShots } from '../../../electron/shared/storyboard/storyboardSubjectIdentity'
 import i18n from '../../i18n'

@@ -11,7 +11,7 @@
     "Projects saved by older versions opened by this version"
   ],
   "scope_paths": [
-    "src/workbench/storyboardDesignSchema.ts",
+    "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
     "src/workbench/workbenchDocumentSlice.ts",
     "src/workbench/project/projectNormalize.ts",
     "src/workbench/project/projectRepository.ts",
@@ -94,7 +94,7 @@
     },
     {
       "kind": "write",
-      "path": "src/workbench/storyboardDesignSchema.ts",
+      "path": "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
       "symbol": "storyboardDesignSchema"
     },
     {
@@ -131,7 +131,7 @@
   "generality_proof": "The setter validates the whole design with one schema, so any field, any door and any value shape is covered, not one field. Save and open use the same per-item schema, so a shape from an older version or a program bug is quarantined the same way. scripts/check-storyboard-owner.mjs forbids writing storyboardDesignsByDocumentId outside the store files.",
   "shared_boundaries": [
     {
-      "path": "src/workbench/storyboardDesignSchema.ts",
+      "path": "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
       "symbol": "storyboardDesignSchema",
       "responsibility": "The one schema that setter, Agent doors, save and open all judge by; also the field-path explanation."
     },
@@ -182,7 +182,7 @@
     "exception_policy": "none",
     "strategy": "One schema, one setter, a structural guard against direct map writes, and per-item save/open as the fallback.",
     "artifacts": [
-      "src/workbench/storyboardDesignSchema.ts",
+      "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
       "src/workbench/workbenchDocumentSlice.ts",
       "scripts/check-storyboard-owner.mjs"
     ]

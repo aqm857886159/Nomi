@@ -20,7 +20,7 @@
       "symbol": "normalizePayload"
     },
     {
-      "path": "src/workbench/storyboardDesignSchema.ts",
+      "path": "src/workbench/creation/storyboard/storyboardDesignSchema.ts",
       "symbol": "storyboardDesignSchema"
     },
     {

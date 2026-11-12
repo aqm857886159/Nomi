@@ -8,7 +8,7 @@ import {
   type StoryboardDesign,
   type WorkbenchDocument,
 } from './workbenchTypes'
-import { storyboardDesignIssues } from './storyboardDesignSchema'
+import { storyboardDesignIssues } from './creation/storyboard/storyboardDesignSchema'
 import { logRendererWarn } from '../desktop/rendererLog'
 
 /**

@@ -8,7 +8,7 @@ import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan
 import { withProjectAction } from '../../project/projectCanvasReadSurface'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { ZodError } from 'zod'
-import { issuesOfZodError, storyboardPlanIssues, type SchemaFieldIssue } from '../../storyboardDesignSchema'
+import { issuesOfZodError, storyboardPlanIssues, type SchemaFieldIssue } from './storyboardDesignSchema'
 
 /**
  * store 的写入口拒收一份存不下的方案（`storyboardDesignSchema`）时，这里把**同一份校验**的字段路径带回给主进程，

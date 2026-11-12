@@ -1,11 +1,11 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { makeTempDir } from "../../scripts/_test-temp.mjs";
 import { writeQuarantineItems } from "./projectQuarantine";
 
 const dirs: string[] = [];
-const project = () => { const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-quarantine-")); dirs.push(dir); return dir; };
+const project = () => { const dir = makeTempDir("nomi-quarantine-"); dirs.push(dir); return dir; };
 afterEach(() => { for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }); });
 const files = (dir: string) => fs.readdirSync(path.join(dir, ".nomi", "quarantine"));
 

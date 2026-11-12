@@ -3,10 +3,10 @@
 // 杀的时刻由 tests/fixtures/save-kill-inflight.mjs 在保存代码里卡准（大块写的中途 / 改名之前），不靠计时碰运气。
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { afterAll, describe, expect, it } from 'vitest'
+import { makeTempDir } from '../../scripts/_test-temp.mjs'
 
 const FIXTURE = path.resolve(import.meta.dirname, '../fixtures/save-kill-inflight.mjs')
 const REPEAT = 200_000 // 8 字符 × 200k = 1.6MB 一版
@@ -14,7 +14,7 @@ const roots = []
 afterAll(() => { for (const root of roots) fs.rmSync(root, { recursive: true, force: true }) })
 
 function runKilledAt(killAt) {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-kill-inflight-')))
+  const root = fs.realpathSync(makeTempDir('nomi-kill-inflight-'))
   roots.push(root)
   const killSave = 3
   const child = spawnSync(process.execPath, ['--import', 'tsx', FIXTURE, JSON.stringify({ root, repeat: REPEAT, killSave, killAt })], {

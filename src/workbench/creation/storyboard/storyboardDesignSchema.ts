@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { STORYBOARD_DESIGN_STATUSES } from './workbenchTypes'
-import { storyboardDraftPlanSchema } from './generationCanvas/agent/storyboardPlanSchema'
+import { STORYBOARD_DESIGN_STATUSES } from '../../workbenchTypes'
+import { storyboardDraftPlanSchema } from '../../generationCanvas/agent/storyboardPlanSchema'
 
 /**
  * 一份分镜设计能不能存进项目的**唯一判据**（草稿面）。

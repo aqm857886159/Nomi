@@ -38,6 +38,22 @@ describe('storyboard write doors refuse what cannot be saved', () => {
     expect(designs()).toEqual([])
   })
 
+  // 类级矩阵：每种存不下的取值 × 每个写入口，都拒写、状态不变（同类问题从另一个入口回来的路）。
+  const unsavable: Array<[string, number]> = [['NaN', Number.NaN], ['Infinity', Number.POSITIVE_INFINITY], ['-Infinity', Number.NEGATIVE_INFINITY]]
+  const doors: Array<[string, (plan: StoryboardPlan) => unknown]> = [
+    ['addStoryboardDesign', plan => useWorkbenchStore.getState().addStoryboardDesign({ initiator: 'agent', documentId: 'doc', source: plan, identity: { id: 'd9', title: 'x' } })],
+    ['setStoryboardPlan', plan => useWorkbenchStore.getState().setStoryboardPlan(plan, 'doc', 'd1', true)],
+  ]
+  it.each(unsavable.flatMap(([label, value]) => doors.map(([door, write]) => [label, door, value, write] as const)))(
+    'matrix: durationSec %s through %s is refused and leaves the store untouched',
+    (_label, _door, value, write) => {
+      useWorkbenchStore.getState().addStoryboardDesign({ initiator: 'agent', documentId: 'doc', source: good, identity: { id: 'd1', title: 'plan' } })
+      const before = designs()
+      expect(write(withDuration(value))).toBeNull()
+      expect(designs()).toBe(before)
+    },
+  )
+
   it('a refusal logs the field path and never the creator\'s words', () => {
     const store = useWorkbenchStore.getState()
     store.addStoryboardDesign({ initiator: 'agent', documentId: 'doc', source: good, identity: { id: 'd1', title: 'plan' } })

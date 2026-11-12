@@ -8,7 +8,7 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
   "manualReview": "reviewed",
   "rootCauseContract": "docs/fixes/2026-11-13-save-item-quarantine.root-cause.json",
   "evidence": [
@@ -17,5 +17,12 @@
     "src/workbench/project/projectRepository.itemQuarantine.test.ts",
     "tests/system/saveKillInFlight.test.mjs"
   ],
-  "completionCommits": []
+  "completionCommits": [
+    "773838150"
+  ],
+  "fixedInPr": 1497,
+  "classCheck": {
+    "kind": "matrix",
+    "file": "src/workbench/workbenchDocumentSlice.storyboardGuard.test.ts"
+  }
 }
