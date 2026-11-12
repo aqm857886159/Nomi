@@ -87,6 +87,8 @@ export function buildVersionHealth(events, { generatedAt, newVersion, oldVersion
     const a = gen(fresh), b = gen(old)
     compare(`generation.${capability}`, `${capability}失败率`, counts(a), counts(b))
     const local = list => counts(list.filter(e => e.props?.result === 'failure').map(e => {
+      // 带 upstreamStatus 的版本（2026-11-13 起）直接说了「没发出去」；更老的版本只能按「<1s 且 unknown」猜。
+      if (typeof e.props.upstreamStatus === 'string') return { ...e, props: { result: e.props.upstreamStatus === 'not-sent' ? 'failure' : 'success' } }
       const known = typeof e.props.errorType === 'string' && e.props.errorType.length > 0 && ['<1s', '1-5s', '>5s'].includes(e.props.durationBucket)
       return { ...e, props: { result: !known ? 'unknown' : (e.props.errorType === 'local-refusal' || e.props.errorType === 'unknown' && e.props.durationBucket === '<1s') ? 'failure' : 'success' } }
     }))
@@ -102,16 +104,14 @@ export function buildVersionHealth(events, { generatedAt, newVersion, oldVersion
     const pick = list => list.filter(e => e.eventName === 'update.action' && e.props?.action === action)
     compare(`update.${action}`, `更新${action}动作失败率`, counts(pick(fresh)), counts(pick(old)))
   }
-  const agent = list => list.filter(e => e.eventName === 'agent.turn.completed')
-  if (!agent(fresh).length && !agent(old).length) uncovered.push('Agent 回合（遥测没有这一项）')
-  else compare('agent', 'Agent回合失败率', counts(agent(fresh)), counts(agent(old)))
+  uncovered.push('Agent 回合（遥测没有这一项）')
   uncovered.push('更新安装完成（遥测没有这一项，install success仅表示动作受理）')
   const decision = regressions.length ? `停止放量：${regressions.join('；')}` : missing.length ? `样本不够：${missing.join('；')}`
     : `可以全量：image 失败率最多变差 ${points(primary.interval?.upper ?? 1)}（95% 上界，n=${primary.newer.n}/${primary.older.n}）；未覆盖：${uncovered.join('；') || '无'}`
   const conclusion = `${decision}${concentrated.length ? `；集中在一个会话：${concentrated.join('；')}，不判停` : ''}`
   return { requested: { newVersion, oldVersion: oldVersion ?? null }, current, previous: previous ?? null, window: { start, end }, observedDays, launches, rows, missing, regressions, uncovered, concentrated, conclusion, stop: regressions.length > 0,
-    notes: ['仅major.minor，不能精确比较补丁版；UTC日粒度，同窗不等于同模型/同用户的因果实验。',
-      '<1s且unknown仅为疑似本地拒绝。取消和未知不计失败率分母；仅新版image未知（含坏缓存缺失量未知）阻止全量。',
+    notes: ['版本健康按major.minor比；补丁版失败率见报告「定位读数」一节（只有带补丁号的新版本事件）；UTC日粒度，同窗不等于同模型/同用户的因果实验。',
+      '带upstreamStatus的事件按not-sent数本地拒绝；更老的事件<1s且unknown仅为疑似本地拒绝。取消和未知不计失败率分母；仅新版image未知（含坏缓存缺失量未知）阻止全量。',
       'update.install success表示安装动作受理，不证明安装完成；下载/安装事件版本是发起动作的当前版。',
       '事件不等于独立用户；单项95%区间不是多项同时检查的总体95%保证。',
       ...(!primary.interval ? ['image缺可比较分母，+100.0点为无信息的保守上界，不能排除任何变差。'] : []),
