@@ -1,0 +1,83 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "3f40a0efc",
+  "head": "3f40a0efcb99966c759d265f6c034dd2749d75ec",
+  "dirty": true,
+  "sourceTree": "aaa56b9a6649db41972e3c3c1e93d5a341bfbca3",
+  "date": "2026-11-12",
+  "runs": 5,
+  "results": [
+    {
+      "id": "gen-landing-8-concurrent",
+      "metrics": {
+        "landingSyncWork": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "landingDirManifestReads": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "landingSyncIpcCalls": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "landingReceiptRereads": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "landingMainStallMaxMs": {
+          "runs": 5,
+          "median": 162.8,
+          "p95": 267.2
+        }
+      },
+      "samples": {
+        "landingSyncWork": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "landingDirManifestReads": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "landingSyncIpcCalls": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "landingReceiptRereads": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "landingMainStallMaxMs": [
+          162.8,
+          123.9,
+          222.2,
+          97.9,
+          278.4
+        ]
+      },
+      "budget": 0.5,
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}
