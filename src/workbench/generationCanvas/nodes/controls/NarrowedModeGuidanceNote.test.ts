@@ -6,6 +6,7 @@
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import i18n from '../../../../i18n'
 import NarrowedModeGuidanceNote from './NarrowedModeGuidanceNote'
 import type { NarrowedModeGuidance } from './narrowedModeGuidance'
 
@@ -18,6 +19,9 @@ vi.mock('react-i18next', async (importOriginal) => ({
   }),
 }))
 
+// 被藏的方式名按词典取（与方式菜单同一条键），不手抄。
+const OMNI_TERM = (i18n.getFixedT('zh-CN') as unknown as (key: string) => string)('generationCommon.modeMenu.name.reference')
+
 const render = (guidance: NarrowedModeGuidance, onSwitch = vi.fn(), onDismiss = vi.fn()) =>
   renderToStaticMarkup(
     React.createElement(NarrowedModeGuidanceNote, { guidance, currentVendorName: 'Runway', onSwitch, onDismiss }),
@@ -27,7 +31,7 @@ describe('NarrowedModeGuidanceNote', () => {
   it('switch 态：说清哪家没有、哪家有，并给一个换过去的按钮（样张 B）', () => {
     const html = render({
       kind: 'switch',
-      hiddenModeTerms: ['首尾帧', '全能参考'],
+      hiddenModeTerms: ['首尾帧', OMNI_TERM],
       target: { value: 'seedance2', vendor: 'kie', vendorName: 'KIE' },
     })
     expect(html).toContain('narrowedModeSwitch')
@@ -40,20 +44,20 @@ describe('NarrowedModeGuidanceNote', () => {
   })
 
   it('none 态：只说实话，不给换家按钮，但仍可关闭提示（样张 E）', () => {
-    const html = render({ kind: 'none', hiddenModeTerms: ['全能参考'] })
+    const html = render({ kind: 'none', hiddenModeTerms: [OMNI_TERM] })
     expect(html).toContain('narrowedModeNone')
     expect(html).toContain('narrowedModeGuidanceDismiss')
     expect(html).toContain('<button')
   })
 
   it('沿用已有的「诚实说一句」视觉层级，不发明新的', () => {
-    const html = render({ kind: 'none', hiddenModeTerms: ['全能参考'] })
+    const html = render({ kind: 'none', hiddenModeTerms: [OMNI_TERM] })
     expect(html).toContain('text-nomi-ink-60')
     expect(html).toContain('text-caption')
   })
 
   it('模式名逐个走 i18n 包装 + 分隔符，代码里不拼标点', () => {
-    const html = render({ kind: 'none', hiddenModeTerms: ['首尾帧', '全能参考'] })
+    const html = render({ kind: 'none', hiddenModeTerms: ['首尾帧', OMNI_TERM] })
     expect(html).toContain('narrowedModeName')
     // 两个模式名各包一次
     expect(html.match(/narrowedModeName/g)).toHaveLength(2)

@@ -28,15 +28,15 @@ describe('slot file import project lifetime', () => {
     const wait = new Promise<void>(resolve => { finish = resolve })
     const uploaded = { id: 'asset', userId: 'local', name: 'image.png', createdAt: '', updatedAt: '', data: { url: 'nomi-local://asset/project-a/image.png' } }
     const importFile = vi.spyOn(assetApi, 'importWorkbenchLocalAssetFile').mockImplementation(async () => { await wait; return uploaded })
-    const onArrayAdd = vi.fn(), onSourceVideoUrl = vi.fn(), onSingleFrameUrl = vi.fn()
+    const onReferenceAdd = vi.fn(), onSourceVideoUrl = vi.fn(), onSingleFrameUrl = vi.fn()
     const setUploadingArrayKey = vi.fn(), setUploadingSlotKey = vi.fn(), setUploadError = vi.fn()
     const handlers = createSlotFileUploads({ nodeId: 'node-1', t: ((key: string) => key) as unknown as TFunction,
-      onArrayAdd, onSourceVideoUrl, onSingleFrameUrl, setUploadingArrayKey, setUploadingSlotKey, setUploadError })
+      onReferenceAdd, onSourceVideoUrl, onSingleFrameUrl, setUploadingArrayKey, setUploadingSlotKey, setUploadError })
     const file = new File(['image'], 'image.png', { type: 'image/png' })
-    const pending = kind === 'array' ? handlers.handleArrayUpload({ metaKey: 'images', label: 'images' } as Parameters<typeof handlers.handleArrayUpload>[0], file)
+    const pending = kind === 'array' ? handlers.handleReferenceUpload(file, 'images')
       : kind === 'source' ? handlers.handleSourceVideoUpload('sourceVideo', file)
         : handlers.handleSlotUpload({ key: 'image', label: 'image', mediaKind: 'image' } as Parameters<typeof handlers.handleSlotUpload>[0], file)
-    const callbacks = [onArrayAdd, onSourceVideoUrl, onSingleFrameUrl, setUploadingArrayKey, setUploadingSlotKey, setUploadError]
+    const callbacks = [onReferenceAdd, onSourceVideoUrl, onSingleFrameUrl, setUploadingArrayKey, setUploadingSlotKey, setUploadError]
     callbacks.forEach(callback => callback.mockClear())
     await switchProject('project-b'); await switchProject('project-a'); finish()
     await expect(pending).resolves.toBeUndefined()

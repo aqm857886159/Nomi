@@ -6,18 +6,20 @@
  * 差别只在「导入完把 url 交给谁」和 mediaKind 决定的那几条文案。把它们摆在一起，新增一种槽时
  * 只会看到一处要改（此前音频槽就是漏在其中一处，提示文不对题）。
  *
- * 写入仍然归调用方：这里不碰 meta / 边，只把拿到的 url 交回给 onArrayAdd / onSingleFrameUrl。
+ * 写入仍然归调用方：这里不碰 meta / 边，只把拿到的 url 交回给 onReferenceAdd / onSingleFrameUrl。
  * 刻意不是 hook：宿主组件在 `!isGenerationNode` 处提前 return null，钩子调用不能落在它后面。
  */
 import type { TFunction } from 'i18next'
 import { importWorkbenchLocalAssetFile } from '../../../api/assetUploadApi'
 import type { ImageUrlSlot } from '../../model/parameterReferenceSlots'
-import type { ArchetypeArraySlot } from './archetypeMeta'
+import { dropKindFromFile, type AssetDropKind } from '../../model/nodeAssetDrop'
+import { MERGED_ARRAY_KEY } from '../../../assets/AssetReference'
 import { assetUrl } from './parameterControlModel'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, withProjectAction } from '../../../project/projectCanvasReadSurface'
 
 export type SlotFileUploads = {
-  handleArrayUpload: (slot: ArchetypeArraySlot, file: File | null | undefined) => Promise<void>;
+  /** 「+」上传一件参考：按文件认出是图 / 视频 / 音频，导入完交给 onReferenceAdd（落哪一格由那个入口现算）。 */
+  handleReferenceUpload: (file: File | null | undefined, label?: string) => Promise<void>;
   handleSourceVideoUpload: (metaKey: string, file: File | null | undefined) => Promise<void>;
   handleSlotUpload: (slot: ImageUrlSlot, file: File | null | undefined) => Promise<void>;
 };
@@ -25,8 +27,8 @@ export type SlotFileUploads = {
 export function createSlotFileUploads(deps: {
   nodeId: string;
   t: TFunction;
-  /** 数组槽导入完成：交给调用方走 appendArchetypeArrayValue 那条唯一写入路径。 */
-  onArrayAdd: (slot: ArchetypeArraySlot, url: string) => void;
+  /** 参考导入完成：交给调用方走加参考的唯一入口（addAssetUrlToNode）。 */
+  onReferenceAdd: (kind: AssetDropKind, url: string) => void;
   /** 源视频单槽导入完成：写 meta[metaKey]（传输层映射成 video_url）。 */
   onSourceVideoUrl: (metaKey: string, url: string) => void;
   /** 单槽导入完成：交给调用方断边 + 写 meta（上传替换该槽来源）。 */
@@ -35,15 +37,20 @@ export function createSlotFileUploads(deps: {
   setUploadingSlotKey: (key: string) => void;
   setUploadError: (message: string) => void;
 }): SlotFileUploads {
-  const { t, nodeId, onArrayAdd, onSourceVideoUrl, onSingleFrameUrl, setUploadingArrayKey, setUploadingSlotKey, setUploadError } = deps
+  const { t, nodeId, onReferenceAdd, onSourceVideoUrl, onSingleFrameUrl, setUploadingArrayKey, setUploadingSlotKey, setUploadError } = deps
 
-  const handleArrayUpload = async (slot: ArchetypeArraySlot, file: File | null | undefined): Promise<void> => {
+  const handleReferenceUpload = async (file: File | null | undefined, label?: string): Promise<void> => {
     if (!file) return
+    const kind = dropKindFromFile(file)
+    if (!kind) {
+      setUploadError(t('generationCommon.node.assetDrop.noSlot'))
+      return
+    }
     await withProjectAction(async (context) => {
-      setUploadingArrayKey(slot.metaKey)
+      setUploadingArrayKey(MERGED_ARRAY_KEY) // 「+」那一格转圈
       setUploadError('')
       try {
-        const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, {
+        const uploaded = await importWorkbenchLocalAssetFile(file, file.name || label || '', {
           projectBinding: context.binding, assertCurrent: context.assertCurrent,
           ownerNodeId: nodeId,
           taskKind: 'image_edit',
@@ -51,7 +58,7 @@ export function createSlotFileUploads(deps: {
         context.assertCurrent()
         const url = assetUrl(uploaded)
         if (!url) throw new Error(t('generationCommon.parameters.missingAssetUrl'))
-        onArrayAdd(slot, url)
+        onReferenceAdd(kind, url)
       } catch (error) {
         if (!isProjectExecutionContextCurrent(context) || isProjectImportCancellation(error)) return
         setUploadError(error instanceof Error ? error.message : String(error))
@@ -124,5 +131,5 @@ export function createSlotFileUploads(deps: {
     })
   }
 
-  return { handleArrayUpload, handleSourceVideoUpload, handleSlotUpload }
+  return { handleReferenceUpload, handleSourceVideoUpload, handleSlotUpload }
 }

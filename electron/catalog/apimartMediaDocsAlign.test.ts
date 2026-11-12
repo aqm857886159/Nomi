@@ -16,6 +16,7 @@ import { APIMART_VIDEO_MODELS } from "./apimartVideos";
 import { ARCHETYPE_WIRE_DEFAULTS } from "./archetypeWireDefaults.generated";
 import { applyParamMap } from "./paramTranslate";
 import { taskTemplateParams } from "./taskParams";
+import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 
 const FIRST = "https://example.invalid/first.png";
 const LAST = "https://example.invalid/last.png";
@@ -37,7 +38,7 @@ function renderCanvasBody(modelKey: string, modeId: string, references: Paramete
   const taskKind = mode.transportTaskKind ?? archetype.transportTaskKind;
   const mapping = model.mappings.find((item) => item.taskKind === taskKind)!;
   const defaults = Object.fromEntries(mode.params.flatMap((param) => param.defaultValue === undefined ? [] : [[param.key, param.defaultValue]]));
-  const inputs = buildArchetypeInputParams({ archetype: { id: archetype.id, modeId } }, archetype, references);
+  const inputs = buildArchetypeInputParams({ archetype: { id: archetype.id, modeId } }, modeWrittenInMeta({ archetype: { id: archetype.id, modeId } }, archetype), references);
   const request = { kind: taskKind, prompt: "人物转身看向窗外", extras: { ...defaults, ...inputs } };
   const context = buildTemplateContext({
     request: request as never,

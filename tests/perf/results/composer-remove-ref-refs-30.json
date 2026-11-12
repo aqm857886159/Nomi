@@ -1,0 +1,55 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "ce4eb5a9e",
+  "head": "ce4eb5a9e70eee4982450b1d23653005bb4c89d6",
+  "dirty": true,
+  "sourceTree": "52ed64779d5035105b0e3bed8ad213040af08f3c",
+  "date": "2026-11-12",
+  "runs": 5,
+  "results": [
+    {
+      "id": "composer-remove-ref-refs-30",
+      "metrics": {
+        "response": {
+          "runs": 5,
+          "median": 25.3,
+          "p95": 29.2
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        }
+      },
+      "samples": {
+        "response": [
+          25.8,
+          24.3,
+          30.1,
+          25.3,
+          23.7
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 23.3,
+        "p95": 24,
+        "runs": 5,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-12",
+        "commit": "5029a9bc4"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

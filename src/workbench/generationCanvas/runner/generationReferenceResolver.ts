@@ -3,7 +3,7 @@ import { sortEdgesByOrder } from '../model/graphOps'
 import { archetypeForNode, referenceAssetKindForNode } from '../agent/referenceEdgeCapability'
 import { validateEdgeKinds } from '../../../../electron/shared/canvas/edgeAdmission'
 import { isDerivedOutputPair } from '../model/derivedOutput'
-import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
+import { effectiveArchetypeMode, type ArchetypeModeResolution } from '../nodes/controls/archetypeMeta'
 import { resolveReferencePlacement } from './referenceSlots'
 import { asUrl, findNodeResultUrl, resolveReferenceUrl } from './referenceUrl'
 import { resolveIndexedParameterReferenceAssignments } from '../model/parameterReferenceSlots'
@@ -33,6 +33,11 @@ export type ResolvedGenerationReferences = {
    * 冒充首帧（封死 thumbnail 静默回退，audit 2026-06-12 评审必改）。
    */
   relayFromVideoUrl?: string
+  /**
+   * 这次按哪种方式发（effectiveArchetypeMode 按这张画布上的输入现算一次）。发送链路往下（请求组装、任务种类、@ 投影）
+   * 都读这一份，不各自再算。认不出档案的节点没有。
+   */
+  archetypeMode?: ArchetypeModeResolution
 }
 
 function pushUnique(output: string[], value: unknown) {
@@ -111,10 +116,9 @@ export function getAssetKindByUrl(nodes: GenerationCanvasNode[]): Map<string, 'i
  * 存在意义：封死「显示侧落 first_frame 槽显示待抽帧，发送侧却把视频当参考视频丢掉」的分裂
  * （reference-mode 视频连 first-frame-only i2v，手动连线默认就走这条 → 会永远待抽帧、发不出）。
  */
-function targetRelaysVideoToFirstFrame(target: GenerationCanvasNode): boolean {
-  const archetype = archetypeForNode(target)
-  if (!archetype) return false
-  const mode = currentArchetypeMode(archetype, (target.meta || {}) as Record<string, unknown>)
+function targetRelaysVideoToFirstFrame(archetypeMode: ArchetypeModeResolution | undefined): boolean {
+  if (!archetypeMode) return false
+  const mode = archetypeMode.mode
   const kinds = new Set(mode.slots.map((slot) => slot.kind))
   if (kinds.has('video_ref') || kinds.has('source_video')) return false
   return kinds.has('first_frame')
@@ -128,6 +132,8 @@ export function resolveGenerationReferences(
   const edges = context.edges || []
   const nodesById = getNodesById(nodes)
   const edgesByTarget = getEdgesByTarget(edges)
+  const nodeArchetype = archetypeForNode(node)
+  const archetypeMode = nodeArchetype ? effectiveArchetypeMode(nodeArchetype, node, { nodes, edges }) : undefined
   // 旧项目里已经存在的非法旧边（视频 / 声音 → 文本、剪辑 → 图片……）不删用户数据，但执行时一律忽略：
   // 目标这一类不收这种输入，它们不该变成参考素材。判据与新建连线同一份（edgeAdmission.validateEdgeKinds）；出处边（派生输出）不在此列。
   const incomingEdges = (edgesByTarget.get(node.id) || []).filter((edge) => {
@@ -230,7 +236,7 @@ export function resolveGenerationReferences(
       // 槽（pending-extraction）同一口径。否则会「显示待抽帧、发送却把视频当参考视频丢掉」= 永远待抽帧、
       // 发不出（reference-mode 视频连 first-frame-only i2v 的陷阱，手动连线的默认路径就撞这条）。
       const src = nodesById.get(edge.source)
-      if (!parameterSlot && src && referenceAssetKindForNode(src) === 'video' && targetRelaysVideoToFirstFrame(node)) {
+      if (!parameterSlot && src && referenceAssetKindForNode(src) === 'video' && targetRelaysVideoToFirstFrame(archetypeMode)) {
         relayFromVideoUrl = relayFromVideoUrl || sourceUrl
         continue
       }
@@ -316,5 +322,6 @@ export function resolveGenerationReferences(
     compositionReferenceImages,
     ...(stagingComposition ? { stagingComposition } : {}),
     ...(relayFromVideoUrl ? { relayFromVideoUrl } : {}),
+    ...(archetypeMode ? { archetypeMode } : {}),
   }
 }

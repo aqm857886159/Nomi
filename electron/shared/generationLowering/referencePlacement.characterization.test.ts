@@ -39,7 +39,7 @@ function canvas(fixtureMode: ArchetypeMode, references: Parameters<typeof buildA
     id: "fixture-archetype", family: "fixture", label: "Fixture", kind: "video",
     modes: [fixtureMode], defaultModeId: fixtureMode.id, transportTaskKind: "image_to_video", identifierPatterns: [],
   } satisfies ModelArchetype;
-  return buildArchetypeInputParams({ archetype: { id: archetype.id, modeId: fixtureMode.id } }, archetype, references);
+  return buildArchetypeInputParams({ archetype: { id: archetype.id, modeId: fixtureMode.id } }, fixtureMode, references);
 }
 
 function approved(parameters: Record<string, unknown>, references: Parameters<typeof placeApprovedRunReferences>[1], createBody: unknown, fixtureMode: ArchetypeMode | null = null) {

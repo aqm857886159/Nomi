@@ -27,7 +27,11 @@ import {
 } from '../../../../../electron/shared/modelArchetypes'
 import type { ImageUrlSlot } from '../../model/parameterReferenceSlots'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
-import { isImageUploadSlot, listPlacementInputs, normalizeReferenceListMeta, placeUploadedImages, withReferenceList, type UploadPlacement } from './referenceList'
+import { firstFrameLeftEmpty, isImageUploadSlot, listPlacementInputs, normalizeReferenceListMeta, placeUploadedImages, readParkedReferences, readReferenceList, withReferenceList, type UploadPlacement } from './referenceList'
+import { readModePreference, withHumanModePreference } from './modePreference'
+import { modeForInputs, type ModeForInputsResult, type ModeInput } from '../../../../../electron/shared/modelArchetypes/modeForInputs'
+import { EDGE_MODE_SLOTS, isTextPromptEdge, referenceAssetKindForNode } from '../../../../../electron/shared/canvas/edgeAdmission'
+import type { GenerationCanvasEdge, GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { readArchetypeArray } from './archetypeArrayValues'
 export { appendArchetypeArrayValue, archetypeArrayWrite, readArchetypeArray, readArchetypeArrayForWrite, type ArchetypeArrayAppend } from './archetypeArrayValues'
 import {
@@ -78,34 +82,176 @@ const ARRAY_SLOT_ROUTE: Partial<Record<ArchetypeReferenceSlotKind, ArraySlotRout
 
 type ArchetypeNodeMeta = {
   id: string
-  modeId: string
   /** 当前选中的变体 id（可选；无变体档案 / 旧 meta 未写时为空，由 currentArchetypeVariant 回落默认）。 */
   variantId: string
 }
 
+/** 存着的档案 id + 变体。**不读 modeId**：存着的方式只经 modePreference.readModePreference 当偏好读。 */
 function readArchetypeNodeMeta(meta: Record<string, unknown> | undefined): ArchetypeNodeMeta | null {
   const value = meta?.archetype
   if (!value || typeof value !== 'object') return null
   const record = value as Record<string, unknown>
   const id = typeof record.id === 'string' ? record.id : ''
-  const modeId = typeof record.modeId === 'string' ? record.modeId : ''
-  if (!id || !modeId) return null
+  if (!id) return null
   const variantId = typeof record.variantId === 'string' ? record.variantId : ''
-  return { id, modeId, variantId }
+  return { id, variantId }
 }
 
-/** 当前激活的模式（无命名空间 meta 或 modeId 失效时落到 defaultModeId）。 */
-export function currentArchetypeMode(
+/** 节点上存着的 archetype 记录原样（带着走用：切变体、迁移时偏好和来历标记一个字不改）。 */
+function storedArchetypeRecord(meta: Record<string, unknown> | undefined): Record<string, unknown> {
+  const value = meta?.archetype
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {}
+}
+
+/** 档案里按 id 取方式；认不出落默认、再落第一个。 */
+export function archetypeModeById(archetype: ModelArchetype, modeId: string | null | undefined): ArchetypeMode {
+  return archetype.modes.find((m) => m.id === modeId) ?? archetype.modes.find((m) => m.id === archetype.defaultModeId) ?? archetype.modes[0]
+}
+
+/** 存着的偏好对应的方式（只给「旧界面当时看得见哪几张」这类问存盘本身的地方用；问这次按什么发一律走 effectiveArchetypeMode）。 */
+function storedPreferenceMode(archetype: ModelArchetype, meta: Record<string, unknown> | undefined): ArchetypeMode {
+  return archetypeModeById(archetype, readModePreference(archetype, meta)?.modeId)
+}
+
+export type ModeGraph = { nodes: readonly GenerationCanvasNode[]; edges: readonly GenerationCanvasEdge[] }
+export type ArchetypeModeResolution = ModeForInputsResult
+export type CollectedModeInputs = { inputs: ModeInput[]; firstFrameEmpty: boolean }
+
+const UPLOAD_SLOTS = EDGE_MODE_SLOTS.reference
+
+/**
+ * 这个节点这次实际放进来的东西：画布边（边的角色 × 源素材种类；上游还没出图也算——先跑上游备齐参考）
+ * + 节点自己的上传（参考图列表里没「先放一边」的、参考视频 / 音频、源视频）。
+ * **不从已解析的参考值收**：解析参考（落哪一格）本身要先知道方式，从那儿收会绕圈。
+ */
+export function collectModeInputs(node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>, graph: ModeGraph): CollectedModeInputs {
+  const meta = (node.meta || {}) as Record<string, unknown>
+  const inputs: ModeInput[] = []
+  const nodesById = nodesByIdOf(graph.nodes)
+  for (const edge of graph.edges) {
+    if (edge.target !== node.id || edge.targetParamKey) continue
+    const source = nodesById.get(edge.source)
+    if (!source || isTextPromptEdge(source, node as GenerationCanvasNode, edge.mode)) continue
+    const asset = referenceAssetKindForNode(source)
+    if (!asset) continue
+    inputs.push({ slots: EDGE_MODE_SLOTS[edge.mode ?? 'reference'], asset })
+  }
+  const parked = new Set(readParkedReferences(meta))
+  for (const url of readReferenceList(meta)) if (!parked.has(url)) inputs.push({ slots: UPLOAD_SLOTS, asset: 'image' })
+  for (const url of readArchetypeArray(meta, 'referenceVideoUrls')) if (url) inputs.push({ slots: UPLOAD_SLOTS, asset: 'video' })
+  for (const url of readArchetypeArray(meta, 'referenceAudioUrls')) if (url) inputs.push({ slots: UPLOAD_SLOTS, asset: 'audio' })
+  if (typeof meta.sourceVideoUrl === 'string' && meta.sourceVideoUrl.trim()) inputs.push({ slots: ['source_video', 'video_ref'], asset: 'video' })
+  return { inputs, firstFrameEmpty: firstFrameLeftEmpty(meta) }
+}
+
+const nodesByIdCache = new WeakMap<readonly GenerationCanvasNode[], Map<string, GenerationCanvasNode>>()
+function nodesByIdOf(nodes: readonly GenerationCanvasNode[]): Map<string, GenerationCanvasNode> {
+  const cached = nodesByIdCache.get(nodes)
+  if (cached) return cached
+  const next = new Map(nodes.map((candidate) => [candidate.id, candidate]))
+  nodesByIdCache.set(nodes, next)
+  return next
+}
+
+const resolutionCache = new WeakMap<readonly GenerationCanvasEdge[], WeakMap<readonly GenerationCanvasNode[], WeakMap<object, Map<ModelArchetype, ArchetypeModeResolution>>>>()
+
+/**
+ * **渲染层问「这次按哪种方式发」的唯一入口**：收一次输入，问唯一 owner modeForInputs。
+ * 返回的 mode 同时是底栏方式格显示的、参考行按它摆的、发送 / 生成钮 / 任务种类 / 参数读的（显示的 = 发的）。
+ * archetype 传调用方手里那份（按变体特化过的也行，方式 id 不变）。graph 传节点所在的画布（没有画布就传 { nodes: [node], edges: [] }）。
+ */
+export function effectiveArchetypeMode(
   archetype: ModelArchetype,
-  meta: Record<string, unknown> | undefined,
+  node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>,
+  graph: ModeGraph,
+): ArchetypeModeResolution {
+  let byNodes = resolutionCache.get(graph.edges)
+  if (!byNodes) { byNodes = new WeakMap(); resolutionCache.set(graph.edges, byNodes) }
+  let byNode = byNodes.get(graph.nodes)
+  if (!byNode) { byNode = new WeakMap(); byNodes.set(graph.nodes, byNode) }
+  let byArchetype = byNode.get(node)
+  if (!byArchetype) { byArchetype = new Map(); byNode.set(node, byArchetype) }
+  const cached = byArchetype.get(archetype)
+  if (cached) return cached
+  const meta = (node.meta || {}) as Record<string, unknown>
+  const collected = collectModeInputs(node, graph)
+  const resolved = modeForInputs(archetype, collected.inputs, readModePreference(archetype, meta), { firstFrameEmpty: collected.firstFrameEmpty })
+  byArchetype.set(archetype, resolved)
+  return resolved
+}
+
+/** 调用方直接递进来的这次参考（没经画布解析时）。 */
+type SuppliedReferences = {
+  archetypeMode?: ArchetypeModeResolution
+  firstFrameUrl?: string | null
+  lastFrameUrl?: string | null
+  referenceImages?: readonly string[]
+  referenceVideos?: readonly string[]
+  referenceAudios?: readonly string[]
+}
+
+/** 调用方递进来的参考就是这次的输入：首帧 / 尾帧带位置，其余按参考收。 */
+function suppliedReferenceInputs(references: SuppliedReferences | undefined): ModeInput[] {
+  if (!references) return []
+  const inputs: ModeInput[] = []
+  if (references.firstFrameUrl) inputs.push({ slots: EDGE_MODE_SLOTS.first_frame, asset: 'image' })
+  if (references.lastFrameUrl) inputs.push({ slots: EDGE_MODE_SLOTS.last_frame, asset: 'image' })
+  for (const url of references.referenceImages ?? []) if (url) inputs.push({ slots: UPLOAD_SLOTS, asset: 'image' })
+  for (const url of references.referenceVideos ?? []) if (url) inputs.push({ slots: UPLOAD_SLOTS, asset: 'video' })
+  for (const url of references.referenceAudios ?? []) if (url) inputs.push({ slots: UPLOAD_SLOTS, asset: 'audio' })
+  return inputs
+}
+
+/**
+ * 发送链路上「这次按哪种方式发」：画布路解析参考时已现算过一次（references.archetypeMode）就用那一份；
+ * 没经画布解析（只有这个节点、调用方直接递参考）就按这次真要发的输入现算——递了参考就按递进来的算，
+ * 一张都没递才看节点自己的上传。archetype 是发送侧认的那份（同一方式 id）。
+ */
+export function sendArchetypeMode(
+  archetype: ModelArchetype,
+  node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>,
+  references?: SuppliedReferences,
 ): ArchetypeMode {
-  const stored = readArchetypeNodeMeta(meta)
-  const modeId = stored && (stored.id === archetype.id || archetype.legacyIds?.includes(stored.id)) ? stored.modeId : ''
-  return (
-    archetype.modes.find((m) => m.id === modeId) ??
-    archetype.modes.find((m) => m.id === archetype.defaultModeId) ??
-    archetype.modes[0]
-  )
+  const resolved = references?.archetypeMode?.mode
+  // 跨档案迁移（同一模型换到另一家的档案）时方式 id 可能不同：按同一种意图对上。
+  const matched = archetype.modes.find((mode) => mode.id === resolved?.id)
+    ?? (resolved ? archetype.modes.find((mode) => mode.intent === resolved.intent) : undefined)
+  if (matched) return matched
+  const supplied = suppliedReferenceInputs(references)
+  if (!supplied.length) return effectiveArchetypeMode(archetype, node, { nodes: [node as GenerationCanvasNode], edges: [] }).mode
+  const meta = (node.meta || {}) as Record<string, unknown>
+  const firstFrameEmpty = !references?.firstFrameUrl && collectModeInputs(node, lonelyNodeGraph(node as GenerationCanvasNode)).firstFrameEmpty
+  return modeForInputs(archetype, supplied, readModePreference(archetype, meta), { firstFrameEmpty }).mode
+}
+
+/**
+ * 再放进一件东西（拖入 / 上传 / 粘贴一张参考）之后按什么方式摆——拖放落哪一格由「放进去之后的输入」现算，
+ * 不先把方式写进节点（空视频节点拖一张图进来：放之后按参考摆，有参考格可落）。
+ */
+export function effectiveArchetypeModeWithUpload(
+  archetype: ModelArchetype,
+  node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>,
+  graph: ModeGraph,
+  asset: 'image' | 'video' | 'audio',
+): ArchetypeModeResolution {
+  return effectiveArchetypeModeWithInputs(archetype, node, graph, [{ slots: UPLOAD_SLOTS, asset }])
+}
+
+/** 再放进几件东西（各带想落的槽）之后的方式——落地回写一组参考前先问「放完之后按什么摆」。 */
+export function effectiveArchetypeModeWithInputs(
+  archetype: ModelArchetype,
+  node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>,
+  graph: ModeGraph,
+  extra: readonly ModeInput[],
+): ArchetypeModeResolution {
+  const meta = (node.meta || {}) as Record<string, unknown>
+  const collected = collectModeInputs(node, graph)
+  return modeForInputs(archetype, [...collected.inputs, ...extra], readModePreference(archetype, meta), { firstFrameEmpty: collected.firstFrameEmpty })
+}
+
+/** 只有一个节点、没有画布时的输入（节点自己的上传）。 */
+export function lonelyNodeGraph(node: GenerationCanvasNode): ModeGraph {
+  return { nodes: [node], edges: [] }
 }
 
 /** 这个节点存着的 variantId（只认同一档案的）与模型名——问唯一 owner 时的那组输入。 */
@@ -115,7 +261,7 @@ function variantInputOf(archetype: ModelArchetype, meta: Record<string, unknown>
 }
 
 /**
- * 当前激活的变体（对称 currentArchetypeMode）。判定只问唯一 owner `resolveArchetypeVariant`：
+ * 当前激活的变体（对称 effectiveArchetypeMode）。判定只问唯一 owner `resolveArchetypeVariant`：
  * 存着的 variantId → 模型名是某个变体的专属 key → 默认变体 → 第一个。付费卡与宿主派发问的是同一个函数、
  * 同一组输入（2026-09-26：以前宿主自己拿模型名反推，卡上写 Fast、派出去是 standard）。
  * 无 variants 档案 → null（UI 不显示变体段，传输不带变体 model）。
@@ -301,10 +447,9 @@ export function uploadPlacementForMode(
  */
 export function hasAnyArchetypeReference(
   meta: Record<string, unknown> | undefined,
-  archetype: ModelArchetype,
+  mode: ArchetypeMode,
   references?: ResolvedReferenceValues,
 ): boolean {
-  const mode = currentArchetypeMode(archetype, meta)
   const placement = uploadPlacementForMode(meta, mode, references, 'judge')
   return mode.slots.some((slot, slotIndex) => {
     if (isImageUploadSlot(slot.kind) && placement.bySlot[slotIndex]!.length > 0) return true
@@ -337,22 +482,9 @@ export function withUnplacedArrayReferences(
   return accept === 'image' ? withReferenceList(meta, next) : { ...meta, [route.metaKey]: next }
 }
 
-/** 第一次定生成方式时，把卡上已经暂存的数组参考转成模型选择所需的参考需求。 */
-export function referenceDemandsBeforeFirstMode(
-  meta: Record<string, unknown> | undefined,
-): Array<{ slots: ArchetypeReferenceSlotKind[]; asset: ArraySlotRoute['accept'] }> {
-  if (readArchetypeNodeMeta(meta)) return []
-  return ARRAY_SLOT_ROUTES
-    .filter(([, route]) => readArchetypeArray(meta, route.metaKey).length > 0)
-    .map(([kind, route]) => ({ slots: [kind], asset: route.accept }))
-}
-
 /** 当前模式的 per-mode model enum（HappyHorse 4 端点合 1 靠它；Seedance 各模式同 model → null）。 */
-export function archetypeModeModelEnum(
-  archetype: ModelArchetype,
-  meta: Record<string, unknown> | undefined,
-): string | null {
-  return currentArchetypeMode(archetype, meta).modelEnum ?? null
+export function archetypeModeModelEnum(mode: ArchetypeMode): string | null {
+  return mode.modelEnum ?? null
 }
 
 /** 切模式时跟着写回的 variantId = 此刻显示的那个变体（无 variants → 空串）。 */
@@ -361,35 +493,81 @@ function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArche
 }
 
 /**
- * 切到 nextModeId：改 node.meta.archetype.modeId，并把**存量越界的 select 值夹回新模式的默认**
- * （参考值/照片全局保留，不搬不清；旧工程按槽存的参考图先按切换前的方式落成那一份列表，见函数体）。返回**整份新 meta**。
- * 互斥不在这里发生——发生在 buildArchetypeInputParams（只发当前模式声明的槽键）。这样切回时照片还在。
- * variantId 跟随保留（切 mode 不动变体）；无变体档案则不写 variantId 键。
- *
- * ⚠️ 这里必须和 applyArchetypeVariantSwitch 一样调 resolveModelParams —— **模式和变体一样会收窄参数**。
- * 2026-08-26 走查实测：火山 Seedance 2.5 在「文生视频」选了 16:9，切到「首帧」（官方硬约束 ratio 只能
- * adaptive，档案已把选项收窄成一项）后，UI 上一个选中项都没有，而 meta 里那个 16:9 原封不动留着并照发
- * —— 正好触发档案注释说要防的 InvalidParameter.TaskTypeConstraint（任务已创建才异步报错、额度已排队）。
- * 收窄了「选项」却不收窄「已存的值」= UI 与发送不一致。通用坑，不是 Seedance 专属。
+ * 人手选了一个方式（底栏方式菜单、声音方式栏——只有这 2 扇门调它）：写偏好 + `modeChosenBy: 'human'`。
+ * 菜单只让点「放得下全部输入」的方式，所以写进去的偏好当下一定成立；之后输入加多放不下，由画布边界忘掉它
+ * （canvasModeChoiceForget），不会「减少就跳回」。
+ * 机器（连线、换模型、自动参考、交付…）不再写方式：这次按什么发由 effectiveArchetypeMode 按输入现算。
+ * 参数不在这里夹：按现算出的方式在读 / 发的时候收窄（clampParamsToMode），删了图就回到原来存的值。
+ * 旧工程按槽存的参考图，先按**改之前存着的方式**落成规范形（旧界面那时看不见的记进「先放一边」，#1269 条件 4）。
  */
-export function applyArchetypeModeSwitch(
+export function applyHumanModeChoice(
   rawMeta: Record<string, unknown>,
   archetype: ModelArchetype,
-  nextModeId: string,
+  modeId: string,
 ): Record<string, unknown> {
-  // 旧工程的按槽存的参考图，先按**切换前**的方式落成规范形：旧界面那时看不见的记进「先放一边」（#1269 条件 4）。
-  // 放在这里是因为改 modeId 的入口有 20 处——只要有一处先改了方式、后归一，旧图就会按新方式被当成「看得见」而在用。
-  const meta = normalizeReferenceListMeta(rawMeta, currentArchetypeMode(archetype, rawMeta)) ?? rawMeta
+  const meta = normalizeReferenceListMeta(rawMeta, storedPreferenceMode(archetype, rawMeta)) ?? rawMeta
   const variantId = preservedVariantId(meta, archetype)
-  // 按当前变体特化后再取模式参数：变体与模式**都**可能收窄同一个 select，夹的必须是两层叠加后的选项集。
-  const specialized = specializeArchetypeForVariant(archetype, variantId)
-  const nextMode = specialized.modes.find((m) => m.id === nextModeId) ?? specialized.modes[0]
-  const clamped = nextMode ? resolveModelParams({ controls: nextMode.params, intent: {}, previousParams: meta, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params : meta
-  return { ...clamped, archetype: { id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
+  const next = withHumanModePreference(meta, archetype.id, archetypeModeById(archetype, modeId).id)
+  return variantId ? { ...next, archetype: { ...(next.archetype as object), variantId } } : next
 }
 
 /**
- * 切到 nextVariantId：改 node.meta.archetype.variantId（对称 applyArchetypeModeSwitch；不动 modeId、
+ * 忘掉存着的方式偏好（输入变了、它放不下全部输入时由画布边界 canvasModeChoiceForget 调）：只去掉方式和来历标记，
+ * 档案 id、变体、参数一个不动；之后方式按输入的默认现算，输入再减少也不跳回原来那种。
+ */
+export function forgetModePreference(rawMeta: Record<string, unknown>, archetype: ModelArchetype): Record<string, unknown> {
+  const meta = normalizeReferenceListMeta(rawMeta, storedPreferenceMode(archetype, rawMeta)) ?? rawMeta
+  const record = storedArchetypeRecord(meta)
+  const { modeId: _modeId, modeChosenBy: _chosenBy, ...rest } = record
+  return { ...meta, archetype: rest }
+}
+
+/**
+ * 换模型 / 换供应商时偏好怎么带：不再替节点挑方式（方式在发送时按输入现算）。人手选过的摆法是意图——新档案有同一种
+ * 意图的方式就带过去、仍算人手选的；来历不明的不带（新档案按输入现算）。同一档案 → 原样。
+ */
+export function carryHumanModePreference(
+  meta: Record<string, unknown>,
+  fromArchetype: ModelArchetype | null,
+  toArchetype: ModelArchetype,
+): Record<string, unknown> {
+  if (!fromArchetype || fromArchetype.id === toArchetype.id) return meta
+  const preference = readModePreference(fromArchetype, meta)
+  const intent = preference?.chosenBy === 'human' ? fromArchetype.modes.find((mode) => mode.id === preference.modeId)?.intent : undefined
+  const carried = intent ? toArchetype.modes.find((mode) => mode.intent === intent) : undefined
+  return carried ? withHumanModePreference(meta, toArchetype.id, carried.id) : meta
+}
+
+/**
+ * 按方式声明把存着的下拉值收窄（读 / 发时用，不写回）。火山 Seedance 2.5 文生存了 16:9 → 放一张首帧，现算成首帧方式
+ * （比例官方只收 adaptive）→ 面板显示、请求发出的都是 adaptive；删了图回到文生 → 还是 16:9（2026-08-26 走查那一类）。
+ */
+export function clampParamsToMode(meta: Record<string, unknown>, archetype: ModelArchetype, mode: ArchetypeMode): Record<string, unknown> {
+  const specialized = specializeArchetypeForVariant(archetype, preservedVariantId(meta, archetype))
+  const declared = specialized.modes.find((candidate) => candidate.id === mode.id) ?? mode
+  return resolveModelParams({ controls: declared.params, intent: {}, previousParams: meta, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params
+}
+
+/**
+ * 迁移 / 初次落地时重写 archetype 记录（不是方式切换）：按变体特化后把越界下拉值夹回 modeId 的声明，
+ * 偏好来历标记原样带着（同档案时）。
+ */
+function rewriteArchetypeRecord(
+  rawMeta: Record<string, unknown>,
+  archetype: ModelArchetype,
+  modeId: string,
+  keep: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const meta = normalizeReferenceListMeta(rawMeta, storedPreferenceMode(archetype, rawMeta)) ?? rawMeta
+  const variantId = preservedVariantId(meta, archetype)
+  const specialized = specializeArchetypeForVariant(archetype, variantId)
+  const nextMode = specialized.modes.find((m) => m.id === modeId) ?? specialized.modes[0]
+  const clamped = nextMode ? resolveModelParams({ controls: nextMode.params, intent: {}, previousParams: meta, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params : meta
+  return { ...clamped, archetype: { ...keep, id: archetype.id, modeId: nextMode.id, ...(variantId ? { variantId } : {}) } }
+}
+
+/**
+ * 切到 nextVariantId：改 node.meta.archetype.variantId（不动方式偏好、
  * 不动参考值）+ 夹取被新变体收窄掉的越界参数值（D1）。返回**整份新 meta**。无效 variantId → 回落默认。
  * 无 variants 档案 → no-op（原样返回 meta）。
  */
@@ -401,7 +579,7 @@ export function applyArchetypeVariantSwitch(
   const variants = archetype.variants
   if (!variants || variants.length === 0) return meta
   const stored = readArchetypeNodeMeta(meta)
-  const modeId = stored?.id === archetype.id && stored.modeId ? stored.modeId : archetype.defaultModeId
+  const modeId = readModePreference(archetype, meta)?.modeId || archetype.defaultModeId
   // 用户点的那一档；认不出的 id 与不传一样落默认变体（唯一 owner 的规则）。
   const nextVariant = resolveArchetypeVariant(archetype, { variantId: nextVariantId })!
   // 按新变体特化出当前模式的参数声明，把存量越界的 select 值夹回默认（D1：4k→fast 变体不再漏发）。
@@ -411,7 +589,7 @@ export function applyArchetypeVariantSwitch(
     specialized.modes.find((m) => m.id === specialized.defaultModeId) ??
     specialized.modes[0]
   const clamped = mode ? resolveModelParams({ controls: mode.params, intent: {}, previousParams: meta, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params : meta
-  return { ...clamped, archetype: { id: archetype.id, modeId, variantId: nextVariant.id } }
+  return { ...clamped, archetype: { ...(stored?.id === archetype.id ? storedArchetypeRecord(meta) : {}), id: archetype.id, modeId: mode?.id ?? modeId, variantId: nextVariant.id } }
 }
 
 /**
@@ -426,7 +604,7 @@ export function applyArchetypeVariantSwitch(
 export function normalizeArchetypeVariantMeta(
   meta: Record<string, unknown>,
   archetype: ModelArchetype,
-): { modelKey: string; archetype: { id: string; modeId: string; variantId: string } } | null {
+): { modelKey: string; archetype: Record<string, unknown> & { id: string; variantId: string } } | null {
   const variants = archetype.variants
   if (!variants || variants.length === 0) return null
   const currentKey = typeof meta.modelKey === 'string' ? meta.modelKey.trim() : ''
@@ -448,7 +626,7 @@ export function normalizeArchetypeVariantMeta(
     if (canonicalStoredId && canonicalStoredId !== stored?.variantId) {
       return {
         modelKey: baseModelKey,
-        archetype: { id: archetype.id, modeId: stored!.modeId, variantId: canonicalStoredId },
+        archetype: { ...storedArchetypeRecord(meta), id: archetype.id, variantId: canonicalStoredId },
       }
     }
     return null
@@ -456,13 +634,13 @@ export function normalizeArchetypeVariantMeta(
   // modelKey 是变体全串（旧项目钉死的具体变体）→ 折叠成基础 modelKey + 从串 derive variantId。
   const matched = archetypeVariantForModelId(archetype, currentKey)
   if (!matched) return null
-  const modeId = stored?.id === archetype.id && stored.modeId ? stored.modeId : archetype.defaultModeId
-  return { modelKey: baseModelKey, archetype: { id: archetype.id, modeId, variantId: matched.id } }
+  const modeId = readModePreference(archetype, meta)?.modeId || archetype.defaultModeId
+  return { modelKey: baseModelKey, archetype: { ...(stored?.id === archetype.id ? storedArchetypeRecord(meta) : {}), id: archetype.id, modeId, variantId: matched.id } }
 }
 
 /**
  * 初次落地（节点刚选到一个有档案的模型、还没有命名空间 meta 时）：写入默认模式的 archetype 命名空间。
- * 幂等：已是该档案则返回 null（不循环）。变体档案同时初始化 variantId（由 applyArchetypeModeSwitch 写）。
+ * 幂等：已是该档案则返回 null（不循环）。变体档案同时初始化 variantId（由 rewriteArchetypeRecord 写）。
  */
 export function ensureArchetypeNodeMeta(
   meta: Record<string, unknown>,
@@ -470,8 +648,9 @@ export function ensureArchetypeNodeMeta(
 ): Record<string, unknown> | null {
   const stored = readArchetypeNodeMeta(meta)
   if (stored && archetype.legacyIds?.includes(stored.id)) {
-    const mode = currentArchetypeMode(archetype, meta)
-    return applyArchetypeModeSwitch(preserveLegacyPixelRatio(meta, mode), archetype, mode.id)
+    const mode = storedPreferenceMode(archetype, meta)
+    const chosenBy = storedArchetypeRecord(meta).modeChosenBy
+    return rewriteArchetypeRecord(preserveLegacyPixelRatio(meta, mode), archetype, mode.id, chosenBy === undefined ? {} : { modeChosenBy: chosenBy })
   }
   // 已是该档案：若有变体但 variantId 缺/失效 → 补默认变体（旧 meta 升级）；否则幂等 null。
   if (stored?.id === archetype.id) {
@@ -480,7 +659,7 @@ export function ensureArchetypeNodeMeta(
     if (stored.variantId && canonicalStoredId === stored.variantId) return null
     return applyArchetypeVariantSwitch(meta, archetype, currentArchetypeVariant(archetype, meta)?.id ?? '')
   }
-  return applyArchetypeModeSwitch(meta, archetype, archetype.defaultModeId)
+  return rewriteArchetypeRecord(meta, archetype, archetype.defaultModeId)
 }
 
 /** Split legacy pixel size into the new profile's ratio before its size is clamped.
@@ -569,10 +748,9 @@ export function mergeOrderedReferenceImageUrls(
  */
 export function orderedSentImageReferenceUrls(
   meta: Record<string, unknown>,
-  archetype: ModelArchetype,
+  mode: ArchetypeMode,
   edgeImageUrls: readonly string[],
 ): string[] {
-  const mode = currentArchetypeMode(archetype, meta)
   const slotIndex = mode.slots.findIndex((s) => ARRAY_SLOT_ROUTE[s.kind]?.accept === 'image')
   const slot = mode.slots[slotIndex]
   if (!slot) return []
@@ -583,14 +761,13 @@ export function orderedSentImageReferenceUrls(
 /** 当前模式所有数组媒体参考的发送顺序 + 类型编号，供 @imageN/@videoN/@audioN 共用。 */
 export function orderedSentMediaReferenceUrls(
   meta: Record<string, unknown>,
-  archetype: ModelArchetype,
+  mode: ArchetypeMode,
   edgeReferences: {
     image?: readonly string[]
     video?: readonly string[]
     audio?: readonly string[]
   },
 ): Array<{ url: string; kind: 'image' | 'video' | 'audio'; index: number }> {
-  const mode = currentArchetypeMode(archetype, meta)
   const counts: Record<'image' | 'video' | 'audio', number> = { image: 0, video: 0, audio: 0 }
   const out: Array<{ url: string; kind: 'image' | 'video' | 'audio'; index: number }> = []
   const placement = uploadPlacementForMode(meta, mode, {
@@ -622,13 +799,12 @@ export function orderedSentMediaReferenceUrls(
  */
 export function buildArchetypeInputParams(
   meta: Record<string, unknown>,
-  archetype: ModelArchetype,
+  mode: ArchetypeMode,
   references?: EdgeReferenceLists & {
     firstFrameUrl?: string | null
     lastFrameUrl?: string | null
   },
 ): Readonly<Record<string, unknown>> {
-  const mode = currentArchetypeMode(archetype, meta)
   const intent: IntentReference[] = []
   // 上传图落哪个槽：和参考行同一个函数（uploadPlacementForMode → placeUploadedImages），列表里用不上的图不进来。
   const placement = uploadPlacementForMode(meta, mode, references)

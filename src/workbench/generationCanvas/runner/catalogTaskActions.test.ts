@@ -324,12 +324,20 @@ describe('buildCatalogTaskRequest — 标准参考面与档案投影并存（中
     expect(built.request.kind).toBe('image_edit')
     // 走查 B 段抓出的第二个吞点：上传住档案槽键，从没进过标准面 → multipart 0 张图被抛。
     expect(built.request.extras?.referenceImages).toEqual(['nomi-local://asset/up.png'])
-    // t2i 模式（无 image_ref 槽）→ 残留不复活进标准面（否则 chat 回退的 t2i body 会带旧图）。
+    // 方式按输入现算（2026-11-12）：存着 t2i 只是偏好，参考行里在用的那张图就是输入 → 按改图发、图照发（显示的 = 发的）。
     const t2i: GenerationCanvasNode = {
       ...uploaded,
       meta: { ...uploaded.meta, archetype: { id: 'gpt-image-2', modeId: 't2i' } },
     }
-    expect(buildCatalogTaskRequest(t2i, { references: {} }).request.extras?.referenceImages).toBeUndefined()
+    expect(buildCatalogTaskRequest(t2i, { references: {} }).request.extras?.referenceImages).toEqual(['nomi-local://asset/up.png'])
+    // 「先放一边」的残留才是不复活的那种：不进标准面，没有别的输入 → 按文生发（否则 chat 回退的 t2i body 会带旧图）。
+    const parked: GenerationCanvasNode = {
+      ...uploaded,
+      meta: { ...t2i.meta, referenceParkedUrls: ['nomi-local://asset/up.png'] },
+    }
+    const parkedBuilt = buildCatalogTaskRequest(parked, { references: {} }).request
+    expect(parkedBuilt.kind).toBe('text_to_image')
+    expect(parkedBuilt.extras?.referenceImages).toBeUndefined()
   })
 
   it('档案视频节点的 i2v 首帧：标准 firstFrameUrl 不再被档案分支丢掉（中转 image_url 由它派生）', () => {
@@ -1054,12 +1062,14 @@ describe('resolveTaskKind — kind × 能力面穷举（防「档案桶/兜底�
     expect(resolveTaskKind(bareNode('model3d'), { firstFrameUrl: 'nomi-local://asset/p/ref.png' })).toBe('image_to_3d')
   })
 
-  it('3D 档案（meshy6）模式 transportTaskKind 被尊重：text→text_to_3d / image→image_to_3d', () => {
+  // 方式按输入现算（2026-11-12）：存着的 modeId 只是偏好，没图就按文字生成 3D，有图才走图生 3D。
+  it('3D 档案（meshy6）模式 transportTaskKind 被尊重：没图 → text_to_3d / 有图 → image_to_3d（存着的偏好不顶替输入）', () => {
     const withMode = (modeId: string): GenerationCanvasNode =>
       ({ id: 'tk2', kind: 'model3d', title: '', position: { x: 0, y: 0 }, prompt: '一只猫',
          meta: { modelKey: 'meshy6', archetype: { id: 'meshy6', modeId } } } as GenerationCanvasNode)
     expect(resolveTaskKind(withMode('text'), {})).toBe('text_to_3d')
-    expect(resolveTaskKind(withMode('image'), {})).toBe('image_to_3d')
+    expect(resolveTaskKind(withMode('image'), {})).toBe('text_to_3d')
+    expect(resolveTaskKind(withMode('text'), { referenceImages: ['nomi-local://asset/p/ref.png'] })).toBe('image_to_3d')
   })
 
   it('全部 model3d 档案 × 模式：解析结果 = 模式声明的 transportTaskKind（registry 驱动，新 3D 档案自动进矩阵）', () => {
@@ -1067,7 +1077,9 @@ describe('resolveTaskKind — kind × 能力面穷举（防「档案桶/兜底�
       for (const mode of archetype.modes || []) {
         const node = { id: 'tk3', kind: 'model3d', title: '', position: { x: 0, y: 0 }, prompt: 'x',
           meta: { modelKey: archetype.identifierPatterns?.[0] || archetype.id, archetype: { id: archetype.id, modeId: mode.id } } } as GenerationCanvasNode
-        expect(resolveTaskKind(node, {})).toBe(mode.transportTaskKind ?? archetype.transportTaskKind)
+        // 发送路径把现算好的方式随参考一起递进来（resolveGenerationReferences 的 archetypeMode）；任务种类按它定。
+        const references = { archetypeMode: { status: 'ok', mode, taken: 0 } } as never
+        expect(resolveTaskKind(node, references)).toBe(mode.transportTaskKind ?? archetype.transportTaskKind)
       }
     }
   })

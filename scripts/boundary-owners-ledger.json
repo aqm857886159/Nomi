@@ -610,6 +610,36 @@
         "symbol": "extractAssetUrls"
       },
       "reason": "2026-11-09 读供应商结果读全集（docs/fixes/2026-11-09-multi-result-landing.root-cause.json，用户 11-09 拍板「按结构」）：一次生成可以回几份，没声明映射时的兜底提取从「第一组非空结果里的第一条」改成回那一组的全部地址，改名 extractAssetUrls，旧名同提交删除（聊天回话的 extractChatImageUrl 同样改成 extractChatImageUrls）。08-30 合同的不变量「图 / 视频 / 音频 / 3D 地址都经这一处与供应商无关的提取」不变；只有一条地址时结果逐字不变。守它的测试：electron/tasks/assetUrlExtract.test.ts、electron/catalog/multiOutputMapping.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-02-vendor-honest-axes-followup.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+      "symbol": "archetypeModeIsVisible / archetypeVariantAxisIsLive / fallbackVisibleModeId",
+      "anchor": {
+        "path": "src/workbench/generationCanvas/nodes/controls/channelModeReach.ts",
+        "symbol": "archetypeModeIsVisible / archetypeVariantAxisIsLive"
+      },
+      "reason": "2026-11-12 方式按输入现算（docs/fixes/2026-11-12-mode-from-inputs.root-cause.json，用户 11-12 改向）：「存着的方式被收窄掉时退到哪一个可见方式」不再是一个要选的状态——这次用哪种方式由 modeForInputs 在可见方式里按输入现算，fallbackVisibleModeId 同提交删除。09-02 合同的不变量「档案能力轴 × 渠道的收窄判据只住这一处」不变，仍由 archetypeModeIsVisible / archetypeVariantAxisIsLive 持有；守它的测试：channelModeReach.test.ts、modeMenuModel.exhaustive.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-25-canvas-mode-follows-inputs.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/canvasConnectDerivations.ts",
+      "symbol": "revertTargetModeForEmptyInputs",
+      "anchor": {
+        "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+        "symbol": "modeForInputs"
+      },
+      "reason": "2026-11-12 方式按输入现算（docs/fixes/2026-11-12-mode-from-inputs.root-cause.json）：方式不再是被写进 meta 的状态，「输入删光 → 回到文生」由 modeForInputs 每次按当前输入现算得出，不再有一个写口在 live→empty 时去改字段；revertTargetModeForEmptyInputs 同提交删除。10-25 合同的不变量「没有输入就不停在带图的方式」由 modeForInputs 持有，守它的测试：modeForInputs.exhaustive.test.ts（全部档案 × 存着的方式 × 9 种输入）。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-25-canvas-mode-follows-inputs.root-cause.json",
+      "path": "src/workbench/generationCanvas/store/canvasConnectDerivations.ts",
+      "symbol": "convergeStuckInputModes",
+      "anchor": {
+        "path": "electron/shared/modelArchetypes/modeForInputs.ts",
+        "symbol": "modeForInputs"
+      },
+      "reason": "2026-11-12 方式按输入现算：打开项目 / 回放事件尾巴后不再需要一次收敛写入——存着的方式只当偏好读，放不下当前输入就按输入现算，旧项目不改盘（真窗回放核过老节点 meta 字节不变）；convergeStuckInputModes 同提交删除。10-25 合同「加载后不停在没输入的带图方式」由 modeForInputs 持有，守它的测试：modeForInputs.exhaustive.test.ts、tests/ux/mode-bar-replay.walk.mjs 第 06 幕。"
     }
   ],
   "retirements": [

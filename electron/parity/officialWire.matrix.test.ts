@@ -48,6 +48,7 @@ import { createGenerationNode } from "../../src/workbench/generationCanvas/model
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
 import { placeUploadedImages } from "../../src/workbench/generationCanvas/nodes/controls/referenceList";
+import { effectiveArchetypeMode } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
 import { driveEngineA, driveEngineB, installFetchCapture, seedParityCatalog } from "./generationParityTestUtils";
 
 import knownRedTable from "./officialWire.known-red.json";
@@ -114,10 +115,10 @@ function buildCells() {
   return cells;
 }
 
-async function runCanvas(entry: ReturnType<typeof buildCells>[number]): Promise<Wire> {
+function canvasNode(entry: ReturnType<typeof buildCells>[number]) {
   const { cell, row, mode, archetype } = entry;
   const urls = Array.from({ length: cell.n }, (_, i) => refUrl(i + 1));
-  const node = {
+  return {
     ...createGenerationNode({ id: "n", kind: cell.kind, prompt: "一个镜头" }),
     meta: {
       modelKey: row.modelKey,
@@ -127,6 +128,19 @@ async function runCanvas(entry: ReturnType<typeof buildCells>[number]): Promise<
       ...(cell.n ? { referenceImageUrls: urls } : {}),
     },
   } as never;
+}
+
+/**
+ * 方式按输入现算（2026-11-12）：画布节点上存的方式只是偏好，这 n 张图放不下它时画布按别的方式发（没放图 → 文生；
+ * 一张图放不进首尾帧 → 换成收得下的那种）。这种格子画布路根本不会以这个方式发，只量 Run 路（Agent 明说方式时照样要守官方字段）。
+ */
+function canvasSendsThisMode(entry: ReturnType<typeof buildCells>[number]): boolean {
+  const node = canvasNode(entry) as { id: string };
+  return effectiveArchetypeMode(entry.archetype, node as never, { nodes: [node as never], edges: [] }).mode.id === entry.mode.id;
+}
+
+async function runCanvas(entry: ReturnType<typeof buildCells>[number]): Promise<Wire> {
+  const node = canvasNode(entry);
   try {
     const req = buildCatalogTaskRequest(node, { references: resolveGenerationReferences(node, { nodes: [node], edges: [] }) }).request;
     const rec = await driveEngineA(capture, { vendorKey: "apimart", kind: req.kind, prompt: req.prompt, extras: req.extras as never });
@@ -174,12 +188,14 @@ function judgeCell(entry: ReturnType<typeof buildCells>[number], canvas: Wire, r
   if (!fx) return [{ assertion: "officialKeys", reason: missingFixtureReason, detail: "无官方夹具：没量过" }];
   const out: Violation[] = [];
   for (const [label, wire] of [["画布", canvas], ["Run", run]] as const) {
-    if (isRefused(wire)) continue;
+    if (wire === CANVAS_NOT_THIS_MODE || isRefused(wire)) continue;
     out.push(...judgeBody(wire as Record<string, unknown>, fx.noReference ? { referenceKeys: {} } : fx, entry.cell.n).map((v) => ({ ...v, reason: { path: label === "画布" ? "canvas" : "run", ...v.reason }, detail: `${label}：${v.detail}` })));
   }
-  out.push(...judgePaths(canvas, run));
+  if (canvas !== CANVAS_NOT_THIS_MODE) out.push(...judgePaths(canvas, run));
   return out;
 }
+
+const CANVAS_NOT_THIS_MODE = "画布按输入换了方式，不以这格的方式发";
 
 const cells = buildCells();
 const dumpPath = process.env.NOMI_OFFICIAL_WIRE_DUMP;
@@ -254,7 +270,7 @@ describe("官方字段矩阵：模型 × 模式 × 两条路 × 参考图数", (
   for (const entry of cells) {
     const gap = knownRed.fixtureGaps.find((g) => g.modelMode === `${entry.cell.modelKey}|${entry.cell.modeId}`);
     it(entry.cell.id + (gap ? "（无官方夹具：没量过）" : ""), async () => {
-      const canvas = await runCanvas(entry);
+      const canvas = canvasSendsThisMode(entry) ? await runCanvas(entry) : CANVAS_NOT_THIS_MODE;
       const run = await runCatalog(entry);
       const violations = judgeCell(entry, canvas, run);
       if (dumpPath) dump.push({ cell: entry.cell.id, violations, canvas, run });
