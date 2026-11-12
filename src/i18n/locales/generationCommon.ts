@@ -421,16 +421,6 @@ export const zhGenerationCommon = {
         reason: '参考素材本身有问题',
         hint: '这张参考素材没通过发送前的本机检查：文件读不到、认不出类型，或者内容不是真正的图片/视频（比如把网页存成了 .png）。请求还没发出去。同一个文件重试结果不会变——请在画布上换一张参考素材，或重新导入原文件，再点重试。具体是哪个文件，见下方技术详情。',
       },
-      outboundBlocked: {
-        reason: '取片被 Nomi 自己的安全策略拦下了',
-        hint: '这不是服务商的故障，也不是你的生成失败了——任务多半已经在服务商那边跑完了，产物还在。是 Nomi 在下载产物时把目标地址判成了内网并拒绝下载。最常见的原因是你开着 Clash / Surge / sing-box 的 TUN（fake-ip）模式：所有域名都会被解析成 198.18.x 这类合成地址。请到「模型接入 → 网络」看那一行有没有写「检测到本地代理」；确认后回到这里用「重新取回」把它取回来；不要重新生成，重新生成会另做一份新的。具体是哪个地址，见下方技术详情。',
-        // 没有可以再查的任务（同步供应商：结果只在那一次回答里）：不提「重新取回」，下一步是先看网络、再重试。
-        hintWithoutTask: '这不是服务商的故障。服务商这次把结果直接放在了回答里，是 Nomi 在下载它时把目标地址判成了内网并拒绝下载。最常见的原因是你开着 Clash / Surge / sing-box 的 TUN（fake-ip）模式：所有域名都会被解析成 198.18.x 这类合成地址。这一次没有可以再查的任务，没法再下载一次。请先到「模型接入 → 网络」看那一行有没有写「检测到本地代理」，确认后再重试（重试会重新生成一次）。具体是哪个地址，见下方技术详情。',
-      },
-      outboundBlockedSubmit: {
-        reason: '这次生成没发出去，Nomi 自己的安全策略先拦下了',
-        hint: '请求一个字节都没有离开你的电脑，所以服务商没被请求到。原因是 Nomi 把接入地址判成了内网：最常见的是你开着 Clash / Surge / sing-box 的 TUN（fake-ip）模式，所有域名都会被解析成 198.18.x 这类合成地址，而 Nomi 这次没能确认那确实是代理。请到「模型接入 → 网络」看那一行有没有写「检测到本地代理」，确认后直接重新生成即可（不用找回，也没有东西可找回）。如果这是你自己的本地后端，请把它的完整地址配成供应商接入地址。具体是哪个地址，见下方技术详情。',
-      },
       outboundBlockedCredentialOrigin: {
         reason: '这次生成没发出去：密钥要去的地址不是你保存它时确认过的那个',
         hint: '请求一个字节都没有离开你的电脑，服务商没被请求到。Nomi 在你保存密钥的那一刻把这把密钥和当时那个接入地址绑在了一起，而这次请求要去的是另一个地址——密钥只会去你亲眼确认过的地方。如果你确实换了这家供应商的接入地址，请到「模型接入」找到这条连接，重新保存一次密钥（保存那一下就是新的确认）；如果你并没有改过地址，就更要先看一眼：下方技术详情里写着绑定的是哪个地址、这次要去哪个。',
@@ -2203,15 +2193,6 @@ export const enGenerationCommon = {
       assetInvalid: {
         reason: 'The reference asset itself is invalid',
         hint: 'This reference asset failed the local check before sending: the file could not be read, its type could not be identified, or its content is not a real image or video (for example, a web page saved as .png). Nothing was sent. Retrying the same file will not change the result — replace the reference on the canvas or re-import the original file, then retry. The technical details below name the file.',
-      },
-      outboundBlocked: {
-        reason: "Nomi's own network policy blocked the download",
-        hint: 'This is not a provider outage and your generation did not fail — it most likely finished upstream, and the result is still there. Nomi classified the download address as a private network and refused to fetch it. The usual cause is Clash / Surge / sing-box running in TUN (fake-IP) mode, where every domain resolves to a synthetic address like 198.18.x. Check Model Access > Network for a "Local proxy detected" line, then come back and use "Retrieve again" to retrieve it. Do NOT regenerate — that would make a brand-new one. The technical details below name the address.',
-        hintWithoutTask: 'This is not a provider outage. This time the provider put the result directly in its reply, and Nomi classified the download address as a private network and refused to fetch it. The usual cause is Clash / Surge / sing-box running in TUN (fake-IP) mode, where every domain resolves to a synthetic address like 198.18.x. There is no task to check this time, so it cannot be downloaded again. Check Model Access > Network for a "Local proxy detected" line first, then retry (a retry generates a new one). The technical details below name the address.',
-      },
-      outboundBlockedSubmit: {
-        reason: "This generation was never sent - Nomi's own network policy stopped it first",
-        hint: 'Not a single byte left your machine, so the provider was never called. Nomi classified the endpoint as a private network. The usual cause is Clash / Surge / sing-box running in TUN (fake-IP) mode, where every domain resolves to a synthetic address like 198.18.x and Nomi could not confirm a proxy was running. Check Model Access > Network for a "Local proxy detected" line, then simply generate again - there is nothing to recover. If this is your own local backend, configure its full address as a provider endpoint. The technical details below name the address.',
       },
       outboundBlockedCredentialOrigin: {
         reason: 'This generation was never sent: the key was about to go somewhere you did not confirm',

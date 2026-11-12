@@ -55,7 +55,7 @@ import {
   sanitizeWorkflowEnumOptions,
 } from "./integrationWorkflowBinding";
 import { certificationModeOperationKey } from "./modeIdentity";
-import { hardenedFetch, isPrivateHost } from "../hardenedFetch";
+import { hardenedFetch } from "../hardenedFetch";
 import { discoverAndPersistHttpCandidates } from "./httpModelDiscovery";
 import { comfyuiHistoryTransform } from "../catalog/comfyuiLocal";
 import { candidateRevisionId } from "../catalog/stagedVendorIdentity";
@@ -214,7 +214,7 @@ export function createRuntimeIntegrationSessionService(
   const mintSpendGrant = input.mintSpendGrant;
   const comfyBase = (
     session: IntegrationSession,
-  ): { baseUrl: string; origin: string; allowedPrivateOrigins: string[] } => {
+  ): { baseUrl: string; origin: string } => {
     const baseUrl = String(session.config.baseUrl || "http://127.0.0.1:8188")
       .trim()
       .replace(/\/+$/, "");
@@ -236,7 +236,6 @@ export function createRuntimeIntegrationSessionService(
     return {
       baseUrl,
       origin: parsed.origin,
-      allowedPrivateOrigins: isPrivateHost(parsed.hostname) ? [parsed.origin] : [],
     };
   };
   const readComfyJson = async (session: IntegrationSession, url: string): Promise<unknown> => {
@@ -252,7 +251,6 @@ export function createRuntimeIntegrationSessionService(
       allowRedirect: false,
       maxBytes: 8 * 1024 * 1024,
       allowContentTypes: ["application/json", "text/json", "text/plain"],
-      ...(target.allowedPrivateOrigins.length ? { allowedPrivateOrigins: target.allowedPrivateOrigins } : {}),
     });
     try {
       return JSON.parse(fetched.bytes.toString("utf8")) as unknown;
@@ -328,7 +326,6 @@ export function createRuntimeIntegrationSessionService(
         allowRedirect: false,
         maxBytes: 25 * 1024 * 1024,
         allowContentTypes: ["image/", "video/", "audio/", "model/", "application/octet-stream"],
-        ...(target.allowedPrivateOrigins.length ? { allowedPrivateOrigins: target.allowedPrivateOrigins } : {}),
       });
       return { bytes: fetched.bytes, contentType: fetched.contentType };
     };

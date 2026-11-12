@@ -59,8 +59,7 @@ const server = http.createServer((req, res) => {
       } catch { /* keep -1 */ }
       wireLog.push({ path: url, status: 200, model, imageParts })
       res.writeHead(200, { 'content-type': 'application/json' })
-      // 真实中转 chat 出图的主流形态就是 base64 内联（extractChatImageUrl 解析）；也避开
-      // 产物取回的 private/loopback SSRF 闸（那闸对公网真中转不生效，是 mock 环境专属命中）。
+      // 真实中转 chat 出图的主流形态就是 base64 内联（extractChatImageUrl 解析）；产物不必再走一次取回。
       res.end(JSON.stringify({ choices: [{ message: { content: 'done', images: [{ url: `data:image/png;base64,${OUT_PNG.toString('base64')}` }] } }] }))
       return
     }
