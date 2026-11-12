@@ -6,7 +6,7 @@ import { modeRowName, renderModeMenuText, type ModeDisplayKind, type ModeMenuRow
 type Translate = (key: string, values?: Record<string, unknown>) => string
 
 /** 方式的图标（§6 登记）：文生视频 / 图生视频 / 首尾帧 / 全能参考。 */
-function ModeGlyph({ kind }: { kind: Exclude<ModeDisplayKind, 'other'> }): JSX.Element {
+function modeGlyph(kind: Exclude<ModeDisplayKind, 'other'>): JSX.Element {
   const Icon = kind === 'text' ? IconTypography : kind === 'image' ? IconPhotoVideo : kind === 'firstLast' ? IconCards : IconStack2
   return <Icon size={14} stroke={1.6} aria-hidden />
 }
@@ -18,6 +18,6 @@ export function modeMenuOptions(t: Translate, rows: readonly ModeMenuRow[]): Nom
     label: modeRowName(t, row),
     description: renderModeMenuText(t, row.description),
     disabled: row.disabled,
-    ...(row.kind === 'other' ? {} : { glyph: <ModeGlyph kind={row.kind} /> }),
+    ...(row.kind === 'other' ? {} : { glyph: modeGlyph(row.kind) }),
   }))
 }
