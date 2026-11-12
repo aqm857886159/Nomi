@@ -4,7 +4,7 @@
 
 底线不变：不上传提示词、文件名、素材、Key、邮箱、路径、错误原文；靠「键白名单 + 值闭合枚举 / 分档」保证。默认关，开了才发。
 
-## ★0 先查别人（2026-11-13 复核网址）
+## 先查别人（★0，2026-11-13 复核网址）
 
 1. VS Code 遥测 https://code.visualstudio.com/docs/configure/telemetry · 分 all / error / crash / off 四级；「Developer: Show Telemetry」实时看要发的事件，`code --telemetry` 导出本版**全部可能事件**的 JSON 表 · **确认了**「事件定义就是对外清单」：我们把设置页说明和事件定义写成一张能对账的表（★9 第 9 条），说明和实际对不上就红；**没借**分级（★2 不加开关）。
 2. Zed 遥测 https://zed.dev/docs/telemetry · 崩溃（diagnostics）与用量（metrics）两个独立开关；崩溃报告**下次启动才发**；「Help > View Telemetry Log」让人审计发了什么 · **改了**「上次怎么退出」的做法：不在崩的那一刻发（那时进程可能已经没了），而是本机留一个退出标记、下次启动随 `app.started` 一起发；查看入口我们已有（设置页「查看待发 / 已发摘要」），不新增。
