@@ -1,0 +1,24 @@
+{
+  "name": "按项目编号找目录的答案（主进程内存里记住已核对过的「编号 → 目录」，凭据是登记的目录 + 项目文件 stat 指纹）",
+  "subject": "project.dir-resolution",
+  "lifecycle": "session",
+  "authority_kind": "projection",
+  "trust_domain": "main",
+  "fact_kind": "projection",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/workspace/workspaceRepository.ts",
+    "symbol": "resolveWorkspaceProjectDir"
+  },
+  "write_api": [
+    {
+      "path": "electron/workspace/workspaceRepository.ts",
+      "symbol": "resolveWorkspaceProjectDir"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/workspace/workspaceProjectDirResolution.test.ts",
+  "allowed_consumers": [],
+  "since": "2026-11-12",
+  "notes": "设计卡 docs/plan/2026-11-12-gen-landing-stall-cut1.md，合同 docs/fixes/2026-11-12-gen-landing-sync-bookkeeping.root-cause.json。生成落地时每张图要问十几次目录，以前每次整读、解析一遍项目文件。现在答案只在 workspaceRepository 内部记（模块私有 Map，重启即无），每次照旧读登记、看目录在不在、stat 一次项目文件，三样都和认的那一次一样才直接回；任何一样变了就整读重新核对编号（编号不对照旧回 null，主文件和备份对不上照旧抛身份不可用）。本进程 saveWorkspaceProject 写完就地换凭据。项目在哪的登记本身归 project.location，本条只是读它的投影，不改登记。调用方不许自己另记一份「编号 → 目录」。"
+}

@@ -1,6 +1,6 @@
 import { createGenerationNode } from '../model/graphOps'
 import { describe, expect, it, vi } from 'vitest'
-import { describeGenerationCost, generationCostContextForNode } from './spendConfirm'
+import { describeGenerationCost, generationCostContextForNode, withGenerationEtaStats } from './spendConfirm'
 
 const etaBridge = vi.hoisted(() => ({
   generationEtaStats: vi.fn(),
@@ -31,8 +31,8 @@ describe('generation spend ETA copy', () => {
     expect(message).toMatch(/预计约 .*–.* 分钟/)
   })
 
-  it('matches history by the model alias used in generation events', () => {
-    etaBridge.generationEtaStats.mockReturnValue({ stats: [{
+  it('matches history by the model alias used in generation events', async () => {
+    etaBridge.generationEtaStats.mockResolvedValue({ ok: true, stats: [{
       key: 'relay|video-model|video', vendorKey: 'relay', modelKey: 'video-model', kind: 'video',
       sampleCount: 2, p50Seconds: 120, p90Seconds: 600,
     }] })
@@ -41,7 +41,7 @@ describe('generation spend ETA copy', () => {
       modelVendor: 'relay', modelKey: 'canonical-video-id', modelAlias: 'video-model',
     } }, 'eta-context-project')
 
-    const message = describeGenerationCost(1, 'video', context)
+    const message = describeGenerationCost(1, 'video', await withGenerationEtaStats(context))
 
     expect(context.projectId).toBe('eta-context-project')
     expect(etaBridge.generationEtaStats).toHaveBeenCalledWith('eta-context-project')

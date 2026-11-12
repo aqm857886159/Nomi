@@ -1,0 +1,26 @@
+{
+  "id": "gen-landing-8-concurrent",
+  "feature": "生成落地·8 张同时：画布上连点 8 张图生成，结果同时落地的那几秒，主进程上不许有「每张图的同步记账」（找项目目录重读项目文件、同步 IPC、回执整读产物）",
+  "script": "tests/perf/gen-landing-bench.mjs",
+  "args": [
+    "--conc",
+    "8",
+    "--scale",
+    "I60"
+  ],
+  "scale": "60 个图片节点的画布 + 8 张新图片卡同时落地；每张是约 35MB 的 4096² 噪声 PNG（回环假上游，零花费、零外网）；项目文件约 185KB 起、每轮落地后变大",
+  "metrics": [
+    "landingSyncWork",
+    "landingDirManifestReads",
+    "landingSyncIpcCalls",
+    "landingReceiptRereads",
+    "landingMainStallMaxMs"
+  ],
+  "budget": 0.5,
+  "budgetStatus": "proposed",
+  "measurement": {
+    "state": "pending",
+    "reason": "实现线已在本机 --measure-only 量过 5 次（三个计数全 0，原始结果 tests/perf/evidence/2026-11-12-gen-landing-8-concurrent.json）；基线和预算待协调会话批准后用 --update-baseline 写入（实现线不许写基线）"
+  },
+  "budgetBasis": "主指标是三个确定性计数之和（落地段找项目目录读项目文件次数 + 点生成到落地的同步 IPC 次数 + 回执整读产物次数），硬预算 0（写 0.5 是因为预算必须是正数，任何一次都超）。修前每轮 362–367 次（读项目文件 353–358、同步 IPC 1、回执整读 8）。毫秒（landingMainStallMaxMs）受负载影响，只作参考不判预算。设计卡 docs/plan/2026-11-12-gen-landing-stall-cut1.md ★7"
+}

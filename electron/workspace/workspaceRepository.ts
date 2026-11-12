@@ -406,7 +406,10 @@ export async function saveWorkspaceProject(
   });
   bindWorkspaceLocation(deps.settingsRoot, { id: written.id, name: written.name, rootPath: entry.rootPath });
   const manifestPath = workspaceProjectFile(entry.rootPath);
+  // 刚在锁里核过编号写下的这一份：就地换目录解析的凭据，保存不让下一次「找目录」重读整份项目文件。
+  const savedStamp = manifestStamp(entry.rootPath);
   const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
+  rememberResolvedProjectDir(resolvedProjectDirKey(projectId, deps), entry.rootPath, savedStamp);
   writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash });
   return written;
 }
@@ -456,14 +459,54 @@ export async function deleteWorkspaceProject(
   return { id: projectId, deleted: true };
 }
 
+/**
+ * 「这个编号的项目在哪个目录」认过一次就记住，之后不再整读、解析项目文件（生成落地时每张图要问十几次，60 图的项目文件
+ * 每次 0.2MB+，8 张同时落地主进程停住近 1 秒，2026-11-12）。记住的是凭据，不是结论：每次照旧读登记、看目录在不在，
+ * 再 stat 一次项目文件，三样都和认的那一次一样才直接回目录——
+ *   · 登记删了 / 改指别的目录（本进程或别的进程写的登记都算）→ 登记对不上，重认；
+ *   · 目录不在了 → 回 null；
+ *   · 目录还在、里面的项目文件被换了（复制、同步盘、别的程序改写）→ stat 对不上，重认，编号不对照旧回 null。
+ * 本进程自己保存项目（`saveWorkspaceProject`）写完就地换凭据，所以保存不会让下一次解析重读。
+ */
+type ResolvedProjectDir = { rootPath: string; manifestStamp: string };
+const resolvedProjectDirs = new Map<string, ResolvedProjectDir>();
+
+function resolvedProjectDirKey(projectId: string, deps: WorkspaceRepositoryDeps): string {
+  return `${path.resolve(deps.settingsRoot)}\u0000${projectId}`;
+}
+
+function manifestStamp(rootPath: string): string | null {
+  try {
+    const stat = fs.statSync(workspaceProjectFile(rootPath), { bigint: true });
+    return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+  } catch {
+    return null;
+  }
+}
+
+/** 认过编号之后记凭据：读之前和读之后 stat 一致才记（读的当口文件被换了就不记，下次再认）。 */
+function rememberResolvedProjectDir(key: string, rootPath: string, stampBeforeRead: string | null): void {
+  const stamp = manifestStamp(rootPath);
+  if (stamp && stamp === stampBeforeRead) resolvedProjectDirs.set(key, { rootPath, manifestStamp: stamp });
+  else resolvedProjectDirs.delete(key);
+}
+
 export function resolveWorkspaceProjectDir(projectId: string, deps: WorkspaceRepositoryDeps): string | null {
+  const key = resolvedProjectDirKey(projectId, deps);
   const entry = findRecentEntry(projectId, deps);
   if (!entry || entry.missing || !fs.existsSync(entry.rootPath)) {
+    resolvedProjectDirs.delete(key);
     return null;
   }
+  const stamp = manifestStamp(entry.rootPath);
+  const known = resolvedProjectDirs.get(key);
+  if (known && stamp && known.rootPath === entry.rootPath && known.manifestStamp === stamp) return entry.rootPath;
   const manifest = readManifestOrMigrateLegacy(entry.rootPath);
   if (!manifest || manifest.id !== projectId) {
+    resolvedProjectDirs.delete(key);
     return null;
   }
+  // 旧格式迁移会新写项目文件：迁移前没有凭据，这一次不记，下一次按迁移后的文件认一次再记。
+  rememberResolvedProjectDir(key, entry.rootPath, stamp);
   return entry.rootPath;
 }

@@ -1,0 +1,20 @@
+{
+  "id": "USER-20261112-gen-landing-stall",
+  "since": "2026-11-12",
+  "source": "用户 2026-11-12：「在做图片生成的时候 软件特别卡 可以查一下原因 很多用户反馈过这个问题」「卡顿 卡死 也得研究一下 这两块都是特别影响用户体验的」。方向检查 docs/engineering/direction-checks/2026-11-12-gen-landing-main-stall.md。",
+  "category": "performance-coverage",
+  "problem": "几张图同时落地时主进程停住：60 张图的画布上 8 张 4K 同时落地，主进程一次停顿中位 822ms、最坏 934ms（独立调查实测，Mac），期间所有要等主进程回话的操作排队。是每次生成的记账成本在叠加：找项目目录重读项目文件、运行记录记账与锁、整份项目保存、fsync、回执重算哈希。第一刀删了其中三种同步活（USER-20261112-gen-landing-sync-bookkeeping），记账与锁、整份保存、fsync 还在主进程上，由第二刀的 PR 来结。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "第一刀修前 / 修后实测（Mac，60 图画布、8 张 4K 同时落地，各 3 轮）：三种同步活每轮 362–367 次 → 0；主进程落地段最长停顿中位 458ms → 155ms（tests/perf/gen-landing-bench.mjs，load 修前 12.8–15.5 / 修后 9.1–11.8），独立剖析探针 374ms → 149ms（load 10.1–12.3 / 9.5–11.1）。原始结果 tests/perf/evidence/2026-11-12-gen-landing-before-fix.json、tests/perf/evidence/2026-11-12-gen-landing-after-fix.json。仍有 150ms 级停顿，没到「不卡」。",
+    "还剩：运行记录记账与锁 24–29%、整份项目保存 20%、fsync 10%（独立调查剖析的主进程落地窗口占比，会重叠）。",
+    "第二刀：把运行记录记账、项目保存挪出主进程（utilityProcess）或合批、轮询进度不落盘，先补崩溃恢复回放测试。",
+    "Windows 未验证 2 条：落地停顿实测、找目录凭据（stat 指纹）在 NTFS 上的失效判定。"
+  ],
+  "completionCommits": []
+}

@@ -10,7 +10,7 @@ import { isProjectExecutionContextCurrent, isProjectOpen, withProjectAction, typ
 import { captureApprovedGenerationInputs, type RunGraph, type RunProjectTarget } from '../runner/runProjectDelivery'
 import { type GenerationConfirmationGuards } from '../runner/generationRunController'
 import { runGenerationNodesByPlan } from '../runner/generationRunWaves'
-import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNodes } from '../spend/spendConfirm'
+import { confirmGenerationSpend, describeGenerationCost, generationCostContextForNodes, withGenerationEtaStats } from '../spend/spendConfirm'
 import { canvasOpenRuns, consentCanvasShots, withdrawCanvasShots, type CanvasConsentShot } from '../../api/taskApi'
 import { selectedModelKey, selectedVendor } from '../runner/catalogTaskResolve'
 import { createRunId } from '../store/canvasIds'
@@ -207,11 +207,11 @@ export async function confirmAndRunPlan(
     : await confirmGenerationSpend(ids.map((id) => nodesById.get(id)), {
       initiator: options.initiator,
       title: i18n.t('generationCommon.batchPlan.startTitle'),
-      message: describeGenerationCost(ids.length, deferred ? draftCostKind : spendCostKindForNodes(ids), {
+      message: describeGenerationCost(ids.length, deferred ? draftCostKind : spendCostKindForNodes(ids), await withGenerationEtaStats({
         ...generationCostContextForNodes(draftNodes, project.binding.projectId),
         concurrency: normalizeCanvasBatchConcurrency(options.concurrency),
         waveSizes: executionPlan.waves.map((wave) => wave.length),
-      }),
+      })),
       confirmLabel: i18n.t('generationCommon.batchPlan.confirmGenerate'),
       ...hostingDisclosureFor(hosting),
       ...(itemized ? {

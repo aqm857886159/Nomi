@@ -1,0 +1,25 @@
+{
+  "id": "USER-20261112-gen-landing-sync-bookkeeping",
+  "since": "2026-11-12",
+  "source": "用户 2026-11-12：「在做图片生成的时候 软件特别卡 可以查一下原因 很多用户反馈过这个问题」。本条只是其中三种同步活，整体的卡见 USER-20261112-gen-landing-stall。方向检查 docs/engineering/direction-checks/2026-11-12-gen-landing-main-stall.md。",
+  "category": "performance-coverage",
+  "problem": "生成结果落地时主进程上有三种「每张图都做一遍」的同步活：按项目编号找目录时每次整读、解析一遍项目文件（8 张同时落地一轮约 350 次）；点生成时付费确认卡用同步 IPC 取预计耗时（主进程忙时渲染层跟着冻住）；落地回执整读产物文件重算一遍落地时已经算过的哈希（每张 1 次 4K 大图）。本条只覆盖这三种同步活，不代表生成落地时的卡已解决，见 USER-20261112-gen-landing-stall。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "electron/workspace/workspaceProjectDirResolution.test.ts：同一编号找 50 次目录项目文件最多读 1 次；四种失效与「项目文件被换成别的项目」都拿到新答案或 null。",
+    "electron/capabilityCore/canvasLandingReceiptHash.test.ts：一次出 4 张，回执不读产物文件，记下的哈希等于文件真实哈希。",
+    "src/workbench/generationCanvas/runner/spendConfirmEtaAsync.test.ts：预计耗时走异步通道，卡出现时数字已在卡上，失败时和修前同步版一样给冷启动估计。",
+    "tests/perf/scenarios/gen-landing-8-concurrent.json：三个计数之和硬预算 0。"
+  ],
+  "completionCommits": [],
+  "rootCauseContract": "docs/fixes/2026-11-12-gen-landing-sync-bookkeeping.root-cause.json",
+  "classCheck": {
+    "kind": "matrix",
+    "file": "electron/workspace/workspaceProjectDirResolution.test.ts"
+  }
+}
