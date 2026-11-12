@@ -16,7 +16,7 @@
  *   emptyDuration    B 没有时长控件，请求体里有没有 duration、值是什么。
  *
  * 已知局限：字段认法按「路径末段 = 键名」，供应商把键改名后落到别的字段名的，认不出来；
- * 值取 A 的默认值，恰好等于 B 线缆默认值的泄漏会被吞（请求体没差异）；
+ * 值取 A 控件里一个不等于默认值的可选值（只有一个可选值才用默认值），以免泄漏恰好等于 B 线缆默认值而被吞；只有一个可选值的键仍可能被吞；
  * 需要视频 / 音频参考才能受理的方式，量到的是「被拒」（status 记 refused:<code>），量不到键。
  * image-url 类控件（要真素材）不放进节点参数。
  *
@@ -74,14 +74,30 @@ const IMAGE_SLOT_KINDS = ["first_frame", "last_frame", "image_ref"];
 
 // ───────────── 工具 ─────────────
 
-/** A 的默认值；没有默认值取第一个档位，再取范围下限。image-url 类（要真素材）返回 undefined。 */
-function defaultValueOf(control: Control): string | number | boolean | undefined {
-  if (control.type === "image-url") return undefined;
+/** 控件的默认值；没有默认值取第一个档位，再取范围下限。 */
+function declaredDefaultOf(control: Control): string | number | boolean {
   if (control.defaultValue !== undefined) return control.defaultValue;
   if (control.options.length) return control.options[0].value;
   if (typeof control.min === "number") return control.min;
   if (control.type === "boolean") return false;
   return "gauge";
+}
+
+/**
+ * 放进节点的值：可选值不止一个时取一个**不等于默认值**的（下拉取第一个非默认档；数值范围取上限，
+ * 上限等于默认就取下限；布尔取反），这样泄漏的键不会因为恰好等于 B 的线缆默认值而被吞；
+ * 只有一个可选值时才用默认值。image-url 类（要真素材）返回 undefined。
+ */
+function defaultValueOf(control: Control): string | number | boolean | undefined {
+  if (control.type === "image-url") return undefined;
+  const fallback = declaredDefaultOf(control);
+  if (control.options.length) return control.options.find((option) => option.value !== fallback)?.value ?? fallback;
+  if (control.type === "boolean") return !fallback;
+  if (typeof control.max === "number" && typeof control.min === "number") {
+    if (control.max !== fallback) return control.max;
+    return control.min !== fallback ? control.min : fallback;
+  }
+  return fallback;
 }
 
 function nodeParamsOf(mode: Mode): Record<string, string | number | boolean> {

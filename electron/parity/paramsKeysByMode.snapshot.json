@@ -3,31 +3,31 @@
   "samples": 534,
   "archetypes": 93,
   "samplesWithLeaks": {
-   "canvas": 23,
-   "run": 19,
-   "either": 23
+   "canvas": 31,
+   "run": 25,
+   "either": 34
   },
   "archetypesWithLeaks": 8,
   "topLeakedKeys": [
+   {
+    "key": "aspect_ratio",
+    "samples": 14
+   },
    {
     "key": "size",
     "samples": 12
    },
    {
-    "key": "aspect_ratio",
-    "samples": 8
+    "key": "duration",
+    "samples": 6
+   },
+   {
+    "key": "resolution",
+    "samples": 6
    },
    {
     "key": "audio_setting",
     "samples": 3
-   },
-   {
-    "key": "resolution",
-    "samples": 2
-   },
-   {
-    "key": "seed",
-    "samples": 1
    }
   ],
   "archetypesWithDefaultCarried": 2,
@@ -2314,7 +2314,14 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2337,7 +2344,14 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2363,7 +2377,20 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2386,7 +2413,20 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2412,7 +2452,14 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2436,7 +2483,20 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2459,7 +2519,20 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "input.duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2485,7 +2558,14 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2567,7 +2647,14 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "duration",
@@ -2611,7 +2698,20 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "duration",
@@ -2672,7 +2772,20 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "duration",
@@ -2898,9 +3011,9 @@
     "statusWithParams": "sent",
     "leaks": [
      {
-      "key": "aspect_ratio",
+      "key": "resolution",
       "fields": [
-       "input.aspect_ratio"
+       "input.resolution"
       ]
      }
     ],
@@ -2933,7 +3046,20 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "input.aspect_ratio"
+      ]
+     },
+     {
+      "key": "resolution",
+      "fields": [
+       "input.resolution"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "aspect_ratio",
@@ -2997,7 +3123,14 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "resolution",
+      "fields": [
+       "resolution"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "resolution",
@@ -3038,7 +3171,14 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "resolution",
+      "fields": [
+       "resolution"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "resolution",
