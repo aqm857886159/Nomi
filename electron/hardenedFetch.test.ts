@@ -240,6 +240,7 @@ describe("hardenedFetch 地址边界（只剩「文字进模型」的入口判�
       createPinnedDispatcher: vi.fn(() => dispatcher as never),
       fetch: fetchImpl,
       isApplicationProxyActive: useApplicationProxy,
+      readOutboundEnvironment: async () => NO_LOCAL_PROXY,
     })).resolves.toMatchObject({ status: 200 });
     expect(resolveHost).toHaveBeenCalledTimes(1);
   });
@@ -262,6 +263,7 @@ describe("hardenedFetch 地址边界（只剩「文字进模型」的入口判�
       resolveHost,
       createPinnedDispatcher,
       fetch: fetchImpl,
+      readOutboundEnvironment: async () => NO_LOCAL_PROXY,
     })).resolves.toMatchObject({ status: 200 });
     expect(resolveHost).toHaveBeenCalledTimes(1);
     expect(createPinnedDispatcher).toHaveBeenCalledWith("media.example.test", [{ address: "93.184.216.34", family: 4 }]);
@@ -284,6 +286,7 @@ describe("hardenedFetch 地址边界（只剩「文字进模型」的入口判�
       resolveHost,
       createPinnedDispatcher: () => fakePinnedDispatcher() as never,
       fetch: fetchImpl,
+      readOutboundEnvironment: async () => NO_LOCAL_PROXY,
     }), "private-address");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(resolveHost).toHaveBeenCalledTimes(2);

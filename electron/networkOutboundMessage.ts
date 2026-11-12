@@ -7,7 +7,7 @@
  * 文案要过 desktopT（R15 可见文字国际化）。
  */
 import { desktopT } from "./i18n";
-import { coarseAddressLabel, type OutboundRefusalReason } from "./networkOutboundPolicy";
+import { coarseAddressLabel, isBenchmarkingAddress, type OutboundRefusalReason } from "./networkOutboundPolicy";
 
 export type OutboundRefusalDescription = {
   reason: OutboundRefusalReason;
@@ -18,7 +18,9 @@ export type OutboundRefusalDescription = {
 export function describeOutboundRefusal(input: OutboundRefusalDescription): string {
   if (input.reason === "unresolvable") return desktopT("outbound.unresolvable", { host: input.hostname });
   if (input.reason === "private-host") return desktopT("outbound.privateHost", { host: input.hostname });
-  return desktopT("outbound.privateAddress", {
+  // 198.18/15 是本机代理（fake-ip）给的合成地址、不是真的内网：没探测确认时拒绝，文字要说准这一点。
+  const key = isBenchmarkingAddress(input.observedAddress) ? "outbound.syntheticAddress" : "outbound.privateAddress";
+  return desktopT(key, {
     host: input.hostname,
     address: coarseAddressLabel(input.observedAddress),
   });

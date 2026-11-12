@@ -93,6 +93,8 @@ macOS 本机回环假上游 + 真 Electron（隔离资料目录）：见 PR「�
 | 9 | 出网被拒时的尝试认领（unsentAttemptClaim 矩阵 `write-then-refused`）用换 origin 触发，不出真网 | 把那格的密钥绑定改回同 origin | 矩阵红 |
 | 10 | `git grep` 删干净（协调裁定口径）：`looksLikeFakeIp` `trustedRetrievalOrigin` `trustedPrivateOrigin` `allowedPrivateOrigins` `outboundBlockedRecover` `submitPrivate` `fakeIpBlocked` `setSubmitOutboundDepsForTests` `OutboundStage` 生产与测试零；`outbound-blocked-submit` 只剩已删码表与老数据测试；分类器（`classifyOutboundAddresses`、`isBenchmarkingAddress` / `BENCHMARKING_RANGE`）、代理探测与重探只服务丙 4 / 丙 5：调用点 hardenedFetch（判地址那条路）、proxyIpc（启动种实验室 origin、设置面板探测 / 重探）、systemProxy（「检测到本地代理」那一行） | — | 零残留 |
 | 11 | 丙类清单 | — | 报告列出 |
+| 13 | 测试不出真网：`hardenedFetch.test.ts` 里走 `textEntersModelContext` 又没有指定环境的 3 条用例都注入 `readOutboundEnvironment: async () => NO_LOCAL_PROXY`（探测有进程内缓存，只有第一条未注入的会真发 DNS） | 去掉任一条的注入 | 出网哨兵记到 2 次 `nomi-fakeip-probe-*` 的 DNS 查询 |
+| 14 | 198.18.x.x 没确认时文字说「本机代理给的临时地址」，真内网地址文字不变 | `describeOutboundRefusal` 里合成地址那支恒为假 | `networkOutboundMessage.test.ts` 红 |
 | 12 | 老用户两种形状（见 ★1c） | 删掉 `RETIRED_CODES` 的映射 / 把 `outbound-blocked-submit` 映射到取回族码 | `retrievalRecoverable.test.ts`「老数据」组、`classifyGenerationError.test.ts`「老数据」组红 |
 
 回滚：revert 本分支的提交。真实场景复现：用户那次是开着真代理 + APIMart；本线用回环假上游 + 真 Electron（无实验室例外）走了两遍：① 接入地址 `http://127.0.0.1:<port>`、成片也在同一 origin——修前修后都成功（main 上「连接自己的 origin」本来就放行，这一遍不是复现）；② 同一假上游把成片链接给成 `http://localhost:<port>`（与连接不同源的本机地址）——修前（origin/main）取不回、节点停在「可找回」，修后成片落画布。差别：没有真代理、没有 198.18 解析，用户那次的「提交前被拦」在真 Electron 里复现不了（要改系统 DNS / hosts，任务书不许），由单测矩阵 `outboundNoAddressBlock.test.ts` 覆盖。
@@ -105,5 +107,5 @@ macOS 本机回环假上游 + 真 Electron（隔离资料目录）：见 PR「�
 ## 丙 4 / 丙 5 待定（只陈述事实）
 
 1. 原判据挡什么、放什么：名字层直接拒回环 / 私网 / 链路本地字面量、`localhost`、`.local`、`169.254.x`、`fe80::`；唯一例外是实验室精确 origin，只在未打包构建里有。走代理（系统代理 / 供应商线路）时只判名字；直连时在本机解析，答案落进私网 / 回环 / 链路本地就拒，落进 198.18/15 只在探测确认本机是合成解析器**且**目标是带点的公网名字时才放。
-2. 开着代理但探测没确认时公网文档会不会被误拒：会。TUN / fake-ip 把公网文档域名解析到 198.18.x，探测没确认（启动早于代理、探测超时、代理的合成段不在 198.18/15）→ 拒，错误卡说「没有读取这个网页：… 解析到内网地址 198.18.x …请检查 DNS 或代理后再试；也可以把文档内容直接粘贴进来」（有出路：粘贴正文）。
+2. 开着代理但探测没确认时公网文档会不会被误拒：会。TUN / fake-ip 把公网文档域名解析到 198.18.x，探测没确认（启动早于代理、探测超时、代理的合成段不在 198.18/15）→ 拒，错误卡说「没有读取这个网页：… 解析到 198.18.x.x，这是本机代理给的临时地址，Nomi 没能确认它背后是不是公开网站……请检查代理是否正常后再试；也可以把文档内容直接粘贴进来」（有出路：粘贴正文；真的本机 / 内网地址仍说「解析到内网地址」）。
 3. 本机中转（localhost relay）的文档今天读不读得到：打包版读不到（名字层直接拒 `localhost` / `127.0.0.1`，实验室例外打包版不生效）；开发版只有被种进实验室精确 origin 的那一个读得到。

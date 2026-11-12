@@ -308,7 +308,7 @@ async function executeTaskQuery(taskId: string, cached: CachedTask, signal?: Abo
   const assetUrls = readTaskResponse({ response: cached.raw, responseMapping: null, statusMapping: undefined, wantedKind: expectedMediaKind(cached.wantedKind) }).assetUrls;
   if (assetUrls.length) {
     const type: "image" | "video" | "audio" | "model3d" = cached.wantedKind === "video" ? "video" : cached.wantedKind === "audio" ? "audio" : cached.wantedKind === "model3d" ? "model3d" : "image";
-    // vendor 提示必须带上：本地 ComfyUI 的产物 URL 是私网 /view，缺它 hardenedFetch 会按 SSRF 拒下载。
+    // vendor 提示要带上：落地时按这家的网络设置（providerNetwork）取回。
     const vendorHint = readCatalog().vendors.find((item) => item.key === cached.vendor);
     // 落地失败由落地门自己挂取回阶段码（同一个 retrievalStageError），这里不再包一层。一笔给几份就落几份。
     const assets: TaskResult["assets"] = await localizeTaskAssets(cached.projectId, assetUrls, type, cached.nodeId, vendorHint);

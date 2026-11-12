@@ -52,6 +52,7 @@ export const desktopTranslations = {
     // 「该怎么办」那半句）。这两条 key 因此写得短，完整上下文留在 raw / 上游原话里。
     "tasks.noQueryOperation": "这个模型没有配置「查询结果」接口，而本次创建也没有返回任何产物——没有第二次查询可发，已按失败处理。请检查该模型的接入配置。",
     "outbound.privateAddress": "没有读取这个网页：{{host}} 解析到内网地址 {{address}}。Nomi 不会把本机或内网网页的内容交给模型。如果这是公开文档，请检查 DNS 或代理后再试；也可以把文档内容直接粘贴进来。",
+    "outbound.syntheticAddress": "没有读取这个网页：{{host}} 解析到 {{address}}，这是本机代理给的临时地址，Nomi 没能确认它背后是不是公开网站，所以没有把内容交给模型。请检查代理是否正常后再试；也可以把文档内容直接粘贴进来。",
     "outbound.privateHost": "没有读取这个网页：地址指向本机或内网（{{host}}）。Nomi 不会把本机或内网网页的内容交给模型。请改用公开的文档链接，或把文档内容直接粘贴进来。",
     "outbound.unresolvable": "没有读取这个网页：找不到 {{host}} 的服务器地址（DNS 没有返回任何结果）。请检查链接拼写、网络或代理后再试。",
     "outbound.referenceUrlInvalid": "这次生成没有发出去：{{field}}的参考链接无法解析（{{detail}}）。请替换或重新导入这张参考后重试。",
@@ -277,6 +278,7 @@ export const desktopTranslations = {
     "tasks.pollFailed": "Failed to fetch the generation result for {{seconds}}s in a row (last status: {{status}}). The task may still be running on the provider side — check your provider dashboard or fetch the result again later.",
     "tasks.noQueryOperation": "This model has no result-query operation and the create call returned nothing. Check its setup.",
     "outbound.privateAddress": "Nomi did not read this page: {{host}} resolved to the private address {{address}}, and Nomi never hands pages from your own machine or private network to a model. If it is public documentation, check DNS or your proxy and try again, or paste the document text in directly.",
+    "outbound.syntheticAddress": "Nomi did not read this page: {{host}} resolved to {{address}}, a temporary address handed out by your local proxy, and Nomi could not confirm it leads to a public site, so nothing was passed to a model. Check that your proxy is working and try again, or paste the document text in directly.",
     "outbound.privateHost": "Nomi did not read this page: the address points at your own machine or private network ({{host}}), and Nomi never hands pages from there to a model. Use a public documentation link instead, or paste the document text in directly.",
     "outbound.unresolvable": "Nomi did not read this page: no server address was found for {{host}} (DNS returned nothing). Check the link spelling, your network or proxy, then try again.",
     "outbound.referenceUrlInvalid": "This generation was not sent: the reference URL in {{field}} could not be parsed ({{detail}}). Replace or re-import that reference, then retry.",
