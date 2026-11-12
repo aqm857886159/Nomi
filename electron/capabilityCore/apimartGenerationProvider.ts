@@ -269,8 +269,7 @@ function projectionRequest(
     : undefined;
   let defaulted: Record<string, unknown>;
   try {
-    // 与引擎 A（runtime.ts）、清单、第三闸同一份完整身份：自写能力合同声明的参考上限在这里（出网前）就拒。
-    // 封进合同的变体随请求交给主人（它读 extras.archetype.variantId 特化，与画布路同一个口径）；没有就不带，主人按模型名 / 默认变体认。
+    // 封进合同的变体随请求交给主人（extras.archetype.variantId，与画布路同口径；没有就不带）。与引擎 A（runtime.ts）、清单、第三闸同一份完整身份：自写能力合同声明的参考上限在这里（出网前）就拒。
     defaulted = applyHeadlessParamDefaults(input.variantId ? { ...parameters, archetype: { variantId: input.variantId } } : parameters, modelReferenceSelection(vendorKey, selection.model, selection.mapping.taskKind, input.modeId),
       selection.mapping.create.defaultParams, selection.mapping.create.body) || {};
   } catch (error) {
