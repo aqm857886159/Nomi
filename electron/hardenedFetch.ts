@@ -21,9 +21,10 @@ import {
   matchesDeclaredOrigin,
   readOutboundEnvironment,
   type OutboundAuthorization,
-  type OutboundEnvironment,
   type OutboundRouteKind,
+  type ReadOutboundEnvironment,
 } from "./networkOutboundPolicy";
+import { isPrivateHost } from "./networkHostPolicy";
 import { describeOutboundRefusal } from "./networkOutboundMessage";
 import { appFetch } from "./appFetch";
 import { getAppDispatcher, isApplicationProxyActive } from "./systemProxy";
@@ -62,8 +63,9 @@ export type HardenedFetchOptions = {
   /** 是否拒抛非 2xx —— 默认 true（保持旧行为）。设为 false 则返回任何 status 不抛错（让调用方读 body 自己判断）。 */
   throwOnNon2xx?: boolean;
   /**
-   * 内部可信本地服务的精确 origin 白名单。只允许完全同源的私网/回环 URL，且启用后强制禁止重定向。
-   * 不得从 renderer/Agent 原样透传；当前只由已配置的本地 ComfyUI 产物回收使用。
+   * 创作者保存的接入地址的精确 origin（`trustedRetrievalOrigin` 给的 / 已配置的本地 ComfyUI）。
+   * 只对**调用方点名的那个 URL**（第一跳）生效：同 origin 不按解析地址判；名字是私网 / 回环字面量时
+   * 这一跳之后不跟跳转。跳转后的每一跳不享受这个例外。不得从 renderer/Agent 原样透传。
    */
   allowedPrivateOrigins?: readonly string[];
   /** Optional explicit provider route. Destination SSRF checks remain active. */
@@ -90,8 +92,8 @@ export type HardenedFetchDependencies = {
   isApplicationProxyActive?: () => boolean;
   /** Test seam for waiting until the application route has been committed. */
   waitForApplicationRoute?: (signal: AbortSignal, target: URL) => Promise<void>;
-  /** Test seam for the shared outbound environment (fake-IP resolver detection). */
-  readOutboundEnvironment?: () => Promise<OutboundEnvironment>;
+  /** Test seam for the shared outbound environment (synthetic resolver detection; `{ fresh: true }` = re-probe). */
+  readOutboundEnvironment?: ReadOutboundEnvironment;
 };
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -300,8 +302,8 @@ export async function hardenedFetch(
 ): Promise<HardenedFetchResult> {
   // Lab fixtures name their exact loopback origin; main.ts only seeds them on an unpackaged
   // build, so a packaged app merges an always-empty list here.
-  // Lab origins stay merged here so the "any configured private exception disables redirects"
-  // rule below keeps its existing meaning; the policy owner merges them again on its side.
+  // Lab origins are merged here too, so a lab loopback origin named by the caller gets the same
+  // single-hop treatment as a configured local service; the policy owner merges them again on its side.
   const allowedPrivateOrigins = [...(options.allowedPrivateOrigins || []), ...getLabTrustedPrivateOrigins()];
   const url = assertSafeUrl(guardTestNetworkUrl(rawUrl));
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -365,8 +367,7 @@ export async function hardenedFetch(
     ]);
     const carriesSensitiveHeaders = Object.keys(requestHeaders).some((header) => sensitiveHeaders.has(header.toLowerCase()));
     // Credential-bearing calls reject redirects unless the caller opts in explicitly.
-    const allowRedirect = allowedPrivateOrigins.length === 0
-      && options.allowRedirect !== false
+    const allowRedirect = options.allowRedirect !== false
       && (!carriesSensitiveHeaders || options.allowRedirect === true);
     let bodyInit: BodyInit | undefined;
     if (hasBody) {
@@ -396,7 +397,10 @@ export async function hardenedFetch(
     const readEnvironment = dependencies.readOutboundEnvironment ?? readOutboundEnvironment;
     for (let hop = 0; hop <= 5; hop += 1) {
       currentUrl = assertSafeUrl(guardTestNetworkUrl(currentUrl.toString()));
-      const declaredPrivate = matchesDeclaredOrigin(currentUrl, allowedPrivateOrigins);
+      // 声明例外只给调用方点名的那个 URL（第一跳）；跳转后的每一跳照常判。
+      const hopDeclaredOrigins = hop === 0 ? allowedPrivateOrigins : [];
+      // 声明过的本地服务（私网 / 回环字面量）不经应用代理，不必等线路就绪。
+      const declaredPrivate = matchesDeclaredOrigin(currentUrl, hopDeclaredOrigins) && isPrivateHost(currentUrl.hostname);
       let dispatcher: Dispatcher | undefined;
       if (options.dispatcher) {
         // The caller already picked an explicit provider route (a per-connection
@@ -416,11 +420,15 @@ export async function hardenedFetch(
       const authorization = await authorizeOutboundDestination({
         url: currentUrl,
         route,
+        stage: "retrieval",
+        proxyKind: options.dispatcher ? "provider" : "application",
         readEnvironment,
         resolve: resolveHost,
-        declaredOrigins: allowedPrivateOrigins,
+        declaredOrigins: hopDeclaredOrigins,
       });
       if (!authorization.allowed) refuse(authorization);
+      // 可信本地服务（私网字面量声明）只允许精确同源的一跳：先访问跳转目标、事后才校验的路不给。
+      const hopForbidsRedirect = authorization.basis === "declared-private-origin";
       if (!dispatcher && authorization.pinnedAddresses) {
         dispatcher = makeDispatcher(connectionHostname(currentUrl.hostname), [...authorization.pinnedAddresses]);
         dispatchers.push(dispatcher);
@@ -440,7 +448,7 @@ export async function hardenedFetch(
       if (response.status < 300 || response.status >= 400) break;
       const location = response.headers.get("location");
       abandonResponse(response);
-      if (!allowRedirect || !location || hop === 5 || (method !== "GET" && method !== "HEAD")) {
+      if (!allowRedirect || hopForbidsRedirect || !location || hop === 5 || (method !== "GET" && method !== "HEAD")) {
         throw new Error("Redirect refused by hardened fetch policy");
       }
       const nextUrl = new URL(guardTestNetworkUrl(new URL(location, currentUrl).toString()));

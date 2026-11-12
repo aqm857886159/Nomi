@@ -29,3 +29,31 @@ export type TelemetrySummary = {
   failedCount: number
   endpointConfigured: boolean
 }
+
+/**
+ * 出站被拒的子码（`network.outbound.refused`，2026-11-12）：回答「拦下的是哪一步、哪种原因、走的哪条路、
+ * 地址属于哪一类、本机有没有合成解析、探测当时是什么状态」。全部是枚举：没有地址、域名、URL 或用户内容。
+ * 判据在 `electron/networkOutboundPolicy.ts`，这里只是它对外说话用的词表（主进程门口按它校验）。
+ */
+export const OUTBOUND_REFUSAL_STAGES = ['submit', 'retrieval'] as const
+export const OUTBOUND_REFUSAL_REASONS = ['private-host', 'private-address', 'unresolvable'] as const
+export const OUTBOUND_REFUSAL_ROUTES = ['direct', 'app-proxy', 'provider-proxy'] as const
+export const OUTBOUND_ADDRESS_FAMILIES = ['4', '6', 'none'] as const
+/** 地址类别按 RFC 段名分，不按代理软件分。 */
+export const OUTBOUND_ADDRESS_CLASSES = [
+  'name', 'loopback', 'rfc1918', 'cgnat', 'link-local', 'benchmarking-v4',
+  'unique-local-v6', 'ietf-protocol-v6', 'other-reserved', 'public', 'none',
+] as const
+/** 拒绝那一刻探测的状态：没探 / 确认是合成解析 / 没确认 / 当场重探后仍没确认。 */
+export const OUTBOUND_PROBE_OUTCOMES = ['not-probed', 'confirmed', 'unconfirmed', 'unconfirmed-after-reprobe'] as const
+export type OutboundAddressClass = typeof OUTBOUND_ADDRESS_CLASSES[number]
+export type OutboundProbeOutcome = typeof OUTBOUND_PROBE_OUTCOMES[number]
+export type OutboundRefusalTelemetryProps = {
+  stage: typeof OUTBOUND_REFUSAL_STAGES[number]
+  reason: typeof OUTBOUND_REFUSAL_REASONS[number]
+  route: typeof OUTBOUND_REFUSAL_ROUTES[number]
+  addressFamily: typeof OUTBOUND_ADDRESS_FAMILIES[number]
+  addressClass: OutboundAddressClass
+  syntheticResolver: boolean
+  probe: OutboundProbeOutcome
+}

@@ -11,7 +11,7 @@ import {
   type HardenedFetchResult,
   type ResolvedHostAddress,
 } from "./hardenedFetch";
-import { OutboundDestinationRefusedError, type OutboundEnvironment } from "./networkOutboundPolicy";
+import { OutboundDestinationRefusedError, setSyntheticResolverProbeForTests, type OutboundEnvironment } from "./networkOutboundPolicy";
 import { matchNomiErrorCode } from "./shared/nomiErrorCodes";
 import { TestNetworkBlockedError } from "./testNetworkGuard";
 
@@ -46,6 +46,11 @@ let baseUrl = "";
 let redirectedTargetRequests = 0;
 
 beforeAll(async () => {
+  // 没注入 readOutboundEnvironment 的用例读的是真探针：开着 fake-ip 的开发机与 CI 会走不同分支。
+  // 一律钉成「正常解析器」（NXDOMAIN），要代理证据的用例自己注入。
+  setSyntheticResolverProbeForTests(async () => {
+    throw Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" });
+  });
   server = http.createServer((req, res) => {
     if (req.url === "/redirect") {
       res.writeHead(302, { Location: "/view" });
@@ -60,7 +65,10 @@ beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
-afterAll(() => server?.close());
+afterAll(() => {
+  server?.close();
+  setSyntheticResolverProbeForTests(null);
+});
 
 describe("hardenedFetch 私网边界", () => {
   it("test network mode blocks hardenedFetch before proxy or DNS dispatch", async () => {
@@ -129,9 +137,20 @@ describe("hardenedFetch 私网边界", () => {
     await expectOutboundRefusal(hardenedFetch("https://media.example.test/a.png", {}, {
       resolveHost: async () => [{ address: "169.254.169.254", family: 4 }],
       fetch: fetchImpl,
-      readOutboundEnvironment: async () => FAKE_IP_PROXY,
+      readOutboundEnvironment: async () => NO_LOCAL_PROXY,
     }), "private-address");
-    // fake-ip 放宽**没有**顺手放开云元数据段：这一条是那次放宽的安全边界，翻红即回归。
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("确认合成解析时只判名字（2026-11-12）：但 URL 里直接写的元数据地址照拒，代理证据买不通链路本地", async () => {
+    // 确认合成解析后，本机对公网名字的答案不是真目的地，不再按它判（登记过的残余风险见方向复盘）；
+    // 名字层与链路本地层不受代理证据影响，这一条是那次放宽的安全边界，翻红即回归。
+    const fetchImpl = vi.fn();
+    await expectOutboundRefusal(hardenedFetch("http://169.254.169.254/latest/meta-data/", {}, {
+      resolveHost: async () => [{ address: "169.254.169.254", family: 4 }],
+      fetch: fetchImpl,
+      readOutboundEnvironment: async () => FAKE_IP_PROXY,
+    }), "private-host");
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 

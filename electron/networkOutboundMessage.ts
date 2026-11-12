@@ -27,11 +27,6 @@ export type OutboundRefusalDescription = {
   stage: OutboundStage;
 };
 
-/** RFC 2544 段落被 fake-ip 代理占用是既定事实；判「像不像 fake-ip」只看地址前缀。 */
-function looksLikeFakeIp(address: string): boolean {
-  return address.startsWith("198.18.") || address.startsWith("198.19.");
-}
-
 /**
  * 人话前面挂一段稳定机器码（`NOMI_ERR::outbound-blocked::`）。
  * 分类器按**码**认，不按这句中文认——人话会被 i18n 换成英文/改词，子串匹配当场断（那正是
@@ -54,15 +49,7 @@ function outboundRefusalSentence(input: OutboundRefusalDescription): string {
   if (input.reason === "private-host") {
     return desktopT("outbound.privateHost", { host: input.hostname });
   }
-  // The case the acceptance run hit: a public provider domain resolving into the benchmarking
-  // range because a local fake-IP proxy answered the DNS query, but with no positive evidence of
-  // that proxy, so the request stays blocked. Name the proxy explicitly - the user can act on it.
-  if (looksLikeFakeIp(input.observedAddress)) {
-    return desktopT("outbound.fakeIpBlocked", {
-      host: input.hostname,
-      address: coarseAddressLabel(input.observedAddress),
-    });
-  }
+  // 合成解析器（本地代理）在拒之前已当场重探过；走到这里 = 重探后仍没有代理证据，按地址说实话。
   return desktopT("outbound.privateAddress", {
     host: input.hostname,
     address: coarseAddressLabel(input.observedAddress),
@@ -80,12 +67,7 @@ function submitRefusalSentence(input: OutboundRefusalDescription): string {
   if (input.reason === "private-host") {
     return desktopT("outbound.submitPrivateHost", { host: input.hostname });
   }
-  if (looksLikeFakeIp(input.observedAddress)) {
-    return desktopT("outbound.submitFakeIpBlocked", {
-      host: input.hostname,
-      address: coarseAddressLabel(input.observedAddress),
-    });
-  }
+  // 只剩「不是保存的接入地址」的目的地（预签名上传目标等）会走到地址层：保存的接入地址不判地址。
   return desktopT("outbound.submitPrivateAddress", {
     host: input.hostname,
     address: coarseAddressLabel(input.observedAddress),

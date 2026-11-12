@@ -1,10 +1,10 @@
 import { isPerfSummaryProps, type PerfSummaryProps } from '../shared/contracts/perfTelemetry'
-import { TELEMETRY_ERROR_TYPE_PATTERN, TELEMETRY_RESULT_VALUES, type CapabilitySlot, type DurationBucket, type TelemetryResult } from '../shared/contracts/telemetry'
+import { OUTBOUND_ADDRESS_CLASSES, OUTBOUND_ADDRESS_FAMILIES, OUTBOUND_PROBE_OUTCOMES, OUTBOUND_REFUSAL_REASONS, OUTBOUND_REFUSAL_ROUTES, OUTBOUND_REFUSAL_STAGES, TELEMETRY_ERROR_TYPE_PATTERN, TELEMETRY_RESULT_VALUES, type CapabilitySlot, type OutboundRefusalTelemetryProps, type DurationBucket, type TelemetryResult } from '../shared/contracts/telemetry'
 import { isGenerationProblemCode, type GenerationProblemCode } from '../shared/generationProblem'
 
 export type { CapabilitySlot, DurationBucket }
 export const TELEMETRY_SCHEMA_VERSION = 1 as const
-export const TELEMETRY_EVENT_NAMES = ['app.started', 'feature.used', 'generation.completed', 'export.completed', 'update.action', 'agent.turn.completed', 'agent.tool.failed', 'perf.session.summary'] as const
+export const TELEMETRY_EVENT_NAMES = ['app.started', 'feature.used', 'generation.completed', 'export.completed', 'update.action', 'agent.turn.completed', 'agent.tool.failed', 'network.outbound.refused', 'perf.session.summary'] as const
 export type TelemetryEventName = typeof TELEMETRY_EVENT_NAMES[number]
 /**
  * 告知范围的版本号。用户在设置页 / 同意卡上看到并同意的是哪一版文字，就记哪一版。
@@ -24,6 +24,8 @@ export const TELEMETRY_EVENT_MIN_SCOPE: Record<TelemetryEventName, TelemetryScop
   'agent.turn.completed': 1,
   // 范围 1 的「失败类别、Agent 工具轨迹」：工具名与失败码都是我们自己写的标识符，没有用户的一个字。
   'agent.tool.failed': 1,
+  // 范围 1 的「失败类别」：出站被拒的子码全是枚举（阶段、原因、路由、地址族与类别、探测状态），没有地址和域名。
+  'network.outbound.refused': 1,
   'perf.session.summary': 2,
 }
 export type AttemptCountBucket = '1' | '2-3' | '4+'
@@ -63,6 +65,7 @@ export type TelemetryProps =
   | { eventName: 'update.action'; props: { action: UpdateAction; result: TelemetryResult; reason?: UpdateFailureReason } }
   | { eventName: 'agent.turn.completed'; props: { result: TelemetryResult; toolCallBucket: ToolCallBucket; modelClass: ModelClass } }
   | { eventName: 'agent.tool.failed'; props: AgentToolFailedProps }
+  | { eventName: 'network.outbound.refused'; props: OutboundRefusalTelemetryProps }
   | { eventName: 'perf.session.summary'; props: PerfSummaryProps }
 
 export type TelemetryEnvelope = {
@@ -114,6 +117,10 @@ function isPrimitive(value: unknown): value is string | number | boolean {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
 }
 
+function inList(list: readonly string[], value: unknown): boolean {
+  return typeof value === 'string' && list.includes(value)
+}
+
 function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   const actual = Object.keys(value).sort()
   return actual.length === keys.length && actual.every((key, index) => key === [...keys].sort()[index])
@@ -162,6 +169,10 @@ export function isTelemetryProps(value: unknown, eventName: TelemetryEventName):
     && typeof props.failureCode === 'string' && TELEMETRY_IDENTIFIER_PATTERN.test(props.failureCode)
     && Number.isInteger(props.attempt) && (props.attempt as number) >= 1 && (props.attempt as number) <= 5
     && typeof props.breakerTripped === 'boolean' && MODEL_CLASS_SET.has(props.modelClass as ModelClass)
+  if (eventName === 'network.outbound.refused') return hasExactKeys(props, ['stage', 'reason', 'route', 'addressFamily', 'addressClass', 'syntheticResolver', 'probe'])
+    && inList(OUTBOUND_REFUSAL_STAGES, props.stage) && inList(OUTBOUND_REFUSAL_REASONS, props.reason) && inList(OUTBOUND_REFUSAL_ROUTES, props.route)
+    && inList(OUTBOUND_ADDRESS_FAMILIES, props.addressFamily) && inList(OUTBOUND_ADDRESS_CLASSES, props.addressClass)
+    && typeof props.syntheticResolver === 'boolean' && inList(OUTBOUND_PROBE_OUTCOMES, props.probe)
   if (eventName === 'perf.session.summary') return isPerfSummaryProps(props)
   return false
 }

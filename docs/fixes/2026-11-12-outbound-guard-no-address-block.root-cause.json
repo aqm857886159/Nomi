@@ -1,0 +1,652 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-12-outbound-guard-no-address-block",
+  "problem_type": "address-based refusal of the creator's own saved endpoint under proxy synthetic DNS, plus submit/retrieval verdict drift",
+  "detected_by": "user",
+  "recurrence_check_on": "2026-12-12",
+  "symptom": "Creators running a TUN / fake-IP proxy saw generations fail with 'stopped on this machine before sending': the submit request to the endpoint they had saved resolved to a reserved address and Nomi refused it. Each proxy default that Nomi did not enumerate (IPv6 synthetic pools, a probe cached before the proxy started) broke it again. A LAN-hostname endpoint could be submitted to (and charged) while retrieval of the result from the same origin was refused.",
+  "direct_cause": "authorizeOutboundDestination resolved the saved endpoint's hostname and refused any reserved answer unless a cached, IPv4-only probe (198.18/15) had confirmed a synthetic resolver. The probe ran once per process and was never refreshed before refusing; IPv6 synthetic answers were never accepted as evidence; and the retrieval side only trusted the saved origin when it was a private literal, while submit allowed any declared origin.",
+  "class_root": "The guard judged a destination the creator explicitly saved by its local DNS answer, which on a proxied machine is not the address the connection will use, and proxy evidence was recognised by enumerating one proxy family's default range. Submit and retrieval also derived the 'trusted origin' rule separately, so their verdicts could diverge.",
+  "affected_population": [
+    "Creators running Clash / mihomo / sing-box / Surge style TUN or fake-IP proxies (IPv4 or IPv6 pools)",
+    "Creators who start Nomi before their proxy, or whose first probe timed out",
+    "Creators with an http self-hosted relay, a private-IP endpoint or a LAN-hostname endpoint"
+  ],
+  "scope_paths": [
+    "electron/networkOutboundPolicy.ts",
+    "electron/vendor/vendorOutboundGuard.ts",
+    "electron/hardenedFetch.ts",
+    "electron/networkOutboundMessage.ts"
+  ],
+  "entry_points": [
+    "Submit: vendorHttp request -> authorizeSubmitDestination -> authorizeOutboundDestination",
+    "Retrieval: hardenedFetch (canvas localizeTaskAsset, generationOutputMaterializer, provider media fetch) -> authorizeOutboundDestination",
+    "Retrieval trust of the saved origin: trustedRetrievalOrigin"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+      "checked_at": "2026-11-12",
+      "purpose": "OWASP separates 'application can send requests only to identified and trusted applications' (allow-list of known destinations) from 'requests to any external URL'; DNS-resolution checks are prescribed for the latter. The saved endpoint is the former."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://gitlab.com/gitlab-org/gitlab/-/work_items/378267",
+      "checked_at": "2026-11-12",
+      "purpose": "GitLab disables DNS-rebinding protection entirely when a proxy is configured; Nomi instead keeps name and link-local checks and only drops the local address check where the local answer is not the real destination."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://curl.se/docs/manpage.html#--socks5-hostname",
+      "checked_at": "2026-11-12",
+      "purpose": "Proxy-side name resolution is the established semantics for proxied connections: the local resolver's answer does not take part in the connection."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://wiki.metacubex.one/en/config/dns/",
+      "checked_at": "2026-11-12",
+      "purpose": "Fake-IP pools are configurable and include IPv6 ranges, so recognising proxy evidence by one IPv4 default range is not general."
+    }
+  ],
+  "invariants": [
+    "A destination equal to the creator's saved endpoint origin (http or https) is never refused because of its resolved address.",
+    "If submit allows a destination, retrieval of that vendor's output from the same origin is allowed.",
+    "Link-local destinations are refused regardless of any declaration or proxy evidence.",
+    "Private literals and localhost names that are not the saved origin are refused on both sides.",
+    "Credential-bearing requests go only to the origin bound when the key was saved, and stop at redirects.",
+    "Before refusing a public name by its resolved address, the synthetic-resolver probe is re-run once and its result is written back to the shared cache.",
+    "Synthetic-resolver evidence is any reserved-range answer (IPv4 or IPv6) to a random nonexistent name; no proxy software's range is enumerated."
+  ],
+  "generality_proof": "Both sides call the single authorizeOutboundDestination; the declared-origin layer runs before any resolution, so no vendor, proxy product or address family can reintroduce the address check for a saved endpoint. trustedRetrievalOrigin now applies the same exact-origin rule as submit, and the matrix test enumerates six endpoint shapes x six resolution shapes x three probe states against that invariant.",
+  "shared_boundaries": [
+    {
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "authorizeOutboundDestination",
+      "responsibility": "Single verdict for every outbound destination in the main process, submit and retrieval alike."
+    },
+    {
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "trustedRetrievalOrigin",
+      "responsibility": "Single answer to which saved origin retrieval may additionally trust; mirrors the submit declaration."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "entry_point": "authorizeSubmitDestination",
+      "disposition": "enforced",
+      "evidence": "Passes the saved origin as declaredOrigins; matrix and guard tests prove saved endpoints submit without resolution and unsaved upload targets still get the address check."
+    },
+    {
+      "path": "electron/hardenedFetch.ts",
+      "entry_point": "hardenedFetch hop loop",
+      "disposition": "enforced",
+      "evidence": "Every hop calls the same policy; the declared exception applies only at hop 0 and redirects are refused only when the hop was allowed as a declared private literal."
+    },
+    {
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "entry_point": "canvas result localization",
+      "disposition": "enforced",
+      "evidence": "Obtains allowed origins only from trustedRetrievalOrigin."
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "formal generation output download",
+      "disposition": "enforced",
+      "evidence": "Obtains allowed origins only from trustedRetrievalOrigin."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Fixed cell by cell before (IPv4 198.18 exemption, probe TLD, probe cache, IPv6 pool); each new proxy default or start order reopened it.",
+    "same_class_scan": [
+      "node scripts/door-map.mjs authorizeOutboundDestination: 2 doors (hardenedFetch.ts, vendorOutboundGuard.ts).",
+      "node scripts/door-map.mjs authorizeSubmitDestination: 1 door (vendorHttp.ts).",
+      "node scripts/door-map.mjs trustedRetrievalOrigin: 2 doors (localizeTaskAsset.ts, generationOutputMaterializer.ts).",
+      "node scripts/check-outbound-policy.mjs ratchet: no new appFetch / isPrivateHost importers."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/networkOutboundPolicy.ts",
+    "invariant": "The saved endpoint is allowed before any resolution in the single policy owner, and retrieval trusts the same exact origin, so submit-allowed implies retrieval-allowed for that origin.",
+    "failure_mode": "Unsaved destinations still resolve and fail closed on reserved answers after one fresh probe; link-local and private literals are refused at the name layer; every remaining refusal emits an enum-only telemetry subcode (network.outbound.refused).",
+    "exception_policy": "none",
+    "strategy": "Delete the address check for saved endpoints (and the IPv4-only exemption and its UI sentences), widen probe evidence to any reserved range, re-probe before refusing, and pin the invariant with a class matrix.",
+    "artifacts": [
+      "electron/networkOutboundPolicy.ts",
+      "electron/vendor/vendorOutboundGuard.ts",
+      "electron/hardenedFetch.ts",
+      "electron/outboundAddressMatrix.test.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/networkOutboundPolicy.ts",
+    "tests": [
+      "electron/outboundAddressMatrix.test.ts",
+      "electron/networkOutboundPolicy.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/vendor/vendorOutboundGuard.test.ts",
+    "electron/hardenedFetch.test.ts",
+    "electron/networkOutboundPolicy.test.ts",
+    "electron/outboundAddressMatrix.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/outboundAddressMatrix.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/networkOutboundPolicy.ts",
+      "electron/networkOutboundMessage.ts",
+      "electron/desktopStrings.ts"
+    ],
+    "rationale": "Removed in these files in the same commit: isBenchmarkingAddress and the IPv4-only benchmarking exemption (networkOutboundPolicy.ts), looksLikeFakeIp and its two sentence branches (networkOutboundMessage.ts), and the outbound.fakeIpBlocked / outbound.submitFakeIpBlocked strings (desktopStrings.ts). They existed only for the deleted address check."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The policy is Nomi's own; Node DNS and undici are used unchanged, and the proxy behaviour accommodated belongs to the creator's proxy software, which Nomi neither ships nor depends on.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted state changes. Existing saved endpoints are honoured as declared origins on the next request; nothing to migrate.",
+  "residual_risks": [
+    "While a synthetic resolver is confirmed, retrieval of a public name no longer refuses a private local answer (name-only judgement).",
+    "A router that hijacks nonexistent names to a private address is read as proxy evidence.",
+    "Windows real-machine behaviour is unverified (no machine)."
+  ],
+  "doors": [
+    {
+      "kind": "read",
+      "path": "electron/ai/modelImageInput.ts",
+      "symbol": "HardenedFetchDependencies"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "HardenedFetchResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "HardenedFetchDiagnostics"
+    },
+    {
+      "kind": "read",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "HardenedFetchDependencies"
+    },
+    {
+      "kind": "read",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "HardenedFetchResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "ResolvedHostAddress"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "ReadOutboundEnvironment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "OutboundAuthorization"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "OutboundDestinationRefusedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "RetrievalRoute"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "HardenedFetchDiagnostics"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "HardenedFetchOptions"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "HardenedFetchDependencies"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "HardenedFetchResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "getLabTrustedPrivateOrigins"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "createPinnedDispatcher"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "readOutboundEnvironment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "OutboundRouteKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundMessage.ts",
+      "symbol": "OutboundRefusalReason"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundMessage.ts",
+      "symbol": "OutboundStage"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundMessage.ts",
+      "symbol": "OutboundRefusalDescription"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundRefusalReason"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundDestinationRefusedError"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundEnvironment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "ResolvedHostAddress"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "SyntheticResolverProbe"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundVerdict"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundStage"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundRefusalFacts"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundAllowedBasis"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundRouteKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundProxyKind"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "ReadOutboundEnvironment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "OutboundAuthorization"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/certificationMedia.ts",
+      "symbol": "HardenedFetchResult"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/certificationMedia.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/docsDiscovery.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "kind": "read",
+      "path": "electron/providerAdapter/providedDocs.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "kind": "read",
+      "path": "electron/proxyIpc.ts",
+      "symbol": "readOutboundEnvironment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "ReadOutboundEnvironment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "SubmitOutboundDeps"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "readOutboundEnvironment"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "SubmitDestinationInput"
+    },
+    {
+      "kind": "read",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "OutboundRouteKind"
+    },
+    {
+      "kind": "write",
+      "path": "electron/ai/modelImageInput.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "symbol": "hardenedFetchDiagnostics"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/localizeTaskAsset.ts",
+      "symbol": "trustedRetrievalOrigin"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/assets/providerMediaFetch.ts",
+      "symbol": "hardenedFetchDiagnostics"
+    },
+    {
+      "kind": "write",
+      "path": "electron/audioTaskRunner.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "isOutboundDestinationRefusedError"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "hardenedFetchDiagnostics"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "trustedRetrievalOrigin"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "symbol": "isAllowedContentType"
+    },
+    {
+      "kind": "write",
+      "path": "electron/capabilityCore/resultLandingTestUtils.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/catalogCommit.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "kind": "write",
+      "path": "electron/catalog/dreaminaInputFiles.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubConnector.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/connectors/tikhubRoute.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/downloads/verifiedAssetCache.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "describeOutboundRefusal"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "isPrivateHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "matchesDeclaredOrigin"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "authorizeOutboundDestination"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "connectionHostname"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "declaredContentLength"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "isAllowedContentType"
+    },
+    {
+      "kind": "write",
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "isPrivateHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "isPrivateHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localRuntime/localAiExternalProbe.ts",
+      "symbol": "isPrivateHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localRuntime/localAiExternalProbe.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/localSpeech/localSpeechServer.ts",
+      "symbol": "hardenedFetch"
+    },
+    {
+      "kind": "write",
+      "path": "electron/networkOutboundMessage.ts",
+      "symbol": "coarseAddressLabel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "isPrivateHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "setLabTrustedPrivateOrigins"
+    },
+    {
+      "kind": "write",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "connectionHostname"
+    },
+    {
+      "kind": "write",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "isLinkLocalHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "matchesDeclaredOrigin"
+    },
+    {
+      "kind": "write",
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "classifyOutboundAddresses"
+    },
+    {
+      "kind": "write",
+      "path": "electron/parity/generationParityTestUtils.ts",
+      "symbol": "setSubmitOutboundDepsForTests"
+    },
+    {
+      "kind": "write",
+      "path": "electron/promptLibrary/promptLibraryStore.ts",
+      "symbol": "hardenedFetchText"
+    },
+    {
+      "kind": "write",
+      "path": "electron/proxyIpc.ts",
+      "symbol": "seedLabTrustedPrivateOrigins"
+    },
+    {
+      "kind": "write",
+      "path": "electron/proxyIpc.ts",
+      "symbol": "invalidateOutboundEnvironment"
+    },
+    {
+      "kind": "write",
+      "path": "electron/systemProxy.ts",
+      "symbol": "isPrivateHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/systemProxy.ts",
+      "symbol": "lastOutboundEnvironment"
+    },
+    {
+      "kind": "write",
+      "path": "electron/systemProxy.ts",
+      "symbol": "coarseAddressLabel"
+    },
+    {
+      "kind": "write",
+      "path": "electron/tasks/taskResultCertification.ts",
+      "symbol": "isPrivateHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/telemetry/telemetryLifecycle.ts",
+      "symbol": "setOutboundRefusalReporter"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "authorizeSubmitDestination"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "declaredContentLength"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "declaredVendorOrigins"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "isLinkLocalHost"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "authorizeOutboundDestination"
+    },
+    {
+      "kind": "write",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "describeOutboundRefusal"
+    },
+    {
+      "kind": "write",
+      "path": "electron/video/extractVideoFrame.ts",
+      "symbol": "hardenedFetch"
+    }
+  ],
+  "door_reduction": {
+    "before": 97,
+    "after": 97,
+    "why_not": "The doors are every caller of the exported outbound symbols (hardenedFetch for all retrieval paths, authorizeSubmitDestination for submit, trustedRetrievalOrigin for the two download owners, the message and environment helpers). They already converge on one verdict function, authorizeOutboundDestination, which has exactly two callers (submit guard and hardenedFetch); the fix changes that single verdict instead of adding a door. Merging the retrieval callers would rewrite unrelated download paths."
+  }
+}

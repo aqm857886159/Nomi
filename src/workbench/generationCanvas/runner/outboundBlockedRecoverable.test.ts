@@ -45,6 +45,7 @@ async function outboundBlockedError(): Promise<Error> {
   const authorization = await authorizeOutboundDestination({
     url: new URL('https://api.apimart.ai/result.mp4'),
     route: 'direct',
+    stage: 'retrieval',
     readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: '' }),
     resolve: async () => [{ address: '198.18.0.140', family: 4 as const }],
   })
@@ -238,6 +239,7 @@ describe('提交侧被拦 = 没扣费（与取回侧刻意分家）', () => {
     const authorization = await authorizeOutboundDestination({
       url: new URL('https://api.apimart.ai/v1/tasks'),
       route: 'direct',
+      stage: 'submit',
       readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: '' }),
       resolve: async () => [{ address: '198.18.0.140', family: 4 as const }],
     })

@@ -3,6 +3,7 @@
 // 那样只在有人愿意付钱时手工跑一次。
 //
 // 它守的不是「函数返回了什么」，而是**钱**：
+//   · 创作者保存的接入地址不按解析出的地址拦（2026-11-12 拍板删掉那条判断）——开着代理也照常发；
 //   · 拦下来的那一刻请求还没离开本机 → 用户读到的必须是提交侧那句「这次生成没有发出去」，而不是取回侧那句；
 //   · 用户自己配的本地后端（ComfyUI）不能被这条判据误伤，否则等于把私有部署整类用户挡在门外；
 //   · 169.254 元数据段哪怕被写进 baseUrl 也不许放行——提交请求带着用户的 API Key。
@@ -39,32 +40,35 @@ function seed(options: {
 }
 
 const apimart = { baseUrlHint: "https://api.apimart.ai" };
+/** 供应商响应里带回来的上传目标：不是创作者保存的地址，按取回侧同一套判。 */
+const PRESIGNED_UPLOAD = "https://upload.vendor-cdn.example.com/put?sig=1";
 
 describe("提交侧出站授权：被拦 = 没发出去", () => {
   beforeEach(() => setSubmitOutboundDepsForTests(null));
 
-  it("fake-ip 合成地址 + 没有代理证据 → 拦下，且挂的是**提交侧**的码", async () => {
+  it("保存的接入地址解析进 198.18 且探不到代理 → 照常发（不判地址，2026-11-12 删掉的那条）", async () => {
     seed({ address: "198.18.0.140", environment: NO_LOCAL_PROXY });
-    const refusal = await authorizeSubmitDestination({
-      vendor: apimart,
-      url: "https://api.apimart.ai/v1/tasks",
-      routedThroughProviderProxy: false,
-    });
-    expect(refusal).toBeTruthy();
+    await expect(
+      authorizeSubmitDestination({ vendor: apimart, url: "https://api.apimart.ai/v1/tasks", routedThroughProviderProxy: false }),
+    ).resolves.toBeNull();
+  });
+
+  it("不是保存的接入地址（预签名上传目标）解析进内网 + 重探后仍没代理证据 → 拦下，挂**提交侧**的码", async () => {
+    seed({ address: "10.0.3.4", environment: NO_LOCAL_PROXY });
+    const refusal = await authorizeSubmitDestination({ vendor: apimart, url: PRESIGNED_UPLOAD, routedThroughProviderProxy: false });
     // 码认对了才算数：取回侧的 `outbound-blocked` 会让渲染层说「钱已经付过、免费重取」——
     // 在提交侧那是一句方向完全相反的假话，还会指向一颗根本不存在的按钮。
     expect(matchNomiErrorCode(refusal as string)).toBe("outbound-blocked-submit");
-    // 人话必须是**提交侧**那条词典键（「这次生成没有发出去」），不是取回侧那句——测的是两套词表没有被接错线。
     // 按键取值比对，不抄字面：文案改了这条照旧成立，接错线照旧红。
     expect(stripNomiErrorCode(refusal as string)).toBe(
-      desktopT("outbound.submitFakeIpBlocked", { host: "api.apimart.ai", address: coarseAddressLabel("198.18.0.140") }),
+      desktopT("outbound.submitPrivateAddress", { host: "upload.vendor-cdn.example.com", address: coarseAddressLabel("10.0.3.4") }),
     );
   });
 
-  it("【阳性对照】同一个地址 + 探到了 fake-ip 代理 → 放行（否则这条判据只是「一律拦」）", async () => {
+  it("【阳性对照】同一个上传目标 + 探到了合成解析 → 放行（否则这条判据只是「一律拦」）", async () => {
     seed({ address: "198.18.0.140", environment: FAKE_IP_PROXY });
     await expect(
-      authorizeSubmitDestination({ vendor: apimart, url: "https://api.apimart.ai/v1/tasks", routedThroughProviderProxy: false }),
+      authorizeSubmitDestination({ vendor: apimart, url: PRESIGNED_UPLOAD, routedThroughProviderProxy: false }),
     ).resolves.toBeNull();
   });
 
@@ -124,7 +128,7 @@ describe("提交侧出站授权：被拦 = 没发出去", () => {
     await expect(
       authorizeSubmitDestination({
         vendor: apimart,
-        url: "https://api.apimart.ai/v1/tasks",
+        url: PRESIGNED_UPLOAD,
         routedThroughProviderProxy: true,
       }),
     ).resolves.toBeNull();

@@ -1,98 +1,74 @@
 /**
- * 出站目的地策略的**唯一 owner**（P2 类根因修复，见 docs/fixes/2026-09-07-outbound-policy-split-across-submit-and-retrieval.root-cause.json）。
+ * 出站目的地策略的**唯一 owner**（P2 类根因修复，见 docs/fixes/2026-09-07-outbound-policy-split-across-submit-and-retrieval.root-cause.json，
+ * 以及 2026-11-12 的方向复盘 docs/engineering/direction-checks/2026-11-12-outbound-guard.md）。
  *
- * 病根不是「黑名单多了一段」，而是**同一次生成的出站决策被判了两次**：
- *   · 提交/轮询走 vendorHttp → appFetch，对目的地**零策略**（信任用户配置的 vendor origin）；
- *   · 取回产物走 hardenedFetch，对目的地做 DNS 解析 + 私网分类，**可以拒绝**。
- * 于是存在一个致命的不对称：**我们愿意为之付钱的目的地，可能是我们拒绝读取的目的地**。
- * 2026-09-06 真实验收就撞上了：Clash/Surge TUN + fake-ip 把 `api.apimart.ai` 解析进
- * `198.18.0.0/15`（RFC 2544 基准测试段），POST 放行、GET 被自己拦下——10 条视频钱扣了、
- * 一帧都取不回来，界面只说「生成失败」。
- *
- * 本模块把那个决策收成**一处**：`classifyOutboundAddresses` 是唯一的判据，
- * `readOutboundEnvironment` 是唯一的环境事实，`check:outbound-policy` 棘轮盯着所有
+ * 提交侧（`vendorOutboundGuard.authorizeSubmitDestination`）与取回侧（`hardenedFetch`）问的是**同一个**
+ * `authorizeOutboundDestination`、读同一份 `readOutboundEnvironment`；`check:outbound-policy` 棘轮盯着所有
  * `appFetch` / `isPrivateHost` 的引用点，谁再长出第二个分类器都会报红。
- * 环境事实**在进程内只探一次并缓存**——这正是「一处判定、结果带到取回」：提交那一刻算出的
- * 网络环境，取回时读到的是同一份，不可能中途翻脸。
  *
- * 2026-09-07 第二轮起，**提交侧也走这里**：`vendorHttp.requestVendor` 在发出付费请求之前调
- * `authorizeOutboundDestination`，与取回侧同一个函数、同一份环境事实。用户显式配在模型设置里的
- * vendor origin 仍然可以是私网（本地 ComfyUI / 局域网自建中转是正当配置），但它走的是**声明式
- * 精确 origin 例外**，不是「提交侧不判」——两者的区别是后者对任何目的地都放行。
- * 提交被拦时请求**从未离开本机**，所以供应商没被请求到、不可能计费；文案据此与取回侧分家
- * （取回侧是「钱已付、免费重取」，提交侧是「没扣费、修好网络重新生成」）。
+ * ── 判据按层，依次问 ─────────────────────────────────────────────────────────────────
+ *  1. 链路本地（169.254 / fe80）：**永远拒**，任何声明都买不通（云主机元数据通道，见 isLinkLocalHost）。
+ *  2. 创作者保存的接入地址（`declaredOrigins`，精确 origin）：放行，**不解析、不判地址**。
+ *     2026-11-12 起（用户拍板）提交侧不再按解析出的地址拦它：https 下证书校验已经挡住「域名被解析到内网
+ *     机器」那件事，而提交侧判完并不锁定地址，挡不住中途换解析；这条判断换来的只有「开着代理的创作者每次
+ *     都发不出去」。OWASP SSRF 速查表把「只连已知可信目标」与「连任意外来链接」分开，前者不建议用 DNS 解析
+ *     做校验；Cherry Studio 对用户配的供应商地址也只做字面量检查。取回侧对「成片就在这家接入地址上」用同一句
+ *     判据——提交放行的地方，取回必须也能过（否则就是 2026-09-06 的「扣了钱取不回」）。
+ *  3. 名字层：URL 里直接写的私网 / 回环 IP、localhost、.local → 拒（声明过的精确 origin 已在第 2 层放行）。
+ *  4. 走代理的连接（应用代理 / 单供应商代理）：代理在它那侧解析，本机答案不是这次连接会用的那份 → 只判名字。
+ *  5. 本机解析器在合成答案（TUN / fake-ip 代理）且目标是可被代理解析的域名 → 同第 4 层，只判名字，不解析、不 pin。
+ *     这和 Chromium 本地网络访问对代理连接的处理一致：本机那份地址不是真目的地，拿它判等于判一个不存在的东西。
+ *  6. 其余直连：解析全部地址，任何一个落在保留段 → 拒；**拒之前当场重探一次**合成解析器（先开 Nomi 后开代理、
+ *     冷启动 DNS 慢，进程里缓存的那次探测会一直判成「没代理」），重探确认了就按第 5 层放行，结果写回缓存。
+ *     放行时把地址交回去 pin 住（防解析后重绑）——这一层守的是供应商响应里冒出来的陌生链接。
  *
- * ── fake-ip 为什么可以放行（依据，不是宽容）────────────────────────────────────────────
- * `198.18.0.0/15` 由 RFC 2544 §C.2.2 分配给**网络互联设备基准测试**，RFC 5735/6890 把它列为
- * 特殊用途保留段——它不是 RFC 1918 私网，任何真实内网服务都不该住在那里。而 Clash / Surge /
- * sing-box 这类本地代理的 fake-ip 模式**默认就把它当合成地址池**（Clash `fake-ip-range` 默认
- * `198.18.0.1/16`），把每一个域名映射进去，真正的 DNS 由代理在自己那侧做。
- * 也就是说：本机解析器一旦在合成答案，`198.18.x` 就**不是一个可被 SSRF 打到的目的地**，
- * 而是「交给代理去解析」的记号。门岗真正要挡的 `127/8`、`10/8`、`172.16/12`、`192.168/16`、
- * `169.254/16`（云元数据）全部**保持拦截**，一条都不放。
+ * ── 合成解析器怎么认（阳性证据，不枚举代理软件的地址段）─────────────────────────────
+ * 向一个**随机的、不可能存在的域名**发一次 DNS 查询。正常解析器必答 NXDOMAIN；答得出、且答案落在任何
+ * 保留段（`isPrivateHost` 那张表：v4 198.18/15、v6 2001:2::/48、fc00::/7 ……）= 本机解析器在合成答案。
+ * 不认某一家的默认段：Clash Verge Rev 开 IPv6 时给 2001:2::/64、mihomo 的 TUN 是 fdfe:dcba:9876::/126、
+ * v2rayN 有 fc00::/18——上一版只认 IPv4 198.18/15，下一个默认值一来就再坏一次（2026-11 就是这么坏的）。
+ * 答成公网地址（运营商 NXDOMAIN 劫持到落地页）不算证据。探测失败 / 超时 / 答不出 → 按没有处理。
  *
- * 关键在于：放行必须有**阳性证据**，不能因为「用户可能开了代理」就默认放行。
- * 证据取自 `probeSyntheticResolver`：向一个**随机的、不可能存在的域名**发一次 DNS 查询。
- * 正常解析器必答 NXDOMAIN；只有在合成答案的解析器才会给出地址。给出的地址落在 198.18/15 时，
- * 才认定「本机跑着 fake-ip 代理」。探测失败/超时/答不出 → 按**没有**代理处理（fail-closed，维持拦截）。
- *
- * **探测名必须用真实 TLD（.com/.net），不能用 `.invalid`/`.test`/`.example`。** 这一条是在真机上
- * 撞出来的，反直觉且致命：RFC 6761 要求解析器**在本地**就把这些保留 TLD 答成 NXDOMAIN，查询根本
- * 到不了代理。2026-09-07 在用户机器上实测（fake-ip 确实开着，`api.apimart.ai → 198.18.0.140`）：
+ * **探测名必须用真实 TLD（.com/.net），不能用 `.invalid`/`.test`/`.example`。** 2026-09-07 真机实测：
+ * RFC 6761 要求解析器**在本地**就把这些保留 TLD 答成 NXDOMAIN，查询根本到不了代理：
  *
  *     nomi-fakeip-probe-74rf3q9vwd.com     -> 198.18.2.228   （代理答的，✅ 证据成立）
- *     nomi-fakeip-probe-2xcw16ci3b.net     -> 198.18.2.229   （✅）
  *     nomi-fakeip-probe-gqortvorri.invalid -> ENOTFOUND      （❌ 系统本地答的，探不到代理）
- *     nomi-fakeip-probe-6md3vt5xmq.test    -> ENOTFOUND      （❌）
- *     nomi-fakeip-probe-6tt2saelif.example -> ENOTFOUND      （❌）
  *
- * 换言之，「保证不存在」的名字恰恰因为**太规范**而无法当探针——它规范到根本不出门。随机 .com 标签
- * 撞上真实注册域名的概率可忽略，且即便撞上，真实域名解析出的是公网地址、不在 198.18/15，
- * 不会造成误判。查的是不存在的名字，除 DNS 外不产生任何出站流量。
+ * 残余风险（登记在方向复盘）：确认合成解析期间，取回侧对公网名失去「解析到内网」的拦截；把不存在的名字
+ * 劫持到私网地址的路由器也会被认成「在用代理」。
  *
  * 逃生口：本模块**没有** env 开关。实验室要的 loopback 由 `main.ts` 在 `!app.isPackaged` 时
- * 显式注入精确 origin（`setLabTrustedPrivateOrigins`），打包版本连读都不读——旧的
- * `LAB_ALLOW_LOCALHOST=1` 是把分类器整个关掉（连 169.254 元数据一起放行），已删除。
+ * 显式注入精确 origin（`setLabTrustedPrivateOrigins`），打包版本连读都不读。
  */
 import net from "node:net";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isPrivateHost } from "./networkHostPolicy";
+import type { OutboundAddressClass, OutboundProbeOutcome, OutboundRefusalTelemetryProps } from "./shared/contracts/telemetry";
 
 export type ResolvedHostAddress = { address: string; family: 4 | 6 };
-
-/** RFC 2544 基准测试段 = fake-ip 代理的默认合成地址池。 */
-const BENCHMARKING_RANGE = { address: "198.18.0.0", prefix: 15 } as const;
-const benchmarking = new net.BlockList();
-benchmarking.addSubnet(BENCHMARKING_RANGE.address, BENCHMARKING_RANGE.prefix, "ipv4");
 
 /** 合成解析器探测的超时：DNS 是启动路径上的同步依赖，绝不允许它拖住第一次生成。 */
 const SYNTHETIC_PROBE_TIMEOUT_MS = 1_500;
 
-export function isBenchmarkingAddress(address: string): boolean {
-  return net.isIPv4(address) && benchmarking.check(address, "ipv4");
-}
-
 export type OutboundRefusalReason =
-  /** URL 里直接写了私网/回环主机名或 IP 字面量。 */
+  /** URL 里直接写了私网/回环/链路本地主机名或 IP 字面量。 */
   | "private-host"
-  /** 主机名本身公网，但解析结果落在私网/回环。 */
+  /** 主机名本身公网，但解析结果落在保留段（且重探后仍没确认本机在用代理）。 */
   | "private-address"
   /** 解析不出任何地址。 */
   | "unresolvable";
 
 /**
  * 出站被策略拒绝时的**结构化**错误（不是裸 `new Error(字符串)`）。
- *
- * 为什么必须结构化：验收里这条错误一路被压成「生成失败」，用户面前没有任何线索。下游要能
- * 区分「安全策略拦的」与「上游挂了」，并据此给出**不同的下一步**——前者可以在设置里确认代理
- * 后**免费重新拉取**（任务已付费、上游已成功），后者才需要重试生成。
+ * 下游要能区分「我们自己的策略拦的」与「上游挂了」，并据此给出不同的下一步。
  */
 export class OutboundDestinationRefusedError extends Error {
   readonly reason: OutboundRefusalReason;
   readonly hostname: string;
   /** 触发拒绝的那个地址（`private-host`/`unresolvable` 时为空串）。 */
   readonly observedAddress: string;
-  /** 拒绝发生时本机是否被判定为 fake-ip 合成解析器（写进错误，便于事后对账）。 */
+  /** 拒绝发生时本机是否被判定为合成解析器（写进错误，便于事后对账）。 */
   readonly syntheticResolver: boolean;
 
   constructor(input: {
@@ -115,18 +91,25 @@ export function isOutboundDestinationRefusedError(error: unknown): error is Outb
   return error instanceof OutboundDestinationRefusedError;
 }
 
-// ── 环境事实：进程内探一次，提交与取回读同一份 ────────────────────────────────────────
+// ── 环境事实：进程内缓存一份，提交与取回读同一份；要拒之前可当场重探并写回 ─────────────
 
 export type OutboundEnvironment = {
   /** 本机解析器在合成答案（fake-ip 代理，含 TUN 透明模式——那种模式下 app 看不到任何代理设置）。 */
   syntheticResolver: boolean;
-  /** 探测时观察到的合成地址样本，供设置页状态行与错误文案引用。 */
+  /** 探测时观察到的合成地址样本，供设置页状态行引用。 */
   syntheticSample: string;
 };
+
+/**
+ * 读环境事实。`fresh: true` = 不用缓存、当场重探一次，结果写回缓存（之后所有读者读到的都是新值）。
+ * 注入点（测试）只要实现这一个签名：忽略 `fresh` 的夹具就是「环境不变」。
+ */
+export type ReadOutboundEnvironment = (options?: { fresh?: boolean }) => Promise<OutboundEnvironment>;
 
 const NO_SYNTHETIC_RESOLVER: OutboundEnvironment = { syntheticResolver: false, syntheticSample: "" };
 
 let environmentProbe: Promise<OutboundEnvironment> | null = null;
+let freshProbe: Promise<OutboundEnvironment> | null = null;
 let lastKnownEnvironment: OutboundEnvironment = NO_SYNTHETIC_RESOLVER;
 
 /** 注入点（测试用）：默认走真实 DNS。 */
@@ -137,7 +120,7 @@ let probeImpl: SyntheticResolverProbe = async (hostname) => {
   return resolved.map((entry) => ({ address: entry.address, family: entry.family as 4 | 6 }));
 };
 
-/** 探针 TLD：必须是**真实可路由**的 TLD，理由见文件头的实测表。两个是为了容忍单个 TLD 的解析异常。 */
+/** 探针 TLD：必须是**真实可路由**的 TLD，理由见文件头。两个是为了容忍单个 TLD 的解析异常。 */
 const PROBE_TLDS = ["com", "net"] as const;
 
 /** 随机标签：避免任何一层（系统 / 路由器 / 代理）把上一次的答案缓存成永久事实。 */
@@ -156,14 +139,14 @@ async function lookupWithTimeout(hostname: string): Promise<readonly ResolvedHos
 
 /**
  * 阳性对照式探测：查一个随机的不可能存在的域名。
- * 解析器答得出地址 = 它在合成；地址落在 198.18/15 = 那是 fake-ip 池。
- * 任何异常（NXDOMAIN / 超时 / 无网络）都按「没有合成解析器」返回——fail-closed，维持拦截。
+ * 答得出地址、且任何一个落在保留段 = 本机解析器在合成。不枚举代理软件的段，v4 / v6 一视同仁。
+ * 任何异常（NXDOMAIN / 超时 / 无网络）都按「没有合成解析器」返回。
  */
 async function probeSyntheticResolver(): Promise<OutboundEnvironment> {
   for (const tld of PROBE_TLDS) {
     try {
       const addresses = await lookupWithTimeout(probeHostname(tld));
-      const synthetic = addresses.find((entry) => isBenchmarkingAddress(entry.address));
+      const synthetic = addresses.find((entry) => isPrivateHost(entry.address));
       if (synthetic) return { syntheticResolver: true, syntheticSample: synthetic.address };
     } catch {
       // NXDOMAIN 是**正常解析器**的正确答案，继续问下一个 TLD；两个都没给出合成地址才收工。
@@ -173,10 +156,24 @@ async function probeSyntheticResolver(): Promise<OutboundEnvironment> {
 }
 
 /**
- * 读环境事实。**同一进程内只探一次**：提交那一刻的判定与取回那一刻的判定必须是同一个，
- * 否则「提交放行、取回拒绝」的不对称会以另一种形式回来。
+ * 读环境事实。默认读进程内缓存（第一次才探）；`fresh: true` 当场重探，并发的重探共用同一次，
+ * 结果写回缓存——设置页那一行与之后的每一次判定读到的都是这次的新结论。
  */
-export async function readOutboundEnvironment(): Promise<OutboundEnvironment> {
+export async function readOutboundEnvironment(options: { fresh?: boolean } = {}): Promise<OutboundEnvironment> {
+  if (options.fresh) {
+    if (!freshProbe) {
+      const probe = probeSyntheticResolver().then((environment) => {
+        lastKnownEnvironment = environment;
+        environmentProbe = probe;
+        return environment;
+      });
+      freshProbe = probe;
+      void probe.finally(() => {
+        if (freshProbe === probe) freshProbe = null;
+      });
+    }
+    return freshProbe;
+  }
   if (!environmentProbe) {
     environmentProbe = probeSyntheticResolver().then((environment) => {
       lastKnownEnvironment = environment;
@@ -202,6 +199,7 @@ export function setSyntheticResolverProbeForTests(probe: SyntheticResolverProbe 
     return resolved.map((entry) => ({ address: entry.address, family: entry.family as 4 | 6 }));
   });
   environmentProbe = null;
+  freshProbe = null;
   lastKnownEnvironment = NO_SYNTHETIC_RESOLVER;
 }
 
@@ -252,8 +250,7 @@ export type OutboundVerdict =
 
 /**
  * 主机名是否是「可能被代理接管的公网名字」。
- * IP 字面量拿不到 fake-ip 豁免——用户直接写 `http://198.18.0.5/` 时没有任何域名可供代理解析，
- * 那就是在指一个具体地址，按地址判。
+ * IP 字面量没有域名可供代理解析，那就是在指一个具体地址；localhost / .local / 单标签名不出本机或局域网。
  */
 function isProxyResolvableName(hostname: string): boolean {
   const host = hostname.trim().toLowerCase();
@@ -262,26 +259,12 @@ function isProxyResolvableName(hostname: string): boolean {
   return host.includes(".");
 }
 
-/**
- * 共用判据：一组已解析地址能不能出站。
- *
- * 放行 198.18/15 需要**同时**满足三条：① 本机确证在跑 fake-ip 合成解析器；② 目标是可被代理
- * 解析的公网域名（不是 IP 字面量）；③ 该地址本身就在合成池里。缺一条即维持拦截。
- */
-export function classifyOutboundAddresses(input: {
-  hostname: string;
-  addresses: readonly ResolvedHostAddress[];
-  environment: OutboundEnvironment;
-}): OutboundVerdict {
-  const { hostname, addresses, environment } = input;
+/** 共用判据：一组已解析地址能不能直连。任何一个落在保留段即整体拒绝（不许挑一个能过的用）。 */
+export function classifyOutboundAddresses(input: { addresses: readonly ResolvedHostAddress[] }): OutboundVerdict {
+  const { addresses } = input;
   if (!addresses.length) return { allowed: false, reason: "unresolvable", observedAddress: "" };
-  const proxySideResolution = environment.syntheticResolver && isProxyResolvableName(hostname);
-  for (const entry of addresses) {
-    if (!isPrivateHost(entry.address)) continue;
-    if (proxySideResolution && isBenchmarkingAddress(entry.address)) continue;
-    return { allowed: false, reason: "private-address", observedAddress: entry.address };
-  }
-  return { allowed: true };
+  const reserved = addresses.find((entry) => isPrivateHost(entry.address));
+  return reserved ? { allowed: false, reason: "private-address", observedAddress: reserved.address } : { allowed: true };
 }
 
 /** 把一个地址折成可安全展示的粗粒度前缀（错误文案/日志用，不泄露完整内网地址）。 */
@@ -291,21 +274,67 @@ export function coarseAddressLabel(address: string): string {
   return octets.length === 4 ? `${octets[0]}.${octets[1]}.x.x` : address;
 }
 
-// ── 单一入口：任何出站在**发出之前**都问这一次 ──────────────────────────────────────
+// ── 拒绝的子码（遥测用：只有枚举，没有地址、域名或任何用户内容）──────────────────────
 
-/**
- * 这次出站的 TCP 连接由谁去开。
- *  · `direct` = Nomi 自己开连接，所以**本机解析出的地址就是这次连接会用的地址**，可判、可 pin。
- *  · `proxy`  = 应用级或单供应商的 HTTP/SOCKS 代理替我们开连接，**DNS 在代理那侧做**，
- *               本机解析出的东西不是这次连接会用的那份，拿它判等于判了一个不存在的目的地。
- */
+/** 这次出站的 TCP 连接由谁去开：`direct` = Nomi 自己开；`proxy` = 应用级或单供应商代理替我们开（DNS 在代理那侧）。 */
 export type OutboundRouteKind = "direct" | "proxy";
 
 /** 这次出站是「花钱那一步」还是「拿东西那一步」——两者被拦时用户该做的事完全不同。 */
 export type OutboundStage = "submit" | "retrieval";
 
+/** 代理路由的细分（遥测子码用）：应用级代理 / 这家供应商单配的代理。 */
+export type OutboundProxyKind = "application" | "provider";
+
+/** 子码词表在共享遥测契约里（主进程门口按同一张表校验）；这里只负责把一次拒绝归到表里的哪一格。 */
+export type OutboundRefusalFacts = OutboundRefusalTelemetryProps & { reason: OutboundRefusalReason; stage: OutboundStage };
+
+function inRanges(address: string, type: "ipv4" | "ipv6", ranges: readonly (readonly [string, number])[]): boolean {
+  const list = new net.BlockList();
+  for (const [base, prefix] of ranges) list.addSubnet(base, prefix, type);
+  return list.check(address, type);
+}
+
+function addressClassOf(address: string): OutboundAddressClass {
+  const family = net.isIP(address);
+  if (!family) return address ? "name" : "none";
+  if (!isPrivateHost(address)) return "public";
+  if (family === 4) {
+    if (inRanges(address, "ipv4", [["127.0.0.0", 8]])) return "loopback";
+    if (inRanges(address, "ipv4", [["10.0.0.0", 8], ["172.16.0.0", 12], ["192.168.0.0", 16]])) return "rfc1918";
+    if (inRanges(address, "ipv4", [["100.64.0.0", 10]])) return "cgnat";
+    if (inRanges(address, "ipv4", [["169.254.0.0", 16]])) return "link-local";
+    if (inRanges(address, "ipv4", [["198.18.0.0", 15]])) return "benchmarking-v4";
+    return "other-reserved";
+  }
+  if (inRanges(address, "ipv6", [["::1", 128]])) return "loopback";
+  if (inRanges(address, "ipv6", [["fe80::", 10]])) return "link-local";
+  if (inRanges(address, "ipv6", [["fc00::", 7]])) return "unique-local-v6";
+  if (inRanges(address, "ipv6", [["2001::", 23]])) return "ietf-protocol-v6";
+  return "other-reserved";
+}
+
+type OutboundRefusalReporter = (facts: OutboundRefusalFacts) => void;
+let refusalReporter: OutboundRefusalReporter | null = null;
+
+/** 主进程启动时接上匿名遥测（`telemetry/telemetryLifecycle.ts`）；测试可注入。报告器抛错不影响判定。 */
+export function setOutboundRefusalReporter(reporter: OutboundRefusalReporter | null): void {
+  refusalReporter = reporter;
+}
+
+// ── 单一入口：任何出站在**发出之前**都问这一次 ──────────────────────────────────────
+
+/** 放行的依据（取回侧据此决定这一跳之后能不能跟跳转；测试据此对账）。 */
+export type OutboundAllowedBasis =
+  /** 名字本身是私网 / 回环字面量，但它就是声明过的那个精确 origin（本地 ComfyUI、局域网 IP 接入地址）。 */
+  | "declared-private-origin"
+  /** 创作者保存的接入地址（名字不是私网字面量）：不解析、不判地址。 */
+  | "declared-origin"
+  | "proxy-route"
+  | "synthetic-resolver"
+  | "resolved-public";
+
 export type OutboundAuthorization =
-  | { allowed: true; route: OutboundRouteKind; pinnedAddresses: readonly ResolvedHostAddress[] | null }
+  | { allowed: true; route: OutboundRouteKind; basis: OutboundAllowedBasis; pinnedAddresses: readonly ResolvedHostAddress[] | null }
   | {
       allowed: false;
       reason: OutboundRefusalReason;
@@ -316,11 +345,7 @@ export type OutboundAuthorization =
 
 /**
  * 链路本地段（IPv4 169.254/16、IPv6 fe80::/10）。**任何显式声明的 origin 都买不通它。**
- *
- * 为什么单独拎出来：其余私网段（127/8、10/8、192.168/16）是用户真会自己跑服务的地方——
- * 本地 ComfyUI、局域网里的 LM Studio、自建中转，声明成供应商是完全正当的配置。而 169.254.169.254
- * 是云主机的**元数据通道**，没有任何供应商住在那儿，它唯一的用途是把凭证读出来。出站请求带着
- * 用户的 API Key，声明式白名单一旦覆盖到这一段，就等于给「把 Key 发去元数据端点」发了张许可证。
+ * 169.254.169.254 是云主机的元数据通道，没有任何供应商住在那儿，它唯一的用途是把凭证读出来。
  */
 export function isLinkLocalHost(hostname: string): boolean {
   const host = hostname.trim().toLowerCase();
@@ -348,80 +373,90 @@ export function connectionHostname(hostname: string): string {
 }
 
 /**
- * **出站授权的唯一入口**（提交侧与取回侧都走这一个函数，这就是「同一个分类器、同一份环境事实」）。
+ * **出站授权的唯一入口**（提交侧与取回侧都走这一个函数）。判据按层依次问，见文件头。
  *
- * ── 为什么「代理生效」这个条件必须住在这里，而不是住在调用点（P1 逃生口，R28）──────
- * 先把上一轮的形状说准，别把它讲得比实际更糟：hardenedFetch 的 `assertSafeUrl` 在**每条路由上**
- * 都判过名字（`isPrivateHost`），代理生效时跳过的是**地址层**（解析 + 地址分类）。跳过地址层本身
- * 是对的（见下），真正的毛病是另外两条：
- *   ① 名字层的判据长在调用点自己身上——`isPrivateHost` + 它自己那份 origin 例外，
- *      于是「哪些目的地能出站」有了第二个 owner（这正是 check:outbound-policy 规则 3 在数的东西）；
- *   ② `if (!applicationProxyActive())` 这个条件写在调用点，代理语义就散在调用点上。
- *      下一条出站路径照抄这个 if，owner 就又分裂成两份，也就是下一次「提交放行、取回拒绝」。
- *   ③ 副作用：调用点那份 origin 例外对 `169.254` 一视同仁——用户（或一条恶意配置）把元数据地址
- *      声明进来就能买通它。判据收进来之后 `isLinkLocalHost` 让它买不通。
- *
- * 正确的形状是：owner 每一跳都被问到，条件住在 owner 里，**判据的对象随路由换**——
- *   · direct：判「本机解析出的地址」，并把地址交回去 pin 住（防解析后重绑）。
- *   · proxy ：判「名字」。代理在它那侧解析，本机解析结果不是这次连接会用的那份；
- *             拿它当判据正是 2026-09-06 的病根（fake-ip 合成地址被当成内网目的地）。
- *             名字层仍然是真判据：IP 字面量私网、localhost/.local 一律拒——**不是不判，是判名字**。
- *
- * 先查别人（详见 docs/plan/2026-09-07-model-generation-core-path.md「先查别人（第二轮）」）：
- *   · GitLab 撞过一模一样的题（<https://gitlab.com/gitlab-org/gitlab/-/work_items/378267>：不能解析
- *     域名的自建实例配了代理后，GitHub Import 全挂）。他们的处置是**整段关掉** DNS 重绑保护：
- *     `Gitlab.http_proxy_env?` 为真就跳过检查。这条查出来的是「别人也栽在这里，而且默认反应就是
- *     开逃生口」——不是可抄的做法。我们反着做：条件收进 owner，判据的对象随路由换。
- *   · Stripe smokescreen 是另一种同族解法：把分类**下沉到代理层**，由那台 CONNECT 代理统一解析并
- *     拒绝内网地址（<https://github.com/stripe/smokescreen/blob/master/README.md>）。桌面端没有那
- *     一层可下沉——代理是用户自己的 Clash/Surge，我们管不着，所以名字层必须自己判。
- *   · 「代理路由下该判名字」不是我们的发明，是 SOCKS5 的既定语义：curl 的 `--socks5` 本机解析、
- *     `--socks5h`/`--socks5-hostname` 交给代理解析（<https://curl.se/docs/manpage.html#--socks5-hostname>）。
- *     代理解析时本机那份答案根本不参与连接——拿它当判据，判的就是一个不存在的目的地。
+ * 先查别人：GitLab #378267（<https://gitlab.com/gitlab-org/gitlab/-/work_items/378267>）配了代理就整段关掉
+ * DNS 重绑保护；我们不整段关，只在有阳性证据（代理路由 / 确认合成解析器）时把判据从地址换成名字。
+ * 「代理路由下该判名字」是 SOCKS5 的既定语义：curl `--socks5-hostname` 交给代理解析
+ * （<https://curl.se/docs/manpage.html#--socks5-hostname>），本机那份答案根本不参与连接。
  */
 export async function authorizeOutboundDestination(input: {
   url: URL;
   route: OutboundRouteKind;
-  /** 懒读：名字层就能定案时不触发 DNS 探针（本地 ComfyUI 那种回环取片不该为它等 1.5s）。 */
-  readEnvironment: () => Promise<OutboundEnvironment>;
+  /** 哪一步在问（只用于拒绝的遥测子码；判据两步一样）。 */
+  stage: OutboundStage;
+  /** 代理路由时是哪一种代理（只用于遥测子码）。 */
+  proxyKind?: OutboundProxyKind;
+  /** 懒读：名字层就能定案时不触发 DNS 探针。`{ fresh: true }` = 拒之前当场重探。 */
+  readEnvironment: ReadOutboundEnvironment;
   resolve: (hostname: string) => Promise<readonly ResolvedHostAddress[]>;
-  /** 用户**显式声明**的私网 origin（供应商 baseUrl / 已配置的本地 ComfyUI / 实验室夹具）。 */
+  /** 创作者**显式保存**的接入 origin（供应商 baseUrl / 已配置的本地 ComfyUI / 实验室夹具）。 */
   declaredOrigins?: readonly string[];
 }): Promise<OutboundAuthorization> {
   const { url, route, readEnvironment, resolve } = input;
   const hostname = connectionHostname(url.hostname);
   const declared = [...(input.declaredOrigins || []), ...labTrustedPrivateOrigins];
-  // 名字层（两条路由都判）。声明式例外只对**非链路本地**的私网生效，理由见 isLinkLocalHost。
-  if (isPrivateHost(url.hostname)) {
-    if (isLinkLocalHost(hostname) || !matchesDeclaredOrigin(url, declared)) {
-      return {
-        allowed: false,
-        reason: "private-host",
-        hostname,
-        observedAddress: "",
-        syntheticResolver: lastKnownEnvironment.syntheticResolver,
-      };
+  const refuse = (
+    reason: OutboundRefusalReason,
+    observedAddress: string,
+    syntheticResolver: boolean,
+    probe: OutboundProbeOutcome,
+  ): OutboundAuthorization => {
+    const subject = observedAddress || (reason === "unresolvable" ? "" : hostname);
+    const family = net.isIP(subject);
+    try {
+      refusalReporter?.({
+        stage: input.stage,
+        reason,
+        route: route === "direct" ? "direct" : input.proxyKind === "provider" ? "provider-proxy" : "app-proxy",
+        addressFamily: family === 4 ? "4" : family === 6 ? "6" : "none",
+        addressClass: addressClassOf(subject),
+        syntheticResolver,
+        probe,
+      });
+    } catch {
+      // 遥测坏了不许改判定。
     }
-    // 声明过的私网服务：单跳直连，不 pin（没有第三方能改这个 origin 的解析结果）。
-    return { allowed: true, route, pinnedAddresses: null };
+    return { allowed: false, reason, hostname, observedAddress, syntheticResolver };
+  };
+  // 1. 链路本地：任何声明都买不通。
+  if (isLinkLocalHost(hostname)) return refuse("private-host", "", lastKnownEnvironment.syntheticResolver, "not-probed");
+  const namePrivate = isPrivateHost(url.hostname);
+  // 2. 创作者保存的接入地址（精确同源）：不解析、不判地址。
+  if (matchesDeclaredOrigin(url, declared)) {
+    return { allowed: true, route, basis: namePrivate ? "declared-private-origin" : "declared-origin", pinnedAddresses: null };
   }
-  // 代理路由到此为止：地址层的判据在代理那侧，我们手上没有它，**如实承认**比拿错的地址装作判过了强。
-  if (route === "proxy") return { allowed: true, route, pinnedAddresses: null };
-  // 地址层（只有 direct 路由有意义）。
-  const environment = await readEnvironment();
+  // 3. 名字层（两条路由都判）。
+  if (namePrivate) return refuse("private-host", "", lastKnownEnvironment.syntheticResolver, "not-probed");
+  // 4. 代理路由：地址层的判据在代理那侧，我们手上没有它。
+  if (route === "proxy") return { allowed: true, route, basis: "proxy-route", pinnedAddresses: null };
   const literalFamily = net.isIP(hostname);
-  const addresses = literalFamily
-    ? [{ address: hostname, family: literalFamily as 4 | 6 }]
-    : await resolve(hostname);
-  const verdict = classifyOutboundAddresses({ hostname, addresses, environment });
-  if (!verdict.allowed) {
-    return {
-      allowed: false,
-      reason: verdict.reason,
-      hostname,
-      observedAddress: verdict.observedAddress,
-      syntheticResolver: environment.syntheticResolver,
-    };
+  if (literalFamily) {
+    // 公网 IP 字面量（私网字面量已在名字层拒掉）：就是这个地址，pin 住。
+    return { allowed: true, route, basis: "resolved-public", pinnedAddresses: [{ address: hostname, family: literalFamily as 4 | 6 }] };
   }
-  return { allowed: true, route, pinnedAddresses: addresses };
+  const proxyResolvable = isProxyResolvableName(hostname);
+  // 5. 本机解析器在合成答案：本机这份地址不是真目的地，只判名字。
+  let environment = proxyResolvable ? await readEnvironment() : lastKnownEnvironment;
+  if (proxyResolvable && environment.syntheticResolver) {
+    return { allowed: true, route, basis: "synthetic-resolver", pinnedAddresses: null };
+  }
+  // 6. 直连地址层。
+  const addresses = await resolve(hostname);
+  const verdict = classifyOutboundAddresses({ addresses });
+  if (verdict.allowed) return { allowed: true, route, basis: "resolved-public", pinnedAddresses: addresses };
+  if (verdict.reason === "unresolvable") {
+    return refuse("unresolvable", "", environment.syntheticResolver, proxyResolvable ? "unconfirmed" : "not-probed");
+  }
+  // 要按地址拒了：先当场重探一次（先开应用后开代理、冷启动 DNS 慢，缓存里那次会一直判成「没代理」）。
+  if (proxyResolvable) {
+    environment = await readEnvironment({ fresh: true });
+    if (environment.syntheticResolver) return { allowed: true, route, basis: "synthetic-resolver", pinnedAddresses: null };
+  }
+  return refuse(
+    "private-address",
+    verdict.observedAddress,
+    environment.syntheticResolver,
+    proxyResolvable ? "unconfirmed-after-reprobe" : environment.syntheticResolver ? "confirmed" : "not-probed",
+  );
 }

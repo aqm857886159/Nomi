@@ -93,3 +93,23 @@ describe('perf.session.summary（界面流畅度分档）', () => {
     for (const name of TELEMETRY_EVENT_NAMES) if (name !== 'perf.session.summary') expect(TELEMETRY_EVENT_MIN_SCOPE[name]).toBe(1)
   })
 })
+
+describe('network.outbound.refused（出站被拒的子码，只有枚举）', () => {
+  const props = { stage: 'retrieval', reason: 'private-address', route: 'direct', addressFamily: '6', addressClass: 'unique-local-v6', syntheticResolver: false, probe: 'unconfirmed-after-reprobe' }
+
+  it('白名单：合法通过；多一个键、地址、域名或表外的值都拒', () => {
+    expect(isTelemetryProps(props, 'network.outbound.refused')).toBe(true)
+    expect(isTelemetryProps({ ...props, host: 'cdn.example.com' }, 'network.outbound.refused')).toBe(false)
+    expect(isTelemetryProps({ ...props, addressClass: 'fd00::7' }, 'network.outbound.refused')).toBe(false)
+    expect(isTelemetryProps({ ...props, route: 'clash' }, 'network.outbound.refused')).toBe(false)
+    expect(isTelemetryProps({ ...props, syntheticResolver: 'yes' }, 'network.outbound.refused')).toBe(false)
+    const { probe: _probe, ...missing } = props
+    expect(isTelemetryProps(missing, 'network.outbound.refused')).toBe(false)
+  })
+
+  it('整份信封合法，告知范围 1（失败类别）就能入队', () => {
+    const envelope = buildTelemetryEnvelope({ eventName: 'network.outbound.refused', props: props as never }, 'short-session', '0.24.0')
+    expect(isTelemetryEnvelope(envelope)).toBe(true)
+    expect(TELEMETRY_EVENT_MIN_SCOPE['network.outbound.refused']).toBe(1)
+  })
+})
