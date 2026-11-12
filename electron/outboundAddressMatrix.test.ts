@@ -1,5 +1,5 @@
 /**
- * 出站策略的**类测试矩阵**（2026-11-12，方向复盘 docs/engineering/direction-checks/2026-11-12-outbound-guard.md）。
+ * 出站策略的**类测试矩阵（matrix）**（2026-11-12，方向复盘 docs/engineering/direction-checks/2026-11-12-outbound-guard.md）。
  *
  * 这一类问题反复回来，是因为每次只修「撞到的那一格」：先是 v4 198.18、后来是 v6 合成段、再后来是
  * 「先开 Nomi 后开代理」探测缓存过期、再后来是局域网接入地址提交能过取回不过。这里把整类写成格子：

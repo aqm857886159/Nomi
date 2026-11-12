@@ -8,16 +8,18 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "candidate",
-  "manualReview": "pending",
+  "status": "fixed",
+  "fixedInPr": 1490,
+  "manualReview": "reviewed",
   "evidence": [
     "docs/fixes/2026-11-12-outbound-guard-no-address-block.root-cause.json",
     "docs/engineering/direction-checks/2026-11-12-outbound-guard.md",
     "docs/plan/2026-11-12-outbound-no-address-block.md",
-    "electron/outboundAddressMatrix.test.ts",
+    "electron/outboundAddressMatrix.test.ts：提交侧 × 解析 × 探测 108 格 + 取回侧矩阵，不变量「提交放行则同 origin 取回必过」；把保存的接入地址加回地址判断 → 红。",
+    "electron/networkOutboundPolicy.test.ts：探测证据（v4 / v6 / 公网劫持 / NXDOMAIN）、拒前重探并发共用且写回缓存。",
     "未验证：Windows 真机（缺机器）；开着代理的真实提交 / 取回闭环未跑。"
   ],
-  "completionCommits": [],
+  "completionCommits": ["701fe145b"],
   "rootCauseContract": "docs/fixes/2026-11-12-outbound-guard-no-address-block.root-cause.json",
   "classCheck": {
     "kind": "matrix",

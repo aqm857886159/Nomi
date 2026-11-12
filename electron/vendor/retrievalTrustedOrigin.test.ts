@@ -40,8 +40,8 @@ describe("trustedRetrievalOrigin：只信这条连接自己的精确 origin", ()
     expect(await trustedRetrievalOrigin({ baseUrlHint: "http://169.254.169.254" }, "http://169.254.169.254/latest/meta-data")).toBeUndefined();
   });
 
-  it("内置 APIMart 等公网家：同 origin 也不给例外（本来就放行，给了只会关掉跳转）", async () => {
-    expect(await trustedRetrievalOrigin({ baseUrlHint: "https://api.apimart.ai" }, "https://api.apimart.ai/v1/files/a.mp4")).toBeUndefined();
+  it("内置 APIMart 等公网家：同 origin 照信（与提交侧同一句，保证提交放行则取回必过）；别的 origin 不信", async () => {
+    expect(await trustedRetrievalOrigin({ baseUrlHint: "https://api.apimart.ai" }, "https://api.apimart.ai/v1/files/a.mp4")).toBe("https://api.apimart.ai");
     expect(await trustedRetrievalOrigin({ baseUrlHint: "https://api.apimart.ai" }, "https://upload.apimart.ai/a.mp4")).toBeUndefined();
   });
 

@@ -1,0 +1,34 @@
+{
+  "name": "一次外发请求能不能发往这个目的地（按名字与来源判，不按本机解析出的地址判）",
+  "subject": "network.outbound-destination-policy",
+  "lifecycle": "execution",
+  "authority_kind": "gateway",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/networkOutboundPolicy.ts",
+    "symbol": "authorizeOutboundDestination"
+  },
+  "write_api": [
+    {
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "authorizeOutboundDestination"
+    },
+    {
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "trustedRetrievalOrigin"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/outboundAddressMatrix.test.ts",
+  "allowed_consumers": [
+    "electron/hardenedFetch.ts",
+    "electron/catalog/assetLocalization.ts",
+    "electron/assets/localizeTaskAsset.ts",
+    "electron/capabilityCore/generationOutputMaterializer.ts",
+    "electron/vendor/vendorOutboundGuard.ts"
+  ],
+  "since": "2026-11-12",
+  "notes": "合同 docs/fixes/2026-11-12-outbound-guard-no-address-block.root-cause.json：创作者自己保存的接入地址不再按本机解析出的地址拦（开着代理时那个答案不是真正的目的地）；链路本地永远拒，不是接入地址的内网字面量 / localhost 两侧都拒；取回侧对陌生链接在没确认代理时才判地址，且拒之前当场重探一次并写回共享缓存。trustedRetrievalOrigin 是「同 origin 取回信任」的唯一判据，提交侧与取回侧共用，保证提交放行则同 origin 取回必过。密钥只发往绑定 origin、带密钥遇跳转即停仍归 network.credential-redirect-policy 与 credential-origin 门岗，不在这里。"
+}

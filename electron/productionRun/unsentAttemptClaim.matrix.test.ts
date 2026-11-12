@@ -171,7 +171,7 @@ function engineATransport(origin: string): CanvasTransport {
       const local = phase.failing ? phase.local : undefined;
       let base = origin;
       let apiKey = "test-key";
-      if (local === "outbound-policy") base = "https://api.blocked-vendor.test";
+      if (local === "outbound-policy") base = "http://169.254.169.254"; // 链路本地：保存成接入地址也永远拒，不依赖解析结果
       if (local === "illegal-header") apiKey = "密钥里混进了中文";
       // 引擎 A 的密钥在 runTask 的模型解析里取（findExecutableModel）；这里是那一步的最小替身——判据不看错误长什么样，
       // 只看这次派发有没有请求交给网络，所以替身的错误文案无关紧要。
