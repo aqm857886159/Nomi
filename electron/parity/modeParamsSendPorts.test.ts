@@ -7,7 +7,7 @@
  *   没有源视频时发出去的是文生，不是编辑。这里正面证明它们真正发出去的请求只含文生声明的键。
  * - 第 9 条：带变体的节点，渲染层和主进程按同一个变体特化（主进程以前漏了变体特化）。
  */
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -26,7 +26,7 @@ vi.mock("../capabilityCore/rendererBridge", () => ({
   },
 }));
 
-import { resolveArchetypeForModel } from "../shared/modelArchetypes";
+import { resolveArchetypeForModel, specializeArchetypeForVariant } from "../shared/modelArchetypes";
 import { declaredModeParams, effectiveModeParams } from "../shared/modelArchetypes/modeParams";
 import variantsSnapshot from "./modeParamsVariants.snapshot.json";
 import { modeTransportFor } from "../shared/videoCapabilities/modeTransport";
@@ -36,6 +36,7 @@ import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/ru
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
 import { driveEngineA, installFetchCapture, seedParityCatalog } from "./generationParityTestUtils";
 import { recordFields, type OutboundRecord } from "./outboundRecord";
+import { installVariantFixture, VARIANT_FIXTURE } from "./modeParamsVariantFixture";
 
 const capture = installFetchCapture();
 const seeded = await seedParityCatalog([]);
@@ -235,6 +236,59 @@ describe("变体：渲染层和主进程按同一个变体特化", () => {
 });
 
 // 带变体目录行的主进程默认值护栏：修前指纹 + 这次允许新增的键（和官方请求体矩阵同口径：ref / 多模态方式自己控件上的比例默认值以前没发、现在发）。
+describe("变体夹具（会改方式的键和缺省值的变体）：画布路、无界面路按变体出键", () => {
+  // 今天内置档案没有哪个变体会改键 / 缺省值，下面三个断言在「主进程不用记着的 variantId」「干脆不传变体」两种改坏下都不会红；
+  // 夹具（electron/parity/modeParamsVariantFixture.ts）造出差异：standard 变体文生缺省 1080p 且不声明 generate_audio，默认变体 fast 是 720p 且声明。
+  // Run provider 路同一条断言在 electron/capabilityCore/apimartGenerationProvider.test.ts。
+  let restore = () => {};
+  beforeAll(() => { restore = installVariantFixture(); });
+  afterAll(() => restore());
+  const row = () => {
+    const found = seeded.models.find((model) => model.vendorKey === "apimart" && model.modelKey === VARIANT_FIXTURE.modelKey);
+    if (!found) throw new Error("前提：种子目录里有 apimart 的 doubao-seedance-2.0");
+    return found;
+  };
+  const archetypeOf = (model: Row) => resolveArchetypeForModel({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey: model.vendorKey, meta: model.meta })!;
+  const stored = { generate_audio: false };
+  const selectedOf = (model: Row) => ({ modelKey: model.modelKey, modelAlias: model.modelAlias, vendorKey: model.vendorKey, modelMeta: model.meta, taskKind: "text_to_video", modeId: VARIANT_FIXTURE.modeId });
+
+  it("前提：夹具真的让两个变体在文生方式出不同的键和缺省值", () => {
+    const archetype = archetypeOf(row());
+    const withFixture = effectiveModeParams({ archetype, variantId: VARIANT_FIXTURE.variantId, modeId: VARIANT_FIXTURE.modeId, stored }).params;
+    const byDefault = effectiveModeParams({ archetype, modeId: VARIANT_FIXTURE.modeId, stored }).params;
+    expect(withFixture.resolution).toBe(VARIANT_FIXTURE.fixtureResolution);
+    expect(withFixture).not.toHaveProperty(VARIANT_FIXTURE.droppedKey);
+    expect(byDefault.resolution).toBe(VARIANT_FIXTURE.defaultVariantResolution);
+    expect(byDefault).toHaveProperty(VARIANT_FIXTURE.droppedKey);
+  });
+
+  it("画布路：节点记着 variantId → 冻结请求按这个变体出键", () => {
+    const model = row();
+    const extras = canvasRequest(model, archetypeOf(model), VARIANT_FIXTURE.modeId, stored, 0, VARIANT_FIXTURE.variantId).extras as Record<string, unknown>;
+    expect(extras.resolution).toBe(VARIANT_FIXTURE.fixtureResolution);
+    expect(extras).not.toHaveProperty(VARIANT_FIXTURE.droppedKey);
+  });
+
+  it("无界面路：请求里记着 variantId → 主进程按这个变体出键；不记就落默认变体", () => {
+    const model = row();
+    const withVariant = applyHeadlessParamDefaults({ ...stored, archetype: { id: VARIANT_FIXTURE.archetypeId, modeId: VARIANT_FIXTURE.modeId, variantId: VARIANT_FIXTURE.variantId } }, selectedOf(model), undefined);
+    expect(withVariant?.resolution).toBe(VARIANT_FIXTURE.fixtureResolution);
+    expect(withVariant).not.toHaveProperty(VARIANT_FIXTURE.droppedKey);
+    const without = applyHeadlessParamDefaults({ ...stored, archetype: { id: VARIANT_FIXTURE.archetypeId, modeId: VARIANT_FIXTURE.modeId } }, selectedOf(model), undefined);
+    expect(without?.resolution).toBe(VARIANT_FIXTURE.defaultVariantResolution);
+    expect(without).toHaveProperty(VARIANT_FIXTURE.droppedKey, false);
+  });
+
+  it("两条路对同一个变体给出相同的管辖键（画布冻结的 = 主进程再过一遍的）", () => {
+    const model = row();
+    const archetype = archetypeOf(model);
+    const canvas = canvasRequest(model, archetype, VARIANT_FIXTURE.modeId, stored, 0, VARIANT_FIXTURE.variantId).extras as Record<string, unknown>;
+    const main = applyHeadlessParamDefaults(canvas, selectedOf(model), undefined);
+    const governed = governedKeysOf(specializeArchetypeForVariant(archetype, VARIANT_FIXTURE.variantId));
+    expect(governedProjection(main, governed)).toBe(governedProjection(canvas, governed));
+  });
+});
+
 type VariantsSnapshot = { note: string; added: Array<{ cell: string; key: string; value: unknown }>; defaults: Record<string, string> };
 const VARIANTS_PATH = fileURLToPath(new URL("./modeParamsVariants.snapshot.json", import.meta.url));
 const canonical = (value: unknown): string => value && typeof value === "object"

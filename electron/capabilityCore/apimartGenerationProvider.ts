@@ -270,7 +270,8 @@ function projectionRequest(
   let defaulted: Record<string, unknown>;
   try {
     // 与引擎 A（runtime.ts）、清单、第三闸同一份完整身份：自写能力合同声明的参考上限在这里（出网前）就拒。
-    defaulted = applyHeadlessParamDefaults(parameters, modelReferenceSelection(vendorKey, selection.model, selection.mapping.taskKind, input.modeId),
+    // 封进合同的变体随请求交给主人（它读 extras.archetype.variantId 特化，与画布路同一个口径）；没有就不带，主人按模型名 / 默认变体认。
+    defaulted = applyHeadlessParamDefaults(input.variantId ? { ...parameters, archetype: { variantId: input.variantId } } : parameters, modelReferenceSelection(vendorKey, selection.model, selection.mapping.taskKind, input.modeId),
       selection.mapping.create.defaultParams, selection.mapping.create.body) || {};
   } catch (error) {
     // 拒发的原话（「这个模型最多收 N 张图片参考。」）原样交给调用方，不改写成笼统的「defaults 无效」。

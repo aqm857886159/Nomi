@@ -117,6 +117,24 @@ describe('effectiveModeParams：这个方式这次发哪些参数', () => {
     expect(sent.archetypeInput).toEqual({ [key]: value, image_urls: ['u'] })
   })
 
+  // 管辖范围 = 控件键 ∪ 固定参数键：别的方式的判别键（fixedParams）残留在节点上，切回文生时不许跟着发。
+  // 改坏法：governedKeys 里删掉收 fixedParams 键的那一行 → 这两条红（独立验收 V-mode-params-pr1 条件 2）。
+  it.each([
+    { archetypeId: 'wan-3.0-apimart', key: 'generation_type', stale: 'frame' },
+    { archetypeId: 'gemini-omni-1.2-flash', key: 'omni_reference_task_type', stale: 'reference' },
+  ])('别的方式的判别键 $key 残留在节点上：发文生不带这个键；它自己的方式照发固定值', ({ archetypeId, key, stale }) => {
+    const archetype = getArchetypeById(archetypeId)!
+    expect(archetype, '前提：认得出档案').toBeTruthy()
+    const owner = archetype.modes.find((mode) => key in (mode.fixedParams ?? {}))
+    expect(owner, '前提：有方式把它声明成固定参数').toBeTruthy()
+    const text = archetype.modes.find((mode) => mode.id === 't2v')!
+    expect(declaredKeys(text).has(key), '前提：文生方式没声明这个键').toBe(false)
+    const sent = effectiveModeParams({ archetype, modeId: text.id, stored: { [key]: stale } })
+    expect(sent.params).not.toHaveProperty(key)
+    expect(sent.dropped).toContain(key)
+    expect(effectiveModeParams({ archetype, modeId: owner!.id, stored: { [key]: 'stale' } }).params[key]).toBe(owner!.fixedParams![key])
+  })
+
   it('方式认不出 → 原样返回（不剥、不填）', () => {
     const archetype = getArchetypeById('wan-3.0-apimart')!
     expect(effectiveModeParams({ archetype, modeId: 'no-such-mode', stored: { size: 'x', duration: 3 } })).toEqual({ params: { size: 'x', duration: 3 }, dropped: [] })
