@@ -15,7 +15,7 @@ import { isNodeGenerationOwnedByProduction } from '../../production/productionSh
 import { directorPreviewSpendBlock, directorPreviewSpendBlockMessageKey } from '../nodes/director/model/directorPreviewState'
 import { isProjectExecutionContextCurrent, withProjectAction } from '../../project/projectCanvasReadSurface'
 import { canvasOpenRuns, releaseCanvasShotRun, withdrawCanvasShots } from '../../api/taskApi'
-import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, type SpendInitiator } from '../spend/spendConfirm'
+import { confirmGenerationResend, confirmGenerationSpend, paidNodeLedger, spendCostKind, describeGenerationCost, generationCostContextForNode, withGenerationEtaStats, type SpendInitiator } from '../spend/spendConfirm'
 import { isRetryableGenerationError, normalizeRetryAttempts, normalizeBaseDelayMs, waitForRetry } from './generationRetryPolicy'
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import type { GenerationNodeResults } from './catalogTaskResultParse'
@@ -530,7 +530,7 @@ async function confirmAndRunSingleNode(nodeId: string, opts: { rerun?: boolean; 
   const ok = resending || await confirmGenerationSpend([node], {
     initiator: opts.initiator,
     title: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.title || i18n.t('generationCommon.spend.startGeneration'),
-    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', generationCostContextForNode(node, projectId)),
+    message: describeGenerationCost(1, node ? spendCostKind(node.kind) : 'image', await withGenerationEtaStats(generationCostContextForNode(node, projectId))),
     confirmLabel: opts.rerun ? i18n.t('generationCommon.spend.generateVariant') : opts.confirmLabel || i18n.t('generationCommon.spend.generate'),
     ...(hosting.disclosure ? { hostingDisclosure: hosting.disclosure } : {}),
   })

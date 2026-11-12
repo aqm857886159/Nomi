@@ -19,6 +19,13 @@ describe("taskTemplateParams — 时长类型", () => {
   it("durationSeconds / videoDuration 兜底", () => {
     expect(taskTemplateParams({ extras: { durationSeconds: 10 } }).duration).toBe(10);
   });
+  it("过了方式参数主人（带 archetype.modeId）的请求缺时长 → 整键不发；不归档案管的照旧发空串（老中转报文被升级测试钉住）", () => {
+    const owned = taskTemplateParams({ extras: { archetype: { id: "happyhorse", modeId: "edit" } } });
+    expect(owned).toHaveProperty("duration", undefined);
+    expect(JSON.parse(JSON.stringify(owned))).not.toHaveProperty("duration");
+    expect(taskTemplateParams({ extras: { archetype: { id: "happyhorse", modeId: "t2v" }, duration: 5 } }).duration).toBe(5);
+    expect(taskTemplateParams({ extras: { archetype: { id: "happyhorse" } } }).duration).toBe("");
+  });
 });
 
 describe("applyHeadlessParamDefaults — 自写能力合同容量（第一闸收完整身份）", () => {
