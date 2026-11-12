@@ -4,6 +4,7 @@ import { getArchetypeById, specializeArchetypeForVariant, type ModelArchetype } 
 import { archetypeModeById, archetypeModeModelEnum, type ResolvedReferenceValues } from './archetypeMeta'
 import { ARCHETYPE_WIRE_MODEL, resolveWireModel } from '../../../../../electron/shared/modelArchetypes/wireModelIdentity'
 import { archetypeModeChoices } from './channelModeReach'
+import { effectiveModeParams } from '../../../../../electron/shared/modelArchetypes/modeParams'
 import {
   type ArchetypeArraySlot,
   appendArchetypeArrayValue,
@@ -13,8 +14,8 @@ import {
   archetypeModeSlots,
   archetypeVariantChoices,
   buildArchetypeInputParams,
-  clampParamsToMode,
   currentArchetypeVariant,
+  fixDropdownsBeforeSend,
   ensureArchetypeNodeMeta,
   hasAnyArchetypeReference,
   mergeOrderedReferenceImageUrls,
@@ -122,9 +123,9 @@ describe('applyHumanModeChoice — 只写偏好，参考值全局保留', () => 
   })
 
   // 2026-08-26 走查实测到的真 bug：模式收窄了 select 的**选项**，却没收窄**已存的值**。
-  // 火山 Seedance 2.5 的首帧/首尾帧模式官方硬约束 ratio 只能 adaptive。方式现在按输入现算，夹值挪到读 / 发时
-  // （clampParamsToMode，不写回）：放一张首帧 → 发 adaptive；删了图回文生 → 还是 16:9。
-  it('按现算出的方式收窄越界的存量值（读 / 发时夹，不写回）', () => {
+  // 火山 Seedance 2.5 的首帧/首尾帧模式官方硬约束 ratio 只能 adaptive。方式按输入现算，渲染层发送前先问方式参数 owner 定键，
+  // 再由 fixDropdownsBeforeSend 修下拉（不写回）：放一张首帧 → 发 adaptive；删了图回文生 → 还是 16:9。主进程不调它。
+  it('渲染层发送前按现算出的方式修越界的下拉值（不写回）', () => {
     const V25 = getArchetypeById('volcengine-seedance-2-5')!
     const modeOf = (modeId: string) => V25.modes.find((m) => m.id === modeId)!
     const ratioOptionsOf = (modeId: string) => modeOf(modeId).params.find((p) => p.key === 'ratio')!.options.map((o) => o.value)
@@ -133,12 +134,13 @@ describe('applyHumanModeChoice — 只写偏好，参考值全局保留', () => 
     expect(ratioOptionsOf('first')).toEqual(['adaptive'])
 
     const meta = { ...ensureArchetypeNodeMeta({}, V25)!, ratio: '16:9', resolution: '1080p' } // 用户在文生视频里选了 16:9
+    const send = (modeId: string) => fixDropdownsBeforeSend({ archetype: V25, modeId }, effectiveModeParams({ archetype: V25, modeId, stored: meta }).params)
     // 关键断言：16:9 不许按首帧方式发出去；存盘不改（回到文生还是 16:9）。
-    expect(clampParamsToMode(meta, V25, modeOf('first')).ratio).toBe('adaptive')
+    expect(send('first').ratio).toBe('adaptive')
     expect(meta.ratio).toBe('16:9')
-    expect(clampParamsToMode(meta, V25, modeOf('t2v')).ratio).toBe('16:9')
+    expect(send('t2v').ratio).toBe('16:9')
     // 反向：模式没收窄的参数不受影响（别夹过头把用户的正常选择也清了）。
-    expect(clampParamsToMode(meta, V25, modeOf('first')).resolution).toBe('1080p')
+    expect(send('first').resolution).toBe('1080p')
   })
 })
 
