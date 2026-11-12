@@ -39,15 +39,13 @@ const declaredKeys = (mode: ArchetypeMode) => new Set([...mode.params.map((contr
 const governedKeys = (archetype: ModelArchetype) => new Set(archetype.modes.flatMap((mode) => [...declaredKeys(mode)]))
 
 describe('effectiveModeParams：这个方式这次发哪些参数', () => {
-  it('2026-08-26 走查：现算成首帧方式时越界的比例收窄成 adaptive，存盘不改；回到文生还是 16:9', () => {
+  it('只定键、补缺省，已给的值一个字节不动：越界的下拉值原样留（修下拉是渲染层发送前 fixDropdownsBeforeSend 的事）', () => {
     const V25 = getArchetypeById('volcengine-seedance-2-5')!
     const ratioOptionsOf = (modeId: string) => V25.modes.find((m) => m.id === modeId)!.params.find((p) => p.key === 'ratio')!.options.map((o) => o.value)
-    expect(ratioOptionsOf('t2v').length).toBeGreaterThan(1)
     expect(ratioOptionsOf('first')).toEqual(['adaptive'])
     const meta = { archetype: { id: V25.id, modeId: 't2v' }, ratio: '16:9', resolution: '1080p' }
-    expect(effectiveModeParams({ archetype: V25, modeId: 'first', stored: meta }).params.ratio).toBe('adaptive')
+    expect(effectiveModeParams({ archetype: V25, modeId: 'first', stored: meta }).params.ratio).toBe('16:9')
     expect(meta.ratio).toBe('16:9')
-    expect(effectiveModeParams({ archetype: V25, modeId: 't2v', stored: meta }).params.ratio).toBe('16:9')
     expect(effectiveModeParams({ archetype: V25, modeId: 'first', stored: meta }).params.resolution).toBe('1080p')
   })
 

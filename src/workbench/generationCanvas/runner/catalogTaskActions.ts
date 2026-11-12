@@ -20,7 +20,7 @@ import { readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { applyRelayFirstFrame } from './relayFrameResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
-import { buildArchetypeInputParams, currentArchetypeVariant, orderedSentImageReferenceUrls, orderedSentMediaReferenceUrls, sendArchetypeMode, uploadPlacementForMode, type ArchetypeMode, type ModelArchetype } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams, currentArchetypeVariant, fixDropdownsBeforeSend, orderedSentImageReferenceUrls, orderedSentMediaReferenceUrls, sendArchetypeMode, uploadPlacementForMode, type ArchetypeMode, type ModelArchetype } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
 import { normalizeReferenceListMeta } from '../nodes/controls/referenceList'
 import {
@@ -333,15 +333,13 @@ export function buildCatalogTaskRequest(
   // archetype.modeId，所以先把参考落成规范形（先放一边的记进列表），再换 modeId——否则旧首尾帧节点按全能参考发时，
   // 旧界面看不见的残留参考图被发出去、看得见的首帧反而不发（2026-11-12 方式现算后，参考行和请求两边对不上）。
   const listMeta = sendMode ? normalizeReferenceListMeta(rawMeta, sendMode.mode) ?? rawMeta : rawMeta
-  const meta = sendMode
+  const modeSelection = sendMode
+    ? { archetype: sendMode.archetype, variantId: currentArchetypeVariant(sendMode.archetype, listMeta)?.id, modeId: sendMode.mode.id }
+    : null
+  const meta = modeSelection
     ? {
-      ...effectiveModeParams({
-        archetype: sendMode.archetype,
-        variantId: currentArchetypeVariant(sendMode.archetype, listMeta)?.id,
-        modeId: sendMode.mode.id,
-        stored: listMeta,
-      }).params,
-      archetype: { ...(rawMeta.archetype as object), id: sendMode.archetype.id, modeId: sendMode.mode.id },
+      ...fixDropdownsBeforeSend(modeSelection, effectiveModeParams({ ...modeSelection, stored: listMeta }).params),
+      archetype: { ...(rawMeta.archetype as object), id: modeSelection.archetype.id, modeId: modeSelection.modeId },
     }
     : rawMeta
   // @ 内联引用投影(R6 单源 · option 2):把 prompt 里的 @[asset:url] 标记转成 @imageN，

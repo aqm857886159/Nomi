@@ -305,3 +305,21 @@ describe("变体：主进程默认值只许多登记的那几个键", () => {
     expect(checked).toBeGreaterThan(50);
   });
 });
+
+describe("无界面路：键按方式收、缺的补默认；已给的值一个字节不动（不在选项里的也不换成默认、不升档）", () => {
+  // 2026-11-12：下拉修正（fixDropdownsBeforeSend）只在渲染层发送前调。主进程若也调它，Agent / MCP 直调传来的
+  // "768p"（选项是 "768P"）会被悄悄换成默认 "2K"（升档多花钱），这条就红。
+  it.each([
+    { label: "MiniMax-H3 图生 resolution 768p（选项 2K / 768P）", archetypeId: "minimax-h3-apimart", vendorKey: "apimart", taskKind: "image_to_video", modeId: "first", key: "resolution", value: "768p" },
+    { label: "火山 Seedream 文生图 size 1024x1024（不在选项里）", archetypeId: "volcengine-seedream", vendorKey: "volcengine", taskKind: "text_to_image", modeId: undefined, key: "size", value: "1024x1024" },
+  ])("$label", ({ archetypeId, vendorKey, taskKind, modeId, key, value }) => {
+    const selected = { modelKey: archetypeId, vendorKey, modelMeta: { archetypeId }, taskKind, ...(modeId ? { modeId } : {}) };
+    const archetype = resolveArchetypeForModel({ modelKey: archetypeId, vendorKey, meta: { archetypeId } });
+    expect(archetype, "前提：认得出档案").toBeTruthy();
+    const options = archetype!.modes.flatMap((mode) => mode.params).filter((control) => control.key === key).flatMap((control) => control.options.map((option) => option.value));
+    expect(options.length, "前提：这个键是下拉").toBeGreaterThan(0);
+    expect(options, "前提：传入值不在选项里").not.toContain(value);
+    const extras = { [key]: value, ...(modeId ? { archetype: { id: archetypeId, modeId } } : {}) };
+    expect(applyHeadlessParamDefaults(extras, selected, undefined)?.[key]).toBe(value);
+  });
+});

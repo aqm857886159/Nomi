@@ -6,7 +6,6 @@
 //
 // 为什么只剥「档案管辖的键」而不是剥光所有未知键：请求的 extras 是混装袋（路由、参考、幂等键、archetypeInput…都在里面），
 // 整袋剥会剥坏；管辖范围 = 这个档案所有方式声明过的控件键 ∪ 所有方式的固定参数键（都按供应商、变体特化后）。
-import { resolveModelParams } from '../videoCapabilities/resolveModelParams'
 import { modeTransportFor } from '../videoCapabilities/modeTransport'
 import type { ModelParameterControl } from '../videoCapabilities/types'
 import { specializeArchetypeForVariant } from './index'
@@ -60,7 +59,9 @@ function governedKeys(archetype: ModelArchetype): Set<string> {
  *   1. 管辖的键 = 档案所有方式声明过的控件键 ∪ 固定参数键；管辖外的键原样留。
  *   2. 管辖内、这个方式没声明的键不进结果（记进 dropped，不写回节点）。
  *   3. 这个方式声明了、存值缺的：填它自己控件上的默认值；控件没有默认值就不填（键不存在）。
- *   4. 下拉值合法性交给 resolveModelParams（「只修下拉不管数值」），最后铺这个方式的固定参数（archetypeInput 子袋同样覆盖）。
+ *   4. 最后铺这个方式的固定参数（archetypeInput 子袋同样覆盖）。
+ * 只定键、补缺省，已给的值一个字节不动：「不在选项里的下拉值修成默认」不归这里（渲染层发送前的 fixDropdownsBeforeSend，
+ * 主进程不调——无界面请求的值照旧原样发，Agent 的值在准入处按枚举校验）。
  * 纯函数、同步、不写回、幂等（过两遍 = 过一遍）。方式认不出 → 原样返回。
  */
 export function effectiveModeParams(input: ModeParamsSelection & { stored: Readonly<Record<string, unknown>> }): {
@@ -81,14 +82,13 @@ export function effectiveModeParams(input: ModeParamsSelection & { stored: Reado
   for (const control of mode.params) {
     if (kept[control.key] === undefined && control.defaultValue !== undefined) kept[control.key] = control.defaultValue
   }
-  const clamped = resolveModelParams({ controls: mode.params, intent: {}, previousParams: kept, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params
   const fixed = mode.fixedParams
-  if (!fixed || Object.keys(fixed).length === 0) return { params: clamped === kept ? { ...kept } : clamped, dropped }
+  if (!fixed || Object.keys(fixed).length === 0) return { params: kept, dropped }
   return {
     params: {
-      ...clamped,
+      ...kept,
       ...fixed,
-      ...(isRecord(clamped.archetypeInput) ? { archetypeInput: { ...clamped.archetypeInput, ...fixed } } : {}),
+      ...(isRecord(kept.archetypeInput) ? { archetypeInput: { ...kept.archetypeInput, ...fixed } } : {}),
     },
     dropped,
   }

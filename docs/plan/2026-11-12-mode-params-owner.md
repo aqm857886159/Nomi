@@ -37,8 +37,9 @@ door-map 实跑（origin/main）：`resolveModelParams` 读 6 扇；`applyHeadle
   1. **管辖的键** = 这个档案所有方式声明过的控件键 ∪ 所有方式的 fixedParams 键（都按供应商 + 变体特化后）。不在管辖内的键（`archetype`、`modelKey`、`nodeId`、参考地址、`archetypeInput`、幂等键……）原样留——extras 是混装袋，不能像 zod 默认那样剥光所有未知键（见 ★0 Ajv 条）。
   2. 管辖内、这个方式没声明的键：不进结果（记进 `dropped`，不写回节点）。
   3. 这个方式声明了、存值缺的：填它自己控件上的 `defaultValue`；控件没有默认值（例：编辑跟随源视频时长）就不填，键不存在。
-  4. 下拉值合法性交给 `resolveModelParams`（政策「只修下拉不管数值」，即今天 `clampParamsToMode` 那一档），最后铺这个方式的 fixedParams（11-08 那次「选中方式的固定参数覆盖旧键」并进来；`archetypeInput` 子袋里同样覆盖，保留 `taskParams.ts:176` 的语义）。
-- 和 `resolveModelParams` 的关系：**它前面的一步**，不是它的一档。`resolveModelParams` 的政策按「谁写的」分（人手 / Agent / 发送复查），是写入时规整值；本函数是读出时定键，跟谁写的无关，不写回。所以不塞进 `ModelParamsPolicy`；本函数在第 4 步调用 `resolveModelParams` 管值。参数规整第 3 步「发送同函数复查」以后的输入就是本函数的输出。
+  4. 最后铺这个方式的 fixedParams（11-08 那次「选中方式的固定参数覆盖旧键」并进来；`archetypeInput` 子袋里同样覆盖，保留 `taskParams.ts:176` 的语义）。
+  - 主人只定键、补缺省，**已给的值一个字节不动**。「不在选项里的下拉值修成默认」（政策「只修下拉不管数值」，即旧 `clampParamsToMode` 那一档）单独是 `archetypeMeta.ts` 的 `fixDropdownsBeforeSend`，只在渲染层发送前、紧跟主人之后调（一个调用点）；主进程不调。（PR1 实测改：主人第 4 步原先也修下拉，主进程跟着修，无界面直调的 `768p` 被换成默认 `2K`、升档多花钱——单测分片红出来后协调 11-12 拍板拆开。）
+- 和 `resolveModelParams` 的关系：**它前面的一步**，不是它的一档。`resolveModelParams` 的政策按「谁写的」分（人手 / Agent / 发送复查），是写入时规整值；本函数是读出时定键，跟谁写的无关，不写回。所以不塞进 `ModelParamsPolicy`；本函数不调 `resolveModelParams`；渲染层发送前的 `fixDropdownsBeforeSend` 调它管下拉值。参数规整第 3 步「发送同函数复查」以后的输入就是本函数的输出。
 - 和 `modeForInputs` 怎么接：渲染层（有画布、有边）算方式，`buildCatalogTaskRequest` 把方式写进 `extras.archetype.modeId`（mode-bar 已这样做，`catalogTaskActions.ts:336`），同处调本函数。主进程**不重算方式**（它没有画布和边），只读 `extras.archetype.modeId / variantId`，对同一份输入调同一个纯函数——渲染层已清过的 extras 再过一遍结果不变（幂等），所以两边不会不一致；唯一会不一致的是两边认出的档案不同，验收里有一条专门比。没有 modeId 的（只有 #4 无界面发送）用 `modeWhenUnrecorded(archetype, taskKind, vendorKey)`：从 `scripts/gen-archetype-wire-defaults.ts` 把「defaultModeId 落在这个 taskKind 就用它，否则取这个 taskKind 首个声明的方式」原样搬进 shared，所以默认值逐字节不变。
 
 ## 3. 三件事各怎么消失
@@ -60,7 +61,7 @@ door-map 实跑（origin/main）：`resolveModelParams` 读 6 扇；`applyHeadle
 | 自建中转（无档案）、ComfyUI、试模型、浏览器提取 | 原样发；视频 duration 缺省发 `""` | 不变 | 不变。证据：`tests/fixtures/old-user-data/catalogs/v0.24.0-wizard/expected.json:114/146`（veo3.1-fast、seedance-2 的报文就是 `"duration":""`），`upgradeKeepsWorkingModels` 逐字钉住；不确定改成不发是不是对，按「拿不准保持原样」 |
 | 跨升级、已批准未发完的 Run（Agent 多镜 / 分镜批量） | 批准时存了请求体指纹，派发前按现算的请求体重算比对 | 请求体变了的镜头（ref 方式多发本方式的比例默认值、首帧等方式剥掉别的方式的键）指纹对不上，派发被拦 | **要重新批一次**：出路是取消这次制作后单镜重生成；见 ★1c。画布单镜不受影响 |
 | 认得档案、节点上存着旧方式参数的老节点 | mode-bar 之后发送时现算方式并写 modeId；别的方式的键照发 | 别的方式的键不再发 | **变，是对的**：这些键在这个方式的参数面板上根本没有（看不见、改不了），上游要么忽略要么 400（Flash 图生带比例 400 是实测出处，见方向复盘 §2）。用真实旧数据验：`tests/fixtures/old-user-data/canvas/v0.24.1-mode-nodes`（0.24.1 用真 `applyArchetypeModeSwitch` 切过方式的节点）逐节点比修前修后的请求体，消失的键必须都在「管辖内且本方式没声明」里 |
-| Agent / MCP 无界面、不带 modeId | 按任务类型桥接表补默认值 | 按 `modeWhenUnrecorded` 选主方式，取它自己的默认值 | 设计上逐字节不变（同一条主方式规则）；`electron/parity/officialWire.matrix.test.ts` 来证（实测 474 份逐字节不变、24 份只多一个键，见文末），`v0.24.0-native-wire` 的档案行同证 |
+| Agent / MCP 无界面、不带 modeId | 按任务类型桥接表补默认值 | 按 `modeWhenUnrecorded` 选主方式，取它自己的默认值 | 无界面路：键按方式收、缺的补默认；已给的值一个字节不动（不在选项里的也不换，`modeParamsSendPorts.test.ts` 钉 `768p` / `1024x1024` 两例）。默认值设计上逐字节不变（同一条主方式规则）；`electron/parity/officialWire.matrix.test.ts` 来证（实测 474 份逐字节不变、24 份只多一个键，见文末），`v0.24.0-native-wire` 的档案行同证 |
 | 存着 variantId 的节点 | 主进程默认值不按变体特化 | 按变体特化 | 可能变（变体收窄了某个默认值时）；未验证，验收第 9 条专测；有差异先停下报协调 |
 | 退回上一版 | — | 本卡不改存储格式、不写回节点 | 旧版本照读 |
 

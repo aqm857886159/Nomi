@@ -30,6 +30,7 @@ import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import { firstFrameLeftEmpty, isImageUploadSlot, listPlacementInputs, normalizeReferenceListMeta, placeUploadedImages, readParkedReferences, readReferenceList, withReferenceList, type UploadPlacement } from './referenceList'
 import { readModePreference, withHumanModePreference } from './modePreference'
 import { modeForInputs, type ModeForInputsResult, type ModeInput } from '../../../../../electron/shared/modelArchetypes/modeForInputs'
+import { declaredModeParams, type ModeParamsSelection } from '../../../../../electron/shared/modelArchetypes/modeParams'
 import { EDGE_MODE_SLOTS, isTextPromptEdge, referenceAssetKindForNode } from '../../../../../electron/shared/canvas/edgeAdmission'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { readArchetypeArray } from './archetypeArrayValues'
@@ -497,7 +498,7 @@ function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArche
  * 菜单只让点「放得下全部输入」的方式，所以写进去的偏好当下一定成立；之后输入加多放不下，由画布边界忘掉它
  * （canvasModeChoiceForget），不会「减少就跳回」。
  * 机器（连线、换模型、自动参考、交付…）不再写方式：这次按什么发由 effectiveArchetypeMode 按输入现算。
- * 参数不在这里夹：按现算出的方式在发的时候问方式参数 owner（modeParams.effectiveModeParams），删了图就回到原来存的值。
+ * 参数不在这里夹：按现算出的方式在发的时候问方式参数 owner（modeParams.effectiveModeParams）、再过 fixDropdownsBeforeSend，删了图就回到原来存的值。
  * 旧工程按槽存的参考图，先按**改之前存着的方式**落成规范形（旧界面那时看不见的记进「先放一边」，#1269 条件 4）。
  */
 export function applyHumanModeChoice(
@@ -827,4 +828,14 @@ export function buildArchetypeInputParams(
   // 放进哪个键、单图还是数组、火山 content 项、角色数组合并、模式固定参数：全部由共享解析写入过程按绑定回答（绑定序 = 槽序）。
   // 画布这边已经按槽上限截过，降级不会再报超量。renderer 只拿解析产物的独立冻结快照（跨 IPC 本来就只剩普通数据）。
   return lowerGenerationIntent(declarationForMode(mode), { references: intent }).snapshot()
+}
+
+/**
+ * 渲染层发送前（只此一处：buildCatalogTaskRequest，紧跟方式参数 owner 之后）把不在这个方式选项里的下拉值修成默认
+ * （「只修下拉不管数值」，原 clampParamsToMode 那一档）。不写回节点。主进程不调：无界面请求已给的值一个字节不动。
+ */
+export function fixDropdownsBeforeSend(selection: ModeParamsSelection, params: Record<string, unknown>): Record<string, unknown> {
+  const declared = declaredModeParams(selection)
+  if (!declared) return params
+  return resolveModelParams({ controls: declared.controls, intent: {}, previousParams: params, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params
 }

@@ -45,8 +45,9 @@
   "parity_test": "electron/parity/modeParamsSendPorts.test.ts",
   "allowed_consumers": [
     "electron/catalog/taskParams.ts",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
     "src/workbench/generationCanvas/runner/catalogTaskActions.ts"
   ],
   "since": "2026-11-12",
-  "notes": "主人是同步纯函数，不写回节点、幂等：渲染层 buildCatalogTaskRequest 按 modeForInputs 现算的方式调一次，主进程 applyHeadlessParamDefaults 读 extras.archetype.modeId / variantId 对同一份请求再调一次（结果不变）。只剥档案管辖的键（所有方式声明过的控件键 ∪ fixedParams 键），extras 里路由、参考、幂等键等混装键原样留。没有方式记录的无界面请求用 modeWhenUnrecorded（主方式规则原样来自 scripts/gen-archetype-wire-defaults.ts）。PR2 之前，Agent 准入 / 模型说明 / 参数面板仍各自读 mode.params，迁移完再按形状补拦截。"
+  "notes": "主人是同步纯函数，不写回节点、幂等：渲染层 buildCatalogTaskRequest 按 modeForInputs 现算的方式调一次，主进程 applyHeadlessParamDefaults 读 extras.archetype.modeId / variantId 对同一份请求再调一次（结果不变）。只剥档案管辖的键（所有方式声明过的控件键 ∪ fixedParams 键），extras 里路由、参考、幂等键等混装键原样留。没有方式记录的无界面请求用 modeWhenUnrecorded（主方式规则原样来自 scripts/gen-archetype-wire-defaults.ts）。PR2 之前，Agent 准入 / 模型说明 / 参数面板仍各自读 mode.params，迁移完再按形状补拦截。 主人只定键、补缺省，已给的值一个字节不动；「不在选项里的下拉值修成默认」是 archetypeMeta.ts 的 fixDropdownsBeforeSend，只在渲染层发送前调（读 declaredModeParams 的控件），主进程不调。"
 }
