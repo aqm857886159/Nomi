@@ -316,7 +316,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
     ].map(Object.freeze)),
     scripts: Object.freeze(['tests/ux/full-walk/playbooks/pb01-two-page-card.walk.mjs', 'tests/ux/full-walk/playbooks/pb03-default-models.walk.mjs', 'tests/ux/full-walk/playbooks/pb08-cover-card-kind.walk.mjs', 'tests/ux/core-smoke-spend-confirm.walk.mjs']),
     invariants: Object.freeze([1, 2, 3, 4, 6, 9]),
-    metric: Object.freeze({ gap: '付费卡的「生成 / 取消 / 不生成」没有任何上报；agent.turn.completed 在 telemetryEvents 里声明了却没有发射点' }),
+    metric: Object.freeze({ gap: '付费卡的「生成 / 取消 / 不生成」没有任何上报；Agent 回合也没有上报事件（声明了没发射点的 agent.turn.completed 已删）' }),
   }),
   Object.freeze({
     id: 'J05-pause-resume',

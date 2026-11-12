@@ -1,4 +1,4 @@
-// Nomi 反馈接收端 —— 一个 Cloudflare Worker，三条路由，落 R2，返回编号。
+// Nomi 反馈接收端 —— 一个 Cloudflare Worker，两条路由，落 R2，返回编号。
 //
 // 为什么自己写而不是接 Sentry / PostHog / Aptabase（方案 §先查别人 里有完整四列表）：
 // 我们对用户的承诺是「数据只去我们的端点」。第三方 SDK 的代价不是钱，是**这句承诺无法自证**
@@ -9,10 +9,10 @@
 // `electron/logging/redact.ts`），它到这儿只负责存。服务端再抹一遍会制造一种
 // 「反正服务端会兜」的错觉，而那正是客户端脱敏松掉的起点。
 //
-// 三条路由（都是 POST JSON）：
+// 两条路由（都是 POST JSON）：
 //   /v1/feedback      用户主动点的一键反馈 → 返回可引用的编号 NF-MMDD-NNNN
 //   /v1/events        白名单用量事件（开关管） → 返回接收条数
-//   /v1/trajectories  Agent 回合轨迹的字段白名单投影（开关管） → 返回 ref
+// （`/v1/trajectories` 2026-11-13 删了：从没有发布版本往它发过东西；轨迹只作为反馈包的附件到达。）
 //
 // 认证：`Authorization: Bearer <INTAKE_TOKEN>`。**这不是密钥，是发布令牌**——它随桌面 App
 // 一起发出去，任何人解包都能拿到。它挡的是「随手扫到这个 URL 的机器人」，不是定向滥用。
@@ -21,7 +21,7 @@
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024
 // 路由名与落盘前缀是同一个词（`/v1/feedback` → `feedback/…`），所以不留一张只是把它抄一遍的表。
-const ROUTES = new Set(['/v1/feedback', '/v1/events', '/v1/trajectories'])
+const ROUTES = new Set(['/v1/feedback', '/v1/events'])
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8' } })
