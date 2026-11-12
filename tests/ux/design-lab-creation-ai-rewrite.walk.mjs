@@ -185,7 +185,7 @@ async function expectSelectionBarState(page, state, record) {
   const scene = state.id.includes('no-ai-edit') ? 'no-ai-edit' : state.id.includes('unavailable') ? 'unavailable' : 'ready'
   const besideAi = scene === 'no-ai-edit' ? 'beside-ai-edit[storyboard]' : 'beside-ai-edit[ai-edit,storyboard]'
   const expected = ['format', 'divider', besideAi, 'divider', 'generate[image,video]']
-  // board:SelectionStoryboard/bar.shell　board:SelectionStoryboard/bar.storyboard-beside-ai-edit　board:SelectionStoryboard/bar.generate-pair
+  // board:SelectionStoryboard/bar.shell board:SelectionStoryboard/bar.storyboard-beside-ai-edit board:SelectionStoryboard/bar.generate-pair
   expect(record, JSON.stringify(layout.slots) === JSON.stringify(expected), `${state.id} 浮条从左到右应是 ${expected.join(' | ')}，实际 ${layout.slots.join(' | ')}`)
   // board:SelectionStoryboard/bar.storyboard-icon
   expect(record, layout.storyboardIcon.includes('tabler-icon-layout-rows'), `${state.id} 「拆成镜头」图标不是分镜 IconLayoutRows：${layout.storyboardIcon}`)
