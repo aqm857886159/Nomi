@@ -2129,6 +2129,17 @@
       ],
       "reason": "诊断包清单里卡顿时间线的三态：recorded 有记录、none-this-session 监视器在跑但本次没记到、monitor-not-running 监视器没运行。只由诊断包组包函数按监视器状态和盘上读回的行数推出，写进清单给收包的人读；没有别的状态机用这三个词，无处可复用，也不会有第二个写入方。",
       "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsStallTimeline/property:state/type-union"
+    },
+    {
+      "members": [
+        "absent",
+        "closing",
+        "creating",
+        "open",
+        "quitting"
+      ],
+      "reason": "主窗口生命周期的唯一状态表：electron/mainWindowPresence.ts 是主窗口的唯一主人，这五个阶段（无窗 / 建窗中 / 在用 / 关窗中 / 退出中）只由它一处读写，所有叫回、关窗、退出入口都问它而不自己判断；仓库里没有别的窗口或应用生命周期词表可复用（CloseStart、DrainOutcome 是另外的概念）。",
+      "site": "electron/mainWindowPresence.ts::type:MainWindowPhase/type-union"
     }
   ],
   "debt": [

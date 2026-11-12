@@ -11,6 +11,8 @@ export interface QuitLifecycleApp {
   whenReady(): Promise<unknown>;
   quit(): void;
   exit(code?: number): void;
+  /** Electron `app.relaunch`: each call starts one more instance after exit, so only `finish` calls it, at most once. */
+  relaunch?(): void;
 }
 
 export type QuitReceiptEvent = "quit-step" | "quit-exit";
@@ -65,6 +67,7 @@ let ownerTimeoutMs = 3000;
 let quitDeadlineAt: number | undefined;
 let ownerApp: QuitLifecycleApp | undefined;
 let requestedExitCode: number | undefined;
+let relaunchAfterExit = false;
 let exitWithCriticalDrains: ((reason: string) => void) | undefined;
 let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
 // Set once an unattended exit (session end, lost launcher) arrives: drains that have not started
@@ -120,11 +123,12 @@ export function requestQuit(options: { exitCode?: number } = {}): void {
 }
 
 /**
- * A prevented window `close` cancels Electron's in-flight quit. After the user confirmed the
- * close of a window that a quit was waiting on, resume that quit so the owner drains and exits.
+ * The main-window owner was asked to bring the window back while the app is already quitting: start one
+ * fresh instance after this process exits (Electron starts one instance per `relaunch` call, so the owner
+ * of the exit calls it once in `finish`). An update install turns it back off: the installer relaunches.
  */
-export function continueRequestedQuit(): void {
-  if (ownerApp && quitRequested && !teardownStarted) ownerApp.quit();
+export function setRelaunchAfterExit(enabled: boolean): void {
+  relaunchAfterExit = enabled;
 }
 
 /** Exit without asking anyone: bounded critical drains, then app.exit(0). */
@@ -156,6 +160,7 @@ export function resetQuitTeardownForTests(): void {
   teardownStarted = false;
   ownerApp = undefined;
   requestedExitCode = undefined;
+  relaunchAfterExit = false;
   exitWithCriticalDrains = undefined;
   ownerTimeoutMs = 3000;
   quitDeadlineAt = undefined;
@@ -259,6 +264,7 @@ export function installQuitTeardown(app: QuitLifecycleApp, dependencies: QuitTea
     if (deadlineTimer) clearTimeout(deadlineTimer);
     deadlineTimer = undefined;
     onReceipt?.("quit-exit", { reason, code, ms: Date.now() - teardownStartedAt });
+    if (relaunchAfterExit) app.relaunch?.();
     app.exit(code);
   };
 

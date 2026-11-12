@@ -1,0 +1,27 @@
+{
+  "id": "app-reopen-reveal",
+  "feature": "主窗口被藏起后点 Dock 图标叫回：从叫回到窗口重新可见",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/app-reopen-bench.mjs",
+    "--",
+    "--op",
+    "reveal"
+  ],
+  "scale": "1 个主窗口、隔离空资料、屏幕外；真 Electron，先 pnpm run build；计时在主进程内（hide 后 emit activate 到窗口可见且不最小化），不含 Playwright 往返",
+  "metrics": [
+    "response"
+  ],
+  "budget": 100,
+  "budgetStatus": "proposed",
+  "budgetBasis": "叫回是用户点 Dock 图标的一次操作，预算取操作到可见反馈的默认 ≤100ms（docs/engineering/perf-scenarios.md 默认预算）；修前这一步在后台冷启、藏窗等形状下叫不出窗口，没有可比的旧数字。量藏起而不是最小化：macOS 最小化还原自带约 535ms 系统动画，直接调 win.restore() 对照同为 533-544ms，不是我们的开销。",
+  "baseline": {
+    "median": 2.5,
+    "p95": 5.3,
+    "runs": 7,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-12",
+    "commit": "621759578"
+  }
+}

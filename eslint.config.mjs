@@ -96,6 +96,28 @@ const testFileRestrictedSyntax = [
 // Main-process synchronous waits freeze IPC while waiting. Existing debt uses
 // ESLint bulk suppressions (file x rule counts); new calls fail and deleted calls
 // require --prune-suppressions. The independent core-rule id survives overrides.
+// 主窗口的去留只有一个主人（electron/mainWindowPresence.ts；方向检查 docs/engineering/direction-checks/2026-11-09-app-reopen-owner.md）。
+// 以前 8 个入口各自拿一个窗口对象再调 show，窗口在「正在关 / 退出中」时照样被 show，崩溃或没反应。
+// 主进程里对窗口零参数调 show / focus / restore / showInactive / moveTop（点号、计算属性、取成值再调），以及 app.focus，
+// 只许出现在主人文件和自管子窗的白名单文件里；入口要叫回主窗就调 revealMainWindow(入口名)。app.dock.show 不是窗口，不拦。
+const windowPresencePlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const WINDOW_PRESENCE_METHOD = '/^(show|focus|restore|showInactive|moveTop)$/'
+const WINDOW_PRESENCE_MESSAGE = 'Only electron/mainWindowPresence.ts may show / focus / restore the main window: call revealMainWindow(entry). A file that owns its own child window must be listed in WINDOW_PRESENCE_EXEMPT_FILES (eslint.config.mjs).'
+const windowPresenceSelectors = [
+  { selector: `CallExpression[arguments.length=0] > MemberExpression.callee[computed=false][property.name=${WINDOW_PRESENCE_METHOD}]:not([object.property.name='dock'])`, message: WINDOW_PRESENCE_MESSAGE },
+  { selector: `CallExpression[arguments.length=0] > MemberExpression.callee[computed=true][property.value=${WINDOW_PRESENCE_METHOD}]`, message: WINDOW_PRESENCE_MESSAGE },
+  { selector: `MemberExpression[computed=false][property.name='bind'] > MemberExpression.object[property.name=${WINDOW_PRESENCE_METHOD}]`, message: WINDOW_PRESENCE_MESSAGE },
+  { selector: `CallExpression > MemberExpression.callee[object.name='app'][property.name='focus']`, message: WINDOW_PRESENCE_MESSAGE },
+]
+// 自管子窗的文件（浏览器 chrome 菜单、截图选区、浮层）和系统通知（Notification.show 不是窗口）。
+export const WINDOW_PRESENCE_EXEMPT_FILES = [
+  'electron/mainWindowPresence.ts',
+  'electron/desktopNotification.ts',
+  'electron/browser/chrome/browserViewChromeMenu.ts',
+  'electron/browser/media/browserPromptScreenshotSelection.ts',
+  'electron/browser/overlay/browserViewOverlay.ts',
+]
+
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
   selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
@@ -440,6 +462,12 @@ export default tseslint.config(
     ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
     plugins: { 'main-sync-wait': mainSyncWaitPlugin },
     rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx}'],
+    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', ...WINDOW_PRESENCE_EXEMPT_FILES],
+    plugins: { 'main-window-presence': windowPresencePlugin },
+    rules: { 'main-window-presence/no-restricted-syntax': ['error', ...windowPresenceSelectors] },
   },
   {
     files: ['electron/**/*.{ts,tsx}'],
