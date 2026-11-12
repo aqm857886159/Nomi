@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { screenshotSettled } from './_assert.mjs'
 import { newProjectEntry } from './_shell.mjs'
+import { modeCell, openModeMenu, closeModeMenu, pickModeByName } from './_modeMenu.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/seedance25-apimart')
@@ -133,13 +134,17 @@ async function ratioControlVisible() {
   return /比例|adaptive|16:9|9:16|21:9/.test(await composerText())
 }
 
-// 模式切换：逐个点，记录每个模式下「比例」控件在不在。
-for (const term of ['文生视频', '首帧', '首尾帧', '全能参考']) {
-  const modeBtn = win.locator('button,[role="tab"],[role="menuitem"],[role="option"]').filter({ hasText: term }).first()
-  if (!(await modeBtn.count())) { console.log(`  · 模式「${term}」没找到入口`); continue }
-  await modeBtn.click({ timeout: 4000 }).catch(() => {})
+// 方式在底栏方式格（2026-11-12 起按输入现算）：先把菜单整份记下来（名字 / 置灰 / 说明），
+// 再逐个点能点的那几行，记录每个方式下「比例」控件在不在。空节点上带图的方式是置灰的（要先放图），照实记。
+const composer = win.locator('.generation-canvas-v2-node__composer').first()
+const menuRows = (await modeCell(composer, 'zh').count()) ? await openModeMenu(win, composer, 'zh').catch(() => []) : []
+if (menuRows.length) await closeModeMenu(win)
+console.log(`  · 方式菜单: ${menuRows.map((row) => `${row.name}${row.disabled ? `（置灰：${row.description}）` : ''}`).join(' / ') || '没有方式格'}`)
+for (const row of menuRows.filter((candidate) => !candidate.disabled)) {
+  const term = row.name
+  await pickModeByName(win, composer, 'zh', term).catch((error) => console.log(`  · 方式「${term}」点不到：${error.message}`))
   await win.waitForTimeout(1200)
-  console.log(`  · 模式「${term}」比例控件: ${(await ratioControlVisible()) ? '显示' : '不显示'}`)
+  console.log(`  · 方式「${term}」比例控件: ${(await ratioControlVisible()) ? '显示' : '不显示'}`)
   await snap(win, `mode-${term}`)
   // 展开参数摘要，看里面到底给了哪些选项、选中的是什么（摘要文字会骗人）。
   const chip = win.locator('button').filter({ hasText: /720p|16:9|adaptive/ }).first()

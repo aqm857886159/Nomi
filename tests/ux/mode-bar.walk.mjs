@@ -131,11 +131,12 @@ try {
           check(`board:ModeBar/mode.menu · 放了 1 张：文生视频置灰，其余三种能点 · ${tag}`, enabled.length === 3 && !enabled.includes(name(locale, 'text')), JSON.stringify(menu))
         }
         if (state === 'mb-c-first-last-params') {
+          // 面板里每一段按名字列出来（方式段记成 'mode'）：先要列得出参数段（探针是活的），再看里面没有方式段。
           const panel = await page.evaluate(() => {
             const el = document.querySelector('[data-agent-parameter-panel]')
-            return el ? { mode: el.querySelectorAll('[data-agent-generation-mode]').length, titles: [...el.querySelectorAll('[data-parameter-group-title], h3, h4')].map((h) => h.textContent?.trim()) } : null
+            return el ? { sections: [...el.querySelectorAll('[data-agent-generation-mode], [role="radiogroup"]')].map((n) => (n.hasAttribute('data-agent-generation-mode') ? 'mode' : n.getAttribute('aria-label'))) } : null
           })
-          check(`board:ModeBar/params.panel · 没有「生成方式」 · ${tag}`, Boolean(panel) && panel.mode === 0 && !panel.titles.includes(t('generationCommon.parameters.generationMode')), JSON.stringify(panel))
+          check(`board:ModeBar/params.panel · 没有「生成方式」 · ${tag}`, Boolean(panel) && panel.sections.length > 0 && !panel.sections.includes('mode') && !panel.sections.includes(t('generationCommon.parameters.generationMode')), JSON.stringify(panel))
           check(`board:ModeBar/bar.mode · 手选首尾帧 · ${tag}`, modeText === name(locale, 'firstLast'), String(modeText))
           const labels = await page.evaluate(() => [...document.querySelectorAll('[data-asset-slot-label]')].map((el) => el.textContent?.trim()))
           check(`board:ModeBar/ref.tiles · 首尾帧两格带标签 · ${tag}`, labels.length === 2, JSON.stringify(labels))
@@ -156,7 +157,9 @@ try {
         }
         if (state === 'mb-h-image-node') {
           check(`board:ModeBar/image.tail.edit · ${tag}`, tail.includes(t('assetLibrary.refRow.count', { count: 1 })) && tail.includes(t('assetLibrary.refRow.imageEdit')), tail)
-          check(`board:ModeBar/bar.mode · 图片节点没有方式格 · ${tag}`, (await trigger.count()) === 0)
+          // 底栏每个钮按无障碍名列出来：列得出钮（探针是活的），且没有一个叫「生成方式」（视频节点那几幕同一个名字找得到方式格）。
+          const footerButtons = await page.evaluate((sel) => [...document.querySelectorAll(`${sel} button`)].map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim() ?? ''), FOOTER)
+          check(`board:ModeBar/bar.mode · 图片节点没有方式格 · ${tag}`, footerButtons.length > 0 && !footerButtons.includes(t('generationCommon.modeMenu.heading')), JSON.stringify(footerButtons))
         }
         if (state === 'mb-i-remove-menu') {
           const firstLast = menu?.rows.find((r) => r.label === name(locale, 'firstLast'))

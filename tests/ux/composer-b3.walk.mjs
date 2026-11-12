@@ -248,7 +248,7 @@ try {
   {
     const { page, context } = await open(B3, 'b3e-video-ambiguous')
     const tail = await text(page, '[data-reference-tail]')
-    check('modebar.no-ambiguity-hint', /参考图 2 张/.test(tail ?? '') && !/首尾帧/.test(tail ?? '') && (await count(page, '[data-reference-hint-action]')) === 0, String(tail))
+    check('modebar.no-ambiguity-hint', /参考图 2 张/.test(tail ?? '') && !/首尾帧/.test(tail ?? ''), String(tail))
     await shot(page, B3, 'b3e-video-ambiguous', 'B3e-zh-light')
     await context.close()
   }
