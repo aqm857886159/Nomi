@@ -3,7 +3,7 @@
   "samples": 534,
   "archetypes": 93,
   "samplesWithLeaks": {
-   "canvas": 31,
+   "canvas": 34,
    "run": 25,
    "either": 34
   },
@@ -32,11 +32,11 @@
   ],
   "archetypesWithDefaultCarried": 2,
   "emptyDuration": {
-   "canvas": 3,
+   "canvas": 6,
    "run": 6,
    "emptyValue": 0
   },
-  "pathsDiffer": 141
+  "pathsDiffer": 139
  },
  "pathDifferences": [
   {
@@ -190,15 +190,9 @@
    "runStatus": "refused:apimart_provider_error"
   },
   {
-   "id": "happyhorse|runway|happyhorse_1_0|i2v->edit",
-   "kind": "one-refused",
-   "canvasStatus": "refused:Error",
-   "runStatus": "sent"
-  },
-  {
    "id": "happyhorse|runway|happyhorse_1_0|ref->edit",
-   "kind": "one-refused",
-   "canvasStatus": "refused:Error",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
    "runStatus": "sent"
   },
   {
@@ -206,12 +200,6 @@
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
-  },
-  {
-   "id": "happyhorse|runway|happyhorse_1_0|t2v->edit",
-   "kind": "one-refused",
-   "canvasStatus": "refused:Error",
-   "runStatus": "sent"
   },
   {
    "id": "happyhorse|runway|happyhorse_1_0|t2v->i2v",
@@ -2638,11 +2626,28 @@
   {
    "id": "happyhorse|runway|happyhorse_1_0|i2v->edit",
    "canvas": {
-    "status": "refused:Error",
-    "statusWithParams": "refused:Error",
-    "leaks": [],
-    "defaultCarried": [],
-    "emptyDuration": null
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
    },
    "run": {
     "status": "sent",
@@ -2689,11 +2694,28 @@
   {
    "id": "happyhorse|runway|happyhorse_1_0|ref->edit",
    "canvas": {
-    "status": "refused:Error",
-    "statusWithParams": "refused:Error",
-    "leaks": [],
-    "defaultCarried": [],
-    "emptyDuration": null
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
    },
    "run": {
     "status": "sent",
@@ -2763,11 +2785,34 @@
   {
    "id": "happyhorse|runway|happyhorse_1_0|t2v->edit",
    "canvas": {
-    "status": "refused:Error",
-    "statusWithParams": "refused:Error",
-    "leaks": [],
-    "defaultCarried": [],
-    "emptyDuration": null
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "ratio"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
    },
    "run": {
     "status": "sent",

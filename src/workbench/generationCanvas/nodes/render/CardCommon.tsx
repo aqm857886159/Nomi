@@ -17,7 +17,7 @@ import { NodeEmptyState } from './NodeEmptyState'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { getGenerationNodeLabel } from '../../model/generationNodeKinds'
 import { NodeTryList } from '../../quickActions/NodeTryList'
-import { nodeTryRecipes } from '../../quickActions/nodeTryRecipes'
+import { useNodeTryRecipes } from '../../quickActions/nodeTryRecipes'
 import { resolveNodeVisualSize } from '../nodeSizing'
 import { getGenerationNodeIcon } from '../renderRegistry'
 import { useEmptyNodeActivation } from './NodeEmptyStateContext'
@@ -198,7 +198,8 @@ export function PendingGenerationPlaceholder({
   const isModel3d = node.kind === 'model3d'
   const Icon = getGenerationNodeIcon(node.kind)
   const icon = <Icon size={20} stroke={1.5} />
-  if (!derivedReady && !waitingUpstream && nodeTryRecipes(node).length) {
+  const tryRecipes = useNodeTryRecipes(node)
+  if (!derivedReady && !waitingUpstream && tryRecipes.length) {
     return (
       <div className="h-full w-full">
         <NodeEmptyState

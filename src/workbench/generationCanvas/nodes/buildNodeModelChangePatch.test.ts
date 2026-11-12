@@ -4,6 +4,14 @@ import { createGenerationNode } from '../model/graphOps'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
 import { buildNodeModelChangePatch } from './buildNodeModelChangePatch'
+import { archetypeForNode } from '../agent/referenceEdgeCapability'
+import { effectiveArchetypeMode } from './controls/archetypeMeta'
+
+/** 换完模型这次真按哪种方式发（方式按输入现算，换模型不替节点挑方式，2026-11-12）。 */
+function sendModeAfter(node: GenerationCanvasNode, meta: Record<string, unknown>, nodes: GenerationCanvasNode[], edges: GenerationCanvasEdge[]) {
+  const next = { ...node, meta }
+  return effectiveArchetypeMode(archetypeForNode(next)!, next, { nodes: nodes.map((item) => (item.id === node.id ? next : item)), edges }).mode
+}
 
 function option(partial: Partial<ModelOption> & Pick<ModelOption, 'value' | 'label'>): ModelOption {
   return partial
@@ -97,7 +105,7 @@ describe('buildNodeModelChangePatch', () => {
     expect(patch.meta).toMatchObject({ ratio: 'wide', quality: 'standard' })
   })
 
-  it('uses the video product aspect default and promotes a referenced archetype mode', () => {
+  it('uses the video product aspect default; the first-frame edge makes it send as the first-frame mode', () => {
     const source: GenerationCanvasNode = {
       ...createGenerationNode({ id: 'source', kind: 'image' }),
       result: { id: 'result', type: 'image', url: 'https://example.com/source.png', createdAt: 0 },
@@ -134,7 +142,7 @@ describe('buildNodeModelChangePatch', () => {
     })
 
     expect(patch.meta.aspect_ratio).toBe('9:16')
-    expect(patch.meta.archetype).toMatchObject({ modeId: 'first' })
+    expect(sendModeAfter(video, patch.meta, [source, video], [edge]).id).toBe('first')
   })
 
   describe('换模型时上传放进槽里的图跟着走（验收阻断 2）', () => {
@@ -151,10 +159,9 @@ describe('buildNodeModelChangePatch', () => {
 
     it.each(targets.map((row) => [row.key]))('上传的两张首尾帧换到 %s：节点不会掉成文生，图落在该方式的槽里', (key) => {
       const result = swapTo(key, { firstFrameUrl: 'a', lastFrameUrl: 'b' })
-      const spec = resolveArchetypeForModel({ modelKey: key, vendorKey: 'apimart', meta: {} } as never)!
-      const modeId = (result.meta.archetype as { modeId: string }).modeId
-      const mode = spec.modes.find((m) => m.id === modeId)!
-      expect(mode.intent, `${key} 换完停在 ${modeId}`).not.toBe('text')
+      const node = { ...createGenerationNode({ id: 'v', kind: 'video' }) }
+      const mode = sendModeAfter(node, result.meta, [node], [])
+      expect(mode.intent, `${key} 换完按 ${mode.id} 发`).not.toBe('text')
       const kinds = new Set(mode.slots.map((slot) => slot.kind))
       // 参考列表不动：旧的首 / 尾帧键落成规范的一份有序列表，首帧在前（一张不少、顺序不变）
       expect(result.meta.referenceImageUrls).toEqual(['a', 'b'])

@@ -5,7 +5,7 @@
 //
 // 串的是生产里真走的那几段，不起界面、不起 Electron、不花钱：
 //   界面「在用」  = resolveReferenceSlots（参考区真用的函数）
-//   换方式 / 换模型 = applyArchetypeModeSwitch / buildNodeModelChangePatch + ensureArchetypeNodeMeta（main 上的真入口）
+//   换方式 / 换模型 = applyHumanModeChoice（底栏方式菜单）/ buildNodeModelChangePatch + ensureArchetypeNodeMeta（main 上的真入口）
 //   渲染层发送    = resolveGenerationReferences → buildCatalogTaskRequest
 //   主进程        = 和 runtime.runTask 同顺序：assertNoReferenceResidueBeforeSend（拒发）→ applyHeadlessParamDefaults → buildProfileHttpRequest
 //                  （通用中转用 NEWAPI_* op，APIMart 用 APIMART_*_MODELS 的 mapping，「内置」用 applyBuiltinSeeds 种下的全部供应商真 mapping）
@@ -55,9 +55,10 @@ import { GENERIC_REFERENCE_KEYS } from '../../../../electron/shared/modelArchety
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { createGenerationNode } from '../model/graphOps'
 import { buildNodeModelChangePatch } from '../nodes/buildNodeModelChangePatch'
-import { applyArchetypeModeSwitch, ensureArchetypeNodeMeta } from '../nodes/controls/archetypeMeta'
+import { applyHumanModeChoice, ensureArchetypeNodeMeta } from '../nodes/controls/archetypeMeta'
 import { computeReferenceRowModel } from '../nodes/controls/referenceRowModel'
-import { archetypeModeArraySlots, archetypeModeSlots, currentArchetypeMode, referenceSlotStorage } from '../nodes/controls/archetypeMeta'
+import { archetypeModeArraySlots, effectiveArchetypeMode, referenceSlotStorage } from '../nodes/controls/archetypeMeta'
+import { modeWrittenInMeta } from '../nodes/controls/modeTestHelpers'
 import { normalizeReferenceListMeta, readParkedReferences } from '../nodes/controls/referenceList'
 import { metaWithParkedRestored } from '../nodes/controls/referenceWrites'
 import { buildCatalogTaskRequest } from './catalogTaskActions'
@@ -85,9 +86,9 @@ function graphOn(archetype: ModelArchetype, modelKey: string, vendor: string, mo
   return { node, nodes: [node], edges: [] }
 }
 
-/** 切方式：main 上 NodeParameterControls 走的就是 applyArchetypeModeSwitch（图留在原存储键里）。 */
+/** 切方式：底栏方式菜单走的就是 applyHumanModeChoice（只写偏好；图留在那一份参考列表里）。 */
 function switchMode(graph: Graph, archetype: ModelArchetype, modeId: string): Graph {
-  const node = { ...graph.node, meta: applyArchetypeModeSwitch(graph.node.meta || {}, archetype, modeId) }
+  const node = { ...graph.node, meta: applyHumanModeChoice(graph.node.meta || {}, archetype, modeId) }
   return { ...graph, node, nodes: graph.nodes.map((n) => (n.id === node.id ? node : n)) }
 }
 
@@ -569,7 +570,7 @@ const archetypeOf = (modelKey: string, vendor = 'apimart') => resolveArchetypeFo
 function bodies(graph: Graph, modelKey = String(graph.node.meta?.modelKey)) {
   const archetype = resolveArchetypeForModel({ modelKey, vendorKey: 'apimart', meta: graph.node.meta })!
   const request = rendererRequest(graph)
-  const modeId = (graph.node.meta?.archetype as { modeId?: string } | undefined)?.modeId ?? ''
+  const modeId = effectiveArchetypeMode(archetype, graph.node, graph).mode.id
   const apimart = APIMART_MODELS.find((model) => model.modelKey === modelKey)
   return {
     request,
@@ -579,25 +580,36 @@ function bodies(graph: Graph, modelKey = String(graph.node.meta?.modelKey)) {
 }
 const sentUrls = (built: unknown) => [...urlsIn(built).keys()].sort()
 
-describe('场景 1：放过首帧 / 首尾帧 / 参考图后切到文生，请求里一张图都不带', () => {
+// 方式按输入现算（2026-11-12）：图还放着时「文生」在方式菜单里点不了，节点上哪怕存着文生偏好（老项目），也按图的方式发——
+// 显示的 = 真发的，发出去的 ⊆ 在用；把图移走才按文生发，一张图都不带。原「放着图切到文生、请求不带图」那条路已经不存在。
+describe('场景 1：图还在时按图的方式发（显示的 = 真发的）；图全移走才按文生发，请求里一张图都不带', () => {
   const seedance = archetypeOf('seedance-2')
   it.each([
     ['1a 首帧 1 张', 'first', { firstFrameUrl: img('f') }],
     ['1b 首尾帧 2 张', 'firstlast', { firstFrameUrl: img('f'), lastFrameUrl: img('l') }],
     ['1c 参考 3 张', 'omni', { referenceImageUrls: imgs(3) }],
-  ] as const)('%s → 文生视频', (_name, fromMode, meta) => {
-    const graph = switchMode(graphOn(seedance, 'seedance-2', 'apimart', fromMode, meta), seedance, 't2v')
-    expect(inUse(graph).size).toBe(0)
-    const { request, relay } = bodies(graph)
+  ] as const)('%s：存着文生偏好也按图发；移走后文生视频', (_name, fromMode, meta) => {
+    const withImages = switchMode(graphOn(seedance, 'seedance-2', 'apimart', fromMode, meta), seedance, 't2v')
+    const shown = inUse(withImages)
+    expect(shown.size).toBeGreaterThan(0)
+    expect(effectiveArchetypeMode(seedance, withImages.node, withImages).mode.intent).not.toBe('text')
+    const sent = bodies(withImages)
+    expect(sent.request.kind).not.toBe('text_to_video')
+    expect(sentUrls(sent.relay).filter((url) => !shown.has(url))).toEqual([])
+    expect(sentUrls(taskTemplateParams(sent.request)).filter((url) => !shown.has(url))).toEqual([])
+
+    const cleared = graphOn(seedance, 'seedance-2', 'apimart', fromMode, {})
+    expect(inUse(cleared).size).toBe(0)
+    const { request, relay } = bodies(cleared)
     expect(request.kind).toBe('text_to_video')
     expect(relay!.body).not.toHaveProperty('image')
     expect(sentUrls(relay)).toEqual([])
     expect(sentUrls(taskTemplateParams(request))).toEqual([])
   })
 
-  it('APIMart Seedance 2.0：首尾帧 → 文生，body 不带图', () => {
+  it('APIMart Seedance 2.0：首尾帧的两张都移走 → 文生，body 不带图', () => {
     const archetype = archetypeOf('doubao-seedance-2.0')
-    const graph = switchMode(graphOn(archetype, 'doubao-seedance-2.0', 'apimart', 'firstlast', { firstFrameUrl: img('f'), lastFrameUrl: img('l') }), archetype, 't2v')
+    const graph = graphOn(archetype, 'doubao-seedance-2.0', 'apimart', 'firstlast', {})
     expect(sentUrls(bodies(graph).apimart)).toEqual([])
   })
 })
@@ -616,7 +628,8 @@ describe('场景 2：参考 3 张切到首尾帧再放帧，APIMart image_urls �
 })
 
 describe('场景 3：连 3 张图进 Seedance 2.0 首尾帧，参考区说用几张就发几张', () => {
-  it('第 1、2 条依次落首帧、尾帧（参考区看得见、照发），第 3 条未用到、不发（用户 10-22 拍板 ⑪）', () => {
+  // 方式按输入现算（2026-11-12）取代 10-22 ⑪「第 3 条未用到」：首尾帧收不下 3 张，换成收得下全部的全能参考，3 张都在用、都发。
+  it('3 条连线：首尾帧放不下 → 按全能参考发，3 张都在参考行里、都发出去', () => {
     const archetype = archetypeOf('doubao-seedance-2.0')
     const { node } = graphOn(archetype, 'doubao-seedance-2.0', 'apimart', 'firstlast', {})
     const sources = [1, 2, 3].map((i) => ({
@@ -629,16 +642,29 @@ describe('场景 3：连 3 张图进 Seedance 2.0 首尾帧，参考区说用几
     const { apimart, relay } = bodies(graph)
     expect(sentUrls(apimart).filter((url) => !shown.has(url))).toEqual([])
     expect(sentUrls(relay).filter((url) => !shown.has(url))).toEqual([])
-    expect([...shown].sort()).toEqual([img('e1'), img('e2')])
-    expect(sentUrls(apimart)).toEqual([img('e1'), img('e2')])
+    expect([...shown].sort()).toEqual([img('e1'), img('e2'), img('e3')])
+    expect(effectiveArchetypeMode(archetype, graph.node, graph).mode.id).toBe('omni')
+    expect(sentUrls(apimart)).toEqual([img('e1'), img('e2'), img('e3')])
+  })
+
+  it('2 条连线：首尾帧收得下 → 依次落首帧、尾帧（参考区看得见、照发）', () => {
+    const archetype = archetypeOf('doubao-seedance-2.0')
+    const { node } = graphOn(archetype, 'doubao-seedance-2.0', 'apimart', 'firstlast', {})
+    const sources = [1, 2].map((i) => ({
+      ...createGenerationNode({ id: `s${i}`, kind: 'image' }),
+      result: { id: `r${i}`, type: 'image' as const, url: img(`e${i}`), createdAt: 0 },
+    }))
+    const edges = sources.map((source, order) => ({ id: `edge-${order}`, source: source.id, target: node.id, order })) as unknown as GenerationCanvasEdge[]
+    const graph = { node, nodes: [node, ...sources] as GenerationCanvasNode[], edges }
+    expect(sentUrls(bodies(graph).apimart)).toEqual([img('e1'), img('e2')])
     const frames = resolveReferenceSlots(graph.node, graph.nodes, graph.edges).map((slot) => [slot.slotKind, slot.fills.map((fill) => fill.url)])
     expect(frames).toEqual([['first_frame', [img('e1')]], ['last_frame', [img('e2')]]])
     expect(resolveGenerationReferences(graph.node, { nodes: graph.nodes, edges: graph.edges })).toMatchObject({ firstFrameUrl: img('e1'), lastFrameUrl: img('e2') })
   })
 
-  it('两条参考连线进首尾帧（拖线不带语义 / character_ref 都一样）：首帧、尾帧各一条', () => {
+  it('两条参考连线进首尾帧（拖线不带语义 / reference 一样）：首帧、尾帧各一条', () => {
     const archetype = archetypeOf('seedance-2')
-    for (const mode of [undefined, 'reference', 'character_ref'] as const) {
+    for (const mode of [undefined, 'reference'] as const) {
       const { node } = graphOn(archetype, 'seedance-2', 'apimart', 'firstlast', {})
       const sources = [1, 2].map((i) => ({
         ...createGenerationNode({ id: `s${i}`, kind: 'image' }),
@@ -648,6 +674,19 @@ describe('场景 3：连 3 张图进 Seedance 2.0 首尾帧，参考区说用几
       const graph = { node, nodes: [node, ...sources] as GenerationCanvasNode[], edges }
       expect(resolveReferenceSlots(graph.node, graph.nodes, graph.edges).map((slot) => slot.fills.map((fill) => fill.url)), String(mode)).toEqual([[img('m1')], [img('m2')]])
     }
+  })
+
+  it('两条角色连线（character_ref）不当首尾帧：按收得下角色的参考方式发，两张都在参考格', () => {
+    const archetype = archetypeOf('seedance-2')
+    const { node } = graphOn(archetype, 'seedance-2', 'apimart', 'firstlast', {})
+    const sources = [1, 2].map((i) => ({
+      ...createGenerationNode({ id: `s${i}`, kind: 'image' }),
+      result: { id: `r${i}`, type: 'image' as const, url: img(`m${i}`), createdAt: 0 },
+    }))
+    const edges = sources.map((source, order) => ({ id: `edge-${order}`, source: source.id, target: node.id, order, mode: 'character_ref' })) as unknown as GenerationCanvasEdge[]
+    const graph = { node, nodes: [node, ...sources] as GenerationCanvasNode[], edges }
+    expect(effectiveArchetypeMode(archetype, graph.node, graph).mode.slots.some((slot) => slot.kind === 'last_frame')).toBe(false)
+    expect([...inUse(graph)].sort()).toEqual([img('m1'), img('m2')])
   })
 })
 
@@ -809,13 +848,15 @@ describe('免费抓包：本机假上游收到的请求体（四个场景 + 没�
   type LoopbackCase = [string, () => Graph, string, string[], string[] | null]
   // [名字, 图, 模型, 中转应收到的地址, APIMart 应收到的地址（null = APIMart 没有这条模型，不发）]
   const CASES: LoopbackCase[] = [
-    ['S1a-中转-首帧切文生', () => switchMode(graphOn(seedance(), 'seedance-2', 'apimart', 'first', { firstFrameUrl: img('f') }), seedance(), 't2v'), 'seedance-2', [], null],
-    ['S1b-中转-首尾帧切文生', () => switchMode(graphOn(seedance(), 'seedance-2', 'apimart', 'firstlast', { firstFrameUrl: img('f'), lastFrameUrl: img('l') }), seedance(), 't2v'), 'seedance-2', [], null],
-    ['S1c-中转-参考3张切文生', () => switchMode(graphOn(seedance(), 'seedance-2', 'apimart', 'omni', { referenceImageUrls: imgs(3) }), seedance(), 't2v'), 'seedance-2', [], null],
-    ['S1d-APIMart-首尾帧切文生', () => switchMode(graphOn(apimartSeedance(), 'doubao-seedance-2.0', 'apimart', 'firstlast', { firstFrameUrl: img('f'), lastFrameUrl: img('l') }), apimartSeedance(), 't2v'), 'doubao-seedance-2.0', [], []],
+    // 方式按输入现算（2026-11-12）：图放着时选不了文生；把图全移走（节点上还存着首帧 / 首尾帧 / 参考偏好）才按文生发，一张图都不带。
+    ['S1a-中转-首帧移走后文生', () => graphOn(seedance(), 'seedance-2', 'apimart', 'first', {}), 'seedance-2', [], null],
+    ['S1b-中转-首尾帧移走后文生', () => graphOn(seedance(), 'seedance-2', 'apimart', 'firstlast', {}), 'seedance-2', [], null],
+    ['S1c-中转-参考3张移走后文生', () => graphOn(seedance(), 'seedance-2', 'apimart', 'omni', {}), 'seedance-2', [], null],
+    ['S1d-APIMart-首尾帧移走后文生', () => graphOn(apimartSeedance(), 'doubao-seedance-2.0', 'apimart', 'firstlast', {}), 'doubao-seedance-2.0', [], []],
+    ['S1e-中转-存着文生偏好但首帧还在-按图发', () => switchMode(graphOn(seedance(), 'seedance-2', 'apimart', 'first', { firstFrameUrl: img('f') }), seedance(), 't2v'), 'seedance-2', [img('f')], null],
     ['S2-参考3张切首尾帧再放帧', () => withFrames(switchMode(graphOn(apimartSeedance(), 'doubao-seedance-2.0', 'apimart', 'omni', { referenceImageUrls: imgs(3) }), apimartSeedance(), 'firstlast')), 'doubao-seedance-2.0', [img('f')], [img('f'), img('l')].sort()],
-    // 用户 10-22 拍板 ⑪：参考类连线和上传一样依次落首帧、尾帧——第 2 条落尾帧（生成前在尾帧格里看得见），第 3 条未用到、不发。
-    ['S3-连3张进Seedance2.0首尾帧', threeEdges, 'doubao-seedance-2.0', [img('e1')], [img('e1'), img('e2')]],
+    // 方式按输入现算（2026-11-12，取代 10-22 ⑪）：首尾帧收不下 3 条连线 → 按全能参考发，3 张都在用、都发；中转视频 body 只有一个 image 位，收第一张。
+    ['S3-连3张进Seedance2.0首尾帧', threeEdges, 'doubao-seedance-2.0', [img('e1')], [img('e1'), img('e2'), img('e3')]],
     // #1269 参考图结构重写之后：换模型按参考挑方式（不再落文生），新方式在用的图照发——中转视频 body 只有一个 image 位，收第一张。
     ...['veo3.1', 'kling-3.0', 'wan2.7'].map((to): LoopbackCase => [`S4-5张换到${to}`, () => swapModel(graphOn(seedance(), 'seedance-2', 'apimart', 'omni', { referenceImageUrls: imgs(5) }), to, 'apimart').graph, to, [imgs(5)[0]!], null]),
     ['OK1-首帧方式照发首帧', () => graphOn(hailuo(), 'MiniMax-Hailuo-2.3', 'apimart', hailuo().modes.find((m) => m.slots.some((s) => s.kind === 'first_frame'))!.id, { firstFrameUrl: img('f') }), 'MiniMax-Hailuo-2.3', [img('f')], [img('f')]],
@@ -827,7 +868,8 @@ describe('免费抓包：本机假上游收到的请求体（四个场景 + 没�
     const graph = makeGraph()
     const request = rendererRequest(graph)
     const archetype = resolveArchetypeForModel({ modelKey, vendorKey: 'apimart', meta: graph.node.meta })!
-    const modeId = (graph.node.meta?.archetype as { modeId?: string } | undefined)?.modeId ?? ''
+    // 传输按这次真发的方式挑（存着的只是偏好）。
+    const modeId = effectiveArchetypeMode(archetype, graph.node, graph).mode.id
     const apimart = APIMART_MODELS.find((model) => model.modelKey === modelKey)
     const relayGot = await send(relayTransport(modelKey, archetype.id, request.kind), request)
     const apimartGot = apimart ? await send(apimartTransport(apimart, request.kind, modeId), request) : null
@@ -855,7 +897,7 @@ describe('免费抓包：本机假上游收到的请求体（四个场景 + 没�
 /** 参考行淡显「未用到」的图：和 NodeParameterControls 一样，槽值和 unusedUploads 都取 resolveReferencePlacement。 */
 function unusedOf(graph: Graph, archetype: ModelArchetype): string[] {
   const meta = graph.node.meta || {}
-  const mode = currentArchetypeMode(archetype, meta)
+  const mode = effectiveArchetypeMode(archetype, graph.node, { nodes: graph.nodes, edges: graph.edges }).mode
   const placement = resolveReferencePlacement(graph.node, graph.nodes, graph.edges)
   const assetValuesByKey: Record<string, string[]> = {}
   for (const slot of placement.slots) {
@@ -864,15 +906,14 @@ function unusedOf(graph: Graph, archetype: ModelArchetype): string[] {
   }
   return computeReferenceRowModel({
     node: graph.node, nodes: graph.nodes, edges: graph.edges, meta, assetSlots: [], assetValuesByKey,
-    imageUrlSlots: archetypeModeSlots(mode), arraySlots: archetypeModeArraySlots(mode),
-    refsUnsupported: false, unusedUploads: placement.unused, showReferences: false, fallbackName: () => '',
+    arraySlots: archetypeModeArraySlots(mode), unusedUploads: placement.unused, showReferences: false, fallbackName: () => '',
   }).unusedUrls
 }
 const everyReference = (graph: Graph, archetype: ModelArchetype) => new Set([...inUse(graph), ...unusedOf(graph, archetype)])
 /** 照 NodeParameterControls.handleModeSwitch：旧数据先落规范形，再只改 modeId（参考列表不动）。 */
 function switchModeLikeComposer(graph: Graph, archetype: ModelArchetype, modeId: string): Graph {
   const meta = graph.node.meta || {}
-  const normalized = normalizeReferenceListMeta(meta, currentArchetypeMode(archetype, meta)) ?? meta
+  const normalized = normalizeReferenceListMeta(meta, modeWrittenInMeta(meta, archetype)) ?? meta
   return switchMode({ ...graph, node: { ...graph.node, meta: normalized }, nodes: graph.nodes.map((n) => (n.id === graph.node.id ? { ...n, meta: normalized } : n)) }, archetype, modeId)
 }
 
@@ -900,12 +941,14 @@ describe('参考列表：换方式 / 换模型一张不丢（#1269 重写）', (
     expect(lost).toEqual([])
   })
 
-  it('Seedance 3 张切到首尾帧：前两张落首帧 / 尾帧，第 3 张未用到；切回参考 3 张原样', () => {
+  // 方式按输入现算（2026-11-12）：3 张图时首尾帧收不下，菜单里点不了它；就算存着首尾帧偏好，也照全能参考发，3 张都在用、一张不丢。
+  it('Seedance 3 张存着首尾帧偏好：首尾帧放不下 → 照全能参考发，3 张都在用；切回参考 3 张原样', () => {
     const seedance = archetypeOf('seedance-2')
     const start = graphOn(seedance, 'seedance-2', 'apimart', 'omni', { referenceImageUrls: imgs(3) })
     const firstLast = switchModeLikeComposer(start, seedance, 'firstlast')
-    expect([...inUse(firstLast)]).toEqual(imgs(2))
-    expect(unusedOf(firstLast, seedance)).toEqual(imgs(1, 'u', 3))
+    expect(effectiveArchetypeMode(seedance, firstLast.node, firstLast).mode.id).toBe('omni')
+    expect([...inUse(firstLast)]).toEqual(imgs(3))
+    expect(unusedOf(firstLast, seedance)).toEqual([])
     expect([...inUse(switchModeLikeComposer(firstLast, seedance, 'omni'))]).toEqual(imgs(3))
   })
 
@@ -987,7 +1030,7 @@ describe('旧工程残留：旧界面看不见的图先放一边——不在用�
     expect(wrong).toEqual([])
   })
 
-  it('之后切到任何一个方式（生成框切方式，和 20 处改 modeId 的入口共用的 applyArchetypeModeSwitch）：照样不在用、不发', () => {
+  it('之后切到任何一个方式（生成框切方式，底栏方式菜单的 applyHumanModeChoice）：照样不在用、不发', () => {
     const wrong: string[] = []
     for (const { archetype, modelKey, mode, key, stale, meta } of hidden) {
       const start = graphOn(archetype, modelKey, 'apimart', mode.id, meta)

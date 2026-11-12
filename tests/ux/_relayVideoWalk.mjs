@@ -8,7 +8,6 @@ import { quietElectronSpawn, repoRoot } from './_launchApp.mjs'
 import { ENV_KEY_VAR } from './_paidEnvKey.mjs'
 import { findNodeHitPoint } from './_canvasHit.mjs'
 import { stationTimeout } from './_station-budget.mjs'
-import { uiText } from './full-walk/invariants.mjs'
 
 /** An isolated MCP transport calls the exact production declaration handler, without an LLM. */
 export async function relayModelClient({ settingsDir, userDataDir, tempRoot, env = {} }) {
@@ -82,8 +81,6 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
   await expect.poll(async () => Boolean(await fresh()), { timeout: stationTimeout() }).toBe(true)
   const id = (await fresh()).id
   const node = win.locator(`[data-node-id="${id}"]`)
-  const locale = await win.evaluate(() => localStorage.getItem('nomi:locale:v1') || 'zh-CN')
-  const textMode = node.getByText(uiText(locale, `generationCommon.nodeTry.${kind}.text`), { exact: true })
   // A reload drops the selection and fit-view overshoots: use the zoom UI and a real pointer target.
   // At 100% an input-driven mode's composer and option list leave the viewport, so stay at 60%.
   const exposeComposer = async () => {
@@ -91,7 +88,6 @@ export async function prepareRelayVideo({ win, newProject, model, capture, kind 
     const hit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${id}"]` })
     expect(hit, 'The node has a real pointer target').toBeTruthy()
     await win.mouse.click(hit.x, hit.y)
-    if (await textMode.isVisible().catch(() => false)) await textMode.click()
   }
   await exposeComposer()
   if (beforeModelPick) await beforeModelPick({ nodeId: id, node, projectId, projectRoot })

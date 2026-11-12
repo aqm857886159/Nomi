@@ -127,7 +127,7 @@ describe("合并里没有对应槽的参考：Run 路明着拒，错误卡认得
 
 async function expectSameRoles(item: Case, materials: ReturnType<typeof materialsFor>) {
   const key = item.mode.combineSlotsInto!.key;
-  const canvas = buildArchetypeInputParams({ archetype: { id: item.archetypeId, modeId: item.mode.id } }, getArchetypeById(item.archetypeId)!, materials);
+  const canvas = buildArchetypeInputParams({ archetype: { id: item.archetypeId, modeId: item.mode.id } }, item.mode, materials);
   const run = await runPathBody(item, materials);
   expect(canvas[key], `${item.modelKey}/${item.mode.id} 画布路有角色数组`).toBeTruthy();
   expect(run[key], `${item.modelKey}/${item.mode.id} Run 路 ${key}`).toEqual(canvas[key]);

@@ -2140,6 +2140,15 @@
       ],
       "reason": "主窗口生命周期的唯一状态表：electron/mainWindowPresence.ts 是主窗口的唯一主人，这五个阶段（无窗 / 建窗中 / 在用 / 关窗中 / 退出中）只由它一处读写，所有叫回、关窗、退出入口都问它而不自己判断；仓库里没有别的窗口或应用生命周期词表可复用（CloseStart、DrainOutcome 是另外的概念）。",
       "site": "electron/mainWindowPresence.ts::type:MainWindowPhase/type-union"
+    },
+    {
+      "members": [
+        "inputsNotAccepted",
+        "needsInput",
+        "ok"
+      ],
+      "reason": "「这次按哪种方式发」的现算结果三态，唯一主人是 electron/shared/modelArchetypes/modeForInputs.ts：ok 是选出了能发的方式；needsInput 是选中的方式还缺必放的输入（生成钮灰、说缺什么）；inputsNotAccepted 是模型任何方式都收不下这些输入。底栏方式格、菜单置灰、参考行尾和请求体都读这一个结果，不各自判断。仓库里现有的发送可否判定（canRunGenerationNode 的原因码）回答的是「整节点能不能跑」，粒度和取值都不同，复用会把方式选择和跑不跑混成一件事。",
+      "site": "electron/shared/modelArchetypes/modeForInputs.ts::type:ModeForInputsResult/property:status/type-union"
     }
   ],
   "debt": [

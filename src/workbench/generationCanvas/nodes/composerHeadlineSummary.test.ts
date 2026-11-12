@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { composerHeadlineSummary } from './composerHeadlineSummary'
+import { composerHeadlineParts, composerHeadlineSummary } from './composerHeadlineSummary'
 import type { DynamicModelControl } from './controls/parameterControlModel'
 
 // 底栏参数 chip 的「两个值」（2026-09-11 拍板的 v1.1）：视频=比例+时长，图=比例+清晰度。
@@ -84,5 +84,15 @@ describe('composerHeadlineSummary · 自动档', () => {
   it('「自动」档报本地化字样，不露 auto / adaptive 原值（审计 A11）', () => {
     const adaptive = { key: 'aspect_ratio', label: '比例', type: 'select', binding: 'parameter', options: [{ value: 'adaptive', label: 'adaptive' }, { value: '16:9', label: '16:9' }] } as unknown as DynamicModelControl
     expect(summary({ isVideoLike: true, controls: [adaptive], meta: { aspect_ratio: 'adaptive' } })).toBe('自动')
+  })
+
+  it('每个整值带退让顺序：比例先退、清晰度其次、时长最后（K4）', () => {
+    const parts = composerHeadlineParts({
+      isImageLike: false, isVideoLike: true, formatSeconds: seconds, autoLabel: '自动',
+      controls: [resolution, ratio, duration],
+      meta: { aspect_ratio: '16:9', duration: 5, resolution: '1080p' },
+    })
+    expect(parts.map((part) => [part.text, part.dropRank])).toEqual([['16:9', 0], ['1080p', 2], ['5s', 3]])
+    expect(composerHeadlineParts({ isImageLike: false, isVideoLike: false, formatSeconds: seconds, autoLabel: '自动', controls: [ratio], meta: {} })).toEqual([])
   })
 })

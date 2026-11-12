@@ -16,6 +16,7 @@ import {
 } from '../../explorer/workspaceFileDrag'
 import { dropKindFromFile, dropKindFromWorkspaceKind, resolveNodeArraySlots } from '../model/nodeAssetDrop'
 import { type AddAssetOutcome, addAssetUrlToNode } from './nodeAssetWrite'
+import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { isProjectExecutionContextCurrent, isProjectImportCancellation, withProjectAction } from '../../project/projectCanvasReadSurface'
 
 type DropHandlers = {
@@ -40,12 +41,19 @@ function reportOutcome(outcome: AddAssetOutcome, reportFeedback: (message: strin
   }
 }
 
+/** 落格那一刻的整张画布（连线也是输入，算摆法要带上）。 */
+function canvasGraph() {
+  const state = useGenerationCanvasStore.getState()
+  return { nodes: state.nodes, edges: state.edges }
+}
+
 export function useNodeAssetDrop(node: GenerationCanvasNode, reportFeedback: (message: string) => void, writeAccess?: NodeWriteAccess): NodeAssetDrop {
   const inheritedAccess = useNodeWriteAccess()
   const access = writeAccess ?? inheritedAccess
   const [isDragOver, setDragOver] = React.useState(false)
   const [isUploading, setUploading] = React.useState(false)
-  const acceptsDrop = React.useMemo(() => resolveNodeArraySlots(node.meta).length > 0, [node.meta])
+  // 收不收拖放：放进去之后按哪种摆法、有没有能落的数组格（按节点自己现有的东西算；落格时再按整张画布算）。
+  const acceptsDrop = React.useMemo(() => resolveNodeArraySlots(node, { nodes: [node], edges: [] }).length > 0, [node])
 
   const onDragOver = React.useCallback(
     (event: React.DragEvent<HTMLElement>) => {
@@ -83,7 +91,7 @@ export function useNodeAssetDrop(node: GenerationCanvasNode, reportFeedback: (me
           return
         }
         reportOutcome(
-          addAssetUrlToNode(node.id, kind, buildWorkspaceFileUrl(workspace.projectId, workspace.relativePath), access), reportFeedback,
+          addAssetUrlToNode(node.id, kind, buildWorkspaceFileUrl(workspace.projectId, workspace.relativePath), access, canvasGraph()), reportFeedback,
         )
         return
       }
@@ -116,7 +124,7 @@ export function useNodeAssetDrop(node: GenerationCanvasNode, reportFeedback: (me
               if (access.canWrite?.() === false) return
               const url = assetUrl(uploaded)
               if (!url) throw new Error(i18n.t('generationCommon.node.assetDrop.missingUrl'))
-              reportOutcome(addAssetUrlToNode(node.id, kind, url, access), reportFeedback)
+              reportOutcome(addAssetUrlToNode(node.id, kind, url, access, canvasGraph()), reportFeedback)
             } catch (error) {
               if (!isProjectExecutionContextCurrent(context) || isProjectImportCancellation(error)) return
               reportFeedback(error instanceof Error ? error.message : i18n.t('generationCommon.node.assetDrop.uploadFailed'))

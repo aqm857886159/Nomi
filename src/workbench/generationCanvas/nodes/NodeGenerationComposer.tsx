@@ -35,7 +35,7 @@ import {
   isVideoLikeGenerationNodeKind,
 } from '../model/generationNodeKinds'
 import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
-import { currentArchetypeMode } from './controls/archetypeMeta'
+import { effectiveArchetypeMode } from './controls/archetypeMeta'
 import { applyPromptReferenceImages } from './promptReferenceImages'
 import { useComposerPromptExpand } from './useComposerPromptExpand'
 import { COMPOSER_MIN_USABLE_HEIGHT, NODE_COMPOSER_WIDTH } from './nodeSizing'
@@ -197,8 +197,9 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       vendorKey: typeof meta.modelVendor === 'string' ? meta.modelVendor : typeof meta.vendor === 'string' ? meta.vendor : null,
       meta,
     })
-    return archetype ? currentArchetypeMode(archetype, meta) : null
-  }, [isAudioKind, node.meta])
+    // 声音档案的方式是人选的任务、不按输入改：只问节点自己就够。
+    return archetype ? effectiveArchetypeMode(archetype, node, { nodes: [node], edges: [] }).mode : null
+  }, [isAudioKind, node])
   const audioIsTranscribe = audioMode?.transportTaskKind === 'transcribe'
   const hasPromptPickerButton = Boolean(nodeExecutionKind) && acceptsPrompt && !audioIsTranscribe
   const hasReferenceControls =
@@ -363,17 +364,15 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       {readOnly ? <div role="status" className="text-caption text-nomi-ink-60">{t('generationCommon.workflowPlugin.readOnly')}</div> : null}
       {/* 声音 / 3D 的「生成方式」仍在参考区滚动口之外、紧贴在它上面：属于卡片的固定内容，
           压到最小高度也整行可见可点（2026-09-21，见 NodeParameterControls 的 section="mode"）。
-          视频的生成方式在参数面板顶部，图片没有这一组（由输入决定，见 generationModePresentation）。 */}
+          视频的生成方式在底栏「方式」一格（modeMenuModel），图片没有这一组（放了图就是按图改）。 */}
       {hasReferenceControls && !readOnly && (isAudioKind || isModel3dLikeGenerationNodeKind(node.kind)) ? (
         <div data-node-composer-mode-bar className={cn('shrink-0')}>
           <NodeParameterControls node={node} section="mode" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
         </div>
       ) : null}
       {hasReferenceControls && !readOnly ? (
-        // 参考区最多露两行参考格（40px 格 × 2 + 间距），更多在区内滚；卡片定宽后一行放 11 格。
-        // 滚动口向卡片边缘外扩（-mx-3 -mt-3 再用 px-3 pt-3 补回来）：悬停才出的 × 挂在小图右上角外侧，不扩就被滚动口切掉。
-        // 以前这里的滚动口高度是按屏幕剩余空间逐帧现算的，那套随放置层一起删了。
-        <div data-node-composer-references className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 shrink-0 overflow-y-auto overscroll-contain', '-mx-3 -mt-3 max-h-40 px-3 pt-3')}>
+        // 参考区的滚动口在参考行里面（只包图那一行），行尾那句话在滚动口外面、图再多也钉在可视区里（边界样张 K1）。
+        <div data-node-composer-references className="min-h-0 shrink-0">
           <NodeParameterControls node={node} section="references" onInsertMention={insertMention} graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />
         </div>
       ) : null}

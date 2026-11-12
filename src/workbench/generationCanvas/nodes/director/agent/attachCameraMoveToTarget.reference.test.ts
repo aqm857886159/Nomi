@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { projectPromptForSend } from '../../../../../../electron/shared/storyboard/promptMentions'
 import { archetypeForNode } from '../../../agent/referenceEdgeCapability'
 import type { GenerationCanvasNode } from '../../../model/generationCanvasTypes'
-import { orderedSentMediaReferenceUrls } from '../../controls/archetypeMeta'
+import { effectiveArchetypeModeWithInputs, orderedSentMediaReferenceUrls } from '../../controls/archetypeMeta'
+import { EDGE_MODE_SLOTS } from '../../../../../../electron/shared/canvas/edgeAdmission'
 import { CAMERA_MOVE_ATTACHED_URL_KEY, computeAttachCameraMove, type AttachCameraMoveOutcome } from './attachCameraMoveToTarget'
 
 const PV = 'nomi-local://p/preview.mp4'
@@ -27,9 +28,11 @@ function attach(node: GenerationCanvasNode, edgeVideoUrls: string[] = []): Gener
   return applied(node, computeAttachCameraMove(node, PV, preview, { edgeVideoUrls }))
 }
 
-/** 模型最终看到的提示词 + 实际发出去的参考视频顺序：与发送路径同一个投影、同一份有序参考。 */
+/** 模型最终看到的提示词 + 实际发出去的参考视频顺序：与发送路径同一个投影、同一份有序参考；方式按输入现算（2026-11-12）。 */
 function sent(node: GenerationCanvasNode, edgeVideos: string[] = []): { prompt: string; videos: string[] } {
-  const ordered = orderedSentMediaReferenceUrls((node.meta ?? {}) as Record<string, unknown>, archetypeForNode(node)!, { image: [], video: edgeVideos, audio: [] })
+  const edgeInputs = edgeVideos.map(() => ({ slots: EDGE_MODE_SLOTS.reference, asset: 'video' as const }))
+  const mode = effectiveArchetypeModeWithInputs(archetypeForNode(node)!, node, { nodes: [node], edges: [] }, edgeInputs).mode
+  const ordered = orderedSentMediaReferenceUrls((node.meta ?? {}) as Record<string, unknown>, mode, { image: [], video: edgeVideos, audio: [] })
   return { prompt: projectPromptForSend(node.prompt ?? '', ordered), videos: ordered.filter((item) => item.kind === 'video').map((item) => item.url) }
 }
 
@@ -52,12 +55,12 @@ describe('computeAttachCameraMove — 预演挂接按「当前实际槽 / 参考
     expect(refs(applied(deleted, computeAttachCameraMove(deleted, PV, preview)))).toEqual([PV])
   })
 
-  it('D1：用户把模式切走（标记还在，当前模式没有参考视频槽）→ 再挂 → 切回有槽的模式', () => {
+  // 方式按输入现算（2026-11-12）：存着的偏好被改回文生，参考视频还在 → 照样按全能参考发、预演照发；已经挂好 → 不再写。
+  it('D1：存着的方式偏好被改回文生（标记还在、参考视频还在）→ 照样按参考发出预演，再挂是 noop', () => {
     const attached = attach(shot())
     const away = { ...attached, meta: { ...attached.meta, archetype: WITH_SLOT } } as GenerationCanvasNode
-    const next = applied(away, computeAttachCameraMove(away, PV, preview))
-    expect((next.meta?.archetype as { modeId: string }).modeId).toBe('omni')
-    expect(sent(next).videos).toEqual([PV])
+    expect(sent(away).videos).toEqual([PV])
+    expect(computeAttachCameraMove(away, PV, preview)).toEqual({ kind: 'noop' })
   })
 
   it('D2：已有一个用户视频参考，再追加预演 → 模型看到的引用编号指向预演那一项（@video2），不是第一个用户片', () => {

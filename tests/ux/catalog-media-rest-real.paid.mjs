@@ -38,15 +38,16 @@ try {
   ;({ win } = await walk.start({ first: true }))
   await paid.lockToAuthorizedModels(win)
   const capture = (tag) => walk.snap(`media-rest-${tag}`)
-  // 带方式 / 参考的样本：经参数面板切方式、经「+」真上传合成图（点生成之前，一分钱没花）。
+  // 带方式 / 参考的样本：经「+」真上传合成图、经底栏方式格切方式（点生成之前，一分钱没花）。
   // 没有文生的型号（referencesFirst）先放参考再挑型号：生成框按节点当前方式列型号，不先放图菜单里没有它。
   const files = writeSampleReferenceFiles(sample, path.join(walk.outputDir, 'references'))
   const prepared = await prepareRelayVideo({
     win, newProject: () => createRelayProject(walk, win), model, capture, kind: sample.kind,
     ...(sample.referencesFirst ? { beforeModelPick: (early) => uploadSampleReferences({ win, prepared: early, sample, files }) } : {}),
   })
-  await chooseSampleMode({ win, prepared, sample, capture })
+  // 方式跟着放进来的东西走：先放参考，再在底栏方式格里切（没放之前要切的那几行点不了）。
   if (!sample.referencesFirst) await uploadSampleReferences({ win, prepared, sample, files })
+  await chooseSampleMode({ win, prepared, sample, capture })
   await assertSampleReferencesInPlace({ win, prepared, sample, capture })
   walk.report.freeSegment = { prepared: true, model: plan.modelKey, kind: sample.kind, nodeId: prepared.nodeId, modeId: sample.modeId ?? null, references: (sample.references ?? []).map((item) => item.slot) }
   if (process.env.NOMI_MEDIA_REST_FREE_ONLY === '1') {
