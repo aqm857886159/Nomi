@@ -108,4 +108,36 @@ describe('telemetry outbox', () => {
     expect(outbox.readTelemetrySummary().pendingCount).toBe(2)
     vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
   })
+
+  // 真实旧数据：0.24.1 自己的同意写入 + 入队函数落的设置目录（tests/fixtures/old-user-data/telemetry/v0.24.1-outbox，
+  // 生成器 generators/zzTelemetryOutboxGen.ts.txt），不是手写形状。
+  it('0.24.1 开着统计、队列里有 6 条待发：升级后不重新确认、旧形状待发读出即丢不抛、新事件照常入队', async () => {
+    const fixture = path.resolve(__dirname, '../../tests/fixtures/old-user-data/telemetry/v0.24.1-outbox')
+    const manifest = JSON.parse(fs.readFileSync(path.join(fixture, 'manifest.json'), 'utf8')) as { release: string; pendingCount: number }
+    const oldOutbox = JSON.parse(fs.readFileSync(path.join(fixture, 'telemetry-outbox.json'), 'utf8')) as { pending: Array<{ timestamp: string }> }
+    expect(manifest).toMatchObject({ release: 'v0.24.1', pendingCount: 6 })
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-telemetry-'))
+    roots.push(root)
+    for (const file of ['telemetry-settings.json', 'telemetry-outbox.json']) fs.copyFileSync(path.join(fixture, file), path.join(root, file))
+    // 钉在落盘那天：丢掉旧条目的只能是形状校验，不是 7 天过期。
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(oldOutbox.pending[0].timestamp))
+    try {
+      vi.stubEnv("NOMI_SETTINGS_DIR", root)
+      const settings = await import('../telemetry/telemetrySettings')
+      const outbox = await import('./telemetryOutbox')
+      const telemetry = await import('./telemetryEvents')
+      expect(oldOutbox.pending.every((item) => !telemetry.isTelemetryEnvelope(item))).toBe(true)
+      expect(settings.readTelemetrySettings()).toMatchObject({ enabled: true, scopeVersion: telemetry.TELEMETRY_SCOPE_VERSION })
+      expect(outbox.readTelemetrySummary().pendingCount).toBe(0)
+      expect(outbox.recordTelemetryEvent({ eventName: 'generation.completed', props: success }, '0.25.0')).toBe(true)
+      expect(outbox.recordTelemetryEvent({ eventName: 'perf.session.summary', props: perfProps }, '0.25.0')).toBe(true)
+      expect(outbox.readTelemetrySummary().pending.map((item) => item.eventName)).toEqual(['generation.completed', 'perf.session.summary'])
+      // 仓库里的夹具一个字节没动（测试只用拷贝）。
+      expect(JSON.parse(fs.readFileSync(path.join(fixture, 'telemetry-outbox.json'), 'utf8')).pending).toHaveLength(6)
+    } finally {
+      vi.useRealTimers()
+      vi.stubEnv("NOMI_SETTINGS_DIR", undefined)
+    }
+  })
 })
