@@ -23,6 +23,7 @@ import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   ASSISTANT_MESSAGE,
   CREATION_PANEL,
+  DOCUMENT,
   USER_BUBBLE,
   createRuntimeWalk,
   expandResidentPanel,
@@ -40,14 +41,12 @@ const SENTENCE = locale === 'en'
   ? 'A girl walks through the rain-soaked night market holding a red umbrella.'
   : '雨夜的街头，女孩撑着红伞穿过霓虹闪烁的夜市。'
 const REPLY = locale === 'en' ? 'SELECTION_WALK_ACK planned.' : 'SELECTION_WALK_ACK：已拆好。'
-const DOC = '[data-creation-editor="true"] .tiptap[contenteditable="true"]'
 const POPOVER = '.workbench-selection-popover'
 const WORKSPACE = '[data-workspace-mode]'
 const SKILL_CHIP = '[data-v4-chip="skill"]'
 const SKILL_RECEIPT = '[data-v4-skill-used]'
 const BESIDE_AI_EDIT = '[data-selection-cluster="beside-ai-edit"]'
 const GENERATE_CLUSTER = '[data-selection-cluster="generate"]'
-const node = (kind) => `.generation-canvas-v2-node[data-kind="${kind}"]`
 
 // 名字与 key 都从真源头读，不手抄：技能库名字在 SKILL.md 的 library.title，key 是分镜启动器真发的那个。
 const skillSource = fs.readFileSync(path.join(repoRoot, 'skills/workbench-storyboard-planner/SKILL.md'), 'utf8')
@@ -63,13 +62,17 @@ const walk = await createRuntimeWalk(`selection-actions-${locale}`)
 let failure
 try {
   const { win } = await walk.start({ first: true })
-  if (locale === 'en') {
-    await win.evaluate(() => localStorage.setItem('nomi:locale:v1', 'en'))
-    await win.reload({ waitUntil: 'domcontentloaded' })
-  }
+  // 画布 store 的只读 E2E 桥（`__nomiE2E`，生产不挂）：「建出了几个什么节点」以 store 为准。
+  // 画布开了 onlyRenderVisibleElements，视口外的新节点不进 DOM（产品此时亮「N 个新节点在下方」），
+  // 数 DOM 会把「建在视口外」误判成「没建」——2026-11-12 中文那遍就这样假红过。
+  await win.evaluate((nextLocale) => {
+    localStorage.setItem('__nomiE2E', '1')
+    localStorage.setItem('nomi:locale:v1', nextLocale)
+  }, locale)
+  await win.reload({ waitUntil: 'domcontentloaded' })
   await walk.newProject()
   await expandResidentPanel(win)
-  const doc = win.locator(DOC)
+  const doc = win.locator(DOCUMENT)
   const popover = win.locator(POPOVER)
   const workspace = win.locator(WORKSPACE)
   const generateButton = (key) => popover.getByRole('button', { name: uiText(locale, key), exact: true })
@@ -96,6 +99,9 @@ try {
     await expect(popover, '拖选一句后浮条没出来').toBeVisible()
     expect((await win.evaluate(() => String(window.getSelection() ?? ''))).trim(), '拖选没选中整句').toBe(SENTENCE)
   }
+  /** 画布 store 里的全部节点（种类 + 提示词），不受视口裁剪。桥跟着画布挂，切到画布后才有；没挂上读作 null，poll 会接着等。 */
+  const canvasNodes = () => win.evaluate(() => window.__nomiCanvasStore?.getState().nodes
+    .map((item) => ({ kind: item.kind, prompt: String(item.prompt ?? '').trim() })) ?? null)
   const sentenceRequests = () => walk.fixture.requests.filter((request) => flattenRequestText(request.body ?? {}).includes(SENTENCE)).length
 
   // ① 浮条这个探针是活的（刚拖选出来过），「没选中 → 不出」才是测得到的断言。
@@ -144,24 +150,24 @@ try {
   const bubbleProof = await proveProbe(userBubbles.first(), '「拆成镜头」发出去的那条用户气泡')
 
   /** 建节点的两颗：切到画布、多一个对应节点、提示词是这句；回到创作面，对话里没有多出任何气泡、这句没再发出去。 */
-  const createsNodeOnly = async ({ key, label, kind, counts }) => {
+  const createsNodeOnly = async ({ key, label, kind, expected }) => {
     const before = walk.fixture.requests.length
     await dragSelect()
     await clickOrFail(generateButton(key), `浮条「${label}」`)
     await expect(workspace, `点「${label}」后没切到生成画布`).toHaveAttribute('data-workspace-mode', 'generation')
-    for (const [nodeKind, count] of Object.entries(counts)) {
-      await expect(win.locator(node(nodeKind)), `点「${label}」后画布上 ${nodeKind} 节点数不对`).toHaveCount(count)
-    }
-    await expect(win.locator(node(kind)).last(), `${kind} 节点的提示词不是选中的那句`).toContainText(SENTENCE)
+    await expect.poll(canvasNodes, { message: `点「${label}」后画布上的节点不对（种类 + 提示词，按建出顺序）` })
+      .toEqual(expected)
     await walk.snap(`after-${kind}-${locale}`)
     await switchWorkspace(win, 'creation')
     await expectAbsent(userBubbles.nth(1), { provenBy: bubbleProof, message: `点「${label}」往对话里发了一条消息` })
     expect(walk.fixture.requests.length - before, `点「${label}」发出了文本请求`).toBe(0)
     expect(sentenceRequests(), `点「${label}」把这句又发给了 Agent`).toBe(1)
   }
-  // ③ 生成图片；④ 生成视频（用户点的那颗相机）。节点数是精确的：拆成镜头那一步也没在画布上建东西。
-  await createsNodeOnly({ key: 'creationAi.selection.image', label: uiText(locale, 'creationAi.selection.image'), kind: 'image', counts: { image: 1, video: 0 } })
-  await createsNodeOnly({ key: 'creationAi.selection.video', label: uiText(locale, 'creationAi.selection.video'), kind: 'video', counts: { image: 1, video: 1 } })
+  // ③ 生成图片；④ 生成视频（用户点的那颗相机）。画布上的节点清单是精确的：拆成镜头那一步也没在画布上建东西，
+  // 相机那颗建出的必须是 video、不是别的种类，提示词就是这句。
+  const made = (nodeKind) => ({ kind: nodeKind, prompt: SENTENCE })
+  await createsNodeOnly({ key: 'creationAi.selection.image', label: uiText(locale, 'creationAi.selection.image'), kind: 'image', expected: [made('image')] })
+  await createsNodeOnly({ key: 'creationAi.selection.video', label: uiText(locale, 'creationAi.selection.video'), kind: 'video', expected: [made('image'), made('video')] })
 
   // ⑤ 再选一次：新位置的浮条和对话里的「分镜规划」同框。这一下不点任何钮，不该发出任何请求。
   const beforeFinal = walk.fixture.requests.length

@@ -41,6 +41,7 @@
   8. 技能 key 归一改回精确匹配（`findSkillRecord` 只比 name）→ `skillDisplay.test.ts` 点号 / 短横线两条红，`laneViewModel.test.ts` 气泡小签与「已载入技能」两处红；
   9. 「拆成镜头」放回「生成」组（`cluster` 改回 `generate`）→ `selectionActions.test.ts`「样张 B」红，设计实验室走查从左到右对账红；
   10. 图标换回 `IconMovie` → `selectionActions.test.ts` 与实验室走查红；
-  11. 外壳里再拼第二份（发送时自己补 `openStoryboardResult` 或写分镜技能 key）→ `storyboardLauncher.test.ts`「只在启动器一处拼」红。
+  11. 外壳里再拼第二份（发送时自己补 `openStoryboardResult` 或写分镜技能 key）→ `storyboardLauncher.test.ts`「只在启动器一处拼」红；
+  12. 相机那颗建成别的种类（动作表里 video 的 `nodeKind` 换成 `image`）→ `selectionActions.test.ts`「用户那次」红，且真窗走查 ④ 读画布 store 的节点清单红（走查按 store 数节点，不按 DOM：画布只渲染视口内的节点，新节点在视口外时产品亮「新节点在右侧 / 下方」提示，数 DOM 会把「建在视口外」误判成「没建」）。
   这一类还会从哪回来：别的入口用非 name 形式的 key 指技能（被共享查找兜住）；浮条再加钮（只能进表）；别的浮条 / 菜单把「交给 Agent」和「建节点」混排（不在本卡范围，记为残余风险）。
   回滚：revert 本 PR 的三个实现提交（选区动作表与挪位、技能 key 归一、板与走查）。独立验收：四类（新界面）强制，由协调另派验收线，报告链接写进 PR `## 独立验收`。
