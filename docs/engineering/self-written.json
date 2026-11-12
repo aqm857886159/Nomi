@@ -147,6 +147,10 @@
       "reason": "模型档案：生成模型的参数 / 模式声明槽"
     },
     {
+      "path": "electron/shared/generationLowering/",
+      "reason": "生成参考的降级：用户在所选档案模式里给的首帧 / 尾帧 / 参考素材落进这个模型请求体的哪个键——读模型档案的模式声明，画布、Agent / MCP、制作流程三条路共用这一个函数；按镜头花钱的请求形状，Nomi 独有（先查别人：Vercel AI SDK 的 ImageModelV3CallOptions 只收通用意图、翻成线上字段归各供应商适配器，MLIR 方言转换给的是「一份声明 + 一处 lowering」的形状，都没有「档案模式 → 这条 body 的键」这一步可接；根因合同 docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）"
+    },
+    {
       "path": "electron/shared/storyboard/",
       "reason": "分镜：镜头表、编译与出站的领域规则"
     },

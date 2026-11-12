@@ -562,6 +562,36 @@
       "reason": "2026-11-07 配音落盘修复那一轮（docs/fixes/2026-11-07-tts-save-expected-kind.root-cause.json）：projectAssetStore.ts 到了文件体积冻结线，按职责把「落盘文件的类型与位置」整块拆到 electron/assets/storedAssetFile.ts（effectiveContentType / contentTypeFromStoredFile / storedAssetFileParts / uniqueAssetPath，函数体逐字不变，只是导出）。09-26 合同的不变量「落盘文件名的唯一裁法：扩展名按字节嗅出的内容类型定、只截主干」不变：writeAsset / copyAssetFile / moveAssetFile / 生成产物发布仍然只经 uniqueAssetPath → storedAssetFileParts 这一处取名。守它的测试：electron/assets/projectAssetStore.test.ts（长供应商名不带扩展名 → .mp4，copyAssetFile 与 moveAssetFile 两个入口）。"
     },
     {
+      "contract": "docs/fixes/2026-10-25-headless-reference-key-projection.root-cause.json",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "projectReferencesOntoBodyKeys",
+      "anchor": {
+        "path": "electron/catalog/taskParams.ts",
+        "symbol": "headlessReferenceOverlay"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：headless 投影入口改名 headlessReferenceOverlay，仍住 taskParams.ts、仍由 applyHeadlessParamDefaults 在模板渲染前调用；它只读出携带的参考、帧意图和已占用的键，挑键与写值交给 electron/shared/generationLowering 的 lowerHeadlessReferences → lowerGenerationIntent（按 body 推出的声明放，形状与帧意图只读 referenceKeys.ts 的显式声明表，删掉按键名正则猜族 / 形状）。10-25 合同的不变量「只把同族参考投进声明过、body 读、还空着的键」不变：同族、声明过、body 读、空键四条都在降级函数里，官方字段矩阵改前改后请求体逐字节相同。守它的测试：electron/catalog/referenceKeyProjectionCensus.test.ts、electron/catalog/taskParams.test.ts、electron/shared/generationLowering/lowerGenerationIntent.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-10-27-first-gate-full-model-identity.root-cause.json",
+      "path": "electron/catalog/taskParams.ts",
+      "symbol": "projectReferencesOntoBodyKeys",
+      "anchor": {
+        "path": "electron/catalog/taskParams.ts",
+        "symbol": "headlessReferenceOverlay"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：同一个入口改名 headlessReferenceOverlay，留在 taskParams.ts。10-27 合同的不变量「显式值与携带值都按所选模型的声明容量数清、出网前拒」不变：显式 body 值那一圈原样在 headlessReferenceOverlay 里按 referenceKeyCapacityDeclarationFor 数、assertReferenceCapacity 拒；携带的参考由 lowerHeadlessReferences 按同一份声明容量数，超了作为 problems 交回，headlessReferenceOverlay 用同一个 assertReferenceCapacity 在出网前拒，报错原话不变。守它的测试：electron/catalog/taskParams.test.ts、electron/capabilityCore/apimartGenerationProvider.test.ts、electron/runtime.referenceSelection.test.ts、electron/catalog/referenceKeyProjectionCensus.test.ts。"
+    },
+    {
+      "contract": "docs/fixes/2026-11-08-reference-mode-projection.root-cause.json",
+      "path": "electron/shared/videoCapabilities/referenceChannels.ts",
+      "symbol": "lowerCombinedReferences",
+      "anchor": {
+        "path": "electron/shared/generationLowering/lowerGenerationIntent.ts",
+        "symbol": "lowerGenerationIntent"
+      },
+      "reason": "2026-11-08 参考放置收成一个降级函数（docs/fixes/2026-11-08-generation-reference-lowering.root-cause.json）：合并数组的拼法从 referenceChannels.ts 挪进唯一的降级函数 lowerGenerationIntent（11-09 起进合并的槽编译成 combined 绑定，由同一个解析写入过程按槽声明序拼），画布、headless、ProductionRun 三条路都经它放；合并槽的 role 表 REFERENCE_ROLE_FOR_KIND 仍住 referenceChannels.ts，lowerCombinedReferences 同提交删除。11-08 合同的不变量「按档案槽顺序和角色拼出唯一合并数组」不变：档案槽的声明顺序就是合并顺序，被合并的扁平键不再出现，官方字段矩阵改前改后请求体逐字节相同。守它的测试：electron/shared/generationLowering/lowerGenerationIntent.test.ts（全部内置档案的全部模式「一张图只进一个键」）、electron/parity/apimartDocsAlignRunPath.test.ts、electron/parity/officialWire.matrix.test.ts。"
+    },
+    {
       "contract": "docs/fixes/2026-10-31-run-retrieval-recovery.root-cause.json",
       "path": "electron/productionRun/productionGenerationSubmission.ts",
       "symbol": "settleWithArtifact",

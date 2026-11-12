@@ -67,6 +67,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/shared/contracts/ipcInvokeFailure.test.ts', roots: ['electron', 'src'] }, // 2026-10-24：全仓代码里写下的错误类名都要过 isCodeClassName（遍历 electron + src，<1 秒）
   { file: 'electron/capabilityCore/spendDoorSingleOwner.test.ts', roots: ELECTRON }, // 5 秒
   { file: 'electron/capabilityCore/mcpMigrationEntry.test.ts', roots: ['src', 'electron'] }, // #1142 合入后新增：MCP 宿主迁移入口只有登记的调用点（3 秒）
+  { file: 'electron/shared/generationLowering/referencePlacementOwnership.test.ts', roots: ['src', 'electron'] }, // 2026-11-08：参考放进哪个键只许降级函数写——删掉的旧拼法与旧值表示的名字不许回来、意图只许「绑定 + 值」（2026-11-09 起不再扫静态写键，新入口改由解析产物 / 封存体 + eslint 模块边界挡）；遍历 electron + src（<2 秒）
   { file: 'electron/catalog/customRelayWireModel.test.ts', roots: ELECTRON }, // 自定义中转站线上模型名只有一个出口：遍历 electron 生产文件（12 秒）
   { file: 'electron/catalog/modelListReconcile.test.ts', roots: ELECTRON }, // 3 秒
   { file: 'electron/catalog/storedApiKeyReaders.test.ts', roots: ELECTRON }, // 3 秒
