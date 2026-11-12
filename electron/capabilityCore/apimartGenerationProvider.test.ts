@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createCatalogGenerationProvider as createProvider } from "./apimartGenerationProvider";
 import type { CatalogState } from "../catalog/types";
@@ -9,6 +9,7 @@ import { registerRequestTransform } from "../tasks/requestTransforms";
 import { spendReferenceKey } from "../shared/contracts/pendingSpendConfirm";
 import { readMaterializationOutputs } from "./apimartGenerationOutputs";
 import { desktopT } from "../desktopStrings";
+import { installVariantFixture, VARIANT_FIXTURE } from "../parity/modeParamsVariantFixture";
 
 /** 授权时封存的那份 URL 快照，键就是付费卡上那一条参考的身份。 */
 function approvedUrls(entries: ReadonlyArray<readonly [Record<string, unknown>, string]>): Record<string, string> {
@@ -325,6 +326,28 @@ describe("APIMart observe-only generation provider", () => {
     }))).toMatchObject({ model: "seedance-2.0-fast", duration: 5 });
     expect(provider.buildRequest(input({ modelId: "doubao-seedance-2.0", mode: "text_to_video", parameters: {} })) )
       .toMatchObject({ model: "seedance-2.0-fast" });
+  });
+
+  describe("封进合同的变体到得了方式参数主人（变体夹具：standard 文生缺省 1080p、不声明 generate_audio，默认变体 fast 是 720p 且声明）", () => {
+    let restore = () => {};
+    beforeAll(() => { restore = installVariantFixture(); });
+    afterAll(() => restore());
+    const build = (variantId?: string) => createApimartGenerationProvider({ resolveConnection: () => ({ apiKey: "test-key" }), fetchImpl: vi.fn() }).buildRequest(input({
+      modelId: VARIANT_FIXTURE.modelKey,
+      ...(variantId ? { variantId } : {}),
+      mode: "text_to_video",
+      parameters: { duration: 5, size: "16:9", generate_audio: false },
+    }));
+
+    it("variantId = standard → 请求体按这个变体出键（缺省 1080p，不带 generate_audio）", () => {
+      const body = build(VARIANT_FIXTURE.variantId);
+      expect(body).toMatchObject({ resolution: VARIANT_FIXTURE.fixtureResolution });
+      expect(body).not.toHaveProperty(VARIANT_FIXTURE.droppedKey);
+    });
+
+    it("没有 variantId → 落默认变体（缺省 720p，generate_audio 照发）", () => {
+      expect(build()).toMatchObject({ resolution: VARIANT_FIXTURE.defaultVariantResolution, [VARIANT_FIXTURE.droppedKey]: false });
+    });
   });
 
   it("fails closed when a catalog default accepts a reference but create.body drops it", () => {

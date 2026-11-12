@@ -20,7 +20,7 @@ import { readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { applyRelayFirstFrame } from './relayFrameResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
-import { buildArchetypeInputParams, clampParamsToMode, orderedSentImageReferenceUrls, orderedSentMediaReferenceUrls, sendArchetypeMode, uploadPlacementForMode, type ArchetypeMode, type ModelArchetype } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams, currentArchetypeVariant, fixDropdownsBeforeSend, orderedSentImageReferenceUrls, orderedSentMediaReferenceUrls, sendArchetypeMode, uploadPlacementForMode, type ArchetypeMode, type ModelArchetype } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
 import { normalizeReferenceListMeta } from '../nodes/controls/referenceList'
 import {
@@ -62,6 +62,7 @@ import { parseVendorErrorFromMessage } from './vendorErrorIpc'
 import { collectLocalAssetUrls } from '../../../../electron/catalog/assetLocalization'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
 import { GENERIC_REFERENCE_KEYS } from '../../../../electron/shared/modelArchetypes/referenceKeys'
+import { effectiveModeParams } from '../../../../electron/shared/modelArchetypes/modeParams'
 import { isTerminalTaskStatus } from '../../../../electron/shared/taskStatus'
 
 // 重导出：实现已拆到 catalogTaskResolve（节点→vendor/model/kind 选择）与
@@ -323,7 +324,7 @@ export function buildCatalogTaskRequest(
   const kind = resolveTaskKind(node, references)
   const rawMeta = parameterContractRequestMeta(node.meta || {})
   // 这次按哪种方式发：画布路由解析参考时现算过一次（references.archetypeMode）；没经画布解析（只有这个节点）就按节点自己的输入现算。
-  // 定下的方式随这次请求带走（archetype.modeId），参数按它收窄——节点上存的偏好和参数原样不动。
+  // 定下的方式随这次请求带走（archetype.modeId），参数只问方式参数 owner（effectiveModeParams）——节点上存的偏好和参数原样不动。
   const sendArchetype = resolveTaskArchetype(rawMeta)
   const sendMode = sendArchetype
     ? { archetype: sendArchetype, mode: sendArchetypeMode(sendArchetype, node, references) }
@@ -332,8 +333,14 @@ export function buildCatalogTaskRequest(
   // archetype.modeId，所以先把参考落成规范形（先放一边的记进列表），再换 modeId——否则旧首尾帧节点按全能参考发时，
   // 旧界面看不见的残留参考图被发出去、看得见的首帧反而不发（2026-11-12 方式现算后，参考行和请求两边对不上）。
   const listMeta = sendMode ? normalizeReferenceListMeta(rawMeta, sendMode.mode) ?? rawMeta : rawMeta
-  const meta = sendMode
-    ? { ...clampParamsToMode(listMeta, sendMode.archetype, sendMode.mode), archetype: { ...(rawMeta.archetype as object), id: sendMode.archetype.id, modeId: sendMode.mode.id } }
+  const modeSelection = sendMode
+    ? { archetype: sendMode.archetype, variantId: currentArchetypeVariant(sendMode.archetype, listMeta)?.id, modeId: sendMode.mode.id }
+    : null
+  const meta = modeSelection
+    ? {
+      ...fixDropdownsBeforeSend(modeSelection, effectiveModeParams({ ...modeSelection, stored: listMeta }).params),
+      archetype: { ...(rawMeta.archetype as object), id: modeSelection.archetype.id, modeId: modeSelection.modeId },
+    }
     : rawMeta
   // @ 内联引用投影(R6 单源 · option 2):把 prompt 里的 @[asset:url] 标记转成 @imageN，
   // N = url 在「连线在前+上传」有序数组里的位置——**与实际发送的 reference_image 数组逐位一致**。此前只读
