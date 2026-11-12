@@ -461,14 +461,14 @@ export async function deleteWorkspaceProject(
 
 /**
  * 「这个编号的项目在哪个目录」认过一次就记住，之后不再整读、解析项目文件（生成落地时每张图要问十几次，60 图的项目文件
- * 每次 0.2MB+，8 张同时落地主进程停住近 1 秒，2026-11-12）。记住的是凭据，不是结论：每次照旧读登记、看目录在不在，
- * 再 stat 一次项目文件，三样都和认的那一次一样才直接回目录——
- *   · 登记删了 / 改指别的目录（本进程或别的进程写的登记都算）→ 登记对不上，重认；
- *   · 目录不在了 → 回 null；
- *   · 目录还在、里面的项目文件被换了（复制、同步盘、别的程序改写）→ stat 对不上，重认，编号不对照旧回 null。
+ * 每次 0.2MB+，8 张同时落地主进程停住近 1 秒，2026-11-12）。记住的是凭据，不是结论：每次照旧读登记，
+ * 再 stat 一次项目文件，两样都对得上才直接回登记里现在的目录——
+ *   · 登记删了 → 回 null；改指别的目录 → 回的就是登记里现在的目录，凭据里不存目录；
+ *   · 目录不在了 → stat 失败 → 重认 → 回 null；
+ *   · 目录还在、里面的项目文件被换了（复制、同步盘、别的程序改写）→ stat（含设备号和 inode）对不上，重认，编号不对照旧回 null。
  * 本进程自己保存项目（`saveWorkspaceProject`）写完就地换凭据，所以保存不会让下一次解析重读。
  */
-type ResolvedProjectDir = { rootPath: string; manifestStamp: string };
+type ResolvedProjectDir = { manifestStamp: string };
 const resolvedProjectDirs = new Map<string, ResolvedProjectDir>();
 /** 找目录时真去读项目文件的次数（测试看它涨没涨；按 fd 读的 fs spy 会恒空，不能拿它数）。 */
 let projectDirManifestReads = 0;
@@ -492,20 +492,20 @@ function manifestStamp(rootPath: string): string | null {
 /** 认过编号之后记凭据：读之前和读之后 stat 一致才记（读的当口文件被换了就不记，下次再认）。 */
 function rememberResolvedProjectDir(key: string, rootPath: string, stampBeforeRead: string | null): void {
   const stamp = manifestStamp(rootPath);
-  if (stamp && stamp === stampBeforeRead) resolvedProjectDirs.set(key, { rootPath, manifestStamp: stamp });
+  if (stamp && stamp === stampBeforeRead) resolvedProjectDirs.set(key, { manifestStamp: stamp });
   else resolvedProjectDirs.delete(key);
 }
 
 export function resolveWorkspaceProjectDir(projectId: string, deps: WorkspaceRepositoryDeps): string | null {
   const key = resolvedProjectDirKey(projectId, deps);
   const entry = findRecentEntry(projectId, deps);
-  if (!entry || entry.missing || !fs.existsSync(entry.rootPath)) {
+  if (!entry || entry.missing) {
     resolvedProjectDirs.delete(key);
     return null;
   }
   const stamp = manifestStamp(entry.rootPath);
   const known = resolvedProjectDirs.get(key);
-  if (known && stamp && known.rootPath === entry.rootPath && known.manifestStamp === stamp) return entry.rootPath;
+  if (known && stamp && known.manifestStamp === stamp) return entry.rootPath;
   projectDirManifestReads += 1;
   const manifest = readManifestOrMigrateLegacy(entry.rootPath);
   if (!manifest || manifest.id !== projectId) {

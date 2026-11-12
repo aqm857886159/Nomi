@@ -54,7 +54,7 @@
 
 | 东西 | 正本 / 唯一写入口 | 谁读 |
 |---|---|---|
-| 「这个编号的项目在哪个目录」 | `electron/workspace/workspaceRepository.ts` 的 `resolveWorkspaceProjectDir`（登记表 + 项目文件里的编号；记住的答案也只在这个模块里，键 = 设置目录 + 项目编号，凭据 = 登记的目录 + 项目文件 stat 指纹） | 20 扇门，全是读（`node scripts/door-map.mjs resolveWorkspaceProjectDir`：运行记录仓库 / 运行时 / 服务、事件日志、项目记忆、经验库、资产目录、诊断、反馈、MCP / RPC 服务、项目会话等） |
+| 「这个编号的项目在哪个目录」 | `electron/workspace/workspaceRepository.ts` 的 `resolveWorkspaceProjectDir`（登记表 + 项目文件里的编号；记住的答案也只在这个模块里，键 = 设置目录 + 项目编号，凭据 = 项目文件 stat 指纹；回的目录永远是登记里现在的那个） | 20 扇门，全是读（`node scripts/door-map.mjs resolveWorkspaceProjectDir`：运行记录仓库 / 运行时 / 服务、事件日志、项目记忆、经验库、资产目录、诊断、反馈、MCP / RPC 服务、项目会话等） |
 | 项目文件内容 | 同模块 `saveWorkspaceProject`（暂存后原子换）和旧格式迁移；写完就地刷新记住的凭据 | — |
 | 历史耗时统计 | 主进程 `electron/events/eventsIpc.ts` 的 `nomi:events:generation-eta-stats`（现为 `handle`） | 渲染层 `spendConfirm.ts` 的 `withGenerationEtaStats`，只有两个调用方：单张 `generationRunController.ts`、批量 `batchPlanPreview.ts`（git grep `describeGenerationCost(` 只有这两处生产调用；无界面路、Agent 路都走这两处） |
 | 落地文件的 sha256 | 资产库写盘（暂存时流式算，`generatedAssetStaging.ts`）→ 落地门 `localizeTaskAsset` 回给调用方 | 回执 `canvasLocalArtifactReceipt`（`node scripts/door-map.mjs canvasLocalArtifactReceipt`：生产 1 扇 `canvasAwareOutputMaterializer`，测试装配 1 扇） |
@@ -88,6 +88,10 @@
 
 外部来源：无新增。项目文件可能被别的进程 / 同步盘改写——stat 指纹不同就重新核对；指纹相同而内容不同（同一纳秒、同大小、同 inode 的原地改写）理论上漏判，这只发生在绕过原子写的外部工具上，记进已知限制。
 
+已知行为（只记，不改）：
+1. 只换备份文件、主文件没动：修前每次报「身份不可用」，修后记住的答案照回原目录，直到重启或主文件变动。不会落错项目（主文件仍是本项目）。
+2. exFAT 等时间戳粗（10ms 级）、没有稳定 inode 的盘上，「原地、同大小、10ms 内把项目文件改写成别的项目」认不出来（独立验收实测 49/50 漏判）。要同时满足：项目放在这类盘上 + 有绕过原子写的外部工具原地改写 + 同大小 + 改写发生在记住答案之后 10ms 内。后果：继续回原目录，落地的图和运行记录写进这个现在声称是另一个项目的文件夹，直到指纹变或重启。同盘原子替换 0/50、截断重写 0/50 漏判；APFS 上改不回 ctime，0 漏判。
+
 ## ★7 性能
 
 新增操作：无（这一刀只删活）。最坏规模：60 张图的画布、8 张 4K（约 35MB PNG）同时落地，项目文件 185KB 起。登记新场景 `tests/perf/scenarios/gen-landing-8-concurrent.json`（量具 `tests/perf/gen-landing-bench.mjs`，真 Electron、回环假上游、零花费），主指标 `landingSyncWork` = 三个确定性计数之和，硬预算 0（文件里写 0.5，因为预算必须是正数）；毫秒 `landingMainStallMaxMs` 只作参考。
@@ -118,11 +122,11 @@
 **验收清单（动手前写全，验收线只核这份；每条带反例：改坏 → 红，还原 → 绿）：**
 
 1. 同一编号连续找 N 次目录，项目文件最多读 1 次；本进程保存之后再找，0 次。反例：去掉「凭据对得上直接回」→ 读次数测试红。（`electron/workspace/workspaceProjectDirResolution.test.ts`）
-2. 四种失效各一条测试，都拿到新答案或 null、绝不回旧目录：从项目库移除（登记删了）→ null；原生项目删到废纸篓 → null；文件夹挪走（目录不在）→ null；重新登记到别处（本进程打开挪过的文件夹 / 别的进程改写登记表指向另一份拷贝）→ 新目录。反例：凭据不比登记的目录 → 「本进程重新登记到别处」那条红（「别的进程改写登记表」那条指向的拷贝 stat 也不同，单靠指纹已能拦住，所以不红）。
+2. 四种失效各一条测试，都拿到新答案或 null、绝不回旧目录：从项目库移除（登记删了）→ null；原生项目删到废纸篓 → null；文件夹挪走（目录不在）→ null；重新登记到别处（本进程打开挪过的文件夹 / 别的进程改写登记表指向另一份拷贝）→ 新目录。反例：凭据不比 stat 指纹 → 「项目文件被换成别的项目」那条红（第 3 条同一个改坏法）。凭据里不再存登记的目录、也不再单独 `existsSync`：命中时回的是登记里现在的目录，改指别处就是回新目录；stat 指纹带设备号和 inode，换了目录 / 目录没了 stat 必变或失败，所以这两处判断多余，2026-11-13 验收两次证明删掉后 735 条测试全绿，已删。
 3. 目录还在、项目文件被换成另一个项目的（编号不同）→ null，另一个项目照常找到自己。当初防什么、现在怎么防见 ★3。反例：凭据不比 stat 指纹 → 这条红。
 4. 旧格式项目第一次找目录时照旧迁移一次（`.nomi/project.json` 生成），之后不再整读。反例：首次找目录不走迁移（直接读新格式清单）→ 「迁移」断言红。
-5. 预计耗时走异步通道：`scripts/renderer-sync-ipc-baseline.json` 里不再有 `nomi:events:generation-eta-stats`（改回 `sendSync` → `check:renderer-sync-ipc` 红）；性能场景同步 IPC 计数 0；卡出现时数字已在卡上（回话没到之前不出卡；改成先出卡 → 断言红）；通道被拒 / 回 ok:false → 和修前同步版失败一样给冷启动估计。
-6. 回执用落地时算好的哈希：一次出 4 张，回执不读产物文件，运行记录里每份的哈希等于那份文件真实的哈希；没带哈希的产物照旧现读现算。重算不是有意的「落地后复验」：回执 2026-10-05 引入（`e46569609`）时注释写的是「只把那份文件记进 Run，不再下载一次」，算哈希只是因为产物对象上只有地址。反例：链上传错哈希 → 哈希断言红；回执不用传来的哈希 → 读次数断言红。（`electron/capabilityCore/canvasLandingReceiptHash.test.ts`）
+5. 预计耗时走异步通道：`scripts/renderer-sync-ipc-baseline.json` 里不再有 `nomi:events:generation-eta-stats`（改回 `sendSync` → `check:renderer-sync-ipc` 红）；性能场景同步 IPC 计数 0；卡出现时数字已在卡上（回话没到之前不出卡；改成先出卡 → 断言红；批量卡同一条在 `src/workbench/generationCanvas/components/batchPlanPreview.eta.test.ts`，去掉 `await withGenerationEtaStats` → 红）；通道被拒 / 回 ok:false → 和修前同步版失败一样给冷启动估计。
+6. 回执用落地时算好的哈希：一次出 4 张，回执不读产物文件，运行记录里每份的哈希等于那份文件真实的哈希；没带哈希的产物照旧现读现算。重算不是有意的「落地后复验」：回执 2026-10-05 引入（`e46569609`）时注释写的是「只把那份文件记进 Run，不再下载一次」，算哈希只是因为产物对象上只有地址。反例：链上传错哈希 → 哈希断言红；回执不用传来的哈希 → 读次数断言红。（`electron/capabilityCore/canvasLandingReceiptHash.test.ts` 守传递，`canvasLandingRealHash.test.ts` 用真的资产库写盘守「记下的哈希 = 盘上真实哈希」，资产库记录的哈希写错 → 红）
 7. 现有崩溃恢复 / 运行记录 / 项目库测试不改照绿（`tests/run-retrieval-recovery/`、`electron/productionRun/`、`electron/workspace/`、`electron/projects/`）。
 
 **回滚：** revert 本 PR 的实现提交；三处互不依赖，可分别 revert。
