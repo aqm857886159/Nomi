@@ -1,0 +1,85 @@
+Original SHA256: fcc1065841797e738e1e879b0f311a4cba255973ebe695d737d35f64662cb829
+[pre-push] 改动 126 个文件，跑：check:filesize、check:board-parity、check:self-written、check:boundary-owners、check:test-waits、check:mjs-parse、check:renderer-sync-ipc、check:tokens、check:vocabularies、check:controls、check:store-lifetime、check:icon-semantics、check:error-surface、check:heavy-path、check:builtin-vendor-literals、check:read-path-writes、check:batch-machines、check:capability-lifecycle、check:no-default-overwrite、check:media-import-owner、check:storyboard-owner、check:dangling-tokens、check:dangling-tailwind、check:walkthroughs、check:gates-chain、check:desktop-rc-workflow、check:cla-workflow、check:workflow-script-refs、check:workflow-protected-writes、check:icons、check:platform-archetypes、check:model-certification-coverage、check:symlinks、check:supply-chain-pins、check:escape-ledger、check:perf-scenarios、check:adoption-bridge、check:skill-ipc-coverage、check:skills-format、check:run-task-grant、check:announced-card、check:canvas-gesture-determinism、check:vitest-fair-share、check:agents-sync、check:rule-aliases、check:push-bypass、check:mockup-contracts、check:feel、check:full-walk-catalog、check:real-media-fixture、check:framework-boundary、check:tikhub-search、check:nul-bytes、check:git-path-quoting、check:model-availability、check:model-identity、check:outbound-policy、check:design-lab-mirrors、typecheck、test:temp-helper、check:test-copy-literals、test:pre-push-structure、check:scan-guard-census、test:scan-guards、test:related、lint:changed、check:prior-art、check:pr-judgement
+[pre-push] PR 正文取自 NOMI_PR_BODY_FILE
+[pre-push] ✅ test:related（18.6s） vitest 18 个文件通过；node:test 5 个文件通过
+[pre-push] ✅ test:scan-guards（39.4s） 62 个扫描型守卫测试一个进程批量跑
+[pre-push] ✅ typecheck（28.0s）
+[pre-push] ✖ check:filesize（2.0s）
+[pre-push] ✅ check:board-parity（1.3s）
+[pre-push] ✅ check:self-written（0.1s）
+[pre-push] ✅ check:boundary-owners（1.6s）
+[pre-push] ✅ check:test-waits（28.6s）
+[pre-push] ✅ check:mjs-parse（11.6s）
+[pre-push] ✅ check:renderer-sync-ipc（0.1s）
+[pre-push] ✅ check:tokens（16.4s）
+[pre-push] ✅ check:vocabularies（7.1s）
+[pre-push] ✅ check:controls（5.9s）
+[pre-push] ✅ check:store-lifetime（4.4s）
+[pre-push] ✅ check:icon-semantics（2.6s）
+[pre-push] ✅ check:error-surface（0.5s）
+[pre-push] ✅ check:heavy-path（2.1s）
+[pre-push] ✅ check:builtin-vendor-literals（0.8s）
+[pre-push] ✅ check:read-path-writes（6.0s）
+[pre-push] ✅ check:batch-machines（1.4s）
+[pre-push] ✅ check:capability-lifecycle（4.6s）
+[pre-push] ✅ check:no-default-overwrite（5.3s）
+[pre-push] ✅ check:media-import-owner（0.8s）
+[pre-push] ✅ check:storyboard-owner（0.6s）
+[pre-push] ✅ check:dangling-tokens（0.6s）
+[pre-push] ✅ check:dangling-tailwind（1.2s）
+[pre-push] ✅ check:walkthroughs（20.5s）
+[pre-push] ✅ check:gates-chain（0.0s）
+[pre-push] ✅ check:desktop-rc-workflow（0.1s）
+[pre-push] ✅ check:cla-workflow（0.1s）
+[pre-push] ✅ check:workflow-script-refs（0.1s）
+[pre-push] ✅ check:workflow-protected-writes（0.0s）
+[pre-push] ✅ check:icons（0.1s）
+[pre-push] ✅ check:platform-archetypes（0.0s）
+[pre-push] ✅ check:model-certification-coverage（0.1s）
+[pre-push] ✅ check:symlinks（0.1s）
+[pre-push] ✅ check:supply-chain-pins（0.1s）
+[pre-push] ✅ check:escape-ledger（0.1s）
+[pre-push] ✅ check:perf-scenarios（0.1s）
+[pre-push] ✅ check:adoption-bridge（0.2s）
+[pre-push] ✅ check:skill-ipc-coverage（0.0s）
+[pre-push] ✅ check:skills-format（0.2s）
+[pre-push] ✅ check:run-task-grant（0.4s）
+[pre-push] ✅ check:announced-card（0.0s）
+[pre-push] ✅ check:canvas-gesture-determinism（0.0s）
+[pre-push] ✅ check:vitest-fair-share（0.1s）
+[pre-push] ✅ check:agents-sync（0.0s）
+[pre-push] ✅ check:rule-aliases（0.1s）
+[pre-push] ✅ check:push-bypass（0.0s）
+[pre-push] ✅ check:mockup-contracts（0.3s）
+[pre-push] ✅ check:feel（0.2s）
+[pre-push] ✅ check:full-walk-catalog（0.6s）
+[pre-push] ✅ check:real-media-fixture（0.1s）
+[pre-push] ✅ check:framework-boundary（0.3s）
+[pre-push] ✅ check:tikhub-search（0.1s）
+[pre-push] ✅ check:nul-bytes（0.9s）
+[pre-push] ✅ check:git-path-quoting（0.1s）
+[pre-push] ✅ check:model-availability（1.2s）
+[pre-push] ✅ check:model-identity（2.8s）
+[pre-push] ✅ check:outbound-policy（1.0s）
+[pre-push] ✅ check:design-lab-mirrors（0.8s）
+[pre-push] ✅ test:temp-helper（5.2s）
+[pre-push] ✅ check:test-copy-literals（3.5s）
+[pre-push] ✅ test:pre-push-structure（9.2s）
+[pre-push] ✅ check:scan-guard-census（3.1s）
+[pre-push] ✅ lint:changed（1.9s）
+[pre-push] ✅ check:prior-art（0.3s）
+[pre-push] ✅ check:pr-judgement（5.1s）
+
+──── ✖ check:filesize ────
+↓ src/workbench/ai/ProjectAgentResidentShell.tsx: 805 行 < 冻结上限 829（已瘦身，请把上限下调到 805 以锁定）
+
+文件体积门岗未通过（格式化代码行；650 黄牌，800 红牌）：
+✗ 基线上调 electron/runtime.ts: 660 > origin/main 657（清单只许变短）
+✗ 基线上调 electron/productionRun/productionRunDriverOps.ts: 1141 > origin/main 1130（清单只许变短）
+✗ 基线上调 electron/productionRun/productionGenerationSubmission.ts: 772 > origin/main 755（清单只许变短）
+
+[pre-push] BLOCKED：1 项没过：check:filesize
+先在本机改好（这些都是几秒到几十秒的事），别推出去换一轮 40 分钟的 CI。单独重跑失败的那道：
+  pnpm run check:filesize
+[pre-push] 共 50.8s；其余 Contracts 门岗仍在 CI 的 gates:contracts 里跑（整库类 > 60 秒，或要网络 / 浏览器 / 构建产物）
+[pre-push] 只在 CI 跑的门共 40 道（名单与理由：scripts/pre-push-gate-table.mjs）；完整版只在 CI、本机只跑了一部分的：check:i18n（本机只跑了 check:test-copy-literals）、check:design-lab（本机只跑了 check:design-lab-mirrors）、lint:ci（本机只跑了 lint:changed）。推送前钩子是加速器，CI 才是最终裁判。
