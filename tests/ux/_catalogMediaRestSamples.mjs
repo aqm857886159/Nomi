@@ -26,11 +26,17 @@ export const MEDIA_REST_SAMPLES = Object.freeze({
   'hy-image-v3.5-preview': { kind: 'image' },
   'muse-image-ext': { kind: 'image' },
   'wan2.7-image': { kind: 'image' },
+  // 2026-11-12 档案对文档第一批新增：默认参数下的最低清晰度（1K），只登记，付费验证由协调会话合并前各跑一次。
+  'seedream-5-5': { kind: 'image' },
   // 视频
   'pixverse-v6': { kind: 'video' },
   'pixverse-v6-max': { kind: 'video' },
   'viduq3-turbo': { kind: 'video' },
   'kling-v4': { kind: 'video' },
+  // 可灵 4.0 Flash：文生 · 只有 720p · 默认 5 秒（文档时长 3–20，走查按默认参数）。
+  'kling-v4-flash': { kind: 'video' },
+  // MiniMax H3-Max（APIMart）：文生 · 默认参数下最低清晰度与最短时长。
+  'MiniMax-H3-Max': { kind: 'video' },
   'grok-imagine-video-1.5': { kind: 'video' },
   'veo3.1-fast-official': { kind: 'video' },
   'muse-video-ext': { kind: 'video' },
