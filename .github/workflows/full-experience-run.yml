@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
+        with:
+          playwright: 'true'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build desktop surfaces once

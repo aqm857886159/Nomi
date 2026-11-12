@@ -1,0 +1,26 @@
+{
+  "name": "主工作区 main 在会话开场的自动快进判决",
+  "subject": "delivery.main-checkout-follow",
+  "lifecycle": "delivery",
+  "authority_kind": "decision",
+  "trust_domain": "tooling",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "forbidden_derivations": [],
+  "since": "2026-11-09",
+  "owner": {
+    "path": "scripts/main-checkout-follow.mjs",
+    "symbol": "followMainCheckout"
+  },
+  "write_api": [
+    {
+      "path": "scripts/main-checkout-follow.mjs",
+      "symbol": "followMainCheckout"
+    }
+  ],
+  "parity_test": "scripts/main-checkout-follow.node-test.mjs",
+  "allowed_consumers": [
+    "scripts/claude-hooks/handoff-read.sh"
+  ],
+  "notes": "SessionStart 只在主工作区 main 且干净时 fetch 后 ff-only；worktree 不动，脏、非 main、离线、分叉与 Git 锁冲突均提示并保留现场，依赖变化仅提示安装。"
+}

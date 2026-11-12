@@ -3,6 +3,7 @@ export const locales = ['zh-CN', 'en']
 export const shared = Object.freeze({
   siteUrl: 'https://nomiaqm.com',
   repositoryUrl: 'https://github.com/aqm857886159/Nomi',
+  atomgitUrl: 'https://atomgit.com/aqm857886159/Nomi',
   releaseUrl: 'https://github.com/aqm857886159/Nomi/releases/latest',
   releaseNotesUrl: 'https://github.com/aqm857886159/Nomi/releases',
   businessUrl: 'https://github.com/aqm857886159/Nomi/issues/new?template=business_inquiry.yml',
