@@ -39,7 +39,7 @@
 不是。SSRF 防护是服务端（多租户、云元数据）的通用问题；GitLab 遇到代理同题时直接整段关掉（gitlab-org/gitlab#378267），Stripe smokescreen 把它放到自家出口代理。Nomi 是单用户本地软件、供应商是创作者自己选的，这层没有领域理由。
 
 自写登记条目（提交钩子点名）：
-- `network-stack`：这一刀是删，不是补——自写的地址判据整层删掉，只剩丙 4 / 丙 5 用的分类器。剩下的出口本身（hardenedFetch：单次请求上限、类型白名单、带密钥禁跳转）现在换不了现成库：undici / got 都不管「带自定义鉴权头遇跳转即停」与「取回响应头类型白名单」这两条，要换得把这两条挪到调用方，又是多处各写一遍。哪天换：丙 4 / 丙 5 由协调定掉之后，若分类器也删，hardenedFetch 就只剩上限与跳转规则，届时评估换成 undici 原生 `maxRedirections: 0` + 调用方类型校验（登记在 `docs/engineering/self-written.json` network-stack 的 whyNotIntegrated）。
+- `network-stack`：这一刀是删，不是补——自写的地址判据整层删掉，只剩丙 4 / 丙 5 用的分类器。剩下的出口本身（hardenedFetch：单次请求上限、类型白名单、带密钥禁跳转）现在换不了现成库：undici / got 都不管「带自定义鉴权头遇跳转即停」与「取回响应头类型白名单」这两条，要换得把这两条挪到调用方，又是多处各写一遍。哪天换：丙 4 / 丙 5 由协调定掉之后，若分类器也删，hardenedFetch 就只剩上限与跳转规则，届时评估换成 undici 原生 `maxRedirections: 0` + 调用方类型校验（随 `docs/engineering/self-written.json` network-stack 条目 reviewBy 2026-11-30 那次评估一起做）。
 - `gate-family`：本刀只缩门岗 `check:outbound-policy`（删规则 2），不新增门岗，是减法。门岗族整体换现成方案（eslint 规则 / dependency-cruiser）是门岗族自己的复盘，不在本线；这一刀不给它加任何东西。
 
 ### 6. 三条路
