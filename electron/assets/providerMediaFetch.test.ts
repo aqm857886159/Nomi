@@ -39,11 +39,11 @@ describe('fetchProviderMedia is the one retrieval policy for provider outputs', 
     }))
   })
 
-  it('另存到磁盘不按类型拦（any）；本地可信服务按精确 origin 放行', async () => {
-    await fetchProviderMedia('https://cdn.example/a.bin', { allowContentTypes: 'any', trustedPrivateOrigin: 'http://127.0.0.1:9' })
+  it('另存到磁盘不按类型拦（any）；取回不按地址判（不传 textEntersModelContext）', async () => {
+    await fetchProviderMedia('http://127.0.0.1:9/a.bin', { allowContentTypes: 'any' })
     const options = (hardenedFetch.mock.calls[0] as unknown[])[1] as Record<string, unknown>
     expect(options).not.toHaveProperty('allowContentTypes')
-    expect(options.allowedPrivateOrigins).toEqual(['http://127.0.0.1:9'])
+    expect(options).not.toHaveProperty('textEntersModelContext')
     expect(options).toMatchObject(RETRIEVAL_BUDGET)
   })
 
@@ -54,8 +54,8 @@ describe('fetchProviderMedia is the one retrieval policy for provider outputs', 
     const options = (hardenedFetch.mock.calls[0] as unknown[])[1] as Record<string, unknown>
     expect(options).toMatchObject({ ...RETRIEVAL_BUDGET, allowContentTypes: ['video/', 'application/octet-stream'] })
     expect(options.dispatcher).toBeDefined()
-    // #975 A：内置公网家不拿私网例外（拿了反而会关掉跟随跳转）。
-    expect(options).not.toHaveProperty('allowedPrivateOrigins')
+    // 生成产物取回不按地址判（2026-11-13）：取回的是媒体字节，不进模型上下文。
+    expect(options).not.toHaveProperty('textEntersModelContext')
   })
 })
 

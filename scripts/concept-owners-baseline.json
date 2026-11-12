@@ -84,7 +84,6 @@
     {"contract":"docs/fixes/2026-10-04-ipc-on-untrusted-sender-dialog.root-cause.json","path":"electron/browser/core/browserViews.ts","symbol":"runBrowserViewFireAndForget"},
     {"contract":"docs/fixes/2026-10-04-ipc-on-untrusted-sender-dialog.root-cause.json","path":"scripts/check-ipc-sender-binding.mjs","symbol":"scanFile"},
     {"contract":"docs/fixes/2026-10-04-mockup-contract-real-lab.root-cause.json","path":"scripts/check-mockup-contracts.mjs","symbol":"validateLabContract"},
-    {"contract":"docs/fixes/2026-10-04-retrieval-trusts-connection-origin.root-cause.json","path":"electron/vendor/vendorOutboundGuard.ts","symbol":"trustedRetrievalOrigin"},
     {"contract":"docs/fixes/2026-10-04-unified-undo.root-cause.json","path":"electron/shared/agentCapabilities/changeId.ts","symbol":"makeChangeId"},
     {"contract":"docs/fixes/2026-10-04-unified-undo.root-cause.json","path":"src/workbench/generationCanvas/events/canvasUndoJournal.ts","symbol":"findCanvasChange"},
     {"contract":"docs/fixes/2026-10-04-unified-undo.root-cause.json","path":"src/workbench/timeline/agent/timelineCapabilityTarget.ts","symbol":"undoPlan"},

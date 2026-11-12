@@ -1,9 +1,10 @@
 // 失败路径实测（⑬）：生产代码整条走——fetchTaskResult → executeProfileOperation → vendorHttp.requestJson →
-// 出站守卫（authorizeSubmitDestination）→ retrievalStageError。只注入 DNS 事实（fake-ip 合成地址、没有代理证据），
+// 出站守卫（authorizeSubmitDestination：凭据绑定）→ retrievalStageError。连接的密钥绑在旧 origin 上、查询要去新地址，
 // 守卫在请求离开本机之前就拦下，所以零网络、零花费；拦下的那条错误是守卫真生成的，不是手写的形状。
 //
-// 修前：抛出去的是 outbound-blocked-submit，正文「这次生成**没有发出去**……然后重新生成」，structured.upstreamMsg 也是这句。
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+// 修前：抛出去的是提交前的码，正文「这次生成**没有发出去**……」，structured.upstreamMsg 也是这句。
+// （2026-11-13 前这里用的是按地址拒绝那一层（fake-ip 合成地址）；那一层删了，提交前的码只剩凭据绑定这一个生产者。）
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
   app: { getPath: () => process.env.TEMP || "/tmp", getAppPath: () => process.cwd() },
@@ -16,7 +17,11 @@ type Model = import("../catalog/types").Model;
 type Vendor = import("../catalog/types").Vendor;
 type Mapping = import("../catalog/types").Mapping;
 
-const VENDOR = { key: "apimart", name: "APIMart", enabled: true, baseUrlHint: "https://api.apimart.ai", authType: "bearer", authHeader: "Authorization", createdAt: "", updatedAt: "" } as Vendor;
+// 密钥保存时确认的是旧地址；现在的地址被改了而密钥没重新保存（例如手改了 catalog 文件）。
+// 新地址用 .example 而不是 api.apimart.ai：后者在代码声明的官方备用域里，凭据规则本来就放行，
+// 写成它这条测试会真的去请求公网（2026-11-13 本线踩过一次，见下面的测试网络闸）。
+const NEW_BASE = "https://api.relay-moved.example";
+const VENDOR = { key: "apimart", name: "APIMart", enabled: true, baseUrlHint: NEW_BASE, authType: "bearer", authHeader: "Authorization", credentialBinding: { origin: "https://api.relay-old.example", authType: "bearer", authHeader: "Authorization", confirmedAt: "2026-10-01T00:00:00.000Z" }, createdAt: "", updatedAt: "" } as Vendor;
 const MODEL = { modelKey: "doubao-seedance-2.0", vendorKey: "apimart", labelZh: "Seedance 2.0", kind: "video", enabled: true, createdAt: "", updatedAt: "" } as Model;
 
 vi.mock("../catalog/executableModel", async (importOriginal) => ({
@@ -26,22 +31,14 @@ vi.mock("../catalog/executableModel", async (importOriginal) => ({
 
 const { fetchTaskResult } = await import("./taskResultQuery");
 const { admitTask, taskCache } = await import("../runtime");
-const { setSubmitOutboundDepsForTests } = await import("../vendor/vendorOutboundGuard");
 const { matchNomiErrorCode } = await import("../shared/nomiErrorCodes");
 
 const PRE_SUBMIT_CLAIM = /没有发出去|没发出去|还没请求|没被请求到|重新生成|was never sent|generate again/;
 
-beforeEach(() => {
-  // 只注入环境事实：api.apimart.ai 解析到 RFC 2544 段、没有本地代理证据、没有应用代理。
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: "198.18.0.7", family: 4 as const }],
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-    isApplicationProxyActive: () => false,
-  });
-});
-afterAll(() => setSubmitOutboundDepsForTests(null));
+// 守卫万一没拦住，测试网络闸让这次查询在本机失败，绝不出网。
+beforeEach(() => { vi.stubEnv("NOMI_TEST_NETWORK_GUARD", "1"); });
 
-describe("查询被 Nomi 自己的出站守卫拦下（fake-ip 未确证）——生产代码整条走", () => {
+describe("查询被 Nomi 自己的出站守卫拦下（凭据绑定）——生产代码整条走", () => {
   it("抛出去的是 retrieval-query；没有「没发出去 / 重新生成」；原码留在正文、标明 Nomi 本机拦下；没有冒充的服务商原话", async () => {
     taskCache.delete("task_real_guard");
     admitTask("task_real_guard", {
@@ -57,8 +54,8 @@ describe("查询被 Nomi 自己的出站守卫拦下（fake-ip 未确证）—�
     expect(error, "守卫应当拦下这次查询").toBeInstanceOf(Error);
     expect(matchNomiErrorCode(error!.message)).toBe("retrieval-query");
     expect(error!.message).not.toMatch(PRE_SUBMIT_CLAIM);
-    expect(error!.message).toContain("outbound-blocked-submit");
-    expect(error!.message).toContain("api.apimart.ai");
+    expect(error!.message).toContain("outbound-blocked-credential-origin");
+    expect(error!.message).toContain("api.relay-moved.example");
     expect((error as { structured?: { upstreamMsg?: string } }).structured?.upstreamMsg ?? "").toBe("");
   });
 });

@@ -3,13 +3,14 @@
  *
  * 用户现场（issue #975 评论）：6 镜批次，供应商 6 镜全部真实出片，Nomi 只回填了前 3 镜，后 3 镜长期停在
  * polling，主进程持续高 CPU、1.7–2.3GB 内存。机制：`multiShotBatchScheduler.observeUnitOnce` 把物化（取回）
- * 失败一律吞成 pending——确定性的取回失败（出站策略拒、对方 4xx、类型不对）于是每一轮都**重查供应商、
+ * 失败一律吞成 pending——确定性的取回失败（对方 4xx、类型不对）于是每一轮都**重查供应商、
  * 重下整段视频**、再被拒一次，直到这一趟的等待预算用完，下一次重踢又从头来，永远不停。
  *
  * 这里全部走真链：真批次调度器 → 真提交门面（真 Run 锁 / 真账本 / 耐久 job）→ 真运行时适配器 →
- * 本机 HTTP 假供应商 → **真取回器**（generationOutputMaterializer → fetchProviderMedia → hardenedFetch 的出站策略）。
- * 产物故意放在同一台本机的**另一个端口**上：按 #975 A 的判据，那不是这条连接自己的 origin，出站策略照旧拒——
- * 这正是「再取一万次都是同一堵墙」的确定性失败。
+ * 本机 HTTP 假供应商 → **真取回器**（generationOutputMaterializer → fetchProviderMedia → hardenedFetch）。
+ * 产物地址上的服务器回 403（例如签名过期）：这正是「再取一万次都是同一堵墙」的确定性失败。
+ * （2026-11-13 前这里用的是「产物在同一台本机的另一个端口 → 出站策略拒」；取回不再按地址判，那堵墙删了，
+ *  换成对方真的回 4xx。）
  *
  * 钉住三件事：
  *   ① 修前：一趟驱动里同一镜被反复重查、重下（> 1 次）；修后：恰好 1 次，然后停下；
@@ -77,10 +78,14 @@ afterEach(async () => {
   clock = NOW_BASE;
 });
 
-/** 本机一台 HTTP 服务：只负责把成片字节交出去，数一数被下载了几次。 */
-async function startFileServer(): Promise<{ origin: string; downloads: () => number }> {
+/** 本机一台 HTTP 服务：把成片字节交出去（`deny()` 为真时回 403），数一数被下载了几次（只数交出成片的那几次）。 */
+async function startFileServer(deny: () => boolean = () => false): Promise<{ origin: string; downloads: () => number }> {
   let downloads = 0;
   const server = http.createServer((_request, response) => {
+    if (deny()) {
+      response.writeHead(403, { "content-type": "text/plain" }).end("signature expired");
+      return;
+    }
     downloads += 1;
     response.writeHead(200, { "content-type": "video/mp4" }).end(MP4);
   });
@@ -132,7 +137,7 @@ function wire(input: {
   fetchCalls: { count: number };
   realAssetStore?: boolean;
 }) {
-  // 真取回器：连接地址来自「目录」（这里是 vendorBase），私网例外只问 #975 A 的那一句判据。
+  // 真取回器：连接地址来自「目录」（这里是 vendorBase），只决定走哪条线路；取回不按地址判。
   const materializer = createGenerationOutputMaterializer({
     resolveVendor: () => ({ baseUrlHint: input.vendorBase() }),
     fetchOutput: (url, options) => { input.fetchCalls.count += 1; return fetchProviderMedia(url, options); },
@@ -156,13 +161,12 @@ function wire(input: {
 }
 
 describe("#975 A2：确定性的取回失败停下来，不再一轮轮重查重下", () => {
-  it("产物在同一台本机的另一个端口：取一次就停，这一镜如实进 needs_attention，Run 停下", async () => {
-    const files = await startFileServer();
+  it("产物地址回 403：取一次就停，这一镜如实进 needs_attention，Run 停下", async () => {
+    const files = await startFileServer(() => true);
     const { root, repository } = setup([shot("shot-1")]);
     const counts = { submits: 0, queries: 0 };
     const fetchCalls = { count: 0 };
-    // 连接地址是 127.0.0.1:52931 这一个 origin；产物却在同一台机器的另一个端口上 → 出站策略拒。
-    const scheduler = wire({ root, repository, vendorBase: () => "http://127.0.0.1:52931", outputOrigin: () => files.origin, counts, fetchCalls });
+    const scheduler = wire({ root, repository, vendorBase: () => files.origin, outputOrigin: () => files.origin, counts, fetchCalls });
 
     const outcome = await scheduler.runToQuiescence();
 
@@ -170,7 +174,7 @@ describe("#975 A2：确定性的取回失败停下来，不再一轮轮重查重
     // 修前：一趟驱动里这一镜被反复重查、重下（每一轮 poll + 整段下载），直到等待预算用完。
     expect(fetchCalls.count).toBe(1);
     expect(counts.queries).toBe(1);
-    expect(files.downloads()).toBe(0); // 出站策略在连接之前就拒了：一个字节都没出门
+    expect(files.downloads()).toBe(0); // 对方回的是 403，没有交出成片
     expect(outcome.quiescent).toBe(true);
 
     const run = repository.read("project-1", "op-batch")!;
@@ -221,19 +225,19 @@ describe("#975 A2：确定性的取回失败停下来，不再一轮轮重查重
   });
 
   it("重新取回：只查一次、取一次，零新提交；取到了就落盘，这一镜 ready", async () => {
-    const files = await startFileServer();
+    // 第一次：产物地址回 403 → 取回失败、停下。随后对方恢复（例如供应商那边修好了）。
+    let denied = true;
+    const files = await startFileServer(() => denied);
     const { root, repository } = setup([shot("shot-1")]);
     const counts = { submits: 0, queries: 0 };
     const fetchCalls = { count: 0 };
-    // 第一次：连接地址与产物不同源 → 取回失败、停下。随后用户把连接地址改对（就是产物所在的那个 origin）。
-    let vendorBase = "http://127.0.0.1:52931";
-    const scheduler = wire({ root, repository, vendorBase: () => vendorBase, outputOrigin: () => files.origin, counts, fetchCalls });
+    const scheduler = wire({ root, repository, vendorBase: () => files.origin, outputOrigin: () => files.origin, counts, fetchCalls });
     registerBatchSchedulerKicker((projectId, runId) => { if (projectId === "project-1" && runId === "op-batch") void scheduler.runToQuiescence(); });
     await scheduler.runToQuiescence();
     const parked = repository.read("project-1", "op-batch")!.jobs[0]!;
     expect(parked.errorCode).toBe("output_retrieval_failed");
 
-    vendorBase = files.origin;
+    denied = false;
     const service = createProductionRunService({ repository, projectRootResolver: (p) => (p === "project-1" ? root : null) });
     const current = repository.read("project-1", "op-batch")!;
     await service.command("project-1", "op-batch", {

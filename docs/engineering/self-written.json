@@ -1355,7 +1355,7 @@
     },
     {
       "id": "network-stack",
-      "capability": "代理 / SOCKS / 系统代理探测与出站主机策略（含硬化 fetch）",
+      "capability": "代理 / SOCKS / 系统代理探测与硬化 fetch（地址判据只剩「抓来的文字进模型」的入口）",
       "status": "under-review",
       "reviewBy": "2026-11-30",
       "paths": [
@@ -1384,7 +1384,7 @@
           "source": "https://www.electronjs.org/docs/latest/api/session#sessetproxyconfig"
         }
       ],
-      "whyNotIntegrated": "尚未下结论。领域约束成立的部分：付费取片的出站策略（fake-ip / 私网需要确证，请求发出前拒绝要说明「没计费」）是 Nomi 的真钱语义；代理 / SOCKS 的 dispatcher 本身看起来有现成的。评估方向：代理层接现成库，只留出站策略这层领域判定。",
+      "whyNotIntegrated": "尚未下结论。2026-11-13 生成的提交 / 取回 / 下载已不再按目的地地址判（docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md），那层「付费取片的出站策略」整层删掉；按地址判只剩 Agent 读文档、接入向导抓文档这两类「抓来的文字会进模型」的入口（hardenedFetch textEntersModelContext，去留待定）。密钥两条（只去保存时确认的 origin、遇跳转即停）在凭据绑定与 credentialRedirectPolicy，不属这一条。代理 / SOCKS 的 dispatcher 本身看起来有现成的。评估方向：代理层接现成库。",
       "revisitWhen": "出评估结论；评估前这里不得新增网络栈文件"
     },
     {
