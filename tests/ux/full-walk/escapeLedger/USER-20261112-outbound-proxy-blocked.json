@@ -9,7 +9,7 @@
   "useCases": [],
   "fullWalkJourneys": [],
   "status": "fixed",
-  "fixedInPr": 1490,
+  "fixedInPr": 1492,
   "manualReview": "reviewed",
   "evidence": [
     "docs/fixes/2026-11-12-outbound-guard-no-address-block.root-cause.json",
