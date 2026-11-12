@@ -8,7 +8,8 @@
   "ironLaws": [],
   "useCases": [],
   "fullWalkJourneys": [],
-  "status": "reviewed",
+  "status": "fixed",
+  "fixedInPr": 1484,
   "manualReview": "reviewed",
   "rootCauseContract": "docs/fixes/2026-11-12-selection-storyboard-reads-as-video.root-cause.json",
   "classCheck": {
