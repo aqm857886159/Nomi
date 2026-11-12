@@ -1,0 +1,1147 @@
+{
+ "note": "修前（方式参数 owner 之前）每格两条路请求体的指纹，以及这次允许新增的键。改动发出去的字节时用 NOMI_UPDATE_OFFICIAL_WIRE_BODIES=1 重录（会清空 added）。",
+ "added": [
+  {
+   "cell": "MiniMax-H3|ref|n=1",
+   "path": "canvas",
+   "key": "aspect_ratio",
+   "value": "adaptive"
+  },
+  {
+   "cell": "MiniMax-H3|ref|n=1",
+   "path": "run",
+   "key": "aspect_ratio",
+   "value": "adaptive"
+  },
+  {
+   "cell": "MiniMax-H3|ref|n=9",
+   "path": "canvas",
+   "key": "aspect_ratio",
+   "value": "adaptive"
+  },
+  {
+   "cell": "MiniMax-H3|ref|n=9",
+   "path": "run",
+   "key": "aspect_ratio",
+   "value": "adaptive"
+  },
+  {
+   "cell": "happyhorse-1.1|ref|n=1",
+   "path": "canvas",
+   "key": "size",
+   "value": "16:9"
+  },
+  {
+   "cell": "happyhorse-1.1|ref|n=1",
+   "path": "run",
+   "key": "size",
+   "value": "16:9"
+  },
+  {
+   "cell": "happyhorse-1.1|ref|n=9",
+   "path": "canvas",
+   "key": "size",
+   "value": "16:9"
+  },
+  {
+   "cell": "happyhorse-1.1|ref|n=9",
+   "path": "run",
+   "key": "size",
+   "value": "16:9"
+  },
+  {
+   "cell": "viduq4-preview|ref|n=1",
+   "path": "canvas",
+   "key": "aspect_ratio",
+   "value": "16:9"
+  },
+  {
+   "cell": "viduq4-preview|ref|n=1",
+   "path": "run",
+   "key": "aspect_ratio",
+   "value": "16:9"
+  },
+  {
+   "cell": "viduq4-preview|ref|n=15",
+   "path": "canvas",
+   "key": "aspect_ratio",
+   "value": "16:9"
+  },
+  {
+   "cell": "viduq4-preview|ref|n=15",
+   "path": "run",
+   "key": "aspect_ratio",
+   "value": "16:9"
+  },
+  {
+   "cell": "wan2.7|ref|n=1",
+   "path": "canvas",
+   "key": "size",
+   "value": "16:9"
+  },
+  {
+   "cell": "wan2.7|ref|n=1",
+   "path": "run",
+   "key": "size",
+   "value": "16:9"
+  },
+  {
+   "cell": "wan2.7|ref|n=5",
+   "path": "canvas",
+   "key": "size",
+   "value": "16:9"
+  },
+  {
+   "cell": "wan2.7|ref|n=5",
+   "path": "run",
+   "key": "size",
+   "value": "16:9"
+  },
+  {
+   "cell": "wan3.0-video-prime|ref|n=1",
+   "path": "canvas",
+   "key": "size",
+   "value": "adaptive"
+  },
+  {
+   "cell": "wan3.0-video-prime|ref|n=1",
+   "path": "run",
+   "key": "size",
+   "value": "adaptive"
+  },
+  {
+   "cell": "wan3.0-video-prime|ref|n=10",
+   "path": "canvas",
+   "key": "size",
+   "value": "adaptive"
+  },
+  {
+   "cell": "wan3.0-video-prime|ref|n=10",
+   "path": "run",
+   "key": "size",
+   "value": "adaptive"
+  },
+  {
+   "cell": "wan3.0-video|ref|n=1",
+   "path": "canvas",
+   "key": "size",
+   "value": "adaptive"
+  },
+  {
+   "cell": "wan3.0-video|ref|n=1",
+   "path": "run",
+   "key": "size",
+   "value": "adaptive"
+  },
+  {
+   "cell": "wan3.0-video|ref|n=10",
+   "path": "canvas",
+   "key": "size",
+   "value": "adaptive"
+  },
+  {
+   "cell": "wan3.0-video|ref|n=10",
+   "path": "run",
+   "key": "size",
+   "value": "adaptive"
+  }
+ ],
+ "bodies": {
+  "MiniMax-H3-Regeneration|regenerate|n=0": {
+   "canvas": "24ef0a27d2047ff0",
+   "run": "24ef0a27d2047ff0"
+  },
+  "MiniMax-H3|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "MiniMax-H3|firstlast|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "ccd6b06a322ab16f"
+  },
+  "MiniMax-H3|firstlast|n=2": {
+   "canvas": "8149fd2d0929529b",
+   "run": "8149fd2d0929529b"
+  },
+  "MiniMax-H3|first|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "MiniMax-H3|first|n=1": {
+   "canvas": "ccd6b06a322ab16f",
+   "run": "ccd6b06a322ab16f"
+  },
+  "MiniMax-H3|first|n=2": {
+   "canvas": "8149fd2d0929529b",
+   "run": "8149fd2d0929529b"
+  },
+  "MiniMax-H3|ref|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "MiniMax-H3|ref|n=1": {
+   "canvas": "c00a3105b3b01b02",
+   "run": "c00a3105b3b01b02"
+  },
+  "MiniMax-H3|ref|n=9": {
+   "canvas": "bcae4f4ac7a881af",
+   "run": "bcae4f4ac7a881af"
+  },
+  "MiniMax-H3|t2v|n=0": {
+   "canvas": "92262f8a7976fedb",
+   "run": "92262f8a7976fedb"
+  },
+  "MiniMax-Hailuo-2.3|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "MiniMax-Hailuo-2.3|i2v|n=1": {
+   "canvas": "d187f0e345d5fca3",
+   "run": "d187f0e345d5fca3"
+  },
+  "MiniMax-Hailuo-2.3|t2v|n=0": {
+   "canvas": "a287e3301ad4b4e7",
+   "run": "a287e3301ad4b4e7"
+  },
+  "Omni-Flash-Ext|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "Omni-Flash-Ext|i2v|n=1": {
+   "canvas": "729816e7c1f5cd78",
+   "run": "729816e7c1f5cd78"
+  },
+  "Omni-Flash-Ext|i2v|n=3": {
+   "canvas": "2b37aea525987684",
+   "run": "2b37aea525987684"
+  },
+  "Omni-Flash-Ext|t2v|n=0": {
+   "canvas": "9bfdeba0a7a68c88",
+   "run": "9bfdeba0a7a68c88"
+  },
+  "doubao-seedance-2.0|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.0|firstlast|n=1": {
+   "canvas": "25c977aa53b707ab",
+   "run": "25c977aa53b707ab"
+  },
+  "doubao-seedance-2.0|firstlast|n=2": {
+   "canvas": "72e201fdccb4dae6",
+   "run": "72e201fdccb4dae6"
+  },
+  "doubao-seedance-2.0|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.0|i2v|n=1": {
+   "canvas": "f761834790290f62",
+   "run": "f761834790290f62"
+  },
+  "doubao-seedance-2.0|i2v|n=9": {
+   "canvas": "6c14b64852a1367c",
+   "run": "6c14b64852a1367c"
+  },
+  "doubao-seedance-2.0|omni|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.0|omni|n=1": {
+   "canvas": "f761834790290f62",
+   "run": "f761834790290f62"
+  },
+  "doubao-seedance-2.0|omni|n=9": {
+   "canvas": "6c14b64852a1367c",
+   "run": "6c14b64852a1367c"
+  },
+  "doubao-seedance-2.0|t2v|n=0": {
+   "canvas": "0a67eb8813c77f3f",
+   "run": "0a67eb8813c77f3f"
+  },
+  "doubao-seedance-2.5|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.5|firstlast|n=1": {
+   "canvas": "7820b2bdd96a38b7",
+   "run": "7820b2bdd96a38b7"
+  },
+  "doubao-seedance-2.5|firstlast|n=2": {
+   "canvas": "e0984adacb97ad2f",
+   "run": "e0984adacb97ad2f"
+  },
+  "doubao-seedance-2.5|first|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.5|first|n=1": {
+   "canvas": "7820b2bdd96a38b7",
+   "run": "7820b2bdd96a38b7"
+  },
+  "doubao-seedance-2.5|omni|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.5|omni|n=1": {
+   "canvas": "b6e4998cf1d8acf1",
+   "run": "b6e4998cf1d8acf1"
+  },
+  "doubao-seedance-2.5|omni|n=30": {
+   "canvas": "9565565fff4d1b7d",
+   "run": "9565565fff4d1b7d"
+  },
+  "doubao-seedance-2.5|t2v|n=0": {
+   "canvas": "6f8b63739a97b2dc",
+   "run": "6f8b63739a97b2dc"
+  },
+  "doubao-seedream-4.5|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "doubao-seedream-4.5|edit|n=1": {
+   "canvas": "f0716a2728421957",
+   "run": "f0716a2728421957"
+  },
+  "doubao-seedream-4.5|edit|n=14": {
+   "canvas": "19fe079a84fc75eb",
+   "run": "19fe079a84fc75eb"
+  },
+  "doubao-seedream-4.5|t2i|n=0": {
+   "canvas": "51cba6142b6779ea",
+   "run": "51cba6142b6779ea"
+  },
+  "doubao-seedream-5-0-pro|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "doubao-seedream-5-0-pro|edit|n=1": {
+   "canvas": "f297ab30219258c3",
+   "run": "f297ab30219258c3"
+  },
+  "doubao-seedream-5-0-pro|edit|n=10": {
+   "canvas": "467ec4a6ed2a2835",
+   "run": "467ec4a6ed2a2835"
+  },
+  "doubao-seedream-5-0-pro|t2i|n=0": {
+   "canvas": "93c6534cd767c233",
+   "run": "93c6534cd767c233"
+  },
+  "flux-3-image-klein|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "flux-3-image-klein|i2i|n=1": {
+   "canvas": "15b5b9d82e5e36ef",
+   "run": "15b5b9d82e5e36ef"
+  },
+  "flux-3-image-klein|i2i|n=10": {
+   "canvas": "0a0f637952a37055",
+   "run": "0a0f637952a37055"
+  },
+  "flux-3-image-klein|t2i|n=0": {
+   "canvas": "ea95c13e79f4eea9",
+   "run": "ea95c13e79f4eea9"
+  },
+  "flux-3-image|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "flux-3-image|i2i|n=1": {
+   "canvas": "924b846986abe594",
+   "run": "924b846986abe594"
+  },
+  "flux-3-image|i2i|n=10": {
+   "canvas": "2b946dbc17127d4b",
+   "run": "2b946dbc17127d4b"
+  },
+  "flux-3-image|t2i|n=0": {
+   "canvas": "78f27ae5c2bec043",
+   "run": "78f27ae5c2bec043"
+  },
+  "flux-3-video|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "flux-3-video|i2v|n=1": {
+   "canvas": "9e0a0933a5c399f7",
+   "run": "9e0a0933a5c399f7"
+  },
+  "flux-3-video|i2v|n=10": {
+   "canvas": "ea362ca65f2ee9de",
+   "run": "ea362ca65f2ee9de"
+  },
+  "flux-3-video|t2v|n=0": {
+   "canvas": "c0620693382c23f6",
+   "run": "c0620693382c23f6"
+  },
+  "gemini-2.5-flash-image-preview|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gemini-2.5-flash-image-preview|edit|n=1": {
+   "canvas": "93b4ff2e5afd40d2",
+   "run": "93b4ff2e5afd40d2"
+  },
+  "gemini-2.5-flash-image-preview|edit|n=10": {
+   "canvas": "4b249ea400ca8531",
+   "run": "4b249ea400ca8531"
+  },
+  "gemini-2.5-flash-image-preview|t2i|n=0": {
+   "canvas": "752a2c2ffaf96f97",
+   "run": "752a2c2ffaf96f97"
+  },
+  "gemini-3-pro-image-preview|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gemini-3-pro-image-preview|i2i|n=1": {
+   "canvas": "be1e4f819b53f955",
+   "run": "be1e4f819b53f955"
+  },
+  "gemini-3-pro-image-preview|i2i|n=14": {
+   "canvas": "876a9b0349ba384e",
+   "run": "876a9b0349ba384e"
+  },
+  "gemini-3-pro-image-preview|t2i|n=0": {
+   "canvas": "d5a5172301dcb4dc",
+   "run": "d5a5172301dcb4dc"
+  },
+  "gemini-3.1-flash-image-preview|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gemini-3.1-flash-image-preview|edit|n=1": {
+   "canvas": "70970813c4ad60f0",
+   "run": "70970813c4ad60f0"
+  },
+  "gemini-3.1-flash-image-preview|edit|n=14": {
+   "canvas": "4069adf49979a679",
+   "run": "4069adf49979a679"
+  },
+  "gemini-3.1-flash-image-preview|t2i|n=0": {
+   "canvas": "e8727684a9077e1b",
+   "run": "e8727684a9077e1b"
+  },
+  "gemini-3.1-flash-lite-image-ext|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gemini-3.1-flash-lite-image-ext|i2i|n=1": {
+   "canvas": "e2f58c138206cf3d",
+   "run": "e2f58c138206cf3d"
+  },
+  "gemini-3.1-flash-lite-image-ext|i2i|n=14": {
+   "canvas": "cdd03ca0847ed23b",
+   "run": "cdd03ca0847ed23b"
+  },
+  "gemini-3.1-flash-lite-image-ext|t2i|n=0": {
+   "canvas": "deed9e6a79f43a2b",
+   "run": "deed9e6a79f43a2b"
+  },
+  "gemini-3.1-flash-lite-image|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gemini-3.1-flash-lite-image|i2i|n=1": {
+   "canvas": "674f5cf38185d45d",
+   "run": "674f5cf38185d45d"
+  },
+  "gemini-3.1-flash-lite-image|i2i|n=14": {
+   "canvas": "ee33f36d1502afa7",
+   "run": "ee33f36d1502afa7"
+  },
+  "gemini-3.1-flash-lite-image|t2i|n=0": {
+   "canvas": "132f66d31d0a66a3",
+   "run": "132f66d31d0a66a3"
+  },
+  "gemini-nano-banana-2.1-ext|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gemini-nano-banana-2.1-ext|i2i|n=1": {
+   "canvas": "40580ca6851e1080",
+   "run": "40580ca6851e1080"
+  },
+  "gemini-nano-banana-2.1-ext|i2i|n=14": {
+   "canvas": "d7b9292bbe7629ed",
+   "run": "d7b9292bbe7629ed"
+  },
+  "gemini-nano-banana-2.1-ext|t2i|n=0": {
+   "canvas": "cebc18fe9551d608",
+   "run": "cebc18fe9551d608"
+  },
+  "gemini-nano-banana-2.1|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gemini-nano-banana-2.1|i2i|n=1": {
+   "canvas": "f8d52b0c743a355a",
+   "run": "f8d52b0c743a355a"
+  },
+  "gemini-nano-banana-2.1|i2i|n=14": {
+   "canvas": "5f2dd4a061202d82",
+   "run": "5f2dd4a061202d82"
+  },
+  "gemini-nano-banana-2.1|t2i|n=0": {
+   "canvas": "2db8f07dee08436a",
+   "run": "2db8f07dee08436a"
+  },
+  "gemini-omni-1.2-flash-ext|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "gemini-omni-1.2-flash-ext|firstlast|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "b0b589bdc2193e3f"
+  },
+  "gemini-omni-1.2-flash-ext|firstlast|n=2": {
+   "canvas": "18da4b7a733c26ba",
+   "run": "18da4b7a733c26ba"
+  },
+  "gemini-omni-1.2-flash-ext|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "gemini-omni-1.2-flash-ext|i2v|n=1": {
+   "canvas": "b0b589bdc2193e3f",
+   "run": "b0b589bdc2193e3f"
+  },
+  "gemini-omni-1.2-flash-ext|reference|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "gemini-omni-1.2-flash-ext|reference|n=1": {
+   "canvas": "a5153ae5b49c3cec",
+   "run": "a5153ae5b49c3cec"
+  },
+  "gemini-omni-1.2-flash-ext|reference|n=10": {
+   "canvas": "b0ca558db12b3bc3",
+   "run": "b0ca558db12b3bc3"
+  },
+  "gemini-omni-1.2-flash-ext|t2v|n=0": {
+   "canvas": "f47859095f24c826",
+   "run": "f47859095f24c826"
+  },
+  "gemini-omni-1.2-flash|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "gemini-omni-1.2-flash|firstlast|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "2b227e486bc60e5e"
+  },
+  "gemini-omni-1.2-flash|firstlast|n=2": {
+   "canvas": "65931d8dac803ad3",
+   "run": "65931d8dac803ad3"
+  },
+  "gemini-omni-1.2-flash|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "gemini-omni-1.2-flash|i2v|n=1": {
+   "canvas": "2b227e486bc60e5e",
+   "run": "2b227e486bc60e5e"
+  },
+  "gemini-omni-1.2-flash|reference|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "gemini-omni-1.2-flash|reference|n=1": {
+   "canvas": "81c442e8f256ed3d",
+   "run": "81c442e8f256ed3d"
+  },
+  "gemini-omni-1.2-flash|reference|n=10": {
+   "canvas": "291db58c2232f498",
+   "run": "291db58c2232f498"
+  },
+  "gemini-omni-1.2-flash|t2v|n=0": {
+   "canvas": "8fc0087620da0130",
+   "run": "8fc0087620da0130"
+  },
+  "gpt-image-2.5-flare|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gpt-image-2.5-flare|i2i|n=1": {
+   "canvas": "d0f723271f85aab7",
+   "run": "d0f723271f85aab7"
+  },
+  "gpt-image-2.5-flare|i2i|n=16": {
+   "canvas": "79e6c6dbb2765873",
+   "run": "79e6c6dbb2765873"
+  },
+  "gpt-image-2.5-flare|t2i|n=0": {
+   "canvas": "9b43477afbf87123",
+   "run": "9b43477afbf87123"
+  },
+  "gpt-image-2.5-sunburst|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gpt-image-2.5-sunburst|i2i|n=1": {
+   "canvas": "59af3a4935cf17f5",
+   "run": "59af3a4935cf17f5"
+  },
+  "gpt-image-2.5-sunburst|i2i|n=16": {
+   "canvas": "9e8d037abdd681f3",
+   "run": "9e8d037abdd681f3"
+  },
+  "gpt-image-2.5-sunburst|t2i|n=0": {
+   "canvas": "8701d1dfc902d12a",
+   "run": "8701d1dfc902d12a"
+  },
+  "gpt-image-2.6-flare|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gpt-image-2.6-flare|i2i|n=1": {
+   "canvas": "e647d226d3c30b85",
+   "run": "e647d226d3c30b85"
+  },
+  "gpt-image-2.6-flare|i2i|n=16": {
+   "canvas": "c3a3d57e2248a155",
+   "run": "c3a3d57e2248a155"
+  },
+  "gpt-image-2.6-flare|t2i|n=0": {
+   "canvas": "001e07a5e8a730ea",
+   "run": "001e07a5e8a730ea"
+  },
+  "gpt-image-2.6-sunburst|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gpt-image-2.6-sunburst|i2i|n=1": {
+   "canvas": "18c849cddb50ae06",
+   "run": "18c849cddb50ae06"
+  },
+  "gpt-image-2.6-sunburst|i2i|n=16": {
+   "canvas": "6ce9320bda50ef9d",
+   "run": "6ce9320bda50ef9d"
+  },
+  "gpt-image-2.6-sunburst|t2i|n=0": {
+   "canvas": "308e432b58f808e1",
+   "run": "308e432b58f808e1"
+  },
+  "gpt-image-2|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "gpt-image-2|i2i|n=1": {
+   "canvas": "dc9904648a91da20",
+   "run": "dc9904648a91da20"
+  },
+  "gpt-image-2|i2i|n=15": {
+   "canvas": "068474fe24e76035",
+   "run": "068474fe24e76035"
+  },
+  "gpt-image-2|t2i|n=0": {
+   "canvas": "23430b30bbff8b66",
+   "run": "23430b30bbff8b66"
+  },
+  "grok-imagine-1.5-video-apimart|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "grok-imagine-1.5-video-apimart|i2v|n=1": {
+   "canvas": "7306b97e934853d1",
+   "run": "7306b97e934853d1"
+  },
+  "grok-imagine-1.5-video-apimart|i2v|n=7": {
+   "canvas": "08b331241ce3537a",
+   "run": "08b331241ce3537a"
+  },
+  "grok-imagine-1.5-video-apimart|t2v|n=0": {
+   "canvas": "734b3948856ea9d9",
+   "run": "734b3948856ea9d9"
+  },
+  "grok-imagine-2.0-ext|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "393f9eb9f5b645b3"
+  },
+  "grok-imagine-2.0-ext|i2i|n=1": {
+   "canvas": "d40c4cd63846e431",
+   "run": "393f9eb9f5b645b3"
+  },
+  "grok-imagine-2.0-ext|i2i|n=3": {
+   "canvas": "d40c4cd63846e431",
+   "run": "393f9eb9f5b645b3"
+  },
+  "grok-imagine-2.0-ext|t2i|n=0": {
+   "canvas": "5367f856d5a1486a",
+   "run": "5367f856d5a1486a"
+  },
+  "grok-imagine-image-2.0|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "grok-imagine-image-2.0|i2i|n=1": {
+   "canvas": "9437b9f605ad24b0",
+   "run": "9437b9f605ad24b0"
+  },
+  "grok-imagine-image-2.0|i2i|n=3": {
+   "canvas": "203aded478ccdb70",
+   "run": "203aded478ccdb70"
+  },
+  "grok-imagine-image-2.0|t2i|n=0": {
+   "canvas": "81bf5c5d2b10d5f4",
+   "run": "81bf5c5d2b10d5f4"
+  },
+  "grok-imagine-video-1.5|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "grok-imagine-video-1.5|i2v|n=1": {
+   "canvas": "db2e59c53c9b2625",
+   "run": "db2e59c53c9b2625"
+  },
+  "grok-imagine-video-1.5|t2v|n=0": {
+   "canvas": "6ac96293dc1048a7",
+   "run": "6ac96293dc1048a7"
+  },
+  "happyhorse-1.1|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "happyhorse-1.1|i2v|n=1": {
+   "canvas": "e1d38f38adb35896",
+   "run": "e1d38f38adb35896"
+  },
+  "happyhorse-1.1|ref|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "happyhorse-1.1|ref|n=1": {
+   "canvas": "41201a3bcb5720fb",
+   "run": "41201a3bcb5720fb"
+  },
+  "happyhorse-1.1|ref|n=9": {
+   "canvas": "ffa4b4f3fcab0403",
+   "run": "ffa4b4f3fcab0403"
+  },
+  "happyhorse-1.1|t2v|n=0": {
+   "canvas": "88165de67166e7dd",
+   "run": "88165de67166e7dd"
+  },
+  "hy-image-v3.5-preview|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "hy-image-v3.5-preview|i2i|n=1": {
+   "canvas": "923189f5995646cd",
+   "run": "923189f5995646cd"
+  },
+  "hy-image-v3.5-preview|i2i|n=5": {
+   "canvas": "ccd4e7fe051e9df2",
+   "run": "ccd4e7fe051e9df2"
+  },
+  "hy-image-v3.5-preview|t2i|n=0": {
+   "canvas": "5c34e19e648f428a",
+   "run": "5c34e19e648f428a"
+  },
+  "kling-3.0-turbo|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "kling-3.0-turbo|i2v|n=1": {
+   "canvas": "206701dcc8fdbb3d",
+   "run": "206701dcc8fdbb3d"
+  },
+  "kling-3.0-turbo|t2v|n=0": {
+   "canvas": "9c8f480668d90e0e",
+   "run": "9c8f480668d90e0e"
+  },
+  "kling-v3|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "kling-v3|i2v|n=1": {
+   "canvas": "4da4a0769792f5ac",
+   "run": "4da4a0769792f5ac"
+  },
+  "kling-v3|i2v|n=2": {
+   "canvas": "4084a6b6a9b3efe9",
+   "run": "4084a6b6a9b3efe9"
+  },
+  "kling-v3|t2v|n=0": {
+   "canvas": "1e094ffb02cbed86",
+   "run": "1e094ffb02cbed86"
+  },
+  "kling-v4|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "kling-v4|i2v|n=1": {
+   "canvas": "78e9b4a952234263",
+   "run": "78e9b4a952234263"
+  },
+  "kling-v4|i2v|n=2": {
+   "canvas": "bb8cfafd60dcf1d6",
+   "run": "bb8cfafd60dcf1d6"
+  },
+  "kling-v4|t2v|n=0": {
+   "canvas": "74df49f39f2150b0",
+   "run": "74df49f39f2150b0"
+  },
+  "muse-image-ext|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "muse-image-ext|i2i|n=1": {
+   "canvas": "dc732b601b4f950d",
+   "run": "dc732b601b4f950d"
+  },
+  "muse-image-ext|i2i|n=9": {
+   "canvas": "1e629d8d969eefde",
+   "run": "1e629d8d969eefde"
+  },
+  "muse-image-ext|t2i|n=0": {
+   "canvas": "90874ee723caad03",
+   "run": "90874ee723caad03"
+  },
+  "muse-video-ext|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "muse-video-ext|i2v|n=1": {
+   "canvas": "3a3072bae1f973d9",
+   "run": "3a3072bae1f973d9"
+  },
+  "muse-video-ext|i2v|n=9": {
+   "canvas": "99ddc1189d4daf77",
+   "run": "99ddc1189d4daf77"
+  },
+  "muse-video-ext|t2v|n=0": {
+   "canvas": "17bd44a25fe31504",
+   "run": "17bd44a25fe31504"
+  },
+  "pixverse-v6-max|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "pixverse-v6-max|i2v|n=1": {
+   "canvas": "7caba9a81a4f4c32",
+   "run": "7caba9a81a4f4c32"
+  },
+  "pixverse-v6-max|t2v|n=0": {
+   "canvas": "565ac42b10560ab4",
+   "run": "565ac42b10560ab4"
+  },
+  "pixverse-v6|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "pixverse-v6|firstlast|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "5f8b345795a67ab4"
+  },
+  "pixverse-v6|firstlast|n=2": {
+   "canvas": "5abda87af0ae4e8d",
+   "run": "5abda87af0ae4e8d"
+  },
+  "pixverse-v6|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "pixverse-v6|i2v|n=1": {
+   "canvas": "2226be36354314ce",
+   "run": "2226be36354314ce"
+  },
+  "pixverse-v6|t2v|n=0": {
+   "canvas": "de2876c085b00b43",
+   "run": "de2876c085b00b43"
+  },
+  "qwen-image-2.0|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "qwen-image-2.0|edit|n=1": {
+   "canvas": "8c34334b494579ec",
+   "run": "8c34334b494579ec"
+  },
+  "qwen-image-2.0|edit|n=4": {
+   "canvas": "2adad4cba0e467fb",
+   "run": "2adad4cba0e467fb"
+  },
+  "qwen-image-2.0|t2i|n=0": {
+   "canvas": "f705099ed35f3189",
+   "run": "f705099ed35f3189"
+  },
+  "qwen-image-3.0|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "qwen-image-3.0|edit|n=1": {
+   "canvas": "251e522d4b1cce25",
+   "run": "251e522d4b1cce25"
+  },
+  "qwen-image-3.0|edit|n=3": {
+   "canvas": "57821ab1cf4cb360",
+   "run": "57821ab1cf4cb360"
+  },
+  "qwen-image-3.0|t2i|n=0": {
+   "canvas": "2a6a621443512694",
+   "run": "2a6a621443512694"
+  },
+  "veo3.1-fast-official|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "veo3.1-fast-official|i2v|n=1": {
+   "canvas": "eac432a7622eb84f",
+   "run": "eac432a7622eb84f"
+  },
+  "veo3.1-fast-official|i2v|n=2": {
+   "canvas": "83a9103246175ccc",
+   "run": "83a9103246175ccc"
+  },
+  "veo3.1-fast-official|t2v|n=0": {
+   "canvas": "f004ab5fe7d6f887",
+   "run": "f004ab5fe7d6f887"
+  },
+  "veo3.1-fast|frame|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "veo3.1-fast|frame|n=1": {
+   "canvas": "9e081e13abf4edd7",
+   "run": "9e081e13abf4edd7"
+  },
+  "veo3.1-fast|frame|n=2": {
+   "canvas": "9dcb8cf35ae74de6",
+   "run": "9dcb8cf35ae74de6"
+  },
+  "veo3.1-fast|reference|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "veo3.1-fast|reference|n=1": {
+   "canvas": "a5c881fe8fed228f",
+   "run": "a5c881fe8fed228f"
+  },
+  "veo3.1-fast|reference|n=3": {
+   "canvas": "54ab31a1e2b420a2",
+   "run": "54ab31a1e2b420a2"
+  },
+  "veo3.1-fast|t2v|n=0": {
+   "canvas": "1118e5a23921472d",
+   "run": "1118e5a23921472d"
+  },
+  "veo3.1-quality-official|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "veo3.1-quality-official|i2v|n=1": {
+   "canvas": "e6fdf732679181cd",
+   "run": "e6fdf732679181cd"
+  },
+  "veo3.1-quality-official|i2v|n=2": {
+   "canvas": "3c10fd07dd3f8a46",
+   "run": "3c10fd07dd3f8a46"
+  },
+  "veo3.1-quality-official|t2v|n=0": {
+   "canvas": "ffd9d290fceb4c0e",
+   "run": "ffd9d290fceb4c0e"
+  },
+  "viduq3-pro|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "viduq3-pro|i2v|n=1": {
+   "canvas": "58e8cb8c426b554d",
+   "run": "58e8cb8c426b554d"
+  },
+  "viduq3-pro|i2v|n=2": {
+   "canvas": "02d9112c327570d2",
+   "run": "02d9112c327570d2"
+  },
+  "viduq3-pro|t2v|n=0": {
+   "canvas": "be536e2c0f212d76",
+   "run": "be536e2c0f212d76"
+  },
+  "viduq3-turbo|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "viduq3-turbo|i2v|n=1": {
+   "canvas": "79adcdc1e4ea8a31",
+   "run": "79adcdc1e4ea8a31"
+  },
+  "viduq3-turbo|i2v|n=2": {
+   "canvas": "fc91934c6cf7ef1a",
+   "run": "fc91934c6cf7ef1a"
+  },
+  "viduq3-turbo|t2v|n=0": {
+   "canvas": "1fdd004e17ee0635",
+   "run": "1fdd004e17ee0635"
+  },
+  "viduq3|ref|n=0": {
+   "canvas": "5d7bcc40cc308ce6",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "viduq3|ref|n=1": {
+   "canvas": "8d041164b629b5c9",
+   "run": "8d041164b629b5c9"
+  },
+  "viduq3|ref|n=7": {
+   "canvas": "0a4c74057e36812e",
+   "run": "0a4c74057e36812e"
+  },
+  "viduq4-preview|i2v|n=0": {
+   "canvas": "5d7bcc40cc308ce6",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "viduq4-preview|i2v|n=1": {
+   "canvas": "45830ba9f9229f3a",
+   "run": "45830ba9f9229f3a"
+  },
+  "viduq4-preview|ref|n=0": {
+   "canvas": "5d7bcc40cc308ce6",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "viduq4-preview|ref|n=1": {
+   "canvas": "ba2f6125c3a2220c",
+   "run": "ba2f6125c3a2220c"
+  },
+  "viduq4-preview|ref|n=15": {
+   "canvas": "4a733ee71e5758f9",
+   "run": "4a733ee71e5758f9"
+  },
+  "wan2.7-image-pro|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "wan2.7-image-pro|i2i|n=1": {
+   "canvas": "b587f79395f319bf",
+   "run": "b587f79395f319bf"
+  },
+  "wan2.7-image-pro|i2i|n=9": {
+   "canvas": "713452659c129191",
+   "run": "713452659c129191"
+  },
+  "wan2.7-image-pro|t2i|n=0": {
+   "canvas": "66a33a7389b15080",
+   "run": "66a33a7389b15080"
+  },
+  "wan2.7-image|i2i|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "wan2.7-image|i2i|n=1": {
+   "canvas": "527a7b8c99cb2e6b",
+   "run": "527a7b8c99cb2e6b"
+  },
+  "wan2.7-image|i2i|n=9": {
+   "canvas": "39c72d2da89bfc7e",
+   "run": "39c72d2da89bfc7e"
+  },
+  "wan2.7-image|t2i|n=0": {
+   "canvas": "6b79839f55284d9d",
+   "run": "6b79839f55284d9d"
+  },
+  "wan2.7|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "wan2.7|i2v|n=1": {
+   "canvas": "4fd82dc80ba671c1",
+   "run": "4fd82dc80ba671c1"
+  },
+  "wan2.7|i2v|n=2": {
+   "canvas": "63443ddfa0c97d27",
+   "run": "63443ddfa0c97d27"
+  },
+  "wan2.7|ref|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "wan2.7|ref|n=1": {
+   "canvas": "4f6e47e94a6a6791",
+   "run": "4f6e47e94a6a6791"
+  },
+  "wan2.7|ref|n=5": {
+   "canvas": "0fe3642b2de5679f",
+   "run": "0fe3642b2de5679f"
+  },
+  "wan2.7|t2v|n=0": {
+   "canvas": "9bc30929315b04a2",
+   "run": "9bc30929315b04a2"
+  },
+  "wan3.0-video-prime|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "wan3.0-video-prime|firstlast|n=1": {
+   "canvas": "8d5064959e973193",
+   "run": "8d5064959e973193"
+  },
+  "wan3.0-video-prime|firstlast|n=2": {
+   "canvas": "e95bea5bb04cb71b",
+   "run": "e95bea5bb04cb71b"
+  },
+  "wan3.0-video-prime|first|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "wan3.0-video-prime|first|n=1": {
+   "canvas": "8d5064959e973193",
+   "run": "8d5064959e973193"
+  },
+  "wan3.0-video-prime|ref|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "wan3.0-video-prime|ref|n=1": {
+   "canvas": "4ffdfdc2d68f907e",
+   "run": "4ffdfdc2d68f907e"
+  },
+  "wan3.0-video-prime|ref|n=10": {
+   "canvas": "67ff8d2c67e135a1",
+   "run": "67ff8d2c67e135a1"
+  },
+  "wan3.0-video-prime|t2v|n=0": {
+   "canvas": "88845bc273854ba6",
+   "run": "88845bc273854ba6"
+  },
+  "wan3.0-video|firstlast|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "wan3.0-video|firstlast|n=1": {
+   "canvas": "b131bdd8fad7d6ec",
+   "run": "b131bdd8fad7d6ec"
+  },
+  "wan3.0-video|firstlast|n=2": {
+   "canvas": "fbe1376d611e6c27",
+   "run": "fbe1376d611e6c27"
+  },
+  "wan3.0-video|first|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "wan3.0-video|first|n=1": {
+   "canvas": "b131bdd8fad7d6ec",
+   "run": "b131bdd8fad7d6ec"
+  },
+  "wan3.0-video|ref|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "wan3.0-video|ref|n=1": {
+   "canvas": "4a63336c617cc93d",
+   "run": "4a63336c617cc93d"
+  },
+  "wan3.0-video|ref|n=10": {
+   "canvas": "9b0e635a242afdcc",
+   "run": "9b0e635a242afdcc"
+  },
+  "wan3.0-video|t2v|n=0": {
+   "canvas": "aff530a2aa8ba82d",
+   "run": "aff530a2aa8ba82d"
+  },
+  "z-image-turbo|t2i|n=0": {
+   "canvas": "daae085f06b29f38",
+   "run": "daae085f06b29f38"
+  }
+ }
+}
