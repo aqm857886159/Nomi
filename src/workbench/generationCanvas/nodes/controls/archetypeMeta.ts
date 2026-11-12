@@ -497,7 +497,7 @@ function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArche
  * 菜单只让点「放得下全部输入」的方式，所以写进去的偏好当下一定成立；之后输入加多放不下，由画布边界忘掉它
  * （canvasModeChoiceForget），不会「减少就跳回」。
  * 机器（连线、换模型、自动参考、交付…）不再写方式：这次按什么发由 effectiveArchetypeMode 按输入现算。
- * 参数不在这里夹：按现算出的方式在读 / 发的时候收窄（clampParamsToMode），删了图就回到原来存的值。
+ * 参数不在这里夹：按现算出的方式在发的时候问方式参数 owner（modeParams.effectiveModeParams），删了图就回到原来存的值。
  * 旧工程按槽存的参考图，先按**改之前存着的方式**落成规范形（旧界面那时看不见的记进「先放一边」，#1269 条件 4）。
  */
 export function applyHumanModeChoice(
@@ -536,16 +536,6 @@ export function carryHumanModePreference(
   const intent = preference?.chosenBy === 'human' ? fromArchetype.modes.find((mode) => mode.id === preference.modeId)?.intent : undefined
   const carried = intent ? toArchetype.modes.find((mode) => mode.intent === intent) : undefined
   return carried ? withHumanModePreference(meta, toArchetype.id, carried.id) : meta
-}
-
-/**
- * 按方式声明把存着的下拉值收窄（读 / 发时用，不写回）。火山 Seedance 2.5 文生存了 16:9 → 放一张首帧，现算成首帧方式
- * （比例官方只收 adaptive）→ 面板显示、请求发出的都是 adaptive；删了图回到文生 → 还是 16:9（2026-08-26 走查那一类）。
- */
-export function clampParamsToMode(meta: Record<string, unknown>, archetype: ModelArchetype, mode: ArchetypeMode): Record<string, unknown> {
-  const specialized = specializeArchetypeForVariant(archetype, preservedVariantId(meta, archetype))
-  const declared = specialized.modes.find((candidate) => candidate.id === mode.id) ?? mode
-  return resolveModelParams({ controls: declared.params, intent: {}, previousParams: meta, policy: { author: '人手', invalid: '只修下拉不管数值' } }).params
 }
 
 /**

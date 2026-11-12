@@ -3,40 +3,28 @@
   "samples": 534,
   "archetypes": 93,
   "samplesWithLeaks": {
-   "canvas": 34,
-   "run": 25,
-   "either": 34
+   "canvas": 6,
+   "run": 0,
+   "either": 6
   },
-  "archetypesWithLeaks": 8,
+  "archetypesWithLeaks": 1,
   "topLeakedKeys": [
-   {
-    "key": "aspect_ratio",
-    "samples": 14
-   },
-   {
-    "key": "size",
-    "samples": 12
-   },
    {
     "key": "duration",
     "samples": 6
    },
    {
-    "key": "resolution",
-    "samples": 6
-   },
-   {
-    "key": "audio_setting",
+    "key": "aspect_ratio",
     "samples": 3
    }
   ],
-  "archetypesWithDefaultCarried": 2,
+  "archetypesWithDefaultCarried": 1,
   "emptyDuration": {
    "canvas": 6,
-   "run": 6,
+   "run": 0,
    "emptyValue": 0
   },
-  "pathsDiffer": 139
+  "pathsDiffer": 144
  },
  "pathDifferences": [
   {
@@ -172,10 +160,28 @@
    "runStatus": "refused:apimart_provider_error"
   },
   {
+   "id": "happyhorse|kie|happyhorse|i2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|ref->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
    "id": "happyhorse|kie|happyhorse|ref->i2v",
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "happyhorse|kie|happyhorse|t2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
   },
   {
    "id": "happyhorse|kie|happyhorse|t2v->i2v",
@@ -190,6 +196,12 @@
    "runStatus": "refused:apimart_provider_error"
   },
   {
+   "id": "happyhorse|runway|happyhorse_1_0|i2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
    "id": "happyhorse|runway|happyhorse_1_0|ref->edit",
    "kind": "facts-differ",
    "canvasStatus": "sent",
@@ -200,6 +212,12 @@
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "happyhorse|runway|happyhorse_1_0|t2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
   },
   {
    "id": "happyhorse|runway|happyhorse_1_0|t2v->i2v",
@@ -2143,156 +2161,18 @@
    }
   },
   {
-   "id": "happyhorse-1.1|apimart|happyhorse-1.1|ref->i2v",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "happyhorse-1.1|apimart|happyhorse-1.1|t2v->i2v",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
    "id": "happyhorse|kie|happyhorse|edit->i2v",
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "input.audio_setting"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
+    "leaks": [],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
     "status": "refused:apimart_provider_error",
     "statusWithParams": "refused:apimart_provider_error",
     "leaks": [],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "happyhorse|kie|happyhorse|edit->ref",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "input.audio_setting"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "input.audio_setting"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "happyhorse|kie|happyhorse|edit->t2v",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "input.audio_setting"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "audio_setting",
-      "fields": [
-       "input.audio_setting"
-      ]
-     }
-    ],
     "defaultCarried": [],
     "emptyDuration": null
    }
@@ -2332,32 +2212,9 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "input.duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    }
   },
   {
@@ -2401,38 +2258,9 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "input.duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    }
   },
   {
@@ -2440,22 +2268,8 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
+    "leaks": [],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
@@ -2507,38 +2321,9 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "input.duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "input.duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    }
   },
   {
@@ -2546,22 +2331,8 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
+    "leaks": [],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
@@ -2652,26 +2423,9 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    }
   },
   {
@@ -2720,32 +2474,9 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    }
   },
   {
@@ -2817,32 +2548,9 @@
    "run": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "ratio"
-      ]
-     },
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "duration",
-      "fields": [
-       "duration"
-      ]
-     }
-    ],
-    "emptyDuration": {
-     "field": "duration",
-     "value": 5
-    }
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
    }
   },
   {
@@ -3054,28 +2762,8 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "resolution",
-      "fields": [
-       "input.resolution"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "resolution",
-      "fields": [
-       "input.resolution"
-      ]
-     }
-    ],
+    "leaks": [],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
@@ -3091,34 +2779,8 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "resolution",
-      "fields": [
-       "input.resolution"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     },
-     {
-      "key": "resolution",
-      "fields": [
-       "input.resolution"
-      ]
-     }
-    ],
+    "leaks": [],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
@@ -3168,22 +2830,8 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "resolution",
-      "fields": [
-       "resolution"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "resolution",
-      "fields": [
-       "resolution"
-      ]
-     }
-    ],
+    "leaks": [],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
@@ -3216,22 +2864,8 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "resolution",
-      "fields": [
-       "resolution"
-      ]
-     }
-    ],
-    "defaultCarried": [
-     {
-      "key": "resolution",
-      "fields": [
-       "resolution"
-      ]
-     }
-    ],
+    "leaks": [],
+    "defaultCarried": [],
     "emptyDuration": null
    },
    "run": {
@@ -3298,20 +2932,7 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "ratio"
-      ]
-     },
-     {
-      "key": "resolution",
-      "fields": [
-       "resolution"
-      ]
-     }
-    ],
+    "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
    },
@@ -3345,20 +2966,7 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "ratio"
-      ]
-     },
-     {
-      "key": "resolution",
-      "fields": [
-       "resolution"
-      ]
-     }
-    ],
+    "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
    },
@@ -4952,37 +4560,6 @@
    }
   },
   {
-   "id": "viduq4-preview|apimart|viduq4-preview|ref->i2v",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
    "id": "volcengine-seedance-2-5|volcengine|doubao-seedance-2-5-260628|first->firstlast",
    "canvas": {
     "status": "sent",
@@ -5289,49 +4866,6 @@
    }
   },
   {
-   "id": "wan-2.7|apimart|wan2.7|ref->i2v",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "seed",
-      "fields": [
-       "seed"
-      ]
-     },
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "seed",
-      "fields": [
-       "seed"
-      ]
-     },
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
    "id": "wan-2.7|apimart|wan2.7|ref->t2v",
    "canvas": {
     "status": "sent",
@@ -5344,409 +4878,6 @@
     "status": "sent",
     "statusWithParams": "refused:apimart_provider_error",
     "leaks": [],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-2.7|apimart|wan2.7|t2v->i2v",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0-apimart|apimart|wan3.0-video|ref->first",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0-apimart|apimart|wan3.0-video|ref->firstlast",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0-apimart|apimart|wan3.0-video|t2v->first",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0-apimart|apimart|wan3.0-video|t2v->firstlast",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|ref->first",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|ref->firstlast",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|t2v->first",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0-prime-apimart|apimart|wan3.0-video-prime|t2v->firstlast",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "size",
-      "fields": [
-       "size"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0|kie|wan/3-0-video|ref->first",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0|kie|wan/3-0-video|ref->firstlast",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0|kie|wan/3-0-video|t2v->first",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   }
-  },
-  {
-   "id": "wan-3.0|kie|wan/3-0-video|t2v->firstlast",
-   "canvas": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
-    "defaultCarried": [],
-    "emptyDuration": null
-   },
-   "run": {
-    "status": "sent",
-    "statusWithParams": "sent",
-    "leaks": [
-     {
-      "key": "aspect_ratio",
-      "fields": [
-       "input.aspect_ratio"
-      ]
-     }
-    ],
     "defaultCarried": [],
     "emptyDuration": null
    }
