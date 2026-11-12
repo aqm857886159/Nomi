@@ -126,13 +126,15 @@ function emitReturnedLandings(returned: readonly Returned[]): void {
 
 type Projection = Readonly<{ nodes: GenerationCanvasNode[]; edges: GenerationCanvasEdge[]; groups: NodeGroup[] }>
 
-// History snapshots are authoritative complete document states. The input-mode
-// subscription must not derive a second correction while undo/redo is restoring
-// one of those snapshots (it would rewrite an explicitly empty first-frame
-// workflow during the rewind itself).
-let canvasHistoryReplay = false
-export function isCanvasHistoryReplay(): boolean {
-  return canvasHistoryReplay
+// 装载项目、重放落盘尾巴、撤销 / 重做写进来的都是完整、权威的文档状态。store 边界上「输入变了就忘掉放不下的方式偏好」
+// 那条订阅（canvasModeChoiceForget）在这几种写入时不派生第二笔改动：打开老项目不改写存盘，撤销那一步自己带着当时的偏好。
+let canvasDocumentRestore = false
+export function isCanvasDocumentRestore(): boolean {
+  return canvasDocumentRestore
+}
+function restoring(apply: () => void): void {
+  canvasDocumentRestore = true
+  try { apply() } finally { canvasDocumentRestore = false }
 }
 
 function emitProductionSignalsForDocumentChange(projectId: string | null, before: readonly GenerationCanvasNode[], after: readonly GenerationCanvasNode[]): void {
@@ -189,7 +191,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         // S5-b-2:journal 起点 = 恢复出的画布(undo 最远只回放到这帧,不会塌到空白)
         seedUndoJournalBase({ nodes: normalized.nodes, edges: normalized.edges, groups: normalized.groups })
         clearClipboard()
-        set({
+        restoring(() => set({
           isReady: true,
           projectId,
           persistRevision: get().persistRevision,
@@ -204,7 +206,7 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
           pendingConnectionSourceSide: 'right',
           hasClipboard: false,
           ...getHistoryFlags(),
-        })
+        }))
         // genesis 事件不在这里发(S5-b-1):必须等 hydrate 尾部重放完成后由
         // workbenchProjectSession 以"含尾巴的后态"发,否则磁盘日志最终态会丢尾巴。
         return
@@ -218,18 +220,13 @@ export const createCanvasDocumentActions: CanvasSliceCreator<CanvasDocumentActio
         // 拆解进度的每一下写都走 canvas.node.updated 进了事件日志，重放会把 `status: 'running'` 原样写回来——
         // 终态判定的 owner 只有一份，重放完再问它一次；已终态的表它原样返回，幂等（重启后拆解表卡在「进行中」就是这一下）。
         // 同一个坑的另一半：存盘时在跑的本机处理 / 生成节点，重放后也要再收口一次（只在装载时收口会被尾巴盖回去，永久 running）。
-        set({ nodes: convergeStuckMidFlightNodes(convergeDeconstructionNodes(projection.nodes)), edges: projection.edges, groups: projection.groups })
+        restoring(() => set({ nodes: convergeStuckMidFlightNodes(convergeDeconstructionNodes(projection.nodes)), edges: projection.edges, groups: projection.groups }))
         return
       }
       case 'rewind': {
         const live = get()
         const next = settleRewind(write.restore, live.nodes, live.heldNodeOutcomes)
-        canvasHistoryReplay = true
-        try {
-          replaceDocument(next, withoutReturned(live.heldNodeOutcomes, next.returned))
-        } finally {
-          canvasHistoryReplay = false
-        }
+        restoring(() => replaceDocument(next, withoutReturned(live.heldNodeOutcomes, next.returned)))
         // 影子记账:撤销=全量后态(replay≡snapshot 恒真)
         emitCanvasGesture([{ type: 'canvas.snapshot.restored', payload: { snapshot: { nodes: next.nodes, edges: next.edges, groups: next.groups } } }])
         emitReturnedLandings(next.returned)

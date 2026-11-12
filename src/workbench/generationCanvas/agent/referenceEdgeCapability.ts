@@ -181,9 +181,9 @@ function preferredIncomingImageEdgeMode(
   const archetype = archetypeForNode(target)
   if (!archetype) return 'first_frame'
   const existingEdgesToTarget = edges.filter((edge) => edge.target === target.id)
-  const layout = effectiveArchetypeMode(archetype, target, { nodes, edges }).layout
+  const layout = effectiveArchetypeMode(archetype, target, { nodes, edges }).mode
   if (acceptsIncomingImage(layout)) return edgeModeForArchetypeMode(layout, existingEdgesToTarget)
-  const after = effectiveArchetypeModeWithUpload(archetype, target, { nodes, edges }, 'image').layout
+  const after = effectiveArchetypeModeWithUpload(archetype, target, { nodes, edges }, 'image').mode
   return acceptsIncomingImage(after) ? edgeModeForArchetypeMode(after, existingEdgesToTarget) : 'reference'
 }
 

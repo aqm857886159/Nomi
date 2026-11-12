@@ -2,7 +2,6 @@ import {
   type ModelCatalogModelDto,
   type ModelCatalogVendorDto,
 } from '../../api/modelCatalogApi'
-import { modeTransportFor, type ModelArchetype } from '../../../../electron/shared/modelArchetypes'
 import { modelSuccessorDepth } from '../../../../electron/shared/vendorLineage'
 
 function normalizeIdentifier(value: unknown): string {

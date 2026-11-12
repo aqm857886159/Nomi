@@ -45,8 +45,7 @@ const NODE_GENERATE = 'button[data-bar-segment="generate"]'
 const VIDEO_LANDS_MS = stationTimeout({ turns: 4 })
 // 界面跟系统语言走：按钮名、「未用到」都按词典取中英两种，不手写一份。
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const FIRSTLAST_NAME = new RegExp(`^\\s*(?:${UI_LOCALES.map((locale) => escapeRegExp(uiText(locale, 'generationCommon.composerB3.modeFirstLast'))).join('|')})\\s*$`)
-const UNUSED_LABELS = UI_LOCALES.map((locale) => uiText(locale, 'assetLibrary.refRow.unused'))
+const FIRSTLAST_NAME = new RegExp(`^\\s*(?:${UI_LOCALES.map((locale) => escapeRegExp(uiText(locale, 'generationCommon.modeMenu.name.firstLast'))).join('|')})\\s*$`)
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // 这条样本的付费走查配置，真付费与演练共用。两边都**自己直接**调 openPaidWalk(脚本名, 走查名, COMPOSER_B3_PAID_MODELS, {...COMPOSER_B3_PAID_OPTIONS, ...})：
@@ -113,7 +112,7 @@ export async function runComposerB3ReferenceJourney({ paid, evidence, probe = fa
   const problems = [...cheapVideoNodeProblems(shot?.meta), ...firstLastSceneProblems(shot?.meta, scene)]
   const shown = await readComposerUntilSettled(win, shotId, {
     frames: [{ slot: 'firstFrameUrl', file: FIRST_FILE }, { slot: 'lastFrameUrl', file: LAST_FILE }],
-    unused: REFERENCE_FILES, fileOf, unusedLabels: UNUSED_LABELS,
+    unused: REFERENCE_FILES, fileOf,
   })
   problems.push(...shown.problems)
   evidence.sceneBeforeSpend = { modeId: shot?.meta?.archetype?.modeId ?? null, referenceList: (shot?.meta?.referenceImageUrls ?? []).map((url) => fileOf(url) ?? 'other') }

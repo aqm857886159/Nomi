@@ -38,7 +38,7 @@ export function buildNodeModelChangePatch({
   // 旧数据（按槽存的首 / 尾帧键）先按**换模型前**看得见的顺序落成规范的一份参考列表：之后列表就不再动了。
   const previousArchetype = archetypeForNode(node)
   const currentMeta = (previousArchetype
-    ? normalizeReferenceListMeta(node.meta || {}, effectiveArchetypeMode(previousArchetype, node, { nodes, edges }).layout)
+    ? normalizeReferenceListMeta(node.meta || {}, effectiveArchetypeMode(previousArchetype, node, { nodes, edges }).mode)
     : null) ?? node.meta ?? {}
   const currentAddress = nodeSelectedModelAddress(currentMeta)
   const currentOption = findModelOptionByIdentifier(

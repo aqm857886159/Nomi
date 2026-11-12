@@ -31,7 +31,7 @@ const refUrl = (name: string): string => {
   return `${window.location.origin}${REF_DIR}/${encodeURIComponent(base)}.svg${salt ? `?i=${salt}` : ''}`
 }
 
-export type B3Model = 'seedance' | 'seedance25' | 'wan' | 'gpt-image' | 'imagen' | 'soul'
+export type B3Model = 'seedance' | 'seedance25' | 'seedance25Apimart' | 'kling4' | 'wan' | 'gpt-image' | 'imagen' | 'soul'
 
 const MODELS: Record<B3Model, { option: ModelOption; archetype: string; variantId?: string }> = {
   seedance: {
@@ -43,6 +43,17 @@ const MODELS: Record<B3Model, { option: ModelOption; archetype: string; variantI
   seedance25: {
     option: { value: 'seedance-2.5', modelKey: 'seedance-2.5', vendor: 'apimart', vendorName: '渠道 A', label: 'Seedance 2.5', kind: 'video' },
     archetype: 'seedance-2.5',
+  },
+  // 同一个模型走 APIMart 的档案（首尾帧的尾帧可以不放；方式格样张 A–J 画的就是它）。渠道是 APIMart 就配 APIMart 的档案，
+  // 不借 kie 那份（kie 的首尾帧尾帧必填，放 1 张时首尾帧那行会灰——和拍板稿 B 对不上）。
+  seedance25Apimart: {
+    option: { value: 'doubao-seedance-2.5', modelKey: 'doubao-seedance-2.5', vendor: 'apimart', vendorName: '渠道 A', label: 'Seedance 2.5', kind: 'video' },
+    archetype: 'seedance-2.5-apimart',
+  },
+  // 只收首帧 + 可选尾帧、没有参考数组的视频档案：放 3 张时第 3 张不会发（样张 J）。
+  kling4: {
+    option: { value: 'kling-v4', modelKey: 'kling-v4', vendor: 'apimart', vendorName: '渠道 A', label: '可灵 4.0', kind: 'video' },
+    archetype: 'kling-v4',
   },
   wan: {
     option: { value: 'wan2.7', modelKey: 'wan2.7', vendor: 'apimart', vendorName: '渠道 A', label: 'Wan 2.7', kind: 'video' },
@@ -111,8 +122,10 @@ export type B3Scenario = {
   secondChannel?: boolean
   /** 渠道缺方式（B3p）：当前渠道只配了「参考」，发不出首帧 / 首尾帧。switch = 别家渠道能做（出换渠道的文字链接）；none = 谁都做不了。 */
   channelGap?: 'switch' | 'none'
-  /** 打开后自动点一下的东西：参数面板 / 模型菜单。 */
-  open?: 'params' | 'model'
+  /** 打开后自动点一下的东西：参数面板 / 模型菜单 / 底栏方式菜单。 */
+  open?: 'params' | 'model' | 'mode'
+  /** 节点上留着的「放了 N 张，已改成 X」（输入变多、手选的方式放不下时 store 写的那条）。 */
+  modeSwitchNotice?: { modeId: string; count: number }
   /** 失败态：整张错误卡盖住节点正文（E1d）。 */
   error?: string
   locale?: 'zh-CN' | 'en'
@@ -136,6 +149,7 @@ function buildNodes(scenario: B3Scenario): { nodes: GenerationCanvasNode[]; edge
     ...(scenario.arrayRefs?.length ? { referenceImageUrls: scenario.arrayRefs.map(refUrl) } : {}),
     ...(scenario.frames?.first ? { firstFrameUrl: refUrl(scenario.frames.first) } : {}),
     ...(scenario.frames?.last ? { lastFrameUrl: refUrl(scenario.frames.last) } : {}),
+    ...(scenario.modeSwitchNotice ? { modeSwitchNotice: scenario.modeSwitchNotice } : {}),
   }
   const target = {
     id: targetId,
@@ -191,6 +205,7 @@ function useLabLocale(locale: B3Scenario['locale']): boolean {
 
 export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Element {
   const localeApplied = useLabLocale(scenario.locale)
+  const { t } = useTranslation()
   const [chunkReady, setChunkReady] = React.useState(false)
   React.useEffect(() => {
     void import('../../../workbench/generationCanvas/nodes/NodeGenerationComposer').then(() => setChunkReady(true))
@@ -198,7 +213,7 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
   const built = React.useMemo(() => buildNodes(scenario), [scenario])
   const [ready, setReady] = React.useState(false)
   React.useLayoutEffect(() => {
-    const videoOptions = [MODELS.seedance.option, MODELS.seedance25.option, MODELS.wan.option, ...EXTRA_VIDEO_OPTIONS, ...(scenario.secondChannel || scenario.channelGap === 'switch' ? [SECOND_CHANNEL] : [])]
+    const videoOptions = [MODELS.seedance.option, (scenario.model === 'seedance25Apimart' ? MODELS.seedance25Apimart : MODELS.seedance25).option, MODELS.kling4.option, MODELS.wan.option, ...EXTRA_VIDEO_OPTIONS, ...(scenario.secondChannel || scenario.channelGap === 'switch' ? [SECOND_CHANNEL] : [])]
     const imageOptions = [MODELS.imagen.option, MODELS['gpt-image'].option, MODELS.soul.option]
     seedModelCatalogForTests(HEALTH, [
       { kind: 'video', requiredMode: 'text_to_video', options: videoOptions },
@@ -246,9 +261,12 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
       if (!root) return
       if (scenario.open) {
         const selector = scenario.open === 'params' ? '[data-parameter-summary]' : 'button[role="combobox"][aria-label]:not([data-parameter-chip])'
+        const modeLabel = t('generationCommon.modeMenu.heading')
         const trigger = scenario.open === 'params'
           ? root.querySelector<HTMLButtonElement>(selector)
-          : root.querySelector<HTMLButtonElement>('[data-bar-segment="model-params"] button')
+          : scenario.open === 'mode'
+            ? [...root.querySelectorAll<HTMLButtonElement>('[data-bar-segment="model-params"] button[aria-label]')].find((button) => button.getAttribute('aria-label') === modeLabel) ?? null
+            : root.querySelector<HTMLButtonElement>('[data-bar-segment="model-params"] button')
         if (trigger) { if (!clicked.current) { clicked.current = true; trigger.click() } setActed(true); release(); return }
       }
       frame += 1
@@ -257,7 +275,7 @@ export function ComposerB3Stage({ scenario }: { scenario: B3Scenario }): JSX.Ele
     }
     requestAnimationFrame(tick)
     return release
-  }, [acted, ready, chunkReady, localeApplied, node, scenario])
+  }, [acted, ready, chunkReady, localeApplied, node, scenario, t])
 
   return (
     <div

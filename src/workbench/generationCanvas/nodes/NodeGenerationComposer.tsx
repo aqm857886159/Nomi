@@ -364,7 +364,7 @@ function GenericNodeGenerationComposer({ onFeedback, node, visualSize, host = 'c
       {readOnly ? <div role="status" className="text-caption text-nomi-ink-60">{t('generationCommon.workflowPlugin.readOnly')}</div> : null}
       {/* 声音 / 3D 的「生成方式」仍在参考区滚动口之外、紧贴在它上面：属于卡片的固定内容，
           压到最小高度也整行可见可点（2026-09-21，见 NodeParameterControls 的 section="mode"）。
-          视频的生成方式在参数面板顶部，图片没有这一组（由输入决定，见 generationModePresentation）。 */}
+          视频的生成方式在底栏「方式」一格（modeMenuModel），图片没有这一组（放了图就是按图改）。 */}
       {hasReferenceControls && !readOnly && (isAudioKind || isModel3dLikeGenerationNodeKind(node.kind)) ? (
         <div data-node-composer-mode-bar className={cn('shrink-0')}>
           <NodeParameterControls node={node} section="mode" graph={graph} modelOptionsState={modelOptionsState} readMappings={readMappings} />

@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { getArchetypeById, specializeArchetypeForVariant, type ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
-import { archetypeModeModelEnum, type ResolvedReferenceValues } from './archetypeMeta'
+import { archetypeModeById, archetypeModeModelEnum, type ResolvedReferenceValues } from './archetypeMeta'
 import { ARCHETYPE_WIRE_MODEL, resolveWireModel } from '../../../../../electron/shared/modelArchetypes/wireModelIdentity'
 import { archetypeModeChoices } from './channelModeReach'
 import {
   type ArchetypeArraySlot,
   appendArchetypeArrayValue,
-  applyArchetypeModeSwitch,
+  applyHumanModeChoice,
   applyArchetypeVariantSwitch,
   archetypeModeArraySlots,
   archetypeModeSlots,
   archetypeVariantChoices,
   buildArchetypeInputParams,
-  currentArchetypeMode,
+  clampParamsToMode,
   currentArchetypeVariant,
   ensureArchetypeNodeMeta,
   hasAnyArchetypeReference,
@@ -22,6 +22,7 @@ import {
   orderedSentImageReferenceUrls,
   orderedSentMediaReferenceUrls,
 } from './archetypeMeta'
+import { modeWrittenInMeta } from './modeTestHelpers'
 
 /**
  * 这一镜发到线上的 model 串：渲染层只存选择，值由主进程 owner（wireModelIdentity）在声明了收档案线上名的
@@ -77,17 +78,17 @@ describe('archetypeModeSlots — 槽位映射到现有 flat 传输键', () => {
   })
 })
 
-describe('currentArchetypeMode — 当前模式解析', () => {
+describe('存着的方式只当偏好读 — 认不出 / 别的档案的不算', () => {
   it('无命名空间 meta → 落到默认模式', () => {
-    expect(currentArchetypeMode(SEEDANCE, {}).id).toBe('t2v')
+    expect(modeWrittenInMeta({}, SEEDANCE).id).toBe('t2v')
   })
   it('命名空间 meta 指定 firstlast → 命中', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'firstlast' } }
-    expect(currentArchetypeMode(SEEDANCE, meta).id).toBe('firstlast')
+    expect(modeWrittenInMeta(meta, SEEDANCE).id).toBe('firstlast')
   })
   it('modeId 失效 / 属于别的档案 → 回落默认模式', () => {
-    expect(currentArchetypeMode(SEEDANCE, { archetype: { id: 'other', modeId: 'firstlast' } }).id).toBe('t2v')
-    expect(currentArchetypeMode(SEEDANCE, { archetype: { id: 'seedance-2', modeId: 'ghost' } }).id).toBe('t2v')
+    expect(modeWrittenInMeta({ archetype: { id: 'other', modeId: 'firstlast' } }, SEEDANCE).id).toBe('t2v')
+    expect(modeWrittenInMeta({ archetype: { id: 'seedance-2', modeId: 'ghost' } }, SEEDANCE).id).toBe('t2v')
   })
 })
 
@@ -103,71 +104,59 @@ describe('ensureArchetypeNodeMeta — 初次落地', () => {
   })
 })
 
-describe('applyArchetypeModeSwitch — 只改 modeId，参考值全局保留', () => {
+describe('applyHumanModeChoice — 只写偏好，参考值全局保留', () => {
   it('切模式不搬不清参考值（切回照片还在 = 真实用户 F4）', () => {
     let meta: Record<string, unknown> = ensureArchetypeNodeMeta({}, SEEDANCE)!
-    meta = applyArchetypeModeSwitch(meta, SEEDANCE, 'firstlast')
+    meta = applyHumanModeChoice(meta, SEEDANCE, 'firstlast')
     meta = { ...meta, firstFrameUrl: 'F.png', lastFrameUrl: 'L.png', lastFrameRef: 'n2' } // 旧工程：按槽存的首 / 尾帧
-    meta = applyArchetypeModeSwitch(meta, SEEDANCE, 'first') // 离开
-    // 切换前先按「首尾帧」落成那一份参考列表（#1269）：两张在那个方式下都看得见，所以都不是「先放一边」；
-    // 「首帧」方式只用第一张，第二张在列表里等着（未用到）。旧的影子键（lastFrameRef）不再留。
+    meta = applyHumanModeChoice(meta, SEEDANCE, 'first') // 离开
+    // 切换前先按「首尾帧」落成那一份参考列表（#1269）：两张在那个方式下都看得见，所以都不是「先放一边」。
     expect(meta.referenceImageUrls).toEqual(['F.png', 'L.png'])
     expect(meta.referenceParkedUrls).toBeUndefined()
     expect(meta.firstFrameUrl).toBeUndefined()
-    expect((meta.archetype as { modeId: string }).modeId).toBe('first')
-    expect(buildArchetypeInputParams(meta, SEEDANCE)).toMatchObject({ first_frame_url: 'F.png' })
-    meta = applyArchetypeModeSwitch(meta, SEEDANCE, 'firstlast') // 回来
-    expect(buildArchetypeInputParams(meta, SEEDANCE)).toMatchObject({ first_frame_url: 'F.png', last_frame_url: 'L.png' })
+    expect((meta.archetype as { modeId: string; modeChosenBy: string })).toMatchObject({ modeId: 'first', modeChosenBy: 'human' })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE))).toMatchObject({ first_frame_url: 'F.png' })
+    meta = applyHumanModeChoice(meta, SEEDANCE, 'firstlast') // 回来
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE))).toMatchObject({ first_frame_url: 'F.png', last_frame_url: 'L.png' })
   })
 
   // 2026-08-26 走查实测到的真 bug：模式收窄了 select 的**选项**，却没收窄**已存的值**。
-  // 火山 Seedance 2.5 的首帧/首尾帧模式官方硬约束 ratio 只能 adaptive（违反 = 任务已创建才异步报
-  // InvalidParameter.TaskTypeConstraint，额度已排队）。从文生视频带着 16:9 切过去时，UI 上一个选中项
-  // 都没有，而 meta 里的 16:9 照发。变体路径（applyArchetypeVariantSwitch）一直有夹值，模式路径漏了。
-  // 通用坑：任何「某模式收窄某 select」的档案都会中招，不是 Seedance 专属。
-  it('切到收窄了选项的模式时，把越界的存量值夹回该模式默认（不留下发得出去的幽灵值）', () => {
+  // 火山 Seedance 2.5 的首帧/首尾帧模式官方硬约束 ratio 只能 adaptive。方式现在按输入现算，夹值挪到读 / 发时
+  // （clampParamsToMode，不写回）：放一张首帧 → 发 adaptive；删了图回文生 → 还是 16:9。
+  it('按现算出的方式收窄越界的存量值（读 / 发时夹，不写回）', () => {
     const V25 = getArchetypeById('volcengine-seedance-2-5')!
-    const ratioOptionsOf = (modeId: string) =>
-      V25.modes.find((m) => m.id === modeId)!.params.find((p) => p.key === 'ratio')!.options.map((o) => o.value)
+    const modeOf = (modeId: string) => V25.modes.find((m) => m.id === modeId)!
+    const ratioOptionsOf = (modeId: string) => modeOf(modeId).params.find((p) => p.key === 'ratio')!.options.map((o) => o.value)
     // 前提坐实：t2v 宽、first 只剩 adaptive。前提不成立的话这条测试就测了个寂寞。
     expect(ratioOptionsOf('t2v').length).toBeGreaterThan(1)
     expect(ratioOptionsOf('first')).toEqual(['adaptive'])
 
-    let meta: Record<string, unknown> = ensureArchetypeNodeMeta({}, V25)!
-    meta = applyArchetypeModeSwitch(meta, V25, 't2v')
-    meta = { ...meta, ratio: '16:9' } // 用户在文生视频里选了 16:9
+    const meta = { ...ensureArchetypeNodeMeta({}, V25)!, ratio: '16:9', resolution: '1080p' } // 用户在文生视频里选了 16:9
+    // 关键断言：16:9 不许按首帧方式发出去；存盘不改（回到文生还是 16:9）。
+    expect(clampParamsToMode(meta, V25, modeOf('first')).ratio).toBe('adaptive')
     expect(meta.ratio).toBe('16:9')
-
-    meta = applyArchetypeModeSwitch(meta, V25, 'first')
-    expect((meta.archetype as { modeId: string }).modeId).toBe('first')
-    // 关键断言：16:9 不许活到首帧模式里。
-    expect(meta.ratio).toBe('adaptive')
-
+    expect(clampParamsToMode(meta, V25, modeOf('t2v')).ratio).toBe('16:9')
     // 反向：模式没收窄的参数不受影响（别夹过头把用户的正常选择也清了）。
-    let keep: Record<string, unknown> = ensureArchetypeNodeMeta({}, V25)!
-    keep = applyArchetypeModeSwitch(keep, V25, 't2v')
-    keep = { ...keep, resolution: '1080p' }
-    keep = applyArchetypeModeSwitch(keep, V25, 'first')
-    expect(keep.resolution).toBe('1080p')
+    expect(clampParamsToMode(meta, V25, modeOf('first')).resolution).toBe('1080p')
   })
 })
 
 describe('buildArchetypeInputParams — M2 互斥发生在档案驱动的 input 构建（snake 键）', () => {
   it('首帧模式：即便 meta 残留 lastFrameUrl，也只出 first_frame_url（不进 body，避免 422）', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' }
-    expect(buildArchetypeInputParams(meta, SEEDANCE)).toEqual({ first_frame_url: 'F.png' })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE))).toEqual({ first_frame_url: 'F.png' })
   })
   it('首尾帧模式：first + last 两帧都出', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'firstlast' }, firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' }
-    expect(buildArchetypeInputParams(meta, SEEDANCE)).toEqual({ first_frame_url: 'F.png', last_frame_url: 'L.png' })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE))).toEqual({ first_frame_url: 'F.png', last_frame_url: 'L.png' })
   })
   it('references（画布连线）优先于 meta 全局值', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'first' }, firstFrameUrl: 'stale.png' }
-    expect(buildArchetypeInputParams(meta, SEEDANCE, { firstFrameUrl: 'edge.png' })).toEqual({ first_frame_url: 'edge.png' })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE), { firstFrameUrl: 'edge.png' })).toEqual({ first_frame_url: 'edge.png' })
   })
   it('空值不出键；Seedance 有变体 → 带 model=默认变体 modelKey（body 用 {{request.params.model}}）', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'firstlast' }, firstFrameUrl: '  ' }
-    expect(buildArchetypeInputParams(meta, SEEDANCE)).toEqual({})
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE))).toEqual({})
   })
   // 2026-08-20：source_video 单值槽此前只认 meta.sourceVideoUrl，连线来的源视频取不到值 →
   // video_url 键根本不发（HappyHorse 视频编辑「拖一段视频进去」等于白拖）。
@@ -176,14 +165,14 @@ describe('buildArchetypeInputParams — M2 互斥发生在档案驱动的 input 
     const editMode = happyhorse.modes.find((m) => m.id === 'edit')!
     expect(editMode.slots.some((s) => s.kind === 'source_video')).toBe(true)
     const meta = { archetype: { id: happyhorse.id, modeId: 'edit' } }
-    const out = buildArchetypeInputParams(meta, happyhorse, { referenceVideos: ['https://cdn/src.mp4'] })
+    const out = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, happyhorse), { referenceVideos: ['https://cdn/src.mp4'] })
     expect(out.video_url).toBe('https://cdn/src.mp4')
   })
   // 「不冒充首帧」不变量：首帧槽连的是视频（尾帧接力）时，抽帧前**不能**把视频 URL 当首帧发出去。
   it('relayFromVideoUrl 永不上线当首帧（抽帧由 relayFrameResolver 在提交前填 firstFrameUrl）', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'first' } }
     const refs: ResolvedReferenceValues = { relayFromVideoUrl: 'https://cdn/prev.mp4' }
-    const out = buildArchetypeInputParams(meta, SEEDANCE, refs)
+    const out = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE), refs)
     expect(out.first_frame_url).toBeUndefined()
   })
 })
@@ -218,34 +207,34 @@ describe('C3 全能参考 — 数组槽声明', () => {
   })
   it('hasAnyArchetypeReference：omni 放了参考数组 → true（修复 omni 误判"需要首帧"锁死生成）', () => {
     const empty = { archetype: { id: 'seedance-2', modeId: 'omni' } }
-    expect(hasAnyArchetypeReference(empty, SEEDANCE)).toBe(false)
+    expect(hasAnyArchetypeReference(empty, modeWrittenInMeta(empty, SEEDANCE))).toBe(false)
     const withImg = { ...empty, referenceImageUrls: ['c1.png'] }
-    expect(hasAnyArchetypeReference(withImg, SEEDANCE)).toBe(true)
+    expect(hasAnyArchetypeReference(withImg, modeWrittenInMeta(withImg, SEEDANCE))).toBe(true)
     // nomi-local:// 也算「有参考」（传输前 R1 本地化），不做 http 过滤
     const withLocal = { ...empty, referenceVideoUrls: ['nomi-local://asset/p/v.mp4'] }
-    expect(hasAnyArchetypeReference(withLocal, SEEDANCE)).toBe(true)
+    expect(hasAnyArchetypeReference(withLocal, modeWrittenInMeta(withLocal, SEEDANCE))).toBe(true)
     // 首帧模式：参考列表里的第一张落首帧槽 → 算「有参考」（列表不分槽存，切到首帧方式就是用第一张当首帧）
     const firstMode = { archetype: { id: 'seedance-2', modeId: 'first' }, referenceImageUrls: ['c1.png'] }
-    expect(hasAnyArchetypeReference(firstMode, SEEDANCE)).toBe(true)
+    expect(hasAnyArchetypeReference(firstMode, modeWrittenInMeta(firstMode, SEEDANCE))).toBe(true)
     // 文生方式没有收图的槽 → 列表里有图也不算
     const textMode = { archetype: { id: 'seedance-2', modeId: 't2v' }, referenceImageUrls: ['c1.png'] }
-    expect(hasAnyArchetypeReference(textMode, SEEDANCE)).toBe(false)
+    expect(hasAnyArchetypeReference(textMode, modeWrittenInMeta(textMode, SEEDANCE))).toBe(false)
   })
   // 2026-08-20 用户反馈：参考只从画布边来（没走手动上传）时，判定必须照样看得见。
   it('hasAnyArchetypeReference：连线来的参考（meta 全空）也算——三种槽都要覆盖', () => {
     const omni = { archetype: { id: 'seedance-2', modeId: 'omni' } }
     // 只连了一段参考视频 → 可生成（此前只读 meta，这里恒 false → ↑ 按钮锁死）
-    expect(hasAnyArchetypeReference(omni, SEEDANCE, { referenceVideos: ['nomi-local://asset/p/v.mp4'] })).toBe(true)
-    expect(hasAnyArchetypeReference(omni, SEEDANCE, { referenceImages: ['https://cdn/a.png'] })).toBe(true)
-    expect(hasAnyArchetypeReference(omni, SEEDANCE, { referenceAudios: ['https://cdn/a.mp3'] })).toBe(true)
+    expect(hasAnyArchetypeReference(omni, modeWrittenInMeta(omni, SEEDANCE), { referenceVideos: ['nomi-local://asset/p/v.mp4'] })).toBe(true)
+    expect(hasAnyArchetypeReference(omni, modeWrittenInMeta(omni, SEEDANCE), { referenceImages: ['https://cdn/a.png'] })).toBe(true)
+    expect(hasAnyArchetypeReference(omni, modeWrittenInMeta(omni, SEEDANCE), { referenceAudios: ['https://cdn/a.mp3'] })).toBe(true)
     // 空 references 仍然是 false（别把「有对象」当成「有参考」）
-    expect(hasAnyArchetypeReference(omni, SEEDANCE, { referenceVideos: [], referenceImages: [] })).toBe(false)
+    expect(hasAnyArchetypeReference(omni, modeWrittenInMeta(omni, SEEDANCE), { referenceVideos: [], referenceImages: [] })).toBe(false)
     // 资产类型要对上槽：首帧模式只有 first_frame 槽，喂一串参考视频不算「有首帧」
     const first = { archetype: { id: 'seedance-2', modeId: 'first' } }
-    expect(hasAnyArchetypeReference(first, SEEDANCE, { referenceVideos: ['https://cdn/v.mp4'] })).toBe(false)
-    expect(hasAnyArchetypeReference(first, SEEDANCE, { firstFrameUrl: 'https://cdn/f.png' })).toBe(true)
+    expect(hasAnyArchetypeReference(first, modeWrittenInMeta(first, SEEDANCE), { referenceVideos: ['https://cdn/v.mp4'] })).toBe(false)
+    expect(hasAnyArchetypeReference(first, modeWrittenInMeta(first, SEEDANCE), { firstFrameUrl: 'https://cdn/f.png' })).toBe(true)
     // 尾帧接力：首帧槽连的是视频，抽帧要等提交时才跑 → 判定阶段也得算「已放参考」
-    expect(hasAnyArchetypeReference(first, SEEDANCE, { relayFromVideoUrl: 'https://cdn/prev.mp4' })).toBe(true)
+    expect(hasAnyArchetypeReference(first, modeWrittenInMeta(first, SEEDANCE), { relayFromVideoUrl: 'https://cdn/prev.mp4' })).toBe(true)
   })
 })
 
@@ -258,7 +247,7 @@ describe('C3 全能参考 — 数组 input 构建（M2 互斥含数组槽，snak
       referenceAudioUrls: [],
       firstFrameUrl: 'stale.png', // 旧数据按槽存的首帧：旧界面在参考方式下看不见它 → 先放一边，不发（#1269 条件 4）
     }
-    expect(buildArchetypeInputParams(meta, SEEDANCE)).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE))).toEqual({
       reference_image_urls: ['c1.png', 'c2.png', 'c3.png'],
       reference_video_urls: ['v1.mp4'],
     })
@@ -269,7 +258,7 @@ describe('C3 全能参考 — 数组 input 构建（M2 互斥含数组槽，snak
       firstFrameUrl: 'F.png',
       referenceImageUrls: ['c1.png', 'c2.png'],
     }
-    expect(buildArchetypeInputParams(meta, SEEDANCE)).toEqual({ first_frame_url: 'F.png' })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE))).toEqual({ first_frame_url: 'F.png' })
   })
 })
 
@@ -278,31 +267,31 @@ describe('切片1 — 画布边参考图喂进档案 image 槽（修边投递裂
   // @ 投影 character{N} 同口径，杜绝「面板①与模型 character1 不是同一张」。
   it('omni：边参考图并入 reference_image_urls，连线在前+上传去重保序', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['c1.png', 'c2.png'] }
-    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['c2.png', 'e1.png'] })).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE), { referenceImages: ['c2.png', 'e1.png'] })).toEqual({
       reference_image_urls: ['c2.png', 'e1.png', 'c1.png'], // 边 c2/e1 在前，上传 c1 追加，c2 去重
     })
   })
   it('纯边参考（meta 无数组）也进槽——agent 连 character_ref 边的常见场景，此前被丢', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' } }
-    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1.png'] })).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE), { referenceImages: ['e1.png'] })).toEqual({
       reference_image_urls: ['e1.png'],
     })
   })
   it('截到 slot.max（omni image ≤9）：边 3 + meta 8 → 9（连线在前优先保留），封死 vendor 422', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8'] }
-    const result = buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1', 'e2', 'e3'] })
+    const result = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE), { referenceImages: ['e1', 'e2', 'e3'] })
     expect(result.reference_image_urls).toEqual(['e1', 'e2', 'e3', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6'])
   })
   it('图片边不污染 video/audio 槽', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceVideoUrls: ['v1.mp4'] }
-    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1.png'] })).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE), { referenceImages: ['e1.png'] })).toEqual({
       reference_image_urls: ['e1.png'],
       reference_video_urls: ['v1.mp4'],
     })
   })
   it('M2：首帧模式无 image_ref 槽，边参考图不泄漏进 body', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png' }
-    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: ['e1.png'] })).toEqual({ first_frame_url: 'F.png' })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE), { referenceImages: ['e1.png'] })).toEqual({ first_frame_url: 'F.png' })
   })
 })
 
@@ -335,15 +324,15 @@ describe('option 2 单源 — 「有序参考图」连线在前、上传在后�
   it('orderedSentImageReferenceUrls = buildArchetypeInputParams 给 image 槽的同一份列表（character{N} 编号锚点）', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['u1.png', 'u2.png'] }
     const edges = ['e1.png', 'u2.png']
-    const ordered = orderedSentImageReferenceUrls(meta, SEEDANCE, edges)
+    const ordered = orderedSentImageReferenceUrls(meta, modeWrittenInMeta(meta, SEEDANCE), edges)
     expect(ordered).toEqual(['e1.png', 'u2.png', 'u1.png']) // 连线在前、u2 去重、上传 u1 追加
     // 与实际发送的 reference_image_urls 逐位一致——@ 投影 character{N} 才不会张冠李戴。
-    expect(buildArchetypeInputParams(meta, SEEDANCE, { referenceImages: edges }).reference_image_urls).toEqual(ordered)
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE), { referenceImages: edges }).reference_image_urls).toEqual(ordered)
   })
 
   it('当前模式无 image 数组槽（首帧模式）→ []（@ 投影回退 no-op）', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png' }
-    expect(orderedSentImageReferenceUrls(meta, SEEDANCE, ['e1.png'])).toEqual([])
+    expect(orderedSentImageReferenceUrls(meta, modeWrittenInMeta(meta, SEEDANCE), ['e1.png'])).toEqual([])
   })
 
   it('omni 的图/视频/音频分别按各自槽顺序编号，顺序与发送输入一致', () => {
@@ -353,7 +342,7 @@ describe('option 2 单源 — 「有序参考图」连线在前、上传在后�
       referenceVideoUrls: ['u-video.mp4'],
       referenceAudioUrls: ['u-audio.mp3'],
     }
-    expect(orderedSentMediaReferenceUrls(meta, SEEDANCE, {
+    expect(orderedSentMediaReferenceUrls(meta, modeWrittenInMeta(meta, SEEDANCE), {
       image: ['e-image.png'],
       video: ['e-video.mp4'],
       audio: ['e-audio.mp3'],
@@ -399,28 +388,28 @@ describe('C4 HappyHorse — 档案 + per-mode enum + 模型契约 input 键', ()
   })
 
   it('archetypeModeModelEnum 取当前模式 enum（Seedance 无 enum → null）', () => {
-    expect(archetypeModeModelEnum(HAPPY, { archetype: { id: 'happyhorse', modeId: 'ref' } })).toBe('happyhorse/reference-to-video')
-    expect(archetypeModeModelEnum(SEEDANCE, { archetype: { id: 'seedance-2', modeId: 'first' } })).toBeNull()
+    expect(archetypeModeModelEnum(archetypeModeById(HAPPY, 'ref'))).toBe('happyhorse/reference-to-video')
+    expect(archetypeModeModelEnum(archetypeModeById(SEEDANCE, 'first'))).toBeNull()
   })
 
   it('i2v：单图首帧但 input 是 image_urls[正好 1]（asArray 包成数组）+ 带 model enum', () => {
     const meta = { archetype: { id: 'happyhorse', modeId: 'i2v' }, firstFrameUrl: 'F.png' }
-    expect(buildArchetypeInputParams(meta, HAPPY)).toEqual({ image_urls: ['F.png'] })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, HAPPY))).toEqual({ image_urls: ['F.png'] })
   })
 
   it('ref：角色图走 reference_image（不是 Seedance 的 reference_image_urls）', () => {
     const meta = { archetype: { id: 'happyhorse', modeId: 'ref' }, referenceImageUrls: ['c1', 'c2'] }
-    expect(buildArchetypeInputParams(meta, HAPPY)).toEqual({ reference_image: ['c1', 'c2'] })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, HAPPY))).toEqual({ reference_image: ['c1', 'c2'] })
   })
 
   it('edit：source_video → video_url + 参考图 → reference_image', () => {
     const meta = { archetype: { id: 'happyhorse', modeId: 'edit' }, sourceVideoUrl: 'src.mp4', referenceImageUrls: ['r1'] }
-    expect(buildArchetypeInputParams(meta, HAPPY)).toEqual({ video_url: 'src.mp4', reference_image: ['r1'] })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, HAPPY))).toEqual({ video_url: 'src.mp4', reference_image: ['r1'] })
   })
 
   it('t2v：无参考槽，只带 model enum', () => {
     const meta = { archetype: { id: 'happyhorse', modeId: 't2v' } }
-    expect(buildArchetypeInputParams(meta, HAPPY)).toEqual({})
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, HAPPY))).toEqual({})
   })
 
   it('video-edit 的「参考图」不是角色槽：不编号、无 character 说明、不触发 prompt 提示', () => {
@@ -461,7 +450,7 @@ describe('combineSlotsInto — 角色对象数组合并（通用原语）', () =
 
   it('合并键名来自档案声明（不写死 image_with_roles）+ role 由 kind 派生 + 删扁平键', () => {
     const meta = { archetype: { id: 'fake-roles', modeId: 'fl' } }
-    const out = buildArchetypeInputParams(meta, FAKE_ROLE_MODEL, { firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' })
+    const out = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, FAKE_ROLE_MODEL), { firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' })
     expect(out).toEqual({
       frames_with_roles: [
         { url: 'F.png', role: 'first_frame' },
@@ -474,7 +463,7 @@ describe('combineSlotsInto — 角色对象数组合并（通用原语）', () =
 
   it('只有有 url 的槽进数组（尾帧空 → 数组只含首帧，绝不放 {url:undefined}）', () => {
     const meta = { archetype: { id: 'fake-roles', modeId: 'fl' } }
-    const out = buildArchetypeInputParams(meta, FAKE_ROLE_MODEL, { firstFrameUrl: 'F.png' })
+    const out = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, FAKE_ROLE_MODEL), { firstFrameUrl: 'F.png' })
     expect(out).toEqual({ frames_with_roles: [{ url: 'F.png', role: 'first_frame' }] })
   })
 
@@ -486,7 +475,7 @@ describe('combineSlotsInto — 角色对象数组合并（通用原语）', () =
         slots: [{ kind: 'first_frame', label: 'F', min: 1, max: 1, roleName: 'opening' }],
       }],
     }
-    const out = buildArchetypeInputParams({ archetype: { id: 'fake-roles', modeId: 'fl' } }, custom, { firstFrameUrl: 'F.png' })
+    const out = buildArchetypeInputParams({ archetype: { id: 'fake-roles', modeId: 'fl' } }, custom.modes[0]!, { firstFrameUrl: 'F.png' })
     expect(out).toEqual({ frames_with_roles: [{ url: 'F.png', role: 'opening' }] })
   })
 })
@@ -496,7 +485,7 @@ describe('apimart Seedance 首尾帧 — image_with_roles（combineSlotsInto 落
 
   it('首尾帧模式 → image_with_roles:[首帧,尾帧]，无扁平键、无 image_urls（与 image_urls 互斥）；带默认变体 model', () => {
     const meta = { archetype: { id: 'seedance-2-apimart', modeId: 'firstlast' } }
-    const out = buildArchetypeInputParams(meta, SEEDANCE_APIMART, { firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' })
+    const out = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE_APIMART), { firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' })
     expect(out).toEqual({
       // 无 variantId → 回落默认 Fast；catalog 仍只有基础标准行。
       image_with_roles: [
@@ -510,7 +499,7 @@ describe('apimart Seedance 首尾帧 — image_with_roles（combineSlotsInto 落
 
   it('只首帧 → image_with_roles 只含首帧（+ 默认变体 model）', () => {
     const meta = { archetype: { id: 'seedance-2-apimart', modeId: 'firstlast' } }
-    const out = buildArchetypeInputParams(meta, SEEDANCE_APIMART, { firstFrameUrl: 'F.png' })
+    const out = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE_APIMART), { firstFrameUrl: 'F.png' })
     expect(out).toEqual({ image_with_roles: [{ url: 'F.png', role: 'first_frame' }] })
   })
 
@@ -536,7 +525,7 @@ describe('APIMart Grok Imagine 1.5 — 文生/图生档案投影', () => {
 
   it('图生模式把有序参考图投影到 image_urls', () => {
     const meta = { archetype: { id: 'grok-imagine-1.5-video', modeId: 'i2v' }, referenceImageUrls: ['a.png', 'b.png'] }
-    expect(buildArchetypeInputParams(meta, GROK)).toEqual({ image_urls: ['a.png', 'b.png'] })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, GROK))).toEqual({ image_urls: ['a.png', 'b.png'] })
   })
 })
 
@@ -605,7 +594,7 @@ describe('变体轴 — 发出的 model（线上 model 由 wireModelIdentity 解
       defaultVariantId: 'v1',
     }
     // 渲染层的档案投影永远不带 model（2026-10-16）：发哪个 model 串只问主进程 wireModelIdentity。
-    const out = buildArchetypeInputParams({ archetype: { id: 'fake-v', modeId: 'm', variantId: 'v1' } }, fake)
+    const out = buildArchetypeInputParams({ archetype: { id: 'fake-v', modeId: 'm', variantId: 'v1' } }, fake.modes[0]!)
     expect(out).not.toHaveProperty('model')
   })
 })
@@ -648,8 +637,9 @@ describe('变体轴 — 切换 applyArchetypeVariantSwitch', () => {
   })
   it('切模式后变体跟随保留（正交，互不影响）', () => {
     let meta: Record<string, unknown> = applyArchetypeVariantSwitch({ archetype: { id: 'seedance-2-apimart', modeId: 't2v' } }, SEEDANCE_APIMART, 'mini')
-    meta = applyArchetypeModeSwitch(meta, SEEDANCE_APIMART, 'i2v')
-    expect((meta.archetype as { modeId: string; variantId: string })).toEqual({ id: 'seedance-2-apimart', modeId: 'i2v', variantId: 'mini' })
+    meta = applyHumanModeChoice(meta, SEEDANCE_APIMART, 'i2v')
+    // 方式菜单里手点的记成人手偏好（modeChosenBy），变体照旧跟着。
+    expect((meta.archetype as { modeId: string; variantId: string })).toEqual({ id: 'seedance-2-apimart', modeId: 'i2v', modeChosenBy: 'human', variantId: 'mini' })
   })
 })
 
@@ -757,21 +747,21 @@ describe('apimart 参数补全 — fixedParams / flat 合并 / 变体 model', ()
 
   it('Veo 参考图模式：fixedParams 注入 generation_type=reference + 默认变体 model', () => {
     const meta = { archetype: { id: 'veo-3.1', modeId: 'reference', variantId: 'fast' } }
-    expect(buildArchetypeInputParams(meta, VEO, { referenceImages: ['a.png'] })).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, VEO), { referenceImages: ['a.png'] })).toEqual({
       image_urls: ['a.png'], generation_type: 'reference',
     })
   })
 
   it('Veo 首尾帧模式：flat 合并 → image_urls 有序 [首,尾] + generation_type=frame', () => {
     const meta = { archetype: { id: 'veo-3.1', modeId: 'frame', variantId: 'fast' }, firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' }
-    expect(buildArchetypeInputParams(meta, VEO)).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, VEO))).toEqual({
       image_urls: ['F.png', 'L.png'], generation_type: 'frame',
     })
   })
 
   it('Veo 首尾帧：只有首帧 → image_urls 仅 [首]', () => {
     const meta = { archetype: { id: 'veo-3.1', modeId: 'frame', variantId: 'fast' }, firstFrameUrl: 'F.png' }
-    expect(buildArchetypeInputParams(meta, VEO)).toEqual({ image_urls: ['F.png'], generation_type: 'frame' })
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, VEO))).toEqual({ image_urls: ['F.png'], generation_type: 'frame' })
   })
 
   // Sora 2 已于 2026-09-28 退役（上游关停），档案随之删除；变体 model 串由下面三家继续覆盖。
@@ -783,7 +773,7 @@ describe('apimart 参数补全 — fixedParams / flat 合并 / 变体 model', ()
 
   it('Omni 参考图融合：fixedParams 注入 generation_type=reference（避 3 图被拒）', () => {
     const meta = { archetype: { id: 'omni-flash-ext', modeId: 'i2v' } }
-    expect(buildArchetypeInputParams(meta, OMNI, { referenceImages: ['a.png', 'b.png', 'c.png'] })).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, OMNI), { referenceImages: ['a.png', 'b.png', 'c.png'] })).toEqual({
       image_urls: ['a.png', 'b.png', 'c.png'], generation_type: 'reference',
     })
   })
@@ -809,7 +799,7 @@ describe('火山方舟 Seedance — 档案投影', () => {
 
   it('首帧模式：ratio 字段 + 默认变体 model 使用火山官方 Model ID', () => {
     const meta = { archetype: { id: 'volcengine-seedance-2', modeId: 'first' }, firstFrameUrl: 'F.png' }
-    expect(buildArchetypeInputParams(meta, VOLC)).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, VOLC))).toEqual({
       volcengine_first_image_content: { type: 'image_url', image_url: { url: 'F.png' }, role: 'first_frame' },
     })
     // **刻意没有 seed**：2026-08-26 照官方一手文档（doc 1520757 参数表）逐项对账，seed / camera_fixed
@@ -831,7 +821,7 @@ describe('火山方舟 Seedance — 档案投影', () => {
 
   it('首尾帧：图像 item 带 first_frame / last_frame role', () => {
     const meta = { archetype: { id: 'volcengine-seedance-2', modeId: 'firstlast' }, firstFrameUrl: 'F.png', lastFrameUrl: 'L.png' }
-    expect(buildArchetypeInputParams(meta, VOLC)).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, VOLC))).toEqual({
       volcengine_first_role_image_content: { type: 'image_url', image_url: { url: 'F.png' }, role: 'first_frame' },
       volcengine_last_role_image_content: { type: 'image_url', image_url: { url: 'L.png' }, role: 'last_frame' },
     })
@@ -846,7 +836,7 @@ describe('火山方舟 Seedance — 档案投影', () => {
       referenceVideoUrls: ['v1.mp4'],
       referenceAudioUrls: ['a1.mp3'],
     }
-    expect(buildArchetypeInputParams(meta, VOLC)).toEqual({
+    expect(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, VOLC))).toEqual({
       volcengine_image_contents: [{ type: 'image_url', image_url: { url: 'c1.png' }, role: 'reference_image' }],
       volcengine_video_contents: [{ type: 'video_url', video_url: { url: 'v1.mp4' }, role: 'reference_video' }],
       volcengine_audio_contents: [{ type: 'audio_url', audio_url: { url: 'a1.mp3' }, role: 'reference_audio' }],
@@ -858,13 +848,13 @@ describe('asArray:false 的数组路由槽 → 单图字符串（Agnes i2v，202
   const AGNES = getArchetypeById('agnes-video')!
   it('i2v 模式 image 槽（image_ref + asArray:false + max 1）发字符串，不发数组——Agnes Go 后端 Alias.image 是 string', () => {
     const meta = { archetype: { id: 'agnes-video', modeId: 'i2v' } }
-    const out = buildArchetypeInputParams(meta, AGNES, { referenceImages: ['https://cdn/first.png'] })
+    const out = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, AGNES), { referenceImages: ['https://cdn/first.png'] })
     expect(out.image).toBe('https://cdn/first.png')
     expect(Array.isArray(out.image)).toBe(false)
   })
   it('未声明 asArray 的数组槽照旧发数组（Seedance omni 不受影响）', () => {
     const meta = { archetype: { id: 'seedance-2', modeId: 'omni' }, referenceImageUrls: ['https://cdn/a.png', 'https://cdn/b.png'] }
-    const out = buildArchetypeInputParams(meta, SEEDANCE)
+    const out = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, SEEDANCE))
     const arrayValues = Object.values(out).filter((v) => Array.isArray(v))
     expect(arrayValues.length).toBeGreaterThan(0)
   })

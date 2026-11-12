@@ -6,6 +6,8 @@ import type { GenerationCanvasNode, GenerationNodeKind } from '../model/generati
 import { useGenerationCanvasStore, __resetGenerationCanvasHistoryForTests } from '../store/generationCanvasStore'
 import { useNodePromptFocusStore } from '../nodes/nodePromptFocus'
 import { nodeTryRecipes, runNodeTryRecipe } from './nodeTryRecipes'
+import { archetypeForNode } from '../agent/referenceEdgeCapability'
+import { effectiveArchetypeMode } from '../nodes/controls/archetypeMeta'
 
 const state = () => useGenerationCanvasStore.getState()
 function node(id: string, kind: GenerationNodeKind, meta: Record<string, unknown> = {}): GenerationCanvasNode {
@@ -13,7 +15,11 @@ function node(id: string, kind: GenerationNodeKind, meta: Record<string, unknown
 }
 const seed = (...nodes: GenerationCanvasNode[]) => state().restoreSnapshot({ nodes, edges: [], groups: [] })
 const ids = (target: GenerationCanvasNode) => nodeTryRecipes(target).map((recipe) => recipe.id)
-const modeOf = (id: string) => (state().nodes.find((candidate) => candidate.id === id)?.meta?.archetype as { modeId?: string } | undefined)?.modeId
+// 这次真发的方式：方式按输入现算（2026-11-12），配方只摆输入（连上游、放首尾帧），不写方式。
+const modeOf = (id: string) => {
+  const target = state().nodes.find((candidate) => candidate.id === id)!
+  return effectiveArchetypeMode(archetypeForNode(target)!, target, { nodes: state().nodes, edges: state().edges }).mode.id
+}
 const nothingSpent = () => state().nodes.every((candidate) => (candidate.status ?? 'idle') === 'idle' && !candidate.runs?.length && !candidate.result)
 
 beforeEach(() => {

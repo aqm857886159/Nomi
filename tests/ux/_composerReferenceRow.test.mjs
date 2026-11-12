@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import AssetReference from '../../src/workbench/assets/AssetReference'
 import { fileMapper, judgeComposerReferences, readComposerReferences } from './_composerReferenceRow.mjs'
-import { UI_LOCALES, uiText } from './full-walk/invariants.mjs'
+import { uiText } from './full-walk/invariants.mjs'
 
 vi.mock('react-i18next', async (original) => ({
   ...await original(),
@@ -26,7 +26,7 @@ const REFS = ['ref-1.png', 'ref-2.png', 'ref-3.png']
 const FILES = [...REFS, 'first.png', 'last.png']
 const url = (file) => `nomi-local://asset/${PROJECT}/assets/imported/${file}`
 const fileOf = fileMapper(FILES, url)
-const SCENE = { frames: [{ slot: 'firstFrameUrl', file: 'first.png' }, { slot: 'lastFrameUrl', file: 'last.png' }], unused: REFS, fileOf, unusedLabels: ['assetLibrary.refRow.unused'] }
+const SCENE = { frames: [{ slot: 'firstFrameUrl', file: 'first.png' }, { slot: 'lastFrameUrl', file: 'last.png' }], unused: REFS, fileOf }
 
 // NodeParameterControls 在 Seedance 2.0（apimart）首尾帧方式下的单图格：首帧、尾帧（尾帧 min 0 → 「可不填」）。
 const frameSlot = (key, label, optional) => ({ key, label, accept: 'image', form: 'single', persistAsEdge: true, numbered: false, max: 1, optional })
@@ -104,24 +104,23 @@ describe('生成框参考行的「在用 / 未用到」：生产组件 AssetRefe
 describe('浏览器 outerHTML 的写法也读得出（img 不自闭合、属性顺序不同、属性值里有 > 和实体）', () => {
   // 真界面上的字从词典取（中文界面那一份），不在测试里另抄一份文案。
   const zh = (key) => uiText('zh-CN', key)
-  const UNUSED_LABELS = UI_LOCALES.map((locale) => uiText(locale, 'assetLibrary.refRow.unused'))
   const tile = (file) => `<div class="group/tile relative h-10 w-10 opacity-40" data-asset-tile="image"><span class="x"><img loading="lazy" alt="${file}" src="${url(file)}" decoding="async" class="w-full h-full"></span></div>`
   const live = [
     '<div class="generation-canvas-v2-node__composer" data-composer-host="canvas">',
     '<div class="flex [&>svg]:size-4" data-reference-row="true">',
     `<div class="ml-3" data-asset-slot="firstFrameUrl">${tile('first.png').replace(' opacity-40', '')}<span data-asset-slot-label="true">首帧</span></div>`,
     `<div data-asset-slot="lastFrameUrl" class="x">${tile('last.png').replace(' opacity-40', '')}<span data-asset-slot-label="true">${zh('assetLibrary.refRow.lastFrameOptional')}</span></div>`,
-    ...REFS.map((file) => `<div class="flex" data-reference-unused="true" title="a &gt; b &amp; c">${tile(file)}<span>${zh('assetLibrary.refRow.unused')}</span></div>`),
-    `<span data-reference-tail="true">${zh('assetLibrary.refRow.unusedNote')}</span></div></div>`,
+    ...REFS.map((file) => `<div class="flex" data-reference-unused="true" title="a &gt; b &amp; c">${tile(file)}</div>`),
+    `<span data-reference-tail="true">${zh('assetLibrary.refRow.imageEdit')}</span></div></div>`,
   ].join('')
   it('读出首帧、尾帧两格与 3 个未用到，判过', () => {
-    const verdict = judgeComposerReferences(readComposerReferences({ composers: 1, html: live }), { ...SCENE, unusedLabels: UNUSED_LABELS })
+    const verdict = judgeComposerReferences(readComposerReferences({ composers: 1, html: live }), SCENE)
     expect(verdict.problems).toEqual([])
     expect(verdict.summary.slotLabels).toEqual(['首帧', zh('assetLibrary.refRow.lastFrameOptional')])
   })
   it('小图没出图（NomiImage 加载失败换成了占位，没有 img）→ 判红', () => {
     const broken = live.replace(`<img loading="lazy" alt="ref-3.png" src="${url('ref-3.png')}" decoding="async" class="w-full h-full">`, `<div title="x" aria-label="${zh('assetLibrary.expiredReference')}">${zh('assetLibrary.expiredReference')}</div>`)
-    const verdict = judgeComposerReferences(readComposerReferences({ composers: 1, html: broken }), { ...SCENE, unusedLabels: UNUSED_LABELS })
+    const verdict = judgeComposerReferences(readComposerReferences({ composers: 1, html: broken }), SCENE)
     expect(verdict.problems.join('\n')).toMatch(/第 3 个「未用到」格里有 1 张小图、0 张出了图/)
   })
 })

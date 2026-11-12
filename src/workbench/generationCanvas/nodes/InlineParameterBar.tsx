@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { ICON_TIERS, NomiSelect } from '../../../design'
+import { ICON_TIERS, NomiSelect, type NomiSelectOption } from '../../../design'
 import type { ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { ModelOption } from '../../../config/models'
 import type { ModelCatalogStatus } from '../../../config/modelCatalogStatus'
@@ -67,7 +67,12 @@ type InlineParameterBarProps = {
    * 不传 = 原样（画布一行、贴文字宽最宽 240）。
    */
   wrap?: boolean
-  /** Optional generation-mode group shown at the top of the shared panel. */
+  /**
+   * 视频节点底栏的「方式」一格（模型 → 变体 → 方式 → 参数）：下拉，和模型菜单同一个浮层组件、同一个方向。
+   * 只在模型有两种以上方式时传；画布节点用它，不再往参数面板里传 modeChoices。
+   */
+  modeMenu?: { value: string; options: NomiSelectOption[]; heading: string; ariaLabel: string; onChange: (id: string) => void }
+  /** Optional generation-mode group shown at the top of the shared panel (storyboard rows only). */
   modeChoices?: readonly { id: string; label: string; limitTip?: string }[]
   activeModeId?: string
   modeLabel?: string
@@ -128,6 +133,7 @@ export default function InlineParameterBar({
   summaryOverride,
   summaryWidth,
   wrap = false,
+  modeMenu,
   modeChoices,
   activeModeId = '',
   modeLabel,
@@ -445,6 +451,16 @@ export default function InlineParameterBar({
           options={visibleVariants}
           disabled={visibleVariants.length < 2}
           onChange={catalogVariants ? modelSelect.onVariantPick : (v) => onVariantSelect?.(v)}
+        />
+      ) : null}
+      {modeMenu ? (
+        <NomiSelect
+          ariaLabel={modeMenu.ariaLabel}
+          heading={modeMenu.heading}
+          className="shrink-0"
+          value={modeMenu.value}
+          options={modeMenu.options}
+          onChange={modeMenu.onChange}
         />
       ) : null}
     </div>

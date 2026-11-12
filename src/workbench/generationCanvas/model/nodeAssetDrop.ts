@@ -75,7 +75,7 @@ export function resolveNodeArraySlots(
   if (!archetype) return []
   const slots: ArchetypeArraySlot[] = []
   for (const asset of kind ? [kind] : DROP_KINDS) {
-    const layout = effectiveArchetypeModeWithUpload(archetype, node, graph, asset).layout
+    const layout = effectiveArchetypeModeWithUpload(archetype, node, graph, asset).mode
     for (const slot of archetypeModeArraySlots(layout)) {
       if (slot.accept === asset && !slots.some((existing) => existing.metaKey === slot.metaKey)) slots.push(slot)
     }

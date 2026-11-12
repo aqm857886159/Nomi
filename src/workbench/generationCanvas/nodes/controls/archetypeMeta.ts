@@ -156,8 +156,8 @@ function nodesByIdOf(nodes: readonly GenerationCanvasNode[]): Map<string, Genera
 const resolutionCache = new WeakMap<readonly GenerationCanvasEdge[], WeakMap<readonly GenerationCanvasNode[], WeakMap<object, Map<ModelArchetype, ArchetypeModeResolution>>>>()
 
 /**
- * **渲染层问「这次按哪种方式发 / 图怎么摆」的唯一入口**：收一次输入，问唯一 owner modeForInputs。
- * 返回 { mode（发什么：发送、生成钮、任务种类、参数）, layout（图怎么摆：分段高亮、参考行格子、拖放、新连线语义）}。
+ * **渲染层问「这次按哪种方式发」的唯一入口**：收一次输入，问唯一 owner modeForInputs。
+ * 返回的 mode 同时是底栏方式格显示的、参考行按它摆的、发送 / 生成钮 / 任务种类 / 参数读的（显示的 = 发的）。
  * archetype 传调用方手里那份（按变体特化过的也行，方式 id 不变）。graph 传节点所在的画布（没有画布就传 { nodes: [node], edges: [] }）。
  */
 export function effectiveArchetypeMode(
@@ -180,24 +180,52 @@ export function effectiveArchetypeMode(
   return resolved
 }
 
+/** 调用方直接递进来的这次参考（没经画布解析时）。 */
+type SuppliedReferences = {
+  archetypeMode?: ArchetypeModeResolution
+  firstFrameUrl?: string | null
+  lastFrameUrl?: string | null
+  referenceImages?: readonly string[]
+  referenceVideos?: readonly string[]
+  referenceAudios?: readonly string[]
+}
+
+/** 调用方递进来的参考就是这次的输入：首帧 / 尾帧带位置，其余按参考收。 */
+function suppliedReferenceInputs(references: SuppliedReferences | undefined): ModeInput[] {
+  if (!references) return []
+  const inputs: ModeInput[] = []
+  if (references.firstFrameUrl) inputs.push({ slots: EDGE_MODE_SLOTS.first_frame, asset: 'image' })
+  if (references.lastFrameUrl) inputs.push({ slots: EDGE_MODE_SLOTS.last_frame, asset: 'image' })
+  for (const url of references.referenceImages ?? []) if (url) inputs.push({ slots: UPLOAD_SLOTS, asset: 'image' })
+  for (const url of references.referenceVideos ?? []) if (url) inputs.push({ slots: UPLOAD_SLOTS, asset: 'video' })
+  for (const url of references.referenceAudios ?? []) if (url) inputs.push({ slots: UPLOAD_SLOTS, asset: 'audio' })
+  return inputs
+}
+
 /**
  * 发送链路上「这次按哪种方式发」：画布路解析参考时已现算过一次（references.archetypeMode）就用那一份；
- * 没经画布解析（只有这个节点）就按节点自己的输入现算。archetype 是发送侧认的那份（同一方式 id）。
+ * 没经画布解析（只有这个节点、调用方直接递参考）就按这次真要发的输入现算——递了参考就按递进来的算，
+ * 一张都没递才看节点自己的上传。archetype 是发送侧认的那份（同一方式 id）。
  */
 export function sendArchetypeMode(
   archetype: ModelArchetype,
   node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>,
-  references?: { archetypeMode?: ArchetypeModeResolution },
+  references?: SuppliedReferences,
 ): ArchetypeMode {
   const resolved = references?.archetypeMode?.mode
   // 跨档案迁移（同一模型换到另一家的档案）时方式 id 可能不同：按同一种意图对上。
-  return archetype.modes.find((mode) => mode.id === resolved?.id)
+  const matched = archetype.modes.find((mode) => mode.id === resolved?.id)
     ?? (resolved ? archetype.modes.find((mode) => mode.intent === resolved.intent) : undefined)
-    ?? effectiveArchetypeMode(archetype, node, { nodes: [node as GenerationCanvasNode], edges: [] }).mode
+  if (matched) return matched
+  const supplied = suppliedReferenceInputs(references)
+  if (!supplied.length) return effectiveArchetypeMode(archetype, node, { nodes: [node as GenerationCanvasNode], edges: [] }).mode
+  const meta = (node.meta || {}) as Record<string, unknown>
+  const firstFrameEmpty = !references?.firstFrameUrl && collectModeInputs(node, lonelyNodeGraph(node as GenerationCanvasNode)).firstFrameEmpty
+  return modeForInputs(archetype, supplied, readModePreference(archetype, meta), { firstFrameEmpty }).mode
 }
 
 /**
- * 再放进一件东西（拖入 / 上传 / 粘贴一张参考）之后图怎么摆——拖放落哪一格由「放进去之后的输入」现算，
+ * 再放进一件东西（拖入 / 上传 / 粘贴一张参考）之后按什么方式摆——拖放落哪一格由「放进去之后的输入」现算，
  * 不先把方式写进节点（空视频节点拖一张图进来：放之后按参考摆，有参考格可落）。
  */
 export function effectiveArchetypeModeWithUpload(
@@ -209,7 +237,7 @@ export function effectiveArchetypeModeWithUpload(
   return effectiveArchetypeModeWithInputs(archetype, node, graph, [{ slots: UPLOAD_SLOTS, asset }])
 }
 
-/** 再放进几件东西（各带想落的槽）之后的摆法——落地回写一组参考前先问「放完之后按什么摆」。 */
+/** 再放进几件东西（各带想落的槽）之后的方式——落地回写一组参考前先问「放完之后按什么摆」。 */
 export function effectiveArchetypeModeWithInputs(
   archetype: ModelArchetype,
   node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>,
@@ -465,7 +493,9 @@ function preservedVariantId(meta: Record<string, unknown>, archetype: ModelArche
 }
 
 /**
- * 人手选了一个摆法（参数面板点分段、点歧义提示、声音方式栏——只有这 3 扇门调它）：写偏好 + `modeChosenBy: 'human'`。
+ * 人手选了一个方式（底栏方式菜单、声音方式栏——只有这 2 扇门调它）：写偏好 + `modeChosenBy: 'human'`。
+ * 菜单只让点「放得下全部输入」的方式，所以写进去的偏好当下一定成立；之后输入加多放不下，由画布边界忘掉它
+ * （canvasModeChoiceForget），不会「减少就跳回」。
  * 机器（连线、换模型、自动参考、交付…）不再写方式：这次按什么发由 effectiveArchetypeMode 按输入现算。
  * 参数不在这里夹：按现算出的方式在读 / 发的时候收窄（clampParamsToMode），删了图就回到原来存的值。
  * 旧工程按槽存的参考图，先按**改之前存着的方式**落成规范形（旧界面那时看不见的记进「先放一边」，#1269 条件 4）。
@@ -479,6 +509,17 @@ export function applyHumanModeChoice(
   const variantId = preservedVariantId(meta, archetype)
   const next = withHumanModePreference(meta, archetype.id, archetypeModeById(archetype, modeId).id)
   return variantId ? { ...next, archetype: { ...(next.archetype as object), variantId } } : next
+}
+
+/**
+ * 忘掉存着的方式偏好（输入变了、它放不下全部输入时由画布边界 canvasModeChoiceForget 调）：只去掉方式和来历标记，
+ * 档案 id、变体、参数一个不动；之后方式按输入的默认现算，输入再减少也不跳回原来那种。
+ */
+export function forgetModePreference(rawMeta: Record<string, unknown>, archetype: ModelArchetype): Record<string, unknown> {
+  const meta = normalizeReferenceListMeta(rawMeta, storedPreferenceMode(archetype, rawMeta)) ?? rawMeta
+  const record = storedArchetypeRecord(meta)
+  const { modeId: _modeId, modeChosenBy: _chosenBy, ...rest } = record
+  return { ...meta, archetype: rest }
 }
 
 /**

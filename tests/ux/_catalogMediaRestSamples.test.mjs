@@ -1,11 +1,13 @@
-// 零花费：付费抽检的样本表在花钱之前就对得上目录与界面——型号真声明了、节点种类对、要切的方式在参数面板里叫这个名字、
+// 零花费：付费抽检的样本表在花钱之前就对得上目录与界面——型号真声明了、节点种类对、放好样本参考后底栏方式格就是要验的那一档、叫这个名字、
 // 要放的参考正好是那一档的槽、只登记没脚本的那条在花钱之前就拒跑。buildMarkers 能不能在产品源码里找到由 _paidRun.test.mjs 盯。
 import { describe, expect, it } from 'vitest'
 import { APIMART_IMAGE_MODELS } from '../../electron/catalog/apimartImages.ts'
 import { APIMART_VIDEO_MODELS } from '../../electron/catalog/apimartVideos.ts'
 import { getArchetypeById } from '../../electron/shared/modelArchetypes/index.ts'
 import { archetypeModeChoices } from '../../src/workbench/generationCanvas/nodes/controls/channelModeReach.ts'
-import { modePresentationTexts, presentGenerationModes } from '../../src/workbench/generationCanvas/nodes/controls/generationModePresentation.ts'
+import { buildModeMenu, modeRowName } from '../../src/workbench/generationCanvas/nodes/controls/modeMenuModel.ts'
+import { modeForInputs } from '../../electron/shared/modelArchetypes/modeForInputs.ts'
+import { EDGE_MODE_SLOTS } from '../../electron/shared/canvas/edgeAdmission.ts'
 import { UI_LOCALES, uiTextWith } from './full-walk/invariants.mjs'
 import { MEDIA_REST_PENDING_SAMPLES, MEDIA_REST_SAMPLES, mediaRestSampleFor, viduSampleWireReceipt, sampleModeRadioName } from './_catalogMediaRestSamples.mjs'
 
@@ -33,19 +35,21 @@ describe('付费抽检样本表 · catalog-media-rest-real.paid.mjs', () => {
 
   const withMode = Object.entries(MEDIA_REST_SAMPLES).filter(([, sample]) => sample.modeId)
   for (const [modelKey, sample] of withMode) {
-    it(`${modelKey}：要切的「${sample.modeId}」在参数面板「生成方式」里，中英两轨都叫样本写的那个名字`, () => {
+    it(`${modelKey}：放好样本参考后，底栏方式格就是「${sample.modeId}」，菜单里那一行能点，中英两轨都叫样本写的那个名字`, () => {
       const archetype = archetypeOf(sample.kind, modelKey)
+      // 真人从「+」上传参考：每张都是一条上传输入（和 collectModeInputs 同一份槽表）。
+      const inputs = (sample.references ?? []).map(() => ({ slots: EDGE_MODE_SLOTS.reference, asset: 'image' }))
+      const resolved = modeForInputs(archetype, inputs, { modeId: sample.modeId, chosenBy: 'human' })
+      expect(resolved.mode.id, `${modelKey} 放 ${inputs.length} 张、手选 ${sample.modeId} 时真按它发`).toBe(sample.modeId)
+      const menu = buildModeMenu({ nodeKind: 'video', archetype, visible: archetypeModeChoices(archetype), inputs, resolvedModeId: resolved.mode.id })
+      expect(menu, `${modelKey} 有不止一种方式，底栏有方式格`).toBeTruthy()
+      const row = menu.rows.find((item) => item.id === sample.modeId)
+      expect(row?.disabled, `${sample.modeId} 那一行能点`).toBe(false)
       for (const locale of UI_LOCALES) {
-        const presentation = presentGenerationModes({
-          archetype, visibleChoices: archetypeModeChoices(archetype), activeModeId: archetype.defaultModeId, kind: sample.kind,
-          texts: modePresentationTexts((key, values) => uiTextWith(locale, key, values ?? {})),
-        })
-        expect(presentation.where, `${modelKey} 的方式在参数面板里切`).toBe('panel')
-        const choice = presentation.choices.find((item) => item.id === sample.modeId)
-        expect(choice, `${locale}：分段里有 ${sample.modeId}`).toBeTruthy()
-        expect(choice.label).toMatch(sampleModeRadioName(sample))
-        // 名字只认这一档：别的分段不许也匹配上（点错档会花在别的方式上）。
-        expect(presentation.choices.filter((item) => sampleModeRadioName(sample).test(item.label)).map((item) => item.id)).toEqual([sample.modeId])
+        const t = (key, values) => uiTextWith(locale, key, values ?? {})
+        expect(modeRowName(t, row)).toMatch(sampleModeRadioName(sample))
+        // 名字只认这一档：别的行不许也匹配上（点错档会花在别的方式上）。
+        expect(menu.rows.filter((item) => sampleModeRadioName(sample).test(modeRowName(t, item))).map((item) => item.id)).toEqual([sample.modeId])
       }
     })
 

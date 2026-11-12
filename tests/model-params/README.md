@@ -15,7 +15,7 @@ pnpm exec vitest run tests/model-params/contracts.test.mjs
 | 入口 id | 实际写边界 | 枚举轴 | 打开读面 |
 |---|---|---|---|
 | canvas-model | buildNodeModelChangePatch | 同类型模型两两 | 画布项目解析/参数条 |
-| canvas-mode | applyArchetypeModeSwitch | 模式两两 | 画布项目解析/参数条 |
+| canvas-mode | applyHumanModeChoice + clampParamsToMode | 模式两两 | 画布项目解析/参数条 |
 | canvas-variant | applyArchetypeVariantSwitch | 变体两两 | 画布项目解析/参数条 |
 | storyboard-model | planModelSelection → updateShotAt | 同类型模型两两 | 分镜项目解析/行标记 |
 | storyboard-kind | shotKindPatch → updateShotAt | 图片↔视频 | 分镜项目解析/行标记 |

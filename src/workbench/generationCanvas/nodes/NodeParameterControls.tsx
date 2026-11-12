@@ -55,6 +55,7 @@ import {
   archetypeModeSourceVideoSlot,
   archetypeVariantChoices,
   currentArchetypeVariant,
+  collectModeInputs,
   effectiveArchetypeMode,
   readArchetypeArray,
   referenceSlotStorage,
@@ -76,13 +77,15 @@ import { useChannelCreateBodies, type VendorMappingsReader } from './controls/us
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
 import ModeBar from './controls/ModeBar'
-import { modePresentationTexts, presentGenerationModes } from './controls/generationModePresentation'
+import { buildModeMenu, renderModeMenuText, modeRowName, type ModeDisplayKind } from './controls/modeMenuModel'
+import { liveModeSwitchNotice } from '../store/canvasModeChoiceForget'
+import { IconCards, IconPhotoVideo, IconStack2, IconTypography } from '@tabler/icons-react'
 import { readModePreference } from './controls/modePreference'
 import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import { parameterChipOptions } from './primaryParameterChips'
 import QuantitySelect from './controls/QuantitySelect'
 import referenceRowTail from './controls/referenceRowTail'
-import { FIRST_LAST_HINT_DISMISSED_META_KEY, computeReferenceRowModel, firstLastAmbiguityTarget } from './controls/referenceRowModel'
+import { computeReferenceRowModel } from './controls/referenceRowModel'
 import type { AssetRef, AssetKind } from '../../assets/assetTypes'
 import { pickNodeSlotReference } from './nodeSlotReferencePick'
 import InlineParameterBar from './InlineParameterBar'
@@ -143,11 +146,10 @@ export default function NodeParameterControls({
   const declaredVariantChoices = archetype ? archetypeVariantChoices(archetype) : []
   const activeVariantId = archetype ? currentArchetypeVariant(archetype, meta)?.id || '' : ''
   const effectiveArchetype = archetype ? specializeArchetypeForVariant(archetype, activeVariantId) : null
-  // 方式按这次的输入现算（modeForInputs，唯一 owner）：archMode = 图怎么摆（分段高亮、参考格子、容量）；
-  // sendMode = 这次发什么（参数、型号变体轴）。两者只在一张输入都没收下时不同。
+  // 方式按这次的输入现算（modeForInputs，唯一 owner）：方式格显示它、参考格子按它摆、参数按它收窄——显示的 = 这次真发的。
   const modeResolution = effectiveArchetype ? effectiveArchetypeMode(effectiveArchetype, node, graph) : null
-  const archMode = modeResolution?.layout ?? null
-  const sendMode = modeResolution?.mode ?? null
+  const archMode = modeResolution?.mode ?? null
+  const sendMode = archMode
   // A point-pick belongs to the slot configuration that opened it.
   React.useEffect(() => () => cancelReferencePick.current?.(), [node.id, openProjectId, archMode?.id, node.meta, edges])
   const imageCatalogConfig = archetype ? null : buildEffectiveImageCatalogConfig(selectedModelOption?.meta)
@@ -277,8 +279,8 @@ export default function NodeParameterControls({
     updateMeta(patch)
   }
 
-  // 人手选摆法（分段 / 「改成首尾帧」提示 / 声音方式栏，只有这三扇门写偏好）：只记偏好和「人手选的」，参考列表、参数都不动
-  // （落槽 / 「未用到」由 resolveReferencePlacement 按现算的摆法推导，往返一张不少；参数在发送时按现算方式收窄）。
+  // 人手选方式（视频底栏方式菜单 / 声音方式栏，只有这两扇门写偏好）：只记偏好和「人手选的」，参考列表、参数都不动
+  // （落槽由 resolveReferencePlacement 按现算的方式推导，往返一张不少；参数在发送时按现算方式收窄）。菜单只让点放得下全部输入的那几种。
   const handleModeSwitch = (modeId: string) => {
     if (!archetype) return
     updateNode(node.id, { meta: applyHumanModeChoice(getLatestMeta(), archetype, modeId) })
@@ -340,15 +342,13 @@ export default function NodeParameterControls({
   const modeChoices = archetype
     ? archetypeModeChoices(archetype, (mode) => modeBodies[mode.id])
     : []
-  // 生成方式怎么呈现（B3）：视频 = 参数面板顶部的分段（没有文生）；图片 = 不出现，由输入决定；声音 / 3D = 沿用旧的模式栏。
-  const modePresentation = presentGenerationModes({
-    archetype: effectiveArchetype ?? archetype,
-    visibleChoices: modeChoices,
-    activeModeId: archMode?.id || '',
-    kind: isVideoLike ? 'video' : isImageLike ? 'image' : 'other',
-    texts: modePresentationTexts(t),
-  })
-  const showModeBar = modePresentation.where === 'bar'
+  // 生成方式怎么呈现（11-12 拍板）：视频 = 底栏「方式」一格（下拉，只列模型真有的，只有一种不显示）；图片 = 没有方式格，
+  // 放了图就是按图改；声音 / 3D = 沿用旧的模式栏。
+  const modeInputs = effectiveArchetype && (isVideoLike || isImageLike) ? collectModeInputs(node, graph) : null
+  const modeMenu = modeInputs && effectiveArchetype && archMode
+    ? buildModeMenu({ nodeKind: isVideoLike ? 'video' : 'other', archetype: effectiveArchetype, visible: modeChoices, inputs: modeInputs.inputs, firstFrameEmpty: modeInputs.firstFrameEmpty, resolvedModeId: archMode.id })
+    : null
+  const showModeBar = !isVideoLike && !isImageLike && modeChoices.length > 1
   const showVariantBar = variantChoices.length > 1
   // 当前模式的数组参考槽（全能参考，meta-only）+ 源视频单槽（HappyHorse 视频编辑）。
   const arraySlots: ArchetypeArraySlot[] = archMode ? archetypeModeArraySlots(archMode) : []
@@ -568,12 +568,21 @@ export default function NodeParameterControls({
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
         summaryOverride={summaryOverride}
-        // 生成方式放在面板顶部（现有组件原样）：视频节点的分段在这里，图片没有，声音 / 3D 仍在参考区上方的模式栏。
-        {...(modePresentation.where === 'panel' ? {
-          modeChoices: modePresentation.choices,
-          activeModeId: modePresentation.activeId,
-          modeLabel: t('generationCommon.parameters.generationMode'),
-          onModeSelect: handleModeSwitch,
+        // 视频节点的方式在底栏自己一格（参数面板里不再有「生成方式」）；图片没有，声音 / 3D 仍在参考区上方的模式栏。
+        {...(modeMenu ? {
+          modeMenu: {
+            value: modeMenu.activeId,
+            heading: t('generationCommon.modeMenu.heading'),
+            ariaLabel: t('generationCommon.modeMenu.heading'),
+            onChange: handleModeSwitch,
+            options: modeMenu.rows.map((row) => ({
+              value: row.id,
+              label: modeRowName(t, row),
+              description: renderModeMenuText(t, row.description),
+              disabled: row.disabled,
+              ...(row.kind === 'other' ? {} : { glyph: <ModeGlyph kind={row.kind} /> }),
+            })),
+          },
         } : {})}
       />
     )
@@ -606,14 +615,10 @@ export default function NodeParameterControls({
   const inputReferenceEntry = !assetSlots.length && canConnect && potentialReferenceKinds.length
     ? <NodeInputReferenceEntry nodeId={node.id} accept={potentialReferenceKinds} /> : null
 
-  const { unusedUrls, parkedUrls, framesOnly, referenceInfos, arrayCount } = computeReferenceRowModel({
-    node, nodes, edges, meta, assetSlots, assetValuesByKey, imageUrlSlots, arraySlots, refsUnsupported, showReferences,
+  const { unusedUrls, parkedUrls, referenceInfos, arrayCount } = computeReferenceRowModel({
+    node, nodes, edges, meta, assetSlots, assetValuesByKey, arraySlots, showReferences,
     unusedUploads: referencePlacement.unused, parkedUploads: referencePlacement.parked,
     fallbackName: (kind) => t(kind === 'video' ? 'assetLibrary.referenceVideo' : kind === 'audio' ? 'assetLibrary.referenceAudio' : 'assetLibrary.referenceImage'),
-  })
-
-  const firstLastModeId = firstLastAmbiguityTarget({
-    modes: (effectiveArchetype ?? archetype)?.modes, activeIntent: archMode?.intent, arraySlots, assetValuesByKey, arrayCount, meta, isVideo: isVideoLike,
   })
 
   const handleSwapFrames = () => {
@@ -633,10 +638,20 @@ export default function NodeParameterControls({
     />
   ) : null
 
+  // 行尾：模型自己放不下（任何方式都收不下全部）→ 报数；方式刚因为加多被换掉 → 「放了 N 张，已改成 X」；图片节点放了图 → 「按图改」。
+  const inputCount = modeInputs?.inputs.length ?? 0
+  const takenCount = modeResolution?.taken ?? 0
+  const modelLimit = modeInputs && modeResolution?.status === 'ok' && takenCount > 0 && takenCount < inputCount
+    ? { model: selectedModelOption?.label || selectedModelOption?.value || '', max: takenCount, total: inputCount }
+    : null
+  const switchedRow = modeMenu && archMode ? modeMenu.rows.find((row) => row.id === archMode.id) : undefined
+  const switchNoticeMeta = modeInputs && archMode ? liveModeSwitchNotice(meta, inputCount, archMode.id) : null
   const tail = referenceRowTail(t, {
-    refsUnsupported, unusedCount: unusedUrls.length, framesOnly, arrayCount, guidanceNote,
-    onSwitchToFirstLast: firstLastModeId ? () => handleModeSwitch(firstLastModeId) : undefined,
-    onDismissAmbiguity: () => updateMeta({ [FIRST_LAST_HINT_DISMISSED_META_KEY]: true }),
+    refsUnsupported, unusedCount: unusedUrls.length, arrayCount, guidanceNote, modelLimit,
+    switchNotice: switchNoticeMeta && switchedRow
+      ? { count: switchNoticeMeta.count, allImages: Boolean(modeInputs?.inputs.every((input) => input.asset === 'image')), modeName: modeRowName(t, switchedRow) }
+      : null,
+    imageEdit: isImageLike && arrayCount > 0,
   })
 
   // 当前方式一个收图的槽都没有（文生，或渠道发不出这些槽）时，参考列表里的图照样要看得见——淡显「未用到」，
@@ -719,4 +734,10 @@ export default function NodeParameterControls({
       ) : null}
     </div>
   )
+}
+
+/** 方式的图标（§6 登记）：文生视频 / 图生视频 / 首尾帧 / 全能参考。 */
+function ModeGlyph({ kind }: { kind: Exclude<ModeDisplayKind, 'other'> }): JSX.Element {
+  const Icon = kind === 'text' ? IconTypography : kind === 'image' ? IconPhotoVideo : kind === 'firstLast' ? IconCards : IconStack2
+  return <Icon size={14} stroke={1.6} aria-hidden />
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { archetypeForNode, isTextPromptEdge, referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges, resolveTargetModeForEdge, selectConnectionEdgeMode } from './referenceEdgeCapability'
+import { archetypeForNode, isTextPromptEdge, referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges } from './referenceEdgeCapability'
 import { resolveArchetypeForModel } from '../../../../electron/shared/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { GENERATION_NODE_KINDS, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
@@ -168,132 +168,10 @@ describe('partitionConnectableEdges — 批准时剔除连不上的边(批准≡
   })
 })
 
-describe('resolveTargetModeForEdge — 连线后目标自动切到能消费这条参考的「生成方式」', () => {
-  // 节点(可指定当前 modeId)。imageGen 用 image kind + 有 edit(image_ref) 模式的档案。
-  function nodeWithMode(id: string, kind: string, archetypeId: string, modeId: string): GenerationCanvasNode {
-    return { id, kind: kind as GenerationCanvasNode['kind'], title: id, prompt: '', position: { x: 0, y: 0 }, size: { width: 100, height: 100 }, meta: { archetype: { id: archetypeId, modeId } } }
-  }
-
-  it.each(['seedream', 'nano-banana'])(
-    '图 → 图片节点停在默认文生图(无参考槽)的 %s → 切到含 image_ref 的 edit 模式（根因回归）',
-    (archetypeId) => {
-      // 默认 modeId:'' → currentArchetypeMode 回落 defaultModeId(t2i,slots:[])→ 收不下 → 找到 edit。
-      expect(resolveTargetModeForEdge(node('a', 'image'), node('b', 'image', archetypeId), 'reference')).toBe('edit')
-    },
-  )
-
-  it('图 → 已在 edit(参考图)模式的节点 → null(当前模式已能落，不重复切、尊重用户选择)', () => {
-    expect(resolveTargetModeForEdge(node('a', 'image'), nodeWithMode('b', 'image', 'seedream', 'edit'), 'reference')).toBeNull()
-  })
-
-  it('图 → 纯文生模型(imagen-4，所有模式都无参考槽) → null(没有能落的模式)', () => {
-    expect(resolveTargetModeForEdge(node('a', 'image'), node('b', 'image', 'imagen-4'), 'reference')).toBeNull()
-  })
-
-  it('文本源(无可参考产物) → null(不触发切模式)', () => {
-    expect(resolveTargetModeForEdge(node('t', 'text'), node('b', 'image', 'seedream'), 'reference')).toBeNull()
-  })
-
-  it('目标未声明档案(未知/未设模型) → null(无从派生，P4 通用回退)', () => {
-    expect(resolveTargetModeForEdge(node('a', 'image'), node('b', 'image'), 'reference')).toBeNull()
-  })
-  it('Seedance 2.0 APIMart t2v + image defaults to the declared reference mode, even for a first-frame edge', () => {
-    const target = nodeWithMode('target', 'video', 'seedance-2-apimart', 't2v')
-    const mode = selectConnectionEdgeMode(node('source', 'image'), target, [])
-    expect(mode).toBe('character_ref')
-    expect(resolveTargetModeForEdge(node('source', 'image'), target, mode)).toBe('omni')
-  })
-
-  it('Wan 3.0 APIMart t2v + image defaults to its declared reference mode', () => {
-    const target = nodeWithMode('target', 'video', 'wan-3.0-apimart', 't2v')
-    const mode = selectConnectionEdgeMode(node('source', 'image'), target, [])
-    expect(mode).toBe('character_ref')
-    expect(resolveTargetModeForEdge(node('source', 'image'), target, mode)).toBe('ref')
-  })
-
-  it('a profile without a reference mode falls back to its first-frame mode', () => {
-    expect(resolveTargetModeForEdge(node('source', 'image'), nodeWithMode('target', 'video', 'hailuo-2.3', 't2v'), 'first_frame')).toBe('i2v')
-  })
-
-  it('an explicitly selected first-last mode stays unchanged for its first and last frame edges', () => {
-    const target = nodeWithMode('target', 'video', 'seedance-2-apimart', 'firstlast')
-    expect(resolveTargetModeForEdge(node('first', 'image'), target, 'first_frame')).toBeNull()
-    expect(resolveTargetModeForEdge(node('last', 'image'), target, 'last_frame')).toBeNull()
-  })
-})
-
-import { findVideoRefMode, resolveModeForConnectedReferences } from './referenceEdgeCapability'
+// 「连线后自动切方式」「按活边对账方式」两组测试随机器切方式一起删了：方式现在按输入现算（modeForInputs），
+// 连线不写方式；对应的守护在 modeForInputs.exhaustive.test.ts 与 canvasModeNineStates.test.ts。
+import { findVideoRefMode } from './referenceEdgeCapability'
 import { getArchetypeById } from '../../../../electron/shared/modelArchetypes'
-import type { GenerationCanvasEdge } from '../model/generationCanvasTypes'
-
-describe('resolveModeForConnectedReferences — 按活边对账「生成方式」(提交/换模型兜底)', () => {
-  function edge(source: string, target: string, mode?: GenerationCanvasEdge['mode']): GenerationCanvasEdge {
-    return { id: `${source}->${target}`, source, target, ...(mode ? { mode } : {}) } as GenerationCanvasEdge
-  }
-  function imageAsset(id: string): GenerationCanvasNode {
-    return { ...node(id, 'asset'), result: { id: 'r', type: 'image', url: 'https://cdn/a.png', createdAt: 0 } } as GenerationCanvasNode
-  }
-  function videoAsset(id: string): GenerationCanvasNode {
-    return { ...node(id, 'asset'), result: { id: 'r', type: 'video', url: 'https://cdn/a.mp4', createdAt: 0 } } as GenerationCanvasNode
-  }
-
-  it('t2i(空槽) + 图参考边 → 促到 edit（换模型落回默认/存量边的根因回归）', () => {
-    const source = imageAsset('s')
-    const target = { ...node('t', 'image', 'seedream'), meta: { archetype: { id: 'seedream', modeId: 't2i' } } } as GenerationCanvasNode
-    expect(resolveModeForConnectedReferences(target, [source, target], [edge('s', 't', 'reference')])).toBe('edit')
-  })
-
-  it('文生视频 + 视频参考边 → 落「全能参考」（参考视频），不落排在前面、只能拿它做首帧接力的图生视频（2026-09-24 拍板）', () => {
-    const source = videoAsset('s')
-    const target = { ...node('t', 'video', 'dreamina-seedance-2'), meta: { archetype: { id: 'dreamina-seedance-2', modeId: 't2v' } } } as GenerationCanvasNode
-    expect(resolveModeForConnectedReferences(target, [source, target], [edge('s', 't', 'reference')])).toBe('multimodal')
-  })
-
-  it('视频边明确是首帧接力（first_frame）→ 仍落图生视频', () => {
-    const source = videoAsset('s')
-    const target = { ...node('t', 'video', 'dreamina-seedance-2'), meta: { archetype: { id: 'dreamina-seedance-2', modeId: 't2v' } } } as GenerationCanvasNode
-    expect(resolveModeForConnectedReferences(target, [source, target], [edge('s', 't', 'first_frame')])).toBe('i2v')
-  })
-
-  it('当前已是 edit（能收）→ null（幂等，尊重现状）', () => {
-    const source = imageAsset('s')
-    const target = { ...node('t', 'image', 'seedream'), meta: { archetype: { id: 'seedream', modeId: 'edit' } } } as GenerationCanvasNode
-    expect(resolveModeForConnectedReferences(target, [source, target], [edge('s', 't', 'reference')])).toBeNull()
-  })
-
-  it('无参考边 → null（纯文生不受打扰）；文本 prompt 边不算参考', () => {
-    const target = node('t', 'image', 'seedream')
-    expect(resolveModeForConnectedReferences(target, [target], [])).toBeNull()
-    const text = node('x', 'text')
-    expect(resolveModeForConnectedReferences(target, [text, target], [edge('x', 't', 'reference')])).toBeNull()
-  })
-
-  it('纯文生模型(imagen-4 无任何参考槽) → null（真不支持，不硬切）', () => {
-    const source = imageAsset('s')
-    const target = node('t', 'image', 'imagen-4')
-    expect(resolveModeForConnectedReferences(target, [source, target], [edge('s', 't', 'reference')])).toBeNull()
-  })
-
-  it('t2v + 首帧边 → 促到 first（视频同类修复）', () => {
-    const source = imageAsset('s')
-    const target = { ...node('t', 'video', 'seedance-2'), meta: { archetype: { id: 'seedance-2', modeId: 't2v' } } } as GenerationCanvasNode
-    expect(resolveModeForConnectedReferences(target, [source, target], [edge('s', 't', 'first_frame')])).toBe('first')
-  })
-
-  it('异质多需求（角色图边 + 视频参考边）→ 挑能收下最多条的模式（omni）', () => {
-    const character = imageAsset('c')
-    const clip = videoAsset('v')
-    const target = { ...node('t', 'video', 'seedance-2'), meta: { archetype: { id: 'seedance-2', modeId: 't2v' } } } as GenerationCanvasNode
-    const edges = [edge('c', 't', 'character_ref'), edge('v', 't', 'reference')]
-    expect(resolveModeForConnectedReferences(target, [character, clip, target], edges)).toBe('omni')
-  })
-
-  it('目标未声明档案 → null（P4 通用回退）', () => {
-    const source = imageAsset('s')
-    const target = node('t', 'image')
-    expect(resolveModeForConnectedReferences(target, [source, target], [edge('s', 't', 'reference')])).toBeNull()
-  })
-})
 
 describe('findVideoRefMode — 档案有没有 video_ref 槽', () => {
   it('Seedance 2.0 (omni 有 video_ref) → 返回 omni 模式 + referenceVideoUrls + video_urls', () => {

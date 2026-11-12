@@ -22,6 +22,7 @@ import { applyRelayFirstFrame } from './relayFrameResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
 import { buildArchetypeInputParams, clampParamsToMode, orderedSentImageReferenceUrls, orderedSentMediaReferenceUrls, sendArchetypeMode, uploadPlacementForMode, type ArchetypeMode, type ModelArchetype } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
+import { normalizeReferenceListMeta } from '../nodes/controls/referenceList'
 import {
   type CatalogTaskActionOptions,
   type CatalogTaskRunOptions,
@@ -327,8 +328,12 @@ export function buildCatalogTaskRequest(
   const sendMode = sendArchetype
     ? { archetype: sendArchetype, mode: sendArchetypeMode(sendArchetype, node, references) }
     : null
+  // 旧节点的「先放一边」按节点**记着的**方式判（readParkedReferences 读 archetype.modeId）。下面要把这次真发的方式写进
+  // archetype.modeId，所以先把参考落成规范形（先放一边的记进列表），再换 modeId——否则旧首尾帧节点按全能参考发时，
+  // 旧界面看不见的残留参考图被发出去、看得见的首帧反而不发（2026-11-12 方式现算后，参考行和请求两边对不上）。
+  const listMeta = sendMode ? normalizeReferenceListMeta(rawMeta, sendMode.mode) ?? rawMeta : rawMeta
   const meta = sendMode
-    ? { ...clampParamsToMode(rawMeta, sendMode.archetype, sendMode.mode), archetype: { ...(rawMeta.archetype as object), id: sendMode.archetype.id, modeId: sendMode.mode.id } }
+    ? { ...clampParamsToMode(listMeta, sendMode.archetype, sendMode.mode), archetype: { ...(rawMeta.archetype as object), id: sendMode.archetype.id, modeId: sendMode.mode.id } }
     : rawMeta
   // @ 内联引用投影(R6 单源 · option 2):把 prompt 里的 @[asset:url] 标记转成 @imageN，
   // N = url 在「连线在前+上传」有序数组里的位置——**与实际发送的 reference_image 数组逐位一致**。此前只读

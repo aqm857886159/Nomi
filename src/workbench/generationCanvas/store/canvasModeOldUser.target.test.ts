@@ -34,8 +34,10 @@ const TARGET: Record<string, Want> = {
   'dc5-image-t2i-with-image': { taskKind: 'image_edit', canRun: true, sentArrayReferences: 1 },
   // ⑥ Agent / 分镜写 edit、没参考：按文字生成。
   'dc6-agent-plan-image-edit-no-refs': { taskKind: 'text_to_image', canRun: true, sentArrayReferences: 0 },
-  // ⑥b 偏好是首尾帧、只有 1 张图：偏好收得下（图进首帧格）→ 照用，不换方式（「收得下就照用」）。今天就是这样，守住它。
-  'dc6b-agent-plan-video-firstlast': { taskKind: 'image_to_video', canRun: true, sentArrayReferences: 0 },
+  // ⑥b Agent 计划写了首尾帧、后来连进 1 张参考图：这个档案的首尾帧要首帧和尾帧都有（尾帧 min 1），1 张图满足不了
+  // 偏好 → 按输入现算，参考类优先 → 全能参考，这张图按参考发（设计卡规则②；「连 1–2 张图 → 按参考发」）。
+  // 底栏方式格显示的也是全能参考（显示的 = 发的）。早先写的「图进首帧格、照用」没核对尾帧必填，2026-11-12 改正。
+  'dc6b-agent-plan-video-firstlast': { taskKind: 'image_to_video', canRun: true, sentArrayReferences: 1 },
   // ⑦ 声音转写没音频：转写必须先有音频（★4 情况 a，只能从输入开始）→ 灰钮不变，不是 bug。
   'dc7-audio-transcribe-no-audio': { taskKind: 'transcribe', canRun: false, sentArrayReferences: 0 },
   // ⑧ 3D 图生没图：混元 3D 有文生 → 按文字生成 3D，钮可点（★9 ②）。

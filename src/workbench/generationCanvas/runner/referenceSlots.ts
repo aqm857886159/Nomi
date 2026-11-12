@@ -152,11 +152,8 @@ export function resolveReferencePlacement(
   const archetype = archetypeForNode(target)
   if (!archetype) return { slots: [], unused: [], parked: [] }
   const meta = (target.meta || {}) as Record<string, unknown>
-  // 参考行按「图怎么摆」排（layout）。layout 与这次发的方式不一样，只出现在这次一张都没收下的时候（首尾帧版式空着、
-  // 或只放了尾帧被按文字发）：格子照版式显示，节点上的图一张都不落进去、全部淡显「未用到」——请求里也确实不带它们。
-  const resolution = options.layout ? null : effectiveArchetypeMode(archetype, target, { nodes, edges })
-  const mode = options.layout ?? resolution!.layout
-  const sendsNothing = Boolean(resolution && resolution.layout.id !== resolution.mode.id)
+  // 参考行按这次真发的方式摆（显示的 = 发的）。模型自己放不下的那几张落不进格子，留在 unused（淡显「不会发」）。
+  const mode = options.layout ?? effectiveArchetypeMode(archetype, target, { nodes, edges }).mode
   const slots = mode.slots
   if (slots.length === 0) {
     const inputs = listPlacementInputs(meta, mode)
@@ -212,7 +209,7 @@ export function resolveReferencePlacement(
 
   // 2a) 视频 / 音频 / 源视频的上传：各住各的键，填剩余空位。
   slots.forEach((slot, slotIndex) => {
-    if (sendsNothing || isImageUploadSlot(slot.kind)) return
+    if (isImageUploadSlot(slot.kind)) return
     const storage = referenceSlotStorage(slot)
     if (!storage) return
     const raw = meta[storage.metaKey]
@@ -234,7 +231,7 @@ export function resolveReferencePlacement(
     countBySlot: positionsBySlot.map((row) => row.filter(Boolean).length),
     urls: occupiedUrls,
   }, {
-    totalBudget: sendsNothing ? 0 : mode.maxTotalReferences === undefined ? undefined : mode.maxTotalReferences - occupiedTotal,
+    totalBudget: mode.maxTotalReferences === undefined ? undefined : mode.maxTotalReferences - occupiedTotal,
     firstFrameEmpty: inputs.firstFrameEmpty,
     parked: inputs.parked,
     ...(options.capOf ? { capOf: (slotIndex: number) => options.capOf!(slots[slotIndex]!) } : {}),
@@ -346,7 +343,7 @@ export function canFitReferenceEdge(source: GenerationCanvasNode, target: Genera
   if (!archetype || !asset) return true
   // 连上之后这一格按什么摆，由连上之后的输入现算（不再先把方式写进节点）；已有的东西按那个摆法排一遍再看有没有空位。
   const pending: GenerationCanvasEdge = { id: `pending-${source.id}-${target.id}`, source: source.id, target: target.id, mode: semantic }
-  const mode = effectiveArchetypeMode(archetype, target, { nodes, edges: [...edges, pending] }).layout
+  const mode = effectiveArchetypeMode(archetype, target, { nodes, edges: [...edges, pending] }).mode
   const candidates = edgeSlotCandidates(semantic, asset, mode.slots)
   if (!candidates.length) return false
   const filled = resolveReferencePlacement(target, [...nodes], [...edges], { layout: mode }).slots

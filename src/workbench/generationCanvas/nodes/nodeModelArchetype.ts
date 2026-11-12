@@ -11,6 +11,7 @@ import {
 } from './controls/parameterControlModel'
 import { specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
 import {
+  archetypeModeById,
   archetypeModeParams,
   currentArchetypeVariant,
   effectiveArchetypeMode,
@@ -62,8 +63,13 @@ export function resolveArchetypeForOption(option: ModelOption | null) {
   })
 }
 
-/** 算参数要按哪种方式：节点在画布上（连线也是输入）就给出节点和画布；不给只按 meta 里节点自己的上传算。 */
-export type RenderedControlsContext = { node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>; graph: ModeGraph }
+/**
+ * 算参数要按哪种方式：节点在画布上（连线也是输入）就给出节点和画布；不给只按 meta 里节点自己的上传算。
+ * 分镜行 / 参考卡还没落到画布、没有输入可算，参数按方案里写明的方式（`plannedModeId`）；落地后由画布按输入现算。
+ */
+export type RenderedControlsContext =
+  | { node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>; graph: ModeGraph }
+  | { plannedModeId: string | undefined }
 
 /**
  * 底部参数行要渲染的控件 —— 认得档案的模型用**这次按输入现算出的方式**的标量参数（随模式变，如 HappyHorse
@@ -82,8 +88,9 @@ export function resolveRenderedControls(
     // 变体特化：选中变体可能收窄某 mode 的参数（如 Seedance fast 的 resolution 仅 480/720）。
     // 收窄发生在 params 这层，故先按 variantId 特化档案再取当前模式的 params。
     const specialized = specializeArchetypeForVariant(archetype, currentArchetypeVariant(archetype, meta)?.id)
-    const node = context?.node ?? { id: '', meta, kind: isVideoLike ? 'video' : 'image' }
-    const mode = effectiveArchetypeMode(specialized, node, context?.graph ?? { nodes: [], edges: [] }).mode
+    const mode = context && 'plannedModeId' in context
+      ? archetypeModeById(specialized, context.plannedModeId)
+      : effectiveArchetypeMode(specialized, context?.node ?? { id: '', meta, kind: isVideoLike ? 'video' : 'image' }, context?.graph ?? { nodes: [], edges: [] }).mode
     return localizeDynamicControls(
       buildDynamicControls({
         parameterControls: constrainParameterControls(archetypeModeParams(mode), meta),

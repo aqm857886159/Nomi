@@ -54,7 +54,8 @@ export type MentionReferencePlan =
  * 拖线（把手连线）的首尾帧规则不走这里、不变。
  *
  * - 落哪一格按「@ 进来之后的输入」现算摆法（不写方式进节点，方式在发送时按输入现算）；
- * - 那个摆法没有对应参考槽：节点连着首帧 / 尾帧边 → 明说被首尾帧挡着；否则不支持；
+ * - 节点连着首帧 / 尾帧边、@ 进来之后的摆法却没有首帧格（首帧要被挪去当参考）→ 明说被首尾帧挡着，不悄悄改掉人连的首帧；
+ * - 那个摆法没有对应参考槽 → 不支持；
  * - 放满了 → 明说上限，调用方不建边、不写上传。
  * 没有档案的节点（无模式可言）→ 落「参考」边，交给建边那一层的通用校验。
  */
@@ -67,13 +68,11 @@ export function resolveMentionReference(
   const slotKind = MENTION_SLOT_BY_MEDIA[mediaKind]
   const archetype = archetypeForNode(target)
   if (!archetype) return { ok: true, edgeMode: 'reference' }
-  const layout = effectiveArchetypeModeWithUpload(archetype, target, { nodes, edges }, mediaKind).layout
-  if (!layout.slots.some((slot) => slot.kind === slotKind)) {
-    if (edges.some((edge) => edge.target === target.id && (edge.mode === 'first_frame' || edge.mode === 'last_frame'))) {
-      return { ok: false, reason: 'blocked_by_frame_edges' }
-    }
-    return { ok: false, reason: 'unsupported' }
-  }
+  const layout = effectiveArchetypeModeWithUpload(archetype, target, { nodes, edges }, mediaKind).mode
+  const hasFrameEdges = edges.some((edge) => edge.target === target.id && (edge.mode === 'first_frame' || edge.mode === 'last_frame'))
+  const keepsFrames = layout.slots.some((slot) => slot.kind === 'first_frame' || slot.kind === 'last_frame')
+  if (hasFrameEdges && (!keepsFrames || !layout.slots.some((slot) => slot.kind === slotKind))) return { ok: false, reason: 'blocked_by_frame_edges' }
+  if (!layout.slots.some((slot) => slot.kind === slotKind)) return { ok: false, reason: 'unsupported' }
   const slot = resolveReferencePlacement(target, nodes as GenerationCanvasNode[], edges as GenerationCanvasEdge[], { layout }).slots
     .find((candidate) => candidate.slotKind === slotKind)
   if (!slot) return { ok: false, reason: 'unsupported' }

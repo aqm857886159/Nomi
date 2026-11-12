@@ -151,7 +151,7 @@ export function planReferenceProjection(
   const archetype = archetypeForNode(target)
   // 节点自己的上传已在 target 里算过一次，这里只加新补的那几件。
   const layout = archetype
-    ? effectiveArchetypeModeWithInputs(archetype, target, { nodes, edges }, uploads.map((input) => referenceDemandForRole(input.role, input.kind))).layout
+    ? effectiveArchetypeModeWithInputs(archetype, target, { nodes, edges }, uploads.map((input) => referenceDemandForRole(input.role, input.kind))).mode
     : undefined
   const placed = placeReferenceInputs(target, [...own, ...uploads], layout)
   return { meta: placed.meta ?? {}, connect }

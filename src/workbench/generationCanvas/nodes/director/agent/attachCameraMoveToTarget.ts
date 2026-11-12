@@ -1,6 +1,7 @@
 /**
  * [INPUT]: 依赖 ../../../model/generationCanvasTypes 的 GenerationCanvasNode、../../../agent/referenceEdgeCapability（archetypeForNode / findVideoRefMode）、
- *          ../../controls/archetypeMeta（sendArchetypeMode / readArchetypeArray / orderedSentMediaReferenceUrls：现算方式与实际发送的参考顺序）、
+ *          ../../controls/archetypeMeta（effectiveArchetypeModeWithInputs / readArchetypeArray / orderedSentMediaReferenceUrls：现算方式与实际发送的参考顺序）、
+ *          electron/shared/canvas/edgeAdmission 的 EDGE_MODE_SLOTS（连线视频按参考边折成输入）、
  *          ../../../model/generationNodeKinds 的 isVideoLikeGenerationNodeKind、electron/shared/storyboard/promptMentions 的 encodeMention、
  *          ./cameraMoveVocab（CAMERA_MOVE_LABEL / CAMERA_MOVE_DESC）、../../../../../i18n
  * [OUTPUT]: 对外提供 CAMERA_MOVE_ATTACHED_URL_KEY、lastAttachedCameraMoveUrl（网址标记的只读口，只给删参考判断）、AttachCameraMoveOutcome、AttachCameraMoveContext、AttachPreviewDirective、computeAttachCameraMove
@@ -18,7 +19,8 @@ import { encodeMention } from '../../../../../../electron/shared/storyboard/prom
 import { archetypeForNode, findVideoRefMode } from '../../../agent/referenceEdgeCapability'
 import type { GenerationCanvasNode } from '../../../model/generationCanvasTypes'
 import { isVideoLikeGenerationNodeKind } from '../../../model/generationNodeKinds'
-import { orderedSentMediaReferenceUrls, readArchetypeArray, sendArchetypeMode } from '../../controls/archetypeMeta'
+import { effectiveArchetypeModeWithInputs, orderedSentMediaReferenceUrls, readArchetypeArray } from '../../controls/archetypeMeta'
+import { EDGE_MODE_SLOTS } from '../../../../../../electron/shared/canvas/edgeAdmission'
 import { CAMERA_MOVE_DESC, CAMERA_MOVE_LABEL } from './cameraMoveVocab'
 import type { CameraMove } from '../../../../../../electron/shared/director/vocab'
 import { clearDirectorPreviewDismissed } from './directorPreviewReferenceLifecycle'
@@ -175,7 +177,10 @@ export function computeAttachCameraMove(
     const referenceVideoUrls = kept.includes(url) ? kept : [...kept, url]
     const nextMeta = clearDirectorPreviewDismissed({ ...meta, [videoRef.metaKey]: referenceVideoUrls, [CAMERA_MOVE_ATTACHED_URL_KEY]: url })
     // 它在**实际发送**的参考视频列表里排第几：连线在前、上传在后、去重、按槽上限截断——和 buildArchetypeInputParams 同一个函数
-    const targetMode = sendArchetypeMode(archetype, { ...target, meta: nextMeta })
+    // 方式按「挂上之后的全部输入」现算：节点自己的参考 + 画布上连进来的视频边（只看上传会把连线漏掉，算出别的方式）。
+    const attachedNode = { ...target, meta: nextMeta }
+    const edgeVideoInputs = (context.edgeVideoUrls ?? []).map(() => ({ slots: EDGE_MODE_SLOTS.reference, asset: 'video' as const }))
+    const targetMode = effectiveArchetypeModeWithInputs(archetype, attachedNode, { nodes: [attachedNode], edges: [] }, edgeVideoInputs).mode
     const sentVideos = orderedSentMediaReferenceUrls(nextMeta, targetMode, { video: context.edgeVideoUrls ?? [] }).filter((item) => item.kind === 'video')
     if (!sentVideos.some((item) => item.url === url)) {
       // 槽被用户的片占满：不删用户的任何参考（不靠删它们「修好」编号），预演退成文字兜底并明说

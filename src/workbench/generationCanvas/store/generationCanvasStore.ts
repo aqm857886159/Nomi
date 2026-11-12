@@ -16,13 +16,14 @@ import { createDefaultGenerationCanvasSnapshot } from './generationCanvasDefault
 import { assignClonedShotIndexes } from '../model/shotNumbering'
 import { placementOrigin } from '../model/canvasPlacement'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
-import { emitCanvasGesture } from '../events/canvasEventEmitter'
+import { emitCanvasGesture, onAfterCanvasGesture } from '../events/canvasEventEmitter'
 import { withCanvasWriteBoundary } from '../events/canvasWriteBoundary'
 import type { GenerationCanvasState } from './canvasStoreTypes'
 import { createCanvasNodeActions, removeGroupsEmptiedByNodeDeletion } from './canvasNodeActions'
 import { createCanvasGraphActions } from './canvasGraphActions'
 import { createCanvasRunActions } from './canvasRunActions'
-import { createCanvasDocumentActions, isCanvasHistoryReplay } from './canvasDocumentCommit'
+import { createCanvasDocumentActions, isCanvasDocumentRestore } from './canvasDocumentCommit'
+import { forgetUnfitModeChoices } from './canvasModeChoiceForget'
 import { reconcileTimelineForDeletedNodes } from './canvasTimelineBridge'
 import { appendAdmittedEdges, reportSkippedEdges, type AppendedEdges } from './canvasEdgeWrite'
 import { assertProductionCanvasProjectIdentity, emitProductionCanvasSignal } from '../../production/productionCanvasSignals'
@@ -221,6 +222,34 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   ...createCanvasRunActions(set, get, store),
   ...createCanvasDocumentActions(set, get, store),
 }))))
+
+// 输入变了之后方式偏好还算不算数（放不下就忘掉、加多换了方式记一句「已改成」）：放在 store 边界，连线、放图、
+// Agent、MCP、删节点都经过这里，不管生成框有没有挂着。装载项目、重放尾巴、撤销 / 重做写进来的是权威状态，不重算（打开老项目不改写存盘）。
+// 订阅只记下「这笔手势之前长什么样」；真正的写等这笔手势的事件进了撤销日志再做（onAfterCanvasGesture），
+// 于是它落在手势的撤销点之后，⌘Z 和手势一起回去。没发事件的写由微任务兜底。
+let forgettingModeChoices = false
+let modeChoicesBefore: Pick<GenerationCanvasState, 'nodes' | 'edges'> | null = null
+function settleModeChoices(): void {
+  const previous = modeChoicesBefore
+  if (!previous || forgettingModeChoices) return
+  modeChoicesBefore = null
+  const state = useGenerationCanvasStore.getState()
+  forgettingModeChoices = true
+  try {
+    forgetUnfitModeChoices(previous, state, (nodeId, meta) => state.updateNode(nodeId, { meta }, { history: false }))
+  } finally {
+    forgettingModeChoices = false
+  }
+}
+useGenerationCanvasStore.subscribe((state, previous) => {
+  if (forgettingModeChoices) return
+  if (isCanvasDocumentRestore()) { modeChoicesBefore = null; return }
+  if (state.edges === previous.edges && state.nodes === previous.nodes) return
+  if (modeChoicesBefore) return
+  modeChoicesBefore = { nodes: previous.nodes, edges: previous.edges }
+  queueMicrotask(settleModeChoices)
+})
+onAfterCanvasGesture(settleModeChoices)
 
 /**
  * C1 寿命声明 + 释放（原来是 `releaseWorkbenchProjectSession.ts` 里那份 10/13 的手写清单）。

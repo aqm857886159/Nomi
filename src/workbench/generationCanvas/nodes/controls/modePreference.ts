@@ -28,7 +28,7 @@ export function readStoredArchetypeMode(meta: Record<string, unknown> | undefine
 }
 
 /**
- * 人手选了一个摆法（参数面板点分段、点歧义提示「改成首尾帧」、声音方式栏）——只有这 3 扇门写偏好。
+ * 人手选了一个方式（底栏方式菜单、声音方式栏）——只有这 2 扇门写偏好。
  * 只改方式和来历标记，不动参数：参数按现算出的方式在读的时候收窄（不再切换时写回），删了图就回到原来存的值。
  */
 export function withHumanModePreference(meta: Record<string, unknown>, archetypeId: string, modeId: string): Record<string, unknown> {
