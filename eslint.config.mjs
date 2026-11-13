@@ -118,6 +118,11 @@ export const WINDOW_PRESENCE_EXEMPT_FILES = [
   'electron/browser/overlay/browserViewOverlay.ts',
 ]
 
+const hotPathSyncFsPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const hotPathSyncFsSelectors = [{
+  selector: 'CallExpression[callee.property.name=/Sync$/][callee.object.name=/^(fs|fsp)$/]',
+  message: '保存 / 项目 / 目录这些热路径上不再新增同步文件读写（主进程上一次慢盘 / 杀毒占用就冻住所有 IPC）：改 fs/promises（await），或登记进 eslint-suppressions.json 并写清为什么只能同步。方向检查 2026-11-13-main-thread-sync-wait。',
+}]
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
   selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
@@ -531,6 +536,13 @@ export default tseslint.config(
     ignores: ['electron/**/*.{test,spec}.{ts,tsx,mts,cts,js,mjs,cjs,jsx}', 'electron/**/__tests__/**'],
     plugins: { 'main-sync-wait': mainSyncWaitPlugin },
     rules: { 'main-sync-wait/no-restricted-syntax': ['error', ...mainSyncWaitSelectors] },
+  },
+  {
+    // 保存热路径不新增同步文件操作（存量批量压制，只减不增）。
+    files: ['electron/workspace/**/*.ts', 'electron/projects/**/*.ts', 'electron/productionRun/**/*.ts', 'electron/jsonFile.ts', 'electron/catalog/**/*.ts'],
+    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**'],
+    plugins: { 'hot-path-sync-fs': hotPathSyncFsPlugin },
+    rules: { 'hot-path-sync-fs/no-restricted-syntax': ['error', ...hotPathSyncFsSelectors] },
   },
   {
     files: ['electron/**/*.{ts,tsx}'],

@@ -1,0 +1,23 @@
+{
+  "id": "USER-20261113-main-thread-sync-wait",
+  "since": "2026-11-13",
+  "source": "用户 2026-11-13 的话：「有没有可能把这种问题的根因都找到并且解决 就是原地等待问题 冻住问题什么的」。方向检查 docs/engineering/direction-checks/2026-11-13-main-thread-sync-wait.md。",
+  "category": "performance-coverage",
+  "problem": "主进程上的「原地等待」会冻住所有 IPC：保存遇到文件被杀毒 / 同步盘占着时，同步助手用 Atomics.wait 原地睡着退避，注册表锁自旋；每次保存还整读回清单校验、重读算哈希、每次写注册表。第二刀只结保存热路径，其余同步睡眠调用方（清单锁、同步回调、记账类）仍在主进程上，见修复合同的残余风险。",
+  "existingInvariants": [],
+  "ironLaws": [],
+  "useCases": [],
+  "fullWalkJourneys": [],
+  "status": "reviewed",
+  "manualReview": "reviewed",
+  "evidence": [
+    "docs/plan/2026-11-13-main-unblock-pr2.md",
+    "docs/fixes/2026-11-13-main-thread-sync-wait.root-cause.json",
+    "electron/sharingRetry.test.ts",
+    "electron/workspace/saveFaultSweep.test.ts",
+    "tests/perf/scenarios/save-under-sharing-violation.json",
+    "tests/perf/scenarios/save-slow-disk.json",
+    "Windows 未验证：占用时长分布与 NTFS 上的错误码行为没在 Windows 上跑过。"
+  ],
+  "completionCommits": []
+}

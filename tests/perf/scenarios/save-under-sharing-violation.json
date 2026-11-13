@@ -1,0 +1,25 @@
+{
+  "id": "save-under-sharing-violation",
+  "feature": "保存时项目文件被杀毒 / 同步盘占着：保存在后台按定时器重试，主进程上别的请求照常响应，不原地睡",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/save-hotpath-bench.mjs",
+    "--",
+    "--fault",
+    "ebusy:2000"
+  ],
+  "scale": "真 saveWithSharingRetry(saveWorkspaceProject)，临时项目；项目目录里的改名从第一次起持续 2 秒抛 EBUSY；每轮 1 次保存，零花费、零外网",
+  "metrics": [
+    "saveMainStallMaxMs",
+    "saveSyncSleepMs",
+    "saveWallMs"
+  ],
+  "budget": 100,
+  "budgetStatus": "proposed",
+  "budgetBasis": "主指标 saveMainStallMaxMs = 保存期间事件循环最大延迟（主进程上别的请求被挡多久），预算取默认 ≤100ms；saveSyncSleepMs（原地睡的毫秒数）应为 0，saveWallMs 只打印（占用 2 秒则保存约 2 秒后完成）。修前同样占用下主进程会原地睡约 400ms 并多次重试。",
+  "measurement": {
+    "state": "pending",
+    "reason": "基线要在安静窗口（负载低于 10）由协调会话量完批准后写入；实现线只交数字，不写基线"
+  }
+}

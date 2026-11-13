@@ -1,5 +1,7 @@
 import { WORKSPACE_MANIFEST_BUSY_ERROR_NAME } from './workspaceBusy'
 
+/** 保存重试满 60 秒仍被别的程序占着：主进程抛的错就叫这个名字（electron/projects/saveRetry.ts），渲染层只认名字。 */
+export const PROJECT_SAVE_IN_USE_ERROR_NAME = 'ProjectSaveInUseError'
 export const PROJECT_SAVE_REASONS = ['workspace-busy', 'binding-stale', 'write-denied', 'in-use', 'disk-full', 'not-found', 'unknown'] as const
 export type ProjectSaveReason = typeof PROJECT_SAVE_REASONS[number]
 const SYSTEM_REASON = {
@@ -20,6 +22,7 @@ export function projectSaveFailure(error: unknown, stage: ProjectSaveFailure['st
   const e = error && typeof error === 'object' ? error as Record<string, unknown> : {}
   const code = typeof e.code === 'string' && Object.prototype.hasOwnProperty.call(SYSTEM_REASON, e.code) ? e.code as SystemCode : null
   const kind = e.name === WORKSPACE_MANIFEST_BUSY_ERROR_NAME ? 'workspace-busy'
+    : e.name === PROJECT_SAVE_IN_USE_ERROR_NAME ? 'in-use'
     : e.message === 'project_binding_stale' ? 'binding-stale'
     : code ? SYSTEM_REASON[code] : 'unknown'
   return {

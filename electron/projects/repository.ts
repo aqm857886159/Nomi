@@ -5,6 +5,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { saveWithSharingRetry } from "./saveRetry";
+import { runWithoutBlockingWait } from "../sharingRetry";
 import { ensureExportDirs } from "../export/exportPaths";
 import { writeJsonFileAtomic } from "../jsonFile";
 import type { JsonRecord } from "../jsonUtils";
@@ -228,7 +230,12 @@ export function recoverProject(projectId: string): ProjectRecord {
   return recoverWorkspaceProject(String(projectId || "").trim(), getWorkspaceRepositoryDeps());
 }
 
-export async function saveProject(projectId: string, input: unknown): Promise<ProjectRecord> {
+export function saveProject(projectId: string, input: unknown): Promise<ProjectRecord> {
+  // 所有保存调用方（渲染层 IPC、MCP / Agent 写画布、文档写口）共用这一处：占用时用定时器重排整次保存（上限 60 秒）。
+  return saveWithSharingRetry(() => saveProjectOnce(projectId, input));
+}
+
+async function saveProjectOnce(projectId: string, input: unknown): Promise<ProjectRecord> {
   const id = String(projectId || "").trim();
   if (findRecentWorkspace(getWorkspaceRepositoryDeps().settingsRoot, id)) {
     return saveWorkspaceProject(id, input, getWorkspaceRepositoryDeps());
@@ -239,7 +246,7 @@ export async function saveProject(projectId: string, input: unknown): Promise<Pr
   if (!projectDir) throw new Error("Cannot save unknown workspace project");
   const record = normalizeProjectRecord({ ...(input as JsonRecord), id });
   ensureProjectFolders(projectDir);
-  writeJsonFileAtomic(path.join(projectDir, PROJECT_FILE), record);
+  runWithoutBlockingWait(() => writeJsonFileAtomic(path.join(projectDir, PROJECT_FILE), record));
   return record;
 }
 

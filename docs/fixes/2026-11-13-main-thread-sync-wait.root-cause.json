@@ -1,0 +1,146 @@
+{
+  "schema_version": 3,
+  "id": "2026-11-13-main-thread-sync-wait",
+  "detected_by": "user",
+  "problem_type": "主进程上的原地等待：保存遇到文件被别的程序占着时同步睡着退避、锁自旋，期间所有 IPC 排队",
+  "symptom": "用户 2026-11-13：「有没有可能把这种问题的根因都找到并且解决 就是原地等待问题 冻住问题什么的」。Windows 杀毒 / 同步盘占着项目文件时，保存在主进程上 Atomics.wait 原地睡约 400ms 并多次重试，软件整体发冻。",
+  "direct_cause": "electron/jsonFile.ts 的 retryOnSharingViolation 与 electron/workspace/workspaceRegistry.ts 的 withRegistryLock 在保存路径上用 Atomics.wait / 自旋原地等待；保存还整读回清单校验、重读算哈希、每次写注册表。",
+  "class_root": "同步文件助手把「等一等」写在自己里面，调用方无从选择：凡经过它的路径都会在主进程上睡着。等待策略必须由调用方的形态决定（能 await 的用定时器，结构上只能同步的才睡）。",
+  "migration": "不涉及存量数据：不改文件格式；保存仍是临时文件 + fsync + 改名。",
+  "affected_population": [
+    "Windows 上装了杀毒 / 同步盘并占用项目目录的创作者",
+    "项目文件较大、保存较慢的老项目"
+  ],
+  "scope_paths": [
+    "electron/sharingRetry.ts",
+    "electron/jsonFile.ts",
+    "electron/projects/saveRetry.ts",
+    "electron/projects/repository.ts",
+    "electron/workspace/workspaceRegistry.ts",
+    "electron/workspace/workspaceRepository.ts",
+    "electron/workspace/workspaceManifestTransaction.ts",
+    "electron/export/ffmpegRunner.ts",
+    "electron/assets/projectAssetStore.ts",
+    "src/workbench/project/workbenchProjectSession.ts"
+  ],
+  "entry_points": [
+    "electron/projects/repository.ts saveProject（IPC 保存、MCP / Agent 画布写、文档写共用的最早共享边界）",
+    "electron/jsonFile.ts retryOnSharingViolation（同步助手：保存范围内不睡，范围外逐字不变）"
+  ],
+  "invariants": [
+    "保存范围内同步文件助手不原地睡；占用由定时器重排整次保存，总上限 60 秒",
+    "盘上永远是旧的完整版或新的完整版",
+    "显式等保存回执的人（关窗 / 刷新 / 切项目）最多等 5 秒",
+    "结构上只能同步的调用方容忍度不降低"
+  ],
+  "doors": [
+    { "kind": "write", "path": "electron/capabilityCore/documentSurface.ts", "symbol": "saveProject" },
+    { "kind": "write", "path": "electron/capabilityCore/gateway.ts", "symbol": "saveProject" },
+    { "kind": "write", "path": "electron/projects/projectCanvasWrite.ts", "symbol": "saveProject" },
+    { "kind": "write", "path": "electron/projects/projectsIpc.ts", "symbol": "saveProject" },
+    { "kind": "write", "path": "src/workbench/project/workbenchProjectSession.ts", "symbol": "saveProject" }
+  ],
+  "door_reduction": {
+    "before": 5,
+    "after": 5,
+    "why_not": "保存的 5 扇写门都经过同一个共享边界 repository.saveProject（IPC 保存、MCP / Agent 画布写、文档写）；修在边界内，调用方不改。结构上只能同步的重试调用方（清单锁、同步回调、记账类，共 6 扇写门）保持原行为，不在这一刀里合并。"
+  },
+  "regression_tests": [
+    "electron/sharingRetry.test.ts",
+    "electron/workspace/saveFaultSweep.test.ts",
+    "src/workbench/project/workbenchProjectSession.saveReceipt.test.ts"
+  ],
+  "residual_risks": [
+    "仍有结构上只能同步的调用方在主进程上睡（清单锁、上传发布回调、素材改名、配置文件写、记账类），第三刀按调用方逐个评估",
+    "Windows 未验证：占用时长分布与错误码行为没在 Windows 上跑过",
+    "更长重试窗口增大渲染层旧快照覆盖同期 MCP / Agent 写入的窗口（今天同样存在）",
+    "保存不再整读回校验：写不全由 fsync + 原子改名保证，磁盘静默损坏不在检测范围内"
+  ],
+  "external_sources": [
+    {
+      "url": "https://www.electronjs.org/docs/latest/tutorial/performance",
+      "checked_at": "2026-11-13",
+      "purpose": "主进程别做阻塞 I/O"
+    },
+    {
+      "url": "https://github.com/isaacs/node-graceful-fs",
+      "checked_at": "2026-11-13",
+      "purpose": "改名重试只在目标不存在时，覆盖写不适用"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "任何新的热路径同步文件操作都会把同样的冻结带回来。",
+    "same_class_scan": [
+      "node scripts/door-map.mjs saveProject → 5 扇写门，全部经过 repository.saveProject",
+      "node scripts/door-map.mjs retryOnSharingViolation → 6 扇写门，保存范围外的保持原行为",
+      "eslint.config.mjs hot-path-sync-fs：热路径目录新增同步文件操作就红"
+    ]
+  },
+  "generality_proof": "修在最早共享边界与同步助手本身：保存的所有调用者自动受益；新增同步文件操作由 lint 规则拦；不睡由 saveFaultSweep 与性能场景量。",
+  "shared_boundaries": [
+    {
+      "path": "electron/projects/saveRetry.ts",
+      "symbol": "saveWithSharingRetry",
+      "responsibility": "占用时用定时器重排整次保存，满 60 秒报被占用，真没权限立即报写入被拒。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projects/repository.ts",
+      "entry_point": "saveProject",
+      "disposition": "enforced",
+      "evidence": "sharingRetry.test.ts：2 秒占用后保存成功且事件循环延迟 < 50ms；60 秒耗尽报 in-use。"
+    },
+    {
+      "path": "electron/jsonFile.ts",
+      "entry_point": "retryOnSharingViolation",
+      "disposition": "enforced",
+      "evidence": "sharingRetry.test.ts：保存范围内不睡；saveFaultSweep 实测睡眠为空。"
+    },
+    {
+      "path": "electron/capabilityCore/hostConfigWrite.ts",
+      "entry_point": "retryOnSharingViolation",
+      "disposition": "accepted-residual",
+      "evidence": "结构上只能同步，保持原行为；第三刀按调用方评估。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projects/saveRetry.ts",
+    "invariant": "保存热路径目录里不新增同步文件读写；保存范围内不原地睡。",
+    "failure_mode": "在 workspaceRepository.ts 新增 fs.statSync → lint 红；把保存范围内改回睡 → saveFaultSweep 红。",
+    "exception_policy": "none",
+    "strategy": "lint 规则 + 存量批量压制只减不增；睡眠由测试量；占用重试只有 saveWithSharingRetry 一处。",
+    "artifacts": [
+      "eslint.config.mjs",
+      "eslint-suppressions.json",
+      "electron/workspace/saveFaultSweep.test.ts",
+      "tests/perf/scenarios/save-under-sharing-violation.json"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/sharingRetry.test.ts",
+    "electron/workspace/saveFaultSweep.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/workspace/workspaceManifestTransaction.ts",
+      "electron/workspace/workspaceRepository.ts"
+    ],
+    "rationale": "保存后整读回校验、重读算同步基线哈希同提交删掉；保存范围内的原地睡同提交删掉（范围外为结构上只能同步的调用方保留）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只动 Nomi 自己的代码，没有第三方依赖。",
+    "exit_criteria": []
+  },
+  "recurrence_check_on": "2026-12-13",
+  "invariant_owner_layer": {
+    "layer": "electron/projects/saveRetry.ts",
+    "tests": [
+      "electron/sharingRetry.test.ts"
+    ]
+  }
+}

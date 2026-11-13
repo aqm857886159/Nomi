@@ -26,12 +26,12 @@ const native = {
 
 // These are requested sleep milliseconds, not elapsed time or a renderer long task.
 const SAVE_DEBT_JSON = String.raw`{
-  "sleep": {
-    "electron/jsonFile.ts": { "maxMs": 5200, "source": "2026-10-30 full save: project/read persistent sharing violation; 13 x 400ms retries. Isolated rename is 400ms requested sleep." },
-    "electron/workspace/workspaceRegistry.ts": { "maxMs": 3010, "source": "2026-10-30 full save: settings/mkdir EEXIST persistent; 10ms spin with strict > 3000ms deadline." }
-  },
-  "largeJson": { "stringify": 12, "parse": 14 }
+  "sleep": {},
+  "largeJson": { "stringify": 12, "parse": 12 }
 }`;
+// A save no longer takes the settings registry lock (the registry is untouched when name/location/origin are
+// unchanged), so there is no settings-scope remove inside the save window to inject into.
+const NOT_IN_SAVE_WINDOW = new Set(["settings:remove"]);
 const KNOWN_DEBT = JSON.parse(SAVE_DEBT_JSON) as {
   sleep: Record<string, { maxMs: number; source: string }>;
   largeJson: { stringify: number; parse: number };
@@ -275,16 +275,17 @@ describe("saveWorkspaceProject deterministic I/O fault sweep", () => {
       if (!result.manifestIntact) failures.push(`N=${nth} incomplete manifest`);
     }
     expect(terminal, "sweep must reach an uninjected successful terminal save").toBe(true);
-    expect(injectedRounds, "in-window injected rounds >0").toBeGreaterThan(0);
+    if (!NOT_IN_SAVE_WINDOW.has(`${spec.scope}:${spec.operation}`)) expect(injectedRounds, "in-window injected rounds >0").toBeGreaterThan(0);
     process.stdout.write("SAVE_SWEEP " + JSON.stringify({ ...spec, injectedRounds, sameProcessRecoveries, freshProcessSaves, maxima, failures: failures.slice(0, 8) }) + "\n");
     expect(failures).toEqual([]);
   });
 
-  it("known sleep allowances equal the measured full-save maxima (raising alone is red)", async () => {
+  it("a save never sleeps synchronously, even under a persistent sharing violation or registry lock", async () => {
     const retry = await save({ operation: "read", scope: "project", nth: 1, code: "EBUSY", persistent: true });
     const registry = await save({ operation: "mkdir", scope: "settings", nth: 1, code: "EEXIST", persistent: true });
     const measured = { ...retry.sleeps, ...registry.sleeps };
     expect(measured).toEqual(Object.fromEntries(Object.entries(KNOWN_DEBT.sleep).map(([file, debt]) => [file, debt.maxMs])));
+    expect(measured).toEqual({});
     process.stdout.write("SAVE_KNOWN_SLEEP " + JSON.stringify(measured) + "\n");
   });
 

@@ -61,6 +61,8 @@ export type WorkspaceManifestMutationContext = {
   readProjectJsonWithEmbeddedMediaSlimming: (filePath: string) => unknown | null;
   replaceBackup: (record: WorkspaceProjectRecordV2 | Record<string, unknown>) => WorkspaceProjectRecordV2;
   replace: (next: WorkspaceProjectRecordV2 | Record<string, unknown>) => WorkspaceProjectRecordV2;
+  /** 事务提交后调一次，拿到刚写下那份字节的 sha256（内存里算的，见 WorkspaceManifestTransaction.onCommitted）。 */
+  onCommitted: WorkspaceManifestTransaction["onCommitted"];
 };
 
 export type WorkspaceManifestMutationOptions = {
@@ -390,6 +392,7 @@ function createMutationContext(
     readProjectJsonWithEmbeddedMediaSlimming(filePath) {
       return readProjectJsonInTransaction(transaction, filePath);
     },
+    onCommitted: (listener) => transaction.onCommitted(listener),
     replaceBackup(record) {
       if (backupReplaced) {
         throw new Error("Workspace manifest transaction may replace the backup only once");

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { fsyncIfDurable } from "./durability";
+import { blockingWaitAllowed, isSharingViolation, SHARING_RETRY_DELAYS_MS } from "./sharingRetry";
 
 /**
  * Atomically (over)write a JSON file.
@@ -18,37 +19,29 @@ import { fsyncIfDurable } from "./durability";
  * runtime.ts; that copy lives inside a 3150-line module and is left to the
  * planned runtime.ts split — new call sites should use this shared util.
  */
-/** 同步睡眠（sync IPC 上下文无法 await；Atomics.wait 是 Node 主线程的标准同步等待）。 */
+/**
+ * 同步睡眠：只服务「结构上无法 await」的同步调用方（清单锁、同步 IPC、同步建项目等），它们随后面的存盘主人搬走。
+ * 保存热路径在 {@link runWithoutBlockingWait} 里，不会走到这里（见 sharingRetry.ts）。
+ */
 function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-/**
- * Windows 文件锁重试（EPERM/EBUSY/EACCES）：rename 覆盖目标时，目标/临时文件可能被杀毒实时
- * 扫描、搜索索引器、云同步或并行实例短暂持有 → rename 立刻 EPERM（POSIX 上不存在此问题）。
- * 锁通常几十毫秒内释放——graceful-fs / write-file-atomic 的标准解法就是短退避重试。
- * 高频写场景（模型启停连点、批量 upsert）撞锁概率高，重试把它从「用户看到操作失败」
- * 变成「几十毫秒内静默成功」；真持锁不放（>~400ms）才把原错误如实抛出。
- */
-const SHARING_VIOLATION_RETRY_DELAYS_MS = [10, 30, 60, 100, 200];
-
-/** 别的进程（杀毒 / 索引器 / 同步盘）短暂开着这个文件或它下面的文件时，Windows 给的三种错误码。 */
-export function isSharingViolation(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | null)?.code;
-  return code === "EPERM" || code === "EBUSY" || code === "EACCES";
-}
+export { isSharingViolation };
 
 /**
  * 同步文件操作撞上共享冲突时按短退避重试（总预算约 400ms），之后把原错误如实抛出。
  * 文件与目录的 rename / 删除 / 读取都用这一份策略——不各自手写重试。
+ * 在 {@link runWithoutBlockingWait} 里（保存热路径）不睡：立即再试一次就抛，由上层定时器重排整次保存。
  */
 export function retryOnSharingViolation<T>(operation: () => T): T {
+  const delays = blockingWaitAllowed() ? SHARING_RETRY_DELAYS_MS : [0];
   for (let attempt = 0; ; attempt++) {
     try {
       return operation();
     } catch (error) {
-      if (!isSharingViolation(error) || attempt >= SHARING_VIOLATION_RETRY_DELAYS_MS.length) throw error;
-      sleepSync(SHARING_VIOLATION_RETRY_DELAYS_MS[attempt]);
+      if (!isSharingViolation(error) || attempt >= delays.length) throw error;
+      if (delays[attempt] > 0) sleepSync(delays[attempt]);
     }
   }
 }
@@ -61,7 +54,8 @@ export type WriteJsonFileAtomicOptions = Readonly<{
   mode?: number;
 }>;
 
-export function writeJsonFileAtomic(filePath: string, value: unknown, options: WriteJsonFileAtomicOptions = {}): void {
+/** 返回刚写下的那份字节的 sha256（十六进制）：调用方要内容指纹时用它，不必再把文件整读回来。 */
+export function writeJsonFileAtomic(filePath: string, value: unknown, options: WriteJsonFileAtomicOptions = {}): string {
   const dir = path.dirname(filePath);
   fs.mkdirSync(dir, { recursive: true });
   const tempPath = path.join(dir, `.${path.basename(filePath)}.${crypto.randomUUID()}.tmp`);
@@ -72,6 +66,7 @@ export function writeJsonFileAtomic(filePath: string, value: unknown, options: W
       // Preserve the originating write, close, or rename error.
     }
   };
+  const bytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8");
   let fd: number;
   try {
     fd = fs.openSync(tempPath, "w", options.mode);
@@ -82,7 +77,7 @@ export function writeJsonFileAtomic(filePath: string, value: unknown, options: W
   let fileError: unknown;
   try {
     if (options.mode !== undefined) fs.fchmodSync(fd, options.mode);
-    fs.writeFileSync(fd, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    fs.writeFileSync(fd, bytes);
     fsyncIfDurable(fd);
   } catch (error) {
     fileError = error;
@@ -102,6 +97,7 @@ export function writeJsonFileAtomic(filePath: string, value: unknown, options: W
     removeTemp();
     throw error;
   }
+  return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
 export function readJsonFile(filePath: string): unknown {

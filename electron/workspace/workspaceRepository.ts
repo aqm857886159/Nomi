@@ -22,6 +22,7 @@ import {
   listRecentWorkspaces,
   listRecentWorkspacesAsync,
   readWorkspaceFolderProjectId,
+  REGISTRY_TOUCH_INTERVAL_MS,
   removeWorkspaceReference,
 } from "./workspaceRegistry";
 import {
@@ -34,6 +35,7 @@ import {
 } from "./workspaceTypes";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 import { writeWorkspaceSyncBaseline } from "./workspaceSyncBaseline";
+import { runWithoutBlockingWait } from "../sharingRetry";
 import { WorkspaceManifestLockBusyError, releaseWorkspaceManifestLock, tryAcquireWorkspaceManifestLock } from "./workspaceManifestLock";
 import { logWarn } from "../logging/logger";
 
@@ -359,7 +361,20 @@ export function readWorkspaceProject(
   return normalizeWorkspaceProjectRecord({ ...manifest, lastKnownRootPath: entry.rootPath });
 }
 
-export async function saveWorkspaceProject(
+/**
+ * 保存一份项目。整个保存在「不原地睡」的范围里跑（runWithoutBlockingWait）：文件被别的程序占着时同步助手立即再试一次就抛，
+ * 由调用方（`projects/saveRetry`）用定时器重排整次保存——后台主线在等待期间照常响应别的请求。
+ * 整次重排对崩溃是安全的：每个文件都是「临时文件 + fsync + rename」，盘上永远是旧的完整版或新的完整版。
+ */
+export function saveWorkspaceProject(
+  projectId: string,
+  record: unknown,
+  deps: WorkspaceRepositoryDeps,
+): Promise<WorkspaceProjectRecordV2> {
+  return runWithoutBlockingWait(() => saveWorkspaceProjectUnbounded(projectId, record, deps));
+}
+
+async function saveWorkspaceProjectUnbounded(
   projectId: string,
   record: unknown,
   deps: WorkspaceRepositoryDeps,
@@ -368,7 +383,10 @@ export async function saveWorkspaceProject(
   if (!entry || entry.missing) {
     throw new Error(`Workspace project not found: ${projectId}`);
   }
+  let manifestSha256: string | undefined;
   const written = await withWorkspaceManifestStagedMutation(entry.rootPath, (context) => {
+    // 同步基线要的内容指纹：用刚写下的那份字节在内存里算（提交后回调），不再把清单整读回来。
+    context.onCommitted((sha256Of) => { manifestSha256 = sha256Of(workspaceProjectFile(context.canonicalRootPath)); });
     const existing = context.current;
     if (!existing || existing.id !== projectId) {
       throw new Error(`Workspace project not found: ${projectId}`);
@@ -404,13 +422,13 @@ export async function saveWorkspaceProject(
     context.replaceBackup(backupCandidate);
     return context.replace(next);
   });
-  bindWorkspaceLocation(deps.settingsRoot, { id: written.id, name: written.name, rootPath: entry.rootPath });
-  const manifestPath = workspaceProjectFile(entry.rootPath);
+  // 名字 / 位置 / 来源没变时不重写注册表；最近打开时间保存时最多每 60 秒刷新一次。
+  bindWorkspaceLocation(deps.settingsRoot, { id: written.id, name: written.name, rootPath: entry.rootPath }, { touchIntervalMs: REGISTRY_TOUCH_INTERVAL_MS });
   // 刚在锁里核过编号写下的这一份：就地换目录解析的凭据，保存不让下一次「找目录」重读整份项目文件。
   const savedStamp = manifestStamp(entry.rootPath);
-  const contentHash = crypto.createHash("sha256").update(fs.readFileSync(manifestPath)).digest("hex");
+  if (!manifestSha256) throw new Error("Workspace manifest commit did not report a content hash");
   rememberResolvedProjectDir(resolvedProjectDirKey(projectId, deps), entry.rootPath, savedStamp);
-  writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash });
+  writeWorkspaceSyncBaseline(deps.settingsRoot, written.id, { rootPath: entry.rootPath, revision: written.revision, contentHash: manifestSha256 });
   return written;
 }
 

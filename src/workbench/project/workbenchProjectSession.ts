@@ -152,7 +152,32 @@ export function waitForActiveWorkbenchProjectSaveTarget(projectId: string): bool
   })
 }
 
+/**
+ * 主进程遇到「项目文件被别的程序占着」会在后台重试整次保存（最多 60 秒，期间保存请求一直在飞）。等着保存回执的人
+ * （关窗 / 刷新 / 切项目 / 生成落地后的落盘）不能因此多等 60 秒：最多等这么久，等不到就按「被占用」失败返回，
+ * 后台那次保存继续重试，改动也还在内存里。数值取今天持续占用时的最长失败用时（约 5.2 秒）。
+ */
+export const PERSIST_NOW_WAIT_CAP_MS = 5000
+
+export class ProjectSaveStillRetrying extends Error {
+  readonly reason = { kind: 'in-use', code: null, errno: null, syscall: null, stage: 'save-project' } as const
+  constructor() {
+    super('Project save is still retrying because the file is held open by another program')
+    this.name = 'ProjectSaveStillRetrying'
+  }
+}
+
 export async function persistActiveWorkbenchProjectNow(): Promise<WorkbenchProjectRecordV1 | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const capped = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new ProjectSaveStillRetrying()), PERSIST_NOW_WAIT_CAP_MS) })
+  try {
+    return await Promise.race([persistActiveWorkbenchProjectUnbounded(), capped])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function persistActiveWorkbenchProjectUnbounded(): Promise<WorkbenchProjectRecordV1 | null> {
   const current = activeWorkbenchProjectSaveTarget
   const target = current?.canPersist() ? current : null
   // UI hydration may clear activeProject before the outgoing subscription is

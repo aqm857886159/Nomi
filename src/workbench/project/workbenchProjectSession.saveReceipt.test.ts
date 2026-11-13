@@ -13,6 +13,30 @@ import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
 beforeEach(() => { vi.useFakeTimers(); deps.version = 0; vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() }) })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 describe('project persistence disposal', () => {
+  it('a save the main process is still retrying (file held open) makes close / switch wait at most the cap, then fail as in-use', async () => {
+    const finish: Array<(record: WorkbenchProjectRecordV1) => void> = []
+    const save = vi.fn(() => new Promise<WorkbenchProjectRecordV1>(resolve => { finish.push(resolve) }))
+    const dispose = subscribeWorkbenchProjectPersistence({ projectId: 'p', isHydrating: () => false, canPersist: () => true, saveProject: save, onSaved: vi.fn() })
+    deps.version = 1; deps.changed?.(); await vi.advanceTimersByTimeAsync(700)
+    const waiting = persistActiveWorkbenchProjectNow()
+    const outcome = waiting.then(() => 'saved', (error: { reason?: { kind?: string } }) => error.reason?.kind)
+    await vi.advanceTimersByTimeAsync(4999)
+    let settled = false
+    void outcome.then(() => { settled = true })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(settled).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await outcome).toBe('in-use')
+    const disposed = dispose()
+    let done = false
+    void disposed.then(() => { done = true })
+    for (let i = 0; i < 10 && !done; i++) {
+      finish.splice(0).forEach(resolve => resolve({ id: 'p' } as WorkbenchProjectRecordV1))
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    await disposed
+  })
+
   it('coalesces a newer explicit save into the same queue before acknowledging it', async () => {
     const versions: number[] = [], finish: Array<() => void> = []
     const save = vi.fn((_id: string, payload: unknown) => {

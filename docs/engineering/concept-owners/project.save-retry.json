@@ -1,0 +1,26 @@
+{
+  "name": "项目保存遇到「文件被别的程序占着」时怎么等（定时器重排整次保存，不在主进程上原地睡）",
+  "subject": "project.save-retry",
+  "lifecycle": "session",
+  "authority_kind": "writer",
+  "trust_domain": "main",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/projects/saveRetry.ts",
+    "symbol": "saveWithSharingRetry"
+  },
+  "write_api": [
+    {
+      "path": "electron/projects/saveRetry.ts",
+      "symbol": "saveWithSharingRetry"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/sharingRetry.test.ts",
+  "allowed_consumers": [
+    "electron/projects/repository.ts"
+  ],
+  "since": "2026-11-13",
+  "notes": "设计卡 docs/plan/2026-11-13-main-unblock-pr2.md，合同 docs/fixes/2026-11-13-main-thread-sync-wait.root-cause.json。保存的所有入口（IPC、MCP / Agent 画布写、文档写）都经 projects/repository.saveProject，等待策略只在这里：50 / 100 / 200 / 400 / 800 / 1000ms 的定时器重排整次保存，总上限 60 秒；真没权限立即报写入被拒。调用方不许自己另写一套占用重试。"
+}

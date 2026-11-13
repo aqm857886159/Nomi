@@ -2,6 +2,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { retryOnSharingViolation, writeJsonFileAtomic } from "../jsonFile";
+import { blockingWaitAllowed } from "../sharingRetry";
 import { workspaceFolderCopyError } from "../shared/contracts/projectLocation";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 import {
@@ -31,11 +32,16 @@ function writeRecentWorkspaces(settingsRoot: string, entries: RecentWorkspaceEnt
  * 原来的登记写是无锁 read-modify-write，多个 headless host / app 同时建项目时各读旧表、各写自己那条 →
  * 后写覆盖先写 → 条目丢 → readProject 找不到 →「项目不存在」。多 agent 并发驱动 + app 同时跑必中。
  * 用原子 mkdir 做锁（跨进程有效），自旋退避；3s 上限 + 陈旧锁兜底，绝不死等（最坏退化回原无锁行为）。
+ *
+ * 保存热路径（runWithoutBlockingWait 里）不自旋：锁被别人占着且不陈旧 → 抛 EBUSY 型错误，由保存的上层
+ * 用定时器重排整次保存；陈旧（锁目录超过 3s 没动）照旧夺锁。其余同步调用方（建项目 / 启动对账）行为逐字不变。
  */
+const REGISTRY_LOCK_STALE_MS = 3000;
 function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
   const lockDir = `${recentWorkspacesPath(settingsRoot)}.lock`;
-  const spin = new Int32Array(new SharedArrayBuffer(4));
-  const deadline = Date.now() + 3000;
+  const mayBlock = blockingWaitAllowed();
+  const spin = mayBlock ? new Int32Array(new SharedArrayBuffer(4)) : null;
+  const deadline = Date.now() + REGISTRY_LOCK_STALE_MS;
   let locked = false;
   for (;;) {
     try {
@@ -44,7 +50,16 @@ function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
       break;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") break; // 锁机制异常→不阻塞，退化回无锁
-      if (Date.now() > deadline) {
+      let stale = Date.now() > deadline;
+      if (!mayBlock) {
+        try {
+          stale = Date.now() - fs.statSync(lockDir).mtimeMs > REGISTRY_LOCK_STALE_MS;
+        } catch {
+          stale = false; // 刚被放掉：下一轮重试交给上层
+        }
+        if (!stale) throw Object.assign(new Error("Workspace registry is locked by another process"), { code: "EBUSY" });
+      }
+      if (stale) {
         // 陈旧锁兜底：持锁进程崩溃残留 → 超时夺锁，绝不永久死等。
         try {
           fs.rmSync(lockDir, { recursive: true, force: true });
@@ -55,7 +70,7 @@ function withRegistryLock<T>(settingsRoot: string, fn: () => T): T {
         }
         break;
       }
-      Atomics.wait(spin, 0, 0, 10); // 同步退避 10ms 再抢
+      Atomics.wait(spin!, 0, 0, 10); // 同步退避 10ms 再抢
     }
   }
   try {
@@ -266,9 +281,40 @@ export function assertWorkspaceFolderBindable(settingsRoot: string, binding: Pic
   if (conflict) throw workspaceFolderCopyError({ projectName: conflict.boundName, originalRootPath: conflict.boundRootPath });
 }
 
+export type BindWorkspaceLocationOptions = Readonly<{
+  /**
+   * 保存用：登记里已有同一个项目、同一个位置、同一个名字、来源没变，且「最近打开时间」距今不到这么多毫秒 → 什么都不写
+   * （连锁都不取）。每次保存都重写一遍注册表只为刷新最近打开时间，是纯重复写。其余调用方（新建 / 打开 / 恢复）不传，照旧每次写。
+   */
+  touchIntervalMs?: number;
+}>;
+
+/** 保存时「最近打开时间」最多每 60 秒刷新一次。 */
+export const REGISTRY_TOUCH_INTERVAL_MS = 60_000;
+
+function registrationUnchanged(existing: RecentWorkspaceEntry | undefined, binding: WorkspaceLocationBinding, touchIntervalMs: number): boolean {
+  if (!existing || existing.name !== binding.name || !sameFolder(existing.rootPath, binding.rootPath)) return false;
+  if (binding.origin) {
+    const stored = storedOrigin(existing);
+    if (!stored || stored.source !== binding.origin.source) return false;
+    if (stored.source === "native" && binding.origin.source === "native" && stored.nativeRootPath !== path.resolve(binding.origin.nativeRootPath)) return false;
+  }
+  return Date.now() - existing.lastOpenedAt < touchIntervalMs;
+}
+
 /** 单条登记：新建 / 打开 / 保存 / 恢复。撞上还在的原件抛 WorkspaceFolderCopyError，登记不动。 */
-export function bindWorkspaceLocation(settingsRoot: string, binding: WorkspaceLocationBinding): RecentWorkspaceEntry[] {
+export function bindWorkspaceLocation(
+  settingsRoot: string,
+  binding: WorkspaceLocationBinding,
+  options: BindWorkspaceLocationOptions = {},
+): RecentWorkspaceEntry[] {
   assertExplicitBinding(binding);
+  if (options.touchIntervalMs !== undefined) {
+    const current = readRecentWorkspaceEntries(settingsRoot);
+    if (registrationUnchanged(current.find((entry) => entry.id === binding.id), binding, options.touchIntervalMs)) {
+      return sortRecentWorkspaces(current);
+    }
+  }
   // 锁内重读→改→写：与并发的 host/app 串行，杜绝「后写覆盖先写丢条目」。
   return withRegistryLock(settingsRoot, () => {
     const entries = readRecentWorkspaceEntries(settingsRoot);

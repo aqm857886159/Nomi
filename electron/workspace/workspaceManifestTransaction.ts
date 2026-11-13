@@ -1,7 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { isDeepStrictEqual } from "node:util";
-
 import { readJsonFile, writeJsonFileAtomic } from "../jsonFile";
 import { assertInsideWorkspace, workspaceProjectFile } from "./workspacePaths";
 import {
@@ -21,6 +19,11 @@ export type WorkspaceManifestTransaction = {
   replaceJson: (filePath: string, value: unknown) => unknown;
   copyFile: (sourcePath: string, targetPath: string) => void;
   writeFile: (filePath: string, data: Uint8Array) => void;
+  /**
+   * 事务提交（所有文件都已原子写完、锁还在手里）后调一次：`sha256Of(文件)` 是刚写下的那份字节的指纹，
+   * 在内存里算出来的——保存不必再把清单整读回来求哈希。没有写过的文件返回 undefined。
+   */
+  onCommitted: (listener: (sha256Of: (filePath: string) => string | undefined) => void) => void;
 };
 
 type StagedWorkspaceManifestOperation =
@@ -49,15 +52,12 @@ function serializableValue(value: unknown): unknown {
   return JSON.parse(serialized);
 }
 
-function persistJson(lease: WorkspaceManifestLockLease, target: string, expected: unknown): unknown {
+function persistJson(lease: WorkspaceManifestLockLease, target: string, expected: unknown, hashes: Map<string, string>): unknown {
   assertWorkspaceManifestLockOwned(lease);
-  writeJsonFileAtomic(target, expected);
-  const persisted = readJsonFile(target);
-  if (!isDeepStrictEqual(persisted, expected)) {
-    throw new Error("Workspace manifest transaction verification failed");
-  }
+  // 写入是「临时文件 + fsync + rename」，写不全会抛；指纹用写下的那份字节算（不再整读回来解析比对）。
+  hashes.set(target, writeJsonFileAtomic(target, expected));
   assertWorkspaceManifestLockOwned(lease);
-  return persisted;
+  return expected;
 }
 
 function persistFile(lease: WorkspaceManifestLockLease, target: string, data: Uint8Array): void {
@@ -75,6 +75,8 @@ function createTransaction(
   const operations: StagedWorkspaceManifestOperation[] = [];
   const stagedJson = new Map<string, unknown>();
   const stagedPaths = new Set<string>();
+  const persistedHashes = new Map<string, string>();
+  const committedListeners: Array<(sha256Of: (filePath: string) => string | undefined) => void> = [];
 
   const exists = (filePath: string): boolean => {
     assertWorkspaceManifestLockOwned(lease);
@@ -101,7 +103,7 @@ function createTransaction(
       stagedPaths.add(target);
       return serializableValue(expected);
     }
-    return persistJson(lease, target, expected);
+    return persistJson(lease, target, expected, persistedHashes);
   };
 
   const copyFile = (sourcePath: string, targetPath: string): void => {
@@ -141,12 +143,15 @@ function createTransaction(
       replaceJson,
       copyFile,
       writeFile,
+      onCommitted(listener) {
+        committedListeners.push(listener);
+      },
     },
     commit() {
       for (const operation of operations) {
         assertWorkspaceManifestLockOwned(lease);
         if (operation.type === "replace-json") {
-          persistJson(lease, operation.target, operation.expected);
+          persistJson(lease, operation.target, operation.expected, persistedHashes);
         } else if (operation.type === "copy-file") {
           fs.copyFileSync(operation.source, operation.target);
           assertWorkspaceManifestLockOwned(lease);
@@ -154,6 +159,8 @@ function createTransaction(
           persistFile(lease, operation.target, operation.data);
         }
       }
+      const sha256Of = (filePath: string): string | undefined => persistedHashes.get(canonicalTransactionPath(lease, filePath));
+      for (const listener of committedListeners) listener(sha256Of);
     },
   };
 }

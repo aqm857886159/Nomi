@@ -1,0 +1,25 @@
+{
+  "id": "save-slow-disk",
+  "feature": "慢盘保存：每次 fsync 同步慢 30ms 时，一次保存挡住主进程的时间（保存少读少写后应更短）",
+  "script": "tests/perf/node-json-bench.mjs",
+  "args": [
+    "--instrument",
+    "tests/perf/save-hotpath-bench.mjs",
+    "--",
+    "--fault",
+    "slowfsync:30"
+  ],
+  "scale": "真 saveWithSharingRetry(saveWorkspaceProject)，临时项目；项目目录里每次 fsync 同步慢 30ms；每轮 1 次保存",
+  "metrics": [
+    "saveMainStallMaxMs",
+    "saveSyncSleepMs",
+    "saveWallMs"
+  ],
+  "budget": 100,
+  "budgetStatus": "proposed",
+  "budgetBasis": "主指标 saveMainStallMaxMs = 保存期间事件循环最大延迟，默认预算 ≤100ms；慢盘 30ms × 一次保存里 fsync 的次数（清单 + 备份 + 基线）是下限，保存少写一次就少一份。saveSyncSleepMs 应为 0。",
+  "measurement": {
+    "state": "pending",
+    "reason": "基线要在安静窗口（负载低于 10）由协调会话量完批准后写入；实现线只交数字，不写基线"
+  }
+}

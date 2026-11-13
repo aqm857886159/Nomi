@@ -16,7 +16,8 @@ import { readAssetSidecarMeta, writeAssetSidecarMeta } from "./assetSidecar";
 import { absolutePathFromLocalAssetUrl } from "./localAssetFile";
 import { attachStoredAssetPreview, isStoredAssetPreviewPath, type StoredAssetPreview } from "./assetPreview";
 import { copyFileWithProgress, type AssetCopyProgress } from "./assetImportProgress";
-import { renameSyncWithRetry, retryOnSharingViolation } from "../jsonFile";
+import { renameSyncWithRetry } from "../jsonFile";
+import { retryOnSharingViolationAsync } from "../sharingRetry";
 import { createUploadStagingDirSync, reapAbandonedUploadStaging, removeScratchAfterUse, removeScratchAfterUseSync } from "./scratchCleanup";
 import { collectFilesRecursively, parseDataUrl } from "./assetBytes";
 import {
@@ -300,7 +301,7 @@ async function copyNativeFileToBucket(context: AssetWriteContext, sourcePath: st
     const contentHash = await contentHashForFile(snapshot);
     context.assertCurrent();
     const { absolutePath } = uniqueAssetPath(projectId, storageFileName, contentType, assetBucketFromMeta(meta), context);
-    retryOnSharingViolation(() => fs.linkSync(snapshot, absolutePath));
+    await retryOnSharingViolationAsync(() => fs.linkSync(snapshot, absolutePath));
     writeAssetSidecarMeta(absolutePath, meta);
     broadcastAssetsUpdated(projectId);
     return storedAssetRecord(projectId, absolutePath, sanitizeName(fileName, "asset"), contentType, meta, contentHash, context);

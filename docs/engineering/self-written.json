@@ -1395,12 +1395,22 @@
       "reviewBy": "2026-11-30",
       "paths": [
         "electron/jsonFile.ts",
-        "electron/durability.ts"
+        "electron/durability.ts",
+        "electron/sharingRetry.ts",
+        "electron/projects/saveRetry.ts"
       ],
       "alternativesChecked": [
         {
-          "name": "write-file-atomic（临时文件 + rename，npm 通用）",
+          "name": "write-file-atomic（临时文件 + rename，npm 通用；改名失败不重试）",
           "source": "https://www.npmjs.com/package/write-file-atomic"
+        },
+        {
+          "name": "atomically（异步版放不进持清单锁的同步事务，同步版占用时忙等）",
+          "source": "https://www.npmjs.com/package/atomically"
+        },
+        {
+          "name": "graceful-fs（改名重试只在目标不存在时；我们的保存是覆盖写）",
+          "source": "https://github.com/isaacs/node-graceful-fs"
         },
         {
           "name": "pi 的 publishFileAtomically 与 FileSystem.renameFile 语义（lane 侧已注入）",
