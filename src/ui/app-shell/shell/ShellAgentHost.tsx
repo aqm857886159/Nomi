@@ -21,6 +21,7 @@ import { modalInputLayerCovers } from '../../../design/modalInputLayer'
 import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
 import { useResidentActivityStore } from '../../../workbench/ai/residentActivity'
+import { requestResidentComposerFocus } from '../../../workbench/ai/residentComposerFocus'
 import { AgentPanelHeaderSlotContext, type AgentPanelHeaderSlot } from './agentPanelHeaderSlot'
 import { dockStatusLabel } from '../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../workbench/ai/v4/agentPanelV4Labels'
@@ -32,6 +33,7 @@ import {
   NARROW_TIER_QUERY,
   NARROW_TIER_WIDTH,
   agentBallIsPill,
+  createBallDragClickGuard,
   effectiveAgentForm,
   useEffectiveAgentForm,
   clampBall,
@@ -75,16 +77,6 @@ function useAreaSize(node: HTMLElement | null): { width: number; height: number 
   return size
 }
 
-function focusComposerSoon(): void {
-  let frames = 0
-  const tick = () => {
-    const input = document.querySelector<HTMLTextAreaElement>('#project-agent-resident textarea')
-    if (input) input.focus()
-    else if (frames++ < 20) window.requestAnimationFrame(tick)
-  }
-  window.requestAnimationFrame(tick)
-}
-
 function BallIcon(): JSX.Element {
   return <span className="block size-2 rounded-full bg-current" aria-hidden="true" />
 }
@@ -121,7 +113,7 @@ function FormSwitch({ surface, form }: { surface: AgentFormSurface; form: AgentF
               onClick={() => {
                 if (blocked) return
                 requestForm(surface, option.id)
-                if (option.id !== 'ball') focusComposerSoon()
+                if (option.id !== 'ball') requestResidentComposerFocus()
               }}
               className={cn(
                 'grid h-6 w-7 place-items-center rounded-pill border-0 p-0 transition-[background,color,box-shadow] duration-nomi-fast',
@@ -161,7 +153,7 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const narrowHeld = useAgentFormStore((state) => state.windowNarrow && state.bySurface[surface].form === 'dock')
   const gathering = useAgentFormStore((state) => state.narrowMotion === 'collapse' && state.bySurface[surface].form === 'dock')
   const [menu, setMenu] = React.useState<{ x: number; y: number } | null>(null)
-  const dragStart = React.useRef<{ x: number; y: number } | null>(null)
+  const [dragGuard] = React.useState(createBallDragClickGuard)
   const pill = agentBallIsPill(status, pending)
   const width = pill ? PILL_WIDTH : BALL_SIZE
   if (!area.width || !area.height) return null
@@ -170,7 +162,7 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const point = clampBall({ x: base.x + BALL_SIZE - width, y: base.y }, area, { width, height: BALL_SIZE })
   const open = () => {
     requestForm(surface, openFormFor(surface))
-    focusComposerSoon()
+    requestResidentComposerFocus()
   }
   const statusText = status ? dockStatusLabel(status, pending, labels.dock) : labels.dock.idle
   const label = pill
@@ -180,10 +172,10 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const unreadOnly = pill ? 0 : Math.max(0, unread - pending)
   const title = [label, statusText, unreadOnly > 0 ? t('appShell.agent.ballUnread', { count: unreadOnly }) : null].filter(Boolean).join(' · ')
   const items: WorkbenchMenuNode[] = [
-    { id: 'float', label: t('appShell.agent.toFloat'), icon: IconPictureInPicture, onSelect: () => { requestForm(surface, 'float'); focusComposerSoon() } },
+    { id: 'float', label: t('appShell.agent.toFloat'), icon: IconPictureInPicture, onSelect: () => { requestForm(surface, 'float'); requestResidentComposerFocus() } },
     narrow
       ? { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, disabled: true, disabledReason: t('appShell.agent.dockNarrow', { width: NARROW_TIER_WIDTH }), onSelect: () => undefined }
-      : { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, onSelect: () => { requestForm(surface, 'dock'); focusComposerSoon() } },
+      : { id: 'dock', label: t('appShell.agent.toDock'), icon: IconLayoutSidebarRight, onSelect: () => { requestForm(surface, 'dock'); requestResidentComposerFocus() } },
   ]
   return (
     <>
@@ -193,12 +185,10 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
         size={{ width, height: BALL_SIZE }}
         position={point}
         enableResizing={false}
-        onDragStart={(_event, data) => { dragStart.current = { x: data.x, y: data.y } }}
+        onDragStart={(_event, data) => dragGuard.dragStart({ x: data.x, y: data.y })}
         onDragStop={(_event, data) => {
-          const start = dragStart.current
-          dragStart.current = null
-          // 几乎没动 = 这是一次点击，交给按钮自己的 onClick。
-          if (start && Math.abs(start.x - data.x) + Math.abs(start.y - data.y) < 4) return
+          // 几乎没动 = 这是一次点击，交给按钮自己的 onClick；真拖了就存位置，并吞掉松手时补发的那次 click。
+          if (!dragGuard.dragStop({ x: data.x, y: data.y })) return
           setBallPoint(surface, { x: data.x - BALL_SIZE + width, y: data.y })
         }}
       >
@@ -210,7 +200,7 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
           title={title}
           className={cn(pill && 'w-full', gathering && 'origin-bottom-right motion-safe:animate-nomi-agent-gather')}
           data-agent-ball-narrow={narrowHeld ? 'true' : undefined}
-          onClick={open}
+          onClick={() => { if (dragGuard.takeClick()) open() }}
           onContextMenu={(event) => {
             event.preventDefault()
             setMenu({ x: event.clientX, y: event.clientY })
@@ -318,6 +308,7 @@ export function ShellAgentHost({
     return () => window.clearTimeout(timer)
   }, [narrowMotion])
   // Mod+J：打开并聚焦输入框（代替被删掉的那条常驻输入条）。Mod+\：停靠 ↔ 小球（浮窗时收成小球）。
+  // 聚焦只发请求，由输入框的主人自己落焦点（residentComposerFocus）——外壳不在页面里找输入框。
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
@@ -327,7 +318,7 @@ export function ShellAgentHost({
       if (event.key.toLowerCase() === 'j') {
         event.preventDefault()
         if (shown === 'ball') requestForm(surface, openFormFor(surface))
-        focusComposerSoon()
+        requestResidentComposerFocus()
       } else if (event.key === '\\') {
         event.preventDefault()
         requestForm(surface, shown === 'ball' ? 'dock' : 'ball')

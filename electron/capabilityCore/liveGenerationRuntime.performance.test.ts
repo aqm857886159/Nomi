@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { CatalogState } from "../catalog/types";
 import { createCatalogModuleRegistry } from "./moduleCatalogBootstrap";
@@ -40,17 +40,13 @@ const readiness = {
   },
 };
 
-function createProbeRuntime() {
-  return createLiveGenerationRuntime({
+function resolveShots(count: number) {
+  const buildRegistry = vi.fn(() => createCatalogModuleRegistry(state, { readinessByProvider: readiness }));
+  const runtime = createLiveGenerationRuntime({
     catalogReader: () => state,
     bootstrap: () => ({ providers: [], readinessByProvider: readiness }),
-    registry: (current, currentReadiness) => createCatalogModuleRegistry(current, { readinessByProvider: currentReadiness }),
+    registry: buildRegistry,
   });
-}
-
-function resolveShots(count: number) {
-  const runtime = createProbeRuntime();
-  const started = performance.now();
   const registry = runtime.createDraftScope().registry;
   const resolved = Array.from({ length: count }, (_, index) => registry.resolve({
     moduleId: "generation.single-shot",
@@ -58,17 +54,15 @@ function resolveShots(count: number) {
     modelId: `video-${index + 1}`,
     mode: "text_to_video",
   }));
-  return { resolved, elapsedMs: performance.now() - started };
+  return { resolved, registryBuilds: buildRegistry.mock.calls.length };
 }
 
-describe("card 12 generation catalog performance probe", () => {
+describe("generation catalog draft scope work", () => {
   it.each([8, 16, 33])("resolves %s shots from one draft snapshot with byte-identical output", (count) => {
-    const { resolved, elapsedMs } = resolveShots(count);
+    const { resolved, registryBuilds } = resolveShots(count);
     const expected = JSON.stringify(baselineResolutions.slice(0, count));
     const actual = JSON.stringify(resolved);
     expect(Buffer.from(actual)).toEqual(Buffer.from(expected));
-    expect(elapsedMs).toBeLessThan(10_000);
-    // Keep the measured wall time in the test output for the task-board receipt.
-    console.info(JSON.stringify({ probe: "catalog-registry", shots: count, elapsedMs: Number(elapsedMs.toFixed(3)), bytes: Buffer.byteLength(actual) }));
+    expect(registryBuilds).toBe(1);
   });
 });

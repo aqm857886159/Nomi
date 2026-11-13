@@ -1,0 +1,585 @@
+{
+ "phase": "before",
+ "minWidth": 1100,
+ "widths": [
+  1280,
+  1100
+ ],
+ "rounds": {
+  "zh-light": {
+   "creation-1280": {
+    "innerWidth": 1280,
+    "innerHeight": 900,
+    "section": {
+     "left": 60,
+     "right": 874,
+     "top": 40,
+     "bottom": 892,
+     "width": 814
+    },
+    "agent": {
+     "left": 882,
+     "right": 1272,
+     "top": 40,
+     "bottom": 892,
+     "width": 390
+    },
+    "toolbar": {
+     "left": 60,
+     "right": 874,
+     "top": 40,
+     "bottom": 88,
+     "width": 814
+    },
+    "toolbarScroll": [
+     814,
+     814
+    ],
+    "hidden": [],
+    "clipped": [],
+    "trigger": null,
+    "menu": null,
+    "menuItems": [],
+    "bubble": null,
+    "timeline": null,
+    "timelineScroll": null,
+    "docScrollWidth": 1280
+   },
+   "preview-1280": {
+    "innerWidth": 1280,
+    "innerHeight": 900,
+    "section": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "agent": {
+     "left": 882,
+     "right": 1272,
+     "top": 40,
+     "bottom": 892,
+     "width": 390
+    },
+    "toolbar": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "toolbarScroll": [
+     0,
+     0
+    ],
+    "hidden": [],
+    "clipped": [],
+    "trigger": null,
+    "menu": null,
+    "menuItems": [],
+    "bubble": null,
+    "timeline": {
+     "left": 78,
+     "right": 811,
+     "top": 644,
+     "bottom": 702,
+     "width": 733
+    },
+    "timelineScroll": [
+     733,
+     733
+    ],
+    "docScrollWidth": 1280
+   },
+   "creation-1100": {
+    "innerWidth": 1100,
+    "innerHeight": 900,
+    "section": {
+     "left": 60,
+     "right": 744,
+     "top": 40,
+     "bottom": 892,
+     "width": 684
+    },
+    "agent": {
+     "left": 752,
+     "right": 1092,
+     "top": 40,
+     "bottom": 892,
+     "width": 340
+    },
+    "toolbar": {
+     "left": 60,
+     "right": 840,
+     "top": 40,
+     "bottom": 88,
+     "width": 780
+    },
+    "toolbarScroll": [
+     780,
+     780
+    ],
+    "hidden": [],
+    "clipped": [],
+    "trigger": null,
+    "menu": null,
+    "menuItems": [],
+    "bubble": null,
+    "timeline": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "timelineScroll": [
+     0,
+     0
+    ],
+    "docScrollWidth": 1100
+   },
+   "preview-1100": {
+    "innerWidth": 1100,
+    "innerHeight": 900,
+    "section": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "agent": {
+     "left": 752,
+     "right": 1092,
+     "top": 40,
+     "bottom": 892,
+     "width": 340
+    },
+    "toolbar": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "toolbarScroll": [
+     0,
+     0
+    ],
+    "hidden": [],
+    "clipped": [],
+    "trigger": null,
+    "menu": null,
+    "menuItems": [],
+    "bubble": null,
+    "timeline": {
+     "left": 78,
+     "right": 681,
+     "top": 644,
+     "bottom": 702,
+     "width": 603
+    },
+    "timelineScroll": [
+     603,
+     603
+    ],
+    "docScrollWidth": 1100
+   },
+   "boundary": {
+    "dock": {
+     "innerWidth": 1100,
+     "innerHeight": 900,
+     "section": {
+      "left": 60,
+      "right": 744,
+      "top": 40,
+      "bottom": 892,
+      "width": 684
+     },
+     "agent": {
+      "left": 752,
+      "right": 1092,
+      "top": 40,
+      "bottom": 892,
+      "width": 340
+     },
+     "toolbar": {
+      "left": 60,
+      "right": 840,
+      "top": 40,
+      "bottom": 88,
+      "width": 780
+     },
+     "toolbarScroll": [
+      780,
+      780
+     ],
+     "hidden": [],
+     "clipped": [],
+     "trigger": null,
+     "menu": null,
+     "menuItems": [],
+     "bubble": null,
+     "timeline": {
+      "left": 0,
+      "right": 0,
+      "top": 0,
+      "bottom": 0,
+      "width": 0
+     },
+     "timelineScroll": [
+      0,
+      0
+     ],
+     "docScrollWidth": 1100
+    },
+    "bubbleOnly": {
+     "innerWidth": 1100,
+     "innerHeight": 900,
+     "section": {
+      "left": 60,
+      "right": 744,
+      "top": 40,
+      "bottom": 892,
+      "width": 684
+     },
+     "agent": {
+      "left": 752,
+      "right": 1092,
+      "top": 40,
+      "bottom": 892,
+      "width": 340
+     },
+     "toolbar": {
+      "left": 60,
+      "right": 840,
+      "top": 40,
+      "bottom": 88,
+      "width": 780
+     },
+     "toolbarScroll": [
+      780,
+      780
+     ],
+     "hidden": [],
+     "clipped": [],
+     "trigger": null,
+     "menu": null,
+     "menuItems": [],
+     "bubble": {
+      "left": 72,
+      "right": 416,
+      "top": 146,
+      "bottom": 186,
+      "width": 344
+     },
+     "timeline": {
+      "left": 0,
+      "right": 0,
+      "top": 0,
+      "bottom": 0,
+      "width": 0
+     },
+     "timelineScroll": [
+      0,
+      0
+     ],
+     "docScrollWidth": 1100
+    }
+   }
+  },
+  "en-dark": {
+   "creation-1280": {
+    "innerWidth": 1280,
+    "innerHeight": 900,
+    "section": {
+     "left": 60,
+     "right": 964,
+     "top": 40,
+     "bottom": 892,
+     "width": 904
+    },
+    "agent": {
+     "left": 972,
+     "right": 1272,
+     "top": 40,
+     "bottom": 892,
+     "width": 300
+    },
+    "toolbar": {
+     "left": 60,
+     "right": 964,
+     "top": 40,
+     "bottom": 88,
+     "width": 904
+    },
+    "toolbarScroll": [
+     904,
+     904
+    ],
+    "hidden": [],
+    "clipped": [],
+    "trigger": null,
+    "menu": null,
+    "menuItems": [],
+    "bubble": null,
+    "timeline": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "timelineScroll": [
+     0,
+     0
+    ],
+    "docScrollWidth": 1280
+   },
+   "preview-1280": {
+    "innerWidth": 1280,
+    "innerHeight": 900,
+    "section": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "agent": {
+     "left": 972,
+     "right": 1272,
+     "top": 40,
+     "bottom": 892,
+     "width": 300
+    },
+    "toolbar": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "toolbarScroll": [
+     0,
+     0
+    ],
+    "hidden": [],
+    "clipped": [],
+    "trigger": null,
+    "menu": null,
+    "menuItems": [],
+    "bubble": null,
+    "timeline": {
+     "left": 78,
+     "right": 901,
+     "top": 644,
+     "bottom": 702,
+     "width": 823
+    },
+    "timelineScroll": [
+     823,
+     823
+    ],
+    "docScrollWidth": 1280
+   },
+   "creation-1100": {
+    "innerWidth": 1100,
+    "innerHeight": 900,
+    "section": {
+     "left": 60,
+     "right": 784,
+     "top": 40,
+     "bottom": 892,
+     "width": 724
+    },
+    "agent": {
+     "left": 792,
+     "right": 1092,
+     "top": 40,
+     "bottom": 892,
+     "width": 300
+    },
+    "toolbar": {
+     "left": 60,
+     "right": 872,
+     "top": 40,
+     "bottom": 88,
+     "width": 812
+    },
+    "toolbarScroll": [
+     812,
+     812
+    ],
+    "hidden": [],
+    "clipped": [],
+    "trigger": null,
+    "menu": null,
+    "menuItems": [],
+    "bubble": null,
+    "timeline": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "timelineScroll": [
+     0,
+     0
+    ],
+    "docScrollWidth": 1100
+   },
+   "preview-1100": {
+    "innerWidth": 1100,
+    "innerHeight": 900,
+    "section": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "agent": {
+     "left": 792,
+     "right": 1092,
+     "top": 40,
+     "bottom": 892,
+     "width": 300
+    },
+    "toolbar": {
+     "left": 0,
+     "right": 0,
+     "top": 0,
+     "bottom": 0,
+     "width": 0
+    },
+    "toolbarScroll": [
+     0,
+     0
+    ],
+    "hidden": [],
+    "clipped": [],
+    "trigger": null,
+    "menu": null,
+    "menuItems": [],
+    "bubble": null,
+    "timeline": {
+     "left": 78,
+     "right": 721,
+     "top": 644,
+     "bottom": 702,
+     "width": 643
+    },
+    "timelineScroll": [
+     643,
+     643
+    ],
+    "docScrollWidth": 1100
+   },
+   "boundary": {
+    "dock": {
+     "innerWidth": 1100,
+     "innerHeight": 900,
+     "section": {
+      "left": 60,
+      "right": 744,
+      "top": 40,
+      "bottom": 892,
+      "width": 684
+     },
+     "agent": {
+      "left": 752,
+      "right": 1092,
+      "top": 40,
+      "bottom": 892,
+      "width": 340
+     },
+     "toolbar": {
+      "left": 60,
+      "right": 872,
+      "top": 40,
+      "bottom": 88,
+      "width": 812
+     },
+     "toolbarScroll": [
+      812,
+      812
+     ],
+     "hidden": [],
+     "clipped": [],
+     "trigger": null,
+     "menu": null,
+     "menuItems": [],
+     "bubble": null,
+     "timeline": {
+      "left": 0,
+      "right": 0,
+      "top": 0,
+      "bottom": 0,
+      "width": 0
+     },
+     "timelineScroll": [
+      0,
+      0
+     ],
+     "docScrollWidth": 1100
+    },
+    "bubbleOnly": {
+     "innerWidth": 1100,
+     "innerHeight": 900,
+     "section": {
+      "left": 60,
+      "right": 744,
+      "top": 40,
+      "bottom": 892,
+      "width": 684
+     },
+     "agent": {
+      "left": 752,
+      "right": 1092,
+      "top": 40,
+      "bottom": 892,
+      "width": 340
+     },
+     "toolbar": {
+      "left": 60,
+      "right": 872,
+      "top": 40,
+      "bottom": 88,
+      "width": 812
+     },
+     "toolbarScroll": [
+      812,
+      812
+     ],
+     "hidden": [],
+     "clipped": [],
+     "trigger": null,
+     "menu": null,
+     "menuItems": [],
+     "bubble": {
+      "left": 72,
+      "right": 416,
+      "top": 146,
+      "bottom": 186,
+      "width": 344
+     },
+     "timeline": {
+      "left": 0,
+      "right": 0,
+      "top": 0,
+      "bottom": 0,
+      "width": 0
+     },
+     "timelineScroll": [
+      0,
+      0
+     ],
+     "docScrollWidth": 1100
+    }
+   }
+  }
+ }
+}

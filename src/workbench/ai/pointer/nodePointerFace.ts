@@ -19,7 +19,8 @@ import { isLocalProcessingProgressPhase } from '../../generationCanvas/model/loc
 import type { ProductionShotState } from '../../../../electron/shared/productionShotPhase'
 import { hasProductionShotCorner } from '../../generationCanvas/nodes/productionShotCorner'
 import { getGenerationNodeExecutionKind } from '../../generationCanvas/model/generationNodeKinds'
-import { formatSeconds, readAspect, readDurationSeconds } from '../../generation/list/generationListMediaFacts'
+import { formatSeconds, readDurationSeconds } from '../../generation/list/generationListMediaFacts'
+import { ASPECT_RATIO_META_KEYS, readAspectRatioGeometry } from '../../../../electron/shared/aspectRatioValue'
 
 export type NodePointerFace =
   | Readonly<{ kind: 'removed' }>
@@ -168,7 +169,8 @@ export function isPortraitAspect(aspect: string | null): boolean {
  * 模型显示名由调用方给（`useModelLabels`，目录异步），其余三样读节点 meta。不存、不缓存。
  */
 export function nodePointerSummaryFacts(node: GenerationCanvasNode | undefined, modelLabel: string): NodePointerSummaryInput & Readonly<{ durationSec: number | null }> {
-  const aspect = readAspect(node)
+  const geometry = ASPECT_RATIO_META_KEYS.map(key => readAspectRatioGeometry(node?.meta?.[key])).find(size => size !== null)
+  const aspect = geometry ? `${geometry.width}:${geometry.height}` : null
   const execution = node ? getGenerationNodeExecutionKind(node.kind) : undefined
   const durationSec = node && (execution === 'video' || execution === 'audio') ? readDurationSeconds(node) : null
   const resolution = typeof node?.meta?.resolution === 'string' ? node.meta.resolution : null
@@ -178,7 +180,7 @@ export function nodePointerSummaryFacts(node: GenerationCanvasNode | undefined, 
 export type NodePointerSummaryInput = Readonly<{
   /** 节点上选好的模型显示名（`useModelLabels`，和生成框同一个判据；认不得就是空串）。 */
   model: string
-  /** 节点的比例（`readAspect`）。 */
+  /** 节点的显示几何：比例与像素尺寸均按宽:高显示。 */
   aspect: string | null
   /** 已格式化的时长（`formatSeconds(readDurationSeconds)`；只有视频 / 音频有）。 */
   duration: string | null

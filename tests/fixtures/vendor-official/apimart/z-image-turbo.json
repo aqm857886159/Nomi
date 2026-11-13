@@ -1,0 +1,17 @@
+{
+  "modelKey": "z-image-turbo",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2i": {
+      "why": "这一页只有文生图，请求参数里没有任何参考键",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/z-image-turbo/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Basic Text-to-Image (minimal request)",
+        "evidenceLevel": "documentation-omission",
+        "interpretation": "This page does not document direct reference inputs; does not establish server rejection."
+      }
+    }
+  }
+}

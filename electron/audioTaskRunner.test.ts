@@ -11,12 +11,15 @@ vi.mock("./catalog/profileHttpRequest", async (importOriginal) => ({
     preview: {},
   })),
 }));
-// importLocalFile 已抽到独立资产模块（runtime 巨壳减负）——在这桩，避免触真 writeAsset 落盘。
-vi.mock("./assets/localFileImport", () => ({
-  importLocalFile: vi.fn(async () => ({ id: "asset-1", name: "tts.wav", data: { url: "nomi-local://asset/p/tts.wav" } })),
+// 这里只核请求形状与解码；字节进项目走真落盘关口的那一面在 tasks/syncBytesResultLandsInProject.test.ts
+// （2026-11-07：这里曾桩掉整个资产库，漏了期望类型的落盘失败在单测里一直是绿的）。这里只钉一件事：
+// 配音字节走生成产物的门，且说清「该是音频」。
+vi.mock("./assets/projectAssetStore", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./assets/projectAssetStore")>(),
+  writeGeneratedAsset: vi.fn(async () => ({ id: "asset-1", name: "tts.wav", data: { url: "nomi-local://asset/p/tts.wav" } })),
 }));
 import { runAudioTask } from "./audioTaskRunner";
-import { importLocalFile } from "./assets/localFileImport";
+import { writeGeneratedAsset } from "./assets/projectAssetStore";
 import { buildProfileHttpRequest } from "./catalog/profileHttpRequest";
 import { ELEVENLABS_MODELS } from "./catalog/elevenlabs";
 import type { Model, Vendor } from "./catalog/types";
@@ -66,6 +69,7 @@ describe("runAudioTask（音频同步执行路径）", () => {
   });
 
   it("声明的 binary MIME/extension 覆盖 body 推断（ElevenLabs output_format 在 query）", async () => {
+    // 音频执行器只读明文 body，不走封口发送；桩里拿不到 sealed（只有构建器能铸），故断言掉。
     vi.mocked(buildProfileHttpRequest).mockReturnValueOnce({
       method: "POST",
       url: "https://api.elevenlabs.io/v1/text-to-speech/voice-1",
@@ -73,7 +77,7 @@ describe("runAudioTask（音频同步执行路径）", () => {
       query: { output_format: "mp3_44100_128" },
       body: { text: "hi", model_id: "eleven_v3" },
       preview: {},
-    });
+    } as never);
     vi.stubGlobal("fetch", vi.fn(async () => new Response(new Uint8Array([1, 2, 3]).buffer, { status: 200 })));
 
     await runAudioTask({
@@ -83,10 +87,9 @@ describe("runAudioTask（音频同步执行路径）", () => {
       mapping: { create: { method: "POST", path: "/v1/text-to-speech/voice-1", audioResponse: { type: "binary", contentType: "audio/mpeg", extension: "mp3" } } } as never,
     });
 
-    expect(vi.mocked(importLocalFile)).toHaveBeenCalledWith(expect.objectContaining({
-      contentType: "audio/mpeg",
-      fileName: "tts-t-binary.mp3",
-    }));
+    expect(vi.mocked(writeGeneratedAsset)).toHaveBeenCalledWith(
+      "p", expect.anything(), "tts-t-binary.mp3", "audio/mpeg", expect.objectContaining({ kind: "generated" }), "audio",
+    );
   });
 
   it("豆包 NDJSON：响应经统一 vendorHttp 出口读体（限 30MB 上限）", async () => {
@@ -140,9 +143,9 @@ describe("runAudioTask（音频同步执行路径）", () => {
     });
 
     expect(result.status).toBe("succeeded");
-    const saved = vi.mocked(importLocalFile).mock.calls.at(-1)?.[0];
-    expect(saved).toMatchObject({ contentType: "audio/mpeg", fileName: "tts-t-hex.mp3" });
-    expect(Buffer.from((saved as { bytes: ArrayBuffer }).bytes)).toEqual(Buffer.from("52494646", "hex"));
+    const [, bytes, fileName, contentType, , expectedKind] = vi.mocked(writeGeneratedAsset).mock.calls.at(-1)!;
+    expect({ fileName, contentType, expectedKind }).toEqual({ fileName: "tts-t-hex.mp3", contentType: "audio/mpeg", expectedKind: "audio" });
+    expect(Buffer.from(bytes)).toEqual(Buffer.from("52494646", "hex"));
   });
 
   it("转写 multipart 字段完全由 mapping 声明（ElevenLabs model_id/language_code）", async () => {

@@ -14,8 +14,7 @@
  *    开了一个任何局域网设备都能喂音频的转写服务。
  * 2. **一次任务一个进程，`finally` 里一定收**：不做进程池、不保温。转写是批处理不是听写，
  *    保温省下的那几秒换不来「用户关掉窗口后后台还留着一个吃 600 MB 内存的进程」。
- * 3. **出站仍走 `hardenedFetch`**：回环也是网络，目的地策略只有一个 owner。`allowedPrivateOrigins`
- *    精确到 `http://127.0.0.1:<port>`，且这条路径下 hardenedFetch 强制禁止重定向。
+ * 3. **出站仍走 `hardenedFetch`**：时限 / 大小上限同一处；目标精确到 `http://127.0.0.1:<port>`，不跟重定向。
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
@@ -141,7 +140,7 @@ export class LocalSpeechServer {
     try {
       const response = await hardenedFetch(this.origin, {
         timeoutMs: 2_000,
-        allowedPrivateOrigins: [this.origin],
+        allowRedirect: false,
         throwOnNon2xx: false,
         maxBytes: 64 * 1024,
       });
@@ -162,7 +161,7 @@ export class LocalSpeechServer {
       body,
       timeoutMs: INFERENCE_TIMEOUT_MS,
       maxBytes: 64 * 1024 * 1024,
-      allowedPrivateOrigins: [this.origin],
+      allowRedirect: false,
       throwOnNon2xx: false,
       signal,
     });

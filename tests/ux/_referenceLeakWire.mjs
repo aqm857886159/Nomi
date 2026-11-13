@@ -9,8 +9,7 @@
 //   · referenceRejection：主进程参考守有没有拒发（机器码 reference-not-in-use），落在节点上的报错里读。
 //
 // 两条要点（V-refleak 第 1 轮的条件）：
-//   · **按地址去重**：APIMart 首尾帧的请求体里 image_urls 和 image_with_roles 各带一遍首帧、尾帧，
-//     直接数会数成 4 张；按去掉查询串后的地址去重，再断言集合恰好是首帧、尾帧两张（对回本地文件名）。
+//   · 首尾帧各出现一次，按角色对回本地文件名；重复地址、扁平键或颠倒顺序都判失败。
 //   · **残留参考的任何形态都不许出现**：文件名、本地地址、托管上传后的公网地址（地址哈希），在请求体里和托管上传里都不许有。
 import crypto from 'node:crypto'
 import { canonicalEvidenceUrl } from '../../scripts/walkthrough-url-shape.cjs'
@@ -67,12 +66,20 @@ export function judgeReferenceWire(entries, { host, firstFile, lastFile, referen
     if (canonical) fileByRemote.set(canonical, file)
   }
 
-  // 去重：同一张图在 image_urls 和 image_with_roles 里各出现一次，算一张。
+  // 唯一地址用于匹配上传来源；原始出现次数独立保留，避免去重掩盖重复提交。
   const rawImageUrls = body ? urlsIn(body).filter((url) => {
     const canonical = bareUrl(url)
     return canonical && !MEDIA_NOT_IMAGE.test(canonical)
   }) : []
   const uniqueImageUrls = [...new Set(rawImageUrls.map(bareUrl).filter(Boolean))]
+  if (rawImageUrls.length !== 2 || uniqueImageUrls.length !== 2 || Object.hasOwn(body ?? {}, 'image_urls')) {
+    problems.push('首尾帧应各出现一次，只落在角色数组')
+  }
+  const roles = Array.isArray(body?.image_with_roles) ? body.image_with_roles : []
+  if (roles.length !== 2 || roles[0]?.role !== 'first_frame' || roles[1]?.role !== 'last_frame'
+    || fileByRemote.get(bareUrl(roles[0]?.url)) !== firstFile || fileByRemote.get(bareUrl(roles[1]?.url)) !== lastFile) {
+    problems.push('首帧、尾帧的角色和文件顺序必须对应')
+  }
   const sent = uniqueImageUrls.map((url) => ({ file: fileByRemote.get(url) ?? null, urlSha256: shortHash(url) }))
   const sentFiles = sent.map((entry) => entry.file)
   if (sentFiles.some((file) => file === null)) problems.push(`请求体里有 ${sentFiles.filter((file) => file === null).length} 张图对不回本地文件名（托管上传没记到，或换了别的上传形状）——证明不了只发了首帧、尾帧`)

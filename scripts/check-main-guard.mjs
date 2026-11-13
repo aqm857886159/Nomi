@@ -112,6 +112,17 @@ const isHandBuiltUrl = (node) =>
 export function scanSource(source, file) {
   const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKindOf(file))
   const hits = []
+  const testLauncher = /^(?:tests|evals)\//.test(file) || /\.(?:test|node-test)\.[cm]?[jt]sx?$/.test(file)
+  const electronBinaries = new Set()
+  const requiresElectron = (node) => ts.isCallExpression(node) && calleeName(node) === 'require'
+    && node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0]) && node.arguments[0].text === 'electron'
+  // 先收集二进制别名；解构 app / safeStorage 是 Electron 内部 API，不是启动命令。
+  const collectBinaries = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && requiresElectron(node.initializer)) electronBinaries.add(node.name.text)
+    if (ts.isImportDeclaration(node) && node.moduleSpecifier.text === 'electron' && node.importClause?.name) electronBinaries.add(node.importClause.name.text)
+    ts.forEachChild(node, collectBinaries)
+  }
+  if (testLauncher) collectBinaries(sourceFile)
   // 归档证据（docs/）里的历史代码不改，新一族写法只管活的脚本 / 测试 / 源码
   const portable = !file.startsWith('docs/')
   const report = (node, rule) => {
@@ -120,6 +131,12 @@ export function scanSource(source, file) {
     hits.push({ file, line, rule, text: source.split('\n')[line - 1].trim().slice(0, 160) })
   }
   const visit = (node) => {
+    if (testLauncher && file !== 'tests/ux/_launchApp.mjs' && ts.isCallExpression(node)
+      && BARE_CMD_CALLEES.has(calleeName(node)) && node.arguments.length > 0
+      && (requiresElectron(node.arguments[0]) || (ts.isIdentifier(node.arguments[0]) && electronBinaries.has(node.arguments[0].text)))) {
+      report(node, 'electron-spawn-bypass')
+      return
+    }
     if (isHandBuiltUrl(node) && some(node, isScriptPathArg)) {
       report(node, 'argv-url-by-hand')
       return
@@ -185,17 +202,17 @@ export function main({ root = repoRoot, log = console.log } = {}) {
     const abs = path.join(root, file)
     if (!fs.existsSync(abs)) continue // 工作区里已删、索引里还在
     const source = fs.readFileSync(abs, 'utf8')
-    if (!source.includes("import.meta.url") && !source.includes("process.argv") && !source.includes("import(") && !source.includes("file:") && !/pnpm|npm|npx|tsx/.test(source)) continue
+    if (!source.includes("import.meta.url") && !source.includes("process.argv") && !source.includes("import(") && !source.includes("file:") && !/pnpm|npm|npx|tsx|electron/.test(source)) continue
     scanned += 1
     hits.push(...scanSource(source, file))
   }
   if (hits.length > 0) {
-    log(`✖ check:main-guard：${hits.length} 处只在 Windows 上坏的路径 / URL / 命令写法（手拼 file URL 判断入口、URL.pathname 当路径、import(裸路径)、不开 shell 直接 spawn pnpm 等）——Linux CI 看不见：`)
+    log(`✖ check:main-guard：${hits.length} 处跨平台路径 / URL / 命令或测试 Electron 启动写法（手拼 file URL 判断入口、URL.pathname 当路径、import(裸路径)、不开 shell 直接 spawn pnpm 等、测试绕开共享 Electron 启动器）：`)
     for (const hit of hits) log(`    ${hit.file}:${hit.line}  [${hit.rule}]  ${hit.text}`)
-    log(`\n  → 判断入口：if (${FIX_HINT}) main()；路径 / 动态 import / 相对路径比较走 scripts/lib/repoPaths.mjs；起 tsx 用 process.execPath + --import tsx`)
+    log(`\n  → 判断入口：if (${FIX_HINT}) main()；路径 / 动态 import / 相对路径比较走 scripts/lib/repoPaths.mjs；起 tsx 用 process.execPath + --import tsx；测试起 Electron 走 tests/ux/_launchApp.mjs 的 quietElectronSpawn / spawnQuietElectron`)
     return 1
   }
-  log(`✅ check:main-guard：${files.length} 个源文件，其中 ${scanned} 个用到 import.meta.url / process.argv 已逐个解析，没有手拼 file URL 的入口判断（硬零，无基线）`)
+  log(`✅ check:main-guard：${files.length} 个源文件，其中 ${scanned} 个涉及路径 / 命令 / Electron 的文件已逐个解析，没有违规路径 / 命令或测试 Electron 直接启动（硬零，无基线）`)
   return 0
 }
 

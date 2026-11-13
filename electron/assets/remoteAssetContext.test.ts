@@ -11,7 +11,7 @@ const roots: string[] = []
 function temp() { const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-remote-context-')); roots.push(root); return root }
 afterEach(() => { vi.clearAllMocks(); for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }) })
 
-it.each(['upload', 'generated'])('rejects %s publication after identity changes during download', async kind => {
+it.each(['upload', 'generated'] as const)('rejects %s publication after identity changes during download', async kind => {
   mock.root = temp()
   const { createProject, projectDirById } = await import('../projects/repository')
   const { importRemoteAsset, listProjectAssets } = await import('./projectAssetStore')
@@ -25,7 +25,8 @@ it.each(['upload', 'generated'])('rejects %s publication after identity changes 
     }
     return { bytes: Buffer.from('remote content'), contentType: 'application/octet-stream' }
   })
-  await expect(importRemoteAsset({ projectId: project.id, url: 'https://example.com/file.bin', kind, expectedKind: kind === 'generated' ? 'image' : null }))
+  const target = { projectId: project.id, url: 'https://example.com/file.bin' }
+  await expect(importRemoteAsset(kind === 'generated' ? { ...target, kind, expectedKind: 'image' } : { ...target, kind, expectedKind: null }))
     .rejects.toMatchObject({ code: 'project_binding_stale' })
   expect(listProjectAssets({ projectId: project.id }).items).toEqual([])
 })
@@ -42,7 +43,7 @@ it('revokes interactive downloads without cancelling explicit background imports
     current = false
     return { bytes: png, contentType: 'application/octet-stream' }
   })
-  const payload = { projectId: project.id, url: 'https://example.com/file.bin', kind: 'generated', expectedKind: 'image' as const }
+  const payload = { projectId: project.id, url: 'https://example.com/file.bin', kind: 'generated' as const, expectedKind: 'image' as const }
   await expect(importRemoteAsset(payload, { assertCurrent() {
     if (!current) throw Object.assign(new Error('project_binding_stale'), { code: 'project_binding_stale' })
   } })).rejects.toMatchObject({ code: 'project_binding_stale' })

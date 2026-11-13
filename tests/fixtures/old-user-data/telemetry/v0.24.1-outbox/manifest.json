@@ -1,0 +1,13 @@
+{
+  "release": "v0.24.1",
+  "recordedFrom": "21beebc789803925e2540d1eb4bd3e6255790673",
+  "pendingCount": 6,
+  "eventNames": [
+    "app.started",
+    "generation.completed",
+    "generation.completed",
+    "export.completed",
+    "update.action",
+    "perf.session.summary"
+  ]
+}

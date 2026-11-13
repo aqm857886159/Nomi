@@ -89,7 +89,7 @@ try {
       .then((r) => { window.__nomiMultiShotResult = r })
   }, MULTISHOT_PAYLOAD)
 
-  const card = win.locator('.fixed.inset-0').filter({ hasText: '允许 Nomi 生成这一批镜头？' })
+  const card = win.locator('[data-spend-confirm-dialog]').filter({ hasText: '允许 Nomi 生成这一批镜头？' })
   await card.waitFor({ timeout: 15_000 })
   // 证探针活（卡真的会出现）→ 供确认后 expectAbsent 用作阳性基线。
   const cardProbe = await proveProbe(card, '多镜确认卡会浮出（标题「允许 Nomi 生成这一批镜头？」）', 15_000)

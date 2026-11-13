@@ -1,0 +1,32 @@
+diff --git a/tests/ux/agent-conversation-follow.walk.mjs b/tests/ux/agent-conversation-follow.walk.mjs
+index 6c486a3d4..b783c5bac 100644
+--- a/tests/ux/agent-conversation-follow.walk.mjs
++++ b/tests/ux/agent-conversation-follow.walk.mjs
+@@ -188,9 +188,16 @@ try {
+     const assistantBefore = await panel.locator(ASSISTANT_MESSAGE).count()
+     await flow.evaluate((node) => {
+       const samples = []
+-      window.__cfFollow = { samples, stop: false }
++      const details = []
++      window.__cfFollow = { samples, details, stop: false }
+       const tick = () => {
+-        samples.push(node.scrollHeight - node.scrollTop - node.clientHeight)
++        const height = node.scrollHeight
++        const top = node.scrollTop
++        const client = node.clientHeight
++        const gap = height - top - client
++        samples.push(gap)
++        const replies = node.querySelectorAll('[data-v4-block="assistant"]')
++        details.push({ at: performance.now(), height, top, client, gap, replies: replies.length, chars: replies[replies.length - 1]?.textContent?.length ?? 0 })
+         if (!window.__cfFollow.stop) requestAnimationFrame(tick)
+       }
+       requestAnimationFrame(tick)
+@@ -200,6 +207,8 @@ try {
+     const streaming = panel.locator(ASSISTANT_MESSAGE).nth(assistantBefore)
+     await expect.poll(async () => (await streaming.textContent().catch(() => ''))?.length ?? 0, { message: '流式正文迟迟没开始吐', timeout: 30_000 }).toBeGreaterThan(400)
+     const followSamples = await win.evaluate(() => window.__cfFollow.samples.slice())
++    walk.report.followSamples ??= {}
++    walk.report.followSamples[label] = await win.evaluate(() => window.__cfFollow.details.slice())
+     // 吐到一半：人往上翻 600px，接下来的 20 帧不许把他拽走，「回到最新」要出现。
+     await wheel(-600)
+     const scrolledUp = await geometry()

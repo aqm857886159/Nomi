@@ -176,13 +176,14 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
       // 这份文稿现有方案的清单随请求一起走：模型**指名**要改哪一份（决策 2），
       // 宿主不替它按「当前打开的是哪份」猜——猜错就是悄悄覆盖用户另一份方案。
       // 选中的镜头 chip 自带它所属的方案 id，所以它也是「用户指名的」，不是推断。
-      const designsForDocument = surface === 'creation' && captured.activeDocumentId
+      const storyboardSurface = surface === 'creation' || surface === 'storyboard'
+      const designsForDocument = storyboardSurface && captured.activeDocumentId
         ? state.storyboardDesignsByDocumentId[captured.activeDocumentId] ?? [] : []
       const capturedReferences = state.projectAgentReferences.filter(isStoryboardReference)
       const referenceDesignId = designsForDocument.find(design => design.id === state.activeStoryboardId)?.id
       const selectedShotIds = capturedReferences.length && referenceDesignId
         ? storyboardShotIdsForTarget(capturedReferences, {documentId:captured.activeDocumentId,designId:referenceDesignId}) : undefined
-      const storyboardTarget: StoryboardRequestTarget | undefined = surface === 'creation' && projectId && captured.activeDocumentId ? Object.freeze({
+      const storyboardTarget: StoryboardRequestTarget | undefined = storyboardSurface && projectId && captured.activeDocumentId ? Object.freeze({
         projectId, sourceDocumentId: captured.activeDocumentId,
         sourceDocumentRevision: captured.documentState.revision,
         sourceDocumentContentHash: captured.documentState.contentHash,

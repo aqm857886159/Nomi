@@ -8,6 +8,13 @@ vi.mock("./dreaminaCli", () => ({
   runDreaminaCli: (...args: unknown[]) => runDreaminaCli(...args),
   resolveDreaminaBin: () => resolveDreaminaBin(),
 }));
+// Codex 本机生图同样整体换掉：这个文件里从不真起 codex 进程（真起会花本机账号的额度）。
+const startCodexImageOperation = vi.fn(async () => ({ response: {}, request: {} }));
+const queryCodexImageOperation = vi.fn(async () => ({ response: {}, request: {} }));
+vi.mock("./codexCli", () => ({
+  startCodexImageOperation: (...args: unknown[]) => startCodexImageOperation(...(args as [])),
+  queryCodexImageOperation: (...args: unknown[]) => queryCodexImageOperation(...(args as [])),
+}));
 const runAntigravityTask = vi.fn();
 const consumedPreflights = new WeakSet<object>();
 const assertPreparedAntigravityTaskMatches = vi.fn((prepared: Record<string, unknown>, expected: {
@@ -48,13 +55,16 @@ import type { ProcessOperationInput } from "./processOperation";
 
 const writeAsset = vi.fn(async () => ({ data: { url: "nomi-local://asset/proj/assets/v.mp4" } }));
 const proc = (args: string[], appendDownloadDir = false) => ({ bin: "dreamina", parser: "dreamina-cli" as const, appendDownloadDir, args });
+// 进程类的结果只能写进项目（没项目号执行器直接拒，见文末），所以默认带项目号。
 const call = (args: string[], opts: { projectId?: string; appendDownloadDir?: boolean } = {}) =>
-  executeProcessOperation({ process: proc(args, opts.appendDownloadDir), context: {}, projectId: opts.projectId ?? "", writeAsset,
+  executeProcessOperation({ process: proc(args, opts.appendDownloadDir), context: {}, projectId: opts.projectId ?? "project", writeAsset,
     identity: { vendorKey: "dreamina", taskKind: "text_to_video" } });
 
 beforeEach(() => {
   runDreaminaCli.mockReset();
   runAntigravityTask.mockReset();
+  startCodexImageOperation.mockClear();
+  queryCodexImageOperation.mockClear();
   writeAsset.mockClear();
   resolveDreaminaBin.mockReturnValue("/fake/bin/dreamina");
 });
@@ -111,6 +121,14 @@ describe("Antigravity image process application route", () => {
     }, "image", `antigravity:${id}`);
     expect(writeAsset).not.toHaveBeenCalled();
     expect(runDreaminaCli).not.toHaveBeenCalled();
+  });
+  it("refuses without a project before admitting any local work (create and query)", async () => {
+    await expect(withTaskOwner(71, () => executeProcessOperation({ ...input("text_to_image", { request: { prompt: "crane" } }), projectId: "" })))
+      .rejects.toThrow(/项目|project/i);
+    await expect(withTaskOwner(71, () => executeProcessOperation({ ...input("query_result", { providerMeta: { task_id: "task" } }), projectId: "" })))
+      .rejects.toThrow(/项目|project/i);
+    expect(runAntigravityTask).not.toHaveBeenCalled();
+    expect(deterministicWrite).not.toHaveBeenCalled();
   });
   it("checks owner and project before writing generated output", async () => {
     const { id } = await submit("text_to_image");
@@ -258,6 +276,25 @@ describe("executeProcessOperation", () => {
   it("未装 CLI → 抛安装引导错误", async () => {
     resolveDreaminaBin.mockReturnValue("");
     await expect(call(["text2video"])).rejects.toThrow(/未找到即梦 CLI|一键安装/);
+  });
+});
+
+describe("没有项目号：本机进程的结果只能写进项目，三种解析器都在起进程之前拒", () => {
+  // 以前没项目时：即梦照跑、下到本机的文件静默丢掉；Codex 交回一个临时目录里的裸路径；Antigravity 跑完才在落盘时失败。
+  it("即梦 CLI：提交、取结果都不起进程", async () => {
+    runDreaminaCli.mockResolvedValue({ code: 0, stdout: '{"submit_id":"u-1","gen_status":"success","results":[{"file_path":"/tmp/nope/v.mp4"}]}', stderr: "" });
+    await expect(call(["text2video", "--prompt=cat"], { projectId: "" })).rejects.toThrow(/项目|project/i);
+    await expect(call(["query_result"], { projectId: "  ", appendDownloadDir: true })).rejects.toThrow(/项目|project/i);
+    expect(runDreaminaCli).not.toHaveBeenCalled();
+    expect(writeAsset).not.toHaveBeenCalled();
+  });
+  it("Codex 本机生图：提交、取结果都不起进程", async () => {
+    for (const args of [["image"], ["query_result"]]) {
+      await expect(executeProcessOperation({ process: { bin: "codex", parser: "codex-cli-image", args },
+        context: { request: { prompt: "cat" }, providerMeta: { task_id: "codex-1" } }, projectId: "", writeAsset })).rejects.toThrow(/项目|project/i);
+    }
+    expect(startCodexImageOperation).not.toHaveBeenCalled();
+    expect(queryCodexImageOperation).not.toHaveBeenCalled();
   });
 });
 

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>F 换模型，菜单里的方式跟着换：每个模型只列它真有的</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+.light{--nomi-logo-ground:oklch(.22 .01 80);--nomi-bg:oklch(.985 .003 90);--nomi-paper:oklch(1 0 0);--nomi-ink:oklch(.22 .01 80);--nomi-ink80:oklch(.32 .01 80);--nomi-ink60:oklch(.5 .01 80);--nomi-ink10:oklch(.94 .003 80);--nomi-ink05:oklch(.97 .003 80);--nomi-line:oklch(.91 .004 80);--nomi-accent:oklch(.55 .13 250);--nomi-shadow-sm:0 1px 2px oklch(0 0 0/0.04),0 1px 1px oklch(0 0 0/0.03);--nomi-shadow-md:0 2px 4px oklch(0 0 0/0.04),0 8px 24px oklch(0 0 0/0.06);--nomi-shadow-lg:0 4px 8px oklch(0 0 0/0.05),0 20px 50px oklch(0 0 0/0.08)}
+.dark{--nomi-logo-ground:oklch(.30 .01 80);--nomi-bg:oklch(.18 .006 80);--nomi-paper:oklch(.235 .007 80);--nomi-ink:oklch(.93 .006 85);--nomi-ink80:oklch(.84 .006 85);--nomi-ink60:oklch(.7 .006 85);--nomi-ink10:oklch(.34 .006 85);--nomi-ink05:oklch(.3 .006 85);--nomi-line:oklch(.36 .007 80);--nomi-accent:oklch(.7 .13 250);--nomi-shadow-sm:0 1px 2px oklch(0 0 0/0.32),0 1px 1px oklch(0 0 0/0.22);--nomi-shadow-md:0 2px 5px oklch(0 0 0/0.30),0 14px 34px oklch(0 0 0/0.32);--nomi-shadow-lg:0 4px 10px oklch(0 0 0/0.30),0 24px 64px oklch(0 0 0/0.40)}
+.pane{--nomi-radius-sm:6px;--nomi-radius:10px;box-sizing:border-box;width:600px;padding:24px 20px;background-color:var(--nomi-bg);background-image:radial-gradient(var(--nomi-ink10) 1px,transparent 1px);background-size:18px 18px;color:var(--nomi-ink);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;font-size:13px;line-height:1.5;display:flex;flex-direction:column;justify-content:flex-end}
+.node{position:relative;box-sizing:border-box;width:560px;padding:12px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:var(--nomi-radius);box-shadow:var(--nomi-shadow-md)}
+.refs{display:flex;align-items:flex-start;gap:8px;min-height:40px}
+.tb{flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:var(--nomi-radius-sm);background:var(--nomi-ink05);color:var(--nomi-ink80)}
+.t{flex:none;width:40px;height:40px}
+.t svg{display:block;border-radius:var(--nomi-radius-sm)}
+.cell{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:40px}
+.cell .lb{font-size:12px;color:var(--nomi-ink60);white-space:nowrap}
+.sw{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin-top:6px;padding:0;border:1px solid var(--nomi-line);border-radius:999px;background:var(--nomi-paper);color:var(--nomi-ink80)}
+.cnt{margin-left:auto;align-self:center;font-size:12px;color:var(--nomi-ink60);white-space:nowrap}
+.cnt b{font-weight:500;color:var(--nomi-ink)}
+.ib{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid transparent;border-radius:999px;background:transparent;color:var(--nomi-ink80)}
+.prompt{padding:8px 4px;min-height:72px;font-size:14px;line-height:1.6}
+.prompt .ph{color:var(--nomi-ink60)}
+.bar{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding-top:4px}
+.bar .sp{flex:1;min-width:0}
+.anch{position:relative;flex:none;display:inline-flex;min-width:0}
+.anch.sh1{flex:0 100 auto}
+.anch.sh2{flex:0 1 auto}
+.chip{flex:none;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px;border:1px solid var(--nomi-line);border-radius:999px;background:var(--nomi-paper);color:var(--nomi-ink);font:inherit;font-size:12px;white-space:nowrap}
+.chip svg{flex:none}
+.chip.open{background:var(--nomi-ink05)}
+.send{flex:none;width:30px;height:30px;padding:0;border:0;border-radius:999px;background:var(--nomi-ink);color:var(--nomi-paper);display:flex;align-items:center;justify-content:center}
+.menu{position:absolute;z-index:3;left:0;top:36px;box-sizing:border-box;width:max-content;min-width:272px;max-width:340px;padding:6px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:12px;box-shadow:var(--nomi-shadow-lg)}
+.menu.static{position:static;width:272px;box-shadow:var(--nomi-shadow-md)}
+.mi{display:flex;align-items:center;gap:10px;min-height:44px;box-sizing:border-box;padding:5px 8px;border-radius:8px}
+.mi.on{background:var(--nomi-ink05)}
+.mi .ic{flex:none;color:var(--nomi-ink80)}
+.mi .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.mi .nm{font-size:13px;font-weight:500;color:var(--nomi-ink);line-height:18px}
+.mi .sb{font-size:11px;color:var(--nomi-ink60);line-height:16px}
+.mi.off .ic,.mi.off .nm{opacity:.55}
+.t.dim svg{opacity:.4}
+.mi .ck{flex:none;color:var(--nomi-accent)}
+.mi.one{min-height:32px}
+.tile{flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:var(--nomi-ink05);color:var(--nomi-ink);font-size:12px;font-weight:600}
+.ctile{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:var(--nomi-ink05);color:var(--nomi-ink);font-size:9px;font-weight:600}
+.chip.fill{background:var(--nomi-ink05)}
+.chip.fill.open{background:var(--nomi-ink10)}
+.mi.on .tile{background:var(--nomi-paper)}
+.mi .rt{flex:none;font-size:11px;color:var(--nomi-ink60)}
+.mi.model{min-height:48px}
+.mf{display:flex;align-items:center;gap:8px;padding:8px;font-size:12px;color:var(--nomi-ink60)}
+.mf .n{margin-left:auto}
+.mh{padding:6px 8px 2px;font-size:11px;font-weight:600;color:var(--nomi-ink60)}
+.msep{height:1px;margin:6px 8px;background:var(--nomi-line)}
+.pop{position:absolute;z-index:3;left:0;bottom:36px;box-sizing:border-box;width:320px;padding:12px;background:var(--nomi-paper);border:1px solid var(--nomi-line);border-radius:14px;box-shadow:var(--nomi-shadow-lg)}
+.gl{font-size:11px;font-weight:600;color:var(--nomi-ink60);margin:12px 0 6px}
+.gl.first{margin-top:0}
+.seg{display:flex;padding:3px;background:var(--nomi-ink05);border-radius:8px}
+.seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--nomi-ink60);font:inherit;font-size:12px}
+.seg button.on{background:var(--nomi-paper);color:var(--nomi-ink);font-weight:600;box-shadow:var(--nomi-shadow-sm)}
+.rat{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:3px;background:var(--nomi-ink05);border-radius:8px}
+.rat div{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 4px;border-radius:6px;font-size:11px;color:var(--nomi-ink60)}
+.rat div.on{background:var(--nomi-paper);color:var(--nomi-ink);font-weight:600;box-shadow:var(--nomi-shadow-sm)}
+.rat .bx{display:flex;align-items:center;justify-content:center;height:16px}
+.rat i{display:block;border:1.5px solid currentColor;border-radius:2px}
+.mi .go{flex:none;color:var(--nomi-ink60)}
+.sl{display:flex;align-items:center;gap:12px}
+.sl .tr{position:relative;flex:1;height:4px;border-radius:2px;background:var(--nomi-ink10)}
+.sl .tr b{position:absolute;left:0;top:0;height:4px;width:12%;border-radius:2px;background:var(--nomi-accent)}
+.sl .tr u{position:absolute;left:12%;top:-5px;width:14px;height:14px;margin-left:-7px;box-sizing:border-box;border:3px solid var(--nomi-accent);border-radius:999px;background:var(--nomi-paper)}
+.tg{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:11px;font-weight:600;color:var(--nomi-ink60)}
+.tg span.tsw{width:34px;height:18px;border-radius:999px;background:var(--nomi-accent);position:relative}
+.tg span.tsw::after{content:"";position:absolute;right:3px;top:3px;width:12px;height:12px;border-radius:999px;background:var(--nomi-paper)}
+.cols{display:flex;gap:24px;align-items:flex-start}
+.col .hd{display:flex;align-items:center;gap:6px;margin:0 0 8px 2px;font-size:12px;font-weight:600;color:var(--nomi-ink80)}
+.col .ft{margin:8px 0 0 2px;font-size:11px;color:var(--nomi-ink60)}
+.refs.wrap{flex-wrap:wrap}
+.refsbox{display:flex;flex-direction:column;gap:6px}
+.scroll{position:relative;max-height:148px;overflow:hidden}
+.scroll .sbar{position:absolute;right:0;top:2px;width:4px;height:84px;border-radius:2px;background:var(--nomi-ink10)}
+.noteline{font-size:12px;line-height:18px;color:var(--nomi-ink60);text-align:right;white-space:nowrap}
+.noteline b{font-weight:500;color:var(--nomi-ink)}
+.tb.off{opacity:.45}
+.t.aud{display:flex;align-items:center;justify-content:center;gap:2px;border-radius:var(--nomi-radius-sm);background:var(--nomi-ink05)}
+.t.aud i{display:block;width:2px;border-radius:1px;background:var(--nomi-ink60)}
+.chip .lbl{overflow:hidden;text-overflow:ellipsis}
+.chip.s1{flex:0 100 auto;min-width:72px}
+.chip.s2{flex:0 1 auto;min-width:96px}
+.menu.wide .sb{white-space:normal;text-wrap:balance}
+.mlist{position:relative;max-height:364px;overflow:hidden}
+.mlist .sbar{position:absolute;right:0;top:2px;width:4px;height:150px;border-radius:2px;background:var(--nomi-ink10)}
+.mi.model .sb{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cap{margin:0 0 10px 2px;font-size:12px;font-weight:600;color:var(--nomi-ink80)}
+</style>
+</helmet>
+<div class="pane light" style="height:330px;width:1000px;justify-content:flex-start"><div class="cols"><div class="col"><div class="hd"><span class="ctile" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg></span>Seedance 2.5</div><div class="menu static" role="menu"><div class="mi" role="menuitem"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg><div class="tx"><span class="nm">文生视频</span><span class="sb">只用文字</span></div></div><div class="mi" role="menuitem"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 8l.01 0"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -12"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg><div class="tx"><span class="nm">图生视频</span><span class="sb">1 张图当开头</span></div></div><div class="mi" role="menuitem"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.604 7.197l7.138 -3.109a.96 .96 0 0 1 1.27 .527l4.924 11.902a1 1 0 0 1 -.514 1.304l-7.137 3.109a.96 .96 0 0 1 -1.271 -.527l-4.924 -11.903a1 1 0 0 1 .514 -1.304"/><path d="M15 4h1a1 1 0 0 1 1 1v3.5"/><path d="M20 6c.264 .112 .52 .217 .768 .315a1 1 0 0 1 .53 1.311l-2.298 5.374"/></svg><div class="tx"><span class="nm">首尾帧</span><span class="sb">开头 1 张，结尾可以不放</span></div></div><div class="mi" role="menuitem"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><div class="tx"><span class="nm">全能参考</span><span class="sb">最多 30 张图、10 段视频、10 段音频</span></div></div></div><div class="ft">四种</div></div><div class="col"><div class="hd"><span class="ctile" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg></span>可灵 4.0</div><div class="menu static" role="menu"><div class="mi" role="menuitem"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg><div class="tx"><span class="nm">文生视频</span><span class="sb">只用文字</span></div></div><div class="mi" role="menuitem"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 8l.01 0"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -12"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg><div class="tx"><span class="nm">图生视频</span><span class="sb">开头 1 张，结尾可以不放</span></div></div></div><div class="ft">两种。首尾帧并在图生视频里</div></div><div class="col"><div class="hd"><span class="ctile" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg></span>Hailuo 2.3</div><div class="menu static" role="menu"><div class="mi" role="menuitem"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l3 0"/><path d="M14 20l7 0"/><path d="M6.9 15l6.9 0"/><path d="M10.2 6.3l5.8 13.7"/><path d="M5 20l6 -16l2 0l7 16"/></svg><div class="tx"><span class="nm">文生视频</span><span class="sb">只用文字</span></div></div><div class="mi" role="menuitem"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 8l.01 0"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -12"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg><div class="tx"><span class="nm">图生视频</span><span class="sb">1 张图当开头</span></div></div></div><div class="ft">两种</div></div></div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":330}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

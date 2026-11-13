@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 真实用户任务（D2 第③步，NodePointer 板 A4 在真 App 里）：**窄窗口里，对话浮在画布上、把画布盖住大半，点付费卡上的指向元素。**
 //
-// 最小窗（electron/mainWindowMinSize.json，现 700×720），用户把对话浮窗从左上角那个改大小的角拉大、盖住画布大半，再点卡上的第 2 镜：
+// 最小窗（electron/shared/mainWindowSize.json，现 700×720），用户把对话浮窗从左上角那个改大小的角拉大、盖住画布大半，再点卡上的第 2 镜：
 //   · board:NodePointer/pointer.narrow.collapse —— 对话收成右下的小球，画布露出来，那个节点闪一下、就在眼前；
 //   · board:NodePointer/pointer.narrow.back —— 画布那一格底部正中出现「回到对话」（压在加节点条上面）；按 Esc 或点它，
 //     对话原样回来（还是那么大的浮窗），焦点落回刚点的那一项，它标着「已定位」。

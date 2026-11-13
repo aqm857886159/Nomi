@@ -56,13 +56,15 @@ function editDistance(left: string, right: string): number {
   return previous[right.length]!;
 }
 
-const folded = (key: string): string => key.toLowerCase().replace(/[_\-\s]/g, "");
+// 点号也折掉：模型 id 的版本号两种写法都有（`doubao-seedream-4.5` ↔ `doubao-seedream-4-5-251128`，2026-11-08 真实轨迹）。
+// 字段键里本来没有点号，这一条对它们不改任何结果。
+const folded = (key: string): string => key.toLowerCase().replace(/[_\-.\s]/g, "");
 
 /**
  * 「你是不是想写这个」——**只在真的接近时才给**。给一个不相干的键会把模型带去第二个错误答案。
  *
  * 接近有三种，按这个顺序认：
- *   ① 只差大小写 / 下划线（`aspect_ratio` ↔ `aspectRatio`）；
+ *   ① 只差大小写 / 下划线 / 连字符 / 点号（`aspect_ratio` ↔ `aspectRatio`）；
  *   ② 一个是另一个的前缀或后缀，且写的那个至少 4 个字（`duration` → `durationSec`、`ratio` → `aspectRatio`）；
  *   ③ 编辑距离 ≤ 键长的 1/3（至少 1，最多 3）——准入层原来那条阈值，原样搬过来（它是唯一 owner 了）。
  */

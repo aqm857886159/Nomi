@@ -33,7 +33,9 @@ describe('model settings workspace structure', () => {
     expect(dialog).toContain('<DesignModal')
     expect(dialog).toContain('data-model-settings-dialog')
     expect(dialog).toContain('size={880}')
-    expect(dialog).toContain('sm:h-[min(640px,calc(100svh-48px))]')
+    // 固定工作台高度 640（翻页不跳）；窗口更矮时的上限归 DesignModal 外壳（设计系统 §3.5），这里不再自己算视口。
+    expect(dialog).toContain('h-[640px]')
+    expect(dialog).not.toMatch(/\d+s?vh/)
     expect(navigation).toContain('modelSettingsDialogOwner')
     expect(navigation).toContain('closeModelSettingsDialog')
     expect(settings).toContain('data-settings-content')

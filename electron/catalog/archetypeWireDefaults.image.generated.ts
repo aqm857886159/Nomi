@@ -528,17 +528,67 @@ export const ARCHETYPE_WIRE_DEFAULTS_IMAGE: Record<string, Record<string, Record
       }
     }
   },
-  "imagen-4-fast": {
+  "gpt-image-2.6-flare": {
     "text_to_image": {
       "*": {
-        "aspect_ratio": "16:9"
+        "size": "auto",
+        "resolution": "1K",
+        "background": "auto",
+        "quality": "medium"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K",
+        "background": "auto",
+        "quality": "medium"
       }
     }
   },
-  "imagen-4-ultra": {
+  "gpt-image-2.6-sunburst": {
     "text_to_image": {
       "*": {
-        "aspect_ratio": "1:1"
+        "size": "auto",
+        "resolution": "1K",
+        "background": "auto",
+        "quality": "medium"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K",
+        "background": "auto",
+        "quality": "medium"
+      }
+    }
+  },
+  "gemini-nano-banana-2.1": {
+    "text_to_image": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K"
+      }
+    }
+  },
+  "gemini-nano-banana-2.1-ext": {
+    "text_to_image": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K"
+      }
+    },
+    "image_edit": {
+      "*": {
+        "size": "auto",
+        "resolution": "1K"
       }
     }
   }

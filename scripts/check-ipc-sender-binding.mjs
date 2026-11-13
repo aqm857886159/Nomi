@@ -10,7 +10,7 @@
  * for channels the in-app browser chrome/overlay also drives).
  *
  * A second rule rides along: every `new BrowserWindow(` under electron/ must be
- * accompanied by a trust-role registration (`registerAppWindow` / `setMainWindow`)
+ * accompanied by a trust-role registration (`registerAppWindow` / `setMainWindow` / `adoptMainWindow`)
  * in the same file. Trust is declared at window creation and read from
  * electron/appWindowRegistry.ts by the guards; a window nobody registered gets
  * zero guarded channels — fail-closed, but silently broken for the user (the
@@ -88,7 +88,8 @@ function scanWindowRegistrations(files) {
     const source = fs.readFileSync(file, 'utf8')
     const creations = [...source.matchAll(/new\s+BrowserWindow\s*\(/g)]
     if (!creations.length) continue
-    if (/\b(?:registerAppWindow|setMainWindow)\s*\(/.test(source)) continue
+    // adoptMainWindow = 主窗口唯一登记入口（electron/mainWindowPresence.ts 内部调 setMainWindow）
+    if (/\b(?:registerAppWindow|setMainWindow|adoptMainWindow)\s*\(/.test(source)) continue
     offenders.push({
       file: path.relative(repoRoot, file).split(path.sep).join('/'),
       line: source.slice(0, creations[0].index).split('\n').length,

@@ -196,6 +196,47 @@ async function press(keys) {
   return { before, after: await countNodes(), selected }
 }
 
+// 「行首 + Shift+右」选中第一个字，再等页面选区和编辑器自己的选区都落到「C」。
+// 2026-11-13 这里偶发红两次（主线一次红在页面选区 5 秒一直是空；PR #1505 的 CI 一次页面选区已是「C」、编辑器内部选区却 5 秒停在 {15,15}），
+// 同树重跑全绿，本机连跑 12 次没复现。原因没查实之前**不加重试、不放长超时**：只在这两处失败时把现场打出来
+// （当前焦点元素、编辑器 hasFocus、页面选区、编辑器选区、按键之后编辑器最近的几次事务和 selectionchange 次数），下次红了直接看得出是哪一层没跟上。
+async function selectFirstCharWithShiftArrow(editorLocator, label) {
+  await editorLocator.evaluate(element => {
+    const trace = { transactions: [], selectionChanges: 0 }
+    window.__nomiSelectionTrace = trace
+    element.editor.on('transaction', ({ transaction }) => {
+      trace.transactions.push({ at: Math.round(performance.now()), docChanged: transaction.docChanged, selectionSet: transaction.selectionSet, from: transaction.selection.from, to: transaction.selection.to })
+      if (trace.transactions.length > 8) trace.transactions.shift()
+    })
+    document.addEventListener('selectionchange', () => { trace.selectionChanges += 1 })
+  })
+  await getWin().keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home')
+  await getWin().keyboard.press('Shift+ArrowRight')
+  try {
+    await expect.poll(() => getWin().evaluate(() => window.getSelection()?.toString())).toBe('C')
+    await expect.poll(() => editorLocator.evaluate(element => ({
+      from: element.editor.state.selection.from, to: element.editor.state.selection.to, focused: element.editor.view.hasFocus(),
+    }))).toEqual({ from: 1, to: 2, focused: true })
+  } catch (error) {
+    const scene = await editorLocator.evaluate(element => {
+      const active = document.activeElement
+      const dom = window.getSelection()
+      return {
+        activeElement: active ? `${active.tagName.toLowerCase()}${active.className ? `.${String(active.className).trim().split(/\s+/).join('.')}` : ''}` : null,
+        activeIsEditor: active === element,
+        hasFocus: element.editor.view.hasFocus(),
+        documentHasFocus: document.hasFocus(),
+        domSelection: { text: dom?.toString(), anchorOffset: dom?.anchorOffset, focusOffset: dom?.focusOffset, inEditor: Boolean(dom?.anchorNode && element.contains(dom.anchorNode)) },
+        editorSelection: { from: element.editor.state.selection.from, to: element.editor.state.selection.to },
+        docSize: element.editor.state.doc.content.size,
+        trace: window.__nomiSelectionTrace ?? null,
+      }
+    }).catch(probeError => ({ probeError: String(probeError) }))
+    console.error(`  ✗ ${label}：行首 + Shift+右 之后选区没跟上，现场 ${JSON.stringify(scene)}`)
+    throw error
+  }
+}
+
 async function checkC19GroupUndoAndFocus() {
   await backToLibrary(getWin())
   const projectCard = getWin().locator('[data-project-card]').filter({ hasText: 'C19 group Undo and focus' })
@@ -279,12 +320,7 @@ async function checkC19GroupUndoAndFocus() {
   await prompt.click()
   await expect(prompt).toBeFocused()
   await expect.poll(() => prompt.evaluate(element => Boolean(element.editor && element.editor.view.dom === element))).toBe(true)
-  await getWin().keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home')
-  await getWin().keyboard.press('Shift+ArrowRight')
-  await expect.poll(() => getWin().evaluate(() => window.getSelection()?.toString())).toBe('C')
-  await expect.poll(() => prompt.evaluate(element => ({
-    from: element.editor.state.selection.from, to: element.editor.state.selection.to, focused: element.editor.view.hasFocus(),
-  }))).toEqual({ from: 1, to: 2, focused: true })
+  await selectFirstCharWithShiftArrow(prompt, 'prompt')
   await getWin().keyboard.press('Delete')
   await expect(prompt).toHaveText('19 prompt one')
   expect(exceptPrompt(await graph()), 'Prompt Delete preserves graph/result/binding state').toEqual(exceptPrompt(promptBefore))
@@ -301,12 +337,7 @@ async function checkC19GroupUndoAndFocus() {
   await expect(document).toHaveText('C19 document text')
   await document.click()
   await expect(document).toBeFocused()
-  await getWin().keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home')
-  await getWin().keyboard.press('Shift+ArrowRight')
-  await expect.poll(() => getWin().evaluate(() => window.getSelection()?.toString())).toBe('C')
-  await expect.poll(() => document.evaluate(element => ({
-    from: element.editor.state.selection.from, to: element.editor.state.selection.to, focused: element.editor.view.hasFocus(),
-  }))).toEqual({ from: 1, to: 2, focused: true })
+  await selectFirstCharWithShiftArrow(document, 'document')
   await getWin().keyboard.press('Delete')
   await expect(document).toHaveText('19 document text')
   assert(isDeepStrictEqual(await graph(), beforeDocument), 'Document Delete cannot mutate the hidden canvas')

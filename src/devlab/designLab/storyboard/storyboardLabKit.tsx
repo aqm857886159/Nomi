@@ -108,8 +108,6 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
         aspect={effectiveShotAspect(plan, shot)}
         frameBox={frameMediaBox(effectiveShotAspect(plan, shot))}
         onChangeAspect={NOOP}
-        skipped={overrides.skipped ?? false}
-        onToggleSkip={NOOP}
         variants={overrides.variants ?? []}
         adoptedVariantId={overrides.adoptedVariantId}
         outputTag={overrides.outputTag}
@@ -117,9 +115,7 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean; width?: num
         onRegenerate={NOOP}
         onToggleLock={NOOP}
         onOpenPreview={NOOP}
-        onAgentHandoff={NOOP}
         sourceSegment={overrides.sourceSegment}
-        onInsertAbove={NOOP}
         onInsertBelow={NOOP}
         onCopy={NOOP}
         onMoveToScene={NOOP}

@@ -41,7 +41,7 @@ export default function StoryboardWorkspace({ projectId, aiCollapsed = false, ag
   if (plan) {
     return (
       <section
-        className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome')}
+        className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid grid-rows-[minmax(0,1fr)] min-h-0 bg-nomi-chrome')}
         style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? assistantDockColumns(assistantWidth) : 'minmax(0,1fr)' }}
         aria-label={t('workspace.storyboard')}
       >
@@ -55,7 +55,7 @@ export default function StoryboardWorkspace({ projectId, aiCollapsed = false, ag
 
   return (
     <section
-      className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid min-h-0 bg-nomi-chrome')}
+      className={cn('workbench-storyboard relative w-full h-full min-w-0 min-h-0', 'grid grid-rows-[minmax(0,1fr)] min-h-0 bg-nomi-chrome')}
       style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? assistantDockColumns(assistantWidth) : 'minmax(0,1fr)' }}
       aria-label={t('workspace.storyboard')}
     >

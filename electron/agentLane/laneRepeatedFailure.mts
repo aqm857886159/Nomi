@@ -32,6 +32,8 @@ export type LaneFailureIdentity = Readonly<{
   code?: string;
   issues?: readonly { readonly path: string }[];
   allowed?: readonly string[];
+  /** 起草期被拒的闭合原因：只拿码去报遥测（认墙仍按码 + 字段路径，不按它）。 */
+  problem?: { readonly code: string };
 }>;
 
 /** 分隔符。工具名、失败码、字段路径都是标识符，不会含 `::`。 */

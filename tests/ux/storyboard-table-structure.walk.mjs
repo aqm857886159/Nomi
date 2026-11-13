@@ -5,7 +5,7 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 // 要证的三句话（都是「用户看得到、点得到」，不是「DOM 里有」）：
 //   ① 选中一行之后，多选浮条**不用滚动**就在视野里、点得到（sticky 不能被表格的 overflow-hidden 废掉）；
 //   ② 最后一行的弹出层（行 ⋯ 菜单 / 提示词片段菜单）完整露出、整块点得到，不被表格边界裁掉；
-//   ③ 最小窗口宽（electron/mainWindowMinSize.json）× 690、中英两种语言下，每一行的「生成」和「⋯」都点得到。
+//   ③ 最小窗口宽（electron/shared/mainWindowSize.json）× 690、中英两种语言下，每一行的「生成」和「⋯」都点得到。
 //
 // 判据全部走 `_assert.mjs` 的 elementFromPoint 采样（`expectOverlayReachable` / `expectHittable`）：
 // 裁切不改 getBoundingClientRect，DOM 在、toBeVisible 绿、Playwright click 还会自己滚——只有命中测试说实话。

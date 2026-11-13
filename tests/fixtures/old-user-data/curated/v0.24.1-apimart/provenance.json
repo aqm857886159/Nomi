@@ -1,0 +1,6 @@
+{
+  "version": "0.24.1",
+  "recordedFrom": "fb169414c1778e88bca35beacc0da9c54cb313d4",
+  "writer": "catalogStore.ensureBuiltinModelSeeds",
+  "projection": "apimart rows only; no credentials; rows unchanged"
+}

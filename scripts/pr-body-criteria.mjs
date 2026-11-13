@@ -107,7 +107,7 @@ export function classifyAcceptanceVerdict(text) {
   return { verdict, blocked: verdict !== 'unknown' && OPEN_BLOCKER.test(t) }
 }
 
-const ACCEPTANCE_LINK = /https?:\/\/\S+|docs\/\S+\.md|[A-Za-z]:[\\/][^\s|，,；;）)]*\.md|(?:^|\s)\/[^\s|，,；;）)]*\.md/
+const ACCEPTANCE_LINK = /https?:\/\/\S+|docs\/\S+\.md|[A-Za-z]:[\\/][^\s|，,；;）)]*\.md|(?<![\w./\\-])\/[^\s|，,；;）)]*\.md/
 const stripMark = (text) => String(text).replace(/^[\s#>*`「」-]+|[\s*`「」]+$/g, '').trim()
 const squash = (text) => String(text).replace(/[\s*#`「」>-]/g, '')
 export const shaMatches = (a, b) => {

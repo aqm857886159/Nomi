@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { bodyReferencedParamKeys } from "./paramTranslate";
-import { projectReferencesOntoBodyKeys } from "./taskParams";
+import { headlessReferenceOverlay } from "./taskParams";
 import { buildReferenceKeyCensus } from "../../scripts/reference-key-census";
 import { applyBuiltinSeeds } from "./seedBuiltins";
 import { bodyReferenceSupport } from "./referenceReachability";
@@ -29,8 +29,8 @@ function seededContext(mapping: ReturnType<typeof seededMapping>) {
 describe("reference-key projection census — declared reference behavior", () => {
   it("has no false positives in real seeded creation bodies", () => {
     const census = buildReferenceKeyCensus();
-    expect(census.summary.seededMappings).toBe(246);
-    expect(census.summary.rowsWithClassifiedKeys).toBe(124);
+    expect(census.summary.seededMappings).toBe(305); // Suno V6 音乐/音效 +6（无参考键），媒体 +49：剩余图片 11 个（各文生 + 改图）与视频 14 个（文生 + 图生，Vidu Q4 预览版只有图生）
+    expect(census.summary.rowsWithClassifiedKeys).toBe(151);
     expect(census.summary.falsePositiveRows).toBe(0);
     expect(census.summary.falsePositiveKeys).toBe(0);
     expect(census.summary.falsePositiveKeyNames).toEqual([]);
@@ -56,7 +56,7 @@ describe("reference-key projection census — declared reference behavior", () =
 
   it("image-only headless input does not land in a quantity field", () => {
     const mapping = seededMapping("seed-fal-openai-gpt-image-2-t2i");
-    const overlay = projectReferencesOntoBodyKeys({ referenceImages: [IMAGE] }, mapping.create.body);
+    const overlay = headlessReferenceOverlay({ referenceImages: [IMAGE] }, mapping.create.body);
     expect(bodyReferencedParamKeys(mapping.create.body)).toContain("num_images");
     expect(overlay).not.toHaveProperty("num_images");
     expect(overlay).toEqual({});
@@ -64,7 +64,7 @@ describe("reference-key projection census — declared reference behavior", () =
 
   it("image-only headless input lands in a declared image slot", () => {
     const mapping = seededMapping("seed-kie-seedance2-image_to_video");
-    const overlay = projectReferencesOntoBodyKeys({ referenceImages: [IMAGE] }, mapping.create.body);
+    const overlay = headlessReferenceOverlay({ referenceImages: [IMAGE] }, mapping.create.body);
     expect(overlay).toEqual({ reference_image_urls: [IMAGE] });
   });
 
@@ -74,7 +74,7 @@ describe("reference-key projection census — declared reference behavior", () =
     ["seed-apimart-kling-3.0-image_to_video", "audio"],
   ])("audio-only headless input does not land in the %s non-reference field", (mappingId, key) => {
     const mapping = seededMapping(mappingId);
-    const overlay = projectReferencesOntoBodyKeys({ referenceAudioUrls: [AUDIO] }, mapping.create.body);
+    const overlay = headlessReferenceOverlay({ referenceAudioUrls: [AUDIO] }, mapping.create.body);
     expect(bodyReferencedParamKeys(mapping.create.body)).toContain(key);
     expect(overlay).not.toHaveProperty(key);
     expect(overlay).toEqual({});
@@ -84,14 +84,14 @@ describe("reference-key projection census — declared reference behavior", () =
     const mapping = seededMapping("seed-agnes-video-2.5-text_to_video");
     const bodyWithoutDeclaredVideoInput = { ...(mapping.create.body as Record<string, unknown>) };
     delete bodyWithoutDeclaredVideoInput.videos;
-    const overlay = projectReferencesOntoBodyKeys({ referenceVideoUrls: [VIDEO] }, bodyWithoutDeclaredVideoInput);
+    const overlay = headlessReferenceOverlay({ referenceVideoUrls: [VIDEO] }, bodyWithoutDeclaredVideoInput);
     expect(overlay).not.toHaveProperty("video_start_seconds");
     expect(overlay).toEqual({});
   });
 
   it("keeps an existing boolean value while projecting audio into its declared slot", () => {
     const mapping = seededMapping("seed-apimart-seedance-2-apimart-image_to_video");
-    const overlay = projectReferencesOntoBodyKeys({ referenceAudioUrls: [AUDIO], audio: false }, mapping.create.body);
+    const overlay = headlessReferenceOverlay({ referenceAudioUrls: [AUDIO], audio: false }, mapping.create.body);
     expect(overlay).toEqual({ audio_urls: [AUDIO] });
   });
 
@@ -120,7 +120,7 @@ describe("reference-key projection census — declared reference behavior", () =
     expect(referenceKeyDeclarationFor("imageUrls")?.multiImage).toBe(true);
     expect(bodyReferenceSupport(mapping.create.body, context)).toMatchObject({ image: true, multiImage: false });
     expect(referenceKeyCapacityDeclarationFor("imageUrls", context)).toMatchObject({ source: "model-declaration", max: 1, multiImage: false });
-    expect(() => projectReferencesOntoBodyKeys({ referenceImages: [IMAGE, `${IMAGE}-2`] }, mapping.create.body, context))
+    expect(() => headlessReferenceOverlay({ referenceImages: [IMAGE, `${IMAGE}-2`] }, mapping.create.body, context))
       .toThrow(desktopT("modelConstraints.imageReferenceCapacity", { max: 1 }));
   });
 });

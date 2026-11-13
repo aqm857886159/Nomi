@@ -23,7 +23,7 @@ try {
   await lab.snap('pencil-mode')
 
   // ⑥（2026-10-24）：提示条以前写死 top-3，正好压在顶栏正中的「导演 | 精修」底下；画线的钮住在属性卡头，画线时卡一定开着，
-  // 窄窗里居中的提示条还会钻到卡底下。走查默认窗口（1440）和 App 最小窗口（electron/mainWindowMinSize.json；窗宽 < 1060 时 Agent 收成小球，不再让出右侧）各量一次：两样都不许相交。
+  // 窄窗里居中的提示条还会钻到卡底下。走查默认窗口（1440）和 App 最小窗口（electron/shared/mainWindowSize.json；窗宽 < 1060 时 Agent 收成小球，不再让出右侧）各量一次：两样都不许相交。
   const hudOverlaps = () => page.evaluate(() => {
     const rect = (testId) => document.querySelector(`[data-testid="${testId}"]`)?.getBoundingClientRect() ?? null
     const meet = (a, b) => Boolean(a && b) && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom

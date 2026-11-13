@@ -1,0 +1,1215 @@
+{
+  "board": "SelectionStoryboard",
+  "extractor": "board-extract@1",
+  "source": "preview/SelectionStoryboard.html",
+  "sourceSha256": "c00c9ef4d195b8d46d81ad56262f0cae9186557ddf4d4ce519da3b7d1ef96d0d",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "candidates": [
+    {
+      "id": "001-div-实际大小",
+      "kind": "text",
+      "tag": "div",
+      "text": "实际大小",
+      "bbox": [
+        24,
+        24,
+        712,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "002-span-雨夜的街头女孩撑着红伞穿",
+      "kind": "text",
+      "tag": "span",
+      "text": "雨夜的街头，女孩撑着红伞穿过霓虹闪烁的夜市。",
+      "bbox": [
+        57,
+        76,
+        352,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "003-div-选中文本工具",
+      "kind": "text",
+      "tag": "div",
+      "role": "toolbar",
+      "text": "选中文本工具",
+      "bbox": [
+        57,
+        110,
+        326,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "004-button-加粗",
+      "kind": "text",
+      "tag": "button",
+      "text": "加粗",
+      "bbox": [
+        62,
+        115,
+        28,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "005-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        69,
+        123,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "004-button-加粗"
+    },
+    {
+      "id": "006-button-斜体",
+      "kind": "text",
+      "tag": "button",
+      "text": "斜体",
+      "bbox": [
+        92,
+        115,
+        28,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "007-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        99,
+        123,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "006-button-斜体"
+    },
+    {
+      "id": "008-button-标题1",
+      "kind": "text",
+      "tag": "button",
+      "text": "标题 1",
+      "bbox": [
+        122,
+        115,
+        28,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "009-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        129,
+        123,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "008-button-标题1"
+    },
+    {
+      "id": "010-button-标题2",
+      "kind": "text",
+      "tag": "button",
+      "text": "标题 2",
+      "bbox": [
+        152,
+        115,
+        28,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "011-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        159,
+        123,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "010-button-标题2"
+    },
+    {
+      "id": "012-button-AI编辑",
+      "kind": "text",
+      "tag": "button",
+      "text": "AI 编辑",
+      "bbox": [
+        189,
+        115,
+        84,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "013-span-N",
+      "kind": "text",
+      "tag": "span",
+      "text": "N",
+      "bbox": [
+        200,
+        122,
+        16,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "014-button-拆成镜头",
+      "kind": "text",
+      "tag": "button",
+      "text": "拆成镜头",
+      "bbox": [
+        276,
+        115,
+        30,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "015-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        284,
+        123,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "014-button-拆成镜头"
+    },
+    {
+      "id": "016-span-生成",
+      "kind": "text",
+      "tag": "span",
+      "text": "生成",
+      "bbox": [
+        315,
+        115,
+        63,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "017-button-生成图片",
+      "kind": "text",
+      "tag": "button",
+      "text": "生成图片",
+      "bbox": [
+        315,
+        115,
+        30,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "018-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        323,
+        123,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "017-button-生成图片"
+    },
+    {
+      "id": "019-button-生成视频",
+      "kind": "text",
+      "tag": "button",
+      "text": "生成视频",
+      "bbox": [
+        348,
+        115,
+        30,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "020-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        356,
+        123,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "019-button-生成视频"
+    },
+    {
+      "id": "021-div-放大2鼠标停在拆成镜头上",
+      "kind": "text",
+      "tag": "div",
+      "text": "放大 2×，鼠标停在「拆成镜头」上",
+      "bbox": [
+        24,
+        215,
+        712,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "022-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        48,
+        326,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "023-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        108,
+        326,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "024-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        168,
+        326,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "025-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        228,
+        326,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "026-span-AI编辑",
+      "kind": "text",
+      "tag": "span",
+      "text": "AI 编辑",
+      "bbox": [
+        288,
+        310,
+        168,
+        60
+      ],
+      "region": "root"
+    },
+    {
+      "id": "027-span-N",
+      "kind": "text",
+      "tag": "span",
+      "text": "N",
+      "bbox": [
+        310,
+        324,
+        32,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "028-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        478,
+        326,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "029-span-拆成镜头",
+      "kind": "text",
+      "tag": "span",
+      "text": "拆成镜头",
+      "bbox": [
+        428,
+        250,
+        128,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "030-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        556,
+        326,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "031-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        622,
+        326,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "032-div-其它状态实际大小左拆成镜",
+      "kind": "text",
+      "tag": "div",
+      "text": "其它状态（实际大小）：左，「拆成镜头」暂不可用；右，没有「AI 编辑」时",
+      "bbox": [
+        24,
+        400,
+        712,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "033-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        36,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "034-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        66,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "035-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        96,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "036-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        126,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "037-span-AI编辑",
+      "kind": "text",
+      "tag": "span",
+      "text": "AI 编辑",
+      "bbox": [
+        156,
+        430,
+        84,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "038-span-N",
+      "kind": "text",
+      "tag": "span",
+      "text": "N",
+      "bbox": [
+        167,
+        437,
+        16,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "039-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        251,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "040-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        290,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "041-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        323,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "042-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        386,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "043-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        416,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "044-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        446,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "045-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        476,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "046-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        514,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "047-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        553,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "048-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        586,
+        438,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "049-div-点了之后右侧对话里",
+      "kind": "text",
+      "tag": "div",
+      "text": "点了之后，右侧对话里",
+      "bbox": [
+        24,
+        481,
+        712,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "050-span-分镜规划",
+      "kind": "text",
+      "tag": "span",
+      "text": "分镜规划",
+      "bbox": [
+        421,
+        531,
+        82,
+        23
+      ],
+      "region": "root"
+    },
+    {
+      "id": "051-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        428,
+        537,
+        11,
+        11
+      ],
+      "region": "root",
+      "iconOf": "050-span-分镜规划"
+    },
+    {
+      "id": "052-span-雨夜的街头女孩撑着红伞穿",
+      "kind": "text",
+      "tag": "span",
+      "text": "雨夜的街头，女孩撑着红伞穿过霓虹闪烁的夜市。",
+      "bbox": [
+        421,
+        560,
+        286,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "053-div-已载入技能分镜规划",
+      "kind": "text",
+      "tag": "div",
+      "text": "已载入技能：分镜规划",
+      "bbox": [
+        41,
+        598,
+        678,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "054-div-Actualsize",
+      "kind": "text",
+      "tag": "div",
+      "text": "Actual size",
+      "bbox": [
+        24,
+        724,
+        712,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "055-span-Agirlwithare",
+      "kind": "text",
+      "tag": "span",
+      "text": "A girl with a red umbrella crosses a neon-lit night market i",
+      "bbox": [
+        57,
+        776,
+        512,
+        22
+      ],
+      "region": "root"
+    },
+    {
+      "id": "056-div-Selectedtext",
+      "kind": "text",
+      "tag": "div",
+      "role": "toolbar",
+      "text": "Selected text tools",
+      "bbox": [
+        57,
+        810,
+        326,
+        40
+      ],
+      "region": "root"
+    },
+    {
+      "id": "057-button-Bold",
+      "kind": "text",
+      "tag": "button",
+      "text": "Bold",
+      "bbox": [
+        62,
+        815,
+        28,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "058-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        69,
+        823,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "057-button-Bold"
+    },
+    {
+      "id": "059-button-Italic",
+      "kind": "text",
+      "tag": "button",
+      "text": "Italic",
+      "bbox": [
+        92,
+        815,
+        28,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "060-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        99,
+        823,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "059-button-Italic"
+    },
+    {
+      "id": "061-button-Heading1",
+      "kind": "text",
+      "tag": "button",
+      "text": "Heading 1",
+      "bbox": [
+        122,
+        815,
+        28,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "062-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        129,
+        823,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "061-button-Heading1"
+    },
+    {
+      "id": "063-button-Heading2",
+      "kind": "text",
+      "tag": "button",
+      "text": "Heading 2",
+      "bbox": [
+        152,
+        815,
+        28,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "064-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        159,
+        823,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "063-button-Heading2"
+    },
+    {
+      "id": "065-button-AIedit",
+      "kind": "text",
+      "tag": "button",
+      "text": "AI edit",
+      "bbox": [
+        189,
+        815,
+        84,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "066-span-N",
+      "kind": "text",
+      "tag": "span",
+      "text": "N",
+      "bbox": [
+        201,
+        822,
+        16,
+        16
+      ],
+      "region": "root"
+    },
+    {
+      "id": "067-button-Splitintosho",
+      "kind": "text",
+      "tag": "button",
+      "text": "Split into shots",
+      "bbox": [
+        276,
+        815,
+        30,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "068-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        284,
+        823,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "067-button-Splitintosho"
+    },
+    {
+      "id": "069-span-Generate",
+      "kind": "text",
+      "tag": "span",
+      "text": "Generate",
+      "bbox": [
+        315,
+        815,
+        63,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "070-button-Generateimag",
+      "kind": "text",
+      "tag": "button",
+      "text": "Generate image",
+      "bbox": [
+        315,
+        815,
+        30,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "071-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        323,
+        823,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "070-button-Generateimag"
+    },
+    {
+      "id": "072-button-Generatevide",
+      "kind": "text",
+      "tag": "button",
+      "text": "Generate video",
+      "bbox": [
+        348,
+        815,
+        30,
+        30
+      ],
+      "region": "root"
+    },
+    {
+      "id": "073-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        356,
+        823,
+        14,
+        14
+      ],
+      "region": "root",
+      "iconOf": "072-button-Generatevide"
+    },
+    {
+      "id": "074-div-2zoompointer",
+      "kind": "text",
+      "tag": "div",
+      "text": "2× zoom, pointer resting on Split into shots",
+      "bbox": [
+        24,
+        915,
+        712,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "075-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        48,
+        1026,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "076-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        108,
+        1026,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "077-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        168,
+        1026,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "078-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        228,
+        1026,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "079-span-AIedit",
+      "kind": "text",
+      "tag": "span",
+      "text": "AI edit",
+      "bbox": [
+        288,
+        1010,
+        168,
+        60
+      ],
+      "region": "root"
+    },
+    {
+      "id": "080-span-N",
+      "kind": "text",
+      "tag": "span",
+      "text": "N",
+      "bbox": [
+        312,
+        1024,
+        32,
+        32
+      ],
+      "region": "root"
+    },
+    {
+      "id": "081-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        478,
+        1026,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "082-span-Splitintosho",
+      "kind": "text",
+      "tag": "span",
+      "text": "Split into shots",
+      "bbox": [
+        392,
+        950,
+        200,
+        48
+      ],
+      "region": "root"
+    },
+    {
+      "id": "083-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        556,
+        1026,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "084-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        622,
+        1026,
+        28,
+        28
+      ],
+      "region": "root",
+      "iconOf": null
+    },
+    {
+      "id": "085-div-Aftertheclic",
+      "kind": "text",
+      "tag": "div",
+      "text": "After the click, in the chat on the right",
+      "bbox": [
+        24,
+        1100,
+        712,
+        17
+      ],
+      "region": "root"
+    },
+    {
+      "id": "086-span-Storyboardpl",
+      "kind": "text",
+      "tag": "span",
+      "text": "Storyboard planning",
+      "bbox": [
+        291,
+        1150,
+        146,
+        23
+      ],
+      "region": "root"
+    },
+    {
+      "id": "087-svg",
+      "kind": "icon",
+      "tag": "svg",
+      "text": "",
+      "bbox": [
+        297,
+        1156,
+        11,
+        11
+      ],
+      "region": "root",
+      "iconOf": "086-span-Storyboardpl"
+    },
+    {
+      "id": "088-span-Agirlwithare",
+      "kind": "text",
+      "tag": "span",
+      "text": "A girl with a red umbrella crosses a neon-lit night market i",
+      "bbox": [
+        291,
+        1179,
+        416,
+        20
+      ],
+      "region": "root"
+    },
+    {
+      "id": "089-div-SkillloadedS",
+      "kind": "text",
+      "tag": "div",
+      "text": "Skill loaded: Storyboard planning",
+      "bbox": [
+        41,
+        1217,
+        678,
+        17
+      ],
+      "region": "root"
+    }
+  ]
+}

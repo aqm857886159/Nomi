@@ -9,7 +9,7 @@ import path from "node:path";
 import type { ProviderNetworkConfig } from "../providerNetwork";
 import { fetchProviderMedia } from "./providerMediaFetch";
 import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
-import { projectDirById, sanitizeName, SANITIZED_NAME_MAX_LENGTH } from "../projects/repository";
+import { projectDirById, sanitizeName } from "../projects/repository";
 import { ensureDir } from "../runtimePaths";
 import { broadcastAssetsUpdated } from "./assetEvents";
 import { readAssetSidecarMeta, writeAssetSidecarMeta } from "./assetSidecar";
@@ -21,19 +21,18 @@ import { createUploadStagingDirSync, reapAbandonedUploadStaging, removeScratchAf
 import { collectFilesRecursively, parseDataUrl } from "./assetBytes";
 import {
   assetBucketFromMeta,
-  type AssetBucket,
   canonicalAssetFileName,
   assetKindFromContentType,
-  contentTypeFromPath,
   extensionFromMime,
   extensionFromUrl,
   localAssetUrl,
   sanitizeAssetMetaForKind,
   stableAssetId,
 } from "./assetPaths";
-import { contentTypeFromMagicBytes, mediaKindFromContentType, resolveContentType } from "./mediaTypes";
+import { mediaKindFromContentType, resolveContentType } from "./mediaTypes";
+import { contentTypeFromStoredFile, effectiveContentType, storedAssetFileParts, uniqueAssetPath } from "./storedAssetFile";
 import { validateGlbStructure } from "./model3dValidation";
-import { isGeneratedAssetMeta, prepareVerifiedGeneratedAsset, type VerifiedStagedAsset } from "./generatedAssetStaging";
+import { isGeneratedAssetMeta, prepareVerifiedGeneratedAsset, type GeneratedAssetMeta, type NotGeneratedKind, type UserAssetMeta, type VerifiedStagedAsset } from "./generatedAssetStaging";
 import { localizedAssetTypeOf, type LocalizedAssetType } from "./localizedAsset";
 import type { CertificationMediaEvidence } from "../providerAdapter/certificationMedia";
 
@@ -57,45 +56,6 @@ type LocalAssetRecord = {
   } & JsonRecord;
 };
 
-/** 已落盘文件的内容类型：先按扩展名，认不出再嗅文件头。列表与补封面共用这一份判定。 */
-export function contentTypeFromStoredFile(absolutePath: string): string {
-  const extensionType = contentTypeFromPath(absolutePath);
-  if (extensionType !== "application/octet-stream") return extensionType;
-  try {
-    const handle = fs.openSync(absolutePath, "r");
-    const header = Buffer.alloc(4096);
-    const bytesRead = fs.readSync(handle, header, 0, header.length, 0);
-    fs.closeSync(handle);
-    return resolveContentType(absolutePath, header.subarray(0, bytesRead));
-  } catch {
-    return extensionType;
-  }
-}
-
-/**
- * 落盘素材的**唯一** contentType 判定。字节是事实，声明只是线索。
- *
- * 为什么要越过声明看字节（2026-08-26 火山方舟 Seedream 改图走查）：产物 URL / 厂商 header /
- * b64_json 的 `data:image/png;base64,` 前缀都可能与真实字节不符，而 contentType 一路决定
- * canonicalAssetFileName 给的扩展名 —— 于是 JPEG 字节落成 `.png`，下游按扩展名判类型的消费者
- * （workspace tree / protocol / 导出 / 拖拽）全被带偏。
- *
- * **只在同族内以字节覆盖声明**：`.m4a`(audio/mp4) 与 mp4 视频共用 ISO-BMFF 魔数，跨族覆盖会把
- * 音频误判成视频（比原 bug 更糟）。同族覆盖只纠正 png↔jpeg / mp4↔webm / mp3↔flac 这类
- * 「族对了、子类型错了」的谎，不动 kind。
- */
-function effectiveContentType(fileName: string, declared: string, bytes?: Uint8Array): string {
-  const normalized = String(declared || "").toLowerCase().split(";")[0].trim();
-  if (normalized.startsWith("model/") && normalized !== "model/gltf-binary") {
-    throw new Error("Unsupported 3D asset content type");
-  }
-  // 声明本身没信息量（空 / octet-stream）：交给 resolveContentType（先文件头、再扩展名）。
-  if (!normalized || normalized === "application/octet-stream") return resolveContentType(fileName, bytes);
-  const sniffed = bytes ? contentTypeFromMagicBytes(bytes) : null;
-  if (sniffed && sniffed !== normalized && sniffed.split("/")[0] === normalized.split("/")[0]) return sniffed;
-  return normalized;
-}
-
 function validateStructuredAsset(contentType: string, bytes: Uint8Array): void {
   if (contentType === "model/gltf-binary") validateGlbStructure(bytes);
 }
@@ -106,46 +66,6 @@ function validateStructuredAsset(contentType: string, bytes: Uint8Array): void {
  */
 function assertNotUnverifiedGenerated(meta: JsonRecord): void {
   if (isGeneratedAssetMeta(meta)) throw new Error("generated_output_requires_verified_publish");
-}
-
-/**
- * 落盘文件名的**唯一**裁法：扩展名取自字节嗅出的内容类型（canonicalAssetFileName），**只截主干**；后缀不是
- * 合法扩展名（`.[a-z0-9]{1,8}`）就整段算主干、另补 `.bin`。以前整段交给 sanitizeName 截到 90 字——供应商 URL 的
- * 长 basename 连扩展名一起被截掉落成 `.bin`，出了 App（下载、双击、MCP 预览、再上传）就认不出（2026-09-26）。
- */
-function storedAssetFileParts(fileName: string, contentType: string): { stem: string; ext: string } {
-  const parsed = path.parse(canonicalAssetFileName(fileName, contentType));
-  const ext = /^\.[a-z0-9]{1,8}$/i.test(parsed.ext) ? parsed.ext : ".bin";
-  const rawStem = ext === parsed.ext ? parsed.name : parsed.base;
-  const stem = sanitizeName(rawStem, "asset").slice(0, SANITIZED_NAME_MAX_LENGTH - ext.length).trim();
-  return { stem: stem || "asset", ext };
-}
-
-function uniqueAssetPath(
-  projectId: string,
-  fileName: string,
-  contentType: string,
-  bucket: AssetBucket = "generated",
-  context?: AssetWriteContext,
-): { absolutePath: string; relativePath: string } {
-  const projectDir = context?.root ?? projectDirById(projectId);
-  if (!projectDir) throw new Error("Project not found");
-  const today = new Date().toISOString().slice(0, 10);
-  const assetDir = path.join(projectDir, "assets", bucket, today);
-  ensureDir(assetDir);
-  const { stem: base, ext } = storedAssetFileParts(fileName, contentType);
-  let absolutePath = path.join(assetDir, `${base}${ext}`);
-  for (let index = 2; fs.existsSync(absolutePath); index += 1) {
-    absolutePath = path.join(assetDir, `${base}-${index}${ext}`);
-  }
-  return {
-    absolutePath,
-    relativePath: path.relative(projectDir, absolutePath).replace(/\\/g, "/"),
-  };
-}
-
-function stableStoredAssetId(projectId: string, relativePath: string): string {
-  return stableAssetId(projectId, relativePath);
 }
 
 
@@ -215,10 +135,12 @@ export async function writeGeneratedDeterministicAsset(
 }
 
 /**
- * 调用方传来的 kind 不定（渲染层导入、远端取回）：生成产物走两步发布，其余照旧同步写。
- * expectedKind 必须给：是生成产物时就是它该是的那一类；不是生成产物（上传、导入）给 null。生成产物给 null 直接拒。
+ * 载荷的 kind 不定（远端取回，importRemoteAssetToStore 一处用）：生成产物走两步发布，其余照旧同步写。
+ * 只在本模块里用、不导出：kind 是数据、期望类型可空，「生成产物 ⇒ 期望类型非空」在这里只有运行时能查
+ * （generatedExpectation）；它的配对在公开入口 importRemoteAsset 的类型（RemoteAssetImportPayload）上。
+ * 模块外的字节：生成产物走 writeGeneratedAsset，用户的东西走 writeAsset（2026-11-07 复盘必改 ①）。
  */
-export async function storeAssetBytes(
+async function storeAssetBytes(
   projectId: string,
   bytes: Buffer,
   fileName: string,
@@ -267,7 +189,7 @@ function publishVerifiedGeneratedAsset(staged: VerifiedStagedAsset, options: { m
     broadcastAssetsUpdated(projectId);
     const t = nowIso();
     return {
-      id: stableStoredAssetId(projectId, relativePath),
+      id: stableAssetId(projectId, relativePath),
       name: sanitizeName(fileName, "asset"),
       userId: "local",
       projectId,
@@ -296,13 +218,42 @@ export type CopyAssetFileOptions = {
   preparedPreview?: StoredAssetPreview | Promise<StoredAssetPreview | undefined>
 };
 
-export async function copyAssetFile(
+/**
+ * 本机文件进项目（不把整份读进主进程内存）。meta 与期望类型**成对**写，二选一：
+ *   · 生成产物：kind 写死 "generated"，期望类型必须是它该是的那一类（落盘关口按字节核）；
+ *   · 用户的东西：kind 写明（字面量，或 checkedUserAssetKind 核过的），期望类型给 null。
+ * 「生成产物 + null」「生成产物 + 可能为 null」「随手一个 JsonRecord / string 当 kind」都编译不过（2026-11-07 复盘必改 ①：
+ * 以前签名是 JsonRecord + `LocalizedAssetType | null`，主进程里写得出生成产物不带期望类型，付费执行器要花完钱才在关口抛）。
+ */
+export function copyAssetFile(
+  projectId: string, sourcePath: string, fileName: string, contentType: string,
+  rawMeta: GeneratedAssetMeta, expectedKind: LocalizedAssetType,
+  captured?: AssetWriteContext, options?: CopyAssetFileOptions,
+): Promise<unknown>;
+export function copyAssetFile<K extends string>(
+  projectId: string, sourcePath: string, fileName: string, contentType: string,
+  rawMeta: UserAssetMeta<K>, expectedKind: null,
+  captured?: AssetWriteContext, options?: CopyAssetFileOptions,
+): Promise<unknown>;
+export function copyAssetFile(
+  projectId: string, sourcePath: string, fileName: string, contentType: string,
+  rawMeta: JsonRecord, expectedKind: LocalizedAssetType | null,
+  captured?: AssetWriteContext, options: CopyAssetFileOptions = {},
+): Promise<unknown> {
+  return copyAssetFileByMeta(projectId, sourcePath, fileName, contentType, rawMeta, expectedKind, captured, options);
+}
+
+/**
+ * copyAssetFile 的实现，按 meta 的 kind 分流。只在本模块里用：kind 来自数据的两处（跨项目复制读 sidecar、
+ * nomi-local 引用按载荷）走它，配对要求只能在运行时查（generatedExpectation）；模块外一律走上面成对的签名。
+ */
+async function copyAssetFileByMeta(
   projectId: string,
   sourcePath: string,
   fileName: string,
   contentType: string,
   rawMeta: JsonRecord,
-  /** 同 storeAssetBytes：生成产物给它该是的那一类，其余给 null。 */
+  /** 生成产物给它该是的那一类，其余给 null；生成产物给 null 在落盘关口被拒。 */
   expectedKind: LocalizedAssetType | null,
   captured?: AssetWriteContext,
   options: CopyAssetFileOptions = {},
@@ -392,7 +343,7 @@ export async function copyProjectAsset(input: {
   const stat = await fs.promises.stat(realSourcePath)
   if (!stat.isFile()) throw new Error('source asset is not a file')
   const storedContentType = contentTypeFromStoredFile(realSourcePath)
-  return copyAssetFile(
+  return copyAssetFileByMeta(
     targetProjectId,
     realSourcePath,
     path.basename(relativePath),
@@ -443,7 +394,7 @@ export function moveAssetFile(
   const url = localAssetUrl(projectId, relativePath);
   const t = nowIso();
   return {
-    id: stableStoredAssetId(projectId, relativePath),
+    id: stableAssetId(projectId, relativePath),
     name: sanitizeName(fileName, "asset"),
     userId: "local",
     projectId,
@@ -462,8 +413,6 @@ export function moveAssetFile(
 
 type RemoteAssetImportOptions = {
   assertCurrent?: () => void;
-  /** 仅供 main 进程内部已配置的本地生成服务使用；renderer IPC 无法注入第二参数。 */
-  trustedPrivateOrigin?: string;
   certificationEvidence?: CertificationMediaEvidence;
   /**
    * 产出这条 URL 的那家 vendor 的自有线路配置（`Vendor.network`）。
@@ -574,12 +523,17 @@ export function sanitizeSourceEvidence(raw: unknown): JsonRecord | undefined {
 }
 
 /**
- * 远端（http / data: / nomi-local）导入的载荷。expectedKind 必填：kind 缺省即生成产物，生成产物给它该是的那一类，
- * 其余（reference / upload）给 null。渲染层经 IPC 来的载荷不过类型系统，主进程照样按 localizedAssetTypeOf 再读一遍。
+ * 远端（http / data: / nomi-local）导入的载荷。运行时 kind 不写时，http / data: 当生成产物，nomi-local 当 upload；
+ * 类型上按最严的读：不写 kind 或写 "generated"，就必须给出它该是的那一类，给 null 编译不过；用户的东西
+ * （reference / upload）把 kind 写明，期望类型不写或给 null。渲染层经 IPC 来的载荷不过类型系统，
+ * 主进程照样按 localizedAssetTypeOf 再读一遍，生成产物没说清在落盘关口被拒（generatedExpectation）。
  */
-export type RemoteAssetImportPayload = JsonRecord & { projectId: string; url: string; expectedKind: LocalizedAssetType | null };
+export type RemoteAssetImportPayload<K extends string = string> = JsonRecord & { projectId: string; url: string } & (
+  | { kind?: "generated"; expectedKind: LocalizedAssetType }
+  | { kind: NotGeneratedKind<K>; expectedKind?: null }
+);
 
-export async function importRemoteAsset(payload: RemoteAssetImportPayload, options: RemoteAssetImportOptions = {}): Promise<unknown> {
+export async function importRemoteAsset<K extends string = string>(payload: RemoteAssetImportPayload<K>, options: RemoteAssetImportOptions = {}): Promise<unknown> {
   // 画布预览（图片缩略 / 视频 poster）在落盘边界统一派生：三种来源（项目内引用 / data: / http(s)）出同一扇门。
   return attachStoredAssetPreview(await importRemoteAssetToStore(payload, options));
 }
@@ -609,7 +563,7 @@ async function importRemoteAssetToStore(payload: unknown, options: RemoteAssetIm
     }
     // Workspace media may live outside assets/. Admit it through the existing
     // original-byte store before returning an attachable identity.
-    return copyAssetFile(projectId, absolutePath, path.basename(absolutePath),
+    return copyAssetFileByMeta(projectId, absolutePath, path.basename(absolutePath),
       contentTypeFromStoredFile(absolutePath), { kind: raw.kind || "upload" }, expectedKind, context);
   }
   if (url.startsWith("data:")) {
@@ -627,7 +581,6 @@ async function importRemoteAssetToStore(payload: unknown, options: RemoteAssetIm
   }
   if (!/^https?:\/\//i.test(url)) throw new Error("Only http(s), data, and nomi-local assets are supported");
   const fetched = await fetchProviderMedia(url, {
-    ...(options.trustedPrivateOrigin ? { trustedPrivateOrigin: options.trustedPrivateOrigin } : {}),
     ...(options.providerNetwork ? { providerNetwork: options.providerNetwork } : {}),
   });
   const bytes = fetched.bytes;

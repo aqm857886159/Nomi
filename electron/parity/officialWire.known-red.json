@@ -1,0 +1,440 @@
+{
+  "repros": {
+    "1": "家族上限当成了模型上限：只因为同族别的模型每槽最多 N 张，就拒收官方允许的张数（「最多收 N张」），且画布和 Run 两条路拒的不一样",
+    "2": "角色意图未正确投影：线上角色词不在官方枚举，或有 first/last 角色意图却投不成官方平数组而拒发",
+    "3": "同一参考图重复进入多个键，或多出模式不接受的参考键/语义；重复帧角色引起的容量错误保留在同一原因下。并非所有双图片键都被官方声明互斥",
+    "4": "超过官方张数上限：产品一槽放行的张数比官方页写的上限多",
+    "5a": "模式判别值/默认值丢失：参考意图被 generation_type=frame 解读成帧族，含连带的帧容量错误",
+    "5b": "参考投影/准入拒发，原因待确认：Gemini 3 Pro 的 Run 路报参考图发不出，画布路发出"
+  },
+  "cells": [],
+  "fixtureGaps": [
+    {
+      "modelMode": "flux-3-image-klein|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "flux-3-image-klein|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "flux-3-image|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "flux-3-image|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "flux-3-video|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "flux-3-video|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-3.1-flash-lite-image-ext|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-3.1-flash-lite-image-ext|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-3.1-flash-lite-image|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-3.1-flash-lite-image|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-nano-banana-2.1-ext|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-nano-banana-2.1-ext|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-nano-banana-2.1|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-nano-banana-2.1|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-omni-1.2-flash-ext|firstlast",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-omni-1.2-flash-ext|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-omni-1.2-flash-ext|reference",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-omni-1.2-flash-ext|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-omni-1.2-flash|firstlast",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-omni-1.2-flash|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-omni-1.2-flash|reference",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gemini-omni-1.2-flash|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gpt-image-2.6-flare|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gpt-image-2.6-flare|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gpt-image-2.6-sunburst|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "gpt-image-2.6-sunburst|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "grok-imagine-image-2.0|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "grok-imagine-image-2.0|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "grok-imagine-video-1.5|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "grok-imagine-video-1.5|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "hy-image-v3.5-preview|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "hy-image-v3.5-preview|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "kling-v4|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "kling-v4|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "muse-image-ext|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "muse-image-ext|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "muse-video-ext|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "muse-video-ext|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "pixverse-v6-max|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "pixverse-v6-max|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "pixverse-v6|firstlast",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "pixverse-v6|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "pixverse-v6|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "veo3.1-fast-official|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "veo3.1-fast-official|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "veo3.1-quality-official|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "veo3.1-quality-official|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "viduq3-pro|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "viduq3-pro|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "viduq3-turbo|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "viduq3-turbo|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "viduq4-preview|i2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "viduq4-preview|ref",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan2.7-image-pro|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan2.7-image-pro|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan2.7-image|i2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan2.7-image|t2i",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan3.0-video-prime|first",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan3.0-video-prime|firstlast",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan3.0-video-prime|ref",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    },
+    {
+      "modelMode": "wan3.0-video-prime|t2v",
+      "reason": {
+        "key": "fixture",
+        "kind": "无官方夹具"
+      }
+    }
+  ]
+}

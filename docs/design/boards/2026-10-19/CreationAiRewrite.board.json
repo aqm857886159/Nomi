@@ -189,6 +189,7 @@
       "id": "popover.storyboard",
       "label": "浮条 · 拆成镜头（原有，不动；没有分镜入口时灰）",
       "change": "keep",
+      "note": "2026-11-12 用户选样张 B：图标换成分镜、挪到「AI 编辑」右边，以 2026-11-12-selection-storyboard/SelectionStoryboard 板为准。",
       "candidates": [
         "019-button-拆成镜头",
         "020-svg"

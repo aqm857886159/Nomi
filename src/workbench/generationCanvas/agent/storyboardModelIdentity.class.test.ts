@@ -9,7 +9,6 @@ import type { ModelOption } from '../../../config/models'
 import { findModelOptionByIdentifier } from '../../../config/modelOptionResolvers'
 import { pickImplicitVendorMatch } from '../../../config/modelIdentity'
 import { useDedupedModelSelect, type DedupedModelSelectView } from '../../common/useDedupedModelSelect'
-import { applyBulkModelToShots } from '../../creation/storyboard/storyboardBulkModelScope'
 import { resolveGenerationPlan } from '../../../../electron/shared/videoCapabilities/planResolver'
 import type { VideoModelCandidate } from '../../../../electron/shared/videoCapabilities/recommendation'
 import { buildAgentModelEntries, pickStoryboardDefaultModel } from './availableModels'
@@ -19,7 +18,6 @@ import { buildModelEntryIndex, buildPlannedNodeMeta } from './plannedNodeMeta'
 import { storyboardPlanToCreateNodesArgs, type PlanShot, type StoryboardPlan } from './storyboardPlan'
 import {
   addShot,
-  applyModelToAll,
   insertShotAt,
   planModelSelection,
   shotKindPatch,
@@ -72,13 +70,7 @@ describe('写：模型身份两半一起写，不留为别的模型记下的供�
     expect(patch).toHaveProperty('modelVendor', undefined)
   })
 
-  it('整片 / 多选统一模型：成对写；回「默认模型」时供应商一起清', () => {
-    const plan = planOf([shot({ modelKey: 'x', modelVendor: CUSTOM })])
-    expect(applyModelToAll(plan, 'gpt-image-2', 'apimart').shots[0]).toMatchObject({ modelKey: 'gpt-image-2', modelVendor: 'apimart' })
-    expect(applyModelToAll(plan, '', 'apimart').shots[0]!.modelVendor).toBeUndefined()
-    const selected = applyBulkModelToShots({ plan, isSelected: () => true, kind: 'image', modelKey: 'gpt-image-2', vendor: 'apimart' })
-    expect(selected.shots[0]).toMatchObject({ modelKey: 'gpt-image-2', modelVendor: 'apimart' })
-  })
+
 })
 
 describe('读：只记了模型名的旧镜头——界面显示哪家，请求就发去哪家', () => {

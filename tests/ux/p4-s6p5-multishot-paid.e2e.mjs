@@ -157,7 +157,7 @@ try {
   ok(advertFiles.length > 0, `GUI 写出 instance 广告（${advertFiles.join(',')}）= 确认卡会弹在 GUI`)
 
   // 多镜确认卡定位：全屏模态里带确认按钮 data-production-action=confirm。
-  const spendCard = win.locator('div.fixed.inset-0').filter({ has: win.locator('[data-production-action="confirm"]') })
+  const spendCard = win.locator('[data-spend-confirm-dialog]').filter({ has: win.locator('[data-production-action="confirm"]') })
   const confirmBtn = win.locator('[data-production-action="confirm"]')
 
   // 在 GUI 里建并打开一个项目 → 它成为 openProjectId，current_project bootstrap 据它发 lease。
@@ -224,7 +224,7 @@ try {
   await win.screenshot({ path: path.join(shotsDir, '00-gate-pending-state.png') })
   // 诊断探针只数**具体锚点**（不读整页文本——那会被走查门当 whole-page-text 拦，且断言恒真）。
   const domProbe = await win.evaluate(() => ({
-    fixedModals: document.querySelectorAll('div.fixed.inset-0').length,
+    dialogs: document.querySelectorAll('[role="dialog"]').length,
     confirmBtns: document.querySelectorAll('[data-production-action="confirm"]').length,
     spendAny: document.querySelectorAll('[data-production-footer],[data-spend],[role="dialog"]').length,
     onboarding: document.querySelectorAll('[data-onboarding],[class*="onboarding"]').length,

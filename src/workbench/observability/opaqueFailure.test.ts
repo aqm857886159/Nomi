@@ -1,5 +1,5 @@
 // 「错误里什么都没有」时唯一允许说的话。这份夹具守的是**信息不被洗掉**：
-// 机器码要活着穿到分类器（否则出站被拦会被归成 network，配一句「稍等重试」——而重试 = 再付一次钱），
+// 机器码要活着穿到分类器（否则取回失败会被归成 network，配一句「稍等重试」——而重试 = 再付一次钱），
 // 兜底句不许等于顶部状态徽标那句「生成失败」（那是同义反复，用户读到「生成失败：生成失败」）。
 import { describe, expect, it } from 'vitest'
 import { describeOpaqueFailure } from './opaqueFailure'
@@ -9,10 +9,10 @@ import i18n from '../../i18n'
 
 describe('describeOpaqueFailure', () => {
   it('有 message 就原样交出——机器码必须一个字不改地活着穿过去', () => {
-    const tagged = tagNomiError('outbound-blocked', '钱已经付过，用「重新拉取结果」免费取回。')
+    const tagged = tagNomiError('retrieval-download', '钱已经付过，用「重新拉取结果」免费取回。')
     expect(describeOpaqueFailure(new Error(tagged))).toBe(tagged)
     // 端到端那半：交出去的东西被分类器认回同一个 kind，而不是掉进 unknown/network。
-    expect(classifyGenerationError(describeOpaqueFailure(new Error(tagged))).kind).toBe('outbound-blocked')
+    expect(classifyGenerationError(describeOpaqueFailure(new Error(tagged))).kind).toBe('retrieval-incomplete')
   })
 
   it('Error 但 message 为空 → 交出类名当线索，而不是一句同义反复', () => {

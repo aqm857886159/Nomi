@@ -1,5 +1,7 @@
 import type { ProjectAgentReference } from '../../workbenchStore'
 import type { AgentContextHandle } from '../../../../electron/shared/agentContextSnapshot'
+import { stableShotId } from '../../../../electron/shared/storyboard/storyboardSubjectIdentity'
+import type { PlanShot } from '../../../../electron/shared/storyboard/storyboardPlan'
 
 export type ResidentReferenceContext = Readonly<{
   documentId: string | null
@@ -32,13 +34,10 @@ export function buildResidentAssetReference(assetId: string, label: string): Pro
 
 /** Stable reference emitted by a real storyboard row/result selection. */
 export function buildStoryboardReference(
-  scope: 'shot' | 'result',
-  shotIndex: number,
   label: string,
-  _role?: string,
-  identity?: Readonly<{documentId:string;designId:string;shotId:string}>,
+  identity: Readonly<{documentId:string;designId:string;shot:Pick<PlanShot, 'index' | 'shotId'>}>,
 ): ProjectAgentReference {
-  const value = identity ? `storyboard:plan:${JSON.stringify([identity.documentId,identity.designId,identity.shotId])}` : `storyboard:${scope}:${shotIndex}`
+  const value = `storyboard:plan:${JSON.stringify([identity.documentId,identity.designId,stableShotId(identity.shot)])}`
   return Object.freeze({ id: value, label, kind: 'canvas' as const, value })
 }
 

@@ -51,6 +51,8 @@ export type GenerationProviderOutput = {
   providerOutputId?: string;
   /** Optional provider-owned still for video review; it is materialized locally before projection. */
   thumbnailUrl?: string;
+  /** 已经落进项目的产物：落地门写盘时算好的 sha256，记 Run 回执直接用，不再整读文件重算。 */
+  contentHash?: string;
 };
 
 export type GenerationProviderMaterializationResult = {

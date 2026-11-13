@@ -2,7 +2,7 @@
 //
 // 这些键可能躺在节点 meta 里（上传、旧工程、MCP canvas.write 的 metadata 原样透传），又会经 `...meta` → extras →
 // taskTemplateParams 的 `...extras` 一路进请求体，或被主进程当参考翻译（referenceInputParams / firstReferenceImage /
-// projectReferencesOntoBodyKeys / APIMart 引擎 B 的别名投影）。所以「当前方式没声明、界面没在用就不许发」这条规矩
+// 参考放置的唯一降级函数 shared/generationLowering）。所以「当前方式没声明、界面没在用就不许发」这条规矩
 // 必须对**整张表**生效：渲染层 buildReferenceExtras 先把整张表置 undefined、只填唯一推导出的在用值；主进程
 // assertNoReferenceResidueBeforeSend 按整张表拒发。
 //
@@ -11,7 +11,7 @@
 // 现在由四处**声明**合成，加档案、加槽、加别名都自动进表：
 //   ① TRANSLATED_REFERENCE_INPUT_KEYS：主进程把参考翻成请求体之前读的标准输入键（不是请求体键）；
 //   ② 每个档案每个方式的参考槽 inputKey 与合并键 combineSlotsInto.key——按 M1 合同，请求体就是从这些键读参考；
-//   ③ APIMART_REFERENCE_PARAMETER_ALIASES：APIMart 引擎 B 认的参考别名（capabilityCore/apimartGenerationProjection 从这里取）；
+//   ③ Run 路（引擎 B）合同参数里认的参考键（apimartReferenceKeyDeclarations；以前还配一张别名镜像表，S3 删了，放置只走降级函数）；
 //   ④ 档案的 headlessReferenceKeys：请求体认、生成框没有控件的参考输入（KIE Gemini Omni 的 video_list…、fal 改图的 mask_url）；
 //   ⑤ REFERENCE_PARKED_KEY：节点上「先放一边」的旧工程残留（不是请求输入，但装的是图）；
 //   ⑥ DERIVED_REFERENCE_CARRIER_KEYS：主进程 taskTemplateParams 把标准参考输入造型成协议形状的请求体键（chat 图片项、JSON 改图）。
@@ -19,6 +19,7 @@
 // 新请求体多读一个参考键而没进这张表，那里先红。
 import { MODEL_ARCHETYPES, resolveArchetypeForModel } from "./index";
 import type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot } from "./types";
+import { loweringInputKey } from "../generationLowering/slotInputKeys";
 
 export type ReferenceFamily = "image" | "video" | "audio";
 
@@ -34,6 +35,7 @@ export type ReferenceModelContext = Readonly<{
   modelMeta?: unknown;
   archetypeId?: string | null;
   taskKind?: string;
+  modeId?: string;
 }>;
 
 export type ReferenceKeyCapacityDeclaration = ReferenceKeyDeclaration & Readonly<{
@@ -104,16 +106,6 @@ const headlessReferenceKeyDeclarations: Readonly<Record<string, ReferenceKeyDecl
   character_ids: { family: "image", multiImage: true },
 };
 
-/** ③ APIMart 引擎 B 的参考别名：请求体键 → 它认的同义参数键（原在 capabilityCore/apimartGenerationProjection）。 */
-export const APIMART_REFERENCE_PARAMETER_ALIASES = {
-  image_urls: ["image_urls", "imageUrls", "input_urls", "inputUrls", "reference_image_urls", "referenceImageUrls"],
-  image_with_roles: ["image_with_roles", "imageWithRoles"],
-  video_urls: ["video_urls", "videoUrls", "reference_video_urls", "referenceVideoUrls"],
-  audio_urls: ["audio_urls", "audioUrls", "reference_audio_urls", "referenceAudioUrls"],
-  first_frame_image: ["first_frame_image", "firstFrameImage", "first_frame_url", "firstFrameUrl"],
-  last_frame_image: ["last_frame_image", "lastFrameImage", "last_frame_url", "lastFrameUrl"],
-} as const;
-
 const apimartReferenceKeyDeclarations: Readonly<Record<string, ReferenceKeyDeclaration>> = {
   image_urls: { family: "image", multiImage: true },
   imageUrls: { family: "image", multiImage: true },
@@ -141,6 +133,51 @@ const apimartReferenceKeyDeclarations: Readonly<Record<string, ReferenceKeyDecla
   lastFrameUrl: { family: "image", multiImage: false },
 };
 
+/** ③ Run 路合同参数里认的参考键（请求体也常直接读它们）。 */
+export const RUN_PATH_REFERENCE_KEYS: ReadonlySet<string> = new Set(Object.keys(apimartReferenceKeyDeclarations));
+
+// ── ⑦ 形状与帧意图（S3，2026-11-08）────────────────────────────────────────────────
+// 没有档案模式可读时（headless / MCP、Run 没带 modeId），参考放进 body 的哪个键、什么形状，只读下面这几张**显式声明**，
+// 不按键名猜（以前 taskParams 里是三条正则：/first_frame/、/with_roles|_contents?/、/_urls$|images$|…/）。
+// 三张表的成员就是那三条正则在今天声明表上命中的键（逐个核过），新键要进哪张由声明它的人写，不再由名字决定。
+export type ReferenceKeyShape = "single" | "list" | "role-objects" | "content-items" | "derived";
+export type ReferenceFrameKind = "first_frame" | "last_frame";
+
+/** 值是 `[{url, role}]` 的角色数组键。 */
+const ROLE_OBJECT_REFERENCE_KEYS: ReadonlySet<string> = new Set(["image_with_roles", "imageWithRoles"]);
+/** 值是火山方舟 content[] 项的键（形状由降级函数按槽造）。 */
+const CONTENT_ITEM_REFERENCE_KEYS: ReadonlySet<string> = new Set([
+  "volcengine_image_contents", "volcengine_video_contents", "volcengine_audio_contents",
+  "volcengine_first_image_content", "volcengine_first_role_image_content", "volcengine_last_role_image_content",
+]);
+/** 多值（URL 数组）但声明的 multiImage 不说多张的键：视频 / 音频复数键与几个档案的复数图键。 */
+const LIST_REFERENCE_KEYS: ReadonlySet<string> = new Set([
+  "video_urls", "videoUrls", "reference_video_urls", "referenceVideoUrls", "videos", "mm_videos",
+  "audio_urls", "audioUrls", "reference_audio_urls", "referenceAudioUrls", "audios", "mm_audios",
+  "images", "input_images", "keyframe_images", "mf_images", "mm_images",
+]);
+/** 明确表示「这一张是首帧 / 尾帧」的键。 */
+const FRAME_REFERENCE_KEYS: Readonly<Record<string, ReferenceFrameKind>> = {
+  first_frame: "first_frame", first_frame_image: "first_frame", first_frame_url: "first_frame",
+  firstFrameImage: "first_frame", firstFrameUrl: "first_frame",
+  last_frame: "last_frame", last_frame_image: "last_frame", last_frame_url: "last_frame",
+  lastFrameImage: "last_frame", lastFrameUrl: "last_frame",
+};
+
+/** 一个参考键的值形状。`multiImage` 传这个键在当前模型上下文里的声明（容量声明可能按档案改写它）。 */
+export function referenceKeyShapeFor(key: string, multiImage = referenceKeyDeclarationFor(key)?.multiImage ?? false): ReferenceKeyShape {
+  const normalized = key.trim();
+  if (DERIVED_REFERENCE_CARRIER_KEYS.has(normalized)) return "derived";
+  if (ROLE_OBJECT_REFERENCE_KEYS.has(normalized)) return "role-objects";
+  if (CONTENT_ITEM_REFERENCE_KEYS.has(normalized)) return "content-items";
+  return multiImage || LIST_REFERENCE_KEYS.has(normalized) ? "list" : "single";
+}
+
+/** 这个键是否声明为首帧 / 尾帧位；null = 不带帧意图。 */
+export function referenceFrameKindFor(key: string): ReferenceFrameKind | null {
+  return FRAME_REFERENCE_KEYS[key.trim()] ?? null;
+}
+
 const SLOT_REFERENCE_FAMILY: Readonly<Record<string, ReferenceFamily>> = {
   first_frame: "image",
   last_frame: "image",
@@ -150,14 +187,6 @@ const SLOT_REFERENCE_FAMILY: Readonly<Record<string, ReferenceFamily>> = {
   source_video: "video",
 };
 
-const SLOT_DEFAULT_INPUT_KEY: Readonly<Record<string, string>> = {
-  first_frame: "first_frame_url",
-  last_frame: "last_frame_url",
-  image_ref: "reference_image_urls",
-  video_ref: "reference_video_urls",
-  audio_ref: "reference_audio_urls",
-  source_video: "video_url",
-};
 
 function mergeDeclaration(
   declarations: Map<string, ReferenceKeyDeclaration>,
@@ -239,7 +268,7 @@ function archetypeForContext(context: ReferenceModelContext | undefined): ModelA
 }
 
 function slotInputKey(slot: ArchetypeReferenceSlot): string {
-  return (slot.inputKey ?? SLOT_DEFAULT_INPUT_KEY[slot.kind] ?? "").trim();
+  return loweringInputKey(slot).trim();
 }
 
 function modeMatchesTaskKind(mode: ArchetypeMode, taskKind: string | undefined): boolean {
@@ -288,8 +317,9 @@ export function referenceKeyCapacityDeclarationFor(
   if (!normalized) return null;
   const archetype = archetypeForContext(context);
   if (archetype) {
-    for (const mode of archetype.modes) {
-      if (!modeMatchesTaskKind(mode, context?.taskKind)) continue;
+    const selectedMode = archetype.modes.find((mode) => mode.id === context?.modeId);
+    for (const mode of selectedMode ? [selectedMode] : archetype.modes) {
+      if (!selectedMode && !modeMatchesTaskKind(mode, context?.taskKind)) continue;
       const declaration = modelDeclarationForModeKey(mode, normalized);
       if (declaration) return declaration;
     }

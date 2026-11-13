@@ -21,7 +21,6 @@ describe('APIMart text model migration', () => {
     for (const modelKey of [
       'deepseek-v4-pro',
       'deepseek-v4-flash',
-      'deepseek-v3.1-terminus',
     ]) {
       expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === modelKey)).toMatchObject({
         kind: 'text',
@@ -38,7 +37,7 @@ describe('APIMart text model migration', () => {
     const { state } = applyBuiltinSeeds(catalog, '2026-09-06T00:00:00.000Z')
     expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.2-think')).toMatchObject({ enabled: true, unlisted: true })
     // 同族仍在售的不许被连坐。
-    expect(state.models.some((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.1-terminus')).toBe(true)
+    expect(state.models.some((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v4-flash')).toBe(true)
   })
 
   it('marks deepseek-v3.2 unlisted + legacy on an existing install and keeps the user enable decision (relay still lists it, upstream 404s)', () => {
@@ -47,14 +46,14 @@ describe('APIMart text model migration', () => {
     const catalog = catalogWithRetiredModel()
     catalog.models.push(
       { modelKey: 'deepseek-v3.2', vendorKey: 'apimart', labelZh: 'DeepSeek V3.2', kind: 'text', enabled: true, meta: { note: 'keep' }, createdAt: 'a', updatedAt: 'a' },
-      { modelKey: 'deepseek-v3.1-terminus', vendorKey: 'apimart', labelZh: 'DeepSeek V3.1 Terminus', kind: 'text', enabled: true, createdAt: 'a', updatedAt: 'a' },
+      { modelKey: 'deepseek-v4-flash', vendorKey: 'apimart', labelZh: 'DeepSeek V4 Flash', kind: 'text', enabled: true, createdAt: 'a', updatedAt: 'a' },
       { modelKey: 'deepseek-v3.2', vendorKey: 'custom', labelZh: 'Custom V3.2', kind: 'text', enabled: true, createdAt: 'a', updatedAt: 'a' },
     )
     const { state } = applyBuiltinSeeds(catalog, '2026-10-27T00:00:00.000Z')
     expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.2'))
       .toMatchObject({ enabled: true, unlisted: true, meta: { note: 'keep', catalogLifecycle: 'legacy' } })
     // 同族在售的、别家同名的都不许被连坐。
-    expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v3.1-terminus')?.unlisted).toBeUndefined()
+    expect(state.models.find((model) => model.vendorKey === 'apimart' && model.modelKey === 'deepseek-v4-flash')?.unlisted).toBeUndefined()
     expect(state.models.find((model) => model.vendorKey === 'custom' && model.modelKey === 'deepseek-v3.2'))
       .toMatchObject({ enabled: true, labelZh: 'Custom V3.2' })
     expect(state.models.find((model) => model.vendorKey === 'custom' && model.modelKey === 'deepseek-v3.2')?.unlisted).toBeUndefined()

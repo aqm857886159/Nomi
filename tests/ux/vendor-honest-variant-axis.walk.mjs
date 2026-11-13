@@ -43,6 +43,7 @@ import { fileURLToPath } from 'node:url'
 import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
 import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail } from './_assert.mjs'
 import { canvasAddBar, newProjectEntry } from './_shell.mjs'
+import { modeName, modeCell, openModeMenu, closeModeMenu } from './_modeMenu.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-honest-variant-axis')
@@ -93,8 +94,13 @@ async function shot(tag) {
 }
 
 const composer = win.locator('.generation-canvas-v2-node__composer')
-const modeGroup = composer.locator('[role="group"][aria-label="生成方式"]')
-const modeButtons = modeGroup.locator('button')
+// 方式在底栏方式格的下拉里（2026-11-12 起）：读整份行名，读完关上；只有一种方式时没有方式格 → []。
+async function readModes() {
+  if (!(await modeCell(composer, 'zh').count())) return []
+  const rows = await openModeMenu(win, composer, 'zh')
+  await closeModeMenu(win)
+  return rows.map((row) => row.name)
+}
 // 变体选择器 = InlineParameterBar 里紧跟模型芯片的小下拉，aria-label 走 i18n 的
 // generationCommon.parameters.variant（zh-CN = 「变体」）。它和已删的「每次生成几个」（2026-10-06 删）
 // 不是一回事，别混。
@@ -234,7 +240,7 @@ try {
   await expect(variantSelect, 'APIMart 的 veo mapping 参数化了 model，变体选择器必须在')
     .toHaveCount(1)
   apimart.variant = await readVariantSummary()
-  apimart.modes = (await modeButtons.allTextContents()).map((t) => t.trim())
+  apimart.modes = await readModes()
   observations['apimart/veo3.1-fast'] = apimart
   record(`APIMart Veo 3.1 绑定 ${apimart.identity.modelVendor}/${apimart.identity.modelKey} · 变体 = ${JSON.stringify(apimart.variant)} · 模式栏 = ${JSON.stringify(apimart.modes)}`, apimart.file)
 
@@ -254,7 +260,7 @@ try {
       + '  后果是即梦 6 个真能用的型号被一起藏掉——这是「收窄过头砍掉真功能」，比不收窄更糟。',
   ).toHaveCount(1)
   dreamina.variant = await readVariantSummary()
-  dreamina.modes = (await modeButtons.allTextContents()).map((t) => t.trim())
+  dreamina.modes = await readModes()
   observations['dreamina/dreamina-seedance-2.0'] = dreamina
   record(`即梦 Seedance 绑定 ${dreamina.identity.modelVendor}/${dreamina.identity.modelKey} · 变体 = ${JSON.stringify(dreamina.variant)}`, dreamina.file)
 
@@ -274,7 +280,7 @@ try {
       + '  Runway 本就不需要这条轴：它把 veo3.1 / veo3.1_fast 建成了两个目录行。',
   })
   // 同屏顺带钉住模式栏与比例没被这次改动误伤（变体轴与模式轴正交，收窄一条不许波及另一条）。
-  await expect(modeButtons, 'Runway Veo 3.1 的模式栏不该被变体轴收窄波及').toHaveText(['文生视频', '首尾帧'])
+  expect(await readModes(), 'Runway Veo 3.1 的方式菜单不该被变体轴收窄波及').toEqual([modeName('zh', 'text'), modeName('zh', 'image')])
   await clickOrFail(composer.locator('button[aria-label="生成参数"]'), '「生成参数」（Runway Veo 3.1）')
   const paramPanel = win.locator('[role="group"][aria-label="生成参数面板"]')
   await expectVisible(paramPanel, '生成参数面板打开')
@@ -284,7 +290,7 @@ try {
   await win.keyboard.press('Escape')
   await win.waitForTimeout(400)
   runway.variant = await readVariantSummary()
-  runway.modes = (await modeButtons.allTextContents()).map((t) => t.trim())
+  runway.modes = await readModes()
   observations['runway/veo3.1'] = runway
   record(`Runway Veo 3.1 绑定 ${runway.identity.modelVendor}/${runway.identity.modelKey} · 变体控件 = ${runway.variant === null ? '不存在（已收窄）' : JSON.stringify(runway.variant)} · 模式栏 = ${JSON.stringify(runway.modes)}`, runway.file)
   record('核心对照成立：同一条变体轴 APIMart / 即梦 露出、Runway 收窄消失')
@@ -306,7 +312,7 @@ try {
       message: `${row.label} 的 create op 同样把 model 写死，变体选择器不该出现。`,
     })
     bound.variant = await readVariantSummary()
-    bound.modes = (await modeButtons.allTextContents()).map((t) => t.trim())
+    bound.modes = await readModes()
     observations[`runway/${row.modelKey}`] = bound
     record(`${row.label} 绑定 ${bound.identity.modelVendor}/${bound.identity.modelKey} · 变体控件 = 不存在（已收窄） · 模式栏 = ${JSON.stringify(bound.modes)}`, bound.file)
   }

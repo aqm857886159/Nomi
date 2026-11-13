@@ -13,6 +13,7 @@
 //   原样写进错误的调用日志——所以进接入页那一段的异常一律先过 redact 再往外抛。
 import fs from 'node:fs'
 import path from 'node:path'
+import { require as tsxRequire } from 'tsx/cjs/api'
 
 import { expect } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
@@ -113,7 +114,8 @@ export const ENV_KEY_ALLOW_CATALOG = Object.freeze({
 })
 
 /** APIMart 内置的文本模型 key（electron/catalog/apimartTexts.ts 的 APIMART_TEXT_MODELS；单测核对两者一致）。 */
-export const APIMART_TEXT_MODEL_KEYS = Object.freeze(['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v3.1-terminus', 'gemini-3.5-flash'])
+const { APIMART_TEXT_MODELS } = tsxRequire('../../electron/catalog/apimartTexts.ts', import.meta.url)
+export const APIMART_TEXT_MODEL_KEYS = Object.freeze(APIMART_TEXT_MODELS.filter((model) => model.meta?.promptRefineOnly !== true).map((model) => model.modelKey))
 
 /** 界面一步的安全网（公共预算 owner：tests/ux/_station-budget.mjs）；只是上限，不是完成条件。 */
 const STEP_MS = stationTimeout({ operations: 1 })

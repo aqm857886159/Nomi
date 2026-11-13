@@ -167,7 +167,7 @@ describe("引擎 B：授权快照里的无扩展名参考地址，provider 重�
     const outputs = (await make().materialize!({ providerTaskId: "snapshot-task", raw: { status: "success", output: url }, context })).outputs;
     expect(outputs, "读取层在重建后认不出这条回显（这正是落盘关口要兜住的那一种）").toMatchObject([{ kind: "video", url }]);
 
-    const materializer = createGenerationOutputMaterializer({ attachPreview: async (record) => record, trustedPrivateOrigin: base });
+    const materializer = createGenerationOutputMaterializer({ attachPreview: async (record) => record });
     const error = await materializer.materialize({ projectId: "project-1", providerTaskId: "snapshot-task", output: outputs[0] }).then(() => null, (caught: Error) => caught);
     expect(error, "video task must not publish the reference PNG").toBeInstanceOf(GenerationOutputRetrievalError);
     expect((error as InstanceType<typeof GenerationOutputRetrievalError>).deterministic).toBe(true);

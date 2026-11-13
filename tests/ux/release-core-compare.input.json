@@ -1,0 +1,13 @@
+{
+  "story": "清晨，林薇推开旧书店的门，在书架间找到一封信，走到窗边阅读，最后把信放在木桌上。",
+  "draftShots": 4,
+  "image": { "vendorKey": "apimart", "modelKey": "z-image-turbo" },
+  "parameters": { "size": "16:9", "resolution": "1K" },
+  "shots": [
+    { "shotId": "shot-1", "prompt": "清晨，旧书店门口，林薇推开木门，远景，自然光" },
+    { "shotId": "shot-2", "prompt": "旧书店的书架间，林薇寻找一本旧书，中景，自然光" },
+    { "shotId": "shot-3", "prompt": "旧书页中夹着一封信，林薇的手取出信封，特写，自然光" },
+    { "shotId": "shot-4", "prompt": "林薇站在旧书店窗边阅读信件，中景，清晨柔光" },
+    { "shotId": "shot-5", "prompt": "林薇把信放在旧书店木桌上，近景，清晨柔光" }
+  ]
+}

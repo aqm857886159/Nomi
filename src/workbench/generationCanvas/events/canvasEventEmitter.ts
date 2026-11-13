@@ -106,4 +106,17 @@ export function emitCanvasGesture(
   buffer.push(...out)
   if (buffer.length >= FLUSH_COUNT) flushNow()
   else if (!timer) timer = setTimeout(flushNow, FLUSH_MS)
+  for (const hook of afterGestureHooks) hook()
+}
+
+const afterGestureHooks = new Set<() => void>()
+
+/**
+ * 一笔手势的事件记进撤销日志**之后**才做的派生写。store 订阅在 set() 里同步触发，比 action 打撤销点、发事件都早——
+ * 在那里直接写，派生那笔会落在撤销点前面，⌘Z 撤了手势却撤不回它（2026-11-12 连线后撤销，方式偏好没回来）。
+ * 订阅只记「有活要做」，真正的写挂在这里，落在这笔手势之后、下一个撤销点之前，撤销时一起回去。
+ */
+export function onAfterCanvasGesture(hook: () => void): () => void {
+  afterGestureHooks.add(hook)
+  return () => afterGestureHooks.delete(hook)
 }

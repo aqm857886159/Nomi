@@ -115,7 +115,7 @@ app.once('browser-window-created', (_event, window) => installWindowCloseConfirm
     await aspect.getByRole('button').click()
     await win.getByRole('option', { name: '16:9', exact: true }).click()
     await aspect.getByRole('button').click()
-    await win.getByRole('option', { name: text('storyboardEditor.bulk.aspectDefault'), exact: true }).click()
+    await win.getByRole('option', { name: text('storyboardEditor.aspectScope.modelDefault'), exact: true }).click()
     await expect.poll(() => savedPlan().aspectRatio).toBe('')
     await snapshot('02-default-aspect-saved')
     // Observe batch availability without starting an unrelated shot batch.

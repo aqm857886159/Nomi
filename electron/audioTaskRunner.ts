@@ -6,8 +6,9 @@
 //   Whisper  POST /v1/audio/transcriptions multipart  → 同步 JSON { text, segments } → 文本结果（无资产）
 // runtime.runTask 识别 wantedKind==='audio' → 转交本模块，不进 admit/poll（响应即结果）。
 //
-// 回引 runtime 的 buildProfileHttpRequest/importLocalFile（同 textTaskRunner 既定模式：函数体内调用，
-// CommonJS 运行期循环引用安全）。请求形状仍由 catalog mapping 的 create op 驱动（vendor 无关）。
+// 请求形状由 catalog mapping 的 create op 驱动（vendor 无关）。配音字节是生成产物，只走生成产物的门
+// writeGeneratedAsset（必须说清「该是音频」，落盘关口按字节核）；不走用户导入文件的 importLocalFile——
+// 那扇门不收生成产物（2026-11-07：走它漏了期望类型，扣了钱存不进项目）。
 
 import { readNomiLocalAsset } from "./assets/localAssetFile";
 import { parseDataUrl } from "./assets/assetBytes";
@@ -17,7 +18,7 @@ import { firstString, isJsonRecord, trim, type JsonRecord } from "./jsonUtils";
 import { taskTemplateParams } from "./catalog/taskParams";
 import { buildDoubaoReqParams, decodeDoubaoNdjsonAudio, splitDoubaoCredential } from "./catalog/doubaoTtsCodec";
 import type { TaskRequest, TaskResult } from "./runtime";
-import { importLocalFile } from "./assets/localFileImport";
+import { writeGeneratedAsset } from "./assets/projectAssetStore";
 import { desktopT } from "./i18n";
 import { executeMultipartOperation } from "./catalog/multipartOperation";
 import { buildProfileHttpRequest, templateContext } from "./catalog/profileHttpRequest";
@@ -48,9 +49,9 @@ export async function runAudioTask(input: AudioTaskInput): Promise<TaskResult> {
   return runTextToSpeech(input);
 }
 
-// TTS：mapping.create 渲染出 JSON 请求 → fetch 读 arrayBuffer → importLocalFile 落盘 → audio 资产。
+// TTS：mapping.create 渲染出 JSON 请求 → 读回音频字节 → 按生成产物（期望音频）落盘 → audio 资产。
 async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
-  const { vendor, model, apiKey, request, kind, taskId, projectId } = input;
+  const { vendor, model, apiKey, request, kind, taskId } = input;
   const op: HttpOperation = input.mapping?.create ?? {
     method: "POST",
     path: TTS_PATH,
@@ -61,17 +62,7 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
   // 其余（缺省/binary，OpenAI 兼容裸音频字节）走下方通用路径。
   if (op.audioResponse === "ndjson-base64") return runDoubaoUnidirectionalTts(input, op);
   const decoded = await executeSynchronousAudioOperation({ vendor, model, apiKey, request, operation: op });
-  const arrayBuffer = decoded.bytes.buffer.slice(
-    decoded.bytes.byteOffset,
-    decoded.bytes.byteOffset + decoded.bytes.byteLength,
-  ) as ArrayBuffer;
-  const saved = (await importLocalFile({
-    projectId,
-    bytes: arrayBuffer,
-    contentType: decoded.contentType,
-    fileName: `tts-${taskId}.${decoded.extension}`,
-    kind: "generated",
-  })) as { id?: string; name?: string; data?: { url?: string } };
+  const saved = await saveGeneratedAudio(input, decoded.bytes, `tts-${taskId}.${decoded.extension}`, decoded.contentType);
   const url = String(saved.data?.url || "");
   if (!url) throw new Error(desktopT("dubbing.diskWriteFailed"));
   return {
@@ -85,7 +76,7 @@ async function runTextToSpeech(input: AudioTaskInput): Promise<TaskResult> {
 //   三头鉴权（凭证存 APP_ID:ACCESS_KEY，此处 split）+ 嵌套 req_params body（additions 情感安全 JSON 转义）
 //   → fetch → NDJSON+base64 解码（decodeDoubaoNdjsonAudio）→ 落盘 mp3 资产。
 async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperation): Promise<TaskResult> {
-  const { vendor, model, apiKey, request, kind, taskId, projectId } = input;
+  const { vendor, model, apiKey, request, kind, taskId } = input;
   const params = taskTemplateParams(request, { vendorKey: vendor.key, modelKey: model.modelKey, modelAlias: model.modelAlias, modelMeta: model.meta, operation: op });
   const text = trim(request.prompt) || firstString(params.text);
   if (!text) throw new Error(desktopT("dubbing.noText"));
@@ -135,10 +126,7 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
   }
   const audio = decodeDoubaoNdjsonAudio(audioBytes.toString("utf8"));
   if (audio.byteLength === 0) throw new Error(desktopT("dubbing.emptyAudio"));
-  const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer;
-  const saved = (await importLocalFile({
-    projectId, bytes: ab, contentType: "audio/mpeg", fileName: `tts-${taskId}.mp3`, kind: "generated",
-  })) as { id?: string; name?: string; data?: { url?: string } };
+  const saved = await saveGeneratedAudio(input, audio, `tts-${taskId}.mp3`, "audio/mpeg");
   const url2 = String(saved.data?.url || "");
   if (!url2) throw new Error(desktopT("dubbing.diskWriteFailed"));
   return {
@@ -146,6 +134,15 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
     assets: [{ type: "audio", url: url2, thumbnailUrl: null, assetId: saved.id || null, assetName: saved.name || null }],
     raw: { audio_url: url2, response_format: "mp3" },
   };
+}
+
+type SavedAudio = { id?: string; name?: string; data?: { url?: string } };
+
+/** 配音 / 音乐 / 音效的字节进项目只有这一处：生成产物、期望音频（runtime 已在发请求前保证有项目号）。 */
+async function saveGeneratedAudio(input: AudioTaskInput, bytes: Uint8Array, fileName: string, contentType: string): Promise<SavedAudio> {
+  return await writeGeneratedAsset(input.projectId, bytes, fileName, contentType, {
+    kind: "generated", source: "provider", ownerNodeId: input.nodeId || null,
+  }, "audio") as SavedAudio;
 }
 
 // Whisper：读参考音频字节 → multipart(file+model+language+response_format) → 同步 JSON → 文本结果。

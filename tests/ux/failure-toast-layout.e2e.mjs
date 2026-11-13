@@ -17,7 +17,7 @@ const root = path.resolve(import.meta.dirname, '../..')
 const evidence = path.join(root, '.tmp', 'failure-toast-layout-evidence')
 fs.mkdirSync(evidence, { recursive: true })
 
-/** Supported window sizes: the everyday laptop size, and the smallest window the app allows (electron/mainWindowMinSize.json). */
+/** Supported window sizes: the everyday laptop size, and the smallest window the app allows (electron/shared/mainWindowSize.json). */
 const SIZES = [{ width: 1280, height: 800 }, { ...MIN_WINDOW }]
 
 const server = await createServer({ root, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 5299, strictPort: true } })

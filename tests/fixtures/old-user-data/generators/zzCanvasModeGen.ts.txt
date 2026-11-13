@@ -1,0 +1,226 @@
+// 在 v0.24.1 的源码导出里跑（tests/fixtures/old-user-data/README.md「怎么给一个新版本补一份目录」）：
+// 用 0.24.1 自己的真实 store 写口（addNode / connectNodes / updateNode + applyArchetypeModeSwitch / copySelectedNodes + pasteNodes /
+// disconnectEdge），加 0.24.1 自己的 Agent 计划写入口 buildPlannedNodeMeta，造出「创作者在 0.24.1 里这样操作会得到的节点」，
+// 再用 store 自己的存盘读口 readDocumentSnapshot() 取出画布存盘片段（项目文件 payload.generationCanvas 就是它）。
+// 输出目录由 V_OUT 给：canvas.json（存盘片段，原样）+ manifest.json（每个节点怎么得到的 + 0.24.1 自己读它读出什么）。
+// 不手写任何节点 JSON：meta、边、方式字段全是那些函数写出来的。
+// 放到导出里的 src/workbench/generationCanvas/store/zzCanvasModeGen.test.ts，去掉 .txt。
+import fs from 'node:fs'
+import path from 'node:path'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { useGenerationCanvasStore } from './generationCanvasStore'
+import { applyArchetypeModeSwitch, currentArchetypeMode, ensureArchetypeNodeMeta } from '../nodes/controls/archetypeMeta'
+import { MODEL_ARCHETYPES } from '../../../../electron/shared/modelArchetypes'
+import { buildAgentModelEntries } from '../agent/availableModels'
+import { buildModelEntryIndex, buildPlannedNodeMeta } from '../agent/plannedNodeMeta'
+import { canRunGenerationNode } from '../runner/generationRunController'
+import { resolveTaskKind } from '../runner/catalogTaskResolve'
+import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import type { ModelOption } from '../../../config/models'
+
+const OUT = String(process.env.V_OUT || '').trim()
+
+// 节点 id 带时间和随机数；固定住，重生成时输出稳定（不改任何被测函数）。
+let clock = 1_700_000_000_000
+let rand = 0
+beforeAll(() => {
+  vi.spyOn(Date, 'now').mockImplementation(() => (clock += 1))
+  vi.spyOn(Math, 'random').mockImplementation(() => ((rand += 1) % 1000) / 1000 + 0.0005)
+})
+afterAll(() => vi.restoreAllMocks())
+
+const store = () => useGenerationCanvasStore.getState()
+const archetypeOf = (id: string) => {
+  const found = MODEL_ARCHETYPES.find((a) => a.id === id)
+  if (!found) throw new Error(`no archetype ${id}`)
+  return found
+}
+
+type Scenario = { key: string; nodeId: string; how: string; group: 'design-card' | 'control' }
+const scenarios: Scenario[] = []
+const record = (key: string, nodeId: string, group: Scenario['group'], how: string) => scenarios.push({ key, nodeId, group, how })
+
+/** 创作者在节点上选了一个模型（ensureArchetypeNodeMeta 是「节点刚选到有档案的模型」时 0.24.1 写入默认模式的那个函数）。 */
+function addGenerationNode(kind: 'image' | 'video' | 'audio' | 'model3d', title: string, archetypeId: string, modelKey: string, prompt = ''): string {
+  const archetype = archetypeOf(archetypeId)
+  const node = store().addNode({ kind, title, prompt, categoryId: 'shots', meta: { modelKey, modelVendor: 'kie' } })
+  const ensured = ensureArchetypeNodeMeta(node.meta as Record<string, unknown>, archetype)
+  if (ensured) store().updateNode(node.id, { meta: ensured })
+  return node.id
+}
+
+/** 创作者在参数面板点分段（NodeParameterControls 的 handleModeChange：updateNode(applyArchetypeModeSwitch)）。 */
+function clickModeSegment(nodeId: string, modeId: string): void {
+  const node = store().nodes.find((n) => n.id === nodeId)!
+  const meta = (node.meta || {}) as Record<string, unknown>
+  const archetypeId = (meta.archetype as { id: string }).id
+  store().updateNode(nodeId, { meta: applyArchetypeModeSwitch(meta, archetypeOf(archetypeId), modeId) })
+}
+
+let imageCounter = 0
+/** 一张已经生成好的图片节点（连线的来源）。结果是假的 nomi-local 地址，不指向任何真文件。 */
+function addImageSource(title: string): string {
+  imageCounter += 1
+  const node = store().addNode({ kind: 'image', title, categoryId: 'shots' })
+  store().addNodeResult(node.id, { id: `fixture-result-${imageCounter}`, type: 'image', url: `nomi-local://fixture/${title}.png`, createdAt: 1_700_000_000_000 + imageCounter })
+  return node.id
+}
+
+describe('zzCanvasModeGen', () => {
+  it('lands generation nodes with 0.24.1 real store ports and reads the persisted snapshot', () => {
+    expect(OUT, 'V_OUT must name the output directory').not.toBe('')
+    store().restoreSnapshot({ nodes: [], edges: [], groups: [] })
+
+    // ── 对照节点（任务书基线）─────────────────────────────
+    const imageT2i = addGenerationNode('image', 'ctrl-image-t2i-no-image', 'nano-banana', 'nano-banana', '一只橘猫')
+    record('ctrl-image-t2i-no-image', imageT2i, 'control', '图片节点选 nano-banana，什么都没放，写了提示词（默认文生图）')
+
+    const imageEditSource = addImageSource('src-cat')
+    const imageEditWithImage = addGenerationNode('image', 'ctrl-image-edit-with-image', 'nano-banana', 'nano-banana', '把猫改成黑色')
+    store().connectNodes(imageEditSource, imageEditWithImage, 'reference')
+    record('ctrl-image-edit-with-image', imageEditWithImage, 'control', '图片节点连一张已生成的图（连线升格成改图），提示词写好')
+
+    const videoT2v = addGenerationNode('video', 'ctrl-video-t2v', 'seedance-2', 'seedance-2', '日出时的海边')
+    record('ctrl-video-t2v', videoT2v, 'control', '视频节点选 Seedance 2，什么都没放，写了提示词（默认文生视频）')
+
+    const firstFrameSource = addImageSource('src-first-frame')
+    const videoFirstWithFrame = addGenerationNode('video', 'ctrl-video-first-with-first-frame', 'seedance-2', 'seedance-2', '镜头缓缓推进')
+    clickModeSegment(videoFirstWithFrame, 'first')
+    store().connectNodes(firstFrameSource, videoFirstWithFrame, 'first_frame')
+    record('ctrl-video-first-with-first-frame', videoFirstWithFrame, 'control', '视频节点点「首帧」，再把一张图连成首帧')
+
+    // ── 设计卡 ★1c 八种 ─────────────────────────────────
+    // ① 空视频节点点过「参考」
+    const emptyReference = addGenerationNode('video', 'dc1-video-empty-reference-clicked', 'seedance-2', 'seedance-2', '雨夜街头的追逐')
+    clickModeSegment(emptyReference, 'omni')
+    record('dc1-video-empty-reference-clicked', emptyReference, 'design-card', '空视频节点，写好提示词，在参数面板点了「参考」（omni）分段，一张图都没放')
+
+    // ② 图片改图节点只复制粘贴自己（带图复制粘贴得到的那种）
+    const pasteSource = addImageSource('src-paste')
+    const pasteOriginal = addGenerationNode('image', 'dc2-paste-original', 'nano-banana', 'nano-banana', '把天空改成黄昏')
+    store().connectNodes(pasteSource, pasteOriginal, 'reference')
+    store().selectNodes([pasteOriginal])
+    store().copySelectedNodes()
+    store().pasteNodes({ x: 600, y: 600 })
+    const pasted = store().nodes.find((n) => n.id !== pasteOriginal && n.id.startsWith(`${pasteOriginal}-copy-`))!
+    record('dc2-image-edit-pasted-alone', pasted.id, 'design-card', '选中上面那个连着图的改图节点，只复制它自己、粘贴：新节点带着「改图」方式，边没带过来（参考图丢了）')
+
+    // ③ 首尾帧方式，首帧被清空
+    const clearedSource = addImageSource('src-cleared-first-frame')
+    const clearedFirst = addGenerationNode('video', 'dc3-video-firstlast-first-frame-cleared', 'seedance-2', 'seedance-2', '人物转身')
+    clickModeSegment(clearedFirst, 'firstlast')
+    store().connectNodes(clearedSource, clearedFirst, 'first_frame')
+    const clearedEdge = store().edges.find((e) => e.target === clearedFirst)!
+    store().disconnectEdge(clearedEdge.id)
+    record('dc3-video-firstlast-first-frame-cleared', clearedFirst, 'design-card', '点「首尾帧」，把一张图连成首帧，再把这条线删掉（首帧清空）；方式停在首尾帧')
+
+    // ④ 首尾帧方式连了 5 张参考
+    const fiveSources = [1, 2, 3, 4, 5].map((n) => addImageSource(`src-five-${n}`))
+    const firstlastFive = addGenerationNode('video', 'dc4-video-firstlast-five-refs', 'seedance-2', 'seedance-2', '五张角色图一起出场')
+    for (const source of fiveSources) store().connectNodes(source, firstlastFive, 'reference')
+    clickModeSegment(firstlastFive, 'firstlast')
+    record('dc4-video-firstlast-five-refs', firstlastFive, 'design-card', '先连 5 张参考图（自动成了「参考」方式），再手点「首尾帧」分段：方式停在首尾帧，5 张都连着')
+
+    // ⑤ 文生图却连着图（07-28「男角色出女的」那一类）
+    const charSource = addImageSource('src-character')
+    const t2iWithImage = addGenerationNode('image', 'dc5-image-t2i-with-image', 'nano-banana', 'nano-banana', '男角色站在窗前')
+    store().connectNodes(charSource, t2iWithImage, 'reference')
+    clickModeSegment(t2iWithImage, 't2i')
+    record('dc5-image-t2i-with-image', t2iWithImage, 'design-card', '图片节点连了一张角色图（升格成改图），又手点回「文生图」分段：图还连着，存着的方式是文生')
+
+    // ⑥ 计划写入：Agent / 分镜经 buildPlannedNodeMeta 落「改图」方式，没带参考
+    const entries = buildModelEntryIndex(buildAgentModelEntries([
+      { value: 'nano-banana', label: 'Nano Banana', vendor: 'kie', meta: { archetypeId: 'nano-banana' } } as ModelOption,
+      { value: 'seedance-2', label: '即梦 Seedance', vendor: 'kie', meta: { archetypeId: 'seedance-2' } } as ModelOption,
+    ]))
+    const plannedEditMeta = buildPlannedNodeMeta({ modelKey: 'nano-banana', modeId: 'edit' }, entries)!
+    const plannedEdit = store().addNode({ kind: 'image', title: 'dc6-agent-plan-image-edit-no-refs', prompt: '第 3 镜：同一个人物换到雨里', categoryId: 'shots', meta: plannedEditMeta })
+    record('dc6-agent-plan-image-edit-no-refs', plannedEdit.id, 'design-card', 'Agent 起草（或分镜落地）一个图片节点，计划里写了 modeId=edit，没有给任何参考；用 0.24.1 的 buildPlannedNodeMeta 写 meta')
+
+    // ⑥b 同一条写口：Agent 给视频写 firstlast，只带一张图
+    const plannedFirstlastMeta = buildPlannedNodeMeta({ modelKey: 'seedance-2', modeId: 'firstlast' }, entries)!
+    const plannedFirstlast = store().addNode({ kind: 'video', title: 'dc6b-agent-plan-video-firstlast', prompt: '第 4 镜：门开', categoryId: 'shots', meta: plannedFirstlastMeta })
+    const plannedFirstlastSource = addImageSource('src-plan-firstlast')
+    store().connectNodes(plannedFirstlastSource, plannedFirstlast.id, 'reference')
+    record('dc6b-agent-plan-video-firstlast', plannedFirstlast.id, 'design-card', 'Agent 起草一个视频节点，计划里写了 modeId=firstlast，随后连了一张参考图（连线没有把它改回参考）')
+
+    // ⑦ 声音转写没音频
+    const scribe = addGenerationNode('audio', 'dc7-audio-transcribe-no-audio', 'eleven-scribe-v2', 'eleven-scribe-v2')
+    record('dc7-audio-transcribe-no-audio', scribe, 'design-card', '声音节点选「声音转写」模型（默认就是转写方式），没有放音频')
+
+    // ⑧ 3D 图生没图
+    const meshy = addGenerationNode('model3d', 'dc8-model3d-image-no-image', 'hunyuan3d', 'hunyuan3d', '一只陶瓷茶壶')
+    clickModeSegment(meshy, 'image')
+    record('dc8-model3d-image-no-image', meshy, 'design-card', '3D 节点选混元 3D，在参数面板点了「图生 3D」分段，没放图')
+
+    // ── 存盘读口 + 0.24.1 自己读它读出什么 ──────────────────
+    const snapshot = store().readDocumentSnapshot()
+    const nodes = snapshot.nodes as GenerationCanvasNode[]
+    const edges = snapshot.edges
+    const reads = Object.fromEntries(
+      scenarios.map((s) => {
+        const node = nodes.find((n) => n.id === s.nodeId)!
+        const meta = (node.meta || {}) as Record<string, unknown>
+        const archetypeMeta = meta.archetype as { id?: string; modeId?: string } | undefined
+        const archetype = archetypeMeta?.id ? archetypeOf(archetypeMeta.id) : null
+        const references = resolveGenerationReferences(node, { nodes, edges })
+        const ctx = { nodes, edges }
+        return [s.key, {
+          storedModeId: archetypeMeta?.modeId ?? null,
+          readModeId: archetype ? currentArchetypeMode(archetype, meta).id : null,
+          taskKind: resolveTaskKind(node, references),
+          canRun: canRunGenerationNode(node, ctx),
+          incomingEdges: edges.filter((e) => e.target === s.nodeId).map((e) => ({ id: e.id, source: e.source, mode: e.mode ?? null })),
+        }]
+      }),
+    )
+
+    fs.mkdirSync(OUT, { recursive: true })
+    fs.writeFileSync(path.join(OUT, 'canvas.json'), `${JSON.stringify(snapshot, null, 2)}\n`)
+    fs.writeFileSync(path.join(OUT, 'manifest.json'), `${JSON.stringify({
+      release: 'v0.24.1',
+      producedBy: 'tests/fixtures/old-user-data/generators/zzCanvasModeGen.ts.txt，在 v0.24.1 导出里用 0.24.1 的真实 store 写口（addNode / connectNodes / updateNode + applyArchetypeModeSwitch / copySelectedNodes + pasteNodes / disconnectEdge）和 buildPlannedNodeMeta 造节点，readDocumentSnapshot() 取存盘片段',
+      regenerate: 'git archive v0.24.1 | tar -x -C <空目录>；链接 node_modules；把生成器放到 src/workbench/generationCanvas/store/zzCanvasModeGen.test.ts；V_OUT=<输出目录> pnpm exec vitest run 那个文件（README 里有全文）',
+      canvasJsonIs: '项目文件 payload.generationCanvas 的存盘片段（readDocumentSnapshot 的原样输出）',
+      scenarios,
+      v0241Reads: reads,
+    }, null, 2)}\n`)
+    expect(nodes.length).toBeGreaterThanOrEqual(scenarios.length)
+  })
+})
+
+// ── 退回旧版本读得开（第二段，V_IN 给了才跑）──────────────────────────────
+// 把「今天主线读写后存回的画布片段」（V_IN，一个 canvas.json 形状的文件）交给 0.24.1 自己的真读取：restoreSnapshot（0.24.1 的加载收敛照旧工作）
+// + currentArchetypeMode / resolveTaskKind / canRunGenerationNode，和夹具 manifest（V_MANIFEST）里录下的 0.24.1 读法对账：
+// 节点一个不少、方式读得出。每个节点的对账行写到 V_REPORT。
+describe.skipIf(!process.env.V_IN)('zzCanvasModeReadBack', () => {
+  it("0.24.1 reads what today's main wrote back", () => {
+    const input = JSON.parse(fs.readFileSync(String(process.env.V_IN), 'utf8'))
+    const manifest = JSON.parse(fs.readFileSync(String(process.env.V_MANIFEST), 'utf8')) as {
+      scenarios: Array<{ key: string; nodeId: string }>
+      v0241Reads: Record<string, { readModeId: string | null; taskKind: string; canRun: boolean }>
+    }
+    store().restoreSnapshot(input)
+    const { nodes, edges } = store()
+    const lines: string[] = []
+    for (const s of manifest.scenarios) {
+      const node = nodes.find((n) => n.id === s.nodeId)
+      expect(node, `${s.key} missing after 0.24.1 load`).toBeTruthy()
+      const meta = (node!.meta || {}) as Record<string, unknown>
+      const archetypeId = (meta.archetype as { id?: string } | undefined)?.id
+      const archetype = archetypeId ? archetypeOf(archetypeId) : null
+      const refs = resolveGenerationReferences(node!, { nodes, edges })
+      const got = {
+        readModeId: archetype ? currentArchetypeMode(archetype, meta).id : null,
+        taskKind: resolveTaskKind(node!, refs),
+        canRun: canRunGenerationNode(node!, { nodes, edges }),
+        incomingEdges: edges.filter((e) => e.target === s.nodeId).length,
+      }
+      const want = manifest.v0241Reads[s.key]!
+      const same = got.readModeId === want.readModeId && got.taskKind === want.taskKind && got.canRun === want.canRun
+      lines.push(`${s.key}\t0.24.1 读主线写回的：${got.readModeId}/${got.taskKind}/canRun=${got.canRun}/入边${got.incomingEdges}\t夹具录的：${want.readModeId}/${want.taskKind}/canRun=${want.canRun}\t${same ? '一致' : '不同'}`)
+    }
+    fs.writeFileSync(String(process.env.V_REPORT), lines.join('\n'))
+  })
+})

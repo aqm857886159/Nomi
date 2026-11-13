@@ -16,6 +16,7 @@ import { CustomCallScriptError, runCustomCallScript } from "./customCallRunner";
 import { readCatalog } from "./catalogStore";
 import { readAutomationPolicySettings } from "../settings/automationPolicySettings";
 import { assetLocalizationOptions, localizeForSend } from "./assetTransportRuntime";
+import { writeGeneratedAsset } from "../assets/projectAssetStore";
 import { trim } from "../jsonUtils";
 import type { BillingModelKind, HttpOperation, Model, Vendor } from "./types";
 import type { TaskRequest, TaskResult } from "../runtime";
@@ -40,8 +41,6 @@ export type CustomCallDispatchInput = {
   taskId: string;
   /** 发出去之前的付费闸（令牌路核销令牌；Run 路批准已在 Run 的门上）。由 runtime 注入，这里不自己选。 */
   spendGate: typeof consumeTaskSpend;
-  /** 把脚本产出的二进制写成项目资产（注入避免循环依赖，同 localizeTaskAsset）。 */
-  writeAsset: (projectId: string, bytes: Buffer, fileName: string, contentType: string, meta: Record<string, unknown>) => unknown;
   /** runtime 内部的资产落地（注入避免循环依赖）。 */
   localizeTaskAsset: (
     projectId: string,
@@ -94,6 +93,14 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
   );
   const effectiveRequest =
     localized.uploaded > 0 ? { ...request, extras: localized.value as TaskRequest["extras"] } : request;
+  const type: "image" | "video" | "audio" | "model3d" =
+    wantedKind === "video"
+      ? "video"
+      : wantedKind === "audio"
+        ? "audio"
+        : wantedKind === "model3d"
+          ? "model3d"
+          : "image";
   let executed;
   try {
     executed = await runCustomCallScript({
@@ -107,16 +114,18 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
       taskKind,
       modeId,
       timeoutMs: wantedKind === "video" ? 15 * 60 * 1000 : 5 * 60 * 1000,
-      // 上游只给字节流时的落地口。写进本项目资产库，脚本拿回一个能用的本地 URL——
-      // 比拼 data URL 靠谱（几十 MB 的视频拼成 base64 会把整条链路撑爆）。
+      // 上游只给字节流时的落地口：经生成产物关口（暂存 → 按任务种类解码校验 → 原子发布）写进本项目，脚本拿回
+      // 一个能用的本地 URL——比拼 data URL 靠谱（几十 MB 的视频拼成 base64 会把整条链路撑爆）。期望类型只看任务种类，
+      // 不信脚本给的后缀和 content-type。没项目的任务走不到这里：用到 saveFile 的脚本，runTask 在付费前就拒了（projectFileResult）。
       saveFile: async (bytes, ext, contentType) => {
-        const written = input.writeAsset(projectId, bytes, `custom-call-${taskId}.${ext}`, contentType, {
-          kind: wantedKind,
+        const written = await writeGeneratedAsset(projectId, bytes, `custom-call-${taskId}.${ext}`, contentType, {
+          kind: "generated",
           source: "custom-call",
+          ownerNodeId: nodeId || null,
           modelKey: model.modelKey,
           vendorKey: vendor.key,
-        }) as { data?: { url?: string }; url?: string } | undefined;
-        const url = written?.data?.url || written?.url;
+        }, type) as { data?: { url?: string } } | undefined;
+        const url = written?.data?.url;
         if (!url) throw new Error("saveFile 落盘后没拿到 URL");
         return url;
       },
@@ -145,14 +154,6 @@ export async function runCustomCallTask(input: CustomCallDispatchInput): Promise
     return textResult;
   }
 
-  const type: "image" | "video" | "audio" | "model3d" =
-    wantedKind === "video"
-      ? "video"
-      : wantedKind === "audio"
-        ? "audio"
-        : wantedKind === "model3d"
-          ? "model3d"
-          : "image";
   const assets = await Promise.all(
     executed.assets.map((url) =>
       projectId ? input.localizeTaskAsset(projectId, url, type, nodeId, vendor) : unlocalizedTaskAsset(type, url),

@@ -1,0 +1,32 @@
+{
+  "name": "换模型参数的规整政策",
+  "subject": "generation.model-switch-params",
+  "lifecycle": "author",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "pending",
+  "migration_strategy": "第1步收口既有政策并冻结请求；第2步写入规整，第3步发送复查，第4步品牌参数与forbidden_derivations门岗闭合。设计卡 docs/plan/2026-11-09-model-params-write-time.md。",
+  "owner": {
+    "path": "electron/shared/videoCapabilities/resolveModelParams.ts",
+    "symbol": "resolveModelParams"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/videoCapabilities/resolveModelParams.ts",
+      "symbol": "resolveModelParams"
+    }
+  ],
+  "forbidden_derivations": [],
+  "parity_test": "electron/shared/videoCapabilities/resolveModelParams.test.ts",
+  "allowed_consumers": [
+    "electron/capabilityCore/mcpStoryboardPlanner.ts",
+    "electron/shared/videoCapabilities/planResolver.ts",
+    "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+    "src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+    "src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts"
+  ],
+  "since": "2026-11-09",
+  "notes": "第1步只统一政策实现，不改变今天的差异；合法性继续由paramConstraints提供，比例由aspectRatioValue提供。旧目录控件只做键编解码，defaultPatchForControls是委托共享主人的既有API。禁止绕开共享函数的门岗留第4步，不冒称已实现。2026-11-12：clampParamsToMode 删除，下拉修正改由 archetypeMeta.ts 的 fixDropdownsBeforeSend 做——只在渲染层发送前调（buildCatalogTaskRequest 一个调用点，紧跟方式参数主人之后）；主进程不调，无界面请求已给的值一个字节不动。"
+}

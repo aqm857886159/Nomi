@@ -34,6 +34,35 @@ export function isGeneratedAssetMeta(meta: JsonRecord): boolean {
   return String(meta.kind || "").toLowerCase() === "generated";
 }
 
+declare const checkedUserAssetKindBrand: unique symbol;
+/** 运行时核过「不是生成产物」的 kind（渲染层 / IPC 送来的字符串）。只有 checkedUserAssetKind 产得出。 */
+export type CheckedUserAssetKind = string & { readonly [checkedUserAssetKindBrand]: true };
+
+/**
+ * isGeneratedAssetMeta 的类型面：主进程里的调用方在「不收生成产物」的门上，kind 只能是写死的字面量（且不是
+ * "generated"，大小写都算），或者 checkedUserAssetKind 在运行时核过的值；随手一个 string（变量、拼出来的）编译不过——
+ * 它可能就装着 "generated"。生成产物只走要求说清期望类型的门（writeGeneratedAsset 等）；2026-11-07 配音走了导入
+ * 用户文件的门，漏了期望类型，扣了钱存不进项目。
+ */
+export type NotGeneratedKind<K extends string> = K extends CheckedUserAssetKind ? K
+  : string extends K ? never
+  : Lowercase<K> extends "generated" ? never : K;
+
+/** 生成产物的 meta：kind 写死 "generated"，配对的期望类型必须非空（见 projectAssetStore.copyAssetFile）。 */
+export type GeneratedAssetMeta = JsonRecord & { kind: "generated" };
+/** 用户东西的 meta：kind 必须写明且不是生成产物——不写 kind 的 JsonRecord 编译不过，免得「不知道是什么」溜进来。 */
+export type UserAssetMeta<K extends string = string> = JsonRecord & { kind: NotGeneratedKind<K> };
+
+/**
+ * 渲染层 / IPC 送来的 kind 在这里解析一次：是生成产物（大小写都算）就以 refusal 拒，否则发出 CheckedUserAssetKind，
+ * 往下的门在类型上只认它或字面量。refusal 由入口给（它的错误码是它的合同）。
+ */
+export function checkedUserAssetKind(value: unknown, fallback: string, refusal: string): CheckedUserAssetKind {
+  const kind = String(value || fallback);
+  if (isGeneratedAssetMeta({ kind })) throw new Error(refusal);
+  return kind as CheckedUserAssetKind;
+}
+
 declare const verifiedStagedAsset: unique symbol;
 /** 已通过校验、躺在本项目私有暂存里的生成产物。只有 prepareVerifiedGeneratedAsset 能产出；只有它能被发布。 */
 export type VerifiedStagedAsset = Readonly<{

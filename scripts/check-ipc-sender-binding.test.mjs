@@ -33,4 +33,17 @@ describe('IPC sender scanner', () => {
     fs.writeFileSync(target, original.replace(safeCall, 'assertTrustedSender(event);'))
     expect(() => execFileSync(process.execPath, [script, '--root', root], { encoding: 'utf8', stdio: 'pipe' })).toThrow(/直接调用会抛异常/)
   })
+
+  it('accepts a window registered through adoptMainWindow, and still rejects one with no registration', () => {
+    const root = fixtureRoot()
+    const target = path.join(root, 'electron', 'main.ts')
+    const original = fs.readFileSync(target, 'utf8')
+    // 夹具里 main.ts 经 adoptMainWindow 登记（不直接调 setMainWindow），必须是绿的。
+    expect(original).toMatch(/\badoptMainWindow\s*\(/)
+    expect(original).not.toMatch(/\b(?:registerAppWindow|setMainWindow)\s*\(/)
+    expect(execFileSync(process.execPath, [script, '--root', root], { encoding: 'utf8' })).toMatch(/IPC sender binding/)
+    // 反例：建了窗口、三种登记都没有 → 红。
+    fs.writeFileSync(target, original.replace(/\badoptMainWindow\s*\(/g, 'noop('))
+    expect(() => execFileSync(process.execPath, [script, '--root', root], { encoding: 'utf8', stdio: 'pipe' })).toThrow(/没登记信任角色/)
+  })
 })

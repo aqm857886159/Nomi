@@ -36,15 +36,12 @@ import { densityBox, frameMediaBox, isPortraitBox, type FrameMediaBox } from './
 import {
   effectiveShotAspect,
   planDefaultAspect,
-  resolveShotParams,
   setShotAspectOverride,
 } from '../../generationCanvas/agent/storyboardShotScope'
 import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
 import type { ShotVariant } from './shotRow/shotVariants'
 import { positionsForAnchorFilter } from './storyboardDInteractions'
 import StoryboardSelectionToolbar from './StoryboardSelectionToolbar'
-import { applyBulkModelToShots, type StoryboardShotKind } from './storyboardBulkModelScope'
-import { applyBulkParamToShots, storyboardBulkParamGroups } from './storyboardBulkParamScope'
 import { confirmDialog } from '../../../design'
 import { cn } from '../../../utils/cn'
 
@@ -148,8 +145,9 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ pendingActions, plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
+export default function StoryboardShotTable({ pendingActions, plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, durationWarnings, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onRecoverRow, onToggleLockRow, onOpenPreviewRow, onLocateInCanvasRow, onRerunFreshRefsRow, onDeleteSelected, filterAnchorId, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant, scrollRef }: Props): JSX.Element {
   const { t } = useTranslation()
+  const shotModelOptions = React.useMemo(() => [...imageModelOptions, ...videoModelOptions], [imageModelOptions, videoModelOptions])
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [foldedScenes, setFoldedScenes] = React.useState<ReadonlySet<string>>(new Set())
@@ -346,22 +344,6 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusShot, foldedScenes, filterAnchorId, workspaceMode])
   const selectedRows = rows.filter((runtime) => selectedShotIds.has(runtime.shot.shotId ?? `index:${runtime.shot.index}`))
-  // 选择是表的状态、footer 是它的消费者——上报而不是让 footer 再存一份（两份选择必然会漂）。
-  const selectedKeysSignature = [...selectedShotIds].sort().join('|')
-  React.useEffect(() => {
-    onSelectionChange?.(selectedRows)
-    // selectedRows 每次渲染都是新数组；用稳定签名当依赖，避免每帧回调。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKeysSignature, rows])
-  // 「统一模型」按选中集合的**镜种**分档（storyboardBulkModelScope 单源）——图片镜只列图片模型、
-  // 视频镜只列视频模型；两种都选中就出两个下拉。混成一条平列表是 2026-09-11 反馈的那条错。
-  const selectedModelGroups = storyboardBulkParamGroups({
-    plan,
-    shots: selectedRows.map((runtime) => runtime.shot),
-    imageModelOptions,
-    videoModelOptions,
-    aspectOf: (shot) => effectiveShotAspect(plan, shot),
-  })
   const selectKeyOf = (shot: StoryboardRowRuntime['shot']): string => shot.shotId ?? `index:${shot.index}`
   const onSelectShot = (position: number, event: React.MouseEvent): void => {
     const keyAt = (index: number): string => selectKeyOf(rows[index].shot)
@@ -384,20 +366,6 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
     }
     onStoryboardShotSelect?.(rows[position].shot)
   }
-  const applyParamToSelected = (kind: StoryboardShotKind, control: Parameters<typeof applyBulkParamToShots>[0]['control'], raw: string): void => {
-    const group = selectedModelGroups.find((candidate) => candidate.kind === kind)
-    if (!group) return
-    onChange(applyBulkParamToShots({ plan, isSelected: (shot) => selectedShotIds.has(selectKeyOf(shot)), kind, control, raw, controls: group.scope.controls }))
-  }
-  // 「本次跳过」作用于已选镜：已选的全都跳过了就改成取消；否则把还没跳过的补上。
-  const allSelectedSkipped = selectedRows.length > 0 && selectedRows.every((runtime) => skippedShotIds?.has(stableShotId(runtime.shot)))
-  const skipSelected = (): void => {
-    if (!onToggleSkip) return
-    for (const runtime of selectedRows) {
-      const key = stableShotId(runtime.shot)
-      if ((skippedShotIds?.has(key) ?? false) === allSelectedSkipped) onToggleSkip(key)
-    }
-  }
   const toggleSelectedAt = (position: number): void => {
     const key = selectKeyOf(rows[position].shot)
     setSelectedShotIds((previous) => {
@@ -406,9 +374,6 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
       return next
     })
     setSelectionAnchor(visiblePositions.indexOf(position))
-  }
-  const applyModelToSelected = (kind: StoryboardShotKind, modelKey: string, vendor?: string): void => {
-    onChange(applyBulkModelToShots({ plan, isSelected: (shot) => selectedShotIds.has(selectKeyOf(shot)), kind, modelKey, vendor }))
   }
   const deleteSelected = async (): Promise<void> => {
     const generated = selectedRows.some((row) => Boolean(row.exec.resultUrl))
@@ -499,7 +464,7 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
       shot,
       actionBusy: pendingActions?.has(`shot:${shotKey}`),
       anchors: plan.anchors,
-      modelOptions: shot.shotKind === 'image' ? imageModelOptions : videoModelOptions,
+      modelOptions: shotModelOptions,
       promptInvalid: emptyPromptShots.has(shot.index),
       durationWarning: durationWarnings?.get(shotKey),
       exec: runtime?.exec,
@@ -515,17 +480,12 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
       frameBox: tableBox,
       onResolveOverride: runtime?.exec.node ? (field: string, action: 'adopt' | 'discard') => resolveStoryboardOverride(runtime.exec.node!.id, field, action, { plan, shot, change: onChange }) : undefined,
       onChangeAspect: (next: string | null) => onChange(setShotAspectOverride(plan, pos, next)),
-      skipped: skippedShotIds?.has(shotKey) ?? false,
-      onToggleSkip: onToggleSkip ? () => onToggleSkip(shotKey) : undefined,
-      // 行首复选框 = 选中（以前是「本次跳过」）；跳过住行菜单与多选浮条。
       onToggleSelect: () => toggleSelectedAt(pos),
       variants: variantsByShotId?.[shotKey] ?? [],
       adoptedVariantId: adoptedVariantByShotId?.[shotKey],
       onAdoptVariant: runtime && props_onAdoptVariant ? (variant: ShotVariant) => props_onAdoptVariant(runtime, variant) : undefined,
       onDeleteVariant: runtime && props_onDeleteVariant ? (variant: ShotVariant) => props_onDeleteVariant(runtime, variant) : undefined,
       outputTag: outputTagByShotId?.[shotKey],
-      onAgentHandoff: runtime && onAgentHandoff ? () => onAgentHandoff([runtime]) : undefined,
-      onInsertAbove: () => onChange(insertShotAt(plan, pos)),
       onInsertBelow: () => onChange(insertShotAt(plan, pos + 1)),
       selected: selectedShotIds.has(selectKeyOf(shot)),
       onSelect: (event: React.MouseEvent) => onSelectShot(pos, event),
@@ -567,8 +527,6 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
           void confirmDialog({ title: t('storyboardEditor.rowActions.deleteTitle'), message: t('storyboardEditor.rowActions.deleteMessage'), confirmLabel: t('storyboardEditor.row.delete'), danger: true }).then((ok) => { if (ok) onDeleteSelected([runtimeForRow]) })
         } else onDeleteSelected([runtimeForRow])
       },
-      // 只套 params：模型/模式归「全部镜头」批量条管（一功能一个家，§1.5.2）
-      onApplyParamsToAll: () => onChange({ ...plan, shots: plan.shots.map((s) => ({ ...s, params: resolveShotParams(plan, shot) })) }),
       storyboardProfile: storyboardProfileForKey(plan.profileKey),
     }
     // C1：有 anchorCards 时走 ShotRowWithMention（含 useShotMentionSource），
@@ -653,12 +611,6 @@ export default function StoryboardShotTable({ pendingActions, plan, projectId, r
     {selectedRows.length > 0 ? (
         <StoryboardSelectionToolbar
           selectedCount={selectedRows.length}
-          modelGroups={selectedModelGroups}
-          onGenerate={() => onGenerateSelected(selectedRows)}
-          onApplyModel={applyModelToSelected}
-          onApplyParam={applyParamToSelected}
-          allSkipped={allSelectedSkipped}
-          onSkip={onToggleSkip ? skipSelected : undefined}
           onDelete={() => { void deleteSelected() }}
           onClear={() => setSelectedShotIds(new Set())}
           onAgentHandoff={onAgentHandoff ? () => onAgentHandoff(selectedRows) : undefined}

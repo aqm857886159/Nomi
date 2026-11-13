@@ -132,7 +132,10 @@ export function createLaneToolInputBoundary(options: Readonly<{
     const consecutive = options.failures.note(toolName, isError, body, failure);
     if (!isError) return { consecutive };
     const wall = options.failures.block(toolName);
-    options.onFailure?.({ toolName, code: failure?.code ?? 'unknown', attempt: consecutive, breakerTripped: wall !== null });
+    options.onFailure?.({
+      toolName, code: failure?.code ?? 'unknown', attempt: consecutive, breakerTripped: wall !== null,
+      ...(failure?.problem?.code ? { reason: failure.problem.code } : {}),
+    });
     return wall && consecutive === LANE_REPEATED_FAILURE_BLOCK ? { consecutive, stop: wall.reason } : { consecutive };
   }
 

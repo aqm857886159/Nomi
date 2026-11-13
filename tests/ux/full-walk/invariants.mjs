@@ -50,7 +50,7 @@ export const INVARIANTS = Object.freeze([
   Object.freeze({
     id: 7, key: 'visible-and-closable',
     title: Object.freeze({ 'zh-CN': '看得见、关得掉', en: 'Visible and closable' }),
-    how: '每一步收尾时量每个弹出层：关闭钮在视口内且点得到、弹层本体不出视口（最小窗 electron/mainWindowMinSize.json 也量）；英文界面可见文字里不许有中文；中文界面的提示 / 报错里不许原样出现供应商英文原话（7c）。',
+    how: '每一步收尾时量每个弹出层：关闭钮在视口内且点得到、弹层本体不出视口（最小窗 electron/shared/mainWindowSize.json 也量）；英文界面可见文字里不许有中文；中文界面的提示 / 报错里不许原样出现供应商英文原话（7c）。',
   }),
   Object.freeze({
     id: 8, key: 'no-token-burn',

@@ -34,6 +34,10 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
   // 含旧的两个独立 model key → 老节点按身份自动套上档案（无需数据迁移）。
   // `gpt_image_2` 是 Runway 侧的判别串（同一个产品的第三家接入，P4：档案 = 模型身份，供应商无关）。
   identifierPatterns: ["gpt-image-2", "gpt-image-2-text-to-image", "gpt-image-2-image-to-image", "gpt-4o-image", "gpt_image_2"],
+  sources: [{
+    vendorKey: "apimart", url: "https://docs.apimart.ai/en/api-reference/images/gpt-image-2/generation.md",
+    checkedAt: "2026-11-08", covers: "APIMart accepts up to 15 reference images in image_urls.",
+  }],
   // Runway 的这一行原挂平台档案 runway-image（已删）；存量节点靠 legacyIds + 模型身份匹配迁到这里。
   legacyIds: ["runway-image"],
   // fal 的改图请求体读 mask_url（局部重绘蒙版图，electron/catalog/falOfficial.ts 的 openai/gpt-image-2/edit），生成框没有蒙版控件：
@@ -60,10 +64,8 @@ export const GPT_IMAGE_2_ARCHETYPE: ModelArchetype = {
       promptRequired: true,
       modelEnum: "gpt-image-2-image-to-image",
       transportTaskKind: "image_edit",
-      // 共享档案（kie+apimart）。2026-06-30 doc 复核：kie 与 apimart 的 gpt-image-2 image-to-image 现都是
-      // input_urls maxItems:16（docs.kie.ai gpt-image-2-image-to-image）——旧值 4 是当初「怕 kie 更严」的保守猜测，
-      // 已被官方文档证伪，抬到 16（两家一致，不再需要 per-vendor 收窄）。
-      slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 16, inputKey: "input_urls" }],
+      // KIE 接受 16 张；APIMart 的 image_urls 合计最多 15 张。
+      slots: [{ kind: "image_ref", label: "输入图", min: 1, max: 16, vendorMax: { apimart: 15 }, inputKey: "input_urls" }],
       params: PARAMS,
       vendorParams: { runway: RUNWAY_PARAMS },
     },

@@ -49,6 +49,7 @@ export function admitAuthoredDuration(
     throw new ContractCompilationError(
       `${model} 这个模式没有时长参数，片子多长由模型自己定。请去掉 durationSec；如果用户一定要这个时长，换一个能设时长的模型，或者先问用户。`,
       { code: "unknown_parameter", path: "durationSec", allowedKeys },
+      { code: "duration_not_in_mode", field: "durationSec", model, value },
     );
   }
   const field = parameterSchema[fieldKey]!;
@@ -60,6 +61,7 @@ export function admitAuthoredDuration(
       throw new ContractCompilationError(
         `${model} 只支持 ${allowed.join(" / ")} 秒，收到 ${value} 秒。请从这几档里选一个写进 durationSec，或者先问用户要哪一档。`,
         { code: "parameter_not_in_enum", path: "durationSec", allowedValues: [...field.enum], allowedKeys },
+        { code: "duration_not_in_mode", field: "durationSec", model, value, allowed },
       );
     }
     return { ...candidate, parameters: { ...rest, [fieldKey]: matched } };
@@ -72,6 +74,11 @@ export function admitAuthoredDuration(
         ...(field.min !== undefined ? { min: field.min } : {}),
         ...(field.max !== undefined ? { max: field.max } : {}),
         allowedKeys,
+      },
+      {
+        code: "duration_not_in_mode", field: "durationSec", model, value,
+        ...(field.min !== undefined ? { min: field.min } : {}),
+        ...(field.max !== undefined ? { max: field.max } : {}),
       },
     );
   }

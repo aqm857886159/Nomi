@@ -153,8 +153,9 @@ let composerOpen = false
 for (const [fx, fy, name] of [[0.46, 0.30, 'a'], [0.52, 0.30, 'b'], [0.49, 0.34, 'c'], [0.55, 0.40, 'd']]) {
   await win.mouse.click(Math.round(vp.width * fx), Math.round(vp.height * fy)).catch(() => {})
   await win.waitForTimeout(700)
-  composerOpen = await win.evaluate(() => document.body.innerText.includes('全能参考') || document.body.innerText.includes('生成方式'))
-  console.log(`  click ${name} → composer(含「全能参考/生成方式」)=${composerOpen}`)
+  // 认生成框本身（2026-11-12 起参数面板里没有「生成方式」字样，方式只在底栏方式格，空节点上写的是「文生视频」）。
+  composerOpen = await win.evaluate(() => Boolean(document.querySelector('.generation-canvas-v2-node__composer [data-node-composer-footer]')))
+  console.log(`  click ${name} → 生成框出现=${composerOpen}`)
   if (composerOpen) break
 }
 await snap(win, 'video-node-selected')

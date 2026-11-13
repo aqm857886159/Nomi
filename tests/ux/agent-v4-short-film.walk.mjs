@@ -42,6 +42,7 @@ import {
   createRuntimeWalk,
   escapeForRegExp,
   expandResidentPanel,
+  expectComposerFocused,
   hasToolResult,
   openCanvas,
   permissionTier,
@@ -50,7 +51,7 @@ import {
   readProject,
   sendCanvas,
   sendCreation,
-  waitForV4TurnIdle, expectComposerText, expectComposerPlaceholder } from './agent-runtime-walk-support.mjs'
+  waitForV4TurnIdle, clearComposerText, expectComposerText, expectComposerPlaceholder } from './agent-runtime-walk-support.mjs'
 
 // 空态第一条起手（创作面 = 写脚本）。它的字住 i18n（`agentPanelV4.starterWriteScriptPrompt`），
 // 这里抄一份是为了断言「chip 填进去的就是这句」；两边漂了这条走查会当场红。
@@ -108,13 +109,15 @@ try {
   // 点第一颗起手 = 把那句话交给 composer 并把光标给用户，**不替他发送**。
   await clickOrFail(empty.locator(EMPTY_STARTER).first(), '空态第一条起手')
   await expectComposerText(panel.locator(COMPOSER_INPUT), STARTER_FIRST, '起手句交给了输入框')
+  // 「把光标给用户」：焦点真进了输入框（起手句和 ⌘J 走同一扇门，由输入框的主人落焦点）。
+  await expectComposerFocused(win, CREATION_PANEL, '点了起手句，光标没进 Agent 输入框')
   await expect(panel.locator(COMPOSER_SEND)).toBeEnabled()
   // 「没发出去」的正面证据：真发了就会多一条用户气泡、空态也就永远消失了。
   // 这里断言空态**还在**，而不是断言气泡不存在——后者本来就是 0，采样恒真（假绿）。
   await expect(empty).toBeVisible()
   await expect(panel.locator(V4_FLOW).locator(USER_BUBBLE)).toHaveCount(0)
   await walk.snap('01b-starter-filled')
-  await panel.locator(COMPOSER_INPUT).fill('')
+  await clearComposerText(panel.locator(COMPOSER_INPUT))
 
   // 收起 = 小球的**空闲**档（10-08 外壳重设计 Chrome 板）：什么都没发生时小球素着——一颗永远亮着的点等于没有状态。
   await clickOrFail(panel.locator(COLLAPSE_BUTTON), '收起面板（头部形态切到小球）')

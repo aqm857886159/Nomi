@@ -2,7 +2,7 @@
 //
 // 2026-10-21 文本任务迁 pi-ai 单次调用：pi 的图片入参只收 base64（ImageContent），于是远程图从「把 URL 交给上游自己取」
 // 改成**本机取回再内联**（协调 10-21 定，D4）。这改变了「谁去取图」，所以取图必须走出站唯一的那条硬化取回：
-//   · hardenedFetch 默认跟跳转，每一跳重新过外发授权——内网 / 回环被拒，跨域跳转剥凭据头（结果图常走 CDN 跳转，不能「不跟」）；
+//   · hardenedFetch 默认跟跳转，跨域跳转剥凭据头（结果图常走 CDN 跳转，不能「不跟」）；不按地址拦，只认响应类型；
 //   · 类型只收 png / jpeg / webp / gif，上限 20MB。
 // Antigravity（本机官方 CLI）走同一个函数，只是按它自己的进程约束收紧（不跟跳转、不收 gif）。
 import { readNomiLocalAsset } from "../assets/localAssetFile";
@@ -26,7 +26,7 @@ export type ReadModelImageOptions = {
   signal?: AbortSignal;
   /** 收哪些类型。缺省 png / jpeg / webp / gif。 */
   types?: readonly string[];
-  /** 远程图跟不跟跳转。缺省跟（每一跳重新过外发授权）。 */
+  /** 远程图跟不跟跳转。缺省跟（跨域跳转剥凭据头）。 */
   allowRedirect?: boolean;
 };
 

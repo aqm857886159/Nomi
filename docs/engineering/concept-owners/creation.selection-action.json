@@ -1,0 +1,29 @@
+{
+  "name": "创作文档选区浮条上的动作（长什么样、排哪组、点了去哪）",
+  "subject": "creation.selection-action",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "renderer",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "src/workbench/creation/selectionActions.ts",
+    "symbol": "runSelectionAction"
+  },
+  "write_api": [
+    {
+      "path": "src/workbench/creation/selectionActions.ts",
+      "symbol": "SELECTION_ACTIONS"
+    },
+    {
+      "path": "src/workbench/creation/selectionActions.ts",
+      "symbol": "runSelectionAction"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "src/workbench/creation/SelectionGeneratePopover.tsx"
+  ],
+  "since": "2026-11-12",
+  "notes": "一张表 SELECTION_ACTIONS（图标、文案键、组 cluster、去处）加一条分派 runSelectionAction；浮条只按 selectionActionsIn(cluster) 画钮。「生成」组只放建画布节点的去处，交给 Agent 的放「AI 编辑」那组（用户 2026-11-12 拍板样张 B，docs/design/boards/2026-11-12-selection-storyboard/）。合同 docs/fixes/2026-11-12-selection-storyboard-reads-as-video.root-cause.json。"
+}

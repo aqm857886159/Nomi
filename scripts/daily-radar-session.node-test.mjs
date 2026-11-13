@@ -80,7 +80,7 @@ describe('版本健康判停的退出码 1 不是脚本报错', () => {
   })
 
   test('真实摘要：过真实的报告渲染，最后一行还是判停', async () => {
-    const report = buildIntakeReport({ feedbackRecords: [], eventRecords: [], trajectoriesCount: 0, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-10-31T11:52:00.000Z', inbox: { rebuilt: false, items: {} } })
+    const report = buildIntakeReport({ feedbackRecords: [], eventRecords: [], newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-10-31T11:52:00.000Z', inbox: { rebuilt: false, items: {} } })
     report.versionHealth = {
       current: '0.24.1', previous: '0.24.0', window: { start: '2026-10-25', end: '2026-10-31' },
       launches: { newer: 100, older: 100 }, observedDays: { newer: 7, older: 7 }, notes: [], rows: [],
@@ -410,7 +410,7 @@ describe('待分诊：每次开会话现读，新反馈从哪条分支都漏不�
     const report = buildIntakeReport({
       feedbackRecords: [{ key, record: { receivedAt: '2026-10-31T11:51:00.000Z', receipt: 'NF-1031-0001', payload: { manifest: {}, context: {} } } }],
       eventRecords: [],
-      trajectoriesCount: 0,
+     
       newFeedbackKeys: [key],
       newEventKeys: [],
       generatedAt: '2026-10-31T11:52:00.000Z',

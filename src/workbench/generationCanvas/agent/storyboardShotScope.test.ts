@@ -125,6 +125,12 @@ describe('resolveShotParams：整片默认 → 逐镜请求参数', () => {
     expect(resolveKeyframeParams(plan, plan.shots[0])).toEqual({ aspect_ratio: '1:1' })
   })
 
+  it('a disabled keyframe draft retains its authored ratio but does not override film defaults', () => {
+    const plan = planOf([{ ...shot(1), keyframe: { enabled: false, prompt: 'saved', params: { aspect_ratio: '1:1' } } }], '9:16')
+    expect(resolveKeyframeParams(plan, plan.shots[0])).toEqual({ aspect_ratio: '9:16' })
+    expect(plan.shots[0].keyframe).toEqual({ enabled: false, prompt: 'saved', params: { aspect_ratio: '1:1' } })
+  })
+
   it('resolver 不改 plan/shot 本体（继承仍是读时算的，不抄进每一行）', () => {
     const plan = planOf([shot(1)], '9:16')
     resolveShotParams(plan, plan.shots[0])

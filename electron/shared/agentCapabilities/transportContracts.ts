@@ -13,6 +13,7 @@
 import type { MediaImportRejection } from '../contracts/mediaImportPolicy'
 import type { ZodTypeAny } from 'zod'
 import type { ToolInputIssue } from '../agentLane/toolInputIssues'
+import type { GenerationProblem } from '../generationProblem'
 
 export interface RuntimeToolDescriptor {
   name: string
@@ -41,7 +42,9 @@ export type RuntimeToolDecision =
     /** 宿主账本的事实：这次调用落到的那份计划有没有一笔可能到过供应商。`false` = 一笔都没有、没花钱；缺席 = 不知道（按可能到过说）。 */
     submissionStarted?: boolean
     /** 准入层拒绝的字段事实（`toolInputIssues` 那一份清单）：lane 把它挂进失败信封，面板和熔断都读它。 */
-    issues?: readonly ToolInputIssue[] }
+    issues?: readonly ToolInputIssue[]
+    /** 生成起草期被拒的闭合原因（`generationProblem.ts`）：lane 把它挂进失败信封，面板按它说原因，遥测记它。 */
+    problem?: GenerationProblem }
 
 export interface RuntimeToolCallRecord extends RuntimeToolCall {
   status: 'ok' | 'denied' | 'cancelled' | 'error'

@@ -1,0 +1,101 @@
+{
+  "modelKey": "kling-v3",
+  "fetchedAt": "2026-11-08",
+  "modes": {
+    "t2v": {
+      "why": "文生视频不带参考",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "no images means text-to-video, with images means image-to-video.",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent only; image/reference inputs may select another mode on the same endpoint.",
+        "evidence": [
+          {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "{\n  \"model\": \"kling-v3\",\n  \"prompt\": \"A golden cat running on a sunlit meadow, slow motion, cinematic quality\",\n  \"mode\": \"std\",\n  \"duration\": 5,\n  \"aspect_ratio\": \"16:9\"\n}"
+          }
+        ]
+      }
+    },
+    "i2v": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 2,
+          "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Maximum 2 images supported",
+          "meaning": {
+            "roles": [
+              "first_frame",
+              "last_frame"
+            ],
+            "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "Pass 2 images: automatically assigned as first frame + last frame"
+          },
+          "evidence": [
+            {
+              "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "Last-frame-only input is invalid (must include first frame)"
+            }
+          ]
+        },
+        "element_list": {
+          "shape": "object-array",
+          "max": 3,
+          "exercised": false,
+          "requiredFields": {
+            "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+            "fetchedAt": "2026-11-08",
+            "quote": "name, description, and element_input_urls are required for on-the-fly creation",
+            "fields": {
+              "name": "string",
+              "description": "string",
+              "element_input_urls": "string[]"
+            }
+          },
+          "children": {
+            "element_input_urls": {
+              "shape": "string[]",
+              "max": 4,
+              "min": 2,
+              "exercised": false,
+              "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+              "fetchedAt": "2026-11-08",
+              "quote": "element_input_urls: 2-4 images per subject (first as frontal image, rest as references)",
+              "countsAsInput": false
+            }
+          },
+          "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "Reference subject list, up to 3 subjects."
+        }
+      },
+      "oneImage": {
+        "key": "image_urls",
+        "meaning": "first_frame",
+        "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+        "fetchedAt": "2026-11-08",
+        "quote": "Pass 1 image: used as first frame"
+      },
+      "requires": [
+        {
+          "when": [
+            "element_list"
+          ],
+          "anyOf": [
+            "image_urls"
+          ],
+          "source": "https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation",
+          "fetchedAt": "2026-11-08",
+          "quote": "When using element_list, you must provide at least 1 image via image_urls."
+        }
+      ]
+    }
+  }
+}

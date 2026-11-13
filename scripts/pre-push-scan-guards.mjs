@@ -34,18 +34,25 @@ const TEST_STYLE_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$|^vitest(?:\.\w+)?\.confi
  * 测试自己和它的相对 import 闭包被改，也会选中它（pre-push-contracts.mjs 的 touchesImplementation，不用在这里写）。
  */
 export const SCAN_GUARDS = Object.freeze([
+  { file: 'scripts/ci-external-download-cache.node-test.mjs', roots: ['.github/workflows', '.github/actions/cache-external-downloads'], exts: '*', files: ['package.json', 'pnpm-lock.yaml'] }, // node 批次：新增工作流也必须先恢复外部二进制缓存（<1 秒）。
   // Reviewed response JSON is data, but changes must still run the status contract in the normal batch.
   { file: 'tests/relay-onboarding/profile-statuses.test.mjs', roots: ['tests/relay-onboarding/fixtures/relay-profile-responses'], exts: '*' },
   // Each release adds a real old catalog here; a new directory must run the upgrade matrix before the push, not first in CI (under 5 s).
   { file: 'electron/catalog/upgradeKeepsWorkingModels.test.ts', roots: ['tests/fixtures/old-user-data/catalogs'], exts: '*' },
   // The matrix reads the real old generated asset (+ its .meta) a past release wrote; a new directory must run the old-user rows before the push (under 10 s).
   { file: 'electron/catalog/referenceLinkDelivery.matrix.test.ts', roots: ['tests/fixtures/old-user-data/assets'], exts: '*' },
+  // 2026-11-09：一次出几份就读出几份——每份旧目录（向导存下的、旧内置）造四份假响应都要读出四份；新加一份旧目录推送前就跑（<5 秒）。
+  { file: 'electron/catalog/multiOutputMapping.test.ts', roots: ['tests/fixtures/old-user-data/catalogs', 'tests/fixtures/old-user-data/curated'], exts: '*' },
   // 和 catalogs、assets 两行同形：每个版本新增一份真老用户数据（旧版本落盘的项目库），新目录推送前就跑老用户这组，不是到 CI 才红（<2 秒）。
   { file: 'electron/projects/projectLocation.oldUser.test.ts', roots: ['tests/fixtures/old-user-data/projects'], exts: '*' },
   // 付费确认卡和它的挂载点只许静态引入：遍历 src 找按需 import 它们的文件（<1 秒）。
   { file: 'src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx', roots: ['src'] },
   // 2026-11-07：applyCanvasToolCall 删掉第二次校验的等价证明——applyProposalBatch 与带变量工具名的调用者只有登记的那几个；遍历 src（<2 秒）。
   { file: 'src/workbench/generationCanvas/agent/applyCanvasToolCall.singleParse.test.ts', roots: ['src'] },
+  // 2026-11-12：「拆成镜头」那条消息只在分镜启动器一处拼；遍历 src 找自己写 openStoryboardResult / 分镜技能 key 的文件（<2 秒）。
+  { file: 'src/workbench/generationCanvas/agent/storyboardLauncher.test.ts', roots: ['src'] },
+  // 2026-11-12：渲染层不许再写第二份「key → 技能」查找；遍历 src 找按 name 精确比的手写查找（<2 秒）。
+  { file: 'src/workbench/skillLibrary/skillDisplay.test.ts', roots: ['src'] },
   // ── electron/ 全树（遍历 electron 找违规文件）──
   { file: 'scripts/lib/buildInputRefScan.test.mjs', roots: ['src', 'electron'], files: ['vite.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'scripts/build-tailwind.mjs', 'scripts/build-electron.mjs', 'scripts/write-intake-config.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/package-build-stamp.mjs'] }, // 构建源码不许引用构建戳排除的路径（NON_INPUTS）；遍历 src + electron（<1 秒）
   { file: 'tests/system/async-signature-migration.test.mjs', roots: ['tests', 'electron', 'src', 'scripts'] }, // V-plibrary F3：同步改异步的函数，调用方（含 tests / 脚本）都要 await；遍历四个目录的源码（<1 秒）
@@ -59,11 +66,13 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/check-network-entry.test.mjs', roots: ELECTRON }, // #1142：Node 网络调用必须走共用传输；扫描器 scripts/check-network-entry.mjs 在闭包里（6 秒）
   { file: 'src/vendor/tablerIcons.test.ts', roots: ['src'] }, // 2026-10-18：源码用到的 tabler 图标必须在 src/vendor/tablerIcons.ts 登记（否则只有 build 会炸；遍历 src，<1 秒）
   { file: 'src/workbench/modalInputLayerCensus.test.ts', roots: ['src'] }, // 2026-10-31：模态宿主都登记输入层，全局键盘、粘贴、指针监听都有归属；新增的不进表就红（遍历 src 的语法树，2 秒）
+  { file: 'src/design/modalTitleAccessibleNameCensus.test.ts', roots: ['src'] }, // 2026-11-13：DesignModal 的 title 不是纯文字就必须传 accessibleName，存量冻结只减不增（遍历 src 的 .tsx 语法树，<1 秒）
   { file: 'src/ui/app-shell/windowChrome.test.ts', roots: ['src'] }, // 2026-10-28：src 里每个铺满整窗的 fixed inset-0 根都得分类（让开顶栏 / 盖住顶栏但控件在带外 / 独立文档），没分类就红；遍历 src 的 .tsx（<1 秒）
   { file: 'electron/shared/mcpClientRegistry.test.ts', roots: ['src', 'electron'] }, // #1142：不许手抄客户端清单（4 秒）
   { file: 'electron/shared/contracts/ipcInvokeFailure.test.ts', roots: ['electron', 'src'] }, // 2026-10-24：全仓代码里写下的错误类名都要过 isCodeClassName（遍历 electron + src，<1 秒）
   { file: 'electron/capabilityCore/spendDoorSingleOwner.test.ts', roots: ELECTRON }, // 5 秒
   { file: 'electron/capabilityCore/mcpMigrationEntry.test.ts', roots: ['src', 'electron'] }, // #1142 合入后新增：MCP 宿主迁移入口只有登记的调用点（3 秒）
+  { file: 'electron/shared/generationLowering/referencePlacementOwnership.test.ts', roots: ['src', 'electron'] }, // 2026-11-08：参考放进哪个键只许降级函数写——删掉的旧拼法与旧值表示的名字不许回来、意图只许「绑定 + 值」（2026-11-09 起不再扫静态写键，新入口改由解析产物 / 封存体 + eslint 模块边界挡）；遍历 electron + src（<2 秒）
   { file: 'electron/catalog/customRelayWireModel.test.ts', roots: ELECTRON }, // 自定义中转站线上模型名只有一个出口：遍历 electron 生产文件（12 秒）
   { file: 'electron/catalog/modelListReconcile.test.ts', roots: ELECTRON }, // 3 秒
   { file: 'electron/catalog/storedApiKeyReaders.test.ts', roots: ELECTRON }, // 3 秒
@@ -82,6 +91,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/skills/skillFrontmatter.test.ts', roots: ['skills'], exts: '*' }, // 4 秒
   { file: 'electron/catalog/curatedVideoSharedContracts.test.ts', all: true, exts: '*' }, // git grep 全仓找「已知缺口」豁免记号（docs/ 除外）；记号可以出现在任何文件里
   // ── src/ 全树 ──
+  { file: 'src/ui/input/resizeSeparatorGesture.structure.test.ts', roots: SRC }, // 每个拖拽分隔条按下即认领手势（<2 秒）
   { file: 'src/bundleAssetUrlBoundary.test.ts', roots: SRC },
   { file: 'src/workbench/generationCanvas/canvasPreviewDoors.test.ts', roots: ['src', 'electron'] }, // 画布预览入口普查：遍历 src 与 electron 生产代码（9 秒）
   { file: 'src/workbench/generationCanvas/components/lightweightFallbackCensus.test.ts', roots: ['src/workbench'] }, // 兜底节点必须带 loading：遍历 workbench 找 fallback=<LightweightGenerationNode>（<1 秒）
@@ -91,6 +101,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/customEventWiring.test.ts', roots: SRC },
   { file: 'src/design/mediaOverlayInk.test.ts', roots: SRC },
   { file: 'src/design/menu.structure.test.ts', roots: SRC },
+  { file: 'src/design/loadingMark.structure.test.ts', roots: SRC }, // 加载标不换形象脸：遍历 src 找画 <NomiAgentFace 的文件，只许右下小球与聊天身份行（<1 秒）
   { file: 'src/design/outsidePress.structure.test.ts', roots: SRC }, // 「点外面」只有一种听法：遍历 src 找 mousedown / touchstart / 冒泡 pointerdown 监听与 useClickOutside（<1 秒）
   { file: 'src/design/popoverTracking.structure.test.ts', roots: SRC }, // 浮层跟踪不许逐帧轮询：遍历 src 找 autoUpdate 与 animationFrame（<2 秒）
   { file: 'src/ui/app-shell/shell/narrowOneThreshold.structure.test.ts', roots: SRC }, // 窄窗只有一个阈值：遍历 src 生产代码，按窗口宽的 matchMedia 只许外壳一条、1060 不许写死（<1 秒）
@@ -106,12 +117,14 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'scripts/build-tailwind.test.ts', roots: SRC, exts: [...CODE_EXTS, 'css', 'html'], files: ['tailwind.config.ts'] }, // 跑一次 tailwind content 扫描（12 秒）
   { file: 'scripts/canvas-store-subscriptions.test.mjs', roots: SRC, files: ['eslint.config.mjs'] }, // 画布 nodes / edges 整表订阅存量冻结：遍历 src 按语法树数处数（11 秒）
   { file: 'scripts/ui-money-format.test.mjs', roots: SRC, files: ['eslint.config.mjs', 'scripts/fixtures/ui-money/ProductionDetails.before.tsx.txt'] }, // 界面不印金额的出口名单只减不增：遍历 src 按语法树数处数（Mac 本机单跑约 5–7 秒）
+  { file: 'scripts/focus-by-tag-lookup.test.mjs', roots: ['src', 'tests/ux', 'evals'], files: ['eslint.config.mjs', 'scripts/fixtures/focus-by-tag-lookup/ShellAgentHost.before.tsx.txt'] }, // 按输入框实现找它再聚焦（src）/ 走查按标签名判焦点（tests/ux、evals）的出口名单只减不增：遍历三处按语法树数处数（Mac 本机门岗满载时单跑约 8 秒）
   { file: 'evals/journeys/journeyContracts.test.ts', roots: ['evals/journeys'], files: ['tests/ux/real-media-fixtures.json'] }, // 旅程读了真素材就必须声明 realMedia（CI 不选它）：遍历 evals/journeys 的旅程源码对全集断言，id 对登记表
   { file: 'src/workbench/project/projectActionIssuance.contract.test.ts', roots: ['src', 'electron'] }, // 13 秒
   { file: 'src/assets/vendor-logos/vendorLogos.test.ts', roots: ['src/assets/vendor-logos', 'src/config', 'src/design', 'src/ui', 'src/workbench'] },
   // ── src/workbench 及以下 ──
   { file: 'src/workbench/sessionCleanupCensus.test.ts', roots: [...WORKBENCH, 'docs/engineering/concept-owners'], exts: [...CODE_EXTS, 'json'] }, // 概念登记驱动 effect cleanup 普查：会话业务写入不随组件卸载（Mac 单跑 1.4 秒）
   { file: 'src/workbench/generationCanvas/components/canvasViewportMovers.structure.test.ts', roots: WORKBENCH }, // 5 秒
+  { file: 'src/workbench/workspaceRootGrid.structure.test.ts', roots: WORKBENCH }, // 2026-11-08 窄窗 F2：挂 Nomi 栏（<AssistantPane）的工作区根网格都要写 minmax(0,1fr) 行模板；遍历 src/workbench 的 .tsx（<1 秒）
   { file: 'src/workbench/pageLayerCensus.test.ts', roots: WORKBENCH }, // 2026-10-29：src/workbench 里每个挂到 document.body 的 portal（createPortal / <BodyPortal>）都要登记归属与生命周期，页格内的层只经 GenerationPageLayer、藏着时键盘监听要停，按 class 名找画布格只许三处存量；遍历 workbench 生产源码按语法树数（<1 秒）
   { file: 'src/workbench/ai/pointer/pointerDoors.test.ts', roots: ['src/workbench/ai/pointer'] }, // 指向元素目录：不许自己动画布视口（唯一出口 viewNodeInCanvas）、不自带焦点环；只遍历这一个目录，按语法树判（<1 秒）
   { file: 'src/workbench/promptLibrary/userPromptDoors.guard.test.ts', roots: ['src', 'electron'] }, // 2026-10-28：「我的库」提示词列表只有一条写入路——桥的写方法只有 promptLibraryApi 调、publishUserPrompts 只有一个调用方、存储写函数只有 promptLibraryIpc 引用、存盘文件名只在存储与并排安装拷贝里；遍历 src 与 electron 生产源码按语法树数（<1 秒）
@@ -232,7 +245,7 @@ export function scanGuardProblems({ root, testFiles, scanTests, gateScripts, gat
   for (const group of ciOnly) if (!group.reason || String(group.reason).length < 12) problems.push(`SCAN_GUARD_CI_ONLY：${group.files.join('、')} 缺理由`)
   for (const [file, reason] of Object.entries(notScans)) if (!reason || String(reason).length < 8) problems.push(`NOT_SOURCE_SCANS：${file} 缺理由`)
   for (const guard of guards) {
-    if (/\.node-test\.[cm]?[jt]s$/.test(guard.file)) problems.push(`SCAN_GUARDS：${guard.file} 是 node:test 文件，批量门岗目前只跑 vitest；要登记 node:test 守卫先给 SCAN_TESTS 加 node 批`)
+    if (/\.node-test\.[cm]?[jt]s$/.test(guard.file) && !scanTests.has(guard.file)) problems.push(`SCAN_GUARDS：${guard.file} 是 node:test 文件，必须登记到 SCAN_TESTS 的 node 批`)
     if (!guard.all && !(guard.roots?.length) && !(guard.files?.length) && !guard.match) problems.push(`SCAN_GUARDS：${guard.file} 没写它扫哪些目录（roots / files / match / all）`)
   }
   // 未登记：识别为扫描型、又没有任何去处

@@ -16,6 +16,7 @@ import { createModuleRegistry } from '../capabilityCore/moduleRegistry'
 import { resetSpendFixture, spendWorld } from '../capabilityCore/agentPanelSpendConfirmTestUtils'
 import type { LaneHandle, LanePart } from '../shared/agentLane/laneContracts'
 import { LaneDomainFailure } from '../shared/agentLane/laneToolContract'
+import type { GenerationProblemCode } from '../shared/generationProblem'
 import { buildVideoModelCandidates } from '../shared/videoCapabilities'
 import { createExtendedLaneTools } from './laneExtendedTools'
 import { openLane } from './laneHost.mjs'
@@ -57,7 +58,7 @@ const shot = (extra: Shot = {}, drop: readonly string[] = []): Shot => {
 const params = (parameters: Shot): Shot => shot({ parameters })
 
 type ToolResult = Extract<LanePart, { kind: 'tool-result' }>
-type Envelope = { code: string; issues?: Array<Record<string, unknown>>; allowed?: string[] }
+type Envelope = { code: string; issues?: Array<Record<string, unknown>>; allowed?: string[]; problem?: { code: string; field?: string } }
 const failureOf = (result: ToolResult): Envelope | undefined => (result as ToolResult & { failure?: Envelope }).failure
 
 /** 一条真 lane：每一句用户话之后，模型逐个发写好的调用（一次一个），最后说一句 done。 */
@@ -89,32 +90,33 @@ async function runLane(turns: ReadonlyArray<readonly unknown[]>, options: { maxM
 
 /**
  * 25 条错写（Agent 质量调研探针的同一份输入）。`says` = 修完以后模型正文里必须有的那一行：出错字段 + 该填什么。
- * `code` = 面板拿到的信封码。`gap` = 准入层只有散文、还没有结构化字段事实的三条（正文照旧有中文原句，信封有码没有字段）。
+ * `code` = 面板拿到的信封码。`reason` = 起草准入拒收时信封里那个闭合原因码（`generationProblem.ts`），遥测也报它。
+ * `problem` = 准入层没有字段清单、只有一个闭合原因的三条（以前叫「缺口」：只有散文，面板只能说笼统那句）。
  */
 type Expect =
   | Readonly<{ accepted: true; why: string }>
-  | Readonly<{ says: RegExp; code: string; path?: string }>
-  | Readonly<{ gap: string; code: string }>
+  | Readonly<{ says: RegExp; code: string; path?: string; reason?: GenerationProblemCode }>
+  | Readonly<{ problem: GenerationProblemCode; says: RegExp; code: string; field: string }>
 
 const SAMPLES: ReadonlyArray<readonly [string, unknown, Expect]> = [
   ['ok-baseline', { shots: [shot()] }, { accepted: true, why: '对照' }],
   ['param-unknown-aspect_ratio', { shots: [params({ duration: 4, aspect_ratio: '16:9' })] },
-    { says: /- parameters\.aspect_ratio: no such field here; remove it\. Fields allowed here: duration, generate_audio, resolution, seed, size\./, code: 'generation_input_invalid', path: 'parameters.aspect_ratio' }],
+    { says: /- parameters\.aspect_ratio: no such field here; remove it\. Fields allowed here: duration, generate_audio, resolution, seed, size\./, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'parameters.aspect_ratio' }],
   // 2026-10-05 起 `parameters.aspectRatio` 一律拒（比例只有一个家：镜头上的 aspectRatio）。这一拒在工具自己的准备步骤里，
   // 以前是一条没有码、熔断看不见的立即结果；现在走同一个出口。
   ['param-ratio-camel', { shots: [params({ duration: 4, aspectRatio: '16:9' })] },
     { says: /set aspectRatio on the shot .*leave it out of parameters/, code: 'wrong_verb' }],
-  ['duration-out-of-range-0', { shots: [params({ duration: 0 })] }, { says: /- durationSec: expected number\./, code: 'generation_input_invalid', path: 'durationSec' }],
-  ['duration-string', { shots: [params({ duration: '4s' })] }, { says: /- durationSec: expected number\./, code: 'generation_input_invalid', path: 'durationSec' }],
+  ['duration-out-of-range-0', { shots: [params({ duration: 0 })] }, { says: /- durationSec: expected number\./, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'durationSec' }],
+  ['duration-string', { shots: [params({ duration: '4s' })] }, { says: /- durationSec: expected number\./, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'durationSec' }],
   ['duration-top-level', { shots: [shot({ duration: 4 })] },
     { says: /- shots\.0\.duration: no such field here; did you mean "durationSec"\?/, code: 'tool_arguments_invalid', path: 'shots.0.duration' }],
-  ['duration-99', { shots: [params({ duration: 99 })] }, { says: /- durationSec: must be between 4 and 15\./, code: 'generation_input_invalid', path: 'durationSec' }],
+  ['duration-99', { shots: [params({ duration: 99 })] }, { says: /- durationSec: must be between 4 and 15\./, code: 'generation_input_invalid', reason: 'duration_not_in_mode', path: 'durationSec' }],
   ['resolution-4k', { shots: [params({ resolution: '4k' })] },
-    { says: /- parameters\.resolution: value is not allowed\. Use one of: 480p, 720p\./, code: 'generation_input_invalid', path: 'parameters.resolution' }],
+    { says: /- parameters\.resolution: value is not allowed\. Use one of: 480p, 720p\./, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'parameters.resolution' }],
   ['resolution-1080P-case', { shots: [params({ resolution: '1080P' })] },
-    { says: /- parameters\.resolution: value is not allowed\. Use one of: 480p, 720p\./, code: 'generation_input_invalid', path: 'parameters.resolution' }],
+    { says: /- parameters\.resolution: value is not allowed\. Use one of: 480p, 720p\./, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'parameters.resolution' }],
   ['bool-as-string', { shots: [params({ generate_audio: 'yes' })] },
-    { says: /- parameters\.generate_audio: expected boolean\./, code: 'generation_input_invalid', path: 'parameters.generate_audio' }],
+    { says: /- parameters\.generate_audio: expected boolean\./, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'parameters.generate_audio' }],
   // 契约 Zod 的 refine（新镜头必须有 prompt）：TypeBox 判不了，落在 execute 里那一次 parse——同一个格式器。
   ['missing-prompt', { shots: [shot({}, ['prompt'])] },
     { says: /- shots\.0\.prompt: required, but missing\. a new shot needs a prompt/, code: 'tool_arguments_invalid', path: 'shots.0.prompt' }],
@@ -122,13 +124,14 @@ const SAMPLES: ReadonlyArray<readonly [string, unknown, Expect]> = [
   ['bad-taskKind', { shots: [shot({ taskKind: 'video' })] },
     { says: /- shots\.0\.taskKind: value \(received "video"\) is not allowed\. Did you mean "text_to_video"\? Use one of: text_to_image, image_edit, text_to_video, image_to_video\./, code: 'tool_arguments_invalid', path: 'shots.0.taskKind' }],
   ['model-not-in-catalog', { shots: [shot({ candidate: { providerId: 'apimart', modelId: 'sora-2' } })] },
-    { gap: '准入层说「没有配置可用的视频模型」（对点名了 sora-2 的调用是误导），没有结构化字段', code: 'generation_input_invalid' }],
+    // 以前正文说「没有配置可用的视频模型」——对点名了 sora-2 的调用是误导（2026-11-08 真实轨迹里 39 题 9 次）。
+    { problem: 'unknown_model', field: 'candidate.modelId', says: /apimart\/sora-2 is not in the model catalog/, code: 'generation_input_invalid' }],
   ['candidate-as-string', { shots: [shot({ candidate: 'doubao-seedance-2.0' })] },
     { says: /- shots\.0\.candidate: expected object, received string/, code: 'tool_arguments_invalid', path: 'shots.0.candidate' }],
   ['variant-in-params', { shots: [params({ variant: 'fast' })] },
-    { says: /- parameters\.variant: no such field here; did you mean "variantId"\?/, code: 'generation_input_invalid', path: 'parameters.variant' }],
+    { says: /- parameters\.variant: no such field here; did you mean "variantId"\?/, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'parameters.variant' }],
   ['variantId-wrong', { shots: [shot({ variantId: 'turbo' })] },
-    { says: /- variantId: value is not allowed\. Use one of: standard, fast, mini\./, code: 'generation_input_invalid', path: 'variantId' }],
+    { says: /- variantId: value is not allowed\. Use one of: standard, fast, mini\./, code: 'generation_input_invalid', reason: 'parameter_not_allowed', path: 'variantId' }],
   ['unknown-top-field-ratio', { shots: [shot({ ratio: '16:9' })] },
     { says: /- shots\.0\.ratio: no such field here; did you mean "aspectRatio"\?/, code: 'tool_arguments_invalid', path: 'shots.0.ratio' }],
   ['unknown-top-level', { shots: [shot()], aspect: '16:9' },
@@ -140,9 +143,9 @@ const SAMPLES: ReadonlyArray<readonly [string, unknown, Expect]> = [
   ['references-object', { shots: [shot({ references: { url: 'a.png' } })] },
     { says: /- shots\.0\.references: expected array, received object\./, code: 'tool_arguments_invalid', path: 'shots.0.references' }],
   ['references-unknown-id', { shots: [shot({ references: ['asset-nope'] })] },
-    { gap: '准入层说「参考素材不在素材库里，先用 look_at_media」，没有结构化字段', code: 'generation_input_invalid' }],
+    { problem: 'parameter_not_allowed', field: 'references', says: /look_at_media/, code: 'generation_input_invalid' }],
   ['image-model-video-task', { shots: [shot({ taskKind: 'text_to_image' })] },
-    { gap: '准入层说「这个模型做不了 text_to_image，它做 …」，没有结构化字段', code: 'generation_input_invalid' }],
+    { problem: 'mode_not_in_model', field: 'taskKind', says: /cannot do text_to_image\. It does: /, code: 'generation_input_invalid' }],
 ]
 
 describe('25 种 draft_shots 错写过真 lane：被拒的都点名字段、说该填什么', () => {
@@ -163,23 +166,27 @@ describe('25 种 draft_shots 错写过真 lane：被拒的都点名字段、说�
       const failure = failureOf(result)
       // 失败码不再为空：面板按码查本地话，熔断按码认墙，遥测按码计数——三个读者同一个码。
       expect(failure?.code).toBe(expected.code)
-      expect(events).toEqual([{ toolName: 'draft_shots', code: expected.code, attempt: 1, breakerTripped: false }])
-      if ('gap' in expected) {
-        expect(failure?.issues, expected.gap).toBeUndefined()
+      // 起草准入的拒收带闭合原因：信封里有，遥测事件里也有（同一个码）；别的失败两处都没有。
+      const reason = 'problem' in expected ? expected.problem : expected.reason
+      expect(events).toEqual([{ toolName: 'draft_shots', code: expected.code, attempt: 1, breakerTripped: false, ...(reason ? { reason } : {}) }])
+      expect(failure?.problem?.code).toBe(reason)
+      expect(result.text).toMatch(expected.says)
+      if ('problem' in expected) {
+        expect(failure?.issues).toBeUndefined()
+        expect(failure?.problem?.field).toBe(expected.field)
         return
       }
-      expect(result.text).toMatch(expected.says)
       if (expected.path) expect(failure?.issues?.map((issue) => issue.path)).toContain(expected.path)
       // 公开信封不带收到的值。
       expect(JSON.stringify(failure)).not.toContain('"received"')
     }, 30_000)
   }
 
-  it('计数：22 条被拒，19 条带结构化字段，3 条只有散文（缺口）', () => {
+  it('计数：22 条被拒，19 条带字段清单，3 条没有字段清单、但带闭合原因（不再有只有散文的）', () => {
     const rejected = SAMPLES.filter(([, , expected]) => !('accepted' in expected))
     expect(SAMPLES).toHaveLength(25)
     expect(rejected).toHaveLength(22)
-    expect(rejected.filter(([, , expected]) => 'says' in expected)).toHaveLength(19)
+    expect(rejected.filter(([, , expected]) => 'problem' in expected)).toHaveLength(3)
   })
 })
 

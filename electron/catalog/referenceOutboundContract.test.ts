@@ -8,6 +8,7 @@ import { buildArchetypeInputParams } from "../../src/workbench/generationCanvas/
 import { resolveArchetypeForModel } from "../shared/modelArchetypes";
 import { taskTemplateParams } from "./taskParams";
 import { renderTemplateValue } from "../ai/requestPipeline";
+import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 
 function seeded(): CatalogState {
   const empty: CatalogState = { version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} };
@@ -35,7 +36,7 @@ describe("参考图出站合同", () => {
     const refs = ["https://assets.test/a.png", "https://assets.test/b.png"];
     const projected = buildArchetypeInputParams(
       { archetype: { id: archetype.id, modeId: "i2i" } } as Record<string, unknown>,
-      archetype,
+      modeWrittenInMeta({ archetype: { id: archetype.id, modeId: "i2i" } }, archetype),
       { referenceImages: refs } as never,
     );
     // 档案投影落在契约键上（这一半此前就是对的）。

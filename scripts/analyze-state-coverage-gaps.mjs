@@ -12,7 +12,7 @@
  *   LOADING — 加载中（流式/等待/转圈）
  *   ERROR   — 错误（失败/网络断/模型不可用）
  *   LONG    — 超长文本（提示词 >500 字/节点标题 >80 字/多候选 >5）
- *   NARROW  — 最小窗（700×720，窗宽 < 1060 时 Nomi 收成小球；electron/mainWindowMinSize.json）
+ *   NARROW  — 最小窗（700×720，窗宽 < 1060 时 Nomi 收成小球；electron/shared/mainWindowSize.json）
  *
  * 优先级判定（P0：必须补画，P1：应该补，P2：可延后）：
  *   P0 = 该形态是「高频用户路径」× 该异常态在常规使用中必然遇到

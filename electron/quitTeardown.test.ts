@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { continueRequestedQuit, exitWithoutConfirmation, installQuitTeardown, isQuitRequested, registerQuitDrain, requestQuit, resetQuitRequest, resetQuitTeardownForTests } from "./quitTeardown";
+import { exitWithoutConfirmation, installQuitTeardown, registerQuitDrain, requestQuit, resetQuitRequest, resetQuitTeardownForTests, setRelaunchAfterExit } from "./quitTeardown";
 import { openProjectAgentLane } from "../src/workbench/project/projectAgentLaneOpen";
 
 type Listener = (event: { preventDefault: () => void }) => void;
@@ -16,6 +16,7 @@ function fakeApp() {
     whenReady: vi.fn((): Promise<unknown> => Promise.resolve()),
     quit: vi.fn(),
     exit: vi.fn(),
+    relaunch: vi.fn(),
   };
   return {
     app,
@@ -539,22 +540,33 @@ describe("quit teardown lifecycle", () => {
     expect(app.quit).toHaveBeenCalledOnce();
   });
 
-  it("resumes a quit that a confirmed window close interrupted, and only then", () => {
-    const { app, emit } = fakeApp();
-    installQuitTeardown(app, recordingDeps([]));
-    continueRequestedQuit();
-    expect(app.quit).not.toHaveBeenCalled();
-    emit("before-quit");
-    resetQuitRequest();
-    continueRequestedQuit();
-    expect(app.quit).not.toHaveBeenCalled();
-    emit("before-quit");
-    expect(isQuitRequested()).toBe(true);
-    continueRequestedQuit();
-    expect(app.quit).toHaveBeenCalledOnce();
-    emit("will-quit");
-    continueRequestedQuit();
-    expect(app.quit).toHaveBeenCalledOnce();
+  it("relaunches once after exit only when the main-window owner asked for it, and an update install can withdraw it", async () => {
+    const quiet = fakeApp();
+    installQuitTeardown(quiet.app, recordingDeps([]));
+    quiet.emit("before-quit");
+    quiet.emit("will-quit");
+    await vi.waitFor(() => expect(quiet.app.exit).toHaveBeenCalledWith(0));
+    expect(quiet.app.relaunch).not.toHaveBeenCalled();
+
+    resetQuitTeardownForTests();
+    const asked = fakeApp();
+    installQuitTeardown(asked.app, recordingDeps([]));
+    setRelaunchAfterExit(true);
+    setRelaunchAfterExit(true);
+    asked.emit("before-quit");
+    asked.emit("will-quit");
+    await vi.waitFor(() => expect(asked.app.exit).toHaveBeenCalledWith(0));
+    expect(asked.app.relaunch).toHaveBeenCalledOnce();
+    expect(asked.app.relaunch.mock.invocationCallOrder[0]).toBeLessThan(asked.app.exit.mock.invocationCallOrder[0]!);
+
+    resetQuitTeardownForTests();
+    const withdrawn = fakeApp();
+    installQuitTeardown(withdrawn.app, recordingDeps([]));
+    setRelaunchAfterExit(true);
+    setRelaunchAfterExit(false);
+    exitWithoutConfirmation("update-install");
+    await vi.waitFor(() => expect(withdrawn.app.exit).toHaveBeenCalledWith(0));
+    expect(withdrawn.app.relaunch).not.toHaveBeenCalled();
   });
 
   it.each([

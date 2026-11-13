@@ -25,6 +25,7 @@ export type ArchetypeReferenceSlot = {
   min: number;
   /** Absent when the provider has not published a reference count limit. */
   max?: number;
+  vendorMax?: Readonly<Record<string, number>>;
   /**
    * 该模型 API 的输入参数名（模型契约，供应商无关）。缺省时由 kind 推断（见 archetypeMeta
    * SLOT_DEFAULTS）。例：Seedance 全能参考的角色图 = `reference_image_urls`；HappyHorse 角色参考
@@ -56,7 +57,8 @@ export type ArchetypeReferenceSlot = {
   /**
    * **角色数组合并用**（配合 mode.combineSlotsInto）：该槽在合并出的对象数组里的 `role` 字段值。
    * **缺省由 kind 派生**（first_frame→first_frame、last_frame→last_frame、image_ref→reference_image，
-   * 见 archetypeMeta DEFAULT_ROLE_FOR_KIND）——故绝大多数情况不写，避免 role 与 kind 两条平行真相源（P1）。
+   * 见 shared/videoCapabilities/referenceChannels.ts 的 REFERENCE_ROLE_FOR_KIND / combineRoleForSlot，画布路与 Run 路同吃）
+   * ——故绝大多数情况不写，避免 role 与 kind 两条平行真相源（P1）。
    * 仅当某 vendor 的 role 措辞与派生值不同时才显式覆盖。
    */
   roleName?: string;

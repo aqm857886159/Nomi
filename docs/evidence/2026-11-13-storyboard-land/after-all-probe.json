@@ -1,0 +1,1171 @@
+{
+ "label": "after",
+ "head": "f2c0da8ed",
+ "storyboard": [
+  {
+   "locale": "zh-CN",
+   "scheme": "light",
+   "files": [
+    "after-zh-CN-light-01-top.png",
+    "after-zh-CN-light-02-row1.png",
+    "after-zh-CN-light-02-row2.png",
+    "after-zh-CN-light-02-row3.png",
+    "after-zh-CN-light-02-row4.png",
+    "after-zh-CN-light-03-selection.png",
+    "after-zh-CN-light-04-keyframe-row5-on.png",
+    "after-zh-CN-light-04-keyframe-row6-off.png"
+   ],
+   "frames": [
+    {
+     "row": "1",
+     "frame": "done"
+    },
+    {
+     "row": "2",
+     "frame": "recoverable"
+    },
+    {
+     "row": "3",
+     "frame": "failed"
+    },
+    {
+     "row": "4",
+     "frame": "ready"
+    },
+    {
+     "row": "5",
+     "frame": "ready"
+    },
+    {
+     "row": "6",
+     "frame": "ready"
+    }
+   ],
+   "toolbarButtons": [
+    "",
+    "交给 Agent",
+    "删除已选"
+   ],
+   "toolbarText": "已选 2 镜\n交给 Agent\n删除已选",
+   "toolbarAfterClear": 0,
+   "menu5": "下方插入\n复制镜头\n定位\n先出首帧图，再出视频\n锁定（不进批量、不被重跑）\n删除",
+   "keyframe5": true,
+   "menu6": "下方插入\n复制镜头\n定位\n先出首帧图，再出视频\n锁定（不进批量、不被重跑）\n删除",
+   "keyframe6": false,
+   "footerText": "返回原稿\n已生成 1/6 镜 1 已提交待找回（不进批量）\n生成剩余",
+   "editorButtons": [
+    "放入画布",
+    "全部展开",
+    "按镜序顺播已生成结果",
+    "整片画幅",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 2",
+    "重新取回",
+    "再发一次",
+    "查看任务",
+    "加参考",
+    "模型",
+    "生成参数",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 3",
+    "重新生成这一镜",
+    "加参考",
+    "模型",
+    "生成参数",
+    "生成镜 3",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 4",
+    "加参考",
+    "模型",
+    "生成参数",
+    "生成镜 4",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 5",
+    "输入 @ 选择参考",
+    "模型",
+    "生成镜 5",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 6",
+    "输入 @ 选择参考",
+    "模型",
+    "生成镜 6",
+    "添加镜头",
+    "返回原稿",
+    "生成剩余"
+   ]
+  },
+  {
+   "locale": "zh-CN",
+   "scheme": "dark",
+   "files": [
+    "after-zh-CN-dark-01-top.png",
+    "after-zh-CN-dark-02-row1.png",
+    "after-zh-CN-dark-02-row2.png",
+    "after-zh-CN-dark-02-row3.png",
+    "after-zh-CN-dark-02-row4.png",
+    "after-zh-CN-dark-03-selection.png",
+    "after-zh-CN-dark-04-keyframe-row5-on.png",
+    "after-zh-CN-dark-04-keyframe-row6-off.png"
+   ],
+   "frames": [
+    {
+     "row": "1",
+     "frame": "done"
+    },
+    {
+     "row": "2",
+     "frame": "recoverable"
+    },
+    {
+     "row": "3",
+     "frame": "failed"
+    },
+    {
+     "row": "4",
+     "frame": "ready"
+    },
+    {
+     "row": "5",
+     "frame": "ready"
+    },
+    {
+     "row": "6",
+     "frame": "ready"
+    }
+   ],
+   "toolbarButtons": [
+    "",
+    "交给 Agent",
+    "删除已选"
+   ],
+   "toolbarText": "已选 2 镜\n交给 Agent\n删除已选",
+   "toolbarAfterClear": 0,
+   "menu5": "下方插入\n复制镜头\n定位\n先出首帧图，再出视频\n锁定（不进批量、不被重跑）\n删除",
+   "keyframe5": true,
+   "menu6": "下方插入\n复制镜头\n定位\n先出首帧图，再出视频\n锁定（不进批量、不被重跑）\n删除",
+   "keyframe6": false,
+   "footerText": "返回原稿\n已生成 1/6 镜 1 已提交待找回（不进批量）\n生成剩余",
+   "editorButtons": [
+    "放入画布",
+    "全部展开",
+    "按镜序顺播已生成结果",
+    "整片画幅",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 2",
+    "重新取回",
+    "再发一次",
+    "查看任务",
+    "加参考",
+    "模型",
+    "生成参数",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 3",
+    "重新生成这一镜",
+    "加参考",
+    "模型",
+    "生成参数",
+    "生成镜 3",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 4",
+    "加参考",
+    "模型",
+    "生成参数",
+    "生成镜 4",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 5",
+    "输入 @ 选择参考",
+    "模型",
+    "生成镜 5",
+    "拖动调整镜头顺序",
+    "镜头操作",
+    "选择镜 6",
+    "输入 @ 选择参考",
+    "模型",
+    "生成镜 6",
+    "添加镜头",
+    "返回原稿",
+    "生成剩余"
+   ]
+  },
+  {
+   "locale": "en",
+   "scheme": "light",
+   "files": [
+    "after-en-light-01-top.png",
+    "after-en-light-02-row1.png",
+    "after-en-light-02-row2.png",
+    "after-en-light-02-row3.png",
+    "after-en-light-02-row4.png",
+    "after-en-light-03-selection.png",
+    "after-en-light-04-keyframe-row5-on.png",
+    "after-en-light-04-keyframe-row6-off.png"
+   ],
+   "frames": [
+    {
+     "row": "1",
+     "frame": "done"
+    },
+    {
+     "row": "2",
+     "frame": "recoverable"
+    },
+    {
+     "row": "3",
+     "frame": "failed"
+    },
+    {
+     "row": "4",
+     "frame": "ready"
+    },
+    {
+     "row": "5",
+     "frame": "ready"
+    },
+    {
+     "row": "6",
+     "frame": "ready"
+    }
+   ],
+   "toolbarButtons": [
+    "",
+    "Ask Agent",
+    "Delete selected"
+   ],
+   "toolbarText": "2 shots selected\nAsk Agent\nDelete selected",
+   "toolbarAfterClear": 0,
+   "menu5": "Insert Below\nDuplicate shot\nLocate\nKeyframe image first, then video\nLock (excluded from batch and reruns)\nDelete",
+   "keyframe5": true,
+   "menu6": "Insert Below\nDuplicate shot\nLocate\nKeyframe image first, then video\nLock (excluded from batch and reruns)\nDelete",
+   "keyframe6": false,
+   "footerText": "To Draft\n1/6 shots generated 1 submitted, awaiting re-fetch (excluded from batch)\nGenerate Remaining",
+   "editorButtons": [
+    "Place on canvas",
+    "Expand all",
+    "Play generated results in shot order",
+    "Film aspect",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 2",
+    "Retrieve again",
+    "Send again",
+    "View task",
+    "Add reference",
+    "Model",
+    "Generation parameters",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 3",
+    "Generate this shot again",
+    "Add reference",
+    "Model",
+    "Generation parameters",
+    "Generate shot 3",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 4",
+    "Add reference",
+    "Model",
+    "Generation parameters",
+    "Generate shot 4",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 5",
+    "Type @ to select a reference",
+    "Model",
+    "Generate shot 5",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 6",
+    "Type @ to select a reference",
+    "Model",
+    "Generate shot 6",
+    "Add shot",
+    "To Draft",
+    "Generate Remaining"
+   ]
+  },
+  {
+   "locale": "en",
+   "scheme": "dark",
+   "files": [
+    "after-en-dark-01-top.png",
+    "after-en-dark-02-row1.png",
+    "after-en-dark-02-row2.png",
+    "after-en-dark-02-row3.png",
+    "after-en-dark-02-row4.png",
+    "after-en-dark-03-selection.png",
+    "after-en-dark-04-keyframe-row5-on.png",
+    "after-en-dark-04-keyframe-row6-off.png"
+   ],
+   "frames": [
+    {
+     "row": "1",
+     "frame": "done"
+    },
+    {
+     "row": "2",
+     "frame": "recoverable"
+    },
+    {
+     "row": "3",
+     "frame": "failed"
+    },
+    {
+     "row": "4",
+     "frame": "ready"
+    },
+    {
+     "row": "5",
+     "frame": "ready"
+    },
+    {
+     "row": "6",
+     "frame": "ready"
+    }
+   ],
+   "toolbarButtons": [
+    "",
+    "Ask Agent",
+    "Delete selected"
+   ],
+   "toolbarText": "2 shots selected\nAsk Agent\nDelete selected",
+   "toolbarAfterClear": 0,
+   "menu5": "Insert Below\nDuplicate shot\nLocate\nKeyframe image first, then video\nLock (excluded from batch and reruns)\nDelete",
+   "keyframe5": true,
+   "menu6": "Insert Below\nDuplicate shot\nLocate\nKeyframe image first, then video\nLock (excluded from batch and reruns)\nDelete",
+   "keyframe6": false,
+   "footerText": "To Draft\n1/6 shots generated 1 submitted, awaiting re-fetch (excluded from batch)\nGenerate Remaining",
+   "editorButtons": [
+    "Place on canvas",
+    "Expand all",
+    "Play generated results in shot order",
+    "Film aspect",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 2",
+    "Retrieve again",
+    "Send again",
+    "View task",
+    "Add reference",
+    "Model",
+    "Generation parameters",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 3",
+    "Generate this shot again",
+    "Add reference",
+    "Model",
+    "Generation parameters",
+    "Generate shot 3",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 4",
+    "Add reference",
+    "Model",
+    "Generation parameters",
+    "Generate shot 4",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 5",
+    "Type @ to select a reference",
+    "Model",
+    "Generate shot 5",
+    "Drag to reorder shots",
+    "Shot actions",
+    "Select shot 6",
+    "Type @ to select a reference",
+    "Model",
+    "Generate shot 6",
+    "Add shot",
+    "To Draft",
+    "Generate Remaining"
+   ]
+  }
+ ],
+ "selects": [
+  {
+   "name": "canvas-image-model",
+   "hash": "d6af4b3e114e966b",
+   "width": 280,
+   "height": 250,
+   "heading": null,
+   "headers": [],
+   "options": [
+    {
+     "label": "Seedream 5.0 Pro",
+     "description": null,
+     "disabled": false,
+     "title": "Seedream 5.0 Pro"
+    },
+    {
+     "label": "Nano Banana 2",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana 2"
+    },
+    {
+     "label": "GPT Image 2",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2"
+    },
+    {
+     "label": "GPT Image 2.5 Flare",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2.5 Flare"
+    },
+    {
+     "label": "GPT Image 2.5 Sunburst",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2.5 Sunburst"
+    },
+    {
+     "label": "GPT Image 2.6 Flare",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2.6 Flare"
+    },
+    {
+     "label": "GPT Image 2.6 Sunburst",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2.6 Sunburst"
+    },
+    {
+     "label": "Muse Image",
+     "description": null,
+     "disabled": false,
+     "title": "Muse Image"
+    },
+    {
+     "label": "Gemini 3 Pro 图像",
+     "description": null,
+     "disabled": false,
+     "title": "Gemini 3 Pro 图像"
+    },
+    {
+     "label": "Grok Imagine 2.0",
+     "description": null,
+     "disabled": false,
+     "title": "Grok Imagine 2.0"
+    },
+    {
+     "label": "Qwen-Image 3.0",
+     "description": null,
+     "disabled": false,
+     "title": "Qwen-Image 3.0"
+    },
+    {
+     "label": "Z-Image Turbo",
+     "description": null,
+     "disabled": false,
+     "title": "Z-Image Turbo"
+    },
+    {
+     "label": "Fixture 图片",
+     "description": null,
+     "disabled": false,
+     "title": "Fixture 图片"
+    },
+    {
+     "label": "Seedream 4.5",
+     "description": null,
+     "disabled": false,
+     "title": "Seedream 4.5"
+    },
+    {
+     "label": "Nano Banana 2.1",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana 2.1"
+    },
+    {
+     "label": "Nano Banana 2.1 Ext",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana 2.1 Ext"
+    },
+    {
+     "label": "Nano Banana Lite Ext",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana Lite Ext"
+    },
+    {
+     "label": "FLUX 3",
+     "description": null,
+     "disabled": false,
+     "title": "FLUX 3"
+    },
+    {
+     "label": "FLUX 3 Klein",
+     "description": null,
+     "disabled": false,
+     "title": "FLUX 3 Klein"
+    },
+    {
+     "label": "Grok Imagine Image 2.0 官方",
+     "description": null,
+     "disabled": false,
+     "title": "Grok Imagine Image 2.0 官方"
+    },
+    {
+     "label": "混元图像 3.5",
+     "description": null,
+     "disabled": false,
+     "title": "混元图像 3.5"
+    },
+    {
+     "label": "万相 2.7 图像",
+     "description": null,
+     "disabled": false,
+     "title": "万相 2.7 图像"
+    },
+    {
+     "label": "万相 2.7 图像 Pro",
+     "description": null,
+     "disabled": false,
+     "title": "万相 2.7 图像 Pro"
+    },
+    {
+     "label": "Qwen-Image 2.0",
+     "description": null,
+     "disabled": false,
+     "title": "Qwen-Image 2.0"
+    },
+    {
+     "label": "即梦图片（会员）",
+     "description": null,
+     "disabled": false,
+     "title": "即梦图片（会员）"
+    }
+   ],
+   "file": "after-select-canvas-image-model.png"
+  },
+  {
+   "name": "canvas-image-quantity",
+   "absent": true
+  },
+  {
+   "name": "canvas-video-model",
+   "hash": "59fc9a647ae1830f",
+   "width": 280,
+   "height": 250,
+   "heading": null,
+   "headers": [],
+   "options": [
+    {
+     "label": "可灵 3.0 Turbo",
+     "description": null,
+     "disabled": false,
+     "title": "可灵 3.0 Turbo"
+    },
+    {
+     "label": "Grok Imagine 1.5",
+     "description": null,
+     "disabled": false,
+     "title": "Grok Imagine 1.5"
+    },
+    {
+     "label": "可灵 3.0",
+     "description": null,
+     "disabled": false,
+     "title": "可灵 3.0"
+    },
+    {
+     "label": "Seedance 2.5",
+     "description": null,
+     "disabled": false,
+     "title": "Seedance 2.5"
+    },
+    {
+     "label": "MiniMax H3",
+     "description": null,
+     "disabled": false,
+     "title": "MiniMax H3"
+    },
+    {
+     "label": "Wan 3.0",
+     "description": null,
+     "disabled": false,
+     "title": "Wan 3.0"
+    },
+    {
+     "label": "HappyHorse 1.1",
+     "description": null,
+     "disabled": false,
+     "title": "HappyHorse 1.1"
+    },
+    {
+     "label": "Veo 3.1",
+     "description": null,
+     "disabled": false,
+     "title": "Veo 3.1"
+    },
+    {
+     "label": "Seedance 2.0",
+     "description": null,
+     "disabled": false,
+     "title": "Seedance 2.0"
+    },
+    {
+     "label": "Wan 2.7",
+     "description": null,
+     "disabled": false,
+     "title": "Wan 2.7"
+    },
+    {
+     "label": "Hailuo 2.3",
+     "description": null,
+     "disabled": false,
+     "title": "Hailuo 2.3"
+    },
+    {
+     "label": "Omni-Flash-Ext",
+     "description": null,
+     "disabled": false,
+     "title": "Omni-Flash-Ext"
+    },
+    {
+     "label": "可灵 4.0",
+     "description": null,
+     "disabled": false,
+     "title": "可灵 4.0"
+    },
+    {
+     "label": "Grok Imagine Video 1.5 官方",
+     "description": null,
+     "disabled": false,
+     "title": "Grok Imagine Video 1.5 官方"
+    },
+    {
+     "label": "PixVerse V6",
+     "description": null,
+     "disabled": false,
+     "title": "PixVerse V6"
+    },
+    {
+     "label": "PixVerse V6 Max",
+     "description": null,
+     "disabled": false,
+     "title": "PixVerse V6 Max"
+    },
+    {
+     "label": "Muse Video",
+     "description": null,
+     "disabled": false,
+     "title": "Muse Video"
+    },
+    {
+     "label": "FLUX 3 Video",
+     "description": null,
+     "disabled": false,
+     "title": "FLUX 3 Video"
+    },
+    {
+     "label": "Wan 3.0 Prime",
+     "description": null,
+     "disabled": false,
+     "title": "Wan 3.0 Prime"
+    },
+    {
+     "label": "Veo 3.1 Fast 官方",
+     "description": null,
+     "disabled": false,
+     "title": "Veo 3.1 Fast 官方"
+    },
+    {
+     "label": "Veo 3.1 Quality 官方",
+     "description": null,
+     "disabled": false,
+     "title": "Veo 3.1 Quality 官方"
+    },
+    {
+     "label": "Vidu Q3 Pro",
+     "description": null,
+     "disabled": false,
+     "title": "Vidu Q3 Pro"
+    },
+    {
+     "label": "Vidu Q3 Turbo",
+     "description": null,
+     "disabled": false,
+     "title": "Vidu Q3 Turbo"
+    },
+    {
+     "label": "Gemini Omni 1.2 Flash",
+     "description": null,
+     "disabled": false,
+     "title": "Gemini Omni 1.2 Flash"
+    },
+    {
+     "label": "Gemini Omni 1.2 Flash Ext",
+     "description": null,
+     "disabled": false,
+     "title": "Gemini Omni 1.2 Flash Ext"
+    },
+    {
+     "label": "MiniMax H3 再生成",
+     "description": null,
+     "disabled": false,
+     "title": "MiniMax H3 再生成"
+    },
+    {
+     "label": "即梦 Seedance（会员）",
+     "description": null,
+     "disabled": false,
+     "title": "即梦 Seedance（会员）"
+    }
+   ],
+   "file": "after-select-canvas-video-model.png"
+  },
+  {
+   "name": "canvas-video-mode",
+   "hash": "659e3a9f76ecc21b",
+   "width": 126,
+   "height": 123,
+   "heading": "生成方式",
+   "headers": [],
+   "options": [
+    {
+     "label": "文生视频",
+     "description": "只用文字",
+     "disabled": false,
+     "title": "文生视频 · 只用文字"
+    },
+    {
+     "label": "图生视频",
+     "description": "先放 1 张图",
+     "disabled": true,
+     "title": "图生视频 · 先放 1 张图"
+    }
+   ],
+   "file": "after-select-canvas-video-mode.png"
+  },
+  {
+   "name": "settings-default-model-0",
+   "hash": "f4a3ff9188e741dc",
+   "width": 280,
+   "height": 250,
+   "heading": null,
+   "headers": [],
+   "options": [
+    {
+     "label": "自动选择",
+     "description": null,
+     "disabled": false,
+     "title": "自动选择"
+    },
+    {
+     "label": "Fixture 图片 · Agent Runtime Loopback",
+     "description": null,
+     "disabled": false,
+     "title": "Fixture 图片 · Agent Runtime Loopback"
+    },
+    {
+     "label": "Seedream 5.0 Pro · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Seedream 5.0 Pro · APIMart"
+    },
+    {
+     "label": "Seedream 4.5 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Seedream 4.5 · APIMart"
+    },
+    {
+     "label": "Nano Banana · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana · APIMart"
+    },
+    {
+     "label": "Nano Banana 2 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana 2 · APIMart"
+    },
+    {
+     "label": "GPT Image 2 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2 · APIMart"
+    },
+    {
+     "label": "GPT Image 2.5 Flare · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2.5 Flare · APIMart"
+    },
+    {
+     "label": "GPT Image 2.5 Sunburst · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2.5 Sunburst · APIMart"
+    },
+    {
+     "label": "GPT Image 2.6 Flare · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2.6 Flare · APIMart"
+    },
+    {
+     "label": "GPT Image 2.6 Sunburst · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "GPT Image 2.6 Sunburst · APIMart"
+    },
+    {
+     "label": "Nano Banana 2.1 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana 2.1 · APIMart"
+    },
+    {
+     "label": "Nano Banana 2.1 Ext · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana 2.1 Ext · APIMart"
+    },
+    {
+     "label": "Nano Banana Lite · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana Lite · APIMart"
+    },
+    {
+     "label": "Nano Banana Lite Ext · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Nano Banana Lite Ext · APIMart"
+    },
+    {
+     "label": "FLUX 3 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "FLUX 3 · APIMart"
+    },
+    {
+     "label": "FLUX 3 Klein · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "FLUX 3 Klein · APIMart"
+    },
+    {
+     "label": "Grok Imagine Image 2.0 官方 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Grok Imagine Image 2.0 官方 · APIMart"
+    },
+    {
+     "label": "混元图像 3.5 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "混元图像 3.5 · APIMart"
+    },
+    {
+     "label": "Muse Image · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Muse Image · APIMart"
+    },
+    {
+     "label": "万相 2.7 图像 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "万相 2.7 图像 · APIMart"
+    },
+    {
+     "label": "万相 2.7 图像 Pro · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "万相 2.7 图像 Pro · APIMart"
+    },
+    {
+     "label": "Gemini 3 Pro 图像 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Gemini 3 Pro 图像 · APIMart"
+    },
+    {
+     "label": "Grok Imagine 2.0 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Grok Imagine 2.0 · APIMart"
+    },
+    {
+     "label": "Qwen-Image 2.0 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Qwen-Image 2.0 · APIMart"
+    },
+    {
+     "label": "Qwen-Image 3.0 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Qwen-Image 3.0 · APIMart"
+    },
+    {
+     "label": "Z-Image Turbo · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Z-Image Turbo · APIMart"
+    },
+    {
+     "label": "即梦图片（会员） · 即梦会员（本地 CLI）",
+     "description": null,
+     "disabled": false,
+     "title": "即梦图片（会员） · 即梦会员（本地 CLI）"
+    },
+    {
+     "label": "即梦图片超清（会员） · 即梦会员（本地 CLI）",
+     "description": null,
+     "disabled": false,
+     "title": "即梦图片超清（会员） · 即梦会员（本地 CLI）"
+    }
+   ],
+   "file": "after-select-settings-default-model-0.png"
+  },
+  {
+   "name": "settings-default-model-1",
+   "hash": "961e74e6d78e27b6",
+   "width": 280,
+   "height": 250,
+   "heading": null,
+   "headers": [],
+   "options": [
+    {
+     "label": "自动选择",
+     "description": null,
+     "disabled": false,
+     "title": "自动选择"
+    },
+    {
+     "label": "Vidu Q3 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Vidu Q3 · APIMart"
+    },
+    {
+     "label": "可灵 3.0 Turbo · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "可灵 3.0 Turbo · APIMart"
+    },
+    {
+     "label": "HappyHorse 1.1 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "HappyHorse 1.1 · APIMart"
+    },
+    {
+     "label": "Grok Imagine 1.5 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Grok Imagine 1.5 · APIMart"
+    },
+    {
+     "label": "Veo 3.1 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Veo 3.1 · APIMart"
+    },
+    {
+     "label": "可灵 3.0 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "可灵 3.0 · APIMart"
+    },
+    {
+     "label": "Seedance 2.0 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Seedance 2.0 · APIMart"
+    },
+    {
+     "label": "Seedance 2.5 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Seedance 2.5 · APIMart"
+    },
+    {
+     "label": "MiniMax H3 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "MiniMax H3 · APIMart"
+    },
+    {
+     "label": "Wan 2.7 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Wan 2.7 · APIMart"
+    },
+    {
+     "label": "Wan 3.0 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Wan 3.0 · APIMart"
+    },
+    {
+     "label": "Hailuo 2.3 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Hailuo 2.3 · APIMart"
+    },
+    {
+     "label": "Omni-Flash-Ext · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Omni-Flash-Ext · APIMart"
+    },
+    {
+     "label": "可灵 4.0 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "可灵 4.0 · APIMart"
+    },
+    {
+     "label": "Grok Imagine Video 1.5 官方 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Grok Imagine Video 1.5 官方 · APIMart"
+    },
+    {
+     "label": "PixVerse V6 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "PixVerse V6 · APIMart"
+    },
+    {
+     "label": "PixVerse V6 Max · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "PixVerse V6 Max · APIMart"
+    },
+    {
+     "label": "Muse Video · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Muse Video · APIMart"
+    },
+    {
+     "label": "FLUX 3 Video · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "FLUX 3 Video · APIMart"
+    },
+    {
+     "label": "Wan 3.0 Prime · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Wan 3.0 Prime · APIMart"
+    },
+    {
+     "label": "Veo 3.1 Fast 官方 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Veo 3.1 Fast 官方 · APIMart"
+    },
+    {
+     "label": "Veo 3.1 Quality 官方 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Veo 3.1 Quality 官方 · APIMart"
+    },
+    {
+     "label": "Vidu Q3 Pro · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Vidu Q3 Pro · APIMart"
+    },
+    {
+     "label": "Vidu Q3 Turbo · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Vidu Q3 Turbo · APIMart"
+    },
+    {
+     "label": "Vidu Q4 预览版 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Vidu Q4 预览版 · APIMart"
+    },
+    {
+     "label": "Gemini Omni 1.2 Flash · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Gemini Omni 1.2 Flash · APIMart"
+    },
+    {
+     "label": "Gemini Omni 1.2 Flash Ext · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "Gemini Omni 1.2 Flash Ext · APIMart"
+    },
+    {
+     "label": "MiniMax H3 再生成 · APIMart",
+     "description": null,
+     "disabled": false,
+     "title": "MiniMax H3 再生成 · APIMart"
+    },
+    {
+     "label": "即梦 Seedance（会员） · 即梦会员（本地 CLI）",
+     "description": null,
+     "disabled": false,
+     "title": "即梦 Seedance（会员） · 即梦会员（本地 CLI）"
+    },
+    {
+     "label": "即梦多帧视频（会员） · 即梦会员（本地 CLI）",
+     "description": null,
+     "disabled": false,
+     "title": "即梦多帧视频（会员） · 即梦会员（本地 CLI）"
+    }
+   ],
+   "file": "after-select-settings-default-model-1.png"
+  }
+ ],
+ "boundary": [],
+ "apply": {
+  "status": "saved",
+  "designId": "l-land-probe"
+ },
+ "frames": [
+  {
+   "row": "1",
+   "frame": "done"
+  },
+  {
+   "row": "2",
+   "frame": "generating"
+  },
+  {
+   "row": "3",
+   "frame": "failed"
+  },
+  {
+   "row": "4",
+   "frame": "ready"
+  },
+  {
+   "row": "5",
+   "frame": "ready"
+  },
+  {
+   "row": "6",
+   "frame": "ready"
+  }
+ ],
+ "settingsPickerCount": 4
+}

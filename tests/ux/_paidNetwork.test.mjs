@@ -80,6 +80,7 @@ describe('openPaidWalk wiring', () => {
     vi.unstubAllEnvs()
     vi.doUnmock('./agent-runtime-walk-support.mjs')
     vi.doUnmock('./_realProfile.mjs')
+    vi.doUnmock('./_launchApp.mjs')
   })
 
   async function open(extraDeps = {}) {
@@ -96,6 +97,7 @@ describe('openPaidWalk wiring', () => {
         }
       },
     }))
+    vi.doMock('./_launchApp.mjs', () => ({ decideSyntheticCredentialStorage: () => false }))
     vi.doMock('./_realProfile.mjs', () => ({
       readRealCatalog: () => catalog, realNomiIsRunning: () => false, realNomiProfile: () => ({}), realProfileFingerprint: () => ({}),
       removeRealCredentials: () => true, seedRealModels: () => [{ vendorKey: 'apimart', modelKey: 'm', labelZh: 'm' }],

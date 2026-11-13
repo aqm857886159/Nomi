@@ -1,0 +1,33 @@
+{
+  "name": "技能 key 指技能库里的哪一个",
+  "subject": "skill.key-lookup",
+  "lifecycle": "projection",
+  "authority_kind": "decision",
+  "trust_domain": "shared",
+  "fact_kind": "rule",
+  "migration_status": "converged",
+  "owner": {
+    "path": "electron/shared/skillKey.ts",
+    "symbol": "findSkillRecord"
+  },
+  "write_api": [
+    {
+      "path": "electron/shared/skillKey.ts",
+      "symbol": "findSkillRecord"
+    },
+    {
+      "path": "electron/shared/skillKey.ts",
+      "symbol": "normalizeSkillLookupKey"
+    }
+  ],
+  "forbidden_derivations": [],
+  "allowed_consumers": [
+    "electron/skills/skillStore.ts",
+    "electron/harness/context/agentContext.ts",
+    "electron/skills/skillExecutionEvidence.ts",
+    "src/workbench/skillLibrary/skillDisplay.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts"
+  ],
+  "since": "2026-11-12",
+  "notes": "主进程（这一轮注入哪份 SKILL.md、执行凭据）和渲染层（气泡小签、「已载入技能」、技能封面）共用这一份查找：精确 name → 点号前缀 → 归一后比 name / 目录名。2026-11-12 之前渲染层三处按 name 精确比，分镜启动器发的点号 key 界面认不得，名字印成 key（docs/fixes/2026-11-12-skill-key-label-fork.root-cause.json）。渲染层经 skillDisplay.ts 的 skillForKey 调它，不另写查找。"
+}

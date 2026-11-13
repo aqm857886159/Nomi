@@ -317,6 +317,8 @@ test('validation infrastructure changes exercise functional coverage without unr
     [{ status: 'R100', path: 'eslint.config.mjs' }],
     ['scripts/select-quality-gate-profile.mjs'],
     ['scripts/real-user-test-gates.mjs'],
+    ['scripts/check-test-waits.mjs'],
+    ['scripts/check-test-waits.node-test.mjs'],
   ]) {
     assert.deepEqual(surfaces(classifyValidationPolicy(files)), {
       coreSmoke: true,
