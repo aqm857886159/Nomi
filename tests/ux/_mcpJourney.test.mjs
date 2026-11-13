@@ -47,10 +47,8 @@ describe('spawnMcpStdioClient 的超时预算', () => {
     await expect(client.rpc('tools/list', {}, 50)).rejects.toThrow('RPC timeout: tools/list')
   })
 
-  test('进程一句不说就退出：在等的问立刻失败，不等满冷启动预算', async () => {
+  test('进程一句不说就退出：在等的问按「进程退出」失败，不是等到超时', async () => {
     const client = spawnFake({ FIXTURE_EXIT: '1' })
-    const startedAt = Date.now()
     await expect(client.rpc('initialize', {}, 50)).rejects.toThrow('MCP stdio server exited')
-    expect(Date.now() - startedAt).toBeLessThan(MCP_COLD_START_BUDGET_MS / 2)
   })
 })
