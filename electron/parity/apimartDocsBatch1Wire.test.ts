@@ -179,8 +179,12 @@ describe("可灵 4.0 Flash：五种方式", () => {
     expect(body).toMatchObject({ omni_reference_task_type: "edit", video_urls: [VID_A], image_urls: [IMG_A] });
     expect(body).not.toHaveProperty("aspect_ratio");
     expect(body).not.toHaveProperty("duration");
-    const leftover = await canvas({ ...K, modeId: "edit", params: { audio_setting: "origin", aspect_ratio: "auto" }, images: [IMG_A], videos: [VID_A] });
+    // 编辑方式不声明时长（官方：不给 = 跟随源视频）：节点上从别的方式残留的 8 秒也不发。
+    const leftover = await canvas({ ...K, modeId: "edit", params: { audio_setting: "origin", aspect_ratio: "auto", duration: 8 }, images: [IMG_A], videos: [VID_A] });
     expect(leftover).not.toHaveProperty("audio_setting");
+    expect(leftover).not.toHaveProperty("duration");
+    const runLeftover = await run({ modelId: K.modelKey, modeId: "edit", mode: "image_to_video", params: { duration: 8 }, refs: [video(VID_A)] });
+    expect(runLeftover).not.toHaveProperty("duration");
   });
 
   it("视频续写：omni_reference_task_type=extend + 时长；残留的比例 / 声音 / 图都不发（官方：续写不收）", async () => {

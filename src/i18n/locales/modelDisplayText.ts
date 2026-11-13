@@ -422,7 +422,6 @@ export const enModelDisplayText: Readonly<Record<string, string>> = {
   '源视频接着往后生成一段新的 3–20 秒（只返回新片段）；比例沿用原视频': 'Continue the source video with a new 3–20 second clip (only the new clip is returned); aspect ratio kept',
   '视频续写': 'Video extension',
   '纯文字生成 3–20 秒视频': 'Generate a 3–20 second video from text',
-  '跟随源视频': 'Follows the source video',
   '混元图像 3.5': 'Hunyuan Image 3.5',
   步数: 'Steps',
   生成声音: 'Generate audio',

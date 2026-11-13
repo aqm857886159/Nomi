@@ -17,7 +17,7 @@ const opt = (values: string[]): ModelParameterControl["options"] => values.map((
 const PARAMS: ModelParameterControl[] = [
   { key: "size", label: "比例", type: "select", options: opt(["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9", "2:1", "1:2"]), defaultValue: "1:1" },
   { key: "resolution", label: "清晰度", type: "select", options: opt(["1K", "1.5K", "2K"]), defaultValue: "2K" },
-  { key: "background", label: "背景", type: "select", options: opt(["auto", "transparent", "opaque"]), defaultValue: "auto" },
+  { key: "background", label: "背景", type: "select", options: [{ value: "auto", label: "auto" }, { value: "transparent", label: "透明底" }, { value: "opaque", label: "不透明" }], defaultValue: "auto" },
   {
     key: "output_format", label: "格式", type: "select", options: opt(["png", "jpeg"]), defaultValue: "png",
     optionConstraints: [{ when: { key: "background", value: "transparent" }, values: ["png"] }],

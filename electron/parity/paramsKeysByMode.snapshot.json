@@ -3,15 +3,15 @@
   "samples": 584,
   "archetypes": 95,
   "samplesWithLeaks": {
-   "canvas": 13,
+   "canvas": 16,
    "run": 0,
-   "either": 13
+   "either": 16
   },
   "archetypesWithLeaks": 3,
   "topLeakedKeys": [
    {
     "key": "duration",
-    "samples": 11
+    "samples": 15
    },
    {
     "key": "aspect_ratio",
@@ -24,7 +24,7 @@
   ],
   "archetypesWithDefaultCarried": 3,
   "emptyDuration": {
-   "canvas": 11,
+   "canvas": 15,
    "run": 0,
    "emptyValue": 0
   },
@@ -2844,16 +2844,32 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "audio_setting",
       "fields": [
        "audio_setting"
       ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
      }
     ],
-    "emptyDuration": null
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
    },
    "run": {
     "status": "sent",
@@ -2868,16 +2884,32 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "audio_setting",
       "fields": [
        "audio_setting"
       ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
      }
     ],
-    "emptyDuration": null
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
    },
    "run": {
     "status": "sent",
@@ -2922,6 +2954,12 @@
       "fields": [
        "audio_setting"
       ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
      }
     ],
     "defaultCarried": [
@@ -2930,9 +2968,18 @@
       "fields": [
        "audio_setting"
       ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
      }
     ],
-    "emptyDuration": null
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
    },
    "run": {
     "status": "sent",
@@ -2988,16 +3035,32 @@
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
-    "leaks": [],
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
     "defaultCarried": [
      {
       "key": "audio_setting",
       "fields": [
        "audio_setting"
       ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
      }
     ],
-    "emptyDuration": null
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
    },
    "run": {
     "status": "sent",

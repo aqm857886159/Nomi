@@ -20,11 +20,11 @@ const PARAMS: ModelParameterControl[] = [
 // 只放 vendorParams.apimart：fal 的映射没有这些字段（共享的基础 PARAMS 不能被它们牵连）。
 const APIMART_SIZE: ModelParameterControl = { key: "size", label: "比例", type: "select", options: opt(["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9", "2:1", "1:2", "auto"]), defaultValue: "1:1" };
 const APIMART_OUTPUT_FORMAT: ModelParameterControl = {
-  key: "output_format", label: "输出格式", type: "select", options: opt(["jpeg", "png"]), defaultValue: "jpeg",
+  key: "output_format", label: "格式", type: "select", options: opt(["jpeg", "png"]), defaultValue: "jpeg",
   optionConstraints: [{ when: { key: "background", value: "transparent" }, values: ["png"] }],
 };
 const APIMART_WATERMARK: ModelParameterControl = { key: "watermark", label: "添加水印", type: "boolean", options: [], defaultValue: false };
-const APIMART_BACKGROUND: ModelParameterControl = { key: "background", label: "背景", type: "select", options: opt(["opaque", "transparent"]), defaultValue: "opaque" };
+const APIMART_BACKGROUND: ModelParameterControl = { key: "background", label: "背景", type: "select", options: [{ value: "opaque", label: "不透明" }, { value: "transparent", label: "透明底" }], defaultValue: "opaque" };
 const APIMART_NSFW_CHECK: ModelParameterControl = { key: "nsfw_check", label: "提交前内容审核", type: "boolean", options: [], defaultValue: false };
 const APIMART_T2I_PARAMS: ModelParameterControl[] = [APIMART_SIZE, PARAMS[1]!, APIMART_OUTPUT_FORMAT, APIMART_WATERMARK, APIMART_NSFW_CHECK];
 const APIMART_EDIT_PARAMS: ModelParameterControl[] = [APIMART_SIZE, PARAMS[1]!, APIMART_BACKGROUND, APIMART_OUTPUT_FORMAT, APIMART_WATERMARK, APIMART_NSFW_CHECK];

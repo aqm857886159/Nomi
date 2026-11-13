@@ -17,7 +17,7 @@ const BASE_PARAMS: ModelParameterControl[] = [
   { key: "return_last_frame", label: "返回尾帧", type: "boolean", options: [], defaultValue: false },
   { key: "seed", label: "种子", type: "number", options: [], placeholder: "随机" },
   { key: "watermark", label: "添加水印", type: "boolean", options: [], defaultValue: false },
-  { key: "output_format", label: "输出格式", type: "select", options: opt(["mp4", "mov"]), defaultValue: "mp4" },
+  { key: "output_format", label: "格式", type: "select", options: opt(["mp4", "mov"]), defaultValue: "mp4" },
   { key: "nsfw_check", label: "提交前内容审核", type: "boolean", options: [], defaultValue: false },
 ];
 const PARAMS: ModelParameterControl[] = [SIZE, ...BASE_PARAMS];

@@ -20,7 +20,7 @@
 | 方式：视频续写 | `Video extension: Set omni_reference_task_type: "extend" and supply an input video` | 露出 | `mode:extend` `fixed:extend/omni_reference_task_type=extend` `slot:extend/video_ref:1:video_urls` `prompt:extend=required` |
 | 续写：不收图 | `Extension does not accept images, a target last frame, aspect_ratio, or audio_setting; the original ratio is preserved.` | 不露出 | `absent:extend/image_urls` `absent:extend/aspect_ratio` `absent:extend/audio_setting` `reason:模型无效` |
 | 时长 3–20 | `Integer seconds from 3 to 20, normally defaulting to 5.` | 露出 | `param:t2v+i2v+ref+extend/duration=3..20@5` |
-| 编辑时长：不给 = 跟随源视频 | `For editing, omission follows the input duration rounded up.` | 露出 | `param:edit/duration=3..20` |
+| 编辑时长：不给 = 跟随源视频 | `For editing, omission follows the input duration rounded up.` | 待定 | `pending:没有默认值（跟随源视频），数字控件没有「跟随源视频」这一档，需要新的控件形状；这个方式先不声明时长，请求里不带时长即跟随源视频` |
 | 比例：文生 | `Text-to-video, reference generation, and editing support 16:9, 9:16, 1:1, and 21:9` / `Text-to-video default: 16:9` | 露出 | `param:t2v/aspect_ratio=16:9,9:16,1:1,21:9@16:9` |
 | 比例：参考 / 编辑（auto = 不发） | `only reference generation accepts auto` / `without aspect_ratio, it follows the input ratio` | 露出 | `param:ref/aspect_ratio=auto,16:9,9:16,1:1,21:9@auto` `param:edit/aspect_ratio=auto,16:9,9:16,1:1,21:9@auto` |
 | 图生不收比例 | `Image-to-video does not accept aspect_ratio or size: nonempty values return HTTP 400` | 不露出 | `absent:i2v/aspect_ratio` `reason:模型无效` |

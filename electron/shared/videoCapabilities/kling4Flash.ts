@@ -14,9 +14,8 @@ const opt = (values: string[]): ModelParameterControl["options"] => values.map((
 const DURATION: ModelParameterControl = { key: "duration", label: "时长(秒)", type: "number", options: [], min: 3, max: 20, defaultValue: 5 };
 const ASPECT_T2V: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: opt(["16:9", "9:16", "1:1", "21:9"]), defaultValue: "16:9" };
 const ASPECT_FOLLOW: ModelParameterControl = { key: "aspect_ratio", label: "比例", type: "select", options: opt(["auto", "16:9", "9:16", "1:1", "21:9"]), defaultValue: "auto" };
-const AUDIO_SETTING: ModelParameterControl = { key: "audio_setting", label: "声音", type: "select", options: opt(["auto", "origin"]), defaultValue: "auto" };
-/** 编辑：不给时长 = 跟随源视频（向上取整），所以没有默认值。 */
-const DURATION_FOLLOW_SOURCE: ModelParameterControl = { ...DURATION, defaultValue: undefined, placeholder: "跟随源视频" };
+const AUDIO_SETTING: ModelParameterControl = { key: "audio_setting", label: "声音", type: "select", options: [{ value: "auto", label: "auto" }, { value: "origin", label: "保留原声" }], defaultValue: "auto" };
+// 编辑：官方「不给时长 = 跟随源视频（向上取整）」，没有默认值；数字控件没有「跟随源视频」这一档，这个方式先不声明时长（能力表记待定），请求里不带时长 = 跟随源视频。
 
 export const KLING_4_FLASH_ARCHETYPE: ModelArchetype = {
   id: "kling-v4-flash",
@@ -59,7 +58,7 @@ export const KLING_4_FLASH_ARCHETYPE: ModelArchetype = {
         { kind: "image_ref", label: "参考图", min: 0, max: 10, characterIndexed: true, inputKey: "image_urls" },
       ],
       fixedParams: { omni_reference_task_type: "edit" },
-      params: [ASPECT_FOLLOW, DURATION_FOLLOW_SOURCE],
+      params: [ASPECT_FOLLOW],
     },
     {
       id: "extend", intent: "edit", vendorTerm: "视频续写", hint: "源视频接着往后生成一段新的 3–20 秒（只返回新片段）；比例沿用原视频", promptRequired: true,
