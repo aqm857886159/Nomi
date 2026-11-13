@@ -212,6 +212,11 @@
       "count": 11
     }
   },
+  "electron/projects/projectQuarantine.ts": {
+    "hot-path-sync-fs/no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "electron/projects/projectTrash.ts": {
     "hot-path-sync-fs/no-restricted-syntax": {
       "count": 1
