@@ -1,3 +1,4 @@
+import { DETERMINISTIC_PLANNER_PARAMS_POLICY, resolveModelParams } from '../shared/videoCapabilities/resolveModelParams';
 import type { StoryboardPlanResult, StoryboardShotDraft } from "./mcpGenerationMultiShot";
 
 /**
@@ -23,16 +24,11 @@ export function planStoryboardFromScript(input: {
     && (!Number.isFinite(targetDurationSeconds) || targetDurationSeconds <= 0)) {
     throw new Error("目标时长必须是正数（秒）");
   }
-  // The planner emits provider clips, not a magical five-minute request. Keep
-  // the allocation conservative across the curated video catalog: 4–15s is
-  // accepted by the common APIMart video modes. Model-specific validation still
-  // runs when the candidate is sealed; if a selected mode has a narrower range
-  // it fails closed instead of silently changing the requested duration.
-  const MIN_CLIP_SECONDS = 4;
-  const MAX_CLIP_SECONDS = 15;
+  // 第1步保留旧拟镜范围；模型感知的分配留给下一步。
+  const { min, max } = DETERMINISTIC_PLANNER_PARAMS_POLICY.durationRange;
   const MAX_SHOTS = 48;
-  if (targetDurationSeconds !== undefined && targetDurationSeconds > MAX_CLIP_SECONDS * MAX_SHOTS) {
-    throw new Error(`目标时长超过当前最多 ${MAX_SHOTS} 镜 × ${MAX_CLIP_SECONDS} 秒，无法安全拟镜`);
+  if (targetDurationSeconds !== undefined && targetDurationSeconds > max * MAX_SHOTS) {
+    throw new Error(`目标时长超过当前最多 ${MAX_SHOTS} 镜 × ${max} 秒，无法安全拟镜`);
   }
   const normalized = input.scriptText
     .replace(/\r\n?/g, "\n")
@@ -57,12 +53,12 @@ export function planStoryboardFromScript(input: {
     : 1;
   const requiredShotsForDuration = targetDurationSeconds === undefined
     ? 0
-    : Math.max(1, Math.ceil(targetDurationSeconds / MAX_CLIP_SECONDS));
+    : Math.max(1, Math.ceil(targetDurationSeconds / max));
   // Preserve every source fragment when it is feasible, while ensuring a
   // target duration has enough provider clips to carry the requested seconds.
   const targetShotCount = Math.max(minimumShots, requiredShotsForDuration, bounded.length);
-  if (targetDurationSeconds !== undefined && targetShotCount * MIN_CLIP_SECONDS > targetDurationSeconds) {
-    throw new Error(`目标时长 ${targetDurationSeconds} 秒不足以容纳 ${targetShotCount} 个镜头（每镜至少 ${MIN_CLIP_SECONDS} 秒）`);
+  if (targetDurationSeconds !== undefined && targetShotCount * min > targetDurationSeconds) {
+    throw new Error(`目标时长 ${targetDurationSeconds} 秒不足以容纳 ${targetShotCount} 个镜头（每镜至少 ${min} 秒）`);
   }
   if (targetShotCount > MAX_SHOTS) {
     throw new Error(`拟镜最多支持 ${MAX_SHOTS} 个镜头`);
@@ -82,7 +78,7 @@ export function planStoryboardFromScript(input: {
     ? undefined
     : (() => {
       const count = bounded.length;
-      if (count === 0 || count * MIN_CLIP_SECONDS > targetDurationSeconds || count * MAX_CLIP_SECONDS < targetDurationSeconds) {
+      if (count === 0 || count * min > targetDurationSeconds || count * max < targetDurationSeconds) {
         throw new Error(`无法把目标时长 ${targetDurationSeconds} 秒分配到当前镜头`);
       }
       const base = Math.floor(targetDurationSeconds / count);
@@ -94,7 +90,9 @@ export function planStoryboardFromScript(input: {
     role: "shot",
     included: true,
     prompt,
-    ...(durations ? { durationSeconds: durations[index] } : {}),
+    ...(durations ? { durationSeconds: resolveModelParams({
+      controls: [], intent: { duration: durations[index] }, previousParams: {}, policy: DETERMINISTIC_PLANNER_PARAMS_POLICY,
+    }).params.duration as number } : {}),
   }));
   if (shots.length === 0) throw new Error("剧本文本为空，无法拟镜");
   return {

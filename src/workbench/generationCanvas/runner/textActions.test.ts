@@ -102,7 +102,7 @@ describe('generateText — 生成模式路由', () => {
       meta: { textGenMode: 'rewrite', textGenSelection: '要改的那段' },
       contentJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '要改的那段' }] }] },
     })
-    const result = await generateText(node, { projectTarget, runTask: stubRun })
+    const [result] = await generateText(node, { projectTarget, runTask: stubRun })
     // 文档未变
     expect(nodeText(node.id)).toBe('要改的那段')
     // 标记 = 本次 result.id

@@ -154,12 +154,15 @@ export function createCanvasTransportProvider(vendorKey: string, transport: Canv
     },
     materialize: async ({ raw }) => {
       const result = raw as CanvasTaskResult | undefined;
-      // 画布那台只取第一份产物（normalizeCatalogTaskResult 同口径）。
-      const first = result?.assets?.find((asset) => asset && typeof asset.url === "string" && asset.url.trim());
-      const kind = first?.type;
-      if (!first || (kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "model3d")) return { outputs: [], raw };
-      const output: GenerationProviderOutput = { kind, url: first.url };
-      return { outputs: [output], raw };
+      // 每份带地址的媒体产物各一份（一次出几张就几张，按上游顺序）——与渲染层 normalizeCatalogTaskResults 同口径，不取第一个。
+      const outputs: GenerationProviderOutput[] = [];
+      for (const asset of result?.assets ?? []) {
+        const kind = asset?.type;
+        if (!asset || typeof asset.url !== "string" || !asset.url.trim()) continue;
+        if (kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "model3d") continue;
+        outputs.push({ kind, url: asset.url, ...(typeof asset.contentHash === "string" && asset.contentHash ? { contentHash: asset.contentHash } : {}) });
+      }
+      return { outputs, raw };
     },
   };
 }

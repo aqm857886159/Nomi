@@ -1,5 +1,5 @@
-import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
-import { runCatalogGenerationTask, type CatalogTaskRunOptions } from './catalogTaskActions'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { runCatalogGenerationTask, type CatalogTaskRunOptions, type GenerationNodeResults } from './catalogTaskActions'
 
 export type Generate3DOptions = CatalogTaskRunOptions
 
@@ -11,6 +11,6 @@ export type Generate3DOptions = CatalogTaskRunOptions
 export async function generate3D(
   node: GenerationCanvasNode,
   options: Generate3DOptions,
-): Promise<GenerationNodeResult> {
+): Promise<GenerationNodeResults> {
   return runCatalogGenerationTask(node, options)
 }

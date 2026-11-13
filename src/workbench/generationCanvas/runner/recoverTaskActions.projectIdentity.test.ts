@@ -121,8 +121,31 @@ describe('recovery reads only the task identity', () => {
   // 节点必须留在可找回（主动作 = 再查一次），绝不进带「重试生成」的错误态。
   it('a recovery query refused with a pre-submit code stays recoverable, never the paid-retry error state', async () => {
     const nodeId = recoverableNode({ projectId: 'project-a' })
-    vi.mocked(fetchWorkbenchTaskResultByVendor).mockRejectedValue(new Error('NOMI_ERR::outbound-blocked-submit:: 这次生成**没有发出去**'))
+    vi.mocked(fetchWorkbenchTaskResultByVendor).mockRejectedValue(new Error('NOMI_ERR::outbound-blocked-credential-origin:: 这次生成**没有发出去**'))
     await recoverInOpenProject(nodeId)
     expect(useGenerationCanvasStore.getState().nodes.find((node) => node.id === nodeId)?.status).toBe('recoverable')
+  })
+})
+
+// 一次出 N 张（设计卡 docs/plan/2026-11-09-multi-result-landing.md ★9 第 4 条）：可找回的那一笔重新取回，
+// 交回几张就落几张，都挂这一笔自己的运行记录号；以前只落第一张。
+describe('recovery lands every output of the task', () => {
+  it.each([1, 2, 4])('重新取回出 %i 张：版本历史 N 条、都挂这一笔的运行记录、当前是最后一张', async (count) => {
+    const nodeId = recoverableNode({ projectId: 'project-a' })
+    const urls = Array.from({ length: count }, (_, index) => `nomi-local://asset/project-a/recovered-${index + 1}.png`)
+    vi.mocked(fetchWorkbenchTaskResultByVendor).mockResolvedValue({
+      vendor: 'apimart',
+      result: { id: 'task-paid-1', kind: 'text_to_image', status: 'succeeded', assets: urls.map((url) => ({ type: 'image', url })), raw: {} },
+    })
+    await recoverInOpenProject(nodeId)
+
+    const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)!
+    const history = [...(node.history ?? [])].sort((left, right) => (left.versionNo ?? 0) - (right.versionNo ?? 0))
+    expect(history.map((entry) => entry.url)).toEqual(urls)
+    expect(history.every((entry) => entry.taskId === 'task-paid-1')).toBe(true)
+    expect(node.runs).toHaveLength(1)
+    expect(node.runs?.[0]).toMatchObject({ id: 'run-1', status: 'success', resultId: history.at(-1)!.id })
+    expect(node.result?.url).toBe(urls.at(-1))
+    expect(vi.mocked(fetchWorkbenchTaskResultByVendor)).toHaveBeenCalledOnce()
   })
 })

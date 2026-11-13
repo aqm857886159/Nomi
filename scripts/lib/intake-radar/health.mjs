@@ -3,6 +3,29 @@ import policy from './health-policy.json' with { type: 'json' }
 const versionKey = version => /^(\d+)\.(\d+)(?:\.\d+)?$/.exec(version ?? '')?.slice(1, 3).map(Number).join('.') ?? null
 const eventVersion = e => Number.isInteger(e.systemProps?.appMajor) && Number.isInteger(e.systemProps?.appMinor) ? `${e.systemProps.appMajor}.${e.systemProps.appMinor}` : null
 const validDay = day => /^\d{4}-\d{2}-\d{2}$/.test(day ?? '') && Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day
+const LOCAL_CODES = new Set(policy.localRefusalCodes)
+// 失败是不是本机拦下的：带upstreamStatus的新事件直接看它；更老的按errorType码认（定论）；码是unknown且<1s只算疑似。
+function localKind(e) {
+  if (typeof e.props?.upstreamStatus === 'string') return e.props.upstreamStatus === 'not-sent' ? 'local' : 'other'
+  const type = e.props?.errorType
+  if (LOCAL_CODES.has(type)) return 'local'
+  const known = typeof type === 'string' && type.length > 0 && ['<1s', '1-5s', '>5s'].includes(e.props?.durationBucket)
+  if (!known) return 'unknown'
+  return type === 'unknown' && e.props.durationBucket === '<1s' ? 'suspected' : 'other'
+}
+// 失败的成分：几次本机拦下（按码分）、几次疑似、最集中的会话占几次。不带会话标识出去。
+function composition(events) {
+  const failures = events.filter(e => e.props?.result === 'failure' && e.props.errorType !== 'local-refusal')
+  const byCode = {}
+  let local = 0, suspected = 0
+  for (const e of failures) {
+    const kind = localKind(e)
+    if (kind === 'local') { local++; const code = typeof e.props.errorType === 'string' && e.props.errorType ? e.props.errorType : 'uncoded'; byCode[code] = (byCode[code] ?? 0) + 1 }
+    else if (kind === 'suspected') suspected++
+  }
+  return { failure: failures.length, local, suspected, byCode, topSessionFailures: counts(failures.map(e => ({ ...e, props: { ...e.props, errorType: 'x' } }))).topSessionFailures }
+}
+const describeComposition = (capability, c) => c.failure ? `${capability}失败${c.failure}次：本机拦下${c.local}次${c.local ? `（${Object.entries(c.byCode).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([code, n]) => `${code}×${n}`).join('、')}）` : ''}${c.suspected ? `，另疑似${c.suspected}次` : ''}，最集中的一个会话占${c.topSessionFailures}次` : null
 const pct = value => value === null ? '无分母' : `${(100 * value).toFixed(1)}%`
 const points = value => `${value >= 0 ? '+' : ''}${(100 * value).toFixed(1)} 点`
 function counts(events) {
@@ -13,8 +36,10 @@ function counts(events) {
   const unknown = events.filter(e => !['success', 'failure', 'cancel'].includes(e.props?.result)).length
   const n = success + failure
   const identified = failures.filter(e => typeof e.sessionId === 'string' && e.sessionId.trim())
+  const perSession = new Map()
+  for (const e of identified) perSession.set(e.sessionId, (perSession.get(e.sessionId) ?? 0) + 1)
   return { success, failure, cancel, unknown, n, total: events.length, rate: n ? failure / n : null,
-    failureSessions: new Set(identified.map(e => e.sessionId)).size, failureSessionUnknown: failure - identified.length }
+    failureSessions: perSession.size, failureSessionUnknown: failure - identified.length, topSessionFailures: Math.max(0, ...perSession.values()) }
 }
 function wilson(failure, n, z) {
   const p = failure / n, z2 = z * z, denominator = 1 + z2 / n
@@ -67,6 +92,7 @@ export function buildVersionHealth(events, { generatedAt, newVersion, oldVersion
   const rows = [], missing = [], regressions = [], uncovered = [], concentrated = [], sessionGaps = []
   const observedDays = { newer: new Set(fresh.map(e => e.date)).size, older: new Set(old.map(e => e.date)).size }
   if (observedDays.newer < thresholds.windowDays) missing.push(`观察日期还差${thresholds.windowDays - observedDays.newer}天（${observedDays.newer}/${thresholds.windowDays}）`)
+  const compositionByKey = {}
   const compare = (key, label, newer, olderCounts) => {
     const interval = newcombeDifference(newer.failure, newer.n, olderCounts.failure, olderCounts.n, thresholds.z)
     // Compare on the common count denominator so 35% - 30% cannot round below 5 points.
@@ -74,23 +100,22 @@ export function buildVersionHealth(events, { generatedAt, newVersion, oldVersion
     const credible = newer.n >= thresholds.stopMinSamples && interval?.lower > 0 && practical
     const stop = Boolean(credible && newer.failureSessions >= thresholds.stopMinFailureSessions)
     rows.push({ key, label, newer, older: olderCounts, interval, stop })
+    if (key.startsWith('generation.')) rows.at(-1).composition = compositionByKey[key]
     if (newer.n < thresholds.stopMinSamples) uncovered.push(`${label}（新版n=${newer.n}<${thresholds.stopMinSamples}）`)
     else if (!interval) uncovered.push(`${label}（旧版无可比较分母）`)
     if (newer.unknown && key !== 'generation.image') uncovered.push(`${label}（未知结果${newer.unknown}个）`)
     if (newer.failureSessionUnknown) sessionGaps.push(`${label}失败${newer.failureSessionUnknown}个缺sessionId，不能确认跨会话`)
     if (credible && newer.failureSessions === 1) concentrated.push(`${label}（新版失败${newer.failure}次）`)
-    if (stop) regressions.push(`${label}、新版 ${pct(newer.rate)} / 旧版 ${pct(olderCounts.rate)}、差${points(interval.difference)}、95%区间[${points(interval.lower)}, ${points(interval.upper)}]、样本 n=${newer.n}/${olderCounts.n}、失败会话${newer.failureSessions}`)
+    if (stop) regressions.push(`${label}、新版${current} ${pct(newer.rate)} / 旧版${previous} ${pct(olderCounts.rate)}、差${points(interval.difference)}、95%区间[${points(interval.lower)}, ${points(interval.upper)}]、样本 n=${newer.n}/${olderCounts.n}、失败会话${newer.failureSessions}`)
   }
   const capabilities = ['image', 'image-edit', 'video']
   for (const capability of capabilities) {
     const gen = list => list.filter(e => e.eventName === 'generation.completed' && e.props?.capability === capability)
     const a = gen(fresh), b = gen(old)
+    compositionByKey[`generation.${capability}`] = composition(a)
     compare(`generation.${capability}`, `${capability}失败率`, counts(a), counts(b))
-    const local = list => counts(list.filter(e => e.props?.result === 'failure').map(e => {
-      const known = typeof e.props.errorType === 'string' && e.props.errorType.length > 0 && ['<1s', '1-5s', '>5s'].includes(e.props.durationBucket)
-      return { ...e, props: { result: !known ? 'unknown' : (e.props.errorType === 'local-refusal' || e.props.errorType === 'unknown' && e.props.durationBucket === '<1s') ? 'failure' : 'success' } }
-    }))
-    compare(`local.${capability}`, `${capability}疑似本地拒绝占失败`, local(a), local(b))
+    const local = list => counts(list.filter(e => e.props?.result === 'failure').map(e => ({ ...e, props: { result: { local: 'failure', suspected: 'failure', other: 'success', unknown: 'unknown' }[localKind(e)] } })))
+    compare(`local.${capability}`, `${capability}本机拦下占失败`, local(a), local(b))
   }
 
   const launches = { newer: fresh.filter(e => e.eventName === 'app.started').length, older: old.filter(e => e.eventName === 'app.started').length }
@@ -102,16 +127,15 @@ export function buildVersionHealth(events, { generatedAt, newVersion, oldVersion
     const pick = list => list.filter(e => e.eventName === 'update.action' && e.props?.action === action)
     compare(`update.${action}`, `更新${action}动作失败率`, counts(pick(fresh)), counts(pick(old)))
   }
-  const agent = list => list.filter(e => e.eventName === 'agent.turn.completed')
-  if (!agent(fresh).length && !agent(old).length) uncovered.push('Agent 回合（遥测没有这一项）')
-  else compare('agent', 'Agent回合失败率', counts(agent(fresh)), counts(agent(old)))
+  uncovered.push('Agent 回合（遥测没有这一项）')
   uncovered.push('更新安装完成（遥测没有这一项，install success仅表示动作受理）')
   const decision = regressions.length ? `停止放量：${regressions.join('；')}` : missing.length ? `样本不够：${missing.join('；')}`
     : `可以全量：image 失败率最多变差 ${points(primary.interval?.upper ?? 1)}（95% 上界，n=${primary.newer.n}/${primary.older.n}）；未覆盖：${uncovered.join('；') || '无'}`
-  const conclusion = `${decision}${concentrated.length ? `；集中在一个会话：${concentrated.join('；')}，不判停` : ''}`
+  const parts = rows.filter(r => r.composition).map(r => describeComposition(r.key.slice('generation.'.length), r.composition)).filter(Boolean)
+  const conclusion = `${decision}${concentrated.length ? `；集中在一个会话：${concentrated.join('；')}，不判停` : ''}；比的是${current}（新）对${previous ?? '缺失'}（旧），只到 major.minor、分不出补丁版${parts.length ? `；新版${parts.join('；')}` : ''}`
   return { requested: { newVersion, oldVersion: oldVersion ?? null }, current, previous: previous ?? null, window: { start, end }, observedDays, launches, rows, missing, regressions, uncovered, concentrated, conclusion, stop: regressions.length > 0,
-    notes: ['仅major.minor，不能精确比较补丁版；UTC日粒度，同窗不等于同模型/同用户的因果实验。',
-      '<1s且unknown仅为疑似本地拒绝。取消和未知不计失败率分母；仅新版image未知（含坏缓存缺失量未知）阻止全量。',
+    notes: [`版本健康比的是${current}（新）对${previous ?? '缺失'}（旧），只到major.minor，分不出补丁版；补丁版失败率见报告「定位读数」一节（只有带补丁号的新版本事件）；UTC日粒度，同窗不等于同模型/同用户的因果实验。`,
+      '带upstreamStatus的事件按not-sent数本机拦下；更老的事件按errorType码认（码表见health-policy.json，产品表变了会有测试提醒）；没有码时<1s且unknown仅为疑似。本机拦下的失败服务商没收到，仍算创作者的失败、照常计入失败率与停判。取消和未知不计失败率分母；仅新版image未知（含坏缓存缺失量未知）阻止全量。',
       'update.install success表示安装动作受理，不证明安装完成；下载/安装事件版本是发起动作的当前版。',
       '事件不等于独立用户；单项95%区间不是多项同时检查的总体95%保证。',
       ...(!primary.interval ? ['image缺可比较分母，+100.0点为无信息的保守上界，不能排除任何变差。'] : []),
@@ -124,6 +148,6 @@ export function renderVersionHealth(health) {
   return [`版本健康：${health.current} vs ${health.previous ?? '缺失'}；${health.window.start}..${health.window.end}（UTC日）`,
     `启动 n=${health.launches.newer}/${health.launches.older}；有事件日期 n=${health.observedDays.newer}/${health.observedDays.older}`,
     ...health.notes,
-    ...health.rows.map(r => `${r.label}：新版 ${show(r.newer)} / 旧版 ${show(r.older)}；差值95%区间${r.interval ? `[${points(r.interval.lower)}, ${points(r.interval.upper)}]` : '无可比较分母'}；新版失败会话${r.newer.failureSessions}`),
+    ...health.rows.map(r => `${r.label}：新版${health.current} ${show(r.newer)} / 旧版${health.previous ?? '缺失'} ${show(r.older)}；差值95%区间${r.interval ? `[${points(r.interval.lower)}, ${points(r.interval.upper)}]` : '无可比较分母'}；新版失败会话${r.newer.failureSessions}${r.composition?.failure ? `；${describeComposition('', r.composition)}` : ''}`),
     health.conclusion].join('\n')
 }

@@ -37,10 +37,11 @@ describe('planCanvasAutoReference', () => {
     expect(plans[0].autoReferenced).toEqual(['src'])
   })
 
-  it('当前模式收不了参考图（文生视频）→ 与手动 @ 一样切到能收的模式', () => {
+  it('存着文生视频的偏好也照样补参考（方式不写进节点，连上之后按输入现算成能收图的那种）', () => {
     const t2v = target({ meta: { modelKey: 'seedance-2-5', modelVendor: 'kie', archetype: { id: 'seedance-2.5', modeId: 't2v' } } })
     const plans = planCanvasAutoReference([source(), t2v], [], 'src')
-    expect(plans[0]?.switchToModeId).toBe('omni')
+    expect(plans).toHaveLength(1)
+    expect(plans[0]).not.toHaveProperty('switchToModeId')
   })
 
   it('不碰：已出图的节点、在跑的节点、分镜方案落出来的节点、别的分区、账本里补过的', () => {

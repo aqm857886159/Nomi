@@ -4,14 +4,17 @@ import { createDefaultWorkbenchDocument, type StoryboardDesign, type WorkbenchDo
 import { logRendererWarn } from '../../desktop/rendererLog'
 import {
   createDefaultWorkbenchProjectPayload,
-  workbenchProjectPayloadSchema,
+  pendingAssetDeletionSchema,
+  workbenchProjectPayloadSkeletonSchema,
   workbenchProjectRecordSchema,
   type WorkbenchProjectPayload,
   type WorkbenchProjectRecordLegacy,
   type WorkbenchProjectRecordV1,
   type WorkbenchProjectSummary,
 } from './projectRecordSchema'
-import { normalizeCategories } from './projectCategories'
+import { normalizeCategories, projectCategorySchema } from './projectCategories'
+import { editingPanelLayoutSchema } from '../preview/panelLayout'
+import { issuesOfZodError, storyboardDesignSchema, type SchemaFieldIssue } from '../creation/storyboard/storyboardDesignSchema'
 import { storyboardDraftPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
 import { renumberStoryboardShots } from '../../../electron/shared/storyboard/storyboardSubjectIdentity'
 import i18n from '../../i18n'
@@ -87,13 +90,145 @@ function issueFieldPaths(issues: readonly SchemaIssue[]): string {
   ).join('.') || '(root)').join('; ')
 }
 
-export function normalizePayload(input: unknown): WorkbenchProjectPayload {
-  const parsed = workbenchProjectPayloadSchema.safeParse(input)
+/**
+ * 存盘 / 读盘时「这一项不合格、被隔离」的一条记录。`raw` 是原样内容（只进隔离区文件，**不进日志**）；
+ * 日志和遥测只记 `field`（容器名 + 字段路径，记录键遮蔽）。
+ */
+export type QuarantinedItem = Readonly<{
+  container: 'storyboardDesign' | 'category' | 'editingPanelLayout' | 'pendingAssetDeletion'
+  /** 字段路径，只含 schema 字段名和数组序号：`plan.shots[2].durationSec`。 */
+  field: string
+  issues: readonly SchemaFieldIssue[]
+  raw: unknown
+  /** 分镜设计才有：界面那一句话要说「哪份分镜」（标题是用户内容，只用于界面，不进日志）。 */
+  title?: string
+  /** 沿用了盘上上一个版本（没有就不写这一项）。 */
+  keptPreviousVersion: boolean
+}>
+
+/** 这条记录（存盘返回 / 读盘得到）里有哪几项被隔离：界面那一句话和隔离区文件读它。记录对象一变就没有，不进持久化。 */
+const quarantineByRecord = new WeakMap<object, readonly QuarantinedItem[]>()
+export function rememberQuarantine(record: object, items: readonly QuarantinedItem[]): void {
+  if (items.length) quarantineByRecord.set(record, items)
+}
+export function quarantineOfRecord(record: object): readonly QuarantinedItem[] {
+  return quarantineByRecord.get(record) ?? []
+}
+
+export type NormalizedPayload = Readonly<{ payload: WorkbenchProjectPayload; quarantined: readonly QuarantinedItem[] }>
+
+const NORMALIZE_SLOW_LOG_MS = 50
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
+}
+
+function itemTitle(raw: unknown): string | undefined {
+  const title = asRecord(raw)?.title
+  return typeof title === 'string' && title.trim() ? title.trim() : undefined
+}
+
+/** 盘上上一个版本里，同 id 且自己合格的那一份分镜设计（没有就 undefined）。 */
+function previousDesignOf(previous: unknown, documentId: string, id: unknown): StoryboardDesign | undefined {
+  if (typeof id !== 'string' || !id) return undefined
+  const designs = asRecord(asRecord(previous)?.storyboardDesignsByDocumentId)?.[documentId]
+  if (!Array.isArray(designs)) return undefined
+  const found = designs.find(item => asRecord(item)?.id === id)
+  const parsed = storyboardDesignSchema.safeParse(found)
+  return parsed.success ? parsed.data as StoryboardDesign : undefined
+}
+
+/**
+ * 持久化的唯一入口（存盘与读盘共用）。**结构骨架坏了才整份拒**（payload 不是对象、画布 nodes 不是数组…）；
+ * 单项（一份分镜设计 / 一个分类 / 版式 / 一条待删素材）不合格只隔离那一项：
+ *   · 分镜设计：沿用 `options.previous`（盘上上一个版本）里同 id 的那份，没有就不写这一项；
+ *   · 原样内容随返回值交给调用方写进项目的隔离区；其余照存。
+ * 写入口先挡住（store setter 用同一份草稿面校验），所以正常情况下 `quarantined` 恒为空。
+ */
+export function normalizePayloadWithQuarantine(input: unknown, options: { previous?: unknown } = {}): NormalizedPayload {
+  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
+  const result = normalizePayloadItems(input, options)
+  const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt
+  if (elapsed >= NORMALIZE_SLOW_LOG_MS) logRendererWarn('project-normalize-slow', { elapsedMs: Math.round(elapsed) })
+  if (result.quarantined.length) {
+    logRendererWarn('project-item-quarantined', {
+      count: result.quarantined.length,
+      fields: result.quarantined.slice(0, 8).map(item => `${item.container}.${item.field}`).join('; '),
+    })
+  }
+  return result
+}
+
+export function normalizePayload(input: unknown, options: { previous?: unknown } = {}): WorkbenchProjectPayload {
+  return normalizePayloadWithQuarantine(input, options).payload
+}
+
+function normalizePayloadItems(input: unknown, options: { previous?: unknown }): NormalizedPayload {
+  const parsed = workbenchProjectPayloadSkeletonSchema.safeParse(input)
   if (!parsed.success) {
     logRendererWarn('project-payload-rejected', { issues: issueFieldPaths(parsed.error.issues) })
     throw new Error(i18n.t('runtime.project.corruptPayload'))
   }
-  const payload = parsed.data
+  const quarantined: QuarantinedItem[] = []
+  const quarantine = (container: QuarantinedItem['container'], raw: unknown, issues: readonly SchemaFieldIssue[], keptPreviousVersion = false): void => {
+    quarantined.push({ container, field: issues[0]?.path ?? '(root)', issues, raw, keptPreviousVersion, ...(container === 'storyboardDesign' && itemTitle(raw) ? { title: itemTitle(raw) } : {}) })
+  }
+  const skeleton = parsed.data
+  // 分镜设计：一项一项判。容器不是数组 → 这一篇原稿的整包进隔离区。
+  let designsByDocument: Record<string, StoryboardDesign[]> | undefined
+  if (skeleton.storyboardDesignsByDocumentId) {
+    designsByDocument = {}
+    for (const [documentId, list] of Object.entries(skeleton.storyboardDesignsByDocumentId)) {
+      if (!Array.isArray(list)) { quarantine('storyboardDesign', list, [{ path: '(not-an-array)', problem: 'needs array of designs' }]); continue }
+      const kept: StoryboardDesign[] = []
+      for (const item of list) {
+        const one = storyboardDesignSchema.safeParse(item)
+        if (one.success) { kept.push(one.data as StoryboardDesign); continue }
+        const previous = previousDesignOf(options.previous, documentId, asRecord(item)?.id)
+        quarantine('storyboardDesign', item, issuesOfZodError(one.error.issues as never), Boolean(previous))
+        if (previous) kept.push(previous)
+      }
+      designsByDocument[documentId] = kept
+    }
+  }
+  const categories = skeleton.categories === undefined ? undefined : skeleton.categories.filter((item) => {
+    const one = projectCategorySchema.safeParse(item)
+    if (!one.success) quarantine('category', item, issuesOfZodError(one.error.issues as never))
+    return one.success
+  })
+  const pendingAssetDeletions = skeleton.pendingAssetDeletions?.filter((item) => {
+    const one = pendingAssetDeletionSchema.safeParse(item)
+    if (!one.success) quarantine('pendingAssetDeletion', item, issuesOfZodError(one.error.issues as never))
+    return one.success
+  }) as WorkbenchProjectPayload['pendingAssetDeletions']
+  let editingPanelLayout: WorkbenchProjectPayload['editingPanelLayout']
+  if (skeleton.editingPanelLayout !== undefined) {
+    const one = editingPanelLayoutSchema.safeParse(skeleton.editingPanelLayout)
+    if (one.success) editingPanelLayout = one.data
+    else {
+      const previous = editingPanelLayoutSchema.safeParse(asRecord(options.previous)?.editingPanelLayout)
+      quarantine('editingPanelLayout', skeleton.editingPanelLayout, issuesOfZodError(one.error.issues as never), previous.success)
+      if (previous.success) editingPanelLayout = previous.data
+    }
+  }
+  const payload = {
+    ...skeleton,
+    categories,
+    pendingAssetDeletions,
+    editingPanelLayout,
+    storyboardDesignsByDocumentId: designsByDocument,
+  }
+  return { payload: buildPayload(payload, input), quarantined }
+}
+
+type ItemizedPayload = Omit<ReturnType<typeof workbenchProjectPayloadSkeletonSchema.parse>, 'categories' | 'pendingAssetDeletions' | 'editingPanelLayout' | 'storyboardDesignsByDocumentId'> & {
+  categories: unknown[] | undefined
+  pendingAssetDeletions: WorkbenchProjectPayload['pendingAssetDeletions']
+  editingPanelLayout: WorkbenchProjectPayload['editingPanelLayout']
+  storyboardDesignsByDocumentId: Record<string, StoryboardDesign[]> | undefined
+}
+
+function buildPayload(payload: ItemizedPayload, input: unknown): WorkbenchProjectPayload {
   // P2 多文档迁移：优先读新字段 workbenchDocuments；老项目只有 workbenchDocument → 包装成单元素集合。
   const legacyDoc = payload.workbenchDocument
   const documents = Array.isArray(payload.workbenchDocuments) && payload.workbenchDocuments.length
@@ -195,7 +330,8 @@ function readRawPayload(raw: unknown): unknown {
 export function normalizeRecord(summary: WorkbenchProjectSummary, raw: unknown): WorkbenchProjectRecordV1 {
   const legacyParsed = workbenchProjectRecordSchema.safeParse(raw)
   if (legacyParsed.success) {
-    return {
+    const normalized = normalizePayloadWithQuarantine(readRawPayload(raw))
+    const opened: WorkbenchProjectRecordV1 = {
       ...legacyParsed.data,
       // 迁移必须吃**原始** payload，不能吃 zod 解析后的那份：payload schema 是普通
       // z.object，会把它不认识的键默默剥掉——而已退役的那三个老键（见上面
@@ -203,8 +339,10 @@ export function normalizeRecord(summary: WorkbenchProjectSummary, raw: unknown):
       // 喂解析后的那份，兼容读取就永远看不见它们：老项目的分镜方案打开即静默消失，
       // 随后任何一次自动保存会把它从盘上永久抹掉。
       // normalizePayload 自己第一步就重新 safeParse，喂原始值不会放宽任何校验。
-      payload: normalizePayload(readRawPayload(raw)),
+      payload: normalized.payload,
     }
+    rememberQuarantine(opened, normalized.quarantined)
+    return opened
   }
   // Freshly-initialized workspace (existing folder opened via "打开文件夹",
   // never saved): its manifest payload is minimal (just rootPath). Open it as
@@ -221,12 +359,10 @@ export function normalizeRecord(summary: WorkbenchProjectSummary, raw: unknown):
   if (!legacy) {
     throw new Error(i18n.t('runtime.project.corruptRecord', { id: summary.id }))
   }
-  const payload = normalizePayload(legacy)
-  return {
-    ...summary,
-    version: 1,
-    payload,
-  }
+  const normalized = normalizePayloadWithQuarantine(legacy)
+  const opened: WorkbenchProjectRecordV1 = { ...summary, version: 1, payload: normalized.payload }
+  rememberQuarantine(opened, normalized.quarantined)
+  return opened
 }
 
 export function createProjectRecord(

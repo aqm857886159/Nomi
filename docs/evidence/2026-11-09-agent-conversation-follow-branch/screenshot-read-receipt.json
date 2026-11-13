@@ -1,0 +1,30 @@
+{
+  "recordedAt": "2026-11-09T10:53:06.813830+08:00",
+  "method": "Viewed each local native Electron capture individually",
+  "inspected": [
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-01-zh-light-switch-to-A.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-02-zh-light-switch-to-B.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-03-zh-light-switch-back-to-A.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-04-zh-light-scrolled-up-jump-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-05-zh-light-after-jump-to-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-06-en-dark-switch-to-A.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-07-en-dark-switch-to-B.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-08-en-dark-switch-back-to-A.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-09-en-dark-scrolled-up-jump-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-10-en-dark-after-jump-to-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-11-zh-dark-scrolled-up-jump-latest.png",
+    "docs/evidence/2026-11-09-agent-conversation-follow-branch/first-12-en-light-scrolled-up-jump-latest.png"
+  ],
+  "count": 12,
+  "buttonThemes": [
+    "zh-light",
+    "en-dark",
+    "zh-dark",
+    "en-light"
+  ],
+  "afterClick": [
+    "zh-light",
+    "en-dark"
+  ],
+  "scope": "visual evidence only; two stream-follow checks remain failed"
+}

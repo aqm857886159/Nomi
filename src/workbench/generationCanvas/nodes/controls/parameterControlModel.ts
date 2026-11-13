@@ -13,6 +13,7 @@ import {
   type VideoModelControlBinding,
 } from '../../../../config/modelCatalogMeta'
 import { normalizeOrientation, type Orientation } from '../../../../utils/orientation'
+import { resolveModelParams } from '../../../../../electron/shared/videoCapabilities/resolveModelParams'
 import { isComfyuiVendorKey } from '../../model/comfyuiVendor'
 import {
   ASPECT_RATIO_META_KEYS,
@@ -361,7 +362,7 @@ function parameterEquivalentKeys(control: ModelParameterControl): string[] {
   return controlEquivalentKeys(control.key).filter((key) => !KEYS_NAMING_NO_ROLE.has(key))
 }
 
-function controlStoredKeys(control: DynamicModelControl): string[] {
+export function controlStoredKeys(control: DynamicModelControl): string[] {
   if (isParameterControl(control)) return parameterEquivalentKeys(control)
   if (control.binding === 'aspectRatio') return ['aspect_ratio', 'aspectRatio', 'aspect', 'size', 'imageSize']
   if (control.binding === 'imageSize') return ['imageSize', 'size']
@@ -566,11 +567,6 @@ export function buildDynamicControls(input: {
   return controls
 }
 
-function defaultPatchForParameterControl(control: ModelParameterControl): Record<string, unknown> {
-  if (typeof control.defaultValue === 'undefined') return {}
-  return { [control.key]: control.defaultValue }
-}
-
 export function defaultPatchForCatalogControl(control: DynamicCatalogControl): Record<string, unknown> {
   const value = optionDefaultValue(control.options, control.defaultValue)
   if (typeof value === 'undefined') return {}
@@ -621,13 +617,15 @@ export function defaultPatchForCatalogControl(control: DynamicCatalogControl): R
   return { [control.key]: value }
 }
 
+/** Adapt the legacy storage codec without deciding which policy to apply. */
+export function modelParamControls(controls: readonly DynamicModelControl[]) {
+  return controls.map(control => isParameterControl(control)
+    ? control
+    : { key: control.key, storedDefaults: defaultPatchForCatalogControl(control) })
+}
+
 export function defaultPatchForControls(controls: readonly DynamicModelControl[]): Record<string, unknown> {
-  return controls.reduce<Record<string, unknown>>((acc, control) => ({
-    ...acc,
-    ...(isParameterControl(control)
-      ? defaultPatchForParameterControl(control)
-      : defaultPatchForCatalogControl(control)),
-  }), {})
+  return resolveModelParams({ controls: modelParamControls(controls), intent: {}, previousParams: {}, policy: { author: '人手', invalid: '全重置默认' } }).params
 }
 
 /** 参数控件点击后的纯 patch；比例标记由组件按 isAspectRatioControl 决定。 */
@@ -670,16 +668,6 @@ export function videoAspectDefaultPatch(
     return defaultPatchForCatalogControl({ ...control, defaultValue: optionValue(matched) })
   }
   return {}
-}
-
-export function removePreviousControlParams(
-  meta: Record<string, unknown>,
-  controls: readonly DynamicModelControl[],
-): Record<string, unknown> {
-  const removable = new Set(controls.flatMap(controlStoredKeys))
-  return Object.fromEntries(
-    Object.entries(meta).filter(([key]) => !removable.has(key)),
-  )
 }
 
 export function buildEffectiveImageCatalogConfig(meta: unknown): ImageModelCatalogConfig | null {

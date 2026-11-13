@@ -39,6 +39,7 @@ import 'tailwind-merge';
 import 'swr';
 import 'tabbable';
 import 'three';
+import 'use-stick-to-bottom';
 import 'zod';
 import 'zustand';
 import 'zustand/middleware';

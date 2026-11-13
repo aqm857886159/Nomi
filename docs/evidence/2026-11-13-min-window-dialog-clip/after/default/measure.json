@@ -1,0 +1,846 @@
+[
+  {
+    "dialog": "feedback-card",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/feedback-card-zh-CN-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 161,
+      "bottom": 799,
+      "height": 637
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "发送",
+      "top": 751,
+      "bottom": 779,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 6,
+    "note": {
+      "hittable": true,
+      "top": 688,
+      "bottom": 724
+    }
+  },
+  {
+    "dialog": "feedback-card-error-line",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/feedback-card-error-line-zh-CN-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 137,
+      "bottom": 823,
+      "height": 685
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "发送",
+      "top": 775,
+      "bottom": 803,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 6,
+    "note": {
+      "hittable": true,
+      "top": 664,
+      "bottom": 700
+    }
+  },
+  {
+    "dialog": "spend-confirm-batch",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/spend-confirm-batch-zh-CN-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 275,
+      "bottom": 685,
+      "height": 410
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "镜 7 · 公交车灯由远及近",
+        "top": 620,
+        "bottom": 634,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 8 · 车窗内侧：女孩落座",
+        "top": 648,
+        "bottom": 662,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 9 · 窗外雨痕拉长",
+        "top": 676,
+        "bottom": 690,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 10 · 男孩站在站台目送",
+        "top": 704,
+        "bottom": 718,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 11 · 车尾灯消失在雨里",
+        "top": 732,
+        "bottom": 746,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 12 · 片尾：空站台",
+        "top": 760,
+        "bottom": 774,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      }
+    ],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "生成 14 项",
+      "top": 640,
+      "bottom": 668,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 17
+  },
+  {
+    "dialog": "spend-confirm-max",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/spend-confirm-max-zh-CN-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 48,
+      "bottom": 912,
+      "height": 864
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "镜 7 · 公交车灯由远及近",
+        "top": 465,
+        "bottom": 479,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 8 · 车窗内侧：女孩落座",
+        "top": 493,
+        "bottom": 507,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 9 · 窗外雨痕拉长",
+        "top": 521,
+        "bottom": 535,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 10 · 男孩站在站台目送",
+        "top": 549,
+        "bottom": 563,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 11 · 车尾灯消失在雨里",
+        "top": 577,
+        "bottom": 591,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "镜 12 · 片尾：空站台",
+        "top": 605,
+        "bottom": 619,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      }
+    ],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "生成 14 项",
+      "top": 867,
+      "bottom": 895,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 21
+  },
+  {
+    "dialog": "settings-models",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/settings-models-zh-CN-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 170,
+      "bottom": 790,
+      "height": 620
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "接入 APIMart推荐一个 Key，接入预置文本、图片、视频与音频模型填写 K",
+        "top": 741,
+        "bottom": 795,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "接入 Kie.ai一个 Key，接入预置图片与视频模型；上传通道也一并可用填写 ",
+        "top": 795,
+        "bottom": 850,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "更多已适配平台Agnes AI、魔搭、火山方舟等查看全部",
+        "top": 850,
+        "bottom": 905,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "本地运行时与即梦会员不使用平台 API Key 的接入方式5 类",
+        "top": 953,
+        "bottom": 1007,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "TikHub API Key",
+        "top": 1142,
+        "bottom": 1174,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "保存",
+        "top": 1144,
+        "bottom": 1172,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": true
+      },
+      {
+        "label": "我已有调用脚本高级自定义普通 HTTP 请求；模型输入项仍需单独设置",
+        "top": 1301,
+        "bottom": 1357,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "导出配置",
+        "top": 1366,
+        "bottom": 1394,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "导入配置",
+        "top": 1366,
+        "bottom": 1394,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "网络跟随系统",
+        "top": 1424,
+        "bottom": 1459,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      }
+    ],
+    "decisionClipped": [
+      "保存"
+    ],
+    "decisionCount": 1,
+    "lastControl": {
+      "label": "网络跟随系统",
+      "top": 1424,
+      "bottom": 1459,
+      "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+      "outOfViewport": true,
+      "decision": false
+    },
+    "controlCount": 22
+  },
+  {
+    "dialog": "model-settings-detail",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/model-settings-detail-zh-CN-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 160,
+      "bottom": 800,
+      "height": 640
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 0,
+    "lastControl": {
+      "label": "删除模型",
+      "top": 663,
+      "bottom": 707,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": false
+    },
+    "controlCount": 6
+  },
+  {
+    "dialog": "confirm-dialog",
+    "locale": "zh-CN",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/confirm-dialog-zh-CN-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 413,
+      "bottom": 547,
+      "height": 134
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "删除",
+      "top": 503,
+      "bottom": 531,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 3
+  },
+  {
+    "dialog": "feedback-card",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/feedback-card-en-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 128,
+      "bottom": 832,
+      "height": 703
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "Send",
+      "top": 784,
+      "bottom": 812,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 6,
+    "note": {
+      "hittable": true,
+      "top": 721,
+      "bottom": 757
+    }
+  },
+  {
+    "dialog": "feedback-card-error-line",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/feedback-card-error-line-en-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 95,
+      "bottom": 865,
+      "height": 769
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "Send",
+      "top": 817,
+      "bottom": 845,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 6,
+    "note": {
+      "hittable": true,
+      "top": 688,
+      "bottom": 724
+    }
+  },
+  {
+    "dialog": "spend-confirm-batch",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/spend-confirm-batch-en-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 275,
+      "bottom": 685,
+      "height": 410
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "Shot 7 · Bus headlights approach from af",
+        "top": 620,
+        "bottom": 634,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 8 · Inside the window: the girl sit",
+        "top": 648,
+        "bottom": 662,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 9 · Rain streaks stretch across the",
+        "top": 676,
+        "bottom": 690,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 10 · The boy watches from the platf",
+        "top": 704,
+        "bottom": 718,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 11 · Tail lights fade into the rain",
+        "top": 732,
+        "bottom": 746,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 12 · Ending: the empty platform",
+        "top": 760,
+        "bottom": 774,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      }
+    ],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "Generate 14",
+      "top": 640,
+      "bottom": 668,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 17
+  },
+  {
+    "dialog": "spend-confirm-max",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/spend-confirm-max-en-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 48,
+      "bottom": 912,
+      "height": 864
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "Shot 7 · Bus headlights approach from af",
+        "top": 503,
+        "bottom": 517,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 8 · Inside the window: the girl sit",
+        "top": 531,
+        "bottom": 545,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 9 · Rain streaks stretch across the",
+        "top": 559,
+        "bottom": 573,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 10 · The boy watches from the platf",
+        "top": 587,
+        "bottom": 601,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 11 · Tail lights fade into the rain",
+        "top": 615,
+        "bottom": 629,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Shot 12 · Ending: the empty platform",
+        "top": 643,
+        "bottom": 657,
+        "clippedBy": "div.flex.flex-col.gap-1",
+        "outOfViewport": false,
+        "decision": false
+      }
+    ],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "Generate 14",
+      "top": 867,
+      "bottom": 895,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 21
+  },
+  {
+    "dialog": "settings-models",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/settings-models-en-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 170,
+      "bottom": 790,
+      "height": 620
+    },
+    "rootOverflowPx": 0,
+    "clipped": [
+      {
+        "label": "Connect APIMartRecommendedOne key for pr",
+        "top": 759,
+        "bottom": 813,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Connect Kie.aiOne key for preset image a",
+        "top": 813,
+        "bottom": 868,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "More adapted platformsAgnes AI, ModelSco",
+        "top": 868,
+        "bottom": 923,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": false,
+        "decision": false
+      },
+      {
+        "label": "Local runtimes and Dreamina membershipCo",
+        "top": 971,
+        "bottom": 1025,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "TikHub API key",
+        "top": 1179,
+        "bottom": 1211,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "Save",
+        "top": 1181,
+        "bottom": 1209,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": true
+      },
+      {
+        "label": "I already have a call scriptAdvancedCust",
+        "top": 1338,
+        "bottom": 1395,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "Export configuration",
+        "top": 1404,
+        "bottom": 1432,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "Import configuration",
+        "top": 1404,
+        "bottom": 1432,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      },
+      {
+        "label": "NetworkFollow system",
+        "top": 1479,
+        "bottom": 1514,
+        "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+        "outOfViewport": true,
+        "decision": false
+      }
+    ],
+    "decisionClipped": [
+      "Save"
+    ],
+    "decisionCount": 1,
+    "lastControl": {
+      "label": "NetworkFollow system",
+      "top": 1479,
+      "bottom": 1514,
+      "clippedBy": "div.min-h-0.flex-1.overflow-y-auto",
+      "outOfViewport": true,
+      "decision": false
+    },
+    "controlCount": 22
+  },
+  {
+    "dialog": "model-settings-detail",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/model-settings-detail-en-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 160,
+      "bottom": 800,
+      "height": 640
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 0,
+    "lastControl": {
+      "label": "Delete model",
+      "top": 663,
+      "bottom": 707,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": false
+    },
+    "controlCount": 6
+  },
+  {
+    "dialog": "confirm-dialog",
+    "locale": "en",
+    "scheme": "light",
+    "window": {
+      "minWidth": 1100,
+      "minHeight": 720
+    },
+    "file": "/Users/aoqimin/Desktop/Nomi/.claude/worktrees/agent-ad8f6056d9eee8cd3/docs/evidence/2026-11-13-min-window-dialog-clip/after/default/confirm-dialog-en-light-default.png",
+    "found": true,
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "dialogBox": {
+      "top": 404,
+      "bottom": 556,
+      "height": 152
+    },
+    "rootOverflowPx": 0,
+    "clipped": [],
+    "decisionClipped": [],
+    "decisionCount": 2,
+    "lastControl": {
+      "label": "Delete",
+      "top": 512,
+      "bottom": 540,
+      "clippedBy": null,
+      "outOfViewport": false,
+      "decision": true
+    },
+    "controlCount": 3
+  }
+]

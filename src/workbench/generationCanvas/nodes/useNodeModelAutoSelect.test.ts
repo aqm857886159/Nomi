@@ -5,6 +5,7 @@ import { tagNomiError } from '../../../../electron/shared/nomiErrorCodes'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { nodeRecoveryToastId } from './nodeRecoveryNotice'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
+import { effectiveArchetypeMode } from './controls/archetypeMeta'
 
 const mocks = vi.hoisted(() => ({ effects: [] as Array<() => unknown>, push: vi.fn(), nodes: [] as GenerationCanvasNode[] }))
 vi.mock('react', () => ({ default: {
@@ -223,9 +224,10 @@ it('没有候选戳（用户自己建的卡）→ 自动挑默认的老行为不
   expect(mocks.push).not.toHaveBeenCalled()
 })
 
-it('a card born with reference images starts in the mode that takes them; a card whose mode was already chosen keeps it', () => {
+// 方式按输入现算（2026-11-12）：初始化只落档案 + 默认偏好，不替卡挑方式；带着参考出生的卡，参考本身就是输入。
+it('a card born with reference images sends in the mode that takes them; a card without references sends as text', () => {
   const archetype = resolveArchetypeForOption(current)
-  const firstModes = (meta: Record<string, unknown>) => {
+  const sendMode = (meta: Record<string, unknown>) => {
     const node = { id: 'card', kind: 'image', title: 'Image', position: { x: 0, y: 0 }, meta } as GenerationCanvasNode
     mocks.nodes = [node]
     mocks.effects = []
@@ -233,13 +235,13 @@ it('a card born with reference images starts in the mode that takes them; a card
     driveHook({ node, modelOptions: [current], selectedModelValue: 'gpt-image-2', selectedModelOption: current,
       archetype, isGenerationNode: true, isImageLike: true, isVideoLike: false, updateNode })
     for (const effect of mocks.effects) effect()
-    return updateNode.mock.calls.map(([, patch]) => (patch.meta?.archetype as { modeId?: string } | undefined)?.modeId)
+    const written = updateNode.mock.calls.reduce((acc, [, patch]) => ({ ...acc, ...(patch.meta ?? {}) }), meta)
+    const after = { ...node, meta: written }
+    return effectiveArchetypeMode(archetype!, after, { nodes: [after], edges: [] }).mode.id
   }
   const identity = { modelKey: 'gpt-image-2', modelAlias: 'gpt-image-2', modelVendor: 'apimart', vendor: 'apimart' }
-  // 提示词库「放上画布」：卡出生就带着参考图 → 第一次定模式落在收图的「改图」，不是看不见参考的文生图
-  expect(firstModes({ ...identity, referenceImageUrls: ['data:image/png;base64,AA'] })).toContain('i2i')
-  // 没带参考的新卡照旧落默认模式
-  expect(firstModes({ ...identity })).not.toContain('i2i')
-  // 用户切到文生图后留下的参考残值不算意图：不把他切回去
-  expect(firstModes({ ...identity, archetype: { id: 'gpt-image-2', modeId: 't2i' }, referenceImageUrls: ['data:image/png;base64,AA'] })).not.toContain('i2i')
+  // 提示词库「放上画布」：卡出生就带着参考图 → 按收图的「改图」发，不是看不见参考的文生图
+  expect(sendMode({ ...identity, referenceImageUrls: ['data:image/png;base64,AA'] })).toBe('i2i')
+  // 没带参考的新卡按文字生成
+  expect(sendMode({ ...identity })).toBe('t2i')
 })

@@ -52,9 +52,7 @@ vi.mock("../capabilityCore/pendingSpendReferences", async (importOriginal) => ({
   },
 }));
 
-import { createPinnedDispatcher, type HardenedFetchDependencies, type ResolvedHostAddress } from "../hardenedFetch";
-import type { OutboundEnvironment } from "../networkOutboundPolicy";
-import { setLabTrustedPrivateOrigins } from "../networkOutboundPolicy";
+import { createPinnedDispatcher, type HardenedFetchDependencies } from "../hardenedFetch";
 import { probeProviderLink, resetProviderLinkProbes } from "../assets/providerMediaFetch";
 import { createProject, executeProfileOperation } from "../runtime";
 import { readNomiLocalAsset } from "../assets/localAssetFile";
@@ -82,8 +80,6 @@ const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0
 const MP4 = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x10]), Buffer.from("ftypisom"), Buffer.alloc(4), Buffer.from("mdat")]);
 const MP3 = Buffer.concat([Buffer.from("ID3"), Buffer.alloc(32, 1)]);
 const HOST = "cdn.matrix.test";
-const PUBLIC_ADDRESS: ResolvedHostAddress = { address: "93.184.216.34", family: 4 };
-const NO_LOCAL_PROXY: OutboundEnvironment = { syntheticResolver: false, syntheticSample: "" };
 
 let server: http.Server;
 let port = 0;
@@ -188,19 +184,21 @@ beforeEach(() => {
 afterEach(() => {
   for (const destroy of hangingSockets) destroy();
   hangingSockets = [];
-  setLabTrustedPrivateOrigins([]);
   vi.unstubAllGlobals();
   fs.rmSync(settingsRoot, { recursive: true, force: true });
 });
 
 // ── 通用夹具 ──────────────────────────────────────────────────────────────────────────────────────────────
 const localUrl = (name: string) => `nomi-local://asset/p/${name}`;
-const pinnedDeps = (): HardenedFetchDependencies => ({
-  resolveHost: async () => [PUBLIC_ADDRESS],
-  createPinnedDispatcher: (hostname) => createPinnedDispatcher(hostname, [{ address: "127.0.0.1", family: 4 }]),
-  readOutboundEnvironment: async () => NO_LOCAL_PROXY,
-  isApplicationProxyActive: () => false,
-});
+// 公网形态的名字（cdn.matrix.test）交给「网络层」：夹具里是一条钉到本机的连接池，扮演系统 DNS。
+// 取回 / 试探不按地址判（2026-11-13），hardenedFetch 不在本机解析，所以落点只能在这一层换。
+const pinnedDeps = (): HardenedFetchDependencies => {
+  const route = createPinnedDispatcher(HOST, [{ address: "127.0.0.1", family: 4 }]);
+  return {
+    isApplicationProxyActive: () => false,
+    fetch: (input, init) => globalThis.fetch(input, { ...init, dispatcher: route } as RequestInit),
+  };
+};
 const cdn = (route: string) => `http://${HOST}:${port}${route}`;
 const asset = (
   name: string,
@@ -290,15 +288,6 @@ describe("链接状态 → 发原链接 / 转上传（真试探 × 真决定点�
     const { wire, link, post } = await sendOne("/gen/hang");
     expect(wire).toBe(link);
     expect(post).not.toHaveBeenCalled();
-  });
-
-  it("出站策略拒绝（解析到内网）→ 发原链接，和今天一样", async () => {
-    const link = cdn("/gen/ok");
-    const post = vi.fn();
-    const privateDeps = { ...pinnedDeps(), resolveHost: async () => [{ address: "10.1.2.3", family: 4 as const }] };
-    const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, () => [own()], () => asset("a.png", link), post, noMultipart, { linkPolicy: policyWith(privateDeps) });
-    expect(extrasOf(out)).toEqual([link]);
-    expect(hits.get("/gen/ok") ?? 0).toBe(0);
   });
 });
 
@@ -454,7 +443,6 @@ describe("并发与去重", () => {
   });
 
   it("做片入口 Run 失效：试探和上传做完之后 assertCurrent 抛错，不封存、不发（POST 0 次）", async () => {
-    setLabTrustedPrivateOrigins([origin]);
     const vendor = relayVendor("relay-run");
     customCall.catalog.current = { version: 13, vendors: [vendor], models: [], mappings: [], apiKeysByVendor: {} };
     localAssets.read.set("nomi-local://asset/p/gen.png", asset("gen.png", `${origin}/gen/status-404`));
@@ -497,7 +485,6 @@ describe("入口：三个发送入口，窗内链接失效 → 发出去的是�
   const aliveLink = () => `${origin}/gen/ok`;
   const reference = () => localUrl("gen.png");
   const prepare = (link: string) => {
-    setLabTrustedPrivateOrigins([origin]);
     const vendor = relayVendor("relay-entrance");
     customCall.catalog.current = { version: 13, vendors: [vendor], models: [relayModel(vendor.key)], mappings: [], apiKeysByVendor: {} };
     localAssets.read.set(reference(), asset("gen.png", link));
@@ -569,7 +556,6 @@ describe("入口：三个发送入口，窗内链接失效 → 发出去的是�
 describe("模型拒绝之后", () => {
   const link = () => `${origin}/gen/ok`;
   const send = async (vendorKey: string) => {
-    setLabTrustedPrivateOrigins([origin]);
     const post = vi.fn(async () => ({ url: "https://uploaded.example/new.png" }));
     const options = assetLocalizationOptions({ key: vendorKey }, undefined);
     const out = await localizeAssetsForVendor({ input_urls: [localUrl("a.png")] }, () => [own()], () => asset("a.png", link()), post, noMultipart, options);
@@ -648,9 +634,8 @@ describe.each(OLD_USER_DIRECTORIES)("老用户升级后：%s", (directory) => {
     if (mtime) fs.utimesSync(target, mtime, mtime);
     return `nomi-local://asset/${project.id}/${manifest.relativePath}`;
   }
-  /** 夹具的链接在回环上：用出站策略的实验室例外放行这一个精确 origin（入口那几组同款）。 */
+  /** 夹具的链接在回环上（取回不按地址判，回环照取）。 */
   const sendOldAsset = async (url: string) => {
-    setLabTrustedPrivateOrigins([origin]);
     const post = vi.fn(async () => ({ url: "https://uploaded.example/new.png" }));
     const out = await localizeAssetsForVendor({ input_urls: [url] }, () => [own()], readNomiLocalAsset, post, noMultipart, { linkPolicy: policyWith({}) });
     return { wire: extrasOf(out)[0], post };

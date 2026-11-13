@@ -73,7 +73,7 @@ Object.assign(window, { textOwnership: {
   },
   async generate() {
     const node = useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === text.id)!
-    const result = await generateText(node, {
+    const [result] = await generateText(node, {
       projectTarget: target,
       runTask: async () => ({
         id: 'rewrite-task', kind: 'chat', status: 'succeeded', assets: [],

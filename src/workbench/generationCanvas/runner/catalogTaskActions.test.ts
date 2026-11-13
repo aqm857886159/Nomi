@@ -4,7 +4,7 @@ import {
   isRateLimitedPollError,
   isSlowLaneBackend,
   nextPollDelayMs,
-  normalizeCatalogTaskResult,
+  normalizeCatalogTaskResults,
   resolvePollBudget,
   resolvePollIntervalMs,
   runCatalogGenerationTask,
@@ -40,9 +40,9 @@ function chatResult(raw: unknown, status: TaskResultDto['status'] = 'succeeded')
   return { id: 'task-1', kind: 'chat', status, assets: [], raw }
 }
 
-describe('normalizeCatalogTaskResult — C5 text branch', () => {
+describe('normalizeCatalogTaskResults — C5 text branch', () => {
   it('extracts OpenAI choices[0].message.content', () => {
-    const result = normalizeCatalogTaskResult(chatResult({ choices: [{ message: { content: '  你好世界  ' } }] }), textNode())
+    const [result] = normalizeCatalogTaskResults(chatResult({ choices: [{ message: { content: '  你好世界  ' } }] }), textNode())
     expect(result.type).toBe('text')
     expect(result.text).toBe('你好世界')
     expect(result.url).toBeUndefined()
@@ -51,7 +51,7 @@ describe('normalizeCatalogTaskResult — C5 text branch', () => {
   })
 
   it('extracts OpenAI message.content as array of parts', () => {
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       chatResult({ choices: [{ message: { content: [{ type: 'text', text: 'foo' }, { type: 'text', text: 'bar' }] } }] }),
       textNode(),
     )
@@ -59,18 +59,18 @@ describe('normalizeCatalogTaskResult — C5 text branch', () => {
   })
 
   it('falls back to Anthropic-style content[].text', () => {
-    const result = normalizeCatalogTaskResult(chatResult({ content: [{ type: 'text', text: 'claude says hi' }] }), textNode())
+    const [result] = normalizeCatalogTaskResults(chatResult({ content: [{ type: 'text', text: 'claude says hi' }] }), textNode())
     expect(result.text).toBe('claude says hi')
   })
 
   it('throws when the chat response carries no text', () => {
-    expect(() => normalizeCatalogTaskResult(chatResult({ choices: [{ message: { content: '' } }] }), textNode())).toThrow(
+    expect(() => normalizeCatalogTaskResults(chatResult({ choices: [{ message: { content: '' } }] }), textNode())).toThrow(
       /没有返回文本/,
     )
   })
 
   it('throws on a failed text task', () => {
-    expect(() => normalizeCatalogTaskResult(chatResult({ error: 'boom' }, 'failed'), textNode())).toThrow()
+    expect(() => normalizeCatalogTaskResults(chatResult({ error: 'boom' }, 'failed'), textNode())).toThrow()
   })
 })
 
@@ -324,12 +324,20 @@ describe('buildCatalogTaskRequest — 标准参考面与档案投影并存（中
     expect(built.request.kind).toBe('image_edit')
     // 走查 B 段抓出的第二个吞点：上传住档案槽键，从没进过标准面 → multipart 0 张图被抛。
     expect(built.request.extras?.referenceImages).toEqual(['nomi-local://asset/up.png'])
-    // t2i 模式（无 image_ref 槽）→ 残留不复活进标准面（否则 chat 回退的 t2i body 会带旧图）。
+    // 方式按输入现算（2026-11-12）：存着 t2i 只是偏好，参考行里在用的那张图就是输入 → 按改图发、图照发（显示的 = 发的）。
     const t2i: GenerationCanvasNode = {
       ...uploaded,
       meta: { ...uploaded.meta, archetype: { id: 'gpt-image-2', modeId: 't2i' } },
     }
-    expect(buildCatalogTaskRequest(t2i, { references: {} }).request.extras?.referenceImages).toBeUndefined()
+    expect(buildCatalogTaskRequest(t2i, { references: {} }).request.extras?.referenceImages).toEqual(['nomi-local://asset/up.png'])
+    // 「先放一边」的残留才是不复活的那种：不进标准面，没有别的输入 → 按文生发（否则 chat 回退的 t2i body 会带旧图）。
+    const parked: GenerationCanvasNode = {
+      ...uploaded,
+      meta: { ...t2i.meta, referenceParkedUrls: ['nomi-local://asset/up.png'] },
+    }
+    const parkedBuilt = buildCatalogTaskRequest(parked, { references: {} }).request
+    expect(parkedBuilt.kind).toBe('text_to_image')
+    expect(parkedBuilt.extras?.referenceImages).toBeUndefined()
   })
 
   it('档案视频节点的 i2v 首帧：标准 firstFrameUrl 不再被档案分支丢掉（中转 image_url 由它派生）', () => {
@@ -515,7 +523,7 @@ describe('runCatalogGenerationTask — ComfyUI 提交时序与 prompt UUID', () 
     const watched: Array<Record<string, unknown>> = []
     stubComfyBridge(events, watched)
 
-    const result = await runCatalogGenerationTask(comfyNode, { projectTarget: TEST_TARGET,
+    const [result] = await runCatalogGenerationTask(comfyNode, { projectTarget: TEST_TARGET,
       runTask: async (_vendor, request) => {
         events.push('run')
         const promptId = String(request.extras?.comfyPromptId || '')
@@ -638,7 +646,7 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
       pollTimeoutMs: 5000,
     })
     await vi.advanceTimersByTimeAsync(10)
-    const result = await pending
+    const [result] = await pending
     expect(submitCount).toBe(1) // ★绝不二次提交付费任务
     expect(result.url).toBe('https://x/out.mp4')
   })
@@ -660,9 +668,9 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
 
   // C7（⑬）：查询被 Nomi 自己挂了提交前的码（出站守卫按提交挂码、#1285 修前的参考重传失败）——
   // 照样只落可找回，绝不冒泡成「没发出去、可以重新生成」触发再提交。
-  it('轮询持续报提交前的码（outbound-blocked-submit / asset-upload-failed）→ 仍落可找回，runTask 只一次', async () => {
+  it('轮询持续报提交前的码（outbound-blocked-credential-origin / asset-upload-failed）→ 仍落可找回，runTask 只一次', async () => {
     const { isRecoverableTimeoutError } = await import('./recoverableTimeout')
-    for (const code of ['outbound-blocked-submit', 'asset-upload-failed']) {
+    for (const code of ['outbound-blocked-credential-origin', 'asset-upload-failed']) {
       let submitCount = 0
       const pending = runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
         runTask: async (_v, req) => { submitCount += 1; return { id: 'up-pre', kind: req.kind, status: 'queued' as const, assets: [], raw: {} } },
@@ -706,7 +714,7 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
         pollTimeoutMs: 5000,
       })
       await vi.runAllTimersAsync()
-      const result = await pending
+      const [result] = await pending
       // 100 → 撞 429 → 200 → 再撞 429 → 400 → 普通抖动(复位) → 100
       expect(waits.slice(0, 4)).toEqual([100, 200, 400, 100])
       expect(result.url).toBe('https://x/o.mp4')
@@ -806,9 +814,9 @@ describe('buildCatalogTaskRequest — idempotencyKey 穿透到 request.extras', 
   })
 })
 
-describe('normalizeCatalogTaskResult — image path unaffected', () => {
+describe('normalizeCatalogTaskResults — image path unaffected', () => {
   it('still returns an image result from an asset', () => {
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       { id: 't2', kind: 'text_to_image', status: 'succeeded', assets: [{ type: 'image', url: 'https://x/y.png' }], raw: {} },
       imageNode(),
     )
@@ -817,10 +825,10 @@ describe('normalizeCatalogTaskResult — image path unaffected', () => {
   })
 })
 
-describe('normalizeCatalogTaskResult — generated video duration', () => {
+describe('normalizeCatalogTaskResults — generated video duration', () => {
   it('uses localized asset duration before the canvas metadata fallback', () => {
     const node = generatedVideoNode()
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       {
         id: 't-video',
         kind: 'text_to_video',
@@ -836,7 +844,7 @@ describe('normalizeCatalogTaskResult — generated video duration', () => {
 
   it('does not freeze a previous video metadata duration into a newly generated result', () => {
     const node = generatedVideoNode()
-    const result = normalizeCatalogTaskResult(
+    const [result] = normalizeCatalogTaskResults(
       {
         id: 't-video',
         kind: 'text_to_video',
@@ -974,7 +982,7 @@ describe('接入即验证（零额度）：每个档案/模式声明的参考槽
   }
 })
 
-describe('normalizeCatalogTaskResult — 终态失败抛出的是上游真原因（2026-07-30 用户真机回归）', () => {
+describe('normalizeCatalogTaskResults — 终态失败抛出的是上游真原因（2026-07-30 用户真机回归）', () => {
   function failed(extra: Partial<TaskResultDto>): TaskResultDto {
     return {
       id: 'task_01KYRKKK35KCAASMFC7ND2PR6P',
@@ -987,20 +995,20 @@ describe('normalizeCatalogTaskResult — 终态失败抛出的是上游真原因
   }
 
   it('用主进程给的一等字段 error，而不是「模型任务执行失败」', () => {
-    expect(() => normalizeCatalogTaskResult(failed({ error: 'Requested entity was not found.' }), imageNode())).toThrow(
+    expect(() => normalizeCatalogTaskResults(failed({ error: 'Requested entity was not found.' }), imageNode())).toThrow(
       /Requested entity was not found\./,
     )
   })
 
   it('taskId / kind 仍带在后缀里（支持排查用）', () => {
-    expect(() => normalizeCatalogTaskResult(failed({ error: 'boom' }), imageNode())).toThrow(
+    expect(() => normalizeCatalogTaskResults(failed({ error: 'boom' }), imageNode())).toThrow(
       /taskId=task_01KYRKKK35KCAASMFC7ND2PR6P, kind=text_to_image/,
     )
   })
 
   it('主进程也扒不出原因时才落兜底文案（不编造）', () => {
     expect(() =>
-      normalizeCatalogTaskResult(failed({ raw: { data: { status: 'failed' } } }), imageNode()),
+      normalizeCatalogTaskResults(failed({ raw: { data: { status: 'failed' } } }), imageNode()),
     ).toThrow(/模型任务执行失败/)
   })
 })
@@ -1054,12 +1062,14 @@ describe('resolveTaskKind — kind × 能力面穷举（防「档案桶/兜底�
     expect(resolveTaskKind(bareNode('model3d'), { firstFrameUrl: 'nomi-local://asset/p/ref.png' })).toBe('image_to_3d')
   })
 
-  it('3D 档案（meshy6）模式 transportTaskKind 被尊重：text→text_to_3d / image→image_to_3d', () => {
+  // 方式按输入现算（2026-11-12）：存着的 modeId 只是偏好，没图就按文字生成 3D，有图才走图生 3D。
+  it('3D 档案（meshy6）模式 transportTaskKind 被尊重：没图 → text_to_3d / 有图 → image_to_3d（存着的偏好不顶替输入）', () => {
     const withMode = (modeId: string): GenerationCanvasNode =>
       ({ id: 'tk2', kind: 'model3d', title: '', position: { x: 0, y: 0 }, prompt: '一只猫',
          meta: { modelKey: 'meshy6', archetype: { id: 'meshy6', modeId } } } as GenerationCanvasNode)
     expect(resolveTaskKind(withMode('text'), {})).toBe('text_to_3d')
-    expect(resolveTaskKind(withMode('image'), {})).toBe('image_to_3d')
+    expect(resolveTaskKind(withMode('image'), {})).toBe('text_to_3d')
+    expect(resolveTaskKind(withMode('text'), { referenceImages: ['nomi-local://asset/p/ref.png'] })).toBe('image_to_3d')
   })
 
   it('全部 model3d 档案 × 模式：解析结果 = 模式声明的 transportTaskKind（registry 驱动，新 3D 档案自动进矩阵）', () => {
@@ -1067,7 +1077,9 @@ describe('resolveTaskKind — kind × 能力面穷举（防「档案桶/兜底�
       for (const mode of archetype.modes || []) {
         const node = { id: 'tk3', kind: 'model3d', title: '', position: { x: 0, y: 0 }, prompt: 'x',
           meta: { modelKey: archetype.identifierPatterns?.[0] || archetype.id, archetype: { id: archetype.id, modeId: mode.id } } } as GenerationCanvasNode
-        expect(resolveTaskKind(node, {})).toBe(mode.transportTaskKind ?? archetype.transportTaskKind)
+        // 发送路径把现算好的方式随参考一起递进来（resolveGenerationReferences 的 archetypeMode）；任务种类按它定。
+        const references = { archetypeMode: { status: 'ok', mode, taken: 0 } } as never
+        expect(resolveTaskKind(node, references)).toBe(mode.transportTaskKind ?? archetype.transportTaskKind)
       }
     }
   })

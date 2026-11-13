@@ -60,8 +60,8 @@ beforeEach(async () => {
     if (node.kind === 'video') {
       expect(resolveGenerationReferences(node, execution).firstFrameUrl).toBe('https://fixture.invalid/frame.jpg')
     }
-    return { id: `result-${node.kind}`, type: node.kind === 'image' ? 'image' : 'video',
-      url: `https://fixture.invalid/${node.kind === 'image' ? 'frame.jpg' : 'video.mp4'}`, createdAt: 1 }
+    return [{ id: `result-${node.kind}`, type: node.kind === 'image' ? 'image' : 'video',
+      url: `https://fixture.invalid/${node.kind === 'image' ? 'frame.jpg' : 'video.mp4'}`, createdAt: 1 }]
   })
   calls.confirm.mockReset().mockResolvedValue(true)
   calls.consent.mockReset().mockImplementation(async (input: { shots: Array<{ runRecordId: string }> }) => input.shots.map((one) => `canvas-${one.runRecordId}`))

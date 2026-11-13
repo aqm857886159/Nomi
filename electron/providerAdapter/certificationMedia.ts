@@ -80,7 +80,6 @@ export type CertificationMediaLimits = {
 export type CertificationMediaInput = {
   source: string | { bytes: Uint8Array; contentType: string };
   expectedKind: CertificationMediaKind;
-  allowedPrivateOrigins?: readonly string[];
   limits?: CertificationMediaLimits;
   signal?: AbortSignal;
 };
@@ -92,7 +91,6 @@ export type CertificationMediaDependencies = {
       timeoutMs: number;
       maxBytes: number;
       allowRedirect: boolean;
-      allowedPrivateOrigins?: readonly string[];
       signal?: AbortSignal;
     },
   ) => Promise<Pick<HardenedFetchResult, "bytes" | "contentType"> & { finalUrl?: string }>;
@@ -328,7 +326,6 @@ async function acquireBytes(
       // Certification never needs redirects: accepting a different origin would expand the
       // user's grant and make evidence depend on a second unconfirmed endpoint.
       allowRedirect: false,
-      ...(input.allowedPrivateOrigins?.length ? { allowedPrivateOrigins: input.allowedPrivateOrigins } : {}),
       ...(input.signal ? { signal: input.signal } : {}),
     });
   } catch (error) {

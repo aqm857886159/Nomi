@@ -146,7 +146,7 @@ export function projectTrajectoryTurn(turn: TrajectoryTurnInput, includeContent 
   return projected
 }
 
-/** 一批回合 → 一个可以直接发给 `/v1/trajectories` 的信封。 */
+/** 一批回合 → 附进一键反馈包的那一份轨迹投影（不单独上报）。 */
 export function projectLaneTrajectory(
   turns: readonly TrajectoryTurnInput[],
   options: { includeContent?: boolean; maxTurns?: number } = {},

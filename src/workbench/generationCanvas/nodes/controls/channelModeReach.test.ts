@@ -14,7 +14,6 @@ import {
   archetypeModeChoices,
   archetypeModeIsVisible,
   archetypeVariantAxisIsLive,
-  fallbackVisibleModeId,
 } from './channelModeReach'
 
 /** 最小合法模式（只填判据用得上的字段，其余走档案类型的必填缺省）。 */
@@ -166,24 +165,3 @@ describe('archetypeVariantAxisIsLive — 变体选择器该不该出现', () => 
   })
 })
 
-describe('fallbackVisibleModeId — 选中的模式被收窄掉时的落点', () => {
-  const SEEDANCE = getArchetypeById('seedance-2')!
-  const metaOn = (modeId: string) => ({ archetype: { id: SEEDANCE.id, modeId } })
-
-  it('当前模式仍可见 → null（幂等，不写 meta、不占撤销）', () => {
-    expect(fallbackVisibleModeId(SEEDANCE, metaOn('first'), ['t2v', 'first'])).toBeNull()
-  })
-
-  it('当前模式被藏掉 → 落到档案 defaultModeId（若它可见）', () => {
-    expect(SEEDANCE.defaultModeId).toBe('t2v')
-    expect(fallbackVisibleModeId(SEEDANCE, metaOn('omni'), ['t2v', 'first'])).toBe('t2v')
-  })
-
-  it('defaultModeId 也被藏掉 → 落到第一个可见模式', () => {
-    expect(fallbackVisibleModeId(SEEDANCE, metaOn('omni'), ['first', 'firstlast'])).toBe('first')
-  })
-
-  it('一个可见的都没有 → null：收窄已不可信，宁可原样留着也不把节点钉到另一个发不出的模式上', () => {
-    expect(fallbackVisibleModeId(SEEDANCE, metaOn('omni'), [])).toBeNull()
-  })
-})

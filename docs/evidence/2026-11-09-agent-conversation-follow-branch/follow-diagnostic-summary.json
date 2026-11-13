@@ -1,0 +1,67 @@
+{
+  "result": "failed",
+  "greenCount": 27,
+  "redCount": 2,
+  "rounds": [
+    {
+      "round": "zh-light",
+      "frames": 263,
+      "initialReplies": 5,
+      "over70Frames": [
+        {
+          "index": 14,
+          "atFromStartMs": 116.7,
+          "height": 3196,
+          "top": 2584.5,
+          "client": 508,
+          "gap": 103.5,
+          "replies": 5,
+          "chars": 536
+        },
+        {
+          "index": 15,
+          "atFromStartMs": 124.9,
+          "height": 3196,
+          "top": 2584.5,
+          "client": 508,
+          "gap": 103.5,
+          "replies": 5,
+          "chars": 536
+        }
+      ],
+      "maxAfterNewReply": 49
+    },
+    {
+      "round": "en-dark",
+      "frames": 278,
+      "initialReplies": 7,
+      "over70Frames": [
+        {
+          "index": 31,
+          "atFromStartMs": 257.6,
+          "height": 7278,
+          "top": 6687,
+          "client": 508,
+          "gap": 83,
+          "replies": 7,
+          "chars": 632
+        },
+        {
+          "index": 32,
+          "atFromStartMs": 261.2,
+          "height": 7278,
+          "top": 6687,
+          "client": 508,
+          "gap": 83,
+          "replies": 7,
+          "chars": 632
+        }
+      ],
+      "maxAfterNewReply": 49
+    }
+  ],
+  "paidCalls": 0,
+  "unexpected": [],
+  "originalPredicateRetained": true,
+  "productionUnchanged": true
+}

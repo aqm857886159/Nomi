@@ -48,8 +48,6 @@ export type ProviderMediaFetchOptions = {
    * 给某家单独配了代理时，提交走那条代理、取回却走应用默认线路，是同一次生成的两半在两条路上。
    */
   providerNetwork?: ProviderNetworkConfig;
-  /** 仅供主进程内部已配置的本地服务（本地 ComfyUI / E2E 回环夹具）；渲染层与 Agent 无法注入。 */
-  trustedPrivateOrigin?: string;
 };
 
 const DEFAULT_MEDIA_CONTENT_TYPES = ["image/", "video/", "audio/", "application/octet-stream"] as const;
@@ -66,7 +64,6 @@ export async function fetchProviderMedia(url: string, options: ProviderMediaFetc
       timeoutForDeclaredSize: providerMediaRetrievalTotalMs,
       maxBytes: PROVIDER_MEDIA_BYTE_CAP,
       ...(options.allowContentTypes === 'any' ? {} : { allowContentTypes: options.allowContentTypes ?? DEFAULT_MEDIA_CONTENT_TYPES }),
-      ...(options.trustedPrivateOrigin ? { allowedPrivateOrigins: [options.trustedPrivateOrigin] } : {}),
       ...(providerRoute ? { dispatcher: providerRoute } : {}),
     });
   } finally {
@@ -76,12 +73,12 @@ export async function fetchProviderMedia(url: string, options: ProviderMediaFetc
 
 // ── 参考素材的临时链接：发给模型之前先试一下 ───────────────────────────────────────────────────────────────
 //
-// 为什么在这里：试探也是「从供应商那边取东西」，要走同一条线路（这家供应商单配的代理）、同一套出站策略
-// （hardenedFetch：私网 / 跳转逐跳检查，不带 Key），所以住在取回线路策略的 owner 里，不另起一条出口。
+// 为什么在这里：试探也是「从供应商那边取东西」，要走同一条线路（这家供应商单配的代理）、同一套取回加固
+// （hardenedFetch：时限 / 上限 / 跳转，不带 Key），所以住在取回线路策略的 owner 里，不另起一条出口。
 // 它只回答一个问题：这条临时链接现在还能不能取到**媒体**。三个答案，只有明确失效才改走上传：
 //   · alive    取到了媒体字节的头（或类型就是图片 / 视频 / 音频）→ 发原链接；
 //   · dead     服务商明确说不行（4xx），或 2xx 回来的是网页 / XML / JSON / 文字 → 改用本机文件上传；
-//   · unknown  超时、断网、5xx、跳转失败、出站策略拒绝……→ 照发原链接，和没有这个功能时一模一样。
+//   · unknown  超时、断网、5xx、跳转失败……→ 照发原链接，和没有这个功能时一模一样。
 // 判不了不能当失效：本机网络不通时，模型那边多半仍然拉得到。
 // 用 GET + Range，不用 HEAD：对象存储的预签名链接只对签名时的方法有效，HEAD 会得到 403（把活链接判死）。
 

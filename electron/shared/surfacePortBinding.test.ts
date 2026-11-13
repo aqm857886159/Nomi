@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseSurfacePortFailure, surfacePortReplyPayload, settleSurfacePortHandler, SurfacePortWireError, unwrapSurfacePortIpcResponse } from './surfacePortBinding'
+import { parseSurfacePortFailure, surfacePortFailureAdvice, surfacePortReplyPayload, settleSurfacePortHandler, SurfacePortWireError, unwrapSurfacePortIpcResponse } from './surfacePortBinding'
 
 describe('Surface IPC wire envelope', () => {
   it('returns a successful payload without trusting Electron Error serialization', () => {
@@ -16,6 +16,14 @@ describe('Surface IPC wire envelope', () => {
       code: 'project_binding_stale',
       message: 'project_binding_stale',
     }))
+  })
+
+  it('carries the rejected field paths for capability_input_invalid only, bounded and without control characters', () => {
+    const thrown = () => unwrapSurfacePortIpcResponse({ ok: false, error: { code: 'capability_input_invalid', fields: `plan.shots[1].durationSec needs number\n${'x'.repeat(2000)}` } })
+    expect(thrown).toThrow(expect.objectContaining({ code: 'capability_input_invalid', fields: expect.stringMatching(/^plan\.shots\[1\]\.durationSec needs number x+$/) }))
+    try { thrown() } catch (error) { expect((error as SurfacePortWireError).fields!.length).toBeLessThanOrEqual(600) }
+    expect(parseSurfacePortFailure({ code: 'project_binding_stale', fields: 'leak' })).toEqual({ code: 'project_binding_stale' })
+    expect(surfacePortFailureAdvice({ code: 'capability_input_invalid', fields: 'shots[1].durationSec needs number' }).message).toContain('shots[1].durationSec')
   })
 
   it('fails malformed envelopes closed as surface_port_unavailable', () => {

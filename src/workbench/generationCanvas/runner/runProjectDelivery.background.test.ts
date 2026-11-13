@@ -3,6 +3,7 @@
 // 所以写原项目的盘上副本），新项目的画布零副作用；任务查询只复述提交时的项目身份。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GenerationCanvasNode, GenerationNodeResult } from '../model/generationCanvasTypes'
+import type { GenerationNodeResults } from './catalogTaskResultParse'
 import type { WorkbenchProjectRecordV1 } from '../../project/projectRecordSchema'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useGenerationQueueStore } from './generationQueueStore'
@@ -95,7 +96,7 @@ describe('background generation keeps the project identity fixed at submission',
         expect(context.projectTarget).toEqual(projectA)
         context.onProgress?.({ phase: 'generating', message: 'polling', taskId: 'task-a-1' })
         submitted.resolve()
-        return polling.promise
+        return [await polling.promise]
       },
     })
     await submitted.promise
@@ -139,7 +140,7 @@ describe('background generation keeps the project identity fixed at submission',
         return { vendor: 'asyncv', result: { id: 'up-task', kind: 'text_to_video', status: 'succeeded', assets: [{ type: 'video', url: 'nomi-local://asset/project-a/v.mp4' }], raw: {} } }
       },
     })
-    await expect(result).resolves.toMatchObject({ type: 'video', url: 'nomi-local://asset/project-a/v.mp4' })
+    await expect(result).resolves.toMatchObject([{ type: 'video', url: 'nomi-local://asset/project-a/v.mp4' }])
     expect(submissions).toHaveLength(1)
     expect(submissions[0].projectId).toBe('project-a')
     expect(submissions[0].extras?.projectId).toBeUndefined()
@@ -153,7 +154,7 @@ it.each([false, true])('does not submit a node deleted during author validation 
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'delete before submit' })
   const checking = deferred<void>()
   const resume = deferred<void>()
-  const executor = vi.fn(async (): Promise<GenerationNodeResult> => ({ id: 'forbidden-result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }))
+  const executor = vi.fn(async (): Promise<GenerationNodeResults> => [{ id: 'forbidden-result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }])
   const run = runGenerationNode(node.id, {
     target, assetUploadConsent: 'not-needed', executor,
     assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); checking.resolve(); await resume.promise },
@@ -174,7 +175,7 @@ it.each([false, true])('does not submit a node deleted during author validation 
 it('does not resurrect the initial node on a retry after deletion', async () => {
   const target = await session.open('project-a')
   const node = useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: 'delete during failed attempt' })
-  const executor = vi.fn(async (): Promise<GenerationNodeResult> => {
+  const executor = vi.fn(async (): Promise<GenerationNodeResults> => {
     useGenerationCanvasStore.getState().deleteNode(node.id)
     throw new TypeError('failed to fetch')
   })
@@ -188,7 +189,7 @@ it('does not resurrect the initial node on a retry after deletion', async () => 
 it.each([0, 1])('batch validates author target before every wave (allowed attempts=%s)', async allowed => {
   const target = await session.open('project-a')
   const ids = [1, 2].map(index => useGenerationCanvasStore.getState().addNode({ kind: 'image', prompt: `shot ${index}` }).id)
-  const executor = vi.fn(async (): Promise<GenerationNodeResult> => ({ id: 'result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }))
+  const executor = vi.fn(async (): Promise<GenerationNodeResults> => [{ id: 'result', type: 'image', url: 'nomi-local://asset/result.png', createdAt: 1 }])
   const outcome = await runGenerationNodesByPlan({ waves: ids.map(id => [id]), blocked: [], edgesUsed: [] }, {
     target, assetUploadConsent: 'not-needed', executor,
     assertAuthorCurrent: async (graph, executingNodeId) => { expect(graph.nodes.some(value => value.id === executingNodeId)).toBe(true); if (executor.mock.calls.length >= allowed) throw new Error('storyboard_content_conflict') },
@@ -230,7 +231,7 @@ it('settles the original run when a replaced workspace rejects late progress wit
       context.onProgress?.({ phase: 'generating', message: 'poll', taskId: 'late-task' })
       // One event-loop boundary observes Node's actual unhandledRejection event, not a timing sleep.
       await new Promise<void>(resolve => setImmediate(resolve))
-      return { id: 'result', type: 'image', url: 'nomi-local://asset/a/result.png', createdAt: 1 }
+      return [{ id: 'result', type: 'image', url: 'nomi-local://asset/a/result.png', createdAt: 1 }]
     } })).rejects.toThrow('project_binding_stale')
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(unhandled).toEqual([])

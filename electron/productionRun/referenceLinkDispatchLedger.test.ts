@@ -24,7 +24,6 @@ vi.mock("../catalog/catalogStore", async (importOriginal) => ({
 
 import { setupCanvasShots, CANVAS_TEST_PROJECT } from "../capabilityCore/canvasShotTestUtils";
 import type { CanvasTaskResult, CanvasTransport } from "../capabilityCore/canvasTransportProvider";
-import { setLabTrustedPrivateOrigins } from "../networkOutboundPolicy";
 import { resetProviderLinkProbes } from "../assets/providerMediaFetch";
 import { executeProfileOperation } from "../runtime";
 import { canvasRunIdFor } from "./canvasShotRunIndex";
@@ -87,10 +86,8 @@ beforeEach(() => {
   resetProviderLinkProbes();
   hits.clear();
   generatePosts.length = 0;
-  setLabTrustedPrivateOrigins([origin, closedOrigin]);
 });
 afterEach(() => {
-  setLabTrustedPrivateOrigins([]);
   vi.unstubAllEnvs();
   fs.rmSync(settingsRoot, { recursive: true, force: true });
 });

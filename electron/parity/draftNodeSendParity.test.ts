@@ -76,7 +76,8 @@ import { createProjectSessionTestHarness, type ProjectSessionTestHarness } from 
 import { resolveRenderedControls } from "../../src/workbench/generationCanvas/nodes/nodeModelArchetype";
 import { parameterChipOptions, parameterChipValue } from "../../src/workbench/generationCanvas/nodes/primaryParameterChips";
 import { isParameterControl, parseControlInput, type DynamicModelControl } from "../../src/workbench/generationCanvas/nodes/controls/parameterControlModel";
-import { applyArchetypeVariantSwitch, currentArchetypeMode, currentArchetypeVariant } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
+import { applyArchetypeVariantSwitch, currentArchetypeVariant } from "../../src/workbench/generationCanvas/nodes/controls/archetypeMeta";
+import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 import { buildCatalogTaskRequest } from "../../src/workbench/generationCanvas/runner/catalogTaskActions";
 import { resolveGenerationReferences } from "../../src/workbench/generationCanvas/runner/generationReferenceResolver";
 import type { GenerationCanvasNode } from "../../src/workbench/generationCanvas/model/generationCanvasTypes";
@@ -369,7 +370,7 @@ describe("起草 → 落地节点 → 生成框显示 → 节点上发出：四�
           const meta = metaOf(node);
 
           // ② 落地：方式 / 变体 / 起草写出的每个参数，节点上一个不差。
-          expect(currentArchetypeMode(row.archetype, meta).id, `${label}：节点上的方式`).toBe(candidate.modeId ?? mode.id);
+          expect(modeWrittenInMeta(meta, row.archetype).id, `${label}：节点上的方式`).toBe(candidate.modeId ?? mode.id);
           if ((row.archetype.variants?.length ?? 0) > 1) {
             // 起草没写变体时，宿主与节点问的是同一个 owner（`resolveArchetypeVariant`）：落到默认变体。
             const drafted = resolveArchetypeVariant(row.archetype, { ...(candidate.variantId ? { variantId: candidate.variantId } : {}), modelId: candidate.modelId })?.id;

@@ -185,7 +185,7 @@ async function readPickerRows(win) {
 
     await win.locator('[aria-label="生成素材"]').first().click()
     await win.waitForTimeout(1200)
-    const confirm = win.locator('.fixed.inset-0').last().getByRole('button', { name: '生成', exact: true })
+    const confirm = win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: '生成', exact: true })
     if ((await confirm.count()) > 0) await confirm.first().click()
     let card = null
     for (let i = 0; i < 15; i += 1) {

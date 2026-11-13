@@ -253,7 +253,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
     id: 'J01-generate-image',
     title: Object.freeze({ 'zh-CN': '生成一张图', en: 'Generate an image' }),
     states: Object.freeze([
-      { id: 'composing', kind: 'user', visibleText: ['generationCommon.nodeTry.label', 'generationCommon.nodeTry.image.text'], actions: ['输入提示词', '选模型', '点 ↑ 生成'], owner: 'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx#NodeGenerationComposer', deadline: USER },
+      { id: 'composing', kind: 'user', visibleText: ['generationCommon.nodeTry.label', 'generationCommon.nodeTry.image.reference'], actions: ['输入提示词', '选模型', '点 ↑ 生成'], owner: 'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx#NodeGenerationComposer', deadline: USER },
       { id: 'confirming-spend', kind: 'user', visibleText: ['generationCommon.spend.confirm', 'generationCommon.spend.cancel'], actions: ['确认生成', '取消'], owner: 'src/workbench/generationCanvas/spend/spendConfirm.ts#spendConfirmationRequirement', deadline: USER },
       { id: 'queued', kind: 'system', visibleText: ['generationCommon.observability.progress.queued'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'queued' } },
       { id: 'requesting', kind: 'system', visibleText: ['generationCommon.observability.progress.submitting'], actions: ['停止'], owner: 'src/workbench/observability/narrate.ts#narrateProgress', deadline: { ref: PHASE, key: 'requesting' } },
@@ -316,7 +316,7 @@ export const FULL_WALK_JOURNEYS = Object.freeze([
     ].map(Object.freeze)),
     scripts: Object.freeze(['tests/ux/full-walk/playbooks/pb01-two-page-card.walk.mjs', 'tests/ux/full-walk/playbooks/pb03-default-models.walk.mjs', 'tests/ux/full-walk/playbooks/pb08-cover-card-kind.walk.mjs', 'tests/ux/core-smoke-spend-confirm.walk.mjs']),
     invariants: Object.freeze([1, 2, 3, 4, 6, 9]),
-    metric: Object.freeze({ gap: '付费卡的「生成 / 取消 / 不生成」没有任何上报；agent.turn.completed 在 telemetryEvents 里声明了却没有发射点' }),
+    metric: Object.freeze({ gap: '付费卡的「生成 / 取消 / 不生成」没有任何上报；Agent 回合也没有上报事件（声明了没发射点的 agent.turn.completed 已删）' }),
   }),
   Object.freeze({
     id: 'J05-pause-resume',

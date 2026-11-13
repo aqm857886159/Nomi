@@ -4,7 +4,7 @@ import {
   migrateNodeToCategoryId,
   migrateProjectPayload,
 } from './projectCategoryMigration'
-import { createDefaultWorkbenchProjectPayload, workbenchProjectPayloadSchema } from './projectRecordSchema'
+import { createDefaultWorkbenchProjectPayload, workbenchProjectPayloadSkeletonSchema } from './projectRecordSchema'
 import { normalizeCategories } from './projectCategories'
 import type {
   CategoryId,
@@ -196,7 +196,7 @@ describe('migrateProjectPayload', () => {
       groups: [],
     }
 
-    expect(workbenchProjectPayloadSchema.safeParse(payload).success).toBe(true)
+    expect(workbenchProjectPayloadSkeletonSchema.safeParse(payload).success).toBe(true)
   })
 
   it('treats a freshly created default project payload as already migrated (creation↔migration contract)', () => {

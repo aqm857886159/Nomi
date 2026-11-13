@@ -11,7 +11,7 @@ import { approvalCommand, sha256Of } from './lib/coordApprovals.mjs'
 
 export const SCENARIO_DIR = 'tests/perf/scenarios'
 /** 可选的指标。登记表的 budget / baseline 对应 metrics[0]（主指标），其余指标只打印、不判。 */
-export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests', 'rssMiB', 'referenceRssMiB', 'heapUsedMiB', 'externalMiB', 'arrayBuffersMiB', 'transferMs', 'cancelMs', 'memoryGrowthRatio', 'blankCardPct', 'stallMonitorCpuMsPerSec', 'stallMonitorWakeupsPerSec', 'stallMonitorQuietWrites', 'probeOverheadMs', 'batchOverheadMs', 'probeBytesPerLink', 'projectionMs', 'convergeMs', 'turnBoundaryMs', 'projectionRecomputeMs', 'rejectedPerTurn'])
+export const METRICS = Object.freeze(['response', 'frameGapP95', 'longTasks', 'openToInteractive', 'mainRoundTripMax', 'idleRectReadsPerSec', 'idleBusyPct', 'idleLayoutsPerSec', 'panelFramesOff', 'mediaRequests', 'rssMiB', 'referenceRssMiB', 'heapUsedMiB', 'externalMiB', 'arrayBuffersMiB', 'transferMs', 'cancelMs', 'memoryGrowthRatio', 'blankCardPct', 'stallMonitorCpuMsPerSec', 'stallMonitorWakeupsPerSec', 'stallMonitorQuietWrites', 'probeOverheadMs', 'batchOverheadMs', 'probeBytesPerLink', 'projectionMs', 'convergeMs', 'turnBoundaryMs', 'projectionRecomputeMs', 'rejectedPerTurn', 'landingSyncWork', 'landingDirManifestReads', 'landingSyncIpcCalls', 'landingReceiptRereads', 'landingMainStallMaxMs'])
 export const MIN_RUNS = 5
 /** 预算状态：proposed = 实现线提议、等安静窗口量完基线由协调定；approved = 已定。不写 = 已定（老条目）。 */
 export const BUDGET_STATUSES = Object.freeze(['proposed', 'approved'])
@@ -167,6 +167,19 @@ export const DRIVERS = Object.freeze({
     readRuns(payload) {
       const samples = payload.samples ?? []
       return { response: samples.map((sample) => sample.responseMs), longTasks: samples.map((sample) => sample.longTasks) }
+    },
+  },
+  // 生成结果落地时主进程上的同步活（tests/perf/gen-landing-bench.mjs：真 Electron、回环假上游、8 张 4K 同时落地）。
+  // 三个确定性计数（找目录读项目文件、同步 IPC、回执整读产物）与负载无关，所以不按 noisy 作废；毫秒只作参考。
+  // 设计卡 docs/plan/2026-11-12-gen-landing-stall-cut1.md ★7。
+  'tests/perf/gen-landing-bench.mjs': {
+    supports: ['landingSyncWork', 'landingDirManifestReads', 'landingSyncIpcCalls', 'landingReceiptRereads', 'landingMainStallMaxMs'],
+    buildArgs: (script, args, { runs, label }) => [script, ...args, '--runs', String(runs), '--out', `tests/perf/results/gen-landing-${label}.json`],
+    resultFile: (label) => `tests/perf/results/gen-landing-${label}.json`,
+    readRuns(payload) {
+      const metrics = payload?.metrics ?? {}
+      const pick = (key) => (Array.isArray(metrics[key]) ? metrics[key].filter(isNumber) : [])
+      return Object.fromEntries(['landingSyncWork', 'landingDirManifestReads', 'landingSyncIpcCalls', 'landingReceiptRereads', 'landingMainStallMaxMs'].map((key) => [key, pick(key)]))
     },
   },
   // 文本任务「接到请求 → 第一段字」的主进程时延（tests/perf/text-first-delta-bench.mjs：本机立刻回话的假上游，量编译产物；

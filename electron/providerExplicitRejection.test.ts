@@ -1,14 +1,13 @@
 import http from "node:http";
 import net from "node:net";
 import type { Session } from "electron";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createCatalogGenerationProvider } from "./capabilityCore/apimartGenerationProvider";
 import type { CatalogState } from "./catalog/types";
 import { providerExplicitlyRejected } from "./outboundDispatchEvidence";
 import { applySystemProxy } from "./systemProxy";
 import { requestJson } from "./vendor/vendorHttp";
-import { setSubmitOutboundDepsForTests } from "./vendor/vendorOutboundGuard";
 import type { Vendor } from "./catalog/types";
 
 // 「供应商当场明确拒绝」= 确定没受理（2026-10-05 用户拍板 F3）。只认一种证据：收到了响应，4xx 或 2xx + 失败信封，
@@ -51,15 +50,7 @@ describe("引擎 A：真实 socket 上的 requestJson", () => {
   beforeAll(async () => {
     await applySystemProxy({ setProxy: async () => undefined } as unknown as Session, { mode: "off", customUrl: "" });
   });
-  beforeEach(() => {
-    setSubmitOutboundDepsForTests({
-      resolve: async () => [{ address: "93.184.216.34", family: 4 as const }],
-      readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-      isApplicationProxyActive: () => false,
-    });
-  });
   afterEach(async () => {
-    setSubmitOutboundDepsForTests(null);
     for (const socket of sockets) socket.destroy();
     sockets.clear();
     for (const server of servers.splice(0)) await new Promise<void>((resolve) => server.close(() => resolve()));

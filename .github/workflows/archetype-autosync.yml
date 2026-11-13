@@ -41,6 +41,7 @@ jobs:
           node-version: 24
 
       # 生成器是 tsx 脚本，需要依赖；--ignore-scripts 不跑安装后脚本（这里用不到 git hooks 与 Electron 下载）。
+      - uses: ./.github/actions/cache-external-downloads
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 

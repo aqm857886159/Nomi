@@ -79,12 +79,14 @@ async function fetchProvidedDocUrls(input: {
       }
       const remaining = input.maxCorpusBytes - Buffer.byteLength(corpus);
       if (remaining <= 0) break;
-      // 抓取一律走既有的 hardenedFetchText（SSRF/私网/大小/超时全在里面），不新写抓取。
+      // 抓取一律走既有的 hardenedFetchText（大小 / 超时 / 按地址判都在里面），不新写抓取。
       const result = await input.fetchText(url, {
         maxBytes: 1_000_000,
         timeoutMs: 8_000,
         signal: input.signal,
         allowContentTypes: ["text/", "application/json", "application/xml", "application/yaml"],
+        // 抓到的正文交给接入编译器（模型）：按地址判，本机 / 内网文档页拒（hardenedFetch 选项注释）。
+        textEntersModelContext: true,
         ...(dispatcher ? { dispatcher } : {}),
       });
       const text = truncateUtf8(readableText(result.text, result.contentType), remaining);

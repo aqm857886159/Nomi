@@ -6,6 +6,8 @@
 //
 // 读法的合同：
 //   1. **先按通道声明的合同**（mapping.response_mapping 的 assets / image_url / video_url / audio_url / model_url）。
+//      产物路径里的数字下标读整张列表（`data.0.url` = 每一项的 url）：一次运行给几份就读几份，和通用规则
+//      「同一张列表里的兄弟一起取」同一条；内置、用户自配、Agent 接入存下的旧声明都经这里，不改存盘。
 //   2. 合同读不到 → **通用规则**：在响应里按「结果字段名」找地址（result_url / video_url / url / output / fileUrl …，
 //      含 content.* / data.* / output.* / results[*] / videos[*] 等嵌套，以及被当字符串二次嵌套的 JSON），
 //      只收 http(s) / data: / nomi-local: 地址，**按期望的媒体类型核扩展名**，**排除本次请求回显的参考地址**，
@@ -14,10 +16,10 @@
 // 下载那一步还会按 content-type / 字节再核一次（assets/generatedMediaDecode），这里只做便宜的第一道。
 import type { JsonRecord } from "../jsonUtils";
 import { isJsonRecord } from "../jsonUtils";
-import { collectAssetUrls, firstMappedString, maybeParseJsonString, resolveTaskStatus, valuesFromMapping, type TaskStatus } from "./responseParsing";
+import { collectAssetUrls, firstMappedString, mappingCandidates, maybeParseJsonString, pathValues, resolveTaskStatus, type TaskStatus } from "./responseParsing";
 import { classifyUpstreamTaskStatus } from "../shared/taskStatus";
 import { firstString } from "../jsonUtils";
-import { extractAssetUrl } from "./assetUrlExtract";
+import { extractAssetUrls } from "./assetUrlExtract";
 import { logInfo } from "../logging/logger";
 import { comparableReferenceUrl } from "../catalog/outboundReferenceUrl";
 
@@ -165,9 +167,25 @@ export function findResultUrlByGenericRule(
   }
   // 深扫看不见的已知形状（只做**解码**）：同步接口的 b64_json（转 data: 地址）、chat/completions 里内联的图
   // （markdown / 多模态数组）。它排在深扫之后、过同一道筛，不能再绕过排序抢先返回。
-  const known = extractAssetUrl(response).trim();
-  if (known && admissible(known, wantedKind, echoUrls)) return { urls: [known], path: "known-shape" };
+  const known = extractAssetUrls(response).filter((url) => admissible(url, wantedKind, echoUrls));
+  if (known.length) return { urls: known, path: "known-shape" };
   return null;
+}
+
+/**
+ * 合同里一条产物路径的取值。数字下标碰到列表就读整张列表——`data.0.url` / `output.0` /
+ * `choices.0.message.images.0.url` 是声明者照着一份单张样例写的位置，一次运行给几份，列表里的兄弟就都是这一笔的产物。
+ * 其余段（字段名、`[*]`、对象上的数字键）照共享路径语法读。
+ */
+function contractOutputValues(response: unknown, expression: string): unknown[] {
+  let current: unknown[] = [response];
+  for (const part of expression.split(".").map((segment) => segment.trim()).filter(Boolean)) {
+    current = current.flatMap((item) => {
+      const value = maybeParseJsonString(item);
+      return /^\d+$/.test(part) && Array.isArray(value) ? value : pathValues(value, part);
+    });
+  }
+  return current;
 }
 
 /**
@@ -203,7 +221,8 @@ export function readTaskResponse(input: {
   // 合同读到的地址过同一道筛（V-1213 复验）：回显的参考地址不要、和期望类型对不上的不要（音频装视频容器除外）。
   // 下载那一步只核「字节是不是它自称的那种媒体」，不知道这笔任务要什么——类型在这里就得核。
   const contractUrls = Array.from(new Set(
-    CONTRACT_ASSET_KEYS.flatMap((key) => valuesFromMapping(input.response, input.responseMapping, key)).flatMap(collectAssetUrls),
+    CONTRACT_ASSET_KEYS.flatMap((key) => mappingCandidates(input.responseMapping, key))
+      .flatMap((expression) => contractOutputValues(input.response, expression)).flatMap(collectAssetUrls),
   )).filter((url) => admissible(url, input.wantedKind, echoUrls));
   if (contractUrls.length > 0) {
     const resolved = resolveTaskStatus(input.response, input.responseMapping, input.statusMapping, contractUrls);

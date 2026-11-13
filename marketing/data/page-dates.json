@@ -1,898 +1,898 @@
 {
   "/": {
-    "hash": "94efa6b1a433f339",
-    "date": "2026-11-07"
+    "hash": "a331cc595101ab16",
+    "date": "2026-11-09"
   },
   "/docs": {
-    "hash": "f091bde3519cf124",
-    "date": "2026-10-28"
+    "hash": "3c84433ab956562a",
+    "date": "2026-11-09"
   },
   "/docs/mcp/before-you-connect": {
-    "hash": "42da40a5965b082f",
-    "date": "2026-10-28"
+    "hash": "4c512ff3580da4a8",
+    "date": "2026-11-09"
   },
   "/docs/mcp/connect-clients": {
-    "hash": "cdeb7fa20c0e9d0b",
-    "date": "2026-10-28"
+    "hash": "b8ab3526c4571299",
+    "date": "2026-11-09"
   },
   "/docs/mcp/verify-and-troubleshoot": {
-    "hash": "6ee9ed6066bc38a1",
-    "date": "2026-10-28"
+    "hash": "88d300ff79b7ff86",
+    "date": "2026-11-09"
   },
   "/docs/start/first-project": {
-    "hash": "c4a5d390ed72644c",
-    "date": "2026-10-28"
+    "hash": "89ec2da1e07171e7",
+    "date": "2026-11-09"
   },
   "/docs/start/what-is-nomi": {
-    "hash": "d1f63f708f045c43",
-    "date": "2026-10-28"
+    "hash": "a695b7e3e5b1c388",
+    "date": "2026-11-09"
   },
   "/en/": {
-    "hash": "094fa45eabc2017f",
-    "date": "2026-11-07"
+    "hash": "8ece0ca697417832",
+    "date": "2026-11-09"
   },
   "/en/docs": {
-    "hash": "abb1dd18e307eb86",
-    "date": "2026-10-28"
+    "hash": "5cbe676f865ca334",
+    "date": "2026-11-09"
   },
   "/en/docs/mcp/before-you-connect": {
-    "hash": "44ee2814fb755b18",
-    "date": "2026-10-28"
+    "hash": "593356ef035805db",
+    "date": "2026-11-09"
   },
   "/en/docs/mcp/connect-clients": {
-    "hash": "312ed5d0a7811f65",
-    "date": "2026-10-28"
+    "hash": "e4272cccefb0e8f9",
+    "date": "2026-11-09"
   },
   "/en/docs/mcp/verify-and-troubleshoot": {
-    "hash": "5cc1ea431dee3474",
-    "date": "2026-10-28"
+    "hash": "d9922c45d2e96b8e",
+    "date": "2026-11-09"
   },
   "/en/docs/start/first-project": {
-    "hash": "2c053efa6fa8d943",
-    "date": "2026-10-28"
+    "hash": "524086ddba576cd9",
+    "date": "2026-11-09"
   },
   "/en/docs/start/what-is-nomi": {
-    "hash": "4862b2c37dc6f9fc",
-    "date": "2026-10-28"
+    "hash": "1f9dd64f8fdf250e",
+    "date": "2026-11-09"
   },
   "/en/features": {
-    "hash": "87f82b4e2303aa57",
-    "date": "2026-10-24"
+    "hash": "e31f1b0f011583f7",
+    "date": "2026-11-09"
   },
   "/en/models": {
-    "hash": "5173ce63c909b72d",
-    "date": "2026-11-07"
+    "hash": "54b1bd05573ccc18",
+    "date": "2026-11-09"
   },
   "/en/models/agnes-image-2-1": {
-    "hash": "03e5d965866a0f1e",
-    "date": "2026-11-07"
+    "hash": "d2c840c0621f097f",
+    "date": "2026-11-09"
   },
   "/en/models/agnes-video-2-5": {
-    "hash": "a65b6f3441263c9b",
-    "date": "2026-10-24"
+    "hash": "b3efde69914e8238",
+    "date": "2026-11-09"
   },
   "/en/models/dop": {
-    "hash": "51c3ce6011b4028e",
-    "date": "2026-10-24"
+    "hash": "259b419a6025b995",
+    "date": "2026-11-09"
   },
   "/en/models/flux-1-krea": {
-    "hash": "bade0e7549126d1b",
-    "date": "2026-10-24"
+    "hash": "09c92507d6b3ec6c",
+    "date": "2026-11-09"
   },
   "/en/models/flux-2-klein": {
-    "hash": "535b7a2986c3756b",
-    "date": "2026-10-24"
+    "hash": "225eeccda9844266",
+    "date": "2026-11-09"
   },
   "/en/models/flux-2-pro": {
-    "hash": "5718fc977fb8db83",
-    "date": "2026-10-24"
+    "hash": "4896889aced244b2",
+    "date": "2026-11-09"
   },
   "/en/models/gemini-image-3-pro": {
-    "hash": "a19f863cc6e26915",
-    "date": "2026-10-24"
+    "hash": "8279d23954a2edc9",
+    "date": "2026-11-09"
   },
   "/en/models/gemini-omni-1-1-flash": {
-    "hash": "07399cfef3e4f4eb",
-    "date": "2026-10-24"
+    "hash": "741312f71b748c78",
+    "date": "2026-11-09"
   },
   "/en/models/gpt-image-2": {
-    "hash": "5d8b43678eae7b19",
-    "date": "2026-10-24"
+    "hash": "02f3864a09ea5c29",
+    "date": "2026-11-09"
   },
   "/en/models/gpt-image-2-5-flare": {
-    "hash": "a51e468f827e4499",
-    "date": "2026-10-24"
+    "hash": "1f047fe7acf5b8cc",
+    "date": "2026-11-09"
   },
   "/en/models/gpt-image-2-5-sunburst": {
-    "hash": "23c68165c9d4d371",
-    "date": "2026-10-24"
+    "hash": "c35ae9c4badf5d26",
+    "date": "2026-11-09"
   },
   "/en/models/grok-imagine-1-5": {
-    "hash": "2227a9b03422a1bd",
-    "date": "2026-11-07"
+    "hash": "d20904d91caeb567",
+    "date": "2026-11-09"
   },
   "/en/models/grok-imagine-image-2": {
-    "hash": "667db91fe67eebbc",
-    "date": "2026-10-24"
+    "hash": "854ed386a8d30d5a",
+    "date": "2026-11-09"
   },
   "/en/models/hailuo-2-3": {
-    "hash": "9b34eab7fed56bc1",
-    "date": "2026-10-24"
+    "hash": "959f1e6c4d35c1fd",
+    "date": "2026-11-09"
   },
   "/en/models/happyhorse-1-1": {
-    "hash": "e6167cec2eb93fe8",
-    "date": "2026-11-07"
+    "hash": "8c3775ad2ca990d9",
+    "date": "2026-11-09"
   },
   "/en/models/imagen-4-fast": {
-    "hash": "477cab12e9d1a67f",
-    "date": "2026-10-24"
+    "hash": "48e10e981bbcd07c",
+    "date": "2026-11-09"
   },
   "/en/models/imagen-4-ultra": {
-    "hash": "9eb92bbaa3d6486f",
-    "date": "2026-10-24"
+    "hash": "9c9115475f0fd6a9",
+    "date": "2026-11-09"
   },
   "/en/models/kling-3-0": {
-    "hash": "6c874fe0c1be075e",
-    "date": "2026-10-24"
+    "hash": "ec034c3f319b62e0",
+    "date": "2026-11-09"
   },
   "/en/models/kling-3-0-turbo": {
-    "hash": "b44e4eea1464a0a7",
-    "date": "2026-10-24"
+    "hash": "9001aa93a244b0bf",
+    "date": "2026-11-09"
   },
   "/en/models/minimax-h3": {
-    "hash": "eb06a8d8d7ef2753",
-    "date": "2026-10-24"
+    "hash": "bac4d641533d9273",
+    "date": "2026-11-09"
   },
   "/en/models/minimax-h3-max": {
-    "hash": "2135855b6cf08653",
-    "date": "2026-10-24"
+    "hash": "d22b7f0e05675288",
+    "date": "2026-11-09"
   },
   "/en/models/muse-image": {
-    "hash": "bb430c48502d6600",
-    "date": "2026-11-07"
+    "hash": "d0cbf8cdc5db5998",
+    "date": "2026-11-09"
   },
   "/en/models/nano-banana-2": {
-    "hash": "ccf9d6f120ba9cf4",
-    "date": "2026-10-24"
+    "hash": "ee29ec46234dad7c",
+    "date": "2026-11-09"
   },
   "/en/models/nano-banana-2-lite": {
-    "hash": "01e85855be454293",
-    "date": "2026-10-24"
+    "hash": "ba2426331bcb26dc",
+    "date": "2026-11-09"
   },
   "/en/models/qwen-image": {
-    "hash": "bd87e323c18b103a",
-    "date": "2026-10-24"
+    "hash": "032140a51883c275",
+    "date": "2026-11-09"
   },
   "/en/models/qwen-image-3-0": {
-    "hash": "a91e8236d60488f8",
-    "date": "2026-11-07"
+    "hash": "2968a0ddb3617320",
+    "date": "2026-11-09"
   },
   "/en/models/runway-gen-4-5": {
-    "hash": "823916b4edcf8436",
-    "date": "2026-10-24"
+    "hash": "ae62a41cbfc05851",
+    "date": "2026-11-09"
   },
   "/en/models/runway-gen-4-image": {
-    "hash": "a55284c2bacd008e",
-    "date": "2026-10-24"
+    "hash": "1e2567066527ee0f",
+    "date": "2026-11-09"
   },
   "/en/models/runway-gen-4-turbo": {
-    "hash": "96b93aaa44a94fdb",
-    "date": "2026-10-24"
+    "hash": "56d2e81329bbd874",
+    "date": "2026-11-09"
   },
   "/en/models/seedance-2-5": {
-    "hash": "463077c671d84200",
-    "date": "2026-10-24"
+    "hash": "4ddb5e8812587f4f",
+    "date": "2026-11-09"
   },
   "/en/models/seedream-5-0-lite": {
-    "hash": "511e3a5818969269",
-    "date": "2026-10-24"
+    "hash": "8314bf0e2775b5bc",
+    "date": "2026-11-09"
   },
   "/en/models/seedream-5-0-pro": {
-    "hash": "22fae3a467624512",
-    "date": "2026-11-07"
+    "hash": "15b538825f9eec37",
+    "date": "2026-11-09"
   },
   "/en/models/soul-2": {
-    "hash": "948158fb002b5666",
-    "date": "2026-10-24"
+    "hash": "685d5699ddb822c5",
+    "date": "2026-11-09"
   },
   "/en/models/soul-cinema": {
-    "hash": "6e55177ac8a3125e",
-    "date": "2026-10-24"
+    "hash": "a85863102e2a0e73",
+    "date": "2026-11-09"
   },
   "/en/models/veo-3-1": {
-    "hash": "9364988a36f64f11",
-    "date": "2026-10-24"
+    "hash": "c6c5d8af1dee7986",
+    "date": "2026-11-09"
   },
   "/en/models/vidu-q3": {
-    "hash": "b16f6ee16cd5376d",
-    "date": "2026-10-24"
+    "hash": "d28d94c8be69e7ec",
+    "date": "2026-11-09"
   },
   "/en/models/wan-3-0": {
-    "hash": "1fe9e0c254db2b57",
-    "date": "2026-10-24"
+    "hash": "07cc6954a0e186f2",
+    "date": "2026-11-09"
   },
   "/en/models/z-image": {
-    "hash": "5d3b5b304264fdbc",
-    "date": "2026-10-24"
+    "hash": "fdb117b059050277",
+    "date": "2026-11-09"
   },
   "/en/models/z-image-turbo": {
-    "hash": "aa156e387a5c20ba",
-    "date": "2026-11-07"
+    "hash": "e43550b9b2c3c9f0",
+    "date": "2026-11-09"
   },
   "/en/prompts": {
-    "hash": "d9a4eebc56dcc0bd",
-    "date": "2026-10-24"
+    "hash": "0492991b327f6471",
+    "date": "2026-11-09"
   },
   "/en/prompts/camera": {
-    "hash": "45d5acbad7330326",
-    "date": "2026-10-24"
+    "hash": "a3d3eb13afa91f22",
+    "date": "2026-11-09"
   },
   "/en/prompts/character": {
-    "hash": "dc23d0d4d51d3659",
-    "date": "2026-10-24"
+    "hash": "7223d910184b250b",
+    "date": "2026-11-09"
   },
   "/en/prompts/collections/evolink-gpt-image-2": {
-    "hash": "3c459eb7ea5cf206",
-    "date": "2026-10-24"
+    "hash": "e4f8abefa47a1f77",
+    "date": "2026-11-09"
   },
   "/en/prompts/collections/imgedify-gpt4o": {
-    "hash": "30490e3ef2649ba0",
-    "date": "2026-10-24"
+    "hash": "7f965746bc339799",
+    "date": "2026-11-09"
   },
   "/en/prompts/collections/sora-official": {
-    "hash": "e89342e1f2dbcde1",
-    "date": "2026-10-24"
+    "hash": "e38e204b90fc1a79",
+    "date": "2026-11-09"
   },
   "/en/prompts/collections/sora2-viral": {
-    "hash": "3d72605a866a2942",
-    "date": "2026-10-24"
+    "hash": "f1df6af66abcb842",
+    "date": "2026-11-09"
   },
   "/en/prompts/collections/youmind-nano-banana-pro": {
-    "hash": "b719996648e166f5",
-    "date": "2026-10-24"
+    "hash": "264ae95b31f694ec",
+    "date": "2026-11-09"
   },
   "/en/prompts/composition": {
-    "hash": "f78ac7bd71992f54",
-    "date": "2026-10-24"
+    "hash": "d0622aa4362cba54",
+    "date": "2026-11-09"
   },
   "/en/prompts/editing": {
-    "hash": "77a015a3507cc19b",
-    "date": "2026-10-24"
+    "hash": "ad5313c5e80f0e31",
+    "date": "2026-11-09"
   },
   "/en/prompts/expressions": {
-    "hash": "d6dbe9bc02d2e9b5",
-    "date": "2026-10-24"
+    "hash": "7b1af2721c988190",
+    "date": "2026-11-09"
   },
   "/en/prompts/natural-texture": {
-    "hash": "47a016dad8ffbfeb",
-    "date": "2026-10-24"
+    "hash": "8ab599eba52b7967",
+    "date": "2026-11-09"
   },
   "/en/prompts/scene": {
-    "hash": "9f87e353686a6957",
-    "date": "2026-10-24"
+    "hash": "2b7db3e76393011a",
+    "date": "2026-11-09"
   },
   "/en/prompts/storyboard": {
-    "hash": "14273eb5c1c7c231",
-    "date": "2026-10-24"
+    "hash": "3123e6badce1fb1f",
+    "date": "2026-11-09"
   },
   "/en/quickstart": {
-    "hash": "d761a38ff19335c9",
-    "date": "2026-11-06"
+    "hash": "06408c9524ec6c7b",
+    "date": "2026-11-09"
   },
   "/en/skills": {
-    "hash": "f643e2ffbac68a60",
-    "date": "2026-10-24"
+    "hash": "800e90de43ff44f7",
+    "date": "2026-11-09"
   },
   "/en/skills/brand-promo": {
-    "hash": "3c757639e78900c1",
-    "date": "2026-10-24"
+    "hash": "53b0490633e91d8d",
+    "date": "2026-11-09"
   },
   "/en/skills/creation-edit": {
-    "hash": "90dd80fa8725b225",
-    "date": "2026-10-24"
+    "hash": "f2f8b56165bbc594",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-candle-mood": {
-    "hash": "553d3eb40fc74685",
-    "date": "2026-10-24"
+    "hash": "867f28834a54b07a",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-coffee-pour": {
-    "hash": "2b6d3c748c177d9c",
-    "date": "2026-10-24"
+    "hash": "52917c4d98d4d0fb",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-cross-view": {
-    "hash": "11aa80d8ea277512",
-    "date": "2026-10-24"
+    "hash": "7421e9b88371ea65",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-expression-reference": {
-    "hash": "6d914e508cde8b05",
-    "date": "2026-10-24"
+    "hash": "ec2f36f2f4eb8c37",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-expression-sheet": {
-    "hash": "57ddceec0ae1dd18",
-    "date": "2026-10-24"
+    "hash": "fc2078ba1155996b",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-eyewear-light": {
-    "hash": "999c127623568317",
-    "date": "2026-10-24"
+    "hash": "4792b107816feb75",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-film-storyboard": {
-    "hash": "a543ed00a42720c6",
-    "date": "2026-10-24"
+    "hash": "16a8357f5f6b7490",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-multi-view": {
-    "hash": "28efa90903d37a17",
-    "date": "2026-10-24"
+    "hash": "d8492ee6075faeaf",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-outpaint": {
-    "hash": "3d560093eb71b1d5",
-    "date": "2026-10-24"
+    "hash": "8704a3a35da08494",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-product-before-after": {
-    "hash": "eccf724fda773574",
-    "date": "2026-10-24"
+    "hash": "7702e705ed5cf835",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-product-condensation": {
-    "hash": "79943430c4544bc9",
-    "date": "2026-10-24"
+    "hash": "604c6eb61713bac7",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-product-exploded-view": {
-    "hash": "fd3ccdefeaf59dd1",
-    "date": "2026-10-24"
+    "hash": "159e09f0c15b216a",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-product-turntable": {
-    "hash": "306ad05cd85a6077",
-    "date": "2026-10-24"
+    "hash": "82a8504eabe2e3d0",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-product-unboxing": {
-    "hash": "08adb82a88b92351",
-    "date": "2026-10-24"
+    "hash": "cbfddca210470908",
+    "date": "2026-11-09"
   },
   "/en/skills/curated-restore-image": {
-    "hash": "f362b2c8f28f88f9",
-    "date": "2026-10-24"
+    "hash": "cd2c2a6017581a30",
+    "date": "2026-11-09"
   },
   "/en/skills/director-action": {
-    "hash": "3e834116d12353fe",
-    "date": "2026-10-24"
+    "hash": "791cefa8f701d88a",
+    "date": "2026-11-09"
   },
   "/en/skills/director-art-design": {
-    "hash": "4c494e6bfc05751f",
-    "date": "2026-10-24"
+    "hash": "0639624cf2e27541",
+    "date": "2026-11-09"
   },
   "/en/skills/director-cinematography": {
-    "hash": "110a355d8dffee4d",
-    "date": "2026-10-24"
+    "hash": "68f9fba3e36fb908",
+    "date": "2026-11-09"
   },
   "/en/skills/director-consistency": {
-    "hash": "556f376fa1035ed8",
-    "date": "2026-10-24"
+    "hash": "8f7e27f1ca621b83",
+    "date": "2026-11-09"
   },
   "/en/skills/director-guzhuang": {
-    "hash": "4d13f6c849544a33",
-    "date": "2026-10-24"
+    "hash": "edf15fe17414443f",
+    "date": "2026-11-09"
   },
   "/en/skills/director-keyframe-review": {
-    "hash": "094d96819233f67d",
-    "date": "2026-10-24"
+    "hash": "7326f121324bc53c",
+    "date": "2026-11-09"
   },
   "/en/skills/director-performance": {
-    "hash": "7f1c31865616149f",
-    "date": "2026-10-24"
+    "hash": "688f79d3e3834305",
+    "date": "2026-11-09"
   },
   "/en/skills/director-shot-translation": {
-    "hash": "4024e45fd698037c",
-    "date": "2026-10-24"
+    "hash": "085fce24fba82534",
+    "date": "2026-11-09"
   },
   "/en/skills/director-sound": {
-    "hash": "6028d4b50e3208d6",
-    "date": "2026-10-24"
+    "hash": "d512ec33c61be0e2",
+    "date": "2026-11-09"
   },
   "/en/skills/director-staging": {
-    "hash": "ef1ba7ca6881053e",
-    "date": "2026-10-24"
+    "hash": "b38b9b6cb205b73a",
+    "date": "2026-11-09"
   },
   "/en/skills/director-style-otomo-wright": {
-    "hash": "b4605e0f05f1330f",
-    "date": "2026-10-24"
+    "hash": "1f1434a3fb58bcd8",
+    "date": "2026-11-09"
   },
   "/en/skills/director-transitions": {
-    "hash": "46bcfac3c0641d06",
-    "date": "2026-10-24"
+    "hash": "70d6a4b204a28219",
+    "date": "2026-11-09"
   },
   "/en/skills/drama-short": {
-    "hash": "fccfb14c73fc6970",
-    "date": "2026-10-24"
+    "hash": "9dc4df368c9c3ac0",
+    "date": "2026-11-09"
   },
   "/en/skills/model-integration": {
-    "hash": "fd34dd28f62fa57d",
-    "date": "2026-10-24"
+    "hash": "22e423aeef3c46cd",
+    "date": "2026-11-09"
   },
   "/en/skills/release-media-pack": {
-    "hash": "61789a23ae1743f0",
-    "date": "2026-10-24"
+    "hash": "4b8eb8fc78d3d9cd",
+    "date": "2026-11-09"
   },
   "/en/skills/skill-author": {
-    "hash": "6854160dbd345832",
-    "date": "2026-10-24"
+    "hash": "7ecf7e949008405a",
+    "date": "2026-11-09"
   },
   "/en/skills/workbench-creation": {
-    "hash": "34ee08862a7f0d85",
-    "date": "2026-10-24"
+    "hash": "38a78da8d5e599c7",
+    "date": "2026-11-09"
   },
   "/en/skills/workbench-fixation-planner": {
-    "hash": "35fdaf1544bdb306",
-    "date": "2026-10-24"
+    "hash": "df5fae2bb68af8c7",
+    "date": "2026-11-09"
   },
   "/en/skills/workbench-generation": {
-    "hash": "d5eaf968f6fb79ba",
-    "date": "2026-11-07"
+    "hash": "f6501c1bb41eb811",
+    "date": "2026-11-09"
   },
   "/en/skills/workbench-storyboard-planner": {
-    "hash": "861d8ce5d9fafccc",
-    "date": "2026-10-24"
+    "hash": "0e7b3234f773bdf0",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-adaptation": {
-    "hash": "ae003b2911c8c5d9",
-    "date": "2026-10-24"
+    "hash": "3741ce2ebc0cce1e",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-behavior-psychology": {
-    "hash": "31a80ba9939f1a0d",
-    "date": "2026-10-24"
+    "hash": "2547b2351f9670c4",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-dialogue": {
-    "hash": "b41dede1ffd5a059",
-    "date": "2026-10-24"
+    "hash": "f2a43084cd89cb9c",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-improv": {
-    "hash": "62bd37cea593dcef",
-    "date": "2026-10-24"
+    "hash": "582d623bdb96463b",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-incubation": {
-    "hash": "e2c0014ae96ed42a",
-    "date": "2026-10-24"
+    "hash": "2f8dcfb5daf596e4",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-novel-digester": {
-    "hash": "1696ddd66ad7e2cc",
-    "date": "2026-10-24"
+    "hash": "29203c12afddbc56",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-review": {
-    "hash": "2dc8c27048ec24e8",
-    "date": "2026-10-24"
+    "hash": "8c1466b34a228cf7",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-screenwriter": {
-    "hash": "96d501f3f1fbdc5d",
-    "date": "2026-10-24"
+    "hash": "8fa94e381fc8e6ae",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-songfangjin": {
-    "hash": "a0a62de8edb44361",
-    "date": "2026-10-24"
+    "hash": "203caff9e97e1b49",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-structure": {
-    "hash": "08629db767d9e4f6",
-    "date": "2026-10-24"
+    "hash": "8a1e979bdc6bf26a",
+    "date": "2026-11-09"
   },
   "/en/skills/writer-style-schrader": {
-    "hash": "6631054b98324e79",
-    "date": "2026-10-24"
+    "hash": "5ddd14670be3cb2c",
+    "date": "2026-11-09"
   },
   "/features": {
-    "hash": "f18fec766b1ef0db",
-    "date": "2026-10-24"
+    "hash": "3f9e814adc8c20d2",
+    "date": "2026-11-09"
   },
   "/models": {
-    "hash": "2eec394bda4b7a02",
-    "date": "2026-11-07"
+    "hash": "5906597d9e290f09",
+    "date": "2026-11-09"
   },
   "/models/agnes-image-2-1": {
-    "hash": "a8c124a9c7901e6f",
-    "date": "2026-11-07"
+    "hash": "ed9778e5a21899a8",
+    "date": "2026-11-09"
   },
   "/models/agnes-video-2-5": {
-    "hash": "cffdfb5be76d37ca",
-    "date": "2026-10-24"
+    "hash": "6ad8b111b85884ef",
+    "date": "2026-11-09"
   },
   "/models/dop": {
-    "hash": "a905d94844ae4aee",
-    "date": "2026-10-24"
+    "hash": "8101d16d9d79624f",
+    "date": "2026-11-09"
   },
   "/models/flux-1-krea": {
-    "hash": "73e1009982c94175",
-    "date": "2026-10-24"
+    "hash": "810d5791f9278442",
+    "date": "2026-11-09"
   },
   "/models/flux-2-klein": {
-    "hash": "de57e425ae8eee9e",
-    "date": "2026-10-24"
+    "hash": "a0daa71102df7913",
+    "date": "2026-11-09"
   },
   "/models/flux-2-pro": {
-    "hash": "b8836786bcfcd344",
-    "date": "2026-10-24"
+    "hash": "80d743099c4c2ab5",
+    "date": "2026-11-09"
   },
   "/models/gemini-image-3-pro": {
-    "hash": "e0544fd715291872",
-    "date": "2026-10-24"
+    "hash": "4b1143e2bd2ccaf0",
+    "date": "2026-11-09"
   },
   "/models/gemini-omni-1-1-flash": {
-    "hash": "7fdfbc0d5fcebab3",
-    "date": "2026-10-24"
+    "hash": "0bf92ff34e41694c",
+    "date": "2026-11-09"
   },
   "/models/gpt-image-2": {
-    "hash": "11c706c92786c29e",
-    "date": "2026-10-24"
+    "hash": "40bad2d1ab8cb9a5",
+    "date": "2026-11-09"
   },
   "/models/gpt-image-2-5-flare": {
-    "hash": "a4bce9e370079b29",
-    "date": "2026-10-24"
+    "hash": "53c76a77f4abc5ad",
+    "date": "2026-11-09"
   },
   "/models/gpt-image-2-5-sunburst": {
-    "hash": "269fbd04714298c9",
-    "date": "2026-10-24"
+    "hash": "cd6afcef7a48856a",
+    "date": "2026-11-09"
   },
   "/models/grok-imagine-1-5": {
-    "hash": "56d6075539cc1cb8",
-    "date": "2026-11-07"
+    "hash": "0cfaa96261d2567f",
+    "date": "2026-11-09"
   },
   "/models/grok-imagine-image-2": {
-    "hash": "fff9d1651628e612",
-    "date": "2026-10-24"
+    "hash": "8d8028179c58bd35",
+    "date": "2026-11-09"
   },
   "/models/hailuo-2-3": {
-    "hash": "3dcb0b092f910e2b",
-    "date": "2026-10-24"
+    "hash": "5deadef02b97750c",
+    "date": "2026-11-09"
   },
   "/models/happyhorse-1-1": {
-    "hash": "92420057cb1b1fb5",
-    "date": "2026-11-07"
+    "hash": "1795aa23e114fc00",
+    "date": "2026-11-09"
   },
   "/models/imagen-4-fast": {
-    "hash": "cbe2c15e5c3ca1fe",
-    "date": "2026-10-24"
+    "hash": "0f9adbc8189a2b9f",
+    "date": "2026-11-09"
   },
   "/models/imagen-4-ultra": {
-    "hash": "7eea11cf531aaa00",
-    "date": "2026-10-24"
+    "hash": "f3c4bf3d5b5a71af",
+    "date": "2026-11-09"
   },
   "/models/kling-3-0": {
-    "hash": "67a9f480dc41d007",
-    "date": "2026-10-24"
+    "hash": "646536cff7a4ec80",
+    "date": "2026-11-09"
   },
   "/models/kling-3-0-turbo": {
-    "hash": "133d17827002f86a",
-    "date": "2026-10-24"
+    "hash": "97b884f2b98f3b2e",
+    "date": "2026-11-09"
   },
   "/models/minimax-h3": {
-    "hash": "ec130a46d5141904",
-    "date": "2026-10-24"
+    "hash": "f873a7d26f0fb2af",
+    "date": "2026-11-09"
   },
   "/models/minimax-h3-max": {
-    "hash": "9d05f5d8f07e1863",
-    "date": "2026-10-24"
+    "hash": "6ce4630519f56bd3",
+    "date": "2026-11-09"
   },
   "/models/muse-image": {
-    "hash": "6c756d736c741c4c",
-    "date": "2026-11-07"
+    "hash": "a3507b6750772a8f",
+    "date": "2026-11-09"
   },
   "/models/nano-banana-2": {
-    "hash": "11ce855040f90496",
-    "date": "2026-10-24"
+    "hash": "970cdc5817eb533e",
+    "date": "2026-11-09"
   },
   "/models/nano-banana-2-lite": {
-    "hash": "3839cb69dd6b592e",
-    "date": "2026-10-24"
+    "hash": "768041b35bd28403",
+    "date": "2026-11-09"
   },
   "/models/qwen-image": {
-    "hash": "43d44e045c6609b9",
-    "date": "2026-10-24"
+    "hash": "e00a7ccc07687639",
+    "date": "2026-11-09"
   },
   "/models/qwen-image-3-0": {
-    "hash": "f0d20c7ab7633778",
-    "date": "2026-11-07"
+    "hash": "b8a4400fdb0f880a",
+    "date": "2026-11-09"
   },
   "/models/runway-gen-4-5": {
-    "hash": "54976a8e412e9375",
-    "date": "2026-10-24"
+    "hash": "f778122843ba5cd9",
+    "date": "2026-11-09"
   },
   "/models/runway-gen-4-image": {
-    "hash": "88cf861a53ad8f10",
-    "date": "2026-10-24"
+    "hash": "ce04bba987b195a8",
+    "date": "2026-11-09"
   },
   "/models/runway-gen-4-turbo": {
-    "hash": "86cfcac90b174de8",
-    "date": "2026-10-24"
+    "hash": "3f20dc07afd56c79",
+    "date": "2026-11-09"
   },
   "/models/seedance-2-5": {
-    "hash": "6b49e2f9cb1843bc",
-    "date": "2026-10-24"
+    "hash": "6a8304d3538abcc2",
+    "date": "2026-11-09"
   },
   "/models/seedream-5-0-lite": {
-    "hash": "ac57af8636a473a3",
-    "date": "2026-10-24"
+    "hash": "f869dba08ab4d6d4",
+    "date": "2026-11-09"
   },
   "/models/seedream-5-0-pro": {
-    "hash": "67ec26d35ee23ec7",
-    "date": "2026-11-07"
+    "hash": "626258dd3a1f721e",
+    "date": "2026-11-09"
   },
   "/models/soul-2": {
-    "hash": "9ac4046513eb51e5",
-    "date": "2026-10-24"
+    "hash": "e5573d21f249ac62",
+    "date": "2026-11-09"
   },
   "/models/soul-cinema": {
-    "hash": "994e75e624f820cf",
-    "date": "2026-10-24"
+    "hash": "91095d021160e257",
+    "date": "2026-11-09"
   },
   "/models/veo-3-1": {
-    "hash": "e220dd53e73c068d",
-    "date": "2026-10-24"
+    "hash": "114852b145758ef2",
+    "date": "2026-11-09"
   },
   "/models/vidu-q3": {
-    "hash": "7c73dd5e51edda6e",
-    "date": "2026-10-24"
+    "hash": "ff54c14b4f4d1f25",
+    "date": "2026-11-09"
   },
   "/models/wan-3-0": {
-    "hash": "b59913ee83f6afef",
-    "date": "2026-10-24"
+    "hash": "e100dd832bcf6092",
+    "date": "2026-11-09"
   },
   "/models/z-image": {
-    "hash": "ad05cb234b675a83",
-    "date": "2026-10-24"
+    "hash": "d4cf3d3dde0f65a0",
+    "date": "2026-11-09"
   },
   "/models/z-image-turbo": {
-    "hash": "14e79c7fdd97ec07",
-    "date": "2026-11-07"
+    "hash": "15e79f810978f95e",
+    "date": "2026-11-09"
   },
   "/prompts": {
-    "hash": "d6e8498315f819b9",
-    "date": "2026-10-24"
+    "hash": "a327a06f9fdac061",
+    "date": "2026-11-09"
   },
   "/prompts/camera": {
-    "hash": "73681d0ee6a35593",
-    "date": "2026-10-24"
+    "hash": "a0cfb199a1d93da5",
+    "date": "2026-11-09"
   },
   "/prompts/character": {
-    "hash": "2b34ff3445d5266a",
-    "date": "2026-10-24"
+    "hash": "6259af0cc6a57031",
+    "date": "2026-11-09"
   },
   "/prompts/collections/evolink-gpt-image-2": {
-    "hash": "c34c6b62add3a694",
-    "date": "2026-10-24"
+    "hash": "c00c952c9730949d",
+    "date": "2026-11-09"
   },
   "/prompts/collections/imgedify-gpt4o": {
-    "hash": "87400e2c9c93dc25",
-    "date": "2026-10-24"
+    "hash": "bb56f7d8e5e8cbf4",
+    "date": "2026-11-09"
   },
   "/prompts/collections/sora-official": {
-    "hash": "0cdffaed2a99b4a4",
-    "date": "2026-10-24"
+    "hash": "0a6a10326677e498",
+    "date": "2026-11-09"
   },
   "/prompts/collections/sora2-viral": {
-    "hash": "54ab5d37289b6daf",
-    "date": "2026-10-24"
+    "hash": "ad0b11bbcfa8de4b",
+    "date": "2026-11-09"
   },
   "/prompts/collections/youmind-nano-banana-pro": {
-    "hash": "428c94e1dee79983",
-    "date": "2026-10-24"
+    "hash": "788e62f9dd28e946",
+    "date": "2026-11-09"
   },
   "/prompts/composition": {
-    "hash": "d0698c0f8754dfdd",
-    "date": "2026-10-24"
+    "hash": "8c1990e1d6eb46b8",
+    "date": "2026-11-09"
   },
   "/prompts/editing": {
-    "hash": "9a3a695127984e1b",
-    "date": "2026-10-24"
+    "hash": "4fdd55f168679e4b",
+    "date": "2026-11-09"
   },
   "/prompts/expressions": {
-    "hash": "1a8623fd492033bf",
-    "date": "2026-10-24"
+    "hash": "84de7ea608058fe8",
+    "date": "2026-11-09"
   },
   "/prompts/natural-texture": {
-    "hash": "500d844b4a4cec2d",
-    "date": "2026-10-24"
+    "hash": "b125dd278b7a6d7a",
+    "date": "2026-11-09"
   },
   "/prompts/scene": {
-    "hash": "2e7569b2ba82d7d2",
-    "date": "2026-10-24"
+    "hash": "dbf02695b17817ff",
+    "date": "2026-11-09"
   },
   "/prompts/storyboard": {
-    "hash": "c3845a49d2cb6068",
-    "date": "2026-10-24"
+    "hash": "6b14ed77e3117758",
+    "date": "2026-11-09"
   },
   "/quickstart": {
-    "hash": "527f964df0193bd1",
-    "date": "2026-11-06"
+    "hash": "6470da4dbe7c5251",
+    "date": "2026-11-09"
   },
   "/skills": {
-    "hash": "46e1e95f1f68edb6",
-    "date": "2026-10-24"
+    "hash": "3d0ae9dfdbb2ee3f",
+    "date": "2026-11-09"
   },
   "/skills/brand-promo": {
-    "hash": "f6bc314a7cc78924",
-    "date": "2026-10-24"
+    "hash": "0bcca3bcfbb68622",
+    "date": "2026-11-09"
   },
   "/skills/creation-edit": {
-    "hash": "9c4239612ff590e9",
-    "date": "2026-10-24"
+    "hash": "e75fc03dc7fefd4a",
+    "date": "2026-11-09"
   },
   "/skills/curated-candle-mood": {
-    "hash": "b35cc71fa0457a65",
-    "date": "2026-10-24"
+    "hash": "2457f3a7f966e59c",
+    "date": "2026-11-09"
   },
   "/skills/curated-coffee-pour": {
-    "hash": "20002f84c712afc8",
-    "date": "2026-10-24"
+    "hash": "9294452c0ba5e2bb",
+    "date": "2026-11-09"
   },
   "/skills/curated-cross-view": {
-    "hash": "5dd589c337ed40d5",
-    "date": "2026-10-24"
+    "hash": "24bf3fa8b7b9eaee",
+    "date": "2026-11-09"
   },
   "/skills/curated-expression-reference": {
-    "hash": "4d7c17319e02f933",
-    "date": "2026-10-24"
+    "hash": "34745b03f7c1c143",
+    "date": "2026-11-09"
   },
   "/skills/curated-expression-sheet": {
-    "hash": "6d407a2f64a1d54f",
-    "date": "2026-10-24"
+    "hash": "f610a7e42da3d72a",
+    "date": "2026-11-09"
   },
   "/skills/curated-eyewear-light": {
-    "hash": "c08bae41287a305b",
-    "date": "2026-10-24"
+    "hash": "1438afc90973ac4c",
+    "date": "2026-11-09"
   },
   "/skills/curated-film-storyboard": {
-    "hash": "a5dc47b6edc80c28",
-    "date": "2026-10-24"
+    "hash": "247b917041eab30e",
+    "date": "2026-11-09"
   },
   "/skills/curated-multi-view": {
-    "hash": "b2d87fa1d0e7ae76",
-    "date": "2026-10-24"
+    "hash": "ec6c83c62b241a38",
+    "date": "2026-11-09"
   },
   "/skills/curated-outpaint": {
-    "hash": "340f45e4ae98db59",
-    "date": "2026-10-24"
+    "hash": "170016a83ef65e96",
+    "date": "2026-11-09"
   },
   "/skills/curated-product-before-after": {
-    "hash": "d80191afb98825fa",
-    "date": "2026-10-24"
+    "hash": "c453df4164354e41",
+    "date": "2026-11-09"
   },
   "/skills/curated-product-condensation": {
-    "hash": "5b07b802a59215d5",
-    "date": "2026-10-24"
+    "hash": "b46744e8dd94398a",
+    "date": "2026-11-09"
   },
   "/skills/curated-product-exploded-view": {
-    "hash": "354f480eaca86984",
-    "date": "2026-10-24"
+    "hash": "2f14a17ef335a531",
+    "date": "2026-11-09"
   },
   "/skills/curated-product-turntable": {
-    "hash": "e0017fc626a0e36b",
-    "date": "2026-10-24"
+    "hash": "a98ef42363e4957d",
+    "date": "2026-11-09"
   },
   "/skills/curated-product-unboxing": {
-    "hash": "b8b9b3d1a545baf6",
-    "date": "2026-10-24"
+    "hash": "cbb55c608a5fad8c",
+    "date": "2026-11-09"
   },
   "/skills/curated-restore-image": {
-    "hash": "69a66536a49b9ce0",
-    "date": "2026-10-24"
+    "hash": "adb4267cecafea66",
+    "date": "2026-11-09"
   },
   "/skills/director-action": {
-    "hash": "6bf29e32ca875aa0",
-    "date": "2026-10-24"
+    "hash": "7352a9c4edc6e88c",
+    "date": "2026-11-09"
   },
   "/skills/director-art-design": {
-    "hash": "e32fc6574d56a8eb",
-    "date": "2026-10-24"
+    "hash": "a77fc2db363006cb",
+    "date": "2026-11-09"
   },
   "/skills/director-cinematography": {
-    "hash": "4a12a27cda596d2c",
-    "date": "2026-10-24"
+    "hash": "84f0bedbb2c8deee",
+    "date": "2026-11-09"
   },
   "/skills/director-consistency": {
-    "hash": "3f979b0ea395f2c6",
-    "date": "2026-10-24"
+    "hash": "6b373475a6ceb7d7",
+    "date": "2026-11-09"
   },
   "/skills/director-guzhuang": {
-    "hash": "723b3ba6192f7dde",
-    "date": "2026-10-24"
+    "hash": "7b45b8533696ff77",
+    "date": "2026-11-09"
   },
   "/skills/director-keyframe-review": {
-    "hash": "92b3f81ffd3de4ae",
-    "date": "2026-10-24"
+    "hash": "988beebfdecc2864",
+    "date": "2026-11-09"
   },
   "/skills/director-performance": {
-    "hash": "63a9d852a92c0612",
-    "date": "2026-10-24"
+    "hash": "bd0500d2d4809b99",
+    "date": "2026-11-09"
   },
   "/skills/director-shot-translation": {
-    "hash": "b99bdd386d5ecfd1",
-    "date": "2026-10-24"
+    "hash": "fea6e94984813887",
+    "date": "2026-11-09"
   },
   "/skills/director-sound": {
-    "hash": "92f60b8d35130933",
-    "date": "2026-10-24"
+    "hash": "4fc6b18eb1c19e33",
+    "date": "2026-11-09"
   },
   "/skills/director-staging": {
-    "hash": "38964bedf492b759",
-    "date": "2026-10-24"
+    "hash": "22e2875521a7c88b",
+    "date": "2026-11-09"
   },
   "/skills/director-style-otomo-wright": {
-    "hash": "0381a621a7c6a975",
-    "date": "2026-10-24"
+    "hash": "44f9e0ab2cfe336a",
+    "date": "2026-11-09"
   },
   "/skills/director-transitions": {
-    "hash": "dc55aed175994c93",
-    "date": "2026-10-24"
+    "hash": "4ddd97706372124d",
+    "date": "2026-11-09"
   },
   "/skills/drama-short": {
-    "hash": "51b1bb658cbca2cb",
-    "date": "2026-10-24"
+    "hash": "8e0fc33b314b73ac",
+    "date": "2026-11-09"
   },
   "/skills/model-integration": {
-    "hash": "ba9073782cd0f4a9",
-    "date": "2026-10-24"
+    "hash": "170ce1d828919a4b",
+    "date": "2026-11-09"
   },
   "/skills/release-media-pack": {
-    "hash": "5410c7d573182535",
-    "date": "2026-10-24"
+    "hash": "63ba80f2a2482bcd",
+    "date": "2026-11-09"
   },
   "/skills/skill-author": {
-    "hash": "ce085920c70cfe1f",
-    "date": "2026-10-24"
+    "hash": "40992b27d0910554",
+    "date": "2026-11-09"
   },
   "/skills/workbench-creation": {
-    "hash": "5369d824b8fa3ba0",
-    "date": "2026-10-24"
+    "hash": "54227a708e961b3e",
+    "date": "2026-11-09"
   },
   "/skills/workbench-fixation-planner": {
-    "hash": "f107f007c5eec078",
-    "date": "2026-10-24"
+    "hash": "5f8016cfa019c4f6",
+    "date": "2026-11-09"
   },
   "/skills/workbench-generation": {
-    "hash": "6e4dba2df6bafff6",
-    "date": "2026-11-07"
+    "hash": "abc64c7a43fff86a",
+    "date": "2026-11-09"
   },
   "/skills/workbench-storyboard-planner": {
-    "hash": "c2fbeaff66902706",
-    "date": "2026-10-24"
+    "hash": "adb5fa7275d3d605",
+    "date": "2026-11-09"
   },
   "/skills/writer-adaptation": {
-    "hash": "47783567a3c2f269",
-    "date": "2026-10-24"
+    "hash": "f58dd4af8ce690cc",
+    "date": "2026-11-09"
   },
   "/skills/writer-behavior-psychology": {
-    "hash": "15ab59daeceedc4a",
-    "date": "2026-10-24"
+    "hash": "411725f1f47d867e",
+    "date": "2026-11-09"
   },
   "/skills/writer-dialogue": {
-    "hash": "538dc2ad65f04391",
-    "date": "2026-10-24"
+    "hash": "fe2e14f601784bab",
+    "date": "2026-11-09"
   },
   "/skills/writer-improv": {
-    "hash": "8b040def9479965c",
-    "date": "2026-10-24"
+    "hash": "d5ea8b046df51e09",
+    "date": "2026-11-09"
   },
   "/skills/writer-incubation": {
-    "hash": "c8659576a76e3d2a",
-    "date": "2026-10-24"
+    "hash": "bfbb4f1e22cd1e08",
+    "date": "2026-11-09"
   },
   "/skills/writer-novel-digester": {
-    "hash": "06f3a910c2a150e3",
-    "date": "2026-10-24"
+    "hash": "637f8c2861257d56",
+    "date": "2026-11-09"
   },
   "/skills/writer-review": {
-    "hash": "47200f76fa8c9ca7",
-    "date": "2026-10-24"
+    "hash": "f474615d8e83edd2",
+    "date": "2026-11-09"
   },
   "/skills/writer-screenwriter": {
-    "hash": "90d01a19ade72988",
-    "date": "2026-10-24"
+    "hash": "f6c01f51375a493a",
+    "date": "2026-11-09"
   },
   "/skills/writer-songfangjin": {
-    "hash": "9553d554ca12daab",
-    "date": "2026-10-24"
+    "hash": "c240c49435650ae1",
+    "date": "2026-11-09"
   },
   "/skills/writer-structure": {
-    "hash": "7ff2f9ad672218a0",
-    "date": "2026-10-24"
+    "hash": "06bc78926819fe26",
+    "date": "2026-11-09"
   },
   "/skills/writer-style-schrader": {
-    "hash": "238bbabf9fddfb23",
-    "date": "2026-10-24"
+    "hash": "3bd01f8e8cf0286a",
+    "date": "2026-11-09"
   }
 }

@@ -260,7 +260,7 @@ export type CanvasWriteTargetExecution = Readonly<{
 
 function wireError(error: unknown): SurfacePortWireError {
   const failure = surfacePortFailure(error)
-  return new SurfacePortWireError(failure.code, failure.reason)
+  return new SurfacePortWireError(failure.code, failure.reason, failure.fields)
 }
 
 function assertExecutionCurrent(request: CanvasWriteTargetExecution): void {

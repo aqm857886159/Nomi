@@ -1,0 +1,59 @@
+{
+  "name": "thinking-overlap",
+  "mode": "development",
+  "locale": "zh-CN",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "paidCalls": 0,
+  "overlaps": {
+    "early": [],
+    "streaming": [],
+    "complete": []
+  },
+  "injectedOverlap": [
+    [
+      0,
+      1
+    ]
+  ],
+  "textRequests": 3,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "failed",
+  "runHead": "9e33b6cb5",
+  "outerProcessClick": "passed, visible localized process summary clicked normally",
+  "thinkingDisclosureClick": "passed, thinking body visible",
+  "expandedReasoningOverlap": [
+    [
+      1,
+      2
+    ]
+  ],
+  "error": "AssertionError [ERR_ASSERTION]: expanded reasoning must grow its row\n+ actual - expected\n\n+ [\n+   [\n+     1,\n+     2\n+   ]\n+ ]\n- []\n\n    at file://tests/ux/agent-thinking-overlap.walk.mjs:114:12",
+  "coldRestore": "not reached",
+  "english": "not run after three consecutive failures",
+  "screenshots": [
+    "open-process-thinking-zh-01.png",
+    "open-process-thinking-zh-02.png",
+    "open-process-thinking-zh-03.png",
+    "open-process-thinking-zh-failure.png"
+  ],
+  "screenshotsInspected": true,
+  "consecutiveFailures": [
+    {
+      "head": "eb5f50800",
+      "failure": "expected thinking count 2, actual 1"
+    },
+    {
+      "head": "13ee743b9",
+      "failure": "thinking summary hidden inside closed process"
+    },
+    {
+      "head": "9e33b6cb5",
+      "failure": "expanded reasoning overlap detector returned [[1,2]]"
+    }
+  ],
+  "scopeStop": "Same Chinese thinking-overlap check failed three consecutive times; do not change product, geometry criterion, timeout, fixture or counts."
+}

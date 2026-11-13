@@ -257,8 +257,8 @@ function withRates(counts) {
 /**
  * 生成结果按能力 × 版本 × 系统 × 日期分组统计。
  *
- * 「版本」只能是 `appMajor.appMinor`——事件的 systemProps 里没有补丁号（telemetryEvents.ts
- * 就没收这一格），报告里必须诚实标出这一点粒度限制，不能默默当成完整 semver。
+ * 这里的「版本」是 `appMajor.appMinor`：2026-11-13 之前的事件不带补丁号，混在一起只能按这一粒度比。
+ * 补丁版的失败率在 `summarizeDiagnosis().failureByPatch`（只有带 appPatch 的新事件精确到补丁）。
  */
 export function groupGenerationResults(events) {
   const groups = new Map()
@@ -291,7 +291,7 @@ export function groupGenerationResults(events) {
     byGroup,
     overall: withRates(overall),
     byCapabilityOverall: [...byCapability.values()].map(withRates).sort((a, b) => b.total - a.total),
-    versionGranularityNote: 'version 只到 major.minor——事件上报不带补丁号',
+    versionGranularityNote: 'version 只到 major.minor——补丁版见「定位读数」（2026-11-13 之后的版本才带补丁号）',
   }
 }
 
@@ -441,6 +441,105 @@ export function summarizePerf(events, feedbackItems = []) {
 }
 
 // ---------------------------------------------------------------------------
+// 定位读数（2026-11-13）：补丁版失败率 / 说不清占比 / 上次异常退出率 / 主进程停顿
+// ---------------------------------------------------------------------------
+
+const ratio = (n, d) => (d > 0 ? Math.round((n / d) * 1000) / 10 : null)
+
+/** 补丁版号；老事件没有 appPatch → `x.y.?`（不能和补丁版混算，单独一行）。 */
+export function patchVersionOf(evt) {
+  const sp = evt.systemProps ?? {}
+  if (!Number.isInteger(sp.appMajor) || !Number.isInteger(sp.appMinor)) return 'unknown'
+  return `${sp.appMajor}.${sp.appMinor}.${Number.isInteger(sp.appPatch) ? sp.appPatch : '?'}`
+}
+
+function tally(values) {
+  const counts = new Map()
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1)
+  return [...counts.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+}
+
+/** 上一次正常结束的两个值；`unknown` 是「不知道」（首启 / 遥测刚开），不进分母。 */
+const CLEAN_EXIT = 'clean'
+const UNKNOWN_EXIT = 'unknown'
+
+/**
+ * 四个读数，都只数闭合值：
+ *   ① failureByPatch：按补丁版 × 能力的生成失败率（取消不进分母，和版本健康同一口径）；
+ *   ② unknown：带 upstreamStatus 的失败里「上游怎么答的说不清」的占比，以及本机拒绝里 uncoded 的占比——
+ *      这两个数高说明码还没覆盖到，要回头补码，而不是去猜原因；
+ *   ③ lastExit：带 lastExit 的启动里，上一次没正常结束的占比（unknown 不进分母），按补丁版；
+ *   ④ mainStall：perf 汇总里主进程停顿最长一次 / 次数的分布（unknown = 监视器没在跑）。
+ */
+export function summarizeDiagnosis(events) {
+  const generation = events.filter((e) => e.eventName === 'generation.completed' && (e.props?.result === 'success' || e.props?.result === 'failure'))
+  const patchRows = new Map()
+  for (const e of generation) {
+    const version = patchVersionOf(e)
+    const capability = e.props?.capability ?? 'unknown'
+    const key = `${version}|${capability}`
+    const row = patchRows.get(key) ?? { version, capability, total: 0, failure: 0 }
+    row.total += 1
+    if (e.props.result === 'failure') row.failure += 1
+    patchRows.set(key, row)
+  }
+  const failureByPatch = [...patchRows.values()]
+    .map((row) => ({ ...row, failureRate: ratio(row.failure, row.total), lowSample: row.total < 20 }))
+    .sort((a, b) => compareVersions(b.version.replace('?', '0'), a.version.replace('?', '0')) || a.capability.localeCompare(b.capability))
+
+  const failures = generation.filter((e) => e.props.result === 'failure')
+  const detailed = failures.filter((e) => typeof e.props.upstreamStatus === 'string')
+  const unknownStatus = detailed.filter((e) => e.props.upstreamStatus === 'unknown').length
+  const notSent = detailed.filter((e) => e.props.upstreamStatus === 'not-sent')
+  const uncoded = notSent.filter((e) => e.props.localRefusal === 'uncoded').length
+  const unknown = {
+    failures: failures.length,
+    withDetail: detailed.length,
+    withoutDetail: failures.length - detailed.length,
+    unknownStatus,
+    unknownShare: ratio(unknownStatus, detailed.length),
+    notSent: notSent.length,
+    uncoded,
+    uncodedShare: ratio(uncoded, notSent.length),
+    byStatus: tally(detailed.map((e) => e.props.upstreamStatus)),
+    byStage: tally(detailed.map((e) => String(e.props.failureStage ?? 'unknown'))),
+    byLocalRefusal: tally(notSent.map((e) => String(e.props.localRefusal ?? 'uncoded'))),
+  }
+
+  const starts = events.filter((e) => e.eventName === 'app.started' && typeof e.props?.lastExit === 'string')
+  const exitRows = new Map()
+  for (const e of starts) {
+    const version = patchVersionOf(e)
+    const row = exitRows.get(version) ?? { version, starts: 0, known: 0, abnormal: 0 }
+    row.starts += 1
+    if (e.props.lastExit !== UNKNOWN_EXIT) row.known += 1
+    if (e.props.lastExit !== UNKNOWN_EXIT && e.props.lastExit !== CLEAN_EXIT) row.abnormal += 1
+    exitRows.set(version, row)
+  }
+  const knownStarts = starts.filter((e) => e.props.lastExit !== UNKNOWN_EXIT)
+  const abnormalStarts = knownStarts.filter((e) => e.props.lastExit !== CLEAN_EXIT)
+  const lastExit = {
+    starts: starts.length,
+    known: knownStarts.length,
+    abnormal: abnormalStarts.length,
+    abnormalRate: ratio(abnormalStarts.length, knownStarts.length),
+    byValue: tally(starts.map((e) => e.props.lastExit)),
+    byVersion: [...exitRows.values()].map((row) => ({ ...row, abnormalRate: ratio(row.abnormal, row.known) })).sort((a, b) => compareVersions(b.version.replace('?', '0'), a.version.replace('?', '0'))),
+  }
+
+  const perf = events.filter((e) => e.eventName === 'perf.session.summary' && typeof e.props?.mainStallMax === 'string')
+  const mainStall = {
+    sessions: perf.length,
+    max: tally(perf.map((e) => e.props.mainStallMax)),
+    count: tally(perf.map((e) => String(e.props.mainStallCount ?? 'unknown'))),
+    overOneSecond: perf.filter((e) => ['1000-5000', 'gt-5000'].includes(e.props.mainStallMax)).length,
+  }
+  mainStall.overOneSecondShare = ratio(mainStall.overOneSecond, perf.filter((e) => e.props.mainStallMax !== 'unknown').length)
+
+  return { failureByPatch, unknown, lastExit, mainStall }
+}
+
+// ---------------------------------------------------------------------------
 // 顶层组装
 // ---------------------------------------------------------------------------
 
@@ -452,7 +551,6 @@ export function summarizePerf(events, feedbackItems = []) {
 export function buildIntakeReport({
   feedbackRecords,
   eventRecords,
-  trajectoriesCount,
   newFeedbackKeys,
   newEventKeys,
   corruptFiles = [],
@@ -480,7 +578,6 @@ export function buildIntakeReport({
       feedbackCount: feedbackItems.length,
       eventsCount: events.length,
       excludedAutomatedCount: excludedAutomated.count,
-      trajectoriesCount,
       newFeedbackCount: newFeedback.length,
       newEventKeysCount: newEventKeys.length,
       duplicateDeliveries,
@@ -497,6 +594,7 @@ export function buildIntakeReport({
     launches: tallyLaunches(events),
     updateActions: tallyUpdateActions(events),
     perf: summarizePerf(events, feedbackItems),
+    diagnosis: summarizeDiagnosis(events),
     dataQuality: { corruptFileCount: corruptFiles.length, corruptFiles },
   }
 }

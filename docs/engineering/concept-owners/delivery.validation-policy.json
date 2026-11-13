@@ -26,6 +26,10 @@
     {
       "path": "scripts/nightly-walk-summary.mjs",
       "symbol": "summarizeRows"
+    },
+    {
+      "path": "scripts/nightly-walk-summary.mjs",
+      "symbol": "updateIssue"
     }
   ],
   "forbidden_derivations": [],

@@ -4,6 +4,15 @@ import { setCanvasEventSinkForTests, type CanvasShadowEvent } from '../events/ca
 import type { GenerationCanvasNode, GenerationNodeResult, NodeGroup } from '../model/generationCanvasTypes'
 import { withCanvasGestureContext } from '../events/canvasGestureContext'
 import { MEDIA_DIMENSION_UPDATE_OPTIONS } from '../nodes/nodeSizing'
+import { archetypeForNode } from '../agent/referenceEdgeCapability'
+import { effectiveArchetypeMode } from '../nodes/controls/archetypeMeta'
+
+/** 这次真发的方式（方式按输入现算，连线不写方式，2026-11-12）。 */
+function sendModeOf(nodeId: string): string {
+  const { nodes, edges } = useGenerationCanvasStore.getState()
+  const target = nodes.find((candidate) => candidate.id === nodeId)!
+  return effectiveArchetypeMode(archetypeForNode(target)!, target, { nodes, edges }).mode.id
+}
 
 function node(id: string, categoryId: GenerationCanvasNode['categoryId'], groupId?: string): GenerationCanvasNode {
   return {
@@ -117,7 +126,7 @@ describe('standalone canvas gesture undo barriers', () => {
   })
 })
 
-describe('connectToNode — 连一张图进图片节点自动切到「参考图/改图」模式(根因回归 2026-06-29)', () => {
+describe('connectToNode — 连一张图进图片节点就按「参考图/改图」发(根因回归 2026-06-29；方式按输入现算 2026-11-12)', () => {
   function archImageNode(id: string, modeId: string): GenerationCanvasNode {
     return { id, kind: 'image', title: id, position: { x: 0, y: 0 }, prompt: '', categoryId: 'shots', meta: { archetype: { id: 'nano-banana', modeId } } }
   }
@@ -134,7 +143,7 @@ describe('connectToNode — 连一张图进图片节点自动切到「参考图/
     store.startConnection('src-1')
     expect(store.connectToNode('dst').ok).toBe(true)
     expect(useGenerationCanvasStore.getState().edges[0]?.mode).toBe('character_ref')
-    expect((useGenerationCanvasStore.getState().nodes.find((item) => item.id === 'dst')?.meta?.archetype as { modeId?: string } | undefined)?.modeId).toBe('omni')
+    expect(sendModeOf('dst')).toBe('omni')
 
     const second = useGenerationCanvasStore.getState().addNode({ kind: 'image', title: 'src-2', position: { x: 0, y: 0 }, categoryId: 'shots' })
     useGenerationCanvasStore.getState().startConnection(second.id)
@@ -142,7 +151,7 @@ describe('connectToNode — 连一张图进图片节点自动切到「参考图/
     expect(useGenerationCanvasStore.getState().edges.map((edge) => edge.mode)).toEqual(['character_ref', 'character_ref'])
   })
 
-  it('源图 → 目标图片节点停在默认「文生图」(t2i,无参考槽) → 连线后 modeId 变 edit(改图)', () => {
+  it('源图 → 目标图片节点停在默认「文生图」(t2i,无参考槽) → 连线后按 edit(改图)发', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [node('src', 'shots'), archImageNode('dst', 't2i')],
       edges: [],
@@ -156,9 +165,8 @@ describe('connectToNode — 连一张图进图片节点自动切到「参考图/
     const state = useGenerationCanvasStore.getState()
     // 边真建上了
     expect(state.edges.some((e) => e.source === 'src' && e.target === 'dst')).toBe(true)
-    // 目标自动切到含 image_ref 槽的「改图」模式——不再停在文生图
-    const dst = state.nodes.find((n) => n.id === 'dst')
-    expect((dst?.meta?.archetype as { modeId?: string } | undefined)?.modeId).toBe('edit')
+    // 连了图就按含 image_ref 槽的「改图」发——不再停在文生图（放不下这张图的文生偏好由 store 边界忘掉）
+    expect(sendModeOf('dst')).toBe('edit')
   })
 
   it('目标已在「改图」模式 → 连线不重复切(尊重现状,幂等)', () => {
@@ -191,7 +199,7 @@ describe('connectToNode — 连一张图进图片节点自动切到「参考图/
     expect(useGenerationCanvasStore.getState().edges).toHaveLength(0)
   })
 
-  it('从目标左侧输入端起拖到源图 → 真边仍是源图→目标，并自动切到改图', () => {
+  it('从目标左侧输入端起拖到源图 → 真边仍是源图→目标，按改图发', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [node('src', 'shots'), archImageNode('dst', 't2i')],
       edges: [],
@@ -204,8 +212,7 @@ describe('connectToNode — 连一张图进图片节点自动切到「参考图/
 
     const state = useGenerationCanvasStore.getState()
     expect(state.edges).toMatchObject([{ source: 'src', target: 'dst' }])
-    const dst = state.nodes.find((n) => n.id === 'dst')
-    expect((dst?.meta?.archetype as { modeId?: string } | undefined)?.modeId).toBe('edit')
+    expect(sendModeOf('dst')).toBe('edit')
   })
 })
 

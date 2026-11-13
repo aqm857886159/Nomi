@@ -28,7 +28,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { withLinuxNoSandbox, withSyntheticCredentialStorage } from './_launchApp.mjs'
+import { withLinuxNoSandbox, prepareCredentialSource, CREDENTIAL_STORAGE_MODULE } from './_launchApp.mjs'
 import { assertFreshBuild } from '../../scripts/package-build-stamp.mjs'
 export { packagedMcpRuntime } from './_packagedMcpRuntime.mjs'
 
@@ -272,7 +272,7 @@ export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
  */
 export function spawnMcpStdioClient({
   settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env, captureStderr = false,
-  tracePath, elicitationAction = 'accept', syntheticCredentialStorage = false, runtime = null,
+  tracePath, elicitationAction = 'accept', syntheticCredentialStorage, runtime = null,
 }) {
   if (!runtime) assertBuilt()
   const selectedRuntime = runtime || {
@@ -281,8 +281,13 @@ export function spawnMcpStdioClient({
     cwd: repoRoot,
     env: {},
   }
-  // 合成后端开关对开发版和打包版 runtime 一视同仁，从同一个出口取（见 _launchApp.mjs）。
-  const child = spawn(selectedRuntime.command, withSyntheticCredentialStorage(selectedRuntime.args, syntheticCredentialStorage), {
+  const credential = prepareCredentialSource({
+    args: selectedRuntime.args, env: { ...(selectedRuntime.env || {}), ...(env || {}) },
+    isolate: true, userDataDir, settingsDir, explicit: syntheticCredentialStorage,
+  })
+  // Packaged helper is a Node transport to the GUI owner; it never opens safeStorage itself.
+  const nodeTransport = credential.env.ELECTRON_RUN_AS_NODE === '1'
+  const child = spawn(selectedRuntime.command, nodeTransport ? selectedRuntime.args : ['-r', CREDENTIAL_STORAGE_MODULE, ...credential.args], {
     cwd: selectedRuntime.cwd || repoRoot,
     env: {
       ...process.env,
@@ -297,9 +302,10 @@ export function spawnMcpStdioClient({
       NOMI_ELECTRON_USER_DATA_DIR: userDataDir,
       NOMI_PROJECTS_DIR: projectsDir,
       NOMI_CAPABILITY_DIR: capabilityDir,
-      ...(syntheticCredentialStorage ? { NOMI_E2E_SYNTHETIC_CREDENTIAL_STORAGE: '1' } : {}),
+
       ...seedMcpClientIdentityEnv(capabilityDir),
-      ...(env || {}),
+      ...credential.env,
+      ...(nodeTransport ? { NOMI_MCP_APP_COMMAND: process.execPath, NOMI_MCP_APP_ARGS: JSON.stringify([path.join(repoRoot, 'tests/ux/_packagedCredentialOwner.mjs'), credential.env.NOMI_MCP_APP_COMMAND, ...JSON.parse(credential.env.NOMI_MCP_APP_ARGS || '[]')]) } : {}),
     },
     stdio: ['pipe', 'pipe', captureStderr ? 'pipe' : 'inherit'],
   })

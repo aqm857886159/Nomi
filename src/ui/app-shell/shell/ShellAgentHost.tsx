@@ -28,6 +28,7 @@ import {
   BALL_SIZE,
   FLOAT_MIN,
   agentBallIsPill,
+  createBallDragClickGuard,
   useEffectiveAgentForm,
   clampBall,
   clampRect,
@@ -115,7 +116,7 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
   const setBallPoint = useAgentFormStore((state) => state.setBallPoint)
   const setForm = useAgentFormStore((state) => state.setForm)
   const [menu, setMenu] = React.useState<{ x: number; y: number } | null>(null)
-  const dragStart = React.useRef<{ x: number; y: number } | null>(null)
+  const [dragGuard] = React.useState(createBallDragClickGuard)
   const pill = agentBallIsPill(status, pending)
   const width = pill ? PILL_WIDTH : BALL_SIZE
   if (!area.width || !area.height) return null
@@ -143,12 +144,10 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
         size={{ width, height: BALL_SIZE }}
         position={point}
         enableResizing={false}
-        onDragStart={(_event, data) => { dragStart.current = { x: data.x, y: data.y } }}
+        onDragStart={(_event, data) => dragGuard.dragStart({ x: data.x, y: data.y })}
         onDragStop={(_event, data) => {
-          const start = dragStart.current
-          dragStart.current = null
-          // 几乎没动 = 这是一次点击，交给按钮自己的 onClick。
-          if (start && Math.abs(start.x - data.x) + Math.abs(start.y - data.y) < 4) return
+          // 几乎没动 = 这是一次点击，交给按钮自己的 onClick；真拖了就存位置，并吞掉松手时补发的那次 click。
+          if (!dragGuard.dragStop({ x: data.x, y: data.y })) return
           setBallPoint(surface, { x: data.x - BALL_SIZE + width, y: data.y })
         }}
       >
@@ -159,7 +158,7 @@ function AgentBall({ surface, area }: { surface: AgentFormSurface; area: { width
           label={label}
           title={title}
           className={pill ? 'w-full' : undefined}
-          onClick={open}
+          onClick={() => { if (dragGuard.takeClick()) open() }}
           onContextMenu={(event) => {
             event.preventDefault()
             setMenu({ x: event.clientX, y: event.clientY })
