@@ -1415,13 +1415,6 @@ export const zhGenerationCommon = {
       scene: '场景',
       prop: '道具',
     },
-    modelGroup: {
-      image: '图片 ×{{count}}',
-      video: '视频 ×{{count}}',
-      text: '文本 ×{{count}}',
-      audio: '声音 ×{{count}}',
-      model3d: '3D ×{{count}}',
-    },
     status: {
       submissionUnknown: '提交结果不明，Nomi 已停止自动重试',
       outputRetrievalFailed: '已经生成，但结果没能取回',
@@ -3154,13 +3147,6 @@ export const enGenerationCommon = {
       male: 'Male lead',
       scene: 'Scene',
       prop: 'Prop',
-    },
-    modelGroup: {
-      image: 'Images ×{{count}}',
-      video: 'Videos ×{{count}}',
-      text: 'Text ×{{count}}',
-      audio: 'Audio ×{{count}}',
-      model3d: '3D ×{{count}}',
     },
     status: {
       submissionUnknown: 'Submission result is unknown; Nomi stopped automatic retries',
