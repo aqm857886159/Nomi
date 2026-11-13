@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { archetypeForNode } from '../../agent/referenceEdgeCapability'
-import { applyArchetypeModeSwitch, currentArchetypeMode } from './archetypeMeta'
+import { applyHumanModeChoice, effectiveArchetypeMode } from './archetypeMeta'
 import { removeFromArray, removeUnusedReference, type ReferenceWriteContext } from './referenceWrites'
 import { attachCameraMoveForNode } from '../director/agent/attachCameraMoveForNode'
 import { CAMERA_MOVE_ATTACHED_URL_KEY, DIRECTOR_PREVIEW_DISMISSED_URL_KEY } from '../director/agent/attachCameraMoveToTarget'
@@ -32,8 +32,8 @@ function source(kind: keyof typeof MEDIA): GenerationCanvasNode {
 
 function context(node: GenerationCanvasNode): ReferenceWriteContext {
   const archetype = archetypeForNode(node)!
-  const archMode = currentArchetypeMode(archetype, node.meta ?? {})
   const store = useGenerationCanvasStore.getState()
+  const archMode = effectiveArchetypeMode(archetype, node, { nodes: store.nodes, edges: store.edges }).mode
   return {
     node, archMode, getImageUrlSlots: () => [],
     latestNode: (id) => useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === id),
@@ -142,8 +142,8 @@ describe('director preview reference deletion through the production owner', () 
     const media = MEDIA.image
     const base = { ...shot(), prompt: `描述 @[asset:${encodeURIComponent(media.url)}]`, meta: { ...shot().meta, [media.metaKey]: [media.url] } }
     const archetype = archetypeForNode(base)!
-    const away = { ...base, meta: applyArchetypeModeSwitch(base.meta ?? {}, archetype, 't2v') }
-    const switched = { ...away, meta: applyArchetypeModeSwitch(away.meta ?? {}, archetype, 'omni') }
+    const away = { ...base, meta: applyHumanModeChoice(base.meta ?? {}, archetype, 't2v') }
+    const switched = { ...away, meta: applyHumanModeChoice(away.meta ?? {}, archetype, 'omni') }
     useGenerationCanvasStore.setState({ nodes: [switched], edges: [] })
     removeFromArray(context(switched), media.metaKey, 0)
     const afterDelete = useGenerationCanvasStore.getState().nodes[0]

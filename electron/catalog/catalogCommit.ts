@@ -519,8 +519,9 @@ export function draftShapeForKind(
 export async function fetchModelCatalogDocs(payload: unknown): Promise<unknown> {
   const targetUrl = String((payload as JsonRecord)?.url || "").trim();
   if (!/^https?:\/\//i.test(targetUrl)) throw new Error("http/https url is required");
-  // v0.7.6: hardenedFetch — 拦私网 + 超时 + 限制大小
+  // 正文回给 Agent（进模型上下文）：按地址判，本机 / 内网文档页拒；超时 + 限制大小。
   const fetched = await hardenedFetchText(targetUrl, {
+    textEntersModelContext: true,
     timeoutMs: 15_000,
     maxBytes: 5 * 1024 * 1024, // 文档抓取 5MB 上限够用
   });

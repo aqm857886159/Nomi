@@ -1,0 +1,26 @@
+{
+  "head": "9e33b6cb58ff9e130ef1d846760fb64e71b895ae",
+  "mergeBase": "f88b7f0423135d3411ecbae7078fed52534ceb75",
+  "receiptFile": "src/workbench/ai/v4/AgentPanelV4Receipt.tsx",
+  "diffFromMergeBase": "",
+  "originalDefaultClosed": {
+    "commit": "b4c918b727451b48f479ad5e25756a5b75060214",
+    "date": "2026-09-06",
+    "contract": "定稿⑦：过程默认收起，只有最终回答摊开",
+    "unitSource": "b4c918b72:src/workbench/ai/v4/agentPanelV4Collapse.test.ts",
+    "unitDescribe": "② 过程自述折起来，最终回答摊开",
+    "unitLimit": "Projection contract, not a DOM open-attribute assertion"
+  },
+  "settledRemount": {
+    "commit": "cdd2cceef395f5396f6bce67b5144067f744b4b0",
+    "date": "2026-09-09",
+    "mechanism": "details key switches running to settled, no open attribute"
+  },
+  "currentFailedException": {
+    "commit": "b6ec5feffc8bebfc35b0322e12bf96cc1158226a",
+    "date": "2026-09-21",
+    "mechanism": "Boolean(failed) initializes open; successful process remains closed",
+    "unitSource": "src/workbench/ai/v4/agentPanelV4Form.test.ts: B2c process contract"
+  },
+  "fixChurn": "方向检查：未命中热点。"
+}

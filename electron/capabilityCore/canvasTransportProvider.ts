@@ -160,7 +160,7 @@ export function createCanvasTransportProvider(vendorKey: string, transport: Canv
         const kind = asset?.type;
         if (!asset || typeof asset.url !== "string" || !asset.url.trim()) continue;
         if (kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "model3d") continue;
-        outputs.push({ kind, url: asset.url });
+        outputs.push({ kind, url: asset.url, ...(typeof asset.contentHash === "string" && asset.contentHash ? { contentHash: asset.contentHash } : {}) });
       }
       return { outputs, raw };
     },

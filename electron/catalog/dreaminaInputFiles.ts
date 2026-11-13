@@ -68,7 +68,7 @@ export async function materializeAssetToPath(url: string, projectId: string, tmp
     return { filePath: dest, temp: true };
   }
 
-  // http(s)：下到 temp（hardenedFetch 拦私网 + 限大小）。
+  // http(s)：下到 temp（hardenedFetch 走代理、限大小；不按地址拦，只认响应类型）。
   if (/^https?:\/\//i.test(u)) {
     const fetched = await hardenedFetch(u, {
       timeoutMs: 60_000,

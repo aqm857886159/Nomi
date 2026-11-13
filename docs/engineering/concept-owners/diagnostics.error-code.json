@@ -34,7 +34,7 @@
     "electron/networkOutboundMessage.ts",
     "electron/vendor/vendorOutboundGuard.ts",
     "src/workbench/generationCanvas/runner/catalogTaskResolve.ts",
-    "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
+    "src/workbench/generationCanvas/runner/retrievalRecovery.ts",
     "src/workbench/observability/classifyError.ts",
     "src/workbench/observability/narrate.ts",
     "electron/assets/generatedMediaDecode.ts"

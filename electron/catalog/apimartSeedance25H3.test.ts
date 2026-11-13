@@ -9,6 +9,7 @@ import { applyParamMap } from "./paramTranslate";
 import { taskTemplateParams } from "./taskParams";
 
 import type { CatalogState } from "./types";
+import { modeWrittenInMeta } from "../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers";
 const emptyCatalog = (): CatalogState => ({ version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} });
 
 function renderH3I2vBody(extras: Record<string, unknown>) {
@@ -77,7 +78,7 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
     const archetype = getArchetypeById("seedance-2.5-apimart");
     expect(archetype).toBeTruthy();
     const meta = { archetype: { id: "seedance-2.5-apimart", modeId: "firstlast" } };
-    const params = buildArchetypeInputParams(meta, archetype!, { firstFrameUrl: "https://x/first.png", lastFrameUrl: "https://x/last.png" });
+    const params = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, archetype!), { firstFrameUrl: "https://x/first.png", lastFrameUrl: "https://x/last.png" });
     expect(params.image_with_roles).toEqual([
       { url: "https://x/first.png", role: "first_frame" },
       { url: "https://x/last.png", role: "last_frame" },
@@ -89,7 +90,7 @@ describe("APIMart Seedance 2.5 / MiniMax-H3 curated 接入", () => {
     const archetype = getArchetypeById("minimax-h3-apimart");
     expect(archetype).toBeTruthy();
     const meta = { archetype: { id: "minimax-h3-apimart", modeId: "first" } };
-    const params = buildArchetypeInputParams(meta, archetype!, { firstFrameUrl: "https://x/first.png" });
+    const params = buildArchetypeInputParams(meta, modeWrittenInMeta(meta, archetype!), { firstFrameUrl: "https://x/first.png" });
     expect(params.first_frame_image).toBe("https://x/first.png");
     expect(params.first_frame_url).toBeUndefined();
   });

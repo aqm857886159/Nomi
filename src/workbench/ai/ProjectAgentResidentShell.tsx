@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import { DesignModal } from '../../design'
 import { SystemPromptSection } from './systemPrompt/SystemPromptSection'
-import { STORYBOARD_PLANNER_SKILL } from '../generationCanvas/agent/storyboardLauncher'
+import { storyboardLaunchMessage } from '../generationCanvas/agent/storyboardLauncher'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useAgentReferenceMentions } from './resident/useAgentReferenceMentions'
 import { useComposerAttachments, COMPOSER_ATTACHMENT_ACCEPT } from './composer/useComposerAttachments'
@@ -32,7 +32,6 @@ import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
 import { AgentPanelV4Panel, type V4InterventionHandlers } from './v4/AgentPanelV4Panel'
 import { planConfirmDecision } from './v4/agentPanelV4Intervention'
-import { flowScrollMemoryFor } from './v4/agentPanelV4ScrollMemory'
 import { laneClient } from './lane/laneClient'
 import { discardRecoveredAgentDraft, takeRecoveredAgentDraft, settleProjectAgentAttachment } from './projectAgentDraftRecovery'
 import { laneConversationOf } from '../../../electron/shared/agentLane/laneConversation'
@@ -231,14 +230,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     </>
   ) : null
   const shotVerifyFeedback = useShotVerifyFeedback(surface, actions.send)
-  /**
-   * 「他读到哪儿了」得活在这棵子树之外（定稿 §11.2：点角标 = 原宽**原状态**还原）。
-   *
-   * 不放 `useRef`：收起时面板换挂点，连这个常驻壳自己都跟着重新挂载，ref 一起归零
-   * （2026-09-06 真机走查实测：ref 版展开后 scrollTop 回到底 259.5，等于没记）。
-   * 按线程记：位置属于那条对话，换项目/换线程各记各的，切回来还在原处。
-   */
-  const flowScroll = flowScrollMemoryFor(surface, data.activeThreadId)
+  // 面板据它判断「进了另一条对话」→ 落到那条的最新一条（换项目 / 换面 / 切线程都算）。
+  const conversationKey = JSON.stringify([data.snapshot.workspaceId ?? null, surface, data.activeThreadId ?? null])
   const historyConversation = laneConversationOf(data.snapshot)
   const historyIdentity = data.snapshot.workspaceId && historyConversation
     ? JSON.stringify([data.snapshot.workspaceId, historyConversation.laneName, historyConversation.sessionId, surface]) : undefined
@@ -316,13 +309,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // 免得一个隐藏的创作坞在之后接到点击。
   React.useEffect(() => {
     if (surface !== 'creation') return
+    // 这是用户亲手点「拆分镜」：挂分镜规划技能，结果方案照常替他打开（Agent 自己决定建的方案才不打开）。
     const launch = (displayPrompt?: string): void => {
-      void actions.send([t('agentResident.storyboardRequest'), displayPrompt].filter(Boolean).join('\n\n'), {
-        skillKey: STORYBOARD_PLANNER_SKILL.key,
-        // 这是用户亲手点「拆分镜」：结果方案照常替他打开（Agent 自己决定建的方案才不打开）。
-        openStoryboardResult: true,
-        ...(displayPrompt ? { displayText: displayPrompt } : {}),
-      })
+      const { text, options } = storyboardLaunchMessage(t('agentResident.storyboardRequest'), displayPrompt)
+      void actions.send(text, options)
     }
     setStoryboardPlannerLauncher(launch)
     return () => setStoryboardPlannerLauncher(null)
@@ -553,7 +543,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         </div>
       ) : null}
       <AgentPanelV4Panel
-        scrollMemory={flowScroll}
+        conversationKey={conversationKey}
         width={size.width}
         height={panelError ? size.height - 20 : size.height}
         legacy={data.snapshot.active.legacy}

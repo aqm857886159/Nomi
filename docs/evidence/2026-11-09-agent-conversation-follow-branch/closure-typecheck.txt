@@ -1,0 +1,17 @@
+Command: pnpm run typecheck
+Run HEAD: d41ef7f12 (no TypeScript input changed in this closure)
+Exit: 0
+
+
+> nomi@0.24.1 typecheck <worktree>
+> node ./scripts/typecheck.mjs
+
+✅ tsc app（22.0s）
+✅ tsc electron（12.1s）
+✅ tsc electron-pi（5.3s）
+✅ tsc fixtures（15.8s）
+✅ check:test-types（34.3s）
+    ✅ agent-runtime 测试类型通过：0 个错误
+    ✅ 测试类型门岗通过：src/ 0 错；存量 10 个（electron/ + evals/ + scripts/，棘轮只减不增）
+
+typecheck：5 份并发，墙钟 34.3s（串行相加 89.5s）

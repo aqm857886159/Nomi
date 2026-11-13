@@ -41,6 +41,7 @@ import { findConnectionStartPoint } from './_canvasHit.mjs'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { canvasAddBar, canvasFitViewButton, switchWorkspace } from './_shell.mjs'
 import { stationTimeout } from './_station-budget.mjs'
+import { modeCell, modeName, readModeCell } from './_modeMenu.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
@@ -443,12 +444,16 @@ try {
     '⑦ 这条边的语义是「参考」——槽按档案声明收下了它，不是画了根线而已',
     String(refEdge?.mode),
   )
-  // 连完线目标会自动切到**真能消费这条参考**的那个模式（autoPromoteTargetModeForEdge）。
-  // 没切 = 边落了但模型看不到它，那正是「连上了却没用上」这一族的样子。
-  const targetMode = canvasAfterConnect?.nodes.find((node) => node.id === videoNodeId)?.meta?.archetype?.modeId
+  // 连完线目标的方式按输入现算（2026-11-12 起不再写回节点，modeForInputs）：底栏方式格离开「文生视频」=
+  // 这条参考被算进了这次要发的方式。还停在文生视频 = 边落了但模型看不到它，正是「连上了却没用上」这一族的样子。
+  await win.locator(`.react-flow__node[data-id="${videoNodeId}"]`).click({ position: { x: 8, y: 8 } }).catch(() => {})
+  const videoComposer = win.locator(`[data-node-id="${videoNodeId}"] .generation-canvas-v2-node__composer`).first()
+  await expectVisible(videoComposer, '选中目标视频节点后它的生成框出现')
+  const targetLocale = (await modeCell(videoComposer, 'zh').count()) ? 'zh' : 'en'
+  const targetMode = await readModeCell(videoComposer, targetLocale)
   check(
-    typeof targetMode === 'string' && targetMode.length > 0,
-    '⑦ 目标节点自动切到了能吃下这条参考的生成方式',
+    Boolean(targetMode) && targetMode !== modeName(targetLocale, 'text'),
+    '⑦ 目标节点的方式格换成了能吃下这条参考的生成方式',
     String(targetMode),
   )
   await snap(win, 'result-into-reference-slot')

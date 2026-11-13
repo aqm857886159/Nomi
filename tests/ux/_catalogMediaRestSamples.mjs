@@ -39,7 +39,7 @@ export const MEDIA_REST_SAMPLES = Object.freeze({
   'gemini-omni-1.2-flash': { kind: 'video' },
   // 首尾帧 · 16:9 · 720p · 10 秒，预计 $0.024 × 10 = $0.24。验：首帧、尾帧各落在 first_frame_image / last_frame_image。
   'gemini-omni-1.2-flash-ext': {
-    kind: 'video', modeId: 'firstlast', modeLabelKey: 'generationCommon.composerB3.modeFirstLast',
+    kind: 'video', modeId: 'firstlast', modeLabelKey: 'generationCommon.modeMenu.name.firstLast',
     references: [{ slot: 'first_frame', file: 'first.png' }, { slot: 'last_frame', file: 'last.png' }],
     buildMarkers: ['(Scenario 3'],
   },
@@ -47,7 +47,7 @@ export const MEDIA_REST_SAMPLES = Object.freeze({
   // referencesFirst：这个型号没有文生，生成框按节点当前方式列型号（没放参考 = 文生），不先放参考，型号菜单里就没有它。
   // 真人也是这么走的：先「+」放图，再挑型号、切方式。样本测试按目录核：没有文字那条 mapping 的型号必须写它。
   'viduq4-preview': {
-    kind: 'video', modeId: 'ref', modeLabelKey: 'generationCommon.composerB3.modeReference', referencesFirst: true,
+    kind: 'video', modeId: 'ref', modeLabelKey: 'generationCommon.modeMenu.name.reference', referencesFirst: true,
     references: [{ slot: 'image_ref', file: 'ref.png' }],
     buildMarkers: ['counts are added together'],
   },
@@ -91,28 +91,34 @@ const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const composerOf = (win, nodeId) => win.locator(`[data-node-id="${nodeId}"] .generation-canvas-v2-node__composer`).first()
 const PICKER = '[data-testid="asset-picker"]'
 
-/** 生成方式分段里那一档的可见名字（中英两轨都认）。 */
+/** 底栏方式菜单里那一行的可见名字（中英两轨都认）。 */
 export function sampleModeRadioName(sample) {
   return new RegExp(`^\\s*(?:${UI_LOCALES.map((locale) => escapeRegExp(uiText(locale, sample.modeLabelKey))).join('|')})\\s*$`)
 }
 
+const modeMenuName = () => new RegExp(`^(?:${UI_LOCALES.map((locale) => escapeRegExp(uiText(locale, 'generationCommon.modeMenu.heading'))).join('|')})$`)
+
 /**
- * 经参数面板顶部「生成方式」切到样本那一档（真人会点的那个控件）；点不到就抛（点生成之前，一分钱没花）。
- * 落盘的节点 meta.archetype.modeId 变成样本那一档才算切到。
+ * 参考放好之后，经生成框底栏「方式」一格切到样本那一档（真人会点的那个控件；方式跟着放进来的东西走，没放之前那几行点不了）。
+ * 点不到就抛（点生成之前，一分钱没花）。落盘的偏好 meta.archetype.modeId 变成样本那一档、方式格显示它才算切到。
+ * 型号只有一种方式时底栏没有方式格，不用切。
  */
 export async function chooseSampleMode({ win, prepared, sample, capture }) {
   if (!sample.modeId) return
   const { projectId, nodeId } = prepared
   const modeId = async () => ((await readProject(win, projectId)).payload.generationCanvas.nodes ?? []).find((node) => node.id === nodeId)?.meta?.archetype?.modeId ?? null
   const composer = composerOf(win, nodeId)
-  const panel = win.locator('[data-agent-parameter-panel]').first()
-  await clickOrFail(composer.locator('[data-parameter-summary]').first(), '生成框的参数摘要（打开参数面板）')
-  await expectVisible(panel, '参数面板')
-  await clickOrFail(panel.locator('[data-agent-generation-mode]').getByRole('radio', { name: sampleModeRadioName(sample) }), `参数面板顶部「生成方式」里的 ${sample.modeId}`)
-  await expect.poll(modeId, { message: `点了生成方式之后节点换成 ${sample.modeId}`, timeout: stationTimeout({ operations: 1 }) }).toBe(sample.modeId)
-  await capture('mode-panel')
-  if (await panel.isVisible().catch(() => false)) await win.keyboard.press('Escape')
-  await expectHidden(panel, '参数面板收起（它盖在生成框上，先收起再放参考）', stationTimeout({ operations: 1 }))
+  const trigger = composer.getByRole('button', { name: modeMenuName() })
+  if (!(await trigger.count())) return
+  await clickOrFail(trigger.first(), '生成框底栏的「方式」一格')
+  const dropdown = win.locator('[data-nomi-select-dropdown]').last()
+  await expectVisible(dropdown, '方式菜单')
+  const row = dropdown.getByRole('option').filter({ has: win.locator('[data-nomi-select-option-label]', { hasText: sampleModeRadioName(sample) }) })
+  await clickOrFail(row.first(), `方式菜单里的 ${sample.modeId}`)
+  await expect.poll(modeId, { message: `点了方式之后节点偏好换成 ${sample.modeId}`, timeout: stationTimeout({ operations: 1 }) }).toBe(sample.modeId)
+  await expect.poll(async () => (await trigger.first().textContent()) ?? '', { message: `方式格显示 ${sample.modeId}（显示的 = 这次真发的）`, timeout: stationTimeout({ operations: 1 }) }).toMatch(new RegExp(sampleModeRadioName(sample).source.replace(/^\^\\s\*|\\s\*\$$/g, '')))
+  await capture('mode-menu')
+  await expectHidden(dropdown, '方式菜单收起', stationTimeout({ operations: 1 }))
 }
 
 /** 合成参考图（ffmpeg testsrc + 不同色相，1280×720 同比例，没有任何真实素材），返回 文件名 → 绝对路径。 */

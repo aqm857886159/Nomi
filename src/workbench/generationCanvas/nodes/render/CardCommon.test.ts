@@ -66,7 +66,9 @@ describe('empty node layout (Claude Design EmptyStates)', () => {
     // 2026-10-10 用户拍板 B：块顶由卡高定（视觉中心 45%，离顶 ≥44），不再顶对齐。
     expect(out).toContain('data-empty-tier="full"')
     expect(out).not.toContain('justify-center py')
-    expect(out).toContain('>·<')
+    // 两项以上才用「·」隔开；图片节点 2026-11-12 起只剩「参考图生图」一项（「文字生图」点了没反应，删掉），没有分隔点。
+    if (kind === 'video') expect(out).toContain('>·<')
+    else expect(out).not.toContain('>·<')
     // 动作行永远单行（结构上不许折行：nowrap；文案按最小节点宽度写短，走查量每种节点两种语言下都是单行）。
     expect(out).toContain('flex-nowrap')
     expect(out).not.toContain('flex-wrap')

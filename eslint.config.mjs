@@ -96,6 +96,28 @@ const testFileRestrictedSyntax = [
 // Main-process synchronous waits freeze IPC while waiting. Existing debt uses
 // ESLint bulk suppressions (file x rule counts); new calls fail and deleted calls
 // require --prune-suppressions. The independent core-rule id survives overrides.
+// 主窗口的去留只有一个主人（electron/mainWindowPresence.ts；方向检查 docs/engineering/direction-checks/2026-11-09-app-reopen-owner.md）。
+// 以前 8 个入口各自拿一个窗口对象再调 show，窗口在「正在关 / 退出中」时照样被 show，崩溃或没反应。
+// 主进程里对窗口零参数调 show / focus / restore / showInactive / moveTop（点号、计算属性、取成值再调），以及 app.focus，
+// 只许出现在主人文件和自管子窗的白名单文件里；入口要叫回主窗就调 revealMainWindow(入口名)。app.dock.show 不是窗口，不拦。
+const windowPresencePlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
+const WINDOW_PRESENCE_METHOD = '/^(show|focus|restore|showInactive|moveTop)$/'
+const WINDOW_PRESENCE_MESSAGE = 'Only electron/mainWindowPresence.ts may show / focus / restore the main window: call revealMainWindow(entry). A file that owns its own child window must be listed in WINDOW_PRESENCE_EXEMPT_FILES (eslint.config.mjs).'
+const windowPresenceSelectors = [
+  { selector: `CallExpression[arguments.length=0] > MemberExpression.callee[computed=false][property.name=${WINDOW_PRESENCE_METHOD}]:not([object.property.name='dock'])`, message: WINDOW_PRESENCE_MESSAGE },
+  { selector: `CallExpression[arguments.length=0] > MemberExpression.callee[computed=true][property.value=${WINDOW_PRESENCE_METHOD}]`, message: WINDOW_PRESENCE_MESSAGE },
+  { selector: `MemberExpression[computed=false][property.name='bind'] > MemberExpression.object[property.name=${WINDOW_PRESENCE_METHOD}]`, message: WINDOW_PRESENCE_MESSAGE },
+  { selector: `CallExpression > MemberExpression.callee[object.name='app'][property.name='focus']`, message: WINDOW_PRESENCE_MESSAGE },
+]
+// 自管子窗的文件（浏览器 chrome 菜单、截图选区、浮层）和系统通知（Notification.show 不是窗口）。
+export const WINDOW_PRESENCE_EXEMPT_FILES = [
+  'electron/mainWindowPresence.ts',
+  'electron/desktopNotification.ts',
+  'electron/browser/chrome/browserViewChromeMenu.ts',
+  'electron/browser/media/browserPromptScreenshotSelection.ts',
+  'electron/browser/overlay/browserViewOverlay.ts',
+]
+
 const mainSyncWaitPlugin = { rules: { 'no-restricted-syntax': builtinRules.get('no-restricted-syntax') } }
 const mainSyncWaitSelectors = [{
   selector: "MemberExpression[object.name='Atomics'][computed=false][property.name='wait'], MemberExpression[object.name='Atomics'][computed=true][property.value='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.name='wait'], VariableDeclarator[init.name='Atomics'] > ObjectPattern > Property[key.value='wait']",
@@ -233,6 +255,75 @@ export const TASK_RUN_BRIDGE_SELECTORS = [
   ...["VariableDeclarator[init.property.name='tasks']", "VariableDeclarator[init.name='tasks']", "AssignmentExpression[right.property.name='tasks']", "AssignmentExpression[right.name='tasks']", "Property[key.name='tasks']", "Property[key.value='tasks']"]
     .flatMap((from) => ["Property[key.name='run']", "Property[key.value='run']"].map((run) => `${from} > ObjectPattern > ${run}`)),
 ].map((selector) => ({ selector, message: TASK_RUN_BRIDGE_MESSAGE }))
+
+// ⑦ 生成请求的装配与发送资格（2026-11-09，方向检查 docs/engineering/direction-checks/2026-11-09-reference-assembly-boundary.md）：
+// 参考放进请求的哪个键只由解析器 lowerGenerationIntent 产出不透明产物、只经 withLoweredReferences 并进参数；能出网的请求体只由
+// electron/catalog/profileHttpRequest.ts 渲染时封存、只经 sendProfileJson 发（裸 Record / 预览 / 克隆在运行时被拒，见
+// electron/shared/generationLowering/referenceAssemblyBoundary.test.ts）。这里管另一半——**谁拿得到底层写接口**：原始出网
+// （vendorHttp 的 requestJson / requestMultipart / requestBinary）、封存体的发送 / 变换口、模板渲染内部、解析器与并入口。
+// 名单外的新入口用具名 / 命名空间 / 再导出 / 动态 import / require 任何一种拿它们都当场红（referenceAssemblyBoundary.lint.test.ts）。
+// 同 ② 的做法独立注册内置规则，每组一个命名空间、名单各占一个块，别的块里同名规则盖不到它；不给整个目录豁免，名单逐文件写理由。
+// 拦不住（明写的缺口）：直接 fetch / appFetch 自己拼请求、scripts/ 下的工具脚本、画布经 IPC 递来的 archetypeInput 在主进程不重新解析。
+const GENERATION_BOUNDARY_FILES = ['electron/**/*.{ts,tsx,mts,cts}', 'src/**/*.{ts,tsx,mts,cts}']
+const GENERATION_BOUNDARY_TEST_FILES = ['**/*.{test,spec}.{ts,tsx,mts,cts}', '**/__tests__/**']
+const moduleSources = (name) => [`**/${name}`, `**/${name}.ts`, `**/${name}.js`]
+/** 动态 import 不解构（拿到整个模块）、解构出受限名或剩余元素、require：同一组受限名的另外几种拿法。 */
+const dynamicModuleSelectors = (name, importNames, message) => {
+  const source = `/${name}(\\.[cm]?[jt]s)?$/`
+  const destructured = `VariableDeclarator[init.type='AwaitExpression'][init.argument.type='ImportExpression'][init.argument.source.value=${source}] > ObjectPattern`
+  return [
+    `ImportExpression[source.value=${source}]:not(VariableDeclarator[id.type='ObjectPattern'] > AwaitExpression > ImportExpression)`,
+    `${destructured} > Property[key.name=/^(${importNames.join('|')})$/]`,
+    `${destructured} > RestElement`,
+    `CallExpression[callee.name='require'][arguments.0.value=${source}]`,
+  ].map((selector) => ({ selector, message }))
+}
+const boundaryPlugin = (...ruleIds) => ({ rules: Object.fromEntries(ruleIds.map((id) => [id, builtinRules.get(id)])) })
+
+const RAW_VENDOR_SEND_NAMES = ['requestJson', 'requestMultipart', 'requestBinary']
+const RAW_VENDOR_SEND_MESSAGE = '原始出网（vendorHttp 的 requestJson / requestMultipart / requestBinary）只给装配与传输主人：生成请求经 catalog/profileHttpRequest.ts 渲染封存、用 sendProfileJson 发。新出网口要么走它，要么在 eslint.config.mjs 的 RAW_VENDOR_SEND_OWNERS 登记理由。'
+const RAW_VENDOR_SEND_OWNERS = {
+  'electron/catalog/profileHttpRequest.ts': 'profile JSON 出网的唯一口 sendProfileJson（只发封存体）与无 mapping 图片兜底',
+  'electron/runtime.ts': 'multipart 上传（只许 requestMultipart，下面单独一块）',
+  'electron/audioTaskRunner.ts': '音频专用 codec（multipart 上传 / 二进制回包），不在 JSON 封存范围（复盘 R-s3-guard-direction §6 第 4、5 条）',
+  'electron/audio/synchronousAudioResponse.ts': '同步音频的二进制回包，音频专用 codec',
+  'electron/catalog/customCallRunner.ts': '用户自写调用脚本的沙盒协议边界（复盘 §6 第 5 条：外部用户脚本保持自己的边界）',
+}
+const rawVendorSendPlugin = boundaryPlugin('no-restricted-imports', 'no-restricted-syntax')
+const rawVendorSendRules = (importNames) => ({
+  'raw-vendor-send/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('vendorHttp'), importNames, message: RAW_VENDOR_SEND_MESSAGE }] }],
+  'raw-vendor-send/no-restricted-syntax': ['error', ...dynamicModuleSelectors('vendorHttp', importNames, RAW_VENDOR_SEND_MESSAGE)],
+})
+
+const PROFILE_SEND_NAMES = ['sendProfileJson', 'transformProfileBody', 'transformProfileBodySync', 'sendNoMappingImageFallback']
+const PROFILE_SEND_MESSAGE = '封存请求体的发送 / 变换口只给两台生成引擎：新入口交声明与意图给已有引擎，不自己发；确实要新引擎就在 eslint.config.mjs 的 PROFILE_SEND_OWNERS 登记理由。'
+const PROFILE_SEND_OWNERS = {
+  'electron/runtime.ts': '引擎 A：渲染一次、经受控变换阶段、发封存体',
+  'electron/capabilityCore/apimartGenerationProvider.ts': '引擎 B：批准时封存、提交时按批准哈希取回封存体再发',
+}
+const TEMPLATE_INTERNAL_NAMES = ['buildHttpRequest', 'renderTemplateValue', 'renderTemplateString', 'buildTemplateContext']
+const TEMPLATE_INTERNAL_MESSAGE = '模板渲染内部只给装配主人和列明的适配阶段：生成请求用 catalog/profileHttpRequest.ts 的 buildProfileHttpRequest（产出封存体）；新适配阶段在 eslint.config.mjs 的 TEMPLATE_INTERNAL_OWNERS 登记理由。'
+const TEMPLATE_INTERNAL_OWNERS = {
+  'electron/catalog/profileHttpRequest.ts': '生成请求的装配主人',
+  'electron/catalog/multipartOperation.ts': 'multipart 适配：受控内部阶段（复盘 §6 第 4 条）',
+  'electron/catalog/processOperation.ts': 'CLI 进程适配：受控内部阶段（复盘 §6 第 4 条）',
+  'electron/catalog/directKeyCredential.ts': '直连 key 的凭据校验请求，不是生成请求',
+  'electron/integrationCertification/httpConnector.ts': '接入认证的探测请求，不是生成请求',
+  'electron/ai/onboarding/modelListProbe.ts': '接入时拉模型列表的探测请求，不是生成请求',
+}
+const REFERENCE_LOWERING_MESSAGE = '参考放进请求的哪个键只由解析器回答：新入口把声明与意图交给已有的放置主人（runReferences / headlessReferences / 画布 archetypeMeta），不自己调解析器、不自己并参数；名单在 eslint.config.mjs 的 REFERENCE_RESOLVER_CALLERS / REFERENCE_MERGE_CALLERS。'
+const REFERENCE_RESOLVER_CALLERS = {
+  'electron/shared/generationLowering/runReferences.ts': 'Run 路（引擎 B）：合同里的参考 → 意图',
+  'electron/shared/generationLowering/headlessReferences.ts': 'headless 路（引擎 A）：按 body 推声明 → 意图',
+  'src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts': '画布：只取冻结快照做预览参数，不拿产物发送',
+}
+const REFERENCE_MERGE_CALLERS = {
+  'electron/shared/generationLowering/runReferences.ts': 'Run 路把产物并进合同参数',
+  'electron/catalog/taskParams.ts': 'headless 默认参数里并入产物（applyHeadlessParamDefaults）',
+}
+const REFERENCE_LOWERING_NAMES = ['lowerGenerationIntent', 'withLoweredReferences']
+const referenceLoweringPlugin = { rules: { ...boundaryPlugin('no-restricted-imports', 'no-restricted-syntax').rules, 'narrow-imports': builtinRules.get('no-restricted-imports') } }
+const referenceLoweringOnly = (importName) => ({ 'reference-lowering-owner/narrow-imports': ['error', { patterns: [{ group: moduleSources('lowerGenerationIntent'), importNames: [importName], message: REFERENCE_LOWERING_MESSAGE }] }] })
 
 /**
  * 每个 no-restricted-syntax 都经这里拼：flat config 里后面的对象会**整条覆盖**前面同名规则的选项，
@@ -443,6 +534,12 @@ export default tseslint.config(
   },
   {
     files: ['electron/**/*.{ts,tsx}'],
+    ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', ...WINDOW_PRESENCE_EXEMPT_FILES],
+    plugins: { 'main-window-presence': windowPresencePlugin },
+    rules: { 'main-window-presence/no-restricted-syntax': ['error', ...windowPresenceSelectors] },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx}'],
     ignores: ['electron/**/*.test.{ts,tsx}', 'electron/**/__tests__/**', 'electron/quitTeardown.ts', ...directQuitExemptionFiles],
     rules: { 'no-restricted-syntax': restrictedSyntax(...windowsPathSelectors, ...quitLifecycleSelectors, ...directQuitSelectors) },
   },
@@ -508,6 +605,14 @@ export default tseslint.config(
     rules: { 'asset-command-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/assetFileDeletion'], importNames: ['trashProjectFiles'], message: 'UI must request the asset deletion command; physical trash is private to the deletion domain.' }] }] },
   },
   {
+    // 「这次按哪种方式发」只有一个主人：archetypeMeta.effectiveArchetypeMode（按输入现算）。modeTestHelpers 按存着的偏好取方式，
+    // 只给「给定方式、请求体长什么样」的测试用；生产代码拿它会退回「存着什么就发什么」（2026-11-12 方式按输入现算）。
+    files: ['src/**/*.{ts,tsx}', 'electron/**/*.ts'],
+    ignores: ['**/*.test.{ts,tsx}', '**/__tests__/**', 'src/workbench/generationCanvas/nodes/controls/modeTestHelpers.ts'],
+    plugins: { 'mode-owner': { rules: { 'no-restricted-imports': builtinRules.get('no-restricted-imports') } } },
+    rules: { 'mode-owner/no-restricted-imports': ['error', { patterns: [{ group: ['**/modeTestHelpers'], message: '这次按哪种方式发走 effectiveArchetypeMode（按输入现算）；modeTestHelpers 只给测试用。' }] }] },
+  },
+  {
     // TipTap 编辑器只有一扇门：useNomiTiptapEditor（固定 React 19 下的生命周期选项）。
     // 直接用 useEditor 会绕开它——2026-09-28 画布提示词编辑器选区不同步就是两套默认值各自为政。
     files: ['src/**/*.{ts,tsx}'],
@@ -560,6 +665,61 @@ export default tseslint.config(
     files: PLAYWRIGHT_ALIAS_FILES,
     plugins: { 'playwright-wait': playwrightAliasPlugin },
     rules: { 'playwright-wait/no-restricted-syntax': ['error', ...playwrightAliasSelectors] },
+  },
+  {
+    // 原始出网只给装配与传输主人（见上面 ⑦）；只有下面两个块配置 raw-vendor-send/*，文件范围不重叠。
+    files: GENERATION_BOUNDARY_FILES,
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, ...Object.keys(RAW_VENDOR_SEND_OWNERS)],
+    plugins: { 'raw-vendor-send': rawVendorSendPlugin },
+    rules: rawVendorSendRules(RAW_VENDOR_SEND_NAMES),
+  },
+  {
+    // runtime.ts 只留 multipart 上传；它的 JSON 出网走 sendProfileJson。
+    files: ['electron/runtime.ts'],
+    plugins: { 'raw-vendor-send': rawVendorSendPlugin },
+    rules: rawVendorSendRules(RAW_VENDOR_SEND_NAMES.filter((name) => name !== 'requestMultipart')),
+  },
+  {
+    // 封存体的发送 / 变换口只给两台生成引擎（见上面 ⑦）。
+    files: GENERATION_BOUNDARY_FILES,
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/catalog/profileHttpRequest.ts', ...Object.keys(PROFILE_SEND_OWNERS)],
+    plugins: { 'profile-send-owner': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'profile-send-owner/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('profileHttpRequest'), importNames: PROFILE_SEND_NAMES, message: PROFILE_SEND_MESSAGE }] }],
+      'profile-send-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('profileHttpRequest', PROFILE_SEND_NAMES, PROFILE_SEND_MESSAGE)],
+    },
+  },
+  {
+    // 模板渲染内部只给装配主人和列明的适配阶段（见上面 ⑦）。
+    files: GENERATION_BOUNDARY_FILES,
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/ai/requestPipeline.ts', ...Object.keys(TEMPLATE_INTERNAL_OWNERS)],
+    plugins: { 'template-internals': boundaryPlugin('no-restricted-imports', 'no-restricted-syntax') },
+    rules: {
+      'template-internals/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('requestPipeline'), importNames: TEMPLATE_INTERNAL_NAMES, message: TEMPLATE_INTERNAL_MESSAGE }] }],
+      'template-internals/no-restricted-syntax': ['error', ...dynamicModuleSelectors('requestPipeline', TEMPLATE_INTERNAL_NAMES, TEMPLATE_INTERNAL_MESSAGE)],
+    },
+  },
+  {
+    // 解析器与并入口只给名单里的放置主人（见上面 ⑦）；同目录不豁免。只有下面三个块配置 reference-lowering-owner/*，文件范围不重叠。
+    files: GENERATION_BOUNDARY_FILES,
+    ignores: [...GENERATION_BOUNDARY_TEST_FILES, 'electron/shared/generationLowering/lowerGenerationIntent.ts', ...Object.keys(REFERENCE_RESOLVER_CALLERS), ...Object.keys(REFERENCE_MERGE_CALLERS)],
+    plugins: { 'reference-lowering-owner': referenceLoweringPlugin },
+    rules: {
+      'reference-lowering-owner/no-restricted-imports': ['error', { patterns: [{ group: moduleSources('lowerGenerationIntent'), importNames: REFERENCE_LOWERING_NAMES, message: REFERENCE_LOWERING_MESSAGE }] }],
+      'reference-lowering-owner/no-restricted-syntax': ['error', ...dynamicModuleSelectors('lowerGenerationIntent', REFERENCE_LOWERING_NAMES, REFERENCE_LOWERING_MESSAGE)],
+    },
+  },
+  {
+    // 只调解析器、不并参数的主人（画布只取快照；headless 声明推导把产物交回 taskParams 并）。
+    files: Object.keys(REFERENCE_RESOLVER_CALLERS).filter((file) => !(file in REFERENCE_MERGE_CALLERS)),
+    plugins: { 'reference-lowering-owner': referenceLoweringPlugin },
+    rules: referenceLoweringOnly('withLoweredReferences'),
+  },
+  {
+    // 只并参数、不调解析器的主人（taskParams 拿 headlessReferences 交回的产物）。
+    files: Object.keys(REFERENCE_MERGE_CALLERS).filter((file) => !(file in REFERENCE_RESOLVER_CALLERS)),
+    plugins: { 'reference-lowering-owner': referenceLoweringPlugin },
+    rules: referenceLoweringOnly('lowerGenerationIntent'),
   },
   {
     // 项目存读只认草稿；严格面属于模型/Agent 作者入参。测试可验证两面的区别。

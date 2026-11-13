@@ -69,7 +69,7 @@ export { installModelNameSourceLookup, isModelNameSource, modelNameSourceFor, sc
 export type { ModelNameSource, ModelNameSourceLookup } from "./modelNameSource";
 
 export type { ModelArchetype, ArchetypeMode, ArchetypeReferenceSlot, ArchetypeReferenceSlotKind, ArchetypeExpressionChannel, ArchetypeIntent, ArchetypeTransportTaskKind, ModelArchetypeVariant } from "./types";
-export { combineChannelForMode, lowerCombinedReferences, combineRoleForSlot, modeTransportFor, recommendVideoGeneration, REFERENCE_ROLE_FOR_KIND, slotJoinsCombine } from "../videoCapabilities";
+export { combineChannelForMode, combineRoleForSlot, modeTransportFor, recommendVideoGeneration, REFERENCE_ROLE_FOR_KIND, slotJoinsCombine } from "../videoCapabilities";
 export type { ReferenceCombineChannel } from "../videoCapabilities";
 export type {
   VideoGenerationRecommendation,

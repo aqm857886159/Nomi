@@ -1,0 +1,45 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "621759578",
+  "head": "621759578d669049b596e376fb3865168039132a",
+  "dirty": true,
+  "sourceTree": "c860fcce4d01fdf1388898cf9a1d8e6401a25050",
+  "date": "2026-11-12",
+  "runs": 7,
+  "results": [
+    {
+      "id": "app-reopen-reveal",
+      "metrics": {
+        "response": {
+          "runs": 7,
+          "median": 2.4,
+          "p95": 3
+        }
+      },
+      "samples": {
+        "response": [
+          3.224666999999954,
+          1.920125000000553,
+          2.4458330000006754,
+          2.475916000000325,
+          2.159458999999515,
+          2.468374999999469,
+          2.2457919999997102
+        ]
+      },
+      "budget": 100,
+      "baseline": {
+        "median": 2.5,
+        "p95": 5.3,
+        "runs": 7,
+        "machine": "darwin arm64 Apple M5 x10 / 24GB",
+        "date": "2026-11-12",
+        "commit": "621759578"
+      },
+      "verdict": {
+        "status": "ok",
+        "note": ""
+      }
+    }
+  ]
+}

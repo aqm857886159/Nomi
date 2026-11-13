@@ -12,7 +12,6 @@
 // 是棘轮门岗，archetypeMeta 那条越界已登记在基线里，新开文件直连会被判成新增违规（基线只减不增）。
 import type { ArchetypeMode, ModelArchetype } from '../../../../../electron/shared/modelArchetypes'
 import {
-  currentArchetypeMode,
   modeSlotReach,
   referenceSlotStorage,
   type SlotReach,
@@ -127,25 +126,3 @@ export function archetypeModeSlotReachByKey(mode: ArchetypeMode, createBody: unk
   return out
 }
 
-/**
- * **模式收窄后的选择安全**（U4）：当前选中的模式被这条渠道收窄掉时，该落到哪个模式。
- *
- * 为什么必须有：收窄只改「模式栏显示哪几个」，不改 `meta.archetype.modeId`。存量节点（或换了供应商的
- * 节点）可能钉在一个已经不显示的模式上——那时模式栏一个都不高亮，而发送路径仍按那个看不见的模式投影槽，
- * UI 与发送再次分家。返回 `null` = 当前选中仍可见（幂等，调用方不写）。
- *
- * 落点顺序：档案的 `defaultModeId`（若它可见）→ 第一个可见模式。**一个可见的都没有时返回 null**——
- * 那说明判据把整个模型判死了，此时收窄本身已不可信，宁可原样留着（fail-open），也不把节点钉到某个
- * 同样发不出去的模式上。
- */
-export function fallbackVisibleModeId(
-  archetype: ModelArchetype,
-  meta: Record<string, unknown> | undefined,
-  visibleModeIds: readonly string[],
-): string | null {
-  if (visibleModeIds.length === 0) return null
-  const current = currentArchetypeMode(archetype, meta)
-  if (visibleModeIds.includes(current.id)) return null
-  const preferred = visibleModeIds.includes(archetype.defaultModeId) ? archetype.defaultModeId : visibleModeIds[0]
-  return preferred === current.id ? null : preferred
-}

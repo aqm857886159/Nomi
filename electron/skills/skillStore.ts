@@ -13,6 +13,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { SkillCuration } from "../shared/skillCuration";
+import { findSkillRecord, normalizeSkillLookupKey } from "../shared/skillKey";
 
 import { getSkillsRoots, getUserSkillsRoot } from "../runtimePaths";
 import { computeSkillContentHash, isSafeSkillFilePath, readSkillPackageFiles, SKILL_PACKAGE_VERSION } from "./skillPackage";
@@ -107,16 +108,6 @@ export function getSkillDiscoveryRoots(): SkillDiscoveryRoot[] {
     : []);
 }
 
-export function normalizeSkillLookupKey(value: unknown): string {
-  return String(value || "")
-    .trim()
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-    .replace(/[._\s/]+/g, "-")
-    .replace(/[^a-zA-Z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .toLowerCase();
-}
-
 /**
  * 全部根 → 目录。**每次都重扫盘**（目录没有快照）。实现在岛上（pi 的 `loadSourcedSkills`），这里只是桥。
  * 形状在这里手抄一遍而不是 `typeof import('…laneNativeLoader.cjs')`：那样会把岛的 .mts 拖进 CJS 工程
@@ -129,25 +120,8 @@ export async function readSkillRecords(): Promise<SkillRecord[]> {
   return native.readSkillRecords();
 }
 
-export function findSkillRecord(
-  skillKey: string,
-  skillName: string,
-  records: readonly SkillRecord[],
-): SkillRecord | null {
-  if (!records.length) return null;
-  const normalizedKey = normalizeSkillLookupKey(skillKey);
-  const normalizedName = normalizeSkillLookupKey(skillName);
-  const exact = records.find((skill) => skill.name === skillKey);
-  if (exact) return exact;
-  const prefix = records.filter((skill) => skillKey.startsWith(`${skill.name}.`))
-    .sort((a, b) => b.name.length - a.name.length)[0];
-  if (prefix) return prefix;
-  return records.find((skill) =>
-    normalizeSkillLookupKey(skill.name) === normalizedKey ||
-    normalizeSkillLookupKey(skill.directoryName) === normalizedKey ||
-    (normalizedName && normalizeSkillLookupKey(skill.name) === normalizedName) ||
-    (normalizedName && normalizeSkillLookupKey(skill.directoryName) === normalizedName)) ?? null;
-}
+// key → 技能的查找只住 `electron/shared/skillKey.ts`（渲染层的技能名也走它）；这里转出给主进程的老调用方。
+export { findSkillRecord, normalizeSkillLookupKey };
 
 export function isSkillVisibleTo(record: SkillRecord, audience: SkillAudience): boolean {
   if (audience === "internal") return true;

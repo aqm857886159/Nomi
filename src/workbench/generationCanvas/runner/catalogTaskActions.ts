@@ -20,8 +20,9 @@ import { readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 import { applyRelayFirstFrame } from './relayFrameResolver'
 import { narrateProgress, type GenerationProgressPhase, type ProgressNarrationContext } from '../../observability/narrate'
-import { buildArchetypeInputParams, currentArchetypeMode, orderedSentImageReferenceUrls, orderedSentMediaReferenceUrls, uploadPlacementForMode } from '../nodes/controls/archetypeMeta'
+import { buildArchetypeInputParams, currentArchetypeVariant, fixDropdownsBeforeSend, orderedSentImageReferenceUrls, orderedSentMediaReferenceUrls, sendArchetypeMode, uploadPlacementForMode, type ArchetypeMode, type ModelArchetype } from '../nodes/controls/archetypeMeta'
 import { projectPromptForSend } from '../../assets/promptMentions'
+import { normalizeReferenceListMeta } from '../nodes/controls/referenceList'
 import {
   type CatalogTaskActionOptions,
   type CatalogTaskRunOptions,
@@ -61,6 +62,7 @@ import { parseVendorErrorFromMessage } from './vendorErrorIpc'
 import { collectLocalAssetUrls } from '../../../../electron/catalog/assetLocalization'
 import { readParameterReferenceContract } from '../../../../electron/catalog/parameterReferenceContract'
 import { GENERIC_REFERENCE_KEYS } from '../../../../electron/shared/modelArchetypes/referenceKeys'
+import { effectiveModeParams } from '../../../../electron/shared/modelArchetypes/modeParams'
 import { isTerminalTaskStatus } from '../../../../electron/shared/taskStatus'
 
 // 重导出：实现已拆到 catalogTaskResolve（节点→vendor/model/kind 选择）与
@@ -188,6 +190,7 @@ export function isRateLimitedPollError(error: unknown): boolean {
 function buildReferenceExtras(
   meta: Record<string, unknown>,
   references: Partial<ResolvedGenerationReferences>,
+  sendMode: { archetype: ModelArchetype; mode: ArchetypeMode } | null,
 ): Record<string, unknown> {
   const parameterInputs = parameterReferenceInputs(meta, references)
   const exactComfyParameters = usesComfyParameterContract(meta)
@@ -210,8 +213,8 @@ function buildReferenceExtras(
   // 认得档案的模型 → renderer 据**当前模式**把参考值打成完整 snake input（含 per-mode enum），放进
   // extras.archetypeInput，runtime 原样铺进 params（M1/M2/M3）。别的模式的残留键根本不进结果（互斥）。
   // 认不出 → 现有无条件带首/尾帧（非档案模型走老路）。
-  const archetype = resolveTaskArchetype(meta)
-  if (archetype) {
+  if (sendMode) {
+    const { mode } = sendMode
     // 档案节点的上传图只住节点那一份有序参考列表（旧的 meta.referenceImages 已在 readReferenceList 里归一进去），
     // 这里的 referenceImages 只剩画布边——上传图由 buildArchetypeInputParams 按当前方式落槽，和参考行同一个推导。
     const edgeReferenceImages = uniqueStrings(references.referenceImages || [])
@@ -222,7 +225,7 @@ function buildReferenceExtras(
       referenceVideos: references.referenceVideos || [],
       referenceAudios: references.referenceAudios || [],
     }
-    const archetypeInput = buildArchetypeInputParams(meta, archetype, {
+    const archetypeInput = buildArchetypeInputParams(meta, mode, {
       ...edgeReferences,
       // 切片1：把画布边产出的实时参考图喂进档案 image 槽（此前只读 meta，边的角色图被丢）。
       // B4：连线进来的视频/音频参考喂进 video_ref/audio_ref 槽（此前只收 meta 上传）。
@@ -235,7 +238,6 @@ function buildReferenceExtras(
     // 中转上撞档案名的模型改图不带图/i2v 首帧到不了 wire（2026-07-24 群反馈根因）。
     // M2 互斥同样约束标准面：首/尾帧只在**当前模式声明了对应槽**时才带（活边优先、meta 兜底），
     // 否则「首帧模式残留尾帧」的 §2 坑2 会从标准键复活（kie 同名 token 渲进 body）。
-    const mode = currentArchetypeMode(archetype, meta)
     const declared = new Set((mode.slots || []).map((slot) => slot.kind))
     // 发出去哪些参考，只问一个主人：上传图按 uploadPlacementForMode（→ placeUploadedImages）落槽，和参考行同一个推导；
     // 连线按 references。首 / 尾帧：连线优先，否则是参考列表里落进这一格的那张上传图。
@@ -252,7 +254,7 @@ function buildReferenceExtras(
     // 数组参考（图 / 视频 / 音频）的标准面 = archetypeInput 那几个数组槽**同一份**有序列表（连线在前、上传按当前方式落槽、
     // 截到槽上限；orderedSentMediaReferenceUrls 的图片部分同样走 uploadPlacementForMode）。当前方式没有这种槽 → 空 → 不发。
     const sent: Record<'image' | 'video' | 'audio', string[]> = { image: [], video: [], audio: [] }
-    for (const ref of orderedSentMediaReferenceUrls(meta, archetype, {
+    for (const ref of orderedSentMediaReferenceUrls(meta, mode, {
       image: edgeReferenceImages,
       video: references.referenceVideos || [],
       audio: references.referenceAudios || [],
@@ -316,21 +318,39 @@ export function buildCatalogTaskRequest(
   const rawPrompt = asTrimmedString(node.prompt)
   // 需不需要提示词按模型派生（promptRequirement 单源）：处理类 ComfyUI 工作流（去背景/超分/补帧）
   // 本就没有提示词槽，此前这里无条件抛一句英文 'prompt is required' 把整类工作流堵死。
-  if (!rawPrompt && promptRequiredForNode(node, vendor)) throw new Error('请先写点提示词再生成。')
-
   const references = options.references || {}
+  if (!rawPrompt && promptRequiredForNode(node, vendor, references)) throw new Error('请先写点提示词再生成。')
+
   const kind = resolveTaskKind(node, references)
-  const meta = parameterContractRequestMeta(node.meta || {})
+  const rawMeta = parameterContractRequestMeta(node.meta || {})
+  // 这次按哪种方式发：画布路由解析参考时现算过一次（references.archetypeMode）；没经画布解析（只有这个节点）就按节点自己的输入现算。
+  // 定下的方式随这次请求带走（archetype.modeId），参数只问方式参数 owner（effectiveModeParams）——节点上存的偏好和参数原样不动。
+  const sendArchetype = resolveTaskArchetype(rawMeta)
+  const sendMode = sendArchetype
+    ? { archetype: sendArchetype, mode: sendArchetypeMode(sendArchetype, node, references) }
+    : null
+  // 旧节点的「先放一边」按节点**记着的**方式判（readParkedReferences 读 archetype.modeId）。下面要把这次真发的方式写进
+  // archetype.modeId，所以先把参考落成规范形（先放一边的记进列表），再换 modeId——否则旧首尾帧节点按全能参考发时，
+  // 旧界面看不见的残留参考图被发出去、看得见的首帧反而不发（2026-11-12 方式现算后，参考行和请求两边对不上）。
+  const listMeta = sendMode ? normalizeReferenceListMeta(rawMeta, sendMode.mode) ?? rawMeta : rawMeta
+  const modeSelection = sendMode
+    ? { archetype: sendMode.archetype, variantId: currentArchetypeVariant(sendMode.archetype, listMeta)?.id, modeId: sendMode.mode.id }
+    : null
+  const meta = modeSelection
+    ? {
+      ...fixDropdownsBeforeSend(modeSelection, effectiveModeParams({ ...modeSelection, stored: listMeta }).params),
+      archetype: { ...(rawMeta.archetype as object), id: modeSelection.archetype.id, modeId: modeSelection.modeId },
+    }
+    : rawMeta
   // @ 内联引用投影(R6 单源 · option 2):把 prompt 里的 @[asset:url] 标记转成 @imageN，
   // N = url 在「连线在前+上传」有序数组里的位置——**与实际发送的 reference_image 数组逐位一致**。此前只读
   // meta.referenceImageUrls，把连线进来的参考图当成「不在数组里」直接把 @ 标记删成空串（连线图 @ 不到/被
   // 删空的根因）。纯文字 prompt 无标记 → 原样(no-op)。无档案模型回退旧口径（仅上传）。
-  const promptRefArchetype = resolveTaskArchetype(meta)
-  const orderedReferenceUrls = promptRefArchetype
-    ? orderedSentImageReferenceUrls(meta, promptRefArchetype, references.referenceImages || [])
+  const orderedReferenceUrls = sendMode
+    ? orderedSentImageReferenceUrls(meta, sendMode.mode, references.referenceImages || [])
     : readStringArray(meta.referenceImageUrls)
-  const orderedPromptReferences = promptRefArchetype
-    ? orderedSentMediaReferenceUrls(meta, promptRefArchetype, {
+  const orderedPromptReferences = sendMode
+    ? orderedSentMediaReferenceUrls(meta, sendMode.mode, {
       image: references.referenceImages || [],
       video: references.referenceVideos || [],
       audio: references.referenceAudios || [],
@@ -353,7 +373,7 @@ export function buildCatalogTaskRequest(
   const steps = asFiniteNumber(meta.steps)
   const cfgScale = asFiniteNumber(meta.cfgScale)
   const seed = asFiniteNumber(meta.seed)
-  const referenceExtras = buildReferenceExtras(meta, references)
+  const referenceExtras = buildReferenceExtras(meta, references, sendMode)
   const productionMeta = productionMetaOf(node)
   const extras = {
     ...meta,

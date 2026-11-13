@@ -6,7 +6,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import i18n from '../../../i18n'
 import { encodeVendorErrorMessage, requestJson, VendorRequestError } from '../../../../electron/vendor/vendorHttp'
-import { setSubmitOutboundDepsForTests } from '../../../../electron/vendor/vendorOutboundGuard'
 import type { Vendor } from '../../../../electron/catalog/types'
 import { NodeErrorReport } from './NodeErrorReport'
 import { NodeRecoverableReport } from './NodeRecoverableReport'
@@ -15,11 +14,6 @@ const vendor = { key: 'relay', authType: 'bearer', baseUrlHint: 'https://fixture
 
 /** vendorHttp 的真实实现跑一次（fetch 换成剧本），照 taskIpcGuard 编码穿 IPC——节点上存的就是这一串。 */
 async function realVendorHttpFailure(method: 'GET' | 'POST', fetchImpl: () => Promise<Response>): Promise<string> {
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: '93.184.216.34', family: 4 as const }],
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: '' }),
-    isApplicationProxyActive: () => false,
-  })
   vi.stubGlobal('fetch', vi.fn(fetchImpl))
   try {
     const error = await requestJson(vendor, 'k', method, 'https://fixture.invalid/v1/images/generations', {}, {}, method === 'POST' ? { prompt: 'a cat' } : null)
@@ -27,7 +21,6 @@ async function realVendorHttpFailure(method: 'GET' | 'POST', fetchImpl: () => Pr
     if (!(error instanceof VendorRequestError)) throw new Error('expected a VendorRequestError')
     return `Error invoking remote method 'nomi:tasks:run': Error: ${encodeVendorErrorMessage(error)}`
   } finally {
-    setSubmitOutboundDepsForTests(null)
     vi.unstubAllGlobals()
   }
 }

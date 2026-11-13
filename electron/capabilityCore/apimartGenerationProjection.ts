@@ -4,8 +4,16 @@ import { bodyReferencedParamKeys, consumedCanonicalKeys } from "../catalog/param
 import type { Mapping } from "../catalog/types";
 import { productionGenerationPayloadHash } from "../productionRun/productionGenerationAuthorization";
 import { ApimartGenerationProviderError } from "./apimartGenerationErrors";
-import { combineRoleForContractReference, lowerCombinedReferences, type ReferenceCombineChannel } from "../shared/videoCapabilities/referenceChannels";
-import { APIMART_REFERENCE_PARAMETER_ALIASES } from "../shared/modelArchetypes/referenceKeys";
+import type { ArchetypeMode } from "../shared/videoCapabilities/types";
+import {
+  placeApprovedRunReferences,
+  runReferenceGroupHead,
+  runReferenceGroupOf,
+  runReferenceGroups,
+  runReferenceParameterAccepted,
+  RunReferenceError,
+  type RunReferenceGroup,
+} from "../shared/generationLowering/runReferences";
 import { comparableReferenceUrl } from "../catalog/outboundReferenceUrl";
 import { tagNomiError } from "../shared/nomiErrorCodes";
 
@@ -32,42 +40,6 @@ export type ApimartReferenceProjection = Readonly<{
   lastFrameUrl?: string;
 }>;
 
-function parameter(parameters: Record<string, unknown>, ...keys: string[]): unknown {
-  return keys.map((key) => parameters[key]).find((value) => value !== undefined && value !== null && value !== "");
-}
-
-// 别名表住在 shared 的通用参考键表旁边（同一份，渲染层清键 / 主进程拒发也按它推导，#1269 条件 2）。
-const REFERENCE_PARAMETER_ALIASES = APIMART_REFERENCE_PARAMETER_ALIASES;
-
-type ReferenceWireKey = keyof typeof REFERENCE_PARAMETER_ALIASES;
-
-const PROJECTION_KEYS: Record<string, ReferenceWireKey> = {
-  imageUrls: "image_urls",
-  image_urls: "image_urls",
-  inputUrls: "image_urls",
-  input_urls: "image_urls",
-  referenceImageUrls: "image_urls",
-  reference_image_urls: "image_urls",
-  imageWithRoles: "image_with_roles",
-  image_with_roles: "image_with_roles",
-  videoUrls: "video_urls",
-  video_urls: "video_urls",
-  referenceVideoUrls: "video_urls",
-  reference_video_urls: "video_urls",
-  audioUrls: "audio_urls",
-  audio_urls: "audio_urls",
-  referenceAudioUrls: "audio_urls",
-  reference_audio_urls: "audio_urls",
-  firstFrameImage: "first_frame_image",
-  first_frame_image: "first_frame_image",
-  firstFrameUrl: "first_frame_image",
-  first_frame_url: "first_frame_image",
-  lastFrameImage: "last_frame_image",
-  last_frame_image: "last_frame_image",
-  lastFrameUrl: "last_frame_image",
-  last_frame_url: "last_frame_image",
-};
-
 /** Stable structural equality used when alias and resolver channels overlap. */
 export function sameJson(left: unknown, right: unknown): boolean {
   try {
@@ -91,30 +63,37 @@ function referenceValuePresent(value: unknown): boolean {
   return value !== undefined && value !== null && value !== "" && !(Array.isArray(value) && value.length === 0);
 }
 
-function referenceParameter(parameters: Record<string, unknown>, key: ReferenceWireKey): unknown {
-  return parameter(parameters, ...REFERENCE_PARAMETER_ALIASES[key]);
+/** 一个参考位的值：组里第一个有值的写法。 */
+function groupValue(parameters: Record<string, unknown>, group: RunReferenceGroup): unknown {
+  return group.keys.map((key) => parameters[key]).find((value) => value !== undefined && value !== null && value !== "");
 }
 
-function assertReferenceValue(key: ReferenceWireKey, value: unknown): void {
-  if (key === "image_with_roles") {
+/** `member` 所在的参考位（按 shared 声明表分组）。 */
+function groupOf(shape: RunReferenceGroup["shape"], member: string): RunReferenceGroup {
+  return { keys: runReferenceGroupOf(member) ?? [member], shape };
+}
+
+function assertReferenceValue(group: RunReferenceGroup, value: unknown): void {
+  if (group.shape === "role-objects") {
+    const key = group.keys[0]!;
     if (!Array.isArray(value) || value.length === 0) {
-      throw new ApimartGenerationProviderError("catalog reference URL projection must contain a non-empty image_with_roles array");
+      throw new ApimartGenerationProviderError(`catalog reference URL projection must contain a non-empty ${key} array`);
     }
     for (const item of value) {
       if (!item || typeof item !== "object" || Array.isArray(item)) {
-        throw new ApimartGenerationProviderError("catalog reference URL projection contains an invalid image_with_roles entry");
+        throw new ApimartGenerationProviderError(`catalog reference URL projection contains an invalid ${key} entry`);
       }
       const entry = item as Record<string, unknown>;
       if (Object.keys(entry).some((entryKey) => entryKey !== "url" && entryKey !== "role") || !isProviderUrl(entry.url)) {
-        throw new ApimartGenerationProviderError("catalog reference URL projection contains an invalid image_with_roles URL");
+        throw new ApimartGenerationProviderError(`catalog reference URL projection contains an invalid ${key} URL`);
       }
       if (entry.role !== undefined && (typeof entry.role !== "string" || !entry.role.trim())) {
-        throw new ApimartGenerationProviderError("catalog reference URL projection contains an invalid image_with_roles role");
+        throw new ApimartGenerationProviderError(`catalog reference URL projection contains an invalid ${key} role`);
       }
     }
     return;
   }
-  if (key === "first_frame_image" || key === "last_frame_image") {
+  if (group.shape === "frame") {
     if (!isProviderUrl(value)) throw new ApimartGenerationProviderError("catalog references must be resolved to provider URLs before submission");
     return;
   }
@@ -123,8 +102,8 @@ function assertReferenceValue(key: ReferenceWireKey, value: unknown): void {
   }
 }
 
-function assertReferenceAliasConsistency(parameters: Record<string, unknown>, key: ReferenceWireKey): void {
-  const values = REFERENCE_PARAMETER_ALIASES[key]
+function assertReferenceAliasConsistency(parameters: Record<string, unknown>, group: RunReferenceGroup): void {
+  const values = group.keys
     .map((alias) => parameters[alias])
     .filter(referenceValuePresent);
   if (values.length < 2) return;
@@ -134,12 +113,15 @@ function assertReferenceAliasConsistency(parameters: Record<string, unknown>, ke
   }
 }
 
+/**
+ * 参考位的值形状（按 shared 声明表分组：同一参考位的几种写法必须一致；角色数组每项只有 url / role；
+ * 首尾帧是一个 provider URL；列表是非空的 provider URL 数组）。参数和最终请求体都过这一道。
+ */
 export function assertReferenceParameters(parameters: Record<string, unknown>): void {
-  const keys = Object.keys(REFERENCE_PARAMETER_ALIASES) as ReferenceWireKey[];
-  for (const key of keys) {
-    assertReferenceAliasConsistency(parameters, key);
-    const value = referenceParameter(parameters, key);
-    if (referenceValuePresent(value)) assertReferenceValue(key, value);
+  for (const group of runReferenceGroups()) {
+    assertReferenceAliasConsistency(parameters, group);
+    const value = groupValue(parameters, group);
+    if (referenceValuePresent(value)) assertReferenceValue(group, value);
   }
 }
 
@@ -148,8 +130,8 @@ function countOf(value: unknown): number {
   return Array.isArray(value) ? value.length : 1;
 }
 
-function referenceChannelCount(parameters: Record<string, unknown>, key: ReferenceWireKey): number {
-  return countOf(referenceParameter(parameters, key));
+function referenceChannelCount(parameters: Record<string, unknown>, group: RunReferenceGroup): number {
+  return countOf(groupValue(parameters, group));
 }
 
 /**
@@ -160,24 +142,22 @@ function referenceChannelCount(parameters: Record<string, unknown>, key: Referen
  */
 function assertResolvedReferences(
   input: GenerationProviderRequestInputV1,
-  combineChannel?: ReferenceCombineChannel,
+  combineKey: string | null,
 ): void {
   const parameters = input.parameters;
   assertReferenceParameters(parameters);
 
   if (input.references.length === 0) return;
   // 档案模式声明的合并槽可以是任意键（用户自写契约也能声明），它承载的就是这一整组参考。
-  const combined = combineChannel && !(combineChannel.key in REFERENCE_PARAMETER_ALIASES)
-    ? countOf(parameters[combineChannel.key])
-    : 0;
+  const combined = combineKey && !runReferenceGroupOf(combineKey) ? countOf(parameters[combineKey]) : 0;
   const imageAvailable = Math.max(
-    referenceChannelCount(parameters, "image_urls"),
-    referenceChannelCount(parameters, "image_with_roles"),
-    referenceChannelCount(parameters, "first_frame_image") + referenceChannelCount(parameters, "last_frame_image"),
+    referenceChannelCount(parameters, groupOf("list", "image_urls")),
+    referenceChannelCount(parameters, groupOf("role-objects", "image_with_roles")),
+    referenceChannelCount(parameters, groupOf("frame", "first_frame_url")) + referenceChannelCount(parameters, groupOf("frame", "last_frame_url")),
     combined,
   );
-  const videoAvailable = referenceChannelCount(parameters, "video_urls");
-  const audioAvailable = referenceChannelCount(parameters, "audio_urls");
+  const videoAvailable = referenceChannelCount(parameters, groupOf("list", "video_urls"));
+  const audioAvailable = referenceChannelCount(parameters, groupOf("list", "audio_urls"));
   const required = { image: 0, video: 0, audio: 0, unknown: 0 };
   for (const reference of input.references) {
     if (reference.kind === "video") required.video += 1;
@@ -193,93 +173,73 @@ function assertResolvedReferences(
   }
 }
 
+export type PlacedRunReferences = GenerationProviderRequestInputV1 & Readonly<{
+  /** 这一步替合同参考写下的参数键（报「参数不支持」时按参考位称呼它们）。 */
+  placedReferenceKeys: readonly string[];
+}>;
+
 /**
- * 参考素材 → 供应商线缆字段，**一条路**：`input.referenceUrls` 是授权时封存的那份 URL 快照。
- *
- * 这里曾经并排站着第二条路（`ApimartReferenceUrlResolver`：调用方注入一个函数现算 URL）。
- * 新路接上之后没人再注入它，但类型、bootstrap 选项、provider 选项和六处测试都还留着，
- * 而且新分支**无条件覆盖**旧 resolver 的结果——也就是说旧路只剩「被测试养着」这一个作用。
- * 留着的代价不是多几行：下一个人会以为它是一条可选路径，于是两条路各自演化、口径慢慢分开。
+ * 参考素材 → 参数，**一条路**：`input.referenceUrls` 是授权时封存的那份 URL 快照。放哪个键、什么形状不在这里答：
+ * 合并槽交给降级函数（`shared/generationLowering`，与画布同一份模式声明），其余说成标准输入键，
+ * 之后由 `applyHeadlessParamDefaults` 用同一个降级函数放进 body 真读的键。这里只管封存的 URL 在不在、
+ * 和合同里显式写死的值冲不冲突、该拒的明着拒。
  */
-export function projectReferenceUrls(
+export function placeRunReferences(
   input: GenerationProviderRequestInputV1,
-  mapping?: Mapping,
-  /**
-   * 档案模式声明的合并槽（`shared/videoCapabilities/referenceChannels.ts` 唯一 owner）。
-   * 这里曾经是一句 `channels.has("image_with_roles")`——**拿 body 猜模式**。Seedance / Wan
-   * 的 i2v body 同时声明 `image_urls` 与 `image_with_roles`（官方互斥，由模式区分），
-   * 于是「全能参考」模式的图也被塞进 `image_with_roles`，与手动路发的不是同一条通道
-   * （对等矩阵 NEW-1）。传 `undefined`/`null` = 没有合并槽 = 走扁平族键。
-   */
-  combineChannel?: ReferenceCombineChannel,
-): GenerationProviderRequestInputV1 {
-  const parameters = structuredClone(input.parameters);
+  createBody: unknown,
+  /** 用户选的档案模式（没带 modeId / 没有档案 → null，走按 body 推出的声明）。 */
+  mode: ArchetypeMode | null,
+  combineKey: string | null,
+): PlacedRunReferences {
+  let parameters = structuredClone(input.parameters);
+  let placedReferenceKeys: readonly string[] = [];
   if (input.referenceUrls) {
-    const channels = new Set((mapping ? bodyReferencedParamKeys(mapping.create.body) : []).map(key => PROJECTION_KEYS[key] || key));
-    const snapshot: Record<string, unknown> = {};
-    const append = (key: string, value: unknown) => { (snapshot[key] ??= []); (snapshot[key] as unknown[]).push(value); };
-    // 合并进角色数组的那几条：role 是**线上角色词**（按这一档模式的槽声明翻，与画布路同一张表），
-    // 不是合同角色词——合同的 reference / character 线上叫 reference_image；顺序按槽的声明顺序（与画布路同序）。
-    const combined: Array<{ url: string; order: number }> = [];
-    for (const reference of input.references) {
-      const url = input.referenceUrls[spendReferenceKey(reference)];
+    const urls = input.referenceUrls;
+    const approved = input.references.map((reference) => {
+      const url = urls[spendReferenceKey(reference)];
       if (!isProviderUrl(url)) throw new ApimartGenerationProviderError("Approved reference URL is unavailable");
-      const combineSlot = combineRoleForContractReference(combineChannel ?? null, reference);
-      if (combineSlot) combined.push({ url, order: combineSlot.order });
-      else if (reference.kind === "video") append("videoUrls", url);
-      else if (reference.kind === "audio") append("audioUrls", url);
-      // 这一档合并里没有收这种参考的槽：明着拒，不带着合同角色词错发（机器码 reference-not-in-use，错误卡认码，见 referenceResidueGuard）。
-      else if (combineChannel) throw new ApimartGenerationProviderError(tagNomiError("reference-not-in-use", `Request rejected before sending: the current mode has no reference slot for role ${reference.role ?? "reference"} (${reference.kind ?? "image"}). Nothing was sent to the provider.`));
-      else if (reference.role === "first_frame" && channels.has("first_frame_image")) snapshot.firstFrameImage = url;
-      else if (reference.role === "last_frame" && channels.has("last_frame_image")) snapshot.lastFrameImage = url;
-      else if (reference.role === "first_frame" || reference.role === "last_frame") throw new ApimartGenerationProviderError(`catalog mapping has unsupported reference role: ${reference.role}`);
-      else append("imageUrls", url);
-    }
-    const merge = (targetKey: string, value: unknown): void => {
-      // Empty channels are absent, not optional wire values.
-      if (!referenceValuePresent(value)) return;
-      const existing = PROJECTION_KEYS[targetKey]
-        ? referenceParameter(parameters, PROJECTION_KEYS[targetKey])
-        : parameters[targetKey];
-      // 合同里显式写死的 URL 与授权时封存的那一份不一致 = 批准的是 A、要发出去的是 B。拒。
-      if (referenceValuePresent(existing) && !sameJson(existing, value)) {
-        throw new ApimartGenerationProviderError("catalog reference URL projection conflicts with canonical parameters");
+      return { url, ...(reference.kind ? { kind: reference.kind } : {}), ...(reference.role ? { role: reference.role } : {}) };
+    });
+    try {
+      ({ parameters, placedKeys: placedReferenceKeys } = placeApprovedRunReferences(parameters, approved, createBody, mode));
+    } catch (error) {
+      if (!(error instanceof RunReferenceError)) throw error;
+      if (error.reason === "not-in-use") {
+        // 机器码 reference-not-in-use，错误卡认码，见 referenceResidueGuard。
+        throw new ApimartGenerationProviderError(tagNomiError("reference-not-in-use", `Request rejected before sending: the current mode has no reference slot for role ${error.detail.role ?? "reference"} (${error.detail.kind ?? "image"}). Nothing was sent to the provider.`));
       }
-      if (!referenceValuePresent(existing)) parameters[targetKey] = structuredClone(value);
-    };
-    if (combineChannel) merge(combineChannel.key, lowerCombinedReferences(combineChannel, combined));
-    for (const [sourceKey, value] of Object.entries(snapshot)) merge(PROJECTION_KEYS[sourceKey], value);
+      throw new ApimartGenerationProviderError(error.message);
+    }
   }
   const projected = { ...input, parameters };
-  assertResolvedReferences(projected, combineChannel);
-  return projected;
+  assertResolvedReferences(projected, combineKey);
+  return { ...projected, placedReferenceKeys };
 }
 
-const PARAMETER_ALIASES: Record<string, string> = {
+// Nomi 意图里的标量写法 → 线上标准写法。参考键不在这里：同一参考位的几种写法由 shared 声明表分组，
+// 放哪个键交给降级函数。
+const SCALAR_CANONICAL_KEYS: Readonly<Record<string, string>> = {
   aspectRatio: "aspect_ratio",
   durationSeconds: "duration",
   videoDuration: "duration",
   videoResolution: "resolution",
   generateAudio: "generate_audio",
   negativePrompt: "negative_prompt",
-  imageUrls: "image_urls",
-  inputUrls: "input_urls",
-  referenceImageUrls: "reference_image_urls",
-  imageWithRoles: "image_with_roles",
-  videoUrls: "video_urls",
-  referenceVideoUrls: "reference_video_urls",
-  audioUrls: "audio_urls",
-  referenceAudioUrls: "reference_audio_urls",
-  firstFrameImage: "first_frame_image",
-  firstFrameUrl: "first_frame_image",
-  lastFrameImage: "last_frame_image",
-  lastFrameUrl: "last_frame_image",
   returnLastFrame: "return_last_frame",
   generationType: "generation_type",
   sourceTaskId: "source_task_id",
 };
 
-export function normalizeParameters(parameters: Record<string, unknown>, mapping: Mapping): Record<string, unknown> {
+/**
+ * 合同参数 → 这份 mapping 收的参数：标量写法补上线上标准键；参考参数只认 mapping 读的那个参考位
+ * （同一参考位的另一种写法也算，见 `runReferenceParameterAccepted`）；mapping 不收的明着拒，不偷偷丢。
+ */
+export function normalizeParameters(
+  parameters: Record<string, unknown>,
+  mapping: Mapping,
+  /** 合同参考这一步写下的键：被拒时按参考位的标准写法称呼（调用方没写过它们）。 */
+  placedReferenceKeys: readonly string[] = [],
+): Record<string, unknown> {
   if (!parameters || typeof parameters !== "object" || Array.isArray(parameters)) {
     throw new ApimartGenerationProviderError("catalog generation parameters are invalid");
   }
@@ -289,24 +249,17 @@ export function normalizeParameters(parameters: Record<string, unknown>, mapping
     ...(mapping.create.paramMap?.drops || []),
     ...Object.keys(mapping.create.defaultParams || {}),
   ]);
-  const declaredReferenceKeys = new Set<ReferenceWireKey>();
-  for (const bodyKey of mappingKeys) {
-    const referenceKey = PROJECTION_KEYS[bodyKey];
-    if (referenceKey) declaredReferenceKeys.add(referenceKey);
-  }
-  const isDeclared = (key: string, canonical: string): boolean => {
-    if (mappingKeys.has(key) || mappingKeys.has(canonical)) return true;
-    if (declaredReferenceKeys.has(key as ReferenceWireKey) || declaredReferenceKeys.has(canonical as ReferenceWireKey)) return true;
-    // Accept aliases only when their canonical reference channel is consumed.
-    const projected = PROJECTION_KEYS[key] || PROJECTION_KEYS[canonical];
-    return Boolean(projected && declaredReferenceKeys.has(projected));
-  };
+  const placed = new Set(placedReferenceKeys);
   const normalized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(parameters)) {
-    if (value === undefined || (PROJECTION_KEYS[key] && !referenceValuePresent(value))) continue;
-    const canonical = PARAMETER_ALIASES[key] || key;
-    if (!isDeclared(key, canonical)) {
-      throw new ApimartGenerationProviderError(`catalog generation parameter is unsupported: ${key}`);
+    const referenceGroup = runReferenceGroupOf(key);
+    if (value === undefined || (referenceGroup && !referenceValuePresent(value))) continue;
+    const canonical = SCALAR_CANONICAL_KEYS[key] || key;
+    const declared = referenceGroup
+      ? runReferenceParameterAccepted(key, mappingKeys)
+      : mappingKeys.has(key) || mappingKeys.has(canonical);
+    if (!declared) {
+      throw new ApimartGenerationProviderError(`catalog generation parameter is unsupported: ${placed.has(key) ? runReferenceGroupHead(key) : key}`);
     }
     if (Object.prototype.hasOwnProperty.call(normalized, canonical) && !sameJson(normalized[canonical], value)) {
       throw new ApimartGenerationProviderError(`catalog generation parameter aliases conflict: ${key}`);
@@ -335,14 +288,12 @@ function collectProviderUrls(value: unknown, out: string[] = []): string[] {
 /**
  * 这份参数里已经落位的**全部**参考 URL（跨所有参考通道）。
  * 空参考护栏（`imageEditGuardError`）读的是 headless extras 的标准键，而 Run 路的参考
- * 此刻已经投影成了 wire 键（`image_urls` / `image_with_roles` / `first_frame_image`…），
+ * 此刻可能已经落在 body 键上（`image_urls` / `image_with_roles` / `first_frame_image`…，按 shared 声明表分组），
  * 所以要把它们捞回来喂给那把共享的尺子——而不是在 Run 路另写一份「带没带参考」的判据。
  */
 export function resolvedReferenceUrls(parameters: Record<string, unknown>): string[] {
   const urls: string[] = [];
-  for (const key of Object.keys(REFERENCE_PARAMETER_ALIASES) as ReferenceWireKey[]) {
-    collectProviderUrls(referenceParameter(parameters, key), urls);
-  }
+  for (const group of runReferenceGroups()) collectProviderUrls(groupValue(parameters, group), urls);
   return [...new Set(urls)];
 }
 
@@ -354,9 +305,7 @@ export function assertReferencesReachBody(
 ): void {
   if (input.references.length === 0) return;
   const parameterUrls: string[] = [];
-  for (const key of Object.keys(REFERENCE_PARAMETER_ALIASES) as ReferenceWireKey[]) {
-    collectProviderUrls(referenceParameter(parameters, key), parameterUrls);
-  }
+  for (const group of runReferenceGroups()) collectProviderUrls(groupValue(parameters, group), parameterUrls);
   if (parameterUrls.length < input.references.length) {
     throw new ApimartGenerationProviderError("catalog references must be resolved to provider URLs before submission");
   }

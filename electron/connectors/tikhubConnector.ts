@@ -222,7 +222,6 @@ async function fetchTikhubJson(
       maxBytes: 8 * 1024 * 1024,
       timeoutMs: 30_000,
       throwOnNon2xx: false,
-      ...(testOriginAllowed && testOrigin ? { allowedPrivateOrigins: [testOrigin] } : {}),
     });
   } catch (error) {
     throw new TikhubConnectorError(

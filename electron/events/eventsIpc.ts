@@ -1,7 +1,7 @@
 // 渲染层画布事件 → 单写者日志仓库(harness S5-a)。
 // 渲染层只缓冲与投递;seq/ts/redact/截断/分段全部在 appendEvents 单点完成(§1.2 写路径唯一)。
 import { ipcMain } from "electron";
-import { assertTrustedFireAndForget, assertTrustedSender } from "../ipcSenderGuard";
+import { assertTrustedSender } from "../ipcSenderGuard";
 import { appendEvents, readEvents } from "./eventLogRepository";
 import type { NewNomiEvent } from "./types";
 import { deriveGenerationEtaStats } from "./generationEtaStats";
@@ -25,9 +25,10 @@ export function registerEventsIpc(): void {
   });
 
   // ETA 读口只回按 vendor/model/kind 聚合后的数字，不把原始提示词或 URL 带进 renderer。
-  ipcMain.on("nomi:events:generation-eta-stats", (event, payload: { projectId?: string }) => {
-    if (!assertTrustedFireAndForget(event, "nomi:events:generation-eta-stats", assertTrustedSender)) return;
+  // 异步通道（handle）：渲染层发卡前 await 它，不再用同步 IPC 把渲染层钉在主进程上。
+  ipcMain.handle("nomi:events:generation-eta-stats", async (event, payload: { projectId?: string }) => {
+    assertTrustedSender(event);
     const projectId = String(payload?.projectId || "");
-    event.returnValue = { ok: true, stats: deriveGenerationEtaStats(readEvents(projectId)) };
+    return { ok: true, stats: deriveGenerationEtaStats(readEvents(projectId)) };
   });
 }

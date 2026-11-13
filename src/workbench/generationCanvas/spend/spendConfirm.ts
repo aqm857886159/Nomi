@@ -337,24 +337,30 @@ const COLD_START_SECONDS: Record<Exclude<GenerationCostKind, 'text' | 'mixed'>, 
   model3d: [120, 900],
 }
 
+/**
+ * 付费确认卡要的历史耗时：发卡之前异步取好，塞进 context.etaStats，卡出现时数字已经在上面（不先出卡再跳数）。
+ * 以前是在下面 historicalEta 里同步问主进程（sendSync）：生成结果落地时主进程正忙，点「生成」的那一下渲染层就跟着冻住。
+ * 取不到（通道被拒）照旧当没有历史、给冷启动估计，且不记缓存；回了但没有 stats（ok:false、没有桥）记成空历史——和同步版逐项相同。
+ */
+export async function withGenerationEtaStats(context: GenerationCostContext): Promise<GenerationCostContext> {
+  const projectId = context.projectId
+  if (context.etaStats || !projectId || !context.vendorKey || !context.modelKey) return context
+  const cached = etaStatsCache.get(projectId)
+  if (cached && Date.now() - cached.readAt < 10_000) return { ...context, etaStats: cached.stats }
+  let stats: readonly GenerationEtaBucket[]
+  try {
+    const reply = await getDesktopBridge()?.events?.generationEtaStats?.(projectId)
+    stats = Array.isArray(reply?.stats) ? reply.stats as GenerationEtaBucket[] : []
+    etaStatsCache.set(projectId, { readAt: Date.now(), stats })
+  } catch {
+    stats = []
+  }
+  return { ...context, etaStats: stats }
+}
+
 function historicalEta(context: GenerationCostContext | undefined, kind: GenerationCostKind): GenerationEtaBucket | undefined {
   if (!context?.vendorKey || !context.modelKey || kind === 'text' || kind === 'mixed') return undefined
-  const projectId = context.projectId
-  let stats = context.etaStats
-  if (!stats && projectId) {
-    const cached = etaStatsCache.get(projectId)
-    if (cached && Date.now() - cached.readAt < 10_000) stats = cached.stats
-    else {
-      try {
-        const reply = getDesktopBridge()?.events?.generationEtaStats?.(projectId)
-        stats = Array.isArray(reply?.stats) ? reply.stats as GenerationEtaBucket[] : []
-        etaStatsCache.set(projectId, { readAt: Date.now(), stats })
-      } catch {
-        stats = []
-      }
-    }
-  }
-  return stats?.find((item) => item.vendorKey === context.vendorKey && item.modelKey === context.modelKey && item.kind === kind)
+  return context.etaStats?.find((item) => item.vendorKey === context.vendorKey && item.modelKey === context.modelKey && item.kind === kind)
 }
 
 function etaMinutes(count: number, kind: GenerationCostKind, context?: GenerationCostContext): string {

@@ -1,0 +1,469 @@
+{
+ "note": "v0.24.1-mode-nodes 里 25 个节点在修前（origin/main facb9e5d7）发出的请求参数。extras = 渲染层 buildCatalogTaskRequest 冻结的请求参数；beforeSend = 主进程 applyHeadlessParamDefaults 再过一遍后的参数（目录里没有对应目录行、主进程那一步算不了的，值与 extras 相同）。算不出请求的节点（没选模型）记 throws。由独立验收线 V-mode-params-pr1 在修前代码上录得，原始文件 /Users/aoqimin/Nomi-coord/tmp/V-mode-params-pr1/old-main.json。",
+ "nodes": {
+  "gen-v2-image-loyw3v29-01xz": {
+   "kind": "text_to_image",
+   "modelKey": "nano-banana",
+   "extras": {
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "t2i"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v29-01xz",
+    "nodeKind": "image",
+    "archetypeInput": {}
+   },
+   "beforeSend": {
+    "aspect_ratio": "1:1",
+    "output_format": "png",
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "t2i"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v29-01xz",
+    "nodeKind": "image",
+    "archetypeInput": {}
+   }
+  },
+  "gen-v2-image-loyw3v2b-038n": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-image-loyw3v2c-04ja": {
+   "kind": "image_edit",
+   "modelKey": "nano-banana",
+   "extras": {
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "edit"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v2c-04ja",
+    "nodeKind": "image",
+    "referenceImages": [
+     "nomi-local://fixture/src-cat.png"
+    ],
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-cat.png"
+    ],
+    "archetypeInput": {
+     "image_urls": [
+      "nomi-local://fixture/src-cat.png"
+     ]
+    }
+   },
+   "beforeSend": {
+    "aspect_ratio": "1:1",
+    "output_format": "png",
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "edit"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v2c-04ja",
+    "nodeKind": "image",
+    "referenceImages": [
+     "nomi-local://fixture/src-cat.png"
+    ],
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-cat.png"
+    ],
+    "archetypeInput": {
+     "image_urls": [
+      "nomi-local://fixture/src-cat.png"
+     ]
+    }
+   }
+  },
+  "gen-v2-video-loyw3v2e-05ty": {
+   "kind": "text_to_video",
+   "modelKey": "seedance-2",
+   "extras": {
+    "modelKey": "seedance-2",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "seedance-2",
+     "modeId": "t2v",
+     "variantId": "standard"
+    },
+    "modelAlias": "seedance-2",
+    "nodeId": "gen-v2-video-loyw3v2e-05ty",
+    "nodeKind": "video",
+    "archetypeInput": {}
+   },
+   "beforeSend": null
+  },
+  "gen-v2-image-loyw3v2g-074l": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-video-loyw3v2h-08f9": {
+   "kind": "image_to_video",
+   "modelKey": "seedance-2",
+   "extras": {
+    "modelKey": "seedance-2",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "seedance-2",
+     "modeId": "first",
+     "variantId": "standard"
+    },
+    "modelAlias": "seedance-2",
+    "nodeId": "gen-v2-video-loyw3v2h-08f9",
+    "nodeKind": "video",
+    "firstFrameUrl": "nomi-local://fixture/src-first-frame.png",
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-first-frame.png"
+    ],
+    "archetypeInput": {
+     "first_frame_url": "nomi-local://fixture/src-first-frame.png"
+    }
+   },
+   "beforeSend": null
+  },
+  "gen-v2-video-loyw3v2k-09px": {
+   "kind": "text_to_video",
+   "modelKey": "seedance-2",
+   "extras": {
+    "modelKey": "seedance-2",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "seedance-2",
+     "modeId": "t2v",
+     "variantId": "standard"
+    },
+    "modelAlias": "seedance-2",
+    "nodeId": "gen-v2-video-loyw3v2k-09px",
+    "nodeKind": "video",
+    "archetypeInput": {}
+   },
+   "beforeSend": null
+  },
+  "gen-v2-image-loyw3v2n-0b0k": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-image-loyw3v2o-0cb8": {
+   "kind": "image_edit",
+   "modelKey": "nano-banana",
+   "extras": {
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "edit"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v2o-0cb8",
+    "nodeKind": "image",
+    "referenceImages": [
+     "nomi-local://fixture/src-paste.png"
+    ],
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-paste.png"
+    ],
+    "archetypeInput": {
+     "image_urls": [
+      "nomi-local://fixture/src-paste.png"
+     ]
+    }
+   },
+   "beforeSend": {
+    "aspect_ratio": "1:1",
+    "output_format": "png",
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "edit"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v2o-0cb8",
+    "nodeKind": "image",
+    "referenceImages": [
+     "nomi-local://fixture/src-paste.png"
+    ],
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-paste.png"
+    ],
+    "archetypeInput": {
+     "image_urls": [
+      "nomi-local://fixture/src-paste.png"
+     ]
+    }
+   }
+  },
+  "gen-v2-image-loyw3v2o-0cb8-copy-1700000000018-0dlvy": {
+   "kind": "text_to_image",
+   "modelKey": "nano-banana",
+   "extras": {
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "t2i"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v2o-0cb8-copy-1700000000018-0dlvy",
+    "nodeKind": "image",
+    "archetypeInput": {}
+   },
+   "beforeSend": {
+    "aspect_ratio": "1:1",
+    "output_format": "png",
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "t2i"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v2o-0cb8-copy-1700000000018-0dlvy",
+    "nodeKind": "image",
+    "archetypeInput": {}
+   }
+  },
+  "gen-v2-image-loyw3v2r-0ewj": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-video-loyw3v2s-0g77": {
+   "kind": "text_to_video",
+   "modelKey": "seedance-2",
+   "extras": {
+    "modelKey": "seedance-2",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "seedance-2",
+     "modeId": "t2v",
+     "variantId": "standard"
+    },
+    "modelAlias": "seedance-2",
+    "nodeId": "gen-v2-video-loyw3v2s-0g77",
+    "nodeKind": "video",
+    "archetypeInput": {}
+   },
+   "beforeSend": null
+  },
+  "gen-v2-image-loyw3v2v-0hhu": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-image-loyw3v2w-0isi": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-image-loyw3v2x-0k36": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-image-loyw3v2y-0ldt": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-image-loyw3v2z-0moh": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-video-loyw3v30-0nz4": {
+   "kind": "image_to_video",
+   "modelKey": "seedance-2",
+   "extras": {
+    "modelKey": "seedance-2",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "seedance-2",
+     "modeId": "omni",
+     "variantId": "standard"
+    },
+    "modelAlias": "seedance-2",
+    "nodeId": "gen-v2-video-loyw3v30-0nz4",
+    "nodeKind": "video",
+    "referenceImages": [
+     "nomi-local://fixture/src-five-1.png",
+     "nomi-local://fixture/src-five-2.png",
+     "nomi-local://fixture/src-five-3.png",
+     "nomi-local://fixture/src-five-4.png",
+     "nomi-local://fixture/src-five-5.png"
+    ],
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-five-1.png",
+     "nomi-local://fixture/src-five-2.png",
+     "nomi-local://fixture/src-five-3.png",
+     "nomi-local://fixture/src-five-4.png",
+     "nomi-local://fixture/src-five-5.png"
+    ],
+    "archetypeInput": {
+     "reference_image_urls": [
+      "nomi-local://fixture/src-five-1.png",
+      "nomi-local://fixture/src-five-2.png",
+      "nomi-local://fixture/src-five-3.png",
+      "nomi-local://fixture/src-five-4.png",
+      "nomi-local://fixture/src-five-5.png"
+     ]
+    }
+   },
+   "beforeSend": null
+  },
+  "gen-v2-image-loyw3v33-0p9s": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-image-loyw3v34-0qkg": {
+   "kind": "image_edit",
+   "modelKey": "nano-banana",
+   "extras": {
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "edit"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v34-0qkg",
+    "nodeKind": "image",
+    "referenceImages": [
+     "nomi-local://fixture/src-character.png"
+    ],
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-character.png"
+    ],
+    "archetypeInput": {
+     "image_urls": [
+      "nomi-local://fixture/src-character.png"
+     ]
+    }
+   },
+   "beforeSend": {
+    "aspect_ratio": "1:1",
+    "output_format": "png",
+    "modelKey": "nano-banana",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "edit"
+    },
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v34-0qkg",
+    "nodeKind": "image",
+    "referenceImages": [
+     "nomi-local://fixture/src-character.png"
+    ],
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-character.png"
+    ],
+    "archetypeInput": {
+     "image_urls": [
+      "nomi-local://fixture/src-character.png"
+     ]
+    }
+   }
+  },
+  "gen-v2-image-loyw3v37-0rv3": {
+   "kind": "text_to_image",
+   "modelKey": "nano-banana",
+   "extras": {
+    "modelKey": "nano-banana",
+    "modelLabel": "Nano Banana",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "t2i"
+    },
+    "modelVendor": "kie",
+    "vendor": "kie",
+    "aspect_ratio": "1:1",
+    "output_format": "png",
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v37-0rv3",
+    "nodeKind": "image",
+    "archetypeInput": {}
+   },
+   "beforeSend": {
+    "aspect_ratio": "1:1",
+    "output_format": "png",
+    "modelKey": "nano-banana",
+    "modelLabel": "Nano Banana",
+    "archetype": {
+     "id": "nano-banana",
+     "modeId": "t2i"
+    },
+    "modelVendor": "kie",
+    "vendor": "kie",
+    "modelAlias": "nano-banana",
+    "nodeId": "gen-v2-image-loyw3v37-0rv3",
+    "nodeKind": "image",
+    "archetypeInput": {}
+   }
+  },
+  "gen-v2-video-loyw3v38-0t5r": {
+   "kind": "image_to_video",
+   "modelKey": "seedance-2",
+   "extras": {
+    "modelKey": "seedance-2",
+    "modelLabel": "即梦 Seedance",
+    "archetype": {
+     "id": "seedance-2",
+     "modeId": "omni"
+    },
+    "modelVendor": "kie",
+    "vendor": "kie",
+    "resolution": "720p",
+    "aspect_ratio": "16:9",
+    "duration": 5,
+    "generate_audio": true,
+    "modelAlias": "seedance-2",
+    "nodeId": "gen-v2-video-loyw3v38-0t5r",
+    "nodeKind": "video",
+    "referenceImages": [
+     "nomi-local://fixture/src-plan-firstlast.png"
+    ],
+    "activeAssetUrls": [
+     "nomi-local://fixture/src-plan-firstlast.png"
+    ],
+    "archetypeInput": {
+     "reference_image_urls": [
+      "nomi-local://fixture/src-plan-firstlast.png"
+     ]
+    }
+   },
+   "beforeSend": null
+  },
+  "gen-v2-image-loyw3v39-0uge": {
+   "throws": "throw:请先在模型管理里选择一个可用模型"
+  },
+  "gen-v2-audio-loyw3v3a-0vr2": {
+   "kind": "transcribe",
+   "modelKey": "eleven-scribe-v2",
+   "extras": {
+    "modelKey": "eleven-scribe-v2",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "eleven-scribe-v2",
+     "modeId": "transcribe"
+    },
+    "modelAlias": "eleven-scribe-v2",
+    "nodeId": "gen-v2-audio-loyw3v3a-0vr2",
+    "nodeKind": "audio",
+    "archetypeInput": {}
+   },
+   "beforeSend": null
+  },
+  "gen-v2-model3d-loyw3v3c-0x1q": {
+   "kind": "text_to_3d",
+   "modelKey": "hunyuan3d",
+   "extras": {
+    "modelKey": "hunyuan3d",
+    "modelVendor": "kie",
+    "archetype": {
+     "id": "hunyuan3d",
+     "modeId": "text"
+    },
+    "modelAlias": "hunyuan3d",
+    "nodeId": "gen-v2-model3d-loyw3v3c-0x1q",
+    "nodeKind": "model3d",
+    "archetypeInput": {}
+   },
+   "beforeSend": null
+  }
+ }
+}

@@ -6,6 +6,7 @@ import type { GenerationCanvasEdge, GenerationCanvasNode } from '../../../genera
 import { buildArchetypeInputParams } from '../../../generationCanvas/nodes/controls/archetypeMeta'
 import { resolveGenerationReferences } from '../../../generationCanvas/runner/generationReferenceResolver'
 import { missingRequiredSlots } from './shotRowModel'
+import { modeWrittenInMeta } from '../../../generationCanvas/nodes/controls/modeTestHelpers'
 
 /**
  * 类级不变量：分镜行对「计划首帧」的记账，必须与**生成时真正发出去的东西**一致——全档案、全视频模式。
@@ -35,7 +36,7 @@ function sentByFirstFrameEdge(archetype: ModelArchetype, mode: ArchetypeMode, sl
   }
   const edge: GenerationCanvasEdge = { id: 'first-frame', source: 'keyframe', target: 'shot', mode: 'first_frame' }
   const references = resolveGenerationReferences(video, { nodes: [video, keyframe], edges: [edge] })
-  const body = JSON.stringify(buildArchetypeInputParams(meta, single, references))
+  const body = JSON.stringify(buildArchetypeInputParams(meta, modeWrittenInMeta(meta, single), references))
   return body.includes(FRAME_URL) ? 1 : 0
 }
 

@@ -63,7 +63,7 @@ describe("importTikhubShareUrl — 解析后带 source evidence 落成项目素�
       projectId: "project-fixture",
       url: "http://127.0.0.1:43210/fixture.mp4",
       sourceEvidence: expect.objectContaining({ connectorId: "tikhub", originalUrl: "抖音 https://v.douyin.com/fixture/", resolvedUrl: "http://127.0.0.1:43210/fixture.mp4" }),
-    }), { trustedPrivateOrigin: "http://127.0.0.1:43210" });
+    }));
   });
 });
 

@@ -9,7 +9,7 @@
   "main": "src/worker.mjs",
   "compatibility_date": "2026-09-15",
 
-  // 反馈 / 事件 / 轨迹三种对象都落这一个桶，按前缀分目录。
+  // 反馈 / 事件两种对象都落这一个桶，按前缀分目录。
   "r2_buckets": [
     {
       "binding": "INTAKE_BUCKET",

@@ -1,7 +1,6 @@
 import React, { type JSX } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
-import { IconMovie, IconPhoto, IconVideo } from '@tabler/icons-react'
 import { WorkbenchIconButton } from '../../design/actions'
 import { NomiLogoMark } from '../../design/identity'
 import { TooltipProvider } from '../../design'
@@ -9,7 +8,7 @@ import { useRichTextActions } from '../common/richTextActions'
 import { RichTextActionButton } from '../common/RichTextActionButton'
 import { TEXT_ACTION_INTENT_PROPS } from '../api/textActionIntent'
 import { cn } from '../../utils/cn'
-import { createNodeFromSelection, type SelectionGenerationKind } from './createNodeFromSelection'
+import { canRunSelectionAction, runSelectionAction, selectionActionsIn, type SelectionAction, type SelectionActionPorts } from './selectionActions'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../workbenchStore'
 
@@ -17,7 +16,8 @@ type SelectionGeneratePopoverProps = {
   editor: Editor | null
   selectedText: string
   selectionVersion: number
-  onStoryboard?: () => void
+  /** 常驻 Agent 发布的分镜启动器；不在创作面时为空，「拆成镜头」灰。 */
+  launchStoryboard: ((selectedText: string) => void) | null
   onCreated?: () => void
   /** 点「AI 编辑」。不给 = 不显示这一颗。 */
   onAiEdit?: () => void
@@ -36,6 +36,15 @@ const POPOVER_HEIGHT = 40
 const POPOVER_OFFSET = 10
 /** 选区浮条只放最常用的四颗格式钮；定义与顶栏同一份（richTextActions）。 */
 const SELECTION_FORMAT_ACTION_IDS: readonly string[] = ['bold', 'italic', 'h1', 'h2']
+const ACTION_BUTTON_CLASS = cn(
+  'workbench-selection-popover__tool workbench-selection-popover__tool--action',
+  'h-[30px] w-[30px] inline-flex items-center justify-center',
+  'border border-workbench-border-soft rounded-workbench-control',
+  'bg-workbench-surface text-workbench-ink',
+  'cursor-pointer',
+  'hover:border-nomi-ink-30',
+  'hover:bg-workbench-accent-soft hover:text-workbench-accent',
+)
 
 function resolveSelectionPosition(editor: Editor, root: HTMLElement | null): SelectionPopoverPosition | null {
   if (!root) return null
@@ -70,7 +79,7 @@ export default function SelectionGeneratePopover({
   editor,
   selectedText,
   selectionVersion,
-  onStoryboard,
+  launchStoryboard,
   onCreated,
   onAiEdit,
   hidden = false,
@@ -119,12 +128,21 @@ export default function SelectionGeneratePopover({
 
   if (hidden || !normalizedText || !editor || !position) return null
 
-  const handleCreate = (kind: SelectionGenerationKind) => {
-    if (createNodeFromSelection({ selectedText: normalizedText, kind, addGenerationNode, setWorkspaceMode })) {
-      onCreated?.()
-    }
-  }
-
+  const ports: SelectionActionPorts = { addGenerationNode, setWorkspaceMode, launchStoryboard }
+  const actionButton = (action: SelectionAction) => (
+    <WorkbenchIconButton
+      key={action.id}
+      className={ACTION_BUTTON_CLASS}
+      data-selection-action={action.id}
+      label={t(action.labelKey)}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => {
+        if (runSelectionAction(action.target, normalizedText, ports)) onCreated?.()
+      }}
+      disabled={!canRunSelectionAction(action.target, ports)}
+      icon={<action.Icon size={14} />}
+    />
+  )
 
   return (
     <div
@@ -170,8 +188,13 @@ export default function SelectionGeneratePopover({
           'self-stretch w-px mx-[2px] my-[3px] bg-workbench-border-soft',
         )}
       />
-      {onAiEdit ? (
-        <>
+      {/* 「AI 编辑」右边紧挨着的一簇（样张 B）：拆成镜头不是「生成一个节点」，不和图片、视频排在一起。
+          没有「AI 编辑」时这一簇照样单独夹在两条分隔线之间。 */}
+      <div
+        className={cn('workbench-selection-popover__ai-group', 'inline-flex items-center gap-[3px] shrink-0')}
+        data-selection-cluster="beside-ai-edit"
+      >
+        {onAiEdit ? (
           <button
             type="button"
             className={cn(
@@ -189,67 +212,21 @@ export default function SelectionGeneratePopover({
             <NomiLogoMark size={16} />
             {t('creationAi.rewrite.button')}
           </button>
-          <div
-            className={cn(
-              'workbench-selection-popover__divider',
-              'self-stretch w-px mx-[2px] my-[3px] bg-workbench-border-soft',
-            )}
-          />
-        </>
-      ) : null}
+        ) : null}
+        {selectionActionsIn('beside-ai-edit').map(actionButton)}
+      </div>
+      <div
+        className={cn(
+          'workbench-selection-popover__divider',
+          'self-stretch w-px mx-[2px] my-[3px] bg-workbench-border-soft',
+        )}
+      />
       <div
         className={cn('workbench-selection-popover__generate-group', 'inline-flex items-center gap-[3px] shrink-0')}
         aria-label={t('creationAi.selection.generate')}
+        data-selection-cluster="generate"
       >
-        <WorkbenchIconButton
-          className={cn(
-            'workbench-selection-popover__tool workbench-selection-popover__tool--generate',
-            'h-[30px] w-[30px] inline-flex items-center justify-center',
-            'border border-workbench-border-soft rounded-workbench-control',
-            'bg-workbench-surface text-workbench-ink',
-            'cursor-pointer',
-            'hover:border-nomi-ink-30',
-            'hover:bg-workbench-accent-soft hover:text-workbench-accent',
-          )}
-          label={t('creationAi.selection.image')}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => handleCreate('image')}
-          icon={<IconPhoto size={14} />}
-        />
-        <WorkbenchIconButton
-          className={cn(
-            'workbench-selection-popover__tool workbench-selection-popover__tool--generate',
-            'h-[30px] w-[30px] inline-flex items-center justify-center',
-            'border border-workbench-border-soft rounded-workbench-control',
-            'bg-workbench-surface text-workbench-ink',
-            'cursor-pointer',
-            'hover:border-nomi-ink-30',
-            'hover:bg-workbench-accent-soft hover:text-workbench-accent',
-          )}
-          label={t('creationAi.selection.video')}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => handleCreate('video')}
-          icon={<IconVideo size={14} />}
-        />
-        <WorkbenchIconButton
-          className={cn(
-            'workbench-selection-popover__tool workbench-selection-popover__tool--generate',
-            'h-[30px] w-[30px] inline-flex items-center justify-center',
-            'border border-workbench-border-soft rounded-workbench-control',
-            'bg-workbench-surface text-workbench-ink',
-            'cursor-pointer',
-            'hover:border-nomi-ink-30',
-            'hover:bg-workbench-accent-soft hover:text-workbench-accent',
-          )}
-          label={t('creationAi.selection.storyboard')}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            onStoryboard?.()
-            onCreated?.()
-          }}
-          disabled={!onStoryboard}
-          icon={<IconMovie size={14} />}
-        />
+        {selectionActionsIn('generate').map(actionButton)}
       </div>
     </div>
   )
