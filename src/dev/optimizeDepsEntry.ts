@@ -6,6 +6,7 @@ import 'react-dom/client';
 import 'react-router-dom';
 import 'diff';
 import '@floating-ui/dom';
+import '@fluentui/priority-overflow';
 import '@mantine/core';
 import '@mantine/modals';
 import '@mantine/notifications';
