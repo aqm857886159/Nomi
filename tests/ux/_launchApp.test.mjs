@@ -16,10 +16,8 @@ import {
   cleanupTempRoot,
   closeElectronWithin,
   descendantPids,
-  configureSyntheticCredentialStorage,
   currentCatalogVersion,
   diagnoseLaunchFailure,
-  isolatedCatalogHasSafeStorageCredentials,
   prepareIsolatedCatalog,
   prepareLocalStorageSeed,
   launchNomiApp,
@@ -624,36 +622,6 @@ describe('withLinuxNoSandbox', () => {
   })
 })
 
-describe('isolatedCatalogHasSafeStorageCredentials', () => {
-  // 2026-10-08 Linux CI：夹具用合成后端加密了 apimart 占位 key，被测 App 却没开同一个后端 →
-  // 模型在渲染层「当前不可用」、付费卡一颗参数 chip 都没有。起 App 的后端必须从盘上的 catalog 推出来。
-  // 不是凭据：只是 catalog 里那一格的形状（值从不被解密）。
-  const placeholder = 'not-a-secret'
-  const withCatalog = (catalog, run) => {
-    const root = makeTempDir('nomi-synthetic-cred-')
-    try {
-      if (catalog !== undefined) fs.writeFileSync(path.join(root, 'model-catalog.json'), typeof catalog === 'string' ? catalog : JSON.stringify(catalog))
-      return run(root)
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true })
-    }
-  }
-
-  test('a fixture catalog with a safeStorage-encrypted key needs the synthetic backend', () => {
-    withCatalog({ apiKeysByVendor: {
-      'agent-runtime-loopback': { apiKey: placeholder, enc: 'plain' },
-      apimart: { apiKey: placeholder, enc: 'safeStorage' },
-    } }, (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(true))
-  })
-
-  test('plain-only, missing or unreadable catalogs do not switch the backend', () => {
-    withCatalog({ apiKeysByVendor: { 'agent-runtime-loopback': { apiKey: placeholder, enc: 'plain' } } },
-      (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
-    withCatalog(undefined, (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
-    withCatalog('{not json', (root) => expect(isolatedCatalogHasSafeStorageCredentials(root)).toBe(false))
-  })
-})
-
 describe('合成凭据后端：按平台只在一处定', () => {
   test('每个平台各自的开关', () => {
     expect(syntheticCredentialBackendArgs('linux')).toEqual(['--password-store=basic'])
@@ -677,7 +645,7 @@ describe('合成凭据后端：按平台只在一处定', () => {
       .toThrow('synthetic credential storage conflicts')
   })
 
-  test('隔离启动：macOS 不用声明就带；非隔离不带；显式 false 照办；真凭据标记一律不带', () => {
+  test('隔离资料按来源认领；显式值不能覆盖来源；真凭据标记一律真实', () => {
     const root = makeTempDir('nomi-synthetic-decide-')
     const userDataDir = path.join(root, 'user-data')
     const settingsDir = path.join(root, 'settings')
@@ -686,12 +654,13 @@ describe('合成凭据后端：按平台只在一处定', () => {
     const base = { userDataDir, settingsDir }
     expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform: 'darwin' })).toBe(true)
     expect(decideSyntheticCredentialStorage({ ...base, isolate: false, platform: 'darwin' })).toBe(false)
-    expect(decideSyntheticCredentialStorage({ ...base, isolate: true, explicit: false, platform: 'darwin' })).toBe(false)
-    // 其它平台沿用盘上 catalog 推断：空目录不带，写了 safeStorage 密文才带。
-    expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform: 'linux' })).toBe(false)
+    expect(() => decideSyntheticCredentialStorage({ ...base, isolate: true, explicit: false, platform: 'darwin' })).toThrow(/标记/)
+    // 空目录和预种密文是同一来源。
+    expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform: 'linux' })).toBe(true)
     fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({ apiKeysByVendor: { apimart: { apiKey: 'x', enc: 'safeStorage' } } }))
     expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform: 'linux' })).toBe(true)
     // 真资料副本（seedReal* 落标记）：任何平台都不带；还硬要带就当场报错。
+    fs.rmSync(path.join(userDataDir, '.nomi-walk-credential-source'))
     fs.writeFileSync(path.join(userDataDir, REAL_CREDENTIAL_MARKER), '')
     for (const platform of ['darwin', 'linux']) {
       expect(decideSyntheticCredentialStorage({ ...base, isolate: true, platform })).toBe(false)
@@ -730,7 +699,7 @@ describe('合成凭据后端：按平台只在一处定', () => {
     }
   })
 
-  test('隔离启动在 macOS 上不用声明就带 --use-mock-keychain；真凭据副本和显式 false 一定不带', async () => {
+  test('隔离启动在 macOS 上不用声明就带 --use-mock-keychain；真凭据副本不带、未标副本拒绝', async () => {
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
     const launches = []
     const launch = vi.spyOn(playwrightElectron, 'launch').mockImplementation(async (launchOptions) => {
@@ -747,7 +716,7 @@ describe('合成凭据后端：按平台只在一处定', () => {
         return launches.at(-1).args.includes('--use-mock-keychain')
       }
       expect(await run({})).toBe(true)
-      expect(await run({ syntheticCredentialStorage: false })).toBe(false)
+      await expect(run({ syntheticCredentialStorage: false })).rejects.toThrow(/标记/)
       expect(await run({}, (root) => {
         fs.mkdirSync(path.join(root, 'user-data'), { recursive: true })
         fs.writeFileSync(path.join(root, 'user-data', REAL_CREDENTIAL_MARKER), '')
@@ -768,53 +737,7 @@ describe('合成凭据后端：按平台只在一处定', () => {
     expect(encryptors).toEqual([])
   })
 
-  test('activates and verifies Electron safeStorage only for opted-in Linux fixtures', async () => {
-    const calls = []
-    const app = {
-      evaluate: async (callback) => callback({
-        safeStorage: {
-          setUsePlainTextEncryption: (enabled) => calls.push(enabled),
-          isEncryptionAvailable: () => true,
-        },
-      }),
-    }
 
-    await expect(configureSyntheticCredentialStorage(app, true, 'linux')).resolves.toBe(true)
-    await expect(configureSyntheticCredentialStorage(app, false, 'linux')).resolves.toBe(false)
-    await expect(configureSyntheticCredentialStorage(app, true, 'darwin')).resolves.toBe(false)
-    expect(calls).toEqual([true])
-  })
-
-  test('fails at the launcher boundary when the Linux fallback is still unavailable', async () => {
-    const app = {
-      evaluate: async (callback) => callback({
-        safeStorage: {
-          setUsePlainTextEncryption: () => undefined,
-          isEncryptionAvailable: () => false,
-        },
-      }),
-    }
-
-    await expect(configureSyntheticCredentialStorage(app, true, 'linux'))
-      .rejects.toThrow('could not initialize an in-memory safeStorage key')
-  })
-
-  test('every literal fixture credential explicitly opts into isolated synthetic storage', () => {
-    const sources = ['tests/ux', 'scripts'].flatMap((directory) =>
-      fs.readdirSync(path.join(repoRoot, directory), { recursive: true, withFileTypes: true })
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.mjs'))
-        .map((entry) => path.join(entry.parentPath, entry.name)),
-    )
-    const offenders = sources
-      .filter((file) => {
-        const source = fs.readFileSync(file, 'utf8')
-        return source.includes('upsertVendorApiKey') && /apiKey:\s*['"]/.test(source) &&
-          !/syntheticCredentialStorage:\s*true/.test(source)
-      })
-      .map((file) => path.relative(repoRoot, file))
-
-    expect(offenders).toEqual([])
-  })
 })
 
 describe('withPackagedPlaywrightOrigin', () => {
