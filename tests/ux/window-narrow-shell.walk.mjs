@@ -67,7 +67,6 @@ const BOARD = {
 }
 
 const failures = []
-const pagesLinePending = []
 const knownIssues = []
 const check = (name, ok, detail = '') => {
   if (!ok) failures.push(`${name}${detail ? ` — ${detail}` : ''}`)
@@ -491,10 +490,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
       generation: [CANVAS_STAGE_SELECTOR, CANVAS_ADD_BAR, CANVAS_ZOOM_BAR, '[data-timeline-strip]'],
       preview: [],
     }
-    // 页面主体这几样由并行的页面线修（同一张板 creation.editor-grid、creation.toolbar-overflow、preview.timeline-toolbar，
-    // owner I-window-narrow-pages）。它合入之前这里照量照记、不判红；本 PR 并入页面线之后，把 PAGES_LINE_MERGED 和「⏳」分支整段删掉，
-    // 页面主体照判红——这个开关不许带进 main（协调 11-08 裁定）。
-    const PAGES_LINE_MERGED = false
+    // 页面主体（同一张板 creation.editor-grid、creation.toolbar-overflow、preview.grid-rows，页面线已合入主线）：和外壳一起判红。
     const L1_PAGES_LINE = {
       creation: ['[data-creation-editor]', `[aria-label="${toolbarAria}"]`],
       generation: [],
@@ -537,13 +533,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
         if (page !== 'generation') check(`${BOARD.tier} ${page} ${width}：${narrowTier ? '小球' : '停靠'}`, narrowTier ? shown.ball && !shown.dock : shown.dock, JSON.stringify(shown))
         const problems = []
         for (const selector of [...L1_COMMON, ...L1_PAGE[page], shown.panel ? AGENT_PANEL : AGENT_BALL]) problems.push(...(await outOfWindow(win, selector)))
-        const bodyProblems = []
-        for (const selector of L1_PAGES_LINE[page]) bodyProblems.push(...(await outOfWindow(win, selector)))
-        if (PAGES_LINE_MERGED) problems.push(...bodyProblems)
-        else if (bodyProblems.length) {
-          pagesLinePending.push(`${tag} ${page} ${width}：${bodyProblems.slice(0, 3).join('; ')}`)
-          console.log(`  ⏳ ${page} ${width} 页面主体越界（页面线负责，合入前只记录）— ${bodyProblems.slice(0, 3).join('; ')}`)
-        }
+        for (const selector of L1_PAGES_LINE[page]) problems.push(...(await outOfWindow(win, selector)))
         check(`${BOARD.neverYield} ${page} ${width}：L1 都在窗内`, problems.length === 0, problems.slice(0, 4).join('; '))
         const bar = await topbar()
         check(`${BOARD.segment} ${page} ${width}：分段整窗居中、左右都不撞`, Math.abs(bar.segmentCenter - bar.vw / 2) <= 1 && bar.gapLeft >= 0 && bar.gapRight >= 0, JSON.stringify(bar))
@@ -594,8 +584,7 @@ async function runRound({ locale, scheme, tag, projectName }) {
       await win.keyboard.type(locale === 'en' ? ' Half screen draft.' : '半屏里接着写。')
       const editorBox = await win.locator('[data-creation-editor]').first().boundingBox()
       const editorInside = Boolean(editorBox) && editorBox.x >= 0 && editorBox.x + editorBox.width <= width + 0.5
-      if (PAGES_LINE_MERGED || editorInside) check(`${BOARD.neverYield} ${width} 创作页：正文在窗内`, editorInside, JSON.stringify(editorBox))
-      else pagesLinePending.push(`${tag} 流程 ${width} 创作页正文越界：${JSON.stringify(editorBox)}`)
+      check(`${BOARD.neverYield} ${width} 创作页：正文在窗内`, editorInside, JSON.stringify(editorBox))
       await shot(win, `flow-${width}-creation-typing`)
     }
 
@@ -617,10 +606,6 @@ async function runRound({ locale, scheme, tag, projectName }) {
 
 for (const round of rounds) await runRound(round)
 
-if (pagesLinePending.length) {
-  console.log(`\n⏳ 页面主体越界 ${pagesLinePending.length} 处（等 I-window-narrow-pages 合入）：`)
-  for (const item of pagesLinePending) console.log(`  - ${item}`)
-}
 if (knownIssues.length) {
   console.log(`\n⚠ 已知、已移交（A4g 后续：显示投影与落盘意图拆开）${knownIssues.length} 轮：`)
   for (const item of knownIssues) console.log(`  - ${item}`)
