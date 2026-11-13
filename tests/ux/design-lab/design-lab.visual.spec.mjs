@@ -93,7 +93,7 @@ for (const screen of LAB_SCREEN_IDS) {
         // 路径；下面的比对照旧判红，基线仍然只能经 accept、由人看过后提交。
         // 动作弹窗右侧是实时 3D 预览：模型异步加载、加载完就一直在动，这一块的像素每趟都不同
         //（加载中 / 不同的动画帧）。这一格钉的是弹窗在最小窗口里的布局，预览区整块遮住不比。
-        const mask = screen === 'primitives-surfaces' && state.id === 'ps-33-action-dialog' ? [page.locator('[data-action-preview-stage]')] : undefined
+        const mask = screen === 'primitives-surfaces' && state.id === 'ps-33-action-dialog' ? [page.getByRole('dialog').locator('div.bg-nomi-ink')] : undefined
         if (!fs.existsSync(testInfo.snapshotPath(screen, `${state.id}.png`))) {
           await target.screenshot({ path: testInfo.outputPath(screen, `${state.id}-actual.png`), animations: 'disabled', caret: 'hide', scale: 'css', mask })
         }

@@ -111,7 +111,7 @@ export function ActionSelectModal({ open, onClose, onPick, title, confirmLabel, 
               {t('director.action.previewReset')}
             </button>
           </div>
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-nomi bg-nomi-ink" data-action-preview-stage="true">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-nomi bg-nomi-ink">
             {open && selected ? <ActionPreview actionId={selected.id} resetSignal={resetSignal} onReady={onReady} /> : null}
             {!ready ? (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-caption text-nomi-paper/70">
