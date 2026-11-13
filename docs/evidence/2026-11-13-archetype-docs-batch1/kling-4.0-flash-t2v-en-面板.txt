@@ -1,0 +1,11 @@
+摘要：16:9 · 5s
+方式格：Text to video
+输入：无参考
+---
+Aspect ratio
+16:9
+9:16
+1:1
+21:9
+Duration (seconds)
+5

@@ -1,0 +1,18 @@
+摘要：720p · 5s
+方式格：Image to video
+输入：1张图
+---
+Resolution
+480p
+720p
+1080p
+Duration (seconds)
+5
+Generate audio
+Return last frame
+Seed
+Add watermark
+Format
+mp4
+mov
+Content moderation before submit

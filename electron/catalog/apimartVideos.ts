@@ -183,8 +183,9 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   videoModel({
     modelKey: "doubao-seedance-2.5", labelZh: "Seedance 2.5", archetypeId: "seedance-2.5-apimart",
     requestTransform: "apimart-canonical-model-id",
-    t2vBody: { ...SEEDANCE_T2V_BODY, return_last_frame: RETURN_LAST_FRAME },
-    i2vBody: { ...SEEDANCE_I2V_BODY, return_last_frame: RETURN_LAST_FRAME },
+    // watermark / output_format 是 2.5 页新列的字段；omni_reference_task_type 由视频编辑 / 续写方式的 fixedParams 注入（其余方式不带，保持 auto）。
+    t2vBody: { ...SEEDANCE_T2V_BODY, return_last_frame: RETURN_LAST_FRAME, watermark: WATERMARK, output_format: "{{request.params.output_format}}", nsfw_check: "{{request.params.nsfw_check}}" },
+    i2vBody: { ...SEEDANCE_I2V_BODY, return_last_frame: RETURN_LAST_FRAME, watermark: WATERMARK, output_format: "{{request.params.output_format}}", nsfw_check: "{{request.params.nsfw_check}}", omni_reference_task_type: "{{request.params.omni_reference_task_type}}" },
   }),
   videoModel({
     modelKey: "MiniMax-H3", labelZh: "MiniMax H3", archetypeId: "minimax-h3-apimart",
@@ -234,6 +235,28 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
     modelKey: "kling-v4", labelZh: "可灵 4.0", archetypeId: "kling-v4",
     t2vBody: { aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION },
     i2vBody: { resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE },
+  }),
+  // 可灵 4.0 Flash（2026-11-12 整页对齐官方页，能力表 docs/models/capabilities/kling-v4-flash.md）：五种方式（文生 / 图生 / 全能参考 / 编辑 / 续写）。
+  // 只有 720p（默认，不发清晰度）；比例选「auto」= 不发（omitAuto；图生与续写发比例会 400，由方式的声明保证不带）；
+  // 参考 / 编辑 / 续写由 mode.fixedParams 注入 omni_reference_task_type，让约束在提交时就校验。
+  videoModel({
+    modelKey: "kling-v4-flash", labelZh: "可灵 4.0 Flash", archetypeId: "kling-v4-flash",
+    t2vBody: { aspect_ratio: ASPECT_OPTIONAL, duration: DURATION },
+    i2vBody: {
+      aspect_ratio: ASPECT_OPTIONAL, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, image_urls: IMAGE_URLS, video_urls: VIDEO_URLS,
+      omni_reference_task_type: "{{request.params.omni_reference_task_type}}", audio_setting: "{{request.params.audio_setting}}",
+    },
+    paramMap: OPTIONAL_ASPECT_PARAM_MAP,
+  }),
+  // MiniMax H3-Max（2026-11-12 照官方页 videos/minimax-h3/max 整页对账，含多模态参考方式 ref）：与 fal 共用 minimax-h3-max 档案（槽键就是标准帧键
+  // first_frame_image / last_frame_image，fal 那边的 mapping 把它们写进自己的 image_url / end_image_url）；清晰度 480P / 768P / 1080P，水印不声明（1080P 必须不发）。
+  videoModel({
+    modelKey: "MiniMax-H3-Max", labelZh: "MiniMax H3-Max", archetypeId: "minimax-h3-max",
+    t2vBody: { resolution: RESOLUTION, duration: DURATION, aspect_ratio: ASPECT },
+    i2vBody: {
+      aspect_ratio: ASPECT, resolution: RESOLUTION, duration: DURATION, first_frame_image: FIRST_FRAME_IMAGE, last_frame_image: LAST_FRAME_IMAGE,
+      image_urls: IMAGE_URLS, video_urls: VIDEO_URLS, audio_urls: AUDIO_URLS,
+    },
   }),
   // Grok Imagine Video 1.5 官方通道：字段名 resolution / aspect_ratio（Ext 那条叫 quality / size），图生只发 image_urls。
   videoModel({

@@ -1,152 +1,35 @@
 {
  "note": "修前（方式参数 owner 之前）每格两条路请求体的指纹，以及这次允许新增的键。改动发出去的字节时用 NOMI_UPDATE_OFFICIAL_WIRE_BODIES=1 重录（会清空 added）。",
- "added": [
-  {
-   "cell": "MiniMax-H3|ref|n=1",
-   "path": "canvas",
-   "key": "aspect_ratio",
-   "value": "adaptive"
-  },
-  {
-   "cell": "MiniMax-H3|ref|n=1",
-   "path": "run",
-   "key": "aspect_ratio",
-   "value": "adaptive"
-  },
-  {
-   "cell": "MiniMax-H3|ref|n=9",
-   "path": "canvas",
-   "key": "aspect_ratio",
-   "value": "adaptive"
-  },
-  {
-   "cell": "MiniMax-H3|ref|n=9",
-   "path": "run",
-   "key": "aspect_ratio",
-   "value": "adaptive"
-  },
-  {
-   "cell": "happyhorse-1.1|ref|n=1",
-   "path": "canvas",
-   "key": "size",
-   "value": "16:9"
-  },
-  {
-   "cell": "happyhorse-1.1|ref|n=1",
-   "path": "run",
-   "key": "size",
-   "value": "16:9"
-  },
-  {
-   "cell": "happyhorse-1.1|ref|n=9",
-   "path": "canvas",
-   "key": "size",
-   "value": "16:9"
-  },
-  {
-   "cell": "happyhorse-1.1|ref|n=9",
-   "path": "run",
-   "key": "size",
-   "value": "16:9"
-  },
-  {
-   "cell": "viduq4-preview|ref|n=1",
-   "path": "canvas",
-   "key": "aspect_ratio",
-   "value": "16:9"
-  },
-  {
-   "cell": "viduq4-preview|ref|n=1",
-   "path": "run",
-   "key": "aspect_ratio",
-   "value": "16:9"
-  },
-  {
-   "cell": "viduq4-preview|ref|n=15",
-   "path": "canvas",
-   "key": "aspect_ratio",
-   "value": "16:9"
-  },
-  {
-   "cell": "viduq4-preview|ref|n=15",
-   "path": "run",
-   "key": "aspect_ratio",
-   "value": "16:9"
-  },
-  {
-   "cell": "wan2.7|ref|n=1",
-   "path": "canvas",
-   "key": "size",
-   "value": "16:9"
-  },
-  {
-   "cell": "wan2.7|ref|n=1",
-   "path": "run",
-   "key": "size",
-   "value": "16:9"
-  },
-  {
-   "cell": "wan2.7|ref|n=5",
-   "path": "canvas",
-   "key": "size",
-   "value": "16:9"
-  },
-  {
-   "cell": "wan2.7|ref|n=5",
-   "path": "run",
-   "key": "size",
-   "value": "16:9"
-  },
-  {
-   "cell": "wan3.0-video-prime|ref|n=1",
-   "path": "canvas",
-   "key": "size",
-   "value": "adaptive"
-  },
-  {
-   "cell": "wan3.0-video-prime|ref|n=1",
-   "path": "run",
-   "key": "size",
-   "value": "adaptive"
-  },
-  {
-   "cell": "wan3.0-video-prime|ref|n=10",
-   "path": "canvas",
-   "key": "size",
-   "value": "adaptive"
-  },
-  {
-   "cell": "wan3.0-video-prime|ref|n=10",
-   "path": "run",
-   "key": "size",
-   "value": "adaptive"
-  },
-  {
-   "cell": "wan3.0-video|ref|n=1",
-   "path": "canvas",
-   "key": "size",
-   "value": "adaptive"
-  },
-  {
-   "cell": "wan3.0-video|ref|n=1",
-   "path": "run",
-   "key": "size",
-   "value": "adaptive"
-  },
-  {
-   "cell": "wan3.0-video|ref|n=10",
-   "path": "canvas",
-   "key": "size",
-   "value": "adaptive"
-  },
-  {
-   "cell": "wan3.0-video|ref|n=10",
-   "path": "run",
-   "key": "size",
-   "value": "adaptive"
-  }
- ],
+ "added": [],
  "bodies": {
+  "MiniMax-H3-Max|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "MiniMax-H3-Max|i2v|n=1": {
+   "canvas": "234c22b5ba9c1574",
+   "run": "234c22b5ba9c1574"
+  },
+  "MiniMax-H3-Max|i2v|n=2": {
+   "canvas": "ae164d48ac7bea53",
+   "run": "ae164d48ac7bea53"
+  },
+  "MiniMax-H3-Max|ref|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "MiniMax-H3-Max|ref|n=1": {
+   "canvas": "4e8900e8f8b4e918",
+   "run": "4e8900e8f8b4e918"
+  },
+  "MiniMax-H3-Max|ref|n=9": {
+   "canvas": "68277c70d90240a4",
+   "run": "68277c70d90240a4"
+  },
+  "MiniMax-H3-Max|t2v|n=0": {
+   "canvas": "d43628cd586a8193",
+   "run": "d43628cd586a8193"
+  },
   "MiniMax-H3-Regeneration|regenerate|n=0": {
    "canvas": "24ef0a27d2047ff0",
    "run": "24ef0a27d2047ff0"
@@ -180,12 +63,12 @@
    "run": "aaf0bfe49d2cb182"
   },
   "MiniMax-H3|ref|n=1": {
-   "canvas": "c00a3105b3b01b02",
-   "run": "c00a3105b3b01b02"
+   "canvas": "c7f1177babc84f49",
+   "run": "c7f1177babc84f49"
   },
   "MiniMax-H3|ref|n=9": {
-   "canvas": "bcae4f4ac7a881af",
-   "run": "bcae4f4ac7a881af"
+   "canvas": "c305a8955d8a0618",
+   "run": "c305a8955d8a0618"
   },
   "MiniMax-H3|t2v|n=0": {
    "canvas": "92262f8a7976fedb",
@@ -259,41 +142,65 @@
    "canvas": "0a67eb8813c77f3f",
    "run": "0a67eb8813c77f3f"
   },
+  "doubao-seedance-2.5|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.5|edit|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "118ee4c5fd9adbbc"
+  },
+  "doubao-seedance-2.5|edit|n=30": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "ecd3053b92ea2f5e"
+  },
+  "doubao-seedance-2.5|extend|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "doubao-seedance-2.5|extend|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "8804791f1f4d4a1d"
+  },
+  "doubao-seedance-2.5|extend|n=30": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "73c49e54634ed8f1"
+  },
   "doubao-seedance-2.5|firstlast|n=0": {
    "canvas": "b39d5855a1b9ac86",
    "run": "aaf0bfe49d2cb182"
   },
   "doubao-seedance-2.5|firstlast|n=1": {
-   "canvas": "7820b2bdd96a38b7",
-   "run": "7820b2bdd96a38b7"
+   "canvas": "ec528ecedb11c696",
+   "run": "ec528ecedb11c696"
   },
   "doubao-seedance-2.5|firstlast|n=2": {
-   "canvas": "e0984adacb97ad2f",
-   "run": "e0984adacb97ad2f"
+   "canvas": "28c67b309ffd252f",
+   "run": "28c67b309ffd252f"
   },
   "doubao-seedance-2.5|first|n=0": {
    "canvas": "b39d5855a1b9ac86",
    "run": "aaf0bfe49d2cb182"
   },
   "doubao-seedance-2.5|first|n=1": {
-   "canvas": "7820b2bdd96a38b7",
-   "run": "7820b2bdd96a38b7"
+   "canvas": "ec528ecedb11c696",
+   "run": "ec528ecedb11c696"
   },
   "doubao-seedance-2.5|omni|n=0": {
    "canvas": "b39d5855a1b9ac86",
    "run": "aaf0bfe49d2cb182"
   },
   "doubao-seedance-2.5|omni|n=1": {
-   "canvas": "b6e4998cf1d8acf1",
-   "run": "b6e4998cf1d8acf1"
+   "canvas": "23a6920473a8fd94",
+   "run": "23a6920473a8fd94"
   },
   "doubao-seedance-2.5|omni|n=30": {
-   "canvas": "9565565fff4d1b7d",
-   "run": "9565565fff4d1b7d"
+   "canvas": "3ab0ba0dc7d69b9d",
+   "run": "3ab0ba0dc7d69b9d"
   },
   "doubao-seedance-2.5|t2v|n=0": {
-   "canvas": "6f8b63739a97b2dc",
-   "run": "6f8b63739a97b2dc"
+   "canvas": "7fe372bb273d6bdb",
+   "run": "7fe372bb273d6bdb"
   },
   "doubao-seedream-4.5|edit|n=0": {
    "canvas": "b39d5855a1b9ac86",
@@ -316,16 +223,16 @@
    "run": "aafa5ae19edd93c6"
   },
   "doubao-seedream-5-0-pro|edit|n=1": {
-   "canvas": "f297ab30219258c3",
-   "run": "f297ab30219258c3"
+   "canvas": "a245deb6bc093e87",
+   "run": "a245deb6bc093e87"
   },
   "doubao-seedream-5-0-pro|edit|n=10": {
-   "canvas": "467ec4a6ed2a2835",
-   "run": "467ec4a6ed2a2835"
+   "canvas": "21772a188bdc79d4",
+   "run": "21772a188bdc79d4"
   },
   "doubao-seedream-5-0-pro|t2i|n=0": {
-   "canvas": "93c6534cd767c233",
-   "run": "93c6534cd767c233"
+   "canvas": "d910cb58f4e66274",
+   "run": "d910cb58f4e66274"
   },
   "flux-3-image-klein|i2i|n=0": {
    "canvas": "b39d5855a1b9ac86",
@@ -712,12 +619,12 @@
    "run": "aaf0bfe49d2cb182"
   },
   "happyhorse-1.1|ref|n=1": {
-   "canvas": "41201a3bcb5720fb",
-   "run": "41201a3bcb5720fb"
+   "canvas": "501142692d50af7c",
+   "run": "501142692d50af7c"
   },
   "happyhorse-1.1|ref|n=9": {
-   "canvas": "ffa4b4f3fcab0403",
-   "run": "ffa4b4f3fcab0403"
+   "canvas": "7d4ee56713bbfb36",
+   "run": "7d4ee56713bbfb36"
   },
   "happyhorse-1.1|t2v|n=0": {
    "canvas": "88165de67166e7dd",
@@ -766,6 +673,46 @@
   "kling-v3|t2v|n=0": {
    "canvas": "1e094ffb02cbed86",
    "run": "1e094ffb02cbed86"
+  },
+  "kling-v4-flash|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "kling-v4-flash|edit|n=1": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "150f186ae4104721"
+  },
+  "kling-v4-flash|edit|n=10": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "c640bca6f93a7874"
+  },
+  "kling-v4-flash|extend|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "kling-v4-flash|i2v|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "kling-v4-flash|i2v|n=1": {
+   "canvas": "32a6705c9b76e93f",
+   "run": "32a6705c9b76e93f"
+  },
+  "kling-v4-flash|ref|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aaf0bfe49d2cb182"
+  },
+  "kling-v4-flash|ref|n=1": {
+   "canvas": "4f37951385ffd133",
+   "run": "4f37951385ffd133"
+  },
+  "kling-v4-flash|ref|n=10": {
+   "canvas": "ca2dee52db158d77",
+   "run": "ca2dee52db158d77"
+  },
+  "kling-v4-flash|t2v|n=0": {
+   "canvas": "4ed590adc840be95",
+   "run": "4ed590adc840be95"
   },
   "kling-v4|i2v|n=0": {
    "canvas": "b39d5855a1b9ac86",
@@ -882,6 +829,22 @@
   "qwen-image-3.0|t2i|n=0": {
    "canvas": "2a6a621443512694",
    "run": "2a6a621443512694"
+  },
+  "seedream-5-5|edit|n=0": {
+   "canvas": "b39d5855a1b9ac86",
+   "run": "aafa5ae19edd93c6"
+  },
+  "seedream-5-5|edit|n=1": {
+   "canvas": "45cc2cced8031c3d",
+   "run": "45cc2cced8031c3d"
+  },
+  "seedream-5-5|edit|n=10": {
+   "canvas": "84726bab552d4c51",
+   "run": "84726bab552d4c51"
+  },
+  "seedream-5-5|t2i|n=0": {
+   "canvas": "fd49bf90bed6ef1c",
+   "run": "fd49bf90bed6ef1c"
   },
   "veo3.1-fast-official|i2v|n=0": {
    "canvas": "b39d5855a1b9ac86",
@@ -1000,12 +963,12 @@
    "run": "aaf0bfe49d2cb182"
   },
   "viduq4-preview|ref|n=1": {
-   "canvas": "ba2f6125c3a2220c",
-   "run": "ba2f6125c3a2220c"
+   "canvas": "50e4d0c7a1043695",
+   "run": "50e4d0c7a1043695"
   },
   "viduq4-preview|ref|n=15": {
-   "canvas": "4a733ee71e5758f9",
-   "run": "4a733ee71e5758f9"
+   "canvas": "b333eb38926c64cd",
+   "run": "b333eb38926c64cd"
   },
   "wan2.7-image-pro|i2i|n=0": {
    "canvas": "b39d5855a1b9ac86",
@@ -1056,12 +1019,12 @@
    "run": "aaf0bfe49d2cb182"
   },
   "wan2.7|ref|n=1": {
-   "canvas": "4f6e47e94a6a6791",
-   "run": "4f6e47e94a6a6791"
+   "canvas": "27169a77b63664c9",
+   "run": "27169a77b63664c9"
   },
   "wan2.7|ref|n=5": {
-   "canvas": "0fe3642b2de5679f",
-   "run": "0fe3642b2de5679f"
+   "canvas": "c493f6097293a771",
+   "run": "c493f6097293a771"
   },
   "wan2.7|t2v|n=0": {
    "canvas": "9bc30929315b04a2",
@@ -1092,12 +1055,12 @@
    "run": "aaf0bfe49d2cb182"
   },
   "wan3.0-video-prime|ref|n=1": {
-   "canvas": "4ffdfdc2d68f907e",
-   "run": "4ffdfdc2d68f907e"
+   "canvas": "a7be298ac912e3b7",
+   "run": "a7be298ac912e3b7"
   },
   "wan3.0-video-prime|ref|n=10": {
-   "canvas": "67ff8d2c67e135a1",
-   "run": "67ff8d2c67e135a1"
+   "canvas": "8c0298ca76ad67dc",
+   "run": "8c0298ca76ad67dc"
   },
   "wan3.0-video-prime|t2v|n=0": {
    "canvas": "88845bc273854ba6",
@@ -1128,12 +1091,12 @@
    "run": "aaf0bfe49d2cb182"
   },
   "wan3.0-video|ref|n=1": {
-   "canvas": "4a63336c617cc93d",
-   "run": "4a63336c617cc93d"
+   "canvas": "c99e22b3826ad992",
+   "run": "c99e22b3826ad992"
   },
   "wan3.0-video|ref|n=10": {
-   "canvas": "9b0e635a242afdcc",
-   "run": "9b0e635a242afdcc"
+   "canvas": "21d2e25c18c9f085",
+   "run": "21d2e25c18c9f085"
   },
   "wan3.0-video|t2v|n=0": {
    "canvas": "aff530a2aa8ba82d",

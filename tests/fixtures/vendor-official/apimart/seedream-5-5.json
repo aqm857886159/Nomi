@@ -1,0 +1,28 @@
+{
+  "modelKey": "seedream-5-5",
+  "fetchedAt": "2026-11-12",
+  "modes": {
+    "t2i": {
+      "why": "文生图不带参考图",
+      "referenceKeys": {},
+      "noReference": {
+        "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+        "fetchedAt": "2026-11-12",
+        "quote": "Required for text-to-image and image-to-image.",
+        "evidenceLevel": "mode-definition",
+        "interpretation": "Pure text intent: no image, video or audio assets."
+      }
+    },
+    "edit": {
+      "referenceKeys": {
+        "image_urls": {
+          "shape": "string[]",
+          "max": 10,
+          "source": "https://docs.apimart.ai/en/api-reference/images/seedream-5-5/generation",
+          "fetchedAt": "2026-11-12",
+          "quote": "Up to 10 references for image generation; exactly 1 input for layer decomposition."
+        }
+      }
+    }
+  }
+}
