@@ -1,7 +1,7 @@
 // ⑭ 删项目进系统回收站：macOS 真机闭环「进废纸篓 → 还原 → 下次启动回项目库」，外加一条「进不了废纸篓」
 // （项目所在目录不可写 → 卡片还在、说清原因、什么都没删）。一次性核对脚本，不进 CI。
 // 用法：node <本文件> <截图输出目录>（先 pnpm build；只在 macOS 跑，其它系统直接退出）
-// 结果：每条断言一行 JSON 打到标准输出，全过 exit 0；2026-10-23 的一次结果存在同目录上层的 mac-roundtrip-result.jsonl。
+// 结果：每条断言一行 JSON 打到标准输出，全过 exit 0；2026-10-23 的一次结果记在当时的走查证据里（git 历史可查）。
 //
 // 为什么用一个一次性的小磁盘映像当「项目所在的盘」：
 //   · macOS 的 ~/.Trash 默认不让命令行进程读（Operation not permitted，需要「完全磁盘访问」），在那里既看不到
@@ -21,7 +21,7 @@ if (process.platform !== 'darwin') {
 }
 // 走查启动器默认安装 quiet-walk：窗口开在屏幕外，不抢用户的焦点。
 
-const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const fromRepo = (rel) => pathToFileURL(path.join(repo, rel)).href
 const { launchNomiApp, closeNomiApp } = await import(fromRepo('tests/ux/_launchApp.mjs'))
 const { expectVisible, expectHidden, clickOrFail } = await import(fromRepo('tests/ux/_assert.mjs'))

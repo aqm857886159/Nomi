@@ -22,9 +22,9 @@
 | 恢复 | 撤销、处理中取消、源文件不可用后重试 | 卡片、来源边、文件清理及同卡重试通过 | [ ] |
 | 缩放 | 50%画布仍能拖动并执行 | 真拖动与真实导出通过 | [ ] |
 
-![中文真实1080p素材](video-trim-production/15-real-filmstrip-zh.png)
-![英文深色剪辑](video-trim-production/03-clip-open-en-dark.png)
-![英文深色截帧结果](video-frame-production/02-frame-done-en-dark.png)
+![中文真实1080p素材](2026-10-11-video-trim-production/15-real-filmstrip-zh.png)
+![英文深色剪辑](2026-10-11-video-trim-production/03-clip-open-en-dark.png)
+![英文深色截帧结果](2026-10-11-video-frame-production/02-frame-done-en-dark.png)
 
 ## 性能边界
 
