@@ -91,6 +91,7 @@ export function HandbookPanel({ opened, onClose }: Props): JSX.Element | null {
     <DesignModal opened={opened} onClose={onClose} centered size={680} zIndex={4000}
       closeOnEscape={false} trapFocus={false} returnFocus={false}
       closeButtonProps={{ 'aria-label': t('onboardingProviders.handbook.closeAria') }}
+      accessibleName={t('onboardingProviders.handbook.aria')}
       title={<span className="flex items-center gap-2">
         <IconMap size={18} stroke={1.6} className="text-nomi-accent" />
         <b className="text-title font-bold text-nomi-ink">{content.title}</b>

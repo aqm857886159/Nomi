@@ -27,6 +27,18 @@ describe('DesignModal 外壳：高度与滚动归属（§3.5）', () => {
     expect(html.indexOf('data-probe-primary')).toBeGreaterThan(html.indexOf('data-design-modal-actions'))
   })
 
+  it('标题里除了名字还有别的东西时，读屏名字只念 accessibleName：挂在对话框 aria-labelledby 指到的那个标题元素上', () => {
+    const html = render({ title: <div>技能名<p>一长段简介</p><button type="button">关闭</button></div>, accessibleName: '技能名' })
+    // 静态渲染时 Mantine 还没把 aria-labelledby 挂到对话框上（挂载后才挂，指向的就是这个标题元素），这里直接核标题元素。
+    const titleTag = html.match(/<[a-z0-9]+[^>]*mantine-Modal-title[^>]*>/)?.[0] ?? ''
+    expect(titleTag, '找不到标题元素').not.toBe('')
+    expect(titleTag).toContain('aria-label="技能名"')
+  })
+
+  it('不传 accessibleName 时标题元素不带 aria-label（名字照旧是标题文字）', () => {
+    expect(render()).not.toMatch(/mantine-Modal-title[^>]*aria-label=/)
+  })
+
   it('不传决定栏就没有决定栏那一行', () => {
     expect(render()).not.toContain('data-design-modal-actions')
   })

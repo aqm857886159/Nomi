@@ -18,6 +18,9 @@ import { PlanRows } from '../../shared/PlanRows'
 // - 外部 AI 助手（MCP，source='agent'）：换机器人图标 + 明细行。
 // 审批卡**永不因空闲超时**（2026-09-11 用户拍板）：没有倒计时、没有到点自动决定。钱的闸只有真人能决，
 // 等多久都行——外部调用方那头的超时是它自己的事，不该由我们替用户按下「未确认」。
+// 关闭键的锚点：走查按它点「关掉这张卡」这种关法（四种关法都不花钱那条夜跑走查认它）。
+const CLOSE_ACTION_ANCHOR = { 'data-spend-confirm-action': 'close' }
+
 export function SpendConfirmDialog() {
   const { t } = useTranslation()
   const pending = useSpendConfirmStore((state) => state.pending)
@@ -133,7 +136,7 @@ export function SpendConfirmDialog() {
       zIndex={NOMI_OVERLAY_Z_INDEX.dialog}
       transitionProps={{ duration: 0 }}
       title={header}
-      closeButtonProps={{ 'aria-label': t('common.close') }}
+      closeButtonProps={{ 'aria-label': t('common.close'), ...CLOSE_ACTION_ANCHOR }}
       // 打开时焦点落在对话框本体（读屏会念标题），**刻意不落在「确认花钱」上**——那是不可逆动作，不该被一个回车顺手按掉。
       initialFocus="dialog"
       // 回车 = 主动作，但只在焦点停在对话框本体（或卡里非控件处）时：焦点在按钮 / 输入框上时回车归那个控件。

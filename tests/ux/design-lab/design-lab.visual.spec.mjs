@@ -94,6 +94,8 @@ for (const screen of LAB_SCREEN_IDS) {
         // 动作弹窗右侧是实时 3D 预览：模型异步加载、加载完就一直在动，这一块的像素每趟都不同
         //（加载中 / 不同的动画帧）。这一格钉的是弹窗在最小窗口里的布局，预览区整块遮住不比。
         const mask = screen === 'primitives-surfaces' && state.id === 'ps-33-action-dialog' ? [page.getByRole('dialog').locator('div.bg-nomi-ink')] : undefined
+        // 遮罩按预览区的底色类名找：预览容器哪天换了类名，遮罩会悄悄一个都遮不到、这一格重新变得每趟不同——先断言遮得到。
+        if (mask) await expect(mask[0], `${state.id}：遮罩没找到预览区`).toHaveCount(1)
         if (!fs.existsSync(testInfo.snapshotPath(screen, `${state.id}.png`))) {
           await target.screenshot({ path: testInfo.outputPath(screen, `${state.id}-actual.png`), animations: 'disabled', caret: 'hide', scale: 'css', mask })
         }

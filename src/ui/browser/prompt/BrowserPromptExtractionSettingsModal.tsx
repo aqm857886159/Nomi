@@ -119,6 +119,7 @@ export function BrowserPromptExtractionSettingsModal({
     <DesignModal
       opened
       onClose={onClose}
+      accessibleName={t('browserAssets.extraction.settings')}
       title={<div>{t('browserAssets.extraction.settings')}<div className="mt-0.5 text-micro font-normal text-nomi-ink-40">{t('browserAssets.extraction.settingsPath')}</div></div>}
       size={920}
       centered

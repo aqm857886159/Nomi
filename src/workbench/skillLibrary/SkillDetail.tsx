@@ -29,6 +29,7 @@ export function SkillDetail({ entry, addToChatBlockedReason, onClose, onAddToCha
     <DesignModal
       opened
       contentAttributes={{ 'data-skill-detail': entry.id }}
+      accessibleName={entry.title}
       onClose={onClose}
       title={
         <header className="relative flex shrink-0 gap-5 border-b border-nomi-line px-6 pb-5 pt-6">
