@@ -1,0 +1,16 @@
+摘要：720p
+方式格：Video editing
+输入：1段视频
+---
+Resolution
+480p
+720p
+1080p
+Generate audio
+Return last frame
+Seed
+Add watermark
+Format
+mp4
+mov
+Content moderation before submit

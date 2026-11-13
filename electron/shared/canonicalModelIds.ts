@@ -117,6 +117,8 @@ export const CANONICAL_MODEL_IDS: Record<string, string> = {
   "hailuo3": "minimax h3",
   // H3-Max 是另一个档次（独立档案 minimax-h3-max），目前只有 fal 一家；写模型身份而不是「· fal」。
   "minimax/h3-max": "minimax h3-max",
+  // APIMart 的 H3-Max 与 fal 共用 minimax-h3-max 档案（2026-11-12 接入），同一个模型身份，不另起一条。
+  "MiniMax-H3-Max": "minimax h3-max",
   // Wan 3.0（kie / apimart / Runway `wan3`，同一个 wan-3.0 档案）
   "wan/3-0-video": "wan 3.0",
   "wan3.0-video": "wan 3.0",

@@ -1,30 +1,34 @@
 {
  "summary": {
-  "samples": 534,
-  "archetypes": 93,
+  "samples": 584,
+  "archetypes": 95,
   "samplesWithLeaks": {
-   "canvas": 6,
+   "canvas": 16,
    "run": 0,
-   "either": 6
+   "either": 16
   },
-  "archetypesWithLeaks": 1,
+  "archetypesWithLeaks": 3,
   "topLeakedKeys": [
    {
     "key": "duration",
-    "samples": 6
+    "samples": 15
    },
    {
     "key": "aspect_ratio",
-    "samples": 3
+    "samples": 4
+   },
+   {
+    "key": "audio_setting",
+    "samples": 1
    }
   ],
-  "archetypesWithDefaultCarried": 1,
+  "archetypesWithDefaultCarried": 3,
   "emptyDuration": {
-   "canvas": 6,
+   "canvas": 15,
    "run": 0,
    "emptyValue": 0
   },
-  "pathsDiffer": 144
+  "pathsDiffer": 156
  },
  "pathDifferences": [
   {
@@ -256,13 +260,55 @@
    "runStatus": "refused:apimart_provider_error"
   },
   {
-   "id": "meshy6|runninghub|meshy6|text->image",
+   "id": "kling-v4-flash|apimart|kling-v4-flash|edit->extend",
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
   },
   {
-   "id": "minimax-h3-max|fal|minimax/h3-max|t2v->i2v",
+   "id": "kling-v4-flash|apimart|kling-v4-flash|extend->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|i2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|i2v->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|ref->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|ref->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|t2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|t2v->extend",
+   "kind": "one-refused",
+   "canvasStatus": "sent",
+   "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "meshy6|runninghub|meshy6|text->image",
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
@@ -380,6 +426,36 @@
    "kind": "one-refused",
    "canvasStatus": "sent",
    "runStatus": "refused:apimart_provider_error"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->edit",
+   "kind": "facts-differ",
+   "canvasStatus": "sent",
+   "runStatus": "sent"
   },
   {
    "id": "seedance-2.5-runway|runway|seedance2_5|first->firstlast",
@@ -1083,6 +1159,26 @@
   "kling-3.0|fal|fal-ai/kling-video/v3/pro|t2v->i2v",
   "kling-3.0|kie|kling-3.0|i2v->t2v",
   "kling-3.0|kie|kling-3.0|t2v->i2v",
+  "kling-v4-flash|apimart|kling-v4-flash|edit->extend",
+  "kling-v4-flash|apimart|kling-v4-flash|edit->i2v",
+  "kling-v4-flash|apimart|kling-v4-flash|edit->ref",
+  "kling-v4-flash|apimart|kling-v4-flash|edit->t2v",
+  "kling-v4-flash|apimart|kling-v4-flash|extend->edit",
+  "kling-v4-flash|apimart|kling-v4-flash|extend->i2v",
+  "kling-v4-flash|apimart|kling-v4-flash|extend->ref",
+  "kling-v4-flash|apimart|kling-v4-flash|extend->t2v",
+  "kling-v4-flash|apimart|kling-v4-flash|i2v->edit",
+  "kling-v4-flash|apimart|kling-v4-flash|i2v->extend",
+  "kling-v4-flash|apimart|kling-v4-flash|i2v->ref",
+  "kling-v4-flash|apimart|kling-v4-flash|i2v->t2v",
+  "kling-v4-flash|apimart|kling-v4-flash|ref->edit",
+  "kling-v4-flash|apimart|kling-v4-flash|ref->extend",
+  "kling-v4-flash|apimart|kling-v4-flash|ref->i2v",
+  "kling-v4-flash|apimart|kling-v4-flash|ref->t2v",
+  "kling-v4-flash|apimart|kling-v4-flash|t2v->edit",
+  "kling-v4-flash|apimart|kling-v4-flash|t2v->extend",
+  "kling-v4-flash|apimart|kling-v4-flash|t2v->i2v",
+  "kling-v4-flash|apimart|kling-v4-flash|t2v->ref",
   "kling-v4|apimart|kling-v4|i2v->t2v",
   "kling-v4|apimart|kling-v4|t2v->i2v",
   "meshy6|runninghub|meshy6|image->text",
@@ -1099,8 +1195,18 @@
   "minimax-h3-apimart|apimart|MiniMax-H3|t2v->first",
   "minimax-h3-apimart|apimart|MiniMax-H3|t2v->firstlast",
   "minimax-h3-apimart|apimart|MiniMax-H3|t2v->ref",
+  "minimax-h3-max|apimart|MiniMax-H3-Max|i2v->ref",
+  "minimax-h3-max|apimart|MiniMax-H3-Max|i2v->t2v",
+  "minimax-h3-max|apimart|MiniMax-H3-Max|ref->i2v",
+  "minimax-h3-max|apimart|MiniMax-H3-Max|ref->t2v",
+  "minimax-h3-max|apimart|MiniMax-H3-Max|t2v->i2v",
+  "minimax-h3-max|apimart|MiniMax-H3-Max|t2v->ref",
+  "minimax-h3-max|fal|minimax/h3-max|i2v->ref",
   "minimax-h3-max|fal|minimax/h3-max|i2v->t2v",
+  "minimax-h3-max|fal|minimax/h3-max|ref->i2v",
+  "minimax-h3-max|fal|minimax/h3-max|ref->t2v",
   "minimax-h3-max|fal|minimax/h3-max|t2v->i2v",
+  "minimax-h3-max|fal|minimax/h3-max|t2v->ref",
   "minimax-h3|kie|minimax-h3|i2v->ref",
   "minimax-h3|kie|minimax-h3|i2v->t2v",
   "minimax-h3|kie|minimax-h3|ref->i2v",
@@ -1191,15 +1297,33 @@
   "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->firstlast",
   "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->i2v",
   "seedance-2-apimart|apimart|doubao-seedance-2.0|t2v->omni",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->extend",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->first",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->firstlast",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->omni",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|edit->t2v",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->edit",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->first",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->firstlast",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->omni",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->t2v",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->edit",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->extend",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->firstlast",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->omni",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->t2v",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->edit",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->extend",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->first",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->omni",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->t2v",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->edit",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->extend",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->first",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->firstlast",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->t2v",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->edit",
+  "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->extend",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->first",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->firstlast",
   "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->omni",
@@ -1287,6 +1411,8 @@
   "seedance-2|runway|seedance2|t2v->first",
   "seedance-2|runway|seedance2|t2v->firstlast",
   "seedance-2|runway|seedance2|t2v->omni",
+  "seedream-5-5|apimart|seedream-5-5|edit->t2i",
+  "seedream-5-5|apimart|seedream-5-5|t2i->edit",
   "seedream-5-pro|apimart|doubao-seedream-5-0-pro|edit->t2i",
   "seedream-5-pro|apimart|doubao-seedream-5-0-pro|t2i->edit",
   "seedream-5-pro|fal|bytedance/seedream/v5/pro|edit->t2i",
@@ -2690,6 +2816,292 @@
    }
   },
   {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|edit->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "aspect_ratio"
+      ]
+     }
+    ],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|extend->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "audio_setting",
+      "fields": [
+       "audio_setting"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|i2v->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "audio_setting",
+      "fields": [
+       "audio_setting"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|i2v->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "aspect_ratio"
+      ]
+     }
+    ],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|ref->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "audio_setting",
+      "fields": [
+       "audio_setting"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "audio_setting",
+      "fields": [
+       "audio_setting"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|ref->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "aspect_ratio"
+      ]
+     }
+    ],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|ref->t2v",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|t2v->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "audio_setting",
+      "fields": [
+       "audio_setting"
+      ]
+     },
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "kling-v4-flash|apimart|kling-v4-flash|t2v->extend",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "aspect_ratio"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "aspect_ratio",
+      "fields": [
+       "aspect_ratio"
+      ]
+     }
+    ],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
    "id": "kling-v4|apimart|kling-v4|t2v->i2v",
    "canvas": {
     "status": "sent",
@@ -2741,10 +3153,44 @@
    }
   },
   {
+   "id": "minimax-h3-max|fal|minimax/h3-max|i2v->ref",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
    "id": "minimax-h3-max|fal|minimax/h3-max|t2v->i2v",
    "canvas": {
     "status": "sent",
     "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "minimax-h3-max|fal|minimax/h3-max|t2v->ref",
+   "canvas": {
+    "status": "refused:Error",
+    "statusWithParams": "refused:Error",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -3211,6 +3657,176 @@
    "run": {
     "status": "refused:apimart_provider_error",
     "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|extend->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|first->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|firstlast->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|omni->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedance-2.5-apimart|apimart|doubao-seedance-2.5|t2v->edit",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "defaultCarried": [
+     {
+      "key": "duration",
+      "fields": [
+       "duration"
+      ]
+     }
+    ],
+    "emptyDuration": {
+     "field": "duration",
+     "value": 5
+    }
+   },
+   "run": {
+    "status": "sent",
+    "statusWithParams": "sent",
     "leaks": [],
     "defaultCarried": [],
     "emptyDuration": null
@@ -4179,6 +4795,23 @@
    },
    "run": {
     "status": "refused:apimart_provider_error",
+    "statusWithParams": "refused:apimart_provider_error",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   }
+  },
+  {
+   "id": "seedream-5-pro|apimart|doubao-seedream-5-0-pro|edit->t2i",
+   "canvas": {
+    "status": "sent",
+    "statusWithParams": "sent",
+    "leaks": [],
+    "defaultCarried": [],
+    "emptyDuration": null
+   },
+   "run": {
+    "status": "sent",
     "statusWithParams": "refused:apimart_provider_error",
     "leaks": [],
     "defaultCarried": [],

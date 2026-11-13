@@ -29,7 +29,6 @@
   "src/workbench/creation/storyboard/StoryboardShotTable.tsx": 1,
   "src/workbench/generationCanvas/components/CanvasControlsHelpPopover.tsx": 1,
   "src/workbench/generationCanvas/components/CollapsedGroupCard.tsx": 1,
-  "src/workbench/generationCanvas/components/CommittedProposalCard.tsx": 1,
   "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx": 1,
   "src/workbench/generationCanvas/components/ScreenshotCropOverlay.tsx": 1,
   "src/workbench/generationCanvas/components/SelectionPromptSaveController.tsx": 1,

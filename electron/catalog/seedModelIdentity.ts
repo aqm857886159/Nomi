@@ -97,6 +97,7 @@ const FLAGSHIP_MODEL_KEYS = new Set([
   "openai/gpt-image-2",
   "bytedance/seedream/v5/pro",
   "minimax/h3-max",
+  "MiniMax-H3-Max",
   "bytedance/seedance-2.5",
   "fal-ai/kling-video/v3/pro",
   "google/gemini-omni-flash/v1.1",

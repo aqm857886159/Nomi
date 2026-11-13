@@ -125,7 +125,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
     suffixes: ['Input', 'Output'],
     why: '动态-拼接: GenerationCanvasReactFlowNodes 的 `group.aggregate${Input|Output}` 聚合方向;枚举来源: data.aggregateDirection 二态',
   },
-  { prefix: 'generationCommon.memory.kinds', why: '动态: 记忆条目类别;枚举来源: MemoryFold 的 fact.kind(memory.kinds.* 词条)' },
   { prefix: 'generationCommon.node.extractFrame', why: '动态: 抽帧首尾;枚举来源: extractVideoFrameToNode 的 which(node.extractFrame.* 词条)' },
   { prefix: 'generationCommon.observability.error', why: '动态: 可观测错误叙事;枚举来源: narrate.ts 的 error key(observability.error.${key}.reason/.hint 词条)' },
   { prefix: 'generationCommon.observability.error.shotClaimed', why: '动态：production_shot_claimed 的四个 reason 枚举由 classifyGenerationError 的 claimCopy 提供。' },

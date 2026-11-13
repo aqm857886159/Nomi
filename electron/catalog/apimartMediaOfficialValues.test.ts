@@ -73,8 +73,28 @@ export const OFFICIAL_VALUES: Record<string, Official> = {
   // 万相图像 2.7：size 是比例，resolution 1K / 2K（Pro 文生另有 4K）。
   "wan2.7-image": { size: RATIOS_7, resolution: ["1k", "2k"] },
   "wan2.7-image-pro": { size: RATIOS_7, resolution: ["1k", "2k", "4k"] },
+  // 2026-11-12 整页对账：Seedream 5.0 Pro / 5.5 的 size 是比例（含 2:1 / 1:2），resolution 1K / 1.5K / 2K（3K / 4K 返回 400），
+  // output_format 与 background（透明必须 png），官方页 images/seedream-5-0-pro/generation、images/seedream-5-5/generation。
+  "seedream-5-pro": {
+    size: ["auto", "1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9", "2:1", "1:2"],
+    resolution: ["1k", "1.5k", "2k"],
+    output_format: ["jpeg", "png"],
+    background: ["opaque", "transparent"],
+  },
+  "seedream-5-5": {
+    size: ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9", "2:1", "1:2"],
+    resolution: ["1k", "1.5k", "2k"],
+    background: ["auto", "transparent", "opaque"],
+    output_format: ["png", "jpeg"],
+  },
   // ── 视频 ──
   "kling-v4": { aspect_ratio: ["16:9", "9:16", "1:1", "21:9", "auto"], resolution: ["720p", "1080p"], duration: { min: 3, max: 30 } },
+  // 可灵 4.0 Flash（videos/kling-v4-flash/generation）：时长 3–20；只有 720p 所以不声明清晰度；auto 比例仅参考 / 编辑方式有（经 omitAuto 不发）。
+  "kling-v4-flash": { aspect_ratio: ["16:9", "9:16", "1:1", "21:9", "auto"], duration: { min: 3, max: 20 }, audio_setting: ["auto", "origin"] },
+  // MiniMax H3-Max（videos/minimax-h3/max）：480P / 768P / 1080P、5–15 秒；文生六档比例，参考方式多一个 adaptive。
+  "minimax-h3-max": { resolution: ["480p", "768p", "1080p"], duration: { min: 5, max: 15 }, aspect_ratio: ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16", "adaptive"] },
+  // Seedance 2.5（videos/seedance-2-5/generation）：「only 480p/720p/1080p」，输出容器 mp4 / mov。
+  "seedance-2.5-apimart": { size: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"], resolution: ["480p", "720p", "1080p"], duration: { min: 4, max: 30 }, output_format: ["mp4", "mov"] },
   "grok-imagine-video-1.5-official": { aspect_ratio: VIDEO_RATIOS_AUTO, resolution: ["480p", "720p", "1080p"], duration: { min: 1, max: 15 } },
   "pixverse-v6": {
     size: ["16:9", "4:3", "1:1", "3:4", "9:16", "2:3", "3:2", "21:9"],

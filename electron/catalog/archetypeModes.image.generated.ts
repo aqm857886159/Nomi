@@ -131,6 +131,13 @@ export const ARCHETYPE_MODE_MANIFEST_IMAGE: Record<string, { defaultModeId: stri
       "edit": "image_edit"
     }
   },
+  "seedream-5-5": {
+    "defaultModeId": "t2i",
+    "modes": {
+      "t2i": "text_to_image",
+      "edit": "image_edit"
+    }
+  },
   "modelscope-image": {
     "defaultModeId": "t2i",
     "modes": {
