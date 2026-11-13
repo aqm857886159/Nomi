@@ -1,5 +1,6 @@
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
-import { TELEMETRY_ERROR_TYPE_PATTERN, type CapabilitySlot, type DurationBucket, type TelemetryResult } from '../../../electron/shared/contracts/telemetry'
+import { TELEMETRY_ERROR_TYPE_PATTERN, type CapabilitySlot, type GenerationMode, type TelemetryResult } from '../../../electron/shared/contracts/telemetry'
+import { generationModeOf, generationTrackPayload, type GenerationOutcomeDoor } from './generationTelemetry'
 import { isTerminalTaskStatus, type TaskStatus } from '../../../electron/shared/taskStatus'
 import { classifyGenerationError } from '../observability/classifyError'
 import { describeOpaqueFailure } from '../observability/opaqueFailure'
@@ -163,34 +164,41 @@ function failureTypeOf(message: string | undefined): string {
   }
 }
 
-function trackGenerationOutcome(desktop: DesktopBridge, capability: CapabilitySlot, startedAt: number, result: TelemetryResult, failureMessage?: string): void {
-  const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt
-  void desktop.telemetry?.track({
-    eventName: 'generation.completed',
-    props: {
-      capability,
-      durationBucket: durationBucketOf(elapsed),
-      result,
-      attemptCountBucket: '1',
-      ...(result === 'failure' ? { errorType: failureTypeOf(failureMessage) } : {}),
-    },
-  })
+function nowMs(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now()
 }
 
-function durationBucketOf(ms: number): DurationBucket {
-  return ms < 1000 ? '<1s' : ms <= 5000 ? '1-5s' : '>5s'
+/** 一次生成从提交起要记住的事实（都在内存里）：能力、方式、家、提交时刻；异步任务受理后再记受理时刻。 */
+type GenerationTelemetryContext = { capability: CapabilitySlot; vendorKey: string; mode: GenerationMode; startedAt: number; acceptedAt: number | null }
+
+function generationTelemetryContext(vendor: string, request: TaskRequestDto, startedAt: number): GenerationTelemetryContext | null {
+  const capability = telemetryCapability(request.kind)
+  return capability ? { capability, vendorKey: vendor, mode: generationModeOf(vendor, request.extras), startedAt, acceptedAt: null } : null
 }
 
-/** 已提交、还没到终态的异步生成：任务 id → 开始时间与能力。到终态报一次就删；上限防泄漏。 */
-const inFlightGenerations = new Map<string, { capability: CapabilitySlot; startedAt: number }>()
+/** 生成完成的唯一发送处（6 处调用都经这里）：字段推导全在 generationTelemetry.ts。 */
+function trackGenerationOutcome(desktop: DesktopBridge, context: GenerationTelemetryContext, door: GenerationOutcomeDoor, result: Exclude<TelemetryResult, 'cancel'>, failureMessage?: string): void {
+  void desktop.telemetry?.track(generationTrackPayload({
+    capability: context.capability,
+    vendorKey: context.vendorKey,
+    mode: context.mode,
+    timing: { startedAt: context.startedAt, acceptedAt: context.acceptedAt, endedAt: nowMs() },
+    door,
+    result,
+    ...(result === 'failure' ? { errorType: failureTypeOf(failureMessage), failureMessage } : {}),
+  }))
+}
+
+/** 已提交、还没到终态的异步生成：任务 id → 提交时记下的事实。到终态报一次就删；上限防泄漏。 */
+const inFlightGenerations = new Map<string, GenerationTelemetryContext>()
 const IN_FLIGHT_LIMIT = 200
-function rememberInFlightGeneration(taskId: string, capability: CapabilitySlot, startedAt: number): void {
+function rememberInFlightGeneration(taskId: string, context: GenerationTelemetryContext): void {
   if (!taskId) return
   if (inFlightGenerations.size >= IN_FLIGHT_LIMIT) {
     const oldest = inFlightGenerations.keys().next().value
     if (oldest !== undefined) inFlightGenerations.delete(oldest)
   }
-  inFlightGenerations.set(taskId, { capability, startedAt })
+  inFlightGenerations.set(taskId, { ...context, acceptedAt: nowMs() })
 }
 
 export async function runWorkbenchTaskByVendor(
@@ -201,8 +209,7 @@ export async function runWorkbenchTaskByVendor(
   const normalizedVendor = String(vendor || '').trim()
   if (!normalizedVendor) throw new Error('vendor is required')
   const desktop = requireDesktopRuntime('task execution')
-  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  const capability = telemetryCapability(request.kind)
+  const telemetry = generationTelemetryContext(normalizedVendor, request, nowMs())
   // 这一笔在主进程回话之前都算「在途」——切项目重装画布时，装载收敛据此不把它当幽灵转圈收成空闲。
   const settleSubmit = trackNodeSubmit(typeof request.extras?.nodeId === 'string' ? request.extras.nodeId : undefined)
   try {
@@ -210,18 +217,18 @@ export async function runWorkbenchTaskByVendor(
       vendor: normalizedVendor,
       request: withTaskProjectIdentity(request, projectId),
     }) as TaskResultDto
-    if (capability) {
+    if (telemetry) {
       if (isTerminalTaskStatus(response.status)) {
-        trackGenerationOutcome(desktop, capability, startedAt, response.status === 'succeeded' ? 'success' : 'failure', response.error)
+        trackGenerationOutcome(desktop, telemetry, 'submit-terminal', response.status === 'succeeded' ? 'success' : 'failure', response.error)
       } else {
         // 还在跑（queued/running）：这不是一个结果。最终结果在轮询到终态时报（fetchWorkbenchTaskResultByVendor），
         // 之前把它记成 cancel，视频这类异步任务的成败就全丢了。
-        rememberInFlightGeneration(response.id, capability, startedAt)
+        rememberInFlightGeneration(response.id, telemetry)
       }
     }
     return response
   } catch (error) {
-    if (capability) trackGenerationOutcome(desktop, capability, startedAt, 'failure', error instanceof Error ? error.message : String(error))
+    if (telemetry) trackGenerationOutcome(desktop, telemetry, 'submit-threw', 'failure', error instanceof Error ? error.message : String(error))
     throw error
   } finally {
     settleSubmit()
@@ -243,8 +250,7 @@ export async function submitCanvasShotRun(input: {
 }): Promise<TaskResultDto> {
   const desktop = requireDesktopRuntime('canvas generation')
   if (!desktop.tasks.canvasSubmit) throw new Error('canvas generation requires a newer desktop runtime')
-  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  const capability = telemetryCapability(input.request.kind)
+  const telemetry = generationTelemetryContext(String(input.vendor || '').trim(), input.request, nowMs())
   const settleSubmit = trackNodeSubmit(input.nodeId)
   try {
     const response = await desktop.tasks.canvasSubmit({
@@ -255,13 +261,13 @@ export async function submitCanvasShotRun(input: {
       vendor: String(input.vendor || '').trim(),
       request: withTaskProjectIdentity(input.request, input.projectId),
     }) as TaskResultDto
-    if (capability) {
-      if (isTerminalTaskStatus(response.status)) trackGenerationOutcome(desktop, capability, startedAt, response.status === 'succeeded' ? 'success' : 'failure', response.error)
-      else rememberInFlightGeneration(response.id, capability, startedAt)
+    if (telemetry) {
+      if (isTerminalTaskStatus(response.status)) trackGenerationOutcome(desktop, telemetry, 'submit-terminal', response.status === 'succeeded' ? 'success' : 'failure', response.error)
+      else rememberInFlightGeneration(response.id, telemetry)
     }
     return response
   } catch (error) {
-    if (capability) trackGenerationOutcome(desktop, capability, startedAt, 'failure', error instanceof Error ? error.message : String(error))
+    if (telemetry) trackGenerationOutcome(desktop, telemetry, 'submit-threw', 'failure', error instanceof Error ? error.message : String(error))
     throw error
   } finally {
     settleSubmit()
@@ -277,7 +283,7 @@ export async function pollCanvasShotRun(input: { projectId: string; runRecordId:
   const pending = inFlightGenerations.get(result.id)
   if (pending && isTerminalTaskStatus(result.status)) {
     inFlightGenerations.delete(result.id)
-    trackGenerationOutcome(desktop, pending.capability, pending.startedAt, result.status === 'succeeded' ? 'success' : 'failure', result.error)
+    trackGenerationOutcome(desktop, pending, 'poll-terminal', result.status === 'succeeded' ? 'success' : 'failure', result.error)
   }
   return result
 }
@@ -350,7 +356,7 @@ export async function fetchWorkbenchTaskResultByVendor(
   const pending = inFlightGenerations.get(payload.taskId)
   if (pending && isTerminalTaskStatus(response.result.status)) {
     inFlightGenerations.delete(payload.taskId)
-    trackGenerationOutcome(desktop, pending.capability, pending.startedAt, response.result.status === 'succeeded' ? 'success' : 'failure', response.result.error)
+    trackGenerationOutcome(desktop, pending, 'poll-terminal', response.result.status === 'succeeded' ? 'success' : 'failure', response.result.error)
   }
   return response
 }

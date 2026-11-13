@@ -3,6 +3,16 @@
   "note": "根因合同 shared_boundaries 声明过的 owner 的处置台账。由 scripts/check-boundary-owners.mjs 逐条核对。本文件只能手改：没有 --update，红了不许一键洗绿。",
   "reanchored": [
     {
+      "contract": "docs/fixes/2026-09-15-feedback-loop-intake.root-cause.json",
+      "path": "electron/telemetry/intakeQueue.ts",
+      "symbol": "flushIntakeQueue / clearIntakeQueue",
+      "anchor": {
+        "path": "electron/telemetry/intakeQueue.ts",
+        "symbol": "flushIntakeQueue"
+      },
+      "reason": "2026-11-13 删掉从没有发送方的轨迹上报通道（逐个已发布 tag 查过：轨迹队列只出现在类型声明里，入队 / 发送的唯一调用方一直是反馈）。clearIntakeQueue 只用来「关掉开关时清轨迹队列」，全仓没有调用方，同提交删除；这一半不变量随轨迹队列整体退役。另一半「用户点过发送的反馈别丢：离线缓存、静默重试、不阻塞界面」仍由 flushIntakeQueue 持有，守它的测试：electron/telemetry/intakeQueue.test.ts。"
+    },
+    {
       "contract": "docs/fixes/2026-09-10-c09-readable-focus.root-cause.json",
       "path": "src/workbench/generationCanvas/reactFlow/focusViewportRecovery.ts",
       "symbol": "resolveCanvasFocusZoom",
@@ -643,6 +653,12 @@
     }
   ],
   "retirements": [
+    {
+      "contract": "docs/fixes/2026-10-04-retrieval-trusts-connection-origin.root-cause.json",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "trustedRetrievalOrigin",
+      "reason": "2026-11-13 生成的提交 / 取回 / 下载不再按目的地地址判（docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md）：本机 / 局域网的产物地址本来就照取，「取回信任这条连接自己的 origin」这个私网例外没有东西要放行了，同提交删掉。vendorOutboundGuard.ts 只剩凭据绑定（authorizeSubmitDestination）。"
+    },
     {
       "contract": "docs/fixes/2026-08-31-generation-result-retrieval-boundary.root-cause.json",
       "path": "electron/assets/projectAssetStore.ts",

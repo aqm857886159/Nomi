@@ -65,6 +65,11 @@ export type StallMonitor = {
   /** 渲染层来的报文：最近一份场景 + 一批长帧。 */
   ingestReport(report: StallReport): void;
   status(): StallMonitorStatus;
+  /**
+   * 遥测汇总取数（2026-11-13）：上次取数以来主进程最长一次停顿（估计毫秒，没有 ≥100ms 的停顿 = 0）与 ≥100ms 的次数，
+   * 取完归零。数就是写进时间线的那几行，不另测；只是内存里的两个数。
+   */
+  takeTelemetryWindow(): { maxMs: number; count: number };
 };
 
 const sceneSchema = z.object({ page: z.enum(PERF_FIELD_VALUES.page), nodes: z.enum(PERF_FIELD_VALUES.nodes), generating: z.boolean() }).strict();
@@ -100,6 +105,8 @@ export function createStallMonitor(options: StallMonitorOptions): StallMonitor {
   let suspended = false;
   let lastScene: StallScene | null = null;
   const unresponsiveSince = new Map<EventSourceLike, number>();
+  let windowMaxMs = 0;
+  let windowCount = 0;
 
   const iso = (ms: number): string => new Date(ms).toISOString();
   const sceneFields = (): Partial<StallScene> => (lastScene ? { page: lastScene.page, nodes: lastScene.nodes, generating: lastScene.generating } : {});
@@ -112,6 +119,8 @@ export function createStallMonitor(options: StallMonitorOptions): StallMonitor {
     if (suspended || nowMs < discardUntil) return;
     const estimateMs = Math.max(0, Math.round(maxNs / 1e6 - STALL_SAMPLE_INTERVAL_MS / 2));
     if (estimateMs >= STALL_RECORD_MIN_MS) {
+      windowMaxMs = Math.max(windowMaxMs, Math.min(estimateMs, STALL_MAX_MS));
+      windowCount += 1;
       timeline.record({ t: iso(nowMs), kind: "main-stall", ms: Math.min(estimateMs, STALL_MAX_MS), frozen: estimateMs >= STALL_FREEZE_MIN_MS, ...sceneFields() });
     }
     timeline.tick();
@@ -184,6 +193,12 @@ export function createStallMonitor(options: StallMonitorOptions): StallMonitor {
       ...(running ? {} : { reason: failed ? ("install-failed" as const) : ("not-installed" as const) }),
       rowsThisSession: timeline.stats().written,
     }),
+    takeTelemetryWindow() {
+      const taken = { maxMs: windowMaxMs, count: windowCount };
+      windowMaxMs = 0;
+      windowCount = 0;
+      return taken;
+    },
   };
 }
 
@@ -212,6 +227,11 @@ export function installStallMonitor(options: { env?: NodeJS.ProcessEnv; monitor?
 
 export function getStallMonitorStatus(): StallMonitorStatus {
   return installed?.status() ?? { running: false, reason: "not-installed", rowsThisSession: 0 };
+}
+
+/** 遥测 perf 汇总取主进程停顿的两个数；监视器没在跑（没装 / 装失败）给 null，汇总里记 unknown。 */
+export function takeMainStallTelemetryWindow(): { maxMs: number; count: number } | null {
+  return installed?.status().running ? installed.takeTelemetryWindow() : null;
 }
 
 /** 主窗口建好后调；没装监视器时什么都不做。 */

@@ -74,7 +74,6 @@
     "electron/tasks/unrecognizedTaskStatusQuery.test.ts": "存量，待迁静态导入（迁时留意 vi.mock 与加载顺序）",
     "electron/telemetry/intakeQueue.test.ts": "每例 vi.resetModules 换模块状态（模块加载时读 env / 临时目录），待改成暴露重置函数后迁静态导入",
     "electron/telemetry/telemetryOutbox.test.ts": "存量，待迁静态导入（迁时留意 vi.mock 与加载顺序）",
-    "electron/vendor/retrievalTrustedOrigin.test.ts": "每例 vi.resetModules 换模块状态（模块加载时读 env / 临时目录），待改成暴露重置函数后迁静态导入",
     "electron/video/deconstructLegResolution.test.ts": "每例 vi.resetModules 换模块状态（模块加载时读 env / 临时目录），待改成暴露重置函数后迁静态导入",
     "electron/video/deconstructVisionLeg.test.ts": "存量，待迁静态导入（迁时留意 vi.mock 与加载顺序）",
     "electron/workspace/workspaceManifestTransaction.test.ts": "存量，待迁静态导入（迁时留意 vi.mock 与加载顺序）",

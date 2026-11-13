@@ -62,24 +62,12 @@ export function installFetchCapture(): FetchCapture {
     reset() { calls.length = 0; responder = DEFAULT_RESPONSE; },
     restore() {
       (globalThis as { fetch: unknown }).fetch = original;
-      restoreCatalogNetwork?.();
-      restoreCatalogNetwork = undefined;
     },
   };
 }
 
-let restoreCatalogNetwork: (() => void) | undefined;
-
 /** 真实内置目录 + 给点名的几家填上密钥（safeStorage 必须在测试里可用）。 */
 export async function seedParityCatalog(vendorKeys: readonly string[] = ["apimart", "higgsfield"]): Promise<CatalogState> {
-  const { setSubmitOutboundDepsForTests } = await import("../vendor/vendorOutboundGuard");
-  // The transport is captured locally; a workstation proxy must not decide whether it is reached.
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: "93.184.216.34", family: 4 }],
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-    isApplicationProxyActive: () => false,
-  });
-  restoreCatalogNetwork = () => setSubmitOutboundDepsForTests(null);
   const store = await import("../catalog/catalogStore");
   store.ensureBuiltinModelSeeds();
   for (const key of vendorKeys) store.upsertModelCatalogVendorApiKey(key, { apiKey: `sk-parity-${key}` });

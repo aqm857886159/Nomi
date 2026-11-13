@@ -14,7 +14,7 @@ import { CANVAS_TEST_PROJECT as PROJECT, setupCanvasShots } from "../capabilityC
 import { NOMI_ERROR_ONLY_BEFORE_SUBMIT, matchNomiErrorCode, tagNomiError, type NomiErrorCode } from "../shared/nomiErrorCodes";
 import { answeredSubmissionFailure, handOffToNetwork, observeSubmissionHandoffs, withResultLandingEvidence } from "../outboundDispatchEvidence";
 import { VendorRequestError } from "../vendor/vendorHttp";
-import { SYNC_RESULT_URL, decodeFailed, diskWriteFailed, download403, kindMismatch, outboundRefused } from "../capabilityCore/resultLandingTestUtils";
+import { SYNC_RESULT_URL, decodeFailed, diskWriteFailed, download403, kindMismatch } from "../capabilityCore/resultLandingTestUtils";
 
 const importRemoteAsset = vi.hoisted(() => vi.fn());
 vi.mock("../assets/projectAssetStore", async (importOriginal) => ({
@@ -68,7 +68,6 @@ describe("A6 与真实生产者：落地门下面的各种失败都挂得上正�
     ["字节解码失败", async () => decodeFailed(), "output-unreadable"],
     ["结果下载 403", download403, "retrieval-download"],
     ["类型不符", async () => kindMismatch(), "retrieval-download"],
-    ["取片被出网策略拦", outboundRefused, "outbound-blocked"],
   ] as const)("%s → 第一个码 %s，结局 result_landing_failed；被别的代码当 cause 再包几层就不算（X12）", async (_label, failure, expected) => {
     const landed = await throughLandingGate(await failure());
     expect(matchNomiErrorCode(landed.message)).toBe(expected);

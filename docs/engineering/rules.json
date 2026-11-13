@@ -487,6 +487,7 @@
       "enforcement": [
         "coordinator-tool:scripts/merge-preflight.mjs",
         "coordinator-tool:scripts/check-dispatch-brief.mjs",
+        "coordinator-tool:scripts/check-dispatch-brief.mjs(改已有函数行为先交调用方后果表)",
         "hook:self-check(省 token 块)"
       ],
       "evidence": "docs/engineering/agent-orchestration-playbook.md（§19 运作、§20 省 token）；2026-10-04 导演编译器第五轮修补是派工层没数轮次、协调层读全文又派工的典型；`docs/lessons/read-official-cache-rules-before-designing-lines.md`（2026-10-31 等待脚本超过子线缓存寿命）",

@@ -206,7 +206,7 @@ describe('查结果连续失败超过宽限：把最后那次取回错误原样�
 
   it.each([
     ['状态码拒绝', 'Fetch failed: HTTP 403'],
-    ['出站被自家策略拦下（带机器码）', 'NOMI_ERR::outbound-blocked:: 取片被本机网络策略拦下'],
+    ['取回被本机拦下（带机器码）', 'NOMI_ERR::retrieval-download:: 取回卡在「下载结果」这一步'],
   ])('%s', async (_label, lastMessage) => {
     const run = runCatalogGenerationTask(videoNode, {
       projectTarget: TARGET_FOR_UNIT,

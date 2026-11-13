@@ -10,10 +10,8 @@ const RETRIEVAL_INCOMPLETE = { kind: 'retrieval-incomplete', primary: 'view-task
 /**
  * 「结果取回」族每个码的分类和按钮。族以 `isRetrievalStageCode` 为准，新增一个码不在这里回答，下面第一条就红。
  * 这张表也是分类器改成按族判时的对账：换之前已有的 5 个码一个都没变，`retrieval-unavailable` 是新加的。
- * 出站被拦有自己的分支（先于族判据），次按钮的「重试」是它原有的；节点上它走可找回面板，碰不到这颗按钮。
  */
 const FAMILY: Readonly<Partial<Record<NomiErrorCode, { kind: string; primary: string; secondary: string | null }>>> = {
-  'outbound-blocked': { kind: 'outbound-blocked', primary: 'open-model-access', secondary: 'retry' },
   'retrieval-query': RETRIEVAL_INCOMPLETE,
   'retrieval-parse': RETRIEVAL_INCOMPLETE,
   'retrieval-download': RETRIEVAL_INCOMPLETE,
@@ -21,7 +19,7 @@ const FAMILY: Readonly<Partial<Record<NomiErrorCode, { kind: string; primary: st
   'retrieval-unavailable': RETRIEVAL_INCOMPLETE,
 }
 const FAMILY_CODES = (Object.keys(NOMI_ERROR_ONLY_BEFORE_SUBMIT) as NomiErrorCode[]).filter((code) => isRetrievalStageCode(code))
-const RETRIEVAL_CODES = FAMILY_CODES.filter((code) => code !== 'outbound-blocked')
+const RETRIEVAL_CODES = FAMILY_CODES
 /** 提交前那一族的口径 + 「再来一次」的口径：两种语言都不许出现在取回阶段的说明里。 */
 const FORBIDDEN = /重试|没发到|没被请求到|没有发出去|重新生成吧|retry|was never sent|try again/i
 
@@ -77,7 +75,7 @@ describe('取回阶段码 → 「已提交、这次没取回」', () => {
 
   it('没有服务商原话时不从正文里抠一句冒充（Nomi 自己拦下的那句不是服务商说的）', async () => {
     await i18n.changeLanguage('zh-CN')
-    const report = classifyGenerationError(tagNomiError('retrieval-query', '取回卡在「查询任务」这一步：Nomi 在本机拦下了这次请求（原始码 outbound-blocked-submit）'))
+    const report = classifyGenerationError(tagNomiError('retrieval-query', '取回卡在「查询任务」这一步：Nomi 在本机拦下了这次请求（原始码 outbound-blocked-credential-origin）'))
     expect(report.providerMessage).toBeUndefined()
   })
 

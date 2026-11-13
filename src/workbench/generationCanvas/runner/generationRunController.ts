@@ -27,7 +27,7 @@ import { createRunId } from '../store/canvasIds'
 import { createRunOwnOutcomes, nextRunStartedAt } from './runOwnOutcomes'
 import { captureApprovedGenerationInputs, isRunTargetLoaded, readRunGraph, whenRunTargetLoaded, type RunGraph, type RunProjectTarget } from './runProjectDelivery'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
-import { outboundBlockedRecoverableMessage } from './outboundBlockedRecovery'
+import { retrievalRecoverableMessage } from './retrievalRecovery'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { recordNodeModelFailure, recordNodeModelSuccess } from './nodeModelHealth'
 import {
@@ -330,11 +330,11 @@ export async function runGenerationNode(
       })
       throw error
     }
-    // Outbound retrieval refusal stays recoverable using the current original node's taskId;
-    // outboundBlockedRecovery distinguishes this already-paid task from a new paid retry.
-    const blocked = outboundBlockedRecoverableMessage(error, (await readRunGraph(target))?.nodes.find((n) => n.id === id))
+    // A retrieval-stage failure stays recoverable using the current original node's taskId;
+    // retrievalRecovery distinguishes this already-paid task from a new paid retry.
+    const blocked = retrievalRecoverableMessage(error, (await readRunGraph(target))?.nodes.find((n) => n.id === id))
     if (blocked) {
-      // 不记模型失败（挂的是本机网络），但刹车照记：后续每条都会同样失败而提交侧照旧扣费。
+      // 不记模型失败（丢的只是取回），但刹车照记：后续每条多半会同样失败而提交侧照旧扣费。
       await deliverOwnOutcome({ kind: 'status', runId: run.id, status: 'recoverable', error: blocked })
       useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: blocked })
       throw error

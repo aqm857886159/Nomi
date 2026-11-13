@@ -668,9 +668,9 @@ describe('runCatalogGenerationTask — 轮询查询失败绝不重新提交付�
 
   // C7（⑬）：查询被 Nomi 自己挂了提交前的码（出站守卫按提交挂码、#1285 修前的参考重传失败）——
   // 照样只落可找回，绝不冒泡成「没发出去、可以重新生成」触发再提交。
-  it('轮询持续报提交前的码（outbound-blocked-submit / asset-upload-failed）→ 仍落可找回，runTask 只一次', async () => {
+  it('轮询持续报提交前的码（outbound-blocked-credential-origin / asset-upload-failed）→ 仍落可找回，runTask 只一次', async () => {
     const { isRecoverableTimeoutError } = await import('./recoverableTimeout')
-    for (const code of ['outbound-blocked-submit', 'asset-upload-failed']) {
+    for (const code of ['outbound-blocked-credential-origin', 'asset-upload-failed']) {
       let submitCount = 0
       const pending = runCatalogGenerationTask(videoNode, { projectTarget: TEST_TARGET,
         runTask: async (_v, req) => { submitCount += 1; return { id: 'up-pre', kind: req.kind, status: 'queued' as const, assets: [], raw: {} } },

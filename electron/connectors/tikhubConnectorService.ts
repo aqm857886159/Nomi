@@ -13,7 +13,6 @@ import {
   resolveShareVideo,
   searchReferences,
   verifyTikhubApiKey,
-  getTikhubTestOrigin,
   type ResolvedShareVideo,
 } from "./tikhubConnector";
 import {
@@ -116,10 +115,7 @@ export async function importTikhubShareUrl(payload: unknown): Promise<TikhubImpo
     expectedKind: null,
     fileName: resolved.videoId ? `${resolved.platform}-${resolved.videoId}.mp4` : `${resolved.platform}-video.mp4`,
     sourceEvidence: evidence,
-  }, (() => {
-    const testOrigin = getTikhubTestOrigin();
-    return testOrigin ? { trustedPrivateOrigin: testOrigin } : undefined;
-  })());
+  });
   return { asset, resolved };
 }
 
@@ -206,9 +202,6 @@ export async function importTikhubReference(payload: unknown): Promise<Reference
     expectedKind: null,
     fileName: `${platform}-ref-${itemId}.mp4`,
     sourceEvidence: evidence,
-  }, (() => {
-    const testOrigin = getTikhubTestOrigin();
-    return testOrigin ? { trustedPrivateOrigin: testOrigin } : undefined;
-  })());
+  });
   return { asset, platform, itemId };
 }

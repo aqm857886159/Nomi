@@ -17,7 +17,7 @@ import { applyBuiltinSeeds } from "./seedBuiltins";
 import { upsertRendererCatalogVendor, upsertRendererCatalogVendorApiKey } from "./rendererCatalogMutation";
 import { readCatalog, upsertModelCatalogVendor, upsertModelCatalogVendorApiKey } from "./catalogStore";
 import { readCredentialBinding } from "./credentialBinding";
-import { authorizeSubmitDestination, setSubmitOutboundDepsForTests } from "../vendor/vendorOutboundGuard";
+import { authorizeSubmitDestination } from "../vendor/vendorOutboundGuard";
 import { matchNomiErrorCode } from "../shared/nomiErrorCodes";
 
 let mockedUserDataRoot = "";
@@ -65,23 +65,16 @@ function apimart() {
 }
 
 function keyedRequest(url: string) {
-  return authorizeSubmitDestination({ vendor: apimart(), url, routedThroughProviderProxy: false, carriesCredential: true });
+  return authorizeSubmitDestination({ vendor: apimart(), url, carriesCredential: true });
 }
 
 beforeEach(() => {
   mockedUserDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-settings-address-"));
   tempRoots.push(mockedUserDataRoot);
-  // 出站守卫的 DNS / 环境 / 代理全钉死，绝不碰真网络（见 vendorOutboundGuard 的 SubmitOutboundDeps 注释）。
-  setSubmitOutboundDepsForTests({
-    resolve: async () => [{ address: "104.18.32.7", family: 4 as const }],
-    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
-    isApplicationProxyActive: () => false,
-  });
 });
 
 afterEach(() => {
   mockAppFetch.mockReset();
-  setSubmitOutboundDepsForTests(null);
   for (const root of tempRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
