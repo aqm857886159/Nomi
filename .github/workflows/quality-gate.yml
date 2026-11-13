@@ -127,6 +127,40 @@ jobs:
           DIRECTION_BASE: ${{ github.event.pull_request.base.sha }}
         run: node scripts/fix-churn.mjs --range "$DIRECTION_BASE..HEAD" --warn | tee -a "$GITHUB_STEP_SUMMARY"
 
+  # 从 Contracts 里拆出来的并行作业：同一份门岗清单（package.json 的 gates:contracts）里最慢的一道
+  # （check:claude-hooks-real-entry，钩子真入口测试整份，约 8 分钟）单独跑，Contracts 用 --except 跳过它。
+  # 一道门都没少：profiles 里 --except / --only 成对，check:gates-chain 核对；本机 pnpm run gates 仍是全量。
+  # 它和 Contracts 一样每个 PR 必跑（没有 if / needs），也在 Quality Gate 的必过名单里。
+  contracts-hooks:
+    name: Contracts (hook entrypoints)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
+      ROOT_CAUSE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NOMI_PR_NUMBER: ${{ github.event.pull_request.number }}
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+      PRIOR_ART_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
+      DOOR_MAP_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: ./.github/actions/cache-external-downloads
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Hook entrypoint contracts
+        run: pnpm run test:system:contracts-hooks
+
   unit:
     name: Unit
     needs: scope
@@ -162,8 +196,9 @@ jobs:
       - name: Unit tests (full lane, vitest shard)
         if: needs.scope.outputs.unit == 'full'
         run: pnpm run test:unit:shard --shard=${{ matrix.shard }}/${{ strategy.job-total }}
-      - name: Agent runtime and node:test suites (full lane, shard 1)
-        if: needs.scope.outputs.unit == 'full' && matrix.shard == 1
+      # 2026-11-14：vitest 第 1 片最慢（中位 12.8 分），node:test 套件（约 3 分）改跟最短的第 3 片；仍然恰好跑一次。
+      - name: Agent runtime and node:test suites (full lane, shard 3)
+        if: needs.scope.outputs.unit == 'full' && matrix.shard == 3
         run: pnpm run test:node-suites
       - name: Changed and related tests (fast lane)
         if: needs.scope.outputs.unit == 'focused'
@@ -185,13 +220,13 @@ jobs:
       needs.scope.outputs.canvas == 'critical'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    # 2026-10-09：按 4 片并行（实测此前单机串行 38.9 分钟）。每片跑哪些走查、哪些普查格由
+    # 2026-10-09：按 4 片并行（实测此前单机串行 38.9 分钟）；2026-11-14 改 5 片，装箱数据按 11-13 的实测更新（最慢一片 20.3 → 约 15 分钟）。每片跑哪些走查、哪些普查格由
     # scripts/lib/e2eShardPlan.mjs 按历史耗时装箱，这里不写死；每个步骤只靠 `Plan shard` 的输出决定跑不跑。
     # 每片各自 build（~65 秒，与 Canvas Acceptance 同写法）：共享 artifact 要多一个串行上游 job，墙钟更长。
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -551,6 +586,7 @@ jobs:
       - name: Install Chromium
         run: bash scripts/ci-install-chromium.sh
       - name: Design lab visual baselines
+        # 保持 1 个 worker 串行。2026-11-14 在这台 3 核机器上试过 2 个 worker：180 条从 16.9 分变成 19.8 分，另有 3 条截图等待超时假红。要更快得分到两台机器或换平台，不是同机并发。
         run: pnpm run check:design-lab
       - name: Upload design lab evidence
         if: failure()
@@ -565,7 +601,7 @@ jobs:
 
   quality:
     name: Quality Gate
-    needs: [scope, contracts, unit, core-smoke, desktop-linux, canvas-acceptance, canvas-performance, mac-package, design-lab-macos]
+    needs: [scope, contracts, contracts-hooks, unit, core-smoke, desktop-linux, canvas-acceptance, canvas-performance, mac-package, design-lab-macos]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -594,6 +630,7 @@ jobs:
           test "${{ steps.ci-hygiene.outcome }}" = "success"
           test "${{ needs.scope.result }}" = "success"
           test "${{ needs.contracts.result }}" = "success"
+          test "${{ needs['contracts-hooks'].result }}" = "success"
           test "${{ needs.unit.result }}" = "success"
           # 核心冒烟：只有纯文档才允许 skipped；其余（含分类器没给出结论）一律要求 success。
           # 非阻断的 used 带 continue-on-error，它红时 conclusion 仍是 success，
