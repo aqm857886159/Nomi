@@ -1,5 +1,5 @@
 // 目录 curated 种子的**分档表**：「旗舰 / 性价比 / 陪跑 / 退役」四档的显式名单。
-// 跨供应商同一逻辑模型的身份表住中立层 `electron/shared/canonicalModelIds.ts`（界面层也要读它）。
+// 跨供应商同一逻辑模型的身份表住中立层 `electron/shared/modelCanonicalIds.ts`（界面层也要读它）。
 //
 // 为什么从 `seedBuiltins.ts` 分出来：那个文件做的是**对账**（把 curated 声明 reconcile 进
 // 用户目录），而这里是一张**查找表**——两者变更的理由完全不同。表随每次模型雷达增删，
