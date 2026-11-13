@@ -1780,9 +1780,6 @@
   "tests/ux/creation-flow-fixes.walk.mjs": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-useless-assignment": {
-      "count": 2
     }
   },
   "tests/ux/creation-pill-overlap.walk.mjs": {
