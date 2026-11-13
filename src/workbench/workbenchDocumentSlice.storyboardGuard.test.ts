@@ -64,6 +64,18 @@ describe('storyboard write doors refuse what cannot be saved', () => {
     expect(text).not.toContain('私有标题')
   })
 
+  it('undoing a delete cannot bring back a design that cannot be saved (restoreStoryboardDesign is a write door too)', () => {
+    const store = useWorkbenchStore.getState()
+    store.addStoryboardDesign({ initiator: 'user', documentId: 'doc', source: good, identity: { id: 'd1', title: 'plan' } })
+    const removed = designs()[0]
+    store.deleteStoryboardDesign('d1', 'doc')
+    expect(designs()).toEqual([])
+    store.restoreStoryboardDesign({ ...removed, plan: withDuration(Number.NaN) }, 'doc', 0)
+    expect(designs()).toEqual([])
+    store.restoreStoryboardDesign(removed, 'doc', 0)
+    expect(designs().map(design => design.id)).toEqual(['d1'])
+  })
+
   it('an ordinary edit still goes through', () => {
     const store = useWorkbenchStore.getState()
     store.addStoryboardDesign({ initiator: 'user', documentId: 'doc', source: good, identity: { id: 'd1', title: 'plan' } })

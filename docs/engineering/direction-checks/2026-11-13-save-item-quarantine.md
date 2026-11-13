@@ -41,21 +41,33 @@
 
 - 全有全无的整份 safeParse 拒存路径，同提交删除（`normalizePayload` 里整份严格 schema 换成「只认骨架 + 逐项」）。没有并行版、没有 fallback。只有骨架本身坏了（不是 JSON 对象、缺必要容器）才整份拒绝。
 - setter `setStoryboardPlan` / `addStoryboardDesign` / `restoreStoryboardDesign` 是唯一裁判；Agent 的各个门只负责把同一份 schema 的字段路径讲给模型。`door-map` 数过 `setStoryboardPlan` 有 7 个写口文件，全部走这一个 setter。
-- 守门：`scripts/check-storyboard-owner.mjs` 新增一节，store 之外不许直接写 `storyboardDesignsByDocumentId:`。
+- 守门：`scripts/check-storyboard-owner.mjs` 新增一节，store 之外不许直接写 `storyboardDesignsByDocumentId`。第 2 轮从正则换成语法树（`scripts/lib/storyboardDesignWrites.mjs`），属性、简写、计算键、取出来原地改四种都认；拦不住的是「先存进本地变量再改」（要跟踪别名）和拼出来的键名。
 - 原子性不变：主进程仍是整文件原子写（写临时文件、fsync、改名），`tests/system/saveKillInFlight.test.mjs` 在保存中途 kill -9，盘上只会是旧完整版或新完整版。
 
 ## 风险与已知限制
 
-- 打开项目时被隔离的项没有界面文案（只准改一句话）；靠日志和 `.nomi/quarantine/` 发现。
+- 打开项目时被隔离的项：第 2 轮起和保存时用同一个提醒位置、同一句话的「打开」版本提示一次（独立验收 C3）。
+- 隔离区写不进时（Windows 杀毒占住等）这次保存整次失败、沿用原有失败提示，不会出现「项目里没了、隔离区也没有」。
 - 创作者在编辑器里的某次输入被 setter 拒绝时是静默不生效 + 日志；已核对没有正常编辑会触到（`ShotComposerBar` 的 `Number(value)` 是潜在 NaN 路径，已被 setter 挡住，不会进盘）。
+
+## 第 2 轮：碰「改名」（协调会话预批，2026-11-13）
+
+独立验收发现列表页改名会把盘上的坏项永久抹掉：改名走「整份读出 → 逐项判 → 整份写回」，坏项在读出时被剔掉，写回时就没了。改名这个概念不在本刀原范围，协调会话预批碰它，条件是**收窄、不是新特例**：改名不再读出再判，只换名字、时间、版本号，载荷原样写回；同提交删掉改名里对 `readLocalProject` / `normalizeRecord` 的调用，没有新增分支。其余「读出再写回」的入口（打开、删素材、交付）读到的隔离项进同一本「欠隔离」账，写盘前先写进隔离区——同一条规则，不按入口各写一份。
 
 ## 自写登记「gate-family」（本刀碰到的第 49 个）
 
 本刀给 `scripts/check-storyboard-owner.mjs` 加了一节（store 之外不许直接写 `storyboardDesignsByDocumentId:`）。自写登记条目 id：`gate-family`（状态 under-review，复查日 2026-11-30）。
 
 - 为什么现在换不了现成方案：这一节查的是「我们独有的领域」——分镜草稿的唯一写入口（setter）。eslint-plugin-boundaries 之类只管「谁能 import 谁」，管不了「谁能往这个对象字面量里写这个键」；`no-restricted-syntax` 能做但规则散在 eslint 配置里，脱离同目录既有的 owner 守门（同一脚本已有 3 节同形检查），拆出去会多一套并行门岗。
-- 不是再补一刀：没有新增脚本，只在已有脚本里加一节同形检查；整个门岗族的保留 / 合并 / 降级 / 删除清单已排在 2026-11-30 前出结论，到时这一节随 owner 守门一起评估，是否换成 eslint 规则在那时定。
+- 不是再补一刀：没有新增门岗脚本，只在已有脚本里加一节同形检查（第 2 轮把这一节的识别挪进 `scripts/lib/storyboardDesignWrites.mjs` 以便单测，不是新门岗）；整个门岗族的保留 / 合并 / 降级 / 删除清单已排在 2026-11-30 前出结论，到时这一节随 owner 守门一起评估，是否换成 eslint 规则在那时定。
 - 哪天换：2026-11-30 门岗族结论出来的那一天，一并判断。
+
+## 自写登记「ipc-invoke-failure-text」（第 2 轮碰到）
+
+第 2 轮在 `electron/shared/contracts/projectSaveFailure.ts` 只**新增**两个类型（隔离区写入的结果 / 失败），没有改既有导出的形状，也没有新增读失败原文的代码：隔离区通道直接用已有的普通对象结果包络（`IpcResult` + `unwrapIpcResult`，和 10-30 保存通道同一个拆封 owner），失败原因走已有的 `projectSaveFailure`。
+
+- 为什么现在换不了现成方案：electron-trpc / electron-better-ipc 都要换掉整条 IPC（6 个 preload 文件里约 218 处 invoke 与对应 handle）；这一刀只加一个通道，单独迁它会出现两套 IPC 并存。现在的做法恰好是登记里写的方向——不读 Electron 送回的那句话，改用结构化结果。
+- 哪天换：按登记的 reviewBy 2026-11-23 评估整条 IPC 迁移时一并定；迁完这两个类型随契约文件一起换。
 
 ## 批准
 

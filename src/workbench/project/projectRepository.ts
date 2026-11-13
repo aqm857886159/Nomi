@@ -26,7 +26,8 @@ import {
   removeStorageKey,
   writeJson,
 } from './projectStorage'
-import { writeQuarantineSidecar } from './projectQuarantineSidecar'
+import { writeQuarantineSidecar, type QuarantineFile } from './projectQuarantineSidecar'
+import { logRendererWarn } from '../../desktop/rendererLog'
 import { readBackupIndex, rememberProjectBackup } from './projectBackup'
 import {
   createProjectRecord,
@@ -34,6 +35,7 @@ import {
   quarantineOfRecord,
   rememberQuarantine,
   normalizeRecord,
+  type QuarantinedItem,
   normalizeSummary,
   seedDocFromMarkdown,
 } from './projectNormalize'
@@ -213,7 +215,7 @@ export function readLocalProject(projectId: string): WorkbenchProjectRecordV1 | 
   const desktop = getDesktopBridge()
   if (desktop) {
     const record = desktop.projects.read(id)
-    return record ? normalizeRecord(normalizeSummary(record) || (record as WorkbenchProjectSummary), record) : null
+    return record ? holdQuarantined(id, normalizeRecord(normalizeSummary(record) || (record as WorkbenchProjectSummary), record)) : null
   }
   const summary = readMergedProjectSummaries().find((item) => item.id === id)
   if (!summary) return null
@@ -221,22 +223,69 @@ export function readLocalProject(projectId: string): WorkbenchProjectRecordV1 | 
   if (!raw) {
     throw new Error(i18n.t('runtime.project.recordMissing', { id }))
   }
-  return normalizeRecord(summary, raw)
+  return holdQuarantined(id, normalizeRecord(summary, raw))
+}
+
+/**
+ * 被隔离的项「这份内容是不是已经另存成了」和「是不是还没告诉创作者」——都按项目 id 记，不进持久化。
+ *   · unstashedByProject：打开 / 读盘时被隔离、还没另存成的项。任何一次覆盖项目文件之前必须先把它们写进隔离区，
+ *     写不成就抛、这次不覆盖（那一项盘上还在）。这样凡是「读进来再整份写回」的路（打开后自动保存、删素材、运行结局落盘）
+ *     都先过这一关，不靠每个调用方自己记得。
+ *   · unannouncedByProject：这次新另存的（同一份内容早已在隔离区的不算），等界面拿走说一次。
+ */
+type HeldItem = Readonly<{ item: QuarantinedItem; origin: 'open' | 'save' }>
+export type QuarantineNoticeItem = HeldItem & Readonly<{ relativePath: string }>
+const unstashedByProject = new Map<string, readonly HeldItem[]>()
+const unannouncedByProject = new Map<string, readonly QuarantineNoticeItem[]>()
+
+/** 界面取走这个项目还没说过的那几项（取一次就清）。同一项、同一份内容只会出现一次。 */
+export function takeQuarantineNotice(projectId: string): readonly QuarantineNoticeItem[] {
+  const items = unannouncedByProject.get(projectId) ?? []
+  unannouncedByProject.delete(projectId)
+  return items
+}
+
+/** 读盘逐项判出来的不合格项，一律先记成「欠着」：凡是读进来再写回的路，写回前都得先把它们另存成。 */
+function holdQuarantined(projectId: string, opened: WorkbenchProjectRecordV1): WorkbenchProjectRecordV1 {
+  const held = quarantineOfRecord(opened)
+  if (held.length) unstashedByProject.set(projectId, held.map((item) => ({ item, origin: 'open' as const })))
+  return opened
+}
+
+async function stashQuarantineBeforeWrite(projectId: string, fresh: readonly QuarantinedItem[]): Promise<void> {
+  const held: HeldItem[] = [...(unstashedByProject.get(projectId) ?? []), ...fresh.map((item) => ({ item, origin: 'save' as const }))]
+  if (!held.length) return
+  const files: readonly QuarantineFile[] = await writeQuarantineSidecar(projectId, held.map(({ item }) => item))
+  unstashedByProject.delete(projectId)
+  const announce = held.flatMap((entry, index): QuarantineNoticeItem[] => {
+    const file = files[index]
+    return file?.fresh ? [{ ...entry, relativePath: file.relativePath }] : []
+  })
+  if (announce.length) unannouncedByProject.set(projectId, [...(unannouncedByProject.get(projectId) ?? []), ...announce])
 }
 
 export async function readLocalProjectAsync(projectId: string): Promise<WorkbenchProjectRecordV1 | null> {
   const id = String(projectId || '').trim()
   if (!id) return null
   const desktop = getDesktopBridge()
+  let opened: WorkbenchProjectRecordV1 | null
   if (desktop?.projects.readAsync) {
     const raw = await desktop.projects.readAsync(id)
-    if (!raw) return null
-    const opened = normalizeRecord(normalizeSummary(raw) || (raw as WorkbenchProjectSummary), raw)
-    // 盘上已有不合格的一项：项目照常打开，那一项原样留进隔离区（不改盘上的项目文件；下次保存时它自然被挡在外面）。
-    await writeQuarantineSidecar(id, quarantineOfRecord(opened))
-    return opened
+    opened = raw ? holdQuarantined(id, normalizeRecord(normalizeSummary(raw) || (raw as WorkbenchProjectSummary), raw)) : null
+  } else {
+    opened = readLocalProject(id)
   }
-  return readLocalProject(id)
+  // 盘上已有不合格的一项：项目照常打开，那一项原样留进隔离区（不改盘上的项目文件）。现在就试着另存；没成也不挡打开，
+  // 它留在「欠着」里，下一次覆盖项目文件之前（任何调用方）先补写，补不成就不覆盖（见 stashQuarantineBeforeWrite）。
+  const held = opened ? quarantineOfRecord(opened) : []
+  if (held.length) {
+    try {
+      await stashQuarantineBeforeWrite(id, [])
+    } catch {
+      logRendererWarn('project-quarantine-sidecar-failed', { count: held.length, origin: 'open' })
+    }
+  }
+  return opened
 }
 
 /**
@@ -287,8 +336,9 @@ export async function saveProjectRecord(
   assertWorkbenchProjectMediaUrlsPersistable(record)
   if (desktop) {
     const { name: _ownedByRename, ...contentRecord } = record
+    // 顺序：先把被隔离的项另存好，再覆盖项目文件。另存不成就抛（保存失败、盘上不动），那一项不会三处同时消失。
+    await stashQuarantineBeforeWrite(id, normalized.quarantined)
     const saved = unwrapIpcResult(await desktop.projects.save(id, { ...contentRecord, ...(expectedBinding ? { expectedBinding } : {}) }), 'nomi:projects:save-async') as WorkbenchProjectRecordV1
-    await writeQuarantineSidecar(id, normalized.quarantined)
     rememberQuarantine(saved, normalized.quarantined)
     return saved
   }
@@ -299,6 +349,7 @@ export async function saveProjectRecord(
     record.immutableProjectUuid = expectedBinding.immutableProjectUuid
     record.projectGeneration = expectedBinding.projectGeneration
   }
+  await stashQuarantineBeforeWrite(id, normalized.quarantined)
   if (existingRecord) rememberProjectBackup(id, existingRecord)
   const nextIndex = [summary, ...readMergedProjectSummaries().filter((item) => item.id !== id)]
   writeJson(projectRecordKey(id), record)
@@ -310,36 +361,28 @@ export async function saveProjectRecord(
 /**
  * 只改项目名（列表页「双击改名」的后端）——不动 id/目录/画布/时间轴/分类/分镜方案。
  *
- * 关键：读盘上**完整 record** 再存回，**绝不经 saveProjectRecord 的三部分窄接口**——那会让
- * normalizePayload（字段重建式）把 categories 重置为内置默认、丢掉 storyboardPlan（数据损坏，
- * 违反 never-wipe-user-data 铁律）。列表页改的是**任意项目**（可能没打开），更不能拿当前内存
- * 状态覆盖它。空名/未变 → no-op 返回原 record。
+ * 关键：读盘上的**原样** record，只换名字和时间戳再存回，**不经过逐项判（normalizeRecord）**。
+ * 逐项判会把不合格的那一项丢掉，再整份写回就等于从盘上抹掉它（2026-11-13 独立验收：改名后坏分镜永久没了）；
+ * 也绝不经 saveProjectRecord 的内容窄接口（那会重置 categories、丢 storyboardPlan）。payload 一个字节都不重写。
+ * 列表页改的是**任意项目**（可能没打开），更不能拿当前内存状态覆盖它。空名/未变 → no-op 返回原 record。
  */
 export async function renameLocalProject(projectId: string, name: string): Promise<WorkbenchProjectRecordV1 | null> {
   const id = String(projectId || '').trim()
   if (!id) return null
-  const record = readLocalProject(id)
-  if (!record) return null
-  const nextName = String(name || '').trim()
-  if (!nextName || nextName === record.name) return record
-  const now = Date.now()
-  const next: WorkbenchProjectRecordV1 = {
-    ...record,
-    name: nextName,
-    updatedAt: now,
-    savedAt: now,
-    revision: (record.revision ?? 0) + 1,
-    // payload 原样保留（含 categories/storyboardPlan/画布/时间轴，零丢失）——只换 name 与时间戳。
-  }
-  assertWorkbenchProjectMediaUrlsPersistable(next)
   const desktop = getDesktopBridge()
+  const raw = desktop ? desktop.projects.read(id) : readJson(projectRecordKey(id))
+  const current = normalizeSummary(raw)
+  if (!raw || typeof raw !== 'object' || !current) return null
+  const nextName = String(name || '').trim()
+  if (!nextName || nextName === current.name) return raw as WorkbenchProjectRecordV1
+  const now = Date.now()
+  // 原样展开：payload 及所有未知字段照搬，只换名字与时间戳。
+  const next = { ...(raw as Record<string, unknown>), name: nextName, updatedAt: now, savedAt: now, revision: (current.revision ?? 0) + 1 }
   if (desktop) return unwrapIpcResult(await desktop.projects.save(id, next), 'nomi:projects:save-async') as WorkbenchProjectRecordV1
-  const existingRecord = readJson(projectRecordKey(id))
-  if (existingRecord) rememberProjectBackup(id, existingRecord)
+  rememberProjectBackup(id, raw)
   writeJson(projectRecordKey(id), next)
-  const summary = normalizeSummary(next) || (next as WorkbenchProjectSummary)
-  writeIndex([summary, ...readMergedProjectSummaries().filter((item) => item.id !== id)])
-  return next
+  writeIndex([{ ...current, name: nextName, updatedAt: now, savedAt: now, revision: next.revision }, ...readMergedProjectSummaries().filter((item) => item.id !== id)])
+  return next as unknown as WorkbenchProjectRecordV1
 }
 
 /**

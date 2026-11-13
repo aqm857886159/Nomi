@@ -196,3 +196,16 @@ describe('a plan that cannot be saved is refused with field paths, and nothing c
     expect(designs()).toBe(before)
   })
 })
+
+describe('a refused plan is explained in the shared field words, never as raw zod text', () => {
+  it('upsert with a wrong-typed field returns the field path and what it needs — no zod issue dump, no received value', () => {
+    const bad = { title: 'Plan', anchors: [], shots: [{ index: 1, durationSec: 'soon', anchorIds: [], prompt: 'SECRET-PROMPT' }] }
+    const reply = upsertAgentStoryboardDesign({ projectId: 'p', documentId: 'doc', designId: 'op-9', plan: bad, initiator: 'agent' })
+    expect(reply).toMatchObject({ status: 'rejected' })
+    expect((reply as { issues: unknown[] }).issues).toContainEqual({ path: 'shots[0].durationSec', problem: 'needs number, got string' })
+    const text = JSON.stringify(reply)
+    expect(text).not.toMatch(/"code"|"expected"|"received"|Expected number/)
+    expect(text).not.toContain('soon')
+    expect(designs()).toEqual([])
+  })
+})

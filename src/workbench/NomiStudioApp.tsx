@@ -58,8 +58,8 @@ import { getDesktopBridge } from '../desktop/bridge'
 import { toast } from '../ui/toast'
 import { logRendererError } from '../desktop/rendererLog'
 import { LaneCommandFailure, laneFailureText } from './ai/lane/laneCommandFailure'
-import { projectNotice, projectOperationFailureText, projectPartialSaveText, type UserText } from './project/projectOperationFailureText'
-import { quarantineOfRecord } from './project/projectNormalize'
+import { projectNotice, projectOperationFailureText, projectQuarantineNoticeText, projectQuarantineRevealLabel, type UserText } from './project/projectOperationFailureText'
+import { takeQuarantineNotice } from './project/projectRepository'
 import { useHasTextModel } from './library/useHasTextModel'
 import { SplashIntro } from './onboarding/SplashIntro'
 import { hasSeenSplash, markSplashSeen, hasSeenJourneyTour } from './onboarding/onboardingState'
@@ -145,8 +145,16 @@ export default function NomiStudioApp(): JSX.Element {
   const location = useLocation()
   useComposerResidentData() // 生成框要用的目录 / 默认模型 / 提示词库：启动后后台载进内存，点卡只读内存
   const [view, setView] = React.useState<AppView>('library')
-  const [feedback, setFeedback] = React.useState<{ projectId: string | null; message: string } | null>(null)
+  // tone 'quarantine'：有项被隔离的那一句（提醒，不是报错），带「打开所在文件夹」指向那份另存文件；自动保存不清掉它。
+  const [feedback, setFeedback] = React.useState<{ projectId: string | null; message: string; tone?: 'quarantine'; revealPath?: string } | null>(null)
   const report = React.useCallback((projectId: string | null, message: UserText) => notify({ identity: `project:${projectId ?? 'library'}`, reason: 'operation', level: 'inline', message, type: 'error', present: (value) => setFeedback({ projectId, message: value }) }), [])
+  // 打开 / 保存之后取这个项目「新另存、还没说过」的被隔离项，说一次（同一份内容不再说第二次：projectRepository.takeQuarantineNotice）。
+  const announceQuarantine = React.useCallback((projectId: string) => {
+    const items = takeQuarantineNotice(projectId)
+    if (!items.length) return
+    const revealPath = items[0]!.relativePath
+    notify({ identity: `project:${projectId}`, reason: 'operation', level: 'inline', message: projectQuarantineNoticeText(t, items), type: 'warning', present: (value) => setFeedback({ projectId, message: value, tone: 'quarantine', revealPath }) })
+  }, [t])
   const { refreshProjects } = useLocalProjects()
   const [activeProject, setActiveProject] = React.useState<LocalProjectSummary | null>(null)
   const settingsDialogController = useSettingsDialogController()
@@ -357,6 +365,7 @@ export default function NomiStudioApp(): JSX.Element {
         setView('studio')
         markProjectOpenMoment('studio-visible')
         navigate(buildStudioUrl(hydrated.id), { replace: options.replaceUrl ?? false })
+        announceQuarantine(hydrated.id)
         // Only start background repairs after main has acknowledged the exact
         // committed Surface; the guard prevents any late write after a switch.
         void runProjectAssetHealthCheck(hydrated.id, surfaceEpoch).catch(() => {})
@@ -384,7 +393,7 @@ export default function NomiStudioApp(): JSX.Element {
       }
       return true
     },
-    [ensureProjectPersistenceService, navigate, projectSurface, refreshProjects, report, t],
+    [announceQuarantine, ensureProjectPersistenceService, navigate, projectSurface, refreshProjects, report, t],
   )
 
   const openProject = React.useCallback(
@@ -589,9 +598,8 @@ export default function NomiStudioApp(): JSX.Element {
         isHydrating: () => hydratingProjectRef.current,
         canPersist: () => activeProjectIdRef.current === activeProject.id,
         onSaved: (saved) => {
-          setFeedback((previous) => previous?.projectId === saved.id ? null : previous)
-          const held = quarantineOfRecord(saved)[0]
-          if (held) report(saved.id, projectPartialSaveText(t, { title: held.title, field: held.field }))
+          setFeedback((previous) => previous?.projectId === saved.id && previous.tone !== 'quarantine' ? null : previous)
+          announceQuarantine(saved.id)
           if (activeProjectIdRef.current === activeProject.id) {
             setActiveProject(saved)
           } else {
@@ -614,7 +622,7 @@ export default function NomiStudioApp(): JSX.Element {
       }
       void unbind?.().catch(() => undefined) // onSaveError already reports the failure; React cleanup cannot await.
     }
-  }, [activeProject, activeProjectPersistenceKey, ensureProjectPersistenceService, refreshProjects, report, t])
+  }, [activeProject, activeProjectPersistenceKey, announceQuarantine, ensureProjectPersistenceService, refreshProjects, report, t])
 
   useWorkspaceEvents(view === 'studio' ? activeProject?.id : null, (type) => {
     if (type === 'canvas.updated' || type === 'timeline.updated' || type === 'creation.updated') {
@@ -697,7 +705,27 @@ export default function NomiStudioApp(): JSX.Element {
       onReplaySplash={() => setSplashDone(false)}
     />
   ) : null
-  const projectFeedback = feedback?.message ? <p role="alert" className="m-0 px-4 py-2 text-caption text-nomi-danger">{feedback.message}</p> : null
+  const revealQuarantine = (projectId: string | null, relativePath: string) => {
+    const reveal = getDesktopBridge()?.workspace?.revealFile
+    if (!projectId || !reveal) return
+    void reveal({ projectId, relativePath }).catch((error: unknown) => {
+      logRendererError('project-reveal-quarantine-failed', error)
+      report(projectId, projectOperationFailureText('revealFolder', error, t))
+    })
+  }
+  const canRevealQuarantine = Boolean(getDesktopBridge()?.workspace?.revealFile)
+  const projectFeedback = !feedback?.message ? null
+    : feedback.tone === 'quarantine' ? (
+      <div role="status" data-testid="project-quarantine-notice" className="m-0 flex items-start gap-3 bg-nomi-warning-soft px-4 py-2 text-caption text-nomi-warning-ink">
+        <p className="m-0 min-w-0 flex-1">{feedback.message}</p>
+        {feedback.revealPath && canRevealQuarantine ? (
+          <button type="button" className="shrink-0 rounded-nomi-sm px-1.5 font-medium text-nomi-warning-ink underline underline-offset-2 hover:bg-nomi-warning-edge" onClick={() => revealQuarantine(feedback.projectId, feedback.revealPath!)}>
+            {projectQuarantineRevealLabel(t)}
+          </button>
+        ) : null}
+      </div>
+    )
+    : <p role="alert" className="m-0 px-4 py-2 text-caption text-nomi-danger">{feedback.message}</p>
   const viewContent =
     view === 'library' ? (
       <>

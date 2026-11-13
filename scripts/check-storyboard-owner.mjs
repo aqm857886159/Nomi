@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { repoRelativePosix } from './lib/repoPaths.mjs'
+import { findStoryboardDesignMapWrites } from './lib/storyboardDesignWrites.mjs'
 
 const root = process.cwd()
 const sourceRoot = path.join(root, 'src', 'workbench')
@@ -106,7 +107,7 @@ for (const [relative, fn, label] of resolverCallSites) {
 // `storyboardDesignsByDocumentId` 的写入口自己校验（`storyboardDesignSchema`：存不下的方案不写）。
 // 谁在 store 之外直接 set 这个键，就绕过了那道校验，存盘时才被挡——那正是「一处不合格整份存不下」的来路。
 // 允许出现这个键的文件 = store 本体 / 项目读写 / 生命周期重置；新增一处必须先说清它为什么不是写入口。
-const designMapWritePattern = /(?:^|[{,])\s*storyboardDesignsByDocumentId\s*:/m // 对象字面量里的属性写入（读取是 `.storyboardDesignsByDocumentId`，三元里的 `:` 前面是点）
+// 四种写法（属性 / 简写 / 计算键 / 取出来原地改）由语法树认，见 scripts/lib/storyboardDesignWrites.mjs；拦不住的写法也写在那里。
 const designMapWriteAllowed = new Set([
   'src/workbench/workbenchDocumentSlice.ts',        // store 写入口（setStoryboardPlan / addStoryboardDesign / restoreStoryboardDesign…）
   'src/workbench/workbenchStore.ts',                // store 初值
@@ -119,8 +120,8 @@ const designMapWriteAllowed = new Set([
 for (const file of files) {
   const relative = repoRelativePosix(file, root)
   if (designMapWriteAllowed.has(relative) || /\.test\.tsx?$/.test(relative)) continue
-  if (designMapWritePattern.test(fs.readFileSync(file, 'utf8'))) {
-    violations.push(`${relative}: writes storyboardDesignsByDocumentId outside the store write doors — use setStoryboardPlan / addStoryboardDesign so the draft schema judges it`)
+  for (const { line, form } of findStoryboardDesignMapWrites(fs.readFileSync(file, 'utf8'), relative)) {
+    violations.push(`${relative}:${line}: writes storyboardDesignsByDocumentId (${form}) outside the store write doors — use setStoryboardPlan / addStoryboardDesign so the draft schema judges it`)
   }
 }
 
