@@ -66,7 +66,6 @@ import {
 import {
   archetypeModeChoices,
   archetypeModeSlotReachByKey,
-  archetypeVariantAxisIsLive,
 } from './controls/channelModeReach'
 import {
   NARROWED_MODE_GUIDANCE_DISMISSED_META_KEY,
@@ -77,6 +76,7 @@ import {
 import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferencePlacement, firstFrameTaggedSlot } from '../runner/referenceSlots'
 import { useChannelCreateBodies, type VendorMappingsReader } from './controls/useChannelCreateBody'
+import { useVariantAxisLiveOf } from './controls/useVariantAxisLiveOf'
 import { modeTransportFor, specializeArchetypeForVariant } from '../../../../electron/shared/modelArchetypes'
 import ModeBar from './controls/ModeBar'
 import { buildModeMenu, modeRowName } from './controls/modeMenuModel'
@@ -173,8 +173,7 @@ export default function NodeParameterControls({
     selectedModelOption?.value ?? '',
     modeBodySpecs, readMappings,
   )
-  // （Runway 把 model 写死、且 veo3.1 / veo3.1_fast 本就是两个目录行）。惰性时整条不显示，别骗用户。
-  const variantAxisLive = !sendMode || archetypeVariantAxisIsLive(modeBodies[sendMode.id])
+  const axisLiveOf = useVariantAxisLiveOf(readMappings)
   // 槽级收窄仍只看**当前**模式的 body（口径不变）。三态里的 undefined/null 都落到「拿不到 body」→ 不收窄。
   const channelCreateBody = archMode ? (modeBodies[archMode.id]?.body ?? null) : null
   const slotReachByKey = React.useMemo(
@@ -295,7 +294,7 @@ export default function NodeParameterControls({
   // （同一条 handleModelChange），再只改 variantId（正交轴，不动模式 / 参考值）。
   const variantMenu: ModelVariantMenu = {
     activeVariantId,
-    currentAxisLive: variantAxisLive,
+    axisLiveOf,
     onPick: ({ value, vendor }, variantId) => {
       const sameModel = value === selectedModelValue && (!vendor || vendor === selectedModelVendor)
       if (!sameModel) handleModelChange(value, vendor)

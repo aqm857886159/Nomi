@@ -721,6 +721,18 @@
       "reason": "已知供应商清单：我们策展的供应商名称、图标与默认地址"
     },
     {
+      "path": "src/config/modelBoxDefaults*",
+      "reason": "模型菜单的默认顺序与默认收起：按 APIMart 目录行的线上型号名排的一张展示数据，只描述我们接入的这份模型目录，别的项目没有这张表，也就没有现成的可接"
+    },
+    {
+      "path": "src/config/modelCapabilityLine*",
+      "reason": "模型菜单每行那句能力描述：从我们自己的模型档案（输入方式、最高清晰度、最长时长）算出，档案是 Nomi 独有的领域数据"
+    },
+    {
+      "path": "src/config/modelFamilyIcons*",
+      "reason": "模型档案的家族到品牌图标的对照：键是我们档案的 family，图本身取自现成的 Lobe Icons 图标库，这里只写我们档案到图的对应"
+    },
+    {
       "path": "src/config/modelBoxPreference*",
       "reason": "模型框偏好：画布模型下拉框的展示偏好（渲染层）"
     },

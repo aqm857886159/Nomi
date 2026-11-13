@@ -481,10 +481,21 @@ describe('变体行由调用方的一处声明决定', () => {
     expect(onChange).toHaveBeenCalledWith('apimart:doubao-seedance-2.0', 'apimart')
   })
 
-  it('当前模型的变体轴不起作用（惰性通道）→ 当前这一个不展开，免得骗人', () => {
+  it('变体轴不起作用（惰性通道）的行不展开，免得骗人——选中的那一行也一样', () => {
     let view!: DedupedModelSelectView
-    renderToStaticMarkup(createElement(function Probe() { view = useDedupedModelSelect(seedance, 'apimart:doubao-seedance-2.0', vi.fn(), 'apimart', undefined, menu({ currentAxisLive: false })); return null }))
+    renderToStaticMarkup(createElement(function Probe() { view = useDedupedModelSelect(seedance, 'apimart:doubao-seedance-2.0', vi.fn(), 'apimart', undefined, menu({ axisLiveOf: () => false })); return null }))
     expect(view.modelOptions).toHaveLength(1)
+  })
+
+  it('只有那一行（渠道把型号名写死，如 Runway）不展开；起作用的行照常展开', () => {
+    const mixed = [
+      ...seedance,
+      { ...option('veo3.1', 'runway', 'Runway Veo 3.1'), kind: 'video' as const, meta: { archetypeId: 'veo-3.1' } },
+    ]
+    const deadVendor = menu({ axisLiveOf: (model) => !model.providers.every((provider) => provider.vendor === 'runway') })
+    const labels = buildModelSelectOptions(dedupeModelOptions(mixed), healthy, [], null, deadVendor).map(o => o.label)
+    expect(labels).toEqual(['Seedance 2.0', 'Seedance 2.0 Fast', 'Seedance 2.0 Mini', 'Runway Veo 3.1'])
+    expect(buildModelSelectOptions(dedupeModelOptions(mixed), healthy, [], null, menu()).length).toBeGreaterThan(labels.length)
   })
 
   it('每行带一句由档案算出的能力描述；没档案的模型不编', () => {

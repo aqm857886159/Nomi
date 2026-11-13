@@ -1112,6 +1112,12 @@
       "path": "electron/catalog/relayNativeWireUpgrade.ts",
       "symbol": "noteRelayQueryOutcome",
       "reason": "获批方向已反转旧不变量：连续查询失败不得自动换通道，也不得修改已受理任务的查询合同。旧noteRelayQueryOutcome与调用方重查分支同提交删除；现役executeTaskQuery只沿原mapping查询，阶段错误保留收据。旧“连续三次失败单向退回”不再适用，故退役而非改锚；新不变量由协议根因合同及relayQueryFallback回归持有。"
+    },
+    {
+      "contract": "docs/fixes/2026-09-21-composer-footer-chip-clipping.root-cause.json",
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "symbol": "variantChipClass",
+      "reason": "2026-11-14 底栏的「变体」格整个删除，变体并进模型菜单里的行（样张 ModeBar model.menu）：底栏只剩模型这一枚身份 chip，「短枚举 chip 不收缩、只有模型 chip 让宽」这条不变量里「变体 chip」那半条不再有对象，同提交删掉 variantChipClass；模型 chip 让宽仍由 modelChipClass 一处说了算。"
     }
   ],
   "unverified": [

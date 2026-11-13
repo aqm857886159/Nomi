@@ -193,7 +193,7 @@ try {
       for (const surface of SURFACES) {
         const { page, context } = await open(surface.screen, surface.state, { lang, scheme })
         const triggerLoc = page.locator(modelTrigger(locale)).first()
-        await triggerLoc.waitFor({ timeout: 20000 }).catch(() => {})
+        await triggerLoc.waitFor({ timeout: stationTimeout() }).catch(() => {})
         const present = (await page.locator(modelTrigger(locale)).count()) > 0
         check(`同一套 · ${surface.id} 有模型格 · ${tag}`, present)
         if (present) {

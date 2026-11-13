@@ -139,7 +139,8 @@ try {
   // ── 花钱之前：宿主要派发的两镜都是被授权的那一档；不是就关卡、一分钱不花（上面「卡在等人」那两条已验过）──
   const beforeConfirm = draftProblems()
   walk.report.draft = {
-    runId, cardVariant: (await card.locator('[aria-label="变体"]').first().getAttribute('title').catch(() => null)) ?? null,
+    runId, // 变体并进了模型菜单（每个变体一行）：卡上显示的变体就是模型格当前显示的那一行名字。
+    cardVariant: (await card.locator('button[aria-label="模型"]').first().innerText().catch(() => null)) ?? null,
     shots: beforeConfirm.shots.map((shot) => ({ shotId: shot.shotId, variantId: shot.candidate?.variantId, parameters: shot.candidate?.parameters })),
   }
   if (beforeConfirm.problems.length) {

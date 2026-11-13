@@ -3,15 +3,15 @@ import { MODEL_ARCHETYPES } from '../../electron/shared/modelArchetypes'
 import type { DedupedModel } from './modelIdentity'
 import { modelBrandIcon, modelFamilyOf, modelNameInitial, registeredModelFamilies } from './modelFamilyIcons'
 
-function model(archetypeId?: string, label = 'Custom Model'): DedupedModel {
+function model(archetypeId?: string, label = 'Custom Model', modelKey = 'custom-model'): DedupedModel {
   return {
     canonicalId: label.toLowerCase().replaceAll(' ', '-'),
     label,
     recognized: Boolean(archetypeId),
     providers: [{
       vendor: 'custom-provider',
-      modelKey: 'custom-model',
-      option: { value: 'custom-provider:custom-model', label, modelKey: 'custom-model', vendor: 'custom-provider', ...(archetypeId ? { meta: { archetypeId } } : {}) },
+      modelKey,
+      option: { value: `custom-provider:${modelKey}`, label, modelKey, vendor: 'custom-provider', ...(archetypeId ? { meta: { archetypeId } } : {}) },
     }],
   }
 }
@@ -51,5 +51,14 @@ describe('modelBrandIcon（家族 → 品牌图的唯一对照表）', () => {
       expect(modelBrandIcon(model(id, id)).src, id).toBeTruthy()
     }
     expect(modelFamilyOf(model('kling-v4'))).toBe('kling')
+  })
+
+  it('只靠型号名认出档案的行（别的通道上的同一个模型，没写档案 id）也画同一枚品牌图', () => {
+    const declared = modelBrandIcon(model('seedance-2-apimart', 'Seedance 2.0', 'doubao-seedance-2.0'))
+    const byPattern = modelBrandIcon(model(undefined, '某个通道上的 Seedance', 'doubao-seedance-2.0'))
+    expect(declared.src).toBeTruthy()
+    expect(byPattern.src).toBe(declared.src)
+    expect(modelFamilyOf(model(undefined, 'x', 'kling-v4'))).toBe('kling')
+    expect(modelBrandIcon(model(undefined, 'Foo Bar', 'foo-bar-unknown'))).toEqual({ kind: 'model', fallback: 'F' })
   })
 })

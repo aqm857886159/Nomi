@@ -2563,7 +2563,7 @@ export const enGenerationCommon = {
     modelLine: {
       text: 'Text',
       image: 'Image',
-      firstLast: 'First/last',
+      firstLast: 'First/Last',
       reference: 'Ref',
       edit: 'Edit',
       textImage: 'Text to image',

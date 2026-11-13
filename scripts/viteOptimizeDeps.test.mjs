@@ -42,6 +42,8 @@ describe('Vite dependency pre-bundling', () => {
       '@radix-ui/react-dropdown-menu', '@radix-ui/react-focus-scope', '@radix-ui/react-tooltip', '@sparkjsdev/spark',
       '@streamdown/cjk', '@streamdown/code', '@tabler/icons-react', '@tiptap/pm', '@xyflow/react', 'fflate',
       'immer', 'js-yaml', 'marked', 'onnxruntime-web', 'perfect-freehand', 'react-resizable-panels',
+      // 纯 SVG 资源包（没有 JS、没有 CJS，只被 `import url from '…/icons/x.svg'` 当成 URL 用）：没有东西可预打包。
+      '@lobehub/icons-static-svg',
     ])
     const leaked = [...new Set([...specs].filter((spec) => !spec.startsWith('node:')).map(pkgOf))]
       .filter((name) => fs.existsSync(path.join(root, 'node_modules', name)) && !included.has(name) && !KNOWN_OK_RAW_IN_DEV.has(name))

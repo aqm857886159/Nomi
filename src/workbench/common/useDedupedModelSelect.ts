@@ -157,11 +157,6 @@ function unlistedByModel(model: DedupedModel): boolean {
   return model.providers.length > 0 && model.providers.every((provider) => provider.option.unlisted === true)
 }
 
-/** 行尾那串限定语：厂商短名 + 至多两句实话（未试跑 / 暂未列出）。 */
-function providerTrailing(provider: ModelProviderRef, notes: readonly string[]): string {
-  return [modelProviderLabel(provider), ...notes].join(' · ')
-}
-
 function untriedByModel(model: DedupedModel): boolean {
   return model.providers.some((provider) => {
     const meta = provider.option.meta
@@ -179,8 +174,8 @@ function untriedByModel(model: DedupedModel): boolean {
 export type ModelVariantMenu = Readonly<{
   /** 节点上现在存的变体 id（当前所选模型的）。 */
   activeVariantId: string
-  /** 当前所选模型的变体轴是不是真的起作用（惰性通道如 Runway 为 false）→ 为 false 时当前这一个不展开。缺省 = 起作用。 */
-  currentAxisLive?: boolean
+  /** 某一行的变体轴是不是真的起作用：渠道把型号名写死的行（如 Runway）不展开变体，点了也不会换型号。缺省 = 起作用。 */
+  axisLiveOf?: (model: DedupedModel) => boolean
   /** 点某个变体行：先落到该行的模型（value / vendor），再写变体。 */
   onPick: (picked: { value: string; vendor?: string }, variantId: string) => void
 }>
@@ -209,7 +204,7 @@ export function menuRowKey(canonicalId: string, variantId?: string): string {
 }
 
 /** 一个模型在菜单里的行：目录变体 / 档案变体（调用方声明了才展开）/ 单行。 */
-function expandModelRows(model: DedupedModel, variantMenu: ModelVariantMenu | undefined, isSelected: boolean): ModelMenuRow[] {
+function expandModelRows(model: DedupedModel, variantMenu: ModelVariantMenu | undefined): ModelMenuRow[] {
   const catalogProviders = sortModelProviders(model.providers.filter((provider) => provider.option.variant), [])
   const catalogVendor = catalogProviders[0]?.vendor
   const catalogVariants = catalogProviders.filter((provider) => provider.vendor === catalogVendor)
@@ -221,7 +216,7 @@ function expandModelRows(model: DedupedModel, variantMenu: ModelVariantMenu | un
   }
   const archetype = variantMenu ? modelArchetypeOf(model) : null
   const variants = archetype?.variants
-  if (variantMenu && archetype && variants && variants.length > 1 && !(isSelected && variantMenu.currentAxisLive === false)) {
+  if (variantMenu && archetype && variants && variants.length > 1 && (variantMenu.axisLiveOf?.(model) ?? true)) {
     return variants.map((variant) => ({
       key: menuRowKey(model.canonicalId, variant.id),
       model,
@@ -268,13 +263,12 @@ export function buildModelMenu(
   orderedVendorKeys: readonly string[] = [],
   preference?: ModelBoxPreferenceSettings | null,
   variantMenu?: ModelVariantMenu,
-  selectedCanonicalId = '',
 ): ModelMenu {
   // 空 = 一家都没接入（catalog 层的 keepUsableModelRows 只放行现在真能用的行），不是「碰巧没模型」。
   if (deduped.length === 0) return { options: [connectVendorOption()], rows: new Map(), hiddenCount: 0 }
   // 「藏起来的不进来、排过的排在前面」只在这一处判（`partitionByModelBoxPreference` 是唯一解析点）。
   const { visible, hidden } = partitionByModelBoxPreference(deduped, preference)
-  const expanded = visible.flatMap((model) => expandModelRows(model, variantMenu, model.canonicalId === selectedCanonicalId))
+  const expanded = visible.flatMap((model) => expandModelRows(model, variantMenu))
   // 没整理过模型框的创作者：按默认顺序排、默认收起的进「更多」；整理过的原样（见 modelBoxDefaults 文件头）。
   const withDefaults = applyModelBoxDefaults(expanded, preference)
   const rows = new Map(withDefaults.map(({ row }) => [row.key, row]))
@@ -336,9 +330,8 @@ export function buildModelSelectOptions(
   orderedVendorKeys: readonly string[] = [],
   preference?: ModelBoxPreferenceSettings | null,
   variantMenu?: ModelVariantMenu,
-  selectedCanonicalId = '',
 ): NomiSelectOption[] {
-  return buildModelMenu(deduped, isAiling, orderedVendorKeys, preference, variantMenu, selectedCanonicalId).options
+  return buildModelMenu(deduped, isAiling, orderedVendorKeys, preference, variantMenu).options
 }
 
 /**
@@ -460,9 +453,9 @@ export function useDedupedModelSelect(
   )
 
   const menu = React.useMemo<ModelMenu>(
-    () => buildModelMenu(deduped, isModelRecentlyAiling, orderedVendorKeys, preference, variantMenu, selectedModel?.canonicalId ?? ''),
+    () => buildModelMenu(deduped, isModelRecentlyAiling, orderedVendorKeys, preference, variantMenu),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算 trailing / 描述文案
-    [deduped, i18n.language, orderedVendorKeys, preference, variantMenu?.currentAxisLive, variantMenu !== undefined, selectedModel?.canonicalId],
+    [deduped, i18n.language, orderedVendorKeys, preference, variantMenu?.axisLiveOf, variantMenu !== undefined],
   )
 
   const modelOptionsView = React.useMemo<NomiSelectOption[]>(

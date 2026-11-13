@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import i18n from '../../i18n'
 import { dedupeModelOptions } from '../../config/modelIdentity'
-import { modelDisplayLabel, modelProviderLabel } from '../common/useDedupedModelSelect'
+import { buildModelMenu, modelDisplayLabel, modelProviderLabel } from '../common/useDedupedModelSelect'
 import { buildModelBoxRows, mergeModelOrderForKind, moveModelRow } from './modelBoxOrder'
 import type { ModelOption } from '../../config/models'
 import type { ModelBoxPreferenceSettings } from '../../../electron/shared/contracts/modelBoxPreference'
@@ -91,5 +91,31 @@ describe('moveModelRow', () => {
     expect(moveModelRow(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'c', 'b'])
     expect(moveModelRow(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c'])
     expect(moveModelRow(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('设置页「模型顺序」和菜单是同一份顺序', () => {
+  const realKey = (modelKey: string, label: string): ModelOption => ({ value: `apimart:${modelKey}`, label, modelKey, vendor: 'apimart', kind: 'video' } as ModelOption)
+  const catalog = dedupeModelOptions([
+    realKey('z-image-turbo', 'Z-Image Turbo'),
+    realKey('brand-new-model', 'Brand New'),
+    realKey('doubao-seedance-2.5', 'Seedance 2.5'),
+    realKey('kling-v4', '可灵 4.0'),
+  ])
+  const menuOrder = (pref: ModelBoxPreferenceSettings | null) =>
+    buildModelMenu(catalog, () => false, [], pref).options.map((o) => o.value)
+  const settingsOrder = (pref: ModelBoxPreferenceSettings | null) =>
+    buildModelBoxRows(catalog, pref, [], modelProviderLabel, modelDisplayLabel).visible.map((r) => r.canonicalId)
+
+  it('没整理过：设置页显示的顺序 = 菜单里的默认顺序（不是目录原序）', () => {
+    expect(settingsOrder(null)).toEqual(menuOrder(null))
+    expect(settingsOrder(null)).not.toEqual(catalog.map((m) => m.canonicalId))
+    expect(settingsOrder(null)[0]).toBe('seedance 2.5')
+  })
+
+  it('整理过的创作者两处都不变：存的顺序原样', () => {
+    const pref = preference({ modelOrder: ['z-image turbo', 'brand new'] })
+    expect(settingsOrder(pref)).toEqual(menuOrder(pref))
+    expect(settingsOrder(pref).slice(0, 2)).toEqual(['z-image turbo', 'brand new'])
   })
 })

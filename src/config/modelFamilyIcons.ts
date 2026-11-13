@@ -5,8 +5,8 @@
 // `NomiIdentityIcon` 反相成白色（`monochrome: true`）。
 //
 // 规矩：
-//   · 只按档案声明的 `family` 取图（显式 `meta.archetypeId` → `getArchetypeById(id).family`），
-//     不看自定义模型的名字——叫「Seedream lookalike」的自建模型不会借到别人的牌子（2026-09-14 即梦挂豆包牌子的教训）；
+//   · 只按档案声明的 `family` 取图（档案由仓库的统一解析函数认：显式 `meta.archetypeId`，或按型号名），
+//     不看自定义模型的显示名——叫「Seedream lookalike」的自建模型不会借到别人的牌子（2026-09-14 即梦挂豆包牌子的教训）；
 //   · 查不到的返回名字首字母的字块（`fallback`），不留空、不借别家的图；
 //   · 组件里一律不写「某某供应商 / 某某模型就画某某图」，加一家 = 在 FAMILY_ICON 里加一行 + 在下面 import 一枚。
 import alibaba from '@lobehub/icons-static-svg/icons/alibaba.svg'
@@ -32,7 +32,7 @@ import qwen from '@lobehub/icons-static-svg/icons/qwen.svg'
 import runway from '@lobehub/icons-static-svg/icons/runway.svg'
 import suno from '@lobehub/icons-static-svg/icons/suno.svg'
 import vidu from '@lobehub/icons-static-svg/icons/vidu.svg'
-import { getArchetypeById } from '../../electron/shared/modelArchetypes'
+import { getArchetypeById, resolveArchetypeForModel } from '../../electron/shared/modelArchetypes'
 import type { ModelArchetype } from '../../electron/shared/modelArchetypes/types'
 import type { DedupedModel, ModelProviderRef } from './modelIdentity'
 import type { NomiIdentityIconSource } from '../design'
@@ -106,9 +106,24 @@ export function modelArchetypeOf(model: Pick<DedupedModel, 'providers'>): ModelA
   return null
 }
 
-/** 一组模型的家族（档案声明的 `family`）。 */
+/**
+ * 一组模型的家族：用仓库里「这一行是哪个档案」的那一个解析函数（显式 archetypeId 优先，没写就按型号名认），
+ * 不在这里再写一份匹配——别的通道上的同一个模型（只靠型号名认出档案）也拿到同一枚图。自定义模型不借牌子的保证
+ * 来自解析函数本身：认不出档案的行没有家族。
+ */
 export function modelFamilyOf(model: Pick<DedupedModel, 'providers'>): string {
-  return modelArchetypeOf(model)?.family ?? ''
+  for (const provider of model.providers) {
+    const option = provider.option
+    const archetype = resolveArchetypeForModel({
+      modelKey: provider.modelKey ?? option.modelKey,
+      modelAlias: provider.modelAlias ?? option.modelAlias,
+      vendorKey: provider.vendor ?? option.vendor,
+      meta: option.meta,
+      ...(option.modelNameSource ? { modelNameSource: option.modelNameSource } : {}),
+    })
+    if (archetype) return archetype.family
+  }
+  return ''
 }
 
 /** 模型的身份图：认得家族 → 品牌图（单色）；认不得 → 名字首字母字块。永远有东西可画。 */

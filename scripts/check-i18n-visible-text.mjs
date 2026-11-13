@@ -62,7 +62,6 @@ const EXCLUDED_PREFIXES = [
 ]
 const EXCLUDED_FILES = new Set([
   'src/config/models.ts', // curated model labels use the model display-text boundary
-  'src/config/modelBoxDefaults.ts', // 默认顺序 / 收起名单里的字是目录的 canonicalId（匹配键，从不渲染；显示名走 model-display 边界）
   'src/ui/onboarding/providerPresets.ts', // legacy endpoint metadata; not rendered
   'src/ui/onboarding/customCallTestFixture.ts', // connectivity-test prompts sent to the model, not UI copy
   'src/workbench/creation/creationAiModes.ts', // UI uses creationAi.mode keys; source labels feed AI prompts
