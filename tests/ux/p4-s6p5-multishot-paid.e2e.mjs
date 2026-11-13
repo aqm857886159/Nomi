@@ -157,7 +157,7 @@ try {
   ok(advertFiles.length > 0, `GUI 写出 instance 广告（${advertFiles.join(',')}）= 确认卡会弹在 GUI`)
 
   // 多镜确认卡定位：全屏模态里带确认按钮 data-production-action=confirm。
-  const spendCard = win.locator('div.fixed.inset-0').filter({ has: win.locator('[data-production-action="confirm"]') })
+  const spendCard = win.locator('[data-spend-confirm-dialog]').filter({ has: win.locator('[data-production-action="confirm"]') })
   const confirmBtn = win.locator('[data-production-action="confirm"]')
 
   // 在 GUI 里建并打开一个项目 → 它成为 openProjectId，current_project bootstrap 据它发 lease。

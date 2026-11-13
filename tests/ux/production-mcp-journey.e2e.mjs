@@ -130,9 +130,9 @@ async function openProjectFromLibrary(window, wantedProjectId) {
 async function approveCurrentProductionGate(window) {
   await openRunFromTaskCenter(window)
   await window.locator('[data-production-primary-action]').first().click()
-  const overlay = window.locator('.fixed.inset-0').filter({ has: window.locator('button') }).last()
-  await overlay.waitFor({ timeout: 5_000 })
-  await overlay.locator('button').last().click()
+  const confirm = window.locator('[data-spend-confirm-dialog] [data-production-action="confirm"]').last()
+  await confirm.waitFor({ timeout: 5_000 })
+  await confirm.click()
 }
 
 let gui = null
@@ -253,8 +253,7 @@ try {
   await window.waitForTimeout(600)
   check(await window.locator('[data-direction-candidate="kinetic"]').getAttribute('data-direction-selected') === 'true', 'selection survives re-renders (no reset to first candidate)')
   await window.screenshot({ path: path.join(shotsDir, '01a-direction-candidates.png') })
-  const directionOverlay = window.locator('.fixed.inset-0').filter({ has: window.locator('button') }).last()
-  await directionOverlay.locator('button').last().click()
+  await window.locator('[data-spend-confirm-dialog] [data-production-action="confirm"]').last().click()
   let run = await waitForRunStatus(projectId, runId, 'awaiting_script_review')
   const decidedDirection = run.gates.find((gate) => gate.gateId === 'gate-direction-v1')
   check(decidedDirection?.decidedChoiceKey === 'kinetic', 'approval records the chosen direction as decidedChoiceKey')

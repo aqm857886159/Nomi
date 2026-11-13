@@ -91,7 +91,7 @@ try {
 
   // 轻确认框是自绘卡片（无 role=dialog）：锚「开始生成」标题，点精确文本「生成」按钮
   await win.getByText('开始生成', { exact: true }).first().waitFor({ timeout: 8000 })
-  const confirmBtn = win.locator('.fixed.inset-0').last().getByRole('button', { name: '生成', exact: true })
+  const confirmBtn = win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: '生成', exact: true })
   if ((await confirmBtn.count()) > 0) await confirmBtn.first().click()
   else { console.log('  ✗ 轻确认框/生成按钮没找到'); failed = true; throw new Error('no confirm') }
   await win.waitForTimeout(3000)
@@ -134,7 +134,7 @@ try {
       if (retryConfirm === 0) { console.log('  ✗ [B1] 点重试没弹出确认卡'); failed = true }
       else {
         console.log('  ✓ [B1] 失败 toast 一键重试 → 轻确认卡弹出（本走查点取消，零扣费）')
-        await win.locator('.fixed.inset-0').last().getByRole('button', { name: '取消', exact: true }).first().click().catch(() => {})
+        await win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: '取消', exact: true }).first().click().catch(() => {})
       }
       await win.waitForTimeout(600)
     }
@@ -161,7 +161,7 @@ try {
   await shot(win, '06-fourth-node-default-model.png') // 验：composer 模型位不再是坏默认 + ×2 芯片点亮
   await win.locator('[aria-label="生成素材"]').last().click()
   await win.waitForTimeout(900)
-  const confirm4 = win.locator('.fixed.inset-0').last().getByRole('button', { name: '生成', exact: true })
+  const confirm4 = win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: '生成', exact: true })
   if ((await confirm4.count()) > 0) await confirm4.first().click()
   const started4 = Date.now()
   let fourth = { done: 0, error: 0 }

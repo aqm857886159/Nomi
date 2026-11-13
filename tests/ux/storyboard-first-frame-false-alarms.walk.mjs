@@ -154,7 +154,7 @@ const snap = async (name) => { await screenshotSettled(win, { path: path.join(ou
 const row = (index) => win.locator(`[data-storyboard-row="${index}"]`).first()
 // 2026-10-06 起参考在视觉列的缩略图条（ShotReferenceStrip）；计划首帧是最前面那一格只读占位。
 const plannedTile = (index) => row(index).locator('[data-storyboard-ref-planned="first-frame"]').first()
-const spendDialog = () => win.locator('div.fixed.inset-0').filter({ hasText: T.spendDialog }).last()
+const spendDialog = () => win.locator('[data-spend-confirm-dialog]').filter({ hasText: T.spendDialog }).last()
 
 try {
   const projectCard = win.locator('[data-project-card]', { hasText: T.projectName }).first()

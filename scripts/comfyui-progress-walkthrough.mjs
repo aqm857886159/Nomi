@@ -157,7 +157,7 @@ try {
   // 本地免费模型可能按当前策略跳过付费确认；弹窗出现才点，否则生成已开始。
   const confirmation = win.getByText('开始生成', { exact: true }).first()
   const needsConfirmation = await confirmation.waitFor({ timeout: 1500 }).then(() => true).catch(() => false)
-  if (needsConfirmation) await win.locator('.fixed.inset-0').last().getByRole('button', { name: '生成', exact: true }).first().click()
+  if (needsConfirmation) await win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: '生成', exact: true }).first().click()
 
   // 等 ws 进度爬起来（提交 + watch + 几拍事件）
   await win.waitForTimeout(5000)
