@@ -59,7 +59,6 @@ import { toast } from '../ui/toast'
 import { logRendererError } from '../desktop/rendererLog'
 import { LaneCommandFailure, laneFailureText } from './ai/lane/laneCommandFailure'
 import { projectNotice, projectOperationFailureText, type UserText } from './project/projectOperationFailureText'
-import { ProjectFeedbackLine, useAnnounceQuarantine, type QuarantineFeedback } from './project/ProjectQuarantineNotice'
 import { useHasTextModel } from './library/useHasTextModel'
 import { SplashIntro } from './onboarding/SplashIntro'
 import { hasSeenSplash, markSplashSeen, hasSeenJourneyTour } from './onboarding/onboardingState'
@@ -145,10 +144,8 @@ export default function NomiStudioApp(): JSX.Element {
   const location = useLocation()
   useComposerResidentData() // 生成框要用的目录 / 默认模型 / 提示词库：启动后后台载进内存，点卡只读内存
   const [view, setView] = React.useState<AppView>('library')
-  // tone 'quarantine'：有项被隔离的那一句（提醒，不是报错），自动保存不清掉它。
-  const [feedback, setFeedback] = React.useState<{ projectId: string | null; message: string } | QuarantineFeedback | null>(null)
+  const [feedback, setFeedback] = React.useState<{ projectId: string | null; message: string } | null>(null)
   const report = React.useCallback((projectId: string | null, message: UserText) => notify({ identity: `project:${projectId ?? 'library'}`, reason: 'operation', level: 'inline', message, type: 'error', present: (value) => setFeedback({ projectId, message: value }) }), [])
-  const announceQuarantine = useAnnounceQuarantine(setFeedback)
   const { refreshProjects } = useLocalProjects()
   const [activeProject, setActiveProject] = React.useState<LocalProjectSummary | null>(null)
   const settingsDialogController = useSettingsDialogController()
@@ -359,7 +356,6 @@ export default function NomiStudioApp(): JSX.Element {
         setView('studio')
         markProjectOpenMoment('studio-visible')
         navigate(buildStudioUrl(hydrated.id), { replace: options.replaceUrl ?? false })
-        announceQuarantine(hydrated.id)
         // Only start background repairs after main has acknowledged the exact
         // committed Surface; the guard prevents any late write after a switch.
         void runProjectAssetHealthCheck(hydrated.id, surfaceEpoch).catch(() => {})
@@ -387,7 +383,7 @@ export default function NomiStudioApp(): JSX.Element {
       }
       return true
     },
-    [announceQuarantine, ensureProjectPersistenceService, navigate, projectSurface, refreshProjects, report, t],
+    [ensureProjectPersistenceService, navigate, projectSurface, refreshProjects, report, t],
   )
 
   const openProject = React.useCallback(
@@ -592,8 +588,7 @@ export default function NomiStudioApp(): JSX.Element {
         isHydrating: () => hydratingProjectRef.current,
         canPersist: () => activeProjectIdRef.current === activeProject.id,
         onSaved: (saved) => {
-          setFeedback((previous) => previous?.projectId === saved.id && !('tone' in previous) ? null : previous)
-          announceQuarantine(saved.id)
+          setFeedback((previous) => previous?.projectId === saved.id ? null : previous)
           if (activeProjectIdRef.current === activeProject.id) {
             setActiveProject(saved)
           } else {
@@ -616,7 +611,7 @@ export default function NomiStudioApp(): JSX.Element {
       }
       void unbind?.().catch(() => undefined) // onSaveError already reports the failure; React cleanup cannot await.
     }
-  }, [activeProject, activeProjectPersistenceKey, announceQuarantine, ensureProjectPersistenceService, refreshProjects, report, t])
+  }, [activeProject, activeProjectPersistenceKey, ensureProjectPersistenceService, refreshProjects, report, t])
 
   useWorkspaceEvents(view === 'studio' ? activeProject?.id : null, (type) => {
     if (type === 'canvas.updated' || type === 'timeline.updated' || type === 'creation.updated') {
@@ -699,7 +694,7 @@ export default function NomiStudioApp(): JSX.Element {
       onReplaySplash={() => setSplashDone(false)}
     />
   ) : null
-  const projectFeedback = feedback?.message ? <ProjectFeedbackLine feedback={feedback} report={report} /> : null
+  const projectFeedback = feedback?.message ? <p role="alert" className="m-0 px-4 py-2 text-caption text-nomi-danger">{feedback.message}</p> : null
   const viewContent =
     view === 'library' ? (
       <>

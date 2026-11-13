@@ -231,12 +231,15 @@ export function readLocalProject(projectId: string): WorkbenchProjectRecordV1 | 
  *   · unstashedByProject：打开 / 读盘时被隔离、还没另存成的项。任何一次覆盖项目文件之前必须先把它们写进隔离区，
  *     写不成就抛、这次不覆盖（那一项盘上还在）。这样凡是「读进来再整份写回」的路（打开后自动保存、删素材、运行结局落盘）
  *     都先过这一关，不靠每个调用方自己记得。
- *   · unannouncedByProject：这次新另存的（同一份内容早已在隔离区的不算），等界面拿走说一次。
+ *   · unannouncedByProject：等界面拿走说一次的项。保存时只算新另存的（同一份内容早已在隔离区的不算）；
+ *     打开时项目文件里还带着它的，本次会话第一次打开就算（见 announcedOpenThisSession）。
  */
 type HeldItem = Readonly<{ item: QuarantinedItem; origin: 'open' | 'save' }>
 export type QuarantineNoticeItem = HeldItem & Readonly<{ relativePath: string }>
 const unstashedByProject = new Map<string, readonly HeldItem[]>()
 const unannouncedByProject = new Map<string, readonly QuarantineNoticeItem[]>()
+/** 本次会话里打开时已经说过的隔离文件（按项目）。只在内存里：关掉 Nomi 再开，同一个带坏项的项目会再说一次。 */
+const announcedOpenThisSession = new Map<string, Set<string>>()
 
 /** 界面取走这个项目还没说过的那几项（取一次就清）。同一项、同一份内容只会出现一次。 */
 export function takeQuarantineNotice(projectId: string): readonly QuarantineNoticeItem[] {
@@ -257,9 +260,16 @@ async function stashQuarantineBeforeWrite(projectId: string, fresh: readonly Qua
   if (!held.length) return
   const files: readonly QuarantineFile[] = await writeQuarantineSidecar(projectId, held.map(({ item }) => item))
   unstashedByProject.delete(projectId)
+  const seen = announcedOpenThisSession.get(projectId) ?? new Set<string>()
+  announcedOpenThisSession.set(projectId, seen)
   const announce = held.flatMap((entry, index): QuarantineNoticeItem[] => {
     const file = files[index]
-    return file?.fresh ? [{ ...entry, relativePath: file.relativePath }] : []
+    if (!file) return []
+    // 保存时：只说新另存的（同一份内容盘上已有就不再说，跨会话也不说）。
+    // 打开时：盘上的项目文件里还带着它，每次重开都要让创作者知道；同一次会话里只说一次。
+    const tell = file.fresh || (entry.origin === 'open' && !seen.has(file.relativePath))
+    if (entry.origin === 'open') seen.add(file.relativePath)
+    return tell ? [{ ...entry, relativePath: file.relativePath }] : []
   })
   if (announce.length) unannouncedByProject.set(projectId, [...(unannouncedByProject.get(projectId) ?? []), ...announce])
 }

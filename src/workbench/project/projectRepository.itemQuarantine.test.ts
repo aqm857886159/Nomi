@@ -130,6 +130,22 @@ describe('opening a project that already holds a bad item', () => {
     expect(takeQuarantineNotice(projectId)).toEqual([])
   })
 
+  it('quitting Nomi and reopening the same project (bad item still in project.json) tells the creator again — once per session', async () => {
+    fs.writeFileSync(file(), JSON.stringify(record(withDesigns([design('bad', 'B', 'OLD-BAD', { status: 'x' })]))))
+    installBridge()
+    await readLocalProjectAsync(projectId)
+    expect(takeQuarantineNotice(projectId)).toHaveLength(1)
+    // 新会话 = 模块重新载入（「本次会话说过」只在内存里）。隔离区里那份已经在了（fresh=false），打开时照样要说。
+    const bridgeObject = vi.mocked(getDesktopBridge)()
+    vi.resetModules()
+    vi.mocked((await import('../../desktop/bridge')).getDesktopBridge).mockReturnValue(bridgeObject)
+    const next = await import('./projectRepository')
+    await next.readLocalProjectAsync(projectId)
+    expect(next.takeQuarantineNotice(projectId).map(n => n.origin)).toEqual(['open'])
+    await next.readLocalProjectAsync(projectId)
+    expect(next.takeQuarantineNotice(projectId)).toEqual([])
+  })
+
   it('25 bad items on open → all 25 recoverable after the next save (no 20-item cap)', async () => {
     const list = Array.from({ length: 25 }, (_, i) => design(`d${i}`, `分镜${i}`, `BAD-${i}-END`, { status: 'x' }))
     fs.writeFileSync(file(), JSON.stringify(record(withDesigns(list))))
