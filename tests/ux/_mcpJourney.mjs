@@ -254,6 +254,13 @@ export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
 }
 
 /**
+ * 冷机上第一次起 Electron 的预算。CI 的 Linux 机器实测 9.5 秒（同一条走查里第二次起只要 1.5 秒），
+ * 所以哪条走查排在一片的最前面，哪条就吃到这 9.5 秒；预算跟着「进程还没开口」走，不跟着走查的排位走。
+ * 进程起不来不会等满：子进程一退出，在等的问立刻失败。
+ */
+export const MCP_COLD_START_BUDGET_MS = 60_000
+
+/**
  * Spawn the real in-Electron MCP stdio server (headless) and return a JSON-RPC client.
  * The client:
  *   · declares the given `capabilities` at initialize (default: elicitation, so plan/spend confirmations
@@ -312,6 +319,9 @@ export function spawnMcpStdioClient({
 
   const pending = new Map()
   let seq = 0
+  // 进程开口之前发出去的问，等的是「进程起来 + 应答」，不是应答本身。调用方写的 4–10 秒只约束应答；
+  // 起进程的时间另有预算，由这里统一给，调用方不用各自猜。
+  let serverHasSpoken = false
   // Progress frames observed per progressToken (token → count). elicitation acceptance counter.
   const progressByToken = new Map()
   let elicitationCount = 0
@@ -350,6 +360,7 @@ export function spawnMcpStdioClient({
     if (!text.startsWith('{')) return
     let msg
     try { msg = JSON.parse(text) } catch { return }
+    serverHasSpoken = true
     messages.push(msg)
     trace('in', msg)
     // Server→client request: elicitation/create → auto-accept (headless test authorization).
@@ -391,7 +402,8 @@ export function spawnMcpStdioClient({
   function rpc(method, params, timeoutMs = 30_000, meta) {
     const id = (seq += 1)
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { pending.delete(id); reject(new Error(`RPC timeout: ${method}`)) }, timeoutMs)
+      const budgetMs = serverHasSpoken ? timeoutMs : Math.max(timeoutMs, MCP_COLD_START_BUDGET_MS)
+      const timer = setTimeout(() => { pending.delete(id); reject(new Error(`RPC timeout: ${method}`)) }, budgetMs)
       pending.set(id, { resolve, reject, timer })
       const outParams = meta ? { ...params, _meta: meta } : params
       const frame = { jsonrpc: '2.0', id, method, params: outParams }
