@@ -26,6 +26,7 @@ import {
   type DocumentTextReader,
 } from './documentWriteTarget'
 import { documentSessionState, overrideDocumentSessionPort, type DocumentSessionPort } from '../project/documentSessionPort'
+import { sameDocumentContent } from './sameDocumentContent'
 
 // 工具栏分组：格式按语义分 4 簇（文字 / 标题段落 / 列表 / 插入）靠左，历史（撤销/重做）推到右端。
 // 之前用一个 flex-1 spacer 把 9 个按钮全挤到左侧、右边 ~570px 浪费 —— 这里按语义两端锚定。
@@ -129,7 +130,7 @@ export default function WorkbenchEditor(): JSX.Element {
       // Tiptap can emit an initialization update even when its JSON is
       // unchanged. Opening a draft must not mutate its source revision or mark
       // every attached storyboard as needing synchronization.
-      if (JSON.stringify(currentContent) === JSON.stringify(contentJson)) return
+      if (sameDocumentContent(currentContent, contentJson)) return
       setWorkbenchDocument({ ...currentDocument, contentJson, updatedAt: Date.now() })
     },
     [setWorkbenchDocument],
