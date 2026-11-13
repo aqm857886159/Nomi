@@ -60,7 +60,8 @@
 | 保存热路径（如 `workspaceRepository.ts`）新写一处 `fs.statSync` | lint 红 |
 | 照 #1500 删掉事务里「写后读回比对」 | `saveParity`「刚写下的备份读不了」「读回比对读到了、求指纹那一次被占」两组红 |
 | 照 #1500 把提交后算哈希改成内存算（不再读清单） | `saveParity`「读回比对读到了、求指纹那一次被占」红 |
-| 导出改名改回 `renameSyncWithRetry` | `ffmpegRunner.test.ts`「一直被占着」红，且 lint 红 |
+| 导出改名改回 `renameSyncWithRetry` | `ffmpegRunner.test.ts` 两条红（lint 不红：它不是 `fs.*Sync` 调用，靠测试拦） |
+| 导出改名改回裸 `fs.renameSync` | lint 红 |
 | 导出改名改用默认短表 | 「长表 9 次尝试」红 |
 | 素材硬链接改用长表 | `projectAssetStore.test.ts`「默认表 6 次尝试」红 |
 | 同步助手加回 `noWait` 不睡分支 / 加回 `saveRetry` | 没有自动拦：靠人记（`saveParity` 只在保存路径真的传了 `noWait` 时才红） |
