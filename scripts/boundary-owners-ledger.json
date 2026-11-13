@@ -654,6 +654,12 @@
   ],
   "retirements": [
     {
+      "contract": "docs/fixes/2026-10-04-retrieval-trusts-connection-origin.root-cause.json",
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "trustedRetrievalOrigin",
+      "reason": "2026-11-13 生成的提交 / 取回 / 下载不再按目的地地址判（docs/engineering/direction-checks/2026-11-13-outbound-address-layer-delete.md）：本机 / 局域网的产物地址本来就照取，「取回信任这条连接自己的 origin」这个私网例外没有东西要放行了，同提交删掉。vendorOutboundGuard.ts 只剩凭据绑定（authorizeSubmitDestination）。"
+    },
+    {
       "contract": "docs/fixes/2026-08-31-generation-result-retrieval-boundary.root-cause.json",
       "path": "electron/assets/projectAssetStore.ts",
       "symbol": "importGeneratedBytes",

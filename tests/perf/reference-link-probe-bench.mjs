@@ -53,12 +53,8 @@ const root = makeTempDir('nomi-reference-link-probe-bench-')
 process.env.NOMI_SETTINGS_DIR = path.join(root, 'settings')
 process.env.NOMI_ELECTRON_USER_DATA_DIR = path.join(root, 'user-data')
 
-const { setLabTrustedPrivateOrigins } = tsxRequire('../../electron/networkOutboundPolicy.ts', import.meta.url)
 const { probeProviderLink, resetProviderLinkProbes } = tsxRequire('../../electron/assets/providerMediaFetch.ts', import.meta.url)
 const { localizeAssetsForVendor } = tsxRequire('../../electron/catalog/assetLocalization.ts', import.meta.url)
-// 出站策略默认拒绝回环（那正是它该做的）：夹具用实验室例外开这一个精确 origin，主进程只在未打包构建上调这个口。
-setLabTrustedPrivateOrigins([origin])
-
 const link = (label) => `${origin}/probe/${label}.png`
 const load = () => os.loadavg()[1]
 
@@ -110,7 +106,6 @@ try {
   failure = error
 } finally {
   noisy = noisy || load() >= 10
-  setLabTrustedPrivateOrigins([])
   server.closeAllConnections?.()
   await new Promise((resolve) => server.close(() => resolve()))
   cleanupTestTemp(root)
