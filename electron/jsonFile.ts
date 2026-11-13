@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { fsyncIfDurable } from "./durability";
-import { blockingWaitAllowed, isSharingViolation, SHARING_RETRY_DELAYS_MS } from "./sharingRetry";
+import { blockingWaitAllowed, isSharingViolation, retryOnSharingViolationAsync, SHARING_RETRY_DELAYS_MS } from "./sharingRetry";
 
 /**
  * Atomically (over)write a JSON file.
@@ -27,7 +27,7 @@ function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-export { isSharingViolation };
+export { isSharingViolation, retryOnSharingViolationAsync };
 
 /**
  * 同步文件操作撞上共享冲突时按短退避重试（总预算约 400ms），之后把原错误如实抛出。

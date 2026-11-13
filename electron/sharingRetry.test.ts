@@ -67,10 +67,10 @@ describe("同步调用方（结构上只能同步的那几类）：持续 300ms 
 describe("保存热路径（runWithoutBlockingWait 里）：不原地睡", () => {
   it("同步助手立即再试一次就抛，不睡", () => {
     let calls = 0;
-    const started = performance.now();
+    const waitSpy = vi.spyOn(Atomics, "wait");
     expect(() => runWithoutBlockingWait(() => retryOnSharingViolation(() => { calls += 1; throw errno("EBUSY"); }))).toThrow(/EBUSY/);
     expect(calls).toBe(2);
-    expect(performance.now() - started).toBeLessThan(50);
+    expect(waitSpy).not.toHaveBeenCalled();
   });
 
   it("范围跟着 await 之后的续体走", async () => {
@@ -89,9 +89,10 @@ describe("保存热路径（runWithoutBlockingWait 里）：不原地睡", () =>
     fs.mkdirSync(root);
     const lockDir = path.join(settings, "recent-workspaces.json.lock");
     fs.mkdirSync(lockDir);
-    const started = performance.now();
+    const waitSpy = vi.spyOn(Atomics, "wait");
     expect(() => runWithoutBlockingWait(() => bindWorkspaceLocation(settings, binding))).toThrow(expect.objectContaining({ code: "EBUSY" }));
-    expect(performance.now() - started).toBeLessThan(100);
+    expect(waitSpy).not.toHaveBeenCalled();
+    waitSpy.mockRestore();
     const old = new Date(Date.now() - 10_000);
     fs.utimesSync(lockDir, old, old);
     expect(runWithoutBlockingWait(() => bindWorkspaceLocation(settings, binding))).toHaveLength(1);

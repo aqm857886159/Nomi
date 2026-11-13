@@ -16,8 +16,7 @@ import { readAssetSidecarMeta, writeAssetSidecarMeta } from "./assetSidecar";
 import { absolutePathFromLocalAssetUrl } from "./localAssetFile";
 import { attachStoredAssetPreview, isStoredAssetPreviewPath, type StoredAssetPreview } from "./assetPreview";
 import { copyFileWithProgress, type AssetCopyProgress } from "./assetImportProgress";
-import { renameSyncWithRetry } from "../jsonFile";
-import { retryOnSharingViolationAsync } from "../sharingRetry";
+import { renameSyncWithRetry, retryOnSharingViolationAsync } from "../jsonFile";
 import { createUploadStagingDirSync, reapAbandonedUploadStaging, removeScratchAfterUse, removeScratchAfterUseSync } from "./scratchCleanup";
 import { collectFilesRecursively, parseDataUrl } from "./assetBytes";
 import {
