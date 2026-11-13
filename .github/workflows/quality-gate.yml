@@ -196,8 +196,9 @@ jobs:
       - name: Unit tests (full lane, vitest shard)
         if: needs.scope.outputs.unit == 'full'
         run: pnpm run test:unit:shard --shard=${{ matrix.shard }}/${{ strategy.job-total }}
-      - name: Agent runtime and node:test suites (full lane, shard 1)
-        if: needs.scope.outputs.unit == 'full' && matrix.shard == 1
+      # 2026-11-14：vitest 第 1 片最慢（中位 12.8 分），node:test 套件（约 3 分）改跟最短的第 3 片；仍然恰好跑一次。
+      - name: Agent runtime and node:test suites (full lane, shard 3)
+        if: needs.scope.outputs.unit == 'full' && matrix.shard == 3
         run: pnpm run test:node-suites
       - name: Changed and related tests (fast lane)
         if: needs.scope.outputs.unit == 'focused'

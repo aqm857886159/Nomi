@@ -156,9 +156,10 @@ test('contracts always run and unit alone chooses focused or full coverage', () 
   assert.equal(focused.run, 'pnpm run test:system:focused')
   assert.equal(unit.strategy['fail-fast'], false)
   assert.match(unit.strategy.matrix.shard, /unit == 'full' && '\[1,2,3\]' \|\| '\[1\]'/)
-  // vitest 之外的 node:test 套件不归 vitest 分片管，必须恰好跑一次：固定第 1 片，且 `test` 脚本本身仍含它们（本地全量不丢）。
+  // vitest 之外的 node:test 套件不归 vitest 分片管，必须恰好跑一次：固定在一片上（2026-11-14 从最慢的第 1 片挪到最短的第 3 片），且 `test` 脚本本身仍含它们（本地全量不丢）。
   const nodeSuites = unit.steps.find((step) => step.run === 'pnpm run test:node-suites')
-  assert.equal(nodeSuites.if, "needs.scope.outputs.unit == 'full' && matrix.shard == 1")
+  assert.equal(nodeSuites.if, "needs.scope.outputs.unit == 'full' && matrix.shard == 3")
+  assert.match(unit.strategy.matrix.shard, /'\[1,2,3\]'/, '第 3 片必须存在，否则这套测试一次都不跑')
   assert.match(packageJson.scripts.test, /vitest-fair-share\.mjs && pnpm run test:node-suites/)
   assert.match(packageJson.scripts['test:node-suites'], /test:agent-runtime/)
   assert.match(packageJson.scripts['test:unit:shard'], /vitest-fair-share\.mjs$/)
