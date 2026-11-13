@@ -11,7 +11,10 @@
 //     用户真实的废纸篓一个字节都不碰。
 // 全程只动本脚本自己建的映像、隔离 profile 和里面的测试项目；产品的删除按钮走真实界面点击。
 import { execFileSync } from 'node:child_process'
+import console from 'node:console'
 import fs from 'node:fs'
+import process from 'node:process'
+import { setTimeout } from 'node:timers'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -69,7 +72,7 @@ try {
   launched = await launch('trash-roundtrip-1')
   let page = launched.win
   await page.waitForTimeout(1500)
-  await clickOrFail(newProjectEntry(page), '新建项目')
+  await clickOrFail(newProjectEntry(page), 'new-project entry')
   await expectVisible(page.locator('[data-workspace-mode]').first(), '没进工作区')
   await backToLibrary(page)
   let card = page.locator('[data-project-card="true"]').first()

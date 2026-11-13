@@ -11,9 +11,9 @@
  * 边界：本库只回答「扫到哪些文档、哪些被链接到了」，**不碰基线、不决定红绿**——
  * 棘轮基线的读写与退出码仍归 `check-docs-index.mjs`，补齐策略仍归 repair 脚本。
  */
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { trackedFiles } from './lib/gitPaths.mjs'
 
 /** 受索引纪律管辖的文档目录（相对仓库根）。新增一类要纳管就加在这里。 */
 export const INDEXED_DOC_ROOTS = ['docs/plan', 'docs/superpowers/plans', 'docs/lessons']
@@ -95,8 +95,7 @@ export function scanDocumentIndex(repoRoot) {
 
 /** 仓库里被 git 跟踪的 markdown（仓库相对路径）。图片链接检查的扫描范围：全仓，不止受索引管辖的目录。 */
 export function listTrackedMarkdown(repoRoot) {
-  const out = execFileSync('git', ['ls-files', '-z', '--', '*.md'], { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  return out.split('\0').filter(Boolean)
+  return trackedFiles({ cwd: repoRoot }).filter((file) => file.endsWith('.md'))
 }
 
 /**

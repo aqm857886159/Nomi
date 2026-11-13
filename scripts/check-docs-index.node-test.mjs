@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { cleanupTestTemp, makeTempDir } from './_test-temp.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const planIndexPath = path.join(repoRoot, 'docs', 'plan', 'INDEX.md')
@@ -22,7 +22,7 @@ test('marks the cross-device minimum-energy redesign plan with a status', () => 
 
 test('dead image embeds: relative targets must exist; external links, code spans and fenced code are ignored', async () => {
   const { findDeadImageEmbeds } = await import('./docs-index-lib.mjs')
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-dead-img-'))
+  const root = makeTempDir('docs-dead-img-')
   try {
     fs.mkdirSync(path.join(root, 'docs', 'a'), { recursive: true })
     fs.writeFileSync(path.join(root, 'docs', 'a', 'ok.png'), 'x')
@@ -44,7 +44,7 @@ test('dead image embeds: relative targets must exist; external links, code spans
       { doc: 'docs/a/doc.md', target: 'docs/a/sub/gone 2.png' },
     ])
   } finally {
-    fs.rmSync(root, { recursive: true, force: true })
+    cleanupTestTemp(root)
   }
 })
 

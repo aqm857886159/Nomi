@@ -22,7 +22,7 @@ const SELF = 'tests/system/walks-never-trash-projects.test.mjs'
 // 唯一的例外：自己建一个一次性磁盘映像当项目所在的盘，真删、真还原，用完卸载删掉——映像卷有自己的废纸篓，
 // 用户真实的废纸篓一个字节都不碰。新增例外要在这里写清理由。
 const HERMETIC_REAL_TRASH = new Map([
-  ['tests/ux/real-trash-roundtrip.mjs', '一次性磁盘映像卷上的废纸篓，收尾断言它是空的'],
+  ['tests/system/real-trash-roundtrip.mjs', '一次性磁盘映像卷上的废纸篓，收尾断言它是空的'],
 ])
 const FORBIDDEN = [
   { pattern: /nomiDesktop\.projects\.delete\s*\(/, why: '调了产品的删除项目口（会进系统回收站）' },
