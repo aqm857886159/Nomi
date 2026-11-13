@@ -12,6 +12,7 @@ import {
   parseStallReport,
   registerStallReportIpc,
   resetStallMonitorForTests,
+  takeMainStallTelemetryWindow,
 } from "./stallMonitor";
 import { createStallTimeline } from "./stallTimeline";
 import { UntrustedIpcSenderError } from "../ipcSenderGuard";
@@ -239,5 +240,40 @@ describe("状态：三态里「监视器没运行」的两个原因", () => {
     const h = harness();
     expect(installStallMonitor({ env: {}, monitor: h.monitor })).toBe(h.monitor);
     expect(getStallMonitorStatus().running).toBe(true);
+  });
+});
+
+describe("遥测汇总取数（2026-11-13）：主进程停顿最长一次与次数", () => {
+  it("取到的是上次取数以来写进时间线的那几行；取完归零", () => {
+    const h = harness();
+    h.monitor.start();
+    h.readTick(STALL_STARTUP_GRACE_MS + 1);
+    expect(h.monitor.takeTelemetryWindow()).toEqual({ maxMs: 0, count: 0 });
+    for (const ms of [88, 132, 1200, 300]) { h.stall(ms); h.readTick(); }
+    const taken = h.monitor.takeTelemetryWindow();
+    expect(taken.count).toBe(h.lines.filter((line) => line.kind === "main-stall").length);
+    expect(taken.count).toBe(3);
+    expect(Math.abs(taken.maxMs - 1200)).toBeLessThanOrEqual(2);
+    expect(h.monitor.takeTelemetryWindow()).toEqual({ maxMs: 0, count: 0 });
+  });
+
+  it("启动宽限期里的停顿不算（和时间线同一口径）", () => {
+    const h = harness();
+    h.monitor.start();
+    h.stall(2000);
+    h.readTick(10);
+    expect(h.lines).toHaveLength(0);
+    expect(h.monitor.takeTelemetryWindow()).toEqual({ maxMs: 0, count: 0 });
+  });
+
+  it("监视器没装 / 装失败 → null（汇总里记 unknown，不冒充 0）", () => {
+    expect(takeMainStallTelemetryWindow()).toBeNull();
+    const failed = harness({ failHistogram: true });
+    installStallMonitor({ monitor: failed.monitor });
+    expect(takeMainStallTelemetryWindow()).toBeNull();
+    resetStallMonitorForTests();
+    const ok = harness();
+    installStallMonitor({ monitor: ok.monitor });
+    expect(takeMainStallTelemetryWindow()).toEqual({ maxMs: 0, count: 0 });
   });
 });

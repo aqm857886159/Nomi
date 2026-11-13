@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createExportTempDir, createSafeOutputPaths } from "./exportPaths";
-import { renameSyncWithRetry } from "../jsonFile";
+import { delaysFromTable, retryOnSharingViolationAsync, SHARING_RETRY_LONG_DELAYS_MS } from "../sharingRetry";
 import { ensureExecutable } from "./ensureExecutable";
 import { asarUnpackedPath } from "../shared/asarUnpackedPath";
 import { buildWebmToMp4Args } from "./ffmpegCommandBuilder";
@@ -308,7 +308,7 @@ export async function transcodeWebmFileToMp4(options: TranscodeWebmFileToMp4Opti
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
     // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
-    renameSyncWithRetry(partialOutputPath, outputPath);
+    await retryOnSharingViolationAsync(() => fs.promises.rename(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
     const finalStat = fs.statSync(outputPath);
     return {
       absolutePath: outputPath,
@@ -395,7 +395,7 @@ export async function renderFiltergraphToMp4(options: RenderFiltergraphToMp4Opti
     const stat = fs.statSync(partialOutputPath);
     if (stat.size <= 0) throw new Error(desktopT("export.mp4Empty"));
     // Windows：旧导出 MP4 被播放器/资源管理器预览持有会 EPERM，共享重试收口（P2）。
-    renameSyncWithRetry(partialOutputPath, outputPath);
+    await retryOnSharingViolationAsync(() => fs.promises.rename(partialOutputPath, outputPath), { delayMs: delaysFromTable(SHARING_RETRY_LONG_DELAYS_MS) });
     const finalStat = fs.statSync(outputPath);
     return {
       absolutePath: outputPath,

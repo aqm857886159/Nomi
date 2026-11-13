@@ -19,10 +19,10 @@ const SIGNED_RESULT_URL = "https://cdn.provider.test/tasks/task-7781/result.mp4?
 /** 一次真实的被拒取回（403 + 32KB 错误页），错误上挂的是 hardenedFetch 自己的诊断，不是手拼的。 */
 async function refusedRetrieval(): Promise<unknown> {
   const body = Buffer.alloc(32 * 1024, 0x3c);
+  // 开着测试网络闸也走得通：请求走注入的 fetch，假 CDN 登记成夹具 origin。
+  vi.stubEnv("NOMI_TEST_NETWORK_GUARD", "1");
+  vi.stubEnv("NOMI_TEST_NETWORK_FIXTURE_ORIGINS", new URL(SIGNED_RESULT_URL).origin);
   return hardenedFetch(SIGNED_RESULT_URL, { allowContentTypes: ["video/", "application/octet-stream"] }, {
-    resolveHost: async () => [{ address: "93.184.216.34", family: 4 }],
-    createPinnedDispatcher: () => ({ close: async () => {}, destroy: async () => {} }) as never,
-    readOutboundEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
     isApplicationProxyActive: () => false,
     fetch: async () => new Response(body, {
       status: 403,
@@ -103,8 +103,8 @@ describe("localizeTaskAsset 是结果落地门：失败时挂取回阶段码和�
     expect(answeredSubmissionFailure(thrown)).toBe(true);
   });
 
-  it("已经带取回阶段的码（出站被拦 / 读不出）：同一个错误对象原样抛回，只多挂正证据", async () => {
-    for (const code of ["outbound-blocked", "output-unreadable"] as const) {
+  it("已经带取回阶段的码（下载失败 / 读不出）：同一个错误对象原样抛回，只多挂正证据", async () => {
+    for (const code of ["retrieval-download", "output-unreadable"] as const) {
       const own = new Error(tagNomiError(code, "x"));
       importRemoteAsset.mockRejectedValueOnce(own);
       await expect(localizeTaskAsset("project-1", SIGNED_RESULT_URL, "image")).rejects.toBe(own);

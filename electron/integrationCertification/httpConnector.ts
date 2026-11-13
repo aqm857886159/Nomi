@@ -5,7 +5,7 @@ import { decryptApiKeyRecord } from "../catalog/secrets";
 import { mergeHeadersCaseInsensitive } from "../jsonUtils";
 import { guessModelKind } from "../catalog/modelKindHeuristic";
 import type { AiSdkProviderKind, BillingModelKind } from "../catalog/types";
-import { isPrivateHost } from "../hardenedFetch";
+import { isPrivateHost } from "../networkHostPolicy";
 import { desktopT } from "../i18n";
 import {
   createExistingConnectionActions,

@@ -1,0 +1,16 @@
+{
+  "productHead": "22df46ad6",
+  "walkCopiedFromHead": "30b884909",
+  "scenario": "zh-light/switch-A-to-B-lands-at-bottom",
+  "at0": 534,
+  "at250": 534,
+  "at1000": 534,
+  "height": 3093,
+  "client": 508,
+  "result": "failed, reproduces the original landing defect",
+  "screenshot": "main-b-before-zh-light.png",
+  "screenshotInspected": true,
+  "productionSourceChanged": false,
+  "mode": "isolated native Electron, free loopback fixture",
+  "capturedAt": "2026-11-09T04:41:25Z"
+}

@@ -55,7 +55,7 @@ describe('删除决策与归属范围', () => {
   })
   for (const answer of ['选，移除无用入口', '不选，保留必要能力']) {
     test(`实现线有删掉答案可通过：${answer}`, () => {
-      assert.deepEqual(checkDispatchBrief(`${GOOD}\n删掉：${answer}${SELF_CHECK}`, { implementation: true }), [])
+      assert.deepEqual(checkDispatchBrief(`${GOOD}\n删掉：${answer}\n调用方：不改已有函数的行为${SELF_CHECK}`, { implementation: true }), [])
     })
   }
   test('非实现线不要求删掉答案', () => {
@@ -123,7 +123,7 @@ describe('Claude 派线执行点', () => {
     assert.equal(result.stderr.match(/派工书检查：/g)?.length, 1)
   })
   test('引用齐全任务书时放行', () => {
-    const result = runHook(`读任务书 ${writeBrief(`${GOOD}\n删掉：不选，保留必要能力。${SELF_CHECK}`)}`)
+    const result = runHook(`读任务书 ${writeBrief(`${GOOD}\n删掉：不选，保留必要能力。\n调用方：不改已有函数的行为${SELF_CHECK}`)}`)
     assert.equal(result.error, undefined)
     assert.equal(result.status, 0)
   })
@@ -136,8 +136,59 @@ describe('Claude 派线执行点', () => {
   })
 })
 
+describe('调用方作答', () => {
+  const impl = { implementation: true }
+  const base = `${GOOD}\n删掉：不选，保留必要能力。${SELF_CHECK}`
+  const answer = (line) => checkDispatchBrief(`${base}\n${line}`, impl)
+  const FULL = '调用方：改 retry；数法 `rg -n "retry\\(" src`；共 12 个文件；后果表 docs/plan/x.md'
+  const TABLE = '\n| 调用方 | 靠它什么 | 改后会怎样 |\n| --- | --- | --- |\n| a.ts | 等锁 | 立刻报错，已改调用处 |'
+  test('不答则红，提示说原因和补法', () => {
+    const out = checkDispatchBrief(base, impl).join()
+    assert.match(out, /缺「调用方：」作答/)
+    assert.match(out, /不改就写「调用方：不改已有函数的行为」/)
+  })
+  test('答不改则过；改且四样齐（带路径）则过', () => {
+    assert.deepEqual(answer('调用方：不改已有函数的行为'), [])
+    assert.deepEqual(answer('- **调用方**：不改已有函数的行为，只加新函数'), [])
+    assert.deepEqual(answer(FULL), [])
+  })
+  for (const [name, line, missing] of [
+    ['函数名', '调用方：改 ；数法 rg；共 3 个文件；后果表 a.md', /缺改哪个函数/],
+    ['数法', '调用方：改 retry；共 3 个文件；后果表 a.md', /缺数法/],
+    ['文件数', '调用方：改 retry；数法 rg；后果表 a.md', /缺共几个文件/],
+    ['后果表', '调用方：改 retry；数法 rg；共 3 个文件', /缺后果表/],
+    ['占位符没填', '调用方：改 <函数名>；数法 rg；共 3 个文件；后果表 a.md', /缺改哪个函数/],
+  ]) {
+    test(`缺${name}则红并点名`, () => assert.match(answer(line).join(), missing))
+  }
+  test('见下有表则过，没表或缺一列则红', () => {
+    const see = '调用方：改 retry；数法 rg；共 3 个文件；后果表 见下'
+    assert.deepEqual(answer(see + TABLE), [])
+    assert.match(answer(see).join(), /后果表本身/)
+    assert.match(answer(see + TABLE.replace(' 改后会怎样 ', ' 备注 ')).join(), /后果表本身/)
+    assert.match(answer(see + '\n| 调用方 | 靠它什么 | 改后会怎样 |\n| --- | --- | --- |').join(), /后果表本身/)
+  })
+  test('代码块里的示例不算作答', () => {
+    assert.match(answer('```\n调用方：不改已有函数的行为\n```').join(), /缺「调用方：」作答/)
+  })
+  test('验收和调研类不要求，设计类要求', () => {
+    assert.deepEqual(checkDispatchBrief(GOOD, { implementation: false, design: false }), [])
+    assert.match(checkDispatchBrief(GOOD, { design: true }).join(), /缺「调用方：」作答/)
+    assert.deepEqual(checkDispatchBrief(`${GOOD}\n调用方：不改已有函数的行为`, { design: true }), [])
+  })
+  for (const [file, text, expected] of [
+    ['D-a.md', '# 任务', true],
+    ['x.md', '# a（Mac，Opus 设计线，只读）：出设计卡', true],
+    ['R-a.md', '# a（Mac，Opus 只读调研线）：查事实', false],
+    ['V-a.md', '# a（Mac，验收线）：验收设计线的产物', false],
+  ]) {
+    test(`设计类分类：${file} ${text}`, () => assert.equal(checker.isDesignBrief(text, file), expected))
+  }
+})
+
 const IMPLEMENTATION = { implementation: true }
-const IMPLEMENTATION_GOOD = `${GOOD}\n删掉：不选，保留必要能力。`
+const CALLER_NONE = '调用方：不改已有函数的行为'
+const IMPLEMENTATION_GOOD = `${GOOD}\n删掉：不选，保留必要能力。\n${CALLER_NONE}`
 
 describe('反例红绿前移', () => {
   test('实现任务缺自验要求时拦截并解释补法', () => {

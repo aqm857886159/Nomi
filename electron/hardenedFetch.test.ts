@@ -1,7 +1,7 @@
 import http from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import type { Dispatcher } from "undici";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createPinnedDispatcher,
   hardenedFetch,
@@ -11,8 +11,7 @@ import {
   type HardenedFetchResult,
   type ResolvedHostAddress,
 } from "./hardenedFetch";
-import { OutboundDestinationRefusedError, type OutboundEnvironment } from "./networkOutboundPolicy";
-import { matchNomiErrorCode } from "./shared/nomiErrorCodes";
+import { OutboundDestinationRefusedError, setLabTrustedPrivateOrigins, type OutboundEnvironment } from "./networkOutboundPolicy";
 import { TestNetworkBlockedError } from "./testNetworkGuard";
 
 const NO_LOCAL_PROXY: OutboundEnvironment = { syntheticResolver: false, syntheticSample: "" };
@@ -24,9 +23,8 @@ function fakePinnedDispatcher() {
 }
 
 /**
- * 断言「被我们自己的出站策略拒绝」时**只认结构与稳定码**，不认那句人话。
- * 旧断言写的是英文子串 `private/loopback` —— 那正是 nomiErrorCodes.ts 开篇批判的反模式：
- * 两端拿同一句人话当协议，人话一 i18n 化分类就断，而单测多半还绿。
+ * 断言「被地址判据拒绝」时**只认结构**（错误类型 + reason），不认那句人话。
+ * 只有 `textEntersModelContext` 的入口（Agent 读文档、接入向导抓文档）会走到地址判据。
  */
 async function expectOutboundRefusal(
   run: Promise<unknown>,
@@ -36,8 +34,6 @@ async function expectOutboundRefusal(
   await run.catch((error: unknown) => {
     const refusal = error as OutboundDestinationRefusedError;
     expect(refusal.reason).toBe(reason);
-    // 码必须随 message 穿透 IPC，渲染层才分得出「我们拒的」与「上游挂的」。
-    expect(matchNomiErrorCode(refusal.message)).toBe("outbound-blocked");
   });
 }
 
@@ -62,7 +58,7 @@ beforeAll(async () => {
 
 afterAll(() => server?.close());
 
-describe("hardenedFetch 私网边界", () => {
+describe("hardenedFetch 地址边界（只剩「文字进模型」的入口判）", () => {
   it("test network mode blocks hardenedFetch before proxy or DNS dispatch", async () => {
     vi.stubEnv("NOMI_TEST_NETWORK_GUARD", "1");
     const fetchImpl = vi.fn();
@@ -73,27 +69,44 @@ describe("hardenedFetch 私网边界", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("默认继续拒绝 loopback", async () => {
-    await expectOutboundRefusal(hardenedFetch(`${baseUrl}/view`), "private-host");
-  });
-
-  it("只允许显式配置的精确 origin", async () => {
-    await expect(hardenedFetch(`${baseUrl}/view`, { allowedPrivateOrigins: [baseUrl] })).resolves.toMatchObject({
-      status: 200,
-      contentType: "image/png",
-    });
-    await expectOutboundRefusal(
-      hardenedFetch(`${baseUrl}/view`, { allowedPrivateOrigins: ["http://127.0.0.1:1"] }),
-      "private-host",
-    );
-  });
-
-  it("私网显式授权仍在第一跳拒绝重定向，不访问跳转目标", async () => {
+  // 2026-11-13：生成的提交 / 取回 / 下载不再按目的地地址判（开着代理的人一直被它拦）。本机、局域网照取。
+  it("默认（取回的东西不进模型）不按地址判：本机地址照取，跳转照跟", async () => {
+    await expect(hardenedFetch(`${baseUrl}/view`)).resolves.toMatchObject({ status: 200, contentType: "image/png" });
     redirectedTargetRequests = 0;
-    await expect(
-      hardenedFetch(`${baseUrl}/redirect`, { allowedPrivateOrigins: [baseUrl] }),
-    ).rejects.toThrow(/redirect/i);
-    expect(redirectedTargetRequests).toBe(0);
+    await expect(hardenedFetch(`${baseUrl}/redirect`)).resolves.toMatchObject({ status: 200 });
+    expect(redirectedTargetRequests).toBe(1);
+  });
+
+  it("默认路径不在本机解析、也不问代理探测（一个都不调）", async () => {
+    const resolveHost = vi.fn();
+    const readOutboundEnvironment = vi.fn();
+    const fetchImpl = vi.fn(async () => new Response(Buffer.from([7]), { status: 200, headers: { "Content-Type": "video/mp4" } }));
+    await expect(hardenedFetch("https://api.vendor.test/result.mp4", {}, {
+      resolveHost: resolveHost as never,
+      readOutboundEnvironment: readOutboundEnvironment as never,
+      fetch: fetchImpl,
+      isApplicationProxyActive: () => false,
+    })).resolves.toMatchObject({ status: 200 });
+    expect(resolveHost).not.toHaveBeenCalled();
+    expect(readOutboundEnvironment).not.toHaveBeenCalled();
+  });
+
+  it("取回的文字会进模型（textEntersModelContext）时照旧拒绝 loopback", async () => {
+    await expectOutboundRefusal(hardenedFetch(`${baseUrl}/view`, { textEntersModelContext: true }), "private-host");
+  });
+
+  it("textEntersModelContext：只放实验室精确 origin，且在第一跳拒绝重定向", async () => {
+    setLabTrustedPrivateOrigins([baseUrl]);
+    try {
+      await expect(hardenedFetch(`${baseUrl}/view`, { textEntersModelContext: true })).resolves.toMatchObject({ status: 200 });
+      redirectedTargetRequests = 0;
+      await expect(hardenedFetch(`${baseUrl}/redirect`, { textEntersModelContext: true })).rejects.toThrow(/redirect/i);
+      expect(redirectedTargetRequests).toBe(0);
+      setLabTrustedPrivateOrigins(["http://127.0.0.1:1"]);
+      await expectOutboundRefusal(hardenedFetch(`${baseUrl}/view`, { textEntersModelContext: true }), "private-host");
+    } finally {
+      setLabTrustedPrivateOrigins([]);
+    }
   });
 
   it("fake-ip 代理下取片走得通：解析进 198.18/15 也照常下载（这正是 2026-09-06 取不回成片的那一格）", async () => {
@@ -102,7 +115,7 @@ describe("hardenedFetch 私网边界", () => {
       status: 200,
       headers: { "Content-Type": "video/mp4" },
     }));
-    await expect(hardenedFetch("https://api.apimart.ai/result.mp4", {}, {
+    await expect(hardenedFetch("https://api.vendor.test/result.mp4", { textEntersModelContext: true }, {
       resolveHost,
       createPinnedDispatcher: () => fakePinnedDispatcher() as never,
       fetch: fetchImpl,
@@ -114,7 +127,7 @@ describe("hardenedFetch 私网边界", () => {
 
   it("【阴性对照】没有本地代理证据时，同一次取片仍被拒——放宽必须有阳性证据", async () => {
     const fetchImpl = vi.fn();
-    await expectOutboundRefusal(hardenedFetch("https://api.apimart.ai/result.mp4", {}, {
+    await expectOutboundRefusal(hardenedFetch("https://api.vendor.test/result.mp4", { textEntersModelContext: true }, {
       resolveHost: async () => [{ address: "198.18.0.140", family: 4 }],
       createPinnedDispatcher: () => fakePinnedDispatcher() as never,
       fetch: fetchImpl,
@@ -126,7 +139,7 @@ describe("hardenedFetch 私网边界", () => {
 
   it("rejects DNS resolutions that include metadata/private addresses", async () => {
     const fetchImpl = vi.fn();
-    await expectOutboundRefusal(hardenedFetch("https://media.example.test/a.png", {}, {
+    await expectOutboundRefusal(hardenedFetch("https://media.example.test/a.png", { textEntersModelContext: true }, {
       resolveHost: async () => [{ address: "169.254.169.254", family: 4 }],
       fetch: fetchImpl,
       readOutboundEnvironment: async () => FAKE_IP_PROXY,
@@ -146,7 +159,7 @@ describe("hardenedFetch 私网边界", () => {
       });
     });
 
-    await expect(hardenedFetch("https://media.example.test/a.png", {}, {
+    await expect(hardenedFetch("https://media.example.test/a.png", { textEntersModelContext: true }, {
       resolveHost,
       createPinnedDispatcher: vi.fn(() => dispatcher as never),
       fetch: fetchImpl,
@@ -164,7 +177,7 @@ describe("hardenedFetch 私网边界", () => {
   it("应用代理生效时**仍然**问策略：私网字面量照拦（代理不是绕过分类的通行证）", async () => {
     const resolveHost = vi.fn();
     const fetchImpl = vi.fn();
-    await expectOutboundRefusal(hardenedFetch("http://169.254.169.254/latest/meta-data/", {}, {
+    await expectOutboundRefusal(hardenedFetch("http://169.254.169.254/latest/meta-data/", { textEntersModelContext: true }, {
       resolveHost: resolveHost as never,
       fetch: fetchImpl,
       isApplicationProxyActive: () => true,
@@ -177,6 +190,7 @@ describe("hardenedFetch 私网边界", () => {
   it("单供应商显式 dispatcher 同样不是通行证：私网字面量照拦", async () => {
     const fetchImpl = vi.fn();
     await expectOutboundRefusal(hardenedFetch("http://10.0.0.5/result.mp4", {
+      textEntersModelContext: true,
       dispatcher: { close: async () => {} } as never,
     }, {
       fetch: fetchImpl,
@@ -195,7 +209,7 @@ describe("hardenedFetch 私网边界", () => {
       return new Response(Buffer.from([1, 2, 3]), { status: 200, headers: { "Content-Type": "image/png" } });
     });
 
-    await expect(hardenedFetch("https://media.example.test/boot.png", {}, {
+    await expect(hardenedFetch("https://media.example.test/boot.png", { textEntersModelContext: true }, {
       resolveHost,
       fetch: fetchImpl,
       isApplicationProxyActive: () => routeReady,
@@ -221,11 +235,12 @@ describe("hardenedFetch 私网边界", () => {
       });
     });
 
-    await expect(hardenedFetch("https://media.example.test/a.png", {}, {
+    await expect(hardenedFetch("https://media.example.test/a.png", { textEntersModelContext: true }, {
       resolveHost,
       createPinnedDispatcher: vi.fn(() => dispatcher as never),
       fetch: fetchImpl,
       isApplicationProxyActive: useApplicationProxy,
+      readOutboundEnvironment: async () => NO_LOCAL_PROXY,
     })).resolves.toMatchObject({ status: 200 });
     expect(resolveHost).toHaveBeenCalledTimes(1);
   });
@@ -244,10 +259,11 @@ describe("hardenedFetch 私网边界", () => {
       });
     });
 
-    await expect(hardenedFetch("https://media.example.test/a.png", {}, {
+    await expect(hardenedFetch("https://media.example.test/a.png", { textEntersModelContext: true }, {
       resolveHost,
       createPinnedDispatcher,
       fetch: fetchImpl,
+      readOutboundEnvironment: async () => NO_LOCAL_PROXY,
     })).resolves.toMatchObject({ status: 200 });
     expect(resolveHost).toHaveBeenCalledTimes(1);
     expect(createPinnedDispatcher).toHaveBeenCalledWith("media.example.test", [{ address: "93.184.216.34", family: 4 }]);
@@ -266,10 +282,11 @@ describe("hardenedFetch 私网边界", () => {
       headers: { Location: "https://two.example.test/secret" },
     }));
 
-    await expectOutboundRefusal(hardenedFetch("https://one.example.test/start", {}, {
+    await expectOutboundRefusal(hardenedFetch("https://one.example.test/start", { textEntersModelContext: true }, {
       resolveHost,
       createPinnedDispatcher: () => fakePinnedDispatcher() as never,
       fetch: fetchImpl,
+      readOutboundEnvironment: async () => NO_LOCAL_PROXY,
     }), "private-address");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(resolveHost).toHaveBeenCalledTimes(2);
@@ -322,7 +339,7 @@ describe("hardenedFetch 私网边界", () => {
 // 以前不丢 body 就抛错，收尾又 `await` 这次请求专用连接池的「优雅关闭」——它要等那个没人读的 body 读完，
 // 永远等不到。上面那些单测全是几字节的 body，小于流缓冲、会被一口气收进来，所以挂死从来测不出。
 //
-// 这里是真 socket、真 undici、2MiB 的 body（调查实测 12KB 不挂、16KB 起挂），三种路由 × 六种响应，
+// 这里是真 socket、真 undici、2MiB 的 body（调查实测 12KB 不挂、16KB 起挂），四种路由 × 六种响应，
 // 每一格断两件事：① 在「本次时限 + 余量」内落定（成功或报错），不许悬着；② 被拒的响应把连接还回去
 // （服务端看得见 socket 关了）——共享线路（系统代理）与供应商单配线路的连接池不归 hardenedFetch 拆，
 // 那两条路上唯一能释放连接的就是「丢掉 body」。把修复改回原样，直连那几格会挂成 hung、另两条路那几格会漏连接。
@@ -371,6 +388,21 @@ const served = new Map<string, { socketClosed: Promise<void> }>();
 const serverTimers = new Set<ReturnType<typeof setInterval>>();
 let matrixServer: http.Server;
 let matrixPort = 0;
+
+// 整个文件开着测试网络闸跑：这里的名字都是假的，请求全走注入的 fetch 或钉到本机的连接池，
+// 登记成夹具 origin；没登记的名字（例如第一条里的 raw.githubusercontent.com）照旧被闸挡下。
+beforeEach(() => {
+  vi.stubEnv("NOMI_TEST_NETWORK_GUARD", "1");
+  vi.stubEnv("NOMI_TEST_NETWORK_FIXTURE_ORIGINS", [
+    "https://api.vendor.test",
+    "https://media.example.test",
+    "https://one.example.test",
+    "https://two.example.test",
+    "http://169.254.169.254",
+    "http://10.0.0.5",
+    `http://${MATRIX_HOST}:${matrixPort}`,
+  ].join(","));
+});
 let applicationRoute: Dispatcher;
 
 function trackSocket(cell: string, socket: Socket): void {
@@ -465,13 +497,25 @@ afterAll(async () => {
   await applicationRoute?.destroy().catch(() => undefined);
 });
 
-type MatrixRoute = "direct" | "system-proxy" | "provider-route";
+type MatrixRoute = "direct" | "direct-judged" | "system-proxy" | "provider-route";
 type RouteFixture = { options: HardenedFetchOptions; dependencies: HardenedFetchDependencies; release: () => void };
 
 function directDependencies(): HardenedFetchDependencies {
   return {
-    // 公网形态的名字，经注入解析成公网地址 → 出站策略放行并按解析结果建「这次请求专用」的连接池，
-    // 连接池再被钉到本机夹具上。与生产直连路由同一段代码，只是 DNS 与落点换成了本机。
+    // 直连、不判地址（生成取回的默认路径）：不解析、不建「这次请求专用」的连接池，名字交给网络层。
+    // 夹具里「网络层」是一条钉到本机的连接池，扮演系统 DNS；生产里就是 appFetch 自己的派发。
+    resolveHost: async () => {
+      throw new Error("不判地址的直连不该在本机解析");
+    },
+    isApplicationProxyActive: () => false,
+    fetch: (input, init) => globalThis.fetch(input, { ...init, dispatcher: applicationRoute } as RequestInit),
+  };
+}
+
+function judgedDirectDependencies(): HardenedFetchDependencies {
+  return {
+    // 「文字进模型」的入口：公网形态的名字经注入解析成公网地址 → 地址判据放行并按解析结果建「这次请求专用」的连接池，
+    // 连接池再被钉到本机夹具上。与生产同一段代码，只是 DNS 与落点换成了本机。
     resolveHost: async () => [MATRIX_PUBLIC_ADDRESS],
     createPinnedDispatcher: (hostname) => createPinnedDispatcher(hostname, LOOPBACK),
     readOutboundEnvironment: async () => NO_LOCAL_PROXY,
@@ -481,13 +525,13 @@ function directDependencies(): HardenedFetchDependencies {
 
 const ROUTES: Record<MatrixRoute, () => RouteFixture> = {
   direct: () => ({ options: {}, dependencies: directDependencies(), release: () => {} }),
+  "direct-judged": () => ({ options: { textEntersModelContext: true }, dependencies: judgedDirectDependencies(), release: () => {} }),
   "system-proxy": () => ({
     options: {},
     dependencies: {
       resolveHost: async () => {
         throw new Error("系统代理生效时不该在本机解析");
       },
-      readOutboundEnvironment: async () => NO_LOCAL_PROXY,
       isApplicationProxyActive: () => true,
       fetch: (input, init) => globalThis.fetch(input, { ...init, dispatcher: applicationRoute } as RequestInit),
     },
@@ -498,7 +542,7 @@ const ROUTES: Record<MatrixRoute, () => RouteFixture> = {
     const providerRoute = createPinnedDispatcher(MATRIX_HOST, LOOPBACK);
     return {
       options: { dispatcher: providerRoute },
-      dependencies: { readOutboundEnvironment: async () => NO_LOCAL_PROXY, isApplicationProxyActive: () => false },
+      dependencies: { isApplicationProxyActive: () => false },
       release: () => {
         void providerRoute.close().catch(() => undefined);
       },
@@ -523,7 +567,7 @@ function matrixUrl(pathname: string, cell: string): string {
   return `http://${MATRIX_HOST}:${matrixPort}${pathname}?cell=${encodeURIComponent(cell)}`;
 }
 
-describe("hardenedFetch 存活性契约矩阵：三种路由 × 六种响应，每一格都在「时限 + 余量」内落定", () => {
+describe("hardenedFetch 存活性契约矩阵：四种路由 × 六种响应，每一格都在「时限 + 余量」内落定", () => {
   it.each(MATRIX_CELLS)("%s × %s", async (route, response) => {
     const fixture = ROUTES[route]();
     const cell = `${route}:${response}`;

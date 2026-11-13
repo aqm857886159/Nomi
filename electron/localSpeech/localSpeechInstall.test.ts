@@ -62,19 +62,11 @@ beforeEach(async () => {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   origin = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
-  // **先 resetModules 再注入**：注入写的是模块级状态，重置之后那份状态会被丢掉——
-  // 顺序反了就是「设了但没生效」，而它长得和「策略拒绝了」一模一样。
   vi.resetModules();
-  // 出站策略默认拒绝回环地址（那正是它该做的）。夹具服务器用**同一个**注入口开精确 origin
-  // ——就是实验室夹具用的那个，主进程只在未打包构建上调它。绕开策略另开一条路才是错的。
-  const policy = await import("../networkOutboundPolicy");
-  policy.setLabTrustedPrivateOrigins([origin]);
 });
 
 afterEach(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
-  const policy = await import("../networkOutboundPolicy");
-  policy.setLabTrustedPrivateOrigins([]);
   vi.restoreAllMocks();
 });
 

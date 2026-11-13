@@ -66,13 +66,13 @@ describe('model catalog read channels do not write', () => {
     // 摘掉读路径那次之后，种子对账只剩启动期这一处；它若也没了，新内置模型就永远不落盘。
     const bootCalls = mainSource.match(/ensureBuiltinModelSeeds\(\)/g) ?? []
     expect(bootCalls.length, 'electron/main.ts 里种子对账应当只有启动期那一次调用').toBe(1)
-    // 位置也要钉：必须在最后一处 `.whenReady()` 之后、`await createWindow()` 之前——
+    // 位置也要钉：必须在最后一处 `.whenReady()` 之后、`await openMainWindow()` 之前——
     // 渲染层一进库就同步读目录，种子晚一步落盘，第一屏就是旧目录。
     const seedAt = mainSource.indexOf('ensureBuiltinModelSeeds()')
     const readyAt = mainSource.lastIndexOf('.whenReady()')
-    const windowAt = mainSource.indexOf('await createWindow()')
+    const windowAt = mainSource.indexOf('await openMainWindow()')
     expect(readyAt, 'electron/main.ts 里找不到 .whenReady() 启动序列').toBeGreaterThan(-1)
-    expect(windowAt, 'electron/main.ts 里找不到 await createWindow()').toBeGreaterThan(-1)
+    expect(windowAt, 'electron/main.ts 里找不到 await openMainWindow()').toBeGreaterThan(-1)
     expect(seedAt > readyAt && seedAt < windowAt, '种子对账必须在 whenReady 之后、createWindow 之前').toBe(true)
   })
 

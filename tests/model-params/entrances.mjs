@@ -1,7 +1,9 @@
 import { buildAgentModelEntries } from '../../src/workbench/generationCanvas/agent/availableModels.ts'
 import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../src/workbench/generationCanvas/agent/plannedNodeMeta.ts'
 import { buildNodeModelChangePatch } from '../../src/workbench/generationCanvas/nodes/buildNodeModelChangePatch.ts'
-import { applyArchetypeModeSwitch, applyArchetypeVariantSwitch, currentArchetypeMode, currentArchetypeVariant } from '../../src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts'
+import { applyArchetypeVariantSwitch, applyHumanModeChoice, currentArchetypeVariant } from '../../src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts'
+import { effectiveModeParams } from '../../electron/shared/modelArchetypes/modeParams.ts'
+import { modeWrittenInMeta } from '../../src/workbench/generationCanvas/nodes/controls/modeTestHelpers.ts'
 import { createGenerationNode } from '../../src/workbench/generationCanvas/model/graphOps.ts'
 import { planModelSelection, shotKindPatch, updateShotAt } from '../../src/workbench/generationCanvas/agent/storyboardPlanEdits.ts'
 import { previewStoryboardPatchShots } from '../../src/workbench/generationCanvas/agent/storyboardPatchShots.ts'
@@ -23,7 +25,7 @@ const metaOf = (target, params) => ({ ...params, modelKey: target.row.model.mode
 function selectedSurface(row, meta) {
   const variant = currentArchetypeVariant(row.archetype, meta)?.id
   const specialized = specializeArchetypeForVariant(row.archetype, variant)
-  return surface(row, currentArchetypeMode(specialized, meta).id, variant)
+  return surface(row, modeWrittenInMeta(meta, specialized).id, variant)
 }
 function savedShot(shot, target) {
   if (!shot.modelKey) {
@@ -51,7 +53,9 @@ export const entrances = [
     return { saved: result.meta, target: selectedSurface(target.row, result.meta), receipt: result }
   } },
   { id: 'canvas-mode', axis: 'modes', write({ source, target, params }) {
-    const saved = applyArchetypeModeSwitch(metaOf(source, params), source.row.archetype, target.mode.id)
+    // 底栏方式菜单只写偏好；发出去的参数问方式参数 owner（effectiveModeParams），这里量的是发出去的那份。
+    const chosen = applyHumanModeChoice(metaOf(source, params), source.row.archetype, target.mode.id)
+    const saved = effectiveModeParams({ archetype: source.row.archetype, variantId: currentArchetypeVariant(source.row.archetype, chosen)?.id, modeId: target.mode.id, stored: chosen }).params
     return { saved, target: selectedSurface(target.row, saved), receipt: saved }
   } },
   { id: 'canvas-variant', axis: 'variants', write({ source, target, params }) {

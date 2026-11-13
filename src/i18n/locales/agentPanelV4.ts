@@ -18,6 +18,7 @@ export const zhAgentPanelV4 = {
   // 壳
   history: '历史会话',
   historyLoadFailed: '历史消息加载失败，请重新打开此对话。',
+  jumpToLatest: '回到最新',
   collapsePanel: '收起面板',
   headerMore: '更多',
   // 收起坞 · 右上角那枚 Nomi logo 钮（2026-09-06 用户改：收起态回到 logo + 状态叠加）
@@ -93,7 +94,7 @@ export const zhAgentPanelV4 = {
   feedback: '反馈',
   consent: {
     title: '帮 Nomi 变好',
-    collects: '✓ 匿名分享：用了哪些功能、成败、界面卡不卡（分档）',
+    collects: '✓ 匿名分享：成败、耗时、出错类别、界面卡不卡（分档）',
     excludes: '✗ 不含：提示词、文稿、素材、文件路径、密钥',
     // 告知范围升级后，已同意的用户看到的再确认版：只说「多了什么」，不重讲全部。
     scopeTitle: 'Nomi 想多看一项：界面流畅度',
@@ -606,6 +607,7 @@ export const enAgentPanelV4 = {
   newConversation: 'New conversation {{number}}',
   history: 'Conversation history',
   historyLoadFailed: 'Could not load earlier messages. Reopen this conversation.',
+  jumpToLatest: 'Jump to latest',
   collapsePanel: 'Collapse panel',
   headerMore: 'More',
   dockOpen: 'Open Nomi',
@@ -676,7 +678,7 @@ export const enAgentPanelV4 = {
   feedback: 'Report',
   consent: {
     title: 'Help Nomi get better',
-    collects: '✓ Shared anonymously: features used, success or failure, how smooth the app feels (in ranges)',
+    collects: '✓ Shared anonymously: success or failure, durations, error categories, how smooth the app feels (in ranges)',
     excludes: '✗ Never: prompts, scripts, assets, file paths, keys',
     scopeTitle: 'Nomi would like to add one more: smoothness',
     scopeCollects: '✓ Newly shared anonymously: bucketed figures for how fast clicks respond and how often frames drop, plus rough canvas-size, current-page, system and device tiers (CPU core and memory ranges)',

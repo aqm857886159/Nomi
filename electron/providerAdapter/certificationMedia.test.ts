@@ -333,7 +333,6 @@ describe("certifyMediaArtifact", () => {
       {
         source: `${baseUrl}${route}`,
         expectedKind: "image",
-        allowedPrivateOrigins: [baseUrl],
       },
       deps({ decodeImage }),
     ));
@@ -348,7 +347,6 @@ describe("certifyMediaArtifact", () => {
       {
         source: `${baseUrl}/wrong-content-type`,
         expectedKind: "image",
-        allowedPrivateOrigins: [baseUrl],
       },
       deps(),
     ));
@@ -394,7 +392,6 @@ describe("certifyMediaArtifact", () => {
       {
         source: `${baseUrl}/mime-mismatch`,
         expectedKind: "image",
-        allowedPrivateOrigins: [baseUrl],
       },
       deps(),
     ));
@@ -407,7 +404,6 @@ describe("certifyMediaArtifact", () => {
       {
         source: `${baseUrl}/corrupt.png`,
         expectedKind: "image",
-        allowedPrivateOrigins: [baseUrl],
       },
       deps(),
     ));
@@ -420,7 +416,6 @@ describe("certifyMediaArtifact", () => {
       {
         source: `${baseUrl}/oversize`,
         expectedKind: "image",
-        allowedPrivateOrigins: [baseUrl],
         limits: { maxBytes: 32 },
       },
       deps(),
@@ -434,7 +429,6 @@ describe("certifyMediaArtifact", () => {
       {
         source: `${baseUrl}/slow`,
         expectedKind: "image",
-        allowedPrivateOrigins: [baseUrl],
         limits: { fetchTimeoutMs: 20 },
       },
       deps(),
@@ -448,7 +442,6 @@ describe("certifyMediaArtifact", () => {
       {
         source: `${baseUrl}/cross-origin`,
         expectedKind: "image",
-        allowedPrivateOrigins: [baseUrl],
       },
       deps(),
     ));
@@ -461,7 +454,6 @@ describe("certifyMediaArtifact", () => {
       {
         source: `${baseUrl}/valid.png`,
         expectedKind: "image",
-        allowedPrivateOrigins: [baseUrl],
       },
       deps(),
     );

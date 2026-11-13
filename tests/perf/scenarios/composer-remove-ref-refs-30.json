@@ -1,0 +1,26 @@
+{
+  "id": "composer-remove-ref-refs-30",
+  "feature": "生成框：参考行有 30 张图时移走一张，方式按剩下的输入重算、行尾报数换成新数（连 / 断输入时的重算）",
+  "script": "tests/perf/composer-refs-bench.mjs",
+  "args": [
+    "--op",
+    "remove-ref"
+  ],
+  "scale": "生成框参考行 30 张图 → 29 张（Seedance 2.5 参考上限 30 图，最坏规模）",
+  "metrics": [
+    "response",
+    "longTasks"
+  ],
+  "budget": 100,
+  "group": "② 生成框里的操作",
+  "budgetStatus": "proposed",
+  "budgetBasis": "默认预算「操作到可见反馈 ≤100ms」（docs/engineering/perf-scenarios.md；RAIL / Nielsen 的 100ms 感知阈值）。断一张输入要重算方式（modeForInputs）、行尾报数和参考行，30 张是最坏规模，预算不放宽",
+  "baseline": {
+    "median": 23.3,
+    "p95": 24,
+    "runs": 5,
+    "machine": "darwin arm64 Apple M5 x10 / 24GB",
+    "date": "2026-11-12",
+    "commit": "5029a9bc4"
+  }
+}

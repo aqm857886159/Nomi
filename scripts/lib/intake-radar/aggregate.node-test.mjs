@@ -16,6 +16,8 @@ import {
   splitAutomatedEvents,
   rankFailureReasons,
   summarizePerf,
+  summarizeDiagnosis,
+  patchVersionOf,
 } from './aggregate.mjs'
 import { renderMarkdown, renderTerminalSummary } from './render.mjs'
 
@@ -235,7 +237,7 @@ test('buildIntakeReport 只把 newFeedbackKeys 里的键当"本次新增反馈"'
   const report = buildIntakeReport({
     feedbackRecords,
     eventRecords: [],
-    trajectoriesCount: 0,
+   
     newFeedbackKeys: ['feedback/2026-09-28/new.json'],
     newEventKeys: [],
     generatedAt: '2026-09-29T00:00:00.000Z',
@@ -243,14 +245,13 @@ test('buildIntakeReport 只把 newFeedbackKeys 里的键当"本次新增反馈"'
   assert.equal(report.totals.feedbackCount, 2)
   assert.equal(report.totals.newFeedbackCount, 1)
   assert.deepEqual(report.newFeedback.map((i) => i.id), ['NF-NEW'])
-  assert.equal(report.totals.trajectoriesCount, 0)
 })
 
 test('buildIntakeReport 把本地解析失败的文件计入 dataQuality，不影响其余统计', () => {
   const report = buildIntakeReport({
     feedbackRecords: [],
     eventRecords: [],
-    trajectoriesCount: 0,
+   
     newFeedbackKeys: [],
     newEventKeys: [],
     corruptFiles: [{ key: 'feedback/2026-09-01/broken.json', error: 'Unexpected token' }],
@@ -316,7 +317,7 @@ test('rankFailureReasons 按原因排行；老版本没带原因的单独成一�
 
 test('buildIntakeReport 默认排除自动化：成功率与失败排行只算真实用户，被排除的条数单独列出', () => {
   const { records } = mixedFixture()
-  const report = buildIntakeReport({ feedbackRecords: [], eventRecords: records, trajectoriesCount: 0, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-10-01T12:00:00.000Z' })
+  const report = buildIntakeReport({ feedbackRecords: [], eventRecords: records, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-10-01T12:00:00.000Z' })
   assert.equal(report.totals.eventsCount, 3)
   assert.equal(report.totals.excludedAutomatedCount, 4)
   assert.equal(report.generationResults.overall.total, 3)
@@ -370,7 +371,7 @@ test('summarizePerf：没有性能事件时给零，不抛；反馈里的卡顿�
 test('perf 进报告与 Markdown / 终端摘要；自动化事件不进性能统计', () => {
   const automated = { ...perfEvent({ p75: 'gt-500' }), systemProps: { osFamily: 'windows', appMajor: 0, appMinor: 24, locale: 'zh-CN', automated: true } }
   const records = [{ key: 'events/a.json', record: { payload: { events: [perfEvent({ p75: '200-500' }), perfEvent({ p75: 'lt-100' }), automated] } } }]
-  const report = buildIntakeReport({ feedbackRecords: [], eventRecords: records, trajectoriesCount: 0, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-10-17T12:00:00.000Z' })
+  const report = buildIntakeReport({ feedbackRecords: [], eventRecords: records, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-10-17T12:00:00.000Z' })
   assert.equal(report.perf.total, 2)
   assert.equal(report.perf.slow, 1)
   assert.match(renderMarkdown(report), /## 卡不卡/)
@@ -390,7 +391,7 @@ function feedbackWith({ key, receivedAt, createdAt = receivedAt, summary = '占�
   return made
 }
 
-const reportOf = (feedbackRecords, extra = {}) => buildIntakeReport({ feedbackRecords, eventRecords: [], trajectoriesCount: 0, newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-11-01T00:00:00.000Z', ...extra })
+const reportOf = (feedbackRecords, extra = {}) => buildIntakeReport({ feedbackRecords, eventRecords: [], newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-11-01T00:00:00.000Z', ...extra })
 
 test('同一份报告送达多次：统计只算一条，最早到的是原件', () => {
   const createdAt = '2026-10-20T08:00:00.000Z'
@@ -503,3 +504,72 @@ test('读不出来的反馈文件也在待分诊里：它也是用户发来的',
   assert.equal(report.triage.count, 1)
   assert.match(renderMarkdown(report), /这份文件读不出来/)
 })
+
+// ---------------------------------------------------------------------------
+// 定位读数（2026-11-13）
+// ---------------------------------------------------------------------------
+
+const sys = (minor, patch) => ({ osFamily: 'macos', appMajor: 0, appMinor: minor, locale: 'zh-CN', ...(patch === undefined ? {} : { appPatch: patch }) })
+const gen = (minor, patch, props) => ({ eventName: 'generation.completed', date: '2026-11-13', systemProps: sys(minor, patch), props: { capability: 'video', ...props } })
+const started = (minor, patch, lastExit) => ({ eventName: 'app.started', date: '2026-11-13', systemProps: sys(minor, patch), props: { lastExit } })
+const perfWith = (mainStallMax, mainStallCount) => ({ eventName: 'perf.session.summary', date: '2026-11-13', systemProps: sys(25, 0), props: { interactionP75: 'lt-100', mainStallMax, mainStallCount } })
+
+test('补丁版号：带 appPatch 的精确到补丁；老事件记 x.y.?，不和补丁版混算', () => {
+  assert.equal(patchVersionOf(gen(25, 1, {})), '0.25.1')
+  assert.equal(patchVersionOf(gen(24, undefined, {})), '0.24.?')
+  assert.equal(patchVersionOf({ systemProps: {} }), 'unknown')
+  const d = summarizeDiagnosis([
+    gen(25, 1, { result: 'failure', upstreamStatus: 'server-5xx' }), gen(25, 1, { result: 'success', upstreamStatus: 'ok' }),
+    gen(25, 0, { result: 'failure', upstreamStatus: 'server-5xx' }), gen(25, 0, { result: 'failure', upstreamStatus: 'auth' }),
+    gen(24, undefined, { result: 'failure' }), gen(25, 1, { result: 'cancel' }),
+  ])
+  assert.deepEqual(d.failureByPatch.map((row) => [row.version, row.total, row.failure, row.failureRate]), [['0.25.1', 2, 1, 50], ['0.25.0', 2, 2, 100], ['0.24.?', 1, 1, 100]])
+})
+
+test('说不清的占比：只在带细节的失败里算；uncoded 只在没发出去里算；老版本单独数', () => {
+  const d = summarizeDiagnosis([
+    gen(25, 0, { result: 'failure', upstreamStatus: 'unknown', failureStage: 'submit' }),
+    gen(25, 0, { result: 'failure', upstreamStatus: 'server-5xx', failureStage: 'wait' }),
+    gen(25, 0, { result: 'failure', upstreamStatus: 'not-sent', failureStage: 'submit', localRefusal: 'uncoded' }),
+    gen(25, 0, { result: 'failure', upstreamStatus: 'not-sent', failureStage: 'submit', localRefusal: 'asset-too-large' }),
+    gen(24, undefined, { result: 'failure', errorType: 'unknown' }),
+  ])
+  assert.equal(d.unknown.failures, 5)
+  assert.equal(d.unknown.withDetail, 4)
+  assert.equal(d.unknown.withoutDetail, 1)
+  assert.equal(d.unknown.unknownShare, 25)
+  assert.equal(d.unknown.uncodedShare, 50)
+  assert.deepEqual(d.unknown.byLocalRefusal, [{ value: 'asset-too-large', count: 1 }, { value: 'uncoded', count: 1 }])
+})
+
+test('上次异常退出率：unknown 不进分母；按补丁版', () => {
+  const d = summarizeDiagnosis([started(25, 0, 'clean'), started(25, 0, 'renderer-crashed'), started(25, 0, 'unknown'), started(25, 1, 'abnormal'), { eventName: 'app.started', systemProps: sys(24), props: {} }])
+  assert.equal(d.lastExit.starts, 4)
+  assert.equal(d.lastExit.known, 3)
+  assert.equal(d.lastExit.abnormal, 2)
+  assert.equal(d.lastExit.abnormalRate, 66.7)
+  assert.deepEqual(d.lastExit.byVersion.map((row) => [row.version, row.abnormalRate]), [['0.25.1', 100], ['0.25.0', 50]])
+})
+
+test('主进程停顿：分布与 ≥1 秒占比；unknown 不进分母；老 perf 事件不算', () => {
+  const d = summarizeDiagnosis([perfWith('gt-5000', '1-3'), perfWith('none', '0'), perfWith('unknown', 'unknown'), { eventName: 'perf.session.summary', systemProps: sys(24), props: { interactionP75: 'lt-100' } }])
+  assert.equal(d.mainStall.sessions, 3)
+  assert.equal(d.mainStall.overOneSecond, 1)
+  assert.equal(d.mainStall.overOneSecondShare, 50)
+})
+
+test('定位读数进报告 Markdown 与终端摘要；报告里不再有轨迹条数', () => {
+  const events = [gen(25, 0, { result: 'failure', upstreamStatus: 'unknown', failureStage: 'submit' }), started(25, 0, 'renderer-oom'), perfWith('1000-5000', '4-10')]
+  const report = buildIntakeReport({ feedbackRecords: [], eventRecords: [{ key: 'events/x.json', record: { payload: { events } } }], newFeedbackKeys: [], newEventKeys: [], generatedAt: '2026-11-13T00:00:00.000Z' })
+  const md = renderMarkdown(report)
+  assert.match(md, /## 定位读数/)
+  assert.match(md, /\| 0\.25\.0（样本少） \| video \| 1 \| 1 \| 100% \|/)
+  assert.match(md, /没正常结束 1 次（100%/)
+  const terminal = renderTerminalSummary(report)
+  assert.match(terminal, /失败说不清：上游 unknown 1\/1（100%）/)
+  assert.match(terminal, /上次没正常结束：1\/1（100%）/)
+  assert.match(terminal, /主进程停顿 ≥1 秒：1\/1 份会话/)
+  assert.doesNotMatch(md + terminal, /轨迹/)
+  assert.equal('trajectoriesCount' in report.totals, false)
+})
+

@@ -9,15 +9,21 @@
 //  · 有内置档案 → 档案当前模式的 promptRequired（图生视频/图生 3D 早就声明成 false 了）
 //  · ComfyUI 导入图 → 由**图自己**决定（图里有没有提示词绑定）。渲染层看不到图，
 //    但后端渲染模板时空提示词只会渲成空串——在这里硬抛只会把整类工作流堵死。
-import { currentArchetypeMode } from '../nodes/controls/archetypeMeta'
+import { sendArchetypeMode, type ArchetypeModeResolution } from '../nodes/controls/archetypeMeta'
+import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { resolveTaskArchetype } from './catalogTaskResolve'
 
 /** 该节点这次提交是否必须有非空提示词。 */
-export function promptRequiredForNode(node: { meta?: Record<string, unknown> | null }, vendor: string): boolean {
+export function promptRequiredForNode(
+  node: Pick<GenerationCanvasNode, 'id' | 'meta' | 'kind'>,
+  vendor: string,
+  /** 画布路解析参考时现算过的方式；不给就按节点自己的输入现算。 */
+  references?: { archetypeMode?: ArchetypeModeResolution },
+): boolean {
   const meta = node.meta || {}
   const archetype = resolveTaskArchetype(meta)
-  if (archetype) return currentArchetypeMode(archetype, meta).promptRequired
+  if (archetype) return sendArchetypeMode(archetype, node, references).promptRequired
   // 图定义模型：吃不吃提示词写在图里，不由这一层猜。
   if (isComfyuiVendorKey(vendor)) return false
   return true

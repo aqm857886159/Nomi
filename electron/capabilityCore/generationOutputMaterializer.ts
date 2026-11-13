@@ -17,7 +17,6 @@ import { firstString, isJsonRecord, trim, type JsonRecord } from "../jsonUtils";
 import path from "node:path";
 
 import { hardenedFetchDiagnostics, isAllowedContentType, type HardenedFetchResult } from "../hardenedFetch";
-import { isOutboundDestinationRefusedError } from "../networkOutboundPolicy";
 import { logWarn } from "../logging/logger";
 import { OUTPUT_RETRIEVAL_FAILED } from "../productionRun/productionRunTypes";
 import { GeneratedMediaValidationError } from "../assets/generatedMediaDecode";
@@ -27,7 +26,6 @@ import { exceedsProviderMediaCap, fetchProviderMedia, type ProviderMediaFetchOpt
 import { PROVIDER_MEDIA_FILE_BYTE_CAP } from "../shared/assets/providerMediaRetrievalBudget";
 import type { Vendor, Model, HttpOperation } from "../catalog/types";
 import { readCatalog } from "../catalog/catalogStore";
-import { trustedRetrievalOrigin } from "../vendor/vendorOutboundGuard";
 import { parseDataUrl } from "../assets/assetBytes";
 import { attachStoredAssetPreview } from "../assets/assetPreview";
 import { isCanvasPreviewState, type CanvasPreviewState } from "../shared/canvas/canvasMediaPreview";
@@ -53,11 +51,9 @@ export type GenerationOutputMaterializerDependencies = {
    * （2026-10-15 C-dense：制作流程产物一直没有预览，画布挂 2048×3072 原图）。
    */
   attachPreview?: (record: unknown) => Promise<unknown>;
-  /** 仅 E2E 回环夹具：主进程装配点给的精确 origin（`fetchProviderMedia` 的 trustedPrivateOrigin）。 */
-  trustedPrivateOrigin?: string;
   /**
-   * 产出这条 URL 的那家连接（地址 + 自有线路）。缺省读当前目录——与普通生成 localizeTaskAsset 读的是同一份：
-   * 线路用它的 `network`，私网例外只问 `trustedRetrievalOrigin(它, 产物 URL)`（与画布那条同一句判据）。
+   * 产出这条 URL 的那家连接（自有线路）。缺省读当前目录——与普通生成 localizeTaskAsset 读的是同一份：
+   * 线路用它的 `network`。
    */
   resolveVendor?: (providerId: string) => Pick<Vendor, "baseUrlHint" | "network"> | undefined;
 };
@@ -68,10 +64,10 @@ function catalogVendor(providerId: string): Pick<Vendor, "baseUrlHint" | "networ
 
 /**
  * 取回产物这一步没成（#975 A2，2026-10-04）。`deterministic` 回答「同一个地址再取一次会不会不一样」：
- *   · 是（true）：出站策略拒了、对方答了却答的是我们收不下的东西（4xx、跳转、类型不对、超上限）——
+ *   · 是（true）：对方答了却答的是我们收不下的东西（4xx、跳转、类型不对、超上限）——
  *     再取一万次都是同一堵墙，上层必须停下来如实告诉用户，不许当成「还在处理」一轮轮重查重下；
  *   · 否（false）：超时、断流、5xx / 408 / 429、连接没建起来——等一等可能就好，上层照旧下一轮再试。
- * 判据只看结构化事实（策略错误类型、hardenedFetch 挂在错误上的诊断），不读人话。
+ * 判据只看结构化事实（hardenedFetch 挂在错误上的诊断），不读人话。
  * `message` 只放这次的事实，不放产物 URL（结果地址的查询串常带签名）。
  */
 export class GenerationOutputRetrievalError extends Error {
@@ -93,7 +89,6 @@ function isAbort(error: unknown): boolean {
 
 /** 这次取回失败，换个时间再取会不会不一样（见 GenerationOutputRetrievalError）。 */
 function retrievalFailureIsDeterministic(error: unknown): boolean {
-  if (isOutboundDestinationRefusedError(error)) return true;
   // 落盘前的字节 / 解码校验没过：同一份字节再校验也是同一个结论（V-975：坏 MP4 每 15 秒整段重下一次）。
   if (error instanceof GeneratedMediaValidationError) return true;
   if (isAbort(error)) return false;
@@ -169,13 +164,7 @@ export function createGenerationOutputMaterializer(deps: GenerationOutputMateria
     const allowedContentTypes = allowedContentTypesFor(input.output.kind);
     const vendor = input.providerId ? (deps.resolveVendor ?? catalogVendor)(input.providerId) : undefined;
     const providerNetwork = vendor?.network;
-    const routeFor = async (url: string): Promise<ProviderMediaFetchOptions> => {
-      const trustedPrivateOrigin = deps.trustedPrivateOrigin ?? await trustedRetrievalOrigin(vendor, url);
-      return {
-        ...(trustedPrivateOrigin ? { trustedPrivateOrigin } : {}),
-        ...(providerNetwork ? { providerNetwork } : {}),
-      };
-    };
+    const route: ProviderMediaFetchOptions = providerNetwork ? { providerNetwork } : {};
     let bytes: Buffer;
     let contentType = input.output.contentType || "application/octet-stream";
     if (input.output.url.startsWith("data:")) {
@@ -186,7 +175,7 @@ export function createGenerationOutputMaterializer(deps: GenerationOutputMateria
     } else {
       let fetched: HardenedFetchResult;
       try {
-        fetched = await fetchOutput(input.output.url, { ...(await routeFor(input.output.url)), allowContentTypes: allowedContentTypes });
+        fetched = await fetchOutput(input.output.url, { ...route, allowContentTypes: allowedContentTypes });
       } catch (error) {
         throw retrievalError(error);
       }
@@ -230,7 +219,7 @@ export function createGenerationOutputMaterializer(deps: GenerationOutputMateria
       // 海报是供应商顺手给的一张图，成片已经落盘了：它取不回来（另一个地址、类型不对、断网）不许把这一镜判成
       // 「取回失败」——那会让用户对着一段已经在项目里的视频反复点「重新取回」（#975 A2）。取不到就不要海报。
       try {
-        const poster = await fetchOutput(input.output.thumbnailUrl, { ...(await routeFor(input.output.thumbnailUrl)), allowContentTypes: ["image/", "application/octet-stream"] });
+        const poster = await fetchOutput(input.output.thumbnailUrl, { ...route, allowContentTypes: ["image/", "application/octet-stream"] });
         const posterType = (poster.contentType || "image/png").toLowerCase().split(";")[0]?.trim() || "image/png";
         if (!posterType.startsWith("image/")) throw new Error("Generation poster content type does not match image");
         // 海报同样先发布（暂存 → 校验 → rename），再对发布后的正式文件派生预览。

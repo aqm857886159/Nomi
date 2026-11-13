@@ -49,6 +49,10 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'src/workbench/generationCanvas/spend/SpendConfirmHost.test.tsx', roots: ['src'] },
   // 2026-11-07：applyCanvasToolCall 删掉第二次校验的等价证明——applyProposalBatch 与带变量工具名的调用者只有登记的那几个；遍历 src（<2 秒）。
   { file: 'src/workbench/generationCanvas/agent/applyCanvasToolCall.singleParse.test.ts', roots: ['src'] },
+  // 2026-11-12：「拆成镜头」那条消息只在分镜启动器一处拼；遍历 src 找自己写 openStoryboardResult / 分镜技能 key 的文件（<2 秒）。
+  { file: 'src/workbench/generationCanvas/agent/storyboardLauncher.test.ts', roots: ['src'] },
+  // 2026-11-12：渲染层不许再写第二份「key → 技能」查找；遍历 src 找按 name 精确比的手写查找（<2 秒）。
+  { file: 'src/workbench/skillLibrary/skillDisplay.test.ts', roots: ['src'] },
   // ── electron/ 全树（遍历 electron 找违规文件）──
   { file: 'scripts/lib/buildInputRefScan.test.mjs', roots: ['src', 'electron'], files: ['vite.config.ts', 'tailwind.config.ts', 'postcss.config.js', 'scripts/build-tailwind.mjs', 'scripts/build-electron.mjs', 'scripts/write-intake-config.mjs', 'scripts/electron-build-artifacts.mjs', 'scripts/package-build-stamp.mjs'] }, // 构建源码不许引用构建戳排除的路径（NON_INPUTS）；遍历 src + electron（<1 秒）
   { file: 'tests/system/async-signature-migration.test.mjs', roots: ['tests', 'electron', 'src', 'scripts'] }, // V-plibrary F3：同步改异步的函数，调用方（含 tests / 脚本）都要 await；遍历四个目录的源码（<1 秒）
@@ -67,6 +71,7 @@ export const SCAN_GUARDS = Object.freeze([
   { file: 'electron/shared/contracts/ipcInvokeFailure.test.ts', roots: ['electron', 'src'] }, // 2026-10-24：全仓代码里写下的错误类名都要过 isCodeClassName（遍历 electron + src，<1 秒）
   { file: 'electron/capabilityCore/spendDoorSingleOwner.test.ts', roots: ELECTRON }, // 5 秒
   { file: 'electron/capabilityCore/mcpMigrationEntry.test.ts', roots: ['src', 'electron'] }, // #1142 合入后新增：MCP 宿主迁移入口只有登记的调用点（3 秒）
+  { file: 'electron/shared/generationLowering/referencePlacementOwnership.test.ts', roots: ['src', 'electron'] }, // 2026-11-08：参考放进哪个键只许降级函数写——删掉的旧拼法与旧值表示的名字不许回来、意图只许「绑定 + 值」（2026-11-09 起不再扫静态写键，新入口改由解析产物 / 封存体 + eslint 模块边界挡）；遍历 electron + src（<2 秒）
   { file: 'electron/catalog/customRelayWireModel.test.ts', roots: ELECTRON }, // 自定义中转站线上模型名只有一个出口：遍历 electron 生产文件（12 秒）
   { file: 'electron/catalog/modelListReconcile.test.ts', roots: ELECTRON }, // 3 秒
   { file: 'electron/catalog/storedApiKeyReaders.test.ts', roots: ELECTRON }, // 3 秒

@@ -1,9 +1,8 @@
 import { useGenerationQueueStore } from '../runner/generationQueueStore'
 import { insertAutoMentions } from '../../assets/promptMentions'
 import { resultUrl } from '../runner/referenceUrl'
-import { referenceAssetKindForNode, validateReferenceEdge, archetypeForNode, resolveModeForConnectedReferences } from '../agent/referenceEdgeCapability'
+import { referenceAssetKindForNode, validateReferenceEdge } from '../agent/referenceEdgeCapability'
 import { resolveMentionReference } from '../model/canvasReferenceConnection'
-import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import { currentReferenceMedia } from '../nodes/mentionCandidates'
 import { useGenerationCanvasStore } from './generationCanvasStore'
 import { isProjectExecutionContextCurrent, subscribeProjectOpened } from '../../project/projectCanvasReadSurface'
@@ -15,7 +14,7 @@ import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNo
  *
  * 一个图片节点出图了 → 同一张画布上、提示词里写了这个节点**标题**的那些节点：在标题第一次出现的地方后面
  * 补一枚 @，并且像用户手动 @ 一样建一条真参考边（同一把能力校验闸 `validateReferenceEdge`、同一个落槽判据
- * `resolveMentionReference`——当前模式收不了参考图就切到能收的模式，与手动 @ 完全一致）。
+ * `resolveMentionReference`——落格按「放进去之后」现算的摆法，不往节点写方式，与手动 @ 完全一致）。
  *
  * 范围（设计卡 §B 第 7 条）：
  *   · 目标只取**还没出图、也不在跑**的图片 / 视频节点——已经出过图的节点改提示词会让「图」和「词」对不上；
@@ -32,7 +31,6 @@ export type CanvasAutoReferencePlan = {
   targetId: string
   prompt: string
   autoReferenced: string[]
-  switchToModeId: string | null
   edgeMode: GenerationCanvasEdgeMode
 }
 
@@ -77,12 +75,12 @@ export function planCanvasAutoReference(
     const route = resolveMentionReference(target, nodes, edges, 'image')
     if (!route.ok) continue
     if (!validateReferenceEdge(source, target, route.edgeMode).ok) continue
-    plans.push({ targetId: target.id, prompt: result.prompt, autoReferenced: result.applied, switchToModeId: route.switchToModeId, edgeMode: route.edgeMode })
+    plans.push({ targetId: target.id, prompt: result.prompt, autoReferenced: result.applied, edgeMode: route.edgeMode })
   }
   return plans
 }
 
-/** 把计划写进画布 store：切模式 → 建边 → 写提示词与账本；引用没真落进槽就整条撤回（与手动 @ 同一条兜底）。 */
+/** 把计划写进画布 store：建边 → 写提示词与账本；引用没真落进槽就整条撤回（与手动 @ 同一条兜底）。 */
 export function applyCanvasAutoReference(sourceId: string): void {
   const store = useGenerationCanvasStore.getState()
   const source = store.nodes.find((node) => node.id === sourceId)
@@ -93,9 +91,6 @@ export function applyCanvasAutoReference(sourceId: string): void {
     if (!target || !url) continue
     const metaBefore = (target.meta || {}) as Record<string, unknown>
     const edgeIdsBefore = new Set(state.edges.map((edge) => edge.id))
-    const archetype = plan.switchToModeId ? archetypeForNode(target) : null
-    const meta = archetype && plan.switchToModeId ? applyArchetypeModeSwitch(metaBefore, archetype, plan.switchToModeId) : metaBefore
-    if (meta !== metaBefore) state.updateNode(target.id, { meta })
     state.connectNodes(sourceId, target.id, plan.edgeMode)
     const after = useGenerationCanvasStore.getState()
     const afterTarget = after.nodes.find((node) => node.id === target.id)
@@ -138,24 +133,4 @@ export function initCanvasAutoReferenceBridge(): () => void {
     unsubscribeOpened()
     unsubscribeStore()
   }
-}
-
-/**
- * 提交前对账「生成方式 × 活边参考」（2026-07-28 群反馈根治）：当前模式一条参考边都收不下、档案里
- * 有能收的模式 → 切过去（与建边 autoPromoteTargetModeForEdge 同一套语义，ModeBar 同步翻转）。
- * 建边时的 auto-promote 只覆盖「建边那一刻」，换模型（archetype 失配落回默认 t2i）、存量边都够不到；
- * 停在 t2i 的节点会在投影层（buildArchetypeInputParams 空槽互斥）把挂着的参考静默丢掉、付费发出
- * 纯文生（「男的角色图生成出女的」根因）。挂在唯一提交咽喉 runGenerationNode 入口，整类不再复发。幂等。
- */
-export function reconcileNodeModeWithConnectedReferences(nodeId: string): void {
-  const state = useGenerationCanvasStore.getState()
-  const node = state.nodes.find((candidate) => candidate.id === nodeId)
-  if (!node) return
-  const nextModeId = resolveModeForConnectedReferences(node, state.nodes, state.edges)
-  if (!nextModeId) return
-  const archetype = archetypeForNode(node)
-  if (!archetype) return
-  state.updateNode(nodeId, {
-    meta: applyArchetypeModeSwitch((node.meta || {}) as Record<string, unknown>, archetype, nextModeId),
-  })
 }

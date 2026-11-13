@@ -69,6 +69,7 @@ describe("runAudioTask（音频同步执行路径）", () => {
   });
 
   it("声明的 binary MIME/extension 覆盖 body 推断（ElevenLabs output_format 在 query）", async () => {
+    // 音频执行器只读明文 body，不走封口发送；桩里拿不到 sealed（只有构建器能铸），故断言掉。
     vi.mocked(buildProfileHttpRequest).mockReturnValueOnce({
       method: "POST",
       url: "https://api.elevenlabs.io/v1/text-to-speech/voice-1",
@@ -76,7 +77,7 @@ describe("runAudioTask（音频同步执行路径）", () => {
       query: { output_format: "mp3_44100_128" },
       body: { text: "hi", model_id: "eleven_v3" },
       preview: {},
-    });
+    } as never);
     vi.stubGlobal("fetch", vi.fn(async () => new Response(new Uint8Array([1, 2, 3]).buffer, { status: 200 })));
 
     await runAudioTask({

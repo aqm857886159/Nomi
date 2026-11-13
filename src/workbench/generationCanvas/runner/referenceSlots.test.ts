@@ -189,19 +189,24 @@ describe('resolveReferenceSlots — 能力驱动单一真相源', () => {
     expect(resolveReferenceSlots(plain, [plain], [])).toEqual([])
   })
 
-  it('t2v 模式无声明槽 → []（纯文生没有参考槽）', () => {
+  it('没放任何输入 → 文生，没有参考槽（[]）', () => {
+    const tgt = target('video', 'runway-gen4.5', 'i2v')
+    expect(resolveReferenceSlots(tgt, [tgt], [])).toEqual([])
+  })
+
+  // 方式按输入现算（2026-11-12）：存着的文生只是偏好，连了一条首帧边就按图生发，边落进图生的那一格。
+  it('存着文生偏好 + 一条首帧边 → 按图生发，边落进图生的格子', () => {
     const img = node('img1', 'image', { url: 'https://cdn/a.png' })
     const tgt = target('video', 'runway-gen4.5', 't2v')
     const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 'img1', target: 'tgt', mode: 'first_frame' }]
-    expect(resolveReferenceSlots(tgt, [img, tgt], edges)).toEqual([])
+    expect(resolveReferenceSlots(tgt, [img, tgt], edges).flatMap((slot) => slot.fills.map((fill) => fill.url))).toEqual(['https://cdn/a.png'])
   })
 
-  it('文本源（不可作参考）→ 不落任何槽', () => {
+  it('文本源（不可作参考）不算输入 → 按文生发，不落任何槽', () => {
     const txt = node('t1', 'text')
     const tgt = target('video', 'runway-gen4.5', 'i2v')
     const edges: GenerationCanvasEdge[] = [{ id: 'e1', source: 't1', target: 'tgt', mode: 'reference' }]
-    const slots = resolveReferenceSlots(tgt, [txt, tgt], edges)
-    expect(slots[0].fills).toEqual([])
+    expect(resolveReferenceSlots(tgt, [txt, tgt], edges).flatMap((slot) => slot.fills)).toEqual([])
   })
 })
 

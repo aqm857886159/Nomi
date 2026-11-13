@@ -15,7 +15,7 @@ import { desktopCapturer, globalShortcut, screen, shell, systemPreferences } fro
 import path from "node:path";
 import { getSettingsRoot, ensureDir } from "../runtimePaths";
 import { readConfigFileOrDefault, writeConfigFileAtomic } from "../configFileStore";
-import { getMainWindow } from "../appWindowRegistry";
+import { borrowMainWindow, mainWindowPhase, revealMainWindow, sendToMainWindow } from "../mainWindowPresence";
 import { writeGeneratedAsset } from "../runtime";
 import { logError } from "../logging/logger";
 import type { AssetWriteContext } from "../assets/assetWriteContext";
@@ -177,8 +177,9 @@ function isProjectCancellation(error: unknown): boolean {
  * 窗口签发点（windowProjectCapture）**在任何 await 之前**固定；之后每一步都用同一个 epoch 断言复验——
  * 切到别的项目（含 A→B→A）即永久失效。不再有 renderer 自报的 projectId。
  */
-async function captureScreenshotProject(win: Electron.BrowserWindow): Promise<ScreenshotProjectContext | null> {
-  const issued = issueWindowProject(win);
+async function captureScreenshotProject(): Promise<ScreenshotProjectContext | null> {
+  // 同步借用主窗签发租约：借到的窗口只在这一刻有效，之后不再攥着它（显示走 revealMainWindow，发消息走 sendToMainWindow）。
+  const issued = borrowMainWindow((win) => issueWindowProject(win));
   if (!issued) return null;
   const write = await captureIssuedProjectWrite(issued);
   return Object.freeze({ write, surfaceBinding: issued.surfaceBinding });
@@ -189,21 +190,19 @@ async function captureScreenshotProject(win: Electron.BrowserWindow): Promise<Sc
  * 抓的是**整块屏**：选区交给渲染层做，这样用户能看清、能重选、能取消，而不是在一层看不清的浮层上盲拖。
  */
 export async function captureScreenToCanvas(): Promise<void> {
-  const win = getMainWindow();
-  if (!win || win.isDestroyed()) return;
+  if (mainWindowPhase() !== "open") return;
 
   const access = screenAccessStatus();
   if (access !== "granted") {
     // 未授权：给人话 + 指路，绝不静默什么都不发生。
-    win.webContents.send("nomi:screenshot:denied", { screenAccess: access });
-    win.show();
-    win.focus();
+    sendToMainWindow("nomi:screenshot:denied", { screenAccess: access });
+    revealMainWindow("screenshot");
     return;
   }
 
   let project: ScreenshotProjectContext | null;
   try {
-    project = await captureScreenshotProject(win);
+    project = await captureScreenshotProject();
   } catch (error) {
     if (isProjectCancellation(error)) return;
     // 项目面不可用 / 项目目录读不到身份：是「当前没有可落的项目」，要让用户看见；其它异常照常抛。
@@ -212,9 +211,8 @@ export async function captureScreenToCanvas(): Promise<void> {
     project = null;
   }
   if (!project) {
-    win.webContents.send("nomi:screenshot:failed", { reason: "no-project" });
-    win.show();
-    win.focus();
+    sendToMainWindow("nomi:screenshot:failed", { reason: "no-project" });
+    revealMainWindow("screenshot");
     return;
   }
 
@@ -233,7 +231,7 @@ export async function captureScreenToCanvas(): Promise<void> {
     const source =
       sources.find((candidate) => String(candidate.display_id) === String(display.id)) ?? sources[0];
     if (!source || source.thumbnail.isEmpty()) {
-      win.webContents.send("nomi:screenshot:failed", { reason: "empty" });
+      sendToMainWindow("nomi:screenshot:failed", { reason: "empty" });
       return;
     }
 
@@ -249,15 +247,14 @@ export async function captureScreenToCanvas(): Promise<void> {
     ) as { data?: { url?: string } };
     const url = record?.data?.url;
     if (!url) {
-      win.webContents.send("nomi:screenshot:failed", { reason: "write" });
+      sendToMainWindow("nomi:screenshot:failed", { reason: "write" });
       return;
     }
 
     project.write.assertCurrent();
-    win.show();
-    win.focus();
+    revealMainWindow("screenshot");
     const payload: ScreenshotCapture = { url, width: size.width, height: size.height, surfaceBinding: project.surfaceBinding };
-    win.webContents.send("nomi:screenshot:captured", payload);
+    sendToMainWindow("nomi:screenshot:captured", payload);
   } catch (error) {
     if (isProjectCancellation(error)) return;
     throw error;

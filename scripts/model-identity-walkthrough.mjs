@@ -390,7 +390,7 @@ async function soraScenario(win, lang, nodeId, prefix) {
   expectThat(!blank, 'Sora 节点所在画布正常渲染（没有白屏）')
   await composer(win).locator(`[aria-label="${t.generate}"]`).first().click()
   const card = await poll(async () => {
-    const confirm = win.locator('.fixed.inset-0').last().getByRole('button', { name: t.confirm, exact: true })
+    const confirm = win.locator('[data-spend-confirm-dialog]').last().getByRole('button', { name: t.confirm, exact: true })
     if (await confirm.count()) await confirm.first().click().catch(() => undefined)
     return win.evaluate(({ id, retired, switchModel }) => {
       // 失败卡的标题（原因）住在 role=alert 的 aria-label 里；卡里第一颗带 aria-label 的是右上角「收起」×，

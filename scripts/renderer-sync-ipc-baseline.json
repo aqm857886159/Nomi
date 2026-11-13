@@ -115,10 +115,6 @@
     },
     {
       "file": "electron/preload/runtimeBridge.ts",
-      "channel": "nomi:events:generation-eta-stats"
-    },
-    {
-      "file": "electron/preload/runtimeBridge.ts",
       "channel": "nomi:skill:delete"
     },
     {

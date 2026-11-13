@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-11-09T03:20:41.175Z",
+  "method": "git log -S + git show + unchanged two-reasoning/two-tool projection through historical source; not a native UI run",
+  "c77IsAncestorOfSeptember15": true,
+  "rows": [
+    {
+      "rev": "4ba92ef52^",
+      "thinkingDetails": 2,
+      "texts": [
+        "first",
+        "second"
+      ]
+    },
+    {
+      "rev": "4ba92ef52",
+      "thinkingDetails": 1,
+      "texts": [
+        "first\n\nsecond"
+      ]
+    },
+    {
+      "rev": "eab64daa2",
+      "thinkingDetails": 1,
+      "texts": [
+        "first\n\nsecond"
+      ]
+    },
+    {
+      "rev": "HEAD",
+      "thinkingDetails": 1,
+      "texts": [
+        "first\n\nsecond"
+      ]
+    }
+  ]
+}

@@ -12,5 +12,7 @@
   "stopMinFailureSessions": 2,
   "sessionBasis": "现有flattenEvents保留sessionId；协调要求每指标新版失败来自至少2个不同会话，避免单会话重复失败判停。",
   "z": 1.959963984540054,
-  "intervalBasis": "标准正态双侧95%分位数；Newcombe 1998方法10，无连续性校正，两边各用Wilson score区间。"
+  "intervalBasis": "标准正态双侧95%分位数；Newcombe 1998方法10，无连续性校正，两边各用Wilson score区间。",
+  "localRefusalCodes": ["model-config", "asset-too-large", "asset-upload-failed", "asset-invalid", "reference-not-in-use", "aspect-ratio-unsupported", "outbound-blocked-credential-origin", "outbound-blocked", "outbound-blocked-submit", "submission-not-sent", "local-refusal"],
+  "localRefusalBasis": "没有upstreamStatus的老事件，errorType属于「本机产生、服务商没参与」的码就算本机拦下：产品闭合表GENERATION_LOCAL_REFUSALS（去掉uncoded）+已删除的按地址拒绝两个码（老版本还在发）+submission-not-sent（classifyError：确定没离开本机）+local-refusal。拿不准的码不放：local-processing、model-kind-mismatch、model-not-open、model-retired、image-route-disabled、credential-redirect；network明确不算。"
 }

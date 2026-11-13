@@ -16,9 +16,9 @@ import { makeTempDir } from '../../scripts/_test-temp.mjs'
 //
 // ── 为什么每条断言都同时验「该有的」和「不该有的」 ────────────────────────
 //
-// 只验「多图参考没了」是空洞的：模式栏根本没渲染出来时它同样成立。所以每一行都用
-// `toHaveText([...])` 钉死**完整有序的模式列表**——多一个少一个都报红，正负两面同时成立。
-// `expectAbsent` 只用在「先在它会出现的现场证明过探针」的那两处（APIMart 的参考图 → Runway 的没有）。
+// 只验「多图参考没了」是空洞的：模式栏根本没渲染出来时它同样成立。所以每一行都把底栏方式格下拉的
+// **完整有序的方式列表**整份比对（2026-11-12 起方式只住底栏方式格，名字统一为文生视频 / 图生视频 /
+// 首尾帧 / 全能参考，按词典键取）——多一个少一个都报红，正负两面同时成立。
 //
 // ── 进场为什么要自己开供应商 ──────────────────────────────────────────────
 //
@@ -54,8 +54,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp, seedSavedFixtureCredentials } from './_launchApp.mjs'
-import { expect, expectVisible, expectAbsent, proveProbe, clickOrFail } from './_assert.mjs'
+import { expect, expectVisible, clickOrFail } from './_assert.mjs'
 import { canvasAddBar, newProjectEntry } from './_shell.mjs'
+import { modeName, modeCell, openModeMenu, closeModeMenu } from './_modeMenu.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/runway-vendor-honest-modes')
@@ -99,8 +100,9 @@ async function shot(tag) {
 }
 
 const composer = win.locator('.generation-canvas-v2-node__composer')
-const modeGroup = composer.locator('[role="group"][aria-label="生成方式"]')
-const modeButtons = modeGroup.locator('button')
+// 方式在底栏方式格的下拉里（2026-11-12 起；参数面板里不再有「生成方式」）。名字按词典键取：
+// text 文生视频 / image 图生视频 / firstLast 首尾帧 / reference 全能参考。
+const M = (kind) => modeName('zh', kind)
 const paramPanel = win.locator('[role="group"][aria-label="生成参数面板"]')
 
 /**
@@ -151,9 +153,11 @@ async function pickModel(match, humanLabel) {
   return texts[index]
 }
 
-/** 读当前模式栏的按钮文案（视觉证据的 DOM 对照物）。 */
+/** 读方式格下拉里的每一行名字（视觉证据的 DOM 对照物）；读完关上。 */
 async function readModes() {
-  return (await modeButtons.allTextContents()).map((t) => t.trim())
+  const rows = await openModeMenu(win, composer, 'zh')
+  await closeModeMenu(win)
+  return rows.map((row) => row.name)
 }
 
 /**
@@ -180,15 +184,15 @@ async function assertModeBar({ pick, humanLabel, expectVendor, expectModelKey, e
   }
 
   // ② 模式栏闸：身份对了，才轮到「这家该露哪几个模式」。
-  await expectVisible(modeGroup, `「${humanLabel}」的「生成方式」分段条应当出现`)
-  await expect(
-    modeButtons,
-    `「${humanLabel}」的模式栏与真实能力不符。\n`
-      + `  期望（= 这家的 mapping 真发得出的模式）：${JSON.stringify(expected)}\n`
-      + '  多出来的模式 = 模式栏在撒谎（用户点了要等第三闸才被拒），少了的 = 收窄过头，砍掉了真能用的功能。\n'
-      + `  截图：${path.relative(repoRoot, file)}`,
-  ).toHaveText(expected)
+  await expectVisible(modeCell(composer, 'zh'), `「${humanLabel}」的底栏方式格应当出现`)
   const observed = await readModes()
+  expect(
+    observed,
+    `「${humanLabel}」的方式菜单与真实能力不符。\n`
+      + `  期望（= 这家的 mapping 真发得出的模式）：${JSON.stringify(expected)}\n`
+      + '  多出来的模式 = 方式菜单在撒谎（用户点了要等第三闸才被拒），少了的 = 收窄过头，砍掉了真能用的功能。\n'
+      + `  截图：${path.relative(repoRoot, file)}`,
+  ).toEqual(expected)
   record(`${humanLabel} 绑定 ${identity.modelVendor}/${identity.modelKey} · 模式栏 = ${JSON.stringify(observed)}`, path.basename(file))
   return { picked, identity, observed, file }
 }
@@ -224,13 +228,13 @@ try {
 
   // ── ① Runway Veo 3.1：veo union 只有 promptImage，**没有 reference 字段** ──
   // 旧的平台档案在这里会露「多图参考」；真实的 veo-3.1 档案声明了 reference 模式，但 Runway 这条
-  // 渠道取不到它的 mapping（判据 a）→ 必须被收窄掉，只剩文生视频 + 首尾帧。
+  // 渠道取不到它的 mapping（判据 a）→ 必须被收窄掉，只剩文生视频 + 首帧（可带尾帧）——这个档案没有纯首帧方式，按槽形状叫「图生视频」。
   observations['runway/veo3.1'] = await assertModeBar({
     pick: (t) => t.startsWith('Runway Veo 3.1') && !t.includes('Fast'),
     humanLabel: 'Runway Veo 3.1',
     expectVendor: 'runway',
     expectModelKey: 'veo3.1',
-    expected: ['文生视频', '首尾帧'],
+    expected: [M('text'), M('image')],
     tag: 'runway-veo31',
   })
 
@@ -256,17 +260,18 @@ try {
     humanLabel: 'Runway HappyHorse 1.0',
     expectVendor: 'runway',
     expectModelKey: 'happyhorse_1_0',
-    expected: ['文生视频', '图生视频'],
+    expected: [M('text'), M('image')],
     tag: 'runway-happyhorse',
   })
 
   // ── ③ Runway Gemini Omni Flash：同 veo，union 里没有 reference 字段 ────────
+  // 剩下的那一种是「首帧 + 可选尾帧」、档案没有纯首帧方式 → 方式格按槽形状叫它「图生视频」（modeDisplayKind）。
   observations['runway/gemini_omni_flash'] = await assertModeBar({
     pick: (t) => t.startsWith('Runway Gemini Omni Flash'),
     humanLabel: 'Runway Gemini Omni Flash',
     expectVendor: 'runway',
     expectModelKey: 'gemini_omni_flash',
-    expected: ['文生视频', '首尾帧'],
+    expected: [M('text'), M('image')],
     tag: 'runway-gemini-omni-flash',
   })
 
@@ -279,7 +284,7 @@ try {
     humanLabel: 'Runway Grok Imagine 1.5',
     expectVendor: 'runway',
     expectModelKey: 'grok_imagine_1_5',
-    expected: ['文生视频', '图生视频'],
+    expected: [M('text'), M('image')],
     tag: 'runway-grok-imagine-15',
   })
 
@@ -292,18 +297,11 @@ try {
     humanLabel: 'APIMart Veo 3.1',
     expectVendor: 'apimart',
     expectModelKey: 'veo3.1-fast',
-    expected: ['文生视频', '参考图', '首尾帧'],
+    expected: [M('text'), M('reference'), M('image')],
     tag: 'apimart-veo31',
   })
-
-  // 「参考图」确实会出现——**必须在它该出现的那一屏当场证**（此刻选中的正是 APIMart 的 Veo 3.1）。
-  // 别挪到后面去：下面还要选 Seedance 2，那一屏本来就没有「参考图」，探针在那里必然找不到——
-  // 于是基线报红，而红的是「探针站错了现场」，不是产品。证明必须紧贴它所证的那一屏。
-  const referenceProof = await proveProbe(
-    modeGroup.locator('button', { hasText: '参考图' }),
-    'APIMart 的 Veo 3.1 模式栏里「参考图」确实会出现',
-  )
-  record('对照成立：同一个 veo-3.1 档案在 APIMart 露 3 个模式（含「参考图」）')
+  // 参考图那一行（统一叫「全能参考」）确实会出现——上面整份有序比对已在这一屏当场证过。
+  record('对照成立：同一个 veo-3.1 档案在 APIMart 露 3 个方式（含参考图那一行）')
 
   // ── ⑥ Runway Seedance 2：t2v + 首帧 + 全能参考，**没有首尾帧** ─────────────
   // seedance-2 档案有 4 模式（t2v/first/firstlast/omni）；Runway 的 spec 把 image 角色映射到
@@ -319,18 +317,15 @@ try {
     humanLabel: 'Runway Seedance 2',
     expectVendor: 'runway',
     expectModelKey: 'seedance2',
-    expected: ['文生视频', '首帧', '全能参考'],
+    expected: [M('text'), M('image'), M('reference')],
     tag: 'runway-seedance2',
   })
 
   // ── 回到 Runway 的 Veo 3.1：同档案，「参考图」必须消失 ─────────────────────
   // 这才是这次改动的**唯一充分证据**：不是「Runway 这行本来就窄」，而是同一个档案换条渠道就收窄。
   await pickModel((t) => t.startsWith('Runway Veo 3.1') && !t.includes('Fast'), 'Runway Veo 3.1（回切）')
-  await expect(modeButtons, '回切 Runway 后模式栏应当重新收窄成 2 个').toHaveText(['文生视频', '首尾帧'])
-  await expectAbsent(modeGroup.locator('button', { hasText: '参考图' }), {
-    provenBy: referenceProof,
-    message: '同一个 veo-3.1 档案走 Runway 时不该露「参考图」（Runway 的 veo union 没有 reference 字段）',
-  })
+  // 整份有序比对同时钉住「参考图那一行消失」（同一个 veo-3.1 档案走 Runway，veo union 没有 reference 字段）。
+  expect(await readModes(), '回切 Runway 后方式菜单应当重新收窄成 2 个、参考图那一行消失').toEqual([M('text'), M('image')])
   observations['contrast'] = { file: await shot('contrast-runway-veo31-narrowed') }
   record('核心对照：同一 veo-3.1 档案 APIMart 3 模式 → Runway 收窄成 2，「参考图」消失')
 

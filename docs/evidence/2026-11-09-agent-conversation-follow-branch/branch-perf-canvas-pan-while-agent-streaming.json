@@ -1,0 +1,70 @@
+{
+  "machine": "darwin arm64 Apple M5 x10 / 24GB",
+  "commit": "1ded6e7b5",
+  "head": "1ded6e7b598aee99039a6584ce4231c1a34a0e3d",
+  "dirty": false,
+  "sourceTree": "1c0a35e0eb2ff471b6d51ed300394256cbef6e06",
+  "date": "2026-11-09",
+  "runs": 5,
+  "results": [
+    {
+      "id": "canvas-pan-while-agent-streaming",
+      "metrics": {
+        "frameGapP95": {
+          "runs": 5,
+          "median": 10.7,
+          "p95": 10.8
+        },
+        "longTasks": {
+          "runs": 5,
+          "median": 0,
+          "p95": 0
+        },
+        "mainRoundTripMax": {
+          "runs": 5,
+          "median": 1,
+          "p95": 1
+        }
+      },
+      "samples": {
+        "frameGapP95": [
+          10.7,
+          10.7,
+          10.6,
+          10.8,
+          10.8
+        ],
+        "longTasks": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "response": [],
+        "mainRoundTripMax": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "mediaRequests": [],
+        "blankCardPct": []
+      },
+      "budget": 33,
+      "baseline": {
+        "median": 7.9,
+        "p95": 8.4,
+        "runs": 5,
+        "machine": "win32 x64 13th Gen Intel(R) Core(TM) i9-13900H x20 / 64GB",
+        "date": "2026-10-16",
+        "commit": "94724f860"
+      },
+      "verdict": {
+        "status": "regression",
+        "note": "中位数 10.7 比基线 7.9 差 35%"
+      }
+    }
+  ]
+}

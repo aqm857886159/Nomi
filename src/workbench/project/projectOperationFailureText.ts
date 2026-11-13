@@ -28,6 +28,79 @@ export function projectNotice(t: TFunction, key: ProjectNoticeKey): UserText {
   return t(key) as UserText
 }
 
+/**
+ * 有项被隔离（保存时没存进项目 / 打开时没放进项目）的那一句话。创作者要能读懂：哪份分镜、第几镜（从 1 数）、
+ * 哪一项（界面上的叫法；对不上的只说到第几镜，绝不露 `plan.shots[12]…` 这种路径）、其余是否已存好、
+ * 项目里现在是上一版还是没有、没存上的内容去了哪里。多项合成一句「有 N 处」。
+ * 标题 / 分类名是用户自己的内容，只在这里进界面，不进日志。
+ */
+export type QuarantineNoticeInput = Readonly<{
+  origin: 'open' | 'save'
+  item: Readonly<{ container: string; field: string; title?: string; keptPreviousVersion: boolean; raw?: unknown }>
+}>
+
+/** 镜头里的字段 → 界面叫法（词典键）。没列的字段只说到第几镜。 */
+const SHOT_FIELD_KEYS: Readonly<Record<string, string>> = {
+  durationSec: 'studio.quarantineFieldDuration',
+  prompt: 'studio.quarantineFieldPrompt',
+  promptSegments: 'studio.quarantineFieldPrompt',
+  referenceBindings: 'studio.quarantineFieldReferences',
+  anchorIds: 'studio.quarantineFieldReferences',
+  autoReferenced: 'studio.quarantineFieldReferences',
+  modelKey: 'studio.quarantineFieldModel',
+  modelVendor: 'studio.quarantineFieldModel',
+  modeId: 'studio.quarantineFieldModel',
+  params: 'studio.quarantineFieldModel',
+  shotKind: 'studio.quarantineFieldShotKind',
+  keyframe: 'studio.quarantineFieldKeyframe',
+  ffDesc: 'studio.quarantineFieldDescription',
+  lfDesc: 'studio.quarantineFieldDescription',
+  motionDesc: 'studio.quarantineFieldDescription',
+}
+
+function quarantineWhere(t: TFunction, item: QuarantineNoticeInput['item']): string {
+  if (item.container === 'storyboardDesign') {
+    const title = item.title?.trim() || t('studio.quarantineUntitledStoryboard')
+    const shot = /^plan\.shots\[(\d+)\](?:\.([A-Za-z]+))?/.exec(item.field)
+    if (shot) {
+      const number = Number(shot[1]) + 1
+      const fieldKey = shot[2] ? SHOT_FIELD_KEYS[shot[2]] : undefined
+      return fieldKey
+        ? t('studio.quarantineWhereShotField', { title, shot: number, field: t(fieldKey) })
+        : t('studio.quarantineWhereShot', { title, shot: number })
+    }
+    const anchor = /^plan\.anchors\[(\d+)\]/.exec(item.field)
+    if (anchor) return t('studio.quarantineWhereAnchor', { title, anchor: Number(anchor[1]) + 1 })
+    return t('studio.quarantineWhereStoryboard', { title })
+  }
+  if (item.container === 'category') {
+    const name = item.raw && typeof item.raw === 'object' ? (item.raw as { name?: unknown }).name : undefined
+    return typeof name === 'string' && name.trim() ? t('studio.quarantineWhereCategory', { name: name.trim() }) : t('studio.quarantineWhereCategoryUnnamed')
+  }
+  if (item.container === 'editingPanelLayout') return t('studio.quarantineWhereLayout')
+  return t('studio.quarantineWhereOther')
+}
+
+export function projectQuarantineNoticeText(t: TFunction, items: readonly QuarantineNoticeInput[]): UserText {
+  const where = quarantineWhere(t, items[0]!.item)
+  const onOpenOnly = items.every((entry) => entry.origin === 'open')
+  if (items.length === 1) {
+    if (onOpenOnly) return t('studio.quarantineOpenOne', { where }) as UserText
+    return t(items[0]!.item.keptPreviousVersion ? 'studio.quarantineSaveOneKept' : 'studio.quarantineSaveOneMissing', { where }) as UserText
+  }
+  const count = items.length
+  if (onOpenOnly) return t('studio.quarantineOpenMany', { count, where }) as UserText
+  const kept = items.filter((entry) => entry.origin === 'save' && entry.item.keptPreviousVersion).length
+  const previous = kept === count ? t('studio.quarantinePreviousAllKept')
+    : kept === 0 ? t('studio.quarantinePreviousNoneKept')
+    : t('studio.quarantinePreviousSomeKept', { kept, missing: count - kept })
+  return t('studio.quarantineSaveMany', { count, where, previous }) as UserText
+}
+
+export function projectQuarantineRevealLabel(t: TFunction): UserText {
+  return t('studio.quarantineRevealFolder') as UserText
+}
+
 export type ProjectOperation = 'save' | 'delete' | 'revealFolder' | 'openWorkspace' | 'restore' | 'create' | 'createDemo'
 
 /** 项目位置被拒时，{{place}} 说的是 Nomi 自己的哪类目录（主进程判定：electron/workspace/workspaceLocationPolicy.ts）。 */

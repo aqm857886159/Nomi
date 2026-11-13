@@ -97,7 +97,7 @@ export function findOutboundContractBreaches(state: CatalogState): { breaches: C
       if (!seed) return;
       slotsChecked++;
 
-      const projected = buildArchetypeInputParams(meta as Record<string, unknown>, archetype, seed as never);
+      const projected = buildArchetypeInputParams(meta as Record<string, unknown>, mode, seed as never);
       const extras: Record<string, unknown> = {
         ...seed,
         referenceImages: (seed.referenceImages as string[] | undefined) ?? [],

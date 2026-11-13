@@ -7,6 +7,7 @@ import type { NomiSelectProps } from '../../../design/NomiSelect'
 import type { WorkbenchIconButtonProps } from '../../../design/actions'
 import { toCatalogModelOptions } from '../../../config/modelOptionMappers'
 import InlineParameterBar from './InlineParameterBar'
+import { summaryFitCandidates } from './composerHeadlineSummary'
 import type { DynamicModelControl } from './controls/parameterControlModel'
 
 const captured = vi.hoisted(() => ({ selects: [] as NomiSelectProps[], iconButtons: [] as WorkbenchIconButtonProps[] }))
@@ -134,7 +135,8 @@ describe('InlineParameterBar 摘要 pill', () => {
   it('一行、不换行，身份行是自己的 flex 盒', () => {
     const { html } = render([ratio, duration], {})
     expect(barClass(html).split(' ')).not.toContain('flex-wrap')
-    expect(html).toContain('class="flex min-w-0 items-center gap-1.5"')
+    // 身份行能缩（min-w-0）：参数退到只剩时长还放不下时，模型名末尾省略（2026-11-12 让法顺序）；量得到空间时变 shrink-0。
+    expect(html).toContain('class="flex items-center gap-1.5 min-w-0"')
   })
 
   // 逐参数 chip / 就地展开面板 / 竖排那几种摆法只给过聊天里的卡，随旧卡一起删了：不许长回来。
@@ -232,5 +234,23 @@ describe('InlineParameterBar 清单空态（走查 §4）', () => {
 
   it('确认没有清单（非加载）时不画骨架', () => {
     expect(renderEmpty('ready')).not.toContain('data-model-chip-loading')
+  })
+})
+
+// 底栏挤时摘要整值地退（边界样张 K4）：比例 → 有声 → 清晰度 → 时长留到最后；永远至少留一个值，不出现半个值。
+describe('summaryFitCandidates', () => {
+  const part = (text: string, dropRank: number) => ({ text, dropRank })
+  it('从全写开始，按 dropRank 从小到大一档一档整值地退，最后只剩时长', () => {
+    expect(summaryFitCandidates([part('21:9', 0), part('有声', 1), part('1080p', 2), part('15s', 3)])).toEqual([
+      '21:9 · 有声 · 1080p · 15s',
+      '有声 · 1080p · 15s',
+      '1080p · 15s',
+      '15s',
+    ])
+  })
+  it('同一档的几个值一起退；只有一档时不退', () => {
+    expect(summaryFitCandidates([part('16:9', 0), part('720p', 2), part('5s', 3)])).toEqual(['16:9 · 720p · 5s', '720p · 5s', '5s'])
+    expect(summaryFitCandidates([part('5s', 3)])).toEqual(['5s'])
+    expect(summaryFitCandidates([])).toEqual([])
   })
 })

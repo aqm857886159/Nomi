@@ -202,6 +202,7 @@
 - [样张拍板只卡大 UI 改动](mockup-approval-gates-only-big-ui.md) — 小 UI / 非 UI 不等拍板照常推进，等待期并行推别的轨
 - [样张合同必须从真实实验室屏产生](mockup-contracts-must-start-from-real-lab-screen.md) — 新验收样张必须由生产组件与真实宿主数据渲染，HTML 只作 exploration，整张区域对账进门岗
 - [样张交付 = 逐屏逐件走读，不是统计表汇总](mockup-delivery-is-a-per-screen-walkthrough.md) — 每件「这是什么 / 为什么 / 什么时候碰」三段式；走读文档还是验收合同的上游
+- [样张只画到 3 张图，最大数量下的坏排版没人看见](mockups-only-drawn-to-three-items-hide-max-count-breakage.md) — 出会随数据变多 / 变长 / 变窄的界面样张、或核验收证据图时；先数最大值再画，每处画空 / 常见 / 最大 / 最长文字，写进 `boundarySheet`
 - [界面重设计走四步流水线：整件复用优先](ui-redesign-four-step-pipeline.md) — 分类 → 找证据（库解剖 / 竞品还原，禁脑补）→ 还原解剖 → 套 token + 认知负荷审计
 - [本地旧构建的 `-h` ≠ 官方现役能力面](stale-local-build-is-not-the-current-capability.md) — 判「工具支不支持 X」先刷新到现役版本；update log 才是事实源
 - [自造 `skill.json`：标准就摆在那儿，只是没人在动手前去看一眼](self-invented-skill-json-while-the-standard-existed.md) — 碰「外部也读写」的格式前先找规范；扩展只放标准的扩展点、不许另起平行文件；症状修复（加兼容导入）会让根因活得更久

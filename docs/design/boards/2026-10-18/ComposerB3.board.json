@@ -315,15 +315,18 @@
         "234-button-不再提示",
         "235-svg"
       ],
-      "status": "implemented",
+      "status": "dropped",
       "states": [
         "hover",
         "narrow",
         "zh-en",
         "dark"
       ],
-      "note": "行尾小字 + 文字链接，不是彩色条（用户 10-18 规则：生成框里不放彩色提示条）",
-      "assertion": "board:ComposerB3/ref.tail.ambiguity-hint"
+      "note": "2026-11-12 删：方式格写的就是这次发的，想当首尾帧用就点方式格选「首尾帧」，不再在行尾问。去处：ModeBar 清单 bar.mode / mode.menu。原注：行尾小字 + 文字链接，不是彩色条（用户 10-18 规则：生成框里不放彩色提示条）",
+      "userDecision": {
+        "quote": "按照他的思路改…不同模型的选择有时候也不一致…他已经是成熟产品了",
+        "date": "2026-11-12"
+      }
     },
     {
       "id": "ref.tail.unused-note",
@@ -332,13 +335,16 @@
       "candidates": [
         "274-span-首尾帧用不到切回参考还在"
       ],
-      "status": "implemented",
+      "status": "dropped",
       "states": [
         "zh-en",
         "dark"
       ],
-      "note": "状态靠界面本身变化（多出的图变淡）交代，这行是少数有后果且规律一眼可见的说明",
-      "assertion": "board:ComposerB3/ref.tail.unused-note"
+      "note": "2026-11-12 删：放不下的方式在方式菜单里置灰点不了，不会再出现「首尾帧用不到」。去处：ModeBar 清单 mode.menu。原注：状态靠界面本身变化（多出的图变淡）交代，这行是少数有后果且规律一眼可见的说明",
+      "userDecision": {
+        "quote": "按照他的思路改…不同模型的选择有时候也不一致…他已经是成熟产品了",
+        "date": "2026-11-12"
+      }
     },
     {
       "id": "ref.tail.unsupported-note",
@@ -413,7 +419,7 @@
         "zh-en",
         "dark"
       ],
-      "note": "新增行为：必须交换真实边 / 上传来源，不能只换图（BOUND-05）",
+      "note": "新增行为：必须交换真实边 / 上传来源，不能只换图（BOUND-05）。【待用户点头的偏差，2026-11-12 协调定】对调后这个方式发不出去（另一格必填而现在是空的）时 ⇄ 置灰，悬停写「首帧必须放，放了两张才能对调」；判据只看档案槽的必填声明，首帧可不放的模型只放一张时仍可点。B3d 这一格因此和拍板图不同（拍板图上 ⇄ 可点）。改前 / 改后并排图：docs/evidence/2026-11-12-mode-bar/swap-before-after-zh.png、swap-before-after-en.png。用户不同意就改回。",
       "assertion": "board:ComposerB3/ref.slot.swap"
     },
     {
@@ -450,15 +456,18 @@
         "272-svg-树林暂时用不到",
         "273-span-未用到"
       ],
-      "status": "implemented",
+      "status": "dropped",
       "states": [
         "disabled",
         "hover",
         "zh-en",
         "dark"
       ],
-      "note": "同一格也装旧工程里以前藏着的图（先放一边，#1269 条件 4，协调 2026-10-23 定、已报用户）：悬停小提示写「名字 · 点一下用上」，点一下放回在用；当前方式放不下就不放、提示「已放满，先删一张再添加」。不新增元素、不另出画布稿（协调 2026-10-23）。走查：composer-b3.walk.mjs 旧工程残留一节（中 / 英 × 明 / 暗）。",
-      "assertion": "board:ComposerB3/ref.slot.unused"
+      "note": "2026-11-12 起淡格只剩一种字「不会发」（模型没有任何方式放得下全部输入时），旧工程残留淡格也写「不会发」、点一下用上照旧。去处：ModeBar 清单 ref.tiles。原注：同一格也装旧工程里以前藏着的图（先放一边，#1269 条件 4，协调 2026-10-23 定、已报用户）：悬停小提示写「名字 · 点一下用上」，点一下放回在用；当前方式放不下就不放、提示「已放满，先删一张再添加」。不新增元素、不另出画布稿（协调 2026-10-23）。走查：composer-b3.walk.mjs 旧工程残留一节（中 / 英 × 明 / 暗）。",
+      "userDecision": {
+        "quote": "按照他的思路改…不同模型的选择有时候也不一致…他已经是成熟产品了",
+        "date": "2026-11-12"
+      }
     },
     {
       "id": "prompt.editor",
@@ -938,14 +947,18 @@
       "candidates": [
         "078-div-此模型最多9张图3段视频"
       ],
-      "status": "implemented",
+      "status": "dropped",
       "states": [
         "hover",
         "long-text",
         "zh-en",
         "dark"
       ],
-      "assertion": "board:ComposerB3/params.mode.limit-tip"
+      "userDecision": {
+        "quote": "按照他的思路改…不同模型的选择有时候也不一致…他已经是成熟产品了",
+        "date": "2026-11-12"
+      },
+      "note": "2026-11-12 删：上限改由方式菜单每行的说明写。去处：ModeBar 清单 mode.menu"
     },
     {
       "id": "params.group.variant",
@@ -979,15 +992,18 @@
         "086-svg-参考的模型上限",
         "087-button-首尾帧"
       ],
-      "status": "implemented",
+      "status": "dropped",
       "states": [
         "selected",
         "disabled",
         "zh-en",
         "dark"
       ],
-      "note": "默认：有「参考」就参考，没有就首尾帧 / 首帧；图片节点没有这一组，没放图是文生图、放了图是参考 / 改图",
-      "assertion": "board:ComposerB3/params.group.mode"
+      "note": "2026-11-12 删：生成方式挪到底栏「模型｜方式｜参数」的方式格，并加回「文生视频」。去处：ModeBar 清单 bar.mode / mode.menu。原注：默认：有「参考」就参考，没有就首尾帧 / 首帧；图片节点没有这一组，没放图是文生图、放了图是参考 / 改图",
+      "userDecision": {
+        "quote": "按照他的思路改…不同模型的选择有时候也不一致…他已经是成熟产品了",
+        "date": "2026-11-12"
+      }
     },
     {
       "id": "params.group.aspect",

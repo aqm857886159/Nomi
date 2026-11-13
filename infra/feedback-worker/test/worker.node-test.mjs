@@ -113,15 +113,19 @@ test('没绑 KV 也能收反馈', async () => {
   assert.equal(puts.length, 1)
 })
 
-test('事件与轨迹不发编号；事件报接收条数', async () => {
+test('事件不发编号，报接收条数', async () => {
   const { env, puts } = fakeEnv()
   const events = await (await worker.fetch(post('/v1/events', { events: [{ a: 1 }, { a: 2 }, { a: 3 }] }), env)).json()
   assert.equal(events.receipt, undefined)
   assert.equal(events.accepted, 3)
-  const trajectory = await (await worker.fetch(post('/v1/trajectories', { turn: {} }), env)).json()
-  assert.equal(trajectory.ok, true)
-  assert.equal(trajectory.id, undefined)
-  assert.deepEqual(puts.map((put) => put.key.split('/')[0]), ['events', 'trajectories'])
+  assert.deepEqual(puts.map((put) => put.key.split('/')[0]), ['events'])
+})
+
+test('删掉的轨迹路由不再收（从没有发布版本发过）', async () => {
+  const { env, puts } = fakeEnv()
+  const response = await worker.fetch(post('/v1/trajectories', { turn: {} }), env)
+  assert.notEqual(response.status, 200)
+  assert.equal(puts.length, 0)
 })
 
 test('存下来的记录把客户端原文与到达元数据分开放，且不含身份信息', async () => {
