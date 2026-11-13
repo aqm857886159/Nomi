@@ -39,8 +39,10 @@ function stamp(now: Date): string {
 
 /** 文件名安全：去掉各平台不许的字符和控制字符，空白并成一个下划线，去掉首尾点和下划线，按字符限长。 */
 export function quarantineSafeName(value: string): string {
-  const cleaned = value
-    .replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g, " ")
+  const cleaned = Array.from(value, (ch) => {
+    const code = ch.codePointAt(0) ?? 0;
+    return code < 0x20 || code === 0x7f || '<>:"/\\|?*'.includes(ch) ? " " : ch;
+  }).join("")
     .replace(/\s+/g, "_")
     .replace(/^[._]+|[._]+$/g, "");
   return Array.from(cleaned).slice(0, NAME_MAX_CHARS).join("").replace(/[._]+$/g, "") || "item";

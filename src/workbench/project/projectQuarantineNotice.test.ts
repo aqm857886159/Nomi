@@ -64,6 +64,7 @@ describe('quarantine notice sentence', () => {
 
 const stripComments = (source: string): string => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 const app = stripComments(readFileSync(resolve(process.cwd(), 'src/workbench/NomiStudioApp.tsx'), 'utf8'))
+const noticeSource = stripComments(readFileSync(resolve(process.cwd(), 'src/workbench/project/ProjectQuarantineNotice.tsx'), 'utf8'))
 
 describe('the notice is wired where the creator will see it', () => {
   it('announced after a save and after a project opens', () => {
@@ -74,11 +75,15 @@ describe('the notice is wired where the creator will see it', () => {
   })
 
   it('is a reminder (role=status, warning tokens), not a red alert, and offers the folder', () => {
-    const notice = app.slice(app.indexOf("feedback.tone === 'quarantine'"), app.indexOf(': <p role="alert"'))
+    expect(app).toMatch(/const projectFeedback = .*<ProjectFeedbackLine /)
+    const line = noticeSource.slice(noticeSource.indexOf('export function ProjectFeedbackLine'), noticeSource.indexOf('function ProjectQuarantineNotice'))
+    expect(line).toContain('<ProjectQuarantineNotice')
+    const notice = noticeSource.slice(noticeSource.indexOf('function ProjectQuarantineNotice'))
     expect(notice).toContain('role="status"')
     expect(notice).not.toContain('nomi-danger')
     expect(notice).toContain('bg-nomi-warning-soft')
-    expect(notice).toContain('revealQuarantine(')
-    expect(app).toMatch(/revealFile\b/)
+    expect(notice).toContain('onClick={revealQuarantine}')
+    expect(notice).toMatch(/revealFile\b/)
+    expect(notice).toContain('revealPath && reveal ?') // 没有另存文件路径或没有桌面桥时不出现按钮
   })
 })
