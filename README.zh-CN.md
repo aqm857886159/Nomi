@@ -24,7 +24,8 @@
   <a href="docs/integrate-with-your-agent.md">让你的 AI 帮你接入</a> ·
   <a href="#社区">加入用户群</a> ·
   <a href="#团队合作">团队合作</a> ·
-  <a href="README.md">English</a>
+  <a href="README.md">English</a> ·
+  <a href="README.ja.md">日本語</a>
 </p>
 
 <p align="center">
